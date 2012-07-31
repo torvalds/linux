@@ -70,6 +70,67 @@ static struct pmu_hw_events *cpu_pmu_get_cpu_events(void)
 	return &__get_cpu_var(cpu_hw_events);
 }
 
+static void cpu_pmu_free_irq(void)
+{
+	int i, irq, irqs;
+	struct platform_device *pmu_device = cpu_pmu->plat_device;
+
+	irqs = min(pmu_device->num_resources, num_possible_cpus());
+
+	for (i = 0; i < irqs; ++i) {
+		if (!cpumask_test_and_clear_cpu(i, &cpu_pmu->active_irqs))
+			continue;
+		irq = platform_get_irq(pmu_device, i);
+		if (irq >= 0)
+			free_irq(irq, cpu_pmu);
+	}
+}
+
+static int cpu_pmu_request_irq(irq_handler_t handler)
+{
+	int i, err, irq, irqs;
+	struct platform_device *pmu_device = cpu_pmu->plat_device;
+
+	if (!pmu_device)
+		return -ENODEV;
+
+	irqs = min(pmu_device->num_resources, num_possible_cpus());
+	if (irqs < 1) {
+		pr_err("no irqs for PMUs defined\n");
+		return -ENODEV;
+	}
+
+	for (i = 0; i < irqs; ++i) {
+		err = 0;
+		irq = platform_get_irq(pmu_device, i);
+		if (irq < 0)
+			continue;
+
+		/*
+		 * If we have a single PMU interrupt that we can't shift,
+		 * assume that we're running on a uniprocessor machine and
+		 * continue. Otherwise, continue without this interrupt.
+		 */
+		if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
+			pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
+				    irq, i);
+			continue;
+		}
+
+		err = request_irq(irq, handler, IRQF_NOBALANCING, "arm-pmu",
+				  cpu_pmu);
+		if (err) {
+			pr_err("unable to request IRQ%d for ARM PMU counters\n",
+				irq);
+			return err;
+		}
+
+		cpumask_set_cpu(i, &cpu_pmu->active_irqs);
+	}
+
+	return 0;
+}
+
 static void __devinit cpu_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int cpu;
@@ -79,7 +140,10 @@ static void __devinit cpu_pmu_init(struct arm_pmu *cpu_pmu)
 		events->used_mask = per_cpu(used_mask, cpu);
 		raw_spin_lock_init(&events->pmu_lock);
 	}
-	cpu_pmu->get_hw_events = cpu_pmu_get_cpu_events;
+
+	cpu_pmu->get_hw_events	= cpu_pmu_get_cpu_events;
+	cpu_pmu->request_irq	= cpu_pmu_request_irq;
+	cpu_pmu->free_irq	= cpu_pmu_free_irq;
 
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu && cpu_pmu->reset)

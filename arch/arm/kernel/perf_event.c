@@ -297,87 +297,39 @@ validate_group(struct perf_event *event)
 	return 0;
 }
 
-static irqreturn_t armpmu_platform_irq(int irq, void *dev)
+static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 {
 	struct arm_pmu *armpmu = (struct arm_pmu *) dev;
 	struct platform_device *plat_device = armpmu->plat_device;
 	struct arm_pmu_platdata *plat = dev_get_platdata(&plat_device->dev);
 
-	return plat->handle_irq(irq, dev, armpmu->handle_irq);
+	if (plat && plat->handle_irq)
+		return plat->handle_irq(irq, dev, armpmu->handle_irq);
+	else
+		return armpmu->handle_irq(irq, dev);
 }
 
 static void
 armpmu_release_hardware(struct arm_pmu *armpmu)
 {
-	int i, irq, irqs;
-	struct platform_device *pmu_device = armpmu->plat_device;
-
-	irqs = min(pmu_device->num_resources, num_possible_cpus());
-
-	for (i = 0; i < irqs; ++i) {
-		if (!cpumask_test_and_clear_cpu(i, &armpmu->active_irqs))
-			continue;
-		irq = platform_get_irq(pmu_device, i);
-		if (irq >= 0)
-			free_irq(irq, armpmu);
-	}
-
-	pm_runtime_put_sync(&pmu_device->dev);
+	armpmu->free_irq();
+	pm_runtime_put_sync(&armpmu->plat_device->dev);
 }
 
 static int
 armpmu_reserve_hardware(struct arm_pmu *armpmu)
 {
-	struct arm_pmu_platdata *plat;
-	irq_handler_t handle_irq;
-	int i, err, irq, irqs;
+	int err;
 	struct platform_device *pmu_device = armpmu->plat_device;
 
 	if (!pmu_device)
 		return -ENODEV;
 
-	plat = dev_get_platdata(&pmu_device->dev);
-	if (plat && plat->handle_irq)
-		handle_irq = armpmu_platform_irq;
-	else
-		handle_irq = armpmu->handle_irq;
-
-	irqs = min(pmu_device->num_resources, num_possible_cpus());
-	if (irqs < 1) {
-		pr_err("no irqs for PMUs defined\n");
-		return -ENODEV;
-	}
-
 	pm_runtime_get_sync(&pmu_device->dev);
-
-	for (i = 0; i < irqs; ++i) {
-		err = 0;
-		irq = platform_get_irq(pmu_device, i);
-		if (irq < 0)
-			continue;
-
-		/*
-		 * If we have a single PMU interrupt that we can't shift,
-		 * assume that we're running on a uniprocessor machine and
-		 * continue. Otherwise, continue without this interrupt.
-		 */
-		if (irq_set_affinity(irq, cpumask_of(i)) && irqs > 1) {
-			pr_warning("unable to set irq affinity (irq=%d, cpu=%u)\n",
-				    irq, i);
-			continue;
-		}
-
-		err = request_irq(irq, handle_irq,
-				  IRQF_DISABLED | IRQF_NOBALANCING,
-				  "arm-pmu", armpmu);
-		if (err) {
-			pr_err("unable to request IRQ%d for ARM PMU counters\n",
-				irq);
-			armpmu_release_hardware(armpmu);
-			return err;
-		}
-
-		cpumask_set_cpu(i, &armpmu->active_irqs);
+	err = armpmu->request_irq(armpmu_dispatch_irq);
+	if (err) {
+		armpmu_release_hardware(armpmu);
+		return err;
 	}
 
 	return 0;
