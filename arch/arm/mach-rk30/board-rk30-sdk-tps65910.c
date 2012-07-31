@@ -31,7 +31,7 @@ extern int platform_device_register(struct platform_device *pdev);
 
 int tps65910_pre_init(struct tps65910 *tps65910){
 
-	u8 val 	= 0;
+	int val = 0;
 	int i 	= 0;
 	int err = -1;
 	
@@ -43,105 +43,101 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	//gpio_request(PMU_POWER_SLEEP, "NULL");
 	//gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
 	
-	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DEVCTRL2);
-	if (err) {
+	val = tps65910_reg_read(tps65910, TPS65910_REG_DEVCTRL2);
+	if (val<0) {
 		printk(KERN_ERR "Unable to read TPS65910_REG_DEVCTRL2 reg\n");
-		return -EIO;
+		return val;
 	}
 	/* Set sleep state active high and allow device turn-off after PWRON long press */
 	val |= (TPS65910_DEV2_SLEEPSIG_POL | TPS65910_DEV2_PWON_LP_OFF);
 
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val,
-			TPS65910_REG_DEVCTRL2);
+	err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL2, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL2 reg\n");
-		return -EIO;
+		return err;
 	}
 	 #if 1
 	/* set PSKIP=0 */
-        err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DCDCCTRL);
-        if (err) {
+        val = tps65910_reg_read(tps65910, TPS65910_REG_DCDCCTRL);
+        if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
+                return val;
         }
 	//val &= ~(1 << 4);
 		val &= 0xFC;
 	//	val |= 0x03;
 
-        err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val,
-                        TPS65910_REG_DCDCCTRL);
+        err = tps65910_reg_write(tps65910, TPS65910_REG_DCDCCTRL, val);
         if (err) {
                 printk(KERN_ERR "Unable to write TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
+                return err;
         }
 	#endif
 	/* Set the maxinum load current */
 	/* VDD1 */
-	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VDD1);
-	if (err) {
+	val = tps65910_reg_read(tps65910, TPS65910_REG_VDD1);
+	if (val<0) {
 		printk(KERN_ERR "Unable to read TPS65910_REG_VDD1 reg\n");
-		return -EIO;
+		return val;
 	}
 
 	val |= (1<<5);
 	val |= (0x07<<2);
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD1);
+	err = tps65910_reg_write(tps65910, TPS65910_REG_VDD1, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_VDD1 reg\n");
-		return -EIO;
+		return err;
 	}
 
 	/* VDD2 */
-	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VDD2);
-	if (err) {
+	val = tps65910_reg_read(tps65910, TPS65910_REG_VDD2);
+	if (val<0) {
 		printk(KERN_ERR "Unable to read TPS65910_REG_VDD2 reg\n");
-		return -EIO;
+		return val;
 	}
 
 	val |= (1<<5);
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VDD2);
+	err = tps65910_reg_write(tps65910, TPS65910_REG_VDD2, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_VDD2 reg\n");
-		return -EIO;
+		return err;
 	}
 
 	/* VIO */
-	err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_VIO);
-	if (err) {
+	val = tps65910_reg_read(tps65910, TPS65910_REG_VIO);
+	if (val<0) {
 		printk(KERN_ERR "Unable to read TPS65910_REG_VIO reg\n");
 		return -EIO;
 	}
 
 	val |= (1<<6);
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_VIO);
+	err = tps65910_reg_write(tps65910, TPS65910_REG_VIO, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_VIO reg\n");
-		return -EIO;
+		return err;
 	}
 	#if 1
 	/* Mask ALL interrupts */
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, 0xFF,
-			TPS65910_REG_INT_MSK);
+	err = tps65910_reg_write(tps65910,TPS65910_REG_INT_MSK, 0xFF);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_INT_MSK reg\n");
-		return -EIO;
+		return err;
 	}
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, 0x03,
-			TPS65910_REG_INT_MSK2);
+	
+	err = tps65910_reg_write(tps65910, TPS65910_REG_INT_MSK2, 0x03);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_INT_MSK2 reg\n");
-		return -EIO;
+		return err;
 	}
 
 	/* Set RTC Power, disable Smart Reflex in DEVCTRL_REG */
 	#if 1
 	val = 0;
 	val |= (TPS65910_SR_CTL_I2C_SEL);
-	err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val,
-			TPS65910_REG_DEVCTRL);
+	err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL, val);
 	if (err) {
 		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL reg\n");
-		return -EIO;
+		return err;
 	}
 	printk(KERN_INFO "TPS65910 Set default voltage.\n");
 	#endif
@@ -149,7 +145,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	//read sleep control register  for debug
 	for(i=0; i<6; i++)
 	{
-        err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DEVCTRL+i);
+        err = tps65910_reg_read(tps65910, &val, TPS65910_REG_DEVCTRL+i);
         if (err) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
                 return -EIO;
@@ -162,63 +158,63 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	#if 1
 	//sleep control register
 	/*set func when in sleep mode */
-    err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DEVCTRL);
-        if (err) {
+	val = tps65910_reg_read(tps65910, TPS65910_REG_DEVCTRL);
+        if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
+                return val;
         }
 		val |= (1 << 1);
-		err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_DEVCTRL);
+		err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL, val);
 		if (err) {
 			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
 					\n", TPS65910_REG_VDIG1);
-			return -EIO;
+			return err;
 		}
 		/* open ldo when in sleep mode */
-        err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_SLEEP_KEEP_LDO_ON);
-        if (err) {
+        val = tps65910_reg_read(tps65910, TPS65910_REG_SLEEP_KEEP_LDO_ON);
+        if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
+                return val;
         }
 		val &= 0;
-		err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_SLEEP_KEEP_LDO_ON);
+		err = tps65910_reg_write(tps65910, TPS65910_REG_SLEEP_KEEP_LDO_ON, val);
 		if (err) {
 			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
 					\n", TPS65910_REG_VDIG1);
-			return -EIO;
+			return err;
 		}
 		/*set dc mode when in sleep mode */
-        err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_SLEEP_KEEP_RES_ON);
-        if (err) {
+        val = tps65910_reg_read(tps65910, TPS65910_REG_SLEEP_KEEP_RES_ON);
+        if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
+                return val;
         }
 		val  |= 0xff;
-		err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_SLEEP_KEEP_RES_ON);
+		err = tps65910_reg_write(tps65910, TPS65910_REG_SLEEP_KEEP_RES_ON, val);
 		if (err) {
 			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
 					\n", TPS65910_REG_VDIG1);
-			return -EIO;
+			return err;
 		}
 		/*close ldo when in sleep mode */
-        err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_SLEEP_SET_LDO_OFF);
-        if (err) {
+        val = tps65910_reg_read(tps65910, TPS65910_REG_SLEEP_SET_LDO_OFF);
+        if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
-                return -EIO;
+                return val;
         }
 		val |= 0x9B;
-		err = tps65910_i2c_write_u8(TPS65910_I2C_ID0, val, TPS65910_REG_SLEEP_SET_LDO_OFF);
+		err = tps65910_reg_write(tps65910, TPS65910_REG_SLEEP_SET_LDO_OFF, val);
 		if (err) {
 			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
 					\n", TPS65910_REG_VDIG1);
-			return -EIO;
+			return err;
 		}
 	#endif
 	#if 0
 	//read sleep control register  for debug
 	for(i=0; i<6; i++)
 	{
-        err = tps65910_i2c_read_u8(TPS65910_I2C_ID0, &val, TPS65910_REG_DEVCTRL+i);
+        err = tps65910_reg_read(tps65910, &val, TPS65910_REG_DEVCTRL+i);
         if (err) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
                 return -EIO;

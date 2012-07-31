@@ -1014,9 +1014,6 @@ int tps65910_bulk_read(struct tps65910 *tps65910, u8 reg,
 		     int count, u8 *buf);
 int tps65910_bulk_write(struct tps65910 *tps65910, u8 reg,
 		     int count, u8 *buf);
-
-int tps65910_i2c_write_u8(u8 slave_addr, u8 value, u8 reg);
-int tps65910_i2c_read_u8(u8 slave_addr, u8 *value, u8 reg);
 int tps65910_device_shutdown(void);
 
 
