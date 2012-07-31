@@ -115,6 +115,7 @@ void rcu_irq_exit(void)
 	rcu_idle_enter_common(newval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_irq_exit);
 
 /* Common code for rcu_idle_exit() and rcu_irq_enter(), see kernel/rcutree.c. */
 static void rcu_idle_exit_common(long long oldval)
@@ -172,6 +173,7 @@ void rcu_irq_enter(void)
 	rcu_idle_exit_common(oldval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_irq_enter);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
