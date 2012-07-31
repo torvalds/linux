@@ -57,7 +57,7 @@ struct rk_pwm_dcdc {
         struct regulator_desc desc;
         int pwm_id;
         struct regulator_dev *regulator;
-		struct pwm_platform_data *pdata;
+	struct pwm_platform_data *pdata;
 };
 
 
@@ -70,7 +70,7 @@ struct rk_pwm_dcdc {
 #endif
 
 const static int pwm_voltage_map[] = {
-	850000,875000,900000,925000,950000, 975000, 1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
 
 static struct clk *pwm_clk[2];
@@ -132,8 +132,9 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 
 static int pwm_regulator_list_voltage(struct regulator_dev *dev,unsigned int index)
 {
-	if (index < sizeof(pwm_voltage_map)/sizeof(int))
-		return pwm_voltage_map[index];
+	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
+	if (index < dcdc->desc.n_voltages)
+	return dcdc->pdata->pwm_voltage_map[index];
 	else
 		return -1;
 }
@@ -176,15 +177,14 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 #endif
 {	   
 	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
-	const int *voltage_map = pwm_voltage_map;
-
-	int min_mV = min_uV, max_mA = max_uV;
-
-	u32 size = sizeof(pwm_voltage_map)/sizeof(int), i, vol,pwm_value;
+	const int *voltage_map = dcdc->pdata->pwm_voltage_map;
+	int max = dcdc->pdata->max_uV;
+	int duty_cycle = dcdc->pdata->duty_cycle;
+	u32 size = dcdc->desc.n_voltages, i, vol,pwm_value;
 
 	DBG("%s:  min_uV = %d, max_uV = %d\n",__FUNCTION__, min_uV,max_uV);
 
-	if (min_mV < voltage_map[0] ||max_mA > voltage_map[size-1])
+	if (min_uV < voltage_map[0] ||max_uV > voltage_map[size-1])
 	{
 		printk("%s:voltage is out of table\n",__func__);
 		return -EINVAL;
@@ -192,7 +192,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 
 	for (i = 0; i < size; i++)
 	{
-		if (voltage_map[i] >= min_mV)
+		if (voltage_map[i] >= min_uV)
 			break;
 	}
 
@@ -201,9 +201,8 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 
 	dcdc->pdata->pwm_voltage = vol;
 
-	// VDD12 = 1.42 - 0.56*D , 其中D为PWM占空比, 
-	pwm_value = (1325000-vol)/5800;  // pwm_value %
-
+	// VDD12 = 1.40 - 0.455*D , 其中D为PWM占空比, 
+	pwm_value = (max-vol)/duty_cycle/10;  // pwm_value %, duty_cycle = D*1000
 
 	if (pwm_set_rate(dcdc->pdata,1000*1000,pwm_value)!=0)
 	{
@@ -242,17 +241,25 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
 	struct rk_pwm_dcdc *dcdc;
 	int pwm_id  =  pdata->pwm_id;
-	struct regulator_dev *rdev;
 	int id = pdev->id;
 	int ret ;
-    char gpio_name[20];
+    	char gpio_name[20];
 
 	if (!pdata)
 		return -ENODEV;
 
 	if (!pdata->pwm_voltage)
-		pdata->pwm_voltage = 1200000;	// default 1.2v
+		pdata->pwm_voltage = 1100000;	// default 1.1v
 
+	if(!pdata->pwm_voltage_map)
+		pdata->pwm_voltage_map = pwm_voltage_map;
+
+	if(!pdata->max_uV)
+		pdata->max_uV = 1400000;
+
+	if(!pdata->min_uV)
+		pdata->min_uV = 1000000;
+	
 	dcdc = kzalloc(sizeof(struct rk_pwm_dcdc), GFP_KERNEL);
 	if (dcdc == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
@@ -263,11 +270,11 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	dcdc->desc.name = dcdc->name;
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
-	dcdc->desc.n_voltages = 50;
+	dcdc->desc.n_voltages = ARRAY_SIZE(pwm_voltage_map);
 	dcdc->desc.ops = &pwm_voltage_ops;
 	dcdc->desc.owner = THIS_MODULE;
 	dcdc->pdata = pdata;
-
+	printk("%s:n_voltages=%d\n",__func__,dcdc->desc.n_voltages);
 	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
 					     pdata->init_data, dcdc);
 	if (IS_ERR(dcdc->regulator)) {

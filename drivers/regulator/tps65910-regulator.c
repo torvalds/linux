@@ -1324,7 +1324,7 @@ static int __init tps65910_init(void)
 {
 	return platform_driver_register(&tps65910_driver);
 }
-module_init(tps65910_init);
+subsys_initcall_sync(tps65910_init);
 
 static void __exit tps65910_cleanup(void)
 {

@@ -364,7 +364,7 @@ static int __init tps65910_i2c_init(void)
 	return i2c_add_driver(&tps65910_i2c_driver);
 }
 /* init early so consumer devices can complete system boot */
-module_init(tps65910_i2c_init);
+subsys_initcall_sync(tps65910_i2c_init);
 
 static void __exit tps65910_i2c_exit(void)
 {

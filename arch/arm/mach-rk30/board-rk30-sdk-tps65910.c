@@ -34,11 +34,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	int val = 0;
 	int i 	= 0;
 	int err = -1;
-	
-	#ifdef CONFIG_RK30_PWM_REGULATOR
-	platform_device_register(&pwm_regulator_device[0]);
-	#endif
-	
+		
 	printk("%s,line=%d\n", __func__,__LINE__);	
 	//gpio_request(PMU_POWER_SLEEP, "NULL");
 	//gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
@@ -313,7 +309,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 
 	#ifdef CONFIG_RK30_PWM_REGULATOR
 	dcdc = regulator_get(NULL, "vdd_core"); // vdd_log
-	regulator_set_voltage(dcdc, 1150000, 1150000);
+	regulator_set_voltage(dcdc, 1100000, 1100000);
 	regulator_enable(dcdc);
 	printk("%s set vdd_core=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);

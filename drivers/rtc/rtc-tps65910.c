@@ -681,7 +681,7 @@ static int __init tps65910_rtc_init(void)
 	misc_register(&rtc_tps65910_test_misc);
 	return platform_driver_register(&tps65910_rtc_driver);
 }
-module_init(tps65910_rtc_init);
+subsys_initcall_sync(tps65910_rtc_init);
 
 static void __exit tps65910_rtc_exit(void)
 {	

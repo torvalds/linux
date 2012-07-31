@@ -57,6 +57,10 @@ struct pwm_platform_data {
 	unsigned int 	pwm_iomux_pwm;
 	int 	pwm_iomux_gpio;
 	int 	pwm_voltage;
+	int	duty_cycle;
+	int	min_uV;
+	int	max_uV;
+	int	*pwm_voltage_map;
 	struct regulator_init_data *init_data;
 };
 

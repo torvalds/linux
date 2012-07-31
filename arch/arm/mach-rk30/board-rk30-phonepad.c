@@ -45,6 +45,7 @@
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
 #include "../../../drivers/headset_observe/rk_headset.h"
 
 #if defined(CONFIG_HDMI_RK30)
@@ -1516,15 +1517,8 @@ static struct platform_device rk30_device_adc_battery = {
 };
 #endif
 #if CONFIG_RK30_PWM_REGULATOR
-struct pwm_platform_data {
-	int	pwm_id;
-	int 	pwm_gpio;
-	//char	pwm_iomux_name[50];
-	char*	pwm_iomux_name;
-	unsigned int 	pwm_iomux_pwm;
-	int 	pwm_iomux_gpio;
-	int 	pwm_voltage;
-	struct regulator_init_data *init_data;
+const static int pwm_voltage_map[] = {
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
 
 static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
@@ -1556,6 +1550,10 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 		.pwm_iomux_pwm = GPIO0D_PWM3,
 		.pwm_iomux_gpio = GPIO0D_GPIO0D6,
 		.pwm_voltage = 1100000,
+		.min_uV = 1000000,
+		.max_uV	= 1400000,
+		.duty_cycle = 455,	//45.5%
+		.pwm_voltage_map = pwm_voltage_map,
 		.init_data	= &pwm_regulator_init_dcdc[0],
 	},
 };
@@ -1639,6 +1637,9 @@ static struct platform_device device_rfkill_rk = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	&pwm_regulator_device[0],
+#endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif
