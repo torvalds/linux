@@ -176,6 +176,23 @@ static void rt_nexthop_free(struct rtable __rcu **rtp)
 	dst_free(&rt->dst);
 }
 
+static void rt_nexthop_free_cpus(struct rtable __rcu * __percpu *rtp)
+{
+	int cpu;
+
+	if (!rtp)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct rtable *rt;
+
+		rt = rcu_dereference_protected(*per_cpu_ptr(rtp, cpu), 1);
+		if (rt)
+			dst_free(&rt->dst);
+	}
+	free_percpu(rtp);
+}
+
 /* Release a nexthop info record */
 static void free_fib_info_rcu(struct rcu_head *head)
 {
@@ -186,7 +203,7 @@ static void free_fib_info_rcu(struct rcu_head *head)
 			dev_put(nexthop_nh->nh_dev);
 		if (nexthop_nh->nh_exceptions)
 			free_nh_exceptions(nexthop_nh);
-		rt_nexthop_free(&nexthop_nh->nh_rth_output);
+		rt_nexthop_free_cpus(nexthop_nh->nh_pcpu_rth_output);
 		rt_nexthop_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
@@ -817,6 +834,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
+		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {
