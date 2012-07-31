@@ -189,7 +189,7 @@ void request_nuke( dwc_otg_pcd_ep_t *_ep )
  * This function assigns periodic Tx FIFO to an periodic EP
  * in shared Tx FIFO mode
  */
- #ifdef CONFIG_ARCH_RK30
+ #if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK2928) //@lyz
 static uint32_t assign_perio_tx_fifo(dwc_otg_core_if_t	*core_if)
 {
 	uint32_t PerTxMsk = 1;
@@ -218,7 +218,7 @@ static void release_perio_tx_fifo(dwc_otg_core_if_t *core_if, uint32_t fifo_num)
  * This function assigns periodic Tx FIFO to an periodic EP
  * in Dedicated FIFOs mode
  */
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK2928) //@lyz
 static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
 {
 	uint32_t TxMsk = 1;
@@ -304,7 +304,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 
 	if(ep->dwc_ep.is_in)
 	{
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK2928) //@lyz
 		if(!pcd->otg_dev->core_if->en_multiple_tx_fifo)
 		{
 			ep->dwc_ep.tx_fifo_num = 0;
@@ -1495,6 +1495,10 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 	        if(i == 8)
 	            continue;
 	        #endif
+	        #ifdef CONFIG_ARCH_RK2928 //@lyz the same with rk30
+	        if(i == 8)
+	            continue;
+	        #endif
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
 		}
@@ -1553,6 +1557,10 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep9 as IN EP default
 			 */
 	        #ifdef CONFIG_ARCH_RK30
+	        if(i == 9)
+	            continue;
+	        #endif
+	        #ifdef CONFIG_ARCH_RK2928 //@lyz the same with rk30
 	        if(i == 9)
 	            continue;
 	        #endif
@@ -1881,6 +1889,69 @@ connect:
 }
 
 #endif
+#ifdef CONFIG_ARCH_RK2928
+static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
+{
+    dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
+	unsigned long flags;
+    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);//@lyz USBGRF_SOC_STATUS0结构有变
+
+	local_irq_save(flags);
+    _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
+    if((usbgrf_status &(1<<10)) == 0){  // id low  //@lyz SOC_STATUS0[10] represents id_dig
+    
+        if( _pcd->phy_suspend) 
+             dwc_otg20phy_suspend( 1 );
+    }
+	else if(usbgrf_status & (1<<7)){  //@lyz SOC_STATUS0[7] represents bvalid
+        /* if usb not connect before ,then start connect */
+         if( _pcd->vbus_status == 0 ) {
+            DWC_PRINT("********vbus detect*********************************************\n");
+            dwc_otg_msc_lock(_pcd);
+    	    _pcd->vbus_status = 1;
+            if(_pcd->conn_en)
+                goto connect;
+            else
+                dwc_otg20phy_suspend( 0 );
+        } 
+        else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
+            DWC_PRINT("********soft reconnect******************************************\n");
+    	    goto connect;
+        }
+        else if(_pcd->conn_status ==3){
+			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
+            dwc_otg_msc_unlock(_pcd);
+            _pcd->conn_status++;
+            if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
+                _pcd->vbus_status = 2;
+        }
+	}else {
+        _pcd->vbus_status = 0;
+        if(_pcd->conn_status)
+        {
+             _pcd->conn_status = 0;
+             dwc_otg_msc_unlock(_pcd);
+        }
+        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
+        if( _pcd->phy_suspend == 0 ) 
+                /* no vbus detect here , close usb phy  */
+             dwc_otg20phy_suspend( 0 );
+    }
+    add_timer(&_pcd->check_vbus_timer); 
+	local_irq_restore(flags);
+    return;
+
+connect:
+    if( _pcd->phy_suspend  == 1 )
+         dwc_otg20phy_suspend( 1 );
+    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+    add_timer(&_pcd->check_vbus_timer); 
+	local_irq_restore(flags);
+    return;
+}
+
+#endif
 #ifdef CONFIG_ARCH_RK29
 /*
  * This function can be only called in charge mode.
@@ -1981,6 +2052,56 @@ int dwc_otg_check_dpdm(void)
         mdelay(50);    // delay about 10ms
     // check dp,dm
         if((*otg_hprt0 & 0xc00)==0xc00)
+            bus_status = 2;
+    }
+out:
+    return bus_status;
+}
+
+EXPORT_SYMBOL(dwc_otg_check_dpdm);
+#endif
+#ifdef CONFIG_ARCH_RK2928
+int dwc_otg_check_dpdm(void)
+{
+	static uint8_t * reg_base = 0;
+    volatile unsigned int * otg_dctl;
+    volatile unsigned int * otg_gotgctl;
+    volatile unsigned int * otg_hprt0;
+    int bus_status = 0;
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);//@lyz modify UOC0_CON2 to CON5
+    
+    // softreset & clockgate //@lyz modify RK2928_CRU_BASE
+    *(unsigned int*)(RK2928_CRU_BASE+0x120) = ((7<<5)<<16)|(7<<5);    // otg0 phy clkgate
+    udelay(3);
+    *(unsigned int*)(RK2928_CRU_BASE+0x120) = ((7<<5)<<16)|(0<<5);    // otg0 phy clkgate
+    dsb();
+    *(unsigned int*)(RK2928_CRU_BASE+0xd4) = ((1<<5)<<16);    // otg0 phy clkgate
+    *(unsigned int*)(RK2928_CRU_BASE+0xe4) = ((1<<13)<<16);   // otg0 hclk clkgate
+    *(unsigned int*)(RK2928_CRU_BASE+0xf4) = ((3<<10)<<16);    // hclk usb clkgate//@lyz to be check
+    
+    // exit phy suspend 
+        *otg_phy_con1 = ((0x01<<0)<<16);    // exit suspend.@lyz
+    
+    // soft connect
+    if(reg_base == 0){
+        reg_base = ioremap(RK2928_USBOTG20_PHYS,USBOTG_SIZE);//@lyz
+        if(!reg_base){
+            bus_status = -1;
+            goto out;
+        }
+    }
+    mdelay(105);
+    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
+        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
+    otg_dctl = (unsigned int * )(reg_base+0x804);
+    otg_gotgctl = (unsigned int * )(reg_base);
+    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
+    if(*otg_gotgctl &(1<<19)){
+        bus_status = 1;
+        *otg_dctl &= ~(0x01<<1);//@lyz exit soft-disconnect mode
+        mdelay(50);    // delay about 10ms
+    // check dp,dm
+        if((*otg_hprt0 & 0xc00)==0xc00)//@lyz check hprt[11:10] 
             bus_status = 2;
     }
 out:
