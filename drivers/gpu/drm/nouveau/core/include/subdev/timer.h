@@ -20,8 +20,8 @@ void nouveau_timer_alarm(void *, u32 nsec, struct nouveau_alarm *);
 	nouveau_timer_wait_eq((o), NV_WAIT_DEFAULT, (a), (m), (v))
 #define nv_wait_ne(o,a,m,v)                                                    \
 	nouveau_timer_wait_ne((o), NV_WAIT_DEFAULT, (a), (m), (v))
-#define nv_wait_cb(o,a,m,v)                                                    \
-	nouveau_timer_wait_cb((o), NV_WAIT_DEFAULT, (a), (m), (v))
+#define nv_wait_cb(o,c,d)                                                      \
+	nouveau_timer_wait_cb((o), NV_WAIT_DEFAULT, (c), (d))
 
 struct nouveau_timer {
 	struct nouveau_subdev base;

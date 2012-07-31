@@ -29,6 +29,8 @@
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
+#include "nv50_display.h"
+
 struct nv50_fence_chan {
 	struct nouveau_fence_chan base;
 };
@@ -43,6 +45,7 @@ struct nv50_fence_priv {
 static int
 nv50_fence_context_new(struct nouveau_channel *chan)
 {
+	struct drm_device *dev = chan->drm->dev;
 	struct nv50_fence_priv *priv = chan->drm->fence;
 	struct nv50_fence_chan *fctx;
 	struct ttm_mem_reg *mem = &priv->bo->bo.mem;
@@ -66,8 +69,8 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 				 &object);
 
 	/* dma objects for display sync channel semaphore blocks */
-	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo = nv50sema(chan->drm->dev, i);
+	for (i = 0; !ret && i < dev->mode_config.num_crtc; i++) {
+		struct nouveau_bo *bo = nv50_display_crtc_sema(dev, i);
 
 		ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
 					 NvEvoSema0 + i, 0x003d,

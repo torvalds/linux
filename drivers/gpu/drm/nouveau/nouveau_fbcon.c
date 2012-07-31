@@ -47,7 +47,6 @@
 #include "nouveau_drm.h"
 #include "nouveau_gem.h"
 #include "nouveau_bo.h"
-#include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_chan.h"
 
@@ -66,7 +65,7 @@ static void
 nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int ret;
 
@@ -98,7 +97,7 @@ static void
 nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int ret;
 
@@ -130,7 +129,7 @@ static void
 nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int ret;
 
@@ -162,7 +161,7 @@ static int
 nouveau_fbcon_sync(struct fb_info *info)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
 	struct nouveau_channel *chan = drm->channel;
 	int ret;
 
@@ -257,7 +256,7 @@ nouveau_fbcon_create(struct nouveau_fbdev *fbcon,
 		     struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = fbcon->dev;
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
@@ -410,7 +409,7 @@ nouveau_fbcon_find_or_create_single(struct drm_fb_helper *helper,
 void
 nouveau_fbcon_output_poll_changed(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	drm_fb_helper_hotplug_event(&drm->fbcon->helper);
 }
 
@@ -442,7 +441,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 void nouveau_fbcon_gpu_lockup(struct fb_info *info)
 {
 	struct nouveau_fbdev *fbcon = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(fbcon->dev);
+	struct nouveau_drm *drm = nouveau_drm(fbcon->dev);
 
 	NV_ERROR(drm, "GPU lockup - switching to software fbcon\n");
 	info->flags |= FBINFO_HWACCEL_DISABLED;
@@ -458,7 +457,7 @@ static struct drm_fb_helper_funcs nouveau_fbcon_helper_funcs = {
 int
 nouveau_fbcon_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	struct nouveau_fbdev *fbcon;
 	int preferred_bpp;
@@ -499,7 +498,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 void
 nouveau_fbcon_fini(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (!drm->fbcon)
 		return;
@@ -511,7 +510,7 @@ nouveau_fbcon_fini(struct drm_device *dev)
 
 void nouveau_fbcon_save_disable_accel(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	drm->fbcon->saved_flags = drm->fbcon->helper.fbdev->flags;
 	drm->fbcon->helper.fbdev->flags |= FBINFO_HWACCEL_DISABLED;
@@ -519,13 +518,13 @@ void nouveau_fbcon_save_disable_accel(struct drm_device *dev)
 
 void nouveau_fbcon_restore_accel(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	drm->fbcon->helper.fbdev->flags = drm->fbcon->saved_flags;
 }
 
 void nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	console_lock();
 	if (state == 0)
 		nouveau_fbcon_save_disable_accel(dev);
@@ -537,6 +536,6 @@ void nouveau_fbcon_set_suspend(struct drm_device *dev, int state)
 
 void nouveau_fbcon_zfill_all(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	nouveau_fbcon_zfill(dev, drm->fbcon);
 }

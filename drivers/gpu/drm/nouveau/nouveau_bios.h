@@ -21,8 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __NOUVEAU_BIOS_H__
-#define __NOUVEAU_BIOS_H__
+#ifndef __NOUVEAU_DISPBIOS_H__
+#define __NOUVEAU_DISPBIOS_H__
 
 #include "nvreg.h"
 
@@ -38,8 +38,8 @@
 #define ROM48(x) ({ u8 *p = &(x); (u64)ROM16(p[4]) << 32 | ROM32(p[0]); })
 #define ROM64(x) le64_to_cpu(*(u64 *)&(x))
 #define ROMPTR(d,x) ({            \
-	struct drm_nouveau_private *dev_priv = (d)->dev_private; \
-	ROM16(x) ? &dev_priv->vbios.data[ROM16(x)] : NULL; \
+	struct nouveau_drm *drm = nouveau_drm((d)); \
+	ROM16(x) ? &drm->vbios.data[ROM16(x)] : NULL; \
 })
 
 struct bit_entry {
@@ -179,5 +179,22 @@ int olddcb_outp_foreach(struct drm_device *, void *data,
 		     int (*)(struct drm_device *, void *, int idx, u8 *outp));
 u8 *olddcb_conntab(struct drm_device *);
 u8 *olddcb_conn(struct drm_device *, u8 idx);
+
+int nouveau_bios_init(struct drm_device *);
+void nouveau_bios_takedown(struct drm_device *dev);
+int nouveau_run_vbios_init(struct drm_device *);
+struct dcb_connector_table_entry *
+nouveau_bios_connector_entry(struct drm_device *, int index);
+int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
+					  struct dcb_output *, int crtc);
+bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
+uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
+int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
+					 bool *dl, bool *if_is_24bit);
+int run_tmds_table(struct drm_device *, struct dcb_output *,
+			  int head, int pxclk);
+int call_lvds_script(struct drm_device *, struct dcb_output *, int head,
+			    enum LVDS_script, int pxclk);
+bool bios_encoder_match(struct dcb_output *, u32 hash);
 
 #endif

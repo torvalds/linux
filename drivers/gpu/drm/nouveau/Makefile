@@ -145,47 +145,17 @@ nouveau-y += core/engine/software/nv50.o
 nouveau-y += core/engine/software/nvc0.o
 nouveau-y += core/engine/vp/nv84.o
 
-# drm/compat - will go away
-nouveau-y += nouveau_compat.o nouveau_revcompat.o
-
 # drm/core
 nouveau-y += nouveau_drm.o nouveau_chan.o nouveau_dma.o nouveau_fence.o
-nouveau-y += nouveau_agp.o
+nouveau-y += nouveau_irq.o nouveau_vga.o nouveau_agp.o
 nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
-
-nouveau-y += nouveau_abi16.o
+nouveau-y += nouveau_prime.o nouveau_abi16.o
 nouveau-y += nv04_fence.o nv10_fence.o nv50_fence.o nv84_fence.o nvc0_fence.o
 
-# drm/kms/common
-nouveau-y += nouveau_fbcon.o
-
-# drm/kms/nv04:nv50
-nouveau-y += nv04_fbcon.o
-
-# drm/kms/nv50:nvd9
-nouveau-y += nv50_fbcon.o nvc0_fbcon.o
-
-# drm/kms/nvd9-
-
-# other random bits
-nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
-nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
-nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
-
-##
-## unported bits below
-##
-
-# drm/core
-nouveau-y += nouveau_drv.o nouveau_state.o nouveau_irq.o
-nouveau-y += nouveau_prime.o
-
-# drm/kms/bios
-nouveau-y += nouveau_bios.o
-
-# drm/kms/common
-nouveau-y += nouveau_display.o nouveau_connector.o
-nouveau-y += nouveau_hdmi.o nouveau_dp.o
+# drm/kms
+nouveau-y += nouveau_bios.o nouveau_fbcon.o nouveau_display.o
+nouveau-y += nouveau_connector.o nouveau_hdmi.o nouveau_dp.o
+nouveau-y += nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o
 
 # drm/kms/nv04:nv50
 nouveau-y += nouveau_hw.o nouveau_calc.o
@@ -201,5 +171,10 @@ nouveau-y += nv50_evo.o
 nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o
 nouveau-y += nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o
 nouveau-y += nouveau_mem.o
+
+# other random bits
+nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
+nouveau-$(CONFIG_ACPI) += nouveau_acpi.o
+nouveau-$(CONFIG_DRM_NOUVEAU_BACKLIGHT) += nouveau_backlight.o
 
 obj-$(CONFIG_DRM_NOUVEAU)+= nouveau.o

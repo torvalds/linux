@@ -22,9 +22,11 @@
  * SOFTWARE.
  */
 
+#include <subdev/bios.h>
+
 #include "drmP.h"
-#define NV_DEBUG_NOTRACE
-#include "nouveau_drv.h"
+#include "nouveau_drm.h"
+#include "nouveau_reg.h"
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
 
@@ -94,7 +96,9 @@ static void
 run_digital_op_script(struct drm_device *dev, uint16_t scriptptr,
 		      struct dcb_output *dcbent, int head, bool dl)
 {
-	NV_TRACE(dev, "0x%04X: Parsing digital output script table\n",
+	struct nouveau_drm *drm = nouveau_drm(dev);
+
+	NV_INFO(drm, "0x%04X: Parsing digital output script table\n",
 		 scriptptr);
 	NVWriteVgaCrtc(dev, 0, NV_CIO_CRE_44, head ? NV_CIO_CRE_44_HEADB :
 					         NV_CIO_CRE_44_HEADA);
@@ -105,8 +109,8 @@ run_digital_op_script(struct drm_device *dev, uint16_t scriptptr,
 
 static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_output *dcbent, int head, enum LVDS_script script)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && dcbent->or & DCB_OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = ROM16(bios->data[bios->init_script_tbls_ptr + sub * 2]);
 
@@ -142,8 +146,8 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_output *dcbent, int
 	 * conf byte. These tables are similar to the TMDS tables, consisting
 	 * of a list of pxclks and script pointers.
 	 */
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 
@@ -188,14 +192,14 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_output *dcbent, int
 
 		clktable = ROM16(bios->data[clktable]);
 		if (!clktable) {
-			NV_ERROR(dev, "Pixel clock comparison table not found\n");
+			NV_ERROR(drm, "Pixel clock comparison table not found\n");
 			return -ENOENT;
 		}
 		scriptptr = clkcmptable(bios, clktable, pxclk);
 	}
 
 	if (!scriptptr) {
-		NV_ERROR(dev, "LVDS output init script not found\n");
+		NV_ERROR(drm, "LVDS output init script not found\n");
 		return -ENOENT;
 	}
 	run_digital_op_script(dev, scriptptr, dcbent, head, bios->fp.dual_link);
@@ -211,8 +215,9 @@ int call_lvds_script(struct drm_device *dev, struct dcb_output *dcbent, int head
 	 * This acts as the demux
 	 */
 
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nv_device(drm->device);
+	struct nvbios *bios = &drm->vbios;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 	uint32_t sel_clk_binding, sel_clk;
 	int ret;
@@ -231,10 +236,10 @@ int call_lvds_script(struct drm_device *dev, struct dcb_output *dcbent, int head
 	if (script == LVDS_RESET && bios->fp.power_off_for_reset)
 		call_lvds_script(dev, dcbent, head, LVDS_PANEL_OFF, pxclk);
 
-	NV_TRACE(dev, "Calling LVDS script %d:\n", script);
+	NV_INFO(drm, "Calling LVDS script %d:\n", script);
 
 	/* don't let script change pll->head binding */
-	sel_clk_binding = nv_rd32(dev, NV_PRAMDAC_SEL_CLK) & 0x50000;
+	sel_clk_binding = nv_rd32(device, NV_PRAMDAC_SEL_CLK) & 0x50000;
 
 	if (lvds_ver < 0x30)
 		ret = call_lvds_manufacturer_script(dev, dcbent, head, script);
@@ -246,7 +251,7 @@ int call_lvds_script(struct drm_device *dev, struct dcb_output *dcbent, int head
 	sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK) & ~0x50000;
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
 	/* some scripts set a value in NV_PBUS_POWERCTRL_2 and break video overlay */
-	nv_wr32(dev, NV_PBUS_POWERCTRL_2, 0);
+	nv_wr32(device, NV_PBUS_POWERCTRL_2, 0);
 
 	return ret;
 }
@@ -264,12 +269,13 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 	 * the maximum number of records that can be held in the table.
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t lvds_ver, headerlen, recordlen;
 
 	memset(lth, 0, sizeof(struct lvdstableheader));
 
 	if (bios->fp.lvdsmanufacturerpointer == 0x0) {
-		NV_ERROR(dev, "Pointer to LVDS manufacturer table invalid\n");
+		NV_ERROR(drm, "Pointer to LVDS manufacturer table invalid\n");
 		return -EINVAL;
 	}
 
@@ -283,7 +289,7 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 	case 0x30:	/* NV4x */
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x1f) {
-			NV_ERROR(dev, "LVDS table header not understood\n");
+			NV_ERROR(drm, "LVDS table header not understood\n");
 			return -EINVAL;
 		}
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
@@ -291,13 +297,13 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 	case 0x40:	/* G80/G90 */
 		headerlen = bios->data[bios->fp.lvdsmanufacturerpointer + 1];
 		if (headerlen < 0x7) {
-			NV_ERROR(dev, "LVDS table header not understood\n");
+			NV_ERROR(drm, "LVDS table header not understood\n");
 			return -EINVAL;
 		}
 		recordlen = bios->data[bios->fp.lvdsmanufacturerpointer + 2];
 		break;
 	default:
-		NV_ERROR(dev,
+		NV_ERROR(drm,
 			 "LVDS table revision %d.%d not currently supported\n",
 			 lvds_ver >> 4, lvds_ver & 0xf);
 		return -ENOSYS;
@@ -313,7 +319,7 @@ static int parse_lvds_manufacturer_table_header(struct drm_device *dev, struct n
 static int
 get_fp_strap(struct drm_device *dev, struct nvbios *bios)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_device *device = nouveau_dev(dev);
 
 	/*
 	 * The fp strap is normally dictated by the "User Strap" in
@@ -327,14 +333,15 @@ get_fp_strap(struct drm_device *dev, struct nvbios *bios)
 	if (bios->major_version < 5 && bios->data[0x48] & 0x4)
 		return NVReadVgaCrtc5758(dev, 0, 0xf) & 0xf;
 
-	if (dev_priv->card_type >= NV_50)
-		return (nv_rd32(dev, NV_PEXTDEV_BOOT_0) >> 24) & 0xf;
+	if (device->card_type >= NV_50)
+		return (nv_rd32(device, NV_PEXTDEV_BOOT_0) >> 24) & 0xf;
 	else
-		return (nv_rd32(dev, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
+		return (nv_rd32(device, NV_PEXTDEV_BOOT_0) >> 16) & 0xf;
 }
 
 static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t *fptable;
 	uint8_t fptable_ver, headerlen = 0, recordlen, fpentries = 0xf, fpindex;
 	int ret, ofs, fpstrapping;
@@ -344,7 +351,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 		/* Apple cards don't have the fp table; the laptops use DDC */
 		/* The table is also missing on some x86 IGPs */
 #ifndef __powerpc__
-		NV_ERROR(dev, "Pointer to flat panel table invalid\n");
+		NV_ERROR(drm, "Pointer to flat panel table invalid\n");
 #endif
 		bios->digital_min_front_porch = 0x4b;
 		return 0;
@@ -383,7 +390,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 		ofs = -7;
 		break;
 	default:
-		NV_ERROR(dev,
+		NV_ERROR(drm,
 			 "FP table revision %d.%d not currently supported\n",
 			 fptable_ver >> 4, fptable_ver & 0xf);
 		return -ENOSYS;
@@ -402,7 +409,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 		bios->fp.xlatwidth = lth.recordlen;
 	}
 	if (bios->fp.fpxlatetableptr == 0x0) {
-		NV_ERROR(dev, "Pointer to flat panel xlat table invalid\n");
+		NV_ERROR(drm, "Pointer to flat panel xlat table invalid\n");
 		return -EINVAL;
 	}
 
@@ -412,7 +419,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 					fpstrapping * bios->fp.xlatwidth];
 
 	if (fpindex > fpentries) {
-		NV_ERROR(dev, "Bad flat panel table index\n");
+		NV_ERROR(drm, "Bad flat panel table index\n");
 		return -ENOENT;
 	}
 
@@ -431,7 +438,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 	bios->fp.mode_ptr = bios->fp.fptablepointer + headerlen +
 			    recordlen * fpindex + ofs;
 
-	NV_TRACE(dev, "BIOS FP mode: %dx%d (%dkHz pixel clock)\n",
+	NV_INFO(drm, "BIOS FP mode: %dx%d (%dkHz pixel clock)\n",
 		 ROM16(bios->data[bios->fp.mode_ptr + 11]) + 1,
 		 ROM16(bios->data[bios->fp.mode_ptr + 25]) + 1,
 		 ROM16(bios->data[bios->fp.mode_ptr + 7]) * 10);
@@ -441,8 +448,8 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 
 bool nouveau_bios_fp_mode(struct drm_device *dev, struct drm_display_mode *mode)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	uint8_t *mode_entry = &bios->data[bios->fp.mode_ptr];
 
 	if (!mode)	/* just checking whether we can produce a mode */
@@ -512,8 +519,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 * requiring tests against the native-mode pixel clock, cannot be done
 	 * until later, when this function should be called with non-zero pxclk
 	 */
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	int fpstrapping = get_fp_strap(dev, bios), lvdsmanufacturerindex = 0;
 	struct lvdstableheader lth;
 	uint16_t lvdsofs;
@@ -574,7 +581,7 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 		lvdsmanufacturerindex = fpstrapping;
 		break;
 	default:
-		NV_ERROR(dev, "LVDS table revision not currently supported\n");
+		NV_ERROR(drm, "LVDS table revision not currently supported\n");
 		return -ENOSYS;
 	}
 
@@ -671,15 +678,15 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 	 * offset + 5   (16 bits): pointer to first output script table
 	 */
 
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	uint8_t *table = &bios->data[bios->display.script_table_ptr];
 	uint8_t *otable = NULL;
 	uint16_t script;
 	int i;
 
 	if (!bios->display.script_table_ptr) {
-		NV_ERROR(dev, "No pointer to output script table\n");
+		NV_ERROR(drm, "No pointer to output script table\n");
 		return 1;
 	}
 
@@ -691,7 +698,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 		return 1;
 
 	if (table[0] != 0x20 && table[0] != 0x21) {
-		NV_ERROR(dev, "Output script table version 0x%02x unknown\n",
+		NV_ERROR(drm, "Output script table version 0x%02x unknown\n",
 			 table[0]);
 		return 1;
 	}
@@ -726,7 +733,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 	 * script tables is a pointer to the script to execute.
 	 */
 
-	NV_DEBUG_KMS(dev, "Searching for output entry for %d %d %d\n",
+	NV_DEBUG(drm, "Searching for output entry for %d %d %d\n",
 			dcbent->type, dcbent->location, dcbent->or);
 	for (i = 0; i < table[3]; i++) {
 		otable = ROMPTR(dev, table[table[1] + (i * table[2])]);
@@ -735,7 +742,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 	}
 
 	if (!otable) {
-		NV_DEBUG_KMS(dev, "failed to match any output table\n");
+		NV_DEBUG(drm, "failed to match any output table\n");
 		return 1;
 	}
 
@@ -747,7 +754,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 		}
 
 		if (i == otable[5]) {
-			NV_ERROR(dev, "Table 0x%04x not found for %d/%d, "
+			NV_ERROR(drm, "Table 0x%04x not found for %d/%d, "
 				      "using first\n",
 				 type, dcbent->type, dcbent->or);
 			i = 0;
@@ -757,21 +764,21 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 	if (pclk == 0) {
 		script = ROM16(otable[6]);
 		if (!script) {
-			NV_DEBUG_KMS(dev, "output script 0 not found\n");
+			NV_DEBUG(drm, "output script 0 not found\n");
 			return 1;
 		}
 
-		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 0\n", script);
+		NV_DEBUG(drm, "0x%04X: parsing output script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
 	} else
 	if (pclk == -1) {
 		script = ROM16(otable[8]);
 		if (!script) {
-			NV_DEBUG_KMS(dev, "output script 1 not found\n");
+			NV_DEBUG(drm, "output script 1 not found\n");
 			return 1;
 		}
 
-		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 1\n", script);
+		NV_DEBUG(drm, "0x%04X: parsing output script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
 	} else
 	if (pclk == -2) {
@@ -780,11 +787,11 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 		else
 			script = 0;
 		if (!script) {
-			NV_DEBUG_KMS(dev, "output script 2 not found\n");
+			NV_DEBUG(drm, "output script 2 not found\n");
 			return 1;
 		}
 
-		NV_DEBUG_KMS(dev, "0x%04X: parsing output script 2\n", script);
+		NV_DEBUG(drm, "0x%04X: parsing output script 2\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
 	} else
 	if (pclk > 0) {
@@ -792,11 +799,11 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 		if (script)
 			script = clkcmptable(bios, script, pclk);
 		if (!script) {
-			NV_DEBUG_KMS(dev, "clock script 0 not found\n");
+			NV_DEBUG(drm, "clock script 0 not found\n");
 			return 1;
 		}
 
-		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 0\n", script);
+		NV_DEBUG(drm, "0x%04X: parsing clock script 0\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
 	} else
 	if (pclk < 0) {
@@ -804,11 +811,11 @@ nouveau_bios_run_display_table(struct drm_device *dev, u16 type, int pclk,
 		if (script)
 			script = clkcmptable(bios, script, -pclk);
 		if (!script) {
-			NV_DEBUG_KMS(dev, "clock script 1 not found\n");
+			NV_DEBUG(drm, "clock script 1 not found\n");
 			return 1;
 		}
 
-		NV_DEBUG_KMS(dev, "0x%04X: parsing clock script 1\n", script);
+		NV_DEBUG(drm, "0x%04X: parsing clock script 1\n", script);
 		nouveau_bios_run_init_table(dev, script, dcbent, crtc);
 	}
 
@@ -827,8 +834,9 @@ int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, 
 	 * ffs(or) == 3, use the second.
 	 */
 
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nv_device(drm->device);
+	struct nvbios *bios = &drm->vbios;
 	int cv = bios->chip_version;
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding, sel_clk;
@@ -849,19 +857,19 @@ int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, 
 	}
 
 	if (!clktable) {
-		NV_ERROR(dev, "Pixel clock comparison table not found\n");
+		NV_ERROR(drm, "Pixel clock comparison table not found\n");
 		return -EINVAL;
 	}
 
 	scriptptr = clkcmptable(bios, clktable, pxclk);
 
 	if (!scriptptr) {
-		NV_ERROR(dev, "TMDS output init script not found\n");
+		NV_ERROR(drm, "TMDS output init script not found\n");
 		return -ENOENT;
 	}
 
 	/* don't let script change pll->head binding */
-	sel_clk_binding = nv_rd32(dev, NV_PRAMDAC_SEL_CLK) & 0x50000;
+	sel_clk_binding = nv_rd32(device, NV_PRAMDAC_SEL_CLK) & 0x50000;
 	run_digital_op_script(dev, scriptptr, dcbent, head, pxclk >= 165000);
 	sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK) & ~0x50000;
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK, sel_clk | sel_clk_binding);
@@ -877,10 +885,11 @@ static void parse_bios_version(struct drm_device *dev, struct nvbios *bios, uint
 	 * offset + 2  (8 bits): Chip version
 	 * offset + 3  (8 bits): Major version
 	 */
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	bios->major_version = bios->data[offset + 3];
 	bios->chip_version = bios->data[offset + 2];
-	NV_TRACE(dev, "Bios version %02x.%02x.%02x.%02x\n",
+	NV_INFO(drm, "Bios version %02x.%02x.%02x.%02x\n",
 		 bios->data[offset + 3], bios->data[offset + 2],
 		 bios->data[offset + 1], bios->data[offset]);
 }
@@ -916,25 +925,26 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	 * offset + 0 (16 bits): loadval table pointer
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint16_t load_table_ptr;
 	uint8_t version, headerlen, entrylen, num_entries;
 
 	if (bitentry->length != 3) {
-		NV_ERROR(dev, "Do not understand BIT A table\n");
+		NV_ERROR(drm, "Do not understand BIT A table\n");
 		return -EINVAL;
 	}
 
 	load_table_ptr = ROM16(bios->data[bitentry->offset]);
 
 	if (load_table_ptr == 0x0) {
-		NV_DEBUG(dev, "Pointer to BIT loadval table invalid\n");
+		NV_DEBUG(drm, "Pointer to BIT loadval table invalid\n");
 		return -EINVAL;
 	}
 
 	version = bios->data[load_table_ptr];
 
 	if (version != 0x10) {
-		NV_ERROR(dev, "BIT loadval table version %d.%d not supported\n",
+		NV_ERROR(drm, "BIT loadval table version %d.%d not supported\n",
 			 version >> 4, version & 0xF);
 		return -ENOSYS;
 	}
@@ -944,7 +954,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	num_entries = bios->data[load_table_ptr + 3];
 
 	if (headerlen != 4 || entrylen != 4 || num_entries != 2) {
-		NV_ERROR(dev, "Do not understand BIT loadval table\n");
+		NV_ERROR(drm, "Do not understand BIT loadval table\n");
 		return -EINVAL;
 	}
 
@@ -961,9 +971,10 @@ static int parse_bit_C_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	 *
 	 * There's more in here, but that's unknown.
 	 */
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (bitentry->length < 10) {
-		NV_ERROR(dev, "Do not understand BIT C table\n");
+		NV_ERROR(drm, "Do not understand BIT C table\n");
 		return -EINVAL;
 	}
 
@@ -982,9 +993,10 @@ static int parse_bit_display_tbl_entry(struct drm_device *dev, struct nvbios *bi
 	 * records beginning with a freq.
 	 * offset + 2  (16 bits): mode table pointer
 	 */
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (bitentry->length != 4) {
-		NV_ERROR(dev, "Do not understand BIT display table\n");
+		NV_ERROR(drm, "Do not understand BIT display table\n");
 		return -EINVAL;
 	}
 
@@ -1000,9 +1012,10 @@ static int parse_bit_init_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 *
 	 * See parse_script_table_pointers for layout
 	 */
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (bitentry->length < 14) {
-		NV_ERROR(dev, "Do not understand init table\n");
+		NV_ERROR(drm, "Do not understand init table\n");
 		return -EINVAL;
 	}
 
@@ -1029,11 +1042,12 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	 * There's other things in the table, purpose unknown
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint16_t daccmpoffset;
 	uint8_t dacver, dacheaderlen;
 
 	if (bitentry->length < 6) {
-		NV_ERROR(dev, "BIT i table too short for needed information\n");
+		NV_ERROR(drm, "BIT i table too short for needed information\n");
 		return -EINVAL;
 	}
 
@@ -1047,7 +1061,7 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	bios->is_mobile = bios->feature_byte & FEATURE_MOBILE;
 
 	if (bitentry->length < 15) {
-		NV_WARN(dev, "BIT i table not long enough for DAC load "
+		NV_WARN(drm, "BIT i table not long enough for DAC load "
 			       "detection comparison table\n");
 		return -EINVAL;
 	}
@@ -1068,7 +1082,7 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	dacheaderlen = bios->data[daccmpoffset + 1];
 
 	if (dacver != 0x00 && dacver != 0x10) {
-		NV_WARN(dev, "DAC load detection comparison table version "
+		NV_WARN(drm, "DAC load detection comparison table version "
 			       "%d.%d not known\n", dacver >> 4, dacver & 0xf);
 		return -ENOSYS;
 	}
@@ -1088,8 +1102,10 @@ static int parse_bit_lvds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * offset + 0  (16 bits): LVDS strap xlate table pointer
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
+
 	if (bitentry->length != 2) {
-		NV_ERROR(dev, "Do not understand BIT LVDS table\n");
+		NV_ERROR(drm, "Do not understand BIT LVDS table\n");
 		return -EINVAL;
 	}
 
@@ -1159,20 +1175,21 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * "or" from the DCB.
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint16_t tmdstableptr, script1, script2;
 
 	if (bitentry->length != 2) {
-		NV_ERROR(dev, "Do not understand BIT TMDS table\n");
+		NV_ERROR(drm, "Do not understand BIT TMDS table\n");
 		return -EINVAL;
 	}
 
 	tmdstableptr = ROM16(bios->data[bitentry->offset]);
 	if (!tmdstableptr) {
-		NV_ERROR(dev, "Pointer to TMDS table invalid\n");
+		NV_ERROR(drm, "Pointer to TMDS table invalid\n");
 		return -EINVAL;
 	}
 
-	NV_INFO(dev, "TMDS table version %d.%d\n",
+	NV_INFO(drm, "TMDS table version %d.%d\n",
 		bios->data[tmdstableptr] >> 4, bios->data[tmdstableptr] & 0xf);
 
 	/* nv50+ has v2.0, but we don't parse it atm */
@@ -1186,7 +1203,7 @@ static int parse_bit_tmds_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	script1 = ROM16(bios->data[tmdstableptr + 7]);
 	script2 = ROM16(bios->data[tmdstableptr + 9]);
 	if (bios->data[script1] != 'q' || bios->data[script2] != 'q')
-		NV_WARN(dev, "TMDS table script pointers not stubbed\n");
+		NV_WARN(drm, "TMDS table script pointers not stubbed\n");
 
 	bios->tmds.output0_script_ptr = ROM16(bios->data[tmdstableptr + 11]);
 	bios->tmds.output1_script_ptr = ROM16(bios->data[tmdstableptr + 13]);
@@ -1206,10 +1223,11 @@ parse_bit_U_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	 * offset + 0  (16 bits): output script table pointer
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint16_t outputscripttableptr;
 
 	if (bitentry->length != 3) {
-		NV_ERROR(dev, "Do not understand BIT U table\n");
+		NV_ERROR(drm, "Do not understand BIT U table\n");
 		return -EINVAL;
 	}
 
@@ -1228,8 +1246,8 @@ struct bit_table {
 int
 bit_table(struct drm_device *dev, u8 id, struct bit_entry *bit)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	u8 entries, *entry;
 
 	if (bios->type != NVBIOS_BIT)
@@ -1258,12 +1276,13 @@ parse_bit_table(struct nvbios *bios, const uint16_t bitoffset,
 		struct bit_table *table)
 {
 	struct drm_device *dev = bios->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct bit_entry bitentry;
 
 	if (bit_table(dev, table->id, &bitentry) == 0)
 		return table->parse_fn(dev, bios, &bitentry);
 
-	NV_INFO(dev, "BIT table '%c' not found\n", table->id);
+	NV_INFO(drm, "BIT table '%c' not found\n", table->id);
 	return -ENOSYS;
 }
 
@@ -1343,6 +1362,7 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	 * offset + 156: minimum pixel clock for LVDS dual link
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint8_t *bmp = &bios->data[offset], bmp_version_major, bmp_version_minor;
 	uint16_t bmplength;
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
@@ -1356,7 +1376,7 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	bmp_version_major = bmp[5];
 	bmp_version_minor = bmp[6];
 
-	NV_TRACE(dev, "BMP version %d.%d\n",
+	NV_INFO(drm, "BMP version %d.%d\n",
 		 bmp_version_major, bmp_version_minor);
 
 	/*
@@ -1372,7 +1392,7 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	 * happened instead.
 	 */
 	if ((bmp_version_major < 5 && bmp_version_minor != 1) || bmp_version_major > 5) {
-		NV_ERROR(dev, "You have an unsupported BMP version. "
+		NV_ERROR(drm, "You have an unsupported BMP version. "
 				"Please send in your bios\n");
 		return -ENOSYS;
 	}
@@ -1421,7 +1441,7 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 
 	/* checksum */
 	if (nv_cksum(bmp, 8)) {
-		NV_ERROR(dev, "Bad BMP checksum\n");
+		NV_ERROR(drm, "Bad BMP checksum\n");
 		return -EINVAL;
 	}
 
@@ -1508,18 +1528,18 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 void *
 olddcb_table(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	u8 *dcb = NULL;
 
-	if (dev_priv->card_type > NV_04)
-		dcb = ROMPTR(dev, dev_priv->vbios.data[0x36]);
+	if (nv_device(drm->device)->card_type > NV_04)
+		dcb = ROMPTR(dev, drm->vbios.data[0x36]);
 	if (!dcb) {
-		NV_WARNONCE(dev, "No DCB data found in VBIOS\n");
+		NV_WARN(drm, "No DCB data found in VBIOS\n");
 		return NULL;
 	}
 
 	if (dcb[0] >= 0x41) {
-		NV_WARNONCE(dev, "DCB version 0x%02x unknown\n", dcb[0]);
+		NV_WARN(drm, "DCB version 0x%02x unknown\n", dcb[0]);
 		return NULL;
 	} else
 	if (dcb[0] >= 0x30) {
@@ -1551,11 +1571,11 @@ olddcb_table(struct drm_device *dev)
 		 *
 		 * v1.1 (NV5+, maybe some NV4) is entirely unhelpful
 		 */
-		NV_WARNONCE(dev, "No useful DCB data in VBIOS\n");
+		NV_WARN(drm, "No useful DCB data in VBIOS\n");
 		return NULL;
 	}
 
-	NV_WARNONCE(dev, "DCB header validation failed\n");
+	NV_WARN(drm, "DCB header validation failed\n");
 	return NULL;
 }
 
@@ -1656,6 +1676,8 @@ static bool
 parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_output *entry)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+
 	entry->type = conn & 0xf;
 	entry->i2c_index = (conn >> 4) & 0xf;
 	entry->heads = (conn >> 8) & 0xf;
@@ -1709,7 +1731,7 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			if (dcb->version >= 0x40)
 				break;
 
-			NV_ERROR(dev, "Unknown LVDS configuration bits, "
+			NV_ERROR(drm, "Unknown LVDS configuration bits, "
 				      "please report\n");
 		}
 		break;
@@ -1783,6 +1805,8 @@ static bool
 parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_output *entry)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
+
 	switch (conn & 0x0000000f) {
 	case 0:
 		entry->type = DCB_OUTPUT_ANALOG;
@@ -1801,7 +1825,7 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		entry->type = DCB_OUTPUT_LVDS;
 		break;
 	default:
-		NV_ERROR(dev, "Unknown DCB type %d\n", conn & 0x0000000f);
+		NV_ERROR(drm, "Unknown DCB type %d\n", conn & 0x0000000f);
 		return false;
 	}
 
@@ -1840,6 +1864,7 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 	 * more options
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i, newentries = 0;
 
 	for (i = 0; i < dcb->entries; i++) {
@@ -1857,7 +1882,7 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 			    jent->type == ient->type &&
 			    jent->location == ient->location &&
 			    jent->or == ient->or) {
-				NV_TRACE(dev, "Merging DCB entries %d and %d\n",
+				NV_INFO(drm, "Merging DCB entries %d and %d\n",
 					 i, j);
 				ient->heads |= jent->heads;
 				jent->type = 100; /* dummy value */
@@ -1883,8 +1908,8 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 static bool
 apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_table *dcb = &drm->vbios.dcb;
 
 	/* Dell Precision M6300
 	 *   DCB entry 2: 02025312 00000010
@@ -2021,8 +2046,8 @@ fabricate_dcb_encoder_table(struct drm_device *dev, struct nvbios *bios)
 static int
 parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_table *dcb = &drm->vbios.dcb;
 	u32 conf = (dcb->version >= 0x20) ? ROM32(outp[4]) : ROM32(outp[6]);
 	u32 conn = ROM32(outp[0]);
 	bool ret;
@@ -2030,7 +2055,7 @@ parse_dcb_entry(struct drm_device *dev, void *data, int idx, u8 *outp)
 	if (apply_dcb_encoder_quirks(dev, idx, &conn, &conf)) {
 		struct dcb_output *entry = new_dcb_entry(dcb);
 
-		NV_TRACEWARN(dev, "DCB outp %02d: %08x %08x\n", idx, conn, conf);
+		NV_INFO(drm, "DCB outp %02d: %08x %08x\n", idx, conn, conf);
 
 		if (dcb->version >= 0x20)
 			ret = parse_dcb20_entry(dev, dcb, conn, conf, entry);
@@ -2100,6 +2125,7 @@ dcb_fake_connectors(struct nvbios *bios)
 static int
 parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &bios->dcb;
 	u8 *dcbt, *conn;
 	int idx;
@@ -2115,7 +2141,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 		return -EINVAL;
 	}
 
-	NV_TRACE(dev, "DCB version %d.%d\n", dcbt[0] >> 4, dcbt[0] & 0xf);
+	NV_INFO(drm, "DCB version %d.%d\n", dcbt[0] >> 4, dcbt[0] & 0xf);
 
 	dcb->version = dcbt[0];
 	olddcb_outp_foreach(dev, NULL, parse_dcb_entry);
@@ -2134,7 +2160,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios)
 	idx = -1;
 	while ((conn = olddcb_conn(dev, ++idx))) {
 		if (conn[0] != 0xff) {
-			NV_TRACE(dev, "DCB conn %02d: ", idx);
+			NV_INFO(drm, "DCB conn %02d: ", idx);
 			if (olddcb_conntab(dev)[3] < 4)
 				printk("%04x\n", ROM16(conn[0]));
 			else
@@ -2156,12 +2182,14 @@ static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bio
 	 * starting at reg 0x00001400
 	 */
 
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_device *device = nv_device(drm->device);
 	uint8_t bytes_to_write;
 	uint16_t hwsq_entry_offset;
 	int i;
 
 	if (bios->data[hwsq_offset] <= entry) {
-		NV_ERROR(dev, "Too few entries in HW sequencer table for "
+		NV_ERROR(drm, "Too few entries in HW sequencer table for "
 				"requested entry\n");
 		return -ENOENT;
 	}
@@ -2169,24 +2197,24 @@ static int load_nv17_hwsq_ucode_entry(struct drm_device *dev, struct nvbios *bio
 	bytes_to_write = bios->data[hwsq_offset + 1];
 
 	if (bytes_to_write != 36) {
-		NV_ERROR(dev, "Unknown HW sequencer entry size\n");
+		NV_ERROR(drm, "Unknown HW sequencer entry size\n");
 		return -EINVAL;
 	}
 
-	NV_TRACE(dev, "Loading NV17 power sequencing microcode\n");
+	NV_INFO(drm, "Loading NV17 power sequencing microcode\n");
 
 	hwsq_entry_offset = hwsq_offset + 2 + entry * bytes_to_write;
 
 	/* set sequencer control */
-	nv_wr32(dev, 0x00001304, ROM32(bios->data[hwsq_entry_offset]));
+	nv_wr32(device, 0x00001304, ROM32(bios->data[hwsq_entry_offset]));
 	bytes_to_write -= 4;
 
 	/* write ucode */
 	for (i = 0; i < bytes_to_write; i += 4)
-		nv_wr32(dev, 0x00001400 + i, ROM32(bios->data[hwsq_entry_offset + i + 4]));
+		nv_wr32(device, 0x00001400 + i, ROM32(bios->data[hwsq_entry_offset + i + 4]));
 
 	/* twiddle NV_PBUS_DEBUG_4 */
-	nv_wr32(dev, NV_PBUS_DEBUG_4, nv_rd32(dev, NV_PBUS_DEBUG_4) | 0x18);
+	nv_wr32(device, NV_PBUS_DEBUG_4, nv_rd32(device, NV_PBUS_DEBUG_4) | 0x18);
 
 	return 0;
 }
@@ -2217,8 +2245,8 @@ static int load_nv17_hw_sequencer_ucode(struct drm_device *dev,
 
 uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	const uint8_t edid_sig[] = {
 			0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
 	uint16_t offset = 0;
@@ -2241,27 +2269,29 @@ uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 		offset++;
 	}
 
-	NV_TRACE(dev, "Found EDID in BIOS\n");
+	NV_INFO(drm, "Found EDID in BIOS\n");
 
 	return bios->fp.edid = &bios->data[offset];
 }
 
 static bool NVInitVBIOS(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 
 	memset(bios, 0, sizeof(struct nvbios));
 	spin_lock_init(&bios->lock);
 	bios->dev = dev;
 
-	return _nv_bios(dev, &bios->data, &bios->length);
+	bios->data = nouveau_bios(drm->device)->data;
+	bios->length = nouveau_bios(drm->device)->size;
+	return true;
 }
 
 static int nouveau_parse_vbios_struct(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
 	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
 	int offset;
@@ -2269,7 +2299,7 @@ static int nouveau_parse_vbios_struct(struct drm_device *dev)
 	offset = findstr(bios->data, bios->length,
 					bit_signature, sizeof(bit_signature));
 	if (offset) {
-		NV_TRACE(dev, "BIT BIOS found\n");
+		NV_INFO(drm, "BIT BIOS found\n");
 		bios->type = NVBIOS_BIT;
 		bios->offset = offset;
 		return parse_bit_structure(bios, offset + 6);
@@ -2278,21 +2308,21 @@ static int nouveau_parse_vbios_struct(struct drm_device *dev)
 	offset = findstr(bios->data, bios->length,
 					bmp_signature, sizeof(bmp_signature));
 	if (offset) {
-		NV_TRACE(dev, "BMP BIOS found\n");
+		NV_INFO(drm, "BMP BIOS found\n");
 		bios->type = NVBIOS_BMP;
 		bios->offset = offset;
 		return parse_bmp_structure(dev, bios, offset);
 	}
 
-	NV_ERROR(dev, "No known BIOS signature found\n");
+	NV_ERROR(drm, "No known BIOS signature found\n");
 	return -ENODEV;
 }
 
 int
 nouveau_run_vbios_init(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	int i, ret = 0;
 
 	/* Reset the BIOS head to 0. */
@@ -2306,7 +2336,7 @@ nouveau_run_vbios_init(struct drm_device *dev)
 		bios->fp.lvds_init_run = false;
 	}
 
-	if (dev_priv->card_type >= NV_50) {
+	if (nv_device(drm->device)->card_type >= NV_50) {
 		for (i = 0; bios->execute && i < bios->dcb.entries; i++) {
 			nouveau_bios_run_display_table(dev, 0, 0,
 						       &bios->dcb.entry[i], -1);
@@ -2319,10 +2349,10 @@ nouveau_run_vbios_init(struct drm_device *dev)
 static bool
 nouveau_bios_posted(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	unsigned htotal;
 
-	if (dev_priv->card_type >= NV_50) {
+	if (nv_device(drm->device)->card_type >= NV_50) {
 		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
 		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
 			return false;
@@ -2341,8 +2371,8 @@ nouveau_bios_posted(struct drm_device *dev)
 int
 nouveau_bios_init(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	int ret;
 
 	if (!NVInitVBIOS(dev))
@@ -2364,12 +2394,10 @@ nouveau_bios_init(struct drm_device *dev)
 
 	/* ... unless card isn't POSTed already */
 	if (!nouveau_bios_posted(dev)) {
-		NV_INFO(dev, "Adaptor not initialised, "
+		NV_INFO(drm, "Adaptor not initialised, "
 			"running VBIOS init tables.\n");
 		bios->execute = true;
 	}
-	if (nouveau_force_post)
-		bios->execute = true;
 
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)

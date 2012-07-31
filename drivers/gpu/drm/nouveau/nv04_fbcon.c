@@ -32,7 +32,7 @@ int
 nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(nfbdev->dev);
+	struct nouveau_drm *drm = nouveau_drm(nfbdev->dev);
 	struct nouveau_channel *chan = drm->channel;
 	int ret;
 
@@ -52,7 +52,7 @@ int
 nv04_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(nfbdev->dev);
+	struct nouveau_drm *drm = nouveau_drm(nfbdev->dev);
 	struct nouveau_channel *chan = drm->channel;
 	int ret;
 
@@ -79,7 +79,7 @@ int
 nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
-	struct nouveau_drm *drm = nouveau_newpriv(nfbdev->dev);
+	struct nouveau_drm *drm = nouveau_drm(nfbdev->dev);
 	struct nouveau_channel *chan = drm->channel;
 	uint32_t fg;
 	uint32_t bg;
@@ -139,7 +139,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 {
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct drm_device *dev = nfbdev->dev;
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_object *object;

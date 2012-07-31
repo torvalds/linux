@@ -71,7 +71,7 @@ static const struct backlight_ops nv40_bl_ops = {
 static int
 nv40_backlight_init(struct drm_connector *connector)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(connector->dev);
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct backlight_properties props;
 	struct backlight_device *bd;
@@ -95,7 +95,7 @@ static int
 nv50_get_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_newpriv(nv_encoder->base.base.dev);
+	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int or = nv_encoder->or;
 	u32 div = 1025;
@@ -110,7 +110,7 @@ static int
 nv50_set_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_newpriv(nv_encoder->base.base.dev);
+	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int or = nv_encoder->or;
 	u32 div = 1025;
@@ -131,7 +131,7 @@ static int
 nva3_get_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_newpriv(nv_encoder->base.base.dev);
+	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int or = nv_encoder->or;
 	u32 div, val;
@@ -149,7 +149,7 @@ static int
 nva3_set_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_newpriv(nv_encoder->base.base.dev);
+	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	int or = nv_encoder->or;
 	u32 div, val;
@@ -175,7 +175,7 @@ static const struct backlight_ops nva3_bl_ops = {
 static int
 nv50_backlight_init(struct drm_connector *connector)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(connector->dev);
+	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_encoder *nv_encoder;
 	struct backlight_properties props;
@@ -216,7 +216,7 @@ nv50_backlight_init(struct drm_connector *connector)
 int
 nouveau_backlight_init(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct drm_connector *connector;
 
@@ -250,7 +250,7 @@ nouveau_backlight_init(struct drm_device *dev)
 void
 nouveau_backlight_exit(struct drm_device *dev)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (drm->backlight) {
 		backlight_device_unregister(drm->backlight);

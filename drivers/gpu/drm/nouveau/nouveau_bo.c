@@ -49,7 +49,7 @@ static void
 nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 			   u32 addr, u32 size, u32 pitch, u32 flags)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	int i = reg - drm->tile.reg;
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	struct nouveau_fb_tile *tile = &pfb->tile.region[i];
@@ -74,7 +74,7 @@ nv10_bo_update_tile_region(struct drm_device *dev, struct nouveau_drm_tile *reg,
 static struct nouveau_drm_tile *
 nv10_bo_get_tile_region(struct drm_device *dev, int i)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_drm_tile *tile = &drm->tile.reg[i];
 
 	spin_lock(&drm->tile.lock);
@@ -93,7 +93,7 @@ static void
 nv10_bo_put_tile_region(struct drm_device *dev, struct nouveau_drm_tile *tile,
 			struct nouveau_fence *fence)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 
 	if (tile) {
 		spin_lock(&drm->tile.lock);
@@ -112,7 +112,7 @@ static struct nouveau_drm_tile *
 nv10_bo_set_tiling(struct drm_device *dev, u32 addr,
 		   u32 size, u32 pitch, u32 flags)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	struct nouveau_drm_tile *tile, *found = NULL;
 	int i;
@@ -191,7 +191,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	       struct sg_table *sg,
 	       struct nouveau_bo **pnvbo)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_bo *nvbo;
 	size_t acc_size;
 	int ret;

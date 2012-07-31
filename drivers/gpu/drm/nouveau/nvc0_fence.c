@@ -32,6 +32,8 @@
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
+#include "nv50_display.h"
+
 struct nvc0_fence_priv {
 	struct nouveau_fence_priv base;
 	struct nouveau_bo *bo;
@@ -114,13 +116,13 @@ nvc0_fence_context_del(struct nouveau_channel *chan)
 
 	if (nv_device(chan->drm->device)->card_type >= NV_D0) {
 		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nouveau_bo *bo = nvd0sema(dev, i);
+			struct nouveau_bo *bo = nvd0_display_crtc_sema(dev, i);
 			nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 		}
 	} else
 	if (nv_device(chan->drm->device)->card_type >= NV_50) {
 		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nouveau_bo *bo = nv50sema(dev, i);
+			struct nouveau_bo *bo = nv50_display_crtc_sema(dev, i);
 			nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 		}
 	}
@@ -154,9 +156,9 @@ nvc0_fence_context_new(struct nouveau_channel *chan)
 	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
 		struct nouveau_bo *bo;
 		if (nv_device(chan->drm->device)->card_type >= NV_D0)
-			bo = nvd0sema(chan->drm->dev, i);
+			bo = nvd0_display_crtc_sema(chan->drm->dev, i);
 		else
-			bo = nv50sema(chan->drm->dev, i);
+			bo = nv50_display_crtc_sema(chan->drm->dev, i);
 
 		ret = nouveau_bo_vma_add(bo, client->vm, &fctx->dispc_vma[i]);
 	}

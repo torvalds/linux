@@ -1,6 +1,17 @@
 #ifndef __NOUVEAU_DRMCLI_H__
 #define __NOUVEAU_DRMCLI_H__
 
+#define DRIVER_AUTHOR		"Nouveau Project"
+#define DRIVER_EMAIL		"nouveau@lists.freedesktop.org"
+
+#define DRIVER_NAME		"nouveau"
+#define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla"
+#define DRIVER_DATE		"20120801"
+
+#define DRIVER_MAJOR		1
+#define DRIVER_MINOR		1
+#define DRIVER_PATCHLEVEL	0
+
 #include <core/client.h>
 
 #include <subdev/vm.h>
@@ -19,8 +30,8 @@ struct nouveau_channel;
 
 #define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
-#include "nouveau_revcompat.h"
 #include "nouveau_fence.h"
+#include "nouveau_bios.h"
 
 struct nouveau_drm_tile {
 	struct nouveau_fence *fence;
@@ -96,13 +107,25 @@ struct nouveau_drm {
 		spinlock_t lock;
 	} tile;
 
+	/* modesetting */
+	struct nvbios vbios;
+	struct nouveau_display *display;
 	struct backlight_device *backlight;
+
+	/* power management */
+	struct nouveau_pm *pm;
 };
 
 static inline struct nouveau_drm *
 nouveau_drm(struct drm_device *dev)
 {
-	return nouveau_newpriv(dev);
+	return dev->dev_private;
+}
+
+static inline struct nouveau_device *
+nouveau_dev(struct drm_device *dev)
+{
+	return nv_device(nouveau_drm(dev)->device);
 }
 
 int nouveau_drm_suspend(struct pci_dev *, pm_message_t);

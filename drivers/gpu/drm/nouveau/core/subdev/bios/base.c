@@ -56,6 +56,31 @@ nvbios_findstr(const u8 *data, int size, const char *str, int len)
 	return 0;
 }
 
+#if defined(__powerpc__)
+static void
+nouveau_bios_shadow_of(struct nouveau_bios *bios)
+{
+	struct pci_dev *pdev = nv_device(bios)->pdev;
+	struct device_node *dn;
+	const u32 *data;
+	int size, i;
+
+	dn = pci_device_to_OF_node(pdev);
+	if (!dn) {
+		nv_info(bios, "Unable to get the OF node\n");
+		return;
+	}
+
+	data = of_get_property(dn, "NVDA,BMP", &size);
+	if (data) {
+		bios->size = size;
+		bios->data = kmalloc(bios->size, GFP_KERNEL);
+		if (bios->data)
+			memcpy(bios->data, data, size);
+	}
+}
+#endif
+
 static void
 nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 {
@@ -221,7 +246,7 @@ nouveau_bios_score(struct nouveau_bios *bios, const bool writeable)
 }
 
 struct methods {
-	const char desc[8];
+	const char desc[16];
 	void (*shadow)(struct nouveau_bios *);
 	const bool rw;
 	int score;
@@ -233,6 +258,9 @@ static int
 nouveau_bios_shadow(struct nouveau_bios *bios)
 {
 	struct methods shadow_methods[] = {
+#if defined(__powerpc__)
+		{ "OpenFirmware", nouveau_bios_shadow_of, true, 0, 0, NULL },
+#endif
 		{ "PRAMIN", nouveau_bios_shadow_pramin, true, 0, 0, NULL },
 		{ "PROM", nouveau_bios_shadow_prom, false, 0, 0, NULL },
 		{ "ACPI", nouveau_bios_shadow_acpi, true, 0, 0, NULL },

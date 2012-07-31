@@ -26,8 +26,8 @@
 #include "drm.h"
 #include "drm_crtc_helper.h"
 
-#include "nouveau_drv.h"
-#include "nouveau_fb.h"
+#include "nouveau_drm.h"
+#include "nouveau_reg.h"
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
@@ -53,20 +53,24 @@ nv04_display_late_takedown(struct drm_device *dev)
 int
 nv04_display_create(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 	struct nv04_display *disp;
 	int i, ret;
 
-	NV_DEBUG_KMS(dev, "\n");
+	NV_DEBUG(drm, "\n");
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
-	dev_priv->engine.display.priv = disp;
 	if (!disp)
 		return -ENOMEM;
+
+	nouveau_display(dev)->priv = disp;
+	nouveau_display(dev)->dtor = nv04_display_destroy;
+	nouveau_display(dev)->init = nv04_display_init;
+	nouveau_display(dev)->fini = nv04_display_fini;
 
 	nouveau_hw_save_vga_fonts(dev, 1);
 
@@ -96,7 +100,7 @@ nv04_display_create(struct drm_device *dev)
 				ret = nv04_tv_create(connector, dcbent);
 			break;
 		default:
-			NV_WARN(dev, "DCB type %d not known\n", dcbent->type);
+			NV_WARN(drm, "DCB type %d not known\n", dcbent->type);
 			continue;
 		}
 
@@ -107,7 +111,7 @@ nv04_display_create(struct drm_device *dev)
 	list_for_each_entry_safe(connector, ct,
 				 &dev->mode_config.connector_list, head) {
 		if (!connector->encoder_ids[0]) {
-			NV_WARN(dev, "%s has no encoders, removing\n",
+			NV_WARN(drm, "%s has no encoders, removing\n",
 				drm_get_connector_name(connector));
 			connector->funcs->destroy(connector);
 		}
@@ -129,12 +133,12 @@ nv04_display_create(struct drm_device *dev)
 void
 nv04_display_destroy(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv04_display *disp = nv04_display(dev);
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
-	NV_DEBUG_KMS(dev, "\n");
+	NV_DEBUG(drm, "\n");
 
 	/* Turn every CRTC off. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -157,7 +161,7 @@ nv04_display_destroy(struct drm_device *dev)
 
 	nouveau_hw_save_vga_fonts(dev, 0);
 
-	dev_priv->engine.display.priv = NULL;
+	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
 }
 

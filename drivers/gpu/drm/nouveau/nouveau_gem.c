@@ -550,7 +550,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 				struct drm_nouveau_gem_pushbuf *req,
 				struct drm_nouveau_gem_pushbuf_bo *bo)
 {
-	struct nouveau_drm *drm = nouveau_newpriv(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_nouveau_gem_pushbuf_reloc *reloc = NULL;
 	int ret = 0;
 	unsigned i;

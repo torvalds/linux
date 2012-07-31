@@ -26,20 +26,22 @@
 
 #include "drmP.h"
 
-#include "nouveau_drv.h"
+#include "nouveau_drm.h"
 #include "nouveau_pm.h"
+
+#include <subdev/i2c.h>
 
 static void
 nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_pm *pm = nouveau_pm(dev);
 	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
 	struct nouveau_pm_threshold_temp *temps = &pm->threshold_temp;
 	int i, headerlen, recordlen, entries;
 
 	if (!temp) {
-		NV_DEBUG(dev, "temperature table pointer invalid\n");
+		NV_DEBUG(drm, "temperature table pointer invalid\n");
 		return;
 	}
 
@@ -60,8 +62,8 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 	pm->fan.max_duty = 100;
 
 	/* Set the known default values to setup the temperature sensor */
-	if (dev_priv->card_type >= NV_40) {
-		switch (dev_priv->chipset) {
+	if (nv_device(drm->device)->card_type >= NV_40) {
+		switch (nv_device(drm->device)->chipset) {
 		case 0x43:
 			sensor->offset_mult = 32060;
 			sensor->offset_div = 1000;
@@ -185,8 +187,9 @@ nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
 static int
 nv40_sensor_setup(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_pm *pm = nouveau_pm(dev);
 	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
 	s32 offset = sensor->offset_mult / sensor->offset_div;
 	s32 sensor_calibration;
@@ -196,33 +199,34 @@ nv40_sensor_setup(struct drm_device *dev)
 	sensor_calibration = sensor_calibration * sensor->slope_div /
 				sensor->slope_mult;
 
-	if (dev_priv->chipset >= 0x46)
+	if (nv_device(drm->device)->chipset >= 0x46)
 		sensor_calibration |= 0x80000000;
 	else
 		sensor_calibration |= 0x10000000;
 
-	nv_wr32(dev, 0x0015b0, sensor_calibration);
+	nv_wr32(device, 0x0015b0, sensor_calibration);
 
 	/* Wait for the sensor to update */
 	msleep(5);
 
 	/* read */
-	return nv_rd32(dev, 0x0015b4) & 0x1fff;
+	return nv_rd32(device, 0x0015b4) & 0x1fff;
 }
 
 int
 nv40_temp_get(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_pm *pm = nouveau_pm(dev);
 	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
 	int offset = sensor->offset_mult / sensor->offset_div;
 	int core_temp;
 
-	if (dev_priv->card_type >= NV_50) {
-		core_temp = nv_rd32(dev, 0x20008);
+	if (nv_device(drm->device)->card_type >= NV_50) {
+		core_temp = nv_rd32(device, 0x20008);
 	} else {
-		core_temp = nv_rd32(dev, 0x0015b4) & 0x1fff;
+		core_temp = nv_rd32(device, 0x0015b4) & 0x1fff;
 		/* Setup the sensor if the temperature is 0 */
 		if (core_temp == 0)
 			core_temp = nv40_sensor_setup(dev);
@@ -237,14 +241,14 @@ nv40_temp_get(struct drm_device *dev)
 int
 nv84_temp_get(struct drm_device *dev)
 {
-	return nv_rd32(dev, 0x20400);
+	struct nouveau_device *device = nouveau_dev(dev);
+	return nv_rd32(device, 0x20400);
 }
 
 void
 nouveau_temp_safety_checks(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct nouveau_pm *pm = nouveau_pm(dev);
 	struct nouveau_pm_threshold_temp *temps = &pm->threshold_temp;
 
 	if (temps->critical > 120)
@@ -271,7 +275,7 @@ probe_monitoring_device(struct nouveau_i2c_port *i2c,
 
 	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
 
-	client = i2c_new_device(nouveau_i2c_adapter(i2c), info);
+	client = i2c_new_device(&i2c->adapter, info);
 	if (!client)
 		return false;
 
@@ -286,6 +290,8 @@ probe_monitoring_device(struct nouveau_i2c_port *i2c,
 static void
 nouveau_temp_probe_i2c(struct drm_device *dev)
 {
+	struct nouveau_device *device = nouveau_dev(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(device);
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("w83l785ts", 0x2d) },
 		{ I2C_BOARD_INFO("w83781d", 0x2d) },
@@ -295,15 +301,15 @@ nouveau_temp_probe_i2c(struct drm_device *dev)
 		{ }
 	};
 
-	nouveau_i2c_identify(dev, "monitoring device", info,
-			     probe_monitoring_device, 0x80); //NV_I2C_DEFAULT(0));
+	i2c->identify(i2c, NV_I2C_DEFAULT(0), "monitoring device", info,
+		      probe_monitoring_device);
 }
 
 void
 nouveau_temp_init(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvbios *bios = &drm->vbios;
 	struct bit_entry P;
 	u8 *temp = NULL;
 
@@ -316,7 +322,7 @@ nouveau_temp_init(struct drm_device *dev)
 		else if (P.version == 2)
 			temp = ROMPTR(dev, P.data[16]);
 		else
-			NV_WARN(dev, "unknown temp for BIT P %d\n", P.version);
+			NV_WARN(drm, "unknown temp for BIT P %d\n", P.version);
 
 		nouveau_temp_vbios_parse(dev, temp);
 	}
