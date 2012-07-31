@@ -336,8 +336,10 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 	struct nfs_pageio_descriptor pgio;
 	int err;
 
-	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc),
-			      &nfs_async_write_completion_ops);
+	NFS_PROTO(page->mapping->host)->write_pageio_init(&pgio,
+							  page->mapping->host,
+							  wb_priority(wbc),
+							  &nfs_async_write_completion_ops);
 	err = nfs_do_writepage(page, wbc, &pgio);
 	nfs_pageio_complete(&pgio);
 	if (err < 0)
@@ -380,8 +382,7 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
-	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc),
-			      &nfs_async_write_completion_ops);
+	NFS_PROTO(inode)->write_pageio_init(&pgio, inode, wb_priority(wbc), &nfs_async_write_completion_ops);
 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
 	nfs_pageio_complete(&pgio);
 
@@ -410,7 +411,7 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	nfs_lock_request(req);
 
 	spin_lock(&inode->i_lock);
-	if (!nfsi->npages && nfs_have_delegation(inode, FMODE_WRITE))
+	if (!nfsi->npages && NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		inode->i_version++;
 	set_bit(PG_MAPPED, &req->wb_flags);
 	SetPagePrivate(req->wb_page);
@@ -620,7 +621,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 			goto next;
 		}
 		if (test_bit(NFS_IOHDR_NEED_COMMIT, &hdr->flags)) {
-			memcpy(&req->wb_verf, hdr->verf, sizeof(req->wb_verf));
+			memcpy(&req->wb_verf, &hdr->verf->verifier, sizeof(req->wb_verf));
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
 			goto next;
 		}
@@ -1202,7 +1203,7 @@ static const struct nfs_pageio_ops nfs_pageio_write_ops = {
 	.pg_doio = nfs_generic_pg_writepages,
 };
 
-void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
+void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 			       struct inode *inode, int ioflags,
 			       const struct nfs_pgio_completion_ops *compl_ops)
 {
@@ -1217,13 +1218,6 @@ void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
-void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
-			   struct inode *inode, int ioflags,
-			   const struct nfs_pgio_completion_ops *compl_ops)
-{
-	if (!pnfs_pageio_init_write(pgio, inode, ioflags, compl_ops))
-		nfs_pageio_init_write_mds(pgio, inode, ioflags, compl_ops);
-}
 
 void nfs_write_prepare(struct rpc_task *task, void *calldata)
 {
@@ -1547,7 +1541,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 
 		/* Okay, COMMIT succeeded, apparently. Check the verifier
 		 * returned by the server against all stored verfs. */
-		if (!memcmp(req->wb_verf.verifier, data->verf.verifier, sizeof(data->verf.verifier))) {
+		if (!memcmp(&req->wb_verf, &data->verf.verifier, sizeof(req->wb_verf))) {
 			/* We have a match */
 			nfs_inode_remove_request(req);
 			dprintk(" OK\n");
@@ -1677,9 +1671,14 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 
 int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	int ret;
+	return nfs_commit_unstable_pages(inode, wbc);
+}
 
-	ret = nfs_commit_unstable_pages(inode, wbc);
+#ifdef CONFIG_NFS_V4
+int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	int ret = nfs_write_inode(inode, wbc);
+
 	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
 		int status;
 		bool sync = true;
@@ -1693,6 +1692,7 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	}
 	return ret;
 }
+#endif
 
 /*
  * flush the inode to disk.
