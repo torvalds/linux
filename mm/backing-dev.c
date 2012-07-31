@@ -886,3 +886,23 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(wait_iff_congested);
+
+int pdflush_proc_obsolete(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	char kbuf[] = "0\n";
+
+	if (*ppos) {
+		*lenp = 0;
+		return 0;
+	}
+
+	if (copy_to_user(buffer, kbuf, sizeof(kbuf)))
+		return -EFAULT;
+	printk_once(KERN_WARNING "%s exported in /proc is scheduled for removal\n",
+			table->procname);
+
+	*lenp = 2;
+	*ppos += *lenp;
+	return 2;
+}
