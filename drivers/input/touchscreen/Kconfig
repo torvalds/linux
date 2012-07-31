@@ -969,6 +969,9 @@ config LAIBAO_TS
 config TOUCHSCREEN_GT801_IIC
 	tristate "GT801_IIC based touchscreens"
 	depends on I2C2_RK29
+config TOUCHSCREEN_GT82X_IIC
+	tristate "GT82x_IIC based touchscreens"
+	depends on I2C2_RK30
 
 config TOUCHSCREEN_GT818_IIC
 	tristate "GT818_IIC based touchscreens"

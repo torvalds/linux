@@ -261,6 +261,12 @@ config GPIO_TC3589X
 	  This enables support for the GPIOs found on the TC3589X
 	  I/O Expander.
 
+config GPIO_TPS65912
+	tristate "TI TPS65912 GPIO"
+	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	help
+	  This driver supports TPS65912 gpio chip
+
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE

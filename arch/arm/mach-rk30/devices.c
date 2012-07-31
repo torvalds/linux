@@ -368,10 +368,42 @@ static void __init rk30_init_uart(void)
 #endif
 
 #ifdef CONFIG_I2C0_RK30
+static int i2c0_check_idle(void)
+{
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO2D5_I2C0SCL_NAME, GPIO2D_GPIO2D5);	
+	rk30_mux_api_set(GPIO2D4_I2C0SDA_NAME, GPIO2D_GPIO2D4);
+
+        gpio_request(RK30_PIN2_PD5, "i2c.0");
+        gpio_request(RK30_PIN2_PD4, "i2c.0");
+        
+        gpio_direction_input(RK30_PIN2_PD5);
+        gpio_direction_input(RK30_PIN2_PD4);
+
+        scl_level = gpio_get_value(RK30_PIN2_PD5);
+        sda_level = gpio_get_value(RK30_PIN2_PD4);
+
+        gpio_free(RK30_PIN2_PD5);
+        gpio_free(RK30_PIN2_PD4);
+
+        rk30_mux_api_set(GPIO2D5_I2C0SCL_NAME, GPIO2D_I2C0_SCL);	
+	rk30_mux_api_set(GPIO2D4_I2C0SDA_NAME, GPIO2D_I2C0_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
+}
+
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
 	.is_div_from_arm = 1,
 	.adap_type = I2C0_ADAP_TYPE,
+        .check_idle = &i2c0_check_idle,
 };
 
 static struct resource resources_i2c0[] = {
@@ -399,10 +431,42 @@ static struct platform_device device_i2c0 = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
+static int i2c1_check_idle(void)
+{
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO2D7_I2C1SCL_NAME, GPIO2D_GPIO2D7);	
+	rk30_mux_api_set(GPIO2D6_I2C1SDA_NAME, GPIO2D_GPIO2D6);
+
+        gpio_request(RK30_PIN2_PD7, "i2c.1");
+        gpio_request(RK30_PIN2_PD6, "i2c.1");
+        
+        gpio_direction_input(RK30_PIN2_PD7);
+        gpio_direction_input(RK30_PIN2_PD6);
+
+        sda_level = gpio_get_value(RK30_PIN2_PD7);
+        scl_level = gpio_get_value(RK30_PIN2_PD6);
+
+        gpio_free(RK30_PIN2_PD7);
+        gpio_free(RK30_PIN2_PD6);
+
+        rk30_mux_api_set(GPIO2D7_I2C1SCL_NAME, GPIO2D_I2C1_SCL);	
+	rk30_mux_api_set(GPIO2D6_I2C1SDA_NAME, GPIO2D_I2C1_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
+}
+
 static struct rk30_i2c_platform_data default_i2c1_data = {
 	.bus_num = 1,
 	.is_div_from_arm = 1,
 	.adap_type = I2C1_ADAP_TYPE,
+        .check_idle = &i2c1_check_idle,
 };
 
 static struct resource resources_i2c1[] = {
@@ -430,10 +494,43 @@ static struct platform_device device_i2c1 = {
 #endif
 
 #ifdef CONFIG_I2C2_RK30
+static int i2c2_check_idle(void)
+{
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO3A1_I2C2SCL_NAME, GPIO3A_GPIO3A1);	
+	rk30_mux_api_set(GPIO3A0_I2C2SDA_NAME, GPIO3A_GPIO3A0);
+
+        gpio_request(RK30_PIN3_PA1, "i2c.2");
+        gpio_request(RK30_PIN3_PA0, "i2c.2");
+        
+        gpio_direction_input(RK30_PIN3_PA1);
+        gpio_direction_input(RK30_PIN3_PA0);
+
+        sda_level = gpio_get_value(RK30_PIN3_PA1);
+        scl_level = gpio_get_value(RK30_PIN3_PA0);
+
+        gpio_free(RK30_PIN3_PA1);
+        gpio_free(RK30_PIN3_PA0);
+
+        rk30_mux_api_set(GPIO3A1_I2C2SCL_NAME, GPIO3A_I2C2_SCL);	
+	rk30_mux_api_set(GPIO3A0_I2C2SDA_NAME, GPIO3A_I2C2_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
+}
+
+
 static struct rk30_i2c_platform_data default_i2c2_data = {
 	.bus_num = 2,
 	.is_div_from_arm = 0,
 	.adap_type = I2C2_ADAP_TYPE,
+        .check_idle = &i2c2_check_idle,
 };
 
 static struct resource resources_i2c2[] = {
@@ -461,10 +558,43 @@ static struct platform_device device_i2c2 = {
 #endif
 
 #ifdef CONFIG_I2C3_RK30
+static int i2c3_check_idle(void)
+{
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO3A3_I2C3SCL_NAME, GPIO3A_GPIO3A3);	
+	rk30_mux_api_set(GPIO3A2_I2C3SDA_NAME, GPIO3A_GPIO3A2);
+
+        gpio_request(RK30_PIN3_PA3, "i2c.3");
+        gpio_request(RK30_PIN3_PA2, "i2c.3");
+        
+        gpio_direction_input(RK30_PIN3_PA3);
+        gpio_direction_input(RK30_PIN3_PA2);
+
+        sda_level = gpio_get_value(RK30_PIN3_PA3);
+        scl_level = gpio_get_value(RK30_PIN3_PA2);
+
+        gpio_free(RK30_PIN3_PA3);
+        gpio_free(RK30_PIN3_PA2);
+
+        rk30_mux_api_set(GPIO3A3_I2C3SCL_NAME, GPIO3A_I2C3_SCL);	
+	rk30_mux_api_set(GPIO3A2_I2C3SDA_NAME, GPIO3A_I2C3_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
+}
+
+
 static struct rk30_i2c_platform_data default_i2c3_data = {
 	.bus_num = 3,
 	.is_div_from_arm = 0,
 	.adap_type = I2C3_ADAP_TYPE,
+        .check_idle = &i2c3_check_idle,
 };
 
 static struct resource resources_i2c3[] = {
@@ -492,10 +622,42 @@ static struct platform_device device_i2c3 = {
 #endif
 
 #ifdef CONFIG_I2C4_RK30
+static int i2c4_check_idle(void)
+{
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO3A5_I2C4SCL_NAME, GPIO3A_GPIO3A5);	
+	rk30_mux_api_set(GPIO3A4_I2C4SDA_NAME, GPIO3A_GPIO3A4);
+
+        gpio_request(RK30_PIN3_PA5, "i2c.4");
+        gpio_request(RK30_PIN3_PA4, "i2c.4");
+        
+        gpio_direction_input(RK30_PIN3_PA5);
+        gpio_direction_input(RK30_PIN3_PA4);
+
+        scl_level = gpio_get_value(RK30_PIN3_PA5);
+        sda_level = gpio_get_value(RK30_PIN3_PA4);
+
+        gpio_free(RK30_PIN3_PA5);
+        gpio_free(RK30_PIN3_PA4);
+
+        rk30_mux_api_set(GPIO3A5_I2C4SCL_NAME, GPIO3A_I2C4_SCL);	
+	rk30_mux_api_set(GPIO3A4_I2C4SDA_NAME, GPIO3A_I2C4_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
+}
+
 static struct rk30_i2c_platform_data default_i2c4_data = {
 	.bus_num = 4,
 	.is_div_from_arm = 0,
 	.adap_type = I2C4_ADAP_TYPE,
+        .check_idle = &i2c4_check_idle,
 };
 
 static struct resource resources_i2c4[] = {

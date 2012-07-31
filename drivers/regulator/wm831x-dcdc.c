@@ -358,7 +358,10 @@ static int wm831x_buckv_set_voltage(struct regulator_dev *rdev,
 	/* Always set the ON status to the minimum voltage */
 	ret = wm831x_set_bits(wm831x, on_reg, WM831X_DC1_ON_VSEL_MASK, vsel);
 	if (ret < 0)
+	{
+		dcdc->on_vsel = 0;
 		return ret;
+	}
 	dcdc->on_vsel = vsel;
 
 	if (!dcdc->dvs_gpio)
@@ -412,7 +415,12 @@ static int wm831x_buckv_set_suspend_voltage(struct regulator_dev *rdev,
 static int wm831x_buckv_get_voltage(struct regulator_dev *rdev)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-
+	struct wm831x *wm831x = dcdc->wm831x;
+	int on_reg = dcdc->base + WM831X_DCDC_ON_CONFIG;
+	if (dcdc->on_vsel == 0){
+	dcdc->on_vsel = wm831x_reg_read(wm831x,on_reg);
+	dcdc->on_vsel = dcdc->on_vsel & WM831X_DC1_DVS_VSEL_MASK;
+	}
 	if (dcdc->dvs_gpio && dcdc->dvs_gpio_state)
 		return wm831x_buckv_list_voltage(rdev, dcdc->dvs_vsel);
 	else

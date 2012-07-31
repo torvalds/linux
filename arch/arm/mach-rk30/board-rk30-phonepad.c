@@ -44,8 +44,16 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
+#include <linux/mfd/tps65910.h>
+#include "../../../drivers/headset_observe/rk_headset.h"
+
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
+#endif
+
+
+#ifdef CONFIG_TOUCHSCREEN_GT82X_IIC
+#include <linux/goodix_touch_82x.h>
 #endif
 
 #if defined(CONFIG_SPIM_RK29)
@@ -72,6 +80,7 @@
 #else
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
+#define PMIC_IS_WM831X  0
 
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
@@ -522,6 +531,106 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 
 #endif /* CONFIG_VIDEO_RK29 */
 
+#ifdef  CONFIG_TOUCHSCREEN_GT82X_IIC
+#define TOUCH_ENABLE_PIN	INVALID_GPIO
+#define TOUCH_RESET_PIN  RK30_PIN4_PD0
+#define TOUCH_INT_PIN    RK30_PIN4_PC2
+int goodix_init_platform_hw(void)
+{
+	int ret;
+	
+	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, GPIO4D_GPIO4D0);
+	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, GPIO4C_GPIO4C2);
+	//printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO4D0_SMCDATA8_TRACEDATA8_NAME),rk30_mux_api_get(GPIO4C2_SMCDATA2_TRACEDATA2_NAME));
+	if (TOUCH_ENABLE_PIN != INVALID_GPIO) {
+		ret = gpio_request(TOUCH_ENABLE_PIN, "goodix power pin");
+		if (ret != 0) {
+			gpio_free(TOUCH_ENABLE_PIN);
+			printk("goodix power error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_ENABLE_PIN, 0);
+		gpio_set_value(TOUCH_ENABLE_PIN, GPIO_LOW);
+		msleep(100);
+	}
+
+	if (TOUCH_RESET_PIN != INVALID_GPIO) {
+		ret = gpio_request(TOUCH_RESET_PIN, "goodix reset pin");
+		if (ret != 0) {
+			gpio_free(TOUCH_RESET_PIN);
+			printk("goodix gpio_request error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_RESET_PIN, 0);
+		gpio_set_value(TOUCH_RESET_PIN, GPIO_LOW);
+		msleep(10);
+		gpio_set_value(TOUCH_RESET_PIN, GPIO_HIGH);
+		msleep(500);
+	}
+	return 0;
+}
+u8 ts82x_config_data[] = {
+	0x65,0x00,0x04,0x00,0x03,0x00,0x0A,0x0D,0x1E,0xE7,
+	0x32,0x03,0x08,0x10,0x48,0x42,0x42,0x20,0x00,0x01,
+	0x60,0x60,0x4B,0x6E,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
+	0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,
+	0x1C,0x1B,0x1A,0x19,0x18,0x17,0x16,0x15,0x14,0x13,
+	0x12,0x11,0x10,0x0F,0x50,0x00,0x00,0x00,0x00,0x00,
+	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x2B,0x00,0x00,
+	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+	0x00,0x00,0x00,0x00
+};
+static struct goodix_i2c_rmi_platform_data ts82x_pdata = {
+    .gpio_shutdown = TOUCH_ENABLE_PIN,
+    .gpio_irq = TOUCH_INT_PIN,
+    .gpio_reset = TOUCH_RESET_PIN,
+    .irq_edge = 1, /* 0:rising edge, 1:falling edge */
+
+    .ypol = 1,
+	.swap_xy = 1,
+	.xpol = 0,
+	.xmax = 1024,
+    .ymax = 600,
+    .config_info_len =ARRAY_SIZE(ts82x_config_data),
+    .config_info = ts82x_config_data,
+	.init_platform_hw= goodix_init_platform_hw,
+};
+#endif
+
+#if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
+
+static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
+{
+		int ret;
+		ret = gpio_request(gpio, NULL);
+		if(ret) 
+			return ret;
+
+		rk30_mux_api_set(iomux_name, iomux_mode);
+		gpio_pull_updown(gpio, PullDisable);
+		gpio_direction_input(gpio);
+		return 0;
+};
+
+struct rk_headset_pdata rk_headset_info = {
+		.Headset_gpio		= RK30_PIN0_PC7,
+		.headset_in_type = HEADSET_IN_HIGH,
+		.Hook_adc_chn = 2,
+		.hook_key_code = KEY_MEDIA,
+		.headset_gpio_info = {GPIO0C7_TRACECTL_SMCADDR3_NAME, GPIO0C_GPIO0C7},
+		.headset_io_init = rk_headset_io_init,
+};
+
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
+		.id 	= 0,
+		.dev    = {
+			    .platform_data = &rk_headset_info,
+		}
+};
+#endif
+
+
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN4_PD0
 #define TOUCH_PWR_PIN    INVALID_GPIO
@@ -577,11 +686,11 @@ static struct spi_board_info board_spi_devices[] = {
 *	rk30  backlight
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
-#define PWM_ID            0
-#define PWM_MUX_NAME      GPIO0A3_PWM0_NAME
-#define PWM_MUX_MODE      GPIO0A_PWM0
+#define PWM_ID            2
+#define PWM_MUX_NAME      GPIO0D6_PWM2_NAME
+#define PWM_MUX_MODE      GPIO0D_PWM2
 #define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
-#define PWM_GPIO 	  RK30_PIN0_PA3
+#define PWM_GPIO 	  RK30_PIN0_PD6
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
@@ -596,6 +705,11 @@ static struct spi_board_info board_spi_devices[] = {
 static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
+	//rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_GPIO0D6);
+	//gpio_request(RK30_PIN0_PD6, NULL);
+	//gpio_direction_output(RK30_PIN0_PD6, GPIO_HIGH);
+
+	rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_PWM2);
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 #ifdef  LCD_DISP_ON_PIN
 	// rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
@@ -605,7 +719,7 @@ static int rk29_backlight_io_init(void)
 		gpio_free(BL_EN_PIN);
 	}
 
-	gpio_direction_output(BL_EN_PIN, 0);
+	gpio_direction_output(BL_EN_PIN, BL_EN_VALUE);
 	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
 #endif
 	return ret;
@@ -664,6 +778,24 @@ static struct platform_device rk29_device_backlight = {
 	.dev	= {
 		.platform_data  = &rk29_bl_info,
 	}
+};
+
+#endif
+
+#ifdef CONFIG_SND_SOC_RT3261
+
+static int rt3261_io_init(int gpio, char *iomux_name, int iomux_mode)
+{
+	gpio_request(gpio,NULL);
+	rk30_mux_api_set(iomux_name, iomux_mode);
+	gpio_direction_output(gpio,1);
+	
+};
+
+static struct rt3261_platform_data rt3261_info = {
+	.codec_en_gpio 			= RK30_PIN4_PD7,
+	.codec_en_gpio_info		= {GPIO4D7_SMCDATA15_TRACEDATA15_NAME,GPIO4D_GPIO4D7},
+	.io_init				= rt3261_io_init,
 };
 
 #endif
@@ -767,10 +899,11 @@ struct platform_device rk29_device_mw100 = {
 static int mt6229_io_init(void)
 {
 	 rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCADDR18_TSSYNC_NAME, GPIO2B_GPIO2B6);
-	 rk30_mux_api_set(GPIO4D2_SMCDATA10_TRACEDATA10_NAME, GPIO4D_GPIO4D2);
 	 rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCADDR19_HSADCDATA7_NAME, GPIO2B_GPIO2B7);
 	 rk30_mux_api_set(GPIO2C0_LCDCDATA16_GPSCLK_HSADCCLKOUT_NAME, GPIO2C_GPIO2C0);
-	return 0;
+	 rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCADDR17_HSADCDATA8_NAME,GPIO2B_GPIO2B5);
+	 
+	 return 0;
 }
 
 static int mt6229_io_deinit(void)
@@ -782,11 +915,10 @@ static int mt6229_io_deinit(void)
 struct rk29_mt6229_data rk29_mt6229_info = {
 	.io_init = mt6229_io_init,
   	.io_deinit = mt6229_io_deinit,
-	.modem_power_en = RK30_PIN6_PB2,
+	.modem_power_en = RK30_PIN2_PB6,
 	.bp_power = RK30_PIN2_PB7,//RK30_PIN2_PB6,
-	.bp_reset = RK30_PIN4_PD2,
 	.ap_wakeup_bp = RK30_PIN2_PC0,
-	.bp_wakeup_ap = RK30_PIN6_PA0,
+	.bp_wakeup_ap = RK30_PIN2_PB5,
 };
 struct platform_device rk29_device_mt6229 = {	
         .name = "mt6229",	
@@ -1334,6 +1466,61 @@ static struct platform_device rk30_device_adc_battery = {
         },
 };
 #endif
+#if CONFIG_RK30_PWM_REGULATOR
+struct pwm_platform_data {
+	int	pwm_id;
+	int 	pwm_gpio;
+	//char	pwm_iomux_name[50];
+	char*	pwm_iomux_name;
+	unsigned int 	pwm_iomux_pwm;
+	int 	pwm_iomux_gpio;
+	int 	pwm_voltage;
+	struct regulator_init_data *init_data;
+};
+
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[1] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[1] = {
+	{
+		.pwm_id = 3,
+		.pwm_gpio = RK30_PIN0_PD7,
+		.pwm_iomux_name = GPIO0D7_PWM3_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM3,
+		.pwm_iomux_gpio = GPIO0D_GPIO0D6,
+		.pwm_voltage = 1100000,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+};
+
+struct platform_device pwm_regulator_device[1] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
+};
+#endif
 
 #ifdef CONFIG_RK29_VMAC
 #define PHY_PWR_EN_GPIO	RK30_PIN1_PD6
@@ -1439,6 +1626,9 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SEW868)
 	&rk30_device_sew868,
 #endif
+#if defined (CONFIG_RK_HEADSET_DET) ||  defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
+	&rk_device_headset,
+#endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
 #endif
@@ -1518,6 +1708,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .type                   = "rt3261",
                 .addr                   = 0x1c,
                 .flags                  = 0,
+				.platform_data          = &rt3261_info,
         },
 #endif
 
@@ -1555,7 +1746,13 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
+#ifdef CONFIG_MFD_WM831X_I2C
 #include "board-rk30-sdk-wm8326.c"
+#endif
+#ifdef CONFIG_MFD_TPS65910
+#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
+#include "board-rk30-sdk-tps65910.c"
+#endif
 
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
@@ -1565,6 +1762,15 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.flags         = 0,
 		.irq           = RK30_PIN6_PA4,
 		.platform_data = &wm831x_platdata,
+	},
+#endif
+#if defined (CONFIG_MFD_TPS65910)
+	{
+        .type           = "tps65910",
+        .addr           = TPS65910_I2C_ID0,
+        .flags          = 0,
+        .irq            = TPS65910_HOST_IRQ,
+    	.platform_data = &tps65910_data,
 	},
 #endif
 };
@@ -1579,6 +1785,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 		.flags         = 0,
 		.irq           = RK30_PIN4_PC2,
 		.platform_data = &goodix_info,
+	},
+#endif
+#if defined(CONFIG_TOUCHSCREEN_GT82X_IIC)
+	{
+		.type          = "Goodix-TS-82X",
+		.addr          = 0x5D,
+		.flags         = 0,
+		.irq           = RK30_PIN4_PC2,
+		.platform_data = &ts82x_pdata,
 	},
 #endif
 #if defined (CONFIG_LS_CM3217)
@@ -1648,23 +1863,69 @@ static void __init rk30_i2c_register_board_info(void)
 }
 //end of i2c
 
-#define POWER_ON_PIN RK30_PIN6_PB0   //power_hold
-static void rk30_pm_power_off(void)
+static void dcr_en_low(void)
 {
+  int ret;
+  ret=gpio_request(RK30_PIN4_PB7,"dcr_en");
+  if(ret<0){
+     printk("dcr_en_low request io error");
+     gpio_free(RK30_PIN4_PB7);
+     return;
+  }
+  gpio_direction_output(RK30_PIN4_PB7, GPIO_LOW);
+}
+
+#define POWER_ON_PIN RK30_PIN6_PB0   //power_hold
+void rk30_pm_power_off(void)
+{
+  int pwr_cnt;
+  
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
-	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+	
+#if 0
+
+	if(gpio_get_value (rk30_adc_battery_platdata.dc_det_pin) == rk30_adc_battery_platdata.dc_det_level){
+		pwr_cnt=0;
+		while(1){
+			 if(gpio_get_value (rk30_adc_battery_platdata.dc_det_pin) != rk30_adc_battery_platdata.dc_det_level){
+			 	  break;
+			 }
+			 if((gpio_get_value(RK30_PIN6_PA2)==GPIO_LOW)){
+			 	 if(pwr_cnt++>40)
+			 	   break;
+			 }else{
+			 	 //printk("0\n");
+			 	 pwr_cnt=0;
+			 }		
+			 mdelay(50);
+		}	
+              arm_pm_restart(0, NULL);
+	}
+#endif
+#if PMIC_IS_WM831X 
 #if defined(CONFIG_MFD_WM831X)
 	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
 	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
 #endif
-	while (1);
+#else
+#if defined(CONFIG_MFD_TPS65910)
+	tps65910_device_shutdown();//tps65910 shutdown
+#endif
+#endif
+  gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+	while(1);
 }
-
+EXPORT_SYMBOL_GPL(rk30_pm_power_off);
 static void __init machine_rk30_board_init(void)
 {
 	avs_init();
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+
+	//add for codec_en 
+	gpio_request(RK30_PIN4_PD7, "codec_en");
+	rk30_mux_api_set(GPIO4D7_SMCDATA15_TRACEDATA15_NAME, GPIO4D_GPIO4D7);
+	gpio_direction_output(RK30_PIN4_PD7, GPIO_HIGH);
 	
 	pm_power_off = rk30_pm_power_off;
 	
@@ -1676,6 +1937,7 @@ static void __init machine_rk30_board_init(void)
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
 #endif
+  dcr_en_low();
 }
 
 static void __init rk30_reserve(void)
@@ -1706,14 +1968,14 @@ static void __init rk30_reserve(void)
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 	{.frequency = 252 * 1000,	.cpu_volt = 1075 * 1000,	.logic_volt = 1125 * 1000},//0.975V/1.000V
-	{.frequency = 504 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1125 * 1000},//0.975V/1.000V
-	{.frequency = 816 * 1000,	.cpu_volt = 1125 * 1000,	.logic_volt = 1150 * 1000},//1.000V/1.025V
+	{.frequency = 504 * 1000,	.cpu_volt = 1075 * 1000,	.logic_volt = 1125* 1000},//0.975V/1.000V
+	{.frequency = 816 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1150 * 1000},//1.000V/1.025V
 	{.frequency = 1008 * 1000,	.cpu_volt = 1125 * 1000,	.logic_volt = 1150 * 1000},//1.025V/1.050V
 	{.frequency = 1200 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1272 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
-	{.frequency = 1416 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1200 * 1000},//1.225V/1.100V
-	{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},//1.300V/1.150V
-	{.frequency = 1608 * 1000,	.cpu_volt = 1425 * 1000,	.logic_volt = 1300 * 1000},//1.325V/1.175V
+	//{.frequency = 1272 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
+	//{.frequency = 1416 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1200 * 1000},//1.225V/1.100V
+	//{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},//1.300V/1.150V
+	//{.frequency = 1608 * 1000,	.cpu_volt = 1375 * 1000,	.logic_volt = 1275 * 1000},//1.325V/1.175V
 	{.frequency = CPUFREQ_TABLE_END},
 };
 

@@ -68,7 +68,7 @@ struct rk30_i2c {
         };
         union {
 	        unsigned int		msg_idx;
-	        unsigned int		error;
+	        int		        error;
         };
 	unsigned int		msg_ptr;
 
@@ -101,6 +101,7 @@ struct rk30_i2c {
 
         void (*i2c_init_hw)(struct rk30_i2c *, unsigned long scl_rate);
         void (*i2c_set_clk)(struct rk30_i2c *, unsigned long);
+        int (*check_idle)(void);
         irqreturn_t (*i2c_irq)(int, void *);
 };
 void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type);

@@ -82,7 +82,7 @@ for file in ${EXCLUDES[@]}; do
 done
 echo TAR $(pwd)/$package
 tar cf $package --numeric-owner --exclude-from $ex --exclude=.git $(basename $kerndir)
-tar rf $package --numeric-owner --exclude=.git prebuilt/linux-x86/toolchain/arm-eabi-4.4.0
+#tar rf $package --numeric-owner --exclude=.git prebuilt/linux-x86/toolchain/arm-eabi-4.4.0
 echo GZIP $(pwd)/$package.gz
 gzip -9 -c $package > $package.gz
 rm $ex

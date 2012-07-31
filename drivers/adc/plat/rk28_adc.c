@@ -94,7 +94,7 @@ static int rk28_adc_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	ret = request_irq(dev->irq, rk28_adc_irq, 0, pdev->name, dev);
+        ret = request_threaded_irq(dev->irq, NULL, rk28_adc_irq, IRQF_ONESHOT, pdev->name, dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to attach adc irq\n");
 		goto err_alloc;

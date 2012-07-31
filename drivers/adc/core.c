@@ -145,16 +145,17 @@ static void adc_finished(struct adc_host *adc, int result)
 }
 void adc_core_irq_handle(struct adc_host *adc)
 {
+        unsigned long flags;
         int result = 0;
 
-	spin_lock(&adc->lock);
+	spin_lock_irqsave(&adc->lock, flags);
         result = adc->ops->read(adc);
 
         adc_finished(adc, result);
 
         if(!list_empty(&adc->req_head))
                 schedule_work(&adc->work);
-	spin_unlock(&adc->lock);
+	spin_unlock_irqrestore(&adc->lock, flags);
 }
 
 int adc_host_read(struct adc_client *client, enum read_type type)

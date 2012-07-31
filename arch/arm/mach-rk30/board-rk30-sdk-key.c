@@ -6,7 +6,7 @@
 
 #define PRESS_LEV_LOW			1
 #define PRESS_LEV_HIGH			0
-
+//#define RK3000_SDK   //rk3000 sdk core board
 static struct rk29_keys_button key_button[] = {
 	#if 0
 	{
@@ -78,7 +78,7 @@ static struct rk29_keys_button key_button[] = {
 		.active_low = PRESS_LEV_LOW,
 	},
 	#endif
-#ifdef CONFIG_MACH_RK3066_SDK
+#ifndef RK3000_SDK
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,

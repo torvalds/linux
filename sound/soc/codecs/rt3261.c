@@ -24,7 +24,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
+#include <mach/board.h>
 
 #define RT3261_PROC
 #ifdef RT3261_PROC
@@ -66,7 +66,7 @@ struct rt3261_init_reg {
 };
 
 static struct rt3261_init_reg init_list[] = {
-	{RT3261_GEN_CTRL1		, 0x3701},//fa[12:13] = 1'b; fa[8~10]=1; fa[0]=1
+	{RT3261_GEN_CTRL1	, 0x3701},//fa[12:13] = 1'b; fa[8~10]=1; fa[0]=1
 	{RT3261_ADDA_CLK1	, 0x1114},//73[2] = 1'b
 	{RT3261_MICBIAS		, 0x3030},//93[5:4] = 11'b
 	{RT3261_CLS_D_OUT	, 0xa000},//8d[11] = 0'b
@@ -1417,7 +1417,7 @@ void hp_amp_power(struct snd_soc_codec *codec, int on)
 	} else {
 		hp_amp_power_count--;
 		if(hp_amp_power_count <= 0) {
-			rt3261_index_update_bits(codec, RT3261_CHOP_DAC_ADC, 0x0200, 0x0);
+			//rt3261_index_update_bits(codec, RT3261_CHOP_DAC_ADC, 0x0200, 0x0);
 			snd_soc_update_bits(codec, RT3261_DEPOP_M1,
 				RT3261_HP_SG_MASK | RT3261_HP_L_SMT_MASK |
 				RT3261_HP_R_SMT_MASK, RT3261_HP_SG_DIS |
@@ -1522,7 +1522,7 @@ static void rt3261_pmd_depop(struct snd_soc_codec *codec)
 		RT3261_L_MUTE | RT3261_R_MUTE, RT3261_L_MUTE | RT3261_R_MUTE);
 	msleep(30);
 #if 0
-	rt3261_index_update_bits(codec, RT3261_CHOP_DAC_ADC, 0x0200, 0x0);
+	//rt3261_index_update_bits(codec, RT3261_CHOP_DAC_ADC, 0x0200, 0x0);
 	snd_soc_update_bits(codec, RT3261_DEPOP_M1,
 		RT3261_HP_SG_MASK | RT3261_HP_L_SMT_MASK |
 		RT3261_HP_R_SMT_MASK, RT3261_HP_SG_DIS |
@@ -1599,7 +1599,7 @@ static void rt3261_pmd_depop(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, RT3261_DEPOP_M1,
 		RT3261_HP_CB_MASK, RT3261_HP_CB_PD);
 	msleep(30);
-	rt3261_index_update_bits(codec, RT3261_CHOP_DAC_ADC, 0x0200, 0x0);
+	//rt3261_index_update_bits(codec, RT3261_CHOP_DAC_ADC, 0x0200, 0x0);
 	snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
 		RT3261_PWR_HP_L | RT3261_PWR_HP_R | RT3261_PWR_HA,
 		0);
@@ -2932,10 +2932,17 @@ static int __devinit rt3261_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt3261_priv *rt3261;
 	int ret;
+	struct rt3261_platform_data *pdata = pdata = i2c->dev.platform_data;
 
 	rt3261 = kzalloc(sizeof(struct rt3261_priv), GFP_KERNEL);
 	if (NULL == rt3261)
 		return -ENOMEM;
+
+	rt3261->codec_en_gpio = pdata->codec_en_gpio;
+	rt3261->io_init = pdata->io_init;
+
+	if(rt3261->io_init)
+		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);
 
 	i2c_set_clientdata(i2c, rt3261);
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
@@ -2999,6 +3006,7 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 	char *cookie_pot; 
 	char *p;
 	int reg;
+	int i;
 	int value;
 
 	cookie_pot = (char *)vmalloc( len );
@@ -3070,12 +3078,12 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 			}
 			break;
 		case 'a':
-			printk("Dump reg \n");		
+			printk("Dump rt3261 dsp reg \n");		
 
-			for(reg = 0; reg < 0x6e; reg+=2)
+			for (i = 0; i < 0xb4; i++) 
 			{
-				value = rt3261_read(rt3261_codec,reg);
-				printk("rt3261_read:0x%04x = 0x%04x\n",reg,value);
+				value = rt3261_index_read(rt3261_codec, i);
+				printk("rt3261_index_read:0x%04x = 0x%04x\n",i,value);
 			}
 
 			break;		

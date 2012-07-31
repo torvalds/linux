@@ -6,6 +6,12 @@
 #include <linux/device.h>
 #include <linux/rk_screen.h>
 
+enum {
+        I2C_IDLE = 0,
+        I2C_SDA_LOW,
+        I2C_SCL_LOW,
+        BOTH_LOW,
+};
 struct rk30_i2c_platform_data {
 	char *name;
 	int bus_num;
@@ -16,6 +22,7 @@ struct rk30_i2c_platform_data {
 	u32 flags;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
+        int (*check_idle)(void);
 };
 
 struct spi_cs_gpio {
