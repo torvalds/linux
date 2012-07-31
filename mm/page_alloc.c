@@ -5894,6 +5894,19 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
 #endif
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
+void zone_pcp_reset(struct zone *zone)
+{
+	unsigned long flags;
+
+	/* avoid races with drain_pages()  */
+	local_irq_save(flags);
+	if (zone->pageset != &boot_pageset) {
+		free_percpu(zone->pageset);
+		zone->pageset = &boot_pageset;
+	}
+	local_irq_restore(flags);
+}
+
 /*
  * All pages in the range must be isolated before calling this.
  */
