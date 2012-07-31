@@ -653,6 +653,9 @@ static void ops_run_io(struct stripe_head *sh, struct stripe_head_state *s)
 			else
 				bi->bi_sector = (sh->sector
 						 + rdev->data_offset);
+			if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
+				bi->bi_rw |= REQ_FLUSH;
+
 			bi->bi_flags = 1 << BIO_UPTODATE;
 			bi->bi_idx = 0;
 			bi->bi_io_vec[0].bv_len = STRIPE_SIZE;
@@ -1750,7 +1753,9 @@ static void raid5_end_read_request(struct bio * bi, int error)
 			atomic_add(STRIPE_SECTORS, &rdev->corrected_errors);
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
-		}
+		} else if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags))
+			clear_bit(R5_ReadNoMerge, &sh->dev[i].flags);
+
 		if (atomic_read(&rdev->read_errors))
 			atomic_set(&rdev->read_errors, 0);
 	} else {
@@ -1795,7 +1800,11 @@ static void raid5_end_read_request(struct bio * bi, int error)
 		else
 			retry = 1;
 		if (retry)
-			set_bit(R5_ReadError, &sh->dev[i].flags);
+			if (test_bit(R5_ReadNoMerge, &sh->dev[i].flags)) {
+				set_bit(R5_ReadError, &sh->dev[i].flags);
+				clear_bit(R5_ReadNoMerge, &sh->dev[i].flags);
+			} else
+				set_bit(R5_ReadNoMerge, &sh->dev[i].flags);
 		else {
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
@@ -4515,6 +4524,7 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 			return handled;
 		}
 
+		set_bit(R5_ReadNoMerge, &sh->dev[dd_idx].flags);
 		handle_stripe(sh);
 		release_stripe(sh);
 		handled++;
