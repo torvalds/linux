@@ -497,9 +497,11 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	const sector_t this_sector = r1_bio->sector;
 	int sectors;
 	int best_good_sectors;
-	int best_disk;
+	int best_disk, best_dist_disk, best_pending_disk;
+	int has_nonrot_disk;
 	int disk;
 	sector_t best_dist;
+	unsigned int min_pending;
 	struct md_rdev *rdev;
 	int choose_first;
 
@@ -512,8 +514,12 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
  retry:
 	sectors = r1_bio->sectors;
 	best_disk = -1;
+	best_dist_disk = -1;
 	best_dist = MaxSector;
+	best_pending_disk = -1;
+	min_pending = UINT_MAX;
 	best_good_sectors = 0;
+	has_nonrot_disk = 0;
 
 	if (conf->mddev->recovery_cp < MaxSector &&
 	    (this_sector + sectors >= conf->next_resync))
@@ -525,6 +531,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		sector_t dist;
 		sector_t first_bad;
 		int bad_sectors;
+		unsigned int pending;
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (r1_bio->bios[disk] == IO_BLOCKED
@@ -583,20 +590,41 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		} else
 			best_good_sectors = sectors;
 
+		has_nonrot_disk |= blk_queue_nonrot(bdev_get_queue(rdev->bdev));
+		pending = atomic_read(&rdev->nr_pending);
 		dist = abs(this_sector - conf->mirrors[disk].head_position);
 		if (choose_first
 		    /* Don't change to another disk for sequential reads */
 		    || conf->mirrors[disk].next_seq_sect == this_sector
 		    || dist == 0
 		    /* If device is idle, use it */
-		    || atomic_read(&rdev->nr_pending) == 0) {
+		    || pending == 0) {
 			best_disk = disk;
 			break;
 		}
+
+		if (min_pending > pending) {
+			min_pending = pending;
+			best_pending_disk = disk;
+		}
+
 		if (dist < best_dist) {
 			best_dist = dist;
-			best_disk = disk;
+			best_dist_disk = disk;
 		}
+	}
+
+	/*
+	 * If all disks are rotational, choose the closest disk. If any disk is
+	 * non-rotational, choose the disk with less pending request even the
+	 * disk is rotational, which might/might not be optimal for raids with
+	 * mixed ratation/non-rotational disks depending on workload.
+	 */
+	if (best_disk == -1) {
+		if (has_nonrot_disk)
+			best_disk = best_pending_disk;
+		else
+			best_disk = best_dist_disk;
 	}
 
 	if (best_disk >= 0) {
