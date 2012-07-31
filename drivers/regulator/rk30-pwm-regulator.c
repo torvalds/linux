@@ -179,7 +179,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
 	const int *voltage_map = dcdc->pdata->pwm_voltage_map;
 	int max = dcdc->pdata->max_uV;
-	int duty_cycle = dcdc->pdata->duty_cycle;
+	int coefficient = dcdc->pdata->coefficient;
 	u32 size = dcdc->desc.n_voltages, i, vol,pwm_value;
 
 	DBG("%s:  min_uV = %d, max_uV = %d\n",__FUNCTION__, min_uV,max_uV);
@@ -202,7 +202,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 	dcdc->pdata->pwm_voltage = vol;
 
 	// VDD12 = 1.40 - 0.455*D , 其中D为PWM占空比, 
-	pwm_value = (max-vol)/duty_cycle/10;  // pwm_value %, duty_cycle = D*1000
+	pwm_value = (max-vol)/coefficient/10;  // pwm_value %, coefficient *1000
 
 	if (pwm_set_rate(dcdc->pdata,1000*1000,pwm_value)!=0)
 	{
