@@ -10,7 +10,7 @@
 
 #include <linux/percpu_counter.h>
 #include <linux/log2.h>
-#include <linux/proportions.h>
+#include <linux/flex_proportions.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
@@ -89,7 +89,7 @@ struct backing_dev_info {
 	unsigned long dirty_ratelimit;
 	unsigned long balanced_dirty_ratelimit;
 
-	struct prop_local_percpu completions;
+	struct fprop_local_percpu completions;
 	int dirty_exceeded;
 
 	unsigned int min_ratio;
