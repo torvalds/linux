@@ -18,8 +18,6 @@
 
 #ifdef CONFIG_CPU_V7
 
-static struct arm_pmu armv7pmu;
-
 /*
  * Common ARMv7 event types
  *
@@ -1014,7 +1012,7 @@ static void armv7pmu_enable_event(struct hw_perf_event *hwc, int idx)
 	 * We only need to set the event for the cycle counter if we
 	 * have the ability to perform event filtering.
 	 */
-	if (armv7pmu.set_event_filter || idx != ARMV7_IDX_CYCLE_COUNTER)
+	if (cpu_pmu->set_event_filter || idx != ARMV7_IDX_CYCLE_COUNTER)
 		armv7_pmnc_write_evtsel(idx, hwc->config_base);
 
 	/*
@@ -1232,17 +1230,18 @@ static int armv7_a7_map_event(struct perf_event *event)
 				&armv7_a7_perf_cache_map, 0xFF);
 }
 
-static struct arm_pmu armv7pmu = {
-	.handle_irq		= armv7pmu_handle_irq,
-	.enable			= armv7pmu_enable_event,
-	.disable		= armv7pmu_disable_event,
-	.read_counter		= armv7pmu_read_counter,
-	.write_counter		= armv7pmu_write_counter,
-	.get_event_idx		= armv7pmu_get_event_idx,
-	.start			= armv7pmu_start,
-	.stop			= armv7pmu_stop,
-	.reset			= armv7pmu_reset,
-	.max_period		= (1LLU << 32) - 1,
+static void armv7pmu_init(struct arm_pmu *cpu_pmu)
+{
+	cpu_pmu->handle_irq	= armv7pmu_handle_irq;
+	cpu_pmu->enable		= armv7pmu_enable_event;
+	cpu_pmu->disable	= armv7pmu_disable_event;
+	cpu_pmu->read_counter	= armv7pmu_read_counter;
+	cpu_pmu->write_counter	= armv7pmu_write_counter;
+	cpu_pmu->get_event_idx	= armv7pmu_get_event_idx;
+	cpu_pmu->start		= armv7pmu_start;
+	cpu_pmu->stop		= armv7pmu_stop;
+	cpu_pmu->reset		= armv7pmu_reset;
+	cpu_pmu->max_period	= (1LLU << 32) - 1;
 };
 
 static u32 __devinit armv7_read_num_pmnc_events(void)
@@ -1256,70 +1255,75 @@ static u32 __devinit armv7_read_num_pmnc_events(void)
 	return nb_cnt + 1;
 }
 
-static struct arm_pmu *__devinit armv7_a8_pmu_init(void)
+static int __devinit armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv7pmu.name		= "ARMv7 Cortex-A8";
-	armv7pmu.map_event	= armv7_a8_map_event;
-	armv7pmu.num_events	= armv7_read_num_pmnc_events();
-	return &armv7pmu;
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Cortex-A8";
+	cpu_pmu->map_event	= armv7_a8_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	return 0;
 }
 
-static struct arm_pmu *__devinit armv7_a9_pmu_init(void)
+static int __devinit armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv7pmu.name		= "ARMv7 Cortex-A9";
-	armv7pmu.map_event	= armv7_a9_map_event;
-	armv7pmu.num_events	= armv7_read_num_pmnc_events();
-	return &armv7pmu;
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Cortex-A9";
+	cpu_pmu->map_event	= armv7_a9_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	return 0;
 }
 
-static struct arm_pmu *__devinit armv7_a5_pmu_init(void)
+static int __devinit armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv7pmu.name		= "ARMv7 Cortex-A5";
-	armv7pmu.map_event	= armv7_a5_map_event;
-	armv7pmu.num_events	= armv7_read_num_pmnc_events();
-	return &armv7pmu;
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Cortex-A5";
+	cpu_pmu->map_event	= armv7_a5_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	return 0;
 }
 
-static struct arm_pmu *__devinit armv7_a15_pmu_init(void)
+static int __devinit armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv7pmu.name		= "ARMv7 Cortex-A15";
-	armv7pmu.map_event	= armv7_a15_map_event;
-	armv7pmu.num_events	= armv7_read_num_pmnc_events();
-	armv7pmu.set_event_filter = armv7pmu_set_event_filter;
-	return &armv7pmu;
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Cortex-A15";
+	cpu_pmu->map_event	= armv7_a15_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
+	return 0;
 }
 
-static struct arm_pmu *__devinit armv7_a7_pmu_init(void)
+static int __devinit armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	armv7pmu.name		= "ARMv7 Cortex-A7";
-	armv7pmu.map_event	= armv7_a7_map_event;
-	armv7pmu.num_events	= armv7_read_num_pmnc_events();
-	armv7pmu.set_event_filter = armv7pmu_set_event_filter;
-	return &armv7pmu;
+	armv7pmu_init(cpu_pmu);
+	cpu_pmu->name		= "ARMv7 Cortex-A7";
+	cpu_pmu->map_event	= armv7_a7_map_event;
+	cpu_pmu->num_events	= armv7_read_num_pmnc_events();
+	cpu_pmu->set_event_filter = armv7pmu_set_event_filter;
+	return 0;
 }
 #else
-static struct arm_pmu *__devinit armv7_a8_pmu_init(void)
+static inline int armv7_a8_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return NULL;
+	return -ENODEV;
 }
 
-static struct arm_pmu *__devinit armv7_a9_pmu_init(void)
+static inline int armv7_a9_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return NULL;
+	return -ENODEV;
 }
 
-static struct arm_pmu *__devinit armv7_a5_pmu_init(void)
+static inline int armv7_a5_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return NULL;
+	return -ENODEV;
 }
 
-static struct arm_pmu *__devinit armv7_a15_pmu_init(void)
+static inline int armv7_a15_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return NULL;
+	return -ENODEV;
 }
 
-static struct arm_pmu *__devinit armv7_a7_pmu_init(void)
+static inline int armv7_a7_pmu_init(struct arm_pmu *cpu_pmu)
 {
-	return NULL;
+	return -ENODEV;
 }
 #endif	/* CONFIG_CPU_V7 */
