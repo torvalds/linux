@@ -2289,6 +2289,7 @@ static void alc_free(struct hda_codec *codec)
 	alc_shutup(codec);
 	alc_free_kctls(codec);
 	alc_free_bind_ctls(codec);
+	snd_hda_gen_free(&spec->gen);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
@@ -4253,6 +4254,7 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 		return -ENOMEM;
 	codec->spec = spec;
 	spec->mixer_nid = mixer_nid;
+	snd_hda_gen_init(&spec->gen);
 
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0) {
@@ -6686,6 +6688,31 @@ static const struct alc_model_fixup alc662_fixup_models[] = {
 	{}
 };
 
+static void alc662_fill_coef(struct hda_codec *codec)
+{
+	int val, coef;
+
+	coef = alc_get_coef0(codec);
+
+	switch (codec->vendor_id) {
+	case 0x10ec0662:
+		if ((coef & 0x00f0) == 0x0030) {
+			val = alc_read_coef_idx(codec, 0x4); /* EAPD Ctrl */
+			alc_write_coef_idx(codec, 0x4, val & ~(1<<10));
+		}
+		break;
+	case 0x10ec0272:
+	case 0x10ec0273:
+	case 0x10ec0663:
+	case 0x10ec0665:
+	case 0x10ec0670:
+	case 0x10ec0671:
+	case 0x10ec0672:
+		val = alc_read_coef_idx(codec, 0xd); /* EAPD Ctrl */
+		alc_write_coef_idx(codec, 0xd, val | (1<<14));
+		break;
+	}
+}
 
 /*
  */
@@ -6705,18 +6732,21 @@ static int patch_alc662(struct hda_codec *codec)
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
-	if ((alc_get_coef0(codec) & (1 << 14)) &&
-	    codec->bus->pci->subsystem_vendor == 0x1025 &&
-	    spec->cdefine.platform_type == 1) {
-		if (alc_codec_rename(codec, "ALC272X") < 0)
-			goto error;
-	}
+	spec->init_hook = alc662_fill_coef;
+	alc662_fill_coef(codec);
 
 	alc_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
 
 	alc_auto_parse_customize_define(codec);
+
+	if ((alc_get_coef0(codec) & (1 << 14)) &&
+	    codec->bus->pci->subsystem_vendor == 0x1025 &&
+	    spec->cdefine.platform_type == 1) {
+		if (alc_codec_rename(codec, "ALC272X") < 0)
+			goto error;
+	}
 
 	/* automatic parse from the BIOS config */
 	err = alc662_parse_auto_config(codec);
@@ -6800,6 +6830,7 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0272, .name = "ALC272", .patch = patch_alc662 },
 	{ .id = 0x10ec0275, .name = "ALC275", .patch = patch_alc269 },
 	{ .id = 0x10ec0276, .name = "ALC276", .patch = patch_alc269 },
+	{ .id = 0x10ec0280, .name = "ALC280", .patch = patch_alc269 },
 	{ .id = 0x10ec0861, .rev = 0x100340, .name = "ALC660",
 	  .patch = patch_alc861 },
 	{ .id = 0x10ec0660, .name = "ALC660-VD", .patch = patch_alc861vd },

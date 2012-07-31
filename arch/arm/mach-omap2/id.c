@@ -247,6 +247,17 @@ void __init omap3xxx_check_features(void)
 	omap_features |= OMAP3_HAS_SDRC;
 
 	/*
+	 * am35x fixups:
+	 * - The am35x Chip ID register has bits 12, 7:5, and 3:2 marked as
+	 *   reserved and therefore return 0 when read.  Unfortunately,
+	 *   OMAP3_CHECK_FEATURE() will interpret some of those zeroes to
+	 *   mean that a feature is present even though it isn't so clear
+	 *   the incorrectly set feature bits.
+	 */
+	if (soc_is_am35xx())
+		omap_features &= ~(OMAP3_HAS_IVA | OMAP3_HAS_ISP);
+
+	/*
 	 * TODO: Get additional info (where applicable)
 	 *       e.g. Size of L2 cache.
 	 */

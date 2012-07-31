@@ -1212,7 +1212,8 @@ have_isn:
 	tcp_rsk(req)->snt_isn = isn;
 	tcp_rsk(req)->snt_synack = tcp_time_stamp;
 
-	security_inet_conn_request(sk, skb, req);
+	if (security_inet_conn_request(sk, skb, req))
+		goto drop_and_release;
 
 	if (tcp_v6_send_synack(sk, req,
 			       (struct request_values *)&tmp_ext,

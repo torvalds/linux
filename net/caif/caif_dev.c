@@ -4,8 +4,7 @@
  * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
  * License terms: GNU General Public License (GPL) version 2
  *
- * Borrowed heavily from file: pn_dev.c. Thanks to
- *  Remi Denis-Courmont <remi.denis-courmont@nokia.com>
+ * Borrowed heavily from file: pn_dev.c. Thanks to Remi Denis-Courmont
  *  and Sakari Ailus <sakari.ailus@nokia.com>
  */
 
@@ -562,9 +561,9 @@ static int __init caif_device_init(void)
 
 static void __exit caif_device_exit(void)
 {
-	unregister_pernet_subsys(&caif_net_ops);
 	unregister_netdevice_notifier(&caif_device_notifier);
 	dev_remove_pack(&caif_packet_type);
+	unregister_pernet_subsys(&caif_net_ops);
 }
 
 module_init(caif_device_init);

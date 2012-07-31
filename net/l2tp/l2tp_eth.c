@@ -42,6 +42,11 @@ struct l2tp_eth {
 	struct sock		*tunnel_sock;
 	struct l2tp_session	*session;
 	struct list_head	list;
+	atomic_long_t		tx_bytes;
+	atomic_long_t		tx_packets;
+	atomic_long_t		rx_bytes;
+	atomic_long_t		rx_packets;
+	atomic_long_t		rx_errors;
 };
 
 /* via l2tp_session_priv() */
@@ -88,24 +93,40 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
 
+	atomic_long_add(skb->len, &priv->tx_bytes);
+	atomic_long_inc(&priv->tx_packets);
+
 	l2tp_xmit_skb(session, skb, session->hdr_len);
 
-	dev->stats.tx_bytes += skb->len;
-	dev->stats.tx_packets++;
-
-	return 0;
+	return NETDEV_TX_OK;
 }
+
+static struct rtnl_link_stats64 *l2tp_eth_get_stats64(struct net_device *dev,
+						      struct rtnl_link_stats64 *stats)
+{
+	struct l2tp_eth *priv = netdev_priv(dev);
+
+	stats->tx_bytes   = atomic_long_read(&priv->tx_bytes);
+	stats->tx_packets = atomic_long_read(&priv->tx_packets);
+	stats->rx_bytes   = atomic_long_read(&priv->rx_bytes);
+	stats->rx_packets = atomic_long_read(&priv->rx_packets);
+	stats->rx_errors  = atomic_long_read(&priv->rx_errors);
+	return stats;
+}
+
 
 static struct net_device_ops l2tp_eth_netdev_ops = {
 	.ndo_init		= l2tp_eth_dev_init,
 	.ndo_uninit		= l2tp_eth_dev_uninit,
 	.ndo_start_xmit		= l2tp_eth_dev_xmit,
+	.ndo_get_stats64	= l2tp_eth_get_stats64,
 };
 
 static void l2tp_eth_dev_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->priv_flags		&= ~IFF_TX_SKB_SHARING;
+	dev->features		|= NETIF_F_LLTX;
 	dev->netdev_ops		= &l2tp_eth_netdev_ops;
 	dev->destructor		= free_netdev;
 }
@@ -114,17 +135,17 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 {
 	struct l2tp_eth_sess *spriv = l2tp_session_priv(session);
 	struct net_device *dev = spriv->dev;
+	struct l2tp_eth *priv = netdev_priv(dev);
 
 	if (session->debug & L2TP_MSG_DATA) {
 		unsigned int length;
-		u8 *ptr = skb->data;
 
 		length = min(32u, skb->len);
 		if (!pskb_may_pull(skb, length))
 			goto error;
 
 		pr_debug("%s: eth recv\n", session->name);
-		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, ptr, length);
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
 	}
 
 	if (!pskb_may_pull(skb, sizeof(ETH_HLEN)))
@@ -139,15 +160,15 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	nf_reset(skb);
 
 	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS) {
-		dev->stats.rx_packets++;
-		dev->stats.rx_bytes += data_len;
-	} else
-		dev->stats.rx_errors++;
-
+		atomic_long_inc(&priv->rx_packets);
+		atomic_long_add(data_len, &priv->rx_bytes);
+	} else {
+		atomic_long_inc(&priv->rx_errors);
+	}
 	return;
 
 error:
-	dev->stats.rx_errors++;
+	atomic_long_inc(&priv->rx_errors);
 	kfree_skb(skb);
 }
 

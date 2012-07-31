@@ -3767,7 +3767,7 @@ static int b43_switch_band(struct b43_wl *wl, struct ieee80211_channel *chan)
 	if (prev_status >= B43_STAT_STARTED) {
 		err = b43_wireless_core_start(up_dev);
 		if (err) {
-			b43err(wl, "Fatal: Coult not start device for "
+			b43err(wl, "Fatal: Could not start device for "
 			       "selected %s-GHz band\n",
 			       band_to_string(chan->band));
 			b43_wireless_core_exit(up_dev);

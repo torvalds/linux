@@ -201,6 +201,7 @@ void rcu_note_context_switch(int cpu)
 {
 	trace_rcu_utilization("Start context switch");
 	rcu_sched_qs(cpu);
+	rcu_preempt_note_context_switch(cpu);
 	trace_rcu_utilization("End context switch");
 }
 EXPORT_SYMBOL_GPL(rcu_note_context_switch);
@@ -1530,7 +1531,7 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 {
 	unsigned long flags;
 	struct rcu_head *next, *list, **tail;
-	int bl, count, count_lazy;
+	int bl, count, count_lazy, i;
 
 	/* If no callbacks are ready, just return.*/
 	if (!cpu_has_callbacks_ready_to_invoke(rdp)) {
@@ -1553,9 +1554,9 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 	rdp->nxtlist = *rdp->nxttail[RCU_DONE_TAIL];
 	*rdp->nxttail[RCU_DONE_TAIL] = NULL;
 	tail = rdp->nxttail[RCU_DONE_TAIL];
-	for (count = RCU_NEXT_SIZE - 1; count >= 0; count--)
-		if (rdp->nxttail[count] == rdp->nxttail[RCU_DONE_TAIL])
-			rdp->nxttail[count] = &rdp->nxtlist;
+	for (i = RCU_NEXT_SIZE - 1; i >= 0; i--)
+		if (rdp->nxttail[i] == rdp->nxttail[RCU_DONE_TAIL])
+			rdp->nxttail[i] = &rdp->nxtlist;
 	local_irq_restore(flags);
 
 	/* Invoke callbacks. */
@@ -1583,9 +1584,9 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 	if (list != NULL) {
 		*tail = rdp->nxtlist;
 		rdp->nxtlist = list;
-		for (count = 0; count < RCU_NEXT_SIZE; count++)
-			if (&rdp->nxtlist == rdp->nxttail[count])
-				rdp->nxttail[count] = tail;
+		for (i = 0; i < RCU_NEXT_SIZE; i++)
+			if (&rdp->nxtlist == rdp->nxttail[i])
+				rdp->nxttail[i] = tail;
 			else
 				break;
 	}

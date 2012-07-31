@@ -580,43 +580,12 @@ static void ux500_uart0_reset(void)
 	udelay(1);
 }
 
-/* This needs to be referenced by callbacks */
-struct pinctrl *u0_p;
-struct pinctrl_state *u0_def;
-struct pinctrl_state *u0_sleep;
-
-static void ux500_uart0_init(void)
-{
-	int ret;
-
-	if (IS_ERR(u0_p) || IS_ERR(u0_def))
-		return;
-
-	ret = pinctrl_select_state(u0_p, u0_def);
-	if (ret)
-		pr_err("could not set UART0 defstate\n");
-}
-
-static void ux500_uart0_exit(void)
-{
-	int ret;
-
-	if (IS_ERR(u0_p) || IS_ERR(u0_sleep))
-		return;
-
-	ret = pinctrl_select_state(u0_p, u0_sleep);
-	if (ret)
-		pr_err("could not set UART0 idlestate\n");
-}
-
 static struct amba_pl011_data uart0_plat = {
 #ifdef CONFIG_STE_DMA40
 	.dma_filter = stedma40_filter,
 	.dma_rx_param = &uart0_dma_cfg_rx,
 	.dma_tx_param = &uart0_dma_cfg_tx,
 #endif
-	.init = ux500_uart0_init,
-	.exit = ux500_uart0_exit,
 	.reset = ux500_uart0_reset,
 };
 
@@ -638,28 +607,7 @@ static struct amba_pl011_data uart2_plat = {
 
 static void __init mop500_uart_init(struct device *parent)
 {
-	struct amba_device *uart0_device;
-
-	uart0_device = db8500_add_uart0(parent, &uart0_plat);
-	if (uart0_device) {
-		u0_p = pinctrl_get(&uart0_device->dev);
-		if (IS_ERR(u0_p))
-			dev_err(&uart0_device->dev,
-				"could not get UART0 pinctrl\n");
-		else {
-			u0_def = pinctrl_lookup_state(u0_p,
-						      PINCTRL_STATE_DEFAULT);
-			if (IS_ERR(u0_def)) {
-				dev_err(&uart0_device->dev,
-					"could not get UART0 defstate\n");
-			}
-			u0_sleep = pinctrl_lookup_state(u0_p,
-							PINCTRL_STATE_SLEEP);
-			if (IS_ERR(u0_sleep))
-				dev_err(&uart0_device->dev,
-					"could not get UART0 idlestate\n");
-		}
-	}
+	db8500_add_uart0(parent, &uart0_plat);
 	db8500_add_uart1(parent, &uart1_plat);
 	db8500_add_uart2(parent, &uart2_plat);
 }
@@ -675,11 +623,6 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_key_dev,
 	&snowball_sbnet_dev,
 	&ab8500_device,
-};
-
-static struct platform_device *snowball_of_platform_devs[] __initdata = {
-	&snowball_led_dev,
-	&snowball_key_dev,
 };
 
 static void __init mop500_init_machine(void)
@@ -821,6 +764,11 @@ MACHINE_END
 
 #ifdef CONFIG_MACH_UX500_DT
 
+static struct platform_device *snowball_of_platform_devs[] __initdata = {
+	&snowball_led_dev,
+	&snowball_key_dev,
+};
+
 struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires DMA and call-back bindings. */
 	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", &uart0_plat),
@@ -838,6 +786,8 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e000, "gpio.6", NULL),
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0x8011e080, "gpio.7", NULL),
 	OF_DEV_AUXDATA("st,nomadik-gpio", 0xa03fe000, "gpio.8", NULL),
+	/* Requires device name bindings. */
+	OF_DEV_AUXDATA("stericsson,nmk_pinctrl", 0, "pinctrl-db8500", NULL),
 	{},
 };
 

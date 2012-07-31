@@ -406,6 +406,7 @@ static void tick_nohz_stop_sched_tick(struct tick_sched *ts)
 		 */
 		if (!ts->tick_stopped) {
 			select_nohz_load_balancer(1);
+			calc_load_enter_idle();
 
 			ts->idle_tick = hrtimer_get_expires(&ts->sched_timer);
 			ts->tick_stopped = 1;
@@ -597,6 +598,7 @@ void tick_nohz_idle_exit(void)
 		account_idle_ticks(ticks);
 #endif
 
+	calc_load_exit_idle();
 	touch_softlockup_watchdog();
 	/*
 	 * Cancel the scheduled timer and restore the tick

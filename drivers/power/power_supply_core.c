@@ -200,7 +200,7 @@ static int psy_register_thermal(struct power_supply *psy)
 	/* Register battery zone device psy reports temperature */
 	for (i = 0; i < psy->num_properties; i++) {
 		if (psy->properties[i] == POWER_SUPPLY_PROP_TEMP) {
-			psy->tzd = thermal_zone_device_register(psy->name, 0,
+			psy->tzd = thermal_zone_device_register(psy->name, 0, 0,
 					psy, &psy_tzd_ops, 0, 0, 0, 0);
 			if (IS_ERR(psy->tzd))
 				return PTR_ERR(psy->tzd);

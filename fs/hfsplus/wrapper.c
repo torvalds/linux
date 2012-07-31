@@ -56,7 +56,7 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	struct bio *bio;
 	int ret = 0;
-	unsigned int io_size;
+	u64 io_size;
 	loff_t start;
 	int offset;
 

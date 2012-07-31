@@ -929,15 +929,20 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 		if (priv->rx_cq[i].buf)
 			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
 	}
+
+	if (priv->base_tx_qpn) {
+		mlx4_qp_release_range(priv->mdev->dev, priv->base_tx_qpn, priv->tx_ring_num);
+		priv->base_tx_qpn = 0;
+	}
 }
 
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_port_profile *prof = priv->prof;
 	int i;
-	int base_tx_qpn, err;
+	int err;
 
-	err = mlx4_qp_reserve_range(priv->mdev->dev, priv->tx_ring_num, 256, &base_tx_qpn);
+	err = mlx4_qp_reserve_range(priv->mdev->dev, priv->tx_ring_num, 256, &priv->base_tx_qpn);
 	if (err) {
 		en_err(priv, "failed reserving range for TX rings\n");
 		return err;
@@ -949,7 +954,7 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 				      prof->tx_ring_size, i, TX))
 			goto err;
 
-		if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[i], base_tx_qpn + i,
+		if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[i], priv->base_tx_qpn + i,
 					   prof->tx_ring_size, TXBB_SIZE))
 			goto err;
 	}
@@ -969,7 +974,6 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 
 err:
 	en_err(priv, "Failed to allocate NIC resources\n");
-	mlx4_qp_release_range(priv->mdev->dev, base_tx_qpn, priv->tx_ring_num);
 	return -ENOMEM;
 }
 
@@ -1204,9 +1208,11 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	en_warn(priv, "Using %d RX rings\n", prof->rx_ring_num);
 
 	/* Configure port */
+	mlx4_en_calc_rx_buf(dev);
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
-				    MLX4_EN_MIN_MTU,
-				    0, 0, 0, 0);
+				    priv->rx_skb_size + ETH_FCS_LEN,
+				    prof->tx_pause, prof->tx_ppp,
+				    prof->rx_pause, prof->rx_ppp);
 	if (err) {
 		en_err(priv, "Failed setting port general configurations "
 		       "for port %d, with error %d\n", priv->port, err);

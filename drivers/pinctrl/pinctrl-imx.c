@@ -474,7 +474,9 @@ static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
 		grp->configs[j] = config & ~IMX_PAD_SION;
 	}
 
+#ifdef DEBUG
 	IMX_PMX_DUMP(info, grp->pins, grp->mux_mode, grp->configs, grp->npins);
+#endif
 
 	return 0;
 }

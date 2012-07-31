@@ -78,21 +78,6 @@ static int cdv_backlight_combination_mode(struct drm_device *dev)
 	return REG_READ(BLC_PWM_CTL2) & PWM_LEGACY_MODE;
 }
 
-static int cdv_get_brightness(struct backlight_device *bd)
-{
-	struct drm_device *dev = bl_get_data(bd);
-	u32 val = REG_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
-
-	if (cdv_backlight_combination_mode(dev)) {
-		u8 lbpc;
-
-		val &= ~1;
-		pci_read_config_byte(dev->pdev, 0xF4, &lbpc);
-		val *= lbpc;
-	}
-	return val;
-}
-
 static u32 cdv_get_max_backlight(struct drm_device *dev)
 {
 	u32 max = REG_READ(BLC_PWM_CTL);
@@ -110,6 +95,22 @@ static u32 cdv_get_max_backlight(struct drm_device *dev)
 	return max;
 }
 
+static int cdv_get_brightness(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(bd);
+	u32 val = REG_READ(BLC_PWM_CTL) & BACKLIGHT_DUTY_CYCLE_MASK;
+
+	if (cdv_backlight_combination_mode(dev)) {
+		u8 lbpc;
+
+		val &= ~1;
+		pci_read_config_byte(dev->pdev, 0xF4, &lbpc);
+		val *= lbpc;
+	}
+	return (val * 100)/cdv_get_max_backlight(dev);
+
+}
+
 static int cdv_set_brightness(struct backlight_device *bd)
 {
 	struct drm_device *dev = bl_get_data(bd);
@@ -119,6 +120,9 @@ static int cdv_set_brightness(struct backlight_device *bd)
 	/* Percentage 1-100% being valid */
 	if (level < 1)
 		level = 1;
+
+	level *= cdv_get_max_backlight(dev);
+	level /= 100;
 
 	if (cdv_backlight_combination_mode(dev)) {
 		u32 max = cdv_get_max_backlight(dev);
@@ -157,7 +161,6 @@ static int cdv_backlight_init(struct drm_device *dev)
 
 	cdv_backlight_device->props.brightness =
 			cdv_get_brightness(cdv_backlight_device);
-	cdv_backlight_device->props.max_brightness = cdv_get_max_backlight(dev);
 	backlight_update_status(cdv_backlight_device);
 	dev_priv->backlight_device = cdv_backlight_device;
 	return 0;
