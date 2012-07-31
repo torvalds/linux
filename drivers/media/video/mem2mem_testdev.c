@@ -891,10 +891,15 @@ static int m2mtest_open(struct file *file)
 	struct m2mtest_dev *dev = video_drvdata(file);
 	struct m2mtest_ctx *ctx = NULL;
 	struct v4l2_ctrl_handler *hdl;
+	int rc = 0;
 
+	if (mutex_lock_interruptible(&dev->dev_mutex))
+		return -ERESTARTSYS;
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	if (!ctx) {
+		rc = -ENOMEM;
+		goto open_unlock;
+	}
 
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
@@ -927,11 +932,11 @@ static int m2mtest_open(struct file *file)
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
 
 	if (IS_ERR(ctx->m2m_ctx)) {
-		int ret = PTR_ERR(ctx->m2m_ctx);
+		rc = PTR_ERR(ctx->m2m_ctx);
 
 		v4l2_ctrl_handler_free(hdl);
 		kfree(ctx);
-		return ret;
+		goto open_unlock;
 	}
 
 	v4l2_fh_add(&ctx->fh);
@@ -939,6 +944,8 @@ static int m2mtest_open(struct file *file)
 
 	dprintk(dev, "Created instance %p, m2m_ctx: %p\n", ctx, ctx->m2m_ctx);
 
+open_unlock:
+	mutex_unlock(&dev->dev_mutex);
 	return 0;
 }
 
@@ -952,7 +959,9 @@ static int m2mtest_release(struct file *file)
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	v4l2_ctrl_handler_free(&ctx->hdl);
+	mutex_lock(&dev->dev_mutex);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+	mutex_unlock(&dev->dev_mutex);
 	kfree(ctx);
 
 	atomic_dec(&dev->num_inst);
@@ -970,9 +979,15 @@ static unsigned int m2mtest_poll(struct file *file,
 
 static int m2mtest_mmap(struct file *file, struct vm_area_struct *vma)
 {
+	struct m2mtest_dev *dev = video_drvdata(file);
 	struct m2mtest_ctx *ctx = file2ctx(file);
+	int res;
 
-	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	if (mutex_lock_interruptible(&dev->dev_mutex))
+		return -ERESTARTSYS;
+	res = v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
+	mutex_unlock(&dev->dev_mutex);
+	return res;
 }
 
 static const struct v4l2_file_operations m2mtest_fops = {
@@ -1027,10 +1042,6 @@ static int m2mtest_probe(struct platform_device *pdev)
 	}
 
 	*vfd = m2mtest_videodev;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->dev_mutex;
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
