@@ -786,7 +786,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	if (!mnt)
 		return ERR_PTR(-ENOMEM);
 
-	if (flag & (CL_SLAVE | CL_PRIVATE))
+	if (flag & (CL_SLAVE | CL_PRIVATE | CL_SHARED_TO_SLAVE))
 		mnt->mnt_group_id = 0; /* not a peer of original */
 	else
 		mnt->mnt_group_id = old->mnt_group_id;
@@ -807,7 +807,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 	list_add_tail(&mnt->mnt_instance, &sb->s_mounts);
 	br_write_unlock(&vfsmount_lock);
 
-	if (flag & CL_SLAVE) {
+	if ((flag & CL_SLAVE) ||
+	    ((flag & CL_SHARED_TO_SLAVE) && IS_MNT_SHARED(old))) {
 		list_add(&mnt->mnt_slave, &old->mnt_slave_list);
 		mnt->mnt_master = old;
 		CLEAR_MNT_SHARED(mnt);
@@ -2331,6 +2332,7 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 	struct mount *p, *q;
 	struct mount *old = mnt_ns->root;
 	struct mount *new;
+	int copy_flags;
 
 	new_ns = alloc_mnt_ns(user_ns);
 	if (IS_ERR(new_ns))
@@ -2338,7 +2340,10 @@ static struct mnt_namespace *dup_mnt_ns(struct mnt_namespace *mnt_ns,
 
 	down_write(&namespace_sem);
 	/* First pass: copy the tree topology */
-	new = copy_tree(old, old->mnt.mnt_root, CL_COPY_ALL | CL_EXPIRE);
+	copy_flags = CL_COPY_ALL | CL_EXPIRE;
+	if (user_ns != mnt_ns->user_ns)
+		copy_flags |= CL_SHARED_TO_SLAVE;
+	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
 	if (IS_ERR(new)) {
 		up_write(&namespace_sem);
 		free_mnt_ns(new_ns);
