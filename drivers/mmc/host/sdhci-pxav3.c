@@ -231,14 +231,14 @@ static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->priv = pxa;
 
-	clk = clk_get(dev, "PXA-SDHCLK");
+	clk = clk_get(dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get io clock\n");
 		ret = PTR_ERR(clk);
 		goto err_clk_get;
 	}
 	pltfm_host->clk = clk;
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 
 	host->quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
 		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC
@@ -283,7 +283,7 @@ static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 	clk_put(clk);
 err_clk_get:
 	sdhci_pltfm_free(pdev);
@@ -299,7 +299,7 @@ static int __devexit sdhci_pxav3_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, 1);
 
-	clk_disable(pltfm_host->clk);
+	clk_disable_unprepare(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
