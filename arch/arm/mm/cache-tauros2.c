@@ -15,6 +15,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/cacheflush.h>
 #include <asm/cp15.h>
 #include <asm/cputype.h>
@@ -198,7 +200,7 @@ static void enable_extra_feature(unsigned int features)
 	write_extra_features(u);
 }
 
-void __init tauros2_init(unsigned int features)
+static void __init tauros2_internal_init(unsigned int features)
 {
 	char *mode = NULL;
 
@@ -293,4 +295,35 @@ void __init tauros2_init(unsigned int features)
 
 	printk(KERN_INFO "Tauros2: L2 cache support initialised "
 			 "in %s mode.\n", mode);
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id tauros2_ids[] __initconst = {
+	{ .compatible = "marvell,tauros2-cache"},
+	{}
+};
+#endif
+
+void __init tauros2_init(unsigned int features)
+{
+#ifdef CONFIG_OF
+	struct device_node *node;
+	int ret;
+	unsigned int f;
+
+	node = of_find_matching_node(NULL, tauros2_ids);
+	if (!node) {
+		pr_info("Not found marvell,tauros2-cache, disable it\n");
+		return;
+	}
+
+	ret = of_property_read_u32(node, "marvell,tauros2-cache-features", &f);
+	if (ret) {
+		pr_info("Not found marvell,tauros-cache-features property, "
+			"disable extra features\n");
+		features = 0;
+	} else
+		features = f;
+#endif
+	tauros2_internal_init(features);
 }
