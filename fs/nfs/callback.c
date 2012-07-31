@@ -241,6 +241,10 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 		ret = -ENOMEM;
 		goto out_err;
 	}
+	/* As there is only one thread we need to over-ride the
+	 * default maximum of 80 connections
+	 */
+	serv->sv_maxconn = 1024;
 
 	ret = svc_bind(serv, net);
 	if (ret < 0) {
