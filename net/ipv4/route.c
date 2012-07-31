@@ -587,17 +587,28 @@ static void ip_rt_build_flow_key(struct flowi4 *fl4, const struct sock *sk,
 		build_sk_flow_key(fl4, sk);
 }
 
-static DEFINE_SEQLOCK(fnhe_seqlock);
+static inline void rt_free(struct rtable *rt)
+{
+	call_rcu(&rt->dst.rcu_head, dst_rcu_free);
+}
+
+static DEFINE_SPINLOCK(fnhe_lock);
 
 static struct fib_nh_exception *fnhe_oldest(struct fnhe_hash_bucket *hash)
 {
 	struct fib_nh_exception *fnhe, *oldest;
+	struct rtable *orig;
 
 	oldest = rcu_dereference(hash->chain);
 	for (fnhe = rcu_dereference(oldest->fnhe_next); fnhe;
 	     fnhe = rcu_dereference(fnhe->fnhe_next)) {
 		if (time_before(fnhe->fnhe_stamp, oldest->fnhe_stamp))
 			oldest = fnhe;
+	}
+	orig = rcu_dereference(oldest->fnhe_rth);
+	if (orig) {
+		RCU_INIT_POINTER(oldest->fnhe_rth, NULL);
+		rt_free(orig);
 	}
 	return oldest;
 }
@@ -620,7 +631,7 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 	int depth;
 	u32 hval = fnhe_hashfun(daddr);
 
-	write_seqlock_bh(&fnhe_seqlock);
+	spin_lock_bh(&fnhe_lock);
 
 	hash = nh->nh_exceptions;
 	if (!hash) {
@@ -667,7 +678,7 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 	fnhe->fnhe_stamp = jiffies;
 
 out_unlock:
-	write_sequnlock_bh(&fnhe_seqlock);
+	spin_unlock_bh(&fnhe_lock);
 	return;
 }
 
@@ -1167,41 +1178,40 @@ static struct fib_nh_exception *find_exception(struct fib_nh *nh, __be32 daddr)
 static void rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 			      __be32 daddr)
 {
-	__be32 fnhe_daddr, gw;
-	unsigned long expires;
-	unsigned int seq;
-	u32 pmtu;
+	spin_lock_bh(&fnhe_lock);
 
-restart:
-	seq = read_seqbegin(&fnhe_seqlock);
-	fnhe_daddr = fnhe->fnhe_daddr;
-	gw = fnhe->fnhe_gw;
-	pmtu = fnhe->fnhe_pmtu;
-	expires = fnhe->fnhe_expires;
-	if (read_seqretry(&fnhe_seqlock, seq))
-		goto restart;
+	if (daddr == fnhe->fnhe_daddr) {
+		struct rtable *orig;
 
-	if (daddr != fnhe_daddr)
-		return;
+		if (fnhe->fnhe_pmtu) {
+			unsigned long expires = fnhe->fnhe_expires;
+			unsigned long diff = expires - jiffies;
 
-	if (pmtu) {
-		unsigned long diff = expires - jiffies;
-
-		if (time_before(jiffies, expires)) {
-			rt->rt_pmtu = pmtu;
-			dst_set_expires(&rt->dst, diff);
+			if (time_before(jiffies, expires)) {
+				rt->rt_pmtu = fnhe->fnhe_pmtu;
+				dst_set_expires(&rt->dst, diff);
+			}
 		}
-	}
-	if (gw) {
-		rt->rt_flags |= RTCF_REDIRECTED;
-		rt->rt_gateway = gw;
-	}
-	fnhe->fnhe_stamp = jiffies;
-}
+		if (fnhe->fnhe_gw) {
+			rt->rt_flags |= RTCF_REDIRECTED;
+			rt->rt_gateway = fnhe->fnhe_gw;
+		}
 
-static inline void rt_free(struct rtable *rt)
-{
-	call_rcu(&rt->dst.rcu_head, dst_rcu_free);
+		orig = rcu_dereference(fnhe->fnhe_rth);
+		rcu_assign_pointer(fnhe->fnhe_rth, rt);
+		if (orig)
+			rt_free(orig);
+
+		fnhe->fnhe_stamp = jiffies;
+	} else {
+		/* Routes we intend to cache in nexthop exception have
+		 * the DST_NOCACHE bit clear.  However, if we are
+		 * unsuccessful at storing this route into the cache
+		 * we really need to set it.
+		 */
+		rt->dst.flags |= DST_NOCACHE;
+	}
+	spin_unlock_bh(&fnhe_lock);
 }
 
 static void rt_cache_route(struct fib_nh *nh, struct rtable *rt)
@@ -1249,13 +1259,13 @@ static void rt_set_nexthop(struct rtable *rt, __be32 daddr,
 
 		if (nh->nh_gw && nh->nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = nh->nh_gw;
-		if (unlikely(fnhe))
-			rt_bind_exception(rt, fnhe, daddr);
 		dst_init_metrics(&rt->dst, fi->fib_metrics, true);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		rt->dst.tclassid = nh->nh_tclassid;
 #endif
-		if (!(rt->dst.flags & DST_NOCACHE))
+		if (unlikely(fnhe))
+			rt_bind_exception(rt, fnhe, daddr);
+		else if (!(rt->dst.flags & DST_NOCACHE))
 			rt_cache_route(nh, rt);
 	}
 
@@ -1753,22 +1763,23 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 
 	fnhe = NULL;
 	if (fi) {
-		fnhe = find_exception(&FIB_RES_NH(*res), fl4->daddr);
-		if (!fnhe && FIB_RES_NH(*res).nh_pcpu_rth_output) {
-			struct rtable __rcu **prth;
+		struct rtable __rcu **prth;
 
+		fnhe = find_exception(&FIB_RES_NH(*res), fl4->daddr);
+		if (fnhe)
+			prth = &fnhe->fnhe_rth;
+		else
 			prth = __this_cpu_ptr(FIB_RES_NH(*res).nh_pcpu_rth_output);
-			rth = rcu_dereference(*prth);
-			if (rt_cache_valid(rth)) {
-				dst_hold(&rth->dst);
-				return rth;
-			}
+		rth = rcu_dereference(*prth);
+		if (rt_cache_valid(rth)) {
+			dst_hold(&rth->dst);
+			return rth;
 		}
 	}
 	rth = rt_dst_alloc(dev_out,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY),
 			   IN_DEV_CONF_GET(in_dev, NOXFRM),
-			   fi && !fnhe);
+			   fi);
 	if (!rth)
 		return ERR_PTR(-ENOBUFS);
 

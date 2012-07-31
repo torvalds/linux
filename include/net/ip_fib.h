@@ -55,6 +55,7 @@ struct fib_nh_exception {
 	u32				fnhe_pmtu;
 	__be32				fnhe_gw;
 	unsigned long			fnhe_expires;
+	struct rtable __rcu		*fnhe_rth;
 	unsigned long			fnhe_stamp;
 };
 

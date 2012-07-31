@@ -140,28 +140,7 @@ const struct fib_prop fib_props[RTN_MAX + 1] = {
 	},
 };
 
-static void free_nh_exceptions(struct fib_nh *nh)
-{
-	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
-	int i;
-
-	for (i = 0; i < FNHE_HASH_SIZE; i++) {
-		struct fib_nh_exception *fnhe;
-
-		fnhe = rcu_dereference_protected(hash[i].chain, 1);
-		while (fnhe) {
-			struct fib_nh_exception *next;
-			
-			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
-			kfree(fnhe);
-
-			fnhe = next;
-		}
-	}
-	kfree(hash);
-}
-
-static void rt_nexthop_free(struct rtable __rcu **rtp)
+static void rt_fibinfo_free(struct rtable __rcu **rtp)
 {
 	struct rtable *rt = rcu_dereference_protected(*rtp, 1);
 
@@ -176,7 +155,31 @@ static void rt_nexthop_free(struct rtable __rcu **rtp)
 	dst_free(&rt->dst);
 }
 
-static void rt_nexthop_free_cpus(struct rtable __rcu * __percpu *rtp)
+static void free_nh_exceptions(struct fib_nh *nh)
+{
+	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
+	int i;
+
+	for (i = 0; i < FNHE_HASH_SIZE; i++) {
+		struct fib_nh_exception *fnhe;
+
+		fnhe = rcu_dereference_protected(hash[i].chain, 1);
+		while (fnhe) {
+			struct fib_nh_exception *next;
+			
+			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
+
+			rt_fibinfo_free(&fnhe->fnhe_rth);
+
+			kfree(fnhe);
+
+			fnhe = next;
+		}
+	}
+	kfree(hash);
+}
+
+static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
 {
 	int cpu;
 
@@ -203,8 +206,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 			dev_put(nexthop_nh->nh_dev);
 		if (nexthop_nh->nh_exceptions)
 			free_nh_exceptions(nexthop_nh);
-		rt_nexthop_free_cpus(nexthop_nh->nh_pcpu_rth_output);
-		rt_nexthop_free(&nexthop_nh->nh_rth_input);
+		rt_fibinfo_free_cpus(nexthop_nh->nh_pcpu_rth_output);
+		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
 	release_net(fi->fib_net);
