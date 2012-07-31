@@ -820,10 +820,15 @@ static int vpif_mmap(struct file *filep, struct vm_area_struct *vma)
 	struct vpif_fh *fh = filep->private_data;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &(ch->common[VPIF_VIDEO_INDEX]);
+	int ret;
 
 	vpif_dbg(2, debug, "vpif_mmap\n");
 
-	return vb2_mmap(&common->buffer_queue, vma);
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+	ret = vb2_mmap(&common->buffer_queue, vma);
+	mutex_unlock(&common->lock);
+	return ret;
 }
 
 /**
@@ -836,12 +841,16 @@ static unsigned int vpif_poll(struct file *filep, poll_table * wait)
 	struct vpif_fh *fh = filep->private_data;
 	struct channel_obj *channel = fh->channel;
 	struct common_obj *common = &(channel->common[VPIF_VIDEO_INDEX]);
+	unsigned int res = 0;
 
 	vpif_dbg(2, debug, "vpif_poll\n");
 
-	if (common->started)
-		return vb2_poll(&common->buffer_queue, filep, wait);
-	return 0;
+	if (common->started) {
+		mutex_lock(&common->lock);
+		res = vb2_poll(&common->buffer_queue, filep, wait);
+		mutex_unlock(&common->lock);
+	}
+	return res;
 }
 
 /**
@@ -895,6 +904,10 @@ static int vpif_open(struct file *filep)
 		return -ENOMEM;
 	}
 
+	if (mutex_lock_interruptible(&common->lock)) {
+		kfree(fh);
+		return -ERESTARTSYS;
+	}
 	/* store pointer to fh in private_data member of filep */
 	filep->private_data = fh;
 	fh->channel = ch;
@@ -912,6 +925,7 @@ static int vpif_open(struct file *filep)
 	/* Initialize priority of this instance to default priority */
 	fh->prio = V4L2_PRIORITY_UNSET;
 	v4l2_prio_open(&ch->prio, &fh->prio);
+	mutex_unlock(&common->lock);
 	return 0;
 }
 
@@ -932,6 +946,7 @@ static int vpif_release(struct file *filep)
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
+	mutex_lock(&common->lock);
 	/* if this instance is doing IO */
 	if (fh->io_allowed[VPIF_VIDEO_INDEX]) {
 		/* Reset io_usrs member of channel object */
@@ -961,6 +976,7 @@ static int vpif_release(struct file *filep)
 	if (fh->initialized)
 		ch->initialized = 0;
 
+	mutex_unlock(&common->lock);
 	filep->private_data = NULL;
 	kfree(fh);
 	return 0;
@@ -2208,10 +2224,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		common = &(ch->common[VPIF_VIDEO_INDEX]);
 		spin_lock_init(&common->irqlock);
 		mutex_init(&common->lock);
-		/* Locking in file operations other than ioctl should be done
-		   by the driver, not the V4L2 core.
-		   This driver needs auditing so that this flag can be removed. */
-		set_bit(V4L2_FL_LOCK_ALL_FOPS, &ch->video_dev->flags);
 		ch->video_dev->lock = &common->lock;
 		/* Initialize prio member of channel object */
 		v4l2_prio_init(&ch->prio);
