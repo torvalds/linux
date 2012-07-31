@@ -83,6 +83,14 @@
 	};
 
 	soc-u9500 {
+		msp1: msp@80124000 {
+			status = "okay";
+		};
+
+		msp3: msp@80125000 {
+			status = "okay";
+		};
+
 		external-bus@50000000 {
 			status = "okay";
 
