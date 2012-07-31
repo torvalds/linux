@@ -91,7 +91,8 @@ static void wacom_leds_set_brightness(struct led_classdev *led_dev,
 	if (buf) {
 		buf[0] = WAC_CMD_LED_CONTROL;
 		buf[1] = led;
-		buf[2] = value;
+		buf[2] = value >> 2;
+		buf[3] = value;
 		hdev->hid_output_raw_report(hdev, buf, 9, HID_FEATURE_REPORT);
 		kfree(buf);
 	}
