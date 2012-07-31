@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/mmc/host.h>
+#include <linux/of.h>
 
 #include "sdhci-pltfm.h"
 
@@ -126,11 +127,18 @@ static int __devexit sdhci_dove_remove(struct platform_device *pdev)
 	return sdhci_pltfm_unregister(pdev);
 }
 
+static const struct of_device_id sdhci_dove_of_match_table[] __devinitdata = {
+	{ .compatible = "marvell,dove-sdhci", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, sdhci_dove_of_match_table);
+
 static struct platform_driver sdhci_dove_driver = {
 	.driver		= {
 		.name	= "sdhci-dove",
 		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PLTFM_PMOPS,
+		.of_match_table = of_match_ptr(sdhci_dove_of_match_table),
 	},
 	.probe		= sdhci_dove_probe,
 	.remove		= __devexit_p(sdhci_dove_remove),
