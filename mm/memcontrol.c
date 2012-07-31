@@ -2643,8 +2643,7 @@ out:
 
 static int mem_cgroup_move_parent(struct page *page,
 				  struct page_cgroup *pc,
-				  struct mem_cgroup *child,
-				  gfp_t gfp_mask)
+				  struct mem_cgroup *child)
 {
 	struct mem_cgroup *parent;
 	unsigned int nr_pages;
@@ -3652,7 +3651,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
 
 		pc = lookup_page_cgroup(page);
 
-		ret = mem_cgroup_move_parent(page, pc, memcg, GFP_KERNEL);
+		ret = mem_cgroup_move_parent(page, pc, memcg);
 
 		if (ret == -EBUSY || ret == -EINVAL) {
 			/* found lock contention or "pc" is obsolete. */
