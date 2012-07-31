@@ -588,10 +588,15 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	rnp->exp_tasks = NULL;
 #ifdef CONFIG_RCU_BOOST
 	rnp->boost_tasks = NULL;
-	/* In case root is being boosted and leaf was not. */
+	/*
+	 * In case root is being boosted and leaf was not.  Make sure
+	 * that we boost the tasks blocking the current grace period
+	 * in this case.
+	 */
 	raw_spin_lock(&rnp_root->lock); /* irqs already disabled */
 	if (rnp_root->boost_tasks != NULL &&
-	    rnp_root->boost_tasks != rnp_root->gp_tasks)
+	    rnp_root->boost_tasks != rnp_root->gp_tasks &&
+	    rnp_root->boost_tasks != rnp_root->exp_tasks)
 		rnp_root->boost_tasks = rnp_root->gp_tasks;
 	raw_spin_unlock(&rnp_root->lock); /* irqs still disabled */
 #endif /* #ifdef CONFIG_RCU_BOOST */
