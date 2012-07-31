@@ -1831,7 +1831,9 @@ struct v4l2_ioctl_info {
 		.ioctl = _ioctl,					\
 		.flags = _flags | INFO_FL_STD,				\
 		.name = #_ioctl,					\
-		.offset = offsetof(struct v4l2_ioctl_ops, _vidioc),	\
+		{							\
+			.offset = offsetof(struct v4l2_ioctl_ops, _vidioc),\
+		},							\
 		.debug = _debug,					\
 	}
 
@@ -1840,7 +1842,9 @@ struct v4l2_ioctl_info {
 		.ioctl = _ioctl,					\
 		.flags = _flags | INFO_FL_FUNC,				\
 		.name = #_ioctl,					\
-		.func = _func,						\
+		{							\
+			.func = _func,					\
+		},							\
 		.debug = _debug,					\
 	}
 
