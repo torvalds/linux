@@ -3262,6 +3262,12 @@ int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 
 	snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, reg);
 
+	/* enable MICDET and MICSHRT deboune */
+	snd_soc_update_bits(codec, WM8994_IRQ_DEBOUNCE,
+			    WM8994_MIC1_DET_DB_MASK | WM8994_MIC1_SHRT_DB_MASK |
+			    WM8994_MIC2_DET_DB_MASK | WM8994_MIC2_SHRT_DB_MASK,
+			    WM8994_MIC1_DET_DB | WM8994_MIC1_SHRT_DB);
+
 	snd_soc_dapm_sync(&codec->dapm);
 
 	return 0;
