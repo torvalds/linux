@@ -206,11 +206,6 @@ static void radeon_legacy_rmx_mode_set(struct drm_crtc *crtc,
 	WREG32(RADEON_FP_CRTC_V_TOTAL_DISP, fp_crtc_v_total_disp);
 }
 
-static void radeon_restore_common_regs(struct drm_device *dev)
-{
-	/* don't need this yet */
-}
-
 static void radeon_pll_wait_for_read_update_complete(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;

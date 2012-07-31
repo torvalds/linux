@@ -316,22 +316,6 @@ static int radeon_fb_find_or_create_single(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-static char *mode_option;
-static int radeon_parse_options(char *options)
-{
-	char *this_opt;
-
-	if (!options || !*options)
-		return 0;
-
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt)
-			continue;
-		mode_option = this_opt;
-	}
-	return 0;
-}
-
 void radeon_fb_output_poll_changed(struct radeon_device *rdev)
 {
 	drm_fb_helper_hotplug_event(&rdev->mode_info.rfbdev->helper);

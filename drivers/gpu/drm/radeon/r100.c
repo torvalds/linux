@@ -2528,50 +2528,6 @@ static void r100_errata(struct radeon_device *rdev)
 	}
 }
 
-/* Wait for vertical sync on primary CRTC */
-static void r100_gpu_wait_for_vsync(struct radeon_device *rdev)
-{
-	uint32_t crtc_gen_cntl, tmp;
-	int i;
-
-	crtc_gen_cntl = RREG32(RADEON_CRTC_GEN_CNTL);
-	if ((crtc_gen_cntl & RADEON_CRTC_DISP_REQ_EN_B) ||
-	    !(crtc_gen_cntl & RADEON_CRTC_EN)) {
-		return;
-	}
-	/* Clear the CRTC_VBLANK_SAVE bit */
-	WREG32(RADEON_CRTC_STATUS, RADEON_CRTC_VBLANK_SAVE_CLEAR);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RADEON_CRTC_STATUS);
-		if (tmp & RADEON_CRTC_VBLANK_SAVE) {
-			return;
-		}
-		DRM_UDELAY(1);
-	}
-}
-
-/* Wait for vertical sync on secondary CRTC */
-static void r100_gpu_wait_for_vsync2(struct radeon_device *rdev)
-{
-	uint32_t crtc2_gen_cntl, tmp;
-	int i;
-
-	crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
-	if ((crtc2_gen_cntl & RADEON_CRTC2_DISP_REQ_EN_B) ||
-	    !(crtc2_gen_cntl & RADEON_CRTC2_EN))
-		return;
-
-	/* Clear the CRTC_VBLANK_SAVE bit */
-	WREG32(RADEON_CRTC2_STATUS, RADEON_CRTC2_VBLANK_SAVE_CLEAR);
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RADEON_CRTC2_STATUS);
-		if (tmp & RADEON_CRTC2_VBLANK_SAVE) {
-			return;
-		}
-		DRM_UDELAY(1);
-	}
-}
-
 static int r100_rbbm_fifo_wait_for_entry(struct radeon_device *rdev, unsigned n)
 {
 	unsigned i;
