@@ -223,6 +223,7 @@ struct vfio_device_info {
 	__u32	argsz;
 	__u32	flags;
 #define VFIO_DEVICE_FLAGS_RESET	(1 << 0)	/* Device supports reset */
+#define VFIO_DEVICE_FLAGS_PCI	(1 << 1)	/* vfio-pci device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 };
@@ -363,6 +364,31 @@ struct vfio_irq_set {
  * Reset a device.
  */
 #define VFIO_DEVICE_RESET		_IO(VFIO_TYPE, VFIO_BASE + 11)
+
+/*
+ * The VFIO-PCI bus driver makes use of the following fixed region and
+ * IRQ index mapping.  Unimplemented regions return a size of zero.
+ * Unimplemented IRQ types return a count of zero.
+ */
+
+enum {
+	VFIO_PCI_BAR0_REGION_INDEX,
+	VFIO_PCI_BAR1_REGION_INDEX,
+	VFIO_PCI_BAR2_REGION_INDEX,
+	VFIO_PCI_BAR3_REGION_INDEX,
+	VFIO_PCI_BAR4_REGION_INDEX,
+	VFIO_PCI_BAR5_REGION_INDEX,
+	VFIO_PCI_ROM_REGION_INDEX,
+	VFIO_PCI_CONFIG_REGION_INDEX,
+	VFIO_PCI_NUM_REGIONS
+};
+
+enum {
+	VFIO_PCI_INTX_IRQ_INDEX,
+	VFIO_PCI_MSI_IRQ_INDEX,
+	VFIO_PCI_MSIX_IRQ_INDEX,
+	VFIO_PCI_NUM_IRQS
+};
 
 /* -------- API for Type1 VFIO IOMMU -------- */
 

@@ -12,3 +12,5 @@ menuconfig VFIO
 	  See Documentation/vfio.txt for more details.
 
 	  If you don't know what to do here, say N.
+
+source "drivers/vfio/pci/Kconfig"
