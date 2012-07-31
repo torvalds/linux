@@ -717,7 +717,7 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 	int sectors = r10_bio->sectors;
 	int best_good_sectors;
 	sector_t new_distance, best_dist;
-	struct md_rdev *rdev, *best_rdev;
+	struct md_rdev *best_rdev, *rdev = NULL;
 	int do_balance;
 	int best_slot;
 	struct geom *geo = &conf->geo;
