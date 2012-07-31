@@ -37,7 +37,7 @@
 
 
 
-static int dbg_thresd = 0;
+static int dbg_thresd = 3;
 module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
 
@@ -464,6 +464,9 @@ static int win1_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 	{
 		switch (par->format)
 	 	{
+			case ARGB888:
+				par->format = RGB888;
+				break;
 			case YUV422:// yuv422
 				ScaleCbrX = CalScale((xact/2), par->xsize);
 				ScaleCbrY = CalScale(yact, par->ysize);
