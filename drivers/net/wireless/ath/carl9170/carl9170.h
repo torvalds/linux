@@ -425,6 +425,7 @@ struct ar9170 {
 	bool rx_has_plcp;
 	struct sk_buff *rx_failover;
 	int rx_failover_missing;
+	u32 ampdu_ref;
 
 	/* FIFO for collecting outstanding BlockAckRequest */
 	struct list_head bar_list[__AR9170_NUM_TXQ];
