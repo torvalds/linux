@@ -75,6 +75,7 @@
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/signal.h>
+#include <asm/registers.h>
 #include <asm/asm-offsets.h>
 
 #undef DEBUG
@@ -581,7 +582,7 @@ ex_handler_done:
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		andi	r4, r4, 0x800		/* ESR_Z - zone protection */
+		andi	r4, r4, ESR_DIZ		/* ESR_Z - zone protection */
 		bnei	r4, ex2
 
 		ori	r4, r0, swapper_pg_dir
@@ -595,7 +596,7 @@ ex_handler_done:
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		andi	r4, r4, 0x800		/* ESR_Z */
+		andi	r4, r4, ESR_DIZ		/* ESR_Z */
 		bnei	r4, ex2
 		/* get current task address */
 		addi	r4 ,CURRENT_TASK, TOPHYS(0);
