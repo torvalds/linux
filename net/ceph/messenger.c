@@ -2003,7 +2003,6 @@ static void process_message(struct ceph_connection *con)
 	con->ops->dispatch(con, msg);
 
 	mutex_lock(&con->mutex);
-	prepare_read_tag(con);
 }
 
 
@@ -2213,6 +2212,8 @@ more:
 		if (con->in_tag == CEPH_MSGR_TAG_READY)
 			goto more;
 		process_message(con);
+		if (con->state == CON_STATE_OPEN)
+			prepare_read_tag(con);
 		goto more;
 	}
 	if (con->in_tag == CEPH_MSGR_TAG_ACK) {
