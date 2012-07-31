@@ -74,7 +74,7 @@
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
-#include <mach/cru.h>
+//#include <mach/cru.h>
 //#define DWC_DRIVER_VERSION	"2.60a 22-NOV-2006"
 //#define DWC_DRIVER_VERSION	"2.70 2009-12-31"
 #define DWC_DRIVER_VERSION	"3.00 2010-12-12 rockchip"
@@ -1416,7 +1416,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device->phyclk = phyclk;
 	dwc_otg_device->ahbclk = ahbclk;
 #endif
-#ifdef CONFIG_ARCH_RK2928
+#if 0//def CONFIG_ARCH_RK2928
     otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON5);
         cru_set_soft_reset(SOFT_RST_USBPHY0, true);
 	cru_set_soft_reset(SOFT_RST_OTGC0, true);
@@ -2176,9 +2176,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK30  
     *(unsigned int*)(USBGRF_UOC1_CON2+4) = ((1<<5)|((1<<5)<<16));
 #endif    
-#ifdef CONFIG_ARCH_RK2928
-    *(unsigned int*)(USBGRF_UOC1_CON5-4) = ((1<<5)|((1<<5)<<16));
-#endif 
 	if (dwc_otg_device == 0) 
 	{
 		dev_err(dev, "kmalloc of dwc_otg_device failed\n");
@@ -2311,15 +2308,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #endif    
 #ifdef CONFIG_ARCH_RK30
     USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
-#ifdef CONFIG_MACH_RK30_DS1001B
-    USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_GPIO0A5); 
-    if(gpio_request(RK30_PIN0_PA5,"host_drv")<0){
-        DWC_ERROR("request of host power control failed\n");
-        gpio_free(RK30_PIN0_PA5);
-    }
-    gpio_direction_output(RK30_PIN0_PA5, GPIO_HIGH);
-    gpio_set_value(RK30_PIN0_PA5, GPIO_HIGH);
-#endif
 #endif
 	/*
 	 * Initialize the DWC_otg core.

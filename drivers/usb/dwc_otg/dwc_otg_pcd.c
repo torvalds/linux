@@ -1604,6 +1604,7 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
+    mdelay(1);
 #endif    
     //rockchip_scu_reset_unit(12);
     dwc_otg_pcd_reinit( pcd );

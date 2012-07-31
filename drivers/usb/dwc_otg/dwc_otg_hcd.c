@@ -618,7 +618,7 @@ static int32_t dwc_otg_phy_suspend_cb( void *_p, int suspend)
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
-#ifdef CONFIG_ARCH_RK2928                
+#if 0//def CONFIG_ARCH_RK2928                
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
     if(exitsuspend && (pcd->phy_suspend == 1)) {
         clk_enable(pcd->otg_dev->ahbclk);
@@ -1143,7 +1143,7 @@ static int32_t host20_phy_suspend_cb( void *_p, int suspend)
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
-#ifdef CONFIG_ARCH_RK2928                
+#if 0//def CONFIG_ARCH_RK2928                
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
     if(exitsuspend && (pcd->phy_suspend == 1)) {
         clk_enable(pcd->otg_dev->ahbclk);
