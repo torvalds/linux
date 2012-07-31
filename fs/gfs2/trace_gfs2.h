@@ -526,12 +526,12 @@ TRACE_EVENT(gfs2_rs,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= rs->rs_rgd ? rs->rs_rgd->rd_sbd->sd_vfs->s_dev : 0;
-		__entry->rd_addr	= rs->rs_rgd ? rs->rs_rgd->rd_addr : 0;
-		__entry->rd_free_clone	= rs->rs_rgd ? rs->rs_rgd->rd_free_clone : 0;
-		__entry->rd_reserved	= rs->rs_rgd ? rs->rs_rgd->rd_reserved : 0;
+		__entry->dev		= rs->rs_rbm.rgd ? rs->rs_rbm.rgd->rd_sbd->sd_vfs->s_dev : 0;
+		__entry->rd_addr	= rs->rs_rbm.rgd ? rs->rs_rbm.rgd->rd_addr : 0;
+		__entry->rd_free_clone	= rs->rs_rbm.rgd ? rs->rs_rbm.rgd->rd_free_clone : 0;
+		__entry->rd_reserved	= rs->rs_rbm.rgd ? rs->rs_rbm.rgd->rd_reserved : 0;
 		__entry->inum		= ip ? ip->i_no_addr : 0;
-		__entry->start		= gfs2_rs_startblk(rs);
+		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;
 	),

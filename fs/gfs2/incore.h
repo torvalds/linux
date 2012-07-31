@@ -102,6 +102,17 @@ struct gfs2_rgrpd {
 	u32 rd_rs_cnt;                  /* count of current reservations */
 };
 
+struct gfs2_rbm {
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_bitmap *bi;	/* Bitmap must belong to the rgd */
+	u32 offset;		/* The offset is bitmap relative */
+};
+
+static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
+{
+	return rbm->rgd->rd_data0 + (rbm->bi->bi_start * GFS2_NBBY) + rbm->offset;
+}
+
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
 	BH_Escaped = BH_PrivateStart + 1,
@@ -251,13 +262,11 @@ struct gfs2_blkreserv {
 	atomic_t rs_sizehint;         /* hint of the write size */
 
 	/* components used during get_local_rgrp (step 3): */
-	struct gfs2_rgrpd *rs_rgd;    /* pointer to the gfs2_rgrpd */
+	struct gfs2_rbm rs_rbm;
 	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */
 	struct rb_node rs_node;       /* link to other block reservations */
 
 	/* components used during block searches and assignments (step 4): */
-	struct gfs2_bitmap *rs_bi;    /* bitmap for the current allocation */
-	u32 rs_biblk;                 /* start block relative to the bi */
 	u32 rs_free;                  /* how many blocks are still free */
 
 	/* ancillary quota stuff */
