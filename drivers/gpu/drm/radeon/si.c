@@ -60,6 +60,11 @@ MODULE_FIRMWARE("radeon/OLAND_me.bin");
 MODULE_FIRMWARE("radeon/OLAND_ce.bin");
 MODULE_FIRMWARE("radeon/OLAND_mc.bin");
 MODULE_FIRMWARE("radeon/OLAND_rlc.bin");
+MODULE_FIRMWARE("radeon/HAINAN_pfp.bin");
+MODULE_FIRMWARE("radeon/HAINAN_me.bin");
+MODULE_FIRMWARE("radeon/HAINAN_ce.bin");
+MODULE_FIRMWARE("radeon/HAINAN_mc.bin");
+MODULE_FIRMWARE("radeon/HAINAN_rlc.bin");
 
 extern int r600_ih_ring_alloc(struct radeon_device *rdev);
 extern void r600_ih_ring_fini(struct radeon_device *rdev);
@@ -1062,6 +1067,45 @@ static const u32 oland_io_mc_regs[TAHITI_IO_MC_REGS_SIZE][2] = {
 	{0x0000009f, 0x00a17730}
 };
 
+static const u32 hainan_io_mc_regs[TAHITI_IO_MC_REGS_SIZE][2] = {
+	{0x0000006f, 0x03044000},
+	{0x00000070, 0x0480c018},
+	{0x00000071, 0x00000040},
+	{0x00000072, 0x01000000},
+	{0x00000074, 0x000000ff},
+	{0x00000075, 0x00143400},
+	{0x00000076, 0x08ec0800},
+	{0x00000077, 0x040000cc},
+	{0x00000079, 0x00000000},
+	{0x0000007a, 0x21000409},
+	{0x0000007c, 0x00000000},
+	{0x0000007d, 0xe8000000},
+	{0x0000007e, 0x044408a8},
+	{0x0000007f, 0x00000003},
+	{0x00000080, 0x00000000},
+	{0x00000081, 0x01000000},
+	{0x00000082, 0x02000000},
+	{0x00000083, 0x00000000},
+	{0x00000084, 0xe3f3e4f4},
+	{0x00000085, 0x00052024},
+	{0x00000087, 0x00000000},
+	{0x00000088, 0x66036603},
+	{0x00000089, 0x01000000},
+	{0x0000008b, 0x1c0a0000},
+	{0x0000008c, 0xff010000},
+	{0x0000008e, 0xffffefff},
+	{0x0000008f, 0xfff3efff},
+	{0x00000090, 0xfff3efbf},
+	{0x00000094, 0x00101101},
+	{0x00000095, 0x00000fff},
+	{0x00000096, 0x00116fff},
+	{0x00000097, 0x60010000},
+	{0x00000098, 0x10010000},
+	{0x00000099, 0x00006000},
+	{0x0000009a, 0x00001000},
+	{0x0000009f, 0x00a07730}
+};
+
 /* ucode loading */
 static int si_mc_load_microcode(struct radeon_device *rdev)
 {
@@ -1092,6 +1136,11 @@ static int si_mc_load_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_OLAND:
 		io_mc_regs = (u32 *)&oland_io_mc_regs;
+		ucode_size = OLAND_MC_UCODE_SIZE;
+		regs_size = TAHITI_IO_MC_REGS_SIZE;
+		break;
+	case CHIP_HAINAN:
+		io_mc_regs = (u32 *)&hainan_io_mc_regs;
 		ucode_size = OLAND_MC_UCODE_SIZE;
 		regs_size = TAHITI_IO_MC_REGS_SIZE;
 		break;
@@ -1192,6 +1241,15 @@ static int si_init_microcode(struct radeon_device *rdev)
 	case CHIP_OLAND:
 		chip_name = "OLAND";
 		rlc_chip_name = "OLAND";
+		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
+		me_req_size = SI_PM4_UCODE_SIZE * 4;
+		ce_req_size = SI_CE_UCODE_SIZE * 4;
+		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
+		mc_req_size = OLAND_MC_UCODE_SIZE * 4;
+		break;
+	case CHIP_HAINAN:
+		chip_name = "HAINAN";
+		rlc_chip_name = "HAINAN";
 		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
 		me_req_size = SI_PM4_UCODE_SIZE * 4;
 		ce_req_size = SI_CE_UCODE_SIZE * 4;
