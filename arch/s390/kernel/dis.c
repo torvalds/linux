@@ -315,6 +315,8 @@ enum {
 	LONG_INSN_POPCNT,
 	LONG_INSN_RISBHG,
 	LONG_INSN_RISBLG,
+	LONG_INSN_RINEXT,
+	LONG_INSN_RIEMIT,
 };
 
 static char *long_insn_name[] = {
@@ -330,6 +332,8 @@ static char *long_insn_name[] = {
 	[LONG_INSN_POPCNT] = "popcnt",
 	[LONG_INSN_RISBHG] = "risbhg",
 	[LONG_INSN_RISBLG] = "risblk",
+	[LONG_INSN_RINEXT] = "rinext",
+	[LONG_INSN_RIEMIT] = "riemit",
 };
 
 static struct insn opcode[] = {
@@ -579,6 +583,17 @@ static struct insn opcode_a7[] = {
 	{ "ahi", 0x0a, INSTR_RI_RI },
 	{ "mhi", 0x0c, INSTR_RI_RI },
 	{ "chi", 0x0e, INSTR_RI_RI },
+	{ "", 0, INSTR_INVALID }
+};
+
+static struct insn opcode_aa[] = {
+#ifdef CONFIG_64BIT
+	{ { 0, LONG_INSN_RINEXT }, 0x00, INSTR_RI_RI },
+	{ "rion", 0x01, INSTR_RI_RI },
+	{ "tric", 0x02, INSTR_RI_RI },
+	{ "rioff", 0x03, INSTR_RI_RI },
+	{ { 0, LONG_INSN_RIEMIT }, 0x04, INSTR_RI_RI },
+#endif
 	{ "", 0, INSTR_INVALID }
 };
 
@@ -1210,6 +1225,9 @@ static struct insn opcode_eb[] = {
 	{ "cliy", 0x55, INSTR_SIY_URD },
 	{ "oiy", 0x56, INSTR_SIY_URD },
 	{ "xiy", 0x57, INSTR_SIY_URD },
+	{ "lric", 0x60, INSTR_RSY_RDRM },
+	{ "stric", 0x61, INSTR_RSY_RDRM },
+	{ "mric", 0x62, INSTR_RSY_RDRM },
 	{ "icmh", 0x80, INSTR_RSE_RURD },
 	{ "icmh", 0x80, INSTR_RSY_RURD },
 	{ "icmy", 0x81, INSTR_RSY_RURD },
@@ -1407,6 +1425,9 @@ static struct insn *find_insn(unsigned char *code)
 		break;
 	case 0xa7:
 		table = opcode_a7;
+		break;
+	case 0xaa:
+		table = opcode_aa;
 		break;
 	case 0xb2:
 		table = opcode_b2;

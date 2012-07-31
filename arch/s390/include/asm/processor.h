@@ -17,6 +17,7 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
+#include <asm/runtime_instr.h>
 
 /*
  * Default implementation of macro that returns current
@@ -78,6 +79,9 @@ struct thread_struct {
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;
+	/* cpu runtime instrumentation */
+	struct runtime_instr_cb *ri_cb;
+	int ri_signum;
 };
 
 typedef struct thread_struct thread_struct;

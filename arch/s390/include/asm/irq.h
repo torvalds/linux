@@ -19,6 +19,7 @@ enum interruption_class {
 	EXTINT_IUC,
 	EXTINT_CMS,
 	EXTINT_CMC,
+	EXTINT_CMR,
 	IOINT_CIO,
 	IOINT_QAI,
 	IOINT_DAS,
