@@ -412,6 +412,11 @@ ENTRY(pgm_check_handler)
 1:	UPDATE_VTIME %r14,__LC_SYNC_ENTER_TIMER
 	LAST_BREAK %r14
 	lg	%r15,__LC_KERNEL_STACK
+	lg	%r14,__TI_task(%r12)
+	lghi	%r13,__LC_PGM_TDB
+	tm	__LC_PGM_ILC+2,0x02	# check for transaction abort
+	jz	2f
+	mvc	__THREAD_trap_tdb(256,%r14),0(%r13)
 2:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -422,13 +427,12 @@ ENTRY(pgm_check_handler)
 	stg	%r10,__PT_ARGS(%r11)
 	tm	__LC_PGM_ILC+3,0x80	# check for per exception
 	jz	0f
-	lg	%r1,__TI_task(%r12)
 	tmhh	%r8,0x0001		# kernel per event ?
 	jz	pgm_kprobe
 	oi	__TI_flags+7(%r12),_TIF_PER_TRAP
-	mvc	__THREAD_per_address(8,%r1),__LC_PER_ADDRESS
-	mvc	__THREAD_per_cause(2,%r1),__LC_PER_CAUSE
-	mvc	__THREAD_per_paid(1,%r1),__LC_PER_PAID
+	mvc	__THREAD_per_address(8,%r14),__LC_PER_ADDRESS
+	mvc	__THREAD_per_cause(2,%r14),__LC_PER_CAUSE
+	mvc	__THREAD_per_paid(1,%r14),__LC_PER_PAID
 0:	REENABLE_IRQS
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	larl	%r1,pgm_check_table

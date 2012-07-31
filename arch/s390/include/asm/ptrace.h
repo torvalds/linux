@@ -361,17 +361,19 @@ struct per_struct_kernel {
 	unsigned char access_id;	/* PER trap access identification */
 };
 
-#define PER_EVENT_MASK			0xE9000000UL
+#define PER_EVENT_MASK			0xEB000000UL
 
 #define PER_EVENT_BRANCH		0x80000000UL
 #define PER_EVENT_IFETCH		0x40000000UL
 #define PER_EVENT_STORE			0x20000000UL
 #define PER_EVENT_STORE_REAL		0x08000000UL
+#define PER_EVENT_TRANSACTION_END	0x02000000UL
 #define PER_EVENT_NULLIFICATION		0x01000000UL
 
-#define PER_CONTROL_MASK		0x00a00000UL
+#define PER_CONTROL_MASK		0x00e00000UL
 
 #define PER_CONTROL_BRANCH_ADDRESS	0x00800000UL
+#define PER_CONTROL_SUSPENSION		0x00400000UL
 #define PER_CONTROL_ALTERATION		0x00200000UL
 
 #endif
@@ -485,6 +487,8 @@ typedef struct
 #define PTRACE_GET_LAST_BREAK	      0x5006
 #define PTRACE_PEEK_SYSTEM_CALL       0x5007
 #define PTRACE_POKE_SYSTEM_CALL	      0x5008
+#define PTRACE_ENABLE_TE	      0x5009
+#define PTRACE_DISABLE_TE	      0x5010
 
 /*
  * PT_PROT definition is loosely based on hppa bsd definition in

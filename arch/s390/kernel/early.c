@@ -370,6 +370,8 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
+	if (test_facility(50) && test_facility(73))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
 #endif
 }
 
@@ -438,7 +440,6 @@ static void __init setup_boot_command_line(void)
 
 	append_to_cmdline(append_ipl_scpdata);
 }
-
 
 /*
  * Save ipl parameters, clear bss memory, initialize storage keys
