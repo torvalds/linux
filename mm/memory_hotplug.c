@@ -513,7 +513,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages)
 	zone->present_pages += onlined_pages;
 	zone->zone_pgdat->node_present_pages += onlined_pages;
 	if (need_zonelists_rebuild)
-		build_all_zonelists(zone);
+		build_all_zonelists(NULL, zone);
 	else
 		zone_pcp_update(zone);
 
@@ -562,7 +562,7 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 	 * to access not-initialized zonelist, build here.
 	 */
 	mutex_lock(&zonelists_mutex);
-	build_all_zonelists(NULL);
+	build_all_zonelists(pgdat, NULL);
 	mutex_unlock(&zonelists_mutex);
 
 	return pgdat;
