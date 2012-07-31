@@ -873,7 +873,7 @@ do_sync_io:
 static void make_request(struct mddev *mddev, struct bio * bio)
 {
 	struct r1conf *conf = mddev->private;
-	struct mirror_info *mirror;
+	struct raid1_info *mirror;
 	struct r1bio *r1_bio;
 	struct bio *read_bio;
 	int i, disks;
@@ -1364,7 +1364,7 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct r1conf *conf = mddev->private;
 	int err = -EEXIST;
 	int mirror = 0;
-	struct mirror_info *p;
+	struct raid1_info *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
 	struct request_queue *q = bdev_get_queue(rdev->bdev);
@@ -1433,7 +1433,7 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct r1conf *conf = mddev->private;
 	int err = 0;
 	int number = rdev->raid_disk;
-	struct mirror_info *p = conf->mirrors+ number;
+	struct raid1_info *p = conf->mirrors + number;
 
 	if (rdev != p->rdev)
 		p = conf->mirrors + conf->raid_disks + number;
@@ -2521,7 +2521,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 {
 	struct r1conf *conf;
 	int i;
-	struct mirror_info *disk;
+	struct raid1_info *disk;
 	struct md_rdev *rdev;
 	int err = -ENOMEM;
 
@@ -2529,7 +2529,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	if (!conf)
 		goto abort;
 
-	conf->mirrors = kzalloc(sizeof(struct mirror_info)
+	conf->mirrors = kzalloc(sizeof(struct raid1_info)
 				* mddev->raid_disks * 2,
 				 GFP_KERNEL);
 	if (!conf->mirrors)
@@ -2798,7 +2798,7 @@ static int raid1_reshape(struct mddev *mddev)
 	 */
 	mempool_t *newpool, *oldpool;
 	struct pool_info *newpoolinfo;
-	struct mirror_info *newmirrors;
+	struct raid1_info *newmirrors;
 	struct r1conf *conf = mddev->private;
 	int cnt, raid_disks;
 	unsigned long flags;
@@ -2841,7 +2841,7 @@ static int raid1_reshape(struct mddev *mddev)
 		kfree(newpoolinfo);
 		return -ENOMEM;
 	}
-	newmirrors = kzalloc(sizeof(struct mirror_info) * raid_disks * 2,
+	newmirrors = kzalloc(sizeof(struct raid1_info) * raid_disks * 2,
 			     GFP_KERNEL);
 	if (!newmirrors) {
 		kfree(newpoolinfo);

@@ -1,7 +1,7 @@
 #ifndef _RAID1_H
 #define _RAID1_H
 
-struct mirror_info {
+struct raid1_info {
 	struct md_rdev	*rdev;
 	sector_t	head_position;
 };
@@ -24,7 +24,7 @@ struct pool_info {
 
 struct r1conf {
 	struct mddev		*mddev;
-	struct mirror_info	*mirrors;	/* twice 'raid_disks' to
+	struct raid1_info	*mirrors;	/* twice 'raid_disks' to
 						 * allow for replacements.
 						 */
 	int			raid_disks;
