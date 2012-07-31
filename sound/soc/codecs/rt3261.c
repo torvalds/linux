@@ -25,6 +25,8 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <mach/board.h>
+#include <linux/clk.h>
+#include <mach/iomux.h>
 
 #define RT3261_PROC
 #ifdef RT3261_PROC
@@ -2733,6 +2735,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 {
 	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
 	int ret;
+	struct clk *iis_clk;
 
 	pr_info("Codec driver version %s\n", VERSION);
 
@@ -2745,6 +2748,19 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	#ifdef RT3261_PROC	
 	rt3261_proc_init();
 	#endif
+
+	//for rt5623 MCLK use
+	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
+	if (IS_ERR(iis_clk)) {
+		printk("failed to get i2s clk\n");
+		ret = PTR_ERR(iis_clk);
+	}else{
+		printk("I2S2 got i2s clk ok!\n");
+		clk_enable(iis_clk);
+		clk_set_rate(iis_clk, 11289600);
+		rk30_mux_api_set(GPIO0D0_I2S22CHCLK_SMCCSN0_NAME, GPIO0D_I2S2_2CH_CLK);
+		clk_put(iis_clk);
+	}
 	
 	rt3261_reset(codec);
 	snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
