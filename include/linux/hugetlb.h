@@ -48,6 +48,10 @@ int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *,
 			unsigned long *, int *, int, unsigned int flags);
 void unmap_hugepage_range(struct vm_area_struct *,
 			  unsigned long, unsigned long, struct page *);
+void __unmap_hugepage_range_final(struct mmu_gather *tlb,
+			  struct vm_area_struct *vma,
+			  unsigned long start, unsigned long end,
+			  struct page *ref_page);
 void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 				unsigned long start, unsigned long end,
 				struct page *ref_page);
@@ -129,6 +133,13 @@ static inline void copy_huge_page(struct page *dst, struct page *src)
 }
 
 #define hugetlb_change_protection(vma, address, end, newprot)
+
+static inline void __unmap_hugepage_range_final(struct mmu_gather *tlb,
+			struct vm_area_struct *vma, unsigned long start,
+			unsigned long end, struct page *ref_page)
+{
+	BUG();
+}
 
 static inline void __unmap_hugepage_range(struct mmu_gather *tlb,
 			struct vm_area_struct *vma, unsigned long start,

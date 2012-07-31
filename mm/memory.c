@@ -1345,7 +1345,7 @@ static void unmap_single_vma(struct mmu_gather *tlb,
 			 */
 			if (vma->vm_file) {
 				mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
-				__unmap_hugepage_range(tlb, vma, start, end, NULL);
+				__unmap_hugepage_range_final(tlb, vma, start, end, NULL);
 				mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
 			}
 		} else
