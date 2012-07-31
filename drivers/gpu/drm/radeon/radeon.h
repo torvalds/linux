@@ -1869,12 +1869,14 @@ extern void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_displ
 extern int ni_init_microcode(struct radeon_device *rdev);
 extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
-/* radeon_acpi.c */ 
-#if defined(CONFIG_ACPI) 
-extern int radeon_acpi_init(struct radeon_device *rdev); 
-#else 
-static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; } 
-#endif 
+/* radeon_acpi.c */
+#if defined(CONFIG_ACPI)
+extern int radeon_acpi_init(struct radeon_device *rdev);
+extern void radeon_acpi_fini(struct radeon_device *rdev);
+#else
+static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; }
+static inline void radeon_acpi_fini(struct radeon_device *rdev) { }
+#endif
 
 #include "radeon_object.h"
 

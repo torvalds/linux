@@ -51,6 +51,7 @@ int radeon_driver_unload_kms(struct drm_device *dev)
 
 	if (rdev == NULL)
 		return 0;
+	radeon_acpi_fini(rdev);
 	radeon_modeset_fini(rdev);
 	radeon_device_fini(rdev);
 	kfree(rdev);

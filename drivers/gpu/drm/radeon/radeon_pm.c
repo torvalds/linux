@@ -22,12 +22,8 @@
  */
 #include "drmP.h"
 #include "radeon.h"
-#include "radeon_acpi.h"
 #include "avivod.h"
 #include "atom.h"
-#ifdef CONFIG_ACPI
-#include <linux/acpi.h>
-#endif
 #include <linux/power_supply.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -51,8 +47,6 @@ static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish
 static void radeon_pm_update_profile(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
 
-#define ACPI_AC_CLASS           "ac_adapter"
-
 int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     enum radeon_pm_state_type ps_type,
 			     int instance)
@@ -71,34 +65,17 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 	return rdev->pm.default_power_state_index;
 }
 
-#ifdef CONFIG_ACPI
-static int radeon_acpi_event(struct notifier_block *nb,
-			     unsigned long val,
-			     void *data)
+void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 {
-	struct radeon_device *rdev = container_of(nb, struct radeon_device, acpi_nb);
-	struct acpi_bus_event *entry = (struct acpi_bus_event *)data;
-
-	if (strcmp(entry->device_class, ACPI_AC_CLASS) == 0) {
-		if (power_supply_is_system_supplied() > 0)
-			DRM_DEBUG_DRIVER("pm: AC\n");
-		else
-			DRM_DEBUG_DRIVER("pm: DC\n");
-
-		if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
-			if (rdev->pm.profile == PM_PROFILE_AUTO) {
-				mutex_lock(&rdev->pm.mutex);
-				radeon_pm_update_profile(rdev);
-				radeon_pm_set_clocks(rdev);
-				mutex_unlock(&rdev->pm.mutex);
-			}
+	if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
+		if (rdev->pm.profile == PM_PROFILE_AUTO) {
+			mutex_lock(&rdev->pm.mutex);
+			radeon_pm_update_profile(rdev);
+			radeon_pm_set_clocks(rdev);
+			mutex_unlock(&rdev->pm.mutex);
 		}
 	}
-
-	/* Check for pending SBIOS requests */
-	return radeon_atif_handler(rdev, entry);
 }
-#endif
 
 static void radeon_pm_update_profile(struct radeon_device *rdev)
 {
@@ -629,10 +606,6 @@ int radeon_pm_init(struct radeon_device *rdev)
 		if (ret)
 			DRM_ERROR("failed to create device file for power method\n");
 
-#ifdef CONFIG_ACPI
-		rdev->acpi_nb.notifier_call = radeon_acpi_event;
-		register_acpi_notifier(&rdev->acpi_nb);
-#endif
 		if (radeon_debugfs_pm_init(rdev)) {
 			DRM_ERROR("Failed to register debugfs file for PM!\n");
 		}
@@ -663,9 +636,6 @@ void radeon_pm_fini(struct radeon_device *rdev)
 
 		device_remove_file(rdev->dev, &dev_attr_power_profile);
 		device_remove_file(rdev->dev, &dev_attr_power_method);
-#ifdef CONFIG_ACPI
-		unregister_acpi_notifier(&rdev->acpi_nb);
-#endif
 	}
 
 	if (rdev->pm.power_state)

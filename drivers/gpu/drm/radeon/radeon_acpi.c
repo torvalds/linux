@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
+#include <linux/power_supply.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
@@ -37,6 +38,10 @@
 #include "atom.h"
 
 #include <linux/vga_switcheroo.h>
+
+#define ACPI_AC_CLASS           "ac_adapter"
+
+extern void radeon_pm_acpi_event_handler(struct radeon_device *rdev);
 
 struct atif_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
@@ -299,6 +304,26 @@ int radeon_atif_handler(struct radeon_device *rdev,
 	return NOTIFY_OK;
 }
 
+static int radeon_acpi_event(struct notifier_block *nb,
+			     unsigned long val,
+			     void *data)
+{
+	struct radeon_device *rdev = container_of(nb, struct radeon_device, acpi_nb);
+	struct acpi_bus_event *entry = (struct acpi_bus_event *)data;
+
+	if (strcmp(entry->device_class, ACPI_AC_CLASS) == 0) {
+		if (power_supply_is_system_supplied() > 0)
+			DRM_DEBUG_DRIVER("pm: AC\n");
+		else
+			DRM_DEBUG_DRIVER("pm: DC\n");
+
+		radeon_pm_acpi_event_handler(rdev);
+	}
+
+	/* Check for pending SBIOS requests */
+	return radeon_atif_handler(rdev, entry);
+}
+
 /* Call all ACPI methods here */
 int radeon_acpi_init(struct radeon_device *rdev)
 {
@@ -367,6 +392,13 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	}
 
 out:
+	rdev->acpi_nb.notifier_call = radeon_acpi_event;
+	register_acpi_notifier(&rdev->acpi_nb);
+
 	return ret;
 }
 
+void radeon_acpi_fini(struct radeon_device *rdev)
+{
+	unregister_acpi_notifier(&rdev->acpi_nb);
+}
