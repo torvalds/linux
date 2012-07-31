@@ -15,7 +15,6 @@
 # ifdef CONFIG_X86_32
 
 #  include <asm/unistd_32.h>
-#  define __ARCH_WANT_IPC_PARSE_VERSION
 #  define __ARCH_WANT_STAT64
 #  define __ARCH_WANT_SYS_IPC
 #  define __ARCH_WANT_SYS_OLD_MMAP
