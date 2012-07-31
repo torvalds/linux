@@ -60,12 +60,16 @@
 
 #define RGA_MAJOR		255
 
-#if 0
+#if 1
 #if CONFIG_ARCH_RK2928
 #define RK30_RGA_PHYS	0x1010C000
 #define RK30_RGA_SIZE	SZ_8K
 #define RGA_RESET_TIMEOUT	1000
 #elif CONFIG_ARCH_RK30
+#define RK30_RGA_PHYS	0x10114000
+#define RK30_RGA_SIZE	SZ_8K
+#define RGA_RESET_TIMEOUT	1000
+#elif CONFIG_ARCH_RK31
 #define RK30_RGA_PHYS	0x10114000
 #define RK30_RGA_SIZE	SZ_8K
 #define RGA_RESET_TIMEOUT	1000
@@ -132,7 +136,7 @@ static inline u32 rga_read(u32 r)
 	return __raw_readl(drvdata->rga_base + r);
 }
 
-#if defined(CONFIG_ARCH_RK30)
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 static void rga_soft_reset(void)
 {
 	u32 i;
@@ -582,6 +586,8 @@ static void rga_try_set_reg(void)
             outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
 
             #if defined(CONFIG_ARCH_RK30)
+            rga_soft_reset();
+            #elif defined(CONFIG_ARCH_RK31)
             rga_soft_reset();
             #endif
             
@@ -1114,6 +1120,8 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	if (!request_mem_region(RK2928_RGA_PHYS, RK2928_RGA_SIZE, "rga_io"))
     #elif defined(CONFIG_ARCH_RK30)
     if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
+    #elif defined(CONFIG_ARCH_RK31)
+    if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
     #endif    
 	{
 		pr_info("failed to reserve rga HW regs\n");
@@ -1123,6 +1131,8 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
     #if defined(CONFIG_ARCH_RK2928)
 	data->rga_base = (void*)ioremap_nocache(RK2928_RGA_PHYS, RK2928_RGA_SIZE);
     #elif defined(CONFIG_ARCH_RK30)
+    data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
+    #elif defined(CONFIG_ARCH_RK31)
     data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
     #endif
 	if (data->rga_base == NULL)
@@ -1242,7 +1252,7 @@ static int __init rga_init(void)
 			return ret;
 	}
 
-    //rga_test_0();
+   // rga_test_0();
 
 	INFO("Module initialized.\n");
 
@@ -1309,10 +1319,10 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    //memset(src_buf, 0x80, 1920*1080*4);
+    memset(src_buf, 0xff, 1920*1080*4);
 
-    //dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
-    //outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
+    dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
 
     #if 0
     memset(src_buf, 0x80, 800*480*4);
@@ -1322,21 +1332,21 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
 
-    req.src.act_w = 1280;
-    req.src.act_h = 800;
+    req.src.act_w = 320;
+    req.src.act_h = 240;
 
-    req.src.vir_w = 1280;
-    req.src.vir_h = 800;
+    req.src.vir_w = 320;
+    req.src.vir_h = 240;
     req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
     req.src.uv_addr = (uint32_t)virt_to_phys(src);
     req.src.v_addr = (uint32_t)virt_to_phys(src);
     req.src.format = 0;
 
-    req.dst.act_w = 1280;
-    req.dst.act_h = 800;
+    req.dst.act_w = 320;
+    req.dst.act_h = 240;
 
-    req.dst.vir_w = 1280;
-    req.dst.vir_h = 800;
+    req.dst.vir_w = 800;
+    req.dst.vir_h = 480;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
     req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
@@ -1344,58 +1354,15 @@ void rga_test_0(void)
     //req.dst.format = RK_FORMAT_RGB_565;
 
     req.clip.xmin = 0;
-    req.clip.xmax = 1279;
+    req.clip.xmax = 799;
     req.clip.ymin = 0;
-    req.clip.ymax = 799;
+    req.clip.ymax = 479;
 
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
 
-    req.rotate_mode = 1;
-    req.scale_mode = 2;
-
-    //req.alpha_rop_flag = 0;
-    //req.alpha_rop_mode = 0x1;
-
-    req.sina = 0;
-    req.cosa = 65536;
-
-    req.mmu_info.mmu_flag = 0x21;
-    req.mmu_info.mmu_en = 1;
-
-    rga_blit_sync(&session, &req);
-
-    req.src.act_w = 1280;
-    req.src.act_h = 800;
-
-    req.src.vir_w = 1280;
-    req.src.vir_h = 800;
-    req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
-    req.src.uv_addr = (uint32_t)virt_to_phys(src);
-    req.src.v_addr = (uint32_t)virt_to_phys(src);
-    req.src.format = RK_FORMAT_YCbCr_420_SP;
-
-    req.dst.act_w = 1280;
-    req.dst.act_h = 800;
-
-    req.dst.vir_w = 1280;
-    req.dst.vir_h = 800;
-    req.dst.x_offset = 0;
-    req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
-
-    //req.dst.format = RK_FORMAT_RGB_565;
-
-    req.clip.xmin = 0;
-    req.clip.xmax = 1279;
-    req.clip.ymin = 0;
-    req.clip.ymax = 799;
-
-    //req.render_mode = color_fill_mode;
-    //req.fg_color = 0x80ffffff;
-
-    req.rotate_mode = 1;
-    req.scale_mode = 2;
+    //req.rotate_mode = 1;
+    //req.scale_mode = 2;
 
     //req.alpha_rop_flag = 0;
     //req.alpha_rop_mode = 0x1;
@@ -1408,11 +1375,11 @@ void rga_test_0(void)
 
     rga_blit_sync(&session, &req);
 
-    #if 0
+    #if 1
     fb->var.bits_per_pixel = 32;
     
-    fb->var.xres = 1280;
-    fb->var.yres = 800;
+    fb->var.xres = 800;
+    fb->var.yres = 480;
 
     fb->var.red.length = 8;
     fb->var.red.offset = 0;
