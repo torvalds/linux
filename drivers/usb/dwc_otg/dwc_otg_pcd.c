@@ -1047,6 +1047,7 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
         dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
         dctl.b.sftdiscon = 1;
         dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+        pcd->conn_status = 3;
     }
     return 0;
 }
@@ -1596,6 +1597,7 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
+    mdelay(1);
 #endif    
     //rockchip_scu_reset_unit(12);
     dwc_otg_pcd_reinit( pcd );
@@ -1819,12 +1821,12 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
         /* if usb not connect before ,then start connect */
          if( _pcd->vbus_status == 0 ) {
             DWC_PRINT("********vbus detect*********************************************\n");
-            dwc_otg_msc_lock(_pcd);
     	    _pcd->vbus_status = 1;
             if(_pcd->conn_en)
                 goto connect;
             else
-                dwc_otg20phy_suspend( 0 );
+                // not connect, suspend phy
+                dwc_otg20phy_suspend(0);
         } 
         else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
             DWC_PRINT("********soft reconnect******************************************\n");
@@ -1836,11 +1838,13 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
             _pcd->conn_status++;
             if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
                 _pcd->vbus_status = 2;
+                
+            // not connect, suspend phy
+            dwc_otg20phy_suspend(0);
         }
 	}else {
         _pcd->vbus_status = 0;
-        if(_pcd->conn_status)
-        {
+        if(_pcd->conn_status){
              _pcd->conn_status = 0;
              dwc_otg_msc_unlock(_pcd);
         }
@@ -1854,6 +1858,8 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     return;
 
 connect:
+    if(_pcd->conn_status==0)
+        dwc_otg_msc_lock(_pcd);
     if( _pcd->phy_suspend  == 1 )
          dwc_otg20phy_suspend( 1 );
     schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
