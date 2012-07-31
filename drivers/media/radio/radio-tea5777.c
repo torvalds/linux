@@ -33,6 +33,7 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
+#include <asm/div64.h>
 #include "radio-tea5777.h"
 
 MODULE_AUTHOR("Hans de Goede <perex@perex.cz>");
@@ -158,10 +159,11 @@ static int radio_tea5777_set_freq(struct radio_tea5777 *tea)
 	int res;
 
 	freq = clamp_t(u32, tea->freq,
-		       TEA5777_FM_RANGELOW, TEA5777_FM_RANGEHIGH);
-	freq = (freq + 8) / 16; /* to kHz */
+		       TEA5777_FM_RANGELOW, TEA5777_FM_RANGEHIGH) + 8;
+	do_div(freq, 16); /* to kHz */
 
-	freq = (freq - TEA5777_FM_IF) / TEA5777_FM_FREQ_STEP;
+	freq -= TEA5777_FM_IF;
+	do_div(freq, TEA5777_FM_FREQ_STEP);
 
 	tea->write_reg &= ~(TEA5777_W_FM_PLL_MASK | TEA5777_W_FM_FREF_MASK);
 	tea->write_reg |= freq << TEA5777_W_FM_PLL_SHIFT;
