@@ -38,6 +38,7 @@
 #include "util/cpumap.h"
 #include "util/xyarray.h"
 #include "util/sort.h"
+#include "util/intlist.h"
 
 #include "util/debug.h"
 
@@ -706,8 +707,16 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	int err;
 
 	if (!machine && perf_guest) {
-		pr_err("Can't find guest [%d]'s kernel information\n",
-			event->ip.pid);
+		static struct intlist *seen;
+
+		if (!seen)
+			seen = intlist__new();
+
+		if (!intlist__has_entry(seen, event->ip.pid)) {
+			pr_err("Can't find guest [%d]'s kernel information\n",
+				event->ip.pid);
+			intlist__add(seen, event->ip.pid);
+		}
 		return;
 	}
 
