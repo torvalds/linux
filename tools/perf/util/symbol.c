@@ -1478,14 +1478,31 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 		goto out;
 	}
 
-	sec = elf_section_by_name(elf, &ehdr, &shdr,
-				  ".note.gnu.build-id", NULL);
-	if (sec == NULL) {
+	/*
+	 * Check following sections for notes:
+	 *   '.note.gnu.build-id'
+	 *   '.notes'
+	 *   '.note' (VDSO specific)
+	 */
+	do {
+		sec = elf_section_by_name(elf, &ehdr, &shdr,
+					  ".note.gnu.build-id", NULL);
+		if (sec)
+			break;
+
 		sec = elf_section_by_name(elf, &ehdr, &shdr,
 					  ".notes", NULL);
-		if (sec == NULL)
-			goto out;
-	}
+		if (sec)
+			break;
+
+		sec = elf_section_by_name(elf, &ehdr, &shdr,
+					  ".note", NULL);
+		if (sec)
+			break;
+
+		return err;
+
+	} while (0);
 
 	data = elf_getdata(sec, NULL);
 	if (data == NULL)
@@ -1590,11 +1607,62 @@ out:
 	return err;
 }
 
+static int filename__read_debuglink(const char *filename,
+				    char *debuglink, size_t size)
+{
+	int fd, err = -1;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	Elf_Data *data;
+	Elf_Scn *sec;
+	Elf_Kind ek;
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		goto out;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL) {
+		pr_debug2("%s: cannot read %s ELF file.\n", __func__, filename);
+		goto out_close;
+	}
+
+	ek = elf_kind(elf);
+	if (ek != ELF_K_ELF)
+		goto out_close;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		pr_err("%s: cannot get elf header.\n", __func__);
+		goto out_close;
+	}
+
+	sec = elf_section_by_name(elf, &ehdr, &shdr,
+				  ".gnu_debuglink", NULL);
+	if (sec == NULL)
+		goto out_close;
+
+	data = elf_getdata(sec, NULL);
+	if (data == NULL)
+		goto out_close;
+
+	/* the start of this section is a zero-terminated string */
+	strncpy(debuglink, data->d_buf, size);
+
+	elf_end(elf);
+
+out_close:
+	close(fd);
+out:
+	return err;
+}
+
 char dso__symtab_origin(const struct dso *dso)
 {
 	static const char origin[] = {
 		[SYMTAB__KALLSYMS]	      = 'k',
 		[SYMTAB__JAVA_JIT]	      = 'j',
+		[SYMTAB__DEBUGLINK]           = 'l',
 		[SYMTAB__BUILD_ID_CACHE]      = 'B',
 		[SYMTAB__FEDORA_DEBUGINFO]    = 'f',
 		[SYMTAB__UBUNTU_DEBUGINFO]    = 'u',
@@ -1662,10 +1730,22 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	 */
 	want_symtab = 1;
 restart:
-	for (dso->symtab_type = SYMTAB__BUILD_ID_CACHE;
+	for (dso->symtab_type = SYMTAB__DEBUGLINK;
 	     dso->symtab_type != SYMTAB__NOT_FOUND;
 	     dso->symtab_type++) {
 		switch (dso->symtab_type) {
+		case SYMTAB__DEBUGLINK: {
+			char *debuglink;
+			strncpy(name, dso->long_name, size);
+			debuglink = name + dso->long_name_len;
+			while (debuglink != name && *debuglink != '/')
+				debuglink--;
+			if (*debuglink == '/')
+				debuglink++;
+			filename__read_debuglink(dso->long_name, debuglink,
+						 size - (debuglink - name));
+			}
+			break;
 		case SYMTAB__BUILD_ID_CACHE:
 			/* skip the locally configured cache if a symfs is given */
 			if (symbol_conf.symfs[0] ||

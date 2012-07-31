@@ -947,7 +947,7 @@ static void __cpuinit __print_cpu_msr(void)
 		index_max = msr_range_array[i].max;
 
 		for (index = index_min; index < index_max; index++) {
-			if (rdmsrl_amd_safe(index, &val))
+			if (rdmsrl_safe(index, &val))
 				continue;
 			printk(KERN_INFO " MSR%08x: %016llx\n", index, val);
 		}

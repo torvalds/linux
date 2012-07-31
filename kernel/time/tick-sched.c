@@ -105,7 +105,7 @@ static ktime_t tick_init_jiffy_update(void)
 /*
  * NO HZ enabled ?
  */
-static int tick_nohz_enabled __read_mostly  = 1;
+int tick_nohz_enabled __read_mostly  = 1;
 
 /*
  * Enable / Disable tickless mode

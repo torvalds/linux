@@ -55,8 +55,8 @@ static void __init check_fpu(void)
 
 	if (!boot_cpu_data.hard_math) {
 #ifndef CONFIG_MATH_EMULATION
-		printk(KERN_EMERG "No coprocessor found and no math emulation present.\n");
-		printk(KERN_EMERG "Giving up.\n");
+		pr_emerg("No coprocessor found and no math emulation present\n");
+		pr_emerg("Giving up\n");
 		for (;;) ;
 #endif
 		return;
@@ -86,7 +86,7 @@ static void __init check_fpu(void)
 
 	boot_cpu_data.fdiv_bug = fdiv_bug;
 	if (boot_cpu_data.fdiv_bug)
-		printk(KERN_WARNING "Hmm, FPU with FDIV bug.\n");
+		pr_warn("Hmm, FPU with FDIV bug\n");
 }
 
 static void __init check_hlt(void)
@@ -94,16 +94,16 @@ static void __init check_hlt(void)
 	if (boot_cpu_data.x86 >= 5 || paravirt_enabled())
 		return;
 
-	printk(KERN_INFO "Checking 'hlt' instruction... ");
+	pr_info("Checking 'hlt' instruction... ");
 	if (!boot_cpu_data.hlt_works_ok) {
-		printk("disabled\n");
+		pr_cont("disabled\n");
 		return;
 	}
 	halt();
 	halt();
 	halt();
 	halt();
-	printk(KERN_CONT "OK.\n");
+	pr_cont("OK\n");
 }
 
 /*
@@ -116,7 +116,7 @@ static void __init check_popad(void)
 #ifndef CONFIG_X86_POPAD_OK
 	int res, inp = (int) &res;
 
-	printk(KERN_INFO "Checking for popad bug... ");
+	pr_info("Checking for popad bug... ");
 	__asm__ __volatile__(
 	  "movl $12345678,%%eax; movl $0,%%edi; pusha; popa; movl (%%edx,%%edi),%%ecx "
 	  : "=&a" (res)
@@ -127,9 +127,9 @@ static void __init check_popad(void)
 	 * CPU hard. Too bad.
 	 */
 	if (res != 12345678)
-		printk(KERN_CONT "Buggy.\n");
+		pr_cont("Buggy\n");
 	else
-		printk(KERN_CONT "OK.\n");
+		pr_cont("OK\n");
 #endif
 }
 
@@ -161,7 +161,7 @@ void __init check_bugs(void)
 {
 	identify_boot_cpu();
 #ifndef CONFIG_SMP
-	printk(KERN_INFO "CPU: ");
+	pr_info("CPU: ");
 	print_cpu_info(&boot_cpu_data);
 #endif
 	check_config();
