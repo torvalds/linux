@@ -1521,11 +1521,8 @@ void __mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
 	if (!chosen)
 		return;
 	points = chosen_points * 1000 / totalpages;
-	read_lock(&tasklist_lock);
 	oom_kill_process(chosen, gfp_mask, order, points, totalpages, memcg,
 			 NULL, "Memory cgroup out of memory");
-	read_unlock(&tasklist_lock);
-	put_task_struct(chosen);
 }
 
 static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
