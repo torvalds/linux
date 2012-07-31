@@ -4377,6 +4377,8 @@ void __init set_pageblock_order(void)
  *   - mark all pages reserved
  *   - mark all memory queues empty
  *   - clear the memory bitmaps
+ *
+ * NOTE: pgdat should get zeroed by caller.
  */
 static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		unsigned long *zones_size, unsigned long *zholes_size)
@@ -4387,10 +4389,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 	int ret;
 
 	pgdat_resize_init(pgdat);
-	pgdat->nr_zones = 0;
 	init_waitqueue_head(&pgdat->kswapd_wait);
 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
-	pgdat->kswapd_max_order = 0;
 	pgdat_page_cgroup_init(pgdat);
 
 	for (j = 0; j < MAX_NR_ZONES; j++) {
@@ -4451,11 +4451,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 
 		zone_pcp_init(zone);
 		lruvec_init(&zone->lruvec, zone);
-		zap_zone_vm_stats(zone);
-		zone->flags = 0;
-#ifdef CONFIG_MEMORY_ISOLATION
-		zone->nr_pageblock_isolate = 0;
-#endif
 		if (!size)
 			continue;
 
