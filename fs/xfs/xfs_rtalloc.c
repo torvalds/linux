@@ -857,7 +857,7 @@ xfs_rtbuf_get(
 	xfs_buf_t	*bp;		/* block buffer, result */
 	xfs_inode_t	*ip;		/* bitmap or summary inode */
 	xfs_bmbt_irec_t	map;
-	int		nmap;
+	int		nmap = 1;
 	int		error;		/* error value */
 
 	ip = issum ? mp->m_rsumip : mp->m_rbmip;
