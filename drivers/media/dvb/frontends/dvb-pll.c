@@ -116,6 +116,31 @@ static struct dvb_pll_desc dvb_pll_thomson_dtt759x = {
 	},
 };
 
+static void thomson_dtt7520x_bw(struct dvb_frontend *fe, u8 *buf)
+{
+	u32 bw = fe->dtv_property_cache.bandwidth_hz;
+	if (bw == 8000000)
+		buf[3] ^= 0x10;
+}
+
+static struct dvb_pll_desc dvb_pll_thomson_dtt7520x = {
+	.name  = "Thomson dtt7520x",
+	.min   = 185000000,
+	.max   = 900000000,
+	.set   = thomson_dtt7520x_bw,
+	.iffreq = 36166667,
+	.count = 7,
+	.entries = {
+		{  305000000, 166667, 0xb4, 0x12 },
+		{  405000000, 166667, 0xbc, 0x12 },
+		{  445000000, 166667, 0xbc, 0x12 },
+		{  465000000, 166667, 0xf4, 0x18 },
+		{  735000000, 166667, 0xfc, 0x18 },
+		{  835000000, 166667, 0xbc, 0x18 },
+		{  999999999, 166667, 0xfc, 0x18 },
+	},
+};
+
 static struct dvb_pll_desc dvb_pll_lg_z201 = {
 	.name  = "LG z201",
 	.min   = 174000000,
@@ -513,6 +538,7 @@ static struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_UNDEFINED]              = NULL,
 	[DVB_PLL_THOMSON_DTT7579]        = &dvb_pll_thomson_dtt7579,
 	[DVB_PLL_THOMSON_DTT759X]        = &dvb_pll_thomson_dtt759x,
+	[DVB_PLL_THOMSON_DTT7520X]       = &dvb_pll_thomson_dtt7520x,
 	[DVB_PLL_LG_Z201]                = &dvb_pll_lg_z201,
 	[DVB_PLL_UNKNOWN_1]              = &dvb_pll_unknown_1,
 	[DVB_PLL_TUA6010XS]              = &dvb_pll_tua6010xs,
