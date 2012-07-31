@@ -98,7 +98,7 @@ extern void vfio_unregister_iommu_driver(
 
 /* Extensions */
 
-/* None yet */
+#define VFIO_TYPE1_IOMMU		1
 
 /*
  * The IOCTL interface is designed for extensibility by embedding the
@@ -363,5 +363,57 @@ struct vfio_irq_set {
  * Reset a device.
  */
 #define VFIO_DEVICE_RESET		_IO(VFIO_TYPE, VFIO_BASE + 11)
+
+/* -------- API for Type1 VFIO IOMMU -------- */
+
+/**
+ * VFIO_IOMMU_GET_INFO - _IOR(VFIO_TYPE, VFIO_BASE + 12, struct vfio_iommu_info)
+ *
+ * Retrieve information about the IOMMU object. Fills in provided
+ * struct vfio_iommu_info. Caller sets argsz.
+ *
+ * XXX Should we do these by CHECK_EXTENSION too?
+ */
+struct vfio_iommu_type1_info {
+	__u32	argsz;
+	__u32	flags;
+#define VFIO_IOMMU_INFO_PGSIZES (1 << 0)	/* supported page sizes info */
+	__u64	iova_pgsizes;		/* Bitmap of supported page sizes */
+};
+
+#define VFIO_IOMMU_GET_INFO _IO(VFIO_TYPE, VFIO_BASE + 12)
+
+/**
+ * VFIO_IOMMU_MAP_DMA - _IOW(VFIO_TYPE, VFIO_BASE + 13, struct vfio_dma_map)
+ *
+ * Map process virtual addresses to IO virtual addresses using the
+ * provided struct vfio_dma_map. Caller sets argsz. READ &/ WRITE required.
+ */
+struct vfio_iommu_type1_dma_map {
+	__u32	argsz;
+	__u32	flags;
+#define VFIO_DMA_MAP_FLAG_READ (1 << 0)		/* readable from device */
+#define VFIO_DMA_MAP_FLAG_WRITE (1 << 1)	/* writable from device */
+	__u64	vaddr;				/* Process virtual address */
+	__u64	iova;				/* IO virtual address */
+	__u64	size;				/* Size of mapping (bytes) */
+};
+
+#define VFIO_IOMMU_MAP_DMA _IO(VFIO_TYPE, VFIO_BASE + 13)
+
+/**
+ * VFIO_IOMMU_UNMAP_DMA - _IOW(VFIO_TYPE, VFIO_BASE + 14, struct vfio_dma_unmap)
+ *
+ * Unmap IO virtual addresses using the provided struct vfio_dma_unmap.
+ * Caller sets argsz.
+ */
+struct vfio_iommu_type1_dma_unmap {
+	__u32	argsz;
+	__u32	flags;
+	__u64	iova;				/* IO virtual address */
+	__u64	size;				/* Size of mapping (bytes) */
+};
+
+#define VFIO_IOMMU_UNMAP_DMA _IO(VFIO_TYPE, VFIO_BASE + 14)
 
 #endif /* VFIO_H */
