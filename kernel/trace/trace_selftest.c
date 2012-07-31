@@ -1041,6 +1041,8 @@ static int trace_wakeup_test_thread(void *data)
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule();
 
+	complete(x);
+
 	/* we are awake, now wait to disappear */
 	while (!kthread_should_stop()) {
 		/*
@@ -1084,24 +1086,21 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	/* reset the max latency */
 	tracing_max_latency = 0;
 
-	/* sleep to let the RT thread sleep too */
-	msleep(100);
+	while (p->on_rq) {
+		/*
+		 * Sleep to make sure the RT thread is asleep too.
+		 * On virtual machines we can't rely on timings,
+		 * but we want to make sure this test still works.
+		 */
+		msleep(100);
+	}
 
-	/*
-	 * Yes this is slightly racy. It is possible that for some
-	 * strange reason that the RT thread we created, did not
-	 * call schedule for 100ms after doing the completion,
-	 * and we do a wakeup on a task that already is awake.
-	 * But that is extremely unlikely, and the worst thing that
-	 * happens in such a case, is that we disable tracing.
-	 * Honestly, if this race does happen something is horrible
-	 * wrong with the system.
-	 */
+	init_completion(&isrt);
 
 	wake_up_process(p);
 
-	/* give a little time to let the thread wake up */
-	msleep(100);
+	/* Wait for the task to wake up */
+	wait_for_completion(&isrt);
 
 	/* stop the tracing. */
 	tracing_stop();
