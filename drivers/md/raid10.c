@@ -853,9 +853,8 @@ retry:
 	return rdev;
 }
 
-static int raid10_congested(void *data, int bits)
+int md_raid10_congested(struct mddev *mddev, int bits)
 {
-	struct mddev *mddev = data;
 	struct r10conf *conf = mddev->private;
 	int i, ret = 0;
 
@@ -863,8 +862,6 @@ static int raid10_congested(void *data, int bits)
 	    conf->pending_count >= max_queued_requests)
 		return 1;
 
-	if (mddev_congested(mddev, bits))
-		return 1;
 	rcu_read_lock();
 	for (i = 0;
 	     (i < conf->geo.raid_disks || i < conf->prev.raid_disks)
@@ -879,6 +876,15 @@ static int raid10_congested(void *data, int bits)
 	}
 	rcu_read_unlock();
 	return ret;
+}
+EXPORT_SYMBOL_GPL(md_raid10_congested);
+
+static int raid10_congested(void *data, int bits)
+{
+	struct mddev *mddev = data;
+
+	return mddev_congested(mddev, bits) ||
+		md_raid10_congested(mddev, bits);
 }
 
 static void flush_pending_writes(struct r10conf *conf)
@@ -3486,12 +3492,14 @@ static int run(struct mddev *mddev)
 	conf->thread = NULL;
 
 	chunk_size = mddev->chunk_sectors << 9;
-	blk_queue_io_min(mddev->queue, chunk_size);
-	if (conf->geo.raid_disks % conf->geo.near_copies)
-		blk_queue_io_opt(mddev->queue, chunk_size * conf->geo.raid_disks);
-	else
-		blk_queue_io_opt(mddev->queue, chunk_size *
-				 (conf->geo.raid_disks / conf->geo.near_copies));
+	if (mddev->queue) {
+		blk_queue_io_min(mddev->queue, chunk_size);
+		if (conf->geo.raid_disks % conf->geo.near_copies)
+			blk_queue_io_opt(mddev->queue, chunk_size * conf->geo.raid_disks);
+		else
+			blk_queue_io_opt(mddev->queue, chunk_size *
+					 (conf->geo.raid_disks / conf->geo.near_copies));
+	}
 
 	rdev_for_each(rdev, mddev) {
 		long long diff;
@@ -3525,8 +3533,9 @@ static int run(struct mddev *mddev)
 		if (first || diff < min_offset_diff)
 			min_offset_diff = diff;
 
-		disk_stack_limits(mddev->gendisk, rdev->bdev,
-				  rdev->data_offset << 9);
+		if (mddev->gendisk)
+			disk_stack_limits(mddev->gendisk, rdev->bdev,
+					  rdev->data_offset << 9);
 
 		disk->head_position = 0;
 	}
@@ -3589,22 +3598,22 @@ static int run(struct mddev *mddev)
 	md_set_array_sectors(mddev, size);
 	mddev->resync_max_sectors = size;
 
-	mddev->queue->backing_dev_info.congested_fn = raid10_congested;
-	mddev->queue->backing_dev_info.congested_data = mddev;
-
-	/* Calculate max read-ahead size.
-	 * We need to readahead at least twice a whole stripe....
-	 * maybe...
-	 */
-	{
+	if (mddev->queue) {
 		int stripe = conf->geo.raid_disks *
 			((mddev->chunk_sectors << 9) / PAGE_SIZE);
+		mddev->queue->backing_dev_info.congested_fn = raid10_congested;
+		mddev->queue->backing_dev_info.congested_data = mddev;
+
+		/* Calculate max read-ahead size.
+		 * We need to readahead at least twice a whole stripe....
+		 * maybe...
+		 */
 		stripe /= conf->geo.near_copies;
 		if (mddev->queue->backing_dev_info.ra_pages < 2 * stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2 * stripe;
+		blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
 	}
 
-	blk_queue_merge_bvec(mddev->queue, raid10_mergeable_bvec);
 
 	if (md_integrity_register(mddev))
 		goto out_free_conf;
@@ -3655,7 +3664,10 @@ static int stop(struct mddev *mddev)
 	lower_barrier(conf);
 
 	md_unregister_thread(&mddev->thread);
-	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
+	if (mddev->queue)
+		/* the unplug fn references 'conf'*/
+		blk_sync_queue(mddev->queue);
+
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
 	kfree(conf->mirrors);

@@ -145,4 +145,7 @@ enum r10bio_state {
  */
 	R10BIO_Previous,
 };
+
+extern int md_raid10_congested(struct mddev *mddev, int bits);
+
 #endif
