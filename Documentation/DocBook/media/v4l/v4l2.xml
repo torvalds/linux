@@ -589,6 +589,11 @@ and discussions on the V4L mailing list.</revremark>
     &sub-write;
   </appendix>
 
+  <appendix>
+    <title>Common definitions for V4L2 and V4L2 subdev interfaces</title>
+      &sub-selections-common;
+  </appendix>
+
   <appendix id="videodev">
     <title>Video For Linux Two Header File</title>
     &sub-videodev2-h;

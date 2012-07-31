@@ -135,6 +135,12 @@ bounds or the value in the <structfield>type</structfield> field is
 wrong.</para>
 	</listitem>
       </varlistentry>
+      <varlistentry>
+	<term><errorcode>EBUSY</errorcode></term>
+	<listitem>
+	  <para>A hardware seek is in progress.</para>
+	</listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>

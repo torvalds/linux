@@ -276,6 +276,18 @@ can or must be switched. (B/G PAL tuners for example are typically not
       <constant>V4L2_TUNER_ANALOG_TV</constant> tuners can have this capability.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_TUNER_CAP_HWSEEK_BOUNDED</constant></entry>
+	    <entry>0x0004</entry>
+	    <entry>If set, then this tuner supports the hardware seek functionality
+	    where the seek stops when it reaches the end of the frequency range.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_CAP_HWSEEK_WRAP</constant></entry>
+	    <entry>0x0008</entry>
+	    <entry>If set, then this tuner supports the hardware seek functionality
+	    where the seek wraps around when it reaches the end of the frequency range.</entry>
+	  </row>
+	  <row>
 	<entry><constant>V4L2_TUNER_CAP_STEREO</constant></entry>
 	<entry>0x0010</entry>
 	<entry>Stereo audio reception is supported.</entry>

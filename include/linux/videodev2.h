@@ -64,6 +64,7 @@
 #include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
+#include <linux/v4l2-common.h>
 
 /*
  * Common stuff for both V4L1 and V4L2
@@ -657,7 +658,7 @@ struct v4l2_buffer {
 		struct v4l2_plane *planes;
 	} m;
 	__u32			length;
-	__u32			input;
+	__u32			reserved2;
 	__u32			reserved;
 };
 
@@ -671,7 +672,6 @@ struct v4l2_buffer {
 /* Buffer is ready, but the data contained within is corrupted. */
 #define V4L2_BUF_FLAG_ERROR	0x0040
 #define V4L2_BUF_FLAG_TIMECODE	0x0100	/* timecode field is valid */
-#define V4L2_BUF_FLAG_INPUT     0x0200  /* input field is valid */
 #define V4L2_BUF_FLAG_PREPARED	0x0400	/* Buffer is prepared for queuing */
 /* Cache handling flags */
 #define V4L2_BUF_FLAG_NO_CACHE_INVALIDATE	0x0800
@@ -761,32 +761,12 @@ struct v4l2_crop {
 	struct v4l2_rect        c;
 };
 
-/* Hints for adjustments of selection rectangle */
-#define V4L2_SEL_FLAG_GE	0x00000001
-#define V4L2_SEL_FLAG_LE	0x00000002
-
-/* Selection targets */
-
-/* Current cropping area */
-#define V4L2_SEL_TGT_CROP_ACTIVE	0x0000
-/* Default cropping area */
-#define V4L2_SEL_TGT_CROP_DEFAULT	0x0001
-/* Cropping bounds */
-#define V4L2_SEL_TGT_CROP_BOUNDS	0x0002
-/* Current composing area */
-#define V4L2_SEL_TGT_COMPOSE_ACTIVE	0x0100
-/* Default composing area */
-#define V4L2_SEL_TGT_COMPOSE_DEFAULT	0x0101
-/* Composing bounds */
-#define V4L2_SEL_TGT_COMPOSE_BOUNDS	0x0102
-/* Current composing area plus all padding pixels */
-#define V4L2_SEL_TGT_COMPOSE_PADDED	0x0103
-
 /**
  * struct v4l2_selection - selection info
  * @type:	buffer type (do not use *_MPLANE types)
- * @target:	selection target, used to choose one of possible rectangles
- * @flags:	constraints flags
+ * @target:	Selection target, used to choose one of possible rectangles;
+ *		defined in v4l2-common.h; V4L2_SEL_TGT_* .
+ * @flags:	constraints flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
  * @r:		coordinates of selection window
  * @reserved:	for future use, rounds structure size to 64 bytes, set to zero
  *
@@ -2039,6 +2019,8 @@ struct v4l2_modulator {
 /*  Flags for the 'capability' field */
 #define V4L2_TUNER_CAP_LOW		0x0001
 #define V4L2_TUNER_CAP_NORM		0x0002
+#define V4L2_TUNER_CAP_HWSEEK_BOUNDED	0x0004
+#define V4L2_TUNER_CAP_HWSEEK_WRAP	0x0008
 #define V4L2_TUNER_CAP_STEREO		0x0010
 #define V4L2_TUNER_CAP_LANG2		0x0020
 #define V4L2_TUNER_CAP_SAP		0x0020

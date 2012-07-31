@@ -3156,8 +3156,7 @@ S:	Maintained
 F:	drivers/media/video/gspca/t613.c
 
 GSPCA USB WEBCAM DRIVER
-M:	Jean-Francois Moine <moinejf@free.fr>
-W:	http://moinejf.free.fr
+M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
 S:	Maintained
