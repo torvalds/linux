@@ -253,13 +253,9 @@ static inline void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb
 {
 	struct dst_entry *dst = skb_dst(skb);
 
-	if (atomic_inc_not_zero(&dst->__refcnt)) {
-		if (!(dst->flags & DST_RCU_FREE))
-			dst->flags |= DST_RCU_FREE;
-
-		sk->sk_rx_dst = dst;
-		inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
-	}
+	dst_hold(dst);
+	sk->sk_rx_dst = dst;
+	inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
 }
 
 #endif	/* _INET_SOCK_H */

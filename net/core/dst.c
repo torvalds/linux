@@ -258,15 +258,6 @@ again:
 }
 EXPORT_SYMBOL(dst_destroy);
 
-static void dst_rcu_destroy(struct rcu_head *head)
-{
-	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
-
-	dst = dst_destroy(dst);
-	if (dst)
-		__dst_free(dst);
-}
-
 void dst_release(struct dst_entry *dst)
 {
 	if (dst) {
@@ -274,14 +265,10 @@ void dst_release(struct dst_entry *dst)
 
 		newrefcnt = atomic_dec_return(&dst->__refcnt);
 		WARN_ON(newrefcnt < 0);
-		if (unlikely(dst->flags & (DST_NOCACHE | DST_RCU_FREE)) && !newrefcnt) {
-			if (dst->flags & DST_RCU_FREE) {
-				call_rcu_bh(&dst->rcu_head, dst_rcu_destroy);
-			} else {
-				dst = dst_destroy(dst);
-				if (dst)
-					__dst_free(dst);
-			}
+		if (unlikely(dst->flags & DST_NOCACHE) && !newrefcnt) {
+			dst = dst_destroy(dst);
+			if (dst)
+				__dst_free(dst);
 		}
 	}
 }
@@ -333,14 +320,11 @@ EXPORT_SYMBOL(__dst_destroy_metrics_generic);
  */
 void skb_dst_set_noref(struct sk_buff *skb, struct dst_entry *dst)
 {
-	bool hold;
-
 	WARN_ON(!rcu_read_lock_held() && !rcu_read_lock_bh_held());
 	/* If dst not in cache, we must take a reference, because
 	 * dst_release() will destroy dst as soon as its refcount becomes zero
 	 */
-	hold = (dst->flags & (DST_NOCACHE | DST_RCU_FREE)) == DST_NOCACHE;
-	if (unlikely(hold)) {
+	if (unlikely(dst->flags & DST_NOCACHE)) {
 		dst_hold(dst);
 		skb_dst_set(skb, dst);
 	} else {

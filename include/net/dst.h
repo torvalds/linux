@@ -61,7 +61,6 @@ struct dst_entry {
 #define DST_NOPEER		0x0040
 #define DST_FAKE_RTABLE		0x0080
 #define DST_XFRM_TUNNEL		0x0100
-#define DST_RCU_FREE		0x0200
 
 	unsigned short		pending_confirm;
 
@@ -381,6 +380,12 @@ static inline void dst_free(struct dst_entry *dst)
 			return;
 	}
 	__dst_free(dst);
+}
+
+static inline void dst_rcu_free(struct rcu_head *head)
+{
+	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
+	dst_free(dst);
 }
 
 static inline void dst_confirm(struct dst_entry *dst)

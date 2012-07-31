@@ -81,8 +81,8 @@ struct fib_nh {
 	__be32			nh_gw;
 	__be32			nh_saddr;
 	int			nh_saddr_genid;
-	struct rtable		*nh_rth_output;
-	struct rtable		*nh_rth_input;
+	struct rtable __rcu	*nh_rth_output;
+	struct rtable __rcu	*nh_rth_input;
 	struct fnhe_hash_bucket	*nh_exceptions;
 };
 

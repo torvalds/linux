@@ -184,12 +184,6 @@ static __inline__ unsigned int dn_hash(__le16 src, __le16 dst)
 	return dn_rt_hash_mask & (unsigned int)tmp;
 }
 
-static inline void dst_rcu_free(struct rcu_head *head)
-{
-	struct dst_entry *dst = container_of(head, struct dst_entry, rcu_head);
-	dst_free(dst);
-}
-
 static inline void dnrt_free(struct dn_route *rt)
 {
 	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
