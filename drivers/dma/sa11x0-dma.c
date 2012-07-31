@@ -78,6 +78,8 @@ struct sa11x0_dma_desc {
 
 	u32			ddar;
 	size_t			size;
+	unsigned		period;
+	bool			cyclic;
 
 	unsigned		sglen;
 	struct sa11x0_dma_sg	sg[0];
@@ -178,19 +180,24 @@ static void noinline sa11x0_dma_start_sg(struct sa11x0_dma_phy *p,
 		return;
 
 	if (p->sg_load == txd->sglen) {
-		struct sa11x0_dma_desc *txn = sa11x0_dma_next_desc(c);
+		if (!txd->cyclic) {
+			struct sa11x0_dma_desc *txn = sa11x0_dma_next_desc(c);
 
-		/*
-		 * We have reached the end of the current descriptor.
-		 * Peek at the next descriptor, and if compatible with
-		 * the current, start processing it.
-		 */
-		if (txn && txn->ddar == txd->ddar) {
-			txd = txn;
-			sa11x0_dma_start_desc(p, txn);
+			/*
+			 * We have reached the end of the current descriptor.
+			 * Peek at the next descriptor, and if compatible with
+			 * the current, start processing it.
+			 */
+			if (txn && txn->ddar == txd->ddar) {
+				txd = txn;
+				sa11x0_dma_start_desc(p, txn);
+			} else {
+				p->txd_load = NULL;
+				return;
+			}
 		} else {
-			p->txd_load = NULL;
-			return;
+			/* Cyclic: reset back to beginning */
+			p->sg_load = 0;
 		}
 	}
 
@@ -224,13 +231,21 @@ static void noinline sa11x0_dma_complete(struct sa11x0_dma_phy *p,
 	struct sa11x0_dma_desc *txd = p->txd_done;
 
 	if (++p->sg_done == txd->sglen) {
-		vchan_cookie_complete(&txd->vd);
+		if (!txd->cyclic) {
+			vchan_cookie_complete(&txd->vd);
 
-		p->sg_done = 0;
-		p->txd_done = p->txd_load;
+			p->sg_done = 0;
+			p->txd_done = p->txd_load;
 
-		if (!p->txd_done)
-			tasklet_schedule(&p->dev->task);
+			if (!p->txd_done)
+				tasklet_schedule(&p->dev->task);
+		} else {
+			if ((p->sg_done % txd->period) == 0)
+				vchan_cyclic_callback(&txd->vd);
+
+			/* Cyclic: reset back to beginning */
+			p->sg_done = 0;
+		}
 	}
 
 	sa11x0_dma_start_sg(p, c);
@@ -416,26 +431,46 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
-	struct sa11x0_dma_desc *txd;
+	struct virt_dma_desc *vd;
 	unsigned long flags;
 	enum dma_status ret;
-	size_t bytes = 0;
 
 	ret = dma_cookie_status(&c->vc.chan, cookie, state);
 	if (ret == DMA_SUCCESS)
 		return ret;
 
+	if (!state)
+		return c->status;
+
 	spin_lock_irqsave(&c->vc.lock, flags);
 	p = c->phy;
-	ret = c->status;
-	if (p) {
-		dma_addr_t addr = sa11x0_dma_pos(p);
 
-		dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
+	/*
+	 * If the cookie is on our issue queue, then the residue is
+	 * its total size.
+	 */
+	vd = vchan_find_desc(&c->vc, cookie);
+	if (vd) {
+		state->residue = container_of(vd, struct sa11x0_dma_desc, vd)->size;
+	} else if (!p) {
+		state->residue = 0;
+	} else {
+		struct sa11x0_dma_desc *txd;
+		size_t bytes = 0;
 
-		txd = p->txd_done;
+		if (p->txd_done && p->txd_done->vd.tx.cookie == cookie)
+			txd = p->txd_done;
+		else if (p->txd_load && p->txd_load->vd.tx.cookie == cookie)
+			txd = p->txd_load;
+		else
+			txd = NULL;
+
+		ret = c->status;
 		if (txd) {
+			dma_addr_t addr = sa11x0_dma_pos(p);
 			unsigned i;
+
+			dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
 
 			for (i = 0; i < txd->sglen; i++) {
 				dev_vdbg(d->slave.dev, "tx_status: [%u] %x+%x\n",
@@ -459,18 +494,11 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 				bytes += txd->sg[i].len;
 			}
 		}
-		if (txd != p->txd_load && p->txd_load)
-			bytes += p->txd_load->size;
-	}
-	list_for_each_entry(txd, &c->vc.desc_issued, vd.node) {
-		bytes += txd->size;
+		state->residue = bytes;
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
-	if (state)
-		state->residue = bytes;
-
-	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", bytes);
+	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", state->residue);
 
 	return ret;
 }
@@ -582,6 +610,65 @@ static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 		&c->vc, &txd->vd, txd->size, txd->sglen);
 
 	return vchan_tx_prep(&c->vc, &txd->vd, flags);
+}
+
+static struct dma_async_tx_descriptor *sa11x0_dma_prep_dma_cyclic(
+	struct dma_chan *chan, dma_addr_t addr, size_t size, size_t period,
+	enum dma_transfer_direction dir, void *context)
+{
+	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
+	struct sa11x0_dma_desc *txd;
+	unsigned i, j, k, sglen, sgperiod;
+
+	/* SA11x0 channels can only operate in their native direction */
+	if (dir != (c->ddar & DDAR_RW ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV)) {
+		dev_err(chan->device->dev, "vchan %p: bad DMA direction: DDAR:%08x dir:%u\n",
+			&c->vc, c->ddar, dir);
+		return NULL;
+	}
+
+	sgperiod = DIV_ROUND_UP(period, DMA_MAX_SIZE & ~DMA_ALIGN);
+	sglen = size * sgperiod / period;
+
+	/* Do not allow zero-sized txds */
+	if (sglen == 0)
+		return NULL;
+
+	txd = kzalloc(sizeof(*txd) + sglen * sizeof(txd->sg[0]), GFP_ATOMIC);
+	if (!txd) {
+		dev_dbg(chan->device->dev, "vchan %p: kzalloc failed\n", &c->vc);
+		return NULL;
+	}
+
+	for (i = k = 0; i < size / period; i++) {
+		size_t tlen, len = period;
+
+		for (j = 0; j < sgperiod; j++, k++) {
+			tlen = len;
+
+			if (tlen > DMA_MAX_SIZE) {
+				unsigned mult = DIV_ROUND_UP(tlen, DMA_MAX_SIZE & ~DMA_ALIGN);
+				tlen = (tlen / mult) & ~DMA_ALIGN;
+			}
+
+			txd->sg[k].addr = addr;
+			txd->sg[k].len = tlen;
+			addr += tlen;
+			len -= tlen;
+		}
+
+		WARN_ON(len != 0);
+	}
+
+	WARN_ON(k != sglen);
+
+	txd->ddar = c->ddar;
+	txd->size = size;
+	txd->sglen = sglen;
+	txd->cyclic = 1;
+	txd->period = sgperiod;
+
+	return vchan_tx_prep(&c->vc, &txd->vd, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 }
 
 static int sa11x0_dma_slave_config(struct sa11x0_dma_chan *c, struct dma_slave_config *cfg)
@@ -854,7 +941,9 @@ static int __devinit sa11x0_dma_probe(struct platform_device *pdev)
 	}
 
 	dma_cap_set(DMA_SLAVE, d->slave.cap_mask);
+	dma_cap_set(DMA_CYCLIC, d->slave.cap_mask);
 	d->slave.device_prep_slave_sg = sa11x0_dma_prep_slave_sg;
+	d->slave.device_prep_dma_cyclic = sa11x0_dma_prep_dma_cyclic;
 	ret = sa11x0_dma_init_dmadev(&d->slave, &pdev->dev);
 	if (ret) {
 		dev_warn(d->slave.dev, "failed to register slave async device: %d\n",
