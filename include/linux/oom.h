@@ -61,6 +61,9 @@ extern void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 extern int try_set_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 extern void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_flags);
 
+extern void check_panic_on_oom(enum oom_constraint constraint, gfp_t gfp_mask,
+			       int order, const nodemask_t *nodemask);
+
 extern enum oom_scan_t oom_scan_process_thread(struct task_struct *task,
 		unsigned long totalpages, const nodemask_t *nodemask,
 		bool force_kill);
