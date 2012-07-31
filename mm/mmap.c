@@ -2345,9 +2345,6 @@ int insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
 	     security_vm_enough_memory_mm(mm, vma_pages(vma)))
 		return -ENOMEM;
 
-	if (vma->vm_file && uprobe_mmap(vma))
-		return -EINVAL;
-
 	vma_link(mm, vma, prev, rb_link, rb_parent);
 	return 0;
 }
@@ -2417,9 +2414,6 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 			new_vma->vm_pgoff = pgoff;
 			if (new_vma->vm_file) {
 				get_file(new_vma->vm_file);
-
-				if (uprobe_mmap(new_vma))
-					goto out_free_mempol;
 
 				if (vma->vm_flags & VM_EXECUTABLE)
 					added_exe_file_vma(mm);
