@@ -160,10 +160,12 @@ config SERIAL_KS8695_CONSOLE
 
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
-	depends on ARM && ARCH_CLPS711X
+	depends on ARCH_CLPS711X
 	select SERIAL_CORE
+	default y
 	help
-	  ::: To be written :::
+	  This enables the driver for the on-chip UARTs of the Cirrus
+	  Logic EP711x/EP721x/EP731x processors.
 
 config SERIAL_CLPS711X_CONSOLE
 	bool "Support for console on CLPS711X serial port"
@@ -173,9 +175,7 @@ config SERIAL_CLPS711X_CONSOLE
 	  Even if you say Y here, the currently visible virtual console
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
-	  "console=ttyCL1". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
+	  "console=ttyCL1".
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
