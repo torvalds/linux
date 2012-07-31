@@ -140,6 +140,7 @@ extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 extern unsigned long thread_saved_pc(struct task_struct *t);
 
 extern void show_code(struct pt_regs *regs);
+extern void print_fn_code(unsigned char *code, unsigned long len);
 
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \

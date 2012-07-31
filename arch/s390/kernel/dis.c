@@ -1601,3 +1601,26 @@ void show_code(struct pt_regs *regs)
 	}
 	printk("\n");
 }
+
+void print_fn_code(unsigned char *code, unsigned long len)
+{
+	char buffer[64], *ptr;
+	int opsize, i;
+
+	while (len) {
+		ptr = buffer;
+		opsize = insn_length(*code);
+		ptr += sprintf(ptr, "%p: ", code);
+		for (i = 0; i < opsize; i++)
+			ptr += sprintf(ptr, "%02x", code[i]);
+		*ptr++ = '\t';
+		if (i < 4)
+			*ptr++ = '\t';
+		ptr += print_insn(ptr, code, (unsigned long) code);
+		*ptr++ = '\n';
+		*ptr++ = 0;
+		printk(buffer);
+		code += opsize;
+		len -= opsize;
+	}
+}

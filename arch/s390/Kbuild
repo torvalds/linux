@@ -5,3 +5,4 @@ obj-$(CONFIG_CRYPTO_HW)		+= crypto/
 obj-$(CONFIG_S390_HYPFS_FS)	+= hypfs/
 obj-$(CONFIG_APPLDATA_BASE)	+= appldata/
 obj-$(CONFIG_MATHEMU)		+= math-emu/
+obj-y				+= net/
