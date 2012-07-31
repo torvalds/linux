@@ -38,6 +38,9 @@
 #define WL128X_SUBTYPE_VER	2
 #define WL128X_MINOR_VER	115
 
+#define WL12XX_NUM_TX_DESCRIPTORS 16
+#define WL12XX_NUM_RX_DESCRIPTORS 8
+
 struct wl127x_rx_mem_pool_addr {
 	u32 addr;
 	u32 addr_extra;

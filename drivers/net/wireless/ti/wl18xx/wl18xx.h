@@ -33,6 +33,9 @@
 
 #define WL18XX_CMD_MAX_SIZE          740
 
+#define WL18XX_NUM_TX_DESCRIPTORS 32
+#define WL18XX_NUM_RX_DESCRIPTORS 32
+
 struct wl18xx_priv {
 	/* buffer for sending commands to FW */
 	u8 cmd_buf[WL18XX_CMD_MAX_SIZE];
