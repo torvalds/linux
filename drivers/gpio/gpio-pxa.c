@@ -26,6 +26,8 @@
 #include <linux/syscore_ops.h>
 #include <linux/slab.h>
 
+#include <asm/mach/irq.h>
+
 #include <mach/irqs.h>
 
 /*
@@ -331,6 +333,9 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 	struct pxa_gpio_chip *c;
 	int loop, gpio, gpio_base, n;
 	unsigned long gedr;
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+
+	chained_irq_enter(chip, desc);
 
 	do {
 		loop = 0;
@@ -350,6 +355,8 @@ static void pxa_gpio_demux_handler(unsigned int irq, struct irq_desc *desc)
 			}
 		}
 	} while (loop);
+
+	chained_irq_exit(chip, desc);
 }
 
 static void pxa_ack_muxed_gpio(struct irq_data *d)
