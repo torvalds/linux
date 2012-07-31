@@ -62,6 +62,7 @@ extern void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
 					 struct page *page);
 extern void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 					   struct hugetlb_cgroup *h_cg);
+extern int hugetlb_cgroup_file_init(int idx) __init;
 
 #else
 static inline struct hugetlb_cgroup *hugetlb_cgroup_from_page(struct page *page)
@@ -106,6 +107,11 @@ hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 			       struct hugetlb_cgroup *h_cg)
 {
 	return;
+}
+
+static inline int __init hugetlb_cgroup_file_init(int idx)
+{
+	return 0;
 }
 
 #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */
