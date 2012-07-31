@@ -2287,6 +2287,8 @@ static int alc_build_pcms(struct hda_codec *codec)
 			p = &alc_pcm_analog_playback;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *p;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
+			spec->multiout.max_channels;
 	}
 	if (spec->adc_nids) {
 		p = spec->stream_analog_capture;

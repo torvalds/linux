@@ -3688,6 +3688,36 @@ int /*__devinit*/ snd_hda_build_controls(struct hda_bus *bus)
 }
 EXPORT_SYMBOL_HDA(snd_hda_build_controls);
 
+/*
+ * add standard channel maps if not specified
+ */
+static int add_std_chmaps(struct hda_codec *codec)
+{
+	int i, str, err;
+
+	for (i = 0; i < codec->num_pcms; i++) {
+		for (str = 0; str < 2; str++) {
+			struct snd_pcm *pcm = codec->pcm_info[i].pcm;
+			struct hda_pcm_stream *hinfo =
+				&codec->pcm_info[i].stream[str];
+			struct snd_pcm_chmap *chmap;
+
+			if (codec->pcm_info[i].own_chmap)
+				continue;
+			if (!pcm || !hinfo->substreams)
+				continue;
+			err = snd_pcm_add_chmap_ctls(pcm, str,
+						     snd_pcm_std_chmaps,
+						     hinfo->channels_max,
+						     0, &chmap);
+			if (err < 0)
+				return err;
+			chmap->channel_mask = SND_PCM_CHMAP_MASK_2468;
+		}
+	}
+	return 0;
+}
+
 int snd_hda_codec_build_controls(struct hda_codec *codec)
 {
 	int err = 0;
@@ -3699,6 +3729,12 @@ int snd_hda_codec_build_controls(struct hda_codec *codec)
 		err = codec->patch_ops.build_controls(codec);
 	if (err < 0)
 		return err;
+
+	/* we create chmaps here instead of build_pcms */
+	err = add_std_chmaps(codec);
+	if (err < 0)
+		return err;
+
 	snd_hda_jack_report_sync(codec); /* call at the last init point */
 	return 0;
 }
