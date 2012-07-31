@@ -2801,17 +2801,13 @@ int mem_cgroup_newpage_charge(struct page *page,
  * struct page_cgroup is acquired. This refcnt will be consumed by
  * "commit()" or removed by "cancel()"
  */
-int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
-				 struct page *page,
-				 gfp_t mask, struct mem_cgroup **memcgp)
+static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+					  struct page *page,
+					  gfp_t mask,
+					  struct mem_cgroup **memcgp)
 {
 	struct mem_cgroup *memcg;
 	int ret;
-
-	*memcgp = NULL;
-
-	if (mem_cgroup_disabled())
-		return 0;
 
 	if (!do_swap_account)
 		goto charge_cur_mm;
@@ -2837,6 +2833,15 @@ charge_cur_mm:
 	if (ret == -EINTR)
 		ret = 0;
 	return ret;
+}
+
+int mem_cgroup_try_charge_swapin(struct mm_struct *mm, struct page *page,
+				 gfp_t gfp_mask, struct mem_cgroup **memcgp)
+{
+	*memcgp = NULL;
+	if (mem_cgroup_disabled())
+		return 0;
+	return __mem_cgroup_try_charge_swapin(mm, page, gfp_mask, memcgp);
 }
 
 void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *memcg)
@@ -2900,7 +2905,8 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 	if (!PageSwapCache(page))
 		ret = mem_cgroup_charge_common(page, mm, gfp_mask, type);
 	else { /* page is swapcache/shmem */
-		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &memcg);
+		ret = __mem_cgroup_try_charge_swapin(mm, page,
+						     gfp_mask, &memcg);
 		if (!ret)
 			__mem_cgroup_commit_charge_swapin(page, memcg, type);
 	}
