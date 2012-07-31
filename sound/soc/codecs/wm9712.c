@@ -684,8 +684,8 @@ static int __devexit wm9712_remove(struct platform_device *pdev)
 
 static struct platform_driver wm9712_codec_driver = {
 	.driver = {
-			.name = "wm9712-codec",
-			.owner = THIS_MODULE,
+		.name = "wm9712-codec",
+		.owner = THIS_MODULE,
 	},
 
 	.probe = wm9712_probe,
