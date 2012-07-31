@@ -18,6 +18,8 @@
 #define raw_smp_processor_id()  blackfin_core_id()
 
 extern void bfin_relocate_coreb_l1_mem(void);
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 #if defined(CONFIG_SMP) && defined(CONFIG_ICACHE_FLUSH_L1)
 asmlinkage void blackfin_icache_flush_range_l1(unsigned long *ptr);
