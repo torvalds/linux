@@ -932,15 +932,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
 	if (anon_vma)
 		put_anon_vma(anon_vma);
 	unlock_page(hpage);
-
 out:
-	if (rc != -EAGAIN) {
-		list_del(&hpage->lru);
-		put_page(hpage);
-	}
-
 	put_page(new_hpage);
-
 	if (result) {
 		if (rc)
 			*result = rc;
@@ -1016,48 +1009,32 @@ out:
 	return nr_failed + retry;
 }
 
-int migrate_huge_pages(struct list_head *from,
-		new_page_t get_new_page, unsigned long private, bool offlining,
-		enum migrate_mode mode)
+int migrate_huge_page(struct page *hpage, new_page_t get_new_page,
+		      unsigned long private, bool offlining,
+		      enum migrate_mode mode)
 {
-	int retry = 1;
-	int nr_failed = 0;
-	int pass = 0;
-	struct page *page;
-	struct page *page2;
-	int rc;
+	int pass, rc;
 
-	for (pass = 0; pass < 10 && retry; pass++) {
-		retry = 0;
-
-		list_for_each_entry_safe(page, page2, from, lru) {
+	for (pass = 0; pass < 10; pass++) {
+		rc = unmap_and_move_huge_page(get_new_page,
+					      private, hpage, pass > 2, offlining,
+					      mode);
+		switch (rc) {
+		case -ENOMEM:
+			goto out;
+		case -EAGAIN:
+			/* try again */
 			cond_resched();
-
-			rc = unmap_and_move_huge_page(get_new_page,
-					private, page, pass > 2, offlining,
-					mode);
-
-			switch(rc) {
-			case -ENOMEM:
-				goto out;
-			case -EAGAIN:
-				retry++;
-				break;
-			case 0:
-				break;
-			default:
-				/* Permanent failure */
-				nr_failed++;
-				break;
-			}
+			break;
+		case 0:
+			goto out;
+		default:
+			rc = -EIO;
+			goto out;
 		}
 	}
-	rc = 0;
 out:
-	if (rc)
-		return rc;
-
-	return nr_failed + retry;
+	return rc;
 }
 
 #ifdef CONFIG_NUMA
