@@ -2909,7 +2909,7 @@ static void queue_unplugged(struct request_queue *q, unsigned int depth,
 
 }
 
-static void flush_plug_callbacks(struct blk_plug *plug)
+static void flush_plug_callbacks(struct blk_plug *plug, bool from_schedule)
 {
 	LIST_HEAD(callbacks);
 
@@ -2921,7 +2921,7 @@ static void flush_plug_callbacks(struct blk_plug *plug)
 							  struct blk_plug_cb,
 							  list);
 			list_del(&cb->list);
-			cb->callback(cb);
+			cb->callback(cb, from_schedule);
 		}
 	}
 }
@@ -2961,7 +2961,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 
 	BUG_ON(plug->magic != PLUG_MAGIC);
 
-	flush_plug_callbacks(plug);
+	flush_plug_callbacks(plug, from_schedule);
 	if (list_empty(&plug->list))
 		return;
 

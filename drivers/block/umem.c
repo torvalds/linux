@@ -513,7 +513,7 @@ static void process_page(unsigned long data)
 	}
 }
 
-static void mm_unplug(struct blk_plug_cb *cb)
+static void mm_unplug(struct blk_plug_cb *cb, bool from_schedule)
 {
 	struct cardinfo *card = cb->data;
 

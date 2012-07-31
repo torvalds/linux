@@ -923,7 +923,7 @@ struct blk_plug {
 #define BLK_MAX_REQUEST_COUNT 16
 
 struct blk_plug_cb;
-typedef void (*blk_plug_cb_fn)(struct blk_plug_cb *);
+typedef void (*blk_plug_cb_fn)(struct blk_plug_cb *, bool);
 struct blk_plug_cb {
 	struct list_head list;
 	blk_plug_cb_fn callback;
