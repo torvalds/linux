@@ -192,7 +192,7 @@ static inline void __init write_actlr(u32 actlr)
 void __init tauros2_init(void)
 {
 	extern int processor_id;
-	char *mode;
+	char *mode = NULL;
 
 	disable_l2_prefetch();
 
