@@ -4437,7 +4437,13 @@ static int stac92xx_init(struct hda_codec *codec)
 	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
-	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+	if (spec->gpio_led) {
+		if (spec->vmaster_mute.hook)
+			snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+		else /* the very first init call doesn't have vmaster yet */
+			stac92xx_update_led_status(codec, false);
+	}
+
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
 	return 0;
