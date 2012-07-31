@@ -304,8 +304,10 @@ int __init acpi_numa_init(void)
 
 	acpi_numa_arch_fixup();
 
-	if (cnt <= 0)
-		return cnt ?: -ENOENT;
+	if (cnt < 0)
+		return cnt;
+	else if (cnt == 0)
+		return -ENOENT;
 	return 0;
 }
 
