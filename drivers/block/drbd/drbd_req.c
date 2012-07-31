@@ -695,6 +695,12 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case resend:
+		/* Simply complete (local only) READs. */
+		if (!(req->rq_state & RQ_WRITE) && !req->w.cb) {
+			_req_may_be_done(req, m);
+			break;
+		}
+
 		/* If RQ_NET_OK is already set, we got a P_WRITE_ACK or P_RECV_ACK
 		   before the connection loss (B&C only); only P_BARRIER_ACK was missing.
 		   Trowing them out of the TL here by pretending we got a BARRIER_ACK
