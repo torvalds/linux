@@ -1,3 +1,16 @@
+WWhat:		/sys/class/hidraw/hidraw*/device/oled*_img
+Date:		June 2012
+Contact:	linux-bluetooth@vger.kernel.org
+Description:
+		The /sys/class/hidraw/hidraw*/device/oled*_img files control
+		OLED mocro displays on Intuos4 Wireless tablet. Accepted image
+		has to contain 256 bytes (64x32 px 1 bit colour). The format
+		is the same as PBM image 62x32px without header (64 bits per
+		horizontal line, 32 lines). An example of setting OLED No. 0:
+		dd bs=256 count=1 if=img_file of=[path to oled0_img]/oled0_img
+		The attribute is read only and no local copy of the image is
+		stored.
+
 What:		/sys/class/hidraw/hidraw*/device/speed
 Date:		April 2010
 Kernel Version:	2.6.35
