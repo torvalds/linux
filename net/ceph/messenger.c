@@ -2735,9 +2735,16 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 	BUG_ON(con->in_msg != NULL);
 
 	if (con->ops->alloc_msg) {
+		struct ceph_msg *msg;
+
 		mutex_unlock(&con->mutex);
-		con->in_msg = con->ops->alloc_msg(con, hdr, skip);
+		msg = con->ops->alloc_msg(con, hdr, skip);
 		mutex_lock(&con->mutex);
+		if (con->state != CON_STATE_OPEN) {
+			ceph_msg_put(msg);
+			return -EAGAIN;
+		}
+		con->in_msg = msg;
 		if (con->in_msg) {
 			con->in_msg->con = con->ops->get(con);
 			BUG_ON(con->in_msg->con == NULL);
