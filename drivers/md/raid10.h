@@ -1,7 +1,7 @@
 #ifndef _RAID10_H
 #define _RAID10_H
 
-struct mirror_info {
+struct raid10_info {
 	struct md_rdev	*rdev, *replacement;
 	sector_t	head_position;
 	int		recovery_disabled;	/* matches
@@ -13,8 +13,8 @@ struct mirror_info {
 
 struct r10conf {
 	struct mddev		*mddev;
-	struct mirror_info	*mirrors;
-	struct mirror_info	*mirrors_new, *mirrors_old;
+	struct raid10_info	*mirrors;
+	struct raid10_info	*mirrors_new, *mirrors_old;
 	spinlock_t		device_lock;
 
 	/* geometry */

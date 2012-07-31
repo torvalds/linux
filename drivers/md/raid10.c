@@ -1546,7 +1546,7 @@ static void error(struct mddev *mddev, struct md_rdev *rdev)
 static void print_conf(struct r10conf *conf)
 {
 	int i;
-	struct mirror_info *tmp;
+	struct raid10_info *tmp;
 
 	printk(KERN_DEBUG "RAID10 conf printout:\n");
 	if (!conf) {
@@ -1580,7 +1580,7 @@ static int raid10_spare_active(struct mddev *mddev)
 {
 	int i;
 	struct r10conf *conf = mddev->private;
-	struct mirror_info *tmp;
+	struct raid10_info *tmp;
 	int count = 0;
 	unsigned long flags;
 
@@ -1655,7 +1655,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	else
 		mirror = first;
 	for ( ; mirror <= last ; mirror++) {
-		struct mirror_info *p = &conf->mirrors[mirror];
+		struct raid10_info *p = &conf->mirrors[mirror];
 		if (p->recovery_disabled == mddev->recovery_disabled)
 			continue;
 		if (p->rdev) {
@@ -1709,7 +1709,7 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int err = 0;
 	int number = rdev->raid_disk;
 	struct md_rdev **rdevp;
-	struct mirror_info *p = conf->mirrors + number;
+	struct raid10_info *p = conf->mirrors + number;
 
 	print_conf(conf);
 	if (rdev == p->rdev)
@@ -2876,7 +2876,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr,
 			sector_t sect;
 			int must_sync;
 			int any_working;
-			struct mirror_info *mirror = &conf->mirrors[i];
+			struct raid10_info *mirror = &conf->mirrors[i];
 
 			if ((mirror->rdev == NULL ||
 			     test_bit(In_sync, &mirror->rdev->flags))
@@ -3388,7 +3388,7 @@ static struct r10conf *setup_conf(struct mddev *mddev)
 		goto out;
 
 	/* FIXME calc properly */
-	conf->mirrors = kzalloc(sizeof(struct mirror_info)*(mddev->raid_disks +
+	conf->mirrors = kzalloc(sizeof(struct raid10_info)*(mddev->raid_disks +
 							    max(0,mddev->delta_disks)),
 				GFP_KERNEL);
 	if (!conf->mirrors)
@@ -3452,7 +3452,7 @@ static int run(struct mddev *mddev)
 {
 	struct r10conf *conf;
 	int i, disk_idx, chunk_size;
-	struct mirror_info *disk;
+	struct raid10_info *disk;
 	struct md_rdev *rdev;
 	sector_t size;
 	sector_t min_offset_diff = 0;
@@ -3805,7 +3805,7 @@ static int raid10_check_reshape(struct mddev *mddev)
 	if (mddev->delta_disks > 0) {
 		/* allocate new 'mirrors' list */
 		conf->mirrors_new = kzalloc(
-			sizeof(struct mirror_info)
+			sizeof(struct raid10_info)
 			*(mddev->raid_disks +
 			  mddev->delta_disks),
 			GFP_KERNEL);
@@ -3930,7 +3930,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 	spin_lock_irq(&conf->device_lock);
 	if (conf->mirrors_new) {
 		memcpy(conf->mirrors_new, conf->mirrors,
-		       sizeof(struct mirror_info)*conf->prev.raid_disks);
+		       sizeof(struct raid10_info)*conf->prev.raid_disks);
 		smp_mb();
 		kfree(conf->mirrors_old); /* FIXME and elsewhere */
 		conf->mirrors_old = conf->mirrors;
