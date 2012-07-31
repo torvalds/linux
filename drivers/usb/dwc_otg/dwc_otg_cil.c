@@ -729,8 +729,18 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000130 );	//ep1 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00800230 );	//ep3 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x008002b0 );	//ep5 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep7 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x001003b0 );	//ep9 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[3], 0x00800330 );	//ep7 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[4], 0x001003b0 );	//ep9 tx fifo
+#endif
+#ifdef CONFIG_ARCH_RK2928  //@lyz the same with RK30
+    /* Configure data FIFO sizes, RK30 otg has 0x3cc dwords total */
+    dwc_write_reg32( &global_regs->grxfsiz, 0x00000120 );
+    dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100120 );             //ep0 tx fifo 
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000130 );   //ep1 tx fifo 256*4Byte
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00800230 );   //ep3 tx fifo 128*4Byte
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x008002b0 );   //ep5 tx fifo 128*4Byte
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[3], 0x00800330 );   //ep7 tx fifo 128*4Byte
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[4], 0x001003b0 );   //ep9 tx fifo 16*4Byte
 #endif
 	if(_core_if->en_multiple_tx_fifo && _core_if->dma_enable)
 	{
