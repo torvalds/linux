@@ -71,6 +71,11 @@
 #if defined(CONFIG_SEW868)
 #include <linux/sew868.h>
 #endif
+
+#if defined(CONFIG_MI700)
+#include <linux/mi700.h>
+#endif
+
 #if defined(CONFIG_ANDROID_TIMED_GPIO)
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
@@ -960,7 +965,51 @@ struct platform_device rk30_device_sew868 = {
 	}    	
     };
 #endif
+#if defined(CONFIG_MI700)
+#define BP_POWER        RK29_PIN6_PB1   
+#define BP_RESET        RK29_PIN6_PC7
+static int mi700_io_init(void)
+{
+        int result;
+        result = gpio_request(BP_RESET, NULL);
+        if (result)
+        {
+                gpio_free(BP_RESET);
+                printk("failed to request BP_RESET gpio\n");
+        }
+        result = gpio_request(BP_POWER, NULL);
+        if (result)
+        {
+                gpio_free(BP_POWER);
+                printk("failed to request BP_POWER gpio\n");
+        }
+        return 0;
+}
 
+static int mi700_io_deinit(void)
+{
+        gpio_free(BP_RESET);
+        gpio_free(BP_POWER);
+
+        return 0;
+}
+
+struct rk29_mi700_data rk29_mi700_info = {
+        .io_init = mi700_io_init,
+        .io_deinit = mi700_io_deinit,
+        .bp_power = RK29_PIN6_PB1,//RK29_PIN0_PB4,
+        .bp_reset = RK29_PIN6_PC7,//RK29_PIN0_PB3,
+        .bp_wakeup_ap = RK29_PIN6_PC6,//RK29_PIN0_PC2,
+        .ap_wakeup_bp = NULL,//RK29_PIN0_PB0, 
+};
+struct platform_device rk29_device_mi700 = {
+        .name = "MI700",
+        .id = -1,
+        .dev            = {
+                .platform_data = &rk29_mi700_info,
+        }
+    };
+#endif
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK30_PIN4_PC0
@@ -1628,6 +1677,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #if defined (CONFIG_RK_HEADSET_DET) ||  defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
 	&rk_device_headset,
+#endif
+#if defined(CONFIG_MI700)
+        &rk29_device_mi700,
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
