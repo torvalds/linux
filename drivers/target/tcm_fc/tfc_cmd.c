@@ -48,7 +48,7 @@
 /*
  * Dump cmd state for debugging.
  */
-void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
+static void _ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 {
 	struct fc_exch *ep;
 	struct fc_seq *sp;
@@ -78,6 +78,12 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 			caller, cmd, ep->sid, ep->did, ep->oxid, ep->rxid,
 			sp->id, ep->esb_stat);
 	}
+}
+
+void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
+{
+	if (unlikely(ft_debug_logging))
+		_ft_dump_cmd(cmd, caller);
 }
 
 static void ft_free_cmd(struct ft_cmd *cmd)
