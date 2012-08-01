@@ -163,8 +163,6 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 
 	encoder->input = input;
 	encoder->pdata = pdata;
-	encoder->irq_a = gpio_to_irq(pdata->gpio_a);
-	encoder->irq_b = gpio_to_irq(pdata->gpio_b);
 
 	/* create and register the input driver */
 	input->name = pdev->name;
@@ -214,6 +212,9 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 			pdata->gpio_b);
 		goto exit_free_gpio_a;
 	}
+
+	encoder->irq_a = gpio_to_irq(pdata->gpio_a);
+	encoder->irq_b = gpio_to_irq(pdata->gpio_b);
 
 	/* request the IRQs */
 	if (pdata->half_period) {
