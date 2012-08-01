@@ -142,6 +142,19 @@ THUMB(	orr	r7, #(1 << 30)	)	@ HSCTLR.TE
 	and	r7, #0x1f		@ Preserve HPMN
 	mcr	p15, 4, r7, c1, c1, 1	@ HDCR
 
+#if !defined(ZIMAGE) && defined(CONFIG_ARM_ARCH_TIMER)
+	@ make CNTP_* and CNTPCT accessible from PL1
+	mrc	p15, 0, r7, c0, c1, 1	@ ID_PFR1
+	lsr	r7, #16
+	and	r7, #0xf
+	cmp	r7, #1
+	bne	1f
+	mrc	p15, 4, r7, c14, c1, 0	@ CNTHCTL
+	orr	r7, r7, #3		@ PL1PCEN | PL1PCTEN
+	mcr	p15, 4, r7, c14, c1, 0	@ CNTHCTL
+1:
+#endif
+
 	bic	r7, r4, #MODE_MASK
 	orr	r7, r7, #SVC_MODE
 THUMB(	orr	r7, r7, #PSR_T_BIT	)
