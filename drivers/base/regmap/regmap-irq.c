@@ -306,7 +306,8 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		d->mask_buf[i] = d->mask_buf_def[i];
 		reg = chip->mask_base +
 			(i * map->reg_stride * d->irq_reg_stride);
-		ret = regmap_write(map, reg, d->mask_buf[i]);
+		ret = regmap_update_bits(map, reg,
+					 d->mask_buf[i], d->mask_buf[i]);
 		if (ret != 0) {
 			dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
 				reg, ret);
