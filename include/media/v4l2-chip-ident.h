@@ -90,7 +90,6 @@ enum {
 
 	/* Samsung sensors: reserved range 310-319 */
 	V4L2_IDENT_S5K66A = 310,							/* ddl@rock-chips.com : s5k66a support */
-	V4L2_IDENT_S5K5CA = 311,							/* ddl@rock-chips.com : s5k5ca support */
 
 	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
 	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
@@ -349,9 +348,8 @@ enum {
     V4L2_IDENT_HI704 = 64107,      /* ddl@rock-chips.com : hi704 support */
     V4L2_IDENT_NT99250 = 64108,    /* ddl@rock-chips.com : nt99250 support */
     V4L2_IDENT_SID130B = 64109,      /* ddl@rock-chips.com : sid130B support */
+    V4L2_IDENT_SIV121D= 64109,      /* ddl@rock-chips.com : sid130B support */
 
-    V4L2_IDENT_SP0838 = 64110,      /* ddl@rock-chips.com : SP0838 support */
-    V4L2_IDENT_GC0329 = 64111,      /* ddl@rock-chips.com : GC0329 support */
 	/* Don't just add new IDs at the end: KEEP THIS LIST ORDERED BY ID! */
 };
 

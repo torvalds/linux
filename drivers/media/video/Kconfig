@@ -1194,7 +1194,13 @@ config SIV120B_USER_DEFINED_SERIES
 	depends on SOC_CAMERA_SIV120B
 	bool "SIV120B user defined init series"
 	default n
-
+	
+config SOC_CAMERA_SIV121D
+	tristate "siv121d support for rockchip"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a SIV121D camera driver for rockchip
+	  
 config SOC_CAMERA_SID130B
 	tristate "sid130b support for rockchip"
 	depends on SOC_CAMERA && I2C
