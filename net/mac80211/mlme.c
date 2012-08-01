@@ -813,9 +813,8 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
 	else
 		mod_timer(&ifmgd->chswitch_timer,
-			  jiffies +
-			  msecs_to_jiffies(sw_elem->count *
-					   cbss->beacon_interval));
+			  TU_TO_EXP_TIME(sw_elem->count *
+					 cbss->beacon_interval));
 }
 
 static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
