@@ -1617,19 +1617,19 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 #endif
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
+		struct dst_entry *dst = sk->sk_rx_dst;
+
 		sock_rps_save_rxhash(sk, skb);
-		if (sk->sk_rx_dst) {
-			struct dst_entry *dst = sk->sk_rx_dst;
+		if (dst) {
 			if (inet_sk(sk)->rx_dst_ifindex != skb->skb_iif ||
 			    dst->ops->check(dst, 0) == NULL) {
 				dst_release(dst);
 				sk->sk_rx_dst = NULL;
 			}
 		}
-		if (unlikely(sk->sk_rx_dst == NULL)) {
-			sk->sk_rx_dst = dst_clone(skb_dst(skb));
-			inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
-		}
+		if (unlikely(sk->sk_rx_dst == NULL))
+			inet_sk_rx_dst_set(sk, skb);
+
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len)) {
 			rsk = sk;
 			goto reset;
