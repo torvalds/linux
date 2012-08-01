@@ -78,6 +78,36 @@ static struct equiv_cpu_entry *equiv_cpu_table;
 /* page-sized ucode patch buffer */
 void *patch;
 
+static u16 find_equiv_id(unsigned int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	int i = 0;
+
+	BUG_ON(equiv_cpu_table == NULL);
+
+	while (equiv_cpu_table[i].installed_cpu != 0) {
+		if (uci->cpu_sig.sig == equiv_cpu_table[i].installed_cpu)
+			return equiv_cpu_table[i].equiv_cpu;
+
+		i++;
+	}
+	return 0;
+}
+
+static u32 find_cpu_family_by_equiv_cpu(u16 equiv_cpu)
+{
+	int i = 0;
+
+	BUG_ON(!equiv_cpu_table);
+
+	while (equiv_cpu_table[i].equiv_cpu != 0) {
+		if (equiv_cpu == equiv_cpu_table[i].equiv_cpu)
+			return equiv_cpu_table[i].installed_cpu;
+		i++;
+	}
+	return 0;
+}
+
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
@@ -117,22 +147,6 @@ static unsigned int verify_ucode_size(int cpu, u32 patch_size,
 	}
 
 	return patch_size;
-}
-
-static u16 find_equiv_id(unsigned int cpu)
-{
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	int i = 0;
-
-	BUG_ON(equiv_cpu_table == NULL);
-
-	while (equiv_cpu_table[i].installed_cpu != 0) {
-		if (uci->cpu_sig.sig == equiv_cpu_table[i].installed_cpu)
-			return equiv_cpu_table[i].equiv_cpu;
-
-		i++;
-	}
-	return 0;
 }
 
 /*
