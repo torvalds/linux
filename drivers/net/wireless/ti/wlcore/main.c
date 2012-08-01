@@ -1672,6 +1672,9 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 	if ((!is_ap) && (!is_sta))
 		return;
 
+	if (is_sta && !test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+		return;
+
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
 		return;
