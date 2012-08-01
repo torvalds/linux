@@ -378,6 +378,9 @@ EXPORT_SYMBOL(soc_mbus_samples_per_pixel);
 
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf)
 {
+	if (mf->fourcc == V4L2_PIX_FMT_JPEG)
+		return 0;
+
 	if (mf->layout != SOC_MBUS_LAYOUT_PACKED)
 		return width * mf->bits_per_sample / 8;
 
@@ -400,6 +403,9 @@ EXPORT_SYMBOL(soc_mbus_bytes_per_line);
 s32 soc_mbus_image_size(const struct soc_mbus_pixelfmt *mf,
 			u32 bytes_per_line, u32 height)
 {
+	if (mf->fourcc == V4L2_PIX_FMT_JPEG)
+		return 0;
+
 	if (mf->layout == SOC_MBUS_LAYOUT_PACKED)
 		return bytes_per_line * height;
 
