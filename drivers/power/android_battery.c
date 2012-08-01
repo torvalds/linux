@@ -32,6 +32,7 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
+#include <linux/debugfs.h>
 #include <linux/platform_data/android_battery.h>
 
 struct android_bat_data {
@@ -60,6 +61,8 @@ struct android_bat_data {
 
 	bool		slow_poll;
 	ktime_t		last_poll;
+
+	struct dentry		*debugfs_entry;
 };
 
 static enum power_supply_property android_battery_props[] = {
@@ -330,6 +333,32 @@ static void android_bat_monitor_work(struct work_struct *work)
 	return;
 }
 
+static int android_power_debug_dump(struct seq_file *s, void *unused)
+{
+	struct android_bat_data *battery = s->private;
+
+	android_bat_update_data(battery);
+	seq_printf(s, "l=%d v=%d c=%d temp=%d h=%d st=%d type=%s\n",
+		   battery->batt_soc, battery->batt_vcell/1000,
+		   battery->batt_current, battery->batt_temp,
+		   battery->batt_health, battery->charging_status,
+		   charge_source_str(battery->charge_source));
+
+	return 0;
+}
+
+static int android_power_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, android_power_debug_dump, inode->i_private);
+}
+
+static const struct file_operations android_power_debug_fops = {
+	.open = android_power_debug_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int android_bat_probe(struct platform_device *pdev)
 {
 	struct android_bat_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -399,8 +428,14 @@ static int android_bat_probe(struct platform_device *pdev)
 
 	queue_delayed_work(battery->monitor_wqueue,
 		&battery->monitor_work, msecs_to_jiffies(0));
-	return 0;
 
+	battery->debugfs_entry =
+		debugfs_create_file("android-power", S_IRUGO, NULL,
+				    battery, &android_power_debug_fops);
+	if (!battery->debugfs_entry)
+		pr_err("failed to create android-power debugfs entry\n");
+
+	return 0;
 
 err_wq:
 	power_supply_unregister(&battery->psy_bat);
@@ -422,6 +457,7 @@ static int android_bat_remove(struct platform_device *pdev)
 	power_supply_unregister(&battery->psy_bat);
 	wake_lock_destroy(&battery->monitor_wake_lock);
 	wake_lock_destroy(&battery->charger_wake_lock);
+	debugfs_remove(battery->debugfs_entry);
 	kfree(battery);
 	return 0;
 }
