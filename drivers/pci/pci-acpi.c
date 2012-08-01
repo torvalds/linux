@@ -48,6 +48,12 @@ static void pci_acpi_wake_dev(acpi_handle handle, u32 event, void *context)
 	if (event != ACPI_NOTIFY_DEVICE_WAKE || !pci_dev)
 		return;
 
+	if (pci_dev->current_state == PCI_D3cold) {
+		pci_wakeup_event(pci_dev);
+		pm_runtime_resume(&pci_dev->dev);
+		return;
+	}
+
 	if (!pci_dev->pm_cap || !pci_dev->pme_support
 	     || pci_check_pme_status(pci_dev)) {
 		if (pci_dev->pme_poll)
@@ -162,6 +168,20 @@ acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
 	return remove_pm_notifier(dev, pci_acpi_wake_dev);
 }
 
+phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
+{
+	acpi_status status = AE_NOT_EXIST;
+	unsigned long long mcfg_addr;
+
+	if (handle)
+		status = acpi_evaluate_integer(handle, METHOD_NAME__CBA,
+					       NULL, &mcfg_addr);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	return (phys_addr_t)mcfg_addr;
+}
+
 /*
  * _SxD returns the D-state with the highest power
  * (lowest D-state number) supported in the S-state "x".
@@ -187,9 +207,13 @@ acpi_status pci_acpi_remove_pm_notifier(struct acpi_device *dev)
 
 static pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 {
-	int acpi_state;
+	int acpi_state, d_max;
 
-	acpi_state = acpi_pm_device_sleep_state(&pdev->dev, NULL);
+	if (pdev->no_d3cold)
+		d_max = ACPI_STATE_D3_HOT;
+	else
+		d_max = ACPI_STATE_D3_COLD;
+	acpi_state = acpi_pm_device_sleep_state(&pdev->dev, NULL, d_max);
 	if (acpi_state < 0)
 		return PCI_POWER_ERROR;
 
@@ -296,7 +320,13 @@ static void acpi_pci_propagate_run_wake(struct pci_bus *bus, bool enable)
 
 static int acpi_pci_run_wake(struct pci_dev *dev, bool enable)
 {
-	if (dev->pme_interrupt)
+	/*
+	 * Per PCI Express Base Specification Revision 2.0 section
+	 * 5.3.3.2 Link Wakeup, platform support is needed for D3cold
+	 * waking up to power on the main link even if there is PME
+	 * support for D3cold
+	 */
+	if (dev->pme_interrupt && !dev->runtime_d3cold)
 		return 0;
 
 	if (!acpi_pm_device_run_wake(&dev->dev, enable))

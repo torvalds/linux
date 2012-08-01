@@ -102,7 +102,7 @@ void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 
 	/* Update the AID, this is needed for dynamic PS support */
 	rt2x00dev->aid = bss_conf->assoc ? bss_conf->aid : 0;
-	rt2x00dev->last_beacon = bss_conf->last_tsf;
+	rt2x00dev->last_beacon = bss_conf->sync_tsf;
 
 	/* Update global beacon interval time, this is needed for PS support */
 	rt2x00dev->beacon_int = bss_conf->beacon_int;

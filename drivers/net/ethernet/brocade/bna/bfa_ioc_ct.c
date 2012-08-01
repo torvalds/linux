@@ -87,9 +87,7 @@ static const struct bfa_ioc_hwif nw_hwif_ct2 = {
 	.ioc_sync_complete   = bfa_ioc_ct_sync_complete,
 };
 
-/**
- * Called from bfa_ioc_attach() to map asic specific calls.
- */
+/* Called from bfa_ioc_attach() to map asic specific calls. */
 void
 bfa_nw_ioc_set_ct_hwif(struct bfa_ioc *ioc)
 {
@@ -102,9 +100,7 @@ bfa_nw_ioc_set_ct2_hwif(struct bfa_ioc *ioc)
 	ioc->ioc_hwif = &nw_hwif_ct2;
 }
 
-/**
- * Return true if firmware of current driver matches the running firmware.
- */
+/* Return true if firmware of current driver matches the running firmware. */
 static bool
 bfa_ioc_ct_firmware_lock(struct bfa_ioc *ioc)
 {
@@ -182,9 +178,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc *ioc)
 	bfa_nw_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
-/**
- * Notify other functions on HB failure.
- */
+/* Notify other functions on HB failure. */
 static void
 bfa_ioc_ct_notify_fail(struct bfa_ioc *ioc)
 {
@@ -195,9 +189,7 @@ bfa_ioc_ct_notify_fail(struct bfa_ioc *ioc)
 	readl(ioc->ioc_regs.alt_ll_halt);
 }
 
-/**
- * Host to LPU mailbox message addresses
- */
+/* Host to LPU mailbox message addresses */
 static const struct {
 	u32	hfn_mbox;
 	u32	lpu_mbox;
@@ -209,9 +201,7 @@ static const struct {
 	{ HOSTFN3_LPU_MBOX0_8, LPU_HOSTFN3_MBOX0_8, HOST_PAGE_NUM_FN3 }
 };
 
-/**
- * Host <-> LPU mailbox command/status registers - port 0
- */
+/* Host <-> LPU mailbox command/status registers - port 0 */
 static const struct {
 	u32	hfn;
 	u32	lpu;
@@ -222,9 +212,7 @@ static const struct {
 	{ HOSTFN3_LPU0_CMD_STAT, LPU0_HOSTFN3_CMD_STAT }
 };
 
-/**
- * Host <-> LPU mailbox command/status registers - port 1
- */
+/* Host <-> LPU mailbox command/status registers - port 1 */
 static const struct {
 	u32	hfn;
 	u32	lpu;
@@ -368,9 +356,7 @@ bfa_ioc_ct2_reg_init(struct bfa_ioc *ioc)
 	ioc->ioc_regs.err_set = rb + ERR_SET_REG;
 }
 
-/**
- * Initialize IOC to port mapping.
- */
+/* Initialize IOC to port mapping. */
 
 #define FNC_PERS_FN_SHIFT(__fn)	((__fn) * 8)
 static void
@@ -398,9 +384,7 @@ bfa_ioc_ct2_map_port(struct bfa_ioc *ioc)
 	ioc->port_id = ((r32 & __FC_LL_PORT_MAP__MK) >> __FC_LL_PORT_MAP__SH);
 }
 
-/**
- * Set interrupt mode for a function: INTX or MSIX
- */
+/* Set interrupt mode for a function: INTX or MSIX */
 static void
 bfa_ioc_ct_isr_mode_set(struct bfa_ioc *ioc, bool msix)
 {
@@ -443,9 +427,7 @@ bfa_ioc_ct2_lpu_read_stat(struct bfa_ioc *ioc)
 	return false;
 }
 
-/**
- * MSI-X resource allocation for 1860 with no asic block
- */
+/* MSI-X resource allocation for 1860 with no asic block */
 #define HOSTFN_MSIX_DEFAULT		64
 #define HOSTFN_MSIX_VT_INDEX_MBOX_ERR	0x30138
 #define HOSTFN_MSIX_VT_OFST_NUMVT	0x3013c
@@ -473,9 +455,7 @@ bfa_nw_ioc_ct2_poweron(struct bfa_ioc *ioc)
 			rb + HOSTFN_MSIX_VT_INDEX_MBOX_ERR);
 }
 
-/**
- * Cleanup hw semaphore and usecnt registers
- */
+/* Cleanup hw semaphore and usecnt registers */
 static void
 bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 {
@@ -492,9 +472,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc *ioc)
 	bfa_nw_ioc_hw_sem_release(ioc);
 }
 
-/**
- * Synchronized IOC failure processing routines
- */
+/* Synchronized IOC failure processing routines */
 static bool
 bfa_ioc_ct_sync_start(struct bfa_ioc *ioc)
 {
@@ -518,9 +496,7 @@ bfa_ioc_ct_sync_start(struct bfa_ioc *ioc)
 
 	return bfa_ioc_ct_sync_complete(ioc);
 }
-/**
- * Synchronized IOC failure processing routines
- */
+/* Synchronized IOC failure processing routines */
 static void
 bfa_ioc_ct_sync_join(struct bfa_ioc *ioc)
 {

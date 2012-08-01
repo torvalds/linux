@@ -586,17 +586,17 @@ static struct clk exynos4_init_clocks_off[] = {
 		.ctrlbit	= (1 << 13),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "exynos4210-spi.0",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 16),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "exynos4210-spi.1",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 17),
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.2",
+		.devname	= "exynos4210-spi.2",
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 18),
 	}, {
@@ -1242,40 +1242,67 @@ static struct clksrc_clk exynos4_clk_sclk_mmc3 = {
 	.reg_div = { .reg = EXYNOS4_CLKDIV_FSYS2, .shift = 24, .size = 8 },
 };
 
-static struct clksrc_clk exynos4_clk_sclk_spi0 = {
+static struct clksrc_clk exynos4_clk_mdout_spi0 = {
 	.clk	= {
-		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.0",
-		.enable		= exynos4_clksrc_mask_peril1_ctrl,
-		.ctrlbit	= (1 << 16),
+		.name		= "mdout_spi",
+		.devname	= "exynos4210-spi.0",
 	},
 	.sources = &exynos4_clkset_group,
 	.reg_src = { .reg = EXYNOS4_CLKSRC_PERIL1, .shift = 16, .size = 4 },
 	.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL1, .shift = 0, .size = 4 },
 };
 
-static struct clksrc_clk exynos4_clk_sclk_spi1 = {
+static struct clksrc_clk exynos4_clk_mdout_spi1 = {
 	.clk	= {
-		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.1",
-		.enable		= exynos4_clksrc_mask_peril1_ctrl,
-		.ctrlbit	= (1 << 20),
+		.name		= "mdout_spi",
+		.devname	= "exynos4210-spi.1",
 	},
 	.sources = &exynos4_clkset_group,
 	.reg_src = { .reg = EXYNOS4_CLKSRC_PERIL1, .shift = 20, .size = 4 },
 	.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL1, .shift = 16, .size = 4 },
 };
 
-static struct clksrc_clk exynos4_clk_sclk_spi2 = {
+static struct clksrc_clk exynos4_clk_mdout_spi2 = {
 	.clk	= {
-		.name		= "sclk_spi",
-		.devname	= "s3c64xx-spi.2",
-		.enable		= exynos4_clksrc_mask_peril1_ctrl,
-		.ctrlbit	= (1 << 24),
+		.name		= "mdout_spi",
+		.devname	= "exynos4210-spi.2",
 	},
 	.sources = &exynos4_clkset_group,
 	.reg_src = { .reg = EXYNOS4_CLKSRC_PERIL1, .shift = 24, .size = 4 },
 	.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL2, .shift = 0, .size = 4 },
+};
+
+static struct clksrc_clk exynos4_clk_sclk_spi0 = {
+	.clk	= {
+		.name		= "sclk_spi",
+		.devname	= "exynos4210-spi.0",
+		.parent		= &exynos4_clk_mdout_spi0.clk,
+		.enable		= exynos4_clksrc_mask_peril1_ctrl,
+		.ctrlbit	= (1 << 16),
+	},
+	.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL1, .shift = 8, .size = 8 },
+};
+
+static struct clksrc_clk exynos4_clk_sclk_spi1 = {
+	.clk	= {
+		.name		= "sclk_spi",
+		.devname	= "exynos4210-spi.1",
+		.parent		= &exynos4_clk_mdout_spi1.clk,
+		.enable		= exynos4_clksrc_mask_peril1_ctrl,
+		.ctrlbit	= (1 << 20),
+	},
+	.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL1, .shift = 24, .size = 8 },
+};
+
+static struct clksrc_clk exynos4_clk_sclk_spi2 = {
+	.clk	= {
+		.name		= "sclk_spi",
+		.devname	= "exynos4210-spi.2",
+		.parent		= &exynos4_clk_mdout_spi2.clk,
+		.enable		= exynos4_clksrc_mask_peril1_ctrl,
+		.ctrlbit	= (1 << 24),
+	},
+	.reg_div = { .reg = EXYNOS4_CLKDIV_PERIL2, .shift = 8, .size = 8 },
 };
 
 /* Clock initialization code */
@@ -1331,7 +1358,9 @@ static struct clksrc_clk *exynos4_clksrc_cdev[] = {
 	&exynos4_clk_sclk_spi0,
 	&exynos4_clk_sclk_spi1,
 	&exynos4_clk_sclk_spi2,
-
+	&exynos4_clk_mdout_spi0,
+	&exynos4_clk_mdout_spi1,
+	&exynos4_clk_mdout_spi2,
 };
 
 static struct clk_lookup exynos4_clk_lookup[] = {
@@ -1347,9 +1376,9 @@ static struct clk_lookup exynos4_clk_lookup[] = {
 	CLKDEV_INIT("dma-pl330.0", "apb_pclk", &exynos4_clk_pdma0),
 	CLKDEV_INIT("dma-pl330.1", "apb_pclk", &exynos4_clk_pdma1),
 	CLKDEV_INIT("dma-pl330.2", "apb_pclk", &exynos4_clk_mdma1),
-	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk0", &exynos4_clk_sclk_spi0.clk),
-	CLKDEV_INIT("s3c64xx-spi.1", "spi_busclk0", &exynos4_clk_sclk_spi1.clk),
-	CLKDEV_INIT("s3c64xx-spi.2", "spi_busclk0", &exynos4_clk_sclk_spi2.clk),
+	CLKDEV_INIT("exynos4210-spi.0", "spi_busclk0", &exynos4_clk_sclk_spi0.clk),
+	CLKDEV_INIT("exynos4210-spi.1", "spi_busclk0", &exynos4_clk_sclk_spi1.clk),
+	CLKDEV_INIT("exynos4210-spi.2", "spi_busclk0", &exynos4_clk_sclk_spi2.clk),
 };
 
 static int xtal_rate;

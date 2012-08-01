@@ -313,3 +313,25 @@ int strtailcmp(const char *s1, const char *s2)
 	return 0;
 }
 
+/**
+ * rtrim - Removes trailing whitespace from @s.
+ * @s: The string to be stripped.
+ *
+ * Note that the first trailing whitespace is replaced with a %NUL-terminator
+ * in the given string @s. Returns @s.
+ */
+char *rtrim(char *s)
+{
+	size_t size = strlen(s);
+	char *end;
+
+	if (!size)
+		return s;
+
+	end = s + size - 1;
+	while (end >= s && isspace(*end))
+		end--;
+	*(end + 1) = '\0';
+
+	return s;
+}

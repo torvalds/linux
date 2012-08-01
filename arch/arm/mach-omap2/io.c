@@ -38,6 +38,7 @@
 #include "powerdomain.h"
 #include "clockdomain.h"
 #include "common.h"
+#include "clock.h"
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
@@ -233,6 +234,35 @@ static struct map_desc omap44xx_io_desc[] __initdata = {
 };
 #endif
 
+#ifdef	CONFIG_SOC_OMAP5
+static struct map_desc omap54xx_io_desc[] __initdata = {
+	{
+		.virtual	= L3_54XX_VIRT,
+		.pfn		= __phys_to_pfn(L3_54XX_PHYS),
+		.length		= L3_54XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_54XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_54XX_PHYS),
+		.length		= L4_54XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_WK_54XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_WK_54XX_PHYS),
+		.length		= L4_WK_54XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+	{
+		.virtual	= L4_PER_54XX_VIRT,
+		.pfn		= __phys_to_pfn(L4_PER_54XX_PHYS),
+		.length		= L4_PER_54XX_SIZE,
+		.type		= MT_DEVICE,
+	},
+};
+#endif
+
 #ifdef CONFIG_SOC_OMAP2420
 void __init omap242x_map_common_io(void)
 {
@@ -278,6 +308,12 @@ void __init omap44xx_map_common_io(void)
 }
 #endif
 
+#ifdef CONFIG_SOC_OMAP5
+void __init omap5_map_common_io(void)
+{
+	iotable_init(omap54xx_io_desc, ARRAY_SIZE(omap54xx_io_desc));
+}
+#endif
 /*
  * omap2_init_reprogram_sdrc - reprogram SDRC timing parameters
  *
@@ -477,6 +513,20 @@ void __init ti81xx_init_late(void)
 }
 #endif
 
+#ifdef CONFIG_SOC_AM33XX
+void __init am33xx_init_early(void)
+{
+	omap2_set_globals_am33xx();
+	omap3xxx_check_revision();
+	ti81xx_check_features();
+	omap_common_init_early();
+	am33xx_voltagedomains_init();
+	am33xx_powerdomains_init();
+	am33xx_clockdomains_init();
+	am33xx_clk_init();
+}
+#endif
+
 #ifdef CONFIG_ARCH_OMAP4
 void __init omap4430_init_early(void)
 {
@@ -497,6 +547,15 @@ void __init omap4430_init_late(void)
 	omap_mux_late_init();
 	omap2_common_pm_late_init();
 	omap4_pm_init();
+}
+#endif
+
+#ifdef CONFIG_SOC_OMAP5
+void __init omap5_init_early(void)
+{
+	omap2_set_globals_5xxx();
+	omap5xxx_check_revision();
+	omap_common_init_early();
 }
 #endif
 

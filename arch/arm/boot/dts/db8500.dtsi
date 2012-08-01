@@ -48,7 +48,7 @@
 		};
 
 		rtc@80154000 {
-			compatible = "stericsson,db8500-rtc";
+			compatible = "arm,rtc-pl031", "arm,primecell";
 			reg = <0x80154000 0x1000>;
 			interrupts = <0 18 0x4>;
 		};
@@ -60,7 +60,7 @@
 			interrupts = <0 119 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <0>;
@@ -73,7 +73,7 @@
 			interrupts = <0 120 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <1>;
@@ -86,7 +86,7 @@
 			interrupts = <0 121 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <2>;
@@ -99,7 +99,7 @@
 			interrupts = <0 122 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <3>;
@@ -112,7 +112,7 @@
 			interrupts = <0 123 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <4>;
@@ -125,7 +125,7 @@
 			interrupts = <0 124 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <5>;
@@ -138,7 +138,7 @@
 			interrupts = <0 125 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <6>;
@@ -151,7 +151,7 @@
 			interrupts = <0 126 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <7>;
@@ -164,7 +164,7 @@
 			interrupts = <0 127 0x4>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			supports-sleepmode;
+			st,supports-sleepmode;
 			gpio-controller;
 			#gpio-cells = <2>;
 			gpio-bank = <8>;
@@ -206,62 +206,74 @@
 
 				// DB8500_REGULATOR_VAPE
 				db8500_vape_reg: db8500_vape {
+					regulator-compatible = "db8500_vape";
 					regulator-name = "db8500-vape";
 					regulator-always-on;
 				};
 
 				// DB8500_REGULATOR_VARM
 				db8500_varm_reg: db8500_varm {
+					regulator-compatible = "db8500_varm";
 					regulator-name = "db8500-varm";
 				};
 
 				// DB8500_REGULATOR_VMODEM
 				db8500_vmodem_reg: db8500_vmodem {
+					regulator-compatible = "db8500_vmodem";
 					regulator-name = "db8500-vmodem";
 				};
 
 				// DB8500_REGULATOR_VPLL
 				db8500_vpll_reg: db8500_vpll {
+					regulator-compatible = "db8500_vpll";
 					regulator-name = "db8500-vpll";
 				};
 
 				// DB8500_REGULATOR_VSMPS1
 				db8500_vsmps1_reg: db8500_vsmps1 {
+					regulator-compatible = "db8500_vsmps1";
 					regulator-name = "db8500-vsmps1";
 				};
 
 				// DB8500_REGULATOR_VSMPS2
 				db8500_vsmps2_reg: db8500_vsmps2 {
+					regulator-compatible = "db8500_vsmps2";
 					regulator-name = "db8500-vsmps2";
 				};
 
 				// DB8500_REGULATOR_VSMPS3
 				db8500_vsmps3_reg: db8500_vsmps3 {
+					regulator-compatible = "db8500_vsmps3";
 					regulator-name = "db8500-vsmps3";
 				};
 
 				// DB8500_REGULATOR_VRF1
 				db8500_vrf1_reg: db8500_vrf1 {
+					regulator-compatible = "db8500_vrf1";
 					regulator-name = "db8500-vrf1";
 				};
 
 				// DB8500_REGULATOR_SWITCH_SVAMMDSP
 				db8500_sva_mmdsp_reg: db8500_sva_mmdsp {
+					regulator-compatible = "db8500_sva_mmdsp";
 					regulator-name = "db8500-sva-mmdsp";
 				};
 
 				// DB8500_REGULATOR_SWITCH_SVAMMDSPRET
 				db8500_sva_mmdsp_ret_reg: db8500_sva_mmdsp_ret {
+					regulator-compatible = "db8500_sva_mmdsp_ret";
 					regulator-name = "db8500-sva-mmdsp-ret";
 				};
 
 				// DB8500_REGULATOR_SWITCH_SVAPIPE
 				db8500_sva_pipe_reg: db8500_sva_pipe {
+					regulator-compatible = "db8500_sva_pipe";
 					regulator-name = "db8500_sva_pipe";
 				};
 
 				// DB8500_REGULATOR_SWITCH_SIAMMDSP
 				db8500_sia_mmdsp_reg: db8500_sia_mmdsp {
+					regulator-compatible = "db8500_sia_mmdsp";
 					regulator-name = "db8500_sia_mmdsp";
 				};
 
@@ -272,38 +284,45 @@
 
 				// DB8500_REGULATOR_SWITCH_SIAPIPE
 				db8500_sia_pipe_reg: db8500_sia_pipe {
+					regulator-compatible = "db8500_sia_pipe";
 					regulator-name = "db8500-sia-pipe";
 				};
 
 				// DB8500_REGULATOR_SWITCH_SGA
 				db8500_sga_reg: db8500_sga {
+					regulator-compatible = "db8500_sga";
 					regulator-name = "db8500-sga";
 					vin-supply = <&db8500_vape_reg>;
 				};
 
 				// DB8500_REGULATOR_SWITCH_B2R2_MCDE
 				db8500_b2r2_mcde_reg: db8500_b2r2_mcde {
+					regulator-compatible = "db8500_b2r2_mcde";
 					regulator-name = "db8500-b2r2-mcde";
 					vin-supply = <&db8500_vape_reg>;
 				};
 
 				// DB8500_REGULATOR_SWITCH_ESRAM12
 				db8500_esram12_reg: db8500_esram12 {
+					regulator-compatible = "db8500_esram12";
 					regulator-name = "db8500-esram12";
 				};
 
 				// DB8500_REGULATOR_SWITCH_ESRAM12RET
 				db8500_esram12_ret_reg: db8500_esram12_ret {
+					regulator-compatible = "db8500_esram12_ret";
 					regulator-name = "db8500-esram12-ret";
 				};
 
 				// DB8500_REGULATOR_SWITCH_ESRAM34
 				db8500_esram34_reg: db8500_esram34 {
+					regulator-compatible = "db8500_esram34";
 					regulator-name = "db8500-esram34";
 				};
 
 				// DB8500_REGULATOR_SWITCH_ESRAM34RET
 				db8500_esram34_ret_reg: db8500_esram34_ret {
+					regulator-compatible = "db8500_esram34_ret";
 					regulator-name = "db8500-esram34-ret";
 				};
 			};
@@ -312,12 +331,70 @@
 				compatible = "stericsson,ab8500";
 				reg = <5>; /* mailbox 5 is i2c */
 				interrupts = <0 40 0x4>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				ab8500-rtc {
+					compatible = "stericsson,ab8500-rtc";
+					interrupts = <17 0x4
+					              18 0x4>;
+					interrupt-names = "60S", "ALARM";
+				};
+
+				ab8500-gpadc {
+					compatible = "stericsson,ab8500-gpadc";
+					interrupts = <32 0x4
+						      39 0x4>;
+					interrupt-names = "HW_CONV_END", "SW_CONV_END";
+					vddadc-supply = <&ab8500_ldo_tvout_reg>;
+				};
+
+				ab8500-usb {
+					compatible = "stericsson,ab8500-usb";
+					interrupts = < 90 0x4
+						       96 0x4
+						       14 0x4
+						       15 0x4
+						       79 0x4
+						       74 0x4
+						       75 0x4>;
+					interrupt-names = "ID_WAKEUP_R",
+							  "ID_WAKEUP_F",
+							  "VBUS_DET_F",
+							  "VBUS_DET_R",
+							  "USB_LINK_STATUS",
+							  "USB_ADP_PROBE_PLUG",
+							  "USB_ADP_PROBE_UNPLUG";
+					vddulpivio18-supply = <&ab8500_ldo_initcore_reg>;
+					v-ape-supply = <&db8500_vape_reg>;
+					musb_1v8-supply = <&db8500_vsmps2_reg>;
+				};
+
+				ab8500-ponkey {
+					compatible = "stericsson,ab8500-ponkey";
+					interrupts = <6 0x4
+						      7 0x4>;
+					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
+				};
+
+				ab8500-sysctrl {
+					compatible = "stericsson,ab8500-sysctrl";
+				};
+
+				ab8500-pwm {
+					compatible = "stericsson,ab8500-pwm";
+				};
+
+				ab8500-debugfs {
+					compatible = "stericsson,ab8500-debug";
+				};
 
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";
 
 					// supplies to the display/camera
 					ab8500_ldo_aux1_reg: ab8500_ldo_aux1 {
+						regulator-compatible = "ab8500_ldo_aux1";
 						regulator-name = "V-DISPLAY";
 						regulator-min-microvolt = <2500000>;
 						regulator-max-microvolt = <2900000>;
@@ -328,6 +405,7 @@
 
 					// supplies to the on-board eMMC
 					ab8500_ldo_aux2_reg: ab8500_ldo_aux2 {
+						regulator-compatible = "ab8500_ldo_aux2";
 						regulator-name = "V-eMMC1";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <3300000>;
@@ -335,6 +413,7 @@
 
 					// supply for VAUX3; SDcard slots
 					ab8500_ldo_aux3_reg: ab8500_ldo_aux3 {
+						regulator-compatible = "ab8500_ldo_aux3";
 						regulator-name = "V-MMC-SD";
 						regulator-min-microvolt = <1100000>;
 						regulator-max-microvolt = <3300000>;
@@ -342,41 +421,49 @@
 
 					// supply for v-intcore12; VINTCORE12 LDO
 					ab8500_ldo_initcore_reg: ab8500_ldo_initcore {
+						regulator-compatible = "ab8500_ldo_initcore";
 						regulator-name = "V-INTCORE";
 					};
 
 					// supply for tvout; gpadc; TVOUT LDO
 					ab8500_ldo_tvout_reg: ab8500_ldo_tvout {
+						regulator-compatible = "ab8500_ldo_tvout";
 						regulator-name = "V-TVOUT";
 					};
 
 					// supply for ab8500-usb; USB LDO
 					ab8500_ldo_usb_reg: ab8500_ldo_usb {
+						regulator-compatible = "ab8500_ldo_usb";
 						regulator-name = "dummy";
 					};
 
 					// supply for ab8500-vaudio; VAUDIO LDO
 					ab8500_ldo_audio_reg: ab8500_ldo_audio {
+						regulator-compatible = "ab8500_ldo_audio";
 						regulator-name = "V-AUD";
 					};
 
 					// supply for v-anamic1 VAMic1-LDO
 					ab8500_ldo_anamic1_reg: ab8500_ldo_anamic1 {
+						regulator-compatible = "ab8500_ldo_anamic1";
 						regulator-name = "V-AMIC1";
 					};
 
 					// supply for v-amic2; VAMIC2 LDO; reuse constants for AMIC1
 					ab8500_ldo_amamic2_reg: ab8500_ldo_amamic2 {
+						regulator-compatible = "ab8500_ldo_amamic2";
 						regulator-name = "V-AMIC2";
 					};
 
 					// supply for v-dmic; VDMIC LDO
 					ab8500_ldo_dmic_reg: ab8500_ldo_dmic {
+						regulator-compatible = "ab8500_ldo_dmic";
 						regulator-name = "V-DMIC";
 					};
 
 					// supply for U8500 CSI/DSI; VANA LDO
 					ab8500_ldo_ana_reg: ab8500_ldo_ana {
+						regulator-compatible = "ab8500_ldo_ana";
 						regulator-name = "V-CSI/DSI";
 					};
 				};

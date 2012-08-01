@@ -2806,37 +2806,22 @@ static int nfs4_proc_readlink(struct inode *inode, struct page *page,
 }
 
 /*
- * Got race?
- * We will need to arrange for the VFS layer to provide an atomic open.
- * Until then, this create/open method is prone to inefficiency and race
- * conditions due to the lookup, create, and open VFS calls from sys_open()
- * placed on the wire.
- *
- * Given the above sorry state of affairs, I'm simply sending an OPEN.
- * The file will be opened again in the subsequent VFS open call
- * (nfs4_proc_file_open).
- *
- * The open for read will just hang around to be used by any process that
- * opens the file O_RDONLY. This will all be resolved with the VFS changes.
+ * This is just for mknod.  open(O_CREAT) will always do ->open_context().
  */
-
 static int
 nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-                 int flags, struct nfs_open_context *ctx)
+		 int flags)
 {
-	struct dentry *de = dentry;
+	struct nfs_open_context *ctx;
 	struct nfs4_state *state;
-	struct rpc_cred *cred = NULL;
-	fmode_t fmode = 0;
 	int status = 0;
 
-	if (ctx != NULL) {
-		cred = ctx->cred;
-		de = ctx->dentry;
-		fmode = ctx->mode;
-	}
+	ctx = alloc_nfs_open_context(dentry, FMODE_READ);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
 	sattr->ia_mode &= ~current_umask();
-	state = nfs4_do_open(dir, de, fmode, flags, sattr, cred, NULL);
+	state = nfs4_do_open(dir, dentry, ctx->mode, flags, sattr, ctx->cred, NULL);
 	d_drop(dentry);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
@@ -2844,11 +2829,9 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	}
 	d_add(dentry, igrab(state->inode));
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-	if (ctx != NULL)
-		ctx->state = state;
-	else
-		nfs4_close_sync(state, fmode);
+	ctx->state = state;
 out:
+	put_nfs_open_context(ctx);
 	return status;
 }
 

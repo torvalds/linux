@@ -512,7 +512,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
 
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
 /* Set correct numa_node information for AMD NB functions */
-static void __init quirk_amd_nb_node(struct pci_dev *dev)
+static void __devinit quirk_amd_nb_node(struct pci_dev *dev)
 {
 	struct pci_dev *nb_ht;
 	unsigned int devfn;

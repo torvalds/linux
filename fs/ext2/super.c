@@ -771,13 +771,13 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	err = -ENOMEM;
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
-		goto failed_unlock;
+		goto failed;
 
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
 	if (!sbi->s_blockgroup_lock) {
 		kfree(sbi);
-		goto failed_unlock;
+		goto failed;
 	}
 	sb->s_fs_info = sbi;
 	sbi->s_sb_block = sb_block;
@@ -1130,7 +1130,7 @@ failed_sbi:
 	sb->s_fs_info = NULL;
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
-failed_unlock:
+failed:
 	return ret;
 }
 
@@ -1183,6 +1183,12 @@ static int ext2_sync_fs(struct super_block *sb, int wait)
 {
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 	struct ext2_super_block *es = EXT2_SB(sb)->s_es;
+
+	/*
+	 * Write quota structures to quota file, sync_blockdev() will write
+	 * them to disk later
+	 */
+	dquot_writeback_dquots(sb, -1);
 
 	spin_lock(&sbi->s_lock);
 	if (es->s_state & cpu_to_le16(EXT2_VALID_FS)) {

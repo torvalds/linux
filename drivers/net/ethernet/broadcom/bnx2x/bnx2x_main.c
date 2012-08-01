@@ -74,6 +74,8 @@
 #define FW_FILE_NAME_E1H	"bnx2x/bnx2x-e1h-" FW_FILE_VERSION ".fw"
 #define FW_FILE_NAME_E2		"bnx2x/bnx2x-e2-" FW_FILE_VERSION ".fw"
 
+#define MAC_LEADING_ZERO_CNT (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
+
 /* Time in jiffies before concluding the transmitter is hung */
 #define TX_TIMEOUT		(5*HZ)
 
@@ -104,7 +106,7 @@ MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
 #define INT_MODE_INTx			1
 #define INT_MODE_MSI			2
-static int int_mode;
+int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode other than MSI-X "
 				"(1 INT#x; 2 MSI)");
@@ -135,7 +137,10 @@ enum bnx2x_board_type {
 	BCM57800_MF,
 	BCM57810,
 	BCM57810_MF,
-	BCM57840,
+	BCM57840_O,
+	BCM57840_4_10,
+	BCM57840_2_20,
+	BCM57840_MFO,
 	BCM57840_MF,
 	BCM57811,
 	BCM57811_MF
@@ -155,6 +160,9 @@ static struct {
 	{ "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet" },
 	{ "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Multi Function" },
 	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet" },
+	{ "Broadcom NetXtreme II BCM57840 10 Gigabit Ethernet" },
+	{ "Broadcom NetXtreme II BCM57840 20 Gigabit Ethernet" },
+	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function"},
 	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function"},
 	{ "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet"},
 	{ "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet Multi Function"},
@@ -187,8 +195,17 @@ static struct {
 #ifndef PCI_DEVICE_ID_NX2_57810_MF
 #define PCI_DEVICE_ID_NX2_57810_MF	CHIP_NUM_57810_MF
 #endif
-#ifndef PCI_DEVICE_ID_NX2_57840
-#define PCI_DEVICE_ID_NX2_57840		CHIP_NUM_57840
+#ifndef PCI_DEVICE_ID_NX2_57840_O
+#define PCI_DEVICE_ID_NX2_57840_O	CHIP_NUM_57840_OBSOLETE
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57840_4_10
+#define PCI_DEVICE_ID_NX2_57840_4_10	CHIP_NUM_57840_4_10
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57840_2_20
+#define PCI_DEVICE_ID_NX2_57840_2_20	CHIP_NUM_57840_2_20
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57840_MFO
+#define PCI_DEVICE_ID_NX2_57840_MFO	CHIP_NUM_57840_MF_OBSOLETE
 #endif
 #ifndef PCI_DEVICE_ID_NX2_57840_MF
 #define PCI_DEVICE_ID_NX2_57840_MF	CHIP_NUM_57840_MF
@@ -209,7 +226,10 @@ static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_MF), BCM57800_MF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810), BCM57810 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_MF), BCM57810_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840), BCM57840 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_O), BCM57840_O },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_4_10), BCM57840_4_10 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_2_20), BCM57840_2_20 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MFO), BCM57840_MFO },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MF), BCM57840_MF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811), BCM57811 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_MF), BCM57811_MF },
@@ -758,7 +778,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 		/* Tx */
 		for_each_cos_in_tx_queue(fp, cos)
 		{
-			txdata = fp->txdata[cos];
+			txdata = *fp->txdata_ptr[cos];
 			BNX2X_ERR("fp%d: tx_pkt_prod(0x%x)  tx_pkt_cons(0x%x)  tx_bd_prod(0x%x)  tx_bd_cons(0x%x)  *tx_cons_sb(0x%x)\n",
 				  i, txdata.tx_pkt_prod,
 				  txdata.tx_pkt_cons, txdata.tx_bd_prod,
@@ -876,7 +896,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 	for_each_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		for_each_cos_in_tx_queue(fp, cos) {
-			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			struct bnx2x_fp_txdata *txdata = fp->txdata_ptr[cos];
 
 			start = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) - 10);
 			end = TX_BD(le16_to_cpu(*txdata->tx_cons_sb) + 245);
@@ -1583,7 +1603,7 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe)
 	int cid = SW_CID(rr_cqe->ramrod_cqe.conn_and_cmd_data);
 	int command = CQE_CMD(rr_cqe->ramrod_cqe.conn_and_cmd_data);
 	enum bnx2x_queue_cmd drv_cmd = BNX2X_Q_CMD_MAX;
-	struct bnx2x_queue_sp_obj *q_obj = &fp->q_obj;
+	struct bnx2x_queue_sp_obj *q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 	DP(BNX2X_MSG_SP,
 	   "fp %d  cid %d  got ramrod #%d  state is %x  type is %d\n",
@@ -1710,7 +1730,7 @@ irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 			/* Handle Rx or Tx according to SB id */
 			prefetch(fp->rx_cons_sb);
 			for_each_cos_in_tx_queue(fp, cos)
-				prefetch(fp->txdata[cos].tx_cons_sb);
+				prefetch(fp->txdata_ptr[cos]->tx_cons_sb);
 			prefetch(&fp->sb_running_index[SM_RX_ID]);
 			napi_schedule(&bnx2x_fp(bp, fp->index, napi));
 			status &= ~mask;
@@ -2122,6 +2142,11 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 					lp->req_line_speed[cfx_idx] =
 					SPEED_1000;
 			}
+		}
+
+		if (load_mode == LOAD_LOOPBACK_EXT) {
+			struct link_params *lp = &bp->link_params;
+			lp->loopback_mode = LOOPBACK_EXT;
 		}
 
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
@@ -2916,7 +2941,7 @@ static void bnx2x_pf_tx_q_prep(struct bnx2x *bp,
 	struct bnx2x_fastpath *fp, struct bnx2x_txq_setup_params *txq_init,
 	u8 cos)
 {
-	txq_init->dscr_map = fp->txdata[cos].tx_desc_mapping;
+	txq_init->dscr_map = fp->txdata_ptr[cos]->tx_desc_mapping;
 	txq_init->sb_cq_index = HC_INDEX_ETH_FIRST_TX_CQ_CONS + cos;
 	txq_init->traffic_type = LLFC_TRAFFIC_TYPE_NW;
 	txq_init->fw_sb_id = fp->fw_sb_id;
@@ -3030,9 +3055,9 @@ static void bnx2x_drv_info_ether_stat(struct bnx2x *bp)
 	memcpy(ether_stat->version, DRV_MODULE_VERSION,
 	       ETH_STAT_INFO_VERSION_LEN - 1);
 
-	bp->fp[0].mac_obj.get_n_elements(bp, &bp->fp[0].mac_obj,
-					 DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
-					 ether_stat->mac_local);
+	bp->sp_objs[0].mac_obj.get_n_elements(bp, &bp->sp_objs[0].mac_obj,
+					DRV_INFO_ETH_STAT_NUM_MACS_REQUIRED,
+					ether_stat->mac_local);
 
 	ether_stat->mtu_size = bp->dev->mtu;
 
@@ -3055,7 +3080,8 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 	struct fcoe_stats_info *fcoe_stat =
 		&bp->slowpath->drv_info_to_mcp.fcoe_stat;
 
-	memcpy(fcoe_stat->mac_local, bp->fip_mac, ETH_ALEN);
+	memcpy(fcoe_stat->mac_local + MAC_LEADING_ZERO_CNT,
+	       bp->fip_mac, ETH_ALEN);
 
 	fcoe_stat->qos_priority =
 		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_FCOE];
@@ -3063,11 +3089,11 @@ static void bnx2x_drv_info_fcoe_stat(struct bnx2x *bp)
 	/* insert FCoE stats from ramrod response */
 	if (!NO_FCOE(bp)) {
 		struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
-			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)].
 			tstorm_queue_statistics;
 
 		struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
-			&bp->fw_stats_data->queue_stats[FCOE_IDX].
+			&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)].
 			xstorm_queue_statistics;
 
 		struct fcoe_statistics_params *fw_fcoe_stat =
@@ -3146,7 +3172,8 @@ static void bnx2x_drv_info_iscsi_stat(struct bnx2x *bp)
 	struct iscsi_stats_info *iscsi_stat =
 		&bp->slowpath->drv_info_to_mcp.iscsi_stat;
 
-	memcpy(iscsi_stat->mac_local, bp->cnic_eth_dev.iscsi_mac, ETH_ALEN);
+	memcpy(iscsi_stat->mac_local + MAC_LEADING_ZERO_CNT,
+	       bp->cnic_eth_dev.iscsi_mac, ETH_ALEN);
 
 	iscsi_stat->qos_priority =
 		app->traffic_type_priority[LLFC_TRAFFIC_TYPE_ISCSI];
@@ -3174,6 +3201,12 @@ static void bnx2x_set_mf_bw(struct bnx2x *bp)
 {
 	bnx2x_config_mf_bw(bp);
 	bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW_ACK, 0);
+}
+
+static void bnx2x_handle_eee_event(struct bnx2x *bp)
+{
+	DP(BNX2X_MSG_MCP, "EEE - LLDP event\n");
+	bnx2x_fw_command(bp, DRV_MSG_CODE_EEE_RESULTS_ACK, 0);
 }
 
 static void bnx2x_handle_drv_info_req(struct bnx2x *bp)
@@ -3742,6 +3775,8 @@ static void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			if (val & DRV_STATUS_AFEX_EVENT_MASK)
 				bnx2x_handle_afex_cmd(bp,
 					val & DRV_STATUS_AFEX_EVENT_MASK);
+			if (val & DRV_STATUS_EEE_NEGOTIATION_RESULTS)
+				bnx2x_handle_eee_event(bp);
 			if (bp->link_vars.periodic_flags &
 			    PERIODIC_FLAGS_LINK_EVENT) {
 				/*  sync with link */
@@ -4615,11 +4650,11 @@ static void bnx2x_handle_classification_eqe(struct bnx2x *bp,
 	case BNX2X_FILTER_MAC_PENDING:
 		DP(BNX2X_MSG_SP, "Got SETUP_MAC completions\n");
 #ifdef BCM_CNIC
-		if (cid == BNX2X_ISCSI_ETH_CID)
+		if (cid == BNX2X_ISCSI_ETH_CID(bp))
 			vlan_mac_obj = &bp->iscsi_l2_mac_obj;
 		else
 #endif
-			vlan_mac_obj = &bp->fp[cid].mac_obj;
+			vlan_mac_obj = &bp->sp_objs[cid].mac_obj;
 
 		break;
 	case BNX2X_FILTER_MCAST_PENDING:
@@ -4717,7 +4752,7 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 	for_each_eth_queue(bp, q) {
 		/* Set the appropriate Queue object */
 		fp = &bp->fp[q];
-		queue_params.q_obj = &fp->q_obj;
+		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 		/* send the ramrod */
 		rc = bnx2x_queue_state_change(bp, &queue_params);
@@ -4728,8 +4763,8 @@ static void bnx2x_after_function_update(struct bnx2x *bp)
 
 #ifdef BCM_CNIC
 	if (!NO_FCOE(bp)) {
-		fp = &bp->fp[FCOE_IDX];
-		queue_params.q_obj = &fp->q_obj;
+		fp = &bp->fp[FCOE_IDX(bp)];
+		queue_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 
 		/* clear pending completion bit */
 		__clear_bit(RAMROD_COMP_WAIT, &queue_params.ramrod_flags);
@@ -4761,11 +4796,11 @@ static struct bnx2x_queue_sp_obj *bnx2x_cid_to_q_obj(
 {
 	DP(BNX2X_MSG_SP, "retrieving fp from cid %d\n", cid);
 #ifdef BCM_CNIC
-	if (cid == BNX2X_FCOE_ETH_CID)
-		return &bnx2x_fcoe(bp, q_obj);
+	if (cid == BNX2X_FCOE_ETH_CID(bp))
+		return &bnx2x_fcoe_sp_obj(bp, q_obj);
 	else
 #endif
-		return &bnx2x_fp(bp, CID_TO_FP(cid), q_obj);
+		return &bp->sp_objs[CID_TO_FP(cid, bp)].q_obj;
 }
 
 static void bnx2x_eq_int(struct bnx2x *bp)
@@ -5647,15 +5682,15 @@ static void bnx2x_init_eth_fp(struct bnx2x *bp, int fp_idx)
 
 	/* init tx data */
 	for_each_cos_in_tx_queue(fp, cos) {
-		bnx2x_init_txdata(bp, &fp->txdata[cos],
-				  CID_COS_TO_TX_ONLY_CID(fp->cid, cos),
-				  FP_COS_TO_TXQ(fp, cos),
-				  BNX2X_TX_SB_INDEX_BASE + cos);
-		cids[cos] = fp->txdata[cos].cid;
+		bnx2x_init_txdata(bp, fp->txdata_ptr[cos],
+				  CID_COS_TO_TX_ONLY_CID(fp->cid, cos, bp),
+				  FP_COS_TO_TXQ(fp, cos, bp),
+				  BNX2X_TX_SB_INDEX_BASE + cos, fp);
+		cids[cos] = fp->txdata_ptr[cos]->cid;
 	}
 
-	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, cids, fp->max_cos,
-			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+	bnx2x_init_queue_obj(bp, &bnx2x_sp_obj(bp, fp).q_obj, fp->cl_id, cids,
+			     fp->max_cos, BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
 	/**
@@ -5706,7 +5741,7 @@ static void bnx2x_init_tx_rings(struct bnx2x *bp)
 
 	for_each_tx_queue(bp, i)
 		for_each_cos_in_tx_queue(&bp->fp[i], cos)
-			bnx2x_init_tx_ring_one(&bp->fp[i].txdata[cos]);
+			bnx2x_init_tx_ring_one(bp->fp[i].txdata_ptr[cos]);
 }
 
 void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
@@ -7055,12 +7090,10 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 	cdu_ilt_start = ilt->clients[ILT_CLIENT_CDU].start;
 
 	for (i = 0; i < L2_ILT_LINES(bp); i++) {
-		ilt->lines[cdu_ilt_start + i].page =
-			bp->context.vcxt + (ILT_PAGE_CIDS * i);
+		ilt->lines[cdu_ilt_start + i].page = bp->context[i].vcxt;
 		ilt->lines[cdu_ilt_start + i].page_mapping =
-			bp->context.cxt_mapping + (CDU_ILT_PAGE_SZ * i);
-		/* cdu ilt pages are allocated manually so there's no need to
-		set the size */
+			bp->context[i].cxt_mapping;
+		ilt->lines[cdu_ilt_start + i].size = bp->context[i].size;
 	}
 	bnx2x_ilt_init_op(bp, INITOP_SET);
 
@@ -7327,6 +7360,8 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 void bnx2x_free_mem(struct bnx2x *bp)
 {
+	int i;
+
 	/* fastpath */
 	bnx2x_free_fp_mem(bp);
 	/* end of fastpath */
@@ -7340,9 +7375,9 @@ void bnx2x_free_mem(struct bnx2x *bp)
 	BNX2X_PCI_FREE(bp->slowpath, bp->slowpath_mapping,
 		       sizeof(struct bnx2x_slowpath));
 
-	BNX2X_PCI_FREE(bp->context.vcxt, bp->context.cxt_mapping,
-		       bp->context.size);
-
+	for (i = 0; i < L2_ILT_LINES(bp); i++)
+		BNX2X_PCI_FREE(bp->context[i].vcxt, bp->context[i].cxt_mapping,
+			       bp->context[i].size);
 	bnx2x_ilt_mem_op(bp, ILT_MEMOP_FREE);
 
 	BNX2X_FREE(bp->ilt->lines);
@@ -7428,6 +7463,8 @@ alloc_mem_err:
 
 int bnx2x_alloc_mem(struct bnx2x *bp)
 {
+	int i, allocated, context_size;
+
 #ifdef BCM_CNIC
 	if (!CHIP_IS_E1x(bp))
 		/* size = the status block + ramrod buffers */
@@ -7457,11 +7494,29 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	if (bnx2x_alloc_fw_stats_mem(bp))
 		goto alloc_mem_err;
 
-	bp->context.size = sizeof(union cdu_context) * BNX2X_L2_CID_COUNT(bp);
+	/* Allocate memory for CDU context:
+	 * This memory is allocated separately and not in the generic ILT
+	 * functions because CDU differs in few aspects:
+	 * 1. There are multiple entities allocating memory for context -
+	 * 'regular' driver, CNIC and SRIOV driver. Each separately controls
+	 * its own ILT lines.
+	 * 2. Since CDU page-size is not a single 4KB page (which is the case
+	 * for the other ILT clients), to be efficient we want to support
+	 * allocation of sub-page-size in the last entry.
+	 * 3. Context pointers are used by the driver to pass to FW / update
+	 * the context (for the other ILT clients the pointers are used just to
+	 * free the memory during unload).
+	 */
+	context_size = sizeof(union cdu_context) * BNX2X_L2_CID_COUNT(bp);
 
-	BNX2X_PCI_ALLOC(bp->context.vcxt, &bp->context.cxt_mapping,
-			bp->context.size);
-
+	for (i = 0, allocated = 0; allocated < context_size; i++) {
+		bp->context[i].size = min(CDU_ILT_PAGE_SZ,
+					  (context_size - allocated));
+		BNX2X_PCI_ALLOC(bp->context[i].vcxt,
+				&bp->context[i].cxt_mapping,
+				bp->context[i].size);
+		allocated += bp->context[i].size;
+	}
 	BNX2X_ALLOC(bp->ilt->lines, sizeof(struct ilt_line) * ILT_MAX_LINES);
 
 	if (bnx2x_ilt_mem_op(bp, ILT_MEMOP_ALLOC))
@@ -7563,8 +7618,8 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 
 	__set_bit(RAMROD_COMP_WAIT, &ramrod_flags);
 	/* Eth MAC is set on RSS leading client (fp[0]) */
-	return bnx2x_set_mac_one(bp, bp->dev->dev_addr, &bp->fp->mac_obj, set,
-				 BNX2X_ETH_MAC, &ramrod_flags);
+	return bnx2x_set_mac_one(bp, bp->dev->dev_addr, &bp->sp_objs->mac_obj,
+				 set, BNX2X_ETH_MAC, &ramrod_flags);
 }
 
 int bnx2x_setup_leading(struct bnx2x *bp)
@@ -7579,7 +7634,7 @@ int bnx2x_setup_leading(struct bnx2x *bp)
  *
  * In case of MSI-X it will also try to enable MSI-X.
  */
-static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
+void bnx2x_set_int_mode(struct bnx2x *bp)
 {
 	switch (int_mode) {
 	case INT_MODE_MSI:
@@ -7590,11 +7645,6 @@ static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 		BNX2X_DEV_INFO("set number of queues to 1\n");
 		break;
 	default:
-		/* Set number of queues for MSI-X mode */
-		bnx2x_set_num_queues(bp);
-
-		BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
-
 		/* if we can't use MSI-X we only need one fp,
 		 * so try to enable MSI-X with the requested number of fp's
 		 * and fallback to MSI or legacy INTx with one fp
@@ -7735,6 +7785,8 @@ static void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 {
 
 	u8 cos;
+	int cxt_index, cxt_offset;
+
 	/* FCoE Queue uses Default SB, thus has no HC capabilities */
 	if (!IS_FCOE_FP(fp)) {
 		__set_bit(BNX2X_Q_FLG_HC, &init_params->rx.flags);
@@ -7771,9 +7823,13 @@ static void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 	    fp->index, init_params->max_cos);
 
 	/* set the context pointers queue object */
-	for (cos = FIRST_TX_COS_INDEX; cos < init_params->max_cos; cos++)
+	for (cos = FIRST_TX_COS_INDEX; cos < init_params->max_cos; cos++) {
+		cxt_index = fp->txdata_ptr[cos]->cid / ILT_PAGE_CIDS;
+		cxt_offset = fp->txdata_ptr[cos]->cid - (cxt_index *
+				ILT_PAGE_CIDS);
 		init_params->cxts[cos] =
-			&bp->context.vcxt[fp->txdata[cos].cid].eth;
+			&bp->context[cxt_index].vcxt[cxt_offset].eth;
+	}
 }
 
 int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
@@ -7838,7 +7894,7 @@ int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		bnx2x_ack_sb(bp, fp->igu_sb_id, USTORM_ID, 0,
 			     IGU_INT_ENABLE, 0);
 
-	q_params.q_obj = &fp->q_obj;
+	q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 	/* We want to wait for completion in this context */
 	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
@@ -7911,7 +7967,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 
 	DP(NETIF_MSG_IFDOWN, "stopping queue %d cid %d\n", index, fp->cid);
 
-	q_params.q_obj = &fp->q_obj;
+	q_params.q_obj = &bnx2x_sp_obj(bp, fp).q_obj;
 	/* We want to wait for completion in this context */
 	__set_bit(RAMROD_COMP_WAIT, &q_params.ramrod_flags);
 
@@ -7922,7 +7978,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 	     tx_index++){
 
 		/* ascertain this is a normal queue*/
-		txdata = &fp->txdata[tx_index];
+		txdata = fp->txdata_ptr[tx_index];
 
 		DP(NETIF_MSG_IFDOWN, "stopping tx-only queue %d\n",
 							txdata->txq_index);
@@ -8289,7 +8345,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		for_each_cos_in_tx_queue(fp, cos)
-			rc = bnx2x_clean_tx_queue(bp, &fp->txdata[cos]);
+			rc = bnx2x_clean_tx_queue(bp, fp->txdata_ptr[cos]);
 #ifdef BNX2X_STOP_ON_ERROR
 		if (rc)
 			return;
@@ -8300,12 +8356,13 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	usleep_range(1000, 1000);
 
 	/* Clean all ETH MACs */
-	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_ETH_MAC, false);
+	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_ETH_MAC,
+				false);
 	if (rc < 0)
 		BNX2X_ERR("Failed to delete all ETH macs: %d\n", rc);
 
 	/* Clean up UC list  */
-	rc = bnx2x_del_all_macs(bp, &bp->fp[0].mac_obj, BNX2X_UC_LIST_MAC,
+	rc = bnx2x_del_all_macs(bp, &bp->sp_objs[0].mac_obj, BNX2X_UC_LIST_MAC,
 				true);
 	if (rc < 0)
 		BNX2X_ERR("Failed to schedule DEL commands for UC MACs list: %d\n",
@@ -9697,6 +9754,11 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	bp->flags |= (val >= REQ_BC_VER_4_PFC_STATS_SUPPORTED) ?
 			BC_SUPPORTS_PFC_STATS : 0;
 
+	bp->flags |= (val >= REQ_BC_VER_4_FCOE_FEATURES) ?
+			BC_SUPPORTS_FCOE_FEATURES : 0;
+
+	bp->flags |= (val >= REQ_BC_VER_4_DCBX_ADMIN_MSG_NON_PMF) ?
+			BC_SUPPORTS_DCBX_MSG_NON_PMF : 0;
 	boot_mode = SHMEM_RD(bp,
 			dev_info.port_feature_config[BP_PORT(bp)].mba_config) &
 			PORT_FEATURE_MBA_BOOT_AGENT_TYPE_MASK;
@@ -10082,7 +10144,7 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	u32 config;
-	u32 ext_phy_type, ext_phy_config;
+	u32 ext_phy_type, ext_phy_config, eee_mode;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
@@ -10149,6 +10211,19 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
 							bp->common.shmem_base,
 							bp->common.shmem2_base);
+
+	/* Configure link feature according to nvram value */
+	eee_mode = (((SHMEM_RD(bp, dev_info.
+		      port_feature_config[port].eee_power_mode)) &
+		     PORT_FEAT_CFG_EEE_POWER_MODE_MASK) >>
+		    PORT_FEAT_CFG_EEE_POWER_MODE_SHIFT);
+	if (eee_mode != PORT_FEAT_CFG_EEE_POWER_MODE_DISABLED) {
+		bp->link_params.eee_mode = EEE_MODE_ADV_LPI |
+					   EEE_MODE_ENABLE_LPI |
+					   EEE_MODE_OUTPUT_TIME;
+	} else {
+		bp->link_params.eee_mode = 0;
+	}
 }
 
 void bnx2x_get_iscsi_info(struct bnx2x *bp)
@@ -10997,7 +11072,7 @@ static int bnx2x_set_uc_list(struct bnx2x *bp)
 	int rc;
 	struct net_device *dev = bp->dev;
 	struct netdev_hw_addr *ha;
-	struct bnx2x_vlan_mac_obj *mac_obj = &bp->fp->mac_obj;
+	struct bnx2x_vlan_mac_obj *mac_obj = &bp->sp_objs->mac_obj;
 	unsigned long ramrod_flags = 0;
 
 	/* First schedule a cleanup up of old configuration */
@@ -11503,8 +11578,7 @@ static void bnx2x_prep_ops(const u8 *_source, u8 *_target, u32 n)
 	}
 }
 
-/**
- * IRO array is stored in the following format:
+/* IRO array is stored in the following format:
  * {base(24bit), m1(16bit), m2(16bit), m3(16bit), size(16bit) }
  */
 static void bnx2x_prep_iro(const u8 *_source, u8 *_target, u32 n)
@@ -11672,7 +11746,7 @@ void bnx2x__init_func_obj(struct bnx2x *bp)
 /* must be called after sriov-enable */
 static int bnx2x_set_qm_cid_count(struct bnx2x *bp)
 {
-	int cid_count = BNX2X_L2_CID_COUNT(bp);
+	int cid_count = BNX2X_L2_MAX_CID(bp);
 
 #ifdef BCM_CNIC
 	cid_count += CNIC_CID_MAX;
@@ -11717,7 +11791,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	struct bnx2x *bp;
 	int pcie_width, pcie_speed;
 	int rc, max_non_def_sbs;
-	int rx_count, tx_count, rss_count;
+	int rx_count, tx_count, rss_count, doorbell_size;
 	/*
 	 * An estimated maximum supported CoS number according to the chip
 	 * version.
@@ -11745,7 +11819,10 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	case BCM57800_MF:
 	case BCM57810:
 	case BCM57810_MF:
-	case BCM57840:
+	case BCM57840_O:
+	case BCM57840_4_10:
+	case BCM57840_2_20:
+	case BCM57840_MFO:
 	case BCM57840_MF:
 	case BCM57811:
 	case BCM57811_MF:
@@ -11760,13 +11837,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	max_non_def_sbs = bnx2x_get_num_non_def_sbs(pdev);
 
-	/* !!! FIXME !!!
-	 * Do not allow the maximum SB count to grow above 16
-	 * since Special CIDs starts from 16*BNX2X_MULTI_TX_COS=48.
-	 * We will use the FP_SB_MAX_E1x macro for this matter.
-	 */
-	max_non_def_sbs = min_t(int, FP_SB_MAX_E1x, max_non_def_sbs);
-
 	WARN_ON(!max_non_def_sbs);
 
 	/* Maximum number of RSS queues: one IGU SB goes to CNIC */
@@ -11777,9 +11847,9 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	/*
 	 * Maximum number of netdev Tx queues:
-	 *      Maximum TSS queues * Maximum supported number of CoS  + FCoE L2
+	 * Maximum TSS queues * Maximum supported number of CoS  + FCoE L2
 	 */
-	tx_count = MAX_TXQS_PER_COS * max_cos_est + FCOE_PRESENT;
+	tx_count = rss_count * max_cos_est + FCOE_PRESENT;
 
 	/* dev zeroed in init_etherdev */
 	dev = alloc_etherdev_mqs(sizeof(*bp), tx_count, rx_count);
@@ -11787,9 +11857,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	bp = netdev_priv(dev);
-
-	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
-			  tx_count, rx_count);
 
 	bp->igu_sb_cnt = max_non_def_sbs;
 	bp->msg_enable = debug;
@@ -11803,6 +11870,9 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	BNX2X_DEV_INFO("max_non_def_sbs %d\n", max_non_def_sbs);
 
+	BNX2X_DEV_INFO("Allocated netdev with %d tx and %d rx queues\n",
+			  tx_count, rx_count);
+
 	rc = bnx2x_init_bp(bp);
 	if (rc)
 		goto init_one_exit;
@@ -11811,9 +11881,15 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	 * Map doorbels here as we need the real value of bp->max_cos which
 	 * is initialized in bnx2x_init_bp().
 	 */
+	doorbell_size = BNX2X_L2_MAX_CID(bp) * (1 << BNX2X_DB_SHIFT);
+	if (doorbell_size > pci_resource_len(pdev, 2)) {
+		dev_err(&bp->pdev->dev,
+			"Cannot map doorbells, bar size too small, aborting\n");
+		rc = -ENOMEM;
+		goto init_one_exit;
+	}
 	bp->doorbells = ioremap_nocache(pci_resource_start(pdev, 2),
-					min_t(u64, BNX2X_DB_SIZE(bp),
-					      pci_resource_len(pdev, 2)));
+					doorbell_size);
 	if (!bp->doorbells) {
 		dev_err(&bp->pdev->dev,
 			"Cannot map doorbell space, aborting\n");
@@ -11831,8 +11907,12 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 #endif
 
+
+	/* Set bp->num_queues for MSI-X mode*/
+	bnx2x_set_num_queues(bp);
+
 	/* Configure interrupt mode: try to enable MSI-X/MSI if
-	 * needed, set bp->num_queues appropriately.
+	 * needed.
 	 */
 	bnx2x_set_int_mode(bp);
 
@@ -12176,6 +12256,7 @@ static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp)
 static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 {
 	struct eth_spe *spe;
+	int cxt_index, cxt_offset;
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -12198,10 +12279,16 @@ static void bnx2x_cnic_sp_post(struct bnx2x *bp, int count)
 		 *  ramrod
 		 */
 		if (type == ETH_CONNECTION_TYPE) {
-			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP)
-				bnx2x_set_ctx_validation(bp, &bp->context.
-					vcxt[BNX2X_ISCSI_ETH_CID].eth,
-					BNX2X_ISCSI_ETH_CID);
+			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP) {
+				cxt_index = BNX2X_ISCSI_ETH_CID(bp) /
+					ILT_PAGE_CIDS;
+				cxt_offset = BNX2X_ISCSI_ETH_CID(bp) -
+					(cxt_index * ILT_PAGE_CIDS);
+				bnx2x_set_ctx_validation(bp,
+					&bp->context[cxt_index].
+							 vcxt[cxt_offset].eth,
+					BNX2X_ISCSI_ETH_CID(bp));
+			}
 		}
 
 		/*
@@ -12488,21 +12575,45 @@ static int bnx2x_drv_ctl(struct net_device *dev, struct drv_ctl_info *ctl)
 		break;
 	}
 	case DRV_CTL_ULP_REGISTER_CMD: {
-		int ulp_type = ctl->data.ulp_type;
+		int ulp_type = ctl->data.register_data.ulp_type;
 
 		if (CHIP_IS_E3(bp)) {
 			int idx = BP_FW_MB_IDX(bp);
-			u32 cap;
+			u32 cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			int path = BP_PATH(bp);
+			int port = BP_PORT(bp);
+			int i;
+			u32 scratch_offset;
+			u32 *host_addr;
 
-			cap = SHMEM2_RD(bp, drv_capabilities_flag[idx]);
+			/* first write capability to shmem2 */
 			if (ulp_type == CNIC_ULP_ISCSI)
 				cap |= DRV_FLAGS_CAPABILITIES_LOADED_ISCSI;
 			else if (ulp_type == CNIC_ULP_FCOE)
 				cap |= DRV_FLAGS_CAPABILITIES_LOADED_FCOE;
 			SHMEM2_WR(bp, drv_capabilities_flag[idx], cap);
+
+			if ((ulp_type != CNIC_ULP_FCOE) ||
+			    (!SHMEM2_HAS(bp, ncsi_oem_data_addr)) ||
+			    (!(bp->flags &  BC_SUPPORTS_FCOE_FEATURES)))
+				break;
+
+			/* if reached here - should write fcoe capabilities */
+			scratch_offset = SHMEM2_RD(bp, ncsi_oem_data_addr);
+			if (!scratch_offset)
+				break;
+			scratch_offset += offsetof(struct glob_ncsi_oem_data,
+						   fcoe_features[path][port]);
+			host_addr = (u32 *) &(ctl->data.register_data.
+					      fcoe_features);
+			for (i = 0; i < sizeof(struct fcoe_capabilities);
+			     i += 4)
+				REG_WR(bp, scratch_offset + i,
+				       *(host_addr + i/4));
 		}
 		break;
 	}
+
 	case DRV_CTL_ULP_UNREGISTER_CMD: {
 		int ulp_type = ctl->data.ulp_type;
 
@@ -12552,6 +12663,21 @@ void bnx2x_setup_cnic_irq_info(struct bnx2x *bp)
 	cp->irq_arr[1].status_blk_num2 = DEF_SB_IGU_ID;
 
 	cp->num_irq = 2;
+}
+
+void bnx2x_setup_cnic_info(struct bnx2x *bp)
+{
+	struct cnic_eth_dev *cp = &bp->cnic_eth_dev;
+
+
+	cp->ctx_tbl_offset = FUNC_ILT_BASE(BP_FUNC(bp)) +
+			     bnx2x_cid_ilt_lines(bp);
+	cp->starting_cid = bnx2x_cid_ilt_lines(bp) * ILT_PAGE_CIDS;
+	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
+
+	if (NO_ISCSI_OOO(bp))
+		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;
 }
 
 static int bnx2x_register_cnic(struct net_device *dev, struct cnic_ops *ops,
@@ -12632,10 +12758,10 @@ struct cnic_eth_dev *bnx2x_cnic_probe(struct net_device *dev)
 	cp->drv_ctl = bnx2x_drv_ctl;
 	cp->drv_register_cnic = bnx2x_register_cnic;
 	cp->drv_unregister_cnic = bnx2x_unregister_cnic;
-	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID;
+	cp->fcoe_init_cid = BNX2X_FCOE_ETH_CID(bp);
 	cp->iscsi_l2_client_id =
 		bnx2x_cnic_eth_cl_id(bp, BNX2X_ISCSI_ETH_CL_ID_IDX);
-	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID;
+	cp->iscsi_l2_cid = BNX2X_ISCSI_ETH_CID(bp);
 
 	if (NO_ISCSI_OOO(bp))
 		cp->drv_state |= CNIC_DRV_STATE_NO_ISCSI_OOO;

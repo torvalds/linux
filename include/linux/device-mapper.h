@@ -66,7 +66,6 @@ typedef int (*dm_request_endio_fn) (struct dm_target *ti,
 				    struct request *clone, int error,
 				    union map_info *map_context);
 
-typedef void (*dm_flush_fn) (struct dm_target *ti);
 typedef void (*dm_presuspend_fn) (struct dm_target *ti);
 typedef void (*dm_postsuspend_fn) (struct dm_target *ti);
 typedef int (*dm_preresume_fn) (struct dm_target *ti);
@@ -139,7 +138,6 @@ struct target_type {
 	dm_map_request_fn map_rq;
 	dm_endio_fn end_io;
 	dm_request_endio_fn rq_end_io;
-	dm_flush_fn flush;
 	dm_presuspend_fn presuspend;
 	dm_postsuspend_fn postsuspend;
 	dm_preresume_fn preresume;
@@ -188,8 +186,8 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* Always a power of 2 */
-	sector_t split_io;
+	/* If non-zero, maximum size of I/O submitted to a target. */
+	uint32_t max_io_len;
 
 	/*
 	 * A number of zero-length barrier requests that will be submitted
@@ -218,6 +216,12 @@ struct dm_target {
 	 * whether or not its underlying devices have support.
 	 */
 	unsigned discards_supported:1;
+
+	/*
+	 * Set if the target required discard request to be split
+	 * on max_io_len boundary.
+	 */
+	unsigned split_discard_requests:1;
 
 	/*
 	 * Set if this target does not return zeroes on discarded blocks.
@@ -358,6 +362,11 @@ void dm_table_add_target_callbacks(struct dm_table *t, struct dm_target_callback
  * Finally call this to make the table ready for use.
  */
 int dm_table_complete(struct dm_table *t);
+
+/*
+ * Target may require that it is never sent I/O larger than len.
+ */
+int __must_check dm_set_target_max_io_len(struct dm_target *ti, sector_t len);
 
 /*
  * Table reference counting.

@@ -53,7 +53,6 @@ struct usb_interface *usbhid_find_interface(int minor);
 #define HID_CLEAR_HALT		6
 #define HID_DISCONNECTED	7
 #define HID_STARTED		8
-#define HID_REPORTED_IDLE	9
 #define HID_KEYS_PRESSED	10
 #define HID_NO_BANDWIDTH	11
 

@@ -2,10 +2,8 @@
 #define _S390_RWSEM_H
 
 /*
- *  include/asm-s390/rwsem.h
- *
  *  S390 version
- *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 2002
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  *  Based on asm-alpha/semaphore.h and asm-i386/rwsem.h

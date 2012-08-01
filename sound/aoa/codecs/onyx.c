@@ -997,45 +997,10 @@ static void onyx_exit_codec(struct aoa_codec *codec)
 	onyx->codec.soundbus_dev->detach_codec(onyx->codec.soundbus_dev, onyx);
 }
 
-static int onyx_create(struct i2c_adapter *adapter,
-		       struct device_node *node,
-		       int addr)
-{
-	struct i2c_board_info info;
-	struct i2c_client *client;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, "aoa_codec_onyx", I2C_NAME_SIZE);
-	info.addr = addr;
-	info.platform_data = node;
-	client = i2c_new_device(adapter, &info);
-	if (!client)
-		return -ENODEV;
-
-	/*
-	 * We know the driver is already loaded, so the device should be
-	 * already bound. If not it means binding failed, which suggests
-	 * the device doesn't really exist and should be deleted.
-	 * Ideally this would be replaced by better checks _before_
-	 * instantiating the device.
-	 */
-	if (!client->driver) {
-		i2c_unregister_device(client);
-		return -ENODEV;
-	}
-
-	/*
-	 * Let i2c-core delete that device on driver removal.
-	 * This is safe because i2c-core holds the core_lock mutex for us.
-	 */
-	list_add_tail(&client->detected, &client->driver->clients);
-	return 0;
-}
-
 static int onyx_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
-	struct device_node *node = client->dev.platform_data;
+	struct device_node *node = client->dev.of_node;
 	struct onyx *onyx;
 	u8 dummy;
 
@@ -1071,40 +1036,6 @@ static int onyx_i2c_probe(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int onyx_i2c_attach(struct i2c_adapter *adapter)
-{
-	struct device_node *busnode, *dev = NULL;
-	struct pmac_i2c_bus *bus;
-
-	bus = pmac_i2c_adapter_to_bus(adapter);
-	if (bus == NULL)
-		return -ENODEV;
-	busnode = pmac_i2c_get_bus_node(bus);
-
-	while ((dev = of_get_next_child(busnode, dev)) != NULL) {
-		if (of_device_is_compatible(dev, "pcm3052")) {
-			const u32 *addr;
-			printk(KERN_DEBUG PFX "found pcm3052\n");
-			addr = of_get_property(dev, "reg", NULL);
-			if (!addr)
-				return -ENODEV;
-			return onyx_create(adapter, dev, (*addr)>>1);
-		}
-	}
-
-	/* if that didn't work, try desperate mode for older
-	 * machines that have stuff missing from the device tree */
-
-	if (!of_device_is_compatible(busnode, "k2-i2c"))
-		return -ENODEV;
-
-	printk(KERN_DEBUG PFX "found k2-i2c, checking if onyx chip is on it\n");
-	/* probe both possible addresses for the onyx chip */
-	if (onyx_create(adapter, NULL, 0x46) == 0)
-		return 0;
-	return onyx_create(adapter, NULL, 0x47);
-}
-
 static int onyx_i2c_remove(struct i2c_client *client)
 {
 	struct onyx *onyx = i2c_get_clientdata(client);
@@ -1117,16 +1048,16 @@ static int onyx_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id onyx_i2c_id[] = {
-	{ "aoa_codec_onyx", 0 },
+	{ "MAC,pcm3052", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c,onyx_i2c_id);
 
 static struct i2c_driver onyx_driver = {
 	.driver = {
 		.name = "aoa_codec_onyx",
 		.owner = THIS_MODULE,
 	},
-	.attach_adapter = onyx_i2c_attach,
 	.probe = onyx_i2c_probe,
 	.remove = onyx_i2c_remove,
 	.id_table = onyx_i2c_id,

@@ -916,7 +916,7 @@ void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 {
 	ath9k_hw_rxena(priv->ah);
 	ath9k_htc_opmode_init(priv);
-	ath9k_hw_startpcureceive(priv->ah, (priv->op_flags & OP_SCANNING));
+	ath9k_hw_startpcureceive(priv->ah, test_bit(OP_SCANNING, &priv->op_flags));
 	priv->rx.last_rssi = ATH_RSSI_DUMMY_MARKER;
 }
 

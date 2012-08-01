@@ -3,7 +3,7 @@
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corporation 2002, 2010
+ * Copyright IBM Corp. 2002, 2010
  */
 
 #ifndef FSF_H

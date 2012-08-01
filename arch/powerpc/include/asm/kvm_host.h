@@ -237,6 +237,10 @@ struct kvm_arch {
 	unsigned long vrma_slb_v;
 	int rma_setup_done;
 	int using_mmu_notifiers;
+	u32 hpt_order;
+	atomic_t vcpus_running;
+	unsigned long hpt_npte;
+	unsigned long hpt_mask;
 	spinlock_t slot_phys_lock;
 	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
 	int slot_npages[KVM_MEM_SLOTS_NUM];
@@ -414,7 +418,9 @@ struct kvm_vcpu_arch {
 	ulong mcsrr1;
 	ulong mcsr;
 	u32 dec;
+#ifdef CONFIG_BOOKE
 	u32 decar;
+#endif
 	u32 tbl;
 	u32 tbu;
 	u32 tcr;

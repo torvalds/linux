@@ -1,6 +1,4 @@
 /*
- *  arch/s390/kernel/early.c
- *
  *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Hongjie Yang <hongjie@us.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>

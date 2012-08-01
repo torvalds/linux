@@ -65,18 +65,29 @@ struct igb_adapter;
 #define MAX_Q_VECTORS                      8
 
 /* Transmit and receive queues */
-#define IGB_MAX_RX_QUEUES		((adapter->vfs_allocated_count ? 2 : \
-					(hw->mac.type > e1000_82575 ? 8 : 4)))
-#define IGB_MAX_RX_QUEUES_I210             4
+#define IGB_MAX_RX_QUEUES                  8
+#define IGB_MAX_RX_QUEUES_82575            4
 #define IGB_MAX_RX_QUEUES_I211             2
-#define IGB_MAX_TX_QUEUES                  16
-#define IGB_MAX_TX_QUEUES_I210             4
-#define IGB_MAX_TX_QUEUES_I211             2
+#define IGB_MAX_TX_QUEUES                  8
 #define IGB_MAX_VF_MC_ENTRIES              30
 #define IGB_MAX_VF_FUNCTIONS               8
 #define IGB_MAX_VFTA_ENTRIES               128
 #define IGB_82576_VF_DEV_ID                0x10CA
 #define IGB_I350_VF_DEV_ID                 0x1520
+
+/* NVM version defines */
+#define IGB_MAJOR_MASK			0xF000
+#define IGB_MINOR_MASK			0x0FF0
+#define IGB_BUILD_MASK			0x000F
+#define IGB_COMB_VER_MASK		0x00FF
+#define IGB_MAJOR_SHIFT			12
+#define IGB_MINOR_SHIFT			4
+#define IGB_COMB_VER_SHFT		8
+#define IGB_NVM_VER_INVALID		0xFFFF
+#define IGB_ETRACK_SHIFT		16
+#define NVM_ETRACK_WORD			0x0042
+#define NVM_COMB_VER_OFF		0x0083
+#define NVM_COMB_VER_PTR		0x003d
 
 struct vf_data_storage {
 	unsigned char vf_mac_addresses[ETH_ALEN];
@@ -371,6 +382,7 @@ struct igb_adapter {
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
+	char fw_version[32];
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
@@ -420,6 +432,7 @@ extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_power_up_link(struct igb_adapter *);
+extern void igb_set_fw_version(struct igb_adapter *);
 #ifdef CONFIG_IGB_PTP
 extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_remove(struct igb_adapter *adapter);

@@ -168,13 +168,12 @@ drop:
 
 static int ip6_input_finish(struct sk_buff *skb)
 {
+	struct net *net = dev_net(skb_dst(skb)->dev);
 	const struct inet6_protocol *ipprot;
+	struct inet6_dev *idev;
 	unsigned int nhoff;
 	int nexthdr;
 	bool raw;
-	u8 hash;
-	struct inet6_dev *idev;
-	struct net *net = dev_net(skb_dst(skb)->dev);
 
 	/*
 	 *	Parse extension headers
@@ -189,9 +188,7 @@ resubmit:
 	nexthdr = skb_network_header(skb)[nhoff];
 
 	raw = raw6_local_deliver(skb, nexthdr);
-
-	hash = nexthdr & (MAX_INET_PROTOS - 1);
-	if ((ipprot = rcu_dereference(inet6_protos[hash])) != NULL) {
+	if ((ipprot = rcu_dereference(inet6_protos[nexthdr])) != NULL) {
 		int ret;
 
 		if (ipprot->flags & INET6_PROTO_FINAL) {

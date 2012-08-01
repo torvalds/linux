@@ -49,8 +49,9 @@ static const struct nla_policy cttimeout_nla_policy[CTA_TIMEOUT_MAX+1] = {
 
 static int
 ctnl_timeout_parse_policy(struct ctnl_timeout *timeout,
-			       struct nf_conntrack_l4proto *l4proto,
-			       const struct nlattr *attr)
+			  struct nf_conntrack_l4proto *l4proto,
+			  struct net *net,
+			  const struct nlattr *attr)
 {
 	int ret = 0;
 
@@ -60,7 +61,8 @@ ctnl_timeout_parse_policy(struct ctnl_timeout *timeout,
 		nla_parse_nested(tb, l4proto->ctnl_timeout.nlattr_max,
 				 attr, l4proto->ctnl_timeout.nla_policy);
 
-		ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, &timeout->data);
+		ret = l4proto->ctnl_timeout.nlattr_to_obj(tb, net,
+							  &timeout->data);
 	}
 	return ret;
 }
@@ -74,6 +76,7 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 	__u8 l4num;
 	struct nf_conntrack_l4proto *l4proto;
 	struct ctnl_timeout *timeout, *matching = NULL;
+	struct net *net = sock_net(skb->sk);
 	char *name;
 	int ret;
 
@@ -117,7 +120,7 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 				goto err_proto_put;
 			}
 
-			ret = ctnl_timeout_parse_policy(matching, l4proto,
+			ret = ctnl_timeout_parse_policy(matching, l4proto, net,
 							cda[CTA_TIMEOUT_DATA]);
 			return ret;
 		}
@@ -132,7 +135,7 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 		goto err_proto_put;
 	}
 
-	ret = ctnl_timeout_parse_policy(timeout, l4proto,
+	ret = ctnl_timeout_parse_policy(timeout, l4proto, net,
 					cda[CTA_TIMEOUT_DATA]);
 	if (ret < 0)
 		goto err;

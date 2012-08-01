@@ -675,7 +675,7 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 {
 	u32 val;
 
-	clk_enable(nvec->i2c_clk);
+	clk_prepare_enable(nvec->i2c_clk);
 
 	tegra_periph_reset_assert(nvec->i2c_clk);
 	udelay(2);
@@ -695,14 +695,14 @@ static void tegra_init_i2c_slave(struct nvec_chip *nvec)
 
 	enable_irq(nvec->irq);
 
-	clk_disable(nvec->i2c_clk);
+	clk_disable_unprepare(nvec->i2c_clk);
 }
 
 static void nvec_disable_i2c_slave(struct nvec_chip *nvec)
 {
 	disable_irq(nvec->irq);
 	writel(I2C_SL_NEWSL | I2C_SL_NACK, nvec->base + I2C_SL_CNFG);
-	clk_disable(nvec->i2c_clk);
+	clk_disable_unprepare(nvec->i2c_clk);
 }
 
 static void nvec_power_off(void)
@@ -812,7 +812,7 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 
 	tegra_init_i2c_slave(nvec);
 
-	clk_enable(i2c_clk);
+	clk_prepare_enable(i2c_clk);
 
 
 	/* enable event reporting */

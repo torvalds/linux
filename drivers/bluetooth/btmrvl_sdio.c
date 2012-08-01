@@ -110,6 +110,9 @@ static const struct sdio_device_id btmrvl_sdio_ids[] = {
 	/* Marvell SD8787 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x911A),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8787 },
+	/* Marvell SD8787 Bluetooth AMP device */
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x911B),
+			.driver_data = (unsigned long) &btmrvl_sdio_sd8787 },
 	/* Marvell SD8797 Bluetooth device */
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, 0x912A),
 			.driver_data = (unsigned long) &btmrvl_sdio_sd8797 },
@@ -565,8 +568,9 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 		if (type == HCI_EVENT_PKT) {
 			if (btmrvl_check_evtpkt(priv, skb))
 				hci_recv_frame(skb);
-		} else
+		} else {
 			hci_recv_frame(skb);
+		}
 
 		hdev->stat.byte_rx += buf_len;
 		break;

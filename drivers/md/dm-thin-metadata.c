@@ -80,6 +80,12 @@
 #define THIN_METADATA_CACHE_SIZE 64
 #define SECTOR_TO_BLOCK_SHIFT 3
 
+/*
+ *  3 for btree insert +
+ *  2 for btree lookup used within space map
+ */
+#define THIN_MAX_CONCURRENT_LOCKS 5
+
 /* This should be plenty */
 #define SPACE_MAP_ROOT_SIZE 128
 
@@ -597,31 +603,31 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 
 	r = __write_changed_details(pmd);
 	if (r < 0)
-		goto out;
+		return r;
 
 	if (!pmd->need_commit)
-		goto out;
+		return r;
 
 	r = dm_sm_commit(pmd->data_sm);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_tm_pre_commit(pmd->tm);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_sm_root_size(pmd->metadata_sm, &metadata_len);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_sm_root_size(pmd->data_sm, &data_len);
 	if (r < 0)
-		goto out;
+		return r;
 
 	r = dm_bm_write_lock(pmd->bm, THIN_SUPERBLOCK_LOCATION,
 			     &sb_validator, &sblock);
 	if (r)
-		goto out;
+		return r;
 
 	disk_super = dm_block_data(sblock);
 	disk_super->time = cpu_to_le32(pmd->time);
@@ -644,7 +650,6 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	if (!r)
 		pmd->need_commit = 0;
 
-out:
 	return r;
 
 out_locked:
@@ -669,13 +674,9 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/*
-	 * Max hex locks:
-	 *  3 for btree insert +
-	 *  2 for btree lookup used within space map
-	 */
 	bm = dm_block_manager_create(bdev, THIN_METADATA_BLOCK_SIZE,
-				     THIN_METADATA_CACHE_SIZE, 5);
+				     THIN_METADATA_CACHE_SIZE,
+				     THIN_MAX_CONCURRENT_LOCKS);
 	if (!bm) {
 		DMERR("could not create block manager");
 		kfree(pmd);
@@ -1262,7 +1263,7 @@ dm_thin_id dm_thin_dev_id(struct dm_thin_device *td)
 	return td->id;
 }
 
-static int __snapshotted_since(struct dm_thin_device *td, uint32_t time)
+static bool __snapshotted_since(struct dm_thin_device *td, uint32_t time)
 {
 	return td->snapshotted_time > time;
 }

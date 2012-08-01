@@ -96,6 +96,7 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define AND		F3(2, 0x01)
 #define ANDCC		F3(2, 0x11)
 #define OR		F3(2, 0x02)
+#define XOR		F3(2, 0x03)
 #define SUB		F3(2, 0x04)
 #define SUBCC		F3(2, 0x14)
 #define MUL		F3(2, 0x0a)	/* umul */
@@ -461,6 +462,9 @@ void bpf_jit_compile(struct sk_filter *fp)
 				break;
 			case BPF_S_ALU_OR_K:	/* A |= K */
 				emit_alu_K(OR, K);
+				break;
+			case BPF_S_ANC_ALU_XOR_X: /* A ^= X; */
+				emit_alu_X(XOR);
 				break;
 			case BPF_S_ALU_LSH_X:	/* A <<= X */
 				emit_alu_X(SLL);

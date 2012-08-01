@@ -99,22 +99,28 @@ static int init_slots(struct controller *ctrl)
 	struct hotplug_slot *hotplug_slot;
 	struct hotplug_slot_info *info;
 	char name[SLOT_NAME_SIZE];
-	int retval = -ENOMEM;
+	int retval;
 	int i;
 
 	for (i = 0; i < ctrl->num_slots; i++) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
-		if (!slot)
+		if (!slot) {
+			retval = -ENOMEM;
 			goto error;
+		}
 
 		hotplug_slot = kzalloc(sizeof(*hotplug_slot), GFP_KERNEL);
-		if (!hotplug_slot)
+		if (!hotplug_slot) {
+			retval = -ENOMEM;
 			goto error_slot;
+		}
 		slot->hotplug_slot = hotplug_slot;
 
 		info = kzalloc(sizeof(*info), GFP_KERNEL);
-		if (!info)
+		if (!info) {
+			retval = -ENOMEM;
 			goto error_hpslot;
+		}
 		hotplug_slot->info = info;
 
 		slot->hp_slot = i;
