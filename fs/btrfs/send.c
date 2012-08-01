@@ -3819,8 +3819,8 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		/*
 		 * Check if we have the same extent.
 		 */
-		if (left_disknr + left_offset_fixed !=
-				right_disknr + right_offset) {
+		if (left_disknr != right_disknr ||
+		    left_offset_fixed != right_offset) {
 			ret = 0;
 			goto out;
 		}
