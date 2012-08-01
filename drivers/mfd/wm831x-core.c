@@ -1461,7 +1461,7 @@ static struct mfd_cell backlight_devs[] = {
 		.name = "wm831x-backlight",
 	},
 };
-extern int PMIC_IS_WM831X;
+
 /*
  * Instantiate the generic non-control parts of the device.
  */
@@ -1729,7 +1729,6 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 			goto err_irq;
 		}
 	}
-	PMIC_IS_WM831X = 1;
 	
 	return 0;
 
