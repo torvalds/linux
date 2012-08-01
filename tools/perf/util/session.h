@@ -42,7 +42,6 @@ struct perf_session {
 	 */
 	struct hists		hists;
 	u64			sample_type;
-	int			sample_size;
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
@@ -130,15 +129,9 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 
-static inline int perf_session__parse_sample(struct perf_session *session,
-					     const union perf_event *event,
-					     struct perf_sample *sample)
-{
-	return perf_event__parse_sample(event, session->sample_type,
-					session->sample_size,
-					session->sample_id_all, sample,
-					session->header.needs_swap);
-}
+int perf_session__parse_sample(struct perf_session *session,
+			       const union perf_event *event,
+			       struct perf_sample *sample);
 
 static inline int perf_session__synthesize_sample(struct perf_session *session,
 						  union perf_event *event,

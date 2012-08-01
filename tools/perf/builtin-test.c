@@ -478,7 +478,6 @@ static int test__basic_mmap(void)
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
-	int sample_size = __perf_evsel__sample_size(attr.sample_type);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];
@@ -563,7 +562,8 @@ static int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
-		err = perf_event__parse_sample(event, attr.sample_type, sample_size,
+		err = perf_event__parse_sample(event, attr.sample_type,
+					       evsels[0]->sample_size,
 					       false, &sample, false);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
@@ -666,7 +666,7 @@ static int test__PERF_RECORD(void)
 	     found_libc_mmap = false,
 	     found_vdso_mmap = false,
 	     found_ld_mmap = false;
-	int err = -1, errs = 0, i, wakeups = 0, sample_size;
+	int err = -1, errs = 0, i, wakeups = 0;
 	u32 cpu;
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
 
@@ -761,7 +761,6 @@ static int test__PERF_RECORD(void)
 	 * event.
 	 */
 	sample_type = perf_evlist__sample_type(evlist);
-	sample_size = __perf_evsel__sample_size(sample_type);
 
 	/*
 	 * Now that all is properly set up, enable the events, they will
@@ -789,7 +788,7 @@ static int test__PERF_RECORD(void)
 					nr_events[type]++;
 
 				err = perf_event__parse_sample(event, sample_type,
-							       sample_size, true,
+							       evsel->sample_size, true,
 							       &sample, false);
 				if (err < 0) {
 					if (verbose)
