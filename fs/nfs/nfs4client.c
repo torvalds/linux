@@ -18,11 +18,6 @@
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
 /*
- * Turn off NFSv4 uid/gid mapping when using AUTH_SYS
- */
-static bool nfs4_disable_idmapping = true;
-
-/*
  * Get a unique NFSv4.0 callback identifier which will be used
  * by the V4.0 callback service to lookup the nfs_client struct
  */
@@ -357,7 +352,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		.hostname = hostname,
 		.addr = addr,
 		.addrlen = addrlen,
-		.rpc_ops = &nfs_v4_clientops,
+		.nfs_mod = &nfs_v4,
 		.proto = proto,
 		.minorversion = minorversion,
 		.net = net,
@@ -411,7 +406,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 	struct nfs_client_initdata cl_init = {
 		.addr = ds_addr,
 		.addrlen = ds_addrlen,
-		.rpc_ops = &nfs_v4_clientops,
+		.nfs_mod = &nfs_v4,
 		.proto = ds_proto,
 		.minorversion = mds_clp->cl_minorversion,
 		.net = mds_clp->cl_net,
@@ -574,8 +569,10 @@ error:
  * Create a version 4 volume record
  * - keyed on server and FSID
  */
-struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
-				      struct nfs_fh *mntfh)
+/*struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
+				      struct nfs_fh *mntfh)*/
+struct nfs_server *nfs4_create_server(struct nfs_mount_info *mount_info,
+				      struct nfs_subversion *nfs_mod)
 {
 	struct nfs_server *server;
 	int error;
@@ -587,11 +584,11 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 		return ERR_PTR(-ENOMEM);
 
 	/* set up the general RPC client */
-	error = nfs4_init_server(server, data);
+	error = nfs4_init_server(server, mount_info->parsed);
 	if (error < 0)
 		goto error;
 
-	error = nfs4_server_common_setup(server, mntfh);
+	error = nfs4_server_common_setup(server, mount_info->mntfh);
 	if (error < 0)
 		goto error;
 
@@ -657,7 +654,3 @@ error:
 	dprintk("<-- nfs4_create_referral_server() = error %d\n", error);
 	return ERR_PTR(error);
 }
-
-module_param(nfs4_disable_idmapping, bool, 0644);
-MODULE_PARM_DESC(nfs4_disable_idmapping,
-		"Turn off NFSv4 idmapping when using 'sec=sys'");

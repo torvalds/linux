@@ -1407,6 +1407,7 @@ static void pnfs_writehdr_free(struct nfs_pgio_header *hdr)
 	put_lseg(hdr->lseg);
 	nfs_writehdr_free(hdr);
 }
+EXPORT_SYMBOL_GPL(pnfs_writehdr_free);
 
 int
 pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
@@ -1561,6 +1562,7 @@ static void pnfs_readhdr_free(struct nfs_pgio_header *hdr)
 	put_lseg(hdr->lseg);
 	nfs_readhdr_free(hdr);
 }
+EXPORT_SYMBOL_GPL(pnfs_readhdr_free);
 
 int
 pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)

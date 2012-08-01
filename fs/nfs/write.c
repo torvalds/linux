@@ -84,6 +84,7 @@ struct nfs_write_header *nfs_writehdr_alloc(void)
 	}
 	return p;
 }
+EXPORT_SYMBOL_GPL(nfs_writehdr_alloc);
 
 static struct nfs_write_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
 						  unsigned int pagecount)
@@ -115,6 +116,7 @@ void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 	struct nfs_write_header *whdr = container_of(hdr, struct nfs_write_header, header);
 	mempool_free(whdr, nfs_wdata_mempool);
 }
+EXPORT_SYMBOL_GPL(nfs_writehdr_free);
 
 void nfs_writedata_release(struct nfs_write_data *wdata)
 {
@@ -131,6 +133,7 @@ void nfs_writedata_release(struct nfs_write_data *wdata)
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 }
+EXPORT_SYMBOL_GPL(nfs_writedata_release);
 
 static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
 {
@@ -446,7 +449,7 @@ nfs_mark_request_dirty(struct nfs_page *req)
 	__set_page_dirty_nobuffers(req->wb_page);
 }
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 /**
  * nfs_request_add_commit_list - add request to a commit list
  * @req: pointer to a struct nfs_page
@@ -636,7 +639,7 @@ out:
 	hdr->release(hdr);
 }
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+#if  IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static unsigned long
 nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 {
@@ -1173,6 +1176,7 @@ int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 		return nfs_flush_multi(desc, hdr);
 	return nfs_flush_one(desc, hdr);
 }
+EXPORT_SYMBOL_GPL(nfs_generic_flush);
 
 static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 {
@@ -1210,6 +1214,7 @@ void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 	nfs_pageio_init(pgio, inode, &nfs_pageio_write_ops, compl_ops,
 				NFS_SERVER(inode)->wsize, ioflags);
 }
+EXPORT_SYMBOL_GPL(nfs_pageio_init_write);
 
 void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 {
@@ -1297,7 +1302,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		return;
 	nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, resp->count);
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 	if (resp->verf->committed < argp->stable && task->tk_status >= 0) {
 		/* We tried a write call, but the server did not
 		 * commit data to stable storage even though we
@@ -1357,7 +1362,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 }
 
 
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
+#if IS_ENABLED(CONFIG_NFS_V3) || IS_ENABLED(CONFIG_NFS_V4)
 static int nfs_commit_set_lock(struct nfs_inode *nfsi, int may_wait)
 {
 	int ret;
@@ -1673,26 +1678,7 @@ int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	return nfs_commit_unstable_pages(inode, wbc);
 }
-
-#ifdef CONFIG_NFS_V4
-int nfs4_write_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	int ret = nfs_write_inode(inode, wbc);
-
-	if (ret >= 0 && test_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags)) {
-		int status;
-		bool sync = true;
-
-		if (wbc->sync_mode == WB_SYNC_NONE)
-			sync = false;
-
-		status = pnfs_layoutcommit_inode(inode, sync);
-		if (status < 0)
-			return status;
-	}
-	return ret;
-}
-#endif
+EXPORT_SYMBOL_GPL(nfs_write_inode);
 
 /*
  * flush the inode to disk.
@@ -1708,6 +1694,7 @@ int nfs_wb_all(struct inode *inode)
 
 	return sync_inode(inode, &wbc);
 }
+EXPORT_SYMBOL_GPL(nfs_wb_all);
 
 int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 {

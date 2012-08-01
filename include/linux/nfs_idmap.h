@@ -69,7 +69,7 @@ struct nfs_server;
 struct nfs_fattr;
 struct nfs4_string;
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 int nfs_idmap_init(void);
 void nfs_idmap_quit(void);
 #else

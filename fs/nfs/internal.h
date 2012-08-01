@@ -90,7 +90,7 @@ struct nfs_client_initdata {
 	const char *hostname;
 	const struct sockaddr *addr;
 	size_t addrlen;
-	const struct nfs_rpc_ops *rpc_ops;
+	struct nfs_subversion *nfs_mod;
 	int proto;
 	u32 minorversion;
 	struct net *net;
@@ -187,12 +187,11 @@ extern struct nfs_client *nfs4_find_client_ident(struct net *, int);
 extern struct nfs_client *
 nfs4_find_client_sessionid(struct net *, const struct sockaddr *,
 				struct nfs4_sessionid *);
-extern struct nfs_server *nfs_create_server(
-					const struct nfs_parsed_mount_data *,
-					struct nfs_fh *);
+extern struct nfs_server *nfs_create_server(struct nfs_mount_info *,
+					struct nfs_subversion *);
 extern struct nfs_server *nfs4_create_server(
-					const struct nfs_parsed_mount_data *,
-					struct nfs_fh *);
+					struct nfs_mount_info *,
+					struct nfs_subversion *);
 extern struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *,
 						      struct nfs_fh *);
 extern void nfs_free_server(struct nfs_server *server);
@@ -222,6 +221,13 @@ static inline void nfs_fs_proc_exit(void)
 
 #ifdef CONFIG_NFS_V4_1
 int nfs_sockaddr_match_ipaddr(const struct sockaddr *, const struct sockaddr *);
+#endif
+
+/* nfs3client.c */
+#if IS_ENABLED(CONFIG_NFS_V3)
+struct nfs_server *nfs3_create_server(struct nfs_mount_info *, struct nfs_subversion *);
+struct nfs_server *nfs3_clone_server(struct nfs_server *, struct nfs_fh *,
+				     struct nfs_fattr *, rpc_authflavor_t);
 #endif
 
 /* callback_xdr.c */
@@ -256,7 +262,7 @@ extern int nfs3_decode_dirent(struct xdr_stream *,
 				struct nfs_entry *, int);
 
 /* nfs4xdr.c */
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 extern int nfs4_decode_dirent(struct xdr_stream *,
 				struct nfs_entry *, int);
 #endif
@@ -266,7 +272,7 @@ extern const u32 nfs41_maxwrite_overhead;
 #endif
 
 /* nfs4proc.c */
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
 
@@ -313,24 +319,26 @@ extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
 extern int nfs_write_inode(struct inode *, struct writeback_control *);
+extern void nfs_clear_inode(struct inode *);
 extern void nfs_evict_inode(struct inode *);
-#ifdef CONFIG_NFS_V4
-extern void nfs4_evict_inode(struct inode *);
-#endif
 void nfs_zap_acl_cache(struct inode *inode);
 extern int nfs_wait_bit_killable(void *word);
 
 /* super.c */
+extern const struct super_operations nfs_sops;
+extern struct file_system_type nfs_fs_type;
 extern struct file_system_type nfs_xdev_fs_type;
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 extern struct file_system_type nfs4_xdev_fs_type;
 extern struct file_system_type nfs4_referral_fs_type;
 #endif
+struct dentry *nfs_try_mount(int, const char *, struct nfs_mount_info *,
+			struct nfs_subversion *);
 void nfs_initialise_sb(struct super_block *);
 int nfs_set_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);
 int nfs_clone_sb_security(struct super_block *, struct dentry *, struct nfs_mount_info *);
-struct dentry *nfs_fs_mount_common(struct file_system_type *, struct nfs_server *,
-				   int, const char *, struct nfs_mount_info *);
+struct dentry *nfs_fs_mount_common(struct nfs_server *, int, const char *,
+				   struct nfs_mount_info *, struct nfs_subversion *);
 struct dentry *nfs_fs_mount(struct file_system_type *, int, const char *, void *);
 struct dentry * nfs_xdev_mount_common(struct file_system_type *, int,
 		const char *, struct nfs_mount_info *);
@@ -356,7 +364,7 @@ struct vfsmount *nfs_do_submount(struct dentry *, struct nfs_fh *,
 /* getroot.c */
 extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *,
 				   const char *);
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 extern struct dentry *nfs4_get_root(struct super_block *, struct nfs_fh *,
 				    const char *);
 

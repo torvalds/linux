@@ -925,6 +925,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.file_ops	= &nfs_file_operations,
 	.getroot	= nfs3_proc_get_root,
 	.submount	= nfs_submount,
+	.try_mount	= nfs_try_mount,
 	.getattr	= nfs3_proc_getattr,
 	.setattr	= nfs3_proc_setattr,
 	.lookup		= nfs3_proc_lookup,
@@ -968,4 +969,6 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.alloc_client	= nfs_alloc_client,
 	.init_client	= nfs_init_client,
 	.free_client	= nfs_free_client,
+	.create_server	= nfs3_create_server,
+	.clone_server	= nfs3_clone_server,
 };

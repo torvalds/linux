@@ -48,6 +48,7 @@ struct nfs_read_header *nfs_readhdr_alloc(void)
 	}
 	return rhdr;
 }
+EXPORT_SYMBOL_GPL(nfs_readhdr_alloc);
 
 static struct nfs_read_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
 						unsigned int pagecount)
@@ -80,6 +81,7 @@ void nfs_readhdr_free(struct nfs_pgio_header *hdr)
 
 	kmem_cache_free(nfs_rdata_cachep, rhdr);
 }
+EXPORT_SYMBOL_GPL(nfs_readhdr_free);
 
 void nfs_readdata_release(struct nfs_read_data *rdata)
 {
@@ -96,6 +98,7 @@ void nfs_readdata_release(struct nfs_read_data *rdata)
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 }
+EXPORT_SYMBOL_GPL(nfs_readdata_release);
 
 static
 int nfs_return_empty_page(struct page *page)
@@ -113,6 +116,7 @@ void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops, compl_ops,
 			NFS_SERVER(inode)->rsize, 0);
 }
+EXPORT_SYMBOL_GPL(nfs_pageio_init_read);
 
 void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 {
@@ -397,6 +401,7 @@ int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
 		return nfs_pagein_multi(desc, hdr);
 	return nfs_pagein_one(desc, hdr);
 }
+EXPORT_SYMBOL_GPL(nfs_generic_pagein);
 
 static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {

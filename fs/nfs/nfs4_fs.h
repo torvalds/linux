@@ -9,7 +9,7 @@
 #ifndef __LINUX_FS_NFS_NFS4_FS_H
 #define __LINUX_FS_NFS_NFS4_FS_H
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 
 struct idmap;
 
@@ -205,9 +205,6 @@ extern const struct dentry_operations nfs4_dentry_operations;
 int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
 		    unsigned, umode_t, int *);
 
-/* write.c */
-int nfs4_write_inode(struct inode *, struct writeback_control *);
-
 /* nfs4namespace.c */
 rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *);
 struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *, struct inode *, struct qstr *);
@@ -366,9 +363,11 @@ extern const nfs4_stateid zero_stateid;
 
 /* nfs4super.c */
 struct nfs_mount_info;
-struct dentry *nfs4_try_mount(int, const char *, struct nfs_mount_info *);
-int init_nfs_v4(void);
-void exit_nfs_v4(void);
+extern struct nfs_subversion nfs_v4;
+struct dentry *nfs4_try_mount(int, const char *, struct nfs_mount_info *, struct nfs_subversion *);
+extern bool nfs4_disable_idmapping;
+extern unsigned short max_session_slots;
+extern unsigned short send_implementation_id;
 
 /* nfs4sysctl.c */
 #ifdef CONFIG_SYSCTL
