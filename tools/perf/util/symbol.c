@@ -64,7 +64,7 @@ static enum dso_binary_type binary_type_symtab[] = {
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
-#define DSO_BINARY_TYPE__SYMTAB_CNT sizeof(binary_type_symtab)
+#define DSO_BINARY_TYPE__SYMTAB_CNT ARRAY_SIZE(binary_type_symtab)
 
 static enum dso_binary_type binary_type_data[] = {
 	DSO_BINARY_TYPE__BUILD_ID_CACHE,
@@ -72,7 +72,7 @@ static enum dso_binary_type binary_type_data[] = {
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
-#define DSO_BINARY_TYPE__DATA_CNT sizeof(binary_type_data)
+#define DSO_BINARY_TYPE__DATA_CNT ARRAY_SIZE(binary_type_data)
 
 int dso__name_len(const struct dso *dso)
 {
