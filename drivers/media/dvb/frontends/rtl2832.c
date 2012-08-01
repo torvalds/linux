@@ -589,7 +589,7 @@ static int rtl2832_set_frontend(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 
-	for (j = 0; j < sizeof(bw_params[j]); j++) {
+	for (j = 0; j < sizeof(bw_params[0]); j++) {
 		ret = rtl2832_wr_regs(priv, 0x1c+j, 1, &bw_params[i][j], 1);
 		if (ret)
 			goto err;

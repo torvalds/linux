@@ -618,3 +618,17 @@ Why:	The regular V4L2 selections and the subdev selection API originally
 Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
 
 ----------------------------
+
+What:	Using V4L2_CAP_VIDEO_CAPTURE and V4L2_CAP_VIDEO_OUTPUT flags
+	to indicate a V4L2 memory-to-memory device capability
+When:	3.8
+Why:	New drivers should use new V4L2_CAP_VIDEO_M2M capability flag
+	to indicate a V4L2 video memory-to-memory (M2M) device and
+	applications can now identify a M2M video device by checking
+	for V4L2_CAP_VIDEO_M2M, with VIDIOC_QUERYCAP ioctl. Using ORed
+	V4L2_CAP_VIDEO_CAPTURE and V4L2_CAP_VIDEO_OUTPUT flags for M2M
+	devices is ambiguous and may lead, for example, to identifying
+	a M2M device as a video	capture or output device.
+Who:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+----------------------------

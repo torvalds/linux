@@ -40,10 +40,6 @@ struct init_command {
 	unsigned char to_read; /* length to read. 0 means no reply requested */
 };
 
-/* V4L2 controls supported by the driver */
-static const struct ctrl sd_ctrls[] = {
-};
-
 /* How to change the resolution of any of the VGA cams is unknown */
 static const struct v4l2_pix_format vga_mode[] = {
 	{640, 480, V4L2_PIX_FMT_SN9C2028, V4L2_FIELD_NONE,
@@ -695,8 +691,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
@@ -734,6 +728,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

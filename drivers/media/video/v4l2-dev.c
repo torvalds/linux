@@ -478,12 +478,12 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	}
 
 err:
-	/* decrease the refcount in case of an error */
-	if (ret)
-		video_put(vdev);
 	if (vdev->debug)
 		printk(KERN_DEBUG "%s: open (%d)\n",
 			video_device_node_name(vdev), ret);
+	/* decrease the refcount in case of an error */
+	if (ret)
+		video_put(vdev);
 	return ret;
 }
 
@@ -500,12 +500,12 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 			mutex_unlock(vdev->lock);
 	}
-	/* decrease the refcount unconditionally since the release()
-	   return value is ignored. */
-	video_put(vdev);
 	if (vdev->debug)
 		printk(KERN_DEBUG "%s: release\n",
 			video_device_node_name(vdev));
+	/* decrease the refcount unconditionally since the release()
+	   return value is ignored. */
+	video_put(vdev);
 	return ret;
 }
 
@@ -697,7 +697,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_TRY_ENCODER_CMD, vidioc_try_encoder_cmd);
 	SET_VALID_IOCTL(ops, VIDIOC_DECODER_CMD, vidioc_decoder_cmd);
 	SET_VALID_IOCTL(ops, VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd);
-	if (ops->vidioc_g_parm || vdev->vfl_type == VFL_TYPE_GRABBER)
+	if (ops->vidioc_g_parm || (vdev->vfl_type == VFL_TYPE_GRABBER &&
+					(ops->vidioc_g_std || vdev->tvnorms)))
 		set_bit(_IOC_NR(VIDIOC_G_PARM), valid_ioctls);
 	SET_VALID_IOCTL(ops, VIDIOC_S_PARM, vidioc_s_parm);
 	SET_VALID_IOCTL(ops, VIDIOC_G_TUNER, vidioc_g_tuner);
@@ -729,6 +730,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_UNSUBSCRIBE_EVENT, vidioc_unsubscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_CREATE_BUFS, vidioc_create_bufs);
 	SET_VALID_IOCTL(ops, VIDIOC_PREPARE_BUF, vidioc_prepare_buf);
+	if (ops->vidioc_enum_freq_bands || ops->vidioc_g_tuner || ops->vidioc_g_modulator)
+		set_bit(_IOC_NR(VIDIOC_ENUM_FREQ_BANDS), valid_ioctls);
 	bitmap_andnot(vdev->valid_ioctls, valid_ioctls, vdev->valid_ioctls,
 			BASE_VIDIOC_PRIVATE);
 }

@@ -2460,7 +2460,7 @@ that used it. It was originally scheduled for removal in 2.6.35.
     </section>
 
     <section>
-      <title>V4L2 in Linux 3.5</title>
+      <title>V4L2 in Linux 3.6</title>
       <orderedlist>
 	<listitem>
 	  <para>Replaced <structfield>input</structfield> in
@@ -2468,6 +2468,24 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  <structfield>reserved2</structfield> and removed
 	  <constant>V4L2_BUF_FLAG_INPUT</constant>.</para>
 	</listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.6</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added V4L2_CAP_VIDEO_M2M and V4L2_CAP_VIDEO_M2M_MPLANE capabilities.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.6</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added support for frequency band enumerations: &VIDIOC-ENUM-FREQ-BANDS;.</para>
+        </listitem>
       </orderedlist>
     </section>
 
@@ -2599,6 +2617,9 @@ ioctls.</para>
         <listitem>
 	  <para><link linkend="v4l2-auto-focus-area"><constant>
 	  V4L2_CID_AUTO_FOCUS_AREA</constant></link> control.</para>
+        </listitem>
+        <listitem>
+	  <para>Support for frequency band enumeration: &VIDIOC-ENUM-FREQ-BANDS; ioctl.</para>
         </listitem>
       </itemizedlist>
     </section>

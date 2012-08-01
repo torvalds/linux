@@ -257,7 +257,7 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 	int opmode = 0;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	int input = 0;
-	unsigned char val;
+	int val;
 
 	if ((decoder->output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;

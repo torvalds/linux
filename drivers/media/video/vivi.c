@@ -230,7 +230,6 @@ struct vivi_dev {
 	struct vivi_fmt            *fmt;
 	unsigned int               width, height;
 	struct vb2_queue	   vb_vidq;
-	enum v4l2_field		   field;
 	unsigned int		   field_count;
 
 	u8			   bars[9][3];
@@ -623,7 +622,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 
 	dev->mv_count += 2;
 
-	buf->vb.v4l2_buf.field = dev->field;
+	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	dev->field_count++;
 	buf->vb.v4l2_buf.sequence = dev->field_count >> 1;
 	do_gettimeofday(&ts);
@@ -925,7 +924,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 
 	f->fmt.pix.width        = dev->width;
 	f->fmt.pix.height       = dev->height;
-	f->fmt.pix.field        = dev->field;
+	f->fmt.pix.field        = V4L2_FIELD_INTERLACED;
 	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
 	f->fmt.pix.bytesperline =
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
@@ -944,25 +943,16 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct vivi_dev *dev = video_drvdata(file);
 	struct vivi_fmt *fmt;
-	enum v4l2_field field;
 
 	fmt = get_format(f);
 	if (!fmt) {
-		dprintk(dev, 1, "Fourcc format (0x%08x) invalid.\n",
+		dprintk(dev, 1, "Fourcc format (0x%08x) unknown.\n",
 			f->fmt.pix.pixelformat);
-		return -EINVAL;
+		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+		fmt = get_format(f);
 	}
 
-	field = f->fmt.pix.field;
-
-	if (field == V4L2_FIELD_ANY) {
-		field = V4L2_FIELD_INTERLACED;
-	} else if (V4L2_FIELD_INTERLACED != field) {
-		dprintk(dev, 1, "Field type invalid.\n");
-		return -EINVAL;
-	}
-
-	f->fmt.pix.field = field;
+	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	v4l_bound_align_image(&f->fmt.pix.width, 48, MAX_WIDTH, 2,
 			      &f->fmt.pix.height, 32, MAX_HEIGHT, 0, 0);
 	f->fmt.pix.bytesperline =
@@ -996,7 +986,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->pixelsize = dev->fmt->depth / 8;
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
-	dev->field = f->fmt.pix.field;
 
 	return 0;
 }
@@ -1329,9 +1318,6 @@ static int __init vivi_create_instance(int inst)
 
 	/* Now that everything is fine, let's add it to device list */
 	list_add_tail(&dev->vivi_devlist, &vivi_devlist);
-
-	if (video_nr != -1)
-		video_nr++;
 
 	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
 		  video_device_node_name(vfd));
