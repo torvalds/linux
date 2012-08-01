@@ -5642,7 +5642,8 @@ static int decode_getdeviceinfo(struct xdr_stream *xdr,
 	 * and places the remaining xdr data in xdr_buf->tail
 	 */
 	pdev->mincount = be32_to_cpup(p);
-	xdr_read_pages(xdr, pdev->mincount); /* include space for the length */
+	if (xdr_read_pages(xdr, pdev->mincount) != pdev->mincount)
+		goto out_overflow;
 
 	/* Parse notification bitmap, verifying that it is zero. */
 	p = xdr_inline_decode(xdr, 4);
