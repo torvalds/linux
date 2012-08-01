@@ -2155,6 +2155,43 @@ static int patch_nvhdmi_2ch(struct hda_codec *codec)
 	return 0;
 }
 
+static int nvhdmi_7x_8ch_build_pcms(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	int err = simple_playback_build_pcms(codec);
+	spec->pcm_rec[0].own_chmap = true;
+	return err;
+}
+
+static int nvhdmi_7x_8ch_build_controls(struct hda_codec *codec)
+{
+	struct hdmi_spec *spec = codec->spec;
+	struct snd_pcm_chmap *chmap;
+	int err;
+
+	err = simple_playback_build_controls(codec);
+	if (err < 0)
+		return err;
+
+	/* add channel maps */
+	err = snd_pcm_add_chmap_ctls(spec->pcm_rec[0].pcm,
+				     SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, 8, 0, &chmap);
+	if (err < 0)
+		return err;
+	switch (codec->preset->id) {
+	case 0x10de0002:
+	case 0x10de0003:
+	case 0x10de0005:
+	case 0x10de0006:
+		chmap->channel_mask = (1U << 2) | (1U << 8);
+		break;
+	case 0x10de0007:
+		chmap->channel_mask = (1U << 2) | (1U << 6) | (1U << 8);
+	}
+	return 0;
+}
+
 static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
@@ -2165,6 +2202,8 @@ static int patch_nvhdmi_8ch_7x(struct hda_codec *codec)
 	spec->multiout.max_channels = 8;
 	spec->pcm_playback = nvhdmi_pcm_playback_8ch_7x;
 	codec->patch_ops.init = nvhdmi_7x_init_8ch;
+	codec->patch_ops.build_pcms = nvhdmi_7x_8ch_build_pcms;
+	codec->patch_ops.build_controls = nvhdmi_7x_8ch_build_controls;
 
 	/* Initialize the audio infoframe channel mask and checksum to something
 	 * valid */
