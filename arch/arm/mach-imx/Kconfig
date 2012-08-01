@@ -736,32 +736,6 @@ config MACH_EUKREA_MBIMXSD51_BASEBOARD
 
 endchoice
 
-config MX51_EFIKA_COMMON
-	bool
-	select SOC_IMX51
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select IMX_HAVE_PLATFORM_MXC_EHCI
-	select IMX_HAVE_PLATFORM_PATA_IMX
-	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
-	select IMX_HAVE_PLATFORM_SPI_IMX
-	select MXC_ULPI if USB_ULPI
-
-config MACH_MX51_EFIKAMX
-	bool "Support MX51 Genesi Efika MX nettop"
-	select LEDS_GPIO_REGISTER
-	select MX51_EFIKA_COMMON
-	help
-	  Include support for Genesi Efika MX nettop. This includes specific
-	  configurations for the board and its peripherals.
-
-config MACH_MX51_EFIKASB
-	bool "Support MX51 Genesi Efika Smartbook"
-	select LEDS_GPIO_REGISTER
-	select MX51_EFIKA_COMMON
-	help
-	  Include support for Genesi Efika Smartbook. This includes specific
-	  configurations for the board and its peripherals.
-
 comment "i.MX53 machines:"
 
 config MACH_IMX53_DT
