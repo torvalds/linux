@@ -922,11 +922,15 @@ struct blk_plug {
 };
 #define BLK_MAX_REQUEST_COUNT 16
 
+struct blk_plug_cb;
+typedef void (*blk_plug_cb_fn)(struct blk_plug_cb *, bool);
 struct blk_plug_cb {
 	struct list_head list;
-	void (*callback)(struct blk_plug_cb *);
+	blk_plug_cb_fn callback;
+	void *data;
 };
-
+extern struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug,
+					     void *data, int size);
 extern void blk_start_plug(struct blk_plug *);
 extern void blk_finish_plug(struct blk_plug *);
 extern void blk_flush_plug_list(struct blk_plug *, bool);
