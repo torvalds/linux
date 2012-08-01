@@ -2505,6 +2505,8 @@ retry_root_backup:
 		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
 		goto fail_block_groups;
 	}
+	fs_info->num_tolerated_disk_barrier_failures =
+		btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
 
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
@@ -2888,12 +2890,10 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 			printk_in_rcu("btrfs: disabling barriers on dev %s\n",
 				      rcu_str_deref(device->name));
 			device->nobarriers = 1;
-		}
-		if (!bio_flagged(bio, BIO_UPTODATE)) {
+		} else if (!bio_flagged(bio, BIO_UPTODATE)) {
 			ret = -EIO;
-			if (!bio_flagged(bio, BIO_EOPNOTSUPP))
-				btrfs_dev_stat_inc_and_print(device,
-					BTRFS_DEV_STAT_FLUSH_ERRS);
+			btrfs_dev_stat_inc_and_print(device,
+				BTRFS_DEV_STAT_FLUSH_ERRS);
 		}
 
 		/* drop the reference from the wait == 0 run */
@@ -2932,14 +2932,15 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 {
 	struct list_head *head;
 	struct btrfs_device *dev;
-	int errors = 0;
+	int errors_send = 0;
+	int errors_wait = 0;
 	int ret;
 
 	/* send down all the barriers */
 	head = &info->fs_devices->devices;
 	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev) {
-			errors++;
+			errors_send++;
 			continue;
 		}
 		if (!dev->in_fs_metadata || !dev->writeable)
@@ -2947,13 +2948,13 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 
 		ret = write_dev_flush(dev, 0);
 		if (ret)
-			errors++;
+			errors_send++;
 	}
 
 	/* wait for all the barriers */
 	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev) {
-			errors++;
+			errors_wait++;
 			continue;
 		}
 		if (!dev->in_fs_metadata || !dev->writeable)
@@ -2961,11 +2962,85 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 
 		ret = write_dev_flush(dev, 1);
 		if (ret)
-			errors++;
+			errors_wait++;
 	}
-	if (errors)
+	if (errors_send > info->num_tolerated_disk_barrier_failures ||
+	    errors_wait > info->num_tolerated_disk_barrier_failures)
 		return -EIO;
 	return 0;
+}
+
+int btrfs_calc_num_tolerated_disk_barrier_failures(
+	struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_ioctl_space_info space;
+	struct btrfs_space_info *sinfo;
+	u64 types[] = {BTRFS_BLOCK_GROUP_DATA,
+		       BTRFS_BLOCK_GROUP_SYSTEM,
+		       BTRFS_BLOCK_GROUP_METADATA,
+		       BTRFS_BLOCK_GROUP_DATA | BTRFS_BLOCK_GROUP_METADATA};
+	int num_types = 4;
+	int i;
+	int c;
+	int num_tolerated_disk_barrier_failures =
+		(int)fs_info->fs_devices->num_devices;
+
+	for (i = 0; i < num_types; i++) {
+		struct btrfs_space_info *tmp;
+
+		sinfo = NULL;
+		rcu_read_lock();
+		list_for_each_entry_rcu(tmp, &fs_info->space_info, list) {
+			if (tmp->flags == types[i]) {
+				sinfo = tmp;
+				break;
+			}
+		}
+		rcu_read_unlock();
+
+		if (!sinfo)
+			continue;
+
+		down_read(&sinfo->groups_sem);
+		for (c = 0; c < BTRFS_NR_RAID_TYPES; c++) {
+			if (!list_empty(&sinfo->block_groups[c])) {
+				u64 flags;
+
+				btrfs_get_block_group_info(
+					&sinfo->block_groups[c], &space);
+				if (space.total_bytes == 0 ||
+				    space.used_bytes == 0)
+					continue;
+				flags = space.flags;
+				/*
+				 * return
+				 * 0: if dup, single or RAID0 is configured for
+				 *    any of metadata, system or data, else
+				 * 1: if RAID5 is configured, or if RAID1 or
+				 *    RAID10 is configured and only two mirrors
+				 *    are used, else
+				 * 2: if RAID6 is configured, else
+				 * num_mirrors - 1: if RAID1 or RAID10 is
+				 *                  configured and more than
+				 *                  2 mirrors are used.
+				 */
+				if (num_tolerated_disk_barrier_failures > 0 &&
+				    ((flags & (BTRFS_BLOCK_GROUP_DUP |
+					       BTRFS_BLOCK_GROUP_RAID0)) ||
+				     ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK)
+				      == 0)))
+					num_tolerated_disk_barrier_failures = 0;
+				else if (num_tolerated_disk_barrier_failures > 1
+					 &&
+					 (flags & (BTRFS_BLOCK_GROUP_RAID1 |
+						   BTRFS_BLOCK_GROUP_RAID10)))
+					num_tolerated_disk_barrier_failures = 1;
+			}
+		}
+		up_read(&sinfo->groups_sem);
+	}
+
+	return num_tolerated_disk_barrier_failures;
 }
 
 int write_all_supers(struct btrfs_root *root, int max_mirrors)
@@ -2990,8 +3065,16 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	head = &root->fs_info->fs_devices->devices;
 
-	if (do_barriers)
-		barrier_all_devices(root->fs_info);
+	if (do_barriers) {
+		ret = barrier_all_devices(root->fs_info);
+		if (ret) {
+			mutex_unlock(
+				&root->fs_info->fs_devices->device_list_mutex);
+			btrfs_error(root->fs_info, ret,
+				    "errors while submitting device barriers.");
+			return ret;
+		}
+	}
 
 	list_for_each_entry_rcu(dev, head, dev_list) {
 		if (!dev->bdev) {

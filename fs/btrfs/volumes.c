@@ -1475,6 +1475,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		free_fs_devices(cur_devices);
 	}
 
+	root->fs_info->num_tolerated_disk_barrier_failures =
+		btrfs_calc_num_tolerated_disk_barrier_failures(root->fs_info);
+
 	/*
 	 * at this point, the device is zero sized.  We want to
 	 * remove it from the devices list and zero out the old super
@@ -1799,6 +1802,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	btrfs_clear_space_info_full(root->fs_info);
 
 	unlock_chunks(root);
+	root->fs_info->num_tolerated_disk_barrier_failures =
+		btrfs_calc_num_tolerated_disk_barrier_failures(root->fs_info);
 	ret = btrfs_commit_transaction(trans, root);
 
 	if (seeding_dev) {
@@ -2809,6 +2814,26 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		}
 	}
 
+	if (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		int num_tolerated_disk_barrier_failures;
+		u64 target = bctl->sys.target;
+
+		num_tolerated_disk_barrier_failures =
+			btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
+		if (num_tolerated_disk_barrier_failures > 0 &&
+		    (target &
+		     (BTRFS_BLOCK_GROUP_DUP | BTRFS_BLOCK_GROUP_RAID0 |
+		      BTRFS_AVAIL_ALLOC_BIT_SINGLE)))
+			num_tolerated_disk_barrier_failures = 0;
+		else if (num_tolerated_disk_barrier_failures > 1 &&
+			 (target &
+			  (BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10)))
+			num_tolerated_disk_barrier_failures = 1;
+
+		fs_info->num_tolerated_disk_barrier_failures =
+			num_tolerated_disk_barrier_failures;
+	}
+
 	ret = insert_balance_item(fs_info->tree_root, bctl);
 	if (ret && ret != -EEXIST)
 		goto out;
@@ -2839,6 +2864,11 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||
 	    balance_need_close(fs_info)) {
 		__cancel_balance(fs_info);
+	}
+
+	if (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		fs_info->num_tolerated_disk_barrier_failures =
+			btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
 	}
 
 	wake_up(&fs_info->balance_wait_q);

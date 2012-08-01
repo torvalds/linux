@@ -2875,8 +2875,8 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	return 0;
 }
 
-static void get_block_group_info(struct list_head *groups_list,
-				 struct btrfs_ioctl_space_info *space)
+void btrfs_get_block_group_info(struct list_head *groups_list,
+				struct btrfs_ioctl_space_info *space)
 {
 	struct btrfs_block_group_cache *block_group;
 
@@ -2984,8 +2984,8 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 		down_read(&info->groups_sem);
 		for (c = 0; c < BTRFS_NR_RAID_TYPES; c++) {
 			if (!list_empty(&info->block_groups[c])) {
-				get_block_group_info(&info->block_groups[c],
-						     &space);
+				btrfs_get_block_group_info(
+					&info->block_groups[c], &space);
 				memcpy(dest, &space, sizeof(space));
 				dest++;
 				space_args.total_spaces++;

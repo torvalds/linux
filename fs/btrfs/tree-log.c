@@ -2425,9 +2425,12 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * in and cause problems either.
 	 */
 	btrfs_scrub_pause_super(root);
-	write_ctree_super(trans, root->fs_info->tree_root, 1);
+	ret = write_ctree_super(trans, root->fs_info->tree_root, 1);
 	btrfs_scrub_continue_super(root);
-	ret = 0;
+	if (ret) {
+		btrfs_abort_transaction(trans, root, ret);
+		goto out_wake_log_root;
+	}
 
 	mutex_lock(&root->log_mutex);
 	if (root->last_log_commit < log_transid)
