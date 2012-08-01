@@ -232,6 +232,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(tps65910_clear_bits);
 
+extern int PMIC_IS_TPS6591x;
 static int tps65910_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -293,6 +294,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 	printk("%s:irq=%d,irq_base=%d\n",__func__,init_data->irq,init_data->irq_base);
+	PMIC_IS_TPS6591x = 1;
 	return ret;
 
 err:

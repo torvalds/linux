@@ -575,7 +575,7 @@ static struct regulator_init_data tps65910_ldo8 = {
 	.num_consumer_supplies = ARRAY_SIZE(tps65910_ldo8_supply),
 	.consumer_supplies =  tps65910_ldo8_supply,
 };
-
+#ifdef PMIC_IS_TPS6591x
 void __sramfunc board_pmu_suspend(void)
 {	
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
@@ -593,7 +593,7 @@ void __sramfunc board_pmu_resume(void)
 	sram_udelay(2000);
 	#endif
 }
-
+#endif
 static struct tps65910_board tps65910_data = {
 	.irq 	= (unsigned)TPS65910_HOST_IRQ,		
 	.irq_base = NR_GIC_IRQS + NR_GPIO_IRQS,

@@ -773,7 +773,7 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 out:
 	return 0;
 }
-
+#ifdef PMIC_IS_WM831X
 void __sramfunc board_pmu_suspend(void)
 {	
 	cru_writel(CRU_CLKGATE5_GRFCLK_ON,CRU_CLKGATE5_CON_ADDR); //open grf clk
@@ -792,6 +792,7 @@ void __sramfunc board_pmu_resume(void)
 	sram_udelay(10000);
 #endif
 }
+#endif
 static struct wm831x_pdata wm831x_platdata = {
 
 	/** Called before subdevices are set up */
