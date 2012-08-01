@@ -29,7 +29,7 @@
 
 struct rotary_encoder {
 	struct input_dev *input;
-	struct rotary_encoder_platform_data *pdata;
+	const struct rotary_encoder_platform_data *pdata;
 
 	unsigned int axis;
 	unsigned int pos;
@@ -43,7 +43,7 @@ struct rotary_encoder {
 	char last_stable;
 };
 
-static int rotary_encoder_get_state(struct rotary_encoder_platform_data *pdata)
+static int rotary_encoder_get_state(const struct rotary_encoder_platform_data *pdata)
 {
 	int a = !!gpio_get_value(pdata->gpio_a);
 	int b = !!gpio_get_value(pdata->gpio_b);
@@ -56,7 +56,7 @@ static int rotary_encoder_get_state(struct rotary_encoder_platform_data *pdata)
 
 static void rotary_encoder_report_event(struct rotary_encoder *encoder)
 {
-	struct rotary_encoder_platform_data *pdata = encoder->pdata;
+	const struct rotary_encoder_platform_data *pdata = encoder->pdata;
 
 	if (pdata->relative_axis) {
 		input_report_rel(encoder->input,
@@ -142,10 +142,10 @@ static irqreturn_t rotary_encoder_half_period_irq(int irq, void *dev_id)
 
 static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 {
-	struct rotary_encoder_platform_data *pdata = pdev->dev.platform_data;
+	struct device *dev = &pdev->dev;
+	const struct rotary_encoder_platform_data *pdata = dev_get_platdata(dev);
 	struct rotary_encoder *encoder;
 	struct input_dev *input;
-	struct device *dev = &pdev->dev;
 	irq_handler_t handler;
 	int err;
 
@@ -247,7 +247,7 @@ exit_free_mem:
 static int __devexit rotary_encoder_remove(struct platform_device *pdev)
 {
 	struct rotary_encoder *encoder = platform_get_drvdata(pdev);
-	struct rotary_encoder_platform_data *pdata = pdev->dev.platform_data;
+	const struct rotary_encoder_platform_data *pdata = encoder->pdata;
 
 	free_irq(encoder->irq_a, encoder);
 	free_irq(encoder->irq_b, encoder);
