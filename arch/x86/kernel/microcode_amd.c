@@ -78,12 +78,22 @@ static struct equiv_cpu_entry *equiv_cpu_table;
 /* page-sized ucode patch buffer */
 void *patch;
 
+struct ucode_patch {
+	struct list_head plist;
+	void *data;
+	u32 patch_id;
+	u16 equiv_cpu;
+};
+
+static LIST_HEAD(pcache);
+
 static u16 find_equiv_id(unsigned int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	int i = 0;
 
-	BUG_ON(equiv_cpu_table == NULL);
+	if (!equiv_cpu_table)
+		return 0;
 
 	while (equiv_cpu_table[i].installed_cpu != 0) {
 		if (uci->cpu_sig.sig == equiv_cpu_table[i].installed_cpu)
@@ -106,6 +116,61 @@ static u32 find_cpu_family_by_equiv_cpu(u16 equiv_cpu)
 		i++;
 	}
 	return 0;
+}
+
+/*
+ * a small, trivial cache of per-family ucode patches
+ */
+static struct ucode_patch *cache_find_patch(u16 equiv_cpu)
+{
+	struct ucode_patch *p;
+
+	list_for_each_entry(p, &pcache, plist)
+		if (p->equiv_cpu == equiv_cpu)
+			return p;
+	return NULL;
+}
+
+static void update_cache(struct ucode_patch *new_patch)
+{
+	struct ucode_patch *p;
+
+	list_for_each_entry(p, &pcache, plist) {
+		if (p->equiv_cpu == new_patch->equiv_cpu) {
+			if (p->patch_id >= new_patch->patch_id)
+				/* we already have the latest patch */
+				return;
+
+			list_replace(&p->plist, &new_patch->plist);
+			kfree(p->data);
+			kfree(p);
+			return;
+		}
+	}
+	/* no patch found, add it */
+	list_add_tail(&new_patch->plist, &pcache);
+}
+
+static void free_cache(void)
+{
+	struct ucode_patch *p;
+
+	list_for_each_entry_reverse(p, &pcache, plist) {
+		__list_del(p->plist.prev, p->plist.next);
+		kfree(p->data);
+		kfree(p);
+	}
+}
+
+static struct ucode_patch *find_patch(unsigned int cpu)
+{
+	u16 equiv_id;
+
+	equiv_id = find_equiv_id(cpu);
+	if (!equiv_id)
+		return NULL;
+
+	return cache_find_patch(equiv_id);
 }
 
 static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
