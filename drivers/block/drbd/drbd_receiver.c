@@ -949,20 +949,25 @@ retry:
 				if (sock.socket) {
 					conn_warn(tconn, "initial packet S crossed\n");
 					sock_release(sock.socket);
+					sock.socket = s;
+					goto randomize;
 				}
 				sock.socket = s;
 				break;
 			case P_INITIAL_META:
+				set_bit(DISCARD_CONCURRENT, &tconn->flags);
 				if (msock.socket) {
 					conn_warn(tconn, "initial packet M crossed\n");
 					sock_release(msock.socket);
+					msock.socket = s;
+					goto randomize;
 				}
 				msock.socket = s;
-				set_bit(DISCARD_CONCURRENT, &tconn->flags);
 				break;
 			default:
 				conn_warn(tconn, "Error receiving initial packet\n");
 				sock_release(s);
+randomize:
 				if (random32() & 1)
 					goto retry;
 			}
