@@ -221,6 +221,7 @@ struct revmap_entry {
 #define KVMPPC_GOT_PAGE		0x80
 
 struct kvm_arch_memory_slot {
+	unsigned long *rmap;
 };
 
 struct kvm_arch {

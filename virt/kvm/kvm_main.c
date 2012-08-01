@@ -550,16 +550,12 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 				  struct kvm_memory_slot *dont)
 {
-	if (!dont || free->rmap != dont->rmap)
-		vfree(free->rmap);
-
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		kvm_destroy_dirty_bitmap(free);
 
 	kvm_arch_free_memslot(free, dont);
 
 	free->npages = 0;
-	free->rmap = NULL;
 }
 
 void kvm_free_physmem(struct kvm *kvm)
@@ -768,11 +764,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (npages && !old.npages) {
 		new.user_alloc = user_alloc;
 		new.userspace_addr = mem->userspace_addr;
-#ifndef CONFIG_S390
-		new.rmap = vzalloc(npages * sizeof(*new.rmap));
-		if (!new.rmap)
-			goto out_free;
-#endif /* not defined CONFIG_S390 */
+
 		if (kvm_arch_create_memslot(&new, npages))
 			goto out_free;
 	}
@@ -831,7 +823,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	/* actual memory is freed via old in kvm_free_physmem_slot below */
 	if (!npages) {
-		new.rmap = NULL;
 		new.dirty_bitmap = NULL;
 		memset(&new.arch, 0, sizeof(new.arch));
 	}

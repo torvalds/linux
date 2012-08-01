@@ -504,7 +504,7 @@ struct kvm_lpage_info {
 };
 
 struct kvm_arch_memory_slot {
-	unsigned long *rmap_pde[KVM_NR_PAGE_SIZES - 1];
+	unsigned long *rmap[KVM_NR_PAGE_SIZES];
 	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 };
 

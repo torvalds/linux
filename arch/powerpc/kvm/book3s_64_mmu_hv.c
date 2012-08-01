@@ -705,7 +705,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		goto out_unlock;
 	hpte[0] = (hpte[0] & ~HPTE_V_ABSENT) | HPTE_V_VALID;
 
-	rmap = &memslot->rmap[gfn - memslot->base_gfn];
+	rmap = &memslot->arch.rmap[gfn - memslot->base_gfn];
 	lock_rmap(rmap);
 
 	/* Check if we might have been invalidated; let the guest retry if so */
@@ -788,7 +788,7 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 		for (; gfn < gfn_end; ++gfn) {
 			gfn_t gfn_offset = gfn - memslot->base_gfn;
 
-			ret = handler(kvm, &memslot->rmap[gfn_offset], gfn);
+			ret = handler(kvm, &memslot->arch.rmap[gfn_offset], gfn);
 			retval |= ret;
 		}
 	}
@@ -1036,7 +1036,7 @@ long kvmppc_hv_get_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 	unsigned long *rmapp, *map;
 
 	preempt_disable();
-	rmapp = memslot->rmap;
+	rmapp = memslot->arch.rmap;
 	map = memslot->dirty_bitmap;
 	for (i = 0; i < memslot->npages; ++i) {
 		if (kvm_test_clear_dirty(kvm, rmapp))

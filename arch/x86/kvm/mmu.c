@@ -970,11 +970,8 @@ static unsigned long *__gfn_to_rmap(gfn_t gfn, int level,
 {
 	unsigned long idx;
 
-	if (likely(level == PT_PAGE_TABLE_LEVEL))
-		return &slot->rmap[gfn - slot->base_gfn];
-
 	idx = gfn_to_index(gfn, slot->base_gfn, level);
-	return &slot->arch.rmap_pde[level - PT_DIRECTORY_LEVEL][idx];
+	return &slot->arch.rmap[level - PT_PAGE_TABLE_LEVEL][idx];
 }
 
 /*
