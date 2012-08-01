@@ -1155,6 +1155,26 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 }
 EXPORT_SYMBOL(cfg80211_get_p2p_attr);
 
+bool ieee80211_operating_class_to_band(u8 operating_class,
+				       enum ieee80211_band *band)
+{
+	switch (operating_class) {
+	case 112:
+	case 115 ... 127:
+		*band = IEEE80211_BAND_5GHZ;
+		return true;
+	case 81:
+	case 82:
+	case 83:
+	case 84:
+		*band = IEEE80211_BAND_2GHZ;
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(ieee80211_operating_class_to_band);
+
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int)
 {
