@@ -230,6 +230,9 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	struct regulator *ldo;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
+	g_pmic_type = PMIC_TYPE_TPS65910;
+	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
+	
 	dcdc = regulator_get(NULL, "vio");	//vcc_io
 	regulator_set_voltage(dcdc, 3000000, 3000000);
 	regulator_enable(dcdc);
@@ -576,13 +579,13 @@ static struct regulator_init_data tps65910_ldo8 = {
 	.consumer_supplies =  tps65910_ldo8_supply,
 };
 
-void __sramfunc board_pmu_suspend(void)
+void __sramfunc board_pmu_tps65910_suspend(void)
 {	
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
 }
-void __sramfunc board_pmu_resume(void)
+void __sramfunc board_pmu_tps65910_resume(void)
 {
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low

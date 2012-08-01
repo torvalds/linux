@@ -1798,6 +1798,9 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 };
 #endif
 
+#define PMIC_TYPE_WM8326	1
+#define PMIC_TYPE_TPS65910	2
+int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_MFD_WM831X_I2C
 #include "board-rk30-sdk-wm8326.c"
@@ -1828,6 +1831,25 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 #endif
 };
 #endif
+
+
+void __sramfunc board_pmu_suspend(void)
+{      
+       if(g_pmic_type == PMIC_TYPE_WM8326)
+       board_pmu_wm8326_suspend();
+       else if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_suspend(); 
+       
+}
+
+void __sramfunc board_pmu_resume(void)
+{      
+       if(g_pmic_type == PMIC_TYPE_WM8326)
+       board_pmu_wm8326_resume();
+       else if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_resume();      
+}
+
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
@@ -1955,16 +1977,19 @@ void rk30_pm_power_off(void)
               arm_pm_restart(0, NULL);
 	}
 #endif
-#if PMIC_IS_WM831X 
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
-	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
-#endif
-#else
-#if defined(CONFIG_MFD_TPS65910)
-	tps65910_device_shutdown();//tps65910 shutdown
-#endif
-#endif
+	#if defined(CONFIG_MFD_WM831X)	
+	if(g_pmic_type == PMIC_TYPE_WM8326)
+	{
+		wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
+		wm831x_device_shutdown(Wm831x);//wm8326 shutdown
+	}
+	#endif
+	#if defined(CONFIG_MFD_TPS65910)
+	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	{
+		tps65910_device_shutdown();//tps65910 shutdown
+	}
+	#endif
   gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
 	while(1);
 }
