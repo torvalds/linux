@@ -62,22 +62,12 @@
    comedi_do_insn(cf,&insn); // executing configuration
 */
 
-#ifdef _DEBUG_
-#define DEBUG(...);        printk(__VA_ARGS__);
-#else
-#define DEBUG(...)
-#endif
-
 #if !defined(TRUE)
 #define TRUE    (1)
 #endif
 
 #if !defined(FALSE)
 #define FALSE   (0)
-#endif
-
-#if !defined(INLINE)
-#define INLINE static __inline
 #endif
 
 #include <linux/slab.h>

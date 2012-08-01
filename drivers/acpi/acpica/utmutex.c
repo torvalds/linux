@@ -147,7 +147,7 @@ void acpi_ut_mutex_terminate(void)
  *
  * FUNCTION:    acpi_ut_create_mutex
  *
- * PARAMETERS:  mutex_iD        - ID of the mutex to be created
+ * PARAMETERS:  mutex_ID        - ID of the mutex to be created
  *
  * RETURN:      Status
  *
@@ -176,7 +176,7 @@ static acpi_status acpi_ut_create_mutex(acpi_mutex_handle mutex_id)
  *
  * FUNCTION:    acpi_ut_delete_mutex
  *
- * PARAMETERS:  mutex_iD        - ID of the mutex to be deleted
+ * PARAMETERS:  mutex_ID        - ID of the mutex to be deleted
  *
  * RETURN:      Status
  *
@@ -199,7 +199,7 @@ static void acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
  *
  * FUNCTION:    acpi_ut_acquire_mutex
  *
- * PARAMETERS:  mutex_iD        - ID of the mutex to be acquired
+ * PARAMETERS:  mutex_ID        - ID of the mutex to be acquired
  *
  * RETURN:      Status
  *
@@ -283,7 +283,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
  *
  * FUNCTION:    acpi_ut_release_mutex
  *
- * PARAMETERS:  mutex_iD        - ID of the mutex to be released
+ * PARAMETERS:  mutex_ID        - ID of the mutex to be released
  *
  * RETURN:      Status
  *

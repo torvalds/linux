@@ -30,6 +30,7 @@
 #include <net/inet_sock.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
+#include <linux/rcupdate.h>
 #include <linux/route.h>
 #include <linux/ip.h>
 #include <linux/cache.h>
@@ -56,6 +57,8 @@ struct rtable {
 
 	/* Miscellaneous cached information */
 	u32			rt_pmtu;
+
+	struct list_head	rt_uncached;
 };
 
 static inline bool rt_is_input_route(const struct rtable *rt)
@@ -106,6 +109,7 @@ extern struct ip_rt_acct __percpu *ip_rt_acct;
 struct in_device;
 extern int		ip_rt_init(void);
 extern void		rt_cache_flush(struct net *net, int how);
+extern void		rt_flush_dev(struct net_device *dev);
 extern struct rtable *__ip_route_output_key(struct net *, struct flowi4 *flp);
 extern struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
 					   struct sock *sk);
@@ -157,8 +161,22 @@ static inline struct rtable *ip_route_output_gre(struct net *net, struct flowi4 
 	return ip_route_output_key(net, fl4);
 }
 
-extern int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
-			  u8 tos, struct net_device *devin);
+extern int ip_route_input_noref(struct sk_buff *skb, __be32 dst, __be32 src,
+				u8 tos, struct net_device *devin);
+
+static inline int ip_route_input(struct sk_buff *skb, __be32 dst, __be32 src,
+				 u8 tos, struct net_device *devin)
+{
+	int err;
+
+	rcu_read_lock();
+	err = ip_route_input_noref(skb, dst, src, tos, devin);
+	if (!err)
+		skb_dst_force(skb);
+	rcu_read_unlock();
+
+	return err;
+}
 
 extern void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
 			     int oif, u32 mark, u8 protocol, int flow_flags);

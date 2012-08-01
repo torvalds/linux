@@ -155,7 +155,7 @@ static irqreturn_t intr_handler(int irq, void *d)
 	struct comedi_subdevice *s = dev->subdevices;
 
 	if (!dev->attached || devpriv->das6402_ignoreirq) {
-		dev_warn(dev->hw_dev, "BUG: spurious interrupt\n");
+		dev_warn(dev->class_dev, "BUG: spurious interrupt\n");
 		return IRQ_HANDLED;
 	}
 #ifdef DEBUG
@@ -202,7 +202,7 @@ static int das6402_ai_cancel(struct comedi_device *dev,
 	 */
 
 	devpriv->das6402_ignoreirq = 1;
-	dev_dbg(dev->hw_dev, "Stopping acquisition\n");
+	dev_dbg(dev->class_dev, "Stopping acquisition\n");
 	devpriv->das6402_ignoreirq = 1;
 	outb_p(0x02, dev->iobase + 10);	/* disable external trigging */
 	outw_p(SCANL, dev->iobase + 2);	/* resets the card fifo */
@@ -218,7 +218,7 @@ static int das6402_ai_mode2(struct comedi_device *dev,
 			    struct comedi_subdevice *s, comedi_trig * it)
 {
 	devpriv->das6402_ignoreirq = 1;
-	dev_dbg(dev->hw_dev, "Starting acquisition\n");
+	dev_dbg(dev->class_dev, "Starting acquisition\n");
 	outb_p(0x03, dev->iobase + 10);	/* enable external trigging */
 	outw_p(SCANL, dev->iobase + 2);	/* resets the card fifo */
 	outb_p(IRQ | CONVSRC | BURSTEN | INTE, dev->iobase + 9);
@@ -289,7 +289,7 @@ static int das6402_attach(struct comedi_device *dev,
 		iobase = 0x300;
 
 	if (!request_region(iobase, DAS6402_SIZE, "das6402")) {
-		dev_err(dev->hw_dev, "I/O port conflict\n");
+		dev_err(dev->class_dev, "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -297,7 +297,7 @@ static int das6402_attach(struct comedi_device *dev,
 	/* should do a probe here */
 
 	irq = it->options[0];
-	dev_dbg(dev->hw_dev, "( irq = %u )\n", irq);
+	dev_dbg(dev->class_dev, "( irq = %u )\n", irq);
 	ret = request_irq(irq, intr_handler, 0, "das6402", dev);
 	if (ret < 0)
 		return ret;
@@ -307,8 +307,8 @@ static int das6402_attach(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = alloc_subdevices(dev, 1);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
 		return ret;
 
 	/* ai subdevice */

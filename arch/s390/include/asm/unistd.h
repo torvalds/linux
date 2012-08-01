@@ -388,7 +388,6 @@
 #define __IGNORE_recvmmsg
 #define __IGNORE_sendmmsg
 
-#define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
 #define __ARCH_WANT_SYS_GETHOSTNAME

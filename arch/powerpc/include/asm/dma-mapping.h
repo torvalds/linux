@@ -27,7 +27,10 @@ extern void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 extern void dma_direct_free_coherent(struct device *dev, size_t size,
 				     void *vaddr, dma_addr_t dma_handle,
 				     struct dma_attrs *attrs);
-
+extern int dma_direct_mmap_coherent(struct device *dev,
+				    struct vm_area_struct *vma,
+				    void *cpu_addr, dma_addr_t handle,
+				    size_t size, struct dma_attrs *attrs);
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
 /*
@@ -207,10 +210,7 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
 
-extern int dma_mmap_coherent(struct device *, struct vm_area_struct *,
-			     void *, dma_addr_t, size_t);
 #define ARCH_HAS_DMA_MMAP_COHERENT
-
 
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 		enum dma_data_direction direction)

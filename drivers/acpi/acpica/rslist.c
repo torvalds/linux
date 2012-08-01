@@ -139,7 +139,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml,
  *
  * FUNCTION:    acpi_rs_convert_resources_to_aml
  *
- * PARAMETERS:  Resource            - Pointer to the resource linked list
+ * PARAMETERS:  resource            - Pointer to the resource linked list
  *              aml_size_needed     - Calculated size of the byte stream
  *                                    needed from calling acpi_rs_get_aml_length()
  *                                    The size of the output_buffer is

@@ -338,7 +338,7 @@ static int nv17_tv_mode_valid(struct drm_encoder *encoder,
 }
 
 static bool nv17_tv_mode_fixup(struct drm_encoder *encoder,
-			       struct drm_display_mode *mode,
+			       const struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);

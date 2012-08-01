@@ -285,7 +285,7 @@ xfs_iomap_eof_want_preallocate(
 	 * do any speculative allocation.
 	 */
 	start_fsb = XFS_B_TO_FSBT(mp, ((xfs_ufsize_t)(offset + count - 1)));
-	count_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
+	count_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	while (count_fsb > 0) {
 		imaps = nimaps;
 		firstblock = NULLFSBLOCK;
@@ -416,8 +416,8 @@ retry:
 	 * Make sure preallocation does not create extents beyond the range we
 	 * actually support in this filesystem.
 	 */
-	if (last_fsb > XFS_B_TO_FSB(mp, mp->m_maxioffset))
-		last_fsb = XFS_B_TO_FSB(mp, mp->m_maxioffset);
+	if (last_fsb > XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes))
+		last_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 
 	ASSERT(last_fsb > offset_fsb);
 

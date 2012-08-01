@@ -1447,7 +1447,7 @@ static int team_netpoll_setup(struct net_device *dev,
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
-	int err;
+	int err = 0;
 
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {

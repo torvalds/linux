@@ -12,10 +12,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <asm/byteorder.h>
+#include <linux/kthread.h>
 
 #include "gdm_usb.h"
 #include "gdm_wimax.h"
@@ -270,19 +270,16 @@ static void release_usb(struct usbwm_dev *udev)
 	}
 }
 
-static void gdm_usb_send_complete(struct urb *urb)
+static void __gdm_usb_send_complete(struct urb *urb)
 {
 	struct usb_tx *t = urb->context;
 	struct tx_cxt *tx = t->tx_cxt;
 	u8 *pkt = t->buf;
 	u16 cmd_evt;
-	unsigned long flags;
 
 	/* Completion by usb_unlink_urb */
 	if (urb->status == -ECONNRESET)
 		return;
-
-	spin_lock_irqsave(&tx->lock, flags);
 
 	if (t->callback)
 		t->callback(t->cb_data);
@@ -295,7 +292,16 @@ static void gdm_usb_send_complete(struct urb *urb)
 		put_tx_struct(tx, t);
 	else
 		free_tx_struct(t);
+}
 
+static void gdm_usb_send_complete(struct urb *urb)
+{
+	struct usb_tx *t = urb->context;
+	struct tx_cxt *tx = t->tx_cxt;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tx->lock, flags);
+	__gdm_usb_send_complete(urb);
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
@@ -411,7 +417,7 @@ out:
 
 send_fail:
 	t->callback = NULL;
-	gdm_usb_send_complete(t->urb);
+	__gdm_usb_send_complete(t->urb);
 	spin_unlock_irqrestore(&tx->lock, flags);
 	return ret;
 }
@@ -540,7 +546,7 @@ static void do_pm_control(struct work_struct *work)
 
 			if (ret) {
 				t->callback = NULL;
-				gdm_usb_send_complete(t->urb);
+				__gdm_usb_send_complete(t->urb);
 			}
 		}
 	}
@@ -584,19 +590,16 @@ static int gdm_usb_probe(struct usb_interface *intf,
 		goto out;
 	}
 
-	phy_dev = kmalloc(sizeof(*phy_dev), GFP_KERNEL);
+	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
 	if (phy_dev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	udev = kmalloc(sizeof(*udev), GFP_KERNEL);
+	udev = kzalloc(sizeof(*udev), GFP_KERNEL);
 	if (udev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(phy_dev, 0, sizeof(*phy_dev));
-	memset(udev, 0, sizeof(*udev));
 
 	if (idProduct == 0x7205 || idProduct == 0x7206)
 		udev->padding = GDM7205_PADDING;
@@ -742,7 +745,7 @@ static int k_mode_thread(void *arg)
 
 				if (ret) {
 					t->callback = NULL;
-					gdm_usb_send_complete(t->urb);
+					__gdm_usb_send_complete(t->urb);
 				}
 			}
 
@@ -775,7 +778,7 @@ static struct usb_driver gdm_usb_driver = {
 static int __init usb_gdm_wimax_init(void)
 {
 #ifdef CONFIG_WIMAX_GDM72XX_K_MODE
-	kernel_thread(k_mode_thread, NULL, CLONE_KERNEL);
+	kthread_run(k_mode_thread, NULL, "WiMax_thread");
 #endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 	return usb_register(&gdm_usb_driver);
 }

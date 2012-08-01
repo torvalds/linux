@@ -272,7 +272,15 @@ static const struct uvc_color_matching_descriptor uvc_color_matching = {
 	.bMatrixCoefficients	= 4,
 };
 
-static const struct uvc_descriptor_header * const uvc_control_cls[] = {
+static const struct uvc_descriptor_header * const uvc_fs_control_cls[] = {
+	(const struct uvc_descriptor_header *) &uvc_control_header,
+	(const struct uvc_descriptor_header *) &uvc_camera_terminal,
+	(const struct uvc_descriptor_header *) &uvc_processing,
+	(const struct uvc_descriptor_header *) &uvc_output_terminal,
+	NULL,
+};
+
+static const struct uvc_descriptor_header * const uvc_ss_control_cls[] = {
 	(const struct uvc_descriptor_header *) &uvc_control_header,
 	(const struct uvc_descriptor_header *) &uvc_camera_terminal,
 	(const struct uvc_descriptor_header *) &uvc_processing,
@@ -304,6 +312,18 @@ static const struct uvc_descriptor_header * const uvc_hs_streaming_cls[] = {
 	NULL,
 };
 
+static const struct uvc_descriptor_header * const uvc_ss_streaming_cls[] = {
+	(const struct uvc_descriptor_header *) &uvc_input_header,
+	(const struct uvc_descriptor_header *) &uvc_format_yuv,
+	(const struct uvc_descriptor_header *) &uvc_frame_yuv_360p,
+	(const struct uvc_descriptor_header *) &uvc_frame_yuv_720p,
+	(const struct uvc_descriptor_header *) &uvc_format_mjpg,
+	(const struct uvc_descriptor_header *) &uvc_frame_mjpg_360p,
+	(const struct uvc_descriptor_header *) &uvc_frame_mjpg_720p,
+	(const struct uvc_descriptor_header *) &uvc_color_matching,
+	NULL,
+};
+
 /* --------------------------------------------------------------------------
  * USB configuration
  */
@@ -311,8 +331,9 @@ static const struct uvc_descriptor_header * const uvc_hs_streaming_cls[] = {
 static int __init
 webcam_config_bind(struct usb_configuration *c)
 {
-	return uvc_bind_config(c, uvc_control_cls, uvc_fs_streaming_cls,
-			       uvc_hs_streaming_cls);
+	return uvc_bind_config(c, uvc_fs_control_cls, uvc_ss_control_cls,
+		uvc_fs_streaming_cls, uvc_hs_streaming_cls,
+		uvc_ss_streaming_cls);
 }
 
 static struct usb_configuration webcam_config_driver = {
@@ -373,7 +394,7 @@ static struct usb_composite_driver webcam_driver = {
 	.name		= "g_webcam",
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,
-	.max_speed	= USB_SPEED_HIGH,
+	.max_speed	= USB_SPEED_SUPER,
 	.unbind		= webcam_unbind,
 };
 

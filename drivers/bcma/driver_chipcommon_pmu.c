@@ -110,7 +110,7 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		/* enable 12 mA drive strenth for 4313 and set chipControl
 		   register bit 1 */
 		bcma_chipco_chipctl_maskset(cc, 0,
-					    BCMA_CCTRL_4313_12MA_LED_DRIVE,
+					    ~BCMA_CCTRL_4313_12MA_LED_DRIVE,
 					    BCMA_CCTRL_4313_12MA_LED_DRIVE);
 		break;
 	case BCMA_CHIP_ID_BCM4331:
@@ -124,14 +124,14 @@ void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 		   register bit 15 */
 		if (bus->chipinfo.rev == 0) {
 			bcma_cc_maskset32(cc, BCMA_CC_CHIPCTL,
-					  BCMA_CCTRL_43224_GPIO_TOGGLE,
+					  ~BCMA_CCTRL_43224_GPIO_TOGGLE,
 					  BCMA_CCTRL_43224_GPIO_TOGGLE);
 			bcma_chipco_chipctl_maskset(cc, 0,
-						    BCMA_CCTRL_43224A0_12MA_LED_DRIVE,
+						    ~BCMA_CCTRL_43224A0_12MA_LED_DRIVE,
 						    BCMA_CCTRL_43224A0_12MA_LED_DRIVE);
 		} else {
 			bcma_chipco_chipctl_maskset(cc, 0,
-						    BCMA_CCTRL_43224B0_12MA_LED_DRIVE,
+						    ~BCMA_CCTRL_43224B0_12MA_LED_DRIVE,
 						    BCMA_CCTRL_43224B0_12MA_LED_DRIVE);
 		}
 		break;

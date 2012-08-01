@@ -19,6 +19,7 @@ config ARCH_SH7372
 	select CPU_V7
 	select SH_CLK_CPG
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_CPU_SUSPEND if PM || CPU_IDLE
 
 config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
@@ -58,6 +59,7 @@ config MACH_G4EVM
 	bool "G4EVM board"
 	depends on ARCH_SH7377
 	select ARCH_REQUIRE_GPIOLIB
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_AP4EVB
 	bool "AP4EVB board"
@@ -65,6 +67,7 @@ config MACH_AP4EVB
 	select ARCH_REQUIRE_GPIOLIB
 	select SH_LCD_MIPI_DSI
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 choice
 	prompt "AP4EVB LCD panel selection"
@@ -83,6 +86,7 @@ config MACH_AG5EVM
 	bool "AG5EVM board"
 	select ARCH_REQUIRE_GPIOLIB
 	select SH_LCD_MIPI_DSI
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	depends on ARCH_SH73A0
 
 config MACH_MACKEREL
@@ -90,15 +94,18 @@ config MACH_MACKEREL
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
 	select SND_SOC_AK4642 if SND_SIMPLE_CARD
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_KOTA2
 	bool "KOTA2 board"
 	select ARCH_REQUIRE_GPIOLIB
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	depends on ARCH_SH73A0
 
 config MACH_BONITO
 	bool "bonito board"
 	select ARCH_REQUIRE_GPIOLIB
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	depends on ARCH_R8A7740
 
 config MACH_ARMADILLO800EVA
@@ -106,22 +113,28 @@ config MACH_ARMADILLO800EVA
 	depends on ARCH_R8A7740
 	select ARCH_REQUIRE_GPIOLIB
 	select USE_OF
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
+	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_KZM9D
 	bool "KZM9D board"
 	depends on ARCH_EMEV2
 	select USE_OF
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_KZM9G
 	bool "KZM-A9-GT board"
 	depends on ARCH_SH73A0
 	select ARCH_REQUIRE_GPIOLIB
 	select USE_OF
+	select SND_SOC_AK4642 if SND_SIMPLE_CARD
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 comment "SH-Mobile System Configuration"
 

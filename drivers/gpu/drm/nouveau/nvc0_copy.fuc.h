@@ -1,34 +1,65 @@
-uint32_t nvc0_pcopy_data[] = {
+u32 nvc0_pcopy_data[] = {
+/* 0x0000: ctx_object */
 	0x00000000,
+/* 0x0004: ctx_query_address_high */
 	0x00000000,
+/* 0x0008: ctx_query_address_low */
 	0x00000000,
+/* 0x000c: ctx_query_counter */
 	0x00000000,
+/* 0x0010: ctx_src_address_high */
 	0x00000000,
+/* 0x0014: ctx_src_address_low */
 	0x00000000,
+/* 0x0018: ctx_src_pitch */
 	0x00000000,
+/* 0x001c: ctx_src_tile_mode */
 	0x00000000,
+/* 0x0020: ctx_src_xsize */
 	0x00000000,
+/* 0x0024: ctx_src_ysize */
 	0x00000000,
+/* 0x0028: ctx_src_zsize */
 	0x00000000,
+/* 0x002c: ctx_src_zoff */
 	0x00000000,
+/* 0x0030: ctx_src_xoff */
 	0x00000000,
+/* 0x0034: ctx_src_yoff */
 	0x00000000,
+/* 0x0038: ctx_src_cpp */
 	0x00000000,
+/* 0x003c: ctx_dst_address_high */
 	0x00000000,
+/* 0x0040: ctx_dst_address_low */
 	0x00000000,
+/* 0x0044: ctx_dst_pitch */
 	0x00000000,
+/* 0x0048: ctx_dst_tile_mode */
 	0x00000000,
+/* 0x004c: ctx_dst_xsize */
 	0x00000000,
+/* 0x0050: ctx_dst_ysize */
 	0x00000000,
+/* 0x0054: ctx_dst_zsize */
 	0x00000000,
+/* 0x0058: ctx_dst_zoff */
 	0x00000000,
+/* 0x005c: ctx_dst_xoff */
 	0x00000000,
+/* 0x0060: ctx_dst_yoff */
 	0x00000000,
+/* 0x0064: ctx_dst_cpp */
 	0x00000000,
+/* 0x0068: ctx_format */
 	0x00000000,
+/* 0x006c: ctx_swz_const0 */
 	0x00000000,
+/* 0x0070: ctx_swz_const1 */
 	0x00000000,
+/* 0x0074: ctx_xcnt */
 	0x00000000,
+/* 0x0078: ctx_ycnt */
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -63,6 +94,7 @@ uint32_t nvc0_pcopy_data[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
+/* 0x0100: dispatch_table */
 	0x00010000,
 	0x00000000,
 	0x00000000,
@@ -111,11 +143,11 @@ uint32_t nvc0_pcopy_data[] = {
 	0x00000010,
 	0xffffff00,
 	0x00000014,
-	0x0000000f,
+	0x00000000,
 	0x0000003c,
 	0xffffff00,
 	0x00000040,
-	0x0000000f,
+	0x00000000,
 	0x00000018,
 	0xfff80000,
 	0x00000044,
@@ -139,7 +171,8 @@ uint32_t nvc0_pcopy_data[] = {
 	0x00000800,
 };
 
-uint32_t nvc0_pcopy_code[] = {
+u32 nvc0_pcopy_code[] = {
+/* 0x0000: main */
 	0x04fe04bd,
 	0x3517f000,
 	0xf10010fe,
@@ -151,15 +184,20 @@ uint32_t nvc0_pcopy_code[] = {
 	0x17f11031,
 	0x27f01200,
 	0x0012d003,
+/* 0x002f: spin */
 	0xf40031f4,
 	0x0ef40028,
+/* 0x0035: ih */
 	0x8001cffd,
 	0xf40812c4,
 	0x21f4060b,
+/* 0x0041: ih_no_chsw */
 	0x0412c4ca,
 	0xf5070bf4,
+/* 0x004b: ih_no_cmd */
 	0xc4010221,
 	0x01d00c11,
+/* 0x0053: swctx */
 	0xf101f840,
 	0xfe770047,
 	0x47f1004b,
@@ -188,8 +226,11 @@ uint32_t nvc0_pcopy_code[] = {
 	0xf00204b9,
 	0x01f40643,
 	0x0604fa09,
+/* 0x00c3: swctx_load */
 	0xfa060ef4,
+/* 0x00c6: swctx_done */
 	0x03f80504,
+/* 0x00ca: chsw */
 	0x27f100f8,
 	0x23cf1400,
 	0x1e3fc800,
@@ -198,18 +239,22 @@ uint32_t nvc0_pcopy_code[] = {
 	0x1e3af053,
 	0xf00023d0,
 	0x24d00147,
+/* 0x00eb: chsw_no_unload */
 	0xcf00f880,
 	0x3dc84023,
 	0x090bf41e,
 	0xf40131f4,
+/* 0x00fa: chsw_finish_load */
 	0x37f05321,
 	0x8023d002,
+/* 0x0102: dispatch */
 	0x37f100f8,
 	0x32cf1900,
 	0x0033cf40,
 	0x07ff24e4,
 	0xf11024b6,
 	0xbd010057,
+/* 0x011b: dispatch_loop */
 	0x5874bd64,
 	0x57580056,
 	0x0450b601,
@@ -219,6 +264,7 @@ uint32_t nvc0_pcopy_code[] = {
 	0xbb0f08f4,
 	0x74b60276,
 	0x0057bb03,
+/* 0x013f: dispatch_valid_mthd */
 	0xbbdf0ef4,
 	0x44b60246,
 	0x0045bb03,
@@ -229,24 +275,33 @@ uint32_t nvc0_pcopy_code[] = {
 	0x64b00146,
 	0x091bf400,
 	0xf4005380,
+/* 0x0166: dispatch_cmd */
 	0x32f4300e,
 	0xf455f901,
 	0x0ef40c01,
+/* 0x0171: dispatch_invalid_bitfield */
 	0x0225f025,
+/* 0x0174: dispatch_illegal_mthd */
+/* 0x0177: dispatch_error */
 	0xf10125f0,
 	0xd0100047,
 	0x43d00042,
 	0x4027f040,
+/* 0x0187: hostirq_wait */
 	0xcf0002d0,
 	0x24f08002,
 	0x0024b040,
+/* 0x0193: dispatch_done */
 	0xf1f71bf4,
 	0xf01d0027,
 	0x23d00137,
+/* 0x019f: cmd_nop */
 	0xf800f800,
+/* 0x01a1: cmd_pm_trigger */
 	0x0027f100,
 	0xf034bd22,
 	0x23d00233,
+/* 0x01af: cmd_exec_set_format */
 	0xf400f800,
 	0x01b0f030,
 	0x0101b000,
@@ -258,20 +313,26 @@ uint32_t nvc0_pcopy_code[] = {
 	0x3847c701,
 	0xf40170b6,
 	0x84bd0232,
+/* 0x01da: ncomp_loop */
 	0x4ac494bd,
 	0x0445b60f,
+/* 0x01e2: bpc_loop */
 	0xa430b4bd,
 	0x0f18f404,
 	0xbbc0a5ff,
 	0x31f400cb,
 	0x220ef402,
+/* 0x01f4: cmp_c0 */
 	0xf00c1bf4,
 	0xcbbb10c7,
 	0x160ef400,
+/* 0x0200: cmp_c1 */
 	0xf406a430,
 	0xc7f00c18,
 	0x00cbbb14,
+/* 0x020f: cmp_zero */
 	0xf1070ef4,
+/* 0x0213: bpc_next */
 	0x380080c7,
 	0x80b601c8,
 	0x01b0b601,
@@ -283,6 +344,7 @@ uint32_t nvc0_pcopy_code[] = {
 	0x1d08980e,
 	0xf40068fd,
 	0x64bd0502,
+/* 0x023c: dst_xcnt */
 	0x800075fd,
 	0x78fd1907,
 	0x1057f100,
@@ -307,15 +369,18 @@ uint32_t nvc0_pcopy_code[] = {
 	0x1c069800,
 	0xf44056d0,
 	0x00f81030,
+/* 0x029c: cmd_exec_set_surface_tiled */
 	0xc7075798,
 	0x78c76879,
 	0x0380b664,
 	0xb06077c7,
 	0x1bf40e76,
 	0x0477f009,
+/* 0x02b7: xtile64 */
 	0xf00f0ef4,
 	0x70b6027c,
 	0x0947fd11,
+/* 0x02c3: xtileok */
 	0x980677f0,
 	0x5b980c5a,
 	0x00abfd0e,
@@ -374,6 +439,7 @@ uint32_t nvc0_pcopy_code[] = {
 	0xb70067d0,
 	0xd0040060,
 	0x00f80068,
+/* 0x03a8: cmd_exec_set_surface_linear */
 	0xb7026cf0,
 	0xb6020260,
 	0x57980864,
@@ -384,12 +450,15 @@ uint32_t nvc0_pcopy_code[] = {
 	0x0060b700,
 	0x06579804,
 	0xf80067d0,
+/* 0x03d1: cmd_exec_wait */
 	0xf900f900,
 	0x0007f110,
 	0x0604b608,
+/* 0x03dc: loop */
 	0xf00001cf,
 	0x1bf40114,
 	0xfc10fcfa,
+/* 0x03eb: cmd_exec_query */
 	0xc800f800,
 	0x1bf40d34,
 	0xd121f570,
@@ -419,6 +488,7 @@ uint32_t nvc0_pcopy_code[] = {
 	0x0153f026,
 	0x080047f1,
 	0xd00644b6,
+/* 0x045e: query_counter */
 	0x21f50045,
 	0x47f103d1,
 	0x44b6080c,
@@ -442,11 +512,13 @@ uint32_t nvc0_pcopy_code[] = {
 	0x080047f1,
 	0xd00644b6,
 	0x00f80045,
+/* 0x04b8: cmd_exec */
 	0x03d121f5,
 	0xf4003fc8,
 	0x21f50e0b,
 	0x47f101af,
 	0x0ef40200,
+/* 0x04cd: cmd_exec_no_format */
 	0x1067f11e,
 	0x0664b608,
 	0x800177f0,
@@ -454,18 +526,23 @@ uint32_t nvc0_pcopy_code[] = {
 	0x1d079819,
 	0xd00067d0,
 	0x44bd4067,
+/* 0x04e8: cmd_exec_init_src_surface */
 	0xbd0232f4,
 	0x043fc854,
 	0xf50a0bf4,
 	0xf403a821,
+/* 0x04fa: src_tiled */
 	0x21f50a0e,
 	0x49f0029c,
+/* 0x0501: cmd_exec_init_dst_surface */
 	0x0231f407,
 	0xc82c57f0,
 	0x0bf4083f,
 	0xa821f50a,
 	0x0a0ef403,
+/* 0x0514: dst_tiled */
 	0x029c21f5,
+/* 0x051b: cmd_exec_kick */
 	0xf10849f0,
 	0xb6080057,
 	0x06980654,
@@ -475,7 +552,9 @@ uint32_t nvc0_pcopy_code[] = {
 	0x54d00546,
 	0x0c3fc800,
 	0xf5070bf4,
+/* 0x053f: cmd_exec_done */
 	0xf803eb21,
+/* 0x0541: cmd_wrcache_flush */
 	0x0027f100,
 	0xf034bd22,
 	0x23d00133,
