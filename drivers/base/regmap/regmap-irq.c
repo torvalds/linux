@@ -131,7 +131,6 @@ static int regmap_irq_set_wake(struct irq_data *data, unsigned int on)
 }
 
 static const struct irq_chip regmap_irq_chip = {
-	.name			= "regmap",
 	.irq_bus_lock		= regmap_irq_lock,
 	.irq_bus_sync_unlock	= regmap_irq_sync_unlock,
 	.irq_disable		= regmap_irq_disable,
@@ -287,6 +286,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	}
 
 	d->irq_chip = regmap_irq_chip;
+	d->irq_chip.name = chip->name;
 	d->irq = irq;
 	d->map = map;
 	d->chip = chip;
