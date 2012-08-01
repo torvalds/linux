@@ -211,7 +211,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
           2. irq process is splitted to two step.
 *v0.x.e: fix bugs of early suspend when display_pd is closed.          
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0xc)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0xe)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -924,7 +924,12 @@ static void rk_camera_deactivate(struct rk_camera_dev *pcdev)
 
 	clk_disable(pcdev->hclk_cif);
 	clk_disable(pcdev->cif_clk_in);
+	
 	clk_disable(pcdev->cif_clk_out);
+	clk_enable(pcdev->cif_clk_out);
+    clk_set_rate(pcdev->cif_clk_out,48*1000*1000);
+	clk_disable(pcdev->cif_clk_out);
+    
 	clk_disable(pcdev->pd_cif);
     return;
 }
