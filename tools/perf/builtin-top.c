@@ -1032,7 +1032,7 @@ static int __cmd_top(struct perf_top *top)
 					       &top->session->host_machine);
 	perf_top__start_counters(top);
 	top->session->evlist = top->evlist;
-	perf_session__update_sample_type(top->session);
+	perf_session__set_id_hdr_size(top->session);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(top->evlist->pollfd, top->evlist->nr_fds, 100);

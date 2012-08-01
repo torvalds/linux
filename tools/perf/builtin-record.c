@@ -313,7 +313,7 @@ try_again:
 		}
  	}
 
-	perf_session__update_sample_type(session);
+	perf_session__set_id_hdr_size(session);
 }
 
 static int process_buildids(struct perf_record *rec)

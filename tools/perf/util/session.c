@@ -101,11 +101,12 @@ out_close:
 	return -1;
 }
 
-void perf_session__update_sample_type(struct perf_session *self)
+void perf_session__set_id_hdr_size(struct perf_session *session)
 {
-	self->id_hdr_size = perf_evlist__id_hdr_size(self->evlist);
-	self->host_machine.id_hdr_size = self->id_hdr_size;
-	machines__set_id_hdr_size(&self->machines, self->id_hdr_size);
+	u16 id_hdr_size = perf_evlist__id_hdr_size(session->evlist);
+
+	session->host_machine.id_hdr_size = id_hdr_size;
+	machines__set_id_hdr_size(&session->machines, id_hdr_size);
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)
@@ -165,7 +166,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
 			goto out_delete;
-		perf_session__update_sample_type(self);
+		perf_session__set_id_hdr_size(self);
 	} else if (mode == O_WRONLY) {
 		/*
 		 * In O_RDONLY mode this will be performed when reading the
@@ -1054,7 +1055,7 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	case PERF_RECORD_HEADER_ATTR:
 		err = tool->attr(event, &session->evlist);
 		if (err == 0)
-			perf_session__update_sample_type(session);
+			perf_session__set_id_hdr_size(session);
 		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		return tool->event_type(tool, event);
