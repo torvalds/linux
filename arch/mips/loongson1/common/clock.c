@@ -38,11 +38,27 @@ struct clk *clk_get(struct device *dev, const char *name)
 }
 EXPORT_SYMBOL(clk_get);
 
+int clk_enable(struct clk *clk)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_disable);
+
 unsigned long clk_get_rate(struct clk *clk)
 {
 	return clk->rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
+
+void clk_put(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_put);
 
 static void pll_clk_init(struct clk *clk)
 {
