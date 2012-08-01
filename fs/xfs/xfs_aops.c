@@ -124,6 +124,12 @@ xfs_setfilesize_trans_alloc(
 	ioend->io_append_trans = tp;
 
 	/*
+	 * We will pass freeze protection with a transaction.  So tell lockdep
+	 * we released it.
+	 */
+	rwsem_release(&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+		      1, _THIS_IP_);
+	/*
 	 * We hand off the transaction to the completion thread now, so
 	 * clear the flag here.
 	 */
@@ -199,6 +205,15 @@ xfs_end_io(
 	struct xfs_inode *ip = XFS_I(ioend->io_inode);
 	int		error = 0;
 
+	if (ioend->io_append_trans) {
+		/*
+		 * We've got freeze protection passed with the transaction.
+		 * Tell lockdep about it.
+		 */
+		rwsem_acquire_read(
+			&ioend->io_inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+			0, 1, _THIS_IP_);
+	}
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		ioend->io_error = -EIO;
 		goto done;
@@ -1425,6 +1440,9 @@ out_trans_cancel:
 	if (ioend->io_append_trans) {
 		current_set_flags_nested(&ioend->io_append_trans->t_pflags,
 					 PF_FSTRANS);
+		rwsem_acquire_read(
+			&inode->i_sb->s_writers.lock_map[SB_FREEZE_FS-1],
+			0, 1, _THIS_IP_);
 		xfs_trans_cancel(ioend->io_append_trans, 0);
 	}
 out_destroy_ioend:

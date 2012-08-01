@@ -403,7 +403,7 @@ xfs_sync_worker(
 	if (!(mp->m_super->s_flags & MS_ACTIVE) &&
 	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
 		/* dgc: errors ignored here */
-		if (mp->m_super->s_frozen == SB_UNFROZEN &&
+		if (mp->m_super->s_writers.frozen == SB_UNFROZEN &&
 		    xfs_log_need_covered(mp))
 			error = xfs_fs_log_dummy(mp);
 		else

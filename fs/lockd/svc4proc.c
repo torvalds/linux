@@ -257,6 +257,7 @@ static __be32 nlm4svc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_args
 		return rpc_system_err;
 
 	call = nlm_alloc_call(host);
+	nlmsvc_release_host(host);
 	if (call == NULL)
 		return rpc_system_err;
 

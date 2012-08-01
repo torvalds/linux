@@ -1551,7 +1551,7 @@ xfs_unmountfs(
 int
 xfs_fs_writable(xfs_mount_t *mp)
 {
-	return !(xfs_test_for_freeze(mp) || XFS_FORCED_SHUTDOWN(mp) ||
+	return !(mp->m_super->s_writers.frozen || XFS_FORCED_SHUTDOWN(mp) ||
 		(mp->m_flags & XFS_MOUNT_RDONLY));
 }
 

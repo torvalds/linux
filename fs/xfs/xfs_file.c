@@ -770,10 +770,12 @@ xfs_file_aio_write(
 	if (ocount == 0)
 		return 0;
 
-	xfs_wait_for_freeze(ip->i_mount, SB_FREEZE_WRITE);
+	sb_start_write(inode->i_sb);
 
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
-		return -EIO;
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	if (unlikely(file->f_flags & O_DIRECT))
 		ret = xfs_file_dio_aio_write(iocb, iovp, nr_segs, pos, ocount);
@@ -792,6 +794,8 @@ xfs_file_aio_write(
 			ret = err;
 	}
 
+out:
+	sb_end_write(inode->i_sb);
 	return ret;
 }
 

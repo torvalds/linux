@@ -164,11 +164,13 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 	if (IS_APPEND(inode))
 		goto out_putf;
 
+	sb_start_write(inode->i_sb);
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
 		error = security_path_truncate(&file->f_path);
 	if (!error)
 		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, file);
+	sb_end_write(inode->i_sb);
 out_putf:
 	fput(file);
 out:
@@ -266,7 +268,10 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (!file->f_op->fallocate)
 		return -EOPNOTSUPP;
 
-	return file->f_op->fallocate(file, mode, offset, len);
+	sb_start_write(inode->i_sb);
+	ret = file->f_op->fallocate(file, mode, offset, len);
+	sb_end_write(inode->i_sb);
+	return ret;
 }
 
 SYSCALL_DEFINE(fallocate)(int fd, int mode, loff_t offset, loff_t len)
@@ -620,7 +625,7 @@ static inline int __get_file_write_access(struct inode *inode,
 		/*
 		 * Balanced in __fput()
 		 */
-		error = mnt_want_write(mnt);
+		error = __mnt_want_write(mnt);
 		if (error)
 			put_write_access(inode);
 	}
@@ -654,6 +659,7 @@ static int do_dentry_open(struct file *f,
 	if (unlikely(f->f_flags & O_PATH))
 		f->f_mode = FMODE_PATH;
 
+	path_get(&f->f_path);
 	inode = f->f_path.dentry->d_inode;
 	if (f->f_mode & FMODE_WRITE) {
 		error = __get_file_write_access(inode, f->f_path.mnt);
@@ -739,9 +745,7 @@ int finish_open(struct file *file, struct dentry *dentry,
 	int error;
 	BUG_ON(*opened & FILE_OPENED); /* once it's opened, it's opened */
 
-	mntget(file->f_path.mnt);
-	file->f_path.dentry = dget(dentry);
-
+	file->f_path.dentry = dentry;
 	error = do_dentry_open(file, open, current_cred());
 	if (!error)
 		*opened |= FILE_OPENED;
@@ -784,7 +788,6 @@ struct file *dentry_open(const struct path *path, int flags,
 
 	f->f_flags = flags;
 	f->f_path = *path;
-	path_get(&f->f_path);
 	error = do_dentry_open(f, NULL, cred);
 	if (!error) {
 		error = open_check_o_direct(f);

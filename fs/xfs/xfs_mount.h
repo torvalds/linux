@@ -311,9 +311,6 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 #define SHUTDOWN_REMOTE_REQ	0x0010	/* shutdown came from remote cell */
 #define SHUTDOWN_DEVICE_REQ	0x0020	/* failed all paths to the device */
 
-#define xfs_test_for_freeze(mp)		((mp)->m_super->s_frozen)
-#define xfs_wait_for_freeze(mp,l)	vfs_check_frozen((mp)->m_super, (l))
-
 /*
  * Flags for xfs_mountfs
  */
