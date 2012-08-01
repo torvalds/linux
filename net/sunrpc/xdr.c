@@ -742,6 +742,8 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 	/* Truncate page data and move it into the tail */
 	if (buf->page_len > len)
 		xdr_shrink_pagelen(buf, buf->page_len - len);
+	else
+		len = buf->page_len;
 	xdr->nwords = XDR_QUADLEN(buf->len - cur);
 	return len;
 }
