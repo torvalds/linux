@@ -3802,7 +3802,7 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		 * Are we at extent 8? If yes, we know the extent is changed.
 		 * This may only happen on the first iteration.
 		 */
-		if (found_key.offset + right_len < ekey->offset) {
+		if (found_key.offset + right_len <= ekey->offset) {
 			ret = 0;
 			goto out;
 		}
