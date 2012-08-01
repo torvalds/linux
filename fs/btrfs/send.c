@@ -2627,6 +2627,12 @@ static int can_rmdir(struct send_ctx *sctx, u64 dir, u64 send_progress)
 	struct btrfs_key loc;
 	struct btrfs_dir_item *di;
 
+	/*
+	 * Don't try to rmdir the top/root subvolume dir.
+	 */
+	if (dir == BTRFS_FIRST_FREE_OBJECTID)
+		return 0;
+
 	path = alloc_path_for_send();
 	if (!path)
 		return -ENOMEM;
@@ -2686,6 +2692,12 @@ static int process_recorded_refs(struct send_ctx *sctx)
 	int is_orphan = 0;
 
 verbose_printk("btrfs: process_recorded_refs %llu\n", sctx->cur_ino);
+
+	/*
+	 * This should never happen as the root dir always has the same ref
+	 * which is always '..'
+	 */
+	BUG_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
 
 	valid_path = fs_path_alloc(sctx);
 	if (!valid_path) {
@@ -4094,7 +4106,14 @@ static int changed_inode(struct send_ctx *sctx,
 
 		right_gen = btrfs_inode_generation(sctx->right_path->nodes[0],
 				right_ii);
-		if (left_gen != right_gen)
+
+		/*
+		 * The cur_ino = root dir case is special here. We can't treat
+		 * the inode as deleted+reused because it would generate a
+		 * stream that tries to delete/mkdir the root dir.
+		 */
+		if (left_gen != right_gen &&
+		    sctx->cur_ino != BTRFS_FIRST_FREE_OBJECTID)
 			sctx->cur_inode_new_gen = 1;
 	}
 
