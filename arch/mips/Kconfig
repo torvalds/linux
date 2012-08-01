@@ -77,6 +77,7 @@ config AR7
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select ARCH_REQUIRE_GPIOLIB
 	select VLYNQ
+	select HAVE_CLK
 	help
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
@@ -124,6 +125,7 @@ config BCM63XX
 	select SYS_HAS_EARLY_PRINTK
 	select SWAP_IO_SPACE
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
 	help
 	 Support for BCM63XX based boards
 

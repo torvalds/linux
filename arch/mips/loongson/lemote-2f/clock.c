@@ -6,14 +6,17 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
-#include <linux/module.h>
+#include <linux/clk.h>
 #include <linux/cpufreq.h>
-#include <linux/platform_device.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/init.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
 
 #include <asm/clock.h>
-
-#include <loongson.h>
+#include <asm/mach-loongson/loongson.h>
 
 static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
@@ -89,12 +92,6 @@ EXPORT_SYMBOL(clk_put);
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return clk_set_rate_ex(clk, rate, 0);
-}
-EXPORT_SYMBOL_GPL(clk_set_rate);
-
-int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
-{
 	int ret = 0;
 	int regval;
 	int i;
@@ -103,7 +100,7 @@ int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
 		unsigned long flags;
 
 		spin_lock_irqsave(&clock_lock, flags);
-		ret = clk->ops->set_rate(clk, rate, algo_id);
+		ret = clk->ops->set_rate(clk, rate, 0);
 		spin_unlock_irqrestore(&clock_lock, flags);
 	}
 
@@ -129,7 +126,7 @@ int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clk_set_rate_ex);
+EXPORT_SYMBOL_GPL(clk_set_rate);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
@@ -146,26 +143,3 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	return rate;
 }
 EXPORT_SYMBOL_GPL(clk_round_rate);
-
-/*
- * This is the simple version of Loongson-2 wait, Maybe we need do this in
- * interrupt disabled content
- */
-
-DEFINE_SPINLOCK(loongson2_wait_lock);
-void loongson2_cpu_wait(void)
-{
-	u32 cpu_freq;
-	unsigned long flags;
-
-	spin_lock_irqsave(&loongson2_wait_lock, flags);
-	cpu_freq = LOONGSON_CHIPCFG0;
-	LOONGSON_CHIPCFG0 &= ~0x7;	/* Put CPU into wait mode */
-	LOONGSON_CHIPCFG0 = cpu_freq;	/* Restore CPU state */
-	spin_unlock_irqrestore(&loongson2_wait_lock, flags);
-}
-EXPORT_SYMBOL_GPL(loongson2_cpu_wait);
-
-MODULE_AUTHOR("Yanhua <yanh@lemote.com>");
-MODULE_DESCRIPTION("cpufreq driver for Loongson 2F");
-MODULE_LICENSE("GPL");
