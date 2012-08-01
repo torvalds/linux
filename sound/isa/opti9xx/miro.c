@@ -37,6 +37,7 @@
 #include <sound/opl4.h>
 #include <sound/control.h>
 #include <sound/info.h>
+#define SNDRV_LEGACY_FIND_FREE_IOPORT
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
@@ -768,20 +769,6 @@ static int __devinit snd_miro_mixer(struct snd_card *card,
 	}
 
 	return 0;
-}
-
-static long snd_legacy_find_free_ioport(long *port_table, long size)
-{
-	while (*port_table != -1) {
-		struct resource *res;
-		if ((res = request_region(*port_table, size, 
-					  "ALSA test")) != NULL) {
-			release_and_free_resource(res);
-			return *port_table;
-		}
-		port_table++;
-	}
-	return -1;
 }
 
 static int __devinit snd_miro_init(struct snd_miro *chip,
