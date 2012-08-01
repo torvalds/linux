@@ -145,6 +145,7 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 	struct rotary_encoder_platform_data *pdata = pdev->dev.platform_data;
 	struct rotary_encoder *encoder;
 	struct input_dev *input;
+	struct device *dev = &pdev->dev;
 	irq_handler_t handler;
 	int err;
 
@@ -180,36 +181,20 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 
 	err = input_register_device(input);
 	if (err) {
-		dev_err(&pdev->dev, "failed to register input device\n");
+		dev_err(dev, "failed to register input device\n");
 		goto exit_free_mem;
 	}
 
 	/* request the GPIOs */
-	err = gpio_request(pdata->gpio_a, DRV_NAME);
+	err = gpio_request_one(pdata->gpio_a, GPIOF_IN, dev_name(dev));
 	if (err) {
-		dev_err(&pdev->dev, "unable to request GPIO %d\n",
-			pdata->gpio_a);
+		dev_err(dev, "unable to request GPIO %d\n", pdata->gpio_a);
 		goto exit_unregister_input;
 	}
 
-	err = gpio_direction_input(pdata->gpio_a);
+	err = gpio_request_one(pdata->gpio_b, GPIOF_IN, dev_name(dev));
 	if (err) {
-		dev_err(&pdev->dev, "unable to set GPIO %d for input\n",
-			pdata->gpio_a);
-		goto exit_unregister_input;
-	}
-
-	err = gpio_request(pdata->gpio_b, DRV_NAME);
-	if (err) {
-		dev_err(&pdev->dev, "unable to request GPIO %d\n",
-			pdata->gpio_b);
-		goto exit_free_gpio_a;
-	}
-
-	err = gpio_direction_input(pdata->gpio_b);
-	if (err) {
-		dev_err(&pdev->dev, "unable to set GPIO %d for input\n",
-			pdata->gpio_b);
+		dev_err(dev, "unable to request GPIO %d\n", pdata->gpio_b);
 		goto exit_free_gpio_a;
 	}
 
@@ -228,8 +213,7 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  DRV_NAME, encoder);
 	if (err) {
-		dev_err(&pdev->dev, "unable to request IRQ %d\n",
-			encoder->irq_a);
+		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_a);
 		goto exit_free_gpio_b;
 	}
 
@@ -237,8 +221,7 @@ static int __devinit rotary_encoder_probe(struct platform_device *pdev)
 			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  DRV_NAME, encoder);
 	if (err) {
-		dev_err(&pdev->dev, "unable to request IRQ %d\n",
-			encoder->irq_b);
+		dev_err(dev, "unable to request IRQ %d\n", encoder->irq_b);
 		goto exit_free_irq_a;
 	}
 
