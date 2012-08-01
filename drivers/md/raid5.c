@@ -4574,6 +4574,30 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
 	return handled;
 }
 
+#define MAX_STRIPE_BATCH 8
+static int handle_active_stripes(struct r5conf *conf)
+{
+	struct stripe_head *batch[MAX_STRIPE_BATCH], *sh;
+	int i, batch_size = 0;
+
+	while (batch_size < MAX_STRIPE_BATCH &&
+			(sh = __get_priority_stripe(conf)) != NULL)
+		batch[batch_size++] = sh;
+
+	if (batch_size == 0)
+		return batch_size;
+	spin_unlock_irq(&conf->device_lock);
+
+	for (i = 0; i < batch_size; i++)
+		handle_stripe(batch[i]);
+
+	cond_resched();
+
+	spin_lock_irq(&conf->device_lock);
+	for (i = 0; i < batch_size; i++)
+		__release_stripe(conf, batch[i]);
+	return batch_size;
+}
 
 /*
  * This is our raid5 kernel thread.
@@ -4584,7 +4608,6 @@ static int  retry_aligned_read(struct r5conf *conf, struct bio *raid_bio)
  */
 static void raid5d(struct mddev *mddev)
 {
-	struct stripe_head *sh;
 	struct r5conf *conf = mddev->private;
 	int handled;
 	struct blk_plug plug;
@@ -4598,6 +4621,7 @@ static void raid5d(struct mddev *mddev)
 	spin_lock_irq(&conf->device_lock);
 	while (1) {
 		struct bio *bio;
+		int batch_size;
 
 		if (
 		    !list_empty(&conf->bitmap_list)) {
@@ -4621,21 +4645,16 @@ static void raid5d(struct mddev *mddev)
 			handled++;
 		}
 
-		sh = __get_priority_stripe(conf);
-
-		if (!sh)
+		batch_size = handle_active_stripes(conf);
+		if (!batch_size)
 			break;
-		spin_unlock_irq(&conf->device_lock);
-		
-		handled++;
-		handle_stripe(sh);
-		release_stripe(sh);
-		cond_resched();
+		handled += batch_size;
 
-		if (mddev->flags & ~(1<<MD_CHANGE_PENDING))
+		if (mddev->flags & ~(1<<MD_CHANGE_PENDING)) {
+			spin_unlock_irq(&conf->device_lock);
 			md_check_recovery(mddev);
-
-		spin_lock_irq(&conf->device_lock);
+			spin_lock_irq(&conf->device_lock);
+		}
 	}
 	pr_debug("%d stripes handled\n", handled);
 
