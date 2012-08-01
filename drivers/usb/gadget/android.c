@@ -590,8 +590,11 @@ static ssize_t mass_storage_inquiry_store(struct device *dev,
 	struct mass_storage_function_config *config = f->config;
 	if (size >= sizeof(config->common->inquiry_string))
 		return -EINVAL;
-	if (sscanf(buf, "%s", config->common->inquiry_string) != 1)
-		return -EINVAL;
+	//if (sscanf(buf, "%s", config->common->inquiry_string) != 1)
+	//	return -EINVAL;
+	
+	memcpy(config->common->inquiry_string,buf,sizeof config->common->inquiry_string);
+
 	return size;
 }
 
