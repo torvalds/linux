@@ -1829,7 +1829,7 @@ _check_net_options(struct drbd_tconn *tconn, struct net_conf *old_conf, struct n
 				return ERR_STONITH_AND_PROT_A;
 		}
 		if (mdev->state.role == R_PRIMARY && new_conf->discard_my_data)
-			return ERR_DISCARD;
+			return ERR_DISCARD_IMPOSSIBLE;
 	}
 
 	if (new_conf->on_congestion != OC_BLOCK && new_conf->wire_protocol != DRBD_PROT_A)
