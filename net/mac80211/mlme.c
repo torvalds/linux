@@ -3357,10 +3357,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* prepare assoc data */
-
-	ifmgd->flags &= ~IEEE80211_STA_DISABLE_11N;
-	ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
-	ifmgd->flags &= ~IEEE80211_STA_DISABLE_VHT;
+	
+	/*
+	 * keep only the 40 MHz disable bit set as it might have
+	 * been set during authentication already, all other bits
+	 * should be reset for a new connection
+	 */
+	ifmgd->flags &= IEEE80211_STA_DISABLE_40MHZ;
 
 	ifmgd->beacon_crc_valid = false;
 
