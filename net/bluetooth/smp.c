@@ -267,10 +267,10 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 	mgmt_auth_failed(conn->hcon->hdev, conn->dst, hcon->type,
 			 hcon->dst_type, reason);
 
-	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
-		cancel_delayed_work_sync(&conn->security_timer);
+	cancel_delayed_work_sync(&conn->security_timer);
+
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags))
 		smp_chan_destroy(conn);
-	}
 }
 
 #define JUST_WORKS	0x00
