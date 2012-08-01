@@ -54,12 +54,7 @@ typedef struct xfs_trans_reservations {
 #include "xfs_sync.h"
 
 struct xlog;
-struct xfs_mount_args;
 struct xfs_inode;
-struct xfs_bmbt_irec;
-struct xfs_bmap_free;
-struct xfs_extdelta;
-struct xfs_swapext;
 struct xfs_mru_cache;
 struct xfs_nameops;
 struct xfs_ail;

@@ -37,6 +37,7 @@ struct xlog_recover;
 struct xlog_recover_item;
 struct xfs_buf_log_format;
 struct xfs_inode_log_format;
+struct xfs_bmbt_irec;
 
 DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	TP_PROTO(struct xfs_attr_list_context *ctx),
