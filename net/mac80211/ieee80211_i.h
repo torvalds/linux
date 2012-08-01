@@ -1136,7 +1136,7 @@ struct ieee802_11_elems {
 	u8 *prep;
 	u8 *perr;
 	struct ieee80211_rann_ie *rann;
-	u8 *ch_switch_elem;
+	struct ieee80211_channel_sw_ie *ch_switch_ie;
 	u8 *country_elem;
 	u8 *pwr_constr_elem;
 	u8 *quiet_elem;	/* first quite element */
@@ -1162,7 +1162,6 @@ struct ieee802_11_elems {
 	u8 preq_len;
 	u8 prep_len;
 	u8 perr_len;
-	u8 ch_switch_elem_len;
 	u8 country_elem_len;
 	u8 pwr_constr_elem_len;
 	u8 quiet_elem_len;

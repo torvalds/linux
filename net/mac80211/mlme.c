@@ -2267,14 +2267,10 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		mutex_unlock(&local->iflist_mtx);
 	}
 
-	if (elems->ch_switch_elem && (elems->ch_switch_elem_len == 3) &&
-	    (memcmp(mgmt->bssid, sdata->u.mgd.associated->bssid,
-							ETH_ALEN) == 0)) {
-		struct ieee80211_channel_sw_ie *sw_elem =
-			(struct ieee80211_channel_sw_ie *)elems->ch_switch_elem;
-		ieee80211_sta_process_chanswitch(sdata, sw_elem,
+	if (elems->ch_switch_ie &&
+	    memcmp(mgmt->bssid, sdata->u.mgd.associated->bssid, ETH_ALEN) == 0)
+		ieee80211_sta_process_chanswitch(sdata, elems->ch_switch_ie,
 						 bss, rx_status->mactime);
-	}
 }
 
 
