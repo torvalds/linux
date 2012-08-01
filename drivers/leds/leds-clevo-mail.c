@@ -59,11 +59,10 @@ static struct dmi_system_id __initdata clevo_mail_led_dmi_table[] = {
 	},
 	{
 		.callback = clevo_mail_led_dmi_callback,
-		.ident = "Positivo Mobile",
+		.ident = "Clevo M5x0V",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "CLEVO Co. "),
 			DMI_MATCH(DMI_BOARD_NAME, "M5X0V "),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Positivo Mobile"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "VT6198")
 		}
 	},
