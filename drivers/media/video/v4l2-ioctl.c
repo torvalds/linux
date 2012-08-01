@@ -1853,6 +1853,8 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 			.type = type,
 		};
 
+		if (p->index)
+			return -EINVAL;
 		err = ops->vidioc_g_tuner(file, fh, &t);
 		if (err)
 			return err;
@@ -1869,6 +1871,8 @@ static int v4l_enum_freq_bands(const struct v4l2_ioctl_ops *ops,
 		};
 
 		if (type != V4L2_TUNER_RADIO)
+			return -EINVAL;
+		if (p->index)
 			return -EINVAL;
 		err = ops->vidioc_g_modulator(file, fh, &m);
 		if (err)
