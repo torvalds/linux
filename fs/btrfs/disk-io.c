@@ -2527,8 +2527,7 @@ retry_root_backup:
 		goto fail_trans_kthread;
 
 	/* do not make disk changes in broken FS */
-	if (btrfs_super_log_root(disk_super) != 0 &&
-	    !(fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)) {
+	if (btrfs_super_log_root(disk_super) != 0) {
 		u64 bytenr = btrfs_super_log_root(disk_super);
 
 		if (fs_devices->rw_devices == 0) {
@@ -3188,30 +3187,14 @@ int close_ctree(struct btrfs_root *root)
 	/* clear out the rbtree of defraggable inodes */
 	btrfs_run_defrag_inodes(fs_info);
 
-	/*
-	 * Here come 2 situations when btrfs is broken to flip readonly:
-	 *
-	 * 1. when btrfs flips readonly somewhere else before
-	 * btrfs_commit_super, sb->s_flags has MS_RDONLY flag,
-	 * and btrfs will skip to write sb directly to keep
-	 * ERROR state on disk.
-	 *
-	 * 2. when btrfs flips readonly just in btrfs_commit_super,
-	 * and in such case, btrfs cannot write sb via btrfs_commit_super,
-	 * and since fs_state has been set BTRFS_SUPER_FLAG_ERROR flag,
-	 * btrfs will cleanup all FS resources first and write sb then.
-	 */
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_commit_super(root);
 		if (ret)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
 
-	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
-		ret = btrfs_error_commit_super(root);
-		if (ret)
-			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
-	}
+	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+		btrfs_error_commit_super(root);
 
 	btrfs_put_block_group_cache(fs_info);
 
@@ -3433,18 +3416,11 @@ static int btrfs_check_super_valid(struct btrfs_fs_info *fs_info,
 	if (read_only)
 		return 0;
 
-	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
-		printk(KERN_WARNING "warning: mount fs with errors, "
-		       "running btrfsck is recommended\n");
-	}
-
 	return 0;
 }
 
-int btrfs_error_commit_super(struct btrfs_root *root)
+void btrfs_error_commit_super(struct btrfs_root *root)
 {
-	int ret;
-
 	mutex_lock(&root->fs_info->cleaner_mutex);
 	btrfs_run_delayed_iputs(root);
 	mutex_unlock(&root->fs_info->cleaner_mutex);
@@ -3454,10 +3430,6 @@ int btrfs_error_commit_super(struct btrfs_root *root)
 
 	/* cleanup FS via transaction */
 	btrfs_cleanup_transaction(root);
-
-	ret = write_ctree_super(NULL, root, 0);
-
-	return ret;
 }
 
 static void btrfs_destroy_ordered_operations(struct btrfs_root *root)
