@@ -3942,17 +3942,13 @@ array_state_store(struct mddev *mddev, const char *buf, size_t len)
 		break;
 	case clear:
 		/* stopping an active array */
-		if (atomic_read(&mddev->openers) > 0)
-			return -EBUSY;
 		err = do_md_stop(mddev, 0, NULL);
 		break;
 	case inactive:
 		/* stopping an active array */
-		if (mddev->pers) {
-			if (atomic_read(&mddev->openers) > 0)
-				return -EBUSY;
+		if (mddev->pers)
 			err = do_md_stop(mddev, 2, NULL);
-		} else
+		else
 			err = 0; /* already inactive */
 		break;
 	case suspended:
