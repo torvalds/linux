@@ -322,6 +322,22 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		}
 	}
 
+	/* Wake is disabled by default */
+	if (d->wake_buf) {
+		for (i = 0; i < chip->num_regs; i++) {
+			d->wake_buf[i] = d->mask_buf_def[i];
+			reg = chip->wake_base +
+				(i * map->reg_stride * d->irq_reg_stride);
+			ret = regmap_update_bits(map, reg, d->wake_buf[i],
+						 d->wake_buf[i]);
+			if (ret != 0) {
+				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
+					reg, ret);
+				goto err_alloc;
+			}
+		}
+	}
+
 	if (irq_base)
 		d->domain = irq_domain_add_legacy(map->dev->of_node,
 						  chip->num_irqs, irq_base, 0,
