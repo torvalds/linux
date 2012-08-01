@@ -197,7 +197,7 @@ enum drbd_packet {
 	P_RECV_ACK	      = 0x15, /* Used in protocol B */
 	P_WRITE_ACK	      = 0x16, /* Used in protocol C */
 	P_RS_WRITE_ACK	      = 0x17, /* Is a P_WRITE_ACK, additionally call set_in_sync(). */
-	P_DISCARD_WRITE	      = 0x18, /* Used in proto C, two-primaries conflict detection */
+	P_SUPERSEDED	      = 0x18, /* Used in proto C, two-primaries conflict detection */
 	P_NEG_ACK	      = 0x19, /* Sent if local disk is unusable */
 	P_NEG_DREPLY	      = 0x1a, /* Local disk is broken... */
 	P_NEG_RS_DREPLY	      = 0x1b, /* Local disk is broken... */
@@ -335,7 +335,7 @@ struct p_data {
  * commands which share a struct:
  *  p_block_ack:
  *   P_RECV_ACK (proto B), P_WRITE_ACK (proto C),
- *   P_DISCARD_WRITE (proto C, two-primaries conflict detection)
+ *   P_SUPERSEDED (proto C, two-primaries conflict detection)
  *  p_block_req:
  *   P_DATA_REQUEST, P_RS_DATA_REQUEST
  */

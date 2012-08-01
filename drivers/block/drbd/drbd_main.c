@@ -3339,7 +3339,7 @@ const char *cmdname(enum drbd_packet cmd)
 		[P_RECV_ACK]	        = "RecvAck",
 		[P_WRITE_ACK]	        = "WriteAck",
 		[P_RS_WRITE_ACK]	= "RSWriteAck",
-		[P_DISCARD_WRITE]        = "DiscardWrite",
+		[P_SUPERSEDED]          = "Superseded",
 		[P_NEG_ACK]	        = "NegAck",
 		[P_NEG_DREPLY]	        = "NegDReply",
 		[P_NEG_RS_DREPLY]	= "NegRSDReply",

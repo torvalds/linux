@@ -425,7 +425,7 @@ static int drbd_finish_peer_reqs(struct drbd_conf *mdev)
 		drbd_free_net_peer_req(mdev, peer_req);
 
 	/* possible callbacks here:
-	 * e_end_block, and e_end_resync_block, e_send_discard_write.
+	 * e_end_block, and e_end_resync_block, e_send_superseded.
 	 * all ignore the last argument.
 	 */
 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
@@ -1803,7 +1803,7 @@ static void restart_conflicting_writes(struct drbd_conf *mdev,
 			continue;
 		/* as it is RQ_POSTPONED, this will cause it to
 		 * be queued on the retry workqueue. */
-		__req_mod(req, DISCARD_WRITE, NULL);
+		__req_mod(req, CONFLICT_RESOLVED, NULL);
 	}
 }
 
@@ -1864,9 +1864,9 @@ static int e_send_ack(struct drbd_work *w, enum drbd_packet ack)
 	return err;
 }
 
-static int e_send_discard_write(struct drbd_work *w, int unused)
+static int e_send_superseded(struct drbd_work *w, int unused)
 {
-	return e_send_ack(w, P_DISCARD_WRITE);
+	return e_send_ack(w, P_SUPERSEDED);
 }
 
 static int e_send_retry_write(struct drbd_work *w, int unused)
@@ -1874,7 +1874,7 @@ static int e_send_retry_write(struct drbd_work *w, int unused)
 	struct drbd_tconn *tconn = w->mdev->tconn;
 
 	return e_send_ack(w, tconn->agreed_pro_version >= 100 ?
-			     P_RETRY_WRITE : P_DISCARD_WRITE);
+			     P_RETRY_WRITE : P_SUPERSEDED);
 }
 
 static bool seq_greater(u32 a, u32 b)
@@ -2082,11 +2082,11 @@ static int handle_write_conflicts(struct drbd_conf *mdev,
 		if (resolve_conflicts) {
 			/*
 			 * If the peer request is fully contained within the
-			 * overlapping request, it can be discarded; otherwise,
-			 * it will be retried once all overlapping requests
-			 * have completed.
+			 * overlapping request, it can be considered overwritten
+			 * and thus superseded; otherwise, it will be retried
+			 * once all overlapping requests have completed.
 			 */
-			bool discard = i->sector <= sector && i->sector +
+			bool superseded = i->sector <= sector && i->sector +
 				       (i->size >> 9) >= sector + (size >> 9);
 
 			if (!equal)
@@ -2095,10 +2095,10 @@ static int handle_write_conflicts(struct drbd_conf *mdev,
 					       "assuming %s came first\n",
 					  (unsigned long long)i->sector, i->size,
 					  (unsigned long long)sector, size,
-					  discard ? "local" : "remote");
+					  superseded ? "local" : "remote");
 
 			inc_unacked(mdev);
-			peer_req->w.cb = discard ? e_send_discard_write :
+			peer_req->w.cb = superseded ? e_send_superseded :
 						   e_send_retry_write;
 			list_add_tail(&peer_req->w.list, &mdev->done_ee);
 			wake_asender(mdev->tconn);
@@ -2119,8 +2119,9 @@ static int handle_write_conflicts(struct drbd_conf *mdev,
 			    !(req->rq_state & RQ_POSTPONED)) {
 				/*
 				 * Wait for the node with the discard flag to
-				 * decide if this request will be discarded or
-				 * retried.  Requests that are discarded will
+				 * decide if this request has been superseded
+				 * or needs to be retried.
+				 * Requests that have been superseded will
 				 * disappear from the write_requests tree.
 				 *
 				 * In addition, wait for the conflicting
@@ -4994,8 +4995,8 @@ static int got_BlockAck(struct drbd_tconn *tconn, struct packet_info *pi)
 	case P_RECV_ACK:
 		what = RECV_ACKED_BY_PEER;
 		break;
-	case P_DISCARD_WRITE:
-		what = DISCARD_WRITE;
+	case P_SUPERSEDED:
+		what = CONFLICT_RESOLVED;
 		break;
 	case P_RETRY_WRITE:
 		what = POSTPONE_WRITE;
@@ -5220,7 +5221,7 @@ static struct asender_cmd asender_tbl[] = {
 	[P_RECV_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_WRITE_ACK]	    = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_RS_WRITE_ACK]    = { sizeof(struct p_block_ack), got_BlockAck },
-	[P_DISCARD_WRITE]   = { sizeof(struct p_block_ack), got_BlockAck },
+	[P_SUPERSEDED]   = { sizeof(struct p_block_ack), got_BlockAck },
 	[P_NEG_ACK]	    = { sizeof(struct p_block_ack), got_NegAck },
 	[P_NEG_DREPLY]	    = { sizeof(struct p_block_ack), got_NegDReply },
 	[P_NEG_RS_DREPLY]   = { sizeof(struct p_block_ack), got_NegRSDReply },

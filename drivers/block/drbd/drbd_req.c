@@ -611,13 +611,13 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 				RQ_NET_DONE);
 		break;
 
-	case DISCARD_WRITE:
-		/* for discarded conflicting writes of multiple primaries,
+	case CONFLICT_RESOLVED:
+		/* for superseded conflicting writes of multiple primaries,
 		 * there is no need to keep anything in the tl, potential
 		 * node crashes are covered by the activity log.
 		 *
 		 * If this request had been marked as RQ_POSTPONED before,
-		 * it will actually not be discarded, but "restarted",
+		 * it will actually not be completed, but "restarted",
 		 * resubmitted from the retry worker context. */
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
