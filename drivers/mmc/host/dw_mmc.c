@@ -1580,9 +1580,7 @@ static irqreturn_t dw_mci_interrupt(int irq, void *dev_id)
 			host->data_status = pending;
 			smp_wmb();
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
-			if (!(pending & (SDMMC_INT_DTO | SDMMC_INT_DCRC |
-					 SDMMC_INT_SBE | SDMMC_INT_EBE)))
-				tasklet_schedule(&host->tasklet);
+			tasklet_schedule(&host->tasklet);
 		}
 
 		if (pending & SDMMC_INT_DATA_OVER) {
