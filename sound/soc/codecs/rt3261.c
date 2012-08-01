@@ -2850,7 +2850,7 @@ static int rt3261_suspend(struct snd_soc_codec *codec, pm_message_t state)
 	 * (3) DSP IIS interface power off
 	 * (4) Toggle pin of codec LDO1 to power off
 	 */
-	rt3261_dsp_suspend(codec, state);
+	//rt3261_dsp_suspend(codec, state);
 #endif
 	rt3261_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -2861,7 +2861,7 @@ static int rt3261_resume(struct snd_soc_codec *codec)
 	rt3261_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 #if (CONFIG_SND_SOC_RT3261_MODULE | CONFIG_SND_SOC_RT3261)
 	/* After opening LDO of codec, then close LDO of DSP. */
-	rt3261_dsp_resume(codec);
+	//rt3261_dsp_resume(codec);
 #endif
 	return 0;
 }
