@@ -273,10 +273,20 @@ void free_pid(struct pid *pid)
 	spin_lock_irqsave(&pidmap_lock, flags);
 	for (i = 0; i <= pid->level; i++) {
 		struct upid *upid = pid->numbers + i;
+		struct pid_namespace *ns = upid->ns;
 		hlist_del_rcu(&upid->pid_chain);
-		if (--upid->ns->nr_hashed == 0) {
-			upid->ns->nr_hashed = -1;
-			schedule_work(&upid->ns->proc_work);
+		switch(--ns->nr_hashed) {
+		case 1:
+			/* When all that is left in the pid namespace
+			 * is the reaper wake up the reaper.  The reaper
+			 * may be sleeping in zap_pid_ns_processes().
+			 */
+			wake_up_process(ns->child_reaper);
+			break;
+		case 0:
+			ns->nr_hashed = -1;
+			schedule_work(&ns->proc_work);
+			break;
 		}
 	}
 	spin_unlock_irqrestore(&pidmap_lock, flags);

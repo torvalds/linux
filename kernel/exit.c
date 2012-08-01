@@ -72,18 +72,6 @@ static void __unhash_process(struct task_struct *p, bool group_dead)
 		list_del_rcu(&p->tasks);
 		list_del_init(&p->sibling);
 		__this_cpu_dec(process_counts);
-		/*
-		 * If we are the last child process in a pid namespace to be
-		 * reaped, notify the reaper sleeping zap_pid_ns_processes().
-		 */
-		if (IS_ENABLED(CONFIG_PID_NS)) {
-			struct task_struct *parent = p->real_parent;
-
-			if ((task_active_pid_ns(parent)->child_reaper == parent) &&
-			    list_empty(&parent->children) &&
-			    (parent->flags & PF_EXITING))
-				wake_up_process(parent);
-		}
 	}
 	list_del_rcu(&p->thread_group);
 }

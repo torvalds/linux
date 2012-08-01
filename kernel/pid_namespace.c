@@ -217,22 +217,15 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 
 	/*
 	 * sys_wait4() above can't reap the TASK_DEAD children.
-	 * Make sure they all go away, see __unhash_process().
+	 * Make sure they all go away, see free_pid().
 	 */
 	for (;;) {
-		bool need_wait = false;
-
-		read_lock(&tasklist_lock);
-		if (!list_empty(&current->children)) {
-			__set_current_state(TASK_UNINTERRUPTIBLE);
-			need_wait = true;
-		}
-		read_unlock(&tasklist_lock);
-
-		if (!need_wait)
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (pid_ns->nr_hashed == 1)
 			break;
 		schedule();
 	}
+	__set_current_state(TASK_RUNNING);
 
 	if (pid_ns->reboot)
 		current->signal->group_exit_code = pid_ns->reboot;
