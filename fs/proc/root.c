@@ -155,11 +155,6 @@ void __init proc_root_init(void)
 	err = register_filesystem(&proc_fs_type);
 	if (err)
 		return;
-	err = pid_ns_prepare_proc(&init_pid_ns);
-	if (err) {
-		unregister_filesystem(&proc_fs_type);
-		return;
-	}
 
 	proc_self_init();
 	proc_symlink("mounts", NULL, "self/mounts");
