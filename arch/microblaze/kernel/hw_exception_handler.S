@@ -862,7 +862,13 @@ ex_handler_done:
 		 * bits 20 and 21 are zero.
 		 */
 		andi	r3, r3, PAGE_MASK
+#ifdef CONFIG_MICROBLAZE_64K_PAGES
+		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_64K)
+#elif CONFIG_MICROBLAZE_16K_PAGES
+		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_16K)
+#else
 		ori	r3, r3, TLB_VALID | TLB_PAGESZ(PAGESZ_4K)
+#endif
 		mts	rtlbhi,	r3		/* Load TLB HI */
 		nop
 

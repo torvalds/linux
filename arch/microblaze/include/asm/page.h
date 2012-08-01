@@ -23,12 +23,10 @@
 #ifdef __KERNEL__
 
 /* PAGE_SHIFT determines the page size */
-#if defined(CONFIG_MICROBLAZE_32K_PAGES)
-#define PAGE_SHIFT		15
+#if defined(CONFIG_MICROBLAZE_64K_PAGES)
+#define PAGE_SHIFT		16
 #elif defined(CONFIG_MICROBLAZE_16K_PAGES)
 #define PAGE_SHIFT		14
-#elif defined(CONFIG_MICROBLAZE_8K_PAGES)
-#define PAGE_SHIFT		13
 #else
 #define PAGE_SHIFT		12
 #endif
