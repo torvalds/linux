@@ -25,7 +25,7 @@ int perf_session__parse_sample(struct perf_session *session,
 
 	return perf_event__parse_sample(event, first->attr.sample_type,
 					first->sample_size,
-					session->sample_id_all, sample,
+					first->attr.sample_id_all, sample,
 					session->header.needs_swap);
 }
 
@@ -103,7 +103,6 @@ out_close:
 
 void perf_session__update_sample_type(struct perf_session *self)
 {
-	self->sample_id_all = perf_evlist__sample_id_all(self->evlist);
 	self->id_hdr_size = perf_evlist__id_hdr_size(self->evlist);
 	self->host_machine.id_hdr_size = self->id_hdr_size;
 	machines__set_id_hdr_size(&self->machines, self->id_hdr_size);
@@ -177,7 +176,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	}
 
 	if (tool && tool->ordering_requires_timestamps &&
-	    tool->ordered_samples && !self->sample_id_all) {
+	    tool->ordered_samples && !perf_evlist__sample_id_all(self->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_samples = false;
 	}
@@ -887,7 +886,7 @@ static void perf_session__print_tstamp(struct perf_session *session,
 	u64 sample_type = perf_evlist__sample_type(session->evlist);
 
 	if (event->header.type != PERF_RECORD_SAMPLE &&
-	    !session->sample_id_all) {
+	    !perf_evlist__sample_id_all(session->evlist)) {
 		fputs("-1 -1 ", stdout);
 		return;
 	}
@@ -1090,7 +1089,7 @@ static int perf_session__process_event(struct perf_session *session,
 	int ret;
 
 	if (session->header.needs_swap)
-		event_swap(event, session->sample_id_all);
+		event_swap(event, perf_evlist__sample_id_all(session->evlist));
 
 	if (event->header.type >= PERF_RECORD_HEADER_MAX)
 		return -EINVAL;

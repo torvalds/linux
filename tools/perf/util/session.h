@@ -44,7 +44,6 @@ struct perf_session {
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
-	bool			sample_id_all;
 	u16			id_hdr_size;
 	int			cwdlen;
 	char			*cwd;
