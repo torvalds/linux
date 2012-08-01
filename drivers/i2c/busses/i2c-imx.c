@@ -564,7 +564,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 		resource_size(res), res->start);
 	dev_dbg(&i2c_imx->adapter.dev, "adapter name: \"%s\"\n",
 		i2c_imx->adapter.name);
-	dev_dbg(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
+	dev_info(&i2c_imx->adapter.dev, "IMX I2C adapter registered\n");
 
 	return 0;   /* Return OK */
 }
