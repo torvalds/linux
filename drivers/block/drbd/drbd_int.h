@@ -467,12 +467,6 @@ struct p_drbd06_param {
 	u32	  bit_map_gen[5];
 } __packed;
 
-struct p_discard {
-	u64	    block_id;
-	u32	    seq_num;
-	u32	    pad;
-} __packed;
-
 struct p_block_desc {
 	u64 sector;
 	u32 blksize;
