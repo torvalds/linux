@@ -1181,7 +1181,8 @@ void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
 	unsigned long *rmapp;
 
 	while (mask) {
-		rmapp = &slot->rmap[gfn_offset + __ffs(mask)];
+		rmapp = __gfn_to_rmap(slot->base_gfn + gfn_offset + __ffs(mask),
+				      PT_PAGE_TABLE_LEVEL, slot);
 		__rmap_write_protect(kvm, rmapp, PT_PAGE_TABLE_LEVEL, false);
 
 		/* clear the first set bit */
