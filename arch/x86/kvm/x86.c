@@ -6385,7 +6385,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	 *x86 needs to handle !user_alloc case.
 	 */
 	if (!user_alloc) {
-		if (npages && !old.rmap) {
+		if (npages && !old.npages) {
 			unsigned long userspace_addr;
 
 			userspace_addr = vm_mmap(NULL, 0,
@@ -6413,7 +6413,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 	int nr_mmu_pages = 0, npages = mem->memory_size >> PAGE_SHIFT;
 
-	if (!user_alloc && !old.user_alloc && old.rmap && !npages) {
+	if (!user_alloc && !old.user_alloc && old.npages && !npages) {
 		int ret;
 
 		ret = vm_munmap(old.userspace_addr,
