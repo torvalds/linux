@@ -31,27 +31,6 @@ EXPORT_SYMBOL_GPL(blkcg_root);
 
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
-struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup)
-{
-	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
-			    struct blkcg, css);
-}
-EXPORT_SYMBOL_GPL(cgroup_to_blkcg);
-
-static struct blkcg *task_blkcg(struct task_struct *tsk)
-{
-	return container_of(task_subsys_state(tsk, blkio_subsys_id),
-			    struct blkcg, css);
-}
-
-struct blkcg *bio_blkcg(struct bio *bio)
-{
-	if (bio && bio->bi_css)
-		return container_of(bio->bi_css, struct blkcg, css);
-	return task_blkcg(current);
-}
-EXPORT_SYMBOL_GPL(bio_blkcg);
-
 static bool blkcg_policy_enabled(struct request_queue *q,
 				 const struct blkcg_policy *pol)
 {
@@ -84,6 +63,7 @@ static void blkg_free(struct blkcg_gq *blkg)
 		kfree(pd);
 	}
 
+	blk_exit_rl(&blkg->rl);
 	kfree(blkg);
 }
 
@@ -91,16 +71,18 @@ static void blkg_free(struct blkcg_gq *blkg)
  * blkg_alloc - allocate a blkg
  * @blkcg: block cgroup the new blkg is associated with
  * @q: request_queue the new blkg is associated with
+ * @gfp_mask: allocation mask to use
  *
  * Allocate a new blkg assocating @blkcg and @q.
  */
-static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
+static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q,
+				   gfp_t gfp_mask)
 {
 	struct blkcg_gq *blkg;
 	int i;
 
 	/* alloc and init base part */
-	blkg = kzalloc_node(sizeof(*blkg), GFP_ATOMIC, q->node);
+	blkg = kzalloc_node(sizeof(*blkg), gfp_mask, q->node);
 	if (!blkg)
 		return NULL;
 
@@ -108,6 +90,13 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
 	INIT_LIST_HEAD(&blkg->q_node);
 	blkg->blkcg = blkcg;
 	blkg->refcnt = 1;
+
+	/* root blkg uses @q->root_rl, init rl only for !root blkgs */
+	if (blkcg != &blkcg_root) {
+		if (blk_init_rl(&blkg->rl, q, gfp_mask))
+			goto err_free;
+		blkg->rl.blkg = blkg;
+	}
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkcg_policy *pol = blkcg_policy[i];
@@ -117,11 +106,9 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
 			continue;
 
 		/* alloc per-policy data and attach it to blkg */
-		pd = kzalloc_node(pol->pd_size, GFP_ATOMIC, q->node);
-		if (!pd) {
-			blkg_free(blkg);
-			return NULL;
-		}
+		pd = kzalloc_node(pol->pd_size, gfp_mask, q->node);
+		if (!pd)
+			goto err_free;
 
 		blkg->pd[i] = pd;
 		pd->blkg = blkg;
@@ -132,6 +119,10 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
 	}
 
 	return blkg;
+
+err_free:
+	blkg_free(blkg);
+	return NULL;
 }
 
 static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
@@ -175,9 +166,13 @@ struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blkg_lookup);
 
+/*
+ * If @new_blkg is %NULL, this function tries to allocate a new one as
+ * necessary using %GFP_ATOMIC.  @new_blkg is always consumed on return.
+ */
 static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
-					     struct request_queue *q)
-	__releases(q->queue_lock) __acquires(q->queue_lock)
+					     struct request_queue *q,
+					     struct blkcg_gq *new_blkg)
 {
 	struct blkcg_gq *blkg;
 	int ret;
@@ -189,24 +184,26 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	blkg = __blkg_lookup(blkcg, q);
 	if (blkg) {
 		rcu_assign_pointer(blkcg->blkg_hint, blkg);
-		return blkg;
+		goto out_free;
 	}
 
 	/* blkg holds a reference to blkcg */
-	if (!css_tryget(&blkcg->css))
-		return ERR_PTR(-EINVAL);
+	if (!css_tryget(&blkcg->css)) {
+		blkg = ERR_PTR(-EINVAL);
+		goto out_free;
+	}
 
 	/* allocate */
-	ret = -ENOMEM;
-	blkg = blkg_alloc(blkcg, q);
-	if (unlikely(!blkg))
-		goto err_put;
+	if (!new_blkg) {
+		new_blkg = blkg_alloc(blkcg, q, GFP_ATOMIC);
+		if (unlikely(!new_blkg)) {
+			blkg = ERR_PTR(-ENOMEM);
+			goto out_put;
+		}
+	}
+	blkg = new_blkg;
 
 	/* insert */
-	ret = radix_tree_preload(GFP_ATOMIC);
-	if (ret)
-		goto err_free;
-
 	spin_lock(&blkcg->lock);
 	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
 	if (likely(!ret)) {
@@ -215,15 +212,15 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	}
 	spin_unlock(&blkcg->lock);
 
-	radix_tree_preload_end();
-
 	if (!ret)
 		return blkg;
-err_free:
-	blkg_free(blkg);
-err_put:
+
+	blkg = ERR_PTR(ret);
+out_put:
 	css_put(&blkcg->css);
-	return ERR_PTR(ret);
+out_free:
+	blkg_free(new_blkg);
+	return blkg;
 }
 
 struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
@@ -235,7 +232,7 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	 */
 	if (unlikely(blk_queue_bypass(q)))
 		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
-	return __blkg_lookup_create(blkcg, q);
+	return __blkg_lookup_create(blkcg, q, NULL);
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
@@ -312,6 +309,38 @@ void __blkg_release(struct blkcg_gq *blkg)
 	call_rcu(&blkg->rcu_head, blkg_rcu_free);
 }
 EXPORT_SYMBOL_GPL(__blkg_release);
+
+/*
+ * The next function used by blk_queue_for_each_rl().  It's a bit tricky
+ * because the root blkg uses @q->root_rl instead of its own rl.
+ */
+struct request_list *__blk_queue_next_rl(struct request_list *rl,
+					 struct request_queue *q)
+{
+	struct list_head *ent;
+	struct blkcg_gq *blkg;
+
+	/*
+	 * Determine the current blkg list_head.  The first entry is
+	 * root_rl which is off @q->blkg_list and mapped to the head.
+	 */
+	if (rl == &q->root_rl) {
+		ent = &q->blkg_list;
+	} else {
+		blkg = container_of(rl, struct blkcg_gq, rl);
+		ent = &blkg->q_node;
+	}
+
+	/* walk to the next list_head, skip root blkcg */
+	ent = ent->next;
+	if (ent == &q->root_blkg->q_node)
+		ent = ent->next;
+	if (ent == &q->blkg_list)
+		return NULL;
+
+	blkg = container_of(ent, struct blkcg_gq, q_node);
+	return &blkg->rl;
+}
 
 static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 			     u64 val)
@@ -734,9 +763,17 @@ int blkcg_activate_policy(struct request_queue *q,
 	struct blkcg_gq *blkg;
 	struct blkg_policy_data *pd, *n;
 	int cnt = 0, ret;
+	bool preloaded;
 
 	if (blkcg_policy_enabled(q, pol))
 		return 0;
+
+	/* preallocations for root blkg */
+	blkg = blkg_alloc(&blkcg_root, q, GFP_KERNEL);
+	if (!blkg)
+		return -ENOMEM;
+
+	preloaded = !radix_tree_preload(GFP_KERNEL);
 
 	blk_queue_bypass_start(q);
 
@@ -744,14 +781,18 @@ int blkcg_activate_policy(struct request_queue *q,
 	spin_lock_irq(q->queue_lock);
 
 	rcu_read_lock();
-	blkg = __blkg_lookup_create(&blkcg_root, q);
+	blkg = __blkg_lookup_create(&blkcg_root, q, blkg);
 	rcu_read_unlock();
+
+	if (preloaded)
+		radix_tree_preload_end();
 
 	if (IS_ERR(blkg)) {
 		ret = PTR_ERR(blkg);
 		goto out_unlock;
 	}
 	q->root_blkg = blkg;
+	q->root_rl.blkg = blkg;
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node)
 		cnt++;
