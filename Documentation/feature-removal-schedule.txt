@@ -626,3 +626,14 @@ Why:	New drivers should use new V4L2_CAP_VIDEO_M2M capability flag
 Who:	Sylwester Nawrocki <s.nawrocki@samsung.com>
 
 ----------------------------
+
+What:	OMAP private DMA implementation
+When:	2013
+Why:	We have a DMA engine implementation; all users should be updated
+	to use this rather than persisting with the old APIs.  The old APIs
+	block merging the old DMA engine implementation into the DMA
+	engine driver.
+Who:	Russell King <linux@arm.linux.org.uk>,
+	Santosh Shilimkar <santosh.shilimkar@ti.com>
+
+----------------------------
