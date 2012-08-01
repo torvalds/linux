@@ -382,9 +382,7 @@ brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm, u16 chanspec,
 {
 	struct brcms_c_info *wlc = wlc_cm->wlc;
 	struct ieee80211_channel *ch = wlc->pub->ieee_hw->conf.channel;
-	const struct ieee80211_reg_rule *reg_rule;
 	struct txpwr_limits txpwr;
-	int ret;
 
 	brcms_c_channel_reg_limits(wlc_cm, chanspec, &txpwr);
 
@@ -393,8 +391,7 @@ brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm, u16 chanspec,
 	);
 
 	/* set or restore gmode as required by regulatory */
-	ret = freq_reg_info(wlc->wiphy, ch->center_freq, 0, &reg_rule);
-	if (!ret && (reg_rule->flags & NL80211_RRF_NO_OFDM))
+	if (ch->flags & IEEE80211_CHAN_NO_OFDM)
 		brcms_c_set_gmode(wlc, GMODE_LEGACY_B, false);
 	else
 		brcms_c_set_gmode(wlc, wlc->protection->gmode_user, false);
