@@ -13,6 +13,21 @@ config DVB_USB
 
 	  Say Y if you own a USB DVB device.
 
+config DVB_USB_V2
+	tristate "Support for various USB DVB devices v2"
+	depends on DVB_CORE && USB && I2C && RC_CORE
+	help
+	  By enabling this you will be able to choose the various supported
+	  USB1.1 and USB2.0 DVB devices.
+
+	  Almost every USB device needs a firmware, please look into
+	  <file:Documentation/dvb/README.dvb-usb>.
+
+	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
+	  <http://www.linuxtv.org/wiki/index.php/DVB_USB>
+
+	  Say Y if you own a USB DVB device.
+
 config DVB_USB_DEBUG
 	bool "Enable extended debug support for all DVB-USB devices"
 	depends on DVB_USB

@@ -32,7 +32,7 @@ static void dvb_usb_data_complete_raw(struct usb_data_stream *stream,
 		dvb_dmx_swfilter_raw(&adap->demux, buffer, length);
 }
 
-int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
+int dvb_usbv2_adapter_stream_init(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	struct usb_data_stream_properties stream_props;
@@ -53,12 +53,12 @@ int dvb_usb_adapter_stream_init(struct dvb_usb_adapter *adap)
 	/* FIXME: can be removed as set later in anyway */
 	adap->stream.complete = dvb_usb_data_complete;
 
-	return usb_urb_init(&adap->stream, &stream_props);
+	return usb_urb_initv2(&adap->stream, &stream_props);
 }
 
-int dvb_usb_adapter_stream_exit(struct dvb_usb_adapter *adap)
+int dvb_usbv2_adapter_stream_exit(struct dvb_usb_adapter *adap)
 {
-	usb_urb_exit(&adap->stream);
+	usb_urb_exitv2(&adap->stream);
 	return 0;
 }
 
@@ -78,7 +78,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	/* stop feed before setting a new pid if there will be no pid anymore */
 	if (newfeedcount == 0) {
 		pr_debug("%s: stop feeding\n", __func__);
-		usb_urb_kill(&adap->stream);
+		usb_urb_killv2(&adap->stream);
 
 		if (adap->props.streaming_ctrl != NULL) {
 			ret = adap->props.streaming_ctrl(adap, 0);
@@ -141,7 +141,7 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 
 		pr_debug("%s: submitting all URBs\n", __func__);
 
-		usb_urb_submit(&adap->stream, &stream_props);
+		usb_urb_submitv2(&adap->stream, &stream_props);
 
 		pr_debug("%s: controlling pid parser\n", __func__);
 		if (adap->props.caps & DVB_USB_ADAP_HAS_PID_FILTER &&
@@ -187,7 +187,7 @@ static int dvb_usb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return dvb_usb_ctrl_feed(dvbdmxfeed, 0);
 }
 
-int dvb_usb_adapter_dvb_init(struct dvb_usb_adapter *adap)
+int dvb_usbv2_adapter_dvb_init(struct dvb_usb_adapter *adap)
 {
 	int ret = dvb_register_adapter(&adap->dvb_adap, adap->dev->name,
 				       adap->dev->props.owner,
@@ -256,7 +256,7 @@ err:
 	return ret;
 }
 
-int dvb_usb_adapter_dvb_exit(struct dvb_usb_adapter *adap)
+int dvb_usbv2_adapter_dvb_exit(struct dvb_usb_adapter *adap)
 {
 	if (adap->state & DVB_USB_ADAP_STATE_DVB) {
 		pr_debug("%s: unregistering DVB part\n", __func__);
@@ -275,7 +275,7 @@ static int dvb_usb_fe_wakeup(struct dvb_frontend *fe)
 	int ret;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 
-	ret = dvb_usb_device_power_ctrl(adap->dev, 1);
+	ret = dvb_usbv2_device_power_ctrl(adap->dev, 1);
 	if (ret < 0)
 		goto err;
 
@@ -316,7 +316,7 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 			goto err;
 	}
 
-	ret = dvb_usb_device_power_ctrl(adap->dev, 0);
+	ret = dvb_usbv2_device_power_ctrl(adap->dev, 0);
 	if (ret < 0)
 		goto err;
 
@@ -328,7 +328,7 @@ err:
 	return ret;
 }
 
-int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
+int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 {
 	int ret, i, count_registered = 0;
 
@@ -397,7 +397,7 @@ err:
 	return ret;
 }
 
-int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)
+int dvb_usbv2_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
 	int i;
 

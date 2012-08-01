@@ -13,8 +13,8 @@
  */
 #include "dvb_usb_common.h"
 
-int dvb_usb_disable_rc_polling;
-module_param_named(disable_rc_polling, dvb_usb_disable_rc_polling, int, 0644);
+int dvb_usbv2_disable_rc_polling;
+module_param_named(disable_rc_polling, dvb_usbv2_disable_rc_polling, int, 0644);
 MODULE_PARM_DESC(disable_rc_polling,
 		"disable remote control polling (default: 0).");
 
@@ -24,7 +24,7 @@ module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage,
 MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a" \
 		" PID filter, if any (default: 0).");
 
-int dvb_usb_download_firmware(struct dvb_usb_device *d)
+int dvb_usbv2_download_firmware(struct dvb_usb_device *d)
 {
 	int ret;
 	const struct firmware *fw = NULL;
@@ -68,7 +68,7 @@ err:
 	return ret;
 }
 
-int dvb_usb_i2c_init(struct dvb_usb_device *d)
+int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
@@ -91,7 +91,7 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 	return ret;
 }
 
-int dvb_usb_i2c_exit(struct dvb_usb_device *d)
+int dvb_usbv2_i2c_exit(struct dvb_usb_device *d)
 {
 	if (d->state & DVB_USB_STATE_I2C)
 		i2c_del_adapter(&d->i2c_adap);
@@ -99,7 +99,7 @@ int dvb_usb_i2c_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
-static int dvb_usb_adapter_init(struct dvb_usb_device *d)
+static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 {
 	struct dvb_usb_adapter *adap;
 	int ret, n, adapter_count;
@@ -154,15 +154,15 @@ static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 			adap->max_feed_count = adap->props.pid_filter_count;
 		}
 
-		ret = dvb_usb_adapter_stream_init(adap);
+		ret = dvb_usbv2_adapter_stream_init(adap);
 		if (ret)
 			return ret;
 
-		ret = dvb_usb_adapter_dvb_init(adap);
+		ret = dvb_usbv2_adapter_dvb_init(adap);
 		if (ret)
 			return ret;
 
-		ret = dvb_usb_adapter_frontend_init(adap);
+		ret = dvb_usbv2_adapter_frontend_init(adap);
 		if (ret)
 			return ret;
 
@@ -180,14 +180,14 @@ err:
 	return ret;
 }
 
-static int dvb_usb_adapter_exit(struct dvb_usb_device *d)
+static int dvb_usbv2_adapter_exit(struct dvb_usb_device *d)
 {
 	int n;
 
 	for (n = 0; n < d->num_adapters_initialized; n++) {
-		dvb_usb_adapter_frontend_exit(&d->adapter[n]);
-		dvb_usb_adapter_dvb_exit(&d->adapter[n]);
-		dvb_usb_adapter_stream_exit(&d->adapter[n]);
+		dvb_usbv2_adapter_frontend_exit(&d->adapter[n]);
+		dvb_usbv2_adapter_dvb_exit(&d->adapter[n]);
+		dvb_usbv2_adapter_stream_exit(&d->adapter[n]);
 
 	}
 	d->num_adapters_initialized = 0;
@@ -196,12 +196,12 @@ static int dvb_usb_adapter_exit(struct dvb_usb_device *d)
 }
 
 /* general initialization functions */
-static int dvb_usb_exit(struct dvb_usb_device *d)
+static int dvb_usbv2_exit(struct dvb_usb_device *d)
 {
 	pr_debug("%s: state before exiting everything: %x\n", __func__, d->state);
-	dvb_usb_remote_exit(d);
-	dvb_usb_adapter_exit(d);
-	dvb_usb_i2c_exit(d);
+	dvb_usbv2_remote_exit(d);
+	dvb_usbv2_adapter_exit(d);
+	dvb_usbv2_i2c_exit(d);
 	pr_debug("%s: state should be zero now: %x\n", __func__, d->state);
 	d->state = DVB_USB_STATE_INIT;
 	kfree(d->priv);
@@ -209,14 +209,14 @@ static int dvb_usb_exit(struct dvb_usb_device *d)
 	return 0;
 }
 
-static int dvb_usb_init(struct dvb_usb_device *d)
+static int dvb_usbv2_init(struct dvb_usb_device *d)
 {
 	int ret = 0;
 
 	d->state = DVB_USB_STATE_INIT;
 
 	/* check the capabilities and set appropriate variables */
-	dvb_usb_device_power_ctrl(d, 1);
+	dvb_usbv2_device_power_ctrl(d, 1);
 
 	/* read config */
 	if (d->props.read_config) {
@@ -225,24 +225,24 @@ static int dvb_usb_init(struct dvb_usb_device *d)
 			goto err;
 	}
 
-	ret = dvb_usb_i2c_init(d);
+	ret = dvb_usbv2_i2c_init(d);
 	if (ret == 0)
-		ret = dvb_usb_adapter_init(d);
+		ret = dvb_usbv2_adapter_init(d);
 
 	if (ret) {
-		dvb_usb_exit(d);
+		dvb_usbv2_exit(d);
 		return ret;
 	}
 
 	if (d->props.init)
 		d->props.init(d);
 
-	ret = dvb_usb_remote_init(d);
+	ret = dvb_usbv2_remote_init(d);
 	if (ret)
 		pr_err("%s: could not initialize remote control\n",
 				KBUILD_MODNAME);
 
-	dvb_usb_device_power_ctrl(d, 0);
+	dvb_usbv2_device_power_ctrl(d, 0);
 
 	return 0;
 err:
@@ -250,7 +250,7 @@ err:
 	return ret;
 }
 
-int dvb_usb_device_power_ctrl(struct dvb_usb_device *d, int onoff)
+int dvb_usbv2_device_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	if (onoff)
 		d->powered++;
@@ -308,7 +308,7 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 	if (cold) {
 		pr_info("%s: found a '%s' in cold state\n",
 				KBUILD_MODNAME, d->name);
-		ret = dvb_usb_download_firmware(d);
+		ret = dvb_usbv2_download_firmware(d);
 		if (ret == 0) {
 			;
 		} else if (ret == RECONNECTS_USB) {
@@ -321,7 +321,7 @@ static void dvb_usbv2_init_work(struct work_struct *work)
 
 	pr_info("%s: found a '%s' in warm state\n", KBUILD_MODNAME, d->name);
 
-	ret = dvb_usb_init(d);
+	ret = dvb_usbv2_init(d);
 	if (ret < 0)
 		goto err_usb_driver_release_interface;
 
@@ -413,7 +413,7 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (d) {
 		name = d->name;
-		dvb_usb_exit(d);
+		dvb_usbv2_exit(d);
 	}
 
 	pr_info("%s: '%s' successfully deinitialized and disconnected\n",

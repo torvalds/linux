@@ -26,7 +26,7 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 	/* when the parameter has been set to 1 via sysfs while the
 	 * driver was running, or when bulk mode is enabled after IR init
 	 */
-	if (dvb_usb_disable_rc_polling || d->rc.bulk_mode)
+	if (dvb_usbv2_disable_rc_polling || d->rc.bulk_mode)
 		return;
 
 	ret = d->rc.query(d);
@@ -38,12 +38,12 @@ static void dvb_usb_read_remote_control(struct work_struct *work)
 			      msecs_to_jiffies(d->rc.interval));
 }
 
-int dvb_usb_remote_init(struct dvb_usb_device *d)
+int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 {
 	int ret;
 	struct rc_dev *dev;
 
-	if (dvb_usb_disable_rc_polling || !d->props.get_rc_config)
+	if (dvb_usbv2_disable_rc_polling || !d->props.get_rc_config)
 		return 0;
 
 	ret = d->props.get_rc_config(d, &d->rc);
@@ -104,7 +104,7 @@ err:
 	return ret;
 }
 
-int dvb_usb_remote_exit(struct dvb_usb_device *d)
+int dvb_usbv2_remote_exit(struct dvb_usb_device *d)
 {
 	if (d->state & DVB_USB_STATE_REMOTE) {
 		cancel_delayed_work_sync(&d->rc_query_work);

@@ -72,7 +72,7 @@ static void usb_urb_complete(struct urb *urb)
 	usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-int usb_urb_kill(struct usb_data_stream *stream)
+int usb_urb_killv2(struct usb_data_stream *stream)
 {
 	int i;
 	for (i = 0; i < stream->urbs_submitted; i++) {
@@ -84,7 +84,7 @@ int usb_urb_kill(struct usb_data_stream *stream)
 	return 0;
 }
 
-int usb_urb_submit(struct usb_data_stream *stream,
+int usb_urb_submitv2(struct usb_data_stream *stream,
 		struct usb_data_stream_properties *props)
 {
 	int i, ret;
@@ -101,7 +101,7 @@ int usb_urb_submit(struct usb_data_stream *stream,
 		if (ret) {
 			pr_err("%s: could not submit URB no. %d - get them " \
 					"all back\n", KBUILD_MODNAME, i);
-			usb_urb_kill(stream);
+			usb_urb_killv2(stream);
 			return ret;
 		}
 		stream->urbs_submitted++;
@@ -113,7 +113,7 @@ int usb_urb_free_urbs(struct usb_data_stream *stream)
 {
 	int i;
 
-	usb_urb_kill(stream);
+	usb_urb_killv2(stream);
 
 	for (i = 0; i < stream->urbs_initialized; i++) {
 		if (stream->urb_list[i] != NULL) {
@@ -305,7 +305,7 @@ int usb_urb_reconfig(struct usb_data_stream *stream,
 	return 0;
 }
 
-int usb_urb_init(struct usb_data_stream *stream,
+int usb_urb_initv2(struct usb_data_stream *stream,
 		struct usb_data_stream_properties *props)
 {
 	int ret;
@@ -347,7 +347,7 @@ int usb_urb_init(struct usb_data_stream *stream,
 	}
 }
 
-int usb_urb_exit(struct usb_data_stream *stream)
+int usb_urb_exitv2(struct usb_data_stream *stream)
 {
 	usb_urb_free_urbs(stream);
 	usb_free_stream_buffers(stream);
