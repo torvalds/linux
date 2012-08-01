@@ -881,7 +881,7 @@ static int conn_connect(struct drbd_tconn *tconn)
 	struct drbd_socket sock, msock;
 	struct drbd_conf *mdev;
 	struct net_conf *nc;
-	int vnr, timeout, try, h, ok;
+	int vnr, timeout, h, ok;
 	bool discard_my_data;
 	enum drbd_state_rv rv;
 	struct accept_wait_data ad = {
@@ -912,15 +912,7 @@ static int conn_connect(struct drbd_tconn *tconn)
 	do {
 		struct socket *s;
 
-		for (try = 0;;) {
-			/* 3 tries, this should take less than a second! */
-			s = drbd_try_connect(tconn);
-			if (s || ++try >= 3)
-				break;
-			/* give the other side time to call bind() & listen() */
-			schedule_timeout_interruptible(HZ / 10);
-		}
-
+		s = drbd_try_connect(tconn);
 		if (s) {
 			if (!sock.socket) {
 				sock.socket = s;
@@ -949,10 +941,10 @@ static int conn_connect(struct drbd_tconn *tconn)
 retry:
 		s = drbd_wait_for_connect(tconn, &ad);
 		if (s) {
-			try = receive_first_packet(tconn, s);
+			int fp = receive_first_packet(tconn, s);
 			drbd_socket_okay(&sock.socket);
 			drbd_socket_okay(&msock.socket);
-			switch (try) {
+			switch (fp) {
 			case P_INITIAL_DATA:
 				if (sock.socket) {
 					conn_warn(tconn, "initial packet S crossed\n");
