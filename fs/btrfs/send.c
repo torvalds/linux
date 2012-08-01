@@ -3206,8 +3206,8 @@ static int process_all_refs(struct send_ctx *sctx,
 		    found_key.type != key.type)
 			break;
 
-		ret = iterate_inode_ref(sctx, sctx->parent_root, path,
-				&found_key, 0, cb, sctx);
+		ret = iterate_inode_ref(sctx, root, path, &found_key, 0, cb,
+				sctx);
 		btrfs_release_path(path);
 		if (ret < 0)
 			goto out;
