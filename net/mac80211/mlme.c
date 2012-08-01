@@ -712,6 +712,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	/* XXX: shouldn't really modify cfg80211-owned data! */
 	ifmgd->associated->channel = sdata->local->oper_channel;
 
+	/* XXX: wait for a beacon first? */
 	ieee80211_wake_queues_by_reason(&sdata->local->hw,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
  out:
@@ -788,36 +789,33 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	sdata->local->csa_channel = new_ch;
 
+	ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+
+	if (sw_elem->mode)
+		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+				IEEE80211_QUEUE_STOP_REASON_CSA);
+
 	if (sdata->local->ops->channel_switch) {
 		/* use driver's channel switch callback */
-		struct ieee80211_channel_switch ch_switch;
-		memset(&ch_switch, 0, sizeof(ch_switch));
-		ch_switch.timestamp = timestamp;
-		if (sw_elem->mode) {
-			ch_switch.block_tx = true;
-			ieee80211_stop_queues_by_reason(&sdata->local->hw,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
-		}
-		ch_switch.channel = new_ch;
-		ch_switch.count = sw_elem->count;
-		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+		struct ieee80211_channel_switch ch_switch = {
+			.timestamp = timestamp,
+			.block_tx = sw_elem->mode,
+			.channel = new_ch,
+			.count = sw_elem->count,
+		};
+
 		drv_channel_switch(sdata->local, &ch_switch);
 		return;
 	}
 
 	/* channel switch handled in software */
-	if (sw_elem->count <= 1) {
+	if (sw_elem->count <= 1)
 		ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
-	} else {
-		if (sw_elem->mode)
-			ieee80211_stop_queues_by_reason(&sdata->local->hw,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
-		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+	else
 		mod_timer(&ifmgd->chswitch_timer,
 			  jiffies +
 			  msecs_to_jiffies(sw_elem->count *
 					   cbss->beacon_interval));
-	}
 }
 
 static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
