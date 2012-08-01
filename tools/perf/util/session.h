@@ -41,7 +41,6 @@ struct perf_session {
 	 *	  perf.data file.
 	 */
 	struct hists		hists;
-	u64			sample_type;
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
@@ -133,13 +132,9 @@ int perf_session__parse_sample(struct perf_session *session,
 			       const union perf_event *event,
 			       struct perf_sample *sample);
 
-static inline int perf_session__synthesize_sample(struct perf_session *session,
-						  union perf_event *event,
-						  const struct perf_sample *sample)
-{
-	return perf_event__synthesize_sample(event, session->sample_type,
-					     sample, session->header.needs_swap);
-}
+int perf_session__synthesize_sample(struct perf_session *session,
+				    union perf_event *event,
+				    const struct perf_sample *sample);
 
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);

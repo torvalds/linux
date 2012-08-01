@@ -661,7 +661,7 @@ static int test__PERF_RECORD(void)
 	const char *cmd = "sleep";
 	const char *argv[] = { cmd, "1", NULL, };
 	char *bname;
-	u64 sample_type, prev_time = 0;
+	u64 prev_time = 0;
 	bool found_cmd_mmap = false,
 	     found_libc_mmap = false,
 	     found_vdso_mmap = false,
@@ -757,12 +757,6 @@ static int test__PERF_RECORD(void)
 	}
 
 	/*
-	 * We'll need these two to parse the PERF_SAMPLE_* fields in each
-	 * event.
-	 */
-	sample_type = perf_evlist__sample_type(evlist);
-
-	/*
 	 * Now that all is properly set up, enable the events, they will
 	 * count just on workload.pid, which will start...
 	 */
@@ -787,7 +781,7 @@ static int test__PERF_RECORD(void)
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				err = perf_event__parse_sample(event, sample_type,
+				err = perf_event__parse_sample(event, evsel->attr.sample_type,
 							       evsel->sample_size, true,
 							       &sample, false);
 				if (err < 0) {

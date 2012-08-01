@@ -23,10 +23,18 @@ int perf_session__parse_sample(struct perf_session *session,
 	struct perf_evsel *first;
 	first = list_entry(session->evlist->entries.next, struct perf_evsel, node);
 
-	return perf_event__parse_sample(event, session->sample_type,
+	return perf_event__parse_sample(event, first->attr.sample_type,
 					first->sample_size,
 					session->sample_id_all, sample,
 					session->header.needs_swap);
+}
+
+int perf_session__synthesize_sample(struct perf_session *session,
+				    union perf_event *event,
+				    const struct perf_sample *sample)
+{
+	return perf_event__synthesize_sample(event, perf_evlist__sample_type(session->evlist),
+					     sample, session->header.needs_swap);
 }
 
 static int perf_session__open(struct perf_session *self, bool force)
@@ -95,7 +103,6 @@ out_close:
 
 void perf_session__update_sample_type(struct perf_session *self)
 {
-	self->sample_type = perf_evlist__sample_type(self->evlist);
 	self->sample_id_all = perf_evlist__sample_id_all(self->evlist);
 	self->id_hdr_size = perf_evlist__id_hdr_size(self->evlist);
 	self->host_machine.id_hdr_size = self->id_hdr_size;
@@ -877,16 +884,18 @@ static void perf_session__print_tstamp(struct perf_session *session,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
+	u64 sample_type = perf_evlist__sample_type(session->evlist);
+
 	if (event->header.type != PERF_RECORD_SAMPLE &&
 	    !session->sample_id_all) {
 		fputs("-1 -1 ", stdout);
 		return;
 	}
 
-	if ((session->sample_type & PERF_SAMPLE_CPU))
+	if ((sample_type & PERF_SAMPLE_CPU))
 		printf("%u ", sample->cpu);
 
-	if (session->sample_type & PERF_SAMPLE_TIME)
+	if (sample_type & PERF_SAMPLE_TIME)
 		printf("%" PRIu64 " ", sample->time);
 }
 
@@ -911,6 +920,8 @@ static void dump_event(struct perf_session *session, union perf_event *event,
 static void dump_sample(struct perf_session *session, union perf_event *event,
 			struct perf_sample *sample)
 {
+	u64 sample_type;
+
 	if (!dump_trace)
 		return;
 
@@ -918,10 +929,12 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 	       event->header.misc, sample->pid, sample->tid, sample->ip,
 	       sample->period, sample->addr);
 
-	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
+	sample_type = perf_evlist__sample_type(session->evlist);
+
+	if (sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
 
-	if (session->sample_type & PERF_SAMPLE_BRANCH_STACK)
+	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 		branch_stack__printf(sample);
 }
 
@@ -1018,7 +1031,7 @@ static int perf_session__preprocess_sample(struct perf_session *session,
 					   union perf_event *event, struct perf_sample *sample)
 {
 	if (event->header.type != PERF_RECORD_SAMPLE ||
-	    !(session->sample_type & PERF_SAMPLE_CALLCHAIN))
+	    !(perf_evlist__sample_type(session->evlist) & PERF_SAMPLE_CALLCHAIN))
 		return 0;
 
 	if (!ip_callchain__valid(sample->callchain, event)) {
@@ -1401,9 +1414,9 @@ int perf_session__process_events(struct perf_session *self,
 	return err;
 }
 
-bool perf_session__has_traces(struct perf_session *self, const char *msg)
+bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
-	if (!(self->sample_type & PERF_SAMPLE_RAW)) {
+	if (!(perf_evlist__sample_type(session->evlist) & PERF_SAMPLE_RAW)) {
 		pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
 		return false;
 	}
