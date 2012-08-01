@@ -4287,6 +4287,11 @@ static int changed_cb(struct btrfs_root *left_root,
 	if (ret < 0)
 		goto out;
 
+	/* Ignore non-FS objects */
+	if (key->objectid == BTRFS_FREE_INO_OBJECTID ||
+	    key->objectid == BTRFS_FREE_SPACE_OBJECTID)
+		goto out;
+
 	if (key->type == BTRFS_INODE_ITEM_KEY)
 		ret = changed_inode(sctx, result);
 	else if (key->type == BTRFS_INODE_REF_KEY)
