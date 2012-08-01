@@ -125,6 +125,7 @@ config BCM63XX
 	select SYS_HAS_EARLY_PRINTK
 	select SWAP_IO_SPACE
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
 	help
 	 Support for BCM63XX based boards
 
