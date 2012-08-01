@@ -1759,6 +1759,7 @@ out:
  * Insert a name cache entry. On 32bit kernels the radix tree index is 32bit,
  * so we need to do some special handling in case we have clashes. This function
  * takes care of this with the help of name_cache_entry::radix_list.
+ * In case of error, nce is kfreed.
  */
 static int name_cache_insert(struct send_ctx *sctx,
 			     struct name_cache_entry *nce)
@@ -1775,8 +1776,11 @@ static int name_cache_insert(struct send_ctx *sctx,
 		INIT_LIST_HEAD(nce_head);
 
 		ret = radix_tree_insert(&sctx->name_cache, nce->ino, nce_head);
-		if (ret < 0)
+		if (ret < 0) {
+			kfree(nce_head);
+			kfree(nce);
 			return ret;
+		}
 	}
 	list_add_tail(&nce->radix_list, nce_head);
 	list_add_tail(&nce->list, &sctx->name_cache_list);
