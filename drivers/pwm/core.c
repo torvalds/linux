@@ -646,6 +646,64 @@ out:
 }
 EXPORT_SYMBOL_GPL(pwm_put);
 
+static void devm_pwm_release(struct device *dev, void *res)
+{
+	pwm_put(*(struct pwm_device **)res);
+}
+
+/**
+ * devm_pwm_get() - resource managed pwm_get()
+ * @dev: device for PWM consumer
+ * @con_id: consumer name
+ *
+ * This function performs like pwm_get() but the acquired PWM device will
+ * automatically be released on driver detach.
+ */
+struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id)
+{
+	struct pwm_device **ptr, *pwm;
+
+	ptr = devres_alloc(devm_pwm_release, sizeof(**ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	pwm = pwm_get(dev, con_id);
+	if (!IS_ERR(pwm)) {
+		*ptr = pwm;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return pwm;
+}
+EXPORT_SYMBOL_GPL(devm_pwm_get);
+
+static int devm_pwm_match(struct device *dev, void *res, void *data)
+{
+	struct pwm_device **p = res;
+
+	if (WARN_ON(!p || !*p))
+		return 0;
+
+	return *p == data;
+}
+
+/**
+ * devm_pwm_put() - resource managed pwm_put()
+ * @dev: device for PWM consumer
+ * @pwm: PWM device
+ *
+ * Release a PWM previously allocated using devm_pwm_get(). Calling this
+ * function is usually not needed because devm-allocated resources are
+ * automatically released on driver detach.
+ */
+void devm_pwm_put(struct device *dev, struct pwm_device *pwm)
+{
+	WARN_ON(devres_release(dev, devm_pwm_release, devm_pwm_match, pwm));
+}
+EXPORT_SYMBOL_GPL(devm_pwm_put);
+
 #ifdef CONFIG_DEBUG_FS
 static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
 {

@@ -148,6 +148,9 @@ struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 struct pwm_device *pwm_get(struct device *dev, const char *consumer);
 void pwm_put(struct pwm_device *pwm);
 
+struct pwm_device *devm_pwm_get(struct device *dev, const char *consumer);
+void devm_pwm_put(struct device *dev, struct pwm_device *pwm);
+
 struct pwm_lookup {
 	struct list_head list;
 	const char *provider;
