@@ -799,7 +799,7 @@ extern struct fifo_buffer *fifo_alloc(int fifo_size);
 /* flag bits per tconn */
 enum {
 	NET_CONGESTED,		/* The data socket is congested */
-	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
+	RESOLVE_CONFLICTS,	/* Set on one node, cleared on the peer! */
 	SEND_PING,		/* whether asender should send a ping asap */
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, ping_wait gets woken */

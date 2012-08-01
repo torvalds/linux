@@ -916,7 +916,7 @@ static int conn_connect(struct drbd_tconn *tconn)
 				sock.socket = s;
 				send_first_packet(tconn, &sock, P_INITIAL_DATA);
 			} else if (!msock.socket) {
-				clear_bit(DISCARD_CONCURRENT, &tconn->flags);
+				clear_bit(RESOLVE_CONFLICTS, &tconn->flags);
 				msock.socket = s;
 				send_first_packet(tconn, &msock, P_INITIAL_META);
 			} else {
@@ -954,7 +954,7 @@ retry:
 				sock.socket = s;
 				break;
 			case P_INITIAL_META:
-				set_bit(DISCARD_CONCURRENT, &tconn->flags);
+				set_bit(RESOLVE_CONFLICTS, &tconn->flags);
 				if (msock.socket) {
 					conn_warn(tconn, "initial packet M crossed\n");
 					sock_release(msock.socket);
@@ -1899,7 +1899,7 @@ static bool need_peer_seq(struct drbd_conf *mdev)
 
 	/*
 	 * We only need to keep track of the last packet_seq number of our peer
-	 * if we are in dual-primary mode and we have the discard flag set; see
+	 * if we are in dual-primary mode and we have the resolve-conflicts flag set; see
 	 * handle_write_conflicts().
 	 */
 
@@ -1907,7 +1907,7 @@ static bool need_peer_seq(struct drbd_conf *mdev)
 	tp = rcu_dereference(mdev->tconn->net_conf)->two_primaries;
 	rcu_read_unlock();
 
-	return tp && test_bit(DISCARD_CONCURRENT, &tconn->flags);
+	return tp && test_bit(RESOLVE_CONFLICTS, &tconn->flags);
 }
 
 static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
@@ -2048,7 +2048,7 @@ static int handle_write_conflicts(struct drbd_conf *mdev,
 				  struct drbd_peer_request *peer_req)
 {
 	struct drbd_tconn *tconn = mdev->tconn;
-	bool resolve_conflicts = test_bit(DISCARD_CONCURRENT, &tconn->flags);
+	bool resolve_conflicts = test_bit(RESOLVE_CONFLICTS, &tconn->flags);
 	sector_t sector = peer_req->i.sector;
 	const unsigned int size = peer_req->i.size;
 	struct drbd_interval *i;
@@ -2600,7 +2600,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 		     "Using discard-least-changes instead\n");
 	case ASB_DISCARD_ZERO_CHG:
 		if (ch_peer == 0 && ch_self == 0) {
-			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
+			rv = test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags)
 				? -1 : 1;
 			break;
 		} else {
@@ -2616,7 +2616,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 			rv =  1;
 		else /* ( ch_self == ch_peer ) */
 		     /* Well, then use something else. */
-			rv = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags)
+			rv = test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags)
 				? -1 : 1;
 		break;
 	case ASB_DISCARD_LOCAL:
@@ -2839,7 +2839,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 		case 1: /*  self_pri && !peer_pri */ return 1;
 		case 2: /* !self_pri &&  peer_pri */ return -1;
 		case 3: /*  self_pri &&  peer_pri */
-			dc = test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags);
+			dc = test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags);
 			return dc ? -1 : 1;
 		}
 	}
@@ -3775,7 +3775,7 @@ static int receive_req_state(struct drbd_tconn *tconn, struct packet_info *pi)
 	mask.i = be32_to_cpu(p->mask);
 	val.i = be32_to_cpu(p->val);
 
-	if (test_bit(DISCARD_CONCURRENT, &mdev->tconn->flags) &&
+	if (test_bit(RESOLVE_CONFLICTS, &mdev->tconn->flags) &&
 	    mutex_is_locked(mdev->state_mutex)) {
 		drbd_send_sr_reply(mdev, SS_CONCURRENT_ST_CHG);
 		return 0;
@@ -3801,7 +3801,7 @@ static int receive_req_conn_state(struct drbd_tconn *tconn, struct packet_info *
 	mask.i = be32_to_cpu(p->mask);
 	val.i = be32_to_cpu(p->val);
 
-	if (test_bit(DISCARD_CONCURRENT, &tconn->flags) &&
+	if (test_bit(RESOLVE_CONFLICTS, &tconn->flags) &&
 	    mutex_is_locked(&tconn->cstate_mutex)) {
 		conn_send_sr_reply(tconn, SS_CONCURRENT_ST_CHG);
 		return 0;
