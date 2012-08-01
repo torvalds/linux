@@ -804,7 +804,6 @@ static s32 goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     //Test I2C connection. 
 //    GTDEBUG_MSG("GT82X++++++   Testing I2C connection...\n");
     for(retry = 0;retry < 3; retry++)
-    while(1)            //For GTDEBUG use!
     {
         ret = i2c_pre_cmd(ts);
         if (ret > 0)
@@ -815,7 +814,7 @@ static s32 goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     {
         dev_err(&client->dev, "Warnning: I2C communication might be ERROR!\n");
         GTDEBUG_MSG("I2C test failed. I2C addr:%x\n", client->addr);
-        goodix_ts_remove(ts->client);  kfree(ts);
+        goodix_ts_remove(ts->client); 
         return -1;
     }
 //    printk("gt82x---777777777777777\n");
@@ -832,7 +831,7 @@ static s32 goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     {
         ts->bad_data=1;
         GTDEBUG_MSG("Initialize failed!\n");
-        goodix_ts_remove(ts->client);  kfree(ts);
+        goodix_ts_remove(ts->client);
         return -1;
     }
     //Enable interrupt
