@@ -615,7 +615,6 @@ ex_handler_done:
 		tophys(r5,r5)
 		BSRLI(r6,r3,PTE_SHIFT) /* Compute PTE address */
 		andi	r6, r6, PAGE_SIZE - 4
-		andi	r5, r5, PAGE_MASK + 0x3
 		or	r5, r5, r6
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
@@ -717,7 +716,6 @@ ex_handler_done:
 		tophys(r5,r5)
 		BSRLI(r6,r3,PTE_SHIFT) /* Compute PTE address */
 		andi	r6, r6, PAGE_SIZE - 4
-		andi	r5, r5, PAGE_MASK + 0x3
 		or	r5, r5, r6
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
@@ -789,7 +787,6 @@ ex_handler_done:
 		tophys(r5,r5)
 		BSRLI(r6,r3,PTE_SHIFT) /* Compute PTE address */
 		andi	r6, r6, PAGE_SIZE - 4
-		andi	r5, r5, PAGE_MASK + 0x3
 		or	r5, r5, r6
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
