@@ -32,4 +32,30 @@ void __sramfunc board_pmu_resume(void);
 
 extern struct sys_timer rk2928_timer;
 
+#ifndef _LINUX_WLAN_PLAT_H_
+struct wifi_platform_data {
+        int (*set_power)(int val);
+        int (*set_reset)(int val);
+        int (*set_carddetect)(int val);
+        void *(*mem_prealloc)(int section, unsigned long size);
+        int (*get_mac_addr)(unsigned char *buf);
+};
+#endif
+#if defined (CONFIG_EETI_EGALAX)
+struct eeti_egalax_platform_data{
+	u16     model;
+
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*eeti_egalax_platform_sleep)(void);
+    int     (*eeti_egalax_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+    int     standby_pin;
+    int     standby_value;
+    int     disp_on_pin;
+    int     disp_on_value;
+ 
+};
+#endif
+
 #endif

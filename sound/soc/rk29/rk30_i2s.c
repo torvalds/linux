@@ -515,12 +515,14 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 #endif
 #ifdef CONFIG_ARCH_RK2928
         case 0:
+        #if 0 //iomux --> gps(.ko)
                 rk30_mux_api_set(GPIO1A0_I2S_MCLK_NAME, GPIO1A_I2S_MCLK);
                 rk30_mux_api_set(GPIO1A1_I2S_SCLK_NAME, GPIO1A_I2S_SCLK);
-                rk30_mux_api_set(GPIO1A2_I2S_LRCKRX_NAME, GPIO1A_I2S_LRCKRX);
+                rk30_mux_api_set(GPIO1A2_I2S_LRCKRX_GPS_CLK_NAME, GPIO1A_I2S_LRCKRX);
                 rk30_mux_api_set(GPIO1A3_I2S_LRCKTX_NAME, GPIO1A_I2S_LRCKTX);
-                rk30_mux_api_set(GPIO1A4_I2S_SDO_NAME, GPIO1A_I2S_SDO);
-                rk30_mux_api_set(GPIO1A5_I2S_SDI_NAME, GPIO1A_I2S_SDI);
+                rk30_mux_api_set(GPIO1A4_I2S_SDO_GPS_MAG_NAME, GPIO1A_I2S_SDO);
+                rk30_mux_api_set(GPIO1A5_I2S_SDI_GPS_SIGN_NAME, GPIO1A_I2S_SDI);
+        #endif
                 break;
 #endif
         default:

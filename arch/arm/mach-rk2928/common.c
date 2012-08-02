@@ -143,6 +143,8 @@ static __init u32 rk2928_get_ddr_size(void)
 {
 #ifdef CONFIG_MACH_RK2928_FPGA
 	return SZ_64M;
+#else
+	return SZ_512M;
 #endif
 }
 

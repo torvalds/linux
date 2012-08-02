@@ -202,11 +202,7 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
 //int rk29sdk_bt_power_state = 0;
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
-//#define RK29SDK_WIFI_BT_GPIO_POWER_N       RK30_PIN3_PD0
-//#define RK29SDK_WIFI_GPIO_RESET_N          RK30_PIN3_PD0
-//#define RK29SDK_BT_GPIO_RESET_N            RK30_PIN3_PD1
-#define RK30SDK_WIFI_GPIO_POWER_N       RK30_PIN3_PD0
-//#define RK30SDK_BT_GPIO_POWER_N         RK30_PIN3_PD1
+#define RK30SDK_WIFI_GPIO_POWER_N       RK2928_PIN0_PD6
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -408,7 +404,7 @@ int rk29sdk_wifi_set_carddetect(int val)
 }
 EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
-#define WIFI_HOST_WAKE RK30_PIN3_PD2
+#define WIFI_HOST_WAKE RK2928_PIN3_PC0
 
 static struct resource resources[] = {
 	{

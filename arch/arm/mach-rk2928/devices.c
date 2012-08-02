@@ -771,6 +771,9 @@ static int __init rk2928_init_devices(void)
 #ifdef CONFIG_SND_SOC_RK2928
 	platform_device_register(&device_acodec);
 #endif
+#ifdef CONFIG_HDMI_RK2928
+	platform_device_register(&device_hdmi);
+#endif
 	return 0;
 }
 arch_initcall(rk2928_init_devices);

@@ -41,6 +41,11 @@
 #if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31) 
 #define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK30_PWM01_BASE+(id>>1)*0x20000)+id*0x10)
 #define read_pwm_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))
+
+#elif defined(CONFIG_ARCH_RK2928)
+#define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK2928_PWM_BASE+id*0x10))
+#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK2928_PWM_BASE+id*0x10))    
+
 #elif defined(CONFIG_ARCH_RK29)
 #define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK29_PWM_BASE+id*0x10))
 #define read_pwm_reg(id, addr)              __raw_readl(addr+(RK29_PWM_BASE+id*0x10))    
@@ -201,7 +206,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_ARCH_RK29)
 	pwm_clk = clk_get(NULL, "pwm");
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31) || defined(CONFIG_ARCH_RK2928)
 	if (id == 0 || id == 1)
 		pwm_clk = clk_get(NULL, "pwm01");
 	else if (id == 2 || id == 3)
