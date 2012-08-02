@@ -22,7 +22,7 @@
 #ifdef CONFIG_DDR_SDRAM_FREQ
 #define DDR_FREQ          (CONFIG_DDR_SDRAM_FREQ)
 #else
-#define DDR_FREQ 400
+#define DDR_FREQ 360
 #endif
 
 #define DDR3_800D   (0)     // 5-5-5
