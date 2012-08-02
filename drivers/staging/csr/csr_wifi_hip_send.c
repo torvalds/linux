@@ -172,13 +172,8 @@ static CsrResult send_signal(card_t *card, const u8 *sigptr, u32 siglen,
     {
         const u8 *sig = sigptr;
 
-        unifi_error(card->ospriv, "Signal(%d): %02x %02x %02x %02x %02x %02x %02x %02x"
-                    " %02x %02x %02x %02x %02x %02x %02x %02x\n",
-                    siglen,
-                    sig[0], sig[1], sig[2], sig[3],
-                    sig[4], sig[5], sig[6], sig[7],
-                    sig[8], sig[9], sig[10], sig[11],
-                    sig[12], sig[13], sig[14], sig[15]);
+		unifi_error(card->ospriv, "Signal(%d): %*ph\n", siglen,
+					  16, sig);
         unifi_error(card->ospriv, "Bulkdata pointer %p(%d), %p(%d)\n",
                     bulkdata != NULL?bulkdata->d[0].os_data_ptr : NULL,
                     bulkdata != NULL?bulkdata->d[0].data_length : 0,

@@ -3043,8 +3043,8 @@ _unifi_siwencodeext(struct net_device *dev, struct iw_request_info *info,
     memcpy(sme_key.address.a, ext->addr.sa_data, ETH_ALEN);
     if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
 
-        unifi_trace(priv, UDBG5, "RSC first 6 bytes = %02X:%02X:%02X:%02X:%02X:%02X\n",
-                    ext->rx_seq[0], ext->rx_seq[1], ext->rx_seq[2], ext->rx_seq[3], ext->rx_seq[4], ext->rx_seq[5]);
+		unifi_trace(priv, UDBG5, "RSC first 6 bytes = %*phC\n",
+					 6, ext->rx_seq);
 
         /* memcpy((u8*)(&sme_key.keyRsc), ext->rx_seq, 8); */
         sme_key.keyRsc[0] = ext->rx_seq[1] << 8 | ext->rx_seq[0];
