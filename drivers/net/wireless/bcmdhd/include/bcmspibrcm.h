@@ -9,11 +9,15 @@
  * or duplicated in any form, in whole or in part, without the prior
  * written permission of Broadcom Corporation.
  *
- * $Id: bcmspibrcm.h 241182 2011-02-17 21:50:03Z $
+ * $Id: bcmspibrcm.h 345514 2012-07-18 07:47:36Z $
  */
 #ifndef	_BCM_SPI_BRCM_H
 #define	_BCM_SPI_BRCM_H
 
+#ifndef SPI_MAX_IOFUNCS
+/* Maximum number of I/O funcs */
+#define SPI_MAX_IOFUNCS		4
+#endif
 /* global msglevel for debug messages - bitvals come from sdiovar.h */
 
 #define sd_err(x)
@@ -48,27 +52,31 @@
 #define USE_MULTIBLOCK		0x4
 
 struct sdioh_info {
-	uint 		cfg_bar;		/* pci cfg address for bar */
+	uint		cfg_bar;		/* pci cfg address for bar */
 	uint32		caps;			/* cached value of capabilities reg */
+#ifndef BCMSPI_ANDROID
 	void		*bar0;			/* BAR0 for PCI Device */
-	osl_t 		*osh;			/* osh handler */
+#endif /* !BCMSPI_ANDROID */
+	osl_t		*osh;			/* osh handler */
 	void		*controller;	/* Pointer to SPI Controller's private data struct */
-
-	uint		lockcount; 		/* nest count of spi_lock() calls */
+#ifndef BCMSPI_ANDROID
+	uint		lockcount;		/* nest count of spi_lock() calls */
 	bool		client_intr_enabled;	/* interrupt connnected flag */
 	bool		intr_handler_valid;	/* client driver interrupt handler valid */
 	sdioh_cb_fn_t	intr_handler;		/* registered interrupt handler */
 	void		*intr_handler_arg;	/* argument to call interrupt handler */
+#endif /* !BCMSPI_ANDROID */
 	bool		initialized;		/* card initialized */
 	uint32		target_dev;		/* Target device ID */
 	uint32		intmask;		/* Current active interrupts */
+#ifndef BCMSPI_ANDROID
 	void		*sdos_info;		/* Pointer to per-OS private data */
-
+#endif /* !BCMSPI_ANDROID */
 	uint32		controller_type;	/* Host controller type */
 	uint8		version;		/* Host Controller Spec Compliance Version */
-	uint 		irq;			/* Client irq */
-	uint32 		intrcount;		/* Client interrupts */
-	uint32 		local_intrcount;	/* Controller interrupts */
+	uint		irq;			/* Client irq */
+	uint32		intrcount;		/* Client interrupts */
+	uint32		local_intrcount;	/* Controller interrupts */
 	bool 		host_init_done;		/* Controller initted */
 	bool 		card_init_done;		/* Client SDIO interface initted */
 	bool 		polled_mode;		/* polling for command completion */

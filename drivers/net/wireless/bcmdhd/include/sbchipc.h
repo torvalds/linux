@@ -5,7 +5,7 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * $Id: sbchipc.h 328358 2012-04-18 23:14:31Z $
+ * $Id: sbchipc.h 347614 2012-07-27 10:24:51Z $
  *
  * Copyright (C) 1999-2012, Broadcom Corporation
  * 
@@ -289,8 +289,13 @@ typedef volatile struct {
 	uint32	pllcontrol_data;
 	uint32	pmustrapopt;		
 	uint32	pmu_xtalfreq;		
-	uint32	PAD[100];
+	uint32  retention_ctl;         
+	uint32  PAD[3];
+	uint32  retention_grpidx;      
+	uint32  retention_grpctl;      
+	uint32  PAD[94];
 	uint16	sromotp[512];		
+#ifdef NFLASH_SUPPORT
 	
 	uint32	nand_revision;		
 	uint32	nand_cmd_start;
@@ -353,6 +358,16 @@ typedef volatile struct {
 	uint32	nand_cache_data;
 	uint32	nand_ctrl_config;
 	uint32	nand_ctrl_status;
+#endif 
+	uint32  gci_corecaps0; 
+	uint32	gci_corecaps1;
+	uint32	gci_corecaps2;
+	uint32	gci_corectrl;
+	uint32	gci_corestat; 
+	uint32	PAD[11];
+	uint32	gci_indirect_addr; 
+	uint32	PAD[111];
+	uint32	gci_chipctrl; 
 } chipcregs_t;
 
 #endif 
@@ -399,6 +414,10 @@ typedef volatile struct {
 #define PMU_PLL_CONTROL_ADDR 	0x660
 #define PMU_PLL_CONTROL_DATA 	0x664
 #define	CC_SROM_OTP		0x800		
+#define CC_GCI_INDIRECT_ADDR_REG	0xC40
+#define CC_GCI_CHIP_CTRL_REG	0xE00
+#define CC_GCI_CC_OFFSET_2	2
+#define CC_GCI_CC_OFFSET_5	5
 
 #ifdef NFLASH_SUPPORT
 
@@ -2152,6 +2171,134 @@ typedef volatile struct {
 #define CST4360_USBBBPLL_LOCK              0x00002000
 
 #define CCTRL_4360_UART_SEL	0x2
+
+
+#define RES4335_LPLDO_PO           0
+#define RES4335_PMU_BG_PU          1
+#define RES4335_PMU_SLEEP          2
+#define RES4335_RSVD_3             3
+#define RES4335_CBUCK_LPOM_PU		4
+#define RES4335_CBUCK_PFM_PU		5
+#define RES4335_RSVD_6             6
+#define RES4335_RSVD_7             7
+#define RES4335_LNLDO_PU           8
+#define RES4335_XTALLDO_PU         9
+#define RES4335_LDO3P3_PU			10
+#define RES4335_OTP_PU				11
+#define RES4335_XTAL_PU				12
+#define RES4335_SR_CLK_START       13
+#define RES4335_LQ_AVAIL			14
+#define RES4335_LQ_START           15
+#define RES4335_RSVD_16            16
+#define RES4335_WL_CORE_RDY        17
+#define RES4335_ILP_REQ				18
+#define RES4335_ALP_AVAIL			19
+#define RES4335_MINI_PMU           20
+#define RES4335_RADIO_PU			21
+#define RES4335_SR_CLK_STABLE		22
+#define RES4335_SR_SAVE_RESTORE		23
+#define RES4335_SR_PHY_PWRSW		24
+#define RES4335_SR_VDDM_PWRSW      25
+#define RES4335_SR_SUBCORE_PWRSW	26
+#define RES4335_SR_SLEEP           27
+#define RES4335_HT_START           28
+#define RES4335_HT_AVAIL			29
+#define RES4335_MACPHY_CLKAVAIL		30
+
+
+#define CST4335_SPROM_MASK			0x00000020
+#define CST4335_SFLASH_MASK			0x00000040
+#define	CST4335_RES_INIT_MODE_SHIFT	7
+#define	CST4335_RES_INIT_MODE_MASK	0x00000180
+#define CST4335_CHIPMODE_MASK		0xF
+#define CST4335_CHIPMODE_SDIOD(cs)	(((cs) & (1 << 0)) != 0)	
+#define CST4335_CHIPMODE_GSPI(cs)	(((cs) & (1 << 1)) != 0)	
+#define CST4335_CHIPMODE_USB20D(cs)	(((cs) & (1 << 2)) != 0)	
+#define CST4335_CHIPMODE_PCIE(cs)	(((cs) & (1 << 3)) != 0)	
+
+
+#define CCTRL1_4335_GPIO_SEL		(1 << 0)    
+#define CCTRL1_4335_SDIO_HOST_WAKE (1 << 2)  
+
+
+#define CR4_RAM_BASE                    (0x180000)
+
+
+
+
+#define CC_GCI_CHIPCTRL_00	(0)
+#define CC_GCI_CHIPCTRL_01	(1)
+#define CC_GCI_CHIPCTRL_02	(2)
+#define CC_GCI_CHIPCTRL_03	(3)
+#define CC_GCI_CHIPCTRL_04	(4)
+#define CC_GCI_CHIPCTRL_05	(5)
+#define CC_GCI_CHIPCTRL_06	(6)
+#define CC_GCI_CHIPCTRL_07	(7)
+#define CC_GCI_CHIPCTRL_08	(8)
+
+#define CC_GCI_NUMCHIPCTRLREGS(cap1)	((cap1 & 0xF00) >> 8)
+
+
+#define CC4335_PIN_GPIO_00		(0)
+#define CC4335_PIN_GPIO_01		(1)
+#define CC4335_PIN_GPIO_02		(2)
+#define CC4335_PIN_GPIO_03		(3)
+#define CC4335_PIN_GPIO_04		(4)
+#define CC4335_PIN_GPIO_05		(5)
+#define CC4335_PIN_GPIO_06		(6)
+#define CC4335_PIN_GPIO_07		(7)
+#define CC4335_PIN_GPIO_08		(8)
+#define CC4335_PIN_GPIO_09		(9)
+#define CC4335_PIN_GPIO_10		(10)
+#define CC4335_PIN_GPIO_11		(11)
+#define CC4335_PIN_GPIO_12		(12)
+#define CC4335_PIN_GPIO_13		(13)
+#define CC4335_PIN_GPIO_14		(14)
+#define CC4335_PIN_GPIO_15		(15)
+#define CC4335_PIN_SDIO_CLK		(16)
+#define CC4335_PIN_SDIO_CMD		(17)
+#define CC4335_PIN_SDIO_DATA0	(18)
+#define CC4335_PIN_SDIO_DATA1	(19)
+#define CC4335_PIN_SDIO_DATA2	(20)
+#define CC4335_PIN_SDIO_DATA3	(21)
+#define CC4335_PIN_RF_SW_CTRL_0	(22)
+#define CC4335_PIN_RF_SW_CTRL_1	(23)
+#define CC4335_PIN_RF_SW_CTRL_2	(24)
+#define CC4335_PIN_RF_SW_CTRL_3	(25)
+#define CC4335_PIN_RF_SW_CTRL_4	(26)
+#define CC4335_PIN_RF_SW_CTRL_5	(27)
+#define CC4335_PIN_RF_SW_CTRL_6	(28)
+#define CC4335_PIN_RF_SW_CTRL_7	(29)
+#define CC4335_PIN_RF_SW_CTRL_8	(30)
+#define CC4335_PIN_RF_SW_CTRL_9	(31)
+
+
+#define CC4335_FNSEL_HWDEF		(0)
+#define CC4335_FNSEL_SAMEASPIN	(1)
+#define CC4335_FNSEL_GPIO0		(2)
+#define CC4335_FNSEL_GPIO1		(3)
+#define CC4335_FNSEL_GCI0		(4)
+#define CC4335_FNSEL_GCI1		(5)
+#define CC4335_FNSEL_UART		(6)
+#define CC4335_FNSEL_SFLASH		(7)
+#define CC4335_FNSEL_SPROM		(8)
+#define CC4335_FNSEL_MISC0		(9)
+#define CC4335_FNSEL_MISC1		(10)
+#define CC4335_FNSEL_MISC2		(11)
+#define CC4335_FNSEL_IND		(12)
+#define CC4335_FNSEL_PDN		(13)
+#define CC4335_FNSEL_PUP		(14)
+#define CC4335_FNSEL_TRI		(15)
+
+
+#define GCIMASK(pos)  (((uint32)0xF) << pos)
+
+
+#define GCIPOSVAL(val, pos)  ((((uint32)val) << pos) & GCIMASK(pos))
+
+
+#define MUXENAB4335_UART_MASK		(0x0000000f)
+
 
 
 #define CHIP_HOSTIF_USB(sih)	(si_chip_hostif(sih) & CST4360_MODE_USB)

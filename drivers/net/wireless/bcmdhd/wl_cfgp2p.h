@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 342795 2012-07-04 02:45:35Z $
+ * $Id: wl_cfgp2p.h 346820 2012-07-24 13:53:12Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -43,15 +43,18 @@ typedef enum {
 	P2PAPI_BSSCFG_MAX
 } p2p_bsscfg_type_t;
 
-#define IE_MAX_LEN 300
-#define P2P_RES_MAX_LEN	1400
+/* vendor ies max buffer length for probe response or beacon */
+#define VNDR_IES_MAX_BUF_LEN	1400
+/* normal vendor ies buffer length */
+#define VNDR_IES_BUF_LEN 		512
+
 /* Structure to hold all saved P2P and WPS IEs for a BSSCFG */
 struct p2p_saved_ie {
-	u8  p2p_probe_req_ie[IE_MAX_LEN];
-	u8  p2p_probe_res_ie[P2P_RES_MAX_LEN];
-	u8  p2p_assoc_req_ie[IE_MAX_LEN];
-	u8  p2p_assoc_res_ie[IE_MAX_LEN];
-	u8  p2p_beacon_ie[IE_MAX_LEN];
+	u8  p2p_probe_req_ie[VNDR_IES_BUF_LEN];
+	u8  p2p_probe_res_ie[VNDR_IES_MAX_BUF_LEN];
+	u8  p2p_assoc_req_ie[VNDR_IES_BUF_LEN];
+	u8  p2p_assoc_res_ie[VNDR_IES_BUF_LEN];
+	u8  p2p_beacon_ie[VNDR_IES_MAX_BUF_LEN];
 	u32 p2p_probe_req_ie_len;
 	u32 p2p_probe_res_ie_len;
 	u32 p2p_assoc_req_ie_len;
@@ -81,6 +84,19 @@ struct p2p_info {
 	wlc_ssid_t ssid;
 };
 
+#define MAX_VNDR_IE_NUMBER	5
+
+struct parsed_vndr_ie_info {
+	char *ie_ptr;
+	u32 ie_len;	/* total length including id & length field */
+	vndr_ie_t vndrie;
+};
+
+struct parsed_vndr_ies {
+	u32 count;
+	struct parsed_vndr_ie_info ie_info[MAX_VNDR_IE_NUMBER];
+};
+
 /* dongle status */
 enum wl_cfgp2p_status {
 	WLP2P_STATUS_DISCOVERY_ON = 0,
@@ -93,7 +109,8 @@ enum wl_cfgp2p_status {
 	WLP2P_STATUS_LISTEN_EXPIRED,
 	WLP2P_STATUS_ACTION_TX_COMPLETED,
 	WLP2P_STATUS_ACTION_TX_NOACK,
-	WLP2P_STATUS_SCANNING
+	WLP2P_STATUS_SCANNING,
+	WLP2P_STATUS_GO_NEG_PHASE
 };
 
 
@@ -201,11 +218,6 @@ wl_cfgp2p_find_wpaie(u8 *parse, u32 len);
 extern wpa_ie_fixed_t *
 wl_cfgp2p_find_wpsie(u8 *parse, u32 len);
 
-#if defined(CUSTOMER_OUI)
-extern wifi_p2p_ie_t *
-wl_cfgp2p_find_customer_ie(u8 *parse, u32 *len);
-#endif
-
 extern wifi_p2p_ie_t *
 wl_cfgp2p_find_p2pie(u8 *parse, u32 len);
 
@@ -288,14 +300,21 @@ wl_cfgp2p_unregister_ndev(struct wl_priv *wl);
 #define WL_P2P_INTERFACE_PREFIX "p2p"
 #define WL_P2P_TEMP_CHAN 11
 
+/* If the provision discovery is for JOIN operations,
+ * then we need not do an internal scan to find GO.
+ */
+#define IS_PROV_DISC_WITHOUT_GROUP_ID(p2p_ie, len) \
+	(wl_cfgp2p_retreive_p2pattrib(p2p_ie, P2P_SEID_GROUP_ID) == NULL)
 
 #define IS_GAS_REQ(frame, len) (wl_cfgp2p_is_gas_action(frame, len) && \
 					((frame->action == P2PSD_ACTION_ID_GAS_IREQ) || \
 					(frame->action == P2PSD_ACTION_ID_GAS_CREQ)))
-#define IS_P2P_PUB_ACT_REQ(frame, len) (wl_cfgp2p_is_pub_action(frame, len) && \
-						((frame->subtype == P2P_PAF_GON_REQ) || \
-						(frame->subtype == P2P_PAF_INVITE_REQ) || \
-						(frame->subtype == P2P_PAF_PROVDIS_REQ)))
+#define IS_P2P_PUB_ACT_REQ(frame, p2p_ie, len) \
+					(wl_cfgp2p_is_pub_action(frame, len) && \
+					((frame->subtype == P2P_PAF_GON_REQ) || \
+					(frame->subtype == P2P_PAF_INVITE_REQ) || \
+					((frame->subtype == P2P_PAF_PROVDIS_REQ) && \
+						IS_PROV_DISC_WITHOUT_GROUP_ID(p2p_ie, len))))
 #define IS_P2P_PUB_ACT_RSP_SUBTYPE(subtype) ((subtype == P2P_PAF_GON_RSP) || \
 							((subtype == P2P_PAF_GON_CONF) || \
 							(subtype == P2P_PAF_INVITE_RSP) || \

@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 343726 2012-07-10 03:28:27Z $
+ * $Id: dhd_linux.c 347643 2012-07-27 12:22:15Z $
  */
 
 #include <typedefs.h>
@@ -100,14 +100,6 @@ static histo_t vi_d1, vi_d2, vi_d3, vi_d4;
 #endif
 
 #if defined(PKT_FILTER_SUPPORT)
-#if defined(BLOCK_IPV6_PACKET)
-#define HEX_PREF_STR	"0x"
-#define UNI_FILTER_STR	"010000000000"
-#define ZERO_ADDR_STR	"000000000000"
-#define ETHER_TYPE_STR	"0000"
-#define IPV6_FILTER_STR	"20"
-#define ZERO_TYPE_STR	"00"
-#endif /* BLOCK_IPV6_PACKET */
 #endif /* PKT_FILTER_SUPPORT */
 
 #if defined(SOFTAP)
@@ -190,6 +182,27 @@ extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 #ifdef PKT_FILTER_SUPPORT
 extern void dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg);
 extern void dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_mode);
+#endif
+
+#ifdef READ_MACADDR
+extern int dhd_read_macaddr(struct dhd_info *dhd, struct ether_addr *mac);
+#endif
+#ifdef RDWR_MACADDR
+extern int dhd_check_rdwr_macaddr(struct dhd_info *dhd, dhd_pub_t *dhdp, struct ether_addr *mac);
+extern int dhd_write_rdwr_macaddr(struct ether_addr *mac);
+#endif
+#ifdef WRITE_MACADDR
+extern int dhd_write_macaddr(struct ether_addr *mac);
+#endif
+#ifdef GET_MAC_FROM_OTP
+extern int dhd_check_module_mac(dhd_pub_t *dhd);
+#endif
+#ifdef MIMO_ANT_SETTING
+extern int dhd_sel_ant_from_file(dhd_pub_t *dhd);
+#endif
+
+#ifdef CUSTOMER_SET_COUNTRY
+int dhd_customer_set_country(dhd_pub_t *dhd);
 #endif
 
 /* Interface control information */
@@ -326,6 +339,7 @@ typedef struct dhd_info {
 char firmware_path[MOD_PARAM_PATHLEN];
 char nvram_path[MOD_PARAM_PATHLEN];
 
+/* information string to keep firmware, chio, cheip version info visiable from log */
 char info_string[MOD_PARAM_INFOLEN];
 module_param_string(info_string, info_string, MOD_PARAM_INFOLEN, 0444);
 
@@ -349,7 +363,7 @@ module_param(dhd_sysioc, uint, 0);
 module_param(dhd_msg_level, int, 0);
 
 /* Disable Prop tx */
-module_param(disable_proptx, int, 0);
+module_param(disable_proptx, int, 0644);
 
 /* load firmware and/or nvram values from the filesystem */
 module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0660);
@@ -387,7 +401,11 @@ uint dhd_pkt_filter_init = 0;
 module_param(dhd_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
+#ifdef GAN_LITE_NAT_KEEPALIVE_FILTER
+uint dhd_master_mode = FALSE;
+#else
 uint dhd_master_mode = TRUE;
+#endif 
 module_param(dhd_master_mode, uint, 0);
 
 #ifdef DHDTHREAD
@@ -395,8 +413,8 @@ module_param(dhd_master_mode, uint, 0);
 int dhd_watchdog_prio = 0;
 module_param(dhd_watchdog_prio, int, 0);
 
-/* DPC thread priority, -1 to use tasklet */
-int dhd_dpc_prio = 1;
+/* DPC thread priority */
+int dhd_dpc_prio = CUSTOM_DPC_PRIO_SETTING;
 module_param(dhd_dpc_prio, int, 0);
 
 extern int dhd_dongle_memsize;
@@ -1116,14 +1134,19 @@ dhd_op_if(dhd_if_t *ifp)
 		ifp->state = DHD_IF_DELETING;
 		if (ifp->net != NULL) {
 			DHD_TRACE(("\n%s: got 'DHD_IF_DEL' state\n", __FUNCTION__));
+			netif_stop_queue(ifp->net);
 #ifdef WL_CFG80211
 			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
-				wl_cfg80211_notify_ifdel(ifp->net);
+				wl_cfg80211_ifdel_ops(ifp->net);
 			}
 #endif
-			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
 			ret = DHD_DEL_IF;	/* Make sure the free_netdev() is called */
+#ifdef WL_CFG80211
+			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
+				wl_cfg80211_notify_ifdel();
+			}
+#endif
 		}
 		break;
 	case DHD_IF_DELETING:
@@ -1392,7 +1415,7 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 
 	/* Reject if down */
-	if (dhd->pub.busstate == DHD_BUS_DOWN) {
+	if (dhd->pub.busstate == DHD_BUS_DOWN || dhd->pub.hang_was_sent) {
 		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d \n",
 			__FUNCTION__, dhd->pub.up, dhd->pub.busstate));
 		netif_stop_queue(net);
@@ -1584,8 +1607,11 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 		}
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 		/* Dropping packets before registering net device to avoid kernel panic */
-		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED ||
-			!dhd->pub.up) {
+#ifdef BCMDHDUSB
+		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED) {
+#else
+		if (!ifp->net || ifp->net->reg_state != NETREG_REGISTERED || !dhd->pub.up) {
+#endif 
 			DHD_ERROR(("%s: net device is NOT registered yet. drop packet\n",
 			__FUNCTION__));
 			PKTFREE(dhdp->osh, pktbuf, TRUE);
@@ -2518,12 +2544,6 @@ dhd_cleanup_virt_ifaces(dhd_info_t *dhd)
 }
 #endif /* WL_CFG80211 */
 
-#if defined(WL_CFG80211) && defined(SUPPORT_DEEP_SLEEP)
-/* Flags to indicate if we distingish power off policy when
- * user set the memu "Keep Wi-Fi on during sleep" to "Never"
- */
-int sleep_never = 0;
-#endif
 
 static int
 dhd_stop(struct net_device *net)
@@ -2569,18 +2589,6 @@ exit:
 	if (ifidx == 0) {
 		if (!dhd_download_fw_on_driverload)
 			wl_android_wifi_off(net);
-#ifdef SUPPORT_DEEP_SLEEP
-		else {
-			/* CSP#505233: Flags to indicate if we distingish
-			 * power off policy when user set the memu
-			 * "Keep Wi-Fi on during sleep" to "Never"
-			 */
-			if (sleep_never) {
-				dhd_deepsleep(net, 1);
-				sleep_never = 0;
-			}
-		}
-#endif /* SUPPORT_DEEP_SLEEP */
 	}
 #endif 
 	dhd->pub.rxcnt_timeout = 0;
@@ -2652,16 +2660,6 @@ dhd_open(struct net_device *net)
 				goto exit;
 			}
 		} else {
-#ifdef SUPPORT_DEEP_SLEEP
-			/* Flags to indicate if we distingish
-			 * power off policy when user set the memu
-			 * "Keep Wi-Fi on during sleep" to "Never"
-			 */
-			if (sleep_never) {
-				dhd_deepsleep(net, 0);
-				sleep_never = 0;
-			}
-#endif /* SUPPORT_DEEP_SLEEP */
 		}
 #endif 
 
@@ -3174,6 +3172,12 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		dhd_os_sdunlock(dhdp);
 #endif /* DHDTHREAD */
 
+#ifdef BCMSDIOH_TXGLOM
+	if ((dhd->pub.busstate == DHD_BUS_DATA) && bcmsdh_glom_enabled()) {
+		dhd_txglom_enable(dhdp, TRUE);
+	}
+#endif
+
 #ifdef READ_MACADDR
 	dhd_read_macaddr(dhd);
 #endif
@@ -3207,6 +3211,12 @@ dhd_bus_start(dhd_pub_t *dhdp)
 bool
 dhd_concurrent_fw(dhd_pub_t *dhd)
 {
+#ifdef WL_ENABLE_P2P_IF
+	if (strstr(fw_path, "_apsta") == NULL)
+		return 1;
+	else
+		return 0;
+#else /* WL_ENABLE_P2P_IF */
 	int i;
 	int ret = 0;
 	char buf[WLC_IOCTL_SMLEN];
@@ -3234,6 +3244,7 @@ dhd_concurrent_fw(dhd_pub_t *dhd)
 		return 1;
 	}
 	return 0;
+#endif /* WL_ENABLE_P2P_IF */
 }
 #endif 
 int
@@ -3242,12 +3253,13 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	int ret = 0;
 	char eventmask[WL_EVENTING_MASK_LEN];
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" + '\0' + bitvec  */
+
 #if !defined(WL_CFG80211)
 	uint up = 0;
 #endif /* !defined(WL_CFG80211) */
 	uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
-	uint32 glom = 0;
+	uint32 glom = CUSTOM_GLOM_SETTING;
 #if defined(VSDB) || defined(ROAM_ENABLE)
 	uint bcn_timeout = 8;
 #else
@@ -3282,7 +3294,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* DISABLE_BUILTIN_ROAM */
 #endif /* ROAM_ENABLE */
 
-	uint16 chipID;
 #if defined(SOFTAP)
 	uint dtim = 1;
 #endif
@@ -3297,7 +3308,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef GET_CUSTOM_MAC_ENABLE
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
-
+#ifdef AMPDU_HOSTREORDER
+	uint32 hostreorder = 1;
+#endif
 #ifdef PROP_TXSTATUS
 	dhd->wlfc_enabled = FALSE;
 	/* enable WLFC only if the firmware is VSDB */
@@ -3459,13 +3472,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	bcm_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 
-	/* disable glom option for some chips */
-	chipID = (uint16)dhd_bus_chip_id(dhd);
-	if  ((chipID == BCM4330_CHIP_ID) || (chipID == BCM4329_CHIP_ID)) {
-		DHD_INFO(("%s disable glom for chipID=0x%X\n", __FUNCTION__, chipID));
-		bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
-		dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-	}
+	DHD_INFO(("%s set glom=0x%X\n", __FUNCTION__, glom));
+	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
+	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
@@ -3531,8 +3540,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(eventmask, WLC_E_ASSOC_RESP_IE);
 #ifndef WL_CFG80211
 	setbit(eventmask, WLC_E_PMKID_CACHE);
-#endif
 	setbit(eventmask, WLC_E_TXFAIL);
+#endif
 	setbit(eventmask, WLC_E_JOIN_START);
 	setbit(eventmask, WLC_E_SCAN_COMPLETE);
 #ifdef WLMEDIA_HTSF
@@ -3583,7 +3592,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* ARP_OFFLOAD_SUPPORT */
 
 #ifdef PKT_FILTER_SUPPORT
-	/* Setup defintions for pktfilter , enable in suspend */
+	/* Setup default defintions for pktfilter , enable in suspend */
 	dhd->pktfilter_count = 5;
 	/* Setup filter to allow only unicast */
 	dhd->pktfilter[0] = "100 0 0 0 0x01 0x00";
@@ -3602,6 +3611,10 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* defined(SOFTAP) */
 #endif /* PKT_FILTER_SUPPORT */
+#ifdef AMPDU_HOSTREORDER
+	bcm_mkiovar("ampdu_hostreorder", (char *)&hostreorder, 4, buf, sizeof(buf));
+	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
+#endif 
 
 #if !defined(WL_CFG80211)
 	/* Force STA UP */
@@ -4034,6 +4047,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 				dhd->iflist[i]->idx = i;
 				dhd_op_if(dhd->iflist[i]);
 			}
+
 			dhd_net_if_unlock_local(dhd);
 		}
 		/*  delete primary interface 0 */
@@ -4095,7 +4109,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 #ifdef CONFIG_HAS_WAKELOCK
 		dhd->wakelock_counter = 0;
 		dhd->wakelock_rx_timeout_enable = 0;
-		dhd->wakelock_ctrl_timeout_enable = 0; 
+		dhd->wakelock_ctrl_timeout_enable = 0;
 		wake_lock_destroy(&dhd->wl_wifi);
 		wake_lock_destroy(&dhd->wl_rxwake);
 		wake_lock_destroy(&dhd->wl_ctrlwake);
@@ -4766,6 +4780,7 @@ int net_os_set_dtim_skip(struct net_device *dev, int val)
 #ifdef PKT_FILTER_SUPPORT
 int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 {
+#ifndef GAN_LITE_NAT_KEEPALIVE_FILTER
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	char *filterp = NULL;
 	int ret = 0;
@@ -4792,6 +4807,9 @@ int net_os_rxfilter_add_remove(struct net_device *dev, int add_remove, int num)
 	}
 	dhd->pub.pktfilter[num] = filterp;
 	return ret;
+#else
+	return 0;
+#endif 
 }
 
 int dhd_os_set_packet_filter(dhd_pub_t *dhdp, int val)
@@ -5244,6 +5262,7 @@ int dhd_os_check_if_up(void *dhdp)
 	return pub->up;
 }
 
+/* function to collect firmware, chip id and chip version info */
 void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 {
 	int i;
@@ -5253,6 +5272,7 @@ void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 
 	if (!dhdp)
 		return;
+
 	i = snprintf(&info_string[i], sizeof(info_string) - i,
 		"\n  Chip: %x Rev %x Pkg %x", dhd_bus_chip_id(dhdp),
 		dhd_bus_chiprev_id(dhdp), dhd_bus_chippkg_id(dhdp));
@@ -5292,77 +5312,6 @@ bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret)
 	return dhd_check_hang(net, dhdp, ret);
 }
 
-#if defined(WL_CFG80211) && defined(SUPPORT_DEEP_SLEEP)
-#define MAX_TRY_CNT		5 /* Number of tries to disable deepsleep */
-int dhd_deepsleep(struct net_device *dev, int flag)
-{
-	char iovbuf[20];
-	uint powervar = 0;
-	dhd_info_t *dhd;
-	dhd_pub_t *dhdp;
-	int cnt = 0;
-	int ret = 0;
-
-	dhd = *(dhd_info_t **)netdev_priv(dev);
-	dhdp = &dhd->pub;
-
-	switch (flag) {
-	case 1 :  /* Deepsleep on */
-		DHD_ERROR(("[WiFi] Deepsleep On\n"));
-		/* give some time to _dhd_sysioc_thread() before deepsleep */
-		msleep(200);
-#ifdef PKT_FILTER_SUPPORT
-		/* disable pkt filter */
-		dhd_set_packet_filter(0, dhdp);
-#endif /* PKT_FILTER_SUPPORT */
-		/* Disable MPC */
-		powervar = 0;
-		memset(iovbuf, 0, sizeof(iovbuf));
-		bcm_mkiovar("mpc", (char *)&powervar, 4, iovbuf, sizeof(iovbuf));
-		dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-
-		/* Enable Deepsleep */
-		powervar = 1;
-		memset(iovbuf, 0, sizeof(iovbuf));
-		bcm_mkiovar("deepsleep", (char *)&powervar, 4, iovbuf, sizeof(iovbuf));
-		dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-		break;
-
-	case 0: /* Deepsleep Off */
-		DHD_ERROR(("[WiFi] Deepsleep Off\n"));
-
-		/* Disable Deepsleep */
-		for (cnt = 0; cnt < MAX_TRY_CNT; cnt++) {
-			powervar = 0;
-			memset(iovbuf, 0, sizeof(iovbuf));
-			bcm_mkiovar("deepsleep", (char *)&powervar, 4, iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-
-			memset(iovbuf, 0, sizeof(iovbuf));
-			bcm_mkiovar("deepsleep", (char *)&powervar, 4, iovbuf, sizeof(iovbuf));
-			if ((ret = dhd_wl_ioctl_cmd(dhdp, WLC_GET_VAR, iovbuf, sizeof(iovbuf),
-				FALSE, 0)) < 0) {
-				DHD_ERROR(("the error of dhd deepsleep status ret value :%d\n",
-					ret));
-			} else {
-				if (!(*(int *)iovbuf)) {
-					DHD_ERROR(("deepsleep mode is 0, ok , count : %d\n", cnt));
-					break;
-				}
-			}
-		}
-
-		/* Enable MPC */
-		powervar = 1;
-		memset(iovbuf, 0, sizeof(iovbuf));
-		bcm_mkiovar("mpc", (char *)&powervar, 4, iovbuf, sizeof(iovbuf));
-		dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-		break;
-	}
-
-	return 0;
-}
-#endif /* SUPPORT_DEEP_SLEEP */
 
 #ifdef PROP_TXSTATUS
 extern int dhd_wlfc_interface_entry_update(void* state,	ewlfc_mac_entry_action_t action, uint8 ifid,

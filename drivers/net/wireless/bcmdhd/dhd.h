@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 343726 2012-07-10 03:28:27Z $
+ * $Id: dhd.h 347624 2012-07-27 10:49:56Z $
  */
 
 /****************
@@ -122,9 +122,6 @@ enum dhd_prealloc_index {
 #if defined(STATIC_WL_PRIV_STRUCT)
 	DHD_PREALLOC_OSL_BUF,
 	DHD_PREALLOC_WIPHY_ESCAN0 = 5,
-#if defined(DUAL_ESCAN_RESULT_BUFFER)
-	DHD_PREALLOC_WIPHY_ESCAN1
-#endif
 #else
 	DHD_PREALLOC_OSL_BUF
 #endif /* STATIC_WL_PRIV_STRUCT */
@@ -636,6 +633,19 @@ extern uint dhd_force_tx_queueing;
 #endif /* KEEP_ALIVE_PACKET_PERIOD_30_SEC */
 #define NULL_PKT_STR	"null_pkt"
 
+/* hooks for custom glom setting option via Makefile */
+#define DEFAULT_GLOM_VALUE 	-1
+#ifndef CUSTOM_GLOM_SETTING
+#define CUSTOM_GLOM_SETTING 	DEFAULT_GLOM_VALUE
+#endif
+
+/* hooks for custom dhd_dpc_prio setting option via Makefile */
+#define DEFAULT_DHP_DPC_PRIO  1
+#ifndef CUSTOM_DPC_PRIO_SETTING
+#define CUSTOM_DPC_PRIO_SETTING 	DEFAULT_DHP_DPC_PRIO
+#endif
+
+
 #ifdef SDTEST
 /* Echo packet generator (SDIO), pkts/s */
 extern uint dhd_pktgen;
@@ -660,13 +670,7 @@ extern char fw_path2[MOD_PARAM_PATHLEN];
 /* Flag to indicate if we should download firmware on driver load */
 extern uint dhd_download_fw_on_driverload;
 
-#if defined(WL_CFG80211) && defined(SUPPORT_DEEP_SLEEP)
-/* Flags to indicate if we distingish power off policy when
- * user set the memu "Keep Wi-Fi on during sleep" to "Never"
- */
-extern int sleep_never;
-int dhd_deepsleep(struct net_device *dev, int flag);
-#endif /* WL_CFG80211 && SUPPORT_DEEP_SLEEP */
+
 
 /* For supporting multiple interfaces */
 #define DHD_MAX_IFS	16

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmutils.h 328848 2012-04-21 00:43:57Z $
+ * $Id: bcmutils.h 347624 2012-07-27 10:49:56Z $
  */
 
 #ifndef	_bcmutils_h_
@@ -155,11 +155,7 @@ typedef bool (*ifpkt_cb_t)(void*, int);
 
 #ifdef BCMPKTPOOL
 #define POOL_ENAB(pool)		((pool) && (pool)->inited)
-#if defined(BCM4329C0)
-#define SHARED_POOL		(pktpool_shared_ptr)
-#else
 #define SHARED_POOL		(pktpool_shared)
-#endif 
 #else 
 #define POOL_ENAB(bus)		0
 #define SHARED_POOL		((struct pktpool *)NULL)
@@ -231,11 +227,7 @@ typedef struct pktpool {
 #endif
 } pktpool_t;
 
-#if defined(BCM4329C0)
-extern pktpool_t *pktpool_shared_ptr;
-#else
 extern pktpool_t *pktpool_shared;
-#endif 
 
 extern int pktpool_init(osl_t *osh, pktpool_t *pktp, int *pktplen, int plen, bool istx);
 extern int pktpool_deinit(osl_t *osh, pktpool_t *pktp);
@@ -598,7 +590,7 @@ extern void *_bcmutils_dummy_fn;
 
 
 #ifndef setbit
-#ifndef NBBY		      
+#ifndef NBBY		  
 #define	NBBY	8	
 #endif 
 #define	setbit(a, i)	(((uint8 *)a)[(i) / NBBY] |= 1 << ((i) % NBBY))

@@ -21,7 +21,7 @@
  *
  * Fundamental types and constants relating to 802.11
  *
- * $Id: 802.11.h 329730 2012-04-26 17:27:25Z $
+ * $Id: 802.11.h 346820 2012-07-24 13:53:12Z $
  */
 
 #ifndef _802_11_H_
@@ -1734,6 +1734,7 @@ typedef struct vndr_ie vndr_ie_t;
 
 #define VNDR_IE_HDR_LEN		2	
 #define VNDR_IE_MIN_LEN		3	
+#define VNDR_IE_FIXED_LEN	(VNDR_IE_HDR_LEN + VNDR_IE_MIN_LEN)
 #define VNDR_IE_MAX_LEN		256	
 
 
@@ -2114,10 +2115,6 @@ typedef enum vht_op_chan_width {
 #define WCN_OUI			"\x00\x50\xf2"	
 #define WCN_TYPE		4	
 
-#ifdef BCMWAPI_WPI
-#define SMS4_KEY_LEN		16
-#define SMS4_WPI_CBC_MAC_LEN	16
-#endif
 
 
 
@@ -2171,13 +2168,6 @@ typedef struct dot11_gtk_ie dot11_gtk_ie_t;
 #define BSSID_INVALID           "\x00\x00\x00\x00\x00\x00"
 #define BSSID_BROADCAST         "\xFF\xFF\xFF\xFF\xFF\xFF"
 
-#ifdef BCMWAPI_WAI
-#define WAPI_IE_MIN_LEN 	20	
-#define WAPI_VERSION		1	
-#define WAPI_VERSION_LEN	2	
-#define WAPI_OUI		"\x00\x14\x72"	
-#define WAPI_OUI_LEN		DOT11_OUI_LEN	
-#endif 
 
 
 #define WMM_OUI			"\x00\x50\xF2"	

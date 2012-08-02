@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 341930 2012-06-29 04:51:25Z $
+ * $Id: dhd_cdc.c 347640 2012-07-27 11:53:21Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -49,7 +49,7 @@
 
 
 #define RETRIES 2		/* # of retries to retrieve matching ioctl response */
-#define BUS_HEADER_LEN	(16+DHD_SDALIGN)	/* Must be at least SDPCM_RESERVE
+#define BUS_HEADER_LEN	(24+DHD_SDALIGN)	/* Must be at least SDPCM_RESERVE
 				 * defined in dhd_sdio.c (amount of header tha might be added)
 				 * plus any space that might be needed for alignment padding.
 				 */
@@ -68,6 +68,7 @@ typedef struct dhd_wlfc_commit_info {
 	void*					p;
 } dhd_wlfc_commit_info_t;
 #endif /* PROP_TXSTATUS */
+
 
 typedef struct dhd_prot {
 	uint16 reqid;
@@ -770,13 +771,17 @@ dhd_wlfc_hanger_mark_suppressed(void* hanger, uint32 slot_id, uint8 gen)
 	/* this packet was not pushed at the time it went to the firmware */
 	if (slot_id == WLFC_HANGER_MAXITEMS)
 		return BCME_NOTFOUND;
-
-	h->items[slot_id].gen = gen;
-	if (h && (h->items[slot_id].state == WLFC_HANGER_ITEM_STATE_INUSE)) {
-		h->items[slot_id].state = WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED;
+	if (h) {
+		h->items[slot_id].gen = gen;
+		if (h->items[slot_id].state == WLFC_HANGER_ITEM_STATE_INUSE) {
+			h->items[slot_id].state = WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED;
+		}
+		else
+			rc = BCME_BADARG;
 	}
 	else
 		rc = BCME_BADARG;
+
 	return rc;
 }
 
@@ -1054,7 +1059,7 @@ _dhd_wlfc_traffic_pending_check(athost_wl_status_info_t* ctx, wlfc_mac_descripto
 }
 
 static int
-_dhd_wlfc_enque_suppressed(athost_wl_status_info_t* ctx, int prec, void* p, uint8 gen)
+_dhd_wlfc_enque_suppressed(athost_wl_status_info_t* ctx, int prec, void* p)
 {
 	wlfc_mac_descriptor_t* entry;
 
@@ -1082,7 +1087,7 @@ _dhd_wlfc_enque_suppressed(athost_wl_status_info_t* ctx, int prec, void* p, uint
 
 static int
 _dhd_wlfc_pretx_pktprocess(athost_wl_status_info_t* ctx,
-	wlfc_mac_descriptor_t* entry, void* p, int header_needed, uint32* slot, int prec)
+	wlfc_mac_descriptor_t* entry, void* p, int header_needed, uint32* slot)
 {
 	int rc = BCME_OK;
 	int hslot = WLFC_HANGER_MAXITEMS;
@@ -1229,10 +1234,9 @@ _dhd_wlfc_deque_delayedq(athost_wl_status_info_t* ctx,
 			if (!_dhd_wlfc_is_destination_closed(ctx, entry, prec)) {
 				p = pktq_mdeq(&entry->psq,
 					/* higher precedence will be picked up first,
-					i.e. suppressed packets before delayed ones
-					*/
-					NBITVAL((prec << 1) + 1),
-					&pout);
+					 * i.e. suppressed packets before delayed ones
+					 */
+					NBITVAL((prec << 1) + 1), &pout);
 						*needs_hdr = 0;
 
 				if (p == NULL) {
@@ -1492,7 +1496,7 @@ _dhd_wlfc_handle_packet_commit(athost_wl_status_info_t* ctx, int ac,
 	*/
 	DHD_PKTTAG_SETCREDITCHECK(PKTTAG(commit_info->p), commit_info->ac_fifo_credit_spent);
 	rc = _dhd_wlfc_pretx_pktprocess(ctx, commit_info->mac_entry, commit_info->p,
-	     commit_info->needs_hdr, &hslot, ac);
+	     commit_info->needs_hdr, &hslot);
 
 	if (rc == BCME_OK)
 		rc = fcommit(commit_ctx, commit_info->p);
@@ -1830,15 +1834,12 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 
 	if (!remove_from_hanger) {
 		/* this packet was suppressed */
-		if (!entry->suppressed ||
-			entry->generation != WLFC_PKTID_GEN(status)) {
+		if (!entry->suppressed || entry->generation != WLFC_PKTID_GEN(status)) {
 			entry->suppressed = TRUE;
 			entry->suppress_count = pktq_mlen(&entry->psq,
 			NBITVAL((WL_TXSTATUS_GET_FIFO(status) << 1) + 1));
 			entry->suppr_transit_count = entry->transit_count;
-
 		}
-
 		entry->generation = WLFC_PKTID_GEN(status);
 	}
 
@@ -1905,7 +1906,8 @@ dhd_wlfc_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info)
 	}
 	if ((status_flag == WLFC_CTL_PKTFLAG_D11SUPPRESS) ||
 		(status_flag == WLFC_CTL_PKTFLAG_WLSUPPRESS)) {
-		ret = _dhd_wlfc_enque_suppressed(wlfc, fifo_id, pktbuf, WLFC_PKTID_GEN(status));
+
+		ret = _dhd_wlfc_enque_suppressed(wlfc, fifo_id, pktbuf);
 		if (ret != BCME_OK) {
 			/* delay q is full, drop this packet */
 			dhd_wlfc_hanger_poppkt(wlfc->hanger, WLFC_PKTID_HSLOT_GET(status),
@@ -1983,6 +1985,19 @@ dhd_wlfc_fifocreditback_indicate(dhd_pub_t *dhd, uint8* credits)
 
 	return BCME_OK;
 }
+
+static int
+dhd_wlfc_dbg_senum_check(dhd_pub_t *dhd, uint8 *value)
+{
+	uint32 timestamp;
+
+	(void)dhd;
+
+	bcopy(&value[2], &timestamp, sizeof(uint32));
+	DHD_INFO(("RXPKT: SEQ: %d, timestamp %d\n", value[1], timestamp));
+	return BCME_OK;
+}
+
 
 static int
 dhd_wlfc_rssi_indicate(dhd_pub_t *dhd, uint8* rssi)
@@ -2248,6 +2263,9 @@ dhd_wlfc_parse_header_info(dhd_pub_t *dhd, void* pktbuf, int tlv_hdr_len, uchar 
 				(type == WLFC_CTL_TYPE_MACDESC_DEL))
 				dhd_wlfc_mac_table_update(dhd, value, type);
 
+			else if (type == WLFC_CTL_TYPE_TRANS_ID)
+				dhd_wlfc_dbg_senum_check(dhd, value);
+
 			else if ((type == WLFC_CTL_TYPE_INTERFACE_OPEN) ||
 				(type == WLFC_CTL_TYPE_INTERFACE_CLOSE)) {
 				dhd_wlfc_interface_update(dhd, value, type);
@@ -2346,7 +2364,6 @@ dhd_wlfc_enable(dhd_pub_t *dhd)
 
 	wlfc->allow_credit_borrow = TRUE;
 	wlfc->borrow_defer_timestamp = 0;
-
 	return BCME_OK;
 }
 
@@ -2704,8 +2721,6 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			*pkt_count = 0;
 		return 0;
 	}
-	cur_pkt = *pkt;
-	*pkt = NULL;
 
 	flow_id = reorder_info_buf[WLHOST_REORDERDATA_FLOWID_OFFSET];
 	flags = reorder_info_buf[WLHOST_REORDERDATA_FLAGS_OFFSET];
@@ -2722,6 +2737,9 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 		return 0;
 	}
 
+	cur_pkt = *pkt;
+	*pkt = NULL;
+
 	ptr = dhd->reorder_bufs[flow_id];
 	if (flags & WLHOST_REORDERDATA_DEL_FLOW) {
 		uint32 buf_size = sizeof(struct reorder_info);
@@ -2733,6 +2751,7 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			DHD_ERROR(("%s: received flags to cleanup, but no flow (%d) yet\n",
 				__FUNCTION__, flow_id));
 			*pkt_count = 1;
+			*pkt = cur_pkt;
 			return 0;
 		}
 

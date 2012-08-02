@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.c 342280 2012-07-02 09:20:52Z $
+ * $Id: bcmsdh.c 347614 2012-07-27 10:24:51Z $
  */
 
 /**
@@ -725,3 +725,32 @@ bcmsdh_gpioout(void *sdh, uint32 gpio, bool enab)
 
 	return sdioh_gpioout(sd, gpio, enab);
 }
+
+#ifdef BCMSDIOH_TXGLOM
+void
+bcmsdh_glom_post(void *sdh, uint8 *frame, uint len)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	sdioh_glom_post(bcmsdh->sdioh, frame, len);
+}
+
+void
+bcmsdh_glom_clear(void *sdh)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	sdioh_glom_clear(bcmsdh->sdioh);
+}
+
+uint
+bcmsdh_set_mode(void *sdh, uint mode)
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	return (sdioh_set_mode(bcmsdh->sdioh, mode));
+}
+
+bool
+bcmsdh_glom_enabled(void)
+{
+	return (sdioh_glom_enabled());
+}
+#endif /* BCMSDIOH_TXGLOM */

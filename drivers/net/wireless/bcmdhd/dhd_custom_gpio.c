@@ -20,7 +20,7 @@
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
 *
-* $Id: dhd_custom_gpio.c 337782 2012-06-08 14:16:12Z $
+* $Id: dhd_custom_gpio.c 345514 2012-07-18 07:47:36Z $
 */
 
 #include <typedefs.h>
@@ -86,7 +86,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 {
 	int  host_oob_irq = 0;
 
-#ifdef CUSTOMER_HW2
+#if defined(CUSTOMER_HW2)
 	host_oob_irq = wifi_get_irq_number(irq_flags_ptr);
 
 #else
@@ -129,7 +129,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_off(2);
 #endif /* CUSTOMER_HW */
-#ifdef CUSTOMER_HW2
+#if defined(CUSTOMER_HW2)
 			wifi_set_power(0, 0);
 #endif
 			WL_ERROR(("=========== WLAN placed in RESET ========\n"));
@@ -141,7 +141,7 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW
 			bcm_wlan_power_on(2);
 #endif /* CUSTOMER_HW */
-#ifdef CUSTOMER_HW2
+#if defined(CUSTOMER_HW2)
 			wifi_set_power(1, 0);
 #endif
 			WL_ERROR(("=========== WLAN going back to live  ========\n"));
