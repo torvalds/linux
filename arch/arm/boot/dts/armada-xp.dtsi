@@ -27,6 +27,12 @@
 		    <0xd0021870 0x58>;
 	};
 
+	armada-370-xp-pmsu@d0022000 {
+		compatible = "marvell,armada-370-xp-pmsu";
+		reg = <0xd0022100 0x430>,
+		      <0xd0020800 0x20>;
+	};
+
 	soc {
 		serial@d0012200 {
 				compatible = "ns16550";
