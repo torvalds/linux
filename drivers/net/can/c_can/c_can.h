@@ -143,8 +143,9 @@ static const u16 reg_map_d_can[] = {
 };
 
 enum c_can_dev_id {
-	C_CAN_DEVTYPE,
-	D_CAN_DEVTYPE,
+	BOSCH_C_CAN_PLATFORM,
+	BOSCH_C_CAN,
+	BOSCH_D_CAN,
 };
 
 /* c_can private data structure */

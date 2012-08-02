@@ -116,7 +116,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	id = platform_get_device_id(pdev);
 	switch (id->driver_data) {
-	case C_CAN_DEVTYPE:
+	case BOSCH_C_CAN:
 		priv->regs = reg_map_c_can;
 		switch (mem->flags & IORESOURCE_MEM_TYPE_MASK) {
 		case IORESOURCE_MEM_32BIT:
@@ -130,7 +130,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 			break;
 		}
 		break;
-	case D_CAN_DEVTYPE:
+	case BOSCH_D_CAN:
 		priv->regs = reg_map_d_can;
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
@@ -196,15 +196,17 @@ static int __devexit c_can_plat_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id c_can_id_table[] = {
-	{
+	[BOSCH_C_CAN_PLATFORM] = {
 		.name = KBUILD_MODNAME,
-		.driver_data = C_CAN_DEVTYPE,
-	}, {
+		.driver_data = BOSCH_C_CAN,
+	},
+	[BOSCH_C_CAN] = {
 		.name = "c_can",
-		.driver_data = C_CAN_DEVTYPE,
-	}, {
+		.driver_data = BOSCH_C_CAN,
+	},
+	[BOSCH_D_CAN] = {
 		.name = "d_can",
-		.driver_data = D_CAN_DEVTYPE,
+		.driver_data = BOSCH_D_CAN,
 	}, {
 	}
 };
