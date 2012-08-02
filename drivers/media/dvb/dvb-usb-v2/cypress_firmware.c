@@ -1,4 +1,4 @@
-/* dvb_usb_firmware.c is part of the DVB USB library.
+/*  cypress_firmware.c is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
@@ -9,7 +9,7 @@
  */
 
 #include "dvb_usb.h"
-#include "dvb_usb_firmware.h"
+#include "cypress_firmware.h"
 
 struct usb_cypress_controller {
 	u8 id;

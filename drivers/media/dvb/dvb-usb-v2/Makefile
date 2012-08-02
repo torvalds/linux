@@ -1,7 +1,7 @@
 dvb_usbv2-objs = dvb_usb_core.o dvb_usb_urb.o usb_urb.o
 obj-$(CONFIG_DVB_USB_V2) += dvb_usbv2.o
 
-obj-$(CONFIG_DVB_USB_FIRMWARE) += dvb_usb_firmware.o
+obj-$(DVB_USB_CYPRESS_FIRMWARE) += dvb_usb_cypress_firmware.o
 
 dvb-usb-af9015-objs = af9015.o
 obj-$(CONFIG_DVB_USB_AF9015) += dvb-usb-af9015.o

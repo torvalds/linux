@@ -1,4 +1,4 @@
-/* dvb_usb_firmware.c is part of the DVB USB library.
+/* cypress_firmware.h is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@desy.de)
  * see dvb-usb-init.c for copyright information.
@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef DVB_USB_FIRMWARE_H
-#define DVB_USB_FIRMWARE_H
+#ifndef CYPRESS_FIRMWARE_H
+#define CYPRESS_FIRMWARE_H
 
 #define CYPRESS_AN2135  0
 #define CYPRESS_AN2235  1
