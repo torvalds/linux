@@ -64,7 +64,7 @@
 			reg = <0xf4000000 0x2000000>;
 			phy-mode = "mii";
 			interrupt-parent = <&gpio2>;
-			interrupts = <31>;
+			interrupts = <31 0x8>;
 			reg-io-width = <4>;
 			/*
 			 * VDD33A and VDDVARIO of LAN9220 are supplied by
