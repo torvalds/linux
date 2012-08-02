@@ -205,7 +205,8 @@ int exynos_mipi_dsi_register_lcd_device(struct mipi_dsim_lcd_device *lcd_dev)
 	return 0;
 }
 
-struct mipi_dsim_ddi *exynos_mipi_dsi_find_lcd_device(struct mipi_dsim_lcd_driver *lcd_drv)
+static struct mipi_dsim_ddi *exynos_mipi_dsi_find_lcd_device(
+					struct mipi_dsim_lcd_driver *lcd_drv)
 {
 	struct mipi_dsim_ddi *dsim_ddi, *next;
 	struct mipi_dsim_lcd_device *lcd_dev;
@@ -265,7 +266,8 @@ int exynos_mipi_dsi_register_lcd_driver(struct mipi_dsim_lcd_driver *lcd_drv)
 
 }
 
-struct mipi_dsim_ddi *exynos_mipi_dsi_bind_lcd_ddi(struct mipi_dsim_device *dsim,
+static struct mipi_dsim_ddi *exynos_mipi_dsi_bind_lcd_ddi(
+						struct mipi_dsim_device *dsim,
 						const char *name)
 {
 	struct mipi_dsim_ddi *dsim_ddi, *next;
