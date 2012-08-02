@@ -81,7 +81,7 @@ struct rbd_image_header {
 	__u8 crypt_type;
 	__u8 comp_type;
 	struct ceph_snap_context *snapc;
-	size_t snap_names_len;
+	u64 snap_names_len;
 	u32 total_snaps;
 
 	char *snap_names;
@@ -510,6 +510,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 	if (snap_count) {
 		header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
+		BUG_ON(header->snap_names_len > (u64) SIZE_MAX);
 		header->snap_names = kmalloc(header->snap_names_len,
 					     GFP_KERNEL);
 		if (!header->snap_names)
