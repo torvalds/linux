@@ -194,6 +194,11 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	 * Free the old FP and other extended state
 	 */
 	free_thread_xstate(current);
+	/*
+	 * force it to the iret return path by making it look as if there was
+	 * some work pending.
+	 */
+	set_thread_flag(TIF_NOTIFY_RESUME);
 }
 EXPORT_SYMBOL_GPL(start_thread);
 

@@ -351,14 +351,6 @@ long sys_execve(const char __user *name,
 	if (IS_ERR(filename))
 		return error;
 	error = do_execve(filename, argv, envp, regs);
-
-#ifdef CONFIG_X86_32
-	if (error == 0) {
-		/* Make sure we don't return using sysenter.. */
-                set_thread_flag(TIF_IRET);
-        }
-#endif
-
 	putname(filename);
 	return error;
 }
