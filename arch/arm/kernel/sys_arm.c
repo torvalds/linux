@@ -120,7 +120,6 @@ int kernel_execve(const char *filename,
  out:
 	return ret;
 }
-EXPORT_SYMBOL(kernel_execve);
 
 /*
  * Since loff_t is a 64 bit type we avoid a lot of ABI hassle

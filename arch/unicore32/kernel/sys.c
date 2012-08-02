@@ -104,7 +104,6 @@ int kernel_execve(const char *filename,
  out:
 	return ret;
 }
-EXPORT_SYMBOL(kernel_execve);
 
 /* Note: used by the compat code even in 64-bit Linux. */
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
