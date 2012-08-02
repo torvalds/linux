@@ -913,17 +913,10 @@ static void XGIfb_post_setmode(struct xgifb_video_info *xgifb_info)
 			}
 
 			if ((filter >= 0) && (filter <= 7)) {
-				pr_debug("FilterTable[%d]-%d: %02x %02x %02x %02x\n",
+				pr_debug("FilterTable[%d]-%d: %*ph\n",
 					 filter_tb, filter,
-					 XGI_TV_filter[filter_tb].
-						filter[filter][0],
-					 XGI_TV_filter[filter_tb].
-						filter[filter][1],
-					 XGI_TV_filter[filter_tb].
-						filter[filter][2],
-					 XGI_TV_filter[filter_tb].
-						filter[filter][3]
-				);
+					 4, XGI_TV_filter[filter_tb].
+						   filter[filter]);
 				xgifb_reg_set(
 					XGIPART2,
 					0x35,
