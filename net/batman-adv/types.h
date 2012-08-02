@@ -28,20 +28,30 @@
 	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
 			sizeof(struct batadv_bcast_packet)))
 
+/**
+ * struct batadv_hard_iface_bat_iv - per hard interface B.A.T.M.A.N. IV data
+ * @ogm_buff: buffer holding the OGM packet
+ * @ogm_buff_len: length of the OGM packet buffer
+ * @ogm_seqno: OGM sequence number - used to identify each OGM
+ */
+struct batadv_hard_iface_bat_iv {
+	unsigned char *ogm_buff;
+	int ogm_buff_len;
+	atomic_t ogm_seqno;
+};
+
 struct batadv_hard_iface {
 	struct list_head list;
 	int16_t if_num;
 	char if_status;
 	struct net_device *net_dev;
-	atomic_t seqno;
 	atomic_t frag_seqno;
-	unsigned char *packet_buff;
-	int packet_len;
 	struct kobject *hardif_obj;
 	atomic_t refcount;
 	struct packet_type batman_adv_ptype;
 	struct net_device *soft_iface;
 	struct rcu_head rcu;
+	struct batadv_hard_iface_bat_iv bat_iv;
 };
 
 /**

@@ -450,8 +450,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	/* This can't be called via a bat_priv callback because
 	 * we have no bat_priv yet.
 	 */
-	atomic_set(&hard_iface->seqno, 1);
-	hard_iface->packet_buff = NULL;
+	atomic_set(&hard_iface->bat_iv.ogm_seqno, 1);
+	hard_iface->bat_iv.ogm_buff = NULL;
 
 	return hard_iface;
 
