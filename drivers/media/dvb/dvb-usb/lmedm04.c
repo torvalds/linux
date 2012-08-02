@@ -878,6 +878,10 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 		fw_lme = fw_c_rs2000;
 		ret = request_firmware(&fw, fw_lme, &udev->dev);
 		dvb_usb_lme2510_firmware = TUNER_RS2000;
+		if (ret == 0)
+			break;
+		info("FRM No Firmware Found - please install");
+		cold_fw = 0;
 		break;
 	default:
 		fw_lme = fw_c_s7395;
