@@ -11,6 +11,7 @@
  *               Christian Borntraeger <borntraeger@de.ibm.com>
  *               Heiko Carstens <heiko.carstens@de.ibm.com>
  *               Christian Ehrhardt <ehrhardt@de.ibm.com>
+ *               Jason J. Herne <jjherne@us.ibm.com>
  */
 
 #include <linux/compiler.h>
@@ -179,6 +180,25 @@ int kvm_dev_ioctl_check_extension(long ext)
 	return r;
 }
 
+static void kvm_s390_sync_dirty_log(struct kvm *kvm,
+					struct kvm_memory_slot *memslot)
+{
+	gfn_t cur_gfn, last_gfn;
+	unsigned long address;
+	struct gmap *gmap = kvm->arch.gmap;
+
+	down_read(&gmap->mm->mmap_sem);
+	/* Loop over all guest pages */
+	last_gfn = memslot->base_gfn + memslot->npages;
+	for (cur_gfn = memslot->base_gfn; cur_gfn <= last_gfn; cur_gfn++) {
+		address = gfn_to_hva_memslot(memslot, cur_gfn);
+
+		if (gmap_test_and_clear_dirty(address, gmap))
+			mark_page_dirty(kvm, cur_gfn);
+	}
+	up_read(&gmap->mm->mmap_sem);
+}
+
 /* Section: vm related */
 /*
  * Get (and clear) the dirty memory log for a memory slot.
@@ -186,7 +206,36 @@ int kvm_dev_ioctl_check_extension(long ext)
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 			       struct kvm_dirty_log *log)
 {
-	return 0;
+	int r;
+	unsigned long n;
+	struct kvm_memory_slot *memslot;
+	int is_dirty = 0;
+
+	mutex_lock(&kvm->slots_lock);
+
+	r = -EINVAL;
+	if (log->slot >= KVM_USER_MEM_SLOTS)
+		goto out;
+
+	memslot = id_to_memslot(kvm->memslots, log->slot);
+	r = -ENOENT;
+	if (!memslot->dirty_bitmap)
+		goto out;
+
+	kvm_s390_sync_dirty_log(kvm, memslot);
+	r = kvm_get_dirty_log(kvm, log, &is_dirty);
+	if (r)
+		goto out;
+
+	/* Clear the dirty log */
+	if (is_dirty) {
+		n = kvm_dirty_bitmap_bytes(memslot);
+		memset(memslot->dirty_bitmap, 0, n);
+	}
+	r = 0;
+out:
+	mutex_unlock(&kvm->slots_lock);
+	return r;
 }
 
 static int kvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
