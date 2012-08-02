@@ -262,7 +262,7 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		freq_wq = create_singlethread_workqueue("rk30_cpufreqd");
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 		if (rk30_cpufreq_is_ondemand_policy(policy)) {
-			queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, 60*HZ);
+			queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, 0*HZ);
 		}
 		cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 #endif
@@ -509,9 +509,18 @@ static void __exit ff_exit(void)
 static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_policy *policy)
 {
 	bool is_ondemand = rk30_cpufreq_is_ondemand_policy(policy);
+	static bool is_booting = true;
 
 	if (is_ondemand && clk_get_rate(gpu_clk) > GPU_MAX_RATE) // high performance?
 		return max_freq;
+	if (is_ondemand && is_booting && target_freq >= 1600 * 1000) {
+		s64 boottime_ms = ktime_to_ms(ktime_get_boottime());
+		if (boottime_ms > 30 * MSEC_PER_SEC) {
+			is_booting = false;
+		} else {
+			target_freq = 1416 * 1000;
+		}
+	}
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 	if (is_ondemand && target_freq > policy->cur && policy->cur >= TEMP_LIMIT_FREQ) {
 		unsigned int i;
