@@ -239,6 +239,7 @@ static const struct snd_soc_dapm_route sgtl5000_dapm_routes[] = {
 	{"Headphone Mux", "DAC", "DAC"},	/* dac --> hp_mux */
 	{"LO", NULL, "DAC"},			/* dac --> line_out */
 
+	{"LINE_IN", NULL, "VAG_POWER"},
 	{"Headphone Mux", "LINE_IN", "LINE_IN"},/* line_in --> hp_mux */
 	{"HP", NULL, "Headphone Mux"},		/* hp_mux --> hp */
 
@@ -1356,8 +1357,6 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 	ret = sgtl5000_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	if (ret)
 		goto err;
-
-	snd_soc_dapm_new_widgets(&codec->dapm);
 
 	return 0;
 
