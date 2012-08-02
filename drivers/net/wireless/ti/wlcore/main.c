@@ -5180,7 +5180,7 @@ static void wl1271_unregister_hw(struct wl1271 *wl)
 
 static const struct ieee80211_iface_limit wlcore_iface_limits[] = {
 	{
-		.max = 2,
+		.max = 3,
 		.types = BIT(NL80211_IFTYPE_STATION),
 	},
 	{
@@ -5195,7 +5195,7 @@ static const struct ieee80211_iface_combination
 wlcore_iface_combinations[] = {
 	{
 	  .num_different_channels = 1,
-	  .max_interfaces = 2,
+	  .max_interfaces = 3,
 	  .limits = wlcore_iface_limits,
 	  .n_limits = ARRAY_SIZE(wlcore_iface_limits),
 	},
