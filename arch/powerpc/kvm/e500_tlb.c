@@ -1039,8 +1039,12 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 		sesel = 0; /* unused */
 		priv = &vcpu_e500->gtlb_priv[tlbsel][esel];
 
-		kvmppc_e500_setup_stlbe(vcpu, gtlbe, BOOK3E_PAGESZ_4K,
-					&priv->ref, eaddr, &stlbe);
+		/* Only triggers after clear_tlb_refs */
+		if (unlikely(!(priv->ref.flags & E500_TLB_VALID)))
+			kvmppc_e500_tlb0_map(vcpu_e500, esel, &stlbe);
+		else
+			kvmppc_e500_setup_stlbe(vcpu, gtlbe, BOOK3E_PAGESZ_4K,
+						&priv->ref, eaddr, &stlbe);
 		break;
 
 	case 1: {
