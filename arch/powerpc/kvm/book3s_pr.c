@@ -549,7 +549,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* We get here with MSR.EE=0, so enable it to be a nice citizen */
 	__hard_irq_enable();
 
-	trace_kvm_book3s_exit(exit_nr, vcpu);
+	trace_kvm_exit(exit_nr, vcpu);
 	preempt_enable();
 	kvm_resched(vcpu);
 	switch (exit_nr) {

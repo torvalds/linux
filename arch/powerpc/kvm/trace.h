@@ -31,6 +31,57 @@ TRACE_EVENT(kvm_ppc_instr,
 		  __entry->inst, __entry->pc, __entry->emulate)
 );
 
+TRACE_EVENT(kvm_exit,
+	TP_PROTO(unsigned int exit_nr, struct kvm_vcpu *vcpu),
+	TP_ARGS(exit_nr, vcpu),
+
+	TP_STRUCT__entry(
+		__field(	unsigned int,	exit_nr		)
+		__field(	unsigned long,	pc		)
+		__field(	unsigned long,	msr		)
+		__field(	unsigned long,	dar		)
+#ifdef CONFIG_KVM_BOOK3S_PR
+		__field(	unsigned long,	srr1		)
+#endif
+		__field(	unsigned long,	last_inst	)
+	),
+
+	TP_fast_assign(
+#ifdef CONFIG_KVM_BOOK3S_PR
+		struct kvmppc_book3s_shadow_vcpu *svcpu;
+#endif
+		__entry->exit_nr	= exit_nr;
+		__entry->pc		= kvmppc_get_pc(vcpu);
+		__entry->dar		= kvmppc_get_fault_dar(vcpu);
+		__entry->msr		= vcpu->arch.shared->msr;
+#ifdef CONFIG_KVM_BOOK3S_PR
+		svcpu = svcpu_get(vcpu);
+		__entry->srr1		= svcpu->shadow_srr1;
+		svcpu_put(svcpu);
+#endif
+		__entry->last_inst	= vcpu->arch.last_inst;
+	),
+
+	TP_printk("exit=0x%x"
+		" | pc=0x%lx"
+		" | msr=0x%lx"
+		" | dar=0x%lx"
+#ifdef CONFIG_KVM_BOOK3S_PR
+		" | srr1=0x%lx"
+#endif
+		" | last_inst=0x%lx"
+		,
+		__entry->exit_nr,
+		__entry->pc,
+		__entry->msr,
+		__entry->dar,
+#ifdef CONFIG_KVM_BOOK3S_PR
+		__entry->srr1,
+#endif
+		__entry->last_inst
+		)
+);
+
 TRACE_EVENT(kvm_stlb_inval,
 	TP_PROTO(unsigned int stlb_index),
 	TP_ARGS(stlb_index),
@@ -104,34 +155,6 @@ TRACE_EVENT(kvm_gtlb_write,
  *************************************************************************/
 
 #ifdef CONFIG_KVM_BOOK3S_PR
-
-TRACE_EVENT(kvm_book3s_exit,
-	TP_PROTO(unsigned int exit_nr, struct kvm_vcpu *vcpu),
-	TP_ARGS(exit_nr, vcpu),
-
-	TP_STRUCT__entry(
-		__field(	unsigned int,	exit_nr		)
-		__field(	unsigned long,	pc		)
-		__field(	unsigned long,	msr		)
-		__field(	unsigned long,	dar		)
-		__field(	unsigned long,	srr1		)
-	),
-
-	TP_fast_assign(
-		struct kvmppc_book3s_shadow_vcpu *svcpu;
-		__entry->exit_nr	= exit_nr;
-		__entry->pc		= kvmppc_get_pc(vcpu);
-		__entry->dar		= kvmppc_get_fault_dar(vcpu);
-		__entry->msr		= vcpu->arch.shared->msr;
-		svcpu = svcpu_get(vcpu);
-		__entry->srr1		= svcpu->shadow_srr1;
-		svcpu_put(svcpu);
-	),
-
-	TP_printk("exit=0x%x | pc=0x%lx | msr=0x%lx | dar=0x%lx | srr1=0x%lx",
-		  __entry->exit_nr, __entry->pc, __entry->msr, __entry->dar,
-		  __entry->srr1)
-);
 
 TRACE_EVENT(kvm_book3s_reenter,
 	TP_PROTO(int r, struct kvm_vcpu *vcpu),

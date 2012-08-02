@@ -39,6 +39,7 @@
 
 #include "timing.h"
 #include "booke.h"
+#include "trace.h"
 
 unsigned long kvmppc_booke_handlers;
 
@@ -676,6 +677,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	kvmppc_restart_interrupt(vcpu, exit_nr);
 
 	local_irq_enable();
+
+	trace_kvm_exit(exit_nr, vcpu);
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
