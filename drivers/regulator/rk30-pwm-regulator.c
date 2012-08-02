@@ -101,9 +101,9 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 		//disable pull up or down
 		gpio_pull_updown(pdata->pwm_gpio,PullDisable);
 		// set gpio to low level
-		gpio_set_value(pdata->pwm_gpio,GPIO_LOW);
+		gpio_direction_output(pdata->pwm_gpio,GPIO_LOW);
 	}
-	else if (rate <= 100)
+	else if (rate < 100)
 	{
 		// iomux pwm
 		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_pwm);
@@ -118,6 +118,16 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 		pwm_write_reg(id, PWM_REG_HRC, divh?divh:1);
 		pwm_write_reg(id,PWM_REG_CNTR,0);
 		pwm_write_reg(id, PWM_REG_CTRL,pwm_read_reg(id,PWM_REG_CTRL)|PWM_DIV|PWM_ENABLE|PWM_TimeEN);
+	}
+	else if (rate == 100)
+	{
+		// iomux pwm to gpio
+		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_gpio);
+		//disable pull up or down
+		gpio_pull_updown(pdata->pwm_gpio,PullDisable);
+		// set gpio to low level
+		gpio_direction_output(pdata->pwm_gpio,GPIO_HIGH);
+
 	}
 	else
 	{
@@ -324,7 +334,7 @@ err:
 static int pwm_regulator_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
-	pwm_set_rate(pdata,1000*1000,0);//pwm clk will change to 24M after suspend
+	pwm_set_rate(pdata,1000*1000,100);//pwm clk will change to 24M after suspend
 	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
 	return 0;
 }
