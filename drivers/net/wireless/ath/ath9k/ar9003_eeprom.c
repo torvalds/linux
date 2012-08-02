@@ -4963,16 +4963,10 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 			case CTL_5GHT20:
 			case CTL_2GHT20:
 				for (i = ALL_TARGET_HT20_0_8_16;
-				     i <= ALL_TARGET_HT20_21; i++)
+				     i <= ALL_TARGET_HT20_23; i++)
 					pPwrArray[i] =
 					  (u8)min((u16)pPwrArray[i],
 						  minCtlPower);
-				pPwrArray[ALL_TARGET_HT20_22] =
-				  (u8)min((u16)pPwrArray[ALL_TARGET_HT20_22],
-					  minCtlPower);
-				pPwrArray[ALL_TARGET_HT20_23] =
-				  (u8)min((u16)pPwrArray[ALL_TARGET_HT20_23],
-					   minCtlPower);
 				break;
 			case CTL_5GHT40:
 			case CTL_2GHT40:
