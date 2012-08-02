@@ -395,7 +395,7 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 		}
 
 		/* Create UUID value to set in registry. */
-		uuid_uuid_to_string(obj_uuid, sz_uuid, MAXUUIDLEN);
+		snprintf(sz_uuid, MAXUUIDLEN, "%pU", obj_uuid);
 
 		if ((strlen(sz_reg_key) + MAXUUIDLEN) < DCD_MAXPATHLENGTH)
 			strncat(sz_reg_key, sz_uuid, MAXUUIDLEN);
