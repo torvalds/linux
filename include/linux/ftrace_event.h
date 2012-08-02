@@ -128,6 +128,13 @@ enum print_line_t {
 void tracing_generic_entry_update(struct trace_entry *entry,
 				  unsigned long flags,
 				  int pc);
+struct ftrace_event_file;
+
+struct ring_buffer_event *
+trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
+				struct ftrace_event_file *ftrace_file,
+				int type, unsigned long len,
+				unsigned long flags, int pc);
 struct ring_buffer_event *
 trace_current_buffer_lock_reserve(struct ring_buffer **current_buffer,
 				  int type, unsigned long len,

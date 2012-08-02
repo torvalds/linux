@@ -1294,6 +1294,18 @@ void trace_buffer_unlock_commit(struct ring_buffer *buffer,
 EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
 struct ring_buffer_event *
+trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
+			  struct ftrace_event_file *ftrace_file,
+			  int type, unsigned long len,
+			  unsigned long flags, int pc)
+{
+	*current_rb = ftrace_file->tr->buffer;
+	return trace_buffer_lock_reserve(*current_rb,
+					 type, len, flags, pc);
+}
+EXPORT_SYMBOL_GPL(trace_event_buffer_lock_reserve);
+
+struct ring_buffer_event *
 trace_current_buffer_lock_reserve(struct ring_buffer **current_rb,
 				  int type, unsigned long len,
 				  unsigned long flags, int pc)

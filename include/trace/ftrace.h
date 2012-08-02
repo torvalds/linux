@@ -414,7 +414,8 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *
  * static void ftrace_raw_event_<call>(void *__data, proto)
  * {
- *	struct ftrace_event_call *event_call = __data;
+ *	struct ftrace_event_file *ftrace_file = __data;
+ *	struct ftrace_event_call *event_call = ftrace_file->event_call;
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
  *	struct ring_buffer_event *event;
  *	struct ftrace_raw_<call> *entry; <-- defined in stage 1
@@ -428,7 +429,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
  *
- *	event = trace_current_buffer_lock_reserve(&buffer,
+ *	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,
  *				  event_<call>->event.type,
  *				  sizeof(*entry) + __data_size,
  *				  irq_flags, pc);
@@ -440,7 +441,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *			   __array macros.
  *
  *	if (!filter_current_check_discard(buffer, event_call, entry, event))
- *		trace_current_buffer_unlock_commit(buffer,
+ *		trace_nowake_buffer_unlock_commit(buffer,
  *						   event, irq_flags, pc);
  * }
  *
@@ -533,7 +534,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	event = trace_current_buffer_lock_reserve(&buffer,		\
+	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,	\
 				 event_call->event.type,		\
 				 sizeof(*entry) + __data_size,		\
 				 irq_flags, pc);			\
