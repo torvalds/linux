@@ -366,8 +366,7 @@ static void nvec_request_master(struct work_struct *work)
 static int parse_msg(struct nvec_chip *nvec, struct nvec_msg *msg)
 {
 	if ((msg->data[0] & 1 << 7) == 0 && msg->data[3]) {
-		dev_err(nvec->dev, "ec responded %02x %02x %02x %02x\n",
-			msg->data[0], msg->data[1], msg->data[2], msg->data[3]);
+		dev_err(nvec->dev, "ec responded %*ph\n", 4, msg->data);
 		return -EINVAL;
 	}
 
