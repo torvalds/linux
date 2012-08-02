@@ -31,9 +31,13 @@
 #include <linux/slab.h>
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
+#include <linux/alarmtimer.h>
 #include <linux/timer.h>
 #include <linux/debugfs.h>
 #include <linux/platform_data/android_battery.h>
+
+#define FAST_POLL               (1 * 60)
+#define SLOW_POLL               (10 * 60)
 
 struct android_bat_data {
 	struct android_bat_platform_data *pdata;
@@ -56,11 +60,11 @@ struct android_bat_data {
 	unsigned int		charging_status;
 
 	struct workqueue_struct *monitor_wqueue;
-	struct delayed_work	monitor_work;
+	struct work_struct	monitor_work;
 	struct work_struct	charger_work;
 
-	bool		slow_poll;
-	ktime_t		last_poll;
+	struct alarm		monitor_alarm;
+	ktime_t			last_poll;
 
 	struct dentry		*debugfs_entry;
 };
@@ -270,11 +274,18 @@ static void android_bat_charger_work(struct work_struct *work)
 	wake_lock_timeout(&battery->charger_wake_lock, HZ * 2);
 }
 
+
+static void android_bat_monitor_set_alarm(struct android_bat_data *battery,
+					  int seconds)
+{
+	alarm_start(&battery->monitor_alarm,
+		    ktime_add(battery->last_poll, ktime_set(seconds, 0)));
+}
+
 static void android_bat_monitor_work(struct work_struct *work)
 {
 	struct android_bat_data *battery;
-	battery = container_of(work, struct android_bat_data,
-			       monitor_work.work);
+	battery = container_of(work, struct android_bat_data, monitor_work);
 
 	wake_lock(&battery->monitor_wake_lock);
 	android_bat_update_data(battery);
@@ -314,10 +325,9 @@ static void android_bat_monitor_work(struct work_struct *work)
 		}
 		break;
 	default:
-		wake_unlock(&battery->monitor_wake_lock);
 		pr_err("%s: Undefined battery status: %d\n", __func__,
 		       battery->charging_status);
-		return;
+		break;
 	}
 
 	pr_info("battery: l=%d v=%d c=%d temp=%d h=%d st=%d type=%s\n",
@@ -326,11 +336,21 @@ static void android_bat_monitor_work(struct work_struct *work)
 		battery->charging_status,
 		charge_source_str(battery->charge_source));
 	power_supply_changed(&battery->psy_bat);
-	queue_delayed_work(battery->monitor_wqueue,
-		&battery->monitor_work, msecs_to_jiffies(50000));
+	battery->last_poll = ktime_get_boottime();
+	android_bat_monitor_set_alarm(battery, FAST_POLL);
 	wake_unlock(&battery->monitor_wake_lock);
-
 	return;
+}
+
+static enum alarmtimer_restart android_bat_monitor_alarm(
+	struct alarm *alarm, ktime_t now)
+{
+	struct android_bat_data *battery =
+		container_of(alarm, struct android_bat_data, monitor_alarm);
+
+	wake_lock(&battery->monitor_wake_lock);
+	queue_work(battery->monitor_wqueue, &battery->monitor_work);
+	return ALARMTIMER_NORESTART;
 }
 
 static int android_power_debug_dump(struct seq_file *s, void *unused)
@@ -410,8 +430,7 @@ static int android_bat_probe(struct platform_device *pdev)
 		goto err_wq;
 	}
 
-	INIT_DELAYED_WORK_DEFERRABLE(&battery->monitor_work,
-		android_bat_monitor_work);
+	INIT_WORK(&battery->monitor_work, android_bat_monitor_work);
 	INIT_WORK(&battery->charger_work, android_bat_charger_work);
 
 	battery->callbacks.charge_source_changed =
@@ -426,8 +445,11 @@ static int android_bat_probe(struct platform_device *pdev)
 	wake_lock(&battery->charger_wake_lock);
 	queue_work(battery->monitor_wqueue, &battery->charger_work);
 
-	queue_delayed_work(battery->monitor_wqueue,
-		&battery->monitor_work, msecs_to_jiffies(0));
+	wake_lock(&battery->monitor_wake_lock);
+	battery->last_poll = ktime_get_boottime();
+	alarm_init(&battery->monitor_alarm, ALARM_BOOTTIME,
+		   android_bat_monitor_alarm);
+	queue_work(battery->monitor_wqueue, &battery->monitor_work);
 
 	battery->debugfs_entry =
 		debugfs_create_file("android-power", S_IRUGO, NULL,
@@ -452,6 +474,7 @@ static int android_bat_remove(struct platform_device *pdev)
 {
 	struct android_bat_data *battery = platform_get_drvdata(pdev);
 
+	alarm_cancel(&battery->monitor_alarm);
 	flush_workqueue(battery->monitor_wqueue);
 	destroy_workqueue(battery->monitor_wqueue);
 	power_supply_unregister(&battery->psy_bat);
@@ -466,7 +489,8 @@ static int android_bat_suspend(struct device *dev)
 {
 	struct android_bat_data *battery = dev_get_drvdata(dev);
 
-	cancel_delayed_work_sync(&battery->monitor_work);
+	cancel_work_sync(&battery->monitor_work);
+	android_bat_monitor_set_alarm(battery, SLOW_POLL);
 	return 0;
 }
 
@@ -474,8 +498,7 @@ static int android_bat_resume(struct device *dev)
 {
 	struct android_bat_data *battery = dev_get_drvdata(dev);
 
-	queue_delayed_work(battery->monitor_wqueue,
-		&battery->monitor_work, msecs_to_jiffies(0));
+	android_bat_monitor_set_alarm(battery, FAST_POLL);
 	return 0;
 }
 
