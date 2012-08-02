@@ -382,27 +382,6 @@ dump_elf_task_fp(elf_fpreg_t *dest, struct task_struct *task)
 EXPORT_SYMBOL(dump_elf_task_fp);
 
 /*
- * sys_execve() executes a new program.
- */
-asmlinkage int
-do_sys_execve(const char __user *ufilename,
-	      const char __user *const __user *argv,
-	      const char __user *const __user *envp, struct pt_regs *regs)
-{
-	int error;
-	char *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
-/*
  * Return saved PC of a blocked thread.  This assumes the frame
  * pointer is the 6th saved long on the kernel stack and that the
  * saved return address is the first long in the frame.  This all

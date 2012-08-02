@@ -745,15 +745,6 @@ sys_rt_sigreturn:
 .end sys_rt_sigreturn
 
 	.align	4
-	.globl	sys_execve
-	.ent	sys_execve
-sys_execve:
-	.prologue 0
-	mov	$sp, $19
-	jmp	$31, do_sys_execve
-.end sys_execve
-
-	.align	4
 	.globl	alpha_ni_syscall
 	.ent	alpha_ni_syscall
 alpha_ni_syscall:
