@@ -170,10 +170,37 @@ static unsigned int count_slow_cpus(unsigned int limit)
 }
 
 #define NR_FSHIFT	2
-static unsigned int nr_run_thresholds[] = {
+
+static unsigned int rt_profile_sel;
+static unsigned int core_bias; //Dummy variable exposed to userspace
+
+static unsigned int rt_profile_default[] = {
 /*      1,  2,  3,  4 - on-line cpus target */
-	5,  9, 10, UINT_MAX /* avg run threads * 4 (e.g., 9 = 2.25 threads) */
+	5,  9, 10, UINT_MAX
 };
+
+static unsigned int rt_profile_1[] = {
+/*      1,  2,  3,  4 - on-line cpus target */
+	8,  9, 10, UINT_MAX
+};
+
+static unsigned int rt_profile_2[] = {
+/*      1,  2,  3,  4 - on-line cpus target */
+	5,  13, 14, UINT_MAX
+};
+
+static unsigned int rt_profile_disable[] = {
+/*      1,  2,  3,  4 - on-line cpus target */
+	0,  0, 0, UINT_MAX
+};
+
+static unsigned int *rt_profiles[] = {
+	rt_profile_default,
+	rt_profile_1,
+	rt_profile_2,
+	rt_profile_disable
+};
+
 static unsigned int nr_run_hysteresis = 2;	/* 0.5 thread */
 static unsigned int nr_run_last;
 
@@ -186,12 +213,13 @@ static CPU_SPEED_BALANCE balanced_speed_balance(void)
 	unsigned int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS) ? : 4;
 	unsigned int avg_nr_run = avg_nr_running();
 	unsigned int nr_run;
+	unsigned int *current_profile = rt_profiles[rt_profile_sel];
 
 	/* balanced: freq targets for all CPUs are above 50% of highest speed
 	   biased: freq target for at least one CPU is below 50% threshold
 	   skewed: freq targets for at least 2 CPUs are below 25% threshold */
-	for (nr_run = 1; nr_run < ARRAY_SIZE(nr_run_thresholds); nr_run++) {
-		unsigned int nr_threshold = nr_run_thresholds[nr_run - 1];
+	for (nr_run = 1; nr_run < ARRAY_SIZE(rt_profile_default); nr_run++) {
+		unsigned int nr_threshold = current_profile[nr_run - 1];
 		if (nr_run_last <= nr_run)
 			nr_threshold += nr_run_hysteresis;
 		if (avg_nr_run <= (nr_threshold << (FSHIFT - NR_FSHIFT)))
@@ -334,10 +362,25 @@ static void delay_callback(struct cpuquiet_attribute *attr)
 	}
 }
 
+static void core_bias_callback (struct cpuquiet_attribute *attr)
+{
+	unsigned long val;
+	if (attr) {
+		val = (*((unsigned int*)(attr->param)));
+		if (val < ARRAY_SIZE(rt_profiles)) {
+			rt_profile_sel = val;
+		}
+		else {	//Revert the change due to invalid range
+			core_bias = rt_profile_sel;
+		}
+	}
+}
+
 CPQ_BASIC_ATTRIBUTE(balance_level, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(load_sample_rate, 0644, uint);
+CPQ_ATTRIBUTE(core_bias, 0644, uint, core_bias_callback);
 CPQ_ATTRIBUTE(up_delay, 0644, ulong, delay_callback);
 CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
 
@@ -348,6 +391,7 @@ static struct attribute *balanced_attributes[] = {
 	&up_delay_attr.attr,
 	&down_delay_attr.attr,
 	&load_sample_rate_attr.attr,
+	&core_bias_attr.attr,
 	NULL,
 };
 
