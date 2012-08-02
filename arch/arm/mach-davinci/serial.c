@@ -95,7 +95,7 @@ int __init davinci_serial_init(struct davinci_uart_config *info)
 			continue;
 		}
 
-		clk_enable(uart_clk);
+		clk_prepare_enable(uart_clk);
 		p->uartclk = clk_get_rate(uart_clk);
 
 		if (!p->membase && p->mapbase) {

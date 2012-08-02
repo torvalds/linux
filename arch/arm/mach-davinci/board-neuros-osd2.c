@@ -188,7 +188,7 @@ static __init void davinci_ntosd2_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	aemif_clk = clk_get(NULL, "aemif");
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (HAS_ATA) {
 		if (HAS_NAND)
