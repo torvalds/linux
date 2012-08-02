@@ -20,4 +20,5 @@ void mvebu_restart(char mode, const char *cmd);
 void armada_370_xp_init_irq(void);
 void armada_370_xp_handle_irq(struct pt_regs *regs);
 
+int armada_370_xp_coherency_init(void);
 #endif

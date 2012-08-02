@@ -36,6 +36,11 @@
 	      interrupt-controller;
 	};
 
+	coherency-fabric@d0020200 {
+		compatible = "marvell,coherency-fabric";
+		reg = <0xd0020200 0xb0>;
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
