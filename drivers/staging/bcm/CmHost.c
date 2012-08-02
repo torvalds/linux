@@ -999,13 +999,10 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 #ifdef VERSION_D5
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPv6FlowLableLength: 0x%X ",
 				psfCSType->cCPacketClassificationRule.u8IPv6FlowLableLength);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPv6FlowLable[6]: 0x %02X %02X %02X %02X %02X %02X ",
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[0],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[1],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[2],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[3],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[4],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[5]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8IPv6FlowLable[6]: 0x%*ph ",
+				6, psfCSType->cCPacketClassificationRule.
+					      u8IPv6FlowLable);
 #endif
 	}
 
@@ -1015,13 +1012,9 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u16CID: 0x%X", pstAddIndication->sfAdmittedSet.u16CID);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ServiceClassNameLength: 0x%X",
 			pstAddIndication->sfAdmittedSet.u8ServiceClassNameLength);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ServiceClassName: 0x %02X %02X %02X %02X %02X %02X",
-			pstAddIndication->sfAdmittedSet.u8ServiceClassName[0],
-			pstAddIndication->sfAdmittedSet.u8ServiceClassName[1],
-			pstAddIndication->sfAdmittedSet.u8ServiceClassName[2],
-			pstAddIndication->sfAdmittedSet.u8ServiceClassName[3],
-			pstAddIndication->sfAdmittedSet.u8ServiceClassName[4],
-			pstAddIndication->sfAdmittedSet.u8ServiceClassName[5]);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,
+			"u8ServiceClassName: 0x%*ph",
+			6, pstAddIndication->sfAdmittedSet.u8ServiceClassName);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8MBSService: 0x%02X", pstAddIndication->sfAdmittedSet.u8MBSService);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8QosParamSet: 0x%02X", pstAddIndication->sfAdmittedSet.u8QosParamSet);
@@ -1074,10 +1067,10 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 				psfCSType->cCPacketClassificationRule.u8ClassifierRulePriority);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPTypeOfServiceLength: 0x%02X",
 				psfCSType->cCPacketClassificationRule.u8IPTypeOfServiceLength);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPTypeOfService[3]: 0x%02X %02X %02X",
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfService[0],
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfService[1],
-				psfCSType->cCPacketClassificationRule.u8IPTypeOfService[2]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8IPTypeOfService[3]: 0x%*ph",
+				3, psfCSType->cCPacketClassificationRule.
+					      u8IPTypeOfService);
 		for (uiLoopIndex = 0; uiLoopIndex < 1; uiLoopIndex++)
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Protocol: 0x%02X ", psfCSType->cCPacketClassificationRule.u8Protocol);
 
@@ -1098,20 +1091,20 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ProtocolSourcePortRangeLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRangeLength);
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ProtocolSourcePortRange[4]: 0x %02X %02X %02X %02X ",
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[0],
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[1],
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[2],
-				psfCSType->cCPacketClassificationRule.u8ProtocolSourcePortRange[3]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8ProtocolSourcePortRange[4]: "
+				"0x%*ph ", 4, psfCSType->
+						cCPacketClassificationRule.
+						u8ProtocolSourcePortRange);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ProtocolDestPortRangeLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRangeLength);
 
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ProtocolDestPortRange[4]: 0x %02X %02X %02X %02X ",
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[0],
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[1],
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[2],
-				psfCSType->cCPacketClassificationRule.u8ProtocolDestPortRange[3]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8ProtocolDestPortRange[4]: "
+				"0x%*ph ", 4, psfCSType->
+						cCPacketClassificationRule.
+						u8ProtocolDestPortRange);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthernetDestMacAddressLength: 0x%02X ",
 				psfCSType->cCPacketClassificationRule.u8EthernetDestMacAddressLength);
@@ -1130,10 +1123,10 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 						u8EthernetSourceMACAddress);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8EthertypeLength: 0x%02X ", psfCSType->cCPacketClassificationRule.u8EthertypeLength);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8Ethertype[3]: 0x%02X %02X %02X",
-				psfCSType->cCPacketClassificationRule.u8Ethertype[0],
-				psfCSType->cCPacketClassificationRule.u8Ethertype[1],
-				psfCSType->cCPacketClassificationRule.u8Ethertype[2]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8Ethertype[3]: 0x%*ph",
+				3, psfCSType->cCPacketClassificationRule.
+					      u8Ethertype);
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u16UserPriority: 0x%X ", psfCSType->cCPacketClassificationRule.u16UserPriority);
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u16VLANID: 0x%X ", psfCSType->cCPacketClassificationRule.u16VLANID);
@@ -1147,13 +1140,10 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 #ifdef VERSION_D5
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPv6FlowLableLength: 0x%X ",
 				psfCSType->cCPacketClassificationRule.u8IPv6FlowLableLength);
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8IPv6FlowLable[6]: 0x %02X %02X %02X %02X %02X %02X ",
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[0],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[1],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[2],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[3],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[4],
-				psfCSType->cCPacketClassificationRule.u8IPv6FlowLable[5]);
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL,
+				DBG_LVL_ALL, "u8IPv6FlowLable[6]: 0x%*ph ",
+				6, psfCSType->cCPacketClassificationRule.
+					      u8IPv6FlowLable);
 #endif
 	}
 
@@ -1162,13 +1152,9 @@ static VOID DumpCmControlPacket(PVOID pvBuffer)
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u32SFID: 0x%X", pstAddIndication->sfActiveSet.u32SFID);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u16CID: 0x%X", pstAddIndication->sfActiveSet.u16CID);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ServiceClassNameLength: 0x%X", pstAddIndication->sfActiveSet.u8ServiceClassNameLength);
-	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8ServiceClassName: 0x %02X %02X %02X %02X %02X %02X",
-			pstAddIndication->sfActiveSet.u8ServiceClassName[0],
-			pstAddIndication->sfActiveSet.u8ServiceClassName[1],
-			pstAddIndication->sfActiveSet.u8ServiceClassName[2],
-			pstAddIndication->sfActiveSet.u8ServiceClassName[3],
-			pstAddIndication->sfActiveSet.u8ServiceClassName[4],
-			pstAddIndication->sfActiveSet.u8ServiceClassName[5]);
+	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL,
+			"u8ServiceClassName: 0x%*ph",
+			6, pstAddIndication->sfActiveSet.u8ServiceClassName);
 
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8MBSService: 0x%02X", pstAddIndication->sfActiveSet.u8MBSService);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, DUMP_CONTROL, DBG_LVL_ALL, "u8QosParamSet: 0x%02X", pstAddIndication->sfActiveSet.u8QosParamSet);
