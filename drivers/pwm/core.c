@@ -149,7 +149,7 @@ static struct pwm_device *of_pwm_simple_xlate(struct pwm_chip *pc,
 	return pwm;
 }
 
-void of_pwmchip_add(struct pwm_chip *chip)
+static void of_pwmchip_add(struct pwm_chip *chip)
 {
 	if (!chip->dev || !chip->dev->of_node)
 		return;
@@ -162,7 +162,7 @@ void of_pwmchip_add(struct pwm_chip *chip)
 	of_node_get(chip->dev->of_node);
 }
 
-void of_pwmchip_remove(struct pwm_chip *chip)
+static void of_pwmchip_remove(struct pwm_chip *chip)
 {
 	if (chip->dev && chip->dev->of_node)
 		of_node_put(chip->dev->of_node);
