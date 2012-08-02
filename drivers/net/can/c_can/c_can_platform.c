@@ -30,6 +30,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/can/dev.h>
 
@@ -65,16 +67,51 @@ static void c_can_plat_write_reg_aligned_to_32bit(struct c_can_priv *priv,
 	writew(val, priv->base + 2 * priv->regs[index]);
 }
 
+static struct platform_device_id c_can_id_table[] = {
+	[BOSCH_C_CAN_PLATFORM] = {
+		.name = KBUILD_MODNAME,
+		.driver_data = BOSCH_C_CAN,
+	},
+	[BOSCH_C_CAN] = {
+		.name = "c_can",
+		.driver_data = BOSCH_C_CAN,
+	},
+	[BOSCH_D_CAN] = {
+		.name = "d_can",
+		.driver_data = BOSCH_D_CAN,
+	}, {
+	}
+};
+
+static const struct of_device_id c_can_of_table[] = {
+	{ .compatible = "bosch,c_can", .data = &c_can_id_table[BOSCH_C_CAN] },
+	{ .compatible = "bosch,d_can", .data = &c_can_id_table[BOSCH_D_CAN] },
+	{ /* sentinel */ },
+};
+
 static int __devinit c_can_plat_probe(struct platform_device *pdev)
 {
 	int ret;
 	void __iomem *addr;
 	struct net_device *dev;
 	struct c_can_priv *priv;
+	const struct of_device_id *match;
 	const struct platform_device_id *id;
 	struct resource *mem;
 	int irq;
 	struct clk *clk;
+
+	if (pdev->dev.of_node) {
+		match = of_match_device(c_can_of_table, &pdev->dev);
+		if (!match) {
+			dev_err(&pdev->dev, "Failed to find matching dt id\n");
+			ret = -EINVAL;
+			goto exit;
+		}
+		id = match->data;
+	} else {
+		id = platform_get_device_id(pdev);
+	}
 
 	/* get the appropriate clk */
 	clk = clk_get(&pdev->dev, NULL);
@@ -114,7 +151,6 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	}
 
 	priv = netdev_priv(dev);
-	id = platform_get_device_id(pdev);
 	switch (id->driver_data) {
 	case BOSCH_C_CAN:
 		priv->regs = reg_map_c_can;
@@ -195,26 +231,11 @@ static int __devexit c_can_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id c_can_id_table[] = {
-	[BOSCH_C_CAN_PLATFORM] = {
-		.name = KBUILD_MODNAME,
-		.driver_data = BOSCH_C_CAN,
-	},
-	[BOSCH_C_CAN] = {
-		.name = "c_can",
-		.driver_data = BOSCH_C_CAN,
-	},
-	[BOSCH_D_CAN] = {
-		.name = "d_can",
-		.driver_data = BOSCH_D_CAN,
-	}, {
-	}
-};
-
 static struct platform_driver c_can_plat_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(c_can_of_table),
 	},
 	.probe = c_can_plat_probe,
 	.remove = __devexit_p(c_can_plat_remove),
