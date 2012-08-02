@@ -392,20 +392,23 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 				     bool *link_up,
 				     bool autoneg_wait_to_complete)
 {
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	struct ixgbe_mac_info *mac = &hw->mac;
+	s32 ret_val = 0;
 	u32 links_reg;
+	u32 in_msg = 0;
 
-	if (!(hw->mbx.ops.check_for_rst(hw))) {
-		*link_up = false;
-		*speed = 0;
-		return -1;
-	}
+	/* If we were hit with a reset drop the link */
+	if (!mbx->ops.check_for_rst(hw) || !mbx->timeout)
+		mac->get_link_status = true;
 
+	if (!mac->get_link_status)
+		goto out;
+
+	/* if link status is down no point in checking to see if pf is up */
 	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
-
-	if (links_reg & IXGBE_LINKS_UP)
-		*link_up = true;
-	else
-		*link_up = false;
+	if (!(links_reg & IXGBE_LINKS_UP))
+		goto out;
 
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:
@@ -419,7 +422,31 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 		break;
 	}
 
-	return 0;
+	/* if the read failed it could just be a mailbox collision, best wait
+	 * until we are called again and don't report an error */
+	if (mbx->ops.read(hw, &in_msg, 1))
+		goto out;
+
+	if (!(in_msg & IXGBE_VT_MSGTYPE_CTS)) {
+		/* msg is not CTS and is NACK we must have lost CTS status */
+		if (in_msg & IXGBE_VT_MSGTYPE_NACK)
+			ret_val = -1;
+		goto out;
+	}
+
+	/* the pf is talking, if we timed out in the past we reinit */
+	if (!mbx->timeout) {
+		ret_val = -1;
+		goto out;
+	}
+
+	/* if we passed all the tests above then the link is up and we no
+	 * longer need to check for link */
+	mac->get_link_status = false;
+
+out:
+	*link_up = !mac->get_link_status;
+	return ret_val;
 }
 
 /**

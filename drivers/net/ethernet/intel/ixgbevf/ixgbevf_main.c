@@ -716,40 +716,15 @@ static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 	}
 }
 
-static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
+static irqreturn_t ixgbevf_msix_other(int irq, void *data)
 {
 	struct ixgbevf_adapter *adapter = data;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 msg;
-	bool got_ack = false;
 
-	if (!hw->mbx.ops.check_for_ack(hw))
-		got_ack = true;
+	hw->mac.get_link_status = 1;
 
-	if (!hw->mbx.ops.check_for_msg(hw)) {
-		hw->mbx.ops.read(hw, &msg, 1);
-
-		if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG)
-			mod_timer(&adapter->watchdog_timer,
-				  round_jiffies(jiffies + 1));
-
-		if (msg & IXGBE_VT_MSGTYPE_NACK)
-			pr_warn("Last Request of type %2.2x to PF Nacked\n",
-				msg & 0xFF);
-		/*
-		 * Restore the PFSTS bit in case someone is polling for a
-		 * return message from the PF
-		 */
-		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFSTS;
-	}
-
-	/*
-	 * checking for the ack clears the PFACK bit.  Place
-	 * it back in the v2p_mailbox cache so that anyone
-	 * polling for an ack will not miss it
-	 */
-	if (got_ack)
-		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFACK;
+	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
+		mod_timer(&adapter->watchdog_timer, jiffies);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, adapter->eims_other);
 
@@ -899,10 +874,10 @@ static int ixgbevf_request_msix_irqs(struct ixgbevf_adapter *adapter)
 	}
 
 	err = request_irq(adapter->msix_entries[vector].vector,
-			  &ixgbevf_msix_mbx, 0, netdev->name, adapter);
+			  &ixgbevf_msix_other, 0, netdev->name, adapter);
 	if (err) {
 		hw_dbg(&adapter->hw,
-		       "request_irq for msix_mbx failed: %d\n", err);
+		       "request_irq for msix_other failed: %d\n", err);
 		goto free_queue_irqs;
 	}
 
@@ -1411,6 +1386,7 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	ixgbevf_save_reset_stats(adapter);
 	ixgbevf_init_last_counter_stats(adapter);
 
+	hw->mac.get_link_status = 1;
 	mod_timer(&adapter->watchdog_timer, jiffies);
 }
 
@@ -1589,8 +1565,6 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter)
 
 void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter)
 {
-	struct ixgbe_hw *hw = &adapter->hw;
-
 	WARN_ON(in_interrupt());
 
 	while (test_and_set_bit(__IXGBEVF_RESETTING, &adapter->state))
@@ -1603,10 +1577,8 @@ void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter)
 	 * watchdog task will continue to schedule reset tasks until
 	 * the PF is up and running.
 	 */
-	if (!hw->mac.ops.reset_hw(hw)) {
-		ixgbevf_down(adapter);
-		ixgbevf_up(adapter);
-	}
+	ixgbevf_down(adapter);
+	ixgbevf_up(adapter);
 
 	clear_bit(__IXGBEVF_RESETTING, &adapter->state);
 }
