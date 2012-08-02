@@ -34,7 +34,7 @@ config SOC_CAMERA_MT9T112
 	  This driver supports MT9T112 cameras from Aptina.
 
 config SOC_CAMERA_MT9V022
-	tristate "mt9v022 support"
+	tristate "mt9v022 and mt9v024 support"
 	depends on SOC_CAMERA && I2C
 	select GPIO_PCA953X if MT9V022_PCA9536_SWITCH
 	help
