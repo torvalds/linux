@@ -16,11 +16,13 @@
  */
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
+#include <linux/elf.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 #include <linux/smp.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -254,6 +256,133 @@ int ptrace_set_watch_regs(struct task_struct *child,
 		clear_tsk_thread_flag(child, TIF_LOAD_WATCH);
 
 	return 0;
+}
+
+/* regset get/set implementations */
+
+static int gpr_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   regs, 0, sizeof(*regs));
+}
+
+static int gpr_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs newregs;
+	int ret;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &newregs,
+				 0, sizeof(newregs));
+	if (ret)
+		return ret;
+
+	*task_pt_regs(target) = newregs;
+
+	return 0;
+}
+
+static int fpr_get(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.fpu,
+				   0, sizeof(elf_fpregset_t));
+	/* XXX fcr31  */
+}
+
+static int fpr_set(struct task_struct *target,
+		   const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu,
+				  0, sizeof(elf_fpregset_t));
+	/* XXX fcr31  */
+}
+
+enum mips_regset {
+	REGSET_GPR,
+	REGSET_FPR,
+};
+
+static const struct user_regset mips_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type	= NT_PRSTATUS,
+		.n		= ELF_NGREG,
+		.size		= sizeof(unsigned int),
+		.align		= sizeof(unsigned int),
+		.get		= gpr_get,
+		.set		= gpr_set,
+	},
+	[REGSET_FPR] = {
+		.core_note_type	= NT_PRFPREG,
+		.n		= ELF_NFPREG,
+		.size		= sizeof(elf_fpreg_t),
+		.align		= sizeof(elf_fpreg_t),
+		.get		= fpr_get,
+		.set		= fpr_set,
+	},
+};
+
+static const struct user_regset_view user_mips_view = {
+	.name		= "mips",
+	.e_machine	= ELF_ARCH,
+	.ei_osabi	= ELF_OSABI,
+	.regsets	= mips_regsets,
+	.n		= ARRAY_SIZE(mips_regsets),
+};
+
+static const struct user_regset mips64_regsets[] = {
+	[REGSET_GPR] = {
+		.core_note_type	= NT_PRSTATUS,
+		.n		= ELF_NGREG,
+		.size		= sizeof(unsigned long),
+		.align		= sizeof(unsigned long),
+		.get		= gpr_get,
+		.set		= gpr_set,
+	},
+	[REGSET_FPR] = {
+		.core_note_type	= NT_PRFPREG,
+		.n		= ELF_NFPREG,
+		.size		= sizeof(elf_fpreg_t),
+		.align		= sizeof(elf_fpreg_t),
+		.get		= fpr_get,
+		.set		= fpr_set,
+	},
+};
+
+static const struct user_regset_view user_mips64_view = {
+	.name		= "mips",
+	.e_machine	= ELF_ARCH,
+	.ei_osabi	= ELF_OSABI,
+	.regsets	= mips64_regsets,
+	.n		= ARRAY_SIZE(mips_regsets),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+#ifdef CONFIG_32BIT
+	return &user_mips_view;
+#endif
+
+#ifdef CONFIG_MIPS32_O32
+		if (test_thread_flag(TIF_32BIT_REGS))
+			return &user_mips_view;
+#endif
+
+	return &user_mips64_view;
 }
 
 long arch_ptrace(struct task_struct *child, long request,
