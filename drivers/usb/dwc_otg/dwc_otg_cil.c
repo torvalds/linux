@@ -729,8 +729,8 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000130 );	//ep1 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00800230 );	//ep3 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x008002b0 );	//ep5 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep7 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x001003b0 );	//ep9 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[3], 0x00800330 );	//ep7 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[4], 0x001003b0 );	//ep9 tx fifo
 #endif
 	if(_core_if->en_multiple_tx_fifo && _core_if->dma_enable)
 	{

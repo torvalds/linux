@@ -304,7 +304,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 
 	if(ep->dwc_ep.is_in)
 	{
-#ifdef CONFIG_ARCH_RK30
+#ifndef CONFIG_ARCH_RK29
 		if(!pcd->otg_dev->core_if->en_multiple_tx_fifo)
 		{
 			ep->dwc_ep.tx_fifo_num = 0;
@@ -1353,7 +1353,11 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			"ep2in",	
 			"ep3in",	
 			"ep4in",	
+#ifdef CONFIG_ARCH_RK29
+			"ep5in-int",	
+#else
 			"ep5in",	
+#endif
 			"ep6in",	
 			"ep7in",	
 			"ep8in",	
