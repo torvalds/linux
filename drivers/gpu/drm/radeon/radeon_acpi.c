@@ -301,7 +301,12 @@ int radeon_atif_handler(struct radeon_device *rdev,
 	}
 	/* TODO: check other events */
 
-	return NOTIFY_OK;
+	/* We've handled the event, stop the notifier chain. The ACPI interface
+	 * overloads ACPI_VIDEO_NOTIFY_PROBE, we don't want to send that to
+	 * userspace if the event was generated only to signal a SBIOS
+	 * request.
+	 */
+	return NOTIFY_BAD;
 }
 
 static int radeon_acpi_event(struct notifier_block *nb,
