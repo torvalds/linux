@@ -539,11 +539,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			pMgmt->abyIBSSSuppRates[3] |= BIT7;
 		}
 
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Support Rate= %x %x %x %x\n",
-			pMgmt->abyIBSSSuppRates[2],
-			pMgmt->abyIBSSSuppRates[3],
-			pMgmt->abyIBSSSuppRates[4],
-			pMgmt->abyIBSSSuppRates[5]);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Support Rate= %*ph\n",
+				4, pMgmt->abyIBSSSuppRates + 2);
 
 		netif_stop_queue(pDevice->dev);
 		spin_lock_irq(&pDevice->lock);
