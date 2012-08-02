@@ -457,10 +457,8 @@ static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	diff1 = read_ecc[1] ^ calc_ecc[1];
 	diff2 = read_ecc[2] ^ calc_ecc[2];
 
-	pr_debug("%s: rd %02x%02x%02x calc %02x%02x%02x diff %02x%02x%02x\n",
-		 __func__,
-		 read_ecc[0], read_ecc[1], read_ecc[2],
-		 calc_ecc[0], calc_ecc[1], calc_ecc[2],
+	pr_debug("%s: rd %*phN calc %*phN diff %02x%02x%02x\n",
+		 __func__, 3, read_ecc, 3, calc_ecc,
 		 diff0, diff1, diff2);
 
 	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
@@ -562,8 +560,7 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 	ecc_code[1] = readb(info->regs + S3C2410_NFECC + 1);
 	ecc_code[2] = readb(info->regs + S3C2410_NFECC + 2);
 
-	pr_debug("%s: returning ecc %02x%02x%02x\n", __func__,
-		 ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
 
 	return 0;
 }
@@ -578,8 +575,7 @@ static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n",
-		 ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("%s: returning ecc %*phN\n", __func__, 3, ecc_code);
 
 	return 0;
 }

@@ -154,19 +154,10 @@ static int bcm_umi_bch_read_page_hwecc(struct mtd_info *mtd,
 #if defined(NAND_BCM_UMI_DEBUG)
 			printk(KERN_WARNING "%s uncorr_err sectorIdx=%d\n",
 			       __func__, sectorIdx);
-			printk(KERN_WARNING
-			       "%s data %02x %02x %02x %02x "
-					 "%02x %02x %02x %02x\n",
-			       __func__, datap[0], datap[1], datap[2], datap[3],
-			       datap[4], datap[5], datap[6], datap[7]);
-			printk(KERN_WARNING
-			       "%s ecc  %02x %02x %02x %02x "
-					 "%02x %02x %02x %02x %02x %02x "
-					 "%02x %02x %02x\n",
-			       __func__, eccCalc[0], eccCalc[1], eccCalc[2],
-			       eccCalc[3], eccCalc[4], eccCalc[5], eccCalc[6],
-			       eccCalc[7], eccCalc[8], eccCalc[9], eccCalc[10],
-			       eccCalc[11], eccCalc[12]);
+			printk(KERN_WARNING "%s data %*ph\n",
+			       __func__, 8, datap);
+			printk(KERN_WARNING "%s ecc  %*ph\n",
+			       __func__, 13, eccCalc);
 			BUG();
 #endif
 			mtd->ecc_stats.failed++;

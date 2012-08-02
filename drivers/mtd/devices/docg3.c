@@ -919,19 +919,13 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		eccconf1 = doc_register_readb(docg3, DOC_ECCCONF1);
 
 		if (nboob >= DOC_LAYOUT_OOB_SIZE) {
-			doc_dbg("OOB - INFO: %02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-				oobbuf[0], oobbuf[1], oobbuf[2], oobbuf[3],
-				oobbuf[4], oobbuf[5], oobbuf[6]);
+			doc_dbg("OOB - INFO: %*phC\n", 7, oobbuf);
 			doc_dbg("OOB - HAMMING: %02x\n", oobbuf[7]);
-			doc_dbg("OOB - BCH_ECC: %02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-				oobbuf[8], oobbuf[9], oobbuf[10], oobbuf[11],
-				oobbuf[12], oobbuf[13], oobbuf[14]);
+			doc_dbg("OOB - BCH_ECC: %*phC\n", 7, oobbuf + 8);
 			doc_dbg("OOB - UNUSED: %02x\n", oobbuf[15]);
 		}
 		doc_dbg("ECC checks: ECCConf1=%x\n", eccconf1);
-		doc_dbg("ECC HW_ECC: %02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-			hwecc[0], hwecc[1], hwecc[2], hwecc[3], hwecc[4],
-			hwecc[5], hwecc[6]);
+		doc_dbg("ECC HW_ECC: %*phC\n", 7, hwecc);
 
 		ret = -EIO;
 		if (is_prot_seq_error(docg3))
