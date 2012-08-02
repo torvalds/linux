@@ -16,19 +16,6 @@
 #include "cpumap.h"
 #include "event-parse.h"
 
-int perf_session__parse_sample(struct perf_session *session,
-			       const union perf_event *event,
-			       struct perf_sample *sample)
-{
-	struct perf_evsel *first;
-	first = list_entry(session->evlist->entries.next, struct perf_evsel, node);
-
-	return perf_event__parse_sample(event, first->attr.sample_type,
-					first->sample_size,
-					first->attr.sample_id_all, sample,
-					session->header.needs_swap);
-}
-
 int perf_session__synthesize_sample(struct perf_session *session,
 				    union perf_event *event,
 				    const struct perf_sample *sample)
@@ -692,7 +679,8 @@ static void flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		ret = perf_session__parse_sample(s, iter->event, &sample);
+		ret = perf_evlist__parse_sample(s->evlist, iter->event, &sample,
+						s->header.needs_swap);
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else
@@ -1103,7 +1091,8 @@ static int perf_session__process_event(struct perf_session *session,
 	/*
 	 * For all kernel events we get the sample data
 	 */
-	ret = perf_session__parse_sample(session, event, &sample);
+	ret = perf_evlist__parse_sample(session->evlist, event, &sample,
+					session->header.needs_swap);
 	if (ret)
 		return ret;
 

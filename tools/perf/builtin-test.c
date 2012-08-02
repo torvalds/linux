@@ -562,9 +562,7 @@ static int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
-		err = perf_event__parse_sample(event, attr.sample_type,
-					       evsels[0]->sample_size,
-					       false, &sample, false);
+		err = perf_evlist__parse_sample(evlist, event, &sample, false);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
 			goto out_munmap;
@@ -781,9 +779,7 @@ static int test__PERF_RECORD(void)
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				err = perf_event__parse_sample(event, evsel->attr.sample_type,
-							       evsel->sample_size, true,
-							       &sample, false);
+				err = perf_evlist__parse_sample(evlist, event, &sample, false);
 				if (err < 0) {
 					if (verbose)
 						perf_event__fprintf(event, stderr);
