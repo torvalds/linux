@@ -59,26 +59,6 @@ asmlinkage int sys_vfork(struct pt_regs *regs)
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->ARM_sp, regs, 0, NULL, NULL);
 }
 
-/* sys_execve() executes a new program.
- * This is called indirectly via a small wrapper
- */
-asmlinkage int sys_execve(const char __user *filenamei,
-			  const char __user *const __user *argv,
-			  const char __user *const __user *envp, struct pt_regs *regs)
-{
-	int error;
-	char * filename;
-
-	filename = getname(filenamei);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	error = do_execve(filename, argv, envp, regs);
-	putname(filename);
-out:
-	return error;
-}
-
 /*
  * Since loff_t is a 64 bit type we avoid a lot of ABI hassle
  * with a different argument ordering.

@@ -532,11 +532,6 @@ sys_vfork_wrapper:
 		b	sys_vfork
 ENDPROC(sys_vfork_wrapper)
 
-sys_execve_wrapper:
-		add	r3, sp, #S_OFF
-		b	sys_execve
-ENDPROC(sys_execve_wrapper)
-
 sys_clone_wrapper:
 		add	ip, sp, #S_OFF
 		str	ip, [sp, #4]
