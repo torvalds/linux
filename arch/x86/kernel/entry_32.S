@@ -298,6 +298,13 @@ ENTRY(ret_from_fork)
 	CFI_ENDPROC
 END(ret_from_fork)
 
+ENTRY(ret_from_kernel_execve)
+	movl %eax, %esp
+	movl $0,PT_EAX(%esp)
+	GET_THREAD_INFO(%ebp)
+	jmp syscall_exit
+END(ret_from_kernel_execve)
+
 /*
  * Interrupt exit functions should be protected against kprobes
  */
@@ -322,8 +329,7 @@ ret_from_intr:
 	andl $(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %eax
 #else
 	/*
-	 * We can be coming here from a syscall done in the kernel space,
-	 * e.g. a failed kernel_execve().
+	 * We can be coming here from child spawned by kernel_thread().
 	 */
 	movl PT_CS(%esp), %eax
 	andl $SEGMENT_RPL_MASK, %eax
@@ -727,7 +733,6 @@ ENDPROC(ptregs_##name)
 PTREGSCALL1(iopl)
 PTREGSCALL0(fork)
 PTREGSCALL0(vfork)
-PTREGSCALL3(execve)
 PTREGSCALL2(sigaltstack)
 PTREGSCALL0(sigreturn)
 PTREGSCALL0(rt_sigreturn)
