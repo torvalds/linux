@@ -481,8 +481,31 @@ static void rbd_coll_release(struct kref *kref)
 
 static bool rbd_dev_ondisk_valid(struct rbd_image_header_ondisk *ondisk)
 {
-	return !memcmp(&ondisk->text,
-			RBD_HEADER_TEXT, sizeof (RBD_HEADER_TEXT));
+	size_t size;
+	u32 snap_count;
+
+	/* The header has to start with the magic rbd header text */
+	if (memcmp(&ondisk->text, RBD_HEADER_TEXT, sizeof (RBD_HEADER_TEXT)))
+		return false;
+
+	/*
+	 * The size of a snapshot header has to fit in a size_t, and
+	 * that limits the number of snapshots.
+	 */
+	snap_count = le32_to_cpu(ondisk->snap_count);
+	size = SIZE_MAX - sizeof (struct ceph_snap_context);
+	if (snap_count > size / sizeof (__le64))
+		return false;
+
+	/*
+	 * Not only that, but the size of the entire the snapshot
+	 * header must also be representable in a size_t.
+	 */
+	size -= snap_count * sizeof (__le64);
+	if ((u64) size < le64_to_cpu(ondisk->snap_names_len))
+		return false;
+
+	return true;
 }
 
 /*
@@ -499,14 +522,9 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	if (!rbd_dev_ondisk_valid(ondisk))
 		return -ENXIO;
 
-	snap_count = le32_to_cpu(ondisk->snap_count);
-
-	/* Make sure we don't overflow below */
-	size = SIZE_MAX - sizeof (struct ceph_snap_context);
-	if (snap_count > size / sizeof (header->snapc->snaps[0]))
-		return -EINVAL;
-
 	memset(header, 0, sizeof (*header));
+
+	snap_count = le32_to_cpu(ondisk->snap_count);
 
 	size = sizeof (ondisk->block_name) + 1;
 	header->object_prefix = kmalloc(size, GFP_KERNEL);
