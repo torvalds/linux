@@ -1139,6 +1139,16 @@ static inline int queue_limit_discard_alignment(struct queue_limits *lim, sector
 		& (lim->discard_granularity - 1);
 }
 
+static inline int bdev_discard_alignment(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (bdev != bdev->bd_contains)
+		return bdev->bd_part->discard_alignment;
+
+	return q->limits.discard_alignment;
+}
+
 static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)
 {
 	if (q->limits.max_discard_sectors && q->limits.discard_zeroes_data == 1)
