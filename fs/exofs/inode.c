@@ -37,15 +37,12 @@
 
 #define EXOFS_DBGMSG2(M...) do {} while (0)
 
-enum {MAX_PAGES_KMALLOC = PAGE_SIZE / sizeof(struct page *), };
-
 unsigned exofs_max_io_pages(struct ore_layout *layout,
 			    unsigned expected_pages)
 {
-	unsigned pages = min_t(unsigned, expected_pages, MAX_PAGES_KMALLOC);
+	unsigned pages = min_t(unsigned, expected_pages,
+			       layout->max_io_length / PAGE_SIZE);
 
-	/* TODO: easily support bio chaining */
-	pages =  min_t(unsigned, pages, layout->max_io_length / PAGE_SIZE);
 	return pages;
 }
 
@@ -101,7 +98,8 @@ static void _pcol_reset(struct page_collect *pcol)
 	 * it might not end here. don't be left with nothing
 	 */
 	if (!pcol->expected_pages)
-		pcol->expected_pages = MAX_PAGES_KMALLOC;
+		pcol->expected_pages =
+				exofs_max_io_pages(&pcol->sbi->layout, ~0);
 }
 
 static int pcol_try_alloc(struct page_collect *pcol)
