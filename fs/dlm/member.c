@@ -616,13 +616,13 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	down_write(&ls->ls_recv_active);
 
 	/*
-	 * Abort any recovery that's in progress (see RECOVERY_STOP,
+	 * Abort any recovery that's in progress (see RECOVER_STOP,
 	 * dlm_recovery_stopped()) and tell any other threads running in the
 	 * dlm to quit any processing (see RUNNING, dlm_locking_stopped()).
 	 */
 
 	spin_lock(&ls->ls_recover_lock);
-	set_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
+	set_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
 	new = test_and_clear_bit(LSFL_RUNNING, &ls->ls_flags);
 	ls->ls_recover_seq++;
 	spin_unlock(&ls->ls_recover_lock);
@@ -642,12 +642,16 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	 *    when recovery is complete.
 	 */
 
-	if (new)
-		down_write(&ls->ls_in_recovery);
+	if (new) {
+		set_bit(LSFL_RECOVER_DOWN, &ls->ls_flags);
+		wake_up_process(ls->ls_recoverd_task);
+		wait_event(ls->ls_recover_lock_wait,
+			   test_bit(LSFL_RECOVER_LOCK, &ls->ls_flags));
+	}
 
 	/*
 	 * The recoverd suspend/resume makes sure that dlm_recoverd (if
-	 * running) has noticed RECOVERY_STOP above and quit processing the
+	 * running) has noticed RECOVER_STOP above and quit processing the
 	 * previous recovery.
 	 */
 
@@ -709,7 +713,8 @@ int dlm_ls_start(struct dlm_ls *ls)
 		kfree(rv_old);
 	}
 
-	dlm_recoverd_kick(ls);
+	set_bit(LSFL_RECOVER_WORK, &ls->ls_flags);
+	wake_up_process(ls->ls_recoverd_task);
 	return 0;
 
  fail:

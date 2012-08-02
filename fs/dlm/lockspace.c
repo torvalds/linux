@@ -582,8 +582,6 @@ static int new_lockspace(const char *name, const char *cluster,
 	INIT_LIST_HEAD(&ls->ls_root_list);
 	init_rwsem(&ls->ls_root_sem);
 
-	down_write(&ls->ls_in_recovery);
-
 	spin_lock(&lslist_lock);
 	ls->ls_create_count = 1;
 	list_add(&ls->ls_list, &lslist);
@@ -597,12 +595,23 @@ static int new_lockspace(const char *name, const char *cluster,
 		}
 	}
 
-	/* needs to find ls in lslist */
+	init_waitqueue_head(&ls->ls_recover_lock_wait);
+
+	/*
+	 * Once started, dlm_recoverd first looks for ls in lslist, then
+	 * initializes ls_in_recovery as locked in "down" mode.  We need
+	 * to wait for the wakeup from dlm_recoverd because in_recovery
+	 * has to start out in down mode.
+	 */
+
 	error = dlm_recoverd_start(ls);
 	if (error) {
 		log_error(ls, "can't start dlm_recoverd %d", error);
 		goto out_callback;
 	}
+
+	wait_event(ls->ls_recover_lock_wait,
+		   test_bit(LSFL_RECOVER_LOCK, &ls->ls_flags));
 
 	ls->ls_kobj.kset = dlm_kset;
 	error = kobject_init_and_add(&ls->ls_kobj, &dlm_ktype, NULL,

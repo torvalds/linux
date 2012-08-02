@@ -604,6 +604,7 @@ struct dlm_ls {
 	struct idr		ls_recover_idr;
 	spinlock_t		ls_recover_idr_lock;
 	wait_queue_head_t	ls_wait_general;
+	wait_queue_head_t	ls_recover_lock_wait;
 	struct mutex		ls_clear_proc_locks;
 
 	struct list_head	ls_root_list;	/* root resources */
@@ -616,15 +617,40 @@ struct dlm_ls {
 	char			ls_name[1];
 };
 
-#define LSFL_WORK		0
-#define LSFL_RUNNING		1
-#define LSFL_RECOVERY_STOP	2
-#define LSFL_RCOM_READY		3
-#define LSFL_RCOM_WAIT		4
-#define LSFL_UEVENT_WAIT	5
-#define LSFL_TIMEWARN		6
-#define LSFL_CB_DELAY		7
-#define LSFL_NODIR		8
+/*
+ * LSFL_RECOVER_STOP - dlm_ls_stop() sets this to tell dlm recovery routines
+ * that they should abort what they're doing so new recovery can be started.
+ *
+ * LSFL_RECOVER_DOWN - dlm_ls_stop() sets this to tell dlm_recoverd that it
+ * should do down_write() on the in_recovery rw_semaphore. (doing down_write
+ * within dlm_ls_stop causes complaints about the lock acquired/released
+ * in different contexts.)
+ *
+ * LSFL_RECOVER_LOCK - dlm_recoverd holds the in_recovery rw_semaphore.
+ * It sets this after it is done with down_write() on the in_recovery
+ * rw_semaphore and clears it after it has released the rw_semaphore.
+ *
+ * LSFL_RECOVER_WORK - dlm_ls_start() sets this to tell dlm_recoverd that it
+ * should begin recovery of the lockspace.
+ *
+ * LSFL_RUNNING - set when normal locking activity is enabled.
+ * dlm_ls_stop() clears this to tell dlm locking routines that they should
+ * quit what they are doing so recovery can run.  dlm_recoverd sets
+ * this after recovery is finished.
+ */
+
+#define LSFL_RECOVER_STOP	0
+#define LSFL_RECOVER_DOWN	1
+#define LSFL_RECOVER_LOCK	2
+#define LSFL_RECOVER_WORK	3
+#define LSFL_RUNNING		4
+
+#define LSFL_RCOM_READY		5
+#define LSFL_RCOM_WAIT		6
+#define LSFL_UEVENT_WAIT	7
+#define LSFL_TIMEWARN		8
+#define LSFL_CB_DELAY		9
+#define LSFL_NODIR		10
 
 /* much of this is just saving user space pointers associated with the
    lock that we pass back to the user lib with an ast */
@@ -667,7 +693,7 @@ static inline int dlm_locking_stopped(struct dlm_ls *ls)
 
 static inline int dlm_recovery_stopped(struct dlm_ls *ls)
 {
-	return test_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
+	return test_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
 }
 
 static inline int dlm_no_directory(struct dlm_ls *ls)
