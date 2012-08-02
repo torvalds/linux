@@ -24,7 +24,7 @@
 
 	mpic: interrupt-controller@d0020000 {
 	      reg = <0xd0020a00 0x1d0>,
-		    <0xd0021870 0x58>;
+		    <0xd0021070 0x58>;
 	};
 
 	armada-370-xp-pmsu@d0022000 {
