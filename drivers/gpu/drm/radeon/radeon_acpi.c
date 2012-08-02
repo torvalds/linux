@@ -76,6 +76,16 @@ struct atif_sbios_requests {
 
 /* Call the ATIF method
  */
+/**
+ * radeon_atif_call - call an ATIF method
+ *
+ * @handle: acpi handle
+ * @function: the ATIF function to execute
+ * @params: ATIF function params
+ *
+ * Executes the requested ATIF function (all asics).
+ * Returns a pointer to the acpi output buffer.
+ */
 static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 		struct acpi_buffer *params)
 {
@@ -113,6 +123,16 @@ static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 	return buffer.pointer;
 }
 
+/**
+ * radeon_atif_parse_notification - parse supported notifications
+ *
+ * @n: supported notifications struct
+ * @mask: supported notifications mask from ATIF
+ *
+ * Use the supported notifications mask from ATIF function
+ * ATIF_FUNCTION_VERIFY_INTERFACE to determine what notifications
+ * are supported (all asics).
+ */
 static void radeon_atif_parse_notification(struct radeon_atif_notifications *n, u32 mask)
 {
 	n->display_switch = mask & ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED;
@@ -126,6 +146,16 @@ static void radeon_atif_parse_notification(struct radeon_atif_notifications *n, 
 	n->dgpu_display_event = mask & ATIF_DGPU_DISPLAY_EVENT_SUPPORTED;
 }
 
+/**
+ * radeon_atif_parse_functions - parse supported functions
+ *
+ * @f: supported functions struct
+ * @mask: supported functions mask from ATIF
+ *
+ * Use the supported functions mask from ATIF function
+ * ATIF_FUNCTION_VERIFY_INTERFACE to determine what functions
+ * are supported (all asics).
+ */
 static void radeon_atif_parse_functions(struct radeon_atif_functions *f, u32 mask)
 {
 	f->system_params = mask & ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED;
@@ -140,6 +170,17 @@ static void radeon_atif_parse_functions(struct radeon_atif_functions *f, u32 mas
 	f->graphics_device_types = mask & ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED;
 }
 
+/**
+ * radeon_atif_verify_interface - verify ATIF
+ *
+ * @handle: acpi handle
+ * @atif: radeon atif struct
+ *
+ * Execute the ATIF_FUNCTION_VERIFY_INTERFACE ATIF function
+ * to initialize ATIF and determine what features are supported
+ * (all asics).
+ * returns 0 on success, error on failure.
+ */
 static int radeon_atif_verify_interface(acpi_handle handle,
 		struct radeon_atif *atif)
 {
@@ -175,6 +216,18 @@ out:
 	return err;
 }
 
+/**
+ * radeon_atif_get_notification_params - determine notify configuration
+ *
+ * @handle: acpi handle
+ * @n: atif notification configuration struct
+ *
+ * Execute the ATIF_FUNCTION_GET_SYSTEM_PARAMETERS ATIF function
+ * to determine if a notifier is used and if so which one
+ * (all asics).  This is either Notify(VGA, 0x81) or Notify(VGA, n)
+ * where n is specified in the result if a notifier is used.
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atif_get_notification_params(acpi_handle handle,
 		struct radeon_atif_notification_cfg *n)
 {
@@ -226,6 +279,17 @@ out:
 	return err;
 }
 
+/**
+ * radeon_atif_get_sbios_requests - get requested sbios event
+ *
+ * @handle: acpi handle
+ * @req: atif sbios request struct
+ *
+ * Execute the ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS ATIF function
+ * to determine what requests the sbios is making to the driver
+ * (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atif_get_sbios_requests(acpi_handle handle,
 		struct atif_sbios_requests *req)
 {
@@ -255,6 +319,16 @@ out:
 	return count;
 }
 
+/**
+ * radeon_atif_handler - handle ATIF notify requests
+ *
+ * @rdev: radeon_device pointer
+ * @event: atif sbios request struct
+ *
+ * Checks the acpi event and if it matches an atif event,
+ * handles it.
+ * Returns NOTIFY code
+ */
 int radeon_atif_handler(struct radeon_device *rdev,
 		struct acpi_bus_event *event)
 {
@@ -309,6 +383,17 @@ int radeon_atif_handler(struct radeon_device *rdev,
 	return NOTIFY_BAD;
 }
 
+/**
+ * radeon_acpi_event - handle notify events
+ *
+ * @nb: notifier block
+ * @val: val
+ * @data: acpi event
+ *
+ * Calls relevant radeon functions in response to various
+ * acpi events.
+ * Returns NOTIFY code
+ */
 static int radeon_acpi_event(struct notifier_block *nb,
 			     unsigned long val,
 			     void *data)
@@ -330,6 +415,15 @@ static int radeon_acpi_event(struct notifier_block *nb,
 }
 
 /* Call all ACPI methods here */
+/**
+ * radeon_acpi_init - init driver acpi support
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Verifies the AMD ACPI interfaces and registers with the acpi
+ * notifier chain (all asics).
+ * Returns 0 on success, error on failure.
+ */
 int radeon_acpi_init(struct radeon_device *rdev)
 {
 	acpi_handle handle;
@@ -403,6 +497,13 @@ out:
 	return ret;
 }
 
+/**
+ * radeon_acpi_fini - tear down driver acpi support
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Unregisters with the acpi notifier chain (all asics).
+ */
 void radeon_acpi_fini(struct radeon_device *rdev)
 {
 	unregister_acpi_notifier(&rdev->acpi_nb);
