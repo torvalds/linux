@@ -626,8 +626,8 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 {
 	bool rotation = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct fimc_variant *var = fimc->variant;
-	struct fimc_pix_limit *pl = var->pix_limit;
+	const struct fimc_variant *var = fimc->variant;
+	const struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *dst = &ctx->d_frame;
 	u32 depth, min_w, max_w, min_h, align_h = 3;
 	u32 mask = FMT_FLAGS_CAM;
@@ -699,8 +699,8 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 {
 	bool rotate = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct fimc_variant *var = fimc->variant;
-	struct fimc_pix_limit *pl = var->pix_limit;
+	const struct fimc_variant *var = fimc->variant;
+	const struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *sink = &ctx->s_frame;
 	u32 max_w, max_h, min_w = 0, min_h = 0, min_sz;
 	u32 align_sz = 0, align_h = 4;

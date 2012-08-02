@@ -372,6 +372,7 @@ struct fimc_pix_limit {
  * @has_mainscaler_ext: 1 if extended mainscaler ratios in CIEXTEN register
  *			 are present in this IP revision
  * @has_cam_if: set if this instance has a camera input interface
+ * @has_isp_wb: set if this instance has ISP writeback input
  * @pix_limit: pixel size constraints for the scaler
  * @min_inp_pixsize: minimum input pixel size
  * @min_out_pixsize: minimum output pixel size
@@ -386,8 +387,9 @@ struct fimc_variant {
 	unsigned int	has_cistatus2:1;
 	unsigned int	has_mainscaler_ext:1;
 	unsigned int	has_cam_if:1;
+	unsigned int	has_isp_wb:1;
 	unsigned int	has_alpha:1;
-	struct fimc_pix_limit *pix_limit;
+	const struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
 	u16		hor_offs_align;
@@ -402,7 +404,7 @@ struct fimc_variant {
  * @lclk_frequency: local bus clock frequency
  */
 struct fimc_drvdata {
-	struct fimc_variant *variant[FIMC_MAX_DEVS];
+	const struct fimc_variant *variant[FIMC_MAX_DEVS];
 	int num_entities;
 	unsigned long lclk_frequency;
 };
@@ -435,7 +437,7 @@ struct fimc_dev {
 	struct mutex			lock;
 	struct platform_device		*pdev;
 	struct s5p_platform_fimc	*pdata;
-	struct fimc_variant		*variant;
+	const struct fimc_variant	*variant;
 	u16				id;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;
