@@ -944,6 +944,44 @@ do_sync_io:
 	pr_debug("%dB behind alloc failed, doing sync I/O\n", bio->bi_size);
 }
 
+struct raid1_plug_cb {
+	struct blk_plug_cb	cb;
+	struct bio_list		pending;
+	int			pending_cnt;
+};
+
+static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
+{
+	struct raid1_plug_cb *plug = container_of(cb, struct raid1_plug_cb,
+						  cb);
+	struct mddev *mddev = plug->cb.data;
+	struct r1conf *conf = mddev->private;
+	struct bio *bio;
+
+	if (from_schedule) {
+		spin_lock_irq(&conf->device_lock);
+		bio_list_merge(&conf->pending_bio_list, &plug->pending);
+		conf->pending_count += plug->pending_cnt;
+		spin_unlock_irq(&conf->device_lock);
+		md_wakeup_thread(mddev->thread);
+		kfree(plug);
+		return;
+	}
+
+	/* we aren't scheduling, so we can do the write-out directly. */
+	bio = bio_list_get(&plug->pending);
+	bitmap_unplug(mddev->bitmap);
+	wake_up(&conf->wait_barrier);
+
+	while (bio) { /* submit pending writes */
+		struct bio *next = bio->bi_next;
+		bio->bi_next = NULL;
+		generic_make_request(bio);
+		bio = next;
+	}
+	kfree(plug);
+}
+
 static void make_request(struct mddev *mddev, struct bio * bio)
 {
 	struct r1conf *conf = mddev->private;
@@ -957,6 +995,8 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_flush_fua = (bio->bi_rw & (REQ_FLUSH | REQ_FUA));
 	struct md_rdev *blocked_rdev;
+	struct blk_plug_cb *cb;
+	struct raid1_plug_cb *plug = NULL;
 	int first_clone;
 	int sectors_handled;
 	int max_sectors;
@@ -1259,11 +1299,22 @@ read_again:
 		mbio->bi_private = r1_bio;
 
 		atomic_inc(&r1_bio->remaining);
+
+		cb = blk_check_plugged(raid1_unplug, mddev, sizeof(*plug));
+		if (cb)
+			plug = container_of(cb, struct raid1_plug_cb, cb);
+		else
+			plug = NULL;
 		spin_lock_irqsave(&conf->device_lock, flags);
-		bio_list_add(&conf->pending_bio_list, mbio);
-		conf->pending_count++;
+		if (plug) {
+			bio_list_add(&plug->pending, mbio);
+			plug->pending_cnt++;
+		} else {
+			bio_list_add(&conf->pending_bio_list, mbio);
+			conf->pending_count++;
+		}
 		spin_unlock_irqrestore(&conf->device_lock, flags);
-		if (!mddev_check_plugged(mddev))
+		if (!plug)
 			md_wakeup_thread(mddev->thread);
 	}
 	/* Mustn't call r1_bio_write_done before this next test,
