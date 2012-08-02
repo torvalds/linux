@@ -5074,18 +5074,17 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
-static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
-					u32 oui, u32 nic, int n)
+static void wl12xx_derive_mac_addresses(struct wl1271 *wl, u32 oui, u32 nic)
 {
 	int i;
 
-	wl1271_debug(DEBUG_PROBE, "base address: oui %06x nic %06x, n %d",
-		     oui, nic, n);
+	wl1271_debug(DEBUG_PROBE, "base address: oui %06x nic %06x",
+		     oui, nic);
 
-	if (nic + n - 1 > 0xffffff)
+	if (nic + WLCORE_NUM_MAC_ADDRESSES - wl->num_mac_addr > 0xffffff)
 		wl1271_warning("NIC part of the MAC address wraps around!");
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < wl->num_mac_addr; i++) {
 		wl->addresses[i].addr[0] = (u8)(oui >> 16);
 		wl->addresses[i].addr[1] = (u8)(oui >> 8);
 		wl->addresses[i].addr[2] = (u8) oui;
@@ -5095,7 +5094,22 @@ static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
 		nic++;
 	}
 
-	wl->hw->wiphy->n_addresses = n;
+	/* we may be one address short at the most */
+	WARN_ON(wl->num_mac_addr + 1 < WLCORE_NUM_MAC_ADDRESSES);
+
+	/*
+	 * turn on the LAA bit in the first address and use it as
+	 * the last address.
+	 */
+	if (wl->num_mac_addr < WLCORE_NUM_MAC_ADDRESSES) {
+		int idx = WLCORE_NUM_MAC_ADDRESSES - 1;
+		memcpy(&wl->addresses[idx], &wl->addresses[0],
+		       sizeof(wl->addresses[0]));
+		/* LAA bit */
+		wl->addresses[idx].addr[2] |= BIT(1);
+	}
+
+	wl->hw->wiphy->n_addresses = WLCORE_NUM_MAC_ADDRESSES;
 	wl->hw->wiphy->addresses = wl->addresses;
 }
 
@@ -5155,7 +5169,7 @@ static int wl1271_register_hw(struct wl1271 *wl)
 		nic_addr = wl->fuse_nic_addr + 1;
 	}
 
-	wl12xx_derive_mac_addresses(wl, oui_addr, nic_addr, 2);
+	wl12xx_derive_mac_addresses(wl, oui_addr, nic_addr);
 
 	ret = ieee80211_register_hw(wl->hw);
 	if (ret < 0) {

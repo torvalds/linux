@@ -31,6 +31,12 @@
 /* The maximum number of Tx descriptors in all chip families */
 #define WLCORE_MAX_TX_DESCRIPTORS 32
 
+/*
+ * We always allocate this number of mac addresses. If we don't
+ * have enough allocated addresses, the LAA bit is used
+ */
+#define WLCORE_NUM_MAC_ADDRESSES 3
+
 /* forward declaration */
 struct wl1271_tx_hw_descr;
 enum wl_rx_buf_align;
@@ -181,7 +187,7 @@ struct wl1271 {
 	u32 fuse_nic_addr;
 
 	/* we have up to 2 MAC addresses */
-	struct mac_address addresses[2];
+	struct mac_address addresses[WLCORE_NUM_MAC_ADDRESSES];
 	int channel;
 	u8 system_hlid;
 
@@ -393,6 +399,9 @@ struct wl1271 {
 
 	/* sleep auth value currently configured to FW */
 	int sleep_auth;
+
+	/* the number of allocated MAC addresses in this chip */
+	int num_mac_addr;
 
 	/* the minimum FW version required for the driver to work */
 	unsigned int min_fw_ver[NUM_FW_VER];

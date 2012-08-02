@@ -1643,6 +1643,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = WL12XX_NUM_TX_DESCRIPTORS;
 	wl->num_rx_desc = WL12XX_NUM_RX_DESCRIPTORS;
+	wl->num_mac_addr = WL12XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL12XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL12XX_CONF_HW_RXTX_RATE_MCS0;
