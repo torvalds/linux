@@ -825,7 +825,7 @@ static void ipsec_esp_encrypt_done(struct device *dev,
 	ipsec_esp_unmap(dev, edesc, areq);
 
 	/* copy the generated ICV to dst */
-	if (edesc->dma_len) {
+	if (edesc->dst_nents) {
 		icvdata = &edesc->link_tbl[edesc->src_nents +
 					   edesc->dst_nents + 2];
 		sg = sg_last(areq->dst, edesc->dst_nents);
