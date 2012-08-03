@@ -369,13 +369,10 @@ static void microcode_fini_cpu(int cpu)
 
 static enum ucode_state microcode_resume_cpu(int cpu)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-
-	if (!uci->mc)
-		return UCODE_NFOUND;
-
 	pr_debug("CPU%d updated upon resume\n", cpu);
-	apply_microcode_on_target(cpu);
+
+	if (apply_microcode_on_target(cpu))
+		return UCODE_ERROR;
 
 	return UCODE_OK;
 }
@@ -404,14 +401,11 @@ static enum ucode_state microcode_init_cpu(int cpu)
 static enum ucode_state microcode_update_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	enum ucode_state ustate;
 
 	if (uci->valid)
-		ustate = microcode_resume_cpu(cpu);
-	else
-		ustate = microcode_init_cpu(cpu);
+		return microcode_resume_cpu(cpu);
 
-	return ustate;
+	return microcode_init_cpu(cpu);
 }
 
 static int mc_device_add(struct device *dev, struct subsys_interface *sif)
