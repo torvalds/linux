@@ -487,7 +487,7 @@ struct amd_iommu {
 	/* physical address of MMIO space */
 	u64 mmio_phys;
 	/* virtual address of MMIO space */
-	u8 *mmio_base;
+	u8 __iomem *mmio_base;
 
 	/* capabilities of that IOMMU read from ACPI */
 	u32 cap;
@@ -500,6 +500,9 @@ struct amd_iommu {
 
 	/* IOMMUv2 */
 	bool is_iommu_v2;
+
+	/* PCI device id of the IOMMU device */
+	u16 devid;
 
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI
@@ -530,8 +533,6 @@ struct amd_iommu {
 	u32 evt_buf_size;
 	/* event buffer virtual address */
 	u8 *evt_buf;
-	/* MSI number for event interrupt */
-	u16 evt_msi_num;
 
 	/* Base of the PPR log, if present */
 	u8 *ppr_log;
@@ -663,6 +664,12 @@ extern bool amd_iommu_force_isolation;
 
 /* Max levels of glxval supported */
 extern int amd_iommu_max_glx_val;
+
+/*
+ * This function flushes all internal caches of
+ * the IOMMU used by this driver.
+ */
+extern void iommu_flush_all_caches(struct amd_iommu *iommu);
 
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */

@@ -27,6 +27,7 @@
 #include <net/icmp.h>
 #include <net/route.h>
 #include <net/cipso_ipv4.h>
+#include <net/ip_fib.h>
 
 /*
  * Write options to IP header, record destination address to
@@ -92,7 +93,6 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 	unsigned char *sptr, *dptr;
 	int soffset, doffset;
 	int	optlen;
-	__be32	daddr;
 
 	memset(dopt, 0, sizeof(struct ip_options));
 
@@ -103,8 +103,6 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 
 	sptr = skb_network_header(skb);
 	dptr = dopt->__data;
-
-	daddr = skb_rtable(skb)->rt_spec_dst;
 
 	if (sopt->rr) {
 		optlen  = sptr[sopt->rr+1];
@@ -179,6 +177,8 @@ int ip_options_echo(struct ip_options *dopt, struct sk_buff *skb)
 				doffset -= 4;
 		}
 		if (doffset > 3) {
+			__be32 daddr = fib_compute_spec_dst(skb);
+
 			memcpy(&start[doffset-1], &daddr, 4);
 			dopt->faddr = faddr;
 			dptr[0] = start[0];
@@ -241,6 +241,15 @@ void ip_options_fragment(struct sk_buff *skb)
 	opt->ts_needtime = 0;
 }
 
+/* helper used by ip_options_compile() to call fib_compute_spec_dst()
+ * at most one time.
+ */
+static void spec_dst_fill(__be32 *spec_dst, struct sk_buff *skb)
+{
+	if (*spec_dst == htonl(INADDR_ANY))
+		*spec_dst = fib_compute_spec_dst(skb);
+}
+
 /*
  * Verify options and fill pointers in struct options.
  * Caller should clear *opt, and set opt->data.
@@ -250,12 +259,12 @@ void ip_options_fragment(struct sk_buff *skb)
 int ip_options_compile(struct net *net,
 		       struct ip_options *opt, struct sk_buff *skb)
 {
-	int l;
-	unsigned char *iph;
-	unsigned char *optptr;
-	int optlen;
+	__be32 spec_dst = htonl(INADDR_ANY);
 	unsigned char *pp_ptr = NULL;
 	struct rtable *rt = NULL;
+	unsigned char *optptr;
+	unsigned char *iph;
+	int optlen, l;
 
 	if (skb != NULL) {
 		rt = skb_rtable(skb);
@@ -331,7 +340,8 @@ int ip_options_compile(struct net *net,
 					goto error;
 				}
 				if (rt) {
-					memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
+					spec_dst_fill(&spec_dst, skb);
+					memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 					opt->is_changed = 1;
 				}
 				optptr[2] += 4;
@@ -373,7 +383,8 @@ int ip_options_compile(struct net *net,
 					}
 					opt->ts = optptr - iph;
 					if (rt)  {
-						memcpy(&optptr[optptr[2]-1], &rt->rt_spec_dst, 4);
+						spec_dst_fill(&spec_dst, skb);
+						memcpy(&optptr[optptr[2]-1], &spec_dst, 4);
 						timeptr = &optptr[optptr[2]+3];
 					}
 					opt->ts_needaddr = 1;

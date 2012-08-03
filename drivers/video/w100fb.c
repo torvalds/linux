@@ -1567,6 +1567,18 @@ static void w100_suspend(u32 mode)
 		val = readl(remapped_regs + mmPLL_CNTL);
 		val |= 0x00000004;  /* bit2=1 */
 		writel(val, remapped_regs + mmPLL_CNTL);
+
+		writel(0x00000000, remapped_regs + mmLCDD_CNTL1);
+		writel(0x00000000, remapped_regs + mmLCDD_CNTL2);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL1);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL2);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL3);
+
+		val = readl(remapped_regs + mmMEM_EXT_CNTL);
+		val |= 0xF0000000;
+		val &= ~(0x00000001);
+		writel(val, remapped_regs + mmMEM_EXT_CNTL);
+
 		writel(0x0000001d, remapped_regs + mmPWRMGT_CNTL);
 	}
 }

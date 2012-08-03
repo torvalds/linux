@@ -49,11 +49,6 @@
 #include "comedi_fc.h"
 #include "../comedidev.h"
 
-#define DRIVER_VERSION "v1.0"
-#define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
-#define DRIVER_DESC "USB-DUXfast, BerndPorr@f2s.com"
-#define BOARDNAME "usbduxfast"
-
 /*
  * timeout for the USB-transfer
  */
@@ -127,11 +122,6 @@
 #define NUMUSBDUXFAST	16
 
 /*
- * number of subdevices
- */
-#define N_SUBDEVICES	1
-
-/*
  * analogue in subdevice
  */
 #define SUBDEV_AD	0
@@ -200,8 +190,6 @@ struct usbduxfastsub_s {
 static struct usbduxfastsub_s usbduxfastsub[NUMUSBDUXFAST];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
-
-static struct comedi_driver driver_usbduxfast;	/* see below for initializer */
 
 /*
  * bulk transfers to usbduxfast
@@ -1441,6 +1429,149 @@ static void tidy_up(struct usbduxfastsub_s *udfs)
 	udfs->ai_cmd_running = 0;
 }
 
+/* common part of attach and attach_usb */
+static int usbduxfast_attach_common(struct comedi_device *dev,
+				    struct usbduxfastsub_s *udfs,
+				    void *aux_data, int aux_len)
+{
+	int ret;
+	struct comedi_subdevice *s;
+
+	down(&udfs->sem);
+	/* pointer back to the corresponding comedi device */
+	udfs->comedidev = dev;
+	/* trying to upload the firmware into the chip */
+	if (aux_data)
+		firmwareUpload(udfs, aux_data, aux_len);
+	dev->board_name = "usbduxfast";
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret) {
+		up(&udfs->sem);
+		return ret;
+	}
+	/* private structure is also simply the usb-structure */
+	dev->private = udfs;
+	/* the first subdevice is the A/D converter */
+	s = dev->subdevices + SUBDEV_AD;
+	/*
+	 * the URBs get the comedi subdevice which is responsible for reading
+	 * this is the subdevice which reads data
+	 */
+	dev->read_subdev = s;
+	/* the subdevice receives as private structure the usb-structure */
+	s->private = NULL;
+	/* analog input */
+	s->type = COMEDI_SUBD_AI;
+	/* readable and ref is to ground */
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	/* 16 channels */
+	s->n_chan = 16;
+	/* length of the channellist */
+	s->len_chanlist = 16;
+	/* callback functions */
+	s->insn_read = usbduxfast_ai_insn_read;
+	s->do_cmdtest = usbduxfast_ai_cmdtest;
+	s->do_cmd = usbduxfast_ai_cmd;
+	s->cancel = usbduxfast_ai_cancel;
+	/* max value from the A/D converter (12bit+1 bit for overflow) */
+	s->maxdata = 0x1000;
+	/* range table to convert to physical units */
+	s->range_table = &range_usbduxfast_ai_range;
+	/* finally decide that it's attached */
+	udfs->attached = 1;
+	up(&udfs->sem);
+	dev_info(dev->class_dev, "successfully attached to usbduxfast.\n");
+	return 0;
+}
+
+/* is called for COMEDI_DEVCONFIG ioctl (when comedi_config is run) */
+static int usbduxfast_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it)
+{
+	int ret;
+	int index;
+	int i;
+	void *aux_data;
+	int aux_len;
+
+	dev->private = NULL;
+
+	aux_data = comedi_aux_data(it->options, 0);
+	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
+	if (aux_data == NULL)
+		aux_len = 0;
+	else if (aux_len == 0)
+		aux_data = NULL;
+	down(&start_stop_sem);
+	/*
+	 * find a valid device which has been detected by the
+	 * probe function of the usb
+	 */
+	index = -1;
+	for (i = 0; i < NUMUSBDUXFAST; i++) {
+		if (usbduxfastsub[i].probed && !usbduxfastsub[i].attached) {
+			index = i;
+			break;
+		}
+	}
+	if (index < 0) {
+		dev_err(dev->class_dev,
+			"usbduxfast: error: attach failed, no usbduxfast devs connected to the usb bus.\n");
+		ret = -ENODEV;
+	} else
+		ret = usbduxfast_attach_common(dev, &usbduxfastsub[index],
+					       aux_data, aux_len);
+	up(&start_stop_sem);
+	return ret;
+}
+
+/* is called from comedi_usb_auto_config() */
+static int usbduxfast_attach_usb(struct comedi_device *dev,
+				 struct usb_interface *uinterf)
+{
+	int ret;
+	struct usbduxfastsub_s *udfs;
+
+	dev->private = NULL;
+	down(&start_stop_sem);
+	udfs = usb_get_intfdata(uinterf);
+	if (!udfs || !udfs->probed) {
+		dev_err(dev->class_dev,
+			"usbduxfast: error: attach_usb failed, not connected\n");
+		ret = -ENODEV;
+	} else if (udfs->attached) {
+		dev_err(dev->class_dev,
+		       "usbduxfast: error: attach_usb failed, already attached\n");
+		ret = -ENODEV;
+	} else
+		ret = usbduxfast_attach_common(dev, udfs, NULL, 0);
+	up(&start_stop_sem);
+	return ret;
+}
+
+static void usbduxfast_detach(struct comedi_device *dev)
+{
+	struct usbduxfastsub_s *usb = dev->private;
+
+	if (usb) {
+		down(&usb->sem);
+		down(&start_stop_sem);
+		dev->private = NULL;
+		usb->attached = 0;
+		usb->comedidev = NULL;
+		up(&start_stop_sem);
+		up(&usb->sem);
+	}
+}
+
+static struct comedi_driver usbduxfast_driver = {
+	.driver_name	= "usbduxfast",
+	.module		= THIS_MODULE,
+	.attach		= usbduxfast_attach,
+	.detach		= usbduxfast_detach,
+	.attach_usb	= usbduxfast_attach_usb,
+};
+
 static void usbduxfast_firmware_request_complete_handler(const struct firmware
 							 *fw, void *context)
 {
@@ -1463,16 +1594,13 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 		goto out;
 	}
 
-	comedi_usb_auto_config(uinterf, &driver_usbduxfast);
+	comedi_usb_auto_config(uinterf, &usbduxfast_driver);
  out:
 	release_firmware(fw);
 }
 
-/*
- * allocate memory for the urbs and initialise them
- */
-static int usbduxfastsub_probe(struct usb_interface *uinterf,
-			       const struct usb_device_id *id)
+static int usbduxfast_usb_probe(struct usb_interface *uinterf,
+				const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
 	int i;
@@ -1595,7 +1723,7 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	return 0;
 }
 
-static void usbduxfastsub_disconnect(struct usb_interface *intf)
+static void usbduxfast_usb_disconnect(struct usb_interface *intf)
 {
 	struct usbduxfastsub_s *udfs = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -1624,183 +1752,25 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 #endif
 }
 
-/*
- * is called when comedi-config is called
- */
-static int usbduxfast_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
-{
-	int ret;
-	int index;
-	int i;
-	struct comedi_subdevice *s = NULL;
-	dev->private = NULL;
-
-	down(&start_stop_sem);
-	/*
-	 * find a valid device which has been detected by the
-	 * probe function of the usb
-	 */
-	index = -1;
-	for (i = 0; i < NUMUSBDUXFAST; i++) {
-		if (usbduxfastsub[i].probed && !usbduxfastsub[i].attached) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk(KERN_ERR "comedi%d: usbduxfast: error: attach failed, "
-		       "no usbduxfast devs connected to the usb bus.\n",
-		       dev->minor);
-		up(&start_stop_sem);
-		return -ENODEV;
-	}
-
-	down(&(usbduxfastsub[index].sem));
-	/* pointer back to the corresponding comedi device */
-	usbduxfastsub[index].comedidev = dev;
-
-	/* trying to upload the firmware into the chip */
-	if (comedi_aux_data(it->options, 0) &&
-	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		firmwareUpload(&usbduxfastsub[index],
-			       comedi_aux_data(it->options, 0),
-			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	}
-
-	dev->board_name = BOARDNAME;
-
-	/* set number of subdevices */
-	dev->n_subdevices = N_SUBDEVICES;
-
-	/* allocate space for the subdevices */
-	ret = alloc_subdevices(dev, N_SUBDEVICES);
-	if (ret < 0) {
-		printk(KERN_ERR "comedi%d: usbduxfast: error alloc space for "
-		       "subdev\n", dev->minor);
-		up(&(usbduxfastsub[index].sem));
-		up(&start_stop_sem);
-		return ret;
-	}
-
-	printk(KERN_INFO "comedi%d: usbduxfast: usb-device %d is attached to "
-	       "comedi.\n", dev->minor, index);
-	/* private structure is also simply the usb-structure */
-	dev->private = usbduxfastsub + index;
-	/* the first subdevice is the A/D converter */
-	s = dev->subdevices + SUBDEV_AD;
-	/*
-	 * the URBs get the comedi subdevice which is responsible for reading
-	 * this is the subdevice which reads data
-	 */
-	dev->read_subdev = s;
-	/* the subdevice receives as private structure the usb-structure */
-	s->private = NULL;
-	/* analog input */
-	s->type = COMEDI_SUBD_AI;
-	/* readable and ref is to ground */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	/* 16 channels */
-	s->n_chan = 16;
-	/* length of the channellist */
-	s->len_chanlist = 16;
-	/* callback functions */
-	s->insn_read = usbduxfast_ai_insn_read;
-	s->do_cmdtest = usbduxfast_ai_cmdtest;
-	s->do_cmd = usbduxfast_ai_cmd;
-	s->cancel = usbduxfast_ai_cancel;
-	/* max value from the A/D converter (12bit+1 bit for overflow) */
-	s->maxdata = 0x1000;
-	/* range table to convert to physical units */
-	s->range_table = &range_usbduxfast_ai_range;
-
-	/* finally decide that it's attached */
-	usbduxfastsub[index].attached = 1;
-
-	up(&(usbduxfastsub[index].sem));
-	up(&start_stop_sem);
-	printk(KERN_INFO "comedi%d: successfully attached to usbduxfast.\n",
-	       dev->minor);
-
-	return 0;
-}
-
-static void usbduxfast_detach(struct comedi_device *dev)
-{
-	struct usbduxfastsub_s *usb = dev->private;
-
-	if (usb) {
-		down(&usb->sem);
-		down(&start_stop_sem);
-		dev->private = NULL;
-		usb->attached = 0;
-		usb->comedidev = NULL;
-		up(&start_stop_sem);
-		up(&usb->sem);
-	}
-}
-
-/*
- * main driver struct
- */
-static struct comedi_driver driver_usbduxfast = {
-	.driver_name = "usbduxfast",
-	.module = THIS_MODULE,
-	.attach = usbduxfast_attach,
-	.detach = usbduxfast_detach
-};
-
-/*
- * Table with the USB-devices: just now only testing IDs
- */
-static const struct usb_device_id usbduxfastsub_table[] = {
+static const struct usb_device_id usbduxfast_usb_table[] = {
 	/* { USB_DEVICE(0x4b4, 0x8613) }, testing */
-	{USB_DEVICE(0x13d8, 0x0010)},	/* real ID */
-	{USB_DEVICE(0x13d8, 0x0011)},	/* real ID */
-	{}			/* Terminating entry */
+	{ USB_DEVICE(0x13d8, 0x0010) },	/* real ID */
+	{ USB_DEVICE(0x13d8, 0x0011) },	/* real ID */
+	{ }
 };
+MODULE_DEVICE_TABLE(usb, usbduxfast_usb_table);
 
-MODULE_DEVICE_TABLE(usb, usbduxfastsub_table);
-
-/*
- * The usbduxfastsub-driver
- */
-static struct usb_driver usbduxfastsub_driver = {
+static struct usb_driver usbduxfast_usb_driver = {
 #ifdef COMEDI_HAVE_USB_DRIVER_OWNER
-	.owner = THIS_MODULE,
+	.owner		= THIS_MODULE,
 #endif
-	.name = BOARDNAME,
-	.probe = usbduxfastsub_probe,
-	.disconnect = usbduxfastsub_disconnect,
-	.id_table = usbduxfastsub_table
+	.name		= "usbduxfast",
+	.probe		= usbduxfast_usb_probe,
+	.disconnect	= usbduxfast_usb_disconnect,
+	.id_table	= usbduxfast_usb_table,
 };
+module_comedi_usb_driver(usbduxfast_driver, usbduxfast_usb_driver);
 
-/*
- * Can't use the nice macro as I have also to initialise the USB subsystem:
- * registering the usb-system _and_ the comedi-driver
- */
-static int __init init_usbduxfast(void)
-{
-	printk(KERN_INFO
-	       KBUILD_MODNAME ": " DRIVER_VERSION ":" DRIVER_DESC "\n");
-	usb_register(&usbduxfastsub_driver);
-	comedi_driver_register(&driver_usbduxfast);
-	return 0;
-}
-
-/*
- * deregistering the comedi driver and the usb-subsystem
- */
-static void __exit exit_usbduxfast(void)
-{
-	comedi_driver_unregister(&driver_usbduxfast);
-	usb_deregister(&usbduxfastsub_driver);
-}
-
-module_init(init_usbduxfast);
-module_exit(exit_usbduxfast);
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Bernd Porr, BerndPorr@f2s.com");
+MODULE_DESCRIPTION("USB-DUXfast, BerndPorr@f2s.com");
 MODULE_LICENSE("GPL");

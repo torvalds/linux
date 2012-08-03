@@ -70,6 +70,9 @@ increase the chances of your change being accepted.
   review more difficult. It may also result in code which is more complicated
   than necessary. Use inline functions or just regular functions instead.
 
+* Use devres functions whenever possible to allocate resources. For rationale
+  and supported functions, please see Documentation/driver-model/devres.txt.
+
 * If the driver has a detect function, make sure it is silent. Debug messages
   and messages printed after a successful detection are acceptable, but it
   must not print messages such as "Chip XXX not found/supported".

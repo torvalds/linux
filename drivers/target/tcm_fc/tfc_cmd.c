@@ -215,7 +215,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 		 */
 		if ((ep->xid <= lport->lro_xid) &&
 		    (fh->fh_r_ctl == FC_RCTL_DD_DATA_DESC)) {
-			if ((se_cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) &&
+			if ((se_cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) &&
 			    lport->tt.ddp_target(lport, ep->xid,
 						 se_cmd->t_data_sg,
 						 se_cmd->t_data_nents))
@@ -543,9 +543,11 @@ static void ft_send_work(struct work_struct *work)
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
 	 * directly from ft_check_stop_free callback in response path.
 	 */
-	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, fcp->fc_cdb,
-			&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
-			ntohl(fcp->fc_dl), task_attr, data_dir, 0);
+	if (target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, fcp->fc_cdb,
+			      &cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
+			      ntohl(fcp->fc_dl), task_attr, data_dir, 0))
+		goto err;
+
 	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
 	return;
 

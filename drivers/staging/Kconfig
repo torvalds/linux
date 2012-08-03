@@ -84,7 +84,7 @@ source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
 
-source "drivers/staging/sm7xx/Kconfig"
+source "drivers/staging/sm7xxfb/Kconfig"
 
 source "drivers/staging/crystalhd/Kconfig"
 
@@ -131,5 +131,9 @@ source "drivers/staging/ccg/Kconfig"
 source "drivers/staging/ipack/Kconfig"
 
 source "drivers/staging/gdm72xx/Kconfig"
+
+source "drivers/staging/csr/Kconfig"
+
+source "drivers/staging/omap-thermal/Kconfig"
 
 endif # STAGING

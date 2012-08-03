@@ -157,25 +157,24 @@ static unsigned long __init xen_populate_chunk(
 	unsigned long dest_pfn;
 
 	for (i = 0, entry = list; i < map_size; i++, entry++) {
-		unsigned long credits = credits_left;
 		unsigned long s_pfn;
 		unsigned long e_pfn;
 		unsigned long pfns;
 		long capacity;
 
-		if (credits <= 0)
+		if (credits_left <= 0)
 			break;
 
 		if (entry->type != E820_RAM)
 			continue;
 
-		e_pfn = PFN_UP(entry->addr + entry->size);
+		e_pfn = PFN_DOWN(entry->addr + entry->size);
 
 		/* We only care about E820 after the xen_start_info->nr_pages */
 		if (e_pfn <= max_pfn)
 			continue;
 
-		s_pfn = PFN_DOWN(entry->addr);
+		s_pfn = PFN_UP(entry->addr);
 		/* If the E820 falls within the nr_pages, we want to start
 		 * at the nr_pages PFN.
 		 * If that would mean going past the E820 entry, skip it
@@ -184,23 +183,19 @@ static unsigned long __init xen_populate_chunk(
 			capacity = e_pfn - max_pfn;
 			dest_pfn = max_pfn;
 		} else {
-			/* last_pfn MUST be within E820_RAM regions */
-			if (*last_pfn && e_pfn >= *last_pfn)
-				s_pfn = *last_pfn;
 			capacity = e_pfn - s_pfn;
 			dest_pfn = s_pfn;
 		}
-		/* If we had filled this E820_RAM entry, go to the next one. */
-		if (capacity <= 0)
-			continue;
 
-		if (credits > capacity)
-			credits = capacity;
+		if (credits_left < capacity)
+			capacity = credits_left;
 
-		pfns = xen_do_chunk(dest_pfn, dest_pfn + credits, false);
+		pfns = xen_do_chunk(dest_pfn, dest_pfn + capacity, false);
 		done += pfns;
-		credits_left -= pfns;
 		*last_pfn = (dest_pfn + pfns);
+		if (pfns < capacity)
+			break;
+		credits_left -= pfns;
 	}
 	return done;
 }

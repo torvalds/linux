@@ -1040,7 +1040,8 @@ static struct platform_driver snd_mts64_driver = {
 	.probe  = snd_mts64_probe,
 	.remove = __devexit_p(snd_mts64_remove),
 	.driver = {
-		.name = PLATFORM_DRIVER
+		.name = PLATFORM_DRIVER,
+		.owner	= THIS_MODULE,
 	}
 };
 

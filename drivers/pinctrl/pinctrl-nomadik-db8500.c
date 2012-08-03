@@ -467,9 +467,12 @@ static const unsigned mc1_a_1_pins[] = { DB8500_PIN_AH16, DB8500_PIN_AG15,
 	DB8500_PIN_AH15 };
 static const unsigned mc1dir_a_1_pins[] = { DB8500_PIN_AH13, DB8500_PIN_AG12,
 	DB8500_PIN_AH12, DB8500_PIN_AH11 };
-static const unsigned hsir_a_1_pins[] = { DB8500_PIN_AG10, DB8500_PIN_AH10 };
-static const unsigned hsit_a_1_pins[] = { DB8500_PIN_AJ11, DB8500_PIN_AJ9,
-	DB8500_PIN_AH9, DB8500_PIN_AG9, DB8500_PIN_AG8, DB8500_PIN_AF8 };
+static const unsigned hsir_a_1_pins[] = { DB8500_PIN_AG10, DB8500_PIN_AH10,
+	DB8500_PIN_AJ11 };
+static const unsigned hsit_a_1_pins[] = { DB8500_PIN_AJ9, DB8500_PIN_AH9,
+	DB8500_PIN_AG9, DB8500_PIN_AG8, DB8500_PIN_AF8 };
+static const unsigned hsit_a_2_pins[] = { DB8500_PIN_AJ9, DB8500_PIN_AH9,
+	DB8500_PIN_AG9, DB8500_PIN_AG8 };
 static const unsigned clkout_a_1_pins[] = { DB8500_PIN_AH7, DB8500_PIN_AJ6 };
 static const unsigned clkout_a_2_pins[] = { DB8500_PIN_AG7, DB8500_PIN_AF7 };
 static const unsigned usb_a_1_pins[] = { DB8500_PIN_AF28, DB8500_PIN_AE29,
@@ -508,9 +511,11 @@ static const unsigned sm_b_1_pins[] = { DB8500_PIN_C6, DB8500_PIN_B3,
 	DB8500_PIN_D9, DB8500_PIN_A5, DB8500_PIN_B4, DB8500_PIN_C8,
 	DB8500_PIN_A12, DB8500_PIN_C10, DB8500_PIN_B10, DB8500_PIN_B9,
 	DB8500_PIN_A9, DB8500_PIN_C7, DB8500_PIN_A7, DB8500_PIN_C5,
-	DB8500_PIN_C9, DB8500_PIN_B14 };
-/* This chip select pin can be "ps0" in alt B so have it separately */
+	DB8500_PIN_C9 };
+/* This chip select pin can be "ps0" in alt C so have it separately */
 static const unsigned smcs0_b_1_pins[] = { DB8500_PIN_E8 };
+/* This chip select pin can be "ps1" in alt C so have it separately */
+static const unsigned smcs1_b_1_pins[] = { DB8500_PIN_B14 };
 static const unsigned ipgpio7_b_1_pins[] = { DB8500_PIN_B11 };
 static const unsigned ipgpio2_b_1_pins[] = { DB8500_PIN_C12 };
 static const unsigned ipgpio3_b_1_pins[] = { DB8500_PIN_C11 };
@@ -572,6 +577,7 @@ static const unsigned mc2rstn_c_1_pins[] = { DB8500_PIN_C8 };
 static const unsigned kp_c_1_pins[] = { DB8500_PIN_C9, DB8500_PIN_B11,
 	DB8500_PIN_C12, DB8500_PIN_C11, DB8500_PIN_D17, DB8500_PIN_D16,
 	DB8500_PIN_C23, DB8500_PIN_D23 };
+static const unsigned smps0_c_1_pins[] = { DB8500_PIN_E8 };
 static const unsigned smps1_c_1_pins[] = { DB8500_PIN_B14 };
 static const unsigned u2rxtx_c_3_pins[] = { DB8500_PIN_B17, DB8500_PIN_C16 };
 static const unsigned stmape_c_2_pins[] = { DB8500_PIN_C19, DB8500_PIN_C17,
@@ -595,6 +601,8 @@ static const unsigned kp_oc1_1_pins[] = { DB8500_PIN_C6, DB8500_PIN_B3,
 	DB8500_PIN_D6, DB8500_PIN_B7 };
 static const unsigned spi2_oc1_1_pins[] = { DB8500_PIN_AH13, DB8500_PIN_AG12,
 	DB8500_PIN_AH12, DB8500_PIN_AH11 };
+static const unsigned spi2_oc1_2_pins[] = { DB8500_PIN_AH13, DB8500_PIN_AH12,
+	DB8500_PIN_AH11 };
 
 #define DB8500_PIN_GROUP(a,b) { .name = #a, .pins = a##_pins,		\
 			.npins = ARRAY_SIZE(a##_pins), .altsetting = b }
@@ -610,6 +618,8 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(msp0tfstck_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(msp0rfsrck_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(mc0_a_1, NMK_GPIO_ALT_A),
+	DB8500_PIN_GROUP(mc0_dat47_a_1, NMK_GPIO_ALT_A),
+	DB8500_PIN_GROUP(mc0dat31dir_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(msp1txrx_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(msp1_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(lcdb_a_1, NMK_GPIO_ALT_A),
@@ -631,6 +641,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(mc1_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(hsir_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(hsit_a_1, NMK_GPIO_ALT_A),
+	DB8500_PIN_GROUP(hsit_a_2, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(clkout_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(clkout_a_2, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(usb_a_1, NMK_GPIO_ALT_A),
@@ -653,6 +664,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(kp_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(sm_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(smcs0_b_1, NMK_GPIO_ALT_B),
+	DB8500_PIN_GROUP(smcs1_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(ipgpio7_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(ipgpio2_b_1, NMK_GPIO_ALT_B),
 	DB8500_PIN_GROUP(ipgpio3_b_1, NMK_GPIO_ALT_B),
@@ -693,6 +705,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(mc5_c_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(mc2rstn_c_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(kp_c_1, NMK_GPIO_ALT_C),
+	DB8500_PIN_GROUP(smps0_c_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(smps1_c_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(u2rxtx_c_3, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(stmape_c_2, NMK_GPIO_ALT_C),
@@ -709,6 +722,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	/* Other alt C1 column, these are still configured as alt C */
 	DB8500_PIN_GROUP(kp_oc1_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(spi2_oc1_1, NMK_GPIO_ALT_C),
+	DB8500_PIN_GROUP(spi2_oc1_2, NMK_GPIO_ALT_C),
 };
 
 /* We use this macro to define the groups applicable to a function */
@@ -731,7 +745,7 @@ DB8500_FUNC_GROUPS(ipi2c, "ipi2c_a_1", "ipi2c_a_2");
  */
 DB8500_FUNC_GROUPS(msp0, "msp0txrx_a_1", "msp0tfstck_a_1", "msp0rfstck_a_1",
 		   "msp0txrx_b_1", "msp0sck_b_1");
-DB8500_FUNC_GROUPS(mc0, "mc0_a_1");
+DB8500_FUNC_GROUPS(mc0, "mc0_a_1", "mc0_dat47_a_1", "mc0dat31dir_a_1");
 /* MSP0 can swap RX/TX like MSP0 but has no SCK pin available */
 DB8500_FUNC_GROUPS(msp1, "msp1txrx_a_1", "msp1_a_1", "msp1txrx_b_1");
 DB8500_FUNC_GROUPS(lcdb, "lcdb_a_1");
@@ -752,7 +766,7 @@ DB8500_FUNC_GROUPS(ipgpio, "ipgpio0_a_1", "ipgpio1_a_1", "ipgpio7_b_1",
 DB8500_FUNC_GROUPS(msp2, "msp2sck_a_1", "msp2_a_1");
 DB8500_FUNC_GROUPS(mc4, "mc4_a_1", "mc4rstn_c_1");
 DB8500_FUNC_GROUPS(mc1, "mc1_a_1", "mc1dir_a_1");
-DB8500_FUNC_GROUPS(hsi, "hsir1_a_1", "hsit1_a_1");
+DB8500_FUNC_GROUPS(hsi, "hsir1_a_1", "hsit1_a_1", "hsit_a_2");
 DB8500_FUNC_GROUPS(clkout, "clkout_a_1", "clkout_a_2", "clkout_c_1");
 DB8500_FUNC_GROUPS(usb, "usb_a_1");
 DB8500_FUNC_GROUPS(trig, "trig_b_1");
@@ -768,7 +782,8 @@ DB8500_FUNC_GROUPS(uartmod, "uartmodtx_b_1", "uartmodrx_b_1", "uartmodrx_b_2",
 DB8500_FUNC_GROUPS(stmmod, "stmmod_b_1", "stmmod_c_1");
 DB8500_FUNC_GROUPS(spi3, "spi3_b_1");
 /* Select between CS0 on alt B or PS1 on alt C */
-DB8500_FUNC_GROUPS(sm, "sm_b_1", "smcs0_b_1", "smcleale_c_1", "smps1_c_1");
+DB8500_FUNC_GROUPS(sm, "sm_b_1", "smcs0_b_1", "smcs1_b_1", "smcleale_c_1",
+		   "smps0_c_1", "smps1_c_1");
 DB8500_FUNC_GROUPS(lcda, "lcdaclk_b_1", "lcda_b_1");
 DB8500_FUNC_GROUPS(ddrtrig, "ddrtrig_b_1");
 DB8500_FUNC_GROUPS(pwl, "pwl_b_1", "pwl_b_2", "pwl_b_3", "pwl_b_4");
@@ -783,7 +798,7 @@ DB8500_FUNC_GROUPS(mc5, "mc5_c_1");
 DB8500_FUNC_GROUPS(usbsim, "usbsim_c_1", "usbsim_c_2");
 DB8500_FUNC_GROUPS(i2c3, "i2c3_c_1", "i2c3_c_2");
 DB8500_FUNC_GROUPS(spi0, "spi0_c_1");
-DB8500_FUNC_GROUPS(spi2, "spi2_oc1_1");
+DB8500_FUNC_GROUPS(spi2, "spi2_oc1_1", "spi2_oc1_2");
 
 #define FUNCTION(fname)					\
 	{						\

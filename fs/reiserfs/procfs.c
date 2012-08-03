@@ -403,7 +403,7 @@ static void *r_start(struct seq_file *m, loff_t * pos)
 	if (l)
 		return NULL;
 
-	if (IS_ERR(sget(&reiserfs_fs_type, test_sb, set_sb, s)))
+	if (IS_ERR(sget(&reiserfs_fs_type, test_sb, set_sb, 0, s)))
 		return NULL;
 
 	up_write(&s->s_umount);

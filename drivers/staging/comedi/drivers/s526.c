@@ -200,26 +200,13 @@ static const struct s526_board s526_boards[] = {
 #define ADDR_REG(reg) (dev->iobase + (reg))
 #define ADDR_CHAN_REG(reg, chan) (dev->iobase + (reg) + (chan) * 8)
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct s526_board *)dev->board_ptr)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device
    struct.
 */
 struct s526_private {
-
-	int data;
-
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
-	/* Used for AO readback */
 	unsigned int ao_readback[2];
-
 	struct s526GPCTConfig s526_gpct_config[4];
 	unsigned short s526_ai_config;
 };
@@ -683,9 +670,6 @@ static int s526_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {
@@ -702,7 +686,7 @@ static int s526_dio_insn_bits(struct comedi_device *dev,
 	 * it was a purely digital output subdevice */
 	/* data[1]=s->state & 0xFF; */
 
-	return 2;
+	return insn->n;
 }
 
 static int s526_dio_insn_config(struct comedi_device *dev,
@@ -744,9 +728,11 @@ static int s526_dio_insn_config(struct comedi_device *dev,
 
 static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct s526_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int iobase;
 	int i, n;
+	int ret;
 /* short value; */
 /* int subdev_channel = 0; */
 	union cmReg cmReg;
@@ -754,7 +740,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi%d: s526: ", dev->minor);
 
 	iobase = it->options[0];
-	if (!iobase || !request_region(iobase, S526_IOSIZE, thisboard->name)) {
+	if (!iobase || !request_region(iobase, S526_IOSIZE, board->name)) {
 		comedi_error(dev, "I/O port conflict");
 		return -EIO;
 	}
@@ -769,13 +755,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	***/
 
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_ptr = &s526_boards[0];
-
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 /*
  * Allocate the private structure area.  alloc_private() is a
@@ -784,20 +764,16 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct s526_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	dev->n_subdevices = 4;
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* GENERAL-PURPOSE COUNTER/TIME (GPCT) */
 	s->type = COMEDI_SUBD_COUNTER;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_LSAMPL;
 	/* KG: What does SDF_LSAMPL (see multiq3.c) mean? */
-	s->n_chan = thisboard->gpct_chans;
+	s->n_chan = board->gpct_chans;
 	s->maxdata = 0x00ffffff;	/* 24 bit counter */
 	s->insn_read = s526_gpct_rinsn;
 	s->insn_config = s526_gpct_insn_config;
@@ -838,7 +814,7 @@ static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = dev->subdevices + 3;
 	/* digital i/o subdevice */
-	if (thisboard->have_dio) {
+	if (board->have_dio) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan = 8;

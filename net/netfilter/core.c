@@ -264,6 +264,13 @@ void nf_conntrack_destroy(struct nf_conntrack *nfct)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(nf_conntrack_destroy);
+
+struct nfq_ct_hook __rcu *nfq_ct_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfq_ct_hook);
+
+struct nfq_ct_nat_hook __rcu *nfq_ct_nat_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nfq_ct_nat_hook);
+
 #endif /* CONFIG_NF_CONNTRACK */
 
 #ifdef CONFIG_PROC_FS

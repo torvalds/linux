@@ -1,7 +1,5 @@
 /*
- * linux/drivers/s390/cio/thinint_qdio.c
- *
- * Copyright 2000,2009 IBM Corp.
+ * Copyright IBM Corp. 2000, 2009
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>

@@ -214,7 +214,6 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
-	unsigned char datawidth;
 };
 
 /* Find a data format by a pixel code */

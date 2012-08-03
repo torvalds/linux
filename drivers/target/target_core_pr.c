@@ -507,7 +507,7 @@ static int core_scsi3_pr_seq_non_holder(
 	 * Check if write exclusive initiator ports *NOT* holding the
 	 * WRITE_EXCLUSIVE_* reservation.
 	 */
-	if ((we) && !(registered_nexus)) {
+	if (we && !registered_nexus) {
 		if (cmd->data_direction == DMA_TO_DEVICE) {
 			/*
 			 * Conflict for write exclusive
@@ -2486,7 +2486,7 @@ static int core_scsi3_pro_reserve(
 	 */
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
-	if ((pr_res_holder)) {
+	if (pr_res_holder) {
 		/*
 		 * From spc4r17 Section 5.7.9: Reserving:
 		 *
@@ -4030,7 +4030,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 
 	spin_lock(&se_dev->dev_reservation_lock);
 	pr_reg = se_dev->dev_pr_res_holder;
-	if ((pr_reg)) {
+	if (pr_reg) {
 		/*
 		 * Set the hardcoded Additional Length
 		 */

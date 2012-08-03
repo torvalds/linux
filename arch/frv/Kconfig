@@ -9,6 +9,7 @@ config FRV
 	select GENERIC_IRQ_SHOW
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CPU_DEVICES
+	select ARCH_WANT_IPC_PARSE_VERSION
 
 config ZONE_DMA
 	bool

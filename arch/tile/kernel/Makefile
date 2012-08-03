@@ -14,4 +14,9 @@ obj-$(CONFIG_SMP)		+= smpboot.o smp.o tlb.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_EARLY_PRINTK)	+= early_printk.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel_$(BITS).o
+ifdef CONFIG_TILEGX
+obj-$(CONFIG_PCI)		+= pci_gx.o
+else
 obj-$(CONFIG_PCI)		+= pci.o
+endif
+obj-$(CONFIG_TILE_USB)		+= usb.o
