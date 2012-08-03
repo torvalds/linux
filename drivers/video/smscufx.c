@@ -1,7 +1,7 @@
 /*
  * smscufx.c -- Framebuffer driver for SMSC UFX USB controller
  *
- * Copyright (C) 2011 Steve Glendinning <steve.glendinning@smsc.com>
+ * Copyright (C) 2011 Steve Glendinning <steve.glendinning@shawell.net>
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
@@ -904,7 +904,7 @@ static ssize_t ufx_ops_write(struct fb_info *info, const char __user *buf,
 	result = fb_sys_write(info, buf, count, ppos);
 
 	if (result > 0) {
-		int start = max((int)(offset / info->fix.line_length) - 1, 0);
+		int start = max((int)(offset / info->fix.line_length), 0);
 		int lines = min((u32)((result / info->fix.line_length) + 1),
 				(u32)info->var.yres);
 
@@ -1002,7 +1002,7 @@ static int ufx_ops_ioctl(struct fb_info *info, unsigned int cmd,
 	/* TODO: Help propose a standard fb.h ioctl to report mmap damage */
 	if (cmd == UFX_IOCTL_REPORT_DAMAGE) {
 		/* If we have a damage-aware client, turn fb_defio "off"
-		 * To avoid perf imact of unecessary page fault handling.
+		 * To avoid perf imact of unnecessary page fault handling.
 		 * Done by resetting the delay for this fb_info to a very
 		 * long period. Pages will become writable and stay that way.
 		 * Reset to normal value when all clients have closed this fb.
@@ -1466,7 +1466,7 @@ static int ufx_read_edid(struct ufx_data *dev, u8 *edid, int edid_len)
 	/* all FF's in the first 16 bytes indicates nothing is connected */
 	for (i = 0; i < 16; i++) {
 		if (edid[i] != 0xFF) {
-			pr_debug("edid data read succesfully");
+			pr_debug("edid data read successfully");
 			return EDID_LENGTH;
 		}
 	}
@@ -1972,6 +1972,6 @@ MODULE_PARM_DESC(console, "Allow fbcon to be used on this display");
 module_param(fb_defio, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(fb_defio, "Enable fb_defio mmap support");
 
-MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@shawell.net>");
 MODULE_DESCRIPTION("SMSC UFX kernel framebuffer driver");
 MODULE_LICENSE("GPL");

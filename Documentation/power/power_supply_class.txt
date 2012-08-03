@@ -112,14 +112,24 @@ CHARGE_COUNTER - the current charge counter (in µAh).  This could easily
 be negative; there is no empty or full value.  It is only useful for
 relative, time-based measurements.
 
+CONSTANT_CHARGE_CURRENT - constant charge current programmed by charger.
+
+CONSTANT_CHARGE_VOLTAGE - constant charge voltage programmed by charger.
+
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 
 CAPACITY - capacity in percents.
+CAPACITY_ALERT_MIN - minimum capacity alert value in percents.
+CAPACITY_ALERT_MAX - maximum capacity alert value in percents.
 CAPACITY_LEVEL - capacity level. This corresponds to
 POWER_SUPPLY_CAPACITY_LEVEL_*.
 
 TEMP - temperature of the power supply.
+TEMP_ALERT_MIN - minimum battery temperature alert value in milli centigrade.
+TEMP_ALERT_MAX - maximum battery temperature alert value in milli centigrade.
 TEMP_AMBIENT - ambient temperature.
+TEMP_AMBIENT_ALERT_MIN - minimum ambient temperature alert value in milli centigrade.
+TEMP_AMBIENT_ALERT_MAX - maximum ambient temperature alert value in milli centigrade.
 
 TIME_TO_EMPTY - seconds left for battery to be considered empty (i.e.
 while battery powers a load)

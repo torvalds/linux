@@ -426,6 +426,18 @@ struct fc_host_statistics {
 	u64 fcp_control_requests;
 	u64 fcp_input_megabytes;
 	u64 fcp_output_megabytes;
+	u64 fcp_packet_alloc_failures;	/* fcp packet allocation failures */
+	u64 fcp_packet_aborts;		/* fcp packet aborted */
+	u64 fcp_frame_alloc_failures;	/* fcp frame allocation failures */
+
+	/* fc exches statistics */
+	u64 fc_no_free_exch;		/* no free exch memory */
+	u64 fc_no_free_exch_xid;	/* no free exch id */
+	u64 fc_xid_not_found;		/* exch not found for a response */
+	u64 fc_xid_busy;		/* exch exist for new a request */
+	u64 fc_seq_not_found;		/* seq is not found for exchange */
+	u64 fc_non_bls_resp;		/* a non BLS response frame with
+					   a sequence responder in new exch */
 };
 
 

@@ -1498,24 +1498,10 @@ static int pdc_sata_init_one(struct pci_dev *pdev,
 				 IRQF_SHARED, &pdc_sata_sht);
 }
 
-
-static int __init pdc_sata_init(void)
-{
-	return pci_register_driver(&pdc_sata_pci_driver);
-}
-
-
-static void __exit pdc_sata_exit(void)
-{
-	pci_unregister_driver(&pdc_sata_pci_driver);
-}
-
+module_pci_driver(pdc_sata_pci_driver);
 
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Promise SATA low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pdc_sata_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(pdc_sata_init);
-module_exit(pdc_sata_exit);

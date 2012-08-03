@@ -11,7 +11,7 @@ extern ia64_mv_dma_get_ops			hwsw_dma_get_ops;
  * platform's machvec structure.  When compiling a non-generic kernel,
  * the macros are used directly.
  */
-#define platform_name				"hpzx1_swiotlb"
+#define ia64_platform_name			"hpzx1_swiotlb"
 #define platform_setup				dig_setup
 #define platform_dma_init			machvec_noop
 #define platform_dma_get_ops			hwsw_dma_get_ops

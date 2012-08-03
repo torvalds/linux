@@ -1,5 +1,5 @@
 /*
- * kvm_virtio.h - definition for virtio for kvm on s390
+ * definition for virtio for kvm on s390
  *
  * Copyright IBM Corp. 2008
  *

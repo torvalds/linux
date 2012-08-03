@@ -489,9 +489,13 @@ static int s5p_jpeg_querycap(struct file *file, void *priv,
 			sizeof(cap->card));
 	}
 	cap->bus_info[0] = 0;
-	cap->capabilities = V4L2_CAP_STREAMING |
-			    V4L2_CAP_VIDEO_CAPTURE |
-			    V4L2_CAP_VIDEO_OUTPUT;
+	/*
+	 * This is only a mem-to-mem video device. The capture and output
+	 * device capability flags are left only for backward compatibility
+	 * and are scheduled for removal.
+	 */
+	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M |
+			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT;
 	return 0;
 }
 
@@ -824,10 +828,10 @@ static int s5p_jpeg_g_selection(struct file *file, void *priv,
 
 	/* For JPEG blob active == default == bounds */
 	switch (s->target) {
-	case V4L2_SEL_TGT_CROP_ACTIVE:
+	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 		s->r.width = ctx->out_q.w;
 		s->r.height = ctx->out_q.h;
@@ -1503,29 +1507,7 @@ static struct platform_driver s5p_jpeg_driver = {
 	},
 };
 
-static int __init
-s5p_jpeg_register(void)
-{
-	int ret;
-
-	pr_info("S5P JPEG V4L2 Driver, (c) 2011 Samsung Electronics\n");
-
-	ret = platform_driver_register(&s5p_jpeg_driver);
-
-	if (ret)
-		pr_err("%s: failed to register jpeg driver\n", __func__);
-
-	return ret;
-}
-
-static void __exit
-s5p_jpeg_unregister(void)
-{
-	platform_driver_unregister(&s5p_jpeg_driver);
-}
-
-module_init(s5p_jpeg_register);
-module_exit(s5p_jpeg_unregister);
+module_platform_driver(s5p_jpeg_driver);
 
 MODULE_AUTHOR("Andrzej Pietrasiewicz <andrzej.p@samsung.com>");
 MODULE_DESCRIPTION("Samsung JPEG codec driver");

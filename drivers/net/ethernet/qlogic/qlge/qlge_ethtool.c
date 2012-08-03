@@ -35,10 +35,152 @@
 
 #include "qlge.h"
 
+struct ql_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	int sizeof_stat;
+	int stat_offset;
+};
+
+#define QL_SIZEOF(m) FIELD_SIZEOF(struct ql_adapter, m)
+#define QL_OFF(m) offsetof(struct ql_adapter, m)
+
+static const struct ql_stats ql_gstrings_stats[] = {
+	{"tx_pkts", QL_SIZEOF(nic_stats.tx_pkts), QL_OFF(nic_stats.tx_pkts)},
+	{"tx_bytes", QL_SIZEOF(nic_stats.tx_bytes), QL_OFF(nic_stats.tx_bytes)},
+	{"tx_mcast_pkts", QL_SIZEOF(nic_stats.tx_mcast_pkts),
+					QL_OFF(nic_stats.tx_mcast_pkts)},
+	{"tx_bcast_pkts", QL_SIZEOF(nic_stats.tx_bcast_pkts),
+					QL_OFF(nic_stats.tx_bcast_pkts)},
+	{"tx_ucast_pkts", QL_SIZEOF(nic_stats.tx_ucast_pkts),
+					QL_OFF(nic_stats.tx_ucast_pkts)},
+	{"tx_ctl_pkts", QL_SIZEOF(nic_stats.tx_ctl_pkts),
+					QL_OFF(nic_stats.tx_ctl_pkts)},
+	{"tx_pause_pkts", QL_SIZEOF(nic_stats.tx_pause_pkts),
+					QL_OFF(nic_stats.tx_pause_pkts)},
+	{"tx_64_pkts", QL_SIZEOF(nic_stats.tx_64_pkt),
+					QL_OFF(nic_stats.tx_64_pkt)},
+	{"tx_65_to_127_pkts", QL_SIZEOF(nic_stats.tx_65_to_127_pkt),
+					QL_OFF(nic_stats.tx_65_to_127_pkt)},
+	{"tx_128_to_255_pkts", QL_SIZEOF(nic_stats.tx_128_to_255_pkt),
+					QL_OFF(nic_stats.tx_128_to_255_pkt)},
+	{"tx_256_511_pkts", QL_SIZEOF(nic_stats.tx_256_511_pkt),
+					QL_OFF(nic_stats.tx_256_511_pkt)},
+	{"tx_512_to_1023_pkts",	QL_SIZEOF(nic_stats.tx_512_to_1023_pkt),
+					QL_OFF(nic_stats.tx_512_to_1023_pkt)},
+	{"tx_1024_to_1518_pkts", QL_SIZEOF(nic_stats.tx_1024_to_1518_pkt),
+					QL_OFF(nic_stats.tx_1024_to_1518_pkt)},
+	{"tx_1519_to_max_pkts",	QL_SIZEOF(nic_stats.tx_1519_to_max_pkt),
+					QL_OFF(nic_stats.tx_1519_to_max_pkt)},
+	{"tx_undersize_pkts", QL_SIZEOF(nic_stats.tx_undersize_pkt),
+					QL_OFF(nic_stats.tx_undersize_pkt)},
+	{"tx_oversize_pkts", QL_SIZEOF(nic_stats.tx_oversize_pkt),
+					QL_OFF(nic_stats.tx_oversize_pkt)},
+	{"rx_bytes", QL_SIZEOF(nic_stats.rx_bytes), QL_OFF(nic_stats.rx_bytes)},
+	{"rx_bytes_ok",	QL_SIZEOF(nic_stats.rx_bytes_ok),
+					QL_OFF(nic_stats.rx_bytes_ok)},
+	{"rx_pkts", QL_SIZEOF(nic_stats.rx_pkts), QL_OFF(nic_stats.rx_pkts)},
+	{"rx_pkts_ok", QL_SIZEOF(nic_stats.rx_pkts_ok),
+					QL_OFF(nic_stats.rx_pkts_ok)},
+	{"rx_bcast_pkts", QL_SIZEOF(nic_stats.rx_bcast_pkts),
+					QL_OFF(nic_stats.rx_bcast_pkts)},
+	{"rx_mcast_pkts", QL_SIZEOF(nic_stats.rx_mcast_pkts),
+					QL_OFF(nic_stats.rx_mcast_pkts)},
+	{"rx_ucast_pkts", QL_SIZEOF(nic_stats.rx_ucast_pkts),
+					QL_OFF(nic_stats.rx_ucast_pkts)},
+	{"rx_undersize_pkts", QL_SIZEOF(nic_stats.rx_undersize_pkts),
+					QL_OFF(nic_stats.rx_undersize_pkts)},
+	{"rx_oversize_pkts", QL_SIZEOF(nic_stats.rx_oversize_pkts),
+					QL_OFF(nic_stats.rx_oversize_pkts)},
+	{"rx_jabber_pkts", QL_SIZEOF(nic_stats.rx_jabber_pkts),
+					QL_OFF(nic_stats.rx_jabber_pkts)},
+	{"rx_undersize_fcerr_pkts",
+		QL_SIZEOF(nic_stats.rx_undersize_fcerr_pkts),
+				QL_OFF(nic_stats.rx_undersize_fcerr_pkts)},
+	{"rx_drop_events", QL_SIZEOF(nic_stats.rx_drop_events),
+					QL_OFF(nic_stats.rx_drop_events)},
+	{"rx_fcerr_pkts", QL_SIZEOF(nic_stats.rx_fcerr_pkts),
+					QL_OFF(nic_stats.rx_fcerr_pkts)},
+	{"rx_align_err", QL_SIZEOF(nic_stats.rx_align_err),
+					QL_OFF(nic_stats.rx_align_err)},
+	{"rx_symbol_err", QL_SIZEOF(nic_stats.rx_symbol_err),
+					QL_OFF(nic_stats.rx_symbol_err)},
+	{"rx_mac_err", QL_SIZEOF(nic_stats.rx_mac_err),
+					QL_OFF(nic_stats.rx_mac_err)},
+	{"rx_ctl_pkts",	QL_SIZEOF(nic_stats.rx_ctl_pkts),
+					QL_OFF(nic_stats.rx_ctl_pkts)},
+	{"rx_pause_pkts", QL_SIZEOF(nic_stats.rx_pause_pkts),
+					QL_OFF(nic_stats.rx_pause_pkts)},
+	{"rx_64_pkts", QL_SIZEOF(nic_stats.rx_64_pkts),
+					QL_OFF(nic_stats.rx_64_pkts)},
+	{"rx_65_to_127_pkts", QL_SIZEOF(nic_stats.rx_65_to_127_pkts),
+					QL_OFF(nic_stats.rx_65_to_127_pkts)},
+	{"rx_128_255_pkts", QL_SIZEOF(nic_stats.rx_128_255_pkts),
+					QL_OFF(nic_stats.rx_128_255_pkts)},
+	{"rx_256_511_pkts", QL_SIZEOF(nic_stats.rx_256_511_pkts),
+					QL_OFF(nic_stats.rx_256_511_pkts)},
+	{"rx_512_to_1023_pkts",	QL_SIZEOF(nic_stats.rx_512_to_1023_pkts),
+					QL_OFF(nic_stats.rx_512_to_1023_pkts)},
+	{"rx_1024_to_1518_pkts", QL_SIZEOF(nic_stats.rx_1024_to_1518_pkts),
+					QL_OFF(nic_stats.rx_1024_to_1518_pkts)},
+	{"rx_1519_to_max_pkts",	QL_SIZEOF(nic_stats.rx_1519_to_max_pkts),
+					QL_OFF(nic_stats.rx_1519_to_max_pkts)},
+	{"rx_len_err_pkts", QL_SIZEOF(nic_stats.rx_len_err_pkts),
+					QL_OFF(nic_stats.rx_len_err_pkts)},
+	{"rx_code_err",	QL_SIZEOF(nic_stats.rx_code_err),
+					QL_OFF(nic_stats.rx_code_err)},
+	{"rx_oversize_err", QL_SIZEOF(nic_stats.rx_oversize_err),
+					QL_OFF(nic_stats.rx_oversize_err)},
+	{"rx_undersize_err", QL_SIZEOF(nic_stats.rx_undersize_err),
+					QL_OFF(nic_stats.rx_undersize_err)},
+	{"rx_preamble_err", QL_SIZEOF(nic_stats.rx_preamble_err),
+					QL_OFF(nic_stats.rx_preamble_err)},
+	{"rx_frame_len_err", QL_SIZEOF(nic_stats.rx_frame_len_err),
+					QL_OFF(nic_stats.rx_frame_len_err)},
+	{"rx_crc_err", QL_SIZEOF(nic_stats.rx_crc_err),
+					QL_OFF(nic_stats.rx_crc_err)},
+	{"rx_err_count", QL_SIZEOF(nic_stats.rx_err_count),
+					QL_OFF(nic_stats.rx_err_count)},
+	{"tx_cbfc_pause_frames0", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames0),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames0)},
+	{"tx_cbfc_pause_frames1", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames1),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames1)},
+	{"tx_cbfc_pause_frames2", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames2),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames2)},
+	{"tx_cbfc_pause_frames3", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames3),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames3)},
+	{"tx_cbfc_pause_frames4", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames4),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames4)},
+	{"tx_cbfc_pause_frames5", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames5),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames5)},
+	{"tx_cbfc_pause_frames6", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames6),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames6)},
+	{"tx_cbfc_pause_frames7", QL_SIZEOF(nic_stats.tx_cbfc_pause_frames7),
+				QL_OFF(nic_stats.tx_cbfc_pause_frames7)},
+	{"rx_cbfc_pause_frames0", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames0),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames0)},
+	{"rx_cbfc_pause_frames1", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames1),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames1)},
+	{"rx_cbfc_pause_frames2", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames2),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames2)},
+	{"rx_cbfc_pause_frames3", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames3),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames3)},
+	{"rx_cbfc_pause_frames4", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames4),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames4)},
+	{"rx_cbfc_pause_frames5", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames5),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames5)},
+	{"rx_cbfc_pause_frames6", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames6),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames6)},
+	{"rx_cbfc_pause_frames7", QL_SIZEOF(nic_stats.rx_cbfc_pause_frames7),
+				QL_OFF(nic_stats.rx_cbfc_pause_frames7)},
+	{"rx_nic_fifo_drop", QL_SIZEOF(nic_stats.rx_nic_fifo_drop),
+					QL_OFF(nic_stats.rx_nic_fifo_drop)},
+};
+
 static const char ql_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Loopback test  (offline)"
 };
 #define QLGE_TEST_LEN (sizeof(ql_gstrings_test) / ETH_GSTRING_LEN)
+#define QLGE_STATS_LEN ARRAY_SIZE(ql_gstrings_stats)
 
 static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 {
@@ -183,73 +325,19 @@ quit:
 	QL_DUMP_STAT(qdev);
 }
 
-static char ql_stats_str_arr[][ETH_GSTRING_LEN] = {
-	{"tx_pkts"},
-	{"tx_bytes"},
-	{"tx_mcast_pkts"},
-	{"tx_bcast_pkts"},
-	{"tx_ucast_pkts"},
-	{"tx_ctl_pkts"},
-	{"tx_pause_pkts"},
-	{"tx_64_pkts"},
-	{"tx_65_to_127_pkts"},
-	{"tx_128_to_255_pkts"},
-	{"tx_256_511_pkts"},
-	{"tx_512_to_1023_pkts"},
-	{"tx_1024_to_1518_pkts"},
-	{"tx_1519_to_max_pkts"},
-	{"tx_undersize_pkts"},
-	{"tx_oversize_pkts"},
-	{"rx_bytes"},
-	{"rx_bytes_ok"},
-	{"rx_pkts"},
-	{"rx_pkts_ok"},
-	{"rx_bcast_pkts"},
-	{"rx_mcast_pkts"},
-	{"rx_ucast_pkts"},
-	{"rx_undersize_pkts"},
-	{"rx_oversize_pkts"},
-	{"rx_jabber_pkts"},
-	{"rx_undersize_fcerr_pkts"},
-	{"rx_drop_events"},
-	{"rx_fcerr_pkts"},
-	{"rx_align_err"},
-	{"rx_symbol_err"},
-	{"rx_mac_err"},
-	{"rx_ctl_pkts"},
-	{"rx_pause_pkts"},
-	{"rx_64_pkts"},
-	{"rx_65_to_127_pkts"},
-	{"rx_128_255_pkts"},
-	{"rx_256_511_pkts"},
-	{"rx_512_to_1023_pkts"},
-	{"rx_1024_to_1518_pkts"},
-	{"rx_1519_to_max_pkts"},
-	{"rx_len_err_pkts"},
-	{"tx_cbfc_pause_frames0"},
-	{"tx_cbfc_pause_frames1"},
-	{"tx_cbfc_pause_frames2"},
-	{"tx_cbfc_pause_frames3"},
-	{"tx_cbfc_pause_frames4"},
-	{"tx_cbfc_pause_frames5"},
-	{"tx_cbfc_pause_frames6"},
-	{"tx_cbfc_pause_frames7"},
-	{"rx_cbfc_pause_frames0"},
-	{"rx_cbfc_pause_frames1"},
-	{"rx_cbfc_pause_frames2"},
-	{"rx_cbfc_pause_frames3"},
-	{"rx_cbfc_pause_frames4"},
-	{"rx_cbfc_pause_frames5"},
-	{"rx_cbfc_pause_frames6"},
-	{"rx_cbfc_pause_frames7"},
-	{"rx_nic_fifo_drop"},
-};
-
 static void ql_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
+	int index;
 	switch (stringset) {
+	case ETH_SS_TEST:
+		memcpy(buf, *ql_gstrings_test, QLGE_TEST_LEN * ETH_GSTRING_LEN);
+		break;
 	case ETH_SS_STATS:
-		memcpy(buf, ql_stats_str_arr, sizeof(ql_stats_str_arr));
+		for (index = 0; index < QLGE_STATS_LEN; index++) {
+			memcpy(buf + index * ETH_GSTRING_LEN,
+				ql_gstrings_stats[index].stat_string,
+				ETH_GSTRING_LEN);
+		}
 		break;
 	}
 }
@@ -260,7 +348,7 @@ static int ql_get_sset_count(struct net_device *dev, int sset)
 	case ETH_SS_TEST:
 		return QLGE_TEST_LEN;
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(ql_stats_str_arr);
+		return QLGE_STATS_LEN;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -271,69 +359,17 @@ ql_get_ethtool_stats(struct net_device *ndev,
 		     struct ethtool_stats *stats, u64 *data)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	struct nic_stats *s = &qdev->nic_stats;
+	int index, length;
 
+	length = QLGE_STATS_LEN;
 	ql_update_stats(qdev);
 
-	*data++ = s->tx_pkts;
-	*data++ = s->tx_bytes;
-	*data++ = s->tx_mcast_pkts;
-	*data++ = s->tx_bcast_pkts;
-	*data++ = s->tx_ucast_pkts;
-	*data++ = s->tx_ctl_pkts;
-	*data++ = s->tx_pause_pkts;
-	*data++ = s->tx_64_pkt;
-	*data++ = s->tx_65_to_127_pkt;
-	*data++ = s->tx_128_to_255_pkt;
-	*data++ = s->tx_256_511_pkt;
-	*data++ = s->tx_512_to_1023_pkt;
-	*data++ = s->tx_1024_to_1518_pkt;
-	*data++ = s->tx_1519_to_max_pkt;
-	*data++ = s->tx_undersize_pkt;
-	*data++ = s->tx_oversize_pkt;
-	*data++ = s->rx_bytes;
-	*data++ = s->rx_bytes_ok;
-	*data++ = s->rx_pkts;
-	*data++ = s->rx_pkts_ok;
-	*data++ = s->rx_bcast_pkts;
-	*data++ = s->rx_mcast_pkts;
-	*data++ = s->rx_ucast_pkts;
-	*data++ = s->rx_undersize_pkts;
-	*data++ = s->rx_oversize_pkts;
-	*data++ = s->rx_jabber_pkts;
-	*data++ = s->rx_undersize_fcerr_pkts;
-	*data++ = s->rx_drop_events;
-	*data++ = s->rx_fcerr_pkts;
-	*data++ = s->rx_align_err;
-	*data++ = s->rx_symbol_err;
-	*data++ = s->rx_mac_err;
-	*data++ = s->rx_ctl_pkts;
-	*data++ = s->rx_pause_pkts;
-	*data++ = s->rx_64_pkts;
-	*data++ = s->rx_65_to_127_pkts;
-	*data++ = s->rx_128_255_pkts;
-	*data++ = s->rx_256_511_pkts;
-	*data++ = s->rx_512_to_1023_pkts;
-	*data++ = s->rx_1024_to_1518_pkts;
-	*data++ = s->rx_1519_to_max_pkts;
-	*data++ = s->rx_len_err_pkts;
-	*data++ = s->tx_cbfc_pause_frames0;
-	*data++ = s->tx_cbfc_pause_frames1;
-	*data++ = s->tx_cbfc_pause_frames2;
-	*data++ = s->tx_cbfc_pause_frames3;
-	*data++ = s->tx_cbfc_pause_frames4;
-	*data++ = s->tx_cbfc_pause_frames5;
-	*data++ = s->tx_cbfc_pause_frames6;
-	*data++ = s->tx_cbfc_pause_frames7;
-	*data++ = s->rx_cbfc_pause_frames0;
-	*data++ = s->rx_cbfc_pause_frames1;
-	*data++ = s->rx_cbfc_pause_frames2;
-	*data++ = s->rx_cbfc_pause_frames3;
-	*data++ = s->rx_cbfc_pause_frames4;
-	*data++ = s->rx_cbfc_pause_frames5;
-	*data++ = s->rx_cbfc_pause_frames6;
-	*data++ = s->rx_cbfc_pause_frames7;
-	*data++ = s->rx_nic_fifo_drop;
+	for (index = 0; index < length; index++) {
+		char *p = (char *)qdev +
+			ql_gstrings_stats[index].stat_offset;
+		*data++ = (ql_gstrings_stats[index].sizeof_stat ==
+			sizeof(u64)) ? *(u64 *)p : (*(u32 *)p);
+	}
 }
 
 static int ql_get_settings(struct net_device *ndev,
@@ -388,30 +424,33 @@ static void ql_get_drvinfo(struct net_device *ndev,
 static void ql_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	/* What we support. */
-	wol->supported = WAKE_MAGIC;
-	/* What we've currently got set. */
-	wol->wolopts = qdev->wol;
+	unsigned short ssys_dev = qdev->pdev->subsystem_device;
+
+	/* WOL is only supported for mezz card. */
+	if (ssys_dev == QLGE_MEZZ_SSYS_ID_068 ||
+			ssys_dev == QLGE_MEZZ_SSYS_ID_180) {
+		wol->supported = WAKE_MAGIC;
+		wol->wolopts = qdev->wol;
+	}
 }
 
 static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int status;
+	unsigned short ssys_dev = qdev->pdev->subsystem_device;
 
+	/* WOL is only supported for mezz card. */
+	if (ssys_dev != QLGE_MEZZ_SSYS_ID_068 &&
+			ssys_dev != QLGE_MEZZ_SSYS_ID_180) {
+		netif_info(qdev, drv, qdev->ndev,
+				"WOL is only supported for mezz card\n");
+		return -EOPNOTSUPP;
+	}
 	if (wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 	qdev->wol = wol->wolopts;
 
 	netif_info(qdev, drv, qdev->ndev, "Set wol option 0x%x\n", qdev->wol);
-	if (!qdev->wol) {
-		u32 wol = 0;
-		status = ql_mb_wol_mode(qdev, wol);
-		netif_err(qdev, drv, qdev->ndev, "WOL %s (wol code 0x%x)\n",
-			  status == 0 ? "cleared successfully" : "clear failed",
-			  wol);
-	}
-
 	return 0;
 }
 
@@ -527,6 +566,8 @@ static void ql_self_test(struct net_device *ndev,
 				struct ethtool_test *eth_test, u64 *data)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
+
+	memset(data, 0, sizeof(u64) * QLGE_TEST_LEN);
 
 	if (netif_running(ndev)) {
 		set_bit(QL_SELFTEST, &qdev->flags);

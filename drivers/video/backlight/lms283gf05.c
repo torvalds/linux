@@ -158,29 +158,27 @@ static int __devinit lms283gf05_probe(struct spi_device *spi)
 	int ret = 0;
 
 	if (pdata != NULL) {
-		ret = gpio_request(pdata->reset_gpio, "LMS285GF05 RESET");
+		ret = devm_gpio_request(&spi->dev, pdata->reset_gpio,
+					"LMS285GF05 RESET");
 		if (ret)
 			return ret;
 
 		ret = gpio_direction_output(pdata->reset_gpio,
 						!pdata->reset_inverted);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	st = devm_kzalloc(&spi->dev, sizeof(struct lms283gf05_state),
 				GFP_KERNEL);
 	if (st == NULL) {
 		dev_err(&spi->dev, "No memory for device state\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	ld = lcd_device_register("lms283gf05", &spi->dev, st, &lms_ops);
-	if (IS_ERR(ld)) {
-		ret = PTR_ERR(ld);
-		goto err;
-	}
+	if (IS_ERR(ld))
+		return PTR_ERR(ld);
 
 	st->spi = spi;
 	st->ld = ld;
@@ -193,23 +191,13 @@ static int __devinit lms283gf05_probe(struct spi_device *spi)
 	lms283gf05_toggle(spi, disp_initseq, ARRAY_SIZE(disp_initseq));
 
 	return 0;
-
-err:
-	if (pdata != NULL)
-		gpio_free(pdata->reset_gpio);
-
-	return ret;
 }
 
 static int __devexit lms283gf05_remove(struct spi_device *spi)
 {
 	struct lms283gf05_state *st = dev_get_drvdata(&spi->dev);
-	struct lms283gf05_pdata *pdata = st->spi->dev.platform_data;
 
 	lcd_device_unregister(st->ld);
-
-	if (pdata != NULL)
-		gpio_free(pdata->reset_gpio);
 
 	return 0;
 }

@@ -263,21 +263,10 @@ static struct pci_driver cmd640_pci_driver = {
 #endif
 };
 
-static int __init cmd640_init(void)
-{
-	return pci_register_driver(&cmd640_pci_driver);
-}
-
-static void __exit cmd640_exit(void)
-{
-	pci_unregister_driver(&cmd640_pci_driver);
-}
+module_pci_driver(cmd640_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for CMD640 PATA controllers");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cmd640);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(cmd640_init);
-module_exit(cmd640_exit);

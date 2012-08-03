@@ -58,7 +58,8 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	dma_addr_t phys;
 	unsigned long aac_max_hostphysmempages;
 
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1)
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1 ||
+	    dev->comm_interface == AAC_COMM_MESSAGE_TYPE2)
 		host_rrq_size = (dev->scsi_host_ptr->can_queue
 			+ AAC_NUM_MGT_FIB) * sizeof(u32);
 	size = fibsize + sizeof(struct aac_init) + commsize +
@@ -75,7 +76,8 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	dev->comm_phys = phys;
 	dev->comm_size = size;
 	
-	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1 ||
+	    dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
 		dev->host_rrq = (u32 *)(base + fibsize);
 		dev->host_rrq_pa = phys + fibsize;
 		memset(dev->host_rrq, 0, host_rrq_size);
@@ -115,26 +117,32 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	else
 		init->HostPhysMemPages = cpu_to_le32(AAC_MAX_HOSTPHYSMEMPAGES);
 
-	init->InitFlags = 0;
+	init->InitFlags = cpu_to_le32(INITFLAGS_DRIVER_USES_UTC_TIME |
+		INITFLAGS_DRIVER_SUPPORTS_PM);
+	init->MaxIoCommands = cpu_to_le32(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
+	init->MaxIoSize = cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
+	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
+	init->MaxNumAif = cpu_to_le32(dev->max_num_aif);
+
 	if (dev->comm_interface == AAC_COMM_MESSAGE) {
 		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
 		dprintk((KERN_WARNING"aacraid: New Comm Interface enabled\n"));
 	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE1) {
 		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_6);
-		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_TYPE1_SUPPORTED);
-		dprintk((KERN_WARNING
-			"aacraid: New Comm Interface type1 enabled\n"));
+		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
+			INITFLAGS_NEW_COMM_TYPE1_SUPPORTED | INITFLAGS_FAST_JBOD_SUPPORTED);
+		init->HostRRQ_AddrHigh = cpu_to_le32((u32)((u64)dev->host_rrq_pa >> 32));
+		init->HostRRQ_AddrLow = cpu_to_le32((u32)(dev->host_rrq_pa & 0xffffffff));
+		dprintk((KERN_WARNING"aacraid: New Comm Interface type1 enabled\n"));
+	} else if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+		init->InitStructRevision = cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_7);
+		init->InitFlags |= cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED |
+			INITFLAGS_NEW_COMM_TYPE2_SUPPORTED | INITFLAGS_FAST_JBOD_SUPPORTED);
+		init->HostRRQ_AddrHigh = cpu_to_le32((u32)((u64)dev->host_rrq_pa >> 32));
+		init->HostRRQ_AddrLow = cpu_to_le32((u32)(dev->host_rrq_pa & 0xffffffff));
+		init->MiniPortRevision = cpu_to_le32(0L);		/* number of MSI-X */
+		dprintk((KERN_WARNING"aacraid: New Comm Interface type2 enabled\n"));
 	}
-	init->InitFlags |= cpu_to_le32(INITFLAGS_DRIVER_USES_UTC_TIME |
-				       INITFLAGS_DRIVER_SUPPORTS_PM);
-	init->MaxIoCommands = cpu_to_le32(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
-	init->MaxIoSize = cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
-	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
-
-	init->MaxNumAif = cpu_to_le32(dev->max_num_aif);
-	init->HostRRQ_AddrHigh = (u32)((u64)dev->host_rrq_pa >> 32);
-	init->HostRRQ_AddrLow = (u32)(dev->host_rrq_pa & 0xffffffff);
-
 
 	/*
 	 * Increment the base address by the amount already used
@@ -354,13 +362,15 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 			if ((status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE1))) {
 				/* driver supports TYPE1 (Tupelo) */
 				dev->comm_interface = AAC_COMM_MESSAGE_TYPE1;
+			} else if ((status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE2))) {
+				/* driver supports TYPE2 (Denali) */
+				dev->comm_interface = AAC_COMM_MESSAGE_TYPE2;
 			} else if ((status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE4)) ||
-				  (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE3)) ||
-				  (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE2))) {
-					/* driver doesn't support TYPE2 (Series7), TYPE3 and TYPE4 */
-					/* switch to sync. mode */
-					dev->comm_interface = AAC_COMM_MESSAGE_TYPE1;
-					dev->sync_mode = 1;
+				  (status[1] & le32_to_cpu(AAC_OPT_NEW_COMM_TYPE3))) {
+				/* driver doesn't TYPE3 and TYPE4 */
+				/* switch to sync. mode */
+				dev->comm_interface = AAC_COMM_MESSAGE_TYPE2;
+				dev->sync_mode = 1;
 			}
 		}
 		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&

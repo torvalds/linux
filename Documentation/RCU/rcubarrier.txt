@@ -79,8 +79,6 @@ complete. Pseudo-code using rcu_barrier() is as follows:
    2. Execute rcu_barrier().
    3. Allow the module to be unloaded.
 
-Quick Quiz #1: Why is there no srcu_barrier()?
-
 The rcutorture module makes use of rcu_barrier in its exit function
 as follows:
 
@@ -162,7 +160,7 @@ for any pre-existing callbacks to complete.
 Then lines 55-62 print status and do operation-specific cleanup, and
 then return, permitting the module-unload operation to be completed.
 
-Quick Quiz #2: Is there any other situation where rcu_barrier() might
+Quick Quiz #1: Is there any other situation where rcu_barrier() might
 	be required?
 
 Your module might have additional complications. For example, if your
@@ -242,7 +240,7 @@ reaches zero, as follows:
  4 complete(&rcu_barrier_completion);
  5 }
 
-Quick Quiz #3: What happens if CPU 0's rcu_barrier_func() executes
+Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	immediately (thus incrementing rcu_barrier_cpu_count to the
 	value one), but the other CPU's rcu_barrier_func() invocations
 	are delayed for a full grace period? Couldn't this result in
@@ -259,12 +257,7 @@ so that your module may be safely unloaded.
 
 Answers to Quick Quizzes
 
-Quick Quiz #1: Why is there no srcu_barrier()?
-
-Answer: Since there is no call_srcu(), there can be no outstanding SRCU
-	callbacks. Therefore, there is no need to wait for them.
-
-Quick Quiz #2: Is there any other situation where rcu_barrier() might
+Quick Quiz #1: Is there any other situation where rcu_barrier() might
 	be required?
 
 Answer: Interestingly enough, rcu_barrier() was not originally
@@ -278,7 +271,7 @@ Answer: Interestingly enough, rcu_barrier() was not originally
 	implementing rcutorture, and found that rcu_barrier() solves
 	this problem as well.
 
-Quick Quiz #3: What happens if CPU 0's rcu_barrier_func() executes
+Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	immediately (thus incrementing rcu_barrier_cpu_count to the
 	value one), but the other CPU's rcu_barrier_func() invocations
 	are delayed for a full grace period? Couldn't this result in

@@ -89,17 +89,13 @@ int coda_cache_check(struct inode *inode, int mask)
 /* this won't do any harm: just flag all children */
 static void coda_flag_children(struct dentry *parent, int flag)
 {
-	struct list_head *child;
 	struct dentry *de;
 
 	spin_lock(&parent->d_lock);
-	list_for_each(child, &parent->d_subdirs)
-	{
-		de = list_entry(child, struct dentry, d_u.d_child);
+	list_for_each_entry(de, &parent->d_subdirs, d_u.d_child) {
 		/* don't know what to do with negative dentries */
-		if ( ! de->d_inode ) 
-			continue;
-		coda_flag_inode(de->d_inode, flag);
+		if (de->d_inode ) 
+			coda_flag_inode(de->d_inode, flag);
 	}
 	spin_unlock(&parent->d_lock);
 	return; 

@@ -88,7 +88,7 @@ struct acpi_namespace_node *acpi_ns_get_next_node(struct acpi_namespace_node
  *
  * FUNCTION:    acpi_ns_get_next_node_typed
  *
- * PARAMETERS:  Type                - Type of node to be searched for
+ * PARAMETERS:  type                - Type of node to be searched for
  *              parent_node         - Parent node whose children we are
  *                                    getting
  *              child_node          - Previous child that was found.
@@ -151,16 +151,16 @@ struct acpi_namespace_node *acpi_ns_get_next_node_typed(acpi_object_type type,
  *
  * FUNCTION:    acpi_ns_walk_namespace
  *
- * PARAMETERS:  Type                - acpi_object_type to search for
+ * PARAMETERS:  type                - acpi_object_type to search for
  *              start_node          - Handle in namespace where search begins
  *              max_depth           - Depth to which search is to reach
- *              Flags               - Whether to unlock the NS before invoking
+ *              flags               - Whether to unlock the NS before invoking
  *                                    the callback routine
  *              pre_order_visit     - Called during tree pre-order visit
  *                                    when an object of "Type" is found
  *              post_order_visit    - Called during tree post-order visit
  *                                    when an object of "Type" is found
- *              Context             - Passed to user function(s) above
+ *              context             - Passed to user function(s) above
  *              return_value        - from the user_function if terminated
  *                                    early. Otherwise, returns NULL.
  * RETURNS:     Status

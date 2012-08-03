@@ -13,8 +13,8 @@
 
 static int compare_packet_info(void const *a, void const *b)
 {
-	PacketInfo const *pa = a;
-	PacketInfo const *pb = b;
+	struct bcm_packet_info const *pa = a;
+	struct bcm_packet_info const *pb = b;
 
 	if (!pa->bValid || !pb->bValid)
 		return 0;
@@ -22,19 +22,19 @@ static int compare_packet_info(void const *a, void const *b)
 	return pa->u8TrafficPriority - pb->u8TrafficPriority;
 }
 
-VOID SortPackInfo(PMINI_ADAPTER Adapter)
+VOID SortPackInfo(struct bcm_mini_adapter *Adapter)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
 			DBG_LVL_ALL, "<=======");
 
-	sort(Adapter->PackInfo, NO_OF_QUEUES, sizeof(PacketInfo),
+	sort(Adapter->PackInfo, NO_OF_QUEUES, sizeof(struct bcm_packet_info),
 		compare_packet_info, NULL);
 }
 
 static int compare_classifiers(void const *a, void const *b)
 {
-	S_CLASSIFIER_RULE const *pa = a;
-	S_CLASSIFIER_RULE const *pb = b;
+	struct bcm_classifier_rule const *pa = a;
+	struct bcm_classifier_rule const *pb = b;
 
 	if (!pa->bUsed || !pb->bUsed)
 		return 0;
@@ -42,11 +42,11 @@ static int compare_classifiers(void const *a, void const *b)
 	return pa->u8ClassifierRulePriority - pb->u8ClassifierRulePriority;
 }
 
-VOID SortClassifiers(PMINI_ADAPTER Adapter)
+VOID SortClassifiers(struct bcm_mini_adapter *Adapter)
 {
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, CONN_MSG,
 			DBG_LVL_ALL, "<=======");
 
 	sort(Adapter->astClassifierTable, MAX_CLASSIFIERS,
-		sizeof(S_CLASSIFIER_RULE), compare_classifiers, NULL);
+		sizeof(struct bcm_classifier_rule), compare_classifiers, NULL);
 }

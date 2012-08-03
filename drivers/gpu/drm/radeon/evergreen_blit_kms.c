@@ -622,7 +622,8 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	rdev->r600_blit.primitives.draw_auto = draw_auto;
 	rdev->r600_blit.primitives.set_default_state = set_default_state;
 
-	rdev->r600_blit.ring_size_common = 55; /* shaders + def state */
+	rdev->r600_blit.ring_size_common = 8; /* sync semaphore */
+	rdev->r600_blit.ring_size_common += 55; /* shaders + def state */
 	rdev->r600_blit.ring_size_common += 16; /* fence emit for VB IB */
 	rdev->r600_blit.ring_size_common += 5; /* done copy */
 	rdev->r600_blit.ring_size_common += 16; /* fence emit for done copy */
@@ -632,10 +633,6 @@ int evergreen_blit_init(struct radeon_device *rdev)
 		rdev->r600_blit.ring_size_per_loop += 9; /* additional DWs for surface sync */
 
 	rdev->r600_blit.max_dim = 16384;
-
-	/* pin copy shader into vram if already initialized */
-	if (rdev->r600_blit.shader_obj)
-		goto done;
 
 	rdev->r600_blit.state_offset = 0;
 
@@ -667,11 +664,26 @@ int evergreen_blit_init(struct radeon_device *rdev)
 		obj_size += cayman_ps_size * 4;
 	obj_size = ALIGN(obj_size, 256);
 
-	r = radeon_bo_create(rdev, obj_size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
-			     NULL, &rdev->r600_blit.shader_obj);
-	if (r) {
-		DRM_ERROR("evergreen failed to allocate shader\n");
-		return r;
+	/* pin copy shader into vram if not already initialized */
+	if (!rdev->r600_blit.shader_obj) {
+		r = radeon_bo_create(rdev, obj_size, PAGE_SIZE, true,
+				     RADEON_GEM_DOMAIN_VRAM,
+				     NULL, &rdev->r600_blit.shader_obj);
+		if (r) {
+			DRM_ERROR("evergreen failed to allocate shader\n");
+			return r;
+		}
+
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+				  &rdev->r600_blit.shader_gpu_addr);
+		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		if (r) {
+			dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
+			return r;
+		}
 	}
 
 	DRM_DEBUG("evergreen blit allocated bo %08x vs %08x ps %08x\n",
@@ -713,17 +725,6 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 
-done:
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-			  &rdev->r600_blit.shader_gpu_addr);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
-	if (r) {
-		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
-		return r;
-	}
 	radeon_ttm_set_active_vram_size(rdev, rdev->mc.real_vram_size);
 	return 0;
 }

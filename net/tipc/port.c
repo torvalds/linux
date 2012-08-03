@@ -69,7 +69,7 @@ static u32 port_peerport(struct tipc_port *p_ptr)
 	return msg_destport(&p_ptr->phdr);
 }
 
-/*
+/**
  * tipc_port_peer_msg - verify message was sent by connected port's peer
  *
  * Handles cases where the node's network address has changed from
@@ -191,7 +191,7 @@ void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp)
 			struct sk_buff *b = skb_clone(buf, GFP_ATOMIC);
 
 			if (b == NULL) {
-				warn("Unable to deliver multicast message(s)\n");
+				pr_warn("Unable to deliver multicast message(s)\n");
 				goto exit;
 			}
 			if ((index == 0) && (cnt != 0))
@@ -221,12 +221,12 @@ struct tipc_port *tipc_createport_raw(void *usr_handle,
 
 	p_ptr = kzalloc(sizeof(*p_ptr), GFP_ATOMIC);
 	if (!p_ptr) {
-		warn("Port creation failed, no memory\n");
+		pr_warn("Port creation failed, no memory\n");
 		return NULL;
 	}
 	ref = tipc_ref_acquire(p_ptr, &p_ptr->lock);
 	if (!ref) {
-		warn("Port creation failed, reference table exhausted\n");
+		pr_warn("Port creation failed, ref. table exhausted\n");
 		kfree(p_ptr);
 		return NULL;
 	}
@@ -581,67 +581,73 @@ exit:
 	kfree_skb(buf);
 }
 
-static void port_print(struct tipc_port *p_ptr, struct print_buf *buf, int full_id)
+static int port_print(struct tipc_port *p_ptr, char *buf, int len, int full_id)
 {
 	struct publication *publ;
+	int ret;
 
 	if (full_id)
-		tipc_printf(buf, "<%u.%u.%u:%u>:",
-			    tipc_zone(tipc_own_addr), tipc_cluster(tipc_own_addr),
-			    tipc_node(tipc_own_addr), p_ptr->ref);
+		ret = tipc_snprintf(buf, len, "<%u.%u.%u:%u>:",
+				    tipc_zone(tipc_own_addr),
+				    tipc_cluster(tipc_own_addr),
+				    tipc_node(tipc_own_addr), p_ptr->ref);
 	else
-		tipc_printf(buf, "%-10u:", p_ptr->ref);
+		ret = tipc_snprintf(buf, len, "%-10u:", p_ptr->ref);
 
 	if (p_ptr->connected) {
 		u32 dport = port_peerport(p_ptr);
 		u32 destnode = port_peernode(p_ptr);
 
-		tipc_printf(buf, " connected to <%u.%u.%u:%u>",
-			    tipc_zone(destnode), tipc_cluster(destnode),
-			    tipc_node(destnode), dport);
+		ret += tipc_snprintf(buf + ret, len - ret,
+				     " connected to <%u.%u.%u:%u>",
+				     tipc_zone(destnode),
+				     tipc_cluster(destnode),
+				     tipc_node(destnode), dport);
 		if (p_ptr->conn_type != 0)
-			tipc_printf(buf, " via {%u,%u}",
-				    p_ptr->conn_type,
-				    p_ptr->conn_instance);
+			ret += tipc_snprintf(buf + ret, len - ret,
+					     " via {%u,%u}", p_ptr->conn_type,
+					     p_ptr->conn_instance);
 	} else if (p_ptr->published) {
-		tipc_printf(buf, " bound to");
+		ret += tipc_snprintf(buf + ret, len - ret, " bound to");
 		list_for_each_entry(publ, &p_ptr->publications, pport_list) {
 			if (publ->lower == publ->upper)
-				tipc_printf(buf, " {%u,%u}", publ->type,
-					    publ->lower);
+				ret += tipc_snprintf(buf + ret, len - ret,
+						     " {%u,%u}", publ->type,
+						     publ->lower);
 			else
-				tipc_printf(buf, " {%u,%u,%u}", publ->type,
-					    publ->lower, publ->upper);
+				ret += tipc_snprintf(buf + ret, len - ret,
+						     " {%u,%u,%u}", publ->type,
+						     publ->lower, publ->upper);
 		}
 	}
-	tipc_printf(buf, "\n");
+	ret += tipc_snprintf(buf + ret, len - ret, "\n");
+	return ret;
 }
-
-#define MAX_PORT_QUERY 32768
 
 struct sk_buff *tipc_port_get_ports(void)
 {
 	struct sk_buff *buf;
 	struct tlv_desc *rep_tlv;
-	struct print_buf pb;
+	char *pb;
+	int pb_len;
 	struct tipc_port *p_ptr;
-	int str_len;
+	int str_len = 0;
 
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(MAX_PORT_QUERY));
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
 	if (!buf)
 		return NULL;
 	rep_tlv = (struct tlv_desc *)buf->data;
+	pb = TLV_DATA(rep_tlv);
+	pb_len = ULTRA_STRING_MAX_LEN;
 
-	tipc_printbuf_init(&pb, TLV_DATA(rep_tlv), MAX_PORT_QUERY);
 	spin_lock_bh(&tipc_port_list_lock);
 	list_for_each_entry(p_ptr, &ports, port_list) {
 		spin_lock_bh(p_ptr->lock);
-		port_print(p_ptr, &pb, 0);
+		str_len += port_print(p_ptr, pb, pb_len, 0);
 		spin_unlock_bh(p_ptr->lock);
 	}
 	spin_unlock_bh(&tipc_port_list_lock);
-	str_len = tipc_printbuf_validate(&pb);
-
+	str_len += 1;	/* for "\0" */
 	skb_put(buf, TLV_SPACE(str_len));
 	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
 
@@ -906,11 +912,11 @@ int tipc_createport(void *usr_handle,
 
 	up_ptr = kmalloc(sizeof(*up_ptr), GFP_ATOMIC);
 	if (!up_ptr) {
-		warn("Port creation failed, no memory\n");
+		pr_warn("Port creation failed, no memory\n");
 		return -ENOMEM;
 	}
-	p_ptr = (struct tipc_port *)tipc_createport_raw(NULL, port_dispatcher,
-						   port_wakeup, importance);
+	p_ptr = tipc_createport_raw(NULL, port_dispatcher, port_wakeup,
+				    importance);
 	if (!p_ptr) {
 		kfree(up_ptr);
 		return -ENOMEM;
@@ -1078,8 +1084,7 @@ int tipc_disconnect_port(struct tipc_port *tp_ptr)
 	if (tp_ptr->connected) {
 		tp_ptr->connected = 0;
 		/* let timer expire on it's own to avoid deadlock! */
-		tipc_nodesub_unsubscribe(
-			&((struct tipc_port *)tp_ptr)->subscription);
+		tipc_nodesub_unsubscribe(&tp_ptr->subscription);
 		res = 0;
 	} else {
 		res = -ENOTCONN;
@@ -1099,7 +1104,7 @@ int tipc_disconnect(u32 ref)
 	p_ptr = tipc_port_lock(ref);
 	if (!p_ptr)
 		return -EINVAL;
-	res = tipc_disconnect_port((struct tipc_port *)p_ptr);
+	res = tipc_disconnect_port(p_ptr);
 	tipc_port_unlock(p_ptr);
 	return res;
 }

@@ -5,6 +5,7 @@
 menuconfig RADIO_ADAPTERS
 	bool "Radio Adapters"
 	depends on VIDEO_V4L2
+	depends on MEDIA_RADIO_SUPPORT
 	default y
 	---help---
 	  Say Y here to enable selecting AM/FM radio adapters.
@@ -56,6 +57,39 @@ config RADIO_MAXIRADIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maxiradio.
 
+config RADIO_SHARK
+	tristate "Griffin radioSHARK USB radio receiver"
+	depends on USB && SND
+	---help---
+	  Choose Y here if you have this radio receiver.
+
+	  There are 2 versions of this device, this driver is for version 1,
+	  which is white.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux API.  Information on
+	  this API and pointers to "v4l" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-shark.
+
+config RADIO_SHARK2
+	tristate "Griffin radioSHARK2 USB radio receiver"
+	depends on USB
+	---help---
+	  Choose Y here if you have this radio receiver.
+
+	  There are 2 versions of this device, this driver is for version 2,
+	  which is black.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux API.  Information on
+	  this API and pointers to "v4l" programs may be found at
+	  <file:Documentation/video4linux/API.html>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-shark2.
 
 config I2C_SI4713
 	tristate "I2C driver for Silicon Labs Si4713 device"

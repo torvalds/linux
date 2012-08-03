@@ -31,7 +31,7 @@ SUBSYS(cpuacct)
 
 /* */
 
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+#ifdef CONFIG_MEMCG
 SUBSYS(mem_cgroup)
 #endif
 
@@ -69,6 +69,12 @@ SUBSYS(perf)
 
 #ifdef CONFIG_NETPRIO_CGROUP
 SUBSYS(net_prio)
+#endif
+
+/* */
+
+#ifdef CONFIG_CGROUP_HUGETLB
+SUBSYS(hugetlb)
 #endif
 
 /* */

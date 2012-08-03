@@ -34,7 +34,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = filep->f_dentry->d_inode;
 	int rc = -ENOTTY; /* strange error - but the precedent */
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 #ifdef CONFIG_CIFS_POSIX
 	struct cifsFileInfo *pSMBFile = filep->private_data;
@@ -44,7 +44,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	__u64   caps;
 #endif /* CONFIG_CIFS_POSIX */
 
-	xid = GetXid();
+	xid = get_xid();
 
 	cFYI(1, "ioctl file %p  cmd %u  arg %lu", filep, command, arg);
 
@@ -105,6 +105,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 	}
 
-	FreeXid(xid);
+	free_xid(xid);
 	return rc;
 }

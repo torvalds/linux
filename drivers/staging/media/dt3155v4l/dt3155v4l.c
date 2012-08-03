@@ -971,20 +971,7 @@ static struct pci_driver pci_driver = {
 	.remove = __devexit_p(dt3155_remove),
 };
 
-static int __init
-dt3155_init_module(void)
-{
-	return pci_register_driver(&pci_driver);
-}
-
-static void __exit
-dt3155_exit_module(void)
-{
-	pci_unregister_driver(&pci_driver);
-}
-
-module_init(dt3155_init_module);
-module_exit(dt3155_exit_module);
+module_pci_driver(pci_driver);
 
 MODULE_DESCRIPTION("video4linux pci-driver for dt3155 frame grabber");
 MODULE_AUTHOR("Marin Mitov <mitov@issp.bas.bg>");

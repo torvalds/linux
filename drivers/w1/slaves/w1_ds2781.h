@@ -129,8 +129,6 @@
 
 extern int w1_ds2781_io(struct device *dev, char *buf, int addr, size_t count,
 			int io);
-extern int w1_ds2781_io_nolock(struct device *dev, char *buf, int addr,
-			size_t count, int io);
 extern int w1_ds2781_eeprom_cmd(struct device *dev, int addr, int cmd);
 
 #endif /* !_W1_DS2781_H */
