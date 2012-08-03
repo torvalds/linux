@@ -63,7 +63,7 @@ static struct platform_device *st_get_plat_device(int id)
  *	in case of error don't complete so that waiting for proper
  *	response times out
  */
-void validate_firmware_response(struct kim_data_s *kim_gdata)
+static void validate_firmware_response(struct kim_data_s *kim_gdata)
 {
 	struct sk_buff *skb = kim_gdata->rx_skb;
 	if (unlikely(skb->data[5] != 0)) {
@@ -119,7 +119,7 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
  *	have been observed to come in bursts of different
  *	tty_receive and hence the logic
  */
-void kim_int_recv(struct kim_data_s *kim_gdata,
+static void kim_int_recv(struct kim_data_s *kim_gdata,
 	const unsigned char *data, long count)
 {
 	const unsigned char *ptr;
@@ -236,7 +236,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	return 0;
 }
 
-void skip_change_remote_baud(unsigned char **ptr, long *len)
+static void skip_change_remote_baud(unsigned char **ptr, long *len)
 {
 	unsigned char *nxt_action, *cur_action;
 	cur_action = *ptr;
@@ -688,7 +688,7 @@ static const struct file_operations list_debugfs_fops = {
  * board-*.c file
  */
 
-struct dentry *kim_debugfs_dir;
+static struct dentry *kim_debugfs_dir;
 static int kim_probe(struct platform_device *pdev)
 {
 	long status;
@@ -769,7 +769,7 @@ static int kim_remove(struct platform_device *pdev)
 	return 0;
 }
 
-int kim_suspend(struct platform_device *pdev, pm_message_t state)
+static int kim_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
 
@@ -779,7 +779,7 @@ int kim_suspend(struct platform_device *pdev, pm_message_t state)
 	return -EOPNOTSUPP;
 }
 
-int kim_resume(struct platform_device *pdev)
+static int kim_resume(struct platform_device *pdev)
 {
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
 
