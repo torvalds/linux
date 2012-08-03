@@ -544,6 +544,10 @@ static int mlx4_ib_demux_mad(struct ib_device *ibdev, u8 port,
 					     (struct ib_sa_mad *) mad))
 			return 0;
 		break;
+	case IB_MGMT_CLASS_CM:
+		if (mlx4_ib_demux_cm_handler(ibdev, port, &slave, mad))
+			return 0;
+		break;
 	case IB_MGMT_CLASS_DEVICE_MGMT:
 		if (mad->mad_hdr.method != IB_MGMT_METHOD_GET_RESP)
 			return 0;
@@ -1074,6 +1078,11 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	case IB_MGMT_CLASS_SUBN_ADM:
 		if (mlx4_ib_multiplex_sa_handler(ctx->ib_dev, ctx->port, slave,
 			      (struct ib_sa_mad *) &tunnel->mad))
+			return;
+		break;
+	case IB_MGMT_CLASS_CM:
+		if (mlx4_ib_multiplex_cm_handler(ctx->ib_dev, ctx->port, slave,
+			      (struct ib_mad *) &tunnel->mad))
 			return;
 		break;
 	case IB_MGMT_CLASS_DEVICE_MGMT:
@@ -1790,6 +1799,7 @@ int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev)
 
 	dev->sriov.is_going_down = 0;
 	spin_lock_init(&dev->sriov.going_down_lock);
+	mlx4_ib_cm_paravirt_init(dev);
 
 	mlx4_ib_warn(&dev->ib_dev, "multi-function enabled\n");
 
@@ -1818,6 +1828,7 @@ demux_err:
 		mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
 		--i;
 	}
+	mlx4_ib_cm_paravirt_clean(dev, -1);
 
 	return err;
 }
@@ -1833,7 +1844,7 @@ void mlx4_ib_close_sriov(struct mlx4_ib_dev *dev)
 	spin_lock_irqsave(&dev->sriov.going_down_lock, flags);
 	dev->sriov.is_going_down = 1;
 	spin_unlock_irqrestore(&dev->sriov.going_down_lock, flags);
-	if (mlx4_is_master(dev->dev))
+	if (mlx4_is_master(dev->dev)) {
 		for (i = 0; i < dev->num_ports; i++) {
 			flush_workqueue(dev->sriov.demux[i].ud_wq);
 			mlx4_ib_free_sqp_ctx(dev->sriov.sqps[i]);
@@ -1841,4 +1852,7 @@ void mlx4_ib_close_sriov(struct mlx4_ib_dev *dev)
 			dev->sriov.sqps[i] = NULL;
 			mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
 		}
+
+		mlx4_ib_cm_paravirt_clean(dev, -1);
+	}
 }

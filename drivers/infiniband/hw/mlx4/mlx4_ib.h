@@ -348,6 +348,12 @@ struct mlx4_ib_sriov {
 	 * it may be called from interrupt context.*/
 	spinlock_t going_down_lock;
 	int is_going_down;
+
+	/* CM paravirtualization fields */
+	struct list_head cm_list;
+	spinlock_t id_map_lock;
+	struct rb_root sl_id_map;
+	struct idr pv_id_table;
 };
 
 struct mlx4_ib_iboe {
@@ -590,5 +596,14 @@ int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
 			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
 			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
+
+int mlx4_ib_demux_cm_handler(struct ib_device *ibdev, int port, int *slave,
+		struct ib_mad *mad);
+
+int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id,
+		struct ib_mad *mad);
+
+void mlx4_ib_cm_paravirt_init(struct mlx4_ib_dev *dev);
+void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave_id);
 
 #endif /* MLX4_IB_H */
