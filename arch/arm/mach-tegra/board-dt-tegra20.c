@@ -106,7 +106,6 @@ static void __init trimslice_init(void)
 #endif
 }
 
-#ifdef CONFIG_MACH_HARMONY
 static void __init harmony_init(void)
 {
 	int ret;
@@ -117,11 +116,12 @@ static void __init harmony_init(void)
 		return;
 	}
 
+#ifdef CONFIG_TEGRA_PCI
 	ret = harmony_pcie_init();
 	if (ret)
 		pr_err("harmony_pcie_init() failed: %d\n", ret);
-}
 #endif
+}
 
 static void __init paz00_init(void)
 {
@@ -133,9 +133,7 @@ static struct {
 	void (*init)(void);
 } board_init_funcs[] = {
 	{ "compulab,trimslice", trimslice_init },
-#ifdef CONFIG_MACH_HARMONY
 	{ "nvidia,harmony", harmony_init },
-#endif
 	{ "compal,paz00", paz00_init },
 };
 

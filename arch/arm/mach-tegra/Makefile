@@ -26,9 +26,7 @@ obj-$(CONFIG_USB_SUPPORT)		+= usb_phy.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-dt-tegra20.o
 obj-$(CONFIG_ARCH_TEGRA_3x_SOC)		+= board-dt-tegra30.o
 
-obj-$(CONFIG_MACH_HARMONY)              += board-harmony.o
-obj-$(CONFIG_MACH_HARMONY)              += board-harmony-pinmux.o
-obj-$(CONFIG_MACH_HARMONY)              += board-harmony-pcie.o
-obj-$(CONFIG_MACH_HARMONY)              += board-harmony-power.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-harmony-pcie.o
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-harmony-power.o
 
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-paz00.o

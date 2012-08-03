@@ -60,12 +60,6 @@ config TEGRA_AHB
 
 comment "Tegra board type"
 
-config MACH_HARMONY
-       bool "Harmony board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for nVidia Harmony development platform
-
 choice
         prompt "Default low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
