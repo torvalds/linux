@@ -371,10 +371,8 @@ static int __devinit ehrpwm_pwm_probe(struct platform_device *pdev)
 	}
 
 	pc->mmio_base = devm_request_and_ioremap(&pdev->dev, r);
-	if (!pc->mmio_base) {
-		dev_err(&pdev->dev, "failed to ioremap() registers\n");
+	if (!pc->mmio_base)
 		return  -EADDRNOTAVAIL;
-	}
 
 	ret = pwmchip_add(&pc->chip);
 	if (ret < 0) {
