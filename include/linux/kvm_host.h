@@ -49,6 +49,7 @@
 	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
 
 #define KVM_PFN_ERR_FAULT	(-EFAULT)
+#define KVM_PFN_ERR_HWPOISON	(-EHWPOISON)
 
 /*
  * vcpu->requests bit members
@@ -395,7 +396,6 @@ extern struct page *bad_page;
 
 int is_error_page(struct page *page);
 int is_error_pfn(pfn_t pfn);
-int is_hwpoison_pfn(pfn_t pfn);
 int is_noslot_pfn(pfn_t pfn);
 int is_invalid_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);

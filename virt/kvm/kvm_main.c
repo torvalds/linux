@@ -939,17 +939,6 @@ static pfn_t get_bad_pfn(void)
 	return -ENOENT;
 }
 
-static pfn_t get_hwpoison_pfn(void)
-{
-	return -EHWPOISON;
-}
-
-int is_hwpoison_pfn(pfn_t pfn)
-{
-	return pfn == -EHWPOISON;
-}
-EXPORT_SYMBOL_GPL(is_hwpoison_pfn);
-
 int is_noslot_pfn(pfn_t pfn)
 {
 	return pfn == -ENOENT;
@@ -1115,7 +1104,7 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		if (npages == -EHWPOISON ||
 			(!async && check_user_page_hwpoison(addr))) {
 			up_read(&current->mm->mmap_sem);
-			return get_hwpoison_pfn();
+			return KVM_PFN_ERR_HWPOISON;
 		}
 
 		vma = find_vma_intersection(current->mm, addr, addr+1);

@@ -2649,7 +2649,7 @@ static void kvm_send_hwpoison_signal(unsigned long address, struct task_struct *
 static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, pfn_t pfn)
 {
 	kvm_release_pfn_clean(pfn);
-	if (is_hwpoison_pfn(pfn)) {
+	if (pfn == KVM_PFN_ERR_HWPOISON) {
 		kvm_send_hwpoison_signal(gfn_to_hva(vcpu->kvm, gfn), current);
 		return 0;
 	}
