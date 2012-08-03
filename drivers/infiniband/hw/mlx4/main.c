@@ -98,7 +98,8 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	init_query_mad(in_mad);
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, 1, NULL, NULL, in_mad, out_mad);
+	err = mlx4_MAD_IFC(to_mdev(ibdev), MLX4_MAD_IFC_IGNORE_KEYS,
+			   1, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
@@ -182,11 +183,12 @@ mlx4_ib_port_link_layer(struct ib_device *device, u8 port_num)
 }
 
 static int ib_link_query_port(struct ib_device *ibdev, u8 port,
-			      struct ib_port_attr *props)
+			      struct ib_port_attr *props, int netw_view)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int ext_active_speed;
+	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
@@ -198,7 +200,10 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
 	in_mad->attr_mod = cpu_to_be32(port);
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port, NULL, NULL,
+	if (mlx4_is_mfunc(to_mdev(ibdev)->dev) && netw_view)
+		mad_ifc_flags |= MLX4_MAD_IFC_NET_VIEW;
+
+	err = mlx4_MAD_IFC(to_mdev(ibdev), mad_ifc_flags, port, NULL, NULL,
 				in_mad, out_mad);
 	if (err)
 		goto out;
@@ -211,7 +216,10 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 	props->state		= out_mad->data[32] & 0xf;
 	props->phys_state	= out_mad->data[33] >> 4;
 	props->port_cap_flags	= be32_to_cpup((__be32 *) (out_mad->data + 20));
-	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
+	if (netw_view)
+		props->gid_tbl_len = out_mad->data[50];
+	else
+		props->gid_tbl_len = to_mdev(ibdev)->dev->caps.gid_table_len[port];
 	props->max_msg_sz	= to_mdev(ibdev)->dev->caps.max_msg_sz;
 	props->pkey_tbl_len	= to_mdev(ibdev)->dev->caps.pkey_table_len[port];
 	props->bad_pkey_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 46));
@@ -244,7 +252,7 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 		in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
 		in_mad->attr_mod = cpu_to_be32(port);
 
-		err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
+		err = mlx4_MAD_IFC(to_mdev(ibdev), mad_ifc_flags, port,
 				   NULL, NULL, in_mad, out_mad);
 		if (err)
 			goto out;
@@ -270,7 +278,7 @@ static u8 state_to_phys_state(enum ib_port_state state)
 }
 
 static int eth_link_query_port(struct ib_device *ibdev, u8 port,
-			       struct ib_port_attr *props)
+			       struct ib_port_attr *props, int netw_view)
 {
 
 	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
@@ -320,18 +328,25 @@ out:
 	return err;
 }
 
-static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
-			      struct ib_port_attr *props)
+int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
+			 struct ib_port_attr *props, int netw_view)
 {
 	int err;
 
 	memset(props, 0, sizeof *props);
 
 	err = mlx4_ib_port_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND ?
-		ib_link_query_port(ibdev, port, props) :
-				eth_link_query_port(ibdev, port, props);
+		ib_link_query_port(ibdev, port, props, netw_view) :
+				eth_link_query_port(ibdev, port, props, netw_view);
 
 	return err;
+}
+
+static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
+			      struct ib_port_attr *props)
+{
+	/* returns host view */
+	return __mlx4_ib_query_port(ibdev, port, props, 0);
 }
 
 static int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
@@ -350,7 +365,8 @@ static int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
 	in_mad->attr_mod = cpu_to_be32(port);
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port, NULL, NULL, in_mad, out_mad);
+	err = mlx4_MAD_IFC(to_mdev(ibdev), MLX4_MAD_IFC_IGNORE_KEYS, port,
+			   NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
@@ -360,7 +376,8 @@ static int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	in_mad->attr_id  = IB_SMP_ATTR_GUID_INFO;
 	in_mad->attr_mod = cpu_to_be32(index / 8);
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port, NULL, NULL, in_mad, out_mad);
+	err = mlx4_MAD_IFC(to_mdev(ibdev), MLX4_MAD_IFC_IGNORE_KEYS, port,
+			   NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
@@ -391,11 +408,12 @@ static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 		return iboe_query_gid(ibdev, port, index, gid);
 }
 
-static int mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
-			      u16 *pkey)
+int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+			 u16 *pkey, int netw_view)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
+	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
@@ -407,7 +425,11 @@ static int mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 	in_mad->attr_id  = IB_SMP_ATTR_PKEY_TABLE;
 	in_mad->attr_mod = cpu_to_be32(index / 32);
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port, NULL, NULL, in_mad, out_mad);
+	if (mlx4_is_mfunc(to_mdev(ibdev)->dev) && netw_view)
+		mad_ifc_flags |= MLX4_MAD_IFC_NET_VIEW;
+
+	err = mlx4_MAD_IFC(to_mdev(ibdev), mad_ifc_flags, port, NULL, NULL,
+			   in_mad, out_mad);
 	if (err)
 		goto out;
 
@@ -417,6 +439,11 @@ out:
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
+}
+
+static int mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
+{
+	return __mlx4_ib_query_pkey(ibdev, port, index, pkey, 0);
 }
 
 static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
@@ -849,6 +876,7 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
+	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 	int err = -ENOMEM;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
@@ -858,8 +886,10 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 
 	init_query_mad(in_mad);
 	in_mad->attr_id = IB_SMP_ATTR_NODE_DESC;
+	if (mlx4_is_master(dev->dev))
+		mad_ifc_flags |= MLX4_MAD_IFC_NET_VIEW;
 
-	err = mlx4_MAD_IFC(dev, 1, 1, 1, NULL, NULL, in_mad, out_mad);
+	err = mlx4_MAD_IFC(dev, mad_ifc_flags, 1, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
@@ -867,7 +897,7 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 
 	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
-	err = mlx4_MAD_IFC(dev, 1, 1, 1, NULL, NULL, in_mad, out_mad);
+	err = mlx4_MAD_IFC(dev, mad_ifc_flags, 1, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 

@@ -176,6 +176,14 @@ enum mlx4_ib_qp_type {
 	MLX4_IB_QPT_PROXY_SMI | MLX4_IB_QPT_PROXY_GSI | MLX4_IB_QPT_TUN_SMI_OWNER | \
 	MLX4_IB_QPT_TUN_SMI | MLX4_IB_QPT_TUN_GSI)
 
+enum mlx4_ib_mad_ifc_flags {
+	MLX4_MAD_IFC_IGNORE_MKEY	= 1,
+	MLX4_MAD_IFC_IGNORE_BKEY	= 2,
+	MLX4_MAD_IFC_IGNORE_KEYS	= (MLX4_MAD_IFC_IGNORE_MKEY |
+					   MLX4_MAD_IFC_IGNORE_BKEY),
+	MLX4_MAD_IFC_NET_VIEW		= 4,
+};
+
 enum {
 	MLX4_NUM_TUNNEL_BUFS		= 256,
 };
@@ -512,7 +520,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		      struct ib_recv_wr **bad_wr);
 
-int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int ignore_mkey, int ignore_bkey,
+int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int mad_ifc_flags,
 		 int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		 void *in_mad, void *response_mad);
 int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags,	u8 port_num,
@@ -527,6 +535,10 @@ int mlx4_ib_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list, int npages,
 			 u64 iova);
 int mlx4_ib_unmap_fmr(struct list_head *fmr_list);
 int mlx4_ib_fmr_dealloc(struct ib_fmr *fmr);
+int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
+			 struct ib_port_attr *props, int netw_view);
+int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
+			 u16 *pkey, int netw_view);
 
 int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
 			u8 *mac, int *is_mcast, u8 port);
