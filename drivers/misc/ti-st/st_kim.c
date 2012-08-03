@@ -66,7 +66,24 @@ static struct platform_device *st_get_plat_device(int id)
 static void validate_firmware_response(struct kim_data_s *kim_gdata)
 {
 	struct sk_buff *skb = kim_gdata->rx_skb;
-	if (unlikely(skb->data[5] != 0)) {
+	if (!skb)
+		return;
+
+	/* these magic numbers are the position in the response buffer which
+	 * allows us to distinguish whether the response is for the read
+	 * version info. command
+	 */
+	if (skb->data[2] == 0x01 && skb->data[3] == 0x01 &&
+			skb->data[4] == 0x10 && skb->data[5] == 0x00) {
+		/* fw version response */
+		memcpy(kim_gdata->resp_buffer,
+				kim_gdata->rx_skb->data,
+				kim_gdata->rx_skb->len);
+		complete_all(&kim_gdata->kim_rcvd);
+		kim_gdata->rx_state = ST_W4_PACKET_TYPE;
+		kim_gdata->rx_skb = NULL;
+		kim_gdata->rx_count = 0;
+	} else if (unlikely(skb->data[5] != 0)) {
 		pr_err("no proper response during fw download");
 		pr_err("data6 %x", skb->data[5]);
 		kfree_skb(skb);
@@ -213,10 +230,13 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 		return -ETIMEDOUT;
 	}
 	INIT_COMPLETION(kim_gdata->kim_rcvd);
+	/* the positions 12 & 13 in the response buffer provide with the
+	 * chip, major & minor numbers
+	 */
 
 	version =
-		MAKEWORD(kim_gdata->resp_buffer[13],
-				kim_gdata->resp_buffer[14]);
+		MAKEWORD(kim_gdata->resp_buffer[12],
+				kim_gdata->resp_buffer[13]);
 	chip = (version & 0x7C00) >> 10;
 	min_ver = (version & 0x007F);
 	maj_ver = (version & 0x0380) >> 7;
@@ -410,16 +430,10 @@ void st_kim_recv(void *disc_data, const unsigned char *data, long count)
 	struct st_data_s	*st_gdata = (struct st_data_s *)disc_data;
 	struct kim_data_s	*kim_gdata = st_gdata->kim_data;
 
-	/* copy to local buffer */
-	if (unlikely(data[4] == 0x01 && data[5] == 0x10 && data[0] == 0x04)) {
-		/* must be the read_ver_cmd */
-		memcpy(kim_gdata->resp_buffer, data, count);
-		complete_all(&kim_gdata->kim_rcvd);
-		return;
-	} else {
-		kim_int_recv(kim_gdata, data, count);
-		/* either completes or times out */
-	}
+	/* proceed to gather all data and distinguish read fw version response
+	 * from other fw responses when data gathering is complete
+	 */
+	kim_int_recv(kim_gdata, data, count);
 	return;
 }
 
