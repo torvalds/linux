@@ -42,6 +42,10 @@ uint32_t radeon_atom_get_memory_clock(struct radeon_device *rdev);
 void radeon_atom_set_memory_clock(struct radeon_device *rdev, uint32_t mem_clock);
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 
+void atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
+void radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level);
+
+
 /*
  * r100,rv100,rs100,rv200,rs200
  */

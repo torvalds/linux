@@ -364,19 +364,23 @@ int radeon_atif_handler(struct radeon_device *rdev,
 	DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
 	if (req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) {
-		struct radeon_encoder *enc = atif->backlight_ctl;
+		struct radeon_encoder *enc = atif->encoder_for_bl;
 
 		if (enc) {
-			struct radeon_encoder_atom_dig *dig = enc->enc_priv;
-			dig->backlight_level = req.backlight_level;
-
 			DRM_DEBUG_DRIVER("Changing brightness to %d\n",
 					req.backlight_level);
 
-			atombios_set_panel_brightness(enc);
+			radeon_set_backlight_level(rdev, enc, req.backlight_level);
 
-			backlight_force_update(dig->bl_dev,
-					BACKLIGHT_UPDATE_HOTKEY);
+			if (rdev->is_atom_bios) {
+				struct radeon_encoder_atom_dig *dig = enc->enc_priv;
+				backlight_force_update(dig->bl_dev,
+						       BACKLIGHT_UPDATE_HOTKEY);
+			} else {
+				struct radeon_encoder_lvds *dig = enc->enc_priv;
+				backlight_force_update(dig->bl_dev,
+						       BACKLIGHT_UPDATE_HOTKEY);
+			}
 		}
 	}
 	/* TODO: check other events */
@@ -577,16 +581,26 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		list_for_each_entry(tmp, &rdev->ddev->mode_config.encoder_list,
 				head) {
 			struct radeon_encoder *enc = to_radeon_encoder(tmp);
-			struct radeon_encoder_atom_dig *dig = enc->enc_priv;
 
 			if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
-					dig->bl_dev != NULL) {
-				target = enc;
-				break;
+			    enc->enc_priv) {
+				if (rdev->is_atom_bios) {
+					struct radeon_encoder_atom_dig *dig = enc->enc_priv;
+					if (dig->bl_dev) {
+						target = enc;
+						break;
+					}
+				} else {
+					struct radeon_encoder_lvds *dig = enc->enc_priv;
+					if (dig->bl_dev) {
+						target = enc;
+						break;
+					}
+				}
 			}
 		}
 
-		atif->backlight_ctl = target;
+		atif->encoder_for_bl = target;
 		if (!target) {
 			/* Brightness change notification is enabled, but we
 			 * didn't find a backlight controller, this should

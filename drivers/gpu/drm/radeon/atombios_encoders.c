@@ -73,7 +73,7 @@ radeon_atom_set_backlight_level_to_reg(struct radeon_device *rdev,
 }
 
 void
-atombios_set_panel_brightness(struct radeon_encoder *radeon_encoder)
+atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level)
 {
 	struct drm_encoder *encoder = &radeon_encoder->base;
 	struct drm_device *dev = radeon_encoder->base.dev;
@@ -82,8 +82,13 @@ atombios_set_panel_brightness(struct radeon_encoder *radeon_encoder)
 	DISPLAY_DEVICE_OUTPUT_CONTROL_PS_ALLOCATION args;
 	int index;
 
-	if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
+	if (!(rdev->mode_info.firmware_flags & ATOM_BIOS_INFO_BL_CONTROLLED_BY_GPU))
+		return;
+
+	if ((radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
+	    radeon_encoder->enc_priv) {
 		dig = radeon_encoder->enc_priv;
+		dig->backlight_level = level;
 		radeon_atom_set_backlight_level_to_reg(rdev, dig->backlight_level);
 
 		switch (radeon_encoder->encoder_id) {
@@ -137,11 +142,7 @@ static int radeon_atom_backlight_update_status(struct backlight_device *bd)
 	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
 	struct radeon_encoder *radeon_encoder = pdata->encoder;
 
-	if (radeon_encoder->enc_priv) {
-		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
-		dig->backlight_level = radeon_atom_bl_level(bd);
-		atombios_set_panel_brightness(radeon_encoder);
-	}
+	atombios_set_backlight_level(radeon_encoder, radeon_atom_bl_level(bd));
 
 	return 0;
 }

@@ -1153,6 +1153,8 @@ struct radeon_asic {
 		u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
 		/* wait for vblank */
 		void (*wait_for_vblank)(struct radeon_device *rdev, int crtc);
+		/* set backlight level */
+		void (*set_backlight_level)(struct radeon_encoder *radeon_encoder, u8 level);
 	} display;
 	/* copy functions for bo handling */
 	struct {
@@ -1461,7 +1463,7 @@ struct radeon_atif {
 	struct radeon_atif_notifications notifications;
 	struct radeon_atif_functions functions;
 	struct radeon_atif_notification_cfg notification_cfg;
-	struct radeon_encoder *backlight_ctl;
+	struct radeon_encoder *encoder_for_bl;
 };
 
 struct radeon_atcs_functions {
@@ -1741,6 +1743,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))
+#define radeon_set_backlight_level(rdev, e, l) (rdev)->asic->display.set_backlight_level((e), (l))
 #define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)].emit_fence((rdev), (fence))
 #define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)].emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
 #define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy.blit((rdev), (s), (d), (np), (f))

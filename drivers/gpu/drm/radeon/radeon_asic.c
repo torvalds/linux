@@ -198,6 +198,7 @@ static struct radeon_asic r100_asic = {
 		.bandwidth_update = &r100_bandwidth_update,
 		.get_vblank_counter = &r100_get_vblank_counter,
 		.wait_for_vblank = &r100_wait_for_vblank,
+		.set_backlight_level = &radeon_legacy_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -272,6 +273,7 @@ static struct radeon_asic r200_asic = {
 		.bandwidth_update = &r100_bandwidth_update,
 		.get_vblank_counter = &r100_get_vblank_counter,
 		.wait_for_vblank = &r100_wait_for_vblank,
+		.set_backlight_level = &radeon_legacy_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -346,6 +348,7 @@ static struct radeon_asic r300_asic = {
 		.bandwidth_update = &r100_bandwidth_update,
 		.get_vblank_counter = &r100_get_vblank_counter,
 		.wait_for_vblank = &r100_wait_for_vblank,
+		.set_backlight_level = &radeon_legacy_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -420,6 +423,7 @@ static struct radeon_asic r300_asic_pcie = {
 		.bandwidth_update = &r100_bandwidth_update,
 		.get_vblank_counter = &r100_get_vblank_counter,
 		.wait_for_vblank = &r100_wait_for_vblank,
+		.set_backlight_level = &radeon_legacy_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -494,6 +498,7 @@ static struct radeon_asic r420_asic = {
 		.bandwidth_update = &r100_bandwidth_update,
 		.get_vblank_counter = &r100_get_vblank_counter,
 		.wait_for_vblank = &r100_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -568,6 +573,7 @@ static struct radeon_asic rs400_asic = {
 		.bandwidth_update = &r100_bandwidth_update,
 		.get_vblank_counter = &r100_get_vblank_counter,
 		.wait_for_vblank = &r100_wait_for_vblank,
+		.set_backlight_level = &radeon_legacy_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -642,6 +648,7 @@ static struct radeon_asic rs600_asic = {
 		.bandwidth_update = &rs600_bandwidth_update,
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -716,6 +723,7 @@ static struct radeon_asic rs690_asic = {
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.bandwidth_update = &rs690_bandwidth_update,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -790,6 +798,7 @@ static struct radeon_asic rv515_asic = {
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.bandwidth_update = &rv515_bandwidth_update,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -864,6 +873,7 @@ static struct radeon_asic r520_asic = {
 		.bandwidth_update = &rv515_bandwidth_update,
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -937,6 +947,7 @@ static struct radeon_asic r600_asic = {
 		.bandwidth_update = &rv515_bandwidth_update,
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1010,6 +1021,7 @@ static struct radeon_asic rs780_asic = {
 		.bandwidth_update = &rs690_bandwidth_update,
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1083,6 +1095,7 @@ static struct radeon_asic rv770_asic = {
 		.bandwidth_update = &rv515_bandwidth_update,
 		.get_vblank_counter = &rs600_get_vblank_counter,
 		.wait_for_vblank = &avivo_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1156,6 +1169,7 @@ static struct radeon_asic evergreen_asic = {
 		.bandwidth_update = &evergreen_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1229,6 +1243,7 @@ static struct radeon_asic sumo_asic = {
 		.bandwidth_update = &evergreen_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1302,6 +1317,7 @@ static struct radeon_asic btc_asic = {
 		.bandwidth_update = &evergreen_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1406,6 +1422,7 @@ static struct radeon_asic cayman_asic = {
 		.bandwidth_update = &evergreen_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1500,6 +1517,7 @@ static struct radeon_asic trinity_asic = {
 		.bandwidth_update = &dce6_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1604,6 +1622,7 @@ static struct radeon_asic si_asic = {
 		.bandwidth_update = &dce6_bandwidth_update,
 		.get_vblank_counter = &evergreen_get_vblank_counter,
 		.wait_for_vblank = &dce4_wait_for_vblank,
+		.set_backlight_level = &atombios_set_backlight_level,
 	},
 	.copy = {
 		.blit = NULL,
@@ -1697,6 +1716,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 			rdev->asic->pm.set_engine_clock = &radeon_legacy_set_engine_clock;
 			rdev->asic->pm.get_memory_clock = &radeon_legacy_get_memory_clock;
 			rdev->asic->pm.set_memory_clock = NULL;
+			rdev->asic->display.set_backlight_level = &radeon_legacy_set_backlight_level;
 		}
 		break;
 	case CHIP_RS400:
