@@ -3918,6 +3918,17 @@ LPFC_ATTR_R(enable_hba_heartbeat, 0, 0, 1, "Enable HBA Heartbeat.");
 LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
 
 /*
+# lpfc_fcp_look_ahead: Look ahead for completions in FCP start routine
+#       0  = disabled (default)
+#       1  = enabled
+# Value range is [0,1]. Default value is 0.
+*/
+unsigned int lpfc_fcp_look_ahead = LPFC_LOOK_AHEAD_OFF;
+
+module_param(lpfc_fcp_look_ahead, uint, S_IRUGO);
+MODULE_PARM_DESC(lpfc_fcp_look_ahead, "Look ahead for completions");
+
+/*
 # lpfc_prot_mask: i
 #	- Bit mask of host protection capabilities used to register with the
 #	  SCSI mid-layer

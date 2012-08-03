@@ -69,6 +69,8 @@ static int lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_cqe *);
 static int lpfc_sli4_post_els_sgl_list(struct lpfc_hba *, struct list_head *,
 				       int);
+static void lpfc_sli4_hba_handle_eqe(struct lpfc_hba *, struct lpfc_eqe *,
+			uint32_t);
 
 static IOCB_t *
 lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
@@ -255,6 +257,25 @@ lpfc_sli4_eq_get(struct lpfc_queue *q)
 
 	q->hba_index = idx;
 	return eqe;
+}
+
+/**
+ * lpfc_sli4_eq_clr_intr - Turn off interrupts from this EQ
+ * @q: The Event Queue to disable interrupts
+ *
+ **/
+static inline void
+lpfc_sli4_eq_clr_intr(struct lpfc_queue *q)
+{
+	struct lpfc_register doorbell;
+
+	doorbell.word0 = 0;
+	bf_set(lpfc_eqcq_doorbell_eqci, &doorbell, 1);
+	bf_set(lpfc_eqcq_doorbell_qt, &doorbell, LPFC_QUEUE_TYPE_EVENT);
+	bf_set(lpfc_eqcq_doorbell_eqid_hi, &doorbell,
+		(q->queue_id >> LPFC_EQID_HI_FIELD_SHIFT));
+	bf_set(lpfc_eqcq_doorbell_eqid_lo, &doorbell, q->queue_id);
+	writel(doorbell.word0, q->phba->sli4_hba.EQCQDBregaddr);
 }
 
 /**
@@ -8422,7 +8443,10 @@ int
 lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 		    struct lpfc_iocbq *piocb, uint32_t flag)
 {
+	struct lpfc_fcp_eq_hdl *fcp_eq_hdl;
 	struct lpfc_sli_ring *pring;
+	struct lpfc_queue *fpeq;
+	struct lpfc_eqe *eqe;
 	unsigned long iflags;
 	int rc, idx;
 
@@ -8433,11 +8457,48 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 			idx = lpfc_sli4_scmd_to_wqidx_distr(phba);
 			piocb->fcp_wqidx = idx;
 			ring_number = MAX_SLI3_CONFIGURED_RINGS + idx;
+
+			pring = &phba->sli.ring[ring_number];
+			spin_lock_irqsave(&pring->ring_lock, iflags);
+			rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb,
+				flag);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
+
+			if (lpfc_fcp_look_ahead) {
+				fcp_eq_hdl = &phba->sli4_hba.fcp_eq_hdl[idx];
+
+				if (atomic_dec_and_test(&fcp_eq_hdl->
+					fcp_eq_in_use)) {
+
+					/* Get associated EQ with this index */
+					fpeq = phba->sli4_hba.hba_eq[idx];
+
+					/* Turn off interrupts from this EQ */
+					lpfc_sli4_eq_clr_intr(fpeq);
+
+					/*
+					 * Process all the events on FCP EQ
+					 */
+					while ((eqe = lpfc_sli4_eq_get(fpeq))) {
+						lpfc_sli4_hba_handle_eqe(phba,
+							eqe, idx);
+						fpeq->EQ_processed++;
+					}
+
+					/* Always clear and re-arm the EQ */
+					lpfc_sli4_eq_release(fpeq,
+						LPFC_QUEUE_REARM);
+				}
+				atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
+			}
+		} else {
+			pring = &phba->sli.ring[ring_number];
+			spin_lock_irqsave(&pring->ring_lock, iflags);
+			rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb,
+				flag);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
+
 		}
-		pring = &phba->sli.ring[ring_number];
-		spin_lock_irqsave(&pring->ring_lock, iflags);
-		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
-		spin_unlock_irqrestore(&pring->ring_lock, iflags);
 	} else {
 		/* For now, SLI2/3 will still use hbalock */
 		spin_lock_irqsave(&phba->hbalock, iflags);
@@ -11854,6 +11915,15 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
+	if (lpfc_fcp_look_ahead) {
+		if (atomic_dec_and_test(&fcp_eq_hdl->fcp_eq_in_use))
+			lpfc_sli4_eq_clr_intr(fpeq);
+		else {
+			atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
+			return IRQ_NONE;
+		}
+	}
+
 	/* Check device state for handling interrupt */
 	if (unlikely(lpfc_intr_state_check(phba))) {
 		fpeq->EQ_badstate++;
@@ -11863,6 +11933,8 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 			/* Flush, clear interrupt, and rearm the EQ */
 			lpfc_sli4_eq_flush(phba, fpeq);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
+		if (lpfc_fcp_look_ahead)
+			atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
 		return IRQ_NONE;
 	}
 
@@ -11885,6 +11957,12 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 
 	if (unlikely(ecount == 0)) {
 		fpeq->EQ_no_entry++;
+
+		if (lpfc_fcp_look_ahead) {
+			atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
+			return IRQ_NONE;
+		}
+
 		if (phba->intr_type == MSIX)
 			/* MSI-X treated interrupt served as no EQ share INT */
 			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
@@ -11894,6 +11972,8 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 			return IRQ_NONE;
 	}
 
+	if (lpfc_fcp_look_ahead)
+		atomic_inc(&fcp_eq_hdl->fcp_eq_in_use);
 	return IRQ_HANDLED;
 } /* lpfc_sli4_fp_intr_handler */
 

@@ -390,6 +390,7 @@ extern spinlock_t pgcnt_lock;
 extern unsigned int pgcnt;
 extern unsigned int lpfc_prot_mask;
 extern unsigned char lpfc_prot_guard;
+extern unsigned int lpfc_fcp_look_ahead;
 
 /* Interface exported by fabric iocb scheduler */
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *);

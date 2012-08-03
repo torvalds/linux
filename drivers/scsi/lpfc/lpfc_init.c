@@ -8111,6 +8111,7 @@ enable_msix_vectors:
 
 		phba->sli4_hba.fcp_eq_hdl[index].idx = index;
 		phba->sli4_hba.fcp_eq_hdl[index].phba = phba;
+		atomic_set(&phba->sli4_hba.fcp_eq_hdl[index].fcp_eq_in_use, 1);
 		rc = request_irq(phba->sli4_hba.msix_entries[index].vector,
 				 &lpfc_sli4_hba_intr_handler, IRQF_SHARED,
 				 (char *)&phba->sli4_hba.handler_name[index],
@@ -8283,6 +8284,8 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 			     index++) {
 				phba->sli4_hba.fcp_eq_hdl[index].idx = index;
 				phba->sli4_hba.fcp_eq_hdl[index].phba = phba;
+				atomic_set(&phba->sli4_hba.fcp_eq_hdl[index].
+					fcp_eq_in_use, 1);
 			}
 		}
 	}

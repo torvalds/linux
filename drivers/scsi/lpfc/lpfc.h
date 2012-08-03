@@ -73,6 +73,8 @@ struct lpfc_sli2_slim;
 #define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
 #define LPFC_HB_MBOX_TIMEOUT    30	/* Heart beat timeout  in seconds. */
 
+#define LPFC_LOOK_AHEAD_OFF	0	/* Look ahead logic is turned off */
+
 /* Error Attention event polling interval */
 #define LPFC_ERATT_POLL_INTERVAL	5 /* EATT poll interval in seconds */
 

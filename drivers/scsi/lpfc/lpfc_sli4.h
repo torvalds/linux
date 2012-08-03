@@ -373,6 +373,7 @@ struct lpfc_hba;
 struct lpfc_fcp_eq_hdl {
 	uint32_t idx;
 	struct lpfc_hba *phba;
+	atomic_t fcp_eq_in_use;
 };
 
 /* Port Capabilities for SLI4 Parameters */
