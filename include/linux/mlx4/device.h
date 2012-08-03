@@ -389,6 +389,7 @@ struct mlx4_caps {
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;
 	u8			port_ib_mtu[MLX4_MAX_PORTS + 1];
+	u16			sqp_demux;
 };
 
 struct mlx4_buf_list {
