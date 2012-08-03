@@ -7682,25 +7682,15 @@ static int fan_set_speed(int speed)
 
 static void fan_watchdog_reset(void)
 {
-	static int fan_watchdog_active;
-
 	if (fan_control_access_mode == TPACPI_FAN_WR_NONE)
 		return;
 
-	if (fan_watchdog_active)
-		cancel_delayed_work(&fan_watchdog_task);
-
 	if (fan_watchdog_maxinterval > 0 &&
-	    tpacpi_lifecycle != TPACPI_LIFE_EXITING) {
-		fan_watchdog_active = 1;
-		if (!queue_delayed_work(tpacpi_wq, &fan_watchdog_task,
-				msecs_to_jiffies(fan_watchdog_maxinterval
-						 * 1000))) {
-			pr_err("failed to queue the fan watchdog, "
-			       "watchdog will not trigger\n");
-		}
-	} else
-		fan_watchdog_active = 0;
+	    tpacpi_lifecycle != TPACPI_LIFE_EXITING)
+		mod_delayed_work(tpacpi_wq, &fan_watchdog_task,
+			msecs_to_jiffies(fan_watchdog_maxinterval * 1000));
+	else
+		cancel_delayed_work(&fan_watchdog_task);
 }
 
 static void fan_watchdog_fire(struct work_struct *ignored)
