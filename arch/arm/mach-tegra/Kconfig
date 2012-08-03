@@ -72,13 +72,6 @@ config MACH_PAZ00
        help
          Support for the Toshiba AC100/Dynabook AZ netbook
 
-config MACH_TRIMSLICE
-       bool "TrimSlice board"
-       depends on ARCH_TEGRA_2x_SOC
-       select TEGRA_PCI
-       help
-         Support for CompuLab TrimSlice platform
-
 choice
         prompt "Default low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
