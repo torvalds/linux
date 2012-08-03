@@ -28,6 +28,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/memblock.h>
 
 #include <mach/vt8500fb.h>
 
@@ -59,8 +62,12 @@ static int wm8505fb_init_hw(struct fb_info *info)
 	writel(fbi->fb.fix.smem_start, fbi->regbase + WMT_GOVR_FBADDR);
 	writel(fbi->fb.fix.smem_start, fbi->regbase + WMT_GOVR_FBADDR1);
 
-	/* Set in-memory picture format to RGB 32bpp */
-	writel(0x1c,		       fbi->regbase + WMT_GOVR_COLORSPACE);
+	/*
+	 * Set in-memory picture format to RGB
+	 * 0x31C sets the correct color mode (RGB565) for WM8650
+	 * Bit 8+9 (0x300) are ignored on WM8505 as reserved
+	 */
+	writel(0x31c,		       fbi->regbase + WMT_GOVR_COLORSPACE);
 	writel(1,		       fbi->regbase + WMT_GOVR_COLORSPACE1);
 
 	/* Virtual buffer size */
@@ -127,6 +134,18 @@ static int wm8505fb_set_par(struct fb_info *info)
 		info->var.blue.msb_right = 0;
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 		info->fix.line_length = info->var.xres_virtual << 2;
+	} else if (info->var.bits_per_pixel == 16) {
+		info->var.red.offset = 11;
+		info->var.red.length = 5;
+		info->var.red.msb_right = 0;
+		info->var.green.offset = 5;
+		info->var.green.length = 6;
+		info->var.green.msb_right = 0;
+		info->var.blue.offset = 0;
+		info->var.blue.length = 5;
+		info->var.blue.msb_right = 0;
+		info->fix.visual = FB_VISUAL_TRUECOLOR;
+		info->fix.line_length = info->var.xres_virtual << 1;
 	}
 
 	wm8505fb_set_timing(info);
@@ -246,16 +265,20 @@ static int __devinit wm8505fb_probe(struct platform_device *pdev)
 	struct wm8505fb_info	*fbi;
 	struct resource		*res;
 	void			*addr;
-	struct vt8500fb_platform_data *pdata;
 	int ret;
 
-	pdata = pdev->dev.platform_data;
+	struct fb_videomode	of_mode;
+	struct device_node	*np;
+	u32			bpp;
+	dma_addr_t fb_mem_phys;
+	unsigned long fb_mem_len;
+	void *fb_mem_virt;
 
 	ret = -ENOMEM;
 	fbi = NULL;
 
-	fbi = kzalloc(sizeof(struct wm8505fb_info) + sizeof(u32) * 16,
-							GFP_KERNEL);
+	fbi = devm_kzalloc(&pdev->dev, sizeof(struct wm8505fb_info) +
+			sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi) {
 		dev_err(&pdev->dev, "Failed to initialize framebuffer device\n");
 		ret = -ENOMEM;
@@ -305,21 +328,58 @@ static int __devinit wm8505fb_probe(struct platform_device *pdev)
 		goto failed_free_res;
 	}
 
-	fb_videomode_to_var(&fbi->fb.var, &pdata->mode);
+	np = of_parse_phandle(pdev->dev.of_node, "default-mode", 0);
+	if (!np) {
+		pr_err("%s: No display description in Device Tree\n", __func__);
+		ret = -EINVAL;
+		goto failed_free_res;
+	}
+
+	/*
+	 * This code is copied from Sascha Hauer's of_videomode helper
+	 * and can be replaced with a call to the helper once mainlined
+	 */
+	ret = 0;
+	ret |= of_property_read_u32(np, "hactive", &of_mode.xres);
+	ret |= of_property_read_u32(np, "vactive", &of_mode.yres);
+	ret |= of_property_read_u32(np, "hback-porch", &of_mode.left_margin);
+	ret |= of_property_read_u32(np, "hfront-porch", &of_mode.right_margin);
+	ret |= of_property_read_u32(np, "hsync-len", &of_mode.hsync_len);
+	ret |= of_property_read_u32(np, "vback-porch", &of_mode.upper_margin);
+	ret |= of_property_read_u32(np, "vfront-porch", &of_mode.lower_margin);
+	ret |= of_property_read_u32(np, "vsync-len", &of_mode.vsync_len);
+	ret |= of_property_read_u32(np, "bpp", &bpp);
+	if (ret) {
+		pr_err("%s: Unable to read display properties\n", __func__);
+		goto failed_free_res;
+	}
+
+	of_mode.vmode = FB_VMODE_NONINTERLACED;
+	fb_videomode_to_var(&fbi->fb.var, &of_mode);
 
 	fbi->fb.var.nonstd		= 0;
 	fbi->fb.var.activate		= FB_ACTIVATE_NOW;
 
 	fbi->fb.var.height		= -1;
 	fbi->fb.var.width		= -1;
-	fbi->fb.var.xres_virtual	= pdata->xres_virtual;
-	fbi->fb.var.yres_virtual	= pdata->yres_virtual;
-	fbi->fb.var.bits_per_pixel	= pdata->bpp;
 
-	fbi->fb.fix.smem_start	= pdata->video_mem_phys;
-	fbi->fb.fix.smem_len	= pdata->video_mem_len;
-	fbi->fb.screen_base	= pdata->video_mem_virt;
-	fbi->fb.screen_size	= pdata->video_mem_len;
+	/* try allocating the framebuffer */
+	fb_mem_len = of_mode.xres * of_mode.yres * 2 * (bpp / 8);
+	fb_mem_virt = dma_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
+				GFP_KERNEL);
+	if (!fb_mem_virt) {
+		pr_err("%s: Failed to allocate framebuffer\n", __func__);
+		return -ENOMEM;
+	};
+
+	fbi->fb.var.xres_virtual	= of_mode.xres;
+	fbi->fb.var.yres_virtual	= of_mode.yres * 2;
+	fbi->fb.var.bits_per_pixel	= bpp;
+
+	fbi->fb.fix.smem_start		= fb_mem_phys;
+	fbi->fb.fix.smem_len		= fb_mem_len;
+	fbi->fb.screen_base		= fb_mem_virt;
+	fbi->fb.screen_size		= fb_mem_len;
 
 	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
 		dev_err(&pdev->dev, "Failed to allocate color map\n");
@@ -395,12 +455,18 @@ static int __devexit wm8505fb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id wmt_dt_ids[] = {
+	{ .compatible = "wm,wm8505-fb", },
+	{}
+};
+
 static struct platform_driver wm8505fb_driver = {
 	.probe		= wm8505fb_probe,
 	.remove		= __devexit_p(wm8505fb_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= DRIVER_NAME,
+		.of_match_table = of_match_ptr(wmt_dt_ids),
 	},
 };
 
@@ -408,4 +474,5 @@ module_platform_driver(wm8505fb_driver);
 
 MODULE_AUTHOR("Ed Spiridonov <edo.rus@gmail.com>");
 MODULE_DESCRIPTION("Framebuffer driver for WMT WM8505");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
+MODULE_DEVICE_TABLE(of, wmt_dt_ids);
