@@ -693,7 +693,18 @@ static inline int mlx4_is_master(struct mlx4_dev *dev)
 
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
 {
-	return (qpn < dev->caps.sqp_start + 8);
+	return (qpn < dev->caps.base_sqpn + 8 +
+		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev));
+}
+
+static inline int mlx4_is_guest_proxy(struct mlx4_dev *dev, int slave, u32 qpn)
+{
+	int base = dev->caps.sqp_start + slave * 8;
+
+	if (qpn >= base && qpn < base + 8)
+		return 1;
+
+	return 0;
 }
 
 static inline int mlx4_is_mfunc(struct mlx4_dev *dev)

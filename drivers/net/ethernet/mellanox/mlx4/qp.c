@@ -406,7 +406,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	 * We also reserve the MSB of the 24-bit QP number to indicate
 	 * that a QP is an XRC QP.
 	 */
-	dev->caps.sqp_start =
+	dev->caps.base_sqpn =
 		ALIGN(dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW], 8);
 
 	{
@@ -437,13 +437,36 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 
 	}
 
+       /* Reserve 8 real SQPs in both native and SRIOV modes.
+	* In addition, in SRIOV mode, reserve 8 proxy SQPs per function
+	* (for all PFs and VFs), and 8 corresponding tunnel QPs.
+	* Each proxy SQP works opposite its own tunnel QP.
+	*
+	* The QPs are arranged as follows:
+	* a. 8 real SQPs
+	* b. All the proxy SQPs (8 per function)
+	* c. All the tunnel QPs (8 per function)
+	*/
+
 	err = mlx4_bitmap_init(&qp_table->bitmap, dev->caps.num_qps,
-			       (1 << 23) - 1, dev->caps.sqp_start + 8,
+			       (1 << 23) - 1, dev->caps.base_sqpn + 8 +
+			       16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev),
 			       reserved_from_top);
+
+	/* In mfunc, sqp_start is the base of the proxy SQPs, since the PF also
+	 * uses paravirtualized SQPs.
+	 * In native mode, sqp_start is the base of the real SQPs. */
+	if (mlx4_is_mfunc(dev)) {
+		dev->caps.sqp_start = dev->caps.base_sqpn +
+			8 * (mlx4_master_func_num(dev) + 1);
+		dev->caps.base_tunnel_sqpn = dev->caps.sqp_start + 8 * MLX4_MFUNC_MAX;
+	} else
+		dev->caps.sqp_start = dev->caps.base_sqpn;
+
 	if (err)
 		return err;
 
-	return mlx4_CONF_SPECIAL_QP(dev, dev->caps.sqp_start);
+	return mlx4_CONF_SPECIAL_QP(dev, dev->caps.base_sqpn);
 }
 
 void mlx4_cleanup_qp_table(struct mlx4_dev *dev)

@@ -1105,7 +1105,8 @@ static void res_end_move(struct mlx4_dev *dev, int slave,
 
 static int valid_reserved(struct mlx4_dev *dev, int slave, int qpn)
 {
-	return mlx4_is_qp_reserved(dev, qpn);
+	return mlx4_is_qp_reserved(dev, qpn) &&
+		(mlx4_is_master(dev) || mlx4_is_guest_proxy(dev, slave, qpn));
 }
 
 static int qp_alloc_res(struct mlx4_dev *dev, int slave, int op, int cmd,

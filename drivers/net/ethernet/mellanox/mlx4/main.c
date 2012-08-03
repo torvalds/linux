@@ -384,6 +384,7 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_ADDR] +
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH];
 
+	dev->caps.sqp_demux = (mlx4_is_master(dev)) ? MLX4_MAX_NUM_SLAVES : 0;
 	return 0;
 }
 /*The function checks if there are live vf, return the num of them*/
@@ -540,6 +541,10 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 			 (unsigned long long) pci_resource_len(dev->pdev, 2));
 		return -ENODEV;
 	}
+
+	/* Calculate our sqp_start */
+	dev->caps.sqp_start = func_cap.base_proxy_qpn;
+	dev->caps.base_tunnel_sqpn = func_cap.base_tunnel_qpn;
 
 	return 0;
 }

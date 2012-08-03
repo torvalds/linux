@@ -184,6 +184,8 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x28
 #define QUERY_FUNC_CAP_MAX_EQ_OFFSET		0x2c
 #define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0X30
+#define QUERY_FUNC_CAP_BASE_TUNNEL_QPN_OFFSET	0x44
+#define QUERY_FUNC_CAP_BASE_PROXY_QPN_OFFSET	0x48
 
 #define QUERY_FUNC_CAP_FMR_FLAG			0x80
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
@@ -246,6 +248,12 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 		size = dev->caps.num_mgms + dev->caps.num_amgms;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
+
+		size = dev->caps.base_tunnel_sqpn + 8 * slave;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_BASE_TUNNEL_QPN_OFFSET);
+
+		size = dev->caps.sqp_start + 8 * slave;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_BASE_PROXY_QPN_OFFSET);
 
 	} else
 		err = -EINVAL;
@@ -311,6 +319,12 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, struct mlx4_func_cap *func_cap)
 
 	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
 	func_cap->mcg_quota = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_BASE_TUNNEL_QPN_OFFSET);
+	func_cap->base_tunnel_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_BASE_PROXY_QPN_OFFSET);
+	func_cap->base_proxy_qpn = size & 0xFFFFFF;
 
 	for (i = 1; i <= func_cap->num_ports; ++i) {
 		err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 1,
