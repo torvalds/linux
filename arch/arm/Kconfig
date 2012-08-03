@@ -1005,6 +1005,10 @@ config ARCH_VT8500
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
+	select USE_OF
+	select COMMON_CLK
+	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 
@@ -1128,8 +1132,6 @@ source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-vexpress/Kconfig"
 source "arch/arm/plat-versatile/Kconfig"
-
-source "arch/arm/mach-vt8500/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
@@ -1623,6 +1625,7 @@ config ARCH_NR_GPIO
 	default 355 if ARCH_U8500
 	default 264 if MACH_H4700
 	default 512 if SOC_OMAP5
+	default 288 if ARCH_VT8500
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
