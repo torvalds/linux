@@ -225,10 +225,14 @@ struct uvc_format_desc {
  * always be accessed with the UVC_ENTITY_* macros and never directly.
  */
 
+#define UVC_ENTITY_FLAG_DEFAULT		(1 << 0)
+
 struct uvc_entity {
 	struct list_head list;		/* Entity as part of a UVC device. */
 	struct list_head chain;		/* Entity as part of a video device
 					 * chain. */
+	unsigned int flags;
+
 	__u8 id;
 	__u16 type;
 	char name[64];

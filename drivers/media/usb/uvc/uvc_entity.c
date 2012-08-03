@@ -93,6 +93,8 @@ static int uvc_mc_init_entity(struct uvc_entity *entity)
 	} else if (entity->vdev != NULL) {
 		ret = media_entity_init(&entity->vdev->entity,
 					entity->num_pads, entity->pads, 0);
+		if (entity->flags & UVC_ENTITY_FLAG_DEFAULT)
+			entity->vdev->entity.flags |= MEDIA_ENT_FL_DEFAULT;
 	} else
 		ret = 0;
 

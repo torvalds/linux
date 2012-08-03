@@ -1564,6 +1564,8 @@ static int uvc_scan_device(struct uvc_device *dev)
 		chain->dev = dev;
 		v4l2_prio_init(&chain->prio);
 
+		term->flags |= UVC_ENTITY_FLAG_DEFAULT;
+
 		if (uvc_scan_chain(chain, term) < 0) {
 			kfree(chain);
 			continue;
