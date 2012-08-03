@@ -1628,18 +1628,28 @@ static int __init mlx4_ib_init(void)
 	if (!wq)
 		return -ENOMEM;
 
+	err = mlx4_ib_mcg_init();
+	if (err)
+		goto clean_wq;
+
 	err = mlx4_register_interface(&mlx4_ib_interface);
-	if (err) {
-		destroy_workqueue(wq);
-		return err;
-	}
+	if (err)
+		goto clean_mcg;
 
 	return 0;
+
+clean_mcg:
+	mlx4_ib_mcg_destroy();
+
+clean_wq:
+	destroy_workqueue(wq);
+	return err;
 }
 
 static void __exit mlx4_ib_cleanup(void)
 {
 	mlx4_unregister_interface(&mlx4_ib_interface);
+	mlx4_ib_mcg_destroy();
 	destroy_workqueue(wq);
 }
 

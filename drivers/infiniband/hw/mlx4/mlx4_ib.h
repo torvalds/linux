@@ -37,9 +37,11 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/idr.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_mad.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -329,7 +331,14 @@ struct mlx4_ib_demux_ctx {
 	__be64 subnet_prefix;
 	__be64 guid_cache[128];
 	struct mlx4_ib_dev *dev;
+	/* the following lock protects both mcg_table and mcg_mgid0_list */
+	struct mutex		mcg_table_lock;
+	struct rb_root		mcg_table;
+	struct list_head	mcg_mgid0_list;
+	struct workqueue_struct	*mcg_wq;
 	struct mlx4_ib_demux_pv_ctx **tun;
+	atomic_t tid;
+	int    flushing; /* flushing the work queue */
 };
 
 struct mlx4_ib_sriov {
@@ -553,6 +562,19 @@ static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 	return !!(ah->av.ib.g_slid & 0x80);
 }
 
+int mlx4_ib_mcg_port_init(struct mlx4_ib_demux_ctx *ctx);
+void mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy_wq);
+void clean_vf_mcast(struct mlx4_ib_demux_ctx *ctx, int slave);
+int mlx4_ib_mcg_init(void);
+void mlx4_ib_mcg_destroy(void);
+
+int mlx4_ib_find_real_gid(struct ib_device *ibdev, u8 port, __be64 guid);
+
+int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port, int slave,
+				  struct ib_sa_mad *sa_mad);
+int mlx4_ib_mcg_demux_handler(struct ib_device *ibdev, int port, int slave,
+			      struct ib_sa_mad *mad);
+
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid);
 
@@ -560,5 +582,13 @@ void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
 			    enum ib_event_type type);
 
 void mlx4_ib_tunnels_update_work(struct work_struct *work);
+
+int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
+			  enum ib_qp_type qpt, struct ib_wc *wc,
+			  struct ib_grh *grh, struct ib_mad *mad);
+int mlx4_ib_send_to_wire(struct mlx4_ib_dev *dev, int slave, u8 port,
+			 enum ib_qp_type dest_qpt, u16 pkey_index, u32 remote_qpn,
+			 u32 qkey, struct ib_ah_attr *attr, struct ib_mad *mad);
+__be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx);
 
 #endif /* MLX4_IB_H */

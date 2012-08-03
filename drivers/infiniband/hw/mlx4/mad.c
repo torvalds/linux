@@ -75,6 +75,14 @@ struct mlx4_rcv_tunnel_mad {
 	struct ib_mad mad;
 } __packed;
 
+static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num);
+
+__be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx)
+{
+	return cpu_to_be64(atomic_inc_return(&ctx->tid)) |
+		cpu_to_be64(0xff00000000000000LL);
+}
+
 int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int mad_ifc_flags,
 		 int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		 void *in_mad, void *response_mad)
@@ -209,8 +217,7 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
 				     pinfo->neighbormtu_mastersmsl & 0xf);
 
 			if (pinfo->clientrereg_resv_subnetto & 0x80)
-				mlx4_ib_dispatch_event(dev, port_num,
-						       IB_EVENT_CLIENT_REREGISTER);
+				handle_client_rereg_event(dev, port_num);
 
 			if (prev_lid != lid)
 				mlx4_ib_dispatch_event(dev, port_num,
@@ -308,7 +315,17 @@ static void forward_trap(struct mlx4_ib_dev *dev, u8 port_num, struct ib_mad *ma
 static int mlx4_ib_demux_sa_handler(struct ib_device *ibdev, int port, int slave,
 							     struct ib_sa_mad *sa_mad)
 {
-	return 0;
+	int ret = 0;
+
+	/* dispatch to different sa handlers */
+	switch (be16_to_cpu(sa_mad->mad_hdr.attr_id)) {
+	case IB_SA_ATTR_MC_MEMBER_REC:
+		ret = mlx4_ib_mcg_demux_handler(ibdev, port, slave, sa_mad);
+		break;
+	default:
+		break;
+	}
+	return ret;
 }
 
 int mlx4_ib_find_real_gid(struct ib_device *ibdev, u8 port, __be64 guid)
@@ -768,6 +785,16 @@ void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev)
 	}
 }
 
+static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
+{
+	/* re-configure the mcg's */
+	if (mlx4_is_master(dev->dev)) {
+		if (!dev->sriov.is_going_down)
+			mlx4_ib_mcg_port_cleanup(&dev->sriov.demux[port_num - 1], 0);
+	}
+	mlx4_ib_dispatch_event(dev, port_num, IB_EVENT_CLIENT_REREGISTER);
+}
+
 void handle_port_mgmt_change_event(struct work_struct *work)
 {
 	struct ib_event_work *ew = container_of(work, struct ib_event_work, work);
@@ -797,8 +824,7 @@ void handle_port_mgmt_change_event(struct work_struct *work)
 			mlx4_ib_dispatch_event(dev, port, IB_EVENT_GID_CHANGE);
 
 		if (changed_attr & MLX4_EQ_PORT_INFO_CLIENT_REREG_MASK)
-			mlx4_ib_dispatch_event(dev, port,
-					       IB_EVENT_CLIENT_REREGISTER);
+			handle_client_rereg_event(dev, port);
 		break;
 
 	case MLX4_DEV_PMC_SUBTYPE_PKEY_TABLE:
@@ -868,7 +894,17 @@ static int mlx4_ib_post_pv_qp_buf(struct mlx4_ib_demux_pv_ctx *ctx,
 static int mlx4_ib_multiplex_sa_handler(struct ib_device *ibdev, int port,
 		int slave, struct ib_sa_mad *sa_mad)
 {
-	return 0;
+	int ret = 0;
+
+	/* dispatch to different sa handlers */
+	switch (be16_to_cpu(sa_mad->mad_hdr.attr_id)) {
+	case IB_SA_ATTR_MC_MEMBER_REC:
+		ret = mlx4_ib_mcg_multiplex_handler(ibdev, port, slave, sa_mad);
+		break;
+	default:
+		break;
+	}
+	return ret;
 }
 
 static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
@@ -1590,6 +1626,7 @@ static int mlx4_ib_tunnels_update(struct mlx4_ib_dev *dev, int slave,
 	int ret = 0;
 
 	if (!do_init) {
+		clean_vf_mcast(&dev->sriov.demux[port - 1], slave);
 		/* for master, destroy real sqp resources */
 		if (slave == mlx4_master_func_num(dev->dev))
 			destroy_pv_resources(dev, slave, port,
@@ -1643,8 +1680,14 @@ static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
 		ret = alloc_pv_object(dev, i, port, &ctx->tun[i]);
 		if (ret) {
 			ret = -ENOMEM;
-			goto err_wq;
+			goto err_mcg;
 		}
+	}
+
+	ret = mlx4_ib_mcg_port_init(ctx);
+	if (ret) {
+		pr_err("Failed initializing mcg para-virt (%d)\n", ret);
+		goto err_mcg;
 	}
 
 	snprintf(name, sizeof name, "mlx4_ibt%d", port);
@@ -1670,6 +1713,8 @@ err_udwq:
 	ctx->wq = NULL;
 
 err_wq:
+	mlx4_ib_mcg_port_cleanup(ctx, 1);
+err_mcg:
 	for (i = 0; i < dev->dev->caps.sqp_demux; i++)
 		free_pv_object(dev, i, port);
 	kfree(ctx->tun);
@@ -1705,6 +1750,7 @@ static void mlx4_ib_free_demux_ctx(struct mlx4_ib_demux_ctx *ctx)
 	int i;
 	if (ctx) {
 		struct mlx4_ib_dev *dev = to_mdev(ctx->ib_dev);
+		mlx4_ib_mcg_port_cleanup(ctx, 1);
 		for (i = 0; i < dev->dev->caps.sqp_demux; i++) {
 			if (!ctx->tun[i])
 				continue;
