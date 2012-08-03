@@ -36,7 +36,7 @@ static struct mfd_cell tps65910s[] = {
 	},
 };
 
-#define TPS65910_SPEED 	400 * 1000
+#define TPS65910_SPEED 	200 * 1000
 
 static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 				  int bytes, void *dest)
@@ -51,14 +51,14 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	xfer[0].flags = 0;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
-	xfer[0].scl_rate = 200*1000;
+	xfer[0].scl_rate = TPS65910_SPEED;
 
 	/* Read data */
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_RD;
 	xfer[1].len = bytes;
 	xfer[1].buf = dest;
-	xfer[1].scl_rate = 200*1000;
+	xfer[1].scl_rate = TPS65910_SPEED;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	//for(i=0;i<bytes;i++)
@@ -292,7 +292,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			goto err;
 		}
 	}
-	printk("%s:irq=%d,irq_base=%d\n",__func__,init_data->irq,init_data->irq_base);
+	printk("%s:irq=%d,irq_base=%d,gpio_base=%d\n",__func__,init_data->irq,init_data->irq_base,pmic_plat_data->gpio_base);
 	return ret;
 
 err:
