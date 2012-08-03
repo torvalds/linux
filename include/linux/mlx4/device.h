@@ -54,6 +54,11 @@ enum {
 };
 
 enum {
+	MLX4_PORT_CAP_IS_SM	= 1 << 1,
+	MLX4_PORT_CAP_DEV_MGMT_SUP = 1 << 19,
+};
+
+enum {
 	MLX4_MAX_PORTS		= 2,
 	MLX4_MAX_PORT_PKEYS	= 128
 };
