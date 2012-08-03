@@ -778,14 +778,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		skb_queue_purge(&sdata->skb_queue);
 
 		/*
-		 * Disable beaconing here for mesh only, AP and IBSS
-		 * are already taken care of.
-		 */
-		if (sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
-			ieee80211_bss_info_change_notify(sdata,
-				BSS_CHANGED_BEACON_ENABLED);
-
-		/*
 		 * Free all remaining keys, there shouldn't be any,
 		 * except maybe group keys in AP more or WDS?
 		 */
