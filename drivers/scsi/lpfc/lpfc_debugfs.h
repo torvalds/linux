@@ -36,6 +36,9 @@
 /* dumpHostSlim output buffer size */
 #define LPFC_DUMPHOSTSLIM_SIZE 4096
 
+/* dumpSLIqinfo output buffer size */
+#define	LPFC_DUMPSLIQINFO_SIZE 4096
+
 /* hbqinfo output buffer size */
 #define LPFC_HBQINFO_SIZE 8192
 

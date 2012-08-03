@@ -141,6 +141,35 @@ struct lpfc_queue {
 	uint32_t page_count;	/* Number of pages allocated for this queue */
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
+
+	/* For q stats */
+	uint32_t q_cnt_1;
+	uint32_t q_cnt_2;
+	uint32_t q_cnt_3;
+	uint64_t q_cnt_4;
+/* defines for EQ stats */
+#define	EQ_max_eqe		q_cnt_1
+#define	EQ_no_entry		q_cnt_2
+#define	EQ_badstate		q_cnt_3
+#define	EQ_processed		q_cnt_4
+
+/* defines for CQ stats */
+#define	CQ_mbox			q_cnt_1
+#define	CQ_max_cqe		q_cnt_1
+#define	CQ_release_wqe		q_cnt_2
+#define	CQ_xri_aborted		q_cnt_3
+#define	CQ_wq			q_cnt_4
+
+/* defines for WQ stats */
+#define	WQ_overflow		q_cnt_1
+#define	WQ_posted		q_cnt_4
+
+/* defines for RQ stats */
+#define	RQ_no_posted_buf	q_cnt_1
+#define	RQ_no_buf_found		q_cnt_2
+#define	RQ_buf_trunc		q_cnt_3
+#define	RQ_rcv_buf		q_cnt_4
+
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
 
