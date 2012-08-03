@@ -1505,6 +1505,9 @@ static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 	WARN_ONCE(rdp->qlen != 0 || rdp->nxtlist != NULL,
 		  "rcu_cleanup_dead_cpu: Callbacks on offline CPU %d: qlen=%lu, nxtlist=%p\n",
 		  cpu, rdp->qlen, rdp->nxtlist);
+	init_callback_list(rdp);
+	/* Disallow further callbacks on this CPU. */
+	rdp->nxttail[RCU_NEXT_TAIL] = NULL;
 }
 
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
@@ -1927,6 +1930,12 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	rdp = this_cpu_ptr(rsp->rda);
 
 	/* Add the callback to our list. */
+	if (unlikely(rdp->nxttail[RCU_NEXT_TAIL] == NULL)) {
+		/* _call_rcu() is illegal on offline CPU; leak the callback. */
+		WARN_ON_ONCE(1);
+		local_irq_restore(flags);
+		return;
+	}
 	ACCESS_ONCE(rdp->qlen)++;
 	if (lazy)
 		rdp->qlen_lazy++;
@@ -2464,6 +2473,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp, int preemptible)
 	rdp->qlen_last_fqs_check = 0;
 	rdp->n_force_qs_snap = rsp->n_force_qs;
 	rdp->blimit = blimit;
+	init_callback_list(rdp);  /* Re-enable callbacks on this CPU. */
 	rdp->dynticks->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 	atomic_set(&rdp->dynticks->dynticks,
 		   (atomic_read(&rdp->dynticks->dynticks) & ~0x1) + 1);
