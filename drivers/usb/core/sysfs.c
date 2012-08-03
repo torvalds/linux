@@ -204,12 +204,12 @@ set_avoid_reset_quirk(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct usb_device	*udev = to_usb_device(dev);
-	int			config;
+	int			val;
 
-	if (sscanf(buf, "%d", &config) != 1 || config < 0 || config > 1)
+	if (sscanf(buf, "%d", &val) != 1 || val < 0 || val > 1)
 		return -EINVAL;
 	usb_lock_device(udev);
-	if (config)
+	if (val)
 		udev->quirks |= USB_QUIRK_RESET_MORPHS;
 	else
 		udev->quirks &= ~USB_QUIRK_RESET_MORPHS;
