@@ -31,10 +31,14 @@
 
 #include "cpia2.h"
 
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
+
+#define FIRMWARE "cpia2/stv0672_vp4.bin"
+MODULE_FIRMWARE(FIRMWARE);
 
 /* #define _CPIA2_DEBUG_ */
 
@@ -898,7 +902,7 @@ static int cpia2_send_onebyte_command(struct camera_data *cam,
 static int apply_vp_patch(struct camera_data *cam)
 {
 	const struct firmware *fw;
-	const char fw_name[] = "cpia2/stv0672_vp4.bin";
+	const char fw_name[] = FIRMWARE;
 	int i, ret;
 	struct cpia2_command cmd;
 
