@@ -1576,9 +1576,14 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		/* result already set, check signature */
 		if (server->sec_mode &
 		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
-			if (cifs_verify_signature(rdata->iov, rdata->nr_iov,
-					  server, mid->sequence_number + 1))
-				cERROR(1, "Unexpected SMB signature");
+			int rc = 0;
+
+			rc = cifs_verify_signature(rdata->iov, rdata->nr_iov,
+						   server,
+						   mid->sequence_number + 1);
+			if (rc)
+				cERROR(1, "SMB signature verification returned "
+				       "error = %d", rc);
 		}
 		/* FIXME: should this be counted toward the initiating task? */
 		task_io_account_read(rdata->bytes);
