@@ -420,6 +420,8 @@ struct kvm_vcpu_arch {
 	unsigned int hw_tsc_khz;
 	unsigned int time_offset;
 	struct page *time_page;
+	/* set guest stopped flag in pvclock flags field */
+	bool pvclock_set_guest_stopped_request;
 
 	struct {
 		u64 msr_val;

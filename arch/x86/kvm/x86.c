@@ -1134,6 +1134,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	unsigned long this_tsc_khz;
 	s64 kernel_ns, max_kernel_ns;
 	u64 tsc_timestamp;
+	u8 pvclock_flags;
 
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
@@ -1215,7 +1216,14 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->last_kernel_ns = kernel_ns;
 	vcpu->last_guest_tsc = tsc_timestamp;
-	vcpu->hv_clock.flags = 0;
+
+	pvclock_flags = 0;
+	if (vcpu->pvclock_set_guest_stopped_request) {
+		pvclock_flags |= PVCLOCK_GUEST_STOPPED;
+		vcpu->pvclock_set_guest_stopped_request = false;
+	}
+
+	vcpu->hv_clock.flags = pvclock_flags;
 
 	/*
 	 * The interface expects us to write an even number signaling that the
@@ -2624,10 +2632,9 @@ static int kvm_vcpu_ioctl_x86_set_xcrs(struct kvm_vcpu *vcpu,
  */
 static int kvm_set_guest_paused(struct kvm_vcpu *vcpu)
 {
-	struct pvclock_vcpu_time_info *src = &vcpu->arch.hv_clock;
 	if (!vcpu->arch.time_page)
 		return -EINVAL;
-	src->flags |= PVCLOCK_GUEST_STOPPED;
+	vcpu->arch.pvclock_set_guest_stopped_request = true;
 	kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 	return 0;
 }
