@@ -94,25 +94,22 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_LABEL]     	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
 };
 
-/* inet_addr_hash's shifting is dependent upon this IN4_ADDR_HSIZE
- * value.  So if you change this define, make appropriate changes to
- * inet_addr_hash as well.
- */
-#define IN4_ADDR_HSIZE	256
+#define IN4_ADDR_HSIZE_SHIFT	8
+#define IN4_ADDR_HSIZE		(1U << IN4_ADDR_HSIZE_SHIFT)
+
 static struct hlist_head inet_addr_lst[IN4_ADDR_HSIZE];
 static DEFINE_SPINLOCK(inet_addr_hash_lock);
 
-static inline unsigned int inet_addr_hash(struct net *net, __be32 addr)
+static u32 inet_addr_hash(struct net *net, __be32 addr)
 {
-	u32 val = (__force u32) addr ^ hash_ptr(net, 8);
+	u32 val = (__force u32) addr ^ net_hash_mix(net);
 
-	return ((val ^ (val >> 8) ^ (val >> 16) ^ (val >> 24)) &
-		(IN4_ADDR_HSIZE - 1));
+	return hash_32(val, IN4_ADDR_HSIZE_SHIFT);
 }
 
 static void inet_hash_insert(struct net *net, struct in_ifaddr *ifa)
 {
-	unsigned int hash = inet_addr_hash(net, ifa->ifa_local);
+	u32 hash = inet_addr_hash(net, ifa->ifa_local);
 
 	spin_lock(&inet_addr_hash_lock);
 	hlist_add_head_rcu(&ifa->hash, &inet_addr_lst[hash]);
@@ -136,18 +133,18 @@ static void inet_hash_remove(struct in_ifaddr *ifa)
  */
 struct net_device *__ip_dev_find(struct net *net, __be32 addr, bool devref)
 {
-	unsigned int hash = inet_addr_hash(net, addr);
+	u32 hash = inet_addr_hash(net, addr);
 	struct net_device *result = NULL;
 	struct in_ifaddr *ifa;
 	struct hlist_node *node;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(ifa, node, &inet_addr_lst[hash], hash) {
-		struct net_device *dev = ifa->ifa_dev->dev;
-
-		if (!net_eq(dev_net(dev), net))
-			continue;
 		if (ifa->ifa_local == addr) {
+			struct net_device *dev = ifa->ifa_dev->dev;
+
+			if (!net_eq(dev_net(dev), net))
+				continue;
 			result = dev;
 			break;
 		}
@@ -182,10 +179,10 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 static void devinet_sysctl_register(struct in_device *idev);
 static void devinet_sysctl_unregister(struct in_device *idev);
 #else
-static inline void devinet_sysctl_register(struct in_device *idev)
+static void devinet_sysctl_register(struct in_device *idev)
 {
 }
-static inline void devinet_sysctl_unregister(struct in_device *idev)
+static void devinet_sysctl_unregister(struct in_device *idev)
 {
 }
 #endif
@@ -205,7 +202,7 @@ static void inet_rcu_free_ifa(struct rcu_head *head)
 	kfree(ifa);
 }
 
-static inline void inet_free_ifa(struct in_ifaddr *ifa)
+static void inet_free_ifa(struct in_ifaddr *ifa)
 {
 	call_rcu(&ifa->rcu_head, inet_rcu_free_ifa);
 }
@@ -659,7 +656,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
  *	Determine a default network mask, based on the IP address.
  */
 
-static inline int inet_abc_len(__be32 addr)
+static int inet_abc_len(__be32 addr)
 {
 	int rc = -1;	/* Something else, probably a multicast. */
 
@@ -1124,7 +1121,7 @@ skip:
 	}
 }
 
-static inline bool inetdev_valid_mtu(unsigned int mtu)
+static bool inetdev_valid_mtu(unsigned int mtu)
 {
 	return mtu >= 68;
 }
@@ -1239,7 +1236,7 @@ static struct notifier_block ip_netdev_notifier = {
 	.notifier_call = inetdev_event,
 };
 
-static inline size_t inet_nlmsg_size(void)
+static size_t inet_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct ifaddrmsg))
 	       + nla_total_size(4) /* IFA_ADDRESS */
