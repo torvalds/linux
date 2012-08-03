@@ -70,7 +70,10 @@ enum {
 
 	/* data contains off-queue information when !WORK_STRUCT_CWQ */
 	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_FLAG_BITS,
-	WORK_OFFQ_FLAG_BITS	= 0,
+
+	WORK_OFFQ_CANCELING	= (1 << WORK_OFFQ_FLAG_BASE),
+
+	WORK_OFFQ_FLAG_BITS	= 1,
 	WORK_OFFQ_CPU_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
 
 	/* convenience constants */

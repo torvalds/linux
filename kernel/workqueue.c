@@ -537,15 +537,20 @@ static int work_next_color(int color)
  * contain the pointer to the queued cwq.  Once execution starts, the flag
  * is cleared and the high bits contain OFFQ flags and CPU number.
  *
- * set_work_cwq(), set_work_cpu_and_clear_pending() and clear_work_data()
- * can be used to set the cwq, cpu or clear work->data.  These functions
- * should only be called while the work is owned - ie. while the PENDING
- * bit is set.
+ * set_work_cwq(), set_work_cpu_and_clear_pending(), mark_work_canceling()
+ * and clear_work_data() can be used to set the cwq, cpu or clear
+ * work->data.  These functions should only be called while the work is
+ * owned - ie. while the PENDING bit is set.
  *
- * get_work_[g]cwq() can be used to obtain the gcwq or cwq
- * corresponding to a work.  gcwq is available once the work has been
- * queued anywhere after initialization.  cwq is available only from
- * queueing until execution starts.
+ * get_work_[g]cwq() can be used to obtain the gcwq or cwq corresponding to
+ * a work.  gcwq is available once the work has been queued anywhere after
+ * initialization until it is sync canceled.  cwq is available only while
+ * the work item is queued.
+ *
+ * %WORK_OFFQ_CANCELING is used to mark a work item which is being
+ * canceled.  While being canceled, a work item may have its PENDING set
+ * but stay off timer and worklist for arbitrarily long and nobody should
+ * try to steal the PENDING bit.
  */
 static inline void set_work_data(struct work_struct *work, unsigned long data,
 				 unsigned long flags)
@@ -598,6 +603,22 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
 
 	BUG_ON(cpu >= nr_cpu_ids && cpu != WORK_CPU_UNBOUND);
 	return get_gcwq(cpu);
+}
+
+static void mark_work_canceling(struct work_struct *work)
+{
+	struct global_cwq *gcwq = get_work_gcwq(work);
+	unsigned long cpu = gcwq ? gcwq->cpu : WORK_CPU_NONE;
+
+	set_work_data(work, (cpu << WORK_OFFQ_CPU_SHIFT) | WORK_OFFQ_CANCELING,
+		      WORK_STRUCT_PENDING);
+}
+
+static bool work_is_canceling(struct work_struct *work)
+{
+	unsigned long data = atomic_long_read(&work->data);
+
+	return !(data & WORK_STRUCT_CWQ) && (data & WORK_OFFQ_CANCELING);
 }
 
 /*
@@ -1005,9 +1026,10 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color,
 }
 
 /**
- * try_to_grab_pending - steal work item from worklist
+ * try_to_grab_pending - steal work item from worklist and disable irq
  * @work: work item to steal
  * @is_dwork: @work is a delayed_work
+ * @flags: place to store irq state
  *
  * Try to grab PENDING bit of @work.  This function can handle @work in any
  * stable state - idle, on timer or on worklist.  Return values are
@@ -1015,12 +1037,29 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color,
  *  1		if @work was pending and we successfully stole PENDING
  *  0		if @work was idle and we claimed PENDING
  *  -EAGAIN	if PENDING couldn't be grabbed at the moment, safe to busy-retry
+ *  -ENOENT	if someone else is canceling @work, this state may persist
+ *		for arbitrarily long
  *
- * On >= 0 return, the caller owns @work's PENDING bit.
+ * On >= 0 return, the caller owns @work's PENDING bit.  To avoid getting
+ * preempted while holding PENDING and @work off queue, preemption must be
+ * disabled on entry.  This ensures that we don't return -EAGAIN while
+ * another task is preempted in this function.
+ *
+ * On successful return, >= 0, irq is disabled and the caller is
+ * responsible for releasing it using local_irq_restore(*@flags).
+ *
+ * This function is safe to call from any context other than IRQ handler.
+ * An IRQ handler may run on top of delayed_work_timer_fn() which can make
+ * this function return -EAGAIN perpetually.
  */
-static int try_to_grab_pending(struct work_struct *work, bool is_dwork)
+static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
+			       unsigned long *flags)
 {
 	struct global_cwq *gcwq;
+
+	WARN_ON_ONCE(in_irq());
+
+	local_irq_save(*flags);
 
 	/* try to steal the timer if it exists */
 	if (is_dwork) {
@@ -1040,9 +1079,9 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork)
 	 */
 	gcwq = get_work_gcwq(work);
 	if (!gcwq)
-		return -EAGAIN;
+		goto fail;
 
-	spin_lock_irq(&gcwq->lock);
+	spin_lock(&gcwq->lock);
 	if (!list_empty(&work->entry)) {
 		/*
 		 * This work is queued, but perhaps we locked the wrong gcwq.
@@ -1057,12 +1096,16 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork)
 				get_work_color(work),
 				*work_data_bits(work) & WORK_STRUCT_DELAYED);
 
-			spin_unlock_irq(&gcwq->lock);
+			spin_unlock(&gcwq->lock);
 			return 1;
 		}
 	}
-	spin_unlock_irq(&gcwq->lock);
-
+	spin_unlock(&gcwq->lock);
+fail:
+	local_irq_restore(*flags);
+	if (work_is_canceling(work))
+		return -ENOENT;
+	cpu_relax();
 	return -EAGAIN;
 }
 
@@ -2839,13 +2882,24 @@ EXPORT_SYMBOL_GPL(flush_work_sync);
 
 static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
 {
+	unsigned long flags;
 	int ret;
 
 	do {
-		ret = try_to_grab_pending(work, is_dwork);
-		wait_on_work(work);
+		ret = try_to_grab_pending(work, is_dwork, &flags);
+		/*
+		 * If someone else is canceling, wait for the same event it
+		 * would be waiting for before retrying.
+		 */
+		if (unlikely(ret == -ENOENT))
+			wait_on_work(work);
 	} while (unlikely(ret < 0));
 
+	/* tell other tasks trying to grab @work to back off */
+	mark_work_canceling(work);
+	local_irq_restore(flags);
+
+	wait_on_work(work);
 	clear_work_data(work);
 	return ret;
 }
