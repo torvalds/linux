@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/ratelimit.h>
+#include <linux/err.h>
 #include <asm/signal.h>
 
 #include <linux/kvm.h>
@@ -51,6 +52,21 @@
 #define KVM_PFN_ERR_FAULT	(-EFAULT)
 #define KVM_PFN_ERR_HWPOISON	(-EHWPOISON)
 #define KVM_PFN_ERR_BAD		(-ENOENT)
+
+static inline int is_error_pfn(pfn_t pfn)
+{
+	return IS_ERR_VALUE(pfn);
+}
+
+static inline int is_noslot_pfn(pfn_t pfn)
+{
+	return pfn == -ENOENT;
+}
+
+static inline int is_invalid_pfn(pfn_t pfn)
+{
+	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
+}
 
 /*
  * vcpu->requests bit members
@@ -396,9 +412,6 @@ id_to_memslot(struct kvm_memslots *slots, int id)
 extern struct page *bad_page;
 
 int is_error_page(struct page *page);
-int is_error_pfn(pfn_t pfn);
-int is_noslot_pfn(pfn_t pfn);
-int is_invalid_pfn(pfn_t pfn);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,

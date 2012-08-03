@@ -928,24 +928,6 @@ int is_error_page(struct page *page)
 }
 EXPORT_SYMBOL_GPL(is_error_page);
 
-int is_error_pfn(pfn_t pfn)
-{
-	return IS_ERR_VALUE(pfn);
-}
-EXPORT_SYMBOL_GPL(is_error_pfn);
-
-int is_noslot_pfn(pfn_t pfn)
-{
-	return pfn == -ENOENT;
-}
-EXPORT_SYMBOL_GPL(is_noslot_pfn);
-
-int is_invalid_pfn(pfn_t pfn)
-{
-	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
-}
-EXPORT_SYMBOL_GPL(is_invalid_pfn);
-
 struct page *get_bad_page(void)
 {
 	return ERR_PTR(-ENOENT);
