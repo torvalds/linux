@@ -85,7 +85,9 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_SPK_VOL     , 0x8b8b},//SPKMIX -> SPKVOL
 	{RT3261_HP_VOL      , 0x8888},
 	{RT3261_OUTPUT      , 0x8888},//unmute OUTVOLL/R
-
+	{RT3261_SPO_CLSD_RATIO , 0x0001},
+	{RT3261_I2S1_SDP	, 0xe000},
+	{RT3261_I2S2_SDP	, 0x8040},
 };
 #define RT3261_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -1892,6 +1894,10 @@ static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
 			RT3261_PWR_DAC_R1_BIT, 0),
 	SND_SOC_DAPM_DAC("DAC R2", NULL, RT3261_PWR_DIG1,
 			RT3261_PWR_DAC_R2_BIT, 0),
+	SND_SOC_DAPM_PGA("DAC 1", SND_SOC_NOPM,
+		0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("DAC 2", SND_SOC_NOPM, 
+		0, 0, NULL, 0),
 	/* SPK/OUT Mixer */
 	SND_SOC_DAPM_MIXER("SPK MIXL", RT3261_PWR_MIXER, RT3261_PWR_SM_L_BIT,
 		0, rt3261_spk_l_mix, ARRAY_SIZE(rt3261_spk_l_mix)),
@@ -1914,14 +1920,14 @@ static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
 		RT3261_PWR_HV_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("HPOVOL R", RT3261_PWR_VOL,
 		RT3261_PWR_HV_R_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPOVOL", SND_SOC_NOPM, 
+		0, 0, NULL, 0),
 	/* SPO/HPO/LOUT/Mono Mixer */
 	SND_SOC_DAPM_MIXER("SPOL MIX", SND_SOC_NOPM, 0,
 		0, rt3261_spo_l_mix, ARRAY_SIZE(rt3261_spo_l_mix)),
 	SND_SOC_DAPM_MIXER("SPOR MIX", SND_SOC_NOPM, 0,
 		0, rt3261_spo_r_mix, ARRAY_SIZE(rt3261_spo_r_mix)),
-	SND_SOC_DAPM_MIXER("HPOL MIX", SND_SOC_NOPM, 0, 0,
-		rt3261_hpo_mix, ARRAY_SIZE(rt3261_hpo_mix)),
-	SND_SOC_DAPM_MIXER("HPOR MIX", SND_SOC_NOPM, 0, 0,
+	SND_SOC_DAPM_MIXER("HPO MIX", SND_SOC_NOPM, 0, 0,
 		rt3261_hpo_mix, ARRAY_SIZE(rt3261_hpo_mix)),
 	SND_SOC_DAPM_MIXER("LOUT MIX", SND_SOC_NOPM, 0, 0,
 		rt3261_lout_mix, ARRAY_SIZE(rt3261_lout_mix)),
@@ -2238,12 +2244,15 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 	{"SPOR MIX", "SPKVOL R Switch", "SPKVOL R"},
 	{"SPOR MIX", "BST1 Switch", "BST1"},
 
-	{"HPOL MIX", "DAC2 Switch", "DAC L2"},
-	{"HPOL MIX", "DAC1 Switch", "DAC L1"},
-	{"HPOL MIX", "HPVOL Switch", "HPOVOL L"},
-	{"HPOR MIX", "DAC2 Switch", "DAC R2"},
-	{"HPOR MIX", "DAC1 Switch", "DAC R1"},
-	{"HPOR MIX", "HPVOL Switch", "HPOVOL R"},
+	{"DAC 2", NULL, "DAC L2"},
+	{"DAC 2", NULL, "DAC R2"},
+	{"DAC 1", NULL, "DAC L1"},
+	{"DAC 1", NULL, "DAC R1"},
+	{"HPOVOL", NULL, "HPOVOL L"},
+	{"HPOVOL", NULL, "HPOVOL R"},
+	{"HPO MIX", "DAC2 Switch", "DAC 2"},
+	{"HPO MIX", "DAC1 Switch", "DAC 1"},
+	{"HPO MIX", "HPVOL Switch", "HPOVOL"},
 
 	{"LOUT MIX", "DAC L1 Switch", "DAC L1"},
 	{"LOUT MIX", "DAC R1 Switch", "DAC R1"},
@@ -2263,8 +2272,7 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 	{"SPORP", NULL, "SPK amp"},
 	{"SPORN", NULL, "SPK amp"},
 	
-	{"HP amp", NULL, "HPOL MIX"},
-	{"HP amp", NULL, "HPOR MIX"},
+	{"HP amp", NULL, "HPO MIX"},
 	{"HPOL", NULL, "HP amp"},
 	{"HPOR", NULL, "HP amp"},
 
