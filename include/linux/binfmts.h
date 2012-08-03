@@ -19,6 +19,7 @@ struct pt_regs;
 
 #ifdef __KERNEL__
 #include <linux/sched.h>
+#include <asm/exec.h>
 
 #define CORENAME_MAX_SIZE 128
 
