@@ -83,33 +83,9 @@ do {													\
 #endif
 
 #ifdef CONFIG_RTS_PSTOR_DEBUG
-static inline void rtsx_dump(u8 *buf, int buf_len)
-{
-	int i;
-	u8 tmp[16] = {0};
-	u8 *_ptr = buf;
-
-	for (i = 0; i < ((buf_len)/16); i++) {
-		RTSX_DEBUGP("%02x %02x %02x %02x %02x %02x %02x %02x "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			_ptr[0], _ptr[1], _ptr[2], _ptr[3], _ptr[4], _ptr[5],
-			_ptr[6], _ptr[7], _ptr[8], _ptr[9], _ptr[10], _ptr[11],
-			_ptr[12], _ptr[13], _ptr[14], _ptr[15]);
-		_ptr += 16;
-	}
-	if ((buf_len) % 16) {
-		memcpy(tmp, _ptr, (buf_len) % 16);
-		_ptr = tmp;
-		RTSX_DEBUGP("%02x %02x %02x %02x %02x %02x %02x %02x "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			_ptr[0], _ptr[1], _ptr[2], _ptr[3], _ptr[4], _ptr[5],
-			_ptr[6], _ptr[7], _ptr[8], _ptr[9], _ptr[10], _ptr[11],
-			_ptr[12], _ptr[13], _ptr[14], _ptr[15]);
-	}
-}
-
-#define RTSX_DUMP(buf, buf_len)		rtsx_dump((u8 *)(buf), (buf_len))
-
+#define RTSX_DUMP(buf, buf_len)					\
+	print_hex_dump(KERN_DEBUG, RTSX_STOR, DUMP_PREFIX_NONE,	\
+				16, 1, (buf), (buf_len), false)
 #else
 #define RTSX_DUMP(buf, buf_len)
 #endif
