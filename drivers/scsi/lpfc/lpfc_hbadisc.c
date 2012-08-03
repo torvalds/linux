@@ -123,6 +123,10 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		"rport devlosscb: sid:x%x did:x%x flg:x%x",
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3181 dev_loss_callbk x%06x, rport %p flg x%x\n",
+			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
+
 	/* Don't defer this if we are in the process of deleting the vport
 	 * or unloading the driver. The unload will cleanup the node
 	 * appropriately we just need to cleanup the ndlp rport info here.
@@ -141,6 +145,15 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
 		return;
+
+	if (ndlp->nlp_type & NLP_FABRIC) {
+
+		/* If the WWPN of the rport and ndlp don't match, ignore it */
+		if (rport->port_name != wwn_to_u64(ndlp->nlp_portname.u.wwn)) {
+			put_device(&rport->dev);
+			return;
+		}
+	}
 
 	evtp = &ndlp->dev_loss_evt;
 
@@ -201,6 +214,10 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport devlosstmo:did:x%x type:x%x id:x%x",
 		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
+
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3182 dev_loss_tmo_handler x%06x, rport %p flg x%x\n",
+			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
 
 	/* Don't defer this if we are in the process of deleting the vport
 	 * or unloading the driver. The unload will cleanup the node
@@ -3834,6 +3851,10 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (rport_ids.roles !=  FC_RPORT_ROLE_UNKNOWN)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3183 rport register x%06x, rport %p role x%x\n",
+			 ndlp->nlp_DID, rport, rport_ids.roles);
+
 	if ((rport->scsi_target_id != -1) &&
 	    (rport->scsi_target_id < LPFC_MAX_TARGET)) {
 		ndlp->nlp_sid = rport->scsi_target_id;
@@ -3849,6 +3870,10 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
 		"rport delete:    did:x%x flg:x%x type x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
+
+	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
+			 "3184 rport unregister x%06x, rport %p\n",
+			 ndlp->nlp_DID, rport);
 
 	fc_remote_port_delete(rport);
 
@@ -5365,9 +5390,17 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	struct lpfc_nodelist *ndlp;
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (filter(ndlp, param))
+		if (filter(ndlp, param)) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+					 "3185 FIND node filter %p DID "
+					 "Data: x%p x%x x%x\n",
+					 filter, ndlp, ndlp->nlp_DID,
+					 ndlp->nlp_flag);
 			return ndlp;
+		}
 	}
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			 "3186 FIND node filter %p NOT FOUND.\n", filter);
 	return NULL;
 }
 

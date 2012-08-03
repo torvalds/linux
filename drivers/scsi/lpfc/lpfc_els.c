@@ -1476,6 +1476,10 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		return ndlp;
 	memset(&rrq.xri_bitmap, 0, sizeof(new_ndlp->active_rrqs.xri_bitmap));
 
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+		 "3178 PLOGI confirm: ndlp %p x%x: new_ndlp %p\n",
+		 ndlp, ndlp->nlp_DID, new_ndlp);
+
 	if (!new_ndlp) {
 		rc = memcmp(&ndlp->nlp_portname, name,
 			    sizeof(struct lpfc_name));
@@ -1527,6 +1531,9 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		/* The new_ndlp is replacing ndlp totally, so we need
 		 * to put ndlp on UNUSED list and try to free it.
 		 */
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "3179 PLOGI confirm NEW: %x %x\n",
+			 new_ndlp->nlp_DID, keepDID);
 
 		/* Fix up the rport accordingly */
 		rport =  ndlp->rport;
@@ -1559,23 +1566,34 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		lpfc_drop_node(vport, ndlp);
 	}
 	else {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			 "3180 PLOGI confirm SWAP: %x %x\n",
+			 new_ndlp->nlp_DID, keepDID);
+
 		lpfc_unreg_rpi(vport, ndlp);
+
 		/* Two ndlps cannot have the same did */
 		ndlp->nlp_DID = keepDID;
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			memcpy(&ndlp->active_rrqs.xri_bitmap,
 				&rrq.xri_bitmap,
 				sizeof(ndlp->active_rrqs.xri_bitmap));
+
 		/* Since we are swapping the ndlp passed in with the new one
-		 * and the did has already been swapped, copy over the
-		 * state and names.
+		 * and the did has already been swapped, copy over state.
+		 * The new WWNs are already in new_ndlp since thats what
+		 * we looked it up by in the begining of this routine.
 		 */
-		memcpy(&new_ndlp->nlp_portname, &ndlp->nlp_portname,
-			sizeof(struct lpfc_name));
-		memcpy(&new_ndlp->nlp_nodename, &ndlp->nlp_nodename,
-			sizeof(struct lpfc_name));
 		new_ndlp->nlp_state = ndlp->nlp_state;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
+		/* Since we are switching over to the new_ndlp, the old
+		 * ndlp should be put in the NPR state, unless we have
+		 * already started re-discovery on it.
+		 */
+		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) ||
+		    (ndlp->nlp_state == NLP_STE_MAPPED_NODE))
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+
 		/* Fix up the rport accordingly */
 		rport = ndlp->rport;
 		if (rport) {
