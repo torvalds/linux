@@ -475,8 +475,8 @@ lpfc_sli4_rq_release(struct lpfc_queue *hq, struct lpfc_queue *dq)
 static inline IOCB_t *
 lpfc_cmd_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	return (IOCB_t *) (((char *) pring->cmdringaddr) +
-			   pring->cmdidx * phba->iocb_cmd_size);
+	return (IOCB_t *) (((char *) pring->sli.sli3.cmdringaddr) +
+			   pring->sli.sli3.cmdidx * phba->iocb_cmd_size);
 }
 
 /**
@@ -492,8 +492,8 @@ lpfc_cmd_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 static inline IOCB_t *
 lpfc_resp_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	return (IOCB_t *) (((char *) pring->rspringaddr) +
-			   pring->rspidx * phba->iocb_rsp_size);
+	return (IOCB_t *) (((char *) pring->sli.sli3.rspringaddr) +
+			   pring->sli.sli3.rspidx * phba->iocb_rsp_size);
 }
 
 /**
@@ -1323,21 +1323,23 @@ static IOCB_t *
 lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
 	struct lpfc_pgp *pgp = &phba->port_gp[pring->ringno];
-	uint32_t  max_cmd_idx = pring->numCiocb;
-	if ((pring->next_cmdidx == pring->cmdidx) &&
-	   (++pring->next_cmdidx >= max_cmd_idx))
-		pring->next_cmdidx = 0;
+	uint32_t  max_cmd_idx = pring->sli.sli3.numCiocb;
+	if ((pring->sli.sli3.next_cmdidx == pring->sli.sli3.cmdidx) &&
+	   (++pring->sli.sli3.next_cmdidx >= max_cmd_idx))
+		pring->sli.sli3.next_cmdidx = 0;
 
-	if (unlikely(pring->local_getidx == pring->next_cmdidx)) {
+	if (unlikely(pring->sli.sli3.local_getidx ==
+		pring->sli.sli3.next_cmdidx)) {
 
-		pring->local_getidx = le32_to_cpu(pgp->cmdGetInx);
+		pring->sli.sli3.local_getidx = le32_to_cpu(pgp->cmdGetInx);
 
-		if (unlikely(pring->local_getidx >= max_cmd_idx)) {
+		if (unlikely(pring->sli.sli3.local_getidx >= max_cmd_idx)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"0315 Ring %d issue: portCmdGet %d "
 					"is bigger than cmd ring %d\n",
 					pring->ringno,
-					pring->local_getidx, max_cmd_idx);
+					pring->sli.sli3.local_getidx,
+					max_cmd_idx);
 
 			phba->link_state = LPFC_HBA_ERROR;
 			/*
@@ -1352,7 +1354,7 @@ lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 			return NULL;
 		}
 
-		if (pring->local_getidx == pring->next_cmdidx)
+		if (pring->sli.sli3.local_getidx == pring->sli.sli3.next_cmdidx)
 			return NULL;
 	}
 
@@ -1487,8 +1489,8 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * Let the HBA know what IOCB slot will be the next one the
 	 * driver will put a command into.
 	 */
-	pring->cmdidx = pring->next_cmdidx;
-	writel(pring->cmdidx, &phba->host_gp[pring->ringno].cmdPutInx);
+	pring->sli.sli3.cmdidx = pring->sli.sli3.next_cmdidx;
+	writel(pring->sli.sli3.cmdidx, &phba->host_gp[pring->ringno].cmdPutInx);
 }
 
 /**
@@ -2789,7 +2791,7 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 			"0312 Ring %d handler: portRspPut %d "
 			"is bigger than rsp ring %d\n",
 			pring->ringno, le32_to_cpu(pgp->rspPutInx),
-			pring->numRiocb);
+			pring->sli.sli3.numRiocb);
 
 	phba->link_state = LPFC_HBA_ERROR;
 
@@ -2876,7 +2878,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 	 * The next available response entry should never exceed the maximum
 	 * entries.  If it does, treat it as an adapter hardware error.
 	 */
-	portRspMax = pring->numRiocb;
+	portRspMax = pring->sli.sli3.numRiocb;
 	portRspPut = le32_to_cpu(pgp->rspPutInx);
 	if (unlikely(portRspPut >= portRspMax)) {
 		lpfc_sli_rsp_pointers_error(phba, pring);
@@ -2890,7 +2892,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 		phba->fcp_ring_in_use = 1;
 
 	rmb();
-	while (pring->rspidx != portRspPut) {
+	while (pring->sli.sli3.rspidx != portRspPut) {
 		/*
 		 * Fetch an entry off the ring and copy it into a local data
 		 * structure.  The copy involves a byte-swap since the
@@ -2899,8 +2901,8 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 		entry = lpfc_resp_iocb(phba, pring);
 		phba->last_completion_time = jiffies;
 
-		if (++pring->rspidx >= portRspMax)
-			pring->rspidx = 0;
+		if (++pring->sli.sli3.rspidx >= portRspMax)
+			pring->sli.sli3.rspidx = 0;
 
 		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
 				      (uint32_t *) &rspiocbq.iocb,
@@ -3001,9 +3003,10 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 		 * been updated, sync the pgp->rspPutInx and fetch the new port
 		 * response put pointer.
 		 */
-		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
+		writel(pring->sli.sli3.rspidx,
+			&phba->host_gp[pring->ringno].rspGetInx);
 
-		if (pring->rspidx == portRspPut)
+		if (pring->sli.sli3.rspidx == portRspPut)
 			portRspPut = le32_to_cpu(pgp->rspPutInx);
 	}
 
@@ -3018,7 +3021,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 		pring->stats.iocb_cmd_empty++;
 
 		/* Force update of the local copy of cmdGetInx */
-		pring->local_getidx = le32_to_cpu(pgp->cmdGetInx);
+		pring->sli.sli3.local_getidx = le32_to_cpu(pgp->cmdGetInx);
 		lpfc_sli_resume_iocb(phba, pring);
 
 		if ((pring->lpfc_sli_cmd_available))
@@ -3250,7 +3253,7 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 	 * The next available response entry should never exceed the maximum
 	 * entries.  If it does, treat it as an adapter hardware error.
 	 */
-	portRspMax = pring->numRiocb;
+	portRspMax = pring->sli.sli3.numRiocb;
 	portRspPut = le32_to_cpu(pgp->rspPutInx);
 	if (portRspPut >= portRspMax) {
 		/*
@@ -3272,7 +3275,7 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 	}
 
 	rmb();
-	while (pring->rspidx != portRspPut) {
+	while (pring->sli.sli3.rspidx != portRspPut) {
 		/*
 		 * Build a completion list and call the appropriate handler.
 		 * The process is to get the next available response iocb, get
@@ -3300,8 +3303,8 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 				      phba->iocb_rsp_size);
 		irsp = &rspiocbp->iocb;
 
-		if (++pring->rspidx >= portRspMax)
-			pring->rspidx = 0;
+		if (++pring->sli.sli3.rspidx >= portRspMax)
+			pring->sli.sli3.rspidx = 0;
 
 		if (pring->ringno == LPFC_ELS_RING) {
 			lpfc_debugfs_slow_ring_trc(phba,
@@ -3311,7 +3314,8 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 				*(((uint32_t *) irsp) + 7));
 		}
 
-		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
+		writel(pring->sli.sli3.rspidx,
+			&phba->host_gp[pring->ringno].rspGetInx);
 
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		/* Handle the response IOCB */
@@ -3323,10 +3327,10 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 		 * the pgp->rspPutInx in the MAILBOX_tand fetch the new port
 		 * response put pointer.
 		 */
-		if (pring->rspidx == portRspPut) {
+		if (pring->sli.sli3.rspidx == portRspPut) {
 			portRspPut = le32_to_cpu(pgp->rspPutInx);
 		}
-	} /* while (pring->rspidx != portRspPut) */
+	} /* while (pring->sli.sli3.rspidx != portRspPut) */
 
 	if ((rspiocbp != NULL) && (mask & HA_R0RE_REQ)) {
 		/* At least one response entry has been freed */
@@ -3341,7 +3345,7 @@ lpfc_sli_handle_slow_ring_event_s3(struct lpfc_hba *phba,
 		pring->stats.iocb_cmd_empty++;
 
 		/* Force update of the local copy of cmdGetInx */
-		pring->local_getidx = le32_to_cpu(pgp->cmdGetInx);
+		pring->sli.sli3.local_getidx = le32_to_cpu(pgp->cmdGetInx);
 		lpfc_sli_resume_iocb(phba, pring);
 
 		if ((pring->lpfc_sli_cmd_available))
@@ -3862,10 +3866,10 @@ lpfc_sli_brdreset(struct lpfc_hba *phba)
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
 		pring->flag = 0;
-		pring->rspidx = 0;
-		pring->next_cmdidx  = 0;
-		pring->local_getidx = 0;
-		pring->cmdidx = 0;
+		pring->sli.sli3.rspidx = 0;
+		pring->sli.sli3.next_cmdidx  = 0;
+		pring->sli.sli3.local_getidx = 0;
+		pring->sli.sli3.cmdidx = 0;
 		pring->missbufcnt = 0;
 	}
 
@@ -8404,13 +8408,21 @@ int
 lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 		    struct lpfc_iocbq *piocb, uint32_t flag)
 {
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	unsigned long iflags;
 	int rc;
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		pring = &phba->sli.ring[ring_number];
+		spin_lock_irqsave(&pring->ring_lock, iflags);
+		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
+	} else {
+		/* For now, SLI2/3 will still use hbalock */
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+	}
 	return rc;
 }
 
@@ -8437,18 +8449,18 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 
 	/* Take some away from the FCP ring */
 	pring = &psli->ring[psli->fcp_ring];
-	pring->numCiocb -= SLI2_IOCB_CMD_R1XTRA_ENTRIES;
-	pring->numRiocb -= SLI2_IOCB_RSP_R1XTRA_ENTRIES;
-	pring->numCiocb -= SLI2_IOCB_CMD_R3XTRA_ENTRIES;
-	pring->numRiocb -= SLI2_IOCB_RSP_R3XTRA_ENTRIES;
+	pring->sli.sli3.numCiocb -= SLI2_IOCB_CMD_R1XTRA_ENTRIES;
+	pring->sli.sli3.numRiocb -= SLI2_IOCB_RSP_R1XTRA_ENTRIES;
+	pring->sli.sli3.numCiocb -= SLI2_IOCB_CMD_R3XTRA_ENTRIES;
+	pring->sli.sli3.numRiocb -= SLI2_IOCB_RSP_R3XTRA_ENTRIES;
 
 	/* and give them to the extra ring */
 	pring = &psli->ring[psli->extra_ring];
 
-	pring->numCiocb += SLI2_IOCB_CMD_R1XTRA_ENTRIES;
-	pring->numRiocb += SLI2_IOCB_RSP_R1XTRA_ENTRIES;
-	pring->numCiocb += SLI2_IOCB_CMD_R3XTRA_ENTRIES;
-	pring->numRiocb += SLI2_IOCB_RSP_R3XTRA_ENTRIES;
+	pring->sli.sli3.numCiocb += SLI2_IOCB_CMD_R1XTRA_ENTRIES;
+	pring->sli.sli3.numRiocb += SLI2_IOCB_RSP_R1XTRA_ENTRIES;
+	pring->sli.sli3.numCiocb += SLI2_IOCB_CMD_R3XTRA_ENTRIES;
+	pring->sli.sli3.numRiocb += SLI2_IOCB_RSP_R3XTRA_ENTRIES;
 
 	/* Setup default profile for this ring */
 	pring->iotag_max = 4096;
@@ -8710,16 +8722,20 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 		switch (i) {
 		case LPFC_FCP_RING:	/* ring 0 - FCP */
 			/* numCiocb and numRiocb are used in config_port */
-			pring->numCiocb = SLI2_IOCB_CMD_R0_ENTRIES;
-			pring->numRiocb = SLI2_IOCB_RSP_R0_ENTRIES;
-			pring->numCiocb += SLI2_IOCB_CMD_R1XTRA_ENTRIES;
-			pring->numRiocb += SLI2_IOCB_RSP_R1XTRA_ENTRIES;
-			pring->numCiocb += SLI2_IOCB_CMD_R3XTRA_ENTRIES;
-			pring->numRiocb += SLI2_IOCB_RSP_R3XTRA_ENTRIES;
-			pring->sizeCiocb = (phba->sli_rev == 3) ?
+			pring->sli.sli3.numCiocb = SLI2_IOCB_CMD_R0_ENTRIES;
+			pring->sli.sli3.numRiocb = SLI2_IOCB_RSP_R0_ENTRIES;
+			pring->sli.sli3.numCiocb +=
+				SLI2_IOCB_CMD_R1XTRA_ENTRIES;
+			pring->sli.sli3.numRiocb +=
+				SLI2_IOCB_RSP_R1XTRA_ENTRIES;
+			pring->sli.sli3.numCiocb +=
+				SLI2_IOCB_CMD_R3XTRA_ENTRIES;
+			pring->sli.sli3.numRiocb +=
+				SLI2_IOCB_RSP_R3XTRA_ENTRIES;
+			pring->sli.sli3.sizeCiocb = (phba->sli_rev == 3) ?
 							SLI3_IOCB_CMD_SIZE :
 							SLI2_IOCB_CMD_SIZE;
-			pring->sizeRiocb = (phba->sli_rev == 3) ?
+			pring->sli.sli3.sizeRiocb = (phba->sli_rev == 3) ?
 							SLI3_IOCB_RSP_SIZE :
 							SLI2_IOCB_RSP_SIZE;
 			pring->iotag_ctr = 0;
@@ -8730,12 +8746,12 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			break;
 		case LPFC_EXTRA_RING:	/* ring 1 - EXTRA */
 			/* numCiocb and numRiocb are used in config_port */
-			pring->numCiocb = SLI2_IOCB_CMD_R1_ENTRIES;
-			pring->numRiocb = SLI2_IOCB_RSP_R1_ENTRIES;
-			pring->sizeCiocb = (phba->sli_rev == 3) ?
+			pring->sli.sli3.numCiocb = SLI2_IOCB_CMD_R1_ENTRIES;
+			pring->sli.sli3.numRiocb = SLI2_IOCB_RSP_R1_ENTRIES;
+			pring->sli.sli3.sizeCiocb = (phba->sli_rev == 3) ?
 							SLI3_IOCB_CMD_SIZE :
 							SLI2_IOCB_CMD_SIZE;
-			pring->sizeRiocb = (phba->sli_rev == 3) ?
+			pring->sli.sli3.sizeRiocb = (phba->sli_rev == 3) ?
 							SLI3_IOCB_RSP_SIZE :
 							SLI2_IOCB_RSP_SIZE;
 			pring->iotag_max = phba->cfg_hba_queue_depth;
@@ -8743,12 +8759,12 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			break;
 		case LPFC_ELS_RING:	/* ring 2 - ELS / CT */
 			/* numCiocb and numRiocb are used in config_port */
-			pring->numCiocb = SLI2_IOCB_CMD_R2_ENTRIES;
-			pring->numRiocb = SLI2_IOCB_RSP_R2_ENTRIES;
-			pring->sizeCiocb = (phba->sli_rev == 3) ?
+			pring->sli.sli3.numCiocb = SLI2_IOCB_CMD_R2_ENTRIES;
+			pring->sli.sli3.numRiocb = SLI2_IOCB_RSP_R2_ENTRIES;
+			pring->sli.sli3.sizeCiocb = (phba->sli_rev == 3) ?
 							SLI3_IOCB_CMD_SIZE :
 							SLI2_IOCB_CMD_SIZE;
-			pring->sizeRiocb = (phba->sli_rev == 3) ?
+			pring->sli.sli3.sizeRiocb = (phba->sli_rev == 3) ?
 							SLI3_IOCB_RSP_SIZE :
 							SLI2_IOCB_RSP_SIZE;
 			pring->fast_iotag = 0;
@@ -8789,8 +8805,9 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			    lpfc_sli4_ct_abort_unsol_event;
 			break;
 		}
-		totiocbsize += (pring->numCiocb * pring->sizeCiocb) +
-				(pring->numRiocb * pring->sizeRiocb);
+		totiocbsize += (pring->sli.sli3.numCiocb *
+			pring->sli.sli3.sizeCiocb) +
+			(pring->sli.sli3.numRiocb * pring->sli.sli3.sizeRiocb);
 	}
 	if (totiocbsize > MAX_SLIM_IOCB_SIZE) {
 		/* Too many cmd / rsp ring entries in SLI2 SLIM */
@@ -8831,14 +8848,15 @@ lpfc_sli_queue_setup(struct lpfc_hba *phba)
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
 		pring->ringno = i;
-		pring->next_cmdidx  = 0;
-		pring->local_getidx = 0;
-		pring->cmdidx = 0;
+		pring->sli.sli3.next_cmdidx  = 0;
+		pring->sli.sli3.local_getidx = 0;
+		pring->sli.sli3.cmdidx = 0;
 		INIT_LIST_HEAD(&pring->txq);
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
 		INIT_LIST_HEAD(&pring->iocb_continue_saveq);
 		INIT_LIST_HEAD(&pring->postbufq);
+		spin_lock_init(&pring->ring_lock);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	return 1;
@@ -9337,6 +9355,7 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	IOCB_t *icmd = NULL;
 	IOCB_t *iabt = NULL;
 	int retval;
+	unsigned long iflags;
 
 	/*
 	 * There are certain command types we don't want to abort.  And we
@@ -9389,7 +9408,17 @@ lpfc_sli_abort_iotag_issue(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 iabt->un.acxri.abortIoTag,
 			 iabt->un.acxri.abortContextTag,
 			 abtsiocbp->iotag);
-	retval = __lpfc_sli_issue_iocb(phba, pring->ringno, abtsiocbp, 0);
+
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		/* Note: both hbalock and ring_lock need to be set here */
+		spin_lock_irqsave(&pring->ring_lock, iflags);
+		retval = __lpfc_sli_issue_iocb(phba, pring->ringno,
+			abtsiocbp, 0);
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
+	} else {
+		retval = __lpfc_sli_issue_iocb(phba, pring->ringno,
+			abtsiocbp, 0);
+	}
 
 	if (retval)
 		__lpfc_sli_release_iocbq(phba, abtsiocbp);
@@ -10950,12 +10979,12 @@ lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *phba,
 	unsigned long iflags;
 
 	wcqe = &irspiocbq->cq_event.cqe.wcqe_cmpl;
-	spin_lock_irqsave(&phba->hbalock, iflags);
+	spin_lock_irqsave(&pring->ring_lock, iflags);
 	pring->stats.iocb_event++;
 	/* Look up the ELS command IOCB and create pseudo response IOCB */
 	cmdiocbq = lpfc_sli_iocbq_lookup_by_tag(phba, pring,
 				bf_get(lpfc_wcqe_c_request_tag, wcqe));
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
 
 	if (unlikely(!cmdiocbq)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
@@ -11169,7 +11198,7 @@ lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba,
 {
 	struct lpfc_iocbq *irspiocbq;
 	unsigned long iflags;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_FCP_RING];
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	/* Get an irspiocbq for later ELS response processing use */
 	irspiocbq = lpfc_sli_get_iocbq(phba);
@@ -11520,10 +11549,6 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba,
 	struct lpfc_iocbq irspiocbq;
 	unsigned long iflags;
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	pring->stats.iocb_event++;
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-
 	/* Check for response status */
 	if (unlikely(bf_get(lpfc_wcqe_c_status, wcqe))) {
 		/* If resource errors reported from HBA, reduce queue
@@ -11546,10 +11571,11 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba,
 	}
 
 	/* Look up the FCP command IOCB and create pseudo response IOCB */
-	spin_lock_irqsave(&phba->hbalock, iflags);
+	spin_lock_irqsave(&pring->ring_lock, iflags);
+	pring->stats.iocb_event++;
 	cmdiocbq = lpfc_sli_iocbq_lookup_by_tag(phba, pring,
 				bf_get(lpfc_wcqe_c_request_tag, wcqe));
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
 	if (unlikely(!cmdiocbq)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 				"0374 FCP complete with no corresponding "

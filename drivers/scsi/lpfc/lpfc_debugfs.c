@@ -490,9 +490,11 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 		len +=  snprintf(buf+len, size-len,
 				 "Ring %d: CMD GetInx:%d (Max:%d Next:%d "
 				 "Local:%d flg:x%x)  RSP PutInx:%d Max:%d\n",
-				 i, pgpp->cmdGetInx, pring->numCiocb,
-				 pring->next_cmdidx, pring->local_getidx,
-				 pring->flag, pgpp->rspPutInx, pring->numRiocb);
+				 i, pgpp->cmdGetInx, pring->sli.sli3.numCiocb,
+				 pring->sli.sli3.next_cmdidx,
+				 pring->sli.sli3.local_getidx,
+				 pring->flag, pgpp->rspPutInx,
+				 pring->sli.sli3.numRiocb);
 	}
 
 	if (phba->sli_rev <= LPFC_SLI_REV3) {

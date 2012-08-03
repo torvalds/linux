@@ -480,11 +480,11 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	phba->link_state = LPFC_LINK_DOWN;
 
 	/* Only process IOCBs on ELS ring till hba_state is READY */
-	if (psli->ring[psli->extra_ring].cmdringaddr)
+	if (psli->ring[psli->extra_ring].sli.sli3.cmdringaddr)
 		psli->ring[psli->extra_ring].flag |= LPFC_STOP_IOCB_EVENT;
-	if (psli->ring[psli->fcp_ring].cmdringaddr)
+	if (psli->ring[psli->fcp_ring].sli.sli3.cmdringaddr)
 		psli->ring[psli->fcp_ring].flag |= LPFC_STOP_IOCB_EVENT;
-	if (psli->ring[psli->next_ring].cmdringaddr)
+	if (psli->ring[psli->next_ring].sli.sli3.cmdringaddr)
 		psli->ring[psli->next_ring].flag |= LPFC_STOP_IOCB_EVENT;
 
 	/* Post receive buffers for desired rings */
