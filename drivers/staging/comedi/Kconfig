@@ -688,10 +688,12 @@ config COMEDI_ADL_PCI7X3X
 	  called adl_pci7x3x.
 
 config COMEDI_ADL_PCI7296
-	tristate "ADLink PCI-7296 96 ch. digital io board support"
+	tristate "ADLink PCI-72xx opto-22 compatible digital i/o board support"
 	select COMEDI_8255
 	---help---
-	  Enable support for ADlink PCI-7296 96 ch. digital io board support
+	  Enable support for ADlink PCI-72xx opto-22 compatible digital i/o
+	  boards. Supported boards include the 24-channel PCI-7224, 48-channel
+	  PCI-7248, and 96-channel PCI-7296.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called adl_pci7296.
