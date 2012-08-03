@@ -138,7 +138,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 
 	props->vendor_id	   = be32_to_cpup((__be32 *) (out_mad->data + 36)) &
 		0xffffff;
-	props->vendor_part_id	   = be16_to_cpup((__be16 *) (out_mad->data + 30));
+	props->vendor_part_id	   = dev->dev->pdev->device;
 	props->hw_ver		   = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +	4, 8);
 
@@ -478,6 +478,9 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	if (!(mask & IB_DEVICE_MODIFY_NODE_DESC))
 		return 0;
 
+	if (mlx4_is_slave(to_mdev(ibdev)->dev))
+		return -EOPNOTSUPP;
+
 	spin_lock_irqsave(&to_mdev(ibdev)->sm_lock, flags);
 	memcpy(ibdev->node_desc, props->node_desc, 64);
 	spin_unlock_irqrestore(&to_mdev(ibdev)->sm_lock, flags);
@@ -493,7 +496,7 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	memset(mailbox->buf, 0, 256);
 	memcpy(mailbox->buf, props->node_desc, 64);
 	mlx4_cmd(to_mdev(ibdev)->dev, mailbox->dma, 1, 0,
-		 MLX4_CMD_SET_NODE, MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		 MLX4_CMD_SET_NODE, MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
 
 	mlx4_free_cmd_mailbox(to_mdev(ibdev)->dev, mailbox);
 
@@ -921,6 +924,7 @@ static int init_node_data(struct mlx4_ib_dev *dev)
 	if (err)
 		goto out;
 
+	dev->dev->rev_id = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
 
 out:
@@ -1009,7 +1013,7 @@ static void update_gids_task(struct work_struct *work)
 
 	err = mlx4_cmd(dev, mailbox->dma, MLX4_SET_PORT_GID_TABLE << 8 | gw->port,
 		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
-		       MLX4_CMD_NATIVE);
+		       MLX4_CMD_WRAPPED);
 	if (err)
 		pr_warn("set port command failed\n");
 	else {
@@ -1400,10 +1404,12 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
 
-	ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
-	ibdev->ib_dev.map_phys_fmr	= mlx4_ib_map_phys_fmr;
-	ibdev->ib_dev.unmap_fmr		= mlx4_ib_unmap_fmr;
-	ibdev->ib_dev.dealloc_fmr	= mlx4_ib_fmr_dealloc;
+	if (!mlx4_is_slave(ibdev->dev)) {
+		ibdev->ib_dev.alloc_fmr		= mlx4_ib_fmr_alloc;
+		ibdev->ib_dev.map_phys_fmr	= mlx4_ib_map_phys_fmr;
+		ibdev->ib_dev.unmap_fmr		= mlx4_ib_unmap_fmr;
+		ibdev->ib_dev.dealloc_fmr	= mlx4_ib_fmr_dealloc;
+	}
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC) {
 		ibdev->ib_dev.alloc_xrcd = mlx4_ib_alloc_xrcd;
@@ -1615,7 +1621,11 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		INIT_WORK(&ew->work, handle_port_mgmt_change_event);
 		memcpy(&ew->ib_eqe, eqe, sizeof *eqe);
 		ew->ib_dev = ibdev;
-		handle_port_mgmt_change_event(&ew->work);
+		/* need to queue only for port owner, which uses GEN_EQE */
+		if (mlx4_is_master(dev))
+			queue_work(wq, &ew->work);
+		else
+			handle_port_mgmt_change_event(&ew->work);
 		return;
 
 	case MLX4_DEV_EVENT_SLAVE_INIT:

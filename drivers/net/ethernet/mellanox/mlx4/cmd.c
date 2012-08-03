@@ -1757,6 +1757,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		INIT_WORK(&priv->mfunc.master.slave_flr_event_work,
 			  mlx4_master_handle_slave_flr);
 		spin_lock_init(&priv->mfunc.master.slave_state_lock);
+		spin_lock_init(&priv->mfunc.master.slave_eq.event_lock);
 		priv->mfunc.master.comm_wq =
 			create_singlethread_workqueue("mlx4_comm");
 		if (!priv->mfunc.master.comm_wq)

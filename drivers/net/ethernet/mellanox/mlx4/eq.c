@@ -164,13 +164,16 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_event_eq *slave_eq = &priv->mfunc.master.slave_eq;
-	struct mlx4_eqe *s_eqe =
-		&slave_eq->event_eqe[slave_eq->prod & (SLAVE_EVENT_EQ_SIZE - 1)];
+	struct mlx4_eqe *s_eqe;
+	unsigned long flags;
 
+	spin_lock_irqsave(&slave_eq->event_lock, flags);
+	s_eqe = &slave_eq->event_eqe[slave_eq->prod & (SLAVE_EVENT_EQ_SIZE - 1)];
 	if ((!!(s_eqe->owner & 0x80)) ^
 	    (!!(slave_eq->prod & SLAVE_EVENT_EQ_SIZE))) {
 		mlx4_warn(dev, "Master failed to generate an EQE for slave: %d. "
 			  "No free EQE on slave events queue\n", slave);
+		spin_unlock_irqrestore(&slave_eq->event_lock, flags);
 		return;
 	}
 
@@ -183,6 +186,7 @@ static void slave_event(struct mlx4_dev *dev, u8 slave, struct mlx4_eqe *eqe)
 
 	queue_work(priv->mfunc.master.comm_wq,
 		   &priv->mfunc.master.slave_event_work);
+	spin_unlock_irqrestore(&slave_eq->event_lock, flags);
 }
 
 static void mlx4_slave_event(struct mlx4_dev *dev, int slave,

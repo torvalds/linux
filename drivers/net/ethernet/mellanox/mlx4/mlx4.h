@@ -473,6 +473,7 @@ struct mlx4_slave_event_eq {
 	u32 eqn;
 	u32 cons;
 	u32 prod;
+	spinlock_t event_lock;
 	struct mlx4_eqe event_eqe[SLAVE_EVENT_EQ_SIZE];
 };
 

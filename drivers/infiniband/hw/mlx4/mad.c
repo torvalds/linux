@@ -709,7 +709,9 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 	if (!out_mad->mad_hdr.status) {
 		if (!(to_mdev(ibdev)->dev->caps.flags & MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV))
 			smp_snoop(ibdev, port_num, in_mad, prev_lid);
-		node_desc_override(ibdev, out_mad);
+		/* slaves get node desc from FW */
+		if (!mlx4_is_slave(to_mdev(ibdev)->dev))
+			node_desc_override(ibdev, out_mad);
 	}
 
 	/* set return bit in status of directed route responses */
@@ -792,6 +794,8 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *mad_send_wc)
 {
+	if (mad_send_wc->send_buf->context[0])
+		ib_destroy_ah(mad_send_wc->send_buf->context[0]);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
