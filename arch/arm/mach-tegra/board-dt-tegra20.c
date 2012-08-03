@@ -123,12 +123,10 @@ static void __init harmony_init(void)
 }
 #endif
 
-#ifdef CONFIG_MACH_PAZ00
 static void __init paz00_init(void)
 {
 	tegra_paz00_wifikill_init();
 }
-#endif
 
 static struct {
 	char *machine;
@@ -138,9 +136,7 @@ static struct {
 #ifdef CONFIG_MACH_HARMONY
 	{ "nvidia,harmony", harmony_init },
 #endif
-#ifdef CONFIG_MACH_PAZ00
 	{ "compal,paz00", paz00_init },
-#endif
 };
 
 static void __init tegra_dt_init_late(void)

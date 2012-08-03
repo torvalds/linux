@@ -66,12 +66,6 @@ config MACH_HARMONY
        help
          Support for nVidia Harmony development platform
 
-config MACH_PAZ00
-       bool "Paz00 board"
-       depends on ARCH_TEGRA_2x_SOC
-       help
-         Support for the Toshiba AC100/Dynabook AZ netbook
-
 choice
         prompt "Default low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
