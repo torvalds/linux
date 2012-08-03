@@ -1962,6 +1962,12 @@ static int __devinit snd_cmipci_pcm_spdif_new(struct cmipci *cm, int device)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_pci_data(cm->pci), 64*1024, 128*1024);
 
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps, cm->max_channels, 0,
+				     NULL);
+	if (err < 0)
+		return err;
+
 	return 0;
 }
 
