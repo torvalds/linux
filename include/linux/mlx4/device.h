@@ -940,6 +940,9 @@ int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
 
+void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
+			  int i, int val);
+
 int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey);
 
 #endif /* MLX4_DEVICE_H */

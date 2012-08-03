@@ -1121,6 +1121,38 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	return NOTIFY_DONE;
 }
 
+static void init_pkeys(struct mlx4_ib_dev *ibdev)
+{
+	int port;
+	int slave;
+	int i;
+
+	if (mlx4_is_master(ibdev->dev)) {
+		for (slave = 0; slave <= ibdev->dev->num_vfs; ++slave) {
+			for (port = 1; port <= ibdev->dev->caps.num_ports; ++port) {
+				for (i = 0;
+				     i < ibdev->dev->phys_caps.pkey_phys_table_len[port];
+				     ++i) {
+					ibdev->pkeys.virt2phys_pkey[slave][port - 1][i] =
+					/* master has the identity virt2phys pkey mapping */
+						(slave == mlx4_master_func_num(ibdev->dev) || !i) ? i :
+							ibdev->dev->phys_caps.pkey_phys_table_len[port] - 1;
+					mlx4_sync_pkey_table(ibdev->dev, slave, port, i,
+							     ibdev->pkeys.virt2phys_pkey[slave][port - 1][i]);
+				}
+			}
+		}
+		/* initialize pkey cache */
+		for (port = 1; port <= ibdev->dev->caps.num_ports; ++port) {
+			for (i = 0;
+			     i < ibdev->dev->phys_caps.pkey_phys_table_len[port];
+			     ++i)
+				ibdev->pkeys.phys_pkey_cache[port-1][i] =
+					(i) ? 0 : 0xFFFF;
+		}
+	}
+}
+
 static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 {
 	char name[32];
@@ -1374,6 +1406,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	}
 
 	ibdev->ib_active = true;
+
+	if (mlx4_is_mfunc(ibdev->dev))
+		init_pkeys(ibdev);
 
 	return ibdev;
 

@@ -185,6 +185,10 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
 {
 	struct ib_port_info *pinfo;
 	u16 lid;
+	__be16 *base;
+	u32 bn, pkey_change_bitmap;
+	int i;
+
 
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
@@ -209,8 +213,33 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
 			break;
 
 		case IB_SMP_ATTR_PKEY_TABLE:
-			mlx4_ib_dispatch_event(dev, port_num,
-					       IB_EVENT_PKEY_CHANGE);
+			if (!mlx4_is_mfunc(dev->dev)) {
+				mlx4_ib_dispatch_event(dev, port_num,
+						       IB_EVENT_PKEY_CHANGE);
+				break;
+			}
+
+			bn  = be32_to_cpu(((struct ib_smp *)mad)->attr_mod) & 0xFFFF;
+			base = (__be16 *) &(((struct ib_smp *)mad)->data[0]);
+			pkey_change_bitmap = 0;
+			for (i = 0; i < 32; i++) {
+				pr_debug("PKEY[%d] = x%x\n",
+					 i + bn*32, be16_to_cpu(base[i]));
+				if (be16_to_cpu(base[i]) !=
+				    dev->pkeys.phys_pkey_cache[port_num - 1][i + bn*32]) {
+					pkey_change_bitmap |= (1 << i);
+					dev->pkeys.phys_pkey_cache[port_num - 1][i + bn*32] =
+						be16_to_cpu(base[i]);
+				}
+			}
+			pr_debug("PKEY Change event: port=%d, "
+				 "block=0x%x, change_bitmap=0x%x\n",
+				 port_num, bn, pkey_change_bitmap);
+
+			if (pkey_change_bitmap)
+				mlx4_ib_dispatch_event(dev, port_num,
+						       IB_EVENT_PKEY_CHANGE);
+
 			break;
 
 		case IB_SMP_ATTR_GUID_INFO:

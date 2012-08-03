@@ -424,6 +424,17 @@ int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey)
 }
 EXPORT_SYMBOL(mlx4_get_parav_qkey);
 
+void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port, int i, int val)
+{
+	struct mlx4_priv *priv = container_of(dev, struct mlx4_priv, dev);
+
+	if (!mlx4_is_master(dev))
+		return;
+
+	priv->virt2phys_pkey[slave][port - 1][i] = val;
+}
+EXPORT_SYMBOL(mlx4_sync_pkey_table);
+
 int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);

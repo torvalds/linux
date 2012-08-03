@@ -950,7 +950,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_GEN_QP_wrapper
+		.wrapper = mlx4_INIT2INIT_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_INIT2RTR_QP,
@@ -968,7 +968,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_GEN_QP_wrapper
+		.wrapper = mlx4_RTR2RTS_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_RTS2RTS_QP,
@@ -977,7 +977,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_GEN_QP_wrapper
+		.wrapper = mlx4_RTS2RTS_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_SQERR2RTS_QP,
@@ -986,7 +986,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_GEN_QP_wrapper
+		.wrapper = mlx4_SQERR2RTS_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_2ERR_QP,
@@ -1013,7 +1013,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_GEN_QP_wrapper
+		.wrapper = mlx4_SQD2SQD_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_SQD2RTS_QP,
@@ -1022,7 +1022,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = mlx4_GEN_QP_wrapper
+		.wrapper = mlx4_SQD2RTS_QP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_2RST_QP,

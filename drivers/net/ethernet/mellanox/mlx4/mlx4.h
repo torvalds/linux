@@ -807,6 +807,8 @@ struct mlx4_priv {
 	struct io_mapping	*bf_mapping;
 	int			reserved_mtts;
 	int			fs_hash_mode;
+	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
+
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)
@@ -1011,16 +1013,61 @@ int mlx4_RST2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_cmd_mailbox *inbox,
 			     struct mlx4_cmd_mailbox *outbox,
 			     struct mlx4_cmd_info *cmd);
+int mlx4_INIT2INIT_QP_wrapper(struct mlx4_dev *dev, int slave,
+			      struct mlx4_vhcr *vhcr,
+			      struct mlx4_cmd_mailbox *inbox,
+			      struct mlx4_cmd_mailbox *outbox,
+			      struct mlx4_cmd_info *cmd);
 int mlx4_INIT2RTR_QP_wrapper(struct mlx4_dev *dev, int slave,
 			     struct mlx4_vhcr *vhcr,
 			     struct mlx4_cmd_mailbox *inbox,
 			     struct mlx4_cmd_mailbox *outbox,
 			     struct mlx4_cmd_info *cmd);
+int mlx4_RTR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
+int mlx4_RTS2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
+int mlx4_SQERR2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			      struct mlx4_vhcr *vhcr,
+			      struct mlx4_cmd_mailbox *inbox,
+			      struct mlx4_cmd_mailbox *outbox,
+			      struct mlx4_cmd_info *cmd);
+int mlx4_2ERR_QP_wrapper(struct mlx4_dev *dev, int slave,
+			 struct mlx4_vhcr *vhcr,
+			 struct mlx4_cmd_mailbox *inbox,
+			 struct mlx4_cmd_mailbox *outbox,
+			 struct mlx4_cmd_info *cmd);
+int mlx4_RTS2SQD_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
+int mlx4_SQD2SQD_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
+int mlx4_SQD2RTS_QP_wrapper(struct mlx4_dev *dev, int slave,
+			    struct mlx4_vhcr *vhcr,
+			    struct mlx4_cmd_mailbox *inbox,
+			    struct mlx4_cmd_mailbox *outbox,
+			    struct mlx4_cmd_info *cmd);
 int mlx4_2RST_QP_wrapper(struct mlx4_dev *dev, int slave,
 			 struct mlx4_vhcr *vhcr,
 			 struct mlx4_cmd_mailbox *inbox,
 			 struct mlx4_cmd_mailbox *outbox,
 			 struct mlx4_cmd_info *cmd);
+int mlx4_QUERY_QP_wrapper(struct mlx4_dev *dev, int slave,
+			  struct mlx4_vhcr *vhcr,
+			  struct mlx4_cmd_mailbox *inbox,
+			  struct mlx4_cmd_mailbox *outbox,
+			  struct mlx4_cmd_info *cmd);
 
 int mlx4_GEN_EQE(struct mlx4_dev *dev, int slave, struct mlx4_eqe *eqe);
 
