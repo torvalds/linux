@@ -2512,7 +2512,7 @@ static pfn_t pte_prefetch_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn,
 
 	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, no_dirty_log);
 	if (!slot)
-		return get_fault_pfn();
+		return KVM_PFN_ERR_FAULT;
 
 	hva = gfn_to_hva_memslot(slot, gfn);
 

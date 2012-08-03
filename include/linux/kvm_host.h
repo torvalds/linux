@@ -48,6 +48,8 @@
 #define KVM_MAX_MMIO_FRAGMENTS \
 	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
 
+#define KVM_PFN_ERR_FAULT	(-EFAULT)
+
 /*
  * vcpu->requests bit members
  */
@@ -443,7 +445,6 @@ void kvm_release_pfn_clean(pfn_t pfn);
 void kvm_set_pfn_dirty(pfn_t pfn);
 void kvm_set_pfn_accessed(pfn_t pfn);
 void kvm_get_pfn(pfn_t pfn);
-pfn_t get_fault_pfn(void);
 
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 			int len);

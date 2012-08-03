@@ -939,12 +939,6 @@ static pfn_t get_bad_pfn(void)
 	return -ENOENT;
 }
 
-pfn_t get_fault_pfn(void)
-{
-	return -EFAULT;
-}
-EXPORT_SYMBOL_GPL(get_fault_pfn);
-
 static pfn_t get_hwpoison_pfn(void)
 {
 	return -EHWPOISON;
@@ -1115,7 +1109,7 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		struct vm_area_struct *vma;
 
 		if (atomic)
-			return get_fault_pfn();
+			return KVM_PFN_ERR_FAULT;
 
 		down_read(&current->mm->mmap_sem);
 		if (npages == -EHWPOISON ||
@@ -1127,7 +1121,7 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		vma = find_vma_intersection(current->mm, addr, addr+1);
 
 		if (vma == NULL)
-			pfn = get_fault_pfn();
+			pfn = KVM_PFN_ERR_FAULT;
 		else if ((vma->vm_flags & VM_PFNMAP)) {
 			pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
 				vma->vm_pgoff;
@@ -1135,7 +1129,7 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		} else {
 			if (async && (vma->vm_flags & VM_WRITE))
 				*async = true;
-			pfn = get_fault_pfn();
+			pfn = KVM_PFN_ERR_FAULT;
 		}
 		up_read(&current->mm->mmap_sem);
 	} else
