@@ -1733,11 +1733,11 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pm_finish(rdev) (rdev)->asic->pm.finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm.init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm.get_dynpm_state((rdev))
-#define radeon_pre_page_flip(rdev, crtc) rdev->asic->pflip.pre_page_flip((rdev), (crtc))
-#define radeon_page_flip(rdev, crtc, base) rdev->asic->pflip.page_flip((rdev), (crtc), (base))
-#define radeon_post_page_flip(rdev, crtc) rdev->asic->pflip.post_page_flip((rdev), (crtc))
-#define radeon_wait_for_vblank(rdev, crtc) rdev->asic->display.wait_for_vblank((rdev), (crtc))
-#define radeon_mc_wait_for_idle(rdev) rdev->asic->mc_wait_for_idle((rdev))
+#define radeon_pre_page_flip(rdev, crtc) (rdev)->asic->pflip.pre_page_flip((rdev), (crtc))
+#define radeon_page_flip(rdev, crtc, base) (rdev)->asic->pflip.page_flip((rdev), (crtc), (base))
+#define radeon_post_page_flip(rdev, crtc) (rdev)->asic->pflip.post_page_flip((rdev), (crtc))
+#define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
+#define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 
 /* Common functions */
 /* AGP */
