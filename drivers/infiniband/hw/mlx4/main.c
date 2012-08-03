@@ -1293,11 +1293,15 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	pr_info_once("%s", mlx4_ib_version);
 
-	if (mlx4_is_mfunc(dev)) {
-		pr_warn("IB not yet supported in SRIOV\n");
+	mlx4_foreach_non_ib_transport_port(i, dev)
+		num_ports++;
+
+	if (mlx4_is_mfunc(dev) && num_ports) {
+		dev_err(&dev->pdev->dev, "RoCE is not supported over SRIOV as yet\n");
 		return NULL;
 	}
 
+	num_ports = 0;
 	mlx4_foreach_ib_transport_port(i, dev)
 		num_ports++;
 
