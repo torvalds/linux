@@ -18,6 +18,7 @@
 #include <linux/vmalloc.h>
 
 #include <media/videobuf2-core.h>
+#include <media/videobuf2-vmalloc.h>
 #include <media/videobuf2-memops.h>
 
 struct vb2_vmalloc_buf {
