@@ -313,8 +313,11 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 
 	pdev = omap_device_build(name, uart->num, oh, pdata, pdata_size,
 				 NULL, 0, false);
-	WARN(IS_ERR(pdev), "Could not build omap_device for %s: %s.\n",
-	     name, oh->name);
+	if (IS_ERR(pdev)) {
+		WARN(1, "Could not build omap_device for %s: %s.\n", name,
+		     oh->name);
+		return;
+	}
 
 	if ((console_uart_id == bdata->id) && no_console_suspend)
 		omap_device_disable_idle_on_suspend(pdev);
