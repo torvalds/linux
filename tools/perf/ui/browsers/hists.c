@@ -24,6 +24,7 @@ struct hist_browser {
 	struct hist_entry   *he_selection;
 	struct map_symbol   *selection;
 	int		     print_seq;
+	bool		     show_dso;
 	bool		     has_symbols;
 };
 
@@ -376,12 +377,19 @@ out:
 }
 
 static char *callchain_list__sym_name(struct callchain_list *cl,
-				      char *bf, size_t bfsize)
+				      char *bf, size_t bfsize, bool show_dso)
 {
-	if (cl->ms.sym)
-		return cl->ms.sym->name;
+	int printed;
 
-	snprintf(bf, bfsize, "%#" PRIx64, cl->ip);
+	if (cl->ms.sym)
+		printed = scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
+	else
+		printed = scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
+
+	if (show_dso)
+		scnprintf(bf + printed, bfsize - printed, " %s",
+			  cl->ms.map ? cl->ms.map->dso->short_name : "unknown");
+
 	return bf;
 }
 
@@ -417,7 +425,7 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 		remaining -= cumul;
 
 		list_for_each_entry(chain, &child->val, list) {
-			char ipstr[BITS_PER_LONG / 4 + 1], *alloc_str;
+			char bf[1024], *alloc_str;
 			const char *str;
 			int color;
 			bool was_first = first;
@@ -434,7 +442,8 @@ static int hist_browser__show_callchain_node_rb_tree(struct hist_browser *browse
 			}
 
 			alloc_str = NULL;
-			str = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+			str = callchain_list__sym_name(chain, bf, sizeof(bf),
+						       browser->show_dso);
 			if (was_first) {
 				double percent = cumul * 100.0 / new_total;
 
@@ -493,7 +502,7 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 	char folded_sign = ' ';
 
 	list_for_each_entry(chain, &node->val, list) {
-		char ipstr[BITS_PER_LONG / 4 + 1], *s;
+		char bf[1024], *s;
 		int color;
 
 		folded_sign = callchain_list__folded(chain);
@@ -510,7 +519,8 @@ static int hist_browser__show_callchain_node(struct hist_browser *browser,
 			*is_current_entry = true;
 		}
 
-		s = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+		s = callchain_list__sym_name(chain, bf, sizeof(bf),
+					     browser->show_dso);
 		ui_browser__gotorc(&browser->b, row, 0);
 		ui_browser__set_color(&browser->b, color);
 		slsmg_write_nstring(" ", offset);
@@ -830,7 +840,7 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 		remaining -= cumul;
 
 		list_for_each_entry(chain, &child->val, list) {
-			char ipstr[BITS_PER_LONG / 4 + 1], *alloc_str;
+			char bf[1024], *alloc_str;
 			const char *str;
 			bool was_first = first;
 
@@ -842,7 +852,8 @@ static int hist_browser__fprintf_callchain_node_rb_tree(struct hist_browser *bro
 			folded_sign = callchain_list__folded(chain);
 
 			alloc_str = NULL;
-			str = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+			str = callchain_list__sym_name(chain, bf, sizeof(bf),
+						       browser->show_dso);
 			if (was_first) {
 				double percent = cumul * 100.0 / new_total;
 
@@ -880,10 +891,10 @@ static int hist_browser__fprintf_callchain_node(struct hist_browser *browser,
 	int printed = 0;
 
 	list_for_each_entry(chain, &node->val, list) {
-		char ipstr[BITS_PER_LONG / 4 + 1], *s;
+		char bf[1024], *s;
 
 		folded_sign = callchain_list__folded(chain);
-		s = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
+		s = callchain_list__sym_name(chain, bf, sizeof(bf), browser->show_dso);
 		printed += fprintf(fp, "%*s%c %s\n", offset, " ", folded_sign, s);
 	}
 
@@ -1133,6 +1144,9 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			continue;
 		case 'd':
 			goto zoom_dso;
+		case 'V':
+			browser->show_dso = !browser->show_dso;
+			continue;
 		case 't':
 			goto zoom_thread;
 		case '/':
@@ -1164,6 +1178,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"d             Zoom into current DSO\n"
 					"t             Zoom into current Thread\n"
 					"P             Print histograms to perf.hist.N\n"
+					"V             Verbose (DSO names in callchains, etc)\n"
 					"/             Filter symbol by name");
 			continue;
 		case K_ENTER:
