@@ -785,11 +785,7 @@ int em28xx_resolution_set(struct em28xx *dev)
 	else
 		dev->vbi_height = 18;
 
-	if (!dev->progressive)
-		height >>= norm_maxh(dev);
-
 	em28xx_set_outfmt(dev);
-
 
 	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
 
