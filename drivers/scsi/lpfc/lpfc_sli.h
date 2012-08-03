@@ -255,6 +255,8 @@ struct lpfc_sli_stat {
 	uint64_t mbox_stat_err;  /* Mbox cmds completed status error */
 	uint64_t mbox_cmd;       /* Mailbox commands issued */
 	uint64_t sli_intr;       /* Count of Host Attention interrupts */
+	uint64_t sli_prev_intr;  /* Previous cnt of Host Attention interrupts */
+	uint64_t sli_ips;        /* Host Attention interrupts per sec */
 	uint32_t err_attn_event; /* Error Attn event counters */
 	uint32_t link_event;     /* Link event counters */
 	uint32_t mbox_event;     /* Mailbox event counters */
