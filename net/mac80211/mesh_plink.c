@@ -217,6 +217,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		u8 *da, __le16 llid, __le16 plid, __le16 reason) {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
+	struct ieee80211_tx_info *info;
 	struct ieee80211_mgmt *mgmt;
 	bool include_plid = false;
 	u16 peering_proto = 0;
@@ -238,6 +239,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			    sdata->u.mesh.ie_len);
 	if (!skb)
 		return -1;
+	info = IEEE80211_SKB_CB(skb);
 	skb_reserve(skb, local->tx_headroom);
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
 	memset(mgmt, 0, hdr_len);
@@ -267,6 +269,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		    mesh_add_meshconf_ie(skb, sdata))
 			return -1;
 	} else {	/* WLAN_SP_MESH_PEERING_CLOSE */
+		info->flags |= IEEE80211_TX_CTL_NO_ACK;
 		if (mesh_add_meshid_ie(skb, sdata))
 			return -1;
 	}
