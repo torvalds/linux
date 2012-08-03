@@ -370,10 +370,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte, true);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
-	if (mmu_invalid_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
+	if (mmu_invalid_pfn(pfn))
 		return;
-	}
 
 	/*
 	 * we call mmu_set_spte() with host_writable = true because that
@@ -448,10 +446,8 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 		gfn = gpte_to_gfn(gpte);
 		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 				      pte_access & ACC_WRITE_MASK);
-		if (mmu_invalid_pfn(pfn)) {
-			kvm_release_pfn_clean(pfn);
+		if (mmu_invalid_pfn(pfn))
 			break;
-		}
 
 		mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
 			     NULL, PT_PAGE_TABLE_LEVEL, gfn,

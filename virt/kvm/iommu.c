@@ -107,7 +107,6 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 		 */
 		pfn = kvm_pin_pages(slot, gfn, page_size);
 		if (is_error_pfn(pfn)) {
-			kvm_release_pfn_clean(pfn);
 			gfn += 1;
 			continue;
 		}

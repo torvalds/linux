@@ -116,10 +116,8 @@ static void audit_mappings(struct kvm_vcpu *vcpu, u64 *sptep, int level)
 	gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gfn);
 
-	if (is_error_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
+	if (is_error_pfn(pfn))
 		return;
-	}
 
 	hpa =  pfn << PAGE_SHIFT;
 	if ((*sptep & PT64_BASE_ADDR_MASK) != hpa)

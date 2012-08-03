@@ -102,9 +102,6 @@ static bool largepages_enabled = true;
 
 bool kvm_is_mmio_pfn(pfn_t pfn)
 {
-	if (is_error_pfn(pfn))
-		return false;
-
 	if (pfn_valid(pfn)) {
 		int reserved;
 		struct page *tail = pfn_to_page(pfn);
@@ -1165,10 +1162,13 @@ EXPORT_SYMBOL_GPL(gfn_to_page_many_atomic);
 
 static struct page *kvm_pfn_to_page(pfn_t pfn)
 {
-	WARN_ON(kvm_is_mmio_pfn(pfn));
-
-	if (is_error_pfn(pfn) || kvm_is_mmio_pfn(pfn))
+	if (is_error_pfn(pfn))
 		return KVM_ERR_PTR_BAD_PAGE;
+
+	if (kvm_is_mmio_pfn(pfn)) {
+		WARN_ON(1);
+		return KVM_ERR_PTR_BAD_PAGE;
+	}
 
 	return pfn_to_page(pfn);
 }
@@ -1193,7 +1193,9 @@ EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 
 void kvm_release_pfn_clean(pfn_t pfn)
 {
-	if (!is_error_pfn(pfn) && !kvm_is_mmio_pfn(pfn))
+	WARN_ON(is_error_pfn(pfn));
+
+	if (!kvm_is_mmio_pfn(pfn))
 		put_page(pfn_to_page(pfn));
 }
 EXPORT_SYMBOL_GPL(kvm_release_pfn_clean);

@@ -2496,7 +2496,9 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 				rmap_recycle(vcpu, sptep, gfn);
 		}
 	}
-	kvm_release_pfn_clean(pfn);
+
+	if (!is_error_pfn(pfn))
+		kvm_release_pfn_clean(pfn);
 }
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
@@ -2648,7 +2650,6 @@ static void kvm_send_hwpoison_signal(unsigned long address, struct task_struct *
 
 static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gfn_t gfn, pfn_t pfn)
 {
-	kvm_release_pfn_clean(pfn);
 	if (pfn == KVM_PFN_ERR_HWPOISON) {
 		kvm_send_hwpoison_signal(gfn_to_hva(vcpu->kvm, gfn), current);
 		return 0;
@@ -3272,8 +3273,6 @@ static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
 
 	if (!async)
 		return false; /* *pfn has correct page already */
-
-	kvm_release_pfn_clean(*pfn);
 
 	if (!prefault && can_do_async_pf(vcpu)) {
 		trace_kvm_try_async_get_page(gva, gfn);
