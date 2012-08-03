@@ -1963,6 +1963,11 @@ int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev)
 		mlx4_ib_warn(&dev->ib_dev, "Failed init alias guid process.\n");
 		goto paravirt_err;
 	}
+	err = mlx4_ib_device_register_sysfs(dev);
+	if (err) {
+		mlx4_ib_warn(&dev->ib_dev, "Failed to register sysfs\n");
+		goto sysfs_err;
+	}
 
 	mlx4_ib_warn(&dev->ib_dev, "initializing demux service for %d qp1 clients\n",
 		     dev->dev->caps.sqp_demux);
@@ -1989,6 +1994,9 @@ demux_err:
 		mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
 		--i;
 	}
+	mlx4_ib_device_unregister_sysfs(dev);
+
+sysfs_err:
 	mlx4_ib_destroy_alias_guid_service(dev);
 
 paravirt_err:
@@ -2019,5 +2027,6 @@ void mlx4_ib_close_sriov(struct mlx4_ib_dev *dev)
 
 		mlx4_ib_cm_paravirt_clean(dev, -1);
 		mlx4_ib_destroy_alias_guid_service(dev);
+		mlx4_ib_device_unregister_sysfs(dev);
 	}
 }

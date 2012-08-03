@@ -113,7 +113,7 @@ static __be64 get_cached_alias_guid(struct mlx4_ib_dev *dev, int port, int index
 }
 
 
-static ib_sa_comp_mask get_aguid_comp_mask_from_ix(int index)
+ib_sa_comp_mask mlx4_ib_get_aguid_comp_mask_from_ix(int index)
 {
 	return IB_SA_COMP_MASK(4 + index);
 }
@@ -259,7 +259,7 @@ static void aliasguid_query_handler(int status,
 				/* Mark the record as not assigned, and let it
 				 * be sent again in the next work sched.*/
 				rec->status = MLX4_GUID_INFO_STATUS_IDLE;
-				rec->guid_indexes |= get_aguid_comp_mask_from_ix(i);
+				rec->guid_indexes |= mlx4_ib_get_aguid_comp_mask_from_ix(i);
 			}
 		} else {
 		       /* properly assigned record. */
@@ -337,7 +337,7 @@ static void invalidate_guid_record(struct mlx4_ib_dev *dev, u8 port, int index)
 		    MLX4_GUID_NONE_ASSIGN == dev->sriov.alias_guid.
 		    ports_guid[port - 1].all_rec_per_port[index].ownership)
 			continue;
-		comp_mask |= get_aguid_comp_mask_from_ix(i);
+		comp_mask |= mlx4_ib_get_aguid_comp_mask_from_ix(i);
 	}
 	dev->sriov.alias_guid.ports_guid[port - 1].
 		all_rec_per_port[index].guid_indexes = comp_mask;

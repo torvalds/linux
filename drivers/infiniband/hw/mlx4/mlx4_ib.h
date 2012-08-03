@@ -427,6 +427,35 @@ struct pkey_mgt {
 	struct kobject	       *device_parent[MLX4_MFUNC_MAX];
 };
 
+struct mlx4_ib_iov_sysfs_attr {
+	void *ctx;
+	struct kobject *kobj;
+	unsigned long data;
+	u32 entry_num;
+	char name[15];
+	struct device_attribute dentry;
+	struct device *dev;
+};
+
+struct mlx4_ib_iov_sysfs_attr_ar {
+	struct mlx4_ib_iov_sysfs_attr dentries[3 * NUM_ALIAS_GUID_PER_PORT + 1];
+};
+
+struct mlx4_ib_iov_port {
+	char name[100];
+	u8 num;
+	struct mlx4_ib_dev *dev;
+	struct list_head list;
+	struct mlx4_ib_iov_sysfs_attr_ar *dentr_ar;
+	struct ib_port_attr attr;
+	struct kobject	*cur_port;
+	struct kobject	*admin_alias_parent;
+	struct kobject	*gids_parent;
+	struct kobject	*pkeys_parent;
+	struct kobject	*mcgs_parent;
+	struct mlx4_ib_iov_sysfs_attr mcg_dentry;
+};
+
 struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
@@ -448,6 +477,10 @@ struct mlx4_ib_dev {
 	int			counters[MLX4_MAX_PORTS];
 	int		       *eq_table;
 	int			eq_added;
+	struct kobject	       *iov_parent;
+	struct kobject	       *ports_parent;
+	struct kobject	       *dev_ports_parent[MLX4_MFUNC_MAX];
+	struct mlx4_ib_iov_port	iov_ports[MLX4_MAX_PORTS];
 	struct pkey_mgt		pkeys;
 };
 
@@ -679,5 +712,15 @@ void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev,
 					 int block_num, u8 port_num,
 					 u8 *p_data);
+
+int add_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,
+			    struct attribute *attr);
+void del_sysfs_port_mcg_attr(struct mlx4_ib_dev *device, int port_num,
+			     struct attribute *attr);
+ib_sa_comp_mask mlx4_ib_get_aguid_comp_mask_from_ix(int index);
+
+int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *device) ;
+
+void mlx4_ib_device_unregister_sysfs(struct mlx4_ib_dev *device);
 
 #endif /* MLX4_IB_H */

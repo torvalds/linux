@@ -110,6 +110,7 @@ struct mcast_group {
 	__be64			last_req_tid;
 
 	char			name[33]; /* MGID string */
+	struct device_attribute	dentry;
 
 	/* refcount is the reference count for the following:
 	   1. Each queued request
@@ -445,6 +446,8 @@ static int release_group(struct mcast_group *group, int from_timeout_handler)
 		}
 
 		nzgroup = memcmp(&group->rec.mgid, &mgid0, sizeof mgid0);
+		if (nzgroup)
+			del_sysfs_port_mcg_attr(ctx->dev, ctx->port, &group->dentry.attr);
 		if (!list_empty(&group->pending_list))
 			mcg_warn_group(group, "releasing a group with non empty pending list\n");
 		if (nzgroup)
@@ -769,6 +772,7 @@ static struct mcast_group *search_relocate_mgid0_group(struct mlx4_ib_demux_ctx 
 				}
 
 				atomic_inc(&group->refcount);
+				add_sysfs_port_mcg_attr(ctx->dev, ctx->port, &group->dentry.attr);
 				mutex_unlock(&group->lock);
 				mutex_unlock(&ctx->mcg_table_lock);
 				return group;
@@ -795,6 +799,9 @@ static struct mcast_group *search_relocate_mgid0_group(struct mlx4_ib_demux_ctx 
 
 	return NULL;
 }
+
+static ssize_t sysfs_show_group(struct device *dev,
+		struct device_attribute *attr, char *buf);
 
 static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 					 union ib_gid *mgid, int create,
@@ -830,6 +837,11 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 	sprintf(group->name, "%016llx%016llx",
 			be64_to_cpu(group->rec.mgid.global.subnet_prefix),
 			be64_to_cpu(group->rec.mgid.global.interface_id));
+	sysfs_attr_init(&group->dentry.attr);
+	group->dentry.show = sysfs_show_group;
+	group->dentry.store = NULL;
+	group->dentry.attr.name = group->name;
+	group->dentry.attr.mode = 0400;
 	group->state = MCAST_IDLE;
 
 	if (is_mgid0) {
@@ -843,6 +855,8 @@ static struct mcast_group *acquire_group(struct mlx4_ib_demux_ctx *ctx,
 		kfree(group);
 		return ERR_PTR(-EINVAL);
 	}
+
+	add_sysfs_port_mcg_attr(ctx->dev, ctx->port, &group->dentry.attr);
 
 found:
 	atomic_inc(&group->refcount);
@@ -969,6 +983,58 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 	}
 }
 
+static ssize_t sysfs_show_group(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mcast_group *group =
+		container_of(attr, struct mcast_group, dentry);
+	struct mcast_req *req = NULL;
+	char pending_str[40];
+	char state_str[40];
+	ssize_t len = 0;
+	int f;
+
+	if (group->state == MCAST_IDLE)
+		sprintf(state_str, "%s", get_state_string(group->state));
+	else
+		sprintf(state_str, "%s(TID=0x%llx)",
+				get_state_string(group->state),
+				be64_to_cpu(group->last_req_tid));
+	if (list_empty(&group->pending_list)) {
+		sprintf(pending_str, "No");
+	} else {
+		req = list_first_entry(&group->pending_list, struct mcast_req, group_list);
+		sprintf(pending_str, "Yes(TID=0x%llx)",
+				be64_to_cpu(req->sa_mad.mad_hdr.tid));
+	}
+	len += sprintf(buf + len, "%1d [%02d,%02d,%02d] %4d %4s %5s     ",
+			group->rec.scope_join_state & 0xf,
+			group->members[2], group->members[1], group->members[0],
+			atomic_read(&group->refcount),
+			pending_str,
+			state_str);
+	for (f = 0; f < MAX_VFS; ++f)
+		if (group->func[f].state == MCAST_MEMBER)
+			len += sprintf(buf + len, "%d[%1x] ",
+					f, group->func[f].join_state);
+
+	len += sprintf(buf + len, "\t\t(%4hx %4x %2x %2x %2x %2x %2x "
+		"%4x %4x %2x %2x)\n",
+		be16_to_cpu(group->rec.pkey),
+		be32_to_cpu(group->rec.qkey),
+		(group->rec.mtusel_mtu & 0xc0) >> 6,
+		group->rec.mtusel_mtu & 0x3f,
+		group->rec.tclass,
+		(group->rec.ratesel_rate & 0xc0) >> 6,
+		group->rec.ratesel_rate & 0x3f,
+		(be32_to_cpu(group->rec.sl_flowlabel_hoplimit) & 0xf0000000) >> 28,
+		(be32_to_cpu(group->rec.sl_flowlabel_hoplimit) & 0x0fffff00) >> 8,
+		be32_to_cpu(group->rec.sl_flowlabel_hoplimit) & 0x000000ff,
+		group->rec.proxy_join);
+
+	return len;
+}
+
 int mlx4_ib_mcg_port_init(struct mlx4_ib_demux_ctx *ctx)
 {
 	char name[20];
@@ -995,6 +1061,7 @@ static void force_clean_group(struct mcast_group *group)
 		list_del(&req->group_list);
 		kfree(req);
 	}
+	del_sysfs_port_mcg_attr(group->demux->dev, group->demux->port, &group->dentry.attr);
 	rb_erase(&group->node, &group->demux->mcg_table);
 	kfree(group);
 }
