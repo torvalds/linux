@@ -128,4 +128,12 @@ enum mxs_ssp_id {
 	IMX28_SSP,
 };
 
+struct mxs_ssp {
+	struct device			*dev;
+	void __iomem			*base;
+	struct clk			*clk;
+	unsigned int			clk_rate;
+	enum mxs_ssp_id			devid;
+};
+
 #endif	/* __LINUX_SPI_MXS_SPI_H__ */
