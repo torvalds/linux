@@ -7595,10 +7595,11 @@ lpfc_sli4_send_nop_mbox_cmds(struct lpfc_hba *phba, uint32_t cnt)
 	/* Set up NOP SLI4_CONFIG mailbox-ioctl command */
 	length = (sizeof(struct lpfc_mbx_nop) -
 		  sizeof(struct lpfc_sli4_cfg_mhdr));
-	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
-			 LPFC_MBOX_OPCODE_NOP, length, LPFC_SLI4_MBX_EMBED);
 
 	for (cmdsent = 0; cmdsent < cnt; cmdsent++) {
+		lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+				 LPFC_MBOX_OPCODE_NOP, length,
+				 LPFC_SLI4_MBX_EMBED);
 		if (!phba->sli4_hba.intr_enable)
 			rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 		else {
