@@ -80,6 +80,7 @@ struct sync_timeline_ops {
 
 /**
  * struct sync_timeline - sync object
+ * @kref:		reference count on fence.
  * @ops:		ops that define the implementaiton of the sync_timeline
  * @name:		name of the sync_timeline. Useful for debugging
  * @destoryed:		set when sync_timeline is destroyed
@@ -90,6 +91,7 @@ struct sync_timeline_ops {
  * @sync_timeline_list:	membership in global sync_timeline_list
  */
 struct sync_timeline {
+	struct kref		kref;
 	const struct sync_timeline_ops	*ops;
 	char			name[32];
 
