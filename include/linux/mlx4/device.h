@@ -192,6 +192,25 @@ enum {
 	MLX4_FATAL_WARNING_SUBTYPE_WARMING = 0,
 };
 
+enum slave_port_state {
+	SLAVE_PORT_DOWN = 0,
+	SLAVE_PENDING_UP,
+	SLAVE_PORT_UP,
+};
+
+enum slave_port_gen_event {
+	SLAVE_PORT_GEN_EVENT_DOWN = 0,
+	SLAVE_PORT_GEN_EVENT_UP,
+	SLAVE_PORT_GEN_EVENT_NONE,
+};
+
+enum slave_port_state_event {
+	MLX4_PORT_STATE_DEV_EVENT_PORT_DOWN,
+	MLX4_PORT_STATE_DEV_EVENT_PORT_UP,
+	MLX4_PORT_STATE_IB_PORT_STATE_EVENT_GID_VALID,
+	MLX4_PORT_STATE_IB_EVENT_GID_INVALID,
+};
+
 enum {
 	MLX4_PERM_LOCAL_READ	= 1 << 10,
 	MLX4_PERM_LOCAL_WRITE	= 1 << 11,
@@ -944,5 +963,14 @@ void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
 			  int i, int val);
 
 int mlx4_get_parav_qkey(struct mlx4_dev *dev, u32 qpn, u32 *qkey);
+
+int mlx4_is_slave_active(struct mlx4_dev *dev, int slave);
+int mlx4_gen_pkey_eqe(struct mlx4_dev *dev, int slave, u8 port);
+int mlx4_gen_guid_change_eqe(struct mlx4_dev *dev, int slave, u8 port);
+int mlx4_gen_slaves_port_mgt_ev(struct mlx4_dev *dev, u8 port, int attr);
+int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port, u8 port_subtype_change);
+enum slave_port_state mlx4_get_slave_port_state(struct mlx4_dev *dev, int slave, u8 port);
+int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int event, enum slave_port_gen_event *gen_event);
+
 
 #endif /* MLX4_DEVICE_H */

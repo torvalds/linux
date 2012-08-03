@@ -452,6 +452,7 @@ struct mlx4_slave_state {
 	/*initialized via the kzalloc*/
 	u8 is_slave_going_down;
 	u32 cookie;
+	enum slave_port_state port_state[MLX4_MAX_PORTS + 1];
 };
 
 struct slave_list {
