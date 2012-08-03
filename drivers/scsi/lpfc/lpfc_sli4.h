@@ -430,6 +430,8 @@ struct lpfc_sli4_lnk_info {
 	uint8_t lnk_no;
 };
 
+#define LPFC_SLI4_HANDLER_NAME_SZ	16
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -486,6 +488,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_register sli_intf;
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
+	uint8_t handler_name[LPFC_FCP_IO_CHAN_MAX][LPFC_SLI4_HANDLER_NAME_SZ];
 	uint32_t cfg_eqn;
 	uint32_t msix_vec_nr;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */

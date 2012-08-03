@@ -8105,11 +8105,15 @@ enable_msix_vectors:
 	 * Assign MSI-X vectors to interrupt handlers
 	 */
 	for (index = 0; index < vectors; index++) {
+		memset(&phba->sli4_hba.handler_name[index], 0, 16);
+		sprintf((char *)&phba->sli4_hba.handler_name[index],
+			 LPFC_DRIVER_HANDLER_NAME"%d", index);
+
 		phba->sli4_hba.fcp_eq_hdl[index].idx = index;
 		phba->sli4_hba.fcp_eq_hdl[index].phba = phba;
 		rc = request_irq(phba->sli4_hba.msix_entries[index].vector,
 				 &lpfc_sli4_hba_intr_handler, IRQF_SHARED,
-				 LPFC_FP_DRIVER_HANDLER_NAME,
+				 (char *)&phba->sli4_hba.handler_name[index],
 				 &phba->sli4_hba.fcp_eq_hdl[index]);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
