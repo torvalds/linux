@@ -1186,8 +1186,9 @@ EXPORT_SYMBOL_GPL(gfn_to_page);
 
 void kvm_release_page_clean(struct page *page)
 {
-	if (!is_error_page(page))
-		kvm_release_pfn_clean(page_to_pfn(page));
+	WARN_ON(is_error_page(page));
+
+	kvm_release_pfn_clean(page_to_pfn(page));
 }
 EXPORT_SYMBOL_GPL(kvm_release_page_clean);
 

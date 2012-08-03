@@ -1639,10 +1639,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		vcpu->arch.time_page =
 				gfn_to_page(vcpu->kvm, data >> PAGE_SHIFT);
 
-		if (is_error_page(vcpu->arch.time_page)) {
-			kvm_release_page_clean(vcpu->arch.time_page);
+		if (is_error_page(vcpu->arch.time_page))
 			vcpu->arch.time_page = NULL;
-		}
+
 		break;
 	}
 	case MSR_KVM_ASYNC_PF_EN:
@@ -3945,10 +3944,8 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 		goto emul_write;
 
 	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
-	if (is_error_page(page)) {
-		kvm_release_page_clean(page);
+	if (is_error_page(page))
 		goto emul_write;
-	}
 
 	kaddr = kmap_atomic(page);
 	kaddr += offset_in_page(gpa);

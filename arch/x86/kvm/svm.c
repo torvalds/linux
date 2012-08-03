@@ -2105,7 +2105,6 @@ static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, struct page **_page)
 	return kmap(page);
 
 error:
-	kvm_release_page_clean(page);
 	kvm_inject_gp(&svm->vcpu, 0);
 
 	return NULL;
