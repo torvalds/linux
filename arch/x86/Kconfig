@@ -1527,7 +1527,7 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 config CC_STACKPROTECTOR
-	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	bool "Enable -fstack-protector buffer overflow detection"
 	---help---
 	  This option turns on the -fstack-protector GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
