@@ -1612,12 +1612,15 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 
 	switch (mbox->mbxCommand) {
 	case MBX_WRITE_NV:	/* 0x03 */
+	case MBX_DUMP_MEMORY:	/* 0x17 */
 	case MBX_UPDATE_CFG:	/* 0x1B */
 	case MBX_DOWN_LOAD:	/* 0x1C */
 	case MBX_DEL_LD_ENTRY:	/* 0x1D */
+	case MBX_WRITE_VPARMS:	/* 0x32 */
 	case MBX_LOAD_AREA:	/* 0x81 */
 	case MBX_WRITE_WWN:     /* 0x98 */
 	case MBX_LOAD_EXP_ROM:	/* 0x9C */
+	case MBX_ACCESS_VDATA:	/* 0xA5 */
 		return LPFC_MBOX_TMO_FLASH_CMD;
 	case MBX_SLI4_CONFIG:	/* 0x9b */
 		subsys = lpfc_sli_config_mbox_subsys_get(phba, mboxq);
@@ -1628,11 +1631,17 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 			case LPFC_MBOX_OPCODE_WRITE_OBJECT:
 			case LPFC_MBOX_OPCODE_READ_OBJECT_LIST:
 			case LPFC_MBOX_OPCODE_DELETE_OBJECT:
-			case LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG:
 			case LPFC_MBOX_OPCODE_GET_PROFILE_LIST:
 			case LPFC_MBOX_OPCODE_SET_ACT_PROFILE:
+			case LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG:
 			case LPFC_MBOX_OPCODE_SET_PROFILE_CONFIG:
 			case LPFC_MBOX_OPCODE_GET_FACTORY_PROFILE_CONFIG:
+			case LPFC_MBOX_OPCODE_GET_PROFILE_CAPACITIES:
+			case LPFC_MBOX_OPCODE_SEND_ACTIVATION:
+			case LPFC_MBOX_OPCODE_RESET_LICENSES:
+			case LPFC_MBOX_OPCODE_SET_BOOT_CONFIG:
+			case LPFC_MBOX_OPCODE_GET_VPD_DATA:
+			case LPFC_MBOX_OPCODE_SET_PHYSICAL_LINK_CONFIG:
 				return LPFC_MBOX_SLI4_CONFIG_EXTENDED_TMO;
 			}
 		}
