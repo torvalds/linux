@@ -49,28 +49,34 @@
 #define KVM_MAX_MMIO_FRAGMENTS \
 	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
 
-#define KVM_PFN_ERR_FAULT	(-EFAULT)
-#define KVM_PFN_ERR_HWPOISON	(-EHWPOISON)
-#define KVM_PFN_ERR_BAD		(-ENOENT)
+/*
+ * For the normal pfn, the highest 12 bits should be zero,
+ * so we can mask these bits to indicate the error.
+ */
+#define KVM_PFN_ERR_MASK	(0xfffULL << 52)
 
-static inline int is_error_pfn(pfn_t pfn)
+#define KVM_PFN_ERR_FAULT	(KVM_PFN_ERR_MASK)
+#define KVM_PFN_ERR_HWPOISON	(KVM_PFN_ERR_MASK + 1)
+#define KVM_PFN_ERR_BAD		(KVM_PFN_ERR_MASK + 2)
+
+static inline bool is_error_pfn(pfn_t pfn)
 {
-	return IS_ERR_VALUE(pfn);
+	return !!(pfn & KVM_PFN_ERR_MASK);
 }
 
-static inline int is_noslot_pfn(pfn_t pfn)
+static inline bool is_noslot_pfn(pfn_t pfn)
 {
-	return pfn == -ENOENT;
+	return pfn == KVM_PFN_ERR_BAD;
 }
 
-static inline int is_invalid_pfn(pfn_t pfn)
+static inline bool is_invalid_pfn(pfn_t pfn)
 {
 	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
 }
 
 #define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
 
-static inline int is_error_page(struct page *page)
+static inline bool is_error_page(struct page *page)
 {
 	return IS_ERR(page);
 }
