@@ -35,6 +35,7 @@
 #include <rdma/ib_sa.h>
 #include <rdma/ib_cache.h>
 
+#include <linux/random.h>
 #include <linux/mlx4/cmd.h>
 #include <linux/gfp.h>
 #include <rdma/ib_pma.h>
@@ -88,6 +89,12 @@ static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num);
 static void handle_lid_change_event(struct mlx4_ib_dev *dev, u8 port_num);
 static void __propagate_pkey_ev(struct mlx4_ib_dev *dev, int port_num,
 				int block, u32 change_bitmap);
+
+__be64 mlx4_ib_gen_node_guid(void)
+{
+#define NODE_GUID_HI	((u64) (((u64)IB_OPENIB_OUI) << 40))
+	return cpu_to_be64(NODE_GUID_HI | random32());
+}
 
 __be64 mlx4_ib_get_new_demux_tid(struct mlx4_ib_demux_ctx *ctx)
 {
@@ -1960,6 +1967,13 @@ int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev)
 	if (mlx4_is_slave(dev->dev)) {
 		mlx4_ib_warn(&dev->ib_dev, "operating in qp1 tunnel mode\n");
 		return 0;
+	}
+
+	for (i = 0; i < dev->dev->caps.sqp_demux; i++) {
+		if (i == mlx4_master_func_num(dev->dev))
+			mlx4_put_slave_node_guid(dev->dev, i, dev->ib_dev.node_guid);
+		else
+			mlx4_put_slave_node_guid(dev->dev, i, mlx4_ib_gen_node_guid());
 	}
 
 	err = mlx4_ib_init_alias_guid_service(dev);

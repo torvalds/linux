@@ -435,6 +435,28 @@ void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port, int i, int 
 }
 EXPORT_SYMBOL(mlx4_sync_pkey_table);
 
+void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid)
+{
+	struct mlx4_priv *priv = container_of(dev, struct mlx4_priv, dev);
+
+	if (!mlx4_is_master(dev))
+		return;
+
+	priv->slave_node_guids[slave] = guid;
+}
+EXPORT_SYMBOL(mlx4_put_slave_node_guid);
+
+__be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_priv *priv = container_of(dev, struct mlx4_priv, dev);
+
+	if (!mlx4_is_master(dev))
+		return 0;
+
+	return priv->slave_node_guids[slave];
+}
+EXPORT_SYMBOL(mlx4_get_slave_node_guid);
+
 int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);

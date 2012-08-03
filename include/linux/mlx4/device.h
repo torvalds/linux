@@ -981,5 +981,7 @@ int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port, u8 
 enum slave_port_state mlx4_get_slave_port_state(struct mlx4_dev *dev, int slave, u8 port);
 int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int event, enum slave_port_gen_event *gen_event);
 
+void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid);
+__be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave);
 
 #endif /* MLX4_DEVICE_H */

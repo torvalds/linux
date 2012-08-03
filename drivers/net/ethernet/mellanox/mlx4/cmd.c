@@ -696,6 +696,7 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 	struct ib_smp *outsmp = outbox->buf;
 	__be16 *outtab = (__be16 *)(outsmp->data);
 	__be32 slave_cap_mask;
+	__be64 slave_node_guid;
 	port = vhcr->in_modifier;
 
 	if (smp->base_version == 1 &&
@@ -752,6 +753,16 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 						       outsmp->data + (slave % 8) * 8, 8);
 					/* delete all other gids */
 					memset(outsmp->data + 8, 0, 56);
+				}
+				return err;
+			}
+			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
+				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
+					     vhcr->in_modifier, vhcr->op_modifier,
+					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
+				if (!err) {
+					slave_node_guid =  mlx4_get_slave_node_guid(dev, slave);
+					memcpy(outsmp->data + 12, &slave_node_guid, 8);
 				}
 				return err;
 			}

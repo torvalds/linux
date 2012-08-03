@@ -810,6 +810,7 @@ struct mlx4_priv {
 	int			reserved_mtts;
 	int			fs_hash_mode;
 	u8 virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
+	__be64			slave_node_guids[MLX4_MFUNC_MAX];
 
 };
 
