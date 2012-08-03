@@ -7796,14 +7796,14 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
  *
  * Return: index into SLI4 fast-path FCP queue index.
  **/
-static uint32_t
+static inline uint32_t
 lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba)
 {
-	++phba->fcp_qidx;
-	if (phba->fcp_qidx >= phba->cfg_fcp_wq_count)
-		phba->fcp_qidx = 0;
+	int i;
 
-	return phba->fcp_qidx;
+	i = atomic_add_return(1, &phba->fcp_qidx);
+	i = (i % phba->cfg_fcp_wq_count);
+	return i;
 }
 
 /**
@@ -8323,16 +8323,6 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 
 	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
 		(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
-		/*
-		 * For FCP command IOCB, get a new WQ index to distribute
-		 * WQE across the WQsr. On the other hand, for abort IOCB,
-		 * it carries the same WQ index to the original command
-		 * IOCB.
-		 */
-		if (piocb->iocb_flag & LPFC_IO_FCP)
-			piocb->fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba);
-		if (unlikely(!phba->sli4_hba.fcp_wq))
-			return IOCB_ERROR;
 		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[piocb->fcp_wqidx],
 				     &wqe))
 			return IOCB_ERROR;
@@ -8413,11 +8403,18 @@ int
 lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 		    struct lpfc_iocbq *piocb, uint32_t flag)
 {
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
+	struct lpfc_sli_ring *pring;
 	unsigned long iflags;
-	int rc;
+	int rc, idx;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (piocb->iocb_flag &  LPFC_IO_FCP) {
+			if (unlikely(!phba->sli4_hba.fcp_wq))
+				return IOCB_ERROR;
+			idx = lpfc_sli4_scmd_to_wqidx_distr(phba);
+			piocb->fcp_wqidx = idx;
+			ring_number = MAX_SLI3_CONFIGURED_RINGS + idx;
+		}
 		pring = &phba->sli.ring[ring_number];
 		spin_lock_irqsave(&pring->ring_lock, iflags);
 		rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
@@ -8712,7 +8709,9 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 
-	psli->num_rings = MAX_CONFIGURED_RINGS;
+	psli->num_rings = MAX_SLI3_CONFIGURED_RINGS;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		psli->num_rings += phba->cfg_fcp_eq_count;
 	psli->sli_flag = 0;
 	psli->fcp_ring = LPFC_FCP_RING;
 	psli->next_ring = LPFC_FCP_NEXT_RING;
@@ -11191,6 +11190,7 @@ lpfc_sli4_sp_handle_mcqe(struct lpfc_hba *phba, struct lpfc_cqe *cqe)
 /**
  * lpfc_sli4_sp_handle_els_wcqe - Handle els work-queue completion event
  * @phba: Pointer to HBA context object.
+ * @cq: Pointer to associated CQ
  * @wcqe: Pointer to work-queue completion queue entry.
  *
  * This routine handles an ELS work-queue completion event.
@@ -11198,12 +11198,12 @@ lpfc_sli4_sp_handle_mcqe(struct lpfc_hba *phba, struct lpfc_cqe *cqe)
  * Return: true if work posted to worker thread, otherwise false.
  **/
 static bool
-lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba,
+lpfc_sli4_sp_handle_els_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			     struct lpfc_wcqe_complete *wcqe)
 {
 	struct lpfc_iocbq *irspiocbq;
 	unsigned long iflags;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
+	struct lpfc_sli_ring *pring = cq->pring;
 
 	/* Get an irspiocbq for later ELS response processing use */
 	irspiocbq = lpfc_sli_get_iocbq(phba);
@@ -11408,7 +11408,7 @@ lpfc_sli4_sp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	case CQE_CODE_COMPL_WQE:
 		/* Process the WQ/RQ complete event */
 		phba->last_completion_time = jiffies;
-		workposted = lpfc_sli4_sp_handle_els_wcqe(phba,
+		workposted = lpfc_sli4_sp_handle_els_wcqe(phba, cq,
 				(struct lpfc_wcqe_complete *)&cqevt);
 		break;
 	case CQE_CODE_RELEASE_WQE:
@@ -11540,16 +11540,18 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 
 /**
  * lpfc_sli4_fp_handle_fcp_wcqe - Process fast-path work queue completion entry
- * @eqe: Pointer to fast-path completion queue entry.
+ * @phba: Pointer to HBA context object.
+ * @cq: Pointer to associated CQ
+ * @wcqe: Pointer to work-queue completion queue entry.
  *
  * This routine process a fast-path work queue completion entry from fast-path
  * event queue for FCP command response completion.
  **/
 static void
-lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba,
+lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			     struct lpfc_wcqe_complete *wcqe)
 {
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_FCP_RING];
+	struct lpfc_sli_ring *pring = cq->pring;
 	struct lpfc_iocbq *cmdiocbq;
 	struct lpfc_iocbq irspiocbq;
 	unsigned long iflags;
@@ -11667,7 +11669,7 @@ lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		cq->CQ_wq++;
 		/* Process the WQ complete event */
 		phba->last_completion_time = jiffies;
-		lpfc_sli4_fp_handle_fcp_wcqe(phba,
+		lpfc_sli4_fp_handle_fcp_wcqe(phba, cq,
 				(struct lpfc_wcqe_complete *)&wcqe);
 		break;
 	case CQE_CODE_RELEASE_WQE:

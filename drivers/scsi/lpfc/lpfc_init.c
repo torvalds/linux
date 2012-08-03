@@ -4551,6 +4551,13 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 			phba->cfg_sg_seg_cnt = LPFC_DEFAULT_MENLO_SG_SEG_CNT;
 	}
 
+	if (!phba->sli.ring)
+		phba->sli.ring = (struct lpfc_sli_ring *)
+			kzalloc(LPFC_SLI3_MAX_RING *
+			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
+	if (!phba->sli.ring)
+		return -ENOMEM;
+
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -4709,6 +4716,16 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	if (phba->cfg_enable_bg)
 		sges_per_segment = 2;
 
+	/*
+	 * For SLI4, instead of using ring 0 (LPFC_FCP_RING) for FCP commands
+	 * we will associate a new ring, for each FCP fastpath EQ/CQ/WQ tuple.
+	 */
+	if (!phba->sli.ring)
+		phba->sli.ring = kzalloc(
+			(LPFC_SLI3_MAX_RING + phba->cfg_fcp_eq_count) *
+			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
+	if (!phba->sli.ring)
+		return -ENOMEM;
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -5554,6 +5571,10 @@ lpfc_hba_free(struct lpfc_hba *phba)
 {
 	/* Release the driver assigned board number */
 	idr_remove(&lpfc_hba_index, phba->brd_no);
+
+	/* Free memory allocated with sli rings */
+	kfree(phba->sli.ring);
+	phba->sli.ring = NULL;
 
 	kfree(phba);
 	return;
@@ -6924,6 +6945,8 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 int
 lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 {
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring *pring;
 	int rc = -ENOMEM;
 	int fcp_eqidx, fcp_cqidx, fcp_wqidx;
 	int fcp_cq_index = 0;
@@ -7107,6 +7130,12 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 				"rc = 0x%x\n", rc);
 		goto out_destroy_mbx_wq;
 	}
+
+	/* Bind this WQ to the ELS ring */
+	pring = &psli->ring[LPFC_ELS_RING];
+	pring->sli.sli4.wqp = (void *)phba->sli4_hba.els_wq;
+	phba->sli4_hba.els_cq->pring = pring;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"2590 ELS WQ setup: wq-id=%d, parent cq-id=%d\n",
 			phba->sli4_hba.els_wq->queue_id,
@@ -7137,6 +7166,12 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 					"WQ (%d), rc = 0x%x\n", fcp_wqidx, rc);
 			goto out_destroy_fcp_wq;
 		}
+
+		/* Bind this WQ to the next FCP ring */
+		pring = &psli->ring[MAX_SLI3_CONFIGURED_RINGS + fcp_wqidx];
+		pring->sli.sli4.wqp = (void *)phba->sli4_hba.fcp_wq[fcp_wqidx];
+		phba->sli4_hba.fcp_cq[fcp_cq_index]->pring = pring;
+
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"2591 FCP WQ setup: wq[%d]-id=%d, "
 				"parent cq[%d]-id=%d\n",

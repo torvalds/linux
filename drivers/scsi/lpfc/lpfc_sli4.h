@@ -142,6 +142,8 @@ struct lpfc_queue {
 	uint32_t host_index;	/* The host's index for putting or getting */
 	uint32_t hba_index;	/* The last known hba index for get or put */
 
+	struct lpfc_sli_ring *pring; /* ptr to io ring associated with q */
+
 	/* For q stats */
 	uint32_t q_cnt_1;
 	uint32_t q_cnt_2;

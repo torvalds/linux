@@ -732,7 +732,7 @@ struct lpfc_hba {
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
-	uint32_t fcp_qidx;		/* next work queue to post work to */
+	atomic_t fcp_qidx;		/* next work queue to post work to */
 
 	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
 	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */

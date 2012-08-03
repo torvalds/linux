@@ -131,7 +131,9 @@ typedef struct lpfcMboxq {
 
 #define LPFC_MAX_RING_MASK  5	/* max num of rctl/type masks allowed per
 				   ring */
-#define LPFC_MAX_RING       4	/* max num of SLI rings used by driver */
+#define LPFC_SLI3_MAX_RING  4	/* Max num of SLI3 rings used by driver.
+				   For SLI4, an additional ring for each
+				   FCP WQ will be allocated.  */
 
 struct lpfc_sli_ring;
 
@@ -172,7 +174,7 @@ struct lpfc_sli3_ring {
 };
 
 struct lpfc_sli4_ring {
-	void *wqp;	/* Pointer to associated WQ */
+	struct lpfc_queue *wqp;	/* Pointer to associated WQ */
 };
 
 
@@ -284,7 +286,7 @@ struct lpfc_sli {
 #define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 
-	struct lpfc_sli_ring ring[LPFC_MAX_RING];
+	struct lpfc_sli_ring *ring;
 	int fcp_ring;		/* ring used for FCP initiator commands */
 	int next_ring;
 
