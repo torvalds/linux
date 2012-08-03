@@ -2013,38 +2013,23 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	if (*ppos)
 		return 0;
 
-	/* Get slow-path event queue information */
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Slow-path EQ information:\n");
-	if (phba->sli4_hba.sp_eq) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"\tEQID[%02d], "
-			"QE-COUNT[%04d], QE-SIZE[%04d], "
-			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
-			phba->sli4_hba.sp_eq->queue_id,
-			phba->sli4_hba.sp_eq->entry_count,
-			phba->sli4_hba.sp_eq->entry_size,
-			phba->sli4_hba.sp_eq->host_index,
-			phba->sli4_hba.sp_eq->hba_index);
-	}
-
 	/* Get fast-path event queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
-			"Fast-path EQ information:\n");
-	if (phba->sli4_hba.fp_eq) {
-		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count;
+			"HBA EQ information:\n");
+	if (phba->sli4_hba.hba_eq) {
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_io_channel;
 		     fcp_qidx++) {
-			if (phba->sli4_hba.fp_eq[fcp_qidx]) {
+			if (phba->sli4_hba.hba_eq[fcp_qidx]) {
 				len += snprintf(pbuffer+len,
 					LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tEQID[%02d], "
 				"QE-COUNT[%04d], QE-SIZE[%04d], "
 				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
-				phba->sli4_hba.fp_eq[fcp_qidx]->queue_id,
-				phba->sli4_hba.fp_eq[fcp_qidx]->entry_count,
-				phba->sli4_hba.fp_eq[fcp_qidx]->entry_size,
-				phba->sli4_hba.fp_eq[fcp_qidx]->host_index,
-				phba->sli4_hba.fp_eq[fcp_qidx]->hba_index);
+				phba->sli4_hba.hba_eq[fcp_qidx]->queue_id,
+				phba->sli4_hba.hba_eq[fcp_qidx]->entry_count,
+				phba->sli4_hba.hba_eq[fcp_qidx]->entry_size,
+				phba->sli4_hba.hba_eq[fcp_qidx]->host_index,
+				phba->sli4_hba.hba_eq[fcp_qidx]->hba_index);
 			}
 		}
 	}
@@ -2108,7 +2093,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->host_index,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->hba_index);
 			}
-		} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+		} while (++fcp_qidx < phba->cfg_fcp_io_channel);
 		len += snprintf(pbuffer+len,
 				LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
 	}
@@ -2153,7 +2138,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Fast-path FCP WQ information:\n");
 	if (phba->sli4_hba.fcp_wq) {
-		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count;
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_io_channel;
 		     fcp_qidx++) {
 			if (!phba->sli4_hba.fcp_wq[fcp_qidx])
 				continue;
@@ -2410,31 +2395,21 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 
 	switch (quetp) {
 	case LPFC_IDIAG_EQ:
-		/* Slow-path event queue */
-		if (phba->sli4_hba.sp_eq &&
-		    phba->sli4_hba.sp_eq->queue_id == queid) {
-			/* Sanity check */
-			rc = lpfc_idiag_que_param_check(
-					phba->sli4_hba.sp_eq, index, count);
-			if (rc)
-				goto error_out;
-			idiag.ptr_private = phba->sli4_hba.sp_eq;
-			goto pass_check;
-		}
-		/* Fast-path event queue */
-		if (phba->sli4_hba.fp_eq) {
-			for (qidx = 0; qidx < phba->cfg_fcp_eq_count; qidx++) {
-				if (phba->sli4_hba.fp_eq[qidx] &&
-				    phba->sli4_hba.fp_eq[qidx]->queue_id ==
+		/* HBA event queue */
+		if (phba->sli4_hba.hba_eq) {
+			for (qidx = 0; qidx < phba->cfg_fcp_io_channel;
+				qidx++) {
+				if (phba->sli4_hba.hba_eq[qidx] &&
+				    phba->sli4_hba.hba_eq[qidx]->queue_id ==
 				    queid) {
 					/* Sanity check */
 					rc = lpfc_idiag_que_param_check(
-						phba->sli4_hba.fp_eq[qidx],
+						phba->sli4_hba.hba_eq[qidx],
 						index, count);
 					if (rc)
 						goto error_out;
 					idiag.ptr_private =
-						phba->sli4_hba.fp_eq[qidx];
+						phba->sli4_hba.hba_eq[qidx];
 					goto pass_check;
 				}
 			}
@@ -2481,7 +2456,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 						phba->sli4_hba.fcp_cq[qidx];
 					goto pass_check;
 				}
-			} while (++qidx < phba->cfg_fcp_eq_count);
+			} while (++qidx < phba->cfg_fcp_io_channel);
 		}
 		goto error_out;
 		break;
@@ -2513,7 +2488,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 		}
 		/* FCP work queue */
 		if (phba->sli4_hba.fcp_wq) {
-			for (qidx = 0; qidx < phba->cfg_fcp_wq_count; qidx++) {
+			for (qidx = 0; qidx < phba->cfg_fcp_io_channel;
+				qidx++) {
 				if (!phba->sli4_hba.fcp_wq[qidx])
 					continue;
 				if (phba->sli4_hba.fcp_wq[qidx]->queue_id ==
@@ -4492,7 +4468,7 @@ lpfc_debug_dump_all_queues(struct lpfc_hba *phba)
 	lpfc_debug_dump_mbx_wq(phba);
 	lpfc_debug_dump_els_wq(phba);
 
-	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++)
+	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_io_channel; fcp_wqidx++)
 		lpfc_debug_dump_fcp_wq(phba, fcp_wqidx);
 
 	lpfc_debug_dump_hdr_rq(phba);
@@ -4503,14 +4479,12 @@ lpfc_debug_dump_all_queues(struct lpfc_hba *phba)
 	lpfc_debug_dump_mbx_cq(phba);
 	lpfc_debug_dump_els_cq(phba);
 
-	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++)
+	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_io_channel; fcp_wqidx++)
 		lpfc_debug_dump_fcp_cq(phba, fcp_wqidx);
 
 	/*
 	 * Dump Event Queues (EQs)
 	 */
-	lpfc_debug_dump_sp_eq(phba);
-
-	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_wq_count; fcp_wqidx++)
-		lpfc_debug_dump_fcp_eq(phba, fcp_wqidx);
+	for (fcp_wqidx = 0; fcp_wqidx < phba->cfg_fcp_io_channel; fcp_wqidx++)
+		lpfc_debug_dump_hba_eq(phba, fcp_wqidx);
 }

@@ -3654,7 +3654,7 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	phba->cfg_fcp_imax = (uint32_t)val;
-	for (i = 0; i < phba->cfg_fcp_eq_count; i += LPFC_MAX_EQ_DELAY)
+	for (i = 0; i < phba->cfg_fcp_io_channel; i += LPFC_MAX_EQ_DELAY)
 		lpfc_modify_fcp_eq_delay(phba, i);
 
 	return strlen(buf);
@@ -3844,19 +3844,31 @@ LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "
 
 /*
 # lpfc_fcp_wq_count: Set the number of fast-path FCP work queues
+# This parameter is ignored and will eventually be depricated
 #
-# Value range is [1,31]. Default value is 4.
+# Value range is [1,7]. Default value is 4.
 */
-LPFC_ATTR_R(fcp_wq_count, LPFC_FP_WQN_DEF, LPFC_FP_WQN_MIN, LPFC_FP_WQN_MAX,
+LPFC_ATTR_R(fcp_wq_count, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
+	    LPFC_FCP_IO_CHAN_MAX,
 	    "Set the number of fast-path FCP work queues, if possible");
 
 /*
-# lpfc_fcp_eq_count: Set the number of fast-path FCP event queues
+# lpfc_fcp_eq_count: Set the number of FCP EQ/CQ/WQ IO channels
 #
-# Value range is [1,7]. Default value is 1.
+# Value range is [1,7]. Default value is 4.
 */
-LPFC_ATTR_R(fcp_eq_count, LPFC_FP_EQN_DEF, LPFC_FP_EQN_MIN, LPFC_FP_EQN_MAX,
+LPFC_ATTR_R(fcp_eq_count, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
+	    LPFC_FCP_IO_CHAN_MAX,
 	    "Set the number of fast-path FCP event queues, if possible");
+
+/*
+# lpfc_fcp_io_channel: Set the number of FCP EQ/CQ/WQ IO channels
+#
+# Value range is [1,7]. Default value is 4.
+*/
+LPFC_ATTR_R(fcp_io_channel, LPFC_FCP_IO_CHAN_DEF, LPFC_FCP_IO_CHAN_MIN,
+	    LPFC_FCP_IO_CHAN_MAX,
+	    "Set the number of FCP I/O channels");
 
 /*
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
@@ -4002,6 +4014,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fcp_imax,
 	&dev_attr_lpfc_fcp_wq_count,
 	&dev_attr_lpfc_fcp_eq_count,
+	&dev_attr_lpfc_fcp_io_channel,
 	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
 	&dev_attr_lpfc_soft_wwpn,
@@ -4980,6 +4993,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_fcp_imax_init(phba, lpfc_fcp_imax);
 	lpfc_fcp_wq_count_init(phba, lpfc_fcp_wq_count);
 	lpfc_fcp_eq_count_init(phba, lpfc_fcp_eq_count);
+	lpfc_fcp_io_channel_init(phba, lpfc_fcp_io_channel);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
 	lpfc_enable_bg_init(phba, lpfc_enable_bg);

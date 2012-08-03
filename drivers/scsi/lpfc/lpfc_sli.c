@@ -4921,16 +4921,15 @@ lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
 	fcp_eqidx = 0;
 	if (phba->sli4_hba.fcp_cq) {
-		do
+		do {
 			lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[fcp_eqidx],
 					     LPFC_QUEUE_REARM);
-		while (++fcp_eqidx < phba->cfg_fcp_eq_count);
+		} while (++fcp_eqidx < phba->cfg_fcp_io_channel);
 	}
-	lpfc_sli4_eq_release(phba->sli4_hba.sp_eq, LPFC_QUEUE_REARM);
-	if (phba->sli4_hba.fp_eq) {
-		for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count;
+	if (phba->sli4_hba.hba_eq) {
+		for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_io_channel;
 		     fcp_eqidx++)
-			lpfc_sli4_eq_release(phba->sli4_hba.fp_eq[fcp_eqidx],
+			lpfc_sli4_eq_release(phba->sli4_hba.hba_eq[fcp_eqidx],
 					     LPFC_QUEUE_REARM);
 	}
 }
@@ -7818,7 +7817,7 @@ lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba)
 	int i;
 
 	i = atomic_add_return(1, &phba->fcp_qidx);
-	i = (i % phba->cfg_fcp_wq_count);
+	i = (i % phba->cfg_fcp_io_channel);
 	return i;
 }
 
@@ -8727,7 +8726,7 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 
 	psli->num_rings = MAX_SLI3_CONFIGURED_RINGS;
 	if (phba->sli_rev == LPFC_SLI_REV4)
-		psli->num_rings += phba->cfg_fcp_eq_count;
+		psli->num_rings += phba->cfg_fcp_io_channel;
 	psli->sli_flag = 0;
 	psli->fcp_ring = LPFC_FCP_RING;
 	psli->next_ring = LPFC_FCP_NEXT_RING;
@@ -11468,31 +11467,18 @@ lpfc_sli4_sp_handle_cqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
  *
  **/
 static void
-lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
+lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
+	struct lpfc_queue *speq)
 {
-	struct lpfc_queue *cq = NULL, *childq, *speq;
+	struct lpfc_queue *cq = NULL, *childq;
 	struct lpfc_cqe *cqe;
 	bool workposted = false;
 	int ecount = 0;
 	uint16_t cqid;
 
-	if (bf_get_le32(lpfc_eqe_major_code, eqe) != 0) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0359 Not a valid slow-path completion "
-				"event: majorcode=x%x, minorcode=x%x\n",
-				bf_get_le32(lpfc_eqe_major_code, eqe),
-				bf_get_le32(lpfc_eqe_minor_code, eqe));
-		return;
-	}
-
 	/* Get the reference to the corresponding CQ */
 	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
 
-	/* Search for completion queue pointer matching this cqid */
-	speq = phba->sli4_hba.sp_eq;
-	/* sanity check on queue memory */
-	if (unlikely(!speq))
-		return;
 	list_for_each_entry(childq, &speq->child_list, list) {
 		if (childq->queue_id == cqid) {
 			cq = childq;
@@ -11711,7 +11697,7 @@ lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 }
 
 /**
- * lpfc_sli4_fp_handle_eqe - Process a fast-path event queue entry
+ * lpfc_sli4_hba_handle_eqe - Process a fast-path event queue entry
  * @phba: Pointer to HBA context object.
  * @eqe: Pointer to fast-path event queue entry.
  *
@@ -11723,8 +11709,8 @@ lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
  * completion queue, and then return.
  **/
 static void
-lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
-			uint32_t fcp_cqidx)
+lpfc_sli4_hba_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
+			uint32_t qidx)
 {
 	struct lpfc_queue *cq;
 	struct lpfc_cqe *cqe;
@@ -11734,10 +11720,20 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 
 	if (unlikely(bf_get_le32(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0366 Not a valid fast-path completion "
+				"0366 Not a valid completion "
 				"event: majorcode=x%x, minorcode=x%x\n",
 				bf_get_le32(lpfc_eqe_major_code, eqe),
 				bf_get_le32(lpfc_eqe_minor_code, eqe));
+		return;
+	}
+
+	/* Get the reference to the corresponding CQ */
+	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
+
+	/* Check if this is a Slow path event */
+	if (unlikely(cqid != phba->sli4_hba.fcp_cq_map[qidx])) {
+		lpfc_sli4_sp_handle_eqe(phba, eqe,
+			phba->sli4_hba.hba_eq[qidx]);
 		return;
 	}
 
@@ -11747,17 +11743,15 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 				"does not exist\n");
 		return;
 	}
-	cq = phba->sli4_hba.fcp_cq[fcp_cqidx];
+	cq = phba->sli4_hba.fcp_cq[qidx];
 	if (unlikely(!cq)) {
 		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 					"0367 Fast-path completion queue "
-					"(%d) does not exist\n", fcp_cqidx);
+					"(%d) does not exist\n", qidx);
 		return;
 	}
 
-	/* Get the reference to the corresponding CQ */
-	cqid = bf_get_le32(lpfc_eqe_resource_id, eqe);
 	if (unlikely(cqid != cq->queue_id)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0368 Miss-matched fast-path completion "
@@ -11805,93 +11799,7 @@ lpfc_sli4_eq_flush(struct lpfc_hba *phba, struct lpfc_queue *eq)
 }
 
 /**
- * lpfc_sli4_sp_intr_handler - Slow-path interrupt handler to SLI-4 device
- * @irq: Interrupt number.
- * @dev_id: The device context pointer.
- *
- * This function is directly called from the PCI layer as an interrupt
- * service routine when device with SLI-4 interface spec is enabled with
- * MSI-X multi-message interrupt mode and there are slow-path events in
- * the HBA. However, when the device is enabled with either MSI or Pin-IRQ
- * interrupt mode, this function is called as part of the device-level
- * interrupt handler. When the PCI slot is in error recovery or the HBA is
- * undergoing initialization, the interrupt handler will not process the
- * interrupt. The link attention and ELS ring attention events are handled
- * by the worker thread. The interrupt handler signals the worker thread
- * and returns for these events. This function is called without any lock
- * held. It gets the hbalock to access and update SLI data structures.
- *
- * This function returns IRQ_HANDLED when interrupt is handled else it
- * returns IRQ_NONE.
- **/
-irqreturn_t
-lpfc_sli4_sp_intr_handler(int irq, void *dev_id)
-{
-	struct lpfc_hba *phba;
-	struct lpfc_queue *speq;
-	struct lpfc_eqe *eqe;
-	unsigned long iflag;
-	int ecount = 0;
-
-	/*
-	 * Get the driver's phba structure from the dev_id
-	 */
-	phba = (struct lpfc_hba *)dev_id;
-
-	if (unlikely(!phba))
-		return IRQ_NONE;
-
-	/* Get to the EQ struct associated with this vector */
-	speq = phba->sli4_hba.sp_eq;
-	if (unlikely(!speq))
-		return IRQ_NONE;
-
-	/* Check device state for handling interrupt */
-	if (unlikely(lpfc_intr_state_check(phba))) {
-		speq->EQ_badstate++;
-		/* Check again for link_state with lock held */
-		spin_lock_irqsave(&phba->hbalock, iflag);
-		if (phba->link_state < LPFC_LINK_DOWN)
-			/* Flush, clear interrupt, and rearm the EQ */
-			lpfc_sli4_eq_flush(phba, speq);
-		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		return IRQ_NONE;
-	}
-
-	/*
-	 * Process all the event on FCP slow-path EQ
-	 */
-	while ((eqe = lpfc_sli4_eq_get(speq))) {
-		lpfc_sli4_sp_handle_eqe(phba, eqe);
-		if (!(++ecount % speq->entry_repost))
-			lpfc_sli4_eq_release(speq, LPFC_QUEUE_NOARM);
-		speq->EQ_processed++;
-	}
-
-	/* Track the max number of EQEs processed in 1 intr */
-	if (ecount > speq->EQ_max_eqe)
-		speq->EQ_max_eqe = ecount;
-
-	/* Always clear and re-arm the slow-path EQ */
-	lpfc_sli4_eq_release(speq, LPFC_QUEUE_REARM);
-
-	/* Catch the no cq entry condition */
-	if (unlikely(ecount == 0)) {
-		speq->EQ_no_entry++;
-		if (phba->intr_type == MSIX)
-			/* MSI-X treated interrupt served as no EQ share INT */
-			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-					"0357 MSI-X interrupt with no EQE\n");
-		else
-			/* Non MSI-X treated on interrupt as EQ share INT */
-			return IRQ_NONE;
-	}
-
-	return IRQ_HANDLED;
-} /* lpfc_sli4_sp_intr_handler */
-
-/**
- * lpfc_sli4_fp_intr_handler - Fast-path interrupt handler to SLI-4 device
+ * lpfc_sli4_hba_intr_handler - HBA interrupt handler to SLI-4 device
  * @irq: Interrupt number.
  * @dev_id: The device context pointer.
  *
@@ -11908,11 +11816,16 @@ lpfc_sli4_sp_intr_handler(int irq, void *dev_id)
  * the FCP EQ to FCP CQ are one-to-one map such that the FCP EQ index is
  * equal to that of FCP CQ index.
  *
+ * The link attention and ELS ring attention events are handled
+ * by the worker thread. The interrupt handler signals the worker thread
+ * and returns for these events. This function is called without any lock
+ * held. It gets the hbalock to access and update SLI data structures.
+ *
  * This function returns IRQ_HANDLED when interrupt is handled else it
  * returns IRQ_NONE.
  **/
 irqreturn_t
-lpfc_sli4_fp_intr_handler(int irq, void *dev_id)
+lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 {
 	struct lpfc_hba *phba;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl;
@@ -11929,11 +11842,11 @@ lpfc_sli4_fp_intr_handler(int irq, void *dev_id)
 
 	if (unlikely(!phba))
 		return IRQ_NONE;
-	if (unlikely(!phba->sli4_hba.fp_eq))
+	if (unlikely(!phba->sli4_hba.hba_eq))
 		return IRQ_NONE;
 
 	/* Get to the EQ struct associated with this vector */
-	fpeq = phba->sli4_hba.fp_eq[fcp_eqidx];
+	fpeq = phba->sli4_hba.hba_eq[fcp_eqidx];
 	if (unlikely(!fpeq))
 		return IRQ_NONE;
 
@@ -11953,7 +11866,7 @@ lpfc_sli4_fp_intr_handler(int irq, void *dev_id)
 	 * Process all the event on FCP fast-path EQ
 	 */
 	while ((eqe = lpfc_sli4_eq_get(fpeq))) {
-		lpfc_sli4_fp_handle_eqe(phba, eqe, fcp_eqidx);
+		lpfc_sli4_hba_handle_eqe(phba, eqe, fcp_eqidx);
 		if (!(++ecount % fpeq->entry_repost))
 			lpfc_sli4_eq_release(fpeq, LPFC_QUEUE_NOARM);
 		fpeq->EQ_processed++;
@@ -12001,8 +11914,8 @@ irqreturn_t
 lpfc_sli4_intr_handler(int irq, void *dev_id)
 {
 	struct lpfc_hba  *phba;
-	irqreturn_t sp_irq_rc, fp_irq_rc;
-	bool fp_handled = false;
+	irqreturn_t hba_irq_rc;
+	bool hba_handled = false;
 	uint32_t fcp_eqidx;
 
 	/* Get the driver's phba structure from the dev_id */
@@ -12012,21 +11925,16 @@ lpfc_sli4_intr_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	/*
-	 * Invokes slow-path host attention interrupt handling as appropriate.
-	 */
-	sp_irq_rc = lpfc_sli4_sp_intr_handler(irq, dev_id);
-
-	/*
 	 * Invoke fast-path host attention interrupt handling as appropriate.
 	 */
-	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_eq_count; fcp_eqidx++) {
-		fp_irq_rc = lpfc_sli4_fp_intr_handler(irq,
+	for (fcp_eqidx = 0; fcp_eqidx < phba->cfg_fcp_io_channel; fcp_eqidx++) {
+		hba_irq_rc = lpfc_sli4_hba_intr_handler(irq,
 					&phba->sli4_hba.fcp_eq_hdl[fcp_eqidx]);
-		if (fp_irq_rc == IRQ_HANDLED)
-			fp_handled |= true;
+		if (hba_irq_rc == IRQ_HANDLED)
+			hba_handled |= true;
 	}
 
-	return (fp_handled == true) ? IRQ_HANDLED : sp_irq_rc;
+	return (hba_handled == true) ? IRQ_HANDLED : IRQ_NONE;
 } /* lpfc_sli4_intr_handler */
 
 /**
@@ -12157,7 +12065,7 @@ lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
 	union lpfc_sli4_cfg_shdr *shdr;
 	uint16_t dmult;
 
-	if (startq >= phba->cfg_fcp_eq_count)
+	if (startq >= phba->cfg_fcp_io_channel)
 		return 0;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -12174,9 +12082,9 @@ lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
 	dmult = LPFC_DMULT_CONST/phba->cfg_fcp_imax - 1;
 
 	cnt = 0;
-	for (fcp_eqidx = startq; fcp_eqidx < phba->cfg_fcp_eq_count;
+	for (fcp_eqidx = startq; fcp_eqidx < phba->cfg_fcp_io_channel;
 	    fcp_eqidx++) {
-		eq = phba->sli4_hba.fp_eq[fcp_eqidx];
+		eq = phba->sli4_hba.hba_eq[fcp_eqidx];
 		if (!eq)
 			continue;
 		eq_delay->u.request.eq[cnt].eq_id = eq->queue_id;

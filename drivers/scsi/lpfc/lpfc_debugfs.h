@@ -369,7 +369,7 @@ static inline void
 lpfc_debug_dump_fcp_wq(struct lpfc_hba *phba, int fcp_wqidx)
 {
 	/* sanity check */
-	if (fcp_wqidx >= phba->cfg_fcp_wq_count)
+	if (fcp_wqidx >= phba->cfg_fcp_io_channel)
 		return;
 
 	printk(KERN_ERR "FCP WQ: WQ[Idx:%d|Qid:%d]\n",
@@ -391,15 +391,15 @@ lpfc_debug_dump_fcp_cq(struct lpfc_hba *phba, int fcp_wqidx)
 	int fcp_cqidx, fcp_cqid;
 
 	/* sanity check */
-	if (fcp_wqidx >= phba->cfg_fcp_wq_count)
+	if (fcp_wqidx >= phba->cfg_fcp_io_channel)
 		return;
 
 	fcp_cqid = phba->sli4_hba.fcp_wq[fcp_wqidx]->assoc_qid;
-	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++)
+	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_io_channel; fcp_cqidx++)
 		if (phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id == fcp_cqid)
 			break;
 	if (phba->intr_type == MSIX) {
-		if (fcp_cqidx >= phba->cfg_fcp_eq_count)
+		if (fcp_cqidx >= phba->cfg_fcp_io_channel)
 			return;
 	} else {
 		if (fcp_cqidx > 0)
@@ -413,7 +413,7 @@ lpfc_debug_dump_fcp_cq(struct lpfc_hba *phba, int fcp_wqidx)
 }
 
 /**
- * lpfc_debug_dump_fcp_eq - dump all entries from a fcp work queue's evt queue
+ * lpfc_debug_dump_hba_eq - dump all entries from a fcp work queue's evt queue
  * @phba: Pointer to HBA context object.
  * @fcp_wqidx: Index to a FCP work queue.
  *
@@ -421,36 +421,30 @@ lpfc_debug_dump_fcp_cq(struct lpfc_hba *phba, int fcp_wqidx)
  * associated to the FCP work queue specified by the @fcp_wqidx.
  **/
 static inline void
-lpfc_debug_dump_fcp_eq(struct lpfc_hba *phba, int fcp_wqidx)
+lpfc_debug_dump_hba_eq(struct lpfc_hba *phba, int fcp_wqidx)
 {
 	struct lpfc_queue *qdesc;
 	int fcp_eqidx, fcp_eqid;
 	int fcp_cqidx, fcp_cqid;
 
 	/* sanity check */
-	if (fcp_wqidx >= phba->cfg_fcp_wq_count)
+	if (fcp_wqidx >= phba->cfg_fcp_io_channel)
 		return;
 	fcp_cqid = phba->sli4_hba.fcp_wq[fcp_wqidx]->assoc_qid;
-	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_eq_count; fcp_cqidx++)
+	for (fcp_cqidx = 0; fcp_cqidx < phba->cfg_fcp_io_channel; fcp_cqidx++)
 		if (phba->sli4_hba.fcp_cq[fcp_cqidx]->queue_id == fcp_cqid)
 			break;
 	if (phba->intr_type == MSIX) {
-		if (fcp_cqidx >= phba->cfg_fcp_eq_count)
+		if (fcp_cqidx >= phba->cfg_fcp_io_channel)
 			return;
 	} else {
 		if (fcp_cqidx > 0)
 			return;
 	}
 
-	if (phba->cfg_fcp_eq_count == 0) {
-		fcp_eqidx = -1;
-		fcp_eqid = phba->sli4_hba.sp_eq->queue_id;
-		qdesc = phba->sli4_hba.sp_eq;
-	} else {
-		fcp_eqidx = fcp_cqidx;
-		fcp_eqid = phba->sli4_hba.fp_eq[fcp_eqidx]->queue_id;
-		qdesc = phba->sli4_hba.fp_eq[fcp_eqidx];
-	}
+	fcp_eqidx = fcp_cqidx;
+	fcp_eqid = phba->sli4_hba.hba_eq[fcp_eqidx]->queue_id;
+	qdesc = phba->sli4_hba.hba_eq[fcp_eqidx];
 
 	printk(KERN_ERR "FCP EQ: WQ[Idx:%d|Qid:%d]->CQ[Idx:%d|Qid:%d]->"
 		"EQ[Idx:%d|Qid:%d]\n",
@@ -546,25 +540,6 @@ lpfc_debug_dump_mbx_cq(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_debug_dump_sp_eq - dump all entries from slow-path event queue
- * @phba: Pointer to HBA context object.
- *
- * This function dumps all entries from the slow-path event queue.
- **/
-static inline void
-lpfc_debug_dump_sp_eq(struct lpfc_hba *phba)
-{
-	printk(KERN_ERR "SP EQ: WQ[Qid:%d/Qid:%d]->CQ[Qid:%d/Qid:%d]->"
-		"EQ[Qid:%d]:\n",
-		phba->sli4_hba.mbx_wq->queue_id,
-		phba->sli4_hba.els_wq->queue_id,
-		phba->sli4_hba.mbx_cq->queue_id,
-		phba->sli4_hba.els_cq->queue_id,
-		phba->sli4_hba.sp_eq->queue_id);
-	lpfc_debug_dump_q(phba->sli4_hba.sp_eq);
-}
-
-/**
  * lpfc_debug_dump_wq_by_id - dump all entries from a work queue by queue id
  * @phba: Pointer to HBA context object.
  * @qid: Work queue identifier.
@@ -577,10 +552,10 @@ lpfc_debug_dump_wq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int wq_idx;
 
-	for (wq_idx = 0; wq_idx < phba->cfg_fcp_wq_count; wq_idx++)
+	for (wq_idx = 0; wq_idx < phba->cfg_fcp_io_channel; wq_idx++)
 		if (phba->sli4_hba.fcp_wq[wq_idx]->queue_id == qid)
 			break;
-	if (wq_idx < phba->cfg_fcp_wq_count) {
+	if (wq_idx < phba->cfg_fcp_io_channel) {
 		printk(KERN_ERR "FCP WQ[Idx:%d|Qid:%d]\n", wq_idx, qid);
 		lpfc_debug_dump_q(phba->sli4_hba.fcp_wq[wq_idx]);
 		return;
@@ -647,9 +622,9 @@ lpfc_debug_dump_cq_by_id(struct lpfc_hba *phba, int qid)
 	do {
 		if (phba->sli4_hba.fcp_cq[cq_idx]->queue_id == qid)
 			break;
-	} while (++cq_idx < phba->cfg_fcp_eq_count);
+	} while (++cq_idx < phba->cfg_fcp_io_channel);
 
-	if (cq_idx < phba->cfg_fcp_eq_count) {
+	if (cq_idx < phba->cfg_fcp_io_channel) {
 		printk(KERN_ERR "FCP CQ[Idx:%d|Qid:%d]\n", cq_idx, qid);
 		lpfc_debug_dump_q(phba->sli4_hba.fcp_cq[cq_idx]);
 		return;
@@ -680,21 +655,17 @@ lpfc_debug_dump_eq_by_id(struct lpfc_hba *phba, int qid)
 {
 	int eq_idx;
 
-	for (eq_idx = 0; eq_idx < phba->cfg_fcp_eq_count; eq_idx++) {
-		if (phba->sli4_hba.fp_eq[eq_idx]->queue_id == qid)
+	for (eq_idx = 0; eq_idx < phba->cfg_fcp_io_channel; eq_idx++) {
+		if (phba->sli4_hba.hba_eq[eq_idx]->queue_id == qid)
 			break;
 	}
 
-	if (eq_idx < phba->cfg_fcp_eq_count) {
+	if (eq_idx < phba->cfg_fcp_io_channel) {
 		printk(KERN_ERR "FCP EQ[Idx:%d|Qid:%d]\n", eq_idx, qid);
-		lpfc_debug_dump_q(phba->sli4_hba.fp_eq[eq_idx]);
+		lpfc_debug_dump_q(phba->sli4_hba.hba_eq[eq_idx]);
 		return;
 	}
 
-	if (phba->sli4_hba.sp_eq->queue_id == qid) {
-		printk(KERN_ERR "SP EQ[|Qid:%d]\n", qid);
-		lpfc_debug_dump_q(phba->sli4_hba.sp_eq);
-	}
 }
 
 void lpfc_debug_dump_all_queues(struct lpfc_hba *);

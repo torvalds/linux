@@ -196,8 +196,7 @@ irqreturn_t lpfc_sli_intr_handler(int, void *);
 irqreturn_t lpfc_sli_sp_intr_handler(int, void *);
 irqreturn_t lpfc_sli_fp_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_intr_handler(int, void *);
-irqreturn_t lpfc_sli4_sp_intr_handler(int, void *);
-irqreturn_t lpfc_sli4_fp_intr_handler(int, void *);
+irqreturn_t lpfc_sli4_hba_intr_handler(int, void *);
 
 void lpfc_read_rev(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_swap_str(struct lpfc_hba *, LPFC_MBOXQ_t *);

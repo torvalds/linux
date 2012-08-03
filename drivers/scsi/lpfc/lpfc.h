@@ -695,6 +695,7 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_wq_count;
 	uint32_t cfg_fcp_eq_count;
+	uint32_t cfg_fcp_io_channel;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_prot_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
