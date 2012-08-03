@@ -1652,6 +1652,9 @@ static int create_pv_resources(struct ib_device *ibdev, int slave, int port,
 {
 	int ret, cq_size;
 
+	if (ctx->state != DEMUX_PV_STATE_DOWN)
+		return -EEXIST;
+
 	ctx->state = DEMUX_PV_STATE_STARTING;
 	/* have QP0 only on port owner, and only if link layer is IB */
 	if (ctx->slave == mlx4_master_func_num(to_mdev(ctx->ib_dev)->dev) &&
