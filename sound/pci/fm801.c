@@ -711,6 +711,13 @@ static int __devinit snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pc
 					      snd_dma_pci_data(chip->pci),
 					      chip->multichannel ? 128*1024 : 64*1024, 128*1024);
 
+	err = snd_pcm_add_chmap_ctls(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				     snd_pcm_alt_chmaps,
+				     chip->multichannel ? 6 : 2, 0,
+				     NULL);
+	if (err < 0)
+		return err;
+
 	if (rpcm)
 		*rpcm = pcm;
 	return 0;
