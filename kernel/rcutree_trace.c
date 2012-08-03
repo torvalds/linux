@@ -51,8 +51,8 @@ static int show_rcubarrier(struct seq_file *m, void *unused)
 	struct rcu_state *rsp;
 
 	for_each_rcu_flavor(rsp)
-		seq_printf(m, "%s: %c bcc: %d nbd: %lu\n",
-			   rsp->name, rsp->rcu_barrier_in_progress ? 'B' : '.',
+		seq_printf(m, "%s: bcc: %d nbd: %lu\n",
+			   rsp->name,
 			   atomic_read(&rsp->barrier_cpu_count),
 			   rsp->n_barrier_done);
 	return 0;
