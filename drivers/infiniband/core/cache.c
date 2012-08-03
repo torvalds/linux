@@ -199,6 +199,38 @@ int ib_find_cached_pkey(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_find_cached_pkey);
 
+int ib_find_exact_cached_pkey(struct ib_device *device,
+			      u8                port_num,
+			      u16               pkey,
+			      u16              *index)
+{
+	struct ib_pkey_cache *cache;
+	unsigned long flags;
+	int i;
+	int ret = -ENOENT;
+
+	if (port_num < start_port(device) || port_num > end_port(device))
+		return -EINVAL;
+
+	read_lock_irqsave(&device->cache.lock, flags);
+
+	cache = device->cache.pkey_cache[port_num - start_port(device)];
+
+	*index = -1;
+
+	for (i = 0; i < cache->table_len; ++i)
+		if (cache->table[i] == pkey) {
+			*index = i;
+			ret = 0;
+			break;
+		}
+
+	read_unlock_irqrestore(&device->cache.lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(ib_find_exact_cached_pkey);
+
 int ib_get_cached_lmc(struct ib_device *device,
 		      u8                port_num,
 		      u8                *lmc)
