@@ -533,9 +533,9 @@ static int work_next_color(int color)
 }
 
 /*
- * A work's data points to the cwq with WORK_STRUCT_CWQ set while the
- * work is on queue.  Once execution starts, WORK_STRUCT_CWQ is
- * cleared and the work data contains the cpu number it was last on.
+ * While queued, %WORK_STRUCT_CWQ is set and non flag bits of a work's data
+ * contain the pointer to the queued cwq.  Once execution starts, the flag
+ * is cleared and the high bits contain OFFQ flags and CPU number.
  *
  * set_work_cwq(), set_work_cpu_and_clear_pending() and clear_work_data()
  * can be used to set the cwq, cpu or clear work->data.  These functions
@@ -565,7 +565,7 @@ static void set_work_cwq(struct work_struct *work,
 static void set_work_cpu_and_clear_pending(struct work_struct *work,
 					   unsigned int cpu)
 {
-	set_work_data(work, cpu << WORK_STRUCT_FLAG_BITS, 0);
+	set_work_data(work, (unsigned long)cpu << WORK_OFFQ_CPU_SHIFT, 0);
 }
 
 static void clear_work_data(struct work_struct *work)
@@ -592,7 +592,7 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
 		return ((struct cpu_workqueue_struct *)
 			(data & WORK_STRUCT_WQ_DATA_MASK))->pool->gcwq;
 
-	cpu = data >> WORK_STRUCT_FLAG_BITS;
+	cpu = data >> WORK_OFFQ_CPU_SHIFT;
 	if (cpu == WORK_CPU_NONE)
 		return NULL;
 
@@ -3723,6 +3723,10 @@ static int __init init_workqueues(void)
 {
 	unsigned int cpu;
 	int i;
+
+	/* make sure we have enough bits for OFFQ CPU number */
+	BUILD_BUG_ON((1LU << (BITS_PER_LONG - WORK_OFFQ_CPU_SHIFT)) <
+		     WORK_CPU_LAST);
 
 	cpu_notifier(workqueue_cpu_up_callback, CPU_PRI_WORKQUEUE_UP);
 	cpu_notifier(workqueue_cpu_down_callback, CPU_PRI_WORKQUEUE_DOWN);
