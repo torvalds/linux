@@ -177,8 +177,8 @@ irqreturn_t dn_timer_int(int irq, void *dev_id)
 
 	timer_handler(irq, dev_id);
 
-	x=*(volatile unsigned char *)(timer+3);
-	x=*(volatile unsigned char *)(timer+5);
+	x = *(volatile unsigned char *)(apollo_timer + 3);
+	x = *(volatile unsigned char *)(apollo_timer + 5);
 
 	return IRQ_HANDLED;
 }
@@ -186,17 +186,17 @@ irqreturn_t dn_timer_int(int irq, void *dev_id)
 void dn_sched_init(irq_handler_t timer_routine)
 {
 	/* program timer 1 */
-	*(volatile unsigned char *)(timer+3)=0x01;
-	*(volatile unsigned char *)(timer+1)=0x40;
-	*(volatile unsigned char *)(timer+5)=0x09;
-	*(volatile unsigned char *)(timer+7)=0xc4;
+	*(volatile unsigned char *)(apollo_timer + 3) = 0x01;
+	*(volatile unsigned char *)(apollo_timer + 1) = 0x40;
+	*(volatile unsigned char *)(apollo_timer + 5) = 0x09;
+	*(volatile unsigned char *)(apollo_timer + 7) = 0xc4;
 
 	/* enable IRQ of PIC B */
 	*(volatile unsigned char *)(pica+1)&=(~8);
 
 #if 0
-	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
-	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(timer+0x3));
+	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(apollo_timer + 0x3));
+	printk("*(0x10803) %02x\n",*(volatile unsigned char *)(apollo_timer + 0x3));
 #endif
 
 	if (request_irq(IRQ_APOLLO, dn_timer_int, 0, "time", timer_routine))
