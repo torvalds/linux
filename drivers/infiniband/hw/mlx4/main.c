@@ -1357,11 +1357,14 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
 
+	if (mlx4_ib_init_sriov(ibdev))
+		goto err_mad;
+
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_IBOE && !iboe->nb.notifier_call) {
 		iboe->nb.notifier_call = mlx4_ib_netdev_event;
 		err = register_netdevice_notifier(&iboe->nb);
 		if (err)
-			goto err_reg;
+			goto err_sriov;
 	}
 
 	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
@@ -1378,6 +1381,12 @@ err_notif:
 	if (unregister_netdevice_notifier(&ibdev->iboe.nb))
 		pr_warn("failure unregistering notifier\n");
 	flush_workqueue(wq);
+
+err_sriov:
+	mlx4_ib_close_sriov(ibdev);
+
+err_mad:
+	mlx4_ib_mad_cleanup(ibdev);
 
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
@@ -1407,6 +1416,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	struct mlx4_ib_dev *ibdev = ibdev_ptr;
 	int p;
 
+	mlx4_ib_close_sriov(ibdev);
 	mlx4_ib_mad_cleanup(ibdev);
 	ib_unregister_device(&ibdev->ib_dev);
 	if (ibdev->iboe.nb.notifier_call) {
@@ -1428,6 +1438,51 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	ib_dealloc_device(&ibdev->ib_dev);
 }
 
+static void do_slave_init(struct mlx4_ib_dev *ibdev, int slave, int do_init)
+{
+	struct mlx4_ib_demux_work **dm = NULL;
+	struct mlx4_dev *dev = ibdev->dev;
+	int i;
+	unsigned long flags;
+
+	if (!mlx4_is_master(dev))
+		return;
+
+	dm = kcalloc(dev->caps.num_ports, sizeof *dm, GFP_ATOMIC);
+	if (!dm) {
+		pr_err("failed to allocate memory for tunneling qp update\n");
+		goto out;
+	}
+
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		dm[i] = kmalloc(sizeof (struct mlx4_ib_demux_work), GFP_ATOMIC);
+		if (!dm[i]) {
+			pr_err("failed to allocate memory for tunneling qp update work struct\n");
+			for (i = 0; i < dev->caps.num_ports; i++) {
+				if (dm[i])
+					kfree(dm[i]);
+			}
+			goto out;
+		}
+	}
+	/* initialize or tear down tunnel QPs for the slave */
+	for (i = 0; i < dev->caps.num_ports; i++) {
+		INIT_WORK(&dm[i]->work, mlx4_ib_tunnels_update_work);
+		dm[i]->port = i + 1;
+		dm[i]->slave = slave;
+		dm[i]->do_init = do_init;
+		dm[i]->dev = ibdev;
+		spin_lock_irqsave(&ibdev->sriov.going_down_lock, flags);
+		if (!ibdev->sriov.is_going_down)
+			queue_work(ibdev->sriov.demux[i].ud_wq, &dm[i]->work);
+		spin_unlock_irqrestore(&ibdev->sriov.going_down_lock, flags);
+	}
+out:
+	if (dm)
+		kfree(dm);
+	return;
+}
+
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 			  enum mlx4_dev_event event, unsigned long param)
 {
@@ -1435,22 +1490,23 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
 	struct mlx4_eqe *eqe = NULL;
 	struct ib_event_work *ew;
-	int port = 0;
+	int p = 0;
 
 	if (event == MLX4_DEV_EVENT_PORT_MGMT_CHANGE)
 		eqe = (struct mlx4_eqe *)param;
 	else
-		port = (u8)param;
-
-	if (port > ibdev->num_ports)
-		return;
+		p = (int) param;
 
 	switch (event) {
 	case MLX4_DEV_EVENT_PORT_UP:
+		if (p > ibdev->num_ports)
+			return;
 		ibev.event = IB_EVENT_PORT_ACTIVE;
 		break;
 
 	case MLX4_DEV_EVENT_PORT_DOWN:
+		if (p > ibdev->num_ports)
+			return;
 		ibev.event = IB_EVENT_PORT_ERR;
 		break;
 
@@ -1472,12 +1528,22 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		handle_port_mgmt_change_event(&ew->work);
 		return;
 
+	case MLX4_DEV_EVENT_SLAVE_INIT:
+		/* here, p is the slave id */
+		do_slave_init(ibdev, p, 1);
+		return;
+
+	case MLX4_DEV_EVENT_SLAVE_SHUTDOWN:
+		/* here, p is the slave id */
+		do_slave_init(ibdev, p, 0);
+		return;
+
 	default:
 		return;
 	}
 
 	ibev.device	      = ibdev_ptr;
-	ibev.element.port_num = port;
+	ibev.element.port_num = (u8) p;
 
 	ib_dispatch_event(&ibev);
 }

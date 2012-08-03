@@ -176,6 +176,10 @@ enum mlx4_ib_qp_type {
 	MLX4_IB_QPT_PROXY_SMI | MLX4_IB_QPT_PROXY_GSI | MLX4_IB_QPT_TUN_SMI_OWNER | \
 	MLX4_IB_QPT_TUN_SMI | MLX4_IB_QPT_TUN_GSI)
 
+enum {
+	MLX4_NUM_TUNNEL_BUFS		= 256,
+};
+
 struct mlx4_ib_tunnel_header {
 	struct mlx4_av av;
 	__be32 remote_qpn;
@@ -263,6 +267,15 @@ struct mlx4_ib_ah {
 	union mlx4_ext_av       av;
 };
 
+struct mlx4_ib_demux_work {
+	struct work_struct	work;
+	struct mlx4_ib_dev     *dev;
+	int			slave;
+	int			do_init;
+	u8			port;
+
+};
+
 struct mlx4_ib_tun_tx_buf {
 	struct mlx4_ib_buf buf;
 	struct ib_ah *ah;
@@ -278,9 +291,17 @@ struct mlx4_ib_demux_pv_qp {
 	unsigned tx_ix_tail;
 };
 
+enum mlx4_ib_demux_pv_state {
+	DEMUX_PV_STATE_DOWN,
+	DEMUX_PV_STATE_STARTING,
+	DEMUX_PV_STATE_ACTIVE,
+	DEMUX_PV_STATE_DOWNING,
+};
+
 struct mlx4_ib_demux_pv_ctx {
 	int port;
 	int slave;
+	enum mlx4_ib_demux_pv_state state;
 	int has_smi;
 	struct ib_device *ib_dev;
 	struct ib_cq *cq;
@@ -319,6 +340,13 @@ struct mlx4_ib_iboe {
 	union ib_gid		gid_table[MLX4_MAX_PORTS][128];
 };
 
+struct pkey_mgt {
+	u8			virt2phys_pkey[MLX4_MFUNC_MAX][MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
+	u16			phys_pkey_cache[MLX4_MAX_PORTS][MLX4_MAX_PORT_PKEYS];
+	struct list_head	pkey_port_list[MLX4_MFUNC_MAX];
+	struct kobject	       *device_parent[MLX4_MFUNC_MAX];
+};
+
 struct mlx4_ib_dev {
 	struct ib_device	ib_dev;
 	struct mlx4_dev	       *dev;
@@ -340,6 +368,7 @@ struct mlx4_ib_dev {
 	int			counters[MLX4_MAX_PORTS];
 	int		       *eq_table;
 	int			eq_added;
+	struct pkey_mgt		pkeys;
 };
 
 struct ib_event_work {
@@ -423,6 +452,9 @@ static inline struct mlx4_ib_ah *to_mah(struct ib_ah *ibah)
 {
 	return container_of(ibah, struct mlx4_ib_ah, ibah);
 }
+
+int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev);
+void mlx4_ib_close_sriov(struct mlx4_ib_dev *dev);
 
 int mlx4_ib_db_map_user(struct mlx4_ib_ucontext *context, unsigned long virt,
 			struct mlx4_db *db);
@@ -514,5 +546,7 @@ int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 
 void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
 			    enum ib_event_type type);
+
+void mlx4_ib_tunnels_update_work(struct work_struct *work);
 
 #endif /* MLX4_IB_H */

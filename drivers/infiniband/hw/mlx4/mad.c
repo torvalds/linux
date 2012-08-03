@@ -44,6 +44,35 @@ enum {
 	MLX4_IB_VENDOR_CLASS2 = 0xa
 };
 
+#define MLX4_TUN_SEND_WRID_SHIFT 34
+#define MLX4_TUN_QPN_SHIFT 32
+#define MLX4_TUN_WRID_RECV (((u64) 1) << MLX4_TUN_SEND_WRID_SHIFT)
+#define MLX4_TUN_SET_WRID_QPN(a) (((u64) ((a) & 0x3)) << MLX4_TUN_QPN_SHIFT)
+
+#define MLX4_TUN_IS_RECV(a)  (((a) >>  MLX4_TUN_SEND_WRID_SHIFT) & 0x1)
+#define MLX4_TUN_WRID_QPN(a) (((a) >> MLX4_TUN_QPN_SHIFT) & 0x3)
+
+struct mlx4_mad_rcv_buf {
+	struct ib_grh grh;
+	u8 payload[256];
+} __packed;
+
+struct mlx4_mad_snd_buf {
+	u8 payload[256];
+} __packed;
+
+struct mlx4_tunnel_mad {
+	struct ib_grh grh;
+	struct mlx4_ib_tunnel_header hdr;
+	struct ib_mad mad;
+} __packed;
+
+struct mlx4_rcv_tunnel_mad {
+	struct mlx4_rcv_tunnel_hdr hdr;
+	struct ib_grh grh;
+	struct ib_mad mad;
+} __packed;
+
 int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 		 int port, struct ib_wc *in_wc, struct ib_grh *in_grh,
 		 void *in_mad, void *response_mad)
@@ -515,4 +544,659 @@ void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
 	event.event		= type;
 
 	ib_dispatch_event(&event);
+}
+
+static void mlx4_ib_tunnel_comp_handler(struct ib_cq *cq, void *arg)
+{
+	unsigned long flags;
+	struct mlx4_ib_demux_pv_ctx *ctx = cq->cq_context;
+	struct mlx4_ib_dev *dev = to_mdev(ctx->ib_dev);
+	spin_lock_irqsave(&dev->sriov.going_down_lock, flags);
+	if (!dev->sriov.is_going_down && ctx->state == DEMUX_PV_STATE_ACTIVE)
+		queue_work(ctx->wq, &ctx->work);
+	spin_unlock_irqrestore(&dev->sriov.going_down_lock, flags);
+}
+
+static int mlx4_ib_post_pv_qp_buf(struct mlx4_ib_demux_pv_ctx *ctx,
+				  struct mlx4_ib_demux_pv_qp *tun_qp,
+				  int index)
+{
+	struct ib_sge sg_list;
+	struct ib_recv_wr recv_wr, *bad_recv_wr;
+	int size;
+
+	size = (tun_qp->qp->qp_type == IB_QPT_UD) ?
+		sizeof (struct mlx4_tunnel_mad) : sizeof (struct mlx4_mad_rcv_buf);
+
+	sg_list.addr = tun_qp->ring[index].map;
+	sg_list.length = size;
+	sg_list.lkey = ctx->mr->lkey;
+
+	recv_wr.next = NULL;
+	recv_wr.sg_list = &sg_list;
+	recv_wr.num_sge = 1;
+	recv_wr.wr_id = (u64) index | MLX4_TUN_WRID_RECV |
+		MLX4_TUN_SET_WRID_QPN(tun_qp->proxy_qpt);
+	ib_dma_sync_single_for_device(ctx->ib_dev, tun_qp->ring[index].map,
+				      size, DMA_FROM_DEVICE);
+	return ib_post_recv(tun_qp->qp, &recv_wr, &bad_recv_wr);
+}
+
+static int mlx4_ib_alloc_pv_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
+				 enum ib_qp_type qp_type, int is_tun)
+{
+	int i;
+	struct mlx4_ib_demux_pv_qp *tun_qp;
+	int rx_buf_size, tx_buf_size;
+
+	if (qp_type > IB_QPT_GSI)
+		return -EINVAL;
+
+	tun_qp = &ctx->qp[qp_type];
+
+	tun_qp->ring = kzalloc(sizeof (struct mlx4_ib_buf) * MLX4_NUM_TUNNEL_BUFS,
+			       GFP_KERNEL);
+	if (!tun_qp->ring)
+		return -ENOMEM;
+
+	tun_qp->tx_ring = kcalloc(MLX4_NUM_TUNNEL_BUFS,
+				  sizeof (struct mlx4_ib_tun_tx_buf),
+				  GFP_KERNEL);
+	if (!tun_qp->tx_ring) {
+		kfree(tun_qp->ring);
+		tun_qp->ring = NULL;
+		return -ENOMEM;
+	}
+
+	if (is_tun) {
+		rx_buf_size = sizeof (struct mlx4_tunnel_mad);
+		tx_buf_size = sizeof (struct mlx4_rcv_tunnel_mad);
+	} else {
+		rx_buf_size = sizeof (struct mlx4_mad_rcv_buf);
+		tx_buf_size = sizeof (struct mlx4_mad_snd_buf);
+	}
+
+	for (i = 0; i < MLX4_NUM_TUNNEL_BUFS; i++) {
+		tun_qp->ring[i].addr = kmalloc(rx_buf_size, GFP_KERNEL);
+		if (!tun_qp->ring[i].addr)
+			goto err;
+		tun_qp->ring[i].map = ib_dma_map_single(ctx->ib_dev,
+							tun_qp->ring[i].addr,
+							rx_buf_size,
+							DMA_FROM_DEVICE);
+	}
+
+	for (i = 0; i < MLX4_NUM_TUNNEL_BUFS; i++) {
+		tun_qp->tx_ring[i].buf.addr =
+			kmalloc(tx_buf_size, GFP_KERNEL);
+		if (!tun_qp->tx_ring[i].buf.addr)
+			goto tx_err;
+		tun_qp->tx_ring[i].buf.map =
+			ib_dma_map_single(ctx->ib_dev,
+					  tun_qp->tx_ring[i].buf.addr,
+					  tx_buf_size,
+					  DMA_TO_DEVICE);
+		tun_qp->tx_ring[i].ah = NULL;
+	}
+	spin_lock_init(&tun_qp->tx_lock);
+	tun_qp->tx_ix_head = 0;
+	tun_qp->tx_ix_tail = 0;
+	tun_qp->proxy_qpt = qp_type;
+
+	return 0;
+
+tx_err:
+	while (i > 0) {
+		--i;
+		ib_dma_unmap_single(ctx->ib_dev, tun_qp->tx_ring[i].buf.map,
+				    tx_buf_size, DMA_TO_DEVICE);
+		kfree(tun_qp->tx_ring[i].buf.addr);
+	}
+	kfree(tun_qp->tx_ring);
+	tun_qp->tx_ring = NULL;
+	i = MLX4_NUM_TUNNEL_BUFS;
+err:
+	while (i > 0) {
+		--i;
+		ib_dma_unmap_single(ctx->ib_dev, tun_qp->ring[i].map,
+				    rx_buf_size, DMA_FROM_DEVICE);
+		kfree(tun_qp->ring[i].addr);
+	}
+	kfree(tun_qp->ring);
+	tun_qp->ring = NULL;
+	return -ENOMEM;
+}
+
+static void mlx4_ib_free_pv_qp_bufs(struct mlx4_ib_demux_pv_ctx *ctx,
+				     enum ib_qp_type qp_type, int is_tun)
+{
+	int i;
+	struct mlx4_ib_demux_pv_qp *tun_qp;
+	int rx_buf_size, tx_buf_size;
+
+	if (qp_type > IB_QPT_GSI)
+		return;
+
+	tun_qp = &ctx->qp[qp_type];
+	if (is_tun) {
+		rx_buf_size = sizeof (struct mlx4_tunnel_mad);
+		tx_buf_size = sizeof (struct mlx4_rcv_tunnel_mad);
+	} else {
+		rx_buf_size = sizeof (struct mlx4_mad_rcv_buf);
+		tx_buf_size = sizeof (struct mlx4_mad_snd_buf);
+	}
+
+
+	for (i = 0; i < MLX4_NUM_TUNNEL_BUFS; i++) {
+		ib_dma_unmap_single(ctx->ib_dev, tun_qp->ring[i].map,
+				    rx_buf_size, DMA_FROM_DEVICE);
+		kfree(tun_qp->ring[i].addr);
+	}
+
+	for (i = 0; i < MLX4_NUM_TUNNEL_BUFS; i++) {
+		ib_dma_unmap_single(ctx->ib_dev, tun_qp->tx_ring[i].buf.map,
+				    tx_buf_size, DMA_TO_DEVICE);
+		kfree(tun_qp->tx_ring[i].buf.addr);
+		if (tun_qp->tx_ring[i].ah)
+			ib_destroy_ah(tun_qp->tx_ring[i].ah);
+	}
+	kfree(tun_qp->tx_ring);
+	kfree(tun_qp->ring);
+}
+
+static void mlx4_ib_tunnel_comp_worker(struct work_struct *work)
+{
+	/* dummy until next patch in series */
+}
+
+static void pv_qp_event_handler(struct ib_event *event, void *qp_context)
+{
+	struct mlx4_ib_demux_pv_ctx *sqp = qp_context;
+
+	/* It's worse than that! He's dead, Jim! */
+	pr_err("Fatal error (%d) on a MAD QP on port %d\n",
+	       event->event, sqp->port);
+}
+
+static int create_pv_sqp(struct mlx4_ib_demux_pv_ctx *ctx,
+			    enum ib_qp_type qp_type, int create_tun)
+{
+	int i, ret;
+	struct mlx4_ib_demux_pv_qp *tun_qp;
+	struct mlx4_ib_qp_tunnel_init_attr qp_init_attr;
+	struct ib_qp_attr attr;
+	int qp_attr_mask_INIT;
+
+	if (qp_type > IB_QPT_GSI)
+		return -EINVAL;
+
+	tun_qp = &ctx->qp[qp_type];
+
+	memset(&qp_init_attr, 0, sizeof qp_init_attr);
+	qp_init_attr.init_attr.send_cq = ctx->cq;
+	qp_init_attr.init_attr.recv_cq = ctx->cq;
+	qp_init_attr.init_attr.sq_sig_type = IB_SIGNAL_ALL_WR;
+	qp_init_attr.init_attr.cap.max_send_wr = MLX4_NUM_TUNNEL_BUFS;
+	qp_init_attr.init_attr.cap.max_recv_wr = MLX4_NUM_TUNNEL_BUFS;
+	qp_init_attr.init_attr.cap.max_send_sge = 1;
+	qp_init_attr.init_attr.cap.max_recv_sge = 1;
+	if (create_tun) {
+		qp_init_attr.init_attr.qp_type = IB_QPT_UD;
+		qp_init_attr.init_attr.create_flags = MLX4_IB_SRIOV_TUNNEL_QP;
+		qp_init_attr.port = ctx->port;
+		qp_init_attr.slave = ctx->slave;
+		qp_init_attr.proxy_qp_type = qp_type;
+		qp_attr_mask_INIT = IB_QP_STATE | IB_QP_PKEY_INDEX |
+			   IB_QP_QKEY | IB_QP_PORT;
+	} else {
+		qp_init_attr.init_attr.qp_type = qp_type;
+		qp_init_attr.init_attr.create_flags = MLX4_IB_SRIOV_SQP;
+		qp_attr_mask_INIT = IB_QP_STATE | IB_QP_PKEY_INDEX | IB_QP_QKEY;
+	}
+	qp_init_attr.init_attr.port_num = ctx->port;
+	qp_init_attr.init_attr.qp_context = ctx;
+	qp_init_attr.init_attr.event_handler = pv_qp_event_handler;
+	tun_qp->qp = ib_create_qp(ctx->pd, &qp_init_attr.init_attr);
+	if (IS_ERR(tun_qp->qp)) {
+		ret = PTR_ERR(tun_qp->qp);
+		tun_qp->qp = NULL;
+		pr_err("Couldn't create %s QP (%d)\n",
+		       create_tun ? "tunnel" : "special", ret);
+		return ret;
+	}
+
+	memset(&attr, 0, sizeof attr);
+	attr.qp_state = IB_QPS_INIT;
+	attr.pkey_index =
+		to_mdev(ctx->ib_dev)->pkeys.virt2phys_pkey[ctx->slave][ctx->port - 1][0];
+	attr.qkey = IB_QP1_QKEY;
+	attr.port_num = ctx->port;
+	ret = ib_modify_qp(tun_qp->qp, &attr, qp_attr_mask_INIT);
+	if (ret) {
+		pr_err("Couldn't change %s qp state to INIT (%d)\n",
+		       create_tun ? "tunnel" : "special", ret);
+		goto err_qp;
+	}
+	attr.qp_state = IB_QPS_RTR;
+	ret = ib_modify_qp(tun_qp->qp, &attr, IB_QP_STATE);
+	if (ret) {
+		pr_err("Couldn't change %s qp state to RTR (%d)\n",
+		       create_tun ? "tunnel" : "special", ret);
+		goto err_qp;
+	}
+	attr.qp_state = IB_QPS_RTS;
+	attr.sq_psn = 0;
+	ret = ib_modify_qp(tun_qp->qp, &attr, IB_QP_STATE | IB_QP_SQ_PSN);
+	if (ret) {
+		pr_err("Couldn't change %s qp state to RTS (%d)\n",
+		       create_tun ? "tunnel" : "special", ret);
+		goto err_qp;
+	}
+
+	for (i = 0; i < MLX4_NUM_TUNNEL_BUFS; i++) {
+		ret = mlx4_ib_post_pv_qp_buf(ctx, tun_qp, i);
+		if (ret) {
+			pr_err(" mlx4_ib_post_pv_buf error"
+			       " (err = %d, i = %d)\n", ret, i);
+			goto err_qp;
+		}
+	}
+	return 0;
+
+err_qp:
+	ib_destroy_qp(tun_qp->qp);
+	tun_qp->qp = NULL;
+	return ret;
+}
+
+/*
+ * IB MAD completion callback for real SQPs
+ */
+static void mlx4_ib_sqp_comp_worker(struct work_struct *work)
+{
+	/* dummy until next patch in series */
+}
+
+static int alloc_pv_object(struct mlx4_ib_dev *dev, int slave, int port,
+			       struct mlx4_ib_demux_pv_ctx **ret_ctx)
+{
+	struct mlx4_ib_demux_pv_ctx *ctx;
+
+	*ret_ctx = NULL;
+	ctx = kzalloc(sizeof (struct mlx4_ib_demux_pv_ctx), GFP_KERNEL);
+	if (!ctx) {
+		pr_err("failed allocating pv resource context "
+		       "for port %d, slave %d\n", port, slave);
+		return -ENOMEM;
+	}
+
+	ctx->ib_dev = &dev->ib_dev;
+	ctx->port = port;
+	ctx->slave = slave;
+	*ret_ctx = ctx;
+	return 0;
+}
+
+static void free_pv_object(struct mlx4_ib_dev *dev, int slave, int port)
+{
+	if (dev->sriov.demux[port - 1].tun[slave]) {
+		kfree(dev->sriov.demux[port - 1].tun[slave]);
+		dev->sriov.demux[port - 1].tun[slave] = NULL;
+	}
+}
+
+static int create_pv_resources(struct ib_device *ibdev, int slave, int port,
+			       int create_tun, struct mlx4_ib_demux_pv_ctx *ctx)
+{
+	int ret, cq_size;
+
+	ctx->state = DEMUX_PV_STATE_STARTING;
+	/* have QP0 only on port owner, and only if link layer is IB */
+	if (ctx->slave == mlx4_master_func_num(to_mdev(ctx->ib_dev)->dev) &&
+	    rdma_port_get_link_layer(ibdev, ctx->port) == IB_LINK_LAYER_INFINIBAND)
+		ctx->has_smi = 1;
+
+	if (ctx->has_smi) {
+		ret = mlx4_ib_alloc_pv_bufs(ctx, IB_QPT_SMI, create_tun);
+		if (ret) {
+			pr_err("Failed allocating qp0 tunnel bufs (%d)\n", ret);
+			goto err_out;
+		}
+	}
+
+	ret = mlx4_ib_alloc_pv_bufs(ctx, IB_QPT_GSI, create_tun);
+	if (ret) {
+		pr_err("Failed allocating qp1 tunnel bufs (%d)\n", ret);
+		goto err_out_qp0;
+	}
+
+	cq_size = 2 * MLX4_NUM_TUNNEL_BUFS;
+	if (ctx->has_smi)
+		cq_size *= 2;
+
+	ctx->cq = ib_create_cq(ctx->ib_dev, mlx4_ib_tunnel_comp_handler,
+			       NULL, ctx, cq_size, 0);
+	if (IS_ERR(ctx->cq)) {
+		ret = PTR_ERR(ctx->cq);
+		pr_err("Couldn't create tunnel CQ (%d)\n", ret);
+		goto err_buf;
+	}
+
+	ctx->pd = ib_alloc_pd(ctx->ib_dev);
+	if (IS_ERR(ctx->pd)) {
+		ret = PTR_ERR(ctx->pd);
+		pr_err("Couldn't create tunnel PD (%d)\n", ret);
+		goto err_cq;
+	}
+
+	ctx->mr = ib_get_dma_mr(ctx->pd, IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(ctx->mr)) {
+		ret = PTR_ERR(ctx->mr);
+		pr_err("Couldn't get tunnel DMA MR (%d)\n", ret);
+		goto err_pd;
+	}
+
+	if (ctx->has_smi) {
+		ret = create_pv_sqp(ctx, IB_QPT_SMI, create_tun);
+		if (ret) {
+			pr_err("Couldn't create %s QP0 (%d)\n",
+			       create_tun ? "tunnel for" : "",  ret);
+			goto err_mr;
+		}
+	}
+
+	ret = create_pv_sqp(ctx, IB_QPT_GSI, create_tun);
+	if (ret) {
+		pr_err("Couldn't create %s QP1 (%d)\n",
+		       create_tun ? "tunnel for" : "",  ret);
+		goto err_qp0;
+	}
+
+	if (create_tun)
+		INIT_WORK(&ctx->work, mlx4_ib_tunnel_comp_worker);
+	else
+		INIT_WORK(&ctx->work, mlx4_ib_sqp_comp_worker);
+
+	ctx->wq = to_mdev(ibdev)->sriov.demux[port - 1].wq;
+
+	ret = ib_req_notify_cq(ctx->cq, IB_CQ_NEXT_COMP);
+	if (ret) {
+		pr_err("Couldn't arm tunnel cq (%d)\n", ret);
+		goto err_wq;
+	}
+	ctx->state = DEMUX_PV_STATE_ACTIVE;
+	return 0;
+
+err_wq:
+	ctx->wq = NULL;
+	ib_destroy_qp(ctx->qp[1].qp);
+	ctx->qp[1].qp = NULL;
+
+
+err_qp0:
+	if (ctx->has_smi)
+		ib_destroy_qp(ctx->qp[0].qp);
+	ctx->qp[0].qp = NULL;
+
+err_mr:
+	ib_dereg_mr(ctx->mr);
+	ctx->mr = NULL;
+
+err_pd:
+	ib_dealloc_pd(ctx->pd);
+	ctx->pd = NULL;
+
+err_cq:
+	ib_destroy_cq(ctx->cq);
+	ctx->cq = NULL;
+
+err_buf:
+	mlx4_ib_free_pv_qp_bufs(ctx, IB_QPT_GSI, create_tun);
+
+err_out_qp0:
+	if (ctx->has_smi)
+		mlx4_ib_free_pv_qp_bufs(ctx, IB_QPT_SMI, create_tun);
+err_out:
+	ctx->state = DEMUX_PV_STATE_DOWN;
+	return ret;
+}
+
+static void destroy_pv_resources(struct mlx4_ib_dev *dev, int slave, int port,
+				 struct mlx4_ib_demux_pv_ctx *ctx, int flush)
+{
+	if (!ctx)
+		return;
+	if (ctx->state > DEMUX_PV_STATE_DOWN) {
+		ctx->state = DEMUX_PV_STATE_DOWNING;
+		if (flush)
+			flush_workqueue(ctx->wq);
+		if (ctx->has_smi) {
+			ib_destroy_qp(ctx->qp[0].qp);
+			ctx->qp[0].qp = NULL;
+			mlx4_ib_free_pv_qp_bufs(ctx, IB_QPT_SMI, 1);
+		}
+		ib_destroy_qp(ctx->qp[1].qp);
+		ctx->qp[1].qp = NULL;
+		mlx4_ib_free_pv_qp_bufs(ctx, IB_QPT_GSI, 1);
+		ib_dereg_mr(ctx->mr);
+		ctx->mr = NULL;
+		ib_dealloc_pd(ctx->pd);
+		ctx->pd = NULL;
+		ib_destroy_cq(ctx->cq);
+		ctx->cq = NULL;
+		ctx->state = DEMUX_PV_STATE_DOWN;
+	}
+}
+
+static int mlx4_ib_tunnels_update(struct mlx4_ib_dev *dev, int slave,
+				  int port, int do_init)
+{
+	int ret = 0;
+
+	if (!do_init) {
+		/* for master, destroy real sqp resources */
+		if (slave == mlx4_master_func_num(dev->dev))
+			destroy_pv_resources(dev, slave, port,
+					     dev->sriov.sqps[port - 1], 1);
+		/* destroy the tunnel qp resources */
+		destroy_pv_resources(dev, slave, port,
+				     dev->sriov.demux[port - 1].tun[slave], 1);
+		return 0;
+	}
+
+	/* create the tunnel qp resources */
+	ret = create_pv_resources(&dev->ib_dev, slave, port, 1,
+				  dev->sriov.demux[port - 1].tun[slave]);
+
+	/* for master, create the real sqp resources */
+	if (!ret && slave == mlx4_master_func_num(dev->dev))
+		ret = create_pv_resources(&dev->ib_dev, slave, port, 0,
+					  dev->sriov.sqps[port - 1]);
+	return ret;
+}
+
+void mlx4_ib_tunnels_update_work(struct work_struct *work)
+{
+	struct mlx4_ib_demux_work *dmxw;
+
+	dmxw = container_of(work, struct mlx4_ib_demux_work, work);
+	mlx4_ib_tunnels_update(dmxw->dev, dmxw->slave, (int) dmxw->port,
+			       dmxw->do_init);
+	kfree(dmxw);
+	return;
+}
+
+static int mlx4_ib_alloc_demux_ctx(struct mlx4_ib_dev *dev,
+				       struct mlx4_ib_demux_ctx *ctx,
+				       int port)
+{
+	char name[12];
+	int ret = 0;
+	int i;
+
+	ctx->tun = kcalloc(dev->dev->caps.sqp_demux,
+			   sizeof (struct mlx4_ib_demux_pv_ctx *), GFP_KERNEL);
+	if (!ctx->tun)
+		return -ENOMEM;
+
+	ctx->dev = dev;
+	ctx->port = port;
+	ctx->ib_dev = &dev->ib_dev;
+
+	for (i = 0; i < dev->dev->caps.sqp_demux; i++) {
+		ret = alloc_pv_object(dev, i, port, &ctx->tun[i]);
+		if (ret) {
+			ret = -ENOMEM;
+			goto err_wq;
+		}
+	}
+
+	snprintf(name, sizeof name, "mlx4_ibt%d", port);
+	ctx->wq = create_singlethread_workqueue(name);
+	if (!ctx->wq) {
+		pr_err("Failed to create tunnelling WQ for port %d\n", port);
+		ret = -ENOMEM;
+		goto err_wq;
+	}
+
+	snprintf(name, sizeof name, "mlx4_ibud%d", port);
+	ctx->ud_wq = create_singlethread_workqueue(name);
+	if (!ctx->ud_wq) {
+		pr_err("Failed to create up/down WQ for port %d\n", port);
+		ret = -ENOMEM;
+		goto err_udwq;
+	}
+
+	return 0;
+
+err_udwq:
+	destroy_workqueue(ctx->wq);
+	ctx->wq = NULL;
+
+err_wq:
+	for (i = 0; i < dev->dev->caps.sqp_demux; i++)
+		free_pv_object(dev, i, port);
+	kfree(ctx->tun);
+	ctx->tun = NULL;
+	return ret;
+}
+
+static void mlx4_ib_free_sqp_ctx(struct mlx4_ib_demux_pv_ctx *sqp_ctx)
+{
+	if (sqp_ctx->state > DEMUX_PV_STATE_DOWN) {
+		sqp_ctx->state = DEMUX_PV_STATE_DOWNING;
+		flush_workqueue(sqp_ctx->wq);
+		if (sqp_ctx->has_smi) {
+			ib_destroy_qp(sqp_ctx->qp[0].qp);
+			sqp_ctx->qp[0].qp = NULL;
+			mlx4_ib_free_pv_qp_bufs(sqp_ctx, IB_QPT_SMI, 0);
+		}
+		ib_destroy_qp(sqp_ctx->qp[1].qp);
+		sqp_ctx->qp[1].qp = NULL;
+		mlx4_ib_free_pv_qp_bufs(sqp_ctx, IB_QPT_GSI, 0);
+		ib_dereg_mr(sqp_ctx->mr);
+		sqp_ctx->mr = NULL;
+		ib_dealloc_pd(sqp_ctx->pd);
+		sqp_ctx->pd = NULL;
+		ib_destroy_cq(sqp_ctx->cq);
+		sqp_ctx->cq = NULL;
+		sqp_ctx->state = DEMUX_PV_STATE_DOWN;
+	}
+}
+
+static void mlx4_ib_free_demux_ctx(struct mlx4_ib_demux_ctx *ctx)
+{
+	int i;
+	if (ctx) {
+		struct mlx4_ib_dev *dev = to_mdev(ctx->ib_dev);
+		for (i = 0; i < dev->dev->caps.sqp_demux; i++) {
+			if (!ctx->tun[i])
+				continue;
+			if (ctx->tun[i]->state > DEMUX_PV_STATE_DOWN)
+				ctx->tun[i]->state = DEMUX_PV_STATE_DOWNING;
+		}
+		flush_workqueue(ctx->wq);
+		for (i = 0; i < dev->dev->caps.sqp_demux; i++) {
+			destroy_pv_resources(dev, i, ctx->port, ctx->tun[i], 0);
+			free_pv_object(dev, i, ctx->port);
+		}
+		kfree(ctx->tun);
+		destroy_workqueue(ctx->ud_wq);
+		destroy_workqueue(ctx->wq);
+	}
+}
+
+static void mlx4_ib_master_tunnels(struct mlx4_ib_dev *dev, int do_init)
+{
+	int i;
+
+	if (!mlx4_is_master(dev->dev))
+		return;
+	/* initialize or tear down tunnel QPs for the master */
+	for (i = 0; i < dev->dev->caps.num_ports; i++)
+		mlx4_ib_tunnels_update(dev, mlx4_master_func_num(dev->dev), i + 1, do_init);
+	return;
+}
+
+int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev)
+{
+	int i = 0;
+	int err;
+
+	if (!mlx4_is_mfunc(dev->dev))
+		return 0;
+
+	dev->sriov.is_going_down = 0;
+	spin_lock_init(&dev->sriov.going_down_lock);
+
+	mlx4_ib_warn(&dev->ib_dev, "multi-function enabled\n");
+
+	if (mlx4_is_slave(dev->dev)) {
+		mlx4_ib_warn(&dev->ib_dev, "operating in qp1 tunnel mode\n");
+		return 0;
+	}
+
+	mlx4_ib_warn(&dev->ib_dev, "initializing demux service for %d qp1 clients\n",
+		     dev->dev->caps.sqp_demux);
+	for (i = 0; i < dev->num_ports; i++) {
+		err = alloc_pv_object(dev, mlx4_master_func_num(dev->dev), i + 1,
+				      &dev->sriov.sqps[i]);
+		if (err)
+			goto demux_err;
+		err = mlx4_ib_alloc_demux_ctx(dev, &dev->sriov.demux[i], i + 1);
+		if (err)
+			goto demux_err;
+	}
+	mlx4_ib_master_tunnels(dev, 1);
+	return 0;
+
+demux_err:
+	while (i > 0) {
+		free_pv_object(dev, mlx4_master_func_num(dev->dev), i + 1);
+		mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
+		--i;
+	}
+
+	return err;
+}
+
+void mlx4_ib_close_sriov(struct mlx4_ib_dev *dev)
+{
+	int i;
+	unsigned long flags;
+
+	if (!mlx4_is_mfunc(dev->dev))
+		return;
+
+	spin_lock_irqsave(&dev->sriov.going_down_lock, flags);
+	dev->sriov.is_going_down = 1;
+	spin_unlock_irqrestore(&dev->sriov.going_down_lock, flags);
+	if (mlx4_is_master(dev->dev))
+		for (i = 0; i < dev->num_ports; i++) {
+			flush_workqueue(dev->sriov.demux[i].ud_wq);
+			mlx4_ib_free_sqp_ctx(dev->sriov.sqps[i]);
+			kfree(dev->sriov.sqps[i]);
+			dev->sriov.sqps[i] = NULL;
+			mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
+		}
 }
