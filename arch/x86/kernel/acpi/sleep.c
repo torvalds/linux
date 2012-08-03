@@ -25,10 +25,6 @@ unsigned long acpi_realmode_flags;
 static char temp_stack[4096];
 #endif
 
-asmlinkage void acpi_enter_s3(void)
-{
-	acpi_enter_sleep_state(3, wake_sleep_flags);
-}
 /**
  * acpi_suspend_lowlevel - save kernel state
  *
