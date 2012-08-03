@@ -868,6 +868,15 @@ static int nvme_set_features(struct nvme_dev *dev, unsigned fid,
 	return nvme_submit_admin_cmd(dev, &c, result);
 }
 
+static void nvme_free_queue_mem(struct nvme_queue *nvmeq)
+{
+	dma_free_coherent(nvmeq->q_dmadev, CQ_SIZE(nvmeq->q_depth),
+				(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
+	dma_free_coherent(nvmeq->q_dmadev, SQ_SIZE(nvmeq->q_depth),
+					nvmeq->sq_cmds, nvmeq->sq_dma_addr);
+	kfree(nvmeq);
+}
+
 static void nvme_free_queue(struct nvme_dev *dev, int qid)
 {
 	struct nvme_queue *nvmeq = dev->queues[qid];
@@ -882,11 +891,7 @@ static void nvme_free_queue(struct nvme_dev *dev, int qid)
 		adapter_delete_cq(dev, qid);
 	}
 
-	dma_free_coherent(nvmeq->q_dmadev, CQ_SIZE(nvmeq->q_depth),
-				(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
-	dma_free_coherent(nvmeq->q_dmadev, SQ_SIZE(nvmeq->q_depth),
-					nvmeq->sq_cmds, nvmeq->sq_dma_addr);
-	kfree(nvmeq);
+	nvme_free_queue_mem(nvmeq);
 }
 
 static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
@@ -982,7 +987,7 @@ static __devinit struct nvme_queue *nvme_create_queue(struct nvme_dev *dev,
 
 static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 {
-	int result;
+	int result = 0;
 	u32 aqa;
 	u64 cap;
 	unsigned long timeout;
@@ -1012,15 +1017,20 @@ static int __devinit nvme_configure_admin_queue(struct nvme_dev *dev)
 	timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
 	dev->db_stride = NVME_CAP_STRIDE(cap);
 
-	while (!(readl(&dev->bar->csts) & NVME_CSTS_RDY)) {
+	while (!result && !(readl(&dev->bar->csts) & NVME_CSTS_RDY)) {
 		msleep(100);
 		if (fatal_signal_pending(current))
-			return -EINTR;
+			result = -EINTR;
 		if (time_after(jiffies, timeout)) {
 			dev_err(&dev->pci_dev->dev,
 				"Device not ready; aborting initialisation\n");
-			return -ENODEV;
+			result = -ENODEV;
 		}
+	}
+
+	if (result) {
+		nvme_free_queue_mem(nvmeq);
+		return result;
 	}
 
 	result = queue_request_irq(dev, nvmeq, "nvme admin");
