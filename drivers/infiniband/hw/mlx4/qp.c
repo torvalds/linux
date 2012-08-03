@@ -116,33 +116,57 @@ static int is_tunnel_qp(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 	if (!mlx4_is_master(dev->dev))
 		return 0;
 
-	return qp->mqp.qpn >= dev->dev->caps.base_sqpn &&
-	       qp->mqp.qpn < dev->dev->caps.base_sqpn +
-	       8 + 16 * MLX4_MFUNC_MAX;
+	return qp->mqp.qpn >= dev->dev->phys_caps.base_tunnel_sqpn &&
+	       qp->mqp.qpn < dev->dev->phys_caps.base_tunnel_sqpn +
+		8 * MLX4_MFUNC_MAX;
 }
 
 static int is_sqp(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 {
-	return ((mlx4_is_master(dev->dev) &&
-		 qp->mqp.qpn >= dev->dev->caps.base_sqpn &&
-		 qp->mqp.qpn <= dev->dev->caps.base_sqpn + 3) ||
-		(qp->mqp.qpn >= dev->dev->caps.sqp_start &&
-		 qp->mqp.qpn <= dev->dev->caps.sqp_start + 3));
+	int proxy_sqp = 0;
+	int real_sqp = 0;
+	int i;
+	/* PPF or Native -- real SQP */
+	real_sqp = ((mlx4_is_master(dev->dev) || !mlx4_is_mfunc(dev->dev)) &&
+		    qp->mqp.qpn >= dev->dev->phys_caps.base_sqpn &&
+		    qp->mqp.qpn <= dev->dev->phys_caps.base_sqpn + 3);
+	if (real_sqp)
+		return 1;
+	/* VF or PF -- proxy SQP */
+	if (mlx4_is_mfunc(dev->dev)) {
+		for (i = 0; i < dev->dev->caps.num_ports; i++) {
+			if (qp->mqp.qpn == dev->dev->caps.qp0_proxy[i] ||
+			    qp->mqp.qpn == dev->dev->caps.qp1_proxy[i]) {
+				proxy_sqp = 1;
+				break;
+			}
+		}
+	}
+	return proxy_sqp;
 }
 
 /* used for INIT/CLOSE port logic */
 static int is_qp0(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp)
 {
-	int qp0;
-
-	/* qp0 is either the proxy qp0, or the real qp0 */
-	qp0 = (qp->mqp.qpn >= dev->dev->caps.sqp_start &&
-		qp->mqp.qpn <= dev->dev->caps.sqp_start + 1) ||
-		(mlx4_is_master(dev->dev) &&
-		 qp->mqp.qpn >= dev->dev->caps.base_sqpn &&
-		 qp->mqp.qpn <= dev->dev->caps.base_sqpn + 1);
-
-	return qp0;
+	int proxy_qp0 = 0;
+	int real_qp0 = 0;
+	int i;
+	/* PPF or Native -- real QP0 */
+	real_qp0 = ((mlx4_is_master(dev->dev) || !mlx4_is_mfunc(dev->dev)) &&
+		    qp->mqp.qpn >= dev->dev->phys_caps.base_sqpn &&
+		    qp->mqp.qpn <= dev->dev->phys_caps.base_sqpn + 1);
+	if (real_qp0)
+		return 1;
+	/* VF or PF -- proxy QP0 */
+	if (mlx4_is_mfunc(dev->dev)) {
+		for (i = 0; i < dev->dev->caps.num_ports; i++) {
+			if (qp->mqp.qpn == dev->dev->caps.qp0_proxy[i]) {
+				proxy_qp0 = 1;
+				break;
+			}
+		}
+	}
+	return proxy_qp0;
 }
 
 static void *get_wqe(struct mlx4_ib_qp *qp, int offset)
@@ -607,8 +631,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			qp_type = MLX4_IB_QPT_TUN_SMI_OWNER;
 		else
 			qp_type = MLX4_IB_QPT_TUN_SMI;
-		qpn = dev->dev->caps.base_tunnel_sqpn + 8 * tnl_init->slave +
-		      tnl_init->proxy_qp_type * 2 + tnl_init->port - 1;
+		/* we are definitely in the PPF here, since we are creating
+		 * tunnel QPs. base_tunnel_sqpn is therefore valid. */
+		qpn = dev->dev->phys_caps.base_tunnel_sqpn + 8 * tnl_init->slave
+			+ tnl_init->proxy_qp_type * 2 + tnl_init->port - 1;
 		sqpn = qpn;
 	}
 
@@ -629,12 +655,6 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 		qp = *caller_qp;
 
 	qp->mlx4_ib_qp_type = qp_type;
-
-	if (mlx4_is_mfunc(dev->dev) &&
-	    (qp_type == MLX4_IB_QPT_SMI || qp_type == MLX4_IB_QPT_GSI)) {
-		qpn -= 8;
-		sqpn -= 8;
-	}
 
 	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
@@ -935,6 +955,23 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	del_gid_entries(qp);
 }
 
+static u32 get_sqp_num(struct mlx4_ib_dev *dev, struct ib_qp_init_attr *attr)
+{
+	/* Native or PPF */
+	if (!mlx4_is_mfunc(dev->dev) ||
+	    (mlx4_is_master(dev->dev) &&
+	     attr->create_flags & MLX4_IB_SRIOV_SQP)) {
+		return  dev->dev->phys_caps.base_sqpn +
+			(attr->qp_type == IB_QPT_SMI ? 0 : 2) +
+			attr->port_num - 1;
+	}
+	/* PF or VF -- creating proxies */
+	if (attr->qp_type == IB_QPT_SMI)
+		return dev->dev->caps.qp0_proxy[attr->port_num - 1];
+	else
+		return dev->dev->caps.qp1_proxy[attr->port_num - 1];
+}
+
 struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *init_attr,
 				struct ib_udata *udata)
@@ -998,9 +1035,7 @@ struct ib_qp *mlx4_ib_create_qp(struct ib_pd *pd,
 			return ERR_PTR(-EINVAL);
 
 		err = create_qp_common(to_mdev(pd->device), pd, init_attr, udata,
-				       to_mdev(pd->device)->dev->caps.sqp_start +
-				       (init_attr->qp_type == IB_QPT_SMI ? 0 : 2) +
-				       init_attr->port_num - 1,
+				       get_sqp_num(to_mdev(pd->device), init_attr),
 				       &qp);
 		if (err)
 			return ERR_PTR(err);
@@ -1643,8 +1678,7 @@ static int build_sriov_qp0_header(struct mlx4_ib_sqp *sqp,
 		sqp->ud_header.bth.destination_qpn = cpu_to_be32(wr->wr.ud.remote_qpn);
 	else
 		sqp->ud_header.bth.destination_qpn =
-			cpu_to_be32(mdev->dev->caps.base_tunnel_sqpn +
-				    sqp->qp.port - 1);
+			cpu_to_be32(mdev->dev->caps.qp0_tunnel[sqp->qp.port - 1]);
 
 	sqp->ud_header.bth.psn = cpu_to_be32((sqp->send_psn++) & ((1 << 24) - 1));
 	if (mlx4_get_parav_qkey(mdev->dev, sqp->qp.mqp.qpn, &qkey))
@@ -2012,10 +2046,10 @@ static void set_tunnel_datagram_seg(struct mlx4_ib_dev *dev,
 			cpu_to_be32(0xf0000000);
 
 	memcpy(dseg->av, &sqp_av, sizeof (struct mlx4_av));
-	dseg->dqpn = cpu_to_be32(dev->dev->caps.base_tunnel_sqpn +
-				 qpt * 2 + port - 1);
-	/* use well-known qkey from the QPC */
-	dseg->qkey = cpu_to_be32(0x80000000);
+	/* This function used only for sending on QP1 proxies */
+	dseg->dqpn = cpu_to_be32(dev->dev->caps.qp1_tunnel[port - 1]);
+	/* Use QKEY from the QP context, which is set by master */
+	dseg->qkey = cpu_to_be32(IB_QP_SET_QKEY);
 }
 
 static void build_tunnel_header(struct ib_send_wr *wr, void *wqe, unsigned *mlx_seg_len)

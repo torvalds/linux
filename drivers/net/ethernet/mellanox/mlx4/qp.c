@@ -68,15 +68,15 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 }
 
 /* used for INIT/CLOSE port logic */
-static int is_qp0(struct mlx4_dev *dev, struct mlx4_qp *qp, int *real_qp0, int *proxy_qp0)
+static int is_master_qp0(struct mlx4_dev *dev, struct mlx4_qp *qp, int *real_qp0, int *proxy_qp0)
 {
+	/* this procedure is called after we already know we are on the master */
 	/* qp0 is either the proxy qp0, or the real qp0 */
-	*proxy_qp0 = qp->qpn >= dev->caps.sqp_start &&
-		qp->qpn <= dev->caps.sqp_start + 1;
+	u32 pf_proxy_offset = dev->phys_caps.base_proxy_sqpn + 8 * mlx4_master_func_num(dev);
+	*proxy_qp0 = qp->qpn >= pf_proxy_offset && qp->qpn <= pf_proxy_offset + 1;
 
-	*real_qp0 = mlx4_is_master(dev) &&
-		qp->qpn >= dev->caps.base_sqpn &&
-		qp->qpn <= dev->caps.base_sqpn + 1;
+	*real_qp0 = qp->qpn >= dev->phys_caps.base_sqpn &&
+		qp->qpn <= dev->phys_caps.base_sqpn + 1;
 
 	return *real_qp0 || *proxy_qp0;
 }
@@ -143,7 +143,7 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 			MLX4_CMD_2RST_QP, MLX4_CMD_TIME_CLASS_A, native);
 		if (mlx4_is_master(dev) && cur_state != MLX4_QP_STATE_ERR &&
 		    cur_state != MLX4_QP_STATE_RST &&
-		    is_qp0(dev, qp, &real_qp0, &proxy_qp0)) {
+		    is_master_qp0(dev, qp, &real_qp0, &proxy_qp0)) {
 			port = (qp->qpn & 1) + 1;
 			if (proxy_qp0)
 				priv->mfunc.master.qp0_state[port].proxy_qp0_active = 0;
@@ -175,7 +175,7 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		       new_state == MLX4_QP_STATE_RST ? 2 : 0,
 		       op[cur_state][new_state], MLX4_CMD_TIME_CLASS_C, native);
 
-	if (mlx4_is_master(dev) && is_qp0(dev, qp, &real_qp0, &proxy_qp0)) {
+	if (mlx4_is_master(dev) && is_master_qp0(dev, qp, &real_qp0, &proxy_qp0)) {
 		port = (qp->qpn & 1) + 1;
 		if (cur_state != MLX4_QP_STATE_ERR &&
 		    cur_state != MLX4_QP_STATE_RST &&
@@ -422,6 +422,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
 	int err;
 	int reserved_from_top = 0;
+	int k;
 
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&dev->qp_table_tree, GFP_ATOMIC);
@@ -436,7 +437,7 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	 * We also reserve the MSB of the 24-bit QP number to indicate
 	 * that a QP is an XRC QP.
 	 */
-	dev->caps.base_sqpn =
+	dev->phys_caps.base_sqpn =
 		ALIGN(dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FW], 8);
 
 	{
@@ -479,24 +480,54 @@ int mlx4_init_qp_table(struct mlx4_dev *dev)
 	*/
 
 	err = mlx4_bitmap_init(&qp_table->bitmap, dev->caps.num_qps,
-			       (1 << 23) - 1, dev->caps.base_sqpn + 8 +
+			       (1 << 23) - 1, dev->phys_caps.base_sqpn + 8 +
 			       16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev),
 			       reserved_from_top);
-
-	/* In mfunc, sqp_start is the base of the proxy SQPs, since the PF also
-	 * uses paravirtualized SQPs.
-	 * In native mode, sqp_start is the base of the real SQPs. */
-	if (mlx4_is_mfunc(dev)) {
-		dev->caps.sqp_start = dev->caps.base_sqpn +
-			8 * (mlx4_master_func_num(dev) + 1);
-		dev->caps.base_tunnel_sqpn = dev->caps.sqp_start + 8 * MLX4_MFUNC_MAX;
-	} else
-		dev->caps.sqp_start = dev->caps.base_sqpn;
-
 	if (err)
 		return err;
 
-	return mlx4_CONF_SPECIAL_QP(dev, dev->caps.base_sqpn);
+	if (mlx4_is_mfunc(dev)) {
+		/* for PPF use */
+		dev->phys_caps.base_proxy_sqpn = dev->phys_caps.base_sqpn + 8;
+		dev->phys_caps.base_tunnel_sqpn = dev->phys_caps.base_sqpn + 8 + 8 * MLX4_MFUNC_MAX;
+
+		/* In mfunc, calculate proxy and tunnel qp offsets for the PF here,
+		 * since the PF does not call mlx4_slave_caps */
+		dev->caps.qp0_tunnel = kcalloc(dev->caps.num_ports, sizeof (u32), GFP_KERNEL);
+		dev->caps.qp0_proxy = kcalloc(dev->caps.num_ports, sizeof (u32), GFP_KERNEL);
+		dev->caps.qp1_tunnel = kcalloc(dev->caps.num_ports, sizeof (u32), GFP_KERNEL);
+		dev->caps.qp1_proxy = kcalloc(dev->caps.num_ports, sizeof (u32), GFP_KERNEL);
+
+		if (!dev->caps.qp0_tunnel || !dev->caps.qp0_proxy ||
+		    !dev->caps.qp1_tunnel || !dev->caps.qp1_proxy) {
+			err = -ENOMEM;
+			goto err_mem;
+		}
+
+		for (k = 0; k < dev->caps.num_ports; k++) {
+			dev->caps.qp0_proxy[k] = dev->phys_caps.base_proxy_sqpn +
+				8 * mlx4_master_func_num(dev) + k;
+			dev->caps.qp0_tunnel[k] = dev->caps.qp0_proxy[k] + 8 * MLX4_MFUNC_MAX;
+			dev->caps.qp1_proxy[k] = dev->phys_caps.base_proxy_sqpn +
+				8 * mlx4_master_func_num(dev) + MLX4_MAX_PORTS + k;
+			dev->caps.qp1_tunnel[k] = dev->caps.qp1_proxy[k] + 8 * MLX4_MFUNC_MAX;
+		}
+	}
+
+
+	err = mlx4_CONF_SPECIAL_QP(dev, dev->phys_caps.base_sqpn);
+	if (err)
+		goto err_mem;
+	return 0;
+
+err_mem:
+	kfree(dev->caps.qp0_tunnel);
+	kfree(dev->caps.qp0_proxy);
+	kfree(dev->caps.qp1_tunnel);
+	kfree(dev->caps.qp1_proxy);
+	dev->caps.qp0_tunnel = dev->caps.qp0_proxy =
+		dev->caps.qp1_tunnel = dev->caps.qp1_proxy = NULL;
+	return err;
 }
 
 void mlx4_cleanup_qp_table(struct mlx4_dev *dev)

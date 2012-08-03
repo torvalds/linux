@@ -184,8 +184,6 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_MCG_QUOTA_OFFSET		0x28
 #define QUERY_FUNC_CAP_MAX_EQ_OFFSET		0x2c
 #define QUERY_FUNC_CAP_RESERVED_EQ_OFFSET	0X30
-#define QUERY_FUNC_CAP_BASE_TUNNEL_QPN_OFFSET	0x44
-#define QUERY_FUNC_CAP_BASE_PROXY_QPN_OFFSET	0x48
 
 #define QUERY_FUNC_CAP_FMR_FLAG			0x80
 #define QUERY_FUNC_CAP_FLAG_RDMA		0x40
@@ -196,20 +194,38 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 #define QUERY_FUNC_CAP_RDMA_PROPS_OFFSET	0x8
 #define QUERY_FUNC_CAP_ETH_PROPS_OFFSET		0xc
 
+#define QUERY_FUNC_CAP_QP0_TUNNEL		0x10
+#define QUERY_FUNC_CAP_QP0_PROXY		0x14
+#define QUERY_FUNC_CAP_QP1_TUNNEL		0x18
+#define QUERY_FUNC_CAP_QP1_PROXY		0x1c
+
 #define QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC	0x40
 #define QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN	0x80
 
 #define QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID 0x80
 
 	if (vhcr->op_modifier == 1) {
-		field = vhcr->in_modifier;
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
-
 		field = 0;
 		/* ensure force vlan and force mac bits are not set */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
 		/* ensure that phy_wqe_gid bit is not set */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+
+		field = vhcr->in_modifier; /* phys-port = logical-port */
+		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
+
+		/* size is now the QP number */
+		size = dev->phys_caps.base_tunnel_sqpn + 8 * slave + field - 1;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_TUNNEL);
+
+		size += 2;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_TUNNEL);
+
+		size = dev->phys_caps.base_proxy_sqpn + 8 * slave + field - 1;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_PROXY);
+
+		size += 2;
+		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP1_PROXY);
 
 	} else if (vhcr->op_modifier == 0) {
 		/* enable rdma and ethernet interfaces */
@@ -249,116 +265,123 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		size = dev->caps.num_mgms + dev->caps.num_amgms;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
 
-		size = dev->caps.base_tunnel_sqpn + 8 * slave;
-		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_BASE_TUNNEL_QPN_OFFSET);
-
-		size = dev->caps.sqp_start + 8 * slave;
-		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_BASE_PROXY_QPN_OFFSET);
-
 	} else
 		err = -EINVAL;
 
 	return err;
 }
 
-int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, struct mlx4_func_cap *func_cap)
+int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u32 gen_or_port,
+			struct mlx4_func_cap *func_cap)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	u32			*outbox;
-	u8			field;
+	u8			field, op_modifier;
 	u32			size;
-	int			i;
 	int			err = 0;
 
+	op_modifier = !!gen_or_port; /* 0 = general, 1 = logical port */
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
 
-	err = mlx4_cmd_box(dev, 0, mailbox->dma, 0, 0, MLX4_CMD_QUERY_FUNC_CAP,
+	err = mlx4_cmd_box(dev, 0, mailbox->dma, gen_or_port, op_modifier,
+			   MLX4_CMD_QUERY_FUNC_CAP,
 			   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 
 	outbox = mailbox->buf;
 
-	MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS_OFFSET);
-	if (!(field & (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA))) {
-		mlx4_err(dev, "The host supports neither eth nor rdma interfaces\n");
-		err = -EPROTONOSUPPORT;
+	if (!op_modifier) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS_OFFSET);
+		if (!(field & (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA))) {
+			mlx4_err(dev, "The host supports neither eth nor rdma interfaces\n");
+			err = -EPROTONOSUPPORT;
+			goto out;
+		}
+		func_cap->flags = field;
+
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
+		func_cap->num_ports = field;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
+		func_cap->pf_context_behaviour = size;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
+		func_cap->qp_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
+		func_cap->srq_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
+		func_cap->cq_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
+		func_cap->max_eq = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
+		func_cap->reserved_eq = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
+		func_cap->mpt_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
+		func_cap->mtt_quota = size & 0xFFFFFF;
+
+		MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
+		func_cap->mcg_quota = size & 0xFFFFFF;
 		goto out;
 	}
-	func_cap->flags = field;
 
-	MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
-	func_cap->num_ports = field;
+	/* logical port query */
+	if (gen_or_port > dev->caps.num_ports) {
+		err = -EINVAL;
+		goto out;
+	}
 
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
-	func_cap->pf_context_behaviour = size;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP_QUOTA_OFFSET);
-	func_cap->qp_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_SRQ_QUOTA_OFFSET);
-	func_cap->srq_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_CQ_QUOTA_OFFSET);
-	func_cap->cq_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MAX_EQ_OFFSET);
-	func_cap->max_eq = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_RESERVED_EQ_OFFSET);
-	func_cap->reserved_eq = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MPT_QUOTA_OFFSET);
-	func_cap->mpt_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MTT_QUOTA_OFFSET);
-	func_cap->mtt_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_MCG_QUOTA_OFFSET);
-	func_cap->mcg_quota = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_BASE_TUNNEL_QPN_OFFSET);
-	func_cap->base_tunnel_qpn = size & 0xFFFFFF;
-
-	MLX4_GET(size, outbox, QUERY_FUNC_CAP_BASE_PROXY_QPN_OFFSET);
-	func_cap->base_proxy_qpn = size & 0xFFFFFF;
-
-	for (i = 1; i <= func_cap->num_ports; ++i) {
-		err = mlx4_cmd_box(dev, 0, mailbox->dma, i, 1,
-				   MLX4_CMD_QUERY_FUNC_CAP,
-				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
-		if (err)
+	if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_ETH) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
+		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
+			mlx4_err(dev, "VLAN is enforced on this port\n");
+			err = -EPROTONOSUPPORT;
 			goto out;
-
-		if (dev->caps.port_type[i] == MLX4_PORT_TYPE_ETH) {
-			MLX4_GET(field, outbox, QUERY_FUNC_CAP_ETH_PROPS_OFFSET);
-			if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_VLAN) {
-				mlx4_err(dev, "VLAN is enforced on this port\n");
-				err = -EPROTONOSUPPORT;
-				goto out;
-			}
-
-			if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
-				mlx4_err(dev, "Force mac is enabled on this port\n");
-				err = -EPROTONOSUPPORT;
-				goto out;
-			}
-		} else if (dev->caps.port_type[i] == MLX4_PORT_TYPE_IB) {
-			MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
-			if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
-				mlx4_err(dev, "phy_wqe_gid is "
-					 "enforced on this ib port\n");
-				err = -EPROTONOSUPPORT;
-				goto out;
-			}
 		}
 
-		MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
-		func_cap->physical_port[i] = field;
+		if (field & QUERY_FUNC_CAP_ETH_PROPS_FORCE_MAC) {
+			mlx4_err(dev, "Force mac is enabled on this port\n");
+			err = -EPROTONOSUPPORT;
+			goto out;
+		}
+	} else if (dev->caps.port_type[gen_or_port] == MLX4_PORT_TYPE_IB) {
+		MLX4_GET(field, outbox, QUERY_FUNC_CAP_RDMA_PROPS_OFFSET);
+		if (field & QUERY_FUNC_CAP_RDMA_PROPS_FORCE_PHY_WQE_GID) {
+			mlx4_err(dev, "phy_wqe_gid is "
+				 "enforced on this ib port\n");
+			err = -EPROTONOSUPPORT;
+			goto out;
+		}
 	}
+
+	MLX4_GET(field, outbox, QUERY_FUNC_CAP_PHYS_PORT_OFFSET);
+	func_cap->physical_port = field;
+	if (func_cap->physical_port != gen_or_port) {
+		err = -ENOSYS;
+		goto out;
+	}
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_TUNNEL);
+	func_cap->qp0_tunnel_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP0_PROXY);
+	func_cap->qp0_proxy_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_TUNNEL);
+	func_cap->qp1_tunnel_qpn = size & 0xFFFFFF;
+
+	MLX4_GET(size, outbox, QUERY_FUNC_CAP_QP1_PROXY);
+	func_cap->qp1_proxy_qpn = size & 0xFFFFFF;
 
 	/* All other resources are allocated by the master, but we still report
 	 * 'num' and 'reserved' capabilities as follows:

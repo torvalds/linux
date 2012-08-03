@@ -505,7 +505,7 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	} else
 		tun_pkey_ix = dev->pkeys.virt2phys_pkey[slave][port - 1][0];
 
-	dqpn = dev->dev->caps.sqp_start + 8 * slave + port + (dest_qpt * 2) - 1;
+	dqpn = dev->dev->phys_caps.base_proxy_sqpn + 8 * slave + port + (dest_qpt * 2) - 1;
 
 	/* get tunnel tx data buf for slave */
 	src_qp = tun_qp->qp;
@@ -1074,9 +1074,9 @@ static int mlx4_ib_multiplex_sa_handler(struct ib_device *ibdev, int port,
 
 static int is_proxy_qp0(struct mlx4_ib_dev *dev, int qpn, int slave)
 {
-	int slave_start = dev->dev->caps.sqp_start + 8 * slave;
+	int proxy_start = dev->dev->phys_caps.base_proxy_sqpn + 8 * slave;
 
-	return (qpn >= slave_start && qpn <= slave_start + 1);
+	return (qpn >= proxy_start && qpn <= proxy_start + 1);
 }
 
 
@@ -1191,14 +1191,14 @@ static void mlx4_ib_multiplex_mad(struct mlx4_ib_demux_pv_ctx *ctx, struct ib_wc
 	int slave;
 
 	/* Get slave that sent this packet */
-	if (wc->src_qp < dev->dev->caps.sqp_start ||
-	    wc->src_qp >= dev->dev->caps.base_tunnel_sqpn ||
+	if (wc->src_qp < dev->dev->phys_caps.base_proxy_sqpn ||
+	    wc->src_qp >= dev->dev->phys_caps.base_proxy_sqpn + 8 * MLX4_MFUNC_MAX ||
 	    (wc->src_qp & 0x1) != ctx->port - 1 ||
 	    wc->src_qp & 0x4) {
 		mlx4_ib_warn(ctx->ib_dev, "can't multiplex bad sqp:%d\n", wc->src_qp);
 		return;
 	}
-	slave = ((wc->src_qp & ~0x7) - dev->dev->caps.sqp_start) / 8;
+	slave = ((wc->src_qp & ~0x7) - dev->dev->phys_caps.base_proxy_sqpn) / 8;
 	if (slave != ctx->slave) {
 		mlx4_ib_warn(ctx->ib_dev, "can't multiplex bad sqp:%d: "
 			     "belongs to another slave\n", wc->src_qp);

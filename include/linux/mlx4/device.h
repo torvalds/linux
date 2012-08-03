@@ -328,6 +328,9 @@ struct mlx4_phys_caps {
 	u32			gid_phys_table_len[MLX4_MAX_PORTS + 1];
 	u32			pkey_phys_table_len[MLX4_MAX_PORTS + 1];
 	u32			num_phys_eqs;
+	u32			base_sqpn;
+	u32			base_proxy_sqpn;
+	u32			base_tunnel_sqpn;
 };
 
 struct mlx4_caps {
@@ -358,9 +361,10 @@ struct mlx4_caps {
 	int			max_rq_desc_sz;
 	int			max_qp_init_rdma;
 	int			max_qp_dest_rdma;
-	int			sqp_start;
-	u32			base_sqpn;
-	u32			base_tunnel_sqpn;
+	u32			*qp0_proxy;
+	u32			*qp1_proxy;
+	u32			*qp0_tunnel;
+	u32			*qp1_tunnel;
 	int			num_srqs;
 	int			max_srq_wqes;
 	int			max_srq_sge;
@@ -722,15 +726,15 @@ static inline int mlx4_is_master(struct mlx4_dev *dev)
 
 static inline int mlx4_is_qp_reserved(struct mlx4_dev *dev, u32 qpn)
 {
-	return (qpn < dev->caps.base_sqpn + 8 +
+	return (qpn < dev->phys_caps.base_sqpn + 8 +
 		16 * MLX4_MFUNC_MAX * !!mlx4_is_master(dev));
 }
 
 static inline int mlx4_is_guest_proxy(struct mlx4_dev *dev, int slave, u32 qpn)
 {
-	int base = dev->caps.sqp_start + slave * 8;
+	int guest_proxy_base = dev->phys_caps.base_proxy_sqpn + slave * 8;
 
-	if (qpn >= base && qpn < base + 8)
+	if (qpn >= guest_proxy_base && qpn < guest_proxy_base + 8)
 		return 1;
 
 	return 0;
