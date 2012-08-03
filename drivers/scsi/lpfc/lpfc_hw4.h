@@ -1382,6 +1382,11 @@ struct lpfc_mbx_set_link_diag_state {
 #define lpfc_mbx_set_diag_state_diag_SHIFT	0
 #define lpfc_mbx_set_diag_state_diag_MASK	0x00000001
 #define lpfc_mbx_set_diag_state_diag_WORD	word0
+#define lpfc_mbx_set_diag_state_diag_bit_valid_SHIFT	2
+#define lpfc_mbx_set_diag_state_diag_bit_valid_MASK	0x00000001
+#define lpfc_mbx_set_diag_state_diag_bit_valid_WORD	word0
+#define LPFC_DIAG_STATE_DIAG_BIT_VALID_NO_CHANGE	0
+#define LPFC_DIAG_STATE_DIAG_BIT_VALID_CHANGE		1
 #define lpfc_mbx_set_diag_state_link_num_SHIFT	16
 #define lpfc_mbx_set_diag_state_link_num_MASK	0x0000003F
 #define lpfc_mbx_set_diag_state_link_num_WORD	word0
