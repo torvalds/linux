@@ -935,6 +935,20 @@ static int drbd_process_write_request(struct drbd_request *req)
 	send_oos = drbd_should_send_out_of_sync(mdev->state);
 	rcu_read_unlock();
 
+	/* Need to replicate writes.  Unless it is an empty flush,
+	 * which is better mapped to a DRBD P_BARRIER packet,
+	 * also for drbd wire protocol compatibility reasons.
+	 * If this was a flush, just start a new epoch.
+	 * Unless the current epoch was empty anyways, or we are not currently
+	 * replicating, in which case there is no point. */
+	if (unlikely(req->i.size == 0)) {
+		/* The only size==0 bios we expect are empty flushes. */
+		D_ASSERT(req->master_bio->bi_rw & REQ_FLUSH);
+		if (remote && mdev->tconn->current_tle_writes)
+			start_new_tl_epoch(mdev->tconn);
+		return 0;
+	}
+
 	if (!remote && !send_oos)
 		return 0;
 
@@ -1004,8 +1018,10 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 	 * extent.  This waits for any resync activity in the corresponding
 	 * resync extent to finish, and, if necessary, pulls in the target
 	 * extent into the activity log, which involves further disk io because
-	 * of transactional on-disk meta data updates. */
-	if (rw == WRITE && req->private_bio
+	 * of transactional on-disk meta data updates.
+	 * Empty flushes don't need to go into the activity log, they can only
+	 * flush data for pending writes which are already in there. */
+	if (rw == WRITE && req->private_bio && req->i.size
 	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
 		req->rq_state |= RQ_IN_ACT_LOG;
 		drbd_al_begin_io(mdev, &req->i);
@@ -1047,7 +1063,10 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 	if (rw == WRITE)
 		mdev->tconn->current_tle_writes++;
 
-	list_add_tail(&req->tl_requests, &mdev->tconn->transfer_log);
+	/* no point in adding empty flushes to the transfer log,
+	 * they are mapped to drbd barriers already. */
+	if (likely(req->i.size!=0))
+		list_add_tail(&req->tl_requests, &mdev->tconn->transfer_log);
 
 	if (rw == WRITE) {
 		if (!drbd_process_write_request(req))
