@@ -1414,6 +1414,59 @@ bool queue_delayed_work(struct workqueue_struct *wq,
 EXPORT_SYMBOL_GPL(queue_delayed_work);
 
 /**
+ * mod_delayed_work_on - modify delay of or queue a delayed work on specific CPU
+ * @cpu: CPU number to execute work on
+ * @wq: workqueue to use
+ * @dwork: work to queue
+ * @delay: number of jiffies to wait before queueing
+ *
+ * If @dwork is idle, equivalent to queue_delayed_work_on(); otherwise,
+ * modify @dwork's timer so that it expires after @delay.  If @delay is
+ * zero, @work is guaranteed to be scheduled immediately regardless of its
+ * current state.
+ *
+ * Returns %false if @dwork was idle and queued, %true if @dwork was
+ * pending and its timer was modified.
+ *
+ * This function is safe to call from any context other than IRQ handler.
+ * See try_to_grab_pending() for details.
+ */
+bool mod_delayed_work_on(int cpu, struct workqueue_struct *wq,
+			 struct delayed_work *dwork, unsigned long delay)
+{
+	unsigned long flags;
+	int ret;
+
+	do {
+		ret = try_to_grab_pending(&dwork->work, true, &flags);
+	} while (unlikely(ret == -EAGAIN));
+
+	if (likely(ret >= 0)) {
+		__queue_delayed_work(cpu, wq, dwork, delay);
+		local_irq_restore(flags);
+	}
+
+	/* -ENOENT from try_to_grab_pending() becomes %true */
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mod_delayed_work_on);
+
+/**
+ * mod_delayed_work - modify delay of or queue a delayed work
+ * @wq: workqueue to use
+ * @dwork: work to queue
+ * @delay: number of jiffies to wait before queueing
+ *
+ * mod_delayed_work_on() on local CPU.
+ */
+bool mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
+		      unsigned long delay)
+{
+	return mod_delayed_work_on(WORK_CPU_UNBOUND, wq, dwork, delay);
+}
+EXPORT_SYMBOL_GPL(mod_delayed_work);
+
+/**
  * worker_enter_idle - enter idle state
  * @worker: worker which is entering idle state
  *
