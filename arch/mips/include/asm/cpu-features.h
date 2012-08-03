@@ -171,6 +171,10 @@
 #define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
 #endif
 
+#ifndef cpu_has_dsp2
+#define cpu_has_dsp2		(cpu_data[0].ases & MIPS_ASE_DSP2P)
+#endif
+
 #ifndef cpu_has_mipsmt
 #define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
 #endif

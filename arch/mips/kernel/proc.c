@@ -70,6 +70,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		      cpu_has_mips3d ? " mips3d" : "",
 		      cpu_has_smartmips ? " smartmips" : "",
 		      cpu_has_dsp ? " dsp" : "",
+		      cpu_has_dsp2 ? " dsp2" : "",
 		      cpu_has_mipsmt ? " mt" : ""
 		);
 	seq_printf(m, "shadow register sets\t: %d\n",
