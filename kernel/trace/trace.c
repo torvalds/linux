@@ -5107,6 +5107,133 @@ static const struct file_operations rb_simple_fops = {
 	.llseek		= default_llseek,
 };
 
+struct dentry *trace_instance_dir;
+
+static void
+init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer);
+
+static int new_instance_create(const char *name)
+{
+	enum ring_buffer_flags rb_flags;
+	struct trace_array *tr;
+	int ret;
+	int i;
+
+	mutex_lock(&trace_types_lock);
+
+	ret = -EEXIST;
+	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
+		if (tr->name && strcmp(tr->name, name) == 0)
+			goto out_unlock;
+	}
+
+	ret = -ENOMEM;
+	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
+	if (!tr)
+		goto out_unlock;
+
+	tr->name = kstrdup(name, GFP_KERNEL);
+	if (!tr->name)
+		goto out_free_tr;
+
+	raw_spin_lock_init(&tr->start_lock);
+
+	tr->current_trace = &nop_trace;
+
+	INIT_LIST_HEAD(&tr->systems);
+	INIT_LIST_HEAD(&tr->events);
+
+	rb_flags = trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
+
+	tr->buffer = ring_buffer_alloc(trace_buf_size, rb_flags);
+	if (!tr->buffer)
+		goto out_free_tr;
+
+	tr->data = alloc_percpu(struct trace_array_cpu);
+	if (!tr->data)
+		goto out_free_tr;
+
+	for_each_tracing_cpu(i) {
+		memset(per_cpu_ptr(tr->data, i), 0, sizeof(struct trace_array_cpu));
+		per_cpu_ptr(tr->data, i)->trace_cpu.cpu = i;
+		per_cpu_ptr(tr->data, i)->trace_cpu.tr = tr;
+	}
+
+	/* Holder for file callbacks */
+	tr->trace_cpu.cpu = RING_BUFFER_ALL_CPUS;
+	tr->trace_cpu.tr = tr;
+
+	tr->dir = debugfs_create_dir(name, trace_instance_dir);
+	if (!tr->dir)
+		goto out_free_tr;
+
+	ret = event_trace_add_tracer(tr->dir, tr);
+	if (ret)
+		goto out_free_tr;
+
+	init_tracer_debugfs(tr, tr->dir);
+
+	list_add(&tr->list, &ftrace_trace_arrays);
+
+	mutex_unlock(&trace_types_lock);
+
+	return 0;
+
+ out_free_tr:
+	if (tr->buffer)
+		ring_buffer_free(tr->buffer);
+	kfree(tr->name);
+	kfree(tr);
+
+ out_unlock:
+	mutex_unlock(&trace_types_lock);
+
+	return ret;
+
+}
+
+static int instance_mkdir (struct inode *inode, struct dentry *dentry, umode_t mode)
+{
+	struct dentry *parent;
+	int ret;
+
+	/* Paranoid: Make sure the parent is the "instances" directory */
+	parent = hlist_entry(inode->i_dentry.first, struct dentry, d_alias);
+	if (WARN_ON_ONCE(parent != trace_instance_dir))
+		return -ENOENT;
+
+	/*
+	 * The inode mutex is locked, but debugfs_create_dir() will also
+	 * take the mutex. As the instances directory can not be destroyed
+	 * or changed in any other way, it is safe to unlock it, and
+	 * let the dentry try. If two users try to make the same dir at
+	 * the same time, then the new_instance_create() will determine the
+	 * winner.
+	 */
+	mutex_unlock(&inode->i_mutex);
+
+	ret = new_instance_create(dentry->d_iname);
+
+	mutex_lock(&inode->i_mutex);
+
+	return ret;
+}
+
+static const struct inode_operations instance_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.mkdir		= instance_mkdir,
+};
+
+static __init void create_trace_instances(struct dentry *d_tracer)
+{
+	trace_instance_dir = debugfs_create_dir("instances", d_tracer);
+	if (WARN_ON(!trace_instance_dir))
+		return;
+
+	/* Hijack the dir inode operations, to allow mkdir */
+	trace_instance_dir->d_inode->i_op = &instance_dir_inode_operations;
+}
+
 static void
 init_tracer_debugfs(struct trace_array *tr, struct dentry *d_tracer)
 {
@@ -5182,6 +5309,8 @@ static __init int tracer_init_debugfs(void)
 	trace_create_file("snapshot", 0644, d_tracer,
 			  (void *)&global_trace.trace_cpu, &snapshot_fops);
 #endif
+
+	create_trace_instances(d_tracer);
 
 	create_trace_options_dir(&global_trace);
 

@@ -1754,16 +1754,22 @@ int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
 	struct dentry *d_events;
 	struct dentry *entry;
 
+	mutex_lock(&event_mutex);
+
 	entry = debugfs_create_file("set_event", 0644, parent,
 				    tr, &ftrace_set_event_fops);
 	if (!entry) {
 		pr_warning("Could not create debugfs 'set_event' entry\n");
+		mutex_unlock(&event_mutex);
 		return -ENOMEM;
 	}
 
 	d_events = debugfs_create_dir("events", parent);
-	if (!d_events)
+	if (!d_events) {
 		pr_warning("Could not create debugfs 'events' directory\n");
+		mutex_unlock(&event_mutex);
+		return -ENOMEM;
+	}
 
 	/* ring buffer internal formats */
 	trace_create_file("header_page", 0444, d_events,
@@ -1778,7 +1784,11 @@ int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
 			  tr, &ftrace_tr_enable_fops);
 
 	tr->event_dir = d_events;
+	down_write(&trace_event_mutex);
 	__trace_add_event_dirs(tr);
+	up_write(&trace_event_mutex);
+
+	mutex_unlock(&event_mutex);
 
 	return 0;
 }
