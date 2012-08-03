@@ -1414,8 +1414,8 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 			tuner_err("Failed to request firmware %s\n",
 				  priv->fname);
 			priv->state = XC2028_NODEV;
-		}
-		priv->state = XC2028_WAITING_FIRMWARE;
+		} else
+			priv->state = XC2028_WAITING_FIRMWARE;
 	}
 	mutex_unlock(&priv->lock);
 
