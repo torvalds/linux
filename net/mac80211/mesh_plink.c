@@ -224,6 +224,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	u8 *pos, ie_len = 4;
 	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.self_prot) +
 		      sizeof(mgmt->u.action.u.self_prot);
+	int err = -ENOMEM;
 
 	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
@@ -267,11 +268,11 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata))
-			return -1;
+			goto free;
 	} else {	/* WLAN_SP_MESH_PEERING_CLOSE */
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
 		if (mesh_add_meshid_ie(skb, sdata))
-			return -1;
+			goto free;
 	}
 
 	/* Add Mesh Peering Management element */
@@ -290,11 +291,12 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		ie_len += 2;	/* reason code */
 		break;
 	default:
-		return -EINVAL;
+		err = -EINVAL;
+		goto free;
 	}
 
 	if (WARN_ON(skb_tailroom(skb) < 2 + ie_len))
-		return -ENOMEM;
+		goto free;
 
 	pos = skb_put(skb, 2 + ie_len);
 	*pos++ = WLAN_EID_PEER_MGMT;
@@ -315,14 +317,17 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
 		if (mesh_add_ht_cap_ie(skb, sdata) ||
 		    mesh_add_ht_oper_ie(skb, sdata))
-			return -1;
+			goto free;
 	}
 
 	if (mesh_add_vendor_ies(skb, sdata))
-		return -1;
+		goto free;
 
 	ieee80211_tx_skb(sdata, skb);
 	return 0;
+free:
+	kfree_skb(skb);
+	return err;
 }
 
 /**
