@@ -52,6 +52,14 @@
 			status = "disabled";
 		};
 
+		shirq: interrupt-controller@0x50000000 {
+			compatible = "st,spear300-shirq";
+			reg = <0x50000000 0x1000>;
+			interrupts = <28>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+		};
+
 		apb {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -64,12 +72,16 @@
 				compatible = "arm,pl061", "arm,primecell";
 				gpio-controller;
 				reg = <0xa9000000 0x1000>;
+				interrupts = <8>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			kbd@a0000000 {
 				compatible = "st,spear300-kbd";
 				reg = <0xa0000000 0x1000>;
+				interrupts = <7>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 		};

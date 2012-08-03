@@ -30,7 +30,8 @@
 		clcd@90000000 {
 			compatible = "arm,pl110", "arm,primecell";
 			reg = <0x90000000 0x1000>;
-			interrupts = <33>;
+			interrupts = <8>;
+			interrupt-parent = <&shirq>;
 			status = "disabled";
 		};
 
@@ -49,13 +50,24 @@
 		sdhci@70000000 {
 			compatible = "st,sdhci-spear";
 			reg = <0x70000000 0x100>;
-			interrupts = <29>;
+			interrupts = <10>;
+			interrupt-parent = <&shirq>;
 			status = "disabled";
+		};
+
+		shirq: interrupt-controller@0xb3000000 {
+			compatible = "st,spear320-shirq";
+			reg = <0xb3000000 0x1000>;
+			interrupts = <30 28 29 1>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
 		};
 
 		spi1: spi@a5000000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0xa5000000 0x1000>;
+			interrupts = <15>;
+			interrupt-parent = <&shirq>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -64,6 +76,8 @@
 		spi2: spi@a6000000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0xa6000000 0x1000>;
+			interrupts = <16>;
+			interrupt-parent = <&shirq>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -88,18 +102,24 @@
 				#size-cells = <0>;
 				compatible = "snps,designware-i2c";
 				reg = <0xa7000000 0x1000>;
+				interrupts = <21>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			serial@a3000000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xa3000000 0x1000>;
+				interrupts = <13>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
 			serial@a4000000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xa4000000 0x1000>;
+				interrupts = <14>;
+				interrupt-parent = <&shirq>;
 				status = "disabled";
 			};
 
