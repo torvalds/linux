@@ -78,7 +78,7 @@ struct mxs_mmc_host {
 	enum dma_transfer_direction	slave_dirn;
 	u32				ssp_pio_words[SSP_PIO_NUM];
 
-	enum mxs_mmc_id			devid;
+	enum mxs_ssp_id			devid;
 	unsigned char			bus_width;
 	spinlock_t			lock;
 	int				sdio_irq_en;
@@ -601,22 +601,22 @@ static bool mxs_mmc_dma_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
-static struct platform_device_id mxs_mmc_ids[] = {
+static struct platform_device_id mxs_ssp_ids[] = {
 	{
 		.name = "imx23-mmc",
-		.driver_data = IMX23_MMC,
+		.driver_data = IMX23_SSP,
 	}, {
 		.name = "imx28-mmc",
-		.driver_data = IMX28_MMC,
+		.driver_data = IMX28_SSP,
 	}, {
 		/* sentinel */
 	}
 };
-MODULE_DEVICE_TABLE(platform, mxs_mmc_ids);
+MODULE_DEVICE_TABLE(platform, mxs_ssp_ids);
 
 static const struct of_device_id mxs_mmc_dt_ids[] = {
-	{ .compatible = "fsl,imx23-mmc", .data = (void *) IMX23_MMC, },
-	{ .compatible = "fsl,imx28-mmc", .data = (void *) IMX28_MMC, },
+	{ .compatible = "fsl,imx23-mmc", .data = (void *) IMX23_SSP, },
+	{ .compatible = "fsl,imx28-mmc", .data = (void *) IMX28_SSP, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxs_mmc_dt_ids);
@@ -655,7 +655,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	}
 
 	if (np) {
-		host->devid = (enum mxs_mmc_id) of_id->data;
+		host->devid = (enum mxs_ssp_id) of_id->data;
 		/*
 		 * TODO: This is a temporary solution and should be changed
 		 * to use generic DMA binding later when the helpers get in.
@@ -829,7 +829,7 @@ static const struct dev_pm_ops mxs_mmc_pm_ops = {
 static struct platform_driver mxs_mmc_driver = {
 	.probe		= mxs_mmc_probe,
 	.remove		= mxs_mmc_remove,
-	.id_table	= mxs_mmc_ids,
+	.id_table	= mxs_ssp_ids,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,

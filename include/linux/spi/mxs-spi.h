@@ -24,7 +24,7 @@
 #ifndef __LINUX_SPI_MXS_SPI_H__
 #define __LINUX_SPI_MXS_SPI_H__
 
-#define ssp_is_old(host)	((host)->devid == IMX23_MMC)
+#define ssp_is_old(host)	((host)->devid == IMX23_SSP)
 
 /* SSP registers */
 #define HW_SSP_CTRL0				0x000
@@ -101,9 +101,9 @@
 
 #define SSP_PIO_NUM	3
 
-enum mxs_mmc_id {
-	IMX23_MMC,
-	IMX28_MMC,
+enum mxs_ssp_id {
+	IMX23_SSP,
+	IMX28_SSP,
 };
 
 #endif	/* __LINUX_SPI_MXS_SPI_H__ */
