@@ -922,17 +922,6 @@ void kvm_disable_largepages(void)
 }
 EXPORT_SYMBOL_GPL(kvm_disable_largepages);
 
-int is_error_page(struct page *page)
-{
-	return IS_ERR(page);
-}
-EXPORT_SYMBOL_GPL(is_error_page);
-
-struct page *get_bad_page(void)
-{
-	return ERR_PTR(-ENOENT);
-}
-
 static inline unsigned long bad_hva(void)
 {
 	return PAGE_OFFSET;
@@ -1179,7 +1168,7 @@ static struct page *kvm_pfn_to_page(pfn_t pfn)
 	WARN_ON(kvm_is_mmio_pfn(pfn));
 
 	if (is_error_pfn(pfn) || kvm_is_mmio_pfn(pfn))
-		return get_bad_page();
+		return KVM_ERR_PTR_BAD_PAGE;
 
 	return pfn_to_page(pfn);
 }

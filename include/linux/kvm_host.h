@@ -68,6 +68,13 @@ static inline int is_invalid_pfn(pfn_t pfn)
 	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
 }
 
+#define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
+
+static inline int is_error_page(struct page *page)
+{
+	return IS_ERR(page);
+}
+
 /*
  * vcpu->requests bit members
  */
@@ -409,7 +416,6 @@ id_to_memslot(struct kvm_memslots *slots, int id)
 	return slot;
 }
 
-int is_error_page(struct page *page);
 int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
@@ -436,7 +442,6 @@ void kvm_arch_flush_shadow(struct kvm *kvm);
 int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
 			    int nr_pages);
 
-struct page *get_bad_page(void);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
 void kvm_release_page_clean(struct page *page);
