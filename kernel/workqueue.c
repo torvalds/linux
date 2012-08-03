@@ -1053,27 +1053,6 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 }
 
 /**
- * queue_work - queue work on a workqueue
- * @wq: workqueue to use
- * @work: work to queue
- *
- * Returns 0 if @work was already on a queue, non-zero otherwise.
- *
- * We queue the work to the CPU on which it was submitted, but if the CPU dies
- * it can be processed by another CPU.
- */
-int queue_work(struct workqueue_struct *wq, struct work_struct *work)
-{
-	int ret;
-
-	ret = queue_work_on(get_cpu(), wq, work);
-	put_cpu();
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(queue_work);
-
-/**
  * queue_work_on - queue work on specific cpu
  * @cpu: CPU number to execute work on
  * @wq: workqueue to use
@@ -1097,6 +1076,27 @@ queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work)
 }
 EXPORT_SYMBOL_GPL(queue_work_on);
 
+/**
+ * queue_work - queue work on a workqueue
+ * @wq: workqueue to use
+ * @work: work to queue
+ *
+ * Returns 0 if @work was already on a queue, non-zero otherwise.
+ *
+ * We queue the work to the CPU on which it was submitted, but if the CPU dies
+ * it can be processed by another CPU.
+ */
+int queue_work(struct workqueue_struct *wq, struct work_struct *work)
+{
+	int ret;
+
+	ret = queue_work_on(get_cpu(), wq, work);
+	put_cpu();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(queue_work);
+
 static void delayed_work_timer_fn(unsigned long __data)
 {
 	struct delayed_work *dwork = (struct delayed_work *)__data;
@@ -1104,24 +1104,6 @@ static void delayed_work_timer_fn(unsigned long __data)
 
 	__queue_work(smp_processor_id(), cwq->wq, &dwork->work);
 }
-
-/**
- * queue_delayed_work - queue work on a workqueue after delay
- * @wq: workqueue to use
- * @dwork: delayable work to queue
- * @delay: number of jiffies to wait before queueing
- *
- * Returns 0 if @work was already on a queue, non-zero otherwise.
- */
-int queue_delayed_work(struct workqueue_struct *wq,
-			struct delayed_work *dwork, unsigned long delay)
-{
-	if (delay == 0)
-		return queue_work(wq, &dwork->work);
-
-	return queue_delayed_work_on(-1, wq, dwork, delay);
-}
-EXPORT_SYMBOL_GPL(queue_delayed_work);
 
 /**
  * queue_delayed_work_on - queue work on specific CPU after delay
@@ -1177,6 +1159,24 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(queue_delayed_work_on);
+
+/**
+ * queue_delayed_work - queue work on a workqueue after delay
+ * @wq: workqueue to use
+ * @dwork: delayable work to queue
+ * @delay: number of jiffies to wait before queueing
+ *
+ * Returns 0 if @work was already on a queue, non-zero otherwise.
+ */
+int queue_delayed_work(struct workqueue_struct *wq,
+			struct delayed_work *dwork, unsigned long delay)
+{
+	if (delay == 0)
+		return queue_work(wq, &dwork->work);
+
+	return queue_delayed_work_on(-1, wq, dwork, delay);
+}
+EXPORT_SYMBOL_GPL(queue_delayed_work);
 
 /**
  * worker_enter_idle - enter idle state
@@ -2877,6 +2877,19 @@ bool cancel_delayed_work_sync(struct delayed_work *dwork)
 }
 EXPORT_SYMBOL(cancel_delayed_work_sync);
 
+/*
+ * schedule_work_on - put work task on a specific cpu
+ * @cpu: cpu to put the work task on
+ * @work: job to be done
+ *
+ * This puts a job on a specific cpu
+ */
+int schedule_work_on(int cpu, struct work_struct *work)
+{
+	return queue_work_on(cpu, system_wq, work);
+}
+EXPORT_SYMBOL(schedule_work_on);
+
 /**
  * schedule_work - put work task in global workqueue
  * @work: job to be done
@@ -2894,34 +2907,6 @@ int schedule_work(struct work_struct *work)
 }
 EXPORT_SYMBOL(schedule_work);
 
-/*
- * schedule_work_on - put work task on a specific cpu
- * @cpu: cpu to put the work task on
- * @work: job to be done
- *
- * This puts a job on a specific cpu
- */
-int schedule_work_on(int cpu, struct work_struct *work)
-{
-	return queue_work_on(cpu, system_wq, work);
-}
-EXPORT_SYMBOL(schedule_work_on);
-
-/**
- * schedule_delayed_work - put work task in global workqueue after delay
- * @dwork: job to be done
- * @delay: number of jiffies to wait or 0 for immediate execution
- *
- * After waiting for a given time this puts a job in the kernel-global
- * workqueue.
- */
-int schedule_delayed_work(struct delayed_work *dwork,
-					unsigned long delay)
-{
-	return queue_delayed_work(system_wq, dwork, delay);
-}
-EXPORT_SYMBOL(schedule_delayed_work);
-
 /**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay
  * @cpu: cpu to use
@@ -2937,6 +2922,21 @@ int schedule_delayed_work_on(int cpu,
 	return queue_delayed_work_on(cpu, system_wq, dwork, delay);
 }
 EXPORT_SYMBOL(schedule_delayed_work_on);
+
+/**
+ * schedule_delayed_work - put work task in global workqueue after delay
+ * @dwork: job to be done
+ * @delay: number of jiffies to wait or 0 for immediate execution
+ *
+ * After waiting for a given time this puts a job in the kernel-global
+ * workqueue.
+ */
+int schedule_delayed_work(struct delayed_work *dwork,
+					unsigned long delay)
+{
+	return queue_delayed_work(system_wq, dwork, delay);
+}
+EXPORT_SYMBOL(schedule_delayed_work);
 
 /**
  * schedule_on_each_cpu - execute a function synchronously on each online CPU
