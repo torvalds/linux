@@ -1155,18 +1155,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	ieee80211_debugfs_add_netdev(sdata);
 }
 
-static void ieee80211_clean_sdata(struct ieee80211_sub_if_data *sdata)
-{
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_MESH_POINT:
-		mesh_path_flush_by_iface(sdata);
-		break;
-
-	default:
-		break;
-	}
-}
-
 static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 					   enum nl80211_iftype type)
 {
@@ -1502,9 +1490,6 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 	list_del_rcu(&sdata->list);
 	mutex_unlock(&sdata->local->iflist_mtx);
 
-	/* clean up type-dependent data */
-	ieee80211_clean_sdata(sdata);
-
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
 }
@@ -1523,8 +1508,6 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
 		list_del(&sdata->list);
-
-		ieee80211_clean_sdata(sdata);
 
 		unregister_netdevice_queue(sdata->dev, &unreg_list);
 	}
