@@ -678,7 +678,7 @@ static inline int may_follow_link(struct path *link, struct nameidata *nd)
 
 	/* Allowed if owner and follower match. */
 	inode = link->dentry->d_inode;
-	if (current_cred()->fsuid == inode->i_uid)
+	if (uid_eq(current_cred()->fsuid, inode->i_uid))
 		return 0;
 
 	/* Allowed if parent directory not sticky and world-writable. */
@@ -687,7 +687,7 @@ static inline int may_follow_link(struct path *link, struct nameidata *nd)
 		return 0;
 
 	/* Allowed if parent directory and link owner match. */
-	if (parent->i_uid == inode->i_uid)
+	if (uid_eq(parent->i_uid, inode->i_uid))
 		return 0;
 
 	path_put_conditional(link, nd);
@@ -757,7 +757,7 @@ static int may_linkat(struct path *link)
 	/* Source inode owner (or CAP_FOWNER) can hardlink all they like,
 	 * otherwise, it must be a safe source.
 	 */
-	if (cred->fsuid == inode->i_uid || safe_hardlink_source(inode) ||
+	if (uid_eq(cred->fsuid, inode->i_uid) || safe_hardlink_source(inode) ||
 	    capable(CAP_FOWNER))
 		return 0;
 
