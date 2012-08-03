@@ -126,10 +126,6 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 
-int perf_session__synthesize_sample(struct perf_session *session,
-				    union perf_event *event,
-				    const struct perf_sample *sample);
-
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 

@@ -16,14 +16,6 @@
 #include "cpumap.h"
 #include "event-parse.h"
 
-int perf_session__synthesize_sample(struct perf_session *session,
-				    union perf_event *event,
-				    const struct perf_sample *sample)
-{
-	return perf_event__synthesize_sample(event, perf_evlist__sample_type(session->evlist),
-					     sample, session->header.needs_swap);
-}
-
 static int perf_session__open(struct perf_session *self, bool force)
 {
 	struct stat input_stat;
