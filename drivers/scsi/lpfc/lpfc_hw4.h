@@ -189,9 +189,11 @@ struct lpfc_sli_intf {
 
 /* Delay Multiplier constant */
 #define LPFC_DMULT_CONST       651042
-#define LPFC_MIM_IMAX          636
-#define LPFC_FP_DEF_IMAX       10000
-#define LPFC_SP_DEF_IMAX       10000
+
+/* Configuration of Interrupts / sec for entire HBA port */
+#define LPFC_MIN_IMAX          5000
+#define LPFC_MAX_IMAX          5000000
+#define LPFC_DEF_IMAX          50000
 
 /* PORT_CAPABILITIES constants. */
 #define LPFC_MAX_SUPPORTED_PAGES	8

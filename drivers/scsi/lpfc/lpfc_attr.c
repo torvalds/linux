@@ -3643,14 +3643,21 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba *phba = vport->phba;
 	int val = 0, i;
 
+	/* fcp_imax is only valid for SLI4 */
+	if (phba->sli_rev != LPFC_SLI_REV4)
+		return -EINVAL;
+
 	/* Sanity check on user data */
 	if (!isdigit(buf[0]))
 		return -EINVAL;
 	if (sscanf(buf, "%i", &val) != 1)
 		return -EINVAL;
 
-	/* Value range is [636,651042] */
-	if (val < LPFC_MIM_IMAX || val > LPFC_DMULT_CONST)
+	/*
+	 * Value range for the HBA is [5000,5000000]
+	 * The value for each EQ depends on how many EQs are configured.
+	 */
+	if (val < LPFC_MIN_IMAX || val > LPFC_MAX_IMAX)
 		return -EINVAL;
 
 	phba->cfg_fcp_imax = (uint32_t)val;
@@ -3662,13 +3669,14 @@ lpfc_fcp_imax_store(struct device *dev, struct device_attribute *attr,
 
 /*
 # lpfc_fcp_imax: The maximum number of fast-path FCP interrupts per second
+# for the HBA.
 #
-# Value range is [636,651042]. Default value is 10000.
+# Value range is [5,000 to 5,000,000]. Default value is 50,000.
 */
-static int lpfc_fcp_imax = LPFC_FP_DEF_IMAX;
+static int lpfc_fcp_imax = LPFC_DEF_IMAX;
 module_param(lpfc_fcp_imax, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(lpfc_fcp_imax,
-	    "Set the maximum number of fast-path FCP interrupts per second");
+	    "Set the maximum number of FCP interrupts per second per HBA");
 lpfc_param_show(fcp_imax)
 
 /**
@@ -3687,14 +3695,19 @@ lpfc_param_show(fcp_imax)
 static int
 lpfc_fcp_imax_init(struct lpfc_hba *phba, int val)
 {
-	if (val >= LPFC_MIM_IMAX && val <= LPFC_DMULT_CONST) {
+	if (phba->sli_rev != LPFC_SLI_REV4) {
+		phba->cfg_fcp_imax = 0;
+		return 0;
+	}
+
+	if (val >= LPFC_MIN_IMAX && val <= LPFC_MAX_IMAX) {
 		phba->cfg_fcp_imax = val;
 		return 0;
 	}
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"3016 fcp_imax: %d out of range, using default\n", val);
-	phba->cfg_fcp_imax = LPFC_FP_DEF_IMAX;
+	phba->cfg_fcp_imax = LPFC_DEF_IMAX;
 
 	return 0;
 }

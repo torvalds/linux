@@ -12079,7 +12079,8 @@ lpfc_modify_fcp_eq_delay(struct lpfc_hba *phba, uint16_t startq)
 	eq_delay = &mbox->u.mqe.un.eq_delay;
 
 	/* Calculate delay multiper from maximum interrupt per second */
-	dmult = LPFC_DMULT_CONST/phba->cfg_fcp_imax - 1;
+	dmult = phba->cfg_fcp_imax / phba->cfg_fcp_io_channel;
+	dmult = LPFC_DMULT_CONST/dmult - 1;
 
 	cnt = 0;
 	for (fcp_eqidx = startq; fcp_eqidx < phba->cfg_fcp_io_channel;

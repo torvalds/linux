@@ -6927,7 +6927,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			goto out_destroy_hba_eq;
 		}
 		rc = lpfc_eq_create(phba, phba->sli4_hba.hba_eq[fcp_eqidx],
-				    phba->cfg_fcp_imax);
+			 (phba->cfg_fcp_imax / phba->cfg_fcp_io_channel));
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0523 Failed setup of fast-path EQ "
