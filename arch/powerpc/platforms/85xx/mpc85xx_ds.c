@@ -159,6 +159,7 @@ static void __init mpc85xx_ds_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_ds_setup_arch()", 0);
 
+	swiotlb_detect_4g();
 	mpc85xx_ds_pci_init();
 	mpc85xx_smp_init();
 

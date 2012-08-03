@@ -42,6 +42,7 @@ static void __init qemu_e500_setup_arch(void)
 	ppc_md.progress("qemu_e500_setup_arch()", 0);
 
 	fsl_pci_init();
+	swiotlb_detect_4g();
 	mpc85xx_smp_init();
 }
 

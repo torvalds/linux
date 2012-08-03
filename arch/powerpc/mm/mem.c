@@ -300,8 +300,7 @@ void __init mem_init(void)
 	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
 
 #ifdef CONFIG_SWIOTLB
-	if (ppc_swiotlb_enable)
-		swiotlb_init(1);
+	swiotlb_init(0);
 #endif
 
 	num_physpages = memblock_phys_mem_size() >> PAGE_SHIFT;
