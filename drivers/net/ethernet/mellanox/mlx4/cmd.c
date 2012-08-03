@@ -674,8 +674,10 @@ static int get_full_pkey_table(struct mlx4_dev *dev, u8 port, u16 *table,
 
 static enum ib_port_state vf_port_state(struct mlx4_dev *dev, int port, int vf)
 {
-	/* will be modified when add alias_guid feature */
-	return IB_PORT_DOWN;
+	if (mlx4_get_slave_port_state(dev, vf, port) == SLAVE_PORT_UP)
+		return IB_PORT_ACTIVE;
+	else
+		return IB_PORT_DOWN;
 }
 
 static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,

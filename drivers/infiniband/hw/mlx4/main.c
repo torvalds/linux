@@ -59,6 +59,10 @@ MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
 
+int mlx4_ib_sm_guid_assign = 1;
+module_param_named(sm_guid_assign, mlx4_ib_sm_guid_assign, int, 0444);
+MODULE_PARM_DESC(sm_guid_assign, "Enable SM alias_GUID assignment if sm_guid_assign > 0 (Default: 1)");
+
 static const char mlx4_ib_version[] =
 	DRV_NAME ": Mellanox ConnectX InfiniBand driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -349,12 +353,15 @@ static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 	return __mlx4_ib_query_port(ibdev, port, props, 0);
 }
 
-static int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
-			       union ib_gid *gid)
+int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
+			union ib_gid *gid, int netw_view)
 {
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
 	int err = -ENOMEM;
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
+	int clear = 0;
+	int mad_ifc_flags = MLX4_MAD_IFC_IGNORE_KEYS;
 
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
@@ -365,18 +372,29 @@ static int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
 	in_mad->attr_mod = cpu_to_be32(port);
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), MLX4_MAD_IFC_IGNORE_KEYS, port,
-			   NULL, NULL, in_mad, out_mad);
+	if (mlx4_is_mfunc(dev->dev) && netw_view)
+		mad_ifc_flags |= MLX4_MAD_IFC_NET_VIEW;
+
+	err = mlx4_MAD_IFC(dev, mad_ifc_flags, port, NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
 
 	memcpy(gid->raw, out_mad->data + 8, 8);
 
+	if (mlx4_is_mfunc(dev->dev) && !netw_view) {
+		if (index) {
+			/* For any index > 0, return the null guid */
+			err = 0;
+			clear = 1;
+			goto out;
+		}
+	}
+
 	init_query_mad(in_mad);
 	in_mad->attr_id  = IB_SMP_ATTR_GUID_INFO;
 	in_mad->attr_mod = cpu_to_be32(index / 8);
 
-	err = mlx4_MAD_IFC(to_mdev(ibdev), MLX4_MAD_IFC_IGNORE_KEYS, port,
+	err = mlx4_MAD_IFC(dev, mad_ifc_flags, port,
 			   NULL, NULL, in_mad, out_mad);
 	if (err)
 		goto out;
@@ -384,6 +402,8 @@ static int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	memcpy(gid->raw + 8, out_mad->data + (index % 8) * 8, 8);
 
 out:
+	if (clear)
+		memset(gid->raw + 8, 0, 8);
 	kfree(in_mad);
 	kfree(out_mad);
 	return err;
@@ -403,7 +423,7 @@ static int mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			     union ib_gid *gid)
 {
 	if (rdma_port_get_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND)
-		return __mlx4_ib_query_gid(ibdev, port, index, gid);
+		return __mlx4_ib_query_gid(ibdev, port, index, gid, 0);
 	else
 		return iboe_query_gid(ibdev, port, index, gid);
 }
@@ -1566,6 +1586,11 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 	case MLX4_DEV_EVENT_PORT_UP:
 		if (p > ibdev->num_ports)
 			return;
+		if (mlx4_is_master(dev) &&
+		    rdma_port_get_link_layer(&ibdev->ib_dev, p) ==
+			IB_LINK_LAYER_INFINIBAND) {
+			mlx4_ib_invalidate_all_guid_record(ibdev, p);
+		}
 		ibev.event = IB_EVENT_PORT_ACTIVE;
 		break;
 

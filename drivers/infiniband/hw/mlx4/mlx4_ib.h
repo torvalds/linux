@@ -42,6 +42,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_mad.h>
+#include <rdma/ib_sa.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
@@ -63,6 +64,9 @@ enum {
 
 #define MLX4_IB_SQ_HEADROOM(shift)	((MLX4_IB_MAX_HEADROOM >> (shift)) + 1)
 #define MLX4_IB_SQ_MAX_SPARE		(MLX4_IB_SQ_HEADROOM(MLX4_IB_SQ_MIN_WQE_SHIFT))
+
+/*module param to indicate if SM assigns the alias_GUID*/
+extern int mlx4_ib_sm_guid_assign;
 
 struct mlx4_ib_ucontext {
 	struct ib_ucontext	ibucontext;
@@ -277,6 +281,57 @@ struct mlx4_ib_ah {
 	union mlx4_ext_av       av;
 };
 
+/****************************************/
+/* alias guid support */
+/****************************************/
+#define NUM_PORT_ALIAS_GUID		2
+#define NUM_ALIAS_GUID_IN_REC		8
+#define NUM_ALIAS_GUID_REC_IN_PORT	16
+#define GUID_REC_SIZE			8
+#define NUM_ALIAS_GUID_PER_PORT		128
+#define MLX4_NOT_SET_GUID		(0x00LL)
+#define MLX4_GUID_FOR_DELETE_VAL	(~(0x00LL))
+
+enum mlx4_guid_alias_rec_status {
+	MLX4_GUID_INFO_STATUS_IDLE,
+	MLX4_GUID_INFO_STATUS_SET,
+	MLX4_GUID_INFO_STATUS_PENDING,
+};
+
+enum mlx4_guid_alias_rec_ownership {
+	MLX4_GUID_DRIVER_ASSIGN,
+	MLX4_GUID_SYSADMIN_ASSIGN,
+	MLX4_GUID_NONE_ASSIGN, /*init state of each record*/
+};
+
+enum mlx4_guid_alias_rec_method {
+	MLX4_GUID_INFO_RECORD_SET	= IB_MGMT_METHOD_SET,
+	MLX4_GUID_INFO_RECORD_DELETE	= IB_SA_METHOD_DELETE,
+};
+
+struct mlx4_sriov_alias_guid_info_rec_det {
+	u8 all_recs[GUID_REC_SIZE * NUM_ALIAS_GUID_IN_REC];
+	ib_sa_comp_mask guid_indexes; /*indicates what from the 8 records are valid*/
+	enum mlx4_guid_alias_rec_status status; /*indicates the administraively status of the record.*/
+	u8 method; /*set or delete*/
+	enum mlx4_guid_alias_rec_ownership ownership; /*indicates who assign that alias_guid record*/
+};
+
+struct mlx4_sriov_alias_guid_port_rec_det {
+	struct mlx4_sriov_alias_guid_info_rec_det all_rec_per_port[NUM_ALIAS_GUID_REC_IN_PORT];
+	struct workqueue_struct *wq;
+	struct delayed_work alias_guid_work;
+	u8 port;
+	struct mlx4_sriov_alias_guid *parent;
+	struct list_head cb_list;
+};
+
+struct mlx4_sriov_alias_guid {
+	struct mlx4_sriov_alias_guid_port_rec_det ports_guid[MLX4_MAX_PORTS];
+	spinlock_t ag_work_lock;
+	struct ib_sa_client *sa_client;
+};
+
 struct mlx4_ib_demux_work {
 	struct work_struct	work;
 	struct mlx4_ib_dev     *dev;
@@ -348,6 +403,8 @@ struct mlx4_ib_sriov {
 	 * it may be called from interrupt context.*/
 	spinlock_t going_down_lock;
 	int is_going_down;
+
+	struct mlx4_sriov_alias_guid alias_guid;
 
 	/* CM paravirtualization fields */
 	struct list_head cm_list;
@@ -555,6 +612,9 @@ int __mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 int __mlx4_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 			 u16 *pkey, int netw_view);
 
+int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
+			union ib_gid *gid, int netw_view);
+
 int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
 			u8 *mac, int *is_mcast, u8 port);
 
@@ -605,5 +665,19 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 
 void mlx4_ib_cm_paravirt_init(struct mlx4_ib_dev *dev);
 void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave_id);
+
+/* alias guid support */
+void mlx4_ib_init_alias_guid_work(struct mlx4_ib_dev *dev, int port);
+int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev);
+void mlx4_ib_destroy_alias_guid_service(struct mlx4_ib_dev *dev);
+void mlx4_ib_invalidate_all_guid_record(struct mlx4_ib_dev *dev, int port);
+
+void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
+					  int block_num,
+					  u8 port_num, u8 *p_data);
+
+void mlx4_ib_update_cache_on_guid_change(struct mlx4_ib_dev *dev,
+					 int block_num, u8 port_num,
+					 u8 *p_data);
 
 #endif /* MLX4_IB_H */

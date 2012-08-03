@@ -791,8 +791,10 @@ void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev)
 
 static void handle_client_rereg_event(struct mlx4_ib_dev *dev, u8 port_num)
 {
-	/* re-configure the mcg's */
+	/* re-configure the alias-guid and mcg's */
 	if (mlx4_is_master(dev->dev)) {
+		mlx4_ib_invalidate_all_guid_record(dev, port_num);
+
 		if (!dev->sriov.is_going_down)
 			mlx4_ib_mcg_port_cleanup(&dev->sriov.demux[port_num - 1], 0);
 	}
@@ -1808,9 +1810,20 @@ int mlx4_ib_init_sriov(struct mlx4_ib_dev *dev)
 		return 0;
 	}
 
+	err = mlx4_ib_init_alias_guid_service(dev);
+	if (err) {
+		mlx4_ib_warn(&dev->ib_dev, "Failed init alias guid process.\n");
+		goto paravirt_err;
+	}
+
 	mlx4_ib_warn(&dev->ib_dev, "initializing demux service for %d qp1 clients\n",
 		     dev->dev->caps.sqp_demux);
 	for (i = 0; i < dev->num_ports; i++) {
+		union ib_gid gid;
+		err = __mlx4_ib_query_gid(&dev->ib_dev, i + 1, 0, &gid, 1);
+		if (err)
+			goto demux_err;
+		dev->sriov.demux[i].guid_cache[0] = gid.global.interface_id;
 		err = alloc_pv_object(dev, mlx4_master_func_num(dev->dev), i + 1,
 				      &dev->sriov.sqps[i]);
 		if (err)
@@ -1828,6 +1841,9 @@ demux_err:
 		mlx4_ib_free_demux_ctx(&dev->sriov.demux[i]);
 		--i;
 	}
+	mlx4_ib_destroy_alias_guid_service(dev);
+
+paravirt_err:
 	mlx4_ib_cm_paravirt_clean(dev, -1);
 
 	return err;
@@ -1854,5 +1870,6 @@ void mlx4_ib_close_sriov(struct mlx4_ib_dev *dev)
 		}
 
 		mlx4_ib_cm_paravirt_clean(dev, -1);
+		mlx4_ib_destroy_alias_guid_service(dev);
 	}
 }
