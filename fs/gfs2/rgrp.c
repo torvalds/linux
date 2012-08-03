@@ -1890,46 +1890,30 @@ static u64 gfs2_alloc_extent(const struct gfs2_rbm *rbm, bool dinode,
 static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 				     u32 blen, unsigned char new_state)
 {
-	struct gfs2_rgrpd *rgd;
-	struct gfs2_bitmap *bi = NULL;
-	u32 length, rgrp_blk, buf_blk;
-	unsigned int buf;
+	struct gfs2_rbm rbm;
 
-	rgd = gfs2_blk2rgrpd(sdp, bstart, 1);
-	if (!rgd) {
+	rbm.rgd = gfs2_blk2rgrpd(sdp, bstart, 1);
+	if (!rbm.rgd) {
 		if (gfs2_consist(sdp))
 			fs_err(sdp, "block = %llu\n", (unsigned long long)bstart);
 		return NULL;
 	}
 
-	length = rgd->rd_length;
-
-	rgrp_blk = bstart - rgd->rd_data0;
-
 	while (blen--) {
-		for (buf = 0; buf < length; buf++) {
-			bi = rgd->rd_bits + buf;
-			if (rgrp_blk < (bi->bi_start + bi->bi_len) * GFS2_NBBY)
-				break;
+		gfs2_rbm_from_block(&rbm, bstart);
+		bstart++;
+		if (!rbm.bi->bi_clone) {
+			rbm.bi->bi_clone = kmalloc(rbm.bi->bi_bh->b_size,
+						   GFP_NOFS | __GFP_NOFAIL);
+			memcpy(rbm.bi->bi_clone + rbm.bi->bi_offset,
+			       rbm.bi->bi_bh->b_data + rbm.bi->bi_offset,
+			       rbm.bi->bi_len);
 		}
-
-		gfs2_assert(rgd->rd_sbd, buf < length);
-
-		buf_blk = rgrp_blk - bi->bi_start * GFS2_NBBY;
-		rgrp_blk++;
-
-		if (!bi->bi_clone) {
-			bi->bi_clone = kmalloc(bi->bi_bh->b_size,
-					       GFP_NOFS | __GFP_NOFAIL);
-			memcpy(bi->bi_clone + bi->bi_offset,
-			       bi->bi_bh->b_data + bi->bi_offset,
-			       bi->bi_len);
-		}
-		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-		gfs2_setbit(rgd, NULL, bi, buf_blk, new_state);
+		gfs2_trans_add_bh(rbm.rgd->rd_gl, rbm.bi->bi_bh, 1);
+		gfs2_setbit(rbm.rgd, NULL, rbm.bi, rbm.offset, new_state);
 	}
 
-	return rgd;
+	return rbm.rgd;
 }
 
 /**
