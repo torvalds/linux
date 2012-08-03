@@ -67,10 +67,18 @@ void mlx4_qp_event(struct mlx4_dev *dev, u32 qpn, int event_type)
 		complete(&qp->free);
 }
 
-static int is_qp0(struct mlx4_dev *dev, struct mlx4_qp *qp)
+/* used for INIT/CLOSE port logic */
+static int is_qp0(struct mlx4_dev *dev, struct mlx4_qp *qp, int *real_qp0, int *proxy_qp0)
 {
-	return qp->qpn >= dev->caps.sqp_start &&
+	/* qp0 is either the proxy qp0, or the real qp0 */
+	*proxy_qp0 = qp->qpn >= dev->caps.sqp_start &&
 		qp->qpn <= dev->caps.sqp_start + 1;
+
+	*real_qp0 = mlx4_is_master(dev) &&
+		qp->qpn >= dev->caps.base_sqpn &&
+		qp->qpn <= dev->caps.base_sqpn + 1;
+
+	return *real_qp0 || *proxy_qp0;
 }
 
 static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
@@ -122,6 +130,8 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cmd_mailbox *mailbox;
 	int ret = 0;
+	int real_qp0 = 0;
+	int proxy_qp0 = 0;
 	u8 port;
 
 	if (cur_state >= MLX4_QP_NUM_STATE || new_state >= MLX4_QP_NUM_STATE ||
@@ -133,9 +143,12 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 			MLX4_CMD_2RST_QP, MLX4_CMD_TIME_CLASS_A, native);
 		if (mlx4_is_master(dev) && cur_state != MLX4_QP_STATE_ERR &&
 		    cur_state != MLX4_QP_STATE_RST &&
-		    is_qp0(dev, qp)) {
+		    is_qp0(dev, qp, &real_qp0, &proxy_qp0)) {
 			port = (qp->qpn & 1) + 1;
-			priv->mfunc.master.qp0_state[port].qp0_active = 0;
+			if (proxy_qp0)
+				priv->mfunc.master.qp0_state[port].proxy_qp0_active = 0;
+			else
+				priv->mfunc.master.qp0_state[port].qp0_active = 0;
 		}
 		return ret;
 	}
@@ -161,6 +174,23 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		       qp->qpn | (!!sqd_event << 31),
 		       new_state == MLX4_QP_STATE_RST ? 2 : 0,
 		       op[cur_state][new_state], MLX4_CMD_TIME_CLASS_C, native);
+
+	if (mlx4_is_master(dev) && is_qp0(dev, qp, &real_qp0, &proxy_qp0)) {
+		port = (qp->qpn & 1) + 1;
+		if (cur_state != MLX4_QP_STATE_ERR &&
+		    cur_state != MLX4_QP_STATE_RST &&
+		    new_state == MLX4_QP_STATE_ERR) {
+			if (proxy_qp0)
+				priv->mfunc.master.qp0_state[port].proxy_qp0_active = 0;
+			else
+				priv->mfunc.master.qp0_state[port].qp0_active = 0;
+		} else if (new_state == MLX4_QP_STATE_RTR) {
+			if (proxy_qp0)
+				priv->mfunc.master.qp0_state[port].proxy_qp0_active = 1;
+			else
+				priv->mfunc.master.qp0_state[port].qp0_active = 1;
+		}
+	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return ret;

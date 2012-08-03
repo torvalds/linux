@@ -1365,6 +1365,19 @@ out:
 	return err;
 }
 
+/* for IB-type ports only in SRIOV mode. Checks that both proxy QP0
+ * and real QP0 are active, so that the paravirtualized QP0 is ready
+ * to operate */
+static int check_qp0_state(struct mlx4_dev *dev, int function, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	/* irrelevant if not infiniband */
+	if (priv->mfunc.master.qp0_state[port].proxy_qp0_active &&
+	    priv->mfunc.master.qp0_state[port].qp0_active)
+		return 1;
+	return 0;
+}
+
 int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,
 			   struct mlx4_cmd_mailbox *inbox,
@@ -1381,14 +1394,29 @@ int mlx4_INIT_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	if (dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB)
 		return -ENODEV;
 
-	/* Enable port only if it was previously disabled */
-	if (!priv->mfunc.master.init_port_ref[port]) {
-		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
-			       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
-		if (err)
-			return err;
+	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
+		/* Enable port only if it was previously disabled */
+		if (!priv->mfunc.master.init_port_ref[port]) {
+			err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
+				       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+			if (err)
+				return err;
+		}
+		priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
+	} else {
+		if (slave == mlx4_master_func_num(dev)) {
+			if (check_qp0_state(dev, slave, port) &&
+			    !priv->mfunc.master.qp0_state[port].port_active) {
+				err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_INIT_PORT,
+					       MLX4_CMD_TIME_CLASS_A, MLX4_CMD_NATIVE);
+				if (err)
+					return err;
+				priv->mfunc.master.qp0_state[port].port_active = 1;
+				priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
+			}
+		} else
+			priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
 	}
-	priv->mfunc.master.slave_state[slave].init_port_mask |= (1 << port);
 	++priv->mfunc.master.init_port_ref[port];
 	return 0;
 }
@@ -1463,13 +1491,30 @@ int mlx4_CLOSE_PORT_wrapper(struct mlx4_dev *dev, int slave,
 
 	if (dev->caps.port_mask[port] == MLX4_PORT_TYPE_IB)
 		return -ENODEV;
-	if (priv->mfunc.master.init_port_ref[port] == 1) {
-		err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT, 1000,
-			       MLX4_CMD_NATIVE);
-		if (err)
-			return err;
+
+	if (dev->caps.port_mask[port] != MLX4_PORT_TYPE_IB) {
+		if (priv->mfunc.master.init_port_ref[port] == 1) {
+			err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
+				       1000, MLX4_CMD_NATIVE);
+			if (err)
+				return err;
+		}
+		priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
+	} else {
+		/* infiniband port */
+		if (slave == mlx4_master_func_num(dev)) {
+			if (!priv->mfunc.master.qp0_state[port].qp0_active &&
+			    priv->mfunc.master.qp0_state[port].port_active) {
+				err = mlx4_cmd(dev, 0, port, 0, MLX4_CMD_CLOSE_PORT,
+					       1000, MLX4_CMD_NATIVE);
+				if (err)
+					return err;
+				priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
+				priv->mfunc.master.qp0_state[port].port_active = 0;
+			}
+		} else
+			priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
 	}
-	priv->mfunc.master.slave_state[slave].init_port_mask &= ~(1 << port);
 	--priv->mfunc.master.init_port_ref[port];
 	return 0;
 }
