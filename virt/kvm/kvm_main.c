@@ -934,11 +934,6 @@ int is_error_pfn(pfn_t pfn)
 }
 EXPORT_SYMBOL_GPL(is_error_pfn);
 
-static pfn_t get_bad_pfn(void)
-{
-	return -ENOENT;
-}
-
 int is_noslot_pfn(pfn_t pfn)
 {
 	return pfn == -ENOENT;
@@ -1143,7 +1138,7 @@ static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async,
 
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr))
-		return get_bad_pfn();
+		return KVM_PFN_ERR_BAD;
 
 	return hva_to_pfn(addr, atomic, async, write_fault, writable);
 }

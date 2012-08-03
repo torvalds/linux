@@ -50,6 +50,7 @@
 
 #define KVM_PFN_ERR_FAULT	(-EFAULT)
 #define KVM_PFN_ERR_HWPOISON	(-EHWPOISON)
+#define KVM_PFN_ERR_BAD		(-ENOENT)
 
 /*
  * vcpu->requests bit members
