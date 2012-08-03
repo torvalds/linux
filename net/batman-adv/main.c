@@ -188,6 +188,42 @@ int batadv_is_my_mac(const uint8_t *addr)
 	return 0;
 }
 
+/**
+ * batadv_seq_print_text_primary_if_get - called from debugfs table printing
+ *  function that requires the primary interface
+ * @seq: debugfs table seq_file struct
+ *
+ * Returns primary interface if found or NULL otherwise.
+ */
+struct batadv_hard_iface *
+batadv_seq_print_text_primary_if_get(struct seq_file *seq)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct batadv_priv *bat_priv = netdev_priv(net_dev);
+	struct batadv_hard_iface *primary_if;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+
+	if (!primary_if) {
+		seq_printf(seq,
+			   "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
+			   net_dev->name);
+		goto out;
+	}
+
+	if (primary_if->if_status == BATADV_IF_ACTIVE)
+		goto out;
+
+	seq_printf(seq,
+		   "BATMAN mesh %s disabled - primary interface not active\n",
+		   net_dev->name);
+	batadv_hardif_free_ref(primary_if);
+	primary_if = NULL;
+
+out:
+	return primary_if;
+}
+
 static int batadv_recv_unhandled_packet(struct sk_buff *skb,
 					struct batadv_hard_iface *recv_if)
 {
