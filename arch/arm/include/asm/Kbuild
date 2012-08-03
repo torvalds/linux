@@ -7,6 +7,7 @@ generic-y += bitsperlong.h
 generic-y += cputime.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += ioctl.h
 generic-y += irq_regs.h
 generic-y += kdebug.h

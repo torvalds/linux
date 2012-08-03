@@ -13,3 +13,4 @@ header-y += ptrace_offsets.h
 header-y += rse.h
 header-y += ucontext.h
 header-y += ustack.h
+generic-y += exec.h

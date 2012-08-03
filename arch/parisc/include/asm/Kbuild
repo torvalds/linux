@@ -2,3 +2,4 @@ include include/asm-generic/Kbuild.asm
 
 header-y += pdc.h
 generic-y += word-at-a-time.h
+generic-y += exec.h

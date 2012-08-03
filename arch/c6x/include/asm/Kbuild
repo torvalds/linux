@@ -11,6 +11,7 @@ generic-y += div64.h
 generic-y += dma.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += futex.h

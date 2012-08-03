@@ -1,3 +1,4 @@
 include include/asm-generic/Kbuild.asm
 
+generic-y	+= exec.h
 header-y	+= cachectl.h

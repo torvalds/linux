@@ -7,3 +7,5 @@ header-y += ethernet.h
 header-y += etraxgpio.h
 header-y += rs485.h
 header-y += sync_serial.h
+
+generic-y += exec.h
