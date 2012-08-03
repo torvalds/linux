@@ -592,12 +592,8 @@ static int epson1355fb_remove(struct platform_device *dev)
 
 	if (info) {
 		fb_dealloc_cmap(&info->cmap);
-		if (info->screen_base)
-			iounmap(info->screen_base);
 		framebuffer_release(info);
 	}
-	release_mem_region(EPSON1355FB_FB_PHYS, EPSON1355FB_FB_LEN);
-	release_mem_region(EPSON1355FB_REGS_PHYS, EPSON1355FB_REGS_LEN);
 	return 0;
 }
 
@@ -608,15 +604,18 @@ static int __devinit epson1355fb_probe(struct platform_device *dev)
 	u8 revision;
 	int rc = 0;
 
-	if (!request_mem_region(EPSON1355FB_REGS_PHYS, EPSON1355FB_REGS_LEN, "S1D13505 registers")) {
+	if (!devm_request_mem_region(&dev->dev, EPSON1355FB_REGS_PHYS,
+				     EPSON1355FB_REGS_LEN,
+				     "S1D13505 registers")) {
 		printk(KERN_ERR "epson1355fb: unable to reserve "
 		       "registers at 0x%0x\n", EPSON1355FB_REGS_PHYS);
 		rc = -EBUSY;
 		goto bail;
 	}
 
-	if (!request_mem_region(EPSON1355FB_FB_PHYS, EPSON1355FB_FB_LEN,
-				"S1D13505 framebuffer")) {
+	if (!devm_request_mem_region(&dev->dev, EPSON1355FB_FB_PHYS,
+				     EPSON1355FB_FB_LEN,
+				     "S1D13505 framebuffer")) {
 		printk(KERN_ERR "epson1355fb: unable to reserve "
 		       "framebuffer at 0x%0x\n", EPSON1355FB_FB_PHYS);
 		rc = -EBUSY;
@@ -638,7 +637,8 @@ static int __devinit epson1355fb_probe(struct platform_device *dev)
 	}
 	info->pseudo_palette = default_par->pseudo_palette;
 
-	info->screen_base = ioremap(EPSON1355FB_FB_PHYS, EPSON1355FB_FB_LEN);
+	info->screen_base = devm_ioremap(&dev->dev, EPSON1355FB_FB_PHYS,
+					 EPSON1355FB_FB_LEN);
 	if (!info->screen_base) {
 		printk(KERN_ERR "epson1355fb: unable to map framebuffer\n");
 		rc = -ENOMEM;
