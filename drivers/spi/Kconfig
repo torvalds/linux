@@ -364,6 +364,13 @@ config SPI_STMP3XXX
 	help
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
+config SPI_MXS
+	tristate "Freescale MXS SPI controller"
+	depends on ARCH_MXS
+	select STMP_DEVICE
+	help
+	  SPI driver for Freescale MXS devices.
+
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
 	depends on ARCH_TEGRA && (TEGRA_SYSTEM_DMA || TEGRA20_APB_DMA)
