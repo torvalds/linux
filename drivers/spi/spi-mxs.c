@@ -46,7 +46,6 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <linux/fsl/mxs-dma.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
 #include <linux/spi/spi.h>
