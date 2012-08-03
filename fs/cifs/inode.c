@@ -124,10 +124,10 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 {
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	unsigned long oldtime = cifs_i->time;
 
 	cifs_revalidate_cache(inode, fattr);
 
+	spin_lock(&inode->i_lock);
 	inode->i_atime = fattr->cf_atime;
 	inode->i_mtime = fattr->cf_mtime;
 	inode->i_ctime = fattr->cf_ctime;
@@ -148,9 +148,6 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	else
 		cifs_i->time = jiffies;
 
-	cFYI(1, "inode 0x%p old_time=%ld new_time=%ld", inode,
-		 oldtime, cifs_i->time);
-
 	cifs_i->delete_pending = fattr->cf_flags & CIFS_FATTR_DELETE_PENDING;
 
 	cifs_i->server_eof = fattr->cf_eof;
@@ -158,7 +155,6 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	 * Can't safely change the file size here if the client is writing to
 	 * it due to potential races.
 	 */
-	spin_lock(&inode->i_lock);
 	if (is_size_safe_to_change(cifs_i, fattr->cf_eof)) {
 		i_size_write(inode, fattr->cf_eof);
 
@@ -859,12 +855,14 @@ struct inode *cifs_root_iget(struct super_block *sb)
 
 	if (rc && tcon->ipc) {
 		cFYI(1, "ipc connection - fake read inode");
+		spin_lock(&inode->i_lock);
 		inode->i_mode |= S_IFDIR;
 		set_nlink(inode, 2);
 		inode->i_op = &cifs_ipc_inode_ops;
 		inode->i_fop = &simple_dir_operations;
 		inode->i_uid = cifs_sb->mnt_uid;
 		inode->i_gid = cifs_sb->mnt_gid;
+		spin_unlock(&inode->i_lock);
 	} else if (rc) {
 		iget_failed(inode);
 		inode = ERR_PTR(rc);
@@ -1110,6 +1108,15 @@ undo_setattr:
 	goto out_close;
 }
 
+/* copied from fs/nfs/dir.c with small changes */
+static void
+cifs_drop_nlink(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	if (inode->i_nlink > 0)
+		drop_nlink(inode);
+	spin_unlock(&inode->i_lock);
+}
 
 /*
  * If dentry->d_inode is null (usually meaning the cached dentry
@@ -1166,13 +1173,13 @@ retry_std_delete:
 psx_del_no_retry:
 	if (!rc) {
 		if (inode)
-			drop_nlink(inode);
+			cifs_drop_nlink(inode);
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
 	} else if (rc == -ETXTBSY) {
 		rc = cifs_rename_pending_delete(full_path, dentry, xid);
 		if (rc == 0)
-			drop_nlink(inode);
+			cifs_drop_nlink(inode);
 	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
@@ -1241,9 +1248,10 @@ cifs_mkdir_qinfo(struct inode *inode, struct dentry *dentry, umode_t mode,
 	 * setting nlink not necessary except in cases where we failed to get it
 	 * from the server or was set bogus
 	 */
+	spin_lock(&dentry->d_inode->i_lock);
 	if ((dentry->d_inode) && (dentry->d_inode->i_nlink < 2))
 		set_nlink(dentry->d_inode, 2);
-
+	spin_unlock(&dentry->d_inode->i_lock);
 	mode &= ~current_umask();
 	/* must turn on setgid bit if parent dir has it */
 	if (inode->i_mode & S_ISGID)

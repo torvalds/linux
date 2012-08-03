@@ -433,7 +433,9 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	if (old_file->d_inode) {
 		cifsInode = CIFS_I(old_file->d_inode);
 		if (rc == 0) {
+			spin_lock(&old_file->d_inode->i_lock);
 			inc_nlink(old_file->d_inode);
+			spin_unlock(&old_file->d_inode->i_lock);
 /* BB should we make this contingent on superblock flag NOATIME? */
 /*			old_file->d_inode->i_ctime = CURRENT_TIME;*/
 			/* parent dir timestamps will update from srv
