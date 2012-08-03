@@ -136,4 +136,6 @@ struct mxs_ssp {
 	enum mxs_ssp_id			devid;
 };
 
+void mxs_ssp_set_clk_rate(struct mxs_ssp *ssp, unsigned int rate);
+
 #endif	/* __LINUX_SPI_MXS_SPI_H__ */
