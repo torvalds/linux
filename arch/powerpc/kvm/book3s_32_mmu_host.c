@@ -211,6 +211,9 @@ next_pteg:
 		pteg1 |= PP_RWRX;
 	}
 
+	if (orig_pte->may_execute)
+		kvmppc_mmu_flush_icache(hpaddr >> PAGE_SHIFT);
+
 	local_irq_disable();
 
 	if (pteg[rr]) {
