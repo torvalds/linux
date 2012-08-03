@@ -1824,27 +1824,14 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 
 static unsigned char gfs2_get_block_type(struct gfs2_rgrpd *rgd, u64 block)
 {
-	struct gfs2_bitmap *bi = NULL;
-	u32 length, rgrp_block, buf_block;
-	unsigned int buf;
-	unsigned char type;
+	struct gfs2_rbm rbm = { .rgd = rgd, };
+	int ret;
 
-	length = rgd->rd_length;
-	rgrp_block = block - rgd->rd_data0;
+	ret = gfs2_rbm_from_block(&rbm, block);
+	WARN_ON_ONCE(ret != 0);
 
-	for (buf = 0; buf < length; buf++) {
-		bi = rgd->rd_bits + buf;
-		if (rgrp_block < (bi->bi_start + bi->bi_len) * GFS2_NBBY)
-			break;
-	}
-
-	gfs2_assert(rgd->rd_sbd, buf < length);
-	buf_block = rgrp_block - bi->bi_start * GFS2_NBBY;
-
-	type = gfs2_testbit(rgd, bi->bi_bh->b_data + bi->bi_offset,
-			   bi->bi_len, buf_block);
-
-	return type;
+	return gfs2_testbit(rgd, rbm.bi->bi_bh->b_data + rbm.bi->bi_offset,
+			    rbm.bi->bi_len, rbm.offset);
 }
 
 
