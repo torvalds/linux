@@ -3778,6 +3778,16 @@ static DEVICE_ATTR(lpfc_max_scsicmpl_time, S_IRUGO | S_IWUSR,
 LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 
 /*
+# lpfc_fcp_io_sched: Determine scheduling algrithmn for issuing FCP cmds
+# range is [0,1]. Default value is 0.
+# For [0], FCP commands are issued to Work Queues ina round robin fashion.
+# For [1], FCP commands are issued to a Work Queue associated with the
+#          current CPU.
+*/
+LPFC_ATTR_RW(fcp_io_sched, 0, 0, 1, "Determine scheduling algrithmn for "
+		"issuing commands [0] - Round Robin, [1] - Current CPU");
+
+/*
 # lpfc_cr_delay & lpfc_cr_count: Default values for I/O colaesing
 # cr_delay (msec) or cr_count outstanding commands. cr_delay can take
 # value [0,63]. cr_count can take value [1,255]. Default value of cr_delay
@@ -4001,6 +4011,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_topology,
 	&dev_attr_lpfc_scan_down,
 	&dev_attr_lpfc_link_speed,
+	&dev_attr_lpfc_fcp_io_sched,
 	&dev_attr_lpfc_cr_delay,
 	&dev_attr_lpfc_cr_count,
 	&dev_attr_lpfc_multi_ring_support,
@@ -4990,6 +5001,7 @@ struct fc_function_template lpfc_vport_transport_functions = {
 void
 lpfc_get_cfgparam(struct lpfc_hba *phba)
 {
+	lpfc_fcp_io_sched_init(phba, lpfc_fcp_io_sched);
 	lpfc_cr_delay_init(phba, lpfc_cr_delay);
 	lpfc_cr_count_init(phba, lpfc_cr_count);
 	lpfc_multi_ring_support_init(phba, lpfc_multi_ring_support);

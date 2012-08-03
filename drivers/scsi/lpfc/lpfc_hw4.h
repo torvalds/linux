@@ -187,6 +187,10 @@ struct lpfc_sli_intf {
 /* Active interrupt test count */
 #define LPFC_ACT_INTR_CNT	4
 
+/* Algrithmns for scheduling FCP commands to WQs */
+#define	LPFC_FCP_SCHED_ROUND_ROBIN	0
+#define	LPFC_FCP_SCHED_BY_CPU		1
+
 /* Delay Multiplier constant */
 #define LPFC_DMULT_CONST       651042
 

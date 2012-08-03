@@ -7816,7 +7816,11 @@ lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba)
 {
 	int i;
 
-	i = atomic_add_return(1, &phba->fcp_qidx);
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU)
+		i = smp_processor_id();
+	else
+		i = atomic_add_return(1, &phba->fcp_qidx);
+
 	i = (i % phba->cfg_fcp_io_channel);
 	return i;
 }
