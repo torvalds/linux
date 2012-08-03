@@ -167,6 +167,7 @@ int ib_find_cached_pkey(struct ib_device *device,
 	unsigned long flags;
 	int i;
 	int ret = -ENOENT;
+	int partial_ix = -1;
 
 	if (port_num < start_port(device) || port_num > end_port(device))
 		return -EINVAL;
@@ -179,10 +180,18 @@ int ib_find_cached_pkey(struct ib_device *device,
 
 	for (i = 0; i < cache->table_len; ++i)
 		if ((cache->table[i] & 0x7fff) == (pkey & 0x7fff)) {
-			*index = i;
-			ret = 0;
-			break;
+			if (cache->table[i] & 0x8000) {
+				*index = i;
+				ret = 0;
+				break;
+			} else
+				partial_ix = i;
 		}
+
+	if (ret && partial_ix >= 0) {
+		*index = partial_ix;
+		ret = 0;
+	}
 
 	read_unlock_irqrestore(&device->cache.lock, flags);
 
