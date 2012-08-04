@@ -691,10 +691,9 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 		return NULL;
 	}
 
-	ci = kmalloc(sizeof(struct cxd), GFP_KERNEL);
+	ci = kzalloc(sizeof(struct cxd), GFP_KERNEL);
 	if (!ci)
 		return NULL;
-	memset(ci, 0, sizeof(*ci));
 
 	mutex_init(&ci->lock);
 	memcpy(&ci->cfg, cfg, sizeof(struct cxd2099_cfg));
