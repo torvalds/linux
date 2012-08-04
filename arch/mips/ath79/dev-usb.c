@@ -193,6 +193,32 @@ static void __init ar933x_usb_setup(void)
 	platform_device_register(&ath79_ehci_device);
 }
 
+static void __init ar934x_usb_setup(void)
+{
+	u32 bootstrap;
+
+	bootstrap = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
+	if (bootstrap & AR934X_BOOTSTRAP_USB_MODE_DEVICE)
+		return;
+
+	ath79_device_reset_set(AR934X_RESET_USBSUS_OVERRIDE);
+	udelay(1000);
+
+	ath79_device_reset_clear(AR934X_RESET_USB_PHY);
+	udelay(1000);
+
+	ath79_device_reset_clear(AR934X_RESET_USB_PHY_ANALOG);
+	udelay(1000);
+
+	ath79_device_reset_clear(AR934X_RESET_USB_HOST);
+	udelay(1000);
+
+	ath79_usb_init_resource(ath79_ehci_resources, AR934X_EHCI_BASE,
+				AR934X_EHCI_SIZE, ATH79_CPU_IRQ_USB);
+	ath79_ehci_device.dev.platform_data = &ath79_ehci_pdata_v2;
+	platform_device_register(&ath79_ehci_device);
+}
+
 void __init ath79_register_usb(void)
 {
 	if (soc_is_ar71xx())
@@ -205,6 +231,8 @@ void __init ath79_register_usb(void)
 		ar913x_usb_setup();
 	else if (soc_is_ar933x())
 		ar933x_usb_setup();
+	else if (soc_is_ar934x())
+		ar934x_usb_setup();
 	else
 		BUG();
 }
