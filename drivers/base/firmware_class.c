@@ -243,18 +243,21 @@ static ssize_t firmware_loading_store(struct device *dev,
 	switch (loading) {
 	case 1:
 		/* discarding any previous partial load */
-		for (i = 0; i < fw_priv->nr_pages; i++)
-			__free_page(fw_priv->pages[i]);
-		kfree(fw_priv->pages);
-		fw_priv->pages = NULL;
-		fw_priv->page_array_size = 0;
-		fw_priv->nr_pages = 0;
-		set_bit(FW_STATUS_LOADING, &fw_priv->status);
+		if (!test_bit(FW_STATUS_DONE, &fw_priv->status)) {
+			for (i = 0; i < fw_priv->nr_pages; i++)
+				__free_page(fw_priv->pages[i]);
+			kfree(fw_priv->pages);
+			fw_priv->pages = NULL;
+			fw_priv->page_array_size = 0;
+			fw_priv->nr_pages = 0;
+			set_bit(FW_STATUS_LOADING, &fw_priv->status);
+		}
 		break;
 	case 0:
 		if (test_bit(FW_STATUS_LOADING, &fw_priv->status)) {
-			complete(&fw_priv->completion);
+			set_bit(FW_STATUS_DONE, &fw_priv->status);
 			clear_bit(FW_STATUS_LOADING, &fw_priv->status);
+			complete(&fw_priv->completion);
 			break;
 		}
 		/* fallthrough */
@@ -557,7 +560,6 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 
 	wait_for_completion(&fw_priv->completion);
 
-	set_bit(FW_STATUS_DONE, &fw_priv->status);
 	del_timer_sync(&fw_priv->timeout);
 
 	mutex_lock(&fw_lock);
