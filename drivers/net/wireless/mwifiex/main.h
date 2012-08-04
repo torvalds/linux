@@ -710,6 +710,7 @@ struct mwifiex_adapter {
 	u8 scan_delay_cnt;
 	u8 empty_tx_q_cnt;
 	atomic_t is_tx_received;
+	atomic_t pending_bridged_pkts;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
@@ -799,6 +800,10 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 				struct host_cmd_ds_command *resp);
 int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
+				  struct sk_buff *skb);
+int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
+				  struct sk_buff *skb);
+int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 				  struct sk_buff *skb);
 int mwifiex_process_sta_event(struct mwifiex_private *);
 int mwifiex_process_uap_event(struct mwifiex_private *);
