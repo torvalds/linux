@@ -22,6 +22,11 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/list.h>
+#include <linux/async.h>
+#include <linux/pm.h>
+
+#include "base.h"
+#include "power/power.h"
 
 MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Multi purpose firmware loading support");
@@ -90,6 +95,19 @@ struct firmware_cache {
 	/* firmware_buf instance will be added into the below list */
 	spinlock_t lock;
 	struct list_head head;
+
+	/*
+	 * Names of firmware images which have been cached successfully
+	 * will be added into the below list so that device uncache
+	 * helper can trace which firmware images have been cached
+	 * before.
+	 */
+	spinlock_t name_lock;
+	struct list_head fw_names;
+
+	wait_queue_head_t wait_queue;
+	int cnt;
+	struct delayed_work work;
 };
 
 struct firmware_buf {
@@ -104,6 +122,11 @@ struct firmware_buf {
 	int nr_pages;
 	int page_array_size;
 	char fw_id[];
+};
+
+struct fw_cache_entry {
+	struct list_head list;
+	char name[];
 };
 
 struct firmware_priv {
@@ -218,12 +241,6 @@ static void __fw_free_buf(struct kref *ref)
 static void fw_free_buf(struct firmware_buf *buf)
 {
 	kref_put(&buf->ref, __fw_free_buf);
-}
-
-static void __init fw_cache_init(void)
-{
-	spin_lock_init(&fw_cache.lock);
-	INIT_LIST_HEAD(&fw_cache.head);
 }
 
 static struct firmware_priv *to_firmware_priv(struct device *dev)
@@ -1006,6 +1023,198 @@ int uncache_firmware(const char *fw_name)
 	}
 
 	return -EINVAL;
+}
+
+static struct fw_cache_entry *alloc_fw_cache_entry(const char *name)
+{
+	struct fw_cache_entry *fce;
+
+	fce = kzalloc(sizeof(*fce) + strlen(name) + 1, GFP_ATOMIC);
+	if (!fce)
+		goto exit;
+
+	strcpy(fce->name, name);
+exit:
+	return fce;
+}
+
+static void free_fw_cache_entry(struct fw_cache_entry *fce)
+{
+	kfree(fce);
+}
+
+static void __async_dev_cache_fw_image(void *fw_entry,
+				       async_cookie_t cookie)
+{
+	struct fw_cache_entry *fce = fw_entry;
+	struct firmware_cache *fwc = &fw_cache;
+	int ret;
+
+	ret = cache_firmware(fce->name);
+	if (ret)
+		goto free;
+
+	spin_lock(&fwc->name_lock);
+	list_add(&fce->list, &fwc->fw_names);
+	spin_unlock(&fwc->name_lock);
+	goto drop_ref;
+
+free:
+	free_fw_cache_entry(fce);
+drop_ref:
+	spin_lock(&fwc->name_lock);
+	fwc->cnt--;
+	spin_unlock(&fwc->name_lock);
+
+	wake_up(&fwc->wait_queue);
+}
+
+/* called with dev->devres_lock held */
+static void dev_create_fw_entry(struct device *dev, void *res,
+				void *data)
+{
+	struct fw_name_devm *fwn = res;
+	const char *fw_name = fwn->name;
+	struct list_head *head = data;
+	struct fw_cache_entry *fce;
+
+	fce = alloc_fw_cache_entry(fw_name);
+	if (fce)
+		list_add(&fce->list, head);
+}
+
+static int devm_name_match(struct device *dev, void *res,
+			   void *match_data)
+{
+	struct fw_name_devm *fwn = res;
+	return (fwn->magic == (unsigned long)match_data);
+}
+
+static void dev_cache_fw_image(struct device *dev)
+{
+	LIST_HEAD(todo);
+	struct fw_cache_entry *fce;
+	struct fw_cache_entry *fce_next;
+	struct firmware_cache *fwc = &fw_cache;
+
+	devres_for_each_res(dev, fw_name_devm_release,
+			    devm_name_match, &fw_cache,
+			    dev_create_fw_entry, &todo);
+
+	list_for_each_entry_safe(fce, fce_next, &todo, list) {
+		list_del(&fce->list);
+
+		spin_lock(&fwc->name_lock);
+		fwc->cnt++;
+		spin_unlock(&fwc->name_lock);
+
+		async_schedule(__async_dev_cache_fw_image, (void *)fce);
+	}
+}
+
+static void __device_uncache_fw_images(void)
+{
+	struct firmware_cache *fwc = &fw_cache;
+	struct fw_cache_entry *fce;
+
+	spin_lock(&fwc->name_lock);
+	while (!list_empty(&fwc->fw_names)) {
+		fce = list_entry(fwc->fw_names.next,
+				struct fw_cache_entry, list);
+		list_del(&fce->list);
+		spin_unlock(&fwc->name_lock);
+
+		uncache_firmware(fce->name);
+		free_fw_cache_entry(fce);
+
+		spin_lock(&fwc->name_lock);
+	}
+	spin_unlock(&fwc->name_lock);
+}
+
+/**
+ * device_cache_fw_images - cache devices' firmware
+ *
+ * If one device called request_firmware or its nowait version
+ * successfully before, the firmware names are recored into the
+ * device's devres link list, so device_cache_fw_images can call
+ * cache_firmware() to cache these firmwares for the device,
+ * then the device driver can load its firmwares easily at
+ * time when system is not ready to complete loading firmware.
+ */
+static void device_cache_fw_images(void)
+{
+	struct firmware_cache *fwc = &fw_cache;
+	struct device *dev;
+	DEFINE_WAIT(wait);
+
+	pr_debug("%s\n", __func__);
+
+	device_pm_lock();
+	list_for_each_entry(dev, &dpm_list, power.entry)
+		dev_cache_fw_image(dev);
+	device_pm_unlock();
+
+	/* wait for completion of caching firmware for all devices */
+	spin_lock(&fwc->name_lock);
+	for (;;) {
+		prepare_to_wait(&fwc->wait_queue, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (!fwc->cnt)
+			break;
+
+		spin_unlock(&fwc->name_lock);
+
+		schedule();
+
+		spin_lock(&fwc->name_lock);
+	}
+	spin_unlock(&fwc->name_lock);
+	finish_wait(&fwc->wait_queue, &wait);
+}
+
+/**
+ * device_uncache_fw_images - uncache devices' firmware
+ *
+ * uncache all firmwares which have been cached successfully
+ * by device_uncache_fw_images earlier
+ */
+static void device_uncache_fw_images(void)
+{
+	pr_debug("%s\n", __func__);
+	__device_uncache_fw_images();
+}
+
+static void device_uncache_fw_images_work(struct work_struct *work)
+{
+	device_uncache_fw_images();
+}
+
+/**
+ * device_uncache_fw_images_delay - uncache devices firmwares
+ * @delay: number of milliseconds to delay uncache device firmwares
+ *
+ * uncache all devices's firmwares which has been cached successfully
+ * by device_cache_fw_images after @delay milliseconds.
+ */
+static void device_uncache_fw_images_delay(unsigned long delay)
+{
+	schedule_delayed_work(&fw_cache.work,
+			msecs_to_jiffies(delay));
+}
+
+static void __init fw_cache_init(void)
+{
+	spin_lock_init(&fw_cache.lock);
+	INIT_LIST_HEAD(&fw_cache.head);
+
+	spin_lock_init(&fw_cache.name_lock);
+	INIT_LIST_HEAD(&fw_cache.fw_names);
+	fw_cache.cnt = 0;
+
+	init_waitqueue_head(&fw_cache.wait_queue);
+	INIT_DELAYED_WORK(&fw_cache.work,
+			  device_uncache_fw_images_work);
 }
 
 static int __init firmware_class_init(void)
