@@ -742,6 +742,8 @@ err_put_dev:
  *      @name will be used as $FIRMWARE in the uevent environment and
  *      should be distinctive enough not to be confused with any other
  *      firmware image for this or any other device.
+ *
+ *	Caller must hold the reference count of @device.
  **/
 int
 request_firmware(const struct firmware **firmware_p, const char *name,
@@ -823,6 +825,7 @@ static void request_firmware_work_func(struct work_struct *work)
 
  out:
 	fw_work->cont(fw, fw_work->context);
+	put_device(fw_work->device);
 
 	module_put(fw_work->module);
 	kfree(fw_work);
@@ -840,6 +843,8 @@ static void request_firmware_work_func(struct work_struct *work)
  *	@fw may be %NULL if firmware request fails.
  * @cont: function will be called asynchronously when the firmware
  *	request is over.
+ *
+ *	Caller must hold the reference count of @device.
  *
  *	Asynchronous variant of request_firmware() for user contexts where
  *	it is not possible to sleep for long time. It can't be called
@@ -869,6 +874,7 @@ request_firmware_nowait(
 		return -EFAULT;
 	}
 
+	get_device(fw_work->device);
 	INIT_WORK(&fw_work->work, request_firmware_work_func);
 	schedule_work(&fw_work->work);
 	return 0;
