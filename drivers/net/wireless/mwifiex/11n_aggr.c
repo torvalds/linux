@@ -62,9 +62,7 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	};
 	struct tx_packet_hdr *tx_header;
 
-	skb_put(skb_aggr, sizeof(*tx_header));
-
-	tx_header = (struct tx_packet_hdr *) skb_aggr->data;
+	tx_header = (void *)skb_put(skb_aggr, sizeof(*tx_header));
 
 	/* Copy DA and SA */
 	dt_offset = 2 * ETH_ALEN;
@@ -82,9 +80,8 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	tx_header->eth803_hdr.h_proto = htons(skb_src->len + LLC_SNAP_LEN);
 
 	/* Add payload */
-	skb_put(skb_aggr, skb_src->len);
-	memcpy(skb_aggr->data + sizeof(*tx_header), skb_src->data,
-	       skb_src->len);
+	memcpy(skb_put(skb_aggr, skb_src->len), skb_src->data, skb_src->len);
+
 	*pad = (((skb_src->len + LLC_SNAP_LEN) & 3)) ? (4 - (((skb_src->len +
 						      LLC_SNAP_LEN)) & 3)) : 0;
 	skb_put(skb_aggr, *pad);
