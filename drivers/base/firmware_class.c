@@ -93,6 +93,8 @@ struct firmware_priv {
 	struct completion completion;
 	struct firmware *fw;
 	unsigned long status;
+	void *data;
+	size_t size;
 	struct page **pages;
 	int nr_pages;
 	int page_array_size;
@@ -156,9 +158,11 @@ static void fw_dev_release(struct device *dev)
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
 	int i;
 
+	/* free untransfered pages buffer */
 	for (i = 0; i < fw_priv->nr_pages; i++)
 		__free_page(fw_priv->pages[i]);
 	kfree(fw_priv->pages);
+
 	kfree(fw_priv);
 
 	module_put(THIS_MODULE);
@@ -194,6 +198,7 @@ static ssize_t firmware_loading_show(struct device *dev,
 	return sprintf(buf, "%d\n", loading);
 }
 
+/* firmware holds the ownership of pages */
 static void firmware_free_data(const struct firmware *fw)
 {
 	int i;
@@ -237,9 +242,7 @@ static ssize_t firmware_loading_store(struct device *dev,
 
 	switch (loading) {
 	case 1:
-		firmware_free_data(fw_priv->fw);
-		memset(fw_priv->fw, 0, sizeof(struct firmware));
-		/* If the pages are not owned by 'struct firmware' */
+		/* discarding any previous partial load */
 		for (i = 0; i < fw_priv->nr_pages; i++)
 			__free_page(fw_priv->pages[i]);
 		kfree(fw_priv->pages);
@@ -250,20 +253,6 @@ static ssize_t firmware_loading_store(struct device *dev,
 		break;
 	case 0:
 		if (test_bit(FW_STATUS_LOADING, &fw_priv->status)) {
-			vunmap(fw_priv->fw->data);
-			fw_priv->fw->data = vmap(fw_priv->pages,
-						 fw_priv->nr_pages,
-						 0, PAGE_KERNEL_RO);
-			if (!fw_priv->fw->data) {
-				dev_err(dev, "%s: vmap() failed\n", __func__);
-				goto err;
-			}
-			/* Pages are now owned by 'struct firmware' */
-			fw_priv->fw->pages = fw_priv->pages;
-			fw_priv->pages = NULL;
-
-			fw_priv->page_array_size = 0;
-			fw_priv->nr_pages = 0;
 			complete(&fw_priv->completion);
 			clear_bit(FW_STATUS_LOADING, &fw_priv->status);
 			break;
@@ -273,7 +262,6 @@ static ssize_t firmware_loading_store(struct device *dev,
 		dev_err(dev, "%s: unexpected value (%d)\n", __func__, loading);
 		/* fallthrough */
 	case -1:
-	err:
 		fw_load_abort(fw_priv);
 		break;
 	}
@@ -299,12 +287,12 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 		ret_count = -ENODEV;
 		goto out;
 	}
-	if (offset > fw->size) {
+	if (offset > fw_priv->size) {
 		ret_count = 0;
 		goto out;
 	}
-	if (count > fw->size - offset)
-		count = fw->size - offset;
+	if (count > fw_priv->size - offset)
+		count = fw_priv->size - offset;
 
 	ret_count = count;
 
@@ -396,6 +384,7 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 		retval = -ENODEV;
 		goto out;
 	}
+
 	retval = fw_realloc_buffer(fw_priv, offset + count);
 	if (retval)
 		goto out;
@@ -418,7 +407,7 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 		count -= page_cnt;
 	}
 
-	fw->size = max_t(size_t, offset, fw->size);
+	fw_priv->size = max_t(size_t, offset, fw_priv->size);
 out:
 	mutex_unlock(&fw_lock);
 	return retval;
@@ -504,6 +493,29 @@ static void _request_firmware_cleanup(const struct firmware **firmware_p)
 	*firmware_p = NULL;
 }
 
+/* transfer the ownership of pages to firmware */
+static int fw_set_page_data(struct firmware_priv *fw_priv)
+{
+	struct firmware *fw = fw_priv->fw;
+
+	fw_priv->data = vmap(fw_priv->pages, fw_priv->nr_pages,
+				0, PAGE_KERNEL_RO);
+	if (!fw_priv->data)
+		return -ENOMEM;
+
+	fw->data = fw_priv->data;
+	fw->pages = fw_priv->pages;
+	fw->size = fw_priv->size;
+
+	WARN_ON(PFN_UP(fw->size) != fw_priv->nr_pages);
+
+	fw_priv->nr_pages = 0;
+	fw_priv->pages = NULL;
+	fw_priv->data = NULL;
+
+	return 0;
+}
+
 static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 				  long timeout)
 {
@@ -549,8 +561,12 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 	del_timer_sync(&fw_priv->timeout);
 
 	mutex_lock(&fw_lock);
-	if (!fw_priv->fw->size || test_bit(FW_STATUS_ABORT, &fw_priv->status))
+	if (!fw_priv->size || test_bit(FW_STATUS_ABORT, &fw_priv->status))
 		retval = -ENOENT;
+
+	/* transfer pages ownership at the last minute */
+	if (!retval)
+		retval = fw_set_page_data(fw_priv);
 	fw_priv->fw = NULL;
 	mutex_unlock(&fw_lock);
 
