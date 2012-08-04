@@ -107,8 +107,6 @@ struct the_nilfs {
 	 * used for
 	 * - loading the latest checkpoint exclusively.
 	 * - allocating a new full segment.
-	 * - protecting s_dirt in the super_block struct
-	 *   (see nilfs_write_super) and the following fields.
 	 */
 	struct buffer_head     *ns_sbh[2];
 	struct nilfs_super_block *ns_sbp[2];

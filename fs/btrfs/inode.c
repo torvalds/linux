@@ -324,7 +324,8 @@ static noinline int add_async_extent(struct async_cow *cow,
  * If this code finds it can't get good compression, it puts an
  * entry onto the work queue to write the uncompressed bytes.  This
  * makes sure that both compressed inodes and uncompressed inodes
- * are written in the same order that pdflush sent them down.
+ * are written in the same order that the flusher thread sent them
+ * down.
  */
 static noinline int compress_file_range(struct inode *inode,
 					struct page *locked_page,
