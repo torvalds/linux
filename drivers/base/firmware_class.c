@@ -1146,9 +1146,21 @@ static void device_cache_fw_images(void)
 {
 	struct firmware_cache *fwc = &fw_cache;
 	struct device *dev;
+	int old_timeout;
 	DEFINE_WAIT(wait);
 
 	pr_debug("%s\n", __func__);
+
+	/*
+	 * use small loading timeout for caching devices' firmware
+	 * because all these firmware images have been loaded
+	 * successfully at lease once, also system is ready for
+	 * completing firmware loading now. The maximum size of
+	 * firmware in current distributions is about 2M bytes,
+	 * so 10 secs should be enough.
+	 */
+	old_timeout = loading_timeout;
+	loading_timeout = 10;
 
 	device_pm_lock();
 	list_for_each_entry(dev, &dpm_list, power.entry)
@@ -1171,6 +1183,8 @@ static void device_cache_fw_images(void)
 	}
 	spin_unlock(&fwc->name_lock);
 	finish_wait(&fwc->wait_queue, &wait);
+
+	loading_timeout = old_timeout;
 }
 
 /**
