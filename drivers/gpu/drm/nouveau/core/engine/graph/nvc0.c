@@ -229,8 +229,8 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 		nv_wo32(grch->mmio, i++ * 4, 0x00405830);
 		nv_wo32(grch->mmio, i++ * 4, magic);
 		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-			for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
-				u32 reg = TP_UNIT(gpc, tp, 0x520);
+			for (tp = 0; tp < priv->tpc_nr[gpc]; tp++) {
+				u32 reg = TPC_UNIT(gpc, tp, 0x520);
 				nv_wo32(grch->mmio, i++ * 4, reg);
 				nv_wo32(grch->mmio, i++ * 4, magic);
 				magic += 0x0324;
@@ -243,14 +243,14 @@ nvc0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 		nv_wo32(grch->mmio, i++ * 4, 0x004064c4);
 		nv_wo32(grch->mmio, i++ * 4, 0x0086ffff);
 		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-			for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
-				u32 reg = TP_UNIT(gpc, tp, 0x520);
+			for (tp = 0; tp < priv->tpc_nr[gpc]; tp++) {
+				u32 reg = TPC_UNIT(gpc, tp, 0x520);
 				nv_wo32(grch->mmio, i++ * 4, reg);
 				nv_wo32(grch->mmio, i++ * 4, (1 << 28) | magic);
 				magic += 0x0324;
 			}
-			for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
-				u32 reg = TP_UNIT(gpc, tp, 0x544);
+			for (tp = 0; tp < priv->tpc_nr[gpc]; tp++) {
+				u32 reg = TPC_UNIT(gpc, tp, 0x544);
 				nv_wo32(grch->mmio, i++ * 4, reg);
 				nv_wo32(grch->mmio, i++ * 4, magic);
 				magic += 0x0324;
@@ -393,12 +393,12 @@ static void
 nvc0_graph_init_gpc_0(struct drm_device *dev)
 {
 	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
-	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tp_total);
-	u32 data[TP_MAX / 8];
+	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
+	u32 data[TPC_MAX / 8];
 	u8  tpnr[GPC_MAX];
 	int i, gpc, tpc;
 
-	nv_wr32(dev, TP_UNIT(0, 0, 0x5c), 1); /* affects TFB offset queries */
+	nv_wr32(dev, TPC_UNIT(0, 0, 0x5c), 1); /* affects TFB offset queries */
 
 	/*
 	 *      TP      ROP UNKVAL(magic_not_rop_nr)
@@ -410,12 +410,12 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	 */
 
 	memset(data, 0x00, sizeof(data));
-	memcpy(tpnr, priv->tp_nr, sizeof(priv->tp_nr));
-	for (i = 0, gpc = -1; i < priv->tp_total; i++) {
+	memcpy(tpnr, priv->tpc_nr, sizeof(priv->tpc_nr));
+	for (i = 0, gpc = -1; i < priv->tpc_total; i++) {
 		do {
 			gpc = (gpc + 1) % priv->gpc_nr;
 		} while (!tpnr[gpc]);
-		tpc = priv->tp_nr[gpc] - tpnr[gpc]--;
+		tpc = priv->tpc_nr[gpc] - tpnr[gpc]--;
 
 		data[i / 8] |= tpc << ((i % 8) * 4);
 	}
@@ -427,8 +427,8 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
 		nv_wr32(dev, GPC_UNIT(gpc, 0x0914), priv->magic_not_rop_nr << 8 |
-						  priv->tp_nr[gpc]);
-		nv_wr32(dev, GPC_UNIT(gpc, 0x0910), 0x00040000 | priv->tp_total);
+						  priv->tpc_nr[gpc]);
+		nv_wr32(dev, GPC_UNIT(gpc, 0x0910), 0x00040000 | priv->tpc_total);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x0918), magicgpc918);
 	}
 
@@ -463,14 +463,14 @@ nvc0_graph_init_gpc_1(struct drm_device *dev)
 		nv_wr32(dev, GPC_UNIT(gpc, 0x0900), 0xc0000000);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x1028), 0xc0000000);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x0824), 0xc0000000);
-		for (tp = 0; tp < priv->tp_nr[gpc]; tp++) {
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x508), 0xffffffff);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x50c), 0xffffffff);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x224), 0xc0000000);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x48c), 0xc0000000);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x084), 0xc0000000);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x644), 0x001ffffe);
-			nv_wr32(dev, TP_UNIT(gpc, tp, 0x64c), 0x0000000f);
+		for (tp = 0; tp < priv->tpc_nr[gpc]; tp++) {
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x508), 0xffffffff);
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x50c), 0xffffffff);
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x224), 0xc0000000);
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x48c), 0xc0000000);
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x084), 0xc0000000);
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x644), 0x001ffffe);
+			nv_wr32(dev, TPC_UNIT(gpc, tp, 0x64c), 0x0000000f);
 		}
 		nv_wr32(dev, GPC_UNIT(gpc, 0x2c90), 0xffffffff);
 		nv_wr32(dev, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
@@ -858,20 +858,20 @@ nvc0_graph_create(struct drm_device *dev)
 	priv->gpc_nr  =  nv_rd32(dev, 0x409604) & 0x0000001f;
 	priv->rop_nr = (nv_rd32(dev, 0x409604) & 0x001f0000) >> 16;
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		priv->tp_nr[gpc] = nv_rd32(dev, GPC_UNIT(gpc, 0x2608));
-		priv->tp_total += priv->tp_nr[gpc];
+		priv->tpc_nr[gpc] = nv_rd32(dev, GPC_UNIT(gpc, 0x2608));
+		priv->tpc_total += priv->tpc_nr[gpc];
 	}
 
 	/*XXX: these need figuring out... */
 	switch (dev_priv->chipset) {
 	case 0xc0:
-		if (priv->tp_total == 11) { /* 465, 3/4/4/0, 4 */
+		if (priv->tpc_total == 11) { /* 465, 3/4/4/0, 4 */
 			priv->magic_not_rop_nr = 0x07;
 		} else
-		if (priv->tp_total == 14) { /* 470, 3/3/4/4, 5 */
+		if (priv->tpc_total == 14) { /* 470, 3/3/4/4, 5 */
 			priv->magic_not_rop_nr = 0x05;
 		} else
-		if (priv->tp_total == 15) { /* 480, 3/4/4/4, 6 */
+		if (priv->tpc_total == 15) { /* 480, 3/4/4/4, 6 */
 			priv->magic_not_rop_nr = 0x06;
 		}
 		break;
@@ -900,8 +900,8 @@ nvc0_graph_create(struct drm_device *dev)
 
 	if (!priv->magic_not_rop_nr) {
 		NV_ERROR(dev, "PGRAPH: unknown config: %d/%d/%d/%d, %d\n",
-			 priv->tp_nr[0], priv->tp_nr[1], priv->tp_nr[2],
-			 priv->tp_nr[3], priv->rop_nr);
+			 priv->tpc_nr[0], priv->tpc_nr[1], priv->tpc_nr[2],
+			 priv->tpc_nr[3], priv->rop_nr);
 		priv->magic_not_rop_nr = 0x00;
 	}
 

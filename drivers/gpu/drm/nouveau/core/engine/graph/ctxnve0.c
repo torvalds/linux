@@ -25,15 +25,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include <core/mm.h>
-#include "nve0.h"
-
-static void
-nv_icmd(struct drm_device *priv, u32 icmd, u32 data)
-{
-	nv_wr32(priv, 0x400204, data);
-	nv_wr32(priv, 0x400200, icmd);
-	while (nv_rd32(priv, 0x400700) & 0x00000002) {}
-}
+#include "nvc0.h"
 
 static void
 nve0_grctx_generate_icmd(struct drm_device *priv)
@@ -921,13 +913,6 @@ nve0_grctx_generate_icmd(struct drm_device *priv)
 	nv_icmd(priv, 0x000b0a, 0x00000001);
 	nv_icmd(priv, 0x01e100, 0x00000001);
 	nv_wr32(priv, 0x400208, 0x00000000);
-}
-
-static void
-nv_mthd(struct drm_device *priv, u32 class, u32 mthd, u32 data)
-{
-	nv_wr32(priv, 0x40448c, data);
-	nv_wr32(priv, 0x404488, 0x80000000 | (mthd << 14) | class);
 }
 
 static void
@@ -2621,8 +2606,8 @@ nve0_graph_generate_tpcunk(struct drm_device *priv)
 int
 nve0_grctx_generate(struct nouveau_channel *chan)
 {
-	struct nve0_graph_priv *oprv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
-	struct nve0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
+	struct nvc0_graph_priv *oprv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *priv = chan->dev;
 	u32 data[6] = {}, data2[2] = {}, tmp;
 	u32 tpc_set = 0, tpc_mask = 0;

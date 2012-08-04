@@ -31,7 +31,7 @@
 #include <core/mm.h>
 #include <engine/fifo.h>
 
-#include "nve0.h"
+#include "nvc0.h"
 
 static void
 nve0_graph_ctxctl_debug_unit(struct drm_device *dev, u32 base)
@@ -88,8 +88,8 @@ nve0_graph_unload_context_to(struct drm_device *dev, u64 chan)
 static int
 nve0_graph_construct_context(struct nouveau_channel *chan)
 {
-	struct nve0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
-	struct nve0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
+	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
 	int ret, i;
 	u32 *ctx;
@@ -128,8 +128,8 @@ err:
 static int
 nve0_graph_create_context_mmio_list(struct nouveau_channel *chan)
 {
-	struct nve0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
-	struct nve0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
+	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
 	struct drm_device *dev = chan->dev;
 	u32 magic[GPC_MAX][2];
 	u16 offset = 0x0000;
@@ -220,8 +220,8 @@ static int
 nve0_graph_context_new(struct nouveau_channel *chan, int engine)
 {
 	struct drm_device *dev = chan->dev;
-	struct nve0_graph_priv *priv = nv_engine(dev, engine);
-	struct nve0_graph_chan *grch;
+	struct nvc0_graph_priv *priv = nv_engine(dev, engine);
+	struct nvc0_graph_chan *grch;
 	struct nouveau_gpuobj *grctx;
 	int ret, i;
 
@@ -279,7 +279,7 @@ error:
 static void
 nve0_graph_context_del(struct nouveau_channel *chan, int engine)
 {
-	struct nve0_graph_chan *grch = chan->engctx[engine];
+	struct nvc0_graph_chan *grch = chan->engctx[engine];
 
 	nouveau_gpuobj_unmap(&grch->mmio_vma);
 	nouveau_gpuobj_unmap(&grch->unk418810_vma);
@@ -310,7 +310,7 @@ nve0_graph_fini(struct drm_device *dev, int engine, bool suspend)
 static void
 nve0_graph_init_obj418880(struct drm_device *dev)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	int i;
 
 	nv_wr32(dev, GPC_BCAST(0x0880), 0x00000000);
@@ -362,7 +362,7 @@ nve0_graph_init_units(struct drm_device *dev)
 static void
 nve0_graph_init_gpc_0(struct drm_device *dev)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, priv->tpc_total);
 	u32 data[TPC_MAX / 8];
 	u8  tpcnr[GPC_MAX];
@@ -400,7 +400,7 @@ nve0_graph_init_gpc_0(struct drm_device *dev)
 static void
 nve0_graph_init_gpc_1(struct drm_device *dev)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	int gpc, tpc;
 
 	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
@@ -426,7 +426,7 @@ nve0_graph_init_gpc_1(struct drm_device *dev)
 static void
 nve0_graph_init_rop(struct drm_device *dev)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	int rop;
 
 	for (rop = 0; rop < priv->rop_nr; rop++) {
@@ -439,7 +439,7 @@ nve0_graph_init_rop(struct drm_device *dev)
 
 static void
 nve0_graph_init_fuc(struct drm_device *dev, u32 fuc_base,
-		    struct nve0_graph_fuc *code, struct nve0_graph_fuc *data)
+		    struct nvc0_graph_fuc *code, struct nvc0_graph_fuc *data)
 {
 	int i;
 
@@ -458,7 +458,7 @@ nve0_graph_init_fuc(struct drm_device *dev, u32 fuc_base,
 static int
 nve0_graph_init_ctxctl(struct drm_device *dev)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	u32 r000260;
 
 	/* load fuc microcode */
@@ -613,7 +613,7 @@ nve0_graph_ctxctl_isr(struct drm_device *dev)
 static void
 nve0_graph_trap_isr(struct drm_device *dev, int chid)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
+	struct nvc0_graph_priv *priv = nv_engine(dev, NVOBJ_ENGINE_GR);
 	u32 trap = nv_rd32(dev, 0x400108);
 	int rop;
 
@@ -716,7 +716,7 @@ nve0_graph_isr(struct drm_device *dev)
 
 static int
 nve0_graph_create_fw(struct drm_device *dev, const char *fwname,
-		     struct nve0_graph_fuc *fuc)
+		     struct nvc0_graph_fuc *fuc)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	const struct firmware *fw;
@@ -735,7 +735,7 @@ nve0_graph_create_fw(struct drm_device *dev, const char *fwname,
 }
 
 static void
-nve0_graph_destroy_fw(struct nve0_graph_fuc *fuc)
+nve0_graph_destroy_fw(struct nvc0_graph_fuc *fuc)
 {
 	if (fuc->data) {
 		kfree(fuc->data);
@@ -746,7 +746,7 @@ nve0_graph_destroy_fw(struct nve0_graph_fuc *fuc)
 static void
 nve0_graph_destroy(struct drm_device *dev, int engine)
 {
-	struct nve0_graph_priv *priv = nv_engine(dev, engine);
+	struct nvc0_graph_priv *priv = nv_engine(dev, engine);
 
 	nve0_graph_destroy_fw(&priv->fuc409c);
 	nve0_graph_destroy_fw(&priv->fuc409d);
@@ -769,11 +769,11 @@ int
 nve0_graph_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nve0_graph_priv *priv;
+	struct nvc0_graph_priv *priv;
 	int ret, gpc, i;
 	u32 kepler;
 
-	kepler = nve0_graph_class(dev);
+	kepler = nvc0_graph_class(dev);
 	if (!kepler) {
 		NV_ERROR(dev, "PGRAPH: unsupported chipset, please report!\n");
 		return 0;

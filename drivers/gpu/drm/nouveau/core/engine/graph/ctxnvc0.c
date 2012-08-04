@@ -27,19 +27,12 @@
 #include <core/mm.h>
 #include "nvc0.h"
 
-static void
+void
 nv_icmd(struct drm_device *priv, u32 icmd, u32 data)
 {
 	nv_wr32(priv, 0x400204, data);
 	nv_wr32(priv, 0x400200, icmd);
 	while (nv_rd32(priv, 0x400700) & 2) {}
-}
-
-static void
-nv_mthd(struct drm_device *priv, u32 class, u32 mthd, u32 data)
-{
-	nv_wr32(priv, 0x40448c, data);
-	nv_wr32(priv, 0x404488, 0x80000000 | (mthd << 14) | class);
 }
 
 static void
@@ -1823,22 +1816,22 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 	for (tp = 0, id = 0; tp < 4; tp++) {
 		for (gpc = 0; gpc < oprv->gpc_nr; gpc++) {
-			if (tp < oprv->tp_nr[gpc]) {
-				nv_wr32(priv, TP_UNIT(gpc, tp, 0x698), id);
-				nv_wr32(priv, TP_UNIT(gpc, tp, 0x4e8), id);
+			if (tp < oprv->tpc_nr[gpc]) {
+				nv_wr32(priv, TPC_UNIT(gpc, tp, 0x698), id);
+				nv_wr32(priv, TPC_UNIT(gpc, tp, 0x4e8), id);
 				nv_wr32(priv, GPC_UNIT(gpc, 0x0c10 + tp * 4), id);
-				nv_wr32(priv, TP_UNIT(gpc, tp, 0x088), id);
+				nv_wr32(priv, TPC_UNIT(gpc, tp, 0x088), id);
 				id++;
 			}
 
-			nv_wr32(priv, GPC_UNIT(gpc, 0x0c08), oprv->tp_nr[gpc]);
-			nv_wr32(priv, GPC_UNIT(gpc, 0x0c8c), oprv->tp_nr[gpc]);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0c08), oprv->tpc_nr[gpc]);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0c8c), oprv->tpc_nr[gpc]);
 		}
 	}
 
 	tmp = 0;
 	for (i = 0; i < oprv->gpc_nr; i++)
-		tmp |= oprv->tp_nr[i] << (i * 4);
+		tmp |= oprv->tpc_nr[i] << (i * 4);
 	nv_wr32(priv, 0x406028, tmp);
 	nv_wr32(priv, 0x405870, tmp);
 
@@ -1850,13 +1843,13 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nv_wr32(priv, 0x40587c, 0x00000000);
 
 	if (1) {
-		u8 tpnr[GPC_MAX], data[TP_MAX];
+		u8 tpnr[GPC_MAX], data[TPC_MAX];
 
-		memcpy(tpnr, oprv->tp_nr, sizeof(oprv->tp_nr));
+		memcpy(tpnr, oprv->tpc_nr, sizeof(oprv->tpc_nr));
 		memset(data, 0x1f, sizeof(data));
 
 		gpc = -1;
-		for (tp = 0; tp < oprv->tp_total; tp++) {
+		for (tp = 0; tp < oprv->tpc_total; tp++) {
 			do {
 				gpc = (gpc + 1) % oprv->gpc_nr;
 			} while (!tpnr[gpc]);
@@ -1874,10 +1867,10 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		u8 shift, ntpcv;
 
 		/* calculate first set of magics */
-		memcpy(tpnr, oprv->tp_nr, sizeof(oprv->tp_nr));
+		memcpy(tpnr, oprv->tpc_nr, sizeof(oprv->tpc_nr));
 
 		gpc = -1;
-		for (tp = 0; tp < oprv->tp_total; tp++) {
+		for (tp = 0; tp < oprv->tpc_total; tp++) {
 			do {
 				gpc = (gpc + 1) % oprv->gpc_nr;
 			} while (!tpnr[gpc]);
@@ -1891,7 +1884,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 		/* and the second... */
 		shift = 0;
-		ntpcv = oprv->tp_total;
+		ntpcv = oprv->tpc_total;
 		while (!(ntpcv & (1 << 4))) {
 			ntpcv <<= 1;
 			shift++;
@@ -1904,13 +1897,13 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 			data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
 
 		/* GPC_BROADCAST */
-		nv_wr32(priv, 0x418bb8, (oprv->tp_total << 8) |
+		nv_wr32(priv, 0x418bb8, (oprv->tpc_total << 8) |
 					oprv->magic_not_rop_nr);
 		for (i = 0; i < 6; i++)
 			nv_wr32(priv, 0x418b08 + (i * 4), data[i]);
 
 		/* GPC_BROADCAST.TP_BROADCAST */
-		nv_wr32(priv, 0x419bd0, (oprv->tp_total << 8) |
+		nv_wr32(priv, 0x419bd0, (oprv->tpc_total << 8) |
 				       oprv->magic_not_rop_nr |
 				       data2[0]);
 		nv_wr32(priv, 0x419be4, data2[1]);
@@ -1918,7 +1911,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 			nv_wr32(priv, 0x419b00 + (i * 4), data[i]);
 
 		/* UNK78xx */
-		nv_wr32(priv, 0x4078bc, (oprv->tp_total << 8) |
+		nv_wr32(priv, 0x4078bc, (oprv->tpc_total << 8) |
 					oprv->magic_not_rop_nr);
 		for (i = 0; i < 6; i++)
 			nv_wr32(priv, 0x40780c + (i * 4), data[i]);
@@ -1928,18 +1921,18 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		u32 tp_mask = 0, tp_set = 0;
 		u8  tpnr[GPC_MAX], a, b;
 
-		memcpy(tpnr, oprv->tp_nr, sizeof(oprv->tp_nr));
+		memcpy(tpnr, oprv->tpc_nr, sizeof(oprv->tpc_nr));
 		for (gpc = 0; gpc < oprv->gpc_nr; gpc++)
-			tp_mask |= ((1 << oprv->tp_nr[gpc]) - 1) << (gpc * 8);
+			tp_mask |= ((1 << oprv->tpc_nr[gpc]) - 1) << (gpc * 8);
 
 		for (i = 0, gpc = -1, b = -1; i < 32; i++) {
-			a = (i * (oprv->tp_total - 1)) / 32;
+			a = (i * (oprv->tpc_total - 1)) / 32;
 			if (a != b) {
 				b = a;
 				do {
 					gpc = (gpc + 1) % oprv->gpc_nr;
 				} while (!tpnr[gpc]);
-				tp = oprv->tp_nr[gpc] - tpnr[gpc]--;
+				tp = oprv->tpc_nr[gpc] - tpnr[gpc]--;
 
 				tp_set |= 1 << ((gpc * 8) + tp);
 			}
