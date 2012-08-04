@@ -424,10 +424,10 @@ struct txpd {
 struct rxpd {
 	u8 bss_type;
 	u8 bss_num;
-	u16 rx_pkt_length;
-	u16 rx_pkt_offset;
-	u16 rx_pkt_type;
-	u16 seq_num;
+	__le16 rx_pkt_length;
+	__le16 rx_pkt_offset;
+	__le16 rx_pkt_type;
+	__le16 seq_num;
 	u8 priority;
 	u8 rx_rate;
 	s8 snr;
