@@ -464,7 +464,6 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 
 err:
 	mfd_remove_devices(palmas->dev);
-	kfree(palmas);
 	return ret;
 }
 
