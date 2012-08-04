@@ -112,7 +112,6 @@ static struct firmware_priv *to_firmware_priv(struct device *dev)
 static void fw_load_abort(struct firmware_priv *fw_priv)
 {
 	set_bit(FW_STATUS_ABORT, &fw_priv->status);
-	wmb();
 	complete(&fw_priv->completion);
 }
 
