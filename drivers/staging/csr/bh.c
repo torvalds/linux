@@ -164,7 +164,7 @@ uf_wait_for_thread_to_stop(unifi_priv_t *priv, struct uf_thread *thread)
 handle_bh_error(unifi_priv_t *priv)
 {
     u8 conf_param = CONFIG_IND_ERROR;
-    u8 interfaceTag = 0; /* used as a loop counter */
+    u8 interfaceTag;
 
 
     /* Block unifi_run_bh() until the error has been handled. */
