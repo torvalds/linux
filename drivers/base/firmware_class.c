@@ -452,7 +452,7 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 	f_dev = &fw_priv->dev;
 
 	device_initialize(f_dev);
-	dev_set_name(f_dev, "%s", dev_name(device));
+	dev_set_name(f_dev, "%s", fw_name);
 	f_dev->parent = device;
 	f_dev->class = &firmware_class;
 
