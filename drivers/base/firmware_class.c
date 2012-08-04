@@ -142,6 +142,17 @@ static struct firmware_buf *__allocate_fw_buf(const char *fw_name,
 	return buf;
 }
 
+static struct firmware_buf *__fw_lookup_buf(const char *fw_name)
+{
+	struct firmware_buf *tmp;
+	struct firmware_cache *fwc = &fw_cache;
+
+	list_for_each_entry(tmp, &fwc->head, list)
+		if (!strcmp(tmp->fw_id, fw_name))
+			return tmp;
+	return NULL;
+}
+
 static int fw_lookup_and_allocate_buf(const char *fw_name,
 				      struct firmware_cache *fwc,
 				      struct firmware_buf **buf)
@@ -149,14 +160,13 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 	struct firmware_buf *tmp;
 
 	spin_lock(&fwc->lock);
-	list_for_each_entry(tmp, &fwc->head, list)
-		if (!strcmp(tmp->fw_id, fw_name)) {
-			kref_get(&tmp->ref);
-			spin_unlock(&fwc->lock);
-			*buf = tmp;
-			return 1;
-		}
-
+	tmp = __fw_lookup_buf(fw_name);
+	if (tmp) {
+		kref_get(&tmp->ref);
+		spin_unlock(&fwc->lock);
+		*buf = tmp;
+		return 1;
+	}
 	tmp = __allocate_fw_buf(fw_name, fwc);
 	if (tmp)
 		list_add(&tmp->list, &fwc->head);
@@ -165,6 +175,18 @@ static int fw_lookup_and_allocate_buf(const char *fw_name,
 	*buf = tmp;
 
 	return tmp ? 0 : -ENOMEM;
+}
+
+static struct firmware_buf *fw_lookup_buf(const char *fw_name)
+{
+	struct firmware_buf *tmp;
+	struct firmware_cache *fwc = &fw_cache;
+
+	spin_lock(&fwc->lock);
+	tmp = __fw_lookup_buf(fw_name);
+	spin_unlock(&fwc->lock);
+
+	return tmp;
 }
 
 static void __fw_free_buf(struct kref *ref)
@@ -852,6 +874,66 @@ request_firmware_nowait(
 	return 0;
 }
 
+/**
+ * cache_firmware - cache one firmware image in kernel memory space
+ * @fw_name: the firmware image name
+ *
+ * Cache firmware in kernel memory so that drivers can use it when
+ * system isn't ready for them to request firmware image from userspace.
+ * Once it returns successfully, driver can use request_firmware or its
+ * nowait version to get the cached firmware without any interacting
+ * with userspace
+ *
+ * Return 0 if the firmware image has been cached successfully
+ * Return !0 otherwise
+ *
+ */
+int cache_firmware(const char *fw_name)
+{
+	int ret;
+	const struct firmware *fw;
+
+	pr_debug("%s: %s\n", __func__, fw_name);
+
+	ret = request_firmware(&fw, fw_name, NULL);
+	if (!ret)
+		kfree(fw);
+
+	pr_debug("%s: %s ret=%d\n", __func__, fw_name, ret);
+
+	return ret;
+}
+
+/**
+ * uncache_firmware - remove one cached firmware image
+ * @fw_name: the firmware image name
+ *
+ * Uncache one firmware image which has been cached successfully
+ * before.
+ *
+ * Return 0 if the firmware cache has been removed successfully
+ * Return !0 otherwise
+ *
+ */
+int uncache_firmware(const char *fw_name)
+{
+	struct firmware_buf *buf;
+	struct firmware fw;
+
+	pr_debug("%s: %s\n", __func__, fw_name);
+
+	if (fw_get_builtin_firmware(&fw, fw_name))
+		return 0;
+
+	buf = fw_lookup_buf(fw_name);
+	if (buf) {
+		fw_free_buf(buf);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int __init firmware_class_init(void)
 {
 	fw_cache_init();
@@ -869,3 +951,5 @@ module_exit(firmware_class_exit);
 EXPORT_SYMBOL(release_firmware);
 EXPORT_SYMBOL(request_firmware);
 EXPORT_SYMBOL(request_firmware_nowait);
+EXPORT_SYMBOL_GPL(cache_firmware);
+EXPORT_SYMBOL_GPL(uncache_firmware);
