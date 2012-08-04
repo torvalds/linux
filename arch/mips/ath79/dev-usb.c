@@ -145,6 +145,8 @@ static void __init ar7240_usb_setup(void)
 
 	ath79_ohci_resources[0].start = AR7240_OHCI_BASE;
 	ath79_ohci_resources[0].end = AR7240_OHCI_BASE + AR7240_OHCI_SIZE - 1;
+	ath79_ohci_resources[1].start = ATH79_CPU_IRQ_USB;
+	ath79_ohci_resources[1].end = ATH79_CPU_IRQ_USB;
 	platform_device_register(&ath79_ohci_device);
 }
 
