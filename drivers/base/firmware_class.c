@@ -846,9 +846,13 @@ static void request_firmware_work_func(struct work_struct *work)
  *
  *	Caller must hold the reference count of @device.
  *
- *	Asynchronous variant of request_firmware() for user contexts where
- *	it is not possible to sleep for long time. It can't be called
- *	in atomic contexts.
+ *	Asynchronous variant of request_firmware() for user contexts:
+ *		- sleep for as small periods as possible since it may
+ *		increase kernel boot time of built-in device drivers
+ *		requesting firmware in their ->probe() methods, if
+ *		@gfp is GFP_KERNEL.
+ *
+ *		- can't sleep at all if @gfp is GFP_ATOMIC.
  **/
 int
 request_firmware_nowait(
