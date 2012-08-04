@@ -84,7 +84,6 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 
 	*pad = (((skb_src->len + LLC_SNAP_LEN) & 3)) ? (4 - (((skb_src->len +
 						      LLC_SNAP_LEN)) & 3)) : 0;
-	skb_put(skb_aggr, *pad);
 
 	return skb_aggr->len + *pad;
 }
