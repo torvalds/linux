@@ -160,39 +160,41 @@ uf_wait_for_thread_to_stop(unifi_priv_t *priv, struct uf_thread *thread)
  *      None.
  * ---------------------------------------------------------------------------
  */
-    static void
+static void
 handle_bh_error(unifi_priv_t *priv)
 {
-    u8 conf_param = CONFIG_IND_ERROR;
-    u8 interfaceTag;
+	netInterface_priv_t *interfacePriv;
+	u8 conf_param = CONFIG_IND_ERROR;
+	u8 interfaceTag;
 
 
-    /* Block unifi_run_bh() until the error has been handled. */
-    priv->bh_thread.block_thread = 1;
+	/* Block unifi_run_bh() until the error has been handled. */
+	priv->bh_thread.block_thread = 1;
 
-    /* Consider UniFi to be uninitialised */
-    priv->init_progress = UNIFI_INIT_NONE;
+	/* Consider UniFi to be uninitialised */
+	priv->init_progress = UNIFI_INIT_NONE;
 
-    /* Stop the network traffic */
-    for( interfaceTag =0; interfaceTag <CSR_WIFI_NUM_INTERFACES;interfaceTag ++) {
-        netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
-        if (interfacePriv->netdev_registered == 1) {
-            netif_carrier_off(priv->netdev[interfaceTag]);
-        }
-    }
+	/* Stop the network traffic */
+	for (interfaceTag = 0;
+	     interfaceTag < CSR_WIFI_NUM_INTERFACES; interfaceTag++) {
+		interfacePriv = priv->interfacePriv[interfaceTag];
+		if (interfacePriv->netdev_registered)
+			netif_carrier_off(priv->netdev[interfaceTag]);
+	}
 
 #ifdef CSR_NATIVE_LINUX
-    /* Force any client waiting on an mlme_wait_for_reply() to abort. */
-    uf_abort_mlme(priv);
+	/* Force any client waiting on an mlme_wait_for_reply() to abort. */
+	uf_abort_mlme(priv);
 
-    /* Cancel any pending workqueue tasks */
-    flush_workqueue(priv->unifi_workqueue);
+	/* Cancel any pending workqueue tasks */
+	flush_workqueue(priv->unifi_workqueue);
 
 #endif /* CSR_NATIVE_LINUX */
 
-    unifi_error(priv, "handle_bh_error: fatal error is reported to the SME.\n");
-    /* Notify the clients (SME or unifi_manager) for the error. */
-    ul_log_config_ind(priv, &conf_param, sizeof(u8));
+	unifi_error(priv,
+		"handle_bh_error: fatal error is reported to the SME.\n");
+	/* Notify the clients (SME or unifi_manager) for the error. */
+	ul_log_config_ind(priv, &conf_param, sizeof(u8));
 
 } /* handle_bh_error() */
 
