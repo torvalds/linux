@@ -65,10 +65,12 @@ enum KEY_TYPE_ID {
 	KEY_TYPE_ID_TKIP,
 	KEY_TYPE_ID_AES,
 	KEY_TYPE_ID_WAPI,
+	KEY_TYPE_ID_AES_CMAC,
 };
 #define KEY_MCAST	BIT(0)
 #define KEY_UNICAST	BIT(1)
 #define KEY_ENABLED	BIT(2)
+#define KEY_IGTK	BIT(10)
 
 #define WAPI_KEY_LEN			50
 
@@ -581,6 +583,13 @@ struct mwifiex_ie_type_key_param_set {
 	__le16 key_info;
 	__le16 key_len;
 	u8 key[50];
+} __packed;
+
+#define IGTK_PN_LEN		8
+
+struct mwifiex_cmac_param {
+	u8 ipn[IGTK_PN_LEN];
+	u8 key[WLAN_KEY_LEN_AES_CMAC];
 } __packed;
 
 struct host_cmd_ds_802_11_key_material {
