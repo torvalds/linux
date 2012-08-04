@@ -16,6 +16,9 @@ obj-$(CONFIG_DVB_USB_ANYSEE) += dvb-usb-anysee.o
 dvb-usb-au6610-objs = au6610.o
 obj-$(CONFIG_DVB_USB_AU6610) += dvb-usb-au6610.o
 
+dvb-usb-az6007-objs = az6007.o
+obj-$(CONFIG_DVB_USB_AZ6007) += dvb-usb-az6007.o
+
 dvb-usb-ce6230-objs = ce6230.o
 obj-$(CONFIG_DVB_USB_CE6230) += dvb-usb-ce6230.o
 

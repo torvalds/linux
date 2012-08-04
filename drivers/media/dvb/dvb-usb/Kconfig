@@ -296,14 +296,6 @@ config DVB_USB_FRIIO
 	help
 	  Say Y here to support the Japanese DTV receiver Friio.
 
-config DVB_USB_AZ6007
-	tristate "AzureWave 6007 and clones DVB-T/C USB2.0 support"
-	depends on DVB_USB
-	select DVB_DRXK if !DVB_FE_CUSTOMISE
-	select MEDIA_TUNER_MT2063 if !DVB_FE_CUSTOMISE
-	help
-	  Say Y here to support theAfatech AF9005 based DVB-T/DVB-C receivers.
-
 config DVB_USB_AZ6027
 	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
 	depends on DVB_USB

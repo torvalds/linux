@@ -68,6 +68,15 @@ config DVB_USB_AU6610
 	help
 	  Say Y here to support the Sigmatek DVB-110 DVB-T USB2.0 receiver.
 
+config DVB_USB_AZ6007
+	tristate "AzureWave 6007 and clones DVB-T/C USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_USB_CYPRESS_FIRMWARE
+	select DVB_DRXK if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2063 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the AZ6007 receivers like Terratec H7.
+
 config DVB_USB_CE6230
 	tristate "Intel CE6230 DVB-T USB2.0 support"
 	depends on DVB_USB_V2
