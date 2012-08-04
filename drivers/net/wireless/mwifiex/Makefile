@@ -33,6 +33,7 @@ mwifiex-y += uap_cmd.o
 mwifiex-y += ie.o
 mwifiex-y += sta_cmdresp.o
 mwifiex-y += sta_event.o
+mwifiex-y += uap_event.o
 mwifiex-y += sta_tx.o
 mwifiex-y += sta_rx.o
 mwifiex-y += cfg80211.o

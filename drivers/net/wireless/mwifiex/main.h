@@ -785,6 +785,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
 				  struct sk_buff *skb);
 int mwifiex_process_sta_event(struct mwifiex_private *);
+int mwifiex_process_uap_event(struct mwifiex_private *);
 void *mwifiex_process_sta_txpd(struct mwifiex_private *, struct sk_buff *skb);
 int mwifiex_sta_init_cmd(struct mwifiex_private *, u8 first_sta);
 int mwifiex_cmd_802_11_scan(struct host_cmd_ds_command *cmd,
