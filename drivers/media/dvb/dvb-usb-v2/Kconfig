@@ -16,14 +16,6 @@ config DVB_USB_V2
 config DVB_USB_CYPRESS_FIRMWARE
 	tristate "Cypress firmware helper routines"
 	depends on DVB_USB_V2
-	help
-	  Common firmware download routine for various Cypress USB interface
-	  chips.
-
-	  Supported models are:
-	  Cypress AN2135
-	  Cypress AN2235
-	  Cypress FX2
 
 config DVB_USB_AF9015
 	tristate "Afatech AF9015 DVB-T USB2.0 support"
