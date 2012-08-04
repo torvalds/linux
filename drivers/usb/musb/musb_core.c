@@ -1868,7 +1868,7 @@ static void musb_free(struct musb *musb)
 		dma_controller_destroy(c);
 	}
 
-	kfree(musb);
+	usb_put_hcd(musb_to_hcd(musb));
 }
 
 /*
