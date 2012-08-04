@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
 #include <linux/reboot.h>
+#include <linux/export.h>
 
 #define BITS_PER_PAGE		(PAGE_SIZE*8)
 
@@ -144,6 +145,7 @@ void free_pid_ns(struct kref *kref)
 	if (parent != NULL)
 		put_pid_ns(parent);
 }
+EXPORT_SYMBOL_GPL(free_pid_ns);
 
 void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 {
