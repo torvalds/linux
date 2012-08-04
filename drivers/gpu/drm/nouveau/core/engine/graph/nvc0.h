@@ -66,10 +66,13 @@ struct nvc0_graph_priv {
 	u8 tpc_nr[GPC_MAX];
 	u8 tpc_total;
 
-	u32  grctx_size;
-	u32 *grctx_vals;
 	struct nouveau_gpuobj *unk4188b4;
 	struct nouveau_gpuobj *unk4188b8;
+
+	struct nvc0_graph_data mmio_data[4];
+	struct nvc0_graph_mmio mmio_list[4096/8];
+	u32  size;
+	u32 *data;
 
 	u8 magic_not_rop_nr;
 };
@@ -77,16 +80,14 @@ struct nvc0_graph_priv {
 struct nvc0_graph_chan {
 	struct nouveau_gpuobj *grctx;
 	struct nouveau_vma     grctx_vma;
-	struct nouveau_gpuobj *unk408004; /* 0x418808 too */
-	struct nouveau_vma     unk408004_vma;
-	struct nouveau_gpuobj *unk40800c; /* 0x419004 too */
-	struct nouveau_vma     unk40800c_vma;
-	struct nouveau_gpuobj *unk418810; /* 0x419848 too */
-	struct nouveau_vma     unk418810_vma;
 
 	struct nouveau_gpuobj *mmio;
 	struct nouveau_vma     mmio_vma;
 	int mmio_nr;
+	struct {
+		struct nouveau_gpuobj *mem;
+		struct nouveau_vma vma;
+	} data[4];
 };
 
 static inline u32
@@ -124,6 +125,7 @@ nv_mthd(struct drm_device *priv, u32 class, u32 mthd, u32 data)
 }
 
 struct nvc0_grctx {
+	struct drm_device *dev;
 	struct nvc0_graph_priv *priv;
 	struct nvc0_graph_data *data;
 	struct nvc0_graph_mmio *mmio;
@@ -133,13 +135,14 @@ struct nvc0_grctx {
 	u64 addr;
 };
 
-int  nvc0_grctx_generate(struct nouveau_channel *);
-int  nvc0_grctx_init(struct nvc0_graph_priv *, struct nvc0_grctx *);
+int  nvc0_grctx_generate(struct drm_device *);
+int  nvc0_grctx_init(struct drm_device *, struct nvc0_graph_priv *,
+		     struct nvc0_grctx *);
 void nvc0_grctx_data(struct nvc0_grctx *, u32, u32, u32);
 void nvc0_grctx_mmio(struct nvc0_grctx *, u32, u32, u32, u32);
 int  nvc0_grctx_fini(struct nvc0_grctx *);
 
-int  nve0_grctx_generate(struct nouveau_channel *);
+int  nve0_grctx_generate(struct drm_device *);
 
 #define mmio_data(s,a,p) nvc0_grctx_data(&info, (s), (a), (p))
 #define mmio_list(r,d,s,b) nvc0_grctx_mmio(&info, (r), (d), (s), (b))
@@ -153,5 +156,10 @@ int  nvc0_graph_context_ctor(struct nouveau_object *, struct nouveau_object *,
 			     struct nouveau_oclass *, void *, u32,
 			     struct nouveau_object **);
 void nvc0_graph_context_dtor(struct nouveau_object *);
+
+void nvc0_graph_ctxctl_debug(struct drm_device *);
+
+int  nvc0_graph_context_new(struct nouveau_channel *, int);
+void nvc0_graph_context_del(struct nouveau_channel *, int);
 
 #endif

@@ -58,243 +58,6 @@ nve0_graph_ctxctl_debug(struct drm_device *dev)
 }
 
 static int
-nve0_graph_load_context(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-
-	nv_wr32(dev, 0x409840, 0x00000030);
-	nv_wr32(dev, 0x409500, 0x80000000 | chan->ramin->addr >> 12);
-	nv_wr32(dev, 0x409504, 0x00000003);
-	if (!nv_wait(dev, 0x409800, 0x00000010, 0x00000010))
-		NV_ERROR(dev, "PGRAPH: load_ctx timeout\n");
-
-	return 0;
-}
-
-static int
-nve0_graph_unload_context_to(struct drm_device *dev, u64 chan)
-{
-	nv_wr32(dev, 0x409840, 0x00000003);
-	nv_wr32(dev, 0x409500, 0x80000000 | chan >> 12);
-	nv_wr32(dev, 0x409504, 0x00000009);
-	if (!nv_wait(dev, 0x409800, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "PGRAPH: unload_ctx timeout\n");
-		return -EBUSY;
-	}
-
-	return 0;
-}
-
-static int
-nve0_graph_construct_context(struct nouveau_channel *chan)
-{
-	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
-	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
-	struct drm_device *dev = chan->dev;
-	int ret, i;
-	u32 *ctx;
-
-	ctx = kmalloc(priv->grctx_size, GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	nve0_graph_load_context(chan);
-
-	nv_wo32(grch->grctx, 0x1c, 1);
-	nv_wo32(grch->grctx, 0x20, 0);
-	nv_wo32(grch->grctx, 0x28, 0);
-	nv_wo32(grch->grctx, 0x2c, 0);
-	nvimem_flush(dev);
-
-	ret = nve0_grctx_generate(chan);
-	if (ret)
-		goto err;
-
-	ret = nve0_graph_unload_context_to(dev, chan->ramin->addr);
-	if (ret)
-		goto err;
-
-	for (i = 0; i < priv->grctx_size; i += 4)
-		ctx[i / 4] = nv_ro32(grch->grctx, i);
-
-	priv->grctx_vals = ctx;
-	return 0;
-
-err:
-	kfree(ctx);
-	return ret;
-}
-
-static int
-nve0_graph_create_context_mmio_list(struct nouveau_channel *chan)
-{
-	struct nvc0_graph_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
-	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
-	struct drm_device *dev = chan->dev;
-	u32 magic[GPC_MAX][2];
-	u16 offset = 0x0000;
-	int gpc;
-	int ret;
-
-	ret = nouveau_gpuobj_new(dev, NULL, 0x3000, 256, 0, &grch->unk408004);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_map_vm(grch->unk408004, chan->vm,
-				    NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
-				    &grch->unk408004_vma);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_new(dev, NULL, 0x8000, 256, 0, &grch->unk40800c);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_map_vm(grch->unk40800c, chan->vm,
-				    NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
-				    &grch->unk40800c_vma);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_new(dev, NULL, 384 * 1024, 4096, 0,
-				 &grch->unk418810);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_map_vm(grch->unk418810, chan->vm,
-				    NV_MEM_ACCESS_RW, &grch->unk418810_vma);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 0, 0, &grch->mmio);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_map_vm(grch->mmio, chan->vm,
-				    NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
-				    &grch->mmio_vma);
-	if (ret)
-		return ret;
-
-#define mmio(r,v) do {                                                         \
-	nv_wo32(grch->mmio, (grch->mmio_nr * 8) + 0, (r));                     \
-	nv_wo32(grch->mmio, (grch->mmio_nr * 8) + 4, (v));                     \
-	grch->mmio_nr++;                                                       \
-} while (0)
-	mmio(0x40800c, grch->unk40800c_vma.offset >> 8);
-	mmio(0x408010, 0x80000000);
-	mmio(0x419004, grch->unk40800c_vma.offset >> 8);
-	mmio(0x419008, 0x00000000);
-	mmio(0x4064cc, 0x80000000);
-	mmio(0x408004, grch->unk408004_vma.offset >> 8);
-	mmio(0x408008, 0x80000030);
-	mmio(0x418808, grch->unk408004_vma.offset >> 8);
-	mmio(0x41880c, 0x80000030);
-	mmio(0x4064c8, 0x01800600);
-	mmio(0x418810, 0x80000000 | grch->unk418810_vma.offset >> 12);
-	mmio(0x419848, 0x10000000 | grch->unk418810_vma.offset >> 12);
-	mmio(0x405830, 0x02180648);
-	mmio(0x4064c4, 0x0192ffff);
-
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		u16 magic0 = 0x0218 * priv->tpc_nr[gpc];
-		u16 magic1 = 0x0648 * priv->tpc_nr[gpc];
-		magic[gpc][0]  = 0x10000000 | (magic0 << 16) | offset;
-		magic[gpc][1]  = 0x00000000 | (magic1 << 16);
-		offset += 0x0324 * priv->tpc_nr[gpc];
-	}
-
-	for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
-		mmio(GPC_UNIT(gpc, 0x30c0), magic[gpc][0]);
-		mmio(GPC_UNIT(gpc, 0x30e4), magic[gpc][1] | offset);
-		offset += 0x07ff * priv->tpc_nr[gpc];
-	}
-
-	mmio(0x17e91c, 0x06060609);
-	mmio(0x17e920, 0x00090a05);
-#undef mmio
-	return 0;
-}
-
-static int
-nve0_graph_context_new(struct nouveau_channel *chan, int engine)
-{
-	struct drm_device *dev = chan->dev;
-	struct nvc0_graph_priv *priv = nv_engine(dev, engine);
-	struct nvc0_graph_chan *grch;
-	struct nouveau_gpuobj *grctx;
-	int ret, i;
-
-	grch = kzalloc(sizeof(*grch), GFP_KERNEL);
-	if (!grch)
-		return -ENOMEM;
-	chan->engctx[NVOBJ_ENGINE_GR] = grch;
-
-	ret = nouveau_gpuobj_new(dev, NULL, priv->grctx_size, 256, 0,
-				 &grch->grctx);
-	if (ret)
-		goto error;
-
-	ret = nouveau_gpuobj_map_vm(grch->grctx, chan->vm, NV_MEM_ACCESS_RW |
-				    NV_MEM_ACCESS_SYS, &grch->grctx_vma);
-	if (ret)
-		return ret;
-
-	grctx = grch->grctx;
-
-	ret = nve0_graph_create_context_mmio_list(chan);
-	if (ret)
-		goto error;
-
-	nv_wo32(chan->ramin, 0x0210, lower_32_bits(grch->grctx_vma.offset) | 4);
-	nv_wo32(chan->ramin, 0x0214, upper_32_bits(grch->grctx_vma.offset));
-	nvimem_flush(dev);
-
-	if (!priv->grctx_vals) {
-		ret = nve0_graph_construct_context(chan);
-		if (ret)
-			goto error;
-	}
-
-	for (i = 0; i < priv->grctx_size; i += 4)
-		nv_wo32(grctx, i, priv->grctx_vals[i / 4]);
-	nv_wo32(grctx, 0xf4, 0);
-	nv_wo32(grctx, 0xf8, 0);
-	nv_wo32(grctx, 0x10, grch->mmio_nr);
-	nv_wo32(grctx, 0x14, lower_32_bits(grch->mmio_vma.offset));
-	nv_wo32(grctx, 0x18, upper_32_bits(grch->mmio_vma.offset));
-	nv_wo32(grctx, 0x1c, 1);
-	nv_wo32(grctx, 0x20, 0);
-	nv_wo32(grctx, 0x28, 0);
-	nv_wo32(grctx, 0x2c, 0);
-
-	nvimem_flush(dev);
-	return 0;
-
-error:
-	priv->base.context_del(chan, engine);
-	return ret;
-}
-
-static void
-nve0_graph_context_del(struct nouveau_channel *chan, int engine)
-{
-	struct nvc0_graph_chan *grch = chan->engctx[engine];
-
-	nouveau_gpuobj_unmap(&grch->mmio_vma);
-	nouveau_gpuobj_unmap(&grch->unk418810_vma);
-	nouveau_gpuobj_unmap(&grch->unk40800c_vma);
-	nouveau_gpuobj_unmap(&grch->unk408004_vma);
-	nouveau_gpuobj_unmap(&grch->grctx_vma);
-	nouveau_gpuobj_ref(NULL, &grch->mmio);
-	nouveau_gpuobj_ref(NULL, &grch->unk418810);
-	nouveau_gpuobj_ref(NULL, &grch->unk40800c);
-	nouveau_gpuobj_ref(NULL, &grch->unk408004);
-	nouveau_gpuobj_ref(NULL, &grch->grctx);
-	chan->engctx[engine] = NULL;
-}
-
-static int
 nve0_graph_object_new(struct nouveau_channel *chan, int engine,
 		      u32 handle, u16 class)
 {
@@ -487,7 +250,7 @@ nve0_graph_init_ctxctl(struct drm_device *dev)
 		NV_ERROR(dev, "fuc09 req 0x10 timeout\n");
 		return -EBUSY;
 	}
-	priv->grctx_size = nv_rd32(dev, 0x409800);
+	priv->size = nv_rd32(dev, 0x409800);
 
 	nv_wr32(dev, 0x409840, 0xffffffff);
 	nv_wr32(dev, 0x409500, 0x00000000);
@@ -534,6 +297,17 @@ nve0_graph_init_ctxctl(struct drm_device *dev)
 	nv_wr32(dev, 0x409614, 0x00000070);
 	nv_wr32(dev, 0x409614, 0x00000770);
 	nv_wr32(dev, 0x40802c, 0x00000001);
+
+	if (priv->data == NULL) {
+		int ret = nve0_grctx_generate(dev);
+		if (ret) {
+			NV_ERROR(dev, "PGRAPH: failed to construct context\n");
+			return ret;
+		}
+
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -542,6 +316,7 @@ nve0_graph_init(struct drm_device *dev, int engine)
 {
 	int ret;
 
+reset:
 	nv_mask(dev, 0x000200, 0x18001000, 0x00000000);
 	nv_mask(dev, 0x000200, 0x18001000, 0x18001000);
 
@@ -566,8 +341,11 @@ nve0_graph_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, 0x400054, 0x34ce3464);
 
 	ret = nve0_graph_init_ctxctl(dev);
-	if (ret)
+	if (ret) {
+		if (ret == 1)
+			goto reset;
 		return ret;
+	}
 
 	return 0;
 }
@@ -758,8 +536,8 @@ nve0_graph_destroy(struct drm_device *dev, int engine)
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b8);
 	nouveau_gpuobj_ref(NULL, &priv->unk4188b4);
 
-	if (priv->grctx_vals)
-		kfree(priv->grctx_vals);
+	if (priv->data)
+		kfree(priv->data);
 
 	NVOBJ_ENGINE_DEL(dev, GR);
 	kfree(priv);
@@ -786,8 +564,8 @@ nve0_graph_create(struct drm_device *dev)
 	priv->base.destroy = nve0_graph_destroy;
 	priv->base.init = nve0_graph_init;
 	priv->base.fini = nve0_graph_fini;
-	priv->base.context_new = nve0_graph_context_new;
-	priv->base.context_del = nve0_graph_context_del;
+	priv->base.context_new = nvc0_graph_context_new;
+	priv->base.context_del = nvc0_graph_context_del;
 	priv->base.object_new = nve0_graph_object_new;
 
 	NVOBJ_ENGINE_ADD(dev, GR, &priv->base);
@@ -801,6 +579,7 @@ nve0_graph_create(struct drm_device *dev)
 		ret = 0;
 		goto error;
 	}
+	priv->firmware = true;
 
 	ret = nouveau_gpuobj_new(dev, NULL, 0x1000, 256, 0, &priv->unk4188b4);
 	if (ret)

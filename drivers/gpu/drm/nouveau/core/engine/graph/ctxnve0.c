@@ -2604,16 +2604,20 @@ nve0_graph_generate_tpcunk(struct drm_device *priv)
 }
 
 int
-nve0_grctx_generate(struct nouveau_channel *chan)
+nve0_grctx_generate(struct drm_device *priv)
 {
-	struct nvc0_graph_priv *oprv = nv_engine(chan->dev, NVOBJ_ENGINE_GR);
-	struct nvc0_graph_chan *grch = chan->engctx[NVOBJ_ENGINE_GR];
-	struct drm_device *priv = chan->dev;
+	struct nvc0_graph_priv *oprv = nv_engine(priv, NVOBJ_ENGINE_GR);
+	struct nvc0_grctx info;
+	int ret, i, gpc, tpc, id;
 	u32 data[6] = {}, data2[2] = {}, tmp;
 	u32 tpc_set = 0, tpc_mask = 0;
+	u32 magic[GPC_MAX][2], offset;
 	u8 tpcnr[GPC_MAX], a, b;
 	u8 shift, ntpcv;
-	int i, gpc, tpc, id;
+
+	ret = nvc0_grctx_init(priv, oprv, &info);
+	if (ret)
+		return ret;
 
 	nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
 	nv_wr32(priv, 0x400204, 0x00000000);
@@ -2636,11 +2640,37 @@ nve0_grctx_generate(struct nouveau_channel *chan)
 
 	nv_wr32(priv, 0x404154, 0x0);
 
-	for (i = 0; i < grch->mmio_nr * 8; i += 8) {
-		u32 reg = nv_ro32(grch->mmio, i + 0);
-		u32 val = nv_ro32(grch->mmio, i + 4);
-		nv_wr32(priv, reg, val);
+	mmio_data(0x003000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
+	mmio_data(0x008000, 0x0100, NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS);
+	mmio_data(0x060000, 0x1000, NV_MEM_ACCESS_RW);
+	mmio_list(0x40800c, 0x00000000,  8, 1);
+	mmio_list(0x408010, 0x80000000,  0, 0);
+	mmio_list(0x419004, 0x00000000,  8, 1);
+	mmio_list(0x419008, 0x00000000,  0, 0);
+	mmio_list(0x4064cc, 0x80000000,  0, 0);
+	mmio_list(0x408004, 0x00000000,  8, 0);
+	mmio_list(0x408008, 0x80000030,  0, 0);
+	mmio_list(0x418808, 0x00000000,  8, 0);
+	mmio_list(0x41880c, 0x80000030,  0, 0);
+	mmio_list(0x4064c8, 0x01800600,  0, 0);
+	mmio_list(0x418810, 0x80000000, 12, 2);
+	mmio_list(0x419848, 0x10000000, 12, 2);
+	mmio_list(0x405830, 0x02180648,  0, 0);
+	mmio_list(0x4064c4, 0x0192ffff,  0, 0);
+	for (gpc = 0, offset = 0; gpc < oprv->gpc_nr; gpc++) {
+		u16 magic0 = 0x0218 * oprv->tpc_nr[gpc];
+		u16 magic1 = 0x0648 * oprv->tpc_nr[gpc];
+		magic[gpc][0]  = 0x10000000 | (magic0 << 16) | offset;
+		magic[gpc][1]  = 0x00000000 | (magic1 << 16);
+		offset += 0x0324 * oprv->tpc_nr[gpc];
 	}
+	for (gpc = 0; gpc < oprv->gpc_nr; gpc++) {
+		mmio_list(GPC_UNIT(gpc, 0x30c0), magic[gpc][0], 0, 0);
+		mmio_list(GPC_UNIT(gpc, 0x30e4), magic[gpc][1] | offset, 0, 0);
+		offset += 0x07ff * oprv->tpc_nr[gpc];
+	}
+	mmio_list(0x17e91c, 0x06060609, 0, 0);
+	mmio_list(0x17e920, 0x00090a05, 0, 0);
 
 	nv_wr32(priv, 0x418c6c, 0x1);
 	nv_wr32(priv, 0x41980c, 0x10);
@@ -2758,5 +2788,5 @@ nve0_grctx_generate(struct nouveau_channel *chan)
 	nv_mask(priv, 0x000260, 0x00000001, 0x00000001);
 	nv_wr32(priv, 0x418800, 0x7026860a); //XXX
 	nv_wr32(priv, 0x41be10, 0x00bb8bc7); //XXX
-	return 0;
+	return nvc0_grctx_fini(&info);
 }
