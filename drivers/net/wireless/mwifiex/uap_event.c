@@ -242,6 +242,19 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		/* For future development */
 		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
 		break;
+	case EVENT_AMSDU_AGGR_CTRL:
+		dev_dbg(adapter->dev, "event:  AMSDU_AGGR_CTRL %d\n",
+			*(u16 *)adapter->event_body);
+
+		if (priv->media_connected) {
+			adapter->tx_buf_size =
+			       min(adapter->curr_tx_buf_size,
+				   le16_to_cpu(*(__le16 *)adapter->event_body));
+
+			dev_dbg(adapter->dev, "event: tx_buf_size %d\n",
+				adapter->tx_buf_size);
+		}
+		break;
 	default:
 		dev_dbg(adapter->dev, "event: unknown event id: %#x\n",
 			eventcause);

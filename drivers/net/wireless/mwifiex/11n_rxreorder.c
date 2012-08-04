@@ -54,8 +54,13 @@ mwifiex_11n_dispatch_pkt(struct mwifiex_private *priv,
 			tbl->rx_reorder_ptr[i] = NULL;
 		}
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		if (rx_tmp_ptr)
-			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
+		if (rx_tmp_ptr) {
+			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+				mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
+			else
+				mwifiex_process_rx_packet(priv->adapter,
+							  rx_tmp_ptr);
+		}
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -97,7 +102,11 @@ mwifiex_11n_scan_and_dispatch(struct mwifiex_private *priv,
 		rx_tmp_ptr = tbl->rx_reorder_ptr[i];
 		tbl->rx_reorder_ptr[i] = NULL;
 		spin_unlock_irqrestore(&priv->rx_pkt_lock, flags);
-		mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
+
+		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+			mwifiex_handle_uap_rx_forward(priv, rx_tmp_ptr);
+		else
+			mwifiex_process_rx_packet(priv->adapter, rx_tmp_ptr);
 	}
 
 	spin_lock_irqsave(&priv->rx_pkt_lock, flags);
@@ -148,7 +157,7 @@ mwifiex_del_rx_reorder_entry(struct mwifiex_private *priv,
  * This function returns the pointer to an entry in Rx reordering
  * table which matches the given TA/TID pair.
  */
-static struct mwifiex_rx_reorder_tbl *
+struct mwifiex_rx_reorder_tbl *
 mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta)
 {
 	struct mwifiex_rx_reorder_tbl *tbl;
@@ -396,8 +405,13 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 
 	tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid, ta);
 	if (!tbl) {
-		if (pkt_type != PKT_TYPE_BAR)
-			mwifiex_process_rx_packet(priv->adapter, payload);
+		if (pkt_type != PKT_TYPE_BAR) {
+			if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
+				mwifiex_handle_uap_rx_forward(priv, payload);
+			else
+				mwifiex_process_rx_packet(priv->adapter,
+							  payload);
+		}
 		return 0;
 	}
 	start_win = tbl->start_win;

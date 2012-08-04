@@ -68,5 +68,7 @@ struct mwifiex_rx_reorder_tbl *mwifiex_11n_get_rxreorder_tbl(struct
 							   mwifiex_private
 							   *priv, int tid,
 							   u8 *ta);
+struct mwifiex_rx_reorder_tbl *
+mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta);
 
 #endif /* _MWIFIEX_11N_RXREORDER_H_ */

@@ -21,6 +21,8 @@
 #include "ioctl.h"
 #include "main.h"
 #include "wmm.h"
+#include "11n_aggr.h"
+#include "11n_rxreorder.h"
 
 static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 					 struct sk_buff *skb)
@@ -165,6 +167,9 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
 	struct mwifiex_rxinfo *rx_info = MWIFIEX_SKB_RXCB(skb);
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u16 rx_pkt_type;
+	u8 ta[ETH_ALEN], pkt_type;
+	struct mwifiex_sta_node *node;
+
 	struct mwifiex_private *priv =
 			mwifiex_get_priv_by_id(adapter, rx_info->bss_num,
 					       rx_info->bss_type);
@@ -191,15 +196,60 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
 
 		return 0;
 	}
-	ret = mwifiex_handle_uap_rx_forward(priv, skb);
 
-	if (ret) {
-		priv->stats.rx_dropped++;
+	if (le16_to_cpu(uap_rx_pd->rx_pkt_type) == PKT_TYPE_AMSDU) {
+		struct sk_buff_head list;
+		struct sk_buff *rx_skb;
+
+		__skb_queue_head_init(&list);
+		skb_pull(skb, le16_to_cpu(uap_rx_pd->rx_pkt_offset));
+		skb_trim(skb, le16_to_cpu(uap_rx_pd->rx_pkt_length));
+
+		ieee80211_amsdu_to_8023s(skb, &list, priv->curr_addr,
+					 priv->wdev->iftype, 0, false);
+
+		while (!skb_queue_empty(&list)) {
+			rx_skb = __skb_dequeue(&list);
+			ret = mwifiex_recv_packet(adapter, rx_skb);
+			if (ret)
+				dev_err(adapter->dev,
+					"AP:Rx A-MSDU failed");
+		}
+
+		return 0;
+	}
+
+	memcpy(ta, rx_pkt_hdr->eth803_hdr.h_source, ETH_ALEN);
+
+	if (rx_pkt_type != PKT_TYPE_BAR && uap_rx_pd->priority < MAX_NUM_TID) {
+		node = mwifiex_get_sta_entry(priv, ta);
+		if (node)
+			node->rx_seq[uap_rx_pd->priority] =
+						le16_to_cpu(uap_rx_pd->seq_num);
+	}
+
+	if (!priv->ap_11n_enabled ||
+	    (!mwifiex_11n_get_rx_reorder_tbl(priv, uap_rx_pd->priority, ta) &&
+	    (le16_to_cpu(uap_rx_pd->rx_pkt_type) != PKT_TYPE_AMSDU))) {
+		ret = mwifiex_handle_uap_rx_forward(priv, skb);
+		return ret;
+	}
+
+	/* Reorder and send to kernel */
+	pkt_type = (u8)le16_to_cpu(uap_rx_pd->rx_pkt_type);
+	ret = mwifiex_11n_rx_reorder_pkt(priv, le16_to_cpu(uap_rx_pd->seq_num),
+					 uap_rx_pd->priority, ta, pkt_type,
+					 skb);
+
+	if (ret || (rx_pkt_type == PKT_TYPE_BAR)) {
 		if (adapter->if_ops.data_complete)
 			adapter->if_ops.data_complete(adapter, skb);
 		else
 			dev_kfree_skb_any(skb);
 	}
+
+	if (ret)
+		priv->stats.rx_dropped++;
 
 	return ret;
 }
