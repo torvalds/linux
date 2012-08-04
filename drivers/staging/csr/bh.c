@@ -122,23 +122,24 @@ void uf_stop_thread(unifi_priv_t *priv, struct uf_thread *thread)
  *
  * ---------------------------------------------------------------------------
  */
-    void
+void
 uf_wait_for_thread_to_stop(unifi_priv_t *priv, struct uf_thread *thread)
 {
-    /*
-     * kthread_stop() cannot handle the thread exiting while
-     * kthread_should_stop() is false, so sleep until kthread_stop()
-     * wakes us up.
-     */
-    unifi_trace(priv, UDBG2, "%s waiting for the stop signal.\n", thread->name);
-    set_current_state(TASK_INTERRUPTIBLE);
-    if (!kthread_should_stop()) {
-        unifi_trace(priv, UDBG2, "%s schedule....\n", thread->name);
-        schedule();
-    }
+	/*
+	 * kthread_stop() cannot handle the thread exiting while
+	 * kthread_should_stop() is false, so sleep until kthread_stop()
+	 * wakes us up
+	 */
+	unifi_trace(priv, UDBG2, "%s waiting for the stop signal.\n",
+							thread->name);
+	set_current_state(TASK_INTERRUPTIBLE);
+	if (!kthread_should_stop()) {
+		unifi_trace(priv, UDBG2, "%s schedule....\n", thread->name);
+		schedule();
+	}
 
-    thread->thread_task = NULL;
-    unifi_trace(priv, UDBG2, "%s exiting....\n", thread->name);
+	thread->thread_task = NULL;
+	unifi_trace(priv, UDBG2, "%s exiting....\n", thread->name);
 } /* uf_wait_for_thread_to_stop() */
 
 
