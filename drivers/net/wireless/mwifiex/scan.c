@@ -989,6 +989,8 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 			*max_chan_per_scan = 2;
 		else if (chan_num < MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD)
 			*max_chan_per_scan = 3;
+		else
+			*max_chan_per_scan = 4;
 	}
 }
 
