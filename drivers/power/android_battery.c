@@ -148,7 +148,7 @@ static int android_bat_get_property(struct power_supply *ps,
 
 static void android_bat_get_temp(struct android_bat_data *battery)
 {
-	int batt_temp = 25000;
+	int batt_temp = 250000; /* 25.0C */
 	int health = battery->batt_health;
 
 	if (battery->pdata->get_temperature)
@@ -330,9 +330,10 @@ static void android_bat_monitor_work(struct work_struct *work)
 		break;
 	}
 
-	pr_info("battery: l=%d v=%d c=%d temp=%d h=%d st=%d type=%s\n",
+	pr_info("battery: l=%d v=%d c=%d temp=%d.%d h=%d st=%d type=%s\n",
 		battery->batt_soc, battery->batt_vcell/1000,
-		battery->batt_current, battery->batt_temp, battery->batt_health,
+		battery->batt_current, battery->batt_temp / 10,
+		battery->batt_temp % 10, battery->batt_health,
 		battery->charging_status,
 		charge_source_str(battery->charge_source));
 	power_supply_changed(&battery->psy_bat);
