@@ -2532,10 +2532,10 @@ static int f71882fg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __init f71882fg_find(int sioaddr, unsigned short *address,
-	struct f71882fg_sio_data *sio_data)
+static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 {
 	u16 devid;
+	unsigned short address;
 	int err = superio_enter(sioaddr);
 	if (err)
 		return err;
@@ -2603,25 +2603,25 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 		goto exit;
 	}
 
-	*address = superio_inw(sioaddr, SIO_REG_ADDR);
-	if (*address == 0) {
+	address = superio_inw(sioaddr, SIO_REG_ADDR);
+	if (address == 0) {
 		pr_warn("Base address not set\n");
 		err = -ENODEV;
 		goto exit;
 	}
-	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
+	address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
 
-	err = 0;
+	err = address;
 	pr_info("Found %s chip at %#x, revision %d\n",
-		f71882fg_names[sio_data->type],	(unsigned int)*address,
+		f71882fg_names[sio_data->type],	(unsigned int)address,
 		(int)superio_inb(sioaddr, SIO_REG_DEVREV));
 exit:
 	superio_exit(sioaddr);
 	return err;
 }
 
-static int __init f71882fg_device_add(unsigned short address,
-	const struct f71882fg_sio_data *sio_data)
+static int __init f71882fg_device_add(int address,
+				      const struct f71882fg_sio_data *sio_data)
 {
 	struct resource res = {
 		.start	= address,
@@ -2668,19 +2668,21 @@ exit_device_put:
 
 static int __init f71882fg_init(void)
 {
-	int err = -ENODEV;
-	unsigned short address;
+	int err;
+	int address;
 	struct f71882fg_sio_data sio_data;
 
 	memset(&sio_data, 0, sizeof(sio_data));
 
-	if (f71882fg_find(0x2e, &address, &sio_data) &&
-	    f71882fg_find(0x4e, &address, &sio_data))
-		goto exit;
+	address = f71882fg_find(0x2e, &sio_data);
+	if (address < 0)
+		address = f71882fg_find(0x4e, &sio_data);
+	if (address < 0)
+		return address;
 
 	err = platform_driver_register(&f71882fg_driver);
 	if (err)
-		goto exit;
+		return err;
 
 	err = f71882fg_device_add(address, &sio_data);
 	if (err)
@@ -2690,7 +2692,6 @@ static int __init f71882fg_init(void)
 
 exit_driver:
 	platform_driver_unregister(&f71882fg_driver);
-exit:
 	return err;
 }
 
