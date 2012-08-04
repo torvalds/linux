@@ -223,6 +223,7 @@ struct mwifiex_ds_encrypt_key {
 	u8 mac_addr[ETH_ALEN];
 	u32 is_wapi_key;
 	u8 pn[PN_LEN];		/* packet number */
+	u8 is_igtk_key;
 };
 
 struct mwifiex_power_cfg {
