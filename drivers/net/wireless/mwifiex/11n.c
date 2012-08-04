@@ -726,3 +726,29 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 
 	return count;
 }
+
+/*
+ * This function retrieves the entry for specific tx BA stream table by RA and
+ * deletes it.
+ */
+void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra)
+{
+	struct mwifiex_tx_ba_stream_tbl *tbl, *tmp;
+	unsigned long flags;
+
+	if (!ra)
+		return;
+
+	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+	list_for_each_entry_safe(tbl, tmp, &priv->tx_ba_stream_tbl_ptr, list) {
+		if (!memcmp(tbl->ra, ra, ETH_ALEN)) {
+			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
+					       flags);
+			mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, tbl);
+			spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
+		}
+	}
+	spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock, flags);
+
+	return;
+}
