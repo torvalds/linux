@@ -610,7 +610,7 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 		memcpy(&key_material->key_param_set.key[2],
 		       enc_key->key_material, enc_key->key_len);
 		memcpy(&key_material->key_param_set.key[2 + enc_key->key_len],
-		       enc_key->wapi_rxpn, WAPI_RXPN_LEN);
+		       enc_key->pn, PN_LEN);
 		key_material->key_param_set.length =
 			cpu_to_le16(WAPI_KEY_LEN + KEYPARAMSET_FIXED_LEN);
 
