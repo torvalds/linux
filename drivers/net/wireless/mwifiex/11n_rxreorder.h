@@ -38,6 +38,8 @@
 #define ADDBA_RSP_STATUS_ACCEPT 0
 
 #define MWIFIEX_DEF_11N_RX_SEQ_NUM	0xffff
+#define BA_SETUP_MAX_PACKET_THRESHOLD	16
+#define BA_SETUP_PACKET_OFFSET		16
 
 static inline void mwifiex_reset_11n_rx_seq_num(struct mwifiex_private *priv)
 {

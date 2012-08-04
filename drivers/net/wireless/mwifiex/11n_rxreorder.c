@@ -235,6 +235,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	struct mwifiex_rx_reorder_tbl *tbl, *new_node;
 	u16 last_seq = 0;
 	unsigned long flags;
+	struct mwifiex_sta_node *node;
 
 	/*
 	 * If we get a TID, ta pair which is already present dispatch all the
@@ -257,13 +258,19 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	new_node->tid = tid;
 	memcpy(new_node->ta, ta, ETH_ALEN);
 	new_node->start_win = seq_num;
-	if (mwifiex_queuing_ra_based(priv))
-		/* TODO for adhoc */
+
+	if (mwifiex_queuing_ra_based(priv)) {
 		dev_dbg(priv->adapter->dev,
-			"info: ADHOC:last_seq=%d start_win=%d\n",
+			"info: AP/ADHOC:last_seq=%d start_win=%d\n",
 			last_seq, new_node->start_win);
-	else
+		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP) {
+			node = mwifiex_get_sta_entry(priv, ta);
+			if (node)
+				last_seq = node->rx_seq[tid];
+		}
+	} else {
 		last_seq = priv->rx_seq[tid];
+	}
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&
 	    last_seq >= new_node->start_win)

@@ -157,4 +157,18 @@ mwifiex_is_ba_stream_setup(struct mwifiex_private *priv,
 
 	return false;
 }
+
+/*
+ * This function checks whether associated station is 11n enabled
+ */
+static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
+					     struct mwifiex_sta_node *node)
+{
+
+	if (!node || (priv->bss_role != MWIFIEX_BSS_ROLE_UAP) ||
+	    !priv->ap_11n_enabled)
+		return 0;
+
+	return node->is_11n_enabled;
+}
 #endif /* !_MWIFIEX_11N_H_ */

@@ -19,6 +19,7 @@
 
 #include "decl.h"
 #include "main.h"
+#include "11n.h"
 
 /*
  * This function will return the pointer to station entry in station list
@@ -168,6 +169,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	struct mwifiex_assoc_event *event;
 	struct mwifiex_sta_node *node;
 	u8 *deauth_mac;
+	struct host_cmd_ds_11n_batimeout *ba_timeout;
 
 	switch (eventcause) {
 	case EVENT_UAP_STA_ASSOC:
@@ -253,6 +255,25 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 
 			dev_dbg(adapter->dev, "event: tx_buf_size %d\n",
 				adapter->tx_buf_size);
+		}
+		break;
+	case EVENT_ADDBA:
+		dev_dbg(adapter->dev, "event: ADDBA Request\n");
+		if (priv->media_connected)
+			mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_ADDBA_RSP,
+					       HostCmd_ACT_GEN_SET, 0,
+					       adapter->event_body);
+		break;
+	case EVENT_DELBA:
+		dev_dbg(adapter->dev, "event: DELBA Request\n");
+		if (priv->media_connected)
+			mwifiex_11n_delete_ba_stream(priv, adapter->event_body);
+		break;
+	case EVENT_BA_STREAM_TIEMOUT:
+		dev_dbg(adapter->dev, "event:  BA Stream timeout\n");
+		if (priv->media_connected) {
+			ba_timeout = (void *)adapter->event_body;
+			mwifiex_11n_ba_stream_timeout(priv, ba_timeout);
 		}
 		break;
 	default:
