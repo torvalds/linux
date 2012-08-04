@@ -1233,21 +1233,27 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	}
 
 	virt = vmap(pages, num_pages, VM_MAP, PAGE_KERNEL);
-	if (!virt)
+	if (!virt) {
+		ret = -ENOMEM;
 		goto err_put_page;
+	}
 
 	privs[0] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[0],
 			   GFP_KERNEL);
 	privs[1] = kzalloc(sizeof(struct tlbe_priv) * params.tlb_sizes[1],
 			   GFP_KERNEL);
 
-	if (!privs[0] || !privs[1])
-		goto err_put_page;
+	if (!privs[0] || !privs[1]) {
+		ret = -ENOMEM;
+		goto err_privs;
+	}
 
 	g2h_bitmap = kzalloc(sizeof(u64) * params.tlb_sizes[1],
 	                     GFP_KERNEL);
-	if (!g2h_bitmap)
-		goto err_put_page;
+	if (!g2h_bitmap) {
+		ret = -ENOMEM;
+		goto err_privs;
+	}
 
 	free_gtlb(vcpu_e500);
 
@@ -1287,10 +1293,11 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;
 
-err_put_page:
+err_privs:
 	kfree(privs[0]);
 	kfree(privs[1]);
 
+err_put_page:
 	for (i = 0; i < num_pages; i++)
 		put_page(pages[i]);
 
