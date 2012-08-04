@@ -88,6 +88,7 @@ enum {
 #define MWIFIEX_MAX_TOTAL_SCAN_TIME	(MWIFIEX_TIMER_10S - MWIFIEX_TIMER_1S)
 
 #define MWIFIEX_MAX_SCAN_DELAY_CNT			50
+#define MWIFIEX_MAX_EMPTY_TX_Q_CNT			10
 #define MWIFIEX_SCAN_DELAY_MSEC				20
 
 #define RSN_GTK_OUI_OFFSET				2
@@ -690,6 +691,8 @@ struct mwifiex_adapter {
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	u16 max_mgmt_ie_index;
 	u8 scan_delay_cnt;
+	u8 empty_tx_q_cnt;
+	atomic_t is_tx_received;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
