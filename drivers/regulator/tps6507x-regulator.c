@@ -23,7 +23,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mfd/tps6507x.h>
 
@@ -44,58 +43,40 @@
 /* Number of total regulators available */
 #define TPS6507X_NUM_REGULATOR		(TPS6507X_NUM_DCDC + TPS6507X_NUM_LDO)
 
-/* Supported voltage values for regulators (in milliVolts) */
-static const u16 VDCDCx_VSEL_table[] = {
-	725, 750, 775, 800,
-	825, 850, 875, 900,
-	925, 950, 975, 1000,
-	1025, 1050, 1075, 1100,
-	1125, 1150, 1175, 1200,
-	1225, 1250, 1275, 1300,
-	1325, 1350, 1375, 1400,
-	1425, 1450, 1475, 1500,
-	1550, 1600, 1650, 1700,
-	1750, 1800, 1850, 1900,
-	1950, 2000, 2050, 2100,
-	2150, 2200, 2250, 2300,
-	2350, 2400, 2450, 2500,
-	2550, 2600, 2650, 2700,
-	2750, 2800, 2850, 2900,
-	3000, 3100, 3200, 3300,
+/* Supported voltage values for regulators (in microVolts) */
+static const unsigned int VDCDCx_VSEL_table[] = {
+	725000, 750000, 775000, 800000,
+	825000, 850000, 875000, 900000,
+	925000, 950000, 975000, 1000000,
+	1025000, 1050000, 1075000, 1100000,
+	1125000, 1150000, 1175000, 1200000,
+	1225000, 1250000, 1275000, 1300000,
+	1325000, 1350000, 1375000, 1400000,
+	1425000, 1450000, 1475000, 1500000,
+	1550000, 1600000, 1650000, 1700000,
+	1750000, 1800000, 1850000, 1900000,
+	1950000, 2000000, 2050000, 2100000,
+	2150000, 2200000, 2250000, 2300000,
+	2350000, 2400000, 2450000, 2500000,
+	2550000, 2600000, 2650000, 2700000,
+	2750000, 2800000, 2850000, 2900000,
+	3000000, 3100000, 3200000, 3300000,
 };
 
-static const u16 LDO1_VSEL_table[] = {
-	1000, 1100, 1200, 1250,
-	1300, 1350, 1400, 1500,
-	1600, 1800, 2500, 2750,
-	2800, 3000, 3100, 3300,
+static const unsigned int LDO1_VSEL_table[] = {
+	1000000, 1100000, 1200000, 1250000,
+	1300000, 1350000, 1400000, 1500000,
+	1600000, 1800000, 2500000, 2750000,
+	2800000, 3000000, 3100000, 3300000,
 };
 
-static const u16 LDO2_VSEL_table[] = {
-	725, 750, 775, 800,
-	825, 850, 875, 900,
-	925, 950, 975, 1000,
-	1025, 1050, 1075, 1100,
-	1125, 1150, 1175, 1200,
-	1225, 1250, 1275, 1300,
-	1325, 1350, 1375, 1400,
-	1425, 1450, 1475, 1500,
-	1550, 1600, 1650, 1700,
-	1750, 1800, 1850, 1900,
-	1950, 2000, 2050, 2100,
-	2150, 2200, 2250, 2300,
-	2350, 2400, 2450, 2500,
-	2550, 2600, 2650, 2700,
-	2750, 2800, 2850, 2900,
-	3000, 3100, 3200, 3300,
-};
+/* The voltage mapping table for LDO2 is the same as VDCDCx */
+#define LDO2_VSEL_table VDCDCx_VSEL_table
 
 struct tps_info {
 	const char *name;
-	unsigned min_uV;
-	unsigned max_uV;
 	u8 table_len;
-	const u16 *table;
+	const unsigned int *table;
 
 	/* Does DCDC high or the low register defines output voltage? */
 	bool defdcdc_default;
@@ -104,36 +85,26 @@ struct tps_info {
 static struct tps_info tps6507x_pmic_regs[] = {
 	{
 		.name = "VDCDC1",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(VDCDCx_VSEL_table),
 		.table = VDCDCx_VSEL_table,
 	},
 	{
 		.name = "VDCDC2",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(VDCDCx_VSEL_table),
 		.table = VDCDCx_VSEL_table,
 	},
 	{
 		.name = "VDCDC3",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(VDCDCx_VSEL_table),
 		.table = VDCDCx_VSEL_table,
 	},
 	{
 		.name = "LDO1",
-		.min_uV = 1000000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(LDO1_VSEL_table),
 		.table = LDO1_VSEL_table,
 	},
 	{
 		.name = "LDO2",
-		.min_uV = 725000,
-		.max_uV = 3300000,
 		.table_len = ARRAY_SIZE(LDO2_VSEL_table),
 		.table = LDO2_VSEL_table,
 	},
@@ -283,7 +254,7 @@ static int tps6507x_pmic_disable(struct regulator_dev *dev)
 					1 << shift);
 }
 
-static int tps6507x_pmic_get_voltage(struct regulator_dev *dev)
+static int tps6507x_pmic_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps6507x_pmic *tps = rdev_get_drvdata(dev);
 	int data, rid = rdev_get_id(dev);
@@ -325,7 +296,7 @@ static int tps6507x_pmic_get_voltage(struct regulator_dev *dev)
 		return data;
 
 	data &= mask;
-	return tps->info[rid]->table[data] * 1000;
+	return data;
 }
 
 static int tps6507x_pmic_set_voltage_sel(struct regulator_dev *dev,
@@ -376,34 +347,20 @@ static int tps6507x_pmic_set_voltage_sel(struct regulator_dev *dev,
 	return tps6507x_pmic_reg_write(tps, reg, data);
 }
 
-static int tps6507x_pmic_list_voltage(struct regulator_dev *dev,
-					unsigned selector)
-{
-	struct tps6507x_pmic *tps = rdev_get_drvdata(dev);
-	int rid = rdev_get_id(dev);
-
-	if (rid < TPS6507X_DCDC_1 || rid > TPS6507X_LDO_2)
-		return -EINVAL;
-
-	if (selector >= tps->info[rid]->table_len)
-		return -EINVAL;
-	else
-		return tps->info[rid]->table[selector] * 1000;
-}
-
 static struct regulator_ops tps6507x_pmic_ops = {
 	.is_enabled = tps6507x_pmic_is_enabled,
 	.enable = tps6507x_pmic_enable,
 	.disable = tps6507x_pmic_disable,
-	.get_voltage = tps6507x_pmic_get_voltage,
+	.get_voltage_sel = tps6507x_pmic_get_voltage_sel,
 	.set_voltage_sel = tps6507x_pmic_set_voltage_sel,
-	.list_voltage = tps6507x_pmic_list_voltage,
+	.list_voltage = regulator_list_voltage_table,
 };
 
 static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = dev_get_drvdata(pdev->dev.parent);
 	struct tps_info *info = &tps6507x_pmic_regs[0];
+	struct regulator_config config = { };
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
 	struct tps6507x_pmic *tps;
@@ -428,7 +385,7 @@ static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
 	if (!init_data)
 		return -EINVAL;
 
-	tps = kzalloc(sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc(&pdev->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
@@ -449,12 +406,16 @@ static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
 		tps->desc[i].name = info->name;
 		tps->desc[i].id = i;
 		tps->desc[i].n_voltages = info->table_len;
+		tps->desc[i].volt_table = info->table;
 		tps->desc[i].ops = &tps6507x_pmic_ops;
 		tps->desc[i].type = REGULATOR_VOLTAGE;
 		tps->desc[i].owner = THIS_MODULE;
 
-		rdev = regulator_register(&tps->desc[i],
-					tps6507x_dev->dev, init_data, tps, NULL);
+		config.dev = tps6507x_dev->dev;
+		config.init_data = init_data;
+		config.driver_data = tps;
+
+		rdev = regulator_register(&tps->desc[i], &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps6507x_dev->dev,
 				"failed to register %s regulator\n",
@@ -475,8 +436,6 @@ static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
 fail:
 	while (--i >= 0)
 		regulator_unregister(tps->rdev[i]);
-
-	kfree(tps);
 	return error;
 }
 
@@ -488,9 +447,6 @@ static int __devexit tps6507x_pmic_remove(struct platform_device *pdev)
 
 	for (i = 0; i < TPS6507X_NUM_REGULATOR; i++)
 		regulator_unregister(tps->rdev[i]);
-
-	kfree(tps);
-
 	return 0;
 }
 

@@ -8,7 +8,7 @@
  * Copyright (C) 2006 Tensilica Inc.
  * Copyright (C) 2008 Emlix GmbH <info@emlix.com>
  * Authors:	Fabian Godehardt <fg@emlix.com>
- *		Oskar Schirmer <os@emlix.com>
+ *		Oskar Schirmer <oskar@scara.com>
  *		Daniel Gloeckner <dg@emlix.com>
  */
 

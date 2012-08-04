@@ -34,8 +34,6 @@
 
 #include "tlv320aic23.h"
 
-#define AIC23_VERSION "0.1"
-
 /*
  * AIC23 register cache
  */
@@ -325,8 +323,7 @@ static int tlv320aic23_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	u16 iface_reg;
 	int ret;
 	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
@@ -371,8 +368,7 @@ static int tlv320aic23_hw_params(struct snd_pcm_substream *substream,
 static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 
 	/* set active */
 	snd_soc_write(codec, TLV320AIC23_ACTIVE, 0x0001);
@@ -383,8 +379,7 @@ static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream,
 static void tlv320aic23_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 
 	/* deactivate */
@@ -547,8 +542,6 @@ static int tlv320aic23_probe(struct snd_soc_codec *codec)
 {
 	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	printk(KERN_INFO "AIC23 Audio Codec %s\n", AIC23_VERSION);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, aic23->control_type);
 	if (ret < 0) {

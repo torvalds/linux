@@ -45,6 +45,14 @@
 			#interrupt-cells = <1>;
 		};
 
+		dma@fc400000 {
+			compatible = "arm,pl080", "arm,primecell";
+			reg = <0xfc400000 0x1000>;
+			interrupt-parent = <&vic1>;
+			interrupts = <10>;
+			status = "disabled";
+		};
+
 		gmac: ethernet@e0800000 {
 			compatible = "st,spear600-gmac";
 			reg = <0xe0800000 0x8000>;
@@ -168,6 +176,13 @@
 				interrupt-parent = <&vic0>;
 				interrupts = <28>;
 				status = "disabled";
+			};
+
+			timer@f0000000 {
+				compatible = "st,spear-timer";
+				reg = <0xf0000000 0x400>;
+				interrupt-parent = <&vic0>;
+				interrupts = <16>;
 			};
 		};
 	};

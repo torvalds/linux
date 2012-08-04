@@ -18,7 +18,6 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
@@ -593,7 +592,7 @@ int
 xfs_dir2_shrink_inode(
 	xfs_da_args_t	*args,
 	xfs_dir2_db_t	db,
-	xfs_dabuf_t	*bp)
+	struct xfs_buf	*bp)
 {
 	xfs_fileoff_t	bno;		/* directory file offset */
 	xfs_dablk_t	da;		/* directory file offset */
@@ -635,7 +634,7 @@ xfs_dir2_shrink_inode(
 	/*
 	 * Invalidate the buffer from the transaction.
 	 */
-	xfs_da_binval(tp, bp);
+	xfs_trans_binval(tp, bp);
 	/*
 	 * If it's not a data block, we're done.
 	 */

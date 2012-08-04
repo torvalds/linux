@@ -29,6 +29,8 @@ extern void __init at91x40_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
 extern int  __init at91_aic_of_init(struct device_node *node,
 				    struct device_node *parent);
+extern int  __init at91_aic5_of_init(struct device_node *node,
+				    struct device_node *parent);
 
 
  /* Timer */
@@ -40,17 +42,6 @@ extern struct sys_timer at91sam926x_timer;
 extern struct sys_timer at91x40_timer;
 
  /* Clocks */
-/*
- * function to specify the clock of the default console. As we do not
- * use the device/driver bus, the dev_name is not intialize. So we need
- * to link the clock to a specific con_id only "usart"
- */
-extern void __init at91rm9200_set_console_clock(int id);
-extern void __init at91sam9260_set_console_clock(int id);
-extern void __init at91sam9261_set_console_clock(int id);
-extern void __init at91sam9263_set_console_clock(int id);
-extern void __init at91sam9rl_set_console_clock(int id);
-extern void __init at91sam9g45_set_console_clock(int id);
 #ifdef CONFIG_AT91_PMC_UNIT
 extern int __init at91_clock_init(unsigned long main_clock);
 extern int __init at91_dt_clock_init(void);

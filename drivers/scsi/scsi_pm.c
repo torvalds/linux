@@ -24,8 +24,11 @@ static int scsi_dev_type_suspend(struct device *dev, pm_message_t msg)
 	err = scsi_device_quiesce(to_scsi_device(dev));
 	if (err == 0) {
 		drv = dev->driver;
-		if (drv && drv->suspend)
+		if (drv && drv->suspend) {
 			err = drv->suspend(dev, msg);
+			if (err)
+				scsi_device_resume(to_scsi_device(dev));
+		}
 	}
 	dev_dbg(dev, "scsi suspend: %d\n", err);
 	return err;
@@ -73,23 +76,24 @@ static int scsi_bus_resume_common(struct device *dev)
 {
 	int err = 0;
 
-	if (scsi_is_sdev_device(dev)) {
-		/*
-		 * Parent device may have runtime suspended as soon as
-		 * it is woken up during the system resume.
-		 *
-		 * Resume it on behalf of child.
-		 */
-		pm_runtime_get_sync(dev->parent);
-		err = scsi_dev_type_resume(dev);
-		pm_runtime_put_sync(dev->parent);
-	}
+	/*
+	 * Parent device may have runtime suspended as soon as
+	 * it is woken up during the system resume.
+	 *
+	 * Resume it on behalf of child.
+	 */
+	pm_runtime_get_sync(dev->parent);
 
+	if (scsi_is_sdev_device(dev))
+		err = scsi_dev_type_resume(dev);
 	if (err == 0) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
 	}
+
+	pm_runtime_put_sync(dev->parent);
+
 	return err;
 }
 
@@ -97,7 +101,7 @@ static int scsi_bus_prepare(struct device *dev)
 {
 	if (scsi_is_sdev_device(dev)) {
 		/* sd probing uses async_schedule.  Wait until it finishes. */
-		async_synchronize_full();
+		async_synchronize_full_domain(&scsi_sd_probe_domain);
 
 	} else if (scsi_is_host_device(dev)) {
 		/* Wait until async scanning is finished */

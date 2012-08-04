@@ -28,7 +28,10 @@
 /* The maximum number of channels the firmware can scan per command */
 #define MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN   14
 
-#define MWIFIEX_CHANNELS_PER_SCAN_CMD            4
+#define MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD	4
+#define MWIFIEX_LIMIT_1_CHANNEL_PER_SCAN_CMD	15
+#define MWIFIEX_LIMIT_2_CHANNELS_PER_SCAN_CMD	27
+#define MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD	35
 
 /* Memory needed to store a max sized Channel List TLV for a firmware scan */
 #define CHAN_TLV_MAX_SIZE  (sizeof(struct mwifiex_ie_types_header)         \
@@ -471,7 +474,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
  * This routine is used for any scan that is not provided with a
  * specific channel list to scan.
  */
-static void
+static int
 mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 				 const struct mwifiex_user_scan_cfg
 							*user_scan_in,
@@ -528,6 +531,7 @@ mwifiex_scan_create_channel_list(struct mwifiex_private *priv,
 		}
 
 	}
+	return chan_idx;
 }
 
 /*
@@ -727,6 +731,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	u32 num_probes;
 	u32 ssid_len;
 	u32 chan_idx;
+	u32 chan_num;
 	u32 scan_type;
 	u16 scan_dur;
 	u8 channel;
@@ -850,7 +855,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	if (*filtered_scan)
 		*max_chan_per_scan = MWIFIEX_MAX_CHANNELS_PER_SPECIFIC_SCAN;
 	else
-		*max_chan_per_scan = MWIFIEX_CHANNELS_PER_SCAN_CMD;
+		*max_chan_per_scan = MWIFIEX_DEF_CHANNELS_PER_SCAN_CMD;
 
 	/* If the input config or adapter has the number of Probes set,
 	   add tlv */
@@ -962,13 +967,28 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 			dev_dbg(adapter->dev,
 				"info: Scan: Scanning current channel only\n");
 		}
-
+		chan_num = chan_idx;
 	} else {
 		dev_dbg(adapter->dev,
 			"info: Scan: Creating full region channel list\n");
-		mwifiex_scan_create_channel_list(priv, user_scan_in,
-						 scan_chan_list,
-						 *filtered_scan);
+		chan_num = mwifiex_scan_create_channel_list(priv, user_scan_in,
+							    scan_chan_list,
+							    *filtered_scan);
+	}
+
+	/*
+	 * In associated state we will reduce the number of channels scanned per
+	 * scan command to avoid any traffic delay/loss. This number is decided
+	 * based on total number of channels to be scanned due to constraints
+	 * of command buffers.
+	 */
+	if (priv->media_connected) {
+		if (chan_num < MWIFIEX_LIMIT_1_CHANNEL_PER_SCAN_CMD)
+			*max_chan_per_scan = 1;
+		else if (chan_num < MWIFIEX_LIMIT_2_CHANNELS_PER_SCAN_CMD)
+			*max_chan_per_scan = 2;
+		else if (chan_num < MWIFIEX_LIMIT_3_CHANNELS_PER_SCAN_CMD)
+			*max_chan_per_scan = 3;
 	}
 }
 
@@ -1014,14 +1034,12 @@ mwifiex_ret_802_11_scan_get_tlv_ptrs(struct mwifiex_adapter *adapter,
 			case TLV_TYPE_TSFTIMESTAMP:
 				dev_dbg(adapter->dev, "info: SCAN_RESP: TSF "
 					"timestamp TLV, len = %d\n", tlv_len);
-				*tlv_data = (struct mwifiex_ie_types_data *)
-					current_tlv;
+				*tlv_data = current_tlv;
 				break;
 			case TLV_TYPE_CHANNELBANDLIST:
 				dev_dbg(adapter->dev, "info: SCAN_RESP: channel"
 					" band list TLV, len = %d\n", tlv_len);
-				*tlv_data = (struct mwifiex_ie_types_data *)
-					current_tlv;
+				*tlv_data = current_tlv;
 				break;
 			default:
 				dev_err(adapter->dev,
@@ -1048,10 +1066,8 @@ mwifiex_ret_802_11_scan_get_tlv_ptrs(struct mwifiex_adapter *adapter,
  * This function parses provided beacon buffer and updates
  * respective fields in bss descriptor structure.
  */
-int
-mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
-				struct mwifiex_bssdescriptor *bss_entry,
-				u8 *ie_buf, u32 ie_len)
+int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
+				    struct mwifiex_bssdescriptor *bss_entry)
 {
 	int ret = 0;
 	u8 element_id;
@@ -1073,10 +1089,8 @@ mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 
 	found_data_rate_ie = false;
 	rate_size = 0;
-	current_ptr = ie_buf;
-	bytes_left = ie_len;
-	bss_entry->beacon_buf = ie_buf;
-	bss_entry->beacon_buf_size = ie_len;
+	current_ptr = bss_entry->beacon_buf;
+	bytes_left = bss_entry->beacon_buf_size;
 
 	/* Process variable IE */
 	while (bytes_left >= 2) {
@@ -1221,24 +1235,24 @@ mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
 			break;
-		case WLAN_EID_HT_INFORMATION:
-			bss_entry->bcn_ht_info = (struct ieee80211_ht_info *)
-					(current_ptr +
+		case WLAN_EID_HT_OPERATION:
+			bss_entry->bcn_ht_oper =
+				(struct ieee80211_ht_operation *)(current_ptr +
 					sizeof(struct ieee_types_header));
 			bss_entry->ht_info_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_BSS_COEX_2040:
-			bss_entry->bcn_bss_co_2040 = (u8 *) (current_ptr +
-					sizeof(struct ieee_types_header));
+			bss_entry->bcn_bss_co_2040 = current_ptr +
+				sizeof(struct ieee_types_header);
 			bss_entry->bss_co_2040_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 						bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_EXT_CAPABILITY:
-			bss_entry->bcn_ext_cap = (u8 *) (current_ptr +
-					sizeof(struct ieee_types_header));
+			bss_entry->bcn_ext_cap = current_ptr +
+				sizeof(struct ieee_types_header);
 			bss_entry->ext_cap_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
@@ -1280,8 +1294,8 @@ mwifiex_radio_type_to_band(u8 radio_type)
  * order to send the appropriate scan commands to firmware to populate or
  * update the internal driver scan table.
  */
-static int mwifiex_scan_networks(struct mwifiex_private *priv,
-		const struct mwifiex_user_scan_cfg *user_scan_in)
+int mwifiex_scan_networks(struct mwifiex_private *priv,
+			  const struct mwifiex_user_scan_cfg *user_scan_in)
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -1346,6 +1360,7 @@ static int mwifiex_scan_networks(struct mwifiex_private *priv,
 			adapter->cmd_queued = cmd_node;
 			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
 							true);
+			queue_work(adapter->workqueue, &adapter->main_work);
 		} else {
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
@@ -1359,26 +1374,6 @@ static int mwifiex_scan_networks(struct mwifiex_private *priv,
 	kfree(scan_cfg_out);
 	kfree(scan_chan_list);
 	return ret;
-}
-
-/*
- * Sends IOCTL request to start a scan with user configurations.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- *
- * Upon completion, it also generates a wireless event to notify
- * applications.
- */
-int mwifiex_set_user_scan_ioctl(struct mwifiex_private *priv,
-				struct mwifiex_user_scan_cfg *scan_req)
-{
-	int status;
-
-	status = mwifiex_scan_networks(priv, scan_req);
-	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
-
-	return status;
 }
 
 /*
@@ -1447,15 +1442,12 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 	return ret;
 }
 
-static int
-mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
-			       s32 rssi, const u8 *ie_buf, size_t ie_len,
-			       u16 beacon_period, u16 cap_info_bitmap, u8 band)
+static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
+					  struct cfg80211_bss *bss)
 {
 	struct mwifiex_bssdescriptor *bss_desc;
 	int ret;
 	unsigned long flags;
-	u8 *beacon_ie;
 
 	/* Allocate and fill new bss descriptor */
 	bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
@@ -1465,16 +1457,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 		return -ENOMEM;
 	}
 
-	beacon_ie = kmemdup(ie_buf, ie_len, GFP_KERNEL);
-	if (!beacon_ie) {
-		kfree(bss_desc);
-		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
-		return -ENOMEM;
-	}
-
-	ret = mwifiex_fill_new_bss_desc(priv, bssid, rssi, beacon_ie,
-					ie_len, beacon_period,
-					cap_info_bitmap, band, bss_desc);
+	ret = mwifiex_fill_new_bss_desc(priv, bss, bss_desc);
 	if (ret)
 		goto done;
 
@@ -1493,7 +1476,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 	priv->curr_bss_params.bss_descriptor.bcn_ht_cap = NULL;
 	priv->curr_bss_params.bss_descriptor.ht_cap_offset =
 		0;
-	priv->curr_bss_params.bss_descriptor.bcn_ht_info = NULL;
+	priv->curr_bss_params.bss_descriptor.bcn_ht_oper = NULL;
 	priv->curr_bss_params.bss_descriptor.ht_info_offset =
 		0;
 	priv->curr_bss_params.bss_descriptor.bcn_bss_co_2040 =
@@ -1514,7 +1497,6 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 
 done:
 	kfree(bss_desc);
-	kfree(beacon_ie);
 	return 0;
 }
 
@@ -1620,14 +1602,16 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		const u8 *ie_buf;
 		size_t ie_len;
 		u16 channel = 0;
-		u64 network_tsf = 0;
+		u64 fw_tsf = 0;
 		u16 beacon_size = 0;
 		u32 curr_bcn_bytes;
 		u32 freq;
 		u16 beacon_period;
 		u16 cap_info_bitmap;
 		u8 *current_ptr;
+		u64 timestamp;
 		struct mwifiex_bcn_param *bcn_param;
+		struct mwifiex_bss_priv *bss_priv;
 
 		if (bytes_left >= sizeof(beacon_size)) {
 			/* Extract & convert beacon size from command buffer */
@@ -1667,9 +1651,11 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		memcpy(bssid, bcn_param->bssid, ETH_ALEN);
 
-		rssi = (s32) (bcn_param->rssi);
-		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%02X\n", rssi);
+		rssi = (s32) bcn_param->rssi;
+		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
+		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
 
+		timestamp = le64_to_cpu(bcn_param->timestamp);
 		beacon_period = le16_to_cpu(bcn_param->beacon_period);
 
 		cap_info_bitmap = le16_to_cpu(bcn_param->cap_info_bitmap);
@@ -1696,8 +1682,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 				goto done;
 			}
 			if (element_id == WLAN_EID_DS_PARAMS) {
-				channel = *(u8 *) (current_ptr +
-					sizeof(struct ieee_types_header));
+				channel = *(current_ptr + sizeof(struct ieee_types_header));
 				break;
 			}
 
@@ -1709,14 +1694,13 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		/*
 		 * If the TSF TLV was appended to the scan results, save this
-		 * entry's TSF value in the networkTSF field.The networkTSF is
-		 * the firmware's TSF value at the time the beacon or probe
-		 * response was received.
+		 * entry's TSF value in the fw_tsf field. It is the firmware's
+		 * TSF value at the time the beacon or probe response was
+		 * received.
 		 */
 		if (tsf_tlv)
-			memcpy(&network_tsf,
-			       &tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
-			       sizeof(network_tsf));
+			memcpy(&fw_tsf, &tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
+			       sizeof(fw_tsf));
 
 		if (channel) {
 			struct ieee80211_channel *chan;
@@ -1739,21 +1723,19 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 			if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 				bss = cfg80211_inform_bss(priv->wdev->wiphy,
-					      chan, bssid, network_tsf,
+					      chan, bssid, timestamp,
 					      cap_info_bitmap, beacon_period,
 					      ie_buf, ie_len, rssi, GFP_KERNEL);
-				*(u8 *)bss->priv = band;
-				cfg80211_put_bss(bss);
-
+				bss_priv = (struct mwifiex_bss_priv *)bss->priv;
+				bss_priv->band = band;
+				bss_priv->fw_tsf = fw_tsf;
 				if (priv->media_connected &&
 				    !memcmp(bssid,
 					    priv->curr_bss_params.bss_descriptor
 					    .mac_address, ETH_ALEN))
-					mwifiex_update_curr_bss_params
-							(priv, bssid, rssi,
-							 ie_buf, ie_len,
-							 beacon_period,
-							 cap_info_bitmap, band);
+					mwifiex_update_curr_bss_params(priv,
+								       bss);
+				cfg80211_put_bss(bss);
 			}
 		} else {
 			dev_dbg(adapter->dev, "missing BSS channel IE\n");
@@ -1788,14 +1770,23 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 			priv->user_scan_cfg = NULL;
 		}
 	} else {
-		/* Get scan command from scan_pending_q and put to
-		   cmd_pending_q */
-		cmd_node = list_first_entry(&adapter->scan_pending_q,
-					    struct cmd_ctrl_node, list);
-		list_del(&cmd_node->list);
-		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
-
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+		if (!mwifiex_wmm_lists_empty(adapter)) {
+			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
+					       flags);
+			adapter->scan_delay_cnt = 1;
+			mod_timer(&priv->scan_delay_timer, jiffies +
+				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
+		} else {
+			/* Get scan command from scan_pending_q and put to
+			   cmd_pending_q */
+			cmd_node = list_first_entry(&adapter->scan_pending_q,
+						    struct cmd_ctrl_node, list);
+			list_del(&cmd_node->list);
+			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
+					       flags);
+			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
+							true);
+		}
 	}
 
 done:
@@ -2019,19 +2010,18 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 			(curr_bss->beacon_buf +
 			 curr_bss->ht_cap_offset);
 
-	if (curr_bss->bcn_ht_info)
-		curr_bss->bcn_ht_info = (struct ieee80211_ht_info *)
+	if (curr_bss->bcn_ht_oper)
+		curr_bss->bcn_ht_oper = (struct ieee80211_ht_operation *)
 			(curr_bss->beacon_buf +
 			 curr_bss->ht_info_offset);
 
 	if (curr_bss->bcn_bss_co_2040)
 		curr_bss->bcn_bss_co_2040 =
-			(u8 *) (curr_bss->beacon_buf +
-					curr_bss->bss_co_2040_offset);
+			(curr_bss->beacon_buf + curr_bss->bss_co_2040_offset);
 
 	if (curr_bss->bcn_ext_cap)
-		curr_bss->bcn_ext_cap = (u8 *) (curr_bss->beacon_buf +
-				curr_bss->ext_cap_offset);
+		curr_bss->bcn_ext_cap = curr_bss->beacon_buf +
+			curr_bss->ext_cap_offset;
 }
 
 /*

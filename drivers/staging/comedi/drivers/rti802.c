@@ -47,29 +47,6 @@ Configuration Options:
 #define RTI802_DATALOW 1
 #define RTI802_DATAHIGH 2
 
-static int rti802_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int rti802_detach(struct comedi_device *dev);
-static struct comedi_driver driver_rti802 = {
-	.driver_name = "rti802",
-	.module = THIS_MODULE,
-	.attach = rti802_attach,
-	.detach = rti802_detach,
-};
-
-static int __init driver_rti802_init_module(void)
-{
-	return comedi_driver_register(&driver_rti802);
-}
-
-static void __exit driver_rti802_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_rti802);
-}
-
-module_init(driver_rti802_init_module);
-module_exit(driver_rti802_cleanup_module);
-
 struct rti802_private {
 	enum {
 		dac_2comp, dac_straight
@@ -115,6 +92,7 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int i;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: rti802: 0x%04lx ", dev->minor, iobase);
@@ -126,10 +104,12 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = "rti802";
 
-	if (alloc_subdevices(dev, 1) < 0
-	    || alloc_private(dev, sizeof(struct rti802_private))) {
+	if (alloc_private(dev, sizeof(struct rti802_private)))
 		return -ENOMEM;
-	}
+
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices;
 	/* ao subdevice */
@@ -152,15 +132,19 @@ static int rti802_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int rti802_detach(struct comedi_device *dev)
+static void rti802_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: rti802: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, RTI802_SIZE);
-
-	return 0;
 }
+
+static struct comedi_driver rti802_driver = {
+	.driver_name	= "rti802",
+	.module		= THIS_MODULE,
+	.attach		= rti802_attach,
+	.detach		= rti802_detach,
+};
+module_comedi_driver(rti802_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

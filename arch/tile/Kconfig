@@ -3,6 +3,8 @@
 
 config TILE
 	def_bool y
+	select HAVE_DMA_ATTRS
+	select HAVE_DMA_API_DEBUG
 	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select USE_GENERIC_SMP_HELPERS
@@ -11,8 +13,10 @@ config TILE
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
+	select HAVE_SYSCALL_WRAPPERS if TILEGX
 	select SYS_HYPERVISOR
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_CLOCKEVENTS
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -46,7 +50,12 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
-config GENERIC_CLOCKEVENTS
+# Support for additional huge page sizes besides HPAGE_SIZE.
+# The software support is currently only present in the TILE-Gx
+# hypervisor. TILEPro in any case does not support page sizes
+# larger than the default HPAGE_SIZE.
+config HUGETLB_SUPER_PAGES
+	depends on HUGETLB_PAGE && TILEGX
 	def_bool y
 
 # FIXME: tilegx can implement a more efficient rwsem.
@@ -71,6 +80,9 @@ config ARCH_DMA_ADDR_T_64BIT
 
 config NEED_DMA_MAP_STATE
 	def_bool y
+
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -108,16 +120,14 @@ config HVC_TILE
 	select HVC_DRIVER
 	def_bool y
 
-# Please note: TILE-Gx support is not yet finalized; this is
-# the preliminary support.  TILE-Gx drivers are only provided
-# with the alpha or beta test versions for Tilera customers.
 config TILEGX
-	depends on EXPERIMENTAL
 	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
 
+config TILEPRO
+	def_bool !TILEGX
+
 config 64BIT
-	depends on TILEGX
-	def_bool y
+	def_bool TILEGX
 
 config ARCH_DEFCONFIG
 	string
@@ -138,7 +148,30 @@ config NR_CPUS
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
 
-source "kernel/time/Kconfig"
+if TILEGX
+
+choice
+	prompt "Kernel page size"
+	default PAGE_SIZE_64KB
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance on memory-intensive applications, a page size of 64KB
+	  is recommended.  For workloads involving many small files, many
+	  connections, etc., it may be better to select 16KB, which uses
+	  memory more efficiently at some cost in TLB performance.
+
+	  Note that this option is TILE-Gx specific; currently
+	  TILEPro page size is set by rebuilding the hypervisor.
+
+config PAGE_SIZE_16KB
+	bool "16KB"
+
+config PAGE_SIZE_64KB
+	bool "64KB"
+
+endchoice
+
+endif
 
 source "kernel/Kconfig.hz"
 
@@ -183,6 +216,22 @@ config HIGHMEM
 	  physical memory into the top 1 GB of virtual memory space.
 
 	  If unsure, say "true".
+
+config ZONE_DMA
+	def_bool y
+
+config IOMMU_HELPER
+	bool
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config SWIOTLB
+	bool
+	default TILEGX
+	select IOMMU_HELPER
+	select NEED_SG_DMA_LENGTH
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
 
 # We do not currently support disabling NUMA.
 config NUMA
@@ -317,6 +366,8 @@ config KERNEL_PL
 	  kernel will be built to run at.  Generally you should use
 	  the default value here.
 
+source "arch/tile/gxio/Kconfig"
+
 endmenu  # Tilera-specific configuration
 
 menu "Bus options"
@@ -326,6 +377,9 @@ config PCI
 	default y
 	select PCI_DOMAINS
 	select GENERIC_PCI_IOMAP
+	select TILE_GXIO_TRIO if TILEGX
+	select ARCH_SUPPORTS_MSI if TILEGX
+	select PCI_MSI if TILEGX
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can
 	  be attached to the Tile chip.  Many, but not all, PCI devices
@@ -341,6 +395,22 @@ config NO_IOPORT
 	def_bool !PCI
 
 source "drivers/pci/Kconfig"
+
+config TILE_USB
+	tristate "Tilera USB host adapter support"
+	default y
+	depends on USB
+	depends on TILEGX
+	select TILE_GXIO_USB_HOST
+	---help---
+	  Provides USB host adapter support for the built-in EHCI and OHCI
+	  interfaces on TILE-Gx chips.
+
+# USB OHCI needs the bounce pool since tilegx will often have more
+# than 4GB of memory, but we don't currently use the IOTLB to present
+# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
+config NEED_BOUNCE_POOL
+	def_bool USB_OHCI_HCD
 
 config HOTPLUG
 	bool "Support for hot-pluggable devices"

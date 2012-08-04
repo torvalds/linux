@@ -66,12 +66,6 @@ static ctl_table ucma_ctl_table[] = {
 	{ }
 };
 
-static struct ctl_path ucma_ctl_path[] = {
-	{ .procname = "net" },
-	{ .procname = "rdma_ucm" },
-	{ }
-};
-
 struct ucma_file {
 	struct mutex		mut;
 	struct file		*filp;
@@ -915,6 +909,13 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 		}
 		ret = rdma_set_reuseaddr(ctx->cm_id, *((int *) optval) ? 1 : 0);
 		break;
+	case RDMA_OPTION_ID_AFONLY:
+		if (optlen != sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_afonly(ctx->cm_id, *((int *) optval) ? 1 : 0);
+		break;
 	default:
 		ret = -ENOSYS;
 	}
@@ -1001,23 +1002,18 @@ static ssize_t ucma_set_option(struct ucma_file *file, const char __user *inbuf,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	optval = kmalloc(cmd.optlen, GFP_KERNEL);
-	if (!optval) {
-		ret = -ENOMEM;
-		goto out1;
-	}
-
-	if (copy_from_user(optval, (void __user *) (unsigned long) cmd.optval,
-			   cmd.optlen)) {
-		ret = -EFAULT;
-		goto out2;
+	optval = memdup_user((void __user *) (unsigned long) cmd.optval,
+			     cmd.optlen);
+	if (IS_ERR(optval)) {
+		ret = PTR_ERR(optval);
+		goto out;
 	}
 
 	ret = ucma_set_option_level(ctx, cmd.level, cmd.optname, optval,
 				    cmd.optlen);
-out2:
 	kfree(optval);
-out1:
+
+out:
 	ucma_put_ctx(ctx);
 	return ret;
 }
@@ -1392,7 +1388,7 @@ static int __init ucma_init(void)
 		goto err1;
 	}
 
-	ucma_ctl_table_hdr = register_sysctl_paths(ucma_ctl_path, ucma_ctl_table);
+	ucma_ctl_table_hdr = register_net_sysctl(&init_net, "net/rdma_ucm", ucma_ctl_table);
 	if (!ucma_ctl_table_hdr) {
 		printk(KERN_ERR "rdma_ucm: couldn't register sysctl paths\n");
 		ret = -ENOMEM;
@@ -1408,7 +1404,7 @@ err1:
 
 static void __exit ucma_cleanup(void)
 {
-	unregister_sysctl_table(ucma_ctl_table_hdr);
+	unregister_net_sysctl_table(ucma_ctl_table_hdr);
 	device_remove_file(ucma_misc.this_device, &dev_attr_abi_version);
 	misc_deregister(&ucma_misc);
 	idr_destroy(&ctx_idr);

@@ -12,6 +12,8 @@
 #ifndef __SOUND_HDA_JACK_H
 #define __SOUND_HDA_JACK_H
 
+struct auto_pin_cfg;
+
 struct hda_jack_tbl {
 	hda_nid_t nid;
 	unsigned char action;		/* event action (0 = none) */
@@ -21,6 +23,7 @@ struct hda_jack_tbl {
 	unsigned int pin_sense;		/* cached pin-sense value */
 	unsigned int jack_detect:1;	/* capable of jack-detection? */
 	unsigned int jack_dirty:1;	/* needs to update? */
+	unsigned int phantom_jack:1;    /* a fixed, always present port? */
 	struct snd_kcontrol *kctl;	/* assigned kctl for jack-detection */
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	int type;

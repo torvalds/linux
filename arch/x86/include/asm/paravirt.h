@@ -128,19 +128,9 @@ static inline u64 paravirt_read_msr(unsigned msr, int *err)
 	return PVOP_CALL2(u64, pv_cpu_ops.read_msr, msr, err);
 }
 
-static inline int paravirt_rdmsr_regs(u32 *regs)
-{
-	return PVOP_CALL1(int, pv_cpu_ops.rdmsr_regs, regs);
-}
-
 static inline int paravirt_write_msr(unsigned msr, unsigned low, unsigned high)
 {
 	return PVOP_CALL3(int, pv_cpu_ops.write_msr, msr, low, high);
-}
-
-static inline int paravirt_wrmsr_regs(u32 *regs)
-{
-	return PVOP_CALL1(int, pv_cpu_ops.wrmsr_regs, regs);
 }
 
 /* These should all do BUG_ON(_err), but our headers are too tangled. */
@@ -176,41 +166,12 @@ do {						\
 	_err;					\
 })
 
-#define rdmsr_safe_regs(regs)	paravirt_rdmsr_regs(regs)
-#define wrmsr_safe_regs(regs)	paravirt_wrmsr_regs(regs)
-
 static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 {
 	int err;
 
 	*p = paravirt_read_msr(msr, &err);
 	return err;
-}
-static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
-{
-	u32 gprs[8] = { 0 };
-	int err;
-
-	gprs[1] = msr;
-	gprs[7] = 0x9c5a203a;
-
-	err = paravirt_rdmsr_regs(gprs);
-
-	*p = gprs[0] | ((u64)gprs[2] << 32);
-
-	return err;
-}
-
-static inline int wrmsrl_amd_safe(unsigned msr, unsigned long long val)
-{
-	u32 gprs[8] = { 0 };
-
-	gprs[0] = (u32)val;
-	gprs[1] = msr;
-	gprs[2] = val >> 32;
-	gprs[7] = 0x9c5a203a;
-
-	return paravirt_wrmsr_regs(gprs);
 }
 
 static inline u64 paravirt_read_tsc(void)
@@ -251,6 +212,8 @@ do {						\
 	low = (u32)_l;				\
 	high = _l >> 32;			\
 } while (0)
+
+#define rdpmcl(counter, val) ((val) = paravirt_read_pmc(counter))
 
 static inline unsigned long long paravirt_rdtscp(unsigned int *aux)
 {
@@ -397,9 +360,10 @@ static inline void __flush_tlb_single(unsigned long addr)
 
 static inline void flush_tlb_others(const struct cpumask *cpumask,
 				    struct mm_struct *mm,
-				    unsigned long va)
+				    unsigned long start,
+				    unsigned long end)
 {
-	PVOP_VCALL3(pv_mmu_ops.flush_tlb_others, cpumask, mm, va);
+	PVOP_VCALL4(pv_mmu_ops.flush_tlb_others, cpumask, mm, start, end);
 }
 
 static inline int paravirt_pgd_alloc(struct mm_struct *mm)
@@ -1023,10 +987,8 @@ extern void default_banner(void);
 		  call PARA_INDIRECT(pv_cpu_ops+PV_CPU_swapgs)		\
 		 )
 
-#define GET_CR2_INTO_RCX				\
-	call PARA_INDIRECT(pv_mmu_ops+PV_MMU_read_cr2);	\
-	movq %rax, %rcx;				\
-	xorq %rax, %rax;
+#define GET_CR2_INTO_RAX				\
+	call PARA_INDIRECT(pv_mmu_ops+PV_MMU_read_cr2)
 
 #define PARAVIRT_ADJUST_EXCEPTION_FRAME					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_adjust_exception_frame), \

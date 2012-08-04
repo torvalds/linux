@@ -360,8 +360,11 @@ struct cpu_vfs_cap_data {
 
 #define CAP_WAKE_ALARM            35
 
+/* Allow preventing system suspends */
 
-#define CAP_LAST_CAP         CAP_WAKE_ALARM
+#define CAP_BLOCK_SUSPEND    36
+
+#define CAP_LAST_CAP         CAP_BLOCK_SUSPEND
 
 #define cap_valid(x) ((x) >= 0 && (x) <= CAP_LAST_CAP)
 
@@ -374,6 +377,7 @@ struct cpu_vfs_cap_data {
 
 #ifdef __KERNEL__
 
+struct inode;
 struct dentry;
 struct user_namespace;
 
@@ -548,6 +552,7 @@ extern bool has_ns_capability_noaudit(struct task_struct *t,
 extern bool capable(int cap);
 extern bool ns_capable(struct user_namespace *ns, int cap);
 extern bool nsown_capable(int cap);
+extern bool inode_capable(const struct inode *inode, int cap);
 
 /* audit system wants to get cap info from files as well */
 extern int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps);

@@ -88,20 +88,20 @@ static int ohci_hcd_sh_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		err("platform_get_resource error.");
+		dev_err(&pdev->dev, "platform_get_resource error.\n");
 		return -ENODEV;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		err("platform_get_irq error.");
+		dev_err(&pdev->dev, "platform_get_irq error.\n");
 		return -ENODEV;
 	}
 
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ohci_sh_hc_driver, &pdev->dev, (char *)hcd_name);
 	if (!hcd) {
-		err("Failed to create hcd");
+		dev_err(&pdev->dev, "Failed to create hcd\n");
 		return -ENOMEM;
 	}
 
@@ -110,7 +110,7 @@ static int ohci_hcd_sh_probe(struct platform_device *pdev)
 	hcd->rsrc_len = resource_size(res);
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret != 0) {
-		err("Failed to add hcd");
+		dev_err(&pdev->dev, "Failed to add hcd\n");
 		usb_put_hcd(hcd);
 		return ret;
 	}

@@ -77,27 +77,13 @@ nv50_mpeg_context_new(struct nouveau_channel *chan, int engine)
 static void
 nv50_mpeg_context_del(struct nouveau_channel *chan, int engine)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct nouveau_gpuobj *ctx = chan->engctx[engine];
 	struct drm_device *dev = chan->dev;
-	unsigned long flags;
-	u32 inst, i;
-
-	if (!chan->ramin)
-		return;
-
-	inst  = chan->ramin->vinst >> 12;
-	inst |= 0x80000000;
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000000);
-	if (nv_rd32(dev, 0x00b318) == inst)
-		nv_mask(dev, 0x00b318, 0x80000000, 0x00000000);
-	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000001);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+	int i;
 
 	for (i = 0x00; i <= 0x14; i += 4)
 		nv_wo32(chan->ramin, CTX_PTR(dev, i), 0x00000000);
+
 	nouveau_gpuobj_ref(NULL, &ctx);
 	chan->engctx[engine] = NULL;
 }
@@ -162,7 +148,6 @@ nv50_mpeg_init(struct drm_device *dev, int engine)
 static int
 nv50_mpeg_fini(struct drm_device *dev, int engine, bool suspend)
 {
-	/*XXX: context save for s/r */
 	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000000);
 	nv_wr32(dev, 0x00b140, 0x00000000);
 	return 0;

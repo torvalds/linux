@@ -18,7 +18,7 @@ static void bcma_host_pci_switch_core(struct bcma_device *core)
 	pci_write_config_dword(core->bus->host_pci, BCMA_PCI_BAR0_WIN2,
 			       core->wrap);
 	core->bus->mapped_core = core;
-	pr_debug("Switched to core: 0x%X\n", core->id.id);
+	bcma_debug(core->bus, "Switched to core: 0x%X\n", core->id.id);
 }
 
 /* Provides access to the requested core. Returns base offset that has to be
@@ -188,7 +188,7 @@ static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
 
 	/* SSB needed additional powering up, do we have any AMBA PCI cards? */
 	if (!pci_is_pcie(dev))
-		pr_err("PCI card detected, report problems.\n");
+		bcma_err(bus, "PCI card detected, report problems.\n");
 
 	/* Map MMIO */
 	err = -ENOMEM;
@@ -200,6 +200,9 @@ static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
 	bus->host_pci = dev;
 	bus->hosttype = BCMA_HOSTTYPE_PCI;
 	bus->ops = &bcma_host_pci_ops;
+
+	bus->boardinfo.vendor = bus->host_pci->subsystem_vendor;
+	bus->boardinfo.type = bus->host_pci->subsystem_device;
 
 	/* Register */
 	err = bcma_bus_register(bus);
@@ -222,7 +225,7 @@ err_kfree_bus:
 	return err;
 }
 
-static void bcma_host_pci_remove(struct pci_dev *dev)
+static void __devexit bcma_host_pci_remove(struct pci_dev *dev)
 {
 	struct bcma_bus *bus = pci_get_drvdata(dev);
 
@@ -265,6 +268,7 @@ static SIMPLE_DEV_PM_OPS(bcma_pm_ops, bcma_host_pci_suspend,
 
 static DEFINE_PCI_DEVICE_TABLE(bcma_pci_bridge_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x0576) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 43224) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4331) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4353) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4357) },
@@ -277,7 +281,7 @@ static struct pci_driver bcma_pci_bridge_driver = {
 	.name = "bcma-pci-bridge",
 	.id_table = bcma_pci_bridge_tbl,
 	.probe = bcma_host_pci_probe,
-	.remove = bcma_host_pci_remove,
+	.remove = __devexit_p(bcma_host_pci_remove),
 	.driver.pm = BCMA_PM_OPS,
 };
 

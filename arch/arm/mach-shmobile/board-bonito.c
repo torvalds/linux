@@ -26,6 +26,8 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/videodev2.h>
 #include <mach/common.h>
@@ -74,6 +76,12 @@
  * S38.1 = OFF
  * S38.2 = OFF
  */
+
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /*
  * FPGA
@@ -360,6 +368,8 @@ static void __init bonito_init(void)
 {
 	u16 val;
 
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	r8a7740_pinmux_init();
 	bonito_fpga_init();
 
@@ -486,7 +496,7 @@ static void __init bonito_earlytimer_init(void)
 	shmobile_earlytimer_init();
 }
 
-void __init bonito_add_early_devices(void)
+static void __init bonito_add_early_devices(void)
 {
 	r8a7740_add_early_devices();
 
@@ -500,5 +510,6 @@ MACHINE_START(BONITO, "bonito")
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= bonito_init,
+	.init_late	= shmobile_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

@@ -785,6 +785,12 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 
 	pstats->host_port_stats_counter++;
 
+	if (CHIP_IS_E3(bp)) {
+		u32 lpi_reg = BP_PORT(bp) ? MISC_REG_CPMU_LP_SM_ENT_CNT_P1
+					  : MISC_REG_CPMU_LP_SM_ENT_CNT_P0;
+		estats->eee_tx_lpi += REG_RD(bp, lpi_reg);
+	}
+
 	if (!BP_NOMCP(bp)) {
 		u32 nig_timer_max =
 			SHMEM_RD(bp, port_mb[BP_PORT(bp)].stat_nig_timer);
@@ -855,17 +861,22 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 		struct tstorm_per_queue_stats *tclient =
 			&bp->fw_stats_data->queue_stats[i].
 			tstorm_queue_statistics;
-		struct tstorm_per_queue_stats *old_tclient = &fp->old_tclient;
+		struct tstorm_per_queue_stats *old_tclient =
+			&bnx2x_fp_stats(bp, fp)->old_tclient;
 		struct ustorm_per_queue_stats *uclient =
 			&bp->fw_stats_data->queue_stats[i].
 			ustorm_queue_statistics;
-		struct ustorm_per_queue_stats *old_uclient = &fp->old_uclient;
+		struct ustorm_per_queue_stats *old_uclient =
+			&bnx2x_fp_stats(bp, fp)->old_uclient;
 		struct xstorm_per_queue_stats *xclient =
 			&bp->fw_stats_data->queue_stats[i].
 			xstorm_queue_statistics;
-		struct xstorm_per_queue_stats *old_xclient = &fp->old_xclient;
-		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-		struct bnx2x_eth_q_stats_old *qstats_old = &fp->eth_q_stats_old;
+		struct xstorm_per_queue_stats *old_xclient =
+			&bnx2x_fp_stats(bp, fp)->old_xclient;
+		struct bnx2x_eth_q_stats *qstats =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats_old;
 
 		u32 diff;
 
@@ -1048,8 +1059,11 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 	nstats->tx_bytes = bnx2x_hilo(&estats->total_bytes_transmitted_hi);
 
 	tmp = estats->mac_discard;
-	for_each_rx_queue(bp, i)
-		tmp += le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
+	for_each_rx_queue(bp, i) {
+		struct tstorm_per_queue_stats *old_tclient =
+			&bp->fp_stats[i].old_tclient;
+		tmp += le32_to_cpu(old_tclient->checksum_discard);
+	}
 	nstats->rx_dropped = tmp + bp->net_stats_old.rx_dropped;
 
 	nstats->tx_dropped = 0;
@@ -1099,9 +1113,9 @@ static void bnx2x_drv_stats_update(struct bnx2x *bp)
 	int i;
 
 	for_each_queue(bp, i) {
-		struct bnx2x_eth_q_stats *qstats = &bp->fp[i].eth_q_stats;
+		struct bnx2x_eth_q_stats *qstats = &bp->fp_stats[i].eth_q_stats;
 		struct bnx2x_eth_q_stats_old *qstats_old =
-						&bp->fp[i].eth_q_stats_old;
+			&bp->fp_stats[i].eth_q_stats_old;
 
 		UPDATE_ESTAT_QSTAT(driver_xoff);
 		UPDATE_ESTAT_QSTAT(rx_err_discard_pkt);
@@ -1309,14 +1323,11 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 	bnx2x_stats_comp(bp);
 }
 
-/**
- * This function will prepare the statistics ramrod data the way
+/* This function will prepare the statistics ramrod data the way
  * we will only have to increment the statistics counter and
  * send the ramrod each time we have to.
- *
- * @param bp
  */
-static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
+static void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 {
 	int i;
 	int first_queue_query_index;
@@ -1428,7 +1439,7 @@ static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 					query[first_queue_query_index + i];
 
 		cur_query_entry->kind = STATS_TYPE_QUEUE;
-		cur_query_entry->index = bnx2x_stats_id(&bp->fp[FCOE_IDX]);
+		cur_query_entry->index = bnx2x_stats_id(&bp->fp[FCOE_IDX(bp)]);
 		cur_query_entry->funcID = cpu_to_le16(BP_FUNC(bp));
 		cur_query_entry->address.hi =
 			cpu_to_le32(U64_HI(cur_data_offset));
@@ -1479,15 +1490,19 @@ void bnx2x_stats_init(struct bnx2x *bp)
 
 	/* function stats */
 	for_each_queue(bp, i) {
-		struct bnx2x_fastpath *fp = &bp->fp[i];
+		struct bnx2x_fp_stats *fp_stats = &bp->fp_stats[i];
 
-		memset(&fp->old_tclient, 0, sizeof(fp->old_tclient));
-		memset(&fp->old_uclient, 0, sizeof(fp->old_uclient));
-		memset(&fp->old_xclient, 0, sizeof(fp->old_xclient));
+		memset(&fp_stats->old_tclient, 0,
+		       sizeof(fp_stats->old_tclient));
+		memset(&fp_stats->old_uclient, 0,
+		       sizeof(fp_stats->old_uclient));
+		memset(&fp_stats->old_xclient, 0,
+		       sizeof(fp_stats->old_xclient));
 		if (bp->stats_init) {
-			memset(&fp->eth_q_stats, 0, sizeof(fp->eth_q_stats));
-			memset(&fp->eth_q_stats_old, 0,
-			       sizeof(fp->eth_q_stats_old));
+			memset(&fp_stats->eth_q_stats, 0,
+			       sizeof(fp_stats->eth_q_stats));
+			memset(&fp_stats->eth_q_stats_old, 0,
+			       sizeof(fp_stats->eth_q_stats_old));
 		}
 	}
 
@@ -1529,8 +1544,10 @@ void bnx2x_save_statistics(struct bnx2x *bp)
 	/* save queue statistics */
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
-		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-		struct bnx2x_eth_q_stats_old *qstats_old = &fp->eth_q_stats_old;
+		struct bnx2x_eth_q_stats *qstats =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old =
+			&bnx2x_fp_stats(bp, fp)->eth_q_stats_old;
 
 		UPDATE_QSTAT_OLD(total_unicast_bytes_received_hi);
 		UPDATE_QSTAT_OLD(total_unicast_bytes_received_lo);
@@ -1559,5 +1576,275 @@ void bnx2x_save_statistics(struct bnx2x *bp)
 		UPDATE_FW_STAT_OLD(mf_tag_discard);
 		UPDATE_FW_STAT_OLD(brb_truncate_discard);
 		UPDATE_FW_STAT_OLD(mac_discard);
+	}
+}
+
+void bnx2x_afex_collect_stats(struct bnx2x *bp, void *void_afex_stats,
+			      u32 stats_type)
+{
+	int i;
+	struct afex_stats *afex_stats = (struct afex_stats *)void_afex_stats;
+	struct bnx2x_eth_stats *estats = &bp->eth_stats;
+	struct per_queue_stats *fcoe_q_stats =
+		&bp->fw_stats_data->queue_stats[FCOE_IDX(bp)];
+
+	struct tstorm_per_queue_stats *fcoe_q_tstorm_stats =
+		&fcoe_q_stats->tstorm_queue_statistics;
+
+	struct ustorm_per_queue_stats *fcoe_q_ustorm_stats =
+		&fcoe_q_stats->ustorm_queue_statistics;
+
+	struct xstorm_per_queue_stats *fcoe_q_xstorm_stats =
+		&fcoe_q_stats->xstorm_queue_statistics;
+
+	struct fcoe_statistics_params *fw_fcoe_stat =
+		&bp->fw_stats_data->fcoe;
+
+	memset(afex_stats, 0, sizeof(struct afex_stats));
+
+	for_each_eth_queue(bp, i) {
+		struct bnx2x_eth_q_stats *qstats = &bp->fp_stats[i].eth_q_stats;
+
+		ADD_64(afex_stats->rx_unicast_bytes_hi,
+		       qstats->total_unicast_bytes_received_hi,
+		       afex_stats->rx_unicast_bytes_lo,
+		       qstats->total_unicast_bytes_received_lo);
+
+		ADD_64(afex_stats->rx_broadcast_bytes_hi,
+		       qstats->total_broadcast_bytes_received_hi,
+		       afex_stats->rx_broadcast_bytes_lo,
+		       qstats->total_broadcast_bytes_received_lo);
+
+		ADD_64(afex_stats->rx_multicast_bytes_hi,
+		       qstats->total_multicast_bytes_received_hi,
+		       afex_stats->rx_multicast_bytes_lo,
+		       qstats->total_multicast_bytes_received_lo);
+
+		ADD_64(afex_stats->rx_unicast_frames_hi,
+		       qstats->total_unicast_packets_received_hi,
+		       afex_stats->rx_unicast_frames_lo,
+		       qstats->total_unicast_packets_received_lo);
+
+		ADD_64(afex_stats->rx_broadcast_frames_hi,
+		       qstats->total_broadcast_packets_received_hi,
+		       afex_stats->rx_broadcast_frames_lo,
+		       qstats->total_broadcast_packets_received_lo);
+
+		ADD_64(afex_stats->rx_multicast_frames_hi,
+		       qstats->total_multicast_packets_received_hi,
+		       afex_stats->rx_multicast_frames_lo,
+		       qstats->total_multicast_packets_received_lo);
+
+		/* sum to rx_frames_discarded all discraded
+		 * packets due to size, ttl0 and checksum
+		 */
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       qstats->total_packets_received_checksum_discarded_hi,
+		       afex_stats->rx_frames_discarded_lo,
+		       qstats->total_packets_received_checksum_discarded_lo);
+
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       qstats->total_packets_received_ttl0_discarded_hi,
+		       afex_stats->rx_frames_discarded_lo,
+		       qstats->total_packets_received_ttl0_discarded_lo);
+
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       qstats->etherstatsoverrsizepkts_hi,
+		       afex_stats->rx_frames_discarded_lo,
+		       qstats->etherstatsoverrsizepkts_lo);
+
+		ADD_64(afex_stats->rx_frames_dropped_hi,
+		       qstats->no_buff_discard_hi,
+		       afex_stats->rx_frames_dropped_lo,
+		       qstats->no_buff_discard_lo);
+
+		ADD_64(afex_stats->tx_unicast_bytes_hi,
+		       qstats->total_unicast_bytes_transmitted_hi,
+		       afex_stats->tx_unicast_bytes_lo,
+		       qstats->total_unicast_bytes_transmitted_lo);
+
+		ADD_64(afex_stats->tx_broadcast_bytes_hi,
+		       qstats->total_broadcast_bytes_transmitted_hi,
+		       afex_stats->tx_broadcast_bytes_lo,
+		       qstats->total_broadcast_bytes_transmitted_lo);
+
+		ADD_64(afex_stats->tx_multicast_bytes_hi,
+		       qstats->total_multicast_bytes_transmitted_hi,
+		       afex_stats->tx_multicast_bytes_lo,
+		       qstats->total_multicast_bytes_transmitted_lo);
+
+		ADD_64(afex_stats->tx_unicast_frames_hi,
+		       qstats->total_unicast_packets_transmitted_hi,
+		       afex_stats->tx_unicast_frames_lo,
+		       qstats->total_unicast_packets_transmitted_lo);
+
+		ADD_64(afex_stats->tx_broadcast_frames_hi,
+		       qstats->total_broadcast_packets_transmitted_hi,
+		       afex_stats->tx_broadcast_frames_lo,
+		       qstats->total_broadcast_packets_transmitted_lo);
+
+		ADD_64(afex_stats->tx_multicast_frames_hi,
+		       qstats->total_multicast_packets_transmitted_hi,
+		       afex_stats->tx_multicast_frames_lo,
+		       qstats->total_multicast_packets_transmitted_lo);
+
+		ADD_64(afex_stats->tx_frames_dropped_hi,
+		       qstats->total_transmitted_dropped_packets_error_hi,
+		       afex_stats->tx_frames_dropped_lo,
+		       qstats->total_transmitted_dropped_packets_error_lo);
+	}
+
+	/* now add FCoE statistics which are collected separately
+	 * (both offloaded and non offloaded)
+	 */
+	if (!NO_FCOE(bp)) {
+		ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
+			  LE32_0,
+			  afex_stats->rx_unicast_bytes_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_byte_cnt);
+
+		ADD_64_LE(afex_stats->rx_unicast_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.hi,
+			  afex_stats->rx_unicast_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_bytes.lo);
+
+		ADD_64_LE(afex_stats->rx_broadcast_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.hi,
+			  afex_stats->rx_broadcast_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_bytes.lo);
+
+		ADD_64_LE(afex_stats->rx_multicast_bytes_hi,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.hi,
+			  afex_stats->rx_multicast_bytes_lo,
+			  fcoe_q_tstorm_stats->rcv_mcast_bytes.lo);
+
+		ADD_64_LE(afex_stats->rx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_unicast_frames_lo,
+			  fw_fcoe_stat->rx_stat0.fcoe_rx_pkt_cnt);
+
+		ADD_64_LE(afex_stats->rx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_unicast_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_pkts);
+
+		ADD_64_LE(afex_stats->rx_broadcast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_broadcast_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_bcast_pkts);
+
+		ADD_64_LE(afex_stats->rx_multicast_frames_hi,
+			  LE32_0,
+			  afex_stats->rx_multicast_frames_lo,
+			  fcoe_q_tstorm_stats->rcv_ucast_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_discarded_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_discarded_lo,
+			  fcoe_q_tstorm_stats->checksum_discard);
+
+		ADD_64_LE(afex_stats->rx_frames_discarded_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_discarded_lo,
+			  fcoe_q_tstorm_stats->pkts_too_big_discard);
+
+		ADD_64_LE(afex_stats->rx_frames_discarded_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_discarded_lo,
+			  fcoe_q_tstorm_stats->ttl0_discard);
+
+		ADD_64_LE16(afex_stats->rx_frames_dropped_hi,
+			    LE16_0,
+			    afex_stats->rx_frames_dropped_lo,
+			    fcoe_q_tstorm_stats->no_buff_discard);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fcoe_q_ustorm_stats->ucast_no_buff_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fcoe_q_ustorm_stats->mcast_no_buff_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fcoe_q_ustorm_stats->bcast_no_buff_pkts);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fw_fcoe_stat->rx_stat1.fcoe_rx_drop_pkt_cnt);
+
+		ADD_64_LE(afex_stats->rx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->rx_frames_dropped_lo,
+			  fw_fcoe_stat->rx_stat2.fcoe_rx_drop_pkt_cnt);
+
+		ADD_64_LE(afex_stats->tx_unicast_bytes_hi,
+			  LE32_0,
+			  afex_stats->tx_unicast_bytes_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_byte_cnt);
+
+		ADD_64_LE(afex_stats->tx_unicast_bytes_hi,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.hi,
+			  afex_stats->tx_unicast_bytes_lo,
+			  fcoe_q_xstorm_stats->ucast_bytes_sent.lo);
+
+		ADD_64_LE(afex_stats->tx_broadcast_bytes_hi,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.hi,
+			  afex_stats->tx_broadcast_bytes_lo,
+			  fcoe_q_xstorm_stats->bcast_bytes_sent.lo);
+
+		ADD_64_LE(afex_stats->tx_multicast_bytes_hi,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.hi,
+			  afex_stats->tx_multicast_bytes_lo,
+			  fcoe_q_xstorm_stats->mcast_bytes_sent.lo);
+
+		ADD_64_LE(afex_stats->tx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_unicast_frames_lo,
+			  fw_fcoe_stat->tx_stat.fcoe_tx_pkt_cnt);
+
+		ADD_64_LE(afex_stats->tx_unicast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_unicast_frames_lo,
+			  fcoe_q_xstorm_stats->ucast_pkts_sent);
+
+		ADD_64_LE(afex_stats->tx_broadcast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_broadcast_frames_lo,
+			  fcoe_q_xstorm_stats->bcast_pkts_sent);
+
+		ADD_64_LE(afex_stats->tx_multicast_frames_hi,
+			  LE32_0,
+			  afex_stats->tx_multicast_frames_lo,
+			  fcoe_q_xstorm_stats->mcast_pkts_sent);
+
+		ADD_64_LE(afex_stats->tx_frames_dropped_hi,
+			  LE32_0,
+			  afex_stats->tx_frames_dropped_lo,
+			  fcoe_q_xstorm_stats->error_drop_pkts);
+	}
+
+	/* if port stats are requested, add them to the PMF
+	 * stats, as anyway they will be accumulated by the
+	 * MCP before sent to the switch
+	 */
+	if ((bp->port.pmf) && (stats_type == VICSTATST_UIF_INDEX)) {
+		ADD_64(afex_stats->rx_frames_dropped_hi,
+		       0,
+		       afex_stats->rx_frames_dropped_lo,
+		       estats->mac_filter_discard);
+		ADD_64(afex_stats->rx_frames_dropped_hi,
+		       0,
+		       afex_stats->rx_frames_dropped_lo,
+		       estats->brb_truncate_discard);
+		ADD_64(afex_stats->rx_frames_discarded_hi,
+		       0,
+		       afex_stats->rx_frames_discarded_lo,
+		       estats->mac_discard);
 	}
 }

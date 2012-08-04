@@ -36,7 +36,7 @@ bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 		return false;
 
 	if (bus->sprom.boardflags_lo & BCMA_CORE_PCI_BFL_NOPCI) {
-		pr_info("This PCI core is disabled and not working\n");
+		bcma_info(bus, "This PCI core is disabled and not working\n");
 		return false;
 	}
 
@@ -119,7 +119,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 		if (unlikely(!addr))
 			goto out;
 		err = -ENOMEM;
-		mmio = ioremap_nocache(addr, len);
+		mmio = ioremap_nocache(addr, sizeof(val));
 		if (!mmio)
 			goto out;
 
@@ -171,7 +171,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 			addr = pc->core->addr + BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
 			addr |= (off & 0xfc);
-			mmio = ioremap_nocache(addr, len);
+			mmio = ioremap_nocache(addr, sizeof(val));
 			if (!mmio)
 				goto out;
 		}
@@ -180,7 +180,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		if (unlikely(!addr))
 			goto out;
 		err = -ENOMEM;
-		mmio = ioremap_nocache(addr, len);
+		mmio = ioremap_nocache(addr, sizeof(val));
 		if (!mmio)
 			goto out;
 
@@ -215,7 +215,8 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 	} else {
 		writel(val, mmio);
 
-		if (chipid == 0x4716 || chipid == 0x4748)
+		if (chipid == BCMA_CHIP_ID_BCM4716 ||
+		    chipid == BCMA_CHIP_ID_BCM4748)
 			readl(mmio);
 	}
 
@@ -340,6 +341,7 @@ static u8 __devinit bcma_find_pci_capability(struct bcma_drv_pci *pc,
  */
 static void __devinit bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 {
+	struct bcma_bus *bus = pc->core->bus;
 	u8 cap_ptr, root_ctrl, root_cap, dev;
 	u16 val16;
 	int i;
@@ -378,7 +380,8 @@ static void __devinit bcma_core_pci_enable_crs(struct bcma_drv_pci *pc)
 				udelay(10);
 			}
 			if (val16 == 0x1)
-				pr_err("PCI: Broken device in slot %d\n", dev);
+				bcma_err(bus, "PCI: Broken device in slot %d\n",
+					 dev);
 		}
 	}
 }
@@ -391,11 +394,11 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	u32 pci_membase_1G;
 	unsigned long io_map_base;
 
-	pr_info("PCIEcore in host mode found\n");
+	bcma_info(bus, "PCIEcore in host mode found\n");
 
 	pc_host = kzalloc(sizeof(*pc_host), GFP_KERNEL);
 	if (!pc_host)  {
-		pr_err("can not allocate memory");
+		bcma_err(bus, "can not allocate memory");
 		return;
 	}
 
@@ -434,13 +437,14 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	 * as mips can't generate 64-bit address on the
 	 * backplane.
 	 */
-	if (bus->chipinfo.id == 0x4716 || bus->chipinfo.id == 0x4748) {
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4716 ||
+	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4748) {
 		pc_host->mem_resource.start = BCMA_SOC_PCI_MEM;
 		pc_host->mem_resource.end = BCMA_SOC_PCI_MEM +
 					    BCMA_SOC_PCI_MEM_SZ - 1;
 		pcicore_write32(pc, BCMA_CORE_PCI_SBTOPCI0,
 				BCMA_CORE_PCI_SBTOPCI_MEM | BCMA_SOC_PCI_MEM);
-	} else if (bus->chipinfo.id == 0x5300) {
+	} else if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
 		tmp = BCMA_CORE_PCI_SBTOPCI_MEM;
 		tmp |= BCMA_CORE_PCI_SBTOPCI_PREF;
 		tmp |= BCMA_CORE_PCI_SBTOPCI_BURST;
@@ -491,8 +495,8 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	/* Ok, ready to run, register it to the system.
 	 * The following needs change, if we want to port hostmode
 	 * to non-MIPS platform. */
-	io_map_base = (unsigned long)ioremap_nocache(BCMA_SOC_PCI_MEM,
-						     0x04000000);
+	io_map_base = (unsigned long)ioremap_nocache(pc_host->mem_resource.start,
+						     resource_size(&pc_host->mem_resource));
 	pc_host->pci_controller.io_map_base = io_map_base;
 	set_io_port_base(pc_host->pci_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new

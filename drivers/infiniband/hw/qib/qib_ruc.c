@@ -110,7 +110,7 @@ bad_lkey:
 	while (j) {
 		struct qib_sge *sge = --j ? &ss->sg_list[j - 1] : &ss->sge;
 
-		atomic_dec(&sge->mr->refcount);
+		qib_put_mr(sge->mr);
 	}
 	ss->num_sge = 0;
 	memset(&wc, 0, sizeof(wc));
@@ -501,7 +501,7 @@ again:
 			(u64) atomic64_add_return(sdata, maddr) - sdata :
 			(u64) cmpxchg((u64 *) qp->r_sge.sge.vaddr,
 				      sdata, wqe->wr.wr.atomic.swap);
-		atomic_dec(&qp->r_sge.sge.mr->refcount);
+		qib_put_mr(qp->r_sge.sge.mr);
 		qp->r_sge.num_sge = 0;
 		goto send_comp;
 
@@ -525,7 +525,7 @@ again:
 		sge->sge_length -= len;
 		if (sge->sge_length == 0) {
 			if (!release)
-				atomic_dec(&sge->mr->refcount);
+				qib_put_mr(sge->mr);
 			if (--sqp->s_sge.num_sge)
 				*sge = *sqp->s_sge.sg_list++;
 		} else if (sge->length == 0 && sge->mr->lkey) {
@@ -542,11 +542,7 @@ again:
 		sqp->s_len -= len;
 	}
 	if (release)
-		while (qp->r_sge.num_sge) {
-			atomic_dec(&qp->r_sge.sge.mr->refcount);
-			if (--qp->r_sge.num_sge)
-				qp->r_sge.sge = *qp->r_sge.sg_list++;
-		}
+		qib_put_ss(&qp->r_sge);
 
 	if (!test_and_clear_bit(QIB_R_WRID_VALID, &qp->r_aflags))
 		goto send_comp;
@@ -688,17 +684,17 @@ void qib_make_ruc_header(struct qib_qp *qp, struct qib_other_headers *ohdr,
 	nwords = (qp->s_cur_size + extra_bytes) >> 2;
 	lrh0 = QIB_LRH_BTH;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
-		qp->s_hdrwords += qib_make_grh(ibp, &qp->s_hdr.u.l.grh,
+		qp->s_hdrwords += qib_make_grh(ibp, &qp->s_hdr->u.l.grh,
 					       &qp->remote_ah_attr.grh,
 					       qp->s_hdrwords, nwords);
 		lrh0 = QIB_LRH_GRH;
 	}
 	lrh0 |= ibp->sl_to_vl[qp->remote_ah_attr.sl] << 12 |
 		qp->remote_ah_attr.sl << 4;
-	qp->s_hdr.lrh[0] = cpu_to_be16(lrh0);
-	qp->s_hdr.lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
-	qp->s_hdr.lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	qp->s_hdr.lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
+	qp->s_hdr->lrh[0] = cpu_to_be16(lrh0);
+	qp->s_hdr->lrh[1] = cpu_to_be16(qp->remote_ah_attr.dlid);
+	qp->s_hdr->lrh[2] = cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
+	qp->s_hdr->lrh[3] = cpu_to_be16(ppd_from_ibp(ibp)->lid |
 				       qp->remote_ah_attr.src_path_bits);
 	bth0 |= qib_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
@@ -758,7 +754,7 @@ void qib_do_send(struct work_struct *work)
 			 * If the packet cannot be sent now, return and
 			 * the send tasklet will be woken up later.
 			 */
-			if (qib_verbs_send(qp, &qp->s_hdr, qp->s_hdrwords,
+			if (qib_verbs_send(qp, qp->s_hdr, qp->s_hdrwords,
 					   qp->s_cur_sge, qp->s_cur_size))
 				break;
 			/* Record that s_hdr is empty. */
@@ -782,7 +778,7 @@ void qib_send_complete(struct qib_qp *qp, struct qib_swqe *wqe,
 	for (i = 0; i < wqe->wr.num_sge; i++) {
 		struct qib_sge *sge = &wqe->sg_list[i];
 
-		atomic_dec(&sge->mr->refcount);
+		qib_put_mr(sge->mr);
 	}
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||

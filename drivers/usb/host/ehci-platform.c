@@ -75,8 +75,6 @@ static const struct hc_driver ehci_platform_hc_driver = {
 	.relinquish_port	= ehci_relinquish_port,
 	.port_handed_over	= ehci_port_handed_over,
 
-	.update_device		= ehci_update_device,
-
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
@@ -94,12 +92,12 @@ static int __devinit ehci_platform_probe(struct platform_device *dev)
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
-		pr_err("no irq provieded");
+		pr_err("no irq provided");
 		return irq;
 	}
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		pr_err("no memory recourse provieded");
+		pr_err("no memory recourse provided");
 		return -ENXIO;
 	}
 
@@ -155,17 +153,16 @@ static int __devexit ehci_platform_remove(struct platform_device *dev)
 static int ehci_platform_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	bool wakeup = device_may_wakeup(dev);
+	bool do_wakeup = device_may_wakeup(dev);
 
-	ehci_prepare_ports_for_controller_suspend(hcd_to_ehci(hcd), wakeup);
-	return 0;
+	return ehci_suspend(hcd, do_wakeup);
 }
 
 static int ehci_platform_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	ehci_prepare_ports_for_controller_resume(hcd_to_ehci(hcd));
+	ehci_resume(hcd, false);
 	return 0;
 }
 

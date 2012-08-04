@@ -151,34 +151,21 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
-	int err = 0;
-	u8 prio_tc[MAX_USER_PRIORITY] = {0};
-	int i;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int err = 0;
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return 1;
 
 	/* verify there is something to do, if not then exit */
-	if (!!state != !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+	if (!state == !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
 		goto out;
 
-	if (state > 0) {
-		err = ixgbe_setup_tc(netdev, adapter->dcb_cfg.num_tcs.pg_tcs);
-		ixgbe_dcb_unpack_map(&adapter->dcb_cfg, DCB_TX_CONFIG, prio_tc);
-	} else {
-		err = ixgbe_setup_tc(netdev, 0);
-	}
-
-	if (err)
-		goto out;
-
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		netdev_set_prio_tc_map(netdev, i, prio_tc[i]);
-
+	err = ixgbe_setup_tc(netdev,
+			     state ? adapter->dcb_cfg.num_tcs.pg_tcs : 0);
 out:
-	return err ? 1 : 0;
+	return !!err;
 }
 
 static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
@@ -338,6 +325,8 @@ static void ixgbe_dcbnl_devreset(struct net_device *dev)
 static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_dcb_config *dcb_cfg = &adapter->dcb_cfg;
+	struct ixgbe_hw *hw = &adapter->hw;
 	int ret = DCB_NO_HW_CHG;
 	int i;
 
@@ -349,32 +338,6 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 						      MAX_TRAFFIC_CLASS);
 	if (!adapter->dcb_set_bitmap)
 		return ret;
-
-	if (adapter->dcb_cfg.pfc_mode_enable) {
-		switch (adapter->hw.mac.type) {
-		case ixgbe_mac_82599EB:
-		case ixgbe_mac_X540:
-			if (adapter->hw.fc.current_mode != ixgbe_fc_pfc)
-				adapter->last_lfc_mode =
-				                  adapter->hw.fc.current_mode;
-			break;
-		default:
-			break;
-		}
-		adapter->hw.fc.requested_mode = ixgbe_fc_pfc;
-	} else {
-		switch (adapter->hw.mac.type) {
-		case ixgbe_mac_82598EB:
-			adapter->hw.fc.requested_mode = ixgbe_fc_none;
-			break;
-		case ixgbe_mac_82599EB:
-		case ixgbe_mac_X540:
-			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
-			break;
-		default:
-			break;
-		}
-	}
 
 	if (adapter->dcb_set_bitmap & (BIT_PG_TX|BIT_PG_RX)) {
 		u16 refill[MAX_TRAFFIC_CLASS], max[MAX_TRAFFIC_CLASS];
@@ -388,23 +351,19 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
 #endif
 
-		ixgbe_dcb_calculate_tc_credits(&adapter->hw, &adapter->dcb_cfg,
-					       max_frame, DCB_TX_CONFIG);
-		ixgbe_dcb_calculate_tc_credits(&adapter->hw, &adapter->dcb_cfg,
-					       max_frame, DCB_RX_CONFIG);
+		ixgbe_dcb_calculate_tc_credits(hw, dcb_cfg, max_frame,
+					       DCB_TX_CONFIG);
+		ixgbe_dcb_calculate_tc_credits(hw, dcb_cfg, max_frame,
+					       DCB_RX_CONFIG);
 
-		ixgbe_dcb_unpack_refill(&adapter->dcb_cfg,
-					DCB_TX_CONFIG, refill);
-		ixgbe_dcb_unpack_max(&adapter->dcb_cfg, max);
-		ixgbe_dcb_unpack_bwgid(&adapter->dcb_cfg,
-				       DCB_TX_CONFIG, bwg_id);
-		ixgbe_dcb_unpack_prio(&adapter->dcb_cfg,
-				      DCB_TX_CONFIG, prio_type);
-		ixgbe_dcb_unpack_map(&adapter->dcb_cfg,
-				     DCB_TX_CONFIG, prio_tc);
+		ixgbe_dcb_unpack_refill(dcb_cfg, DCB_TX_CONFIG, refill);
+		ixgbe_dcb_unpack_max(dcb_cfg, max);
+		ixgbe_dcb_unpack_bwgid(dcb_cfg, DCB_TX_CONFIG, bwg_id);
+		ixgbe_dcb_unpack_prio(dcb_cfg, DCB_TX_CONFIG, prio_type);
+		ixgbe_dcb_unpack_map(dcb_cfg, DCB_TX_CONFIG, prio_tc);
 
-		ixgbe_dcb_hw_ets_config(&adapter->hw, refill, max,
-					bwg_id, prio_type, prio_tc);
+		ixgbe_dcb_hw_ets_config(hw, refill, max, bwg_id,
+					prio_type, prio_tc);
 
 		for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 			netdev_set_prio_tc_map(netdev, i, prio_tc[i]);
@@ -413,19 +372,21 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	}
 
 	if (adapter->dcb_set_bitmap & BIT_PFC) {
-		u8 pfc_en;
-		u8 prio_tc[MAX_USER_PRIORITY];
+		if (dcb_cfg->pfc_mode_enable) {
+			u8 pfc_en;
+			u8 prio_tc[MAX_USER_PRIORITY];
 
-		ixgbe_dcb_unpack_map(&adapter->dcb_cfg,
-				     DCB_TX_CONFIG, prio_tc);
-		ixgbe_dcb_unpack_pfc(&adapter->dcb_cfg, &pfc_en);
-		ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc_en, prio_tc);
-		if (ret != DCB_HW_CHG_RST)
-			ret = DCB_HW_CHG;
+			ixgbe_dcb_unpack_map(dcb_cfg, DCB_TX_CONFIG, prio_tc);
+			ixgbe_dcb_unpack_pfc(dcb_cfg, &pfc_en);
+			ixgbe_dcb_hw_pfc_config(hw, pfc_en, prio_tc);
+		} else {
+			hw->mac.ops.fc_enable(hw);
+		}
+
+		ixgbe_set_rx_drop_en(adapter);
+
+		ret = DCB_HW_CHG;
 	}
-
-	if (adapter->dcb_cfg.pfc_mode_enable)
-		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
 
 #ifdef IXGBE_FCOE
 	/* Reprogam FCoE hardware offloads when the traffic class
@@ -610,9 +571,6 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 	if (err)
 		goto err_out;
 
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		netdev_set_prio_tc_map(dev, i, ets->prio_tc[i]);
-
 	err = ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
 err_out:
 	return err;
@@ -647,7 +605,9 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 				   struct ieee_pfc *pfc)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_hw *hw = &adapter->hw;
 	u8 *prio_tc;
+	int err;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
 		return -EINVAL;
@@ -661,7 +621,16 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 
 	prio_tc = adapter->ixgbe_ieee_ets->prio_tc;
 	memcpy(adapter->ixgbe_ieee_pfc, pfc, sizeof(*adapter->ixgbe_ieee_pfc));
-	return ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en, prio_tc);
+
+	/* Enable link flow control parameters if PFC is disabled */
+	if (pfc->pfc_en)
+		err = ixgbe_dcb_hw_pfc_config(hw, pfc->pfc_en, prio_tc);
+	else
+		err = hw->mac.ops.fc_enable(hw);
+
+	ixgbe_set_rx_drop_en(adapter);
+
+	return err;
 }
 
 static int ixgbe_dcbnl_ieee_setapp(struct net_device *dev,

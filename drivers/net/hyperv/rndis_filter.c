@@ -27,6 +27,7 @@
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/nls.h>
 
 #include "hyperv_net.h"
 
@@ -47,6 +48,7 @@ struct rndis_request {
 	struct hv_page_buffer buf;
 	/* FIXME: We assumed a fixed size request here. */
 	struct rndis_message request_msg;
+	u8 ext[100];
 };
 
 static void rndis_filter_send_completion(void *ctx);
@@ -129,8 +131,8 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 	netdev = net_device->ndev;
 
 	switch (rndis_msg->ndis_msg_type) {
-	case REMOTE_NDIS_PACKET_MSG:
-		netdev_dbg(netdev, "REMOTE_NDIS_PACKET_MSG (len %u, "
+	case RNDIS_MSG_PACKET:
+		netdev_dbg(netdev, "RNDIS_MSG_PACKET (len %u, "
 			   "data offset %u data len %u, # oob %u, "
 			   "oob offset %u, oob len %u, pkt offset %u, "
 			   "pkt len %u\n",
@@ -144,8 +146,8 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 			   rndis_msg->msg.pkt.per_pkt_info_len);
 		break;
 
-	case REMOTE_NDIS_INITIALIZE_CMPLT:
-		netdev_dbg(netdev, "REMOTE_NDIS_INITIALIZE_CMPLT "
+	case RNDIS_MSG_INIT_C:
+		netdev_dbg(netdev, "RNDIS_MSG_INIT_C "
 			"(len %u, id 0x%x, status 0x%x, major %d, minor %d, "
 			"device flags %d, max xfer size 0x%x, max pkts %u, "
 			"pkt aligned %u)\n",
@@ -162,8 +164,8 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 			   pkt_alignment_factor);
 		break;
 
-	case REMOTE_NDIS_QUERY_CMPLT:
-		netdev_dbg(netdev, "REMOTE_NDIS_QUERY_CMPLT "
+	case RNDIS_MSG_QUERY_C:
+		netdev_dbg(netdev, "RNDIS_MSG_QUERY_C "
 			"(len %u, id 0x%x, status 0x%x, buf len %u, "
 			"buf offset %u)\n",
 			rndis_msg->msg_len,
@@ -175,16 +177,16 @@ static void dump_rndis_message(struct hv_device *hv_dev,
 			   info_buf_offset);
 		break;
 
-	case REMOTE_NDIS_SET_CMPLT:
+	case RNDIS_MSG_SET_C:
 		netdev_dbg(netdev,
-			"REMOTE_NDIS_SET_CMPLT (len %u, id 0x%x, status 0x%x)\n",
+			"RNDIS_MSG_SET_C (len %u, id 0x%x, status 0x%x)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.set_complete.req_id,
 			rndis_msg->msg.set_complete.status);
 		break;
 
-	case REMOTE_NDIS_INDICATE_STATUS_MSG:
-		netdev_dbg(netdev, "REMOTE_NDIS_INDICATE_STATUS_MSG "
+	case RNDIS_MSG_INDICATE:
+		netdev_dbg(netdev, "RNDIS_MSG_INDICATE "
 			"(len %u, status 0x%x, buf len %u, buf offset %u)\n",
 			rndis_msg->msg_len,
 			rndis_msg->msg.indicate_status.status,
@@ -264,14 +266,14 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 				sizeof(struct rndis_filter_packet));
 
 			if (resp->ndis_msg_type ==
-			    REMOTE_NDIS_RESET_CMPLT) {
+			    RNDIS_MSG_RESET_C) {
 				/* does not have a request id field */
 				request->response_msg.msg.reset_complete.
-					status = STATUS_BUFFER_OVERFLOW;
+					status = RNDIS_STATUS_BUFFER_OVERFLOW;
 			} else {
 				request->response_msg.msg.
 				init_complete.status =
-					STATUS_BUFFER_OVERFLOW;
+					RNDIS_STATUS_BUFFER_OVERFLOW;
 			}
 		}
 
@@ -415,19 +417,19 @@ int rndis_filter_receive(struct hv_device *dev,
 	dump_rndis_message(dev, rndis_msg);
 
 	switch (rndis_msg->ndis_msg_type) {
-	case REMOTE_NDIS_PACKET_MSG:
+	case RNDIS_MSG_PACKET:
 		/* data msg */
 		rndis_filter_receive_data(rndis_dev, rndis_msg, pkt);
 		break;
 
-	case REMOTE_NDIS_INITIALIZE_CMPLT:
-	case REMOTE_NDIS_QUERY_CMPLT:
-	case REMOTE_NDIS_SET_CMPLT:
+	case RNDIS_MSG_INIT_C:
+	case RNDIS_MSG_QUERY_C:
+	case RNDIS_MSG_SET_C:
 		/* completion msgs */
 		rndis_filter_receive_response(rndis_dev, rndis_msg);
 		break;
 
-	case REMOTE_NDIS_INDICATE_STATUS_MSG:
+	case RNDIS_MSG_INDICATE:
 		/* notification msgs */
 		rndis_filter_receive_indicate_status(rndis_dev, rndis_msg);
 		break;
@@ -456,7 +458,7 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 		return -EINVAL;
 
 	*result_size = 0;
-	request = get_rndis_request(dev, REMOTE_NDIS_QUERY_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_QUERY,
 			RNDIS_MESSAGE_SIZE(struct rndis_query_request));
 	if (!request) {
 		ret = -ENOMEM;
@@ -511,6 +513,83 @@ static int rndis_filter_query_device_mac(struct rndis_device *dev)
 				      dev->hw_mac_adr, &size);
 }
 
+#define NWADR_STR "NetworkAddress"
+#define NWADR_STRLEN 14
+
+int rndis_filter_set_device_mac(struct hv_device *hdev, char *mac)
+{
+	struct netvsc_device *nvdev = hv_get_drvdata(hdev);
+	struct rndis_device *rdev = nvdev->extension;
+	struct net_device *ndev = nvdev->ndev;
+	struct rndis_request *request;
+	struct rndis_set_request *set;
+	struct rndis_config_parameter_info *cpi;
+	wchar_t *cfg_nwadr, *cfg_mac;
+	struct rndis_set_complete *set_complete;
+	char macstr[2*ETH_ALEN+1];
+	u32 extlen = sizeof(struct rndis_config_parameter_info) +
+		2*NWADR_STRLEN + 4*ETH_ALEN;
+	int ret, t;
+
+	request = get_rndis_request(rdev, RNDIS_MSG_SET,
+		RNDIS_MESSAGE_SIZE(struct rndis_set_request) + extlen);
+	if (!request)
+		return -ENOMEM;
+
+	set = &request->request_msg.msg.set_req;
+	set->oid = RNDIS_OID_GEN_RNDIS_CONFIG_PARAMETER;
+	set->info_buflen = extlen;
+	set->info_buf_offset = sizeof(struct rndis_set_request);
+	set->dev_vc_handle = 0;
+
+	cpi = (struct rndis_config_parameter_info *)((ulong)set +
+		set->info_buf_offset);
+	cpi->parameter_name_offset =
+		sizeof(struct rndis_config_parameter_info);
+	/* Multiply by 2 because host needs 2 bytes (utf16) for each char */
+	cpi->parameter_name_length = 2*NWADR_STRLEN;
+	cpi->parameter_type = RNDIS_CONFIG_PARAM_TYPE_STRING;
+	cpi->parameter_value_offset =
+		cpi->parameter_name_offset + cpi->parameter_name_length;
+	/* Multiply by 4 because each MAC byte displayed as 2 utf16 chars */
+	cpi->parameter_value_length = 4*ETH_ALEN;
+
+	cfg_nwadr = (wchar_t *)((ulong)cpi + cpi->parameter_name_offset);
+	cfg_mac = (wchar_t *)((ulong)cpi + cpi->parameter_value_offset);
+	ret = utf8s_to_utf16s(NWADR_STR, NWADR_STRLEN, UTF16_HOST_ENDIAN,
+			      cfg_nwadr, NWADR_STRLEN);
+	if (ret < 0)
+		goto cleanup;
+	snprintf(macstr, 2*ETH_ALEN+1, "%pm", mac);
+	ret = utf8s_to_utf16s(macstr, 2*ETH_ALEN, UTF16_HOST_ENDIAN,
+			      cfg_mac, 2*ETH_ALEN);
+	if (ret < 0)
+		goto cleanup;
+
+	ret = rndis_filter_send_request(rdev, request);
+	if (ret != 0)
+		goto cleanup;
+
+	t = wait_for_completion_timeout(&request->wait_event, 5*HZ);
+	if (t == 0) {
+		netdev_err(ndev, "timeout before we got a set response...\n");
+		/*
+		 * can't put_rndis_request, since we may still receive a
+		 * send-completion.
+		 */
+		return -EBUSY;
+	} else {
+		set_complete = &request->response_msg.msg.set_complete;
+		if (set_complete->status != RNDIS_STATUS_SUCCESS)
+			ret = -EINVAL;
+	}
+
+cleanup:
+	put_rndis_request(rdev, request);
+	return ret;
+}
+
+
 static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 {
 	u32 size = sizeof(u32);
@@ -536,7 +615,7 @@ int rndis_filter_set_packet_filter(struct rndis_device *dev, u32 new_filter)
 
 	ndev = dev->net_dev->ndev;
 
-	request = get_rndis_request(dev, REMOTE_NDIS_SET_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_SET,
 			RNDIS_MESSAGE_SIZE(struct rndis_set_request) +
 			sizeof(u32));
 	if (!request) {
@@ -588,7 +667,7 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	u32 status;
 	int ret, t;
 
-	request = get_rndis_request(dev, REMOTE_NDIS_INITIALIZE_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_INIT,
 			RNDIS_MESSAGE_SIZE(struct rndis_initialize_request));
 	if (!request) {
 		ret = -ENOMEM;
@@ -641,7 +720,7 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 	struct rndis_halt_request *halt;
 
 	/* Attempt to do a rndis device halt */
-	request = get_rndis_request(dev, REMOTE_NDIS_HALT_MSG,
+	request = get_rndis_request(dev, RNDIS_MSG_HALT,
 				RNDIS_MESSAGE_SIZE(struct rndis_halt_request));
 	if (!request)
 		goto cleanup;
@@ -725,18 +804,15 @@ int rndis_filter_device_add(struct hv_device *dev,
 	/* Send the rndis initialization message */
 	ret = rndis_filter_init_device(rndis_device);
 	if (ret != 0) {
-		/*
-		 * TODO: If rndis init failed, we will need to shut down the
-		 * channel
-		 */
+		rndis_filter_device_remove(dev);
+		return ret;
 	}
 
 	/* Get the mac address */
 	ret = rndis_filter_query_device_mac(rndis_device);
 	if (ret != 0) {
-		/*
-		 * TODO: shutdown rndis device and the channel
-		 */
+		rndis_filter_device_remove(dev);
+		return ret;
 	}
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);
@@ -805,7 +881,7 @@ int rndis_filter_send(struct hv_device *dev,
 	if (isvlan)
 		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
 
-	rndis_msg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
+	rndis_msg->ndis_msg_type = RNDIS_MSG_PACKET;
 	rndis_msg->msg_len = pkt->total_data_buflen +
 				      rndis_msg_size;
 

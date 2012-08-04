@@ -1,0 +1,23 @@
+* Freescale MXS MMC controller
+
+The Freescale MXS Synchronous Serial Ports (SSP) can act as a MMC controller
+to support MMC, SD, and SDIO types of memory cards.
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the mxsmmc driver.
+
+Required properties:
+- compatible: Should be "fsl,<chip>-mmc".  The supported chips include
+  imx23 and imx28.
+- interrupts: Should contain ERROR and DMA interrupts
+- fsl,ssp-dma-channel: APBH DMA channel for the SSP
+
+Examples:
+
+ssp0: ssp@80010000 {
+	compatible = "fsl,imx28-mmc";
+	reg = <0x80010000 2000>;
+	interrupts = <96 82>;
+	fsl,ssp-dma-channel = <0>;
+	bus-width = <8>;
+};

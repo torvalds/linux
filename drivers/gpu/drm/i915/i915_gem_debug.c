@@ -114,22 +114,6 @@ i915_verify_lists(struct drm_device *dev)
 		}
 	}
 
-	list_for_each_entry(obj, &dev_priv->mm.pinned_list, list) {
-		if (obj->base.dev != dev ||
-		    !atomic_read(&obj->base.refcount.refcount)) {
-			DRM_ERROR("freed pinned %p\n", obj);
-			err++;
-			break;
-		} else if (!obj->pin_count || obj->active ||
-			   (obj->base.write_domain & I915_GEM_GPU_DOMAINS)) {
-			DRM_ERROR("invalid pinned %p (p %d a %d w %x)\n",
-				  obj,
-				  obj->pin_count, obj->active,
-				  obj->base.write_domain);
-			err++;
-		}
-	}
-
 	return warned = err;
 }
 #endif /* WATCH_INACTIVE */
@@ -148,7 +132,8 @@ i915_gem_object_check_coherency(struct drm_i915_gem_object *obj, int handle)
 		 __func__, obj, obj->gtt_offset, handle,
 		 obj->size / 1024);
 
-	gtt_mapping = ioremap(dev->agp->base + obj->gtt_offset, obj->base.size);
+	gtt_mapping = ioremap(dev_priv->mm.gtt_base_addr + obj->gtt_offset,
+			      obj->base.size);
 	if (gtt_mapping == NULL) {
 		DRM_ERROR("failed to map GTT space\n");
 		return;

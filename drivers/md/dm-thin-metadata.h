@@ -38,7 +38,8 @@ typedef uint64_t dm_thin_id;
  * Reopens or creates a new, empty metadata volume.
  */
 struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
-					       sector_t data_block_size);
+					       sector_t data_block_size,
+					       bool format_device);
 
 int dm_pool_metadata_close(struct dm_pool_metadata *pmd);
 
@@ -79,6 +80,16 @@ int dm_pool_delete_thin_device(struct dm_pool_metadata *pmd,
 int dm_pool_commit_metadata(struct dm_pool_metadata *pmd);
 
 /*
+ * Discards all uncommitted changes.  Rereads the superblock, rolling back
+ * to the last good transaction.  Thin devices remain open.
+ * dm_thin_aborted_changes() tells you if they had uncommitted changes.
+ *
+ * If this call fails it's only useful to call dm_pool_metadata_close().
+ * All other methods will fail with -EINVAL.
+ */
+int dm_pool_abort_metadata(struct dm_pool_metadata *pmd);
+
+/*
  * Set/get userspace transaction id.
  */
 int dm_pool_set_metadata_transaction_id(struct dm_pool_metadata *pmd,
@@ -90,11 +101,18 @@ int dm_pool_get_metadata_transaction_id(struct dm_pool_metadata *pmd,
 
 /*
  * Hold/get root for userspace transaction.
+ *
+ * The metadata snapshot is a copy of the current superblock (minus the
+ * space maps).  Userland can access the data structures for READ
+ * operations only.  A small performance hit is incurred by providing this
+ * copy of the metadata to userland due to extra copy-on-write operations
+ * on the metadata nodes.  Release this as soon as you finish with it.
  */
-int dm_pool_hold_metadata_root(struct dm_pool_metadata *pmd);
+int dm_pool_reserve_metadata_snap(struct dm_pool_metadata *pmd);
+int dm_pool_release_metadata_snap(struct dm_pool_metadata *pmd);
 
-int dm_pool_get_held_metadata_root(struct dm_pool_metadata *pmd,
-				   dm_block_t *result);
+int dm_pool_get_metadata_snap(struct dm_pool_metadata *pmd,
+			      dm_block_t *result);
 
 /*
  * Actions on a single virtual device.
@@ -112,7 +130,7 @@ dm_thin_id dm_thin_dev_id(struct dm_thin_device *td);
 
 struct dm_thin_lookup_result {
 	dm_block_t block;
-	int shared;
+	unsigned shared:1;
 };
 
 /*
@@ -140,6 +158,10 @@ int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block);
 /*
  * Queries.
  */
+bool dm_thin_changed_this_transaction(struct dm_thin_device *td);
+
+bool dm_thin_aborted_changes(struct dm_thin_device *td);
+
 int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
 				     dm_block_t *highest_mapped);
 
@@ -163,6 +185,12 @@ int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
  * blocks would be lost.
  */
 int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_size);
+
+/*
+ * Flicks the underlying block manager into read only mode, so you know
+ * that nothing is changing.
+ */
+void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd);
 
 /*----------------------------------------------------------------*/
 

@@ -1,15 +1,11 @@
 /*
- *  include/asm-s390/string.h
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  */
 
 #ifndef _S390_STRING_H_
 #define _S390_STRING_H_
-
-#ifdef __KERNEL__
 
 #ifndef _LINUX_TYPES_H
 #include <linux/types.h>
@@ -151,7 +147,5 @@ char *strcpy(char *dst, const char *src);
 size_t strlen(const char *s);
 size_t strnlen(const char * s, size_t n);
 #endif /* !IN_ARCH_STRING_C */
-
-#endif /* __KERNEL__ */
 
 #endif /* __S390_STRING_H_ */

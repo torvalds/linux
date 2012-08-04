@@ -33,6 +33,7 @@
 #include <asm/switch_to.h>
 
 struct task_struct *last_task_used_math = NULL;
+struct pt_regs fake_swapper_regs = { 0, };
 
 void show_regs(struct pt_regs *regs)
 {

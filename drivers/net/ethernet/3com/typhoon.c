@@ -2549,8 +2549,7 @@ typhoon_init(void)
 static void __exit
 typhoon_cleanup(void)
 {
-	if (typhoon_fw)
-		release_firmware(typhoon_fw);
+	release_firmware(typhoon_fw);
 	pci_unregister_driver(&typhoon_driver);
 }
 

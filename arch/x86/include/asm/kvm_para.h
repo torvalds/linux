@@ -22,6 +22,7 @@
 #define KVM_FEATURE_CLOCKSOURCE2        3
 #define KVM_FEATURE_ASYNC_PF		4
 #define KVM_FEATURE_STEAL_TIME		5
+#define KVM_FEATURE_PV_EOI		6
 
 /* The last 8 bits are used to indicate how to interpret the flags field
  * in pvclock structure. If no bits are set, all flags are ignored.
@@ -37,6 +38,7 @@
 #define MSR_KVM_SYSTEM_TIME_NEW 0x4b564d01
 #define MSR_KVM_ASYNC_PF_EN 0x4b564d02
 #define MSR_KVM_STEAL_TIME  0x4b564d03
+#define MSR_KVM_PV_EOI_EN      0x4b564d04
 
 struct kvm_steal_time {
 	__u64 steal;
@@ -89,12 +91,25 @@ struct kvm_vcpu_pv_apf_data {
 	__u32 enabled;
 };
 
+#define KVM_PV_EOI_BIT 0
+#define KVM_PV_EOI_MASK (0x1 << KVM_PV_EOI_BIT)
+#define KVM_PV_EOI_ENABLED KVM_PV_EOI_MASK
+#define KVM_PV_EOI_DISABLED 0x0
+
 #ifdef __KERNEL__
 #include <asm/processor.h>
 
 extern void kvmclock_init(void);
 extern int kvm_register_clock(char *txt);
 
+#ifdef CONFIG_KVM_CLOCK
+bool kvm_check_and_clear_guest_paused(void);
+#else
+static inline bool kvm_check_and_clear_guest_paused(void)
+{
+	return false;
+}
+#endif /* CONFIG_KVMCLOCK */
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
  * trap that we will then rewrite to the appropriate instruction.
@@ -170,14 +185,19 @@ static inline int kvm_para_available(void)
 	unsigned int eax, ebx, ecx, edx;
 	char signature[13];
 
-	cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
-	memcpy(signature + 0, &ebx, 4);
-	memcpy(signature + 4, &ecx, 4);
-	memcpy(signature + 8, &edx, 4);
-	signature[12] = 0;
+	if (boot_cpu_data.cpuid_level < 0)
+		return 0;	/* So we don't blow up on old processors */
 
-	if (strcmp(signature, "KVMKVMKVM") == 0)
-		return 1;
+	if (cpu_has_hypervisor) {
+		cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
+		memcpy(signature + 0, &ebx, 4);
+		memcpy(signature + 4, &ecx, 4);
+		memcpy(signature + 8, &edx, 4);
+		signature[12] = 0;
+
+		if (strcmp(signature, "KVMKVMKVM") == 0)
+			return 1;
+	}
 
 	return 0;
 }

@@ -1,7 +1,7 @@
 /*
- * intercept.c - in-kernel handling for sie intercepts
+ * in-kernel handling for sie intercepts
  *
- * Copyright IBM Corp. 2008,2009
+ * Copyright IBM Corp. 2008, 2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -101,6 +101,7 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 }
 
 static intercept_handler_t instruction_handlers[256] = {
+	[0x01] = kvm_s390_handle_01,
 	[0x83] = kvm_s390_handle_diag,
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,

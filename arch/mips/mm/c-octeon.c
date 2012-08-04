@@ -21,6 +21,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/r4kcache.h>
+#include <asm/traps.h>
 #include <asm/mmu_context.h>
 #include <asm/war.h>
 
@@ -248,6 +249,11 @@ static void __cpuinit probe_octeon(void)
 	}
 }
 
+static void  __cpuinit octeon_cache_error_setup(void)
+{
+	extern char except_vec2_octeon;
+	set_handler(0x100, &except_vec2_octeon, 0x80);
+}
 
 /**
  * Setup the Octeon cache flush routines
@@ -255,12 +261,6 @@ static void __cpuinit probe_octeon(void)
  */
 void __cpuinit octeon_cache_init(void)
 {
-	extern unsigned long ebase;
-	extern char except_vec2_octeon;
-
-	memcpy((void *)(ebase + 0x100), &except_vec2_octeon, 0x80);
-	octeon_flush_cache_sigtramp(ebase + 0x100);
-
 	probe_octeon();
 
 	shm_align_mask = PAGE_SIZE - 1;
@@ -280,6 +280,8 @@ void __cpuinit octeon_cache_init(void)
 
 	build_clear_page();
 	build_copy_page();
+
+	board_cache_error_setup = octeon_cache_error_setup;
 }
 
 /**

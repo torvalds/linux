@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/uaccess.h
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -50,10 +48,15 @@
 
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 
-#define __access_ok(addr, size)	\
-({				\
-	__chk_user_ptr(addr);	\
-	1;			\
+static inline int __range_ok(unsigned long addr, unsigned long size)
+{
+	return 1;
+}
+
+#define __access_ok(addr, size)				\
+({							\
+	__chk_user_ptr(addr);				\
+	__range_ok((unsigned long)(addr), (size));	\
 })
 
 #define access_ok(type, addr, size) __access_ok(addr, size)
@@ -376,8 +379,6 @@ clear_user(void __user *to, unsigned long n)
 	return n;
 }
 
-extern int memcpy_real(void *, void *, size_t);
-extern void copy_to_absolute_zero(void *dest, void *src, size_t count);
 extern int copy_to_user_real(void __user *dest, void *src, size_t count);
 extern int copy_from_user_real(void *dest, void __user *src, size_t count);
 

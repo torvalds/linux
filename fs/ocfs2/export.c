@@ -177,21 +177,23 @@ bail:
 	return parent;
 }
 
-static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
-			   int connectable)
+static int ocfs2_encode_fh(struct inode *inode, u32 *fh_in, int *max_len,
+			   struct inode *parent)
 {
-	struct inode *inode = dentry->d_inode;
 	int len = *max_len;
 	int type = 1;
 	u64 blkno;
 	u32 generation;
 	__le32 *fh = (__force __le32 *) fh_in;
 
+#ifdef TRACE_HOOKS_ARE_NOT_BRAINDEAD_IN_YOUR_OPINION
+#error "You go ahead and fix that mess, then.  Somehow"
 	trace_ocfs2_encode_fh_begin(dentry, dentry->d_name.len,
 				    dentry->d_name.name,
 				    fh, len, connectable);
+#endif
 
-	if (connectable && (len < 6)) {
+	if (parent && (len < 6)) {
 		*max_len = 6;
 		type = 255;
 		goto bail;
@@ -211,20 +213,13 @@ static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
 	fh[1] = cpu_to_le32((u32)(blkno & 0xffffffff));
 	fh[2] = cpu_to_le32(generation);
 
-	if (connectable && !S_ISDIR(inode->i_mode)) {
-		struct inode *parent;
-
-		spin_lock(&dentry->d_lock);
-
-		parent = dentry->d_parent->d_inode;
+	if (parent) {
 		blkno = OCFS2_I(parent)->ip_blkno;
 		generation = parent->i_generation;
 
 		fh[3] = cpu_to_le32((u32)(blkno >> 32));
 		fh[4] = cpu_to_le32((u32)(blkno & 0xffffffff));
 		fh[5] = cpu_to_le32(generation);
-
-		spin_unlock(&dentry->d_lock);
 
 		len = 6;
 		type = 2;

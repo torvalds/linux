@@ -1,7 +1,7 @@
 /*
- * asm-s390/kvm_host.h - definition for kernel virtual machines on s390
+ * definition for kernel virtual machines on s390
  *
- * Copyright IBM Corp. 2008,2009
+ * Copyright IBM Corp. 2008, 2009
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2 only)
@@ -148,6 +148,7 @@ struct kvm_vcpu_stat {
 	u32 instruction_sigp_restart;
 	u32 diagnose_10;
 	u32 diagnose_44;
+	u32 diagnose_9c;
 };
 
 struct kvm_s390_io_info {

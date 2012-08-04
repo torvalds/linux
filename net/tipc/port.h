@@ -79,9 +79,9 @@ typedef void (*tipc_continue_event) (void *usr_handle, u32 portref);
  * struct user_port - TIPC user port (used with native API)
  * @usr_handle: user-specified field
  * @ref: object reference to associated TIPC port
+ *
  * <various callback routines>
  */
-
 struct user_port {
 	void *usr_handle;
 	u32 ref;
@@ -201,6 +201,7 @@ int tipc_shutdown(u32 ref);
  * The following routines require that the port be locked on entry
  */
 int tipc_disconnect_port(struct tipc_port *tp_ptr);
+int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 /*
  * TIPC messaging routines
@@ -235,7 +236,6 @@ void tipc_port_reinit(void);
 /**
  * tipc_port_lock - lock port instance referred to and return its pointer
  */
-
 static inline struct tipc_port *tipc_port_lock(u32 ref)
 {
 	return (struct tipc_port *)tipc_ref_lock(ref);
@@ -246,7 +246,6 @@ static inline struct tipc_port *tipc_port_lock(u32 ref)
  *
  * Can use pointer instead of tipc_ref_unlock() since port is already locked.
  */
-
 static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 {
 	spin_unlock_bh(p_ptr->lock);
@@ -255,16 +254,6 @@ static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 static inline struct tipc_port *tipc_port_deref(u32 ref)
 {
 	return (struct tipc_port *)tipc_ref_deref(ref);
-}
-
-static inline u32 tipc_peer_port(struct tipc_port *p_ptr)
-{
-	return msg_destport(&p_ptr->phdr);
-}
-
-static inline u32 tipc_peer_node(struct tipc_port *p_ptr)
-{
-	return msg_destnode(&p_ptr->phdr);
 }
 
 static inline int tipc_port_congested(struct tipc_port *p_ptr)

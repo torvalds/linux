@@ -458,7 +458,7 @@ static inline const struct ni_660x_board *board(struct comedi_device *dev)
 
 static int ni_660x_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
-static int ni_660x_detach(struct comedi_device *dev);
+static void ni_660x_detach(struct comedi_device *dev);
 static void init_tio_chip(struct comedi_device *dev, int chipset);
 static void ni_660x_select_pfi_output(struct comedi_device *dev,
 				      unsigned pfi_channel,
@@ -474,7 +474,7 @@ static struct comedi_driver driver_ni_660x = {
 static int __devinit driver_ni_660x_pci_probe(struct pci_dev *dev,
 					      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_ni_660x.driver_name);
+	return comedi_pci_auto_config(dev, &driver_ni_660x);
 }
 
 static void __devexit driver_ni_660x_pci_remove(struct pci_dev *dev)
@@ -761,7 +761,7 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 					  unsigned chip_index, unsigned bits,
 					  enum NI_660x_Register reg)
 {
-	void *const write_address =
+	void __iomem *write_address =
 	    private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
 	    registerData[reg].offset;
 
@@ -784,7 +784,7 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 					     unsigned chip_index,
 					     enum NI_660x_Register reg)
 {
-	void *const read_address =
+	void __iomem *read_address =
 	    private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
 	    registerData[reg].offset;
 
@@ -1093,10 +1093,9 @@ static int ni_660x_attach(struct comedi_device *dev,
 
 	printk(KERN_INFO " %s ", dev->board_name);
 
-	dev->n_subdevices = 2 + NI_660X_MAX_NUM_COUNTERS;
-
-	if (alloc_subdevices(dev, dev->n_subdevices) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2 + NI_660X_MAX_NUM_COUNTERS);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
@@ -1188,14 +1187,10 @@ static int ni_660x_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_660x_detach(struct comedi_device *dev)
+static void ni_660x_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: ni_660x: remove\n", dev->minor);
-
-	/* Free irq */
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->private) {
 		if (private(dev)->counter_dev)
 			ni_gpct_device_destroy(private(dev)->counter_dev);
@@ -1204,7 +1199,6 @@ static int ni_660x_detach(struct comedi_device *dev)
 			mite_unsetup(private(dev)->mite);
 		}
 	}
-	return 0;
 }
 
 static int
@@ -1291,7 +1285,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	data[1] =
 	    (ni_660x_read_register(dev, 0,
 				   DIO32Input) >> base_bitfield_channel);
-	return 2;
+	return insn->n;
 }
 
 static void ni_660x_select_pfi_output(struct comedi_device *dev,

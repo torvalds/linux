@@ -1062,7 +1062,7 @@ static int s3c2410_udc_ep_enable(struct usb_ep *_ep,
 
 	ep = to_s3c2410_ep(_ep);
 
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc
 			|| _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
@@ -1075,7 +1075,7 @@ static int s3c2410_udc_ep_enable(struct usb_ep *_ep,
 
 	local_irq_save (flags);
 	_ep->maxpacket = max & 0x7ff;
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->halted = 0;
 	ep->bEndpointAddress = desc->bEndpointAddress;
 
@@ -1136,7 +1136,7 @@ static int s3c2410_udc_ep_disable(struct usb_ep *_ep)
 	unsigned long flags;
 	u32 int_en_reg;
 
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		dprintk(DEBUG_NORMAL, "%s not enabled\n",
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
@@ -1146,7 +1146,6 @@ static int s3c2410_udc_ep_disable(struct usb_ep *_ep)
 
 	dprintk(DEBUG_NORMAL, "ep_disable: %s\n", _ep->name);
 
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->halted = 1;
 
@@ -1195,7 +1194,7 @@ s3c2410_udc_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	dprintk(DEBUG_VERBOSE, "%s(%p,%p)\n", __func__, _ep, _req);
 
-	if (!ep || !_req || (!ep->desc && _ep->name != ep0name))
+	if (!ep || !_req || (!ep->ep.desc && _ep->name != ep0name))
 		return;
 
 	WARN_ON (!list_empty (&req->queue));
@@ -1215,7 +1214,7 @@ static int s3c2410_udc_queue(struct usb_ep *_ep, struct usb_request *_req,
 	int			fifo_count = 0;
 	unsigned long		flags;
 
-	if (unlikely (!_ep || (!ep->desc && ep->ep.name != ep0name))) {
+	if (unlikely(!_ep || (!ep->ep.desc && ep->ep.name != ep0name))) {
 		dprintk(DEBUG_NORMAL, "%s: invalid args\n", __func__);
 		return -EINVAL;
 	}
@@ -1363,7 +1362,7 @@ static int s3c2410_udc_set_halt(struct usb_ep *_ep, int value)
 	unsigned long		flags;
 	u32			idx;
 
-	if (unlikely (!_ep || (!ep->desc && ep->ep.name != ep0name))) {
+	if (unlikely(!_ep || (!ep->ep.desc && ep->ep.name != ep0name))) {
 		dprintk(DEBUG_NORMAL, "%s: inval 2\n", __func__);
 		return -EINVAL;
 	}
@@ -1629,7 +1628,6 @@ static void s3c2410_udc_reinit(struct s3c2410_udc *dev)
 			list_add_tail (&ep->ep.ep_list, &dev->gadget.ep_list);
 
 		ep->dev = dev;
-		ep->desc = NULL;
 		ep->ep.desc = NULL;
 		ep->halted = 0;
 		INIT_LIST_HEAD (&ep->queue);

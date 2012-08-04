@@ -1,7 +1,7 @@
 /*
  *  Ptrace user space interface.
  *
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999, 2010
  *    Author(s): Denis Joseph Barrow
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
@@ -719,7 +719,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	long ret = 0;
 
 	/* Do the secure computing check first. */
-	secure_computing(regs->gprs[2]);
+	secure_computing_strict(regs->gprs[2]);
 
 	/*
 	 * The sysc_tracesys code in entry.S stored the system

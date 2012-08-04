@@ -41,6 +41,10 @@ __ieee80211_get_channel_mode(struct ieee80211_local *local,
 			if (!sdata->u.ap.beacon)
 				continue;
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			if (!sdata->wdev.mesh_id_len)
+				continue;
+			break;
 		default:
 			break;
 		}
@@ -134,30 +138,4 @@ bool ieee80211_set_channel_type(struct ieee80211_local *local,
 	mutex_unlock(&local->iflist_mtx);
 
 	return result;
-}
-
-/*
- * ieee80211_get_tx_channel_type returns the channel type we should
- * use for packet transmission, given the channel capability and
- * whatever regulatory flags we have been given.
- */
-enum nl80211_channel_type ieee80211_get_tx_channel_type(
-				struct ieee80211_local *local,
-				enum nl80211_channel_type channel_type)
-{
-	switch (channel_type) {
-	case NL80211_CHAN_HT40PLUS:
-		if (local->hw.conf.channel->flags &
-				IEEE80211_CHAN_NO_HT40PLUS)
-			return NL80211_CHAN_HT20;
-		break;
-	case NL80211_CHAN_HT40MINUS:
-		if (local->hw.conf.channel->flags &
-				IEEE80211_CHAN_NO_HT40MINUS)
-			return NL80211_CHAN_HT20;
-		break;
-	default:
-		break;
-	}
-	return channel_type;
 }

@@ -82,6 +82,7 @@ struct msdos_sb_info {
 	int fatent_shift;
 	struct fatent_operations *fatent_ops;
 	struct inode *fat_inode;
+	struct inode *fsinfo_inode;
 
 	struct ratelimit_state ratelimit;
 
@@ -216,6 +217,21 @@ static inline void fat16_towchar(wchar_t *dst, const __u8 *src, size_t len)
 #endif
 }
 
+static inline int fat_get_start(const struct msdos_sb_info *sbi,
+				const struct msdos_dir_entry *de)
+{
+	int cluster = le16_to_cpu(de->start);
+	if (sbi->fat_bits == 32)
+		cluster |= (le16_to_cpu(de->starthi) << 16);
+	return cluster;
+}
+
+static inline void fat_set_start(struct msdos_dir_entry *de, int cluster)
+{
+	de->start   = cpu_to_le16(cluster);
+	de->starthi = cpu_to_le16(cluster >> 16);
+}
+
 static inline void fatwchar_to16(__u8 *dst, const wchar_t *src, size_t len)
 {
 #ifdef __BIG_ENDIAN
@@ -334,6 +350,11 @@ void __fat_fs_error(struct super_block *sb, int report, const char *fmt, ...);
 	__fat_fs_error(sb, __ratelimit(&MSDOS_SB(sb)->ratelimit), fmt , ## args)
 __printf(3, 4) __cold
 void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...);
+#define fat_msg_ratelimit(sb, level, fmt, args...)	\
+	do {	\
+			if (__ratelimit(&MSDOS_SB(sb)->ratelimit))	\
+				fat_msg(sb, level, fmt, ## args);	\
+	 } while (0)
 extern int fat_clusters_flush(struct super_block *sb);
 extern int fat_chain_add(struct inode *inode, int new_dclus, int nr_cluster);
 extern void fat_time_fat2unix(struct msdos_sb_info *sbi, struct timespec *ts,

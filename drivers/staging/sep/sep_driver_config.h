@@ -43,7 +43,7 @@
 #define SEP_DRIVER_POLLING_MODE                         0
 
 /* flag which defines if the shared area address should be
-	reconfiged (send to SEP anew) during init of the driver */
+	reconfigured (send to SEP anew) during init of the driver */
 #define SEP_DRIVER_RECONFIG_MESSAGE_AREA                0
 
 /* the mode for running on the ARM1172 Evaluation platform (flag is 1) */
@@ -68,11 +68,11 @@
 #define SEP_DRIVER_MIN_DATA_SIZE_PER_TABLE		16
 
 /* flag that signifies tah the lock is
-currently held by the proccess (struct file) */
+currently held by the process (struct file) */
 #define SEP_DRIVER_OWN_LOCK_FLAG                        1
 
 /* flag that signifies tah the lock is currently NOT
-held by the proccess (struct file) */
+held by the process (struct file) */
 #define SEP_DRIVER_DISOWN_LOCK_FLAG                     0
 
 /* indicates whether driver has mapped/unmapped shared area */
@@ -166,7 +166,7 @@ held by the proccess (struct file) */
 	(SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES + \
 	SEP_DRIVER_STATIC_AREA_SIZE_IN_BYTES)
 
-/* synhronic dma tables area offset */
+/* synchronic dma tables area offset */
 #define SYNCHRONIC_DMA_TABLES_AREA_OFFSET_BYTES \
 	(SEP_DRIVER_DATA_POOL_AREA_OFFSET_IN_BYTES + \
 	SEP_DRIVER_DATA_POOL_SHARED_AREA_SIZE_IN_BYTES)
@@ -280,7 +280,7 @@ held by the proccess (struct file) */
 
 /*
  * Used to limit number of concurrent processes
- * allowed to allocte dynamic buffers in fastcall
+ * allowed to allocate dynamic buffers in fastcall
  * interface.
  */
 #define SEP_DOUBLEBUF_USERS_LIMIT		3

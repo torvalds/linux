@@ -85,7 +85,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 		  uint64_t src_offset,
 		  uint64_t dst_offset,
 		  unsigned num_gpu_pages,
-		  struct radeon_fence *fence)
+		  struct radeon_fence **fence)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t size;
@@ -120,7 +120,7 @@ int r200_copy_dma(struct radeon_device *rdev,
 	radeon_ring_write(ring, PACKET0(RADEON_WAIT_UNTIL, 0));
 	radeon_ring_write(ring, RADEON_WAIT_DMA_GUI_IDLE);
 	if (fence) {
-		r = radeon_fence_emit(rdev, fence);
+		r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
 	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return r;
@@ -154,7 +154,7 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 	u32 tile_flags = 0;
 	u32 idx_value;
 
-	ib = p->ib->ptr;
+	ib = p->ib.ptr;
 	track = (struct r100_cs_track *)p->track;
 	idx_value = radeon_get_ib_value(p, idx);
 	switch (reg) {

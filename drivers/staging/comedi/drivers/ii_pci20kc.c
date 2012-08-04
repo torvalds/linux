@@ -135,15 +135,15 @@ options for PCI-20341M:
 #define PCI20341_SCANLIST		0x80	/* Channel/Gain Scan List */
 
 union pci20xxx_subdev_private {
-	void *iobase;
+	void __iomem *iobase;
 	struct {
-		void *iobase;
+		void __iomem *iobase;
 		const struct comedi_lrange *ao_range_list[2];
 					/* range of channels of ao module */
 		unsigned int last_data[2];
 	} pci20006;
 	struct {
-		void *iobase;
+		void __iomem *iobase;
 		int timebase;
 		int settling_time;
 		int ai_gain;
@@ -152,23 +152,12 @@ union pci20xxx_subdev_private {
 
 struct pci20xxx_private {
 
-	void *ioaddr;
+	void __iomem *ioaddr;
 	union pci20xxx_subdev_private subdev_private[PCI20000_MODULES];
 };
 
 #define devpriv ((struct pci20xxx_private *)dev->private)
 #define CHAN (CR_CHAN(it->chanlist[0]))
-
-static int pci20xxx_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it);
-static int pci20xxx_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_pci20xxx = {
-	.driver_name = "ii_pci20kc",
-	.module = THIS_MODULE,
-	.attach = pci20xxx_attach,
-	.detach = pci20xxx_detach,
-};
 
 static int pci20006_init(struct comedi_device *dev, struct comedi_subdevice *s,
 			 int opt0, int opt1);
@@ -213,15 +202,15 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	union pci20xxx_subdev_private *sdp;
 
-	ret = alloc_subdevices(dev, 1 + PCI20000_MODULES);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1 + PCI20000_MODULES);
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct pci20xxx_private));
 	if (ret < 0)
 		return ret;
 
-	devpriv->ioaddr = (void *)(unsigned long)it->options[0];
+	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
 	dev->board_name = "pci20kc";
 
 	/* Check PCI-20001 C-2A Carrier Board ID */
@@ -275,11 +264,9 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int pci20xxx_detach(struct comedi_device *dev)
+static void pci20xxx_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pci20xxx: remove\n", dev->minor);
-
-	return 0;
+	/* Nothing to cleanup */
 }
 
 /* pci20006m */
@@ -578,7 +565,7 @@ static int pci20xxx_dio_insn_bits(struct comedi_device *dev,
 	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_2) << 16;
 	data[1] |= readb(devpriv->ioaddr + PCI20000_DIO_3) << 24;
 
-	return 2;
+	return insn->n;
 }
 
 static void pci20xxx_dio_config(struct comedi_device *dev,
@@ -666,18 +653,13 @@ static unsigned int pci20xxx_di(struct comedi_device *dev,
 }
 #endif
 
-static int __init driver_pci20xxx_init_module(void)
-{
-	return comedi_driver_register(&driver_pci20xxx);
-}
-
-static void __exit driver_pci20xxx_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pci20xxx);
-}
-
-module_init(driver_pci20xxx_init_module);
-module_exit(driver_pci20xxx_cleanup_module);
+static struct comedi_driver pci20xxx_driver = {
+	.driver_name	= "ii_pci20kc",
+	.module		= THIS_MODULE,
+	.attach		= pci20xxx_attach,
+	.detach		= pci20xxx_detach,
+};
+module_comedi_driver(pci20xxx_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

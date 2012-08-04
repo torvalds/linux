@@ -3338,9 +3338,10 @@ static unsigned char saved_mixers[] = {
 	SB_DSP4_INPUT_LEFT, SB_DSP4_INPUT_RIGHT,
 };
 
-static int snd_cmipci_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_cmipci_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct cmipci *cm = card->private_data;
 	int i;
 
@@ -3361,13 +3362,14 @@ static int snd_cmipci_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_cmipci_resume(struct pci_dev *pci)
+static int snd_cmipci_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct cmipci *cm = card->private_data;
 	int i;
 
@@ -3396,28 +3398,21 @@ static int snd_cmipci_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_cmipci_pm, snd_cmipci_suspend, snd_cmipci_resume);
+#define SND_CMIPCI_PM_OPS	&snd_cmipci_pm
+#else
+#define SND_CMIPCI_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
-static struct pci_driver driver = {
+static struct pci_driver cmipci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_cmipci_ids,
 	.probe = snd_cmipci_probe,
 	.remove = __devexit_p(snd_cmipci_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_cmipci_suspend,
-	.resume = snd_cmipci_resume,
-#endif
+	.driver = {
+		.pm = SND_CMIPCI_PM_OPS,
+	},
 };
 	
-static int __init alsa_card_cmipci_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_cmipci_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_cmipci_init)
-module_exit(alsa_card_cmipci_exit)
+module_pci_driver(cmipci_driver);

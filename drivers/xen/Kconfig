@@ -71,7 +71,7 @@ config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
 	default y
 	help
-	  The evtchn driver allows a userspace process to triger event
+	  The evtchn driver allows a userspace process to trigger event
 	  channels and to receive notification of an event channel
 	  firing.
 	  If in doubt, say yes.
@@ -195,5 +195,13 @@ config XEN_ACPI_PROCESSOR
           To compile this driver as a module, choose M here: the module will be
 	  called xen_acpi_processor  If you do not know what to choose, select
 	  M here. If the CPUFREQ drivers are built in, select Y here.
+
+config XEN_MCE_LOG
+	bool "Xen platform mcelog"
+	depends on XEN_DOM0 && X86_64 && X86_MCE
+	default n
+	help
+	  Allow kernel fetching MCE error from Xen platform and
+	  converting it into Linux mcelog format for mcelog tools
 
 endmenu

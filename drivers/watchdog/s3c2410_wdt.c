@@ -40,6 +40,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #include <mach/map.h>
 
@@ -201,7 +202,7 @@ static int s3c2410wdt_set_heartbeat(struct watchdog_device *wdd, unsigned timeou
 	writel(count, wdt_base + S3C2410_WTDAT);
 	writel(wtcon, wdt_base + S3C2410_WTCON);
 
-	wdd->timeout = timeout;
+	wdd->timeout = (count * divisor) / freq;
 
 	return 0;
 }
@@ -503,8 +504,6 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
-#else
-#define s3c2410_wdt_match NULL
 #endif
 
 static struct platform_driver s3c2410wdt_driver = {
@@ -516,25 +515,11 @@ static struct platform_driver s3c2410wdt_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c2410-wdt",
-		.of_match_table	= s3c2410_wdt_match,
+		.of_match_table	= of_match_ptr(s3c2410_wdt_match),
 	},
 };
 
-
-static int __init watchdog_init(void)
-{
-	pr_info("S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n");
-
-	return platform_driver_register(&s3c2410wdt_driver);
-}
-
-static void __exit watchdog_exit(void)
-{
-	platform_driver_unregister(&s3c2410wdt_driver);
-}
-
-module_init(watchdog_init);
-module_exit(watchdog_exit);
+module_platform_driver(s3c2410wdt_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>, "
 	      "Dimitry Andric <dimitry.andric@tomtom.com>");

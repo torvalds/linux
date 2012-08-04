@@ -210,6 +210,7 @@ struct stripe_head {
 	int			disks;		/* disks in stripe */
 	enum check_states	check_state;
 	enum reconstruct_states reconstruct_state;
+	spinlock_t		stripe_lock;
 	/**
 	 * struct stripe_operations
 	 * @target - STRIPE_OP_COMPUTE_BLK target
@@ -273,6 +274,7 @@ enum r5dev_flags {
 	R5_Wantwrite,
 	R5_Overlap,	/* There is a pending overlapping request
 			 * on this block */
+	R5_ReadNoMerge, /* prevent bio from merging in block-layer */
 	R5_ReadError,	/* seen a read error here recently */
 	R5_ReWrite,	/* have tried to over-write the readerror */
 
@@ -285,6 +287,7 @@ enum r5dev_flags {
 			 */
 	R5_Wantdrain,	/* dev->towrite needs to be drained */
 	R5_WantFUA,	/* Write should be FUA */
+	R5_SyncIO,	/* The IO is sync */
 	R5_WriteError,	/* got a write error - need to record it */
 	R5_MadeGood,	/* A bad block has been fixed by writing to it */
 	R5_ReadRepl,	/* Will/did read from replacement rather than orig */
@@ -318,6 +321,7 @@ enum {
 	STRIPE_BIOFILL_RUN,
 	STRIPE_COMPUTE_RUN,
 	STRIPE_OPS_REQ_PENDING,
+	STRIPE_ON_UNPLUG_LIST,
 };
 
 /*
@@ -385,6 +389,12 @@ struct r5conf {
 	short			generation; /* increments with every reshape */
 	unsigned long		reshape_checkpoint; /* Time we last updated
 						     * metadata */
+	long long		min_offset_diff; /* minimum difference between
+						  * data_offset and
+						  * new_data_offset across all
+						  * devices.  May be negative,
+						  * but is closest to zero.
+						  */
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	hold_list; /* preread ready stripes */

@@ -8,6 +8,7 @@
 #include <linux/tty_flip.h>
 #include "chan.h"
 #include "os.h"
+#include "irq_kern.h"
 
 #ifdef CONFIG_NOCONFIG_CHAN
 static void *not_configged_init(char *str, int device,
@@ -149,9 +150,11 @@ void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
 static void line_timer_cb(struct work_struct *work)
 {
 	struct line *line = container_of(work, struct line, task.work);
+	struct tty_struct *tty = tty_port_tty_get(&line->port);
 
 	if (!line->throttled)
-		chan_interrupt(line, line->tty, line->driver->read_irq);
+		chan_interrupt(line, tty, line->driver->read_irq);
+	tty_kref_put(tty);
 }
 
 int enable_chan(struct line *line)
@@ -213,9 +216,9 @@ void free_irqs(void)
 		chan = list_entry(ele, struct chan, free_list);
 
 		if (chan->input && chan->enabled)
-			free_irq(chan->line->driver->read_irq, chan);
+			um_free_irq(chan->line->driver->read_irq, chan);
 		if (chan->output && chan->enabled)
-			free_irq(chan->line->driver->write_irq, chan);
+			um_free_irq(chan->line->driver->write_irq, chan);
 		chan->enabled = 0;
 	}
 }
@@ -234,9 +237,9 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 	}
 	else {
 		if (chan->input && chan->enabled)
-			free_irq(chan->line->driver->read_irq, chan);
+			um_free_irq(chan->line->driver->read_irq, chan);
 		if (chan->output && chan->enabled)
-			free_irq(chan->line->driver->write_irq, chan);
+			um_free_irq(chan->line->driver->write_irq, chan);
 		chan->enabled = 0;
 	}
 	if (chan->ops->close != NULL)

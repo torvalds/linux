@@ -133,6 +133,8 @@ source "drivers/usb/host/Kconfig"
 
 source "drivers/usb/musb/Kconfig"
 
+source "drivers/usb/chipidea/Kconfig"
+
 source "drivers/usb/renesas_usbhs/Kconfig"
 
 source "drivers/usb/class/Kconfig"
@@ -176,6 +178,8 @@ config USB_USS720
 source "drivers/usb/serial/Kconfig"
 
 source "drivers/usb/misc/Kconfig"
+
+source "drivers/usb/phy/Kconfig"
 
 source "drivers/usb/atm/Kconfig"
 

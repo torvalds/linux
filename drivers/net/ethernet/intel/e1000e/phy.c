@@ -639,6 +639,45 @@ s32 e1000e_write_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
+ *  e1000_set_master_slave_mode - Setup PHY for Master/slave mode
+ *  @hw: pointer to the HW structure
+ *
+ *  Sets up Master/slave mode
+ **/
+static s32 e1000_set_master_slave_mode(struct e1000_hw *hw)
+{
+	s32 ret_val;
+	u16 phy_data;
+
+	/* Resolve Master/Slave mode */
+	ret_val = e1e_rphy(hw, PHY_1000T_CTRL, &phy_data);
+	if (ret_val)
+		return ret_val;
+
+	/* load defaults for future use */
+	hw->phy.original_ms_type = (phy_data & CR_1000T_MS_ENABLE) ?
+	    ((phy_data & CR_1000T_MS_VALUE) ?
+	     e1000_ms_force_master : e1000_ms_force_slave) : e1000_ms_auto;
+
+	switch (hw->phy.ms_type) {
+	case e1000_ms_force_master:
+		phy_data |= (CR_1000T_MS_ENABLE | CR_1000T_MS_VALUE);
+		break;
+	case e1000_ms_force_slave:
+		phy_data |= CR_1000T_MS_ENABLE;
+		phy_data &= ~(CR_1000T_MS_VALUE);
+		break;
+	case e1000_ms_auto:
+		phy_data &= ~CR_1000T_MS_ENABLE;
+		/* fall-through */
+	default:
+		break;
+	}
+
+	return e1e_wphy(hw, PHY_1000T_CTRL, phy_data);
+}
+
+/**
  *  e1000_copper_link_setup_82577 - Setup 82577 PHY for copper link
  *  @hw: pointer to the HW structure
  *
@@ -659,7 +698,11 @@ s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
 	/* Enable downshift */
 	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
 
-	return e1e_wphy(hw, I82577_CFG_REG, phy_data);
+	ret_val = e1e_wphy(hw, I82577_CFG_REG, phy_data);
+	if (ret_val)
+		return ret_val;
+
+	return e1000_set_master_slave_mode(hw);
 }
 
 /**
@@ -718,12 +761,28 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	 *   1 - Enabled
 	 */
 	phy_data &= ~M88E1000_PSCR_POLARITY_REVERSAL;
-	if (phy->disable_polarity_correction == 1)
+	if (phy->disable_polarity_correction)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	/* Enable downshift on BM (disabled by default) */
-	if (phy->type == e1000_phy_bm)
+	if (phy->type == e1000_phy_bm) {
+		/* For 82574/82583, first disable then enable downshift */
+		if (phy->id == BME1000_E_PHY_ID_R2) {
+			phy_data &= ~BME1000_PSCR_ENABLE_DOWNSHIFT;
+			ret_val = e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL,
+					   phy_data);
+			if (ret_val)
+				return ret_val;
+			/* Commit the changes. */
+			ret_val = e1000e_commit_phy(hw);
+			if (ret_val) {
+				e_dbg("Error committing the PHY changes\n");
+				return ret_val;
+			}
+		}
+
 		phy_data |= BME1000_PSCR_ENABLE_DOWNSHIFT;
+	}
 
 	ret_val = e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
 	if (ret_val)
@@ -879,31 +938,7 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 				return ret_val;
 		}
 
-		ret_val = e1e_rphy(hw, PHY_1000T_CTRL, &data);
-		if (ret_val)
-			return ret_val;
-
-		/* load defaults for future use */
-		phy->original_ms_type = (data & CR_1000T_MS_ENABLE) ?
-			((data & CR_1000T_MS_VALUE) ?
-			e1000_ms_force_master :
-			e1000_ms_force_slave) :
-			e1000_ms_auto;
-
-		switch (phy->ms_type) {
-		case e1000_ms_force_master:
-			data |= (CR_1000T_MS_ENABLE | CR_1000T_MS_VALUE);
-			break;
-		case e1000_ms_force_slave:
-			data |= CR_1000T_MS_ENABLE;
-			data &= ~(CR_1000T_MS_VALUE);
-			break;
-		case e1000_ms_auto:
-			data &= ~CR_1000T_MS_ENABLE;
-		default:
-			break;
-		}
-		ret_val = e1e_wphy(hw, PHY_1000T_CTRL, data);
+		ret_val = e1000_set_master_slave_mode(hw);
 	}
 
 	return ret_val;
@@ -1090,7 +1125,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 	 * If autoneg_advertised is zero, we assume it was not defaulted
 	 * by the calling code so we set to advertise full capability.
 	 */
-	if (phy->autoneg_advertised == 0)
+	if (!phy->autoneg_advertised)
 		phy->autoneg_advertised = phy->autoneg_mask;
 
 	e_dbg("Reconfiguring auto-neg advertisement params\n");
@@ -1596,7 +1631,7 @@ s32 e1000e_check_downshift(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, offset, &phy_data);
 
 	if (!ret_val)
-		phy->speed_downgraded = (phy_data & mask);
+		phy->speed_downgraded = !!(phy_data & mask);
 
 	return ret_val;
 }
@@ -1925,8 +1960,8 @@ s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->polarity_correction = (phy_data &
-				    M88E1000_PSCR_POLARITY_REVERSAL);
+	phy->polarity_correction = !!(phy_data &
+				      M88E1000_PSCR_POLARITY_REVERSAL);
 
 	ret_val = e1000_check_polarity_m88(hw);
 	if (ret_val)
@@ -1936,7 +1971,7 @@ s32 e1000e_get_phy_info_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->is_mdix = (phy_data & M88E1000_PSSR_MDIX);
+	phy->is_mdix = !!(phy_data & M88E1000_PSSR_MDIX);
 
 	if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS) {
 		ret_val = e1000_get_cable_length(hw);
@@ -1999,7 +2034,7 @@ s32 e1000e_get_phy_info_igp(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->is_mdix = (data & IGP01E1000_PSSR_MDIX);
+	phy->is_mdix = !!(data & IGP01E1000_PSSR_MDIX);
 
 	if ((data & IGP01E1000_PSSR_SPEED_MASK) ==
 	    IGP01E1000_PSSR_SPEED_1000MBPS) {
@@ -2052,8 +2087,7 @@ s32 e1000_get_phy_info_ife(struct e1000_hw *hw)
 	ret_val = e1e_rphy(hw, IFE_PHY_SPECIAL_CONTROL, &data);
 	if (ret_val)
 		return ret_val;
-	phy->polarity_correction = (data & IFE_PSC_AUTO_POLARITY_DISABLE)
-	                           ? false : true;
+	phy->polarity_correction = !(data & IFE_PSC_AUTO_POLARITY_DISABLE);
 
 	if (phy->polarity_correction) {
 		ret_val = e1000_check_polarity_ife(hw);
@@ -2070,7 +2104,7 @@ s32 e1000_get_phy_info_ife(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->is_mdix = (data & IFE_PMC_MDIX_STATUS) ? true : false;
+	phy->is_mdix = !!(data & IFE_PMC_MDIX_STATUS);
 
 	/* The following parameters are undefined for 10/100 operation. */
 	phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
@@ -2121,9 +2155,11 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 	s32 ret_val;
 	u32 ctrl;
 
-	ret_val = phy->ops.check_reset_block(hw);
-	if (ret_val)
-		return 0;
+	if (phy->ops.check_reset_block) {
+		ret_val = phy->ops.check_reset_block(hw);
+		if (ret_val)
+			return 0;
+	}
 
 	ret_val = phy->ops.acquire(hw);
 	if (ret_val)
@@ -2319,6 +2355,9 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 		break;
 	case I82579_E_PHY_ID:
 		phy_type = e1000_phy_82579;
+		break;
+	case I217_E_PHY_ID:
+		phy_type = e1000_phy_i217;
 		break;
 	default:
 		phy_type = e1000_phy_unknown;
@@ -2979,7 +3018,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 		if ((hw->phy.type == e1000_phy_82578) &&
 		    (hw->phy.revision >= 1) &&
 		    (hw->phy.addr == 2) &&
-		    ((MAX_PHY_REG_ADDRESS & reg) == 0) && (data & (1 << 11))) {
+		    !(MAX_PHY_REG_ADDRESS & reg) && (data & (1 << 11))) {
 			u16 data2 = 0x7EFF;
 			ret_val = e1000_access_phy_debug_regs_hv(hw,
 								 (1 << 6) | 0x3,
@@ -3265,7 +3304,7 @@ s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->is_mdix = (data & I82577_PHY_STATUS2_MDIX) ? true : false;
+	phy->is_mdix = !!(data & I82577_PHY_STATUS2_MDIX);
 
 	if ((data & I82577_PHY_STATUS2_SPEED_MASK) ==
 	    I82577_PHY_STATUS2_SPEED_1000MBPS) {

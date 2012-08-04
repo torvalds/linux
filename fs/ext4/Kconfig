@@ -2,6 +2,8 @@ config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
 	select JBD2
 	select CRC16
+	select CRYPTO
+	select CRYPTO_CRC32C
 	help
 	  This is the next generation of the ext3 filesystem.
 

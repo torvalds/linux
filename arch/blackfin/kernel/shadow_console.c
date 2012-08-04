@@ -15,9 +15,9 @@
 #include <asm/irq_handler.h>
 #include <asm/early_printk.h>
 
-#define SHADOW_CONSOLE_START		(0x500)
-#define SHADOW_CONSOLE_END		(0x1000)
-#define SHADOW_CONSOLE_MAGIC_LOC	(0x4F0)
+#define SHADOW_CONSOLE_START		(CONFIG_PHY_RAM_BASE_ADDRESS + 0x500)
+#define SHADOW_CONSOLE_END		(CONFIG_PHY_RAM_BASE_ADDRESS + 0x1000)
+#define SHADOW_CONSOLE_MAGIC_LOC	(CONFIG_PHY_RAM_BASE_ADDRESS + 0x4F0)
 #define SHADOW_CONSOLE_MAGIC		(0xDEADBEEF)
 
 static __initdata char *shadow_console_buffer = (char *)SHADOW_CONSOLE_START;

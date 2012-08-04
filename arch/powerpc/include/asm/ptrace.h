@@ -354,12 +354,6 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 #define PTRACE_GETREGS64	  22
 #define PTRACE_SETREGS64	  23
 
-/* (old) PTRACE requests with inverted arguments */
-#define PPC_PTRACE_GETREGS	0x99	/* Get GPRs 0 - 31 */
-#define PPC_PTRACE_SETREGS	0x98	/* Set GPRs 0 - 31 */
-#define PPC_PTRACE_GETFPREGS	0x97	/* Get FPRs 0 - 31 */
-#define PPC_PTRACE_SETFPREGS	0x96	/* Set FPRs 0 - 31 */
-
 /* Calls to trace a 64bit program from a 32bit program */
 #define PPC_PTRACE_PEEKTEXT_3264 0x95
 #define PPC_PTRACE_PEEKDATA_3264 0x94

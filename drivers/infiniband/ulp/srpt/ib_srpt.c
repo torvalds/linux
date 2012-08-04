@@ -1099,9 +1099,8 @@ static int srpt_map_sg_to_ib_sge(struct srpt_rdma_ch *ch,
 	dir = cmd->data_direction;
 	BUG_ON(dir == DMA_NONE);
 
-	transport_do_task_sg_chain(cmd);
-	ioctx->sg = sg = sg_orig = cmd->t_tasks_sg_chained;
-	ioctx->sg_cnt = sg_cnt = cmd->t_tasks_sg_chained_no;
+	ioctx->sg = sg = sg_orig = cmd->t_data_sg;
+	ioctx->sg_cnt = sg_cnt = cmd->t_data_nents;
 
 	count = ib_dma_map_sg(ch->sport->sdev->device, sg, sg_cnt,
 			      opposite_dma_dir(dir));
@@ -1378,10 +1377,14 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		break;
 	case SRPT_STATE_NEED_DATA:
 		/* DMA_TO_DEVICE (write) - RDMA read error. */
+
+		/* XXX(hch): this is a horrible layering violation.. */
 		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
 		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
+		ioctx->cmd.transport_state &= ~CMD_T_ACTIVE;
 		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
-		transport_generic_handle_data(&ioctx->cmd);
+
+		complete(&ioctx->cmd.transport_lun_stop_comp);
 		break;
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
@@ -1464,9 +1467,10 @@ static void srpt_handle_send_comp(struct srpt_rdma_ch *ch,
 /**
  * srpt_handle_rdma_comp() - Process an IB RDMA completion notification.
  *
- * Note: transport_generic_handle_data() is asynchronous so unmapping the
- * data that has been transferred via IB RDMA must be postponed until the
- * check_stop_free() callback.
+ * XXX: what is now target_execute_cmd used to be asynchronous, and unmapping
+ * the data that has been transferred via IB RDMA had to be postponed until the
+ * check_stop_free() callback.  None of this is nessecary anymore and needs to
+ * be cleaned up.
  */
 static void srpt_handle_rdma_comp(struct srpt_rdma_ch *ch,
 				  struct srpt_send_ioctx *ioctx,
@@ -1478,7 +1482,7 @@ static void srpt_handle_rdma_comp(struct srpt_rdma_ch *ch,
 	if (opcode == SRPT_RDMA_READ_LAST) {
 		if (srpt_test_and_set_cmd_state(ioctx, SRPT_STATE_NEED_DATA,
 						SRPT_STATE_DATA_IN))
-			transport_generic_handle_data(&ioctx->cmd);
+			target_execute_cmd(&ioctx->cmd);
 		else
 			printk(KERN_ERR "%s[%d]: wrong state = %d\n", __func__,
 			       __LINE__, srpt_get_cmd_state(ioctx));
@@ -1769,7 +1773,7 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
 	}
-	ret = transport_generic_allocate_tasks(cmd, srp_cmd->cdb);
+	ret = target_setup_cmd_from_cdb(cmd, srp_cmd->cdb);
 	if (ret < 0) {
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT) {
@@ -4003,9 +4007,6 @@ static int __init srpt_init_module(void)
 	}
 
 	srpt_target->tf_ops = srpt_template;
-
-	/* Enable SG chaining */
-	srpt_target->tf_ops.task_sg_chaining = true;
 
 	/*
 	 * Set up default attribute lists.

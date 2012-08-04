@@ -78,7 +78,10 @@ struct mlx4_dev_cap {
 	u16 wavelength[MLX4_MAX_PORTS + 1];
 	u64 trans_code[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
+	int fs_log_max_ucast_qp_range_size;
+	int fs_max_num_qp_per_entry;
 	u64 flags;
+	u64 flags2;
 	int reserved_uars;
 	int uar_size;
 	int min_page_sz;
@@ -110,6 +113,7 @@ struct mlx4_dev_cap {
 	u32 reserved_lkey;
 	u64 max_icm_sz;
 	int max_gso_sz;
+	int max_rss_tbl_sz;
 	u8  supported_port_types[MLX4_MAX_PORTS + 1];
 	u8  suggested_type[MLX4_MAX_PORTS + 1];
 	u8  default_sense[MLX4_MAX_PORTS + 1];
@@ -163,6 +167,7 @@ struct mlx4_init_hca_param {
 	u8  log_mpt_sz;
 	u8  log_uar_sz;
 	u8  uar_page_sz; /* log pg sz in 4k chunks */
+	u8  fs_hash_enable_bits;
 };
 
 struct mlx4_init_ib_param {

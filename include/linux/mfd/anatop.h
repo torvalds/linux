@@ -34,7 +34,7 @@ struct anatop {
 	spinlock_t reglock;
 };
 
-extern u32 anatop_get_bits(struct anatop *, u32, int, int);
-extern void anatop_set_bits(struct anatop *, u32, int, int, u32);
+extern u32 anatop_read_reg(struct anatop *, u32);
+extern void anatop_write_reg(struct anatop *, u32, u32, u32);
 
 #endif /*  __LINUX_MFD_ANATOP_H */

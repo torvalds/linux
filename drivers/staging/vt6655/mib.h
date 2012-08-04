@@ -98,7 +98,6 @@ typedef struct tagSMib2Counter {
 } SMib2Counter, *PSMib2Counter;
 
 // Value in the ifType entry
-//#define ETHERNETCSMACD      6           //
 #define WIRELESSLANIEEE80211b      6           //
 
 // Value in the ifAdminStatus/ifOperStatus entry
@@ -210,7 +209,6 @@ typedef struct tagSISRCounters {
 #define UNDER_CREATION      3           //
 #define INVALID             4           //
 
-//#define MAX_RATE            12
 //
 // statistic counter
 //

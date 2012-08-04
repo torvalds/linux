@@ -22,9 +22,7 @@
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -602,7 +600,11 @@ xfs_file_compat_ioctl(
 
 		if (xfs_compat_growfs_data_copyin(&in, arg))
 			return -XFS_ERROR(EFAULT);
+		error = mnt_want_write_file(filp);
+		if (error)
+			return error;
 		error = xfs_growfs_data(mp, &in);
+		mnt_drop_write_file(filp);
 		return -error;
 	}
 	case XFS_IOC_FSGROWFSRT_32: {
@@ -610,7 +612,11 @@ xfs_file_compat_ioctl(
 
 		if (xfs_compat_growfs_rt_copyin(&in, arg))
 			return -XFS_ERROR(EFAULT);
+		error = mnt_want_write_file(filp);
+		if (error)
+			return error;
 		error = xfs_growfs_rt(mp, &in);
+		mnt_drop_write_file(filp);
 		return -error;
 	}
 #endif
@@ -629,7 +635,11 @@ xfs_file_compat_ioctl(
 				   offsetof(struct xfs_swapext, sx_stat)) ||
 		    xfs_ioctl32_bstat_copyin(&sxp.sx_stat, &sxu->sx_stat))
 			return -XFS_ERROR(EFAULT);
+		error = mnt_want_write_file(filp);
+		if (error)
+			return error;
 		error = xfs_swapext(&sxp);
+		mnt_drop_write_file(filp);
 		return -error;
 	}
 	case XFS_IOC_FSBULKSTAT_32:

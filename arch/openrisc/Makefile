@@ -38,7 +38,7 @@ else
 	KBUILD_CFLAGS += $(call cc-option,-msoft-div)
 endif
 
-head-y 		:= arch/openrisc/kernel/head.o arch/openrisc/kernel/init_task.o
+head-y 		:= arch/openrisc/kernel/head.o
 
 core-y		+= arch/openrisc/lib/ \
 		   arch/openrisc/kernel/ \

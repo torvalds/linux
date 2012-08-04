@@ -1,0 +1,14 @@
+NVIDIA Tegra 20 GART
+
+Required properties:
+- compatible: "nvidia,tegra20-gart"
+- reg: Two pairs of cells specifying the physical address and size of
+  the memory controller registers and the GART aperture respectively.
+
+Example:
+
+	gart {
+		compatible = "nvidia,tegra20-gart";
+		reg = <0x7000f024 0x00000018	/* controller registers */
+		       0x58000000 0x02000000>;	/* GART aperture */
+	};

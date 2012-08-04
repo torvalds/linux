@@ -18,12 +18,16 @@ static inline void __blk_get_queue(struct request_queue *q)
 	kobject_get(&q->kobj);
 }
 
+int blk_init_rl(struct request_list *rl, struct request_queue *q,
+		gfp_t gfp_mask);
+void blk_exit_rl(struct request_list *rl);
 void init_request_from_bio(struct request *req, struct bio *bio);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		      struct bio *bio);
-void blk_drain_queue(struct request_queue *q, bool drain_all);
+void blk_queue_bypass_start(struct request_queue *q);
+void blk_queue_bypass_end(struct request_queue *q);
 void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
 bool __blk_end_bidi_request(struct request *rq, int error,
@@ -32,7 +36,6 @@ bool __blk_end_bidi_request(struct request *rq, int error,
 void blk_rq_timed_out_timer(unsigned long data);
 void blk_delete_timer(struct request *);
 void blk_add_timer(struct request *);
-void __generic_unplug_device(struct request_queue *);
 
 /*
  * Internal atomic flags for request handling
@@ -144,9 +147,6 @@ void blk_queue_congestion_threshold(struct request_queue *q);
 
 int blk_dev_init(void);
 
-void elv_quiesce_start(struct request_queue *q);
-void elv_quiesce_end(struct request_queue *q);
-
 
 /*
  * Return the threshold (number of used requests) at which the queue is
@@ -186,32 +186,30 @@ static inline int blk_do_io_stat(struct request *rq)
  */
 void get_io_context(struct io_context *ioc);
 struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q);
-struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask);
+struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+			     gfp_t gfp_mask);
 void ioc_clear_queue(struct request_queue *q);
 
-void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_mask,
-				int node);
+int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
 
 /**
  * create_io_context - try to create task->io_context
- * @task: target task
  * @gfp_mask: allocation mask
  * @node: allocation node
  *
- * If @task->io_context is %NULL, allocate a new io_context and install it.
- * Returns the current @task->io_context which may be %NULL if allocation
- * failed.
+ * If %current->io_context is %NULL, allocate a new io_context and install
+ * it.  Returns the current %current->io_context which may be %NULL if
+ * allocation failed.
  *
  * Note that this function can't be called with IRQ disabled because
- * task_lock which protects @task->io_context is IRQ-unsafe.
+ * task_lock which protects %current->io_context is IRQ-unsafe.
  */
-static inline struct io_context *create_io_context(struct task_struct *task,
-						   gfp_t gfp_mask, int node)
+static inline struct io_context *create_io_context(gfp_t gfp_mask, int node)
 {
 	WARN_ON_ONCE(irqs_disabled());
-	if (unlikely(!task->io_context))
-		create_io_context_slowpath(task, gfp_mask, node);
-	return task->io_context;
+	if (unlikely(!current->io_context))
+		create_task_io_context(current, gfp_mask, node);
+	return current->io_context;
 }
 
 /*
@@ -222,7 +220,6 @@ extern bool blk_throtl_bio(struct request_queue *q, struct bio *bio);
 extern void blk_throtl_drain(struct request_queue *q);
 extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
-extern void blk_throtl_release(struct request_queue *q);
 #else /* CONFIG_BLK_DEV_THROTTLING */
 static inline bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 {
@@ -231,7 +228,6 @@ static inline bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 static inline void blk_throtl_drain(struct request_queue *q) { }
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline void blk_throtl_exit(struct request_queue *q) { }
-static inline void blk_throtl_release(struct request_queue *q) { }
 #endif /* CONFIG_BLK_DEV_THROTTLING */
 
 #endif /* BLK_INTERNAL_H */

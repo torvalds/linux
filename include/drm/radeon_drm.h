@@ -926,7 +926,6 @@ struct drm_radeon_cs_chunk {
 };
 
 /* drm_radeon_cs_reloc.flags */
-#define RADEON_RELOC_DONT_SYNC		0x01
 
 struct drm_radeon_cs_reloc {
 	uint32_t		handle;

@@ -37,7 +37,6 @@
 #ifndef _TIPC_LINK_H
 #define _TIPC_LINK_H
 
-#include "log.h"
 #include "msg.h"
 #include "node.h"
 
@@ -47,13 +46,11 @@
 /*
  * Out-of-range value for link sequence numbers
  */
-
 #define INVALID_LINK_SEQ 0x10000
 
 /*
  * Link states
  */
-
 #define WORKING_WORKING 560810u
 #define WORKING_UNKNOWN 560811u
 #define RESET_UNKNOWN   560812u
@@ -63,8 +60,38 @@
  * Starting value for maximum packet size negotiation on unicast links
  * (unless bearer MTU is less)
  */
-
 #define MAX_PKT_DEFAULT 1500
+
+struct tipc_stats {
+	u32 sent_info;		/* used in counting # sent packets */
+	u32 recv_info;		/* used in counting # recv'd packets */
+	u32 sent_states;
+	u32 recv_states;
+	u32 sent_probes;
+	u32 recv_probes;
+	u32 sent_nacks;
+	u32 recv_nacks;
+	u32 sent_acks;
+	u32 sent_bundled;
+	u32 sent_bundles;
+	u32 recv_bundled;
+	u32 recv_bundles;
+	u32 retransmitted;
+	u32 sent_fragmented;
+	u32 sent_fragments;
+	u32 recv_fragmented;
+	u32 recv_fragments;
+	u32 link_congs;		/* # port sends blocked by congestion */
+	u32 bearer_congs;
+	u32 deferred_recv;
+	u32 duplicates;
+	u32 max_queue_sz;	/* send queue size high water mark */
+	u32 accu_queue_sz;	/* used for send queue size profiling */
+	u32 queue_sz_counts;	/* used for send queue size profiling */
+	u32 msg_length_counts;	/* used for message length profiling */
+	u32 msg_lengths_total;	/* used for message length profiling */
+	u32 msg_length_profile[7]; /* used for msg. length profiling */
+};
 
 /**
  * struct tipc_link - TIPC link data structure
@@ -114,7 +141,6 @@
  * @defragm_buf: list of partially reassembled inbound message fragments
  * @stats: collects statistics regarding link activity
  */
-
 struct tipc_link {
 	u32 addr;
 	char name[TIPC_MAX_LINK_NAME];
@@ -179,36 +205,7 @@ struct tipc_link {
 	struct sk_buff *defragm_buf;
 
 	/* Statistics */
-	struct {
-		u32 sent_info;		/* used in counting # sent packets */
-		u32 recv_info;		/* used in counting # recv'd packets */
-		u32 sent_states;
-		u32 recv_states;
-		u32 sent_probes;
-		u32 recv_probes;
-		u32 sent_nacks;
-		u32 recv_nacks;
-		u32 sent_acks;
-		u32 sent_bundled;
-		u32 sent_bundles;
-		u32 recv_bundled;
-		u32 recv_bundles;
-		u32 retransmitted;
-		u32 sent_fragmented;
-		u32 sent_fragments;
-		u32 recv_fragmented;
-		u32 recv_fragments;
-		u32 link_congs;		/* # port sends blocked by congestion */
-		u32 bearer_congs;
-		u32 deferred_recv;
-		u32 duplicates;
-		u32 max_queue_sz;	/* send queue size high water mark */
-		u32 accu_queue_sz;	/* used for send queue size profiling */
-		u32 queue_sz_counts;	/* used for send queue size profiling */
-		u32 msg_length_counts;	/* used for message length profiling */
-		u32 msg_lengths_total;	/* used for message length profiling */
-		u32 msg_length_profile[7]; /* used for msg. length profiling */
-	} stats;
+	struct tipc_stats stats;
 };
 
 struct tipc_port;
@@ -255,7 +252,6 @@ void tipc_link_retransmit(struct tipc_link *l_ptr,
 /*
  * Link sequence number manipulation routines (uses modulo 2**16 arithmetic)
  */
-
 static inline u32 buf_seqno(struct sk_buff *buf)
 {
 	return msg_seqno(buf_msg(buf));
@@ -294,7 +290,6 @@ static inline u32 lesser(u32 left, u32 right)
 /*
  * Link status checking routines
  */
-
 static inline int link_working_working(struct tipc_link *l_ptr)
 {
 	return l_ptr->state == WORKING_WORKING;

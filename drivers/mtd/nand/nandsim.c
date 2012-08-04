@@ -28,7 +28,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
-#include <asm/div64.h>
+#include <linux/math64.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -268,7 +268,6 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 #define OPT_PAGE512      0x00000002 /* 512-byte  page chips */
 #define OPT_PAGE2048     0x00000008 /* 2048-byte page chips */
 #define OPT_SMARTMEDIA   0x00000010 /* SmartMedia technology chips */
-#define OPT_AUTOINCR     0x00000020 /* page number auto incrementation is possible */
 #define OPT_PAGE512_8BIT 0x00000040 /* 512-byte page chips with 8-bit bus width */
 #define OPT_PAGE4096     0x00000080 /* 4096-byte page chips */
 #define OPT_LARGEPAGE    (OPT_PAGE2048 | OPT_PAGE4096) /* 2048 & 4096-byte page chips */
@@ -547,12 +546,6 @@ static char *get_partition_name(int i)
 	return kstrdup(buf, GFP_KERNEL);
 }
 
-static uint64_t divide(uint64_t n, uint32_t d)
-{
-	do_div(n, d);
-	return n;
-}
-
 /*
  * Initialize the nandsim structure.
  *
@@ -581,7 +574,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	ns->geom.oobsz    = mtd->oobsize;
 	ns->geom.secsz    = mtd->erasesize;
 	ns->geom.pgszoob  = ns->geom.pgsz + ns->geom.oobsz;
-	ns->geom.pgnum    = divide(ns->geom.totsz, ns->geom.pgsz);
+	ns->geom.pgnum    = div_u64(ns->geom.totsz, ns->geom.pgsz);
 	ns->geom.totszoob = ns->geom.totsz + (uint64_t)ns->geom.pgnum * ns->geom.oobsz;
 	ns->geom.secshift = ffs(ns->geom.secsz) - 1;
 	ns->geom.pgshift  = chip->page_shift;
@@ -594,7 +587,7 @@ static int init_nandsim(struct mtd_info *mtd)
 		ns->options |= OPT_PAGE256;
 	}
 	else if (ns->geom.pgsz == 512) {
-		ns->options |= (OPT_PAGE512 | OPT_AUTOINCR);
+		ns->options |= OPT_PAGE512;
 		if (ns->busw == 8)
 			ns->options |= OPT_PAGE512_8BIT;
 	} else if (ns->geom.pgsz == 2048) {
@@ -663,8 +656,6 @@ static int init_nandsim(struct mtd_info *mtd)
         for (i = 0; nand_flash_ids[i].name != NULL; i++) {
                 if (second_id_byte != nand_flash_ids[i].id)
                         continue;
-		if (!(nand_flash_ids[i].options & NAND_NO_AUTOINCR))
-			ns->options |= OPT_AUTOINCR;
 	}
 
 	if (ns->busw == 16)
@@ -924,7 +915,7 @@ static int setup_wear_reporting(struct mtd_info *mtd)
 
 	if (!rptwear)
 		return 0;
-	wear_eb_count = divide(mtd->size, mtd->erasesize);
+	wear_eb_count = div_u64(mtd->size, mtd->erasesize);
 	mem = wear_eb_count * sizeof(unsigned long);
 	if (mem / sizeof(unsigned long) != wear_eb_count) {
 		NS_ERR("Too many erase blocks for wear reporting\n");
@@ -1936,20 +1927,8 @@ static u_char ns_nand_read_byte(struct mtd_info *mtd)
 	if (ns->regs.count == ns->regs.num) {
 		NS_DBG("read_byte: all bytes were read\n");
 
-		/*
-		 * The OPT_AUTOINCR allows to read next consecutive pages without
-		 * new read operation cycle.
-		 */
-		if ((ns->options & OPT_AUTOINCR) && NS_STATE(ns->state) == STATE_DATAOUT) {
-			ns->regs.count = 0;
-			if (ns->regs.row + 1 < ns->geom.pgnum)
-				ns->regs.row += 1;
-			NS_DBG("read_byte: switch to the next page (%#x)\n", ns->regs.row);
-			do_state_action(ns, ACTION_CPY);
-		}
-		else if (NS_STATE(ns->nxstate) == STATE_READY)
+		if (NS_STATE(ns->nxstate) == STATE_READY)
 			switch_state(ns);
-
 	}
 
 	return outb;
@@ -2203,14 +2182,7 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	ns->regs.count += len;
 
 	if (ns->regs.count == ns->regs.num) {
-		if ((ns->options & OPT_AUTOINCR) && NS_STATE(ns->state) == STATE_DATAOUT) {
-			ns->regs.count = 0;
-			if (ns->regs.row + 1 < ns->geom.pgnum)
-				ns->regs.row += 1;
-			NS_DBG("read_buf: switch to the next page (%#x)\n", ns->regs.row);
-			do_state_action(ns, ACTION_CPY);
-		}
-		else if (NS_STATE(ns->nxstate) == STATE_READY)
+		if (NS_STATE(ns->nxstate) == STATE_READY)
 			switch_state(ns);
 	}
 

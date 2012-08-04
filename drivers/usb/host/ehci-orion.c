@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mbus.h>
+#include <linux/clk.h>
 #include <plat/ehci-orion.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
@@ -105,20 +106,9 @@ static int ehci_orion_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 
-	hcd->has_tt = 1;
-
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
-
-	/*
-	 * data structure init
-	 */
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
 
 	ehci_port_power(ehci, 0);
 
@@ -198,6 +188,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
+	struct clk *clk;
 	void __iomem *regs;
 	int irq, err;
 
@@ -238,6 +229,14 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
+	/* Not all platforms can gate the clock, so it is not
+	   an error if the clock does not exists. */
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_prepare_enable(clk);
+		clk_put(clk);
+	}
+
 	hcd = usb_create_hcd(&ehci_orion_hc_driver,
 			&pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
@@ -251,11 +250,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 	hcd->has_tt = 1;
-	ehci->sbrn = 0x20;
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
@@ -288,6 +283,10 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 err4:
 	usb_put_hcd(hcd);
 err3:
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	iounmap(regs);
 err2:
 	release_mem_region(res->start, resource_size(res));
@@ -301,12 +300,18 @@ err1:
 static int __exit ehci_orion_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct clk *clk;
 
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
+	clk = clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(clk)) {
+		clk_disable_unprepare(clk);
+		clk_put(clk);
+	}
 	return 0;
 }
 

@@ -225,7 +225,10 @@ static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 	 * Verify and convert units.
 	 * See HID specification v1.11 6.2.2.7 Global Items for unit decoding
 	 */
-	if (code == ABS_X || code == ABS_Y || code == ABS_Z) {
+	switch (code) {
+	case ABS_X:
+	case ABS_Y:
+	case ABS_Z:
 		if (field->unit == 0x11) {		/* If centimeters */
 			/* Convert to millimeters */
 			unit_exponent += 1;
@@ -239,7 +242,13 @@ static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 		} else {
 			return 0;
 		}
-	} else if (code == ABS_RX || code == ABS_RY || code == ABS_RZ) {
+		break;
+
+	case ABS_RX:
+	case ABS_RY:
+	case ABS_RZ:
+	case ABS_TILT_X:
+	case ABS_TILT_Y:
 		if (field->unit == 0x14) {		/* If degrees */
 			/* Convert to radians */
 			prev = logical_extents;
@@ -250,7 +259,9 @@ static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 		} else if (field->unit != 0x12) {	/* If not radians */
 			return 0;
 		}
-	} else {
+		break;
+
+	default:
 		return 0;
 	}
 
@@ -289,6 +300,9 @@ static enum power_supply_property hidinput_battery_props[] = {
 static const struct hid_device_id hid_battery_quirks[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE,
 			       USB_DEVICE_ID_APPLE_ALU_WIRELESS_2011_ANSI),
+	  HID_BATTERY_QUIRK_PERCENT | HID_BATTERY_QUIRK_FEATURE },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_APPLE,
+		USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI),
 	  HID_BATTERY_QUIRK_PERCENT | HID_BATTERY_QUIRK_FEATURE },
 	{}
 };
@@ -623,6 +637,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			map_key_clear(BTN_TOOL_RUBBER);
 			break;
 
+		case 0x3d: /* X Tilt */
+			map_abs_clear(ABS_TILT_X);
+			break;
+
+		case 0x3e: /* Y Tilt */
+			map_abs_clear(ABS_TILT_Y);
+			break;
+
 		case 0x33: /* Touch */
 		case 0x42: /* TipSwitch */
 		case 0x43: /* TipSwitch2 */
@@ -637,10 +659,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x46: /* TabletPick */
 			map_key_clear(BTN_STYLUS2);
 			break;
-
-		case 0x51: /* ContactID */
-			device->quirks |= HID_QUIRK_MULTITOUCH;
-			goto unknown;
 
 		default:  goto unknown;
 		}
@@ -815,6 +833,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x084: map_key_clear(KEY_FINANCE);		break;
 		case 0x085: map_key_clear(KEY_SPORT);		break;
 		case 0x086: map_key_clear(KEY_SHOP);	        break;
+		default:    goto ignore;
+		}
+		break;
+
+	case HID_UP_HPVENDOR2:
+		set_bit(EV_REP, input->evbit);
+		switch (usage->hid & HID_USAGE) {
+		case 0x003: map_key_clear(KEY_BRIGHTNESSDOWN);	break;
+		case 0x004: map_key_clear(KEY_BRIGHTNESSUP);	break;
 		default:    goto ignore;
 		}
 		break;
@@ -1206,13 +1233,6 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				hidinput = NULL;
 			}
 		}
-	}
-
-	if (hid->quirks & HID_QUIRK_MULTITOUCH) {
-		/* generic hid does not know how to handle multitouch devices */
-		if (hidinput)
-			goto out_cleanup;
-		goto out_unwind;
 	}
 
 	if (hidinput && input_register_device(hidinput->input))

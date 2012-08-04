@@ -252,12 +252,7 @@
  * the desc is cleared. */
 #define	TX_DESC_NEXT_DESC_OFFSET			36
 #define CLEAR_PCI_TX_DESC_CONTENT(__pdesc, _size)		\
-do {								\
-	if (_size > TX_DESC_NEXT_DESC_OFFSET)			\
-		memset(__pdesc, 0, TX_DESC_NEXT_DESC_OFFSET);	\
-	else							\
-		memset(__pdesc, 0, _size);			\
-} while (0);
+	memset(__pdesc, 0, min_t(size_t, _size, TX_DESC_NEXT_DESC_OFFSET))
 
 /* Rx Desc */
 #define RX_STATUS_DESC_SIZE				24

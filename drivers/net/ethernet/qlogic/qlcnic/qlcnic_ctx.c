@@ -53,12 +53,39 @@ qlcnic_issue_cmd(struct qlcnic_adapter *adapter, struct qlcnic_cmd_args *cmd)
 	rsp = qlcnic_poll_rsp(adapter);
 
 	if (rsp == QLCNIC_CDRP_RSP_TIMEOUT) {
-		dev_err(&pdev->dev, "card response timeout.\n");
+		dev_err(&pdev->dev, "CDRP response timeout.\n");
 		cmd->rsp.cmd = QLCNIC_RCODE_TIMEOUT;
 	} else if (rsp == QLCNIC_CDRP_RSP_FAIL) {
 		cmd->rsp.cmd = QLCRD32(adapter, QLCNIC_ARG1_CRB_OFFSET);
-		dev_err(&pdev->dev, "failed card response code:0x%x\n",
+		switch (cmd->rsp.cmd) {
+		case QLCNIC_RCODE_INVALID_ARGS:
+			dev_err(&pdev->dev, "CDRP invalid args: 0x%x.\n",
 				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_NOT_SUPPORTED:
+		case QLCNIC_RCODE_NOT_IMPL:
+			dev_err(&pdev->dev,
+				"CDRP command not supported: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_NOT_PERMITTED:
+			dev_err(&pdev->dev,
+				"CDRP requested action not permitted: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_INVALID:
+			dev_err(&pdev->dev,
+				"CDRP invalid or unknown cmd received: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		case QLCNIC_RCODE_TIMEOUT:
+			dev_err(&pdev->dev, "CDRP command timeout: 0x%x.\n",
+				cmd->rsp.cmd);
+			break;
+		default:
+			dev_err(&pdev->dev, "CDRP command failed: 0x%x.\n",
+				cmd->rsp.cmd);
+		}
 	} else if (rsp == QLCNIC_CDRP_RSP_OK) {
 		cmd->rsp.cmd = QLCNIC_RCODE_SUCCESS;
 		if (cmd->rsp.arg2)
@@ -236,6 +263,9 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	cap = (QLCNIC_CAP0_LEGACY_CONTEXT | QLCNIC_CAP0_LEGACY_MN
 						| QLCNIC_CAP0_VALIDOFF);
 	cap |= (QLCNIC_CAP0_JUMBO_CONTIGUOUS | QLCNIC_CAP0_LRO_CONTIGUOUS);
+
+	if (adapter->flags & QLCNIC_FW_LRO_MSS_CAP)
+		cap |= QLCNIC_CAP0_LRO_MSS;
 
 	prq->valid_field_offset = offsetof(struct qlcnic_hostrq_rx_ctx,
 							 msix_handler);
@@ -905,6 +935,62 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 	return err;
 }
 
+/* This routine will retrieve the MAC statistics from firmware */
+int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
+		struct qlcnic_mac_statistics *mac_stats)
+{
+	struct qlcnic_mac_statistics *stats;
+	struct qlcnic_cmd_args cmd;
+	size_t stats_size = sizeof(struct qlcnic_mac_statistics);
+	dma_addr_t stats_dma_t;
+	void *stats_addr;
+	int err;
+
+	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
+			&stats_dma_t, GFP_KERNEL);
+	if (!stats_addr) {
+		dev_err(&adapter->pdev->dev,
+			"%s: Unable to allocate memory.\n", __func__);
+		return -ENOMEM;
+	}
+	memset(stats_addr, 0, stats_size);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.req.cmd = QLCNIC_CDRP_CMD_GET_MAC_STATS;
+	cmd.req.arg1 = stats_size << 16;
+	cmd.req.arg2 = MSD(stats_dma_t);
+	cmd.req.arg3 = LSD(stats_dma_t);
+
+	qlcnic_issue_cmd(adapter, &cmd);
+	err = cmd.rsp.cmd;
+
+	if (!err) {
+		stats = stats_addr;
+		mac_stats->mac_tx_frames = le64_to_cpu(stats->mac_tx_frames);
+		mac_stats->mac_tx_bytes = le64_to_cpu(stats->mac_tx_bytes);
+		mac_stats->mac_tx_mcast_pkts =
+					le64_to_cpu(stats->mac_tx_mcast_pkts);
+		mac_stats->mac_tx_bcast_pkts =
+					le64_to_cpu(stats->mac_tx_bcast_pkts);
+		mac_stats->mac_rx_frames = le64_to_cpu(stats->mac_rx_frames);
+		mac_stats->mac_rx_bytes = le64_to_cpu(stats->mac_rx_bytes);
+		mac_stats->mac_rx_mcast_pkts =
+					le64_to_cpu(stats->mac_rx_mcast_pkts);
+		mac_stats->mac_rx_length_error =
+				le64_to_cpu(stats->mac_rx_length_error);
+		mac_stats->mac_rx_length_small =
+				le64_to_cpu(stats->mac_rx_length_small);
+		mac_stats->mac_rx_length_large =
+				le64_to_cpu(stats->mac_rx_length_large);
+		mac_stats->mac_rx_jabber = le64_to_cpu(stats->mac_rx_jabber);
+		mac_stats->mac_rx_dropped = le64_to_cpu(stats->mac_rx_dropped);
+		mac_stats->mac_rx_crc_error = le64_to_cpu(stats->mac_rx_crc_error);
+	}
+
+	dma_free_coherent(&adapter->pdev->dev, stats_size, stats_addr,
+		stats_dma_t);
+	return err;
+}
+
 int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
 
@@ -920,13 +1006,13 @@ int qlcnic_get_eswitch_stats(struct qlcnic_adapter *adapter, const u8 eswitch,
 		return -EIO;
 
 	memset(esw_stats, 0, sizeof(u64));
-	esw_stats->unicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->multicast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->broadcast_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->dropped_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->errors = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->local_frames = QLCNIC_ESW_STATS_NOT_AVAIL;
-	esw_stats->numbytes = QLCNIC_ESW_STATS_NOT_AVAIL;
+	esw_stats->unicast_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->multicast_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->broadcast_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->dropped_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->errors = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->local_frames = QLCNIC_STATS_NOT_AVAIL;
+	esw_stats->numbytes = QLCNIC_STATS_NOT_AVAIL;
 	esw_stats->context_id = eswitch;
 
 	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {

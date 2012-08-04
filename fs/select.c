@@ -345,8 +345,8 @@ static int max_select_fd(unsigned long n, fd_set_bits *fds)
 	struct fdtable *fdt;
 
 	/* handle last in-complete long-word first */
-	set = ~(~0UL << (n & (__NFDBITS-1)));
-	n /= __NFDBITS;
+	set = ~(~0UL << (n & (BITS_PER_LONG-1)));
+	n /= BITS_PER_LONG;
 	fdt = files_fdtable(current->files);
 	open_fds = fdt->open_fds + n;
 	max = 0;
@@ -373,7 +373,7 @@ get_max:
 			max++;
 			set >>= 1;
 		} while (set);
-		max += n * __NFDBITS;
+		max += n * BITS_PER_LONG;
 	}
 
 	return max;
@@ -435,11 +435,11 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			in = *inp++; out = *outp++; ex = *exp++;
 			all_bits = in | out | ex;
 			if (all_bits == 0) {
-				i += __NFDBITS;
+				i += BITS_PER_LONG;
 				continue;
 			}
 
-			for (j = 0; j < __NFDBITS; ++j, ++i, bit <<= 1) {
+			for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
 				int fput_needed;
 				if (i >= n)
 					break;
@@ -614,7 +614,6 @@ SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 	return ret;
 }
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 static long do_pselect(int n, fd_set __user *inp, fd_set __user *outp,
 		       fd_set __user *exp, struct timespec __user *tsp,
 		       const sigset_t __user *sigmask, size_t sigsetsize)
@@ -686,7 +685,6 @@ SYSCALL_DEFINE6(pselect6, int, n, fd_set __user *, inp, fd_set __user *, outp,
 
 	return do_pselect(n, inp, outp, exp, tsp, up, sigsetsize);
 }
-#endif /* HAVE_SET_RESTORE_SIGMASK */
 
 #ifdef __ARCH_WANT_SYS_OLD_SELECT
 struct sel_arg_struct {
@@ -941,7 +939,6 @@ SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
 	return ret;
 }
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds, unsigned int, nfds,
 		struct timespec __user *, tsp, const sigset_t __user *, sigmask,
 		size_t, sigsetsize)
@@ -992,4 +989,3 @@ SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds, unsigned int, nfds,
 
 	return ret;
 }
-#endif /* HAVE_SET_RESTORE_SIGMASK */

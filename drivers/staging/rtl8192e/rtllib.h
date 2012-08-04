@@ -169,7 +169,7 @@ struct cb_desc {
 
 	u8 nStuckCount;
 
-	/* Tx Firmware Relaged flags (10-11)*/
+	/* Tx Firmware Related flags (10-11)*/
 	u8 bCTSEnable:1;
 	u8 bRTSEnable:1;
 	u8 bUseShortGI:1;
@@ -1690,7 +1690,7 @@ enum rtllib_state {
 	/* the association procedure is sending AUTH request*/
 	RTLLIB_ASSOCIATING_AUTHENTICATING,
 
-	/* the association procedure has successfully authentcated
+	/* the association procedure has successfully authenticated
 	 * and is sending association request
 	 */
 	RTLLIB_ASSOCIATING_AUTHENTICATED,
@@ -2409,7 +2409,7 @@ struct rtllib_device {
 
 	/* used instead of hard_start_xmit (not softmac_hard_start_xmit)
 	 * if the IEEE_SOFTMAC_TX_QUEUE feature is used to TX data
-	 * frames. I the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
+	 * frames. If the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
 	 * then also management frames are sent via this callback.
 	 * This function can't sleep.
 	 */
@@ -2422,12 +2422,12 @@ struct rtllib_device {
 	 */
 	void (*data_hard_stop)(struct net_device *dev);
 
-	/* OK this is complementar to data_poll_hard_stop */
+	/* OK this is complementing to data_poll_hard_stop */
 	void (*data_hard_resume)(struct net_device *dev);
 
 	/* ask to the driver to retune the radio .
 	 * This function can sleep. the driver should ensure
-	 * the radio has been swithced before return.
+	 * the radio has been switched before return.
 	 */
 	void (*set_chan)(struct net_device *dev, short ch);
 
@@ -2438,7 +2438,7 @@ struct rtllib_device {
 	 * The syncro version is similar to the start_scan but
 	 * does not return until all channels has been scanned.
 	 * this is called in user context and should sleep,
-	 * it is called in a work_queue when swithcing to ad-hoc mode
+	 * it is called in a work_queue when switching to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
 	 * and root user ask for a scan.
 	 * the fucntion stop_scan should stop both the syncro and
@@ -2481,7 +2481,7 @@ struct rtllib_device {
 				     struct rtllib_network *network);
 
 
-	/* check whether Tx hw resouce available */
+	/* check whether Tx hw resource available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
 	short (*get_nic_desc_num)(struct net_device *dev, int queue_index);
 	void (*SetBWModeHandler)(struct net_device *dev,
@@ -2543,10 +2543,10 @@ struct rtllib_device {
 /* Generate probe requests */
 #define IEEE_SOFTMAC_PROBERQ (1<<4)
 
-/* Generate respones to probe requests */
+/* Generate response to probe requests */
 #define IEEE_SOFTMAC_PROBERS (1<<5)
 
-/* The ieee802.11 stack will manages the netif queue
+/* The ieee802.11 stack will manage the netif queue
  * wake/stop for the driver, taking care of 802.11
  * fragmentation. See softmac.c for details. */
 #define IEEE_SOFTMAC_TX_QUEUE (1<<7)

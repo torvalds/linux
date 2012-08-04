@@ -459,7 +459,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	unsigned char *counter;
 	int ret;
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 
 	if (ep->pipenum)	/* already allocated pipe  */
 		return 0;
@@ -648,7 +648,7 @@ static int sudmac_alloc_channel(struct r8a66597 *r8a66597,
 	/* set SUDMAC parameters */
 	dma = &r8a66597->dma;
 	dma->used = 1;
-	if (ep->desc->bEndpointAddress & USB_DIR_IN) {
+	if (ep->ep.desc->bEndpointAddress & USB_DIR_IN) {
 		dma->dir = 1;
 	} else {
 		dma->dir = 0;
@@ -770,7 +770,7 @@ static void start_packet_read(struct r8a66597_ep *ep,
 
 static void start_packet(struct r8a66597_ep *ep, struct r8a66597_request *req)
 {
-	if (ep->desc->bEndpointAddress & USB_DIR_IN)
+	if (ep->ep.desc->bEndpointAddress & USB_DIR_IN)
 		start_packet_write(ep, req);
 	else
 		start_packet_read(ep, req);
@@ -930,7 +930,7 @@ __acquires(r8a66597->lock)
 
 	if (restart) {
 		req = get_request_from_ep(ep);
-		if (ep->desc)
+		if (ep->ep.desc)
 			start_packet(ep, req);
 	}
 }
@@ -1116,7 +1116,7 @@ static void irq_pipe_ready(struct r8a66597 *r8a66597, u16 status, u16 enb)
 				r8a66597_write(r8a66597, ~check, BRDYSTS);
 				ep = r8a66597->pipenum2ep[pipenum];
 				req = get_request_from_ep(ep);
-				if (ep->desc->bEndpointAddress & USB_DIR_IN)
+				if (ep->ep.desc->bEndpointAddress & USB_DIR_IN)
 					irq_packet_write(ep, req);
 				else
 					irq_packet_read(ep, req);
@@ -1170,7 +1170,7 @@ __acquires(r8a66597->lock)
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		status = 1 << USB_DEVICE_SELF_POWERED;
+		status = r8a66597->device_status;
 		break;
 	case USB_RECIP_INTERFACE:
 		status = 0;
@@ -1627,7 +1627,7 @@ static int r8a66597_queue(struct usb_ep *_ep, struct usb_request *_req,
 	req->req.actual = 0;
 	req->req.status = -EINPROGRESS;
 
-	if (ep->desc == NULL)	/* control */
+	if (ep->ep.desc == NULL)	/* control */
 		start_ep0(ep, req);
 	else {
 		if (request && !ep->busy)
@@ -1692,7 +1692,7 @@ static int r8a66597_set_wedge(struct usb_ep *_ep)
 
 	ep = container_of(_ep, struct r8a66597_ep, ep);
 
-	if (!ep || !ep->desc)
+	if (!ep || !ep->ep.desc)
 		return -EINVAL;
 
 	spin_lock_irqsave(&ep->r8a66597->lock, flags);
@@ -1800,11 +1800,24 @@ static int r8a66597_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int r8a66597_set_selfpowered(struct usb_gadget *gadget, int is_self)
+{
+	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
+
+	if (is_self)
+		r8a66597->device_status |= 1 << USB_DEVICE_SELF_POWERED;
+	else
+		r8a66597->device_status &= ~(1 << USB_DEVICE_SELF_POWERED);
+
+	return 0;
+}
+
 static struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
 	.udc_start		= r8a66597_start,
 	.udc_stop		= r8a66597_stop,
 	.pullup			= r8a66597_pullup,
+	.set_selfpowered	= r8a66597_set_selfpowered,
 };
 
 static int __exit r8a66597_remove(struct platform_device *pdev)
@@ -1818,12 +1831,12 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 		iounmap(r8a66597->sudmac_reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
-#ifdef CONFIG_HAVE_CLK
+
 	if (r8a66597->pdata->on_chip) {
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
-#endif
+
 	device_unregister(&r8a66597->gadget.dev);
 	kfree(r8a66597);
 	return 0;
@@ -1855,9 +1868,7 @@ static int __init r8a66597_sudmac_ioremap(struct r8a66597 *r8a66597,
 
 static int __init r8a66597_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_HAVE_CLK
 	char clk_name[8];
-#endif
 	struct resource *res, *ires;
 	int irq;
 	void __iomem *reg = NULL;
@@ -1921,7 +1932,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->timer.data = (unsigned long)r8a66597;
 	r8a66597->reg = reg;
 
-#ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
 		r8a66597->clk = clk_get(&pdev->dev, clk_name);
@@ -1933,7 +1943,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 		}
 		clk_enable(r8a66597->clk);
 	}
-#endif
+
 	if (r8a66597->pdata->sudmac) {
 		ret = r8a66597_sudmac_ioremap(r8a66597, pdev);
 		if (ret < 0)
@@ -1993,13 +2003,11 @@ err_add_udc:
 clean_up3:
 	free_irq(irq, r8a66597);
 clean_up2:
-#ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
 clean_up_dev:
-#endif
 	device_unregister(&r8a66597->gadget.dev);
 clean_up:
 	if (r8a66597) {

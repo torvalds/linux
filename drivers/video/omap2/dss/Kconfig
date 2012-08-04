@@ -52,7 +52,7 @@ config OMAP2_DSS_RFBI
 	  DBI is a bus between the host processor and a peripheral,
 	  such as a display or a framebuffer chip.
 
-	  See http://www.mipi.org/ for DBI spesifications.
+	  See http://www.mipi.org/ for DBI specifications.
 
 config OMAP2_DSS_VENC
 	bool "VENC support"
@@ -67,6 +67,10 @@ config OMAP4_DSS_HDMI
 	help
 	  HDMI Interface. This adds the High Definition Multimedia Interface.
 	  See http://www.hdmi.org/ for HDMI specification.
+
+config OMAP4_DSS_HDMI_AUDIO
+	bool
+	depends on OMAP4_DSS_HDMI
 
 config OMAP2_DSS_SDI
 	bool "SDI support"
@@ -88,16 +92,7 @@ config OMAP2_DSS_DSI
 	  DSI is a high speed half-duplex serial interface between the host
 	  processor and a peripheral, such as a display or a framebuffer chip.
 
-	  See http://www.mipi.org/ for DSI spesifications.
-
-config OMAP2_DSS_FAKE_VSYNC
-	bool "Fake VSYNC irq from manual update displays"
-	default n
-	help
-	  If this is selected, DSI will generate a fake DISPC VSYNC interrupt
-	  when DSI has sent a frame. This is only needed with DSI or RFBI
-	  displays using manual mode, and you want VSYNC to, for example,
-	  time animation.
+	  See http://www.mipi.org/ for DSI specifications.
 
 config OMAP2_DSS_MIN_FCK_PER_PCK
 	int "Minimum FCK/PCK ratio (for scaling)"

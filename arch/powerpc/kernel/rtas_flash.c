@@ -709,7 +709,7 @@ static int __init rtas_flash_init(void)
 
 	if (rtas_token("ibm,update-flash-64-and-reboot") ==
 		       RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "rtas_flash: no firmware flash support\n");
+		pr_info("rtas_flash: no firmware flash support\n");
 		return 1;
 	}
 

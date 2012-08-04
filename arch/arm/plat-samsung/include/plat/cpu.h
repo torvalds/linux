@@ -132,6 +132,10 @@ IS_SAMSUNG_CPU(exynos5250, EXYNOS5250_SOC_ID, EXYNOS5_SOC_MASK)
 
 #define IODESC_ENT(x) { (unsigned long)S3C24XX_VA_##x, __phys_to_pfn(S3C24XX_PA_##x), S3C24XX_SZ_##x, MT_DEVICE }
 
+#ifndef KHZ
+#define KHZ (1000)
+#endif
+
 #ifndef MHZ
 #define MHZ (1000*1000)
 #endif
@@ -202,7 +206,7 @@ extern struct bus_type s3c2443_subsys;
 extern struct bus_type s3c6410_subsys;
 extern struct bus_type s5p64x0_subsys;
 extern struct bus_type s5pv210_subsys;
-extern struct bus_type exynos4_subsys;
+extern struct bus_type exynos_subsys;
 
 extern void (*s5pc1xx_idle)(void);
 

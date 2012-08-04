@@ -2,7 +2,7 @@
 #define _INTEL_RINGBUFFER_H_
 
 struct  intel_hw_status_page {
-	u32	__iomem	*page_addr;
+	u32		*page_addr;
 	unsigned int	gfx_addr;
 	struct		drm_i915_gem_object *obj;
 };
@@ -56,12 +56,9 @@ struct  intel_ring_buffer {
 	 */
 	u32		last_retired_head;
 
-	spinlock_t	irq_lock;
-	u32		irq_refcount;
-	u32		irq_mask;
-	u32		irq_seqno;		/* last seq seem at irq time */
+	u32		irq_refcount;		/* protected by dev_priv->irq_lock */
+	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		trace_irq_seqno;
-	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
@@ -116,12 +113,25 @@ struct  intel_ring_buffer {
 	 * Do we have some not yet emitted requests outstanding?
 	 */
 	u32 outstanding_lazy_request;
+	bool gpu_caches_dirty;
 
 	wait_queue_head_t irq_queue;
-	drm_local_map_t map;
+
+	/**
+	 * Do an explicit TLB flush before MI_SET_CONTEXT
+	 */
+	bool itlb_before_ctx_switch;
+	struct i915_hw_context *default_context;
+	struct drm_i915_gem_object *last_context_obj;
 
 	void *private;
 };
+
+static inline bool
+intel_ring_initialized(struct intel_ring_buffer *ring)
+{
+	return ring->obj != NULL;
+}
 
 static inline unsigned
 intel_ring_flag(struct intel_ring_buffer *ring)
@@ -152,7 +162,9 @@ static inline u32
 intel_read_status_page(struct intel_ring_buffer *ring,
 		       int reg)
 {
-	return ioread32(ring->status_page.page_addr + reg);
+	/* Ensure that the compiler doesn't optimize away the load. */
+	barrier();
+	return ring->status_page.page_addr[reg];
 }
 
 /**
@@ -170,10 +182,7 @@ intel_read_status_page(struct intel_ring_buffer *ring,
  *
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
-#define READ_HWSP(dev_priv, reg) intel_read_status_page(LP_RING(dev_priv), reg)
-#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
-#define I915_BREADCRUMB_INDEX		0x21
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 

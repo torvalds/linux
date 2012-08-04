@@ -404,9 +404,9 @@ struct debug_buffer {
 
 #define speed_char(info1) ({ char tmp; \
 		switch (info1 & (3 << 12)) { \
-		case 0 << 12: tmp = 'f'; break; \
-		case 1 << 12: tmp = 'l'; break; \
-		case 2 << 12: tmp = 'h'; break; \
+		case QH_FULL_SPEED: tmp = 'f'; break; \
+		case QH_LOW_SPEED:  tmp = 'l'; break; \
+		case QH_HIGH_SPEED: tmp = 'h'; break; \
 		default: tmp = '?'; break; \
 		}; tmp; })
 
@@ -538,12 +538,13 @@ static ssize_t fill_async_buffer(struct debug_buffer *buf)
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (qh = ehci->async->qh_next.qh; size > 0 && qh; qh = qh->qh_next.qh)
 		qh_lines (ehci, qh, &next, &size);
-	if (ehci->reclaim && size > 0) {
-		temp = scnprintf (next, size, "\nreclaim =\n");
+	if (ehci->async_unlink && size > 0) {
+		temp = scnprintf(next, size, "\nunlink =\n");
 		size -= temp;
 		next += temp;
 
-		for (qh = ehci->reclaim; size > 0 && qh; qh = qh->reclaim)
+		for (qh = ehci->async_unlink; size > 0 && qh;
+				qh = qh->unlink_next)
 			qh_lines (ehci, qh, &next, &size);
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -705,6 +706,8 @@ static const char *rh_state_string(struct ehci_hcd *ehci)
 		return "suspended";
 	case EHCI_RH_RUNNING:
 		return "running";
+	case EHCI_RH_STOPPING:
+		return "stopping";
 	}
 	return "?";
 }
@@ -841,16 +844,17 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 		}
 	}
 
-	if (ehci->reclaim) {
-		temp = scnprintf(next, size, "reclaim qh %p\n", ehci->reclaim);
+	if (ehci->async_unlink) {
+		temp = scnprintf(next, size, "async unlink qh %p\n",
+				ehci->async_unlink);
 		size -= temp;
 		next += temp;
 	}
 
 #ifdef EHCI_STATS
 	temp = scnprintf (next, size,
-		"irq normal %ld err %ld reclaim %ld (lost %ld)\n",
-		ehci->stats.normal, ehci->stats.error, ehci->stats.reclaim,
+		"irq normal %ld err %ld iaa %ld (lost %ld)\n",
+		ehci->stats.normal, ehci->stats.error, ehci->stats.iaa,
 		ehci->stats.lost_iaa);
 	size -= temp;
 	next += temp;
@@ -1025,10 +1029,8 @@ static ssize_t debug_lpm_write(struct file *file, const char __user *user_buf,
 		if (strict_strtoul(buf + 5, 16, &hird))
 			return -EINVAL;
 		printk(KERN_INFO "setting hird %s %lu\n", buf + 6, hird);
-		temp = ehci_readl(ehci, &ehci->regs->command);
-		temp &= ~CMD_HIRD;
-		temp |= hird << 24;
-		ehci_writel(ehci, temp, &ehci->regs->command);
+		ehci->command = (ehci->command & ~CMD_HIRD) | (hird << 24);
+		ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	} else if (strncmp(buf, "disable", 7) == 0) {
 		if (strict_strtoul(buf + 8, 10, &port))
 			return -EINVAL;

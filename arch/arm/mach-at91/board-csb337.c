@@ -39,6 +39,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 
 #include "generic.h"
 
@@ -47,15 +48,6 @@ static void __init csb337_init_early(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
 	at91_initialize(3686400);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
-
-	/* DBGU on ttyS0 */
-	at91_register_uart(0, 0, 0);
-
-	/* make console=ttyS0 the default */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata csb337_eth_data = {
@@ -228,7 +220,11 @@ static struct gpio_led csb_leds[] = {
 
 static void __init csb337_board_init(void)
 {
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
 	/* Serial */
+	/* DBGU on ttyS0 */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&csb337_eth_data);
@@ -257,6 +253,7 @@ MACHINE_START(CSB337, "Cogent CSB337")
 	/* Maintainer: Bill Gatliff */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= csb337_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= csb337_board_init,

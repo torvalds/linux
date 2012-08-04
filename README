@@ -1,4 +1,4 @@
-	Linux kernel release 3.x <http://kernel.org/>
+        Linux kernel release 3.x <http://kernel.org/>
 
 These are the release notes for Linux version 3.  Read them carefully,
 as they tell you what this is all about, explain how to install the
@@ -62,13 +62,13 @@ INSTALLING the kernel source:
    directory where you have permissions (eg. your home directory) and
    unpack it:
 
-		gzip -cd linux-3.X.tar.gz | tar xvf -
+     gzip -cd linux-3.X.tar.gz | tar xvf -
 
    or
-		bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
 
+     bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
 
-   Replace "XX" with the version number of the latest kernel.
+   Replace "X" with the version number of the latest kernel.
 
    Do NOT use the /usr/src/linux area! This area has a (usually
    incomplete) set of kernel headers that are used by the library header
@@ -78,49 +78,43 @@ INSTALLING the kernel source:
  - You can also upgrade between 3.x releases by patching.  Patches are
    distributed in the traditional gzip and the newer bzip2 format.  To
    install by patching, get all the newer patch files, enter the
-   top level directory of the kernel source (linux-3.x) and execute:
+   top level directory of the kernel source (linux-3.X) and execute:
 
-		gzip -cd ../patch-3.x.gz | patch -p1
+     gzip -cd ../patch-3.x.gz | patch -p1
 
    or
-		bzip2 -dc ../patch-3.x.bz2 | patch -p1
 
-   (repeat xx for all versions bigger than the version of your current
-   source tree, _in_order_) and you should be ok.  You may want to remove
-   the backup files (xxx~ or xxx.orig), and make sure that there are no
-   failed patches (xxx# or xxx.rej). If there are, either you or me has
-   made a mistake.
+     bzip2 -dc ../patch-3.x.bz2 | patch -p1
+
+   Replace "x" for all versions bigger than the version "X" of your current
+   source tree, _in_order_, and you should be ok.  You may want to remove
+   the backup files (some-file-name~ or some-file-name.orig), and make sure
+   that there are no failed patches (some-file-name# or some-file-name.rej).
+   If there are, either you or I have made a mistake.
 
    Unlike patches for the 3.x kernels, patches for the 3.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 3.x kernel.  Please read
-   Documentation/applying-patches.txt for more information.
+   directly to the base 3.x kernel.  For example, if your base kernel is 3.0
+   and you want to apply the 3.0.3 patch, you must not first apply the 3.0.1
+   and 3.0.2 patches. Similarly, if you are running kernel version 3.0.2 and
+   want to jump to 3.0.3, you must first reverse the 3.0.2 patch (that is,
+   patch -R) _before_ applying the 3.0.3 patch. You can read more on this in
+   Documentation/applying-patches.txt
 
    Alternatively, the script patch-kernel can be used to automate this
    process.  It determines the current kernel version and applies any
    patches found.
 
-		linux/scripts/patch-kernel linux
+     linux/scripts/patch-kernel linux
 
    The first argument in the command above is the location of the
    kernel source.  Patches are applied from the current directory, but
    an alternative directory can be specified as the second argument.
 
- - If you are upgrading between releases using the stable series patches
-   (for example, patch-3.x.y), note that these "dot-releases" are
-   not incremental and must be applied to the 3.x base tree. For
-   example, if your base kernel is 3.0 and you want to apply the
-   3.0.3 patch, you do not and indeed must not first apply the
-   3.0.1 and 3.0.2 patches. Similarly, if you are running kernel
-   version 3.0.2 and want to jump to 3.0.3, you must first
-   reverse the 3.0.2 patch (that is, patch -R) _before_ applying
-   the 3.0.3 patch.
-   You can read more on this in Documentation/applying-patches.txt
-
  - Make sure you have no stale .o files and dependencies lying around:
 
-		cd linux
-		make mrproper
+     cd linux
+     make mrproper
 
    You should now have the sources correctly installed.
 
@@ -137,21 +131,23 @@ SOFTWARE REQUIREMENTS
 
 BUILD directory for the kernel:
 
-   When compiling the kernel all output files will per default be
+   When compiling the kernel, all output files will per default be
    stored together with the kernel source code.
    Using the option "make O=output/dir" allow you to specify an alternate
    place for the output files (including .config).
    Example:
-     kernel source code:	/usr/src/linux-3.N
-     build directory:		/home/name/build/kernel
 
-   To configure and build the kernel use:
-   cd /usr/src/linux-3.N
-   make O=/home/name/build/kernel menuconfig
-   make O=/home/name/build/kernel
-   sudo make O=/home/name/build/kernel modules_install install
+     kernel source code: /usr/src/linux-3.X
+     build directory:    /home/name/build/kernel
 
-   Please note: If the 'O=output/dir' option is used then it must be
+   To configure and build the kernel, use:
+
+     cd /usr/src/linux-3.X
+     make O=/home/name/build/kernel menuconfig
+     make O=/home/name/build/kernel
+     sudo make O=/home/name/build/kernel modules_install install
+
+   Please note: If the 'O=output/dir' option is used, then it must be
    used for all invocations of make.
 
 CONFIGURING the kernel:
@@ -163,61 +159,78 @@ CONFIGURING the kernel:
    new version with minimal work, use "make oldconfig", which will
    only ask you for the answers to new questions.
 
- - Alternate configuration commands are:
-	"make config"      Plain text interface.
-	"make menuconfig"  Text based color menus, radiolists & dialogs.
-	"make nconfig"     Enhanced text based color menus.
-	"make xconfig"     X windows (Qt) based configuration tool.
-	"make gconfig"     X windows (Gtk) based configuration tool.
-	"make oldconfig"   Default all questions based on the contents of
-			   your existing ./.config file and asking about
-			   new config symbols.
-	"make silentoldconfig"
-			   Like above, but avoids cluttering the screen
-			   with questions already answered.
-			   Additionally updates the dependencies.
-	"make defconfig"   Create a ./.config file by using the default
-			   symbol values from either arch/$ARCH/defconfig
-			   or arch/$ARCH/configs/${PLATFORM}_defconfig,
-			   depending on the architecture.
-	"make ${PLATFORM}_defconfig"
-			  Create a ./.config file by using the default
-			  symbol values from
-			  arch/$ARCH/configs/${PLATFORM}_defconfig.
-			  Use "make help" to get a list of all available
-			  platforms of your architecture.
-	"make allyesconfig"
-			   Create a ./.config file by setting symbol
-			   values to 'y' as much as possible.
-	"make allmodconfig"
-			   Create a ./.config file by setting symbol
-			   values to 'm' as much as possible.
-	"make allnoconfig" Create a ./.config file by setting symbol
-			   values to 'n' as much as possible.
-	"make randconfig"  Create a ./.config file by setting symbol
-			   values to random values.
+ - Alternative configuration commands are:
+
+     "make config"      Plain text interface.
+
+     "make menuconfig"  Text based color menus, radiolists & dialogs.
+
+     "make nconfig"     Enhanced text based color menus.
+
+     "make xconfig"     X windows (Qt) based configuration tool.
+
+     "make gconfig"     X windows (Gtk) based configuration tool.
+
+     "make oldconfig"   Default all questions based on the contents of
+                        your existing ./.config file and asking about
+                        new config symbols.
+
+     "make silentoldconfig"
+                        Like above, but avoids cluttering the screen
+                        with questions already answered.
+                        Additionally updates the dependencies.
+
+     "make defconfig"   Create a ./.config file by using the default
+                        symbol values from either arch/$ARCH/defconfig
+                        or arch/$ARCH/configs/${PLATFORM}_defconfig,
+                        depending on the architecture.
+
+     "make ${PLATFORM}_defconfig"
+                        Create a ./.config file by using the default
+                        symbol values from
+                        arch/$ARCH/configs/${PLATFORM}_defconfig.
+                        Use "make help" to get a list of all available
+                        platforms of your architecture.
+
+     "make allyesconfig"
+                        Create a ./.config file by setting symbol
+                        values to 'y' as much as possible.
+
+     "make allmodconfig"
+                        Create a ./.config file by setting symbol
+                        values to 'm' as much as possible.
+
+     "make allnoconfig" Create a ./.config file by setting symbol
+                        values to 'n' as much as possible.
+
+     "make randconfig"  Create a ./.config file by setting symbol
+                        values to random values.
 
    You can find more information on using the Linux kernel config tools
    in Documentation/kbuild/kconfig.txt.
 
-	NOTES on "make config":
-	- having unnecessary drivers will make the kernel bigger, and can
-	  under some circumstances lead to problems: probing for a
-	  nonexistent controller card may confuse your other controllers
-	- compiling the kernel with "Processor type" set higher than 386
-	  will result in a kernel that does NOT work on a 386.  The
-	  kernel will detect this on bootup, and give up.
-	- A kernel with math-emulation compiled in will still use the
-	  coprocessor if one is present: the math emulation will just
-	  never get used in that case.  The kernel will be slightly larger,
-	  but will work on different machines regardless of whether they
-	  have a math coprocessor or not. 
-	- the "kernel hacking" configuration details usually result in a
-	  bigger or slower kernel (or both), and can even make the kernel
-	  less stable by configuring some routines to actively try to
-	  break bad code to find kernel problems (kmalloc()).  Thus you
-	  should probably answer 'n' to the questions for
-          "development", "experimental", or "debugging" features.
+ - NOTES on "make config":
+
+    - Having unnecessary drivers will make the kernel bigger, and can
+      under some circumstances lead to problems: probing for a
+      nonexistent controller card may confuse your other controllers
+
+    - Compiling the kernel with "Processor type" set higher than 386
+      will result in a kernel that does NOT work on a 386.  The
+      kernel will detect this on bootup, and give up.
+
+    - A kernel with math-emulation compiled in will still use the
+      coprocessor if one is present: the math emulation will just
+      never get used in that case.  The kernel will be slightly larger,
+      but will work on different machines regardless of whether they
+      have a math coprocessor or not.
+
+    - The "kernel hacking" configuration details usually result in a
+      bigger or slower kernel (or both), and can even make the kernel
+      less stable by configuring some routines to actively try to
+      break bad code to find kernel problems (kmalloc()).  Thus you
+      should probably answer 'n' to the questions for "development",
+      "experimental", or "debugging" features.
 
 COMPILING the kernel:
 
@@ -230,7 +243,7 @@ COMPILING the kernel:
    possible to do "make install" if you have lilo installed to suit the
    kernel makefiles, but you may want to check your particular lilo setup first.
 
-   To do the actual install you have to be root, but none of the normal
+   To do the actual install, you have to be root, but none of the normal
    build should require that. Don't take the name of root in vain.
 
  - If you configured any of the parts of the kernel as `modules', you
@@ -238,13 +251,13 @@ COMPILING the kernel:
 
  - Verbose kernel compile/build output:
 
-   Normally the kernel build system runs in a fairly quiet mode (but not
+   Normally, the kernel build system runs in a fairly quiet mode (but not
    totally silent).  However, sometimes you or other kernel developers need
    to see compile, link, or other commands exactly as they are executed.
    For this, use "verbose" build mode.  This is done by inserting
    "V=1" in the "make" command.  E.g.:
 
-	make V=1 all
+     make V=1 all
 
    To have the build system also tell the reason for the rebuild of each
    target, use "V=2".  The default is "V=0".
@@ -256,6 +269,7 @@ COMPILING the kernel:
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
    do a "make modules_install".
+
    Alternatively, before compiling, use the kernel config option
    "LOCALVERSION" to append a unique suffix to the regular kernel version.
    LOCALVERSION can be set in the "General Setup" menu.
@@ -267,7 +281,7 @@ COMPILING the kernel:
  - Booting a kernel directly from a floppy without the assistance of a
    bootloader such as LILO, is no longer supported.
 
-   If you boot Linux from the hard drive, chances are you use LILO which
+   If you boot Linux from the hard drive, chances are you use LILO, which
    uses the kernel image as specified in the file /etc/lilo.conf.  The
    kernel image file is usually /vmlinuz, /boot/vmlinuz, /bzImage or
    /boot/bzImage.  To use the new kernel, save a copy of the old image
@@ -306,21 +320,21 @@ IF SOMETHING GOES WRONG:
 
  - If the bug results in a message like
 
-	unable to handle kernel paging request at address C0000010
-	Oops: 0002
-	EIP:   0010:XXXXXXXX
-	eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
-	esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
-	ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
-	Pid: xx, process nr: xx
-	xx xx xx xx xx xx xx xx xx xx
+     unable to handle kernel paging request at address C0000010
+     Oops: 0002
+     EIP:   0010:XXXXXXXX
+     eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
+     esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
+     ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
+     Pid: xx, process nr: xx
+     xx xx xx xx xx xx xx xx xx xx
 
    or similar kernel debugging information on your screen or in your
    system log, please duplicate it *exactly*.  The dump may look
    incomprehensible to you, but it does contain information that may
    help debugging the problem.  The text above the dump is also
    important: it tells something about why the kernel dumped code (in
-   the above example it's due to a bad kernel pointer). More information
+   the above example, it's due to a bad kernel pointer). More information
    on making sense of the dump is in Documentation/oops-tracing.txt
 
  - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
@@ -328,7 +342,7 @@ IF SOMETHING GOES WRONG:
    sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
    This utility can be downloaded from
    ftp://ftp.<country>.kernel.org/pub/linux/utils/kernel/ksymoops/ .
-   Alternately you can do the dump lookup by hand:
+   Alternatively, you can do the dump lookup by hand:
 
  - In debugging dumps like the above, it helps enormously if you can
    look up what the EIP value means.  The hex value as such doesn't help
@@ -342,7 +356,7 @@ IF SOMETHING GOES WRONG:
    the file 'linux/vmlinux'.  To extract the namelist and match it against
    the EIP from the kernel crash, do:
 
-		nm vmlinux | sort | less
+     nm vmlinux | sort | less
 
    This will give you a list of kernel addresses sorted in ascending
    order, from which it is simple to find the function that contains the
@@ -361,7 +375,7 @@ IF SOMETHING GOES WRONG:
    kernel image or similar), telling me as much about your setup as
    possible will help.  Please read the REPORTING-BUGS document for details.
 
- - Alternately, you can use gdb on a running kernel. (read-only; i.e. you
+ - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you
    cannot change values or set break points.) To do this, first compile the
    kernel with -g; edit arch/i386/Makefile appropriately, then do a "make
    clean". You'll also need to enable CONFIG_PROC_FS (via "make config").

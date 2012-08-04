@@ -31,6 +31,8 @@
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/checksum.h>
+#include <asm/tlbflush.h>
+#include <asm/homecache.h>
 #include <hv/hypervisor.h>
 
 
@@ -222,11 +224,22 @@ struct page *kimage_alloc_pages_arch(gfp_t gfp_mask, unsigned int order)
 	return alloc_pages_node(0, gfp_mask, order);
 }
 
+/*
+ * Address range in which pa=va mapping is set in setup_quasi_va_is_pa().
+ * For tilepro, PAGE_OFFSET is used since this is the largest possbile value
+ * for tilepro, while for tilegx, we limit it to entire middle level page
+ * table which we assume has been allocated and is undoubtedly large enough.
+ */
+#ifndef __tilegx__
+#define	QUASI_VA_IS_PA_ADDR_RANGE PAGE_OFFSET
+#else
+#define	QUASI_VA_IS_PA_ADDR_RANGE PGDIR_SIZE
+#endif
+
 static void setup_quasi_va_is_pa(void)
 {
-	HV_PTE *pgtable;
 	HV_PTE pte;
-	int i;
+	unsigned long i;
 
 	/*
 	 * Flush our TLB to prevent conflicts between the previous contents
@@ -234,16 +247,22 @@ static void setup_quasi_va_is_pa(void)
 	 */
 	local_flush_tlb_all();
 
-	/* setup VA is PA, at least up to PAGE_OFFSET */
-
-	pgtable = (HV_PTE *)current->mm->pgd;
+	/*
+	 * setup VA is PA, at least up to QUASI_VA_IS_PA_ADDR_RANGE.
+	 * Note here we assume that level-1 page table is defined by
+	 * HPAGE_SIZE.
+	 */
 	pte = hv_pte(_PAGE_KERNEL | _PAGE_HUGE_PAGE);
 	pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_NO_L3);
-
-	for (i = 0; i < pgd_index(PAGE_OFFSET); i++) {
+	for (i = 0; i < (QUASI_VA_IS_PA_ADDR_RANGE >> HPAGE_SHIFT); i++) {
+		unsigned long vaddr = i << HPAGE_SHIFT;
+		pgd_t *pgd = pgd_offset(current->mm, vaddr);
+		pud_t *pud = pud_offset(pgd, vaddr);
+		pte_t *ptep = (pte_t *) pmd_offset(pud, vaddr);
 		unsigned long pfn = i << (HPAGE_SHIFT - PAGE_SHIFT);
+
 		if (pfn_valid(pfn))
-			__set_pte(&pgtable[i], pfn_pte(pfn, pte));
+			__set_pte(ptep, pfn_pte(pfn, pte));
 	}
 }
 
@@ -251,6 +270,7 @@ static void setup_quasi_va_is_pa(void)
 void machine_kexec(struct kimage *image)
 {
 	void *reboot_code_buffer;
+	pte_t *ptep;
 	void (*rnk)(unsigned long, void *, unsigned long)
 		__noreturn;
 
@@ -266,8 +286,10 @@ void machine_kexec(struct kimage *image)
 	 */
 	homecache_change_page_home(image->control_code_page, 0,
 				   smp_processor_id());
-	reboot_code_buffer = vmap(&image->control_code_page, 1, 0,
-				  __pgprot(_PAGE_KERNEL | _PAGE_EXECUTABLE));
+	reboot_code_buffer = page_address(image->control_code_page);
+	BUG_ON(reboot_code_buffer == NULL);
+	ptep = virt_to_pte(NULL, (unsigned long)reboot_code_buffer);
+	__set_pte(ptep, pte_mkexec(*ptep));
 	memcpy(reboot_code_buffer, relocate_new_kernel,
 	       relocate_new_kernel_size);
 	__flush_icache_range(

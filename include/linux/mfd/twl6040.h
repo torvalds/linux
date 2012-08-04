@@ -27,6 +27,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
+#include <linux/regulator/consumer.h>
 
 #define TWL6040_REG_ASICID		0x01
 #define TWL6040_REG_ASICREV		0x02
@@ -160,8 +161,9 @@
 #define TWL6040_CELLS			2
 
 #define TWL6040_REV_ES1_0		0x00
-#define TWL6040_REV_ES1_1		0x01
-#define TWL6040_REV_ES1_2		0x02
+#define TWL6040_REV_ES1_1		0x01 /* Rev ES1.1 and ES1.2 */
+#define TWL6040_REV_ES1_3		0x02
+#define TWL6041_REV_ES2_0		0x10
 
 #define TWL6040_IRQ_TH			0
 #define TWL6040_IRQ_PLUG		1
@@ -203,8 +205,8 @@ struct regmap;
 struct twl6040 {
 	struct device *dev;
 	struct regmap *regmap;
+	struct regulator_bulk_data supplies[2]; /* supplies for vio, v2v1 */
 	struct mutex mutex;
-	struct mutex io_mutex;
 	struct mutex irq_mutex;
 	struct mfd_cell cells[TWL6040_CELLS];
 	struct completion ready;

@@ -20,9 +20,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/spear_thermal.h>
 #include <linux/thermal.h>
 
 #define MD_FACTOR	1000
@@ -103,19 +103,18 @@ static int spear_thermal_probe(struct platform_device *pdev)
 {
 	struct thermal_zone_device *spear_thermal = NULL;
 	struct spear_thermal_dev *stdev;
-	struct spear_thermal_pdata *pdata;
-	int ret = 0;
+	struct device_node *np = pdev->dev.of_node;
 	struct resource *stres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	int ret = 0, val;
+
+	if (!np || !of_property_read_u32(np, "st,thermal-flags", &val)) {
+		dev_err(&pdev->dev, "Failed: DT Pdata not passed\n");
+		return -EINVAL;
+	}
 
 	if (!stres) {
 		dev_err(&pdev->dev, "memory resource missing\n");
 		return -ENODEV;
-	}
-
-	pdata = dev_get_platdata(&pdev->dev);
-	if (!pdata) {
-		dev_err(&pdev->dev, "platform data is NULL\n");
-		return -EINVAL;
 	}
 
 	stdev = devm_kzalloc(&pdev->dev, sizeof(*stdev), GFP_KERNEL);
@@ -144,10 +143,10 @@ static int spear_thermal_probe(struct platform_device *pdev)
 		goto put_clk;
 	}
 
-	stdev->flags = pdata->thermal_flags;
+	stdev->flags = val;
 	writel_relaxed(stdev->flags, stdev->thermal_base);
 
-	spear_thermal = thermal_zone_device_register("spear_thermal", 0,
+	spear_thermal = thermal_zone_device_register("spear_thermal", 0, 0,
 				stdev, &ops, 0, 0, 0, 0);
 	if (IS_ERR(spear_thermal)) {
 		dev_err(&pdev->dev, "thermal zone device is NULL\n");
@@ -189,6 +188,12 @@ static int spear_thermal_exit(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id spear_thermal_id_table[] = {
+	{ .compatible = "st,thermal-spear1340" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spear_thermal_id_table);
+
 static struct platform_driver spear_thermal_driver = {
 	.probe = spear_thermal_probe,
 	.remove = spear_thermal_exit,
@@ -196,6 +201,7 @@ static struct platform_driver spear_thermal_driver = {
 		.name = "spear_thermal",
 		.owner = THIS_MODULE,
 		.pm = &spear_thermal_pm_ops,
+		.of_match_table = of_match_ptr(spear_thermal_id_table),
 	},
 };
 

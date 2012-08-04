@@ -36,8 +36,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 27
-#define QLCNIC_LINUX_VERSIONID  "5.0.27"
+#define _QLCNIC_LINUX_SUBVERSION 29
+#define QLCNIC_LINUX_VERSIONID  "5.0.29"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -258,6 +258,8 @@ struct rcv_desc {
 	(((sts_data) >> 52) & 0x1)
 #define qlcnic_get_lro_sts_seq_number(sts_data)		\
 	((sts_data) & 0x0FFFFFFFF)
+#define qlcnic_get_lro_sts_mss(sts_data1)		\
+	((sts_data1 >> 32) & 0x0FFFF)
 
 
 struct status_desc {
@@ -607,9 +609,14 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_CONFIG_PORT		0x0000002E
 #define QLCNIC_CDRP_CMD_TEMP_SIZE		0x0000002f
 #define QLCNIC_CDRP_CMD_GET_TEMP_HDR		0x00000030
+#define QLCNIC_CDRP_CMD_GET_MAC_STATS		0x00000037
 
 #define QLCNIC_RCODE_SUCCESS		0
+#define QLCNIC_RCODE_INVALID_ARGS	6
 #define QLCNIC_RCODE_NOT_SUPPORTED	9
+#define QLCNIC_RCODE_NOT_PERMITTED	10
+#define QLCNIC_RCODE_NOT_IMPL		15
+#define QLCNIC_RCODE_INVALID		16
 #define QLCNIC_RCODE_TIMEOUT		17
 #define QLCNIC_DESTROY_CTX_RESET	0
 
@@ -622,6 +629,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CAP0_JUMBO_CONTIGUOUS	(1 << 7)
 #define QLCNIC_CAP0_LRO_CONTIGUOUS	(1 << 8)
 #define QLCNIC_CAP0_VALIDOFF		(1 << 11)
+#define QLCNIC_CAP0_LRO_MSS		(1 << 21)
 
 /*
  * Context state
@@ -828,6 +836,9 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_FVLANTX		BIT_9
 #define QLCNIC_FW_CAPABILITY_HW_LRO		BIT_10
 #define QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK	BIT_27
+#define QLCNIC_FW_CAPABILITY_MORE_CAPS		BIT_31
+
+#define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -917,6 +928,7 @@ struct qlcnic_ipaddr {
 #define QLCNIC_NEED_FLR			0x1000
 #define QLCNIC_FW_RESET_OWNER		0x2000
 #define QLCNIC_FW_HANG			0x4000
+#define QLCNIC_FW_LRO_MSS_CAP		0x8000
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
@@ -1180,17 +1192,61 @@ struct qlcnic_esw_func_cfg {
 #define QLCNIC_STATS_ESWITCH		2
 #define QLCNIC_QUERY_RX_COUNTER		0
 #define QLCNIC_QUERY_TX_COUNTER		1
-#define QLCNIC_ESW_STATS_NOT_AVAIL	0xffffffffffffffffULL
+#define QLCNIC_STATS_NOT_AVAIL	0xffffffffffffffffULL
+#define QLCNIC_FILL_STATS(VAL1) \
+	(((VAL1) == QLCNIC_STATS_NOT_AVAIL) ? 0 : VAL1)
+#define QLCNIC_MAC_STATS 1
+#define QLCNIC_ESW_STATS 2
 
 #define QLCNIC_ADD_ESW_STATS(VAL1, VAL2)\
 do {	\
-	if (((VAL1) == QLCNIC_ESW_STATS_NOT_AVAIL) && \
-	    ((VAL2) != QLCNIC_ESW_STATS_NOT_AVAIL)) \
+	if (((VAL1) == QLCNIC_STATS_NOT_AVAIL) && \
+	    ((VAL2) != QLCNIC_STATS_NOT_AVAIL)) \
 		(VAL1) = (VAL2); \
-	else if (((VAL1) != QLCNIC_ESW_STATS_NOT_AVAIL) && \
-		 ((VAL2) != QLCNIC_ESW_STATS_NOT_AVAIL)) \
+	else if (((VAL1) != QLCNIC_STATS_NOT_AVAIL) && \
+		 ((VAL2) != QLCNIC_STATS_NOT_AVAIL)) \
 			(VAL1) += (VAL2); \
 } while (0)
+
+struct qlcnic_mac_statistics{
+	__le64	mac_tx_frames;
+	__le64	mac_tx_bytes;
+	__le64	mac_tx_mcast_pkts;
+	__le64	mac_tx_bcast_pkts;
+	__le64	mac_tx_pause_cnt;
+	__le64	mac_tx_ctrl_pkt;
+	__le64	mac_tx_lt_64b_pkts;
+	__le64	mac_tx_lt_127b_pkts;
+	__le64	mac_tx_lt_255b_pkts;
+	__le64	mac_tx_lt_511b_pkts;
+	__le64	mac_tx_lt_1023b_pkts;
+	__le64	mac_tx_lt_1518b_pkts;
+	__le64	mac_tx_gt_1518b_pkts;
+	__le64	rsvd1[3];
+
+	__le64	mac_rx_frames;
+	__le64	mac_rx_bytes;
+	__le64	mac_rx_mcast_pkts;
+	__le64	mac_rx_bcast_pkts;
+	__le64	mac_rx_pause_cnt;
+	__le64	mac_rx_ctrl_pkt;
+	__le64	mac_rx_lt_64b_pkts;
+	__le64	mac_rx_lt_127b_pkts;
+	__le64	mac_rx_lt_255b_pkts;
+	__le64	mac_rx_lt_511b_pkts;
+	__le64	mac_rx_lt_1023b_pkts;
+	__le64	mac_rx_lt_1518b_pkts;
+	__le64	mac_rx_gt_1518b_pkts;
+	__le64	rsvd2[3];
+
+	__le64	mac_rx_length_error;
+	__le64	mac_rx_length_small;
+	__le64	mac_rx_length_large;
+	__le64	mac_rx_jabber;
+	__le64	mac_rx_dropped;
+	__le64	mac_rx_crc_error;
+	__le64	mac_align_error;
+} __packed;
 
 struct __qlcnic_esw_statistics {
 	__le16 context_id;
@@ -1352,6 +1408,8 @@ enum op_codes {
 #define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
 #define QLCNIC_DISABLE_FW_DUMP		0xbadfeed
 #define QLCNIC_FORCE_FW_RESET		0xdeaddead
+#define QLCNIC_SET_QUIESCENT		0xadd00010
+#define QLCNIC_RESET_QUIESCENT		0xadd00020
 
 struct qlcnic_dump_operations {
 	enum op_codes opcode;
@@ -1510,6 +1568,7 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *, const u8, const u8,
 int qlcnic_get_eswitch_stats(struct qlcnic_adapter *, const u8, u8,
 					struct __qlcnic_esw_statistics *);
 int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, u8, u8, u8);
+int qlcnic_get_mac_stats(struct qlcnic_adapter *, struct qlcnic_mac_statistics *);
 extern int qlcnic_config_tso;
 
 /*
@@ -1559,6 +1618,7 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
+extern const struct ethtool_ops qlcnic_ethtool_failed_ops;
 
 struct qlcnic_nic_template {
 	int (*config_bridged_mode) (struct qlcnic_adapter *, u32);

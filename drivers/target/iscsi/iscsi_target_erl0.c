@@ -48,9 +48,9 @@ void iscsit_set_dataout_sequence_values(
 	if (cmd->unsolicited_data) {
 		cmd->seq_start_offset = cmd->write_data_done;
 		cmd->seq_end_offset = (cmd->write_data_done +
-			(cmd->data_length >
+			(cmd->se_cmd.data_length >
 			 conn->sess->sess_ops->FirstBurstLength) ?
-			conn->sess->sess_ops->FirstBurstLength : cmd->data_length);
+			conn->sess->sess_ops->FirstBurstLength : cmd->se_cmd.data_length);
 		return;
 	}
 
@@ -59,15 +59,15 @@ void iscsit_set_dataout_sequence_values(
 
 	if (!cmd->seq_start_offset && !cmd->seq_end_offset) {
 		cmd->seq_start_offset = cmd->write_data_done;
-		cmd->seq_end_offset = (cmd->data_length >
+		cmd->seq_end_offset = (cmd->se_cmd.data_length >
 			conn->sess->sess_ops->MaxBurstLength) ?
 			(cmd->write_data_done +
-			conn->sess->sess_ops->MaxBurstLength) : cmd->data_length;
+			conn->sess->sess_ops->MaxBurstLength) : cmd->se_cmd.data_length;
 	} else {
 		cmd->seq_start_offset = cmd->seq_end_offset;
 		cmd->seq_end_offset = ((cmd->seq_end_offset +
 			conn->sess->sess_ops->MaxBurstLength) >=
-			cmd->data_length) ? cmd->data_length :
+			cmd->se_cmd.data_length) ? cmd->se_cmd.data_length :
 			(cmd->seq_end_offset +
 			 conn->sess->sess_ops->MaxBurstLength);
 	}
@@ -182,13 +182,13 @@ static int iscsit_dataout_check_unsolicited_sequence(
 		if (!conn->sess->sess_ops->DataPDUInOrder)
 			goto out;
 
-		if ((first_burst_len != cmd->data_length) &&
+		if ((first_burst_len != cmd->se_cmd.data_length) &&
 		    (first_burst_len != conn->sess->sess_ops->FirstBurstLength)) {
 			pr_err("Unsolicited non-immediate data"
 			" received %u does not equal FirstBurstLength: %u, and"
 			" does not equal ExpXferLen %u.\n", first_burst_len,
 				conn->sess->sess_ops->FirstBurstLength,
-				cmd->data_length);
+				cmd->se_cmd.data_length);
 			transport_send_check_condition_and_sense(&cmd->se_cmd,
 					TCM_INCORRECT_AMOUNT_OF_DATA, 0);
 			return DATAOUT_CANNOT_RECOVER;
@@ -201,10 +201,10 @@ static int iscsit_dataout_check_unsolicited_sequence(
 				conn->sess->sess_ops->FirstBurstLength);
 			return DATAOUT_CANNOT_RECOVER;
 		}
-		if (first_burst_len == cmd->data_length) {
+		if (first_burst_len == cmd->se_cmd.data_length) {
 			pr_err("Command ITT: 0x%08x reached"
 			" ExpXferLen: %u, but ISCSI_FLAG_CMD_FINAL is not set. protocol"
-			" error.\n", cmd->init_task_tag, cmd->data_length);
+			" error.\n", cmd->init_task_tag, cmd->se_cmd.data_length);
 			return DATAOUT_CANNOT_RECOVER;
 		}
 	}
@@ -294,7 +294,7 @@ static int iscsit_dataout_check_sequence(
 			if ((next_burst_len <
 			     conn->sess->sess_ops->MaxBurstLength) &&
 			   ((cmd->write_data_done + payload_length) <
-			     cmd->data_length)) {
+			     cmd->se_cmd.data_length)) {
 				pr_err("Command ITT: 0x%08x set ISCSI_FLAG_CMD_FINAL"
 				" before end of DataOUT sequence, protocol"
 				" error.\n", cmd->init_task_tag);
@@ -319,7 +319,7 @@ static int iscsit_dataout_check_sequence(
 				return DATAOUT_CANNOT_RECOVER;
 			}
 			if ((cmd->write_data_done + payload_length) ==
-					cmd->data_length) {
+					cmd->se_cmd.data_length) {
 				pr_err("Command ITT: 0x%08x reached"
 				" last DataOUT PDU in sequence but ISCSI_FLAG_"
 				"CMD_FINAL is not set, protocol error.\n",
@@ -640,9 +640,12 @@ static int iscsit_dataout_post_crc_passed(
 
 	cmd->write_data_done += payload_length;
 
-	return (cmd->write_data_done == cmd->data_length) ?
-		DATAOUT_SEND_TO_TRANSPORT : (send_r2t) ?
-		DATAOUT_SEND_R2T : DATAOUT_NORMAL;
+	if (cmd->write_data_done == cmd->se_cmd.data_length)
+		return DATAOUT_SEND_TO_TRANSPORT;
+	else if (send_r2t)
+		return DATAOUT_SEND_R2T;
+	else
+		return DATAOUT_NORMAL;
 }
 
 static int iscsit_dataout_post_crc_failed(

@@ -29,7 +29,6 @@
 
 #include "../wifi.h"
 #include "../core.h"
-#include "../pci.h"
 #include "../base.h"
 #include "../pci.h"
 #include "reg.h"
@@ -450,21 +449,4 @@ static struct pci_driver rtl92se_driver = {
 	.driver.pm = &rtlwifi_pm_ops,
 };
 
-static int __init rtl92se_module_init(void)
-{
-	int ret = 0;
-
-	ret = pci_register_driver(&rtl92se_driver);
-	if (ret)
-		RT_ASSERT(false, "No device found\n");
-
-	return ret;
-}
-
-static void __exit rtl92se_module_exit(void)
-{
-	pci_unregister_driver(&rtl92se_driver);
-}
-
-module_init(rtl92se_module_init);
-module_exit(rtl92se_module_exit);
+module_pci_driver(rtl92se_driver);

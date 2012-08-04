@@ -140,13 +140,16 @@ void flush_thread(void)
 }
 
 /*
- * This is called before the thread is copied. 
+ * this gets called so that we can store coprocessor state into memory and
+ * copy the current task into the new thread.
  */
-void prepare_to_copy(struct task_struct *tsk)
+int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 #if XTENSA_HAVE_COPROCESSORS
-	coprocessor_flush_all(task_thread_info(tsk));
+	coprocessor_flush_all(task_thread_info(src));
 #endif
+	*dst = *src;
+	return 0;
 }
 
 /*
@@ -274,7 +277,7 @@ void xtensa_elf_core_copy_regs (xtensa_gregset_t *elfregs, struct pt_regs *regs)
 
 	/* Don't leak any random bits. */
 
-	memset(elfregs, 0, sizeof (elfregs));
+	memset(elfregs, 0, sizeof(*elfregs));
 
 	/* Note:  PS.EXCM is not set while user task is running; its
 	 * being set in regs->ps is for exception handling convenience.

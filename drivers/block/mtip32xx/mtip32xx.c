@@ -37,6 +37,7 @@
 #include <linux/kthread.h>
 #include <../drivers/ata/ahci.h>
 #include <linux/export.h>
+#include <linux/debugfs.h>
 #include "mtip32xx.h"
 
 #define HW_CMD_SLOT_SZ		(MTIP_MAX_COMMAND_SLOTS * 32)
@@ -85,6 +86,7 @@ static int instance;
  * allocated in mtip_init().
  */
 static int mtip_major;
+static struct dentry *dfs_parent;
 
 static DEFINE_SPINLOCK(rssd_index_lock);
 static DEFINE_IDA(rssd_index_ida);
@@ -294,18 +296,16 @@ static int hba_reset_nosleep(struct driver_data *dd)
  */
 static inline void mtip_issue_ncq_command(struct mtip_port *port, int tag)
 {
-	unsigned long flags = 0;
-
 	atomic_set(&port->commands[tag].active, 1);
 
-	spin_lock_irqsave(&port->cmd_issue_lock, flags);
+	spin_lock(&port->cmd_issue_lock);
 
 	writel((1 << MTIP_TAG_BIT(tag)),
 			port->s_active[MTIP_TAG_INDEX(tag)]);
 	writel((1 << MTIP_TAG_BIT(tag)),
 			port->cmd_issue[MTIP_TAG_INDEX(tag)]);
 
-	spin_unlock_irqrestore(&port->cmd_issue_lock, flags);
+	spin_unlock(&port->cmd_issue_lock);
 
 	/* Set the command's timeout value.*/
 	port->commands[tag].comp_time = jiffies + msecs_to_jiffies(
@@ -436,8 +436,7 @@ static void mtip_init_port(struct mtip_port *port)
 		writel(0xFFFFFFFF, port->completed[i]);
 
 	/* Clear any pending interrupts for this port */
-	writel(readl(port->dd->mmio + PORT_IRQ_STAT),
-					port->dd->mmio + PORT_IRQ_STAT);
+	writel(readl(port->mmio + PORT_IRQ_STAT), port->mmio + PORT_IRQ_STAT);
 
 	/* Clear any pending interrupts on the HBA. */
 	writel(readl(port->dd->mmio + HOST_IRQ_STAT),
@@ -782,12 +781,23 @@ static void mtip_handle_tfe(struct driver_data *dd)
 
 	/* Stop the timer to prevent command timeouts. */
 	del_timer(&port->cmd_timer);
+	set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
+
+	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) &&
+			test_bit(MTIP_TAG_INTERNAL, port->allocated)) {
+		cmd = &port->commands[MTIP_TAG_INTERNAL];
+		dbg_printk(MTIP_DRV_NAME " TFE for the internal command\n");
+
+		atomic_inc(&cmd->active); /* active > 1 indicates error */
+		if (cmd->comp_data && cmd->comp_func) {
+			cmd->comp_func(port, MTIP_TAG_INTERNAL,
+					cmd->comp_data, PORT_IRQ_TF_ERR);
+		}
+		goto handle_tfe_exit;
+	}
 
 	/* clear the tag accumulator */
 	memset(tagaccum, 0, SLOTBITS_IN_LONGS * sizeof(long));
-
-	/* Set eh_active */
-	set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 
 	/* Loop through all the groups */
 	for (group = 0; group < dd->slot_groups; group++) {
@@ -940,6 +950,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 	}
 	print_tags(dd, "reissued (TFE)", tagaccum, cmd_cnt);
 
+handle_tfe_exit:
 	/* clear eh_active */
 	clear_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 	wake_up_interruptible(&port->svc_wait);
@@ -961,6 +972,8 @@ static inline void mtip_process_sdbf(struct driver_data *dd)
 	/* walk all bits in all slot groups */
 	for (group = 0; group < dd->slot_groups; group++) {
 		completed = readl(port->completed[group]);
+		if (!completed)
+			continue;
 
 		/* clear completed status register in the hardware.*/
 		writel(completed, port->completed[group]);
@@ -1329,22 +1342,6 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 			}
 			rv = -EAGAIN;
 		}
-
-		if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
-			& (1 << MTIP_TAG_INTERNAL)) {
-			dev_warn(&port->dd->pdev->dev,
-				"Retiring internal command but CI is 1.\n");
-			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag)) {
-				hba_reset_nosleep(port->dd);
-				rv = -ENXIO;
-			} else {
-				mtip_restart_port(port);
-				rv = -EAGAIN;
-			}
-			goto exec_ic_exit;
-		}
-
 	} else {
 		/* Spin for <timeout> checking if command still outstanding */
 		timeout = jiffies + msecs_to_jiffies(timeout);
@@ -1361,21 +1358,25 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 				rv = -ENXIO;
 				goto exec_ic_exit;
 			}
-		}
-
-		if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
-			& (1 << MTIP_TAG_INTERNAL)) {
-			dev_err(&port->dd->pdev->dev,
-				"Internal command did not complete [atomic]\n");
-			rv = -EAGAIN;
-			if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
-						&port->dd->dd_flag)) {
-				hba_reset_nosleep(port->dd);
-				rv = -ENXIO;
-			} else {
-				mtip_restart_port(port);
-				rv = -EAGAIN;
+			if (readl(port->mmio + PORT_IRQ_STAT) & PORT_IRQ_ERR) {
+				atomic_inc(&int_cmd->active); /* error */
+				break;
 			}
+		}
+	}
+
+	if (atomic_read(&int_cmd->active) > 1) {
+		dev_err(&port->dd->pdev->dev,
+			"Internal command [%02X] failed\n", fis->command);
+		rv = -EIO;
+	}
+	if (readl(port->cmd_issue[MTIP_TAG_INTERNAL])
+			& (1 << MTIP_TAG_INTERNAL)) {
+		rv = -ENXIO;
+		if (!test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
+					&port->dd->dd_flag)) {
+			mtip_restart_port(port);
+			rv = -EAGAIN;
 		}
 	}
 exec_ic_exit:
@@ -1893,13 +1894,33 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 				void __user *user_buffer)
 {
 	struct host_to_dev_fis	fis;
-	struct host_to_dev_fis *reply = (port->rxfis + RX_FIS_D2H_REG);
+	struct host_to_dev_fis *reply;
+	u8 *buf = NULL;
+	dma_addr_t dma_addr = 0;
+	int rv = 0, xfer_sz = command[3];
+
+	if (xfer_sz) {
+		if (user_buffer)
+			return -EFAULT;
+
+		buf = dmam_alloc_coherent(&port->dd->pdev->dev,
+				ATA_SECT_SIZE * xfer_sz,
+				&dma_addr,
+				GFP_KERNEL);
+		if (!buf) {
+			dev_err(&port->dd->pdev->dev,
+				"Memory allocation failed (%d bytes)\n",
+				ATA_SECT_SIZE * xfer_sz);
+			return -ENOMEM;
+		}
+		memset(buf, 0, ATA_SECT_SIZE * xfer_sz);
+	}
 
 	/* Build the FIS. */
 	memset(&fis, 0, sizeof(struct host_to_dev_fis));
-	fis.type		= 0x27;
-	fis.opts		= 1 << 7;
-	fis.command		= command[0];
+	fis.type	= 0x27;
+	fis.opts	= 1 << 7;
+	fis.command	= command[0];
 	fis.features	= command[2];
 	fis.sect_count	= command[3];
 	if (fis.command == ATA_CMD_SMART) {
@@ -1907,6 +1928,11 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 		fis.cyl_low	= 0x4F;
 		fis.cyl_hi	= 0xC2;
 	}
+
+	if (xfer_sz)
+		reply = (port->rxfis + RX_FIS_PIO_SETUP);
+	else
+		reply = (port->rxfis + RX_FIS_D2H_REG);
 
 	dbg_printk(MTIP_DRV_NAME
 		" %s: User Command: cmd %x, sect %x, "
@@ -1917,43 +1943,46 @@ static int exec_drive_command(struct mtip_port *port, u8 *command,
 		command[2],
 		command[3]);
 
-	memset(port->sector_buffer, 0x00, ATA_SECT_SIZE);
-
 	/* Execute the command. */
 	if (mtip_exec_internal_command(port,
 				&fis,
 				 5,
-				 port->sector_buffer_dma,
-				 (command[3] != 0) ? ATA_SECT_SIZE : 0,
+				 (xfer_sz ? dma_addr : 0),
+				 (xfer_sz ? ATA_SECT_SIZE * xfer_sz : 0),
 				 0,
 				 GFP_KERNEL,
 				 MTIP_IOCTL_COMMAND_TIMEOUT_MS)
 				 < 0) {
-		return -1;
+		rv = -EFAULT;
+		goto exit_drive_command;
 	}
 
 	/* Collect the completion status. */
 	command[0] = reply->command; /* Status*/
 	command[1] = reply->features; /* Error*/
-	command[2] = command[3];
+	command[2] = reply->sect_count;
 
 	dbg_printk(MTIP_DRV_NAME
 		" %s: Completion Status: stat %x, "
-		"err %x, cmd %x\n",
+		"err %x, nsect %x\n",
 		__func__,
 		command[0],
 		command[1],
 		command[2]);
 
-	if (user_buffer && command[3]) {
+	if (xfer_sz) {
 		if (copy_to_user(user_buffer,
-				 port->sector_buffer,
+				 buf,
 				 ATA_SECT_SIZE * command[3])) {
-			return -EFAULT;
+			rv = -EFAULT;
+			goto exit_drive_command;
 		}
 	}
-
-	return 0;
+exit_drive_command:
+	if (buf)
+		dmam_free_coherent(&port->dd->pdev->dev,
+				ATA_SECT_SIZE * xfer_sz, buf, dma_addr);
+	return rv;
 }
 
 /*
@@ -2003,6 +2032,32 @@ static unsigned int implicit_sector(unsigned char command,
 	return rv;
 }
 
+static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
+{
+	switch (fis->command) {
+	case ATA_CMD_DOWNLOAD_MICRO:
+		*timeout = 120000; /* 2 minutes */
+		break;
+	case ATA_CMD_SEC_ERASE_UNIT:
+	case 0xFC:
+		*timeout = 240000; /* 4 minutes */
+		break;
+	case ATA_CMD_STANDBYNOW1:
+		*timeout = 10000;  /* 10 seconds */
+		break;
+	case 0xF7:
+	case 0xFA:
+		*timeout = 60000;  /* 60 seconds */
+		break;
+	case ATA_CMD_SMART:
+		*timeout = 15000;  /* 15 seconds */
+		break;
+	default:
+		*timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
+		break;
+	}
+}
+
 /*
  * Executes a taskfile
  * See ide_taskfile_ioctl() for derivation
@@ -2023,7 +2078,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	unsigned int taskin = 0;
 	unsigned int taskout = 0;
 	u8 nsect = 0;
-	unsigned int timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
+	unsigned int timeout;
 	unsigned int force_single_sector;
 	unsigned int transfer_size;
 	unsigned long task_file_data;
@@ -2153,32 +2208,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		fis.lba_hi,
 		fis.device);
 
-	switch (fis.command) {
-	case ATA_CMD_DOWNLOAD_MICRO:
-		/* Change timeout for Download Microcode to 2 minutes */
-		timeout = 120000;
-		break;
-	case ATA_CMD_SEC_ERASE_UNIT:
-		/* Change timeout for Security Erase Unit to 4 minutes.*/
-		timeout = 240000;
-		break;
-	case ATA_CMD_STANDBYNOW1:
-		/* Change timeout for standby immediate to 10 seconds.*/
-		timeout = 10000;
-		break;
-	case 0xF7:
-	case 0xFA:
-		/* Change timeout for vendor unique command to 10 secs */
-		timeout = 10000;
-		break;
-	case ATA_CMD_SMART:
-		/* Change timeout for vendor unique command to 15 secs */
-		timeout = 15000;
-		break;
-	default:
-		timeout = MTIP_IOCTL_COMMAND_TIMEOUT_MS;
-		break;
-	}
+	mtip_set_timeout(&fis, &timeout);
 
 	/* Determine the correct transfer size.*/
 	if (force_single_sector)
@@ -2295,13 +2325,12 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
 {
 	switch (cmd) {
 	case HDIO_GET_IDENTITY:
-		if (mtip_get_identify(dd->port, (void __user *) arg) < 0) {
-			dev_warn(&dd->pdev->dev,
-				"Unable to read identity\n");
-			return -EIO;
-		}
-
+	{
+		if (copy_to_user((void __user *)arg, dd->port->identify,
+						sizeof(u16) * ATA_ID_WORDS))
+			return -EFAULT;
 		break;
+	}
 	case HDIO_DRIVE_CMD:
 	{
 		u8 drive_command[4];
@@ -2510,14 +2539,16 @@ static struct scatterlist *mtip_hw_get_scatterlist(struct driver_data *dd,
 		up(&dd->port->cmd_slot);
 		return NULL;
 	}
-	if (unlikely(*tag < 0))
+	if (unlikely(*tag < 0)) {
+		up(&dd->port->cmd_slot);
 		return NULL;
+	}
 
 	return dd->port->commands[*tag].sg;
 }
 
 /*
- * Sysfs register/status dump.
+ * Sysfs status dump.
  *
  * @dev  Pointer to the device structure, passed by the kernrel.
  * @attr Pointer to the device_attribute structure passed by the kernel.
@@ -2526,53 +2557,6 @@ static struct scatterlist *mtip_hw_get_scatterlist(struct driver_data *dd,
  * return value
  *	The size, in bytes, of the data copied into buf.
  */
-static ssize_t mtip_hw_show_registers(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
-{
-	u32 group_allocated;
-	struct driver_data *dd = dev_to_disk(dev)->private_data;
-	int size = 0;
-	int n;
-
-	size += sprintf(&buf[size], "S ACTive:\n");
-
-	for (n = 0; n < dd->slot_groups; n++)
-		size += sprintf(&buf[size], "0x%08x\n",
-					 readl(dd->port->s_active[n]));
-
-	size += sprintf(&buf[size], "Command Issue:\n");
-
-	for (n = 0; n < dd->slot_groups; n++)
-		size += sprintf(&buf[size], "0x%08x\n",
-					readl(dd->port->cmd_issue[n]));
-
-	size += sprintf(&buf[size], "Allocated:\n");
-
-	for (n = 0; n < dd->slot_groups; n++) {
-		if (sizeof(long) > sizeof(u32))
-			group_allocated =
-				dd->port->allocated[n/2] >> (32*(n&1));
-		else
-			group_allocated = dd->port->allocated[n];
-		size += sprintf(&buf[size], "0x%08x\n",
-				 group_allocated);
-	}
-
-	size += sprintf(&buf[size], "Completed:\n");
-
-	for (n = 0; n < dd->slot_groups; n++)
-		size += sprintf(&buf[size], "0x%08x\n",
-				readl(dd->port->completed[n]));
-
-	size += sprintf(&buf[size], "PORT IRQ STAT : 0x%08x\n",
-				readl(dd->port->mmio + PORT_IRQ_STAT));
-	size += sprintf(&buf[size], "HOST IRQ STAT : 0x%08x\n",
-				readl(dd->mmio + HOST_IRQ_STAT));
-
-	return size;
-}
-
 static ssize_t mtip_hw_show_status(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -2590,8 +2574,121 @@ static ssize_t mtip_hw_show_status(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(registers, S_IRUGO, mtip_hw_show_registers, NULL);
 static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
+
+static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
+				  size_t len, loff_t *offset)
+{
+	struct driver_data *dd =  (struct driver_data *)f->private_data;
+	char buf[MTIP_DFS_MAX_BUF_SIZE];
+	u32 group_allocated;
+	int size = *offset;
+	int n;
+
+	if (!len || size)
+		return 0;
+
+	if (size < 0)
+		return -EINVAL;
+
+	size += sprintf(&buf[size], "H/ S ACTive      : [ 0x");
+
+	for (n = dd->slot_groups-1; n >= 0; n--)
+		size += sprintf(&buf[size], "%08X ",
+					 readl(dd->port->s_active[n]));
+
+	size += sprintf(&buf[size], "]\n");
+	size += sprintf(&buf[size], "H/ Command Issue : [ 0x");
+
+	for (n = dd->slot_groups-1; n >= 0; n--)
+		size += sprintf(&buf[size], "%08X ",
+					readl(dd->port->cmd_issue[n]));
+
+	size += sprintf(&buf[size], "]\n");
+	size += sprintf(&buf[size], "H/ Completed     : [ 0x");
+
+	for (n = dd->slot_groups-1; n >= 0; n--)
+		size += sprintf(&buf[size], "%08X ",
+				readl(dd->port->completed[n]));
+
+	size += sprintf(&buf[size], "]\n");
+	size += sprintf(&buf[size], "H/ PORT IRQ STAT : [ 0x%08X ]\n",
+				readl(dd->port->mmio + PORT_IRQ_STAT));
+	size += sprintf(&buf[size], "H/ HOST IRQ STAT : [ 0x%08X ]\n",
+				readl(dd->mmio + HOST_IRQ_STAT));
+	size += sprintf(&buf[size], "\n");
+
+	size += sprintf(&buf[size], "L/ Allocated     : [ 0x");
+
+	for (n = dd->slot_groups-1; n >= 0; n--) {
+		if (sizeof(long) > sizeof(u32))
+			group_allocated =
+				dd->port->allocated[n/2] >> (32*(n&1));
+		else
+			group_allocated = dd->port->allocated[n];
+		size += sprintf(&buf[size], "%08X ", group_allocated);
+	}
+	size += sprintf(&buf[size], "]\n");
+
+	size += sprintf(&buf[size], "L/ Commands in Q : [ 0x");
+
+	for (n = dd->slot_groups-1; n >= 0; n--) {
+		if (sizeof(long) > sizeof(u32))
+			group_allocated =
+				dd->port->cmds_to_issue[n/2] >> (32*(n&1));
+		else
+			group_allocated = dd->port->cmds_to_issue[n];
+		size += sprintf(&buf[size], "%08X ", group_allocated);
+	}
+	size += sprintf(&buf[size], "]\n");
+
+	*offset = size <= len ? size : len;
+	size = copy_to_user(ubuf, buf, *offset);
+	if (size)
+		return -EFAULT;
+
+	return *offset;
+}
+
+static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
+				  size_t len, loff_t *offset)
+{
+	struct driver_data *dd =  (struct driver_data *)f->private_data;
+	char buf[MTIP_DFS_MAX_BUF_SIZE];
+	int size = *offset;
+
+	if (!len || size)
+		return 0;
+
+	if (size < 0)
+		return -EINVAL;
+
+	size += sprintf(&buf[size], "Flag-port : [ %08lX ]\n",
+							dd->port->flags);
+	size += sprintf(&buf[size], "Flag-dd   : [ %08lX ]\n",
+							dd->dd_flag);
+
+	*offset = size <= len ? size : len;
+	size = copy_to_user(ubuf, buf, *offset);
+	if (size)
+		return -EFAULT;
+
+	return *offset;
+}
+
+static const struct file_operations mtip_regs_fops = {
+	.owner  = THIS_MODULE,
+	.open   = simple_open,
+	.read   = mtip_hw_read_registers,
+	.llseek = no_llseek,
+};
+
+static const struct file_operations mtip_flags_fops = {
+	.owner  = THIS_MODULE,
+	.open   = simple_open,
+	.read   = mtip_hw_read_flags,
+	.llseek = no_llseek,
+};
 
 /*
  * Create the sysfs related attributes.
@@ -2608,9 +2705,6 @@ static int mtip_hw_sysfs_init(struct driver_data *dd, struct kobject *kobj)
 	if (!kobj || !dd)
 		return -EINVAL;
 
-	if (sysfs_create_file(kobj, &dev_attr_registers.attr))
-		dev_warn(&dd->pdev->dev,
-			"Error creating 'registers' sysfs entry\n");
 	if (sysfs_create_file(kobj, &dev_attr_status.attr))
 		dev_warn(&dd->pdev->dev,
 			"Error creating 'status' sysfs entry\n");
@@ -2632,11 +2726,38 @@ static int mtip_hw_sysfs_exit(struct driver_data *dd, struct kobject *kobj)
 	if (!kobj || !dd)
 		return -EINVAL;
 
-	sysfs_remove_file(kobj, &dev_attr_registers.attr);
 	sysfs_remove_file(kobj, &dev_attr_status.attr);
 
 	return 0;
 }
+
+static int mtip_hw_debugfs_init(struct driver_data *dd)
+{
+	if (!dfs_parent)
+		return -1;
+
+	dd->dfs_node = debugfs_create_dir(dd->disk->disk_name, dfs_parent);
+	if (IS_ERR_OR_NULL(dd->dfs_node)) {
+		dev_warn(&dd->pdev->dev,
+			"Error creating node %s under debugfs\n",
+						dd->disk->disk_name);
+		dd->dfs_node = NULL;
+		return -1;
+	}
+
+	debugfs_create_file("flags", S_IRUGO, dd->dfs_node, dd,
+							&mtip_flags_fops);
+	debugfs_create_file("registers", S_IRUGO, dd->dfs_node, dd,
+							&mtip_regs_fops);
+
+	return 0;
+}
+
+static void mtip_hw_debugfs_exit(struct driver_data *dd)
+{
+	debugfs_remove_recursive(dd->dfs_node);
+}
+
 
 /*
  * Perform any init/resume time hardware setup
@@ -3632,7 +3753,10 @@ skip_create_disk:
 	set_bit(QUEUE_FLAG_NONROT, &dd->queue->queue_flags);
 	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
 	blk_queue_physical_block_size(dd->queue, 4096);
+	blk_queue_max_hw_sectors(dd->queue, 0xffff);
+	blk_queue_max_segment_size(dd->queue, 0x400000);
 	blk_queue_io_min(dd->queue, 4096);
+
 	/*
 	 * write back cache is not supported in the device. FUA depends on
 	 * write back cache support, hence setting flush support to zero.
@@ -3660,6 +3784,7 @@ skip_create_disk:
 		mtip_hw_sysfs_init(dd, kobj);
 		kobject_put(kobj);
 	}
+	mtip_hw_debugfs_init(dd);
 
 	if (dd->mtip_svc_handler) {
 		set_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag);
@@ -3685,6 +3810,8 @@ start_service_thread:
 	return rv;
 
 kthread_run_error:
+	mtip_hw_debugfs_exit(dd);
+
 	/* Delete our gendisk. This also removes the device from /dev */
 	del_gendisk(dd->disk);
 
@@ -3735,6 +3862,7 @@ static int mtip_block_remove(struct driver_data *dd)
 			kobject_put(kobj);
 		}
 	}
+	mtip_hw_debugfs_exit(dd);
 
 	/*
 	 * Delete our gendisk structure. This also removes the device
@@ -4082,10 +4210,20 @@ static int __init mtip_init(void)
 	}
 	mtip_major = error;
 
+	if (!dfs_parent) {
+		dfs_parent = debugfs_create_dir("rssd", NULL);
+		if (IS_ERR_OR_NULL(dfs_parent)) {
+			printk(KERN_WARNING "Error creating debugfs parent\n");
+			dfs_parent = NULL;
+		}
+	}
+
 	/* Register our PCI operations. */
 	error = pci_register_driver(&mtip_pci_driver);
-	if (error)
+	if (error) {
+		debugfs_remove(dfs_parent);
 		unregister_blkdev(mtip_major, MTIP_DRV_NAME);
+	}
 
 	return error;
 }
@@ -4102,6 +4240,8 @@ static int __init mtip_init(void)
  */
 static void __exit mtip_exit(void)
 {
+	debugfs_remove_recursive(dfs_parent);
+
 	/* Release the allocated major block device number. */
 	unregister_blkdev(mtip_major, MTIP_DRV_NAME);
 

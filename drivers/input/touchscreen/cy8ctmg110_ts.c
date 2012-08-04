@@ -251,7 +251,8 @@ static int __devinit cy8ctmg110_probe(struct i2c_client *client,
 	}
 
 	err = request_threaded_irq(client->irq, NULL, cy8ctmg110_irq_thread,
-				   IRQF_TRIGGER_RISING, "touch_reset_key", ts);
+				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				   "touch_reset_key", ts);
 	if (err < 0) {
 		dev_err(&client->dev,
 			"irq %d busy? error %d\n", client->irq, err);

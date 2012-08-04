@@ -80,7 +80,7 @@ struct device *driver_find_device(struct device_driver *drv,
 	struct klist_iter i;
 	struct device *dev;
 
-	if (!drv)
+	if (!drv || !drv->p)
 		return NULL;
 
 	klist_iter_init_node(&drv->p->klist_devices, &i,
@@ -185,8 +185,12 @@ int driver_register(struct device_driver *drv)
 	if (ret)
 		return ret;
 	ret = driver_add_groups(drv, drv->groups);
-	if (ret)
+	if (ret) {
 		bus_remove_driver(drv);
+		return ret;
+	}
+	kobject_uevent(&drv->p->kobj, KOBJ_ADD);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(driver_register);

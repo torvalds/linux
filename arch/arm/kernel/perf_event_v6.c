@@ -489,8 +489,6 @@ armv6pmu_handle_irq(int irq_num,
 	 */
 	armv6_pmcr_write(pmcr);
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
@@ -509,7 +507,7 @@ armv6pmu_handle_irq(int irq_num,
 
 		hwc = &event->hw;
 		armpmu_event_update(event, hwc, idx);
-		data.period = event->hw.last_period;
+		perf_sample_data_init(&data, 0, hwc->last_period);
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
 
@@ -652,7 +650,6 @@ static int armv6_map_event(struct perf_event *event)
 }
 
 static struct arm_pmu armv6pmu = {
-	.id			= ARM_PERF_PMU_ID_V6,
 	.name			= "v6",
 	.handle_irq		= armv6pmu_handle_irq,
 	.enable			= armv6pmu_enable_event,
@@ -687,7 +684,6 @@ static int armv6mpcore_map_event(struct perf_event *event)
 }
 
 static struct arm_pmu armv6mpcore_pmu = {
-	.id			= ARM_PERF_PMU_ID_V6MP,
 	.name			= "v6mpcore",
 	.handle_irq		= armv6pmu_handle_irq,
 	.enable			= armv6pmu_enable_event,

@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/of_address.h>
 
 #include <asm/cpu-info.h>
 
@@ -101,7 +102,7 @@ static void __devinit pcibios_scanbus(struct pci_controller *hose)
 	need_domain_info = need_domain_info || hose->index;
 	hose->need_domain_info = need_domain_info;
 	if (bus) {
-		next_busno = bus->subordinate + 1;
+		next_busno = bus->busn_res.end + 1;
 		/* Don't allow 8-bit bus number overflow inside the hose -
 		   reserve some space for bridges. */
 		if (next_busno > 224) {
@@ -114,8 +115,62 @@ static void __devinit pcibios_scanbus(struct pci_controller *hose)
 			pci_bus_assign_resources(bus);
 			pci_enable_bridges(bus);
 		}
+		bus->dev.of_node = hose->of_node;
 	}
 }
+
+#ifdef CONFIG_OF
+void __devinit pci_load_of_ranges(struct pci_controller *hose,
+				struct device_node *node)
+{
+	const __be32 *ranges;
+	int rlen;
+	int pna = of_n_addr_cells(node);
+	int np = pna + 5;
+
+	pr_info("PCI host bridge %s ranges:\n", node->full_name);
+	ranges = of_get_property(node, "ranges", &rlen);
+	if (ranges == NULL)
+		return;
+	hose->of_node = node;
+
+	while ((rlen -= np * 4) >= 0) {
+		u32 pci_space;
+		struct resource *res = NULL;
+		u64 addr, size;
+
+		pci_space = be32_to_cpup(&ranges[0]);
+		addr = of_translate_address(node, ranges + 3);
+		size = of_read_number(ranges + pna + 3, 2);
+		ranges += np;
+		switch ((pci_space >> 24) & 0x3) {
+		case 1:		/* PCI IO space */
+			pr_info("  IO 0x%016llx..0x%016llx\n",
+					addr, addr + size - 1);
+			hose->io_map_base =
+				(unsigned long)ioremap(addr, size);
+			res = hose->io_resource;
+			res->flags = IORESOURCE_IO;
+			break;
+		case 2:		/* PCI Memory space */
+		case 3:		/* PCI 64 bits Memory space */
+			pr_info(" MEM 0x%016llx..0x%016llx\n",
+					addr, addr + size - 1);
+			res = hose->mem_resource;
+			res->flags = IORESOURCE_MEM;
+			break;
+		}
+		if (res != NULL) {
+			res->start = addr;
+			res->name = node->full_name;
+			res->end = res->start + size - 1;
+			res->parent = NULL;
+			res->sibling = NULL;
+			res->child = NULL;
+		}
+	}
+}
+#endif
 
 static DEFINE_MUTEX(pci_scan_mutex);
 
@@ -293,9 +348,9 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
-char * (*pcibios_plat_setup)(char *str) __devinitdata;
+char * (*pcibios_plat_setup)(char *str) __initdata;
 
-char *__devinit pcibios_setup(char *str)
+char *__init pcibios_setup(char *str)
 {
 	if (pcibios_plat_setup)
 		return pcibios_plat_setup(str);

@@ -38,6 +38,7 @@
 #include <asm/mach/irq.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 
@@ -48,17 +49,6 @@ static void __init picotux200_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-			  | ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
-			  | ATMEL_UART_RI);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata picotux200_eth_data = {
@@ -106,6 +96,13 @@ static struct platform_device picotux200_flash = {
 static void __init picotux200_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+			  | ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			  | ATMEL_UART_RI);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&picotux200_eth_data);
@@ -124,6 +121,7 @@ MACHINE_START(PICOTUX2XX, "picotux 200")
 	/* Maintainer: Kleinhenz Elektronik GmbH */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= picotux200_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= picotux200_board_init,

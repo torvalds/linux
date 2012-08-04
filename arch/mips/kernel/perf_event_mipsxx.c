@@ -162,11 +162,6 @@ static unsigned int counters_total_to_per_cpu(unsigned int counters)
 	return counters >> vpe_shift();
 }
 
-static unsigned int counters_per_cpu_to_total(unsigned int counters)
-{
-	return counters << vpe_shift();
-}
-
 #else /* !CONFIG_MIPS_MT_SMP */
 #define vpe_id()	0
 
@@ -1325,7 +1320,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 
 	regs = get_irq_regs();
 
-	perf_sample_data_init(&data, 0);
+	perf_sample_data_init(&data, 0, 0);
 
 	switch (counters) {
 #define HANDLE_COUNTER(n)						\
@@ -1532,7 +1527,8 @@ init_hw_perf_events(void)
 		irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
 	} else {
 #endif
-		if (cp0_perfcount_irq >= 0)
+		if ((cp0_perfcount_irq >= 0) &&
+				(cp0_compare_irq != cp0_perfcount_irq))
 			irq = MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 		else
 			irq = -1;
@@ -1560,6 +1556,11 @@ init_hw_perf_events(void)
 		break;
 	case CPU_1004K:
 		mipspmu.name = "mips/1004K";
+		mipspmu.general_event_map = &mipsxxcore_event_map;
+		mipspmu.cache_event_map = &mipsxxcore_cache_map;
+		break;
+	case CPU_LOONGSON1:
+		mipspmu.name = "mips/loongson1";
 		mipspmu.general_event_map = &mipsxxcore_event_map;
 		mipspmu.cache_event_map = &mipsxxcore_cache_map;
 		break;

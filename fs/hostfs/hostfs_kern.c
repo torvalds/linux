@@ -240,7 +240,7 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 static void hostfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 	if (HOSTFS_I(inode)->fd != -1) {
 		close_file(&HOSTFS_I(inode)->fd);
 		HOSTFS_I(inode)->fd = -1;
@@ -553,7 +553,7 @@ static int read_name(struct inode *ino, char *name)
 }
 
 int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
-		  struct nameidata *nd)
+		  bool excl)
 {
 	struct inode *inode;
 	char *name;
@@ -595,7 +595,7 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 }
 
 struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
-			     struct nameidata *nd)
+			     unsigned int flags)
 {
 	struct inode *inode;
 	char *name;

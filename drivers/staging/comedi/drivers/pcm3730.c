@@ -28,35 +28,10 @@ Configuration options:
 #define PCM3730_DIB 2
 #define PCM3730_DIC 3
 
-static int pcm3730_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pcm3730_detach(struct comedi_device *dev);
-static struct comedi_driver driver_pcm3730 = {
-	.driver_name = "pcm3730",
-	.module = THIS_MODULE,
-	.attach = pcm3730_attach,
-	.detach = pcm3730_detach,
-};
-
-static int __init driver_pcm3730_init_module(void)
-{
-	return comedi_driver_register(&driver_pcm3730);
-}
-
-static void __exit driver_pcm3730_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcm3730);
-}
-
-module_init(driver_pcm3730_init_module);
-module_exit(driver_pcm3730_cleanup_module);
-
 static int pcm3730_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -64,17 +39,15 @@ static int pcm3730_do_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int pcm3730_di_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	data[1] = inb(dev->iobase + (unsigned long)(s->private));
-	return 2;
+	return insn->n;
 }
 
 static int pcm3730_attach(struct comedi_device *dev,
@@ -82,6 +55,7 @@ static int pcm3730_attach(struct comedi_device *dev,
 {
 	struct comedi_subdevice *s;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: pcm3730: 0x%04lx ", dev->minor, iobase);
@@ -94,8 +68,9 @@ static int pcm3730_attach(struct comedi_device *dev,
 	dev->iobase = dev->iobase;
 	dev->irq = 0;
 
-	if (alloc_subdevices(dev, 6) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 6);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DO;
@@ -156,15 +131,19 @@ static int pcm3730_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcm3730_detach(struct comedi_device *dev)
+static void pcm3730_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcm3730: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCM3730_SIZE);
-
-	return 0;
 }
+
+static struct comedi_driver pcm3730_driver = {
+	.driver_name	= "pcm3730",
+	.module		= THIS_MODULE,
+	.attach		= pcm3730_attach,
+	.detach		= pcm3730_detach,
+};
+module_comedi_driver(pcm3730_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

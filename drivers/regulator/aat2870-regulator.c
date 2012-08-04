@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -34,11 +33,6 @@ struct aat2870_regulator {
 	struct aat2870_data *aat2870;
 	struct regulator_desc desc;
 
-	const int *voltages; /* uV */
-
-	int min_uV;
-	int max_uV;
-
 	u8 enable_addr;
 	u8 enable_shift;
 	u8 enable_mask;
@@ -47,14 +41,6 @@ struct aat2870_regulator {
 	u8 voltage_shift;
 	u8 voltage_mask;
 };
-
-static int aat2870_ldo_list_voltage(struct regulator_dev *rdev,
-				    unsigned selector)
-{
-	struct aat2870_regulator *ri = rdev_get_drvdata(rdev);
-
-	return ri->voltages[selector];
-}
 
 static int aat2870_ldo_set_voltage_sel(struct regulator_dev *rdev,
 				       unsigned selector)
@@ -112,7 +98,7 @@ static int aat2870_ldo_is_enabled(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops aat2870_ldo_ops = {
-	.list_voltage = aat2870_ldo_list_voltage,
+	.list_voltage = regulator_list_voltage_table,
 	.set_voltage_sel = aat2870_ldo_set_voltage_sel,
 	.get_voltage_sel = aat2870_ldo_get_voltage_sel,
 	.enable = aat2870_ldo_enable,
@@ -120,7 +106,7 @@ static struct regulator_ops aat2870_ldo_ops = {
 	.is_enabled = aat2870_ldo_is_enabled,
 };
 
-static const int aat2870_ldo_voltages[] = {
+static const unsigned int aat2870_ldo_voltages[] = {
 	1200000, 1300000, 1500000, 1600000,
 	1800000, 2000000, 2200000, 2500000,
 	2600000, 2700000, 2800000, 2900000,
@@ -133,13 +119,11 @@ static const int aat2870_ldo_voltages[] = {
 			.name = #ids,			\
 			.id = AAT2870_ID_##ids,		\
 			.n_voltages = ARRAY_SIZE(aat2870_ldo_voltages),	\
+			.volt_table = aat2870_ldo_voltages, \
 			.ops = &aat2870_ldo_ops,	\
 			.type = REGULATOR_VOLTAGE,	\
 			.owner = THIS_MODULE,		\
 		},					\
-		.voltages = aat2870_ldo_voltages,	\
-		.min_uV = 1200000,			\
-		.max_uV = 3300000,			\
 	}
 
 static struct aat2870_regulator aat2870_regulators[] = {
@@ -178,6 +162,7 @@ static struct aat2870_regulator *aat2870_get_regulator(int id)
 static int aat2870_regulator_probe(struct platform_device *pdev)
 {
 	struct aat2870_regulator *ri;
+	struct regulator_config config = { 0 };
 	struct regulator_dev *rdev;
 
 	ri = aat2870_get_regulator(pdev->id);
@@ -187,8 +172,11 @@ static int aat2870_regulator_probe(struct platform_device *pdev)
 	}
 	ri->aat2870 = dev_get_drvdata(pdev->dev.parent);
 
-	rdev = regulator_register(&ri->desc, &pdev->dev,
-				  pdev->dev.platform_data, ri, NULL);
+	config.dev = &pdev->dev;
+	config.driver_data = ri;
+	config.init_data = pdev->dev.platform_data;
+
+	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "Failed to register regulator %s\n",
 			ri->desc.name);
@@ -231,3 +219,4 @@ module_exit(aat2870_regulator_exit);
 MODULE_DESCRIPTION("AnalogicTech AAT2870 Regulator");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jin Park <jinyoungp@nvidia.com>");
+MODULE_ALIAS("platform:aat2870-regulator");

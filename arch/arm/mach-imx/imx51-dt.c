@@ -11,9 +11,9 @@
  */
 
 #include <linux/irq.h>
-#include <linux/irqdomain.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/machine.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
@@ -44,30 +44,6 @@ static const struct of_dev_auxdata imx51_auxdata_lookup[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static int __init imx51_tzic_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	irq_domain_add_legacy(np, 128, 0, 0, &irq_domain_simple_ops, NULL);
-	return 0;
-}
-
-static int __init imx51_gpio_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
-
-	gpio_irq_base -= 32;
-	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
-
-	return 0;
-}
-
-static const struct of_device_id imx51_irq_match[] __initconst = {
-	{ .compatible = "fsl,imx51-tzic", .data = imx51_tzic_add_irq_domain, },
-	{ .compatible = "fsl,imx51-gpio", .data = imx51_gpio_add_irq_domain, },
-	{ /* sentinel */ }
-};
-
 static const struct of_device_id imx51_iomuxc_of_match[] __initconst = {
 	{ .compatible = "fsl,imx51-iomuxc-babbage", .data = imx51_babbage_common_init, },
 	{ /* sentinel */ }
@@ -79,7 +55,7 @@ static void __init imx51_dt_init(void)
 	const struct of_device_id *of_id;
 	void (*func)(void);
 
-	of_irq_init(imx51_irq_match);
+	pinctrl_provide_dummies();
 
 	node = of_find_matching_node(NULL, imx51_iomuxc_of_match);
 	if (node) {
@@ -115,6 +91,7 @@ DT_MACHINE_START(IMX51_DT, "Freescale i.MX51 (Device Tree Support)")
 	.handle_irq	= imx51_handle_irq,
 	.timer		= &imx51_timer,
 	.init_machine	= imx51_dt_init,
+	.init_late	= imx51_init_late,
 	.dt_compat	= imx51_dt_board_compat,
 	.restart	= mxc_restart,
 MACHINE_END

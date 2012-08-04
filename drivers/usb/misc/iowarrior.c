@@ -610,8 +610,8 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
 		mutex_unlock(&iowarrior_mutex);
-		err("%s - error, can't find device for minor %d", __func__,
-		    subminor);
+		printk(KERN_ERR "%s - error, can't find device for minor %d\n",
+		       __func__, subminor);
 		return -ENODEV;
 	}
 

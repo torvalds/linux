@@ -174,7 +174,7 @@ struct u300_gpio_confdata {
 
 
 /* Initial configuration */
-static const struct __initdata u300_gpio_confdata
+static const struct __initconst u300_gpio_confdata
 bs335_gpio_config[BS335_GPIO_NUM_PORTS][U300_GPIO_PINS_PER_PORT] = {
 	/* Port 0, pins 0-7 */
 	{
@@ -255,7 +255,7 @@ bs335_gpio_config[BS335_GPIO_NUM_PORTS][U300_GPIO_PINS_PER_PORT] = {
 	}
 };
 
-static const struct __initdata u300_gpio_confdata
+static const struct __initconst u300_gpio_confdata
 bs365_gpio_config[BS365_GPIO_NUM_PORTS][U300_GPIO_PINS_PER_PORT] = {
 	/* Port 0, pins 0-7 */
 	{
@@ -770,7 +770,7 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		dev_err(gpio->dev, "could not get GPIO clock\n");
 		goto err_no_clk;
 	}
-	err = clk_enable(gpio->clk);
+	err = clk_prepare_enable(gpio->clk);
 	if (err) {
 		dev_err(gpio->dev, "could not enable GPIO clock\n");
 		goto err_no_clk_enable;
@@ -912,7 +912,7 @@ err_no_ioremap:
 	release_mem_region(gpio->memres->start, resource_size(gpio->memres));
 err_no_ioregion:
 err_no_resource:
-	clk_disable(gpio->clk);
+	clk_disable_unprepare(gpio->clk);
 err_no_clk_enable:
 	clk_put(gpio->clk);
 err_no_clk:
@@ -943,7 +943,7 @@ static int __exit u300_gpio_remove(struct platform_device *pdev)
 	iounmap(gpio->base);
 	release_mem_region(gpio->memres->start,
 			   resource_size(gpio->memres));
-	clk_disable(gpio->clk);
+	clk_disable_unprepare(gpio->clk);
 	clk_put(gpio->clk);
 	platform_set_drvdata(pdev, NULL);
 	kfree(gpio);

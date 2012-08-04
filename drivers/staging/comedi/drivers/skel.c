@@ -156,7 +156,7 @@ struct skel_private {
  * the device code.
  */
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int skel_detach(struct comedi_device *dev);
+static void skel_detach(struct comedi_device *dev);
 static struct comedi_driver driver_skel = {
 	.driver_name = "dummy",
 	.module = THIS_MODULE,
@@ -210,6 +210,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
+	int ret;
 
 	pr_info("comedi%d: skel: ", dev->minor);
 
@@ -233,12 +234,9 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct skel_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Allocate the subdevice structures.  alloc_subdevice() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* dev->read_subdev=s; */
@@ -295,11 +293,8 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * allocated by _attach().  dev->private and dev->subdevices are
  * deallocated automatically by the core.
  */
-static int skel_detach(struct comedi_device *dev)
+static void skel_detach(struct comedi_device *dev)
 {
-	pr_info("comedi%d: skel: remove\n", dev->minor);
-
-	return 0;
 }
 
 /*
@@ -566,9 +561,6 @@ static int skel_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
 	if (data[0]) {
@@ -585,7 +577,7 @@ static int skel_dio_insn_bits(struct comedi_device *dev,
 	 * it was a purely digital output subdevice */
 	/* data[1]=s->state; */
 
-	return 2;
+	return insn->n;
 }
 
 static int skel_dio_insn_config(struct comedi_device *dev,
@@ -619,11 +611,11 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-#ifdef CONFIG_COMEDI_PCI
+#ifdef CONFIG_COMEDI_PCI_DRIVERS
 static int __devinit driver_skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_skel.driver_name);
+	return comedi_pci_auto_config(dev, &driver_skel);
 }
 
 static void __devexit driver_skel_pci_remove(struct pci_dev *dev)

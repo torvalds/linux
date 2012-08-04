@@ -22,13 +22,10 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/crc32.h>
-
-
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 #include "bnx2x_dump.h"
 #include "bnx2x_init.h"
-#include "bnx2x_sp.h"
 
 /* Note: in the format strings below %s is replaced by the queue-name which is
  * either its index or 'fcoe' for the fcoe queue. Make sure the format string
@@ -180,6 +177,8 @@ static const struct {
 			4, STATS_FLAGS_FUNC, "recoverable_errors" },
 	{ STATS_OFFSET32(unrecoverable_error),
 			4, STATS_FLAGS_FUNC, "unrecoverable_errors" },
+	{ STATS_OFFSET32(eee_tx_lpi),
+			4, STATS_FLAGS_PORT, "Tx LPI entry count"}
 };
 
 #define BNX2X_NUM_STATS		ARRAY_SIZE(bnx2x_stats_arr)
@@ -188,7 +187,8 @@ static int bnx2x_get_port_type(struct bnx2x *bp)
 	int port_type;
 	u32 phy_idx = bnx2x_get_cur_phy_idx(bp);
 	switch (bp->link_params.phy[phy_idx].media_type) {
-	case ETH_PHY_SFP_FIBER:
+	case ETH_PHY_SFPP_10G_FIBER:
+	case ETH_PHY_SFP_1G_FIBER:
 	case ETH_PHY_XFP_FIBER:
 	case ETH_PHY_KR:
 	case ETH_PHY_CX4:
@@ -221,6 +221,11 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		(bp->port.supported[cfg_idx ^ 1] &
 		 (SUPPORTED_TP | SUPPORTED_FIBRE));
 	cmd->advertising = bp->port.advertising[cfg_idx];
+	if (bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type ==
+	    ETH_PHY_SFP_1G_FIBER) {
+		cmd->supported &= ~(SUPPORTED_10000baseT_Full);
+		cmd->advertising &= ~(ADVERTISED_10000baseT_Full);
+	}
 
 	if ((bp->state == BNX2X_STATE_OPEN) && (bp->link_vars.link_up)) {
 		if (!(bp->flags & MF_FUNC_DIS)) {
@@ -296,7 +301,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
-	u32 speed;
+	u32 speed, phy_idx;
 
 	if (IS_MF_SD(bp))
 		return 0;
@@ -551,9 +556,11 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				   "10G half not supported\n");
 				return -EINVAL;
 			}
-
+			phy_idx = bnx2x_get_cur_phy_idx(bp);
 			if (!(bp->port.supported[cfg_idx]
-			      & SUPPORTED_10000baseT_Full)) {
+			      & SUPPORTED_10000baseT_Full) ||
+			    (bp->link_params.phy[phy_idx].media_type ==
+			     ETH_PHY_SFP_1G_FIBER)) {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "10G full not supported\n");
 				return -EINVAL;
@@ -595,8 +602,8 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 #define IS_E3_ONLINE(info)	(((info) & RI_E3_ONLINE) == RI_E3_ONLINE)
 #define IS_E3B0_ONLINE(info)	(((info) & RI_E3B0_ONLINE) == RI_E3B0_ONLINE)
 
-static inline bool bnx2x_is_reg_online(struct bnx2x *bp,
-				       const struct reg_addr *reg_info)
+static bool bnx2x_is_reg_online(struct bnx2x *bp,
+				const struct reg_addr *reg_info)
 {
 	if (CHIP_IS_E1(bp))
 		return IS_E1_ONLINE(reg_info->info);
@@ -613,7 +620,7 @@ static inline bool bnx2x_is_reg_online(struct bnx2x *bp,
 }
 
 /******* Paged registers info selectors ********/
-static inline const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
+static const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return page_vals_e2;
@@ -623,7 +630,7 @@ static inline const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
 		return NULL;
 }
 
-static inline u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
+static u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return PAGE_MODE_VALUES_E2;
@@ -633,7 +640,7 @@ static inline u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
 		return 0;
 }
 
-static inline const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
+static const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return page_write_regs_e2;
@@ -643,7 +650,7 @@ static inline const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
 		return NULL;
 }
 
-static inline u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
+static u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return PAGE_WRITE_REGS_E2;
@@ -653,7 +660,7 @@ static inline u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
 		return 0;
 }
 
-static inline const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
+static const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return page_read_regs_e2;
@@ -663,7 +670,7 @@ static inline const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
 		return NULL;
 }
 
-static inline u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
+static u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
 {
 	if (CHIP_IS_E2(bp))
 		return PAGE_READ_REGS_E2;
@@ -673,7 +680,7 @@ static inline u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
 		return 0;
 }
 
-static inline int __bnx2x_get_regs_len(struct bnx2x *bp)
+static int __bnx2x_get_regs_len(struct bnx2x *bp)
 {
 	int num_pages = __bnx2x_get_page_reg_num(bp);
 	int page_write_num = __bnx2x_get_page_write_num(bp);
@@ -718,7 +725,7 @@ static int bnx2x_get_regs_len(struct net_device *dev)
  * ("read address"). There may be more than one write address per "page" and
  * more than one read address per write address.
  */
-static inline void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
+static void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
 {
 	u32 i, j, k, n;
 	/* addresses of the paged registers */
@@ -747,7 +754,7 @@ static inline void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
 	}
 }
 
-static inline void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
+static void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
 {
 	u32 i, j;
 
@@ -827,7 +834,7 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 		 ((phy_fw_ver[0] != '\0') ? " phy " : ""), phy_fw_ver);
 	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 	info->n_stats = BNX2X_NUM_STATS;
-	info->testinfo_len = BNX2X_NUM_TESTS;
+	info->testinfo_len = BNX2X_NUM_TESTS(bp);
 	info->eedump_len = bp->common.flash_size;
 	info->regdump_len = bnx2x_get_regs_len(dev);
 }
@@ -1153,6 +1160,65 @@ static int bnx2x_get_eeprom(struct net_device *dev,
 	return rc;
 }
 
+static int bnx2x_get_module_eeprom(struct net_device *dev,
+				   struct ethtool_eeprom *ee,
+				   u8 *data)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int rc = 0, phy_idx;
+	u8 *user_data = data;
+	int remaining_len = ee->len, xfer_size;
+	unsigned int page_off = ee->offset;
+
+	if (!netif_running(dev)) {
+		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
+		   "cannot access eeprom when the interface is down\n");
+		return -EAGAIN;
+	}
+
+	phy_idx = bnx2x_get_cur_phy_idx(bp);
+	bnx2x_acquire_phy_lock(bp);
+	while (!rc && remaining_len > 0) {
+		xfer_size = (remaining_len > SFP_EEPROM_PAGE_SIZE) ?
+			SFP_EEPROM_PAGE_SIZE : remaining_len;
+		rc = bnx2x_read_sfp_module_eeprom(&bp->link_params.phy[phy_idx],
+						  &bp->link_params,
+						  page_off,
+						  xfer_size,
+						  user_data);
+		remaining_len -= xfer_size;
+		user_data += xfer_size;
+		page_off += xfer_size;
+	}
+
+	bnx2x_release_phy_lock(bp);
+	return rc;
+}
+
+static int bnx2x_get_module_info(struct net_device *dev,
+				 struct ethtool_modinfo *modinfo)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int phy_idx;
+	if (!netif_running(dev)) {
+		DP(BNX2X_MSG_ETHTOOL  | BNX2X_MSG_NVM,
+		   "cannot access eeprom when the interface is down\n");
+		return -EAGAIN;
+	}
+
+	phy_idx = bnx2x_get_cur_phy_idx(bp);
+	switch (bp->link_params.phy[phy_idx].media_type) {
+	case ETH_PHY_SFPP_10G_FIBER:
+	case ETH_PHY_SFP_1G_FIBER:
+	case ETH_PHY_DA_TWINAX:
+		modinfo->type = ETH_MODULE_SFF_8079;
+		modinfo->eeprom_len = ETH_MODULE_SFF_8079_LEN;
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int bnx2x_nvram_write_dword(struct bnx2x *bp, u32 offset, u32 val,
 				   u32 cmd_flags)
 {
@@ -1433,7 +1499,7 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 	else
 		ering->rx_pending = MAX_RX_AVAIL;
 
-	ering->tx_max_pending = MAX_TX_AVAIL;
+	ering->tx_max_pending = IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL;
 	ering->tx_pending = bp->tx_ring_size;
 }
 
@@ -1451,7 +1517,7 @@ static int bnx2x_set_ringparam(struct net_device *dev,
 	if ((ering->rx_pending > MAX_RX_AVAIL) ||
 	    (ering->rx_pending < (bp->disable_tpa ? MIN_RX_SIZE_NONTPA :
 						    MIN_RX_SIZE_TPA)) ||
-	    (ering->tx_pending > MAX_TX_AVAIL) ||
+	    (ering->tx_pending > (IS_MF_FCOE_AFEX(bp) ? 0 : MAX_TX_AVAIL)) ||
 	    (ering->tx_pending <= MAX_SKB_FRAGS + 4)) {
 		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
 		return -EINVAL;
@@ -1534,17 +1600,145 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static const struct {
-	char string[ETH_GSTRING_LEN];
-} bnx2x_tests_str_arr[BNX2X_NUM_TESTS] = {
-	{ "register_test (offline)" },
-	{ "memory_test (offline)" },
-	{ "loopback_test (offline)" },
-	{ "nvram_test (online)" },
-	{ "interrupt_test (online)" },
-	{ "link_test (online)" },
-	{ "idle check (online)" }
+static char *bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF] = {
+	"register_test (offline)    ",
+	"memory_test (offline)      ",
+	"int_loopback_test (offline)",
+	"ext_loopback_test (offline)",
+	"nvram_test (online)        ",
+	"interrupt_test (online)    ",
+	"link_test (online)         "
 };
+
+static u32 bnx2x_eee_to_adv(u32 eee_adv)
+{
+	u32 modes = 0;
+
+	if (eee_adv & SHMEM_EEE_100M_ADV)
+		modes |= ADVERTISED_100baseT_Full;
+	if (eee_adv & SHMEM_EEE_1G_ADV)
+		modes |= ADVERTISED_1000baseT_Full;
+	if (eee_adv & SHMEM_EEE_10G_ADV)
+		modes |= ADVERTISED_10000baseT_Full;
+
+	return modes;
+}
+
+static u32 bnx2x_adv_to_eee(u32 modes, u32 shift)
+{
+	u32 eee_adv = 0;
+	if (modes & ADVERTISED_100baseT_Full)
+		eee_adv |= SHMEM_EEE_100M_ADV;
+	if (modes & ADVERTISED_1000baseT_Full)
+		eee_adv |= SHMEM_EEE_1G_ADV;
+	if (modes & ADVERTISED_10000baseT_Full)
+		eee_adv |= SHMEM_EEE_10G_ADV;
+
+	return eee_adv << shift;
+}
+
+static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	u32 eee_cfg;
+
+	if (!SHMEM2_HAS(bp, eee_status[BP_PORT(bp)])) {
+		DP(BNX2X_MSG_ETHTOOL, "BC Version does not support EEE\n");
+		return -EOPNOTSUPP;
+	}
+
+	eee_cfg = SHMEM2_RD(bp, eee_status[BP_PORT(bp)]);
+
+	edata->supported =
+		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_SUPPORTED_MASK) >>
+				 SHMEM_EEE_SUPPORTED_SHIFT);
+
+	edata->advertised =
+		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_ADV_STATUS_MASK) >>
+				 SHMEM_EEE_ADV_STATUS_SHIFT);
+	edata->lp_advertised =
+		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_LP_ADV_STATUS_MASK) >>
+				 SHMEM_EEE_LP_ADV_STATUS_SHIFT);
+
+	/* SHMEM value is in 16u units --> Convert to 1u units. */
+	edata->tx_lpi_timer = (eee_cfg & SHMEM_EEE_TIMER_MASK) << 4;
+
+	edata->eee_enabled    = (eee_cfg & SHMEM_EEE_REQUESTED_BIT)	? 1 : 0;
+	edata->eee_active     = (eee_cfg & SHMEM_EEE_ACTIVE_BIT)	? 1 : 0;
+	edata->tx_lpi_enabled = (eee_cfg & SHMEM_EEE_LPI_REQUESTED_BIT) ? 1 : 0;
+
+	return 0;
+}
+
+static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	u32 eee_cfg;
+	u32 advertised;
+
+	if (IS_MF(bp))
+		return 0;
+
+	if (!SHMEM2_HAS(bp, eee_status[BP_PORT(bp)])) {
+		DP(BNX2X_MSG_ETHTOOL, "BC Version does not support EEE\n");
+		return -EOPNOTSUPP;
+	}
+
+	eee_cfg = SHMEM2_RD(bp, eee_status[BP_PORT(bp)]);
+
+	if (!(eee_cfg & SHMEM_EEE_SUPPORTED_MASK)) {
+		DP(BNX2X_MSG_ETHTOOL, "Board does not support EEE!\n");
+		return -EOPNOTSUPP;
+	}
+
+	advertised = bnx2x_adv_to_eee(edata->advertised,
+				      SHMEM_EEE_ADV_STATUS_SHIFT);
+	if ((advertised != (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK))) {
+		DP(BNX2X_MSG_ETHTOOL,
+		   "Direct manipulation of EEE advertisment is not supported\n");
+		return -EINVAL;
+	}
+
+	if (edata->tx_lpi_timer > EEE_MODE_TIMER_MASK) {
+		DP(BNX2X_MSG_ETHTOOL,
+		   "Maximal Tx Lpi timer supported is %x(u)\n",
+		   EEE_MODE_TIMER_MASK);
+		return -EINVAL;
+	}
+	if (edata->tx_lpi_enabled &&
+	    (edata->tx_lpi_timer < EEE_MODE_NVRAM_AGGRESSIVE_TIME)) {
+		DP(BNX2X_MSG_ETHTOOL,
+		   "Minimal Tx Lpi timer supported is %d(u)\n",
+		   EEE_MODE_NVRAM_AGGRESSIVE_TIME);
+		return -EINVAL;
+	}
+
+	/* All is well; Apply changes*/
+	if (edata->eee_enabled)
+		bp->link_params.eee_mode |= EEE_MODE_ADV_LPI;
+	else
+		bp->link_params.eee_mode &= ~EEE_MODE_ADV_LPI;
+
+	if (edata->tx_lpi_enabled)
+		bp->link_params.eee_mode |= EEE_MODE_ENABLE_LPI;
+	else
+		bp->link_params.eee_mode &= ~EEE_MODE_ENABLE_LPI;
+
+	bp->link_params.eee_mode &= ~EEE_MODE_TIMER_MASK;
+	bp->link_params.eee_mode |= (edata->tx_lpi_timer &
+				    EEE_MODE_TIMER_MASK) |
+				    EEE_MODE_OVERRIDE_NVRAM |
+				    EEE_MODE_OUTPUT_TIME;
+
+	/* Restart link to propogate changes */
+	if (netif_running(dev)) {
+		bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+		bnx2x_link_set(bp);
+	}
+
+	return 0;
+}
+
 
 enum {
 	BNX2X_CHIP_E1_OFST = 0,
@@ -1814,6 +2008,14 @@ static void bnx2x_wait_for_link(struct bnx2x *bp, u8 link_up, u8 is_serdes)
 
 		if (cnt <= 0 && bnx2x_link_test(bp, is_serdes))
 			DP(BNX2X_MSG_ETHTOOL, "Timeout waiting for link up\n");
+
+		cnt = 1400;
+		while (!bp->link_vars.link_up && cnt--)
+			msleep(20);
+
+		if (cnt <= 0 && !bp->link_vars.link_up)
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Timeout waiting for link init\n");
 	}
 }
 
@@ -1824,7 +2026,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	unsigned char *packet;
 	struct bnx2x_fastpath *fp_rx = &bp->fp[0];
 	struct bnx2x_fastpath *fp_tx = &bp->fp[0];
-	struct bnx2x_fp_txdata *txdata = &fp_tx->txdata[0];
+	struct bnx2x_fp_txdata *txdata = fp_tx->txdata_ptr[0];
 	u16 tx_start_idx, tx_idx;
 	u16 rx_start_idx, rx_idx;
 	u16 pkt_prod, bd_prod;
@@ -1839,13 +2041,16 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	u16 len;
 	int rc = -ENODEV;
 	u8 *data;
-	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev, txdata->txq_index);
+	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev,
+						       txdata->txq_index);
 
 	/* check the loopback mode */
 	switch (loopback_mode) {
 	case BNX2X_PHY_LOOPBACK:
-		if (bp->link_params.loopback_mode != LOOPBACK_XGXS)
+		if (bp->link_params.loopback_mode != LOOPBACK_XGXS) {
+			DP(BNX2X_MSG_ETHTOOL, "PHY loopback not supported\n");
 			return -EINVAL;
+		}
 		break;
 	case BNX2X_MAC_LOOPBACK:
 		if (CHIP_IS_E3(bp)) {
@@ -1861,6 +2066,13 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 			bp->link_params.loopback_mode = LOOPBACK_BMAC;
 
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
+		break;
+	case BNX2X_EXT_LOOPBACK:
+		if (bp->link_params.loopback_mode != LOOPBACK_EXT) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Can't configure external loopback\n");
+			return -EINVAL;
+		}
 		break;
 	default:
 		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
@@ -2033,6 +2245,38 @@ static int bnx2x_test_loopback(struct bnx2x *bp)
 	return rc;
 }
 
+static int bnx2x_test_ext_loopback(struct bnx2x *bp)
+{
+	int rc;
+	u8 is_serdes =
+		(bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
+
+	if (BP_NOMCP(bp))
+		return -ENODEV;
+
+	if (!netif_running(bp->dev))
+		return BNX2X_EXT_LOOPBACK_FAILED;
+
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	rc = bnx2x_nic_load(bp, LOAD_LOOPBACK_EXT);
+	if (rc) {
+		DP(BNX2X_MSG_ETHTOOL,
+		   "Can't perform self-test, nic_load (for external lb) failed\n");
+		return -ENODEV;
+	}
+	bnx2x_wait_for_link(bp, 1, is_serdes);
+
+	bnx2x_netif_stop(bp, 1);
+
+	rc = bnx2x_run_loopback(bp, BNX2X_EXT_LOOPBACK);
+	if (rc)
+		DP(BNX2X_MSG_ETHTOOL, "EXT loopback failed  (res %d)\n", rc);
+
+	bnx2x_netif_start(bp);
+
+	return rc;
+}
+
 #define CRC32_RESIDUAL			0xdebb20e3
 
 static int bnx2x_test_nvram(struct bnx2x *bp)
@@ -2115,7 +2359,7 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 		return -ENODEV;
 	}
 
-	params.q_obj = &bp->fp->q_obj;
+	params.q_obj = &bp->sp_objs->q_obj;
 	params.cmd = BNX2X_Q_CMD_EMPTY;
 
 	__set_bit(RAMROD_COMP_WAIT, &params.ramrod_flags);
@@ -2128,24 +2372,31 @@ static void bnx2x_self_test(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 is_serdes;
+	int rc;
+
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		netdev_err(bp->dev,
 			   "Handling parity error recovery. Try again later\n");
 		etest->flags |= ETH_TEST_FL_FAILED;
 		return;
 	}
+	DP(BNX2X_MSG_ETHTOOL,
+	   "Self-test command parameters: offline = %d, external_lb = %d\n",
+	   (etest->flags & ETH_TEST_FL_OFFLINE),
+	   (etest->flags & ETH_TEST_FL_EXTERNAL_LB)>>2);
 
-	memset(buf, 0, sizeof(u64) * BNX2X_NUM_TESTS);
+	memset(buf, 0, sizeof(u64) * BNX2X_NUM_TESTS(bp));
 
-	if (!netif_running(dev))
+	if (!netif_running(dev)) {
+		DP(BNX2X_MSG_ETHTOOL,
+		   "Can't perform self-test when interface is down\n");
 		return;
+	}
 
-	/* offline tests are not supported in MF mode */
-	if (IS_MF(bp))
-		etest->flags &= ~ETH_TEST_FL_OFFLINE;
 	is_serdes = (bp->link_vars.link_status & LINK_STATUS_SERDES_LINK) > 0;
 
-	if (etest->flags & ETH_TEST_FL_OFFLINE) {
+	/* offline tests are not supported in MF mode */
+	if ((etest->flags & ETH_TEST_FL_OFFLINE) && !IS_MF(bp)) {
 		int port = BP_PORT(bp);
 		u32 val;
 		u8 link_up;
@@ -2158,7 +2409,14 @@ static void bnx2x_self_test(struct net_device *dev,
 		link_up = bp->link_vars.link_up;
 
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
-		bnx2x_nic_load(bp, LOAD_DIAG);
+		rc = bnx2x_nic_load(bp, LOAD_DIAG);
+		if (rc) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Can't perform self-test, nic_load (for offline) failed\n");
+			return;
+		}
+
 		/* wait until link state is restored */
 		bnx2x_wait_for_link(bp, 1, is_serdes);
 
@@ -2171,30 +2429,51 @@ static void bnx2x_self_test(struct net_device *dev,
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
 
-		buf[2] = bnx2x_test_loopback(bp);
+		buf[2] = bnx2x_test_loopback(bp); /* internal LB */
 		if (buf[2] != 0)
 			etest->flags |= ETH_TEST_FL_FAILED;
+
+		if (etest->flags & ETH_TEST_FL_EXTERNAL_LB) {
+			buf[3] = bnx2x_test_ext_loopback(bp); /* external LB */
+			if (buf[3] != 0)
+				etest->flags |= ETH_TEST_FL_FAILED;
+			etest->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
+		}
 
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 
 		/* restore input for TX port IF */
 		REG_WR(bp, NIG_REG_EGRESS_UMP0_IN_EN + port*4, val);
-
-		bnx2x_nic_load(bp, LOAD_NORMAL);
+		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
+		if (rc) {
+			etest->flags |= ETH_TEST_FL_FAILED;
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Can't perform self-test, nic_load (for online) failed\n");
+			return;
+		}
 		/* wait until link state is restored */
 		bnx2x_wait_for_link(bp, link_up, is_serdes);
 	}
 	if (bnx2x_test_nvram(bp) != 0) {
-		buf[3] = 1;
+		if (!IS_MF(bp))
+			buf[4] = 1;
+		else
+			buf[0] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 	if (bnx2x_test_intr(bp) != 0) {
-		buf[4] = 1;
+		if (!IS_MF(bp))
+			buf[5] = 1;
+		else
+			buf[1] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 
 	if (bnx2x_link_test(bp, is_serdes) != 0) {
-		buf[5] = 1;
+		if (!IS_MF(bp))
+			buf[6] = 1;
+		else
+			buf[2] = 1;
 		etest->flags |= ETH_TEST_FL_FAILED;
 	}
 
@@ -2212,7 +2491,7 @@ static void bnx2x_self_test(struct net_device *dev,
 /* ethtool statistics are displayed for all regular ethernet queues and the
  * fcoe L2 queue if not disabled
  */
-static inline int bnx2x_num_stat_queues(struct bnx2x *bp)
+static int bnx2x_num_stat_queues(struct bnx2x *bp)
 {
 	return BNX2X_NUM_ETH_QUEUES(bp);
 }
@@ -2239,7 +2518,7 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 		return num_stats;
 
 	case ETH_SS_TEST:
-		return BNX2X_NUM_TESTS;
+		return BNX2X_NUM_TESTS(bp);
 
 	default:
 		return -EINVAL;
@@ -2249,7 +2528,7 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, j, k;
+	int i, j, k, offset, start;
 	char queue_name[MAX_QUEUE_NAME_LEN+1];
 
 	switch (stringset) {
@@ -2280,7 +2559,17 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		break;
 
 	case ETH_SS_TEST:
-		memcpy(buf, bnx2x_tests_str_arr, sizeof(bnx2x_tests_str_arr));
+		/* First 4 tests cannot be done in MF mode */
+		if (!IS_MF(bp))
+			start = 0;
+		else
+			start = 4;
+		for (i = 0, j = start; j < (start + BNX2X_NUM_TESTS(bp));
+		     i++, j++) {
+			offset = sprintf(buf+32*i, "%s",
+					 bnx2x_tests_str_arr[j]);
+			*(buf+offset) = '\0';
+		}
 		break;
 	}
 }
@@ -2294,7 +2583,7 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 
 	if (is_multi(bp)) {
 		for_each_eth_queue(bp, i) {
-			hw_stats = (u32 *)&bp->fp[i].eth_q_stats;
+			hw_stats = (u32 *)&bp->fp_stats[i].eth_q_stats;
 			for (j = 0; j < BNX2X_NUM_Q_STATS; j++) {
 				if (bnx2x_q_stats_arr[j].size == 0) {
 					/* skip this counter */
@@ -2378,6 +2667,41 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 	return 0;
 }
 
+static int bnx2x_get_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
+{
+
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		info->data = RXH_IP_SRC | RXH_IP_DST |
+			     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V4_FLOW:
+		if (bp->rss_conf_obj.udp_rss_v4)
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V6_FLOW:
+		if (bp->rss_conf_obj.udp_rss_v6)
+			info->data = RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		else
+			info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		info->data = RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		info->data = 0;
+		break;
+	}
+
+	return 0;
+}
+
 static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 			   u32 *rules __always_unused)
 {
@@ -2387,7 +2711,102 @@ static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = BNX2X_NUM_ETH_QUEUES(bp);
 		return 0;
+	case ETHTOOL_GRXFH:
+		return bnx2x_get_rss_flags(bp, info);
+	default:
+		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
+		return -EOPNOTSUPP;
+	}
+}
 
+static int bnx2x_set_rss_flags(struct bnx2x *bp, struct ethtool_rxnfc *info)
+{
+	int udp_rss_requested;
+
+	DP(BNX2X_MSG_ETHTOOL,
+	   "Set rss flags command parameters: flow type = %d, data = %llu\n",
+	   info->flow_type, info->data);
+
+	switch (info->flow_type) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		/* For TCP only 4-tupple hash is supported */
+		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST |
+				  RXH_L4_B_0_1 | RXH_L4_B_2_3)) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Command parameters not supported\n");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+
+	case UDP_V4_FLOW:
+	case UDP_V6_FLOW:
+		/* For UDP either 2-tupple hash or 4-tupple hash is supported */
+		if (info->data == (RXH_IP_SRC | RXH_IP_DST |
+				 RXH_L4_B_0_1 | RXH_L4_B_2_3))
+			udp_rss_requested = 1;
+		else if (info->data == (RXH_IP_SRC | RXH_IP_DST))
+			udp_rss_requested = 0;
+		else
+			return -EINVAL;
+		if ((info->flow_type == UDP_V4_FLOW) &&
+		    (bp->rss_conf_obj.udp_rss_v4 != udp_rss_requested)) {
+			bp->rss_conf_obj.udp_rss_v4 = udp_rss_requested;
+			DP(BNX2X_MSG_ETHTOOL,
+			   "rss re-configured, UDP 4-tupple %s\n",
+			   udp_rss_requested ? "enabled" : "disabled");
+			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+		} else if ((info->flow_type == UDP_V6_FLOW) &&
+			   (bp->rss_conf_obj.udp_rss_v6 != udp_rss_requested)) {
+			bp->rss_conf_obj.udp_rss_v6 = udp_rss_requested;
+			return bnx2x_config_rss_pf(bp, &bp->rss_conf_obj, 0);
+			DP(BNX2X_MSG_ETHTOOL,
+			   "rss re-configured, UDP 4-tupple %s\n",
+			   udp_rss_requested ? "enabled" : "disabled");
+		} else {
+			return 0;
+		}
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		/* For IP only 2-tupple hash is supported */
+		if (info->data ^ (RXH_IP_SRC | RXH_IP_DST)) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Command parameters not supported\n");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IP_USER_FLOW:
+	case ETHER_FLOW:
+		/* RSS is not supported for these protocols */
+		if (info->data) {
+			DP(BNX2X_MSG_ETHTOOL,
+			   "Command parameters not supported\n");
+			return -EINVAL;
+		} else {
+			return 0;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bnx2x_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	switch (info->cmd) {
+	case ETHTOOL_SRXFH:
+		return bnx2x_set_rss_flags(bp, info);
 	default:
 		DP(BNX2X_MSG_ETHTOOL, "Command parameters not supported\n");
 		return -EOPNOTSUPP;
@@ -2396,10 +2815,7 @@ static int bnx2x_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 
 static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 {
-	struct bnx2x *bp = netdev_priv(dev);
-
-	return (bp->multi_mode == ETH_RSS_MODE_DISABLED ?
-		0 : T_ETH_INDIRECTION_TABLE_SIZE);
+	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
 static int bnx2x_get_rxfh_indir(struct net_device *dev, u32 *indir)
@@ -2430,7 +2846,6 @@ static int bnx2x_set_rxfh_indir(struct net_device *dev, const u32 *indir)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
-	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
 		/*
@@ -2442,10 +2857,88 @@ static int bnx2x_set_rxfh_indir(struct net_device *dev, const u32 *indir)
 		 * align the received table to the Client ID of the leading RSS
 		 * queue
 		 */
-		ind_table[i] = indir[i] + bp->fp->cl_id;
+		bp->rss_conf_obj.ind_table[i] = indir[i] + bp->fp->cl_id;
 	}
 
-	return bnx2x_config_rss_pf(bp, ind_table, false);
+	return bnx2x_config_rss_eth(bp, false);
+}
+
+/**
+ * bnx2x_get_channels - gets the number of RSS queues.
+ *
+ * @dev:		net device
+ * @channels:		returns the number of max / current queues
+ */
+static void bnx2x_get_channels(struct net_device *dev,
+			       struct ethtool_channels *channels)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+	channels->max_combined = BNX2X_MAX_RSS_COUNT(bp);
+	channels->combined_count = BNX2X_NUM_ETH_QUEUES(bp);
+}
+
+/**
+ * bnx2x_change_num_queues - change the number of RSS queues.
+ *
+ * @bp:			bnx2x private structure
+ *
+ * Re-configure interrupt mode to get the new number of MSI-X
+ * vectors and re-add NAPI objects.
+ */
+static void bnx2x_change_num_queues(struct bnx2x *bp, int num_rss)
+{
+	bnx2x_del_all_napi(bp);
+	bnx2x_disable_msi(bp);
+	BNX2X_NUM_QUEUES(bp) = num_rss + NON_ETH_CONTEXT_USE;
+	bnx2x_set_int_mode(bp);
+	bnx2x_add_all_napi(bp);
+}
+
+/**
+ * bnx2x_set_channels - sets the number of RSS queues.
+ *
+ * @dev:		net device
+ * @channels:		includes the number of queues requested
+ */
+static int bnx2x_set_channels(struct net_device *dev,
+			      struct ethtool_channels *channels)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+
+
+	DP(BNX2X_MSG_ETHTOOL,
+	   "set-channels command parameters: rx = %d, tx = %d, other = %d, combined = %d\n",
+	   channels->rx_count, channels->tx_count, channels->other_count,
+	   channels->combined_count);
+
+	/* We don't support separate rx / tx channels.
+	 * We don't allow setting 'other' channels.
+	 */
+	if (channels->rx_count || channels->tx_count || channels->other_count
+	    || (channels->combined_count == 0) ||
+	    (channels->combined_count > BNX2X_MAX_RSS_COUNT(bp))) {
+		DP(BNX2X_MSG_ETHTOOL, "command parameters not supported\n");
+		return -EINVAL;
+	}
+
+	/* Check if there was a change in the active parameters */
+	if (channels->combined_count == BNX2X_NUM_ETH_QUEUES(bp)) {
+		DP(BNX2X_MSG_ETHTOOL, "No change in active parameters\n");
+		return 0;
+	}
+
+	/* Set the requested number of queues in bp context.
+	 * Note that the actual number of queues created during load may be
+	 * less than requested if memory is low.
+	 */
+	if (unlikely(!netif_running(dev))) {
+		bnx2x_change_num_queues(bp, channels->combined_count);
+		return 0;
+	}
+	bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+	bnx2x_change_num_queues(bp, channels->combined_count);
+	return bnx2x_nic_load(bp, LOAD_NORMAL);
 }
 
 static const struct ethtool_ops bnx2x_ethtool_ops = {
@@ -2475,9 +2968,17 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_phys_id		= bnx2x_set_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,
 	.get_rxnfc		= bnx2x_get_rxnfc,
+	.set_rxnfc		= bnx2x_set_rxnfc,
 	.get_rxfh_indir_size	= bnx2x_get_rxfh_indir_size,
 	.get_rxfh_indir		= bnx2x_get_rxfh_indir,
 	.set_rxfh_indir		= bnx2x_set_rxfh_indir,
+	.get_channels		= bnx2x_get_channels,
+	.set_channels		= bnx2x_set_channels,
+	.get_module_info	= bnx2x_get_module_info,
+	.get_module_eeprom	= bnx2x_get_module_eeprom,
+	.get_eee		= bnx2x_get_eee,
+	.set_eee		= bnx2x_set_eee,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 void bnx2x_set_ethtool_ops(struct net_device *netdev)

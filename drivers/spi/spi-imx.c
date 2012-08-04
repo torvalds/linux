@@ -37,6 +37,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <mach/spi.h>
 
@@ -85,7 +86,8 @@ struct spi_imx_data {
 	struct completion xfer_done;
 	void __iomem *base;
 	int irq;
-	struct clk *clk;
+	struct clk *clk_per;
+	struct clk *clk_ipg;
 	unsigned long spi_clk;
 
 	unsigned int count;
@@ -624,7 +626,7 @@ static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 	int active = is_active != BITBANG_CS_INACTIVE;
 	int dev_is_lowactive = !(spi->mode & SPI_CS_HIGH);
 
-	if (gpio < 0)
+	if (!gpio_is_valid(gpio))
 		return;
 
 	gpio_set_value(gpio, dev_is_lowactive ^ active);
@@ -686,8 +688,6 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		config.speed_hz = spi->max_speed_hz;
 	if (!config.bpw)
 		config.bpw = spi->bits_per_word;
-	if (!config.speed_hz)
-		config.speed_hz = spi->max_speed_hz;
 
 	/* Initialize the functions for transfer */
 	if (config.bpw <= 8) {
@@ -736,7 +736,7 @@ static int spi_imx_setup(struct spi_device *spi)
 	dev_dbg(&spi->dev, "%s: mode %d, %u bpw, %d hz\n", __func__,
 		 spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
-	if (gpio >= 0)
+	if (gpio_is_valid(gpio))
 		gpio_direction_output(gpio, spi->mode & SPI_CS_HIGH ? 0 : 1);
 
 	spi_imx_chipselect(spi, BITBANG_CS_INACTIVE);
@@ -758,6 +758,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
+	struct pinctrl *pinctrl;
 	int i, ret, num_cs;
 
 	if (!np && !mxc_platform_info) {
@@ -788,11 +789,11 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	for (i = 0; i < master->num_chipselect; i++) {
 		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
-		if (cs_gpio < 0 && mxc_platform_info)
+		if (!gpio_is_valid(cs_gpio) && mxc_platform_info)
 			cs_gpio = mxc_platform_info->chipselect[i];
 
 		spi_imx->chipselect[i] = cs_gpio;
-		if (cs_gpio < 0)
+		if (!gpio_is_valid(cs_gpio))
 			continue;
 
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
@@ -845,15 +846,28 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 		goto out_iounmap;
 	}
 
-	spi_imx->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(spi_imx->clk)) {
-		dev_err(&pdev->dev, "unable to get clock\n");
-		ret = PTR_ERR(spi_imx->clk);
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
 		goto out_free_irq;
 	}
 
-	clk_enable(spi_imx->clk);
-	spi_imx->spi_clk = clk_get_rate(spi_imx->clk);
+	spi_imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(spi_imx->clk_ipg)) {
+		ret = PTR_ERR(spi_imx->clk_ipg);
+		goto out_free_irq;
+	}
+
+	spi_imx->clk_per = devm_clk_get(&pdev->dev, "per");
+	if (IS_ERR(spi_imx->clk_per)) {
+		ret = PTR_ERR(spi_imx->clk_per);
+		goto out_free_irq;
+	}
+
+	clk_prepare_enable(spi_imx->clk_per);
+	clk_prepare_enable(spi_imx->clk_ipg);
+
+	spi_imx->spi_clk = clk_get_rate(spi_imx->clk_per);
 
 	spi_imx->devtype_data->reset(spi_imx);
 
@@ -871,8 +885,8 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	return ret;
 
 out_clk_put:
-	clk_disable(spi_imx->clk);
-	clk_put(spi_imx->clk);
+	clk_disable_unprepare(spi_imx->clk_per);
+	clk_disable_unprepare(spi_imx->clk_ipg);
 out_free_irq:
 	free_irq(spi_imx->irq, spi_imx);
 out_iounmap:
@@ -881,7 +895,7 @@ out_release_mem:
 	release_mem_region(res->start, resource_size(res));
 out_gpio_free:
 	while (--i >= 0) {
-		if (spi_imx->chipselect[i] >= 0)
+		if (gpio_is_valid(spi_imx->chipselect[i]))
 			gpio_free(spi_imx->chipselect[i]);
 	}
 	spi_master_put(master);
@@ -900,13 +914,13 @@ static int __devexit spi_imx_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&spi_imx->bitbang);
 
 	writel(0, spi_imx->base + MXC_CSPICTRL);
-	clk_disable(spi_imx->clk);
-	clk_put(spi_imx->clk);
+	clk_disable_unprepare(spi_imx->clk_per);
+	clk_disable_unprepare(spi_imx->clk_ipg);
 	free_irq(spi_imx->irq, spi_imx);
 	iounmap(spi_imx->base);
 
 	for (i = 0; i < master->num_chipselect; i++)
-		if (spi_imx->chipselect[i] >= 0)
+		if (gpio_is_valid(spi_imx->chipselect[i]))
 			gpio_free(spi_imx->chipselect[i]);
 
 	spi_master_put(master);

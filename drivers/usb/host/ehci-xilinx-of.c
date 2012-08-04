@@ -32,30 +32,6 @@
 #include <linux/of_address.h>
 
 /**
- * ehci_xilinx_of_setup - Initialize the device for ehci_reset()
- * @hcd:	Pointer to the usb_hcd device to which the host controller bound
- *
- * called during probe() after chip reset completes.
- */
-static int ehci_xilinx_of_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	int		retval;
-
-	retval = ehci_halt(ehci);
-	if (retval)
-		return retval;
-
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci->sbrn = 0x20;
-
-	return ehci_reset(ehci);
-}
-
-/**
  * ehci_xilinx_port_handed_over - hand the port out if failed to enable it
  * @hcd:	Pointer to the usb_hcd device to which the host controller bound
  * @portnum:Port number to which the device is attached.
@@ -107,7 +83,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_xilinx_of_setup,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -219,11 +195,6 @@ static int __devinit ehci_hcd_xilinx_of_probe(struct platform_device *op)
 	/* Debug registers are at the first 0x100 region
 	 */
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
 
 	rv = usb_add_hcd(hcd, irq, 0);
 	if (rv == 0)
@@ -270,14 +241,12 @@ static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
  *
  * Properly shutdown the hcd, call driver's shutdown routine.
  */
-static int ehci_hcd_xilinx_of_shutdown(struct platform_device *op)
+static void ehci_hcd_xilinx_of_shutdown(struct platform_device *op)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
 
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);
-
-	return 0;
 }
 
 

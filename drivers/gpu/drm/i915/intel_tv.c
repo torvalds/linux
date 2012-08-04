@@ -674,6 +674,54 @@ static const struct tv_mode tv_modes[] = {
 		.filter_table = filter_table,
 	},
 	{
+		.name       = "480p",
+		.clock		= 107520,
+		.refresh	= 59940,
+		.oversample     = TV_OVERSAMPLE_4X,
+		.component_only = 1,
+
+		.hsync_end      = 64,               .hblank_end         = 122,
+		.hblank_start   = 842,              .htotal             = 857,
+
+		.progressive    = true,		    .trilevel_sync = false,
+
+		.vsync_start_f1 = 12,               .vsync_start_f2     = 12,
+		.vsync_len      = 12,
+
+		.veq_ena        = false,
+
+		.vi_end_f1      = 44,               .vi_end_f2          = 44,
+		.nbr_end        = 479,
+
+		.burst_ena      = false,
+
+		.filter_table = filter_table,
+	},
+	{
+		.name       = "576p",
+		.clock		= 107520,
+		.refresh	= 50000,
+		.oversample     = TV_OVERSAMPLE_4X,
+		.component_only = 1,
+
+		.hsync_end      = 64,               .hblank_end         = 139,
+		.hblank_start   = 859,              .htotal             = 863,
+
+		.progressive    = true,		    .trilevel_sync = false,
+
+		.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
+		.vsync_len      = 10,
+
+		.veq_ena        = false,
+
+		.vi_end_f1      = 48,               .vi_end_f2          = 48,
+		.nbr_end        = 575,
+
+		.burst_ena      = false,
+
+		.filter_table = filter_table,
+	},
+	{
 		.name       = "720p@60Hz",
 		.clock		= 148800,
 		.refresh	= 60000,
@@ -811,7 +859,7 @@ intel_tv_mode_lookup(const char *tv_format)
 {
 	int i;
 
-	for (i = 0; i < sizeof(tv_modes) / sizeof(tv_modes[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
 		const struct tv_mode *tv_mode = &tv_modes[i];
 
 		if (!strcmp(tv_format, tv_mode->name))
@@ -843,24 +891,21 @@ intel_tv_mode_valid(struct drm_connector *connector,
 
 
 static bool
-intel_tv_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+intel_tv_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_mode_config *drm_config = &dev->mode_config;
 	struct intel_tv *intel_tv = enc_to_intel_tv(encoder);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(intel_tv);
-	struct drm_encoder *other_encoder;
+	struct intel_encoder *other_encoder;
 
 	if (!tv_mode)
 		return false;
 
-	/* FIXME: lock encoder list */
-	list_for_each_entry(other_encoder, &drm_config->encoder_list, head) {
-		if (other_encoder != encoder &&
-		    other_encoder->crtc == encoder->crtc)
+	for_each_encoder_on_crtc(dev, encoder->crtc, other_encoder)
+		if (&other_encoder->base != encoder)
 			return false;
-	}
 
 	adjusted_mode->clock = tv_mode->clock;
 	return true;
@@ -1153,6 +1198,15 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 		   DAC_B_0_7_V |
 		   DAC_C_0_7_V);
 
+
+	/*
+	 * The TV sense state should be cleared to zero on cantiga platform. Otherwise
+	 * the TV is misdetected. This is hardware requirement.
+	 */
+	if (IS_GM45(dev))
+		tv_dac &= ~(TVDAC_STATE_CHG_EN | TVDAC_A_SENSE_CTL |
+			    TVDAC_B_SENSE_CTL | TVDAC_C_SENSE_CTL);
+
 	I915_WRITE(TV_CTL, tv_ctl);
 	I915_WRITE(TV_DAC, tv_dac);
 	POSTING_READ(TV_DAC);
@@ -1185,6 +1239,11 @@ intel_tv_detect_type(struct intel_tv *intel_tv,
 
 	I915_WRITE(TV_DAC, save_tv_dac & ~TVDAC_STATE_CHG_EN);
 	I915_WRITE(TV_CTL, save_tv_ctl);
+	POSTING_READ(TV_CTL);
+
+	/* For unknown reasons the hw barfs if we don't do this vblank wait. */
+	intel_wait_for_vblank(intel_tv->base.base.dev,
+			      to_intel_crtc(intel_tv->base.base.crtc)->pipe);
 
 	/* Restore interrupt config */
 	if (connector->polled & DRM_CONNECTOR_POLL_HPD) {
@@ -1240,11 +1299,8 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	int type;
 
 	mode = reported_modes[0];
-	drm_mode_set_crtcinfo(&mode, 0);
 
-	if (intel_tv->base.base.crtc && intel_tv->base.base.crtc->enabled) {
-		type = intel_tv_detect_type(intel_tv, connector);
-	} else if (force) {
+	if (force) {
 		struct intel_load_detect_pipe tmp;
 
 		if (intel_get_load_detect_pipe(&intel_tv->base, connector,

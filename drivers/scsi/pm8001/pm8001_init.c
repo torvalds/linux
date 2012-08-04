@@ -235,15 +235,15 @@ static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->memoryMap.region[PI].alignment = 4;
 
 	/* MPI Memory region 5 inbound queues */
-	pm8001_ha->memoryMap.region[IB].num_elements = 256;
+	pm8001_ha->memoryMap.region[IB].num_elements = PM8001_MPI_QUEUE;
 	pm8001_ha->memoryMap.region[IB].element_size = 64;
-	pm8001_ha->memoryMap.region[IB].total_len = 256 * 64;
+	pm8001_ha->memoryMap.region[IB].total_len = PM8001_MPI_QUEUE * 64;
 	pm8001_ha->memoryMap.region[IB].alignment = 64;
 
-	/* MPI Memory region 6 inbound queues */
-	pm8001_ha->memoryMap.region[OB].num_elements = 256;
+	/* MPI Memory region 6 outbound queues */
+	pm8001_ha->memoryMap.region[OB].num_elements = PM8001_MPI_QUEUE;
 	pm8001_ha->memoryMap.region[OB].element_size = 64;
-	pm8001_ha->memoryMap.region[OB].total_len = 256 * 64;
+	pm8001_ha->memoryMap.region[OB].total_len = PM8001_MPI_QUEUE * 64;
 	pm8001_ha->memoryMap.region[OB].alignment = 64;
 
 	/* Memory region write DMA*/

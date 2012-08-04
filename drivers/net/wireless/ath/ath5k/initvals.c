@@ -19,6 +19,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
@@ -1574,8 +1576,7 @@ ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool skip_pcu)
 
 		/* AR5K_MODE_11B */
 		if (mode > 2) {
-			ATH5K_ERR(ah,
-				"unsupported channel mode: %d\n", mode);
+			ATH5K_ERR(ah, "unsupported channel mode: %d\n", mode);
 			return -EINVAL;
 		}
 

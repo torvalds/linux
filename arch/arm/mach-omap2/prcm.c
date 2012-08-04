@@ -35,6 +35,7 @@
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 #include "prminst44xx.h"
+#include "cminst44xx.h"
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
@@ -42,6 +43,7 @@
 void __iomem *prm_base;
 void __iomem *cm_base;
 void __iomem *cm2_base;
+void __iomem *prcm_mpu_base;
 
 #define MAX_MODULE_ENABLE_WAIT		100000
 
@@ -155,4 +157,33 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 		cm_base = omap2_globals->cm;
 	if (omap2_globals->cm2)
 		cm2_base = omap2_globals->cm2;
+	if (omap2_globals->prcm_mpu)
+		prcm_mpu_base = omap2_globals->prcm_mpu;
+
+	if (cpu_is_omap44xx() || soc_is_omap54xx()) {
+		omap_prm_base_init();
+		omap_cm_base_init();
+	}
+}
+
+/*
+ * Stubbed functions so that common files continue to build when
+ * custom builds are used
+ * XXX These are temporary and should be removed at the earliest possible
+ * opportunity
+ */
+int __weak omap4_cminst_wait_module_idle(u8 part, u16 inst, s16 cdoffs,
+					u16 clkctrl_offs)
+{
+	return 0;
+}
+
+void __weak omap4_cminst_module_enable(u8 mode, u8 part, u16 inst,
+				s16 cdoffs, u16 clkctrl_offs)
+{
+}
+
+void __weak omap4_cminst_module_disable(u8 part, u16 inst, s16 cdoffs,
+				 u16 clkctrl_offs)
+{
 }

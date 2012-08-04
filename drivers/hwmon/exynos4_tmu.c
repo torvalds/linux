@@ -475,35 +475,39 @@ static int __devexit exynos4_tmu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int exynos4_tmu_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int exynos4_tmu_suspend(struct device *dev)
 {
-	exynos4_tmu_control(pdev, false);
+	exynos4_tmu_control(to_platform_device(dev), false);
 
 	return 0;
 }
 
-static int exynos4_tmu_resume(struct platform_device *pdev)
+static int exynos4_tmu_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+
 	exynos4_tmu_initialize(pdev);
 	exynos4_tmu_control(pdev, true);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(exynos4_tmu_pm,
+			 exynos4_tmu_suspend, exynos4_tmu_resume);
+#define EXYNOS4_TMU_PM	&exynos4_tmu_pm
 #else
-#define exynos4_tmu_suspend NULL
-#define exynos4_tmu_resume NULL
+#define EXYNOS4_TMU_PM	NULL
 #endif
 
 static struct platform_driver exynos4_tmu_driver = {
 	.driver = {
 		.name   = "exynos4-tmu",
 		.owner  = THIS_MODULE,
+		.pm     = EXYNOS4_TMU_PM,
 	},
 	.probe = exynos4_tmu_probe,
 	.remove	= __devexit_p(exynos4_tmu_remove),
-	.suspend = exynos4_tmu_suspend,
-	.resume = exynos4_tmu_resume,
 };
 
 module_platform_driver(exynos4_tmu_driver);

@@ -1,6 +1,6 @@
 /* 57xx_iscsi_hsi.h: Broadcom NetXtreme II iSCSI HSI.
  *
- * Copyright (c) 2006 - 2011 Broadcom Corporation
+ * Copyright (c) 2006 - 2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -267,7 +267,13 @@ struct bnx2i_cmd_request {
  * task statistics for write response
  */
 struct bnx2i_write_resp_task_stat {
-	u32 num_data_ins;
+#if defined(__BIG_ENDIAN)
+	u16 num_r2ts;
+	u16 num_data_outs;
+#elif defined(__LITTLE_ENDIAN)
+	u16 num_data_outs;
+	u16 num_r2ts;
+#endif
 };
 
 /*
@@ -275,11 +281,11 @@ struct bnx2i_write_resp_task_stat {
  */
 struct bnx2i_read_resp_task_stat {
 #if defined(__BIG_ENDIAN)
-	u16 num_data_outs;
-	u16 num_r2ts;
+	u16 reserved;
+	u16 num_data_ins;
 #elif defined(__LITTLE_ENDIAN)
-	u16 num_r2ts;
-	u16 num_data_outs;
+	u16 num_data_ins;
+	u16 reserved;
 #endif
 };
 

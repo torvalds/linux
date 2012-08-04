@@ -22,6 +22,7 @@
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mux.h>
+#include <plat/dma.h>
 #include <plat/mmc.h>
 #include <plat/omap7xx.h>
 
@@ -30,6 +31,22 @@
 
 #include "common.h"
 #include "clock.h"
+
+#if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
+
+static struct platform_device omap_pcm = {
+	.name	= "omap-pcm-audio",
+	.id	= -1,
+};
+
+static void omap_init_audio(void)
+{
+	platform_device_register(&omap_pcm);
+}
+
+#else
+static inline void omap_init_audio(void) {}
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -128,6 +145,56 @@ static inline void omap1_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 	}
 }
 
+#define OMAP_MMC_NR_RES		4
+
+/*
+ * Register MMC devices.
+ */
+static int __init omap_mmc_add(const char *name, int id, unsigned long base,
+				unsigned long size, unsigned int irq,
+				unsigned rx_req, unsigned tx_req,
+				struct omap_mmc_platform_data *data)
+{
+	struct platform_device *pdev;
+	struct resource res[OMAP_MMC_NR_RES];
+	int ret;
+
+	pdev = platform_device_alloc(name, id);
+	if (!pdev)
+		return -ENOMEM;
+
+	memset(res, 0, OMAP_MMC_NR_RES * sizeof(struct resource));
+	res[0].start = base;
+	res[0].end = base + size - 1;
+	res[0].flags = IORESOURCE_MEM;
+	res[1].start = res[1].end = irq;
+	res[1].flags = IORESOURCE_IRQ;
+	res[2].start = rx_req;
+	res[2].name = "rx";
+	res[2].flags = IORESOURCE_DMA;
+	res[3].start = tx_req;
+	res[3].name = "tx";
+	res[3].flags = IORESOURCE_DMA;
+
+	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
+	if (ret == 0)
+		ret = platform_device_add_data(pdev, data, sizeof(*data));
+	if (ret)
+		goto fail;
+
+	ret = platform_device_add(pdev);
+	if (ret)
+		goto fail;
+
+	/* return device handle to board setup code */
+	data->dev = &pdev->dev;
+	return 0;
+
+fail:
+	platform_device_put(pdev);
+	return ret;
+}
+
 void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			int nr_controllers)
 {
@@ -135,6 +202,7 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 
 	for (i = 0; i < nr_controllers; i++) {
 		unsigned long base, size;
+		unsigned rx_req, tx_req;
 		unsigned int irq = 0;
 
 		if (!mmc_data[i])
@@ -146,19 +214,24 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 		case 0:
 			base = OMAP1_MMC1_BASE;
 			irq = INT_MMC;
+			rx_req = OMAP_DMA_MMC_RX;
+			tx_req = OMAP_DMA_MMC_TX;
 			break;
 		case 1:
 			if (!cpu_is_omap16xx())
 				return;
 			base = OMAP1_MMC2_BASE;
 			irq = INT_1610_MMC2;
+			rx_req = OMAP_DMA_MMC2_RX;
+			tx_req = OMAP_DMA_MMC2_TX;
 			break;
 		default:
 			continue;
 		}
 		size = OMAP1_MMC_SIZE;
 
-		omap_mmc_add("mmci-omap", i, base, size, irq, mmc_data[i]);
+		omap_mmc_add("mmci-omap", i, base, size, irq,
+				rx_req, tx_req, mmc_data[i]);
 	};
 }
 
@@ -242,23 +315,48 @@ void __init omap1_camera_init(void *info)
 
 static inline void omap_init_sti(void) {}
 
-#if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
+/* Numbering for the SPI-capable controllers when used for SPI:
+ * spi		= 1
+ * uwire	= 2
+ * mmc1..2	= 3..4
+ * mcbsp1..3	= 5..7
+ */
 
-static struct platform_device omap_pcm = {
-	.name	= "omap-pcm-audio",
-	.id	= -1,
+#if defined(CONFIG_SPI_OMAP_UWIRE) || defined(CONFIG_SPI_OMAP_UWIRE_MODULE)
+
+#define	OMAP_UWIRE_BASE		0xfffb3000
+
+static struct resource uwire_resources[] = {
+	{
+		.start		= OMAP_UWIRE_BASE,
+		.end		= OMAP_UWIRE_BASE + 0x20,
+		.flags		= IORESOURCE_MEM,
+	},
 };
 
-static void omap_init_audio(void)
-{
-	platform_device_register(&omap_pcm);
-}
+static struct platform_device omap_uwire_device = {
+	.name	   = "omap_uwire",
+	.id	     = -1,
+	.num_resources	= ARRAY_SIZE(uwire_resources),
+	.resource	= uwire_resources,
+};
 
+static void omap_init_uwire(void)
+{
+	/* FIXME define and use a boot tag; not all boards will be hooking
+	 * up devices to the microwire controller, and multi-board configs
+	 * mean that CONFIG_SPI_OMAP_UWIRE may be configured anyway...
+	 */
+
+	/* board-specific code must configure chipselects (only a few
+	 * are normally used) and SCLK/SDI/SDO (each has two choices).
+	 */
+	(void) platform_device_register(&omap_uwire_device);
+}
 #else
-static inline void omap_init_audio(void) {}
+static inline void omap_init_uwire(void) {}
 #endif
 
-/*-------------------------------------------------------------------------*/
 
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
@@ -292,11 +390,12 @@ static int __init omap1_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 
+	omap_init_audio();
 	omap_init_mbox();
 	omap_init_rtc();
 	omap_init_spi100k();
 	omap_init_sti();
-	omap_init_audio();
+	omap_init_uwire();
 
 	return 0;
 }

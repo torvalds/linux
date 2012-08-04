@@ -103,6 +103,35 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
+	config DEBUG_DAVINCI_DA8XX_UART1
+		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
+		depends on ARCH_DAVINCI_DA8XX
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART1 serial port on DaVinci DA8XX devices.
+
+	config DEBUG_DAVINCI_DA8XX_UART2
+		bool "Kernel low-level debugging on DaVinci DA8XX using UART2"
+		depends on ARCH_DAVINCI_DA8XX
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART2 serial port on DaVinci DA8XX devices.
+
+	config DEBUG_DAVINCI_DMx_UART0
+		bool "Kernel low-level debugging on DaVinci DMx using UART0"
+		depends on ARCH_DAVINCI_DMx
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART0 serial port on DaVinci DMx devices.
+
+	config DEBUG_DAVINCI_TNETV107X_UART1
+		bool "Kernel low-level debugging on DaVinci TNETV107x using UART1"
+		depends on ARCH_DAVINCI_TNETV107X
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART1 serial port on DaVinci TNETV107X
+		  devices.
+
 	config DEBUG_DC21285_PORT
 		bool "Kernel low-level debugging messages via footbridge serial port"
 		depends on FOOTBRIDGE
@@ -179,6 +208,14 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX50 or i.MX53.
+
+	config DEBUG_IMX6Q_UART2
+		bool "i.MX6Q Debug UART2"
+		depends on SOC_IMX6Q
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on i.MX6Q UART2. This is correct for e.g. the SabreLite
+                  board.
 
 	config DEBUG_IMX6Q_UART4
 		bool "i.MX6Q Debug UART4"
@@ -273,6 +310,32 @@ choice
 		  The uncompressor code port configuration is now handled
 		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
 
+	config DEBUG_VEXPRESS_UART0_DETECT
+		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
+		depends on ARCH_VEXPRESS && CPU_CP15_MMU
+		help
+		  This option enables a simple heuristic which tries to determine
+		  the motherboard's memory map variant (original or RS1) and then
+		  choose the relevant UART0 base address.
+
+		  Note that this will only work with standard A-class core tiles,
+		  and may fail with non-standard SMM or custom software models.
+
+	config DEBUG_VEXPRESS_UART0_CA9
+		bool "Use PL011 UART0 at 0x10009000 (V2P-CA9 core tile)"
+		depends on ARCH_VEXPRESS
+		help
+		  This option selects UART0 at 0x10009000. Except for custom models,
+		  this applies only to the V2P-CA9 tile.
+
+	config DEBUG_VEXPRESS_UART0_RS1
+		bool "Use PL011 UART0 at 0x1c090000 (RS1 complaint tiles)"
+		depends on ARCH_VEXPRESS
+		help
+		  This option selects UART0 at 0x1c090000. This applies to most
+		  of the tiles using the RS1 memory map, including all new A-class
+		  core tiles, FPGA-based SMMs and software models.
+
 	config DEBUG_LL_UART_NONE
 		bool "No low-level debugging UART"
 		help
@@ -331,5 +394,14 @@ config ARM_KPROBES_TEST
 	depends on KPROBES && MODULES
 	help
 	  Perform tests of kprobes API and instruction set simulation.
+
+config PID_IN_CONTEXTIDR
+	bool "Write the current PID to the CONTEXTIDR register"
+	depends on CPU_COPY_V6
+	help
+	  Enabling this option causes the kernel to write the current PID to
+	  the PROCID field of the CONTEXTIDR register, at the expense of some
+	  additional instructions during context switch. Say Y here only if you
+	  are planning to use hardware trace tools with this kernel.
 
 endmenu

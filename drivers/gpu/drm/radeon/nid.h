@@ -41,6 +41,9 @@
 #define CAYMAN_MAX_TCC               16
 #define CAYMAN_MAX_TCC_MASK          0xFF
 
+#define CAYMAN_GB_ADDR_CONFIG_GOLDEN       0x02011003
+#define ARUBA_GB_ADDR_CONFIG_GOLDEN        0x12010001
+
 #define DMIF_ADDR_CONFIG  				0xBD4
 #define	SRBM_GFX_CNTL				        0x0E44
 #define		RINGID(x)					(((x) & 0x3) << 0)
@@ -148,6 +151,8 @@
 #define	CGTS_SYS_TCC_DISABLE				0x3F90
 #define	CGTS_USER_SYS_TCC_DISABLE			0x3F94
 
+#define RLC_GFX_INDEX           			0x3FC4
+
 #define	CONFIG_MEMSIZE					0x5428
 
 #define HDP_MEM_COHERENCY_FLUSH_CNTL			0x5480
@@ -212,6 +217,12 @@
 #define		SOFT_RESET_VGT					(1 << 14)
 #define		SOFT_RESET_IA					(1 << 15)
 
+#define GRBM_GFX_INDEX          			0x802C
+#define		INSTANCE_INDEX(x)			((x) << 0)
+#define		SE_INDEX(x)     			((x) << 16)
+#define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
+#define		SE_BROADCAST_WRITES      		(1 << 31)
+
 #define	SCRATCH_REG0					0x8500
 #define	SCRATCH_REG1					0x8504
 #define	SCRATCH_REG2					0x8508
@@ -225,6 +236,10 @@
 #define	CP_SEM_WAIT_TIMER				0x85BC
 #define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
 #define	CP_COHER_CNTL2					0x85E8
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
+#define	CP_STAT						0x8680
 #define CP_ME_CNTL					0x86D8
 #define		CP_ME_HALT					(1 << 28)
 #define		CP_PFP_HALT					(1 << 26)

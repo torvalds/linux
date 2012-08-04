@@ -45,6 +45,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 
 #include "sam9_smc.h"
@@ -55,15 +56,6 @@ static void __init neocore926_init_early(void)
 {
 	/* Initialize processor: 20 MHz crystal */
 	at91_initialize(20000000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
-	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
@@ -341,6 +333,11 @@ static struct ac97c_platform_data neocore926_ac97_data = {
 static void __init neocore926_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
+	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
 	at91_add_device_serial();
 
 	/* USB Host */
@@ -382,6 +379,7 @@ MACHINE_START(NEOCORE926, "ADENEO NEOCORE 926")
 	/* Maintainer: ADENEO */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= neocore926_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= neocore926_board_init,

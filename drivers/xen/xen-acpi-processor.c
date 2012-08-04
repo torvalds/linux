@@ -29,6 +29,7 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
 
+#include <xen/xen.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 
@@ -519,15 +520,18 @@ static int __init xen_acpi_processor_init(void)
 
 		if (!pr_backup) {
 			pr_backup = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
-			memcpy(pr_backup, _pr, sizeof(struct acpi_processor));
+			if (pr_backup)
+				memcpy(pr_backup, _pr, sizeof(struct acpi_processor));
 		}
 		(void)upload_pm_data(_pr);
 	}
 	rc = check_acpi_ids(pr_backup);
-	if (rc)
-		goto err_unregister;
 
 	kfree(pr_backup);
+	pr_backup = NULL;
+
+	if (rc)
+		goto err_unregister;
 
 	return 0;
 err_unregister:

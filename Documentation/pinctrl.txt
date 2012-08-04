@@ -152,11 +152,9 @@ static const struct foo_group foo_groups[] = {
 };
 
 
-static int foo_list_groups(struct pinctrl_dev *pctldev, unsigned selector)
+static int foo_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(foo_groups))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(foo_groups);
 }
 
 static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
@@ -175,7 +173,7 @@ static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 static struct pinctrl_ops foo_pctrl_ops = {
-	.list_groups = foo_list_groups,
+	.get_groups_count = foo_get_groups_count,
 	.get_group_name = foo_get_group_name,
 	.get_group_pins = foo_get_group_pins,
 };
@@ -186,13 +184,12 @@ static struct pinctrl_desc foo_desc = {
        .pctlops = &foo_pctrl_ops,
 };
 
-The pin control subsystem will call the .list_groups() function repeatedly
-beginning on 0 until it returns non-zero to determine legal selectors, then
-it will call the other functions to retrieve the name and pins of the group.
-Maintaining the data structure of the groups is up to the driver, this is
-just a simple example - in practice you may need more entries in your group
-structure, for example specific register ranges associated with each group
-and so on.
+The pin control subsystem will call the .get_groups_count() function to
+determine total number of legal selectors, then it will call the other functions
+to retrieve the name and pins of the group. Maintaining the data structure of
+the groups is up to the driver, this is just a simple example - in practice you
+may need more entries in your group structure, for example specific register
+ranges associated with each group and so on.
 
 
 Pin configuration
@@ -606,11 +603,9 @@ static const struct foo_group foo_groups[] = {
 };
 
 
-static int foo_list_groups(struct pinctrl_dev *pctldev, unsigned selector)
+static int foo_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(foo_groups))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(foo_groups);
 }
 
 static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
@@ -629,7 +624,7 @@ static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 static struct pinctrl_ops foo_pctrl_ops = {
-	.list_groups = foo_list_groups,
+	.get_groups_count = foo_get_groups_count,
 	.get_group_name = foo_get_group_name,
 	.get_group_pins = foo_get_group_pins,
 };
@@ -640,7 +635,7 @@ struct foo_pmx_func {
 	const unsigned num_groups;
 };
 
-static const char * const spi0_groups[] = { "spi0_1_grp" };
+static const char * const spi0_groups[] = { "spi0_0_grp", "spi0_1_grp" };
 static const char * const i2c0_groups[] = { "i2c0_grp" };
 static const char * const mmc0_groups[] = { "mmc0_1_grp", "mmc0_2_grp",
 					"mmc0_3_grp" };
@@ -663,11 +658,9 @@ static const struct foo_pmx_func foo_functions[] = {
 	},
 };
 
-int foo_list_funcs(struct pinctrl_dev *pctldev, unsigned selector)
+int foo_get_functions_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(foo_functions))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(foo_functions);
 }
 
 const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
@@ -703,7 +696,7 @@ void foo_disable(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 struct pinmux_ops foo_pmxops = {
-	.list_functions = foo_list_funcs,
+	.get_functions_count = foo_get_functions_count,
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
 	.enable = foo_enable,
@@ -786,7 +779,7 @@ and spi on the second function mapping:
 
 #include <linux/pinctrl/machine.h>
 
-static const struct pinctrl_map __initdata mapping[] = {
+static const struct pinctrl_map mapping[] __initconst = {
 	{
 		.dev_name = "foo-spi.0",
 		.name = PINCTRL_STATE_DEFAULT,
@@ -952,13 +945,13 @@ case), we define a mapping like this:
 The result of grabbing this mapping from the device with something like
 this (see next paragraph):
 
-	p = pinctrl_get(dev);
+	p = devm_pinctrl_get(dev);
 	s = pinctrl_lookup_state(p, "8bit");
 	ret = pinctrl_select_state(p, s);
 
 or more simply:
 
-	p = pinctrl_get_select(dev, "8bit");
+	p = devm_pinctrl_get_select(dev, "8bit");
 
 Will be that you activate all the three bottom records in the mapping at
 once. Since they share the same name, pin controller device, function and
@@ -992,7 +985,7 @@ foo_probe()
 	/* Allocate a state holder named "foo" etc */
 	struct foo_state *foo = ...;
 
-	foo->p = pinctrl_get(&device);
+	foo->p = devm_pinctrl_get(&device);
 	if (IS_ERR(foo->p)) {
 		/* FIXME: clean up "foo" here */
 		return PTR_ERR(foo->p);
@@ -1000,22 +993,15 @@ foo_probe()
 
 	foo->s = pinctrl_lookup_state(foo->p, PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(foo->s)) {
-		pinctrl_put(foo->p);
 		/* FIXME: clean up "foo" here */
 		return PTR_ERR(s);
 	}
 
 	ret = pinctrl_select_state(foo->s);
 	if (ret < 0) {
-		pinctrl_put(foo->p);
 		/* FIXME: clean up "foo" here */
 		return ret;
 	}
-}
-
-foo_remove()
-{
-	pinctrl_put(state->p);
 }
 
 This get/lookup/select/put sequence can just as well be handled by bus drivers
@@ -1029,6 +1015,11 @@ The semantics of the pinctrl APIs are:
   kernel memory to hold the pinmux state. All mapping table parsing or similar
   slow operations take place within this API.
 
+- devm_pinctrl_get() is a variant of pinctrl_get() that causes pinctrl_put()
+  to be called automatically on the retrieved pointer when the associated
+  device is removed. It is recommended to use this function over plain
+  pinctrl_get().
+
 - pinctrl_lookup_state() is called in process context to obtain a handle to a
   specific state for a the client device. This operation may be slow too.
 
@@ -1041,14 +1032,30 @@ The semantics of the pinctrl APIs are:
 
 - pinctrl_put() frees all information associated with a pinctrl handle.
 
+- devm_pinctrl_put() is a variant of pinctrl_put() that may be used to
+  explicitly destroy a pinctrl object returned by devm_pinctrl_get().
+  However, use of this function will be rare, due to the automatic cleanup
+  that will occur even without calling it.
+
+  pinctrl_get() must be paired with a plain pinctrl_put().
+  pinctrl_get() may not be paired with devm_pinctrl_put().
+  devm_pinctrl_get() can optionally be paired with devm_pinctrl_put().
+  devm_pinctrl_get() may not be paired with plain pinctrl_put().
+
 Usually the pin control core handled the get/put pair and call out to the
 device drivers bookkeeping operations, like checking available functions and
 the associated pins, whereas the enable/disable pass on to the pin controller
 driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
-The pins are allocated for your device when you issue the pinctrl_get() call,
-after this you should be able to see this in the debugfs listing of all pins.
+The pins are allocated for your device when you issue the devm_pinctrl_get()
+call, after this you should be able to see this in the debugfs listing of all
+pins.
+
+NOTE: the pinctrl system will return -EPROBE_DEFER if it cannot find the
+requested pinctrl handles, for example if the pinctrl driver has not yet
+registered. Thus make sure that the error path in your driver gracefully
+cleans up and is ready to retry the probing later in the startup process.
 
 
 System pin control hogging
@@ -1094,13 +1101,13 @@ it, disables and releases it, and muxes it in on the pins defined by group B:
 
 #include <linux/pinctrl/consumer.h>
 
-foo_switch()
-{
-	struct pinctrl *p;
-	struct pinctrl_state *s1, *s2;
+struct pinctrl *p;
+struct pinctrl_state *s1, *s2;
 
+foo_probe()
+{
 	/* Setup */
-	p = pinctrl_get(&device);
+	p = devm_pinctrl_get(&device);
 	if (IS_ERR(p))
 		...
 
@@ -1111,7 +1118,10 @@ foo_switch()
 	s2 = pinctrl_lookup_state(foo->p, "pos-B");
 	if (IS_ERR(s2))
 		...
+}
 
+foo_switch()
+{
 	/* Enable on position A */
 	ret = pinctrl_select_state(s1);
 	if (ret < 0)
@@ -1125,8 +1135,6 @@ foo_switch()
 	    ...
 
 	...
-
-	pinctrl_put(p);
 }
 
 The above has to be done from process context.

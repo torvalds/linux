@@ -87,7 +87,6 @@ TODO:
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include "comedi_pci.h"
 #include "8253.h"
 #include "8255.h"
 #include "plx9080.h"
@@ -1026,31 +1025,6 @@ static const struct pcidas64_board pcidas64_boards[] = {
 #endif
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pcidas64_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0036) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0037) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0052) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005d) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005e) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0061) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0062) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0063) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0064) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0066) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0067) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0068) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x006f) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0078) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0079) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pcidas64_pci_table);
-
 static inline struct pcidas64_board *board(const struct comedi_device *dev)
 {
 	return (struct pcidas64_board *)dev->board_ptr;
@@ -1073,8 +1047,6 @@ struct ext_clock_info {
 
 /* this structure is for data unique to this hardware driver. */
 struct pcidas64_private {
-
-	struct pci_dev *hw_dev;	/*  pointer to board's pci_dev struct */
 	/*  base addresses (physical) */
 	resource_size_t plx9080_phys_iobase;
 	resource_size_t main_phys_iobase;
@@ -1127,21 +1099,6 @@ static inline struct pcidas64_private *priv(struct comedi_device *dev)
 	return dev->private;
 }
 
-/*
- * The comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int detach(struct comedi_device *dev);
-static struct comedi_driver driver_cb_pcidas = {
-	.driver_name = "cb_pcidas64",
-	.module = THIS_MODULE,
-	.attach = attach,
-	.detach = detach,
-};
-
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data);
 static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -1193,7 +1150,7 @@ static int eeprom_read_insn(struct comedi_device *dev,
 static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static void i2c_write(struct comedi_device *dev, unsigned int address,
-		      const uint8_t * data, unsigned int length);
+		      const uint8_t *data, unsigned int length);
 static void caldac_write(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value);
 static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
@@ -1215,44 +1172,6 @@ static void enable_ai_interrupts(struct comedi_device *dev,
 static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 static void load_ao_dma(struct comedi_device *dev,
 			const struct comedi_cmd *cmd);
-
-static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
-						const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
-}
-
-static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_cb_pcidas_pci_driver = {
-	.id_table = pcidas64_pci_table,
-	.probe = &driver_cb_pcidas_pci_probe,
-	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
-};
-
-static int __init driver_cb_pcidas_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_cb_pcidas);
-	if (retval < 0)
-		return retval;
-
-	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
-	return pci_register_driver(&driver_cb_pcidas_pci_driver);
-}
-
-static void __exit driver_cb_pcidas_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
-	comedi_driver_unregister(&driver_cb_pcidas);
-}
-
-module_init(driver_cb_pcidas_init_module);
-module_exit(driver_cb_pcidas_cleanup_module);
 
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 				       unsigned int range_index)
@@ -1308,7 +1227,7 @@ static unsigned int hw_revision(const struct comedi_device *dev,
 }
 
 static void set_dac_range_bits(struct comedi_device *dev,
-			       volatile uint16_t * bits, unsigned int channel,
+			       volatile uint16_t *bits, unsigned int channel,
 			       unsigned int range)
 {
 	unsigned int code = board(dev)->ao_range_code[range];
@@ -1423,9 +1342,11 @@ static int setup_subdevices(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	void __iomem *dio_8255_iobase;
 	int i;
+	int ret;
 
-	if (alloc_subdevices(dev, 10) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 10);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog input subdevice */
@@ -1630,12 +1551,13 @@ static void init_stc_registers(struct comedi_device *dev)
 
 static int alloc_and_init_dma_members(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int i;
 
 	/*  alocate pci dma buffers */
 	for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 		priv(dev)->ai_buffer[i] =
-		    pci_alloc_consistent(priv(dev)->hw_dev, DMA_BUFFER_SIZE,
+		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 					 &priv(dev)->ai_buffer_bus_addr[i]);
 		if (priv(dev)->ai_buffer[i] == NULL)
 			return -ENOMEM;
@@ -1644,7 +1566,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board(dev))) {
 			priv(dev)->ao_buffer[i] =
-			    pci_alloc_consistent(priv(dev)->hw_dev,
+			    pci_alloc_consistent(pcidev,
 						 DMA_BUFFER_SIZE,
 						 &priv(dev)->
 						 ao_buffer_bus_addr[i]);
@@ -1655,7 +1577,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	}
 	/*  allocate dma descriptors */
 	priv(dev)->ai_dma_desc =
-	    pci_alloc_consistent(priv(dev)->hw_dev,
+	    pci_alloc_consistent(pcidev,
 				 sizeof(struct plx_dma_desc) *
 				 ai_dma_ring_count(board(dev)),
 				 &priv(dev)->ai_dma_desc_bus_addr);
@@ -1666,7 +1588,7 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		    priv(dev)->ai_dma_desc_bus_addr);
 	if (ao_cmd_is_supported(board(dev))) {
 		priv(dev)->ao_dma_desc =
-		    pci_alloc_consistent(priv(dev)->hw_dev,
+		    pci_alloc_consistent(pcidev,
 					 sizeof(struct plx_dma_desc) *
 					 AO_DMA_RING_COUNT,
 					 &priv(dev)->ao_dma_desc_bus_addr);
@@ -1727,14 +1649,43 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
 }
 
+static struct pci_dev *cb_pcidas64_find_pci_dev(struct comedi_device *dev,
+						struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++) {
+			if (pcidas64_boards[i].device_id != pcidev->device)
+				continue;
+			dev->board_ptr = pcidas64_boards + i;
+			return pcidev;
+		}
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
  */
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev = NULL;
-	int index;
+	struct pci_dev *pcidev;
 	uint32_t local_range, local_decode;
 	int retval;
 
@@ -1744,45 +1695,14 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_private(dev, sizeof(struct pcidas64_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Probe the device to determine what device in the series it is.
- */
-
-	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
-		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < ARRAY_SIZE(pcidas64_boards); index++) {
-			if (pcidas64_boards[index].device_id != pcidev->device)
-				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			priv(dev)->hw_dev = pcidev;
-			dev->board_ptr = pcidas64_boards + index;
-			break;
-		}
-		if (dev->board_ptr)
-			break;
-	}
-
-	if (dev->board_ptr == NULL) {
-		printk
-		    ("No supported ComputerBoards/MeasurementComputing card found\n");
+	pcidev = cb_pcidas64_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	dev_dbg(dev->hw_dev, "Found %s on bus %i, slot %i\n", board(dev)->name,
-		pcidev->bus->number, PCI_SLOT(pcidev->devfn));
-
-	if (comedi_pci_enable(pcidev, driver_cb_pcidas.driver_name)) {
-		dev_warn(dev->hw_dev, "failed to enable PCI device and request regions\n");
+	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
+		dev_warn(dev->class_dev,
+			 "failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 	pci_set_master(pcidev);
@@ -1790,10 +1710,11 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Initialize dev->board_name */
 	dev->board_name = board(dev)->name;
 
+	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+
 	priv(dev)->plx9080_phys_iobase =
 	    pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	priv(dev)->main_phys_iobase =
-	    pci_resource_start(pcidev, MAIN_BADDRINDEX);
+	priv(dev)->main_phys_iobase = dev->iobase;
 	priv(dev)->dio_counter_phys_iobase =
 	    pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
 
@@ -1810,7 +1731,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (!priv(dev)->plx9080_iobase || !priv(dev)->main_iobase
 	    || !priv(dev)->dio_counter_iobase) {
-		dev_warn(dev->hw_dev, "failed to remap io memory\n");
+		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
 	}
 
@@ -1846,19 +1767,19 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	priv(dev)->hw_revision =
 	    hw_revision(dev, readw(priv(dev)->main_iobase + HW_STATUS_REG));
-	dev_dbg(dev->hw_dev, "stc hardware revision %i\n",
+	dev_dbg(dev->class_dev, "stc hardware revision %i\n",
 		priv(dev)->hw_revision);
 	init_plx9080(dev);
 	init_stc_registers(dev);
 	/*  get irq */
 	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
 			"cb_pcidas64", dev)) {
-		dev_dbg(dev->hw_dev, "unable to allocate irq %u\n",
+		dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
 			pcidev->irq);
 		return -EINVAL;
 	}
 	dev->irq = pcidev->irq;
-	dev_dbg(dev->hw_dev, "irq %u\n", dev->irq);
+	dev_dbg(dev->class_dev, "irq %u\n", dev->irq);
 
 	retval = setup_subdevices(dev);
 	if (retval < 0)
@@ -1868,22 +1789,15 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static int detach(struct comedi_device *dev)
+static void detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	unsigned int i;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (priv(dev)) {
-		if (priv(dev)->hw_dev) {
+		if (pcidev) {
 			if (priv(dev)->plx9080_iobase) {
 				disable_plx_interrupts(dev);
 				iounmap(priv(dev)->plx9080_iobase);
@@ -1895,7 +1809,7 @@ static int detach(struct comedi_device *dev)
 			/*  free pci dma buffers */
 			for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
 				if (priv(dev)->ai_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					pci_free_consistent(pcidev,
 							    DMA_BUFFER_SIZE,
 							    priv(dev)->
 							    ai_buffer[i],
@@ -1905,7 +1819,7 @@ static int detach(struct comedi_device *dev)
 			}
 			for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 				if (priv(dev)->ao_buffer[i])
-					pci_free_consistent(priv(dev)->hw_dev,
+					pci_free_consistent(pcidev,
 							    DMA_BUFFER_SIZE,
 							    priv(dev)->
 							    ao_buffer[i],
@@ -1915,7 +1829,7 @@ static int detach(struct comedi_device *dev)
 			}
 			/*  free dma descriptors */
 			if (priv(dev)->ai_dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				pci_free_consistent(pcidev,
 						    sizeof(struct plx_dma_desc)
 						    *
 						    ai_dma_ring_count(board
@@ -1924,22 +1838,22 @@ static int detach(struct comedi_device *dev)
 						    priv(dev)->
 						    ai_dma_desc_bus_addr);
 			if (priv(dev)->ao_dma_desc)
-				pci_free_consistent(priv(dev)->hw_dev,
+				pci_free_consistent(pcidev,
 						    sizeof(struct plx_dma_desc)
 						    * AO_DMA_RING_COUNT,
 						    priv(dev)->ao_dma_desc,
 						    priv(dev)->
 						    ao_dma_desc_bus_addr);
-			if (priv(dev)->main_phys_iobase)
-				comedi_pci_disable(priv(dev)->hw_dev);
-
-			pci_dev_put(priv(dev)->hw_dev);
 		}
 	}
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 4);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
 
-	return 0;
+		pci_dev_put(pcidev);
+	}
 }
 
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -2089,7 +2003,7 @@ static int ai_config_calibration_source(struct comedi_device *dev,
 	else
 		num_calibration_sources = 8;
 	if (source >= num_calibration_sources) {
-		dev_dbg(dev->hw_dev, "invalid calibration source: %i\n",
+		dev_dbg(dev->class_dev, "invalid calibration source: %i\n",
 			source);
 		return -EINVAL;
 	}
@@ -2921,7 +2835,8 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 		}
 
 		if (num_samples < 0) {
-			dev_err(dev->hw_dev, "cb_pcidas64: bug! num_samples < 0\n");
+			dev_err(dev->class_dev,
+				"cb_pcidas64: bug! num_samples < 0\n");
 			break;
 		}
 
@@ -3702,7 +3617,7 @@ static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -3718,7 +3633,7 @@ static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static int dio_60xx_config_insn(struct comedi_device *dev,
@@ -3761,7 +3676,7 @@ static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = readb(priv(dev)->dio_counter_iobase + DIO_DATA_60XX_REG);
 
-	return 2;
+	return insn->n;
 }
 
 static void caldac_write(struct comedi_device *dev, unsigned int channel,
@@ -4279,7 +4194,7 @@ static void i2c_stop(struct comedi_device *dev)
 }
 
 static void i2c_write(struct comedi_device *dev, unsigned int address,
-		      const uint8_t * data, unsigned int length)
+		      const uint8_t *data, unsigned int length)
 {
 	unsigned int i;
 	uint8_t bitstream;
@@ -4314,6 +4229,56 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	}
 	i2c_stop(dev);
 }
+
+static struct comedi_driver cb_pcidas64_driver = {
+	.driver_name	= "cb_pcidas64",
+	.module		= THIS_MODULE,
+	.attach		= attach,
+	.detach		= detach,
+};
+
+static int __devinit cb_pcidas64_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &cb_pcidas64_driver);
+}
+
+static void __devexit cb_pcidas64_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(cb_pcidas64_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0035) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0036) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0037) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0052) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005e) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x005f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0061) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0062) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0063) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0064) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0066) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0067) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0068) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x006f) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0078) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPUTERBOARDS, 0x0079) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, cb_pcidas64_pci_table);
+
+static struct pci_driver cb_pcidas64_pci_driver = {
+	.name		= "cb_pcidas64",
+	.id_table	= cb_pcidas64_pci_table,
+	.probe		= cb_pcidas64_pci_probe,
+	.remove		= __devexit_p(cb_pcidas64_pci_remove),
+};
+module_comedi_pci_driver(cb_pcidas64_driver, cb_pcidas64_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

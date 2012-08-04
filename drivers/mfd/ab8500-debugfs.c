@@ -31,12 +31,12 @@ struct ab8500_reg_range {
 };
 
 /**
- * struct ab8500_i2c_ranges
+ * struct ab8500_prcmu_ranges
  * @num_ranges: the number of ranges in the list
  * @bankid: bank identifier
  * @range: the list of register ranges
  */
-struct ab8500_i2c_ranges {
+struct ab8500_prcmu_ranges {
 	u8 num_ranges;
 	u8 bankid;
 	const struct ab8500_reg_range *range;
@@ -47,7 +47,7 @@ struct ab8500_i2c_ranges {
 
 #define AB8500_REV_REG 0x80
 
-static struct ab8500_i2c_ranges debug_ranges[AB8500_NUM_BANKS] = {
+static struct ab8500_prcmu_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	[0x0] = {
 		.num_ranges = 0,
 		.range = 0,

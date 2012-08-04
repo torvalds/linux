@@ -165,8 +165,8 @@ struct fid {
  */
 
 struct export_operations {
-	int (*encode_fh)(struct dentry *de, __u32 *fh, int *max_len,
-			int connectable);
+	int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,
+			struct inode *parent);
 	struct dentry * (*fh_to_dentry)(struct super_block *sb, struct fid *fid,
 			int fh_len, int fh_type);
 	struct dentry * (*fh_to_parent)(struct super_block *sb, struct fid *fid,

@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 #include <asm/mach-types.h>
@@ -246,7 +247,7 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 	unsigned long val, flags;
 	void __iomem *base = phy->pad_regs;
 
-	clk_enable(phy->pad_clk);
+	clk_prepare_enable(phy->pad_clk);
 
 	spin_lock_irqsave(&utmip_pad_lock, flags);
 
@@ -258,7 +259,7 @@ static void utmip_pad_power_on(struct tegra_usb_phy *phy)
 
 	spin_unlock_irqrestore(&utmip_pad_lock, flags);
 
-	clk_disable(phy->pad_clk);
+	clk_disable_unprepare(phy->pad_clk);
 }
 
 static int utmip_pad_power_off(struct tegra_usb_phy *phy)
@@ -271,7 +272,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 		return -EINVAL;
 	}
 
-	clk_enable(phy->pad_clk);
+	clk_prepare_enable(phy->pad_clk);
 
 	spin_lock_irqsave(&utmip_pad_lock, flags);
 
@@ -283,7 +284,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy)
 
 	spin_unlock_irqrestore(&utmip_pad_lock, flags);
 
-	clk_disable(phy->pad_clk);
+	clk_disable_unprepare(phy->pad_clk);
 
 	return 0;
 }
@@ -579,7 +580,7 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	msleep(5);
 	gpio_direction_output(config->reset_gpio, 1);
 
-	clk_enable(phy->clk);
+	clk_prepare_enable(phy->clk);
 	msleep(1);
 
 	val = readl(base + USB_SUSP_CTRL);
@@ -654,8 +655,8 @@ static void ulpi_phy_power_off(struct tegra_usb_phy *phy)
 	clk_disable(phy->clk);
 }
 
-struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
-			void *config, enum tegra_usb_phy_mode phy_mode)
+struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
+	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode)
 {
 	struct tegra_usb_phy *phy;
 	struct tegra_ulpi_config *ulpi_config;
@@ -688,7 +689,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 		err = PTR_ERR(phy->pll_u);
 		goto err0;
 	}
-	clk_enable(phy->pll_u);
+	clk_prepare_enable(phy->pll_u);
 
 	parent_rate = clk_get_rate(clk_get_parent(phy->pll_u));
 	for (i = 0; i < ARRAY_SIZE(tegra_freq_table); i++) {
@@ -711,7 +712,16 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 			err = -ENXIO;
 			goto err1;
 		}
-		tegra_gpio_enable(ulpi_config->reset_gpio);
+		if (!gpio_is_valid(ulpi_config->reset_gpio))
+			ulpi_config->reset_gpio =
+				of_get_named_gpio(dev->of_node,
+						  "nvidia,phy-reset-gpio", 0);
+		if (!gpio_is_valid(ulpi_config->reset_gpio)) {
+			pr_err("%s: invalid reset gpio: %d\n", __func__,
+			       ulpi_config->reset_gpio);
+			err = -EINVAL;
+			goto err1;
+		}
 		gpio_request(ulpi_config->reset_gpio, "ulpi_phy_reset_b");
 		gpio_direction_output(ulpi_config->reset_gpio, 0);
 		phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
@@ -725,7 +735,7 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs,
 	return phy;
 
 err1:
-	clk_disable(phy->pll_u);
+	clk_disable_unprepare(phy->pll_u);
 	clk_put(phy->pll_u);
 err0:
 	kfree(phy);
@@ -800,7 +810,7 @@ void tegra_usb_phy_close(struct tegra_usb_phy *phy)
 		clk_put(phy->clk);
 	else
 		utmip_pad_close(phy);
-	clk_disable(phy->pll_u);
+	clk_disable_unprepare(phy->pll_u);
 	clk_put(phy->pll_u);
 	kfree(phy);
 }

@@ -1,6 +1,4 @@
 /*
- *  arch/s390/kernel/early.c
- *
  *    Copyright IBM Corp. 2007, 2009
  *    Author(s): Hongjie Yang <hongjie@us.ibm.com>,
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
@@ -237,7 +235,7 @@ static noinline __init void detect_machine_type(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
-static __init void early_pgm_check_handler(void)
+static void early_pgm_check_handler(void)
 {
 	unsigned long addr;
 	const struct exception_table_entry *fixup;
@@ -374,8 +372,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
-	if (test_facility(25))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_STCKF;
 #endif
 }
 
@@ -459,7 +455,6 @@ void __init startup_init(void)
 	init_kernel_storage_key();
 	lockdep_init();
 	lockdep_off();
-	sort_main_extable();
 	setup_lowcore_early();
 	setup_facility_list();
 	detect_machine_type();

@@ -321,9 +321,7 @@
 #define DISABLE_STATISTIC_COUNTER_ID_VALUE 0
 
 
-/**
- * This file defines HSI constants common to all microcode flows
- */
+/* This file defines HSI constants common to all microcode flows */
 
 #define PROTOCOL_STATE_BIT_OFFSET 6
 
@@ -387,7 +385,7 @@
 
 #define STATS_QUERY_CMD_COUNT 16
 
-#define NIV_LIST_TABLE_SIZE 4096
+#define AFEX_LIST_TABLE_SIZE 4096
 
 #define INVALID_VNIC_ID	0xFF
 

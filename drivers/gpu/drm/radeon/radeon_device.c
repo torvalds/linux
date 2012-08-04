@@ -96,8 +96,12 @@ static const char radeon_family_name[][16] = {
 	"LAST",
 };
 
-/*
- * Clear GPU surface registers.
+/**
+ * radeon_surface_init - Clear GPU surface registers.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Clear GPU surface registers (r1xx-r5xx).
  */
 void radeon_surface_init(struct radeon_device *rdev)
 {
@@ -119,6 +123,13 @@ void radeon_surface_init(struct radeon_device *rdev)
 /*
  * GPU scratch registers helpers function.
  */
+/**
+ * radeon_scratch_init - Init scratch register driver information.
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Init CP scratch register driver information (r1xx-r5xx)
+ */
 void radeon_scratch_init(struct radeon_device *rdev)
 {
 	int i;
@@ -136,6 +147,15 @@ void radeon_scratch_init(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_scratch_get - Allocate a scratch register
+ *
+ * @rdev: radeon_device pointer
+ * @reg: scratch register mmio offset
+ *
+ * Allocate a CP scratch register for use by the driver (all asics).
+ * Returns 0 on success or -EINVAL on failure.
+ */
 int radeon_scratch_get(struct radeon_device *rdev, uint32_t *reg)
 {
 	int i;
@@ -150,6 +170,14 @@ int radeon_scratch_get(struct radeon_device *rdev, uint32_t *reg)
 	return -EINVAL;
 }
 
+/**
+ * radeon_scratch_free - Free a scratch register
+ *
+ * @rdev: radeon_device pointer
+ * @reg: scratch register mmio offset
+ *
+ * Free a CP scratch register allocated for use by the driver (all asics)
+ */
 void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 {
 	int i;
@@ -162,6 +190,20 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg)
 	}
 }
 
+/*
+ * radeon_wb_*()
+ * Writeback is the the method by which the the GPU updates special pages
+ * in memory with the status of certain GPU events (fences, ring pointers,
+ * etc.).
+ */
+
+/**
+ * radeon_wb_disable - Disable Writeback
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Disables Writeback (all asics).  Used for suspend.
+ */
 void radeon_wb_disable(struct radeon_device *rdev)
 {
 	int r;
@@ -177,6 +219,14 @@ void radeon_wb_disable(struct radeon_device *rdev)
 	rdev->wb.enabled = false;
 }
 
+/**
+ * radeon_wb_fini - Disable Writeback and free memory
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Disables Writeback and frees the Writeback memory (all asics).
+ * Used at driver shutdown.
+ */
 void radeon_wb_fini(struct radeon_device *rdev)
 {
 	radeon_wb_disable(rdev);
@@ -187,13 +237,22 @@ void radeon_wb_fini(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_wb_init- Init Writeback driver info and allocate memory
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Disables Writeback and frees the Writeback memory (all asics).
+ * Used at driver startup.
+ * Returns 0 on success or an -error on failure.
+ */
 int radeon_wb_init(struct radeon_device *rdev)
 {
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
 		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
+				     RADEON_GEM_DOMAIN_GTT, NULL, &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);
 			return r;
@@ -225,9 +284,9 @@ int radeon_wb_init(struct radeon_device *rdev)
 	/* disable event_write fences */
 	rdev->wb.use_event = false;
 	/* disabled via module param */
-	if (radeon_no_wb == 1)
+	if (radeon_no_wb == 1) {
 		rdev->wb.enabled = false;
-	else {
+	} else {
 		if (rdev->flags & RADEON_IS_AGP) {
 			/* often unreliable on AGP */
 			rdev->wb.enabled = false;
@@ -237,8 +296,9 @@ int radeon_wb_init(struct radeon_device *rdev)
 		} else {
 			rdev->wb.enabled = true;
 			/* event_write fences are only available on r600+ */
-			if (rdev->family >= CHIP_R600)
+			if (rdev->family >= CHIP_R600) {
 				rdev->wb.use_event = true;
+			}
 		}
 	}
 	/* always use writeback/events on NI, APUs */
@@ -354,6 +414,15 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 /*
  * GPU helpers function.
  */
+/**
+ * radeon_card_posted - check if the hw has already been initialized
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Check if the asic has been initialized (all asics).
+ * Used at driver startup.
+ * Returns true if initialized or false if not.
+ */
 bool radeon_card_posted(struct radeon_device *rdev)
 {
 	uint32_t reg;
@@ -403,6 +472,14 @@ bool radeon_card_posted(struct radeon_device *rdev)
 
 }
 
+/**
+ * radeon_update_bandwidth_info - update display bandwidth params
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Used when sclk/mclk are switched or display modes are set.
+ * params are used to calculate display watermarks (all asics)
+ */
 void radeon_update_bandwidth_info(struct radeon_device *rdev)
 {
 	fixed20_12 a;
@@ -423,6 +500,15 @@ void radeon_update_bandwidth_info(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_boot_test_post_card - check and possibly initialize the hw
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Check if the asic is initialized and if not, attempt to initialize
+ * it (all asics).
+ * Returns true if initialized or false if not.
+ */
 bool radeon_boot_test_post_card(struct radeon_device *rdev)
 {
 	if (radeon_card_posted(rdev))
@@ -441,6 +527,16 @@ bool radeon_boot_test_post_card(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_dummy_page_init - init dummy page used by the driver
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Allocate the dummy page used by the driver (all asics).
+ * This dummy page is used by the driver as a filler for gart entries
+ * when pages are taken out of the GART
+ * Returns 0 on sucess, -ENOMEM on failure.
+ */
 int radeon_dummy_page_init(struct radeon_device *rdev)
 {
 	if (rdev->dummy_page.page)
@@ -459,6 +555,13 @@ int radeon_dummy_page_init(struct radeon_device *rdev)
 	return 0;
 }
 
+/**
+ * radeon_dummy_page_fini - free dummy page used by the driver
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Frees the dummy page used by the driver (all asics).
+ */
 void radeon_dummy_page_fini(struct radeon_device *rdev)
 {
 	if (rdev->dummy_page.page == NULL)
@@ -471,6 +574,23 @@ void radeon_dummy_page_fini(struct radeon_device *rdev)
 
 
 /* ATOM accessor methods */
+/*
+ * ATOM is an interpreted byte code stored in tables in the vbios.  The
+ * driver registers callbacks to access registers and the interpreter
+ * in the driver parses the tables and executes then to program specific
+ * actions (set display modes, asic init, etc.).  See radeon_atombios.c,
+ * atombios.h, and atom.c
+ */
+
+/**
+ * cail_pll_read - read PLL register
+ *
+ * @info: atom card_info pointer
+ * @reg: PLL register offset
+ *
+ * Provides a PLL register accessor for the atom interpreter (r4xx+).
+ * Returns the value of the PLL register.
+ */
 static uint32_t cail_pll_read(struct card_info *info, uint32_t reg)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -480,6 +600,15 @@ static uint32_t cail_pll_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
+/**
+ * cail_pll_write - write PLL register
+ *
+ * @info: atom card_info pointer
+ * @reg: PLL register offset
+ * @val: value to write to the pll register
+ *
+ * Provides a PLL register accessor for the atom interpreter (r4xx+).
+ */
 static void cail_pll_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -487,6 +616,15 @@ static void cail_pll_write(struct card_info *info, uint32_t reg, uint32_t val)
 	rdev->pll_wreg(rdev, reg, val);
 }
 
+/**
+ * cail_mc_read - read MC (Memory Controller) register
+ *
+ * @info: atom card_info pointer
+ * @reg: MC register offset
+ *
+ * Provides an MC register accessor for the atom interpreter (r4xx+).
+ * Returns the value of the MC register.
+ */
 static uint32_t cail_mc_read(struct card_info *info, uint32_t reg)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -496,6 +634,15 @@ static uint32_t cail_mc_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
+/**
+ * cail_mc_write - write MC (Memory Controller) register
+ *
+ * @info: atom card_info pointer
+ * @reg: MC register offset
+ * @val: value to write to the pll register
+ *
+ * Provides a MC register accessor for the atom interpreter (r4xx+).
+ */
 static void cail_mc_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -503,6 +650,15 @@ static void cail_mc_write(struct card_info *info, uint32_t reg, uint32_t val)
 	rdev->mc_wreg(rdev, reg, val);
 }
 
+/**
+ * cail_reg_write - write MMIO register
+ *
+ * @info: atom card_info pointer
+ * @reg: MMIO register offset
+ * @val: value to write to the pll register
+ *
+ * Provides a MMIO register accessor for the atom interpreter (r4xx+).
+ */
 static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -510,6 +666,15 @@ static void cail_reg_write(struct card_info *info, uint32_t reg, uint32_t val)
 	WREG32(reg*4, val);
 }
 
+/**
+ * cail_reg_read - read MMIO register
+ *
+ * @info: atom card_info pointer
+ * @reg: MMIO register offset
+ *
+ * Provides an MMIO register accessor for the atom interpreter (r4xx+).
+ * Returns the value of the MMIO register.
+ */
 static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -519,6 +684,15 @@ static uint32_t cail_reg_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
+/**
+ * cail_ioreg_write - write IO register
+ *
+ * @info: atom card_info pointer
+ * @reg: IO register offset
+ * @val: value to write to the pll register
+ *
+ * Provides a IO register accessor for the atom interpreter (r4xx+).
+ */
 static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -526,6 +700,15 @@ static void cail_ioreg_write(struct card_info *info, uint32_t reg, uint32_t val)
 	WREG32_IO(reg*4, val);
 }
 
+/**
+ * cail_ioreg_read - read IO register
+ *
+ * @info: atom card_info pointer
+ * @reg: IO register offset
+ *
+ * Provides an IO register accessor for the atom interpreter (r4xx+).
+ * Returns the value of the IO register.
+ */
 static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 {
 	struct radeon_device *rdev = info->dev->dev_private;
@@ -535,6 +718,16 @@ static uint32_t cail_ioreg_read(struct card_info *info, uint32_t reg)
 	return r;
 }
 
+/**
+ * radeon_atombios_init - init the driver info and callbacks for atombios
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Initializes the driver info and register access callbacks for the
+ * ATOM interpreter (r4xx+).
+ * Returns 0 on sucess, -ENOMEM on failure.
+ * Called at driver startup.
+ */
 int radeon_atombios_init(struct radeon_device *rdev)
 {
 	struct card_info *atom_card_info =
@@ -568,6 +761,15 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	return 0;
 }
 
+/**
+ * radeon_atombios_fini - free the driver info and callbacks for atombios
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Frees the driver info and register access callbacks for the ATOM
+ * interpreter (r4xx+).
+ * Called at driver shutdown.
+ */
 void radeon_atombios_fini(struct radeon_device *rdev)
 {
 	if (rdev->mode_info.atom_context) {
@@ -577,17 +779,50 @@ void radeon_atombios_fini(struct radeon_device *rdev)
 	kfree(rdev->mode_info.atom_card_info);
 }
 
+/* COMBIOS */
+/*
+ * COMBIOS is the bios format prior to ATOM. It provides
+ * command tables similar to ATOM, but doesn't have a unified
+ * parser.  See radeon_combios.c
+ */
+
+/**
+ * radeon_combios_init - init the driver info for combios
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Initializes the driver info for combios (r1xx-r3xx).
+ * Returns 0 on sucess.
+ * Called at driver startup.
+ */
 int radeon_combios_init(struct radeon_device *rdev)
 {
 	radeon_combios_initialize_bios_scratch_regs(rdev->ddev);
 	return 0;
 }
 
+/**
+ * radeon_combios_fini - free the driver info for combios
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Frees the driver info for combios (r1xx-r3xx).
+ * Called at driver shutdown.
+ */
 void radeon_combios_fini(struct radeon_device *rdev)
 {
 }
 
-/* if we get transitioned to only one device, tak VGA back */
+/* if we get transitioned to only one device, take VGA back */
+/**
+ * radeon_vga_set_decode - enable/disable vga decode
+ *
+ * @cookie: radeon_device pointer
+ * @state: enable/disable vga decode
+ *
+ * Enable/disable vga decode (all asics).
+ * Returns VGA resource flags.
+ */
 static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 {
 	struct radeon_device *rdev = cookie;
@@ -599,6 +834,14 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
+/**
+ * radeon_check_arguments - validate module params
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Validates certain module parameters and updates
+ * the associated values used by the driver (all asics).
+ */
 void radeon_check_arguments(struct radeon_device *rdev)
 {
 	/* vramlimit must be a power of two */
@@ -665,6 +908,15 @@ void radeon_check_arguments(struct radeon_device *rdev)
 	}
 }
 
+/**
+ * radeon_switcheroo_set_state - set switcheroo state
+ *
+ * @pdev: pci dev pointer
+ * @state: vga switcheroo state
+ *
+ * Callback for the switcheroo driver.  Suspends or resumes the
+ * the asics before or after it is powered up using ACPI methods.
+ */
 static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -685,6 +937,15 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 	}
 }
 
+/**
+ * radeon_switcheroo_can_switch - see if switcheroo state can change
+ *
+ * @pdev: pci dev pointer
+ *
+ * Callback for the switcheroo driver.  Check of the switcheroo
+ * state can be changed.
+ * Returns true if the state can be changed, false if not.
+ */
 static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -696,7 +957,24 @@ static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
+static const struct vga_switcheroo_client_ops radeon_switcheroo_ops = {
+	.set_gpu_state = radeon_switcheroo_set_state,
+	.reprobe = NULL,
+	.can_switch = radeon_switcheroo_can_switch,
+};
 
+/**
+ * radeon_device_init - initialize the driver
+ *
+ * @rdev: radeon_device pointer
+ * @pdev: drm dev pointer
+ * @pdev: pci dev pointer
+ * @flags: driver flags
+ *
+ * Initializes the driver info and hw (all asics).
+ * Returns 0 for success or an error on failure.
+ * Called at driver startup.
+ */
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
@@ -714,8 +992,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->is_atom_bios = false;
 	rdev->usec_timeout = RADEON_MAX_USEC_TIMEOUT;
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-	rdev->gpu_lockup = false;
 	rdev->accel_working = false;
+	/* set up ring ids */
+	for (i = 0; i < RADEON_NUM_RINGS; i++) {
+		rdev->ring[i].idx = i;
+	}
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X).\n",
 		radeon_family_name[rdev->family], pdev->vendor, pdev->device,
@@ -723,23 +1004,20 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-	radeon_mutex_init(&rdev->cs_mutex);
-	radeon_mutex_init(&rdev->ib_pool.mutex);
-	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		mutex_init(&rdev->ring[i].mutex);
+	mutex_init(&rdev->ring_lock);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
-	if (rdev->family >= CHIP_R600)
-		spin_lock_init(&rdev->ih.lock);
+	atomic_set(&rdev->ih.lock, 0);
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
-	mutex_init(&rdev->vram_mutex);
-	rwlock_init(&rdev->fence_lock);
-	rwlock_init(&rdev->semaphore_drv.lock);
-	INIT_LIST_HEAD(&rdev->gem.objects);
+	init_rwsem(&rdev->pm.mclk_lock);
+	init_rwsem(&rdev->exclusive_lock);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
-	INIT_LIST_HEAD(&rdev->semaphore_drv.bo);
+	r = radeon_gem_init(rdev);
+	if (r)
+		return r;
 	/* initialize vm here */
+	mutex_init(&rdev->vm_manager.lock);
 	rdev->vm_manager.use_bitmap = 1;
 	rdev->vm_manager.max_pfn = 1 << 20;
 	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
@@ -814,14 +1092,15 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
-	vga_switcheroo_register_client(rdev->pdev,
-				       radeon_switcheroo_set_state,
-				       NULL,
-				       radeon_switcheroo_can_switch);
+	vga_switcheroo_register_client(rdev->pdev, &radeon_switcheroo_ops);
 
 	r = radeon_init(rdev);
 	if (r)
 		return r;
+
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
+		DRM_ERROR("ib ring test failed (%d).\n", r);
 
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again
@@ -848,6 +1127,14 @@ int radeon_device_init(struct radeon_device *rdev,
 
 static void radeon_debugfs_remove_files(struct radeon_device *rdev);
 
+/**
+ * radeon_device_fini - tear down the driver
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the driver info (all asics).
+ * Called at driver shutdown.
+ */
 void radeon_device_fini(struct radeon_device *rdev)
 {
 	DRM_INFO("radeon: finishing device.\n");
@@ -868,6 +1155,16 @@ void radeon_device_fini(struct radeon_device *rdev)
 
 /*
  * Suspend & resume.
+ */
+/**
+ * radeon_suspend_kms - initiate device suspend
+ *
+ * @pdev: drm dev pointer
+ * @state: suspend state
+ *
+ * Puts the hw in the suspend state (all asics).
+ * Returns 0 for success or an error on failure.
+ * Called at driver suspend.
  */
 int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 {
@@ -914,9 +1211,12 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
+
+	mutex_lock(&rdev->ring_lock);
 	/* wait for gpu to finish processing current batch */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_last(rdev, i);
+		radeon_fence_wait_empty_locked(rdev, i);
+	mutex_unlock(&rdev->ring_lock);
 
 	radeon_save_bios_scratch_regs(rdev);
 
@@ -940,10 +1240,20 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	return 0;
 }
 
+/**
+ * radeon_resume_kms - initiate device resume
+ *
+ * @pdev: drm dev pointer
+ *
+ * Bring the hw back to operating state (all asics).
+ * Returns 0 for success or an error on failure.
+ * Called at driver resume.
+ */
 int radeon_resume_kms(struct drm_device *dev)
 {
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
+	int r;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
@@ -955,10 +1265,14 @@ int radeon_resume_kms(struct drm_device *dev)
 		console_unlock();
 		return -1;
 	}
-	pci_set_master(dev->pdev);
 	/* resume AGP if in use */
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
+
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
+		DRM_ERROR("ib ring test failed (%d).\n", r);
+
 	radeon_pm_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
 
@@ -983,35 +1297,77 @@ int radeon_resume_kms(struct drm_device *dev)
 	return 0;
 }
 
+/**
+ * radeon_gpu_reset - reset the asic
+ *
+ * @rdev: radeon device pointer
+ *
+ * Attempt the reset the GPU if it has hung (all asics).
+ * Returns 0 for success or an error on failure.
+ */
 int radeon_gpu_reset(struct radeon_device *rdev)
 {
-	int r;
+	unsigned ring_sizes[RADEON_NUM_RINGS];
+	uint32_t *ring_data[RADEON_NUM_RINGS];
+
+	bool saved = false;
+
+	int i, r;
 	int resched;
 
-	/* Prevent CS ioctl from interfering */
-	radeon_mutex_lock(&rdev->cs_mutex);
-
+	down_write(&rdev->exclusive_lock);
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
 	radeon_suspend(rdev);
 
-	r = radeon_asic_reset(rdev);
-	if (!r) {
-		dev_info(rdev->dev, "GPU reset succeed\n");
-		radeon_resume(rdev);
-		radeon_restore_bios_scratch_regs(rdev);
-		drm_helper_resume_force_mode(rdev->ddev);
-		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		ring_sizes[i] = radeon_ring_backup(rdev, &rdev->ring[i],
+						   &ring_data[i]);
+		if (ring_sizes[i]) {
+			saved = true;
+			dev_info(rdev->dev, "Saved %d dwords of commands "
+				 "on ring %d.\n", ring_sizes[i], i);
+		}
 	}
 
-	radeon_mutex_unlock(&rdev->cs_mutex);
+retry:
+	r = radeon_asic_reset(rdev);
+	if (!r) {
+		dev_info(rdev->dev, "GPU reset succeeded, trying to resume\n");
+		radeon_resume(rdev);
+	}
 
+	radeon_restore_bios_scratch_regs(rdev);
+	drm_helper_resume_force_mode(rdev->ddev);
+
+	if (!r) {
+		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			radeon_ring_restore(rdev, &rdev->ring[i],
+					    ring_sizes[i], ring_data[i]);
+		}
+
+		r = radeon_ib_ring_tests(rdev);
+		if (r) {
+			dev_err(rdev->dev, "ib ring test failed (%d).\n", r);
+			if (saved) {
+				radeon_suspend(rdev);
+				goto retry;
+			}
+		}
+	} else {
+		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			kfree(ring_data[i]);
+		}
+	}
+
+	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	if (r) {
 		/* bad news, how to tell it to userspace ? */
 		dev_info(rdev->dev, "GPU reset failed\n");
 	}
 
+	up_write(&rdev->exclusive_lock);
 	return r;
 }
 

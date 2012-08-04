@@ -124,7 +124,7 @@ static const struct platform_suspend_ops pnx4008_pm_ops = {
 	.valid = pnx4008_pm_valid,
 };
 
-static int __init pnx4008_pm_init(void)
+int __init pnx4008_pm_init(void)
 {
 	u32 sram_size_to_allocate;
 
@@ -151,5 +151,3 @@ static int __init pnx4008_pm_init(void)
 	suspend_set_ops(&pnx4008_pm_ops);
 	return 0;
 }
-
-late_initcall(pnx4008_pm_init);

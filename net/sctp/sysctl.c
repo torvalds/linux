@@ -141,6 +141,15 @@ static ctl_table sctp_table[] = {
 		.extra2		= &int_max
 	},
 	{
+		.procname	= "pf_retrans",
+		.data		= &sctp_pf_retrans,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &int_max
+	},
+	{
 		.procname	= "max_init_retransmits",
 		.data		= &sctp_max_retrans_init,
 		.maxlen		= sizeof(int),
@@ -275,22 +284,16 @@ static ctl_table sctp_table[] = {
 	{ /* sentinel */ }
 };
 
-static struct ctl_path sctp_path[] = {
-	{ .procname = "net", },
-	{ .procname = "sctp", },
-	{ }
-};
-
 static struct ctl_table_header * sctp_sysctl_header;
 
 /* Sysctl registration.  */
 void sctp_sysctl_register(void)
 {
-	sctp_sysctl_header = register_sysctl_paths(sctp_path, sctp_table);
+	sctp_sysctl_header = register_net_sysctl(&init_net, "net/sctp", sctp_table);
 }
 
 /* Sysctl deregistration.  */
 void sctp_sysctl_unregister(void)
 {
-	unregister_sysctl_table(sctp_sysctl_header);
+	unregister_net_sysctl_table(sctp_sysctl_header);
 }

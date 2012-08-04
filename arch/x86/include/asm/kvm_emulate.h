@@ -192,15 +192,15 @@ struct x86_emulate_ops {
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
 
-	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
-			 u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
+	void (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
+			  u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
-	enum { OP_REG, OP_MEM, OP_IMM, OP_XMM, OP_NONE } type;
+	enum { OP_REG, OP_MEM, OP_IMM, OP_XMM, OP_MM, OP_NONE } type;
 	unsigned int bytes;
 	union {
 		unsigned long orig_val;
@@ -213,12 +213,14 @@ struct operand {
 			unsigned seg;
 		} mem;
 		unsigned xmm;
+		unsigned mm;
 	} addr;
 	union {
 		unsigned long val;
 		u64 val64;
 		char valptr[sizeof(unsigned long) + 2];
 		sse128_t vec_val;
+		u64 mm_val;
 	};
 };
 
@@ -278,9 +280,9 @@ struct x86_emulate_ctxt {
 	u8 modrm_seg;
 	bool rip_relative;
 	unsigned long _eip;
+	struct operand memop;
 	/* Fields above regs are cleared together. */
 	unsigned long regs[NR_VCPU_REGS];
-	struct operand memop;
 	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;

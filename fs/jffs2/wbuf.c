@@ -20,6 +20,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
+#include <linux/writeback.h>
 
 #include "nodelist.h"
 
@@ -85,7 +86,7 @@ static void jffs2_wbuf_dirties_inode(struct jffs2_sb_info *c, uint32_t ino)
 {
 	struct jffs2_inodirty *new;
 
-	/* Mark the superblock dirty so that kupdated will flush... */
+	/* Schedule delayed write-buffer write-out */
 	jffs2_dirty_trigger(c);
 
 	if (jffs2_wbuf_pending_for_ino(c, ino))
@@ -1148,6 +1149,47 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	return 1;
 }
 
+static struct jffs2_sb_info *work_to_sb(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+
+	dwork = container_of(work, struct delayed_work, work);
+	return container_of(dwork, struct jffs2_sb_info, wbuf_dwork);
+}
+
+static void delayed_wbuf_sync(struct work_struct *work)
+{
+	struct jffs2_sb_info *c = work_to_sb(work);
+	struct super_block *sb = OFNI_BS_2SFFJ(c);
+
+	spin_lock(&c->wbuf_dwork_lock);
+	c->wbuf_queued = 0;
+	spin_unlock(&c->wbuf_dwork_lock);
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		jffs2_dbg(1, "%s()\n", __func__);
+		jffs2_flush_wbuf_gc(c, 0);
+	}
+}
+
+void jffs2_dirty_trigger(struct jffs2_sb_info *c)
+{
+	struct super_block *sb = OFNI_BS_2SFFJ(c);
+	unsigned long delay;
+
+	if (sb->s_flags & MS_RDONLY)
+		return;
+
+	spin_lock(&c->wbuf_dwork_lock);
+	if (!c->wbuf_queued) {
+		jffs2_dbg(1, "%s()\n", __func__);
+		delay = msecs_to_jiffies(dirty_writeback_interval * 10);
+		queue_delayed_work(system_long_wq, &c->wbuf_dwork, delay);
+		c->wbuf_queued = 1;
+	}
+	spin_unlock(&c->wbuf_dwork_lock);
+}
+
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 {
 	struct nand_ecclayout *oinfo = c->mtd->ecclayout;
@@ -1169,6 +1211,8 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 
 	/* Initialise write buffer */
 	init_rwsem(&c->wbuf_sem);
+	spin_lock_init(&c->wbuf_dwork_lock);
+	INIT_DELAYED_WORK(&c->wbuf_dwork, delayed_wbuf_sync);
 	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
@@ -1207,8 +1251,8 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
-
-
+	spin_lock_init(&c->wbuf_dwork_lock);
+	INIT_DELAYED_WORK(&c->wbuf_dwork, delayed_wbuf_sync);
 	c->wbuf_pagesize =  c->mtd->erasesize;
 
 	/* Find a suitable c->sector_size
@@ -1267,6 +1311,9 @@ int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
 
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
+	spin_lock_init(&c->wbuf_dwork_lock);
+	INIT_DELAYED_WORK(&c->wbuf_dwork, delayed_wbuf_sync);
+
 	c->wbuf_pagesize = c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;
 
@@ -1299,6 +1346,8 @@ int jffs2_ubivol_setup(struct jffs2_sb_info *c) {
 		return 0;
 
 	init_rwsem(&c->wbuf_sem);
+	spin_lock_init(&c->wbuf_dwork_lock);
+	INIT_DELAYED_WORK(&c->wbuf_dwork, delayed_wbuf_sync);
 
 	c->wbuf_pagesize =  c->mtd->writesize;
 	c->wbuf_ofs = 0xFFFFFFFF;

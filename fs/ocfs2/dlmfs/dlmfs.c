@@ -367,7 +367,7 @@ static void dlmfs_evict_inode(struct inode *inode)
 	int status;
 	struct dlmfs_inode_private *ip;
 
-	end_writeback(inode);
+	clear_inode(inode);
 
 	mlog(0, "inode %lu\n", inode->i_ino);
 
@@ -526,7 +526,7 @@ bail:
 static int dlmfs_create(struct inode *dir,
 			struct dentry *dentry,
 			umode_t mode,
-			struct nameidata *nd)
+			bool excl)
 {
 	int status = 0;
 	struct inode *inode;

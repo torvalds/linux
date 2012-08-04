@@ -82,7 +82,7 @@ static int num_l2_ptes[MAX_NUMNODES];
 
 static void init_prealloc_ptes(int node, int pages)
 {
-	BUG_ON(pages & (HV_L2_ENTRIES-1));
+	BUG_ON(pages & (PTRS_PER_PTE - 1));
 	if (pages) {
 		num_l2_ptes[node] = pages;
 		l2_ptes[node] = __alloc_bootmem(pages * sizeof(pte_t),
@@ -131,14 +131,9 @@ static void __init assign_pte(pmd_t *pmd, pte_t *page_table)
 
 #ifdef __tilegx__
 
-#if HV_L1_SIZE != HV_L2_SIZE
-# error Rework assumption that L1 and L2 page tables are same size.
-#endif
-
-/* Since pmd_t arrays and pte_t arrays are the same size, just use casts. */
 static inline pmd_t *alloc_pmd(void)
 {
-	return (pmd_t *)alloc_pte();
+	return __alloc_bootmem(L1_KERNEL_PGTABLE_SIZE, HV_PAGE_TABLE_ALIGN, 0);
 }
 
 static inline void assign_pmd(pud_t *pud, pmd_t *pmd)
@@ -155,7 +150,21 @@ void __init shatter_pmd(pmd_t *pmd)
 	assign_pte(pmd, pte);
 }
 
-#ifdef CONFIG_HIGHMEM
+#ifdef __tilegx__
+static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
+{
+	pud_t *pud = pud_offset(&pgtables[pgd_index(va)], va);
+	if (pud_none(*pud))
+		assign_pmd(pud, alloc_pmd());
+	return pmd_offset(pud, va);
+}
+#else
+static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
+{
+	return pmd_offset(pud_offset(&pgtables[pgd_index(va)], va), va);
+}
+#endif
+
 /*
  * This function initializes a certain range of kernel virtual memory
  * with new bootmem page tables, everywhere page tables are missing in
@@ -168,24 +177,17 @@ void __init shatter_pmd(pmd_t *pmd)
  * checking the pgd every time.
  */
 static void __init page_table_range_init(unsigned long start,
-					 unsigned long end, pgd_t *pgd_base)
+					 unsigned long end, pgd_t *pgd)
 {
-	pgd_t *pgd;
-	int pgd_idx;
 	unsigned long vaddr;
-
-	vaddr = start;
-	pgd_idx = pgd_index(vaddr);
-	pgd = pgd_base + pgd_idx;
-
-	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_idx++) {
-		pmd_t *pmd = pmd_offset(pud_offset(pgd, vaddr), vaddr);
+	start = round_down(start, PMD_SIZE);
+	end = round_up(end, PMD_SIZE);
+	for (vaddr = start; vaddr < end; vaddr += PMD_SIZE) {
+		pmd_t *pmd = get_pmd(pgd, vaddr);
 		if (pmd_none(*pmd))
 			assign_pte(pmd, alloc_pte());
-		vaddr += PMD_SIZE;
 	}
 }
-#endif /* CONFIG_HIGHMEM */
 
 
 #if CHIP_HAS_CBOX_HOME_MAP()
@@ -409,21 +411,6 @@ static inline pgprot_t ktext_set_nocache(pgprot_t prot)
 	return prot;
 }
 
-#ifndef __tilegx__
-static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
-{
-	return pmd_offset(pud_offset(&pgtables[pgd_index(va)], va), va);
-}
-#else
-static pmd_t *__init get_pmd(pgd_t pgtables[], unsigned long va)
-{
-	pud_t *pud = pud_offset(&pgtables[pgd_index(va)], va);
-	if (pud_none(*pud))
-		assign_pmd(pud, alloc_pmd());
-	return pmd_offset(pud, va);
-}
-#endif
-
 /* Temporary page table we use for staging. */
 static pgd_t pgtables[PTRS_PER_PGD]
  __attribute__((aligned(HV_PAGE_TABLE_ALIGN)));
@@ -444,6 +431,7 @@ static pgd_t pgtables[PTRS_PER_PGD]
  */
 static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 {
+	unsigned long long irqmask;
 	unsigned long address, pfn;
 	pmd_t *pmd;
 	pte_t *pte;
@@ -633,10 +621,13 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 	 *  - install pgtables[] as the real page table
 	 *  - flush the TLB so the new page table takes effect
 	 */
+	irqmask = interrupt_mask_save_mask();
+	interrupt_mask_set_mask(-1ULL);
 	rc = flush_and_install_context(__pa(pgtables),
 				       init_pgprot((unsigned long)pgtables),
 				       __get_cpu_var(current_asid),
 				       cpumask_bits(my_cpu_mask));
+	interrupt_mask_restore_mask(irqmask);
 	BUG_ON(rc != 0);
 
 	/* Copy the page table back to the normal swapper_pg_dir. */
@@ -699,6 +690,7 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 #endif /* CONFIG_HIGHMEM */
 
 
+#ifndef CONFIG_64BIT
 static void __init init_free_pfn_range(unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
@@ -741,16 +733,15 @@ static void __init set_non_bootmem_pages_init(void)
 	for_each_zone(z) {
 		unsigned long start, end;
 		int nid = z->zone_pgdat->node_id;
+#ifdef CONFIG_HIGHMEM
 		int idx = zone_idx(z);
+#endif
 
 		start = z->zone_start_pfn;
-		if (start == 0)
-			continue;  /* bootmem */
 		end = start + z->spanned_pages;
-		if (idx == ZONE_NORMAL) {
-			BUG_ON(start != node_start_pfn[nid]);
-			start = node_free_pfn[nid];
-		}
+		start = max(start, node_free_pfn[nid]);
+		start = max(start, max_low_pfn);
+
 #ifdef CONFIG_HIGHMEM
 		if (idx == ZONE_HIGHMEM)
 			totalhigh_pages += z->spanned_pages;
@@ -771,6 +762,7 @@ static void __init set_non_bootmem_pages_init(void)
 		init_free_pfn_range(start, end);
 	}
 }
+#endif
 
 /*
  * paging_init() sets up the page tables - note that all of lowmem is
@@ -778,9 +770,6 @@ static void __init set_non_bootmem_pages_init(void)
  */
 void __init paging_init(void)
 {
-#ifdef CONFIG_HIGHMEM
-	unsigned long vaddr, end;
-#endif
 #ifdef __tilegx__
 	pud_t *pud;
 #endif
@@ -788,14 +777,14 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init(pgd_base);
 
-#ifdef CONFIG_HIGHMEM
 	/*
 	 * Fixed mappings, only the page table structure has to be
 	 * created - mappings will be set by set_fixmap():
 	 */
-	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
-	end = (FIXADDR_TOP + PMD_SIZE - 1) & PMD_MASK;
-	page_table_range_init(vaddr, end, pgd_base);
+	page_table_range_init(fix_to_virt(__end_of_fixed_addresses - 1),
+			      FIXADDR_TOP, pgd_base);
+
+#ifdef CONFIG_HIGHMEM
 	permanent_kmaps_init(pgd_base);
 #endif
 
@@ -807,7 +796,7 @@ void __init paging_init(void)
 	 * changing init_mm once we get up and running, and there's no
 	 * need for e.g. vmalloc_sync_all().
 	 */
-	BUILD_BUG_ON(pgd_index(VMALLOC_START) != pgd_index(VMALLOC_END));
+	BUILD_BUG_ON(pgd_index(VMALLOC_START) != pgd_index(VMALLOC_END - 1));
 	pud = pud_offset(pgd_base + pgd_index(VMALLOC_START), VMALLOC_START);
 	assign_pmd(pud, alloc_pmd());
 #endif
@@ -859,8 +848,10 @@ void __init mem_init(void)
 	/* this will put all bootmem onto the freelists */
 	totalram_pages += free_all_bootmem();
 
+#ifndef CONFIG_64BIT
 	/* count all remaining LOWMEM and give all HIGHMEM to page allocator */
 	set_non_bootmem_pages_init();
+#endif
 
 	codesize =  (unsigned long)&_etext - (unsigned long)&_text;
 	datasize =  (unsigned long)&_end - (unsigned long)&_sdata;

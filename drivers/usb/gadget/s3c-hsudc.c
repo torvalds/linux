@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
@@ -110,7 +111,6 @@ struct s3c_hsudc_ep {
 	struct usb_ep ep;
 	char name[20];
 	struct s3c_hsudc *dev;
-	const struct usb_endpoint_descriptor *desc;
 	struct list_head queue;
 	u8 stopped;
 	u8 wedge;
@@ -761,7 +761,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	u32 ecr = 0;
 
 	hsep = our_ep(_ep);
-	if (!_ep || !desc || hsep->desc || _ep->name == ep0name
+	if (!_ep || !desc || _ep->name == ep0name
 		|| desc->bDescriptorType != USB_DT_ENDPOINT
 		|| hsep->bEndpointAddress != desc->bEndpointAddress
 		|| ep_maxpacket(hsep) < usb_endpoint_maxp(desc))
@@ -783,7 +783,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	writel(ecr, hsudc->regs + S3C_ECR);
 
 	hsep->stopped = hsep->wedge = 0;
-	hsep->desc = desc;
+	hsep->ep.desc = desc;
 	hsep->ep.maxpacket = usb_endpoint_maxp(desc);
 
 	s3c_hsudc_set_halt(_ep, 0);
@@ -806,7 +806,7 @@ static int s3c_hsudc_ep_disable(struct usb_ep *_ep)
 	struct s3c_hsudc *hsudc = hsep->dev;
 	unsigned long flags;
 
-	if (!_ep || !hsep->desc)
+	if (!_ep || !hsep->ep.desc)
 		return -EINVAL;
 
 	spin_lock_irqsave(&hsudc->lock, flags);
@@ -816,7 +816,6 @@ static int s3c_hsudc_ep_disable(struct usb_ep *_ep)
 
 	s3c_hsudc_nuke_ep(hsep, -ESHUTDOWN);
 
-	hsep->desc = 0;
 	hsep->ep.desc = NULL;
 	hsep->stopped = 1;
 
@@ -1006,7 +1005,6 @@ static void s3c_hsudc_initep(struct s3c_hsudc *hsudc,
 	hsep->ep.maxpacket = epnum ? 512 : 64;
 	hsep->ep.ops = &s3c_hsudc_ep_ops;
 	hsep->fifo = hsudc->regs + S3C_BR(epnum);
-	hsep->desc = 0;
 	hsep->ep.desc = NULL;
 	hsep->stopped = 0;
 	hsep->wedge = 0;
@@ -1168,7 +1166,7 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 	}
 
 	/* connect to bus through transceiver */
-	if (hsudc->transceiver) {
+	if (!IS_ERR_OR_NULL(hsudc->transceiver)) {
 		ret = otg_set_peripheral(hsudc->transceiver->otg,
 					&hsudc->gadget);
 		if (ret) {
@@ -1223,7 +1221,7 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	s3c_hsudc_stop_activity(hsudc);
 	spin_unlock_irqrestore(&hsudc->lock, flags);
 
-	if (hsudc->transceiver)
+	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		(void) otg_set_peripheral(hsudc->transceiver->otg, NULL);
 
 	disable_irq(hsudc->irq);
@@ -1252,7 +1250,7 @@ static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 	if (!hsudc)
 		return -ENODEV;
 
-	if (hsudc->transceiver)
+	if (!IS_ERR_OR_NULL(hsudc->transceiver))
 		return usb_phy_set_power(hsudc->transceiver, mA);
 
 	return -EOPNOTSUPP;
@@ -1285,7 +1283,7 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
 
-	hsudc->transceiver = usb_get_transceiver();
+	hsudc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];
@@ -1388,8 +1386,8 @@ err_irq:
 err_remap:
 	release_mem_region(res->start, resource_size(res));
 err_res:
-	if (hsudc->transceiver)
-		usb_put_transceiver(hsudc->transceiver);
+	if (!IS_ERR_OR_NULL(hsudc->transceiver))
+		usb_put_phy(hsudc->transceiver);
 
 	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:

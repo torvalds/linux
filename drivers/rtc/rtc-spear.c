@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
@@ -457,12 +458,12 @@ static int __devexit spear_rtc_remove(struct platform_device *pdev)
 	clk_disable(config->clk);
 	clk_put(config->clk);
 	iounmap(config->ioaddr);
-	kfree(config);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
 	rtc_device_unregister(config->rtc);
+	kfree(config);
 
 	return 0;
 }
@@ -519,6 +520,14 @@ static void spear_rtc_shutdown(struct platform_device *pdev)
 	clk_disable(config->clk);
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id spear_rtc_id_table[] = {
+	{ .compatible = "st,spear600-rtc" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spear_rtc_id_table);
+#endif
+
 static struct platform_driver spear_rtc_driver = {
 	.probe = spear_rtc_probe,
 	.remove = __devexit_p(spear_rtc_remove),
@@ -527,6 +536,7 @@ static struct platform_driver spear_rtc_driver = {
 	.shutdown = spear_rtc_shutdown,
 	.driver = {
 		.name = "rtc-spear",
+		.of_match_table = of_match_ptr(spear_rtc_id_table),
 	},
 };
 

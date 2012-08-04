@@ -47,7 +47,6 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/regs-gpio.h>
 #include <mach/leds-gpio.h>
 #include <mach/regs-lcd.h>
 #include <plat/regs-serial.h>
@@ -180,16 +179,8 @@ static struct s3c2410fb_mach_info qt2410_fb_info __initdata = {
 /* CS8900 */
 
 static struct resource qt2410_cs89x0_resources[] = {
-	[0] = {
-		.start	= 0x19000000,
-		.end	= 0x19000000 + 16,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_EINT9,
-		.end	= IRQ_EINT9,
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(0x19000000, 17),
+	[1] = DEFINE_RES_IRQ(IRQ_EINT9),
 };
 
 static struct platform_device qt2410_cs89x0 = {
@@ -333,8 +324,9 @@ static void __init qt2410_machine_init(void)
 	}
 	s3c24xx_fb_set_platdata(&qt2410_fb_info);
 
-	s3c_gpio_cfgpin(S3C2410_GPB(0), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_setpin(S3C2410_GPB(0), 1);
+	/* set initial state of the LED GPIO */
+	WARN_ON(gpio_request_one(S3C2410_GPB(0), GPIOF_OUT_INIT_HIGH, NULL));
+	gpio_free(S3C2410_GPB(0));
 
 	s3c24xx_udc_set_platdata(&qt2410_udc_cfg);
 	s3c_i2c0_set_platdata(NULL);

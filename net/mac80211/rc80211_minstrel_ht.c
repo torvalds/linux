@@ -626,8 +626,12 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* use fixed index if set */
-	if (mp->fixed_rate_idx != -1)
-		sample_idx = mp->fixed_rate_idx;
+	if (mp->fixed_rate_idx != -1) {
+		mi->max_tp_rate = mp->fixed_rate_idx;
+		mi->max_tp_rate2 = mp->fixed_rate_idx;
+		mi->max_prob_rate = mp->fixed_rate_idx;
+		sample_idx = -1;
+	}
 #endif
 
 	if (sample_idx >= 0) {
@@ -686,14 +690,12 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 static void
 minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
-                        struct ieee80211_sta *sta, void *priv_sta,
-			enum nl80211_channel_type oper_chan_type)
+                        struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_priv *mp = priv;
 	struct minstrel_ht_sta_priv *msp = priv_sta;
 	struct minstrel_ht_sta *mi = &msp->ht;
 	struct ieee80211_mcs_info *mcs = &sta->ht_cap.mcs;
-	struct ieee80211_local *local = hw_to_local(mp->hw);
 	u16 sta_cap = sta->ht_cap.cap;
 	int n_supported = 0;
 	int ack_dur;
@@ -712,8 +714,8 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	memset(mi, 0, sizeof(*mi));
 	mi->stats_update = jiffies;
 
-	ack_dur = ieee80211_frame_duration(local, 10, 60, 1, 1);
-	mi->overhead = ieee80211_frame_duration(local, 0, 60, 1, 1) + ack_dur;
+	ack_dur = ieee80211_frame_duration(sband->band, 10, 60, 1, 1);
+	mi->overhead = ieee80211_frame_duration(sband->band, 0, 60, 1, 1) + ack_dur;
 	mi->overhead_rtscts = mi->overhead + 2 * ack_dur;
 
 	mi->avg_ampdu_len = MINSTREL_FRAC(1, 1);
@@ -734,10 +736,6 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 	if (sta_cap & IEEE80211_HT_CAP_LDPC_CODING)
 		mi->tx_flags |= IEEE80211_TX_CTL_LDPC;
-
-	if (oper_chan_type != NL80211_CHAN_HT40MINUS &&
-	    oper_chan_type != NL80211_CHAN_HT40PLUS)
-		sta_cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
 	smps = (sta_cap & IEEE80211_HT_CAP_SM_PS) >>
 		IEEE80211_HT_CAP_SM_PS_SHIFT;
@@ -788,17 +786,15 @@ static void
 minstrel_ht_rate_init(void *priv, struct ieee80211_supported_band *sband,
                       struct ieee80211_sta *sta, void *priv_sta)
 {
-	struct minstrel_priv *mp = priv;
-
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta, mp->hw->conf.channel_type);
+	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
 }
 
 static void
 minstrel_ht_rate_update(void *priv, struct ieee80211_supported_band *sband,
                         struct ieee80211_sta *sta, void *priv_sta,
-                        u32 changed, enum nl80211_channel_type oper_chan_type)
+                        u32 changed)
 {
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta, oper_chan_type);
+	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
 }
 
 static void *
@@ -817,7 +813,7 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 			max_rates = sband->n_bitrates;
 	}
 
-	msp = kzalloc(sizeof(struct minstrel_ht_sta), gfp);
+	msp = kzalloc(sizeof(*msp), gfp);
 	if (!msp)
 		return NULL;
 

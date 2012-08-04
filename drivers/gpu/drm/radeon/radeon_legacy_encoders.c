@@ -244,7 +244,7 @@ static void radeon_legacy_lvds_mode_set(struct drm_encoder *encoder,
 }
 
 static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode,
+				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -369,6 +369,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 		goto error;
 	}
 
+	memset(&props, 0, sizeof(props));
 	props.max_brightness = MAX_RADEON_LEVEL;
 	props.type = BACKLIGHT_RAW;
 	bd = backlight_device_register("radeon_bl", &drm_connector->kdev,

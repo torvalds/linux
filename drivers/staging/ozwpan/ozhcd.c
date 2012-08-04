@@ -1416,7 +1416,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			oz_trace("USB_REQ_SET_CONFIGURATION - req\n");
 			break;
 		case USB_REQ_GET_CONFIGURATION:
-			/* We short curcuit this case and reply directly since
+			/* We short circuit this case and reply directly since
 			 * we have the selected configuration number cached.
 			 */
 			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest, 0, 0,
@@ -1432,7 +1432,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			}
 			break;
 		case USB_REQ_GET_INTERFACE:
-			/* We short curcuit this case and reply directly since
+			/* We short circuit this case and reply directly since
 			 * we have the selected interface alternative cached.
 			 */
 			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest, 0, 0,
@@ -1463,7 +1463,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			rc = -ENOMEM;
 		} else {
 			/* Note: we are queuing the request after we have
-			 * submitted it to be tranmitted. If the request were
+			 * submitted it to be transmitted. If the request were
 			 * to complete before we queued it then it would not
 			 * be found in the queue. It seems impossible for
 			 * this to happen but if it did the request would

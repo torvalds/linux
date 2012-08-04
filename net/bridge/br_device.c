@@ -127,9 +127,9 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 		const struct br_cpu_netstats *bstats
 			= per_cpu_ptr(br->stats, cpu);
 		do {
-			start = u64_stats_fetch_begin(&bstats->syncp);
+			start = u64_stats_fetch_begin_bh(&bstats->syncp);
 			memcpy(&tmp, bstats, sizeof(tmp));
-		} while (u64_stats_fetch_retry(&bstats->syncp, start));
+		} while (u64_stats_fetch_retry_bh(&bstats->syncp, start));
 		sum.tx_bytes   += tmp.tx_bytes;
 		sum.tx_packets += tmp.tx_packets;
 		sum.rx_bytes   += tmp.rx_bytes;
@@ -170,7 +170,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 		return -EADDRNOTAVAIL;
 
 	spin_lock_bh(&br->lock);
-	if (compare_ether_addr(dev->dev_addr, addr->sa_data)) {
+	if (!ether_addr_equal(dev->dev_addr, addr->sa_data)) {
 		dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 		br_fdb_change_mac_address(br, addr->sa_data);
@@ -246,10 +246,7 @@ int br_netpoll_enable(struct net_bridge_port *p)
 	if (!np)
 		goto out;
 
-	np->dev = p->dev;
-	strlcpy(np->dev_name, p->dev->name, IFNAMSIZ);
-
-	err = __netpoll_setup(np);
+	err = __netpoll_setup(np, p->dev);
 	if (err) {
 		kfree(np);
 		goto out;
@@ -317,6 +314,9 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_add_slave		 = br_add_slave,
 	.ndo_del_slave		 = br_del_slave,
 	.ndo_fix_features        = br_fix_features,
+	.ndo_fdb_add		 = br_fdb_add,
+	.ndo_fdb_del		 = br_fdb_delete,
+	.ndo_fdb_dump		 = br_fdb_dump,
 };
 
 static void br_dev_free(struct net_device *dev)

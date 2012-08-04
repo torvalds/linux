@@ -46,7 +46,7 @@ static struct cpuidle_driver shmobile_cpuidle_driver = {
 
 void (*shmobile_cpuidle_setup)(struct cpuidle_driver *drv);
 
-static int shmobile_cpuidle_init(void)
+int shmobile_cpuidle_init(void)
 {
 	struct cpuidle_device *dev = &shmobile_cpuidle_dev;
 	struct cpuidle_driver *drv = &shmobile_cpuidle_driver;
@@ -65,4 +65,3 @@ static int shmobile_cpuidle_init(void)
 
 	return 0;
 }
-late_initcall(shmobile_cpuidle_init);

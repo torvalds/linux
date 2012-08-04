@@ -3468,7 +3468,6 @@ static int easycap_register_video(struct easycap *peasycap)
 
 	if (0 != (video_register_device(&(peasycap->video_device),
 					VFL_TYPE_GRABBER, -1))) {
-		err("Not able to register with videodev");
 		videodev_release(&(peasycap->video_device));
 		return -ENODEV;
 	}
@@ -3856,8 +3855,11 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			peasycap->v4l2_device.name);
 
 		rc = easycap_register_video(peasycap);
-		if (rc < 0)
+		if (rc < 0) {
+			dev_err(&intf->dev,
+				"Not able to register with videodev\n");
 			return -ENODEV;
+		}
 		break;
 	}
 	/* 1: Audio control */
@@ -3997,7 +3999,8 @@ static int easycap_usb_probe(struct usb_interface *intf,
 
 		rc = easycap_alsa_probe(peasycap);
 		if (rc) {
-			err("easycap_alsa_probe() rc = %i\n", rc);
+			dev_err(&intf->dev, "easycap_alsa_probe() rc = %i\n",
+				rc);
 			return -ENODEV;
 		}
 

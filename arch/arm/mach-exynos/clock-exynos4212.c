@@ -26,6 +26,7 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/sysmmu.h>
 
 #include "common.h"
 #include "clock-exynos4.h"
@@ -38,6 +39,16 @@ static struct sleep_save exynos4212_clock_save[] = {
 	SAVE_ITEM(EXYNOS4212_CLKGATE_IP_PERIR),
 };
 #endif
+
+static int exynos4212_clk_ip_isp0_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_ISP0, clk, enable);
+}
+
+static int exynos4212_clk_ip_isp1_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_ISP1, clk, enable);
+}
 
 static struct clk *clk_src_mpll_user_list[] = {
 	[0] = &clk_fin_mpll,
@@ -57,16 +68,78 @@ static struct clksrc_clk clk_mout_mpll_user = {
 	.reg_src	= { .reg = EXYNOS4_CLKSRC_CPU, .shift = 24, .size = 1 },
 };
 
+static struct clksrc_clk exynos4x12_clk_mout_g2d0 = {
+	.clk	= {
+		.name		= "mout_g2d0",
+	},
+	.sources = &exynos4_clkset_mout_g2d0,
+	.reg_src = { .reg = EXYNOS4_CLKSRC_DMC, .shift = 20, .size = 1 },
+};
+
+static struct clksrc_clk exynos4x12_clk_mout_g2d1 = {
+	.clk	= {
+		.name		= "mout_g2d1",
+	},
+	.sources = &exynos4_clkset_mout_g2d1,
+	.reg_src = { .reg = EXYNOS4_CLKSRC_DMC, .shift = 24, .size = 1 },
+};
+
+static struct clk *exynos4x12_clkset_mout_g2d_list[] = {
+	[0] = &exynos4x12_clk_mout_g2d0.clk,
+	[1] = &exynos4x12_clk_mout_g2d1.clk,
+};
+
+static struct clksrc_sources exynos4x12_clkset_mout_g2d = {
+	.sources	= exynos4x12_clkset_mout_g2d_list,
+	.nr_sources	= ARRAY_SIZE(exynos4x12_clkset_mout_g2d_list),
+};
+
 static struct clksrc_clk *sysclks[] = {
 	&clk_mout_mpll_user,
 };
 
 static struct clksrc_clk clksrcs[] = {
-	/* nothing here yet */
+	{
+		.clk	= {
+			.name		= "sclk_fimg2d",
+		},
+		.sources = &exynos4x12_clkset_mout_g2d,
+		.reg_src = { .reg = EXYNOS4_CLKSRC_DMC, .shift = 28, .size = 1 },
+		.reg_div = { .reg = EXYNOS4_CLKDIV_DMC1, .shift = 0, .size = 4 },
+	},
 };
 
 static struct clk init_clocks_off[] = {
-	/* nothing here yet */
+	{
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(2d, 14),
+		.enable		= exynos4_clk_ip_dmc_ctrl,
+		.ctrlbit	= (1 << 24),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (7 << 8),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME2,
+		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
+		.enable		= exynos4212_clk_ip_isp1_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "flite",
+		.devname	= "exynos-fimc-lite.0",
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= "flite",
+		.devname	= "exynos-fimc-lite.1",
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (1 << 3),
+	}, {
+		.name		= "fimg2d",
+		.enable		= exynos4_clk_ip_dmc_ctrl,
+		.ctrlbit	= (1 << 23),
+	},
 };
 
 #ifdef CONFIG_PM_SLEEP

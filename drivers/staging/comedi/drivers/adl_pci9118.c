@@ -71,7 +71,6 @@ Configuration options:
 
 #include "amcc_s5933.h"
 #include "8253.h"
-#include "comedi_pci.h"
 #include "comedi_fc.h"
 
 #define PCI_VENDOR_ID_AMCC	0x10e8
@@ -221,10 +220,6 @@ static const struct comedi_lrange range_pci9118hg = { 8, {
 					 * of BIP/UNI ranges
 					 */
 
-static int pci9118_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pci9118_detach(struct comedi_device *dev);
-
 struct boardtype {
 	const char *name;		/* board name */
 	int vendor_id;			/* PCI vendor a device ID of card */
@@ -252,85 +247,9 @@ struct boardtype {
 
 };
 
-static DEFINE_PCI_DEVICE_TABLE(pci9118_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, pci9118_pci_table);
-
-static const struct boardtype boardtypes[] = {
-	{"pci9118dg", PCI_VENDOR_ID_AMCC, 0x80d9,
-	 AMCC_OP_REG_SIZE, IORANGE_9118,
-	 16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
-	 &range_pci9118dg_hr, &range_bipolar10,
-	 3000, 12, 512},
-	{"pci9118hg", PCI_VENDOR_ID_AMCC, 0x80d9,
-	 AMCC_OP_REG_SIZE, IORANGE_9118,
-	 16, 8, 256, PCI9118_CHANLEN, 2, 0x0fff, 0x0fff,
-	 &range_pci9118hg, &range_bipolar10,
-	 3000, 12, 512},
-	{"pci9118hr", PCI_VENDOR_ID_AMCC, 0x80d9,
-	 AMCC_OP_REG_SIZE, IORANGE_9118,
-	 16, 8, 256, PCI9118_CHANLEN, 2, 0xffff, 0x0fff,
-	 &range_pci9118dg_hr, &range_bipolar10,
-	 10000, 40, 512},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-
-static struct comedi_driver driver_pci9118 = {
-	.driver_name = "adl_pci9118",
-	.module = THIS_MODULE,
-	.attach = pci9118_attach,
-	.detach = pci9118_detach,
-	.num_names = n_boardtypes,
-	.board_name = &boardtypes[0].name,
-	.offset = sizeof(struct boardtype),
-};
-
-static int __devinit driver_pci9118_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, driver_pci9118.driver_name);
-}
-
-static void __devexit driver_pci9118_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_pci9118_pci_driver = {
-	.id_table = pci9118_pci_table,
-	.probe = &driver_pci9118_pci_probe,
-	.remove = __devexit_p(&driver_pci9118_pci_remove)
-};
-
-static int __init driver_pci9118_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pci9118);
-	if (retval < 0)
-		return retval;
-
-	driver_pci9118_pci_driver.name = (char *)driver_pci9118.driver_name;
-	return pci_register_driver(&driver_pci9118_pci_driver);
-}
-
-static void __exit driver_pci9118_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pci9118_pci_driver);
-	comedi_driver_unregister(&driver_pci9118);
-}
-
-module_init(driver_pci9118_init_module);
-module_exit(driver_pci9118_cleanup_module);
-
 struct pci9118_private {
 	unsigned long iobase_a;	/* base+size for AMCC chip */
 	unsigned int master;	/* master capable */
-	struct pci_dev *pcidev;	/* ptr to actual pcidev */
 	unsigned int usemux;	/* we want to use external multiplexor! */
 #ifdef PCI9118_PARANOIDCHECK
 	unsigned short chanlist[PCI9118_CHANLEN + 1];	/*
@@ -379,7 +298,7 @@ struct pci9118_private {
 	short *ai_data;
 	short ao_data[2];			/* data output buffer */
 	unsigned int ai_scans;			/* number of scans to do */
-	char dma_doublebuf;			/* we can use double buffring */
+	char dma_doublebuf;			/* we can use double buffering */
 	unsigned int dma_actbuf;		/* which buffer is used now */
 	short *dmabuf_virt[2];			/*
 						 * pointers to begin of
@@ -572,7 +491,7 @@ static int pci9118_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = inl(dev->iobase + PCI9118_DI) & 0xf;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -589,7 +508,7 @@ static int pci9118_insn_bits_do(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -1815,7 +1734,7 @@ static int check_channel_list(struct comedi_device *dev,
 							"can't be mixtured!");
 				return 0;
 			}
-			if ((!devpriv->usemux) & (differencial) &
+			if (!devpriv->usemux && differencial &&
 			    (CR_CHAN(chanlist[i]) >= this_board->n_aichand)) {
 				comedi_error(dev,
 					     "If AREF_DIFF is used then is "
@@ -2190,27 +2109,56 @@ static int pci9118_reset(struct comedi_device *dev)
 	return 0;
 }
 
-/*
-==============================================================================
-*/
+static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
+					struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+
+	for_each_pci_dev(pcidev) {
+		if (pcidev->vendor != PCI_VENDOR_ID_AMCC)
+			continue;
+		if (pcidev->device != this_board->device_id)
+			continue;
+		if (bus || slot) {
+			/* requested particular bus/slot */
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		/*
+		 * Look for device that isn't in use.
+		 * Enable PCI device and request regions.
+		 */
+		if (comedi_pci_enable(pcidev, "adl_pci9118"))
+			continue;
+		printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx",
+			pcidev->bus->number,
+			PCI_SLOT(pcidev->devfn),
+			PCI_FUNC(pcidev->devfn),
+			(unsigned long)pci_resource_start(pcidev, 2),
+			(unsigned long)pci_resource_start(pcidev, 0));
+		return pcidev;
+	}
+	printk(KERN_ERR
+		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor, bus, slot);
+	return NULL;
+}
+
 static int pci9118_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, pages, i;
 	unsigned short master;
 	unsigned int irq;
-	unsigned long iobase_a, iobase_9;
-	struct pci_dev *pcidev;
-	int opt_bus, opt_slot;
-	const char *errstr;
-	unsigned char pci_bus, pci_slot, pci_func;
 	u16 u16w;
 
 	printk("comedi%d: adl_pci9118: board=%s", dev->minor, this_board->name);
 
-	opt_bus = it->options[0];
-	opt_slot = it->options[1];
 	if (it->options[3] & 1)
 		master = 0;	/* user don't want use bus master */
 	else
@@ -2222,60 +2170,19 @@ static int pci9118_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	/* Look for matching PCI device */
-	errstr = "not found!";
-	pcidev = NULL;
-	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_AMCC,
-						this_board->device_id,
-						pcidev))) {
-		/* Found matching vendor/device. */
-		if (opt_bus || opt_slot) {
-			/* Check bus/slot. */
-			if (opt_bus != pcidev->bus->number
-			    || opt_slot != PCI_SLOT(pcidev->devfn))
-				continue;	/* no match */
-		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adl_pci9118")) {
-			errstr =
-			    "failed to enable PCI device and request regions!";
-			continue;
-		}
-		break;
-	}
-
-	if (!pcidev) {
-		if (opt_bus || opt_slot) {
-			printk(KERN_ERR " - Card at b:s %d:%d %s\n",
-			       opt_bus, opt_slot, errstr);
-		} else {
-			printk(KERN_ERR " - Card %s\n", errstr);
-		}
+	pcidev = pci9118_find_pci(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	if (master)
 		pci_set_master(pcidev);
 
-
-	pci_bus = pcidev->bus->number;
-	pci_slot = PCI_SLOT(pcidev->devfn);
-	pci_func = PCI_FUNC(pcidev->devfn);
 	irq = pcidev->irq;
-	iobase_a = pci_resource_start(pcidev, 0);
-	iobase_9 = pci_resource_start(pcidev, 2);
+	devpriv->iobase_a = pci_resource_start(pcidev, 0);
+	dev->iobase = pci_resource_start(pcidev, 2);
 
-	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus,
-				pci_slot, pci_func, iobase_9, iobase_a);
-
-	dev->iobase = iobase_9;
 	dev->board_name = this_board->name;
-
-	devpriv->pcidev = pcidev;
-	devpriv->iobase_a = iobase_a;
 
 	pci9118_reset(dev);
 
@@ -2358,12 +2265,12 @@ static int pci9118_attach(struct comedi_device *dev,
 
 	printk(".\n");
 
-	pci_read_config_word(devpriv->pcidev, PCI_COMMAND, &u16w);
-	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w | 64);
+	pci_read_config_word(pcidev, PCI_COMMAND, &u16w);
+	pci_write_config_word(pcidev, PCI_COMMAND, u16w | 64);
 				/* Enable parity check for parity error */
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -2435,22 +2342,15 @@ static int pci9118_attach(struct comedi_device *dev,
 	return 0;
 }
 
-/*
-==============================================================================
-*/
-static int pci9118_detach(struct comedi_device *dev)
+static void pci9118_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->private) {
 		if (devpriv->valid)
 			pci9118_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pcidev);
-
-			pci_dev_put(devpriv->pcidev);
-		}
 		if (devpriv->dmabuf_virt[0])
 			free_pages((unsigned long)devpriv->dmabuf_virt[0],
 				   devpriv->dmabuf_pages[0]);
@@ -2458,13 +2358,106 @@ static int pci9118_detach(struct comedi_device *dev)
 			free_pages((unsigned long)devpriv->dmabuf_virt[1],
 				   devpriv->dmabuf_pages[1]);
 	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
 
-	return 0;
+		pci_dev_put(pcidev);
+	}
 }
 
-/*
-==============================================================================
-*/
+static const struct boardtype boardtypes[] = {
+	{
+		.name		= "pci9118dg",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hg",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118hg,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hr",
+		.vendor_id	= PCI_VENDOR_ID_AMCC,
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 10000,
+		.ai_pacer_min	= 40,
+		.half_fifo_size	= 512,
+	},
+};
+
+static struct comedi_driver adl_pci9118_driver = {
+	.driver_name	= "adl_pci9118",
+	.module		= THIS_MODULE,
+	.attach		= pci9118_attach,
+	.detach		= pci9118_detach,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(struct boardtype),
+};
+
+static int __devinit adl_pci9118_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &adl_pci9118_driver);
+}
+
+static void __devexit adl_pci9118_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(adl_pci9118_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMCC, 0x80d9) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, adl_pci9118_pci_table);
+
+static struct pci_driver adl_pci9118_pci_driver = {
+	.name		= "adl_pci9118",
+	.id_table	= adl_pci9118_pci_table,
+	.probe		= adl_pci9118_pci_probe,
+	.remove		= __devexit_p(adl_pci9118_pci_remove),
+};
+module_comedi_pci_driver(adl_pci9118_driver, adl_pci9118_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

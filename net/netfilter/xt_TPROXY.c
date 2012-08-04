@@ -69,7 +69,7 @@ tproxy_laddr4(struct sk_buff *skb, __be32 user_laddr, __be32 daddr)
 }
 
 /**
- * tproxy_handle_time_wait4() - handle IPv4 TCP TIME_WAIT reopen redirections
+ * tproxy_handle_time_wait4 - handle IPv4 TCP TIME_WAIT reopen redirections
  * @skb:	The skb being processed.
  * @laddr:	IPv4 address to redirect to or zero.
  * @lport:	TCP port to redirect to or zero.
@@ -220,7 +220,7 @@ tproxy_laddr6(struct sk_buff *skb, const struct in6_addr *user_laddr,
 }
 
 /**
- * tproxy_handle_time_wait6() - handle IPv6 TCP TIME_WAIT reopen redirections
+ * tproxy_handle_time_wait6 - handle IPv6 TCP TIME_WAIT reopen redirections
  * @skb:	The skb being processed.
  * @tproto:	Transport protocol.
  * @thoff:	Transport protocol header offset.
@@ -282,10 +282,10 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	struct sock *sk;
 	const struct in6_addr *laddr;
 	__be16 lport;
-	int thoff;
+	int thoff = 0;
 	int tproto;
 
-	tproto = ipv6_find_hdr(skb, &thoff, -1, NULL);
+	tproto = ipv6_find_hdr(skb, &thoff, -1, NULL, NULL);
 	if (tproto < 0) {
 		pr_debug("unable to find transport header in IPv6 packet, dropping\n");
 		return NF_DROP;

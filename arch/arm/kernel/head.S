@@ -55,14 +55,6 @@
 	add	\rd, \phys, #TEXT_OFFSET - PG_DIR_SIZE
 	.endm
 
-#ifdef CONFIG_XIP_KERNEL
-#define KERNEL_START	XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
-#define KERNEL_END	_edata_loc
-#else
-#define KERNEL_START	KERNEL_RAM_VADDR
-#define KERNEL_END	_end
-#endif
-
 /*
  * Kernel startup entry point.
  * ---------------------------
@@ -218,51 +210,46 @@ __create_page_tables:
 	blo	1b
 
 	/*
-	 * Now setup the pagetables for our kernel direct
-	 * mapped region.
+	 * Map our RAM from the start to the end of the kernel .bss section.
 	 */
+	add	r0, r4, #PAGE_OFFSET >> (SECTION_SHIFT - PMD_ORDER)
+	ldr	r6, =(_end - 1)
+	orr	r3, r8, r7
+	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
+1:	str	r3, [r0], #1 << PMD_ORDER
+	add	r3, r3, #1 << SECTION_SHIFT
+	cmp	r0, r6
+	bls	1b
+
+#ifdef CONFIG_XIP_KERNEL
+	/*
+	 * Map the kernel image separately as it is not located in RAM.
+	 */
+#define XIP_START XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
 	mov	r3, pc
 	mov	r3, r3, lsr #SECTION_SHIFT
 	orr	r3, r7, r3, lsl #SECTION_SHIFT
-	add	r0, r4,  #(KERNEL_START & 0xff000000) >> (SECTION_SHIFT - PMD_ORDER)
-	str	r3, [r0, #((KERNEL_START & 0x00f00000) >> SECTION_SHIFT) << PMD_ORDER]!
-	ldr	r6, =(KERNEL_END - 1)
+	add	r0, r4,  #(XIP_START & 0xff000000) >> (SECTION_SHIFT - PMD_ORDER)
+	str	r3, [r0, #((XIP_START & 0x00f00000) >> SECTION_SHIFT) << PMD_ORDER]!
+	ldr	r6, =(_edata_loc - 1)
 	add	r0, r0, #1 << PMD_ORDER
 	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
 1:	cmp	r0, r6
 	add	r3, r3, #1 << SECTION_SHIFT
 	strls	r3, [r0], #1 << PMD_ORDER
 	bls	1b
-
-#ifdef CONFIG_XIP_KERNEL
-	/*
-	 * Map some ram to cover our .data and .bss areas.
-	 */
-	add	r3, r8, #TEXT_OFFSET
-	orr	r3, r3, r7
-	add	r0, r4,  #(KERNEL_RAM_VADDR & 0xff000000) >> (SECTION_SHIFT - PMD_ORDER)
-	str	r3, [r0, #(KERNEL_RAM_VADDR & 0x00f00000) >> (SECTION_SHIFT - PMD_ORDER)]!
-	ldr	r6, =(_end - 1)
-	add	r0, r0, #4
-	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
-1:	cmp	r0, r6
-	add	r3, r3, #1 << 20
-	strls	r3, [r0], #4
-	bls	1b
 #endif
 
 	/*
-	 * Then map boot params address in r2 or the first 1MB (2MB with LPAE)
-	 * of ram if boot params address is not specified.
+	 * Then map boot params address in r2 if specified.
 	 */
 	mov	r0, r2, lsr #SECTION_SHIFT
 	movs	r0, r0, lsl #SECTION_SHIFT
-	moveq	r0, r8
-	sub	r3, r0, r8
-	add	r3, r3, #PAGE_OFFSET
-	add	r3, r4, r3, lsr #(SECTION_SHIFT - PMD_ORDER)
-	orr	r6, r7, r0
-	str	r6, [r3]
+	subne	r3, r0, r8
+	addne	r3, r3, #PAGE_OFFSET
+	addne	r3, r4, r3, lsr #(SECTION_SHIFT - PMD_ORDER)
+	orrne	r6, r7, r0
+	strne	r6, [r3]
 
 #ifdef CONFIG_DEBUG_LL
 #if !defined(CONFIG_DEBUG_ICEDCC) && !defined(CONFIG_DEBUG_SEMIHOSTING)
@@ -277,10 +264,6 @@ __create_page_tables:
 	mov	r3, r3, lsl #PMD_ORDER
 
 	add	r0, r4, r3
-	rsb	r3, r3, #0x4000			@ PTRS_PER_PGD*sizeof(long)
-	cmp	r3, #0x0800			@ limit to 512MB
-	movhi	r3, #0x0800
-	add	r6, r0, r3
 	mov	r3, r7, lsr #SECTION_SHIFT
 	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
 	orr	r3, r7, r3, lsl #SECTION_SHIFT
@@ -289,13 +272,10 @@ __create_page_tables:
 #else
 	orr	r3, r3, #PMD_SECT_XN
 #endif
-1:	str	r3, [r0], #4
+	str	r3, [r0], #4
 #ifdef CONFIG_ARM_LPAE
 	str	r7, [r0], #4
 #endif
-	add	r3, r3, #1 << SECTION_SHIFT
-	cmp	r0, r6
-	blo	1b
 
 #else /* CONFIG_DEBUG_ICEDCC || CONFIG_DEBUG_SEMIHOSTING */
 	/* we don't need any serial debugging mappings */

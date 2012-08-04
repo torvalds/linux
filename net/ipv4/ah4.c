@@ -77,7 +77,7 @@ static inline struct scatterlist *ah_req_sg(struct crypto_ahash *ahash,
 
 static int ip_clear_mutable_options(const struct iphdr *iph, __be32 *daddr)
 {
-	unsigned char * optptr = (unsigned char*)(iph+1);
+	unsigned char *optptr = (unsigned char *)(iph+1);
 	int  l = iph->ihl*4 - sizeof(struct iphdr);
 	int  optlen;
 
@@ -398,16 +398,25 @@ static void ah4_err(struct sk_buff *skb, u32 info)
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
-	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
-	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
+	switch (icmp_hdr(skb)->type) {
+	case ICMP_DEST_UNREACH:
+		if (icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
+			return;
+	case ICMP_REDIRECT:
+		break;
+	default:
 		return;
+	}
 
 	x = xfrm_state_lookup(net, skb->mark, (const xfrm_address_t *)&iph->daddr,
 			      ah->spi, IPPROTO_AH, AF_INET);
 	if (!x)
 		return;
-	printk(KERN_DEBUG "pmtu discovery on SA AH/%08x/%08x\n",
-	       ntohl(ah->spi), ntohl(iph->daddr));
+
+	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
+		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_AH, 0);
+	else
+		ipv4_redirect(skb, net, 0, 0, IPPROTO_AH, 0);
 	xfrm_state_put(x);
 }
 

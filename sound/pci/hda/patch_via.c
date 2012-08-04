@@ -54,6 +54,7 @@
 #include <sound/asoundef.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_auto_parser.h"
 #include "hda_jack.h"
 
 /* Pin Widget NID */
@@ -484,7 +485,7 @@ static void activate_output_mix(struct hda_codec *codec, struct nid_path *path,
 
 	if (!path)
 		return;
-	num = snd_hda_get_conn_list(codec, mix_nid, NULL);
+	num = snd_hda_get_num_conns(codec, mix_nid);
 	for (i = 0; i < num; i++) {
 		if (i == idx)
 			val = AMP_IN_UNMUTE(i);
@@ -532,8 +533,7 @@ static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
 {
 	if (!pin)
 		return;
-	snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
+	snd_hda_set_pin_ctl(codec, pin, pin_type);
 	if (snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD)
 		snd_hda_codec_write(codec, pin, 0,
 				    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
@@ -662,12 +662,12 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(codec, nid))
 			ctl = PIN_OUT;
-		else if (cfg->inputs[i].type == AUTO_PIN_MIC)
-			ctl = PIN_VREF50;
-		else
+		else {
 			ctl = PIN_IN;
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, ctl);
+			if (cfg->inputs[i].type == AUTO_PIN_MIC)
+				ctl |= snd_hda_get_default_vref(codec, nid);
+		}
+		snd_hda_set_pin_ctl(codec, nid, ctl);
 	}
 
 	/* init input-src */
@@ -1006,9 +1006,7 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 					  AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		parm &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
 		parm |= out_in;
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    parm);
+		snd_hda_set_pin_ctl(codec, nid, parm);
 		if (out_in == AC_PINCTL_OUT_EN) {
 			mute_aa_path(codec, 1);
 			notify_aa_path_ctls(codec);
@@ -1647,8 +1645,7 @@ static void toggle_output_mutes(struct hda_codec *codec, int num_pins,
 			parm &= ~AC_PINCTL_OUT_EN;
 		else
 			parm |= AC_PINCTL_OUT_EN;
-		snd_hda_codec_write(codec, pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, parm);
+		snd_hda_set_pin_ctl(codec, pins[i], parm);
 	}
 }
 
@@ -1709,8 +1706,7 @@ static void via_gpio_control(struct hda_codec *codec)
 
 	if (gpio_data == 0x02) {
 		/* unmute line out */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0],
 				    PIN_OUT);
 		if (vol_counter & 0x20) {
 			/* decrease volume */
@@ -1728,9 +1724,7 @@ static void via_gpio_control(struct hda_codec *codec)
 		}
 	} else if (!(gpio_data & 0x02)) {
 		/* mute line out */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    0);
+		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0], 0);
 	}
 }
 
@@ -1754,7 +1748,7 @@ static void via_unsol_event(struct hda_codec *codec,
 }
 
 #ifdef CONFIG_PM
-static int via_suspend(struct hda_codec *codec, pm_message_t state)
+static int via_suspend(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	vt1708_stop_hp_work(spec);
@@ -2757,8 +2751,7 @@ static void via_auto_init_dig_in(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	if (!spec->dig_in_nid)
 		return;
-	snd_hda_codec_write(codec, spec->autocfg.dig_in_pin, 0,
-			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
+	snd_hda_set_pin_ctl(codec, spec->autocfg.dig_in_pin, PIN_IN);
 }
 
 /* initialize the unsolicited events */
@@ -3233,7 +3226,7 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int imux_is_smixer;
-	unsigned int parm;
+	unsigned int parm, parm2;
 	/* MUX6 (1eh) = stereo mixer */
 	imux_is_smixer =
 	snd_hda_codec_read(codec, 0x1e, 0, AC_VERB_GET_CONNECT_SEL, 0x00) == 5;
@@ -3256,7 +3249,7 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 	parm = AC_PWRST_D3;
 	set_pin_power_state(codec, 0x27, &parm);
 	update_power_state(codec, 0x1a, parm);
-	update_power_state(codec, 0xb, parm);
+	parm2 = parm; /* for pin 0x0b */
 
 	/* PW2 (26h), AOW2 (ah) */
 	parm = AC_PWRST_D3;
@@ -3271,6 +3264,9 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 	if (!spec->hp_independent_mode) /* check for redirected HP */
 		set_pin_power_state(codec, 0x28, &parm);
 	update_power_state(codec, 0x8, parm);
+	if (!spec->hp_independent_mode && parm2 != AC_PWRST_D3)
+		parm = parm2;
+	update_power_state(codec, 0xb, parm);
 	/* MW9 (21h), Mw2 (1ah), AOW0 (8h) */
 	update_power_state(codec, 0x21, imux_is_smixer ? AC_PWRST_D0 : parm);
 

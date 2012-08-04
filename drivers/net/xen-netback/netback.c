@@ -325,8 +325,7 @@ unsigned int xen_netbk_count_skb_slots(struct xenvif *vif, struct sk_buff *skb)
 	unsigned int count;
 	int i, copy_off;
 
-	count = DIV_ROUND_UP(
-			offset_in_page(skb->data)+skb_headlen(skb), PAGE_SIZE);
+	count = DIV_ROUND_UP(skb_headlen(skb), PAGE_SIZE);
 
 	copy_off = skb_headlen(skb) % PAGE_SIZE;
 
@@ -1364,8 +1363,6 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 					     INVALID_PENDING_IDX);
 		}
 
-		__skb_queue_tail(&netbk->tx_queue, skb);
-
 		netbk->pending_cons++;
 
 		request_gop = xen_netbk_get_requests(netbk, vif,
@@ -1376,6 +1373,8 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 			continue;
 		}
 		gop = request_gop;
+
+		__skb_queue_tail(&netbk->tx_queue, skb);
 
 		vif->tx.req_cons = idx;
 		xen_netbk_check_rx_xenvif(vif);

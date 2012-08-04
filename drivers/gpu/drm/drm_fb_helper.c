@@ -136,6 +136,9 @@ static void drm_fb_helper_restore_lut_atomic(struct drm_crtc *crtc)
 {
 	uint16_t *r_base, *g_base, *b_base;
 
+	if (crtc->funcs->gamma_set == NULL)
+		return;
+
 	r_base = crtc->gamma_store;
 	g_base = r_base + crtc->gamma_size;
 	b_base = g_base + crtc->gamma_size;
@@ -225,7 +228,7 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	int i, ret;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
-		ret = drm_crtc_helper_set_config(mode_set);
+		ret = mode_set->crtc->funcs->set_config(mode_set);
 		if (ret)
 			error = true;
 	}
@@ -383,7 +386,6 @@ int drm_fb_helper_init(struct drm_device *dev,
 		       int crtc_count, int max_conn_count)
 {
 	struct drm_crtc *crtc;
-	int ret = 0;
 	int i;
 
 	fb_helper->dev = dev;
@@ -408,10 +410,8 @@ int drm_fb_helper_init(struct drm_device *dev,
 				sizeof(struct drm_connector *),
 				GFP_KERNEL);
 
-		if (!fb_helper->crtc_info[i].mode_set.connectors) {
-			ret = -ENOMEM;
+		if (!fb_helper->crtc_info[i].mode_set.connectors)
 			goto out_free;
-		}
 		fb_helper->crtc_info[i].mode_set.num_connectors = 0;
 	}
 
@@ -1083,7 +1083,7 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 
 	/* try and find a 1024x768 mode on each connector */
 	can_clone = true;
-	dmt_mode = drm_mode_find_dmt(fb_helper->dev, 1024, 768, 60);
+	dmt_mode = drm_mode_find_dmt(fb_helper->dev, 1024, 768, 60, false);
 
 	for (i = 0; i < fb_helper->connector_count; i++) {
 
@@ -1353,7 +1353,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	int count = 0;
 	u32 max_width, max_height, bpp_sel;
-	bool bound = false, crtcs_bound = false;
+	int bound = 0, crtcs_bound = 0;
 	struct drm_crtc *crtc;
 
 	if (!fb_helper->fb)
@@ -1362,12 +1362,12 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb)
-			crtcs_bound = true;
+			crtcs_bound++;
 		if (crtc->fb == fb_helper->fb)
-			bound = true;
+			bound++;
 	}
 
-	if (!bound && crtcs_bound) {
+	if (bound < crtcs_bound) {
 		fb_helper->delayed_hotplug = true;
 		mutex_unlock(&dev->mode_config.mutex);
 		return 0;

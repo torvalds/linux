@@ -87,13 +87,16 @@ static ssize_t hidraw_read(struct file *file, char __user *buffer, size_t count,
 		len = list->buffer[list->tail].len > count ?
 			count : list->buffer[list->tail].len;
 
-		if (copy_to_user(buffer, list->buffer[list->tail].value, len)) {
-			ret = -EFAULT;
-			goto out;
+		if (list->buffer[list->tail].value) {
+			if (copy_to_user(buffer, list->buffer[list->tail].value, len)) {
+				ret = -EFAULT;
+				goto out;
+			}
+			ret = len;
 		}
-		ret = len;
 
 		kfree(list->buffer[list->tail].value);
+		list->buffer[list->tail].value = NULL;
 		list->tail = (list->tail + 1) & (HIDRAW_BUFFER_SIZE - 1);
 	}
 out:
@@ -298,6 +301,7 @@ static int hidraw_release(struct inode * inode, struct file * file)
 	struct hidraw *dev;
 	struct hidraw_list *list = file->private_data;
 	int ret;
+	int i;
 
 	mutex_lock(&minors_lock);
 	if (!hidraw_table[minor]) {
@@ -315,6 +319,9 @@ static int hidraw_release(struct inode * inode, struct file * file)
 			kfree(list->hidraw);
 		}
 	}
+
+	for (i = 0; i < HIDRAW_BUFFER_SIZE; ++i)
+		kfree(list->buffer[i].value);
 	kfree(list);
 	ret = 0;
 unlock:
@@ -437,19 +444,29 @@ static const struct file_operations hidraw_ops = {
 	.llseek =	noop_llseek,
 };
 
-void hidraw_report_event(struct hid_device *hid, u8 *data, int len)
+int hidraw_report_event(struct hid_device *hid, u8 *data, int len)
 {
 	struct hidraw *dev = hid->hidraw;
 	struct hidraw_list *list;
+	int ret = 0;
 
 	list_for_each_entry(list, &dev->list, node) {
-		list->buffer[list->head].value = kmemdup(data, len, GFP_ATOMIC);
+		int new_head = (list->head + 1) & (HIDRAW_BUFFER_SIZE - 1);
+
+		if (new_head == list->tail)
+			continue;
+
+		if (!(list->buffer[list->head].value = kmemdup(data, len, GFP_ATOMIC))) {
+			ret = -ENOMEM;
+			break;
+		}
 		list->buffer[list->head].len = len;
-		list->head = (list->head + 1) & (HIDRAW_BUFFER_SIZE - 1);
+		list->head = new_head;
 		kill_fasync(&list->fasync, SIGIO, POLL_IN);
 	}
 
 	wake_up_interruptible(&dev->wait);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(hidraw_report_event);
 

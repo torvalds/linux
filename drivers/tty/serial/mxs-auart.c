@@ -32,6 +32,8 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/of_device.h>
 
 #include <asm/cacheflush.h>
 
@@ -369,6 +371,8 @@ static void mxs_auart_settermios(struct uart_port *u,
 
 	writel(ctrl, u->membase + AUART_LINECTRL);
 	writel(ctrl2, u->membase + AUART_CTRL2);
+
+	uart_update_timeout(u, termios->c_cflag, baud);
 }
 
 static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
@@ -672,17 +676,54 @@ static struct uart_driver auart_driver = {
 #endif
 };
 
+/*
+ * This function returns 1 if pdev isn't a device instatiated by dt, 0 if it
+ * could successfully get all information from dt or a negative errno.
+ */
+static int serial_mxs_probe_dt(struct mxs_auart_port *s,
+		struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	int ret;
+
+	if (!np)
+		/* no device tree device */
+		return 1;
+
+	ret = of_alias_get_id(np, "serial");
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get alias id: %d\n", ret);
+		return ret;
+	}
+	s->port.line = ret;
+
+	return 0;
+}
+
 static int __devinit mxs_auart_probe(struct platform_device *pdev)
 {
 	struct mxs_auart_port *s;
 	u32 version;
 	int ret = 0;
 	struct resource *r;
+	struct pinctrl *pinctrl;
 
 	s = kzalloc(sizeof(struct mxs_auart_port), GFP_KERNEL);
 	if (!s) {
 		ret = -ENOMEM;
 		goto out;
+	}
+
+	ret = serial_mxs_probe_dt(s, pdev);
+	if (ret > 0)
+		s->port.line = pdev->id < 0 ? 0 : pdev->id;
+	else if (ret < 0)
+		goto out_free;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto out_free;
 	}
 
 	s->clk = clk_get(&pdev->dev, NULL);
@@ -701,7 +742,6 @@ static int __devinit mxs_auart_probe(struct platform_device *pdev)
 	s->port.membase = ioremap(r->start, resource_size(r));
 	s->port.ops = &mxs_auart_ops;
 	s->port.iotype = UPIO_MEM;
-	s->port.line = pdev->id < 0 ? 0 : pdev->id;
 	s->port.fifosize = 16;
 	s->port.uartclk = clk_get_rate(s->clk);
 	s->port.type = PORT_IMX;
@@ -718,7 +758,7 @@ static int __devinit mxs_auart_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s);
 
-	auart_port[pdev->id] = s;
+	auart_port[s->port.line] = s;
 
 	mxs_auart_reset(&s->port);
 
@@ -759,12 +799,19 @@ static int __devexit mxs_auart_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id mxs_auart_dt_ids[] = {
+	{ .compatible = "fsl,imx23-auart", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_auart_dt_ids);
+
 static struct platform_driver mxs_auart_driver = {
 	.probe = mxs_auart_probe,
 	.remove = __devexit_p(mxs_auart_remove),
 	.driver = {
 		.name = "mxs-auart",
 		.owner = THIS_MODULE,
+		.of_match_table = mxs_auart_dt_ids,
 	},
 };
 
@@ -797,3 +844,4 @@ module_init(mxs_auart_init);
 module_exit(mxs_auart_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Freescale MXS application uart driver");
+MODULE_ALIAS("platform:mxs-auart");

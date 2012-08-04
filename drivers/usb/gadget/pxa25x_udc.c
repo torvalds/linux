@@ -21,6 +21,7 @@
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -218,7 +219,7 @@ static int pxa25x_ep_enable (struct usb_ep *_ep,
 	struct pxa25x_udc       *dev;
 
 	ep = container_of (_ep, struct pxa25x_ep, ep);
-	if (!_ep || !desc || ep->desc || _ep->name == ep0name
+	if (!_ep || !desc || _ep->name == ep0name
 			|| desc->bDescriptorType != USB_DT_ENDPOINT
 			|| ep->bEndpointAddress != desc->bEndpointAddress
 			|| ep->fifo_size < usb_endpoint_maxp (desc)) {
@@ -249,7 +250,7 @@ static int pxa25x_ep_enable (struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->stopped = 0;
 	ep->pio_irqs = 0;
 	ep->ep.maxpacket = usb_endpoint_maxp (desc);
@@ -269,7 +270,7 @@ static int pxa25x_ep_disable (struct usb_ep *_ep)
 	unsigned long		flags;
 
 	ep = container_of (_ep, struct pxa25x_ep, ep);
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		DMSG("%s, %s not enabled\n", __func__,
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
@@ -281,7 +282,6 @@ static int pxa25x_ep_disable (struct usb_ep *_ep)
 	/* flush fifo (mostly for IN buffers) */
 	pxa25x_ep_fifo_flush (_ep);
 
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
@@ -390,7 +390,7 @@ write_fifo (struct pxa25x_ep *ep, struct pxa25x_request *req)
 {
 	unsigned		max;
 
-	max = usb_endpoint_maxp(ep->desc);
+	max = usb_endpoint_maxp(ep->ep.desc);
 	do {
 		unsigned	count;
 		int		is_last, is_short;
@@ -644,7 +644,7 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	}
 
 	ep = container_of(_ep, struct pxa25x_ep, ep);
-	if (unlikely (!_ep || (!ep->desc && ep->ep.name != ep0name))) {
+	if (unlikely(!_ep || (!ep->ep.desc && ep->ep.name != ep0name))) {
 		DMSG("%s, bad ep\n", __func__);
 		return -EINVAL;
 	}
@@ -660,7 +660,7 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	 * we can report per-packet status.  that also helps with dma.
 	 */
 	if (unlikely (ep->bmAttributes == USB_ENDPOINT_XFER_ISOC
-		        && req->req.length > usb_endpoint_maxp (ep->desc)))
+			&& req->req.length > usb_endpoint_maxp(ep->ep.desc)))
 		return -EMSGSIZE;
 
 	DBG(DBG_NOISY, "%s queue req %p, len %d buf %p\n",
@@ -673,7 +673,7 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	/* kickstart this i/o queue? */
 	if (list_empty(&ep->queue) && !ep->stopped) {
-		if (ep->desc == NULL/* ep0 */) {
+		if (ep->ep.desc == NULL/* ep0 */) {
 			unsigned	length = _req->length;
 
 			switch (dev->ep0state) {
@@ -722,7 +722,7 @@ pxa25x_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			req = NULL;
 		}
 
-		if (likely (req && ep->desc))
+		if (likely(req && ep->ep.desc))
 			pio_irq_enable(ep->bEndpointAddress);
 	}
 
@@ -749,7 +749,7 @@ static void nuke(struct pxa25x_ep *ep, int status)
 				queue);
 		done(ep, req, status);
 	}
-	if (ep->desc)
+	if (ep->ep.desc)
 		pio_irq_disable (ep->bEndpointAddress);
 }
 
@@ -792,7 +792,7 @@ static int pxa25x_ep_set_halt(struct usb_ep *_ep, int value)
 
 	ep = container_of(_ep, struct pxa25x_ep, ep);
 	if (unlikely (!_ep
-			|| (!ep->desc && ep->ep.name != ep0name))
+			|| (!ep->ep.desc && ep->ep.name != ep0name))
 			|| ep->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
 		DMSG("%s, bad ep\n", __func__);
 		return -EINVAL;
@@ -820,7 +820,7 @@ static int pxa25x_ep_set_halt(struct usb_ep *_ep, int value)
 	*ep->reg_udccs = UDCCS_BI_FST|UDCCS_BI_FTF;
 
 	/* ep0 needs special care */
-	if (!ep->desc) {
+	if (!ep->ep.desc) {
 		start_watchdog(ep->dev);
 		ep->dev->req_pending = 0;
 		ep->dev->ep0state = EP0_STALL;
@@ -994,7 +994,7 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
@@ -1087,7 +1087,7 @@ udc_seq_show(struct seq_file *m, void *_d)
 		if (i != 0) {
 			const struct usb_endpoint_descriptor	*desc;
 
-			desc = ep->desc;
+			desc = ep->ep.desc;
 			if (!desc)
 				continue;
 			tmp = *dev->ep [i].reg_udccs;
@@ -1191,7 +1191,6 @@ static void udc_reinit(struct pxa25x_udc *dev)
 		if (i != 0)
 			list_add_tail (&ep->ep.ep_list, &dev->gadget.ep_list);
 
-		ep->desc = NULL;
 		ep->ep.desc = NULL;
 		ep->stopped = 0;
 		INIT_LIST_HEAD (&ep->queue);
@@ -1301,7 +1300,7 @@ fail:
 	DMSG("registered gadget driver '%s'\n", driver->driver.name);
 
 	/* connect to bus through transceiver */
-	if (dev->transceiver) {
+	if (!IS_ERR_OR_NULL(dev->transceiver)) {
 		retval = otg_set_peripheral(dev->transceiver->otg,
 						&dev->gadget);
 		if (retval) {
@@ -1361,7 +1360,7 @@ static int pxa25x_stop(struct usb_gadget_driver *driver)
 	stop_activity(dev, driver);
 	local_irq_enable();
 
-	if (dev->transceiver)
+	if (!IS_ERR_OR_NULL(dev->transceiver))
 		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
 	driver->unbind(&dev->gadget);
@@ -2161,7 +2160,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 
-	dev->transceiver = usb_get_transceiver();
+	dev->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 
 	if (gpio_is_valid(dev->mach->gpio_pullup)) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,
@@ -2202,19 +2201,15 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARCH_LUBBOCK
 	if (machine_is_lubbock()) {
-		retval = request_irq(LUBBOCK_USB_DISC_IRQ,
-				lubbock_vbus_irq,
-				IRQF_SAMPLE_RANDOM,
-				driver_name, dev);
+		retval = request_irq(LUBBOCK_USB_DISC_IRQ, lubbock_vbus_irq,
+				     0, driver_name, dev);
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 			goto err_irq_lub;
 		}
-		retval = request_irq(LUBBOCK_USB_IRQ,
-				lubbock_vbus_irq,
-				IRQF_SAMPLE_RANDOM,
-				driver_name, dev);
+		retval = request_irq(LUBBOCK_USB_IRQ, lubbock_vbus_irq,
+				     0, driver_name, dev);
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_IRQ, retval);
@@ -2239,8 +2234,8 @@ lubbock_fail0:
 	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
-	if (dev->transceiver) {
-		usb_put_transceiver(dev->transceiver);
+	if (!IS_ERR_OR_NULL(dev->transceiver)) {
+		usb_put_phy(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 	clk_put(dev->clk);
@@ -2281,8 +2276,8 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 
 	clk_put(dev->clk);
 
-	if (dev->transceiver) {
-		usb_put_transceiver(dev->transceiver);
+	if (!IS_ERR_OR_NULL(dev->transceiver)) {
+		usb_put_phy(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 

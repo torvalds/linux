@@ -29,6 +29,8 @@ mwifiex-y += scan.o
 mwifiex-y += join.o
 mwifiex-y += sta_ioctl.o
 mwifiex-y += sta_cmd.o
+mwifiex-y += uap_cmd.o
+mwifiex-y += ie.o
 mwifiex-y += sta_cmdresp.o
 mwifiex-y += sta_event.o
 mwifiex-y += sta_tx.o
@@ -42,3 +44,6 @@ obj-$(CONFIG_MWIFIEX_SDIO) += mwifiex_sdio.o
 
 mwifiex_pcie-y += pcie.o
 obj-$(CONFIG_MWIFIEX_PCIE) += mwifiex_pcie.o
+
+mwifiex_usb-y += usb.o
+obj-$(CONFIG_MWIFIEX_USB) += mwifiex_usb.o

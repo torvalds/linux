@@ -4,7 +4,7 @@
 
 ccflags-y := -Iinclude/drm
 nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
-             nouveau_object.o nouveau_irq.o nouveau_notifier.o \
+             nouveau_gpuobj.o nouveau_irq.o nouveau_notifier.o \
              nouveau_sgdma.o nouveau_dma.o nouveau_util.o \
              nouveau_bo.o nouveau_fence.o nouveau_gem.o nouveau_ttm.o \
              nouveau_hw.o nouveau_calc.o nouveau_bios.o nouveau_i2c.o \
@@ -12,14 +12,18 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nouveau_hdmi.o nouveau_dp.o nouveau_ramht.o \
 	     nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o \
 	     nouveau_mm.o nouveau_vm.o nouveau_mxm.o nouveau_gpio.o \
+	     nouveau_abi16.o \
              nv04_timer.o \
              nv04_mc.o nv40_mc.o nv50_mc.o \
              nv04_fb.o nv10_fb.o nv20_fb.o nv30_fb.o nv40_fb.o \
              nv50_fb.o nvc0_fb.o \
-             nv04_fifo.o nv10_fifo.o nv40_fifo.o nv50_fifo.o nvc0_fifo.o \
+             nv04_fifo.o nv10_fifo.o nv17_fifo.o nv40_fifo.o nv50_fifo.o \
+             nv84_fifo.o nvc0_fifo.o nve0_fifo.o \
+             nv04_fence.o nv10_fence.o nv84_fence.o nvc0_fence.o \
+             nv04_software.o nv50_software.o nvc0_software.o \
              nv04_graph.o nv10_graph.o nv20_graph.o \
-             nv40_graph.o nv50_graph.o nvc0_graph.o \
-             nv40_grctx.o nv50_grctx.o nvc0_grctx.o \
+             nv40_graph.o nv50_graph.o nvc0_graph.o nve0_graph.o \
+             nv40_grctx.o nv50_grctx.o nvc0_grctx.o nve0_grctx.o \
              nv84_crypt.o nv98_crypt.o \
              nva3_copy.o nvc0_copy.o \
              nv31_mpeg.o nv50_mpeg.o \
@@ -37,7 +41,7 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
 	     nv50_calc.o \
 	     nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o \
 	     nv50_vram.o nvc0_vram.o \
-	     nv50_vm.o nvc0_vm.o
+	     nv50_vm.o nvc0_vm.o nouveau_prime.o
 
 nouveau-$(CONFIG_DRM_NOUVEAU_DEBUG) += nouveau_debugfs.o
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

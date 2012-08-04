@@ -1,8 +1,6 @@
 #ifndef _ASM_S390_FUTEX_H
 #define _ASM_S390_FUTEX_H
 
-#ifdef __KERNEL__
-
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/errno.h>
@@ -48,5 +46,4 @@ static inline int futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	return uaccess.futex_atomic_cmpxchg(uval, uaddr, oldval, newval);
 }
 
-#endif /* __KERNEL__ */
 #endif /* _ASM_S390_FUTEX_H */

@@ -26,6 +26,7 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <asm/unaligned.h>
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include "hid-logitech-dj.h"
@@ -155,6 +156,14 @@ static const char media_descriptor[] = {
 /* Maximum size of all defined hid reports in bytes (including report id) */
 #define MAX_REPORT_SIZE 8
 
+/* Make sure all descriptors are present here */
+#define MAX_RDESC_SIZE				\
+	(sizeof(kbd_descriptor) +		\
+	 sizeof(mse_descriptor) +		\
+	 sizeof(consumer_descriptor) +		\
+	 sizeof(syscontrol_descriptor) +	\
+	 sizeof(media_descriptor))
+
 /* Number of possible hid report types that can be created by this driver.
  *
  * Right now, RF report types have the same report types (or report id's)
@@ -265,8 +274,8 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 		goto dj_device_allocate_fail;
 	}
 
-	dj_dev->reports_supported = le32_to_cpu(
-		dj_report->report_params[DEVICE_PAIRED_RF_REPORT_TYPE]);
+	dj_dev->reports_supported = get_unaligned_le32(
+		dj_report->report_params + DEVICE_PAIRED_RF_REPORT_TYPE);
 	dj_dev->hdev = dj_hiddev;
 	dj_dev->dj_receiver_dev = djrcv_dev;
 	dj_dev->device_index = dj_report->device_index;
@@ -427,27 +436,37 @@ static int logi_dj_recv_send_report(struct dj_receiver_dev *djrcv_dev,
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 {
-	struct dj_report dj_report;
+	struct dj_report *dj_report;
+	int retval;
 
-	memset(&dj_report, 0, sizeof(dj_report));
-	dj_report.report_id = REPORT_ID_DJ_SHORT;
-	dj_report.device_index = 0xFF;
-	dj_report.report_type = REPORT_TYPE_CMD_GET_PAIRED_DEVICES;
-	return logi_dj_recv_send_report(djrcv_dev, &dj_report);
+	dj_report = kzalloc(sizeof(dj_report), GFP_KERNEL);
+	if (!dj_report)
+		return -ENOMEM;
+	dj_report->report_id = REPORT_ID_DJ_SHORT;
+	dj_report->device_index = 0xFF;
+	dj_report->report_type = REPORT_TYPE_CMD_GET_PAIRED_DEVICES;
+	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
+	kfree(dj_report);
+	return retval;
 }
 
 static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 					  unsigned timeout)
 {
-	struct dj_report dj_report;
+	struct dj_report *dj_report;
+	int retval;
 
-	memset(&dj_report, 0, sizeof(dj_report));
-	dj_report.report_id = REPORT_ID_DJ_SHORT;
-	dj_report.device_index = 0xFF;
-	dj_report.report_type = REPORT_TYPE_CMD_SWITCH;
-	dj_report.report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x3F;
-	dj_report.report_params[CMD_SWITCH_PARAM_TIMEOUT_SECONDS] = (u8)timeout;
-	return logi_dj_recv_send_report(djrcv_dev, &dj_report);
+	dj_report = kzalloc(sizeof(dj_report), GFP_KERNEL);
+	if (!dj_report)
+		return -ENOMEM;
+	dj_report->report_id = REPORT_ID_DJ_SHORT;
+	dj_report->device_index = 0xFF;
+	dj_report->report_type = REPORT_TYPE_CMD_SWITCH;
+	dj_report->report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x3F;
+	dj_report->report_params[CMD_SWITCH_PARAM_TIMEOUT_SECONDS] = (u8)timeout;
+	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
+	kfree(dj_report);
+	return retval;
 }
 
 
@@ -473,9 +492,17 @@ static int logi_dj_output_hidraw_report(struct hid_device *hid, u8 * buf,
 	return 0;
 }
 
+static void rdcat(char **rdesc, unsigned int *rsize, const char *data, unsigned int size)
+{
+	memcpy(*rdesc + *rsize, data, size);
+	*rsize += size;
+}
+
 static int logi_dj_ll_parse(struct hid_device *hid)
 {
 	struct dj_device *djdev = hid->driver_data;
+	unsigned int rsize = 0;
+	char *rdesc;
 	int retval;
 
 	dbg_hid("%s\n", __func__);
@@ -483,70 +510,38 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	djdev->hdev->version = 0x0111;
 	djdev->hdev->country = 0x00;
 
+	rdesc = kmalloc(MAX_RDESC_SIZE, GFP_KERNEL);
+	if (!rdesc)
+		return -ENOMEM;
+
 	if (djdev->reports_supported & STD_KEYBOARD) {
 		dbg_hid("%s: sending a kbd descriptor, reports_supported: %x\n",
 			__func__, djdev->reports_supported);
-		retval = hid_parse_report(hid,
-					  (u8 *) kbd_descriptor,
-					  sizeof(kbd_descriptor));
-		if (retval) {
-			dbg_hid("%s: sending a kbd descriptor, hid_parse failed"
-				" error: %d\n", __func__, retval);
-			return retval;
-		}
+		rdcat(&rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
 	}
 
 	if (djdev->reports_supported & STD_MOUSE) {
 		dbg_hid("%s: sending a mouse descriptor, reports_supported: "
 			"%x\n", __func__, djdev->reports_supported);
-		retval = hid_parse_report(hid,
-					  (u8 *) mse_descriptor,
-					  sizeof(mse_descriptor));
-		if (retval) {
-			dbg_hid("%s: sending a mouse descriptor, hid_parse "
-				"failed error: %d\n", __func__, retval);
-			return retval;
-		}
+		rdcat(&rdesc, &rsize, mse_descriptor, sizeof(mse_descriptor));
 	}
 
 	if (djdev->reports_supported & MULTIMEDIA) {
 		dbg_hid("%s: sending a multimedia report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		retval = hid_parse_report(hid,
-					  (u8 *) consumer_descriptor,
-					  sizeof(consumer_descriptor));
-		if (retval) {
-			dbg_hid("%s: sending a consumer_descriptor, hid_parse "
-				"failed error: %d\n", __func__, retval);
-			return retval;
-		}
+		rdcat(&rdesc, &rsize, consumer_descriptor, sizeof(consumer_descriptor));
 	}
 
 	if (djdev->reports_supported & POWER_KEYS) {
 		dbg_hid("%s: sending a power keys report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		retval = hid_parse_report(hid,
-					  (u8 *) syscontrol_descriptor,
-					  sizeof(syscontrol_descriptor));
-		if (retval) {
-			dbg_hid("%s: sending a syscontrol_descriptor, "
-				"hid_parse failed error: %d\n",
-				__func__, retval);
-			return retval;
-		}
+		rdcat(&rdesc, &rsize, syscontrol_descriptor, sizeof(syscontrol_descriptor));
 	}
 
 	if (djdev->reports_supported & MEDIA_CENTER) {
 		dbg_hid("%s: sending a media center report descriptor: %x\n",
 			__func__, djdev->reports_supported);
-		retval = hid_parse_report(hid,
-					  (u8 *) media_descriptor,
-					  sizeof(media_descriptor));
-		if (retval) {
-			dbg_hid("%s: sending a media_descriptor, hid_parse "
-				"failed error: %d\n", __func__, retval);
-			return retval;
-		}
+		rdcat(&rdesc, &rsize, media_descriptor, sizeof(media_descriptor));
 	}
 
 	if (djdev->reports_supported & KBD_LEDS) {
@@ -554,7 +549,10 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 			__func__, djdev->reports_supported);
 	}
 
-	return 0;
+	retval = hid_parse_report(hid, rdesc, rsize);
+	kfree(rdesc);
+
+	return retval;
 }
 
 static int logi_dj_ll_input_event(struct input_dev *dev, unsigned int type,

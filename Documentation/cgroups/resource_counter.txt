@@ -77,11 +77,11 @@ to work with it.
 	where the charging failed.
 
  d. int res_counter_charge_locked
-			(struct res_counter *rc, unsigned long val)
+			(struct res_counter *rc, unsigned long val, bool force)
 
 	The same as res_counter_charge(), but it must not acquire/release the
 	res_counter->lock internally (it must be called with res_counter->lock
-	held).
+	held). The force parameter indicates whether we can bypass the limit.
 
  e. void res_counter_uncharge[_locked]
 			(struct res_counter *rc, unsigned long val)
@@ -91,6 +91,14 @@ to work with it.
 	"uncharging".
 
 	The _locked routines imply that the res_counter->lock is taken.
+
+ f. void res_counter_uncharge_until
+		(struct res_counter *rc, struct res_counter *top,
+		 unsinged long val)
+
+	Almost same as res_cunter_uncharge() but propagation of uncharge
+	stops when rc == top. This is useful when kill a res_coutner in
+	child cgroup.
 
  2.1 Other accounting routines
 

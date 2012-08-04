@@ -101,6 +101,11 @@ static void __init sapphire_map_io(void)
 	msm_clock_init();
 }
 
+static void __init sapphire_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(SAPPHIRE, "sapphire")
 /* Maintainer: Brian Swetland <swetland@google.com> */
 	.atag_offset    = 0x100,
@@ -108,5 +113,6 @@ MACHINE_START(SAPPHIRE, "sapphire")
 	.map_io         = sapphire_map_io,
 	.init_irq       = sapphire_init_irq,
 	.init_machine   = sapphire_init,
+	.init_late      = sapphire_init_late,
 	.timer          = &msm_timer,
 MACHINE_END

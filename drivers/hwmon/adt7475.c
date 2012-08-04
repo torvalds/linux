@@ -1260,7 +1260,7 @@ static int adt7475_probe(struct i2c_client *client,
 	int i, ret = 0, revision;
 	u8 config2, config3;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -1344,7 +1344,7 @@ static int adt7475_probe(struct i2c_client *client,
 
 	ret = sysfs_create_group(&client->dev.kobj, &adt7475_attr_group);
 	if (ret)
-		goto efree;
+		return ret;
 
 	/* Features that can be disabled individually */
 	if (data->has_fan4) {
@@ -1410,8 +1410,6 @@ static int adt7475_probe(struct i2c_client *client,
 
 eremove:
 	adt7475_remove_files(client, data);
-efree:
-	kfree(data);
 	return ret;
 }
 
@@ -1421,7 +1419,6 @@ static int adt7475_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	adt7475_remove_files(client, data);
-	kfree(data);
 
 	return 0;
 }

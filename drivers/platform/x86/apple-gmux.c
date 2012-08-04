@@ -87,6 +87,9 @@ static int gmux_update_status(struct backlight_device *bd)
 	struct apple_gmux_data *gmux_data = bl_get_data(bd);
 	u32 brightness = bd->props.brightness;
 
+	if (bd->props.state & BL_CORE_SUSPENDED)
+		return 0;
+
 	/*
 	 * Older gmux versions require writing out lower bytes first then
 	 * setting the upper byte to 0 to flush the values. Newer versions
@@ -102,6 +105,7 @@ static int gmux_update_status(struct backlight_device *bd)
 }
 
 static const struct backlight_ops gmux_bl_ops = {
+	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = gmux_get_brightness,
 	.update_status = gmux_update_status,
 };
@@ -189,7 +193,10 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	 * backlight control and supports more levels than other options.
 	 * Disable the other backlight choices.
 	 */
+	acpi_video_dmi_promote_vendor();
+#ifdef CONFIG_ACPI_VIDEO
 	acpi_video_unregister();
+#endif
 	apple_bl_unregister();
 
 	return 0;
@@ -209,7 +216,10 @@ static void __devexit gmux_remove(struct pnp_dev *pnp)
 	release_region(gmux_data->iostart, gmux_data->iolen);
 	kfree(gmux_data);
 
+	acpi_video_dmi_demote_vendor();
+#ifdef CONFIG_ACPI_VIDEO
 	acpi_video_register();
+#endif
 	apple_bl_register();
 }
 

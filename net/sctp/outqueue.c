@@ -792,7 +792,8 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			if (!new_transport)
 				new_transport = asoc->peer.active_path;
 		} else if ((new_transport->state == SCTP_INACTIVE) ||
-			   (new_transport->state == SCTP_UNCONFIRMED)) {
+			   (new_transport->state == SCTP_UNCONFIRMED) ||
+			   (new_transport->state == SCTP_PF)) {
 			/* If the chunk is Heartbeat or Heartbeat Ack,
 			 * send it to chunk->transport, even if it's
 			 * inactive.
@@ -987,7 +988,8 @@ static int sctp_outq_flush(struct sctp_outq *q, int rtx_timeout)
 			new_transport = chunk->transport;
 			if (!new_transport ||
 			    ((new_transport->state == SCTP_INACTIVE) ||
-			     (new_transport->state == SCTP_UNCONFIRMED)))
+			     (new_transport->state == SCTP_UNCONFIRMED) ||
+			     (new_transport->state == SCTP_PF)))
 				new_transport = asoc->peer.active_path;
 			if (new_transport->state == SCTP_UNCONFIRMED)
 				continue;
@@ -1147,7 +1149,7 @@ int sctp_outq_sack(struct sctp_outq *q, struct sctp_sackhdr *sack)
 	__u32 sack_ctsn, ctsn, tsn;
 	__u32 highest_tsn, highest_new_tsn;
 	__u32 sack_a_rwnd;
-	unsigned outstanding;
+	unsigned int outstanding;
 	struct sctp_transport *primary = asoc->peer.primary_path;
 	int count_of_newacks = 0;
 	int gap_ack_blocks;

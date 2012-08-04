@@ -19,6 +19,7 @@
 #include <asm/system_misc.h>
 #include <mach/cpu.h>
 #include <mach/at91sam9261.h>
+#include <mach/at91_aic.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_rstc.h>
 
@@ -237,18 +238,6 @@ static void __init at91sam9261_register_clocks(void)
 
 	clk_register(&hck0);
 	clk_register(&hck1);
-}
-
-static struct clk_lookup console_clock_lookup;
-
-void __init at91sam9261_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
 }
 
 /* --------------------------------------------------------------------

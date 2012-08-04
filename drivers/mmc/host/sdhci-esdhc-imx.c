@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
 #include <mach/esdhc.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
@@ -68,7 +69,11 @@ struct pltfm_imx_data {
 	int flags;
 	u32 scratchpad;
 	enum imx_esdhc_type devtype;
+	struct pinctrl *pinctrl;
 	struct esdhc_platform_data boarddata;
+	struct clk *clk_ipg;
+	struct clk *clk_ahb;
+	struct clk *clk_per;
 };
 
 static struct platform_device_id imx_esdhc_devtype[] = {
@@ -294,6 +299,8 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 
 static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
 	u32 new_val;
 
 	switch (reg) {
@@ -310,8 +317,11 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 				SDHCI_CTRL_D3CD);
 		/* ensure the endianess */
 		new_val |= ESDHC_HOST_CONTROL_LE;
-		/* DMA mode bits are shifted */
-		new_val |= (val & SDHCI_CTRL_DMA_MASK) << 5;
+		/* bits 8&9 are reserved on mx25 */
+		if (!is_imx25_esdhc(imx_data)) {
+			/* DMA mode bits are shifted */
+			new_val |= (val & SDHCI_CTRL_DMA_MASK) << 5;
+		}
 
 		esdhc_clrset_le(host, 0xffff, new_val, reg);
 		return;
@@ -402,7 +412,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 	if (!np)
 		return -ENODEV;
 
-	if (of_get_property(np, "fsl,card-wired", NULL))
+	if (of_get_property(np, "non-removable", NULL))
 		boarddata->cd_type = ESDHC_CD_PERMANENT;
 
 	if (of_get_property(np, "fsl,cd-controller", NULL))
@@ -437,7 +447,6 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
 	struct esdhc_platform_data *boarddata;
-	struct clk *clk;
 	int err;
 	struct pltfm_imx_data *imx_data;
 
@@ -458,14 +467,35 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	imx_data->devtype = pdev->id_entry->driver_data;
 	pltfm_host->priv = imx_data;
 
-	clk = clk_get(mmc_dev(host->mmc), NULL);
-	if (IS_ERR(clk)) {
-		dev_err(mmc_dev(host->mmc), "clk err\n");
-		err = PTR_ERR(clk);
+	imx_data->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(imx_data->clk_ipg)) {
+		err = PTR_ERR(imx_data->clk_ipg);
 		goto err_clk_get;
 	}
-	clk_prepare_enable(clk);
-	pltfm_host->clk = clk;
+
+	imx_data->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(imx_data->clk_ahb)) {
+		err = PTR_ERR(imx_data->clk_ahb);
+		goto err_clk_get;
+	}
+
+	imx_data->clk_per = devm_clk_get(&pdev->dev, "per");
+	if (IS_ERR(imx_data->clk_per)) {
+		err = PTR_ERR(imx_data->clk_per);
+		goto err_clk_get;
+	}
+
+	pltfm_host->clk = imx_data->clk_per;
+
+	clk_prepare_enable(imx_data->clk_per);
+	clk_prepare_enable(imx_data->clk_ipg);
+	clk_prepare_enable(imx_data->clk_ahb);
+
+	imx_data->pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(imx_data->pinctrl)) {
+		err = PTR_ERR(imx_data->pinctrl);
+		goto pin_err;
+	}
 
 	host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
@@ -558,8 +588,10 @@ no_card_detect_irq:
 		gpio_free(boarddata->wp_gpio);
 no_card_detect_pin:
 no_board_data:
-	clk_disable_unprepare(pltfm_host->clk);
-	clk_put(pltfm_host->clk);
+pin_err:
+	clk_disable_unprepare(imx_data->clk_per);
+	clk_disable_unprepare(imx_data->clk_ipg);
+	clk_disable_unprepare(imx_data->clk_ahb);
 err_clk_get:
 	kfree(imx_data);
 err_imx_data:
@@ -585,8 +617,10 @@ static int __devexit sdhci_esdhc_imx_remove(struct platform_device *pdev)
 		gpio_free(boarddata->cd_gpio);
 	}
 
-	clk_disable_unprepare(pltfm_host->clk);
-	clk_put(pltfm_host->clk);
+	clk_disable_unprepare(imx_data->clk_per);
+	clk_disable_unprepare(imx_data->clk_ipg);
+	clk_disable_unprepare(imx_data->clk_ahb);
+
 	kfree(imx_data);
 
 	sdhci_pltfm_free(pdev);

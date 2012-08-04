@@ -1,5 +1,5 @@
 /*
- * asm-s390/kvm_para.h - definition for paravirtual devices on s390
+ * definition for paravirtual devices on s390
  *
  * Copyright IBM Corp. 2008
  *
@@ -147,6 +147,11 @@ static inline int kvm_para_available(void)
 static inline unsigned int kvm_arch_para_features(void)
 {
 	return 0;
+}
+
+static inline bool kvm_check_and_clear_guest_paused(void)
+{
+	return false;
 }
 
 #endif

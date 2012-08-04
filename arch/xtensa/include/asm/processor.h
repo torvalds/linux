@@ -168,9 +168,6 @@ struct mm_struct;
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while(0)
 
-/* Prepare to copy thread state - unlazy all lazy status */
-extern void prepare_to_copy(struct task_struct*);
-
 /* Create a kernel thread without removing it from tasklists */
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 

@@ -194,7 +194,6 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 /*
  * debugfs
  */
-#define DEBUGFS_EVENT_LEN (4096)
 static int debugfs_status_show(struct seq_file *s, void *data)
 {
 	unsigned long value;
@@ -315,7 +314,7 @@ static int __devinit ideapad_debugfs_init(struct ideapad_private *priv)
 	node = debugfs_create_file("status", S_IRUGO, priv->debug, NULL,
 				   &debugfs_status_fops);
 	if (!node) {
-		pr_err("failed to create event in debugfs");
+		pr_err("failed to create status in debugfs");
 		goto errout;
 	}
 
@@ -695,10 +694,10 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 {
 	int ret, i;
-	unsigned long cfg;
+	int cfg;
 	struct ideapad_private *priv;
 
-	if (read_method_int(adevice->handle, "_CFG", (int *)&cfg))
+	if (read_method_int(adevice->handle, "_CFG", &cfg))
 		return -ENODEV;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -722,7 +721,7 @@ static int __devinit ideapad_acpi_add(struct acpi_device *adevice)
 		goto input_failed;
 
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++) {
-		if (test_bit(ideapad_rfk_data[i].cfgbit, &cfg))
+		if (test_bit(ideapad_rfk_data[i].cfgbit, &priv->cfg))
 			ideapad_register_rfkill(adevice, i);
 		else
 			priv->rfk[i] = NULL;
@@ -785,6 +784,10 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 			case 9:
 				ideapad_sync_rfk_state(priv);
 				break;
+			case 13:
+			case 6:
+				ideapad_input_report(priv, vpc_bit);
+				break;
 			case 4:
 				ideapad_backlight_notify_brightness(priv);
 				break;
@@ -795,7 +798,7 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 				ideapad_backlight_notify_power(priv);
 				break;
 			default:
-				ideapad_input_report(priv, vpc_bit);
+				pr_info("Unknown event: %lu\n", vpc_bit);
 			}
 		}
 	}

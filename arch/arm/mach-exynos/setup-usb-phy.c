@@ -26,11 +26,99 @@ static int exynos4_usb_host_phy_is_on(void)
 	return (readl(EXYNOS4_PHYPWR) & PHY1_STD_ANALOG_POWERDOWN) ? 0 : 1;
 }
 
-static int exynos4_usb_phy1_init(struct platform_device *pdev)
+static void exynos4210_usb_phy_clkset(struct platform_device *pdev)
 {
-	struct clk *otg_clk;
 	struct clk *xusbxti_clk;
 	u32 phyclk;
+
+	xusbxti_clk = clk_get(&pdev->dev, "xusbxti");
+	if (xusbxti_clk && !IS_ERR(xusbxti_clk)) {
+		if (soc_is_exynos4210()) {
+			/* set clock frequency for PLL */
+			phyclk = readl(EXYNOS4_PHYCLK) & ~EXYNOS4210_CLKSEL_MASK;
+
+			switch (clk_get_rate(xusbxti_clk)) {
+			case 12 * MHZ:
+				phyclk |= EXYNOS4210_CLKSEL_12M;
+				break;
+			case 48 * MHZ:
+				phyclk |= EXYNOS4210_CLKSEL_48M;
+				break;
+			default:
+			case 24 * MHZ:
+				phyclk |= EXYNOS4210_CLKSEL_24M;
+				break;
+			}
+			writel(phyclk, EXYNOS4_PHYCLK);
+		} else if (soc_is_exynos4212() || soc_is_exynos4412()) {
+			/* set clock frequency for PLL */
+			phyclk = readl(EXYNOS4_PHYCLK) & ~EXYNOS4X12_CLKSEL_MASK;
+
+			switch (clk_get_rate(xusbxti_clk)) {
+			case 9600 * KHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_9600K;
+				break;
+			case 10 * MHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_10M;
+				break;
+			case 12 * MHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_12M;
+				break;
+			case 19200 * KHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_19200K;
+				break;
+			case 20 * MHZ:
+				phyclk |= EXYNOS4X12_CLKSEL_20M;
+				break;
+			default:
+			case 24 * MHZ:
+				/* default reference clock */
+				phyclk |= EXYNOS4X12_CLKSEL_24M;
+				break;
+			}
+			writel(phyclk, EXYNOS4_PHYCLK);
+		}
+		clk_put(xusbxti_clk);
+	}
+}
+
+static int exynos4210_usb_phy0_init(struct platform_device *pdev)
+{
+	u32 rstcon;
+
+	writel(readl(S5P_USBDEVICE_PHY_CONTROL) | S5P_USBDEVICE_PHY_ENABLE,
+			S5P_USBDEVICE_PHY_CONTROL);
+
+	exynos4210_usb_phy_clkset(pdev);
+
+	/* set to normal PHY0 */
+	writel((readl(EXYNOS4_PHYPWR) & ~PHY0_NORMAL_MASK), EXYNOS4_PHYPWR);
+
+	/* reset PHY0 and Link */
+	rstcon = readl(EXYNOS4_RSTCON) | PHY0_SWRST_MASK;
+	writel(rstcon, EXYNOS4_RSTCON);
+	udelay(10);
+
+	rstcon &= ~PHY0_SWRST_MASK;
+	writel(rstcon, EXYNOS4_RSTCON);
+
+	return 0;
+}
+
+static int exynos4210_usb_phy0_exit(struct platform_device *pdev)
+{
+	writel((readl(EXYNOS4_PHYPWR) | PHY0_ANALOG_POWERDOWN |
+				PHY0_OTG_DISABLE), EXYNOS4_PHYPWR);
+
+	writel(readl(S5P_USBDEVICE_PHY_CONTROL) & ~S5P_USBDEVICE_PHY_ENABLE,
+			S5P_USBDEVICE_PHY_CONTROL);
+
+	return 0;
+}
+
+static int exynos4210_usb_phy1_init(struct platform_device *pdev)
+{
+	struct clk *otg_clk;
 	u32 rstcon;
 	int err;
 
@@ -54,27 +142,7 @@ static int exynos4_usb_phy1_init(struct platform_device *pdev)
 	writel(readl(S5P_USBHOST_PHY_CONTROL) | S5P_USBHOST_PHY_ENABLE,
 			S5P_USBHOST_PHY_CONTROL);
 
-	/* set clock frequency for PLL */
-	phyclk = readl(EXYNOS4_PHYCLK) & ~CLKSEL_MASK;
-
-	xusbxti_clk = clk_get(&pdev->dev, "xusbxti");
-	if (xusbxti_clk && !IS_ERR(xusbxti_clk)) {
-		switch (clk_get_rate(xusbxti_clk)) {
-		case 12 * MHZ:
-			phyclk |= CLKSEL_12M;
-			break;
-		case 24 * MHZ:
-			phyclk |= CLKSEL_24M;
-			break;
-		default:
-		case 48 * MHZ:
-			/* default reference clock */
-			break;
-		}
-		clk_put(xusbxti_clk);
-	}
-
-	writel(phyclk, EXYNOS4_PHYCLK);
+	exynos4210_usb_phy_clkset(pdev);
 
 	/* floating prevention logic: disable */
 	writel((readl(EXYNOS4_PHY1CON) | FPENABLEN), EXYNOS4_PHY1CON);
@@ -102,7 +170,7 @@ static int exynos4_usb_phy1_init(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos4_usb_phy1_exit(struct platform_device *pdev)
+static int exynos4210_usb_phy1_exit(struct platform_device *pdev)
 {
 	struct clk *otg_clk;
 	int err;
@@ -136,16 +204,20 @@ static int exynos4_usb_phy1_exit(struct platform_device *pdev)
 
 int s5p_usb_phy_init(struct platform_device *pdev, int type)
 {
-	if (type == S5P_USB_PHY_HOST)
-		return exynos4_usb_phy1_init(pdev);
+	if (type == S5P_USB_PHY_DEVICE)
+		return exynos4210_usb_phy0_init(pdev);
+	else if (type == S5P_USB_PHY_HOST)
+		return exynos4210_usb_phy1_init(pdev);
 
 	return -EINVAL;
 }
 
 int s5p_usb_phy_exit(struct platform_device *pdev, int type)
 {
-	if (type == S5P_USB_PHY_HOST)
-		return exynos4_usb_phy1_exit(pdev);
+	if (type == S5P_USB_PHY_DEVICE)
+		return exynos4210_usb_phy0_exit(pdev);
+	else if (type == S5P_USB_PHY_HOST)
+		return exynos4210_usb_phy1_exit(pdev);
 
 	return -EINVAL;
 }

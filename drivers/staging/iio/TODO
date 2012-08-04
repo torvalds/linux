@@ -67,7 +67,7 @@ e-mailing the normal IIO list (see below).
 
 Documentation
 1) Lots of cleanup and expansion.
-2) Some device require indvidual docs.
+2) Some device require individual docs.
 
 Contact: Jonathan Cameron <jic23@cam.ac.uk>.
 Mailing list: linux-iio@vger.kernel.org

@@ -142,6 +142,50 @@ static struct intc_desc p ## _desc __initdata = {			\
 			     p ## _sense_registers, p ## _ack_registers) \
 }
 
+#define INTC_IRQ_PINS_16H(p, base, vect, str)				\
+									\
+static struct resource p ## _resources[] __initdata = {			\
+	[0] = {								\
+		.start	= base,						\
+		.end	= base + 0x64,					\
+		.flags	= IORESOURCE_MEM,				\
+	},								\
+};									\
+									\
+enum {									\
+	p ## _UNUSED = 0,						\
+	INTC_IRQ_PINS_ENUM_16H(p),					\
+};									\
+									\
+static struct intc_vect p ## _vectors[] __initdata = {			\
+	INTC_IRQ_PINS_VECT_16H(p, vect),				\
+};									\
+									\
+static struct intc_mask_reg p ## _mask_registers[] __initdata = {	\
+	INTC_IRQ_PINS_MASK_16H(p, base),				\
+};									\
+									\
+static struct intc_prio_reg p ## _prio_registers[] __initdata = {	\
+	INTC_IRQ_PINS_PRIO_16H(p, base),				\
+};									\
+									\
+static struct intc_sense_reg p ## _sense_registers[] __initdata = {	\
+	INTC_IRQ_PINS_SENSE_16H(p, base),				\
+};									\
+									\
+static struct intc_mask_reg p ## _ack_registers[] __initdata = {	\
+	INTC_IRQ_PINS_ACK_16H(p, base),					\
+};									\
+									\
+static struct intc_desc p ## _desc __initdata = {			\
+	.name = str,							\
+	.resource = p ## _resources,					\
+	.num_resources = ARRAY_SIZE(p ## _resources),			\
+	.hw = INTC_HW_DESC(p ## _vectors, NULL,				\
+			     p ## _mask_registers, p ## _prio_registers, \
+			     p ## _sense_registers, p ## _ack_registers) \
+}
+
 #define INTC_IRQ_PINS_32(p, base, vect, str)				\
 									\
 static struct resource p ## _resources[] __initdata = {			\

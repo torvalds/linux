@@ -618,7 +618,7 @@ struct vnet_port *__tx_port_find(struct vnet *vp, struct sk_buff *skb)
 	struct vnet_port *port;
 
 	hlist_for_each_entry(port, n, hp, hash) {
-		if (!compare_ether_addr(port->raddr, skb->data))
+		if (ether_addr_equal(port->raddr, skb->data))
 			return port;
 	}
 	port = NULL;

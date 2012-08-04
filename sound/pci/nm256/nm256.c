@@ -1382,9 +1382,10 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
  * APM event handler, so the card is properly reinitialized after a power
  * event.
  */
-static int nm256_suspend(struct pci_dev *pci, pm_message_t state)
+static int nm256_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct nm256 *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -1393,13 +1394,14 @@ static int nm256_suspend(struct pci_dev *pci, pm_message_t state)
 	chip->coeffs_current = 0;
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int nm256_resume(struct pci_dev *pci)
+static int nm256_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct nm256 *chip = card->private_data;
 	int i;
 
@@ -1434,6 +1436,11 @@ static int nm256_resume(struct pci_dev *pci)
 	chip->in_resume = 0;
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(nm256_pm, nm256_suspend, nm256_resume);
+#define NM256_PM_OPS	&nm256_pm
+#else
+#define NM256_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 static int snd_nm256_free(struct nm256 *chip)
@@ -1742,27 +1749,14 @@ static void __devexit snd_nm256_remove(struct pci_dev *pci)
 }
 
 
-static struct pci_driver driver = {
+static struct pci_driver nm256_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
 	.remove = __devexit_p(snd_nm256_remove),
-#ifdef CONFIG_PM
-	.suspend = nm256_suspend,
-	.resume = nm256_resume,
-#endif
+	.driver = {
+		.pm = NM256_PM_OPS,
+	},
 };
 
-
-static int __init alsa_card_nm256_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_nm256_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_nm256_init)
-module_exit(alsa_card_nm256_exit)
+module_pci_driver(nm256_driver);

@@ -77,7 +77,7 @@ __setup("ether=", netdev_boot_setup);
  */
 int eth_header(struct sk_buff *skb, struct net_device *dev,
 	       unsigned short type,
-	       const void *daddr, const void *saddr, unsigned len)
+	       const void *daddr, const void *saddr, unsigned int len)
 {
 	struct ethhdr *eth = (struct ethhdr *)skb_push(skb, ETH_HLEN);
 
@@ -164,7 +164,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	eth = eth_hdr(skb);
 
 	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
-		if (!compare_ether_addr_64bits(eth->h_dest, dev->broadcast))
+		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
 			skb->pkt_type = PACKET_MULTICAST;
@@ -179,7 +179,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	else if (1 /*dev->flags&IFF_PROMISC */ ) {
-		if (unlikely(compare_ether_addr_64bits(eth->h_dest, dev->dev_addr)))
+		if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
+						      dev->dev_addr)))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
 
@@ -231,6 +232,7 @@ EXPORT_SYMBOL(eth_header_parse);
  * @neigh: source neighbour
  * @hh: destination cache entry
  * @type: Ethernet type field
+ *
  * Create an Ethernet header template from the neighbour.
  */
 int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 type)
@@ -273,6 +275,7 @@ EXPORT_SYMBOL(eth_header_cache_update);
  * eth_mac_addr - set new Ethernet hardware address
  * @dev: network device
  * @p: socket address
+ *
  * Change hardware address of device.
  *
  * This doesn't change hardware matching, so needs to be overridden
@@ -282,7 +285,7 @@ int eth_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
-	if (netif_running(dev))
+	if (!(dev->priv_flags & IFF_LIVE_ADDR_CHANGE) && netif_running(dev))
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
@@ -330,6 +333,7 @@ const struct header_ops eth_header_ops ____cacheline_aligned = {
 /**
  * ether_setup - setup Ethernet network device
  * @dev: network device
+ *
  * Fill in the fields of the device structure with Ethernet-generic values.
  */
 void ether_setup(struct net_device *dev)

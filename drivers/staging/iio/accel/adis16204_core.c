@@ -18,9 +18,9 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 
 #include "adis16204.h"
 
@@ -169,32 +169,6 @@ error_ret:
 	return ret;
 }
 
-static ssize_t adis16204_read_14bit_signed(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	s16 val = 0;
-	ssize_t ret;
-
-	mutex_lock(&indio_dev->mlock);
-
-	ret = adis16204_spi_read_reg_16(indio_dev,
-					this_attr->address, (u16 *)&val);
-	if (!ret) {
-		if (val & ADIS16204_ERROR_ACTIVE)
-			adis16204_check_status(indio_dev);
-
-		val = ((s16)(val << 2) >> 2);
-		ret = sprintf(buf, "%d\n", val);
-	}
-
-	mutex_unlock(&indio_dev->mlock);
-
-	return ret;
-}
-
 static int adis16204_reset(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -205,23 +179,6 @@ static int adis16204_reset(struct iio_dev *indio_dev)
 		dev_err(&indio_dev->dev, "problem resetting device");
 
 	return ret;
-}
-
-static ssize_t adis16204_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-
-	if (len < 1)
-		return -EINVAL;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return adis16204_reset(indio_dev);
-	}
-	return -EINVAL;
 }
 
 int adis16204_set_irq(struct iio_dev *indio_dev, bool enable)
@@ -299,18 +256,6 @@ err_ret:
 }
 
 /* Unique to this driver currently */
-#define IIO_DEV_ATTR_ACCEL_XY(_show, _addr)			\
-	IIO_DEVICE_ATTR(in_accel_xy, S_IRUGO, _show, NULL, _addr)
-#define IIO_DEV_ATTR_ACCEL_XYPEAK(_show, _addr)		\
-	IIO_DEVICE_ATTR(in_accel_xypeak, S_IRUGO, _show, NULL, _addr)
-
-static IIO_DEV_ATTR_ACCEL_XY(adis16204_read_14bit_signed,
-		ADIS16204_XY_RSS_OUT);
-static IIO_DEV_ATTR_ACCEL_XYPEAK(adis16204_read_14bit_signed,
-		ADIS16204_XY_PEAK_OUT);
-static IIO_CONST_ATTR(in_accel_xy_scale, "0.017125");
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16204_write_reset, 0);
 
 enum adis16204_channel {
 	in_supply,
@@ -318,9 +263,10 @@ enum adis16204_channel {
 	temp,
 	accel_x,
 	accel_y,
+	accel_xy,
 };
 
-static u8 adis16204_addresses[5][3] = {
+static u8 adis16204_addresses[6][3] = {
 	[in_supply] = { ADIS16204_SUPPLY_OUT },
 	[in_aux] = { ADIS16204_AUX_ADC },
 	[temp] = { ADIS16204_TEMP_OUT },
@@ -328,6 +274,8 @@ static u8 adis16204_addresses[5][3] = {
 		      ADIS16204_X_PEAK_OUT },
 	[accel_y] = { ADIS16204_XACCL_OUT, ADIS16204_YACCL_NULL,
 		      ADIS16204_Y_PEAK_OUT },
+	[accel_xy] = { ADIS16204_XY_RSS_OUT, 0,
+		       ADIS16204_XY_PEAK_OUT },
 };
 
 static int adis16204_read_raw(struct iio_dev *indio_dev,
@@ -342,7 +290,7 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 	int addrind;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16204_addresses[chan->address][0];
 		ret = adis16204_spi_read_reg_16(indio_dev, addr, &val16);
@@ -381,10 +329,16 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
 			*val = 0;
-			if (chan->channel == 'x')
+			switch (chan->channel2) {
+			case IIO_MOD_X:
+			case IIO_MOD_ROOT_SUM_SQUARED_X_Y:
 				*val2 = 17125;
-			else
+				break;
+			case IIO_MOD_Y:
+			case IIO_MOD_Z:
 				*val2 = 8407;
+				break;
+			}
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
@@ -444,48 +398,96 @@ static int adis16204_write_raw(struct iio_dev *indio_dev,
 }
 
 static struct iio_chan_spec adis16204_channels[] = {
-	IIO_CHAN(IIO_VOLTAGE, 0, 0, 0, "supply", 0, 0,
-		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		 in_supply, ADIS16204_SCAN_SUPPLY,
-		 IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
-		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
-		 in_aux, ADIS16204_SCAN_AUX_ADC,
-		 IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
-		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-		 IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
-		 temp, ADIS16204_SCAN_TEMP,
-		 IIO_ST('u', 12, 16, 0), 0),
-	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X,
-		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
-		 IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
-		 accel_x, ADIS16204_SCAN_ACC_X,
-		 IIO_ST('s', 14, 16, 0), 0),
-	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y,
-		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
-		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
-		 IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
-		 accel_y, ADIS16204_SCAN_ACC_Y,
-		 IIO_ST('s', 14, 16, 0), 0),
+	{
+		.type = IIO_VOLTAGE,
+		.indexed = 1, /* Note was not previously indexed */
+		.channel = 0,
+		.extend_name = "supply",
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.address = in_supply,
+		.scan_index = ADIS16204_SCAN_SUPPLY,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	}, {
+		.type = IIO_VOLTAGE,
+		.indexed = 1,
+		.channel = 1,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.address = in_aux,
+		.scan_index = ADIS16204_SCAN_AUX_ADC,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	}, {
+		.type = IIO_TEMP,
+		.indexed = 1,
+		.channel = 0,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
+		.address = temp,
+		.scan_index = ADIS16204_SCAN_TEMP,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 12,
+			.storagebits = 16,
+		},
+	}, {
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_X,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
+		.address = accel_x,
+		.scan_index = ADIS16204_SCAN_ACC_X,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 14,
+			.storagebits = 16,
+		},
+	}, {
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_Y,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
+		.address = accel_y,
+		.scan_index = ADIS16204_SCAN_ACC_Y,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 14,
+			.storagebits = 16,
+		},
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(5),
-};
-
-static struct attribute *adis16204_attributes[] = {
-	&iio_dev_attr_reset.dev_attr.attr,
-	&iio_dev_attr_in_accel_xy.dev_attr.attr,
-	&iio_dev_attr_in_accel_xypeak.dev_attr.attr,
-	&iio_const_attr_in_accel_xy_scale.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group adis16204_attribute_group = {
-	.attrs = adis16204_attributes,
+	{
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_ROOT_SUM_SQUARED_X_Y,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
+		.address = accel_xy,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 14,
+			.storagebits = 16,
+		},
+	}
 };
 
 static const struct iio_info adis16204_info = {
-	.attrs = &adis16204_attribute_group,
 	.read_raw = &adis16204_read_raw,
 	.write_raw = &adis16204_write_raw,
 	.driver_module = THIS_MODULE,
@@ -498,7 +500,7 @@ static int __devinit adis16204_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -522,7 +524,7 @@ static int __devinit adis16204_probe(struct spi_device *spi)
 
 	ret = iio_buffer_register(indio_dev,
 				  adis16204_channels,
-				  ARRAY_SIZE(adis16204_channels));
+				  6);
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
@@ -551,7 +553,7 @@ error_uninitialize_ring:
 error_unreg_ring_funcs:
 	adis16204_unconfigure_ring(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -564,7 +566,7 @@ static int adis16204_remove(struct spi_device *spi)
 	adis16204_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16204_unconfigure_ring(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

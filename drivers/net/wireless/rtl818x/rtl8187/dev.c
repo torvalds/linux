@@ -294,6 +294,7 @@ static void rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 		hdr->retry = cpu_to_le32((info->control.rates[0].count - 1) << 8);
 		hdr->tx_duration =
 			ieee80211_generic_frame_duration(dev, priv->vif,
+							 info->band,
 							 skb->len, txrate);
 		buf = hdr;
 
@@ -1485,7 +1486,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	if (!is_valid_ether_addr(mac_addr)) {
 		printk(KERN_WARNING "rtl8187: Invalid hwaddr! Using randomly "
 		       "generated MAC address\n");
-		random_ether_addr(mac_addr);
+		eth_random_addr(mac_addr);
 	}
 	SET_IEEE80211_PERM_ADDR(dev, mac_addr);
 
@@ -1662,6 +1663,7 @@ static struct usb_driver rtl8187_driver = {
 	.id_table	= rtl8187_table,
 	.probe		= rtl8187_probe,
 	.disconnect	= __devexit_p(rtl8187_disconnect),
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8187_driver);

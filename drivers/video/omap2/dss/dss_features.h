@@ -24,9 +24,9 @@
 #include "ti_hdmi.h"
 #endif
 
-#define MAX_DSS_MANAGERS	3
+#define MAX_DSS_MANAGERS	4
 #define MAX_DSS_OVERLAYS	4
-#define MAX_DSS_LCD_MANAGERS	2
+#define MAX_DSS_LCD_MANAGERS	3
 #define MAX_NUM_DSI		2
 
 /* DSS has feature id */
@@ -36,6 +36,7 @@ enum dss_feat_id {
 	FEAT_PCKFREEENABLE,
 	FEAT_FUNCGATED,
 	FEAT_MGR_LCD2,
+	FEAT_MGR_LCD3,
 	FEAT_LINEBUFFERSPLIT,
 	FEAT_ROWREPEATENABLE,
 	FEAT_RESIZECONF,
@@ -62,6 +63,7 @@ enum dss_feat_id {
 	FEAT_FIFO_MERGE,
 	/* An unknown HW bug causing the normal FIFO thresholds not to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_BURST_2D,
 };
 
 /* DSS register field id */
@@ -91,6 +93,8 @@ enum dss_range_param {
 	FEAT_PARAM_DSIPLL_LPDIV,
 	FEAT_PARAM_DOWNSCALE,
 	FEAT_PARAM_LINEWIDTH,
+	FEAT_PARAM_MGR_WIDTH,
+	FEAT_PARAM_MGR_HEIGHT,
 };
 
 /* DSS Feature Functions */
@@ -107,6 +111,8 @@ const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id);
 
 u32 dss_feat_get_buffer_size_unit(void);	/* in bytes */
 u32 dss_feat_get_burst_size_unit(void);		/* in bytes */
+
+bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);

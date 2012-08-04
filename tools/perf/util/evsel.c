@@ -14,6 +14,8 @@
 #include "util.h"
 #include "cpumap.h"
 #include "thread_map.h"
+#include "target.h"
+#include "../../../include/linux/hw_breakpoint.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -63,12 +65,273 @@ struct perf_evsel *perf_evsel__new(struct perf_event_attr *attr, int idx)
 	return evsel;
 }
 
+static const char *perf_evsel__hw_names[PERF_COUNT_HW_MAX] = {
+	"cycles",
+	"instructions",
+	"cache-references",
+	"cache-misses",
+	"branches",
+	"branch-misses",
+	"bus-cycles",
+	"stalled-cycles-frontend",
+	"stalled-cycles-backend",
+	"ref-cycles",
+};
+
+static const char *__perf_evsel__hw_name(u64 config)
+{
+	if (config < PERF_COUNT_HW_MAX && perf_evsel__hw_names[config])
+		return perf_evsel__hw_names[config];
+
+	return "unknown-hardware";
+}
+
+static int perf_evsel__add_modifiers(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int colon = 0, r = 0;
+	struct perf_event_attr *attr = &evsel->attr;
+	bool exclude_guest_default = false;
+
+#define MOD_PRINT(context, mod)	do {					\
+		if (!attr->exclude_##context) {				\
+			if (!colon) colon = ++r;			\
+			r += scnprintf(bf + r, size - r, "%c", mod);	\
+		} } while(0)
+
+	if (attr->exclude_kernel || attr->exclude_user || attr->exclude_hv) {
+		MOD_PRINT(kernel, 'k');
+		MOD_PRINT(user, 'u');
+		MOD_PRINT(hv, 'h');
+		exclude_guest_default = true;
+	}
+
+	if (attr->precise_ip) {
+		if (!colon)
+			colon = ++r;
+		r += scnprintf(bf + r, size - r, "%.*s", attr->precise_ip, "ppp");
+		exclude_guest_default = true;
+	}
+
+	if (attr->exclude_host || attr->exclude_guest == exclude_guest_default) {
+		MOD_PRINT(host, 'H');
+		MOD_PRINT(guest, 'G');
+	}
+#undef MOD_PRINT
+	if (colon)
+		bf[colon - 1] = ':';
+	return r;
+}
+
+static int perf_evsel__hw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int r = scnprintf(bf, size, "%s", __perf_evsel__hw_name(evsel->attr.config));
+	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+}
+
+static const char *perf_evsel__sw_names[PERF_COUNT_SW_MAX] = {
+	"cpu-clock",
+	"task-clock",
+	"page-faults",
+	"context-switches",
+	"CPU-migrations",
+	"minor-faults",
+	"major-faults",
+	"alignment-faults",
+	"emulation-faults",
+};
+
+static const char *__perf_evsel__sw_name(u64 config)
+{
+	if (config < PERF_COUNT_SW_MAX && perf_evsel__sw_names[config])
+		return perf_evsel__sw_names[config];
+	return "unknown-software";
+}
+
+static int perf_evsel__sw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int r = scnprintf(bf, size, "%s", __perf_evsel__sw_name(evsel->attr.config));
+	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+}
+
+static int __perf_evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
+{
+	int r;
+
+	r = scnprintf(bf, size, "mem:0x%" PRIx64 ":", addr);
+
+	if (type & HW_BREAKPOINT_R)
+		r += scnprintf(bf + r, size - r, "r");
+
+	if (type & HW_BREAKPOINT_W)
+		r += scnprintf(bf + r, size - r, "w");
+
+	if (type & HW_BREAKPOINT_X)
+		r += scnprintf(bf + r, size - r, "x");
+
+	return r;
+}
+
+static int perf_evsel__bp_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	int r = __perf_evsel__bp_name(bf, size, attr->bp_addr, attr->bp_type);
+	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+}
+
+const char *perf_evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_EVSEL__MAX_ALIASES] = {
+ { "L1-dcache",	"l1-d",		"l1d",		"L1-data",		},
+ { "L1-icache",	"l1-i",		"l1i",		"L1-instruction",	},
+ { "LLC",	"L2",							},
+ { "dTLB",	"d-tlb",	"Data-TLB",				},
+ { "iTLB",	"i-tlb",	"Instruction-TLB",			},
+ { "branch",	"branches",	"bpu",		"btb",		"bpc",	},
+ { "node",								},
+};
+
+const char *perf_evsel__hw_cache_op[PERF_COUNT_HW_CACHE_OP_MAX]
+				   [PERF_EVSEL__MAX_ALIASES] = {
+ { "load",	"loads",	"read",					},
+ { "store",	"stores",	"write",				},
+ { "prefetch",	"prefetches",	"speculative-read", "speculative-load",	},
+};
+
+const char *perf_evsel__hw_cache_result[PERF_COUNT_HW_CACHE_RESULT_MAX]
+				       [PERF_EVSEL__MAX_ALIASES] = {
+ { "refs",	"Reference",	"ops",		"access",		},
+ { "misses",	"miss",							},
+};
+
+#define C(x)		PERF_COUNT_HW_CACHE_##x
+#define CACHE_READ	(1 << C(OP_READ))
+#define CACHE_WRITE	(1 << C(OP_WRITE))
+#define CACHE_PREFETCH	(1 << C(OP_PREFETCH))
+#define COP(x)		(1 << x)
+
+/*
+ * cache operartion stat
+ * L1I : Read and prefetch only
+ * ITLB and BPU : Read-only
+ */
+static unsigned long perf_evsel__hw_cache_stat[C(MAX)] = {
+ [C(L1D)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(L1I)]	= (CACHE_READ | CACHE_PREFETCH),
+ [C(LL)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(DTLB)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+ [C(ITLB)]	= (CACHE_READ),
+ [C(BPU)]	= (CACHE_READ),
+ [C(NODE)]	= (CACHE_READ | CACHE_WRITE | CACHE_PREFETCH),
+};
+
+bool perf_evsel__is_cache_op_valid(u8 type, u8 op)
+{
+	if (perf_evsel__hw_cache_stat[type] & COP(op))
+		return true;	/* valid */
+	else
+		return false;	/* invalid */
+}
+
+int __perf_evsel__hw_cache_type_op_res_name(u8 type, u8 op, u8 result,
+					    char *bf, size_t size)
+{
+	if (result) {
+		return scnprintf(bf, size, "%s-%s-%s", perf_evsel__hw_cache[type][0],
+				 perf_evsel__hw_cache_op[op][0],
+				 perf_evsel__hw_cache_result[result][0]);
+	}
+
+	return scnprintf(bf, size, "%s-%s", perf_evsel__hw_cache[type][0],
+			 perf_evsel__hw_cache_op[op][1]);
+}
+
+static int __perf_evsel__hw_cache_name(u64 config, char *bf, size_t size)
+{
+	u8 op, result, type = (config >>  0) & 0xff;
+	const char *err = "unknown-ext-hardware-cache-type";
+
+	if (type > PERF_COUNT_HW_CACHE_MAX)
+		goto out_err;
+
+	op = (config >>  8) & 0xff;
+	err = "unknown-ext-hardware-cache-op";
+	if (op > PERF_COUNT_HW_CACHE_OP_MAX)
+		goto out_err;
+
+	result = (config >> 16) & 0xff;
+	err = "unknown-ext-hardware-cache-result";
+	if (result > PERF_COUNT_HW_CACHE_RESULT_MAX)
+		goto out_err;
+
+	err = "invalid-cache";
+	if (!perf_evsel__is_cache_op_valid(type, op))
+		goto out_err;
+
+	return __perf_evsel__hw_cache_type_op_res_name(type, op, result, bf, size);
+out_err:
+	return scnprintf(bf, size, "%s", err);
+}
+
+static int perf_evsel__hw_cache_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int ret = __perf_evsel__hw_cache_name(evsel->attr.config, bf, size);
+	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
+}
+
+static int perf_evsel__raw_name(struct perf_evsel *evsel, char *bf, size_t size)
+{
+	int ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->attr.config);
+	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
+}
+
+const char *perf_evsel__name(struct perf_evsel *evsel)
+{
+	char bf[128];
+
+	if (evsel->name)
+		return evsel->name;
+
+	switch (evsel->attr.type) {
+	case PERF_TYPE_RAW:
+		perf_evsel__raw_name(evsel, bf, sizeof(bf));
+		break;
+
+	case PERF_TYPE_HARDWARE:
+		perf_evsel__hw_name(evsel, bf, sizeof(bf));
+		break;
+
+	case PERF_TYPE_HW_CACHE:
+		perf_evsel__hw_cache_name(evsel, bf, sizeof(bf));
+		break;
+
+	case PERF_TYPE_SOFTWARE:
+		perf_evsel__sw_name(evsel, bf, sizeof(bf));
+		break;
+
+	case PERF_TYPE_TRACEPOINT:
+		scnprintf(bf, sizeof(bf), "%s", "unknown tracepoint");
+		break;
+
+	case PERF_TYPE_BREAKPOINT:
+		perf_evsel__bp_name(evsel, bf, sizeof(bf));
+		break;
+
+	default:
+		scnprintf(bf, sizeof(bf), "%s", "unknown attr type");
+		break;
+	}
+
+	evsel->name = strdup(bf);
+
+	return evsel->name ?: "unknown";
+}
+
 void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 			struct perf_evsel *first)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
+	attr->disabled = 1;
 	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -106,15 +369,15 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	if (opts->call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (opts->system_wide)
+	if (perf_target__has_cpu(&opts->target))
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
 	if (opts->period)
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 
 	if (!opts->sample_id_all_missing &&
-	    (opts->sample_time || opts->system_wide ||
-	     !opts->no_inherit || opts->cpu_list))
+	    (opts->sample_time || !opts->no_inherit ||
+	     perf_target__has_cpu(&opts->target)))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 
 	if (opts->raw_samples) {
@@ -135,9 +398,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (!opts->target_pid && !opts->target_tid && !opts->system_wide &&
+	if (perf_target__none(&opts->target) &&
 	    (!opts->group || evsel == first)) {
-		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
 }
@@ -403,16 +665,24 @@ int perf_evsel__open_per_thread(struct perf_evsel *evsel,
 }
 
 static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
-				       struct perf_sample *sample)
+				       struct perf_sample *sample,
+				       bool swapped)
 {
 	const u64 *array = event->sample.array;
+	union u64_swap u;
 
 	array += ((event->header.size -
 		   sizeof(event->header)) / sizeof(u64)) - 1;
 
 	if (type & PERF_SAMPLE_CPU) {
-		u32 *p = (u32 *)array;
-		sample->cpu = *p;
+		u.val64 = *array;
+		if (swapped) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+		}
+
+		sample->cpu = u.val32[0];
 		array--;
 	}
 
@@ -432,9 +702,16 @@ static int perf_event__parse_id_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_TID) {
-		u32 *p = (u32 *)array;
-		sample->pid = p[0];
-		sample->tid = p[1];
+		u.val64 = *array;
+		if (swapped) {
+			/* undo swap of u64, then swap on individual u32s */
+			u.val64 = bswap_64(u.val64);
+			u.val32[0] = bswap_32(u.val32[0]);
+			u.val32[1] = bswap_32(u.val32[1]);
+		}
+
+		sample->pid = u.val32[0];
+		sample->tid = u.val32[1];
 	}
 
 	return 0;
@@ -461,10 +738,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
 	 */
-	union {
-		u64 val64;
-		u32 val32[2];
-	} u;
+	union u64_swap u;
 
 	memset(data, 0, sizeof(*data));
 	data->cpu = data->pid = data->tid = -1;
@@ -474,7 +748,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!sample_id_all)
 			return 0;
-		return perf_event__parse_id_sample(event, type, data);
+		return perf_event__parse_id_sample(event, type, data, swapped);
 	}
 
 	array = event->sample.array;
@@ -607,10 +881,7 @@ int perf_event__synthesize_sample(union perf_event *event, u64 type,
 	 * used for cross-endian analysis. See git commit 65014ab3
 	 * for why this goofiness is needed.
 	 */
-	union {
-		u64 val64;
-		u32 val32[2];
-	} u;
+	union u64_swap u;
 
 	array = event->sample.array;
 

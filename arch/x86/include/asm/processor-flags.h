@@ -44,6 +44,7 @@
  */
 #define X86_CR3_PWT	0x00000008 /* Page Write Through */
 #define X86_CR3_PCD	0x00000010 /* Page Cache Disable */
+#define X86_CR3_PCID_MASK 0x00000fff /* PCID Mask */
 
 /*
  * Intel CPU features in CR4
@@ -61,6 +62,7 @@
 #define X86_CR4_OSXMMEXCPT 0x00000400 /* enable unmasked SSE exceptions */
 #define X86_CR4_VMXE	0x00002000 /* enable VMX virtualization */
 #define X86_CR4_RDWRGSFS 0x00010000 /* enable RDWRGSFS support */
+#define X86_CR4_PCIDE	0x00020000 /* enable PCID support */
 #define X86_CR4_OSXSAVE 0x00040000 /* enable xsave and xrestore */
 #define X86_CR4_SMEP	0x00100000 /* enable SMEP support */
 

@@ -27,17 +27,16 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/pci.h>
-#include <linux/semaphore.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
-#include <linux/mutex.h>
 #include <linux/types.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "vme_user.h"
 
 static DEFINE_MUTEX(vme_user_mutex);
@@ -95,7 +94,7 @@ struct image_desc {
 	void *kern_buf;	/* Buffer address in kernel space */
 	dma_addr_t pci_buf;	/* Buffer address in PCI address space */
 	unsigned long long size_buf;	/* Buffer size */
-	struct semaphore sem;	/* Semaphore for locking image */
+	struct mutex mutex;	/* Mutex for locking image */
 	struct device *device;	/* Sysfs device */
 	struct vme_resource *resource;	/* VME resource */
 	int users;		/* Number of current users */
@@ -168,7 +167,7 @@ static int vme_user_open(struct inode *inode, struct file *file)
 	int err;
 	unsigned int minor = MINOR(inode->i_rdev);
 
-	down(&image[minor].sem);
+	mutex_lock(&image[minor].mutex);
 	/* Allow device to be opened if a resource is needed and allocated. */
 	if (minor < CONTROL_MINOR && image[minor].resource == NULL) {
 		printk(KERN_ERR "No resources allocated for device\n");
@@ -179,12 +178,12 @@ static int vme_user_open(struct inode *inode, struct file *file)
 	/* Increment user count */
 	image[minor].users++;
 
-	up(&image[minor].sem);
+	mutex_unlock(&image[minor].mutex);
 
 	return 0;
 
 err_res:
-	up(&image[minor].sem);
+	mutex_unlock(&image[minor].mutex);
 
 	return err;
 }
@@ -193,12 +192,12 @@ static int vme_user_release(struct inode *inode, struct file *file)
 {
 	unsigned int minor = MINOR(inode->i_rdev);
 
-	down(&image[minor].sem);
+	mutex_lock(&image[minor].mutex);
 
 	/* Decrement user count */
 	image[minor].users--;
 
-	up(&image[minor].sem);
+	mutex_unlock(&image[minor].mutex);
 
 	return 0;
 }
@@ -325,14 +324,14 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 	if (minor == CONTROL_MINOR)
 		return 0;
 
-	down(&image[minor].sem);
+	mutex_lock(&image[minor].mutex);
 
 	/* XXX Do we *really* want this helper - we can use vme_*_get ? */
 	image_size = vme_get_size(image[minor].resource);
 
 	/* Ensure we are starting at a valid location */
 	if ((*ppos < 0) || (*ppos > (image_size - 1))) {
-		up(&image[minor].sem);
+		mutex_unlock(&image[minor].mutex);
 		return 0;
 	}
 
@@ -353,8 +352,7 @@ static ssize_t vme_user_read(struct file *file, char __user *buf, size_t count,
 		retval = -EINVAL;
 	}
 
-	up(&image[minor].sem);
-
+	mutex_unlock(&image[minor].mutex);
 	if (retval > 0)
 		*ppos += retval;
 
@@ -372,13 +370,13 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 	if (minor == CONTROL_MINOR)
 		return 0;
 
-	down(&image[minor].sem);
+	mutex_lock(&image[minor].mutex);
 
 	image_size = vme_get_size(image[minor].resource);
 
 	/* Ensure we are starting at a valid location */
 	if ((*ppos < 0) || (*ppos > (image_size - 1))) {
-		up(&image[minor].sem);
+		mutex_unlock(&image[minor].mutex);
 		return 0;
 	}
 
@@ -398,8 +396,8 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 	default:
 		retval = -EINVAL;
 	}
-
-	up(&image[minor].sem);
+	
+	mutex_unlock(&image[minor].mutex);
 
 	if (retval > 0)
 		*ppos += retval;
@@ -416,7 +414,7 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 	if (minor == CONTROL_MINOR)
 		return -EINVAL;
 
-	down(&image[minor].sem);
+	mutex_lock(&image[minor].mutex);
 	image_size = vme_get_size(image[minor].resource);
 
 	switch (whence) {
@@ -430,19 +428,19 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 		absolute = image_size + off;
 		break;
 	default:
-		up(&image[minor].sem);
+		mutex_unlock(&image[minor].mutex);
 		return -EINVAL;
 		break;
 	}
 
 	if ((absolute < 0) || (absolute >= image_size)) {
-		up(&image[minor].sem);
+		mutex_unlock(&image[minor].mutex);
 		return -EINVAL;
 	}
 
 	file->f_pos = absolute;
 
-	up(&image[minor].sem);
+	mutex_unlock(&image[minor].mutex);
 
 	return absolute;
 }
@@ -475,7 +473,7 @@ static int vme_user_ioctl(struct inode *inode, struct file *file,
 	case CONTROL_MINOR:
 		switch (cmd) {
 		case VME_IRQ_GEN:
-			copied = copy_from_user(&irq_req, (char *)arg,
+			copied = copy_from_user(&irq_req, argp,
 						sizeof(struct vme_irq_id));
 			if (copied != 0) {
 				printk(KERN_WARNING "Partial copy from userspace\n");
@@ -696,7 +694,7 @@ static int __devinit vme_user_probe(struct vme_dev *vdev)
 	for (i = 0; i < VME_DEVS; i++) {
 		image[i].kern_buf = NULL;
 		image[i].pci_buf = 0;
-		sema_init(&image[i].sem, 1);
+		mutex_init(&image[i].mutex);
 		image[i].device = NULL;
 		image[i].resource = NULL;
 		image[i].users = 0;
@@ -858,8 +856,10 @@ static int __devexit vme_user_remove(struct vme_dev *dev)
 	int i;
 
 	/* Remove sysfs Entries */
-	for (i = 0; i < VME_DEVS; i++)
+	for (i = 0; i < VME_DEVS; i++) {
+		mutex_destroy(&image[i].mutex);
 		device_destroy(vme_user_sysfs_class, MKDEV(VME_MAJOR, i));
+	}
 	class_destroy(vme_user_sysfs_class);
 
 	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++) {

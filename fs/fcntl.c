@@ -20,6 +20,7 @@
 #include <linux/signal.h>
 #include <linux/rcupdate.h>
 #include <linux/pid_namespace.h>
+#include <linux/user_namespace.h>
 
 #include <asm/poll.h>
 #include <asm/siginfo.h>
@@ -340,6 +341,31 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 	return ret;
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
+static int f_getowner_uids(struct file *filp, unsigned long arg)
+{
+	struct user_namespace *user_ns = current_user_ns();
+	uid_t * __user dst = (void * __user)arg;
+	uid_t src[2];
+	int err;
+
+	read_lock(&filp->f_owner.lock);
+	src[0] = from_kuid(user_ns, filp->f_owner.uid);
+	src[1] = from_kuid(user_ns, filp->f_owner.euid);
+	read_unlock(&filp->f_owner.lock);
+
+	err  = put_user(src[0], &dst[0]);
+	err |= put_user(src[1], &dst[1]);
+
+	return err;
+}
+#else
+static int f_getowner_uids(struct file *filp, unsigned long arg)
+{
+	return -EINVAL;
+}
+#endif
+
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
@@ -396,6 +422,9 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_SETOWN_EX:
 		err = f_setown_ex(filp, arg);
 		break;
+	case F_GETOWNER_UIDS:
+		err = f_getowner_uids(filp, arg);
+		break;
 	case F_GETSIG:
 		err = filp->f_owner.signum;
 		break;
@@ -442,28 +471,24 @@ static int check_fcntl_cmd(unsigned cmd)
 SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {	
 	struct file *filp;
+	int fput_needed;
 	long err = -EBADF;
 
-	filp = fget_raw(fd);
+	filp = fget_raw_light(fd, &fput_needed);
 	if (!filp)
 		goto out;
 
 	if (unlikely(filp->f_mode & FMODE_PATH)) {
-		if (!check_fcntl_cmd(cmd)) {
-			fput(filp);
-			goto out;
-		}
+		if (!check_fcntl_cmd(cmd))
+			goto out1;
 	}
 
 	err = security_file_fcntl(filp, cmd, arg);
-	if (err) {
-		fput(filp);
-		return err;
-	}
+	if (!err)
+		err = do_fcntl(fd, cmd, arg, filp);
 
-	err = do_fcntl(fd, cmd, arg, filp);
-
- 	fput(filp);
+out1:
+ 	fput_light(filp, fput_needed);
 out:
 	return err;
 }
@@ -473,26 +498,21 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
 	struct file * filp;
-	long err;
+	long err = -EBADF;
+	int fput_needed;
 
-	err = -EBADF;
-	filp = fget_raw(fd);
+	filp = fget_raw_light(fd, &fput_needed);
 	if (!filp)
 		goto out;
 
 	if (unlikely(filp->f_mode & FMODE_PATH)) {
-		if (!check_fcntl_cmd(cmd)) {
-			fput(filp);
-			goto out;
-		}
+		if (!check_fcntl_cmd(cmd))
+			goto out1;
 	}
 
 	err = security_file_fcntl(filp, cmd, arg);
-	if (err) {
-		fput(filp);
-		return err;
-	}
-	err = -EBADF;
+	if (err)
+		goto out1;
 	
 	switch (cmd) {
 		case F_GETLK64:
@@ -507,7 +527,8 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 			err = do_fcntl(fd, cmd, arg, filp);
 			break;
 	}
-	fput(filp);
+out1:
+	fput_light(filp, fput_needed);
 out:
 	return err;
 }
@@ -532,9 +553,9 @@ static inline int sigio_perm(struct task_struct *p,
 
 	rcu_read_lock();
 	cred = __task_cred(p);
-	ret = ((fown->euid == 0 ||
-		fown->euid == cred->suid || fown->euid == cred->uid ||
-		fown->uid  == cred->suid || fown->uid  == cred->uid) &&
+	ret = ((uid_eq(fown->euid, GLOBAL_ROOT_UID) ||
+		uid_eq(fown->euid, cred->suid) || uid_eq(fown->euid, cred->uid) ||
+		uid_eq(fown->uid,  cred->suid) || uid_eq(fown->uid,  cred->uid)) &&
 	       !security_file_send_sigiotask(p, fown, sig));
 	rcu_read_unlock();
 	return ret;

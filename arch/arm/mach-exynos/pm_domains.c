@@ -119,7 +119,9 @@ static __init void exynos_pm_add_dev_to_genpd(struct platform_device *pdev,
 						struct exynos_pm_domain *pd)
 {
 	if (pdev->dev.bus) {
-		if (pm_genpd_add_device(&pd->pd, &pdev->dev))
+		if (!pm_genpd_add_device(&pd->pd, &pdev->dev))
+			pm_genpd_dev_need_restore(&pdev->dev, true);
+		else
 			pr_info("%s: error in adding %s device to %s power"
 				"domain\n", __func__, dev_name(&pdev->dev),
 				pd->name);
@@ -151,9 +153,12 @@ static __init int exynos4_pm_init_power_domain(void)
 	if (of_have_populated_dt())
 		return exynos_pm_dt_parse_domains();
 
-	for (idx = 0; idx < ARRAY_SIZE(exynos4_pm_domains); idx++)
-		pm_genpd_init(&exynos4_pm_domains[idx]->pd, NULL,
-				exynos4_pm_domains[idx]->is_off);
+	for (idx = 0; idx < ARRAY_SIZE(exynos4_pm_domains); idx++) {
+		struct exynos_pm_domain *pd = exynos4_pm_domains[idx];
+		int on = __raw_readl(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN;
+
+		pm_genpd_init(&pd->pd, NULL, !on);
+	}
 
 #ifdef CONFIG_S5P_DEV_FIMD0
 	exynos_pm_add_dev_to_genpd(&s5p_device_fimd0, &exynos4_pd_lcd0);
@@ -193,9 +198,8 @@ static __init int exynos4_pm_init_power_domain(void)
 }
 arch_initcall(exynos4_pm_init_power_domain);
 
-static __init int exynos_pm_late_initcall(void)
+int __init exynos_pm_late_initcall(void)
 {
 	pm_genpd_poweroff_unused();
 	return 0;
 }
-late_initcall(exynos_pm_late_initcall);

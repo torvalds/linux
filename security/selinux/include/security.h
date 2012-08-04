@@ -31,13 +31,15 @@
 #define POLICYDB_VERSION_BOUNDARY	24
 #define POLICYDB_VERSION_FILENAME_TRANS	25
 #define POLICYDB_VERSION_ROLETRANS	26
+#define POLICYDB_VERSION_NEW_OBJECT_DEFAULTS	27
+#define POLICYDB_VERSION_DEFAULT_TYPE	28
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
 #define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 #else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_ROLETRANS
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_DEFAULT_TYPE
 #endif
 
 /* Mask for just the mount related flags */
@@ -219,7 +221,7 @@ extern void selinux_status_update_policyload(int seqno);
 extern void selinux_complete_init(void);
 extern int selinux_disable(void);
 extern void exit_sel_fs(void);
-extern struct dentry *selinux_null;
+extern struct path selinux_null;
 extern struct vfsmount *selinuxfs_mount;
 extern void selnl_notify_setenforce(int val);
 extern void selnl_notify_policyload(u32 seqno);

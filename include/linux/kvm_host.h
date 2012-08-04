@@ -35,6 +35,20 @@
 #endif
 
 /*
+ * If we support unaligned MMIO, at most one fragment will be split into two:
+ */
+#ifdef KVM_UNALIGNED_MMIO
+#  define KVM_EXTRA_MMIO_FRAGMENTS 1
+#else
+#  define KVM_EXTRA_MMIO_FRAGMENTS 0
+#endif
+
+#define KVM_USER_MMIO_SIZE 8
+
+#define KVM_MAX_MMIO_FRAGMENTS \
+	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
+
+/*
  * vcpu->requests bit members
  */
 #define KVM_REQ_TLB_FLUSH          0
@@ -68,10 +82,11 @@ struct kvm_io_range {
 	struct kvm_io_device *dev;
 };
 
+#define NR_IOBUS_DEVS 1000
+
 struct kvm_io_bus {
 	int                   dev_count;
-#define NR_IOBUS_DEVS 300
-	struct kvm_io_range range[NR_IOBUS_DEVS];
+	struct kvm_io_range range[];
 };
 
 enum kvm_bus {
@@ -113,7 +128,18 @@ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
 enum {
 	OUTSIDE_GUEST_MODE,
 	IN_GUEST_MODE,
-	EXITING_GUEST_MODE
+	EXITING_GUEST_MODE,
+	READING_SHADOW_PAGE_TABLES,
+};
+
+/*
+ * Sometimes a large or cross-page mmio needs to be broken up into separate
+ * exits for userspace servicing.
+ */
+struct kvm_mmio_fragment {
+	gpa_t gpa;
+	void *data;
+	unsigned len;
 };
 
 struct kvm_vcpu {
@@ -143,10 +169,9 @@ struct kvm_vcpu {
 	int mmio_needed;
 	int mmio_read_completed;
 	int mmio_is_write;
-	int mmio_size;
-	int mmio_index;
-	unsigned char mmio_data[KVM_MMIO_SIZE];
-	gpa_t mmio_phys_addr;
+	int mmio_cur_fragment;
+	int mmio_nr_fragments;
+	struct kvm_mmio_fragment mmio_fragments[KVM_MAX_MMIO_FRAGMENTS];
 #endif
 
 #ifdef CONFIG_KVM_ASYNC_PF
@@ -178,8 +203,6 @@ struct kvm_memory_slot {
 	unsigned long flags;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
-	unsigned long *dirty_bitmap_head;
-	unsigned long nr_dirty_pages;
 	struct kvm_arch_memory_slot arch;
 	unsigned long userspace_addr;
 	int user_alloc;
@@ -283,7 +306,7 @@ struct kvm {
 	struct hlist_head irq_ack_notifier_list;
 #endif
 
-#ifdef KVM_ARCH_WANT_MMU_NOTIFIER
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	struct mmu_notifier mmu_notifier;
 	unsigned long mmu_notifier_seq;
 	long mmu_notifier_count;
@@ -291,13 +314,19 @@ struct kvm {
 	long tlbs_dirty;
 };
 
-/* The guest did something we don't support. */
-#define pr_unimpl(vcpu, fmt, ...)					\
-	pr_err_ratelimited("kvm: %i: cpu%i " fmt,			\
-			   current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__)
+#define kvm_err(fmt, ...) \
+	pr_err("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_info(fmt, ...) \
+	pr_info("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_debug(fmt, ...) \
+	pr_debug("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_pr_unimpl(fmt, ...) \
+	pr_err_ratelimited("kvm [%i]: " fmt, \
+			   task_tgid_nr(current), ## __VA_ARGS__)
 
-#define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
-#define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
+/* The guest did something we don't support. */
+#define vcpu_unimpl(vcpu, fmt, ...)					\
+	kvm_pr_unimpl("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
@@ -438,6 +467,8 @@ void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			     gfn_t gfn);
 
 void kvm_vcpu_block(struct kvm_vcpu *vcpu);
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
+bool kvm_vcpu_yield_to(struct kvm_vcpu *target);
 void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu);
 void kvm_resched(struct kvm_vcpu *vcpu);
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu);
@@ -506,8 +537,12 @@ int kvm_arch_hardware_setup(void);
 void kvm_arch_hardware_unsetup(void);
 void kvm_arch_check_processor_compat(void *rtn);
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
 
 void kvm_free_physmem(struct kvm *kvm);
+
+void *kvm_kvzalloc(unsigned long size);
+void kvm_kvfree(const void *addr);
 
 #ifndef __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
@@ -520,6 +555,15 @@ static inline void kvm_arch_free_vm(struct kvm *kvm)
 	kfree(kvm);
 }
 #endif
+
+static inline wait_queue_head_t *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
+{
+#ifdef __KVM_HAVE_ARCH_WQP
+	return vcpu->arch.wqp;
+#else
+	return &vcpu->wq;
+#endif
+}
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type);
 void kvm_arch_destroy_vm(struct kvm *kvm);
@@ -736,7 +780,7 @@ struct kvm_stats_debugfs_item {
 extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;
 
-#ifdef KVM_ARCH_WANT_MMU_NOTIFIER
+#if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_seq)
 {
 	if (unlikely(vcpu->kvm->mmu_notifier_count))
@@ -758,7 +802,7 @@ static inline int mmu_notifier_retry(struct kvm_vcpu *vcpu, unsigned long mmu_se
 }
 #endif
 
-#ifdef CONFIG_HAVE_KVM_IRQCHIP
+#ifdef KVM_CAP_IRQ_ROUTING
 
 #define KVM_MAX_IRQ_ROUTES 1024
 
@@ -769,6 +813,8 @@ int kvm_set_irq_routing(struct kvm *kvm,
 			unsigned flags);
 void kvm_free_irq_routing(struct kvm *kvm);
 
+int kvm_send_userspace_msi(struct kvm *kvm, struct kvm_msi *msi);
+
 #else
 
 static inline void kvm_free_irq_routing(struct kvm *kvm) {}
@@ -778,7 +824,7 @@ static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 #ifdef CONFIG_HAVE_KVM_EVENTFD
 
 void kvm_eventfd_init(struct kvm *kvm);
-int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags);
+int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args);
 void kvm_irqfd_release(struct kvm *kvm);
 void kvm_irq_routing_update(struct kvm *, struct kvm_irq_routing_table *);
 int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
@@ -787,7 +833,7 @@ int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args);
 
 static inline void kvm_eventfd_init(struct kvm *kvm) {}
 
-static inline int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
+static inline int kvm_irqfd(struct kvm *kvm, struct kvm_irqfd *args)
 {
 	return -EINVAL;
 }

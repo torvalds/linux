@@ -48,4 +48,27 @@
 # define CONFIG_VCO_MULT 0
 #endif
 
+#include <linux/clk.h>
+
+struct clk_ops {
+	unsigned long (*get_rate)(struct clk *clk);
+	unsigned long (*round_rate)(struct clk *clk, unsigned long rate);
+	int (*set_rate)(struct clk *clk, unsigned long rate);
+	int (*enable)(struct clk *clk);
+	int (*disable)(struct clk *clk);
+};
+
+struct clk {
+	struct clk		*parent;
+	const char              *name;
+	unsigned long           rate;
+	spinlock_t              lock;
+	u32                     flags;
+	const struct clk_ops    *ops;
+	void __iomem            *reg;
+	u32                     mask;
+	u32                     shift;
+};
+
+int clk_init(void);
 #endif

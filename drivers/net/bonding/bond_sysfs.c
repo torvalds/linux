@@ -1082,8 +1082,12 @@ static ssize_t bonding_store_primary(struct device *d,
 		}
 	}
 
-	pr_info("%s: Unable to set %.*s as primary slave.\n",
-		bond->dev->name, (int)strlen(buf) - 1, buf);
+	strncpy(bond->params.primary, ifname, IFNAMSIZ);
+	bond->params.primary[IFNAMSIZ - 1] = 0;
+
+	pr_info("%s: Recording %s as primary, "
+		"but it has not been enslaved to %s yet.\n",
+		bond->dev->name, ifname, bond->dev->name);
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1491,7 +1495,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 	/* Check buffer length, valid ifname and queue id */
 	if (strlen(buffer) > IFNAMSIZ ||
 	    !dev_valid_name(buffer) ||
-	    qid > bond->params.tx_queues)
+	    qid > bond->dev->real_num_tx_queues)
 		goto err_no_cmd;
 
 	/* Get the pointer to that interface if it exists */

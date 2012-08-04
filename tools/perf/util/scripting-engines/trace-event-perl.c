@@ -56,7 +56,7 @@ INTERP my_perl;
 #define FTRACE_MAX_EVENT				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-struct event *events[FTRACE_MAX_EVENT];
+struct event_format *events[FTRACE_MAX_EVENT];
 
 extern struct scripting_context *scripting_context;
 
@@ -181,7 +181,7 @@ static void define_flag_field(const char *ev_name,
 	LEAVE;
 }
 
-static void define_event_symbols(struct event *event,
+static void define_event_symbols(struct event_format *event,
 				 const char *ev_name,
 				 struct print_arg *args)
 {
@@ -209,6 +209,12 @@ static void define_event_symbols(struct event *event,
 		define_symbolic_values(args->symbol.symbols, ev_name,
 				       cur_field_name);
 		break;
+	case PRINT_HEX:
+		define_event_symbols(event, ev_name, args->hex.field);
+		define_event_symbols(event, ev_name, args->hex.size);
+		break;
+	case PRINT_BSTRING:
+	case PRINT_DYNAMIC_ARRAY:
 	case PRINT_STRING:
 		break;
 	case PRINT_TYPE:
@@ -220,7 +226,9 @@ static void define_event_symbols(struct event *event,
 		define_event_symbols(event, ev_name, args->op.left);
 		define_event_symbols(event, ev_name, args->op.right);
 		break;
+	case PRINT_FUNC:
 	default:
+		pr_err("Unsupported print arg type\n");
 		/* we should warn... */
 		return;
 	}
@@ -229,15 +237,16 @@ static void define_event_symbols(struct event *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static inline struct event *find_cache_event(int type)
+static inline
+struct event_format *find_cache_event(struct pevent *pevent, int type)
 {
 	static char ev_name[256];
-	struct event *event;
+	struct event_format *event;
 
 	if (events[type])
 		return events[type];
 
-	events[type] = event = trace_find_event(type);
+	events[type] = event = pevent_find_event(pevent, type);
 	if (!event)
 		return NULL;
 
@@ -248,7 +257,8 @@ static inline struct event *find_cache_event(int type)
 	return event;
 }
 
-static void perl_process_tracepoint(union perf_event *pevent __unused,
+static void perl_process_tracepoint(union perf_event *perf_event __unused,
+				    struct pevent *pevent,
 				    struct perf_sample *sample,
 				    struct perf_evsel *evsel,
 				    struct machine *machine __unused,
@@ -258,7 +268,7 @@ static void perl_process_tracepoint(union perf_event *pevent __unused,
 	static char handler[256];
 	unsigned long long val;
 	unsigned long s, ns;
-	struct event *event;
+	struct event_format *event;
 	int type;
 	int pid;
 	int cpu = sample->cpu;
@@ -271,13 +281,13 @@ static void perl_process_tracepoint(union perf_event *pevent __unused,
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 		return;
 
-	type = trace_parse_common_type(data);
+	type = trace_parse_common_type(pevent, data);
 
-	event = find_cache_event(type);
+	event = find_cache_event(pevent, type);
 	if (!event)
 		die("ug! no event found for type %d", type);
 
-	pid = trace_parse_common_pid(data);
+	pid = trace_parse_common_pid(pevent, data);
 
 	sprintf(handler, "%s::%s", event->system, event->name);
 
@@ -310,7 +320,8 @@ static void perl_process_tracepoint(union perf_event *pevent __unused,
 				offset = field->offset;
 			XPUSHs(sv_2mortal(newSVpv((char *)data + offset, 0)));
 		} else { /* FIELD_IS_NUMERIC */
-			val = read_size(data + field->offset, field->size);
+			val = read_size(pevent, data + field->offset,
+					field->size);
 			if (field->flags & FIELD_IS_SIGNED) {
 				XPUSHs(sv_2mortal(newSViv(val)));
 			} else {
@@ -364,14 +375,15 @@ static void perl_process_event_generic(union perf_event *pevent __unused,
 	LEAVE;
 }
 
-static void perl_process_event(union perf_event *pevent,
+static void perl_process_event(union perf_event *event,
+			       struct pevent *pevent,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
 			       struct thread *thread)
 {
-	perl_process_tracepoint(pevent, sample, evsel, machine, thread);
-	perl_process_event_generic(pevent, sample, evsel, machine, thread);
+	perl_process_tracepoint(event, pevent, sample, evsel, machine, thread);
+	perl_process_event_generic(event, sample, evsel, machine, thread);
 }
 
 static void run_start_sub(void)
@@ -444,9 +456,9 @@ static int perl_stop_script(void)
 	return 0;
 }
 
-static int perl_generate_script(const char *outfile)
+static int perl_generate_script(struct pevent *pevent, const char *outfile)
 {
-	struct event *event = NULL;
+	struct event_format *event = NULL;
 	struct format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;
@@ -491,7 +503,7 @@ static int perl_generate_script(const char *outfile)
 	fprintf(ofp, "sub trace_begin\n{\n\t# optional\n}\n\n");
 	fprintf(ofp, "sub trace_end\n{\n\t# optional\n}\n\n");
 
-	while ((event = trace_find_next_event(event))) {
+	while ((event = trace_find_next_event(pevent, event))) {
 		fprintf(ofp, "sub %s::%s\n{\n", event->system, event->name);
 		fprintf(ofp, "\tmy (");
 

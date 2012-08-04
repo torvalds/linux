@@ -18,11 +18,22 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
+#include <plat/irq.h>
 #include "common.h"
 
 static struct of_device_id kirkwood_dt_match_table[] __initdata = {
 	{ .compatible = "simple-bus", },
 	{ }
+};
+
+struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
+	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
+		       NULL),
+	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
+	OF_DEV_AUXDATA("marvell,orion-sata", 0xf1080000, "sata_mv.0", NULL),
+	OF_DEV_AUXDATA("marvell,orion-nand", 0xf4000000, "orion_nand", NULL),
+	{},
 };
 
 static void __init kirkwood_dt_init(void)
@@ -43,8 +54,10 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_l2_init();
 #endif
 
+	/* Setup root of clk tree */
+	kirkwood_clk_init();
+
 	/* internal devices that every board has */
-	kirkwood_wdt_init();
 	kirkwood_xor0_init();
 	kirkwood_xor1_init();
 	kirkwood_crypto_init();
@@ -56,11 +69,37 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("globalscale,dreamplug"))
 		dreamplug_init();
 
-	of_platform_populate(NULL, kirkwood_dt_match_table, NULL, NULL);
+	if (of_machine_is_compatible("dlink,dns-kirkwood"))
+		dnskw_init();
+
+	if (of_machine_is_compatible("iom,iconnect"))
+		iconnect_init();
+
+	if (of_machine_is_compatible("raidsonic,ib-nas62x0"))
+		ib62x0_init();
+
+	if (of_machine_is_compatible("qnap,ts219"))
+		qnap_dt_ts219_init();
+
+	if (of_machine_is_compatible("seagate,goflexnet"))
+		goflexnet_init();
+
+	if (of_machine_is_compatible("buffalo,lsxl"))
+		lsxl_init();
+
+	of_platform_populate(NULL, kirkwood_dt_match_table,
+			     kirkwood_auxdata_lookup, NULL);
 }
 
 static const char *kirkwood_dt_board_compat[] = {
 	"globalscale,dreamplug",
+	"dlink,dns-320",
+	"dlink,dns-325",
+	"iom,iconnect",
+	"raidsonic,ib-nas62x0",
+	"qnap,ts219",
+	"seagate,goflexnet",
+	"buffalo,lsxl",
 	NULL
 };
 
@@ -68,7 +107,7 @@ DT_MACHINE_START(KIRKWOOD_DT, "Marvell Kirkwood (Flattened Device Tree)")
 	/* Maintainer: Jason Cooper <jason@lakedaemon.net> */
 	.map_io		= kirkwood_map_io,
 	.init_early	= kirkwood_init_early,
-	.init_irq	= kirkwood_init_irq,
+	.init_irq	= orion_dt_init_irq,
 	.timer		= &kirkwood_timer,
 	.init_machine	= kirkwood_dt_init,
 	.restart	= kirkwood_restart,

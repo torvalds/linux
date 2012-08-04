@@ -308,7 +308,7 @@ static void p54_pspoll_workaround(struct p54_common *priv, struct sk_buff *skb)
 		return;
 
 	/* only consider beacons from the associated BSSID */
-	if (compare_ether_addr(hdr->addr3, priv->bssid))
+	if (!ether_addr_equal(hdr->addr3, priv->bssid))
 		return;
 
 	tim = p54_find_ie(skb, WLAN_EID_TIM);
@@ -422,11 +422,11 @@ static void p54_rx_frame_sent(struct p54_common *priv, struct sk_buff *skb)
 	 * Clear manually, ieee80211_tx_info_clear_status would
 	 * clear the counts too and we need them.
 	 */
-	memset(&info->status.ampdu_ack_len, 0,
+	memset(&info->status.ack_signal, 0,
 	       sizeof(struct ieee80211_tx_info) -
-	       offsetof(struct ieee80211_tx_info, status.ampdu_ack_len));
+	       offsetof(struct ieee80211_tx_info, status.ack_signal));
 	BUILD_BUG_ON(offsetof(struct ieee80211_tx_info,
-			      status.ampdu_ack_len) != 23);
+			      status.ack_signal) != 20);
 
 	if (entry_hdr->flags & cpu_to_le16(P54_HDR_FLAG_DATA_ALIGN))
 		pad = entry_data->align[0];
@@ -914,8 +914,7 @@ void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->hw_queue = queue;
 	txhdr->backlog = priv->tx_stats[queue].len - 1;
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
-	txhdr->tx_antenna = ((info->antenna_sel_tx == 0) ?
-		2 : info->antenna_sel_tx - 1) & priv->tx_diversity_mask;
+	txhdr->tx_antenna = 2 & priv->tx_diversity_mask;
 	if (priv->rxhw == 5) {
 		txhdr->longbow.cts_rate = cts_rate;
 		txhdr->longbow.output_power = cpu_to_le16(priv->output_power);

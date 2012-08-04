@@ -46,7 +46,7 @@ static void dwmac1000_core_init(void __iomem *ioaddr)
 #endif
 }
 
-static int dwmac1000_rx_coe_supported(void __iomem *ioaddr)
+static int dwmac1000_rx_ipc_enable(void __iomem *ioaddr)
 {
 	u32 value = readl(ioaddr + GMAC_CONTROL);
 
@@ -84,10 +84,11 @@ static void dwmac1000_get_umac_addr(void __iomem *ioaddr, unsigned char *addr,
 				GMAC_ADDR_LOW(reg_n));
 }
 
-static void dwmac1000_set_filter(struct net_device *dev)
+static void dwmac1000_set_filter(struct net_device *dev, int id)
 {
 	void __iomem *ioaddr = (void __iomem *) dev->base_addr;
 	unsigned int value = 0;
+	unsigned int perfect_addr_number;
 
 	CHIP_DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
 		 __func__, netdev_mc_count(dev), netdev_uc_count(dev));
@@ -121,8 +122,14 @@ static void dwmac1000_set_filter(struct net_device *dev)
 		writel(mc_filter[1], ioaddr + GMAC_HASH_HIGH);
 	}
 
+	/* Extra 16 regs are available in cores newer than the 3.40. */
+	if (id > DWMAC_CORE_3_40)
+		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES;
+	else
+		perfect_addr_number = GMAC_MAX_PERFECT_ADDRESSES / 2;
+
 	/* Handle multiple unicast addresses (perfect filtering)*/
-	if (netdev_uc_count(dev) > GMAC_MAX_UNICAST_ADDRESSES)
+	if (netdev_uc_count(dev) > perfect_addr_number)
 		/* Switch to promiscuous mode is more than 16 addrs
 		   are required */
 		value |= GMAC_FRAME_FILTER_PR;
@@ -187,31 +194,112 @@ static void dwmac1000_pmt(void __iomem *ioaddr, unsigned long mode)
 }
 
 
-static void dwmac1000_irq_status(void __iomem *ioaddr)
+static int dwmac1000_irq_status(void __iomem *ioaddr)
 {
 	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
+	int status = 0;
 
 	/* Not used events (e.g. MMC interrupts) are not handled. */
-	if ((intr_status & mmc_tx_irq))
-		CHIP_DBG(KERN_DEBUG "GMAC: MMC tx interrupt: 0x%08x\n",
+	if ((intr_status & mmc_tx_irq)) {
+		CHIP_DBG(KERN_INFO "GMAC: MMC tx interrupt: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_TX_INTR));
-	if (unlikely(intr_status & mmc_rx_irq))
-		CHIP_DBG(KERN_DEBUG "GMAC: MMC rx interrupt: 0x%08x\n",
+		status |= core_mmc_tx_irq;
+	}
+	if (unlikely(intr_status & mmc_rx_irq)) {
+		CHIP_DBG(KERN_INFO "GMAC: MMC rx interrupt: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_RX_INTR));
-	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
-		CHIP_DBG(KERN_DEBUG "GMAC: MMC rx csum offload: 0x%08x\n",
+		status |= core_mmc_rx_irq;
+	}
+	if (unlikely(intr_status & mmc_rx_csum_offload_irq)) {
+		CHIP_DBG(KERN_INFO "GMAC: MMC rx csum offload: 0x%08x\n",
 		    readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
+		status |= core_mmc_rx_csum_offload_irq;
+	}
 	if (unlikely(intr_status & pmt_irq)) {
-		CHIP_DBG(KERN_DEBUG "GMAC: received Magic frame\n");
+		CHIP_DBG(KERN_INFO "GMAC: received Magic frame\n");
 		/* clear the PMT bits 5 and 6 by reading the PMT
 		 * status register. */
 		readl(ioaddr + GMAC_PMT);
+		status |= core_irq_receive_pmt_irq;
 	}
+	/* MAC trx/rx EEE LPI entry/exit interrupts */
+	if (intr_status & lpiis_irq) {
+		/* Clean LPI interrupt by reading the Reg 12 */
+		u32 lpi_status = readl(ioaddr + LPI_CTRL_STATUS);
+
+		if (lpi_status & LPI_CTRL_STATUS_TLPIEN) {
+			CHIP_DBG(KERN_INFO "GMAC TX entered in LPI\n");
+			status |= core_irq_tx_path_in_lpi_mode;
+		}
+		if (lpi_status & LPI_CTRL_STATUS_TLPIEX) {
+			CHIP_DBG(KERN_INFO "GMAC TX exit from LPI\n");
+			status |= core_irq_tx_path_exit_lpi_mode;
+		}
+		if (lpi_status & LPI_CTRL_STATUS_RLPIEN) {
+			CHIP_DBG(KERN_INFO "GMAC RX entered in LPI\n");
+			status |= core_irq_rx_path_in_lpi_mode;
+		}
+		if (lpi_status & LPI_CTRL_STATUS_RLPIEX) {
+			CHIP_DBG(KERN_INFO "GMAC RX exit from LPI\n");
+			status |= core_irq_rx_path_exit_lpi_mode;
+		}
+	}
+
+	return status;
+}
+
+static void  dwmac1000_set_eee_mode(void __iomem *ioaddr)
+{
+	u32 value;
+
+	/* Enable the link status receive on RGMII, SGMII ore SMII
+	 * receive path and instruct the transmit to enter in LPI
+	 * state. */
+	value = readl(ioaddr + LPI_CTRL_STATUS);
+	value |= LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_LPITXA;
+	writel(value, ioaddr + LPI_CTRL_STATUS);
+}
+
+static void  dwmac1000_reset_eee_mode(void __iomem *ioaddr)
+{
+	u32 value;
+
+	value = readl(ioaddr + LPI_CTRL_STATUS);
+	value &= ~(LPI_CTRL_STATUS_LPIEN | LPI_CTRL_STATUS_LPITXA);
+	writel(value, ioaddr + LPI_CTRL_STATUS);
+}
+
+static void  dwmac1000_set_eee_pls(void __iomem *ioaddr, int link)
+{
+	u32 value;
+
+	value = readl(ioaddr + LPI_CTRL_STATUS);
+
+	if (link)
+		value |= LPI_CTRL_STATUS_PLS;
+	else
+		value &= ~LPI_CTRL_STATUS_PLS;
+
+	writel(value, ioaddr + LPI_CTRL_STATUS);
+}
+
+static void  dwmac1000_set_eee_timer(void __iomem *ioaddr, int ls, int tw)
+{
+	int value = ((tw & 0xffff)) | ((ls & 0x7ff) << 16);
+
+	/* Program the timers in the LPI timer control register:
+	 * LS: minimum time (ms) for which the link
+	 *  status from PHY should be ok before transmitting
+	 *  the LPI pattern.
+	 * TW: minimum time (us) for which the core waits
+	 *  after it has stopped transmitting the LPI pattern.
+	 */
+	writel(value, ioaddr + LPI_TIMER_CTRL);
 }
 
 static const struct stmmac_ops dwmac1000_ops = {
 	.core_init = dwmac1000_core_init,
-	.rx_coe = dwmac1000_rx_coe_supported,
+	.rx_ipc = dwmac1000_rx_ipc_enable,
 	.dump_regs = dwmac1000_dump_regs,
 	.host_irq_status = dwmac1000_irq_status,
 	.set_filter = dwmac1000_set_filter,
@@ -219,6 +307,10 @@ static const struct stmmac_ops dwmac1000_ops = {
 	.pmt = dwmac1000_pmt,
 	.set_umac_addr = dwmac1000_set_umac_addr,
 	.get_umac_addr = dwmac1000_get_umac_addr,
+	.set_eee_mode =  dwmac1000_set_eee_mode,
+	.reset_eee_mode =  dwmac1000_reset_eee_mode,
+	.set_eee_timer =  dwmac1000_set_eee_timer,
+	.set_eee_pls =  dwmac1000_set_eee_pls,
 };
 
 struct mac_device_info *dwmac1000_setup(void __iomem *ioaddr)

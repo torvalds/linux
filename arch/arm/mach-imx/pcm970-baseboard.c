@@ -95,14 +95,14 @@ static int pcm970_sdhc2_init(struct device *dev, irq_handler_t detect_irq, void 
 {
 	int ret;
 
-	ret = request_irq(IRQ_GPIOC(29), detect_irq, IRQF_TRIGGER_FALLING,
-				"imx-mmc-detect", data);
+	ret = request_irq(gpio_to_irq(IMX_GPIO_NR(3, 29)), detect_irq,
+			  IRQF_TRIGGER_FALLING, "imx-mmc-detect", data);
 	if (ret)
 		return ret;
 
 	ret = gpio_request(GPIO_PORTC + 28, "imx-mmc-ro");
 	if (ret) {
-		free_irq(IRQ_GPIOC(29), data);
+		free_irq(gpio_to_irq(IMX_GPIO_NR(3, 29)), data);
 		return ret;
 	}
 
@@ -113,7 +113,7 @@ static int pcm970_sdhc2_init(struct device *dev, irq_handler_t detect_irq, void 
 
 static void pcm970_sdhc2_exit(struct device *dev, void *data)
 {
-	free_irq(IRQ_GPIOC(29), data);
+	free_irq(gpio_to_irq(IMX_GPIO_NR(3, 29)), data);
 	gpio_free(GPIO_PORTC + 28);
 }
 
@@ -192,8 +192,7 @@ static struct resource pcm970_sja1000_resources[] = {
 		.end     = MX27_CS4_BASE_ADDR + 0x100 - 1,
 		.flags   = IORESOURCE_MEM,
 	}, {
-		.start   = IRQ_GPIOE(19),
-		.end     = IRQ_GPIOE(19),
+		/* irq number is run-time assigned */
 		.flags   = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
@@ -227,5 +226,7 @@ void __init pcm970_baseboard_init(void)
 	imx27_add_imx_fb(&pcm038_fb_data);
 	mxc_gpio_mode(GPIO_PORTC | 28 | GPIO_GPIO | GPIO_IN);
 	imx27_add_mxc_mmc(1, &sdhc_pdata);
+	pcm970_sja1000_resources[1].start = gpio_to_irq(IMX_GPIO_NR(5, 19));
+	pcm970_sja1000_resources[1].end = gpio_to_irq(IMX_GPIO_NR(5, 19));
 	platform_device_register(&pcm970_sja1000);
 }

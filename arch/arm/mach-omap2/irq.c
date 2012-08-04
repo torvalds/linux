@@ -21,10 +21,12 @@
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <mach/hardware.h>
 
 #include "iomap.h"
+#include "common.h"
 
 /* selected INTC register offsets */
 
@@ -148,8 +150,8 @@ omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 	ct->chip.irq_ack = omap_mask_ack_irq;
 	ct->chip.irq_mask = irq_gc_mask_disable_reg;
 	ct->chip.irq_unmask = irq_gc_unmask_enable_reg;
+	ct->chip.flags |= IRQCHIP_SKIP_SET_WAKE;
 
-	ct->regs.ack = INTC_CONTROL;
 	ct->regs.enable = INTC_MIR_CLEAR0;
 	ct->regs.disable = INTC_MIR_SET0;
 	irq_setup_generic_chip(gc, IRQ_MSK(num), IRQ_GC_INIT_MASK_CACHE,
@@ -231,7 +233,7 @@ static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs 
 			goto out;
 
 		irqnr = readl_relaxed(base_addr + 0xd8);
-#ifdef CONFIG_SOC_OMAPTI816X
+#ifdef CONFIG_SOC_TI81XX
 		if (irqnr)
 			goto out;
 		irqnr = readl_relaxed(base_addr + 0xf8);
@@ -257,11 +259,11 @@ asmlinkage void __exception_irq_entry omap2_intc_handle_irq(struct pt_regs *regs
 	omap_intc_handle_irq(base_addr, regs);
 }
 
-int __init omap_intc_of_init(struct device_node *node,
+int __init intc_of_init(struct device_node *node,
 			     struct device_node *parent)
 {
 	struct resource res;
-	u32 nr_irqs = 96;
+	u32 nr_irq = 96;
 
 	if (WARN_ON(!node))
 		return -ENODEV;
@@ -271,15 +273,25 @@ int __init omap_intc_of_init(struct device_node *node,
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(node, "ti,intc-size", &nr_irqs))
-		pr_warn("unable to get intc-size, default to %d\n", nr_irqs);
+	if (of_property_read_u32(node, "ti,intc-size", &nr_irq))
+		pr_warn("unable to get intc-size, default to %d\n", nr_irq);
 
-	omap_init_irq(res.start, nr_irqs, of_node_get(node));
+	omap_init_irq(res.start, nr_irq, of_node_get(node));
 
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_OMAP3
+static struct of_device_id irq_match[] __initdata = {
+	{ .compatible = "ti,omap2-intc", .data = intc_of_init, },
+	{ }
+};
+
+void __init omap_intc_of_init(void)
+{
+	of_irq_init(irq_match);
+}
+
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_SOC_AM33XX)
 static struct omap3_intc_regs intc_context[ARRAY_SIZE(irq_banks)];
 
 void omap_intc_save_context(void)
@@ -334,7 +346,7 @@ void omap_intc_restore_context(void)
 void omap3_intc_suspend(void)
 {
 	/* A pending interrupt would prevent OMAP from entering suspend */
-	omap_ack_irq(0);
+	omap_ack_irq(NULL);
 }
 
 void omap3_intc_prepare_idle(void)

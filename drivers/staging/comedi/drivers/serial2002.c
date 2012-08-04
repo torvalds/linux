@@ -43,24 +43,9 @@ Status: in development
 #include <linux/serial.h>
 #include <linux/poll.h>
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
 struct serial2002_board {
 	const char *name;
 };
-
-static const struct serial2002_board serial2002_boards[] = {
-	{
-	 .name = "serial2002"}
-};
-
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct serial2002_board *)dev->board_ptr)
 
 struct serial2002_range_table_t {
 
@@ -88,35 +73,6 @@ struct serial2002_private {
  * access the private structure.
  */
 #define devpriv ((struct serial2002_private *)dev->private)
-
-static int serial2002_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it);
-static int serial2002_detach(struct comedi_device *dev);
-struct comedi_driver driver_serial2002 = {
-	.driver_name = "serial2002",
-	.module = THIS_MODULE,
-	.attach = serial2002_attach,
-	.detach = serial2002_detach,
-	.board_name = &serial2002_boards[0].name,
-	.offset = sizeof(struct serial2002_board),
-	.num_names = ARRAY_SIZE(serial2002_boards),
-};
-
-static int serial2002_di_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int serial2002_do_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int serial2002_ai_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int serial2002_ao_winsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-static int serial2002_ao_rinsn(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
 
 struct serial_data {
 	enum { is_invalid, is_digital, is_channel } kind;
@@ -687,7 +643,7 @@ err_alloc_configs:
 
 		if (result) {
 			if (devpriv->tty) {
-				filp_close(devpriv->tty, 0);
+				filp_close(devpriv->tty, NULL);
 				devpriv->tty = NULL;
 			}
 		}
@@ -697,8 +653,8 @@ err_alloc_configs:
 
 static void serial_2002_close(struct comedi_device *dev)
 {
-	if (!IS_ERR(devpriv->tty) && (devpriv->tty != 0))
-		filp_close(devpriv->tty, 0);
+	if (!IS_ERR(devpriv->tty) && devpriv->tty)
+		filp_close(devpriv->tty, NULL);
 }
 
 static int serial2002_di_rinsn(struct comedi_device *dev,
@@ -822,21 +778,24 @@ static int serial2002_ei_rinsn(struct comedi_device *dev,
 static int serial2002_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
+	const struct serial2002_board *board = comedi_board(dev);
 	struct comedi_subdevice *s;
+	int ret;
 
-	dev_dbg(dev->hw_dev, "comedi%d: attached\n", dev->minor);
-	dev->board_name = thisboard->name;
+	dev_dbg(dev->class_dev, "serial2002: attach\n");
+	dev->board_name = board->name;
 	if (alloc_private(dev, sizeof(struct serial2002_private)) < 0)
 		return -ENOMEM;
 	dev->open = serial_2002_open;
 	dev->close = serial_2002_close;
 	devpriv->port = it->options[0];
 	devpriv->speed = it->options[1];
-	dev_dbg(dev->hw_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
+	dev_dbg(dev->class_dev, "/dev/ttyS%d @ %d\n", devpriv->port,
 		devpriv->speed);
 
-	if (alloc_subdevices(dev, 5) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	/* digital input subdevice */
 	s = dev->subdevices + 0;
@@ -862,7 +821,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &serial2002_ai_rinsn;
 
 	/* analog output subdevice */
@@ -871,7 +830,7 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_write = &serial2002_ao_winsn;
 	s->insn_read = &serial2002_ao_rinsn;
 
@@ -881,38 +840,40 @@ static int serial2002_attach(struct comedi_device *dev,
 	s->subdev_flags = SDF_READABLE | SDF_LSAMPL;
 	s->n_chan = 0;
 	s->maxdata = 1;
-	s->range_table = 0;
+	s->range_table = NULL;
 	s->insn_read = &serial2002_ei_rinsn;
 
 	return 1;
 }
 
-static int serial2002_detach(struct comedi_device *dev)
+static void serial2002_detach(struct comedi_device *dev)
 {
 	struct comedi_subdevice *s;
 	int i;
 
-	dev_dbg(dev->hw_dev, "comedi%d: remove\n", dev->minor);
 	for (i = 0; i < 5; i++) {
 		s = &dev->subdevices[i];
 		kfree(s->maxdata_list);
 		kfree(s->range_table_list);
 	}
-	return 0;
 }
 
-static int __init driver_serial2002_init_module(void)
-{
-	return comedi_driver_register(&driver_serial2002);
-}
+static const struct serial2002_board serial2002_boards[] = {
+	{
+		.name	= "serial2002"
+	},
+};
 
-static void __exit driver_serial2002_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_serial2002);
-}
-
-module_init(driver_serial2002_init_module);
-module_exit(driver_serial2002_cleanup_module);
+static struct comedi_driver serial2002_driver = {
+	.driver_name	= "serial2002",
+	.module		= THIS_MODULE,
+	.attach		= serial2002_attach,
+	.detach		= serial2002_detach,
+	.board_name	= &serial2002_boards[0].name,
+	.offset		= sizeof(struct serial2002_board),
+	.num_names	= ARRAY_SIZE(serial2002_boards),
+};
+module_comedi_driver(serial2002_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

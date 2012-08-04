@@ -1,7 +1,7 @@
 #ifndef __LINUX_KVM_S390_H
 #define __LINUX_KVM_S390_H
 /*
- * asm-s390/kvm.h - KVM s390 specific structures and definitions
+ * KVM s390 specific structures and definitions
  *
  * Copyright IBM Corp. 2008
  *
@@ -52,4 +52,9 @@ struct kvm_sync_regs {
 	__u32 acrs[16];	/* access registers */
 	__u64 crs[16];	/* control registers */
 };
+
+#define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)
+#define KVM_REG_S390_EPOCHDIFF	(KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x2)
+#define KVM_REG_S390_CPU_TIMER  (KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x3)
+#define KVM_REG_S390_CLOCK_COMP (KVM_REG_S390 | KVM_REG_SIZE_U64 | 0x4)
 #endif

@@ -38,6 +38,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/ratelimit.h>
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
@@ -54,8 +55,6 @@ struct dlm_lkb;
 struct dlm_rsb;
 struct dlm_member;
 struct dlm_rsbtable;
-struct dlm_dirtable;
-struct dlm_direntry;
 struct dlm_recover;
 struct dlm_header;
 struct dlm_message;
@@ -74,6 +73,13 @@ do { \
 		       (ls)->ls_name , ##args); \
 } while (0)
 
+#define log_limit(ls, fmt, args...) \
+do { \
+	if (dlm_config.ci_log_debug) \
+		printk_ratelimited(KERN_DEBUG "dlm: %s: " fmt "\n", \
+			(ls)->ls_name , ##args); \
+} while (0)
+
 #define DLM_ASSERT(x, do) \
 { \
   if (!(x)) \
@@ -89,18 +95,6 @@ do { \
   } \
 }
 
-
-struct dlm_direntry {
-	struct list_head	list;
-	uint32_t		master_nodeid;
-	uint16_t		length;
-	char			name[1];
-};
-
-struct dlm_dirtable {
-	struct list_head	list;
-	spinlock_t		lock;
-};
 
 struct dlm_rsbtable {
 	struct rb_root		keep;
@@ -263,6 +257,8 @@ struct dlm_lkb {
 	ktime_t			lkb_last_cast_time;	/* for debugging */
 	ktime_t			lkb_last_bast_time;	/* for debugging */
 
+	uint64_t		lkb_recover_seq; /* from ls_recover_seq */
+
 	char			*lkb_lvbptr;
 	struct dlm_lksb		*lkb_lksb;      /* caller's status block */
 	void			(*lkb_astfn) (void *astparam);
@@ -273,6 +269,15 @@ struct dlm_lkb {
 	};
 };
 
+/*
+ * res_master_nodeid is "normal": 0 is unset/invalid, non-zero is the real
+ * nodeid, even when nodeid is our_nodeid.
+ *
+ * res_nodeid is "odd": -1 is unset/invalid, zero means our_nodeid,
+ * greater than zero when another nodeid.
+ *
+ * (TODO: remove res_nodeid and only use res_master_nodeid)
+ */
 
 struct dlm_rsb {
 	struct dlm_ls		*res_ls;	/* the lockspace */
@@ -281,6 +286,9 @@ struct dlm_rsb {
 	unsigned long		res_flags;
 	int			res_length;	/* length of rsb name */
 	int			res_nodeid;
+	int			res_master_nodeid;
+	int			res_dir_nodeid;
+	int			res_id;		/* for ls_recover_idr */
 	uint32_t                res_lvbseq;
 	uint32_t		res_hash;
 	uint32_t		res_bucket;	/* rsbtbl */
@@ -303,10 +311,21 @@ struct dlm_rsb {
 	char			res_name[DLM_RESNAME_MAXLEN+1];
 };
 
+/* dlm_master_lookup() flags */
+
+#define DLM_LU_RECOVER_DIR	1
+#define DLM_LU_RECOVER_MASTER	2
+
+/* dlm_master_lookup() results */
+
+#define DLM_LU_MATCH		1
+#define DLM_LU_ADD		2
+
 /* find_rsb() flags */
 
-#define R_MASTER		1	/* only return rsb if it's a master */
-#define R_CREATE		2	/* create/add rsb if not found */
+#define R_REQUEST		0x00000001
+#define R_RECEIVE_REQUEST	0x00000002
+#define R_RECEIVE_RECOVER	0x00000004
 
 /* rsb_flags */
 
@@ -317,7 +336,7 @@ enum rsb_flags {
 	RSB_NEW_MASTER,
 	RSB_NEW_MASTER2,
 	RSB_RECOVER_CONVERT,
-	RSB_LOCKS_PURGED,
+	RSB_RECOVER_GRANT,
 };
 
 static inline void rsb_set_flag(struct dlm_rsb *r, enum rsb_flags flag)
@@ -479,6 +498,13 @@ struct rcom_lock {
 	char			rl_lvb[0];
 };
 
+/*
+ * The max number of resources per rsbtbl bucket that shrink will attempt
+ * to remove in each iteration.
+ */
+
+#define DLM_REMOVE_NAMES_MAX 8
+
 struct dlm_ls {
 	struct list_head	ls_list;	/* list of lockspaces */
 	dlm_lockspace_t		*ls_local_handle;
@@ -499,9 +525,6 @@ struct dlm_ls {
 	struct dlm_rsbtable	*ls_rsbtbl;
 	uint32_t		ls_rsbtbl_size;
 
-	struct dlm_dirtable	*ls_dirtbl;
-	uint32_t		ls_dirtbl_size;
-
 	struct mutex		ls_waiters_mutex;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
 
@@ -514,6 +537,12 @@ struct dlm_ls {
 	spinlock_t		ls_new_rsb_spin;
 	int			ls_new_rsb_count;
 	struct list_head	ls_new_rsb;	/* new rsb structs */
+
+	spinlock_t		ls_remove_spin;
+	char			ls_remove_name[DLM_RESNAME_MAXLEN+1];
+	char			*ls_remove_names[DLM_REMOVE_NAMES_MAX];
+	int			ls_remove_len;
+	int			ls_remove_lens[DLM_REMOVE_NAMES_MAX];
 
 	struct list_head	ls_nodes;	/* current nodes in ls */
 	struct list_head	ls_nodes_gone;	/* dead node list, recovery */
@@ -535,6 +564,7 @@ struct dlm_ls {
 	struct dentry		*ls_debug_waiters_dentry; /* debugfs */
 	struct dentry		*ls_debug_locks_dentry; /* debugfs */
 	struct dentry		*ls_debug_all_dentry; /* debugfs */
+	struct dentry		*ls_debug_toss_dentry; /* debugfs */
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;
@@ -563,11 +593,16 @@ struct dlm_ls {
 	struct mutex		ls_requestqueue_mutex;
 	struct dlm_rcom		*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
+	unsigned int		ls_recover_dir_sent_res; /* for log info */
+	unsigned int		ls_recover_dir_sent_msg; /* for log info */
+	unsigned int		ls_recover_locks_in; /* for log info */
 	uint64_t		ls_rcom_seq;
 	spinlock_t		ls_rcom_spin;
 	struct list_head	ls_recover_list;
 	spinlock_t		ls_recover_list_lock;
 	int			ls_recover_list_count;
+	struct idr		ls_recover_idr;
+	spinlock_t		ls_recover_idr_lock;
 	wait_queue_head_t	ls_wait_general;
 	struct mutex		ls_clear_proc_locks;
 
@@ -589,6 +624,7 @@ struct dlm_ls {
 #define LSFL_UEVENT_WAIT	5
 #define LSFL_TIMEWARN		6
 #define LSFL_CB_DELAY		7
+#define LSFL_NODIR		8
 
 /* much of this is just saving user space pointers associated with the
    lock that we pass back to the user lib with an ast */
@@ -636,7 +672,7 @@ static inline int dlm_recovery_stopped(struct dlm_ls *ls)
 
 static inline int dlm_no_directory(struct dlm_ls *ls)
 {
-	return (ls->ls_exflags & DLM_LSFL_NODIR) ? 1 : 0;
+	return test_bit(LSFL_NODIR, &ls->ls_flags);
 }
 
 int dlm_netlink_init(void);

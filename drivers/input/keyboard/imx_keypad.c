@@ -378,20 +378,24 @@ static void imx_keypad_close(struct input_dev *dev)
 	imx_keypad_inhibit(keypad);
 
 	/* Disable clock unit */
-	clk_disable(keypad->clk);
+	clk_disable_unprepare(keypad->clk);
 }
 
 static int imx_keypad_open(struct input_dev *dev)
 {
 	struct imx_keypad *keypad = input_get_drvdata(dev);
+	int error;
 
 	dev_dbg(&dev->dev, ">%s\n", __func__);
+
+	/* Enable the kpp clock */
+	error = clk_prepare_enable(keypad->clk);
+	if (error)
+		return error;
 
 	/* We became active from now */
 	keypad->enabled = true;
 
-	/* Enable the kpp clock */
-	clk_enable(keypad->clk);
 	imx_keypad_config(keypad);
 
 	/* Sanity control, not all the rows must be actived now. */
@@ -467,7 +471,7 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 		goto failed_free_priv;
 	}
 
-	keypad->clk = clk_get(&pdev->dev, "kpp");
+	keypad->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {
 		dev_err(&pdev->dev, "failed to get keypad clock\n");
 		error = PTR_ERR(keypad->clk);
@@ -481,7 +485,7 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	}
 
 	if (keypad->rows_en_mask > ((1 << MAX_MATRIX_KEY_ROWS) - 1) ||
-	   keypad->cols_en_mask > ((1 << MAX_MATRIX_KEY_COLS) - 1)) {
+	    keypad->cols_en_mask > ((1 << MAX_MATRIX_KEY_COLS) - 1)) {
 		dev_err(&pdev->dev,
 			"invalid key data (too many rows or colums)\n");
 		error = -EINVAL;
@@ -496,14 +500,17 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 	input_dev->dev.parent = &pdev->dev;
 	input_dev->open = imx_keypad_open;
 	input_dev->close = imx_keypad_close;
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
-	input_dev->keycode = keypad->keycodes;
-	input_dev->keycodesize = sizeof(keypad->keycodes[0]);
-	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
 
-	matrix_keypad_build_keymap(keymap_data, MATRIX_ROW_SHIFT,
-				keypad->keycodes, input_dev->keybit);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   MAX_MATRIX_KEY_ROWS,
+					   MAX_MATRIX_KEY_COLS,
+					   keypad->keycodes, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto failed_clock_put;
+	}
 
+	__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);
 
@@ -578,7 +585,7 @@ static int imx_kbd_suspend(struct device *dev)
 	mutex_lock(&input_dev->mutex);
 
 	if (input_dev->users)
-		clk_disable(kbd->clk);
+		clk_disable_unprepare(kbd->clk);
 
 	mutex_unlock(&input_dev->mutex);
 
@@ -593,18 +600,23 @@ static int imx_kbd_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = kbd->input_dev;
+	int ret = 0;
 
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(kbd->irq);
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
-		clk_enable(kbd->clk);
+	if (input_dev->users) {
+		ret = clk_prepare_enable(kbd->clk);
+		if (ret)
+			goto err_clk;
+	}
 
+err_clk:
 	mutex_unlock(&input_dev->mutex);
 
-	return 0;
+	return ret;
 }
 #endif
 

@@ -35,11 +35,11 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/tc.h>
-#include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/mmc.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "iomap.h"
 #include "common.h"
@@ -457,6 +457,7 @@ MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= innovator_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

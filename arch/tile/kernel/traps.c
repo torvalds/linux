@@ -195,6 +195,25 @@ static int special_ill(bundle_bits bundle, int *sigp, int *codep)
 	return 1;
 }
 
+static const char *const int_name[] = {
+	[INT_MEM_ERROR] = "Memory error",
+	[INT_ILL] = "Illegal instruction",
+	[INT_GPV] = "General protection violation",
+	[INT_UDN_ACCESS] = "UDN access",
+	[INT_IDN_ACCESS] = "IDN access",
+#if CHIP_HAS_SN()
+	[INT_SN_ACCESS] = "SN access",
+#endif
+	[INT_SWINT_3] = "Software interrupt 3",
+	[INT_SWINT_2] = "Software interrupt 2",
+	[INT_SWINT_0] = "Software interrupt 0",
+	[INT_UNALIGN_DATA] = "Unaligned data",
+	[INT_DOUBLE_FAULT] = "Double fault",
+#ifdef __tilegx__
+	[INT_ILL_TRANS] = "Illegal virtual address",
+#endif
+};
+
 void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		       unsigned long reason)
 {
@@ -211,10 +230,17 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	 * current process and hope for the best.
 	 */
 	if (!user_mode(regs)) {
+		const char *name;
 		if (fixup_exception(regs))  /* only UNALIGN_DATA in practice */
 			return;
-		pr_alert("Kernel took bad trap %d at PC %#lx\n",
-		       fault_num, regs->pc);
+		if (fault_num >= 0 &&
+		    fault_num < sizeof(int_name)/sizeof(int_name[0]) &&
+		    int_name[fault_num] != NULL)
+			name = int_name[fault_num];
+		else
+			name = "Unknown interrupt";
+		pr_alert("Kernel took bad trap %d (%s) at PC %#lx\n",
+			 fault_num, name, regs->pc);
 		if (fault_num == INT_GPV)
 			pr_alert("GPV_REASON is %#lx\n", reason);
 		show_regs(regs);

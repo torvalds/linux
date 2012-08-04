@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -464,7 +465,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct mv_ep, ep);
 	udc = ep->udc;
 
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 
@@ -528,7 +529,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	dqh->size_ioc_int_sts = 0;
 
 	ep->ep.maxpacket = max;
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->stopped = 0;
 
 	/* Enable the endpoint for Rx or Tx and set the endpoint type */
@@ -580,7 +581,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
-	if ((_ep == NULL) || !ep->desc)
+	if ((_ep == NULL) || !ep->ep.desc)
 		return -EINVAL;
 
 	udc = ep->udc;
@@ -606,7 +607,6 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	/* nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
 
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
@@ -651,7 +651,7 @@ static void mv_ep_fifo_flush(struct usb_ep *_ep)
 		return;
 
 	ep = container_of(_ep, struct mv_ep, ep);
-	if (!ep->desc)
+	if (!ep->ep.desc)
 		return;
 
 	udc = ep->udc;
@@ -715,11 +715,11 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		dev_err(&udc->dev->dev, "%s, bad params", __func__);
 		return -EINVAL;
 	}
-	if (unlikely(!_ep || !ep->desc)) {
+	if (unlikely(!_ep || !ep->ep.desc)) {
 		dev_err(&udc->dev->dev, "%s, bad ep", __func__);
 		return -EINVAL;
 	}
-	if (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
+	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
 		if (req->req.length > ep->ep.maxpacket)
 			return -EMSGSIZE;
 	}
@@ -925,12 +925,12 @@ static int mv_ep_set_halt_wedge(struct usb_ep *_ep, int halt, int wedge)
 
 	ep = container_of(_ep, struct mv_ep, ep);
 	udc = ep->udc;
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		status = -EINVAL;
 		goto out;
 	}
 
-	if (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
+	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
 		status = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1279,7 +1279,7 @@ static int eps_init(struct mv_udc *udc)
 	ep->stopped = 0;
 	ep->ep.maxpacket = EP0_MAX_PKT_SIZE;
 	ep->ep_num = 0;
-	ep->desc = &mv_ep0_desc;
+	ep->ep.desc = &mv_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
 
 	ep->ep_type = USB_ENDPOINT_XFER_CONTROL;
@@ -1382,7 +1382,7 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 		return retval;
 	}
 
-	if (udc->transceiver) {
+	if (!IS_ERR_OR_NULL(udc->transceiver)) {
 		retval = otg_set_peripheral(udc->transceiver->otg,
 					&udc->gadget);
 		if (retval) {
@@ -2108,7 +2108,7 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 	 * then vbus irq will not be requested in udc driver.
 	 */
 	if (udc->pdata && udc->pdata->vbus
-		&& udc->clock_gating && udc->transceiver == NULL)
+		&& udc->clock_gating && IS_ERR_OR_NULL(udc->transceiver))
 		free_irq(udc->pdata->vbus->irq, &dev->dev);
 
 	/* free memory allocated in probe */
@@ -2181,7 +2181,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->mode == MV_USB_MODE_OTG)
-		udc->transceiver = usb_get_transceiver();
+		udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 #endif
 
 	udc->clknum = pdata->clknum;
@@ -2326,7 +2326,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	eps_init(udc);
 
 	/* VBUS detect: we can disable/enable clock on demand.*/
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		udc->clock_gating = 1;
 	else if (pdata->vbus) {
 		udc->clock_gating = 1;
@@ -2370,7 +2370,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 err_unregister:
 	if (udc->pdata && udc->pdata->vbus
-		&& udc->clock_gating && udc->transceiver == NULL)
+		&& udc->clock_gating && IS_ERR_OR_NULL(udc->transceiver))
 		free_irq(pdata->vbus->irq, &dev->dev);
 	device_unregister(&udc->gadget.dev);
 err_free_irq:
@@ -2405,7 +2405,7 @@ static int mv_udc_suspend(struct device *_dev)
 	struct mv_udc *udc = the_controller;
 
 	/* if OTG is enabled, the following will be done in OTG driver*/
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return 0;
 
 	if (udc->pdata->vbus && udc->pdata->vbus->poll)
@@ -2438,7 +2438,7 @@ static int mv_udc_resume(struct device *_dev)
 	int retval;
 
 	/* if OTG is enabled, the following will be done in OTG driver*/
-	if (udc->transceiver)
+	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return 0;
 
 	if (!udc->clock_gating) {

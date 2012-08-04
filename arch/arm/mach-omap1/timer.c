@@ -54,8 +54,7 @@ static int omap1_dm_timer_set_src(struct platform_device *pdev,
 	return 0;
 }
 
-
-int __init omap1_dm_timer_init(void)
+static int __init omap1_dm_timer_init(void)
 {
 	int i;
 	int ret;
@@ -141,7 +140,8 @@ int __init omap1_dm_timer_init(void)
 		}
 
 		pdata->set_timer_src = omap1_dm_timer_set_src;
-		pdata->needs_manual_reset = 1;
+		pdata->timer_capability = OMAP_TIMER_ALWON |
+				OMAP_TIMER_NEEDS_RESET;
 
 		ret = platform_device_add_data(pdev, pdata, sizeof(*pdata));
 		if (ret) {

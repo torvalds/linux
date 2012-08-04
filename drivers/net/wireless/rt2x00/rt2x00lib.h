@@ -103,7 +103,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
  * rt2x00queue_alloc_rxskb - allocate a skb for RX purposes.
  * @entry: The entry for which the skb will be applicable.
  */
-struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry);
+struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp);
 
 /**
  * rt2x00queue_free_skb - free a skb

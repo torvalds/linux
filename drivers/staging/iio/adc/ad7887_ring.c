@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2011 Analog Devices Inc.
+ * Copyright 2010-2012 Analog Devices Inc.
  * Copyright (C) 2008 Jonathan Cameron
  *
  * Licensed under the GPL-2.
@@ -12,10 +12,10 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#include "../iio.h"
-#include "../buffer.h"
-#include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7887.h"
 
@@ -29,22 +29,11 @@
 static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7887_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
+	int ret;
 
-	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
-				   indio_dev->masklength) *
-		st->chip_info->channel[0].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		st->d_size += sizeof(s64);
-
-		if (st->d_size % sizeof(s64))
-			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, st->d_size);
+	ret = iio_sw_buffer_preenable(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	/* We know this is a single long so can 'cheat' */
 	switch (*indio_dev->active_scan_mask) {
@@ -83,7 +72,6 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7887_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	s64 time_ns;
 	__u8 *buf;
 	int b_sent;
@@ -92,9 +80,9 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 					   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
-	buf = kzalloc(st->d_size, GFP_KERNEL);
+	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
-		return -ENOMEM;
+		goto done;
 
 	b_sent = spi_sync(st->spi, st->ring_msg);
 	if (b_sent)
@@ -103,8 +91,8 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	time_ns = iio_get_time_ns();
 
 	memcpy(buf, st->data, bytes);
-	if (ring->scan_timestamp)
-		memcpy(buf + st->d_size - sizeof(s64),
+	if (indio_dev->scan_timestamp)
+		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
 		       &time_ns, sizeof(time_ns));
 
 	indio_dev->buffer->access->store_to(indio_dev->buffer, buf, time_ns);
@@ -124,38 +112,11 @@ static const struct iio_buffer_setup_ops ad7887_ring_setup_ops = {
 
 int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	int ret;
-
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-						 &ad7887_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "ad7887_consumer%d",
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
-	}
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad7887_ring_setup_ops;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+			&ad7887_trigger_handler, &ad7887_ring_setup_ops);
 }
 
 void ad7887_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }

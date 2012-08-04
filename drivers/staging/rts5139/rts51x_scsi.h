@@ -73,7 +73,7 @@
 #define GET_BATCHRSP		0x44
 
 #ifdef SUPPORT_CPRM
-/* SD Pass Through Command Extention */
+/* SD Pass Through Command Extension */
 #define SD_PASS_THRU_MODE	0xD0
 #define SD_EXECUTE_NO_DATA	0xD1
 #define SD_EXECUTE_READ		0xD2
@@ -145,16 +145,11 @@ struct Scsi_Host;
 struct scsi_device;
 struct scsi_cmnd;
 
-const char *host_info(struct Scsi_Host *host);
 int slave_alloc(struct scsi_device *sdev);
 int slave_configure(struct scsi_device *sdev);
 int proc_info(struct Scsi_Host *host, char *buffer,
 	      char **start, off_t offset, int length, int inout);
-#if 0 /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37) */
-int queuecommand(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *));
-#else
 int queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
-#endif
 int command_abort(struct scsi_cmnd *srb);
 int device_reset(struct scsi_cmnd *srb);
 int bus_reset(struct scsi_cmnd *srb);

@@ -5,8 +5,8 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Contact: Remi Denis-Courmont <remi.denis-courmont@nokia.com>
- * Original author: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ *          Rémi Denis-Courmont
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,7 +44,7 @@ struct phonet_net {
 	struct phonet_routes routes;
 };
 
-int phonet_net_id __read_mostly;
+static int phonet_net_id __read_mostly;
 
 static struct phonet_net *phonet_pernet(struct net *net)
 {
@@ -268,7 +268,7 @@ static int phonet_device_autoconf(struct net_device *dev)
 static void phonet_route_autodel(struct net_device *dev)
 {
 	struct phonet_net *pnn = phonet_pernet(dev_net(dev));
-	unsigned i;
+	unsigned int i;
 	DECLARE_BITMAP(deleted, 64);
 
 	/* Remove left-over Phonet routes */

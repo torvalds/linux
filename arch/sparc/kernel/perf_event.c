@@ -1296,8 +1296,6 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
 	/* If the PMU has the TOE IRQ enable bits, we need to do a
@@ -1321,7 +1319,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 		if (val & (1ULL << 31))
 			continue;
 
-		data.period = event->hw.last_period;
+		perf_sample_data_init(&data, 0, hwc->last_period);
 		if (!sparc_perf_event_set_period(event, hwc, idx))
 			continue;
 

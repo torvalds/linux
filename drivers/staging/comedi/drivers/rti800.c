@@ -138,39 +138,6 @@ struct rti800_board {
 	int has_ao;
 };
 
-static const struct rti800_board boardtypes[] = {
-	{"rti800", 0},
-	{"rti815", 1},
-};
-
-#define this_board ((const struct rti800_board *)dev->board_ptr)
-
-static int rti800_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int rti800_detach(struct comedi_device *dev);
-static struct comedi_driver driver_rti800 = {
-	.driver_name = "rti800",
-	.module = THIS_MODULE,
-	.attach = rti800_attach,
-	.detach = rti800_detach,
-	.num_names = ARRAY_SIZE(boardtypes),
-	.board_name = &boardtypes[0].name,
-	.offset = sizeof(struct rti800_board),
-};
-
-static int __init driver_rti800_init_module(void)
-{
-	return comedi_driver_register(&driver_rti800);
-}
-
-static void __exit driver_rti800_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_rti800);
-}
-
-module_init(driver_rti800_init_module);
-module_exit(driver_rti800_cleanup_module);
-
 static irqreturn_t rti800_interrupt(int irq, void *dev);
 
 struct rti800_private {
@@ -296,19 +263,14 @@ static int rti800_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	data[1] = inb(dev->iobase + RTI800_DI);
-	return 2;
+	return insn->n;
 }
 
 static int rti800_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
@@ -318,7 +280,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -340,6 +302,7 @@ static int rti800_do_insn_bits(struct comedi_device *dev,
 
 static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct rti800_board *board = comedi_board(dev);
 	unsigned int irq;
 	unsigned long iobase;
 	int ret;
@@ -378,10 +341,10 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(KERN_INFO "( no irq )\n");
 	}
 
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct rti800_private));
@@ -417,7 +380,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	s++;
-	if (this_board->has_ao) {
+	if (board->has_ao) {
 		/* ao subdevice (only on rti815) */
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_WRITABLE;
@@ -474,18 +437,29 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int rti800_detach(struct comedi_device *dev)
+static void rti800_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: rti800: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, RTI800_SIZE);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
+
+static const struct rti800_board boardtypes[] = {
+	{ "rti800", 0 },
+	{ "rti815", 1 },
+};
+
+static struct comedi_driver rti800_driver = {
+	.driver_name	= "rti800",
+	.module		= THIS_MODULE,
+	.attach		= rti800_attach,
+	.detach		= rti800_detach,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.board_name	= &boardtypes[0].name,
+	.offset		= sizeof(struct rti800_board),
+};
+module_comedi_driver(rti800_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

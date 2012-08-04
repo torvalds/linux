@@ -56,8 +56,6 @@ g_NCR5380.txt
 	- info on driver for NCR5380 and NCR53c400 based adapters
 hptiop.txt
 	- HIGHPOINT ROCKETRAID 3xxx RAID DRIVER
-ibmmca.txt
-	- info on driver for IBM adapters with MCA bus
 in2000.txt
 	- info on in2000 driver
 libsas.txt

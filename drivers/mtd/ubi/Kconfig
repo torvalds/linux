@@ -29,7 +29,7 @@ config MTD_UBI_WL_THRESHOLD
 
 config MTD_UBI_BEB_RESERVE
 	int "Percentage of reserved eraseblocks for bad eraseblocks handling"
-	default 1
+	default 2
 	range 0 25
 	help
 	  If the MTD device admits of bad eraseblocks (e.g. NAND flash), UBI
@@ -51,13 +51,5 @@ config MTD_UBI_GLUEBI
 	   volume. This is handy to make MTD-oriented software (like JFFS2)
 	   work on top of UBI. Do not enable this unless you use legacy
 	   software.
-
-config MTD_UBI_DEBUG
-	bool "UBI debugging"
-	depends on SYSFS
-	select DEBUG_FS
-	select KALLSYMS
-	help
-	  This option enables UBI debugging.
 
 endif # MTD_UBI

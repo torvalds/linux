@@ -1,0 +1,57 @@
+/dts-v1/;
+
+/include/ "kirkwood-dnskw.dtsi"
+
+/ {
+	model = "D-Link DNS-325 NAS (Rev A1)";
+	compatible = "dlink,dns-325-a1", "dlink,dns-325", "dlink,dns-kirkwood", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		white-power {
+			label = "dns325:white:power";
+			gpios = <&gpio0 26 1>; /* GPIO 26 Active Low */
+			linux,default-trigger = "default-on";
+		};
+		white-usb {
+			label = "dns325:white:usb";
+			gpios = <&gpio1 11 1>; /* GPIO 43 Active Low */
+		};
+		red-l_hdd {
+			label = "dns325:red:l_hdd";
+			gpios = <&gpio0 28 1>; /* GPIO 28 Active Low */
+		};
+		red-r_hdd {
+			label = "dns325:red:r_hdd";
+			gpios = <&gpio0 27 1>; /* GPIO 27 Active Low */
+		};
+		red-usb {
+			label = "dns325:red:usb";
+			gpios = <&gpio0 29 1>; /* GPIO 29 Active Low */
+		};
+	};
+
+	ocp@f1000000 {
+		i2c@11000 {
+			status = "okay";
+
+			lm75: lm75@48 {
+				compatible = "national,lm75";
+				reg = <0x48>;
+			};
+		};
+		serial@12000 {
+			clock-frequency = <200000000>;
+			status = "okay";
+		};
+	};
+};

@@ -39,8 +39,6 @@
 #include "linux/fs.h"
 #include "linux/spinlock.h"
 
-struct ttm_backend;
-
 struct ttm_backend_func {
 	/**
 	 * struct ttm_backend_func member bind
@@ -81,6 +79,7 @@ struct ttm_backend_func {
 #define TTM_PAGE_FLAG_PERSISTENT_SWAP (1 << 5)
 #define TTM_PAGE_FLAG_ZERO_ALLOC      (1 << 6)
 #define TTM_PAGE_FLAG_DMA32           (1 << 7)
+#define TTM_PAGE_FLAG_SG              (1 << 8)
 
 enum ttm_caching_state {
 	tt_uncached,
@@ -116,8 +115,8 @@ struct ttm_tt {
 	struct page **pages;
 	uint32_t page_flags;
 	unsigned long num_pages;
+	struct sg_table *sg; /* for SG objects via dma-buf */
 	struct ttm_bo_global *glob;
-	struct ttm_backend *be;
 	struct file *swap_storage;
 	enum ttm_caching_state caching_state;
 	enum {

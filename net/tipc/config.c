@@ -39,6 +39,8 @@
 #include "name_table.h"
 #include "config.h"
 
+#define REPLY_TRUNCATED "<truncated>\n"
+
 static u32 config_port_ref;
 
 static DEFINE_SPINLOCK(config_lock);
@@ -104,13 +106,12 @@ struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 	return buf;
 }
 
-#define MAX_STATS_INFO 2000
-
 static struct sk_buff *tipc_show_stats(void)
 {
 	struct sk_buff *buf;
 	struct tlv_desc *rep_tlv;
-	struct print_buf pb;
+	char *pb;
+	int pb_len;
 	int str_len;
 	u32 value;
 
@@ -121,18 +122,16 @@ static struct sk_buff *tipc_show_stats(void)
 	if (value != 0)
 		return tipc_cfg_reply_error_string("unsupported argument");
 
-	buf = tipc_cfg_reply_alloc(TLV_SPACE(MAX_STATS_INFO));
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(ULTRA_STRING_MAX_LEN));
 	if (buf == NULL)
 		return NULL;
 
 	rep_tlv = (struct tlv_desc *)buf->data;
-	tipc_printbuf_init(&pb, (char *)TLV_DATA(rep_tlv), MAX_STATS_INFO);
+	pb = TLV_DATA(rep_tlv);
+	pb_len = ULTRA_STRING_MAX_LEN;
 
-	tipc_printf(&pb, "TIPC version " TIPC_MOD_VER "\n");
-
-	/* Use additional tipc_printf()'s to return more info ... */
-
-	str_len = tipc_printbuf_validate(&pb);
+	str_len = tipc_snprintf(pb, pb_len, "TIPC version " TIPC_MOD_VER "\n");
+	str_len += 1;	/* for "\0" */
 	skb_put(buf, TLV_SPACE(str_len));
 	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
 
@@ -191,7 +190,6 @@ static struct sk_buff *cfg_set_own_addr(void)
 	 * configuration commands can't be received until a local configuration
 	 * command to enable the first bearer is received and processed.
 	 */
-
 	spin_unlock_bh(&config_lock);
 	tipc_core_start_net(addr);
 	spin_lock_bh(&config_lock);
@@ -283,14 +281,12 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	spin_lock_bh(&config_lock);
 
 	/* Save request and reply details in a well-known location */
-
 	req_tlv_area = request_area;
 	req_tlv_space = request_space;
 	rep_headroom = reply_headroom;
 
 	/* Check command authorization */
-
-	if (likely(orig_node == tipc_own_addr)) {
+	if (likely(in_own_node(orig_node))) {
 		/* command is permitted */
 	} else if (cmd >= 0x8000) {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
@@ -310,7 +306,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	}
 
 	/* Call appropriate processing routine */
-
 	switch (cmd) {
 	case TIPC_CMD_NOOP:
 		rep_tlv_buf = tipc_cfg_reply_none();
@@ -338,12 +333,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		break;
 	case TIPC_CMD_SHOW_PORTS:
 		rep_tlv_buf = tipc_port_get_ports();
-		break;
-	case TIPC_CMD_SET_LOG_SIZE:
-		rep_tlv_buf = tipc_log_resize_cmd(req_tlv_area, req_tlv_space);
-		break;
-	case TIPC_CMD_DUMP_LOG:
-		rep_tlv_buf = tipc_log_dump();
 		break;
 	case TIPC_CMD_SHOW_STATS:
 		rep_tlv_buf = tipc_show_stats();
@@ -404,6 +393,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_GET_MAX_CLUSTERS:
 	case TIPC_CMD_SET_MAX_NODES:
 	case TIPC_CMD_GET_MAX_NODES:
+	case TIPC_CMD_SET_LOG_SIZE:
+	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (obsolete command)");
 		break;
@@ -411,6 +402,15 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 							  " (unknown command)");
 		break;
+	}
+
+	WARN_ON(rep_tlv_buf->len > TLV_SPACE(ULTRA_STRING_MAX_LEN));
+
+	/* Append an error message if we cannot return all requested data */
+	if (rep_tlv_buf->len == TLV_SPACE(ULTRA_STRING_MAX_LEN)) {
+		if (*(rep_tlv_buf->data + ULTRA_STRING_MAX_LEN) != '\0')
+			sprintf(rep_tlv_buf->data + rep_tlv_buf->len -
+				sizeof(REPLY_TRUNCATED) - 1, REPLY_TRUNCATED);
 	}
 
 	/* Return reply buffer */
@@ -433,17 +433,15 @@ static void cfg_named_msg_event(void *userdata,
 	struct sk_buff *rep_buf;
 
 	/* Validate configuration message header (ignore invalid message) */
-
 	req_hdr = (struct tipc_cfg_msg_hdr *)msg;
 	if ((size < sizeof(*req_hdr)) ||
 	    (size != TCM_ALIGN(ntohl(req_hdr->tcm_len))) ||
 	    (ntohs(req_hdr->tcm_flags) != TCM_F_REQUEST)) {
-		warn("Invalid configuration message discarded\n");
+		pr_warn("Invalid configuration message discarded\n");
 		return;
 	}
 
 	/* Generate reply for request (if can't, return request) */
-
 	rep_buf = tipc_cfg_do_cmd(orig->node,
 				  ntohs(req_hdr->tcm_type),
 				  msg + sizeof(*req_hdr),
@@ -485,14 +483,27 @@ int tipc_cfg_init(void)
 	return 0;
 
 failed:
-	err("Unable to create configuration service\n");
+	pr_err("Unable to create configuration service\n");
 	return res;
+}
+
+void tipc_cfg_reinit(void)
+{
+	struct tipc_name_seq seq;
+	int res;
+
+	seq.type = TIPC_CFG_SRV;
+	seq.lower = seq.upper = 0;
+	tipc_withdraw(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+
+	seq.lower = seq.upper = tipc_own_addr;
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	if (res)
+		pr_err("Unable to reinitialize configuration service\n");
 }
 
 void tipc_cfg_stop(void)
 {
-	if (config_port_ref) {
-		tipc_deleteport(config_port_ref);
-		config_port_ref = 0;
-	}
+	tipc_deleteport(config_port_ref);
+	config_port_ref = 0;
 }

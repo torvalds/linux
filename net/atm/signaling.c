@@ -166,7 +166,7 @@ void sigd_enq2(struct atm_vcc *vcc, enum atmsvc_msg_type type,
 {
 	struct sk_buff *skb;
 	struct atmsvc_msg *msg;
-	static unsigned session = 0;
+	static unsigned int session = 0;
 
 	pr_debug("%d (0x%p)\n", (int)type, vcc);
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg), GFP_KERNEL)))

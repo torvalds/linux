@@ -101,8 +101,7 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 {
 	int tid;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
-	struct host_cmd_ds_11n_delba *del_ba =
-		(struct host_cmd_ds_11n_delba *) &resp->params.del_ba;
+	struct host_cmd_ds_11n_delba *del_ba = &resp->params.del_ba;
 	uint16_t del_ba_param_set = le16_to_cpu(del_ba->del_ba_param_set);
 
 	tid = del_ba_param_set >> DELBA_TID_POS;
@@ -147,8 +146,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp)
 {
 	int tid;
-	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp =
-		(struct host_cmd_ds_11n_addba_rsp *) &resp->params.add_ba_rsp;
+	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &resp->params.add_ba_rsp;
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tbl;
 
 	add_ba_rsp->ssn = cpu_to_le16((le16_to_cpu(add_ba_rsp->ssn))
@@ -350,25 +348,26 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		ret_len += sizeof(struct mwifiex_ie_types_htcap);
 	}
 
-	if (bss_desc->bcn_ht_info) {
+	if (bss_desc->bcn_ht_oper) {
 		if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
 			ht_info = (struct mwifiex_ie_types_htinfo *) *buffer;
 			memset(ht_info, 0,
 			       sizeof(struct mwifiex_ie_types_htinfo));
 			ht_info->header.type =
-					cpu_to_le16(WLAN_EID_HT_INFORMATION);
+					cpu_to_le16(WLAN_EID_HT_OPERATION);
 			ht_info->header.len =
-				cpu_to_le16(sizeof(struct ieee80211_ht_info));
+				cpu_to_le16(
+					sizeof(struct ieee80211_ht_operation));
 
 			memcpy((u8 *) ht_info +
 			       sizeof(struct mwifiex_ie_types_header),
-			       (u8 *) bss_desc->bcn_ht_info +
+			       (u8 *) bss_desc->bcn_ht_oper +
 			       sizeof(struct ieee_types_header),
 			       le16_to_cpu(ht_info->header.len));
 
 			if (!(sband->ht_cap.cap &
 					IEEE80211_HT_CAP_SUP_WIDTH_20_40))
-				ht_info->ht_info.ht_param &=
+				ht_info->ht_oper.ht_param &=
 					~(IEEE80211_HT_PARAM_CHAN_WIDTH_ANY |
 					IEEE80211_HT_PARAM_CHA_SEC_OFFSET);
 
@@ -385,16 +384,16 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 			sizeof(struct mwifiex_ie_types_chan_list_param_set) -
 			sizeof(struct mwifiex_ie_types_header));
 		chan_list->chan_scan_param[0].chan_number =
-			bss_desc->bcn_ht_info->control_chan;
+			bss_desc->bcn_ht_oper->primary_chan;
 		chan_list->chan_scan_param[0].radio_type =
 			mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
 
 		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
-		    bss_desc->bcn_ht_info->ht_param &
+		    bss_desc->bcn_ht_oper->ht_param &
 		    IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)
 			SET_SECONDARYCHAN(chan_list->chan_scan_param[0].
 					  radio_type,
-					  (bss_desc->bcn_ht_info->ht_param &
+					  (bss_desc->bcn_ht_oper->ht_param &
 					  IEEE80211_HT_PARAM_CHA_SEC_OFFSET));
 
 		*buffer += sizeof(struct mwifiex_ie_types_chan_list_param_set);
@@ -411,7 +410,7 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 
 		memcpy((u8 *) bss_co_2040 +
 		       sizeof(struct mwifiex_ie_types_header),
-		       (u8 *) bss_desc->bcn_bss_co_2040 +
+		       bss_desc->bcn_bss_co_2040 +
 		       sizeof(struct ieee_types_header),
 		       le16_to_cpu(bss_co_2040->header.len));
 
@@ -425,10 +424,8 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		ext_cap->header.type = cpu_to_le16(WLAN_EID_EXT_CAPABILITY);
 		ext_cap->header.len = cpu_to_le16(sizeof(ext_cap->ext_cap));
 
-		memcpy((u8 *) ext_cap +
-		       sizeof(struct mwifiex_ie_types_header),
-		       (u8 *) bss_desc->bcn_ext_cap +
-		       sizeof(struct ieee_types_header),
+		memcpy((u8 *)ext_cap + sizeof(struct mwifiex_ie_types_header),
+		       bss_desc->bcn_ext_cap + sizeof(struct ieee_types_header),
 		       le16_to_cpu(ext_cap->header.len));
 
 		*buffer += sizeof(struct mwifiex_ie_types_extcap);

@@ -353,12 +353,28 @@ static int asic3_gpio_irq_type(struct irq_data *data, unsigned int type)
 	return 0;
 }
 
+static int asic3_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct asic3 *asic = irq_data_get_irq_chip_data(data);
+	u32 bank, index;
+	u16 bit;
+
+	bank = asic3_irq_to_bank(asic, data->irq);
+	index = asic3_irq_to_index(asic, data->irq);
+	bit = 1<<index;
+
+	asic3_set_register(asic, bank + ASIC3_GPIO_SLEEP_MASK, bit, !on);
+
+	return 0;
+}
+
 static struct irq_chip asic3_gpio_irq_chip = {
 	.name		= "ASIC3-GPIO",
 	.irq_ack	= asic3_mask_gpio_irq,
 	.irq_mask	= asic3_mask_gpio_irq,
 	.irq_unmask	= asic3_unmask_gpio_irq,
 	.irq_set_type	= asic3_gpio_irq_type,
+	.irq_set_wake	= asic3_gpio_irq_set_wake,
 };
 
 static struct irq_chip asic3_irq_chip = {
@@ -529,7 +545,7 @@ static int asic3_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct asic3 *asic = container_of(chip, struct asic3, gpio);
 
-	return (offset < ASIC3_NUM_GPIOS) ? asic->irq_base + offset : -ENXIO;
+	return asic->irq_base + offset;
 }
 
 static __init int asic3_gpio_probe(struct platform_device *pdev,
@@ -894,10 +910,13 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 	asic3_mmc_resources[0].start >>= asic->bus_shift;
 	asic3_mmc_resources[0].end   >>= asic->bus_shift;
 
-	ret = mfd_add_devices(&pdev->dev, pdev->id,
+	if (pdata->clock_rate) {
+		ds1wm_pdata.clock_rate = pdata->clock_rate;
+		ret = mfd_add_devices(&pdev->dev, pdev->id,
 			&asic3_cell_ds1wm, 1, mem, asic->irq_base);
-	if (ret < 0)
-		goto out;
+		if (ret < 0)
+			goto out;
+	}
 
 	if (mem_sdio && (irq >= 0)) {
 		ret = mfd_add_devices(&pdev->dev, pdev->id,
@@ -1000,6 +1019,9 @@ static int __init asic3_probe(struct platform_device *pdev)
 
 	asic3_mfd_probe(pdev, pdata, mem);
 
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+		(ASIC3_EXTCF_CF0_BUF_EN|ASIC3_EXTCF_CF0_PWAIT_EN), 1);
+
 	dev_info(asic->dev, "ASIC3 Core driver\n");
 
 	return 0;
@@ -1020,6 +1042,9 @@ static int __devexit asic3_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct asic3 *asic = platform_get_drvdata(pdev);
+
+	asic3_set_register(asic, ASIC3_OFFSET(EXTCF, SELECT),
+		(ASIC3_EXTCF_CF0_BUF_EN|ASIC3_EXTCF_CF0_PWAIT_EN), 0);
 
 	asic3_mfd_remove(pdev);
 

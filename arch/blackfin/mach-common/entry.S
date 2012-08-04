@@ -25,13 +25,6 @@
 
 #include <asm/context.S>
 
-#if defined(CONFIG_BFIN_SCRATCH_REG_RETN)
-# define EX_SCRATCH_REG RETN
-#elif defined(CONFIG_BFIN_SCRATCH_REG_RETE)
-# define EX_SCRATCH_REG RETE
-#else
-# define EX_SCRATCH_REG CYCLES
-#endif
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
@@ -711,8 +704,6 @@ ENTRY(_system_call)
 	jump .Lresume_userspace_1;
 
 .Lsyscall_sigpending:
-	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
-	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_NOTIFY_RESUME);
@@ -1141,7 +1132,8 @@ ENTRY(_schedule_and_signal_from_int)
 	sti r0;
 
 	/* finish the userspace "atomic" functions for it */
-	r1 = FIXED_CODE_END;
+	r1.l = lo(FIXED_CODE_END);
+	r1.h = hi(FIXED_CODE_END);
 	r2 = [sp + PT_PC];
 	cc = r1 <= r2;
 	if cc jump .Lresume_userspace (bp);
@@ -1376,7 +1368,7 @@ END(_ex_table)
 ENTRY(_sys_call_table)
 	.long _sys_restart_syscall	/* 0 */
 	.long _sys_exit
-	.long _sys_fork
+	.long _sys_ni_syscall	/* fork */
 	.long _sys_read
 	.long _sys_write
 	.long _sys_open		/* 5 */

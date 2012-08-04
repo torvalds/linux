@@ -54,7 +54,7 @@ TRACE_EVENT(workqueue_queue_work,
 		__entry->function	= work->func;
 		__entry->workqueue	= cwq->wq;
 		__entry->req_cpu	= req_cpu;
-		__entry->cpu		= cwq->gcwq->cpu;
+		__entry->cpu		= cwq->pool->gcwq->cpu;
 	),
 
 	TP_printk("work struct=%p function=%pf workqueue=%p req_cpu=%u cpu=%u",
@@ -103,7 +103,7 @@ TRACE_EVENT(workqueue_execute_start,
 );
 
 /**
- * workqueue_execute_end - called immediately before the workqueue callback
+ * workqueue_execute_end - called immediately after the workqueue callback
  * @work:	pointer to struct work_struct
  *
  * Allows to track workqueue execution.

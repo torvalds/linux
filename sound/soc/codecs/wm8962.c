@@ -1,7 +1,7 @@
 /*
  * wm8962.c  --  WM8962 ALSA SoC Audio driver
  *
- * Copyright 2010 Wolfson Microelectronics plc
+ * Copyright 2010-2 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -1478,7 +1478,8 @@ static const DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 
 static int wm8962_dsp2_write_config(struct snd_soc_codec *codec)
 {
-	return 0;
+	return regcache_sync_region(codec->control_data,
+				    WM8962_HDBASS_AI_1, WM8962_MAX_REGISTER);
 }
 
 static int wm8962_dsp2_set_enable(struct snd_soc_codec *codec, u16 val)
@@ -1755,10 +1756,22 @@ SOC_DOUBLE_R_TLV("EQ4 Volume", WM8962_EQ3, WM8962_EQ23,
 SOC_DOUBLE_R_TLV("EQ5 Volume", WM8962_EQ3, WM8962_EQ23,
 		 WM8962_EQL_B5_GAIN_SHIFT, 31, 0, eq_tlv),
 
+SOC_SINGLE("3D Switch", WM8962_THREED1, 0, 1, 0),
+SND_SOC_BYTES_MASK("3D Coefficients", WM8962_THREED1, 4, WM8962_THREED_ENA),
+
+SOC_SINGLE("DF1 Switch", WM8962_DF1, 0, 1, 0),
+SND_SOC_BYTES_MASK("DF1 Coefficients", WM8962_DF1, 7, WM8962_DF1_ENA),
+
+SOC_SINGLE("DRC Switch", WM8962_DRC_1, 0, 1, 0),
+SND_SOC_BYTES_MASK("DRC Coefficients", WM8962_DRC_1, 5, WM8962_DRC_ENA),
+
 WM8962_DSP2_ENABLE("VSS Switch", WM8962_VSS_ENA_SHIFT),
+SND_SOC_BYTES("VSS Coefficients", WM8962_VSS_XHD2_1, 148),
 WM8962_DSP2_ENABLE("HPF1 Switch", WM8962_HPF1_ENA_SHIFT),
 WM8962_DSP2_ENABLE("HPF2 Switch", WM8962_HPF2_ENA_SHIFT),
+SND_SOC_BYTES("HPF Coefficients", WM8962_LHPF2, 1),
 WM8962_DSP2_ENABLE("HD Bass Switch", WM8962_HDBASS_ENA_SHIFT),
+SND_SOC_BYTES("HD Bass Coefficients", WM8962_HDBASS_AI_1, 30),
 };
 
 static const struct snd_kcontrol_new wm8962_spk_mono_controls[] = {
@@ -2519,8 +2532,7 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
 	int i;
 	int aif0 = 0;
@@ -2567,6 +2579,9 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_update_bits(codec, WM8962_ADDITIONAL_CONTROL_3,
 			    WM8962_SAMPLE_RATE_INT_MODE |
 			    WM8962_SAMPLE_RATE_MASK, adctl3);
+
+	dev_dbg(codec->dev, "hw_params set BCLK %dHz LRCLK %dHz\n",
+		wm8962->bclk, wm8962->lrclk);
 
 	if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
 		wm8962_configure_bclk(codec);
@@ -3710,6 +3725,9 @@ static int wm8962_runtime_resume(struct device *dev)
 	}
 
 	regcache_cache_only(wm8962->regmap, false);
+
+	wm8962_reset(wm8962);
+
 	regcache_sync(wm8962->regmap);
 
 	regmap_update_bits(wm8962->regmap, WM8962_ANTI_POP,

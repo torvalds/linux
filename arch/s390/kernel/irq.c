@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 2004,2011
+ *    Copyright IBM Corp. 2004, 2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Holger Smolinski <Holger.Smolinski@de.ibm.com>,
  *		 Thomas Spatzier <tspat@de.ibm.com>,
@@ -42,7 +42,8 @@ static const struct irq_class intrclass_names[] = {
 	{.name = "VRT", .desc = "[EXT] Virtio" },
 	{.name = "SCP", .desc = "[EXT] Service Call" },
 	{.name = "IUC", .desc = "[EXT] IUCV" },
-	{.name = "CPM", .desc = "[EXT] CPU Measurement" },
+	{.name = "CMS", .desc = "[EXT] CPU-Measurement: Sampling" },
+	{.name = "CMC", .desc = "[EXT] CPU-Measurement: Counter" },
 	{.name = "CIO", .desc = "[I/O] Common I/O Layer Interrupt" },
 	{.name = "QAI", .desc = "[I/O] QDIO Adapter Interrupt" },
 	{.name = "DAS", .desc = "[I/O] DASD" },

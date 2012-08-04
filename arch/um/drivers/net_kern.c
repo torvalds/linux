@@ -195,7 +195,7 @@ static int uml_net_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	free_irq(dev->irq, dev);
+	um_free_irq(dev->irq, dev);
 	if (lp->close != NULL)
 		(*lp->close)(lp->fd, &lp->user);
 	lp->fd = -1;
@@ -339,7 +339,7 @@ static int setup_etheraddr(char *str, unsigned char *addr, char *name)
 random:
 	printk(KERN_INFO
 	       "Choosing a random ethernet address for device %s\n", name);
-	random_ether_addr(addr);
+	eth_random_addr(addr);
 	return 1;
 }
 
@@ -835,7 +835,7 @@ static void close_devices(void)
 	spin_lock(&opened_lock);
 	list_for_each(ele, &opened) {
 		lp = list_entry(ele, struct uml_net_private, list);
-		free_irq(lp->dev->irq, lp->dev);
+		um_free_irq(lp->dev->irq, lp->dev);
 		if ((lp->close != NULL) && (lp->fd >= 0))
 			(*lp->close)(lp->fd, &lp->user);
 		if (lp->remove != NULL)

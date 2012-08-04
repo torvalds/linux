@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 
 #include <rdma/ib_verbs.h>
 
@@ -43,6 +44,12 @@ MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("Chelsio T4 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRV_VERSION);
+
+struct uld_ctx {
+	struct list_head entry;
+	struct cxgb4_lld_info lldi;
+	struct c4iw_dev *dev;
+};
 
 static LIST_HEAD(uld_ctx_list);
 static DEFINE_MUTEX(dev_mutex);
@@ -115,7 +122,7 @@ static int qp_release(struct inode *inode, struct file *file)
 		printk(KERN_INFO "%s null qpd?\n", __func__);
 		return 0;
 	}
-	kfree(qpd->buf);
+	vfree(qpd->buf);
 	kfree(qpd);
 	return 0;
 }
@@ -139,7 +146,7 @@ static int qp_open(struct inode *inode, struct file *file)
 	spin_unlock_irq(&qpd->devp->lock);
 
 	qpd->bufsize = count * 128;
-	qpd->buf = kmalloc(qpd->bufsize, GFP_KERNEL);
+	qpd->buf = vmalloc(qpd->bufsize);
 	if (!qpd->buf) {
 		ret = -ENOMEM;
 		goto err1;
@@ -240,6 +247,81 @@ static const struct file_operations stag_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
+static char *db_state_str[] = {"NORMAL", "FLOW_CONTROL", "RECOVERY"};
+
+static int stats_show(struct seq_file *seq, void *v)
+{
+	struct c4iw_dev *dev = seq->private;
+
+	seq_printf(seq, "   Object: %10s %10s %10s %10s\n", "Total", "Current",
+		   "Max", "Fail");
+	seq_printf(seq, "     PDID: %10llu %10llu %10llu %10llu\n",
+			dev->rdev.stats.pd.total, dev->rdev.stats.pd.cur,
+			dev->rdev.stats.pd.max, dev->rdev.stats.pd.fail);
+	seq_printf(seq, "      QID: %10llu %10llu %10llu %10llu\n",
+			dev->rdev.stats.qid.total, dev->rdev.stats.qid.cur,
+			dev->rdev.stats.qid.max, dev->rdev.stats.qid.fail);
+	seq_printf(seq, "   TPTMEM: %10llu %10llu %10llu %10llu\n",
+			dev->rdev.stats.stag.total, dev->rdev.stats.stag.cur,
+			dev->rdev.stats.stag.max, dev->rdev.stats.stag.fail);
+	seq_printf(seq, "   PBLMEM: %10llu %10llu %10llu %10llu\n",
+			dev->rdev.stats.pbl.total, dev->rdev.stats.pbl.cur,
+			dev->rdev.stats.pbl.max, dev->rdev.stats.pbl.fail);
+	seq_printf(seq, "   RQTMEM: %10llu %10llu %10llu %10llu\n",
+			dev->rdev.stats.rqt.total, dev->rdev.stats.rqt.cur,
+			dev->rdev.stats.rqt.max, dev->rdev.stats.rqt.fail);
+	seq_printf(seq, "  OCQPMEM: %10llu %10llu %10llu %10llu\n",
+			dev->rdev.stats.ocqp.total, dev->rdev.stats.ocqp.cur,
+			dev->rdev.stats.ocqp.max, dev->rdev.stats.ocqp.fail);
+	seq_printf(seq, "  DB FULL: %10llu\n", dev->rdev.stats.db_full);
+	seq_printf(seq, " DB EMPTY: %10llu\n", dev->rdev.stats.db_empty);
+	seq_printf(seq, "  DB DROP: %10llu\n", dev->rdev.stats.db_drop);
+	seq_printf(seq, " DB State: %s Transitions %llu\n",
+		   db_state_str[dev->db_state],
+		   dev->rdev.stats.db_state_transitions);
+	return 0;
+}
+
+static int stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, stats_show, inode->i_private);
+}
+
+static ssize_t stats_clear(struct file *file, const char __user *buf,
+		size_t count, loff_t *pos)
+{
+	struct c4iw_dev *dev = ((struct seq_file *)file->private_data)->private;
+
+	mutex_lock(&dev->rdev.stats.lock);
+	dev->rdev.stats.pd.max = 0;
+	dev->rdev.stats.pd.fail = 0;
+	dev->rdev.stats.qid.max = 0;
+	dev->rdev.stats.qid.fail = 0;
+	dev->rdev.stats.stag.max = 0;
+	dev->rdev.stats.stag.fail = 0;
+	dev->rdev.stats.pbl.max = 0;
+	dev->rdev.stats.pbl.fail = 0;
+	dev->rdev.stats.rqt.max = 0;
+	dev->rdev.stats.rqt.fail = 0;
+	dev->rdev.stats.ocqp.max = 0;
+	dev->rdev.stats.ocqp.fail = 0;
+	dev->rdev.stats.db_full = 0;
+	dev->rdev.stats.db_empty = 0;
+	dev->rdev.stats.db_drop = 0;
+	dev->rdev.stats.db_state_transitions = 0;
+	mutex_unlock(&dev->rdev.stats.lock);
+	return count;
+}
+
+static const struct file_operations stats_debugfs_fops = {
+	.owner   = THIS_MODULE,
+	.open    = stats_open,
+	.release = single_release,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.write   = stats_clear,
+};
+
 static int setup_debugfs(struct c4iw_dev *devp)
 {
 	struct dentry *de;
@@ -256,6 +338,12 @@ static int setup_debugfs(struct c4iw_dev *devp)
 				 (void *)devp, &stag_debugfs_fops);
 	if (de && de->d_inode)
 		de->d_inode->i_size = 4096;
+
+	de = debugfs_create_file("stats", S_IWUSR, devp->debugfs_root,
+			(void *)devp, &stats_debugfs_fops);
+	if (de && de->d_inode)
+		de->d_inode->i_size = 4096;
+
 	return 0;
 }
 
@@ -269,9 +357,13 @@ void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
 	list_for_each_safe(pos, nxt, &uctx->qpids) {
 		entry = list_entry(pos, struct c4iw_qid_list, entry);
 		list_del_init(&entry->entry);
-		if (!(entry->qid & rdev->qpmask))
-			c4iw_put_resource(&rdev->resource.qid_fifo, entry->qid,
-					  &rdev->resource.qid_fifo_lock);
+		if (!(entry->qid & rdev->qpmask)) {
+			c4iw_put_resource(&rdev->resource.qid_table,
+					  entry->qid);
+			mutex_lock(&rdev->stats.lock);
+			rdev->stats.qid.cur -= rdev->qpmask + 1;
+			mutex_unlock(&rdev->stats.lock);
+		}
 		kfree(entry);
 	}
 
@@ -332,6 +424,13 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		goto err1;
 	}
 
+	rdev->stats.pd.total = T4_MAX_NUM_PD;
+	rdev->stats.stag.total = rdev->lldi.vr->stag.size;
+	rdev->stats.pbl.total = rdev->lldi.vr->pbl.size;
+	rdev->stats.rqt.total = rdev->lldi.vr->rq.size;
+	rdev->stats.ocqp.total = rdev->lldi.vr->ocq.size;
+	rdev->stats.qid.total = rdev->lldi.vr->qp.size;
+
 	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
 	if (err) {
 		printk(KERN_ERR MOD "error %d initializing resources\n", err);
@@ -369,12 +468,6 @@ static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 	c4iw_rqtpool_destroy(rdev);
 	c4iw_destroy_resource(&rdev->resource);
 }
-
-struct uld_ctx {
-	struct list_head entry;
-	struct cxgb4_lld_info lldi;
-	struct c4iw_dev *dev;
-};
 
 static void c4iw_dealloc(struct uld_ctx *ctx)
 {
@@ -440,6 +533,8 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 	idr_init(&devp->qpidr);
 	idr_init(&devp->mmidr);
 	spin_lock_init(&devp->lock);
+	mutex_init(&devp->rdev.stats.lock);
+	mutex_init(&devp->db_mutex);
 
 	if (c4iw_debugfs_root) {
 		devp->debugfs_root = debugfs_create_dir(
@@ -585,11 +680,234 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	return 0;
 }
 
+static int disable_qp_db(int id, void *p, void *data)
+{
+	struct c4iw_qp *qp = p;
+
+	t4_disable_wq_db(&qp->wq);
+	return 0;
+}
+
+static void stop_queues(struct uld_ctx *ctx)
+{
+	spin_lock_irq(&ctx->dev->lock);
+	if (ctx->dev->db_state == NORMAL) {
+		ctx->dev->rdev.stats.db_state_transitions++;
+		ctx->dev->db_state = FLOW_CONTROL;
+		idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
+	}
+	spin_unlock_irq(&ctx->dev->lock);
+}
+
+static int enable_qp_db(int id, void *p, void *data)
+{
+	struct c4iw_qp *qp = p;
+
+	t4_enable_wq_db(&qp->wq);
+	return 0;
+}
+
+static void resume_queues(struct uld_ctx *ctx)
+{
+	spin_lock_irq(&ctx->dev->lock);
+	if (ctx->dev->qpcnt <= db_fc_threshold &&
+	    ctx->dev->db_state == FLOW_CONTROL) {
+		ctx->dev->db_state = NORMAL;
+		ctx->dev->rdev.stats.db_state_transitions++;
+		idr_for_each(&ctx->dev->qpidr, enable_qp_db, NULL);
+	}
+	spin_unlock_irq(&ctx->dev->lock);
+}
+
+struct qp_list {
+	unsigned idx;
+	struct c4iw_qp **qps;
+};
+
+static int add_and_ref_qp(int id, void *p, void *data)
+{
+	struct qp_list *qp_listp = data;
+	struct c4iw_qp *qp = p;
+
+	c4iw_qp_add_ref(&qp->ibqp);
+	qp_listp->qps[qp_listp->idx++] = qp;
+	return 0;
+}
+
+static int count_qps(int id, void *p, void *data)
+{
+	unsigned *countp = data;
+	(*countp)++;
+	return 0;
+}
+
+static void deref_qps(struct qp_list qp_list)
+{
+	int idx;
+
+	for (idx = 0; idx < qp_list.idx; idx++)
+		c4iw_qp_rem_ref(&qp_list.qps[idx]->ibqp);
+}
+
+static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
+{
+	int idx;
+	int ret;
+
+	for (idx = 0; idx < qp_list->idx; idx++) {
+		struct c4iw_qp *qp = qp_list->qps[idx];
+
+		ret = cxgb4_sync_txq_pidx(qp->rhp->rdev.lldi.ports[0],
+					  qp->wq.sq.qid,
+					  t4_sq_host_wq_pidx(&qp->wq),
+					  t4_sq_wq_size(&qp->wq));
+		if (ret) {
+			printk(KERN_ERR MOD "%s: Fatal error - "
+			       "DB overflow recovery failed - "
+			       "error syncing SQ qid %u\n",
+			       pci_name(ctx->lldi.pdev), qp->wq.sq.qid);
+			return;
+		}
+
+		ret = cxgb4_sync_txq_pidx(qp->rhp->rdev.lldi.ports[0],
+					  qp->wq.rq.qid,
+					  t4_rq_host_wq_pidx(&qp->wq),
+					  t4_rq_wq_size(&qp->wq));
+
+		if (ret) {
+			printk(KERN_ERR MOD "%s: Fatal error - "
+			       "DB overflow recovery failed - "
+			       "error syncing RQ qid %u\n",
+			       pci_name(ctx->lldi.pdev), qp->wq.rq.qid);
+			return;
+		}
+
+		/* Wait for the dbfifo to drain */
+		while (cxgb4_dbfifo_count(qp->rhp->rdev.lldi.ports[0], 1) > 0) {
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_timeout(usecs_to_jiffies(10));
+		}
+	}
+}
+
+static void recover_queues(struct uld_ctx *ctx)
+{
+	int count = 0;
+	struct qp_list qp_list;
+	int ret;
+
+	/* lock out kernel db ringers */
+	mutex_lock(&ctx->dev->db_mutex);
+
+	/* put all queues in to recovery mode */
+	spin_lock_irq(&ctx->dev->lock);
+	ctx->dev->db_state = RECOVERY;
+	ctx->dev->rdev.stats.db_state_transitions++;
+	idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
+	spin_unlock_irq(&ctx->dev->lock);
+
+	/* slow everybody down */
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(usecs_to_jiffies(1000));
+
+	/* Wait for the dbfifo to completely drain. */
+	while (cxgb4_dbfifo_count(ctx->dev->rdev.lldi.ports[0], 1) > 0) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(10));
+	}
+
+	/* flush the SGE contexts */
+	ret = cxgb4_flush_eq_cache(ctx->dev->rdev.lldi.ports[0]);
+	if (ret) {
+		printk(KERN_ERR MOD "%s: Fatal error - DB overflow recovery failed\n",
+		       pci_name(ctx->lldi.pdev));
+		goto out;
+	}
+
+	/* Count active queues so we can build a list of queues to recover */
+	spin_lock_irq(&ctx->dev->lock);
+	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
+
+	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
+	if (!qp_list.qps) {
+		printk(KERN_ERR MOD "%s: Fatal error - DB overflow recovery failed\n",
+		       pci_name(ctx->lldi.pdev));
+		spin_unlock_irq(&ctx->dev->lock);
+		goto out;
+	}
+	qp_list.idx = 0;
+
+	/* add and ref each qp so it doesn't get freed */
+	idr_for_each(&ctx->dev->qpidr, add_and_ref_qp, &qp_list);
+
+	spin_unlock_irq(&ctx->dev->lock);
+
+	/* now traverse the list in a safe context to recover the db state*/
+	recover_lost_dbs(ctx, &qp_list);
+
+	/* we're almost done!  deref the qps and clean up */
+	deref_qps(qp_list);
+	kfree(qp_list.qps);
+
+	/* Wait for the dbfifo to completely drain again */
+	while (cxgb4_dbfifo_count(ctx->dev->rdev.lldi.ports[0], 1) > 0) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule_timeout(usecs_to_jiffies(10));
+	}
+
+	/* resume the queues */
+	spin_lock_irq(&ctx->dev->lock);
+	if (ctx->dev->qpcnt > db_fc_threshold)
+		ctx->dev->db_state = FLOW_CONTROL;
+	else {
+		ctx->dev->db_state = NORMAL;
+		idr_for_each(&ctx->dev->qpidr, enable_qp_db, NULL);
+	}
+	ctx->dev->rdev.stats.db_state_transitions++;
+	spin_unlock_irq(&ctx->dev->lock);
+
+out:
+	/* start up kernel db ringers again */
+	mutex_unlock(&ctx->dev->db_mutex);
+}
+
+static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
+{
+	struct uld_ctx *ctx = handle;
+
+	switch (control) {
+	case CXGB4_CONTROL_DB_FULL:
+		stop_queues(ctx);
+		mutex_lock(&ctx->dev->rdev.stats.lock);
+		ctx->dev->rdev.stats.db_full++;
+		mutex_unlock(&ctx->dev->rdev.stats.lock);
+		break;
+	case CXGB4_CONTROL_DB_EMPTY:
+		resume_queues(ctx);
+		mutex_lock(&ctx->dev->rdev.stats.lock);
+		ctx->dev->rdev.stats.db_empty++;
+		mutex_unlock(&ctx->dev->rdev.stats.lock);
+		break;
+	case CXGB4_CONTROL_DB_DROP:
+		recover_queues(ctx);
+		mutex_lock(&ctx->dev->rdev.stats.lock);
+		ctx->dev->rdev.stats.db_drop++;
+		mutex_unlock(&ctx->dev->rdev.stats.lock);
+		break;
+	default:
+		printk(KERN_WARNING MOD "%s: unknown control cmd %u\n",
+		       pci_name(ctx->lldi.pdev), control);
+		break;
+	}
+	return 0;
+}
+
 static struct cxgb4_uld_info c4iw_uld_info = {
 	.name = DRV_NAME,
 	.add = c4iw_uld_add,
 	.rx_handler = c4iw_uld_rx_handler,
 	.state_change = c4iw_uld_state_change,
+	.control = c4iw_uld_control,
 };
 
 static int __init c4iw_init_module(void)

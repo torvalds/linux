@@ -1008,7 +1008,7 @@ e100_send_mdio_bit(unsigned char bit)
 }
 
 static unsigned char
-e100_receive_mdio_bit()
+e100_receive_mdio_bit(void)
 {
 	unsigned char bit;
 	*R_NETWORK_MGM_CTRL = 0;
@@ -1131,7 +1131,6 @@ static irqreturn_t
 e100rxtx_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	struct net_local *np = netdev_priv(dev);
 	unsigned long irqbits;
 
 	/*

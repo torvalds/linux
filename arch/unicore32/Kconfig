@@ -8,6 +8,7 @@ config UNICORE32
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
+	select ARCH_HAVE_CUSTOM_GPIO_H
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -24,9 +25,6 @@ config HAVE_PWM
 
 config GENERIC_GPIO
 	def_bool y
-
-config GENERIC_CLOCKEVENTS
-	bool
 
 config GENERIC_CSUM
 	def_bool y
@@ -146,8 +144,6 @@ endmenu
 
 menu "Kernel Features"
 
-source "kernel/time/Kconfig"
-
 source "kernel/Kconfig.preempt"
 
 source "kernel/Kconfig.hz"
@@ -242,7 +238,6 @@ config I2C_BATTERY_BQ27200
 config I2C_EEPROM_AT24
 	tristate "I2C EEPROMs AT24 support"
 	select I2C_PUV3
-	select MISC_DEVICES
 	select EEPROM_AT24
 
 config LCD_BACKLIGHT

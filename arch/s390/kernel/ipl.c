@@ -1,8 +1,7 @@
 /*
- *  arch/s390/kernel/ipl.c
  *    ipl/reipl/dump support for Linux on s390.
  *
- *    Copyright IBM Corp. 2005,2012
+ *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
@@ -1528,12 +1527,12 @@ static struct shutdown_action __refdata dump_action = {
 
 static void dump_reipl_run(struct shutdown_trigger *trigger)
 {
-	u32 csum;
+	unsigned long ipib = (unsigned long) reipl_block_actual;
+	unsigned int csum;
 
 	csum = csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
-	copy_to_absolute_zero(&S390_lowcore.ipib_checksum, &csum, sizeof(csum));
-	copy_to_absolute_zero(&S390_lowcore.ipib, &reipl_block_actual,
-			      sizeof(reipl_block_actual));
+	mem_assign_absolute(S390_lowcore.ipib, ipib);
+	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
 	dump_run(trigger);
 }
 
@@ -1584,7 +1583,7 @@ static struct kset *vmcmd_kset;
 
 static void vmcmd_run(struct shutdown_trigger *trigger)
 {
-	char *cmd, *next_cmd;
+	char *cmd;
 
 	if (strcmp(trigger->name, ON_REIPL_STR) == 0)
 		cmd = vmcmd_on_reboot;
@@ -1601,15 +1600,7 @@ static void vmcmd_run(struct shutdown_trigger *trigger)
 
 	if (strlen(cmd) == 0)
 		return;
-	do {
-		next_cmd = strchr(cmd, '\n');
-		if (next_cmd) {
-			next_cmd[0] = 0;
-			next_cmd += 1;
-		}
-		__cpcmd(cmd, NULL, 0, NULL);
-		cmd = next_cmd;
-	} while (cmd != NULL);
+	__cpcmd(cmd, NULL, 0, NULL);
 }
 
 static int vmcmd_init(void)
@@ -1750,6 +1741,7 @@ static struct kobj_attribute on_restart_attr =
 
 static void __do_restart(void *ignore)
 {
+	__arch_local_irq_stosm(0x04); /* enable DAT */
 	smp_send_stop();
 #ifdef CONFIG_CRASH_DUMP
 	crash_kexec(NULL);

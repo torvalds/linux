@@ -77,7 +77,7 @@ struct smp_cmd_encrypt_info {
 
 #define SMP_CMD_MASTER_IDENT	0x07
 struct smp_cmd_master_ident {
-	__u16	ediv;
+	__le16	ediv;
 	__u8	rand[8];
 } __packed;
 

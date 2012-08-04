@@ -923,8 +923,6 @@ out_unlock:
 
 	ocfs2_inode_unlock(inode, 0);
 out:
-	if (ret && ret != -ENXIO)
-		ret = -ENXIO;
 	return ret;
 }
 

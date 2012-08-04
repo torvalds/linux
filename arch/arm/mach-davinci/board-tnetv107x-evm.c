@@ -282,6 +282,7 @@ MACHINE_START(TNETV107X, "TNETV107X EVM")
 	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,
 	.init_machine	= tnetv107x_evm_board_init,
+	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
 	.restart	= tnetv107x_restart,
 MACHINE_END

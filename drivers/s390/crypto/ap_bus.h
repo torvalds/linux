@@ -1,7 +1,5 @@
 /*
- * linux/drivers/s390/crypto/ap_bus.h
- *
- * Copyright (C) 2006 IBM Corporation
+ * Copyright IBM Corp. 2006
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -136,9 +134,6 @@ struct ap_driver {
 
 	int (*probe)(struct ap_device *);
 	void (*remove)(struct ap_device *);
-	/* receive is called from tasklet context */
-	void (*receive)(struct ap_device *, struct ap_message *,
-			struct ap_message *);
 	int request_timeout;		/* request timeout in jiffies */
 };
 
@@ -183,6 +178,9 @@ struct ap_message {
 
 	void *private;			/* ap driver private pointer. */
 	unsigned int special:1;		/* Used for special commands. */
+	/* receive is called from tasklet context */
+	void (*receive)(struct ap_device *, struct ap_message *,
+			struct ap_message *);
 };
 
 #define AP_DEVICE(dt)					\
@@ -199,6 +197,7 @@ static inline void ap_init_message(struct ap_message *ap_msg)
 	ap_msg->psmid = 0;
 	ap_msg->length = 0;
 	ap_msg->special = 0;
+	ap_msg->receive = NULL;
 }
 
 /*

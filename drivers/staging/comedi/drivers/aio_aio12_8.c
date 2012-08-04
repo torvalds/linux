@@ -80,8 +80,6 @@ static const struct aio12_8_boardtype board_types[] = {
 	 .name = "aio_aio12_8"},
 };
 
-#define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
-
 struct aio12_8_private {
 	unsigned int ao_readback[4];
 };
@@ -167,8 +165,10 @@ static const struct comedi_lrange range_aio_aio12_8 = {
 static int aio_aio12_8_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
+	const struct aio12_8_boardtype *board = comedi_board(dev);
 	int iobase;
 	struct comedi_subdevice *s;
+	int ret;
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {
@@ -176,15 +176,16 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 		return -EIO;
 	}
 
-	dev->board_name = thisboard->name;
+	dev->board_name = board->name;
 
 	dev->iobase = iobase;
 
 	if (alloc_private(dev, sizeof(struct aio12_8_private)) < 0)
 		return -ENOMEM;
 
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_AI;
@@ -209,36 +210,23 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int aio_aio12_8_detach(struct comedi_device *dev)
+static void aio_aio12_8_detach(struct comedi_device *dev)
 {
 	subdev_8255_cleanup(dev, &dev->subdevices[2]);
 	if (dev->iobase)
 		release_region(dev->iobase, 24);
-	return 0;
 }
 
-static struct comedi_driver driver_aio_aio12_8 = {
-	.driver_name = "aio_aio12_8",
-	.module = THIS_MODULE,
-	.attach = aio_aio12_8_attach,
-	.detach = aio_aio12_8_detach,
-	.board_name = &board_types[0].name,
-	.num_names = 1,
-	.offset = sizeof(struct aio12_8_boardtype),
+static struct comedi_driver aio_aio12_8_driver = {
+	.driver_name	= "aio_aio12_8",
+	.module		= THIS_MODULE,
+	.attach		= aio_aio12_8_attach,
+	.detach		= aio_aio12_8_detach,
+	.board_name	= &board_types[0].name,
+	.num_names	= ARRAY_SIZE(board_types),
+	.offset		= sizeof(struct aio12_8_boardtype),
 };
-
-static int __init driver_aio_aio12_8_init_module(void)
-{
-	return comedi_driver_register(&driver_aio_aio12_8);
-}
-
-static void __exit driver_aio_aio12_8_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_aio_aio12_8);
-}
-
-module_init(driver_aio_aio12_8_init_module);
-module_exit(driver_aio_aio12_8_cleanup_module);
+module_comedi_driver(aio_aio12_8_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

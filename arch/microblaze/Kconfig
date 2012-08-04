@@ -15,6 +15,7 @@ config MICROBLAZE
 	select TRACING_SUPPORT
 	select OF
 	select OF_EARLY_FLATTREE
+	select ARCH_WANT_IPC_PARSE_VERSION
 	select IRQ_DOMAIN
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_PROBE
@@ -22,6 +23,7 @@ config MICROBLAZE
 	select GENERIC_PCI_IOMAP
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
 
 config SWAP
 	def_bool n
@@ -50,14 +52,8 @@ config GENERIC_HWEIGHT
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
-config GENERIC_TIME_VSYSCALL
-	def_bool n
-
-config GENERIC_CLOCKEVENTS
-	def_bool y
-
 config GENERIC_GPIO
-	def_bool y
+	bool
 
 config GENERIC_CSUM
 	def_bool y
@@ -78,8 +74,6 @@ source "kernel/Kconfig.freezer"
 source "arch/microblaze/platform/Kconfig.platform"
 
 menu "Processor type and features"
-
-source "kernel/time/Kconfig"
 
 source "kernel/Kconfig.preempt"
 

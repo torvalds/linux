@@ -2794,9 +2794,10 @@ snd_azf3328_resume_ac97(const struct snd_azf3328 *chip)
 }
 
 static int
-snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
+snd_azf3328_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_azf3328 *chip = card->private_data;
 	u16 *saved_regs_ctrl_u16;
 
@@ -2824,14 +2825,15 @@ snd_azf3328_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
 static int
-snd_azf3328_resume(struct pci_dev *pci)
+snd_azf3328_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	const struct snd_azf3328 *chip = card->private_data;
 
 	pci_set_power_state(pci, PCI_D0);
@@ -2859,37 +2861,21 @@ snd_azf3328_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_azf3328_pm, snd_azf3328_suspend, snd_azf3328_resume);
+#define SND_AZF3328_PM_OPS	&snd_azf3328_pm
+#else
+#define SND_AZF3328_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
-
-static struct pci_driver driver = {
+static struct pci_driver azf3328_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
 	.remove = __devexit_p(snd_azf3328_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_azf3328_suspend,
-	.resume = snd_azf3328_resume,
-#endif
+	.driver = {
+		.pm = SND_AZF3328_PM_OPS,
+	},
 };
 
-static int __init
-alsa_card_azf3328_init(void)
-{
-	int err;
-	snd_azf3328_dbgcallenter();
-	err = pci_register_driver(&driver);
-	snd_azf3328_dbgcallleave();
-	return err;
-}
-
-static void __exit
-alsa_card_azf3328_exit(void)
-{
-	snd_azf3328_dbgcallenter();
-	pci_unregister_driver(&driver);
-	snd_azf3328_dbgcallleave();
-}
-
-module_init(alsa_card_azf3328_init)
-module_exit(alsa_card_azf3328_exit)
+module_pci_driver(azf3328_driver);

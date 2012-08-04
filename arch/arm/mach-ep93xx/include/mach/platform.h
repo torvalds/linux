@@ -48,10 +48,20 @@ void ep93xx_register_i2s(void);
 int ep93xx_i2s_acquire(void);
 void ep93xx_i2s_release(void);
 void ep93xx_register_ac97(void);
+void ep93xx_register_ide(void);
+int ep93xx_ide_acquire_gpio(struct platform_device *pdev);
+void ep93xx_ide_release_gpio(struct platform_device *pdev);
 
 void ep93xx_init_devices(void);
 extern struct sys_timer ep93xx_timer;
 
 void ep93xx_restart(char, const char *);
+void ep93xx_init_late(void);
+
+#ifdef CONFIG_CRUNCH
+int crunch_init(void);
+#else
+static inline int crunch_init(void) { return 0; }
+#endif
 
 #endif

@@ -24,48 +24,47 @@
 #define CKIH_CLK_FREQ_27MHZ     27000000
 #define CKIL_CLK_FREQ           32768
 
-#define MXC_CCM_BASE		(cpu_is_mx31() ? \
-MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR) : MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR))
+extern void __iomem *mx3_ccm_base;
 
 /* Register addresses */
-#define MXC_CCM_CCMR		(MXC_CCM_BASE + 0x00)
-#define MXC_CCM_PDR0		(MXC_CCM_BASE + 0x04)
-#define MXC_CCM_PDR1		(MXC_CCM_BASE + 0x08)
-#define MX35_CCM_PDR2		(MXC_CCM_BASE + 0x0C)
-#define MXC_CCM_RCSR		(MXC_CCM_BASE + 0x0C)
-#define MX35_CCM_PDR3		(MXC_CCM_BASE + 0x10)
-#define MXC_CCM_MPCTL		(MXC_CCM_BASE + 0x10)
-#define MX35_CCM_PDR4		(MXC_CCM_BASE + 0x14)
-#define MXC_CCM_UPCTL		(MXC_CCM_BASE + 0x14)
-#define MX35_CCM_RCSR		(MXC_CCM_BASE + 0x18)
-#define MXC_CCM_SRPCTL		(MXC_CCM_BASE + 0x18)
-#define MX35_CCM_MPCTL		(MXC_CCM_BASE + 0x1C)
-#define MXC_CCM_COSR		(MXC_CCM_BASE + 0x1C)
-#define MX35_CCM_PPCTL		(MXC_CCM_BASE + 0x20)
-#define MXC_CCM_CGR0		(MXC_CCM_BASE + 0x20)
-#define MX35_CCM_ACMR		(MXC_CCM_BASE + 0x24)
-#define MXC_CCM_CGR1		(MXC_CCM_BASE + 0x24)
-#define MX35_CCM_COSR		(MXC_CCM_BASE + 0x28)
-#define MXC_CCM_CGR2		(MXC_CCM_BASE + 0x28)
-#define MX35_CCM_CGR0		(MXC_CCM_BASE + 0x2C)
-#define MXC_CCM_WIMR		(MXC_CCM_BASE + 0x2C)
-#define MX35_CCM_CGR1		(MXC_CCM_BASE + 0x30)
-#define MXC_CCM_LDC		(MXC_CCM_BASE + 0x30)
-#define MX35_CCM_CGR2		(MXC_CCM_BASE + 0x34)
-#define MXC_CCM_DCVR0		(MXC_CCM_BASE + 0x34)
-#define MX35_CCM_CGR3		(MXC_CCM_BASE + 0x38)
-#define MXC_CCM_DCVR1		(MXC_CCM_BASE + 0x38)
-#define MXC_CCM_DCVR2		(MXC_CCM_BASE + 0x3C)
-#define MXC_CCM_DCVR3		(MXC_CCM_BASE + 0x40)
-#define MXC_CCM_LTR0		(MXC_CCM_BASE + 0x44)
-#define MXC_CCM_LTR1		(MXC_CCM_BASE + 0x48)
-#define MXC_CCM_LTR2		(MXC_CCM_BASE + 0x4C)
-#define MXC_CCM_LTR3		(MXC_CCM_BASE + 0x50)
-#define MXC_CCM_LTBR0		(MXC_CCM_BASE + 0x54)
-#define MXC_CCM_LTBR1		(MXC_CCM_BASE + 0x58)
-#define MXC_CCM_PMCR0		(MXC_CCM_BASE + 0x5C)
-#define MXC_CCM_PMCR1		(MXC_CCM_BASE + 0x60)
-#define MXC_CCM_PDR2		(MXC_CCM_BASE + 0x64)
+#define MXC_CCM_CCMR		0x00
+#define MXC_CCM_PDR0		0x04
+#define MXC_CCM_PDR1		0x08
+#define MX35_CCM_PDR2		0x0C
+#define MXC_CCM_RCSR		0x0C
+#define MX35_CCM_PDR3		0x10
+#define MXC_CCM_MPCTL		0x10
+#define MX35_CCM_PDR4		0x14
+#define MXC_CCM_UPCTL		0x14
+#define MX35_CCM_RCSR		0x18
+#define MXC_CCM_SRPCTL		0x18
+#define MX35_CCM_MPCTL		0x1C
+#define MXC_CCM_COSR		0x1C
+#define MX35_CCM_PPCTL		0x20
+#define MXC_CCM_CGR0		0x20
+#define MX35_CCM_ACMR		0x24
+#define MXC_CCM_CGR1		0x24
+#define MX35_CCM_COSR		0x28
+#define MXC_CCM_CGR2		0x28
+#define MX35_CCM_CGR0		0x2C
+#define MXC_CCM_WIMR		0x2C
+#define MX35_CCM_CGR1		0x30
+#define MXC_CCM_LDC		0x30
+#define MX35_CCM_CGR2		0x34
+#define MXC_CCM_DCVR0		0x34
+#define MX35_CCM_CGR3		0x38
+#define MXC_CCM_DCVR1		0x38
+#define MXC_CCM_DCVR2		0x3C
+#define MXC_CCM_DCVR3		0x40
+#define MXC_CCM_LTR0		0x44
+#define MXC_CCM_LTR1		0x48
+#define MXC_CCM_LTR2		0x4C
+#define MXC_CCM_LTR3		0x50
+#define MXC_CCM_LTBR0		0x54
+#define MXC_CCM_LTBR1		0x58
+#define MXC_CCM_PMCR0		0x5C
+#define MXC_CCM_PMCR1		0x60
+#define MXC_CCM_PDR2		0x64
 
 /* Register bit definitions */
 #define MXC_CCM_CCMR_WBEN                       (1 << 27)

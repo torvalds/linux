@@ -37,13 +37,13 @@
 #include <plat/mux.h>
 #include <plat/dma.h>
 #include <plat/irda.h>
-#include <plat/usb.h>
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/keypad.h>
 #include <plat/board-sx1.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 
@@ -407,6 +407,7 @@ MACHINE_START(SX1, "OMAP310 based Siemens SX1")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_sx1_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

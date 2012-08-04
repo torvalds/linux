@@ -117,6 +117,7 @@
 
 /* TX Rate Limit Registers */
 #define E1000_RTTDQSEL	0x3604	/* Tx Desc Plane Queue Select - WO */
+#define E1000_RTTBCNRM	0x3690	/* Tx BCN Rate-scheduler MMW */
 #define E1000_RTTBCNRC	0x36B0	/* Tx BCN Rate-Scheduler Config - WO */
 
 /* Split and Replication RX Control - RW */
@@ -351,5 +352,19 @@
 #define E1000_B2OGPRC   0x04158 /* BMC2OS packets received by host */
 #define E1000_O2BGPTC   0x08FE4 /* OS2BMC packets received by BMC */
 #define E1000_O2BSPC    0x0415C /* OS2BMC packets transmitted by host */
+
+#define E1000_SRWR		0x12018  /* Shadow Ram Write Register - RW */
+#define E1000_I210_FLMNGCTL	0x12038
+#define E1000_I210_FLMNGDATA	0x1203C
+#define E1000_I210_FLMNGCNT	0x12040
+
+#define E1000_I210_FLSWCTL	0x12048
+#define E1000_I210_FLSWDATA	0x1204C
+#define E1000_I210_FLSWCNT	0x12050
+
+#define E1000_I210_FLA		0x1201C
+
+#define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
+#define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
 
 #endif

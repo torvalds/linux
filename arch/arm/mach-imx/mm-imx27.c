@@ -20,12 +20,12 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/pinctrl/machine.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/devices-common.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <mach/irqs.h>
 #include <mach/iomux-v1.h>
 
 /* MX27 memory map definition */
@@ -89,6 +89,7 @@ void __init imx27_soc_init(void)
 	mxc_register_gpio("imx21-gpio", 4, MX27_GPIO5_BASE_ADDR, SZ_256, MX27_INT_GPIO, 0);
 	mxc_register_gpio("imx21-gpio", 5, MX27_GPIO6_BASE_ADDR, SZ_256, MX27_INT_GPIO, 0);
 
+	pinctrl_provide_dummies();
 	imx_add_imx_dma();
 	/* imx27 has the imx21 type audmux */
 	platform_device_register_simple("imx21-audmux", 0, imx27_audmux_res,

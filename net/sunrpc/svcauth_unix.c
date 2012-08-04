@@ -14,6 +14,7 @@
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <linux/kernel.h>
+#include <linux/user_namespace.h>
 #define RPCDBG_FACILITY	RPCDBG_AUTH
 
 #include <linux/sunrpc/clnt.h>
@@ -103,23 +104,9 @@ static void ip_map_put(struct kref *kref)
 	kfree(im);
 }
 
-#if IP_HASHBITS == 8
-/* hash_long on a 64 bit machine is currently REALLY BAD for
- * IP addresses in reverse-endian (i.e. on a little-endian machine).
- * So use a trivial but reliable hash instead
- */
-static inline int hash_ip(__be32 ip)
+static inline int hash_ip6(const struct in6_addr *ip)
 {
-	int hash = (__force u32)ip ^ ((__force u32)ip>>16);
-	return (hash ^ (hash>>8)) & 0xff;
-}
-#endif
-static inline int hash_ip6(struct in6_addr ip)
-{
-	return (hash_ip(ip.s6_addr32[0]) ^
-		hash_ip(ip.s6_addr32[1]) ^
-		hash_ip(ip.s6_addr32[2]) ^
-		hash_ip(ip.s6_addr32[3]));
+	return hash_32(ipv6_addr_hash(ip), IP_HASHBITS);
 }
 static int ip_map_match(struct cache_head *corig, struct cache_head *cnew)
 {
@@ -300,7 +287,7 @@ static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
 	ip.m_addr = *addr;
 	ch = sunrpc_cache_lookup(cd, &ip.h,
 				 hash_str(class, IP_HASHBITS) ^
-				 hash_ip6(*addr));
+				 hash_ip6(addr));
 
 	if (ch)
 		return container_of(ch, struct ip_map, h);
@@ -330,7 +317,7 @@ static int __ip_map_update(struct cache_detail *cd, struct ip_map *ipm,
 	ip.h.expiry_time = expiry;
 	ch = sunrpc_cache_update(cd, &ip.h, &ipm->h,
 				 hash_str(ipm->m_class, IP_HASHBITS) ^
-				 hash_ip6(ipm->m_addr));
+				 hash_ip6(&ipm->m_addr));
 	if (!ch)
 		return -ENOMEM;
 	cache_put(ch, cd);
@@ -346,17 +333,12 @@ static inline int ip_map_update(struct net *net, struct ip_map *ipm,
 	return __ip_map_update(sn->ip_map_cache, ipm, udom, expiry);
 }
 
-
-void svcauth_unix_purge(void)
+void svcauth_unix_purge(struct net *net)
 {
-	struct net *net;
+	struct sunrpc_net *sn;
 
-	for_each_net(net) {
-		struct sunrpc_net *sn;
-
-		sn = net_generic(net, sunrpc_net_id);
-		cache_purge(sn->ip_map_cache);
-	}
+	sn = net_generic(net, sunrpc_net_id);
+	cache_purge(sn->ip_map_cache);
 }
 EXPORT_SYMBOL_GPL(svcauth_unix_purge);
 
@@ -530,11 +512,15 @@ static int unix_gid_parse(struct cache_detail *cd,
 
 	for (i = 0 ; i < gids ; i++) {
 		int gid;
+		kgid_t kgid;
 		rv = get_int(&mesg, &gid);
 		err = -EINVAL;
 		if (rv)
 			goto out;
-		GROUP_AT(ug.gi, i) = gid;
+		kgid = make_kgid(&init_user_ns, gid);
+		if (!gid_valid(kgid))
+			goto out;
+		GROUP_AT(ug.gi, i) = kgid;
 	}
 
 	ugp = unix_gid_lookup(cd, uid);
@@ -563,6 +549,7 @@ static int unix_gid_show(struct seq_file *m,
 			 struct cache_detail *cd,
 			 struct cache_head *h)
 {
+	struct user_namespace *user_ns = current_user_ns();
 	struct unix_gid *ug;
 	int i;
 	int glen;
@@ -580,7 +567,7 @@ static int unix_gid_show(struct seq_file *m,
 
 	seq_printf(m, "%u %d:", ug->uid, glen);
 	for (i = 0; i < glen; i++)
-		seq_printf(m, " %d", GROUP_AT(ug->gi, i));
+		seq_printf(m, " %d", from_kgid_munged(user_ns, GROUP_AT(ug->gi, i)));
 	seq_printf(m, "\n");
 	return 0;
 }
@@ -745,6 +732,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct svc_cred	*cred = &rqstp->rq_cred;
 
 	cred->cr_group_info = NULL;
+	cred->cr_principal = NULL;
 	rqstp->rq_client = NULL;
 
 	if (argv->iov_len < 3*4)
@@ -772,7 +760,7 @@ svcauth_null_accept(struct svc_rqst *rqstp, __be32 *authp)
 	svc_putnl(resv, RPC_AUTH_NULL);
 	svc_putnl(resv, 0);
 
-	rqstp->rq_flavor = RPC_AUTH_NULL;
+	rqstp->rq_cred.cr_flavor = RPC_AUTH_NULL;
 	return SVC_OK;
 }
 
@@ -810,6 +798,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	int		len   = argv->iov_len;
 
 	cred->cr_group_info = NULL;
+	cred->cr_principal = NULL;
 	rqstp->rq_client = NULL;
 
 	if ((len -= 3*4) < 0)
@@ -831,8 +820,12 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	cred->cr_group_info = groups_alloc(slen);
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE;
-	for (i = 0; i < slen; i++)
-		GROUP_AT(cred->cr_group_info, i) = svc_getnl(argv);
+	for (i = 0; i < slen; i++) {
+		kgid_t kgid = make_kgid(&init_user_ns, svc_getnl(argv));
+		if (!gid_valid(kgid))
+			goto badcred;
+		GROUP_AT(cred->cr_group_info, i) = kgid;
+	}
 	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;
@@ -842,7 +835,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	svc_putnl(resv, RPC_AUTH_NULL);
 	svc_putnl(resv, 0);
 
-	rqstp->rq_flavor = RPC_AUTH_UNIX;
+	rqstp->rq_cred.cr_flavor = RPC_AUTH_UNIX;
 	return SVC_OK;
 
 badcred:

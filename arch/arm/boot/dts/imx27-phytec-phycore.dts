@@ -27,22 +27,22 @@
 				status = "okay";
 			};
 
-			uart@1000a000 {
+			serial@1000a000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			uart@1000b000 {
+			serial@1000b000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			uart@1000c000 {
+			serial@1000c000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			fec@1002b000 {
+			ethernet@1002b000 {
 				status = "okay";
 			};
 

@@ -144,6 +144,10 @@ static int psb_backlight_init(struct drm_device *dev)
 	psb_backlight_device->props.max_brightness = 100;
 	backlight_update_status(psb_backlight_device);
 	dev_priv->backlight_device = psb_backlight_device;
+
+	/* This must occur after the backlight is properly initialised */
+	psb_lid_timer_init(dev_priv);
+
 	return 0;
 }
 
@@ -197,7 +201,8 @@ static int psb_save_display_registers(struct drm_device *dev)
 	}
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->save(connector);
+		if (connector->funcs->save)
+			connector->funcs->save(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -235,7 +240,8 @@ static int psb_restore_display_registers(struct drm_device *dev)
 			crtc->funcs->restore(crtc);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->restore(connector);
+		if (connector->funcs->restore)
+			connector->funcs->restore(connector);
 
 	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
@@ -289,17 +295,73 @@ static void psb_get_core_freq(struct drm_device *dev)
 	}
 }
 
+/* Poulsbo */
+static const struct psb_offset psb_regmap[2] = {
+	{
+		.fp0 = FPA0,
+		.fp1 = FPA1,
+		.cntr = DSPACNTR,
+		.conf = PIPEACONF,
+		.src = PIPEASRC,
+		.dpll = DPLL_A,
+		.htotal = HTOTAL_A,
+		.hblank = HBLANK_A,
+		.hsync = HSYNC_A,
+		.vtotal = VTOTAL_A,
+		.vblank = VBLANK_A,
+		.vsync = VSYNC_A,
+		.stride = DSPASTRIDE,
+		.size = DSPASIZE,
+		.pos = DSPAPOS,
+		.base = DSPABASE,
+		.surf = DSPASURF,
+		.addr = DSPABASE,
+		.status = PIPEASTAT,
+		.linoff = DSPALINOFF,
+		.tileoff = DSPATILEOFF,
+		.palette = PALETTE_A,
+	},
+	{
+		.fp0 = FPB0,
+		.fp1 = FPB1,
+		.cntr = DSPBCNTR,
+		.conf = PIPEBCONF,
+		.src = PIPEBSRC,
+		.dpll = DPLL_B,
+		.htotal = HTOTAL_B,
+		.hblank = HBLANK_B,
+		.hsync = HSYNC_B,
+		.vtotal = VTOTAL_B,
+		.vblank = VBLANK_B,
+		.vsync = VSYNC_B,
+		.stride = DSPBSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPBPOS,
+		.base = DSPBBASE,
+		.surf = DSPBSURF,
+		.addr = DSPBBASE,
+		.status = PIPEBSTAT,
+		.linoff = DSPBLINOFF,
+		.tileoff = DSPBTILEOFF,
+		.palette = PALETTE_B,
+	}
+};
+
 static int psb_chip_setup(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	dev_priv->regmap = psb_regmap;
 	psb_get_core_freq(dev);
 	gma_intel_setup_gmbus(dev);
-	gma_intel_opregion_init(dev);
+	psb_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
 	return 0;
 }
 
 static void psb_chip_teardown(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	psb_lid_timer_takedown(dev_priv);
 	gma_intel_teardown_gmbus(dev);
 }
 
@@ -308,6 +370,9 @@ const struct psb_ops psb_chip_ops = {
 	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
+	.hdmi_mask = (1 << 0),
+	.lvds_mask = (1 << 1),
+	.cursor_needs_phys = 1,
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 	.chip_teardown = psb_chip_teardown,

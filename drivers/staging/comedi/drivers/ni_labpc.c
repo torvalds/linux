@@ -536,6 +536,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	unsigned long dma_flags;
 #endif
 	short lsb, msb;
+	int ret;
 
 	printk(KERN_ERR "comedi%d: ni_labpc: %s, io 0x%lx", dev->minor,
 								thisboard->name,
@@ -622,8 +623,9 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 5) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 5);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 	s = dev->subdevices + 0;
@@ -805,13 +807,10 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 }
 #endif
 
-int labpc_common_detach(struct comedi_device *dev)
+void labpc_common_detach(struct comedi_device *dev)
 {
-	printk(KERN_ERR "comedi%d: ni_labpc: detach\n", dev->minor);
-
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
-
 #ifdef CONFIG_ISA_DMA_API
 	/* only free stuff if it has been allocated by _attach */
 	kfree(devpriv->dma_buffer);
@@ -826,8 +825,6 @@ int labpc_common_detach(struct comedi_device *dev)
 	if (devpriv->mite)
 		mite_unsetup(devpriv->mite);
 #endif
-
-	return 0;
 };
 EXPORT_SYMBOL_GPL(labpc_common_detach);
 
@@ -1391,6 +1388,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	default:
 		comedi_error(dev, "bug with start_src");
+		spin_unlock_irqrestore(&dev->spinlock, flags);
 		return -1;
 		break;
 	}
@@ -1403,6 +1401,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	default:
 		comedi_error(dev, "bug with stop_src");
+		spin_unlock_irqrestore(&dev->spinlock, flags);
 		return -1;
 	}
 	devpriv->write_byte(devpriv->command2_bits, dev->iobase + COMMAND2_REG);
@@ -2141,7 +2140,7 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 static int __devinit driver_labpc_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_labpc.driver_name);
+	return comedi_pci_auto_config(dev, &driver_labpc);
 }
 
 static void __devexit driver_labpc_pci_remove(struct pci_dev *dev)

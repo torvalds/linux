@@ -95,7 +95,27 @@ struct stmmac_extra_stats {
 	unsigned long poll_n;
 	unsigned long sched_timer_n;
 	unsigned long normal_irq_n;
+	unsigned long mmc_tx_irq_n;
+	unsigned long mmc_rx_irq_n;
+	unsigned long mmc_rx_csum_offload_irq_n;
+	/* EEE */
+	unsigned long irq_receive_pmt_irq_n;
+	unsigned long irq_tx_path_in_lpi_mode_n;
+	unsigned long irq_tx_path_exit_lpi_mode_n;
+	unsigned long irq_rx_path_in_lpi_mode_n;
+	unsigned long irq_rx_path_exit_lpi_mode_n;
+	unsigned long phy_eee_wakeup_error_n;
 };
+
+/* CSR Frequency Access Defines*/
+#define CSR_F_35M	35000000
+#define CSR_F_60M	60000000
+#define CSR_F_100M	100000000
+#define CSR_F_150M	150000000
+#define CSR_F_250M	250000000
+#define CSR_F_300M	300000000
+
+#define	MAC_CSR_H_FRQ_MASK	0x20
 
 #define HASH_TABLE_SIZE 64
 #define PAUSE_TIME 0x200
@@ -137,6 +157,7 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_FLEXIPPSEN	0x04000000 /* Flexible PPS Output */
 #define DMA_HW_FEAT_SAVLANINS	0x08000000 /* Source Addr or VLAN Insertion */
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000 /* Active/selected PHY interface */
+#define DEFAULT_DMA_PBL		8
 
 enum rx_frame_status { /* IPC status */
 	good_frame = 0,
@@ -149,6 +170,17 @@ enum tx_dma_irq_status {
 	tx_hard_error = 1,
 	tx_hard_error_bump_tc = 2,
 	handle_tx_rx = 3,
+};
+
+enum core_specific_irq_mask {
+	core_mmc_tx_irq = 1,
+	core_mmc_rx_irq = 2,
+	core_mmc_rx_csum_offload_irq = 4,
+	core_irq_receive_pmt_irq = 8,
+	core_irq_tx_path_in_lpi_mode = 16,
+	core_irq_tx_path_exit_lpi_mode = 32,
+	core_irq_rx_path_in_lpi_mode = 64,
+	core_irq_rx_path_exit_lpi_mode = 128,
 };
 
 /* DMA HW capabilities */
@@ -197,6 +229,10 @@ struct dma_features {
 #define MAC_ENABLE_TX		0x00000008	/* Transmitter Enable */
 #define MAC_RNABLE_RX		0x00000004	/* Receiver Enable */
 
+/* Default LPI timers */
+#define STMMAC_DEFAULT_LIT_LS_TIMER	0x3E8
+#define STMMAC_DEFAULT_TWT_LS_TIMER	0x0
+
 struct stmmac_desc_ops {
 	/* DMA RX descriptor ring initialization */
 	void (*init_rx_desc) (struct dma_desc *p, unsigned int ring_size,
@@ -228,7 +264,7 @@ struct stmmac_desc_ops {
 	int (*get_rx_owner) (struct dma_desc *p);
 	void (*set_rx_owner) (struct dma_desc *p);
 	/* Get the receive frame size */
-	int (*get_rx_frame_len) (struct dma_desc *p);
+	int (*get_rx_frame_len) (struct dma_desc *p, int rx_coe_type);
 	/* Return the reception status looking at the RDES1 */
 	int (*rx_status) (void *data, struct stmmac_extra_stats *x,
 			  struct dma_desc *p);
@@ -236,7 +272,8 @@ struct stmmac_desc_ops {
 
 struct stmmac_dma_ops {
 	/* DMA core initialization */
-	int (*init) (void __iomem *ioaddr, int pbl, u32 dma_tx, u32 dma_rx);
+	int (*init) (void __iomem *ioaddr, int pbl, int fb, int mb,
+		     int burst_len, u32 dma_tx, u32 dma_rx);
 	/* Dump DMA registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Set tx/rx threshold in the csr6 register
@@ -261,14 +298,14 @@ struct stmmac_dma_ops {
 struct stmmac_ops {
 	/* MAC core initialization */
 	void (*core_init) (void __iomem *ioaddr) ____cacheline_aligned;
-	/* Support checksum offload engine */
-	int  (*rx_coe) (void __iomem *ioaddr);
+	/* Enable and verify that the IPC module is supported */
+	int (*rx_ipc) (void __iomem *ioaddr);
 	/* Dump MAC registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Handle extra events on specific interrupts hw dependent */
-	void (*host_irq_status) (void __iomem *ioaddr);
+	int (*host_irq_status) (void __iomem *ioaddr);
 	/* Multicast filter setting */
-	void (*set_filter) (struct net_device *dev);
+	void (*set_filter) (struct net_device *dev, int id);
 	/* Flow control setting */
 	void (*flow_ctrl) (void __iomem *ioaddr, unsigned int duplex,
 			   unsigned int fc, unsigned int pause_time);
@@ -279,6 +316,10 @@ struct stmmac_ops {
 			       unsigned int reg_n);
 	void (*get_umac_addr) (void __iomem *ioaddr, unsigned char *addr,
 			       unsigned int reg_n);
+	void (*set_eee_mode) (void __iomem *ioaddr);
+	void (*reset_eee_mode) (void __iomem *ioaddr);
+	void (*set_eee_timer) (void __iomem *ioaddr, int ls, int tw);
+	void (*set_eee_pls) (void __iomem *ioaddr, int link);
 };
 
 struct mac_link {

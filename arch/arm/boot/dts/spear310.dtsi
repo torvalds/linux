@@ -1,0 +1,80 @@
+/*
+ * DTS file for SPEAr310 SoC
+ *
+ * Copyright 2012 Viresh Kumar <viresh.linux@gmail.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "spear3xx.dtsi"
+
+/ {
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x40000000 0x40000000 0x10000000
+			  0xb0000000 0xb0000000 0x10000000
+			  0xd0000000 0xd0000000 0x30000000>;
+
+		pinmux@b4000000 {
+			compatible = "st,spear310-pinmux";
+			reg = <0xb4000000 0x1000>;
+		};
+
+		fsmc: flash@44000000 {
+			compatible = "st,spear600-fsmc-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x44000000 0x1000	/* FSMC Register */
+			       0x40000000 0x0010>;	/* NAND Base */
+			reg-names = "fsmc_regs", "nand_data";
+			st,ale-off = <0x10000>;
+			st,cle-off = <0x20000>;
+			status = "disabled";
+		};
+
+		apb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0xb0000000 0xb0000000 0x10000000
+				  0xd0000000 0xd0000000 0x30000000>;
+
+			serial@b2000000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb2000000 0x1000>;
+				status = "disabled";
+			};
+
+			serial@b2080000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb2080000 0x1000>;
+				status = "disabled";
+			};
+
+			serial@b2100000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb2100000 0x1000>;
+				status = "disabled";
+			};
+
+			serial@b2180000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb2180000 0x1000>;
+				status = "disabled";
+			};
+
+			serial@b2200000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xb2200000 0x1000>;
+				status = "disabled";
+			};
+		};
+	};
+};

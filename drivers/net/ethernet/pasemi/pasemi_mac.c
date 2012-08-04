@@ -623,7 +623,7 @@ static void pasemi_mac_free_rx_resources(struct pasemi_mac *mac)
 	mac->rx = NULL;
 }
 
-static void pasemi_mac_replenish_rx_ring(const struct net_device *dev,
+static void pasemi_mac_replenish_rx_ring(struct net_device *dev,
 					 const int limit)
 {
 	const struct pasemi_mac *mac = netdev_priv(dev);

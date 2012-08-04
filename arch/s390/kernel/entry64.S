@@ -1,8 +1,7 @@
 /*
- *  arch/s390/kernel/entry64.S
  *    S390 low-level entry points.
  *
- *    Copyright (C) IBM Corp. 1999,2012
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
@@ -18,6 +17,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
+#include <asm/sigp.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 8
@@ -81,16 +81,14 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 
 	.macro	HANDLE_SIE_INTERCEPT scratch
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
-	tm	__TI_flags+6(%r12),_TIF_SIE>>8
-	jz	.+42
-	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_SPP
-	jz	.+8
-	.insn	s,0xb2800000,BASED(.Lhost_id)	# set host id
+	tmhh	%r8,0x0001		# interrupting from user ?
+	jnz	.+42
 	lgr	\scratch,%r9
 	slg	\scratch,BASED(.Lsie_loop)
 	clg	\scratch,BASED(.Lsie_length)
-	jhe	.+10
+	jhe	.+22
 	lg	%r9,BASED(.Lsie_loop)
+	SPP	BASED(.Lhost_id)	# set host id
 #endif
 	.endm
 
@@ -148,6 +146,14 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	ssm	__LC_RETURN_PSW
 	.endm
 
+	.macro STCK savearea
+#ifdef CONFIG_HAVE_MARCH_Z9_109_FEATURES
+	.insn	s,0xb27c0000,\savearea		# store clock fast
+#else
+	.insn	s,0xb2050000,\savearea		# store clock
+#endif
+	.endm
+
 	.section .kprobes.text, "ax"
 
 /*
@@ -158,22 +164,23 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
  *  gpr2 = prev
  */
 ENTRY(__switch_to)
+	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
+	stg	%r15,__THREAD_ksp(%r2)		# store kernel stack of prev
 	lg	%r4,__THREAD_info(%r2)		# get thread_info of prev
 	lg	%r5,__THREAD_info(%r3)		# get thread_info of next
+	lgr	%r15,%r5
+	aghi	%r15,STACK_SIZE			# end of kernel stack of next
+	stg	%r3,__LC_CURRENT		# store task struct of next
+	stg	%r5,__LC_THREAD_INFO		# store thread info of next
+	stg	%r15,__LC_KERNEL_STACK		# store end of kernel stack
+	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
+	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
+	lg	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
 	tm	__TI_flags+7(%r4),_TIF_MCCK_PENDING # machine check pending?
 	jz	0f
 	ni	__TI_flags+7(%r4),255-_TIF_MCCK_PENDING	# clear flag in prev
 	oi	__TI_flags+7(%r5),_TIF_MCCK_PENDING	# set it in next
-0:	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
-	stg	%r15,__THREAD_ksp(%r2)		# store kernel stack of prev
-	lg	%r15,__THREAD_ksp(%r3)		# load kernel stack of next
-	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
-	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	stg	%r3,__LC_CURRENT		# store task struct of next
-	mvc	__LC_CURRENT_PID+4(4,%r0),__TASK_pid(%r3) # store pid of next
-	stg	%r5,__LC_THREAD_INFO		# store thread info of next
-	aghi	%r5,STACK_SIZE			# end of kernel stack of next
-	stg	%r5,__LC_KERNEL_STACK		# store end of kernel stack
+0:	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	br	%r14
 
 __critical_start:
@@ -458,7 +465,7 @@ pgm_svcper:
  * IO interrupt handler routine
  */
 ENTRY(io_int_handler)
-	stck	__LC_INT_CLOCK
+	STCK	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
@@ -604,7 +611,7 @@ io_notify_resume:
  * External interrupt handler routine
  */
 ENTRY(ext_int_handler)
-	stck	__LC_INT_CLOCK
+	STCK	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
@@ -622,6 +629,7 @@ ext_skip:
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	TRACE_IRQS_OFF
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lghi	%r1,4096
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	llgf	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
@@ -634,15 +642,11 @@ ext_skip:
  * Load idle PSW. The second "half" of this function is in cleanup_idle.
  */
 ENTRY(psw_idle)
-	stg	%r4,__SF_EMPTY(%r15)
+	stg	%r3,__SF_EMPTY(%r15)
 	larl	%r1,psw_idle_lpsw+4
 	stg	%r1,__SF_EMPTY+8(%r15)
-	larl	%r1,.Lvtimer_max
-	stck	__IDLE_ENTER(%r2)
-	ltr	%r5,%r5
-	stpt	__VQ_IDLE_ENTER(%r3)
-	jz	psw_idle_lpsw
-	spt	0(%r1)
+	STCK	__CLOCK_IDLE_ENTER(%r2)
+	stpt	__TIMER_IDLE_ENTER(%r2)
 psw_idle_lpsw:
 	lpswe	__SF_EMPTY(%r15)
 	br	%r14
@@ -654,7 +658,7 @@ __critical_end:
  * Machine check handler routines
  */
 ENTRY(mcck_int_handler)
-	stck	__LC_MCCK_CLOCK
+	STCK	__LC_MCCK_CLOCK
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
@@ -742,15 +746,17 @@ ENTRY(restart_int_handler)
 	mvc	__PT_PSW(16,%r15),__LC_RST_OLD_PSW # store restart old psw
 	aghi	%r15,-STACK_FRAME_OVERHEAD	# create stack frame on stack
 	xc	0(STACK_FRAME_OVERHEAD,%r15),0(%r15)
-	lmg	%r1,%r3,__LC_RESTART_FN		# load fn, parm & source cpu
+	lg	%r1,__LC_RESTART_FN		# load fn, parm & source cpu
+	lg	%r2,__LC_RESTART_DATA
+	lg	%r3,__LC_RESTART_SOURCE
 	ltgr	%r3,%r3				# test source cpu address
 	jm	1f				# negative -> skip source stop
-0:	sigp	%r4,%r3,1			# sigp sense to source cpu
+0:	sigp	%r4,%r3,SIGP_SENSE		# sigp sense to source cpu
 	brc	10,0b				# wait for status stored
 1:	basr	%r14,%r1			# call function
 	stap	__SF_EMPTY(%r15)		# store cpu address
 	llgh	%r3,__SF_EMPTY(%r15)
-2:	sigp	%r4,%r3,5			# sigp stop to current cpu
+2:	sigp	%r4,%r3,SIGP_STOP		# sigp stop to current cpu
 	brc	2,2b
 3:	j	3b
 
@@ -908,33 +914,28 @@ cleanup_io_restore_insn:
 
 cleanup_idle:
 	# copy interrupt clock & cpu timer
-	mvc	__IDLE_EXIT(8,%r2),__LC_INT_CLOCK
-	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_ASYNC_ENTER_TIMER
+	mvc	__CLOCK_IDLE_EXIT(8,%r2),__LC_INT_CLOCK
+	mvc	__TIMER_IDLE_EXIT(8,%r2),__LC_ASYNC_ENTER_TIMER
 	cghi	%r11,__LC_SAVE_AREA_ASYNC
 	je	0f
-	mvc	__IDLE_EXIT(8,%r2),__LC_MCCK_CLOCK
-	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_MCCK_ENTER_TIMER
+	mvc	__CLOCK_IDLE_EXIT(8,%r2),__LC_MCCK_CLOCK
+	mvc	__TIMER_IDLE_EXIT(8,%r2),__LC_MCCK_ENTER_TIMER
 0:	# check if stck & stpt have been executed
 	clg	%r9,BASED(cleanup_idle_insn)
 	jhe	1f
-	mvc	__IDLE_ENTER(8,%r2),__IDLE_EXIT(%r2)
-	mvc	__VQ_IDLE_ENTER(8,%r3),__VQ_IDLE_EXIT(%r3)
-	j	2f
-1:	# check if the cpu timer has been reprogrammed
-	ltr	%r5,%r5
-	jz	2f
-	spt	__VQ_IDLE_ENTER(%r3)
-2:	# account system time going idle
+	mvc	__CLOCK_IDLE_ENTER(8,%r2),__CLOCK_IDLE_EXIT(%r2)
+	mvc	__TIMER_IDLE_ENTER(8,%r2),__TIMER_IDLE_EXIT(%r2)
+1:	# account system time going idle
 	lg	%r9,__LC_STEAL_TIMER
-	alg	%r9,__IDLE_ENTER(%r2)
+	alg	%r9,__CLOCK_IDLE_ENTER(%r2)
 	slg	%r9,__LC_LAST_UPDATE_CLOCK
 	stg	%r9,__LC_STEAL_TIMER
-	mvc	__LC_LAST_UPDATE_CLOCK(8),__IDLE_EXIT(%r2)
+	mvc	__LC_LAST_UPDATE_CLOCK(8),__CLOCK_IDLE_EXIT(%r2)
 	lg	%r9,__LC_SYSTEM_TIMER
 	alg	%r9,__LC_LAST_UPDATE_TIMER
-	slg	%r9,__VQ_IDLE_ENTER(%r3)
+	slg	%r9,__TIMER_IDLE_ENTER(%r2)
 	stg	%r9,__LC_SYSTEM_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__VQ_IDLE_EXIT(%r3)
+	mvc	__LC_LAST_UPDATE_TIMER(8),__TIMER_IDLE_EXIT(%r2)
 	# prepare return psw
 	nihh	%r8,0xfffd		# clear wait state bit
 	lg	%r9,48(%r11)		# return from psw_idle
@@ -950,8 +951,6 @@ cleanup_idle_insn:
 	.quad	__critical_start
 .Lcritical_length:
 	.quad	__critical_end - __critical_start
-.Lvtimer_max:
-	.quad	0x7fffffffffffffff
 
 
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
@@ -966,8 +965,6 @@ ENTRY(sie64a)
 	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area
 	xc	__SF_EMPTY+16(8,%r15),__SF_EMPTY+16(%r15) # host id == 0
 	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
-	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
-	oi	__TI_flags+6(%r14),_TIF_SIE>>8
 sie_loop:
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 	tm	__TI_flags+7(%r14),_TIF_EXIT_SIE
@@ -985,7 +982,6 @@ sie_done:
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 sie_exit:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	ni	__TI_flags+6(%r14),255-(_TIF_SIE>>8)
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
@@ -994,7 +990,6 @@ sie_exit:
 sie_fault:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
-	ni	__TI_flags+6(%r14),255-(_TIF_SIE>>8)
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers

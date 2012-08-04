@@ -67,7 +67,8 @@ static ssize_t show_power(struct device *dev,
 				  REG_TDP_LIMIT3, &val);
 
 	tdp_limit = val >> 16;
-	curr_pwr_watts = (tdp_limit + data->base_tdp) << running_avg_range;
+	curr_pwr_watts = ((u64)(tdp_limit +
+				data->base_tdp)) << running_avg_range;
 	curr_pwr_watts -= running_avg_capture;
 	curr_pwr_watts *= data->tdp_to_watts;
 
@@ -257,15 +258,4 @@ static struct pci_driver fam15h_power_driver = {
 	.remove = __devexit_p(fam15h_power_remove),
 };
 
-static int __init fam15h_power_init(void)
-{
-	return pci_register_driver(&fam15h_power_driver);
-}
-
-static void __exit fam15h_power_exit(void)
-{
-	pci_unregister_driver(&fam15h_power_driver);
-}
-
-module_init(fam15h_power_init)
-module_exit(fam15h_power_exit)
+module_pci_driver(fam15h_power_driver);

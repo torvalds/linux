@@ -30,10 +30,73 @@
 #include <net/netfilter/nf_conntrack_extend.h>
 
 static DEFINE_MUTEX(nf_ct_helper_mutex);
-static struct hlist_head *nf_ct_helper_hash __read_mostly;
-static unsigned int nf_ct_helper_hsize __read_mostly;
+struct hlist_head *nf_ct_helper_hash __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ct_helper_hash);
+unsigned int nf_ct_helper_hsize __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ct_helper_hsize);
 static unsigned int nf_ct_helper_count __read_mostly;
 
+static bool nf_ct_auto_assign_helper __read_mostly = true;
+module_param_named(nf_conntrack_helper, nf_ct_auto_assign_helper, bool, 0644);
+MODULE_PARM_DESC(nf_conntrack_helper,
+		 "Enable automatic conntrack helper assignment (default 1)");
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table helper_sysctl_table[] = {
+	{
+		.procname	= "nf_conntrack_helper",
+		.data		= &init_net.ct.sysctl_auto_assign_helper,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{}
+};
+
+static int nf_conntrack_helper_init_sysctl(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = kmemdup(helper_sysctl_table, sizeof(helper_sysctl_table),
+			GFP_KERNEL);
+	if (!table)
+		goto out;
+
+	table[0].data = &net->ct.sysctl_auto_assign_helper;
+
+	net->ct.helper_sysctl_header =
+		register_net_sysctl(net, "net/netfilter", table);
+
+	if (!net->ct.helper_sysctl_header) {
+		pr_err("nf_conntrack_helper: can't register to sysctl.\n");
+		goto out_register;
+	}
+	return 0;
+
+out_register:
+	kfree(table);
+out:
+	return -ENOMEM;
+}
+
+static void nf_conntrack_helper_fini_sysctl(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = net->ct.helper_sysctl_header->ctl_table_arg;
+	unregister_net_sysctl_table(net->ct.helper_sysctl_header);
+	kfree(table);
+}
+#else
+static int nf_conntrack_helper_init_sysctl(struct net *net)
+{
+	return 0;
+}
+
+static void nf_conntrack_helper_fini_sysctl(struct net *net)
+{
+}
+#endif /* CONFIG_SYSCTL */
 
 /* Stupid hash, but collision free for the default registrations of the
  * helpers currently in the kernel. */
@@ -100,11 +163,14 @@ nf_conntrack_helper_try_module_get(const char *name, u16 l3num, u8 protonum)
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_try_module_get);
 
-struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp)
+struct nf_conn_help *
+nf_ct_helper_ext_add(struct nf_conn *ct,
+		     struct nf_conntrack_helper *helper, gfp_t gfp)
 {
 	struct nf_conn_help *help;
 
-	help = nf_ct_ext_add(ct, NF_CT_EXT_HELPER, gfp);
+	help = nf_ct_ext_add_length(ct, NF_CT_EXT_HELPER,
+				    helper->data_len, gfp);
 	if (help)
 		INIT_HLIST_HEAD(&help->expectations);
 	else
@@ -118,17 +184,38 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 {
 	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conn_help *help;
+	struct net *net = nf_ct_net(ct);
 	int ret = 0;
+
+	/* We already got a helper explicitly attached. The function
+	 * nf_conntrack_alter_reply - in case NAT is in use - asks for looking
+	 * the helper up again. Since now the user is in full control of
+	 * making consistent helper configurations, skip this automatic
+	 * re-lookup, otherwise we'll lose the helper.
+	 */
+	if (test_bit(IPS_HELPER_BIT, &ct->status))
+		return 0;
 
 	if (tmpl != NULL) {
 		help = nfct_help(tmpl);
-		if (help != NULL)
+		if (help != NULL) {
 			helper = help->helper;
+			set_bit(IPS_HELPER_BIT, &ct->status);
+		}
 	}
 
 	help = nfct_help(ct);
-	if (helper == NULL)
+	if (net->ct.sysctl_auto_assign_helper && helper == NULL) {
 		helper = __nf_ct_helper_find(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+		if (unlikely(!net->ct.auto_assign_helper_warned && helper)) {
+			pr_info("nf_conntrack: automatic helper "
+				"assignment is deprecated and it will "
+				"be removed soon. Use the iptables CT target "
+				"to attach helpers instead.\n");
+			net->ct.auto_assign_helper_warned = true;
+		}
+	}
+
 	if (helper == NULL) {
 		if (help)
 			RCU_INIT_POINTER(help->helper, NULL);
@@ -136,13 +223,19 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	}
 
 	if (help == NULL) {
-		help = nf_ct_helper_ext_add(ct, flags);
+		help = nf_ct_helper_ext_add(ct, helper, flags);
 		if (help == NULL) {
 			ret = -ENOMEM;
 			goto out;
 		}
 	} else {
-		memset(&help->help, 0, sizeof(help->help));
+		/* We only allow helper re-assignment of the same sort since
+		 * we cannot reallocate the helper extension area.
+		 */
+		if (help->helper != helper) {
+			RCU_INIT_POINTER(help->helper, NULL);
+			goto out;
+		}
 	}
 
 	rcu_assign_pointer(help->helper, helper);
@@ -237,6 +330,9 @@ EXPORT_SYMBOL_GPL(nf_ct_helper_expectfn_find_by_symbol);
 
 int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 {
+	int ret = 0;
+	struct nf_conntrack_helper *cur;
+	struct hlist_node *n;
 	unsigned int h = helper_hash(&me->tuple);
 
 	BUG_ON(me->expect_policy == NULL);
@@ -244,11 +340,19 @@ int nf_conntrack_helper_register(struct nf_conntrack_helper *me)
 	BUG_ON(strlen(me->name) > NF_CT_HELPER_NAME_LEN - 1);
 
 	mutex_lock(&nf_ct_helper_mutex);
+	hlist_for_each_entry(cur, n, &nf_ct_helper_hash[h], hnode) {
+		if (strncmp(cur->name, me->name, NF_CT_HELPER_NAME_LEN) == 0 &&
+		    cur->tuple.src.l3num == me->tuple.src.l3num &&
+		    cur->tuple.dst.protonum == me->tuple.dst.protonum) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
 	hlist_add_head_rcu(&me->hnode, &nf_ct_helper_hash[h]);
 	nf_ct_helper_count++;
+out:
 	mutex_unlock(&nf_ct_helper_mutex);
-
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_register);
 
@@ -315,28 +419,44 @@ static struct nf_ct_ext_type helper_extend __read_mostly = {
 	.id	= NF_CT_EXT_HELPER,
 };
 
-int nf_conntrack_helper_init(void)
+int nf_conntrack_helper_init(struct net *net)
 {
 	int err;
 
-	nf_ct_helper_hsize = 1; /* gets rounded up to use one page */
-	nf_ct_helper_hash = nf_ct_alloc_hashtable(&nf_ct_helper_hsize, 0);
-	if (!nf_ct_helper_hash)
-		return -ENOMEM;
+	net->ct.auto_assign_helper_warned = false;
+	net->ct.sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
 
-	err = nf_ct_extend_register(&helper_extend);
+	if (net_eq(net, &init_net)) {
+		nf_ct_helper_hsize = 1; /* gets rounded up to use one page */
+		nf_ct_helper_hash =
+			nf_ct_alloc_hashtable(&nf_ct_helper_hsize, 0);
+		if (!nf_ct_helper_hash)
+			return -ENOMEM;
+
+		err = nf_ct_extend_register(&helper_extend);
+		if (err < 0)
+			goto err1;
+	}
+
+	err = nf_conntrack_helper_init_sysctl(net);
 	if (err < 0)
-		goto err1;
+		goto out_sysctl;
 
 	return 0;
 
+out_sysctl:
+	if (net_eq(net, &init_net))
+		nf_ct_extend_unregister(&helper_extend);
 err1:
 	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
 	return err;
 }
 
-void nf_conntrack_helper_fini(void)
+void nf_conntrack_helper_fini(struct net *net)
 {
-	nf_ct_extend_unregister(&helper_extend);
-	nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
+	nf_conntrack_helper_fini_sysctl(net);
+	if (net_eq(net, &init_net)) {
+		nf_ct_extend_unregister(&helper_extend);
+		nf_ct_free_hashtable(nf_ct_helper_hash, nf_ct_helper_hsize);
+	}
 }

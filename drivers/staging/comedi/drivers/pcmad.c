@@ -57,19 +57,6 @@ struct pcmad_board_struct {
 	const char *name;
 	int n_ai_bits;
 };
-static const struct pcmad_board_struct pcmad_boards[] = {
-	{
-	 .name = "pcmad12",
-	 .n_ai_bits = 12,
-	 },
-	{
-	 .name = "pcmad16",
-	 .n_ai_bits = 16,
-	 },
-};
-
-#define this_board ((const struct pcmad_board_struct *)(dev->board_ptr))
-#define n_pcmad_boards ARRAY_SIZE(pcmad_boards)
 
 struct pcmad_priv_struct {
 	int differential;
@@ -77,37 +64,13 @@ struct pcmad_priv_struct {
 };
 #define devpriv ((struct pcmad_priv_struct *)dev->private)
 
-static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int pcmad_detach(struct comedi_device *dev);
-static struct comedi_driver driver_pcmad = {
-	.driver_name = "pcmad",
-	.module = THIS_MODULE,
-	.attach = pcmad_attach,
-	.detach = pcmad_detach,
-	.board_name = &pcmad_boards[0].name,
-	.num_names = n_pcmad_boards,
-	.offset = sizeof(pcmad_boards[0]),
-};
-
-static int __init driver_pcmad_init_module(void)
-{
-	return comedi_driver_register(&driver_pcmad);
-}
-
-static void __exit driver_pcmad_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcmad);
-}
-
-module_init(driver_pcmad_init_module);
-module_exit(driver_pcmad_cleanup_module);
-
 #define TIMEOUT	100
 
 static int pcmad_ai_insn_read(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	const struct pcmad_board_struct *board = comedi_board(dev);
 	int i;
 	int chan;
 	int n;
@@ -125,7 +88,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
 		data[n] |= (inb(dev->iobase + PCMAD_MSB) << 8);
 
 		if (devpriv->twos_comp)
-			data[n] ^= (1 << (this_board->n_ai_bits - 1));
+			data[n] ^= (1 << (board->n_ai_bits - 1));
 	}
 
 	return n;
@@ -140,6 +103,7 @@ static int pcmad_ai_insn_read(struct comedi_device *dev,
  */
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcmad_board_struct *board = comedi_board(dev);
 	int ret;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
@@ -153,15 +117,15 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_CONT "\n");
 	dev->iobase = iobase;
 
-	ret = alloc_subdevices(dev, 1);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
 		return ret;
 
 	ret = alloc_private(dev, sizeof(struct pcmad_priv_struct));
 	if (ret < 0)
 		return ret;
 
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_AI;
@@ -169,24 +133,39 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->n_chan = 16;		/* XXX */
 	s->len_chanlist = 1;
 	s->insn_read = pcmad_ai_insn_read;
-	s->maxdata = (1 << this_board->n_ai_bits) - 1;
+	s->maxdata = (1 << board->n_ai_bits) - 1;
 	s->range_table = &range_unknown;
 
 	return 0;
 }
 
-static int pcmad_detach(struct comedi_device *dev)
+static void pcmad_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: pcmad: remove\n", dev->minor);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PCMAD_SIZE);
-
-	return 0;
 }
+
+static const struct pcmad_board_struct pcmad_boards[] = {
+	{
+		.name		= "pcmad12",
+		.n_ai_bits	= 12,
+	}, {
+		.name		= "pcmad16",
+		.n_ai_bits	= 16,
+	},
+};
+static struct comedi_driver pcmad_driver = {
+	.driver_name	= "pcmad",
+	.module		= THIS_MODULE,
+	.attach		= pcmad_attach,
+	.detach		= pcmad_detach,
+	.board_name	= &pcmad_boards[0].name,
+	.num_names	= ARRAY_SIZE(pcmad_boards),
+	.offset		= sizeof(pcmad_boards[0]),
+};
+module_comedi_driver(pcmad_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

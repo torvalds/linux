@@ -15,8 +15,8 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #include "adis16220.h"
 
@@ -145,7 +145,7 @@ static ssize_t adis16220_read_16bit(struct device *dev,
 		char *buf)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	ssize_t ret;
 	s16 val = 0;
 
@@ -164,7 +164,7 @@ static ssize_t adis16220_write_16bit(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
 	u16 val;
@@ -204,31 +204,11 @@ static int adis16220_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16220_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	bool val;
-	int ret;
-
-	ret = strtobool(buf, &val);
-	if (ret)
-		return ret;
-	if (!val)
-		return -EINVAL;
-
-	ret = adis16220_reset(indio_dev);
-	if (ret)
-		return ret;
-	return len;
-}
-
 static ssize_t adis16220_write_capture(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool val;
 	int ret;
 
@@ -393,7 +373,7 @@ static ssize_t adis16220_accel_bin_read(struct file *filp, struct kobject *kobj,
 					size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -415,7 +395,7 @@ static ssize_t adis16220_adc1_bin_read(struct file *filp, struct kobject *kobj,
 				size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -437,7 +417,7 @@ static ssize_t adis16220_adc2_bin_read(struct file *filp, struct kobject *kobj,
 				size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 
 	return adis16220_capture_buffer_read(indio_dev, buf,
 					off, count,
@@ -453,9 +433,6 @@ static struct bin_attribute adc2_bin = {
 	.read =  adis16220_adc2_bin_read,
 	.size = ADIS16220_CAPTURE_SIZE,
 };
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL,
-		adis16220_write_reset, 0);
 
 #define IIO_DEV_ATTR_CAPTURE(_store)				\
 	IIO_DEVICE_ATTR(capture, S_IWUSR, NULL, _store, 0)
@@ -507,7 +484,7 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 	u8 bits;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		addrind = 0;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
@@ -575,11 +552,13 @@ static const struct iio_chan_spec adis16220_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "supply",
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 	}, {
 		.type = IIO_ACCEL,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
 			     IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel,
@@ -587,26 +566,28 @@ static const struct iio_chan_spec adis16220_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = temp,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_1,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 2,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = in_2,
 	}
 };
 
 static struct attribute *adis16220_attributes[] = {
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_capture.dev_attr.attr,
 	&iio_dev_attr_capture_count.dev_attr.attr,
 	NULL
@@ -629,7 +610,7 @@ static int __devinit adis16220_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -680,7 +661,7 @@ error_rm_accel_bin:
 error_unregister_dev:
 	iio_device_unregister(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -689,13 +670,11 @@ static int adis16220_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
-	flush_scheduled_work();
-
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc2_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

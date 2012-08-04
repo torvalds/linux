@@ -19,7 +19,6 @@ Boston, MA 02111-1307, USA.  */
 
 	.text
 	.align 4
-	.global .udiv
 	.globl __divdi3
 __divdi3:
 	save %sp,-104,%sp
@@ -83,8 +82,9 @@ __divdi3:
 	bne .LL85
 	mov %i0,%o2
 	mov 1,%o0
-	call .udiv,0
 	mov 0,%o1
+	wr %g0, 0, %y
+	udiv %o0, %o1, %o0
 	mov %o0,%o4
 	mov %i0,%o2
 .LL85:

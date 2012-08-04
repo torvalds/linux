@@ -160,7 +160,7 @@ static void __init ppc47x_setup_arch(void)
 	/* No need to check the DMA config as we /know/ our windows are all of
  	 * RAM.  Lets hope that doesn't change */
 #ifdef CONFIG_SWIOTLB
-	if (memblock_end_of_DRAM() > 0xffffffff) {
+	if ((memblock_end_of_DRAM() - 1) > 0xffffffff) {
 		ppc_swiotlb_enable = 1;
 		set_pci_dma_ops(&swiotlb_dma_ops);
 		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;

@@ -160,9 +160,9 @@ static const struct gpio_keys_platform_data
 	.rep		= 0, /* No auto-repeat */
 };
 
-static int __init eet_init_devices(void)
+int __init pcm037_eet_init_devices(void)
 {
-	if (!machine_is_pcm037() || pcm037_variant() != PCM037_EET)
+	if (pcm037_variant() != PCM037_EET)
 		return 0;
 
 	mxc_iomux_setup_multiple_pins(pcm037_eet_pins,
@@ -176,4 +176,3 @@ static int __init eet_init_devices(void)
 
 	return 0;
 }
-late_initcall(eet_init_devices);

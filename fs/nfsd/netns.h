@@ -28,6 +28,16 @@ struct cld_net;
 
 struct nfsd_net {
 	struct cld_net *cld_net;
+
+	struct cache_detail *svc_expkey_cache;
+	struct cache_detail *svc_export_cache;
+
+	struct cache_detail *idtoname_cache;
+	struct cache_detail *nametoid_cache;
+
+	struct lock_manager nfsd4_manager;
+	bool grace_ended;
+	time_t boot_time;
 };
 
 extern int nfsd_net_id;

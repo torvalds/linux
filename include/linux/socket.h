@@ -68,13 +68,13 @@ struct msghdr {
 	__kernel_size_t	msg_iovlen;	/* Number of blocks		*/
 	void 	*	msg_control;	/* Per protocol magic (eg BSD file descriptor passing) */
 	__kernel_size_t	msg_controllen;	/* Length of cmsg list */
-	unsigned	msg_flags;
+	unsigned int	msg_flags;
 };
 
 /* For recvmmsg/sendmmsg */
 struct mmsghdr {
 	struct msghdr   msg_hdr;
-	unsigned        msg_len;
+	unsigned int        msg_len;
 };
 
 /*
@@ -268,6 +268,7 @@ struct ucred {
 #define MSG_SENDPAGE_NOTLAST 0x20000 /* sendpage() internal : not the last page */
 #define MSG_EOF         MSG_FIN
 
+#define MSG_FASTOPEN	0x20000000	/* Send data in TCP SYN */
 #define MSG_CMSG_CLOEXEC 0x40000000	/* Set close_on_exit for file
 					   descriptor received through
 					   SCM_RIGHTS */

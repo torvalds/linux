@@ -34,32 +34,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/module.h>
-
 #include "core.h"
 #include "ref.h"
 #include "name_table.h"
 #include "subscr.h"
 #include "config.h"
 
+#include <linux/module.h>
 
 #ifndef CONFIG_TIPC_PORTS
 #define CONFIG_TIPC_PORTS 8191
 #endif
 
-#ifndef CONFIG_TIPC_LOG
-#define CONFIG_TIPC_LOG 0
-#endif
 
 /* global variables used by multiple sub-systems within TIPC */
-
 int tipc_random;
 
 const char tipc_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
 
 /* configurable TIPC parameters */
-
 u32 tipc_own_addr;
 int tipc_max_ports;
 int tipc_max_subscriptions;
@@ -77,7 +71,6 @@ int tipc_remote_management;
  * NOTE: Headroom is reserved to allow prepending of a data link header.
  *       There may also be unrequested tailroom present at the buffer's end.
  */
-
 struct sk_buff *tipc_buf_acquire(u32 size)
 {
 	struct sk_buff *skb;
@@ -95,7 +88,6 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 /**
  * tipc_core_stop_net - shut down TIPC networking sub-systems
  */
-
 static void tipc_core_stop_net(void)
 {
 	tipc_net_stop();
@@ -105,7 +97,6 @@ static void tipc_core_stop_net(void)
 /**
  * start_net - start TIPC networking sub-systems
  */
-
 int tipc_core_start_net(unsigned long addr)
 {
 	int res;
@@ -121,7 +112,6 @@ int tipc_core_start_net(unsigned long addr)
 /**
  * tipc_core_stop - switch TIPC from SINGLE NODE to NOT RUNNING mode
  */
-
 static void tipc_core_stop(void)
 {
 	tipc_netlink_stop();
@@ -131,13 +121,11 @@ static void tipc_core_stop(void)
 	tipc_nametbl_stop();
 	tipc_ref_table_stop();
 	tipc_socket_stop();
-	tipc_log_resize(0);
 }
 
 /**
  * tipc_core_start - switch TIPC from NOT RUNNING to SINGLE NODE mode
  */
-
 static int tipc_core_start(void)
 {
 	int res;
@@ -150,9 +138,9 @@ static int tipc_core_start(void)
 	if (!res)
 		res = tipc_nametbl_init();
 	if (!res)
-		res = tipc_k_signal((Handler)tipc_subscr_start, 0);
+		res = tipc_subscr_start();
 	if (!res)
-		res = tipc_k_signal((Handler)tipc_cfg_init, 0);
+		res = tipc_cfg_init();
 	if (!res)
 		res = tipc_netlink_start();
 	if (!res)
@@ -168,10 +156,7 @@ static int __init tipc_init(void)
 {
 	int res;
 
-	if (tipc_log_resize(CONFIG_TIPC_LOG) != 0)
-		warn("Unable to create log buffer\n");
-
-	info("Activated (version " TIPC_MOD_VER ")\n");
+	pr_info("Activated (version " TIPC_MOD_VER ")\n");
 
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;
@@ -182,9 +167,9 @@ static int __init tipc_init(void)
 
 	res = tipc_core_start();
 	if (res)
-		err("Unable to start in single node mode\n");
+		pr_err("Unable to start in single node mode\n");
 	else
-		info("Started in single node mode\n");
+		pr_info("Started in single node mode\n");
 	return res;
 }
 
@@ -192,7 +177,7 @@ static void __exit tipc_exit(void)
 {
 	tipc_core_stop_net();
 	tipc_core_stop();
-	info("Deactivated\n");
+	pr_info("Deactivated\n");
 }
 
 module_init(tipc_init);

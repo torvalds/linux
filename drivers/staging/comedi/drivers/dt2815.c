@@ -72,31 +72,6 @@ static const struct comedi_lrange
 #define DT2815_DATA 0
 #define DT2815_STATUS 1
 
-static int dt2815_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int dt2815_detach(struct comedi_device *dev);
-static struct comedi_driver driver_dt2815 = {
-	.driver_name = "dt2815",
-	.module = THIS_MODULE,
-	.attach = dt2815_attach,
-	.detach = dt2815_detach,
-};
-
-static int __init driver_dt2815_init_module(void)
-{
-	return comedi_driver_register(&driver_dt2815);
-}
-
-static void __exit driver_dt2815_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_dt2815);
-}
-
-module_init(driver_dt2815_init_module);
-module_exit(driver_dt2815_cleanup_module);
-
-static void dt2815_free_resources(struct comedi_device *dev);
-
 struct dt2815_private {
 
 	const struct comedi_lrange *range_type_list[8];
@@ -191,6 +166,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	const struct comedi_lrange *current_range_type, *voltage_range_type;
 	unsigned long iobase;
+	int ret;
 
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
@@ -202,8 +178,10 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->board_name = "dt2815";
 
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
+
 	if (alloc_private(dev, sizeof(struct dt2815_private)) < 0)
 		return -ENOMEM;
 
@@ -252,20 +230,19 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static void dt2815_free_resources(struct comedi_device *dev)
+static void dt2815_detach(struct comedi_device *dev)
 {
 	if (dev->iobase)
 		release_region(dev->iobase, DT2815_SIZE);
 }
 
-static int dt2815_detach(struct comedi_device *dev)
-{
-	printk(KERN_INFO "comedi%d: dt2815: remove\n", dev->minor);
-
-	dt2815_free_resources(dev);
-
-	return 0;
-}
+static struct comedi_driver dt2815_driver = {
+	.driver_name	= "dt2815",
+	.module		= THIS_MODULE,
+	.attach		= dt2815_attach,
+	.detach		= dt2815_detach,
+};
+module_comedi_driver(dt2815_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

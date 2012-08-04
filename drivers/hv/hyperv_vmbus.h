@@ -411,7 +411,7 @@ enum {
 #define HV_PRESENT_BIT			0x80000000
 
 #define HV_LINUX_GUEST_ID_LO		0x00000000
-#define HV_LINUX_GUEST_ID_HI		0xB16B00B5
+#define HV_LINUX_GUEST_ID_HI		2976579765
 #define HV_LINUX_GUEST_ID		(((u64)HV_LINUX_GUEST_ID_HI << 32) | \
 					   HV_LINUX_GUEST_ID_LO)
 
@@ -495,7 +495,7 @@ extern int hv_init(void);
 
 extern void hv_cleanup(void);
 
-extern u16 hv_post_message(union hv_connection_id connection_id,
+extern int hv_post_message(union hv_connection_id connection_id,
 			 enum hv_message_type message_type,
 			 void *payload, size_t payload_size);
 

@@ -21,8 +21,8 @@
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/gfp.h>
-#include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
+#include <linux/platform_data/clk-integrator.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -143,30 +143,14 @@ static void __init intcp_map_io(void)
 	iotable_init(intcp_io_desc, ARRAY_SIZE(intcp_io_desc));
 }
 
-static struct fpga_irq_data cic_irq_data = {
-	.base		= INTCP_VA_CIC_BASE,
-	.irq_start	= IRQ_CIC_START,
-	.chip.name	= "CIC",
-};
-
-static struct fpga_irq_data pic_irq_data = {
-	.base		= INTCP_VA_PIC_BASE,
-	.irq_start	= IRQ_PIC_START,
-	.chip.name	= "PIC",
-};
-
-static struct fpga_irq_data sic_irq_data = {
-	.base		= INTCP_VA_SIC_BASE,
-	.irq_start	= IRQ_SIC_START,
-	.chip.name	= "SIC",
-};
-
 static void __init intcp_init_irq(void)
 {
-	u32 pic_mask, sic_mask;
+	u32 pic_mask, cic_mask, sic_mask;
 
+	/* These masks are for the HW IRQ registers */
 	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
 	pic_mask |= (~((~0u) << (29 - 22))) << 22;
+	cic_mask = ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START));
 	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
 
 	/*
@@ -179,69 +163,16 @@ static void __init intcp_init_irq(void)
 	writel(sic_mask, INTCP_VA_SIC_BASE + IRQ_ENABLE_CLEAR);
 	writel(sic_mask, INTCP_VA_SIC_BASE + FIQ_ENABLE_CLEAR);
 
-	fpga_irq_init(-1, pic_mask, &pic_irq_data);
+	fpga_irq_init(INTCP_VA_PIC_BASE, "PIC", IRQ_PIC_START,
+		      -1, pic_mask, NULL);
 
-	fpga_irq_init(-1, ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START)),
-		&cic_irq_data);
+	fpga_irq_init(INTCP_VA_CIC_BASE, "CIC", IRQ_CIC_START,
+		      -1, cic_mask, NULL);
 
-	fpga_irq_init(IRQ_CP_CPPLDINT, sic_mask, &sic_irq_data);
+	fpga_irq_init(INTCP_VA_SIC_BASE, "SIC", IRQ_SIC_START,
+		      IRQ_CP_CPPLDINT, sic_mask, NULL);
+	integrator_clk_init(true);
 }
-
-/*
- * Clock handling
- */
-#define CM_LOCK		(__io_address(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
-#define CM_AUXOSC	(__io_address(INTEGRATOR_HDR_BASE)+0x1c)
-
-static const struct icst_params cp_auxvco_params = {
-	.ref		= 24000000,
-	.vco_max	= ICST525_VCO_MAX_5V,
-	.vco_min	= ICST525_VCO_MIN,
-	.vd_min 	= 8,
-	.vd_max 	= 263,
-	.rd_min 	= 3,
-	.rd_max 	= 65,
-	.s2div		= icst525_s2div,
-	.idx2s		= icst525_idx2s,
-};
-
-static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)
-{
-	u32 val;
-
-	val = readl(clk->vcoreg) & ~0x7ffff;
-	val |= vco.v | (vco.r << 9) | (vco.s << 16);
-
-	writel(0xa05f, CM_LOCK);
-	writel(val, clk->vcoreg);
-	writel(0, CM_LOCK);
-}
-
-static const struct clk_ops cp_auxclk_ops = {
-	.round	= icst_clk_round,
-	.set	= icst_clk_set,
-	.setvco	= cp_auxvco_set,
-};
-
-static struct clk cp_auxclk = {
-	.ops	= &cp_auxclk_ops,
-	.params	= &cp_auxvco_params,
-	.vcoreg	= CM_AUXOSC,
-};
-
-static struct clk sp804_clk = {
-	.rate	= 1000000,
-};
-
-static struct clk_lookup cp_lookups[] = {
-	{	/* CLCD */
-		.dev_id		= "mb:c0",
-		.clk		= &cp_auxclk,
-	}, {	/* SP804 timers */
-		.dev_id		= "sp804",
-		.clk		= &sp804_clk,
-	},
-};
 
 /*
  * Flash handling.
@@ -350,10 +281,10 @@ static struct mmci_platform_data mmc_data = {
 #define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
 #define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
 
-static AMBA_APB_DEVICE(mmc, "mb:1c", 0, INTEGRATOR_CP_MMC_BASE,
+static AMBA_APB_DEVICE(mmc, "mmci", 0, INTEGRATOR_CP_MMC_BASE,
 	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
 
-static AMBA_APB_DEVICE(aaci, "mb:1d", 0, INTEGRATOR_CP_AACI_BASE,
+static AMBA_APB_DEVICE(aaci, "aaci", 0, INTEGRATOR_CP_AACI_BASE,
 	INTEGRATOR_CP_AACI_IRQS, NULL);
 
 
@@ -407,7 +338,7 @@ static struct clcd_board clcd_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-static AMBA_AHB_DEVICE(clcd, "mb:c0", 0, INTCP_PA_CLCD_BASE,
+static AMBA_AHB_DEVICE(clcd, "clcd", 0, INTCP_PA_CLCD_BASE,
 	{ IRQ_CP_CLCDCINT }, &clcd_data);
 
 static struct amba_device *amba_devs[] __initdata = {
@@ -420,10 +351,6 @@ static struct amba_device *amba_devs[] __initdata = {
 
 static void __init intcp_init_early(void)
 {
-	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
-
-	integrator_init_early();
-
 #ifdef CONFIG_PLAT_VERSATILE_SCHED_CLOCK
 	versatile_sched_clock_init(REFCOUNTER, 24000000);
 #endif
@@ -467,6 +394,7 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
+	.handle_irq	= fpga_handle_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,
 	.restart	= integrator_restart,

@@ -47,7 +47,7 @@ struct net_device_context {
 	struct work_struct work;
 };
 
-
+#define RING_SIZE_MIN 64
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
@@ -211,9 +211,13 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		net->stats.tx_packets++;
 	} else {
 		kfree(packet);
+		if (ret != -EAGAIN) {
+			dev_kfree_skb_any(skb);
+			net->stats.tx_dropped++;
+		}
 	}
 
-	return ret ? NETDEV_TX_BUSY : NETDEV_TX_OK;
+	return (ret == -EAGAIN) ? NETDEV_TX_BUSY : NETDEV_TX_OK;
 }
 
 /*
@@ -337,6 +341,34 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	return 0;
 }
 
+
+static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
+{
+	struct net_device_context *ndevctx = netdev_priv(ndev);
+	struct hv_device *hdev =  ndevctx->device_ctx;
+	struct sockaddr *addr = p;
+	char save_adr[14];
+	unsigned char save_aatype;
+	int err;
+
+	memcpy(save_adr, ndev->dev_addr, ETH_ALEN);
+	save_aatype = ndev->addr_assign_type;
+
+	err = eth_mac_addr(ndev, p);
+	if (err != 0)
+		return err;
+
+	err = rndis_filter_set_device_mac(hdev, addr->sa_data);
+	if (err != 0) {
+		/* roll back to saved MAC */
+		memcpy(ndev->dev_addr, save_adr, ETH_ALEN);
+		ndev->addr_assign_type = save_aatype;
+	}
+
+	return err;
+}
+
+
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
@@ -349,7 +381,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_set_rx_mode =		netvsc_set_multicast_list,
 	.ndo_change_mtu =		netvsc_change_mtu,
 	.ndo_validate_addr =		eth_validate_addr,
-	.ndo_set_mac_address =		eth_mac_addr,
+	.ndo_set_mac_address =		netvsc_set_mac_addr,
 };
 
 /*
@@ -486,6 +518,11 @@ static void __exit netvsc_drv_exit(void)
 
 static int __init netvsc_drv_init(void)
 {
+	if (ring_size < RING_SIZE_MIN) {
+		ring_size = RING_SIZE_MIN;
+		pr_info("Increased ring_size to %d (min allowed)\n",
+			ring_size);
+	}
 	return vmbus_driver_register(&netvsc_drv);
 }
 

@@ -1,7 +1,7 @@
 /*
  * wm8753.c  --  WM8753 ALSA Soc Audio driver
  *
- * Copyright 2003 Wolfson Microelectronics PLC.
+ * Copyright 2003-11 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -931,8 +931,7 @@ static int wm8753_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 voice = snd_soc_read(codec, WM8753_PCM) & 0x01f3;
 	u16 srate = snd_soc_read(codec, WM8753_SRATE1) & 0x017f;
@@ -1161,8 +1160,7 @@ static int wm8753_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 srate = snd_soc_read(codec, WM8753_SRATE1) & 0x01c0;
 	u16 hifi = snd_soc_read(codec, WM8753_HIFI) & 0x01f3;

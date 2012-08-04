@@ -460,7 +460,7 @@ typedef void* lepp_comp_t;
  *  linux's "MAX_SKB_FRAGS", and presumably over-estimates by one, for
  *  our page size of exactly 65536.  We add one for a "body" fragment.
  */
-#define LEPP_MAX_FRAGS (65536 / HV_PAGE_SIZE_SMALL + 2 + 1)
+#define LEPP_MAX_FRAGS (65536 / HV_DEFAULT_PAGE_SIZE_SMALL + 2 + 1)
 
 /** Total number of bytes needed for an lepp_tso_cmd_t. */
 #define LEPP_TSO_CMD_SIZE(num_frags, header_size) \

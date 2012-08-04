@@ -71,6 +71,37 @@ u16 region_code_index[MWIFIEX_MAX_REGION_CODE] = { 0x10, 0x20, 0x30,
 
 static u8 supported_rates_n[N_SUPPORTED_RATES] = { 0x02, 0x04, 0 };
 
+struct region_code_mapping {
+	u8 code;
+	u8 region[IEEE80211_COUNTRY_STRING_LEN];
+};
+
+static struct region_code_mapping region_code_mapping_t[] = {
+	{ 0x10, "US " }, /* US FCC */
+	{ 0x20, "CA " }, /* IC Canada */
+	{ 0x30, "EU " }, /* ETSI */
+	{ 0x31, "ES " }, /* Spain */
+	{ 0x32, "FR " }, /* France */
+	{ 0x40, "JP " }, /* Japan */
+	{ 0x41, "JP " }, /* Japan */
+	{ 0x50, "CN " }, /* China */
+};
+
+/* This function converts integer code to region string */
+u8 *mwifiex_11d_code_2_region(u8 code)
+{
+	u8 i;
+	u8 size = sizeof(region_code_mapping_t)/
+				sizeof(struct region_code_mapping);
+
+	/* Look for code in mapping table */
+	for (i = 0; i < size; i++)
+		if (region_code_mapping_t[i].code == code)
+			return region_code_mapping_t[i].region;
+
+	return NULL;
+}
+
 /*
  * This function maps an index in supported rates table into
  * the corresponding data rate.
@@ -133,23 +164,6 @@ u32 mwifiex_index_to_data_rate(struct mwifiex_private *priv, u8 index,
 		rate = mwifiex_data_rates[index];
 	}
 	return rate;
-}
-
-/*
- * This function maps a data rate value into corresponding index in supported
- * rates table.
- */
-u8 mwifiex_data_rate_to_index(u32 rate)
-{
-	u16 *ptr;
-
-	if (rate) {
-		ptr = memchr(mwifiex_data_rates, rate,
-				sizeof(mwifiex_data_rates));
-		if (ptr)
-			return (u8) (ptr - mwifiex_data_rates);
-	}
-	return 0;
 }
 
 /*
@@ -243,20 +257,6 @@ mwifiex_is_rate_auto(struct mwifiex_private *priv)
 		return true;
 	else
 		return false;
-}
-
-/*
- * This function converts rate bitmap into rate index.
- */
-int mwifiex_get_rate_index(u16 *rate_bitmap, int size)
-{
-	int i;
-
-	for (i = 0; i < size * 8; i++)
-		if (rate_bitmap[i / 16] & (1 << (i % 16)))
-			return i;
-
-	return 0;
 }
 
 /*

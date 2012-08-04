@@ -1,7 +1,10 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X common routines
  *
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2011 Gabor Juhos <juhosg@openwrt.org>
+ *
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -163,6 +166,82 @@ static void __init ar933x_clocks_init(void)
 	ath79_uart_clk.rate = ath79_ref_clk.rate;
 }
 
+static void __init ar934x_clocks_init(void)
+{
+	u32 pll, out_div, ref_div, nint, frac, clk_ctrl, postdiv;
+	u32 cpu_pll, ddr_pll;
+	u32 bootstrap;
+
+	bootstrap = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
+	if (bootstrap &	AR934X_BOOTSTRAP_REF_CLK_40)
+		ath79_ref_clk.rate = 40 * 1000 * 1000;
+	else
+		ath79_ref_clk.rate = 25 * 1000 * 1000;
+
+	pll = ath79_pll_rr(AR934X_PLL_CPU_CONFIG_REG);
+	out_div = (pll >> AR934X_PLL_CPU_CONFIG_OUTDIV_SHIFT) &
+		  AR934X_PLL_CPU_CONFIG_OUTDIV_MASK;
+	ref_div = (pll >> AR934X_PLL_CPU_CONFIG_REFDIV_SHIFT) &
+		  AR934X_PLL_CPU_CONFIG_REFDIV_MASK;
+	nint = (pll >> AR934X_PLL_CPU_CONFIG_NINT_SHIFT) &
+	       AR934X_PLL_CPU_CONFIG_NINT_MASK;
+	frac = (pll >> AR934X_PLL_CPU_CONFIG_NFRAC_SHIFT) &
+	       AR934X_PLL_CPU_CONFIG_NFRAC_MASK;
+
+	cpu_pll = nint * ath79_ref_clk.rate / ref_div;
+	cpu_pll += frac * ath79_ref_clk.rate / (ref_div * (2 << 6));
+	cpu_pll /= (1 << out_div);
+
+	pll = ath79_pll_rr(AR934X_PLL_DDR_CONFIG_REG);
+	out_div = (pll >> AR934X_PLL_DDR_CONFIG_OUTDIV_SHIFT) &
+		  AR934X_PLL_DDR_CONFIG_OUTDIV_MASK;
+	ref_div = (pll >> AR934X_PLL_DDR_CONFIG_REFDIV_SHIFT) &
+		  AR934X_PLL_DDR_CONFIG_REFDIV_MASK;
+	nint = (pll >> AR934X_PLL_DDR_CONFIG_NINT_SHIFT) &
+	       AR934X_PLL_DDR_CONFIG_NINT_MASK;
+	frac = (pll >> AR934X_PLL_DDR_CONFIG_NFRAC_SHIFT) &
+	       AR934X_PLL_DDR_CONFIG_NFRAC_MASK;
+
+	ddr_pll = nint * ath79_ref_clk.rate / ref_div;
+	ddr_pll += frac * ath79_ref_clk.rate / (ref_div * (2 << 10));
+	ddr_pll /= (1 << out_div);
+
+	clk_ctrl = ath79_pll_rr(AR934X_PLL_CPU_DDR_CLK_CTRL_REG);
+
+	postdiv = (clk_ctrl >> AR934X_PLL_CPU_DDR_CLK_CTRL_CPU_POST_DIV_SHIFT) &
+		  AR934X_PLL_CPU_DDR_CLK_CTRL_CPU_POST_DIV_MASK;
+
+	if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_CPU_PLL_BYPASS)
+		ath79_cpu_clk.rate = ath79_ref_clk.rate;
+	else if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_CPUCLK_FROM_CPUPLL)
+		ath79_cpu_clk.rate = cpu_pll / (postdiv + 1);
+	else
+		ath79_cpu_clk.rate = ddr_pll / (postdiv + 1);
+
+	postdiv = (clk_ctrl >> AR934X_PLL_CPU_DDR_CLK_CTRL_DDR_POST_DIV_SHIFT) &
+		  AR934X_PLL_CPU_DDR_CLK_CTRL_DDR_POST_DIV_MASK;
+
+	if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_DDR_PLL_BYPASS)
+		ath79_ddr_clk.rate = ath79_ref_clk.rate;
+	else if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_DDRCLK_FROM_DDRPLL)
+		ath79_ddr_clk.rate = ddr_pll / (postdiv + 1);
+	else
+		ath79_ddr_clk.rate = cpu_pll / (postdiv + 1);
+
+	postdiv = (clk_ctrl >> AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_POST_DIV_SHIFT) &
+		  AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_POST_DIV_MASK;
+
+	if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_AHB_PLL_BYPASS)
+		ath79_ahb_clk.rate = ath79_ref_clk.rate;
+	else if (clk_ctrl & AR934X_PLL_CPU_DDR_CLK_CTRL_AHBCLK_FROM_DDRPLL)
+		ath79_ahb_clk.rate = ddr_pll / (postdiv + 1);
+	else
+		ath79_ahb_clk.rate = cpu_pll / (postdiv + 1);
+
+	ath79_wdt_clk.rate = ath79_ref_clk.rate;
+	ath79_uart_clk.rate = ath79_ref_clk.rate;
+}
+
 void __init ath79_clocks_init(void)
 {
 	if (soc_is_ar71xx())
@@ -173,6 +252,8 @@ void __init ath79_clocks_init(void)
 		ar913x_clocks_init();
 	else if (soc_is_ar933x())
 		ar933x_clocks_init();
+	else if (soc_is_ar934x())
+		ar934x_clocks_init();
 	else
 		BUG();
 

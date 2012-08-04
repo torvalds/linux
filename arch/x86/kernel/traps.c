@@ -9,6 +9,9 @@
 /*
  * Handle hardware traps and faults.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 #include <linux/spinlock.h>
@@ -37,10 +40,6 @@
 #include <linux/eisa.h>
 #endif
 
-#ifdef CONFIG_MCA
-#include <linux/mca.h>
-#endif
-
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
@@ -50,6 +49,7 @@
 #include <asm/processor.h>
 #include <asm/debugreg.h>
 #include <linux/atomic.h>
+#include <asm/ftrace.h>
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
@@ -146,12 +146,11 @@ trap_signal:
 #ifdef CONFIG_X86_64
 	if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
 	    printk_ratelimit()) {
-		printk(KERN_INFO
-		       "%s[%d] trap %s ip:%lx sp:%lx error:%lx",
-		       tsk->comm, tsk->pid, str,
-		       regs->ip, regs->sp, error_code);
+		pr_info("%s[%d] trap %s ip:%lx sp:%lx error:%lx",
+			tsk->comm, tsk->pid, str,
+			regs->ip, regs->sp, error_code);
 		print_vma_addr(" in ", regs->ip);
-		printk("\n");
+		pr_cont("\n");
 	}
 #endif
 
@@ -272,12 +271,11 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 			printk_ratelimit()) {
-		printk(KERN_INFO
-			"%s[%d] general protection ip:%lx sp:%lx error:%lx",
+		pr_info("%s[%d] general protection ip:%lx sp:%lx error:%lx",
 			tsk->comm, task_pid_nr(tsk),
 			regs->ip, regs->sp, error_code);
 		print_vma_addr(" in ", regs->ip);
-		printk("\n");
+		pr_cont("\n");
 	}
 
 	force_sig(SIGSEGV, tsk);
@@ -303,8 +301,17 @@ gp_in_kernel:
 }
 
 /* May run on IST stack. */
-dotraplinkage void __kprobes do_int3(struct pt_regs *regs, long error_code)
+dotraplinkage void __kprobes notrace do_int3(struct pt_regs *regs, long error_code)
 {
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/*
+	 * ftrace must be first, everything else may cause a recursive crash.
+	 * See note by declaration of modifying_ftrace_code in ftrace.c
+	 */
+	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
+	    ftrace_int3_handler(regs))
+		return;
+#endif
 #ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
 	if (kgdb_ll_trap(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 				SIGTRAP) == NOTIFY_STOP)
@@ -564,7 +571,7 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 	conditional_sti(regs);
 #if 0
 	/* No need to warn about this any longer. */
-	printk(KERN_INFO "Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
+	pr_info("Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
 #endif
 }
 

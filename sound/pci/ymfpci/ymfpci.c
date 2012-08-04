@@ -24,7 +24,7 @@
 #include <linux/time.h>
 #include <linux/module.h>
 #include <sound/core.h>
-#include <sound/ymfpci.h>
+#include "ymfpci.h"
 #include <sound/mpu401.h>
 #include <sound/opl3.h>
 #include <sound/initval.h>
@@ -350,26 +350,16 @@ static void __devexit snd_card_ymfpci_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-static struct pci_driver driver = {
+static struct pci_driver ymfpci_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ymfpci_ids,
 	.probe = snd_card_ymfpci_probe,
 	.remove = __devexit_p(snd_card_ymfpci_remove),
 #ifdef CONFIG_PM
-	.suspend = snd_ymfpci_suspend,
-	.resume = snd_ymfpci_resume,
+	.driver = {
+		.pm = &snd_ymfpci_pm,
+	},
 #endif
 };
 
-static int __init alsa_card_ymfpci_init(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit alsa_card_ymfpci_exit(void)
-{
-	pci_unregister_driver(&driver);
-}
-
-module_init(alsa_card_ymfpci_init)
-module_exit(alsa_card_ymfpci_exit)
+module_pci_driver(ymfpci_driver);

@@ -25,7 +25,7 @@ typedef __kernel_dev_t		dev_t;
 typedef __kernel_ino_t		ino_t;
 typedef __kernel_mode_t		mode_t;
 typedef unsigned short		umode_t;
-typedef __kernel_nlink_t	nlink_t;
+typedef __u32			nlink_t;
 typedef __kernel_off_t		off_t;
 typedef __kernel_pid_t		pid_t;
 typedef __kernel_daddr_t	daddr_t;
@@ -246,14 +246,15 @@ struct ustat {
 };
 
 /**
- * struct rcu_head - callback structure for use with RCU
+ * struct callback_head - callback structure for use with RCU and task_work
  * @next: next update requests in a list
  * @func: actual update function to call after the grace period.
  */
-struct rcu_head {
-	struct rcu_head *next;
-	void (*func)(struct rcu_head *head);
+struct callback_head {
+	struct callback_head *next;
+	void (*func)(struct callback_head *head);
 };
+#define rcu_head callback_head
 
 #endif	/* __KERNEL__ */
 #endif /*  __ASSEMBLY__ */

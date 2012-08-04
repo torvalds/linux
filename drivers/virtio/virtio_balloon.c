@@ -47,7 +47,7 @@ struct virtio_balloon
 	struct task_struct *thread;
 
 	/* Waiting for host to ack the pages we released. */
-	struct completion acked;
+	wait_queue_head_t acked;
 
 	/* Number of balloon pages we've told the Host we're not using. */
 	unsigned int num_pages;
@@ -89,21 +89,17 @@ static struct page *balloon_pfn_to_page(u32 pfn)
 
 static void balloon_ack(struct virtqueue *vq)
 {
-	struct virtio_balloon *vb;
-	unsigned int len;
+	struct virtio_balloon *vb = vq->vdev->priv;
 
-	vb = virtqueue_get_buf(vq, &len);
-	if (vb)
-		complete(&vb->acked);
+	wake_up(&vb->acked);
 }
 
 static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 {
 	struct scatterlist sg;
+	unsigned int len;
 
 	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
-
-	init_completion(&vb->acked);
 
 	/* We should always be able to add one buffer to an empty queue. */
 	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
@@ -111,7 +107,7 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 	virtqueue_kick(vq);
 
 	/* When host has read buffer, this completes via balloon_ack */
-	wait_for_completion(&vb->acked);
+	wait_event(vb->acked, virtqueue_get_buf(vq, &len));
 }
 
 static void set_page_pfns(u32 pfns[], struct page *page)
@@ -231,12 +227,8 @@ static void update_balloon_stats(struct virtio_balloon *vb)
  */
 static void stats_request(struct virtqueue *vq)
 {
-	struct virtio_balloon *vb;
-	unsigned int len;
+	struct virtio_balloon *vb = vq->vdev->priv;
 
-	vb = virtqueue_get_buf(vq, &len);
-	if (!vb)
-		return;
 	vb->need_stats_update = 1;
 	wake_up(&vb->config_change);
 }
@@ -245,11 +237,14 @@ static void stats_handle_request(struct virtio_balloon *vb)
 {
 	struct virtqueue *vq;
 	struct scatterlist sg;
+	unsigned int len;
 
 	vb->need_stats_update = 0;
 	update_balloon_stats(vb);
 
 	vq = vb->stats_vq;
+	if (!virtqueue_get_buf(vq, &len))
+		return;
 	sg_init_one(&sg, vb->stats, sizeof(vb->stats));
 	if (virtqueue_add_buf(vq, &sg, 1, 0, vb, GFP_KERNEL) < 0)
 		BUG();
@@ -358,6 +353,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	INIT_LIST_HEAD(&vb->pages);
 	vb->num_pages = 0;
 	init_waitqueue_head(&vb->config_change);
+	init_waitqueue_head(&vb->acked);
 	vb->vdev = vdev;
 	vb->need_stats_update = 0;
 
@@ -381,20 +377,25 @@ out:
 	return err;
 }
 
+static void remove_common(struct virtio_balloon *vb)
+{
+	/* There might be pages left in the balloon: free them. */
+	while (vb->num_pages)
+		leak_balloon(vb, vb->num_pages);
+	update_balloon_size(vb);
+
+	/* Now we reset the device so we can clean up the queues. */
+	vb->vdev->config->reset(vb->vdev);
+
+	vb->vdev->config->del_vqs(vb->vdev);
+}
+
 static void __devexit virtballoon_remove(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 
 	kthread_stop(vb->thread);
-
-	/* There might be pages left in the balloon: free them. */
-	while (vb->num_pages)
-		leak_balloon(vb, vb->num_pages);
-
-	/* Now we reset the device so we can clean up the queues. */
-	vdev->config->reset(vdev);
-
-	vdev->config->del_vqs(vdev);
+	remove_common(vb);
 	kfree(vb);
 }
 
@@ -408,17 +409,11 @@ static int virtballoon_freeze(struct virtio_device *vdev)
 	 * function is called.
 	 */
 
-	while (vb->num_pages)
-		leak_balloon(vb, vb->num_pages);
-	update_balloon_size(vb);
-
-	/* Ensure we don't get any more requests from the host */
-	vdev->config->reset(vdev);
-	vdev->config->del_vqs(vdev);
+	remove_common(vb);
 	return 0;
 }
 
-static int restore_common(struct virtio_device *vdev)
+static int virtballoon_restore(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 	int ret;
@@ -430,11 +425,6 @@ static int restore_common(struct virtio_device *vdev)
 	fill_balloon(vb, towards_target(vb));
 	update_balloon_size(vb);
 	return 0;
-}
-
-static int virtballoon_restore(struct virtio_device *vdev)
-{
-	return restore_common(vdev);
 }
 #endif
 

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2010 Emulex.  All rights reserved.                *
+ * Copyright (C) 2010-2012 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -249,6 +249,7 @@ struct lpfc_sli_config_emb1_subsys {
 #define COMN_OPCODE_READ_OBJECT_LIST	0xAD
 #define COMN_OPCODE_DELETE_OBJECT	0xAE
 #define COMN_OPCODE_GET_CNTL_ADDL_ATTRIBUTES	0x79
+#define COMN_OPCODE_GET_CNTL_ATTRIBUTES	0x20
 	uint32_t timeout;
 	uint32_t request_length;
 	uint32_t word9;

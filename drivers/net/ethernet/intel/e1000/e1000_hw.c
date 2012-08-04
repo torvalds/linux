@@ -399,7 +399,7 @@ void e1000_set_media_type(struct e1000_hw *hw)
 }
 
 /**
- * e1000_reset_hw: reset the hardware completely
+ * e1000_reset_hw - reset the hardware completely
  * @hw: Struct containing variables accessed by shared code
  *
  * Reset the transmit and receive units; mask and clear all interrupts.
@@ -546,7 +546,7 @@ s32 e1000_reset_hw(struct e1000_hw *hw)
 }
 
 /**
- * e1000_init_hw: Performs basic configuration of the adapter.
+ * e1000_init_hw - Performs basic configuration of the adapter.
  * @hw: Struct containing variables accessed by shared code
  *
  * Assumes that the controller has previously been reset and is in a
@@ -2591,7 +2591,7 @@ s32 e1000_check_for_link(struct e1000_hw *hw)
  * @hw: Struct containing variables accessed by shared code
  * @speed: Speed of the connection
  * @duplex: Duplex setting of the connection
-
+ *
  * Detects the current speed and duplex settings of the hardware.
  */
 s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex)
@@ -2959,7 +2959,7 @@ static s32 e1000_read_phy_reg_ex(struct e1000_hw *hw, u32 reg_addr,
  * @hw: Struct containing variables accessed by shared code
  * @reg_addr: address of the PHY register to write
  * @data: data to write to the PHY
-
+ *
  * Writes a value to a PHY register
  */
 s32 e1000_write_phy_reg(struct e1000_hw *hw, u32 reg_addr, u16 phy_data)

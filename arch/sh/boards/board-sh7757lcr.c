@@ -12,6 +12,8 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/io.h>
@@ -19,6 +21,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_intc.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <cpu/sh7757.h>
 #include <asm/heartbeat.h>
@@ -65,8 +68,8 @@ static struct resource sh_eth0_resources[] = {
 		.end    = 0xfef001ff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 84,
-		.end    = 84,
+		.start  = evt2irq(0xc80),
+		.end    = evt2irq(0xc80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -94,8 +97,8 @@ static struct resource sh_eth1_resources[] = {
 		.end    = 0xfef009ff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 84,
-		.end    = 84,
+		.start  = evt2irq(0xc80),
+		.end    = evt2irq(0xc80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -139,8 +142,8 @@ static struct resource sh_eth_giga0_resources[] = {
 		.end    = 0xfee01fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 315,
-		.end    = 315,
+		.start  = evt2irq(0x2960),
+		.end    = evt2irq(0x2960),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -174,8 +177,8 @@ static struct resource sh_eth_giga1_resources[] = {
 		.end    = 0xfee01fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = 316,
-		.end    = 316,
+		.start  = evt2irq(0x2980),
+		.end    = evt2irq(0x2980),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -198,6 +201,15 @@ static struct platform_device sh7757_eth_giga1_device = {
 	},
 };
 
+/* Fixed 3.3V regulator to be used by SDHI0, MMCIF */
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif.0"),
+};
+
 /* SH_MMCIF */
 static struct resource sh_mmcif_resources[] = {
 	[0] = {
@@ -206,11 +218,11 @@ static struct resource sh_mmcif_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 211,
+		.start	= evt2irq(0x1c60),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
-		.start	= 212,
+		.start	= evt2irq(0x1c80),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -248,7 +260,7 @@ static struct resource sdhi_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 20,
+		.start  = evt2irq(0x480),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -284,8 +296,8 @@ static struct resource usb0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 50,
-		.end	= 50,
+		.start	= evt2irq(0x840),
+		.end	= evt2irq(0x840),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -328,6 +340,9 @@ static struct spi_board_info spi_board_info[] = {
 
 static int __init sh7757lcr_devices_setup(void)
 {
+	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
+
 	/* RGMII (PTA) */
 	gpio_request(GPIO_FN_ET0_MDC, NULL);
 	gpio_request(GPIO_FN_ET0_MDIO, NULL);

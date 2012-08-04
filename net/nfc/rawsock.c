@@ -54,7 +54,10 @@ static int rawsock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
 
-	pr_debug("sock=%p\n", sock);
+	pr_debug("sock=%p sk=%p\n", sock, sk);
+
+	if (!sk)
+		return 0;
 
 	sock_orphan(sk);
 	sock_put(sk);
@@ -89,6 +92,12 @@ static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
 	dev = nfc_get_device(addr->dev_idx);
 	if (!dev) {
 		rc = -ENODEV;
+		goto error;
+	}
+
+	if (addr->target_idx > dev->target_next_idx - 1 ||
+	    addr->target_idx < dev->target_next_idx - dev->n_targets) {
+		rc = -EINVAL;
 		goto error;
 	}
 

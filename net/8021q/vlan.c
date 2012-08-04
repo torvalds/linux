@@ -266,19 +266,19 @@ static void vlan_sync_address(struct net_device *dev,
 	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
 
 	/* May be called without an actual change */
-	if (!compare_ether_addr(vlan->real_dev_addr, dev->dev_addr))
+	if (ether_addr_equal(vlan->real_dev_addr, dev->dev_addr))
 		return;
 
 	/* vlan address was different from the old address and is equal to
 	 * the new address */
-	if (compare_ether_addr(vlandev->dev_addr, vlan->real_dev_addr) &&
-	    !compare_ether_addr(vlandev->dev_addr, dev->dev_addr))
+	if (!ether_addr_equal(vlandev->dev_addr, vlan->real_dev_addr) &&
+	    ether_addr_equal(vlandev->dev_addr, dev->dev_addr))
 		dev_uc_del(dev, vlandev->dev_addr);
 
 	/* vlan address was equal to the old address and is different from
 	 * the new address */
-	if (!compare_ether_addr(vlandev->dev_addr, vlan->real_dev_addr) &&
-	    compare_ether_addr(vlandev->dev_addr, dev->dev_addr))
+	if (ether_addr_equal(vlandev->dev_addr, vlan->real_dev_addr) &&
+	    !ether_addr_equal(vlandev->dev_addr, dev->dev_addr))
 		dev_uc_add(dev, vlandev->dev_addr);
 
 	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
@@ -403,6 +403,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		break;
 
 	case NETDEV_DOWN:
+		if (dev->features & NETIF_F_HW_VLAN_FILTER)
+			vlan_vid_del(dev, 0);
+
 		/* Put all VLANs for this dev in the down state too.  */
 		for (i = 0; i < VLAN_N_VID; i++) {
 			vlandev = vlan_group_get_device(grp, i);

@@ -134,6 +134,7 @@ void drm_sysfs_destroy(void)
 		return;
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
+	drm_class = NULL;
 }
 
 /**
@@ -347,17 +348,17 @@ static struct bin_attribute edid_attr = {
 };
 
 /**
- * drm_sysfs_connector_add - add an connector to sysfs
+ * drm_sysfs_connector_add - add a connector to sysfs
  * @connector: connector to add
  *
- * Create an connector device in sysfs, along with its associated connector
+ * Create a connector device in sysfs, along with its associated connector
  * properties (so far, connection status, dpms, mode list & edid) and
  * generate a hotplug event so userspace knows there's a new connector
  * available.
  *
  * Note:
- * This routine should only be called *once* for each DRM minor registered.
- * A second call for an already registered device will trigger the BUG_ON
+ * This routine should only be called *once* for each registered connector.
+ * A second call for an already registered connector will trigger the BUG_ON
  * below.
  */
 int drm_sysfs_connector_add(struct drm_connector *connector)
@@ -366,7 +367,7 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	int attr_cnt = 0;
 	int opt_cnt = 0;
 	int i;
-	int ret = 0;
+	int ret;
 
 	/* We shouldn't get called more than once for the same connector */
 	BUG_ON(device_is_registered(&connector->kdev));
@@ -554,6 +555,9 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 
 int drm_class_device_register(struct device *dev)
 {
+	if (!drm_class || IS_ERR(drm_class))
+		return -ENOENT;
+
 	dev->class = drm_class;
 	return device_register(dev);
 }

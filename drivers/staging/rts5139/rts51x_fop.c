@@ -36,7 +36,6 @@
 #include "rts51x_card.h"
 #include "rts51x_fop.h"
 #include "sd_cprm.h"
-#include "rts51x.h"
 
 #define RTS5139_IOC_MAGIC		0x39
 
@@ -234,12 +233,7 @@ ssize_t rts51x_write(struct file *filp, const char __user *buf, size_t count,
 	return 0;
 }
 
-#if 0 /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 36) */
-int rts51x_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		 unsigned long arg)
-#else
 long rts51x_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-#endif
 {
 	struct rts51x_chip *chip;
 	struct sd_direct_cmnd cmnd;

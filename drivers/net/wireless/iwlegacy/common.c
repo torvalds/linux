@@ -1896,8 +1896,8 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 		sta_id = il->hw_params.bcast_id;
 	else
 		for (i = IL_STA_ID; i < il->hw_params.max_stations; i++) {
-			if (!compare_ether_addr
-			    (il->stations[i].sta.sta.addr, addr)) {
+			if (ether_addr_equal(il->stations[i].sta.sta.addr,
+					     addr)) {
 				sta_id = i;
 				break;
 			}
@@ -1926,7 +1926,7 @@ il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
 
 	if ((il->stations[sta_id].used & IL_STA_DRIVER_ACTIVE) &&
 	    (il->stations[sta_id].used & IL_STA_UCODE_ACTIVE) &&
-	    !compare_ether_addr(il->stations[sta_id].sta.sta.addr, addr)) {
+	    ether_addr_equal(il->stations[sta_id].sta.sta.addr, addr)) {
 		D_ASSOC("STA %d (%pM) already added, not adding again.\n",
 			sta_id, addr);
 		return sta_id;
@@ -3744,10 +3744,10 @@ il_full_rxon_required(struct il_priv *il)
 
 	/* These items are only settable from the full RXON command */
 	CHK(!il_is_associated(il));
-	CHK(compare_ether_addr(staging->bssid_addr, active->bssid_addr));
-	CHK(compare_ether_addr(staging->node_addr, active->node_addr));
-	CHK(compare_ether_addr
-	    (staging->wlap_bssid_addr, active->wlap_bssid_addr));
+	CHK(!ether_addr_equal(staging->bssid_addr, active->bssid_addr));
+	CHK(!ether_addr_equal(staging->node_addr, active->node_addr));
+	CHK(!ether_addr_equal(staging->wlap_bssid_addr,
+			      active->wlap_bssid_addr));
 	CHK_NEQ(staging->dev_type, active->dev_type);
 	CHK_NEQ(staging->channel, active->channel);
 	CHK_NEQ(staging->air_propagation, active->air_propagation);
@@ -4717,10 +4717,11 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 	struct il_tx_queue *txq = &il->txq[cnt];
 	struct il_queue *q = &txq->q;
 	unsigned long timeout;
+	unsigned long now = jiffies;
 	int ret;
 
 	if (q->read_ptr == q->write_ptr) {
-		txq->time_stamp = jiffies;
+		txq->time_stamp = now;
 		return 0;
 	}
 
@@ -4728,9 +4729,9 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 	    txq->time_stamp +
 	    msecs_to_jiffies(il->cfg->wd_timeout);
 
-	if (time_after(jiffies, timeout)) {
+	if (time_after(now, timeout)) {
 		IL_ERR("Queue %d stuck for %u ms.\n", q->id,
-		       il->cfg->wd_timeout);
+		       jiffies_to_msecs(now - txq->time_stamp));
 		ret = il_force_reset(il, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
@@ -4767,14 +4768,12 @@ il_bg_watchdog(unsigned long data)
 		return;
 
 	/* monitor and check for other stuck queues */
-	if (il_is_any_associated(il)) {
-		for (cnt = 0; cnt < il->hw_params.max_txq_num; cnt++) {
-			/* skip as we already checked the command queue */
-			if (cnt == il->cmd_queue)
-				continue;
-			if (il_check_stuck_queue(il, cnt))
-				return;
-		}
+	for (cnt = 0; cnt < il->hw_params.max_txq_num; cnt++) {
+		/* skip as we already checked the command queue */
+		if (cnt == il->cmd_queue)
+			continue;
+		if (il_check_stuck_queue(il, cnt))
+			return;
 	}
 
 	mod_timer(&il->watchdog,
@@ -5360,7 +5359,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_ASSOC) {
 		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
 		if (bss_conf->assoc) {
-			il->timestamp = bss_conf->last_tsf;
+			il->timestamp = bss_conf->sync_tsf;
 
 			if (!il_is_rfkill(il))
 				il->ops->post_associate(il);

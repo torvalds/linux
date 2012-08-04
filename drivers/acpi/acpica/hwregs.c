@@ -69,9 +69,9 @@ acpi_hw_write_multiple(u32 value,
  *
  * FUNCTION:    acpi_hw_validate_register
  *
- * PARAMETERS:  Reg                 - GAS register structure
+ * PARAMETERS:  reg                 - GAS register structure
  *              max_bit_width       - Max bit_width supported (32 or 64)
- *              Address             - Pointer to where the gas->address
+ *              address             - Pointer to where the gas->address
  *                                    is returned
  *
  * RETURN:      Status
@@ -102,7 +102,7 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
 		return (AE_BAD_ADDRESS);
 	}
 
-	/* Validate the space_iD */
+	/* Validate the space_ID */
 
 	if ((reg->space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
 	    (reg->space_id != ACPI_ADR_SPACE_SYSTEM_IO)) {
@@ -137,8 +137,8 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
  *
  * FUNCTION:    acpi_hw_read
  *
- * PARAMETERS:  Value               - Where the value is returned
- *              Reg                 - GAS register structure
+ * PARAMETERS:  value               - Where the value is returned
+ *              reg                 - GAS register structure
  *
  * RETURN:      Status
  *
@@ -148,7 +148,7 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
  *
  * LIMITATIONS: <These limitations also apply to acpi_hw_write>
  *      bit_width must be exactly 8, 16, or 32.
- *      space_iD must be system_memory or system_iO.
+ *      space_ID must be system_memory or system_IO.
  *      bit_offset and access_width are currently ignored, as there has
  *          not been a need to implement these.
  *
@@ -200,8 +200,8 @@ acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg)
  *
  * FUNCTION:    acpi_hw_write
  *
- * PARAMETERS:  Value               - Value to be written
- *              Reg                 - GAS register structure
+ * PARAMETERS:  value               - Value to be written
+ *              reg                 - GAS register structure
  *
  * RETURN:      Status
  *
@@ -439,7 +439,7 @@ acpi_hw_register_read(u32 register_id, u32 * return_value)
  * FUNCTION:    acpi_hw_register_write
  *
  * PARAMETERS:  register_id         - ACPI Register ID
- *              Value               - The value to write
+ *              value               - The value to write
  *
  * RETURN:      Status
  *
@@ -571,7 +571,7 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
  *
  * FUNCTION:    acpi_hw_read_multiple
  *
- * PARAMETERS:  Value               - Where the register value is returned
+ * PARAMETERS:  value               - Where the register value is returned
  *              register_a           - First ACPI register (required)
  *              register_b           - Second ACPI register (optional)
  *
@@ -624,7 +624,7 @@ acpi_hw_read_multiple(u32 *value,
  *
  * FUNCTION:    acpi_hw_write_multiple
  *
- * PARAMETERS:  Value               - The value to write
+ * PARAMETERS:  value               - The value to write
  *              register_a           - First ACPI register (required)
  *              register_b           - Second ACPI register (optional)
  *

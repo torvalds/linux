@@ -58,6 +58,8 @@ void notify_remote_via_irq(int irq);
 
 void xen_irq_resume(void);
 
+void xen_hvm_prepare_kexec(struct shared_info *sip, unsigned long pfn);
+
 /* Clear an irq's pending state, in preparation for polling on it */
 void xen_clear_irq_pending(int irq);
 void xen_set_irq_pending(int irq);
@@ -102,6 +104,9 @@ int xen_irq_from_pirq(unsigned pirq);
 
 /* Return the pirq allocated to the irq. */
 int xen_pirq_from_irq(unsigned irq);
+
+/* Return the irq allocated to the gsi */
+int xen_irq_from_gsi(unsigned gsi);
 
 /* Determine whether to ignore this IRQ if it is passed to a guest. */
 int xen_test_irq_shared(int irq);

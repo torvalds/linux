@@ -65,6 +65,8 @@
 #include <linux/mbus.h>
 #include <linux/bitops.h>
 #include <linux/gfp.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -553,6 +555,7 @@ struct mv_host_priv {
 
 #if defined(CONFIG_HAVE_CLK)
 	struct clk		*clk;
+	struct clk              **port_clks;
 #endif
 	/*
 	 * These consistent DMA memory pools give us guaranteed
@@ -4025,8 +4028,11 @@ static int mv_platform_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct mv_host_priv *hpriv;
 	struct resource *res;
-	int n_ports = 0;
+	int n_ports = 0, irq = 0;
 	int rc;
+#if defined(CONFIG_HAVE_CLK)
+	int port;
+#endif
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -4046,14 +4052,27 @@ static int mv_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* allocate host */
-	mv_platform_data = pdev->dev.platform_data;
-	n_ports = mv_platform_data->n_ports;
+	if (pdev->dev.of_node) {
+		of_property_read_u32(pdev->dev.of_node, "nr-ports", &n_ports);
+		irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	} else {
+		mv_platform_data = pdev->dev.platform_data;
+		n_ports = mv_platform_data->n_ports;
+		irq = platform_get_irq(pdev, 0);
+	}
 
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
 
 	if (!host || !hpriv)
 		return -ENOMEM;
+#if defined(CONFIG_HAVE_CLK)
+	hpriv->port_clks = devm_kzalloc(&pdev->dev,
+					sizeof(struct clk *) * n_ports,
+					GFP_KERNEL);
+	if (!hpriv->port_clks)
+		return -ENOMEM;
+#endif
 	host->private_data = hpriv;
 	hpriv->n_ports = n_ports;
 	hpriv->board_idx = chip_soc;
@@ -4066,9 +4085,17 @@ static int mv_platform_probe(struct platform_device *pdev)
 #if defined(CONFIG_HAVE_CLK)
 	hpriv->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(hpriv->clk))
-		dev_notice(&pdev->dev, "cannot get clkdev\n");
+		dev_notice(&pdev->dev, "cannot get optional clkdev\n");
 	else
-		clk_enable(hpriv->clk);
+		clk_prepare_enable(hpriv->clk);
+
+	for (port = 0; port < n_ports; port++) {
+		char port_number[16];
+		sprintf(port_number, "%d", port);
+		hpriv->port_clks[port] = clk_get(&pdev->dev, port_number);
+		if (!IS_ERR(hpriv->port_clks[port]))
+			clk_prepare_enable(hpriv->port_clks[port]);
+	}
 #endif
 
 	/*
@@ -4090,16 +4117,21 @@ static int mv_platform_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "slots %u ports %d\n",
 		 (unsigned)MV_MAX_Q_DEPTH, host->n_ports);
 
-	rc = ata_host_activate(host, platform_get_irq(pdev, 0), mv_interrupt,
-			       IRQF_SHARED, &mv6_sht);
+	rc = ata_host_activate(host, irq, mv_interrupt, IRQF_SHARED, &mv6_sht);
 	if (!rc)
 		return 0;
 
 err:
 #if defined(CONFIG_HAVE_CLK)
 	if (!IS_ERR(hpriv->clk)) {
-		clk_disable(hpriv->clk);
+		clk_disable_unprepare(hpriv->clk);
 		clk_put(hpriv->clk);
+	}
+	for (port = 0; port < n_ports; port++) {
+		if (!IS_ERR(hpriv->port_clks[port])) {
+			clk_disable_unprepare(hpriv->port_clks[port]);
+			clk_put(hpriv->port_clks[port]);
+		}
 	}
 #endif
 
@@ -4119,13 +4151,20 @@ static int __devexit mv_platform_remove(struct platform_device *pdev)
 	struct ata_host *host = platform_get_drvdata(pdev);
 #if defined(CONFIG_HAVE_CLK)
 	struct mv_host_priv *hpriv = host->private_data;
+	int port;
 #endif
 	ata_host_detach(host);
 
 #if defined(CONFIG_HAVE_CLK)
 	if (!IS_ERR(hpriv->clk)) {
-		clk_disable(hpriv->clk);
+		clk_disable_unprepare(hpriv->clk);
 		clk_put(hpriv->clk);
+	}
+	for (port = 0; port < host->n_ports; port++) {
+		if (!IS_ERR(hpriv->port_clks[port])) {
+			clk_disable_unprepare(hpriv->port_clks[port]);
+			clk_put(hpriv->port_clks[port]);
+		}
 	}
 #endif
 	return 0;
@@ -4173,15 +4212,24 @@ static int mv_platform_resume(struct platform_device *pdev)
 #define mv_platform_resume NULL
 #endif
 
+#ifdef CONFIG_OF
+static struct of_device_id mv_sata_dt_ids[] __devinitdata = {
+	{ .compatible = "marvell,orion-sata", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, mv_sata_dt_ids);
+#endif
+
 static struct platform_driver mv_platform_driver = {
-	.probe			= mv_platform_probe,
-	.remove			= __devexit_p(mv_platform_remove),
-	.suspend		= mv_platform_suspend,
-	.resume			= mv_platform_resume,
-	.driver			= {
-				   .name = DRV_NAME,
-				   .owner = THIS_MODULE,
-				  },
+	.probe		= mv_platform_probe,
+	.remove		= __devexit_p(mv_platform_remove),
+	.suspend	= mv_platform_suspend,
+	.resume		= mv_platform_resume,
+	.driver		= {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(mv_sata_dt_ids),
+	},
 };
 
 

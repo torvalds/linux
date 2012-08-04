@@ -91,29 +91,6 @@ pin, which can be used to wake up tasks.
 #define PARPORT_B 1
 #define PARPORT_C 2
 
-static int parport_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int parport_detach(struct comedi_device *dev);
-static struct comedi_driver driver_parport = {
-	.driver_name = "comedi_parport",
-	.module = THIS_MODULE,
-	.attach = parport_attach,
-	.detach = parport_detach,
-};
-
-static int __init driver_parport_init_module(void)
-{
-	return comedi_driver_register(&driver_parport);
-}
-
-static void __exit driver_parport_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_parport);
-}
-
-module_init(driver_parport_init_module);
-module_exit(driver_parport_cleanup_module);
-
 struct parport_private {
 	unsigned int a_data;
 	unsigned int c_data;
@@ -133,7 +110,7 @@ static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = inb(dev->iobase + PARPORT_A);
 
-	return 2;
+	return insn->n;
 }
 
 static int parport_insn_config_a(struct comedi_device *dev,
@@ -162,7 +139,7 @@ static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = (inb(dev->iobase + PARPORT_B) >> 3);
 
-	return 2;
+	return insn->n;
 }
 
 static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -178,18 +155,15 @@ static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	data[1] = devpriv->c_data & 0xf;
 
-	return 2;
+	return insn->n;
 }
 
 static int parport_intr_insn(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n < 1)
-		return -EINVAL;
-
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int parport_intr_cmdtest(struct comedi_device *dev,
@@ -338,9 +312,10 @@ static int parport_attach(struct comedi_device *dev,
 	}
 	dev->board_name = "parport";
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
+
 	ret = alloc_private(dev, sizeof(struct parport_private));
 	if (ret < 0)
 		return ret;
@@ -395,18 +370,21 @@ static int parport_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int parport_detach(struct comedi_device *dev)
+static void parport_detach(struct comedi_device *dev)
 {
-	printk(KERN_INFO "comedi%d: parport: remove\n", dev->minor);
-
 	if (dev->iobase)
 		release_region(dev->iobase, PARPORT_SIZE);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
-	return 0;
 }
+
+static struct comedi_driver parport_driver = {
+	.driver_name	= "comedi_parport",
+	.module		= THIS_MODULE,
+	.attach		= parport_attach,
+	.detach		= parport_detach,
+};
+module_comedi_driver(parport_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

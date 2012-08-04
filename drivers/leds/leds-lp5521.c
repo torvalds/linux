@@ -193,9 +193,14 @@ static int lp5521_load_program(struct lp5521_engine *eng, const u8 *pattern)
 
 	/* move current engine to direct mode and remember the state */
 	ret = lp5521_set_engine_mode(eng, LP5521_CMD_DIRECT);
+	if (ret)
+		return ret;
+
 	/* Mode change requires min 500 us delay. 1 - 2 ms  with margin */
 	usleep_range(1000, 2000);
-	ret |= lp5521_read(client, LP5521_REG_OP_MODE, &mode);
+	ret = lp5521_read(client, LP5521_REG_OP_MODE, &mode);
+	if (ret)
+		return ret;
 
 	/* For loading, all the engines to load mode */
 	lp5521_write(client, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
@@ -211,8 +216,7 @@ static int lp5521_load_program(struct lp5521_engine *eng, const u8 *pattern)
 				LP5521_PROG_MEM_SIZE,
 				pattern);
 
-	ret |= lp5521_write(client, LP5521_REG_OP_MODE, mode);
-	return ret;
+	return lp5521_write(client, LP5521_REG_OP_MODE, mode);
 }
 
 static int lp5521_set_led_current(struct lp5521_chip *chip, int led, u8 curr)
@@ -740,7 +744,7 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 	int ret, i, led;
 	u8 buf;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -751,8 +755,7 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 
 	if (!pdata) {
 		dev_err(&client->dev, "no platform data\n");
-		ret = -EINVAL;
-		goto fail1;
+		return -EINVAL;
 	}
 
 	mutex_init(&chip->lock);
@@ -762,7 +765,7 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 	if (pdata->setup_resources) {
 		ret = pdata->setup_resources();
 		if (ret < 0)
-			goto fail1;
+			return ret;
 	}
 
 	if (pdata->enable) {
@@ -785,7 +788,7 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 	 * LP5521_REG_ENABLE register will not have any effect - strange!
 	 */
 	ret = lp5521_read(client, LP5521_REG_R_CURRENT, &buf);
-	if (buf != LP5521_REG_R_CURR_DEFAULT) {
+	if (ret || buf != LP5521_REG_R_CURR_DEFAULT) {
 		dev_err(&client->dev, "error in resetting chip\n");
 		goto fail2;
 	}
@@ -803,7 +806,7 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 	ret = lp5521_configure(client);
 	if (ret < 0) {
 		dev_err(&client->dev, "error configuring chip\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	/* Initialize leds */
@@ -818,7 +821,7 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 		ret = lp5521_init_led(&chip->leds[led], client, i, pdata);
 		if (ret) {
 			dev_err(&client->dev, "error initializing leds\n");
-			goto fail3;
+			goto fail2;
 		}
 		chip->num_leds++;
 
@@ -836,21 +839,19 @@ static int __devinit lp5521_probe(struct i2c_client *client,
 	ret = lp5521_register_sysfs(client);
 	if (ret) {
 		dev_err(&client->dev, "registering sysfs failed\n");
-		goto fail3;
+		goto fail2;
 	}
 	return ret;
-fail3:
+fail2:
 	for (i = 0; i < chip->num_leds; i++) {
 		led_classdev_unregister(&chip->leds[i].cdev);
 		cancel_work_sync(&chip->leds[i].brightness_work);
 	}
-fail2:
+fail1:
 	if (pdata->enable)
 		pdata->enable(0);
 	if (pdata->release_resources)
 		pdata->release_resources();
-fail1:
-	kfree(chip);
 	return ret;
 }
 
@@ -871,7 +872,6 @@ static int __devexit lp5521_remove(struct i2c_client *client)
 		chip->pdata->enable(0);
 	if (chip->pdata->release_resources)
 		chip->pdata->release_resources();
-	kfree(chip);
 	return 0;
 }
 

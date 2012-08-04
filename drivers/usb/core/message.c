@@ -1174,6 +1174,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			put_device(&dev->actconfig->interface[i]->dev);
 			dev->actconfig->interface[i] = NULL;
 		}
+		usb_unlocked_disable_lpm(dev);
+		usb_disable_ltm(dev);
 		dev->actconfig = NULL;
 		if (dev->state == USB_STATE_CONFIGURED)
 			usb_set_device_state(dev, USB_STATE_ADDRESS);
@@ -1308,10 +1310,19 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * Remove the current alt setting and add the new alt setting.
 	 */
 	mutex_lock(hcd->bandwidth_mutex);
+	/* Disable LPM, and re-enable it once the new alt setting is installed,
+	 * so that the xHCI driver can recalculate the U1/U2 timeouts.
+	 */
+	if (usb_disable_lpm(dev)) {
+		dev_err(&iface->dev, "%s Failed to disable LPM\n.", __func__);
+		mutex_unlock(hcd->bandwidth_mutex);
+		return -ENOMEM;
+	}
 	ret = usb_hcd_alloc_bandwidth(dev, NULL, iface->cur_altsetting, alt);
 	if (ret < 0) {
 		dev_info(&dev->dev, "Not enough bandwidth for altsetting %d\n",
 				alternate);
+		usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		return ret;
 	}
@@ -1334,6 +1345,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	} else if (ret < 0) {
 		/* Re-instate the old alt setting */
 		usb_hcd_alloc_bandwidth(dev, NULL, alt, iface->cur_altsetting);
+		usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		return ret;
 	}
@@ -1353,6 +1365,9 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	usb_disable_interface(dev, iface, true);
 
 	iface->cur_altsetting = alt;
+
+	/* Now that the interface is installed, re-enable LPM. */
+	usb_unlocked_enable_lpm(dev);
 
 	/* If the interface only has one altsetting and the device didn't
 	 * accept the request, we attempt to carry out the equivalent action
@@ -1437,6 +1452,14 @@ int usb_reset_configuration(struct usb_device *dev)
 	config = dev->actconfig;
 	retval = 0;
 	mutex_lock(hcd->bandwidth_mutex);
+	/* Disable LPM, and re-enable it once the configuration is reset, so
+	 * that the xHCI driver can recalculate the U1/U2 timeouts.
+	 */
+	if (usb_disable_lpm(dev)) {
+		dev_err(&dev->dev, "%s Failed to disable LPM\n.", __func__);
+		mutex_unlock(hcd->bandwidth_mutex);
+		return -ENOMEM;
+	}
 	/* Make sure we have enough bandwidth for each alternate setting 0 */
 	for (i = 0; i < config->desc.bNumInterfaces; i++) {
 		struct usb_interface *intf = config->interface[i];
@@ -1465,6 +1488,7 @@ reset_old_alts:
 				usb_hcd_alloc_bandwidth(dev, NULL,
 						alt, intf->cur_altsetting);
 		}
+		usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		return retval;
 	}
@@ -1502,6 +1526,8 @@ reset_old_alts:
 			create_intf_ep_devs(intf);
 		}
 	}
+	/* Now that the interfaces are installed, re-enable LPM. */
+	usb_unlocked_enable_lpm(dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_reset_configuration);
@@ -1535,7 +1561,7 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	if (add_uevent_var(env,
 		   "MODALIAS=usb:"
-		   "v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+		   "v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02Xin%02X",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
 		   le16_to_cpu(usb_dev->descriptor.idProduct),
 		   le16_to_cpu(usb_dev->descriptor.bcdDevice),
@@ -1544,7 +1570,8 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 		   usb_dev->descriptor.bDeviceProtocol,
 		   alt->desc.bInterfaceClass,
 		   alt->desc.bInterfaceSubClass,
-		   alt->desc.bInterfaceProtocol))
+		   alt->desc.bInterfaceProtocol,
+		   alt->desc.bInterfaceNumber))
 		return -ENOMEM;
 
 	return 0;
@@ -1763,8 +1790,19 @@ free_interfaces:
 	 * this call fails, the device state is unchanged.
 	 */
 	mutex_lock(hcd->bandwidth_mutex);
+	/* Disable LPM, and re-enable it once the new configuration is
+	 * installed, so that the xHCI driver can recalculate the U1/U2
+	 * timeouts.
+	 */
+	if (dev->actconfig && usb_disable_lpm(dev)) {
+		dev_err(&dev->dev, "%s Failed to disable LPM\n.", __func__);
+		mutex_unlock(hcd->bandwidth_mutex);
+		return -ENOMEM;
+	}
 	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
 	if (ret < 0) {
+		if (dev->actconfig)
+			usb_enable_lpm(dev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
@@ -1784,6 +1822,7 @@ free_interfaces:
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
 		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
+		/* Leave LPM disabled while the device is unconfigured. */
 		mutex_unlock(hcd->bandwidth_mutex);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
@@ -1803,7 +1842,6 @@ free_interfaces:
 		intfc = cp->intf_cache[i];
 		intf->altsetting = intfc->altsetting;
 		intf->num_altsetting = intfc->num_altsetting;
-		intf->intf_assoc = find_iad(dev, cp, i);
 		kref_get(&intfc->ref);
 
 		alt = usb_altnum_to_altsetting(intf, 0);
@@ -1816,6 +1854,8 @@ free_interfaces:
 		if (!alt)
 			alt = &intf->altsetting[0];
 
+		intf->intf_assoc =
+			find_iad(dev, cp, alt->desc.bInterfaceNumber);
 		intf->cur_altsetting = alt;
 		usb_enable_interface(dev, intf, true);
 		intf->dev.parent = &dev->dev;
@@ -1837,6 +1877,11 @@ free_interfaces:
 	if (cp->string == NULL &&
 			!(dev->quirks & USB_QUIRK_CONFIG_INTF_STRINGS))
 		cp->string = usb_cache_string(dev, cp->desc.iConfiguration);
+
+	/* Now that the interfaces are installed, re-enable LPM. */
+	usb_unlocked_enable_lpm(dev);
+	/* Enable LTM if it was turned off by usb_disable_device. */
+	usb_enable_ltm(dev);
 
 	/* Now that all the interfaces are set up, register them
 	 * to trigger binding of drivers to interfaces.  probe()

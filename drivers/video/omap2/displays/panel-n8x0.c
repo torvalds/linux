@@ -473,7 +473,6 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 
 	mutex_init(&ddata->lock);
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT;
 	dssdev->panel.timings.x_res = 800;
 	dssdev->panel.timings.y_res = 480;
 	dssdev->ctrl.pixel_size = 16;
@@ -610,12 +609,6 @@ static int n8x0_panel_resume(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void n8x0_panel_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
 static void n8x0_panel_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres)
 {
@@ -677,8 +670,6 @@ static struct omap_dss_driver n8x0_panel_driver = {
 
 	.get_resolution	= n8x0_panel_get_resolution,
 	.get_recommended_bpp = omapdss_default_get_recommended_bpp,
-
-	.get_timings	= n8x0_panel_get_timings,
 
 	.driver         = {
 		.name   = "n8x0_panel",

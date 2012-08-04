@@ -1,8 +1,11 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X GPIO API support
  *
- *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
+ *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
+ *
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -89,6 +92,42 @@ static int ath79_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+static int ar934x_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+{
+	void __iomem *base = ath79_gpio_base;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ath79_gpio_lock, flags);
+
+	__raw_writel(__raw_readl(base + AR71XX_GPIO_REG_OE) | (1 << offset),
+		     base + AR71XX_GPIO_REG_OE);
+
+	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
+
+	return 0;
+}
+
+static int ar934x_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
+					int value)
+{
+	void __iomem *base = ath79_gpio_base;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ath79_gpio_lock, flags);
+
+	if (value)
+		__raw_writel(1 << offset, base + AR71XX_GPIO_REG_SET);
+	else
+		__raw_writel(1 << offset, base + AR71XX_GPIO_REG_CLEAR);
+
+	__raw_writel(__raw_readl(base + AR71XX_GPIO_REG_OE) & ~(1 << offset),
+		     base + AR71XX_GPIO_REG_OE);
+
+	spin_unlock_irqrestore(&ath79_gpio_lock, flags);
+
+	return 0;
+}
+
 static struct gpio_chip ath79_gpio_chip = {
 	.label			= "ath79",
 	.get			= ath79_gpio_get_value,
@@ -155,11 +194,17 @@ void __init ath79_gpio_init(void)
 		ath79_gpio_count = AR913X_GPIO_COUNT;
 	else if (soc_is_ar933x())
 		ath79_gpio_count = AR933X_GPIO_COUNT;
+	else if (soc_is_ar934x())
+		ath79_gpio_count = AR934X_GPIO_COUNT;
 	else
 		BUG();
 
 	ath79_gpio_base = ioremap_nocache(AR71XX_GPIO_BASE, AR71XX_GPIO_SIZE);
 	ath79_gpio_chip.ngpio = ath79_gpio_count;
+	if (soc_is_ar934x()) {
+		ath79_gpio_chip.direction_input = ar934x_gpio_direction_input;
+		ath79_gpio_chip.direction_output = ar934x_gpio_direction_output;
+	}
 
 	err = gpiochip_add(&ath79_gpio_chip);
 	if (err)

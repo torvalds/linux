@@ -177,7 +177,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	if ((id->driver_data & ATA_GEN_CLASS_MATCH) && all_generic_ide == 0)
 		return -ENODEV;
 
-	if (id->driver_data & ATA_GEN_INTEL_IDER)
+	if ((id->driver_data & ATA_GEN_INTEL_IDER) && !all_generic_ide)
 		if (!is_intel_ider(dev))
 			return -ENODEV;
 
@@ -255,25 +255,12 @@ static struct pci_driver ata_generic_pci_driver = {
 #endif
 };
 
-static int __init ata_generic_init(void)
-{
-	return pci_register_driver(&ata_generic_pci_driver);
-}
-
-
-static void __exit ata_generic_exit(void)
-{
-	pci_unregister_driver(&ata_generic_pci_driver);
-}
-
+module_pci_driver(ata_generic_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for generic ATA");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, ata_generic);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ata_generic_init);
-module_exit(ata_generic_exit);
 
 module_param(all_generic_ide, int, 0);

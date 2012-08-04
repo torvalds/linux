@@ -482,6 +482,9 @@ enum {
 	GPIO_FN_FSIAILR_PU,
 	GPIO_FN_FSIAIBT_PU,
 	GPIO_FN_FSIAISLD_PU,
+
+	/* end of GPIO */
+	GPIO_NR,
 };
 
 /* DMA slave IDs */
@@ -513,10 +516,45 @@ enum {
 	SHDMA_SLAVE_SDHI2_RX,
 	SHDMA_SLAVE_MMCIF_TX,
 	SHDMA_SLAVE_MMCIF_RX,
+	SHDMA_SLAVE_FSI2A_TX,
+	SHDMA_SLAVE_FSI2A_RX,
+	SHDMA_SLAVE_FSI2B_TX,
+	SHDMA_SLAVE_FSI2B_RX,
+	SHDMA_SLAVE_FSI2C_TX,
+	SHDMA_SLAVE_FSI2C_RX,
+	SHDMA_SLAVE_FSI2D_RX,
 };
 
-/* PINT interrupts are located at Linux IRQ 800 and up */
-#define SH73A0_PINT0_IRQ(irq) ((irq) + 800)
-#define SH73A0_PINT1_IRQ(irq) ((irq) + 832)
+/*
+ *		SH73A0 IRQ LOCATION TABLE
+ *
+ * 416	-----------------------------------------
+ *		IRQ0-IRQ15
+ * 431	-----------------------------------------
+ * ...
+ * 448	-----------------------------------------
+ *		sh73a0-intcs
+ *		sh73a0-intca-irq-pins
+ * 680	-----------------------------------------
+ * ...
+ * 700	-----------------------------------------
+ *		sh73a0-pint0
+ * 731	-----------------------------------------
+ * 732	-----------------------------------------
+ *		sh73a0-pint1
+ * 739	-----------------------------------------
+ * ...
+ * 800	-----------------------------------------
+ *		IRQ16-IRQ31
+ * 815	-----------------------------------------
+ * ...
+ * 928	-----------------------------------------
+ *		sh73a0-intca-irq-pins
+ * 943	-----------------------------------------
+ */
+
+/* PINT interrupts are located at Linux IRQ 700 and up */
+#define SH73A0_PINT0_IRQ(irq) ((irq) + 700)
+#define SH73A0_PINT1_IRQ(irq) ((irq) + 732)
 
 #endif /* __ASM_SH73A0_H__ */

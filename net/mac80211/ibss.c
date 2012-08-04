@@ -66,7 +66,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	skb_reset_tail_pointer(skb);
 	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
-	if (compare_ether_addr(ifibss->bssid, bssid))
+	if (!ether_addr_equal(ifibss->bssid, bssid))
 		sta_info_flush(sdata->local, sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
@@ -82,8 +82,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	local->oper_channel = chan;
 	channel_type = ifibss->channel_type;
-	if (channel_type > NL80211_CHAN_HT20 &&
-	    !cfg80211_can_beacon_sec_chan(local->hw.wiphy, chan, channel_type))
+	if (!cfg80211_can_beacon_sec_chan(local->hw.wiphy, chan, channel_type))
 		channel_type = NL80211_CHAN_HT20;
 	if (!ieee80211_set_channel_type(local, sdata, channel_type)) {
 		/* can only fail due to HT40+/- mismatch */
@@ -160,16 +159,19 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	if (channel_type && sband->ht_cap.ht_supported) {
 		pos = skb_put(skb, 4 +
 				   sizeof(struct ieee80211_ht_cap) +
-				   sizeof(struct ieee80211_ht_info));
+				   sizeof(struct ieee80211_ht_operation));
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
-		pos = ieee80211_ie_build_ht_info(pos,
-						 &sband->ht_cap,
-						 chan,
-						 channel_type);
+		/*
+		 * Note: According to 802.11n-2009 9.13.3.1, HT Protection
+		 * field and RIFS Mode are reserved in IBSS mode, therefore
+		 * keep them at 0
+		 */
+		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
+						 chan, channel_type, 0);
 	}
 
-	if (local->hw.queues >= 4) {
+	if (local->hw.queues >= IEEE80211_NUM_ACS) {
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
@@ -259,11 +261,7 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 
 	memcpy(addr, sta->sta.addr, ETH_ALEN);
 
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	wiphy_debug(sdata->local->hw.wiphy,
-		    "Adding new IBSS station %pM (dev=%s)\n",
-		    addr, sdata->name);
-#endif
+	ibss_dbg(sdata, "Adding new IBSS station %pM\n", addr);
 
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
@@ -277,12 +275,10 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
 		return sta_info_get(sdata, addr);
-	if (auth) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-		printk(KERN_DEBUG "TX Auth SA=%pM DA=%pM BSSID=%pM"
-		       "(auth_transaction=1)\n", sdata->vif.addr,
-		       sdata->u.ibss.bssid, addr);
-#endif
+	if (auth && !sdata->u.ibss.auth_frame_registrations) {
+		ibss_dbg(sdata,
+			 "TX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=1)\n",
+			 sdata->vif.addr, sdata->u.ibss.bssid, addr);
 		ieee80211_send_auth(sdata, 1, WLAN_AUTH_OPEN, NULL, 0,
 				    addr, sdata->u.ibss.bssid, NULL, 0, 0);
 	}
@@ -305,9 +301,8 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	 * 	allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
-			       sdata->name, addr);
+		net_info_ratelimited("%s: No room for a new IBSS STA entry %pM\n",
+				    sdata->name, addr);
 		rcu_read_lock();
 		return NULL;
 	}
@@ -317,7 +312,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid)) {
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid)) {
 		rcu_read_lock();
 		return NULL;
 	}
@@ -353,11 +348,9 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 
 	if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
 		return;
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	printk(KERN_DEBUG "%s: RX Auth SA=%pM DA=%pM BSSID=%pM."
-	       "(auth_transaction=%d)\n",
-	       sdata->name, mgmt->sa, mgmt->da, mgmt->bssid, auth_transaction);
-#endif
+	ibss_dbg(sdata,
+		 "RX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=%d)\n",
+		 mgmt->sa, mgmt->da, mgmt->bssid, auth_transaction);
 	sta_info_destroy_addr(sdata, mgmt->sa);
 	ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
 	rcu_read_unlock();
@@ -403,14 +396,14 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    compare_ether_addr(mgmt->bssid, sdata->u.ibss.bssid) == 0) {
+	    ether_addr_equal(mgmt->bssid, sdata->u.ibss.bssid)) {
 
 		rcu_read_lock();
 		sta = sta_info_get(sdata, mgmt->sa);
 
 		if (elems->supp_rates) {
 			supp_rates = ieee80211_sta_get_rates(local, elems,
-							     band);
+							     band, NULL);
 			if (sta) {
 				u32 prev_rates;
 
@@ -420,15 +413,10 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 					ieee80211_mandatory_rates(local, band);
 
 				if (sta->sta.supp_rates[band] != prev_rates) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-					printk(KERN_DEBUG
-						"%s: updated supp_rates set "
-						"for %pM based on beacon"
-						"/probe_resp (0x%x -> 0x%x)\n",
-						sdata->name, sta->sta.addr,
-						prev_rates,
-						sta->sta.supp_rates[band]);
-#endif
+					ibss_dbg(sdata,
+						 "updated supp_rates set for %pM based on beacon/probe_resp (0x%x -> 0x%x)\n",
+						 sta->sta.addr, prev_rates,
+						 sta->sta.supp_rates[band]);
 					rates_updated = true;
 				}
 			} else {
@@ -441,13 +429,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		if (sta && elems->wmm_info)
 			set_sta_flag(sta, WLAN_STA_WME);
 
-		if (sta && elems->ht_info_elem && elems->ht_cap_elem &&
+		if (sta && elems->ht_operation && elems->ht_cap_elem &&
 		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
 			/* we both use HT */
 			struct ieee80211_sta_ht_cap sta_ht_cap_new;
 			enum nl80211_channel_type channel_type =
-				ieee80211_ht_info_to_channel_type(
-							elems->ht_info_elem);
+				ieee80211_ht_oper_to_channel_type(
+							elems->ht_operation);
 
 			ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 							  elems->ht_cap_elem,
@@ -508,7 +496,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* same BSSID */
-	if (compare_ether_addr(cbss->bssid, sdata->u.ibss.bssid) == 0)
+	if (ether_addr_equal(cbss->bssid, sdata->u.ibss.bssid))
 		goto put_bss;
 
 	if (rx_status->flag & RX_FLAG_MACTIME_MPDU) {
@@ -543,24 +531,20 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		rx_timestamp = drv_get_tsf(local, sdata);
 	}
 
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	printk(KERN_DEBUG "RX beacon SA=%pM BSSID="
-	       "%pM TSF=0x%llx BCN=0x%llx diff=%lld @%lu\n",
-	       mgmt->sa, mgmt->bssid,
-	       (unsigned long long)rx_timestamp,
-	       (unsigned long long)beacon_timestamp,
-	       (unsigned long long)(rx_timestamp - beacon_timestamp),
-	       jiffies);
-#endif
+	ibss_dbg(sdata,
+		 "RX beacon SA=%pM BSSID=%pM TSF=0x%llx BCN=0x%llx diff=%lld @%lu\n",
+		 mgmt->sa, mgmt->bssid,
+		 (unsigned long long)rx_timestamp,
+		 (unsigned long long)beacon_timestamp,
+		 (unsigned long long)(rx_timestamp - beacon_timestamp),
+		 jiffies);
 
 	if (beacon_timestamp > rx_timestamp) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-		printk(KERN_DEBUG "%s: beacon TSF higher than "
-		       "local TSF - IBSS merge with BSSID %pM\n",
-		       sdata->name, mgmt->bssid);
-#endif
+		ibss_dbg(sdata,
+			 "beacon TSF higher than local TSF - IBSS merge with BSSID %pM\n",
+			 mgmt->bssid);
 		ieee80211_sta_join_ibss(sdata, bss);
-		supp_rates = ieee80211_sta_get_rates(local, elems, band);
+		supp_rates = ieee80211_sta_get_rates(local, elems, band, NULL);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
 				       supp_rates, true);
 		rcu_read_unlock();
@@ -584,16 +568,15 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	 * 	allow new one to be added.
 	 */
 	if (local->num_sta >= IEEE80211_IBSS_MAX_STA_ENTRIES) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: No room for a new IBSS STA entry %pM\n",
-			       sdata->name, addr);
+		net_info_ratelimited("%s: No room for a new IBSS STA entry %pM\n",
+				    sdata->name, addr);
 		return;
 	}
 
 	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
 		return;
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid))
 		return;
 
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
@@ -661,8 +644,8 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	if (ifibss->fixed_channel)
 		return;
 
-	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
-	       "IBSS networks with same SSID (merge)\n", sdata->name);
+	sdata_info(sdata,
+		   "No active IBSS STAs - trying to scan for other IBSS networks with same SSID (merge)\n");
 
 	ieee80211_request_internal_scan(sdata,
 			ifibss->ssid, ifibss->ssid_len, NULL);
@@ -690,8 +673,7 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 		bssid[0] |= 0x02;
 	}
 
-	printk(KERN_DEBUG "%s: Creating new IBSS network, BSSID %pM\n",
-	       sdata->name, bssid);
+	sdata_info(sdata, "Creating new IBSS network, BSSID %pM\n", bssid);
 
 	capability = WLAN_CAPABILITY_IBSS;
 
@@ -722,10 +704,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 	lockdep_assert_held(&ifibss->mtx);
 
 	active_ibss = ieee80211_sta_active_ibss(sdata);
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	printk(KERN_DEBUG "%s: sta_find_ibss (active_ibss=%d)\n",
-	       sdata->name, active_ibss);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+	ibss_dbg(sdata, "sta_find_ibss (active_ibss=%d)\n", active_ibss);
 
 	if (active_ibss)
 		return;
@@ -748,29 +727,24 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		struct ieee80211_bss *bss;
 
 		bss = (void *)cbss->priv;
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-		printk(KERN_DEBUG "   sta_find_ibss: selected %pM current "
-		       "%pM\n", cbss->bssid, ifibss->bssid);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
-
-		printk(KERN_DEBUG "%s: Selected IBSS BSSID %pM"
-		       " based on configured SSID\n",
-		       sdata->name, cbss->bssid);
+		ibss_dbg(sdata,
+			 "sta_find_ibss: selected %pM current %pM\n",
+			 cbss->bssid, ifibss->bssid);
+		sdata_info(sdata,
+			   "Selected IBSS BSSID %pM based on configured SSID\n",
+			   cbss->bssid);
 
 		ieee80211_sta_join_ibss(sdata, bss);
 		ieee80211_rx_bss_put(local, bss);
 		return;
 	}
 
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	printk(KERN_DEBUG "   did not try to join ibss\n");
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+	ibss_dbg(sdata, "sta_find_ibss: did not try to join ibss\n");
 
 	/* Selected IBSS not found in current scan results - try to scan */
 	if (time_after(jiffies, ifibss->last_scan_completed +
 					IEEE80211_SCAN_INTERVAL)) {
-		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
-		       "join\n", sdata->name);
+		sdata_info(sdata, "Trigger new scan to find an IBSS to join\n");
 
 		ieee80211_request_internal_scan(sdata,
 				ifibss->ssid, ifibss->ssid_len,
@@ -784,9 +758,8 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 				ieee80211_sta_create_ibss(sdata);
 				return;
 			}
-			printk(KERN_DEBUG "%s: IBSS not allowed on"
-			       " %d MHz\n", sdata->name,
-			       local->hw.conf.channel->center_freq);
+			sdata_info(sdata, "IBSS not allowed on %d MHz\n",
+				   local->hw.conf.channel->center_freq);
 
 			/* No IBSS found - decrease scan interval and continue
 			 * scanning. */
@@ -821,17 +794,14 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	tx_last_beacon = drv_tx_last_beacon(local);
 
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	printk(KERN_DEBUG "%s: RX ProbeReq SA=%pM DA=%pM BSSID=%pM"
-	       " (tx_last_beacon=%d)\n",
-	       sdata->name, mgmt->sa, mgmt->da,
-	       mgmt->bssid, tx_last_beacon);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+	ibss_dbg(sdata,
+		 "RX ProbeReq SA=%pM DA=%pM BSSID=%pM (tx_last_beacon=%d)\n",
+		 mgmt->sa, mgmt->da, mgmt->bssid, tx_last_beacon);
 
 	if (!tx_last_beacon && is_multicast_ether_addr(mgmt->da))
 		return;
 
-	if (compare_ether_addr(mgmt->bssid, ifibss->bssid) != 0 &&
+	if (!ether_addr_equal(mgmt->bssid, ifibss->bssid) &&
 	    !is_broadcast_ether_addr(mgmt->bssid))
 		return;
 
@@ -839,11 +809,8 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	pos = mgmt->u.probe_req.variable;
 	if (pos[0] != WLAN_EID_SSID ||
 	    pos + 2 + pos[1] > end) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-		printk(KERN_DEBUG "%s: Invalid SSID IE in ProbeReq "
-		       "from %pM\n",
-		       sdata->name, mgmt->sa);
-#endif
+		ibss_dbg(sdata, "Invalid SSID IE in ProbeReq from %pM\n",
+			 mgmt->sa);
 		return;
 	}
 	if (pos[1] != 0 &&
@@ -860,10 +827,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	resp = (struct ieee80211_mgmt *) skb->data;
 	memcpy(resp->da, mgmt->sa, ETH_ALEN);
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	printk(KERN_DEBUG "%s: Sending ProbeResp to %pM\n",
-	       sdata->name, resp->da);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+	ibss_dbg(sdata, "Sending ProbeResp to %pM\n", resp->da);
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
 	ieee80211_tx_skb(sdata, skb);
 }
@@ -1063,7 +1027,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 			    4 /* IBSS params */ +
 			    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
 			    2 + sizeof(struct ieee80211_ht_cap) +
-			    2 + sizeof(struct ieee80211_ht_info) +
+			    2 + sizeof(struct ieee80211_ht_operation) +
 			    params->ie_len);
 	if (!skb)
 		return -ENOMEM;

@@ -30,6 +30,7 @@
 #include <asm/mach/arch.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/stamp9g20.h>
 
@@ -40,17 +41,6 @@
 static void __init pcontrol_g20_init_early(void)
 {
 	stamp9g20_init_early();
-
-	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) piggyback  A2 */
-	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS
-						| ATMEL_UART_RTS);
-
-	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS) isolated RS485  X5 */
-	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS
-						| ATMEL_UART_RTS);
-
-	/* USART2 on ttyS3. (Rx, Tx)  9bit-Bus  Multidrop-mode  X4 */
-	at91_register_uart(AT91SAM9260_ID_US4, 3, 0);
 }
 
 static struct sam9_smc_config __initdata pcontrol_smc_config[2] = { {
@@ -199,6 +189,16 @@ static struct spi_board_info pcontrol_g20_spi_devices[] = {
 
 static void __init pcontrol_g20_board_init(void)
 {
+	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) piggyback  A2 */
+	at91_register_uart(AT91SAM9260_ID_US0, 1, ATMEL_UART_CTS
+						| ATMEL_UART_RTS);
+
+	/* USART1 on ttyS2. (Rx, Tx, CTS, RTS) isolated RS485  X5 */
+	at91_register_uart(AT91SAM9260_ID_US1, 2, ATMEL_UART_CTS
+						| ATMEL_UART_RTS);
+
+	/* USART2 on ttyS3. (Rx, Tx)  9bit-Bus  Multidrop-mode  X4 */
+	at91_register_uart(AT91SAM9260_ID_US4, 3, 0);
 	stamp9g20_board_init();
 	at91_add_device_usbh(&usbh_data);
 	at91_add_device_eth(&macb_data);
@@ -219,6 +219,7 @@ MACHINE_START(PCONTROL_G20, "PControl G20")
 	/* Maintainer: pgsellmann@portner-elektronik.at */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= pcontrol_g20_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= pcontrol_g20_board_init,

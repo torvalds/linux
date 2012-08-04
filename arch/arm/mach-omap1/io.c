@@ -18,12 +18,11 @@
 
 #include <plat/mux.h>
 #include <plat/tc.h>
+#include <plat/dma.h>
 
 #include "iomap.h"
 #include "common.h"
 #include "clock.h"
-
-extern void omap_check_revision(void);
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -136,6 +135,11 @@ void __init omap1_init_early(void)
 	omap1_clk_init();
 	omap1_mux_init();
 	omap_init_consistent_dma_size();
+}
+
+void __init omap1_init_late(void)
+{
+	omap_serial_wakeup_init();
 }
 
 /*

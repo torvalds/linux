@@ -78,7 +78,7 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 
 static int ni6527_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
-static int ni6527_detach(struct comedi_device *dev);
+static void ni6527_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni6527 = {
 	.driver_name = "ni6527",
 	.module = THIS_MODULE,
@@ -174,22 +174,17 @@ static int ni6527_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	data[1] = readb(devpriv->mite->daq_io_addr + Port_Register(0));
 	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(1)) << 8;
 	data[1] |= readb(devpriv->mite->daq_io_addr + Port_Register(2)) << 16;
 
-	return 2;
+	return insn->n;
 }
 
 static int ni6527_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -211,7 +206,7 @@ static int ni6527_do_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = s->state;
 
-	return 2;
+	return insn->n;
 }
 
 static irqreturn_t ni6527_interrupt(int irq, void *d)
@@ -339,11 +334,8 @@ static int ni6527_intr_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n < 1)
-		return -EINVAL;
-
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int ni6527_intr_insn_config(struct comedi_device *dev,
@@ -397,8 +389,8 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_INFO "comedi board: %s, ID=0x%02x\n", dev->board_name,
 		readb(devpriv->mite->daq_io_addr + ID_Register));
 
-	ret = alloc_subdevices(dev, 3);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -449,19 +441,15 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return 0;
 }
 
-static int ni6527_detach(struct comedi_device *dev)
+static void ni6527_detach(struct comedi_device *dev)
 {
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr)
 		writeb(0x00,
 		       devpriv->mite->daq_io_addr + Master_Interrupt_Control);
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (devpriv && devpriv->mite)
 		mite_unsetup(devpriv->mite);
-
-	return 0;
 }
 
 static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
@@ -493,7 +481,7 @@ static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 static int __devinit driver_ni6527_pci_probe(struct pci_dev *dev,
 					     const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_ni6527.driver_name);
+	return comedi_pci_auto_config(dev, &driver_ni6527);
 }
 
 static void __devexit driver_ni6527_pci_remove(struct pci_dev *dev)

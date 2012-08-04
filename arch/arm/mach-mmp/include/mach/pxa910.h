@@ -20,6 +20,9 @@ extern struct pxa_device_desc pxa910_device_pwm2;
 extern struct pxa_device_desc pxa910_device_pwm3;
 extern struct pxa_device_desc pxa910_device_pwm4;
 extern struct pxa_device_desc pxa910_device_nand;
+extern struct platform_device pxa168_device_u2o;
+extern struct platform_device pxa168_device_u2ootg;
+extern struct platform_device pxa168_device_u2oehci;
 
 extern struct platform_device pxa910_device_gpio;
 extern struct platform_device pxa910_device_rtc;

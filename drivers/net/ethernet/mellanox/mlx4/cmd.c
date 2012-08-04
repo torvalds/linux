@@ -296,7 +296,12 @@ int mlx4_comm_cmd(struct mlx4_dev *dev, u8 cmd, u16 param,
 
 static int cmd_pending(struct mlx4_dev *dev)
 {
-	u32 status = readl(mlx4_priv(dev)->cmd.hcr + HCR_STATUS_OFFSET);
+	u32 status;
+
+	if (pci_channel_offline(dev->pdev))
+		return -EIO;
+
+	status = readl(mlx4_priv(dev)->cmd.hcr + HCR_STATUS_OFFSET);
 
 	return (status & swab32(1 << HCR_GO_BIT)) ||
 		(mlx4_priv(dev)->cmd.toggle ==
@@ -314,11 +319,29 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 
 	mutex_lock(&cmd->hcr_mutex);
 
+	if (pci_channel_offline(dev->pdev)) {
+		/*
+		 * Device is going through error recovery
+		 * and cannot accept commands.
+		 */
+		ret = -EIO;
+		goto out;
+	}
+
 	end = jiffies;
 	if (event)
 		end += msecs_to_jiffies(GO_BIT_TIMEOUT_MSECS);
 
 	while (cmd_pending(dev)) {
+		if (pci_channel_offline(dev->pdev)) {
+			/*
+			 * Device is going through error recovery
+			 * and cannot accept commands.
+			 */
+			ret = -EIO;
+			goto out;
+		}
+
 		if (time_after_eq(jiffies, end)) {
 			mlx4_err(dev, "%s:cmd_pending failed\n", __func__);
 			goto out;
@@ -431,14 +454,33 @@ static int mlx4_cmd_poll(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 
 	down(&priv->cmd.poll_sem);
 
+	if (pci_channel_offline(dev->pdev)) {
+		/*
+		 * Device is going through error recovery
+		 * and cannot accept commands.
+		 */
+		err = -EIO;
+		goto out;
+	}
+
 	err = mlx4_cmd_post(dev, in_param, out_param ? *out_param : 0,
 			    in_modifier, op_modifier, op, CMD_POLL_TOKEN, 0);
 	if (err)
 		goto out;
 
 	end = msecs_to_jiffies(timeout) + jiffies;
-	while (cmd_pending(dev) && time_before(jiffies, end))
+	while (cmd_pending(dev) && time_before(jiffies, end)) {
+		if (pci_channel_offline(dev->pdev)) {
+			/*
+			 * Device is going through error recovery
+			 * and cannot accept commands.
+			 */
+			err = -EIO;
+			goto out;
+		}
+
 		cond_resched();
+	}
 
 	if (cmd_pending(dev)) {
 		err = -ETIMEDOUT;
@@ -532,6 +574,9 @@ int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	       int out_is_imm, u32 in_modifier, u8 op_modifier,
 	       u16 op, unsigned long timeout, int native)
 {
+	if (pci_channel_offline(dev->pdev))
+		return -EIO;
+
 	if (!mlx4_is_mfunc(dev) || (native && mlx4_is_master(dev))) {
 		if (mlx4_priv(dev)->cmd.use_events)
 			return mlx4_cmd_wait(dev, in_param, out_param,
@@ -617,7 +662,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = NULL
+		.wrapper = mlx4_QUERY_FW_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_QUERY_HCA,
@@ -635,7 +680,7 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.out_is_imm = false,
 		.encode_slave_id = false,
 		.verify = NULL,
-		.wrapper = NULL
+		.wrapper = mlx4_QUERY_DEV_CAP_wrapper
 	},
 	{
 		.opcode = MLX4_CMD_QUERY_FUNC_CAP,
@@ -1080,6 +1125,25 @@ static struct mlx4_cmd_info cmd_info[] = {
 		.verify = NULL,
 		.wrapper = NULL
 	},
+	/* flow steering commands */
+	{
+		.opcode = MLX4_QP_FLOW_STEERING_ATTACH,
+		.has_inbox = true,
+		.has_outbox = false,
+		.out_is_imm = true,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QP_FLOW_STEERING_ATTACH_wrapper
+	},
+	{
+		.opcode = MLX4_QP_FLOW_STEERING_DETACH,
+		.has_inbox = false,
+		.has_outbox = false,
+		.out_is_imm = false,
+		.encode_slave_id = false,
+		.verify = NULL,
+		.wrapper = mlx4_QP_FLOW_STEERING_DETACH_wrapper
+	},
 };
 
 static int mlx4_master_process_vhcr(struct mlx4_dev *dev, int slave,
@@ -1254,7 +1318,6 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_state *slave_state = priv->mfunc.master.slave_state;
 	u32 reply;
-	u32 slave_status = 0;
 	u8 is_going_down = 0;
 	int i;
 
@@ -1274,10 +1337,8 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		}
 		/*check if we are in the middle of FLR process,
 		if so return "retry" status to the slave*/
-		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd) {
-			slave_status = MLX4_DELAY_RESET_SLAVE;
+		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd)
 			goto inform_slave_state;
-		}
 
 		/* write the version in the event field */
 		reply |= mlx4_comm_get_version();
@@ -1557,7 +1618,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 	return 0;
 
 err_resource:
-	mlx4_free_resource_tracker(dev);
+	mlx4_free_resource_tracker(dev, RES_TR_FREE_ALL);
 err_thread:
 	flush_workqueue(priv->mfunc.master.comm_wq);
 	destroy_workqueue(priv->mfunc.master.comm_wq);

@@ -2282,6 +2282,7 @@ void uart_unregister_driver(struct uart_driver *drv)
 	tty_unregister_driver(p);
 	put_tty_driver(p);
 	kfree(drv->state);
+	drv->state = NULL;
 	drv->tty_driver = NULL;
 }
 
@@ -2526,14 +2527,16 @@ void uart_insert_char(struct uart_port *port, unsigned int status,
 	struct tty_struct *tty = port->state->port.tty;
 
 	if ((status & port->ignore_status_mask & ~overrun) == 0)
-		tty_insert_flip_char(tty, ch, flag);
+		if (tty_insert_flip_char(tty, ch, flag) == 0)
+			++port->icount.buf_overrun;
 
 	/*
 	 * Overrun is special.  Since it's reported immediately,
 	 * it doesn't affect the current character.
 	 */
 	if (status & ~port->ignore_status_mask & overrun)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		if (tty_insert_flip_char(tty, 0, TTY_OVERRUN) == 0)
+			++port->icount.buf_overrun;
 }
 EXPORT_SYMBOL_GPL(uart_insert_char);
 

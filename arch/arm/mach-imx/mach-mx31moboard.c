@@ -47,6 +47,7 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ulpi.h>
+#include <mach/ssi.h>
 
 #include "devices-imx31.h"
 
@@ -102,6 +103,9 @@ static unsigned int moboard_pins[] = {
 	MX31_PIN_CSPI3_MOSI__MOSI, MX31_PIN_CSPI3_MISO__MISO,
 	MX31_PIN_CSPI3_SCLK__SCLK, MX31_PIN_CSPI3_SPI_RDY__SPI_RDY,
 	MX31_PIN_CSPI2_SS1__CSPI3_SS1,
+	/* SSI */
+	MX31_PIN_STXD4__STXD4, MX31_PIN_SRXD4__SRXD4,
+	MX31_PIN_SCK4__SCK4, MX31_PIN_SFS4__SFS4,
 };
 
 static struct physmap_flash_data mx31moboard_flash_data = {
@@ -276,6 +280,11 @@ static struct mc13xxx_buttons_platform_data moboard_buttons = {
 	.b1on_key = KEY_POWER,
 };
 
+static struct mc13xxx_codec_platform_data moboard_codec = {
+	.dac_ssi_port = MC13783_SSI1_PORT,
+	.adc_ssi_port = MC13783_SSI1_PORT,
+};
+
 static struct mc13xxx_platform_data moboard_pmic = {
 	.regulators = {
 		.regulators = moboard_regulators,
@@ -283,13 +292,18 @@ static struct mc13xxx_platform_data moboard_pmic = {
 	},
 	.leds = &moboard_leds,
 	.buttons = &moboard_buttons,
-	.flags = MC13XXX_USE_RTC | MC13XXX_USE_ADC,
+	.codec = &moboard_codec,
+	.flags = MC13XXX_USE_RTC | MC13XXX_USE_ADC | MC13XXX_USE_CODEC,
+};
+
+static struct imx_ssi_platform_data moboard_ssi_pdata = {
+	.flags = IMX_SSI_DMA | IMX_SSI_NET,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {
 	{
 		.modalias = "mc13783",
-		.irq = IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+		/* irq number is run-time assigned */
 		.max_speed_hz = 300000,
 		.bus_num = 1,
 		.chip_select = 0,
@@ -459,10 +473,6 @@ static const struct gpio_led_platform_data mx31moboard_led_pdata __initconst = {
 	.leds		= mx31moboard_leds,
 };
 
-static const struct ipu_platform_data mx3_ipu_data __initconst = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -480,7 +490,7 @@ static int __init mx31moboard_init_cam(void)
 	int dma, ret = -ENOMEM;
 	struct platform_device *pdev;
 
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 
 	pdev = imx31_alloc_mx3_camera(&camera_pdata);
 	if (IS_ERR(pdev))
@@ -530,7 +540,7 @@ static void __init mx31moboard_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gpio_led_register_device(-1, &mx31moboard_led_pdata);
 
-	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx2_wdt();
 
 	imx31_add_imx_uart0(&uart0_pdata);
 	imx31_add_imx_uart4(&uart4_pdata);
@@ -543,6 +553,8 @@ static void __init mx31moboard_init(void)
 
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3), "pmic-irq");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
+	moboard_spi_board_info[0].irq =
+			gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(moboard_spi_board_info,
 		ARRAY_SIZE(moboard_spi_board_info));
 
@@ -553,6 +565,10 @@ static void __init mx31moboard_init(void)
 	usb_xcvr_reset();
 
 	moboard_usbh2_init();
+
+	imx31_add_imx_ssi(0, &moboard_ssi_pdata);
+
+	imx_add_platform_device("imx_mc13783", 0, NULL, 0, NULL, 0);
 
 	pm_power_off = mx31moboard_poweroff;
 
@@ -580,7 +596,7 @@ static void __init mx31moboard_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer mx31moboard_timer = {
+static struct sys_timer mx31moboard_timer = {
 	.init	= mx31moboard_timer_init,
 };
 

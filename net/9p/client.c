@@ -1530,7 +1530,7 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 
 
 	p9_debug(P9_DEBUG_9P, ">>> TREAD fid %d offset %llu %d\n",
-		   fid->fid, (long long unsigned) offset, count);
+		   fid->fid, (unsigned long long) offset, count);
 	err = 0;
 	clnt = fid->clnt;
 
@@ -1548,7 +1548,7 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 			kernel_buf = 1;
 			indata = data;
 		} else
-			indata = (char *)udata;
+			indata = (__force char *)udata;
 		/*
 		 * response header len is 11
 		 * PDU Header(7) + IO Size (4)
@@ -1605,7 +1605,7 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 	struct p9_req_t *req;
 
 	p9_debug(P9_DEBUG_9P, ">>> TWRITE fid %d offset %llu count %d\n",
-				fid->fid, (long long unsigned) offset, count);
+				fid->fid, (unsigned long long) offset, count);
 	err = 0;
 	clnt = fid->clnt;
 
@@ -2040,7 +2040,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	char *dataptr;
 
 	p9_debug(P9_DEBUG_9P, ">>> TREADDIR fid %d offset %llu count %d\n",
-				fid->fid, (long long unsigned) offset, count);
+				fid->fid, (unsigned long long) offset, count);
 
 	err = 0;
 	clnt = fid->clnt;

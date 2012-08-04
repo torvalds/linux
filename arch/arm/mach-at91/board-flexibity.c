@@ -34,6 +34,7 @@
 
 #include <mach/hardware.h>
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 
 #include "generic.h"
 
@@ -41,12 +42,6 @@ static void __init flexibity_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /* USB Host port */
@@ -143,6 +138,8 @@ static struct gpio_led flexibity_leds[] = {
 static void __init flexibity_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* USB Host */
 	at91_add_device_usbh(&flexibity_usbh_data);
@@ -164,6 +161,7 @@ MACHINE_START(FLEXIBITY, "Flexibity Connect")
 	/* Maintainer: Maxim Osipov */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= flexibity_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= flexibity_board_init,

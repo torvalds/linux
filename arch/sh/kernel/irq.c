@@ -231,14 +231,6 @@ void __init init_IRQ(void)
 	irq_ctx_init(smp_processor_id());
 }
 
-#ifdef CONFIG_SPARSE_IRQ
-int __init arch_probe_nr_irqs(void)
-{
-	nr_irqs = sh_mv.mv_nr_irqs;
-	return NR_IRQS_LEGACY;
-}
-#endif
-
 #ifdef CONFIG_HOTPLUG_CPU
 static void route_irq(struct irq_data *data, unsigned int irq, unsigned int cpu)
 {

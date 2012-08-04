@@ -42,7 +42,6 @@
 #define AR9300_EEPMISC_WOW           0x02
 #define AR9300_CUSTOMER_DATA_SIZE    20
 
-#define FBIN2FREQ(x, y) ((y) ? (2300 + x) : (4800 + 5 * x))
 #define AR9300_MAX_CHAINS            3
 #define AR9300_ANT_16S               25
 #define AR9300_FUTURE_MODAL_SZ       6
@@ -232,7 +231,8 @@ struct ar9300_modal_eep_header {
 	__le32 papdRateMaskHt20;
 	__le32 papdRateMaskHt40;
 	__le16 switchcomspdt;
-	u8 futureModal[8];
+	u8 xlna_bias_strength;
+	u8 futureModal[7];
 } __packed;
 
 struct ar9300_cal_data_per_freq_op_loop {
@@ -335,4 +335,7 @@ u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
 
 unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 					   struct ath9k_channel *chan);
+
+void ar9003_hw_internal_regulator_apply(struct ath_hw *ah);
+
 #endif

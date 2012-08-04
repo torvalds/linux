@@ -18,7 +18,6 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
@@ -556,7 +555,7 @@ xfs_bulkstat_single(
 
 	/*
 	 * note that requesting valid inode numbers which are not allocated
-	 * to inodes will most likely cause xfs_itobp to generate warning
+	 * to inodes will most likely cause xfs_imap_to_bp to generate warning
 	 * messages about bad magic numbers. This is ok. The fact that
 	 * the inode isn't actually an inode is handled by the
 	 * error check below. Done this way to make the usual case faster

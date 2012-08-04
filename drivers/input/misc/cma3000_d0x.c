@@ -58,7 +58,7 @@
 
 /*
  * Bit weights in mg for bit 0, other bits need
- * multipy factor 2^n. Eight bit is the sign bit.
+ * multiply factor 2^n. Eight bit is the sign bit.
  */
 #define BIT_TO_2G  18
 #define BIT_TO_8G  71
@@ -318,7 +318,7 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 	mutex_init(&data->mutex);
 
 	data->mode = pdata->mode;
-	if (data->mode < CMAMODE_DEFAULT || data->mode > CMAMODE_POFF) {
+	if (data->mode > CMAMODE_POFF) {
 		data->mode = CMAMODE_MOTDET;
 		dev_warn(dev,
 			 "Invalid mode specified, assuming Motion Detect\n");

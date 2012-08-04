@@ -50,7 +50,41 @@ acpi_evaluate_reference(acpi_handle handle,
 			acpi_string pathname,
 			struct acpi_object_list *arguments,
 			struct acpi_handle_list *list);
+acpi_status
+acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
+			u32 status_code, struct acpi_buffer *status_buf);
 
+struct acpi_pld {
+	unsigned int revision:7; /* 0 */
+	unsigned int ignore_colour:1; /* 7 */
+	unsigned int colour:24; /* 8 */
+	unsigned int width:16; /* 32 */
+	unsigned int height:16; /* 48 */
+	unsigned int user_visible:1; /* 64 */
+	unsigned int dock:1; /* 65 */
+	unsigned int lid:1; /* 66 */
+	unsigned int panel:3; /* 67 */
+	unsigned int vertical_pos:2; /* 70 */
+	unsigned int horizontal_pos:2; /* 72 */
+	unsigned int shape:4; /* 74 */
+	unsigned int group_orientation:1; /* 78 */
+	unsigned int group_token:8; /* 79 */
+	unsigned int group_position:8; /* 87 */
+	unsigned int bay:1; /* 95 */
+	unsigned int ejectable:1; /* 96 */
+	unsigned int ospm_eject_required:1; /* 97 */
+	unsigned int cabinet_number:8; /* 98 */
+	unsigned int card_cage_number:8; /* 106 */
+	unsigned int reference:1; /* 114 */
+	unsigned int rotation:4; /* 115 */
+	unsigned int order:5; /* 119 */
+	unsigned int reserved:4; /* 124 */
+	unsigned int vertical_offset:16; /* 128 */
+	unsigned int horizontal_offset:16; /* 144 */
+} __attribute__((__packed__));
+
+acpi_status
+acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld *pld);
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
@@ -86,9 +120,6 @@ struct acpi_device;
 typedef int (*acpi_op_add) (struct acpi_device * device);
 typedef int (*acpi_op_remove) (struct acpi_device * device, int type);
 typedef int (*acpi_op_start) (struct acpi_device * device);
-typedef int (*acpi_op_suspend) (struct acpi_device * device,
-				pm_message_t state);
-typedef int (*acpi_op_resume) (struct acpi_device * device);
 typedef int (*acpi_op_bind) (struct acpi_device * device);
 typedef int (*acpi_op_unbind) (struct acpi_device * device);
 typedef void (*acpi_op_notify) (struct acpi_device * device, u32 event);
@@ -102,8 +133,6 @@ struct acpi_device_ops {
 	acpi_op_add add;
 	acpi_op_remove remove;
 	acpi_op_start start;
-	acpi_op_suspend suspend;
-	acpi_op_resume resume;
 	acpi_op_bind bind;
 	acpi_op_unbind unbind;
 	acpi_op_notify notify;
@@ -148,7 +177,8 @@ struct acpi_device_flags {
 	u32 suprise_removal_ok:1;
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
-	u32 reserved:24;
+	u32 eject_pending:1;
+	u32 reserved:23;
 };
 
 /* File System */
@@ -300,6 +330,11 @@ struct acpi_bus_event {
 	u32 data;
 };
 
+struct acpi_eject_event {
+	acpi_handle	handle;
+	u32		event;
+};
+
 extern struct kobject *acpi_kobj;
 extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
 void acpi_bus_private_data_handler(acpi_handle, void *);
@@ -337,6 +372,7 @@ int acpi_bus_register_driver(struct acpi_driver *driver);
 void acpi_bus_unregister_driver(struct acpi_driver *driver);
 int acpi_bus_add(struct acpi_device **child, struct acpi_device *parent,
 		 acpi_handle handle, int type);
+void acpi_bus_hot_remove_device(void *context);
 int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 int acpi_bus_start(struct acpi_device *device);
 acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
@@ -370,6 +406,7 @@ struct acpi_pci_root {
 
 	u32 osc_support_set;	/* _OSC state of support bits */
 	u32 osc_control_set;	/* _OSC state of control bits */
+	phys_addr_t mcfg_addr;
 };
 
 /* helper */
@@ -383,13 +420,13 @@ int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
 int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
 #ifdef CONFIG_PM
-int acpi_pm_device_sleep_state(struct device *, int *);
+int acpi_pm_device_sleep_state(struct device *, int *, int);
 #else
-static inline int acpi_pm_device_sleep_state(struct device *d, int *p)
+static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 {
 	if (p)
 		*p = ACPI_STATE_D0;
-	return ACPI_STATE_D3;
+	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3) ? m : ACPI_STATE_D0;
 }
 #endif
 
@@ -406,6 +443,11 @@ static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 	return -ENODEV;
 }
 #endif
+
+#else	/* CONFIG_ACPI */
+
+static inline int register_acpi_bus_type(void *bus) { return 0; }
+static inline int unregister_acpi_bus_type(void *bus) { return 0; }
 
 #endif				/* CONFIG_ACPI */
 

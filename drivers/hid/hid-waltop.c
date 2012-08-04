@@ -502,28 +502,146 @@ static __u8 media_tablet_14_1_inch_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-struct waltop_state {
-	u8 pressure0;
-	u8 pressure1;
+/*
+ * See Sirius Battery Free Tablet description, device and HID report descriptors
+ * at
+ * http://sf.net/apps/mediawiki/digimend/?title=Waltop_Sirius_Battery_Free_Tablet
+ */
+
+/* Size of the original report descriptor of Sirius Battery Free Tablet */
+#define SIRIUS_BATTERY_FREE_TABLET_RDESC_ORIG_SIZE	335
+
+/* Fixed Sirius Battery Free Tablet descriptor */
+static __u8 sirius_battery_free_tablet_rdesc_fixed[] = {
+	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
+	0x09, 0x02,         /*  Usage (Pen),                        */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x10,         /*      Report ID (16),                 */
+	0x09, 0x20,         /*      Usage (Stylus),                 */
+	0xA0,               /*      Collection (Physical),          */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x15, 0x01,         /*          Logical Minimum (1),        */
+	0x25, 0x03,         /*          Logical Maximum (3),        */
+	0x75, 0x02,         /*          Report Size (2),            */
+	0x09, 0x42,         /*          Usage (Tip Switch),         */
+	0x09, 0x44,         /*          Usage (Barrel Switch),      */
+	0x09, 0x46,         /*          Usage (Tablet Pick),        */
+	0x80,               /*          Input,                      */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x09, 0x3C,         /*          Usage (Invert),             */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0x09, 0x32,         /*          Usage (In Range),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x03,         /*          Report Count (3),           */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0xA4,               /*          Push,                       */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x55, 0xFD,         /*          Unit Exponent (-3),         */
+	0x65, 0x13,         /*          Unit (Inch),                */
+	0x34,               /*          Physical Minimum (0),       */
+	0x14,               /*          Logical Minimum (0),        */
+	0x75, 0x10,         /*          Report Size (16),           */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x46, 0x10, 0x27,   /*          Physical Maximum (10000),   */
+	0x26, 0x20, 0x4E,   /*          Logical Maximum (20000),    */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x46, 0x70, 0x17,   /*          Physical Maximum (6000),    */
+	0x26, 0xE0, 0x2E,   /*          Logical Maximum (12000),    */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xB4,               /*          Pop,                        */
+	0x75, 0x10,         /*          Report Size (16),           */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x14,               /*          Logical Minimum (0),        */
+	0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),     */
+	0x09, 0x30,         /*          Usage (Tip Pressure),       */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xA4,               /*          Push,                       */
+	0x55, 0xFE,         /*          Unit Exponent (-2),         */
+	0x65, 0x12,         /*          Unit (Radians),             */
+	0x35, 0x97,         /*          Physical Minimum (-105),    */
+	0x45, 0x69,         /*          Physical Maximum (105),     */
+	0x15, 0x97,         /*          Logical Minimum (-105),     */
+	0x25, 0x69,         /*          Logical Maximum (105),      */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x09, 0x3D,         /*          Usage (X Tilt),             */
+	0x09, 0x3E,         /*          Usage (Y Tilt),             */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xB4,               /*          Pop,                        */
+	0xC0,               /*      End Collection,                 */
+	0xC0,               /*  End Collection,                     */
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x02,         /*  Usage (Mouse),                      */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x01,         /*      Report ID (1),                  */
+	0x09, 0x01,         /*      Usage (Pointer),                */
+	0xA0,               /*      Collection (Physical),          */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x03,         /*          Report Count (3),           */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x15, 0xFF,         /*          Logical Minimum (-1),       */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x06,         /*          Input (Variable, Relative), */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x03,         /*          Report Count (3),           */
+	0x81, 0x03,         /*          Input (Constant, Variable), */
+	0xC0,               /*      End Collection,                 */
+	0xC0,               /*  End Collection,                     */
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x06,         /*  Usage (Keyboard),                   */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x0D,         /*      Report ID (13),                 */
+	0x05, 0x07,         /*      Usage Page (Keyboard),          */
+	0x19, 0xE0,         /*      Usage Minimum (KB Leftcontrol), */
+	0x29, 0xE7,         /*      Usage Maximum (KB Right GUI),   */
+	0x14,               /*      Logical Minimum (0),            */
+	0x25, 0x01,         /*      Logical Maximum (1),            */
+	0x75, 0x01,         /*      Report Size (1),                */
+	0x95, 0x08,         /*      Report Count (8),               */
+	0x81, 0x02,         /*      Input (Variable),               */
+	0x75, 0x08,         /*      Report Size (8),                */
+	0x95, 0x01,         /*      Report Count (1),               */
+	0x81, 0x01,         /*      Input (Constant),               */
+	0x18,               /*      Usage Minimum (None),           */
+	0x29, 0x65,         /*      Usage Maximum (KB Application), */
+	0x14,               /*      Logical Minimum (0),            */
+	0x25, 0x65,         /*      Logical Maximum (101),          */
+	0x75, 0x08,         /*      Report Size (8),                */
+	0x95, 0x05,         /*      Report Count (5),               */
+	0x80,               /*      Input,                          */
+	0xC0,               /*  End Collection,                     */
+	0x05, 0x0C,         /*  Usage Page (Consumer),              */
+	0x09, 0x01,         /*  Usage (Consumer Control),           */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x0C,         /*      Report ID (12),                 */
+	0x09, 0xE9,         /*      Usage (Volume Inc),             */
+	0x09, 0xEA,         /*      Usage (Volume Dec),             */
+	0x14,               /*      Logical Minimum (0),            */
+	0x25, 0x01,         /*      Logical Maximum (1),            */
+	0x75, 0x01,         /*      Report Size (1),                */
+	0x95, 0x02,         /*      Report Count (2),               */
+	0x81, 0x02,         /*      Input (Variable),               */
+	0x75, 0x06,         /*      Report Size (6),                */
+	0x95, 0x01,         /*      Report Count (1),               */
+	0x81, 0x03,         /*      Input (Constant, Variable),     */
+	0x75, 0x10,         /*      Report Size (16),               */
+	0x95, 0x03,         /*      Report Count (3),               */
+	0x81, 0x03,         /*      Input (Constant, Variable),     */
+	0xC0                /*  End Collection                      */
 };
 
 static int waltop_probe(struct hid_device *hdev,
 			const struct hid_device_id *id)
 {
 	int ret;
-	struct waltop_state *s;
-
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
-	if (s == NULL) {
-		hid_err(hdev, "can't allocate device state\n");
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	s->pressure0 = 0;
-	s->pressure1 = 0;
-
-	hid_set_drvdata(hdev, s);
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -539,7 +657,6 @@ static int waltop_probe(struct hid_device *hdev,
 
 	return 0;
 err:
-	kfree(s);
 	return ret;
 }
 
@@ -583,6 +700,12 @@ static __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			*rsize = sizeof(media_tablet_14_1_inch_rdesc_fixed);
 		}
 		break;
+	case USB_DEVICE_ID_WALTOP_SIRIUS_BATTERY_FREE_TABLET:
+		if (*rsize == SIRIUS_BATTERY_FREE_TABLET_RDESC_ORIG_SIZE) {
+			rdesc = sirius_battery_free_tablet_rdesc_fixed;
+			*rsize = sizeof(sirius_battery_free_tablet_rdesc_fixed);
+		}
+		break;
 	}
 	return rdesc;
 }
@@ -590,28 +713,64 @@ static __u8 *waltop_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 static int waltop_raw_event(struct hid_device *hdev, struct hid_report *report,
 		     u8 *data, int size)
 {
-	/* If this is a pen input report of a tablet with PID 0038 */
-	if (hdev->product == USB_DEVICE_ID_WALTOP_PID_0038 &&
-	    report->type == HID_INPUT_REPORT &&
-	    report->id == 16 &&
-	    size == 8) {
-		struct waltop_state *s = hid_get_drvdata(hdev);
-
+	/* If this is a pen input report */
+	if (report->type == HID_INPUT_REPORT && report->id == 16 && size >= 8) {
 		/*
-		 * Ignore maximum pressure reported when a barrel button is
-		 * pressed.
+		 * Ignore reported pressure when a barrel button is pressed,
+		 * because it is rarely correct.
 		 */
 
 		/* If a barrel button is pressed */
 		if ((data[1] & 0xF) > 1) {
-			/* Use the last known pressure */
-			data[6] = s->pressure0;
-			data[7] = s->pressure1;
-		} else {
-			/* Remember reported pressure */
-			s->pressure0 = data[6];
-			s->pressure1 = data[7];
+			/* Report zero pressure */
+			data[6] = 0;
+			data[7] = 0;
 		}
+	}
+
+	/* If this is a pen input report of Sirius Battery Free Tablet */
+	if (hdev->product == USB_DEVICE_ID_WALTOP_SIRIUS_BATTERY_FREE_TABLET &&
+	    report->type == HID_INPUT_REPORT &&
+	    report->id == 16 &&
+	    size == 10) {
+		/*
+		 * The tablet reports tilt as roughly sin(a)*21 (18 means 60
+		 * degrees).
+		 *
+		 * This array stores angles as radians * 100, corresponding to
+		 * reported values up to 60 degrees, as expected by userspace.
+		 */
+		static const s8 tilt_to_radians[] = {
+			0, 5, 10, 14, 19, 24, 29, 34, 40, 45,
+			50, 56, 62, 68, 74, 81, 88, 96, 105
+		};
+
+		s8 tilt_x = (s8)data[8];
+		s8 tilt_y = (s8)data[9];
+		s8 sign_x = tilt_x >= 0 ? 1 : -1;
+		s8 sign_y = tilt_y >= 0 ? 1 : -1;
+
+		tilt_x *= sign_x;
+		tilt_y *= sign_y;
+
+		/*
+		 * Reverse the Y Tilt direction to match the HID standard and
+		 * userspace expectations. See HID Usage Tables v1.12 16.3.2
+		 * Tilt Orientation.
+		 */
+		sign_y *= -1;
+
+		/*
+		 * This effectively clamps reported tilt to 60 degrees - the
+		 * range expected by userspace
+		 */
+		if (tilt_x > ARRAY_SIZE(tilt_to_radians) - 1)
+			tilt_x = ARRAY_SIZE(tilt_to_radians) - 1;
+		if (tilt_y > ARRAY_SIZE(tilt_to_radians) - 1)
+			tilt_y = ARRAY_SIZE(tilt_to_radians) - 1;
+
+		data[8] = tilt_to_radians[tilt_x] * sign_x;
+		data[9] = tilt_to_radians[tilt_y] * sign_y;
 	}
 
 	return 0;
@@ -619,10 +778,7 @@ static int waltop_raw_event(struct hid_device *hdev, struct hid_report *report,
 
 static void waltop_remove(struct hid_device *hdev)
 {
-	struct waltop_state *s = hid_get_drvdata(hdev);
-
 	hid_hw_stop(hdev);
-	kfree(s);
 }
 
 static const struct hid_device_id waltop_devices[] = {
@@ -638,6 +794,8 @@ static const struct hid_device_id waltop_devices[] = {
 				USB_DEVICE_ID_WALTOP_MEDIA_TABLET_10_6_INCH) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
 				USB_DEVICE_ID_WALTOP_MEDIA_TABLET_14_1_INCH) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_WALTOP,
+			 USB_DEVICE_ID_WALTOP_SIRIUS_BATTERY_FREE_TABLET) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, waltop_devices);

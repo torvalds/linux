@@ -105,9 +105,6 @@ struct at91_ep {
 	unsigned			is_in:1;
 	unsigned			is_iso:1;
 	unsigned			fifo_bank:1;
-
-	const struct usb_endpoint_descriptor
-					*desc;
 };
 
 /*

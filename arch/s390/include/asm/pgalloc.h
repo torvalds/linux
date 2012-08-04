@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/pgalloc.h
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Hartmut Penner (hp@de.ibm.com)
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -48,7 +46,7 @@ static inline void crst_table_init(unsigned long *crst, unsigned long entry)
 	clear_table(crst, entry, sizeof(unsigned long)*2048);
 }
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
@@ -64,7 +62,7 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 #define pgd_populate(mm, pgd, pud)		BUG()
 #define pud_populate(mm, pud, pmd)		BUG()
 
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 
 static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
@@ -106,7 +104,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
 }
 
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {

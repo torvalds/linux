@@ -1,7 +1,7 @@
 /*
  * OMAP3 clock data
  *
- * Copyright (C) 2007-2010 Texas Instruments, Inc.
+ * Copyright (C) 2007-2010, 2012 Texas Instruments, Inc.
  * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -93,18 +93,6 @@ static struct clk virt_16_8m_ck = {
 	.rate		= 16800000,
 };
 
-static struct clk virt_19_2m_ck = {
-	.name		= "virt_19_2m_ck",
-	.ops		= &clkops_null,
-	.rate		= 19200000,
-};
-
-static struct clk virt_26m_ck = {
-	.name		= "virt_26m_ck",
-	.ops		= &clkops_null,
-	.rate		= 26000000,
-};
-
 static struct clk virt_38_4m_ck = {
 	.name		= "virt_38_4m_ck",
 	.ops		= &clkops_null,
@@ -145,8 +133,8 @@ static const struct clksel osc_sys_clksel[] = {
 	{ .parent = &virt_12m_ck,   .rates = osc_sys_12m_rates },
 	{ .parent = &virt_13m_ck,   .rates = osc_sys_13m_rates },
 	{ .parent = &virt_16_8m_ck, .rates = osc_sys_16_8m_rates },
-	{ .parent = &virt_19_2m_ck, .rates = osc_sys_19_2m_rates },
-	{ .parent = &virt_26m_ck,   .rates = osc_sys_26m_rates },
+	{ .parent = &virt_19200000_ck, .rates = osc_sys_19_2m_rates },
+	{ .parent = &virt_26000000_ck,   .rates = osc_sys_26m_rates },
 	{ .parent = &virt_38_4m_ck, .rates = osc_sys_38_4m_rates },
 	{ .parent = NULL },
 };
@@ -1640,6 +1628,7 @@ static struct clk hdq_fck = {
 	.name		= "hdq_fck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &core_12m_fck,
+	.clkdm_name	= "core_l4_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
 	.enable_bit	= OMAP3430_EN_HDQ_SHIFT,
 	.recalc		= &followparent_recalc,
@@ -2489,13 +2478,13 @@ static struct clk uart4_fck = {
 };
 
 static struct clk uart4_fck_am35xx = {
-	.name           = "uart4_fck",
-	.ops            = &clkops_omap2_dflt_wait,
-	.parent         = &per_48m_fck,
-	.enable_reg     = OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
-	.enable_bit     = OMAP3430_EN_UART4_SHIFT,
-	.clkdm_name     = "core_l4_clkdm",
-	.recalc         = &followparent_recalc,
+	.name		= "uart4_fck",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &core_48m_fck,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_FCLKEN1),
+	.enable_bit	= AM35XX_EN_UART4_SHIFT,
+	.clkdm_name	= "core_l4_clkdm",
+	.recalc		= &followparent_recalc,
 };
 
 static struct clk gpt2_fck = {
@@ -3200,8 +3189,12 @@ static struct clk vpfe_fck = {
 };
 
 /*
- * The UART1/2 functional clock acts as the functional
- * clock for UART4. No separate fclk control available.
+ * The UART1/2 functional clock acts as the functional clock for
+ * UART4. No separate fclk control available.  XXX Well now we have a
+ * uart4_fck that is apparently used as the UART4 functional clock,
+ * but it also seems that uart1_fck or uart2_fck are still needed, at
+ * least for UART4 softresets to complete.  This really needs
+ * clarification.
  */
 static struct clk uart4_ick_am35xx = {
 	.name		= "uart4_ick",
@@ -3229,17 +3222,12 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"virt_12m_ck",	&virt_12m_ck,	CK_3XXX),
 	CLK(NULL,	"virt_13m_ck",	&virt_13m_ck,	CK_3XXX),
 	CLK(NULL,	"virt_16_8m_ck", &virt_16_8m_ck, CK_3430ES2PLUS | CK_AM35XX  | CK_36XX),
-	CLK(NULL,	"virt_19_2m_ck", &virt_19_2m_ck, CK_3XXX),
-	CLK(NULL,	"virt_26m_ck",	&virt_26m_ck,	CK_3XXX),
+	CLK(NULL,	"virt_19200000_ck", &virt_19200000_ck, CK_3XXX),
+	CLK(NULL,	"virt_26000000_ck",	&virt_26000000_ck,	CK_3XXX),
 	CLK(NULL,	"virt_38_4m_ck", &virt_38_4m_ck, CK_3XXX),
 	CLK(NULL,	"osc_sys_ck",	&osc_sys_ck,	CK_3XXX),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_3XXX),
 	CLK(NULL,	"sys_altclk",	&sys_altclk,	CK_3XXX),
-	CLK("omap-mcbsp.1",	"pad_fck",	&mcbsp_clks,	CK_3XXX),
-	CLK("omap-mcbsp.2",	"pad_fck",	&mcbsp_clks,	CK_3XXX),
-	CLK("omap-mcbsp.3",	"pad_fck",	&mcbsp_clks,	CK_3XXX),
-	CLK("omap-mcbsp.4",	"pad_fck",	&mcbsp_clks,	CK_3XXX),
-	CLK("omap-mcbsp.5",	"pad_fck",	&mcbsp_clks,	CK_3XXX),
 	CLK(NULL,	"mcbsp_clks",	&mcbsp_clks,	CK_3XXX),
 	CLK(NULL,	"sys_clkout1",	&sys_clkout1,	CK_3XXX),
 	CLK(NULL,	"dpll1_ck",	&dpll1_ck,	CK_3XXX),
@@ -3294,8 +3282,8 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"gfx_l3_ick",	&gfx_l3_ick,	CK_3430ES1),
 	CLK(NULL,	"gfx_cg1_ck",	&gfx_cg1_ck,	CK_3430ES1),
 	CLK(NULL,	"gfx_cg2_ck",	&gfx_cg2_ck,	CK_3430ES1),
-	CLK(NULL,	"sgx_fck",	&sgx_fck,	CK_3430ES2PLUS | CK_3517 | CK_36XX),
-	CLK(NULL,	"sgx_ick",	&sgx_ick,	CK_3430ES2PLUS | CK_3517 | CK_36XX),
+	CLK(NULL,	"sgx_fck",	&sgx_fck,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
+	CLK(NULL,	"sgx_ick",	&sgx_ick,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK(NULL,	"d2d_26m_fck",	&d2d_26m_fck,	CK_3430ES1),
 	CLK(NULL,	"modem_fck",	&modem_fck,	CK_34XX | CK_36XX),
 	CLK(NULL,	"sad2d_ick",	&sad2d_ick,	CK_34XX | CK_36XX),
@@ -3306,8 +3294,6 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"ts_fck",	&ts_fck,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK(NULL,	"usbtll_fck",	&usbtll_fck,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK("usbhs_omap",	"usbtll_fck",	&usbtll_fck,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
-	CLK("omap-mcbsp.1",	"prcm_fck",	&core_96m_fck,	CK_3XXX),
-	CLK("omap-mcbsp.5",	"prcm_fck",	&core_96m_fck,	CK_3XXX),
 	CLK(NULL,	"core_96m_fck",	&core_96m_fck,	CK_3XXX),
 	CLK(NULL,	"mmchs3_fck",	&mmchs3_fck,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK(NULL,	"mmchs2_fck",	&mmchs2_fck,	CK_3XXX),
@@ -3390,15 +3376,15 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"usbhost_48m_fck", &usbhost_48m_fck, CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK(NULL,	"usbhost_ick",	&usbhost_ick,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
 	CLK("usbhs_omap",	"usbhost_ick",	&usbhost_ick,	CK_3430ES2PLUS | CK_AM35XX | CK_36XX),
-	CLK("usbhs_omap",	"utmi_p1_gfclk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"utmi_p2_gfclk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"xclk60mhsp1_ck",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"xclk60mhsp2_ck",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"usb_host_hs_utmi_p1_clk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"usb_host_hs_utmi_p2_clk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"utmi_p1_gfclk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"utmi_p2_gfclk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"xclk60mhsp1_ck",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"xclk60mhsp2_ck",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"usb_host_hs_utmi_p1_clk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"usb_host_hs_utmi_p2_clk",	&dummy_ck,	CK_3XXX),
 	CLK("usbhs_omap",	"usb_tll_hs_usb_ch0_clk",	&dummy_ck,	CK_3XXX),
 	CLK("usbhs_omap",	"usb_tll_hs_usb_ch1_clk",	&dummy_ck,	CK_3XXX),
-	CLK("usbhs_omap",	"init_60m_fclk",	&dummy_ck,	CK_3XXX),
+	CLK(NULL,	"init_60m_fclk",	&dummy_ck,	CK_3XXX),
 	CLK(NULL,	"usim_fck",	&usim_fck,	CK_3430ES2PLUS | CK_36XX),
 	CLK(NULL,	"gpt1_fck",	&gpt1_fck,	CK_3XXX),
 	CLK(NULL,	"wkup_32k_fck",	&wkup_32k_fck,	CK_3XXX),
@@ -3412,14 +3398,11 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"omap_32ksync_ick", &omap_32ksync_ick, CK_3XXX),
 	CLK(NULL,	"gpt12_ick",	&gpt12_ick,	CK_3XXX),
 	CLK(NULL,	"gpt1_ick",	&gpt1_ick,	CK_3XXX),
-	CLK("omap-mcbsp.2",	"prcm_fck",	&per_96m_fck,	CK_3XXX),
-	CLK("omap-mcbsp.3",	"prcm_fck",	&per_96m_fck,	CK_3XXX),
-	CLK("omap-mcbsp.4",	"prcm_fck",	&per_96m_fck,	CK_3XXX),
 	CLK(NULL,	"per_96m_fck",	&per_96m_fck,	CK_3XXX),
 	CLK(NULL,	"per_48m_fck",	&per_48m_fck,	CK_3XXX),
 	CLK(NULL,	"uart3_fck",	&uart3_fck,	CK_3XXX),
 	CLK(NULL,	"uart4_fck",	&uart4_fck,	CK_36XX),
-	CLK(NULL,	"uart4_fck",	&uart4_fck_am35xx, CK_3505 | CK_3517),
+	CLK(NULL,	"uart4_fck",	&uart4_fck_am35xx, CK_AM35XX),
 	CLK(NULL,	"gpt2_fck",	&gpt2_fck,	CK_3XXX),
 	CLK(NULL,	"gpt3_fck",	&gpt3_fck,	CK_3XXX),
 	CLK(NULL,	"gpt4_fck",	&gpt4_fck,	CK_3XXX),
@@ -3473,38 +3456,16 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"ipss_ick",	&ipss_ick,	CK_AM35XX),
 	CLK(NULL,	"rmii_ck",	&rmii_ck,	CK_AM35XX),
 	CLK(NULL,	"pclk_ck",	&pclk_ck,	CK_AM35XX),
-	CLK("davinci_emac",	NULL,	&emac_ick,	CK_AM35XX),
+	CLK("davinci_emac.0",	NULL,	&emac_ick,	CK_AM35XX),
 	CLK("davinci_mdio.0",	NULL,	&emac_fck,	CK_AM35XX),
 	CLK("vpfe-capture",	"master",	&vpfe_ick,	CK_AM35XX),
 	CLK("vpfe-capture",	"slave",	&vpfe_fck,	CK_AM35XX),
-	CLK("musb-am35x",	"ick",		&hsotgusb_ick_am35xx,	CK_AM35XX),
-	CLK("musb-am35x",	"fck",		&hsotgusb_fck_am35xx,	CK_AM35XX),
+	CLK(NULL,	"hsotgusb_ick",		&hsotgusb_ick_am35xx,	CK_AM35XX),
+	CLK(NULL,	"hsotgusb_fck",		&hsotgusb_fck_am35xx,	CK_AM35XX),
 	CLK(NULL,	"hecc_ck",	&hecc_ck,	CK_AM35XX),
 	CLK(NULL,	"uart4_ick",	&uart4_ick_am35xx,	CK_AM35XX),
-	CLK("omap_timer.1",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.2",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.3",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.4",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.5",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.6",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.7",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.8",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.9",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.10",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.11",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.12",	"32k_ck",	&omap_32k_fck,  CK_3XXX),
-	CLK("omap_timer.1",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.2",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.3",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.4",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.5",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.6",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.7",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.8",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.9",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.10",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.11",	"sys_ck",	&sys_ck,	CK_3XXX),
-	CLK("omap_timer.12",	"sys_ck",	&sys_ck,	CK_3XXX),
+	CLK(NULL,	"timer_32k_ck",	&omap_32k_fck,  CK_3XXX),
+	CLK(NULL,	"timer_sys_ck",	&sys_ck,	CK_3XXX),
 };
 
 
@@ -3513,28 +3474,16 @@ int __init omap3xxx_clk_init(void)
 	struct omap_clk *c;
 	u32 cpu_clkflg = 0;
 
-	/*
-	 * 3505 must be tested before 3517, since 3517 returns true
-	 * for both AM3517 chips and AM3517 family chips, which
-	 * includes 3505.  Unfortunately there's no obvious family
-	 * test for 3517/3505 :-(
-	 */
-	if (cpu_is_omap3505()) {
+	if (soc_is_am35xx()) {
 		cpu_mask = RATE_IN_34XX;
-		cpu_clkflg = CK_3505;
-	} else if (cpu_is_omap3517()) {
-		cpu_mask = RATE_IN_34XX;
-		cpu_clkflg = CK_3517;
-	} else if (cpu_is_omap3505()) {
-		cpu_mask = RATE_IN_34XX;
-		cpu_clkflg = CK_3505;
+		cpu_clkflg = CK_AM35XX;
 	} else if (cpu_is_omap3630()) {
 		cpu_mask = (RATE_IN_34XX | RATE_IN_36XX);
 		cpu_clkflg = CK_36XX;
 	} else if (cpu_is_ti816x()) {
 		cpu_mask = RATE_IN_TI816X;
 		cpu_clkflg = CK_TI816X;
-	} else if (cpu_is_am33xx()) {
+	} else if (soc_is_am33xx()) {
 		cpu_mask = RATE_IN_AM33XX;
 	} else if (cpu_is_ti814x()) {
 		cpu_mask = RATE_IN_TI814X;

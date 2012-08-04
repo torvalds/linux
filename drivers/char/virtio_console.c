@@ -1895,6 +1895,13 @@ static int virtcons_restore(struct virtio_device *vdev)
 
 		/* Get port open/close status on the host */
 		send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
+
+		/*
+		 * If a port was open at the time of suspending, we
+		 * have to let the host know that it's still open.
+		 */
+		if (port->guest_connected)
+			send_control_msg(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
 	}
 	return 0;
 }

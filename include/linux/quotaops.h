@@ -22,8 +22,8 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 static inline bool is_quota_modification(struct inode *inode, struct iattr *ia)
 {
 	return (ia->ia_valid & ATTR_SIZE && ia->ia_size != inode->i_size) ||
-		(ia->ia_valid & ATTR_UID && ia->ia_uid != inode->i_uid) ||
-		(ia->ia_valid & ATTR_GID && ia->ia_gid != inode->i_gid);
+		(ia->ia_valid & ATTR_UID && !uid_eq(ia->ia_uid, inode->i_uid)) ||
+		(ia->ia_valid & ATTR_GID && !gid_eq(ia->ia_gid, inode->i_gid));
 }
 
 #if defined(CONFIG_QUOTA)
@@ -83,7 +83,8 @@ int dquot_quota_on(struct super_block *sb, int type, int format_id,
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
 int dquot_quota_off(struct super_block *sb, int type);
-int dquot_quota_sync(struct super_block *sb, int type, int wait);
+int dquot_writeback_dquots(struct super_block *sb, int type);
+int dquot_quota_sync(struct super_block *sb, int type);
 int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int dquot_get_dqblk(struct super_block *sb, int type, qid_t id,
@@ -254,6 +255,11 @@ static inline int dquot_resume(struct super_block *sb, int type)
 }
 
 #define dquot_file_open		generic_file_open
+
+static inline int dquot_writeback_dquots(struct super_block *sb, int type)
+{
+	return 0;
+}
 
 #endif /* CONFIG_QUOTA */
 

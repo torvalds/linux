@@ -531,6 +531,7 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 	unsigned int mbits = 0, msec = 0, div = 0, tmo = 0;
 	struct ethtool_cmd ecmd;
 	int err;
+	u32 speed;
 
 	rtnl_lock();
 	dev = __dev_get_by_index(sock_net(&po->sk), po->ifindex);
@@ -539,25 +540,18 @@ static int prb_calc_retire_blk_tmo(struct packet_sock *po,
 		return DEFAULT_PRB_RETIRE_TOV;
 	}
 	err = __ethtool_get_settings(dev, &ecmd);
+	speed = ethtool_cmd_speed(&ecmd);
 	rtnl_unlock();
 	if (!err) {
-		switch (ecmd.speed) {
-		case SPEED_10000:
-			msec = 1;
-			div = 10000/1000;
-			break;
-		case SPEED_1000:
-			msec = 1;
-			div = 1000/1000;
-			break;
 		/*
 		 * If the link speed is so slow you don't really
 		 * need to worry about perf anyways
 		 */
-		case SPEED_100:
-		case SPEED_10:
-		default:
+		if (speed < SPEED_1000 || speed == SPEED_UNKNOWN) {
 			return DEFAULT_PRB_RETIRE_TOV;
+		} else {
+			msec = 1;
+			div = speed / 1000;
 		}
 	}
 
@@ -592,7 +586,7 @@ static void init_prb_bdqc(struct packet_sock *po,
 	p1->knxt_seq_num = 1;
 	p1->pkbdq = pg_vec;
 	pbd = (struct tpacket_block_desc *)pg_vec[0].buffer;
-	p1->pkblk_start	= (char *)pg_vec[0].buffer;
+	p1->pkblk_start	= pg_vec[0].buffer;
 	p1->kblk_size = req_u->req3.tp_block_size;
 	p1->knum_blocks	= req_u->req3.tp_block_nr;
 	p1->hdrlen = po->tp_hdrlen;
@@ -824,8 +818,7 @@ static void prb_open_block(struct tpacket_kbdq_core *pkc1,
 		h1->ts_first_pkt.ts_sec = ts.tv_sec;
 		h1->ts_first_pkt.ts_nsec = ts.tv_nsec;
 		pkc1->pkblk_start = (char *)pbd1;
-		pkc1->nxt_offset = (char *)(pkc1->pkblk_start +
-		BLK_PLUS_PRIV(pkc1->blk_sizeof_priv));
+		pkc1->nxt_offset = pkc1->pkblk_start + BLK_PLUS_PRIV(pkc1->blk_sizeof_priv);
 		BLOCK_O2FP(pbd1) = (__u32)BLK_PLUS_PRIV(pkc1->blk_sizeof_priv);
 		BLOCK_O2PRIV(pbd1) = BLK_HDR_LEN;
 		pbd1->version = pkc1->version;
@@ -1018,7 +1011,7 @@ static void *__packet_lookup_frame_in_block(struct packet_sock *po,
 	struct tpacket_block_desc *pbd;
 	char *curr, *end;
 
-	pkc = GET_PBDQC_FROM_RB(((struct packet_ring_buffer *)&po->rx_ring));
+	pkc = GET_PBDQC_FROM_RB(&po->rx_ring);
 	pbd = GET_CURR_PBLOCK_DESC_FROM_CORE(pkc);
 
 	/* Queue is frozen when user space is lagging behind */
@@ -1044,7 +1037,7 @@ static void *__packet_lookup_frame_in_block(struct packet_sock *po,
 	smp_mb();
 	curr = pkc->nxt_offset;
 	pkc->skb = skb;
-	end = (char *) ((char *)pbd + pkc->kblk_size);
+	end = (char *)pbd + pkc->kblk_size;
 
 	/* first try the current block */
 	if (curr+TOTAL_PKT_LEN_INCL_ALIGN(len) < end) {
@@ -1476,7 +1469,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 *	Find the device first to size check it
 	 */
 
-	saddr->spkt_device[13] = 0;
+	saddr->spkt_device[sizeof(saddr->spkt_device) - 1] = 0;
 retry:
 	rcu_read_lock();
 	dev = dev_get_by_name_rcu(sock_net(sk), saddr->spkt_device);
@@ -1654,7 +1647,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->data = skb_head;
 			skb->len = skb_len;
 		}
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = nskb;
 	}
 
@@ -1764,7 +1757,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		macoff = netoff = TPACKET_ALIGN(po->tp_hdrlen) + 16 +
 				  po->tp_reserve;
 	} else {
-		unsigned maclen = skb_network_offset(skb);
+		unsigned int maclen = skb_network_offset(skb);
 		netoff = TPACKET_ALIGN(po->tp_hdrlen +
 				       (maclen < 16 ? 16 : maclen)) +
 			po->tp_reserve;
@@ -3224,10 +3217,10 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 			     char __user *optval, int __user *optlen)
 {
 	int len;
-	int val;
+	int val, lv = sizeof(val);
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
-	void *data;
+	void *data = &val;
 	struct tpacket_stats st;
 	union tpacket_stats_u st_u;
 
@@ -3242,21 +3235,17 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case PACKET_STATISTICS:
-		if (po->tp_version == TPACKET_V3) {
-			len = sizeof(struct tpacket_stats_v3);
-		} else {
-			if (len > sizeof(struct tpacket_stats))
-				len = sizeof(struct tpacket_stats);
-		}
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		if (po->tp_version == TPACKET_V3) {
+			lv = sizeof(struct tpacket_stats_v3);
 			memcpy(&st_u.stats3, &po->stats,
-			sizeof(struct tpacket_stats));
+			       sizeof(struct tpacket_stats));
 			st_u.stats3.tp_freeze_q_cnt =
-			po->stats_u.stats3.tp_freeze_q_cnt;
+					po->stats_u.stats3.tp_freeze_q_cnt;
 			st_u.stats3.tp_packets += po->stats.tp_drops;
 			data = &st_u.stats3;
 		} else {
+			lv = sizeof(struct tpacket_stats);
 			st = po->stats;
 			st.tp_packets += st.tp_drops;
 			data = &st;
@@ -3265,31 +3254,16 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 		break;
 	case PACKET_AUXDATA:
-		if (len > sizeof(int))
-			len = sizeof(int);
 		val = po->auxdata;
-
-		data = &val;
 		break;
 	case PACKET_ORIGDEV:
-		if (len > sizeof(int))
-			len = sizeof(int);
 		val = po->origdev;
-
-		data = &val;
 		break;
 	case PACKET_VNET_HDR:
-		if (len > sizeof(int))
-			len = sizeof(int);
 		val = po->has_vnet_hdr;
-
-		data = &val;
 		break;
 	case PACKET_VERSION:
-		if (len > sizeof(int))
-			len = sizeof(int);
 		val = po->tp_version;
-		data = &val;
 		break;
 	case PACKET_HDRLEN:
 		if (len > sizeof(int))
@@ -3309,39 +3283,28 @@ static int packet_getsockopt(struct socket *sock, int level, int optname,
 		default:
 			return -EINVAL;
 		}
-		data = &val;
 		break;
 	case PACKET_RESERVE:
-		if (len > sizeof(unsigned int))
-			len = sizeof(unsigned int);
 		val = po->tp_reserve;
-		data = &val;
 		break;
 	case PACKET_LOSS:
-		if (len > sizeof(unsigned int))
-			len = sizeof(unsigned int);
 		val = po->tp_loss;
-		data = &val;
 		break;
 	case PACKET_TIMESTAMP:
-		if (len > sizeof(int))
-			len = sizeof(int);
 		val = po->tp_tstamp;
-		data = &val;
 		break;
 	case PACKET_FANOUT:
-		if (len > sizeof(int))
-			len = sizeof(int);
 		val = (po->fanout ?
 		       ((u32)po->fanout->id |
 			((u32)po->fanout->type << 16)) :
 		       0);
-		data = &val;
 		break;
 	default:
 		return -ENOPROTOOPT;
 	}
 
+	if (len > lv)
+		len = lv;
 	if (put_user(len, optlen))
 		return -EFAULT;
 	if (copy_to_user(optval, data, len))

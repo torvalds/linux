@@ -19,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/usb/renesas_usbhs.h>
 #include <linux/i2c.h>
@@ -29,9 +31,11 @@
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/sh_eth.h>
+#include <linux/sh_intc.h>
 #include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
 #include <sound/sh_fsi.h>
+#include <sound/simple_card.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/soc_camera.h>
 #include <media/tw9910.h>
@@ -137,7 +141,7 @@ static struct resource sh_eth_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = 91,
+		.start = evt2irq(0xd60),
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
@@ -178,8 +182,8 @@ static struct resource usb0_host_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 65,
-		.end	= 65,
+		.start	= evt2irq(0xa20),
+		.end	= evt2irq(0xa20),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
@@ -214,8 +218,8 @@ static struct resource usb1_common_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 66,
-		.end	= 66,
+		.start	= evt2irq(0xa40),
+		.end	= evt2irq(0xa40),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
@@ -240,9 +244,17 @@ static int usbhs_get_id(struct platform_device *pdev)
 	return gpio_get_value(GPIO_PTB3);
 }
 
+static void usbhs_phy_reset(struct platform_device *pdev)
+{
+	/* enable vbus if HOST */
+	if (!gpio_get_value(GPIO_PTB3))
+		gpio_set_value(GPIO_PTB5, 1);
+}
+
 static struct renesas_usbhs_platform_info usbhs_info = {
 	.platform_callback = {
 		.get_id		= usbhs_get_id,
+		.phy_reset	= usbhs_phy_reset,
 	},
 	.driver_param = {
 		.buswait_bwait		= 4,
@@ -261,8 +273,8 @@ static struct resource usbhs_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 66,
-		.end	= 66,
+		.start	= evt2irq(0xa40),
+		.end	= evt2irq(0xa40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -348,7 +360,7 @@ static struct resource lcdc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 106,
+		.start	= evt2irq(0xf40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -375,7 +387,7 @@ static struct resource ceu0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 52,
+		.start  = evt2irq(0x880),
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -406,7 +418,7 @@ static struct resource ceu1_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 63,
+		.start  = evt2irq(0x9e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 	[2] = {
@@ -437,7 +449,7 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("lis3lv02d", 0x1c),
-		.irq = 33,
+		.irq = evt2irq(0x620),
 	}
 };
 
@@ -463,7 +475,7 @@ static struct resource keysc_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 79,
+		.start  = evt2irq(0xbe0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -479,7 +491,8 @@ static struct platform_device keysc_device = {
 };
 
 /* TouchScreen */
-#define IRQ0 32
+#define IRQ0 evt2irq(0x600)
+
 static int ts_get_pendown_state(void)
 {
 	int val = 0;
@@ -515,10 +528,86 @@ static struct i2c_board_info ts_i2c_clients = {
 	.irq		= IRQ0,
 };
 
+static struct regulator_consumer_supply cn12_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.1"),
+};
+
+static struct regulator_init_data cn12_power_init_data = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(cn12_power_consumers),
+	.consumer_supplies      = cn12_power_consumers,
+};
+
+static struct fixed_voltage_config cn12_power_info = {
+	.supply_name = "CN12 SD/MMC Vdd",
+	.microvolts = 3300000,
+	.gpio = GPIO_PTB7,
+	.enable_high = 1,
+	.init_data = &cn12_power_init_data,
+};
+
+static struct platform_device cn12_power = {
+	.name = "reg-fixed-voltage",
+	.id   = 0,
+	.dev  = {
+		.platform_data = &cn12_power_info,
+	},
+};
+
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 /* SDHI0 */
+static struct regulator_consumer_supply sdhi0_power_consumers[] =
+{
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+};
+
+static struct regulator_init_data sdhi0_power_init_data = {
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(sdhi0_power_consumers),
+	.consumer_supplies      = sdhi0_power_consumers,
+};
+
+static struct fixed_voltage_config sdhi0_power_info = {
+	.supply_name = "CN11 SD/MMC Vdd",
+	.microvolts = 3300000,
+	.gpio = GPIO_PTB6,
+	.enable_high = 1,
+	.init_data = &sdhi0_power_init_data,
+};
+
+static struct platform_device sdhi0_power = {
+	.name = "reg-fixed-voltage",
+	.id   = 1,
+	.dev  = {
+		.platform_data = &sdhi0_power_info,
+	},
+};
+
 static void sdhi0_set_pwr(struct platform_device *pdev, int state)
 {
+	static int power_gpio = -EINVAL;
+
+	if (power_gpio < 0) {
+		int ret = gpio_request(GPIO_PTB6, NULL);
+		if (!ret) {
+			power_gpio = GPIO_PTB6;
+			gpio_direction_output(power_gpio, 0);
+		}
+	}
+
+	/*
+	 * Toggle the GPIO regardless, whether we managed to grab it above or
+	 * the fixed regulator driver did.
+	 */
 	gpio_set_value(GPIO_PTB6, state);
 }
 
@@ -544,7 +633,7 @@ static struct resource sdhi0_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 100,
+		.start  = evt2irq(0xe80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -559,13 +648,27 @@ static struct platform_device sdhi0_device = {
 	},
 };
 
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-/* SDHI1 */
-static void sdhi1_set_pwr(struct platform_device *pdev, int state)
+static void cn12_set_pwr(struct platform_device *pdev, int state)
 {
+	static int power_gpio = -EINVAL;
+
+	if (power_gpio < 0) {
+		int ret = gpio_request(GPIO_PTB7, NULL);
+		if (!ret) {
+			power_gpio = GPIO_PTB7;
+			gpio_direction_output(power_gpio, 0);
+		}
+	}
+
+	/*
+	 * Toggle the GPIO regardless, whether we managed to grab it above or
+	 * the fixed regulator driver did.
+	 */
 	gpio_set_value(GPIO_PTB7, state);
 }
 
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+/* SDHI1 */
 static int sdhi1_get_cd(struct platform_device *pdev)
 {
 	return !gpio_get_value(GPIO_PTW7);
@@ -576,7 +679,7 @@ static struct sh_mobile_sdhi_info sdhi1_info = {
 	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
 	.tmio_caps      = MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.set_pwr	= sdhi1_set_pwr,
+	.set_pwr	= cn12_set_pwr,
 	.get_cd		= sdhi1_get_cd,
 };
 
@@ -588,7 +691,7 @@ static struct resource sdhi1_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 23,
+		.start  = evt2irq(0x4e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -653,7 +756,7 @@ static struct resource msiof0_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 84,
+		.start	= evt2irq(0xc80),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -794,7 +897,7 @@ static struct resource fsi_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 108,
+		.start  = evt2irq(0xf80),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -809,6 +912,30 @@ static struct platform_device fsi_device = {
 	},
 };
 
+static struct asoc_simple_dai_init_info fsi_da7210_init_info = {
+	.fmt		= SND_SOC_DAIFMT_I2S,
+	.codec_daifmt	= SND_SOC_DAIFMT_CBM_CFM,
+	.cpu_daifmt	= SND_SOC_DAIFMT_CBS_CFS,
+};
+
+static struct asoc_simple_card_info fsi_da7210_info = {
+	.name		= "DA7210",
+	.card		= "FSIB-DA7210",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "da7210.0-001a",
+	.platform	= "sh_fsi.0",
+	.codec_dai	= "da7210-hifi",
+	.init		= &fsi_da7210_init_info,
+};
+
+static struct platform_device fsi_da7210_device = {
+	.name	= "asoc-simple-card",
+	.dev	= {
+		.platform_data	= &fsi_da7210_info,
+	},
+};
+
+
 /* IrDA */
 static struct resource irda_resources[] = {
 	[0] = {
@@ -818,7 +945,7 @@ static struct resource irda_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 20,
+		.start  = evt2irq(0x480),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -855,7 +982,7 @@ static struct resource sh_vou_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 55,
+		.start  = evt2irq(0x8e0),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -872,14 +999,9 @@ static struct platform_device vou_device = {
 
 #if defined(CONFIG_MMC_SH_MMCIF) || defined(CONFIG_MMC_SH_MMCIF_MODULE)
 /* SH_MMCIF */
-static void mmcif_set_pwr(struct platform_device *pdev, int state)
-{
-	gpio_set_value(GPIO_PTB7, state);
-}
-
 static void mmcif_down_pwr(struct platform_device *pdev)
 {
-	gpio_set_value(GPIO_PTB7, 0);
+	cn12_set_pwr(pdev, 0);
 }
 
 static struct resource sh_mmcif_resources[] = {
@@ -891,18 +1013,18 @@ static struct resource sh_mmcif_resources[] = {
 	},
 	[1] = {
 		/* MMC2I */
-		.start	= 29,
+		.start	= evt2irq(0x5a0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
 		/* MMC3I */
-		.start	= 30,
+		.start	= evt2irq(0x5c0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
 
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
-	.set_pwr	= mmcif_set_pwr,
+	.set_pwr	= cn12_set_pwr,
 	.down_pwr	= mmcif_down_pwr,
 	.sup_pclk	= 0, /* SH7724: Max Pclk/2 */
 	.caps		= MMC_CAP_4_BIT_DATA |
@@ -933,7 +1055,9 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&ceu0_device,
 	&ceu1_device,
 	&keysc_device,
+	&cn12_power,
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
+	&sdhi0_power,
 	&sdhi0_device,
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 	&sdhi1_device,
@@ -945,6 +1069,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&camera_devices[1],
 	&camera_devices[2],
 	&fsi_device,
+	&fsi_da7210_device,
 	&irda_device,
 	&vou_device,
 #if defined(CONFIG_MMC_SH_MMCIF) || defined(CONFIG_MMC_SH_MMCIF_MODULE)
@@ -1230,8 +1355,6 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_SDHI0D2,  NULL);
 	gpio_request(GPIO_FN_SDHI0D1,  NULL);
 	gpio_request(GPIO_FN_SDHI0D0,  NULL);
-	gpio_request(GPIO_PTB6, NULL);
-	gpio_direction_output(GPIO_PTB6, 0);
 #else
 	/* enable MSIOF0 on CN11 (needs DS2.4 set to OFF) */
 	gpio_request(GPIO_FN_MSIOF0_TXD, NULL);
@@ -1260,8 +1383,6 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_MMC_D0, NULL);
 	gpio_request(GPIO_FN_MMC_CLK, NULL);
 	gpio_request(GPIO_FN_MMC_CMD, NULL);
-	gpio_request(GPIO_PTB7, NULL);
-	gpio_direction_output(GPIO_PTB7, 0);
 
 	cn12_enabled = true;
 #elif defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
@@ -1273,8 +1394,6 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_SDHI1D2,  NULL);
 	gpio_request(GPIO_FN_SDHI1D1,  NULL);
 	gpio_request(GPIO_FN_SDHI1D0,  NULL);
-	gpio_request(GPIO_PTB7, NULL);
-	gpio_direction_output(GPIO_PTB7, 0);
 
 	/* Card-detect, used on CN12 with SDHI1 */
 	gpio_request(GPIO_PTW7, NULL);

@@ -154,6 +154,10 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	if (status < 0)
 		return;
 
+	status = mnt_want_write_file(rec_file);
+	if (status)
+		return;
+
 	dir = rec_file->f_path.dentry;
 	/* lock the parent */
 	mutex_lock(&dir->d_inode->i_mutex);
@@ -173,11 +177,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		 * as well be forgiving and just succeed silently.
 		 */
 		goto out_put;
-	status = mnt_want_write_file(rec_file);
-	if (status)
-		goto out_put;
 	status = vfs_mkdir(dir->d_inode, dentry, S_IRWXU);
-	mnt_drop_write_file(rec_file);
 out_put:
 	dput(dentry);
 out_unlock:
@@ -189,6 +189,7 @@ out_unlock:
 				" (err %d); please check that %s exists"
 				" and is writeable", status,
 				user_recovery_dirname);
+	mnt_drop_write_file(rec_file);
 	nfs4_reset_creds(original_cred);
 }
 
@@ -570,7 +571,7 @@ static ssize_t
 cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	struct cld_upcall *tmp, *cup;
-	struct cld_msg *cmsg = (struct cld_msg *)src;
+	struct cld_msg __user *cmsg = (struct cld_msg __user *)src;
 	uint32_t xid;
 	struct nfsd_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
 						nfsd_net_id);
@@ -1029,7 +1030,7 @@ rpc_pipefs_event(struct notifier_block *nb, unsigned long event, void *ptr)
 	return ret;
 }
 
-struct notifier_block nfsd4_cld_block = {
+static struct notifier_block nfsd4_cld_block = {
 	.notifier_call = rpc_pipefs_event,
 };
 

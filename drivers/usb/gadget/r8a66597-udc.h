@@ -13,10 +13,7 @@
 #ifndef __R8A66597_H__
 #define __R8A66597_H__
 
-#ifdef CONFIG_HAVE_CLK
 #include <linux/clk.h>
-#endif
-
 #include <linux/usb/r8a66597.h>
 
 #define R8A66597_MAX_SAMPLING	10
@@ -72,7 +69,7 @@ struct r8a66597_ep {
 	unsigned		use_dma:1;
 	u16			pipenum;
 	u16			type;
-	const struct usb_endpoint_descriptor	*desc;
+
 	/* register address */
 	unsigned char		fifoaddr;
 	unsigned char		fifosel;
@@ -92,9 +89,7 @@ struct r8a66597 {
 	void __iomem		*reg;
 	void __iomem		*sudmac_reg;
 
-#ifdef CONFIG_HAVE_CLK
 	struct clk *clk;
-#endif
 	struct r8a66597_platdata	*pdata;
 
 	struct usb_gadget		gadget;
@@ -111,6 +106,7 @@ struct r8a66597 {
 	u16			old_vbus;
 	u16			scount;
 	u16			old_dvsq;
+	u16			device_status;	/* for GET_STATUS */
 
 	/* pipe config */
 	unsigned char bulk;

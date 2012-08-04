@@ -50,7 +50,7 @@ static void mlx4_ib_cq_event(struct mlx4_cq *cq, enum mlx4_event type)
 	struct ib_cq *ibcq;
 
 	if (type != MLX4_EVENT_TYPE_CQ_ERROR) {
-		printk(KERN_WARNING "mlx4_ib: Unexpected event type %d "
+		pr_warn("Unexpected event type %d "
 		       "on CQ %06x\n", type, cq->cqn);
 		return;
 	}
@@ -221,6 +221,9 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev, int entries, int vector
 
 		uar = &dev->priv_uar;
 	}
+
+	if (dev->eq_table)
+		vector = dev->eq_table[vector % ibdev->num_comp_vectors];
 
 	err = mlx4_cq_alloc(dev->dev, entries, &cq->buf.mtt, uar,
 			    cq->db.dma, &cq->mcq, vector, 0);
@@ -463,7 +466,7 @@ static void dump_cqe(void *cqe)
 {
 	__be32 *buf = cqe;
 
-	printk(KERN_DEBUG "CQE contents %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	pr_debug("CQE contents %08x %08x %08x %08x %08x %08x %08x %08x\n",
 	       be32_to_cpu(buf[0]), be32_to_cpu(buf[1]), be32_to_cpu(buf[2]),
 	       be32_to_cpu(buf[3]), be32_to_cpu(buf[4]), be32_to_cpu(buf[5]),
 	       be32_to_cpu(buf[6]), be32_to_cpu(buf[7]));
@@ -473,7 +476,7 @@ static void mlx4_ib_handle_error_cqe(struct mlx4_err_cqe *cqe,
 				     struct ib_wc *wc)
 {
 	if (cqe->syndrome == MLX4_CQE_SYNDROME_LOCAL_QP_OP_ERR) {
-		printk(KERN_DEBUG "local QP operation err "
+		pr_debug("local QP operation err "
 		       "(QPN %06x, WQE index %x, vendor syndrome %02x, "
 		       "opcode = %02x)\n",
 		       be32_to_cpu(cqe->my_qpn), be16_to_cpu(cqe->wqe_index),
@@ -576,7 +579,7 @@ repoll:
 
 	if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) == MLX4_OPCODE_NOP &&
 		     is_send)) {
-		printk(KERN_WARNING "Completion for NOP opcode detected!\n");
+		pr_warn("Completion for NOP opcode detected!\n");
 		return -EINVAL;
 	}
 
@@ -606,7 +609,7 @@ repoll:
 		mqp = __mlx4_qp_lookup(to_mdev(cq->ibcq.device)->dev,
 				       be32_to_cpu(cqe->vlan_my_qpn));
 		if (unlikely(!mqp)) {
-			printk(KERN_WARNING "CQ %06x with entry for unknown QPN %06x\n",
+			pr_warn("CQ %06x with entry for unknown QPN %06x\n",
 			       cq->mcq.cqn, be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK);
 			return -EINVAL;
 		}

@@ -117,10 +117,10 @@ void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
 		if (dead_task->mm->context.size) {
-			printk("WARNING: dead process %8s still has LDT? <%p/%d>\n",
-					dead_task->comm,
-					dead_task->mm->context.ldt,
-					dead_task->mm->context.size);
+			pr_warn("WARNING: dead process %8s still has LDT? <%p/%d>\n",
+				dead_task->comm,
+				dead_task->mm->context.ldt,
+				dead_task->mm->context.size);
 			BUG();
 		}
 	}
@@ -143,15 +143,6 @@ static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
 static inline u32 read_32bit_tls(struct task_struct *t, int tls)
 {
 	return get_desc_base(&t->thread.tls_array[tls]);
-}
-
-/*
- * This gets called before we allocate a new thread and copy
- * the current task into it.
- */
-void prepare_to_copy(struct task_struct *tsk)
-{
-	unlazy_fpu(tsk);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
@@ -237,7 +228,7 @@ start_thread_common(struct pt_regs *regs, unsigned long new_ip,
 	current->thread.usersp	= new_sp;
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
-	percpu_write(old_rsp, new_sp);
+	this_cpu_write(old_rsp, new_sp);
 	regs->cs		= _cs;
 	regs->ss		= _ss;
 	regs->flags		= X86_EFLAGS_IF;
@@ -359,11 +350,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Switch the PDA and FPU contexts.
 	 */
-	prev->usersp = percpu_read(old_rsp);
-	percpu_write(old_rsp, next->usersp);
-	percpu_write(current_task, next_p);
+	prev->usersp = this_cpu_read(old_rsp);
+	this_cpu_write(old_rsp, next->usersp);
+	this_cpu_write(current_task, next_p);
 
-	percpu_write(kernel_stack,
+	this_cpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +
 		  THREAD_SIZE - KERNEL_STACK_OFFSET);
 
@@ -475,7 +466,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 			task->thread.gs = addr;
 			if (doit) {
 				load_gs_index(0);
-				ret = checking_wrmsrl(MSR_KERNEL_GS_BASE, addr);
+				ret = wrmsrl_safe(MSR_KERNEL_GS_BASE, addr);
 			}
 		}
 		put_cpu();
@@ -503,7 +494,7 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 				/* set the selector to 0 to not confuse
 				   __switch_to */
 				loadsegment(fs, 0);
-				ret = checking_wrmsrl(MSR_FS_BASE, addr);
+				ret = wrmsrl_safe(MSR_FS_BASE, addr);
 			}
 		}
 		put_cpu();

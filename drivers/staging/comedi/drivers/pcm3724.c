@@ -62,10 +62,6 @@ Copy/pasted/hacked from pcm724.c
 #define CR_A_MODE(a)	((a)<<5)
 #define CR_CW		0x80
 
-static int pcm3724_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int pcm3724_detach(struct comedi_device *dev);
-
 struct pcm3724_board {
 	const char *name;	/*  driver name */
 	int dio;		/*  num of DIO */
@@ -79,38 +75,6 @@ struct priv_pcm3724 {
 	int dio_1;
 	int dio_2;
 };
-
-static const struct pcm3724_board boardtypes[] = {
-	{"pcm3724", 48, 2, 0x00fc, PCM3724_SIZE,},
-};
-
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcm3724_board))
-#define this_board ((const struct pcm3724_board *)dev->board_ptr)
-
-static struct comedi_driver driver_pcm3724 = {
-	.driver_name = "pcm3724",
-	.module = THIS_MODULE,
-	.attach = pcm3724_attach,
-	.detach = pcm3724_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
-	.offset = sizeof(struct pcm3724_board),
-};
-
-static int __init driver_pcm3724_init_module(void)
-{
-	return comedi_driver_register(&driver_pcm3724);
-}
-
-static void __exit driver_pcm3724_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcm3724);
-}
-
-module_init(driver_pcm3724_init_module);
-module_exit(driver_pcm3724_cleanup_module);
-
-/* (setq c-basic-offset 8) */
 
 static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 {
@@ -266,12 +230,13 @@ static int subdev_3724_insn_config(struct comedi_device *dev,
 static int pcm3724_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct pcm3724_board *board = comedi_board(dev);
 	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
 
 	iobase = it->options[0];
-	iorange = this_board->io_range;
+	iorange = board->io_range;
 
 	ret = alloc_private(dev, sizeof(struct priv_pcm3724));
 	if (ret < 0)
@@ -281,20 +246,20 @@ static int pcm3724_attach(struct comedi_device *dev,
 	((struct priv_pcm3724 *)(dev->private))->dio_2 = 0;
 
 	printk(KERN_INFO "comedi%d: pcm3724: board=%s, 0x%03lx ", dev->minor,
-	       this_board->name, iobase);
+	       board->name, iobase);
 	if (!iobase || !request_region(iobase, iorange, "pcm3724")) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
 
 	dev->iobase = iobase;
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 	printk(KERN_INFO "\n");
 
-	n_subdevices = this_board->numofports;
+	n_subdevices = board->numofports;
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
@@ -305,8 +270,9 @@ static int pcm3724_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int pcm3724_detach(struct comedi_device *dev)
+static void pcm3724_detach(struct comedi_device *dev)
 {
+	const struct pcm3724_board *board = comedi_board(dev);
 	int i;
 
 	if (dev->subdevices) {
@@ -314,10 +280,23 @@ static int pcm3724_detach(struct comedi_device *dev)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
 	}
 	if (dev->iobase)
-		release_region(dev->iobase, this_board->io_range);
-
-	return 0;
+		release_region(dev->iobase, board->io_range);
 }
+
+static const struct pcm3724_board boardtypes[] = {
+	{ "pcm3724", 48, 2, 0x00fc, PCM3724_SIZE, },
+};
+
+static struct comedi_driver pcm3724_driver = {
+	.driver_name	= "pcm3724",
+	.module		= THIS_MODULE,
+	.attach		= pcm3724_attach,
+	.detach		= pcm3724_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcm3724_board),
+};
+module_comedi_driver(pcm3724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

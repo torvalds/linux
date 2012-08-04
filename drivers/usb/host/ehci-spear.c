@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/jiffies.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 
@@ -25,12 +26,12 @@ struct spear_ehci {
 
 static void spear_start_ehci(struct spear_ehci *ehci)
 {
-	clk_enable(ehci->clk);
+	clk_prepare_enable(ehci->clk);
 }
 
 static void spear_stop_ehci(struct spear_ehci *ehci)
 {
-	clk_disable(ehci->clk);
+	clk_disable_unprepare(ehci->clk);
 }
 
 static int ehci_spear_setup(struct usb_hcd *hcd)
@@ -40,19 +41,11 @@ static int ehci_spear_setup(struct usb_hcd *hcd)
 
 	/* registers start at offset 0x0 */
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(ehci, ehci_readl(ehci,
-				&ehci->caps->hc_capbase));
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-	retval = ehci_halt(ehci);
+
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
 
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
 	return retval;
@@ -96,77 +89,24 @@ static const struct hc_driver ehci_spear_hc_driver = {
 static int ehci_spear_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	unsigned long flags;
-	int rc = 0;
+	bool do_wakeup = device_may_wakeup(dev);
 
-	if (time_before(jiffies, ehci->next_statechange))
-		msleep(10);
-
-	/*
-	 * Root hub was already suspended. Disable irq emission and mark HW
-	 * unaccessible. The PM and USB cores make sure that the root hub is
-	 * either suspended or stopped.
-	 */
-	spin_lock_irqsave(&ehci->lock, flags);
-	ehci_prepare_ports_for_controller_suspend(ehci, device_may_wakeup(dev));
-	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
-	ehci_readl(ehci, &ehci->regs->intr_enable);
-	spin_unlock_irqrestore(&ehci->lock, flags);
-
-	return rc;
+	return ehci_suspend(hcd, do_wakeup);
 }
 
 static int ehci_spear_drv_resume(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
-	if (time_before(jiffies, ehci->next_statechange))
-		msleep(100);
-
-	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
-		int mask = INTR_MASK;
-
-		ehci_prepare_ports_for_controller_resume(ehci);
-
-		if (!hcd->self.root_hub->do_remote_wakeup)
-			mask &= ~STS_PCD;
-
-		ehci_writel(ehci, mask, &ehci->regs->intr_enable);
-		ehci_readl(ehci, &ehci->regs->intr_enable);
-		return 0;
-	}
-
-	usb_root_hub_lost_power(hcd->self.root_hub);
-
-	/*
-	 * Else reset, to cope with power loss or flush-to-storage style
-	 * "resume" having let BIOS kick in during reboot.
-	 */
-	ehci_halt(ehci);
-	ehci_reset(ehci);
-
-	/* emptying the schedule aborts any urbs */
-	spin_lock_irq(&ehci->lock);
-	if (ehci->reclaim)
-		end_unlink_async(ehci);
-
-	ehci_work(ehci);
-	spin_unlock_irq(&ehci->lock);
-
-	ehci_writel(ehci, ehci->command, &ehci->regs->command);
-	ehci_writel(ehci, FLAG_CF, &ehci->regs->configured_flag);
-	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
-
-	/* here we "know" root ports should always stay powered */
-	ehci_port_power(ehci, 1);
+	ehci_resume(hcd, false);
 	return 0;
 }
 #endif /* CONFIG_PM */
 
 static SIMPLE_DEV_PM_OPS(ehci_spear_pm_ops, ehci_spear_drv_suspend,
 		ehci_spear_drv_resume);
+
+static u64 spear_ehci_dma_mask = DMA_BIT_MASK(32);
 
 static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 {
@@ -175,12 +115,9 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct clk *usbh_clk;
 	const struct hc_driver *driver = &ehci_spear_hc_driver;
-	int *pdata = pdev->dev.platform_data;
 	int irq, retval;
 	char clk_name[20] = "usbh_clk";
-
-	if (pdata == NULL)
-		return -EFAULT;
+	static int instance = -1;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -191,8 +128,22 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 		goto fail_irq_get;
 	}
 
-	if (*pdata >= 0)
-		sprintf(clk_name, "usbh.%01d_clk", *pdata);
+	/*
+	 * Right now device-tree probed devices don't get dma_mask set.
+	 * Since shared usb code relies on it, set it here for now.
+	 * Once we have dma capability bindings this can go away.
+	 */
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &spear_ehci_dma_mask;
+
+	/*
+	 * Increment the device instance, when probing via device-tree
+	 */
+	if (pdev->id < 0)
+		instance++;
+	else
+		instance = pdev->id;
+	sprintf(clk_name, "usbh.%01d_clk", instance);
 
 	usbh_clk = clk_get(NULL, clk_name);
 	if (IS_ERR(usbh_clk)) {
@@ -277,6 +228,11 @@ static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct of_device_id spear_ehci_id_table[] __devinitdata = {
+	{ .compatible = "st,spear600-ehci", },
+	{ },
+};
+
 static struct platform_driver spear_ehci_hcd_driver = {
 	.probe		= spear_ehci_hcd_drv_probe,
 	.remove		= spear_ehci_hcd_drv_remove,
@@ -285,6 +241,7 @@ static struct platform_driver spear_ehci_hcd_driver = {
 		.name = "spear-ehci",
 		.bus = &platform_bus_type,
 		.pm = &ehci_spear_pm_ops,
+		.of_match_table = of_match_ptr(spear_ehci_id_table),
 	}
 };
 

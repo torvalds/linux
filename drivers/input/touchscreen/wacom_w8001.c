@@ -594,15 +594,4 @@ static struct serio_driver w8001_drv = {
 	.disconnect	= w8001_disconnect,
 };
 
-static int __init w8001_init(void)
-{
-	return serio_register_driver(&w8001_drv);
-}
-
-static void __exit w8001_exit(void)
-{
-	serio_unregister_driver(&w8001_drv);
-}
-
-module_init(w8001_init);
-module_exit(w8001_exit);
+module_serio_driver(w8001_drv);

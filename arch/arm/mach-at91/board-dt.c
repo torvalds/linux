@@ -1,10 +1,6 @@
 /*
  *  Setup code for AT91SAM Evaluation Kits with Device Tree support
  *
- *  Covers: * AT91SAM9G45-EKES  board
- *          * AT91SAM9M10-EKES  board
- *          * AT91SAM9M10G45-EK board
- *
  *  Copyright (C) 2011 Atmel,
  *                2011 Nicolas Ferre <nicolas.ferre@atmel.com>
  *
@@ -20,6 +16,7 @@
 #include <linux/of_platform.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 
 #include <asm/setup.h>
 #include <asm/irq.h>
@@ -49,9 +46,7 @@ static void __init at91_dt_device_init(void)
 }
 
 static const char *at91_dt_board_compat[] __initdata = {
-	"atmel,at91sam9m10g45ek",
-	"atmel,at91sam9x5ek",
-	"calao,usb-a9g20",
+	"atmel,at91sam9",
 	NULL
 };
 
@@ -59,6 +54,7 @@ DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM (Device Tree)")
 	/* Maintainer: Atmel */
 	.timer		= &at91sam926x_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= at91_dt_initialize,
 	.init_irq	= at91_dt_init_irq,
 	.init_machine	= at91_dt_device_init,

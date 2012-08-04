@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/setup.h
- *
  *  S390 version
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999, 2010
  */
 
 #ifndef _ASM_S390_SETUP_H
@@ -22,19 +20,19 @@
 #include <asm/lowcore.h>
 #include <asm/types.h>
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define IPL_DEVICE        (*(unsigned long *)  (0x10404))
 #define INITRD_START      (*(unsigned long *)  (0x1040C))
 #define INITRD_SIZE       (*(unsigned long *)  (0x10414))
 #define OLDMEM_BASE	  (*(unsigned long *)  (0x1041C))
 #define OLDMEM_SIZE	  (*(unsigned long *)  (0x10424))
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #define IPL_DEVICE        (*(unsigned long *)  (0x10400))
 #define INITRD_START      (*(unsigned long *)  (0x10408))
 #define INITRD_SIZE       (*(unsigned long *)  (0x10410))
 #define OLDMEM_BASE	  (*(unsigned long *)  (0x10418))
 #define OLDMEM_SIZE	  (*(unsigned long *)  (0x10420))
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 #define COMMAND_LINE      ((char *)            (0x10480))
 
 #define CHUNK_READ_WRITE 0
@@ -62,7 +60,7 @@ void create_mem_hole(struct mem_chunk memory_chunk[], unsigned long addr,
 #define SECONDARY_SPACE_MODE	2
 #define HOME_SPACE_MODE		3
 
-extern unsigned int user_mode;
+extern unsigned int addressing_mode;
 
 /*
  * Machine features detected in head.S
@@ -82,7 +80,6 @@ extern unsigned int user_mode;
 #define MACHINE_FLAG_LPAR	(1UL << 12)
 #define MACHINE_FLAG_SPP	(1UL << 13)
 #define MACHINE_FLAG_TOPOLOGY	(1UL << 14)
-#define MACHINE_FLAG_STCKF	(1UL << 15)
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
@@ -90,7 +87,7 @@ extern unsigned int user_mode;
 
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define MACHINE_HAS_IEEE	(S390_lowcore.machine_flags & MACHINE_FLAG_IEEE)
 #define MACHINE_HAS_CSP		(S390_lowcore.machine_flags & MACHINE_FLAG_CSP)
 #define MACHINE_HAS_IDTE	(0)
@@ -101,8 +98,7 @@ extern unsigned int user_mode;
 #define MACHINE_HAS_PFMF	(0)
 #define MACHINE_HAS_SPP		(0)
 #define MACHINE_HAS_TOPOLOGY	(0)
-#define MACHINE_HAS_STCKF	(0)
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #define MACHINE_HAS_IEEE	(1)
 #define MACHINE_HAS_CSP		(1)
 #define MACHINE_HAS_IDTE	(S390_lowcore.machine_flags & MACHINE_FLAG_IDTE)
@@ -113,8 +109,7 @@ extern unsigned int user_mode;
 #define MACHINE_HAS_PFMF	(S390_lowcore.machine_flags & MACHINE_FLAG_PFMF)
 #define MACHINE_HAS_SPP		(S390_lowcore.machine_flags & MACHINE_FLAG_SPP)
 #define MACHINE_HAS_TOPOLOGY	(S390_lowcore.machine_flags & MACHINE_FLAG_TOPOLOGY)
-#define MACHINE_HAS_STCKF	(S390_lowcore.machine_flags & MACHINE_FLAG_STCKF)
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
 #define ZFCPDUMP_HSA_SIZE	(32UL<<20)
 #define ZFCPDUMP_HSA_SIZE_MAX	(64UL<<20)
@@ -156,19 +151,19 @@ extern void (*_machine_power_off)(void);
 
 #else /* __ASSEMBLY__ */
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define IPL_DEVICE        0x10404
 #define INITRD_START      0x1040C
 #define INITRD_SIZE       0x10414
 #define OLDMEM_BASE	  0x1041C
 #define OLDMEM_SIZE	  0x10424
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #define IPL_DEVICE        0x10400
 #define INITRD_START      0x10408
 #define INITRD_SIZE       0x10410
 #define OLDMEM_BASE	  0x10418
 #define OLDMEM_SIZE	  0x10420
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 #define COMMAND_LINE      0x10480
 
 #endif /* __ASSEMBLY__ */

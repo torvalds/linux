@@ -1,6 +1,4 @@
 /*
- *  arch/s390/mm/vmem.c
- *
  *    Copyright IBM Corp. 2006
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
@@ -109,7 +107,7 @@ static int vmem_add_mem(unsigned long start, unsigned long size, int ro)
 		pte = mk_pte_phys(address, __pgprot(ro ? _PAGE_RO : 0));
 		pm_dir = pmd_offset(pu_dir, address);
 
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		if (MACHINE_HAS_HPAGE && !(address & ~HPAGE_MASK) &&
 		    (address + HPAGE_SIZE <= start + size) &&
 		    (address >= HPAGE_SIZE)) {

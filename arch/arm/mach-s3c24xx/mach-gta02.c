@@ -71,7 +71,6 @@
 
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
-#include <mach/regs-gpioj.h>
 #include <mach/fb.h>
 
 #include <plat/usb-control.h>
@@ -387,11 +386,8 @@ static struct physmap_flash_data gta02_nor_flash_data = {
 	.width		= 2,
 };
 
-static struct resource gta02_nor_flash_resource = {
-	.start		= GTA02_FLASH_BASE,
-	.end		= GTA02_FLASH_BASE + GTA02_FLASH_SIZE - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource gta02_nor_flash_resource =
+	DEFINE_RES_MEM(GTA02_FLASH_BASE, GTA02_FLASH_SIZE);
 
 static struct platform_device gta02_nor_flash = {
 	.name		= "physmap-flash",

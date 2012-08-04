@@ -40,6 +40,16 @@
 /*
  * Registers accessors functions.
  */
+/**
+ * radeon_invalid_rreg - dummy reg read function
+ *
+ * @rdev: radeon device pointer
+ * @reg: offset of register
+ *
+ * Dummy register read function.  Used for register blocks
+ * that certain asics don't have (all asics).
+ * Returns the value in the register.
+ */
 static uint32_t radeon_invalid_rreg(struct radeon_device *rdev, uint32_t reg)
 {
 	DRM_ERROR("Invalid callback to read register 0x%04X\n", reg);
@@ -47,6 +57,16 @@ static uint32_t radeon_invalid_rreg(struct radeon_device *rdev, uint32_t reg)
 	return 0;
 }
 
+/**
+ * radeon_invalid_wreg - dummy reg write function
+ *
+ * @rdev: radeon device pointer
+ * @reg: offset of register
+ * @v: value to write to the register
+ *
+ * Dummy register read function.  Used for register blocks
+ * that certain asics don't have (all asics).
+ */
 static void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
 	DRM_ERROR("Invalid callback to write register 0x%04X with 0x%08X\n",
@@ -54,6 +74,14 @@ static void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 	BUG_ON(1);
 }
 
+/**
+ * radeon_register_accessor_init - sets up the register accessor callbacks
+ *
+ * @rdev: radeon device pointer
+ *
+ * Sets up the register accessor callbacks for various register
+ * apertures.  Not all asics have all apertures (all asics).
+ */
 static void radeon_register_accessor_init(struct radeon_device *rdev)
 {
 	rdev->mc_rreg = &radeon_invalid_rreg;
@@ -102,6 +130,14 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 
 
 /* helper to disable agp */
+/**
+ * radeon_agp_disable - AGP disable helper function
+ *
+ * @rdev: radeon device pointer
+ *
+ * Removes AGP flags and changes the gart callbacks on AGP
+ * cards when using the internal gart rather than AGP (all asics).
+ */
 void radeon_agp_disable(struct radeon_device *rdev)
 {
 	rdev->flags &= ~RADEON_IS_AGP;
@@ -134,7 +170,6 @@ static struct radeon_asic r100_asic = {
 	.suspend = &r100_suspend,
 	.resume = &r100_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r100_gpu_is_lockup,
 	.asic_reset = &r100_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -152,6 +187,7 @@ static struct radeon_asic r100_asic = {
 			.ring_start = &r100_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -208,7 +244,6 @@ static struct radeon_asic r200_asic = {
 	.suspend = &r100_suspend,
 	.resume = &r100_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r100_gpu_is_lockup,
 	.asic_reset = &r100_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -226,6 +261,7 @@ static struct radeon_asic r200_asic = {
 			.ring_start = &r100_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -282,7 +318,6 @@ static struct radeon_asic r300_asic = {
 	.suspend = &r300_suspend,
 	.resume = &r300_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -300,6 +335,7 @@ static struct radeon_asic r300_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -356,7 +392,6 @@ static struct radeon_asic r300_asic_pcie = {
 	.suspend = &r300_suspend,
 	.resume = &r300_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -374,6 +409,7 @@ static struct radeon_asic r300_asic_pcie = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -430,7 +466,6 @@ static struct radeon_asic r420_asic = {
 	.suspend = &r420_suspend,
 	.resume = &r420_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -448,6 +483,7 @@ static struct radeon_asic r420_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -504,7 +540,6 @@ static struct radeon_asic rs400_asic = {
 	.suspend = &rs400_suspend,
 	.resume = &rs400_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -522,6 +557,7 @@ static struct radeon_asic rs400_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -578,7 +614,6 @@ static struct radeon_asic rs600_asic = {
 	.suspend = &rs600_suspend,
 	.resume = &rs600_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -596,6 +631,7 @@ static struct radeon_asic rs600_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -652,7 +688,6 @@ static struct radeon_asic rs690_asic = {
 	.suspend = &rs690_suspend,
 	.resume = &rs690_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -670,6 +705,7 @@ static struct radeon_asic rs690_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -726,7 +762,6 @@ static struct radeon_asic rv515_asic = {
 	.suspend = &rv515_suspend,
 	.resume = &rv515_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -744,6 +779,7 @@ static struct radeon_asic rv515_asic = {
 			.ring_start = &rv515_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -800,7 +836,6 @@ static struct radeon_asic r520_asic = {
 	.suspend = &rv515_suspend,
 	.resume = &r520_resume,
 	.vga_set_state = &r100_vga_set_state,
-	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
 	.ioctl_wait_idle = NULL,
 	.gui_idle = &r100_gui_idle,
@@ -818,6 +853,7 @@ static struct radeon_asic r520_asic = {
 			.ring_start = &rv515_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -874,7 +910,6 @@ static struct radeon_asic r600_asic = {
 	.suspend = &r600_suspend,
 	.resume = &r600_resume,
 	.vga_set_state = &r600_vga_set_state,
-	.gpu_is_lockup = &r600_gpu_is_lockup,
 	.asic_reset = &r600_asic_reset,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
 	.gui_idle = &r600_gui_idle,
@@ -891,6 +926,7 @@ static struct radeon_asic r600_asic = {
 			.cs_parse = &r600_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &r600_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -946,7 +982,6 @@ static struct radeon_asic rs780_asic = {
 	.fini = &r600_fini,
 	.suspend = &r600_suspend,
 	.resume = &r600_resume,
-	.gpu_is_lockup = &r600_gpu_is_lockup,
 	.vga_set_state = &r600_vga_set_state,
 	.asic_reset = &r600_asic_reset,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -964,6 +999,7 @@ static struct radeon_asic rs780_asic = {
 			.cs_parse = &r600_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &r600_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1020,7 +1056,6 @@ static struct radeon_asic rv770_asic = {
 	.suspend = &rv770_suspend,
 	.resume = &rv770_resume,
 	.asic_reset = &r600_asic_reset,
-	.gpu_is_lockup = &r600_gpu_is_lockup,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
 	.gui_idle = &r600_gui_idle,
@@ -1037,6 +1072,7 @@ static struct radeon_asic rv770_asic = {
 			.cs_parse = &r600_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &r600_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1092,7 +1128,6 @@ static struct radeon_asic evergreen_asic = {
 	.fini = &evergreen_fini,
 	.suspend = &evergreen_suspend,
 	.resume = &evergreen_resume,
-	.gpu_is_lockup = &evergreen_gpu_is_lockup,
 	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -1110,6 +1145,7 @@ static struct radeon_asic evergreen_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1165,7 +1201,6 @@ static struct radeon_asic sumo_asic = {
 	.fini = &evergreen_fini,
 	.suspend = &evergreen_suspend,
 	.resume = &evergreen_resume,
-	.gpu_is_lockup = &evergreen_gpu_is_lockup,
 	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -1183,6 +1218,7 @@ static struct radeon_asic sumo_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 	},
 	.irq = {
@@ -1238,7 +1274,6 @@ static struct radeon_asic btc_asic = {
 	.fini = &evergreen_fini,
 	.suspend = &evergreen_suspend,
 	.resume = &evergreen_resume,
-	.gpu_is_lockup = &evergreen_gpu_is_lockup,
 	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -1256,6 +1291,7 @@ static struct radeon_asic btc_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1321,7 +1357,6 @@ static struct radeon_asic cayman_asic = {
 	.fini = &cayman_fini,
 	.suspend = &cayman_suspend,
 	.resume = &cayman_resume,
-	.gpu_is_lockup = &cayman_gpu_is_lockup,
 	.asic_reset = &cayman_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -1340,6 +1375,7 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1349,6 +1385,7 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1358,6 +1395,7 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1413,7 +1451,6 @@ static struct radeon_asic trinity_asic = {
 	.fini = &cayman_fini,
 	.suspend = &cayman_suspend,
 	.resume = &cayman_resume,
-	.gpu_is_lockup = &cayman_gpu_is_lockup,
 	.asic_reset = &cayman_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -1432,6 +1469,7 @@ static struct radeon_asic trinity_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1441,6 +1479,7 @@ static struct radeon_asic trinity_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1450,6 +1489,7 @@ static struct radeon_asic trinity_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1515,7 +1555,6 @@ static struct radeon_asic si_asic = {
 	.fini = &si_fini,
 	.suspend = &si_suspend,
 	.resume = &si_resume,
-	.gpu_is_lockup = &si_gpu_is_lockup,
 	.asic_reset = &si_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
@@ -1534,6 +1573,7 @@ static struct radeon_asic si_asic = {
 			.cs_parse = NULL,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &si_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &si_ring_ib_execute,
@@ -1543,6 +1583,7 @@ static struct radeon_asic si_asic = {
 			.cs_parse = NULL,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &si_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &si_ring_ib_execute,
@@ -1552,6 +1593,7 @@ static struct radeon_asic si_asic = {
 			.cs_parse = NULL,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
+			.is_lockup = &si_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1602,6 +1644,16 @@ static struct radeon_asic si_asic = {
 	},
 };
 
+/**
+ * radeon_asic_init - register asic specific callbacks
+ *
+ * @rdev: radeon device pointer
+ *
+ * Registers the appropriate asic specific callbacks for each
+ * chip family.  Also sets other asics specific info like the number
+ * of crtcs and the register aperture accessors (all asics).
+ * Returns 0 for success.
+ */
 int radeon_asic_init(struct radeon_device *rdev)
 {
 	radeon_register_accessor_init(rdev);

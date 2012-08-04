@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
+#include <linux/prefetch.h>
 
 #include "qib.h"
 
@@ -481,8 +482,10 @@ u32 qib_kreceive(struct qib_ctxtdata *rcd, u32 *llic, u32 *npkts)
 			etail = qib_hdrget_index(rhf_addr);
 			updegr = 1;
 			if (tlen > sizeof(*hdr) ||
-			    etype >= RCVHQ_RCV_TYPE_NON_KD)
+			    etype >= RCVHQ_RCV_TYPE_NON_KD) {
 				ebuf = qib_get_egrbuf(rcd, etail);
+				prefetch_range(ebuf, tlen - sizeof(*hdr));
+			}
 		}
 		if (!eflags) {
 			u16 lrh_len = be16_to_cpu(hdr->lrh[2]) << 2;
@@ -761,8 +764,9 @@ int qib_reset_device(int unit)
 	qib_devinfo(dd->pcidev, "Reset on unit %u requested\n", unit);
 
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT)) {
-		qib_devinfo(dd->pcidev, "Invalid unit number %u or "
-			    "not initialized or not present\n", unit);
+		qib_devinfo(dd->pcidev,
+			"Invalid unit number %u or not initialized or not present\n",
+			unit);
 		ret = -ENXIO;
 		goto bail;
 	}
@@ -799,11 +803,13 @@ int qib_reset_device(int unit)
 	else
 		ret = -EAGAIN;
 	if (ret)
-		qib_dev_err(dd, "Reinitialize unit %u after "
-			    "reset failed with %d\n", unit, ret);
+		qib_dev_err(dd,
+			"Reinitialize unit %u after reset failed with %d\n",
+			unit, ret);
 	else
-		qib_devinfo(dd->pcidev, "Reinitialized unit %u after "
-			    "resetting\n", unit);
+		qib_devinfo(dd->pcidev,
+			"Reinitialized unit %u after resetting\n",
+			unit);
 
 bail:
 	return ret;

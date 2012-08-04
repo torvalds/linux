@@ -130,7 +130,7 @@ unsigned int rtsx_stor_access_xfer_buf(unsigned char *buffer,
 /* Store the contents of buffer into srb's transfer buffer and set the
 * SCSI residue. */
 void rtsx_stor_set_xfer_buf(unsigned char *buffer,
-       unsigned int buflen, struct scsi_cmnd *srb)
+	unsigned int buflen, struct scsi_cmnd *srb)
 {
 	unsigned int index = 0, offset = 0;
 
@@ -141,7 +141,7 @@ void rtsx_stor_set_xfer_buf(unsigned char *buffer,
 }
 
 void rtsx_stor_get_xfer_buf(unsigned char *buffer,
-       unsigned int buflen, struct scsi_cmnd *srb)
+	unsigned int buflen, struct scsi_cmnd *srb)
 {
 	unsigned int index = 0, offset = 0;
 

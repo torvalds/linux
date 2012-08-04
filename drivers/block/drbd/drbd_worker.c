@@ -70,11 +70,29 @@ rwlock_t global_state_lock;
 void drbd_md_io_complete(struct bio *bio, int error)
 {
 	struct drbd_md_io *md_io;
+	struct drbd_conf *mdev;
 
 	md_io = (struct drbd_md_io *)bio->bi_private;
+	mdev = container_of(md_io, struct drbd_conf, md_io);
+
 	md_io->error = error;
 
-	complete(&md_io->event);
+	/* We grabbed an extra reference in _drbd_md_sync_page_io() to be able
+	 * to timeout on the lower level device, and eventually detach from it.
+	 * If this io completion runs after that timeout expired, this
+	 * drbd_md_put_buffer() may allow us to finally try and re-attach.
+	 * During normal operation, this only puts that extra reference
+	 * down to 1 again.
+	 * Make sure we first drop the reference, and only then signal
+	 * completion, or we may (in drbd_al_read_log()) cycle so fast into the
+	 * next drbd_md_sync_page_io(), that we trigger the
+	 * ASSERT(atomic_read(&mdev->md_io_in_use) == 1) there.
+	 */
+	drbd_md_put_buffer(mdev);
+	md_io->done = 1;
+	wake_up(&mdev->misc_wait);
+	bio_put(bio);
+	put_ldev(mdev);
 }
 
 /* reads on behalf of the partner,
@@ -93,7 +111,7 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 	if (list_empty(&mdev->read_ee))
 		wake_up(&mdev->ee_wait);
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
-		__drbd_chk_io_error(mdev, false);
+		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	drbd_queue_work(&mdev->data.work, &e->w);
@@ -136,7 +154,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 		: list_empty(&mdev->active_ee);
 
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
-		__drbd_chk_io_error(mdev, false);
+		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	if (is_syncer_req)
@@ -226,6 +244,7 @@ void drbd_endio_pri(struct bio *bio, int error)
 	spin_lock_irqsave(&mdev->req_lock, flags);
 	__req_mod(req, what, &m);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
+	put_ldev(mdev);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
@@ -290,7 +309,7 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 	sg_init_table(&sg, 1);
 	crypto_hash_init(&desc);
 
-	__bio_for_each_segment(bvec, bio, i, 0) {
+	bio_for_each_segment(bvec, bio, i) {
 		sg_set_page(&sg, bvec->bv_page, bvec->bv_len, bvec->bv_offset);
 		crypto_hash_update(&desc, &sg, sg.length);
 	}
@@ -728,7 +747,7 @@ int w_start_resync(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	drbd_start_resync(mdev, C_SYNC_SOURCE);
-	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->current_epoch->flags);
+	clear_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags);
 	return 1;
 }
 
@@ -1482,14 +1501,6 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		return;
 	}
 
-	if (mdev->state.conn < C_AHEAD) {
-		/* In case a previous resync run was aborted by an IO error/detach on the peer. */
-		drbd_rs_cancel_all(mdev);
-		/* This should be done when we abort the resync. We definitely do not
-		   want to have this for connections going back and forth between
-		   Ahead/Behind and SyncSource/SyncTarget */
-	}
-
 	if (side == C_SYNC_TARGET) {
 		/* Since application IO was locked out during C_WF_BITMAP_T and
 		   C_WF_SYNC_UUID we are still unmodified. Before going to C_SYNC_TARGET
@@ -1519,14 +1530,14 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	}
 
 	drbd_state_lock(mdev);
-
+	write_lock_irq(&global_state_lock);
 	if (!get_ldev_if_state(mdev, D_NEGOTIATING)) {
+		write_unlock_irq(&global_state_lock);
 		drbd_state_unlock(mdev);
 		return;
 	}
 
-	write_lock_irq(&global_state_lock);
-	ns = mdev->state;
+	ns.i = mdev->state.i;
 
 	ns.aftr_isp = !_drbd_may_sync_now(mdev);
 

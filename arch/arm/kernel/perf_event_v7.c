@@ -1077,8 +1077,6 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 	 */
 	regs = get_irq_regs();
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
@@ -1097,7 +1095,7 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 
 		hwc = &event->hw;
 		armpmu_event_update(event, hwc, idx);
-		data.period = event->hw.last_period;
+		perf_sample_data_init(&data, 0, hwc->last_period);
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
 
@@ -1260,7 +1258,6 @@ static u32 __init armv7_read_num_pmnc_events(void)
 
 static struct arm_pmu *__init armv7_a8_pmu_init(void)
 {
-	armv7pmu.id		= ARM_PERF_PMU_ID_CA8;
 	armv7pmu.name		= "ARMv7 Cortex-A8";
 	armv7pmu.map_event	= armv7_a8_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
@@ -1269,7 +1266,6 @@ static struct arm_pmu *__init armv7_a8_pmu_init(void)
 
 static struct arm_pmu *__init armv7_a9_pmu_init(void)
 {
-	armv7pmu.id		= ARM_PERF_PMU_ID_CA9;
 	armv7pmu.name		= "ARMv7 Cortex-A9";
 	armv7pmu.map_event	= armv7_a9_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
@@ -1278,7 +1274,6 @@ static struct arm_pmu *__init armv7_a9_pmu_init(void)
 
 static struct arm_pmu *__init armv7_a5_pmu_init(void)
 {
-	armv7pmu.id		= ARM_PERF_PMU_ID_CA5;
 	armv7pmu.name		= "ARMv7 Cortex-A5";
 	armv7pmu.map_event	= armv7_a5_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
@@ -1287,7 +1282,6 @@ static struct arm_pmu *__init armv7_a5_pmu_init(void)
 
 static struct arm_pmu *__init armv7_a15_pmu_init(void)
 {
-	armv7pmu.id		= ARM_PERF_PMU_ID_CA15;
 	armv7pmu.name		= "ARMv7 Cortex-A15";
 	armv7pmu.map_event	= armv7_a15_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();
@@ -1297,7 +1291,6 @@ static struct arm_pmu *__init armv7_a15_pmu_init(void)
 
 static struct arm_pmu *__init armv7_a7_pmu_init(void)
 {
-	armv7pmu.id		= ARM_PERF_PMU_ID_CA7;
 	armv7pmu.name		= "ARMv7 Cortex-A7";
 	armv7pmu.map_event	= armv7_a7_map_event;
 	armv7pmu.num_events	= armv7_read_num_pmnc_events();

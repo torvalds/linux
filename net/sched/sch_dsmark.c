@@ -265,8 +265,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return NET_XMIT_SUCCESS;
 
 drop:
-	kfree_skb(skb);
-	sch->qstats.drops++;
+	qdisc_drop(skb, sch);
 	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 }
 
@@ -429,8 +428,9 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
-	NLA_PUT_U8(skb, TCA_DSMARK_MASK, p->mask[cl - 1]);
-	NLA_PUT_U8(skb, TCA_DSMARK_VALUE, p->value[cl - 1]);
+	if (nla_put_u8(skb, TCA_DSMARK_MASK, p->mask[cl - 1]) ||
+	    nla_put_u8(skb, TCA_DSMARK_VALUE, p->value[cl - 1]))
+		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
 
@@ -447,13 +447,16 @@ static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opts = nla_nest_start(skb, TCA_OPTIONS);
 	if (opts == NULL)
 		goto nla_put_failure;
-	NLA_PUT_U16(skb, TCA_DSMARK_INDICES, p->indices);
+	if (nla_put_u16(skb, TCA_DSMARK_INDICES, p->indices))
+		goto nla_put_failure;
 
-	if (p->default_index != NO_DEFAULT_INDEX)
-		NLA_PUT_U16(skb, TCA_DSMARK_DEFAULT_INDEX, p->default_index);
+	if (p->default_index != NO_DEFAULT_INDEX &&
+	    nla_put_u16(skb, TCA_DSMARK_DEFAULT_INDEX, p->default_index))
+		goto nla_put_failure;
 
-	if (p->set_tc_index)
-		NLA_PUT_FLAG(skb, TCA_DSMARK_SET_TC_INDEX);
+	if (p->set_tc_index &&
+	    nla_put_flag(skb, TCA_DSMARK_SET_TC_INDEX))
+		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);
 

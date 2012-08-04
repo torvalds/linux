@@ -74,6 +74,27 @@ config CFG80211_REG_DEBUG
 
 	  If unsure, say N.
 
+config CFG80211_CERTIFICATION_ONUS
+	bool "cfg80211 certification onus"
+	depends on CFG80211 && EXPERT
+	default n
+	---help---
+	  You should disable this option unless you are both capable
+	  and willing to ensure your system will remain regulatory
+	  compliant with the features available under this option.
+	  Some options may still be under heavy development and
+	  for whatever reason regulatory compliance has not or
+	  cannot yet be verified. Regulatory verification may at
+	  times only be possible until you have the final system
+	  in place.
+
+	  This option should only be enabled by system integrators
+	  or distributions that have done work necessary to ensure
+	  regulatory certification on the system with the enabled
+	  features. Alternatively you can enable this option if
+	  you are a wireless researcher and are working in a controlled
+	  and approved environment by your local regulatory agency.
+
 config CFG80211_DEFAULT_PS
 	bool "enable powersave by default"
 	depends on CFG80211
@@ -114,23 +135,9 @@ config CFG80211_WEXT
 	bool "cfg80211 wireless extensions compatibility"
 	depends on CFG80211
 	select WEXT_CORE
-	default y
 	help
 	  Enable this option if you need old userspace for wireless
 	  extensions with cfg80211-based drivers.
-
-config WIRELESS_EXT_SYSFS
-	bool "Wireless extensions sysfs files"
-	depends on WEXT_CORE && SYSFS
-	help
-	  This option enables the deprecated wireless statistics
-	  files in /sys/class/net/*/wireless/. The same information
-	  is available via the ioctls as well.
-
-	  Say N. If you know you have ancient tools requiring it,
-	  like very old versions of hal (prior to 0.5.12 release),
-	  say Y and update the tools as soon as possible as this
-	  option will be removed soon.
 
 config LIB80211
 	tristate "Common routines for IEEE802.11 drivers"

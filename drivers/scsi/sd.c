@@ -65,6 +65,7 @@
 #include <scsi/scsicam.h>
 
 #include "sd.h"
+#include "scsi_priv.h"
 #include "scsi_logging.h"
 
 MODULE_AUTHOR("Eric Youngdale");
@@ -1898,6 +1899,8 @@ static int sd_try_rc16_first(struct scsi_device *sdp)
 {
 	if (sdp->host->max_cmd_len < 16)
 		return 0;
+	if (sdp->try_rc_10_first)
+		return 0;
 	if (sdp->scsi_level > SCSI_SPC_2)
 		return 1;
 	if (scsi_device_protection(sdp))
@@ -2258,8 +2261,13 @@ bad_sense:
 		sd_printk(KERN_ERR, sdkp, "Asking for cache data failed\n");
 
 defaults:
-	sd_printk(KERN_ERR, sdkp, "Assuming drive cache: write through\n");
-	sdkp->WCE = 0;
+	if (sdp->wce_default_on) {
+		sd_printk(KERN_NOTICE, sdkp, "Assuming drive cache: write back\n");
+		sdkp->WCE = 1;
+	} else {
+		sd_printk(KERN_ERR, sdkp, "Assuming drive cache: write through\n");
+		sdkp->WCE = 0;
+	}
 	sdkp->RCD = 0;
 	sdkp->DPOFUA = 0;
 }
@@ -2701,6 +2709,7 @@ static int sd_probe(struct device *dev)
 	sdkp->disk = gd;
 	sdkp->index = index;
 	atomic_set(&sdkp->openers, 0);
+	atomic_set(&sdkp->device->ioerr_cnt, 0);
 
 	if (!sdp->request_queue->rq_timeout) {
 		if (sdp->type != TYPE_MOD)
@@ -2722,7 +2731,7 @@ static int sd_probe(struct device *dev)
 	dev_set_drvdata(dev, sdkp);
 
 	get_device(&sdkp->dev);	/* prevent release before async_schedule */
-	async_schedule(sd_probe_async, sdkp);
+	async_schedule_domain(sd_probe_async, sdkp, &scsi_sd_probe_domain);
 
 	return 0;
 
@@ -2756,7 +2765,7 @@ static int sd_remove(struct device *dev)
 	sdkp = dev_get_drvdata(dev);
 	scsi_autopm_get_device(sdkp->device);
 
-	async_synchronize_full();
+	async_synchronize_full_domain(&scsi_sd_probe_domain);
 	blk_queue_prep_rq(sdkp->device->request_queue, scsi_prep_fn);
 	blk_queue_unprep_rq(sdkp->device->request_queue, NULL);
 	device_del(&sdkp->dev);

@@ -16,8 +16,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/orion_spi.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/clk.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
@@ -45,7 +46,7 @@ struct orion_spi {
 	void __iomem		*base;
 	unsigned int		max_speed;
 	unsigned int		min_speed;
-	struct orion_spi_info	*spi_info;
+	struct clk              *clk;
 };
 
 static struct workqueue_struct *orion_spi_wq;
@@ -104,7 +105,7 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 
 	orion_spi = spi_master_get_devdata(spi->master);
 
-	tclk_hz = orion_spi->spi_info->tclk;
+	tclk_hz = clk_get_rate(orion_spi->clk);
 
 	/*
 	 * the supported rates are: 4,6,8...30
@@ -449,10 +450,10 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct orion_spi *spi;
 	struct resource *r;
-	struct orion_spi_info *spi_info;
+	unsigned long tclk_hz;
 	int status = 0;
-
-	spi_info = pdev->dev.platform_data;
+	const u32 *iprop;
+	int size;
 
 	master = spi_alloc_master(&pdev->dev, sizeof *spi);
 	if (master == NULL) {
@@ -462,6 +463,12 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 
 	if (pdev->id != -1)
 		master->bus_num = pdev->id;
+	if (pdev->dev.of_node) {
+		iprop = of_get_property(pdev->dev.of_node, "cell-index",
+					&size);
+		if (iprop && size == sizeof(*iprop))
+			master->bus_num = *iprop;
+	}
 
 	/* we support only mode 0, and no options */
 	master->mode_bits = 0;
@@ -474,21 +481,29 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
-	spi->spi_info = spi_info;
 
-	spi->max_speed = DIV_ROUND_UP(spi_info->tclk, 4);
-	spi->min_speed = DIV_ROUND_UP(spi_info->tclk, 30);
+	spi->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(spi->clk)) {
+		status = PTR_ERR(spi->clk);
+		goto out;
+	}
+
+	clk_prepare(spi->clk);
+	clk_enable(spi->clk);
+	tclk_hz = clk_get_rate(spi->clk);
+	spi->max_speed = DIV_ROUND_UP(tclk_hz, 4);
+	spi->min_speed = DIV_ROUND_UP(tclk_hz, 30);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		status = -ENODEV;
-		goto out;
+		goto out_rel_clk;
 	}
 
 	if (!request_mem_region(r->start, resource_size(r),
 				dev_name(&pdev->dev))) {
 		status = -EBUSY;
-		goto out;
+		goto out_rel_clk;
 	}
 	spi->base = ioremap(r->start, SZ_1K);
 
@@ -500,6 +515,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	if (orion_spi_reset(spi) < 0)
 		goto out_rel_mem;
 
+	master->dev.of_node = pdev->dev.of_node;
 	status = spi_register_master(master);
 	if (status < 0)
 		goto out_rel_mem;
@@ -508,7 +524,9 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 
 out_rel_mem:
 	release_mem_region(r->start, resource_size(r));
-
+out_rel_clk:
+	clk_disable_unprepare(spi->clk);
+	clk_put(spi->clk);
 out:
 	spi_master_put(master);
 	return status;
@@ -526,6 +544,9 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&spi->work);
 
+	clk_disable_unprepare(spi->clk);
+	clk_put(spi->clk);
+
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, resource_size(r));
 
@@ -536,10 +557,17 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
+static const struct of_device_id orion_spi_of_match_table[] __devinitdata = {
+	{ .compatible = "marvell,orion-spi", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
+
 static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.remove		= __exit_p(orion_spi_remove),
 };

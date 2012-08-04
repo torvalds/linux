@@ -140,11 +140,77 @@ const struct fib_prop fib_props[RTN_MAX + 1] = {
 	},
 };
 
+static void rt_fibinfo_free(struct rtable __rcu **rtp)
+{
+	struct rtable *rt = rcu_dereference_protected(*rtp, 1);
+
+	if (!rt)
+		return;
+
+	/* Not even needed : RCU_INIT_POINTER(*rtp, NULL);
+	 * because we waited an RCU grace period before calling
+	 * free_fib_info_rcu()
+	 */
+
+	dst_free(&rt->dst);
+}
+
+static void free_nh_exceptions(struct fib_nh *nh)
+{
+	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
+	int i;
+
+	for (i = 0; i < FNHE_HASH_SIZE; i++) {
+		struct fib_nh_exception *fnhe;
+
+		fnhe = rcu_dereference_protected(hash[i].chain, 1);
+		while (fnhe) {
+			struct fib_nh_exception *next;
+			
+			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
+
+			rt_fibinfo_free(&fnhe->fnhe_rth);
+
+			kfree(fnhe);
+
+			fnhe = next;
+		}
+	}
+	kfree(hash);
+}
+
+static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
+{
+	int cpu;
+
+	if (!rtp)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct rtable *rt;
+
+		rt = rcu_dereference_protected(*per_cpu_ptr(rtp, cpu), 1);
+		if (rt)
+			dst_free(&rt->dst);
+	}
+	free_percpu(rtp);
+}
+
 /* Release a nexthop info record */
 static void free_fib_info_rcu(struct rcu_head *head)
 {
 	struct fib_info *fi = container_of(head, struct fib_info, rcu);
 
+	change_nexthops(fi) {
+		if (nexthop_nh->nh_dev)
+			dev_put(nexthop_nh->nh_dev);
+		if (nexthop_nh->nh_exceptions)
+			free_nh_exceptions(nexthop_nh);
+		rt_fibinfo_free_cpus(nexthop_nh->nh_pcpu_rth_output);
+		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
+	} endfor_nexthops(fi);
+
+	release_net(fi->fib_net);
 	if (fi->fib_metrics != (u32 *) dst_default_metrics)
 		kfree(fi->fib_metrics);
 	kfree(fi);
@@ -156,13 +222,13 @@ void free_fib_info(struct fib_info *fi)
 		pr_warn("Freeing alive fib_info %p\n", fi);
 		return;
 	}
-	change_nexthops(fi) {
-		if (nexthop_nh->nh_dev)
-			dev_put(nexthop_nh->nh_dev);
-		nexthop_nh->nh_dev = NULL;
-	} endfor_nexthops(fi);
 	fib_info_cnt--;
-	release_net(fi->fib_net);
+#ifdef CONFIG_IP_ROUTE_CLASSID
+	change_nexthops(fi) {
+		if (nexthop_nh->nh_tclassid)
+			fi->fib_net->ipv4.fib_num_tclassid_users--;
+	} endfor_nexthops(fi);
+#endif
 	call_rcu(&fi->rcu, free_fib_info_rcu);
 }
 
@@ -421,6 +487,8 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 			nla = nla_find(attrs, attrlen, RTA_FLOW);
 			nexthop_nh->nh_tclassid = nla ? nla_get_u32(nla) : 0;
+			if (nexthop_nh->nh_tclassid)
+				fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
 		}
 
@@ -769,6 +837,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
+		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {
@@ -779,9 +848,16 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 			int type = nla_type(nla);
 
 			if (type) {
+				u32 val;
+
 				if (type > RTAX_MAX)
 					goto err_inval;
-				fi->fib_metrics[type - 1] = nla_get_u32(nla);
+				val = nla_get_u32(nla);
+				if (type == RTAX_ADVMSS && val > 65535 - 40)
+					val = 65535 - 40;
+				if (type == RTAX_MTU && val > 65535 - 15)
+					val = 65535 - 15;
+				fi->fib_metrics[type - 1] = val;
 			}
 		}
 	}
@@ -810,6 +886,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		nh->nh_flags = cfg->fc_flags;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 		nh->nh_tclassid = cfg->fc_flow;
+		if (nh->nh_tclassid)
+			fi->fib_net->ipv4.fib_num_tclassid_users++;
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 		nh->nh_weight = 1;
@@ -931,33 +1009,36 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		rtm->rtm_table = tb_id;
 	else
 		rtm->rtm_table = RT_TABLE_COMPAT;
-	NLA_PUT_U32(skb, RTA_TABLE, tb_id);
+	if (nla_put_u32(skb, RTA_TABLE, tb_id))
+		goto nla_put_failure;
 	rtm->rtm_type = type;
 	rtm->rtm_flags = fi->fib_flags;
 	rtm->rtm_scope = fi->fib_scope;
 	rtm->rtm_protocol = fi->fib_protocol;
 
-	if (rtm->rtm_dst_len)
-		NLA_PUT_BE32(skb, RTA_DST, dst);
-
-	if (fi->fib_priority)
-		NLA_PUT_U32(skb, RTA_PRIORITY, fi->fib_priority);
-
+	if (rtm->rtm_dst_len &&
+	    nla_put_be32(skb, RTA_DST, dst))
+		goto nla_put_failure;
+	if (fi->fib_priority &&
+	    nla_put_u32(skb, RTA_PRIORITY, fi->fib_priority))
+		goto nla_put_failure;
 	if (rtnetlink_put_metrics(skb, fi->fib_metrics) < 0)
 		goto nla_put_failure;
 
-	if (fi->fib_prefsrc)
-		NLA_PUT_BE32(skb, RTA_PREFSRC, fi->fib_prefsrc);
-
+	if (fi->fib_prefsrc &&
+	    nla_put_be32(skb, RTA_PREFSRC, fi->fib_prefsrc))
+		goto nla_put_failure;
 	if (fi->fib_nhs == 1) {
-		if (fi->fib_nh->nh_gw)
-			NLA_PUT_BE32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw);
-
-		if (fi->fib_nh->nh_oif)
-			NLA_PUT_U32(skb, RTA_OIF, fi->fib_nh->nh_oif);
+		if (fi->fib_nh->nh_gw &&
+		    nla_put_be32(skb, RTA_GATEWAY, fi->fib_nh->nh_gw))
+			goto nla_put_failure;
+		if (fi->fib_nh->nh_oif &&
+		    nla_put_u32(skb, RTA_OIF, fi->fib_nh->nh_oif))
+			goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-		if (fi->fib_nh[0].nh_tclassid)
-			NLA_PUT_U32(skb, RTA_FLOW, fi->fib_nh[0].nh_tclassid);
+		if (fi->fib_nh[0].nh_tclassid &&
+		    nla_put_u32(skb, RTA_FLOW, fi->fib_nh[0].nh_tclassid))
+			goto nla_put_failure;
 #endif
 	}
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -978,11 +1059,13 @@ int fib_dump_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 			rtnh->rtnh_hops = nh->nh_weight - 1;
 			rtnh->rtnh_ifindex = nh->nh_oif;
 
-			if (nh->nh_gw)
-				NLA_PUT_BE32(skb, RTA_GATEWAY, nh->nh_gw);
+			if (nh->nh_gw &&
+			    nla_put_be32(skb, RTA_GATEWAY, nh->nh_gw))
+				goto nla_put_failure;
 #ifdef CONFIG_IP_ROUTE_CLASSID
-			if (nh->nh_tclassid)
-				NLA_PUT_U32(skb, RTA_FLOW, nh->nh_tclassid);
+			if (nh->nh_tclassid &&
+			    nla_put_u32(skb, RTA_FLOW, nh->nh_tclassid))
+				goto nla_put_failure;
 #endif
 			/* length of rtnetlink header + attributes */
 			rtnh->rtnh_len = nlmsg_get_pos(skb) - (void *) rtnh;

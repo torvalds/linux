@@ -292,7 +292,7 @@ struct mac80211_hwsim_data {
 	struct list_head list;
 	struct ieee80211_hw *hw;
 	struct device *dev;
-	struct ieee80211_supported_band bands[2];
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels_2ghz[ARRAY_SIZE(hwsim_channels_2ghz)];
 	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
@@ -571,7 +571,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 			skb_dequeue(&data->pending);
 	}
 
-	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (skb == NULL)
 		goto nla_put_failure;
 
@@ -582,11 +582,13 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		goto nla_put_failure;
 	}
 
-	NLA_PUT(skb, HWSIM_ATTR_ADDR_TRANSMITTER,
-		     sizeof(struct mac_address), data->addresses[1].addr);
+	if (nla_put(skb, HWSIM_ATTR_ADDR_TRANSMITTER,
+		    sizeof(struct mac_address), data->addresses[1].addr))
+		goto nla_put_failure;
 
 	/* We get the skb->data */
-	NLA_PUT(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data);
+	if (nla_put(skb, HWSIM_ATTR_FRAME, my_skb->len, my_skb->data))
+		goto nla_put_failure;
 
 	/* We get the flags for this transmission, and we translate them to
 	   wmediumd flags  */
@@ -597,7 +599,8 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	if (info->flags & IEEE80211_TX_CTL_NO_ACK)
 		hwsim_flags |= HWSIM_TX_CTL_NO_ACK;
 
-	NLA_PUT_U32(skb, HWSIM_ATTR_FLAGS, hwsim_flags);
+	if (nla_put_u32(skb, HWSIM_ATTR_FLAGS, hwsim_flags))
+		goto nla_put_failure;
 
 	/* We get the tx control (rate and retries) info*/
 
@@ -606,12 +609,14 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 		tx_attempts[i].count = info->status.rates[i].count;
 	}
 
-	NLA_PUT(skb, HWSIM_ATTR_TX_INFO,
-		     sizeof(struct hwsim_tx_rate)*IEEE80211_TX_MAX_RATES,
-		     tx_attempts);
+	if (nla_put(skb, HWSIM_ATTR_TX_INFO,
+		    sizeof(struct hwsim_tx_rate)*IEEE80211_TX_MAX_RATES,
+		    tx_attempts))
+		goto nla_put_failure;
 
 	/* We create a cookie to identify this skb */
-	NLA_PUT_U64(skb, HWSIM_ATTR_COOKIE, (unsigned long) my_skb);
+	if (nla_put_u64(skb, HWSIM_ATTR_COOKIE, (unsigned long) my_skb))
+		goto nla_put_failure;
 
 	genlmsg_end(skb, msg_head);
 	genlmsg_unicast(&init_net, skb, dst_pid);
@@ -632,6 +637,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
 	if (data->idle) {
 		wiphy_debug(hw->wiphy, "Trying to TX when idle - reject\n");
@@ -666,13 +672,13 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(data2, &hwsim_radios, list) {
 		struct sk_buff *nskb;
+		struct ieee80211_mgmt *mgmt;
 
 		if (data == data2)
 			continue;
 
 		if (data2->idle || !data2->started ||
-		    !hwsim_ps_rx_ok(data2, skb) ||
-		    !data->channel || !data2->channel ||
+		    !hwsim_ps_rx_ok(data2, skb) || !data2->channel ||
 		    data->channel->center_freq != data2->channel->center_freq ||
 		    !(data->group & data2->group))
 			continue;
@@ -683,8 +689,18 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 
 		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
+
+		/* set bcn timestamp relative to receiver mactime */
 		rx_status.mactime =
-			le64_to_cpu(__mac80211_hwsim_get_tsf(data2));
+				le64_to_cpu(__mac80211_hwsim_get_tsf(data2));
+		mgmt = (struct ieee80211_mgmt *) nskb->data;
+		if (ieee80211_is_beacon(mgmt->frame_control) ||
+		    ieee80211_is_probe_resp(mgmt->frame_control))
+			mgmt->u.beacon.timestamp = cpu_to_le64(
+				rx_status.mactime +
+				(data->tsf_offset - data2->tsf_offset) +
+				24 * 8 * 10 / txrate->bitrate);
+
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
 		ieee80211_rx_irqsafe(data2->hw, nskb);
 	}
@@ -698,12 +714,6 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool ack;
 	struct ieee80211_tx_info *txi;
 	u32 _pid;
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	struct mac80211_hwsim_data *data = hw->priv;
-
-	if (ieee80211_is_beacon(mgmt->frame_control) ||
-	    ieee80211_is_probe_resp(mgmt->frame_control))
-		mgmt->u.beacon.timestamp = __mac80211_hwsim_get_tsf(data);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -729,12 +739,12 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	txi = IEEE80211_SKB_CB(skb);
 
-	if (txi->control.vif)
-		hwsim_check_magic(txi->control.vif);
-	if (txi->control.sta)
-		hwsim_check_sta_magic(txi->control.sta);
-
 	ieee80211_tx_info_clear_status(txi);
+
+	/* frame was transmitted at most favorable rate at first attempt */
+	txi->control.rates[0].count = 1;
+	txi->control.rates[1].idx = -1;
+
 	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK) && ack)
 		txi->flags |= IEEE80211_TX_STAT_ACK;
 	ieee80211_tx_status_irqsafe(hw, skb);
@@ -800,11 +810,9 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw = arg;
-	struct mac80211_hwsim_data *data = hw->priv;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	u32 _pid;
-	struct ieee80211_mgmt *mgmt;
 
 	hwsim_check_magic(vif);
 
@@ -817,9 +825,6 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	if (skb == NULL)
 		return;
 	info = IEEE80211_SKB_CB(skb);
-
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	mgmt->u.beacon.timestamp = __mac80211_hwsim_get_tsf(data);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -1072,6 +1077,8 @@ enum hwsim_testmode_attr {
 enum hwsim_testmode_cmd {
 	HWSIM_TM_CMD_SET_PS		= 0,
 	HWSIM_TM_CMD_GET_PS		= 1,
+	HWSIM_TM_CMD_STOP_QUEUES	= 2,
+	HWSIM_TM_CMD_WAKE_QUEUES	= 3,
 };
 
 static const struct nla_policy hwsim_testmode_policy[HWSIM_TM_ATTR_MAX + 1] = {
@@ -1108,8 +1115,15 @@ static int mac80211_hwsim_testmode_cmd(struct ieee80211_hw *hw,
 						nla_total_size(sizeof(u32)));
 		if (!skb)
 			return -ENOMEM;
-		NLA_PUT_U32(skb, HWSIM_TM_ATTR_PS, hwsim->ps);
+		if (nla_put_u32(skb, HWSIM_TM_ATTR_PS, hwsim->ps))
+			goto nla_put_failure;
 		return cfg80211_testmode_reply(skb);
+	case HWSIM_TM_CMD_STOP_QUEUES:
+		ieee80211_stop_queues(hw);
+		return 0;
+	case HWSIM_TM_CMD_WAKE_QUEUES:
+		ieee80211_wake_queues(hw);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1444,7 +1458,7 @@ DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_group,
 			hwsim_fops_group_read, hwsim_fops_group_write,
 			"%llx\n");
 
-struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(
+static struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(
 			     struct mac_address *addr)
 {
 	struct mac80211_hwsim_data *data;
@@ -1474,7 +1488,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	struct mac80211_hwsim_data *data2;
 	struct ieee80211_tx_info *txi;
 	struct hwsim_tx_rate *tx_attempts;
-	struct sk_buff __user *ret_skb;
+	unsigned long ret_skb_ptr;
 	struct sk_buff *skb, *tmp;
 	struct mac_address *src;
 	unsigned int hwsim_flags;
@@ -1492,8 +1506,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 				   info->attrs[HWSIM_ATTR_ADDR_TRANSMITTER]);
 	hwsim_flags = nla_get_u32(info->attrs[HWSIM_ATTR_FLAGS]);
 
-	ret_skb = (struct sk_buff __user *)
-		  (unsigned long) nla_get_u64(info->attrs[HWSIM_ATTR_COOKIE]);
+	ret_skb_ptr = nla_get_u64(info->attrs[HWSIM_ATTR_COOKIE]);
 
 	data2 = get_hwsim_data_ref_from_addr(src);
 
@@ -1502,7 +1515,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 
 	/* look for the skb matching the cookie passed back from user */
 	skb_queue_walk_safe(&data2->pending, skb, tmp) {
-		if (skb == ret_skb) {
+		if ((unsigned long)skb == ret_skb_ptr) {
 			skb_unlink(skb, &data2->pending);
 			found = true;
 			break;
@@ -1522,11 +1535,6 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 	/* now send back TX status */
 	txi = IEEE80211_SKB_CB(skb);
 
-	if (txi->control.vif)
-		hwsim_check_magic(txi->control.vif);
-	if (txi->control.sta)
-		hwsim_check_sta_magic(txi->control.sta);
-
 	ieee80211_tx_info_clear_status(txi);
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
@@ -1543,6 +1551,7 @@ static int hwsim_tx_info_frame_received_nl(struct sk_buff *skb_2,
 			hdr = (struct ieee80211_hdr *) skb->data;
 			mac80211_hwsim_monitor_ack(data2->hw, hdr->addr2);
 		}
+		txi->flags |= IEEE80211_TX_STAT_ACK;
 	}
 	ieee80211_tx_status_irqsafe(data2->hw, skb);
 	return 0;
@@ -1709,6 +1718,24 @@ static void hwsim_exit_netlink(void)
 		       "unregister family %i\n", ret);
 }
 
+static const struct ieee80211_iface_limit hwsim_if_limits[] = {
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_ADHOC) },
+	{ .max = 2048,  .types = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+#ifdef CONFIG_MAC80211_MESH
+				 BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+				 BIT(NL80211_IFTYPE_AP) |
+				 BIT(NL80211_IFTYPE_P2P_GO) },
+};
+
+static const struct ieee80211_iface_combination hwsim_if_comb = {
+	.limits = hwsim_if_limits,
+	.n_limits = ARRAY_SIZE(hwsim_if_limits),
+	.max_interfaces = 2048,
+	.num_different_channels = 1,
+};
+
 static int __init init_mac80211_hwsim(void)
 {
 	int i, err = 0;
@@ -1770,6 +1797,9 @@ static int __init init_mac80211_hwsim(void)
 		hw->wiphy->n_addresses = 2;
 		hw->wiphy->addresses = data->addresses;
 
+		hw->wiphy->iface_combinations = &hwsim_if_comb;
+		hw->wiphy->n_iface_combinations = 1;
+
 		if (fake_hw_scan) {
 			hw->wiphy->max_scan_ssids = 255;
 			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
@@ -1789,9 +1819,11 @@ static int __init init_mac80211_hwsim(void)
 			    IEEE80211_HW_SIGNAL_DBM |
 			    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
 			    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-			    IEEE80211_HW_AMPDU_AGGREGATION;
+			    IEEE80211_HW_AMPDU_AGGREGATION |
+			    IEEE80211_HW_WANT_MONITOR_VIF;
 
-		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
+				    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
@@ -1821,7 +1853,7 @@ static int __init init_mac80211_hwsim(void)
 				sband->n_bitrates = ARRAY_SIZE(hwsim_rates) - 4;
 				break;
 			default:
-				break;
+				continue;
 			}
 
 			sband->ht_cap.ht_supported = true;

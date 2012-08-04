@@ -42,30 +42,13 @@ enum hdmi_clk_refsel {
 	HDMI_REFSEL_SYSCLK = 3
 };
 
-/* HDMI timing structure */
-struct hdmi_video_timings {
-	u16 x_res;
-	u16 y_res;
-	/* Unit: KHz */
-	u32 pixel_clock;
-	u16 hsw;
-	u16 hfp;
-	u16 hbp;
-	u16 vsw;
-	u16 vfp;
-	u16 vbp;
-	bool vsync_pol;
-	bool hsync_pol;
-	bool interlace;
-};
-
 struct hdmi_cm {
 	int	code;
 	int	mode;
 };
 
 struct hdmi_config {
-	struct hdmi_video_timings timings;
+	struct omap_video_timings timings;
 	struct hdmi_cm cm;
 };
 
@@ -96,7 +79,9 @@ struct ti_hdmi_ip_ops {
 
 	void (*pll_disable)(struct hdmi_ip_data *ip_data);
 
-	void (*video_enable)(struct hdmi_ip_data *ip_data, bool start);
+	int (*video_enable)(struct hdmi_ip_data *ip_data);
+
+	void (*video_disable)(struct hdmi_ip_data *ip_data);
 
 	void (*dump_wrapper)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
@@ -106,9 +91,17 @@ struct ti_hdmi_ip_ops {
 
 	void (*dump_phy)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
-#if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
-	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
-	void (*audio_enable)(struct hdmi_ip_data *ip_data, bool start);
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+	int (*audio_enable)(struct hdmi_ip_data *ip_data);
+
+	void (*audio_disable)(struct hdmi_ip_data *ip_data);
+
+	int (*audio_start)(struct hdmi_ip_data *ip_data);
+
+	void (*audio_stop)(struct hdmi_ip_data *ip_data);
+
+	int (*audio_config)(struct hdmi_ip_data *ip_data,
+		struct omap_dss_audio *audio);
 #endif
 
 };
@@ -167,13 +160,14 @@ struct hdmi_ip_data {
 
 	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
 	int hpd_gpio;
-	bool phy_tx_enabled;
+	struct mutex lock;
 };
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data, u8 *edid, int len);
 bool ti_hdmi_4xxx_detect(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data, bool start);
+int ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_wp_video_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data);
@@ -181,8 +175,13 @@ void ti_hdmi_4xxx_wp_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_pll_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 void ti_hdmi_4xxx_phy_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
-#if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
-	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
-void ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data, bool enable);
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts);
+int ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_wp_audio_disable(struct hdmi_ip_data *ip_data);
+int ti_hdmi_4xxx_audio_start(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_audio_stop(struct hdmi_ip_data *ip_data);
+int ti_hdmi_4xxx_audio_config(struct hdmi_ip_data *ip_data,
+		struct omap_dss_audio *audio);
 #endif
 #endif

@@ -111,7 +111,7 @@ static inline unsigned Filter_Enable(unsigned port)
 
 static int ni_65xx_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
-static int ni_65xx_detach(struct comedi_device *dev);
+static void ni_65xx_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni_65xx = {
 	.driver_name = "ni_65xx",
 	.module = THIS_MODULE,
@@ -415,8 +415,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 	const unsigned max_ports_per_bitfield = 5;
 	unsigned read_bits = 0;
 	unsigned j;
-	if (insn->n != 2)
-		return -EINVAL;
+
 	base_bitfield_channel = CR_CHAN(insn->chanspec);
 	for (j = 0; j < max_ports_per_bitfield; ++j) {
 		const unsigned port_offset =
@@ -602,11 +601,8 @@ static int ni_65xx_intr_insn_bits(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n < 1)
-		return -EINVAL;
-
 	data[1] = 0;
-	return 2;
+	return insn->n;
 }
 
 static int ni_65xx_intr_insn_config(struct comedi_device *dev,
@@ -678,8 +674,8 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	printk(KERN_INFO " ID=0x%02x",
 	       readb(private(dev)->mite->daq_io_addr + ID_Register));
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -784,7 +780,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static int ni_65xx_detach(struct comedi_device *dev)
+static void ni_65xx_detach(struct comedi_device *dev)
 {
 	if (private(dev) && private(dev)->mite
 	    && private(dev)->mite->daq_io_addr) {
@@ -792,10 +788,8 @@ static int ni_65xx_detach(struct comedi_device *dev)
 		       private(dev)->mite->daq_io_addr +
 		       Master_Interrupt_Control);
 	}
-
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-
 	if (private(dev)) {
 		unsigned i;
 		for (i = 0; i < dev->n_subdevices; ++i) {
@@ -805,7 +799,6 @@ static int ni_65xx_detach(struct comedi_device *dev)
 		if (private(dev)->mite)
 			mite_unsetup(private(dev)->mite);
 	}
-	return 0;
 }
 
 static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
@@ -837,7 +830,7 @@ static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
 static int __devinit driver_ni_65xx_pci_probe(struct pci_dev *dev,
 					      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_ni_65xx.driver_name);
+	return comedi_pci_auto_config(dev, &driver_ni_65xx);
 }
 
 static void __devexit driver_ni_65xx_pci_remove(struct pci_dev *dev)

@@ -1874,7 +1874,7 @@ de4x5_local_stats(struct net_device *dev, char *buf, int pkt_len)
 	} else {
 	    lp->pktStats.multicast++;
 	}
-    } else if (compare_ether_addr(buf, dev->dev_addr) == 0) {
+    } else if (ether_addr_equal(buf, dev->dev_addr)) {
         lp->pktStats.unicast++;
     }
 
@@ -3973,7 +3973,7 @@ DevicePresent(struct net_device *dev, u_long aprom_addr)
 	    tmp = srom_rd(aprom_addr, i);
 	    *p++ = cpu_to_le16(tmp);
 	}
-	de4x5_dbg_srom((struct de4x5_srom *)&lp->srom);
+	de4x5_dbg_srom(&lp->srom);
     }
 }
 

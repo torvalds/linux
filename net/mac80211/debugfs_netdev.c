@@ -394,7 +394,7 @@ static ssize_t ieee80211_if_parse_uapsd_max_sp_len(
 __IEEE80211_IF_FILE_W(uapsd_max_sp_len);
 
 /* AP attributes */
-IEEE80211_IF_FILE(num_sta_authorized, u.ap.num_sta_authorized, ATOMIC);
+IEEE80211_IF_FILE(num_mcast_sta, u.ap.num_mcast_sta, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
 
@@ -424,6 +424,7 @@ static ssize_t ieee80211_if_parse_tsf(
 	struct ieee80211_local *local = sdata->local;
 	unsigned long long tsf;
 	int ret;
+	int tsf_is_delta = 0;
 
 	if (strncmp(buf, "reset", 5) == 0) {
 		if (local->ops->reset_tsf) {
@@ -431,9 +432,20 @@ static ssize_t ieee80211_if_parse_tsf(
 			wiphy_info(local->hw.wiphy, "debugfs reset TSF\n");
 		}
 	} else {
+		if (buflen > 10 && buf[1] == '=') {
+			if (buf[0] == '+')
+				tsf_is_delta = 1;
+			else if (buf[0] == '-')
+				tsf_is_delta = -1;
+			else
+				return -EINVAL;
+			buf += 2;
+		}
 		ret = kstrtoull(buf, 10, &tsf);
 		if (ret < 0)
 			return -EINVAL;
+		if (tsf_is_delta)
+			tsf = drv_get_tsf(local, sdata) + tsf_is_delta * tsf;
 		if (local->ops->set_tsf) {
 			drv_set_tsf(local, sdata, tsf);
 			wiphy_info(local->hw.wiphy,
@@ -456,69 +468,73 @@ IEEE80211_IF_FILE(fwded_unicast, u.mesh.mshstats.fwded_unicast, DEC);
 IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
 IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
 IEEE80211_IF_FILE(dropped_frames_congestion,
-		u.mesh.mshstats.dropped_frames_congestion, DEC);
+		  u.mesh.mshstats.dropped_frames_congestion, DEC);
 IEEE80211_IF_FILE(dropped_frames_no_route,
-		u.mesh.mshstats.dropped_frames_no_route, DEC);
+		  u.mesh.mshstats.dropped_frames_no_route, DEC);
 IEEE80211_IF_FILE(estab_plinks, u.mesh.mshstats.estab_plinks, ATOMIC);
 
 /* Mesh parameters */
 IEEE80211_IF_FILE(dot11MeshMaxRetries,
-		u.mesh.mshcfg.dot11MeshMaxRetries, DEC);
+		  u.mesh.mshcfg.dot11MeshMaxRetries, DEC);
 IEEE80211_IF_FILE(dot11MeshRetryTimeout,
-		u.mesh.mshcfg.dot11MeshRetryTimeout, DEC);
+		  u.mesh.mshcfg.dot11MeshRetryTimeout, DEC);
 IEEE80211_IF_FILE(dot11MeshConfirmTimeout,
-		u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC);
+		  u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHoldingTimeout,
-		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC);
+		  u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC);
 IEEE80211_IF_FILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC);
 IEEE80211_IF_FILE(element_ttl, u.mesh.mshcfg.element_ttl, DEC);
 IEEE80211_IF_FILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC);
 IEEE80211_IF_FILE(dot11MeshMaxPeerLinks,
-		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC);
+		  u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPactivePathTimeout,
-		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPpreqMinInterval,
-		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPperrMinInterval,
-		u.mesh.mshcfg.dot11MeshHWMPperrMinInterval, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPperrMinInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPnetDiameterTraversalTime,
-		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPmaxPREQretries,
-		u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC);
 IEEE80211_IF_FILE(path_refresh_time,
-		u.mesh.mshcfg.path_refresh_time, DEC);
+		  u.mesh.mshcfg.path_refresh_time, DEC);
 IEEE80211_IF_FILE(min_discovery_timeout,
-		u.mesh.mshcfg.min_discovery_timeout, DEC);
+		  u.mesh.mshcfg.min_discovery_timeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
-		u.mesh.mshcfg.dot11MeshHWMPRootMode, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPRootMode, DEC);
 IEEE80211_IF_FILE(dot11MeshGateAnnouncementProtocol,
-		u.mesh.mshcfg.dot11MeshGateAnnouncementProtocol, DEC);
+		  u.mesh.mshcfg.dot11MeshGateAnnouncementProtocol, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRannInterval,
-		u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
+		  u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshForwarding, u.mesh.mshcfg.dot11MeshForwarding, DEC);
 IEEE80211_IF_FILE(rssi_threshold, u.mesh.mshcfg.rssi_threshold, DEC);
+IEEE80211_IF_FILE(ht_opmode, u.mesh.mshcfg.ht_opmode, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPactivePathToRootTimeout,
+		  u.mesh.mshcfg.dot11MeshHWMPactivePathToRootTimeout, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMProotInterval,
+		  u.mesh.mshcfg.dot11MeshHWMProotInterval, DEC);
+IEEE80211_IF_FILE(dot11MeshHWMPconfirmationInterval,
+		  u.mesh.mshcfg.dot11MeshHWMPconfirmationInterval, DEC);
 #endif
-
-
-#define DEBUGFS_ADD(name) \
-	debugfs_create_file(#name, 0400, sdata->debugfs.dir, \
-			    sdata, &name##_ops);
 
 #define DEBUGFS_ADD_MODE(name, mode) \
 	debugfs_create_file(#name, mode, sdata->debugfs.dir, \
 			    sdata, &name##_ops);
 
-static void add_sta_files(struct ieee80211_sub_if_data *sdata)
+#define DEBUGFS_ADD(name) DEBUGFS_ADD_MODE(name, 0400)
+
+static void add_common_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
+}
 
+static void add_sta_files(struct ieee80211_sub_if_data *sdata)
+{
 	DEBUGFS_ADD(bssid);
 	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(last_beacon);
@@ -531,16 +547,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-
-	DEBUGFS_ADD(num_sta_authorized);
+	DEBUGFS_ADD(num_mcast_sta);
 	DEBUGFS_ADD(num_sta_ps);
 	DEBUGFS_ADD(dtim_count);
 	DEBUGFS_ADD(num_buffered_multicast);
@@ -549,46 +556,12 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-
 	DEBUGFS_ADD_MODE(tsf, 0600);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-
 	DEBUGFS_ADD(peer);
-}
-
-static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-}
-
-static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
 }
 
 #ifdef CONFIG_MAC80211_MESH
@@ -640,8 +613,13 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(min_discovery_timeout);
 	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
 	MESHPARAMS_ADD(dot11MeshHWMPRannInterval);
+	MESHPARAMS_ADD(dot11MeshForwarding);
 	MESHPARAMS_ADD(dot11MeshGateAnnouncementProtocol);
 	MESHPARAMS_ADD(rssi_threshold);
+	MESHPARAMS_ADD(ht_opmode);
+	MESHPARAMS_ADD(dot11MeshHWMPactivePathToRootTimeout);
+	MESHPARAMS_ADD(dot11MeshHWMProotInterval);
+	MESHPARAMS_ADD(dot11MeshHWMPconfirmationInterval);
 #undef MESHPARAMS_ADD
 }
 #endif
@@ -650,6 +628,13 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 {
 	if (!sdata->debugfs.dir)
 		return;
+
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
+
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		add_common_files(sdata);
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MESH_POINT:
@@ -670,12 +655,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		add_monitor_files(sdata);
-		break;
-	case NL80211_IFTYPE_AP_VLAN:
-		add_vlan_files(sdata);
 		break;
 	default:
 		break;
@@ -716,6 +695,7 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 
 	sprintf(buf, "netdev:%s", sdata->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
-		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
-		       "dir to %s\n", buf);
+		sdata_err(sdata,
+			  "debugfs: failed to rename debugfs dir to %s\n",
+			  buf);
 }

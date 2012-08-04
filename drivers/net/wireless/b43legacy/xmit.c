@@ -228,6 +228,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	} else {
 		txhdr->dur_fb = ieee80211_generic_frame_duration(dev->wl->hw,
 							 info->control.vif,
+							 info->band,
 							 fragment_len,
 							 rate_fb);
 	}
@@ -268,8 +269,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
 				    (&txhdr->plcp), plcp_fragment_len,
 				    rate);
-	b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
-				    (&txhdr->plcp_fb), plcp_fragment_len,
+	b43legacy_generate_plcp_hdr(&txhdr->plcp_fb, plcp_fragment_len,
 				    rate_fb->hw_value);
 
 	/* PHY TX Control word */
@@ -277,19 +277,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		phy_ctl |= B43legacy_TX4_PHY_ENC_OFDM;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		phy_ctl |= B43legacy_TX4_PHY_SHORTPRMBL;
-	switch (info->antenna_sel_tx) {
-	case 0:
-		phy_ctl |= B43legacy_TX4_PHY_ANTLAST;
-		break;
-	case 1:
-		phy_ctl |= B43legacy_TX4_PHY_ANT0;
-		break;
-	case 2:
-		phy_ctl |= B43legacy_TX4_PHY_ANT1;
-		break;
-	default:
-		B43legacy_BUG_ON(1);
-	}
+	phy_ctl |= B43legacy_TX4_PHY_ANTLAST;
 
 	/* MAC control */
 	rates = info->control.rates;
@@ -351,8 +339,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
 					    (&txhdr->rts_plcp),
 					    len, rts_rate);
-		b43legacy_generate_plcp_hdr((struct b43legacy_plcp_hdr4 *)
-					    (&txhdr->rts_plcp_fb),
+		b43legacy_generate_plcp_hdr(&txhdr->rts_plcp_fb,
 					    len, rts_rate_fb);
 		hdr = (struct ieee80211_hdr *)(&txhdr->rts_frame);
 		txhdr->rts_dur_fb = hdr->duration_id;

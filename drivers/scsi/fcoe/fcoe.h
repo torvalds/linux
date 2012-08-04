@@ -68,10 +68,10 @@ do {                                                            	\
  * @netdev:	      The associated net device
  * @fcoe_packet_type: FCoE packet type
  * @fip_packet_type:  FIP packet type
- * @ctlr:	      The FCoE controller (for FIP)
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
- * This structure is 1:1 with a net devive.
+ * @removed:	      Indicates fcoe interface removed from net device
+ * This structure is 1:1 with a net device.
  */
 struct fcoe_interface {
 	struct list_head   list;
@@ -79,11 +79,15 @@ struct fcoe_interface {
 	struct net_device  *realdev;
 	struct packet_type fcoe_packet_type;
 	struct packet_type fip_packet_type;
-	struct fcoe_ctlr   ctlr;
 	struct fc_exch_mgr *oem;
+	u8	removed;
 };
 
-#define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)
+#define fcoe_to_ctlr(x)						\
+	(struct fcoe_ctlr *)(((struct fcoe_ctlr *)(x)) - 1)
+
+#define fcoe_from_ctlr(x)			\
+	((struct fcoe_interface *)((x) + 1))
 
 /**
  * fcoe_netdev() - Return the net device associated with a local port

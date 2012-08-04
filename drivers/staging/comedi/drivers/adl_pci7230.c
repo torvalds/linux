@@ -36,87 +36,81 @@ Configuration Options:
 
 #include "../comedidev.h"
 #include <linux/kernel.h>
-#include "comedi_pci.h"
 
 #define PCI7230_DI      0x00
 #define PCI7230_DO	    0x00
 
 #define PCI_DEVICE_ID_PCI7230 0x7230
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci7230_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7230) },
-	{0}
-};
+static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
+	struct comedi_subdevice *s,
+	struct comedi_insn *insn,
+	unsigned int *data)
+{
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
 
-MODULE_DEVICE_TABLE(pci, adl_pci7230_pci_table);
+		outl((s->state  << 16) & 0xffffffff, dev->iobase + PCI7230_DO);
+	}
 
-struct adl_pci7230_private {
-	int data;
-	struct pci_dev *pci_dev;
-};
-
-#define devpriv ((struct adl_pci7230_private *)dev->private)
-
-static int adl_pci7230_attach(struct comedi_device *dev,
-	struct comedi_devconfig *it);
-static int adl_pci7230_detach(struct comedi_device *dev);
-static struct comedi_driver driver_adl_pci7230 = {
-	.driver_name = "adl_pci7230",
-	.module = THIS_MODULE,
-	.attach = adl_pci7230_attach,
-	.detach = adl_pci7230_detach,
-};
-
-/* Digital IO */
+	return insn->n;
+}
 
 static int adl_pci7230_di_insn_bits(struct comedi_device *dev,
 	struct comedi_subdevice *s,
 	struct comedi_insn *insn,
-	unsigned int *data);
+	unsigned int *data)
+{
+	data[1] = inl(dev->iobase + PCI7230_DI) & 0xffffffff;
 
-static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s,
-	struct comedi_insn *insn,
-	unsigned int *data);
+	return insn->n;
+}
+
+static struct pci_dev *adl_pci7230_find_pci(struct comedi_device *dev,
+	struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+
+	for_each_pci_dev(pcidev) {
+		if (pcidev->vendor != PCI_VENDOR_ID_ADLINK ||
+		    pcidev->device != PCI_DEVICE_ID_PCI7230)
+			continue;
+		if (bus || slot) {
+			/* requested particular bus/slot */
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		return pcidev;
+	}
+	printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+		dev->minor, bus, slot);
+	return NULL;
+}
 
 static int adl_pci7230_attach(struct comedi_device *dev,
 	struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev = NULL;
 	struct comedi_subdevice *s;
-	int bus, slot;
+	struct pci_dev *pcidev;
+	int ret;
 
 	printk(KERN_INFO "comedi%d: adl_pci7230\n", dev->minor);
 
 	dev->board_name = "pci7230";
-	bus = it->options[0];
-	slot = it->options[1];
 
-	if (alloc_private(dev, sizeof(struct adl_pci7230_private)) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
-	if (alloc_subdevices(dev, 2) < 0)
-		return -ENOMEM;
-
-	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
-			pcidev->device == PCI_DEVICE_ID_PCI7230) {
-			if (bus || slot) {
-				/* requested particular bus/slot */
-				if (pcidev->bus->number != bus ||
-					PCI_SLOT(pcidev->devfn) != slot) {
-					continue;
-				}
-			}
-			devpriv->pci_dev = pcidev;
-			break;
-		}
-	}
-	if (pcidev == NULL) {
-		printk(KERN_ERR "comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-			dev->minor, bus, slot);
+	pcidev = adl_pci7230_find_pci(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
 	if (comedi_pci_enable(pcidev, "adl_pci7230") < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device and request regions\n",
 			dev->minor);
@@ -148,89 +142,48 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 	return 1;
 }
 
-static int adl_pci7230_detach(struct comedi_device *dev)
+static void adl_pci7230_detach(struct comedi_device *dev)
 {
-	printk(KERN_DEBUG "comedi%d: pci7230: remove\n", dev->minor);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (devpriv && devpriv->pci_dev) {
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pci_dev);
-		pci_dev_put(devpriv->pci_dev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
-
-	return 0;
 }
 
-static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s,
-	struct comedi_insn *insn,
-	unsigned int *data)
+static struct comedi_driver adl_pci7230_driver = {
+	.driver_name	= "adl_pci7230",
+	.module		= THIS_MODULE,
+	.attach		= adl_pci7230_attach,
+	.detach		= adl_pci7230_detach,
+};
+
+static int __devinit adl_pci7230_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
-		outl((s->state  << 16) & 0xffffffff, dev->iobase + PCI7230_DO);
-	}
-
-	return 2;
+	return comedi_pci_auto_config(dev, &adl_pci7230_driver);
 }
 
-static int adl_pci7230_di_insn_bits(struct comedi_device *dev,
-	struct comedi_subdevice *s,
-	struct comedi_insn *insn,
-	unsigned int *data)
-{
-	if (insn->n != 2)
-		return -EINVAL;
-
-	data[1] = inl(dev->iobase + PCI7230_DI) & 0xffffffff;
-
-	return 2;
-}
-
-static int __devinit driver_adl_pci7230_pci_probe(struct pci_dev *dev,
-						  const struct pci_device_id
-						  *ent)
-{
-	return comedi_pci_auto_config(dev, driver_adl_pci7230.driver_name);
-}
-
-static void __devexit driver_adl_pci7230_pci_remove(struct pci_dev *dev)
+static void __devexit adl_pci7230_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_adl_pci7230_pci_driver = {
-	.id_table = adl_pci7230_pci_table,
-	.probe = &driver_adl_pci7230_pci_probe,
-	.remove = __devexit_p(&driver_adl_pci7230_pci_remove)
+static DEFINE_PCI_DEVICE_TABLE(adl_pci7230_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7230) },
+	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, adl_pci7230_pci_table);
 
-static int __init driver_adl_pci7230_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_adl_pci7230);
-	if (retval < 0)
-		return retval;
-
-	driver_adl_pci7230_pci_driver.name =
-	    (char *)driver_adl_pci7230.driver_name;
-	return pci_register_driver(&driver_adl_pci7230_pci_driver);
-}
-
-static void __exit driver_adl_pci7230_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_adl_pci7230_pci_driver);
-	comedi_driver_unregister(&driver_adl_pci7230);
-}
-
-module_init(driver_adl_pci7230_init_module);
-module_exit(driver_adl_pci7230_cleanup_module);
+static struct pci_driver adl_pci7230_pci_driver = {
+	.name		= "adl_pci7230",
+	.id_table	= adl_pci7230_pci_table,
+	.probe		= adl_pci7230_pci_probe,
+	.remove		= __devexit_p(adl_pci7230_pci_remove),
+};
+module_comedi_pci_driver(adl_pci7230_driver, adl_pci7230_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

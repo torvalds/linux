@@ -510,6 +510,25 @@ nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
 		nouveau_dp_link_train(encoder, datarate, func);
 }
 
+static void
+nouveau_dp_probe_oui(struct drm_device *dev, struct nouveau_i2c_chan *auxch,
+		     u8 *dpcd)
+{
+	u8 buf[3];
+
+	if (!(dpcd[DP_DOWN_STREAM_PORT_COUNT] & DP_OUI_SUPPORT))
+		return;
+
+	if (!auxch_tx(dev, auxch->drive, 9, DP_SINK_OUI, buf, 3))
+		NV_DEBUG_KMS(dev, "Sink OUI: %02hx%02hx%02hx\n",
+			     buf[0], buf[1], buf[2]);
+
+	if (!auxch_tx(dev, auxch->drive, 9, DP_BRANCH_OUI, buf, 3))
+		NV_DEBUG_KMS(dev, "Branch OUI: %02hx%02hx%02hx\n",
+			     buf[0], buf[1], buf[2]);
+
+}
+
 bool
 nouveau_dp_detect(struct drm_encoder *encoder)
 {
@@ -543,6 +562,8 @@ nouveau_dp_detect(struct drm_encoder *encoder)
 
 	NV_DEBUG_KMS(dev, "maximum: %dx%d\n",
 		     nv_encoder->dp.link_nr, nv_encoder->dp.link_bw);
+
+	nouveau_dp_probe_oui(dev, auxch, dpcd);
 
 	return true;
 }

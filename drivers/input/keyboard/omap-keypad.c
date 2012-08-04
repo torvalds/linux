@@ -61,6 +61,7 @@ struct omap_kp {
 	unsigned int cols;
 	unsigned long delay;
 	unsigned int debounce;
+	unsigned short keymap[];
 };
 
 static DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
@@ -316,13 +317,6 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	if (!cpu_is_omap24xx())
 		omap_writew(1, OMAP1_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);
 
-	input_dev->keycode      = &omap_kp[1];
-	input_dev->keycodesize  = sizeof(unsigned short);
-	input_dev->keycodemax   = keycodemax;
-
-	if (pdata->rep)
-		__set_bit(EV_REP, input_dev->evbit);
-
 	if (pdata->delay)
 		omap_kp->delay = pdata->delay;
 
@@ -371,9 +365,6 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 		goto err2;
 
 	/* setup input device */
-	__set_bit(EV_KEY, input_dev->evbit);
-	matrix_keypad_build_keymap(pdata->keymap_data, row_shift,
-			input_dev->keycode, input_dev->keybit);
 	input_dev->name = "omap-keypad";
 	input_dev->phys = "omap-keypad/input0";
 	input_dev->dev.parent = &pdev->dev;
@@ -382,6 +373,15 @@ static int __devinit omap_kp_probe(struct platform_device *pdev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
+
+	if (pdata->rep)
+		__set_bit(EV_REP, input_dev->evbit);
+
+	ret = matrix_keypad_build_keymap(pdata->keymap_data, NULL,
+					 pdata->rows, pdata->cols,
+					 omap_kp->keymap, input_dev);
+	if (ret < 0)
+		goto err3;
 
 	ret = input_register_device(omap_kp->input);
 	if (ret < 0) {

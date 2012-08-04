@@ -16,8 +16,11 @@
 #define _CHARGER_MANAGER_H
 
 #include <linux/power_supply.h>
+#include <linux/extcon.h>
 
 enum data_source {
+	CM_BATTERY_PRESENT,
+	CM_NO_BATTERY,
 	CM_FUEL_GAUGE,
 	CM_CHARGER_STAT,
 };
@@ -29,6 +32,16 @@ enum polling_modes {
 	CM_POLL_CHARGING_ONLY,
 };
 
+enum cm_event_types {
+	CM_EVENT_UNKNOWN = 0,
+	CM_EVENT_BATT_FULL,
+	CM_EVENT_BATT_IN,
+	CM_EVENT_BATT_OUT,
+	CM_EVENT_EXT_PWR_IN_OUT,
+	CM_EVENT_CHG_START_STOP,
+	CM_EVENT_OTHERS,
+};
+
 /**
  * struct charger_global_desc
  * @rtc_name: the name of RTC used to wake up the system from suspend.
@@ -38,11 +51,82 @@ enum polling_modes {
  *	rtc_only_wakeup() returning false.
  *	If the RTC given to CM is the only wakeup reason,
  *	rtc_only_wakeup should return true.
+ * @assume_timer_stops_in_suspend:
+ *	Assume that the jiffy timer stops in suspend-to-RAM.
+ *	When enabled, CM does not rely on jiffies value in
+ *	suspend_again and assumes that jiffies value does not
+ *	change during suspend.
  */
 struct charger_global_desc {
 	char *rtc_name;
 
 	bool (*rtc_only_wakeup)(void);
+
+	bool assume_timer_stops_in_suspend;
+};
+
+/**
+ * struct charger_cable
+ * @extcon_name: the name of extcon device.
+ * @name: the name of charger cable(external connector).
+ * @extcon_dev: the extcon device.
+ * @wq: the workqueue to control charger according to the state of
+ *	charger cable. If charger cable is attached, enable charger.
+ *	But if charger cable is detached, disable charger.
+ * @nb: the notifier block to receive changed state from EXTCON
+ *	(External Connector) when charger cable is attached/detached.
+ * @attached: the state of charger cable.
+ *	true: the charger cable is attached
+ *	false: the charger cable is detached
+ * @charger: the instance of struct charger_regulator.
+ * @cm: the Charger Manager representing the battery.
+ */
+struct charger_cable {
+	const char *extcon_name;
+	const char *name;
+
+	/* The charger-manager use Exton framework*/
+	struct extcon_specific_cable_nb extcon_dev;
+	struct work_struct wq;
+	struct notifier_block nb;
+
+	/* The state of charger cable */
+	bool attached;
+
+	struct charger_regulator *charger;
+
+	/*
+	 * Set min/max current of regulator to protect over-current issue
+	 * according to a kind of charger cable when cable is attached.
+	 */
+	int min_uA;
+	int max_uA;
+
+	struct charger_manager *cm;
+};
+
+/**
+ * struct charger_regulator
+ * @regulator_name: the name of regulator for using charger.
+ * @consumer: the regulator consumer for the charger.
+ * @cables:
+ *	the array of charger cables to enable/disable charger
+ *	and set current limit according to constratint data of
+ *	struct charger_cable if only charger cable included
+ *	in the array of charger cables is attached/detached.
+ * @num_cables: the number of charger cables.
+ */
+struct charger_regulator {
+	/* The name of regulator for charging */
+	const char *regulator_name;
+	struct regulator *consumer;
+
+	/*
+	 * Store constraint information related to current limit,
+	 * each cable have different condition for charging.
+	 */
+	struct charger_cable *cables;
+	int num_cables;
 };
 
 /**
@@ -50,6 +134,11 @@ struct charger_global_desc {
  * @psy_name: the name of power-supply-class for charger manager
  * @polling_mode:
  *	Determine which polling mode will be used
+ * @fullbatt_vchkdrop_ms:
+ * @fullbatt_vchkdrop_uV:
+ *	Check voltage drop after the battery is fully charged.
+ *	If it has dropped more than fullbatt_vchkdrop_uV after
+ *	fullbatt_vchkdrop_ms, CM will restart charging.
  * @fullbatt_uV: voltage in microvolt
  *	If it is not being charged and VBATT >= fullbatt_uV,
  *	it is assumed to be full.
@@ -76,6 +165,8 @@ struct charger_desc {
 	enum polling_modes polling_mode;
 	unsigned int polling_interval_ms;
 
+	unsigned int fullbatt_vchkdrop_ms;
+	unsigned int fullbatt_vchkdrop_uV;
 	unsigned int fullbatt_uV;
 
 	enum data_source battery_present;
@@ -83,7 +174,7 @@ struct charger_desc {
 	char **psy_charger_stat;
 
 	int num_charger_regulators;
-	struct regulator_bulk_data *charger_regulators;
+	struct charger_regulator *charger_regulators;
 
 	char *psy_fuel_gauge;
 
@@ -101,6 +192,11 @@ struct charger_desc {
  * @fuel_gauge: power_supply for fuel gauge
  * @charger_stat: array of power_supply for chargers
  * @charger_enabled: the state of charger
+ * @fullbatt_vchk_jiffies_at:
+ *	jiffies at the time full battery check will occur.
+ * @fullbatt_vchk_uV: voltage in microvolt
+ *	criteria for full battery
+ * @fullbatt_vchk_work: work queue for full battery check
  * @emergency_stop:
  *	When setting true, stop charging
  * @last_temp_mC: the measured temperature in milli-Celsius
@@ -121,6 +217,10 @@ struct charger_manager {
 
 	bool charger_enabled;
 
+	unsigned long fullbatt_vchk_jiffies_at;
+	unsigned int fullbatt_vchk_uV;
+	struct delayed_work fullbatt_vchk_work;
+
 	int emergency_stop;
 	int last_temp_mC;
 
@@ -134,14 +234,13 @@ struct charger_manager {
 #ifdef CONFIG_CHARGER_MANAGER
 extern int setup_charger_manager(struct charger_global_desc *gd);
 extern bool cm_suspend_again(void);
+extern void cm_notify_event(struct power_supply *psy,
+				enum cm_event_types type, char *msg);
 #else
-static void __maybe_unused setup_charger_manager(struct charger_global_desc *gd)
-{ }
-
-static bool __maybe_unused cm_suspend_again(void)
-{
-	return false;
-}
+static inline int setup_charger_manager(struct charger_global_desc *gd)
+{ return 0; }
+static inline bool cm_suspend_again(void) { return false; }
+static inline void cm_notify_event(struct power_supply *psy,
+				enum cm_event_types type, char *msg) { }
 #endif
-
 #endif /* _CHARGER_MANAGER_H */

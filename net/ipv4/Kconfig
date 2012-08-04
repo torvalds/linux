@@ -262,8 +262,8 @@ config ARPD
 	bool "IP: ARP daemon support"
 	---help---
 	  The kernel maintains an internal cache which maps IP addresses to
-	  hardware addresses on the local network, so that Ethernet/Token Ring/
-	  etc. frames are sent to the proper address on the physical networking
+	  hardware addresses on the local network, so that Ethernet
+	  frames are sent to the proper address on the physical networking
 	  layer. Normally, kernel uses the ARP protocol to resolve these
 	  mappings.
 
@@ -310,9 +310,20 @@ config SYN_COOKIES
 
 	  If unsure, say N.
 
+config NET_IPVTI
+	tristate "Virtual (secure) IP: tunneling"
+	select INET_TUNNEL
+	depends on INET_XFRM_MODE_TUNNEL
+	---help---
+	  Tunneling means encapsulating data of one protocol type within
+	  another protocol and sending it over a channel that understands the
+	  encapsulating protocol. This can be used with xfrm mode tunnel to give
+	  the notion of a secure tunnel for IPSEC and then use routing protocol
+	  on top.
+
 config INET_AH
 	tristate "IP: AH transformation"
-	select XFRM
+	select XFRM_ALGO
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
@@ -324,7 +335,7 @@ config INET_AH
 
 config INET_ESP
 	tristate "IP: ESP transformation"
-	select XFRM
+	select XFRM_ALGO
 	select CRYPTO
 	select CRYPTO_AUTHENC
 	select CRYPTO_HMAC

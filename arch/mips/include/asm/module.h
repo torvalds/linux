@@ -2,6 +2,7 @@
 #define _ASM_MODULE_H
 
 #include <linux/list.h>
+#include <linux/elf.h>
 #include <asm/uaccess.h>
 
 struct mod_arch_specific {
@@ -116,6 +117,8 @@ search_module_dbetables(unsigned long addr)
 #define MODULE_PROC_FAMILY "RM9000 "
 #elif defined CONFIG_CPU_SB1
 #define MODULE_PROC_FAMILY "SB1 "
+#elif defined CONFIG_CPU_LOONGSON1
+#define MODULE_PROC_FAMILY "LOONGSON1 "
 #elif defined CONFIG_CPU_LOONGSON2
 #define MODULE_PROC_FAMILY "LOONGSON2 "
 #elif defined CONFIG_CPU_CAVIUM_OCTEON
