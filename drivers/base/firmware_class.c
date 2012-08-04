@@ -89,7 +89,7 @@ static inline long firmware_loading_timeout(void)
  * guarding for corner cases a global lock should be OK */
 static DEFINE_MUTEX(fw_lock);
 
-struct firmware_priv {
+struct firmware_buf {
 	struct completion completion;
 	struct firmware *fw;
 	unsigned long status;
@@ -98,10 +98,14 @@ struct firmware_priv {
 	struct page **pages;
 	int nr_pages;
 	int page_array_size;
-	struct timer_list timeout;
-	struct device dev;
-	bool nowait;
 	char fw_id[];
+};
+
+struct firmware_priv {
+	struct timer_list timeout;
+	bool nowait;
+	struct device dev;
+	struct firmware_buf *buf;
 };
 
 static struct firmware_priv *to_firmware_priv(struct device *dev)
@@ -111,8 +115,10 @@ static struct firmware_priv *to_firmware_priv(struct device *dev)
 
 static void fw_load_abort(struct firmware_priv *fw_priv)
 {
-	set_bit(FW_STATUS_ABORT, &fw_priv->status);
-	complete(&fw_priv->completion);
+	struct firmware_buf *buf = fw_priv->buf;
+
+	set_bit(FW_STATUS_ABORT, &buf->status);
+	complete(&buf->completion);
 }
 
 static ssize_t firmware_timeout_show(struct class *class,
@@ -152,15 +158,21 @@ static struct class_attribute firmware_class_attrs[] = {
 	__ATTR_NULL
 };
 
+static void fw_free_buf(struct firmware_buf *buf)
+{
+	int i;
+
+	if (!buf)
+		return;
+
+	for (i = 0; i < buf->nr_pages; i++)
+		__free_page(buf->pages[i]);
+	kfree(buf->pages);
+}
+
 static void fw_dev_release(struct device *dev)
 {
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
-	int i;
-
-	/* free untransfered pages buffer */
-	for (i = 0; i < fw_priv->nr_pages; i++)
-		__free_page(fw_priv->pages[i]);
-	kfree(fw_priv->pages);
 
 	kfree(fw_priv);
 
@@ -171,7 +183,7 @@ static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
 
-	if (add_uevent_var(env, "FIRMWARE=%s", fw_priv->fw_id))
+	if (add_uevent_var(env, "FIRMWARE=%s", fw_priv->buf->fw_id))
 		return -ENOMEM;
 	if (add_uevent_var(env, "TIMEOUT=%i", loading_timeout))
 		return -ENOMEM;
@@ -192,7 +204,7 @@ static ssize_t firmware_loading_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
-	int loading = test_bit(FW_STATUS_LOADING, &fw_priv->status);
+	int loading = test_bit(FW_STATUS_LOADING, &fw_priv->buf->status);
 
 	return sprintf(buf, "%d\n", loading);
 }
@@ -231,32 +243,33 @@ static ssize_t firmware_loading_store(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
+	struct firmware_buf *fw_buf = fw_priv->buf;
 	int loading = simple_strtol(buf, NULL, 10);
 	int i;
 
 	mutex_lock(&fw_lock);
 
-	if (!fw_priv->fw)
+	if (!fw_buf)
 		goto out;
 
 	switch (loading) {
 	case 1:
 		/* discarding any previous partial load */
-		if (!test_bit(FW_STATUS_DONE, &fw_priv->status)) {
-			for (i = 0; i < fw_priv->nr_pages; i++)
-				__free_page(fw_priv->pages[i]);
-			kfree(fw_priv->pages);
-			fw_priv->pages = NULL;
-			fw_priv->page_array_size = 0;
-			fw_priv->nr_pages = 0;
-			set_bit(FW_STATUS_LOADING, &fw_priv->status);
+		if (!test_bit(FW_STATUS_DONE, &fw_buf->status)) {
+			for (i = 0; i < fw_buf->nr_pages; i++)
+				__free_page(fw_buf->pages[i]);
+			kfree(fw_buf->pages);
+			fw_buf->pages = NULL;
+			fw_buf->page_array_size = 0;
+			fw_buf->nr_pages = 0;
+			set_bit(FW_STATUS_LOADING, &fw_buf->status);
 		}
 		break;
 	case 0:
-		if (test_bit(FW_STATUS_LOADING, &fw_priv->status)) {
-			set_bit(FW_STATUS_DONE, &fw_priv->status);
-			clear_bit(FW_STATUS_LOADING, &fw_priv->status);
-			complete(&fw_priv->completion);
+		if (test_bit(FW_STATUS_LOADING, &fw_buf->status)) {
+			set_bit(FW_STATUS_DONE, &fw_buf->status);
+			clear_bit(FW_STATUS_LOADING, &fw_buf->status);
+			complete(&fw_buf->completion);
 			break;
 		}
 		/* fallthrough */
@@ -280,21 +293,21 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
-	struct firmware *fw;
+	struct firmware_buf *buf;
 	ssize_t ret_count;
 
 	mutex_lock(&fw_lock);
-	fw = fw_priv->fw;
-	if (!fw || test_bit(FW_STATUS_DONE, &fw_priv->status)) {
+	buf = fw_priv->buf;
+	if (!buf || test_bit(FW_STATUS_DONE, &buf->status)) {
 		ret_count = -ENODEV;
 		goto out;
 	}
-	if (offset > fw_priv->size) {
+	if (offset > buf->size) {
 		ret_count = 0;
 		goto out;
 	}
-	if (count > fw_priv->size - offset)
-		count = fw_priv->size - offset;
+	if (count > buf->size - offset)
+		count = buf->size - offset;
 
 	ret_count = count;
 
@@ -304,11 +317,11 @@ static ssize_t firmware_data_read(struct file *filp, struct kobject *kobj,
 		int page_ofs = offset & (PAGE_SIZE-1);
 		int page_cnt = min_t(size_t, PAGE_SIZE - page_ofs, count);
 
-		page_data = kmap(fw_priv->pages[page_nr]);
+		page_data = kmap(buf->pages[page_nr]);
 
 		memcpy(buffer, page_data + page_ofs, page_cnt);
 
-		kunmap(fw_priv->pages[page_nr]);
+		kunmap(buf->pages[page_nr]);
 		buffer += page_cnt;
 		offset += page_cnt;
 		count -= page_cnt;
@@ -320,12 +333,13 @@ out:
 
 static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 {
+	struct firmware_buf *buf = fw_priv->buf;
 	int pages_needed = ALIGN(min_size, PAGE_SIZE) >> PAGE_SHIFT;
 
 	/* If the array of pages is too small, grow it... */
-	if (fw_priv->page_array_size < pages_needed) {
+	if (buf->page_array_size < pages_needed) {
 		int new_array_size = max(pages_needed,
-					 fw_priv->page_array_size * 2);
+					 buf->page_array_size * 2);
 		struct page **new_pages;
 
 		new_pages = kmalloc(new_array_size * sizeof(void *),
@@ -334,24 +348,24 @@ static int fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 			fw_load_abort(fw_priv);
 			return -ENOMEM;
 		}
-		memcpy(new_pages, fw_priv->pages,
-		       fw_priv->page_array_size * sizeof(void *));
-		memset(&new_pages[fw_priv->page_array_size], 0, sizeof(void *) *
-		       (new_array_size - fw_priv->page_array_size));
-		kfree(fw_priv->pages);
-		fw_priv->pages = new_pages;
-		fw_priv->page_array_size = new_array_size;
+		memcpy(new_pages, buf->pages,
+		       buf->page_array_size * sizeof(void *));
+		memset(&new_pages[buf->page_array_size], 0, sizeof(void *) *
+		       (new_array_size - buf->page_array_size));
+		kfree(buf->pages);
+		buf->pages = new_pages;
+		buf->page_array_size = new_array_size;
 	}
 
-	while (fw_priv->nr_pages < pages_needed) {
-		fw_priv->pages[fw_priv->nr_pages] =
+	while (buf->nr_pages < pages_needed) {
+		buf->pages[buf->nr_pages] =
 			alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
 
-		if (!fw_priv->pages[fw_priv->nr_pages]) {
+		if (!buf->pages[buf->nr_pages]) {
 			fw_load_abort(fw_priv);
 			return -ENOMEM;
 		}
-		fw_priv->nr_pages++;
+		buf->nr_pages++;
 	}
 	return 0;
 }
@@ -374,15 +388,15 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct firmware_priv *fw_priv = to_firmware_priv(dev);
-	struct firmware *fw;
+	struct firmware_buf *buf;
 	ssize_t retval;
 
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 
 	mutex_lock(&fw_lock);
-	fw = fw_priv->fw;
-	if (!fw || test_bit(FW_STATUS_DONE, &fw_priv->status)) {
+	buf = fw_priv->buf;
+	if (!buf || test_bit(FW_STATUS_DONE, &buf->status)) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -399,17 +413,17 @@ static ssize_t firmware_data_write(struct file *filp, struct kobject *kobj,
 		int page_ofs = offset & (PAGE_SIZE - 1);
 		int page_cnt = min_t(size_t, PAGE_SIZE - page_ofs, count);
 
-		page_data = kmap(fw_priv->pages[page_nr]);
+		page_data = kmap(buf->pages[page_nr]);
 
 		memcpy(page_data + page_ofs, buffer, page_cnt);
 
-		kunmap(fw_priv->pages[page_nr]);
+		kunmap(buf->pages[page_nr]);
 		buffer += page_cnt;
 		offset += page_cnt;
 		count -= page_cnt;
 	}
 
-	fw_priv->size = max_t(size_t, offset, fw_priv->size);
+	buf->size = max_t(size_t, offset, buf->size);
 out:
 	mutex_unlock(&fw_lock);
 	return retval;
@@ -434,20 +448,31 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 		   struct device *device, bool uevent, bool nowait)
 {
 	struct firmware_priv *fw_priv;
+	struct firmware_buf *buf;
 	struct device *f_dev;
 
-	fw_priv = kzalloc(sizeof(*fw_priv) + strlen(fw_name) + 1 , GFP_KERNEL);
+	fw_priv = kzalloc(sizeof(*fw_priv), GFP_KERNEL);
 	if (!fw_priv) {
 		dev_err(device, "%s: kmalloc failed\n", __func__);
-		return ERR_PTR(-ENOMEM);
+		fw_priv = ERR_PTR(-ENOMEM);
+		goto exit;
 	}
 
-	fw_priv->fw = firmware;
+	buf = kzalloc(sizeof(*buf) + strlen(fw_name) + 1, GFP_KERNEL);
+	if (!buf) {
+		dev_err(device, "%s: kmalloc failed\n", __func__);
+		kfree(fw_priv);
+		fw_priv = ERR_PTR(-ENOMEM);
+		goto exit;
+	}
+
+	buf->fw = firmware;
+	fw_priv->buf = buf;
 	fw_priv->nowait = nowait;
-	strcpy(fw_priv->fw_id, fw_name);
-	init_completion(&fw_priv->completion);
 	setup_timer(&fw_priv->timeout,
 		    firmware_class_timeout, (u_long) fw_priv);
+	strcpy(buf->fw_id, fw_name);
+	init_completion(&buf->completion);
 
 	f_dev = &fw_priv->dev;
 
@@ -455,7 +480,7 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 	dev_set_name(f_dev, "%s", fw_name);
 	f_dev->parent = device;
 	f_dev->class = &firmware_class;
-
+exit:
 	return fw_priv;
 }
 
@@ -496,24 +521,18 @@ static void _request_firmware_cleanup(const struct firmware **firmware_p)
 }
 
 /* transfer the ownership of pages to firmware */
-static int fw_set_page_data(struct firmware_priv *fw_priv)
+static int fw_set_page_data(struct firmware_buf *buf)
 {
-	struct firmware *fw = fw_priv->fw;
+	struct firmware *fw = buf->fw;
 
-	fw_priv->data = vmap(fw_priv->pages, fw_priv->nr_pages,
-				0, PAGE_KERNEL_RO);
-	if (!fw_priv->data)
+	buf->data = vmap(buf->pages, buf->nr_pages, 0, PAGE_KERNEL_RO);
+	if (!buf->data)
 		return -ENOMEM;
 
-	fw->data = fw_priv->data;
-	fw->pages = fw_priv->pages;
-	fw->size = fw_priv->size;
-
-	WARN_ON(PFN_UP(fw->size) != fw_priv->nr_pages);
-
-	fw_priv->nr_pages = 0;
-	fw_priv->pages = NULL;
-	fw_priv->data = NULL;
+	fw->data = buf->data;
+	fw->pages = buf->pages;
+	fw->size = buf->size;
+	WARN_ON(PFN_UP(fw->size) != buf->nr_pages);
 
 	return 0;
 }
@@ -523,6 +542,7 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 {
 	int retval = 0;
 	struct device *f_dev = &fw_priv->dev;
+	struct firmware_buf *buf = fw_priv->buf;
 
 	dev_set_uevent_suppress(f_dev, true);
 
@@ -549,7 +569,7 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 
 	if (uevent) {
 		dev_set_uevent_suppress(f_dev, false);
-		dev_dbg(f_dev, "firmware: requesting %s\n", fw_priv->fw_id);
+		dev_dbg(f_dev, "firmware: requesting %s\n", buf->fw_id);
 		if (timeout != MAX_SCHEDULE_TIMEOUT)
 			mod_timer(&fw_priv->timeout,
 				  round_jiffies_up(jiffies + timeout));
@@ -557,18 +577,22 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
 
-	wait_for_completion(&fw_priv->completion);
+	wait_for_completion(&buf->completion);
 
 	del_timer_sync(&fw_priv->timeout);
 
 	mutex_lock(&fw_lock);
-	if (!fw_priv->size || test_bit(FW_STATUS_ABORT, &fw_priv->status))
+	if (!buf->size || test_bit(FW_STATUS_ABORT, &buf->status))
 		retval = -ENOENT;
 
 	/* transfer pages ownership at the last minute */
 	if (!retval)
-		retval = fw_set_page_data(fw_priv);
-	fw_priv->fw = NULL;
+		retval = fw_set_page_data(buf);
+	if (retval)
+		fw_free_buf(buf); /* free untransfered pages buffer */
+
+	kfree(buf);
+	fw_priv->buf = NULL;
 	mutex_unlock(&fw_lock);
 
 	device_remove_file(f_dev, &dev_attr_loading);
