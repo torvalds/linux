@@ -94,15 +94,16 @@ int uf_start_thread(unifi_priv_t *priv,
  */
 void uf_stop_thread(unifi_priv_t *priv, struct uf_thread *thread)
 {
-    if (!thread->thread_task) {
-        unifi_notice(priv, "%s thread is already stopped\n", thread->name);
-        return;
-    }
+	if (!thread->thread_task) {
+		unifi_notice(priv, "%s thread is already stopped\n",
+							thread->name);
+		return;
+	}
 
-    unifi_trace(priv, UDBG2, "Stopping %s thread\n", thread->name);
+	unifi_trace(priv, UDBG2, "Stopping %s thread\n", thread->name);
 
-    kthread_stop(thread->thread_task);
-    thread->thread_task = NULL;
+	kthread_stop(thread->thread_task);
+	thread->thread_task = NULL;
 
 } /* uf_stop_thread() */
 
