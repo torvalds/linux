@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/async.h>
 #include <linux/pm.h>
+#include <linux/suspend.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -108,6 +109,8 @@ struct firmware_cache {
 	wait_queue_head_t wait_queue;
 	int cnt;
 	struct delayed_work work;
+
+	struct notifier_block   pm_notify;
 };
 
 struct firmware_buf {
@@ -1217,6 +1220,31 @@ static void device_uncache_fw_images_delay(unsigned long delay)
 			msecs_to_jiffies(delay));
 }
 
+#ifdef CONFIG_PM
+static int fw_pm_notify(struct notifier_block *notify_block,
+			unsigned long mode, void *unused)
+{
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_SUSPEND_PREPARE:
+		device_cache_fw_images();
+		break;
+
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+		device_uncache_fw_images_delay(10 * MSEC_PER_SEC);
+		break;
+	}
+
+	return 0;
+}
+#else
+static int fw_pm_notify(struct notifier_block *notify_block,
+			unsigned long mode, void *unused)
+{}
+#endif
+
 static void __init fw_cache_init(void)
 {
 	spin_lock_init(&fw_cache.lock);
@@ -1229,6 +1257,9 @@ static void __init fw_cache_init(void)
 	init_waitqueue_head(&fw_cache.wait_queue);
 	INIT_DELAYED_WORK(&fw_cache.work,
 			  device_uncache_fw_images_work);
+
+	fw_cache.pm_notify.notifier_call = fw_pm_notify;
+	register_pm_notifier(&fw_cache.pm_notify);
 }
 
 static int __init firmware_class_init(void)
@@ -1239,6 +1270,7 @@ static int __init firmware_class_init(void)
 
 static void __exit firmware_class_exit(void)
 {
+	unregister_pm_notifier(&fw_cache.pm_notify);
 	class_unregister(&firmware_class);
 }
 
