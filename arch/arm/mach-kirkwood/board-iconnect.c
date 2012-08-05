@@ -16,7 +16,6 @@
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/mtd/partitions.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
 #include <asm/mach/arch.h>
@@ -42,18 +41,9 @@ static unsigned int iconnect_mpp_config[] __initdata = {
 	0
 };
 
-static struct mtd_partition iconnect_nand_parts[] = {
-	{
-		.name = "flash",
-		.offset = 0,
-		.size = MTDPART_SIZ_FULL,
-	},
-};
-
 void __init iconnect_init(void)
 {
 	kirkwood_mpp_conf(iconnect_mpp_config);
-	kirkwood_nand_init(ARRAY_AND_SIZE(iconnect_nand_parts), 25);
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&iconnect_ge00_data);
