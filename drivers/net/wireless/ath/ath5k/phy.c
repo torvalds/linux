@@ -3652,9 +3652,16 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	if (!ah->ah_txpower.txp_setup ||
 	    (channel->hw_value != curr_channel->hw_value) ||
 	    (channel->center_freq != curr_channel->center_freq)) {
-		/* Reset TX power values */
+		/* Reset TX power values but preserve requested
+		 * tx power from above */
+		int requested_txpower = ah->ah_txpower.txp_requested;
+
 		memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
+
+		/* Restore TPC setting and requested tx power */
 		ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
+
+		ah->ah_txpower.txp_requested = requested_txpower;
 
 		/* Calculate the powertable */
 		ret = ath5k_setup_channel_powertable(ah, channel,
@@ -3802,8 +3809,9 @@ ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * RF buffer settings on 5211/5212+ so that we
 	 * properly set curve indices.
 	 */
-	ret = ath5k_hw_txpower(ah, channel, ah->power_level ?
-			ah->power_level * 2 : AR5K_TUNE_MAX_TXPOWER);
+	ret = ath5k_hw_txpower(ah, channel, ah->ah_txpower.txp_requested ?
+					ah->ah_txpower.txp_requested * 2 :
+					AR5K_TUNE_MAX_TXPOWER);
 	if (ret)
 		return ret;
 
