@@ -75,6 +75,12 @@ static int genpd_start_dev(struct generic_pm_domain *genpd, struct device *dev)
 					start_latency_ns, "start");
 }
 
+static int genpd_start_dev_no_timing(struct generic_pm_domain *genpd,
+				     struct device *dev)
+{
+	return GENPD_DEV_CALLBACK(genpd, int, start, dev);
+}
+
 static bool genpd_sd_counter_dec(struct generic_pm_domain *genpd)
 {
 	bool ret = false;
@@ -626,7 +632,7 @@ static int pm_genpd_runtime_resume(struct device *dev)
 
 	/* If power.irq_safe, the PM domain is never powered off. */
 	if (dev->power.irq_safe)
-		return genpd_start_dev(genpd, dev);
+		return genpd_start_dev_no_timing(genpd, dev);
 
 	mutex_lock(&genpd->lock);
 	ret = __pm_genpd_poweron(genpd);
