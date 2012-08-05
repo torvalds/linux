@@ -34,6 +34,7 @@
 #include <asm/current.h>
 #include <asm/apicdef.h>
 #include <linux/atomic.h>
+#include <linux/jump_label.h>
 #include "kvm_cache_regs.h"
 #include "irq.h"
 #include "trace.h"
@@ -117,9 +118,13 @@ static inline int __apic_test_and_clear_vector(int vec, void *bitmap)
 	return __test_and_clear_bit(VEC_POS(vec), (bitmap) + REG_POS(vec));
 }
 
+struct static_key_deferred apic_hw_disabled __read_mostly;
+
 static inline int apic_hw_enabled(struct kvm_lapic *apic)
 {
-	return (apic)->vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE;
+	if (static_key_false(&apic_hw_disabled.key))
+		return apic->vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE;
+	return MSR_IA32_APICBASE_ENABLE;
 }
 
 static inline int  apic_sw_enabled(struct kvm_lapic *apic)
@@ -1055,6 +1060,9 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 
 	hrtimer_cancel(&vcpu->arch.apic->lapic_timer.timer);
 
+	if (!(vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE))
+		static_key_slow_dec_deferred(&apic_hw_disabled);
+
 	if (vcpu->arch.apic->regs)
 		free_page((unsigned long)vcpu->arch.apic->regs);
 
@@ -1123,6 +1131,14 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 		value |= MSR_IA32_APICBASE_BSP;
 		vcpu->arch.apic_base = value;
 		return;
+	}
+
+	/* update jump label if enable bit changes */
+	if ((vcpu->arch.apic_base ^ value) & MSR_IA32_APICBASE_ENABLE) {
+		if (value & MSR_IA32_APICBASE_ENABLE)
+			static_key_slow_dec_deferred(&apic_hw_disabled);
+		else
+			static_key_slow_inc(&apic_hw_disabled.key);
 	}
 
 	if (!kvm_vcpu_is_bsp(apic->vcpu))
@@ -1311,6 +1327,11 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 		     HRTIMER_MODE_ABS);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 
+	/*
+	 * APIC is created enabled. This will prevent kvm_lapic_set_base from
+	 * thinking that APIC satet has changed.
+	 */
+	vcpu->arch.apic_base = MSR_IA32_APICBASE_ENABLE;
 	kvm_lapic_set_base(vcpu,
 			APIC_DEFAULT_PHYS_BASE | MSR_IA32_APICBASE_ENABLE);
 
@@ -1597,4 +1618,10 @@ int kvm_lapic_enable_pv_eoi(struct kvm_vcpu *vcpu, u64 data)
 		return 0;
 	return kvm_gfn_to_hva_cache_init(vcpu->kvm, &vcpu->arch.pv_eoi.data,
 					 addr);
+}
+
+void kvm_lapic_init(void)
+{
+	/* do not patch jump label more than once per second */
+	jump_label_rate_limit(&apic_hw_disabled, HZ);
 }

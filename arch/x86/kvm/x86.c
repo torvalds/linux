@@ -4903,6 +4903,7 @@ int kvm_arch_init(void *opaque)
 	if (cpu_has_xsave)
 		host_xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 
+	kvm_lapic_init();
 	return 0;
 
 out:
