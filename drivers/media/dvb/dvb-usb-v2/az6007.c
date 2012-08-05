@@ -635,7 +635,7 @@ static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	struct az6007_device_state *state = d_to_priv(d);
 	int ret;
@@ -784,7 +784,7 @@ static struct i2c_algorithm az6007_i2c_algo = {
 	.functionality = az6007_i2c_func,
 };
 
-int az6007_identify_state(struct dvb_usb_device *d, const char **name)
+static int az6007_identify_state(struct dvb_usb_device *d, const char **name)
 {
 	int ret;
 	u8 *mac;
