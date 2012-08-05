@@ -64,6 +64,7 @@ static struct drxk_config terratec_h7_drxk = {
 	.no_i2c_bridge = false,
 	.chunk_size = 64,
 	.mpeg_out_clk_strength = 0x02,
+	.qam_demod_parameter_count = 2,
 	.microcode_name = "dvb-usb-terratec-h7-drxk.fw",
 };
 
