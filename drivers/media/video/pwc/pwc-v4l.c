@@ -405,6 +405,7 @@ static void pwc_vidioc_fill_fmt(struct v4l2_format *f,
 	f->fmt.pix.pixelformat  = pixfmt;
 	f->fmt.pix.bytesperline = f->fmt.pix.width;
 	f->fmt.pix.sizeimage	= f->fmt.pix.height * f->fmt.pix.width * 3 / 2;
+	f->fmt.pix.colorspace	= V4L2_COLORSPACE_SRGB;
 	PWC_DEBUG_IOCTL("pwc_vidioc_fill_fmt() "
 			"width=%d, height=%d, bytesperline=%d, sizeimage=%d, pixelformat=%c%c%c%c\n",
 			f->fmt.pix.width,
@@ -468,17 +469,8 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	if (ret < 0)
 		return ret;
 
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret)
-		goto leave;
-
-	if (pdev->vb_queue.streaming) {
-		ret = -EBUSY;
-		goto leave;
-	}
+	if (vb2_is_busy(&pdev->vb_queue))
+		return -EBUSY;
 
 	pixelformat = f->fmt.pix.pixelformat;
 
@@ -496,8 +488,6 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
 	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
-leave:
-	mutex_unlock(&pdev->vb_queue_lock);
 	return ret;
 }
 
@@ -508,10 +498,9 @@ static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap
 	strcpy(cap->driver, PWC_NAME);
 	strlcpy(cap->card, pdev->vdev.name, sizeof(cap->card));
 	usb_make_path(pdev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE	|
-		V4L2_CAP_STREAMING	|
-		V4L2_CAP_READWRITE;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
+					V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -520,7 +509,8 @@ static int pwc_enum_input(struct file *file, void *fh, struct v4l2_input *i)
 	if (i->index)	/* Only one INPUT is supported */
 		return -EINVAL;
 
-	strcpy(i->name, "usb");
+	strlcpy(i->name, "Camera", sizeof(i->name));
+	i->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
 }
 
@@ -933,104 +923,6 @@ static int pwc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *
 	return pwc_vidioc_try_fmt(pdev, f);
 }
 
-static int pwc_reqbufs(struct file *file, void *fh,
-		       struct v4l2_requestbuffers *rb)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret == 0)
-		ret = vb2_reqbufs(&pdev->vb_queue, rb);
-
-	mutex_unlock(&pdev->vb_queue_lock);
-	return ret;
-}
-
-static int pwc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret == 0)
-		ret = vb2_querybuf(&pdev->vb_queue, buf);
-
-	mutex_unlock(&pdev->vb_queue_lock);
-	return ret;
-}
-
-static int pwc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret == 0)
-		ret = vb2_qbuf(&pdev->vb_queue, buf);
-
-	mutex_unlock(&pdev->vb_queue_lock);
-	return ret;
-}
-
-static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret == 0)
-		ret = vb2_dqbuf(&pdev->vb_queue, buf,
-				file->f_flags & O_NONBLOCK);
-
-	mutex_unlock(&pdev->vb_queue_lock);
-	return ret;
-}
-
-static int pwc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret == 0)
-		ret = vb2_streamon(&pdev->vb_queue, i);
-
-	mutex_unlock(&pdev->vb_queue_lock);
-	return ret;
-}
-
-static int pwc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-	int ret;
-
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret == 0)
-		ret = vb2_streamoff(&pdev->vb_queue, i);
-
-	mutex_unlock(&pdev->vb_queue_lock);
-	return ret;
-}
-
 static int pwc_enum_framesizes(struct file *file, void *fh,
 					 struct v4l2_frmsizeenum *fsize)
 {
@@ -1112,32 +1004,27 @@ static int pwc_s_parm(struct file *file, void *fh,
 	int compression = 0;
 	int ret, fps;
 
-	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-	    parm->parm.capture.timeperframe.numerator == 0)
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	fps = parm->parm.capture.timeperframe.denominator /
-	      parm->parm.capture.timeperframe.numerator;
+	/* If timeperframe == 0, then reset the framerate to the nominal value.
+	   We pick a high framerate here, and let pwc_set_video_mode() figure
+	   out the best match. */
+	if (parm->parm.capture.timeperframe.numerator == 0 ||
+	    parm->parm.capture.timeperframe.denominator == 0)
+		fps = 30;
+	else
+		fps = parm->parm.capture.timeperframe.denominator /
+		      parm->parm.capture.timeperframe.numerator;
 
-	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
-		return -ERESTARTSYS;
-
-	ret = pwc_test_n_set_capt_file(pdev, file);
-	if (ret)
-		goto leave;
-
-	if (pdev->vb_queue.streaming) {
-		ret = -EBUSY;
-		goto leave;
-	}
+	if (vb2_is_busy(&pdev->vb_queue))
+		return -EBUSY;
 
 	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, pdev->pixfmt,
 				 fps, &compression, 0);
 
 	pwc_g_parm(file, fh, parm);
 
-leave:
-	mutex_unlock(&pdev->vb_queue_lock);
 	return ret;
 }
 
@@ -1150,12 +1037,12 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_g_fmt_vid_cap		    = pwc_g_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap		    = pwc_s_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap		    = pwc_try_fmt_vid_cap,
-	.vidioc_reqbufs			    = pwc_reqbufs,
-	.vidioc_querybuf		    = pwc_querybuf,
-	.vidioc_qbuf			    = pwc_qbuf,
-	.vidioc_dqbuf			    = pwc_dqbuf,
-	.vidioc_streamon		    = pwc_streamon,
-	.vidioc_streamoff		    = pwc_streamoff,
+	.vidioc_reqbufs			    = vb2_ioctl_reqbufs,
+	.vidioc_querybuf		    = vb2_ioctl_querybuf,
+	.vidioc_qbuf			    = vb2_ioctl_qbuf,
+	.vidioc_dqbuf			    = vb2_ioctl_dqbuf,
+	.vidioc_streamon		    = vb2_ioctl_streamon,
+	.vidioc_streamoff		    = vb2_ioctl_streamoff,
 	.vidioc_log_status		    = v4l2_ctrl_log_status,
 	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,

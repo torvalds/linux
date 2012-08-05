@@ -396,11 +396,10 @@ static void ixgbe_dump(struct ixgbe_adapter *adapter)
 				pr_cont("\n");
 
 			if (netif_msg_pktdata(adapter) &&
-			    dma_unmap_len(tx_buffer, len) != 0)
+			    tx_buffer->skb)
 				print_hex_dump(KERN_INFO, "",
 					DUMP_PREFIX_ADDRESS, 16, 1,
-					phys_to_virt(dma_unmap_addr(tx_buffer,
-								    dma)),
+					tx_buffer->skb->data,
 					dma_unmap_len(tx_buffer, len),
 					true);
 		}
@@ -474,10 +473,12 @@ rx_ring_summary:
 					(u64)rx_buffer_info->dma,
 					rx_buffer_info->skb);
 
-				if (netif_msg_pktdata(adapter)) {
+				if (netif_msg_pktdata(adapter) &&
+				    rx_buffer_info->dma) {
 					print_hex_dump(KERN_INFO, "",
 					   DUMP_PREFIX_ADDRESS, 16, 1,
-					   phys_to_virt(rx_buffer_info->dma),
+					   page_address(rx_buffer_info->page) +
+						    rx_buffer_info->page_offset,
 					   ixgbe_rx_bufsz(rx_ring), true);
 				}
 			}
@@ -1140,8 +1141,8 @@ static bool ixgbe_alloc_mapped_page(struct ixgbe_ring *rx_ring,
 
 	/* alloc new page for storage */
 	if (likely(!page)) {
-		page = alloc_pages(GFP_ATOMIC | __GFP_COLD | __GFP_COMP,
-				   ixgbe_rx_pg_order(rx_ring));
+		page = __skb_alloc_pages(GFP_ATOMIC | __GFP_COLD | __GFP_COMP,
+					 bi->skb, ixgbe_rx_pg_order(rx_ring));
 		if (unlikely(!page)) {
 			rx_ring->rx_stats.alloc_rx_page_failed++;
 			return false;

@@ -308,15 +308,4 @@ static int sis_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 IRQF_SHARED, &sis_sht);
 }
 
-static int __init sis_init(void)
-{
-	return pci_register_driver(&sis_pci_driver);
-}
-
-static void __exit sis_exit(void)
-{
-	pci_unregister_driver(&sis_pci_driver);
-}
-
-module_init(sis_init);
-module_exit(sis_exit);
+module_pci_driver(sis_pci_driver);

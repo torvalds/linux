@@ -45,51 +45,85 @@ xlog_commit_record(
 	struct xlog_in_core	**iclog,
 	xfs_lsn_t		*commitlsnp);
 
-STATIC xlog_t *  xlog_alloc_log(xfs_mount_t	*mp,
-				xfs_buftarg_t	*log_target,
-				xfs_daddr_t	blk_offset,
-				int		num_bblks);
+STATIC struct xlog *
+xlog_alloc_log(
+	struct xfs_mount	*mp,
+	struct xfs_buftarg	*log_target,
+	xfs_daddr_t		blk_offset,
+	int			num_bblks);
 STATIC int
 xlog_space_left(
 	struct xlog		*log,
 	atomic64_t		*head);
-STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
-STATIC void	 xlog_dealloc_log(xlog_t *log);
+STATIC int
+xlog_sync(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog);
+STATIC void
+xlog_dealloc_log(
+	struct xlog		*log);
 
 /* local state machine functions */
 STATIC void xlog_state_done_syncing(xlog_in_core_t *iclog, int);
-STATIC void xlog_state_do_callback(xlog_t *log,int aborted, xlog_in_core_t *iclog);
-STATIC int  xlog_state_get_iclog_space(xlog_t		*log,
-				       int		len,
-				       xlog_in_core_t	**iclog,
-				       xlog_ticket_t	*ticket,
-				       int		*continued_write,
-				       int		*logoffsetp);
-STATIC int  xlog_state_release_iclog(xlog_t		*log,
-				     xlog_in_core_t	*iclog);
-STATIC void xlog_state_switch_iclogs(xlog_t		*log,
-				     xlog_in_core_t *iclog,
-				     int		eventual_size);
-STATIC void xlog_state_want_sync(xlog_t	*log, xlog_in_core_t *iclog);
+STATIC void
+xlog_state_do_callback(
+	struct xlog		*log,
+	int			aborted,
+	struct xlog_in_core	*iclog);
+STATIC int
+xlog_state_get_iclog_space(
+	struct xlog		*log,
+	int			len,
+	struct xlog_in_core	**iclog,
+	struct xlog_ticket	*ticket,
+	int			*continued_write,
+	int			*logoffsetp);
+STATIC int
+xlog_state_release_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog);
+STATIC void
+xlog_state_switch_iclogs(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			eventual_size);
+STATIC void
+xlog_state_want_sync(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog);
 
 STATIC void
 xlog_grant_push_ail(
-	struct xlog	*log,
-	int		need_bytes);
-STATIC void xlog_regrant_reserve_log_space(xlog_t	 *log,
-					   xlog_ticket_t *ticket);
-STATIC void xlog_ungrant_log_space(xlog_t	 *log,
-				   xlog_ticket_t *ticket);
+	struct xlog		*log,
+	int			need_bytes);
+STATIC void
+xlog_regrant_reserve_log_space(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket);
+STATIC void
+xlog_ungrant_log_space(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket);
 
 #if defined(DEBUG)
-STATIC void	xlog_verify_dest_ptr(xlog_t *log, char *ptr);
+STATIC void
+xlog_verify_dest_ptr(
+	struct xlog		*log,
+	char			*ptr);
 STATIC void
 xlog_verify_grant_tail(
-	struct xlog	*log);
-STATIC void	xlog_verify_iclog(xlog_t *log, xlog_in_core_t *iclog,
-				  int count, boolean_t syncing);
-STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
-				     xfs_lsn_t tail_lsn);
+	struct xlog *log);
+STATIC void
+xlog_verify_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			count,
+	boolean_t		syncing);
+STATIC void
+xlog_verify_tail_lsn(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	xfs_lsn_t		tail_lsn);
 #else
 #define xlog_verify_dest_ptr(a,b)
 #define xlog_verify_grant_tail(a)
@@ -97,7 +131,9 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 #define xlog_verify_tail_lsn(a,b,c)
 #endif
 
-STATIC int	xlog_iclogs_empty(xlog_t *log);
+STATIC int
+xlog_iclogs_empty(
+	struct xlog		*log);
 
 static void
 xlog_grant_sub_space(
@@ -684,7 +720,7 @@ xfs_log_mount_finish(xfs_mount_t *mp)
 int
 xfs_log_unmount_write(xfs_mount_t *mp)
 {
-	xlog_t		 *log = mp->m_log;
+	struct xlog	 *log = mp->m_log;
 	xlog_in_core_t	 *iclog;
 #ifdef DEBUG
 	xlog_in_core_t	 *first_iclog;
@@ -893,7 +929,7 @@ int
 xfs_log_need_covered(xfs_mount_t *mp)
 {
 	int		needed = 0;
-	xlog_t		*log = mp->m_log;
+	struct xlog	*log = mp->m_log;
 
 	if (!xfs_fs_writable(mp))
 		return 0;
@@ -1024,9 +1060,9 @@ xlog_space_left(
 void
 xlog_iodone(xfs_buf_t *bp)
 {
-	xlog_in_core_t	*iclog = bp->b_fspriv;
-	xlog_t		*l = iclog->ic_log;
-	int		aborted = 0;
+	struct xlog_in_core	*iclog = bp->b_fspriv;
+	struct xlog		*l = iclog->ic_log;
+	int			aborted = 0;
 
 	/*
 	 * Race to shutdown the filesystem if we see an error.
@@ -1067,8 +1103,9 @@ xlog_iodone(xfs_buf_t *bp)
  */
 
 STATIC void
-xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
-			   xlog_t	*log)
+xlog_get_iclog_buffer_size(
+	struct xfs_mount	*mp,
+	struct xlog		*log)
 {
 	int size;
 	int xhdrs;
@@ -1129,13 +1166,14 @@ done:
  * Its primary purpose is to fill in enough, so recovery can occur.  However,
  * some other stuff may be filled in too.
  */
-STATIC xlog_t *
-xlog_alloc_log(xfs_mount_t	*mp,
-	       xfs_buftarg_t	*log_target,
-	       xfs_daddr_t	blk_offset,
-	       int		num_bblks)
+STATIC struct xlog *
+xlog_alloc_log(
+	struct xfs_mount	*mp,
+	struct xfs_buftarg	*log_target,
+	xfs_daddr_t		blk_offset,
+	int			num_bblks)
 {
-	xlog_t			*log;
+	struct xlog		*log;
 	xlog_rec_header_t	*head;
 	xlog_in_core_t		**iclogp;
 	xlog_in_core_t		*iclog, *prev_iclog=NULL;
@@ -1144,7 +1182,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	int			error = ENOMEM;
 	uint			log2_size = 0;
 
-	log = kmem_zalloc(sizeof(xlog_t), KM_MAYFAIL);
+	log = kmem_zalloc(sizeof(struct xlog), KM_MAYFAIL);
 	if (!log) {
 		xfs_warn(mp, "Log allocation failed: No memory!");
 		goto out;
@@ -1434,8 +1472,9 @@ xlog_bdstrat(
  */
 
 STATIC int
-xlog_sync(xlog_t		*log,
-	  xlog_in_core_t	*iclog)
+xlog_sync(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog)
 {
 	xfs_caddr_t	dptr;		/* pointer to byte sized element */
 	xfs_buf_t	*bp;
@@ -1584,7 +1623,8 @@ xlog_sync(xlog_t		*log,
  * Deallocate a log structure
  */
 STATIC void
-xlog_dealloc_log(xlog_t *log)
+xlog_dealloc_log(
+	struct xlog	*log)
 {
 	xlog_in_core_t	*iclog, *next_iclog;
 	int		i;
@@ -1616,10 +1656,11 @@ xlog_dealloc_log(xlog_t *log)
  */
 /* ARGSUSED */
 static inline void
-xlog_state_finish_copy(xlog_t		*log,
-		       xlog_in_core_t	*iclog,
-		       int		record_cnt,
-		       int		copy_bytes)
+xlog_state_finish_copy(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			record_cnt,
+	int			copy_bytes)
 {
 	spin_lock(&log->l_icloglock);
 
@@ -2142,7 +2183,8 @@ xlog_write(
  * State Change: DIRTY -> ACTIVE
  */
 STATIC void
-xlog_state_clean_log(xlog_t *log)
+xlog_state_clean_log(
+	struct xlog *log)
 {
 	xlog_in_core_t	*iclog;
 	int changed = 0;
@@ -2222,7 +2264,7 @@ xlog_state_clean_log(xlog_t *log)
 
 STATIC xfs_lsn_t
 xlog_get_lowest_lsn(
-	xlog_t		*log)
+	struct xlog	*log)
 {
 	xlog_in_core_t  *lsn_log;
 	xfs_lsn_t	lowest_lsn, lsn;
@@ -2245,9 +2287,9 @@ xlog_get_lowest_lsn(
 
 STATIC void
 xlog_state_do_callback(
-	xlog_t		*log,
-	int		aborted,
-	xlog_in_core_t	*ciclog)
+	struct xlog		*log,
+	int			aborted,
+	struct xlog_in_core	*ciclog)
 {
 	xlog_in_core_t	   *iclog;
 	xlog_in_core_t	   *first_iclog;	/* used to know when we've
@@ -2467,7 +2509,7 @@ xlog_state_done_syncing(
 	xlog_in_core_t	*iclog,
 	int		aborted)
 {
-	xlog_t		   *log = iclog->ic_log;
+	struct xlog	   *log = iclog->ic_log;
 
 	spin_lock(&log->l_icloglock);
 
@@ -2521,12 +2563,13 @@ xlog_state_done_syncing(
  *		is copied.
  */
 STATIC int
-xlog_state_get_iclog_space(xlog_t	  *log,
-			   int		  len,
-			   xlog_in_core_t **iclogp,
-			   xlog_ticket_t  *ticket,
-			   int		  *continued_write,
-			   int		  *logoffsetp)
+xlog_state_get_iclog_space(
+	struct xlog		*log,
+	int			len,
+	struct xlog_in_core	**iclogp,
+	struct xlog_ticket	*ticket,
+	int			*continued_write,
+	int			*logoffsetp)
 {
 	int		  log_offset;
 	xlog_rec_header_t *head;
@@ -2631,8 +2674,9 @@ restart:
  * move grant reservation head forward.
  */
 STATIC void
-xlog_regrant_reserve_log_space(xlog_t	     *log,
-			       xlog_ticket_t *ticket)
+xlog_regrant_reserve_log_space(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket)
 {
 	trace_xfs_log_regrant_reserve_enter(log, ticket);
 
@@ -2677,8 +2721,9 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
  * in the current reservation field.
  */
 STATIC void
-xlog_ungrant_log_space(xlog_t	     *log,
-		       xlog_ticket_t *ticket)
+xlog_ungrant_log_space(
+	struct xlog		*log,
+	struct xlog_ticket	*ticket)
 {
 	int	bytes;
 
@@ -2717,8 +2762,8 @@ xlog_ungrant_log_space(xlog_t	     *log,
  */
 STATIC int
 xlog_state_release_iclog(
-	xlog_t		*log,
-	xlog_in_core_t	*iclog)
+	struct xlog		*log,
+	struct xlog_in_core	*iclog)
 {
 	int		sync = 0;	/* do we sync? */
 
@@ -2768,9 +2813,10 @@ xlog_state_release_iclog(
  * that every data block.  We have run out of space in this log record.
  */
 STATIC void
-xlog_state_switch_iclogs(xlog_t		*log,
-			 xlog_in_core_t *iclog,
-			 int		eventual_size)
+xlog_state_switch_iclogs(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			eventual_size)
 {
 	ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
 	if (!eventual_size)
@@ -3114,7 +3160,9 @@ xfs_log_force_lsn(
  * disk.
  */
 STATIC void
-xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
+xlog_state_want_sync(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog)
 {
 	assert_spin_locked(&log->l_icloglock);
 
@@ -3158,7 +3206,7 @@ xfs_log_ticket_get(
 /*
  * Allocate and initialise a new log ticket.
  */
-xlog_ticket_t *
+struct xlog_ticket *
 xlog_ticket_alloc(
 	struct xlog	*log,
 	int		unit_bytes,
@@ -3346,9 +3394,10 @@ xlog_verify_grant_tail(
 
 /* check if it will fit */
 STATIC void
-xlog_verify_tail_lsn(xlog_t	    *log,
-		     xlog_in_core_t *iclog,
-		     xfs_lsn_t	    tail_lsn)
+xlog_verify_tail_lsn(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	xfs_lsn_t		tail_lsn)
 {
     int blocks;
 
@@ -3385,10 +3434,11 @@ xlog_verify_tail_lsn(xlog_t	    *log,
  *	the cycle numbers agree with the current cycle number.
  */
 STATIC void
-xlog_verify_iclog(xlog_t	 *log,
-		  xlog_in_core_t *iclog,
-		  int		 count,
-		  boolean_t	 syncing)
+xlog_verify_iclog(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			count,
+	boolean_t		syncing)
 {
 	xlog_op_header_t	*ophead;
 	xlog_in_core_t		*icptr;
@@ -3482,7 +3532,7 @@ xlog_verify_iclog(xlog_t	 *log,
  */
 STATIC int
 xlog_state_ioerror(
-	xlog_t	*log)
+	struct xlog	*log)
 {
 	xlog_in_core_t	*iclog, *ic;
 
@@ -3527,7 +3577,7 @@ xfs_log_force_umount(
 	struct xfs_mount	*mp,
 	int			logerror)
 {
-	xlog_t		*log;
+	struct xlog	*log;
 	int		retval;
 
 	log = mp->m_log;
@@ -3634,7 +3684,8 @@ xfs_log_force_umount(
 }
 
 STATIC int
-xlog_iclogs_empty(xlog_t *log)
+xlog_iclogs_empty(
+	struct xlog	*log)
 {
 	xlog_in_core_t	*iclog;
 

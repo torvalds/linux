@@ -429,6 +429,7 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 	mutex_init(&fs_devices->device_list_mutex);
 	fs_devices->latest_devid = orig->latest_devid;
 	fs_devices->latest_trans = orig->latest_trans;
+	fs_devices->total_devices = orig->total_devices;
 	memcpy(fs_devices->fsid, orig->fsid, sizeof(fs_devices->fsid));
 
 	/* We have held the volume lock, it is safe to get the devices. */
@@ -739,6 +740,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	int ret;
 	u64 devid;
 	u64 transid;
+	u64 total_devices;
 
 	flags |= FMODE_EXCL;
 	bdev = blkdev_get_by_path(path, flags, holder);
@@ -760,6 +762,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	transid = btrfs_super_generation(disk_super);
+	total_devices = btrfs_super_num_devices(disk_super);
 	if (disk_super->label[0])
 		printk(KERN_INFO "device label %s ", disk_super->label);
 	else
@@ -767,7 +770,8 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
-
+	if (!ret && fs_devices_ret)
+		(*fs_devices_ret)->total_devices = total_devices;
 	brelse(bh);
 error_close:
 	mutex_unlock(&uuid_mutex);
@@ -1433,6 +1437,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	list_del_rcu(&device->dev_list);
 
 	device->fs_devices->num_devices--;
+	device->fs_devices->total_devices--;
 
 	if (device->missing)
 		root->fs_info->fs_devices->missing_devices--;
@@ -1550,6 +1555,7 @@ static int btrfs_prepare_sprout(struct btrfs_root *root)
 	fs_devices->seeding = 0;
 	fs_devices->num_devices = 0;
 	fs_devices->open_devices = 0;
+	fs_devices->total_devices = 0;
 	fs_devices->seed = seed_devices;
 
 	generate_random_uuid(fs_devices->fsid);
@@ -1738,10 +1744,6 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 
 	device->fs_devices = root->fs_info->fs_devices;
 
-	/*
-	 * we don't want write_supers to jump in here with our device
-	 * half setup
-	 */
 	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
 	list_add_rcu(&device->dev_list, &root->fs_info->fs_devices->devices);
 	list_add(&device->dev_alloc_list,
@@ -1749,6 +1751,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	root->fs_info->fs_devices->num_devices++;
 	root->fs_info->fs_devices->open_devices++;
 	root->fs_info->fs_devices->rw_devices++;
+	root->fs_info->fs_devices->total_devices++;
 	if (device->can_discard)
 		root->fs_info->fs_devices->num_can_discard++;
 	root->fs_info->fs_devices->total_rw_bytes += device->total_bytes;
@@ -4736,9 +4739,6 @@ int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info)
 		key.offset = device->devid;
 		ret = btrfs_search_slot(NULL, dev_root, &key, path, 0, 0);
 		if (ret) {
-			printk_in_rcu(KERN_WARNING "btrfs: no dev_stats entry found for device %s (devid %llu) (OK on first mount after mkfs)\n",
-				      rcu_str_deref(device->name),
-				      (unsigned long long)device->devid);
 			__btrfs_reset_dev_stats(device);
 			device->dev_stats_valid = 1;
 			btrfs_release_path(path);
@@ -4880,6 +4880,14 @@ void btrfs_dev_stat_print_on_error(struct btrfs_device *dev)
 
 static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 {
+	int i;
+
+	for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++)
+		if (btrfs_dev_stat_read(dev, i) != 0)
+			break;
+	if (i == BTRFS_DEV_STAT_VALUES_MAX)
+		return; /* all values == 0, suppress message */
+
 	printk_in_rcu(KERN_INFO "btrfs: bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u\n",
 	       rcu_str_deref(dev->name),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
@@ -4890,8 +4898,7 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 }
 
 int btrfs_get_dev_stats(struct btrfs_root *root,
-			struct btrfs_ioctl_get_dev_stats *stats,
-			int reset_after_read)
+			struct btrfs_ioctl_get_dev_stats *stats)
 {
 	struct btrfs_device *dev;
 	struct btrfs_fs_devices *fs_devices = root->fs_info->fs_devices;
@@ -4909,7 +4916,7 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 		printk(KERN_WARNING
 		       "btrfs: get dev_stats failed, not yet valid\n");
 		return -ENODEV;
-	} else if (reset_after_read) {
+	} else if (stats->flags & BTRFS_DEV_STATS_RESET) {
 		for (i = 0; i < BTRFS_DEV_STAT_VALUES_MAX; i++) {
 			if (stats->nr_items > i)
 				stats->values[i] =

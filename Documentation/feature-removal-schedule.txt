@@ -13,6 +13,14 @@ Who:	Jim Cromie <jim.cromie@gmail.com>, Jason Baron <jbaron@redhat.com>
 
 ---------------------------
 
+What: /proc/sys/vm/nr_pdflush_threads
+When: 2012
+Why: Since pdflush is deprecated, the interface exported in /proc/sys/vm/
+     should be removed.
+Who: Wanpeng Li <liwp@linux.vnet.ibm.com>
+
+---------------------------
+
 What:	CONFIG_APM_CPU_IDLE, and its ability to call APM BIOS in idle
 When:	2012
 Why:	This optional sub-feature of APM is of dubious reliability,
@@ -67,20 +75,6 @@ Why:	prism54 FullMAC PCI / Cardbus devices used to be supported only by the
 	http://wireless.kernel.org/en/users/Drivers/p54
 
 Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
-
----------------------------
-
-What:	IRQF_SAMPLE_RANDOM
-Check:	IRQF_SAMPLE_RANDOM
-When:	July 2009
-
-Why:	Many of IRQF_SAMPLE_RANDOM users are technically bogus as entropy
-	sources in the kernel's current entropy model. To resolve this, every
-	input point to the kernel's entropy pool needs to better document the
-	type of entropy source it actually is. This will be replaced with
-	additional add_*_randomness functions in drivers/char/random.c
-
-Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
 
 ---------------------------
 
@@ -512,14 +506,6 @@ Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
 
 ----------------------------
 
-What:	kmap_atomic(page, km_type)
-When:	3.5
-Why:	The old kmap_atomic() with two arguments is deprecated, we only
-	keep it for backward compatibility for few cycles and then drop it.
-Who:	Cong Wang <amwang@redhat.com>
-
-----------------------------
-
 What:	get_robust_list syscall
 When:	2013
 Why:	There appear to be no production users of the get_robust_list syscall,
@@ -606,5 +592,48 @@ Who:	Ludovic Desroches <ludovic.desroches@atmel.com>
 What:	net/wanrouter/
 When:	June 2013
 Why:	Unsupported/unmaintained/unused since 2.6
+
+----------------------------
+
+What:	V4L2 selections API target rectangle and flags unification, the
+	following definitions will be removed: V4L2_SEL_TGT_CROP_ACTIVE,
+	V4L2_SEL_TGT_COMPOSE_ACTIVE, V4L2_SUBDEV_SEL_*, V4L2_SUBDEV_SEL_FLAG_*
+	in favor of common V4L2_SEL_TGT_* and V4L2_SEL_FLAG_* definitions.
+	For more details see include/linux/v4l2-common.h.
+When:	3.8
+Why:	The regular V4L2 selections and the subdev selection API originally
+	defined distinct names for the target rectangles and flags - V4L2_SEL_*
+	and V4L2_SUBDEV_SEL_*. Although, it turned out that the meaning of these
+	target rectangles is virtually identical and the APIs were consolidated
+	to use single set of names - V4L2_SEL_*. This didn't involve any ABI
+	changes. Alias definitions were created for the original ones to avoid
+	any instabilities in the user space interface. After few cycles these
+	backward compatibility definitions will be removed.
+Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
+
+----------------------------
+
+What:	Using V4L2_CAP_VIDEO_CAPTURE and V4L2_CAP_VIDEO_OUTPUT flags
+	to indicate a V4L2 memory-to-memory device capability
+When:	3.8
+Why:	New drivers should use new V4L2_CAP_VIDEO_M2M capability flag
+	to indicate a V4L2 video memory-to-memory (M2M) device and
+	applications can now identify a M2M video device by checking
+	for V4L2_CAP_VIDEO_M2M, with VIDIOC_QUERYCAP ioctl. Using ORed
+	V4L2_CAP_VIDEO_CAPTURE and V4L2_CAP_VIDEO_OUTPUT flags for M2M
+	devices is ambiguous and may lead, for example, to identifying
+	a M2M device as a video	capture or output device.
+Who:	Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+----------------------------
+
+What:	OMAP private DMA implementation
+When:	2013
+Why:	We have a DMA engine implementation; all users should be updated
+	to use this rather than persisting with the old APIs.  The old APIs
+	block merging the old DMA engine implementation into the DMA
+	engine driver.
+Who:	Russell King <linux@arm.linux.org.uk>,
+	Santosh Shilimkar <santosh.shilimkar@ti.com>
 
 ----------------------------

@@ -53,6 +53,7 @@ ALC882/883/885/888/889
   acer-aspire-8930g	Acer Aspire 8330G/6935G
   acer-aspire		Acer Aspire others
   inv-dmic	Inverted internal mic workaround
+  no-primary-hp		VAIO Z workaround (for fixed speaker DAC)
 
 ALC861/660
 ==========
@@ -273,6 +274,10 @@ STAC92HD83*
   dell-s14	Dell laptop
   dell-vostro-3500	Dell Vostro 3500 laptop
   hp-dv7-4000	HP dv-7 4000
+  hp_cNB11_intquad HP CNB models with 4 speakers
+  hp-zephyr	HP Zephyr
+  hp-led	HP with broken BIOS for mute LED
+  hp-inv-led	HP with broken BIOS for inverted mute LED
   auto		BIOS setup (default)
 
 STAC9872

@@ -1349,8 +1349,11 @@ static int c_show(struct seq_file *m, void *p)
 	if (cache_check(cd, cp, NULL))
 		/* cache_check does a cache_put on failure */
 		seq_printf(m, "# ");
-	else
+	else {
+		if (cache_is_expired(cd, cp))
+			seq_printf(m, "# ");
 		cache_put(cp, cd);
+	}
 
 	return cd->cache_show(m, cd, cp);
 }

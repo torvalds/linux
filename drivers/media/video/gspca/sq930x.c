@@ -36,8 +36,10 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	u16 expo;
-	u8 gain;
+	struct { /* exposure/gain control cluster */
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *gain;
+	};
 
 	u8 do_ctrl;
 	u8 gpio[2];
@@ -53,42 +55,6 @@ enum sensors {
 	SENSOR_MT9V111,		/* = MI360SOC */
 	SENSOR_OV7660,
 	SENSOR_OV9630,
-};
-
-static int sd_setexpo(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getexpo(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
-
-static const struct ctrl sd_ctrls[] = {
-	{
-	    {
-		.id = V4L2_CID_EXPOSURE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Exposure",
-		.minimum = 0x0001,
-		.maximum = 0x0fff,
-		.step = 1,
-#define EXPO_DEF 0x0356
-		.default_value = EXPO_DEF,
-	    },
-	    .set = sd_setexpo,
-	    .get = sd_getexpo,
-	},
-	{
-	    {
-		.id = V4L2_CID_GAIN,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "Gain",
-		.minimum = 0x01,
-		.maximum = 0xff,
-		.step = 1,
-#define GAIN_DEF 0x8d
-		.default_value = GAIN_DEF,
-	    },
-	    .set = sd_setgain,
-	    .get = sd_getgain,
-	},
 };
 
 static struct v4l2_pix_format vga_mode[] = {
@@ -791,7 +757,7 @@ static void lz24bp_ppl(struct sd *sd, u16 ppl)
 	ucbus_write(&sd->gspca_dev, cmds, ARRAY_SIZE(cmds), 2);
 }
 
-static void setexposure(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev, s32 expo, s32 gain)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, integclks, intstartclk, frameclks, min_frclk;
@@ -799,7 +765,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	u16 cmd;
 	u8 buf[15];
 
-	integclks = sd->expo;
+	integclks = expo;
 	i = 0;
 	cmd = SQ930_CTRL_SET_EXPOSURE;
 
@@ -818,7 +784,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		buf[i++] = intstartclk;
 		buf[i++] = frameclks >> 8;
 		buf[i++] = frameclks;
-		buf[i++] = sd->gain;
+		buf[i++] = gain;
 		break;
 	default:				/* cmos */
 /*	case SENSOR_MI0360: */
@@ -834,7 +800,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		buf[i++] = 0x35;	/* reg = global gain */
 		buf[i++] = 0x00;	/* val H */
 		buf[i++] = sensor->i2c_dum;
-		buf[i++] = 0x80 + sd->gain / 2; /* val L */
+		buf[i++] = 0x80 + gain / 2; /* val L */
 		buf[i++] = 0x00;
 		buf[i++] = 0x00;
 		buf[i++] = 0x00;
@@ -859,9 +825,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
 	cam->bulk = 1;
-
-	sd->gain = GAIN_DEF;
-	sd->expo = EXPO_DEF;
 
 	return 0;
 }
@@ -1089,7 +1052,8 @@ static void sd_dq_callback(struct gspca_dev *gspca_dev)
 		return;
 	sd->do_ctrl = 0;
 
-	setexposure(gspca_dev);
+	setexposure(gspca_dev, v4l2_ctrl_g_ctrl(sd->exposure),
+			v4l2_ctrl_g_ctrl(sd->gain));
 
 	gspca_dev->cam.bulk_nurbs = 1;
 	ret = usb_submit_urb(gspca_dev->urb[0], GFP_ATOMIC);
@@ -1113,48 +1077,55 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 }
 
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->gain = val;
-	if (gspca_dev->streaming)
-		sd->do_ctrl = 1;
-	return 0;
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_EXPOSURE:
+		setexposure(gspca_dev, ctrl->val, sd->gain->val);
+		break;
+	}
+	return gspca_dev->usb_err;
 }
 
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	*val = sd->gain;
-	return 0;
-}
-static int sd_setexpo(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 2);
+	sd->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 1, 0xfff, 1, 0x356);
+	sd->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 1, 255, 1, 0x8d);
 
-	sd->expo = val;
-	if (gspca_dev->streaming)
-		sd->do_ctrl = 1;
-	return 0;
-}
-
-static int sd_getexpo(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->expo;
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	v4l2_ctrl_cluster(2, &sd->exposure);
 	return 0;
 }
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name   = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init   = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init = sd_isoc_init,
 	.start  = sd_start,
 	.stopN  = sd_stopN,
@@ -1194,6 +1165,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend    = gspca_suspend,
 	.resume     = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

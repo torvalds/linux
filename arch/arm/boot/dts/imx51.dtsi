@@ -127,7 +127,7 @@
 			};
 
 			gpio1: gpio@73f84000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f84000 0x4000>;
 				interrupts = <50 51>;
 				gpio-controller;
@@ -137,7 +137,7 @@
 			};
 
 			gpio2: gpio@73f88000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f88000 0x4000>;
 				interrupts = <52 53>;
 				gpio-controller;
@@ -147,7 +147,7 @@
 			};
 
 			gpio3: gpio@73f8c000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f8c000 0x4000>;
 				interrupts = <54 55>;
 				gpio-controller;
@@ -157,7 +157,7 @@
 			};
 
 			gpio4: gpio@73f90000 {
-				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f90000 0x4000>;
 				interrupts = <56 57>;
 				gpio-controller;

@@ -164,6 +164,14 @@
 	.set	noat
 
 /*
+ * t7 is used as a flag to note inatomic mode.
+ */
+LEAF(__copy_user_inatomic)
+	b	__copy_user_common
+	 li	t7, 1
+	END(__copy_user_inatomic)
+
+/*
  * A combined memcpy/__copy_user
  * __copy_user sets len to 0 for success; else to an upper bound of
  * the number of uncopied bytes.
@@ -174,6 +182,8 @@ LEAF(memcpy)					/* a0=dst a1=src a2=len */
 	move	v0, dst				/* return value */
 __memcpy:
 FEXPORT(__copy_user)
+	li	t7, 0				/* not inatomic */
+__copy_user_common:
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps
@@ -412,7 +422,6 @@ l_exc_copy:
 	 * Assumes src < THREAD_BUADDR($28)
 	 */
 	LOAD	t0, TI_TASK($28)
-	 nop
 	LOAD	t0, THREAD_BUADDR(t0)
 1:
 EXC(	lb	t1, 0(src),	l_exc)
@@ -422,10 +431,9 @@ EXC(	lb	t1, 0(src),	l_exc)
 	 ADD	dst, dst, 1
 l_exc:
 	LOAD	t0, TI_TASK($28)
-	 nop
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
-	 nop
 	SUB	len, AT, t0		# len number of uncopied bytes
+	bnez	t7, 2f		/* Skip the zeroing out part if inatomic */
 	/*
 	 * Here's where we rely on src and dst being incremented in tandem,
 	 *   See (3) above.
@@ -443,7 +451,7 @@ l_exc:
 	ADD	dst, dst, 1
 	bnez	src, 1b
 	 SUB	src, src, 1
-	jr	ra
+2:	jr	ra
 	 nop
 
 

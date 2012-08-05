@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/power_supply.h>
+#include <linux/olpc-ec.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>

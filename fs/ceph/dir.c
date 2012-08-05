@@ -51,8 +51,7 @@ int ceph_init_dentry(struct dentry *dentry)
 		goto out_unlock;
 	}
 
-	if (dentry->d_parent == NULL ||   /* nfs fh_to_dentry */
-	    ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
+	if (ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
 		d_set_d_op(dentry, &ceph_dentry_ops);
 	else if (ceph_snap(dentry->d_parent->d_inode) == CEPH_SNAPDIR)
 		d_set_d_op(dentry, &ceph_snapdir_dentry_ops);
@@ -79,7 +78,7 @@ struct inode *ceph_get_dentry_parent_inode(struct dentry *dentry)
 		return NULL;
 
 	spin_lock(&dentry->d_lock);
-	if (dentry->d_parent) {
+	if (!IS_ROOT(dentry)) {
 		inode = dentry->d_parent->d_inode;
 		ihold(inode);
 	}
@@ -634,44 +633,6 @@ static struct dentry *ceph_lookup(struct inode *dir, struct dentry *dentry,
 	return dentry;
 }
 
-int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct file *file, unsigned flags, umode_t mode,
-		     int *opened)
-{
-	int err;
-	struct dentry *res = NULL;
-
-	if (!(flags & O_CREAT)) {
-		if (dentry->d_name.len > NAME_MAX)
-			return -ENAMETOOLONG;
-
-		err = ceph_init_dentry(dentry);
-		if (err < 0)
-			return err;
-
-		return ceph_lookup_open(dir, dentry, file, flags, mode, opened);
-	}
-
-	if (d_unhashed(dentry)) {
-		res = ceph_lookup(dir, dentry, 0);
-		if (IS_ERR(res))
-			return PTR_ERR(res);
-
-		if (res)
-			dentry = res;
-	}
-
-	/* We don't deal with positive dentries here */
-	if (dentry->d_inode)
-		return finish_no_open(file, res);
-
-	*opened |= FILE_CREATED;
-	err = ceph_lookup_open(dir, dentry, file, flags, mode, opened);
-	dput(res);
-
-	return err;
-}
-
 /*
  * If we do a create but get no trace back from the MDS, follow up with
  * a lookup (the VFS expects us to link up the provided dentry).
@@ -1154,7 +1115,7 @@ static void ceph_d_prune(struct dentry *dentry)
 	dout("ceph_d_prune %p\n", dentry);
 
 	/* do we have a valid parent? */
-	if (!dentry->d_parent || IS_ROOT(dentry))
+	if (IS_ROOT(dentry))
 		return;
 
 	/* if we are not hashed, we don't affect D_COMPLETE */

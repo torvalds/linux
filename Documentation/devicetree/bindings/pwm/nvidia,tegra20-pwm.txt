@@ -1,0 +1,18 @@
+Tegra SoC PWFM controller
+
+Required properties:
+- compatible: should be one of:
+  - "nvidia,tegra20-pwm"
+  - "nvidia,tegra30-pwm"
+- reg: physical base address and length of the controller's registers
+- #pwm-cells: On Tegra the number of cells used to specify a PWM is 2. The
+  first cell specifies the per-chip index of the PWM to use and the second
+  cell is the duty cycle in nanoseconds.
+
+Example:
+
+	pwm: pwm@7000a000 {
+		compatible = "nvidia,tegra20-pwm";
+		reg = <0x7000a000 0x100>;
+		#pwm-cells = <2>;
+	};

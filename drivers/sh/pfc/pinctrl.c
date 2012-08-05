@@ -276,7 +276,6 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 			      unsigned long config)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
-	struct sh_pfc *pfc = pmx->pfc;
 
 	/* Validate the new type */
 	if (config >= PINMUX_FLAG_TYPE)
@@ -325,20 +324,6 @@ static struct pinctrl_desc sh_pfc_pinctrl_desc = {
 	.pmxops		= &sh_pfc_pinmux_ops,
 	.confops	= &sh_pfc_pinconf_ops,
 };
-
-int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
-{
-	sh_pfc_pmx = kzalloc(sizeof(struct sh_pfc_pinctrl), GFP_KERNEL);
-	if (unlikely(!sh_pfc_pmx))
-		return -ENOMEM;
-
-	spin_lock_init(&sh_pfc_pmx->lock);
-
-	sh_pfc_pmx->pfc = pfc;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(sh_pfc_register_pinctrl);
 
 static inline void __devinit sh_pfc_map_one_gpio(struct sh_pfc *pfc,
 						 struct sh_pfc_pinctrl *pmx,
@@ -481,7 +466,6 @@ static int __devexit sh_pfc_pinctrl_remove(struct platform_device *pdev)
 {
 	struct sh_pfc_pinctrl *pmx = platform_get_drvdata(pdev);
 
-	pinctrl_remove_gpio_range(pmx->pctl, &sh_pfc_gpio_range);
 	pinctrl_unregister(pmx->pctl);
 
 	platform_set_drvdata(pdev, NULL);
@@ -507,7 +491,7 @@ static struct platform_device sh_pfc_pinctrl_device = {
 	.id		= -1,
 };
 
-static int __init sh_pfc_pinctrl_init(void)
+static int sh_pfc_pinctrl_init(void)
 {
 	int rc;
 
@@ -521,10 +505,22 @@ static int __init sh_pfc_pinctrl_init(void)
 	return rc;
 }
 
+int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
+{
+	sh_pfc_pmx = kzalloc(sizeof(struct sh_pfc_pinctrl), GFP_KERNEL);
+	if (unlikely(!sh_pfc_pmx))
+		return -ENOMEM;
+
+	spin_lock_init(&sh_pfc_pmx->lock);
+
+	sh_pfc_pmx->pfc = pfc;
+
+	return sh_pfc_pinctrl_init();
+}
+EXPORT_SYMBOL_GPL(sh_pfc_register_pinctrl);
+
 static void __exit sh_pfc_pinctrl_exit(void)
 {
 	platform_driver_unregister(&sh_pfc_pinctrl_driver);
 }
-
-subsys_initcall(sh_pfc_pinctrl_init);
 module_exit(sh_pfc_pinctrl_exit);

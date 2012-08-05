@@ -29,6 +29,7 @@ dma_mark_declared_memory_occupied(struct device *dev,
 #else
 #define dma_alloc_from_coherent(dev, size, handle, ret) (0)
 #define dma_release_from_coherent(dev, order, vaddr) (0)
+#define dma_mmap_from_coherent(dev, vma, vaddr, order, ret) (0)
 #endif
 
 #endif

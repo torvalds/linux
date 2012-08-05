@@ -480,47 +480,58 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc);
 static int fimc_capture_open(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	int ret;
+	int ret = -EBUSY;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
 	if (fimc_m2m_active(fimc))
-		return -EBUSY;
+		goto unlock;
 
 	set_bit(ST_CAPT_BUSY, &fimc->state);
 	ret = pm_runtime_get_sync(&fimc->pdev->dev);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	ret = v4l2_fh_open(file);
-	if (ret)
-		return ret;
-
-	if (++fimc->vid_cap.refcnt != 1)
-		return 0;
-
-	ret = fimc_pipeline_initialize(&fimc->pipeline,
-				       &fimc->vid_cap.vfd->entity, true);
-	if (ret < 0) {
-		clear_bit(ST_CAPT_BUSY, &fimc->state);
-		pm_runtime_put_sync(&fimc->pdev->dev);
-		fimc->vid_cap.refcnt--;
-		v4l2_fh_release(file);
-		return ret;
+	if (ret) {
+		pm_runtime_put(&fimc->pdev->dev);
+		goto unlock;
 	}
-	ret = fimc_capture_ctrls_create(fimc);
 
-	if (!ret && !fimc->vid_cap.user_subdev_api)
-		ret = fimc_capture_set_default_format(fimc);
+	if (++fimc->vid_cap.refcnt == 1) {
+		ret = fimc_pipeline_initialize(&fimc->pipeline,
+				       &fimc->vid_cap.vfd->entity, true);
 
+		if (!ret && !fimc->vid_cap.user_subdev_api)
+			ret = fimc_capture_set_default_format(fimc);
+
+		if (!ret)
+			ret = fimc_capture_ctrls_create(fimc);
+
+		if (ret < 0) {
+			clear_bit(ST_CAPT_BUSY, &fimc->state);
+			pm_runtime_put_sync(&fimc->pdev->dev);
+			fimc->vid_cap.refcnt--;
+			v4l2_fh_release(file);
+		}
+	}
+unlock:
+	mutex_unlock(&fimc->lock);
 	return ret;
 }
 
 static int fimc_capture_close(struct file *file)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
 
 	if (--fimc->vid_cap.refcnt == 0) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
@@ -535,22 +546,40 @@ static int fimc_capture_close(struct file *file)
 		vb2_queue_release(&fimc->vid_cap.vbq);
 		fimc_ctrls_delete(fimc->vid_cap.ctx);
 	}
-	return v4l2_fh_release(file);
+
+	ret = v4l2_fh_release(file);
+
+	mutex_unlock(&fimc->lock);
+	return ret;
 }
 
 static unsigned int fimc_capture_poll(struct file *file,
 				      struct poll_table_struct *wait)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
-	return vb2_poll(&fimc->vid_cap.vbq, file, wait);
+	if (mutex_lock_interruptible(&fimc->lock))
+		return POLL_ERR;
+
+	ret = vb2_poll(&fimc->vid_cap.vbq, file, wait);
+	mutex_unlock(&fimc->lock);
+
+	return ret;
 }
 
 static int fimc_capture_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
+	int ret;
 
-	return vb2_mmap(&fimc->vid_cap.vbq, vma);
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
+	ret = vb2_mmap(&fimc->vid_cap.vbq, vma);
+	mutex_unlock(&fimc->lock);
+
+	return ret;
 }
 
 static const struct v4l2_file_operations fimc_capture_fops = {
@@ -658,7 +687,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 		r->left   = r->top = 0;
 		return;
 	}
-	if (target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	if (target == V4L2_SEL_TGT_COMPOSE) {
 		if (ctx->rotation != 90 && ctx->rotation != 270)
 			align_h = 1;
 		max_sc_h = min(SCALER_MAX_HRATIO, 1 << (ffs(sink->width) - 3));
@@ -685,7 +714,7 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 		      rotate ? sink->f_height : sink->f_width);
 	max_h = min_t(u32, FIMC_CAMIF_MAX_HEIGHT, sink->f_height);
 
-	if (target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	if (target == V4L2_SEL_TGT_COMPOSE) {
 		min_w = min_t(u32, max_w, sink->f_width / max_sc_h);
 		min_h = min_t(u32, max_h, sink->f_height / max_sc_v);
 		if (rotate) {
@@ -1146,9 +1175,9 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 		s->r.height = f->o_height;
 		return 0;
 
-	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE:
 		f = &ctx->d_frame;
-	case V4L2_SEL_TGT_CROP_ACTIVE:
+	case V4L2_SEL_TGT_CROP:
 		s->r.left = f->offs_h;
 		s->r.top = f->offs_v;
 		s->r.width = f->width;
@@ -1160,7 +1189,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 }
 
 /* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
-int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
 {
 	if (a->left < b->left || a->top < b->top)
 		return 0;
@@ -1184,9 +1213,9 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		return -EINVAL;
 
-	if (s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE)
+	if (s->target == V4L2_SEL_TGT_COMPOSE)
 		f = &ctx->d_frame;
-	else if (s->target == V4L2_SEL_TGT_CROP_ACTIVE)
+	else if (s->target == V4L2_SEL_TGT_CROP)
 		f = &ctx->s_frame;
 	else
 		return -EINVAL;
@@ -1428,9 +1457,9 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 	mutex_lock(&fimc->lock);
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;
 		r->left = 0;
@@ -1438,10 +1467,10 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 		mutex_unlock(&fimc->lock);
 		return 0;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
 		break;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		try_sel = v4l2_subdev_get_try_compose(fh, sel->pad);
 		f = &ctx->d_frame;
 		break;
@@ -1482,12 +1511,12 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	mutex_lock(&fimc->lock);
-	fimc_capture_try_selection(ctx, r, V4L2_SEL_TGT_CROP_ACTIVE);
+	fimc_capture_try_selection(ctx, r, V4L2_SEL_TGT_CROP);
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;
 		r->left = 0;
@@ -1495,10 +1524,10 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		mutex_unlock(&fimc->lock);
 		return 0;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		try_sel = v4l2_subdev_get_try_crop(fh, sel->pad);
 		break;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		try_sel = v4l2_subdev_get_try_compose(fh, sel->pad);
 		f = &ctx->d_frame;
 		break;
@@ -1514,7 +1543,7 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 		set_frame_crop(f, r->left, r->top, r->width, r->height);
 		set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 		spin_unlock_irqrestore(&fimc->slock, flags);
-		if (sel->target == V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL)
+		if (sel->target == V4L2_SEL_TGT_COMPOSE)
 			ctx->state |= FIMC_COMPOSE;
 	}
 
@@ -1589,10 +1618,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vfd->minor	= -1;
 	vfd->release	= video_device_release;
 	vfd->lock	= &fimc->lock;
-	/* Locking in file operations other than ioctl should be done
-	   by the driver, not the V4L2 core.
-	   This driver needs auditing so that this flag can be removed. */
-	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
+
 	video_set_drvdata(vfd, fimc);
 
 	vid_cap = &fimc->vid_cap;

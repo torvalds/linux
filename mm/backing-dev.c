@@ -39,12 +39,6 @@ DEFINE_SPINLOCK(bdi_lock);
 LIST_HEAD(bdi_list);
 LIST_HEAD(bdi_pending_list);
 
-static struct task_struct *sync_supers_tsk;
-static struct timer_list sync_supers_timer;
-
-static int bdi_sync_supers(void *);
-static void sync_supers_timer_fn(unsigned long);
-
 void bdi_lock_two(struct bdi_writeback *wb1, struct bdi_writeback *wb2)
 {
 	if (wb1 < wb2) {
@@ -250,12 +244,6 @@ static int __init default_bdi_init(void)
 {
 	int err;
 
-	sync_supers_tsk = kthread_run(bdi_sync_supers, NULL, "sync_supers");
-	BUG_ON(IS_ERR(sync_supers_tsk));
-
-	setup_timer(&sync_supers_timer, sync_supers_timer_fn, 0);
-	bdi_arm_supers_timer();
-
 	err = bdi_init(&default_backing_dev_info);
 	if (!err)
 		bdi_register(&default_backing_dev_info, NULL, "default");
@@ -268,46 +256,6 @@ subsys_initcall(default_bdi_init);
 int bdi_has_dirty_io(struct backing_dev_info *bdi)
 {
 	return wb_has_dirty_io(&bdi->wb);
-}
-
-/*
- * kupdated() used to do this. We cannot do it from the bdi_forker_thread()
- * or we risk deadlocking on ->s_umount. The longer term solution would be
- * to implement sync_supers_bdi() or similar and simply do it from the
- * bdi writeback thread individually.
- */
-static int bdi_sync_supers(void *unused)
-{
-	set_user_nice(current, 0);
-
-	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule();
-
-		/*
-		 * Do this periodically, like kupdated() did before.
-		 */
-		sync_supers();
-	}
-
-	return 0;
-}
-
-void bdi_arm_supers_timer(void)
-{
-	unsigned long next;
-
-	if (!dirty_writeback_interval)
-		return;
-
-	next = msecs_to_jiffies(dirty_writeback_interval * 10) + jiffies;
-	mod_timer(&sync_supers_timer, round_jiffies_up(next));
-}
-
-static void sync_supers_timer_fn(unsigned long unused)
-{
-	wake_up_process(sync_supers_tsk);
-	bdi_arm_supers_timer();
 }
 
 static void wakeup_timer_fn(unsigned long data)
@@ -677,7 +625,7 @@ int bdi_init(struct backing_dev_info *bdi)
 
 	bdi->min_ratio = 0;
 	bdi->max_ratio = 100;
-	bdi->max_prop_frac = PROP_FRAC_BASE;
+	bdi->max_prop_frac = FPROP_FRAC_BASE;
 	spin_lock_init(&bdi->wb_lock);
 	INIT_LIST_HEAD(&bdi->bdi_list);
 	INIT_LIST_HEAD(&bdi->work_list);
@@ -700,7 +648,7 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->write_bandwidth = INIT_BW;
 	bdi->avg_write_bandwidth = INIT_BW;
 
-	err = prop_local_init_percpu(&bdi->completions);
+	err = fprop_local_init_percpu(&bdi->completions);
 
 	if (err) {
 err:
@@ -744,7 +692,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	for (i = 0; i < NR_BDI_STAT_ITEMS; i++)
 		percpu_counter_destroy(&bdi->bdi_stat[i]);
 
-	prop_local_destroy_percpu(&bdi->completions);
+	fprop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
 
@@ -886,3 +834,23 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(wait_iff_congested);
+
+int pdflush_proc_obsolete(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	char kbuf[] = "0\n";
+
+	if (*ppos) {
+		*lenp = 0;
+		return 0;
+	}
+
+	if (copy_to_user(buffer, kbuf, sizeof(kbuf)))
+		return -EFAULT;
+	printk_once(KERN_WARNING "%s exported in /proc is scheduled for removal\n",
+			table->procname);
+
+	*lenp = 2;
+	*ppos += *lenp;
+	return 2;
+}

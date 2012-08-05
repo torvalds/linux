@@ -1312,7 +1312,7 @@ EXPORT_SYMBOL(bio_copy_kern);
  * Note that this code is very hard to test under normal circumstances because
  * direct-io pins the pages with get_user_pages().  This makes
  * is_page_cache_freeable return false, and the VM will not clean the pages.
- * But other code (eg, pdflush) could clean the pages if they are mapped
+ * But other code (eg, flusher threads) could clean the pages if they are mapped
  * pagecache.
  *
  * Simply disabling the call to bio_set_pages_dirty() is a good way to test the

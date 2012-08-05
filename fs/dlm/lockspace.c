@@ -506,19 +506,17 @@ static int new_lockspace(const char *name, const char *cluster,
 		spin_lock_init(&ls->ls_rsbtbl[i].lock);
 	}
 
+	spin_lock_init(&ls->ls_remove_spin);
+
+	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {
+		ls->ls_remove_names[i] = kzalloc(DLM_RESNAME_MAXLEN+1,
+						 GFP_KERNEL);
+		if (!ls->ls_remove_names[i])
+			goto out_rsbtbl;
+	}
+
 	idr_init(&ls->ls_lkbidr);
 	spin_lock_init(&ls->ls_lkbidr_spin);
-
-	size = dlm_config.ci_dirtbl_size;
-	ls->ls_dirtbl_size = size;
-
-	ls->ls_dirtbl = vmalloc(sizeof(struct dlm_dirtable) * size);
-	if (!ls->ls_dirtbl)
-		goto out_lkbfree;
-	for (i = 0; i < size; i++) {
-		INIT_LIST_HEAD(&ls->ls_dirtbl[i].list);
-		spin_lock_init(&ls->ls_dirtbl[i].lock);
-	}
 
 	INIT_LIST_HEAD(&ls->ls_waiters);
 	mutex_init(&ls->ls_waiters_mutex);
@@ -567,7 +565,7 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	ls->ls_recover_buf = kmalloc(dlm_config.ci_buffer_size, GFP_NOFS);
 	if (!ls->ls_recover_buf)
-		goto out_dirfree;
+		goto out_lkbidr;
 
 	ls->ls_slot = 0;
 	ls->ls_num_slots = 0;
@@ -576,6 +574,8 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	INIT_LIST_HEAD(&ls->ls_recover_list);
 	spin_lock_init(&ls->ls_recover_list_lock);
+	idr_init(&ls->ls_recover_idr);
+	spin_lock_init(&ls->ls_recover_idr_lock);
 	ls->ls_recover_list_count = 0;
 	ls->ls_local_handle = ls;
 	init_waitqueue_head(&ls->ls_wait_general);
@@ -647,11 +647,15 @@ static int new_lockspace(const char *name, const char *cluster,
 	spin_lock(&lslist_lock);
 	list_del(&ls->ls_list);
 	spin_unlock(&lslist_lock);
+	idr_destroy(&ls->ls_recover_idr);
 	kfree(ls->ls_recover_buf);
- out_dirfree:
-	vfree(ls->ls_dirtbl);
- out_lkbfree:
+ out_lkbidr:
 	idr_destroy(&ls->ls_lkbidr);
+	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {
+		if (ls->ls_remove_names[i])
+			kfree(ls->ls_remove_names[i]);
+	}
+ out_rsbtbl:
 	vfree(ls->ls_rsbtbl);
  out_lsfree:
 	if (do_unreg)
@@ -779,13 +783,6 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	kfree(ls->ls_recover_buf);
 
 	/*
-	 * Free direntry structs.
-	 */
-
-	dlm_dir_clear(ls);
-	vfree(ls->ls_dirtbl);
-
-	/*
 	 * Free all lkb's in idr
 	 */
 
@@ -813,6 +810,9 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	vfree(ls->ls_rsbtbl);
 
+	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++)
+		kfree(ls->ls_remove_names[i]);
+
 	while (!list_empty(&ls->ls_new_rsb)) {
 		rsb = list_first_entry(&ls->ls_new_rsb, struct dlm_rsb,
 				       res_hashchain);
@@ -826,7 +826,6 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	dlm_purge_requestqueue(ls);
 	kfree(ls->ls_recover_args);
-	dlm_clear_free_entries(ls);
 	dlm_clear_members(ls);
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);

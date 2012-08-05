@@ -14,7 +14,6 @@
 #ifndef _TPCI200_H_
 #define _TPCI200_H_
 
-#include <linux/version.h>
 #include <linux/limits.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
@@ -106,14 +105,12 @@
  * @vector	Vector number
  * @handler	Handler called when IRQ arrives
  * @arg		Handler argument
- * @name	IRQ name
  *
  */
 struct slot_irq {
 	int		vector;
 	int		(*handler)(void *);
 	void		*arg;
-	const char	*name;
 };
 
 /**
@@ -139,7 +136,6 @@ struct tpci200_slot {
  * @interface_regs	Pointer to IP interface space (Bar 2)
  * @ioidint_space	Pointer to IP ID, IO and INT space (Bar 3)
  * @mem8_space		Pointer to MEM space (Bar 4)
- * @access_lock		Mutex lock for simultaneous access
  *
  */
 struct tpci200_infos {
@@ -148,7 +144,6 @@ struct tpci200_infos {
 	void __iomem			*interface_regs;
 	void __iomem			*ioidint_space;
 	void __iomem			*mem8_space;
-	spinlock_t			access_lock;
 	struct ipack_bus_device		*ipack_bus;
 };
 struct tpci200_board {

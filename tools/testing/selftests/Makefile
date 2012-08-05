@@ -1,4 +1,4 @@
-TARGETS = breakpoints kcmp mqueue vm
+TARGETS = breakpoints kcmp mqueue vm cpu-hotplug memory-hotplug
 
 all:
 	for TARGET in $(TARGETS); do \

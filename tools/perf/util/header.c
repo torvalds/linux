@@ -1212,6 +1212,12 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 				attr.exclude_user,
 				attr.exclude_kernel);
 
+		fprintf(fp, ", excl_host = %d, excl_guest = %d",
+				attr.exclude_host,
+				attr.exclude_guest);
+
+		fprintf(fp, ", precise_ip = %d", attr.precise_ip);
+
 		if (nr)
 			fprintf(fp, ", id = {");
 

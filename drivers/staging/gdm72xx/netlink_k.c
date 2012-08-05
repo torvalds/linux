@@ -11,7 +11,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/netlink.h>

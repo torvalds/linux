@@ -85,7 +85,6 @@ struct addi_board {
 	int i_DoMaxdata;	/*  data to set all channels high */
 
 	int i_NbrTTLChannel;	/*  Number of TTL channels */
-	const struct comedi_lrange *pr_TTLRangelist;	/* rangelist for TTL */
 
 	int i_Dma;		/*  dma present or not */
 	int i_Timer;		/*    timer subdevice present or not */

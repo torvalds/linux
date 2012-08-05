@@ -290,18 +290,7 @@ static struct pci_driver it8213_pci_driver = {
 #endif
 };
 
-static int __init it8213_init(void)
-{
-	return pci_register_driver(&it8213_pci_driver);
-}
-
-static void __exit it8213_exit(void)
-{
-	pci_unregister_driver(&it8213_pci_driver);
-}
-
-module_init(it8213_init);
-module_exit(it8213_exit);
+module_pci_driver(it8213_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("SCSI low-level driver for the ITE 8213");
