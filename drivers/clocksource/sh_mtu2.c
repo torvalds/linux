@@ -323,7 +323,7 @@ static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 		struct sh_timer_config *cfg = pdev->dev.platform_data;
 
 		if (cfg->clockevent_rating)
-			pm_genpd_dev_syscore(&pdev->dev, true);
+			dev_pm_syscore_device(&pdev->dev, true);
 	}
 
 	if (p) {

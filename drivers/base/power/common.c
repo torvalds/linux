@@ -83,3 +83,18 @@ int dev_pm_put_subsys_data(struct device *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_put_subsys_data);
+
+/**
+ * dev_pm_syscore_device - Set/unset the given device's power.syscore flag.
+ * @dev: Device whose flag is to be modified.
+ * @val: New value of the flag.
+ */
+void dev_pm_syscore_device(struct device *dev, bool val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->power.lock, flags);
+	dev->power.syscore = val;
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+}
+EXPORT_SYMBOL_GPL(dev_pm_syscore_device);
