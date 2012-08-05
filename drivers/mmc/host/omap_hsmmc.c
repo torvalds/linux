@@ -445,7 +445,7 @@ static void omap_hsmmc_stop_clock(struct omap_hsmmc_host *host)
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 		OMAP_HSMMC_READ(host->base, SYSCTL) & ~CEN);
 	if ((OMAP_HSMMC_READ(host->base, SYSCTL) & CEN) != 0x0)
-		dev_dbg(mmc_dev(host->mmc), "MMC Clock is not stoped\n");
+		dev_dbg(mmc_dev(host->mmc), "MMC Clock is not stopped\n");
 }
 
 static void omap_hsmmc_enable_irq(struct omap_hsmmc_host *host,
