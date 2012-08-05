@@ -7,9 +7,9 @@
  *	http://linux.terratec.de/files/TERRATEC_H7/20110323_TERRATEC_H7_Linux.tar.gz
  * The original driver's license is GPL, as declared with MODULE_LICENSE()
  *
- * Copyright (c) 2010-2011 Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (c) 2010-2012 Mauro Carvalho Chehab <mchehab@redhat.com>
  *	Driver modified by in order to work with upstream drxk driver, and
- *	tons of bugs got fixed.
+ *	tons of bugs got fixed, and converted to use dvb-usb-v2.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
