@@ -140,8 +140,6 @@ struct dw_dma_regs {
 /* Bitfields in CFG */
 #define DW_CFG_DMA_EN		(1 << 0)
 
-#define DW_REGLEN		0x400
-
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
 };
