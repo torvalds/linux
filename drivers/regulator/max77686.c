@@ -66,7 +66,7 @@ enum max77686_ramp_rate {
 };
 
 struct max77686_data {
-	struct regulator_dev **rdev;
+	struct regulator_dev *rdev[MAX77686_REGULATORS];
 };
 
 static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
@@ -284,10 +284,8 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 {
 	struct max77686_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max77686_platform_data *pdata = dev_get_platdata(iodev->dev);
-	struct regulator_dev **rdev;
 	struct max77686_data *max77686;
-	int i,  size;
-	int ret = 0;
+	int i, ret = 0;
 	struct regulator_config config = { };
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
@@ -314,12 +312,6 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 	if (!max77686)
 		return -ENOMEM;
 
-	size = sizeof(struct regulator_dev *) * MAX77686_REGULATORS;
-	max77686->rdev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!max77686->rdev)
-		return -ENOMEM;
-
-	rdev = max77686->rdev;
 	config.dev = &pdev->dev;
 	config.regmap = iodev->regmap;
 	platform_set_drvdata(pdev, max77686);
@@ -328,32 +320,30 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 		config.init_data = pdata->regulators[i].initdata;
 		config.of_node = pdata->regulators[i].of_node;
 
-		rdev[i] = regulator_register(&regulators[i], &config);
-		if (IS_ERR(rdev[i])) {
-			ret = PTR_ERR(rdev[i]);
+		max77686->rdev[i] = regulator_register(&regulators[i], &config);
+		if (IS_ERR(max77686->rdev[i])) {
+			ret = PTR_ERR(max77686->rdev[i]);
 			dev_err(&pdev->dev,
 				"regulator init failed for %d\n", i);
-				rdev[i] = NULL;
-				goto err;
+			max77686->rdev[i] = NULL;
+			goto err;
 		}
 	}
 
 	return 0;
 err:
 	while (--i >= 0)
-		regulator_unregister(rdev[i]);
+		regulator_unregister(max77686->rdev[i]);
 	return ret;
 }
 
 static int __devexit max77686_pmic_remove(struct platform_device *pdev)
 {
 	struct max77686_data *max77686 = platform_get_drvdata(pdev);
-	struct regulator_dev **rdev = max77686->rdev;
 	int i;
 
 	for (i = 0; i < MAX77686_REGULATORS; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
+		regulator_unregister(max77686->rdev[i]);
 
 	return 0;
 }
