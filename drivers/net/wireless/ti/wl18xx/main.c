@@ -45,7 +45,6 @@
 static char *ht_mode_param = NULL;
 static char *board_type_param = NULL;
 static bool checksum_param = false;
-static bool enable_11a_param = true;
 static int num_rx_desc_param = -1;
 
 /* phy paramters */
@@ -1502,7 +1501,8 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		wl18xx_ops.init_vif = NULL;
 	}
 
-	wl->enable_11a = enable_11a_param;
+	/* Enable 11a Band only if we have 5G antennas */
+	wl->enable_11a = (priv->conf.phy.number_of_assembled_ant5 != 0);
 
 	return wlcore_probe(wl, pdev);
 
@@ -1538,9 +1538,6 @@ MODULE_PARM_DESC(board_type, "Board type: fpga, hdk (default), evb, com8 or "
 
 module_param_named(checksum, checksum_param, bool, S_IRUSR);
 MODULE_PARM_DESC(checksum, "Enable TCP checksum: boolean (defaults to false)");
-
-module_param_named(enable_11a, enable_11a_param, bool, S_IRUSR);
-MODULE_PARM_DESC(enable_11a, "Enable 11a (5GHz): boolean (defaults to true)");
 
 module_param_named(dc2dc, dc2dc_param, int, S_IRUSR);
 MODULE_PARM_DESC(dc2dc, "External DC2DC: u8 (defaults to 0)");
