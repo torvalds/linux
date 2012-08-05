@@ -457,8 +457,6 @@ nve0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 			nv_error(priv, "failed to construct context\n");
 			return ret;
 		}
-
-		return 1;
 	}
 
 	return 0;
@@ -470,7 +468,6 @@ nve0_graph_init(struct nouveau_object *object)
 	struct nvc0_graph_priv *priv = (void *)object;
 	int ret;
 
-reset:
 	ret = nouveau_graph_init(&priv->base);
 	if (ret)
 		return ret;
@@ -496,11 +493,8 @@ reset:
 	nv_wr32(priv, 0x400054, 0x34ce3464);
 
 	ret = nve0_graph_init_ctxctl(priv);
-	if (ret) {
-		if (ret == 1)
-			goto reset;
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

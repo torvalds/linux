@@ -151,29 +151,16 @@ nvc0_grctx_fini(struct nvc0_grctx *info)
 	struct nvc0_graph_priv *priv = info->priv;
 	int i;
 
-	if (priv->firmware) {
-		nv_wr32(priv, 0x409840, 0x00000003);
-		nv_wr32(priv, 0x409500, 0x80000000 | info->chan->addr >> 12);
-		nv_wr32(priv, 0x409504, 0x00000009);
-		if (!nv_wait(priv, 0x409800, 0x00000001, 0x00000000)) {
-			nv_error(priv, "unload_ctx timeout\n");
-			return -EBUSY;
-		}
-
-		goto save;
-	}
-
-	/* HUB_FUC(CTX_SAVE) */
-	nv_wr32(priv, 0x409840, 0x80000000);
-	nv_wr32(priv, 0x409500, 0x80000000 | info->chan->addr >> 12);
-	nv_wr32(priv, 0x409504, 0x00000002);
-	if (!nv_wait(priv, 0x409800, 0x80000000, 0x80000000)) {
-		nv_error(priv, "HUB_CTX_SAVE timeout\n");
-		nvc0_graph_ctxctl_debug(priv);
+	/* trigger a context unload by unsetting the "next channel valid" bit
+	 * and faking a context switch interrupt
+	 */
+	nv_mask(priv, 0x409b04, 0x80000000, 0x00000000);
+	nv_wr32(priv, 0x409000, 0x00000100);
+	if (!nv_wait(priv, 0x409b00, 0x80000000, 0x00000000)) {
+		nv_error(priv, "grctx template channel unload timeout\n");
 		return -EBUSY;
 	}
 
-save:
 	priv->data = kmalloc(priv->size, GFP_KERNEL);
 	if (priv->data) {
 		for (i = 0; i < priv->size; i += 4)
