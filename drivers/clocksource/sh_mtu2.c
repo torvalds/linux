@@ -208,6 +208,16 @@ static void sh_mtu2_clock_event_mode(enum clock_event_mode mode,
 	}
 }
 
+static void sh_mtu2_clock_event_suspend(struct clock_event_device *ced)
+{
+	pm_genpd_syscore_poweroff(&ced_to_sh_mtu2(ced)->pdev->dev);
+}
+
+static void sh_mtu2_clock_event_resume(struct clock_event_device *ced)
+{
+	pm_genpd_syscore_poweron(&ced_to_sh_mtu2(ced)->pdev->dev);
+}
+
 static void sh_mtu2_register_clockevent(struct sh_mtu2_priv *p,
 				       char *name, unsigned long rating)
 {
@@ -221,6 +231,8 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_priv *p,
 	ced->rating = rating;
 	ced->cpumask = cpumask_of(0);
 	ced->set_mode = sh_mtu2_clock_event_mode;
+	ced->suspend = sh_mtu2_clock_event_suspend;
+	ced->resume = sh_mtu2_clock_event_resume;
 
 	dev_info(&p->pdev->dev, "used for clock events\n");
 	clockevents_register_device(ced);
@@ -307,8 +319,12 @@ static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 	struct sh_mtu2_priv *p = platform_get_drvdata(pdev);
 	int ret;
 
-	if (!is_early_platform_device(pdev))
-		pm_genpd_dev_always_on(&pdev->dev, true);
+	if (!is_early_platform_device(pdev)) {
+		struct sh_timer_config *cfg = pdev->dev.platform_data;
+
+		if (cfg->clockevent_rating)
+			pm_genpd_dev_always_on(&pdev->dev, true);
+	}
 
 	if (p) {
 		dev_info(&pdev->dev, "kept as earlytimer\n");
