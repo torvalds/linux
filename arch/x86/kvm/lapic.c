@@ -1185,7 +1185,8 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	update_divide_count(apic);
 	atomic_set(&apic->lapic_timer.pending, 0);
 	if (kvm_vcpu_is_bsp(vcpu))
-		vcpu->arch.apic_base |= MSR_IA32_APICBASE_BSP;
+		kvm_lapic_set_base(vcpu,
+				vcpu->arch.apic_base | MSR_IA32_APICBASE_BSP);
 	vcpu->arch.pv_eoi.msr_val = 0;
 	apic_update_ppr(apic);
 
@@ -1310,8 +1311,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 		     HRTIMER_MODE_ABS);
 	apic->lapic_timer.timer.function = apic_timer_fn;
 
-	apic->base_address = APIC_DEFAULT_PHYS_BASE;
-	vcpu->arch.apic_base = APIC_DEFAULT_PHYS_BASE;
+	kvm_lapic_set_base(vcpu, APIC_DEFAULT_PHYS_BASE);
 
 	kvm_lapic_reset(vcpu);
 	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
@@ -1380,8 +1380,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
-	apic->base_address = vcpu->arch.apic_base &
-			     MSR_IA32_APICBASE_BASE;
+	kvm_lapic_set_base(vcpu, vcpu->arch.apic_base);
 	kvm_apic_set_version(vcpu);
 
 	apic_update_ppr(apic);
