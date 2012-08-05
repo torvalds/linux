@@ -71,27 +71,6 @@ struct dvb_adapter {
 	int mfe_shared;			/* indicates mutually exclusive frontends */
 	struct dvb_device *mfe_dvbdev;	/* frontend device in use */
 	struct mutex mfe_lock;		/* access lock for thread creation */
-
-	/* Allow the adapter/bridge driver to perform an action before and/or
-	 * after the core handles an ioctl:
-	 *
-	 * DVB_FE_IOCTL_PRE indicates that the ioctl has not yet been handled.
-	 *
-	 * When DVB_FE_IOCTL_PRE is passed to the callback as the stage arg:
-	 *
-	 * return 0 to allow dvb-core to handle the ioctl.
-	 * return a positive int to prevent dvb-core from handling the ioctl,
-	 * 	and exit without error.
-	 * return a negative int to prevent dvb-core from handling the ioctl,
-	 * 	and return that value as an error.
-	 *
-	 * WARNING: Don't use it on newer drivers: this only affects DVBv3
-	 * calls, and should be removed soon.
-	 */
-#define DVB_FE_IOCTL_PRE 0
-	int (*fe_ioctl_override)(struct dvb_frontend *fe,
-				 unsigned int cmd, void *parg,
-				 unsigned int stage);
 };
 
 

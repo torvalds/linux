@@ -162,8 +162,6 @@ struct dvb_usb_adapter_properties {
 	int size_of_priv;
 
 	int (*frontend_ctrl)   (struct dvb_frontend *, int);
-	int (*fe_ioctl_override) (struct dvb_frontend *,
-				  unsigned int, void *, unsigned int);
 
 	int num_frontends;
 	struct dvb_usb_adapter_fe_properties fe[MAX_NO_OF_FE_PER_ADAP];

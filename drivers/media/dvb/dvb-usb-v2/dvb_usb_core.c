@@ -703,8 +703,6 @@ static int dvb_usbv2_adapter_init(struct dvb_usb_device *d)
 		/* use exclusive FE lock if there is multiple shared FEs */
 		if (adap->fe[1])
 			adap->dvb_adap.mfe_shared = 1;
-
-		adap->dvb_adap.fe_ioctl_override = d->props->fe_ioctl_override;
 	}
 
 	return 0;

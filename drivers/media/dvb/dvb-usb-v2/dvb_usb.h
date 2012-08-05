@@ -206,7 +206,6 @@ struct dvb_usb_adapter_properties {
  * @tuner_attach: called to attach the possible tuners
  * @frontend_ctrl: called to power on/off active frontend
  * @streaming_ctrl: called to start/stop the usb streaming of adapter
- * @fe_ioctl_override: frontend ioctl override. avoid using that is possible
  * @init: called after adapters are created in order to finalize device
  *  configuration
  * @exit: called when driver is unloaded
@@ -247,8 +246,6 @@ struct dvb_usb_device_properties {
 	int (*tuner_attach) (struct dvb_usb_adapter *);
 	int (*frontend_ctrl) (struct dvb_frontend *, int);
 	int (*streaming_ctrl) (struct dvb_frontend *, int);
-	int (*fe_ioctl_override) (struct dvb_frontend *,
-			unsigned int, void *, unsigned int);
 	int (*init) (struct dvb_usb_device *);
 	void (*exit) (struct dvb_usb_device *);
 	int (*get_rc_config) (struct dvb_usb_device *, struct dvb_usb_rc *);

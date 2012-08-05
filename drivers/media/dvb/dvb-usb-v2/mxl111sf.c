@@ -874,33 +874,11 @@ static int mxl111sf_attach_tuner(struct dvb_usb_adapter *adap)
 		if (dvb_attach(mxl111sf_tuner_attach, adap->fe[i], state,
 				&mxl_tuner_config) == NULL)
 			return -EIO;
+		adap->fe[i]->ops.read_signal_strength = adap->fe[i]->ops.tuner_ops.get_rf_strength;
 	}
 
 	return 0;
 }
-
-static int mxl111sf_fe_ioctl_override(struct dvb_frontend *fe,
-				      unsigned int cmd, void *parg,
-				      unsigned int stage)
-{
-	int err = 0;
-
-	switch (stage) {
-	case DVB_FE_IOCTL_PRE:
-
-		switch (cmd) {
-		case FE_READ_SIGNAL_STRENGTH:
-			err = fe->ops.tuner_ops.get_rf_strength(fe, parg);
-			/* If no error occurs, prevent dvb-core from handling
-			 * this IOCTL, otherwise return the error */
-			if (0 == err)
-				err = 1;
-			break;
-		}
-		break;
-	}
-	return err;
-};
 
 static u32 mxl111sf_i2c_func(struct i2c_adapter *adapter)
 {
@@ -1082,7 +1060,6 @@ static struct dvb_usb_device_properties mxl111sf_props_dvbt = {
 	.init              = mxl111sf_init,
 	.streaming_ctrl    = mxl111sf_ep4_streaming_ctrl,
 	.get_stream_config = mxl111sf_get_stream_config_dvbt,
-	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
@@ -1124,7 +1101,6 @@ static struct dvb_usb_device_properties mxl111sf_props_atsc = {
 	.init              = mxl111sf_init,
 	.streaming_ctrl    = mxl111sf_ep6_streaming_ctrl,
 	.get_stream_config = mxl111sf_get_stream_config_atsc,
-	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
@@ -1166,7 +1142,6 @@ static struct dvb_usb_device_properties mxl111sf_props_mh = {
 	.init              = mxl111sf_init,
 	.streaming_ctrl    = mxl111sf_ep5_streaming_ctrl,
 	.get_stream_config = mxl111sf_get_stream_config_mh,
-	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
@@ -1235,7 +1210,6 @@ static struct dvb_usb_device_properties mxl111sf_props_atsc_mh = {
 	.init              = mxl111sf_init,
 	.streaming_ctrl    = mxl111sf_streaming_ctrl_atsc_mh,
 	.get_stream_config = mxl111sf_get_stream_config_atsc_mh,
-	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
@@ -1314,7 +1288,6 @@ static struct dvb_usb_device_properties mxl111sf_props_mercury = {
 	.init              = mxl111sf_init,
 	.streaming_ctrl    = mxl111sf_streaming_ctrl_mercury,
 	.get_stream_config = mxl111sf_get_stream_config_mercury,
-	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
@@ -1385,7 +1358,6 @@ static struct dvb_usb_device_properties mxl111sf_props_mercury_mh = {
 	.init              = mxl111sf_init,
 	.streaming_ctrl    = mxl111sf_streaming_ctrl_mercury_mh,
 	.get_stream_config = mxl111sf_get_stream_config_mercury_mh,
-	.fe_ioctl_override = mxl111sf_fe_ioctl_override,
 
 	.num_adapters = 1,
 	.adapter = {
