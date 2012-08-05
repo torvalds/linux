@@ -466,8 +466,6 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 
 	port->bgc.gc.to_irq = mxc_gpio_to_irq;
 	port->bgc.gc.base = pdev->id * 32;
-	port->bgc.dir = port->bgc.read_reg(port->bgc.reg_dir);
-	port->bgc.data = port->bgc.read_reg(port->bgc.reg_set);
 
 	err = gpiochip_add(&port->bgc.gc);
 	if (err)
