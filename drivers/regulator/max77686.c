@@ -265,6 +265,7 @@ static int max77686_pmic_dt_parse_pdata(struct max77686_dev *iodev,
 		rmatch.of_node = NULL;
 		of_regulator_match(iodev->dev, regulators_np, &rmatch, 1);
 		rdata[i].initdata = rmatch.init_data;
+		rdata[i].of_node = rmatch.of_node;
 	}
 
 	pdata->regulators = rdata;
@@ -325,6 +326,7 @@ static __devinit int max77686_pmic_probe(struct platform_device *pdev)
 
 	for (i = 0; i < MAX77686_REGULATORS; i++) {
 		config.init_data = pdata->regulators[i].initdata;
+		config.of_node = pdata->regulators[i].of_node;
 
 		rdev[i] = regulator_register(&regulators[i], &config);
 		if (IS_ERR(rdev[i])) {
