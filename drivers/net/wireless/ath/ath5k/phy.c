@@ -3562,6 +3562,20 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 		for (i = 8; i <= 15; i++)
 			rates[i] -= ah->ah_txpower.txp_cck_ofdm_gainf_delta;
 
+	/* Save min/max and current tx power for this channel
+	 * in 0.25dB units.
+	 *
+	 * Note: We use rates[0] for current tx power because
+	 * it covers most of the rates, in most cases. It's our
+	 * tx power limit and what the user expects to see. */
+	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
+	ah->ah_txpower.txp_cur_pwr = 2 * rates[0];
+
+	/* Set max txpower for correct OFDM operation on all rates
+	 * -that is the txpower for 54Mbit-, it's used for the PAPD
+	 * gain probe and it's in 0.5dB units */
+	ah->ah_txpower.txp_ofdm = rates[7];
+
 	/* Now that we have all rates setup use table offset to
 	 * match the power range set by user with the power indices
 	 * on PCDAC/PDADC table */
@@ -3571,11 +3585,6 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 		if (rates[i] > 63)
 			rates[i] = 63;
 	}
-
-	/* Min/max in 0.25dB units */
-	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
-	ah->ah_txpower.txp_cur_pwr = 2 * rates[0];
-	ah->ah_txpower.txp_ofdm = rates[7];
 }
 
 
