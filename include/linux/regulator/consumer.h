@@ -352,4 +352,11 @@ static inline void regulator_set_drvdata(struct regulator *regulator,
 
 #endif
 
+static inline int regulator_set_voltage_tol(struct regulator *regulator,
+					    int new_uV, int tol_uV)
+{
+	return regulator_set_voltage(regulator,
+				     new_uV - tol_uV, new_uV + tol_uV);
+}
+
 #endif
