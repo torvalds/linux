@@ -897,6 +897,7 @@ static int iwl_set_hw_ready(struct iwl_trans *trans)
 static int iwl_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
+	int t = 0;
 
 	IWL_DEBUG_INFO(trans, "iwl_trans_prepare_card_hw enter\n");
 
@@ -909,17 +910,15 @@ static int iwl_prepare_card_hw(struct iwl_trans *trans)
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_PREPARE);
 
-	ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-			   ~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
-			   CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
+	do {
+		ret = iwl_set_hw_ready(trans);
+		if (ret >= 0)
+			return 0;
 
-	if (ret < 0)
-		return ret;
+		usleep_range(200, 1000);
+		t += 200;
+	} while (t < 150000);
 
-	/* HW should be ready by now, check again. */
-	ret = iwl_set_hw_ready(trans);
-	if (ret >= 0)
-		return 0;
 	return ret;
 }
 
