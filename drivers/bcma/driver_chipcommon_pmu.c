@@ -101,7 +101,7 @@ void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable)
 	bcma_cc_write32(cc, BCMA_CC_CHIPCTL, val);
 }
 
-void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
+static void bcma_pmu_workarounds(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 
@@ -257,7 +257,7 @@ static u32 bcma_pmu_clock_bcm4706(struct bcma_drv_cc *cc, u32 pll0, u32 m)
 }
 
 /* query bus clock frequency for PMU-enabled chipcommon */
-u32 bcma_pmu_get_clockcontrol(struct bcma_drv_cc *cc)
+static u32 bcma_pmu_get_clockcontrol(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 
