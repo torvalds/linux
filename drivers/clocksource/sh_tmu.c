@@ -453,7 +453,7 @@ static int __devinit sh_tmu_probe(struct platform_device *pdev)
 		struct sh_timer_config *cfg = pdev->dev.platform_data;
 
 		if (cfg->clocksource_rating || cfg->clockevent_rating)
-			pm_genpd_dev_always_on(&pdev->dev, true);
+			pm_genpd_dev_syscore(&pdev->dev, true);
 	}
 
 	if (p) {
