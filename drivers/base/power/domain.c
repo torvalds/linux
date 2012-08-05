@@ -697,6 +697,24 @@ static inline void genpd_power_off_work_fn(struct work_struct *work) {}
 
 #ifdef CONFIG_PM_SLEEP
 
+/**
+ * pm_genpd_present - Check if the given PM domain has been initialized.
+ * @genpd: PM domain to check.
+ */
+static bool pm_genpd_present(struct generic_pm_domain *genpd)
+{
+	struct generic_pm_domain *gpd;
+
+	if (IS_ERR_OR_NULL(genpd))
+		return false;
+
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+		if (gpd == genpd)
+			return true;
+
+	return false;
+}
+
 static bool genpd_dev_active_wakeup(struct generic_pm_domain *genpd,
 				    struct device *dev)
 {
@@ -750,9 +768,10 @@ static int genpd_thaw_dev(struct generic_pm_domain *genpd, struct device *dev)
  * Check if the given PM domain can be powered off (during system suspend or
  * hibernation) and do that if so.  Also, in that case propagate to its masters.
  *
- * This function is only called in "noirq" stages of system power transitions,
- * so it need not acquire locks (all of the "noirq" callbacks are executed
- * sequentially, so it is guaranteed that it will never run twice in parallel).
+ * This function is only called in "noirq" and "syscore" stages of system power
+ * transitions, so it need not acquire locks (all of the "noirq" callbacks are
+ * executed sequentially, so it is guaranteed that it will never run twice in
+ * parallel).
  */
 static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
 {
@@ -780,9 +799,10 @@ static void pm_genpd_sync_poweroff(struct generic_pm_domain *genpd)
  * pm_genpd_sync_poweron - Synchronously power on a PM domain and its masters.
  * @genpd: PM domain to power on.
  *
- * This function is only called in "noirq" stage of system power transitions, so
- * it need not acquire locks (all of the "noirq" callbacks are executed
- * sequentially, so it is guaranteed that it will never run twice in parallel).
+ * This function is only called in "noirq" and "syscore" stages of system power
+ * transitions, so it need not acquire locks (all of the "noirq" callbacks are
+ * executed sequentially, so it is guaranteed that it will never run twice in
+ * parallel).
  */
 static void pm_genpd_sync_poweron(struct generic_pm_domain *genpd)
 {
@@ -1271,6 +1291,31 @@ static void pm_genpd_complete(struct device *dev)
 		pm_runtime_idle(dev);
 	}
 }
+
+/**
+ * pm_genpd_syscore_switch - Switch power during system core suspend or resume.
+ * @dev: Device that normally is marked as "always on" to switch power for.
+ *
+ * This routine may only be called during the system core (syscore) suspend or
+ * resume phase for devices whose "always on" flags are set.
+ */
+void pm_genpd_syscore_switch(struct device *dev, bool suspend)
+{
+	struct generic_pm_domain *genpd;
+
+	genpd = dev_to_genpd(dev);
+	if (!pm_genpd_present(genpd))
+		return;
+
+	if (suspend) {
+		genpd->suspended_count++;
+		pm_genpd_sync_poweroff(genpd);
+	} else {
+		pm_genpd_sync_poweron(genpd);
+		genpd->suspended_count--;
+	}
+}
+EXPORT_SYMBOL_GPL(pm_genpd_syscore_switch);
 
 #else
 

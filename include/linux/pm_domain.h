@@ -258,4 +258,20 @@ static inline void genpd_queue_power_off_work(struct generic_pm_domain *gpd) {}
 static inline void pm_genpd_poweroff_unused(void) {}
 #endif
 
+#ifdef CONFIG_PM_GENERIC_DOMAINS_SLEEP
+extern void pm_genpd_syscore_switch(struct device *dev, bool suspend);
+#else
+static inline void pm_genpd_syscore_switch(struct device *dev, bool suspend) {}
+#endif
+
+static inline void pm_genpd_syscore_poweroff(struct device *dev)
+{
+	pm_genpd_syscore_switch(dev, true);
+}
+
+static inline void pm_genpd_syscore_poweron(struct device *dev)
+{
+	pm_genpd_syscore_switch(dev, false);
+}
+
 #endif /* _LINUX_PM_DOMAIN_H */
