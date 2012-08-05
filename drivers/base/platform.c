@@ -22,6 +22,7 @@
 #include <linux/pm_runtime.h>
 
 #include "base.h"
+#include "power/power.h"
 
 #define to_platform_driver(drv)	(container_of((drv), struct platform_driver, \
 				 driver))
@@ -948,6 +949,7 @@ void __init early_platform_add_devices(struct platform_device **devs, int num)
 		dev = &devs[i]->dev;
 
 		if (!dev->devres_head.next) {
+			pm_runtime_early_init(dev);
 			INIT_LIST_HEAD(&dev->devres_head);
 			list_add_tail(&dev->devres_head,
 				      &early_platform_device_list);

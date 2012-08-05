@@ -2,16 +2,30 @@
 
 static inline void device_pm_init_common(struct device *dev)
 {
-	spin_lock_init(&dev->power.lock);
-	dev->power.power_state = PMSG_INVALID;
+	if (!dev->power.early_init) {
+		spin_lock_init(&dev->power.lock);
+		dev->power.power_state = PMSG_INVALID;
+		dev->power.early_init = true;
+	}
 }
 
 #ifdef CONFIG_PM_RUNTIME
+
+static inline void pm_runtime_early_init(struct device *dev)
+{
+	dev->power.disable_depth = 1;
+	device_pm_init_common(dev);
+}
 
 extern void pm_runtime_init(struct device *dev);
 extern void pm_runtime_remove(struct device *dev);
 
 #else /* !CONFIG_PM_RUNTIME */
+
+static inline void pm_runtime_early_init(struct device *dev)
+{
+	device_pm_init_common(dev);
+}
 
 static inline void pm_runtime_init(struct device *dev) {}
 static inline void pm_runtime_remove(struct device *dev) {}
