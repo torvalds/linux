@@ -637,13 +637,13 @@ static int az6007_tuner_attach(struct dvb_usb_adapter *adap)
 
 int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	struct az6007_device_state *st = d_to_priv(d);
+	struct az6007_device_state *state = d_to_priv(d);
 	int ret;
 
 	pr_debug("%s()\n", __func__);
 
-	if (!st->warm) {
-		mutex_init(&st->mutex);
+	if (!state->warm) {
+		mutex_init(&state->mutex);
 
 		ret = az6007_write(d, AZ6007_POWER, 0, 2, NULL, 0);
 		if (ret < 0)
@@ -674,7 +674,7 @@ int az6007_power_ctrl(struct dvb_usb_device *d, int onoff)
 		if (ret < 0)
 			return ret;
 
-		st->warm = true;
+		state->warm = true;
 
 		return 0;
 	}
