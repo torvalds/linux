@@ -741,6 +741,7 @@ static __always_inline void *lowmem_page_address(const struct page *page)
 	return __va(PFN_PHYS(page_to_pfn(page)));
 }
 
+/*[x86_64][mm] CONFIG_HIGHMEM and WANT_PAGE_VIRTUAL is NOT defined for X86_64*/
 #if defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL)
 #define HASHED_PAGE_VIRTUAL
 #endif
@@ -760,6 +761,7 @@ void set_page_address(struct page *page, void *virtual);
 void page_address_init(void);
 #endif
 
+/*[x86_64][mm] X86_64 uses this branch. */
 #if !defined(HASHED_PAGE_VIRTUAL) && !defined(WANT_PAGE_VIRTUAL)
 #define page_address(page) lowmem_page_address(page)
 #define set_page_address(page, address)  do { } while(0)
