@@ -127,9 +127,24 @@ static inline int apic_hw_enabled(struct kvm_lapic *apic)
 	return MSR_IA32_APICBASE_ENABLE;
 }
 
-static inline int  apic_sw_enabled(struct kvm_lapic *apic)
+struct static_key_deferred apic_sw_disabled __read_mostly;
+
+static inline void apic_set_spiv(struct kvm_lapic *apic, u32 val)
 {
-	return apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED;
+	if ((apic_get_reg(apic, APIC_SPIV) ^ val) & APIC_SPIV_APIC_ENABLED) {
+		if (val & APIC_SPIV_APIC_ENABLED)
+			static_key_slow_dec_deferred(&apic_sw_disabled);
+		else
+			static_key_slow_inc(&apic_sw_disabled.key);
+	}
+	apic_set_reg(apic, APIC_SPIV, val);
+}
+
+static inline int apic_sw_enabled(struct kvm_lapic *apic)
+{
+	if (static_key_false(&apic_sw_disabled.key))
+		return apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED;
+	return APIC_SPIV_APIC_ENABLED;
 }
 
 static inline int apic_enabled(struct kvm_lapic *apic)
@@ -918,7 +933,7 @@ static int apic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		u32 mask = 0x3ff;
 		if (apic_get_reg(apic, APIC_LVR) & APIC_LVR_DIRECTED_EOI)
 			mask |= APIC_SPIV_DIRECTED_EOI;
-		apic_set_reg(apic, APIC_SPIV, val & mask);
+		apic_set_spiv(apic, val & mask);
 		if (!(val & APIC_SPIV_APIC_ENABLED)) {
 			int i;
 			u32 lvt_val;
@@ -1055,18 +1070,23 @@ EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
 
 void kvm_free_lapic(struct kvm_vcpu *vcpu)
 {
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
 	if (!vcpu->arch.apic)
 		return;
 
-	hrtimer_cancel(&vcpu->arch.apic->lapic_timer.timer);
+	hrtimer_cancel(&apic->lapic_timer.timer);
 
 	if (!(vcpu->arch.apic_base & MSR_IA32_APICBASE_ENABLE))
 		static_key_slow_dec_deferred(&apic_hw_disabled);
 
-	if (vcpu->arch.apic->regs)
-		free_page((unsigned long)vcpu->arch.apic->regs);
+	if (!(apic_get_reg(apic, APIC_SPIV) & APIC_SPIV_APIC_ENABLED))
+		static_key_slow_dec_deferred(&apic_sw_disabled);
 
-	kfree(vcpu->arch.apic);
+	if (apic->regs)
+		free_page((unsigned long)apic->regs);
+
+	kfree(apic);
 }
 
 /*
@@ -1182,7 +1202,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		     SET_APIC_DELIVERY_MODE(0, APIC_MODE_EXTINT));
 
 	apic_set_reg(apic, APIC_DFR, 0xffffffffU);
-	apic_set_reg(apic, APIC_SPIV, 0xff);
+	apic_set_spiv(apic, 0xff);
 	apic_set_reg(apic, APIC_TASKPRI, 0);
 	apic_set_reg(apic, APIC_LDR, 0);
 	apic_set_reg(apic, APIC_ESR, 0);
@@ -1335,6 +1355,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	kvm_lapic_set_base(vcpu,
 			APIC_DEFAULT_PHYS_BASE | MSR_IA32_APICBASE_ENABLE);
 
+	static_key_slow_inc(&apic_sw_disabled.key); /* sw disabled at reset */
 	kvm_lapic_reset(vcpu);
 	kvm_iodevice_init(&apic->dev, &apic_mmio_ops);
 
@@ -1404,6 +1425,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
 
 	kvm_lapic_set_base(vcpu, vcpu->arch.apic_base);
 	kvm_apic_set_version(vcpu);
+	apic_set_spiv(apic, apic_get_reg(apic, APIC_SPIV));
 
 	apic_update_ppr(apic);
 	hrtimer_cancel(&apic->lapic_timer.timer);
@@ -1624,4 +1646,5 @@ void kvm_lapic_init(void)
 {
 	/* do not patch jump label more than once per second */
 	jump_label_rate_limit(&apic_hw_disabled, HZ);
+	jump_label_rate_limit(&apic_sw_disabled, HZ);
 }
