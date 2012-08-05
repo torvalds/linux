@@ -3516,6 +3516,7 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 {
 	unsigned int i;
 	u16 *rates;
+	s16 rate_idx_scaled = 0;
 
 	/* max_pwr is power level we got from driver/user in 0.5dB
 	 * units, switch to 0.25dB units so we can compare */
@@ -3580,10 +3581,13 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 	 * match the power range set by user with the power indices
 	 * on PCDAC/PDADC table */
 	for (i = 0; i < 16; i++) {
-		rates[i] += ah->ah_txpower.txp_offset;
+		rate_idx_scaled = rates[i] + ah->ah_txpower.txp_offset;
 		/* Don't get out of bounds */
-		if (rates[i] > 63)
-			rates[i] = 63;
+		if (rate_idx_scaled > 63)
+			rate_idx_scaled = 63;
+		if (rate_idx_scaled < 0)
+			rate_idx_scaled = 0;
+		rates[i] = rate_idx_scaled;
 	}
 }
 
