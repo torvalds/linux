@@ -375,7 +375,7 @@ static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
 	if (IS_ERR(crystalhd_class)) {
 		rc = PTR_ERR(crystalhd_class);
 		BCMLOG_ERR("failed to create class\n");
-		goto fail;
+		goto class_create_fail;
 	}
 
 	dev = device_create(crystalhd_class, NULL, MKDEV(adp->chd_dec_major, 0),
@@ -412,6 +412,8 @@ elem_pool_fail:
 	device_destroy(crystalhd_class, MKDEV(adp->chd_dec_major, 0));
 device_create_fail:
 	class_destroy(crystalhd_class);
+class_create_fail:
+	unregister_chrdev(adp->chd_dec_major, CRYSTALHD_API_NAME);
 fail:
 	return rc;
 }
