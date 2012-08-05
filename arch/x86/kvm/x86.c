@@ -246,20 +246,14 @@ static void drop_user_return_notifiers(void *ignore)
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
 {
-	if (irqchip_in_kernel(vcpu->kvm))
-		return vcpu->arch.apic_base;
-	else
-		return vcpu->arch.apic_base;
+	return vcpu->arch.apic_base;
 }
 EXPORT_SYMBOL_GPL(kvm_get_apic_base);
 
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
 {
 	/* TODO: reserve bits check */
-	if (irqchip_in_kernel(vcpu->kvm))
-		kvm_lapic_set_base(vcpu, data);
-	else
-		vcpu->arch.apic_base = data;
+	kvm_lapic_set_base(vcpu, data);
 }
 EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 
