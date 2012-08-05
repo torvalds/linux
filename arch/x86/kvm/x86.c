@@ -6152,6 +6152,8 @@ bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu)
 	return irqchip_in_kernel(vcpu->kvm) == (vcpu->arch.apic != NULL);
 }
 
+struct static_key kvm_no_apic_vcpu __read_mostly;
+
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	struct page *page;
@@ -6184,7 +6186,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		r = kvm_create_lapic(vcpu);
 		if (r < 0)
 			goto fail_mmu_destroy;
-	}
+	} else
+		static_key_slow_inc(&kvm_no_apic_vcpu);
 
 	vcpu->arch.mce_banks = kzalloc(KVM_MAX_MCE_BANKS * sizeof(u64) * 4,
 				       GFP_KERNEL);
@@ -6224,6 +6227,8 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	kvm_mmu_destroy(vcpu);
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	free_page((unsigned long)vcpu->arch.pio_data);
+	if (!irqchip_in_kernel(vcpu->kvm))
+		static_key_slow_dec(&kvm_no_apic_vcpu);
 }
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
