@@ -876,16 +876,37 @@ static struct usb_device_id az6007_usb_table[] = {
 
 MODULE_DEVICE_TABLE(usb, az6007_usb_table);
 
+static int az6007_suspend(struct usb_interface *intf, pm_message_t msg)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+
+	az6007_ci_uninit(d);
+	return dvb_usbv2_suspend(intf, msg);
+}
+
+static int az6007_resume(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	struct dvb_usb_adapter *adap = &d->adapter[0];
+
+	az6007_ci_init(adap);
+	return dvb_usbv2_resume(intf);
+}
+
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver az6007_usb_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= az6007_usb_table,
 	.probe		= dvb_usbv2_probe,
 	.disconnect	= az6007_usb_disconnect,
-	.suspend	= dvb_usbv2_suspend,
-	.resume		= dvb_usbv2_resume,
 	.no_dynamic_id	= 1,
 	.soft_unbind	= 1,
+	/*
+	 * FIXME: need to implement reset_resume, likely with
+	 * dvb-usb-v2 core support
+	 */
+	.suspend	= az6007_suspend,
+	.resume		= az6007_resume,
 };
 
 module_usb_driver(az6007_usb_driver);
