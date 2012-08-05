@@ -707,7 +707,7 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		addr = msgs[i].addr << 1;
 		if (((i + 1) < num)
 		    && (msgs[i].len == 1)
-		    && (!msgs[i].flags & I2C_M_RD)
+		    && ((msgs[i].flags & I2C_M_RD) != I2C_M_RD)
 		    && (msgs[i + 1].flags & I2C_M_RD)
 		    && (msgs[i].addr == msgs[i + 1].addr)) {
 			/*
