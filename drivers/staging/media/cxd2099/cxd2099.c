@@ -696,13 +696,13 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 		return NULL;
 
 	mutex_init(&ci->lock);
-	memcpy(&ci->cfg, cfg, sizeof(struct cxd2099_cfg));
+	ci->cfg = *cfg;
 	ci->i2c = i2c;
 	ci->lastaddress = 0xff;
 	ci->clk_reg_b = 0x4a;
 	ci->clk_reg_f = 0x1b;
 
-	memcpy(&ci->en, &en_templ, sizeof(en_templ));
+	ci->en = en_templ;
 	ci->en.data = ci;
 	init(ci);
 	printk(KERN_INFO "Attached CXD2099AR at %02x\n", ci->cfg.adr);
