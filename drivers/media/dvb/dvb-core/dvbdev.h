@@ -76,7 +76,6 @@ struct dvb_adapter {
 	 * after the core handles an ioctl:
 	 *
 	 * DVB_FE_IOCTL_PRE indicates that the ioctl has not yet been handled.
-	 * DVB_FE_IOCTL_POST indicates that the ioctl has been handled.
 	 *
 	 * When DVB_FE_IOCTL_PRE is passed to the callback as the stage arg:
 	 *
@@ -86,14 +85,10 @@ struct dvb_adapter {
 	 * return a negative int to prevent dvb-core from handling the ioctl,
 	 * 	and return that value as an error.
 	 *
-	 * When DVB_FE_IOCTL_POST is passed to the callback as the stage arg:
-	 *
-	 * return 0 to allow the dvb_frontend ioctl handler to exit normally.
-	 * return a negative int to cause the dvb_frontend ioctl handler to
-	 * 	return that value as an error.
+	 * WARNING: Don't use it on newer drivers: this only affects DVBv3
+	 * calls, and should be removed soon.
 	 */
 #define DVB_FE_IOCTL_PRE 0
-#define DVB_FE_IOCTL_POST 1
 	int (*fe_ioctl_override)(struct dvb_frontend *fe,
 				 unsigned int cmd, void *parg,
 				 unsigned int stage);

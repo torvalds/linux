@@ -898,10 +898,6 @@ static int mxl111sf_fe_ioctl_override(struct dvb_frontend *fe,
 			break;
 		}
 		break;
-
-	case DVB_FE_IOCTL_POST:
-		/* no post-ioctl handling required */
-		break;
 	}
 	return err;
 };

@@ -2287,13 +2287,6 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		break;
 	};
 
-	if (fe->dvb->fe_ioctl_override) {
-		cb_err = fe->dvb->fe_ioctl_override(fe, cmd, parg,
-						    DVB_FE_IOCTL_POST);
-		if (cb_err < 0)
-			return cb_err;
-	}
-
 	return err;
 }
 
