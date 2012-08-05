@@ -69,4 +69,22 @@
 			gpios = <&gpio1 16 0>;
 		};
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "OTB Button";
+			linux,code = <133>;
+			gpios = <&gpio1 3 1>;
+			debounce-interval = <100>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 12 1>;
+			debounce-interval = <100>;
+		};
+	};
 };
