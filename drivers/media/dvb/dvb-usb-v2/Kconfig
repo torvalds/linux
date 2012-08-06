@@ -102,6 +102,19 @@ config DVB_USB_GL861
 	  Say Y here to support the MSI Megasky 580 (55801) DVB-T USB2.0
 	  receiver with USB ID 0db0:5581.
 
+config DVB_USB_LME2510
+	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
+	depends on DVB_USB_V2
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_STV0288 if !DVB_FE_CUSTOMISE
+	select DVB_IX2505V if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_PLL if !DVB_FE_CUSTOMISE
+	select DVB_M88RS2000 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0
+
 config DVB_USB_MXL111SF
 	tristate "MxL111SF DTV USB2.0 support"
 	depends on DVB_USB_V2

@@ -72,9 +72,6 @@ obj-$(CONFIG_DVB_USB_FRIIO) += dvb-usb-friio.o
 dvb-usb-az6027-objs = az6027.o
 obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 
-dvb-usb-lmedm04-objs = lmedm04.o
-obj-$(CONFIG_DVB_USB_LME2510) += dvb-usb-lmedm04.o
-
 dvb-usb-technisat-usb2-objs = technisat-usb2.o
 obj-$(CONFIG_DVB_USB_TECHNISAT_USB2) += dvb-usb-technisat-usb2.o
 

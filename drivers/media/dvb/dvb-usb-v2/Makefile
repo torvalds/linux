@@ -25,6 +25,9 @@ obj-$(CONFIG_DVB_USB_CE6230) += dvb-usb-ce6230.o
 dvb-usb-ec168-objs = ec168.o
 obj-$(CONFIG_DVB_USB_EC168) += dvb-usb-ec168.o
 
+dvb-usb-lmedm04-objs = lmedm04.o
+obj-$(CONFIG_DVB_USB_LME2510) += dvb-usb-lmedm04.o
+
 dvb-usb-gl861-objs = gl861.o
 obj-$(CONFIG_DVB_USB_GL861) += dvb-usb-gl861.o
 
