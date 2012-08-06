@@ -1011,11 +1011,11 @@ void __init sh7372_add_standard_devices(void)
 	rmobile_init_pm_domain(&sh7372_pd_a3sp);
 	rmobile_init_pm_domain(&sh7372_pd_a3sg);
 
-	rmobile_pm_add_subdomain(&sh7372_pd_a4lc, &sh7372_pd_a3rv);
-	rmobile_pm_add_subdomain(&sh7372_pd_a4r, &sh7372_pd_a4lc);
+	pm_genpd_add_subdomain_names("A4LC", "A3RV");
+	pm_genpd_add_subdomain_names("A4R", "A4LC");
 
-	rmobile_pm_add_subdomain(&sh7372_pd_a4s, &sh7372_pd_a3sg);
-	rmobile_pm_add_subdomain(&sh7372_pd_a4s, &sh7372_pd_a3sp);
+	pm_genpd_add_subdomain_names("A4S", "A3SG");
+	pm_genpd_add_subdomain_names("A4S", "A3SP");
 
 	platform_add_devices(sh7372_early_devices,
 			    ARRAY_SIZE(sh7372_early_devices));

@@ -158,10 +158,4 @@ void rmobile_add_device_to_domain(const char *domain_name,
 	if (pm_clk_no_clocks(dev))
 		pm_clk_add(dev, NULL);
 }
-
-void rmobile_pm_add_subdomain(struct rmobile_pm_domain *rmobile_pd,
-			     struct rmobile_pm_domain *rmobile_sd)
-{
-	pm_genpd_add_subdomain(&rmobile_pd->genpd, &rmobile_sd->genpd);
-}
 #endif /* CONFIG_PM */
