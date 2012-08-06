@@ -297,7 +297,7 @@ interrupt_end_book3e:
 
 /* Machine Check Interrupt */
 	START_EXCEPTION(machine_check);
-	CRIT_EXCEPTION_PROLOG(0x200, PROLOG_ADDITION_NONE)
+	MC_EXCEPTION_PROLOG(0x200, PROLOG_ADDITION_NONE)
 //	EXCEPTION_COMMON(0x200, PACA_EXMC, INTS_DISABLE)
 //	bl	special_reg_save_mc
 //	addi	r3,r1,STACK_FRAME_OVERHEAD
