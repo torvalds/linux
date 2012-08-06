@@ -69,7 +69,6 @@
 
 /* Global data structures. */
 struct sctp_globals sctp_globals __read_mostly;
-DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
 
 struct idr sctp_assocs_id;
 DEFINE_SPINLOCK(sctp_assocs_id_lock);
@@ -961,7 +960,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 	inet->pmtudisc = transport->param_flags & SPP_PMTUD_ENABLE ?
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
 
-	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
+	SCTP_INC_STATS(sock_net(&inet->sk), SCTP_MIB_OUTSCTPPACKS);
 	return ip_queue_xmit(skb, &transport->fl);
 }
 
@@ -1102,16 +1101,16 @@ int sctp_register_pf(struct sctp_pf *pf, sa_family_t family)
 	return 1;
 }
 
-static inline int init_sctp_mibs(void)
+static inline int init_sctp_mibs(struct net *net)
 {
-	return snmp_mib_init((void __percpu **)sctp_statistics,
+	return snmp_mib_init((void __percpu **)net->sctp.sctp_statistics,
 			     sizeof(struct sctp_mib),
 			     __alignof__(struct sctp_mib));
 }
 
-static inline void cleanup_sctp_mibs(void)
+static inline void cleanup_sctp_mibs(struct net *net)
 {
-	snmp_mib_free((void __percpu **)sctp_statistics);
+	snmp_mib_free((void __percpu **)net->sctp.sctp_statistics);
 }
 
 static void sctp_v4_pf_init(void)
@@ -1170,6 +1169,11 @@ static int sctp_net_init(struct net *net)
 {
 	int status;
 
+	/* Allocate and initialise sctp mibs.  */
+	status = init_sctp_mibs(net);
+	if (status)
+		goto err_init_mibs;
+
 	/* Initialize proc fs directory.  */
 	status = sctp_proc_init(net);
 	if (status)
@@ -1202,6 +1206,8 @@ err_ctl_sock_init:
 	sctp_dbg_objcnt_exit(net);
 	sctp_proc_exit(net);
 err_init_proc:
+	cleanup_sctp_mibs(net);
+err_init_mibs:
 	return status;
 }
 
@@ -1217,6 +1223,7 @@ static void sctp_net_exit(struct net *net)
 	sctp_dbg_objcnt_exit(net);
 
 	sctp_proc_exit(net);
+	cleanup_sctp_mibs(net);
 }
 
 static struct pernet_operations sctp_net_ops = {
@@ -1253,11 +1260,6 @@ SCTP_STATIC __init int sctp_init(void)
 					       NULL);
 	if (!sctp_chunk_cachep)
 		goto err_chunk_cachep;
-
-	/* Allocate and initialise sctp mibs.  */
-	status = init_sctp_mibs();
-	if (status)
-		goto err_init_mibs;
 
 	status = percpu_counter_init(&sctp_sockets_allocated, 0);
 	if (status)
@@ -1474,8 +1476,6 @@ err_ehash_alloc:
 err_ahash_alloc:
 	percpu_counter_destroy(&sctp_sockets_allocated);
 err_percpu_counter_init:
-	cleanup_sctp_mibs();
-err_init_mibs:
 	kmem_cache_destroy(sctp_chunk_cachep);
 err_chunk_cachep:
 	kmem_cache_destroy(sctp_bucket_cachep);
@@ -1514,7 +1514,6 @@ SCTP_STATIC __exit void sctp_exit(void)
 			     sizeof(struct sctp_bind_hashbucket)));
 
 	percpu_counter_destroy(&sctp_sockets_allocated);
-	cleanup_sctp_mibs();
 
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 

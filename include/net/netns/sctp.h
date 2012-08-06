@@ -3,8 +3,11 @@
 
 struct sock;
 struct proc_dir_entry;
+struct sctp_mib;
 
 struct netns_sctp {
+	DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics);
+
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *proc_net_sctp;
 #endif

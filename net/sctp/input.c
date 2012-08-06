@@ -83,7 +83,7 @@ static int sctp_add_backlog(struct sock *sk, struct sk_buff *skb);
 
 
 /* Calculate the SCTP checksum of an SCTP packet.  */
-static inline int sctp_rcv_checksum(struct sk_buff *skb)
+static inline int sctp_rcv_checksum(struct net *net, struct sk_buff *skb)
 {
 	struct sctphdr *sh = sctp_hdr(skb);
 	__le32 cmp = sh->checksum;
@@ -99,7 +99,7 @@ static inline int sctp_rcv_checksum(struct sk_buff *skb)
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
-		SCTP_INC_STATS_BH(SCTP_MIB_CHECKSUMERRORS);
+		SCTP_INC_STATS_BH(net, SCTP_MIB_CHECKSUMERRORS);
 		return -1;
 	}
 	return 0;
@@ -137,7 +137,7 @@ int sctp_rcv(struct sk_buff *skb)
 	if (skb->pkt_type!=PACKET_HOST)
 		goto discard_it;
 
-	SCTP_INC_STATS_BH(SCTP_MIB_INSCTPPACKS);
+	SCTP_INC_STATS_BH(net, SCTP_MIB_INSCTPPACKS);
 
 	if (skb_linearize(skb))
 		goto discard_it;
@@ -149,7 +149,7 @@ int sctp_rcv(struct sk_buff *skb)
 	if (skb->len < sizeof(struct sctphdr))
 		goto discard_it;
 	if (!sctp_checksum_disable && !skb_csum_unnecessary(skb) &&
-		  sctp_rcv_checksum(skb) < 0)
+		  sctp_rcv_checksum(net, skb) < 0)
 		goto discard_it;
 
 	skb_pull(skb, sizeof(struct sctphdr));
@@ -220,7 +220,7 @@ int sctp_rcv(struct sk_buff *skb)
 	 */
 	if (!asoc) {
 		if (sctp_rcv_ootb(skb)) {
-			SCTP_INC_STATS_BH(SCTP_MIB_OUTOFBLUES);
+			SCTP_INC_STATS_BH(net, SCTP_MIB_OUTOFBLUES);
 			goto discard_release;
 		}
 	}
@@ -276,9 +276,9 @@ int sctp_rcv(struct sk_buff *skb)
 			skb = NULL; /* sctp_chunk_free already freed the skb */
 			goto discard_release;
 		}
-		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_BACKLOG);
+		SCTP_INC_STATS_BH(net, SCTP_MIB_IN_PKT_BACKLOG);
 	} else {
-		SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_SOFTIRQ);
+		SCTP_INC_STATS_BH(net, SCTP_MIB_IN_PKT_SOFTIRQ);
 		sctp_inq_push(&chunk->rcvr->inqueue, chunk);
 	}
 
@@ -293,7 +293,7 @@ int sctp_rcv(struct sk_buff *skb)
 	return 0;
 
 discard_it:
-	SCTP_INC_STATS_BH(SCTP_MIB_IN_PKT_DISCARDS);
+	SCTP_INC_STATS_BH(net, SCTP_MIB_IN_PKT_DISCARDS);
 	kfree_skb(skb);
 	return 0;
 
@@ -543,7 +543,7 @@ struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *skb,
 	 * servers this needs to be solved differently.
 	 */
 	if (sock_owned_by_user(sk))
-		NET_INC_STATS_BH(&init_net, LINUX_MIB_LOCKDROPPEDICMPS);
+		NET_INC_STATS_BH(net, LINUX_MIB_LOCKDROPPEDICMPS);
 
 	*app = asoc;
 	*tpp = transport;
@@ -593,7 +593,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	struct net *net = dev_net(skb->dev);
 
 	if (skb->len < ihlen + 8) {
-		ICMP_INC_STATS_BH(&init_net, ICMP_MIB_INERRORS);
+		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 		return;
 	}
 
@@ -607,7 +607,7 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 	skb->network_header = saveip;
 	skb->transport_header = savesctp;
 	if (!sk) {
-		ICMP_INC_STATS_BH(&init_net, ICMP_MIB_INERRORS);
+		ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 		return;
 	}
 	/* Warning:  The sock lock is held.  Remember to call

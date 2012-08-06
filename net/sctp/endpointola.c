@@ -478,7 +478,7 @@ normal:
 		if (asoc && sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
 		else
-			SCTP_INC_STATS(SCTP_MIB_INCTRLCHUNKS);
+			SCTP_INC_STATS(sock_net(ep->base.sk), SCTP_MIB_INCTRLCHUNKS);
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;

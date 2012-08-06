@@ -299,6 +299,7 @@ void sctp_outq_free(struct sctp_outq *q)
 /* Put a new chunk in an sctp_outq.  */
 int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 {
+	struct net *net = sock_net(q->asoc->base.sk);
 	int error = 0;
 
 	SCTP_DEBUG_PRINTK("sctp_outq_tail(%p, %p[%s])\n",
@@ -337,15 +338,15 @@ int sctp_outq_tail(struct sctp_outq *q, struct sctp_chunk *chunk)
 
 			sctp_outq_tail_data(q, chunk);
 			if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED)
-				SCTP_INC_STATS(SCTP_MIB_OUTUNORDERCHUNKS);
+				SCTP_INC_STATS(net, SCTP_MIB_OUTUNORDERCHUNKS);
 			else
-				SCTP_INC_STATS(SCTP_MIB_OUTORDERCHUNKS);
+				SCTP_INC_STATS(net, SCTP_MIB_OUTORDERCHUNKS);
 			q->empty = 0;
 			break;
 		}
 	} else {
 		list_add_tail(&chunk->list, &q->control_chunk_list);
-		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
+		SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
 	}
 
 	if (error < 0)
@@ -478,11 +479,12 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 		     sctp_retransmit_reason_t reason)
 {
+	struct net *net = sock_net(q->asoc->base.sk);
 	int error = 0;
 
 	switch(reason) {
 	case SCTP_RTXR_T3_RTX:
-		SCTP_INC_STATS(SCTP_MIB_T3_RETRANSMITS);
+		SCTP_INC_STATS(net, SCTP_MIB_T3_RETRANSMITS);
 		sctp_transport_lower_cwnd(transport, SCTP_LOWER_CWND_T3_RTX);
 		/* Update the retran path if the T3-rtx timer has expired for
 		 * the current retran path.
@@ -493,15 +495,15 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 			transport->asoc->unack_data;
 		break;
 	case SCTP_RTXR_FAST_RTX:
-		SCTP_INC_STATS(SCTP_MIB_FAST_RETRANSMITS);
+		SCTP_INC_STATS(net, SCTP_MIB_FAST_RETRANSMITS);
 		sctp_transport_lower_cwnd(transport, SCTP_LOWER_CWND_FAST_RTX);
 		q->fast_rtx = 1;
 		break;
 	case SCTP_RTXR_PMTUD:
-		SCTP_INC_STATS(SCTP_MIB_PMTUD_RETRANSMITS);
+		SCTP_INC_STATS(net, SCTP_MIB_PMTUD_RETRANSMITS);
 		break;
 	case SCTP_RTXR_T1_RTX:
-		SCTP_INC_STATS(SCTP_MIB_T1_RETRANSMITS);
+		SCTP_INC_STATS(net, SCTP_MIB_T1_RETRANSMITS);
 		transport->asoc->init_retries++;
 		break;
 	default:
@@ -1914,6 +1916,6 @@ static void sctp_generate_fwdtsn(struct sctp_outq *q, __u32 ctsn)
 
 	if (ftsn_chunk) {
 		list_add_tail(&ftsn_chunk->list, &q->control_chunk_list);
-		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
+		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_OUTCTRLCHUNKS);
 	}
 }
