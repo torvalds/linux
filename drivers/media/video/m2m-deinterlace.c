@@ -362,7 +362,8 @@ static void deinterlace_issue_dma(struct deinterlace_ctx *ctx, int op,
 	if (dma_submit_error(ctx->cookie)) {
 		v4l2_warn(&pcdev->v4l2_dev,
 			  "DMA submit error %d with src=0x%x dst=0x%x len=0x%x\n",
-			  ctx->cookie, p_in, p_out, s_size * 3/2);
+			  ctx->cookie, (unsigned)p_in, (unsigned)p_out,
+			  s_size * 3/2);
 		return;
 	}
 
