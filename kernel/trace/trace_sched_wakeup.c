@@ -89,7 +89,7 @@ func_prolog_preempt_disable(struct trace_array *tr,
 	if (cpu != wakeup_current_cpu)
 		goto out_enable;
 
-	*data = tr->data[cpu];
+	*data = per_cpu_ptr(tr->data, cpu);
 	disabled = atomic_inc_return(&(*data)->disabled);
 	if (unlikely(disabled != 1))
 		goto out;
@@ -353,7 +353,7 @@ probe_wakeup_sched_switch(void *ignore,
 
 	/* disable local data, not wakeup_cpu data */
 	cpu = raw_smp_processor_id();
-	disabled = atomic_inc_return(&wakeup_trace->data[cpu]->disabled);
+	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->data, cpu)->disabled);
 	if (likely(disabled != 1))
 		goto out;
 
@@ -365,7 +365,7 @@ probe_wakeup_sched_switch(void *ignore,
 		goto out_unlock;
 
 	/* The task we are waiting for is waking up */
-	data = wakeup_trace->data[wakeup_cpu];
+	data = per_cpu_ptr(wakeup_trace->data, wakeup_cpu);
 
 	__trace_function(wakeup_trace, CALLER_ADDR0, CALLER_ADDR1, flags, pc);
 	tracing_sched_switch_trace(wakeup_trace, prev, next, flags, pc);
@@ -387,7 +387,7 @@ out_unlock:
 	arch_spin_unlock(&wakeup_lock);
 	local_irq_restore(flags);
 out:
-	atomic_dec(&wakeup_trace->data[cpu]->disabled);
+	atomic_dec(&per_cpu_ptr(wakeup_trace->data, cpu)->disabled);
 }
 
 static void __wakeup_reset(struct trace_array *tr)
@@ -435,7 +435,7 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 		return;
 
 	pc = preempt_count();
-	disabled = atomic_inc_return(&wakeup_trace->data[cpu]->disabled);
+	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->data, cpu)->disabled);
 	if (unlikely(disabled != 1))
 		goto out;
 
@@ -458,7 +458,7 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 
 	local_save_flags(flags);
 
-	data = wakeup_trace->data[wakeup_cpu];
+	data = per_cpu_ptr(wakeup_trace->data, wakeup_cpu);
 	data->preempt_timestamp = ftrace_now(cpu);
 	tracing_sched_wakeup_trace(wakeup_trace, p, current, flags, pc);
 
@@ -472,7 +472,7 @@ probe_wakeup(void *ignore, struct task_struct *p, int success)
 out_locked:
 	arch_spin_unlock(&wakeup_lock);
 out:
-	atomic_dec(&wakeup_trace->data[cpu]->disabled);
+	atomic_dec(&per_cpu_ptr(wakeup_trace->data, cpu)->disabled);
 }
 
 static void start_wakeup_tracer(struct trace_array *tr)

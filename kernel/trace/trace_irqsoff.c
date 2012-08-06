@@ -121,7 +121,7 @@ static int func_prolog_dec(struct trace_array *tr,
 	if (!irqs_disabled_flags(*flags))
 		return 0;
 
-	*data = tr->data[cpu];
+	*data = per_cpu_ptr(tr->data, cpu);
 	disabled = atomic_inc_return(&(*data)->disabled);
 
 	if (likely(disabled == 1))
@@ -380,7 +380,7 @@ start_critical_timing(unsigned long ip, unsigned long parent_ip)
 	if (per_cpu(tracing_cpu, cpu))
 		return;
 
-	data = tr->data[cpu];
+	data = per_cpu_ptr(tr->data, cpu);
 
 	if (unlikely(!data) || atomic_read(&data->disabled))
 		return;
@@ -418,7 +418,7 @@ stop_critical_timing(unsigned long ip, unsigned long parent_ip)
 	if (!tracer_enabled)
 		return;
 
-	data = tr->data[cpu];
+	data = per_cpu_ptr(tr->data, cpu);
 
 	if (unlikely(!data) ||
 	    !data->critical_start || atomic_read(&data->disabled))

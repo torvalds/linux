@@ -69,7 +69,7 @@ probe_sched_switch(void *ignore, struct task_struct *prev, struct task_struct *n
 	pc = preempt_count();
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
-	data = ctx_trace->data[cpu];
+	data = per_cpu_ptr(ctx_trace->data, cpu);
 
 	if (likely(!atomic_read(&data->disabled)))
 		tracing_sched_switch_trace(ctx_trace, prev, next, flags, pc);
@@ -123,7 +123,7 @@ probe_sched_wakeup(void *ignore, struct task_struct *wakee, int success)
 	pc = preempt_count();
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
-	data = ctx_trace->data[cpu];
+	data = per_cpu_ptr(ctx_trace->data, cpu);
 
 	if (likely(!atomic_read(&data->disabled)))
 		tracing_sched_wakeup_trace(ctx_trace, wakee, current,

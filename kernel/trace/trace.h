@@ -186,7 +186,7 @@ struct trace_array {
 	struct list_head	systems;
 	struct list_head	events;
 	struct task_struct	*waiter;
-	struct trace_array_cpu	*data[NR_CPUS];
+	struct trace_array_cpu	*data;
 };
 
 enum {

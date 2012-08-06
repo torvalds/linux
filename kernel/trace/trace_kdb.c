@@ -26,7 +26,7 @@ static void ftrace_dump_buf(int skip_lines, long cpu_file)
 	trace_init_global_iter(&iter);
 
 	for_each_tracing_cpu(cpu) {
-		atomic_inc(&iter.tr->data[cpu]->disabled);
+		atomic_inc(&per_cpu_ptr(iter.tr->data, cpu)->disabled);
 	}
 
 	old_userobj = trace_flags;
@@ -83,7 +83,7 @@ out:
 	trace_flags = old_userobj;
 
 	for_each_tracing_cpu(cpu) {
-		atomic_dec(&iter.tr->data[cpu]->disabled);
+		atomic_dec(&per_cpu_ptr(iter.tr->data, cpu)->disabled);
 	}
 
 	for_each_tracing_cpu(cpu)

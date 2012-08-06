@@ -76,7 +76,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 		goto out;
 
 	cpu = smp_processor_id();
-	data = tr->data[cpu];
+	data = per_cpu_ptr(tr->data, cpu);
 	if (!atomic_read(&data->disabled)) {
 		local_save_flags(flags);
 		trace_function(tr, ip, parent_ip, flags, pc);
@@ -107,7 +107,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	 */
 	local_irq_save(flags);
 	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
+	data = per_cpu_ptr(tr->data, cpu);
 	disabled = atomic_inc_return(&data->disabled);
 
 	if (likely(disabled == 1)) {
