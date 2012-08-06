@@ -41,8 +41,6 @@
 #include <linux/mei.h>
 #include "interface.h"
 
-static const char mei_driver_name[] = "mei";
-
 /* The device pointer */
 /* Currently this driver works as long as there is only a single AMT device. */
 struct pci_dev *mei_device;
@@ -960,7 +958,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	/* set PCI host mastering  */
 	pci_set_master(pdev);
 	/* pci request regions for mei driver */
-	err = pci_request_regions(pdev, mei_driver_name);
+	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
 		dev_err(&pdev->dev, "failed to get pci regions.\n");
 		goto disable_device;
@@ -985,12 +983,12 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		err = request_threaded_irq(pdev->irq,
 			NULL,
 			mei_interrupt_thread_handler,
-			IRQF_ONESHOT, mei_driver_name, dev);
+			IRQF_ONESHOT, KBUILD_MODNAME, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
 			mei_interrupt_thread_handler,
-			IRQF_SHARED, mei_driver_name, dev);
+			IRQF_SHARED, KBUILD_MODNAME, dev);
 
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
@@ -1150,12 +1148,12 @@ static int mei_pci_resume(struct device *device)
 		err = request_threaded_irq(pdev->irq,
 			NULL,
 			mei_interrupt_thread_handler,
-			IRQF_ONESHOT, mei_driver_name, dev);
+			IRQF_ONESHOT, KBUILD_MODNAME, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
 			mei_interrupt_thread_handler,
-			IRQF_SHARED, mei_driver_name, dev);
+			IRQF_SHARED, KBUILD_MODNAME, dev);
 
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failed: irq = %d.\n",
@@ -1182,7 +1180,7 @@ static SIMPLE_DEV_PM_OPS(mei_pm_ops, mei_pci_suspend, mei_pci_resume);
  *  PCI driver structure
  */
 static struct pci_driver mei_driver = {
-	.name = mei_driver_name,
+	.name = KBUILD_MODNAME,
 	.id_table = mei_pci_tbl,
 	.probe = mei_probe,
 	.remove = __devexit_p(mei_remove),
