@@ -673,12 +673,7 @@ void __init r8a7740_add_standard_devices(void)
 	r8a7740_i2c_workaround(&i2c0_device);
 	r8a7740_i2c_workaround(&i2c1_device);
 
-	/* PM domain */
-	rmobile_init_pm_domain(&r8a7740_pd_a4s);
-	rmobile_init_pm_domain(&r8a7740_pd_a3sp);
-	rmobile_init_pm_domain(&r8a7740_pd_a4lc);
-
-	pm_genpd_add_subdomain_names("A4S", "A3SP");
+	r8a7740_init_pm_domains();
 
 	/* add devices */
 	platform_add_devices(r8a7740_early_devices,
