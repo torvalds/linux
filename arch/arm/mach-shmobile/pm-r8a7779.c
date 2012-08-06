@@ -183,7 +183,7 @@ static bool pd_active_wakeup(struct device *dev)
 	return true;
 }
 
-void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd)
+static void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd)
 {
 	struct generic_pm_domain *genpd = &r8a7779_pd->genpd;
 
@@ -199,37 +199,44 @@ void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd)
 		pd_power_up(&r8a7779_pd->genpd);
 }
 
-struct r8a7779_pm_domain r8a7779_sh4a = {
-	.genpd.name = "SH4A",
-	.ch = {
-		.chan_offs = 0x80, /* PWRSR1 .. PWRER1 */
-		.isr_bit = 16, /* SH4A */
-	}
+static struct r8a7779_pm_domain r8a7779_pm_domains[] = {
+	{
+		.genpd.name = "SH4A",
+		.ch = {
+			.chan_offs = 0x80, /* PWRSR1 .. PWRER1 */
+			.isr_bit = 16, /* SH4A */
+		},
+	},
+	{
+		.genpd.name = "SGX",
+		.ch = {
+			.chan_offs = 0xc0, /* PWRSR2 .. PWRER2 */
+			.isr_bit = 20, /* SGX */
+		},
+	},
+	{
+		.genpd.name = "VDP1",
+		.ch = {
+			.chan_offs = 0x100, /* PWRSR3 .. PWRER3 */
+			.isr_bit = 21, /* VDP */
+		},
+	},
+	{
+		.genpd.name = "IMPX3",
+		.ch = {
+			.chan_offs = 0x140, /* PWRSR4 .. PWRER4 */
+			.isr_bit = 24, /* IMP */
+		},
+	},
 };
 
-struct r8a7779_pm_domain r8a7779_sgx = {
-	.genpd.name = "SGX",
-	.ch = {
-		.chan_offs = 0xc0, /* PWRSR2 .. PWRER2 */
-		.isr_bit = 20, /* SGX */
-	}
-};
+void __init r8a7779_init_pm_domains(void)
+{
+	int j;
 
-struct r8a7779_pm_domain r8a7779_vdp1 = {
-	.genpd.name = "VDP1",
-	.ch = {
-		.chan_offs = 0x100, /* PWRSR3 .. PWRER3 */
-		.isr_bit = 21, /* VDP */
-	}
-};
-
-struct r8a7779_pm_domain r8a7779_impx3 = {
-	.genpd.name = "IMPX3",
-	.ch = {
-		.chan_offs = 0x140, /* PWRSR4 .. PWRER4 */
-		.isr_bit = 24, /* IMP */
-	}
-};
+	for (j = 0; j < ARRAY_SIZE(r8a7779_pm_domains); j++)
+		r8a7779_init_pm_domain(&r8a7779_pm_domains[j]);
+}
 
 #endif /* CONFIG_PM */
 
