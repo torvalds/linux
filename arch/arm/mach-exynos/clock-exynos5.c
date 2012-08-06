@@ -166,11 +166,6 @@ static int exynos5_clk_ip_gen_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS5_CLKGATE_IP_GEN, clk, enable);
 }
 
-static int exynos5_clk_ip_gps_ctrl(struct clk *clk, int enable)
-{
-	return s5p_gatectrl(EXYNOS5_CLKGATE_IP_GPS, clk, enable);
-}
-
 static int exynos5_clk_ip_mfc_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS5_CLKGATE_IP_MFC, clk, enable);
@@ -671,10 +666,6 @@ static struct clk exynos5_init_clocks_off[] = {
 		.name		= "usbotg",
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "gps",
-		.enable		= exynos5_clk_ip_gps_ctrl,
-		.ctrlbit	= ((1 << 3) | (1 << 2) | (1 << 0)),
 	}, {
 		.name		= "nfcon",
 		.enable		= exynos5_clk_ip_fsys_ctrl,
