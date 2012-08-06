@@ -2975,17 +2975,16 @@ again:
 	}
 	spin_unlock(&block_group->lock);
 
-	num_pages = (int)div64_u64(block_group->key.offset, 1024 * 1024 * 1024);
+	/*
+	 * Try to preallocate enough space based on how big the block group is.
+	 * Keep in mind this has to include any pinned space which could end up
+	 * taking up quite a bit since it's not folded into the other space
+	 * cache.
+	 */
+	num_pages = (int)div64_u64(block_group->key.offset, 256 * 1024 * 1024);
 	if (!num_pages)
 		num_pages = 1;
 
-	/*
-	 * Just to make absolutely sure we have enough space, we're going to
-	 * preallocate 12 pages worth of space for each block group.  In
-	 * practice we ought to use at most 8, but we need extra space so we can
-	 * add our header and have a terminator between the extents and the
-	 * bitmaps.
-	 */
 	num_pages *= 16;
 	num_pages *= PAGE_CACHE_SIZE;
 
