@@ -761,7 +761,8 @@
  * 64-bit embedded
  *	- SPRG0 generic exception scratch
  *	- SPRG2 TLB exception stack
- *	- SPRG3 CPU and NUMA node for VDSO getcpu (user visible)
+ *	- SPRG3 critical exception scratch and
+ *        CPU and NUMA node for VDSO getcpu (user visible)
  *	- SPRG4 unused (user visible)
  *	- SPRG6 TLB miss scratch (user visible, sorry !)
  *	- SPRG7 critical exception scratch
@@ -858,7 +859,7 @@
 
 #ifdef CONFIG_PPC_BOOK3E_64
 #define SPRN_SPRG_MC_SCRATCH	SPRN_SPRG8
-#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG7
+#define SPRN_SPRG_CRIT_SCRATCH	SPRN_SPRG3
 #define SPRN_SPRG_DBG_SCRATCH	SPRN_SPRG9
 #define SPRN_SPRG_TLB_EXFRAME	SPRN_SPRG2
 #define SPRN_SPRG_TLB_SCRATCH	SPRN_SPRG6

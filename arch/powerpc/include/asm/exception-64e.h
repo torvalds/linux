@@ -46,8 +46,9 @@
 #define EX_CR		(1 * 8)
 #define EX_R10		(2 * 8)
 #define EX_R11		(3 * 8)
-#define EX_R14		(4 * 8)
-#define EX_R15		(5 * 8)
+#define EX_R13		(4 * 8)
+#define EX_R14		(5 * 8)
+#define EX_R15		(6 * 8)
 
 /*
  * The TLB miss exception uses different slots.

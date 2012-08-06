@@ -40,7 +40,7 @@
  **********************************************************************/
 
 .macro tlb_prolog_bolted intnum addr
-	mtspr	SPRN_SPRG_TLB_SCRATCH,r13
+	mtspr	SPRN_SPRG_GEN_SCRATCH,r13
 	mfspr	r13,SPRN_SPRG_PACA
 	std	r10,PACA_EXTLB+EX_TLB_R10(r13)
 	mfcr	r10
@@ -69,7 +69,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	ld	r15,PACA_EXTLB+EX_TLB_R15(r13)
 	TLB_MISS_RESTORE_STATS_BOLTED
 	ld	r16,PACA_EXTLB+EX_TLB_R16(r13)
-	mfspr	r13,SPRN_SPRG_TLB_SCRATCH
+	mfspr	r13,SPRN_SPRG_GEN_SCRATCH
 .endm
 
 /* Data TLB miss */
