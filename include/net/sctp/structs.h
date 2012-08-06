@@ -102,6 +102,7 @@ struct sctp_bind_bucket {
 	unsigned short	fastreuse;
 	struct hlist_node	node;
 	struct hlist_head	owner;
+	struct net	*net;
 };
 
 struct sctp_bind_hashbucket {

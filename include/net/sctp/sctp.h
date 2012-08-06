@@ -632,9 +632,9 @@ static inline int sctp_sanity_check(void)
 
 /* Warning: The following hash functions assume a power of two 'size'. */
 /* This is the hash function for the SCTP port hash table. */
-static inline int sctp_phashfn(__u16 lport)
+static inline int sctp_phashfn(struct net *net, __u16 lport)
 {
-	return lport & (sctp_port_hashsize - 1);
+	return (net_hash_mix(net) + lport) & (sctp_port_hashsize - 1);
 }
 
 /* This is the hash function for the endpoint hash table. */
