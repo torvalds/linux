@@ -453,7 +453,7 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 	if (!res)
 		error = -ENOMEM;
 
-	rb_init_node(&res->rs_node);
+	RB_CLEAR_NODE(&res->rs_node);
 
 	down_write(&ip->i_rw_mutex);
 	if (ip->i_res)
@@ -486,7 +486,7 @@ static void __rs_deltree(struct gfs2_inode *ip, struct gfs2_blkreserv *rs)
 	rgd = rs->rs_rbm.rgd;
 	trace_gfs2_rs(ip, rs, TRACE_RS_TREEDEL);
 	rb_erase(&rs->rs_node, &rgd->rd_rstree);
-	rb_init_node(&rs->rs_node);
+	RB_CLEAR_NODE(&rs->rs_node);
 	BUG_ON(!rgd->rd_rs_cnt);
 	rgd->rd_rs_cnt--;
 
