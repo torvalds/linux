@@ -27,5 +27,7 @@
 /* physical offset of RAM */
 #define PLAT_PHYS_OFFSET		UL(0x40000000)
 
-#endif
+/* default ATAG_MEM size */
+#define MEM_SIZE	(512*1024*1024)
 
+#endif
