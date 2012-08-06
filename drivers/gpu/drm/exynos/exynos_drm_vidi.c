@@ -633,7 +633,7 @@ static int __devinit vidi_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -672,8 +672,6 @@ static int __devexit vidi_remove(struct platform_device *pdev)
 		kfree(ctx->raw_edid);
 		ctx->raw_edid = NULL;
 	}
-
-	kfree(ctx);
 
 	return 0;
 }
