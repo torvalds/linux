@@ -862,7 +862,8 @@ void iwl_down(struct iwl_priv *priv)
 	 * No race since we hold the mutex here and a new one
 	 * can't come in at this time.
 	 */
-	ieee80211_remain_on_channel_expired(priv->hw);
+	if (priv->ucode_loaded && priv->cur_ucode != IWL_UCODE_INIT)
+		ieee80211_remain_on_channel_expired(priv->hw);
 
 	exit_pending =
 		test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
@@ -994,7 +995,11 @@ static void iwl_bg_restart(struct work_struct *data)
 		iwlagn_prepare_restart(priv);
 		mutex_unlock(&priv->mutex);
 		iwl_cancel_deferred_work(priv);
-		ieee80211_restart_hw(priv->hw);
+		if (priv->mac80211_registered)
+			ieee80211_restart_hw(priv->hw);
+		else
+			IWL_ERR(priv,
+				"Cannot request restart before registrating with mac80211");
 	} else {
 		WARN_ON(1);
 	}
