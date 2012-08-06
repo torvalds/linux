@@ -858,17 +858,7 @@ static struct i2c_driver wm2000_i2c_driver = {
 	.id_table = wm2000_i2c_id,
 };
 
-static int __init wm2000_init(void)
-{
-	return i2c_add_driver(&wm2000_i2c_driver);
-}
-module_init(wm2000_init);
-
-static void __exit wm2000_exit(void)
-{
-	i2c_del_driver(&wm2000_i2c_driver);
-}
-module_exit(wm2000_exit);
+module_i2c_driver(wm2000_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM2000 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfonmicro.com>");
