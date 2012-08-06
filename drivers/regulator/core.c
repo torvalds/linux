@@ -2179,9 +2179,12 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		}
 	}
 
-	if (ret == 0 && best_val >= 0)
+	if (ret == 0 && best_val >= 0) {
+		unsigned long data = best_val;
+
 		_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE,
-				     (void *)best_val);
+				     (void *)data);
+	}
 
 	trace_regulator_set_voltage_complete(rdev_get_name(rdev), best_val);
 
