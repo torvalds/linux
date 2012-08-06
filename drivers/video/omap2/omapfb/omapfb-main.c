@@ -2369,15 +2369,52 @@ static int omapfb_init_display(struct omapfb2_device *fbdev,
 	return 0;
 }
 
+static int omapfb_init_connections(struct omapfb2_device *fbdev,
+		struct omap_dss_device *dssdev)
+{
+	int i, r;
+	struct omap_overlay_manager *mgr = NULL;
+
+	for (i = 0; i < fbdev->num_managers; i++) {
+		mgr = fbdev->managers[i];
+
+		if (dssdev->channel == mgr->id)
+			break;
+	}
+
+	if (i == fbdev->num_managers)
+		return -ENODEV;
+
+	if (mgr->output)
+		mgr->unset_output(mgr);
+
+	r = mgr->set_output(mgr, dssdev->output);
+	if (r)
+		return r;
+
+	for (i = 0; i < fbdev->num_overlays; i++) {
+		struct omap_overlay *ovl = fbdev->overlays[i];
+
+		if (ovl->manager)
+			ovl->unset_manager(ovl);
+
+		r = ovl->set_manager(ovl, mgr);
+		if (r)
+			dev_warn(fbdev->dev,
+					"failed to connect overlay %s to manager %s\n",
+					ovl->name, mgr->name);
+	}
+
+	return 0;
+}
+
 static int __init omapfb_probe(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = NULL;
 	int r = 0;
 	int i;
-	struct omap_overlay *ovl;
 	struct omap_dss_device *def_display;
 	struct omap_dss_device *dssdev;
-	struct omap_dss_device *ovl_device;
 
 	DBG("omapfb_probe\n");
 
@@ -2445,15 +2482,33 @@ static int __init omapfb_probe(struct platform_device *pdev)
 	for (i = 0; i < fbdev->num_managers; i++)
 		fbdev->managers[i] = omap_dss_get_overlay_manager(i);
 
-	/* gfx overlay should be the default one. find a display
-	 * connected to that, and use it as default display */
-	ovl = omap_dss_get_overlay(0);
-	ovl_device = ovl->get_device(ovl);
-	if (ovl_device) {
-		def_display = ovl_device;
-	} else {
-		dev_warn(&pdev->dev, "cannot find default display\n");
-		def_display = NULL;
+	def_display = NULL;
+
+	for (i = 0; i < fbdev->num_displays; ++i) {
+		struct omap_dss_device *dssdev;
+		const char *def_name;
+
+		def_name = omapdss_get_default_display_name();
+
+		dssdev = fbdev->displays[i].dssdev;
+
+		if (def_name == NULL ||
+			(dssdev->name && strcmp(def_name, dssdev->name) == 0)) {
+			def_display = dssdev;
+			break;
+		}
+	}
+
+	if (def_display == NULL) {
+		dev_err(fbdev->dev, "failed to find default display\n");
+		r = -EINVAL;
+		goto cleanup;
+	}
+
+	r = omapfb_init_connections(fbdev, def_display);
+	if (r) {
+		dev_err(fbdev->dev, "failed to init overlay connections\n");
+		goto cleanup;
 	}
 
 	if (def_mode && strlen(def_mode) > 0) {
