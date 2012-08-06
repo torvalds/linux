@@ -2,8 +2,13 @@
 #define __NETNS_SCTP_H__
 
 struct sock;
+struct proc_dir_entry;
 
 struct netns_sctp {
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *proc_net_sctp;
+#endif
+
 	/* This is the global socket data structure used for responding to
 	 * the Out-of-the-blue (OOTB) packets.  A control sock will be created
 	 * for this socket at the initialization time.

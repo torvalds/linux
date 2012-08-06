@@ -71,10 +71,6 @@
 struct sctp_globals sctp_globals __read_mostly;
 DEFINE_SNMP_STAT(struct sctp_mib, sctp_statistics) __read_mostly;
 
-#ifdef CONFIG_PROC_FS
-struct proc_dir_entry	*proc_net_sctp;
-#endif
-
 struct idr sctp_assocs_id;
 DEFINE_SPINLOCK(sctp_assocs_id_lock);
 
@@ -91,60 +87,52 @@ int sysctl_sctp_rmem[3];
 int sysctl_sctp_wmem[3];
 
 /* Set up the proc fs entry for the SCTP protocol. */
-static __init int sctp_proc_init(void)
+static __net_init int sctp_proc_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
-	if (!proc_net_sctp) {
-		proc_net_sctp = proc_mkdir("sctp", init_net.proc_net);
-		if (!proc_net_sctp)
-			goto out_free_percpu;
-	}
-
-	if (sctp_snmp_proc_init())
+	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
+	if (!net->sctp.proc_net_sctp)
+		goto out_proc_net_sctp;
+	if (sctp_snmp_proc_init(net))
 		goto out_snmp_proc_init;
-	if (sctp_eps_proc_init())
+	if (sctp_eps_proc_init(net))
 		goto out_eps_proc_init;
-	if (sctp_assocs_proc_init())
+	if (sctp_assocs_proc_init(net))
 		goto out_assocs_proc_init;
-	if (sctp_remaddr_proc_init())
+	if (sctp_remaddr_proc_init(net))
 		goto out_remaddr_proc_init;
 
 	return 0;
 
 out_remaddr_proc_init:
-	sctp_assocs_proc_exit();
+	sctp_assocs_proc_exit(net);
 out_assocs_proc_init:
-	sctp_eps_proc_exit();
+	sctp_eps_proc_exit(net);
 out_eps_proc_init:
-	sctp_snmp_proc_exit();
+	sctp_snmp_proc_exit(net);
 out_snmp_proc_init:
-	if (proc_net_sctp) {
-		proc_net_sctp = NULL;
-		remove_proc_entry("sctp", init_net.proc_net);
-	}
-out_free_percpu:
-#else
-	return 0;
-#endif /* CONFIG_PROC_FS */
+	remove_proc_entry("sctp", net->proc_net);
+	net->sctp.proc_net_sctp = NULL;
+out_proc_net_sctp:
 	return -ENOMEM;
+#endif /* CONFIG_PROC_FS */
+	return 0;
 }
 
 /* Clean up the proc fs entry for the SCTP protocol.
  * Note: Do not make this __exit as it is used in the init error
  * path.
  */
-static void sctp_proc_exit(void)
+static void sctp_proc_exit(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
-	sctp_snmp_proc_exit();
-	sctp_eps_proc_exit();
-	sctp_assocs_proc_exit();
-	sctp_remaddr_proc_exit();
+	sctp_snmp_proc_exit(net);
+	sctp_eps_proc_exit(net);
+	sctp_assocs_proc_exit(net);
+	sctp_remaddr_proc_exit(net);
 
-	if (proc_net_sctp) {
-		proc_net_sctp = NULL;
-		remove_proc_entry("sctp", init_net.proc_net);
-	}
+	remove_proc_entry("sctp", net->proc_net);
+	net->sctp.proc_net_sctp = NULL;
 #endif
 }
 
@@ -1180,6 +1168,13 @@ static int sctp_net_init(struct net *net)
 {
 	int status;
 
+	/* Initialize proc fs directory.  */
+	status = sctp_proc_init(net);
+	if (status)
+		goto err_init_proc;
+
+	sctp_dbg_objcnt_init(net);
+
 	/* Initialize the control inode/socket for handling OOTB packets.  */
 	if ((status = sctp_ctl_sock_init(net))) {
 		pr_err("Failed to initialize the SCTP control sock\n");
@@ -1202,6 +1197,9 @@ static int sctp_net_init(struct net *net)
 	return 0;
 
 err_ctl_sock_init:
+	sctp_dbg_objcnt_exit(net);
+	sctp_proc_exit(net);
+err_init_proc:
 	return status;
 }
 
@@ -1213,6 +1211,10 @@ static void sctp_net_exit(struct net *net)
 
 	/* Free the control endpoint.  */
 	inet_ctl_sock_destroy(net->sctp.ctl_sock);
+
+	sctp_dbg_objcnt_exit(net);
+
+	sctp_proc_exit(net);
 }
 
 static struct pernet_operations sctp_net_ops = {
@@ -1258,14 +1260,6 @@ SCTP_STATIC __init int sctp_init(void)
 	status = percpu_counter_init(&sctp_sockets_allocated, 0);
 	if (status)
 		goto err_percpu_counter_init;
-
-	/* Initialize proc fs directory.  */
-	status = sctp_proc_init();
-	if (status)
-		goto err_init_proc;
-
-	/* Initialize object count debugging.  */
-	sctp_dbg_objcnt_init();
 
 	/*
 	 * 14. Suggested SCTP Protocol Parameter Values
@@ -1476,9 +1470,6 @@ err_ehash_alloc:
 		   get_order(sctp_assoc_hashsize *
 			     sizeof(struct sctp_hashbucket)));
 err_ahash_alloc:
-	sctp_dbg_objcnt_exit();
-	sctp_proc_exit();
-err_init_proc:
 	percpu_counter_destroy(&sctp_sockets_allocated);
 err_percpu_counter_init:
 	cleanup_sctp_mibs();
@@ -1520,9 +1511,7 @@ SCTP_STATIC __exit void sctp_exit(void)
 		   get_order(sctp_port_hashsize *
 			     sizeof(struct sctp_bind_hashbucket)));
 
-	sctp_dbg_objcnt_exit();
 	percpu_counter_destroy(&sctp_sockets_allocated);
-	sctp_proc_exit();
 	cleanup_sctp_mibs();
 
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

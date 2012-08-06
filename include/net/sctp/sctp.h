@@ -172,14 +172,14 @@ void sctp_backlog_migrate(struct sctp_association *assoc,
 /*
  * sctp/proc.c
  */
-int sctp_snmp_proc_init(void);
-void sctp_snmp_proc_exit(void);
-int sctp_eps_proc_init(void);
-void sctp_eps_proc_exit(void);
-int sctp_assocs_proc_init(void);
-void sctp_assocs_proc_exit(void);
-int sctp_remaddr_proc_init(void);
-void sctp_remaddr_proc_exit(void);
+int sctp_snmp_proc_init(struct net *net);
+void sctp_snmp_proc_exit(struct net *net);
+int sctp_eps_proc_init(struct net *net);
+void sctp_eps_proc_exit(struct net *net);
+int sctp_assocs_proc_init(struct net *net);
+void sctp_assocs_proc_exit(struct net *net);
+int sctp_remaddr_proc_init(struct net *net);
+void sctp_remaddr_proc_exit(struct net *net);
 
 
 /*
@@ -360,16 +360,16 @@ atomic_t sctp_dbg_objcnt_## name = ATOMIC_INIT(0)
 #define SCTP_DBG_OBJCNT_ENTRY(name) \
 {.label= #name, .counter= &sctp_dbg_objcnt_## name}
 
-void sctp_dbg_objcnt_init(void);
-void sctp_dbg_objcnt_exit(void);
+void sctp_dbg_objcnt_init(struct net *);
+void sctp_dbg_objcnt_exit(struct net *);
 
 #else
 
 #define SCTP_DBG_OBJCNT_INC(name)
 #define SCTP_DBG_OBJCNT_DEC(name)
 
-static inline void sctp_dbg_objcnt_init(void) { return; }
-static inline void sctp_dbg_objcnt_exit(void) { return; }
+static inline void sctp_dbg_objcnt_init(struct net *) { return; }
+static inline void sctp_dbg_objcnt_exit(struct net *) { return; }
 
 #endif /* CONFIG_SCTP_DBG_OBJCOUNT */
 
@@ -585,7 +585,6 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 
 extern struct proto sctp_prot;
 extern struct proto sctpv6_prot;
-extern struct proc_dir_entry *proc_net_sctp;
 void sctp_put_port(struct sock *sk);
 
 extern struct idr sctp_assocs_id;
