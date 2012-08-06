@@ -205,21 +205,7 @@ extern struct sctp_globals {
 	int port_hashsize;
 	struct sctp_bind_hashbucket *port_hashtable;
 
-	/* This is the global local address list.
-	 * We actively maintain this complete list of addresses on
-	 * the system by catching address add/delete events.
-	 *
-	 * It is a list of sctp_sockaddr_entry.
-	 */
-	struct list_head local_addr_list;
 	int default_auto_asconf;
-	struct list_head addr_waitq;
-	struct timer_list addr_wq_timer;
-	struct list_head auto_asconf_splist;
-	spinlock_t addr_wq_lock;
-
-	/* Lock that protects the local_addr_list writers */
-	spinlock_t addr_list_lock;
 	
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
@@ -278,12 +264,6 @@ extern struct sctp_globals {
 #define sctp_assoc_hashtable		(sctp_globals.assoc_hashtable)
 #define sctp_port_hashsize		(sctp_globals.port_hashsize)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
-#define sctp_local_addr_list		(sctp_globals.local_addr_list)
-#define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
-#define sctp_auto_asconf_splist		(sctp_globals.auto_asconf_splist)
-#define sctp_addr_waitq			(sctp_globals.addr_waitq)
-#define sctp_addr_wq_timer		(sctp_globals.addr_wq_timer)
-#define sctp_addr_wq_lock		(sctp_globals.addr_wq_lock)
 #define sctp_default_auto_asconf	(sctp_globals.default_auto_asconf)
 #define sctp_scope_policy		(sctp_globals.ipv4_scope_policy)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
@@ -1241,7 +1221,7 @@ struct sctp_bind_addr {
 
 void sctp_bind_addr_init(struct sctp_bind_addr *, __u16 port);
 void sctp_bind_addr_free(struct sctp_bind_addr *);
-int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
+int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
 			sctp_scope_t scope, gfp_t gfp,
 			int flags);

@@ -52,8 +52,8 @@
 #include <net/sctp/sm.h>
 
 /* Forward declarations for internal helpers. */
-static int sctp_copy_one_addr(struct sctp_bind_addr *, union sctp_addr *,
-			      sctp_scope_t scope, gfp_t gfp,
+static int sctp_copy_one_addr(struct net *, struct sctp_bind_addr *,
+			      union sctp_addr *, sctp_scope_t scope, gfp_t gfp,
 			      int flags);
 static void sctp_bind_addr_clean(struct sctp_bind_addr *);
 
@@ -62,7 +62,7 @@ static void sctp_bind_addr_clean(struct sctp_bind_addr *);
 /* Copy 'src' to 'dest' taking 'scope' into account.  Omit addresses
  * in 'src' which have a broader scope than 'scope'.
  */
-int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
+int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
 			sctp_scope_t scope, gfp_t gfp,
 			int flags)
@@ -75,7 +75,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 
 	/* Extract the addresses which are relevant for this scope.  */
 	list_for_each_entry(addr, &src->address_list, list) {
-		error = sctp_copy_one_addr(dest, &addr->a, scope,
+		error = sctp_copy_one_addr(net, dest, &addr->a, scope,
 					   gfp, flags);
 		if (error < 0)
 			goto out;
@@ -87,7 +87,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 	 */
 	if (list_empty(&dest->address_list) && (SCTP_SCOPE_GLOBAL == scope)) {
 		list_for_each_entry(addr, &src->address_list, list) {
-			error = sctp_copy_one_addr(dest, &addr->a,
+			error = sctp_copy_one_addr(net, dest, &addr->a,
 						   SCTP_SCOPE_LINK, gfp,
 						   flags);
 			if (error < 0)
@@ -448,7 +448,7 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 }
 
 /* Copy out addresses from the global local address list. */
-static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
+static int sctp_copy_one_addr(struct net *net, struct sctp_bind_addr *dest,
 			      union sctp_addr *addr,
 			      sctp_scope_t scope, gfp_t gfp,
 			      int flags)
@@ -456,7 +456,7 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 	int error = 0;
 
 	if (sctp_is_any(NULL, addr)) {
-		error = sctp_copy_local_addr_list(dest, scope, gfp, flags);
+		error = sctp_copy_local_addr_list(net, dest, scope, gfp, flags);
 	} else if (sctp_in_scope(addr, scope)) {
 		/* Now that the address is in scope, check to see if
 		 * the address type is supported by local sock as

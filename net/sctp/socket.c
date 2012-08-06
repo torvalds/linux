@@ -3471,7 +3471,7 @@ static int sctp_setsockopt_auto_asconf(struct sock *sk, char __user *optval,
 		sp->do_auto_asconf = 0;
 	} else if (val && !sp->do_auto_asconf) {
 		list_add_tail(&sp->auto_asconf_list,
-		    &sctp_auto_asconf_splist);
+		    &sock_net(sk)->sctp.auto_asconf_splist);
 		sp->do_auto_asconf = 1;
 	}
 	return 0;
@@ -3964,7 +3964,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	if (sctp_default_auto_asconf) {
 		list_add_tail(&sp->auto_asconf_list,
-		    &sctp_auto_asconf_splist);
+		    &sock_net(sk)->sctp.auto_asconf_splist);
 		sp->do_auto_asconf = 1;
 	} else
 		sp->do_auto_asconf = 0;
@@ -4653,9 +4653,10 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 	union sctp_addr temp;
 	int cnt = 0;
 	int addrlen;
+	struct net *net = sock_net(sk);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(addr, &sctp_local_addr_list, list) {
+	list_for_each_entry_rcu(addr, &net->sctp.local_addr_list, list) {
 		if (!addr->valid)
 			continue;
 
