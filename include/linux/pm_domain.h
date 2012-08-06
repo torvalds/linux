@@ -147,6 +147,8 @@ extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 extern void pm_genpd_dev_need_restore(struct device *dev, bool val);
 extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
+extern int pm_genpd_add_subdomain_names(const char *master_name,
+					const char *subdomain_name);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
 extern int pm_genpd_add_callbacks(struct device *dev,
@@ -199,6 +201,11 @@ static inline int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 static inline void pm_genpd_dev_need_restore(struct device *dev, bool val) {}
 static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 					 struct generic_pm_domain *new_sd)
+{
+	return -ENOSYS;
+}
+static inline int pm_genpd_add_subdomain_names(const char *master_name,
+					       const char *subdomain_name)
 {
 	return -ENOSYS;
 }

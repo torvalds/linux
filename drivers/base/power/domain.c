@@ -1584,7 +1584,8 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 	struct gpd_link *link;
 	int ret = 0;
 
-	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(subdomain))
+	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(subdomain)
+	    || genpd == subdomain)
 		return -EINVAL;
 
  start:
@@ -1628,6 +1629,35 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 	genpd_release_lock(genpd);
 
 	return ret;
+}
+
+/**
+ * pm_genpd_add_subdomain_names - Add a subdomain to an I/O PM domain.
+ * @master_name: Name of the master PM domain to add the subdomain to.
+ * @subdomain_name: Name of the subdomain to be added.
+ */
+int pm_genpd_add_subdomain_names(const char *master_name,
+				 const char *subdomain_name)
+{
+	struct generic_pm_domain *master = NULL, *subdomain = NULL, *gpd;
+
+	if (IS_ERR_OR_NULL(master_name) || IS_ERR_OR_NULL(subdomain_name))
+		return -EINVAL;
+
+	mutex_lock(&gpd_list_lock);
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
+		if (!master && !strcmp(gpd->name, master_name))
+			master = gpd;
+
+		if (!subdomain && !strcmp(gpd->name, subdomain_name))
+			subdomain = gpd;
+
+		if (master && subdomain)
+			break;
+	}
+	mutex_unlock(&gpd_list_lock);
+
+	return pm_genpd_add_subdomain(master, subdomain);
 }
 
 /**
