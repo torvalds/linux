@@ -273,7 +273,6 @@ static struct menu *current_menu;
 static int child_count;
 static int single_menu_mode;
 static int show_all_options;
-static int saved_x, saved_y;
 
 static void conf(struct menu *menu);
 static void conf_choice(struct menu *menu);
@@ -862,9 +861,6 @@ int main(int ac, char **av)
 			single_menu_mode = 1;
 	}
 
-	initscr();
-
-	getyx(stdscr, saved_y, saved_x);
 	if (init_dialog(NULL)) {
 		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));
 		fprintf(stderr, N_("It must be at least 19 lines by 80 columns.\n"));
