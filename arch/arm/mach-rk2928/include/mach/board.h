@@ -57,5 +57,35 @@ struct eeti_egalax_platform_data{
  
 };
 #endif
+enum _periph_pll {
+	periph_pll_1485mhz = 148500000,
+	periph_pll_297mhz = 297000000,
+	periph_pll_300mhz = 300000000,
+	periph_pll_1188mhz = 1188000000, /* for box*/
+};
+enum _codec_pll {
+	codec_pll_360mhz = 360000000, /* for HDMI */
+	codec_pll_408mhz = 408000000,
+	codec_pll_456mhz = 456000000,
+	codec_pll_504mhz = 504000000,
+	codec_pll_552mhz = 552000000, /* for HDMI */
+	codec_pll_600mhz = 600000000,
+	codec_pll_742_5khz = 742500000,
+	codec_pll_798mhz = 798000000,
+	codec_pll_1064mhz = 1064000000,
+	codec_pll_1188mhz = 1188000000,
+};
+
+//max i2s rate
+#define CLK_FLG_MAX_I2S_12288KHZ 	(1<<1)
+#define CLK_FLG_MAX_I2S_22579_2KHZ 	(1<<2)
+#define CLK_FLG_MAX_I2S_24576KHZ 	(1<<3)
+#define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
+
+#define RK30_CLOCKS_DEFAULT_FLAGS (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
+#define periph_pll_default periph_pll_297mhz
+#define codec_pll_default codec_pll_798mhz
+//#define codec_pll_default codec_pll_1064mhz
+
 
 #endif

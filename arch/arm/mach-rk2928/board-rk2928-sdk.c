@@ -1189,81 +1189,10 @@ static void __init rk2928_reserve(void)
 	board_mem_reserved();
 }
 
-#if 1
-#include <linux/clkdev.h>
-
-struct clk {
-	const char		*name;
-	unsigned long		rate;
-};
-
-static struct clk xin24m = {
-	.name		= "xin24m",
-	.rate		= 24000000,
-};
-
-#define CLK(dev, con, ck) \
-	{ \
-		.dev_id = dev, \
-		.con_id = con, \
-		.clk = ck, \
-	}
-
-static struct clk_lookup clks[] = {
-	CLK("rk30_i2c.0", "i2c", &xin24m),
-	CLK("rk30_i2c.1", "i2c", &xin24m),
-	CLK("rk30_i2c.2", "i2c", &xin24m),
-	CLK("rk30_i2c.3", "i2c", &xin24m),
-	CLK("rk29xx_spim.0", "spi", &xin24m),
-	CLK("rk29xx_spim.1", "spi", &xin24m),
-
-        CLK("rk_serial.0", "uart_div", &xin24m),
-	CLK("rk_serial.0", "uart_frac_div", &xin24m),
-	CLK("rk_serial.0", "uart", &xin24m),
-	CLK("rk_serial.0", "pclk_uart", &xin24m),
-	CLK("rk_serial.1", "uart_div", &xin24m),
-	CLK("rk_serial.1", "uart_frac_div", &xin24m),
-	CLK("rk_serial.1", "uart", &xin24m),
-	CLK("rk_serial.1", "pclk_uart", &xin24m),
-	CLK("rk_serial.2", "uart_div", &xin24m),
-	CLK("rk_serial.2", "uart_frac_div", &xin24m),
-	CLK("rk_serial.2", "uart", &xin24m),
-	CLK("rk_serial.2", "pclk_uart", &xin24m),
-
-        CLK("rk29_i2s.0", "i2s_div", &xin24m),
-	CLK("rk29_i2s.0", "i2s_frac_div", &xin24m),
-	CLK("rk29_i2s.0", "i2s", &xin24m),
-	CLK("rk29_i2s.0", "hclk_i2s", &xin24m),
-        CLK(NULL, "pd_lcdc0", &xin24m),
-        CLK(NULL, "hclk_lcdc0", &xin24m),
-        CLK(NULL, "aclk_lcdc0", &xin24m),
-        CLK(NULL, "dclk_lcdc0", &xin24m),
-
-        CLK(NULL, "pd_cif0", &xin24m),
-        CLK(NULL, "aclk_cif0", &xin24m),
-        CLK(NULL, "hclk_cif0", &xin24m),
-        CLK(NULL, "cif0_in", &xin24m),
-        CLK(NULL, "cif0_out", &xin24m),
-};
-
-void __init rk30_clock_init(void)
-{
-	struct clk_lookup *lk;
-
-	for (lk = clks; lk < clks + ARRAY_SIZE(clks); lk++) {
-		clkdev_add(lk);
-	}
-}
-
 void __init board_clock_init(void)
 {
-        rk30_clock_init();
+	rk2928_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
 }
-#else
-void __init board_clock_init(void)
-{
-}
-#endif
 
 
 MACHINE_START(RK2928, "RK2928board")
