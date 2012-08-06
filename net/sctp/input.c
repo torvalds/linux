@@ -70,7 +70,8 @@ static struct sctp_association *__sctp_rcv_lookup(struct sk_buff *skb,
 				      const union sctp_addr *laddr,
 				      const union sctp_addr *paddr,
 				      struct sctp_transport **transportp);
-static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *laddr);
+static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
+						const union sctp_addr *laddr);
 static struct sctp_association *__sctp_lookup_association(
 					const union sctp_addr *local,
 					const union sctp_addr *peer,
@@ -129,6 +130,7 @@ int sctp_rcv(struct sk_buff *skb)
 	union sctp_addr dest;
 	int family;
 	struct sctp_af *af;
+	struct net *net = dev_net(skb->dev);
 
 	if (skb->pkt_type!=PACKET_HOST)
 		goto discard_it;
@@ -181,7 +183,7 @@ int sctp_rcv(struct sk_buff *skb)
 	asoc = __sctp_rcv_lookup(skb, &src, &dest, &transport);
 
 	if (!asoc)
-		ep = __sctp_rcv_lookup_endpoint(&dest);
+		ep = __sctp_rcv_lookup_endpoint(net, &dest);
 
 	/* Retrieve the common input handling substructure. */
 	rcvr = asoc ? &asoc->base : &ep->base;
@@ -723,12 +725,13 @@ discard:
 /* Insert endpoint into the hash table.  */
 static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
+	struct net *net = sock_net(ep->base.sk);
 	struct sctp_ep_common *epb;
 	struct sctp_hashbucket *head;
 
 	epb = &ep->base;
 
-	epb->hashent = sctp_ep_hashfn(epb->bind_addr.port);
+	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
 	head = &sctp_ep_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
@@ -747,12 +750,13 @@ void sctp_hash_endpoint(struct sctp_endpoint *ep)
 /* Remove endpoint from the hash table.  */
 static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 {
+	struct net *net = sock_net(ep->base.sk);
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 
 	epb = &ep->base;
 
-	epb->hashent = sctp_ep_hashfn(epb->bind_addr.port);
+	epb->hashent = sctp_ep_hashfn(net, epb->bind_addr.port);
 
 	head = &sctp_ep_hashtable[epb->hashent];
 
@@ -770,7 +774,8 @@ void sctp_unhash_endpoint(struct sctp_endpoint *ep)
 }
 
 /* Look up an endpoint. */
-static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *laddr)
+static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
+						const union sctp_addr *laddr)
 {
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
@@ -778,12 +783,12 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	struct hlist_node *node;
 	int hash;
 
-	hash = sctp_ep_hashfn(ntohs(laddr->v4.sin_port));
+	hash = sctp_ep_hashfn(net, ntohs(laddr->v4.sin_port));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, node, &head->chain) {
 		ep = sctp_ep(epb);
-		if (sctp_endpoint_is_match(ep, laddr))
+		if (sctp_endpoint_is_match(ep, net, laddr))
 			goto hit;
 	}
 

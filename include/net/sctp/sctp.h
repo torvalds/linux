@@ -638,9 +638,9 @@ static inline int sctp_phashfn(struct net *net, __u16 lport)
 }
 
 /* This is the hash function for the endpoint hash table. */
-static inline int sctp_ep_hashfn(__u16 lport)
+static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 {
-	return lport & (sctp_ep_hashsize - 1);
+	return (net_hash_mix(net) + lport) & (sctp_ep_hashsize - 1);
 }
 
 /* This is the hash function for the association hash table. */

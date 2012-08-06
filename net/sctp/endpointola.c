@@ -302,11 +302,13 @@ void sctp_endpoint_put(struct sctp_endpoint *ep)
 
 /* Is this the endpoint we are looking for?  */
 struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *ep,
+					       struct net *net,
 					       const union sctp_addr *laddr)
 {
 	struct sctp_endpoint *retval = NULL;
 
-	if (htons(ep->base.bind_addr.port) == laddr->v4.sin_port) {
+	if ((htons(ep->base.bind_addr.port) == laddr->v4.sin_port) &&
+	    net_eq(sock_net(ep->base.sk), net)) {
 		if (sctp_bind_addr_match(&ep->base.bind_addr, laddr,
 					 sctp_sk(ep->base.sk)))
 			retval = ep;

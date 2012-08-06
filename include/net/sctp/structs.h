@@ -1426,7 +1426,7 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 int sctp_endpoint_is_peeled_off(struct sctp_endpoint *,
 				const union sctp_addr *);
 struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *,
-					const union sctp_addr *);
+					struct net *, const union sctp_addr *);
 int sctp_has_association(const union sctp_addr *laddr,
 			 const union sctp_addr *paddr);
 
