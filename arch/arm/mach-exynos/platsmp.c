@@ -139,7 +139,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		__raw_writel(virt_to_phys(exynos4_secondary_startup),
 			CPU1_BOOT_REG);
-		gic_raise_softirq(cpumask_of(cpu), 1);
+		gic_raise_softirq(cpumask_of(cpu), 0);
 
 		if (pen_release == -1)
 			break;
