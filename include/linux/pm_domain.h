@@ -161,6 +161,7 @@ extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
 
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
+extern int pm_genpd_name_poweron(const char *domain_name);
 
 extern bool default_stop_ok(struct device *dev);
 
@@ -237,6 +238,10 @@ static inline void pm_genpd_init(struct generic_pm_domain *genpd,
 {
 }
 static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
+{
+	return -ENOSYS;
+}
+static inline int pm_genpd_name_poweron(const char *domain_name)
 {
 	return -ENOSYS;
 }
