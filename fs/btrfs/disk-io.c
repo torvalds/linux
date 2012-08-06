@@ -2035,8 +2035,6 @@ int open_ctree(struct super_block *sb,
 	fs_info->free_chunk_space = 0;
 	fs_info->tree_mod_log = RB_ROOT;
 
-	init_waitqueue_head(&fs_info->tree_mod_seq_wait);
-
 	/* readahead state */
 	INIT_RADIX_TREE(&fs_info->reada_tree, GFP_NOFS & ~__GFP_WAIT);
 	spin_lock_init(&fs_info->reada_lock);

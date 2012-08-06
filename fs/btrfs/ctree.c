@@ -421,12 +421,6 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	spin_unlock(&fs_info->tree_mod_seq_lock);
 
 	/*
-	 * we removed the lowest blocker from the blocker list, so there may be
-	 * more processible delayed refs.
-	 */
-	wake_up(&fs_info->tree_mod_seq_wait);
-
-	/*
 	 * anything that's lower than the lowest existing (read: blocked)
 	 * sequence number can be removed from the tree.
 	 */
