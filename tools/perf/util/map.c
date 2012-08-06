@@ -86,6 +86,25 @@ out_delete:
 	return NULL;
 }
 
+/*
+ * Constructor variant for modules (where we know from /proc/modules where
+ * they are loaded) and for vmlinux, where only after we load all the
+ * symbols we'll know where it starts and ends.
+ */
+struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
+{
+	struct map *map = calloc(1, (sizeof(*map) +
+				     (dso->kernel ? sizeof(struct kmap) : 0)));
+	if (map != NULL) {
+		/*
+		 * ->end will be filled after we load all the symbols
+		 */
+		map__init(map, type, start, 0, 0, dso);
+	}
+
+	return map;
+}
+
 void map__delete(struct map *self)
 {
 	free(self);

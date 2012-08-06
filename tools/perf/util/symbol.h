@@ -254,6 +254,7 @@ static inline void dso__set_loaded(struct dso *dso, enum map_type type)
 
 void dso__sort_by_name(struct dso *dso, enum map_type type);
 
+void dsos__add(struct list_head *head, struct dso *dso);
 struct dso *__dsos__findnew(struct list_head *head, const char *name);
 
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter);
@@ -283,6 +284,7 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp);
 char dso__symtab_origin(const struct dso *dso);
 void dso__set_long_name(struct dso *dso, char *name);
 void dso__set_build_id(struct dso *dso, void *build_id);
+bool dso__build_id_equal(const struct dso *dso, u8 *build_id);
 void dso__read_running_kernel_build_id(struct dso *dso,
 				       struct machine *machine);
 struct map *dso__new_map(const char *name);
@@ -298,6 +300,8 @@ int build_id__sprintf(const u8 *build_id, int len, char *bf);
 int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
 					  char type, u64 start, u64 end));
+int filename__read_debuglink(const char *filename, char *debuglink,
+			     size_t size);
 
 void machine__destroy_kernel_maps(struct machine *machine);
 int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel);
@@ -310,6 +314,7 @@ void machines__destroy_guest_kernel_maps(struct rb_root *machines);
 int symbol__init(void);
 void symbol__exit(void);
 void symbol__elf_init(void);
+struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
@@ -327,4 +332,14 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size);
 int dso__test_data(void);
+int dso__load_sym(struct dso *dso, struct map *map, const char *name, int fd,
+		  symbol_filter_t filter, int kmodule, int want_symtab);
+int dso__synthesize_plt_symbols(struct dso *dso, char *name, struct map *map,
+				symbol_filter_t filter);
+
+void symbols__insert(struct rb_root *symbols, struct symbol *sym);
+void symbols__fixup_duplicate(struct rb_root *symbols);
+void symbols__fixup_end(struct rb_root *symbols);
+void __map_groups__fixup_end(struct map_groups *mg, enum map_type type);
+
 #endif /* __PERF_SYMBOL */
