@@ -134,7 +134,7 @@ static int rmobile_pd_start_dev(struct device *dev)
 	return ret;
 }
 
-void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
+static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 {
 	struct generic_pm_domain *genpd = &rmobile_pd->genpd;
 	struct dev_power_governor *gov = rmobile_pd->gov;
