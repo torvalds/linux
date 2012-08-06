@@ -338,9 +338,6 @@ static __init int q40_add_kbd_device(void)
 		return -ENODEV;
 
 	pdev = platform_device_register_simple("q40kbd", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	return 0;
+	return PTR_RET(pdev);
 }
 arch_initcall(q40_add_kbd_device);
