@@ -1499,23 +1499,7 @@ static struct i2c_driver aic3x_i2c_driver = {
 	.id_table = aic3x_i2c_id,
 };
 
-static int __init aic3x_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&aic3x_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register TLV320AIC3x I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(aic3x_modinit);
-
-static void __exit aic3x_exit(void)
-{
-	i2c_del_driver(&aic3x_i2c_driver);
-}
-module_exit(aic3x_exit);
+module_i2c_driver(aic3x_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC3X codec driver");
 MODULE_AUTHOR("Vladimir Barinov");
