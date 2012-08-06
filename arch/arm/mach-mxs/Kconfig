@@ -1,7 +1,5 @@
 if ARCH_MXS
 
-source "arch/arm/mach-mxs/devices/Kconfig"
-
 config SOC_IMX23
 	bool
 	select ARM_AMBA
