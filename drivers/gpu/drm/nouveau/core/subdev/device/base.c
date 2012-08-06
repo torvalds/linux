@@ -139,8 +139,8 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 	if (!(args->disable & NV_DEVICE_DISABLE_IDENTIFY) &&
 	    !device->card_type) {
 		map = ioremap(mmio_base, 0x102000);
-		if (map == NULL) {
-		}
+		if (map == NULL)
+			return -ENOMEM;
 
 		/* switch mmio to cpu's native endianness */
 #ifndef __BIG_ENDIAN
@@ -230,7 +230,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 		nv_subdev(device)->mmio  = ioremap(mmio_base, mmio_size);
 		if (!nv_subdev(device)->mmio) {
 			nv_error(device, "unable to map device registers\n");
-			return ret;
+			return -ENOMEM;
 		}
 	}
 
