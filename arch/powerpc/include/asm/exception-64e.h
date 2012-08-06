@@ -37,6 +37,7 @@
  * critical data
  */
 
+#define PACA_EXGDBELL PACA_EXGEN
 
 /* We are out of SPRGs so we save some things in the PACA. The normal
  * exception frame is smaller than the CRIT or MC one though

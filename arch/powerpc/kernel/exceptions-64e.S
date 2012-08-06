@@ -59,6 +59,10 @@
 #define SPRN_GEN_SRR0	SPRN_SRR0
 #define SPRN_GEN_SRR1	SPRN_SRR1
 
+#define	GDBELL_SET_KSTACK	GEN_SET_KSTACK
+#define SPRN_GDBELL_SRR0	SPRN_GSRR0
+#define SPRN_GDBELL_SRR1	SPRN_GSRR1
+
 #define CRIT_SET_KSTACK						            \
 	ld	r1,PACA_CRIT_STACK(r13);				    \
 	subi	r1,r1,SPECIAL_EXC_FRAME_SIZE;
@@ -89,10 +93,13 @@
 #define MC_EXCEPTION_PROLOG(n, addition)				    \
 	EXCEPTION_PROLOG(n, MC, addition##_MC(n))
 
+#define GDBELL_EXCEPTION_PROLOG(n, addition)				    \
+	EXCEPTION_PROLOG(n, GDBELL, addition##_GDBELL(n))
 
 /* Variants of the "addition" argument for the prolog
  */
 #define PROLOG_ADDITION_NONE_GEN(n)
+#define PROLOG_ADDITION_NONE_GDBELL(n)
 #define PROLOG_ADDITION_NONE_CRIT(n)
 #define PROLOG_ADDITION_NONE_DBG(n)
 #define PROLOG_ADDITION_NONE_MC(n)
@@ -543,8 +550,18 @@ kernel_dbg_exc:
 //	b	ret_from_crit_except
 	b	.
 
-/* Guest Doorbell */
-	MASKABLE_EXCEPTION(0x2c0, guest_doorbell, .unknown_exception, ACK_NONE)
+/*
+ *	Guest doorbell interrupt
+ *	This general exception use GSRRx save/restore registers
+ */
+	START_EXCEPTION(guest_doorbell);
+	GDBELL_EXCEPTION_PROLOG(0x2c0, PROLOG_ADDITION_NONE)
+	EXCEPTION_COMMON(0x2c0, PACA_EXGEN, INTS_KEEP)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.save_nvgprs
+	INTS_RESTORE_HARD
+	bl	.unknown_exception
+	b	.ret_from_except
 
 /* Guest Doorbell critical Interrupt */
 	START_EXCEPTION(guest_doorbell_crit);
