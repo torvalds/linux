@@ -21,24 +21,6 @@
 #include "dvb_frontend.h"
 #include "a8293.h"
 
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
-
-#define LOG_PREFIX "a8293"
-
-#undef dbg
-#define dbg(f, arg...) \
-	if (debug) \
-		printk(KERN_INFO   LOG_PREFIX": " f "\n" , ## arg)
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
-
-
 struct a8293_priv {
 	struct i2c_adapter *i2c;
 	const struct a8293_config *cfg;
@@ -65,7 +47,8 @@ static int a8293_i2c(struct a8293_priv *priv, u8 *val, int len, bool rd)
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		warn("i2c failed=%d rd=%d", ret, rd);
+		dev_warn(&priv->i2c->dev, "%s: i2c failed=%d rd=%d\n",
+				KBUILD_MODNAME, ret, rd);
 		ret = -EREMOTEIO;
 	}
 
@@ -88,7 +71,8 @@ static int a8293_set_voltage(struct dvb_frontend *fe,
 	struct a8293_priv *priv = fe->sec_priv;
 	int ret;
 
-	dbg("%s: fe_sec_voltage=%d", __func__, fe_sec_voltage);
+	dev_dbg(&priv->i2c->dev, "%s: fe_sec_voltage=%d\n", __func__,
+			fe_sec_voltage);
 
 	switch (fe_sec_voltage) {
 	case SEC_VOLTAGE_OFF:
@@ -114,14 +98,12 @@ static int a8293_set_voltage(struct dvb_frontend *fe,
 
 	return ret;
 err:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
 }
 
 static void a8293_release_sec(struct dvb_frontend *fe)
 {
-	dbg("%s:", __func__);
-
 	a8293_set_voltage(fe, SEC_VOLTAGE_OFF);
 
 	kfree(fe->sec_priv);
@@ -154,7 +136,7 @@ struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
 
 	/* ENB=0 */
 	priv->reg[0] = 0x10;
-	ret = a8293_wr(priv, &priv->reg[1], 1);
+	ret = a8293_wr(priv, &priv->reg[0], 1);
 	if (ret)
 		goto err;
 
@@ -164,16 +146,17 @@ struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
 	if (ret)
 		goto err;
 
-	info("Allegro A8293 SEC attached.");
-
 	fe->ops.release_sec = a8293_release_sec;
 
 	/* override frontend ops */
 	fe->ops.set_voltage = a8293_set_voltage;
 
+	dev_info(&priv->i2c->dev, "%s: Allegro A8293 SEC attached\n",
+			KBUILD_MODNAME);
+
 	return fe;
 err:
-	dbg("%s: failed=%d", __func__, ret);
+	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
 	kfree(priv);
 	return NULL;
 }

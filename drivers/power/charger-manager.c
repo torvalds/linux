@@ -271,16 +271,13 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 	if (enable) {
 		if (cm->emergency_stop)
 			return -EAGAIN;
-		err = regulator_bulk_enable(desc->num_charger_regulators,
-					desc->charger_regulators);
+		for (i = 0 ; i < desc->num_charger_regulators ; i++)
+			regulator_enable(desc->charger_regulators[i].consumer);
 	} else {
 		/*
 		 * Abnormal battery state - Stop charging forcibly,
 		 * even if charger was enabled at the other places
 		 */
-		err = regulator_bulk_disable(desc->num_charger_regulators,
-					desc->charger_regulators);
-
 		for (i = 0; i < desc->num_charger_regulators; i++) {
 			if (regulator_is_enabled(
 				    desc->charger_regulators[i].consumer)) {
@@ -288,7 +285,7 @@ static int try_charger_enable(struct charger_manager *cm, bool enable)
 					desc->charger_regulators[i].consumer);
 				dev_warn(cm->dev,
 					"Disable regulator(%s) forcibly.\n",
-					desc->charger_regulators[i].supply);
+					desc->charger_regulators[i].regulator_name);
 			}
 		}
 	}
@@ -994,11 +991,92 @@ int setup_charger_manager(struct charger_global_desc *gd)
 }
 EXPORT_SYMBOL_GPL(setup_charger_manager);
 
+/**
+ * charger_extcon_work - enable/diable charger according to the state
+ *			of charger cable
+ *
+ * @work: work_struct of the function charger_extcon_work.
+ */
+static void charger_extcon_work(struct work_struct *work)
+{
+	struct charger_cable *cable =
+			container_of(work, struct charger_cable, wq);
+	int ret;
+
+	if (cable->attached && cable->min_uA != 0 && cable->max_uA != 0) {
+		ret = regulator_set_current_limit(cable->charger->consumer,
+					cable->min_uA, cable->max_uA);
+		if (ret < 0) {
+			pr_err("Cannot set current limit of %s (%s)\n",
+				cable->charger->regulator_name, cable->name);
+			return;
+		}
+
+		pr_info("Set current limit of %s : %duA ~ %duA\n",
+					cable->charger->regulator_name,
+					cable->min_uA, cable->max_uA);
+	}
+
+	try_charger_enable(cable->cm, cable->attached);
+}
+
+/**
+ * charger_extcon_notifier - receive the state of charger cable
+ *			when registered cable is attached or detached.
+ *
+ * @self: the notifier block of the charger_extcon_notifier.
+ * @event: the cable state.
+ * @ptr: the data pointer of notifier block.
+ */
+static int charger_extcon_notifier(struct notifier_block *self,
+			unsigned long event, void *ptr)
+{
+	struct charger_cable *cable =
+		container_of(self, struct charger_cable, nb);
+
+	cable->attached = event;
+	schedule_work(&cable->wq);
+
+	return NOTIFY_DONE;
+}
+
+/**
+ * charger_extcon_init - register external connector to use it
+ *			as the charger cable
+ *
+ * @cm: the Charger Manager representing the battery.
+ * @cable: the Charger cable representing the external connector.
+ */
+static int charger_extcon_init(struct charger_manager *cm,
+		struct charger_cable *cable)
+{
+	int ret = 0;
+
+	/*
+	 * Charger manager use Extcon framework to identify
+	 * the charger cable among various external connector
+	 * cable (e.g., TA, USB, MHL, Dock).
+	 */
+	INIT_WORK(&cable->wq, charger_extcon_work);
+	cable->nb.notifier_call = charger_extcon_notifier;
+	ret = extcon_register_interest(&cable->extcon_dev,
+			cable->extcon_name, cable->name, &cable->nb);
+	if (ret < 0) {
+		pr_info("Cannot register extcon_dev for %s(cable: %s).\n",
+				cable->extcon_name,
+				cable->name);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int charger_manager_probe(struct platform_device *pdev)
 {
 	struct charger_desc *desc = dev_get_platdata(&pdev->dev);
 	struct charger_manager *cm;
 	int ret = 0, i = 0;
+	int j = 0;
 	union power_supply_propval val;
 
 	if (g_desc && !rtc_dev && g_desc->rtc_name) {
@@ -1167,11 +1245,31 @@ static int charger_manager_probe(struct platform_device *pdev)
 		goto err_register;
 	}
 
-	ret = regulator_bulk_get(&pdev->dev, desc->num_charger_regulators,
-				 desc->charger_regulators);
-	if (ret) {
-		dev_err(&pdev->dev, "Cannot get charger regulators.\n");
-		goto err_bulk_get;
+	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+		struct charger_regulator *charger
+					= &desc->charger_regulators[i];
+
+		charger->consumer = regulator_get(&pdev->dev,
+					charger->regulator_name);
+		if (charger->consumer == NULL) {
+			dev_err(&pdev->dev, "Cannot find charger(%s)n",
+						charger->regulator_name);
+			ret = -EINVAL;
+			goto err_chg_get;
+		}
+
+		for (j = 0 ; j < charger->num_cables ; j++) {
+			struct charger_cable *cable = &charger->cables[j];
+
+			ret = charger_extcon_init(cm, cable);
+			if (ret < 0) {
+				dev_err(&pdev->dev, "Cannot find charger(%s)n",
+						charger->regulator_name);
+				goto err_extcon;
+			}
+			cable->charger = charger;
+			cable->cm = cm;
+		}
 	}
 
 	ret = try_charger_enable(cm, true);
@@ -1197,9 +1295,19 @@ static int charger_manager_probe(struct platform_device *pdev)
 	return 0;
 
 err_chg_enable:
-	regulator_bulk_free(desc->num_charger_regulators,
-			    desc->charger_regulators);
-err_bulk_get:
+err_extcon:
+	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+		struct charger_regulator *charger
+				= &desc->charger_regulators[i];
+		for (j = 0 ; j < charger->num_cables ; j++) {
+			struct charger_cable *cable = &charger->cables[j];
+			extcon_unregister_interest(&cable->extcon_dev);
+		}
+	}
+err_chg_get:
+	for (i = 0 ; i < desc->num_charger_regulators ; i++)
+		regulator_put(desc->charger_regulators[i].consumer);
+
 	power_supply_unregister(&cm->charger_psy);
 err_register:
 	kfree(cm->charger_psy.properties);
@@ -1218,6 +1326,8 @@ static int __devexit charger_manager_remove(struct platform_device *pdev)
 {
 	struct charger_manager *cm = platform_get_drvdata(pdev);
 	struct charger_desc *desc = cm->desc;
+	int i = 0;
+	int j = 0;
 
 	/* Remove from the list */
 	mutex_lock(&cm_list_mtx);
@@ -1229,8 +1339,18 @@ static int __devexit charger_manager_remove(struct platform_device *pdev)
 	if (delayed_work_pending(&cm_monitor_work))
 		cancel_delayed_work_sync(&cm_monitor_work);
 
-	regulator_bulk_free(desc->num_charger_regulators,
-			    desc->charger_regulators);
+	for (i = 0 ; i < desc->num_charger_regulators ; i++) {
+		struct charger_regulator *charger
+				= &desc->charger_regulators[i];
+		for (j = 0 ; j < charger->num_cables ; j++) {
+			struct charger_cable *cable = &charger->cables[j];
+			extcon_unregister_interest(&cable->extcon_dev);
+		}
+	}
+
+	for (i = 0 ; i < desc->num_charger_regulators ; i++)
+		regulator_put(desc->charger_regulators[i].consumer);
+
 	power_supply_unregister(&cm->charger_psy);
 
 	try_charger_enable(cm, false);

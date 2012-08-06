@@ -72,6 +72,7 @@
 #include <linux/string.h>
 #include <linux/tick.h>
 #include <linux/timer.h>
+#include <linux/dmi.h>
 #include <drm/i915_drm.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
@@ -1485,6 +1486,24 @@ static DEFINE_PCI_DEVICE_TABLE(ips_id_table) = {
 
 MODULE_DEVICE_TABLE(pci, ips_id_table);
 
+static int ips_blacklist_callback(const struct dmi_system_id *id)
+{
+	pr_info("Blacklisted intel_ips for %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id ips_blacklist[] = {
+	{
+		.callback = ips_blacklist_callback,
+		.ident = "HP ProBook",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP ProBook"),
+		},
+	},
+	{ }	/* terminating entry */
+};
+
 static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	u64 platform_info;
@@ -1493,6 +1512,9 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int ret = 0;
 	u16 htshi, trc, trc_required_mask;
 	u8 tse;
+
+	if (dmi_check_system(ips_blacklist))
+		return -ENODEV;
 
 	ips = kzalloc(sizeof(struct ips_driver), GFP_KERNEL);
 	if (!ips)
@@ -1697,21 +1719,6 @@ static void ips_remove(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "IPS driver removed\n");
 }
 
-#ifdef CONFIG_PM
-static int ips_suspend(struct pci_dev *dev, pm_message_t state)
-{
-	return 0;
-}
-
-static int ips_resume(struct pci_dev *dev)
-{
-	return 0;
-}
-#else
-#define ips_suspend NULL
-#define ips_resume NULL
-#endif /* CONFIG_PM */
-
 static void ips_shutdown(struct pci_dev *dev)
 {
 }
@@ -1721,8 +1728,6 @@ static struct pci_driver ips_pci_driver = {
 	.id_table = ips_id_table,
 	.probe = ips_probe,
 	.remove = ips_remove,
-	.suspend = ips_suspend,
-	.resume = ips_resume,
 	.shutdown = ips_shutdown,
 };
 

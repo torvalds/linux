@@ -126,21 +126,26 @@ static void __devexit ct_card_remove(struct pci_dev *pci)
 }
 
 #ifdef CONFIG_PM
-static int ct_card_suspend(struct pci_dev *pci, pm_message_t state)
+static int ct_card_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct ct_atc *atc = card->private_data;
 
-	return atc->suspend(atc, state);
+	return atc->suspend(atc);
 }
 
-static int ct_card_resume(struct pci_dev *pci)
+static int ct_card_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct ct_atc *atc = card->private_data;
 
 	return atc->resume(atc);
 }
+
+static SIMPLE_DEV_PM_OPS(ct_card_pm, ct_card_suspend, ct_card_resume);
+#define CT_CARD_PM_OPS	&ct_card_pm
+#else
+#define CT_CARD_PM_OPS	NULL
 #endif
 
 static struct pci_driver ct_driver = {
@@ -148,10 +153,9 @@ static struct pci_driver ct_driver = {
 	.id_table = ct_pci_dev_ids,
 	.probe = ct_card_probe,
 	.remove = __devexit_p(ct_card_remove),
-#ifdef CONFIG_PM
-	.suspend = ct_card_suspend,
-	.resume = ct_card_resume,
-#endif
+	.driver = {
+		.pm = CT_CARD_PM_OPS,
+	},
 };
 
 module_pci_driver(ct_driver);

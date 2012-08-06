@@ -47,6 +47,7 @@ void __init orion_clkdev_init(struct clk *tclk)
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".2", tclk);
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".3", tclk);
 	orion_clkdev_add(NULL, "orion_wdt", tclk);
+	orion_clkdev_add(NULL, MV64XXX_I2C_CTLR_NAME ".0", tclk);
 }
 
 /* Fill in the resources structure and link it into the platform

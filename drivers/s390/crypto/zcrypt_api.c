@@ -1,9 +1,7 @@
 /*
- *  linux/drivers/s390/crypto/zcrypt_api.c
- *
  *  zcrypt 2.1.0
  *
- *  Copyright (C)  2001, 2006 IBM Corporation
+ *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *	       Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -47,7 +45,7 @@
  */
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("Cryptographic Coprocessor interface, "
-		   "Copyright 2001, 2006 IBM Corporation");
+		   "Copyright IBM Corp. 2001, 2006");
 MODULE_LICENSE("GPL");
 
 static DEFINE_SPINLOCK(zcrypt_device_lock);

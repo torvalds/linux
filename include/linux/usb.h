@@ -77,14 +77,15 @@ struct usb_host_endpoint {
 struct usb_host_interface {
 	struct usb_interface_descriptor	desc;
 
+	int extralen;
+	unsigned char *extra;   /* Extra descriptors */
+
 	/* array of desc.bNumEndpoint endpoints associated with this
 	 * interface setting.  these will be in no particular order.
 	 */
 	struct usb_host_endpoint *endpoint;
 
 	char *string;		/* iInterface string, if present */
-	unsigned char *extra;   /* Extra descriptors */
-	int extralen;
 };
 
 enum usb_interface_condition {
@@ -331,6 +332,11 @@ struct usb_bus {
 	u8 otg_port;			/* 0, or number of OTG/HNP port */
 	unsigned is_b_host:1;		/* true during some HNP roleswitches */
 	unsigned b_hnp_enable:1;	/* OTG: did A-Host enable HNP? */
+	unsigned no_stop_on_short:1;    /*
+					 * Quirk: some controllers don't stop
+					 * the ep queue on a short transfer
+					 * with the URB_SHORT_NOT_OK flag set.
+					 */
 	unsigned sg_tablesize;		/* 0 or largest number of sg list entries */
 
 	int devnum_next;		/* Next open device number in
@@ -556,7 +562,6 @@ struct usb_device {
 	struct usb3_lpm_parameters u1_params;
 	struct usb3_lpm_parameters u2_params;
 	unsigned lpm_disable_count;
-	unsigned hub_initiated_lpm_disable_count;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
@@ -628,6 +633,17 @@ extern void usb_enable_lpm(struct usb_device *udev);
 /* Same as above, but these functions lock/unlock the bandwidth_mutex. */
 extern int usb_unlocked_disable_lpm(struct usb_device *udev);
 extern void usb_unlocked_enable_lpm(struct usb_device *udev);
+
+extern int usb_disable_ltm(struct usb_device *udev);
+extern void usb_enable_ltm(struct usb_device *udev);
+
+static inline bool usb_device_supports_ltm(struct usb_device *udev)
+{
+	if (udev->speed != USB_SPEED_SUPER || !udev->bos || !udev->bos->ss_cap)
+		return false;
+	return udev->bos->ss_cap->bmAttributes & USB_LTM_SUPPORT;
+}
+
 
 /*-------------------------------------------------------------------------*/
 
@@ -777,6 +793,22 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 	.bInterfaceProtocol = (pr)
 
 /**
+ * USB_DEVICE_INTERFACE_NUMBER - describe a usb device with a specific interface number
+ * @vend: the 16 bit USB Vendor ID
+ * @prod: the 16 bit USB Product ID
+ * @num: bInterfaceNumber value
+ *
+ * This macro is used to create a struct usb_device_id that matches a
+ * specific interface number of devices.
+ */
+#define USB_DEVICE_INTERFACE_NUMBER(vend, prod, num) \
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE | \
+		       USB_DEVICE_ID_MATCH_INT_NUMBER, \
+	.idVendor = (vend), \
+	.idProduct = (prod), \
+	.bInterfaceNumber = (num)
+
+/**
  * USB_DEVICE_INFO - macro used to describe a class of usb devices
  * @cl: bDeviceClass value
  * @sc: bDeviceSubClass value
@@ -825,6 +857,27 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 		| USB_DEVICE_ID_MATCH_DEVICE, \
 	.idVendor = (vend), \
 	.idProduct = (prod), \
+	.bInterfaceClass = (cl), \
+	.bInterfaceSubClass = (sc), \
+	.bInterfaceProtocol = (pr)
+
+/**
+ * USB_VENDOR_AND_INTERFACE_INFO - describe a specific usb vendor with a class of usb interfaces
+ * @vend: the 16 bit USB Vendor ID
+ * @cl: bInterfaceClass value
+ * @sc: bInterfaceSubClass value
+ * @pr: bInterfaceProtocol value
+ *
+ * This macro is used to create a struct usb_device_id that matches a
+ * specific vendor with a specific class of interfaces.
+ *
+ * This is especially useful when explicitly matching devices that have
+ * vendor specific bDeviceClass values, but standards-compliant interfaces.
+ */
+#define USB_VENDOR_AND_INTERFACE_INFO(vend, cl, sc, pr) \
+	.match_flags = USB_DEVICE_ID_MATCH_INT_INFO \
+		| USB_DEVICE_ID_MATCH_VENDOR, \
+	.idVendor = (vend), \
 	.bInterfaceClass = (cl), \
 	.bInterfaceSubClass = (sc), \
 	.bInterfaceProtocol = (pr)

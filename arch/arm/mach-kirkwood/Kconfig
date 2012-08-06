@@ -80,6 +80,35 @@ config MACH_IB62X0_DT
 	  RaidSonic IB-NAS6210 & IB-NAS6220 devices, using
 	  Flattened Device Tree.
 
+config MACH_TS219_DT
+	bool "Device Tree for QNAP TS-11X, TS-21X NAS"
+	select ARCH_KIRKWOOD_DT
+	select ARM_APPENDED_DTB
+	select ARM_ATAG_DTB_COMPAT
+	help
+	  Say 'Y' here if you want your kernel to support the QNAP
+	  TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
+	  TS-219P+ Turbo NAS devices using Fattened Device Tree.
+	  There are two different Device Tree descriptions, depending
+	  on if the device is based on an if the board uses the MV6281
+	  or MV6282. If you have the wrong one, the buttons will not
+	  work.
+
+config MACH_GOFLEXNET_DT
+	bool "Seagate GoFlex Net (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate GoFlex Net (Flattened Device Tree).
+
+config MACH_LSXL_DT
+	bool "Buffalo Linkstation LS-XHL, LS-CHLv2 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Buffalo Linkstation LS-XHL & LS-CHLv2 devices, using
+	  Flattened Device Tree.
+
 config MACH_TS219
 	bool "QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and TS-219P+ Turbo NAS"
 	help

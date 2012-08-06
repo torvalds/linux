@@ -690,7 +690,7 @@ int mv_otg_remove(struct platform_device *pdev)
 	for (clk_i = 0; clk_i <= mvotg->clknum; clk_i++)
 		clk_put(mvotg->clk[clk_i]);
 
-	usb_set_transceiver(NULL);
+	usb_remove_phy(&mvotg->phy);
 	platform_set_drvdata(pdev, NULL);
 
 	kfree(mvotg->phy.otg);
@@ -853,7 +853,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 		goto err_disable_clk;
 	}
 
-	retval = usb_set_transceiver(&mvotg->phy);
+	retval = usb_add_phy(&mvotg->phy, USB_PHY_TYPE_USB2);
 	if (retval < 0) {
 		dev_err(&pdev->dev, "can't register transceiver, %d\n",
 			retval);
@@ -880,7 +880,7 @@ static int mv_otg_probe(struct platform_device *pdev)
 	return 0;
 
 err_set_transceiver:
-	usb_set_transceiver(NULL);
+	usb_remove_phy(&mvotg->phy);
 err_free_irq:
 	free_irq(mvotg->irq, mvotg);
 err_disable_clk:

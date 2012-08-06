@@ -89,7 +89,7 @@ static const u16 atl1e_pay_load_size[] = {
 	128, 256, 512, 1024, 2048, 4096,
 };
 
-/*
+/**
  * atl1e_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
  */
@@ -102,7 +102,7 @@ static inline void atl1e_irq_enable(struct atl1e_adapter *adapter)
 	}
 }
 
-/*
+/**
  * atl1e_irq_disable - Mask off interrupt generation on the NIC
  * @adapter: board private structure
  */
@@ -114,7 +114,7 @@ static inline void atl1e_irq_disable(struct atl1e_adapter *adapter)
 	synchronize_irq(adapter->pdev->irq);
 }
 
-/*
+/**
  * atl1e_irq_reset - reset interrupt confiure on the NIC
  * @adapter: board private structure
  */
@@ -126,7 +126,7 @@ static inline void atl1e_irq_reset(struct atl1e_adapter *adapter)
 	AT_WRITE_FLUSH(&adapter->hw);
 }
 
-/*
+/**
  * atl1e_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -210,7 +210,7 @@ static int atl1e_check_link(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_link_chg_task - deal with link change event Out of interrupt context
  * @netdev: network interface device structure
  */
@@ -259,7 +259,7 @@ static void atl1e_cancel_work(struct atl1e_adapter *adapter)
 	cancel_work_sync(&adapter->link_chg_task);
 }
 
-/*
+/**
  * atl1e_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
@@ -271,7 +271,7 @@ static void atl1e_tx_timeout(struct net_device *netdev)
 	schedule_work(&adapter->reset_task);
 }
 
-/*
+/**
  * atl1e_set_multi - Multicast and Promiscuous mode set
  * @netdev: network interface device structure
  *
@@ -345,7 +345,7 @@ static void atl1e_restore_vlan(struct atl1e_adapter *adapter)
 	atl1e_vlan_mode(adapter->netdev, adapter->netdev->features);
 }
 
-/*
+/**
  * atl1e_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
@@ -397,7 +397,7 @@ static int atl1e_set_features(struct net_device *netdev,
 	return 0;
 }
 
-/*
+/**
  * atl1e_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -449,12 +449,6 @@ static void atl1e_mdio_write(struct net_device *netdev, int phy_id,
 	atl1e_write_phy_reg(&adapter->hw, reg_num & MDIO_REG_ADDR_MASK, val);
 }
 
-/*
- * atl1e_mii_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl1e_mii_ioctl(struct net_device *netdev,
 			   struct ifreq *ifr, int cmd)
 {
@@ -505,12 +499,6 @@ out:
 
 }
 
-/*
- * atl1e_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl1e_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
@@ -541,7 +529,7 @@ static void atl1e_setup_pcicmd(struct pci_dev *pdev)
 	msleep(1);
 }
 
-/*
+/**
  * atl1e_alloc_queues - Allocate memory for all rings
  * @adapter: board private structure to initialize
  *
@@ -551,7 +539,7 @@ static int __devinit atl1e_alloc_queues(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_sw_init - Initialize general software structures (struct atl1e_adapter)
  * @adapter: board private structure to initialize
  *
@@ -635,14 +623,13 @@ static int __devinit atl1e_sw_init(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_clean_tx_ring - Free Tx-skb
  * @adapter: board private structure
  */
 static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = (struct atl1e_tx_ring *)
-				&adapter->tx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
 	struct pci_dev *pdev = adapter->pdev;
 	u16 index, ring_count;
@@ -679,14 +666,14 @@ static void atl1e_clean_tx_ring(struct atl1e_adapter *adapter)
 				ring_count);
 }
 
-/*
+/**
  * atl1e_clean_rx_ring - Free rx-reservation skbs
  * @adapter: board private structure
  */
 static void atl1e_clean_rx_ring(struct atl1e_adapter *adapter)
 {
 	struct atl1e_rx_ring *rx_ring =
-		(struct atl1e_rx_ring *)&adapter->rx_ring;
+		&adapter->rx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc = rx_ring->rx_page_desc;
 	u16 i, j;
 
@@ -762,7 +749,7 @@ static void atl1e_init_ring_ptrs(struct atl1e_adapter *adapter)
 	}
 }
 
-/*
+/**
  * atl1e_free_ring_resources - Free Tx / RX descriptor Resources
  * @adapter: board private structure
  *
@@ -787,7 +774,7 @@ static void atl1e_free_ring_resources(struct atl1e_adapter *adapter)
 	}
 }
 
-/*
+/**
  * atl1e_setup_mem_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
@@ -884,14 +871,12 @@ failed:
 	return err;
 }
 
-static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
+static inline void atl1e_configure_des_ring(struct atl1e_adapter *adapter)
 {
 
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
-	struct atl1e_rx_ring *rx_ring =
-			(struct atl1e_rx_ring *)&adapter->rx_ring;
-	struct atl1e_tx_ring *tx_ring =
-			(struct atl1e_tx_ring *)&adapter->tx_ring;
+	struct atl1e_hw *hw = &adapter->hw;
+	struct atl1e_rx_ring *rx_ring = &adapter->rx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc = NULL;
 	int i, j;
 
@@ -932,7 +917,7 @@ static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
 
 static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 {
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
+	struct atl1e_hw *hw = &adapter->hw;
 	u32 dev_ctrl_data = 0;
 	u32 max_pay_load = 0;
 	u32 jumbo_thresh = 0;
@@ -975,7 +960,7 @@ static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 
 static inline void atl1e_configure_rx(struct atl1e_adapter *adapter)
 {
-	struct atl1e_hw *hw = (struct atl1e_hw *)&adapter->hw;
+	struct atl1e_hw *hw = &adapter->hw;
 	u32 rxf_len  = 0;
 	u32 rxf_low  = 0;
 	u32 rxf_high = 0;
@@ -1078,7 +1063,7 @@ static void atl1e_setup_mac_ctrl(struct atl1e_adapter *adapter)
 	AT_WRITE_REG(hw, REG_MAC_CTRL, value);
 }
 
-/*
+/**
  * atl1e_configure - Configure Transmit&Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -1148,7 +1133,7 @@ static int atl1e_configure(struct atl1e_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl1e_get_stats - Get System Network Statistics
  * @netdev: network interface device structure
  *
@@ -1224,8 +1209,7 @@ static inline void atl1e_clear_phy_int(struct atl1e_adapter *adapter)
 
 static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 {
-	struct atl1e_tx_ring *tx_ring = (struct atl1e_tx_ring *)
-					&adapter->tx_ring;
+	struct atl1e_tx_ring *tx_ring = &adapter->tx_ring;
 	struct atl1e_tx_buffer *tx_buffer = NULL;
 	u16 hw_next_to_clean = AT_READ_REGW(&adapter->hw, REG_TPD_CONS_IDX);
 	u16 next_to_clean = atomic_read(&tx_ring->next_to_clean);
@@ -1261,11 +1245,10 @@ static bool atl1e_clean_tx_irq(struct atl1e_adapter *adapter)
 	return true;
 }
 
-/*
+/**
  * atl1e_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  */
 static irqreturn_t atl1e_intr(int irq, void *data)
 {
@@ -1384,15 +1367,14 @@ static struct atl1e_rx_page *atl1e_get_rx_page(struct atl1e_adapter *adapter,
 		(struct atl1e_rx_page_desc *) adapter->rx_ring.rx_page_desc;
 	u8 rx_using = rx_page_desc[que].rx_using;
 
-	return (struct atl1e_rx_page *)&(rx_page_desc[que].rx_page[rx_using]);
+	return &(rx_page_desc[que].rx_page[rx_using]);
 }
 
 static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 		   int *work_done, int work_to_do)
 {
 	struct net_device *netdev  = adapter->netdev;
-	struct atl1e_rx_ring *rx_ring = (struct atl1e_rx_ring *)
-					 &adapter->rx_ring;
+	struct atl1e_rx_ring *rx_ring = &adapter->rx_ring;
 	struct atl1e_rx_page_desc *rx_page_desc =
 		(struct atl1e_rx_page_desc *) rx_ring->rx_page_desc;
 	struct sk_buff *skb = NULL;
@@ -1494,9 +1476,8 @@ fatal_err:
 		schedule_work(&adapter->reset_task);
 }
 
-/*
+/**
  * atl1e_clean - NAPI Rx polling callback
- * @adapter: board private structure
  */
 static int atl1e_clean(struct napi_struct *napi, int budget)
 {
@@ -1576,7 +1557,7 @@ static struct atl1e_tpd_desc *atl1e_get_tpd(struct atl1e_adapter *adapter)
 		tx_ring->next_to_use = 0;
 
 	memset(&tx_ring->desc[next_to_use], 0, sizeof(struct atl1e_tpd_desc));
-	return (struct atl1e_tpd_desc *)&tx_ring->desc[next_to_use];
+	return &tx_ring->desc[next_to_use];
 }
 
 static struct atl1e_tx_buffer *
@@ -1961,7 +1942,7 @@ void atl1e_down(struct atl1e_adapter *adapter)
 	atl1e_clean_rx_ring(adapter);
 }
 
-/*
+/**
  * atl1e_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -2007,7 +1988,7 @@ err_req_irq:
 	return err;
 }
 
-/*
+/**
  * atl1e_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -2061,8 +2042,8 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	if (wufc) {
 		/* get link status */
-		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
-		atl1e_read_phy_reg(hw, MII_BMSR, (u16 *)&mii_bmsr_data);
+		atl1e_read_phy_reg(hw, MII_BMSR, &mii_bmsr_data);
+		atl1e_read_phy_reg(hw, MII_BMSR, &mii_bmsr_data);
 
 		mii_advertise_data = ADVERTISE_10HALF;
 
@@ -2086,7 +2067,7 @@ static int atl1e_suspend(struct pci_dev *pdev, pm_message_t state)
 				for (i = 0; i < AT_SUSPEND_LINK_TIMEOUT; i++) {
 					msleep(100);
 					atl1e_read_phy_reg(hw, MII_BMSR,
-							(u16 *)&mii_bmsr_data);
+							&mii_bmsr_data);
 					if (mii_bmsr_data & BMSR_LSTATUS)
 						break;
 				}
@@ -2243,7 +2224,7 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	return 0;
 }
 
-/*
+/**
  * atl1e_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in atl1e_pci_tbl
@@ -2397,7 +2378,7 @@ err_dma:
 	return err;
 }
 
-/*
+/**
  * atl1e_remove - Device Removal Routine
  * @pdev: PCI device information struct
  *
@@ -2429,7 +2410,7 @@ static void __devexit atl1e_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-/*
+/**
  * atl1e_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
  * @state: The current pci connection state
@@ -2457,7 +2438,7 @@ atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
-/*
+/**
  * atl1e_io_slot_reset - called after the pci bus has been reset.
  * @pdev: Pointer to PCI device
  *
@@ -2484,7 +2465,7 @@ static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-/*
+/**
  * atl1e_io_resume - called when traffic can start flowing again.
  * @pdev: Pointer to PCI device
  *
@@ -2528,7 +2509,7 @@ static struct pci_driver atl1e_driver = {
 	.err_handler = &atl1e_err_handler
 };
 
-/*
+/**
  * atl1e_init_module - Driver Registration Routine
  *
  * atl1e_init_module is the first routine called when the driver is
@@ -2539,7 +2520,7 @@ static int __init atl1e_init_module(void)
 	return pci_register_driver(&atl1e_driver);
 }
 
-/*
+/**
  * atl1e_exit_module - Driver Exit Cleanup Routine
  *
  * atl1e_exit_module is called just before the driver is removed

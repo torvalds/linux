@@ -17,18 +17,46 @@ Required properties:
   device need to be present. The definition for each of these nodes is defined
   using the standard binding for regulators found at
   Documentation/devicetree/bindings/regulator/regulator.txt.
+  The regulator is matched with the regulator-compatible.
 
-  The valid names for regulators are:
+  The valid regulator-compatible values are:
   tps65910: vrtc, vio, vdd1, vdd2, vdd3, vdig1, vdig2, vpll, vdac, vaux1,
             vaux2, vaux33, vmmc
   tps65911: vrtc, vio, vdd1, vdd3, vddctrl, ldo1, ldo2, ldo3, ldo4, ldo5,
             ldo6, ldo7, ldo8
+
+- xxx-supply: Input voltage supply regulator.
+  These entries are require if regulators are enabled for a device. Missing of these
+  properties can cause the regulator registration fails.
+  If some of input supply is powered through battery or always-on supply then
+  also it is require to have these parameters with proper node handle of always
+  on power supply.
+  tps65910:
+	vcc1-supply: VDD1 input.
+	vcc2-supply: VDD2 input.
+	vcc3-supply: VAUX33 and VMMC input.
+	vcc4-supply: VAUX1 and VAUX2 input.
+	vcc5-supply: VPLL and VDAC input.
+	vcc6-supply: VDIG1 and VDIG2 input.
+	vcc7-supply: VRTC input.
+	vccio-supply: VIO input.
+  tps65911:
+	vcc1-supply: VDD1 input.
+	vcc2-supply: VDD2 input.
+	vcc3-supply: LDO6, LDO7 and LDO8 input.
+	vcc4-supply: LDO5 input.
+	vcc5-supply: LDO3 and LDO4 input.
+	vcc6-supply: LDO1 and LDO2 input.
+	vcc7-supply: VRTC input.
+	vccio-supply: VIO input.
 
 Optional properties:
 - ti,vmbch-threshold: (tps65911) main battery charged threshold
   comparator. (see VMBCH_VSEL in TPS65910 datasheet)
 - ti,vmbch2-threshold: (tps65911) main battery discharged threshold
   comparator. (see VMBCH_VSEL in TPS65910 datasheet)
+- ti,en-ck32k-xtal: enable external 32-kHz crystal oscillator (see CK32K_CTRL
+  in TPS6591X datasheet)
 - ti,en-gpio-sleep: enable sleep control for gpios
   There should be 9 entries here, one for each gpio.
 
@@ -53,77 +81,113 @@ Example:
 
 		ti,vmbch-threshold = 0;
 		ti,vmbch2-threshold = 0;
-
+		ti,en-ck32k-xtal;
 		ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
 
+		vcc1-supply = <&reg_parent>;
+		vcc2-supply = <&some_reg>;
+		vcc3-supply = <...>;
+		vcc4-supply = <...>;
+		vcc5-supply = <...>;
+		vcc6-supply = <...>;
+		vcc7-supply = <...>;
+		vccio-supply = <...>;
+
 		regulators {
-			vdd1_reg: vdd1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd1_reg: regulator@0 {
+				regulator-compatible = "vdd1";
+				reg = <0>;
 				regulator-min-microvolt = < 600000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			vdd2_reg: vdd2 {
+			vdd2_reg: regulator@1 {
+				regulator-compatible = "vdd2";
+				reg = <1>;
 				regulator-min-microvolt = < 600000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-boot-on;
 				ti,regulator-ext-sleep-control = <4>;
 			};
-			vddctrl_reg: vddctrl {
+			vddctrl_reg: regulator@2 {
+				regulator-compatible = "vddctrl";
+				reg = <2>;
 				regulator-min-microvolt = < 600000>;
 				regulator-max-microvolt = <1400000>;
 				regulator-always-on;
 				regulator-boot-on;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			vio_reg: vio {
+			vio_reg: regulator@3 {
+				regulator-compatible = "vio";
+				reg = <3>;
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				regulator-boot-on;
 				ti,regulator-ext-sleep-control = <1>;
 			};
-			ldo1_reg: ldo1 {
+			ldo1_reg: regulator@4 {
+				regulator-compatible = "ldo1";
+				reg = <4>;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <3300000>;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			ldo2_reg: ldo2 {
+			ldo2_reg: regulator@5 {
+				regulator-compatible = "ldo2";
+				reg = <5>;
 				regulator-min-microvolt = <1050000>;
 				regulator-max-microvolt = <1050000>;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			ldo3_reg: ldo3 {
+			ldo3_reg: regulator@6 {
+				regulator-compatible = "ldo3";
+				reg = <6>;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <3300000>;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			ldo4_reg: ldo4 {
+			ldo4_reg: regulator@7 {
+				regulator-compatible = "ldo4";
+				reg = <7>;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			ldo5_reg: ldo5 {
+			ldo5_reg: regulator@8 {
+				regulator-compatible = "ldo5";
+				reg = <8>;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <3300000>;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			ldo6_reg: ldo6 {
+			ldo6_reg: regulator@9 {
+				regulator-compatible = "ldo6";
+				reg = <9>;
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				ti,regulator-ext-sleep-control = <0>;
 			};
-			ldo7_reg: ldo7 {
+			ldo7_reg: regulator@10 {
+				regulator-compatible = "ldo7";
+				reg = <10>;
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
 				regulator-boot-on;
 				ti,regulator-ext-sleep-control = <1>;
 			};
-			ldo8_reg: ldo8 {
+			ldo8_reg: regulator@11 {
+				regulator-compatible = "ldo8";
+				reg = <11>;
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;

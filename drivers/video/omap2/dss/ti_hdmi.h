@@ -42,30 +42,13 @@ enum hdmi_clk_refsel {
 	HDMI_REFSEL_SYSCLK = 3
 };
 
-/* HDMI timing structure */
-struct hdmi_video_timings {
-	u16 x_res;
-	u16 y_res;
-	/* Unit: KHz */
-	u32 pixel_clock;
-	u16 hsw;
-	u16 hfp;
-	u16 hbp;
-	u16 vsw;
-	u16 vfp;
-	u16 vbp;
-	bool vsync_pol;
-	bool hsync_pol;
-	bool interlace;
-};
-
 struct hdmi_cm {
 	int	code;
 	int	mode;
 };
 
 struct hdmi_config {
-	struct hdmi_video_timings timings;
+	struct omap_video_timings timings;
 	struct hdmi_cm cm;
 };
 
@@ -177,7 +160,7 @@ struct hdmi_ip_data {
 
 	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
 	int hpd_gpio;
-	bool phy_tx_enabled;
+	struct mutex lock;
 };
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);

@@ -333,7 +333,7 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 }
 
 static int flakey_status(struct dm_target *ti, status_type_t type,
-			 char *result, unsigned int maxlen)
+			 unsigned status_flags, char *result, unsigned maxlen)
 {
 	unsigned sz = 0;
 	struct flakey_c *fc = ti->private;

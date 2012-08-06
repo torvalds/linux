@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Texas Instruments Incorporated
+ *  Copyright (C) 2011-2012 Texas Instruments Incorporated
  *
  *  This borrows heavily from powerpc version, which is:
  *
@@ -35,9 +35,7 @@ static DEFINE_RAW_SPINLOCK(core_irq_lock);
 
 static void mask_core_irq(struct irq_data *data)
 {
-	unsigned int prio = data->irq;
-
-	BUG_ON(prio < 4 || prio >= NR_PRIORITY_IRQS);
+	unsigned int prio = data->hwirq;
 
 	raw_spin_lock(&core_irq_lock);
 	and_creg(IER, ~(1 << prio));
@@ -46,7 +44,7 @@ static void mask_core_irq(struct irq_data *data)
 
 static void unmask_core_irq(struct irq_data *data)
 {
-	unsigned int prio = data->irq;
+	unsigned int prio = data->hwirq;
 
 	raw_spin_lock(&core_irq_lock);
 	or_creg(IER, 1 << prio);
@@ -59,15 +57,15 @@ static struct irq_chip core_chip = {
 	.irq_unmask	= unmask_core_irq,
 };
 
+static int prio_to_virq[NR_PRIORITY_IRQS];
+
 asmlinkage void c6x_do_IRQ(unsigned int prio, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	irq_enter();
 
-	BUG_ON(prio < 4 || prio >= NR_PRIORITY_IRQS);
-
-	generic_handle_irq(prio);
+	generic_handle_irq(prio_to_virq[prio]);
 
 	irq_exit();
 
@@ -81,6 +79,8 @@ static int core_domain_map(struct irq_domain *h, unsigned int virq,
 {
 	if (hw < 4 || hw >= NR_PRIORITY_IRQS)
 		return -EINVAL;
+
+	prio_to_virq[hw] = virq;
 
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_and_handler(virq, &core_chip, handle_level_irq);
@@ -102,9 +102,8 @@ void __init init_IRQ(void)
 	np = of_find_compatible_node(NULL, NULL, "ti,c64x+core-pic");
 	if (np != NULL) {
 		/* create the core host */
-		core_domain = irq_domain_add_legacy(np, NR_PRIORITY_IRQS,
-						    0, 0, &core_domain_ops,
-						    NULL);
+		core_domain = irq_domain_add_linear(np, NR_PRIORITY_IRQS,
+						    &core_domain_ops, NULL);
 		if (core_domain)
 			irq_set_default_host(core_domain);
 		of_node_put(np);

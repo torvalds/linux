@@ -4,6 +4,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/file.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/writeback.h>
 
@@ -106,9 +107,6 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 }
 
 /*
- * If the filp already has private_data, that means the file was
- * already opened by intent during lookup, and we do nothing.
- *
  * If we already have the requisite capabilities, we can satisfy
  * the open request locally (no need to request new caps from the
  * MDS).  We do, however, need to inform the MDS (asynchronously)
@@ -207,36 +205,34 @@ out:
 
 
 /*
- * Do a lookup + open with a single request.
- *
- * If this succeeds, but some subsequent check in the vfs
- * may_open() fails, the struct *file gets cleaned up (i.e.
- * ceph_release gets called).  So fear not!
+ * Do a lookup + open with a single request.  If we get a non-existent
+ * file or symlink, return 1 so the VFS can retry.
  */
-/*
- * flags
- *  path_lookup_open   -> LOOKUP_OPEN
- *  path_lookup_create -> LOOKUP_OPEN|LOOKUP_CREATE
- */
-struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
-				struct nameidata *nd, int mode,
-				int locked_dir)
+int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
+		     struct file *file, unsigned flags, umode_t mode,
+		     int *opened)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
-	struct file *file;
 	struct ceph_mds_request *req;
-	struct dentry *ret;
+	struct dentry *dn;
 	int err;
-	int flags = nd->intent.open.flags;
 
-	dout("ceph_lookup_open dentry %p '%.*s' flags %d mode 0%o\n",
-	     dentry, dentry->d_name.len, dentry->d_name.name, flags, mode);
+	dout("atomic_open %p dentry %p '%.*s' %s flags %d mode 0%o\n",
+	     dir, dentry, dentry->d_name.len, dentry->d_name.name,
+	     d_unhashed(dentry) ? "unhashed" : "hashed", flags, mode);
+
+	if (dentry->d_name.len > NAME_MAX)
+		return -ENAMETOOLONG;
+
+	err = ceph_init_dentry(dentry);
+	if (err < 0)
+		return err;
 
 	/* do the open */
 	req = prepare_open_request(dir->i_sb, flags, mode);
 	if (IS_ERR(req))
-		return ERR_CAST(req);
+		return PTR_ERR(req);
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {
@@ -248,20 +244,32 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 				   (flags & (O_CREAT|O_TRUNC)) ? dir : NULL,
 				   req);
 	err = ceph_handle_snapdir(req, dentry, err);
-	if (err)
-		goto out;
-	if ((flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
+	if (err == 0 && (flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
+
+	if (d_unhashed(dentry)) {
+		dn = ceph_finish_lookup(req, dentry, err);
+		if (IS_ERR(dn))
+			err = PTR_ERR(dn);
+	} else {
+		/* we were given a hashed negative dentry */
+		dn = NULL;
+	}
 	if (err)
-		goto out;
-	file = lookup_instantiate_filp(nd, req->r_dentry, ceph_open);
-	if (IS_ERR(file))
-		err = PTR_ERR(file);
-out:
-	ret = ceph_finish_lookup(req, dentry, err);
+		goto out_err;
+	if (dn || dentry->d_inode == NULL || S_ISLNK(dentry->d_inode->i_mode)) {
+		/* make vfs retry on splice, ENOENT, or symlink */
+		dout("atomic_open finish_no_open on dn %p\n", dn);
+		err = finish_no_open(file, dn);
+	} else {
+		dout("atomic_open finish_open on dn %p\n", dn);
+		err = finish_open(file, dentry, ceph_open, opened);
+	}
+
+out_err:
 	ceph_mdsc_put_request(req);
-	dout("ceph_lookup_open result=%p\n", ret);
-	return ret;
+	dout("atomic_open result=%d\n", err);
+	return err;
 }
 
 int ceph_release(struct inode *inode, struct file *file)

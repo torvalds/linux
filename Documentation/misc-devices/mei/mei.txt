@@ -50,25 +50,25 @@ Intel MEI Driver
 The driver exposes a misc device called /dev/mei.
 
 An application maintains communication with an Intel ME feature while
-/dev/mei is open. The binding to a specific features is performed by calling
+/dev/mei is open. The binding to a specific feature is performed by calling
 MEI_CONNECT_CLIENT_IOCTL, which passes the desired UUID.
 The number of instances of an Intel ME feature that can be opened
 at the same time depends on the Intel ME feature, but most of the
 features allow only a single instance.
 
 The Intel AMT Host Interface (Intel AMTHI) feature supports multiple
-simultaneous user applications. Therefore, the Intel MEI driver handles
-this internally by maintaining request queues for the applications.
+simultaneous user connected applications. The Intel MEI driver
+handles this internally by maintaining request queues for the applications.
 
-The driver is oblivious to data that is passed between firmware feature
+The driver is transparent to data that are passed between firmware feature
 and host application.
 
 Because some of the Intel ME features can change the system
 configuration, the driver by default allows only a privileged
 user to access it.
 
-A code snippet for an application communicating with
-Intel AMTHI client:
+A code snippet for an application communicating with Intel AMTHI client:
+
 	struct mei_connect_client_data data;
 	fd = open(MEI_DEVICE);
 
@@ -185,7 +185,7 @@ The Intel AMT Watchdog is composed of two parts:
 	2) Intel MEI driver - connects to the watchdog feature, configures the
 	   watchdog and sends the heartbeats.
 
-The Intel MEI driver uses the kernel watchdog to configure the Intel AMT
+The Intel MEI driver uses the kernel watchdog API to configure the Intel AMT
 Watchdog and to send heartbeats to it. The default timeout of the
 watchdog is 120 seconds.
 

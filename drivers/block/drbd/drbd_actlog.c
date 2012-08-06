@@ -411,7 +411,7 @@ w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 		+ mdev->ldev->md.al_offset + mdev->al_tr_pos;
 
 	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE))
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 
 	if (++mdev->al_tr_pos >
 	    div_ceil(mdev->act_log->nr_elements, AL_EXTENTS_PT))
@@ -876,7 +876,11 @@ int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	unsigned int enr, count = 0;
 	struct lc_element *e;
 
-	if (size <= 0 || (size & 0x1ff) != 0 || size > DRBD_MAX_BIO_SIZE) {
+	/* this should be an empty REQ_FLUSH */
+	if (size == 0)
+		return 0;
+
+	if (size < 0 || (size & 0x1ff) != 0 || size > DRBD_MAX_BIO_SIZE) {
 		dev_err(DEV, "sector: %llus, size: %d\n",
 			(unsigned long long)sector, size);
 		return 0;

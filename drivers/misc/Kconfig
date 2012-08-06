@@ -64,6 +64,7 @@ config AB8500_PWM
 	bool "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
 	select HAVE_PWM
+	depends on !PWM
 	help
 	  This driver exports functions to enable/disble/config/free Pulse
 	  Width Modulation in the Analog Baseband Chip AB8500.
@@ -511,7 +512,6 @@ config USB_SWITCH_FSA9480
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
-source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"

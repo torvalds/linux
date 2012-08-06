@@ -956,7 +956,8 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	vrp->svq = vqs[1];
 
 	/* allocate coherent memory for the buffers */
-	bufs_va = dma_alloc_coherent(vdev->dev.parent, RPMSG_TOTAL_BUF_SPACE,
+	bufs_va = dma_alloc_coherent(vdev->dev.parent->parent,
+				RPMSG_TOTAL_BUF_SPACE,
 				&vrp->bufs_dma, GFP_KERNEL);
 	if (!bufs_va)
 		goto vqs_del;
@@ -1085,7 +1086,7 @@ static int __init rpmsg_init(void)
 
 	return ret;
 }
-module_init(rpmsg_init);
+subsys_initcall(rpmsg_init);
 
 static void __exit rpmsg_fini(void)
 {

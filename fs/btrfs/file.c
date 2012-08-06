@@ -1379,7 +1379,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	ssize_t err = 0;
 	size_t count, ocount;
 
-	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
+	sb_start_write(inode->i_sb);
 
 	mutex_lock(&inode->i_mutex);
 
@@ -1469,6 +1469,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 			num_written = err;
 	}
 out:
+	sb_end_write(inode->i_sb);
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
 }

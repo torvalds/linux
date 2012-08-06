@@ -2510,22 +2510,11 @@ static void nv_adma_host_stop(struct ata_host *host)
 	nv_ck804_host_stop(host);
 }
 
-static int __init nv_init(void)
-{
-	return pci_register_driver(&nv_pci_driver);
-}
+module_pci_driver(nv_pci_driver);
 
-static void __exit nv_exit(void)
-{
-	pci_unregister_driver(&nv_pci_driver);
-}
-
-module_init(nv_init);
-module_exit(nv_exit);
 module_param_named(adma, adma_enabled, bool, 0444);
 MODULE_PARM_DESC(adma, "Enable use of ADMA (Default: false)");
 module_param_named(swncq, swncq_enabled, bool, 0444);
 MODULE_PARM_DESC(swncq, "Enable use of SWNCQ (Default: true)");
 module_param_named(msi, msi_enabled, bool, 0444);
 MODULE_PARM_DESC(msi, "Enable use of MSI (Default: false)");
-

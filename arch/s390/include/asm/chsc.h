@@ -1,7 +1,7 @@
 /*
  * ioctl interface for /dev/chsc
  *
- * Copyright 2008 IBM Corp.
+ * Copyright IBM Corp. 2008
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  */
 

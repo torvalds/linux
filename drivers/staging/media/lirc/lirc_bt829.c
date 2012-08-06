@@ -171,7 +171,7 @@ static void cycle_delay(int cycle)
 }
 
 
-static int poll_main()
+static int poll_main(void)
 {
 	unsigned char status_high, status_low;
 

@@ -308,8 +308,20 @@ static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
 
 static inline void __xen_set_pte(pte_t *ptep, pte_t pteval)
 {
-	if (!xen_batched_set_pte(ptep, pteval))
-		native_set_pte(ptep, pteval);
+	if (!xen_batched_set_pte(ptep, pteval)) {
+		/*
+		 * Could call native_set_pte() here and trap and
+		 * emulate the PTE write but with 32-bit guests this
+		 * needs two traps (one for each of the two 32-bit
+		 * words in the PTE) so do one hypercall directly
+		 * instead.
+		 */
+		struct mmu_update u;
+
+		u.ptr = virt_to_machine(ptep).maddr | MMU_NORMAL_PT_UPDATE;
+		u.val = pte_val_ma(pteval);
+		HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF);
+	}
 }
 
 static void xen_set_pte(pte_t *ptep, pte_t pteval)
@@ -1244,7 +1256,8 @@ static void xen_flush_tlb_single(unsigned long addr)
 }
 
 static void xen_flush_tlb_others(const struct cpumask *cpus,
-				 struct mm_struct *mm, unsigned long va)
+				 struct mm_struct *mm, unsigned long start,
+				 unsigned long end)
 {
 	struct {
 		struct mmuext_op op;
@@ -1256,7 +1269,7 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	} *args;
 	struct multicall_space mcs;
 
-	trace_xen_mmu_flush_tlb_others(cpus, mm, va);
+	trace_xen_mmu_flush_tlb_others(cpus, mm, start, end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
@@ -1269,11 +1282,10 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 	cpumask_and(to_cpumask(args->mask), cpus, cpu_online_mask);
 	cpumask_clear_cpu(smp_processor_id(), to_cpumask(args->mask));
 
-	if (va == TLB_FLUSH_ALL) {
-		args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
-	} else {
+	args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
+	if (start != TLB_FLUSH_ALL && (end - start) <= PAGE_SIZE) {
 		args->op.cmd = MMUEXT_INVLPG_MULTI;
-		args->op.arg1.linear_addr = va;
+		args->op.arg1.linear_addr = start;
 	}
 
 	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);
@@ -1416,13 +1428,28 @@ static pte_t __init mask_rw_pte(pte_t *ptep, pte_t pte)
 }
 #endif /* CONFIG_X86_64 */
 
-/* Init-time set_pte while constructing initial pagetables, which
-   doesn't allow RO pagetable pages to be remapped RW */
+/*
+ * Init-time set_pte while constructing initial pagetables, which
+ * doesn't allow RO page table pages to be remapped RW.
+ *
+ * If there is no MFN for this PFN then this page is initially
+ * ballooned out so clear the PTE (as in decrease_reservation() in
+ * drivers/xen/balloon.c).
+ *
+ * Many of these PTE updates are done on unpinned and writable pages
+ * and doing a hypercall for these is unnecessary and expensive.  At
+ * this point it is not possible to tell if a page is pinned or not,
+ * so always write the PTE directly and rely on Xen trapping and
+ * emulating any updates as necessary.
+ */
 static void __init xen_set_pte_init(pte_t *ptep, pte_t pte)
 {
-	pte = mask_rw_pte(ptep, pte);
+	if (pte_mfn(pte) != INVALID_P2M_ENTRY)
+		pte = mask_rw_pte(ptep, pte);
+	else
+		pte = __pte_ma(0);
 
-	xen_set_pte(ptep, pte);
+	native_set_pte(ptep, pte);
 }
 
 static void pin_pagetable_pfn(unsigned cmd, unsigned long pfn)

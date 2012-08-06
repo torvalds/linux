@@ -306,8 +306,7 @@ static int __devinit pmcmsptwi_probe(struct platform_device *pldev)
 	pmcmsptwi_data.irq = platform_get_irq(pldev, 0);
 	if (pmcmsptwi_data.irq) {
 		rc = request_irq(pmcmsptwi_data.irq, &pmcmsptwi_interrupt,
-			IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			pldev->name, &pmcmsptwi_data);
+				 IRQF_SHARED, pldev->name, &pmcmsptwi_data);
 		if (rc == 0) {
 			/*
 			 * Enable 'DONE' interrupt only.

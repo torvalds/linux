@@ -527,8 +527,8 @@ static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
 
 /* Supported manual ISO values */
 static const s64 iso_qmenu[] = {
-	/* AE_ISO: 0x01...0x07 */
-	50, 100, 200, 400, 800, 1600, 3200
+	/* AE_ISO: 0x01...0x07 (ISO: 50...3200) */
+	50000, 100000, 200000, 400000, 800000, 1600000, 3200000
 };
 
 /* Supported Exposure Bias values, -2.0EV...+2.0EV */

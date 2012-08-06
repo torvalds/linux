@@ -1,7 +1,7 @@
 /*
  * wm8993.c -- WM8993 ALSA SoC audio driver
  *
- * Copyright 2009, 2010 Wolfson Microelectronics plc
+ * Copyright 2009-12 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *

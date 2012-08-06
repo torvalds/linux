@@ -453,16 +453,4 @@ static struct pci_driver nforce2_driver = {
 	.remove		= __devexit_p(nforce2_remove),
 };
 
-static int __init nforce2_init(void)
-{
-	return pci_register_driver(&nforce2_driver);
-}
-
-static void __exit nforce2_exit(void)
-{
-	pci_unregister_driver(&nforce2_driver);
-}
-
-module_init(nforce2_init);
-module_exit(nforce2_exit);
-
+module_pci_driver(nforce2_driver);

@@ -122,12 +122,13 @@ void __dma_sync(dma_addr_t addr, size_t size,
 EXPORT_SYMBOL(__dma_sync);
 
 int
-dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
+dma_map_sg(struct device *dev, struct scatterlist *sg_list, int nents,
 	   enum dma_data_direction direction)
 {
+	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < nents; i++, sg++) {
+	for_each_sg(sg_list, sg, nents, i) {
 		sg->dma_address = (dma_addr_t) sg_virt(sg);
 		__dma_sync(sg_dma_address(sg), sg_dma_len(sg), direction);
 	}
@@ -136,12 +137,13 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 }
 EXPORT_SYMBOL(dma_map_sg);
 
-void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+void dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg_list,
 			    int nelems, enum dma_data_direction direction)
 {
+	struct scatterlist *sg;
 	int i;
 
-	for (i = 0; i < nelems; i++, sg++) {
+	for_each_sg(sg_list, sg, nelems, i) {
 		sg->dma_address = (dma_addr_t) sg_virt(sg);
 		__dma_sync(sg_dma_address(sg), sg_dma_len(sg), direction);
 	}

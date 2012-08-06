@@ -398,7 +398,7 @@ fsloc_parse(char **mesg, char *buf, struct nfsd4_fs_locations *fsloc)
 	int migrated, i, err;
 
 	/* listsize */
-	err = get_int(mesg, &fsloc->locations_count);
+	err = get_uint(mesg, &fsloc->locations_count);
 	if (err)
 		return err;
 	if (fsloc->locations_count > MAX_FS_LOCATIONS)
@@ -456,7 +456,7 @@ static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
 		return -EINVAL;
 
 	for (f = exp->ex_flavors; f < exp->ex_flavors + listsize; f++) {
-		err = get_int(mesg, &f->pseudoflavor);
+		err = get_uint(mesg, &f->pseudoflavor);
 		if (err)
 			return err;
 		/*
@@ -465,7 +465,7 @@ static int secinfo_parse(char **mesg, char *buf, struct svc_export *exp)
 		 * problem at export time instead of when a client fails
 		 * to authenticate.
 		 */
-		err = get_int(mesg, &f->flags);
+		err = get_uint(mesg, &f->flags);
 		if (err)
 			return err;
 		/* Only some flags are allowed to differ between flavors: */
@@ -929,7 +929,7 @@ struct svc_export *
 rqst_exp_get_by_name(struct svc_rqst *rqstp, struct path *path)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
-	struct nfsd_net *nn = net_generic(rqstp->rq_xprt->xpt_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct cache_detail *cd = nn->svc_export_cache;
 
 	if (rqstp->rq_client == NULL)
@@ -960,7 +960,7 @@ struct svc_export *
 rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
-	struct nfsd_net *nn = net_generic(rqstp->rq_xprt->xpt_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct cache_detail *cd = nn->svc_export_cache;
 
 	if (rqstp->rq_client == NULL)

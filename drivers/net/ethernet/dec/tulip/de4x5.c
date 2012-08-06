@@ -3973,7 +3973,7 @@ DevicePresent(struct net_device *dev, u_long aprom_addr)
 	    tmp = srom_rd(aprom_addr, i);
 	    *p++ = cpu_to_le16(tmp);
 	}
-	de4x5_dbg_srom((struct de4x5_srom *)&lp->srom);
+	de4x5_dbg_srom(&lp->srom);
     }
 }
 

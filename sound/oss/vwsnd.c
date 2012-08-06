@@ -438,7 +438,7 @@ static __inline__ void li_writeb(lithium_t *lith, int off, unsigned char val)
  *
  * Observe that (mask & -mask) is (1 << low_set_bit_of(mask)).
  * As long as mask is constant, we trust the compiler will change the
- * multipy and divide into shifts.
+ * multiply and divide into shifts.
  */
 
 #define SHIFT_FIELD(val, mask) (((val) * ((mask) & -(mask))) & (mask))

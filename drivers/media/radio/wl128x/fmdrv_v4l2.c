@@ -285,7 +285,9 @@ static int fm_v4l2_vidioc_g_tuner(struct file *file, void *priv,
 	tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO |
 	((fmdev->rx.rds.flag == FM_RDS_ENABLE) ? V4L2_TUNER_SUB_RDS : 0);
 	tuner->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS |
-			    V4L2_TUNER_CAP_LOW;
+			    V4L2_TUNER_CAP_LOW |
+			    V4L2_TUNER_CAP_HWSEEK_BOUNDED |
+			    V4L2_TUNER_CAP_HWSEEK_WRAP;
 	tuner->audmode = (stereo_mono_mode ?
 			  V4L2_TUNER_MODE_MONO : V4L2_TUNER_MODE_STEREO);
 

@@ -87,32 +87,36 @@ static unsigned long get_lockd_grace_period(void)
 		return nlm_timeout * 5 * HZ;
 }
 
-static struct lock_manager lockd_manager = {
-};
-
-static void grace_ender(struct work_struct *not_used)
+static void grace_ender(struct work_struct *grace)
 {
-	locks_end_grace(&lockd_manager);
+	struct delayed_work *dwork = container_of(grace, struct delayed_work,
+						  work);
+	struct lockd_net *ln = container_of(dwork, struct lockd_net,
+					    grace_period_end);
+
+	locks_end_grace(&ln->lockd_manager);
 }
 
-static DECLARE_DELAYED_WORK(grace_period_end, grace_ender);
-
-static void set_grace_period(void)
+static void set_grace_period(struct net *net)
 {
 	unsigned long grace_period = get_lockd_grace_period();
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
-	locks_start_grace(&lockd_manager);
-	cancel_delayed_work_sync(&grace_period_end);
-	schedule_delayed_work(&grace_period_end, grace_period);
+	locks_start_grace(net, &ln->lockd_manager);
+	cancel_delayed_work_sync(&ln->grace_period_end);
+	schedule_delayed_work(&ln->grace_period_end, grace_period);
 }
 
 static void restart_grace(void)
 {
 	if (nlmsvc_ops) {
-		cancel_delayed_work_sync(&grace_period_end);
-		locks_end_grace(&lockd_manager);
+		struct net *net = &init_net;
+		struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+		cancel_delayed_work_sync(&ln->grace_period_end);
+		locks_end_grace(&ln->lockd_manager);
 		nlmsvc_invalidate_all();
-		set_grace_period();
+		set_grace_period(net);
 	}
 }
 
@@ -136,8 +140,6 @@ lockd(void *vrqstp)
 	if (!nlm_timeout)
 		nlm_timeout = LOCKD_DFLT_TIMEO;
 	nlmsvc_timeout = nlm_timeout * HZ;
-
-	set_grace_period();
 
 	/*
 	 * The main request loop. We don't terminate until the last
@@ -184,8 +186,6 @@ lockd(void *vrqstp)
 		svc_process(rqstp);
 	}
 	flush_signals(current);
-	cancel_delayed_work_sync(&grace_period_end);
-	locks_end_grace(&lockd_manager);
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
@@ -266,6 +266,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	error = make_socks(serv, net);
 	if (error < 0)
 		goto err_socks;
+	set_grace_period(net);
 	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
@@ -283,6 +284,8 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	if (ln->nlmsvc_users) {
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
+			cancel_delayed_work_sync(&ln->grace_period_end);
+			locks_end_grace(&ln->lockd_manager);
 			svc_shutdown_net(serv, net);
 			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
 		}
@@ -589,6 +592,10 @@ module_param(nlm_max_connections, uint, 0644);
 
 static int lockd_init_net(struct net *net)
 {
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	INIT_DELAYED_WORK(&ln->grace_period_end, grace_ender);
+	INIT_LIST_HEAD(&ln->grace_list);
 	return 0;
 }
 

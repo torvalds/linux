@@ -212,7 +212,7 @@ ssize_t i2400mu_bus_bm_cmd_send(struct i2400m *i2400m,
 	}
 	if (result != cmd_size) {		/* all was transferred? */
 		dev_err(dev, "boot-mode cmd %d: incomplete transfer "
-			"(%zu vs %zu submitted)\n",  opcode, result, cmd_size);
+			"(%zd vs %zu submitted)\n",  opcode, result, cmd_size);
 		result = -EIO;
 		goto error_cmd_size;
 	}

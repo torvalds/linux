@@ -1,0 +1,16 @@
+config VFIO_IOMMU_TYPE1
+	tristate
+	depends on VFIO
+	default n
+
+menuconfig VFIO
+	tristate "VFIO Non-Privileged userspace driver framework"
+	depends on IOMMU_API
+	select VFIO_IOMMU_TYPE1 if X86
+	help
+	  VFIO provides a framework for secure userspace device drivers.
+	  See Documentation/vfio.txt for more details.
+
+	  If you don't know what to do here, say N.
+
+source "drivers/vfio/pci/Kconfig"

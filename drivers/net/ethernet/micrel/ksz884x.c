@@ -3913,7 +3913,7 @@ static void hw_start_rx(struct ksz_hw *hw)
 		hw->rx_stop = 2;
 }
 
-/*
+/**
  * hw_stop_rx - stop receiving
  * @hw: 	The hardware instance.
  *
@@ -4480,14 +4480,12 @@ static void ksz_init_rx_buffers(struct dev_info *adapter)
 		dma_buf->len = adapter->mtu;
 		if (!dma_buf->skb)
 			dma_buf->skb = alloc_skb(dma_buf->len, GFP_ATOMIC);
-		if (dma_buf->skb && !dma_buf->dma) {
-			dma_buf->skb->dev = adapter->dev;
+		if (dma_buf->skb && !dma_buf->dma)
 			dma_buf->dma = pci_map_single(
 				adapter->pdev,
 				skb_tail_pointer(dma_buf->skb),
 				dma_buf->len,
 				PCI_DMA_FROMDEVICE);
-		}
 
 		/* Set descriptor. */
 		set_rx_buf(desc, dma_buf->dma);
@@ -4881,8 +4879,8 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 	left = hw_alloc_pkt(hw, skb->len, num);
 	if (left) {
 		if (left < num ||
-				((CHECKSUM_PARTIAL == skb->ip_summed) &&
-				(ETH_P_IPV6 == htons(skb->protocol)))) {
+		    (CHECKSUM_PARTIAL == skb->ip_summed &&
+		     skb->protocol == htons(ETH_P_IPV6))) {
 			struct sk_buff *org_skb = skb;
 
 			skb = netdev_alloc_skb(dev, org_skb->len);

@@ -231,6 +231,9 @@ i) Constructor
       no_discard_passdown: Don't pass discards down to the underlying
 			   data device, but just remove the mapping.
 
+      read_only: Don't allow any changes to be made to the pool
+		 metadata.
+
     Data block size must be between 64KB (128 sectors) and 1GB
     (2097152 sectors) inclusive.
 
@@ -239,7 +242,7 @@ ii) Status
 
     <transaction id> <used metadata blocks>/<total metadata blocks>
     <used data blocks>/<total data blocks> <held metadata root>
-
+    [no_]discard_passdown ro|rw
 
     transaction id:
 	A 64-bit number used by userspace to help synchronise with metadata
@@ -256,6 +259,21 @@ ii) Status
 	'held' for userspace read access.  '-' indicates there is no
 	held root.  This feature is not yet implemented so '-' is
 	always returned.
+
+    discard_passdown|no_discard_passdown
+	Whether or not discards are actually being passed down to the
+	underlying device.  When this is enabled when loading the table,
+	it can get disabled if the underlying device doesn't support it.
+
+    ro|rw
+	If the pool encounters certain types of device failures it will
+	drop into a read-only metadata mode in which no changes to
+	the pool metadata (like allocating new blocks) are permitted.
+
+	In serious cases where even a read-only mode is deemed unsafe
+	no further I/O will be permitted and the status will just
+	contain the string 'Fail'.  The userspace recovery tools
+	should then be used.
 
 iii) Messages
 
@@ -329,3 +347,7 @@ regain some space then send the 'trim' message to the pool.
 ii) Status
 
      <nr mapped sectors> <highest mapped sector>
+
+	If the pool has encountered device errors and failed, the status
+	will just contain the string 'Fail'.  The userspace recovery
+	tools should then be used.

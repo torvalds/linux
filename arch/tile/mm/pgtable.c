@@ -575,13 +575,6 @@ void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
 }
 EXPORT_SYMBOL(ioremap_prot);
 
-/* Map a PCI MMIO bus address into VA space. */
-void __iomem *ioremap(resource_size_t phys_addr, unsigned long size)
-{
-	panic("ioremap for PCI MMIO is not supported");
-}
-EXPORT_SYMBOL(ioremap);
-
 /* Unmap an MMIO VA mapping. */
 void iounmap(volatile void __iomem *addr_in)
 {

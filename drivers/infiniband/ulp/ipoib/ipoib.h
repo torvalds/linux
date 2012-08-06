@@ -92,6 +92,8 @@ enum {
 	IPOIB_STOP_REAPER	  = 7,
 	IPOIB_FLAG_ADMIN_CM	  = 9,
 	IPOIB_FLAG_UMCAST	  = 10,
+	IPOIB_STOP_NEIGH_GC	  = 11,
+	IPOIB_NEIGH_TBL_FLUSH	  = 12,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -260,6 +262,20 @@ struct ipoib_ethtool_st {
 	u16     max_coalesced_frames;
 };
 
+struct ipoib_neigh_hash {
+	struct ipoib_neigh __rcu      **buckets;
+	struct rcu_head			rcu;
+	u32				mask;
+	u32				size;
+};
+
+struct ipoib_neigh_table {
+	struct ipoib_neigh_hash __rcu  *htbl;
+	rwlock_t			rwlock;
+	atomic_t			entries;
+	struct completion		flushed;
+};
+
 /*
  * Device private locking: network stack tx_lock protects members used
  * in TX fast path, lock protects everything else.  lock nests inside
@@ -279,6 +295,8 @@ struct ipoib_dev_priv {
 	struct rb_root  path_tree;
 	struct list_head path_list;
 
+	struct ipoib_neigh_table ntbl;
+
 	struct ipoib_mcast *broadcast;
 	struct list_head multicast_list;
 	struct rb_root multicast_tree;
@@ -291,7 +309,7 @@ struct ipoib_dev_priv {
 	struct work_struct flush_heavy;
 	struct work_struct restart_task;
 	struct delayed_work ah_reap_task;
-
+	struct delayed_work neigh_reap_task;
 	struct ib_device *ca;
 	u8		  port;
 	u16		  pkey;
@@ -377,13 +395,16 @@ struct ipoib_neigh {
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	struct ipoib_cm_tx *cm;
 #endif
-	union ib_gid	    dgid;
+	u8     daddr[INFINIBAND_ALEN];
 	struct sk_buff_head queue;
 
-	struct neighbour   *neighbour;
 	struct net_device *dev;
 
 	struct list_head    list;
+	struct ipoib_neigh __rcu *hnext;
+	struct rcu_head     rcu;
+	atomic_t	    refcnt;
+	unsigned long       alive;
 };
 
 #define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
@@ -394,21 +415,17 @@ static inline int ipoib_ud_need_sg(unsigned int ib_mtu)
 	return IPOIB_UD_BUF_SIZE(ib_mtu) > PAGE_SIZE;
 }
 
-/*
- * We stash a pointer to our private neighbour information after our
- * hardware address in neigh->ha.  The ALIGN() expression here makes
- * sure that this pointer is stored aligned so that an unaligned
- * load is not needed to dereference it.
- */
-static inline struct ipoib_neigh **to_ipoib_neigh(struct neighbour *neigh)
+void ipoib_neigh_dtor(struct ipoib_neigh *neigh);
+static inline void ipoib_neigh_put(struct ipoib_neigh *neigh)
 {
-	return (void*) neigh + ALIGN(offsetof(struct neighbour, ha) +
-				     INFINIBAND_ALEN, sizeof(void *));
+	if (atomic_dec_and_test(&neigh->refcnt))
+		ipoib_neigh_dtor(neigh);
 }
-
-struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neigh,
+struct ipoib_neigh *ipoib_neigh_get(struct net_device *dev, u8 *daddr);
+struct ipoib_neigh *ipoib_neigh_alloc(u8 *daddr,
 				      struct net_device *dev);
-void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh);
+void ipoib_neigh_free(struct ipoib_neigh *neigh);
+void ipoib_del_neighs_by_gid(struct net_device *dev, u8 *gid);
 
 extern struct workqueue_struct *ipoib_workqueue;
 
@@ -425,7 +442,6 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 {
 	kref_put(&ah->ref, ipoib_free_ah);
 }
-
 int ipoib_open(struct net_device *dev);
 int ipoib_add_pkey_attr(struct net_device *dev);
 int ipoib_add_umcast_attr(struct net_device *dev);
@@ -455,7 +471,7 @@ void ipoib_dev_cleanup(struct net_device *dev);
 
 void ipoib_mcast_join_task(struct work_struct *work);
 void ipoib_mcast_carrier_on_task(struct work_struct *work);
-void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb);
+void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
 int ipoib_mcast_start_thread(struct net_device *dev);
@@ -517,10 +533,10 @@ static inline int ipoib_cm_admin_enabled(struct net_device *dev)
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
-static inline int ipoib_cm_enabled(struct net_device *dev, struct neighbour *n)
+static inline int ipoib_cm_enabled(struct net_device *dev, u8 *hwaddr)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	return IPOIB_CM_SUPPORTED(n->ha) &&
+	return IPOIB_CM_SUPPORTED(hwaddr) &&
 		test_bit(IPOIB_FLAG_ADMIN_CM, &priv->flags);
 }
 
@@ -575,7 +591,7 @@ static inline int ipoib_cm_admin_enabled(struct net_device *dev)
 {
 	return 0;
 }
-static inline int ipoib_cm_enabled(struct net_device *dev, struct neighbour *n)
+static inline int ipoib_cm_enabled(struct net_device *dev, u8 *hwaddr)
 
 {
 	return 0;

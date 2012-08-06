@@ -156,23 +156,8 @@ static struct pci_driver hydra_driver = {
 	.remove		= __devexit_p(hydra_remove),
 };
 
-static int __init i2c_hydra_init(void)
-{
-	return pci_register_driver(&hydra_driver);
-}
-
-
-static void __exit i2c_hydra_exit(void)
-{
-	pci_unregister_driver(&hydra_driver);
-}
-
-
+module_pci_driver(hydra_driver);
 
 MODULE_AUTHOR("Geert Uytterhoeven <geert@linux-m68k.org>");
 MODULE_DESCRIPTION("i2c for Apple Hydra Mac I/O");
 MODULE_LICENSE("GPL");
-
-module_init(i2c_hydra_init);
-module_exit(i2c_hydra_exit);
-

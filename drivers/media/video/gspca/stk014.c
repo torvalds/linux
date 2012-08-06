@@ -29,84 +29,12 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-/* controls */
-enum e_ctrl {
-	BRIGHTNESS,
-	CONTRAST,
-	COLORS,
-	LIGHTFREQ,
-	NCTRLS		/* number of controls */
-};
+#define QUALITY 50
 
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-
-	struct gspca_ctrl ctrls[NCTRLS];
-
-	u8 quality;
-#define QUALITY_MIN 70
-#define QUALITY_MAX 95
-#define QUALITY_DEF 88
-
 	u8 jpeg_hdr[JPEG_HDR_SZ];
-};
-
-/* V4L2 controls supported by the driver */
-static void setbrightness(struct gspca_dev *gspca_dev);
-static void setcontrast(struct gspca_dev *gspca_dev);
-static void setcolors(struct gspca_dev *gspca_dev);
-static void setlightfreq(struct gspca_dev *gspca_dev);
-
-static const struct ctrl sd_ctrls[NCTRLS] = {
-[BRIGHTNESS] = {
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-		.default_value = 127,
-	    },
-	    .set_control = setbrightness
-	},
-[CONTRAST] = {
-	    {
-		.id      = V4L2_CID_CONTRAST,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Contrast",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-		.default_value = 127,
-	    },
-	    .set_control = setcontrast
-	},
-[COLORS] = {
-	    {
-		.id      = V4L2_CID_SATURATION,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Color",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-		.default_value = 127,
-	    },
-	    .set_control = setcolors
-	},
-[LIGHTFREQ] = {
-	    {
-		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
-		.type    = V4L2_CTRL_TYPE_MENU,
-		.name    = "Light frequency filter",
-		.minimum = 1,
-		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
-		.step    = 1,
-		.default_value = 1,
-	    },
-	    .set_control = setlightfreq
-	},
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -255,41 +183,36 @@ static void set_par(struct gspca_dev *gspca_dev,
 	snd_val(gspca_dev, 0x003f08, parval);
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
+static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int parval;
 
 	parval = 0x06000000		/* whiteness */
-		+ (sd->ctrls[BRIGHTNESS].val << 16);
+		+ (val << 16);
 	set_par(gspca_dev, parval);
 }
 
-static void setcontrast(struct gspca_dev *gspca_dev)
+static void setcontrast(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int parval;
 
 	parval = 0x07000000		/* contrast */
-		+ (sd->ctrls[CONTRAST].val << 16);
+		+ (val << 16);
 	set_par(gspca_dev, parval);
 }
 
-static void setcolors(struct gspca_dev *gspca_dev)
+static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
 	int parval;
 
 	parval = 0x08000000		/* saturation */
-		+ (sd->ctrls[COLORS].val << 16);
+		+ (val << 16);
 	set_par(gspca_dev, parval);
 }
 
-static void setlightfreq(struct gspca_dev *gspca_dev)
+static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	set_par(gspca_dev, sd->ctrls[LIGHTFREQ].val == 1
+	set_par(gspca_dev, val == 1
 			? 0x33640000		/* 50 Hz */
 			: 0x33780000);		/* 60 Hz */
 }
@@ -298,12 +221,8 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
-	gspca_dev->cam.ctrls = sd->ctrls;
-	sd->quality = QUALITY_DEF;
 	return 0;
 }
 
@@ -333,7 +252,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* create the JPEG header */
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x22);		/* JPEG 411 */
-	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+	jpeg_set_qual(sd->jpeg_hdr, QUALITY);
 
 	/* work on alternate 1 */
 	usb_set_interface(gspca_dev->dev, gspca_dev->iface, 1);
@@ -365,14 +284,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x0640, 0);
 	reg_w(gspca_dev, 0x0650, 0);
 	reg_w(gspca_dev, 0x0660, 0);
-	setbrightness(gspca_dev);		/* whiteness */
-	setcontrast(gspca_dev);			/* contrast */
-	setcolors(gspca_dev);			/* saturation */
 	set_par(gspca_dev, 0x09800000);		/* Red ? */
 	set_par(gspca_dev, 0x0a800000);		/* Green ? */
 	set_par(gspca_dev, 0x0b800000);		/* Blue ? */
 	set_par(gspca_dev, 0x0d030000);		/* Gamma ? */
-	setlightfreq(gspca_dev);
 
 	/* start the video flow */
 	set_par(gspca_dev, 0x01000000);
@@ -435,62 +350,70 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	static const char *freq_nm[3] = {"NoFliker", "50 Hz", "60 Hz"};
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 
-	switch (menu->id) {
-	case V4L2_CID_POWER_LINE_FREQUENCY:
-		if ((unsigned) menu->index >= ARRAY_SIZE(freq_nm))
-			break;
-		strcpy((char *) menu->name, freq_nm[menu->index]);
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
 		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightness(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		setcontrast(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		setcolors(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		setlightfreq(gspca_dev, ctrl->val);
+		break;
 	}
-	return -EINVAL;
-}
-
-static int sd_set_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (jcomp->quality < QUALITY_MIN)
-		sd->quality = QUALITY_MIN;
-	else if (jcomp->quality > QUALITY_MAX)
-		sd->quality = QUALITY_MAX;
-	else
-		sd->quality = jcomp->quality;
-	if (gspca_dev->streaming)
-		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 	return gspca_dev->usb_err;
 }
 
-static int sd_get_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
 
-	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = sd->quality;
-	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
-			| V4L2_JPEG_MARKER_DQT;
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 127);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 255, 1, 127);
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 255, 1, 127);
+	v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+			V4L2_CID_POWER_LINE_FREQUENCY,
+			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 1,
+			V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
 	return 0;
 }
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = NCTRLS,
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-	.querymenu = sd_querymenu,
-	.get_jcomp = sd_get_jcomp,
-	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */
@@ -516,6 +439,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

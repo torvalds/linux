@@ -235,7 +235,8 @@ static int spi_gpio_setup(struct spi_device *spi)
 			status = gpio_request(cs, dev_name(&spi->dev));
 			if (status)
 				return status;
-			status = gpio_direction_output(cs, spi->mode & SPI_CS_HIGH);
+			status = gpio_direction_output(cs,
+					!(spi->mode & SPI_CS_HIGH));
 		}
 	}
 	if (!status)

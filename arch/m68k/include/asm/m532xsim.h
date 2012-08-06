@@ -82,6 +82,9 @@
 #define	MCFINTC1_SIMR		0xFC04C01C
 #define	MCFINTC1_CIMR		0xFC04C01D
 #define	MCFINTC1_ICR0		0xFC04C040
+#define MCFINTC2_SIMR		(0)
+#define MCFINTC2_CIMR		(0)
+#define MCFINTC2_ICR0		(0)
 
 #define MCFSIM_ICR_TIMER1	(0xFC048040+32)
 #define MCFSIM_ICR_TIMER2	(0xFC048040+33)
@@ -134,6 +137,20 @@
 
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
+
+/*
+ * Power Management
+ */
+#define MCFPM_WCR		0xfc040013
+#define MCFPM_PPMSR0		0xfc04002c
+#define MCFPM_PPMCR0		0xfc04002d
+#define MCFPM_PPMSR1		0xfc04002e
+#define MCFPM_PPMCR1		0xfc04002f
+#define MCFPM_PPMHR0		0xfc040030
+#define MCFPM_PPMLR0		0xfc040034
+#define MCFPM_PPMHR1		0xfc040038
+#define MCFPM_LPCR		0xec090007
 
 /*********************************************************************
  *

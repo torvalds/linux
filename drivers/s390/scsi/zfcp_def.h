@@ -3,7 +3,7 @@
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2002, 2010
+ * Copyright IBM Corp. 2002, 2010
  */
 
 #ifndef ZFCP_DEF_H
