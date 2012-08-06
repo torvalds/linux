@@ -81,14 +81,15 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	struct nv50_fifo_priv *priv = (void *)parent->engine;
 	struct nv50_fifo_base *base = (void *)parent->parent;
 	struct nv50_fifo_chan *chan = (void *)parent;
-	u32 addr;
+	u32 addr, save, engn;
+	bool done;
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   : addr = 0x0020; break;
-	case NVDEV_ENGINE_MPEG : addr = 0x0060; break;
-	case NVDEV_ENGINE_CRYPT: addr = 0x00a0; break;
-	case NVDEV_ENGINE_COPY0: addr = 0x00c0; break;
+	case NVDEV_ENGINE_GR   : engn = 0; addr = 0x0020; break;
+	case NVDEV_ENGINE_MPEG : engn = 1; addr = 0x0060; break;
+	case NVDEV_ENGINE_CRYPT: engn = 4; addr = 0x00a0; break;
+	case NVDEV_ENGINE_COPY0: engn = 2; addr = 0x00c0; break;
 	default:
 		return -EINVAL;
 	}
@@ -101,8 +102,11 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	nv_wo32(base->eng, addr + 0x14, 0x00000000);
 	bar->flush(bar);
 
+	save = nv_mask(priv, 0x002520, 0x0000003f, 1 << engn);
 	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
-	if (!nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff)) {
+	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
+	nv_wr32(priv, 0x002520, save);
+	if (!done) {
 		nv_error(priv, "channel %d unload timeout\n", chan->base.chid);
 		if (suspend)
 			return -EBUSY;
