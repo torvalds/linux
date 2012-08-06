@@ -1,10 +1,8 @@
 #ifndef __NOUVEAU_FB_H__
 #define __NOUVEAU_FB_H__
 
-#ifndef XXX_THIS_IS_A_HACK
 #include <core/subdev.h>
 #include <core/device.h>
-#endif
 #include <core/mm.h>
 
 #include <subdev/vm.h>
@@ -50,7 +48,6 @@ struct nouveau_fb_tile {
 	u32 zcomp;
 };
 
-#ifndef XXX_THIS_IS_A_HACK
 struct nouveau_fb {
 	struct nouveau_subdev base;
 
@@ -133,6 +130,5 @@ void nv30_fb_tile_fini(struct nouveau_fb *, int i, struct nouveau_fb_tile *);
 
 void nv50_fb_vram_del(struct nouveau_fb *, struct nouveau_mem **);
 void nv50_fb_trap(struct nouveau_fb *, int display);
-#endif
 
 #endif

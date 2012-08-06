@@ -2,11 +2,9 @@
 #define __NOUVEAU_GPUOBJ_H__
 
 #include <core/object.h>
-#ifndef XXX_THIS_IS_A_HACK
 #include <core/device.h>
 #include <core/parent.h>
 #include <core/mm.h>
-#endif
 
 struct nouveau_vma;
 struct nouveau_vm;
@@ -24,14 +22,8 @@ struct nouveau_gpuobj {
 	u32 flags;
 	u64 addr;
 	u32 size;
-
-	/*XXX*/
-	struct drm_device *dev;
-	u32 engine;
-	u32 class;
 };
 
-#ifndef XXX_THIS_IS_A_HACK
 static inline struct nouveau_gpuobj *
 nv_gpuobj(void *obj)
 {
@@ -63,7 +55,6 @@ int nouveau_gpuobj_map(struct nouveau_gpuobj *, u32 acc, struct nouveau_vma *);
 int nouveau_gpuobj_map_vm(struct nouveau_gpuobj *, struct nouveau_vm *,
 			  u32 access, struct nouveau_vma *);
 void nouveau_gpuobj_unmap(struct nouveau_vma *);
-#endif
 
 static inline void
 nouveau_gpuobj_ref(struct nouveau_gpuobj *obj, struct nouveau_gpuobj **ref)
@@ -71,12 +62,10 @@ nouveau_gpuobj_ref(struct nouveau_gpuobj *obj, struct nouveau_gpuobj **ref)
 	nouveau_object_ref(&obj->base, (struct nouveau_object **)ref);
 }
 
-#ifndef XXX_THIS_IS_A_HACK
 void _nouveau_gpuobj_dtor(struct nouveau_object *);
 int  _nouveau_gpuobj_init(struct nouveau_object *);
 int  _nouveau_gpuobj_fini(struct nouveau_object *, bool);
 u32  _nouveau_gpuobj_rd32(struct nouveau_object *, u32);
 void _nouveau_gpuobj_wr32(struct nouveau_object *, u32, u32);
-#endif
 
 #endif

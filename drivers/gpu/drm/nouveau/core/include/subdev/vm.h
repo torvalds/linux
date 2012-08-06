@@ -25,14 +25,11 @@
 #ifndef __NOUVEAU_VM_H__
 #define __NOUVEAU_VM_H__
 
-#ifndef XXX_THIS_IS_A_HACK
 #include <core/object.h>
 #include <core/subdev.h>
 #include <core/device.h>
-#endif
 #include <core/mm.h>
 
-#ifndef XXX_THIS_IS_A_HACK
 struct nouveau_vm_pgt {
 	struct nouveau_gpuobj *obj[2];
 	u32 refcount[2];
@@ -42,7 +39,6 @@ struct nouveau_vm_pgd {
 	struct list_head head;
 	struct nouveau_gpuobj *obj;
 };
-#endif
 
 struct nouveau_gpuobj;
 struct nouveau_mem;
@@ -69,7 +65,6 @@ struct nouveau_vm {
 	u32 lpde;
 };
 
-#ifndef XXX_THIS_IS_A_HACK
 struct nouveau_vmmgr {
 	struct nouveau_subdev base;
 
@@ -129,7 +124,6 @@ int  nouveau_vm_create(struct nouveau_vmmgr *, u64 offset, u64 length,
 		       u64 mm_offset, u32 block, struct nouveau_vm **);
 int  nouveau_vm_new(struct nouveau_device *, u64 offset, u64 length,
 		    u64 mm_offset, struct nouveau_vm **);
-#endif
 int  nouveau_vm_ref(struct nouveau_vm *, struct nouveau_vm **,
 		    struct nouveau_gpuobj *pgd);
 int  nouveau_vm_get(struct nouveau_vm *, u64 size, u32 page_shift,
