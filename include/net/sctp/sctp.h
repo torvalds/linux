@@ -156,7 +156,7 @@ void sctp_hash_established(struct sctp_association *);
 void sctp_unhash_established(struct sctp_association *);
 void sctp_hash_endpoint(struct sctp_endpoint *);
 void sctp_unhash_endpoint(struct sctp_endpoint *);
-struct sock *sctp_err_lookup(int family, struct sk_buff *,
+struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
 void sctp_err_finish(struct sock *, struct sctp_association *);
@@ -644,9 +644,9 @@ static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 }
 
 /* This is the hash function for the association hash table. */
-static inline int sctp_assoc_hashfn(__u16 lport, __u16 rport)
+static inline int sctp_assoc_hashfn(struct net *net, __u16 lport, __u16 rport)
 {
-	int h = (lport << 16) + rport;
+	int h = (lport << 16) + rport + net_hash_mix(net);
 	h ^= h>>8;
 	return h & (sctp_assoc_hashsize - 1);
 }

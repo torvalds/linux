@@ -345,7 +345,8 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 
 	rport = ntohs(paddr->v4.sin_port);
 
-	hash = sctp_assoc_hashfn(ep->base.bind_addr.port, rport);
+	hash = sctp_assoc_hashfn(sock_net(ep->base.sk), ep->base.bind_addr.port,
+				 rport);
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, node, &head->chain) {
@@ -388,13 +389,14 @@ int sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
 {
 	struct sctp_sockaddr_entry *addr;
 	struct sctp_bind_addr *bp;
+	struct net *net = sock_net(ep->base.sk);
 
 	bp = &ep->base.bind_addr;
 	/* This function is called with the socket lock held,
 	 * so the address_list can not change.
 	 */
 	list_for_each_entry(addr, &bp->address_list, list) {
-		if (sctp_has_association(&addr->a, paddr))
+		if (sctp_has_association(net, &addr->a, paddr))
 			return 1;
 	}
 
