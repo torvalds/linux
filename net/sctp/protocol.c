@@ -93,8 +93,6 @@ int sysctl_sctp_wmem[3];
 /* Set up the proc fs entry for the SCTP protocol. */
 static __init int sctp_proc_init(void)
 {
-	if (percpu_counter_init(&sctp_sockets_allocated, 0))
-		goto out_nomem;
 #ifdef CONFIG_PROC_FS
 	if (!proc_net_sctp) {
 		proc_net_sctp = proc_mkdir("sctp", init_net.proc_net);
@@ -125,12 +123,9 @@ out_snmp_proc_init:
 		remove_proc_entry("sctp", init_net.proc_net);
 	}
 out_free_percpu:
-	percpu_counter_destroy(&sctp_sockets_allocated);
 #else
 	return 0;
 #endif /* CONFIG_PROC_FS */
-
-out_nomem:
 	return -ENOMEM;
 }
 
@@ -151,7 +146,6 @@ static void sctp_proc_exit(void)
 		remove_proc_entry("sctp", init_net.proc_net);
 	}
 #endif
-	percpu_counter_destroy(&sctp_sockets_allocated);
 }
 
 /* Private helper to extract ipv4 address and stash them in
@@ -1261,6 +1255,10 @@ SCTP_STATIC __init int sctp_init(void)
 	if (status)
 		goto err_init_mibs;
 
+	status = percpu_counter_init(&sctp_sockets_allocated, 0);
+	if (status)
+		goto err_percpu_counter_init;
+
 	/* Initialize proc fs directory.  */
 	status = sctp_proc_init();
 	if (status)
@@ -1481,6 +1479,8 @@ err_ahash_alloc:
 	sctp_dbg_objcnt_exit();
 	sctp_proc_exit();
 err_init_proc:
+	percpu_counter_destroy(&sctp_sockets_allocated);
+err_percpu_counter_init:
 	cleanup_sctp_mibs();
 err_init_mibs:
 	kmem_cache_destroy(sctp_chunk_cachep);
@@ -1521,6 +1521,7 @@ SCTP_STATIC __exit void sctp_exit(void)
 			     sizeof(struct sctp_bind_hashbucket)));
 
 	sctp_dbg_objcnt_exit();
+	percpu_counter_destroy(&sctp_sockets_allocated);
 	sctp_proc_exit();
 	cleanup_sctp_mibs();
 
