@@ -24,7 +24,6 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/list.h>
-#include <linux/spinlock.h>
 
 #include <mach/clk.h>
 
@@ -54,12 +53,8 @@
 #define ENABLE_ON_INIT		(1 << 28)
 #define PERIPH_ON_APB           (1 << 29)
 
-struct clk;
-
-#ifdef CONFIG_COMMON_CLK
 struct clk_tegra;
 #define to_clk_tegra(_hw) container_of(_hw, struct clk_tegra, hw)
-#endif
 
 struct clk_mux_sel {
 	struct clk	*input;
@@ -80,82 +75,6 @@ enum clk_state {
 	ON,
 	OFF,
 };
-
-#ifndef CONFIG_COMMON_CLK
-struct clk_ops {
-	void		(*init)(struct clk *);
-	int		(*enable)(struct clk *);
-	void		(*disable)(struct clk *);
-	int		(*set_parent)(struct clk *, struct clk *);
-	int		(*set_rate)(struct clk *, unsigned long);
-	long		(*round_rate)(struct clk *, unsigned long);
-	void		(*reset)(struct clk *, bool);
-	int		(*clk_cfg_ex)(struct clk *,
-				enum tegra_clk_ex_param, u32);
-};
-
-struct clk {
-	/* node for master clocks list */
-	struct list_head	node;		/* node for list of all clocks */
-	struct clk_lookup	lookup;
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry		*dent;
-#endif
-	bool			set;
-	struct clk_ops		*ops;
-	unsigned long		rate;
-	unsigned long		max_rate;
-	unsigned long		min_rate;
-	u32			flags;
-	const char		*name;
-
-	u32			refcnt;
-	enum clk_state		state;
-	struct clk		*parent;
-	u32			div;
-	u32			mul;
-
-	const struct clk_mux_sel	*inputs;
-	u32				reg;
-	u32				reg_shift;
-
-	struct list_head		shared_bus_list;
-
-	union {
-		struct {
-			unsigned int			clk_num;
-		} periph;
-		struct {
-			unsigned long			input_min;
-			unsigned long			input_max;
-			unsigned long			cf_min;
-			unsigned long			cf_max;
-			unsigned long			vco_min;
-			unsigned long			vco_max;
-			const struct clk_pll_freq_table	*freq_table;
-			int				lock_delay;
-			unsigned long			fixed_rate;
-		} pll;
-		struct {
-			u32				sel;
-			u32				reg_mask;
-		} mux;
-		struct {
-			struct clk			*main;
-			struct clk			*backup;
-		} cpu;
-		struct {
-			struct list_head		node;
-			bool				enabled;
-			unsigned long			rate;
-		} shared_bus_user;
-	} u;
-
-	spinlock_t spinlock;
-};
-
-#else
 
 struct clk_tegra {
 	/* node for master clocks list */
@@ -212,7 +131,6 @@ struct clk_tegra {
 	void (*reset)(struct clk_hw *, bool);
 	int (*clk_cfg_ex)(struct clk_hw *, enum tegra_clk_ex_param, u32);
 };
-#endif /* !CONFIG_COMMON_CLK */
 
 struct clk_duplicate {
 	const char *name;
@@ -225,13 +143,6 @@ struct tegra_clk_init_table {
 	unsigned long rate;
 	bool enabled;
 };
-
-#ifndef CONFIG_COMMON_CLK
-void clk_init(struct clk *clk);
-unsigned long clk_get_rate_locked(struct clk *c);
-int clk_set_rate_locked(struct clk *c, unsigned long rate);
-int clk_reparent(struct clk *c, struct clk *parent);
-#endif /* !CONFIG_COMMON_CLK */
 
 void tegra_clk_add(struct clk *c);
 void tegra2_init_clocks(void);
