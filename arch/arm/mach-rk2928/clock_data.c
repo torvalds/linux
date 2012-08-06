@@ -283,7 +283,7 @@ static unsigned long pll_clk_recalc(u8 pll_id, unsigned long parent_rate)
 		u32 pll_con0 = cru_readl(PLL_CONS(pll_id, 0));
 		u32 pll_con1 = cru_readl(PLL_CONS(pll_id, 1));
 		//integer mode
-		rate64 = (u64)parent_rate * PLL_GET_FBDIV(pll_con1);
+		rate64 = (u64)parent_rate * PLL_GET_FBDIV(pll_con0);
 		do_div(rate64, PLL_GET_REFDIV(pll_con1));
 
 		if (FRAC_MODE == dsmp) {
@@ -295,7 +295,7 @@ static unsigned long pll_clk_recalc(u8 pll_id, unsigned long parent_rate)
 					__func__, pll_id, frac_rate64, PLL_GET_FRAC(pll_con1));	
 		} 		
 		do_div(rate64, PLL_GET_POSTDIV1(pll_con0));
-		do_div(rate64, PLL_GET_POSTDIV2(pll_con0));
+		do_div(rate64, PLL_GET_POSTDIV2(pll_con1));
 
 		rate = rate64;
 	} else {
@@ -516,7 +516,7 @@ static void pll_wait_lock(int pll_idx)
 	u32 bit = 0x10u << pll_state[pll_idx];
 	int delay = 24000000;
 	while (delay > 0) {
-		if (!(cru_readl(PLL_CONS(pll_idx, 1)) & (0x1 << PLL_LOCK_SHIFT))) {
+		if ((cru_readl(PLL_CONS(pll_idx, 1)) & (0x1 << PLL_LOCK_SHIFT))) {
 			//printk("%s %08x\n", __func__, cru_readl(PLL_CONS(pll_idx, 1)) & (0x1 << PLL_LOCK_SHIFT));
 			//printk("%s ! %08x\n", __func__, !(cru_readl(PLL_CONS(pll_idx, 1)) & (0x1 << PLL_LOCK_SHIFT)));
 			break;
@@ -534,16 +534,16 @@ static int pll_clk_mode(struct clk *clk, int on)
 	// FIXME here 500 must be changed
 	u32 dly = 1500;
 
-	CLKDATA_DBG("pll_mode %s(%d)", clk->name, on);
+	CLKDATA_DBG("pll_mode %s(%d)\n", clk->name, on);
 	//FIXME
 	if (on) {
-		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_ON, PLL_LOCK_SHIFT), PLL_CONS(pll_id, 0));
+		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_ON, PLL_LOCK_SHIFT), PLL_CONS(pll_id, 1));
 		rk_clock_udelay(dly);
 		pll_wait_lock(pll_id);
 		cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
 	} else {
 		cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
-		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_DN, PLL_LOCK_SHIFT), PLL_CONS(pll_id, 0));
+		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_DN, PLL_LOCK_SHIFT), PLL_CONS(pll_id, 1));
 	}
 	return 0;
 }
