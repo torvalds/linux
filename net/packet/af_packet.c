@@ -1079,7 +1079,7 @@ static void *packet_current_rx_frame(struct packet_sock *po,
 	default:
 		WARN(1, "TPACKET version not supported\n");
 		BUG();
-		return 0;
+		return NULL;
 	}
 }
 
