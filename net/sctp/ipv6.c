@@ -582,7 +582,7 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (!(type & IPV6_ADDR_UNICAST))
 		return 0;
 
-	return ipv6_chk_addr(&init_net, in6, NULL, 0);
+	return ipv6_chk_addr(sock_net(&sp->inet.sk), in6, NULL, 0);
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -859,14 +859,14 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 		struct net_device *dev;
 
 		if (type & IPV6_ADDR_LINKLOCAL) {
+			struct net *net;
 			if (!addr->v6.sin6_scope_id)
 				return 0;
+			net = sock_net(&opt->inet.sk);
 			rcu_read_lock();
-			dev = dev_get_by_index_rcu(&init_net,
-						   addr->v6.sin6_scope_id);
+			dev = dev_get_by_index_rcu(net, addr->v6.sin6_scope_id);
 			if (!dev ||
-			    !ipv6_chk_addr(&init_net, &addr->v6.sin6_addr,
-					   dev, 0)) {
+			    !ipv6_chk_addr(net, &addr->v6.sin6_addr, dev, 0)) {
 				rcu_read_unlock();
 				return 0;
 			}
@@ -899,7 +899,7 @@ static int sctp_inet6_send_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			if (!addr->v6.sin6_scope_id)
 				return 0;
 			rcu_read_lock();
-			dev = dev_get_by_index_rcu(&init_net,
+			dev = dev_get_by_index_rcu(sock_net(&opt->inet.sk),
 						   addr->v6.sin6_scope_id);
 			rcu_read_unlock();
 			if (!dev)
