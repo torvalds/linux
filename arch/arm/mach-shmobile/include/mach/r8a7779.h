@@ -353,11 +353,8 @@ extern struct r8a7779_pm_domain r8a7779_vdp1;
 extern struct r8a7779_pm_domain r8a7779_impx3;
 
 extern void r8a7779_init_pm_domain(struct r8a7779_pm_domain *r8a7779_pd);
-extern void r8a7779_add_device_to_domain(struct r8a7779_pm_domain *r8a7779_pd,
-					struct platform_device *pdev);
 #else
 #define r8a7779_init_pm_domain(pd) do { } while (0)
-#define r8a7779_add_device_to_domain(pd, pdev) do { } while (0)
 #endif /* CONFIG_PM */
 
 #endif /* __ASM_R8A7779_H__ */
