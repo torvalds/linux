@@ -45,10 +45,9 @@
 	mfcr	r10;			/* save CR */			    \
 	mfspr	r11,SPRN_##type##_SRR1;/* what are we coming from */	    \
 	DO_KVM	intnum,SPRN_##type##_SRR1;    /* KVM hook */		    \
+	stw	r10,PACA_EX##type+EX_CR(r13); /* save old CR in the PACA */ \
 	addition;			/* additional code for that exc. */ \
 	std	r1,PACA_EX##type+EX_R1(r13); /* save old r1 in the PACA */  \
-	stw	r10,PACA_EX##type+EX_CR(r13); /* save old CR in the PACA */ \
-	mfspr	r11,SPRN_##type##_SRR1;/* what are we coming from */	    \
 	type##_SET_KSTACK;		/* get special stack if necessary */\
 	andi.	r10,r11,MSR_PR;		/* save stack pointer */	    \
 	beq	1f;			/* branch around if supervisor */   \
@@ -109,8 +108,8 @@
 #define PROLOG_ADDITION_NONE_MC(n)
 
 #define PROLOG_ADDITION_MASKABLE_GEN(n)					    \
-	lbz	r11,PACASOFTIRQEN(r13); /* are irqs soft-disabled ? */	    \
-	cmpwi	cr0,r11,0;		/* yes -> go out of line */	    \
+	lbz	r10,PACASOFTIRQEN(r13); /* are irqs soft-disabled ? */	    \
+	cmpwi	cr0,r10,0;		/* yes -> go out of line */	    \
 	beq	masked_interrupt_book3e_##n
 
 #define PROLOG_ADDITION_2REGS_GEN(n)					    \
@@ -624,44 +623,42 @@ kernel_dbg_exc:
  * accordingly and if the interrupt is level sensitive, we hard disable
  */
 
-masked_interrupt_book3e_0x500:
-	/* XXX When adding support for EPR, use PACA_IRQ_EE_EDGE */
-	li	r11,PACA_IRQ_EE
-	b	masked_interrupt_book3e_full_mask
-
-masked_interrupt_book3e_0x900:
-	ACK_DEC(r11);
-	li	r11,PACA_IRQ_DEC
-	b	masked_interrupt_book3e_no_mask
-masked_interrupt_book3e_0x980:
-	ACK_FIT(r11);
-	li	r11,PACA_IRQ_DEC
-	b	masked_interrupt_book3e_no_mask
-masked_interrupt_book3e_0x280:
-masked_interrupt_book3e_0x2c0:
-	li	r11,PACA_IRQ_DBELL
-	b	masked_interrupt_book3e_no_mask
-
-masked_interrupt_book3e_no_mask:
-	mtcr	r10
+.macro masked_interrupt_book3e paca_irq full_mask
 	lbz	r10,PACAIRQHAPPENED(r13)
-	or	r10,r10,r11
+	ori	r10,r10,\paca_irq
 	stb	r10,PACAIRQHAPPENED(r13)
-	b	1f
-masked_interrupt_book3e_full_mask:
-	mtcr	r10
-	lbz	r10,PACAIRQHAPPENED(r13)
-	or	r10,r10,r11
-	stb	r10,PACAIRQHAPPENED(r13)
-	mfspr	r10,SPRN_SRR1
-	rldicl	r11,r10,48,1		/* clear MSR_EE */
-	rotldi	r10,r11,16
-	mtspr	SPRN_SRR1,r10
-1:	ld	r10,PACA_EXGEN+EX_R10(r13);
-	ld	r11,PACA_EXGEN+EX_R11(r13);
-	mfspr	r13,SPRN_SPRG_GEN_SCRATCH;
+
+	.if \full_mask == 1
+	rldicl	r10,r11,48,1		/* clear MSR_EE */
+	rotldi	r11,r10,16
+	mtspr	SPRN_SRR1,r11
+	.endif
+
+	lwz	r11,PACA_EXGEN+EX_CR(r13)
+	mtcr	r11
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	ld	r11,PACA_EXGEN+EX_R11(r13)
+	mfspr	r13,SPRN_SPRG_GEN_SCRATCH
 	rfi
 	b	.
+.endm
+
+masked_interrupt_book3e_0x500:
+	// XXX When adding support for EPR, use PACA_IRQ_EE_EDGE
+	masked_interrupt_book3e PACA_IRQ_EE 1
+
+masked_interrupt_book3e_0x900:
+	ACK_DEC(r10);
+	masked_interrupt_book3e PACA_IRQ_DEC 0
+
+masked_interrupt_book3e_0x980:
+	ACK_FIT(r10);
+	masked_interrupt_book3e PACA_IRQ_DEC 0
+
+masked_interrupt_book3e_0x280:
+masked_interrupt_book3e_0x2c0:
+	masked_interrupt_book3e PACA_IRQ_DBELL 0
+
 /*
  * Called from arch_local_irq_enable when an interrupt needs
  * to be resent. r3 contains either 0x500,0x900,0x260 or 0x280
