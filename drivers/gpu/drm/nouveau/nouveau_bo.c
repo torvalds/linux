@@ -571,6 +571,18 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 }
 
 static int
+nve0_bo_move_init(struct nouveau_channel *chan, u32 handle)
+{
+	int ret = RING_SPACE(chan, 2);
+	if (ret == 0) {
+		BEGIN_NVC0(chan, NvSubCopy, 0x0000, 1);
+		OUT_RING  (chan, handle);
+		FIRE_RING (chan);
+	}
+	return ret;
+}
+
+static int
 nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
@@ -991,10 +1003,8 @@ out:
 }
 
 void
-nouveau_bo_move_init(struct nouveau_channel *chan)
+nouveau_bo_move_init(struct nouveau_drm *drm)
 {
-	struct nouveau_cli *cli = chan->cli;
-	struct nouveau_drm *drm = chan->drm;
 	static const struct {
 		const char *name;
 		int engine;
@@ -1004,7 +1014,8 @@ nouveau_bo_move_init(struct nouveau_channel *chan)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
-		{  "COPY", 0, 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
+		{  "COPY", 0, 0xa0b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY1", 5, 0x90b8, nvc0_bo_move_copy, nvc0_bo_move_init },
 		{ "COPY0", 4, 0x90b5, nvc0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 0, 0x85b5, nva3_bo_move_copy, nv50_bo_move_init },
@@ -1020,14 +1031,22 @@ nouveau_bo_move_init(struct nouveau_channel *chan)
 
 	do {
 		struct nouveau_object *object;
+		struct nouveau_channel *chan;
 		u32 handle = (mthd->engine << 16) | mthd->oclass;
 
-		ret = nouveau_object_new(nv_object(cli), chan->handle, handle,
+		if (mthd->init == nve0_bo_move_init)
+			chan = drm->cechan;
+		else
+			chan = drm->channel;
+		if (chan == NULL)
+			continue;
+
+		ret = nouveau_object_new(nv_object(drm), chan->handle, handle,
 					 mthd->oclass, NULL, 0, &object);
 		if (ret == 0) {
 			ret = mthd->init(chan, handle);
 			if (ret) {
-				nouveau_object_del(nv_object(cli),
+				nouveau_object_del(nv_object(drm),
 						   chan->handle, handle);
 				continue;
 			}

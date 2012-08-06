@@ -97,6 +97,7 @@ struct nouveau_drm {
 	void *fence;
 
 	/* context for accelerated drm-internal operations */
+	struct nouveau_channel *cechan;
 	struct nouveau_channel *channel;
 	struct nouveau_gpuobj *notify;
 	struct nouveau_fbdev *fbcon;

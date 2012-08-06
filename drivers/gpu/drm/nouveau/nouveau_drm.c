@@ -109,6 +109,7 @@ nouveau_accel_fini(struct nouveau_drm *drm)
 {
 	nouveau_gpuobj_ref(NULL, &drm->notify);
 	nouveau_channel_del(&drm->channel);
+	nouveau_channel_del(&drm->cechan);
 	if (drm->fence)
 		nouveau_fence(drm)->dtor(drm);
 }
@@ -118,6 +119,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 {
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_object *object;
+	u32 arg0, arg1;
 	int ret;
 
 	if (nouveau_noaccel)
@@ -134,8 +136,24 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		return;
 	}
 
+	if (device->card_type >= NV_E0) {
+		ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE,
+					  NVDRM_CHAN + 1,
+					  NVE0_CHANNEL_IND_ENGINE_CE0 |
+					  NVE0_CHANNEL_IND_ENGINE_CE1, 0,
+					  &drm->cechan);
+		if (ret)
+			NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
+
+		arg0 = NVE0_CHANNEL_IND_ENGINE_GR;
+		arg1 = 0;
+	} else {
+		arg0 = NvDmaFB;
+		arg1 = NvDmaTT;
+	}
+
 	ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE, NVDRM_CHAN,
-				  NvDmaFB, NvDmaTT, &drm->channel);
+				  arg0, arg1, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_fini(drm);
@@ -167,7 +185,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	}
 
 
-	nouveau_bo_move_init(drm->channel);
+	nouveau_bo_move_init(drm);
 }
 
 static int __devinit

@@ -264,6 +264,11 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	abi16->handles |= (1 << init->channel);
 
 	/* create channel object and initialise dma and fence management */
+	if (device->card_type >= NV_E0) {
+		init->fb_ctxdma_handle = NVE0_CHANNEL_IND_ENGINE_GR;
+		init->tt_ctxdma_handle = 0;
+	}
+
 	ret = nouveau_channel_new(drm, cli, NVDRM_DEVICE, NVDRM_CHAN |
 				  init->channel, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);

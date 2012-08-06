@@ -184,7 +184,8 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nouveau_cli *cli,
 
 int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
-		    u32 parent, u32 handle, struct nouveau_channel **pchan)
+		    u32 parent, u32 handle, u32 engine,
+		    struct nouveau_channel **pchan)
 {
 	static const u16 oclasses[] = { 0xa06f, 0x906f, 0x826f, 0x506f, 0 };
 	const u16 *oclass = oclasses;
@@ -202,7 +203,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	args.pushbuf = chan->push.handle;
 	args.ioffset = 0x10000 + chan->push.vma.offset;
 	args.ilength = 0x02000;
-	args.engine  = NVE0_CHANNEL_IND_ENGINE_GR;
+	args.engine  = engine;
 
 	do {
 		ret = nouveau_object_new(nv_object(cli), parent, handle,
@@ -261,9 +262,6 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nv_dma_class args;
 	int ret, i;
 
-	chan->vram = vram;
-	chan->gart = gart;
-
 	/* allocate dma objects to cover all allowed vram, and gart */
 	if (device->card_type < NV_C0) {
 		if (device->card_type >= NV_50) {
@@ -301,6 +299,9 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 					 0x003d, &args, sizeof(args), &object);
 		if (ret)
 			return ret;
+
+		chan->vram = vram;
+		chan->gart = gart;
 	}
 
 	/* initialise dma tracking parameters */
@@ -336,15 +337,17 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	/* allocate software object class (used for fences on <= nv05, and
 	 * to signal flip completion), bind it to a subchannel.
 	 */
-	ret = nouveau_object_new(nv_object(client), chan->handle,
-				 NvSw, nouveau_abi16_swclass(chan->drm),
-				 NULL, 0, &object);
-	if (ret)
-		return ret;
+	if (chan != chan->drm->cechan) {
+		ret = nouveau_object_new(nv_object(client), chan->handle,
+					 NvSw, nouveau_abi16_swclass(chan->drm),
+					 NULL, 0, &object);
+		if (ret)
+			return ret;
 
-	swch = (void *)object->parent;
-	swch->flip = nouveau_flip_complete;
-	swch->flip_data = chan;
+		swch = (void *)object->parent;
+		swch->flip = nouveau_flip_complete;
+		swch->flip_data = chan;
+	}
 
 	if (device->card_type < NV_C0) {
 		ret = RING_SPACE(chan, 2);
@@ -362,12 +365,12 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 int
 nouveau_channel_new(struct nouveau_drm *drm, struct nouveau_cli *cli,
-		    u32 parent, u32 handle, u32 vram, u32 gart,
+		    u32 parent, u32 handle, u32 arg0, u32 arg1,
 		    struct nouveau_channel **pchan)
 {
 	int ret;
 
-	ret = nouveau_channel_ind(drm, cli, parent, handle, pchan);
+	ret = nouveau_channel_ind(drm, cli, parent, handle, arg0, pchan);
 	if (ret) {
 		NV_DEBUG(drm, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, cli, parent, handle, pchan);
@@ -377,7 +380,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nouveau_cli *cli,
 		}
 	}
 
-	ret = nouveau_channel_init(*pchan, vram, gart);
+	ret = nouveau_channel_init(*pchan, arg0, arg1);
 	if (ret) {
 		NV_ERROR(drm, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);
