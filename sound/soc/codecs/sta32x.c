@@ -1006,17 +1006,7 @@ static struct i2c_driver sta32x_i2c_driver = {
 	.id_table = sta32x_i2c_id,
 };
 
-static int __init sta32x_init(void)
-{
-	return i2c_add_driver(&sta32x_i2c_driver);
-}
-module_init(sta32x_init);
-
-static void __exit sta32x_exit(void)
-{
-	i2c_del_driver(&sta32x_i2c_driver);
-}
-module_exit(sta32x_exit);
+module_i2c_driver(sta32x_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC STA32X driver");
 MODULE_AUTHOR("Johannes Stezenbach <js@sig21.net>");
