@@ -58,7 +58,8 @@
 extern struct __NandStorageInfo_t  NandStorageInfo;
 extern struct __NandDriverGlobal_t NandDriverInfo;
 
-struct nand_disk disk_array[MAX_PART_COUNT];
+/* +1 for whole nand device /dev/nand file */
+struct nand_disk disk_array[MAX_PART_COUNT+1];
 
 #define BLK_ERR_MSG_ON
 #ifdef  BLK_ERR_MSG_ON
@@ -811,11 +812,14 @@ static int nand_add_dev(struct nand_blk_ops *nandr, struct nand_disk *part)
 	gd->first_minor = (dev->devnum) << nandr->minorbits;
 	gd->fops = &nand_blktrans_ops;
 
-	snprintf(gd->disk_name, sizeof(gd->disk_name),
-		 "%s%c", nandr->name, (nandr->minorbits?'a':'0') + dev->devnum);
-	//snprintf(gd->devfs_name, sizeof(gd->devfs_name),
-	//	 "%s/%c", nandr->name, (nandr->minorbits?'a':'0') + dev->devnum);
-
+	if (dev->devnum)
+		/* /dev/nand[a-o] */
+		snprintf(gd->disk_name, sizeof(gd->disk_name),
+			 "%s%c", nandr->name, (nandr->minorbits?'a':'0') + dev->devnum-1);
+	else
+		/* /dev/nand */
+		snprintf(gd->disk_name, sizeof(gd->disk_name),
+			 "%s", nandr->name);
 
 	/* 2.5 has capacity in units of 512 bytes while still
 	   having BLOCK_SIZE_BITS set to 10. Just to keep us amused. */
