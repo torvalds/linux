@@ -17,6 +17,7 @@
 #ifndef __MACH_TEGRA20_CLOCK_H
 #define __MACH_TEGRA20_CLOCK_H
 
+extern struct clk_ops tegra_clk_32k_ops;
 extern struct clk_ops tegra_pll_ops;
 extern struct clk_ops tegra_clk_m_ops;
 extern struct clk_ops tegra_pll_div_ops;
@@ -33,5 +34,8 @@ extern struct clk_ops tegra_blink_clk_ops;
 extern struct clk_ops tegra_emc_clk_ops;
 extern struct clk_ops tegra_periph_clk_ops;
 extern struct clk_ops tegra_clk_shared_bus_ops;
+
+void tegra2_periph_clk_reset(struct clk_hw *hw, bool assert);
+void tegra2_cop_clk_reset(struct clk_hw *hw, bool assert);
 
 #endif

@@ -233,6 +233,7 @@ int clk_set_rate_locked(struct clk *c, unsigned long rate);
 int clk_reparent(struct clk *c, struct clk *parent);
 #endif /* !CONFIG_COMMON_CLK */
 
+void tegra_clk_add(struct clk *c);
 void tegra2_init_clocks(void);
 void tegra30_init_clocks(void);
 struct clk *tegra_get_clock_by_name(const char *name);
