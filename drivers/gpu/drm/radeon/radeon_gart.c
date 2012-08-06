@@ -522,7 +522,6 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	radeon_fence_unref(&vm->fence);
 
 	/* hw unbind */
-	radeon_asic_vm_unbind(rdev, vm);
 	rdev->vm_manager.use_bitmap &= ~(1 << vm->id);
 	list_del_init(&vm->list);
 	vm->id = -1;

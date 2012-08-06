@@ -1116,7 +1116,6 @@ struct radeon_asic {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
 		int (*bind)(struct radeon_device *rdev, struct radeon_vm *vm, int id);
-		void (*unbind)(struct radeon_device *rdev, struct radeon_vm *vm);
 		void (*tlb_flush)(struct radeon_device *rdev, struct radeon_vm *vm);
 		uint32_t (*page_flags)(struct radeon_device *rdev,
 				       struct radeon_vm *vm,
@@ -1734,7 +1733,6 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
 #define radeon_asic_vm_bind(rdev, v, id) (rdev)->asic->vm.bind((rdev), (v), (id))
-#define radeon_asic_vm_unbind(rdev, v) (rdev)->asic->vm.unbind((rdev), (v))
 #define radeon_asic_vm_tlb_flush(rdev, v) (rdev)->asic->vm.tlb_flush((rdev), (v))
 #define radeon_asic_vm_page_flags(rdev, v, flags) (rdev)->asic->vm.page_flags((rdev), (v), (flags))
 #define radeon_asic_vm_set_page(rdev, v, pfn, addr, flags) (rdev)->asic->vm.set_page((rdev), (v), (pfn), (addr), (flags))

@@ -2803,18 +2803,6 @@ int si_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id)
 	return 0;
 }
 
-void si_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
-{
-	if (vm->id < 8)
-		WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2), 0);
-	else
-		WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((vm->id - 8) << 2), 0);
-	/* flush hdp cache */
-	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
-	/* bits 0-15 are the VM contexts0-15 */
-	WREG32(VM_INVALIDATE_REQUEST, 1 << vm->id);
-}
-
 void si_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	if (vm->id == -1)
