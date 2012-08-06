@@ -737,6 +737,17 @@ static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c,
 }
 #endif
 
+static void __cpuinit cpu_set_tlb_flushall_shift(struct cpuinfo_x86 *c)
+{
+	if (!cpu_has_invlpg)
+		return;
+
+	tlb_flushall_shift = 5;
+
+	if (c->x86 <= 0x11)
+		tlb_flushall_shift = 4;
+}
+
 static void __cpuinit cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 {
 	u32 ebx, eax, ecx, edx;
@@ -788,6 +799,8 @@ static void __cpuinit cpu_detect_tlb_amd(struct cpuinfo_x86 *c)
 		tlb_lli_2m[ENTRIES] = eax & mask;
 
 	tlb_lli_4m[ENTRIES] = tlb_lli_2m[ENTRIES] >> 1;
+
+	cpu_set_tlb_flushall_shift(c);
 }
 
 static const struct cpu_dev __cpuinitconst amd_cpu_dev = {
