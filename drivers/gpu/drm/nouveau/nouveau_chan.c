@@ -188,7 +188,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
 {
 	static const u16 oclasses[] = { 0xa06f, 0x906f, 0x826f, 0x506f, 0 };
 	const u16 *oclass = oclasses;
-	struct nv_channel_ind_class args;
+	struct nve0_channel_ind_class args;
 	struct nouveau_channel *chan;
 	int ret;
 
@@ -202,6 +202,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	args.pushbuf = chan->push.handle;
 	args.ioffset = 0x10000 + chan->push.vma.offset;
 	args.ilength = 0x02000;
+	args.engine  = NVE0_CHANNEL_IND_ENGINE_GR;
 
 	do {
 		ret = nouveau_object_new(nv_object(cli), parent, handle,

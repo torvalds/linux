@@ -150,7 +150,7 @@ nv84_fifo_chan_ctor(struct nouveau_object *parent,
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
-	struct nv_channel_ind_class *args = data;
+	struct nv50_channel_ind_class *args = data;
 	u64 ioffset, ilength;
 	int ret;
 

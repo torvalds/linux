@@ -163,7 +163,7 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 	struct nvc0_fifo_priv *priv = (void *)engine;
 	struct nvc0_fifo_base *base = (void *)parent;
 	struct nvc0_fifo_chan *chan;
-	struct nv_channel_ind_class *args = data;
+	struct nv50_channel_ind_class *args = data;
 	u64 usermem, ioffset, ilength;
 	int ret, i;
 

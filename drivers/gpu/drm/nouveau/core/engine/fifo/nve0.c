@@ -38,6 +38,22 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
+#define _(a,b) { (a), ((1 << (a)) | (b)) }
+static const struct {
+	int subdev;
+	u32 mask;
+} fifo_engine[] = {
+	_(NVDEV_ENGINE_GR      , (1 << NVDEV_ENGINE_SW)),
+	_(NVDEV_ENGINE_VP      , 0),
+	_(NVDEV_ENGINE_PPP     , 0),
+	_(NVDEV_ENGINE_BSP     , 0),
+	_(NVDEV_ENGINE_COPY0   , 0),
+	_(NVDEV_ENGINE_COPY1   , 0),
+	_(NVDEV_ENGINE_VENC    , 0),
+};
+#undef _
+#define FIFO_ENGINE_NR ARRAY_SIZE(fifo_engine)
+
 struct nve0_fifo_engn {
 	struct nouveau_gpuobj *playlist[2];
 	int cur_playlist;
@@ -45,7 +61,7 @@ struct nve0_fifo_engn {
 
 struct nve0_fifo_priv {
 	struct nouveau_fifo base;
-	struct nve0_fifo_engn engine[16];
+	struct nve0_fifo_engn engine[FIFO_ENGINE_NR];
 	struct {
 		struct nouveau_gpuobj *mem;
 		struct nouveau_vma bar;
@@ -119,7 +135,9 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
+	case NVDEV_ENGINE_GR   :
+	case NVDEV_ENGINE_COPY0:
+	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
 	default:
 		return -EINVAL;
 	}
@@ -149,7 +167,9 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 
 	switch (nv_engidx(object->engine)) {
 	case NVDEV_ENGINE_SW   : return 0;
-	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
+	case NVDEV_ENGINE_GR   :
+	case NVDEV_ENGINE_COPY0:
+	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
 	default:
 		return -EINVAL;
 	}
@@ -178,24 +198,36 @@ nve0_fifo_chan_ctor(struct nouveau_object *parent,
 	struct nve0_fifo_priv *priv = (void *)engine;
 	struct nve0_fifo_base *base = (void *)parent;
 	struct nve0_fifo_chan *chan;
-	struct nv_channel_ind_class *args = data;
+	struct nve0_channel_ind_class *args = data;
 	u64 usermem, ioffset, ilength;
 	int ret, i;
 
 	if (size < sizeof(*args))
 		return -EINVAL;
 
+	for (i = 0; i < FIFO_ENGINE_NR; i++) {
+		if (args->engine & (1 << i)) {
+			if (nouveau_engine(parent, fifo_engine[i].subdev)) {
+				args->engine = (1 << i);
+				break;
+			}
+		}
+	}
+
+	if (i == FIFO_ENGINE_NR)
+		return -ENODEV;
+
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x200,
 					  args->pushbuf,
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR), &chan);
+					  fifo_engine[i].mask, &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
 
 	nv_parent(chan)->context_attach = nve0_fifo_context_attach;
 	nv_parent(chan)->context_detach = nve0_fifo_context_detach;
+	chan->engine = i;
 
 	usermem = chan->base.chid * 0x200;
 	ioffset = args->ioffset;
@@ -235,6 +267,7 @@ nve0_fifo_chan_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
+	nv_mask(priv, 0x800004 + (chid * 8), 0x000f0000, chan->engine << 16);
 	nv_wr32(priv, 0x800000 + (chid * 8), 0x80000000 | base->addr >> 12);
 	nv_mask(priv, 0x800004 + (chid * 8), 0x00000400, 0x00000400);
 	nve0_fifo_playlist_update(priv, chan->engine);

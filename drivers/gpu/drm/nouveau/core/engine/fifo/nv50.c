@@ -182,7 +182,7 @@ nv50_fifo_chan_ctor(struct nouveau_object *parent,
 		    struct nouveau_oclass *oclass, void *data, u32 size,
 		    struct nouveau_object **pobject)
 {
-	struct nv_channel_ind_class *args = data;
+	struct nv50_channel_ind_class *args = data;
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
 	struct nv50_fifo_chan *chan;
