@@ -60,7 +60,7 @@ static struct snd_soc_codec *rt3261_codec;
 #define RT3261_REG_RW 1 /* for debug */
 #define RT3261_DET_EXT_MIC 0
 
-#define VERSION "0.3.0 alsa 1.0.24"
+#define VERSION "RT3261_V1.0.0"
 
 struct rt3261_init_reg {
 	u8 reg;
