@@ -40,46 +40,45 @@
 /*
  * MEI device IDs
  */
-#define    MEI_DEV_ID_82946GZ	0x2974  /* 82946GZ/GL */
-#define    MEI_DEV_ID_82G35	0x2984  /* 82G35 Express */
-#define    MEI_DEV_ID_82Q965	0x2994  /* 82Q963/Q965 */
-#define    MEI_DEV_ID_82G965	0x29A4  /* 82P965/G965 */
+#define MEI_DEV_ID_82946GZ    0x2974  /* 82946GZ/GL */
+#define MEI_DEV_ID_82G35      0x2984  /* 82G35 Express */
+#define MEI_DEV_ID_82Q965     0x2994  /* 82Q963/Q965 */
+#define MEI_DEV_ID_82G965     0x29A4  /* 82P965/G965 */
 
-#define    MEI_DEV_ID_82GM965	0x2A04  /* Mobile PM965/GM965 */
-#define    MEI_DEV_ID_82GME965	0x2A14  /* Mobile GME965/GLE960 */
+#define MEI_DEV_ID_82GM965    0x2A04  /* Mobile PM965/GM965 */
+#define MEI_DEV_ID_82GME965   0x2A14  /* Mobile GME965/GLE960 */
 
-#define    MEI_DEV_ID_ICH9_82Q35 0x29B4  /* 82Q35 Express */
-#define    MEI_DEV_ID_ICH9_82G33 0x29C4  /* 82G33/G31/P35/P31 Express */
-#define    MEI_DEV_ID_ICH9_82Q33 0x29D4  /* 82Q33 Express */
-#define    MEI_DEV_ID_ICH9_82X38 0x29E4  /* 82X38/X48 Express */
-#define    MEI_DEV_ID_ICH9_3200  0x29F4  /* 3200/3210 Server */
+#define MEI_DEV_ID_ICH9_82Q35 0x29B4  /* 82Q35 Express */
+#define MEI_DEV_ID_ICH9_82G33 0x29C4  /* 82G33/G31/P35/P31 Express */
+#define MEI_DEV_ID_ICH9_82Q33 0x29D4  /* 82Q33 Express */
+#define MEI_DEV_ID_ICH9_82X38 0x29E4  /* 82X38/X48 Express */
+#define MEI_DEV_ID_ICH9_3200  0x29F4  /* 3200/3210 Server */
 
-#define    MEI_DEV_ID_ICH9_6	0x28B4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_7	0x28C4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_8	0x28D4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_9    0x28E4  /* Bearlake */
-#define    MEI_DEV_ID_ICH9_10	0x28F4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_6     0x28B4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_7     0x28C4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_8     0x28D4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_9     0x28E4  /* Bearlake */
+#define MEI_DEV_ID_ICH9_10    0x28F4  /* Bearlake */
 
-#define    MEI_DEV_ID_ICH9M_1	0x2A44  /* Cantiga */
-#define    MEI_DEV_ID_ICH9M_2	0x2A54  /* Cantiga */
-#define    MEI_DEV_ID_ICH9M_3	0x2A64  /* Cantiga */
-#define    MEI_DEV_ID_ICH9M_4	0x2A74  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_1    0x2A44  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_2    0x2A54  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_3    0x2A64  /* Cantiga */
+#define MEI_DEV_ID_ICH9M_4    0x2A74  /* Cantiga */
 
-#define    MEI_DEV_ID_ICH10_1	0x2E04  /* Eaglelake */
-#define    MEI_DEV_ID_ICH10_2	0x2E14  /* Eaglelake */
-#define    MEI_DEV_ID_ICH10_3	0x2E24  /* Eaglelake */
-#define    MEI_DEV_ID_ICH10_4	0x2E34  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_1    0x2E04  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_2    0x2E14  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_3    0x2E24  /* Eaglelake */
+#define MEI_DEV_ID_ICH10_4    0x2E34  /* Eaglelake */
 
-#define    MEI_DEV_ID_IBXPK_1	0x3B64  /* Calpella */
-#define    MEI_DEV_ID_IBXPK_2	0x3B65  /* Calpella */
+#define MEI_DEV_ID_IBXPK_1    0x3B64  /* Calpella */
+#define MEI_DEV_ID_IBXPK_2    0x3B65  /* Calpella */
 
-#define    MEI_DEV_ID_CPT_1	0x1C3A    /* Cougerpoint */
-#define    MEI_DEV_ID_PBG_1	0x1D3A    /* PBG */
+#define MEI_DEV_ID_CPT_1      0x1C3A  /* Couger Point */
+#define MEI_DEV_ID_PBG_1      0x1D3A  /* C600/X79 Patsburg */
 
-#define    MEI_DEV_ID_PPT_1	0x1E3A    /* Pantherpoint PPT */
-#define    MEI_DEV_ID_PPT_2	0x1CBA    /* Pantherpoint PPT */
-#define    MEI_DEV_ID_PPT_3	0x1DBA    /* Pantherpoint PPT */
-
+#define MEI_DEV_ID_PPT_1      0x1E3A  /* Panther Point */
+#define MEI_DEV_ID_PPT_2      0x1CBA  /* Panther Point */
+#define MEI_DEV_ID_PPT_3      0x1DBA  /* Panther Point */
 
 /*
  * MEI HW Section
