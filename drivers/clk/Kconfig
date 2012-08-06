@@ -40,4 +40,11 @@ config COMMON_CLK_WM831X
           Supports the clocking subsystem of the WM831x/2x series of
 	  PMICs from Wolfson Microlectronics.
 
+config COMMON_CLK_VERSATILE
+	tristate "Clock driver for ARM Reference designs"
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW
+	---help---
+          Supports clocking on ARM Reference designs Integrator/AP,
+	  Integrator/CP, RealView PB1176, EB, PB11MP and PBX.
+
 endmenu
