@@ -261,6 +261,7 @@ config IR_WINBOND_CIR
 
 config IR_IGUANA
 	tristate "IguanaWorks USB IR Transceiver"
+	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
 	select USB
 	---help---
