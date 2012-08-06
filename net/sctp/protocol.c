@@ -78,12 +78,6 @@ struct proc_dir_entry	*proc_net_sctp;
 struct idr sctp_assocs_id;
 DEFINE_SPINLOCK(sctp_assocs_id_lock);
 
-/* This is the global socket data structure used for responding to
- * the Out-of-the-blue (OOTB) packets.  A control sock will be created
- * for this socket at the initialization time.
- */
-static struct sock *sctp_ctl_sock;
-
 static struct sctp_pf *sctp_pf_inet6_specific;
 static struct sctp_pf *sctp_pf_inet_specific;
 static struct sctp_af *sctp_af_v4_specific;
@@ -95,12 +89,6 @@ struct kmem_cache *sctp_bucket_cachep __read_mostly;
 long sysctl_sctp_mem[3];
 int sysctl_sctp_rmem[3];
 int sysctl_sctp_wmem[3];
-
-/* Return the address of the control sock. */
-struct sock *sctp_get_ctl_sock(void)
-{
-	return sctp_ctl_sock;
-}
 
 /* Set up the proc fs entry for the SCTP protocol. */
 static __init int sctp_proc_init(void)
@@ -822,7 +810,7 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
  * Initialize the control inode/socket with a control endpoint data
  * structure.  This endpoint is reserved exclusively for the OOTB processing.
  */
-static int sctp_ctl_sock_init(void)
+static int sctp_ctl_sock_init(struct net *net)
 {
 	int err;
 	sa_family_t family = PF_INET;
@@ -830,14 +818,14 @@ static int sctp_ctl_sock_init(void)
 	if (sctp_get_pf_specific(PF_INET6))
 		family = PF_INET6;
 
-	err = inet_ctl_sock_create(&sctp_ctl_sock, family,
-				   SOCK_SEQPACKET, IPPROTO_SCTP, &init_net);
+	err = inet_ctl_sock_create(&net->sctp.ctl_sock, family,
+				   SOCK_SEQPACKET, IPPROTO_SCTP, net);
 
 	/* If IPv6 socket could not be created, try the IPv4 socket */
 	if (err < 0 && family == PF_INET6)
-		err = inet_ctl_sock_create(&sctp_ctl_sock, AF_INET,
+		err = inet_ctl_sock_create(&net->sctp.ctl_sock, AF_INET,
 					   SOCK_SEQPACKET, IPPROTO_SCTP,
-					   &init_net);
+					   net);
 
 	if (err < 0) {
 		pr_err("Failed to create the SCTP control socket\n");
@@ -1196,6 +1184,14 @@ static void sctp_v4_del_protocol(void)
 
 static int sctp_net_init(struct net *net)
 {
+	int status;
+
+	/* Initialize the control inode/socket for handling OOTB packets.  */
+	if ((status = sctp_ctl_sock_init(net))) {
+		pr_err("Failed to initialize the SCTP control sock\n");
+		goto err_ctl_sock_init;
+	}
+
 	/* Initialize the local address list. */
 	INIT_LIST_HEAD(&net->sctp.local_addr_list);
 	spin_lock_init(&net->sctp.local_addr_lock);
@@ -1210,6 +1206,9 @@ static int sctp_net_init(struct net *net)
 		    (unsigned long)net);
 
 	return 0;
+
+err_ctl_sock_init:
+	return status;
 }
 
 static void sctp_net_exit(struct net *net)
@@ -1217,6 +1216,9 @@ static void sctp_net_exit(struct net *net)
 	/* Free the local address list */
 	sctp_free_addr_wq(net);
 	sctp_free_local_addr_list(net);
+
+	/* Free the control endpoint.  */
+	inet_ctl_sock_destroy(net->sctp.ctl_sock);
 }
 
 static struct pernet_operations sctp_net_ops = {
@@ -1438,12 +1440,6 @@ SCTP_STATIC __init int sctp_init(void)
 	if (status)
 		goto err_v6_protosw_init;
 
-	/* Initialize the control inode/socket for handling OOTB packets.  */
-	if ((status = sctp_ctl_sock_init())) {
-		pr_err("Failed to initialize the SCTP control sock\n");
-		goto err_ctl_sock_init;
-	}
-
 	status = register_pernet_subsys(&sctp_net_ops);
 	if (status)
 		goto err_register_pernet_subsys;
@@ -1465,8 +1461,6 @@ err_v6_add_protocol:
 err_add_protocol:
 	unregister_pernet_subsys(&sctp_net_ops);
 err_register_pernet_subsys:
-	inet_ctl_sock_destroy(sctp_ctl_sock);
-err_ctl_sock_init:
 	sctp_v6_protosw_exit();
 err_v6_protosw_init:
 	sctp_v4_protosw_exit();
@@ -1505,9 +1499,6 @@ SCTP_STATIC __exit void sctp_exit(void)
 	/* Unregister with inet6/inet layers. */
 	sctp_v6_del_protocol();
 	sctp_v4_del_protocol();
-
-	/* Free the control endpoint.  */
-	inet_ctl_sock_destroy(sctp_ctl_sock);
 
 	unregister_pernet_subsys(&sctp_net_ops);
 

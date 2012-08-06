@@ -1,7 +1,15 @@
 #ifndef __NETNS_SCTP_H__
 #define __NETNS_SCTP_H__
 
+struct sock;
+
 struct netns_sctp {
+	/* This is the global socket data structure used for responding to
+	 * the Out-of-the-blue (OOTB) packets.  A control sock will be created
+	 * for this socket at the initialization time.
+	 */
+	struct sock *ctl_sock;
+
 	/* This is the global local address list.
 	 * We actively maintain this complete list of addresses on
 	 * the system by catching address add/delete events.

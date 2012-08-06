@@ -204,7 +204,7 @@ int sctp_rcv(struct sk_buff *skb)
 			sctp_endpoint_put(ep);
 			ep = NULL;
 		}
-		sk = sctp_get_ctl_sock();
+		sk = net->sctp.ctl_sock;
 		ep = sctp_sk(sk)->ep;
 		sctp_endpoint_hold(ep);
 		rcvr = &ep->base;
@@ -795,7 +795,7 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(struct net *net,
 			goto hit;
 	}
 
-	ep = sctp_sk((sctp_get_ctl_sock()))->ep;
+	ep = sctp_sk(net->sctp.ctl_sock)->ep;
 
 hit:
 	sctp_endpoint_hold(ep);

@@ -74,7 +74,8 @@ static struct sctp_packet *sctp_abort_pkt_new(const struct sctp_endpoint *ep,
 static int sctp_eat_data(const struct sctp_association *asoc,
 			 struct sctp_chunk *chunk,
 			 sctp_cmd_seq_t *commands);
-static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc,
+static struct sctp_packet *sctp_ootb_pkt_new(struct net *net,
+					     const struct sctp_association *asoc,
 					     const struct sctp_chunk *chunk);
 static void sctp_send_stale_cookie_err(const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
@@ -301,6 +302,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
 	sctp_unrecognized_param_t *unk_param;
+	struct net *net;
 	int len;
 
 	/* 6.10 Bundling
@@ -318,7 +320,8 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
 	 */
-	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep) {
+	net = sock_net(ep->base.sk);
+	if (ep == sctp_sk(net->sctp.ctl_sock)->ep) {
 		SCTP_INC_STATS(SCTP_MIB_OUTOFBLUES);
 		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
 	}
@@ -646,11 +649,13 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	int error = 0;
 	struct sctp_chunk *err_chk_p;
 	struct sock *sk;
+	struct net *net;
 
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
 	 */
-	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep) {
+	net = sock_net(ep->base.sk);
+	if (ep == sctp_sk(net->sctp.ctl_sock)->ep) {
 		SCTP_INC_STATS(SCTP_MIB_OUTOFBLUES);
 		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
 	}
@@ -1171,7 +1176,7 @@ sctp_disposition_t sctp_sf_backbeat_8_3(const struct sctp_endpoint *ep,
 /* Helper function to send out an abort for the restart
  * condition.
  */
-static int sctp_sf_send_restart_abort(union sctp_addr *ssa,
+static int sctp_sf_send_restart_abort(struct net *net, union sctp_addr *ssa,
 				      struct sctp_chunk *init,
 				      sctp_cmd_seq_t *commands)
 {
@@ -1197,7 +1202,7 @@ static int sctp_sf_send_restart_abort(union sctp_addr *ssa,
 	errhdr->length = htons(len);
 
 	/* Assign to the control socket. */
-	ep = sctp_sk((sctp_get_ctl_sock()))->ep;
+	ep = sctp_sk(net->sctp.ctl_sock)->ep;
 
 	/* Association is NULL since this may be a restart attack and we
 	 * want to send back the attacker's vtag.
@@ -1240,6 +1245,7 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 				       struct sctp_chunk *init,
 				       sctp_cmd_seq_t *commands)
 {
+	struct net *net = sock_net(new_asoc->base.sk);
 	struct sctp_transport *new_addr;
 	int ret = 1;
 
@@ -1258,7 +1264,7 @@ static int sctp_sf_check_restart_addrs(const struct sctp_association *new_asoc,
 			    transports) {
 		if (!list_has_sctp_addr(&asoc->peer.transport_addr_list,
 					&new_addr->ipaddr)) {
-			sctp_sf_send_restart_abort(&new_addr->ipaddr, init,
+			sctp_sf_send_restart_abort(net, &new_addr->ipaddr, init,
 						   commands);
 			ret = 0;
 			break;
@@ -1650,10 +1656,11 @@ sctp_disposition_t sctp_sf_do_5_2_3_initack(const struct sctp_endpoint *ep,
 					    const sctp_subtype_t type,
 					    void *arg, sctp_cmd_seq_t *commands)
 {
+	struct net *net = sock_net(ep->base.sk);
 	/* Per the above section, we'll discard the chunk if we have an
 	 * endpoint.  If this is an OOTB INIT-ACK, treat it as such.
 	 */
-	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep)
+	if (ep == sctp_sk(net->sctp.ctl_sock)->ep)
 		return sctp_sf_ootb(ep, asoc, type, arg, commands);
 	else
 		return sctp_sf_discard_chunk(ep, asoc, type, arg, commands);
@@ -3163,8 +3170,10 @@ static sctp_disposition_t sctp_sf_tabort_8_4_8(const struct sctp_endpoint *ep,
 	struct sctp_packet *packet = NULL;
 	struct sctp_chunk *chunk = arg;
 	struct sctp_chunk *abort;
+	struct net *net;
 
-	packet = sctp_ootb_pkt_new(asoc, chunk);
+	net = sock_net(ep->base.sk);
+	packet = sctp_ootb_pkt_new(net, asoc, chunk);
 
 	if (packet) {
 		/* Make an ABORT. The T bit will be set if the asoc
@@ -3425,8 +3434,10 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(const struct sctp_endpoint *ep,
 	struct sctp_packet *packet = NULL;
 	struct sctp_chunk *chunk = arg;
 	struct sctp_chunk *shut;
+	struct net *net;
 
-	packet = sctp_ootb_pkt_new(asoc, chunk);
+	net = sock_net(ep->base.sk);
+	packet = sctp_ootb_pkt_new(net, asoc, chunk);
 
 	if (packet) {
 		/* Make an SHUTDOWN_COMPLETE.
@@ -4262,6 +4273,7 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	struct sctp_packet *packet = NULL;
 	struct sctp_chunk *chunk =  arg;
 	struct sctp_chunk *abort = NULL;
+	struct net *net;
 
 	/* SCTP-AUTH, Section 6.3:
 	 *    It should be noted that if the receiver wants to tear
@@ -4282,6 +4294,7 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	if (!abort)
 		goto nomem;
 
+	net = sock_net(ep->base.sk);
 	if (asoc) {
 		/* Treat INIT-ACK as a special case during COOKIE-WAIT. */
 		if (chunk->chunk_hdr->type == SCTP_CID_INIT_ACK &&
@@ -4319,7 +4332,7 @@ static sctp_disposition_t sctp_sf_abort_violation(
 			SCTP_DEC_STATS(SCTP_MIB_CURRESTAB);
 		}
 	} else {
-		packet = sctp_ootb_pkt_new(asoc, chunk);
+		packet = sctp_ootb_pkt_new(net, asoc, chunk);
 
 		if (!packet)
 			goto nomem_pkt;
@@ -5825,8 +5838,10 @@ static struct sctp_packet *sctp_abort_pkt_new(const struct sctp_endpoint *ep,
 {
 	struct sctp_packet *packet;
 	struct sctp_chunk *abort;
+	struct net *net;
 
-	packet = sctp_ootb_pkt_new(asoc, chunk);
+	net = sock_net(ep->base.sk);
+	packet = sctp_ootb_pkt_new(net, asoc, chunk);
 
 	if (packet) {
 		/* Make an ABORT.
@@ -5858,7 +5873,8 @@ static struct sctp_packet *sctp_abort_pkt_new(const struct sctp_endpoint *ep,
 }
 
 /* Allocate a packet for responding in the OOTB conditions.  */
-static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc,
+static struct sctp_packet *sctp_ootb_pkt_new(struct net *net,
+					     const struct sctp_association *asoc,
 					     const struct sctp_chunk *chunk)
 {
 	struct sctp_packet *packet;
@@ -5919,7 +5935,7 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	 * the source address.
 	 */
 	sctp_transport_route(transport, (union sctp_addr *)&chunk->dest,
-			     sctp_sk(sctp_get_ctl_sock()));
+			     sctp_sk(net->sctp.ctl_sock));
 
 	packet = sctp_packet_init(&transport->packet, transport, sport, dport);
 	packet = sctp_packet_config(packet, vtag, 0);
@@ -5946,7 +5962,8 @@ static void sctp_send_stale_cookie_err(const struct sctp_endpoint *ep,
 	struct sctp_packet *packet;
 
 	if (err_chunk) {
-		packet = sctp_ootb_pkt_new(asoc, chunk);
+		struct net *net = sock_net(ep->base.sk);
+		packet = sctp_ootb_pkt_new(net, asoc, chunk);
 		if (packet) {
 			struct sctp_signed_cookie *cookie;
 

@@ -114,7 +114,6 @@
 /*
  * sctp/protocol.c
  */
-extern struct sock *sctp_get_ctl_sock(void);
 extern int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
 				     sctp_scope_t, gfp_t gfp,
 				     int flags);
