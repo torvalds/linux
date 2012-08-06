@@ -752,17 +752,7 @@ static struct i2c_driver cs4270_i2c_driver = {
 	.remove = cs4270_i2c_remove,
 };
 
-static int __init cs4270_init(void)
-{
-	return i2c_add_driver(&cs4270_i2c_driver);
-}
-module_init(cs4270_init);
-
-static void __exit cs4270_exit(void)
-{
-	i2c_del_driver(&cs4270_i2c_driver);
-}
-module_exit(cs4270_exit);
+module_i2c_driver(cs4270_i2c_driver);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Cirrus Logic CS4270 ALSA SoC Codec Driver");
