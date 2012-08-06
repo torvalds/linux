@@ -965,6 +965,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	else
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+	f->fmt.pix.priv = 0;
 	return 0;
 }
 
