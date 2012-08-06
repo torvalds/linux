@@ -330,11 +330,11 @@ static void android_bat_monitor_work(struct work_struct *work)
 		break;
 	}
 
-	pr_info("battery: l=%d v=%d c=%d temp=%d.%d h=%d st=%d type=%s\n",
+	pr_info("battery: l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d type=%s\n",
 		battery->batt_soc, battery->batt_vcell/1000,
-		battery->batt_current, battery->batt_temp / 10,
-		battery->batt_temp % 10, battery->batt_health,
-		battery->charging_status,
+		battery->batt_current, battery->batt_temp < 0 ? "-" : "",
+		abs(battery->batt_temp / 10), abs(battery->batt_temp % 10),
+		battery->batt_health, battery->charging_status,
 		charge_source_str(battery->charge_source));
 	power_supply_changed(&battery->psy_bat);
 	battery->last_poll = ktime_get_boottime();
