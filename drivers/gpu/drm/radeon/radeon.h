@@ -592,7 +592,7 @@ struct radeon_ib {
 	uint32_t			*ptr;
 	int				ring;
 	struct radeon_fence		*fence;
-	unsigned			vm_id;
+	struct radeon_vm		*vm;
 	bool				is_const_ib;
 	struct radeon_fence		*sync_to[RADEON_NUM_RINGS];
 	struct radeon_semaphore		*semaphore;
@@ -734,7 +734,8 @@ struct si_rlc {
 };
 
 int radeon_ib_get(struct radeon_device *rdev, int ring,
-		  struct radeon_ib *ib, unsigned size);
+		  struct radeon_ib *ib, struct radeon_vm *vm,
+		  unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		       struct radeon_ib *const_ib);

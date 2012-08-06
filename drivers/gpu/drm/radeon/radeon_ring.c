@@ -58,7 +58,8 @@ int radeon_debugfs_sa_init(struct radeon_device *rdev);
  * Returns 0 on success, error on failure.
  */
 int radeon_ib_get(struct radeon_device *rdev, int ring,
-		  struct radeon_ib *ib, unsigned size)
+		  struct radeon_ib *ib, struct radeon_vm *vm,
+		  unsigned size)
 {
 	int i, r;
 
@@ -76,8 +77,15 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 	ib->ring = ring;
 	ib->fence = NULL;
 	ib->ptr = radeon_sa_bo_cpu_addr(ib->sa_bo);
-	ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
-	ib->vm_id = 0;
+	ib->vm = vm;
+	if (vm) {
+		/* ib pool is bind at 0 in virtual address space,
+		 * so gpu_addr is the offset inside the pool bo
+		 */
+		ib->gpu_addr = ib->sa_bo->soffset;
+	} else {
+		ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
+	}
 	ib->is_const_ib = false;
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		ib->sync_to[i] = NULL;

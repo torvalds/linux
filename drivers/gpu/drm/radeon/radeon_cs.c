@@ -363,7 +363,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 	 * uncached).
 	 */
 	r =  radeon_ib_get(rdev, parser->ring, &parser->ib,
-			   ib_chunk->length_dw * 4);
+			   NULL, ib_chunk->length_dw * 4);
 	if (r) {
 		DRM_ERROR("Failed to get ib !\n");
 		return r;
@@ -380,7 +380,6 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		return r;
 	}
 	radeon_cs_sync_rings(parser);
-	parser->ib.vm_id = 0;
 	r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	if (r) {
 		DRM_ERROR("Failed to schedule IB !\n");
@@ -426,7 +425,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 			return -EINVAL;
 		}
 		r =  radeon_ib_get(rdev, parser->ring, &parser->const_ib,
-				   ib_chunk->length_dw * 4);
+				   vm, ib_chunk->length_dw * 4);
 		if (r) {
 			DRM_ERROR("Failed to get const ib !\n");
 			return r;
@@ -450,7 +449,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		return -EINVAL;
 	}
 	r =  radeon_ib_get(rdev, parser->ring, &parser->ib,
-			   ib_chunk->length_dw * 4);
+			   vm, ib_chunk->length_dw * 4);
 	if (r) {
 		DRM_ERROR("Failed to get ib !\n");
 		return r;
@@ -478,19 +477,8 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 	radeon_cs_sync_rings(parser);
 
-	parser->ib.vm_id = vm->id;
-	/* ib pool is bind at 0 in virtual address space,
-	 * so gpu_addr is the offset inside the pool bo
-	 */
-	parser->ib.gpu_addr = parser->ib.sa_bo->soffset;
-
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
-		parser->const_ib.vm_id = vm->id;
-		/* ib pool is bind at 0 in virtual address space,
-		 * so gpu_addr is the offset inside the pool bo
-		 */
-		parser->const_ib.gpu_addr = parser->const_ib.sa_bo->soffset;
 		r = radeon_ib_schedule(rdev, &parser->ib, &parser->const_ib);
 	} else {
 		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
