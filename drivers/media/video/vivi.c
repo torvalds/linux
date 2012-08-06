@@ -80,7 +80,8 @@ static const u8 *font8x16;
 struct vivi_fmt {
 	char  *name;
 	u32   fourcc;          /* v4l2 format id */
-	int   depth;
+	u8    depth;
+	bool  is_yuv;
 };
 
 static struct vivi_fmt formats[] = {
@@ -88,21 +89,25 @@ static struct vivi_fmt formats[] = {
 		.name     = "4:2:2, packed, YUYV",
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
+		.is_yuv   = true,
 	},
 	{
 		.name     = "4:2:2, packed, UYVY",
 		.fourcc   = V4L2_PIX_FMT_UYVY,
 		.depth    = 16,
+		.is_yuv   = true,
 	},
 	{
 		.name     = "4:2:2, packed, YVYU",
 		.fourcc   = V4L2_PIX_FMT_YVYU,
 		.depth    = 16,
+		.is_yuv   = true,
 	},
 	{
 		.name     = "4:2:2, packed, VYUY",
 		.fourcc   = V4L2_PIX_FMT_VYUY,
 		.depth    = 16,
+		.is_yuv   = true,
 	},
 	{
 		.name     = "RGB565 (LE)",
@@ -309,15 +314,9 @@ static void precalculate_bars(struct vivi_dev *dev)
 		r = bars[dev->input].bar[k][0];
 		g = bars[dev->input].bar[k][1];
 		b = bars[dev->input].bar[k][2];
-		is_yuv = 0;
+		is_yuv = dev->fmt->is_yuv;
 
 		switch (dev->fmt->fourcc) {
-		case V4L2_PIX_FMT_YUYV:
-		case V4L2_PIX_FMT_UYVY:
-		case V4L2_PIX_FMT_YVYU:
-		case V4L2_PIX_FMT_VYUY:
-			is_yuv = 1;
-			break;
 		case V4L2_PIX_FMT_RGB565:
 		case V4L2_PIX_FMT_RGB565X:
 			r >>= 3;
@@ -330,6 +329,10 @@ static void precalculate_bars(struct vivi_dev *dev)
 			g >>= 3;
 			b >>= 3;
 			break;
+		case V4L2_PIX_FMT_YUYV:
+		case V4L2_PIX_FMT_UYVY:
+		case V4L2_PIX_FMT_YVYU:
+		case V4L2_PIX_FMT_VYUY:
 		case V4L2_PIX_FMT_RGB24:
 		case V4L2_PIX_FMT_BGR24:
 		case V4L2_PIX_FMT_RGB32:
@@ -930,8 +933,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * dev->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
-	if (dev->fmt->fourcc == V4L2_PIX_FMT_YUYV ||
-	    dev->fmt->fourcc == V4L2_PIX_FMT_UYVY)
+	if (dev->fmt->is_yuv)
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	else
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
@@ -959,8 +961,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		(f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
-	if (fmt->fourcc == V4L2_PIX_FMT_YUYV ||
-	    fmt->fourcc == V4L2_PIX_FMT_UYVY)
+	if (fmt->is_yuv)
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	else
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
