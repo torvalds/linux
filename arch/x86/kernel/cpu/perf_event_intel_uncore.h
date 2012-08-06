@@ -230,6 +230,7 @@
 #define NHMEX_S1_MSR_MASK			0xe5a
 
 #define NHMEX_S_PMON_MM_CFG_EN			(0x1ULL << 63)
+#define NHMEX_S_EVENT_TO_R_PROG_EV		0
 
 /* NHM-EX Mbox */
 #define NHMEX_M0_MSR_GLOBAL_CTL			0xca0
