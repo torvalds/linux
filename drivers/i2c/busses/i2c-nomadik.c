@@ -24,6 +24,8 @@
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/i2c-nomadik.h>
+#include <linux/of.h>
+#include <linux/of_i2c.h>
 
 #define DRIVER_NAME "nmk-i2c"
 
@@ -913,18 +915,42 @@ static struct nmk_i2c_controller u8500_i2c = {
 	.sm             = I2C_FREQ_MODE_FAST,
 };
 
+static void nmk_i2c_of_probe(struct device_node *np,
+			struct nmk_i2c_controller *pdata)
+{
+	of_property_read_u32(np, "clock-frequency", &pdata->clk_freq);
+
+	/* This driver only supports 'standard' and 'fast' modes of operation. */
+	if (pdata->clk_freq <= 100000)
+		pdata->sm = I2C_FREQ_MODE_STANDARD;
+	else
+		pdata->sm = I2C_FREQ_MODE_FAST;
+}
+
 static atomic_t adapter_id = ATOMIC_INIT(0);
 
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
 	struct nmk_i2c_controller *pdata = adev->dev.platform_data;
+	struct device_node *np = adev->dev.of_node;
 	struct nmk_i2c_dev	*dev;
 	struct i2c_adapter *adap;
 
-	if (!pdata)
-		/* No i2c configuration found, using the default. */
-		pdata = &u8500_i2c;
+	if (!pdata) {
+		if (np) {
+			pdata = devm_kzalloc(&adev->dev, sizeof(*pdata), GFP_KERNEL);
+			if (!pdata) {
+				ret = -ENOMEM;
+				goto err_no_mem;
+			}
+			/* Provide the default configuration as a base. */
+			memcpy(pdata, &u8500_i2c, sizeof(struct nmk_i2c_controller));
+			nmk_i2c_of_probe(np, pdata);
+		} else
+			/* No i2c configuration found, using the default. */
+			pdata = &u8500_i2c;
+	}
 
 	dev = kzalloc(sizeof(struct nmk_i2c_dev), GFP_KERNEL);
 	if (!dev) {
@@ -960,6 +986,7 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	adap = &dev->adap;
+	adap->dev.of_node = np;
 	adap->dev.parent = &adev->dev;
 	adap->owner	= THIS_MODULE;
 	adap->class	= I2C_CLASS_HWMON | I2C_CLASS_SPD;
@@ -988,6 +1015,8 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(&adev->dev, "failed to add adapter\n");
 		goto err_add_adap;
 	}
+
+	of_i2c_register_devices(adap);
 
 	pm_runtime_put(&adev->dev);
 
