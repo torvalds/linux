@@ -155,7 +155,7 @@ static int tweak_set_configuration_cmd(struct urb *urb)
 	 * eventually reassigned to the device as far as driver matching
 	 * condition is kept.
 	 *
-	 * Unfortunatelly, an existing usbip connection will be dropped
+	 * Unfortunately, an existing usbip connection will be dropped
 	 * due to this driver unbinding. So, skip here.
 	 * A user may need to set a special configuration value before
 	 * exporting the device.

@@ -828,11 +828,11 @@ static void vhci_shutdown_connection(struct usbip_device *ud)
 	 *	disable endpoints. pending urbs are unlinked(dequeued).
 	 *
 	 * NOTE: After calling rh_port_disconnect(), the USB device drivers of a
-	 * deteched device should release used urbs in a cleanup function(i.e.
+	 * detached device should release used urbs in a cleanup function (i.e.
 	 * xxx_disconnect()). Therefore, vhci_hcd does not need to release
 	 * pushed urbs and their private data in this function.
 	 *
-	 * NOTE: vhci_dequeue() must be considered carefully. When shutdowning
+	 * NOTE: vhci_dequeue() must be considered carefully. When shutting down
 	 * a connection, vhci_shutdown_connection() expects vhci_dequeue()
 	 * gives back pushed urbs and frees their private data by request of
 	 * the cleanup function of a USB driver. When unlinking a urb with an
