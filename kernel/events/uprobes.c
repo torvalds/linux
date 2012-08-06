@@ -994,23 +994,16 @@ static void build_probe_list(struct inode *inode,
 }
 
 /*
- * Called from mmap_region.
- * called with mm->mmap_sem acquired.
+ * Called from mmap_region/vma_adjust with mm->mmap_sem acquired.
  *
- * Return -ve no if we fail to insert probes and we cannot
- * bail-out.
- * Return 0 otherwise. i.e:
- *
- *	- successful insertion of probes
- *	- (or) no possible probes to be inserted.
- *	- (or) insertion of probes failed but we can bail-out.
+ * Currently we ignore all errors and always return 0, the callers
+ * can't handle the failure anyway.
  */
 int uprobe_mmap(struct vm_area_struct *vma)
 {
 	struct list_head tmp_list;
 	struct uprobe *uprobe, *u;
 	struct inode *inode;
-	int ret;
 
 	if (!atomic_read(&uprobe_events) || !valid_vma(vma, true))
 		return 0;
@@ -1022,24 +1015,16 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	mutex_lock(uprobes_mmap_hash(inode));
 	build_probe_list(inode, vma, vma->vm_start, vma->vm_end, &tmp_list);
 
-	ret = 0;
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-		if (!ret) {
+		if (!fatal_signal_pending(current)) {
 			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
-
-			ret = install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
-			/*
-			 * We can race against uprobe_register(), see the
-			 * comment near uprobe_hash().
-			 */
-			if (ret == -EEXIST)
-				ret = 0;
+			install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 		}
 		put_uprobe(uprobe);
 	}
 	mutex_unlock(uprobes_mmap_hash(inode));
 
-	return ret;
+	return 0;
 }
 
 /*
