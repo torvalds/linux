@@ -257,12 +257,19 @@ config SERIAL_MAX3100
 	help
 	  MAX3100 chip support
 
-config SERIAL_MAX3107
-	tristate "MAX3107 support"
+config SERIAL_MAX310X
+	bool "MAX310X support"
 	depends on SPI
 	select SERIAL_CORE
+	select REGMAP_SPI if SPI
+	default n
 	help
-	  MAX3107 chip support
+	  This selects support for an advanced UART from Maxim (Dallas).
+	  Supported ICs are MAX3107, MAX3108.
+	  Each IC contains 128 words each of receive and transmit FIFO
+	  that can be controlled through I2C or high-speed SPI.
+
+	  Say Y here if you want to support this ICs.
 
 config SERIAL_DZ
 	bool "DECstation DZ serial driver"
