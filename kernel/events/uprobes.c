@@ -678,18 +678,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		uprobe->flags |= UPROBE_COPY_INSN;
 	}
 
-	/*
-	 * Ideally, should be updating the probe count after the breakpoint
-	 * has been successfully inserted. However a thread could hit the
-	 * breakpoint we just inserted even before the probe count is
-	 * incremented. If this is the first breakpoint placed, breakpoint
-	 * notifier might ignore uprobes and pass the trap to the thread.
-	 * Hence increment before and decrement on failure.
-	 */
-	atomic_inc(&mm->uprobes_state.count);
 	ret = set_swbp(&uprobe->arch, mm, vaddr);
-	if (ret)
-		atomic_dec(&mm->uprobes_state.count);
 
 	return ret;
 }
@@ -697,8 +686,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 static void
 remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	if (!set_orig_insn(&uprobe->arch, mm, vaddr, true))
-		atomic_dec(&mm->uprobes_state.count);
+	set_orig_insn(&uprobe->arch, mm, vaddr, true);
 }
 
 /*
@@ -1051,13 +1039,6 @@ int uprobe_mmap(struct vm_area_struct *vma)
 
 				if (!is_swbp_at_addr(vma->vm_mm, vaddr))
 					continue;
-
-				/*
-				 * Unable to insert a breakpoint, but
-				 * breakpoint lies underneath. Increment the
-				 * probe count.
-				 */
-				atomic_inc(&vma->vm_mm->uprobes_state.count);
 			}
 
 			if (!ret)
@@ -1067,9 +1048,6 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	}
 
 	mutex_unlock(uprobes_mmap_hash(inode));
-
-	if (ret)
-		atomic_sub(count, &vma->vm_mm->uprobes_state.count);
 
 	return ret;
 }
@@ -1089,9 +1067,6 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
 		return;
 
-	if (!atomic_read(&vma->vm_mm->uprobes_state.count))
-		return;
-
 	inode = vma->vm_file->f_mapping->host;
 	if (!inode)
 		return;
@@ -1100,13 +1075,6 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	build_probe_list(inode, vma, start, end, &tmp_list);
 
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-		unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
-		/*
-		 * An unregister could have removed the probe before
-		 * unmap. So check before we decrement the count.
-		 */
-		if (is_swbp_at_addr(vma->vm_mm, vaddr) == 1)
-			atomic_dec(&vma->vm_mm->uprobes_state.count);
 		put_uprobe(uprobe);
 	}
 	mutex_unlock(uprobes_mmap_hash(inode));
@@ -1217,7 +1185,6 @@ void uprobe_clear_state(struct mm_struct *mm)
 void uprobe_reset_state(struct mm_struct *mm)
 {
 	mm->uprobes_state.xol_area = NULL;
-	atomic_set(&mm->uprobes_state.count, 0);
 }
 
 /*
@@ -1585,8 +1552,7 @@ int uprobe_pre_sstep_notifier(struct pt_regs *regs)
 {
 	struct uprobe_task *utask;
 
-	if (!current->mm || !atomic_read(&current->mm->uprobes_state.count))
-		/* task is currently not uprobed */
+	if (!current->mm)
 		return 0;
 
 	utask = current->utask;

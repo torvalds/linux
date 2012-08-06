@@ -99,8 +99,8 @@ struct xol_area {
 
 struct uprobes_state {
 	struct xol_area		*xol_area;
-	atomic_t		count;
 };
+
 extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm,  unsigned long vaddr, bool verify);
 extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
