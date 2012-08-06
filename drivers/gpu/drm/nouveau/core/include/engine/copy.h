@@ -43,5 +43,7 @@ struct nouveau_copy {
 extern struct nouveau_oclass nva3_copy_oclass;
 extern struct nouveau_oclass nvc0_copy0_oclass;
 extern struct nouveau_oclass nvc0_copy1_oclass;
+extern struct nouveau_oclass nve0_copy0_oclass;
+extern struct nouveau_oclass nve0_copy1_oclass;
 
 #endif
