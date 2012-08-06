@@ -1171,9 +1171,7 @@ static int __devinit mx3_camera_probe(struct platform_device *pdev)
 
 	mx3_cam->pdata = pdev->dev.platform_data;
 	mx3_cam->platform_flags = mx3_cam->pdata->flags;
-	if (!(mx3_cam->platform_flags & (MX3_CAMERA_DATAWIDTH_4 |
-			MX3_CAMERA_DATAWIDTH_8 | MX3_CAMERA_DATAWIDTH_10 |
-			MX3_CAMERA_DATAWIDTH_15))) {
+	if (!(mx3_cam->platform_flags & MX3_CAMERA_DATAWIDTH_MASK)) {
 		/*
 		 * Platform hasn't set available data widths. This is bad.
 		 * Warn and use a default.
