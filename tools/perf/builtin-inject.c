@@ -191,10 +191,13 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 				 * If this fails, too bad, let the other side
 				 * account this as unresolved.
 				 */
-			} else
+			} else {
+#ifndef NO_LIBELF_SUPPORT
 				pr_warning("no symbols found in %s, maybe "
 					   "install a debug package?\n",
 					   al.map->dso->long_name);
+#endif
+			}
 		}
 	}
 
