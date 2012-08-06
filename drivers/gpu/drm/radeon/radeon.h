@@ -641,28 +641,12 @@ struct radeon_vm {
 	struct radeon_fence		*fence;
 };
 
-struct radeon_vm_funcs {
-	int (*init)(struct radeon_device *rdev);
-	void (*fini)(struct radeon_device *rdev);
-	/* cs mutex must be lock for schedule_ib */
-	int (*bind)(struct radeon_device *rdev, struct radeon_vm *vm, int id);
-	void (*unbind)(struct radeon_device *rdev, struct radeon_vm *vm);
-	void (*tlb_flush)(struct radeon_device *rdev, struct radeon_vm *vm);
-	uint32_t (*page_flags)(struct radeon_device *rdev,
-			       struct radeon_vm *vm,
-			       uint32_t flags);
-	void (*set_page)(struct radeon_device *rdev, struct radeon_vm *vm,
-			unsigned pfn, uint64_t addr, uint32_t flags);
-};
-
 struct radeon_vm_manager {
 	struct mutex			lock;
 	struct list_head		lru_vm;
 	uint32_t			use_bitmap;
 	struct radeon_sa_manager	sa_manager;
 	uint32_t			max_pfn;
-	/* fields constant after init */
-	const struct radeon_vm_funcs	*funcs;
 	/* number of VMIDs */
 	unsigned			nvm;
 	/* vram base address for page table entry  */
@@ -1128,6 +1112,18 @@ struct radeon_asic {
 		void (*tlb_flush)(struct radeon_device *rdev);
 		int (*set_page)(struct radeon_device *rdev, int i, uint64_t addr);
 	} gart;
+	struct {
+		int (*init)(struct radeon_device *rdev);
+		void (*fini)(struct radeon_device *rdev);
+		int (*bind)(struct radeon_device *rdev, struct radeon_vm *vm, int id);
+		void (*unbind)(struct radeon_device *rdev, struct radeon_vm *vm);
+		void (*tlb_flush)(struct radeon_device *rdev, struct radeon_vm *vm);
+		uint32_t (*page_flags)(struct radeon_device *rdev,
+				       struct radeon_vm *vm,
+				       uint32_t flags);
+		void (*set_page)(struct radeon_device *rdev, struct radeon_vm *vm,
+				 unsigned pfn, uint64_t addr, uint32_t flags);
+	} vm;
 	/* ring specific callbacks */
 	struct {
 		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -1735,6 +1731,13 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart.tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
+#define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
+#define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
+#define radeon_asic_vm_bind(rdev, v, id) (rdev)->asic->vm.bind((rdev), (v), (id))
+#define radeon_asic_vm_unbind(rdev, v) (rdev)->asic->vm.unbind((rdev), (v))
+#define radeon_asic_vm_tlb_flush(rdev, v) (rdev)->asic->vm.tlb_flush((rdev), (v))
+#define radeon_asic_vm_page_flags(rdev, v, flags) (rdev)->asic->vm.page_flags((rdev), (v), (flags))
+#define radeon_asic_vm_set_page(rdev, v, pfn, addr, flags) (rdev)->asic->vm.set_page((rdev), (v), (pfn), (addr), (flags))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
 #define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)].ring_test((rdev), (cp))
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))

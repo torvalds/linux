@@ -1358,16 +1358,6 @@ static struct radeon_asic btc_asic = {
 	},
 };
 
-static const struct radeon_vm_funcs cayman_vm_funcs = {
-	.init = &cayman_vm_init,
-	.fini = &cayman_vm_fini,
-	.bind = &cayman_vm_bind,
-	.unbind = &cayman_vm_unbind,
-	.tlb_flush = &cayman_vm_tlb_flush,
-	.page_flags = &cayman_vm_page_flags,
-	.set_page = &cayman_vm_set_page,
-};
-
 static struct radeon_asic cayman_asic = {
 	.init = &cayman_init,
 	.fini = &cayman_fini,
@@ -1381,6 +1371,15 @@ static struct radeon_asic cayman_asic = {
 	.gart = {
 		.tlb_flush = &cayman_pcie_gart_tlb_flush,
 		.set_page = &rs600_gart_set_page,
+	},
+	.vm = {
+		.init = &cayman_vm_init,
+		.fini = &cayman_vm_fini,
+		.bind = &cayman_vm_bind,
+		.unbind = &cayman_vm_unbind,
+		.tlb_flush = &cayman_vm_tlb_flush,
+		.page_flags = &cayman_vm_page_flags,
+		.set_page = &cayman_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
@@ -1477,6 +1476,15 @@ static struct radeon_asic trinity_asic = {
 		.tlb_flush = &cayman_pcie_gart_tlb_flush,
 		.set_page = &rs600_gart_set_page,
 	},
+	.vm = {
+		.init = &cayman_vm_init,
+		.fini = &cayman_vm_fini,
+		.bind = &cayman_vm_bind,
+		.unbind = &cayman_vm_unbind,
+		.tlb_flush = &cayman_vm_tlb_flush,
+		.page_flags = &cayman_vm_page_flags,
+		.set_page = &cayman_vm_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1558,16 +1566,6 @@ static struct radeon_asic trinity_asic = {
 	},
 };
 
-static const struct radeon_vm_funcs si_vm_funcs = {
-	.init = &si_vm_init,
-	.fini = &si_vm_fini,
-	.bind = &si_vm_bind,
-	.unbind = &si_vm_unbind,
-	.tlb_flush = &si_vm_tlb_flush,
-	.page_flags = &cayman_vm_page_flags,
-	.set_page = &cayman_vm_set_page,
-};
-
 static struct radeon_asic si_asic = {
 	.init = &si_init,
 	.fini = &si_fini,
@@ -1581,6 +1579,15 @@ static struct radeon_asic si_asic = {
 	.gart = {
 		.tlb_flush = &si_pcie_gart_tlb_flush,
 		.set_page = &rs600_gart_set_page,
+	},
+	.vm = {
+		.init = &si_vm_init,
+		.fini = &si_vm_fini,
+		.bind = &si_vm_bind,
+		.unbind = &si_vm_unbind,
+		.tlb_flush = &si_vm_tlb_flush,
+		.page_flags = &cayman_vm_page_flags,
+		.set_page = &cayman_vm_set_page,
 	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
@@ -1789,13 +1796,11 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic = &cayman_asic;
 		/* set num crtcs */
 		rdev->num_crtc = 6;
-		rdev->vm_manager.funcs = &cayman_vm_funcs;
 		break;
 	case CHIP_ARUBA:
 		rdev->asic = &trinity_asic;
 		/* set num crtcs */
 		rdev->num_crtc = 4;
-		rdev->vm_manager.funcs = &cayman_vm_funcs;
 		break;
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
@@ -1803,7 +1808,6 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->asic = &si_asic;
 		/* set num crtcs */
 		rdev->num_crtc = 6;
-		rdev->vm_manager.funcs = &si_vm_funcs;
 		break;
 	default:
 		/* FIXME: not supported yet */

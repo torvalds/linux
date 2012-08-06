@@ -448,7 +448,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 			return r;
 		}
 
-		r = rdev->vm_manager.funcs->init(rdev);
+		r = radeon_asic_vm_init(rdev);
 		if (r)
 			return r;
 	
@@ -476,7 +476,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 			}
 		}
 
-		r = rdev->vm_manager.funcs->bind(rdev, vm, vm->id);
+		r = radeon_asic_vm_bind(rdev, vm, vm->id);
 		if (r) {
 			DRM_ERROR("Failed to bind vm %d!\n", vm->id);
 		}
@@ -522,7 +522,7 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	radeon_fence_unref(&vm->fence);
 
 	/* hw unbind */
-	rdev->vm_manager.funcs->unbind(rdev, vm);
+	radeon_asic_vm_unbind(rdev, vm);
 	rdev->vm_manager.use_bitmap &= ~(1 << vm->id);
 	list_del_init(&vm->list);
 	vm->id = -1;
@@ -553,7 +553,7 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 	list_for_each_entry_safe(vm, tmp, &rdev->vm_manager.lru_vm, list) {
 		radeon_vm_unbind_locked(rdev, vm);
 	}
-	rdev->vm_manager.funcs->fini(rdev);
+	radeon_asic_vm_fini(rdev);
 	mutex_unlock(&rdev->vm_manager.lock);
 
 	radeon_sa_bo_manager_suspend(rdev, &rdev->vm_manager.sa_manager);
@@ -639,7 +639,7 @@ retry_id:
 	}
 
 	/* do hw bind */
-	r = rdev->vm_manager.funcs->bind(rdev, vm, id);
+	r = radeon_asic_vm_bind(rdev, vm, id);
 	if (r) {
 		radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
 		return r;
@@ -830,14 +830,14 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		}
 	}
 	pfn = bo_va->soffset / RADEON_GPU_PAGE_SIZE;
-	flags = rdev->vm_manager.funcs->page_flags(rdev, bo_va->vm, bo_va->flags);
+	flags = radeon_asic_vm_page_flags(rdev, bo_va->vm, bo_va->flags);
 	for (i = 0, addr = 0; i < ngpu_pages; i++) {
 		if (mem && bo_va->valid) {
 			addr = radeon_vm_get_addr(rdev, mem, i);
 		}
-		rdev->vm_manager.funcs->set_page(rdev, bo_va->vm, i + pfn, addr, flags);
+		radeon_asic_vm_set_page(rdev, bo_va->vm, i + pfn, addr, flags);
 	}
-	rdev->vm_manager.funcs->tlb_flush(rdev, bo_va->vm);
+	radeon_asic_vm_tlb_flush(rdev, bo_va->vm);
 	return 0;
 }
 
