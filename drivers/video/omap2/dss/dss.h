@@ -254,6 +254,10 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 		return false;
 }
 
+int dss_manager_kobj_init(struct omap_overlay_manager *mgr,
+		struct platform_device *pdev);
+void dss_manager_kobj_uninit(struct omap_overlay_manager *mgr);
+
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);
 void dss_uninit_overlays(struct platform_device *pdev);
