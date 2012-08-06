@@ -265,6 +265,9 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 		const struct omap_video_timings *mgr_timings);
 bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
 		enum omap_color_mode mode);
+int dss_overlay_kobj_init(struct omap_overlay *ovl,
+		struct platform_device *pdev);
+void dss_overlay_kobj_uninit(struct omap_overlay *ovl);
 
 /* DSS */
 int dss_init_platform_driver(void) __init;
