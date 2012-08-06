@@ -78,16 +78,18 @@ enum file_state {
 };
 
 /* MEI device states */
-enum mei_states {
-	MEI_INITIALIZING = 0,
-	MEI_INIT_CLIENTS,
-	MEI_ENABLED,
-	MEI_RESETING,
-	MEI_DISABLED,
-	MEI_RECOVERING_FROM_RESET,
-	MEI_POWER_DOWN,
-	MEI_POWER_UP
+enum mei_dev_state {
+	MEI_DEV_INITIALIZING = 0,
+	MEI_DEV_INIT_CLIENTS,
+	MEI_DEV_ENABLED,
+	MEI_DEV_RESETING,
+	MEI_DEV_DISABLED,
+	MEI_DEV_RECOVERING_FROM_RESET,
+	MEI_DEV_POWER_DOWN,
+	MEI_DEV_POWER_UP
 };
+
+const char *mei_dev_state_str(int state);
 
 /* init clients states*/
 enum mei_init_clients_states {
@@ -218,7 +220,7 @@ struct mei_device {
 	/*
 	 * mei device  states
 	 */
-	enum mei_states mei_state;
+	enum mei_dev_state dev_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
 	bool stop;

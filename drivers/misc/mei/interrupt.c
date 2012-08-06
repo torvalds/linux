@@ -633,7 +633,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 		if (version_res->host_version_supported) {
 			dev->version.major_version = HBM_MAJOR_VERSION;
 			dev->version.minor_version = HBM_MINOR_VERSION;
-			if (dev->mei_state == MEI_INIT_CLIENTS &&
+			if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 			    dev->init_clients_state == MEI_START_MESSAGE) {
 				dev->init_clients_timer = 0;
 				mei_host_enum_clients_message(dev);
@@ -707,7 +707,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 			dev->me_clients[dev->me_client_presentation_num].props
 						= props_res->client_properties;
 
-			if (dev->mei_state == MEI_INIT_CLIENTS &&
+			if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 			    dev->init_clients_state ==
 					MEI_CLIENT_PROPERTIES_MESSAGE) {
 				dev->me_client_index++;
@@ -734,7 +734,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 					 * Client ID 2 - Reserved for AMTHI
 					 */
 					bitmap_set(dev->host_clients_map, 0, 3);
-					dev->mei_state = MEI_ENABLED;
+					dev->dev_state = MEI_DEV_ENABLED;
 
 					/* if wd initialization fails, initialization the AMTHI client,
 					 * otherwise the AMTHI client will be initialized after the WD client connect response
@@ -759,7 +759,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	case HOST_ENUM_RES_CMD:
 		enum_res = (struct hbm_host_enum_response *) mei_msg;
 		memcpy(dev->me_clients_map, enum_res->valid_addresses, 32);
-		if (dev->mei_state == MEI_INIT_CLIENTS &&
+		if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
 		    dev->init_clients_state == MEI_ENUM_CLIENTS_MESSAGE) {
 				dev->init_clients_timer = 0;
 				dev->me_client_presentation_num = 0;
@@ -776,7 +776,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 		break;
 
 	case HOST_STOP_RES_CMD:
-		dev->mei_state = MEI_DISABLED;
+		dev->dev_state = MEI_DEV_DISABLED;
 		dev_dbg(&dev->pdev->dev, "resetting because of FW stop response.\n");
 		mei_reset(dev, 1);
 		break;
@@ -1240,7 +1240,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 		*slots -= dev->extra_write_index;
 		dev->extra_write_index = 0;
 	}
-	if (dev->mei_state == MEI_ENABLED) {
+	if (dev->dev_state == MEI_DEV_ENABLED) {
 		if (dev->wd_pending &&
 		    mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
 			if (mei_wd_send(dev))
@@ -1361,8 +1361,8 @@ void mei_timer(struct work_struct *work)
 
 
 	mutex_lock(&dev->device_lock);
-	if (dev->mei_state != MEI_ENABLED) {
-		if (dev->mei_state == MEI_INIT_CLIENTS) {
+	if (dev->dev_state != MEI_DEV_ENABLED) {
+		if (dev->dev_state == MEI_DEV_INIT_CLIENTS) {
 			if (dev->init_clients_timer) {
 				if (--dev->init_clients_timer == 0) {
 					dev_dbg(&dev->pdev->dev, "IMEI reset due to init clients timeout ,init clients state = %d.\n",
@@ -1484,8 +1484,8 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 
 	/* check if ME wants a reset */
 	if ((dev->me_hw_state & ME_RDY_HRA) == 0 &&
-	    dev->mei_state != MEI_RESETING &&
-	    dev->mei_state != MEI_INITIALIZING) {
+	    dev->dev_state != MEI_DEV_RESETING &&
+	    dev->dev_state != MEI_DEV_INITIALIZING) {
 		dev_dbg(&dev->pdev->dev, "FW not ready.\n");
 		mei_reset(dev, 1);
 		mutex_unlock(&dev->device_lock);
@@ -1498,7 +1498,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 			dev_dbg(&dev->pdev->dev, "we need to start the dev.\n");
 			dev->host_hw_state |= (H_IE | H_IG | H_RDY);
 			mei_hcsr_set(dev);
-			dev->mei_state = MEI_INIT_CLIENTS;
+			dev->dev_state = MEI_DEV_INIT_CLIENTS;
 			dev_dbg(&dev->pdev->dev, "link is established start sending messages.\n");
 			/* link is established
 			 * start sending messages.

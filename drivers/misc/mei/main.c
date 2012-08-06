@@ -232,9 +232,9 @@ static int mei_open(struct inode *inode, struct file *file)
 		goto out_unlock;
 
 	err = -ENODEV;
-	if (dev->mei_state != MEI_ENABLED) {
-		dev_dbg(&dev->pdev->dev, "mei_state != MEI_ENABLED  mei_state= %d\n",
-		    dev->mei_state);
+	if (dev->dev_state != MEI_DEV_ENABLED) {
+		dev_dbg(&dev->pdev->dev, "dev_state != MEI_ENABLED  dev_state = %s\n",
+		    mei_dev_state_str(dev->dev_state));
 		goto out_unlock;
 	}
 	err = -EMFILE;
@@ -384,7 +384,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	dev = cl->dev;
 
 	mutex_lock(&dev->device_lock);
-	if (dev->mei_state != MEI_ENABLED) {
+	if (dev->dev_state != MEI_DEV_ENABLED) {
 		rets = -ENODEV;
 		goto out;
 	}
@@ -538,7 +538,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	mutex_lock(&dev->device_lock);
 
-	if (dev->mei_state != MEI_ENABLED) {
+	if (dev->dev_state != MEI_DEV_ENABLED) {
 		mutex_unlock(&dev->device_lock);
 		return -ENODEV;
 	}
@@ -613,7 +613,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			rets = -ENOMEM;
 			goto unlock_dev;
 		}
-		if (dev->mei_state != MEI_ENABLED) {
+		if (dev->dev_state != MEI_DEV_ENABLED) {
 			rets = -ENODEV;
 			goto unlock_dev;
 		}
@@ -769,7 +769,7 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 	dev_dbg(&dev->pdev->dev, "IOCTL cmd = 0x%x", cmd);
 
 	mutex_lock(&dev->device_lock);
-	if (dev->mei_state != MEI_ENABLED) {
+	if (dev->dev_state != MEI_DEV_ENABLED) {
 		rets = -ENODEV;
 		goto out;
 	}
@@ -848,7 +848,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 
 	mutex_lock(&dev->device_lock);
 
-	if (dev->mei_state != MEI_ENABLED)
+	if (dev->dev_state != MEI_DEV_ENABLED)
 		goto out;
 
 
@@ -1118,9 +1118,9 @@ static int mei_pci_suspend(struct device *device)
 	/* Stop watchdog if exists */
 	err = mei_wd_stop(dev, true);
 	/* Set new mei state */
-	if (dev->mei_state == MEI_ENABLED ||
-	    dev->mei_state == MEI_RECOVERING_FROM_RESET) {
-		dev->mei_state = MEI_POWER_DOWN;
+	if (dev->dev_state == MEI_DEV_ENABLED ||
+	    dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET) {
+		dev->dev_state = MEI_DEV_POWER_DOWN;
 		mei_reset(dev, 0);
 	}
 	mutex_unlock(&dev->device_lock);
@@ -1162,7 +1162,7 @@ static int mei_pci_resume(struct device *device)
 	}
 
 	mutex_lock(&dev->device_lock);
-	dev->mei_state = MEI_POWER_UP;
+	dev->dev_state = MEI_DEV_POWER_UP;
 	mei_reset(dev, 1);
 	mutex_unlock(&dev->device_lock);
 

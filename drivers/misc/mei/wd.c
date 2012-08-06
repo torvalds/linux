@@ -202,10 +202,10 @@ static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 
 	mutex_lock(&dev->device_lock);
 
-	if (dev->mei_state != MEI_ENABLED) {
+	if (dev->dev_state != MEI_DEV_ENABLED) {
 		dev_dbg(&dev->pdev->dev,
-			"wd: mei_state != MEI_ENABLED  mei_state = %d\n",
-			dev->mei_state);
+			"wd: dev_state != MEI_DEV_ENABLED  dev_state = %s\n",
+			mei_dev_state_str(dev->dev_state));
 		goto end_unlock;
 	}
 

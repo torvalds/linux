@@ -108,7 +108,7 @@ int mei_ioctl_connect_client(struct file *file,
 
 	cb->major_file_operations = MEI_IOCTL;
 
-	if (dev->mei_state != MEI_ENABLED) {
+	if (dev->dev_state != MEI_DEV_ENABLED) {
 		rets = -ENODEV;
 		goto end;
 	}
@@ -402,7 +402,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	if (cl->state != MEI_FILE_CONNECTED)
 		return -ENODEV;
 
-	if (dev->mei_state != MEI_ENABLED)
+	if (dev->dev_state != MEI_DEV_ENABLED)
 		return -ENODEV;
 
 	dev_dbg(&dev->pdev->dev, "check if read is pending.\n");
