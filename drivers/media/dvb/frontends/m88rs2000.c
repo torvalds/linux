@@ -481,7 +481,7 @@ static int m88rs2000_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	if ((reg & 0x7) == 0x7) {
 		*status = FE_HAS_CARRIER | FE_HAS_SIGNAL | FE_HAS_VITERBI
-			| FE_HAS_LOCK;
+			| FE_HAS_SYNC | FE_HAS_LOCK;
 		if (state->config->set_ts_params)
 			state->config->set_ts_params(fe, CALL_IS_READ);
 	}
