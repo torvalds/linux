@@ -377,7 +377,8 @@ static int __cpuinit xen_cpu_up(unsigned int cpu, struct task_struct *idle)
 		return rc;
 
 	if (num_online_cpus() == 1)
-		alternatives_smp_switch(1);
+		/* Just in case we booted with a single CPU. */
+		alternatives_enable_smp();
 
 	rc = xen_smp_intr_init(cpu);
 	if (rc)
@@ -424,9 +425,6 @@ static void xen_cpu_die(unsigned int cpu)
 	unbind_from_irqhandler(per_cpu(xen_irq_work, cpu), NULL);
 	xen_uninit_lock_cpu(cpu);
 	xen_teardown_timer(cpu);
-
-	if (num_online_cpus() == 1)
-		alternatives_smp_switch(0);
 }
 
 static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
