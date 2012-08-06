@@ -1001,21 +1001,7 @@ static struct platform_device *sh7372_late_devices[] __initdata = {
 
 void __init sh7372_add_standard_devices(void)
 {
-	rmobile_init_pm_domain(&sh7372_pd_a4lc);
-	rmobile_init_pm_domain(&sh7372_pd_a4mp);
-	rmobile_init_pm_domain(&sh7372_pd_d4);
-	rmobile_init_pm_domain(&sh7372_pd_a4r);
-	rmobile_init_pm_domain(&sh7372_pd_a3rv);
-	rmobile_init_pm_domain(&sh7372_pd_a3ri);
-	rmobile_init_pm_domain(&sh7372_pd_a4s);
-	rmobile_init_pm_domain(&sh7372_pd_a3sp);
-	rmobile_init_pm_domain(&sh7372_pd_a3sg);
-
-	pm_genpd_add_subdomain_names("A4LC", "A3RV");
-	pm_genpd_add_subdomain_names("A4R", "A4LC");
-
-	pm_genpd_add_subdomain_names("A4S", "A3SG");
-	pm_genpd_add_subdomain_names("A4S", "A3SP");
+	sh7372_init_pm_domains();
 
 	platform_add_devices(sh7372_early_devices,
 			    ARRAY_SIZE(sh7372_early_devices));

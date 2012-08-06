@@ -478,21 +478,15 @@ extern struct clk sh7372_fsibck_clk;
 extern struct clk sh7372_fsidiva_clk;
 extern struct clk sh7372_fsidivb_clk;
 
-#ifdef CONFIG_PM
-extern struct rmobile_pm_domain sh7372_pd_a4lc;
-extern struct rmobile_pm_domain sh7372_pd_a4mp;
-extern struct rmobile_pm_domain sh7372_pd_d4;
-extern struct rmobile_pm_domain sh7372_pd_a4r;
-extern struct rmobile_pm_domain sh7372_pd_a3rv;
-extern struct rmobile_pm_domain sh7372_pd_a3ri;
-extern struct rmobile_pm_domain sh7372_pd_a4s;
-extern struct rmobile_pm_domain sh7372_pd_a3sp;
-extern struct rmobile_pm_domain sh7372_pd_a3sg;
-#endif /* CONFIG_PM */
-
 extern void sh7372_intcs_suspend(void);
 extern void sh7372_intcs_resume(void);
 extern void sh7372_intca_suspend(void);
 extern void sh7372_intca_resume(void);
+
+#ifdef CONFIG_PM
+extern void __init sh7372_init_pm_domains(void);
+#else
+static inline void sh7372_init_pm_domains(void) {}
+#endif
 
 #endif /* __ASM_SH7372_H__ */
