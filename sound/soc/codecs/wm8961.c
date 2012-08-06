@@ -1114,23 +1114,7 @@ static struct i2c_driver wm8961_i2c_driver = {
 	.id_table = wm8961_i2c_id,
 };
 
-static int __init wm8961_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8961_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8961 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8961_modinit);
-
-static void __exit wm8961_exit(void)
-{
-	i2c_del_driver(&wm8961_i2c_driver);
-}
-module_exit(wm8961_exit);
+module_i2c_driver(wm8961_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8961 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
