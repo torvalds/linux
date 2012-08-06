@@ -263,7 +263,7 @@ static void i8259A_shutdown(void)
 	 * out of.
 	 */
 	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
-	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 }
 
 static struct syscore_ops i8259_syscore_ops = {
