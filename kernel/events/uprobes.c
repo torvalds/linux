@@ -1010,7 +1010,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	struct list_head tmp_list;
 	struct uprobe *uprobe, *u;
 	struct inode *inode;
-	int ret, count;
+	int ret;
 
 	if (!atomic_read(&uprobe_events) || !valid_vma(vma, true))
 		return 0;
@@ -1023,8 +1023,6 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	build_probe_list(inode, vma, vma->vm_start, vma->vm_end, &tmp_list);
 
 	ret = 0;
-	count = 0;
-
 	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		if (!ret) {
 			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
@@ -1034,19 +1032,11 @@ int uprobe_mmap(struct vm_area_struct *vma)
 			 * We can race against uprobe_register(), see the
 			 * comment near uprobe_hash().
 			 */
-			if (ret == -EEXIST) {
+			if (ret == -EEXIST)
 				ret = 0;
-
-				if (!is_swbp_at_addr(vma->vm_mm, vaddr))
-					continue;
-			}
-
-			if (!ret)
-				count++;
 		}
 		put_uprobe(uprobe);
 	}
-
 	mutex_unlock(uprobes_mmap_hash(inode));
 
 	return ret;
@@ -1057,27 +1047,13 @@ int uprobe_mmap(struct vm_area_struct *vma)
  */
 void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
-	struct list_head tmp_list;
-	struct uprobe *uprobe, *u;
-	struct inode *inode;
-
 	if (!atomic_read(&uprobe_events) || !valid_vma(vma, false))
 		return;
 
 	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
 		return;
 
-	inode = vma->vm_file->f_mapping->host;
-	if (!inode)
-		return;
-
-	mutex_lock(uprobes_mmap_hash(inode));
-	build_probe_list(inode, vma, start, end, &tmp_list);
-
-	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
-		put_uprobe(uprobe);
-	}
-	mutex_unlock(uprobes_mmap_hash(inode));
+	/* TODO: unmapping uprobe(s) will need more work */
 }
 
 /* Slot allocation for XOL */
