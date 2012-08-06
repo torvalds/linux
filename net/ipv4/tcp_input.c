@@ -237,7 +237,11 @@ static inline void TCP_ECN_check_ce(struct tcp_sock *tp, const struct sk_buff *s
 			tcp_enter_quickack_mode((struct sock *)tp);
 		break;
 	case INET_ECN_CE:
-		tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
+		if (!(tp->ecn_flags & TCP_ECN_DEMAND_CWR)) {
+			/* Better not delay acks, sender can have a very low cwnd */
+			tcp_enter_quickack_mode((struct sock *)tp);
+			tp->ecn_flags |= TCP_ECN_DEMAND_CWR;
+		}
 		/* fallinto */
 	default:
 		tp->ecn_flags |= TCP_ECN_SEEN;
