@@ -121,6 +121,8 @@ struct arch_shared_info {
 #include "interface_64.h"
 #endif
 
+#include <asm/pvclock-abi.h>
+
 #ifndef __ASSEMBLY__
 /*
  * The following is all CPU context. Note that the fpu_ctxt block is filled

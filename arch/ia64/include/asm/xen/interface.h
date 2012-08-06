@@ -265,6 +265,8 @@ typedef struct xen_callback xen_callback_t;
 
 #endif /* !__ASSEMBLY__ */
 
+#include <asm/pvclock-abi.h>
+
 /* Size of the shared_info area (this is not related to page size).  */
 #define XSI_SHIFT			14
 #define XSI_SIZE			(1 << XSI_SHIFT)

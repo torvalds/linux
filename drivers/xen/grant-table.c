@@ -47,6 +47,7 @@
 #include <xen/interface/memory.h>
 #include <xen/hvc-console.h>
 #include <asm/xen/hypercall.h>
+#include <asm/xen/interface.h>
 
 #include <asm/pgtable.h>
 #include <asm/sync_bitops.h>
