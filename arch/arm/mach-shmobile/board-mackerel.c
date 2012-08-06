@@ -1623,20 +1623,20 @@ static void __init mackerel_init(void)
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &hdmi_lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &meram_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &nand_flash_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
+	rmobile_add_device_to_domain("A4LC", &lcdc_device);
+	rmobile_add_device_to_domain("A4LC", &hdmi_lcdc_device);
+	rmobile_add_device_to_domain("A4LC", &meram_device);
+	rmobile_add_device_to_domain("A4MP", &fsi_device);
+	rmobile_add_device_to_domain("A3SP", &usbhs0_device);
+	rmobile_add_device_to_domain("A3SP", &usbhs1_device);
+	rmobile_add_device_to_domain("A3SP", &nand_flash_device);
+	rmobile_add_device_to_domain("A3SP", &sh_mmcif_device);
+	rmobile_add_device_to_domain("A3SP", &sdhi0_device);
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
+	rmobile_add_device_to_domain("A3SP", &sdhi1_device);
 #endif
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
+	rmobile_add_device_to_domain("A3SP", &sdhi2_device);
+	rmobile_add_device_to_domain("A4R", &ceu_device);
 
 	hdmi_init_pm_clock();
 	sh7372_pm_init();

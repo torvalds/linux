@@ -688,16 +688,16 @@ void __init r8a7740_add_standard_devices(void)
 
 	/* add devices to PM domain  */
 
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif0_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif1_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif2_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif3_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif4_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif5_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif6_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scif7_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&scifb_device);
-	rmobile_add_device_to_domain(&r8a7740_pd_a3sp,	&i2c1_device);
+	rmobile_add_device_to_domain("A3SP",	&scif0_device);
+	rmobile_add_device_to_domain("A3SP",	&scif1_device);
+	rmobile_add_device_to_domain("A3SP",	&scif2_device);
+	rmobile_add_device_to_domain("A3SP",	&scif3_device);
+	rmobile_add_device_to_domain("A3SP",	&scif4_device);
+	rmobile_add_device_to_domain("A3SP",	&scif5_device);
+	rmobile_add_device_to_domain("A3SP",	&scif6_device);
+	rmobile_add_device_to_domain("A3SP",	&scif7_device);
+	rmobile_add_device_to_domain("A3SP",	&scifb_device);
+	rmobile_add_device_to_domain("A3SP",	&i2c1_device);
 }
 
 static void __init r8a7740_earlytimer_init(void)

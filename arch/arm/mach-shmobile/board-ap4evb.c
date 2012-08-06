@@ -1461,14 +1461,14 @@ static void __init ap4evb_init(void)
 
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
+	rmobile_add_device_to_domain("A4LC", &lcdc1_device);
+	rmobile_add_device_to_domain("A4LC", &lcdc_device);
+	rmobile_add_device_to_domain("A4MP", &fsi_device);
 
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
+	rmobile_add_device_to_domain("A3SP", &sh_mmcif_device);
+	rmobile_add_device_to_domain("A3SP", &sdhi0_device);
+	rmobile_add_device_to_domain("A3SP", &sdhi1_device);
+	rmobile_add_device_to_domain("A4R", &ceu_device);
 
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();

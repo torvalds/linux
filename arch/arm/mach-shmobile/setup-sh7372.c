@@ -1023,30 +1023,30 @@ void __init sh7372_add_standard_devices(void)
 	platform_add_devices(sh7372_late_devices,
 			    ARRAY_SIZE(sh7372_late_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a3rv, &vpu_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &spu0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &spu1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif3_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif4_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif5_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &scif6_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &iic1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &dma0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &dma1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &dma2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usb_dma0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usb_dma1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &iic0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &veu3_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &jpu_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &tmu00_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &tmu01_device);
+	rmobile_add_device_to_domain("A3RV", &vpu_device);
+	rmobile_add_device_to_domain("A4MP", &spu0_device);
+	rmobile_add_device_to_domain("A4MP", &spu1_device);
+	rmobile_add_device_to_domain("A3SP", &scif0_device);
+	rmobile_add_device_to_domain("A3SP", &scif1_device);
+	rmobile_add_device_to_domain("A3SP", &scif2_device);
+	rmobile_add_device_to_domain("A3SP", &scif3_device);
+	rmobile_add_device_to_domain("A3SP", &scif4_device);
+	rmobile_add_device_to_domain("A3SP", &scif5_device);
+	rmobile_add_device_to_domain("A3SP", &scif6_device);
+	rmobile_add_device_to_domain("A3SP", &iic1_device);
+	rmobile_add_device_to_domain("A3SP", &dma0_device);
+	rmobile_add_device_to_domain("A3SP", &dma1_device);
+	rmobile_add_device_to_domain("A3SP", &dma2_device);
+	rmobile_add_device_to_domain("A3SP", &usb_dma0_device);
+	rmobile_add_device_to_domain("A3SP", &usb_dma1_device);
+	rmobile_add_device_to_domain("A4R", &iic0_device);
+	rmobile_add_device_to_domain("A4R", &veu0_device);
+	rmobile_add_device_to_domain("A4R", &veu1_device);
+	rmobile_add_device_to_domain("A4R", &veu2_device);
+	rmobile_add_device_to_domain("A4R", &veu3_device);
+	rmobile_add_device_to_domain("A4R", &jpu_device);
+	rmobile_add_device_to_domain("A4R", &tmu00_device);
+	rmobile_add_device_to_domain("A4R", &tmu01_device);
 }
 
 static void __init sh7372_earlytimer_init(void)
