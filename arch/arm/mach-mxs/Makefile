@@ -1,5 +1,5 @@
 # Common support
-obj-y := icoll.o iomux.o ocotp.o system.o timer.o mm.o
+obj-y := icoll.o ocotp.o system.o timer.o mm.o
 
 obj-$(CONFIG_PM) += pm.o
 
