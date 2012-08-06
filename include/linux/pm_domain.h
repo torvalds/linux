@@ -138,17 +138,9 @@ extern int __pm_genpd_of_add_device(struct device_node *genpd_node,
 				    struct device *dev,
 				    struct gpd_timing_data *td);
 
-static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
-				      struct device *dev)
-{
-	return __pm_genpd_add_device(genpd, dev, NULL);
-}
-
-static inline int pm_genpd_of_add_device(struct device_node *genpd_node,
-					 struct device *dev)
-{
-	return __pm_genpd_of_add_device(genpd_node, dev, NULL);
-}
+extern int __pm_genpd_name_add_device(const char *domain_name,
+				      struct device *dev,
+				      struct gpd_timing_data *td);
 
 extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 				  struct device *dev);
@@ -187,8 +179,15 @@ static inline int __pm_genpd_add_device(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
-				      struct device *dev)
+static inline int __pm_genpd_of_add_device(struct device_node *genpd_node,
+					   struct device *dev,
+					   struct gpd_timing_data *td)
+{
+	return -ENOSYS;
+}
+static inline int __pm_genpd_name_add_device(const char *domain_name,
+					     struct device *dev,
+					     struct gpd_timing_data *td)
 {
 	return -ENOSYS;
 }
@@ -241,6 +240,24 @@ static inline bool default_stop_ok(struct device *dev)
 #define simple_qos_governor NULL
 #define pm_domain_always_on_gov NULL
 #endif
+
+static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
+				      struct device *dev)
+{
+	return __pm_genpd_add_device(genpd, dev, NULL);
+}
+
+static inline int pm_genpd_of_add_device(struct device_node *genpd_node,
+					 struct device *dev)
+{
+	return __pm_genpd_of_add_device(genpd_node, dev, NULL);
+}
+
+static inline int pm_genpd_name_add_device(const char *domain_name,
+					   struct device *dev)
+{
+	return __pm_genpd_name_add_device(domain_name, dev, NULL);
+}
 
 static inline int pm_genpd_remove_callbacks(struct device *dev)
 {
