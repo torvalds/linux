@@ -33,10 +33,6 @@ struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 };
 
-/* V4L2 controls supported by the driver */
-static const struct ctrl sd_ctrls[] = {
-};
-
 static const struct v4l2_pix_format vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
@@ -256,8 +252,6 @@ static void sd_isoc_irq(struct urb *urb)
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
@@ -288,6 +282,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

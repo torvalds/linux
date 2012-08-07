@@ -174,6 +174,15 @@ perf_header__set_cmdline(int argc, const char **argv)
 {
 	int i;
 
+	/*
+	 * If header_argv has already been set, do not override it.
+	 * This allows a command to set the cmdline, parse args and
+	 * then call another builtin function that implements a
+	 * command -- e.g, cmd_kvm calling cmd_record.
+	 */
+	if (header_argv)
+		return 0;
+
 	header_argc = (u32)argc;
 
 	/* do not include NULL termination */
@@ -1211,6 +1220,12 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 		fprintf(fp, ", excl_usr = %d, excl_kern = %d",
 				attr.exclude_user,
 				attr.exclude_kernel);
+
+		fprintf(fp, ", excl_host = %d, excl_guest = %d",
+				attr.exclude_host,
+				attr.exclude_guest);
+
+		fprintf(fp, ", precise_ip = %d", attr.precise_ip);
 
 		if (nr)
 			fprintf(fp, ", id = {");

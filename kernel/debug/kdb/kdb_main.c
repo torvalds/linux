@@ -139,11 +139,10 @@ static const int __nkdb_err = sizeof(kdbmsgs) / sizeof(kdbmsg_t);
 static char *__env[] = {
 #if defined(CONFIG_SMP)
  "PROMPT=[%d]kdb> ",
- "MOREPROMPT=[%d]more> ",
 #else
  "PROMPT=kdb> ",
- "MOREPROMPT=more> ",
 #endif
+ "MOREPROMPT=more> ",
  "RADIX=16",
  "MDCOUNT=8",			/* lines of md output */
  KDB_PLATFORM_ENV,
@@ -1235,18 +1234,6 @@ static int kdb_local(kdb_reason_t reason, int error, struct pt_regs *regs,
 		cmdbuf = cmd_cur;
 		*cmdbuf = '\0';
 		*(cmd_hist[cmd_head]) = '\0';
-
-		if (KDB_FLAG(ONLY_DO_DUMP)) {
-			/* kdb is off but a catastrophic error requires a dump.
-			 * Take the dump and reboot.
-			 * Turn on logging so the kdb output appears in the log
-			 * buffer in the dump.
-			 */
-			const char *setargs[] = { "set", "LOGGING", "1" };
-			kdb_set(2, setargs);
-			kdb_reboot(0, NULL);
-			/*NOTREACHED*/
-		}
 
 do_full_getstr:
 #if defined(CONFIG_SMP)

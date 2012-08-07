@@ -5,7 +5,6 @@
  */
 #include "dm-transaction-manager.h"
 #include "dm-space-map.h"
-#include "dm-space-map-checker.h"
 #include "dm-space-map-disk.h"
 #include "dm-space-map-metadata.h"
 #include "dm-persistent-data-internal.h"
@@ -220,13 +219,24 @@ static int __shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 	if (r < 0)
 		return r;
 
-	r = dm_bm_unlock_move(orig_block, new);
-	if (r < 0) {
+	/*
+	 * It would be tempting to use dm_bm_unlock_move here, but some
+	 * code, such as the space maps, keeps using the old data structures
+	 * secure in the knowledge they won't be changed until the next
+	 * transaction.  Using unlock_move would force a synchronous read
+	 * since the old block would no longer be in the cache.
+	 */
+	r = dm_bm_write_lock_zero(tm->bm, new, v, result);
+	if (r) {
 		dm_bm_unlock(orig_block);
 		return r;
 	}
 
-	return dm_bm_write_lock(tm->bm, new, v, result);
+	memcpy(dm_block_data(*result), dm_block_data(orig_block),
+	       dm_bm_block_size(tm->bm));
+
+	dm_bm_unlock(orig_block);
+	return r;
 }
 
 int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
@@ -311,98 +321,61 @@ struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm)
 
 static int dm_tm_create_internal(struct dm_block_manager *bm,
 				 dm_block_t sb_location,
-				 struct dm_block_validator *sb_validator,
-				 size_t root_offset, size_t root_max_len,
 				 struct dm_transaction_manager **tm,
 				 struct dm_space_map **sm,
-				 struct dm_block **sblock,
-				 int create)
+				 int create,
+				 void *sm_root, size_t sm_len)
 {
 	int r;
-	struct dm_space_map *inner;
 
-	inner = dm_sm_metadata_init();
-	if (IS_ERR(inner))
-		return PTR_ERR(inner);
+	*sm = dm_sm_metadata_init();
+	if (IS_ERR(*sm))
+		return PTR_ERR(*sm);
 
-	*tm = dm_tm_create(bm, inner);
+	*tm = dm_tm_create(bm, *sm);
 	if (IS_ERR(*tm)) {
-		dm_sm_destroy(inner);
+		dm_sm_destroy(*sm);
 		return PTR_ERR(*tm);
 	}
 
 	if (create) {
-		r = dm_bm_write_lock_zero(dm_tm_get_bm(*tm), sb_location,
-					  sb_validator, sblock);
-		if (r < 0) {
-			DMERR("couldn't lock superblock");
-			goto bad1;
-		}
-
-		r = dm_sm_metadata_create(inner, *tm, dm_bm_nr_blocks(bm),
+		r = dm_sm_metadata_create(*sm, *tm, dm_bm_nr_blocks(bm),
 					  sb_location);
 		if (r) {
 			DMERR("couldn't create metadata space map");
-			goto bad2;
-		}
-
-		*sm = dm_sm_checker_create(inner);
-		if (IS_ERR(*sm)) {
-			r = PTR_ERR(*sm);
-			goto bad2;
+			goto bad;
 		}
 
 	} else {
-		r = dm_bm_write_lock(dm_tm_get_bm(*tm), sb_location,
-				     sb_validator, sblock);
-		if (r < 0) {
-			DMERR("couldn't lock superblock");
-			goto bad1;
-		}
-
-		r = dm_sm_metadata_open(inner, *tm,
-					dm_block_data(*sblock) + root_offset,
-					root_max_len);
+		r = dm_sm_metadata_open(*sm, *tm, sm_root, sm_len);
 		if (r) {
 			DMERR("couldn't open metadata space map");
-			goto bad2;
-		}
-
-		*sm = dm_sm_checker_create(inner);
-		if (IS_ERR(*sm)) {
-			r = PTR_ERR(*sm);
-			goto bad2;
+			goto bad;
 		}
 	}
 
 	return 0;
 
-bad2:
-	dm_tm_unlock(*tm, *sblock);
-bad1:
+bad:
 	dm_tm_destroy(*tm);
-	dm_sm_destroy(inner);
+	dm_sm_destroy(*sm);
 	return r;
 }
 
 int dm_tm_create_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,
-			 struct dm_block_validator *sb_validator,
 			 struct dm_transaction_manager **tm,
-			 struct dm_space_map **sm, struct dm_block **sblock)
+			 struct dm_space_map **sm)
 {
-	return dm_tm_create_internal(bm, sb_location, sb_validator,
-				     0, 0, tm, sm, sblock, 1);
+	return dm_tm_create_internal(bm, sb_location, tm, sm, 1, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(dm_tm_create_with_sm);
 
 int dm_tm_open_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,
-		       struct dm_block_validator *sb_validator,
-		       size_t root_offset, size_t root_max_len,
+		       void *sm_root, size_t root_len,
 		       struct dm_transaction_manager **tm,
-		       struct dm_space_map **sm, struct dm_block **sblock)
+		       struct dm_space_map **sm)
 {
-	return dm_tm_create_internal(bm, sb_location, sb_validator, root_offset,
-				     root_max_len, tm, sm, sblock, 0);
+	return dm_tm_create_internal(bm, sb_location, tm, sm, 0, sm_root, root_len);
 }
 EXPORT_SYMBOL_GPL(dm_tm_open_with_sm);
 

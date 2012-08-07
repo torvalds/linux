@@ -691,7 +691,7 @@ static int mt9t001_video_probe(struct i2c_client *client)
 		return ret;
 
 	/* Configure the pixel clock polarity */
-	if (pdata && pdata->clk_pol) {
+	if (pdata->clk_pol) {
 		ret  = mt9t001_write(client, MT9T001_PIXEL_CLOCK,
 				     MT9T001_PIXEL_CLOCK_INVERT);
 		if (ret < 0)
@@ -715,9 +715,15 @@ static int mt9t001_video_probe(struct i2c_client *client)
 static int mt9t001_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
+	struct mt9t001_platform_data *pdata = client->dev.platform_data;
 	struct mt9t001 *mt9t001;
 	unsigned int i;
 	int ret;
+
+	if (pdata == NULL) {
+		dev_err(&client->dev, "No platform data\n");
+		return -EINVAL;
+	}
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -735,7 +741,7 @@ static int mt9t001_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	v4l2_ctrl_handler_init(&mt9t001->ctrls, ARRAY_SIZE(mt9t001_ctrls) +
-						ARRAY_SIZE(mt9t001_gains) + 2);
+						ARRAY_SIZE(mt9t001_gains) + 3);
 
 	v4l2_ctrl_new_std(&mt9t001->ctrls, &mt9t001_ctrl_ops,
 			  V4L2_CID_EXPOSURE, MT9T001_SHUTTER_WIDTH_MIN,
@@ -743,6 +749,9 @@ static int mt9t001_probe(struct i2c_client *client,
 			  MT9T001_SHUTTER_WIDTH_DEF);
 	v4l2_ctrl_new_std(&mt9t001->ctrls, &mt9t001_ctrl_ops,
 			  V4L2_CID_BLACK_LEVEL, 1, 1, 1, 1);
+	v4l2_ctrl_new_std(&mt9t001->ctrls, &mt9t001_ctrl_ops,
+			  V4L2_CID_PIXEL_RATE, pdata->ext_clk, pdata->ext_clk,
+			  1, pdata->ext_clk);
 
 	for (i = 0; i < ARRAY_SIZE(mt9t001_ctrls); ++i)
 		v4l2_ctrl_new_custom(&mt9t001->ctrls, &mt9t001_ctrls[i], NULL);

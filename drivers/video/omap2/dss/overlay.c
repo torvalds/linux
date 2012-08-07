@@ -528,14 +528,24 @@ void dss_recheck_connections(struct omap_dss_device *dssdev, bool force)
 	struct omap_overlay_manager *lcd_mgr;
 	struct omap_overlay_manager *tv_mgr;
 	struct omap_overlay_manager *lcd2_mgr = NULL;
+	struct omap_overlay_manager *lcd3_mgr = NULL;
 	struct omap_overlay_manager *mgr = NULL;
 
-	lcd_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_LCD);
-	tv_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_TV);
+	lcd_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD);
+	tv_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_DIGIT);
+	if (dss_has_feature(FEAT_MGR_LCD3))
+		lcd3_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD3);
 	if (dss_has_feature(FEAT_MGR_LCD2))
-		lcd2_mgr = omap_dss_get_overlay_manager(OMAP_DSS_OVL_MGR_LCD2);
+		lcd2_mgr = omap_dss_get_overlay_manager(OMAP_DSS_CHANNEL_LCD2);
 
-	if (dssdev->channel == OMAP_DSS_CHANNEL_LCD2) {
+	if (dssdev->channel == OMAP_DSS_CHANNEL_LCD3) {
+		if (!lcd3_mgr->device || force) {
+			if (lcd3_mgr->device)
+				lcd3_mgr->unset_device(lcd3_mgr);
+			lcd3_mgr->set_device(lcd3_mgr, dssdev);
+			mgr = lcd3_mgr;
+		}
+	} else if (dssdev->channel == OMAP_DSS_CHANNEL_LCD2) {
 		if (!lcd2_mgr->device || force) {
 			if (lcd2_mgr->device)
 				lcd2_mgr->unset_device(lcd2_mgr);
@@ -676,4 +686,17 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 	}
 
 	return 0;
+}
+
+/*
+ * Checks if replication logic should be used. Only use when overlay is in
+ * RGB12U or RGB16 mode, and video port width interface is 18bpp or 24bpp
+ */
+bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
+		enum omap_color_mode mode)
+{
+	if (mode != OMAP_DSS_COLOR_RGB12U && mode != OMAP_DSS_COLOR_RGB16)
+		return false;
+
+	return config.video_port_width > 16;
 }

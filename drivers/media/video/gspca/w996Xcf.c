@@ -404,9 +404,14 @@ static void w9968cf_set_crop_window(struct sd *sd)
 	}
 
 	if (sd->sensor == SEN_OV7620) {
-		/* Sigh, this is dependend on the clock / framerate changes
-		   made by the frequency control, sick. */
-		if (sd->ctrls[FREQ].val == 1) {
+		/*
+		 * Sigh, this is dependend on the clock / framerate changes
+		 * made by the frequency control, sick.
+		 *
+		 * Note we cannot use v4l2_ctrl_g_ctrl here, as we get called
+		 * from ov519.c:setfreq() with the ctrl lock held!
+		 */
+		if (sd->freq->val == 1) {
 			start_cropx = 277;
 			start_cropy = 37;
 		} else {
@@ -474,8 +479,9 @@ static void w9968cf_mode_init_regs(struct sd *sd)
 		/* We may get called multiple times (usb isoc bw negotiat.) */
 		jpeg_define(sd->jpeg_hdr, sd->gspca_dev.height,
 			    sd->gspca_dev.width, 0x22); /* JPEG 420 */
-		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+		jpeg_set_qual(sd->jpeg_hdr, v4l2_ctrl_g_ctrl(sd->jpegqual));
 		w9968cf_upload_quantizationtables(sd);
+		v4l2_ctrl_grab(sd->jpegqual, true);
 	}
 
 	/* Video Capture Control Register */
@@ -514,6 +520,7 @@ static void w9968cf_mode_init_regs(struct sd *sd)
 
 static void w9968cf_stop0(struct sd *sd)
 {
+	v4l2_ctrl_grab(sd->jpegqual, false);
 	reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
 	reg_w(sd, 0x16, 0x0000); /* stop video capture */
 }

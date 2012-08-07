@@ -37,15 +37,12 @@
 
 #define EXOFS_DBGMSG2(M...) do {} while (0)
 
-enum {MAX_PAGES_KMALLOC = PAGE_SIZE / sizeof(struct page *), };
-
 unsigned exofs_max_io_pages(struct ore_layout *layout,
 			    unsigned expected_pages)
 {
-	unsigned pages = min_t(unsigned, expected_pages, MAX_PAGES_KMALLOC);
+	unsigned pages = min_t(unsigned, expected_pages,
+			       layout->max_io_length / PAGE_SIZE);
 
-	/* TODO: easily support bio chaining */
-	pages =  min_t(unsigned, pages, layout->max_io_length / PAGE_SIZE);
 	return pages;
 }
 
@@ -101,7 +98,8 @@ static void _pcol_reset(struct page_collect *pcol)
 	 * it might not end here. don't be left with nothing
 	 */
 	if (!pcol->expected_pages)
-		pcol->expected_pages = MAX_PAGES_KMALLOC;
+		pcol->expected_pages =
+				exofs_max_io_pages(&pcol->sbi->layout, ~0);
 }
 
 static int pcol_try_alloc(struct page_collect *pcol)
@@ -389,6 +387,8 @@ static int readpage_strip(void *data, struct page *page)
 	size_t len;
 	int ret;
 
+	BUG_ON(!PageLocked(page));
+
 	/* FIXME: Just for debugging, will be removed */
 	if (PageUptodate(page))
 		EXOFS_ERR("PageUptodate(0x%lx, 0x%lx)\n", pcol->inode->i_ino,
@@ -572,8 +572,16 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 
 	if (!pcol->that_locked_page ||
 	    (pcol->that_locked_page->index != index)) {
-		struct page *page = find_get_page(pcol->inode->i_mapping, index);
+		struct page *page;
+		loff_t i_size = i_size_read(pcol->inode);
 
+		if (offset >= i_size) {
+			*uptodate = true;
+			EXOFS_DBGMSG("offset >= i_size index=0x%lx\n", index);
+			return ZERO_PAGE(0);
+		}
+
+		page =  find_get_page(pcol->inode->i_mapping, index);
 		if (!page) {
 			page = find_or_create_page(pcol->inode->i_mapping,
 						   index, GFP_NOFS);
@@ -602,12 +610,13 @@ static void __r4w_put_page(void *priv, struct page *page)
 {
 	struct page_collect *pcol = priv;
 
-	if (pcol->that_locked_page != page) {
+	if ((pcol->that_locked_page != page) && (ZERO_PAGE(0) != page)) {
 		EXOFS_DBGMSG("index=0x%lx\n", page->index);
 		page_cache_release(page);
 		return;
 	}
-	EXOFS_DBGMSG("that_locked_page index=0x%lx\n", page->index);
+	EXOFS_DBGMSG("that_locked_page index=0x%lx\n",
+		     ZERO_PAGE(0) == page ? -1 : page->index);
 }
 
 static const struct _ore_r4w_op _r4w_op = {

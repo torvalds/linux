@@ -96,7 +96,7 @@ void acpi_table_print_madt_entry (struct acpi_subtable_header *madt);
 void acpi_numa_slit_init (struct acpi_table_slit *slit);
 void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa);
 void acpi_numa_x2apic_affinity_init(struct acpi_srat_x2apic_cpu_affinity *pa);
-void acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
+int acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma);
 void acpi_numa_arch_fixup(void);
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
@@ -190,6 +190,8 @@ extern bool wmi_has_guid(const char *guid);
 
 extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
 extern long acpi_is_video_device(struct acpi_device *device);
+extern void acpi_video_dmi_promote_vendor(void);
+extern void acpi_video_dmi_demote_vendor(void);
 extern int acpi_video_backlight_support(void);
 extern int acpi_video_display_switch_support(void);
 
@@ -203,6 +205,14 @@ static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
 static inline long acpi_is_video_device(struct acpi_device *device)
 {
 	return 0;
+}
+
+static inline void acpi_video_dmi_promote_vendor(void)
+{
+}
+
+static inline void acpi_video_dmi_demote_vendor(void)
+{
 }
 
 static inline int acpi_video_backlight_support(void)

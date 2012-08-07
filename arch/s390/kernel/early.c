@@ -455,7 +455,6 @@ void __init startup_init(void)
 	init_kernel_storage_key();
 	lockdep_init();
 	lockdep_off();
-	sort_main_extable();
 	setup_lowcore_early();
 	setup_facility_list();
 	detect_machine_type();

@@ -16,6 +16,7 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/mfd/abx500/ab8500.h>
 
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
@@ -115,7 +116,7 @@ static irqreturn_t db8500_pmu_handler(int irq, void *dev, irq_handler_t handler)
 	return ret;
 }
 
-static struct arm_pmu_platdata db8500_pmu_platdata = {
+struct arm_pmu_platdata db8500_pmu_platdata = {
 	.handle_irq		= db8500_pmu_handler,
 };
 
@@ -206,7 +207,7 @@ static struct device * __init db8500_soc_device_init(void)
 /*
  * This function is called from the board init
  */
-struct device * __init u8500_init_devices(void)
+struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 {
 	struct device *parent;
 	int i;
@@ -222,6 +223,8 @@ struct device * __init u8500_init_devices(void)
 
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;
+
+	db8500_prcmu_device.dev.platform_data = ab8500;
 
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 

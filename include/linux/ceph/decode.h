@@ -1,6 +1,7 @@
 #ifndef __CEPH_DECODE_H
 #define __CEPH_DECODE_H
 
+#include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/time.h>
 #include <asm/unaligned.h>
@@ -85,6 +86,52 @@ static inline int ceph_has_room(void **p, void *end, size_t n)
 	} while (0)
 
 /*
+ * Allocate a buffer big enough to hold the wire-encoded string, and
+ * decode the string into it.  The resulting string will always be
+ * terminated with '\0'.  If successful, *p will be advanced
+ * past the decoded data.  Also, if lenp is not a null pointer, the
+ * length (not including the terminating '\0') will be recorded in
+ * *lenp.  Note that a zero-length string is a valid return value.
+ *
+ * Returns a pointer to the newly-allocated string buffer, or a
+ * pointer-coded errno if an error occurs.  Neither *p nor *lenp
+ * will have been updated if an error is returned.
+ *
+ * There are two possible failures:
+ *   - converting the string would require accessing memory at or
+ *     beyond the "end" pointer provided (-E
+ *   - memory could not be allocated for the result
+ */
+static inline char *ceph_extract_encoded_string(void **p, void *end,
+						size_t *lenp, gfp_t gfp)
+{
+	u32 len;
+	void *sp = *p;
+	char *buf;
+
+	ceph_decode_32_safe(&sp, end, len, bad);
+	if (!ceph_has_room(&sp, end, len))
+		goto bad;
+
+	buf = kmalloc(len + 1, gfp);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	if (len)
+		memcpy(buf, sp, len);
+	buf[len] = '\0';
+
+	*p = (char *) *p + sizeof (u32) + len;
+	if (lenp)
+		*lenp = (size_t) len;
+
+	return buf;
+
+bad:
+	return ERR_PTR(-ERANGE);
+}
+
+/*
  * struct ceph_timespec <-> struct timespec
  */
 static inline void ceph_decode_timespec(struct timespec *ts,
@@ -151,7 +198,7 @@ static inline void ceph_encode_filepath(void **p, void *end,
 					u64 ino, const char *path)
 {
 	u32 len = path ? strlen(path) : 0;
-	BUG_ON(*p + sizeof(ino) + sizeof(len) + len > end);
+	BUG_ON(*p + 1 + sizeof(ino) + sizeof(len) + len > end);
 	ceph_encode_8(p, 1);
 	ceph_encode_64(p, ino);
 	ceph_encode_32(p, len);

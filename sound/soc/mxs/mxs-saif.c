@@ -394,8 +394,13 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+	struct mxs_saif *master_saif;
 	u32 scr, stat;
 	int ret;
+
+	master_saif = mxs_saif_get_master(saif);
+	if (!master_saif)
+		return -EINVAL;
 
 	/* mclk should already be set */
 	if (!saif->mclk && saif->mclk_in_use) {
@@ -418,6 +423,25 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 	if (ret) {
 		dev_err(cpu_dai->dev, "unable to get proper clk\n");
 		return ret;
+	}
+
+	/* prepare clk in hw_param, enable in trigger */
+	clk_prepare(saif->clk);
+	if (saif != master_saif) {
+		/*
+		* Set an initial clock rate for the saif internal logic to work
+		* properly. This is important when working in EXTMASTER mode
+		* that uses the other saif's BITCLK&LRCLK but it still needs a
+		* basic clock which should be fast enough for the internal
+		* logic.
+		*/
+		clk_enable(saif->clk);
+		ret = clk_set_rate(saif->clk, 24000000);
+		clk_disable(saif->clk);
+		if (ret)
+			return ret;
+
+		clk_prepare(master_saif->clk);
 	}
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);

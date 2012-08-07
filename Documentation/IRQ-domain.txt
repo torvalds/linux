@@ -93,6 +93,7 @@ Linux IRQ number into the hardware.
 Most drivers cannot use this mapping.
 
 ==== Legacy ====
+irq_domain_add_simple()
 irq_domain_add_legacy()
 irq_domain_add_legacy_isa()
 
@@ -115,3 +116,7 @@ The legacy map should only be used if fixed IRQ mappings must be
 supported.  For example, ISA controllers would use the legacy map for
 mapping Linux IRQs 0-15 so that existing ISA drivers get the correct IRQ
 numbers.
+
+Most users of legacy mappings should use irq_domain_add_simple() which
+will use a legacy domain only if an IRQ range is supplied by the
+system and will otherwise use a linear domain mapping.

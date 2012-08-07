@@ -51,23 +51,15 @@ ret_fast_syscall:
 fast_work_pending:
 	str	r0, [sp, #S_R0+S_OFF]!		@ returned r0
 work_pending:
-	tst	r1, #_TIF_NEED_RESCHED
-	bne	work_resched
-	/*
-	 * TIF_SIGPENDING or TIF_NOTIFY_RESUME must've been set if we got here
-	 */
-	ldr	r2, [sp, #S_PSR]
 	mov	r0, sp				@ 'regs'
-	tst	r2, #15				@ are we returning to user mode?
-	bne	no_work_pending			@ no?  just leave, then...
 	mov	r2, why				@ 'syscall'
-	tst	r1, #_TIF_SIGPENDING		@ delivering a signal?
-	movne	why, #0				@ prevent further restarts
-	bl	do_notify_resume
-	b	ret_slow_syscall		@ Check work again
+	bl	do_work_pending
+	cmp	r0, #0
+	beq	no_work_pending
+	movlt	scno, #(__NR_restart_syscall - __NR_SYSCALL_BASE)
+	ldmia	sp, {r0 - r6}			@ have to reload r0 - r6
+	b	local_restart			@ ... and off we go
 
-work_resched:
-	bl	schedule
 /*
  * "slow" syscall return path.  "why" tells us if this was a real syscall.
  */
@@ -409,6 +401,7 @@ ENTRY(vector_swi)
 	eor	scno, scno, #__NR_SYSCALL_BASE	@ check OS number
 #endif
 
+local_restart:
 	ldr	r10, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 
@@ -450,7 +443,8 @@ __sys_trace:
 	mov	scno, r0			@ syscall number (possibly new)
 	add	r1, sp, #S_R0 + S_OFF		@ pointer to regs
 	cmp	scno, #NR_syscalls		@ check upper syscall limit
-	ldmccia	r1, {r0 - r3}			@ have to reload r0 - r3
+	ldmccia	r1, {r0 - r6}			@ have to reload r0 - r6
+	stmccia	sp, {r4, r5}			@ and update the stack args
 	ldrcc	pc, [tbl, scno, lsl #2]		@ call sys_* routine
 	b	2b
 

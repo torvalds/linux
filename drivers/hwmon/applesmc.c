@@ -55,9 +55,9 @@
 
 /* wait up to 32 ms for a status change. */
 #define APPLESMC_MIN_WAIT	0x0010
+#define APPLESMC_RETRY_WAIT	0x0100
 #define APPLESMC_MAX_WAIT	0x8000
 
-#define APPLESMC_STATUS_MASK	0x0f
 #define APPLESMC_READ_CMD	0x10
 #define APPLESMC_WRITE_CMD	0x11
 #define APPLESMC_GET_KEY_BY_INDEX_CMD	0x12
@@ -162,51 +162,68 @@ static unsigned int key_at_index;
 static struct workqueue_struct *applesmc_led_wq;
 
 /*
- * __wait_status - Wait up to 32ms for the status port to get a certain value
- * (masked with 0x0f), returning zero if the value is obtained.  Callers must
+ * wait_read - Wait for a byte to appear on SMC port. Callers must
  * hold applesmc_lock.
  */
-static int __wait_status(u8 val)
+static int wait_read(void)
 {
+	u8 status;
 	int us;
-
-	val = val & APPLESMC_STATUS_MASK;
-
 	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
 		udelay(us);
-		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == val)
+		status = inb(APPLESMC_CMD_PORT);
+		/* read: wait for smc to settle */
+		if (status & 0x01)
 			return 0;
 	}
 
+	pr_warn("wait_read() fail: 0x%02x\n", status);
 	return -EIO;
 }
 
 /*
- * special treatment of command port - on newer macbooks, it seems necessary
- * to resend the command byte before polling the status again. Callers must
- * hold applesmc_lock.
+ * send_byte - Write to SMC port, retrying when necessary. Callers
+ * must hold applesmc_lock.
  */
+static int send_byte(u8 cmd, u16 port)
+{
+	u8 status;
+	int us;
+
+	outb(cmd, port);
+	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
+		udelay(us);
+		status = inb(APPLESMC_CMD_PORT);
+		/* write: wait for smc to settle */
+		if (status & 0x02)
+			continue;
+		/* ready: cmd accepted, return */
+		if (status & 0x04)
+			return 0;
+		/* timeout: give up */
+		if (us << 1 == APPLESMC_MAX_WAIT)
+			break;
+		/* busy: long wait and resend */
+		udelay(APPLESMC_RETRY_WAIT);
+		outb(cmd, port);
+	}
+
+	pr_warn("send_byte(0x%02x, 0x%04x) fail: 0x%02x\n", cmd, port, status);
+	return -EIO;
+}
+
 static int send_command(u8 cmd)
 {
-	int us;
-	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
-		outb(cmd, APPLESMC_CMD_PORT);
-		udelay(us);
-		if ((inb(APPLESMC_CMD_PORT) & APPLESMC_STATUS_MASK) == 0x0c)
-			return 0;
-	}
-	return -EIO;
+	return send_byte(cmd, APPLESMC_CMD_PORT);
 }
 
 static int send_argument(const char *key)
 {
 	int i;
 
-	for (i = 0; i < 4; i++) {
-		outb(key[i], APPLESMC_DATA_PORT);
-		if (__wait_status(0x04))
+	for (i = 0; i < 4; i++)
+		if (send_byte(key[i], APPLESMC_DATA_PORT))
 			return -EIO;
-	}
 	return 0;
 }
 
@@ -219,11 +236,14 @@ static int read_smc(u8 cmd, const char *key, u8 *buffer, u8 len)
 		return -EIO;
 	}
 
-	outb(len, APPLESMC_DATA_PORT);
+	if (send_byte(len, APPLESMC_DATA_PORT)) {
+		pr_warn("%.4s: read len fail\n", key);
+		return -EIO;
+	}
 
 	for (i = 0; i < len; i++) {
-		if (__wait_status(0x05)) {
-			pr_warn("%.4s: read data fail\n", key);
+		if (wait_read()) {
+			pr_warn("%.4s: read data[%d] fail\n", key, i);
 			return -EIO;
 		}
 		buffer[i] = inb(APPLESMC_DATA_PORT);
@@ -241,14 +261,16 @@ static int write_smc(u8 cmd, const char *key, const u8 *buffer, u8 len)
 		return -EIO;
 	}
 
-	outb(len, APPLESMC_DATA_PORT);
+	if (send_byte(len, APPLESMC_DATA_PORT)) {
+		pr_warn("%.4s: write len fail\n", key);
+		return -EIO;
+	}
 
 	for (i = 0; i < len; i++) {
-		if (__wait_status(0x04)) {
+		if (send_byte(buffer[i], APPLESMC_DATA_PORT)) {
 			pr_warn("%s: write data fail\n", key);
 			return -EIO;
 		}
-		outb(buffer[i], APPLESMC_DATA_PORT);
 	}
 
 	return 0;

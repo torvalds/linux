@@ -120,7 +120,7 @@ static void enetsw_set(struct clk *clk, int enable)
 {
 	if (!BCMCPU_IS_6368())
 		return;
-	bcm_hwclock_set(CKCTL_6368_ROBOSW_CLK_EN |
+	bcm_hwclock_set(CKCTL_6368_ROBOSW_EN |
 			CKCTL_6368_SWPKT_USB_EN |
 			CKCTL_6368_SWPKT_SAR_EN, enable);
 	if (enable) {
@@ -163,7 +163,7 @@ static void usbh_set(struct clk *clk, int enable)
 	if (BCMCPU_IS_6348())
 		bcm_hwclock_set(CKCTL_6348_USBH_EN, enable);
 	else if (BCMCPU_IS_6368())
-		bcm_hwclock_set(CKCTL_6368_USBH_CLK_EN, enable);
+		bcm_hwclock_set(CKCTL_6368_USBH_EN, enable);
 }
 
 static struct clk clk_usbh = {
@@ -181,9 +181,11 @@ static void spi_set(struct clk *clk, int enable)
 		mask = CKCTL_6338_SPI_EN;
 	else if (BCMCPU_IS_6348())
 		mask = CKCTL_6348_SPI_EN;
-	else
-		/* BCMCPU_IS_6358 */
+	else if (BCMCPU_IS_6358())
 		mask = CKCTL_6358_SPI_EN;
+	else
+		/* BCMCPU_IS_6368 */
+		mask = CKCTL_6368_SPI_EN;
 	bcm_hwclock_set(mask, enable);
 }
 
@@ -199,7 +201,7 @@ static void xtm_set(struct clk *clk, int enable)
 	if (!BCMCPU_IS_6368())
 		return;
 
-	bcm_hwclock_set(CKCTL_6368_SAR_CLK_EN |
+	bcm_hwclock_set(CKCTL_6368_SAR_EN |
 			CKCTL_6368_SWPKT_SAR_EN, enable);
 
 	if (enable) {
@@ -219,6 +221,18 @@ static void xtm_set(struct clk *clk, int enable)
 
 static struct clk clk_xtm = {
 	.set	= xtm_set,
+};
+
+/*
+ * IPsec clock
+ */
+static void ipsec_set(struct clk *clk, int enable)
+{
+	bcm_hwclock_set(CKCTL_6368_IPSEC_EN, enable);
+}
+
+static struct clk clk_ipsec = {
+	.set	= ipsec_set,
 };
 
 /*
@@ -278,6 +292,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_periph;
 	if (BCMCPU_IS_6358() && !strcmp(id, "pcm"))
 		return &clk_pcm;
+	if (BCMCPU_IS_6368() && !strcmp(id, "ipsec"))
+		return &clk_ipsec;
 	return ERR_PTR(-ENOENT);
 }
 
