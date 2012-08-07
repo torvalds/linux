@@ -205,6 +205,8 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 
+	mutex_init(&dev->lock);
+	mutex_lock(&dev->lock);
 	mutex_init(&dev->mutex);
 	mutex_init(&dev->dvb.lock);
 	dev->usbdev = usbdev;
@@ -215,6 +217,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	if (retval) {
 		printk(KERN_ERR "%s() v4l2_device_register failed\n",
 		       __func__);
+		mutex_unlock(&dev->lock);
 		kfree(dev);
 		return -EIO;
 	}
@@ -244,6 +247,8 @@ static int au0828_usb_probe(struct usb_interface *interface,
 
 	printk(KERN_INFO "Registered device AU0828 [%s]\n",
 		dev->board.name == NULL ? "Unset" : dev->board.name);
+
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }

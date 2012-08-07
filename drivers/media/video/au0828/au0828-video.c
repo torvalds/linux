@@ -864,17 +864,15 @@ static int res_get(struct au0828_fh *fh, unsigned int bit)
 		return 1;
 
 	/* is it free? */
-	mutex_lock(&dev->lock);
 	if (dev->resources & bit) {
 		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
 		return 0;
 	}
 	/* it's free, grab it */
 	fh->resources  |= bit;
 	dev->resources |= bit;
 	dprintk(1, "res: get %d\n", bit);
-	mutex_unlock(&dev->lock);
+
 	return 1;
 }
 
@@ -894,11 +892,9 @@ static void res_free(struct au0828_fh *fh, unsigned int bits)
 
 	BUG_ON((fh->resources & bits) != bits);
 
-	mutex_lock(&dev->lock);
 	fh->resources  &= ~bits;
 	dev->resources &= ~bits;
 	dprintk(1, "res: put %d\n", bits);
-	mutex_unlock(&dev->lock);
 }
 
 static int get_ressource(struct au0828_fh *fh)
@@ -1023,7 +1019,8 @@ static int au0828_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    V4L2_FIELD_INTERLACED,
-				    sizeof(struct au0828_buffer), fh, NULL);
+				    sizeof(struct au0828_buffer), fh,
+				    &dev->lock);
 
 	/* VBI Setup */
 	dev->vbi_width = 720;
@@ -1032,8 +1029,8 @@ static int au0828_v4l2_open(struct file *filp)
 				    NULL, &dev->slock,
 				    V4L2_BUF_TYPE_VBI_CAPTURE,
 				    V4L2_FIELD_SEQ_TB,
-				    sizeof(struct au0828_buffer), fh, NULL);
-
+				    sizeof(struct au0828_buffer), fh,
+				    &dev->lock);
 	return ret;
 }
 
@@ -1312,8 +1309,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	mutex_lock(&dev->lock);
-
 	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
 		printk(KERN_INFO "%s queue busy\n", __func__);
 		rc = -EBUSY;
@@ -1322,7 +1317,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	rc = au0828_set_format(dev, VIDIOC_S_FMT, f);
 out:
-	mutex_unlock(&dev->lock);
 	return rc;
 }
 
@@ -1832,7 +1826,7 @@ static struct v4l2_file_operations au0828_v4l_fops = {
 	.read       = au0828_v4l2_read,
 	.poll       = au0828_v4l2_poll,
 	.mmap       = au0828_v4l2_mmap,
-	.ioctl      = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
@@ -1922,7 +1916,6 @@ int au0828_analog_register(struct au0828_dev *dev,
 
 	init_waitqueue_head(&dev->open);
 	spin_lock_init(&dev->slock);
-	mutex_init(&dev->lock);
 
 	/* init video dma queues */
 	INIT_LIST_HEAD(&dev->vidq.active);
@@ -1963,11 +1956,13 @@ int au0828_analog_register(struct au0828_dev *dev,
 	/* Fill the video capture device struct */
 	*dev->vdev = au0828_video_template;
 	dev->vdev->parent = &dev->usbdev->dev;
+	dev->vdev->lock = &dev->lock;
 	strcpy(dev->vdev->name, "au0828a video");
 
 	/* Setup the VBI device */
 	*dev->vbi_dev = au0828_video_template;
 	dev->vbi_dev->parent = &dev->usbdev->dev;
+	dev->vbi_dev->lock = &dev->lock;
 	strcpy(dev->vbi_dev->name, "au0828a vbi");
 
 	/* Register the v4l2 device */
