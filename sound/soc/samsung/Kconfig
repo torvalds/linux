@@ -199,6 +199,14 @@ config SND_SOC_TOBERMORY
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8962
 
+config SND_SOC_BELLS
+	tristate "Audio support for Wolfson Bells"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM5102
+	select SND_SOC_WM5110
+	select SND_SOC_WM9081
+
 config SND_SOC_LOWLAND
 	tristate "Audio support for Wolfson Lowland"
 	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
