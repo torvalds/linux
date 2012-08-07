@@ -823,9 +823,28 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		if (load_count) {
 			/* PIO to load FIFO */
 			qh->segsize = load_count;
-			musb_write_fifo(hw_ep, load_count, buf);
+			if (!buf) {
+				sg_miter_start(&qh->sg_miter, urb->sg, 1,
+						SG_MITER_ATOMIC
+						| SG_MITER_FROM_SG);
+				if (!sg_miter_next(&qh->sg_miter)) {
+					dev_err(musb->controller,
+							"error: sg"
+							"list empty\n");
+					sg_miter_stop(&qh->sg_miter);
+					goto finish;
+				}
+				buf = qh->sg_miter.addr + urb->sg->offset +
+					urb->actual_length;
+				load_count = min_t(u32, load_count,
+						qh->sg_miter.length);
+				musb_write_fifo(hw_ep, load_count, buf);
+				qh->sg_miter.consumed = load_count;
+				sg_miter_stop(&qh->sg_miter);
+			} else
+				musb_write_fifo(hw_ep, load_count, buf);
 		}
-
+finish:
 		/* re-enable interrupt */
 		musb_writew(mbase, MUSB_INTRTXE, int_txe);
 
@@ -1193,6 +1212,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
 	bool			transfer_pending = false;
+	static bool use_sg;
 
 	musb_ep_select(mbase, epnum);
 	tx_csr = musb_readw(epio, MUSB_TXCSR);
@@ -1247,6 +1267,7 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 			return;
 	}
 
+done:
 	if (status) {
 		if (dma_channel_status(dma) == MUSB_DMA_STATUS_BUSY) {
 			dma->status = MUSB_DMA_STATUS_CORE_ABORT;
@@ -1416,8 +1437,37 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		length = qh->maxpacket;
 	/* Unmap the buffer so that CPU can use it */
 	usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
-	musb_write_fifo(hw_ep, length, urb->transfer_buffer + offset);
+
+	/*
+	 * We need to map sg if the transfer_buffer is
+	 * NULL.
+	 */
+	if (!urb->transfer_buffer)
+		use_sg = true;
+
+	if (use_sg) {
+		/* sg_miter_start is already done in musb_ep_program */
+		if (!sg_miter_next(&qh->sg_miter)) {
+			dev_err(musb->controller, "error: sg list empty\n");
+			sg_miter_stop(&qh->sg_miter);
+			status = -EINVAL;
+			goto done;
+		}
+		urb->transfer_buffer = qh->sg_miter.addr;
+		length = min_t(u32, length, qh->sg_miter.length);
+		musb_write_fifo(hw_ep, length, urb->transfer_buffer);
+		qh->sg_miter.consumed = length;
+		sg_miter_stop(&qh->sg_miter);
+	} else {
+		musb_write_fifo(hw_ep, length, urb->transfer_buffer + offset);
+	}
+
 	qh->segsize = length;
+
+	if (use_sg) {
+		if (offset + length >= urb->transfer_buffer_length)
+			use_sg = false;
+	}
 
 	musb_ep_select(mbase, epnum);
 	musb_writew(epio, MUSB_TXCSR,
@@ -1482,6 +1532,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 	bool			done = false;
 	u32			status;
 	struct dma_channel	*dma;
+	static bool use_sg;
+	unsigned int sg_flags = SG_MITER_ATOMIC | SG_MITER_TO_SG;
 
 	musb_ep_select(mbase, epnum);
 
@@ -1796,10 +1848,43 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 #endif	/* Mentor DMA */
 
 		if (!dma) {
+			unsigned int received_len;
+
 			/* Unmap the buffer so that CPU can use it */
 			usb_hcd_unmap_urb_for_dma(musb_to_hcd(musb), urb);
-			done = musb_host_packet_rx(musb, urb,
-					epnum, iso_err);
+
+			/*
+			 * We need to map sg if the transfer_buffer is
+			 * NULL.
+			 */
+			if (!urb->transfer_buffer) {
+				use_sg = true;
+				sg_miter_start(&qh->sg_miter, urb->sg, 1,
+						sg_flags);
+			}
+
+			if (use_sg) {
+				if (!sg_miter_next(&qh->sg_miter)) {
+					dev_err(musb->controller, "error: sg list empty\n");
+					sg_miter_stop(&qh->sg_miter);
+					status = -EINVAL;
+					done = true;
+					goto finish;
+				}
+				urb->transfer_buffer = qh->sg_miter.addr;
+				received_len = urb->actual_length;
+				qh->offset = 0x0;
+				done = musb_host_packet_rx(musb, urb, epnum,
+						iso_err);
+				/* Calculate the number of bytes received */
+				received_len = urb->actual_length -
+					received_len;
+				qh->sg_miter.consumed = received_len;
+				sg_miter_stop(&qh->sg_miter);
+			} else {
+				done = musb_host_packet_rx(musb, urb,
+						epnum, iso_err);
+			}
 			dev_dbg(musb->controller, "read %spacket\n", done ? "last " : "");
 		}
 	}
@@ -1808,6 +1893,9 @@ finish:
 	urb->actual_length += xfer_len;
 	qh->offset += xfer_len;
 	if (done) {
+		if (use_sg)
+			use_sg = false;
+
 		if (urb->status == -EINPROGRESS)
 			urb->status = status;
 		musb_advance_schedule(musb, urb, hw_ep, USB_DIR_IN);
