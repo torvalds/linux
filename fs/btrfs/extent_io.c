@@ -4332,7 +4332,6 @@ static int release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
 
 		/* Should be safe to release our pages at this point */
 		btrfs_release_extent_buffer_page(eb, 0);
-
 		call_rcu(&eb->rcu_head, btrfs_release_extent_buffer_rcu);
 		return 1;
 	}

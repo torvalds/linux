@@ -1149,6 +1149,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	int ret;
 	int extent_type;
 	u64 logical;
+	u64 disk_byte;
 	u64 num_bytes;
 	u64 extent_item_pos;
 	struct btrfs_file_extent_item *fi;
@@ -1157,6 +1158,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	struct clone_root *cur_clone_root;
 	struct btrfs_key found_key;
 	struct btrfs_path *tmp_path;
+	int compressed;
 	u32 i;
 
 	tmp_path = alloc_path_for_send();
@@ -1186,17 +1188,18 @@ static int find_extent_clone(struct send_ctx *sctx,
 		ret = -ENOENT;
 		goto out;
 	}
+	compressed = btrfs_file_extent_compression(eb, fi);
 
 	num_bytes = btrfs_file_extent_num_bytes(eb, fi);
-	logical = btrfs_file_extent_disk_bytenr(eb, fi);
-	if (logical == 0) {
+	disk_byte = btrfs_file_extent_disk_bytenr(eb, fi);
+	if (disk_byte == 0) {
 		ret = -ENOENT;
 		goto out;
 	}
-	logical += btrfs_file_extent_offset(eb, fi);
+	logical = disk_byte + btrfs_file_extent_offset(eb, fi);
 
 	ret = extent_from_logical(sctx->send_root->fs_info,
-			logical, tmp_path, &found_key);
+			disk_byte, tmp_path, &found_key);
 	btrfs_release_path(tmp_path);
 
 	if (ret < 0)
@@ -1234,10 +1237,16 @@ static int find_extent_clone(struct send_ctx *sctx,
 	/*
 	 * Now collect all backrefs.
 	 */
+	if (compressed == BTRFS_COMPRESS_NONE)
+		extent_item_pos = logical - found_key.objectid;
+	else
+		extent_item_pos = 0;
+
 	extent_item_pos = logical - found_key.objectid;
 	ret = iterate_extent_inodes(sctx->send_root->fs_info,
 					found_key.objectid, extent_item_pos, 1,
 					__iterate_backrefs, backref_ctx);
+
 	if (ret < 0)
 		goto out;
 
@@ -1246,8 +1255,8 @@ static int find_extent_clone(struct send_ctx *sctx,
 		ret = -EIO;
 		printk(KERN_ERR "btrfs: ERROR did not find backref in "
 				"send_root. inode=%llu, offset=%llu, "
-				"logical=%llu\n",
-				ino, data_offset, logical);
+				"disk_byte=%llu found extent=%llu\n",
+				ino, data_offset, disk_byte, found_key.objectid);
 		goto out;
 	}
 
@@ -3678,10 +3687,17 @@ static int send_write_or_clone(struct send_ctx *sctx,
 	ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			struct btrfs_file_extent_item);
 	type = btrfs_file_extent_type(path->nodes[0], ei);
-	if (type == BTRFS_FILE_EXTENT_INLINE)
+	if (type == BTRFS_FILE_EXTENT_INLINE) {
 		len = btrfs_file_extent_inline_len(path->nodes[0], ei);
-	else
+		/*
+		 * it is possible the inline item won't cover the whole page,
+		 * but there may be items after this page.  Make
+		 * sure to send the whole thing
+		 */
+		len = PAGE_CACHE_ALIGN(len);
+	} else {
 		len = btrfs_file_extent_num_bytes(path->nodes[0], ei);
+	}
 
 	if (offset + len > sctx->cur_inode_size)
 		len = sctx->cur_inode_size - offset;
@@ -3729,6 +3745,8 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 	u64 left_offset_fixed;
 	u64 left_len;
 	u64 right_len;
+	u64 left_gen;
+	u64 right_gen;
 	u8 left_type;
 	u8 right_type;
 
@@ -3738,17 +3756,17 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 
 	eb = left_path->nodes[0];
 	slot = left_path->slots[0];
-
 	ei = btrfs_item_ptr(eb, slot, struct btrfs_file_extent_item);
 	left_type = btrfs_file_extent_type(eb, ei);
-	left_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
-	left_len = btrfs_file_extent_num_bytes(eb, ei);
-	left_offset = btrfs_file_extent_offset(eb, ei);
 
 	if (left_type != BTRFS_FILE_EXTENT_REG) {
 		ret = 0;
 		goto out;
 	}
+	left_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
+	left_len = btrfs_file_extent_num_bytes(eb, ei);
+	left_offset = btrfs_file_extent_offset(eb, ei);
+	left_gen = btrfs_file_extent_generation(eb, ei);
 
 	/*
 	 * Following comments will refer to these graphics. L is the left
@@ -3804,6 +3822,7 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		right_disknr = btrfs_file_extent_disk_bytenr(eb, ei);
 		right_len = btrfs_file_extent_num_bytes(eb, ei);
 		right_offset = btrfs_file_extent_offset(eb, ei);
+		right_gen = btrfs_file_extent_generation(eb, ei);
 
 		if (right_type != BTRFS_FILE_EXTENT_REG) {
 			ret = 0;
@@ -3832,7 +3851,8 @@ static int is_extent_unchanged(struct send_ctx *sctx,
 		 * Check if we have the same extent.
 		 */
 		if (left_disknr != right_disknr ||
-		    left_offset_fixed != right_offset) {
+		    left_offset_fixed != right_offset ||
+		    left_gen != right_gen) {
 			ret = 0;
 			goto out;
 		}

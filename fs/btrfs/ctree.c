@@ -5073,6 +5073,7 @@ static void tree_move_down(struct btrfs_root *root,
 			   struct btrfs_path *path,
 			   int *level, int root_level)
 {
+	BUG_ON(*level == 0);
 	path->nodes[*level - 1] = read_node_slot(root, path->nodes[*level],
 					path->slots[*level]);
 	path->slots[*level - 1] = 0;
@@ -5089,7 +5090,7 @@ static int tree_move_next_or_upnext(struct btrfs_root *root,
 
 	path->slots[*level]++;
 
-	while (path->slots[*level] == nritems) {
+	while (path->slots[*level] >= nritems) {
 		if (*level == root_level)
 			return -1;
 
@@ -5433,9 +5434,11 @@ int btrfs_compare_trees(struct btrfs_root *left_root,
 					goto out;
 				advance_right = ADVANCE;
 			} else {
+				WARN_ON(!extent_buffer_uptodate(left_path->nodes[0]));
 				ret = tree_compare_item(left_root, left_path,
 						right_path, tmp_buf);
 				if (ret) {
+					WARN_ON(!extent_buffer_uptodate(left_path->nodes[0]));
 					ret = changed_cb(left_root, right_root,
 						left_path, right_path,
 						&left_key,
