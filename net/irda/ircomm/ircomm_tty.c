@@ -52,6 +52,8 @@
 #include <net/irda/ircomm_tty_attach.h>
 #include <net/irda/ircomm_tty.h>
 
+static int ircomm_tty_install(struct tty_driver *driver,
+		struct tty_struct *tty);
 static int  ircomm_tty_open(struct tty_struct *tty, struct file *filp);
 static void ircomm_tty_close(struct tty_struct * tty, struct file *filp);
 static int  ircomm_tty_write(struct tty_struct * tty,
@@ -82,6 +84,7 @@ static struct tty_driver *driver;
 static hashbin_t *ircomm_tty = NULL;
 
 static const struct tty_operations ops = {
+	.install	 = ircomm_tty_install,
 	.open            = ircomm_tty_open,
 	.close           = ircomm_tty_close,
 	.write           = ircomm_tty_write,
@@ -374,21 +377,11 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 	return retval;
 }
 
-/*
- * Function ircomm_tty_open (tty, filp)
- *
- *    This routine is called when a particular tty device is opened. This
- *    routine is mandatory; if this routine is not filled in, the attempted
- *    open will fail with ENODEV.
- */
-static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
+
+static int ircomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct ircomm_tty_cb *self;
 	unsigned int line = tty->index;
-	unsigned long	flags;
-	int ret;
-
-	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	/* Check if instance already exists */
 	self = hashbin_lock_find(ircomm_tty, line, NULL);
@@ -425,14 +418,30 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		tty->termios.c_oflag = 0;
 
 		/* Insert into hash */
-		/* FIXME there is a window from find to here */
 		hashbin_insert(ircomm_tty, (irda_queue_t *) self, line, NULL);
 	}
+
+	return tty_port_install(&self->port, driver, tty);
+}
+
+/*
+ * Function ircomm_tty_open (tty, filp)
+ *
+ *    This routine is called when a particular tty device is opened. This
+ *    routine is mandatory; if this routine is not filled in, the attempted
+ *    open will fail with ENODEV.
+ */
+static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
+{
+	struct ircomm_tty_cb *self = tty->driver_data;
+	unsigned long	flags;
+	int ret;
+
+	IRDA_DEBUG(2, "%s()\n", __func__ );
+
 	/* ++ is not atomic, so this should be protected - Jean II */
 	spin_lock_irqsave(&self->port.lock, flags);
 	self->port.count++;
-
-	tty->driver_data = self;
 	spin_unlock_irqrestore(&self->port.lock, flags);
 	tty_port_tty_set(&self->port, tty);
 
@@ -472,7 +481,7 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 	}
 
 	/* Check if this is a "normal" ircomm device, or an irlpt device */
-	if (line < 0x10) {
+	if (self->line < 0x10) {
 		self->service_type = IRCOMM_3_WIRE | IRCOMM_9_WIRE;
 		self->settings.service_type = IRCOMM_9_WIRE; /* 9 wire as default */
 		/* Jan Kiszka -> add DSR/RI -> Conform to IrCOMM spec */
