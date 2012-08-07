@@ -56,6 +56,7 @@ struct perf_evsel {
 	int			ids;
 	struct hists		hists;
 	char			*name;
+	struct event_format	*tp_format;
 	union {
 		void		*priv;
 		off_t		id_offset;

@@ -2123,6 +2123,7 @@ static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
 	if (event->name == NULL)
 		return -1;
 
+	evsel->tp_format = event;
 	return 0;
 }
 

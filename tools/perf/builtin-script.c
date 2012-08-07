@@ -262,14 +262,11 @@ static int perf_session__check_output_opt(struct perf_session *session)
 	return 0;
 }
 
-static void print_sample_start(struct pevent *pevent,
-			       struct perf_sample *sample,
+static void print_sample_start(struct perf_sample *sample,
 			       struct thread *thread,
 			       struct perf_evsel *evsel)
 {
-	int type;
 	struct perf_event_attr *attr = &evsel->attr;
-	struct event_format *event;
 	const char *evname = NULL;
 	unsigned long secs;
 	unsigned long usecs;
@@ -307,20 +304,7 @@ static void print_sample_start(struct pevent *pevent,
 	}
 
 	if (PRINT_FIELD(EVNAME)) {
-		if (attr->type == PERF_TYPE_TRACEPOINT) {
-			/*
-			 * XXX Do we really need this here?
-			 * perf_evlist__set_tracepoint_names should have done
-			 * this already
-			 */
-			type = trace_parse_common_type(pevent,
-						       sample->raw_data);
-			event = pevent_find_event(pevent, type);
-			if (event)
-				evname = event->name;
-		} else
-			evname = perf_evsel__name(evsel);
-
+		evname = perf_evsel__name(evsel);
 		printf("%s: ", evname ? evname : "[unknown]");
 	}
 }
@@ -416,7 +400,7 @@ static void print_sample_bts(union perf_event *event,
 }
 
 static void process_event(union perf_event *event __unused,
-			  struct pevent *pevent,
+			  struct pevent *pevent __unused,
 			  struct perf_sample *sample,
 			  struct perf_evsel *evsel,
 			  struct machine *machine,
@@ -427,7 +411,7 @@ static void process_event(union perf_event *event __unused,
 	if (output[attr->type].fields == 0)
 		return;
 
-	print_sample_start(pevent, sample, thread, evsel);
+	print_sample_start(sample, thread, evsel);
 
 	if (is_bts_event(attr)) {
 		print_sample_bts(event, sample, evsel, machine, thread);
@@ -435,9 +419,8 @@ static void process_event(union perf_event *event __unused,
 	}
 
 	if (PRINT_FIELD(TRACE))
-		print_trace_event(pevent, sample->cpu, sample->raw_data,
-				  sample->raw_size);
-
+		event_format__print(evsel->tp_format, sample->cpu,
+				    sample->raw_data, sample->raw_size);
 	if (PRINT_FIELD(ADDR))
 		print_sample_addr(event, sample, machine, thread, attr);
 

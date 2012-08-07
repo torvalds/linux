@@ -27,6 +27,7 @@
 #include <errno.h>
 
 #include "../../perf.h"
+#include "../evsel.h"
 #include "../util.h"
 #include "../event.h"
 #include "../thread.h"
@@ -194,16 +195,21 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static inline
-struct event_format *find_cache_event(struct pevent *pevent, int type)
+static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 {
 	static char ev_name[256];
 	struct event_format *event;
+	int type = evsel->attr.config;
 
+	/*
+ 	 * XXX: Do we really need to cache this since now we have evsel->tp_format
+ 	 * cached already? Need to re-read this "cache" routine that as well calls
+ 	 * define_event_symbols() :-\
+ 	 */
 	if (events[type])
 		return events[type];
 
-	events[type] = event = pevent_find_event(pevent, type);
+	events[type] = event = evsel->tp_format;
 	if (!event)
 		return NULL;
 
@@ -217,7 +223,7 @@ struct event_format *find_cache_event(struct pevent *pevent, int type)
 static void python_process_event(union perf_event *perf_event __unused,
 				 struct pevent *pevent,
 				 struct perf_sample *sample,
-				 struct perf_evsel *evsel __unused,
+				 struct perf_evsel *evsel,
 				 struct machine *machine __unused,
 				 struct thread *thread)
 {
@@ -228,7 +234,6 @@ static void python_process_event(union perf_event *perf_event __unused,
 	unsigned long s, ns;
 	struct event_format *event;
 	unsigned n = 0;
-	int type;
 	int pid;
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
@@ -239,11 +244,9 @@ static void python_process_event(union perf_event *perf_event __unused,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	type = trace_parse_common_type(pevent, data);
-
-	event = find_cache_event(pevent, type);
+	event = find_cache_event(evsel);
 	if (!event)
-		die("ug! no event found for type %d", type);
+		die("ug! no event found for type %d", (int)evsel->attr.config);
 
 	pid = trace_parse_common_pid(pevent, data);
 

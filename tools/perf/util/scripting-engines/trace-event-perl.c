@@ -237,16 +237,16 @@ static void define_event_symbols(struct event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static inline
-struct event_format *find_cache_event(struct pevent *pevent, int type)
+static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 {
 	static char ev_name[256];
 	struct event_format *event;
+	int type = evsel->attr.config;
 
 	if (events[type])
 		return events[type];
 
-	events[type] = event = pevent_find_event(pevent, type);
+	events[type] = event = evsel->tp_format;
 	if (!event)
 		return NULL;
 
@@ -269,7 +269,6 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 	unsigned long long val;
 	unsigned long s, ns;
 	struct event_format *event;
-	int type;
 	int pid;
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
@@ -281,11 +280,9 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 	if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 		return;
 
-	type = trace_parse_common_type(pevent, data);
-
-	event = find_cache_event(pevent, type);
+	event = find_cache_event(evsel);
 	if (!event)
-		die("ug! no event found for type %d", type);
+		die("ug! no event found for type %d", evsel->attr.config);
 
 	pid = trace_parse_common_pid(pevent, data);
 

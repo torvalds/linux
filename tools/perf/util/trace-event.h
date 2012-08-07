@@ -32,6 +32,8 @@ int bigendian(void);
 
 struct pevent *read_trace_init(int file_bigendian, int host_bigendian);
 void print_trace_event(struct pevent *pevent, int cpu, void *data, int size);
+void event_format__print(struct event_format *event,
+			 int cpu, void *data, int size);
 
 void print_event(struct pevent *pevent, int cpu, void *data, int size,
 		 unsigned long long nsecs, char *comm);

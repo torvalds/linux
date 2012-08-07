@@ -1,6 +1,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/evsel.h"
 #include "util/util.h"
 #include "util/cache.h"
 #include "util/symbol.h"
@@ -718,14 +719,10 @@ process_lock_release_event(void *data,
 		trace_handler->release_event(&release_event, event, cpu, timestamp, thread);
 }
 
-static void
-process_raw_event(void *data, int cpu, u64 timestamp, struct thread *thread)
+static void process_raw_event(struct perf_evsel *evsel, void *data, int cpu,
+			      u64 timestamp, struct thread *thread)
 {
-	struct event_format *event;
-	int type;
-
-	type = trace_parse_common_type(session->pevent, data);
-	event = pevent_find_event(session->pevent, type);
+	struct event_format *event = evsel->tp_format;
 
 	if (!strcmp(event->name, "lock_acquire"))
 		process_lock_acquire_event(data, event, cpu, timestamp, thread);
@@ -849,7 +846,7 @@ static void dump_info(void)
 static int process_sample_event(struct perf_tool *tool __used,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __used,
+				struct perf_evsel *evsel,
 				struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, sample->tid);
@@ -860,7 +857,7 @@ static int process_sample_event(struct perf_tool *tool __used,
 		return -1;
 	}
 
-	process_raw_event(sample->raw_data, sample->cpu, sample->time, thread);
+	process_raw_event(evsel, sample->raw_data, sample->cpu, sample->time, thread);
 
 	return 0;
 }
