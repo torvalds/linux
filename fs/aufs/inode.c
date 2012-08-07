@@ -463,7 +463,7 @@ int au_test_ro(struct super_block *sb, aufs_bindex_t bindex,
 
 int au_test_h_perm(struct inode *h_inode, int mask)
 {
-	if (current_fsuid() == GLOBAL_ROOT_GID)
+	if (uid_eq(current_fsuid(), GLOBAL_ROOT_UID))
 		return 0;
 	return inode_permission(h_inode, mask);
 }
