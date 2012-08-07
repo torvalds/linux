@@ -259,6 +259,7 @@ int vfsub_link(struct dentry *src_dentry, struct inode *dir, struct path *path)
 	if (unlikely(err))
 		return err;
 
+	/* we don't call may_linkat() */
 	d = path->dentry;
 	path->dentry = d->d_parent;
 	err = security_path_link(src_dentry, path, d);
