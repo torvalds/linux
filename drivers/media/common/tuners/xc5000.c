@@ -63,6 +63,8 @@ struct xc5000_priv {
 
 	int chip_id;
 	u16 pll_register_no;
+	u8 init_status_supported;
+	u8 fw_checksum_supported;
 };
 
 /* Misc Defines */
@@ -113,6 +115,8 @@ struct xc5000_priv {
 #define XREG_BUSY         0x09
 #define XREG_BUILD        0x0D
 #define XREG_TOTALGAIN    0x0F
+#define XREG_FW_CHECKSUM  0x12
+#define XREG_INIT_STATUS  0x13
 
 /*
    Basic firmware description. This will remain with
@@ -211,6 +215,8 @@ struct xc5000_fw_cfg {
 	char *name;
 	u16 size;
 	u16 pll_reg;
+	u8 init_status_supported;
+	u8 fw_checksum_supported;
 };
 
 #define XC5000A_FIRMWARE "dvb-fe-xc5000-1.6.114.fw"
@@ -225,6 +231,8 @@ static const struct xc5000_fw_cfg xc5000c_41_024_5 = {
 	.name = XC5000C_FIRMWARE,
 	.size = 16497,
 	.pll_reg = 0x13,
+	.init_status_supported = 1,
+	.fw_checksum_supported = 1,
 };
 
 static inline const struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
@@ -624,6 +632,8 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 	const struct xc5000_fw_cfg *desired_fw =
 		xc5000_assign_firmware(priv->chip_id);
 	priv->pll_register_no = desired_fw->pll_reg;
+	priv->init_status_supported = desired_fw->init_status_supported;
+	priv->fw_checksum_supported = desired_fw->fw_checksum_supported;
 
 	/* request the firmware, this will block and timeout */
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
@@ -1090,6 +1100,7 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe, int force)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret = XC_RESULT_SUCCESS;
 	u16 pll_lock_status;
+	u16 fw_ck;
 
 	if (force || xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 
@@ -1100,6 +1111,21 @@ fw_retry:
 			return ret;
 
 		msleep(20);
+
+		if (priv->fw_checksum_supported) {
+			if (xc5000_readreg(priv, XREG_FW_CHECKSUM, &fw_ck)
+			    != XC_RESULT_SUCCESS) {
+				dprintk(1, "%s() FW checksum reading failed.\n",
+					__func__);
+				goto fw_retry;
+			}
+
+			if (fw_ck == 0) {
+				dprintk(1, "%s() FW checksum failed = 0x%04x\n",
+					__func__, fw_ck);
+				goto fw_retry;
+			}
+		}
 
 		/* Start the tuner self-calibration process */
 		ret |= xc_initialize(priv);
@@ -1113,6 +1139,19 @@ fw_retry:
 		 * don't have to rely on clock stretching working.
 		 */
 		xc_wait(100);
+
+		if (priv->init_status_supported) {
+			if (xc5000_readreg(priv, XREG_INIT_STATUS, &fw_ck) != XC_RESULT_SUCCESS) {
+				dprintk(1, "%s() FW failed reading init status.\n",
+					__func__);
+				goto fw_retry;
+			}
+
+			if (fw_ck == 0) {
+				dprintk(1, "%s() FW init status failed = 0x%04x\n", __func__, fw_ck);
+				goto fw_retry;
+			}
+		}
 
 		if (priv->pll_register_no) {
 			xc5000_readreg(priv, priv->pll_register_no,
