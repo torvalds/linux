@@ -1435,9 +1435,9 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 			if (ret)
 				dev_err(priv->adapter->dev, "cannot find ssid "
 					"%s\n", bss_desc->ssid.ssid);
-				break;
+			break;
 		default:
-				ret = 0;
+			ret = 0;
 		}
 	}
 
