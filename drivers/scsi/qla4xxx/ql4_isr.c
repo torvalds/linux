@@ -243,56 +243,72 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 
 		scsi_set_resid(cmd, residual);
 
-		/*
-		 * If there is scsi_status, it takes precedense over
-		 * underflow condition.
-		 */
-		if (scsi_status != 0) {
-			cmd->result = DID_OK << 16 | scsi_status;
+		if (sts_entry->iscsiFlags & ISCSI_FLAG_RESIDUAL_UNDER) {
 
-			if (scsi_status != SCSI_CHECK_CONDITION)
-				break;
-
-			/* Copy Sense Data into sense buffer. */
-			qla4xxx_copy_sense(ha, sts_entry, srb);
-		} else {
-			/*
-			 * If RISC reports underrun and target does not
-			 * report it then we must have a lost frame, so
-			 * tell upper layer to retry it by reporting a
-			 * bus busy.
+			/* Both the firmware and target reported UNDERRUN:
+			 *
+			 * MID-LAYER UNDERFLOW case:
+			 * Some kernels do not properly detect midlayer
+			 * underflow, so we manually check it and return
+			 * ERROR if the minimum required data was not
+			 * received.
+			 *
+			 * ALL OTHER cases:
+			 * Fall thru to check scsi_status
 			 */
-			if ((sts_entry->iscsiFlags &
-			     ISCSI_FLAG_RESIDUAL_UNDER) == 0) {
-				cmd->result = DID_BUS_BUSY << 16;
-			} else if ((scsi_bufflen(cmd) - residual) <
-				   cmd->underflow) {
-				/*
-				 * Handle mid-layer underflow???
-				 *
-				 * For kernels less than 2.4, the driver must
-				 * return an error if an underflow is detected.
-				 * For kernels equal-to and above 2.4, the
-				 * mid-layer will appearantly handle the
-				 * underflow by detecting the residual count --
-				 * unfortunately, we do not see where this is
-				 * actually being done.	 In the interim, we
-				 * will return DID_ERROR.
-				 */
-				DEBUG2(printk("scsi%ld:%d:%d:%d: %s: "
-					"Mid-layer Data underrun1, "
-					"xferlen = 0x%x, "
-					"residual = 0x%x\n", ha->host_no,
-					cmd->device->channel,
-					cmd->device->id,
-					cmd->device->lun, __func__,
-					scsi_bufflen(cmd), residual));
+			if (!scsi_status && (scsi_bufflen(cmd) - residual) <
+			    cmd->underflow) {
+				DEBUG2(ql4_printk(KERN_INFO, ha,
+						  "scsi%ld:%d:%d:%d: %s: Mid-layer Data underrun, xferlen = 0x%x,residual = 0x%x\n",
+						   ha->host_no,
+						   cmd->device->channel,
+						   cmd->device->id,
+						   cmd->device->lun, __func__,
+						   scsi_bufflen(cmd),
+						   residual));
 
 				cmd->result = DID_ERROR << 16;
-			} else {
-				cmd->result = DID_OK << 16;
+				break;
 			}
+
+		} else if (scsi_status != SAM_STAT_TASK_SET_FULL &&
+			   scsi_status != SAM_STAT_BUSY) {
+
+			/*
+			 * The firmware reports UNDERRUN, but the target does
+			 * not report it:
+			 *
+			 *   scsi_status     |    host_byte       device_byte
+			 *                   |     (19:16)          (7:0)
+			 *   =============   |    =========       ===========
+			 *   TASK_SET_FULL   |    DID_OK          scsi_status
+			 *   BUSY            |    DID_OK          scsi_status
+			 *   ALL OTHERS      |    DID_ERROR       scsi_status
+			 *
+			 *   Note: If scsi_status is task set full or busy,
+			 *   then this else if would fall thru to check the
+			 *   scsi_status and return DID_OK.
+			 */
+
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "scsi%ld:%d:%d:%d: %s: Dropped frame(s) detected (0x%x of 0x%x bytes).\n",
+					  ha->host_no,
+					  cmd->device->channel,
+					  cmd->device->id,
+					  cmd->device->lun, __func__,
+					  residual,
+					  scsi_bufflen(cmd)));
+
+			cmd->result = DID_ERROR << 16 | scsi_status;
+			goto check_scsi_status;
 		}
+
+		cmd->result = DID_OK << 16 | scsi_status;
+
+check_scsi_status:
+		if (scsi_status == SAM_STAT_CHECK_CONDITION)
+			qla4xxx_copy_sense(ha, sts_entry, srb);
+
 		break;
 
 	case SCS_DEVICE_LOGGED_OUT:
