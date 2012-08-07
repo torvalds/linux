@@ -324,10 +324,7 @@ static void flexcop_usb_process_frame(struct flexcop_usb *fc_usb,
 					flexcop_pass_dmx_packets(
 							fc_usb->fc_dev, b+2, 1);
 				else
-					deb_ts(
-					"not ts packet %02x %02x %02x %02x \n",
-						*(b+2), *(b+3),
-						*(b+4), *(b+5));
+					deb_ts("not ts packet %*ph\n", 4, b+2);
 				b += 190;
 				l -= 190;
 				break;

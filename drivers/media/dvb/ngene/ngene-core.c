@@ -258,22 +258,16 @@ static void dump_command_io(struct ngene *dev)
 	u8 buf[8], *b;
 
 	ngcpyfrom(buf, HOST_TO_NGENE, 8);
-	printk(KERN_ERR "host_to_ngene (%04x): %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		HOST_TO_NGENE, buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6], buf[7]);
+	printk(KERN_ERR "host_to_ngene (%04x): %*ph\n", HOST_TO_NGENE, 8, buf);
 
 	ngcpyfrom(buf, NGENE_TO_HOST, 8);
-	printk(KERN_ERR "ngene_to_host (%04x): %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		NGENE_TO_HOST, buf[0], buf[1], buf[2], buf[3],
-		buf[4], buf[5], buf[6], buf[7]);
+	printk(KERN_ERR "ngene_to_host (%04x): %*ph\n", NGENE_TO_HOST, 8, buf);
 
 	b = dev->hosttongene;
-	printk(KERN_ERR "dev->hosttongene (%p): %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		b, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
+	printk(KERN_ERR "dev->hosttongene (%p): %*ph\n", b, 8, b);
 
 	b = dev->ngenetohost;
-	printk(KERN_ERR "dev->ngenetohost (%p): %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		b, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
+	printk(KERN_ERR "dev->ngenetohost (%p): %*ph\n", b, 8, b);
 }
 
 static int ngene_command_mutex(struct ngene *dev, struct ngene_command *com)

@@ -321,7 +321,8 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 		return -EFAULT;
 
 	if (p_ca_message->msg) {
-		dprintk(verbose, DST_CA_NOTICE, 1, " Message = [%02x %02x %02x]", p_ca_message->msg[0], p_ca_message->msg[1], p_ca_message->msg[2]);
+		dprintk(verbose, DST_CA_NOTICE, 1, " Message = [%*ph]",
+			3, p_ca_message->msg);
 
 		for (i = 0; i < 3; i++) {
 			command = command | p_ca_message->msg[i];

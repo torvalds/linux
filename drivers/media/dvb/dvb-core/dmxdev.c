@@ -370,9 +370,7 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 		return 0;
 	}
 	del_timer(&dmxdevfilter->timer);
-	dprintk("dmxdev: section callback %02x %02x %02x %02x %02x %02x\n",
-		buffer1[0], buffer1[1],
-		buffer1[2], buffer1[3], buffer1[4], buffer1[5]);
+	dprintk("dmxdev: section callback %*ph\n", 6, buffer1);
 	ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer, buffer1,
 				      buffer1_len);
 	if (ret == buffer1_len) {
