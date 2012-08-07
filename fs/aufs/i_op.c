@@ -358,7 +358,7 @@ struct dentry *au_pinned_h_parent(struct au_pin *pin)
 void au_unpin(struct au_pin *p)
 {
 	if (p->h_mnt && au_ftest_pin(p->flags, MNT_WRITE))
-		mnt_drop_write(p->h_mnt);
+		vfsub_mnt_drop_write(p->h_mnt);
 	if (!p->hdir)
 		return;
 
@@ -386,7 +386,7 @@ int au_do_pin(struct au_pin *p)
 	if (IS_ROOT(p->dentry)) {
 		if (au_ftest_pin(p->flags, MNT_WRITE)) {
 			p->h_mnt = br->br_mnt;
-			err = mnt_want_write(p->h_mnt);
+			err = vfsub_mnt_want_write(p->h_mnt);
 			if (unlikely(err)) {
 				au_fclr_pin(p->flags, MNT_WRITE);
 				goto out_err;
@@ -440,7 +440,7 @@ int au_do_pin(struct au_pin *p)
 
 	if (au_ftest_pin(p->flags, MNT_WRITE)) {
 		p->h_mnt = br->br_mnt;
-		err = mnt_want_write(p->h_mnt);
+		err = vfsub_mnt_want_write(p->h_mnt);
 		if (unlikely(err)) {
 			au_fclr_pin(p->flags, MNT_WRITE);
 			goto out_unpin;

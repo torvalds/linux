@@ -27,6 +27,7 @@
 
 #include <linux/fs.h>
 #include <linux/lglock.h>
+#include <linux/mount.h>
 #include "debug.h"
 
 /* copied from linux/fs/internal.h */
@@ -135,6 +136,24 @@ static inline struct dentry *vfsub_lkup_one(struct qstr *name,
 }
 
 void vfsub_call_lkup_one(void *args);
+
+/* ---------------------------------------------------------------------- */
+
+static inline int vfsub_mnt_want_write(struct vfsmount *mnt)
+{
+	int err;
+	lockdep_off();
+	err = mnt_want_write(mnt);
+	lockdep_on();
+	return err;
+}
+
+static inline void vfsub_mnt_drop_write(struct vfsmount *mnt)
+{
+	lockdep_off();
+	mnt_drop_write(mnt);
+	lockdep_on();
+}
 
 /* ---------------------------------------------------------------------- */
 

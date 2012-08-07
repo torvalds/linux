@@ -194,6 +194,8 @@ static void dy_aop(struct au_dykey *key, const void *h_op,
 	DySetAop(launder_page);
 	DySetAop(is_partially_uptodate);
 	DySetAop(error_remove_page);
+	DySetAop(swap_activate);
+	DySetAop(swap_deactivate);
 
 	DyDbgSize(cnt, *h_aop);
 	dyaop->da_get_xip_mem = h_aop->get_xip_mem;
