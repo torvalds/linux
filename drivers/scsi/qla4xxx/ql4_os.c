@@ -3168,6 +3168,7 @@ int qla4xxx_unblock_ddb(struct iscsi_cls_session *cls_session)
 	struct iscsi_session *sess;
 	struct ddb_entry *ddb_entry;
 	struct scsi_qla_host *ha;
+	int status = QLA_SUCCESS;
 
 	sess = cls_session->dd_data;
 	ddb_entry = sess->dd_data;
@@ -3175,11 +3176,20 @@ int qla4xxx_unblock_ddb(struct iscsi_cls_session *cls_session)
 	ql4_printk(KERN_INFO, ha, "scsi%ld: %s: ddb[%d]"
 		   " unblock user space session\n", ha->host_no, __func__,
 		   ddb_entry->fw_ddb_index);
-	iscsi_conn_start(ddb_entry->conn);
-	iscsi_conn_login_event(ddb_entry->conn,
-			       ISCSI_CONN_STATE_LOGGED_IN);
 
-	return QLA_SUCCESS;
+	if (!iscsi_is_session_online(cls_session)) {
+		iscsi_conn_start(ddb_entry->conn);
+		iscsi_conn_login_event(ddb_entry->conn,
+				       ISCSI_CONN_STATE_LOGGED_IN);
+	} else {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi%ld: %s: ddb[%d] session [%d] already logged in\n",
+			   ha->host_no, __func__, ddb_entry->fw_ddb_index,
+			   cls_session->sid);
+		status = QLA_ERROR;
+	}
+
+	return status;
 }
 
 static void qla4xxx_relogin_all_devices(struct scsi_qla_host *ha)
