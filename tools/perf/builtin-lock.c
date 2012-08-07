@@ -357,28 +357,16 @@ struct trace_release_event {
 
 struct trace_lock_handler {
 	void (*acquire_event)(struct trace_acquire_event *,
-			      struct event_format *,
-			      int cpu,
-			      u64 timestamp,
-			      struct thread *thread);
+			      const struct perf_sample *sample);
 
 	void (*acquired_event)(struct trace_acquired_event *,
-			       struct event_format *,
-			       int cpu,
-			       u64 timestamp,
-			       struct thread *thread);
+			       const struct perf_sample *sample);
 
 	void (*contended_event)(struct trace_contended_event *,
-				struct event_format *,
-				int cpu,
-				u64 timestamp,
-				struct thread *thread);
+				const struct perf_sample *sample);
 
 	void (*release_event)(struct trace_release_event *,
-			      struct event_format *,
-			      int cpu,
-			      u64 timestamp,
-			      struct thread *thread);
+			      const struct perf_sample *sample);
 };
 
 static struct lock_seq_stat *get_seq(struct thread_stat *ts, void *addr)
@@ -417,10 +405,7 @@ enum acquire_flags {
 
 static void
 report_lock_acquire_event(struct trace_acquire_event *acquire_event,
-			struct event_format *__event __used,
-			int cpu __used,
-			u64 timestamp __used,
-			struct thread *thread __used)
+			  const struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
@@ -430,7 +415,7 @@ report_lock_acquire_event(struct trace_acquire_event *acquire_event,
 	if (ls->discard)
 		return;
 
-	ts = thread_stat_findnew(thread->pid);
+	ts = thread_stat_findnew(sample->tid);
 	seq = get_seq(ts, acquire_event->addr);
 
 	switch (seq->state) {
@@ -474,18 +459,16 @@ broken:
 	}
 
 	ls->nr_acquire++;
-	seq->prev_event_time = timestamp;
+	seq->prev_event_time = sample->time;
 end:
 	return;
 }
 
 static void
 report_lock_acquired_event(struct trace_acquired_event *acquired_event,
-			 struct event_format *__event __used,
-			 int cpu __used,
-			 u64 timestamp __used,
-			 struct thread *thread __used)
+			   const struct perf_sample *sample)
 {
+	u64 timestamp = sample->time;
 	struct lock_stat *ls;
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
@@ -495,7 +478,7 @@ report_lock_acquired_event(struct trace_acquired_event *acquired_event,
 	if (ls->discard)
 		return;
 
-	ts = thread_stat_findnew(thread->pid);
+	ts = thread_stat_findnew(sample->tid);
 	seq = get_seq(ts, acquired_event->addr);
 
 	switch (seq->state) {
@@ -537,10 +520,7 @@ end:
 
 static void
 report_lock_contended_event(struct trace_contended_event *contended_event,
-			  struct event_format *__event __used,
-			  int cpu __used,
-			  u64 timestamp __used,
-			  struct thread *thread __used)
+			    const struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
@@ -550,7 +530,7 @@ report_lock_contended_event(struct trace_contended_event *contended_event,
 	if (ls->discard)
 		return;
 
-	ts = thread_stat_findnew(thread->pid);
+	ts = thread_stat_findnew(sample->tid);
 	seq = get_seq(ts, contended_event->addr);
 
 	switch (seq->state) {
@@ -577,17 +557,14 @@ report_lock_contended_event(struct trace_contended_event *contended_event,
 
 	seq->state = SEQ_STATE_CONTENDED;
 	ls->nr_contended++;
-	seq->prev_event_time = timestamp;
+	seq->prev_event_time = sample->time;
 end:
 	return;
 }
 
 static void
 report_lock_release_event(struct trace_release_event *release_event,
-			struct event_format *__event __used,
-			int cpu __used,
-			u64 timestamp __used,
-			struct thread *thread __used)
+			  const struct perf_sample *sample)
 {
 	struct lock_stat *ls;
 	struct thread_stat *ts;
@@ -597,7 +574,7 @@ report_lock_release_event(struct trace_release_event *release_event,
 	if (ls->discard)
 		return;
 
-	ts = thread_stat_findnew(thread->pid);
+	ts = thread_stat_findnew(sample->tid);
 	seq = get_seq(ts, release_event->addr);
 
 	switch (seq->state) {
@@ -646,14 +623,12 @@ static struct trace_lock_handler report_lock_ops  = {
 
 static struct trace_lock_handler *trace_handler;
 
-static void
-process_lock_acquire_event(void *data,
-			   struct event_format *event __used,
-			   int cpu __used,
-			   u64 timestamp __used,
-			   struct thread *thread __used)
+static void perf_evsel__process_lock_acquire(struct perf_evsel *evsel,
+					     struct perf_sample *sample)
 {
 	struct trace_acquire_event acquire_event;
+	struct event_format *event = evsel->tp_format;
+	void *data = sample->raw_data;
 	u64 tmp;		/* this is required for casting... */
 
 	tmp = raw_field_value(event, "lockdep_addr", data);
@@ -662,17 +637,15 @@ process_lock_acquire_event(void *data,
 	acquire_event.flag = (int)raw_field_value(event, "flag", data);
 
 	if (trace_handler->acquire_event)
-		trace_handler->acquire_event(&acquire_event, event, cpu, timestamp, thread);
+		trace_handler->acquire_event(&acquire_event, sample);
 }
 
-static void
-process_lock_acquired_event(void *data,
-			    struct event_format *event __used,
-			    int cpu __used,
-			    u64 timestamp __used,
-			    struct thread *thread __used)
+static void perf_evsel__process_lock_acquired(struct perf_evsel *evsel,
+					      struct perf_sample *sample)
 {
 	struct trace_acquired_event acquired_event;
+	struct event_format *event = evsel->tp_format;
+	void *data = sample->raw_data;
 	u64 tmp;		/* this is required for casting... */
 
 	tmp = raw_field_value(event, "lockdep_addr", data);
@@ -680,17 +653,15 @@ process_lock_acquired_event(void *data,
 	acquired_event.name = (char *)raw_field_ptr(event, "name", data);
 
 	if (trace_handler->acquire_event)
-		trace_handler->acquired_event(&acquired_event, event, cpu, timestamp, thread);
+		trace_handler->acquired_event(&acquired_event, sample);
 }
 
-static void
-process_lock_contended_event(void *data,
-			     struct event_format *event __used,
-			     int cpu __used,
-			     u64 timestamp __used,
-			     struct thread *thread __used)
+static void perf_evsel__process_lock_contended(struct perf_evsel *evsel,
+					       struct perf_sample *sample)
 {
 	struct trace_contended_event contended_event;
+	struct event_format *event = evsel->tp_format;
+	void *data = sample->raw_data;
 	u64 tmp;		/* this is required for casting... */
 
 	tmp = raw_field_value(event, "lockdep_addr", data);
@@ -698,17 +669,15 @@ process_lock_contended_event(void *data,
 	contended_event.name = (char *)raw_field_ptr(event, "name", data);
 
 	if (trace_handler->acquire_event)
-		trace_handler->contended_event(&contended_event, event, cpu, timestamp, thread);
+		trace_handler->contended_event(&contended_event, sample);
 }
 
-static void
-process_lock_release_event(void *data,
-			   struct event_format *event __used,
-			   int cpu __used,
-			   u64 timestamp __used,
-			   struct thread *thread __used)
+static void perf_evsel__process_lock_release(struct perf_evsel *evsel,
+					     struct perf_sample *sample)
 {
 	struct trace_release_event release_event;
+	struct event_format *event = evsel->tp_format;
+	void *data = sample->raw_data;
 	u64 tmp;		/* this is required for casting... */
 
 	tmp = raw_field_value(event, "lockdep_addr", data);
@@ -716,22 +685,22 @@ process_lock_release_event(void *data,
 	release_event.name = (char *)raw_field_ptr(event, "name", data);
 
 	if (trace_handler->acquire_event)
-		trace_handler->release_event(&release_event, event, cpu, timestamp, thread);
+		trace_handler->release_event(&release_event, sample);
 }
 
-static void process_raw_event(struct perf_evsel *evsel, void *data, int cpu,
-			      u64 timestamp, struct thread *thread)
+static void perf_evsel__process_lock_event(struct perf_evsel *evsel,
+					   struct perf_sample *sample)
 {
 	struct event_format *event = evsel->tp_format;
 
 	if (!strcmp(event->name, "lock_acquire"))
-		process_lock_acquire_event(data, event, cpu, timestamp, thread);
+		perf_evsel__process_lock_acquire(evsel, sample);
 	if (!strcmp(event->name, "lock_acquired"))
-		process_lock_acquired_event(data, event, cpu, timestamp, thread);
+		perf_evsel__process_lock_acquired(evsel, sample);
 	if (!strcmp(event->name, "lock_contended"))
-		process_lock_contended_event(data, event, cpu, timestamp, thread);
+		perf_evsel__process_lock_contended(evsel, sample);
 	if (!strcmp(event->name, "lock_release"))
-		process_lock_release_event(data, event, cpu, timestamp, thread);
+		perf_evsel__process_lock_release(evsel, sample);
 }
 
 static void print_bad_events(int bad, int total)
@@ -857,8 +826,7 @@ static int process_sample_event(struct perf_tool *tool __used,
 		return -1;
 	}
 
-	process_raw_event(evsel, sample->raw_data, sample->cpu, sample->time, thread);
-
+	perf_evsel__process_lock_event(evsel, sample);
 	return 0;
 }
 
