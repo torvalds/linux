@@ -131,8 +131,9 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_RAW				= 1U << 10,
 	PERF_SAMPLE_BRANCH_STACK		= 1U << 11,
 	PERF_SAMPLE_REGS_USER			= 1U << 12,
+	PERF_SAMPLE_STACK_USER			= 1U << 13,
 
-	PERF_SAMPLE_MAX = 1U << 13,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 14,		/* non-ABI */
 };
 
 /*
@@ -205,6 +206,7 @@ enum perf_event_read_format {
 #define PERF_ATTR_SIZE_VER1	72	/* add: config2 */
 #define PERF_ATTR_SIZE_VER2	80	/* add: branch_sample_type */
 #define PERF_ATTR_SIZE_VER3	88	/* add: sample_regs_user */
+#define PERF_ATTR_SIZE_VER4	96	/* add: sample_stack_user */
 
 /*
  * Hardware event_id to monitor via a performance monitoring event:
@@ -289,6 +291,14 @@ struct perf_event_attr {
 	 * See asm/perf_regs.h for details.
 	 */
 	__u64	sample_regs_user;
+
+	/*
+	 * Defines size of the user stack to dump on samples.
+	 */
+	__u32	sample_stack_user;
+
+	/* Align to u64. */
+	__u32	__reserved_2;
 };
 
 /*
@@ -568,6 +578,10 @@ enum perf_event_type {
 	 *
 	 * 	{ u64			abi; # enum perf_sample_regs_abi
 	 * 	  u64			regs[weight(mask)]; } && PERF_SAMPLE_REGS_USER
+	 *
+	 * 	{ u64			size;
+	 * 	  char			data[size];
+	 * 	  u64			dyn_size; } && PERF_SAMPLE_STACK_USER
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
@@ -1160,6 +1174,7 @@ struct perf_sample_data {
 	struct perf_raw_record		*raw;
 	struct perf_branch_stack	*br_stack;
 	struct perf_regs_user		regs_user;
+	u64				stack_user_size;
 };
 
 static inline void perf_sample_data_init(struct perf_sample_data *data,
@@ -1172,6 +1187,7 @@ static inline void perf_sample_data_init(struct perf_sample_data *data,
 	data->period = period;
 	data->regs_user.abi = PERF_SAMPLE_REGS_ABI_NONE;
 	data->regs_user.regs = NULL;
+	data->stack_user_size = 0;
 }
 
 extern void perf_output_sample(struct perf_output_handle *handle,

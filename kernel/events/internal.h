@@ -158,4 +158,20 @@ static inline void put_recursion_context(int *recursion, int rctx)
 	recursion[rctx]--;
 }
 
+#ifdef CONFIG_HAVE_PERF_USER_STACK_DUMP
+static inline bool arch_perf_have_user_stack_dump(void)
+{
+	return true;
+}
+
+#define perf_user_stack_pointer(regs) user_stack_pointer(regs)
+#else
+static inline bool arch_perf_have_user_stack_dump(void)
+{
+	return false;
+}
+
+#define perf_user_stack_pointer(regs) 0
+#endif /* CONFIG_HAVE_PERF_USER_STACK_DUMP */
+
 #endif /* _KERNEL_EVENTS_INTERNAL_H */
