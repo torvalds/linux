@@ -687,22 +687,29 @@ mmc_omap_xfer_data(struct mmc_omap_host *host, int write)
 	host->buffer += nwords;
 }
 
-static inline void mmc_omap_report_irq(u16 status)
+#ifdef CONFIG_MMC_DEBUG
+static void mmc_omap_report_irq(struct mmc_omap_host *host, u16 status)
 {
 	static const char *mmc_omap_status_bits[] = {
 		"EOC", "CD", "CB", "BRS", "EOFB", "DTO", "DCRC", "CTO",
 		"CCRC", "CRW", "AF", "AE", "OCRB", "CIRQ", "CERR"
 	};
-	int i, c = 0;
+	int i;
+	char res[64], *buf = res;
+
+	buf += sprintf(buf, "MMC IRQ 0x%x:", status);
 
 	for (i = 0; i < ARRAY_SIZE(mmc_omap_status_bits); i++)
-		if (status & (1 << i)) {
-			if (c)
-				printk(" ");
-			printk("%s", mmc_omap_status_bits[i]);
-			c++;
-		}
+		if (status & (1 << i))
+			buf += sprintf(buf, " %s", mmc_omap_status_bits[i]);
+	dev_vdbg(mmc_dev(host->mmc), "%s\n", res);
 }
+#else
+static void mmc_omap_report_irq(struct mmc_omap_host *host, u16 status)
+{
+}
+#endif
+
 
 static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 {
@@ -736,12 +743,10 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 			cmd = host->cmd->opcode;
 		else
 			cmd = -1;
-#ifdef CONFIG_MMC_DEBUG
 		dev_dbg(mmc_dev(host->mmc), "MMC IRQ %04x (CMD %d): ",
 			status, cmd);
-		mmc_omap_report_irq(status);
-		printk("\n");
-#endif
+		mmc_omap_report_irq(host, status);
+
 		if (host->total_bytes_left) {
 			if ((status & OMAP_MMC_STAT_A_FULL) ||
 			    (status & OMAP_MMC_STAT_END_OF_DATA))
