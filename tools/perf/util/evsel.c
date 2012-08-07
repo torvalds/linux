@@ -17,6 +17,8 @@
 #include "thread_map.h"
 #include "target.h"
 #include "../../../include/linux/hw_breakpoint.h"
+#include "../../include/linux/perf_event.h"
+#include "perf_regs.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
 #define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
@@ -368,8 +370,17 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 		attr->mmap_data = track;
 	}
 
-	if (opts->call_graph)
+	if (opts->call_graph) {
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
+
+		if (opts->call_graph == CALLCHAIN_DWARF) {
+			attr->sample_type |= PERF_SAMPLE_REGS_USER |
+					     PERF_SAMPLE_STACK_USER;
+			attr->sample_regs_user = PERF_REGS_MASK;
+			attr->sample_stack_user = opts->stack_dump_size;
+			attr->exclude_callchain_user = 1;
+		}
+	}
 
 	if (perf_target__has_cpu(&opts->target))
 		attr->sample_type	|= PERF_SAMPLE_CPU;

@@ -209,9 +209,15 @@ void pthread__unblock_sigwinch(void);
 
 #include "util/target.h"
 
+enum perf_call_graph_mode {
+	CALLCHAIN_NONE,
+	CALLCHAIN_FP,
+	CALLCHAIN_DWARF
+};
+
 struct perf_record_opts {
 	struct perf_target target;
-	bool	     call_graph;
+	int	     call_graph;
 	bool	     group;
 	bool	     inherit_stat;
 	bool	     no_delay;
@@ -230,6 +236,7 @@ struct perf_record_opts {
 	u64          branch_stack;
 	u64	     default_interval;
 	u64	     user_interval;
+	u16	     stack_dump_size;
 };
 
 #endif

@@ -31,6 +31,15 @@
 #include <sched.h>
 #include <sys/mman.h>
 
+#define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
+
+#ifdef NO_LIBUNWIND_SUPPORT
+static char callchain_help[] = CALLCHAIN_HELP "[fp]";
+#else
+static unsigned long default_stack_dump_size = 8192;
+static char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+#endif
+
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
@@ -732,6 +741,106 @@ error:
 	return ret;
 }
 
+#ifndef NO_LIBUNWIND_SUPPORT
+static int get_stack_size(char *str, unsigned long *_size)
+{
+	char *endptr;
+	unsigned long size;
+	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
+
+	size = strtoul(str, &endptr, 0);
+
+	do {
+		if (*endptr)
+			break;
+
+		size = round_up(size, sizeof(u64));
+		if (!size || size > max_size)
+			break;
+
+		*_size = size;
+		return 0;
+
+	} while (0);
+
+	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
+	       max_size, str);
+	return -1;
+}
+#endif /* !NO_LIBUNWIND_SUPPORT */
+
+static int
+parse_callchain_opt(const struct option *opt __used, const char *arg,
+		    int unset)
+{
+	struct perf_record *rec = (struct perf_record *)opt->value;
+	char *tok, *name, *saveptr = NULL;
+	char *buf;
+	int ret = -1;
+
+	/* --no-call-graph */
+	if (unset)
+		return 0;
+
+	/* We specified default option if none is provided. */
+	BUG_ON(!arg);
+
+	/* We need buffer that we know we can write to. */
+	buf = malloc(strlen(arg) + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	strcpy(buf, arg);
+
+	tok = strtok_r((char *)buf, ",", &saveptr);
+	name = tok ? : (char *)buf;
+
+	do {
+		/* Framepointer style */
+		if (!strncmp(name, "fp", sizeof("fp"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				rec->opts.call_graph = CALLCHAIN_FP;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+				       "needed for -g fp\n");
+			break;
+
+#ifndef NO_LIBUNWIND_SUPPORT
+		/* Dwarf style */
+		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			ret = 0;
+			rec->opts.call_graph = CALLCHAIN_DWARF;
+			rec->opts.stack_dump_size = default_stack_dump_size;
+
+			tok = strtok_r(NULL, ",", &saveptr);
+			if (tok) {
+				unsigned long size = 0;
+
+				ret = get_stack_size(tok, &size);
+				rec->opts.stack_dump_size = size;
+			}
+
+			if (!ret)
+				pr_debug("callchain: stack dump size %d\n",
+					 rec->opts.stack_dump_size);
+#endif /* !NO_LIBUNWIND_SUPPORT */
+		} else {
+			pr_err("callchain: Unknown -g option "
+			       "value: %s\n", arg);
+			break;
+		}
+
+	} while (0);
+
+	free(buf);
+
+	if (!ret)
+		pr_debug("callchain: type %d\n", rec->opts.call_graph);
+
+	return ret;
+}
+
 static const char * const record_usage[] = {
 	"perf record [<options>] [<command>]",
 	"perf record [<options>] -- <command> [<options>]",
@@ -803,8 +912,9 @@ const struct option record_options[] = {
 		     "number of mmap data pages"),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
-	OPT_BOOLEAN('g', "call-graph", &record.opts.call_graph,
-		    "do call-graph (stack chain/backtrace) recording"),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &record, "mode[,dump_size]",
+			     callchain_help, &parse_callchain_opt,
+			     "fp"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),
