@@ -52,11 +52,6 @@ struct wb_writeback_work {
 	struct completion *done;	/* set if the caller waits */
 };
 
-/*
- * We don't actually have pdflush, but this one is exported though /proc...
- */
-int nr_pdflush_threads;
-
 /**
  * writeback_in_progress - determine whether there is writeback in progress
  * @bdi: the device's backing_dev_info structure.
@@ -628,8 +623,8 @@ static long writeback_sb_inodes(struct super_block *sb,
 		}
 
 		/*
-		 * Don't bother with new inodes or inodes beeing freed, first
-		 * kind does not need peridic writeout yet, and for the latter
+		 * Don't bother with new inodes or inodes being freed, first
+		 * kind does not need periodic writeout yet, and for the latter
 		 * kind writeout is handled by the freer.
 		 */
 		spin_lock(&inode->i_lock);

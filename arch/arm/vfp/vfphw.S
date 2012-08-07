@@ -16,6 +16,7 @@
  */
 #include <asm/thread_info.h>
 #include <asm/vfpmacros.h>
+#include <linux/kern_levels.h>
 #include "../kernel/entry-header.S"
 
 	.macro	DBGSTR, str
@@ -24,7 +25,7 @@
 	add	r0, pc, #4
 	bl	printk
 	b	1f
-	.asciz  "<7>VFP: \str\n"
+	.asciz  KERN_DEBUG "VFP: \str\n"
 	.balign 4
 1:	ldmfd	sp!, {r0-r3, ip, lr}
 #endif
@@ -37,7 +38,7 @@
 	add	r0, pc, #4
 	bl	printk
 	b	1f
-	.asciz  "<7>VFP: \str\n"
+	.asciz  KERN_DEBUG "VFP: \str\n"
 	.balign 4
 1:	ldmfd	sp!, {r0-r3, ip, lr}
 #endif
@@ -52,7 +53,7 @@
 	add	r0, pc, #4
 	bl	printk
 	b	1f
-	.asciz  "<7>VFP: \str\n"
+	.asciz  KERN_DEBUG "VFP: \str\n"
 	.balign 4
 1:	ldmfd	sp!, {r0-r3, ip, lr}
 #endif
@@ -61,13 +62,13 @@
 
 @ VFP hardware support entry point.
 @
-@  r0  = faulted instruction
-@  r2  = faulted PC+4
-@  r9  = successful return
+@  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
+@  r2  = PC value to resume execution after successful emulation
+@  r9  = normal "successful" return address
 @  r10 = vfp_state union
 @  r11 = CPU number
-@  lr  = failure return
-
+@  lr  = unrecognised instruction return address
+@  IRQs enabled.
 ENTRY(vfp_support_entry)
 	DBGSTR3	"instr %08x pc %08x state %p", r0, r2, r10
 
@@ -161,9 +162,12 @@ vfp_hw_state_valid:
 					@ exception before retrying branch
 					@ out before setting an FPEXC that
 					@ stops us reading stuff
-	VFPFMXR	FPEXC, r1		@ restore FPEXC last
-	sub	r2, r2, #4
-	str	r2, [sp, #S_PC]		@ retry the instruction
+	VFPFMXR	FPEXC, r1		@ Restore FPEXC last
+	sub	r2, r2, #4		@ Retry current instruction - if Thumb
+	str	r2, [sp, #S_PC]		@ mode it's two 16-bit instructions,
+					@ else it's one 32-bit instruction, so
+					@ always subtract 4 from the following
+					@ instruction address.
 #ifdef CONFIG_PREEMPT
 	get_thread_info	r10
 	ldr	r4, [r10, #TI_PREEMPT]	@ get preempt count

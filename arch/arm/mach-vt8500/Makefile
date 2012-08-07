@@ -5,5 +5,3 @@ obj-$(CONFIG_VTWM_VERSION_WM8505) += devices-wm8505.o
 
 obj-$(CONFIG_MACH_BV07) += bv07.o
 obj-$(CONFIG_MACH_WM8505_7IN_NETBOOK) += wm8505_7in.o
-
-obj-$(CONFIG_HAVE_PWM) += pwm.o

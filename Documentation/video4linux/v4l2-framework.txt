@@ -594,6 +594,15 @@ You should also set these fields:
   unlocked_ioctl file operation is called this lock will be taken by the
   core and released afterwards. See the next section for more details.
 
+- queue: a pointer to the struct vb2_queue associated with this device node.
+  If queue is non-NULL, and queue->lock is non-NULL, then queue->lock is
+  used for the queuing ioctls (VIDIOC_REQBUFS, CREATE_BUFS, QBUF, DQBUF,
+  QUERYBUF, PREPARE_BUF, STREAMON and STREAMOFF) instead of the lock above.
+  That way the vb2 queuing framework does not have to wait for other ioctls.
+  This queue pointer is also used by the vb2 helper functions to check for
+  queuing ownership (i.e. is the filehandle calling it allowed to do the
+  operation).
+
 - prio: keeps track of the priorities. Used to implement VIDIOC_G/S_PRIORITY.
   If left to NULL, then it will use the struct v4l2_prio_state in v4l2_device.
   If you want to have a separate priority state per (group of) device node(s),
@@ -647,47 +656,43 @@ manually set the struct media_entity type and name fields.
 A reference to the entity will be automatically acquired/released when the
 video device is opened/closed.
 
-v4l2_file_operations and locking
---------------------------------
+ioctls and locking
+------------------
 
-You can set a pointer to a mutex_lock in struct video_device. Usually this
-will be either a top-level mutex or a mutex per device node. By default this
-lock will be used for unlocked_ioctl, but you can disable locking for
-selected ioctls by calling:
+The V4L core provides optional locking services. The main service is the
+lock field in struct video_device, which is a pointer to a mutex. If you set
+this pointer, then that will be used by unlocked_ioctl to serialize all ioctls.
 
-	void v4l2_disable_ioctl_locking(struct video_device *vdev, unsigned int cmd);
+If you are using the videobuf2 framework, then there is a second lock that you
+can set: video_device->queue->lock. If set, then this lock will be used instead
+of video_device->lock to serialize all queuing ioctls (see the previous section
+for the full list of those ioctls).
 
-E.g.: v4l2_disable_ioctl_locking(vdev, VIDIOC_DQBUF);
+The advantage of using a different lock for the queuing ioctls is that for some
+drivers (particularly USB drivers) certain commands such as setting controls
+can take a long time, so you want to use a separate lock for the buffer queuing
+ioctls. That way your VIDIOC_DQBUF doesn't stall because the driver is busy
+changing the e.g. exposure of the webcam.
 
-You have to call this before you register the video_device.
+Of course, you can always do all the locking yourself by leaving both lock
+pointers at NULL.
 
-Particularly with USB drivers where certain commands such as setting controls
-can take a long time you may want to do your own locking for the buffer queuing
-ioctls.
-
-If you want still finer-grained locking then you have to set mutex_lock to NULL
-and do you own locking completely.
-
-It is up to the driver developer to decide which method to use. However, if
-your driver has high-latency operations (for example, changing the exposure
-of a USB webcam might take a long time), then you might be better off with
-doing your own locking if you want to allow the user to do other things with
-the device while waiting for the high-latency command to finish.
-
-If a lock is specified then all ioctl commands will be serialized on that
-lock. If you use videobuf then you must pass the same lock to the videobuf
-queue initialize function: if videobuf has to wait for a frame to arrive, then
-it will temporarily unlock the lock and relock it afterwards. If your driver
-also waits in the code, then you should do the same to allow other processes
-to access the device node while the first process is waiting for something.
+If you use the old videobuf then you must pass the video_device lock to the
+videobuf queue initialize function: if videobuf has to wait for a frame to
+arrive, then it will temporarily unlock the lock and relock it afterwards. If
+your driver also waits in the code, then you should do the same to allow other
+processes to access the device node while the first process is waiting for
+something.
 
 In the case of videobuf2 you will need to implement the wait_prepare and
-wait_finish callbacks to unlock/lock if applicable. In particular, if you use
-the lock in struct video_device then you must unlock/lock this mutex in
-wait_prepare and wait_finish.
+wait_finish callbacks to unlock/lock if applicable. If you use the queue->lock
+pointer, then you can use the helper functions vb2_ops_wait_prepare/finish.
 
-The implementation of a hotplug disconnect should also take the lock before
-calling v4l2_device_disconnect.
+The implementation of a hotplug disconnect should also take the lock from
+video_device before calling v4l2_device_disconnect. If you are also using
+video_device->queue->lock, then you have to first lock video_device->queue->lock
+followed by video_device->lock. That way you can be sure no ioctl is running
+when you call v4l2_device_disconnect.
 
 video_device registration
 -------------------------

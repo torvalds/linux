@@ -4,8 +4,10 @@
 
 #include <linux/module.h>
 #include <linux/lockd/bind.h>
+#include <net/net_namespace.h>
 
-static LIST_HEAD(grace_list);
+#include "netns.h"
+
 static DEFINE_SPINLOCK(grace_lock);
 
 /**
@@ -19,10 +21,12 @@ static DEFINE_SPINLOCK(grace_lock);
  *
  * This function is called to start a grace period.
  */
-void locks_start_grace(struct lock_manager *lm)
+void locks_start_grace(struct net *net, struct lock_manager *lm)
 {
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
 	spin_lock(&grace_lock);
-	list_add(&lm->list, &grace_list);
+	list_add(&lm->list, &ln->grace_list);
 	spin_unlock(&grace_lock);
 }
 EXPORT_SYMBOL_GPL(locks_start_grace);
@@ -52,8 +56,10 @@ EXPORT_SYMBOL_GPL(locks_end_grace);
  * to answer ordinary lock requests, and when they should accept only
  * lock reclaims.
  */
-int locks_in_grace(void)
+int locks_in_grace(struct net *net)
 {
-	return !list_empty(&grace_list);
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	return !list_empty(&ln->grace_list);
 }
 EXPORT_SYMBOL_GPL(locks_in_grace);

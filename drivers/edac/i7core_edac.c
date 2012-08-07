@@ -248,6 +248,8 @@ struct i7core_dev {
 };
 
 struct i7core_pvt {
+	struct device *addrmatch_dev, *chancounts_dev;
+
 	struct pci_dev	*pci_noncore;
 	struct pci_dev	*pci_mcr[MAX_MCR_FUNC + 1];
 	struct pci_dev	*pci_ch[NUM_CHANS][MAX_CHAN_FUNC + 1];
@@ -514,29 +516,28 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 	pci_read_config_dword(pdev, MC_MAX_DOD, &pvt->info.max_dod);
 	pci_read_config_dword(pdev, MC_CHANNEL_MAPPER, &pvt->info.ch_map);
 
-	debugf0("QPI %d control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
-		pvt->i7core_dev->socket, pvt->info.mc_control, pvt->info.mc_status,
-		pvt->info.max_dod, pvt->info.ch_map);
+	edac_dbg(0, "QPI %d control=0x%08x status=0x%08x dod=0x%08x map=0x%08x\n",
+		 pvt->i7core_dev->socket, pvt->info.mc_control,
+		 pvt->info.mc_status, pvt->info.max_dod, pvt->info.ch_map);
 
 	if (ECC_ENABLED(pvt)) {
-		debugf0("ECC enabled with x%d SDCC\n", ECCx8(pvt) ? 8 : 4);
+		edac_dbg(0, "ECC enabled with x%d SDCC\n", ECCx8(pvt) ? 8 : 4);
 		if (ECCx8(pvt))
 			mode = EDAC_S8ECD8ED;
 		else
 			mode = EDAC_S4ECD4ED;
 	} else {
-		debugf0("ECC disabled\n");
+		edac_dbg(0, "ECC disabled\n");
 		mode = EDAC_NONE;
 	}
 
 	/* FIXME: need to handle the error codes */
-	debugf0("DOD Max limits: DIMMS: %d, %d-ranked, %d-banked "
-		"x%x x 0x%x\n",
-		numdimms(pvt->info.max_dod),
-		numrank(pvt->info.max_dod >> 2),
-		numbank(pvt->info.max_dod >> 4),
-		numrow(pvt->info.max_dod >> 6),
-		numcol(pvt->info.max_dod >> 9));
+	edac_dbg(0, "DOD Max limits: DIMMS: %d, %d-ranked, %d-banked x%x x 0x%x\n",
+		 numdimms(pvt->info.max_dod),
+		 numrank(pvt->info.max_dod >> 2),
+		 numbank(pvt->info.max_dod >> 4),
+		 numrow(pvt->info.max_dod >> 6),
+		 numcol(pvt->info.max_dod >> 9));
 
 	for (i = 0; i < NUM_CHANS; i++) {
 		u32 data, dimm_dod[3], value[8];
@@ -545,11 +546,11 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			continue;
 
 		if (!CH_ACTIVE(pvt, i)) {
-			debugf0("Channel %i is not active\n", i);
+			edac_dbg(0, "Channel %i is not active\n", i);
 			continue;
 		}
 		if (CH_DISABLED(pvt, i)) {
-			debugf0("Channel %i is disabled\n", i);
+			edac_dbg(0, "Channel %i is disabled\n", i);
 			continue;
 		}
 
@@ -580,15 +581,14 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_ch[i][1],
 				MC_DOD_CH_DIMM2, &dimm_dod[2]);
 
-		debugf0("Ch%d phy rd%d, wr%d (0x%08x): "
-			"%s%s%s%cDIMMs\n",
-			i,
-			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
-			data,
-			pvt->channel[i].is_3dimms_present ? "3DIMMS " : "",
-			pvt->channel[i].is_3dimms_present ? "SINGLE_4R " : "",
-			pvt->channel[i].has_4rank ? "HAS_4R " : "",
-			(data & REGISTERED_DIMM) ? 'R' : 'U');
+		edac_dbg(0, "Ch%d phy rd%d, wr%d (0x%08x): %s%s%s%cDIMMs\n",
+			 i,
+			 RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
+			 data,
+			 pvt->channel[i].is_3dimms_present ? "3DIMMS " : "",
+			 pvt->channel[i].is_3dimms_present ? "SINGLE_4R " : "",
+			 pvt->channel[i].has_4rank ? "HAS_4R " : "",
+			 (data & REGISTERED_DIMM) ? 'R' : 'U');
 
 		for (j = 0; j < 3; j++) {
 			u32 banks, ranks, rows, cols;
@@ -607,11 +607,10 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 			/* DDR3 has 8 I/O banks */
 			size = (rows * cols * banks * ranks) >> (20 - 3);
 
-			debugf0("\tdimm %d %d Mb offset: %x, "
-				"bank: %d, rank: %d, row: %#x, col: %#x\n",
-				j, size,
-				RANKOFFSET(dimm_dod[j]),
-				banks, ranks, rows, cols);
+			edac_dbg(0, "\tdimm %d %d Mb offset: %x, bank: %d, rank: %d, row: %#x, col: %#x\n",
+				 j, size,
+				 RANKOFFSET(dimm_dod[j]),
+				 banks, ranks, rows, cols);
 
 			npages = MiB_TO_PAGES(size);
 
@@ -647,12 +646,12 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(pdev, MC_SAG_CH_5, &value[5]);
 		pci_read_config_dword(pdev, MC_SAG_CH_6, &value[6]);
 		pci_read_config_dword(pdev, MC_SAG_CH_7, &value[7]);
-		debugf1("\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
+		edac_dbg(1, "\t[%i] DIVBY3\tREMOVED\tOFFSET\n", i);
 		for (j = 0; j < 8; j++)
-			debugf1("\t\t%#x\t%#x\t%#x\n",
-				(value[j] >> 27) & 0x1,
-				(value[j] >> 24) & 0x7,
-				(value[j] & ((1 << 24) - 1)));
+			edac_dbg(1, "\t\t%#x\t%#x\t%#x\n",
+				 (value[j] >> 27) & 0x1,
+				 (value[j] >> 24) & 0x7,
+				 (value[j] & ((1 << 24) - 1)));
 	}
 
 	return 0;
@@ -661,6 +660,8 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 /****************************************************************************
 			Error insertion routines
  ****************************************************************************/
+
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
 
 /* The i7core has independent error injection features per channel.
    However, to have a simpler code, we don't allow enabling error injection
@@ -691,9 +692,11 @@ static int disable_inject(const struct mem_ctl_info *mci)
  *	bit 0 - refers to the lower 32-byte half cacheline
  *	bit 1 - refers to the upper 32-byte half cacheline
  */
-static ssize_t i7core_inject_section_store(struct mem_ctl_info *mci,
+static ssize_t i7core_inject_section_store(struct device *dev,
+					   struct device_attribute *mattr,
 					   const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int rc;
@@ -709,9 +712,11 @@ static ssize_t i7core_inject_section_store(struct mem_ctl_info *mci,
 	return count;
 }
 
-static ssize_t i7core_inject_section_show(struct mem_ctl_info *mci,
-					      char *data)
+static ssize_t i7core_inject_section_show(struct device *dev,
+					  struct device_attribute *mattr,
+					  char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
 	return sprintf(data, "0x%08x\n", pvt->inject.section);
 }
@@ -724,10 +729,12 @@ static ssize_t i7core_inject_section_show(struct mem_ctl_info *mci,
  *	bit 1 - inject ECC error
  *	bit 2 - inject parity error
  */
-static ssize_t i7core_inject_type_store(struct mem_ctl_info *mci,
+static ssize_t i7core_inject_type_store(struct device *dev,
+					struct device_attribute *mattr,
 					const char *data, size_t count)
 {
-	struct i7core_pvt *pvt = mci->pvt_info;
+	struct mem_ctl_info *mci = to_mci(dev);
+struct i7core_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int rc;
 
@@ -742,10 +749,13 @@ static ssize_t i7core_inject_type_store(struct mem_ctl_info *mci,
 	return count;
 }
 
-static ssize_t i7core_inject_type_show(struct mem_ctl_info *mci,
-					      char *data)
+static ssize_t i7core_inject_type_show(struct device *dev,
+				       struct device_attribute *mattr,
+				       char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
+
 	return sprintf(data, "0x%08x\n", pvt->inject.type);
 }
 
@@ -759,9 +769,11 @@ static ssize_t i7core_inject_type_show(struct mem_ctl_info *mci,
  *   23:16 and 31:24). Flipping bits in two symbol pairs will cause an
  *   uncorrectable error to be injected.
  */
-static ssize_t i7core_inject_eccmask_store(struct mem_ctl_info *mci,
-					const char *data, size_t count)
+static ssize_t i7core_inject_eccmask_store(struct device *dev,
+					   struct device_attribute *mattr,
+					   const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int rc;
@@ -777,10 +789,13 @@ static ssize_t i7core_inject_eccmask_store(struct mem_ctl_info *mci,
 	return count;
 }
 
-static ssize_t i7core_inject_eccmask_show(struct mem_ctl_info *mci,
-					      char *data)
+static ssize_t i7core_inject_eccmask_show(struct device *dev,
+					  struct device_attribute *mattr,
+					  char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
+
 	return sprintf(data, "0x%08x\n", pvt->inject.eccmask);
 }
 
@@ -797,14 +812,16 @@ static ssize_t i7core_inject_eccmask_show(struct mem_ctl_info *mci,
 
 #define DECLARE_ADDR_MATCH(param, limit)			\
 static ssize_t i7core_inject_store_##param(			\
-		struct mem_ctl_info *mci,			\
-		const char *data, size_t count)			\
+	struct device *dev,					\
+	struct device_attribute *mattr,				\
+	const char *data, size_t count)				\
 {								\
+	struct mem_ctl_info *mci = to_mci(dev);			\
 	struct i7core_pvt *pvt;					\
 	long value;						\
 	int rc;							\
 								\
-	debugf1("%s()\n", __func__);				\
+	edac_dbg(1, "\n");					\
 	pvt = mci->pvt_info;					\
 								\
 	if (pvt->inject.enable)					\
@@ -824,13 +841,15 @@ static ssize_t i7core_inject_store_##param(			\
 }								\
 								\
 static ssize_t i7core_inject_show_##param(			\
-		struct mem_ctl_info *mci,			\
-		char *data)					\
+	struct device *dev,					\
+	struct device_attribute *mattr,				\
+	char *data)						\
 {								\
+	struct mem_ctl_info *mci = to_mci(dev);			\
 	struct i7core_pvt *pvt;					\
 								\
 	pvt = mci->pvt_info;					\
-	debugf1("%s() pvt=%p\n", __func__, pvt);		\
+	edac_dbg(1, "pvt=%p\n", pvt);				\
 	if (pvt->inject.param < 0)				\
 		return sprintf(data, "any\n");			\
 	else							\
@@ -838,14 +857,9 @@ static ssize_t i7core_inject_show_##param(			\
 }
 
 #define ATTR_ADDR_MATCH(param)					\
-	{							\
-		.attr = {					\
-			.name = #param,				\
-			.mode = (S_IRUGO | S_IWUSR)		\
-		},						\
-		.show  = i7core_inject_show_##param,		\
-		.store = i7core_inject_store_##param,		\
-	}
+	static DEVICE_ATTR(param, S_IRUGO | S_IWUSR,		\
+		    i7core_inject_show_##param,			\
+		    i7core_inject_store_##param)
 
 DECLARE_ADDR_MATCH(channel, 3);
 DECLARE_ADDR_MATCH(dimm, 3);
@@ -854,14 +868,21 @@ DECLARE_ADDR_MATCH(bank, 32);
 DECLARE_ADDR_MATCH(page, 0x10000);
 DECLARE_ADDR_MATCH(col, 0x4000);
 
+ATTR_ADDR_MATCH(channel);
+ATTR_ADDR_MATCH(dimm);
+ATTR_ADDR_MATCH(rank);
+ATTR_ADDR_MATCH(bank);
+ATTR_ADDR_MATCH(page);
+ATTR_ADDR_MATCH(col);
+
 static int write_and_test(struct pci_dev *dev, const int where, const u32 val)
 {
 	u32 read;
 	int count;
 
-	debugf0("setting pci %02x:%02x.%x reg=%02x value=%08x\n",
-		dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
-		where, val);
+	edac_dbg(0, "setting pci %02x:%02x.%x reg=%02x value=%08x\n",
+		 dev->bus->number, PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
+		 where, val);
 
 	for (count = 0; count < 10; count++) {
 		if (count)
@@ -899,9 +920,11 @@ static int write_and_test(struct pci_dev *dev, const int where, const u32 val)
  *    is reliable enough to check if the MC is using the
  *    three channels. However, this is not clear at the datasheet.
  */
-static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
-				       const char *data, size_t count)
+static ssize_t i7core_inject_enable_store(struct device *dev,
+					  struct device_attribute *mattr,
+					  const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
 	u32 injectmask;
 	u64 mask = 0;
@@ -994,17 +1017,18 @@ static ssize_t i7core_inject_enable_store(struct mem_ctl_info *mci,
 	pci_write_config_dword(pvt->pci_noncore,
 			       MC_CFG_CONTROL, 8);
 
-	debugf0("Error inject addr match 0x%016llx, ecc 0x%08x,"
-		" inject 0x%08x\n",
-		mask, pvt->inject.eccmask, injectmask);
+	edac_dbg(0, "Error inject addr match 0x%016llx, ecc 0x%08x, inject 0x%08x\n",
+		 mask, pvt->inject.eccmask, injectmask);
 
 
 	return count;
 }
 
-static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
-					char *data)
+static ssize_t i7core_inject_enable_show(struct device *dev,
+					 struct device_attribute *mattr,
+					 char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct i7core_pvt *pvt = mci->pvt_info;
 	u32 injectmask;
 
@@ -1014,7 +1038,7 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 	pci_read_config_dword(pvt->pci_ch[pvt->inject.channel][0],
 			       MC_CHANNEL_ERROR_INJECT, &injectmask);
 
-	debugf0("Inject error read: 0x%018x\n", injectmask);
+	edac_dbg(0, "Inject error read: 0x%018x\n", injectmask);
 
 	if (injectmask & 0x0c)
 		pvt->inject.enable = 1;
@@ -1024,12 +1048,14 @@ static ssize_t i7core_inject_enable_show(struct mem_ctl_info *mci,
 
 #define DECLARE_COUNTER(param)					\
 static ssize_t i7core_show_counter_##param(			\
-		struct mem_ctl_info *mci,			\
-		char *data)					\
+	struct device *dev,					\
+	struct device_attribute *mattr,				\
+	char *data)						\
 {								\
+	struct mem_ctl_info *mci = to_mci(dev);			\
 	struct i7core_pvt *pvt = mci->pvt_info;			\
 								\
-	debugf1("%s() \n", __func__);				\
+	edac_dbg(1, "\n");					\
 	if (!pvt->ce_count_available || (pvt->is_registered))	\
 		return sprintf(data, "data unavailable\n");	\
 	return sprintf(data, "%lu\n",				\
@@ -1037,120 +1063,178 @@ static ssize_t i7core_show_counter_##param(			\
 }
 
 #define ATTR_COUNTER(param)					\
-	{							\
-		.attr = {					\
-			.name = __stringify(udimm##param),	\
-			.mode = (S_IRUGO | S_IWUSR)		\
-		},						\
-		.show  = i7core_show_counter_##param		\
-	}
+	static DEVICE_ATTR(udimm##param, S_IRUGO | S_IWUSR,	\
+		    i7core_show_counter_##param,		\
+		    NULL)
 
 DECLARE_COUNTER(0);
 DECLARE_COUNTER(1);
 DECLARE_COUNTER(2);
 
+ATTR_COUNTER(0);
+ATTR_COUNTER(1);
+ATTR_COUNTER(2);
+
 /*
- * Sysfs struct
+ * inject_addrmatch device sysfs struct
  */
 
-static const struct mcidev_sysfs_attribute i7core_addrmatch_attrs[] = {
-	ATTR_ADDR_MATCH(channel),
-	ATTR_ADDR_MATCH(dimm),
-	ATTR_ADDR_MATCH(rank),
-	ATTR_ADDR_MATCH(bank),
-	ATTR_ADDR_MATCH(page),
-	ATTR_ADDR_MATCH(col),
-	{ } /* End of list */
+static struct attribute *i7core_addrmatch_attrs[] = {
+	&dev_attr_channel.attr,
+	&dev_attr_dimm.attr,
+	&dev_attr_rank.attr,
+	&dev_attr_bank.attr,
+	&dev_attr_page.attr,
+	&dev_attr_col.attr,
+	NULL
 };
 
-static const struct mcidev_sysfs_group i7core_inject_addrmatch = {
-	.name  = "inject_addrmatch",
-	.mcidev_attr = i7core_addrmatch_attrs,
+static struct attribute_group addrmatch_grp = {
+	.attrs	= i7core_addrmatch_attrs,
 };
 
-static const struct mcidev_sysfs_attribute i7core_udimm_counters_attrs[] = {
-	ATTR_COUNTER(0),
-	ATTR_COUNTER(1),
-	ATTR_COUNTER(2),
-	{ .attr = { .name = NULL } }
+static const struct attribute_group *addrmatch_groups[] = {
+	&addrmatch_grp,
+	NULL
 };
 
-static const struct mcidev_sysfs_group i7core_udimm_counters = {
-	.name  = "all_channel_counts",
-	.mcidev_attr = i7core_udimm_counters_attrs,
+static void addrmatch_release(struct device *device)
+{
+	edac_dbg(1, "Releasing device %s\n", dev_name(device));
+	kfree(device);
+}
+
+static struct device_type addrmatch_type = {
+	.groups		= addrmatch_groups,
+	.release	= addrmatch_release,
 };
 
-static const struct mcidev_sysfs_attribute i7core_sysfs_rdimm_attrs[] = {
-	{
-		.attr = {
-			.name = "inject_section",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_section_show,
-		.store = i7core_inject_section_store,
-	}, {
-		.attr = {
-			.name = "inject_type",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_type_show,
-		.store = i7core_inject_type_store,
-	}, {
-		.attr = {
-			.name = "inject_eccmask",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_eccmask_show,
-		.store = i7core_inject_eccmask_store,
-	}, {
-		.grp = &i7core_inject_addrmatch,
-	}, {
-		.attr = {
-			.name = "inject_enable",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_enable_show,
-		.store = i7core_inject_enable_store,
-	},
-	{ }	/* End of list */
+/*
+ * all_channel_counts sysfs struct
+ */
+
+static struct attribute *i7core_udimm_counters_attrs[] = {
+	&dev_attr_udimm0.attr,
+	&dev_attr_udimm1.attr,
+	&dev_attr_udimm2.attr,
+	NULL
 };
 
-static const struct mcidev_sysfs_attribute i7core_sysfs_udimm_attrs[] = {
-	{
-		.attr = {
-			.name = "inject_section",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_section_show,
-		.store = i7core_inject_section_store,
-	}, {
-		.attr = {
-			.name = "inject_type",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_type_show,
-		.store = i7core_inject_type_store,
-	}, {
-		.attr = {
-			.name = "inject_eccmask",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_eccmask_show,
-		.store = i7core_inject_eccmask_store,
-	}, {
-		.grp = &i7core_inject_addrmatch,
-	}, {
-		.attr = {
-			.name = "inject_enable",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show  = i7core_inject_enable_show,
-		.store = i7core_inject_enable_store,
-	}, {
-		.grp = &i7core_udimm_counters,
-	},
-	{ }	/* End of list */
+static struct attribute_group all_channel_counts_grp = {
+	.attrs	= i7core_udimm_counters_attrs,
 };
+
+static const struct attribute_group *all_channel_counts_groups[] = {
+	&all_channel_counts_grp,
+	NULL
+};
+
+static void all_channel_counts_release(struct device *device)
+{
+	edac_dbg(1, "Releasing device %s\n", dev_name(device));
+	kfree(device);
+}
+
+static struct device_type all_channel_counts_type = {
+	.groups		= all_channel_counts_groups,
+	.release	= all_channel_counts_release,
+};
+
+/*
+ * inject sysfs attributes
+ */
+
+static DEVICE_ATTR(inject_section, S_IRUGO | S_IWUSR,
+		   i7core_inject_section_show, i7core_inject_section_store);
+
+static DEVICE_ATTR(inject_type, S_IRUGO | S_IWUSR,
+		   i7core_inject_type_show, i7core_inject_type_store);
+
+
+static DEVICE_ATTR(inject_eccmask, S_IRUGO | S_IWUSR,
+		   i7core_inject_eccmask_show, i7core_inject_eccmask_store);
+
+static DEVICE_ATTR(inject_enable, S_IRUGO | S_IWUSR,
+		   i7core_inject_enable_show, i7core_inject_enable_store);
+
+static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+	int rc;
+
+	rc = device_create_file(&mci->dev, &dev_attr_inject_section);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_type);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_eccmask);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_enable);
+	if (rc < 0)
+		return rc;
+
+	pvt->addrmatch_dev = kzalloc(sizeof(*pvt->addrmatch_dev), GFP_KERNEL);
+	if (!pvt->addrmatch_dev)
+		return rc;
+
+	pvt->addrmatch_dev->type = &addrmatch_type;
+	pvt->addrmatch_dev->bus = mci->dev.bus;
+	device_initialize(pvt->addrmatch_dev);
+	pvt->addrmatch_dev->parent = &mci->dev;
+	dev_set_name(pvt->addrmatch_dev, "inject_addrmatch");
+	dev_set_drvdata(pvt->addrmatch_dev, mci);
+
+	edac_dbg(1, "creating %s\n", dev_name(pvt->addrmatch_dev));
+
+	rc = device_add(pvt->addrmatch_dev);
+	if (rc < 0)
+		return rc;
+
+	if (!pvt->is_registered) {
+		pvt->chancounts_dev = kzalloc(sizeof(*pvt->chancounts_dev),
+					      GFP_KERNEL);
+		if (!pvt->chancounts_dev) {
+			put_device(pvt->addrmatch_dev);
+			device_del(pvt->addrmatch_dev);
+			return rc;
+		}
+
+		pvt->chancounts_dev->type = &all_channel_counts_type;
+		pvt->chancounts_dev->bus = mci->dev.bus;
+		device_initialize(pvt->chancounts_dev);
+		pvt->chancounts_dev->parent = &mci->dev;
+		dev_set_name(pvt->chancounts_dev, "all_channel_counts");
+		dev_set_drvdata(pvt->chancounts_dev, mci);
+
+		edac_dbg(1, "creating %s\n", dev_name(pvt->chancounts_dev));
+
+		rc = device_add(pvt->chancounts_dev);
+		if (rc < 0)
+			return rc;
+	}
+	return 0;
+}
+
+static void i7core_delete_sysfs_devices(struct mem_ctl_info *mci)
+{
+	struct i7core_pvt *pvt = mci->pvt_info;
+
+	edac_dbg(1, "\n");
+
+	device_remove_file(&mci->dev, &dev_attr_inject_section);
+	device_remove_file(&mci->dev, &dev_attr_inject_type);
+	device_remove_file(&mci->dev, &dev_attr_inject_eccmask);
+	device_remove_file(&mci->dev, &dev_attr_inject_enable);
+
+	if (!pvt->is_registered) {
+		put_device(pvt->chancounts_dev);
+		device_del(pvt->chancounts_dev);
+	}
+	put_device(pvt->addrmatch_dev);
+	device_del(pvt->addrmatch_dev);
+}
 
 /****************************************************************************
 	Device initialization routines: put/get, init/exit
@@ -1164,14 +1248,14 @@ static void i7core_put_devices(struct i7core_dev *i7core_dev)
 {
 	int i;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	edac_dbg(0, "\n");
 	for (i = 0; i < i7core_dev->n_devs; i++) {
 		struct pci_dev *pdev = i7core_dev->pdev[i];
 		if (!pdev)
 			continue;
-		debugf0("Removing dev %02x:%02x.%d\n",
-			pdev->bus->number,
-			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+		edac_dbg(0, "Removing dev %02x:%02x.%d\n",
+			 pdev->bus->number,
+			 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 		pci_dev_put(pdev);
 	}
 }
@@ -1214,12 +1298,12 @@ static unsigned i7core_pci_lastbus(void)
 
 	while ((b = pci_find_next_bus(b)) != NULL) {
 		bus = b->number;
-		debugf0("Found bus %d\n", bus);
+		edac_dbg(0, "Found bus %d\n", bus);
 		if (bus > last_bus)
 			last_bus = bus;
 	}
 
-	debugf0("Last bus %d\n", last_bus);
+	edac_dbg(0, "Last bus %d\n", last_bus);
 
 	return last_bus;
 }
@@ -1326,10 +1410,10 @@ static int i7core_get_onedevice(struct pci_dev **prev,
 		return -ENODEV;
 	}
 
-	debugf0("Detected socket %d dev %02x:%02x.%d PCI ID %04x:%04x\n",
-		socket, bus, dev_descr->dev,
-		dev_descr->func,
-		PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
+	edac_dbg(0, "Detected socket %d dev %02x:%02x.%d PCI ID %04x:%04x\n",
+		 socket, bus, dev_descr->dev,
+		 dev_descr->func,
+		 PCI_VENDOR_ID_INTEL, dev_descr->dev_id);
 
 	/*
 	 * As stated on drivers/pci/search.c, the reference count for
@@ -1427,13 +1511,13 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 				family = "unknown";
 				pvt->enable_scrub = false;
 			}
-			debugf0("Detected a processor type %s\n", family);
+			edac_dbg(0, "Detected a processor type %s\n", family);
 		} else
 			goto error;
 
-		debugf0("Associated fn %d.%d, dev = %p, socket %d\n",
-			PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
-			pdev, i7core_dev->socket);
+		edac_dbg(0, "Associated fn %d.%d, dev = %p, socket %d\n",
+			 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+			 pdev, i7core_dev->socket);
 
 		if (PCI_SLOT(pdev->devfn) == 3 &&
 			PCI_FUNC(pdev->devfn) == 2)
@@ -1452,18 +1536,6 @@ error:
 /****************************************************************************
 			Error check routines
  ****************************************************************************/
-static void i7core_rdimm_update_errcount(struct mem_ctl_info *mci,
-				      const int chan,
-				      const int dimm,
-				      const int add)
-{
-	int i;
-
-	for (i = 0; i < add; i++) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 0, 0, 0,
-				     chan, dimm, -1, "error", "", NULL);
-	}
-}
 
 static void i7core_rdimm_update_ce_count(struct mem_ctl_info *mci,
 					 const int chan,
@@ -1502,12 +1574,17 @@ static void i7core_rdimm_update_ce_count(struct mem_ctl_info *mci,
 
 	/*updated the edac core */
 	if (add0 != 0)
-		i7core_rdimm_update_errcount(mci, chan, 0, add0);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, add0,
+				     0, 0, 0,
+				     chan, 0, -1, "error", "");
 	if (add1 != 0)
-		i7core_rdimm_update_errcount(mci, chan, 1, add1);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, add1,
+				     0, 0, 0,
+				     chan, 1, -1, "error", "");
 	if (add2 != 0)
-		i7core_rdimm_update_errcount(mci, chan, 2, add2);
-
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, add2,
+				     0, 0, 0,
+				     chan, 2, -1, "error", "");
 }
 
 static void i7core_rdimm_check_mc_ecc_err(struct mem_ctl_info *mci)
@@ -1530,8 +1607,8 @@ static void i7core_rdimm_check_mc_ecc_err(struct mem_ctl_info *mci)
 	pci_read_config_dword(pvt->pci_mcr[2], MC_COR_ECC_CNT_5,
 								&rcv[2][1]);
 	for (i = 0 ; i < 3; i++) {
-		debugf3("MC_COR_ECC_CNT%d = 0x%x; MC_COR_ECC_CNT%d = 0x%x\n",
-			(i * 2), rcv[i][0], (i * 2) + 1, rcv[i][1]);
+		edac_dbg(3, "MC_COR_ECC_CNT%d = 0x%x; MC_COR_ECC_CNT%d = 0x%x\n",
+			 (i * 2), rcv[i][0], (i * 2) + 1, rcv[i][1]);
 		/*if the channel has 3 dimms*/
 		if (pvt->channel[i].dimms > 2) {
 			new0 = DIMM_BOT_COR_ERR(rcv[i][0]);
@@ -1562,7 +1639,7 @@ static void i7core_udimm_check_mc_ecc_err(struct mem_ctl_info *mci)
 	int new0, new1, new2;
 
 	if (!pvt->pci_mcr[4]) {
-		debugf0("%s MCR registers not found\n", __func__);
+		edac_dbg(0, "MCR registers not found\n");
 		return;
 	}
 
@@ -1626,7 +1703,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    const struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	char *type, *optype, *err, msg[80];
+	char *type, *optype, *err;
 	enum hw_event_mc_err_type tp_event;
 	unsigned long error = m->status & 0x1ff0000l;
 	bool uncorrected_error = m->mcgstatus & 1ll << 61;
@@ -1704,20 +1781,18 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		err = "unknown";
 	}
 
-	snprintf(msg, sizeof(msg), "count=%d %s", core_err_cnt, optype);
-
 	/*
 	 * Call the helper to output message
 	 * FIXME: what to do if core_err_cnt > 1? Currently, it generates
 	 * only one event
 	 */
 	if (uncorrected_error || !pvt->is_registered)
-		edac_mc_handle_error(tp_event, mci,
+		edac_mc_handle_error(tp_event, mci, core_err_cnt,
 				     m->addr >> PAGE_SHIFT,
 				     m->addr & ~PAGE_MASK,
 				     syndrome,
 				     channel, dimm, -1,
-				     err, msg, m);
+				     err, optype);
 }
 
 /*
@@ -2094,8 +2169,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	struct i7core_pvt *pvt;
 
 	if (unlikely(!mci || !mci->pvt_info)) {
-		debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
-			__func__, &i7core_dev->pdev[0]->dev);
+		edac_dbg(0, "MC: dev = %p\n", &i7core_dev->pdev[0]->dev);
 
 		i7core_printk(KERN_ERR, "Couldn't find mci handler\n");
 		return;
@@ -2103,8 +2177,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 
 	pvt = mci->pvt_info;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &i7core_dev->pdev[0]->dev);
+	edac_dbg(0, "MC: mci = %p, dev = %p\n", mci, &i7core_dev->pdev[0]->dev);
 
 	/* Disable scrubrate setting */
 	if (pvt->enable_scrub)
@@ -2114,9 +2187,10 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	i7core_pci_ctl_release(pvt);
 
 	/* Remove MC sysfs nodes */
-	edac_mc_del_mc(mci->dev);
+	i7core_delete_sysfs_devices(mci);
+	edac_mc_del_mc(mci->pdev);
 
-	debugf1("%s: free mci struct\n", mci->ctl_name);
+	edac_dbg(1, "%s: free mci struct\n", mci->ctl_name);
 	kfree(mci->ctl_name);
 	edac_mc_free(mci);
 	i7core_dev->mci = NULL;
@@ -2142,8 +2216,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	if (unlikely(!mci))
 		return -ENOMEM;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &i7core_dev->pdev[0]->dev);
+	edac_dbg(0, "MC: mci = %p, dev = %p\n", mci, &i7core_dev->pdev[0]->dev);
 
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
@@ -2172,15 +2245,11 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	if (unlikely(rc < 0))
 		goto fail0;
 
-	if (pvt->is_registered)
-		mci->mc_driver_sysfs_attributes = i7core_sysfs_rdimm_attrs;
-	else
-		mci->mc_driver_sysfs_attributes = i7core_sysfs_udimm_attrs;
 
 	/* Get dimm basic config */
 	get_dimm_config(mci);
 	/* record ptr to the generic device */
-	mci->dev = &i7core_dev->pdev[0]->dev;
+	mci->pdev = &i7core_dev->pdev[0]->dev;
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = i7core_check_error;
 
@@ -2190,12 +2259,17 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (unlikely(edac_mc_add_mc(mci))) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(0, "MC: failed edac_mc_add_mc()\n");
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it
 		 */
 
+		rc = -EINVAL;
+		goto fail0;
+	}
+	if (i7core_create_sysfs_devices(mci)) {
+		edac_dbg(0, "MC: failed to create sysfs nodes\n");
+		edac_mc_del_mc(mci->pdev);
 		rc = -EINVAL;
 		goto fail0;
 	}
@@ -2298,7 +2372,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 {
 	struct i7core_dev *i7core_dev;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	/*
 	 * we have a trouble here: pdev value for removal will be wrong, since
@@ -2347,7 +2421,7 @@ static int __init i7core_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	edac_dbg(2, "\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -2374,7 +2448,7 @@ static int __init i7core_init(void)
  */
 static void __exit i7core_exit(void)
 {
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	edac_dbg(2, "\n");
 	pci_unregister_driver(&i7core_driver);
 	mce_unregister_decode_chain(&i7_mce_dec);
 }

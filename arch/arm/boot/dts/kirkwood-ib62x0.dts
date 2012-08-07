@@ -21,6 +21,11 @@
 			status = "okay";
 		};
 
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
+		};
+
 		nand@3000000 {
 			status = "okay";
 
@@ -39,6 +44,39 @@
 				reg = <0x0700000 0xf900000>;
 			};
 
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "USB Copy";
+			linux,code = <133>;
+			gpios = <&gpio0 29 1>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 28 1>;
+		};
+	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		green-os {
+			label = "ib62x0:green:os";
+			gpios = <&gpio0 25 0>;
+			linux,default-trigger = "default-on";
+		};
+		red-os {
+			label = "ib62x0:red:os";
+			gpios = <&gpio0 22 0>;
+		};
+		usb-copy {
+			label = "ib62x0:red:usb_copy";
+			gpios = <&gpio0 27 0>;
 		};
 	};
 };

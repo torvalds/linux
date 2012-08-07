@@ -273,7 +273,7 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.start = virt_to_phys(_etext);
 	data_resource.end = virt_to_phys(_edata)-1;
 	bss_resource.start = virt_to_phys(__bss_start);
-	bss_resource.end = virt_to_phys(_ebss)-1;
+	bss_resource.end = virt_to_phys(__bss_stop)-1;
 
 #ifdef CONFIG_CMDLINE_OVERWRITE
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));

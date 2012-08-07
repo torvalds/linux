@@ -1012,6 +1012,9 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	// tell i2c chips
 	call_all(core, core, s_std, norm);
 
+	/* The chroma_agc control should be inaccessible if the video format is SECAM */
+	v4l2_ctrl_grab(core->chroma_agc, cxiformat == VideoFormatSECAM);
+
 	// done
 	return 0;
 }
@@ -1030,10 +1033,10 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 		return NULL;
 	*vfd = *template_;
 	vfd->v4l2_dev = &core->v4l2_dev;
-	vfd->parent = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	return vfd;
 }
 
@@ -1086,6 +1089,8 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	iounmap(core->lmmio);
 	cx88_devcount--;
 	mutex_unlock(&devlist);
+	v4l2_ctrl_handler_free(&core->video_hdl);
+	v4l2_ctrl_handler_free(&core->audio_hdl);
 	v4l2_device_unregister(&core->v4l2_dev);
 	kfree(core);
 }

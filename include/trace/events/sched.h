@@ -73,6 +73,9 @@ DECLARE_EVENT_CLASS(sched_wakeup_template,
 		__entry->prio		= p->prio;
 		__entry->success	= success;
 		__entry->target_cpu	= task_cpu(p);
+	)
+	TP_perf_assign(
+		__perf_task(p);
 	),
 
 	TP_printk("comm=%s pid=%d prio=%d success=%d target_cpu=%03d",
@@ -325,6 +328,7 @@ DECLARE_EVENT_CLASS(sched_stat_template,
 	)
 	TP_perf_assign(
 		__perf_count(delay);
+		__perf_task(tsk);
 	),
 
 	TP_printk("comm=%s pid=%d delay=%Lu [ns]",

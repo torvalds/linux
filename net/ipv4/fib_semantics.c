@@ -140,6 +140,21 @@ const struct fib_prop fib_props[RTN_MAX + 1] = {
 	},
 };
 
+static void rt_fibinfo_free(struct rtable __rcu **rtp)
+{
+	struct rtable *rt = rcu_dereference_protected(*rtp, 1);
+
+	if (!rt)
+		return;
+
+	/* Not even needed : RCU_INIT_POINTER(*rtp, NULL);
+	 * because we waited an RCU grace period before calling
+	 * free_fib_info_rcu()
+	 */
+
+	dst_free(&rt->dst);
+}
+
 static void free_nh_exceptions(struct fib_nh *nh)
 {
 	struct fnhe_hash_bucket *hash = nh->nh_exceptions;
@@ -153,12 +168,32 @@ static void free_nh_exceptions(struct fib_nh *nh)
 			struct fib_nh_exception *next;
 			
 			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
+
+			rt_fibinfo_free(&fnhe->fnhe_rth);
+
 			kfree(fnhe);
 
 			fnhe = next;
 		}
 	}
 	kfree(hash);
+}
+
+static void rt_fibinfo_free_cpus(struct rtable __rcu * __percpu *rtp)
+{
+	int cpu;
+
+	if (!rtp)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct rtable *rt;
+
+		rt = rcu_dereference_protected(*per_cpu_ptr(rtp, cpu), 1);
+		if (rt)
+			dst_free(&rt->dst);
+	}
+	free_percpu(rtp);
 }
 
 /* Release a nexthop info record */
@@ -171,10 +206,8 @@ static void free_fib_info_rcu(struct rcu_head *head)
 			dev_put(nexthop_nh->nh_dev);
 		if (nexthop_nh->nh_exceptions)
 			free_nh_exceptions(nexthop_nh);
-		if (nexthop_nh->nh_rth_output)
-			dst_free(&nexthop_nh->nh_rth_output->dst);
-		if (nexthop_nh->nh_rth_input)
-			dst_free(&nexthop_nh->nh_rth_input->dst);
+		rt_fibinfo_free_cpus(nexthop_nh->nh_pcpu_rth_output);
+		rt_fibinfo_free(&nexthop_nh->nh_rth_input);
 	} endfor_nexthops(fi);
 
 	release_net(fi->fib_net);
@@ -804,6 +837,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	fi->fib_nhs = nhs;
 	change_nexthops(fi) {
 		nexthop_nh->nh_parent = fi;
+		nexthop_nh->nh_pcpu_rth_output = alloc_percpu(struct rtable __rcu *);
 	} endfor_nexthops(fi)
 
 	if (cfg->fc_mx) {

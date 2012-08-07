@@ -67,7 +67,7 @@ static void i82860_get_error_info(struct mem_ctl_info *mci,
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * This is a mess because there is no atomic way to read all the
@@ -109,25 +109,25 @@ static int i82860_process_error_info(struct mem_ctl_info *mci,
 		return 1;
 
 	if ((info->errsts ^ info->errsts2) & 0x0003) {
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
-				     -1, -1, -1, "UE overwrote CE", "", NULL);
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1, "UE overwrote CE", "");
 		info->errsts = info->errsts2;
 	}
 
 	info->eap >>= PAGE_SHIFT;
 	row = edac_mc_find_csrow_by_page(mci, info->eap);
-	dimm = mci->csrows[row].channels[0].dimm;
+	dimm = mci->csrows[row]->channels[0]->dimm;
 
 	if (info->errsts & 0x0002)
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     info->eap, 0, 0,
 				     dimm->location[0], dimm->location[1], -1,
-				     "i82860 UE", "", NULL);
+				     "i82860 UE", "");
 	else
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     info->eap, 0, info->derrsyn,
 				     dimm->location[0], dimm->location[1], -1,
-				     "i82860 CE", "", NULL);
+				     "i82860 CE", "");
 
 	return 1;
 }
@@ -136,7 +136,7 @@ static void i82860_check(struct mem_ctl_info *mci)
 {
 	struct i82860_error_info info;
 
-	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
+	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i82860_get_error_info(mci, &info);
 	i82860_process_error_info(mci, &info, 1);
 }
@@ -161,14 +161,13 @@ static void i82860_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev)
 	 * in all eight rows.
 	 */
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
-		dimm = csrow->channels[0].dimm;
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		pci_read_config_word(pdev, I82860_GBA + index * 2, &value);
 		cumul_size = (value & I82860_GBA_MASK) <<
 			(I82860_GBA_SHIFT - PAGE_SHIFT);
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
-			cumul_size);
+		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
@@ -210,8 +209,8 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("%s(): init mci\n", __func__);
-	mci->dev = &pdev->dev;
+	edac_dbg(3, "init mci\n");
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	/* I"m not sure about this but I think that all RDRAM is SECDED */
@@ -229,7 +228,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -245,7 +244,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 
 	return 0;
 
@@ -260,7 +259,7 @@ static int __devinit i82860_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 	i82860_printk(KERN_INFO, "i82860 init one\n");
 
 	if (pci_enable_device(pdev) < 0)
@@ -278,7 +277,7 @@ static void __devexit i82860_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	if (i82860_pci)
 		edac_pci_release_generic_ctl(i82860_pci);
@@ -311,7 +310,7 @@ static int __init i82860_init(void)
 {
 	int pci_rc;
 
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
        /* Ensure that the OPSTATE is set correctly for POLL or NMI */
        opstate_init();
@@ -324,7 +323,7 @@ static int __init i82860_init(void)
 					PCI_DEVICE_ID_INTEL_82860_0, NULL);
 
 		if (mci_pdev == NULL) {
-			debugf0("860 pci_get_device fail\n");
+			edac_dbg(0, "860 pci_get_device fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -332,7 +331,7 @@ static int __init i82860_init(void)
 		pci_rc = i82860_init_one(mci_pdev, i82860_pci_tbl);
 
 		if (pci_rc < 0) {
-			debugf0("860 init fail\n");
+			edac_dbg(0, "860 init fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -352,7 +351,7 @@ fail0:
 
 static void __exit i82860_exit(void)
 {
-	debugf3("%s()\n", __func__);
+	edac_dbg(3, "\n");
 
 	pci_unregister_driver(&i82860_driver);
 

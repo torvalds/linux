@@ -575,7 +575,7 @@ static int iscsi_remove_host(struct transport_container *tc,
 	struct iscsi_cls_host *ihost = shost->shost_data;
 
 	if (ihost->bsg_q) {
-		bsg_remove_queue(ihost->bsg_q);
+		bsg_unregister_queue(ihost->bsg_q);
 		blk_cleanup_queue(ihost->bsg_q);
 	}
 	return 0;

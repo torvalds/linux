@@ -526,7 +526,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	coherent_pool=nn[KMG]	[ARM,KNL]
 			Sets the size of memory pool for coherent, atomic dma
-			allocations if Contiguous Memory Allocator (CMA) is used.
+			allocations, by default set to 256K.
 
 	code_bytes	[X86] How many bytes of object code to print
 			in an oops report.

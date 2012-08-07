@@ -797,17 +797,13 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 
 	event = perf_evlist__mmap_read(evlist, cpu);
 	if (event != NULL) {
-		struct perf_evsel *first;
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
 
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
 
-		first = list_entry(evlist->entries.next, struct perf_evsel, node);
-		err = perf_event__parse_sample(event, first->attr.sample_type,
-					       perf_evsel__sample_size(first),
-					       sample_id_all, &pevent->sample, false);
+		err = perf_evlist__parse_sample(evlist, event, &pevent->sample, false);
 		if (err)
 			return PyErr_Format(PyExc_OSError,
 					    "perf: can't parse sample, err=%d", err);

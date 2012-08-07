@@ -69,6 +69,32 @@ int nlm_irq_to_irt(int irq)
 		return PIC_IRT_UART_0_INDEX;
 	case PIC_UART_1_IRQ:
 		return PIC_IRT_UART_1_INDEX;
+	case PIC_PCIE_LINK_0_IRQ:
+	       return PIC_IRT_PCIE_LINK_0_INDEX;
+	case PIC_PCIE_LINK_1_IRQ:
+	       return PIC_IRT_PCIE_LINK_1_INDEX;
+	case PIC_PCIE_LINK_2_IRQ:
+	       return PIC_IRT_PCIE_LINK_2_INDEX;
+	case PIC_PCIE_LINK_3_IRQ:
+	       return PIC_IRT_PCIE_LINK_3_INDEX;
+	case PIC_EHCI_0_IRQ:
+	       return PIC_IRT_EHCI_0_INDEX;
+	case PIC_EHCI_1_IRQ:
+	       return PIC_IRT_EHCI_1_INDEX;
+	case PIC_OHCI_0_IRQ:
+	       return PIC_IRT_OHCI_0_INDEX;
+	case PIC_OHCI_1_IRQ:
+	       return PIC_IRT_OHCI_1_INDEX;
+	case PIC_OHCI_2_IRQ:
+	       return PIC_IRT_OHCI_2_INDEX;
+	case PIC_OHCI_3_IRQ:
+	       return PIC_IRT_OHCI_3_INDEX;
+	case PIC_MMC_IRQ:
+	       return PIC_IRT_MMC_INDEX;
+	case PIC_I2C_0_IRQ:
+		return PIC_IRT_I2C_0_INDEX;
+	case PIC_I2C_1_IRQ:
+		return PIC_IRT_I2C_1_INDEX;
 	default:
 		return -1;
 	}
@@ -81,6 +107,32 @@ int nlm_irt_to_irq(int irt)
 		return PIC_UART_0_IRQ;
 	case PIC_IRT_UART_1_INDEX:
 		return PIC_UART_1_IRQ;
+	case PIC_IRT_PCIE_LINK_0_INDEX:
+	       return PIC_PCIE_LINK_0_IRQ;
+	case PIC_IRT_PCIE_LINK_1_INDEX:
+	       return PIC_PCIE_LINK_1_IRQ;
+	case PIC_IRT_PCIE_LINK_2_INDEX:
+	       return PIC_PCIE_LINK_2_IRQ;
+	case PIC_IRT_PCIE_LINK_3_INDEX:
+	       return PIC_PCIE_LINK_3_IRQ;
+	case PIC_IRT_EHCI_0_INDEX:
+		return PIC_EHCI_0_IRQ;
+	case PIC_IRT_EHCI_1_INDEX:
+		return PIC_EHCI_1_IRQ;
+	case PIC_IRT_OHCI_0_INDEX:
+		return PIC_OHCI_0_IRQ;
+	case PIC_IRT_OHCI_1_INDEX:
+		return PIC_OHCI_1_IRQ;
+	case PIC_IRT_OHCI_2_INDEX:
+		return PIC_OHCI_2_IRQ;
+	case PIC_IRT_OHCI_3_INDEX:
+		return PIC_OHCI_3_IRQ;
+	case PIC_IRT_MMC_INDEX:
+	       return PIC_MMC_IRQ;
+	case PIC_IRT_I2C_0_INDEX:
+		return PIC_I2C_0_IRQ;
+	case PIC_IRT_I2C_1_INDEX:
+		return PIC_I2C_1_IRQ;
 	default:
 		return -1;
 	}

@@ -71,26 +71,21 @@ extern const char *edac_mem_types[];
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
 
-#define edac_debug_printk(level, fmt, arg...)                           \
-	do {                                                            \
-		if (level <= edac_debug_level)                          \
-			edac_printk(KERN_DEBUG, EDAC_DEBUG,		\
-				    "%s: " fmt, __func__, ##arg);	\
-	} while (0)
-
-#define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )
-#define debugf1( ... ) edac_debug_printk(1, __VA_ARGS__ )
-#define debugf2( ... ) edac_debug_printk(2, __VA_ARGS__ )
-#define debugf3( ... ) edac_debug_printk(3, __VA_ARGS__ )
-#define debugf4( ... ) edac_debug_printk(4, __VA_ARGS__ )
+#define edac_dbg(level, fmt, ...)					\
+do {									\
+	if (level <= edac_debug_level)					\
+		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
+			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
 
 #else				/* !CONFIG_EDAC_DEBUG */
 
-#define debugf0( ... )
-#define debugf1( ... )
-#define debugf2( ... )
-#define debugf3( ... )
-#define debugf4( ... )
+#define edac_dbg(level, fmt, ...)					\
+do {									\
+	if (0)								\
+		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
+			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
 
 #endif				/* !CONFIG_EDAC_DEBUG */
 
@@ -460,15 +455,15 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 				      unsigned long page);
 void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  struct mem_ctl_info *mci,
+			  const u16 error_count,
 			  const unsigned long page_frame_number,
 			  const unsigned long offset_in_page,
 			  const unsigned long syndrome,
-			  const int layer0,
-			  const int layer1,
-			  const int layer2,
+			  const int top_layer,
+			  const int mid_layer,
+			  const int low_layer,
 			  const char *msg,
-			  const char *other_detail,
-			  const void *mcelog);
+			  const char *other_detail);
 
 /*
  * edac_device APIs
