@@ -56,33 +56,18 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 
 u32 au0828_readreg(struct au0828_dev *dev, u16 reg)
 {
-	recv_control_msg(dev, CMD_REQUEST_IN, 0, reg, dev->ctrlmsg, 1);
-	dprintk(8, "%s(0x%04x) = 0x%02x\n", __func__, reg, dev->ctrlmsg[0]);
-	return dev->ctrlmsg[0];
+	u8 result = 0;
+
+	recv_control_msg(dev, CMD_REQUEST_IN, 0, reg, &result, 1);
+	dprintk(8, "%s(0x%04x) = 0x%02x\n", __func__, reg, result);
+
+	return result;
 }
 
 u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 {
 	dprintk(8, "%s(0x%04x, 0x%02x)\n", __func__, reg, val);
 	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg);
-}
-
-static void cmd_msg_dump(struct au0828_dev *dev)
-{
-	int i;
-
-	for (i = 0; i < sizeof(dev->ctrlmsg); i += 16)
-		dprintk(2, "%s() %02x %02x %02x %02x %02x %02x %02x %02x "
-				"%02x %02x %02x %02x %02x %02x %02x %02x\n",
-			__func__,
-			dev->ctrlmsg[i+0], dev->ctrlmsg[i+1],
-			dev->ctrlmsg[i+2], dev->ctrlmsg[i+3],
-			dev->ctrlmsg[i+4], dev->ctrlmsg[i+5],
-			dev->ctrlmsg[i+6], dev->ctrlmsg[i+7],
-			dev->ctrlmsg[i+8], dev->ctrlmsg[i+9],
-			dev->ctrlmsg[i+10], dev->ctrlmsg[i+11],
-			dev->ctrlmsg[i+12], dev->ctrlmsg[i+13],
-			dev->ctrlmsg[i+14], dev->ctrlmsg[i+15]);
 }
 
 static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
@@ -118,24 +103,23 @@ static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	int status = -ENODEV;
 	mutex_lock(&dev->mutex);
 	if (dev->usbdev) {
-
-		memset(dev->ctrlmsg, 0, sizeof(dev->ctrlmsg));
-
-		/* cp must be memory that has been allocated by kmalloc */
 		status = usb_control_msg(dev->usbdev,
 				usb_rcvctrlpipe(dev->usbdev, 0),
 				request,
 				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				value, index,
-				cp, size, 1000);
+				dev->ctrlmsg, size, 1000);
 
 		status = min(status, 0);
 
 		if (status < 0) {
 			printk(KERN_ERR "%s() Failed receiving control message, error %d.\n",
 				__func__, status);
-		} else
-			cmd_msg_dump(dev);
+		}
+
+		/* the host controller requires heap allocated memory, which
+		   is why we didn't just pass "cp" into usb_control_msg */
+		memcpy(cp, dev->ctrlmsg, size);
 	}
 	mutex_unlock(&dev->mutex);
 	return status;
