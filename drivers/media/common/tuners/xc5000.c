@@ -686,7 +686,7 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	dprintk(1, "*** Frame lines = %d\n", frame_lines);
 
 	xc_get_quality(priv,  &quality);
-	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
+	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality & 0x07);
 }
 
 static int xc5000_set_params(struct dvb_frontend *fe)
