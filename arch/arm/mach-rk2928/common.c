@@ -18,21 +18,15 @@
 
 static void __init rk2928_cpu_axi_init(void)
 {
-#if 0
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x0088);	// cpu0
-	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x0108);	// dmac1
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x0188);	// cpu1r
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x0388);	// cpu1w
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x4008);	// peri
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x5008);	// gpu
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x6008);	// vpu
-	writel_relaxed(0xa, RK2928_CPU_AXI_BUS_BASE + 0x7008);	// lcdc0
-	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x7088);	// cif0
-	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x7108);	// ipp
-	writel_relaxed(0xa, RK2928_CPU_AXI_BUS_BASE + 0x7188);	// lcdc1
-	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x7208);	// cif1
+	writel_relaxed(0xa, RK2928_CPU_AXI_BUS_BASE + 0x7188);	// lcdc
+	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x7208);	// cif
 	writel_relaxed(0x0, RK2928_CPU_AXI_BUS_BASE + 0x7288);	// rga
-#endif
 	writel_relaxed(0x3f, RK2928_CPU_AXI_BUS_BASE + 0x0014);	// memory scheduler read latency
 	dsb();
 }
