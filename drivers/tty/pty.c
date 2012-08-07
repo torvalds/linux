@@ -303,9 +303,11 @@ static int pty_common_install(struct tty_driver *driver, struct tty_struct *tty,
 	int retval = -ENOMEM;
 
 	o_tty = alloc_tty_struct();
+	if (!o_tty)
+		goto err;
 	ports[0] = kmalloc(sizeof **ports, GFP_KERNEL);
 	ports[1] = kmalloc(sizeof **ports, GFP_KERNEL);
-	if (!o_tty || !ports[0] || !ports[1])
+	if (!ports[0] || !ports[1])
 		goto err_free_tty;
 	if (!try_module_get(driver->other->owner)) {
 		/* This cannot in fact currently happen */
@@ -360,6 +362,7 @@ err_free_tty:
 	kfree(ports[0]);
 	kfree(ports[1]);
 	free_tty_struct(o_tty);
+err:
 	return retval;
 }
 
