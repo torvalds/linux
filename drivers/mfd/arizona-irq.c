@@ -156,18 +156,35 @@ int arizona_irq_init(struct arizona *arizona)
 	int flags = IRQF_ONESHOT;
 	int ret, i;
 	const struct regmap_irq_chip *aod, *irq;
+	bool ctrlif_error = true;
 
 	switch (arizona->type) {
 #ifdef CONFIG_MFD_WM5102
 	case WM5102:
 		aod = &wm5102_aod;
 		irq = &wm5102_irq;
+
+		switch (arizona->rev) {
+		case 0:
+			ctrlif_error = false;
+			break;
+		default:
+			break;
+		}
 		break;
 #endif
 #ifdef CONFIG_MFD_WM5110
 	case WM5110:
 		aod = &wm5110_aod;
 		irq = &wm5110_irq;
+
+		switch (arizona->rev) {
+		case 0:
+			ctrlif_error = false;
+			break;
+		default:
+			break;
+		}
 		break;
 #endif
 	default:
@@ -226,13 +243,17 @@ int arizona_irq_init(struct arizona *arizona)
 	}
 
 	/* Handle control interface errors in the core */
-	i = arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR);
-	ret = request_threaded_irq(i, NULL, arizona_ctrlif_err, IRQF_ONESHOT,
-				   "Control interface error", arizona);
-	if (ret != 0) {
-		dev_err(arizona->dev, "Failed to request boot done %d: %d\n",
-			arizona->irq, ret);
-		goto err_ctrlif;
+	if (ctrlif_error) {
+		i = arizona_map_irq(arizona, ARIZONA_IRQ_CTRLIF_ERR);
+		ret = request_threaded_irq(i, NULL, arizona_ctrlif_err,
+					   IRQF_ONESHOT,
+					   "Control interface error", arizona);
+		if (ret != 0) {
+			dev_err(arizona->dev,
+				"Failed to request CTRLIF_ERR %d: %d\n",
+				arizona->irq, ret);
+			goto err_ctrlif;
+		}
 	}
 
 	ret = request_threaded_irq(arizona->irq, NULL, arizona_irq_thread,
