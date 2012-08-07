@@ -153,7 +153,7 @@ tusb_fifo_write_unaligned(void __iomem *fifo, const u8 *buf, u16 len)
 }
 
 static inline void tusb_fifo_read_unaligned(void __iomem *fifo,
-						void __iomem *buf, u16 len)
+						void *buf, u16 len)
 {
 	u32		val;
 	int		i;

@@ -354,7 +354,7 @@ void musb_load_testpacket(struct musb *musb)
 /*
  * Handles OTG hnp timeouts, such as b_ase0_brst
  */
-void musb_otg_timer_func(unsigned long data)
+static void musb_otg_timer_func(unsigned long data)
 {
 	struct musb	*musb = (struct musb *)data;
 	unsigned long	flags;
@@ -1336,7 +1336,7 @@ static int __devinit ep_config_from_hw(struct musb *musb)
 {
 	u8 epnum = 0;
 	struct musb_hw_ep *hw_ep;
-	void *mbase = musb->mregs;
+	void __iomem *mbase = musb->mregs;
 	int ret = 0;
 
 	dev_dbg(musb->controller, "<== static silicon ep config\n");

@@ -484,7 +484,7 @@ static inline void musb_configure_ep0(struct musb *musb)
 static inline int musb_read_fifosize(struct musb *musb,
 		struct musb_hw_ep *hw_ep, u8 epnum)
 {
-	void *mbase = musb->mregs;
+	void __iomem *mbase = musb->mregs;
 	u8 reg = 0;
 
 	/* read from core using indexed model */
