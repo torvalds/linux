@@ -111,6 +111,7 @@ struct xc5000_priv {
 #define XREG_PRODUCT_ID   0x08
 #define XREG_BUSY         0x09
 #define XREG_BUILD        0x0D
+#define XREG_TOTALGAIN    0x0F
 
 /*
    Basic firmware description. This will remain with
@@ -541,6 +542,16 @@ static int xc_get_quality(struct xc5000_priv *priv, u16 *quality)
 	return xc5000_readreg(priv, XREG_QUALITY, quality);
 }
 
+static int xc_get_analogsnr(struct xc5000_priv *priv, u16 *snr)
+{
+	return xc5000_readreg(priv, XREG_SNR, snr);
+}
+
+static int xc_get_totalgain(struct xc5000_priv *priv, u16 *totalgain)
+{
+	return xc5000_readreg(priv, XREG_TOTALGAIN, totalgain);
+}
+
 static u16 WaitForLock(struct xc5000_priv *priv)
 {
 	u16 lockState = 0;
@@ -652,6 +663,8 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	u32 hsync_freq_hz = 0;
 	u16 frame_lines;
 	u16 quality;
+	u16 snr;
+	u16 totalgain;
 	u8 hw_majorversion = 0, hw_minorversion = 0;
 	u8 fw_majorversion = 0, fw_minorversion = 0;
 	u16 fw_buildversion = 0;
@@ -687,6 +700,13 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 
 	xc_get_quality(priv,  &quality);
 	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality & 0x07);
+
+	xc_get_analogsnr(priv,  &snr);
+	dprintk(1, "*** Unweighted analog SNR = %d dB\n", snr & 0x3f);
+
+	xc_get_totalgain(priv,  &totalgain);
+	dprintk(1, "*** Total gain = %d.%d dB\n", totalgain / 256,
+		(totalgain % 256) * 100 / 256);
 }
 
 static int xc5000_set_params(struct dvb_frontend *fe)
