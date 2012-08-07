@@ -237,11 +237,11 @@ enum {
 #define PHY_PLL_LDO_PWR			0xe7
 	#define v_LDO_PWR_DOWN(n)	(n << 2)
 
-#define HDMIRdReg(addr)						__raw_readl(hdmi->regbase + addr)
-#define HDMIWrReg(addr, val)        		__raw_writel((val), hdmi->regbase + addr);
+#define HDMIRdReg(addr)						readl_relaxed(hdmi->regbase + (addr) * 0x04)
+#define HDMIWrReg(addr, val)        		writel_relaxed((val), hdmi->regbase + (addr) * 0x04);
 #define HDMIMskReg(temp, addr, msk, val)	\
-	temp = __raw_readl(hdmi->regbase + addr) & (0xFF - (msk)) ; \
-	__raw_writel(temp | ( (val) & (msk) ),  hdmi->regbase + addr); 
+	temp = readl_relaxed(hdmi->regbase + (addr) * 0x04) & (0xFF - (msk)) ; \
+	writel_relaxed(temp | ( (val) & (msk) ),  hdmi->regbase + (addr) * 0x04); 
 	
 extern int rk2928_hdmi_initial(void);
 
