@@ -59,7 +59,8 @@
 /* 1st Level Abstractions.  */
 
 /* Initialize a new transport from provided memory.  */
-static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
+static struct sctp_transport *sctp_transport_init(struct net *net,
+						  struct sctp_transport *peer,
 						  const union sctp_addr *addr,
 						  gfp_t gfp)
 {
@@ -109,7 +110,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 }
 
 /* Allocate and initialize a new transport.  */
-struct sctp_transport *sctp_transport_new(const union sctp_addr *addr,
+struct sctp_transport *sctp_transport_new(struct net *net,
+					  const union sctp_addr *addr,
 					  gfp_t gfp)
 {
 	struct sctp_transport *transport;
@@ -118,7 +120,7 @@ struct sctp_transport *sctp_transport_new(const union sctp_addr *addr,
 	if (!transport)
 		goto fail;
 
-	if (!sctp_transport_init(transport, addr, gfp))
+	if (!sctp_transport_init(net, transport, addr, gfp))
 		goto fail_init;
 
 	transport->malloced = 1;
