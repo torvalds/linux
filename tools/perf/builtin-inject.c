@@ -17,24 +17,30 @@
 struct perf_inject {
 	struct perf_tool tool;
 	bool		 build_ids;
+	const char	 *input_name;
+	int		 pipe_output,
+			 output;
+	u64		 bytes_written;
 };
 
-static int perf_event__repipe_synth(struct perf_tool *tool __maybe_unused,
+static int perf_event__repipe_synth(struct perf_tool *tool,
 				    union perf_event *event,
 				    struct machine *machine __maybe_unused)
 {
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
 	uint32_t size;
 	void *buf = event;
 
 	size = event->header.size;
 
 	while (size) {
-		int ret = write(STDOUT_FILENO, buf, size);
+		int ret = write(inject->output, buf, size);
 		if (ret < 0)
 			return -errno;
 
 		size -= ret;
 		buf += ret;
+		inject->bytes_written += ret;
 	}
 
 	return 0;
@@ -231,11 +237,19 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	session = perf_session__new("-", O_RDONLY, false, true, &inject->tool);
+	session = perf_session__new(inject->input_name, O_RDONLY, false, true, &inject->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
+	if (!inject->pipe_output)
+		lseek(inject->output, session->header.data_offset, SEEK_SET);
+
 	ret = perf_session__process_events(session, &inject->tool);
+
+	if (!inject->pipe_output) {
+		session->header.data_size = inject->bytes_written;
+		perf_session__write_header(session, session->evlist, inject->output, true);
+	}
 
 	perf_session__delete(session);
 
@@ -260,10 +274,16 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.tracing_data	= perf_event__repipe_tracing_data_synth,
 			.build_id	= perf_event__repipe_op2_synth,
 		},
+		.input_name  = "-",
 	};
+	const char *output_name = "-";
 	const struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
 			    "Inject build-ids into the output stream"),
+		OPT_STRING('i', "input", &inject.input_name, "file",
+			   "input file name"),
+		OPT_STRING('o', "output", &output_name, "file",
+			   "output file name"),
 		OPT_INCR('v', "verbose", &verbose,
 			 "be more verbose (show build ids, etc)"),
 		OPT_END()
@@ -280,6 +300,18 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 	 */
 	if (argc)
 		usage_with_options(inject_usage, options);
+
+	if (!strcmp(output_name, "-")) {
+		inject.pipe_output = 1;
+		inject.output = STDOUT_FILENO;
+	} else {
+		inject.output = open(output_name, O_CREAT | O_WRONLY | O_TRUNC,
+						  S_IRUSR | S_IWUSR);
+		if (inject.output < 0) {
+			perror("failed to create output file");
+			return -1;
+		}
+	}
 
 	if (symbol__init() < 0)
 		return -1;

@@ -29,6 +29,12 @@ OPTIONS
 -v::
 --verbose::
 	Be more verbose.
+-i::
+--input=::
+	Input file name. (default: stdin)
+-o::
+--output=::
+	Output file name. (default: stdout)
 
 SEE ALSO
 --------
