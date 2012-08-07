@@ -1516,17 +1516,15 @@ cleanup_ret:
 		utask->active_uprobe = NULL;
 		utask->state = UTASK_RUNNING;
 	}
-	if (uprobe) {
-		if (!(uprobe->flags & UPROBE_SKIP_SSTEP))
+	if (!(uprobe->flags & UPROBE_SKIP_SSTEP))
 
-			/*
-			 * cannot singlestep; cannot skip instruction;
-			 * re-execute the instruction.
-			 */
-			instruction_pointer_set(regs, bp_vaddr);
+		/*
+		 * cannot singlestep; cannot skip instruction;
+		 * re-execute the instruction.
+		 */
+		instruction_pointer_set(regs, bp_vaddr);
 
-		put_uprobe(uprobe);
-	}
+	put_uprobe(uprobe);
 }
 
 /*
