@@ -46,7 +46,7 @@ MODULE_PARM_DESC(disable_usb_speed_check,
 #define _BULKPIPESIZE 0xffff
 
 static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
-	u16 index, unsigned char *cp, u16 size);
+			    u16 index);
 static int recv_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 	u16 index, unsigned char *cp, u16 size);
 
@@ -64,8 +64,7 @@ u32 au0828_readreg(struct au0828_dev *dev, u16 reg)
 u32 au0828_writereg(struct au0828_dev *dev, u16 reg, u32 val)
 {
 	dprintk(8, "%s(0x%04x, 0x%02x)\n", __func__, reg, val);
-	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg,
-				dev->ctrlmsg, 0);
+	return send_control_msg(dev, CMD_REQUEST_OUT, val, reg);
 }
 
 static void cmd_msg_dump(struct au0828_dev *dev)
@@ -87,10 +86,10 @@ static void cmd_msg_dump(struct au0828_dev *dev)
 }
 
 static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
-	u16 index, unsigned char *cp, u16 size)
+	u16 index)
 {
 	int status = -ENODEV;
-	mutex_lock(&dev->mutex);
+
 	if (dev->usbdev) {
 
 		/* cp must be memory that has been allocated by kmalloc */
@@ -99,8 +98,7 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 				request,
 				USB_DIR_OUT | USB_TYPE_VENDOR |
 					USB_RECIP_DEVICE,
-				value, index,
-				cp, size, 1000);
+				value, index, NULL, 0, 1000);
 
 		status = min(status, 0);
 
@@ -110,7 +108,7 @@ static int send_control_msg(struct au0828_dev *dev, u16 request, u32 value,
 		}
 
 	}
-	mutex_unlock(&dev->mutex);
+
 	return status;
 }
 
