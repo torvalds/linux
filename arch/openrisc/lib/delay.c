@@ -30,9 +30,9 @@ int __devinit read_current_timer(unsigned long *timer_value)
 
 void __delay(unsigned long cycles)
 {
-	cycles_t target = get_cycles() + cycles;
+	cycles_t start = get_cycles();
 
-	while (get_cycles() < target)
+	while ((get_cycles() - start) < cycles)
 		cpu_relax();
 }
 EXPORT_SYMBOL(__delay);
