@@ -1407,8 +1407,15 @@ static struct i2c_board_info i2c1_devices[] = {
 #define GPIO_PORT168CR	0xE60520A8
 #define SRCR4		0xe61580bc
 #define USCCR1		0xE6058144
+#define DEV_LATENCY_NS	250000
 static void __init mackerel_init(void)
 {
+	struct gpd_timing_data latencies = {
+		.stop_latency_ns = DEV_LATENCY_NS,
+		.start_latency_ns = DEV_LATENCY_NS,
+		.save_state_latency_ns = DEV_LATENCY_NS,
+		.restore_state_latency_ns = DEV_LATENCY_NS,
+	};
 	u32 srcr4;
 	struct clk *clk;
 
@@ -1623,20 +1630,20 @@ static void __init mackerel_init(void)
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
-	rmobile_add_device_to_domain("A4LC", &lcdc_device);
-	rmobile_add_device_to_domain("A4LC", &hdmi_lcdc_device);
-	rmobile_add_device_to_domain("A4LC", &meram_device);
-	rmobile_add_device_to_domain("A4MP", &fsi_device);
-	rmobile_add_device_to_domain("A3SP", &usbhs0_device);
-	rmobile_add_device_to_domain("A3SP", &usbhs1_device);
-	rmobile_add_device_to_domain("A3SP", &nand_flash_device);
-	rmobile_add_device_to_domain("A3SP", &sh_mmcif_device);
-	rmobile_add_device_to_domain("A3SP", &sdhi0_device);
+	rmobile_add_device_to_domain_td("A4LC", &lcdc_device, &latencies);
+	rmobile_add_device_to_domain_td("A4LC", &hdmi_lcdc_device, &latencies);
+	rmobile_add_device_to_domain_td("A4LC", &meram_device, &latencies);
+	rmobile_add_device_to_domain_td("A4MP", &fsi_device, &latencies);
+	rmobile_add_device_to_domain_td("A3SP", &usbhs0_device, &latencies);
+	rmobile_add_device_to_domain_td("A3SP", &usbhs1_device, &latencies);
+	rmobile_add_device_to_domain_td("A3SP", &nand_flash_device, &latencies);
+	rmobile_add_device_to_domain_td("A3SP", &sh_mmcif_device, &latencies);
+	rmobile_add_device_to_domain_td("A3SP", &sdhi0_device, &latencies);
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	rmobile_add_device_to_domain("A3SP", &sdhi1_device);
+	rmobile_add_device_to_domain_td("A3SP", &sdhi1_device, &latencies);
 #endif
-	rmobile_add_device_to_domain("A3SP", &sdhi2_device);
-	rmobile_add_device_to_domain("A4R", &ceu_device);
+	rmobile_add_device_to_domain_td("A3SP", &sdhi2_device, &latencies);
+	rmobile_add_device_to_domain_td("A4R", &ceu_device, &latencies);
 
 	hdmi_init_pm_clock();
 	sh7372_pm_init();
