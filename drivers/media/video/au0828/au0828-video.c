@@ -1717,8 +1717,12 @@ static int vidioc_g_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	default:
-		return -EINVAL;
+		if (!v4l2_chip_match_host(&reg->match))
+			return -EINVAL;
 	}
+
+	reg->val = au0828_read(dev, reg->reg);
+	return 0;
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
@@ -1732,9 +1736,10 @@ static int vidioc_s_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	default:
-		return -EINVAL;
+		if (!v4l2_chip_match_host(&reg->match))
+			return -EINVAL;
 	}
-	return 0;
+	return au0828_writereg(dev, reg->reg, reg->val);
 }
 #endif
 
