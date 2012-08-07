@@ -77,7 +77,8 @@ typedef struct {
 	int action;
 } sctp_sm_command_t;
 
-typedef sctp_disposition_t (sctp_state_fn_t) (const struct sctp_endpoint *,
+typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
+					      const struct sctp_endpoint *,
 					      const struct sctp_association *,
 					      const sctp_subtype_t type,
 					      void *arg,
