@@ -55,7 +55,7 @@ struct parse_events__term {
 	char *config;
 	union {
 		char *str;
-		long  num;
+		u64  num;
 	} val;
 	int type_val;
 	int type_term;
@@ -73,7 +73,7 @@ struct parse_events_data__terms {
 
 int parse_events__is_hardcoded_term(struct parse_events__term *term);
 int parse_events__term_num(struct parse_events__term **_term,
-			   int type_term, char *config, long num);
+			   int type_term, char *config, u64 num);
 int parse_events__term_str(struct parse_events__term **_term,
 			   int type_term, char *config, char *str);
 int parse_events__term_clone(struct parse_events__term **new,
@@ -83,7 +83,7 @@ int parse_events_modifier(struct list_head *list, char *str);
 int parse_events_add_tracepoint(struct list_head **list, int *idx,
 				char *sys, char *event);
 int parse_events_add_numeric(struct list_head **list, int *idx,
-			     unsigned long type, unsigned long config,
+			     u32 type, u64 config,
 			     struct list_head *head_config);
 int parse_events_add_cache(struct list_head **list, int *idx,
 			   char *type, char *op_result1, char *op_result2);

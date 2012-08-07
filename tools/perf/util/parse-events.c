@@ -551,7 +551,7 @@ static int config_attr(struct perf_event_attr *attr,
 }
 
 int parse_events_add_numeric(struct list_head **list, int *idx,
-			     unsigned long type, unsigned long config,
+			     u32 type, u64 config,
 			     struct list_head *head_config)
 {
 	struct perf_event_attr attr;
@@ -1005,7 +1005,7 @@ int parse_events__is_hardcoded_term(struct parse_events__term *term)
 
 static int new_term(struct parse_events__term **_term, int type_val,
 		    int type_term, char *config,
-		    char *str, long num)
+		    char *str, u64 num)
 {
 	struct parse_events__term *term;
 
@@ -1034,7 +1034,7 @@ static int new_term(struct parse_events__term **_term, int type_val,
 }
 
 int parse_events__term_num(struct parse_events__term **term,
-			   int type_term, char *config, long num)
+			   int type_term, char *config, u64 num)
 {
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_NUM, type_term,
 			config, NULL, num);
