@@ -359,9 +359,10 @@ static int android_power_debug_dump(struct seq_file *s, void *unused)
 	struct android_bat_data *battery = s->private;
 
 	android_bat_update_data(battery);
-	seq_printf(s, "l=%d v=%d c=%d temp=%d h=%d st=%d type=%s\n",
+	seq_printf(s, "l=%d v=%d c=%d temp=%s%ld.%ld h=%d st=%d type=%s\n",
 		   battery->batt_soc, battery->batt_vcell/1000,
-		   battery->batt_current, battery->batt_temp,
+		   battery->batt_current, battery->batt_temp < 0 ? "-" : "",
+		   abs(battery->batt_temp / 10), abs(battery->batt_temp % 10),
 		   battery->batt_health, battery->charging_status,
 		   charge_source_str(battery->charge_source));
 
