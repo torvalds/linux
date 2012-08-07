@@ -186,10 +186,10 @@ SCRIPTS = $(patsubst %.sh,%,$(SCRIPT_SH))
 
 TRACE_EVENT_DIR = ../lib/traceevent/
 
-ifeq ("$(origin O)", "command line")
-	TE_PATH=$(OUTPUT)/
+ifneq ($(OUTPUT),)
+	TE_PATH=$(OUTPUT)
 else
-	TE_PATH=$(TRACE_EVENT_DIR)/
+	TE_PATH=$(TRACE_EVENT_DIR)
 endif
 
 LIBTRACEEVENT = $(TE_PATH)libtraceevent.a
@@ -842,7 +842,7 @@ $(LIB_FILE): $(LIB_OBJS)
 
 # libtraceevent.a
 $(LIBTRACEEVENT):
-	$(QUIET_SUBDIR0)$(TRACE_EVENT_DIR) $(QUIET_SUBDIR1) $(COMMAND_O) libtraceevent.a
+	$(QUIET_SUBDIR0)$(TRACE_EVENT_DIR) $(QUIET_SUBDIR1) O=$(OUTPUT) libtraceevent.a
 
 help:
 	@echo 'Perf make targets:'
