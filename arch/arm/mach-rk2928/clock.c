@@ -139,11 +139,8 @@ int clk_register(struct clk *clk)
 		clk->parent =clk_default_get_parent(clk);
 	
 	if (clk->parent){
-		printk("clk has parent\n");
 		list_add(&clk->sibling, &clk->parent->children);
-	}
-	else{
-		printk("clk has no parent\n");
+	} else {
 		list_add(&clk->sibling, &root_clks);
 	}
 	list_add(&clk->node, &clocks);
@@ -209,8 +206,7 @@ int clk_enable_nolock(struct clk *clk)
 				clk_disable_nolock(clk->parent);
 			return ret;
 		}
-		//pr_debug("%s enabled\n", clk->name);
-		printk("%s enabled\n", clk->name);
+		pr_debug("%s enabled\n", clk->name);
 	}
 	clk->usecount++;
 
@@ -266,7 +262,7 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 	if (!clk->set_rate)
 		return -EINVAL;
 	
-	printk("**will set %s rate %lu\n", clk->name, rate);
+	pr_debug("**will set %s rate %lu\n", clk->name, rate);
 
 	old_rate = clk->rate;
 	if (clk->notifier_count)
@@ -276,7 +272,7 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 
 	if (ret == 0) {
 		__clk_recalc(clk);
-		printk("**set %s rate recalc=%lu\n",clk->name,clk->rate);
+		pr_debug("**set %s rate recalc=%lu\n",clk->name,clk->rate);
 		__propagate_rate(clk);
 	}
 
