@@ -116,7 +116,7 @@ static inline bool kvm_check_and_clear_guest_paused(void)
  */
 #define KVM_HYPERCALL ".byte 0x0f,0x01,0xc1"
 
-/* For KVM hypercalls, a three-byte sequence of either the vmrun or the vmmrun
+/* For KVM hypercalls, a three-byte sequence of either the vmcall or the vmmcall
  * instruction.  The hypervisor may replace it with something else but only the
  * instructions are guaranteed to be supported.
  *
