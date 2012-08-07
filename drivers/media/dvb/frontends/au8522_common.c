@@ -26,8 +26,6 @@
 #include "dvb_frontend.h"
 #include "au8522_priv.h"
 
-MODULE_LICENSE("GPL");
-
 static int debug;
 
 #define dprintk(arg...)\
@@ -257,3 +255,10 @@ int au8522_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 EXPORT_SYMBOL(au8522_sleep);
+
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "Enable verbose debug messages");
+
+MODULE_DESCRIPTION("Auvitek AU8522 QAM-B/ATSC Demodulator driver");
+MODULE_AUTHOR("Steven Toth");
+MODULE_LICENSE("GPL");
