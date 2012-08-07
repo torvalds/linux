@@ -704,7 +704,7 @@ static void xc_debug_dump(struct xc5000_priv *priv)
 	xc_get_version(priv,  &hw_majorversion, &hw_minorversion,
 		&fw_majorversion, &fw_minorversion);
 	xc_get_buildversion(priv,  &fw_buildversion);
-	dprintk(1, "*** HW: V%02x.%02x, FW: V%02x.%02x.%04x\n",
+	dprintk(1, "*** HW: V%d.%d, FW: V %d.%d.%d\n",
 		hw_majorversion, hw_minorversion,
 		fw_majorversion, fw_minorversion, fw_buildversion);
 
