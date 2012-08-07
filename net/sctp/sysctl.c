@@ -284,6 +284,27 @@ static ctl_table sctp_table[] = {
 	{ /* sentinel */ }
 };
 
+static ctl_table sctp_net_table[] = {
+	{ /* sentinel */ }
+};
+
+int sctp_sysctl_net_register(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = kmemdup(sctp_net_table, sizeof(sctp_net_table), GFP_KERNEL);
+	if (!table)
+		return -ENOMEM;
+
+	net->sctp.sysctl_header = register_net_sysctl(net, "net/sctp", table);
+	return 0;
+}
+
+void sctp_sysctl_net_unregister(struct net *net)
+{
+	unregister_net_sysctl_table(net->sctp.sysctl_header);
+}
+
 static struct ctl_table_header * sctp_sysctl_header;
 
 /* Sysctl registration.  */

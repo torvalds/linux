@@ -375,9 +375,13 @@ static inline void sctp_dbg_objcnt_exit(struct net *) { return; }
 #if defined CONFIG_SYSCTL
 void sctp_sysctl_register(void);
 void sctp_sysctl_unregister(void);
+int sctp_sysctl_net_register(struct net *net);
+void sctp_sysctl_net_unregister(struct net *net);
 #else
 static inline void sctp_sysctl_register(void) { return; }
 static inline void sctp_sysctl_unregister(void) { return; }
+static inline int sctp_sysctl_net_register(struct net *net) { return 0; }
+static inline void sctp_sysctl_net_unregister(struct net *net) { return; }
 #endif
 
 /* Size of Supported Address Parameter for 'x' address types. */
