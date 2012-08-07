@@ -14,6 +14,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/debug.h"
+#include "util/build-id.h"
 
 #include "util/parse-options.h"
 
@@ -115,6 +116,8 @@ static int perf_event__repipe_sample(struct perf_tool *tool,
 		inject_handler f = evsel->handler.func;
 		return f(tool, event, sample, evsel, machine);
 	}
+
+	build_id__mark_dso_hit(tool, event, sample, evsel, machine);
 
 	return perf_event__repipe_synth(tool, event, machine);
 }
@@ -310,6 +313,7 @@ found:
 	sample_sw.time	 = sample->time;
 	perf_event__synthesize_sample(event_sw, evsel->attr.sample_type,
 				      &sample_sw, false);
+	build_id__mark_dso_hit(tool, event_sw, &sample_sw, evsel, machine);
 	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
 }
 
@@ -342,8 +346,7 @@ static int __cmd_inject(struct perf_inject *inject)
 
 	signal(SIGINT, sig_handler);
 
-	if (inject->build_ids) {
-		inject->tool.sample	  = perf_event__inject_buildid;
+	if (inject->build_ids || inject->sched_stat) {
 		inject->tool.mmap	  = perf_event__repipe_mmap;
 		inject->tool.fork	  = perf_event__repipe_fork;
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
@@ -353,7 +356,9 @@ static int __cmd_inject(struct perf_inject *inject)
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (inject->sched_stat) {
+	if (inject->build_ids) {
+		inject->tool.sample = perf_event__inject_buildid;
+	} else if (inject->sched_stat) {
 		struct perf_evsel *evsel;
 
 		inject->tool.ordered_samples = true;
