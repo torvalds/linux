@@ -29,6 +29,27 @@
 #include <mach/iomux.h>
 #include <plat/rk_fiq_debugger.h>
 
+#ifdef CONFIG_ADC_RK30
+static struct resource rk30_adc_resource[] = {
+	{
+		.start	= IRQ_SARADC,
+		.end	= IRQ_SARADC,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2928_SARADC_PHYS,
+		.end	= RK2928_SARADC_PHYS + RK2928_SARADC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device device_adc = {
+	.name		= "rk30-adc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rk30_adc_resource),
+	.resource	= rk30_adc_resource,
+};
+#endif
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
@@ -748,6 +769,9 @@ static int __init rk2928_init_devices(void)
 	rk2928_init_uart();
 	rk2928_init_i2c();
 	rk2928_init_spim();
+#ifdef CONFIG_ADC_RK30
+	platform_device_register(&device_adc);
+#endif
 #ifdef CONFIG_KEYS_RK29
 	platform_device_register(&device_keys);
 #endif

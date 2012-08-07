@@ -1154,6 +1154,7 @@ static void __init rk2928_board_init(void)
 {
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+        gpio_free(POWER_ON_PIN);
 	
 	pm_power_off = rk30_pm_power_off;
 	

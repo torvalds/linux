@@ -2,7 +2,7 @@
 #define RK_LVDS_H
 
 #define LVDS_CON0_OFFSET 	0x150
-#define LVDS_CON0_REG 		(RK2928_GRF_PHYS + LVDS_CON0_OFFSET) 
+#define LVDS_CON0_REG 		(RK2928_GRF_BASE + LVDS_CON0_OFFSET) 
 
 #define LVDSRdReg()					__raw_readl(LVDS_CON0_REG)
 #define LVDSWrReg(val)       	__raw_writel( val ,LVDS_CON0_REG)
