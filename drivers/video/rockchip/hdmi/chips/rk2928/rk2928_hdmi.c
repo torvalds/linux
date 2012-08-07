@@ -111,7 +111,7 @@ static int __devinit rk2928_hdmi_probe (struct platform_device *pdev)
 	hdmi = kmalloc(sizeof(struct hdmi), GFP_KERNEL);
 	if(!hdmi)
 	{
-    	dev_err(&pdev->dev, ">>rk30 hdmi kmalloc fail!");
+    	dev_err(&pdev->dev, ">>rk2928 hdmi kmalloc fail!");
     	return -ENOMEM;
 	}
 	memset(hdmi, 0, sizeof(struct hdmi));
@@ -130,7 +130,7 @@ static int __devinit rk2928_hdmi_probe (struct platform_device *pdev)
 	}
 	hdmi->xscale = 95;
 	hdmi->yscale = 95;
-	
+#if 0	
 	hdmi->hclk = clk_get(NULL,"hclk_hdmi");
 	if(IS_ERR(hdmi->hclk))
 	{
@@ -139,7 +139,7 @@ static int __devinit rk2928_hdmi_probe (struct platform_device *pdev)
 		goto err0;
 	}
 	clk_enable(hdmi->hclk);
-	
+#endif	
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(hdmi->dev, "Unable to get register resource\n");
@@ -206,7 +206,7 @@ static int __devinit rk2928_hdmi_probe (struct platform_device *pdev)
 		goto err2;
 	}
 
-	hdmi_dbg(hdmi->dev, "rk30 hdmi probe sucess.\n");
+	dev_info(hdmi->dev, "rk2928 hdmi probe success.\n");
 	return 0;
 err2:
 	#ifdef CONFIG_SWITCH
@@ -219,9 +219,11 @@ err2:
 	iounmap((void*)hdmi->regbase);
 err1:
 	release_mem_region(res->start,(res->end - res->start) + 1);
+#if 0
 	clk_disable(hdmi->hclk);
+#endif
 err0:
-	hdmi_dbg(hdmi->dev, "rk30 hdmi probe error.\n");
+	hdmi_dbg(hdmi->dev, "rk2928 hdmi probe error.\n");
 	kfree(hdmi);
 	hdmi = NULL;
 	return ret;
@@ -246,7 +248,9 @@ static int __devexit rk2928_hdmi_remove(struct platform_device *pdev)
 		#endif
 		iounmap((void*)hdmi->regbase);
 		release_mem_region(hdmi->regbase_phy, hdmi->regsize_phy);
+        #if 0
 		clk_disable(hdmi->hclk);
+        #endif
 		fb_destroy_modelist(&hdmi->edid.modelist);
 		if(hdmi->edid.audio)
 			kfree(hdmi->edid.audio);
@@ -259,7 +263,7 @@ static int __devexit rk2928_hdmi_remove(struct platform_device *pdev)
 		kfree(hdmi);
 		hdmi = NULL;
 	}
-	printk(KERN_INFO "rk30 hdmi removed.\n");
+	printk(KERN_INFO "rk2928 hdmi removed.\n");
 	return 0;
 }
 
@@ -270,14 +274,14 @@ static void rk2928_hdmi_shutdown(struct platform_device *pdev)
 		unregister_early_suspend(&hdmi->early_suspend);
 		#endif
 	}
-	printk(KERN_INFO "rk30 hdmi shut down.\n");
+	printk(KERN_INFO "rk2928 hdmi shut down.\n");
 }
 
 static struct platform_driver rk2928_hdmi_driver = {
 	.probe		= rk2928_hdmi_probe,
 	.remove		= __devexit_p(rk2928_hdmi_remove),
 	.driver		= {
-		.name	= "rk30-hdmi",
+		.name	= "rk2928-hdmi",
 		.owner	= THIS_MODULE,
 	},
 	.shutdown   = rk2928_hdmi_shutdown,

@@ -28,7 +28,11 @@ enum {
 };
 
 /* default HDMI video source */
+#ifdef CONFIG_ARCH_RK2928
+#define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC0
+#else
 #define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC1
+#endif
 /* If HDMI_ENABLE, system will auto configure output mode according to EDID 
  * If HDMI_DISABLE, system will output mode according to macro HDMI_VIDEO_DEFAULT_MODE
  */
