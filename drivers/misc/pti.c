@@ -427,7 +427,7 @@ static int pti_tty_driver_open(struct tty_struct *tty, struct file *filp)
 	 * also removes a locking requirement for the actual write
 	 * procedure.
 	 */
-	return tty_port_open(&drv_data->port[tty->index], tty, filp);
+	return tty_port_open(tty->port, tty, filp);
 }
 
 /**
@@ -443,7 +443,7 @@ static int pti_tty_driver_open(struct tty_struct *tty, struct file *filp)
  */
 static void pti_tty_driver_close(struct tty_struct *tty, struct file *filp)
 {
-	tty_port_close(&drv_data->port[tty->index], tty, filp);
+	tty_port_close(tty->port, tty, filp);
 }
 
 /**
@@ -856,7 +856,7 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 		tty_port_init(port);
 		port->ops = &tty_port_ops;
 
-		tty_register_device(pti_tty_driver, a, &pdev->dev);
+		tty_port_register_device(port, pti_tty_driver, a, &pdev->dev);
 	}
 
 	register_console(&pti_console);
