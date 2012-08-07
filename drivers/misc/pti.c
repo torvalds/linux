@@ -874,11 +874,18 @@ static void __devexit pti_pci_remove(struct pci_dev *pdev)
 {
 	struct pti_dev *drv_data = pci_get_drvdata(pdev);
 
+	unregister_console(&pti_console);
+
+	tty_unregister_device(pti_tty_driver, 0);
+	tty_unregister_device(pti_tty_driver, 1);
+
 	iounmap(drv_data->pti_ioaddr);
 	pci_set_drvdata(pdev, NULL);
 	kfree(drv_data);
 	pci_release_region(pdev, 1);
 	pci_disable_device(pdev);
+
+	misc_deregister(&pti_char_driver);
 }
 
 static struct pci_driver pti_pci_driver = {
@@ -959,9 +966,6 @@ static void __exit pti_exit(void)
 {
 	int retval;
 
-	tty_unregister_device(pti_tty_driver, 0);
-	tty_unregister_device(pti_tty_driver, 1);
-
 	retval = tty_unregister_driver(pti_tty_driver);
 	if (retval) {
 		pr_err("%s(%d): TTY unregistration failed of pti driver\n",
@@ -971,17 +975,6 @@ static void __exit pti_exit(void)
 	}
 
 	pci_unregister_driver(&pti_pci_driver);
-
-	retval = misc_deregister(&pti_char_driver);
-	if (retval) {
-		pr_err("%s(%d): CHAR unregistration failed of pti driver\n",
-			__func__, __LINE__);
-		pr_err("%s(%d): Error value returned: %d\n",
-			__func__, __LINE__, retval);
-	}
-
-	unregister_console(&pti_console);
-	return;
 }
 
 module_init(pti_init);
