@@ -228,11 +228,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	/* Note we leave out the usb id and the manufacturing date */
 	PDEBUG(D_PROBE,
-	       "SQ9050 ID string: %02x - %02x %02x %02x %02x %02x %02x",
-		gspca_dev->usb_buf[3],
-		gspca_dev->usb_buf[14], gspca_dev->usb_buf[15],
-		gspca_dev->usb_buf[16], gspca_dev->usb_buf[17],
-		gspca_dev->usb_buf[18], gspca_dev->usb_buf[19]);
+	       "SQ9050 ID string: %02x - %*ph",
+		gspca_dev->usb_buf[3], 6, gspca_dev->usb_buf + 14);
 
 	cam->cam_mode = sq905c_mode;
 	cam->nmodes = 2;

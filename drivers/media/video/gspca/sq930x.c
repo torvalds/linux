@@ -863,15 +863,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
  * 6: c8 / c9 / ca / cf = mode webcam?, sensor? webcam?
  * 7: 00
  */
-	PDEBUG(D_PROBE, "info: %02x %02x %02x %02x %02x %02x %02x %02x",
-			gspca_dev->usb_buf[0],
-			gspca_dev->usb_buf[1],
-			gspca_dev->usb_buf[2],
-			gspca_dev->usb_buf[3],
-			gspca_dev->usb_buf[4],
-			gspca_dev->usb_buf[5],
-			gspca_dev->usb_buf[6],
-			gspca_dev->usb_buf[7]);
+	PDEBUG(D_PROBE, "info: %*ph", 8, gspca_dev->usb_buf);
 
 	bridge_init(sd);
 

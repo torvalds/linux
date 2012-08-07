@@ -2934,11 +2934,8 @@ static void reg_r(struct gspca_dev *gspca_dev,
 		PDEBUG(D_USBI, "GET %02x 0001 %04x %02x", req, index,
 				gspca_dev->usb_buf[0]);
 	else
-		PDEBUG(D_USBI, "GET %02x 0001 %04x %02x %02x %02x",
-				req, index,
-				gspca_dev->usb_buf[0],
-				gspca_dev->usb_buf[1],
-				gspca_dev->usb_buf[2]);
+		PDEBUG(D_USBI, "GET %02x 0001 %04x %*ph",
+				req, index, 3, gspca_dev->usb_buf);
 #endif
 }
 
