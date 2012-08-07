@@ -180,6 +180,10 @@ static int __init ttyprintk_init(void)
 	int ret = -ENOMEM;
 	void *rp;
 
+	tty_port_init(&tpk_port.port);
+	tpk_port.port.ops = &null_ops;
+	mutex_init(&tpk_port.port_write_mutex);
+
 	ttyprintk_driver = alloc_tty_driver(1);
 	if (!ttyprintk_driver)
 		return ret;
@@ -209,10 +213,6 @@ static int __init ttyprintk_init(void)
 		ret = PTR_ERR(rp);
 		goto error;
 	}
-
-	tty_port_init(&tpk_port.port);
-	tpk_port.port.ops = &null_ops;
-	mutex_init(&tpk_port.port_write_mutex);
 
 	return 0;
 
