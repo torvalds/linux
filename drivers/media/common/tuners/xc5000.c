@@ -717,11 +717,9 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 	u32 freq = fe->dtv_property_cache.frequency;
 	u32 delsys  = fe->dtv_property_cache.delivery_system;
 
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
-		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
-			dprintk(1, "Unable to load firmware and init tuner\n");
-			return -EINVAL;
-		}
+	if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+		dprintk(1, "Unable to load firmware and init tuner\n");
+		return -EINVAL;
 	}
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, freq);
@@ -1002,11 +1000,9 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	if (priv->i2c_props.adap == NULL)
 		return -EINVAL;
 
-	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
-		if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
-			dprintk(1, "Unable to load firmware and init tuner\n");
-			return -EINVAL;
-		}
+	if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+		dprintk(1, "Unable to load firmware and init tuner\n");
+		return -EINVAL;
 	}
 
 	switch (params->mode) {
@@ -1065,26 +1061,26 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret = 0;
+	int ret = XC_RESULT_SUCCESS;
 
 	if (xc5000_is_firmware_loaded(fe) != XC_RESULT_SUCCESS) {
 		ret = xc5000_fwupload(fe);
 		if (ret != XC_RESULT_SUCCESS)
 			return ret;
+
+		/* Start the tuner self-calibration process */
+		ret |= xc_initialize(priv);
+
+		/* Wait for calibration to complete.
+		 * We could continue but XC5000 will clock stretch subsequent
+		 * I2C transactions until calibration is complete.  This way we
+		 * don't have to rely on clock stretching working.
+		 */
+		xc_wait(100);
+
+		/* Default to "CABLE" mode */
+		ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
 	}
-
-	/* Start the tuner self-calibration process */
-	ret |= xc_initialize(priv);
-
-	/* Wait for calibration to complete.
-	 * We could continue but XC5000 will clock stretch subsequent
-	 * I2C transactions until calibration is complete.  This way we
-	 * don't have to rely on clock stretching working.
-	 */
-	xc_wait(100);
-
-	/* Default to "CABLE" mode */
-	ret |= xc_write_reg(priv, XREG_SIGNALSOURCE, XC_RF_MODE_CABLE);
 
 	return ret;
 }
