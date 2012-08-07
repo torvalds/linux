@@ -112,7 +112,7 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	unsigned char value;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "No I/O resource!\n");
 		return -EINVAL;
