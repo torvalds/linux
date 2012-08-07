@@ -4447,10 +4447,8 @@ static int __init rs_init(void)
 
 	tty_set_operations(driver, &rs_ops);
         serial_driver = driver;
-	if (tty_register_driver(driver))
-		panic("Couldn't register serial driver\n");
-	/* do some initializing for the separate ports */
 
+	/* do some initializing for the separate ports */
 	for (i = 0, info = rs_table; i < NR_PORTS; i++,info++) {
 		if (info->enabled) {
 			if (cris_request_io_interface(info->io_if,
@@ -4502,7 +4500,12 @@ static int __init rs_init(void)
 			printk(KERN_INFO "%s%d at %p is a builtin UART with DMA\n",
 			       serial_driver->name, info->line, info->ioport);
 		}
+		tty_port_link_device(&info->port, driver, i);
 	}
+
+	if (tty_register_driver(driver))
+		panic("Couldn't register serial driver\n");
+
 #ifdef CONFIG_ETRAX_FAST_TIMER
 #ifdef CONFIG_ETRAX_SERIAL_FAST_TIMER
 	memset(fast_timers, 0, sizeof(fast_timers));

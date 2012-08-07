@@ -198,6 +198,7 @@ static int __init ttyprintk_init(void)
 	ttyprintk_driver->init_termios = tty_std_termios;
 	ttyprintk_driver->init_termios.c_oflag = OPOST | OCRNL | ONOCR | ONLRET;
 	tty_set_operations(ttyprintk_driver, &ttyprintk_ops);
+	tty_port_link_device(&tpk_port.port, ttyprintk_driver, 0);
 
 	ret = tty_register_driver(ttyprintk_driver);
 	if (ret < 0) {

@@ -1710,10 +1710,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &serial_ops);
 
-	error = tty_register_driver(serial_driver);
-	if (error)
-		goto fail_put_tty_driver;
-
 	state = rs_table;
 	state->port = (int)&custom.serdatr; /* Just to give it a value */
 	state->custom_divisor = 0;
@@ -1724,6 +1720,11 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	state->icount.overrun = state->icount.brk = 0;
 	tty_port_init(&state->tport);
 	state->tport.ops = &amiga_port_ops;
+	tty_port_link_device(&state->tport, serial_driver, 0);
+
+	error = tty_register_driver(serial_driver);
+	if (error)
+		goto fail_put_tty_driver;
 
 	printk(KERN_INFO "ttyS0 is the amiga builtin serial port\n");
 

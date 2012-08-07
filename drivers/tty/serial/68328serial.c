@@ -1189,12 +1189,6 @@ rs68328_init(void)
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &rs_ops);
 
-	if (tty_register_driver(serial_driver)) {
-		put_tty_driver(serial_driver);
-		printk(KERN_ERR "Couldn't register serial driver\n");
-		return -ENOMEM;
-	}
-
 	local_irq_save(flags);
 
 	for(i=0;i<NR_PORTS;i++) {
@@ -1224,8 +1218,17 @@ rs68328_init(void)
 			    0,
 			    "M68328_UART", info))
                 panic("Unable to attach 68328 serial interrupt\n");
+
+	    tty_port_link_device(&info->tport, serial_driver, i);
 	}
 	local_irq_restore(flags);
+
+	if (tty_register_driver(serial_driver)) {
+		put_tty_driver(serial_driver);
+		printk(KERN_ERR "Couldn't register serial driver\n");
+		return -ENOMEM;
+	}
+
 	return 0;
 }
 
