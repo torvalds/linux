@@ -622,7 +622,7 @@ static int bt_seq_open(struct inode *inode, struct file *file)
 	sk_list = PDE(inode)->data;
 	s = __seq_open_private(file, &bt_seq_ops,
 			       sizeof(struct bt_seq_state));
-	if (s == NULL)
+	if (!s)
 		return -ENOMEM;
 
 	s->l = sk_list;
@@ -644,7 +644,7 @@ int bt_procfs_init(struct module* module, struct net *net, const char *name,
 	sk_list->fops.release   = seq_release_private;
 
 	pde = proc_net_fops_create(net, name, 0, &sk_list->fops);
-	if (pde == NULL)
+	if (!pde)
 		return -ENOMEM;
 
 	pde->data = sk_list;
