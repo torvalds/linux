@@ -343,7 +343,7 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 			}
 		}
 	}
-	if (WatchDogTimer < 0)
+	if (WatchDogTimer <= 0)
 		result = XC_RESULT_I2C_WRITE_FAILURE;
 
 	return result;
