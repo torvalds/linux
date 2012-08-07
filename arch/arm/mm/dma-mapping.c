@@ -648,12 +648,12 @@ void arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
 
 	if (arch_is_coherent() || nommu()) {
 		__dma_free_buffer(page, size);
+	} else if (__free_from_pool(cpu_addr, size)) {
+		return;
 	} else if (!IS_ENABLED(CONFIG_CMA)) {
 		__dma_free_remap(cpu_addr, size);
 		__dma_free_buffer(page, size);
 	} else {
-		if (__free_from_pool(cpu_addr, size))
-			return;
 		/*
 		 * Non-atomic allocations cannot be freed with IRQs disabled
 		 */
