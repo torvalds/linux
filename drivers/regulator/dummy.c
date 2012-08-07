@@ -30,7 +30,7 @@ static struct regulator_init_data dummy_initdata;
 static struct regulator_ops dummy_ops;
 
 static struct regulator_desc dummy_desc = {
-	.name = "dummy",
+	.name = "regulator-dummy",
 	.id = -1,
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
