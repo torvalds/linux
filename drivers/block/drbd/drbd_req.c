@@ -660,7 +660,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case NEG_ACKED:
-		mod_rq_state(req, m, RQ_NET_OK|RQ_NET_PENDING, RQ_NET_DONE);
+		mod_rq_state(req, m, RQ_NET_OK|RQ_NET_PENDING, 0);
 		break;
 
 	case FAIL_FROZEN_DISK_IO:
