@@ -389,8 +389,7 @@ int cxd2820r_read_status_t(struct dvb_frontend *fe, fe_status_t *status)
 		}
 	}
 
-	dbg("%s: lock=%02x %02x %02x %02x", __func__,
-		buf[0], buf[1], buf[2], buf[3]);
+	dbg("%s: lock=%*ph", __func__, 4, buf);
 
 	return ret;
 error:

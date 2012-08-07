@@ -331,7 +331,7 @@ static int nxt200x_writetuner (struct nxt200x_state* state, u8* data)
 
 	dprintk("%s\n", __func__);
 
-	dprintk("Tuner Bytes: %02X %02X %02X %02X\n", data[1], data[2], data[3], data[4]);
+	dprintk("Tuner Bytes: %*ph\n", 4, data + 1);
 
 	/* if NXT2004, write directly to tuner. if NXT2002, write through NXT chip.
 	 * direct write is required for Philips TUV1236D and ALPS TDHU2 */
@@ -1161,8 +1161,7 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 
 	/* read card id */
 	nxt200x_readbytes(state, 0x00, buf, 5);
-	dprintk("NXT info: %02X %02X %02X %02X %02X\n",
-		buf[0], buf[1], buf[2],	buf[3], buf[4]);
+	dprintk("NXT info: %*ph\n", 5, buf);
 
 	/* set demod chip */
 	switch (buf[0]) {
@@ -1201,8 +1200,7 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 
 error:
 	kfree(state);
-	printk("Unknown/Unsupported NXT chip: %02X %02X %02X %02X %02X\n",
-		buf[0], buf[1], buf[2], buf[3], buf[4]);
+	pr_err("Unknown/Unsupported NXT chip: %*ph\n", 5, buf);
 	return NULL;
 }
 

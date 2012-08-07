@@ -392,7 +392,7 @@ static int rtl2830_get_frontend(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	dbg("%s: TPS=%02x %02x %02x", __func__, buf[0], buf[1], buf[2]);
+	dbg("%s: TPS=%*ph", __func__, 3, buf);
 
 	switch ((buf[0] >> 2) & 3) {
 	case 0:
