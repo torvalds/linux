@@ -427,6 +427,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 static int sctp_send_asconf(struct sctp_association *asoc,
 			    struct sctp_chunk *chunk)
 {
+	struct net 	*net = sock_net(asoc->base.sk);
 	int		retval = 0;
 
 	/* If there is an outstanding ASCONF chunk, queue it for later
@@ -439,7 +440,7 @@ static int sctp_send_asconf(struct sctp_association *asoc,
 
 	/* Hold the chunk until an ASCONF_ACK is received. */
 	sctp_chunk_hold(chunk);
-	retval = sctp_primitive_ASCONF(asoc, chunk);
+	retval = sctp_primitive_ASCONF(net, asoc, chunk);
 	if (retval)
 		sctp_chunk_free(chunk);
 	else
@@ -1050,6 +1051,7 @@ static int __sctp_connect(struct sock* sk,
 			  int addrs_size,
 			  sctp_assoc_t *assoc_id)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
 	struct sctp_endpoint *ep;
 	struct sctp_association *asoc = NULL;
@@ -1200,7 +1202,7 @@ static int __sctp_connect(struct sock* sk,
 			goto out_free;
 	}
 
-	err = sctp_primitive_ASSOCIATE(asoc, NULL);
+	err = sctp_primitive_ASSOCIATE(net, asoc, NULL);
 	if (err < 0) {
 		goto out_free;
 	}
@@ -1458,6 +1460,7 @@ SCTP_STATIC int sctp_getsockopt_connectx3(struct sock* sk, int len,
  */
 SCTP_STATIC void sctp_close(struct sock *sk, long timeout)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_endpoint *ep;
 	struct sctp_association *asoc;
 	struct list_head *pos, *temp;
@@ -1499,9 +1502,9 @@ SCTP_STATIC void sctp_close(struct sock *sk, long timeout)
 
 			chunk = sctp_make_abort_user(asoc, NULL, 0);
 			if (chunk)
-				sctp_primitive_ABORT(asoc, chunk);
+				sctp_primitive_ABORT(net, asoc, chunk);
 		} else
-			sctp_primitive_SHUTDOWN(asoc, NULL);
+			sctp_primitive_SHUTDOWN(net, asoc, NULL);
 	}
 
 	/* On a TCP-style socket, block for at most linger_time if set. */
@@ -1569,6 +1572,7 @@ SCTP_STATIC int sctp_msghdr_parse(const struct msghdr *, sctp_cmsgs_t *);
 SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			     struct msghdr *msg, size_t msg_len)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
 	struct sctp_endpoint *ep;
 	struct sctp_association *new_asoc=NULL, *asoc=NULL;
@@ -1714,7 +1718,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (sinfo_flags & SCTP_EOF) {
 			SCTP_DEBUG_PRINTK("Shutting down association: %p\n",
 					  asoc);
-			sctp_primitive_SHUTDOWN(asoc, NULL);
+			sctp_primitive_SHUTDOWN(net, asoc, NULL);
 			err = 0;
 			goto out_unlock;
 		}
@@ -1727,7 +1731,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			}
 
 			SCTP_DEBUG_PRINTK("Aborting association: %p\n", asoc);
-			sctp_primitive_ABORT(asoc, chunk);
+			sctp_primitive_ABORT(net, asoc, chunk);
 			err = 0;
 			goto out_unlock;
 		}
@@ -1900,7 +1904,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	/* Auto-connect, if we aren't connected already. */
 	if (sctp_state(asoc, CLOSED)) {
-		err = sctp_primitive_ASSOCIATE(asoc, NULL);
+		err = sctp_primitive_ASSOCIATE(net, asoc, NULL);
 		if (err < 0)
 			goto out_free;
 		SCTP_DEBUG_PRINTK("We associated primitively.\n");
@@ -1928,7 +1932,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	 * works that way today.  Keep it that way or this
 	 * breaks.
 	 */
-	err = sctp_primitive_SEND(asoc, datamsg);
+	err = sctp_primitive_SEND(net, asoc, datamsg);
 	/* Did the lower layer accept the chunk? */
 	if (err)
 		sctp_datamsg_free(datamsg);
@@ -2320,7 +2324,9 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	int error;
 
 	if (params->spp_flags & SPP_HB_DEMAND && trans) {
-		error = sctp_primitive_REQUESTHEARTBEAT (trans->asoc, trans);
+		struct net *net = sock_net(trans->asoc->base.sk);
+
+		error = sctp_primitive_REQUESTHEARTBEAT(net, trans->asoc, trans);
 		if (error)
 			return error;
 	}
@@ -4011,6 +4017,7 @@ SCTP_STATIC void sctp_destroy_sock(struct sock *sk)
  */
 SCTP_STATIC void sctp_shutdown(struct sock *sk, int how)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_endpoint *ep;
 	struct sctp_association *asoc;
 
@@ -4022,7 +4029,7 @@ SCTP_STATIC void sctp_shutdown(struct sock *sk, int how)
 		if (!list_empty(&ep->asocs)) {
 			asoc = list_entry(ep->asocs.next,
 					  struct sctp_association, asocs);
-			sctp_primitive_SHUTDOWN(asoc, NULL);
+			sctp_primitive_SHUTDOWN(net, asoc, NULL);
 		}
 	}
 }

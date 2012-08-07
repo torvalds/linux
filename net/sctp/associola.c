@@ -1118,6 +1118,7 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 	struct sctp_association *asoc =
 		container_of(work, struct sctp_association,
 			     base.inqueue.immediate);
+	struct net *net = sock_net(asoc->base.sk);
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
 	struct sctp_inq *inqueue;
@@ -1150,13 +1151,13 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		if (sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
 		else
-			SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_INCTRLCHUNKS);
+			SCTP_INC_STATS(net, SCTP_MIB_INCTRLCHUNKS);
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;
 
 		/* Run through the state machine. */
-		error = sctp_do_sm(SCTP_EVENT_T_CHUNK, subtype,
+		error = sctp_do_sm(net, SCTP_EVENT_T_CHUNK, subtype,
 				   state, ep, asoc, chunk, GFP_ATOMIC);
 
 		/* Check to see if the association is freed in response to

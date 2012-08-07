@@ -413,6 +413,7 @@ static void sctp_endpoint_bh_rcv(struct work_struct *work)
 			     base.inqueue.immediate);
 	struct sctp_association *asoc;
 	struct sock *sk;
+	struct net *net;
 	struct sctp_transport *transport;
 	struct sctp_chunk *chunk;
 	struct sctp_inq *inqueue;
@@ -427,6 +428,7 @@ static void sctp_endpoint_bh_rcv(struct work_struct *work)
 	asoc = NULL;
 	inqueue = &ep->base.inqueue;
 	sk = ep->base.sk;
+	net = sock_net(sk);
 
 	while (NULL != (chunk = sctp_inq_pop(inqueue))) {
 		subtype = SCTP_ST_CHUNK(chunk->chunk_hdr->type);
@@ -483,7 +485,7 @@ normal:
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;
 
-		error = sctp_do_sm(SCTP_EVENT_T_CHUNK, subtype, state,
+		error = sctp_do_sm(net, SCTP_EVENT_T_CHUNK, subtype, state,
 				   ep, asoc, chunk, GFP_ATOMIC);
 
 		if (error && chunk)

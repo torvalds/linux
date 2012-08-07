@@ -139,12 +139,12 @@ extern int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 /*
  * sctp/primitive.c
  */
-int sctp_primitive_ASSOCIATE(struct sctp_association *, void *arg);
-int sctp_primitive_SHUTDOWN(struct sctp_association *, void *arg);
-int sctp_primitive_ABORT(struct sctp_association *, void *arg);
-int sctp_primitive_SEND(struct sctp_association *, void *arg);
-int sctp_primitive_REQUESTHEARTBEAT(struct sctp_association *, void *arg);
-int sctp_primitive_ASCONF(struct sctp_association *, void *arg);
+int sctp_primitive_ASSOCIATE(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_SHUTDOWN(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_ABORT(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_SEND(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_REQUESTHEARTBEAT(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
 
 /*
  * sctp/input.c

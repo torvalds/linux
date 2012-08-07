@@ -466,11 +466,13 @@ void sctp_icmp_proto_unreachable(struct sock *sk,
 		}
 			
 	} else {
+		struct net *net = sock_net(sk);
+
 		if (timer_pending(&t->proto_unreach_timer) &&
 		    del_timer(&t->proto_unreach_timer))
 			sctp_association_put(asoc);
 
-		sctp_do_sm(SCTP_EVENT_T_OTHER,
+		sctp_do_sm(net, SCTP_EVENT_T_OTHER,
 			   SCTP_ST_OTHER(SCTP_EVENT_ICMP_PROTO_UNREACH),
 			   asoc->state, asoc->ep, asoc, t,
 			   GFP_ATOMIC);
