@@ -100,12 +100,8 @@ static int shark_write_reg(struct radio_tea5777 *tea, u64 reg)
 	for (i = 0; i < 6; i++)
 		shark->transfer_buffer[i + 1] = (reg >> (40 - i * 8)) & 0xff;
 
-	v4l2_dbg(1, debug, tea->v4l2_dev,
-		 "shark2-write: %02x %02x %02x %02x %02x %02x %02x\n",
-		 shark->transfer_buffer[0], shark->transfer_buffer[1],
-		 shark->transfer_buffer[2], shark->transfer_buffer[3],
-		 shark->transfer_buffer[4], shark->transfer_buffer[5],
-		 shark->transfer_buffer[6]);
+	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-write: %*ph\n",
+		 7, shark->transfer_buffer);
 
 	res = usb_interrupt_msg(shark->usbdev,
 				usb_sndintpipe(shark->usbdev, SHARK_OUT_EP),
@@ -148,9 +144,8 @@ static int shark_read_reg(struct radio_tea5777 *tea, u32 *reg_ret)
 	for (i = 0; i < 3; i++)
 		reg |= shark->transfer_buffer[i] << (16 - i * 8);
 
-	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-read: %02x %02x %02x\n",
-		 shark->transfer_buffer[0], shark->transfer_buffer[1],
-		 shark->transfer_buffer[2]);
+	v4l2_dbg(1, debug, tea->v4l2_dev, "shark2-read: %*ph\n",
+		 3, shark->transfer_buffer);
 
 	*reg_ret = reg;
 	return 0;
