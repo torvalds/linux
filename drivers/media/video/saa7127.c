@@ -364,10 +364,7 @@ static int saa7127_set_vps(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_
 	state->vps_data[2] = data->data[9];
 	state->vps_data[3] = data->data[10];
 	state->vps_data[4] = data->data[11];
-	v4l2_dbg(1, debug, sd, "Set VPS data %02x %02x %02x %02x %02x\n",
-		state->vps_data[0], state->vps_data[1],
-		state->vps_data[2], state->vps_data[3],
-		state->vps_data[4]);
+	v4l2_dbg(1, debug, sd, "Set VPS data %*ph\n", 5, state->vps_data);
 	saa7127_write(sd, 0x55, state->vps_data[0]);
 	saa7127_write(sd, 0x56, state->vps_data[1]);
 	saa7127_write(sd, 0x57, state->vps_data[2]);
