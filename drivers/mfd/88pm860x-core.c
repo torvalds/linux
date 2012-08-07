@@ -21,73 +21,40 @@
 
 #define INT_STATUS_NUM			3
 
-static struct resource io_parent = {
-	.start = 0,
-	.end   = 0xffffffff,
-	.flags = IORESOURCE_IO,
-};
-
 static struct resource bk_resources[] __devinitdata = {
-	{PM8606_BACKLIGHT1, PM8606_BACKLIGHT1, "backlight-0", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_BACKLIGHT2, PM8606_BACKLIGHT2, "backlight-1", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_IO,
-	 &io_parent,},
+	{PM8606_BACKLIGHT1, PM8606_BACKLIGHT1, "backlight-0", IORESOURCE_REG,},
+	{PM8606_BACKLIGHT2, PM8606_BACKLIGHT2, "backlight-1", IORESOURCE_REG,},
+	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_REG,},
 };
 
 static struct resource led_resources[] __devinitdata = {
-	{PM8606_LED1_RED,   PM8606_LED1_RED,   "led0-red",   IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_LED1_GREEN, PM8606_LED1_GREEN, "led0-green", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_LED1_BLUE,  PM8606_LED1_BLUE,  "led0-blue",  IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_LED2_RED,   PM8606_LED2_RED,   "led1-red",   IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_LED2_GREEN, PM8606_LED2_GREEN, "led1-green", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_IO,
-	 &io_parent,},
+	{PM8606_LED1_RED,   PM8606_LED1_RED,   "led0-red",   IORESOURCE_REG,},
+	{PM8606_LED1_GREEN, PM8606_LED1_GREEN, "led0-green", IORESOURCE_REG,},
+	{PM8606_LED1_BLUE,  PM8606_LED1_BLUE,  "led0-blue",  IORESOURCE_REG,},
+	{PM8606_LED2_RED,   PM8606_LED2_RED,   "led1-red",   IORESOURCE_REG,},
+	{PM8606_LED2_GREEN, PM8606_LED2_GREEN, "led1-green", IORESOURCE_REG,},
+	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_REG,},
 };
 
 static struct resource regulator_resources[] __devinitdata = {
-	{PM8607_ID_BUCK1, PM8607_ID_BUCK1, "buck-1", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_BUCK2, PM8607_ID_BUCK2, "buck-2", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_BUCK3, PM8607_ID_BUCK3, "buck-3", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO1,  PM8607_ID_LDO1,  "ldo-01", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO2,  PM8607_ID_LDO2,  "ldo-02", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO3,  PM8607_ID_LDO3,  "ldo-03", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO4,  PM8607_ID_LDO4,  "ldo-04", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO5,  PM8607_ID_LDO5,  "ldo-05", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO6,  PM8607_ID_LDO6,  "ldo-06", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO7,  PM8607_ID_LDO7,  "ldo-07", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO8,  PM8607_ID_LDO8,  "ldo-08", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO9,  PM8607_ID_LDO9,  "ldo-09", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO10, PM8607_ID_LDO10, "ldo-10", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO11, PM8607_ID_LDO11, "ldo-11", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO12, PM8607_ID_LDO12, "ldo-12", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO13, PM8607_ID_LDO13, "ldo-13", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO14, PM8607_ID_LDO14, "ldo-14", IORESOURCE_IO,
-	 &io_parent,},
-	{PM8607_ID_LDO15, PM8607_ID_LDO15, "ldo-15", IORESOURCE_IO,
-	 &io_parent,},
+	{PM8607_ID_BUCK1, PM8607_ID_BUCK1, "buck-1", IORESOURCE_REG,},
+	{PM8607_ID_BUCK2, PM8607_ID_BUCK2, "buck-2", IORESOURCE_REG,},
+	{PM8607_ID_BUCK3, PM8607_ID_BUCK3, "buck-3", IORESOURCE_REG,},
+	{PM8607_ID_LDO1,  PM8607_ID_LDO1,  "ldo-01", IORESOURCE_REG,},
+	{PM8607_ID_LDO2,  PM8607_ID_LDO2,  "ldo-02", IORESOURCE_REG,},
+	{PM8607_ID_LDO3,  PM8607_ID_LDO3,  "ldo-03", IORESOURCE_REG,},
+	{PM8607_ID_LDO4,  PM8607_ID_LDO4,  "ldo-04", IORESOURCE_REG,},
+	{PM8607_ID_LDO5,  PM8607_ID_LDO5,  "ldo-05", IORESOURCE_REG,},
+	{PM8607_ID_LDO6,  PM8607_ID_LDO6,  "ldo-06", IORESOURCE_REG,},
+	{PM8607_ID_LDO7,  PM8607_ID_LDO7,  "ldo-07", IORESOURCE_REG,},
+	{PM8607_ID_LDO8,  PM8607_ID_LDO8,  "ldo-08", IORESOURCE_REG,},
+	{PM8607_ID_LDO9,  PM8607_ID_LDO9,  "ldo-09", IORESOURCE_REG,},
+	{PM8607_ID_LDO10, PM8607_ID_LDO10, "ldo-10", IORESOURCE_REG,},
+	{PM8607_ID_LDO11, PM8607_ID_LDO11, "ldo-11", IORESOURCE_REG,},
+	{PM8607_ID_LDO12, PM8607_ID_LDO12, "ldo-12", IORESOURCE_REG,},
+	{PM8607_ID_LDO13, PM8607_ID_LDO13, "ldo-13", IORESOURCE_REG,},
+	{PM8607_ID_LDO14, PM8607_ID_LDO14, "ldo-14", IORESOURCE_REG,},
+	{PM8607_ID_LDO15, PM8607_ID_LDO15, "ldo-15", IORESOURCE_REG,},
 };
 
 static struct resource touch_resources[] __devinitdata = {
@@ -124,12 +91,11 @@ static struct resource charger_resources[] __devinitdata = {
 };
 
 static struct resource preg_resources[] __devinitdata = {
-	{PM8606_ID_PREG,  PM8606_ID_PREG,  "preg",   IORESOURCE_IO,
-	 &io_parent,},
+	{PM8606_ID_PREG,  PM8606_ID_PREG,  "preg",   IORESOURCE_REG,},
 };
 
 static struct resource rtc_resources[] __devinitdata = {
-	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ, &io_parent,},
+	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
 };
 
 static struct mfd_cell bk_devs[] = {
