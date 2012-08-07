@@ -4443,7 +4443,7 @@ static int __init rs_init(void)
 		B115200 | CS8 | CREAD | HUPCL | CLOCAL; /* is normally B9600 default... */
 	driver->init_termios.c_ispeed = 115200;
 	driver->init_termios.c_ospeed = 115200;
-	driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(driver, &rs_ops);
         serial_driver = driver;
