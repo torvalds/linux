@@ -1109,11 +1109,10 @@ static struct hvcs_struct *hvcs_get_by_index(int index)
 static int hvcs_open(struct tty_struct *tty, struct file *filp)
 {
 	struct hvcs_struct *hvcsd;
-	int rc, retval = 0;
-	unsigned long flags;
-	unsigned int irq;
 	struct vio_dev *vdev;
-	unsigned long unit_address;
+	unsigned long unit_address, flags;
+	unsigned int irq;
+	int retval;
 
 	if (tty->driver_data)
 		goto fast_open;
@@ -1122,7 +1121,8 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 	 * Is there a vty-server that shares the same index?
 	 * This function increments the kref index.
 	 */
-	if (!(hvcsd = hvcs_get_by_index(tty->index))) {
+	hvcsd = hvcs_get_by_index(tty->index);
+	if (!hvcsd) {
 		printk(KERN_WARNING "HVCS: open failed, no device associated"
 				" with tty->index %d.\n", tty->index);
 		return -ENODEV;
@@ -1130,9 +1130,14 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
-	if (hvcsd->connected == 0)
-		if ((retval = hvcs_partner_connect(hvcsd)))
-			goto error_release;
+	if (hvcsd->connected == 0) {
+		retval = hvcs_partner_connect(hvcsd);
+		if (retval) {
+			spin_unlock_irqrestore(&hvcsd->lock, flags);
+			printk(KERN_WARNING "HVCS: partner connect failed.\n");
+			goto err_put;
+		}
+	}
 
 	hvcsd->port.count = 1;
 	hvcsd->port.tty = tty;
@@ -1155,10 +1160,10 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 	 * This must be done outside of the spinlock because it requests irqs
 	 * and will grab the spinlock and free the connection if it fails.
 	 */
-	if (((rc = hvcs_enable_device(hvcsd, unit_address, irq, vdev)))) {
-		tty_port_put(&hvcsd->port);
+	retval = hvcs_enable_device(hvcsd, unit_address, irq, vdev);
+	if (retval) {
 		printk(KERN_WARNING "HVCS: enable device failed.\n");
-		return rc;
+		goto err_put;
 	}
 
 	goto open_success;
@@ -1179,12 +1184,9 @@ open_success:
 		hvcsd->vdev->unit_address );
 
 	return 0;
-
-error_release:
-	spin_unlock_irqrestore(&hvcsd->lock, flags);
+err_put:
 	tty_port_put(&hvcsd->port);
 
-	printk(KERN_WARNING "HVCS: partner connect failed.\n");
 	return retval;
 }
 
