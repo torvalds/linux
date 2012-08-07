@@ -143,6 +143,7 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
                                        unsigned int priority)
 {
+	trace_kvm_booke_queue_irqprio(vcpu, priority);
 	set_bit(priority, &vcpu->arch.pending_exceptions);
 }
 
@@ -457,6 +458,8 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 static void kvmppc_check_requests(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->requests) {
+		trace_kvm_check_requests(vcpu);
+
 		if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu))
 			update_timer_ints(vcpu);
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)

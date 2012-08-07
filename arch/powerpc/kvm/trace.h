@@ -82,6 +82,21 @@ TRACE_EVENT(kvm_exit,
 		)
 );
 
+TRACE_EVENT(kvm_unmap_hva,
+	TP_PROTO(unsigned long hva),
+	TP_ARGS(hva),
+
+	TP_STRUCT__entry(
+		__field(	unsigned long,	hva		)
+	),
+
+	TP_fast_assign(
+		__entry->hva		= hva;
+	),
+
+	TP_printk("unmap hva 0x%lx\n", __entry->hva)
+);
+
 TRACE_EVENT(kvm_stlb_inval,
 	TP_PROTO(unsigned int stlb_index),
 	TP_ARGS(stlb_index),
@@ -147,6 +162,24 @@ TRACE_EVENT(kvm_gtlb_write,
 	TP_printk("gtlb_index %u tid %u w0 %u w1 %u w2 %u",
 		__entry->gtlb_index, __entry->tid, __entry->word0,
 		__entry->word1, __entry->word2)
+);
+
+TRACE_EVENT(kvm_check_requests,
+	TP_PROTO(struct kvm_vcpu *vcpu),
+	TP_ARGS(vcpu),
+
+	TP_STRUCT__entry(
+		__field(	__u32,	cpu_nr		)
+		__field(	__u32,	requests	)
+	),
+
+	TP_fast_assign(
+		__entry->cpu_nr		= vcpu->vcpu_id;
+		__entry->requests	= vcpu->requests;
+	),
+
+	TP_printk("vcpu=%x requests=%x",
+		__entry->cpu_nr, __entry->requests)
 );
 
 
@@ -416,6 +449,44 @@ TRACE_EVENT(kvm_booke206_gtlb_write,
 	TP_printk("mas0=%x mas1=%x mas2=%llx mas7_3=%llx",
 		__entry->mas0, __entry->mas1,
 		__entry->mas2, __entry->mas7_3)
+);
+
+TRACE_EVENT(kvm_booke206_ref_release,
+	TP_PROTO(__u64 pfn, __u32 flags),
+	TP_ARGS(pfn, flags),
+
+	TP_STRUCT__entry(
+		__field(	__u64,	pfn		)
+		__field(	__u32,	flags		)
+	),
+
+	TP_fast_assign(
+		__entry->pfn		= pfn;
+		__entry->flags		= flags;
+	),
+
+	TP_printk("pfn=%llx flags=%x",
+		__entry->pfn, __entry->flags)
+);
+
+TRACE_EVENT(kvm_booke_queue_irqprio,
+	TP_PROTO(struct kvm_vcpu *vcpu, unsigned int priority),
+	TP_ARGS(vcpu, priority),
+
+	TP_STRUCT__entry(
+		__field(	__u32,	cpu_nr		)
+		__field(	__u32,	priority		)
+		__field(	unsigned long,	pending		)
+	),
+
+	TP_fast_assign(
+		__entry->cpu_nr		= vcpu->vcpu_id;
+		__entry->priority	= priority;
+		__entry->pending	= vcpu->arch.pending_exceptions;
+	),
+
+	TP_printk("vcpu=%x prio=%x pending=%lx",
+		__entry->cpu_nr, __entry->priority, __entry->pending)
 );
 
 #endif

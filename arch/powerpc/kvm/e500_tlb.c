@@ -312,6 +312,7 @@ static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 static inline void kvmppc_e500_ref_release(struct tlbe_ref *ref)
 {
 	if (ref->flags & E500_TLB_VALID) {
+		trace_kvm_booke206_ref_release(ref->pfn, ref->flags);
 		ref->flags = 0;
 	}
 }
@@ -1075,6 +1076,8 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 {
+	trace_kvm_unmap_hva(hva);
+
 	/*
 	 * Flush all shadow tlb entries everywhere. This is slow, but
 	 * we are 100% sure that we catch the to be unmapped page
