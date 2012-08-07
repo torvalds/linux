@@ -157,12 +157,13 @@ void rmobile_init_domains(struct rmobile_pm_domain domains[], int num)
 		rmobile_init_pm_domain(&domains[j]);
 }
 
-void rmobile_add_device_to_domain(const char *domain_name,
-				 struct platform_device *pdev)
+void rmobile_add_device_to_domain_td(const char *domain_name,
+				     struct platform_device *pdev,
+				     struct gpd_timing_data *td)
 {
 	struct device *dev = &pdev->dev;
 
-	pm_genpd_name_add_device(domain_name, dev);
+	__pm_genpd_name_add_device(domain_name, dev, td);
 	if (pm_clk_no_clocks(dev))
 		pm_clk_add(dev, NULL);
 }
