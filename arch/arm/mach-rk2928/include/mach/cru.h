@@ -91,7 +91,7 @@ enum rk_plls_id {
 #define PLL_GET_FRAC(reg)				CRU_GET_REG_BITS_VAL(reg, PLL_FRAC_SHIFT, PLL_FRAC_MASK)
 
 //#define APLL_SET_BYPASS(val)				CRU_SET_BIT(val, PLL_BYPASS_SHIFT)
-#define PLL_SET_DSMPD(val)				CRU_SET_BIT(val, PLL_DSMPD_SHIFT)
+#define PLL_SET_DSMPD(val)				CRU_W_MSK_SETBIT(val, PLL_DSMPD_SHIFT)
 #define PLL_GET_DSMPD(reg)				CRU_GET_REG_BIT_VAL(reg, PLL_DSMPD_SHIFT)
 /*******************MODE BITS***************************/
 #define PLL_MODE_MSK(id)		(0x1 << ((id) * 4))
@@ -142,10 +142,10 @@ enum rk_plls_id {
 #define SEL_2PLL_GPLL		(0)
 #define SEL_2PLL_CPLL		(1)
 
-#define RATIO_11		(0)
-#define RATIO_21		(1)
-#define RATIO_41		(2)
-#define RATIO_81		(3)
+#define RATIO_11		(1)
+#define RATIO_21		(2)
+#define RATIO_41		(4)
+#define RATIO_81		(8)
 
 #define PERI_CLK_SEL_PLL(plls)	CRU_W_MSK_SETBIT(plls, PERI_PLL_SEL_SHIFT)
 #define PERI_SET_A2P_RATIO(ratio)	CRU_W_MSK_SETBITS(ratio, PERI_PCLK_DIV_SHIFT, PERI_PCLK_DIV_MASK)

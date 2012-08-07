@@ -125,7 +125,7 @@ u32 TEST_CRU_REGS[500] = {0};
 	.pllcon0 = PLL_SET_POSTDIV1(_postdiv1) | PLL_SET_FBDIV(_fbdiv),	\
 	.pllcon1 = PLL_SET_DSMPD(_dsmpd) | PLL_SET_POSTDIV2(_postdiv2) | PLL_SET_REFDIV(_refdiv),	\
 	.pllcon2 = PLL_SET_FRAC(_frac),	\
-	.clksel0 = ACLK_CPU_DIV(RATIO_##_axi_div) | CLK_CORE_DIV(RATIO_##_aclk_core_div),\
+	.clksel0 = ACLK_CPU_DIV(RATIO_##_axi_div),\
 	.clksel1 = PCLK_CPU_DIV(RATIO_##_apb_div) | HCLK_CPU_DIV(RATIO_##_ahb_div) \
 	| ACLK_CORE_DIV(RATIO_##_aclk_core_div) | CLK_CORE_PERI_DIV(RATIO_##_periph_div),	\
 	.lpj	= 1500,	\
@@ -142,12 +142,12 @@ static const struct apll_clk_set apll_clks[] = {
 	.pllcon2 = PLL_SET_FRAC(_frac),	\
 }
 static const struct pll_clk_set cpll_clks[] = {
-	_PLL_SET_CLKS(798000, 4, 133, 1, 1, 0, 0),
-	_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 0, 0),
+	_PLL_SET_CLKS(798000, 4, 133, 1, 1, 1, 0),
+	_PLL_SET_CLKS(1064000, 3, 133, 1, 1, 1, 0),
 };
 
 static const struct pll_clk_set gpll_clks[] = {
-	_PLL_SET_CLKS(297000, 2, 99, 4, 1, 0, 0),
+	_PLL_SET_CLKS(297000, 2, 99, 4, 1, 1, 0),
 };
 
 static u32 clk_gcd(u32 numerator, u32 denominator)
@@ -591,9 +591,9 @@ static int pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
 	cru_writel(clk_set->pllcon1, PLL_CONS(pll_id,1));
 	cru_writel(clk_set->pllcon2, PLL_CONS(pll_id,2));
 
-	//printk("id=%d,pllcon0%08x\n", pll_id, cru_readl(PLL_CONS(pll_id,0)));
-	//printk("id=%d,pllcon1%08x\n", pll_id, cru_readl(PLL_CONS(pll_id,1)));
-	//printk("id=%d,pllcon2%08x\n", pll_id, cru_readl(PLL_CONS(pll_id,2)));
+	printk("id=%d,pllcon0%08x\n", pll_id, cru_readl(PLL_CONS(pll_id,0)));
+	printk("id=%d,pllcon1%08x\n", pll_id, cru_readl(PLL_CONS(pll_id,1)));
+	printk("id=%d,pllcon2%08x\n", pll_id, cru_readl(PLL_CONS(pll_id,2)));
 	//rk2928_clock_udelay(5);
 
 	//wating lock state
@@ -692,15 +692,15 @@ static int pll_clk_get_set(unsigned long fin_hz,unsigned long fout_hz,
 	fin_hz /= MHZ;
 	fout_hz /= MHZ;
 	gcd = clk_gcd(fin_hz, fout_hz);
-	refdiv = gcd;
-	fbdiv = fout_hz / gcd;
-	postdiv1 = 1;
-	postdiv2 = 1;
+	*refdiv = fin_hz / gcd;
+	*fbdiv = fout_hz / gcd;
+	*postdiv1 = 1;
+	*postdiv2 = 1;
 
-	frac = 0;
+	*frac = 0;
 
 	CLKDATA_DBG("fin=%lu,fout=%lu,gcd=%lu,refdiv=%lu,fbdiv=%lu,postdiv1=%lu,postdiv2=%lu,frac=%lu\n",
-			fin_hz, fout_hz, gcd, refdiv, fbdiv, postdiv1, postdiv2, frac);
+			fin_hz, fout_hz, gcd, *refdiv, *fbdiv, *postdiv1, *postdiv2, *frac);
 
 	return 0;
 }
@@ -716,11 +716,61 @@ static int pll_set_con(u8 id, u32 refdiv, u32 fbdiv, u32 postdiv1, u32 postdiv2,
 }
 static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	// FIXME 
+	struct _pll_data *pll_data=clk->pll;
+	struct apll_clk_set *clk_set=(struct apll_clk_set*)pll_data->table;
+	struct apll_clk_set temp_clk_set;
+
+	u32 fin_hz, fout_hz;
 	u32 refdiv, fbdiv, postdiv1, postdiv2, frac;
+	fin_hz = clk->parent->rate;
+	fout_hz = rate;
+
+	while(clk_set->rate) {
+		if (clk_set->rate == rate) {
+			break;
+		}
+		clk_set++;
+	}
+
 	printk("%s %s %d\n", __func__, clk->name, rate);
-	pll_clk_get_set(clk->parent->rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac);	
-	pll_set_con(clk->pll->id, refdiv, fbdiv, postdiv1, postdiv2, frac);
+	printk("pllcon0 %08x\n", cru_readl(PLL_CONS(0,0)));
+	printk("pllcon1 %08x\n", cru_readl(PLL_CONS(0,1)));
+	printk("pllcon2 %08x\n", cru_readl(PLL_CONS(0,2)));
+	printk("pllcon3 %08x\n", cru_readl(PLL_CONS(0,3)));
+	printk("clksel0 %08x\n", cru_readl(CRU_CLKSELS_CON(0)));
+	printk("clksel1 %08x\n", cru_readl(CRU_CLKSELS_CON(1)));
+	if(clk_set->rate==rate) {
+		CLKDATA_DBG("apll get a rate\n");
+		u8 pll_id = 0;
+	
+		//enter slowmode
+		cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
+
+		cru_writel(clk_set->pllcon0, PLL_CONS(pll_id,0));
+		cru_writel(clk_set->pllcon1, PLL_CONS(pll_id,1));
+		cru_writel(clk_set->pllcon2, PLL_CONS(pll_id,2));
+		cru_writel(clk_set->clksel0, CRU_CLKSELS_CON(0));
+		cru_writel(clk_set->clksel1, CRU_CLKSELS_CON(1));
+
+		printk("pllcon0 %08x\n", cru_readl(PLL_CONS(0,0)));
+		printk("pllcon1 %08x\n", cru_readl(PLL_CONS(0,1)));
+		printk("pllcon2 %08x\n", cru_readl(PLL_CONS(0,2)));
+		printk("pllcon3 %08x\n", cru_readl(PLL_CONS(0,3)));
+		printk("clksel0 %08x\n", cru_readl(CRU_CLKSELS_CON(0)));
+		printk("clksel1 %08x\n", cru_readl(CRU_CLKSELS_CON(1)));
+		//rk2928_clock_udelay(5);
+
+		//wating lock state
+		rk2928_clock_udelay(clk_set->rst_dly);
+		pll_wait_lock(pll_id);
+
+		//return form slow
+		cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
+	} else {
+		// FIXME 
+		pll_clk_get_set(clk->parent->rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac);	
+		pll_set_con(clk->pll->id, refdiv, fbdiv, postdiv1, postdiv2, frac);
+	}
 
 	printk("setting OK\n");
 	return 0;
@@ -758,11 +808,11 @@ static int cpll_clk_set_rate(struct clk *clk, unsigned long rate)
 	
 	} else {
 		CLKDATA_DBG("cpll get auto calc a rate\n");
-		if(pll_clk_get_set(clk->parent->rate, &rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac) != 0) {
+		if(pll_clk_get_set(clk->parent->rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac) != 0) {
 			pr_err("cpll auto set rate error\n");
 			return -ENOENT;
 		}
-		CLKDATA_DBG("%s get fin=%d, fout=%d, refdiv=%lu, fbdiv=%lu, postdiv1=%lu, postdiv2=%d",
+		CLKDATA_DBG("%s get fin=%d, fout=%d, rate=%lu, refdiv=%lu, fbdiv=%lu, postdiv1=%lu, postdiv2=%d",
 				__func__, fin_hz, fout_hz, rate, refdiv, fbdiv, postdiv1, postdiv2);
 		pll_set_con(pll_data->id, refdiv, fbdiv, postdiv1, postdiv2, frac);
 	}
