@@ -2373,11 +2373,6 @@ S:	Maintained
 F:	Documentation/hwmon/dme1737
 F:	drivers/hwmon/dme1737.c
 
-DOCBOOK FOR DOCUMENTATION
-M:	Randy Dunlap <rdunlap@xenotime.net>
-S:	Maintained
-F:	scripts/kernel-doc
-
 DOCKING STATION DRIVER
 M:	Shaohua Li <shaohua.li@intel.com>
 L:	linux-acpi@vger.kernel.org
