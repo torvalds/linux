@@ -21,7 +21,6 @@
 
 #include "dvb_usb_common.h"
 
-#undef DVB_USB_XFER_DEBUG
 int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 		u16 rlen)
 {
@@ -37,10 +36,8 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 	if (ret < 0)
 		return ret;
 
-#ifdef DVB_USB_XFER_DEBUG
-	print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": >>> ", DUMP_PREFIX_NONE,
-			32, 1, wbuf, wlen, 0);
-#endif
+	dev_dbg(&d->udev->dev, "%s: >>> %*ph\n", __func__, wlen, wbuf);
+
 	ret = usb_bulk_msg(d->udev, usb_sndbulkpipe(d->udev,
 			d->props->generic_bulk_ctrl_endpoint), wbuf, wlen,
 			&actual_length, 2000);
@@ -64,11 +61,8 @@ int dvb_usbv2_generic_rw(struct dvb_usb_device *d, u8 *wbuf, u16 wlen, u8 *rbuf,
 			dev_err(&d->udev->dev, "%s: 2nd usb_bulk_msg() " \
 					"failed=%d\n", KBUILD_MODNAME, ret);
 
-#ifdef DVB_USB_XFER_DEBUG
-		print_hex_dump(KERN_DEBUG, KBUILD_MODNAME ": <<< ",
-				DUMP_PREFIX_NONE, 32, 1, rbuf, actual_length,
-				0);
-#endif
+		dev_dbg(&d->udev->dev, "%s: <<< %*ph\n", __func__,
+				actual_length, rbuf);
 	}
 
 	mutex_unlock(&d->usb_mutex);
