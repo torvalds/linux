@@ -264,10 +264,16 @@ int kvm_dev_ioctl_check_extension(long ext)
 		if (cpu_has_feature(CPU_FTR_ARCH_201))
 			r = 2;
 		break;
-	case KVM_CAP_SYNC_MMU:
-		r = cpu_has_feature(CPU_FTR_ARCH_206) ? 1 : 0;
-		break;
 #endif
+	case KVM_CAP_SYNC_MMU:
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+		r = cpu_has_feature(CPU_FTR_ARCH_206) ? 1 : 0;
+#elif defined(KVM_ARCH_WANT_MMU_NOTIFIER)
+		r = 1;
+#else
+		r = 0;
+#endif
+		break;
 	case KVM_CAP_NR_VCPUS:
 		/*
 		 * Recommending a number of CPUs is somewhat arbitrary; we
