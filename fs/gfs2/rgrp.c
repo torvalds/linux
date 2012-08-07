@@ -1596,6 +1596,12 @@ find_next:
 			n += (rbm->bi - initial_bi);
 			goto find_next;
 		}
+		if (ret == -E2BIG) {
+			index = 0;
+			rbm->offset = 0;
+			n += (rbm->bi - initial_bi);
+			goto res_covered_end_of_rgrp;
+		}
 		return ret;
 
 bitmap_full:	/* Mark bitmap as full and fall through */
@@ -1608,6 +1614,7 @@ next_bitmap:	/* Find next bitmap in the rgrp */
 		index++;
 		if (index == rbm->rgd->rd_length)
 			index = 0;
+res_covered_end_of_rgrp:
 		rbm->bi = &rbm->rgd->rd_bits[index];
 		if ((index == 0) && nowrap)
 			break;
