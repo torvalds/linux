@@ -263,13 +263,13 @@ static void au_wh_clean(struct inode *h_dir, struct path *whpath,
 	if (!whpath->dentry->d_inode)
 		return;
 
-	err = mnt_want_write(whpath->mnt);
+	err = vfsub_mnt_want_write(whpath->mnt);
 	if (!err) {
 		if (isdir)
 			err = vfsub_rmdir(h_dir, whpath);
 		else
 			err = vfsub_unlink(h_dir, whpath, /*force*/0);
-		mnt_drop_write(whpath->mnt);
+		vfsub_mnt_drop_write(whpath->mnt);
 	}
 	if (unlikely(err))
 		pr_warn("failed removing %.*s (%d), ignored.\n",
@@ -299,10 +299,10 @@ static int au_whdir(struct inode *h_dir, struct path *path)
 
 		if (au_test_nfs(path->dentry->d_sb))
 			mode |= S_IXUGO;
-		err = mnt_want_write(path->mnt);
+		err = vfsub_mnt_want_write(path->mnt);
 		if (!err) {
 			err = vfsub_mkdir(h_dir, path, mode);
-			mnt_drop_write(path->mnt);
+			vfsub_mnt_drop_write(path->mnt);
 		}
 	} else if (S_ISDIR(path->dentry->d_inode->i_mode))
 		err = 0;
@@ -397,12 +397,12 @@ static int au_wh_init_rw(struct dentry *h_root, struct au_wbr *wbr,
 	err = -EEXIST;
 	h_dir = h_root->d_inode;
 	if (!base[AuBrWh_BASE].dentry->d_inode) {
-		err = mnt_want_write(h_path->mnt);
+		err = vfsub_mnt_want_write(h_path->mnt);
 		if (!err) {
 			h_path->dentry = base[AuBrWh_BASE].dentry;
 			err = vfsub_create(h_dir, h_path, WH_MASK,
 					   /*want_excl*/true);
-			mnt_drop_write(h_path->mnt);
+			vfsub_mnt_drop_write(h_path->mnt);
 		}
 	} else if (S_ISREG(base[AuBrWh_BASE].dentry->d_inode->i_mode))
 		err = 0;
@@ -564,12 +564,12 @@ static void reinit_br_wh(void *arg)
 	err = au_h_verify(wbr->wbr_whbase, au_opt_udba(a->sb), hdir->hi_inode,
 			  h_root, a->br);
 	if (!err) {
-		err = mnt_want_write(a->br->br_mnt);
+		err = vfsub_mnt_want_write(a->br->br_mnt);
 		if (!err) {
 			h_path.dentry = wbr->wbr_whbase;
 			h_path.mnt = a->br->br_mnt;
 			err = vfsub_unlink(hdir->hi_inode, &h_path, /*force*/0);
-			mnt_drop_write(a->br->br_mnt);
+			vfsub_mnt_drop_write(a->br->br_mnt);
 		}
 	} else {
 		pr_warn("%.*s is moved, ignored\n",
@@ -999,11 +999,11 @@ static void call_rmdir_whtmp(void *args)
 	err = au_h_verify(a->wh_dentry, au_opt_udba(sb), h_dir, h_parent,
 			  a->br);
 	if (!err) {
-		err = mnt_want_write(a->br->br_mnt);
+		err = vfsub_mnt_want_write(a->br->br_mnt);
 		if (!err) {
 			err = au_whtmp_rmdir(a->dir, bindex, a->wh_dentry,
 					     &a->whlist);
-			mnt_drop_write(a->br->br_mnt);
+			vfsub_mnt_drop_write(a->br->br_mnt);
 		}
 	}
 	au_hn_imtx_unlock(hdir);

@@ -542,7 +542,7 @@ int vfsub_trunc(struct path *h_path, loff_t length, unsigned int attr,
 
 	h_inode = h_path->dentry->d_inode;
 	if (!h_file) {
-		err = mnt_want_write(h_path->mnt);
+		err = vfsub_mnt_want_write(h_path->mnt);
 		if (err)
 			goto out;
 		err = inode_permission(h_inode, MAY_WRITE);
@@ -570,7 +570,7 @@ out_inode:
 		put_write_access(h_inode);
 out_mnt:
 	if (!h_file)
-		mnt_drop_write(h_path->mnt);
+		vfsub_mnt_drop_write(h_path->mnt);
 out:
 	return err;
 }
