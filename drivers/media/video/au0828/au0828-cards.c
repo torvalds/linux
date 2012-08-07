@@ -46,7 +46,7 @@ struct au0828_board au0828_boards[] = {
 		.name	= "Hauppauge HVR850",
 		.tuner_type = TUNER_XC5000,
 		.tuner_addr = 0x61,
-		.i2c_clk_divider = AU0828_I2C_CLK_30KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
@@ -77,7 +77,7 @@ struct au0828_board au0828_boards[] = {
 		   stretch fits inside of a normal clock cycle, or else the
 		   au0828 fails to set the STOP bit.  A 30 KHz clock puts the
 		   clock pulse width at 18us */
-		.i2c_clk_divider = AU0828_I2C_CLK_30KHZ,
+		.i2c_clk_divider = AU0828_I2C_CLK_20KHZ,
 		.input = {
 			{
 				.type = AU0828_VMUX_TELEVISION,
