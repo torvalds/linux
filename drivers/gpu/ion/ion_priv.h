@@ -117,6 +117,8 @@ struct ion_heap_ops {
  *			allocating.  These are specified by platform data and
  *			MUST be unique
  * @name:		used for debugging
+ * @debug_show:		called when heap debug file is read to add any
+ *			heap specific debug info to output
  *
  * Represents a pool of memory from which buffers can be made.  In some
  * systems the only heap is regular system memory allocated via vmalloc.
@@ -130,7 +132,16 @@ struct ion_heap {
 	struct ion_heap_ops *ops;
 	int id;
 	const char *name;
+	int (*debug_show)(struct ion_heap *heap, struct seq_file *, void *);
 };
+
+/**
+ * ion_buffer_cached - this ion buffer is cached
+ * @buffer:		buffer
+ *
+ * indicates whether this ion buffer is cached
+ */
+bool ion_buffer_cached(struct ion_buffer *buffer);
 
 /**
  * ion_buffer_fault_user_mappings - fault in user mappings of this buffer
