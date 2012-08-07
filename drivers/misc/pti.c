@@ -400,16 +400,13 @@ EXPORT_SYMBOL_GPL(pti_writedata);
  */
 static void __devexit pti_pci_remove(struct pci_dev *pdev)
 {
-	struct pti_dev *drv_data;
+	struct pti_dev *drv_data = pci_get_drvdata(pdev);
 
-	drv_data = pci_get_drvdata(pdev);
-	if (drv_data != NULL) {
-		pci_iounmap(pdev, drv_data->pti_ioaddr);
-		pci_set_drvdata(pdev, NULL);
-		kfree(drv_data);
-		pci_release_region(pdev, 1);
-		pci_disable_device(pdev);
-	}
+	pci_iounmap(pdev, drv_data->pti_ioaddr);
+	pci_set_drvdata(pdev, NULL);
+	kfree(drv_data);
+	pci_release_region(pdev, 1);
+	pci_disable_device(pdev);
 }
 
 /*
