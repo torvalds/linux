@@ -422,7 +422,7 @@ void xhci_set_link_state(struct xhci_hcd *xhci, __le32 __iomem **port_array,
 	xhci_writel(xhci, temp, port_array[port_id]);
 }
 
-void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
+static void xhci_set_remote_wake_mask(struct xhci_hcd *xhci,
 		__le32 __iomem **port_array, int port_id, u16 wake_mask)
 {
 	u32 temp;

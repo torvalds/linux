@@ -1829,7 +1829,7 @@ static void xhci_finish_resource_reservation(struct xhci_hcd *xhci,
 				xhci->num_active_eps);
 }
 
-unsigned int xhci_get_block_size(struct usb_device *udev)
+static unsigned int xhci_get_block_size(struct usb_device *udev)
 {
 	switch (udev->speed) {
 	case USB_SPEED_LOW:
@@ -1847,7 +1847,8 @@ unsigned int xhci_get_block_size(struct usb_device *udev)
 	}
 }
 
-unsigned int xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
+static unsigned int
+xhci_get_largest_overhead(struct xhci_interval_bw *interval_bw)
 {
 	if (interval_bw->overhead[LS_OVERHEAD_TYPE])
 		return LS_OVERHEAD;

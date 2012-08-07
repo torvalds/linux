@@ -2273,6 +2273,8 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
  */
 static int handle_tx_event(struct xhci_hcd *xhci,
 		struct xhci_transfer_event *event)
+	__releases(&xhci->lock)
+	__acquires(&xhci->lock)
 {
 	struct xhci_virt_device *xdev;
 	struct xhci_virt_ep *ep;
