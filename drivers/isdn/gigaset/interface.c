@@ -524,7 +524,8 @@ void gigaset_if_init(struct cardstate *cs)
 	tasklet_init(&cs->if_wake_tasklet, if_wake, (unsigned long) cs);
 
 	mutex_lock(&cs->mutex);
-	cs->tty_dev = tty_register_device(drv->tty, cs->minor_index, NULL);
+	cs->tty_dev = tty_port_register_device(&cs->port, drv->tty,
+			cs->minor_index, NULL);
 
 	if (!IS_ERR(cs->tty_dev))
 		dev_set_drvdata(cs->tty_dev, cs);

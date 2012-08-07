@@ -3289,7 +3289,7 @@ static int __init cy_detect_isa(void)
 	struct cyclades_card *card;
 	unsigned short cy_isa_irq, nboard;
 	void __iomem *cy_isa_address;
-	unsigned short i, j, cy_isa_nchan;
+	unsigned short i, j, k, cy_isa_nchan;
 	int isparam = 0;
 
 	nboard = 0;
@@ -3392,9 +3392,10 @@ static int __init cy_detect_isa(void)
 			(unsigned long)(cy_isa_address + (CyISA_Ywin - 1)),
 			cy_isa_irq, cy_isa_nchan, cy_next_channel);
 
-		for (j = cy_next_channel;
-				j < cy_next_channel + cy_isa_nchan; j++)
-			tty_register_device(cy_serial_driver, j, NULL);
+		for (k = 0, j = cy_next_channel;
+				j < cy_next_channel + cy_isa_nchan; j++, k++)
+			tty_port_register_device(&card->ports[k].port,
+					cy_serial_driver, j, NULL);
 		cy_next_channel += cy_isa_nchan;
 	}
 	return nboard;
@@ -3698,7 +3699,7 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 	void __iomem *addr0 = NULL, *addr2 = NULL;
 	char *card_name = NULL;
 	u32 uninitialized_var(mailbox);
-	unsigned int device_id, nchan = 0, card_no, i;
+	unsigned int device_id, nchan = 0, card_no, i, j;
 	unsigned char plx_ver;
 	int retval, irq;
 
@@ -3909,8 +3910,9 @@ static int __devinit cy_pci_probe(struct pci_dev *pdev,
 
 	dev_info(&pdev->dev, "%s/PCI #%d found: %d channels starting from "
 		"port %d.\n", card_name, card_no + 1, nchan, cy_next_channel);
-	for (i = cy_next_channel; i < cy_next_channel + nchan; i++)
-		tty_register_device(cy_serial_driver, i, &pdev->dev);
+	for (j = 0, i = cy_next_channel; i < cy_next_channel + nchan; i++, j++)
+		tty_port_register_device(&card->ports[j].port,
+				cy_serial_driver, i, &pdev->dev);
 	cy_next_channel += nchan;
 
 	return 0;

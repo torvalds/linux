@@ -1132,8 +1132,8 @@ static int sdio_uart_probe(struct sdio_func *func,
 		kfree(port);
 	} else {
 		struct device *dev;
-		dev = tty_register_device(sdio_uart_tty_driver,
-						port->index, &func->dev);
+		dev = tty_port_register_device(&port->port,
+				sdio_uart_tty_driver, port->index, &func->dev);
 		if (IS_ERR(dev)) {
 			sdio_uart_port_remove(port);
 			ret = PTR_ERR(dev);

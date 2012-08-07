@@ -2346,7 +2346,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * Register the port whether it's detected or not.  This allows
 	 * setserial to be used to alter this ports parameters.
 	 */
-	tty_dev = tty_register_device(drv->tty_driver, uport->line, uport->dev);
+	tty_dev = tty_port_register_device(port, drv->tty_driver, uport->line,
+			uport->dev);
 	if (likely(!IS_ERR(tty_dev))) {
 		device_set_wakeup_capable(tty_dev, 1);
 	} else {

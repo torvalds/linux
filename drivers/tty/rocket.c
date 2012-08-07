@@ -704,8 +704,8 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	spin_lock_init(&info->slock);
 	mutex_init(&info->write_mtx);
 	rp_table[line] = info;
-	tty_register_device(rocket_driver, line, pci_dev ? &pci_dev->dev :
-			NULL);
+	tty_port_register_device(&info->port, rocket_driver, line,
+			pci_dev ? &pci_dev->dev : NULL);
 }
 
 /*

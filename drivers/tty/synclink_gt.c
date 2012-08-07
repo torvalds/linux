@@ -3689,8 +3689,11 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 		}
 	}
 
-	for (i=0; i < port_count; ++i)
-		tty_register_device(serial_driver, port_array[i]->line, &(port_array[i]->pdev->dev));
+	for (i = 0; i < port_count; ++i) {
+		struct slgt_info *info = port_array[i];
+		tty_port_register_device(&info->port, serial_driver, info->line,
+				&info->pdev->dev);
+	}
 }
 
 static int __devinit init_one(struct pci_dev *dev,

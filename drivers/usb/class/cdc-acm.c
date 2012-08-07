@@ -1298,7 +1298,8 @@ skip_countries:
 	usb_set_intfdata(data_interface, acm);
 
 	usb_get_intf(control_interface);
-	tty_register_device(acm_tty_driver, minor, &control_interface->dev);
+	tty_port_register_device(&acm->port, acm_tty_driver, minor,
+			&control_interface->dev);
 
 	return 0;
 alloc_fail7:

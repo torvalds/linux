@@ -1473,8 +1473,8 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 		port->dc = dc;
 		tty_port_init(&port->port);
 		port->port.ops = &noz_tty_port_ops;
-		tty_dev = tty_register_device(ntty_driver, dc->index_start + i,
-							&pdev->dev);
+		tty_dev = tty_port_register_device(&port->port, ntty_driver,
+				dc->index_start + i, &pdev->dev);
 
 		if (IS_ERR(tty_dev)) {
 			ret = PTR_ERR(tty_dev);

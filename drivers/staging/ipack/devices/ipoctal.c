@@ -502,7 +502,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		ipoctal->pointer_read[i] = 0;
 		ipoctal->pointer_write[i] = 0;
 		ipoctal->nb_bytes[i] = 0;
-		tty_register_device(tty, i, NULL);
+		tty_port_register_device(&ipoctal->tty_port[i], tty, i, NULL);
 
 		/*
 		 * Enable again the RX. TX will be enabled when

@@ -2625,7 +2625,8 @@ static int __devinit mxser_probe(struct pci_dev *pdev,
 		goto err_rel3;
 
 	for (i = 0; i < brd->info->nports; i++)
-		tty_register_device(mxvar_sdriver, brd->idx + i, &pdev->dev);
+		tty_port_register_device(&brd->ports[i].port, mxvar_sdriver,
+				brd->idx + i, &pdev->dev);
 
 	pci_set_drvdata(pdev, brd);
 
@@ -2722,7 +2723,8 @@ static int __init mxser_module_init(void)
 
 		brd->idx = m * MXSER_PORTS_PER_BOARD;
 		for (i = 0; i < brd->info->nports; i++)
-			tty_register_device(mxvar_sdriver, brd->idx + i, NULL);
+			tty_port_register_device(&brd->ports[i].port,
+					mxvar_sdriver, brd->idx + i, NULL);
 
 		m++;
 	}

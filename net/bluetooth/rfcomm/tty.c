@@ -278,8 +278,8 @@ out:
 	if (err < 0)
 		goto free;
 
-	dev->tty_dev = tty_register_device(rfcomm_tty_driver, dev->id, NULL);
-
+	dev->tty_dev = tty_port_register_device(&dev->port, rfcomm_tty_driver,
+			dev->id, NULL);
 	if (IS_ERR(dev->tty_dev)) {
 		err = PTR_ERR(dev->tty_dev);
 		list_del(&dev->list);
