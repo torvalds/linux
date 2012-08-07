@@ -288,7 +288,7 @@ err1;	stb	r0,0(r3)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
 	bl	.enter_vmx_usercopy
-	cmpwi	r3,0
+	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STACKFRAMESIZE+48(r1)
 	ld	r4,STACKFRAMESIZE+56(r1)
@@ -326,7 +326,7 @@ err1;	stb	r0,0(r3)
 	dcbt	r0,r8,0b01010	/* GO */
 .machine pop
 
-	beq	.Lunwind_stack_nonvmx_copy
+	beq	cr1,.Lunwind_stack_nonvmx_copy
 
 	/*
 	 * If source and destination are not relatively aligned we use a
