@@ -299,19 +299,32 @@ static void hvc_unthrottle(struct tty_struct *tty)
 	hvc_kick();
 }
 
+static int hvc_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct hvc_struct *hp;
+	int rc;
+
+	/* Auto increments kref reference if found. */
+	if (!(hp = hvc_get_by_index(tty->index)))
+		return -ENODEV;
+
+	tty->driver_data = hp;
+
+	rc = tty_port_install(&hp->port, driver, tty);
+	if (rc)
+		tty_port_put(&hp->port);
+	return rc;
+}
+
 /*
  * The TTY interface won't be used until after the vio layer has exposed the vty
  * adapter to the kernel.
  */
 static int hvc_open(struct tty_struct *tty, struct file * filp)
 {
-	struct hvc_struct *hp;
+	struct hvc_struct *hp = tty->driver_data;
 	unsigned long flags;
 	int rc = 0;
-
-	/* Auto increments kref reference if found. */
-	if (!(hp = hvc_get_by_index(tty->index)))
-		return -ENODEV;
 
 	spin_lock_irqsave(&hp->port.lock, flags);
 	/* Check and then increment for fast path open. */
@@ -322,7 +335,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	} /* else count == 0 */
 	spin_unlock_irqrestore(&hp->port.lock, flags);
 
-	tty->driver_data = hp;
 	tty_port_tty_set(&hp->port, tty);
 
 	if (hp->ops->notifier_add)
@@ -389,6 +401,11 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 				hp->vtermno, hp->port.count);
 		spin_unlock_irqrestore(&hp->port.lock, flags);
 	}
+}
+
+static void hvc_cleanup(struct tty_struct *tty)
+{
+	struct hvc_struct *hp = tty->driver_data;
 
 	tty_port_put(&hp->port);
 }
@@ -792,8 +809,10 @@ static void hvc_poll_put_char(struct tty_driver *driver, int line, char ch)
 #endif
 
 static const struct tty_operations hvc_ops = {
+	.install = hvc_install,
 	.open = hvc_open,
 	.close = hvc_close,
+	.cleanup = hvc_cleanup,
 	.write = hvc_write,
 	.hangup = hvc_hangup,
 	.unthrottle = hvc_unthrottle,
