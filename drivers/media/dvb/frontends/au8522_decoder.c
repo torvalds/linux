@@ -659,11 +659,6 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 
 	au8522_reset(sd, 0);
 
-	/* Jam open the i2c gate to the tuner.  We do this here to handle the
-	   case where the user went into digital mode (causing the gate to be
-	   closed), and then came back to analog mode */
-	au8522_writereg(state, 0x106, 1);
-
 	if (input == AU8522_COMPOSITE_CH1) {
 		au8522_setup_cvbs_mode(state);
 	} else if (input == AU8522_SVIDEO_CH13) {

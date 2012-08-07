@@ -777,6 +777,8 @@ struct dvb_frontend *au8522_attach(const struct au8522_config *config,
 	       sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
+	state->frontend.ops.analog_ops.i2c_gate_ctrl = au8522_analog_i2c_gate_ctrl;
+
 	if (au8522_init(&state->frontend) != 0) {
 		printk(KERN_ERR "%s: Failed to initialize correctly\n",
 			__func__);
