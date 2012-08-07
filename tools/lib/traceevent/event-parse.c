@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include "event-parse.h"
 #include "event-utils.h"
@@ -3485,7 +3486,7 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			if (!string->str)
 				die("malloc str");
 
-			args[i] = (unsigned long long)string->str;
+			args[i] = (uintptr_t)string->str;
 			strings = string;
 			trace_seq_destroy(&str);
 			break;
