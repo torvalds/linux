@@ -2803,47 +2803,46 @@ static const struct tty_operations mgslpc_ops = {
 
 static int __init synclink_cs_init(void)
 {
-    int rc;
+	int rc;
 
-    if (break_on_load) {
-	    mgslpc_get_text_ptr();
-	    BREAKPOINT();
-    }
+	if (break_on_load) {
+		mgslpc_get_text_ptr();
+		BREAKPOINT();
+	}
 
-    serial_driver = tty_alloc_driver(MAX_DEVICE_COUNT,
-		    TTY_DRIVER_REAL_RAW |
-		    TTY_DRIVER_DYNAMIC_DEV);
-    if (!serial_driver) {
-	    rc = -ENOMEM;
-	    goto err;
-    }
+	serial_driver = tty_alloc_driver(MAX_DEVICE_COUNT,
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (!serial_driver) {
+		rc = -ENOMEM;
+		goto err;
+	}
 
-    /* Initialize the tty_driver structure */
+	/* Initialize the tty_driver structure */
+	serial_driver->driver_name = "synclink_cs";
+	serial_driver->name = "ttySLP";
+	serial_driver->major = ttymajor;
+	serial_driver->minor_start = 64;
+	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
+	serial_driver->subtype = SERIAL_TYPE_NORMAL;
+	serial_driver->init_termios = tty_std_termios;
+	serial_driver->init_termios.c_cflag =
+	B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty_set_operations(serial_driver, &mgslpc_ops);
 
-    serial_driver->driver_name = "synclink_cs";
-    serial_driver->name = "ttySLP";
-    serial_driver->major = ttymajor;
-    serial_driver->minor_start = 64;
-    serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
-    serial_driver->subtype = SERIAL_TYPE_NORMAL;
-    serial_driver->init_termios = tty_std_termios;
-    serial_driver->init_termios.c_cflag =
-	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-    tty_set_operations(serial_driver, &mgslpc_ops);
-
-    if ((rc = tty_register_driver(serial_driver)) < 0) {
-	    printk("%s(%d):Couldn't register serial driver\n",
-		   __FILE__,__LINE__);
-	    goto err_put_tty;
-    }
+	rc = tty_register_driver(serial_driver);
+	if (rc < 0) {
+		printk(KERN_ERR "%s(%d):Couldn't register serial driver\n",
+				__FILE__, __LINE__);
+		goto err_put_tty;
+	}
 
 	rc = pcmcia_register_driver(&mgslpc_driver);
 	if (rc < 0)
 		goto err_unreg_tty;
 
-    printk("%s %s, tty major#%d\n",
-	   driver_name, driver_version,
-	   serial_driver->major);
+	printk(KERN_INFO "%s %s, tty major#%d\n", driver_name, driver_version,
+			serial_driver->major);
 
 	return 0;
 err_unreg_tty:
