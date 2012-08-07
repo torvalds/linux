@@ -1295,7 +1295,7 @@ done:
 		if (offset < 0) {
 			pr_debug("%s: mem overrun, ep %d\n",
 					musb_driver_name, epn);
-			return -EINVAL;
+			return offset;
 		}
 		epn++;
 		musb->nr_endpoints = max(epn, musb->nr_endpoints);
