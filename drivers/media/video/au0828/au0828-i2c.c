@@ -33,8 +33,8 @@ static int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
-#define I2C_WAIT_DELAY 512
-#define I2C_WAIT_RETRY 64
+#define I2C_WAIT_DELAY 25
+#define I2C_WAIT_RETRY 1000
 
 static inline int i2c_slave_did_write_ack(struct i2c_adapter *i2c_adap)
 {
