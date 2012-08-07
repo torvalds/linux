@@ -15,6 +15,7 @@
 #include "util.h"
 #include "cpumap.h"
 #include "event-parse.h"
+#include "perf_regs.h"
 
 static int perf_session__open(struct perf_session *self, bool force)
 {
@@ -860,6 +861,34 @@ static void branch_stack__printf(struct perf_sample *sample)
 			sample->branch_stack->entries[i].to);
 }
 
+static void regs_dump__printf(u64 mask, u64 *regs)
+{
+	unsigned rid, i = 0;
+
+	for_each_set_bit(rid, (unsigned long *) &mask, sizeof(mask) * 8) {
+		u64 val = regs[i++];
+
+		printf(".... %-5s 0x%" PRIx64 "\n",
+		       perf_reg_name(rid), val);
+	}
+}
+
+static void regs_user__printf(struct perf_sample *sample, u64 mask)
+{
+	struct regs_dump *user_regs = &sample->user_regs;
+
+	if (user_regs->regs) {
+		printf("... user regs: mask 0x%" PRIx64 "\n", mask);
+		regs_dump__printf(mask, user_regs->regs);
+	}
+}
+
+static void stack_user__printf(struct stack_dump *dump)
+{
+	printf("... ustack: size %" PRIu64 ", offset 0x%x\n",
+	       dump->size, dump->offset);
+}
+
 static void perf_session__print_tstamp(struct perf_session *session,
 				       union perf_event *event,
 				       struct perf_sample *sample)
@@ -897,7 +926,7 @@ static void dump_event(struct perf_session *session, union perf_event *event,
 	       event->header.size, perf_event__name(event->header.type));
 }
 
-static void dump_sample(struct perf_session *session, union perf_event *event,
+static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 			struct perf_sample *sample)
 {
 	u64 sample_type;
@@ -909,13 +938,19 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 	       event->header.misc, sample->pid, sample->tid, sample->ip,
 	       sample->period, sample->addr);
 
-	sample_type = perf_evlist__sample_type(session->evlist);
+	sample_type = evsel->attr.sample_type;
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 		branch_stack__printf(sample);
+
+	if (sample_type & PERF_SAMPLE_REGS_USER)
+		regs_user__printf(sample, evsel->attr.sample_regs_user);
+
+	if (sample_type & PERF_SAMPLE_STACK_USER)
+		stack_user__printf(&sample->user_stack);
 }
 
 static struct machine *
@@ -973,7 +1008,7 @@ static int perf_session_deliver_event(struct perf_session *session,
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_sample(session, event, sample);
+		dump_sample(evsel, event, sample);
 		if (evsel == NULL) {
 			++session->hists.stats.nr_unknown_id;
 			return 0;

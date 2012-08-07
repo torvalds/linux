@@ -8,6 +8,7 @@
  */
 
 #include <byteswap.h>
+#include <linux/bitops.h>
 #include "asm/bug.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -733,6 +734,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data, bool swapped)
 {
 	u64 type = evsel->attr.sample_type;
+	u64 regs_user = evsel->attr.sample_regs_user;
 	const u64 *array;
 
 	/*
@@ -869,6 +871,32 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		sz /= sizeof(u64);
 		array += sz;
 	}
+
+	if (type & PERF_SAMPLE_REGS_USER) {
+		/* First u64 tells us if we have any regs in sample. */
+		u64 avail = *array++;
+
+		if (avail) {
+			data->user_regs.regs = (u64 *)array;
+			array += hweight_long(regs_user);
+		}
+	}
+
+	if (type & PERF_SAMPLE_STACK_USER) {
+		u64 size = *array++;
+
+		data->user_stack.offset = ((char *)(array - 1)
+					  - (char *) event);
+
+		if (!size) {
+			data->user_stack.size = 0;
+		} else {
+			data->user_stack.data = (char *)array;
+			array += size / sizeof(*array);
+			data->user_stack.size = *array;
+		}
+	}
+
 	return 0;
 }
 
