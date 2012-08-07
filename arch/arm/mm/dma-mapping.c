@@ -423,7 +423,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	unsigned int pageno;
 	unsigned long flags;
 	void *ptr = NULL;
-	size_t align;
+	unsigned long align_mask;
 
 	if (!pool->vaddr) {
 		WARN(1, "coherent pool not initialised!\n");
@@ -435,11 +435,11 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	 * small, so align them to their order in pages, minimum is a page
 	 * size. This helps reduce fragmentation of the DMA space.
 	 */
-	align = PAGE_SIZE << get_order(size);
+	align_mask = (1 << get_order(size)) - 1;
 
 	spin_lock_irqsave(&pool->lock, flags);
 	pageno = bitmap_find_next_zero_area(pool->bitmap, pool->nr_pages,
-					    0, count, (1 << align) - 1);
+					    0, count, align_mask);
 	if (pageno < pool->nr_pages) {
 		bitmap_set(pool->bitmap, pageno, count);
 		ptr = pool->vaddr + PAGE_SIZE * pageno;
