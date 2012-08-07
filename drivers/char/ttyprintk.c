@@ -217,6 +217,7 @@ static int __init ttyprintk_init(void)
 	return 0;
 
 error:
+	tty_unregister_driver(ttyprintk_driver);
 	put_tty_driver(ttyprintk_driver);
 	ttyprintk_driver = NULL;
 	return ret;
