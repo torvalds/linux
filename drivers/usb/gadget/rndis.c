@@ -863,26 +863,8 @@ int rndis_msg_parser(u8 configNr, u8 *buf)
 		 */
 		pr_warning("%s: unknown RNDIS message 0x%08X len %d\n",
 			__func__, MsgType, MsgLength);
-		{
-			unsigned i;
-			for (i = 0; i < MsgLength; i += 16) {
-				pr_debug("%03d: "
-					" %02x %02x %02x %02x"
-					" %02x %02x %02x %02x"
-					" %02x %02x %02x %02x"
-					" %02x %02x %02x %02x"
-					"\n",
-					i,
-					buf[i], buf [i+1],
-						buf[i+2], buf[i+3],
-					buf[i+4], buf [i+5],
-						buf[i+6], buf[i+7],
-					buf[i+8], buf [i+9],
-						buf[i+10], buf[i+11],
-					buf[i+12], buf [i+13],
-						buf[i+14], buf[i+15]);
-			}
-		}
+		print_hex_dump_bytes(__func__, DUMP_PREFIX_OFFSET,
+				     buf, MsgLength);
 		break;
 	}
 
