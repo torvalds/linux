@@ -1709,6 +1709,20 @@ __trace_add_event_dirs(struct trace_array *tr)
 	}
 }
 
+/* Remove the event directory structure for a trace directory. */
+static void
+__trace_remove_event_dirs(struct trace_array *tr)
+{
+	struct ftrace_event_file *file, *next;
+
+	list_for_each_entry_safe(file, next, &tr->events, list) {
+		list_del(&file->list);
+		debugfs_remove_recursive(file->dir);
+		remove_subsystem(file->system);
+		kfree(file);
+	}
+}
+
 static void
 __add_event_to_tracers(struct ftrace_event_call *call,
 		       struct ftrace_module_file_ops *file_ops)
@@ -1787,6 +1801,25 @@ int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr)
 	down_write(&trace_event_mutex);
 	__trace_add_event_dirs(tr);
 	up_write(&trace_event_mutex);
+
+	mutex_unlock(&event_mutex);
+
+	return 0;
+}
+
+int event_trace_del_tracer(struct trace_array *tr)
+{
+	/* Disable any running events */
+	__ftrace_set_clr_event(tr, NULL, NULL, NULL, 0);
+
+	mutex_lock(&event_mutex);
+
+	down_write(&trace_event_mutex);
+	__trace_remove_event_dirs(tr);
+	debugfs_remove_recursive(tr->event_dir);
+	up_write(&trace_event_mutex);
+
+	tr->event_dir = NULL;
 
 	mutex_unlock(&event_mutex);
 

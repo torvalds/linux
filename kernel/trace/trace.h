@@ -1001,6 +1001,7 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 
 extern void trace_event_enable_cmd_record(bool enable);
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
+extern int event_trace_del_tracer(struct trace_array *tr);
 
 extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
