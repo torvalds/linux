@@ -41,7 +41,7 @@ inline void __const_udelay(unsigned long xloops)
 {
 	unsigned long long loops;
 
-	loops = xloops * loops_per_jiffy * HZ;
+	loops = (unsigned long long)xloops * loops_per_jiffy * HZ;
 
 	__delay(loops >> 32);
 }
