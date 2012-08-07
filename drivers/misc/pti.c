@@ -60,7 +60,7 @@ struct pti_tty {
 };
 
 struct pti_dev {
-	struct tty_port port;
+	struct tty_port port[PTITTY_MINOR_NUM];
 	unsigned long pti_addr;
 	unsigned long aperture_base;
 	void __iomem *pti_ioaddr;
@@ -427,7 +427,7 @@ static int pti_tty_driver_open(struct tty_struct *tty, struct file *filp)
 	 * also removes a locking requirement for the actual write
 	 * procedure.
 	 */
-	return tty_port_open(&drv_data->port, tty, filp);
+	return tty_port_open(&drv_data->port[tty->index], tty, filp);
 }
 
 /**
@@ -443,7 +443,7 @@ static int pti_tty_driver_open(struct tty_struct *tty, struct file *filp)
  */
 static void pti_tty_driver_close(struct tty_struct *tty, struct file *filp)
 {
-	tty_port_close(&drv_data->port, tty, filp);
+	tty_port_close(&drv_data->port[tty->index], tty, filp);
 }
 
 /**
@@ -799,6 +799,7 @@ static const struct tty_port_operations tty_port_ops = {
 static int __devinit pti_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
+	unsigned int a;
 	int retval = -EINVAL;
 	int pci_bar = 1;
 
@@ -850,11 +851,13 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, drv_data);
 
-	tty_port_init(&drv_data->port);
-	drv_data->port.ops = &tty_port_ops;
+	for (a = 0; a < PTITTY_MINOR_NUM; a++) {
+		struct tty_port *port = &drv_data->port[a];
+		tty_port_init(port);
+		port->ops = &tty_port_ops;
 
-	tty_register_device(pti_tty_driver, 0, &pdev->dev);
-	tty_register_device(pti_tty_driver, 1, &pdev->dev);
+		tty_register_device(pti_tty_driver, a, &pdev->dev);
+	}
 
 	register_console(&pti_console);
 
