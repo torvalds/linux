@@ -182,7 +182,7 @@ do {                                                                          \
 #	define V4LDBG(level, name, cmd)                                       \
 do {                                                                          \
 	if (debug >= (level))                                                 \
-		v4l_print_ioctl(name, cmd);                                   \
+		v4l_printk_ioctl(name, cmd);                                  \
 } while (0)
 #	define KDBG(level, fmt, args...)                                      \
 do {                                                                          \

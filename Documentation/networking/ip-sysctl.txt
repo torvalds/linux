@@ -48,12 +48,6 @@ min_adv_mss - INTEGER
 	The advertised MSS depends on the first hop route MTU, but will
 	never be lower than this setting.
 
-rt_cache_rebuild_count - INTEGER
-	The per net-namespace route cache emergency rebuild threshold.
-	Any net-namespace having its route cache rebuilt due to
-	a hash bucket chain being too long more than this many times
-	will have its route caching disabled
-
 IP Fragmentation:
 
 ipfrag_high_thresh - INTEGER

@@ -64,6 +64,7 @@ config AB8500_PWM
 	bool "AB8500 PWM support"
 	depends on AB8500_CORE && ARCH_U8500
 	select HAVE_PWM
+	depends on !PWM
 	help
 	  This driver exports functions to enable/disble/config/free Pulse
 	  Width Modulation in the Analog Baseband Chip AB8500.

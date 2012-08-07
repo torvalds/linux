@@ -9,7 +9,7 @@
 #ifndef __LINUX_FS_NFS_NFS4_FS_H
 #define __LINUX_FS_NFS_NFS4_FS_H
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 
 struct idmap;
 
@@ -200,7 +200,10 @@ struct nfs4_state_maintenance_ops {
 };
 
 extern const struct dentry_operations nfs4_dentry_operations;
-extern const struct inode_operations nfs4_dir_inode_operations;
+
+/* dir.c */
+int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
+		    unsigned, umode_t, int *);
 
 /* nfs4namespace.c */
 rpc_authflavor_t nfs_find_best_sec(struct nfs4_secinfo_flavors *);
@@ -301,6 +304,10 @@ extern const u32 nfs4_pathconf_bitmap[2];
 extern const u32 nfs4_fsinfo_bitmap[3];
 extern const u32 nfs4_fs_locations_bitmap[2];
 
+void nfs4_free_client(struct nfs_client *);
+
+struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *);
+
 /* nfs4renewd.c */
 extern void nfs4_schedule_state_renewal(struct nfs_client *);
 extern void nfs4_renewd_prepare_shutdown(struct nfs_server *);
@@ -353,6 +360,29 @@ extern void nfs_free_seqid(struct nfs_seqid *seqid);
 extern void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp);
 
 extern const nfs4_stateid zero_stateid;
+
+/* nfs4super.c */
+struct nfs_mount_info;
+extern struct nfs_subversion nfs_v4;
+struct dentry *nfs4_try_mount(int, const char *, struct nfs_mount_info *, struct nfs_subversion *);
+extern bool nfs4_disable_idmapping;
+extern unsigned short max_session_slots;
+extern unsigned short send_implementation_id;
+
+/* nfs4sysctl.c */
+#ifdef CONFIG_SYSCTL
+int nfs4_register_sysctl(void);
+void nfs4_unregister_sysctl(void);
+#else
+static inline int nfs4_register_sysctl(void)
+{
+	return 0;
+}
+
+static inline void nfs4_unregister_sysctl(void)
+{
+}
+#endif
 
 /* nfs4xdr.c */
 extern struct rpc_procinfo nfs4_procedures[];

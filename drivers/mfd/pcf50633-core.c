@@ -253,8 +253,13 @@ static int __devinit pcf50633_probe(struct i2c_client *client,
 		}
 
 		pdev->dev.parent = pcf->dev;
-		platform_device_add_data(pdev, &pdata->reg_init_data[i],
-					sizeof(pdata->reg_init_data[i]));
+		if (platform_device_add_data(pdev, &pdata->reg_init_data[i],
+					sizeof(pdata->reg_init_data[i])) < 0) {
+			platform_device_put(pdev);
+			dev_err(pcf->dev, "Out of memory for regulator parameters %d\n",
+									i);
+			continue;
+		}
 		pcf->regulator_pdev[i] = pdev;
 
 		platform_device_add(pdev);

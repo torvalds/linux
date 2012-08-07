@@ -289,18 +289,15 @@ extern int CIFSSMBUnixSetFileInfo(const unsigned int xid,
 				  u16 fid, u32 pid_of_opener);
 
 extern int CIFSSMBUnixSetPathInfo(const unsigned int xid,
-				  struct cifs_tcon *tcon, char *file_name,
+				  struct cifs_tcon *tcon, const char *file_name,
 				  const struct cifs_unix_set_info_args *args,
 				  const struct nls_table *nls_codepage,
-				  int remap_special_chars);
+				  int remap);
 
 extern int CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *newName,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
+			const char *name, struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *name, const struct nls_table *nls_codepage,
-			int remap_special_chars);
+			const char *name, struct cifs_sb_info *cifs_sb);
 extern int CIFSPOSIXDelFile(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *name, __u16 type,
 			const struct nls_table *nls_codepage,

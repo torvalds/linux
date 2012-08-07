@@ -102,7 +102,9 @@ asmlinkage __cpuinit void start_secondary(void)
 
 #ifdef CONFIG_MIPS_MT_SMTC
 	/* Only do cpu_probe for first TC of CPU */
-	if ((read_c0_tcbind() & TCBIND_CURTC) == 0)
+	if ((read_c0_tcbind() & TCBIND_CURTC) != 0)
+		__cpu_name[smp_processor_id()] = __cpu_name[0];
+	else
 #endif /* CONFIG_MIPS_MT_SMTC */
 	cpu_probe();
 	cpu_report();

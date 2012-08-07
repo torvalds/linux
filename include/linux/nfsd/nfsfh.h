@@ -143,6 +143,7 @@ typedef struct svc_fh {
 	int			fh_maxsize;	/* max size for fh_handle */
 
 	unsigned char		fh_locked;	/* inode locked by us */
+	unsigned char		fh_want_write;	/* remount protection taken */
 
 #ifdef CONFIG_NFSD_V3
 	unsigned char		fh_post_saved;	/* post-op attrs saved */

@@ -1,21 +1,20 @@
-menuconfig RC_CORE
-	tristate "Remote Controller adapters"
-	depends on INPUT
-	default INPUT
-	---help---
-	  Enable support for Remote Controllers on Linux. This is
-	  needed in order to support several video capture adapters,
-	  standalone IR receivers/transmitters, and RF receivers.
-
-	  Enable this option if you have a video capture board even
-	  if you don't need IR, as otherwise, you may not be able to
-	  compile the driver for your adapter.
-
-if RC_CORE
-
-config LIRC
+config RC_CORE
 	tristate
+	depends on MEDIA_RC_SUPPORT
+	depends on INPUT
 	default y
+
+source "drivers/media/rc/keymaps/Kconfig"
+
+menuconfig RC_DECODERS
+        bool "Remote controller decoders"
+	depends on RC_CORE
+	default y
+
+if RC_DECODERS
+config LIRC
+	tristate "LIRC interface driver"
+	depends on RC_CORE
 
 	---help---
 	   Enable this option to build the Linux Infrared Remote
@@ -24,7 +23,16 @@ config LIRC
 	   LIRC daemon handles protocol decoding for IR reception and
 	   encoding for IR transmitting (aka "blasting").
 
-source "drivers/media/rc/keymaps/Kconfig"
+config IR_LIRC_CODEC
+	tristate "Enable IR to LIRC bridge"
+	depends on RC_CORE
+	depends on LIRC
+	default y
+
+	---help---
+	   Enable this option to pass raw IR to and from userspace via
+	   the LIRC interface.
+
 
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
@@ -108,16 +116,13 @@ config IR_MCE_KBD_DECODER
 	   Enable this option if you have a Microsoft Remote Keyboard for
 	   Windows Media Center Edition, which you would like to use with
 	   a raw IR receiver in your system.
+endif #RC_DECODERS
 
-config IR_LIRC_CODEC
-	tristate "Enable IR to LIRC bridge"
+menuconfig RC_DEVICES
+	bool "Remote Controller devices"
 	depends on RC_CORE
-	depends on LIRC
-	default y
 
-	---help---
-	   Enable this option to pass raw IR to and from userspace via
-	   the LIRC interface.
+if RC_DEVICES
 
 config RC_ATI_REMOTE
 	tristate "ATI / X10 based USB RF remote controls"
@@ -254,6 +259,17 @@ config IR_WINBOND_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
 
+config IR_IGUANA
+	tristate "IguanaWorks USB IR Transceiver"
+	depends on RC_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use the IgaunaWorks USB IR Transceiver.
+	   Both infrared receive and send are supported.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called iguanair.
+
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
 	depends on RC_CORE
@@ -276,4 +292,4 @@ config IR_GPIO_CIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
 
-endif #RC_CORE
+endif #RC_DEVICES
