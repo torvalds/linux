@@ -69,8 +69,8 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
-		err = machine__resolve_callchain(machine, al->thread,
-						 sample->callchain, &parent);
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample, &parent);
 		if (err)
 			return err;
 	}
@@ -140,8 +140,8 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = machine__resolve_callchain(machine, al->thread,
-						 sample->callchain, &parent);
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample, &parent);
 		if (err)
 			return err;
 	}
@@ -397,16 +397,16 @@ static int __cmd_report(struct perf_report *rep)
 		desc);
 	}
 
-	if (dump_trace) {
-		perf_session__fprintf_nr_events(session, stdout);
-		goto out_delete;
-	}
-
 	if (verbose > 3)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
 		perf_session__fprintf_dsos(session, stdout);
+
+	if (dump_trace) {
+		perf_session__fprintf_nr_events(session, stdout);
+		goto out_delete;
+	}
 
 	nr_samples = 0;
 	list_for_each_entry(pos, &session->evlist->entries, node) {

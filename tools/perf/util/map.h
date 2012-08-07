@@ -158,9 +158,12 @@ int machine__init(struct machine *self, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *self);
 void machine__delete(struct machine *self);
 
+struct perf_evsel;
+struct perf_sample;
 int machine__resolve_callchain(struct machine *machine,
+			       struct perf_evsel *evsel,
 			       struct thread *thread,
-			       struct ip_callchain *chain,
+			       struct perf_sample *sample,
 			       struct symbol **parent);
 int maps__set_kallsyms_ref_reloc_sym(struct map **maps, const char *symbol_name,
 				     u64 addr);

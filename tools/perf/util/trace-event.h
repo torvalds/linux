@@ -77,6 +77,8 @@ void tracing_data_put(struct tracing_data *tdata);
 
 struct addr_location;
 
+struct perf_session;
+
 struct scripting_ops {
 	const char *name;
 	int (*start_script) (const char *script, int argc, const char **argv);
