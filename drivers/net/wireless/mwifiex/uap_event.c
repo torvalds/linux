@@ -170,6 +170,7 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 	struct mwifiex_sta_node *node;
 	u8 *deauth_mac;
 	struct host_cmd_ds_11n_batimeout *ba_timeout;
+	u16 ctrl;
 
 	switch (eventcause) {
 	case EVENT_UAP_STA_ASSOC:
@@ -250,14 +251,12 @@ int mwifiex_process_uap_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "AP EVENT: event id: %#x\n", eventcause);
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
-		dev_dbg(adapter->dev, "event:  AMSDU_AGGR_CTRL %d\n",
-			*(u16 *)adapter->event_body);
+		ctrl = le16_to_cpu(*(__le16 *)adapter->event_body);
+		dev_dbg(adapter->dev, "event: AMSDU_AGGR_CTRL %d\n", ctrl);
 
 		if (priv->media_connected) {
 			adapter->tx_buf_size =
-			       min(adapter->curr_tx_buf_size,
-				   le16_to_cpu(*(__le16 *)adapter->event_body));
-
+				min_t(u16, adapter->curr_tx_buf_size, ctrl);
 			dev_dbg(adapter->dev, "event: tx_buf_size %d\n",
 				adapter->tx_buf_size);
 		}
