@@ -1104,7 +1104,8 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 	 *    core may not see the modified TRB(s).
 	 */
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-			(dep->flags & DWC3_EP_BUSY)) {
+			(dep->flags & DWC3_EP_BUSY) &&
+			!(dep->flags & DWC3_EP_MISSED_ISOC)) {
 		WARN_ON_ONCE(!dep->resource_index);
 		ret = __dwc3_gadget_kick_transfer(dep, dep->resource_index,
 				false);
