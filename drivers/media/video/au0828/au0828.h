@@ -197,6 +197,7 @@ struct au0828_dev {
 
 	/* Digital */
 	struct au0828_dvb		dvb;
+	struct work_struct              restart_streaming;
 
 	/* Analog */
 	struct v4l2_device v4l2_dev;
