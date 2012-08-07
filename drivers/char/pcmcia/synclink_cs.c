@@ -2731,6 +2731,8 @@ static void mgslpc_add_device(MGSLPC_INFO *info)
 #if SYNCLINK_GENERIC_HDLC
 	hdlcdev_init(info);
 #endif
+	tty_port_register_device(&info->port, serial_driver, info->line,
+			&info->p_dev.dev);
 }
 
 static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
@@ -2744,6 +2746,7 @@ static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
 				last->next_device = info->next_device;
 			else
 				mgslpc_device_list = info->next_device;
+			tty_unregister_device(serial_driver, info->line);
 #if SYNCLINK_GENERIC_HDLC
 			hdlcdev_exit(info);
 #endif
@@ -2807,13 +2810,12 @@ static int __init synclink_cs_init(void)
 	    BREAKPOINT();
     }
 
-    if ((rc = pcmcia_register_driver(&mgslpc_driver)) < 0)
-	    return rc;
-
-    serial_driver = alloc_tty_driver(MAX_DEVICE_COUNT);
+    serial_driver = tty_alloc_driver(MAX_DEVICE_COUNT,
+		    TTY_DRIVER_REAL_RAW |
+		    TTY_DRIVER_DYNAMIC_DEV);
     if (!serial_driver) {
 	    rc = -ENOMEM;
-	    goto err_pcmcia_drv;
+	    goto err;
     }
 
     /* Initialize the tty_driver structure */
@@ -2827,7 +2829,6 @@ static int __init synclink_cs_init(void)
     serial_driver->init_termios = tty_std_termios;
     serial_driver->init_termios.c_cflag =
 	    B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-    serial_driver->flags = TTY_DRIVER_REAL_RAW;
     tty_set_operations(serial_driver, &mgslpc_ops);
 
     if ((rc = tty_register_driver(serial_driver)) < 0) {
@@ -2836,26 +2837,28 @@ static int __init synclink_cs_init(void)
 	    goto err_put_tty;
     }
 
+	rc = pcmcia_register_driver(&mgslpc_driver);
+	if (rc < 0)
+		goto err_unreg_tty;
+
     printk("%s %s, tty major#%d\n",
 	   driver_name, driver_version,
 	   serial_driver->major);
 
 	return 0;
+err_unreg_tty:
+	tty_unregister_driver(serial_driver);
 err_put_tty:
 	put_tty_driver(serial_driver);
-err_pcmcia_drv:
-	pcmcia_unregister_driver(&mgslpc_driver);
+err:
 	return rc;
 }
 
 static void __exit synclink_cs_exit(void)
 {
-	while (mgslpc_device_list)
-		mgslpc_remove_device(mgslpc_device_list);
-
+	pcmcia_unregister_driver(&mgslpc_driver);
 	tty_unregister_driver(serial_driver);
 	put_tty_driver(serial_driver);
-	pcmcia_unregister_driver(&mgslpc_driver);
 }
 
 module_init(synclink_cs_init);
