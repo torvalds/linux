@@ -3362,6 +3362,29 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	
 }	/* end of block_til_ready() */
 
+static int mgsl_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct mgsl_struct *info;
+	int line = tty->index;
+
+	/* verify range of specified line number */
+	if (line >= mgsl_device_count) {
+		printk("%s(%d):mgsl_open with invalid line #%d.\n",
+			__FILE__, __LINE__, line);
+		return -ENODEV;
+	}
+
+	/* find the info structure for the specified line */
+	info = mgsl_device_list;
+	while (info && info->line != line)
+		info = info->next_device;
+	if (mgsl_paranoia_check(info, tty->name, "mgsl_open"))
+		return -ENODEV;
+	tty->driver_data = info;
+
+	return tty_port_install(&info->port, driver, tty);
+}
+
 /* mgsl_open()
  *
  *	Called when a port is opened.  Init and enable port.
@@ -3374,26 +3397,10 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
  */
 static int mgsl_open(struct tty_struct *tty, struct file * filp)
 {
-	struct mgsl_struct	*info;
-	int 			retval, line;
+	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
+	int retval;
 
-	/* verify range of specified line number */	
-	line = tty->index;
-	if (line >= mgsl_device_count) {
-		printk("%s(%d):mgsl_open with invalid line #%d.\n",
-			__FILE__,__LINE__,line);
-		return -ENODEV;
-	}
-
-	/* find the info structure for the specified line */
-	info = mgsl_device_list;
-	while(info && info->line != line)
-		info = info->next_device;
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_open"))
-		return -ENODEV;
-	
-	tty->driver_data = info;
 	info->port.tty = tty;
 		
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -4297,6 +4304,7 @@ static struct mgsl_struct* mgsl_allocate_device(void)
 }	/* end of mgsl_allocate_device()*/
 
 static const struct tty_operations mgsl_ops = {
+	.install = mgsl_install,
 	.open = mgsl_open,
 	.close = mgsl_close,
 	.write = mgsl_write,
