@@ -92,28 +92,6 @@ LIST_HEAD(saa7164_devlist);
 
 #define INT_SIZE 16
 
-void saa7164_dumphex16FF(struct saa7164_dev *dev, u8 *buf, int len)
-{
-	int i;
-	u8 tmp[16];
-	memset(&tmp[0], 0xff, sizeof(tmp));
-
-	printk(KERN_INFO "--------------------> "
-		"00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
-
-	for (i = 0; i < len; i += 16) {
-		if (memcmp(&tmp, buf + i, sizeof(tmp)) != 0) {
-			printk(KERN_INFO "         [0x%08x] "
-				"%02x %02x %02x %02x %02x %02x %02x %02x "
-				"%02x %02x %02x %02x %02x %02x %02x %02x\n", i,
-			*(buf+i+0), *(buf+i+1), *(buf+i+2), *(buf+i+3),
-			*(buf+i+4), *(buf+i+5), *(buf+i+6), *(buf+i+7),
-			*(buf+i+8), *(buf+i+9), *(buf+i+10), *(buf+i+11),
-			*(buf+i+12), *(buf+i+13), *(buf+i+14), *(buf+i+15));
-		}
-	}
-}
-
 static void saa7164_pack_verifier(struct saa7164_buffer *buf)
 {
 	u8 *p = (u8 *)buf->cpu;
@@ -125,7 +103,8 @@ static void saa7164_pack_verifier(struct saa7164_buffer *buf)
 			(*(p + i + 2) != 0x01) || (*(p + i + 3) != 0xBA)) {
 			printk(KERN_ERR "No pack at 0x%x\n", i);
 #if 0
-			saa7164_dumphex16FF(buf->port->dev, (p + i), 32);
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				       p + 1, 32, false);
 #endif
 		}
 	}
@@ -316,7 +295,8 @@ static void saa7164_work_enchandler_helper(struct saa7164_port *port, int bufnr)
 						printk(KERN_ERR "%s() buf %p guard buffer breach\n",
 							__func__, buf);
 #if 0
-						saa7164_dumphex16FF(dev, (p + buf->actual_size) - 32 , 64);
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				       p + buf->actual_size - 32, 64, false);
 #endif
 				}
 			}
@@ -774,24 +754,6 @@ u32 saa7164_getcurrentfirmwareversion(struct saa7164_dev *dev)
 		reg);
 
 	return reg;
-}
-
-/* TODO: Debugging func, remove */
-void saa7164_dumphex16(struct saa7164_dev *dev, u8 *buf, int len)
-{
-	int i;
-
-	printk(KERN_INFO "--------------------> "
-		"00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
-
-	for (i = 0; i < len; i += 16)
-		printk(KERN_INFO "         [0x%08x] "
-			"%02x %02x %02x %02x %02x %02x %02x %02x "
-			"%02x %02x %02x %02x %02x %02x %02x %02x\n", i,
-		*(buf+i+0), *(buf+i+1), *(buf+i+2), *(buf+i+3),
-		*(buf+i+4), *(buf+i+5), *(buf+i+6), *(buf+i+7),
-		*(buf+i+8), *(buf+i+9), *(buf+i+10), *(buf+i+11),
-		*(buf+i+12), *(buf+i+13), *(buf+i+14), *(buf+i+15));
 }
 
 /* TODO: Debugging func, remove */

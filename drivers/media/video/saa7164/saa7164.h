@@ -484,7 +484,6 @@ extern unsigned int vbi_buffers;
 /* ----------------------------------------------------------- */
 /* saa7164-core.c                                              */
 void saa7164_dumpregs(struct saa7164_dev *dev, u32 addr);
-void saa7164_dumphex16(struct saa7164_dev *dev, u8 *buf, int len);
 void saa7164_getfirmwarestatus(struct saa7164_dev *dev);
 u32 saa7164_getcurrentfirmwareversion(struct saa7164_dev *dev);
 void saa7164_histogram_update(struct saa7164_histogram *hg, u32 val);
