@@ -8,19 +8,32 @@
 #include "builtin.h"
 
 #include "perf.h"
+#include "util/color.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/debug.h"
 
 #include "util/parse-options.h"
 
+#include <linux/list.h>
+
 struct perf_inject {
 	struct perf_tool tool;
 	bool		 build_ids;
+	bool		 sched_stat;
 	const char	 *input_name;
 	int		 pipe_output,
 			 output;
 	u64		 bytes_written;
+	struct list_head samples;
+};
+
+struct event_entry {
+	struct list_head node;
+	u32		 tid;
+	union perf_event event[0];
 };
 
 static int perf_event__repipe_synth(struct perf_tool *tool,
@@ -86,12 +99,23 @@ static int perf_event__repipe(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event, machine);
 }
 
+typedef int (*inject_handler)(struct perf_tool *tool,
+			      union perf_event *event,
+			      struct perf_sample *sample,
+			      struct perf_evsel *evsel,
+			      struct machine *machine);
+
 static int perf_event__repipe_sample(struct perf_tool *tool,
 				     union perf_event *event,
-			      struct perf_sample *sample __maybe_unused,
-			      struct perf_evsel *evsel __maybe_unused,
-			      struct machine *machine)
+				     struct perf_sample *sample,
+				     struct perf_evsel *evsel,
+				     struct machine *machine)
 {
+	if (evsel->handler.func) {
+		inject_handler f = evsel->handler.func;
+		return f(tool, event, sample, evsel, machine);
+	}
+
 	return perf_event__repipe_synth(tool, event, machine);
 }
 
@@ -216,11 +240,99 @@ repipe:
 	return 0;
 }
 
+static int perf_inject__sched_process_exit(struct perf_tool *tool,
+					   union perf_event *event __maybe_unused,
+					   struct perf_sample *sample,
+					   struct perf_evsel *evsel __maybe_unused,
+					   struct machine *machine __maybe_unused)
+{
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+	struct event_entry *ent;
+
+	list_for_each_entry(ent, &inject->samples, node) {
+		if (sample->tid == ent->tid) {
+			list_del_init(&ent->node);
+			free(ent);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int perf_inject__sched_switch(struct perf_tool *tool,
+				     union perf_event *event,
+				     struct perf_sample *sample,
+				     struct perf_evsel *evsel,
+				     struct machine *machine)
+{
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+	struct event_entry *ent;
+
+	perf_inject__sched_process_exit(tool, event, sample, evsel, machine);
+
+	ent = malloc(event->header.size + sizeof(struct event_entry));
+	if (ent == NULL) {
+		color_fprintf(stderr, PERF_COLOR_RED,
+			     "Not enough memory to process sched switch event!");
+		return -1;
+	}
+
+	ent->tid = sample->tid;
+	memcpy(&ent->event, event, event->header.size);
+	list_add(&ent->node, &inject->samples);
+	return 0;
+}
+
+static int perf_inject__sched_stat(struct perf_tool *tool,
+				   union perf_event *event __maybe_unused,
+				   struct perf_sample *sample,
+				   struct perf_evsel *evsel,
+				   struct machine *machine)
+{
+	struct event_entry *ent;
+	union perf_event *event_sw;
+	struct perf_sample sample_sw;
+	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
+	u32 pid = perf_evsel__intval(evsel, sample, "pid");
+
+	list_for_each_entry(ent, &inject->samples, node) {
+		if (pid == ent->tid)
+			goto found;
+	}
+
+	return 0;
+found:
+	event_sw = &ent->event[0];
+	perf_evsel__parse_sample(evsel, event_sw, &sample_sw);
+
+	sample_sw.period = sample->period;
+	sample_sw.time	 = sample->time;
+	perf_event__synthesize_sample(event_sw, evsel->attr.sample_type,
+				      &sample_sw, false);
+	return perf_event__repipe(tool, event_sw, &sample_sw, machine);
+}
+
 extern volatile int session_done;
 
 static void sig_handler(int sig __maybe_unused)
 {
 	session_done = 1;
+}
+
+static int perf_evsel__check_stype(struct perf_evsel *evsel,
+				   u64 sample_type, const char *sample_msg)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+	const char *name = perf_evsel__name(evsel);
+
+	if (!(attr->sample_type & sample_type)) {
+		pr_err("Samples for %s event do not have %s attribute set.",
+			name, sample_msg);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int __cmd_inject(struct perf_inject *inject)
@@ -240,6 +352,26 @@ static int __cmd_inject(struct perf_inject *inject)
 	session = perf_session__new(inject->input_name, O_RDONLY, false, true, &inject->tool);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (inject->sched_stat) {
+		struct perf_evsel *evsel;
+
+		inject->tool.ordered_samples = true;
+
+		list_for_each_entry(evsel, &session->evlist->entries, node) {
+			const char *name = perf_evsel__name(evsel);
+
+			if (!strcmp(name, "sched:sched_switch")) {
+				if (perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
+					return -EINVAL;
+
+				evsel->handler.func = perf_inject__sched_switch;
+			} else if (!strcmp(name, "sched:sched_process_exit"))
+				evsel->handler.func = perf_inject__sched_process_exit;
+			else if (!strncmp(name, "sched:sched_stat_", 17))
+				evsel->handler.func = perf_inject__sched_stat;
+		}
+	}
 
 	if (!inject->pipe_output)
 		lseek(inject->output, session->header.data_offset, SEEK_SET);
@@ -275,6 +407,7 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			.build_id	= perf_event__repipe_op2_synth,
 		},
 		.input_name  = "-",
+		.samples = LIST_HEAD_INIT(inject.samples),
 	};
 	const char *output_name = "-";
 	const struct option options[] = {
@@ -284,6 +417,9 @@ int cmd_inject(int argc, const char **argv, const char *prefix __maybe_unused)
 			   "input file name"),
 		OPT_STRING('o', "output", &output_name, "file",
 			   "output file name"),
+		OPT_BOOLEAN('s', "sched-stat", &inject.sched_stat,
+			    "Merge sched-stat and sched-switch for getting events "
+			    "where and how long tasks slept"),
 		OPT_INCR('v', "verbose", &verbose,
 			 "be more verbose (show build ids, etc)"),
 		OPT_END()
