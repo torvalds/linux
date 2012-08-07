@@ -36,6 +36,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     /* screen type & face */
     screen->type = OUT_TYPE;
     screen->face = OUT_FACE;
+    screen->hw_format = 1;
 
     /* Screen size */
     screen->x_res = H_VD;

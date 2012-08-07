@@ -8,7 +8,7 @@
 #define LVDSWrReg(val)       	__raw_writel( val ,LVDS_CON0_REG)
 
 #define m_value(x,offset,mask)      \
-			((mask<<(offset+8)) | (x&mask)<<offset)
+			((mask<<(offset+16)) | (x&mask)<<offset)
 
 #define OEN 				(1<<9)
 #define m_OEN(x)   			m_value(x,9,1)
