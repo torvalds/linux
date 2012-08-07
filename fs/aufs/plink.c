@@ -237,7 +237,7 @@ struct dentry *au_plink_lkup(struct inode *inode, aufs_bindex_t bindex)
 	h_dir = h_parent->d_inode;
 	tgtname.len = plink_name(a, sizeof(a), inode, bindex);
 
-	if (current_fsuid() != GLOBAL_ROOT_GID) {
+	if (!uid_eq(current_fsuid(), GLOBAL_ROOT_UID)) {
 		struct au_do_plink_lkup_args args = {
 			.errp		= &h_dentry,
 			.tgtname	= &tgtname,
@@ -322,7 +322,7 @@ static int whplink(struct dentry *h_dentry, struct inode *inode,
 	tgtname.len = plink_name(a, sizeof(a), inode, bindex);
 
 	/* always superio. */
-	if (current_fsuid() != GLOBAL_ROOT_GID) {
+	if (!uid_eq(current_fsuid(), GLOBAL_ROOT_UID)) {
 		struct do_whplink_args args = {
 			.errp		= &err,
 			.tgt		= &tgtname,
