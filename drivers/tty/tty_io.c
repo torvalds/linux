@@ -3061,21 +3061,37 @@ void tty_unregister_device(struct tty_driver *driver, unsigned index)
 }
 EXPORT_SYMBOL(tty_unregister_device);
 
-struct tty_driver *__alloc_tty_driver(int lines, struct module *owner)
+/**
+ * __tty_alloc_driver -- allocate tty driver
+ * @lines: count of lines this driver can handle at most
+ * @owner: module which is repsonsible for this driver
+ * @flags: some of TTY_DRIVER_* flags, will be set in driver->flags
+ *
+ * This should not be called directly, some of the provided macros should be
+ * used instead. Use IS_ERR and friends on @retval.
+ */
+struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
+		unsigned long flags)
 {
 	struct tty_driver *driver;
 
+	if (!lines)
+		return ERR_PTR(-EINVAL);
+
 	driver = kzalloc(sizeof(struct tty_driver), GFP_KERNEL);
-	if (driver) {
-		kref_init(&driver->kref);
-		driver->magic = TTY_DRIVER_MAGIC;
-		driver->num = lines;
-		driver->owner = owner;
-		/* later we'll move allocation of tables here */
-	}
+	if (!driver)
+		return ERR_PTR(-ENOMEM);
+
+	kref_init(&driver->kref);
+	driver->magic = TTY_DRIVER_MAGIC;
+	driver->num = lines;
+	driver->owner = owner;
+	driver->flags = flags;
+	/* later we'll move allocation of tables here */
+
 	return driver;
 }
-EXPORT_SYMBOL(__alloc_tty_driver);
+EXPORT_SYMBOL(__tty_alloc_driver);
 
 static void destruct_tty_driver(struct kref *kref)
 {
