@@ -172,9 +172,9 @@ static __devinit int wm831x_isink_probe(struct platform_device *pdev)
 
 	isink->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}

@@ -476,9 +476,9 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 
 	dcdc->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -651,9 +651,9 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 
 	dcdc->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -795,9 +795,9 @@ static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
 
 	dcdc->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
