@@ -614,7 +614,7 @@ static void au_ren_unlock(struct au_ren_args *a)
 
 	sb = a->dst_dentry->d_sb;
 	if (au_ftest_ren(a->flags, MNT_WRITE))
-		mnt_drop_write(a->br->br_mnt);
+		vfsub_mnt_drop_write(a->br->br_mnt);
 	vfsub_unlock_rename(a->src_h_parent, a->src_hdir,
 			    a->dst_h_parent, a->dst_hdir);
 }
@@ -644,7 +644,7 @@ static int au_ren_lock(struct au_ren_args *a)
 				  a->dst_h_parent->d_inode, a->dst_h_parent,
 				  a->br);
 	if (!err) {
-		err = mnt_want_write(a->br->br_mnt);
+		err = vfsub_mnt_want_write(a->br->br_mnt);
 		if (unlikely(err))
 			goto out_unlock;
 		au_fset_ren(a->flags, MNT_WRITE);
