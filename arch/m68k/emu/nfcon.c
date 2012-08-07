@@ -19,6 +19,7 @@
 #include <asm/natfeat.h>
 
 static int stderr_id;
+static struct tty_port nfcon_tty_port;
 static struct tty_driver *nfcon_tty_driver;
 
 static void nfputs(const char *str, unsigned int count)
@@ -119,6 +120,8 @@ static int __init nfcon_init(void)
 {
 	int res;
 
+	tty_port_init(&nfcon_tty_port);
+
 	stderr_id = nf_get_id("NF_STDERR");
 	if (!stderr_id)
 		return -ENODEV;
@@ -135,6 +138,7 @@ static int __init nfcon_init(void)
 	nfcon_tty_driver->flags = TTY_DRIVER_REAL_RAW;
 
 	tty_set_operations(nfcon_tty_driver, &nfcon_tty_ops);
+	tty_port_link_device(&nfcon_tty_port, nfcon_tty_driver, 0);
 	res = tty_register_driver(nfcon_tty_driver);
 	if (res) {
 		pr_err("failed to register nfcon tty driver\n");
