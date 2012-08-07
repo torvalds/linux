@@ -424,8 +424,9 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	case R1_STATE_IDLE:
 	case R1_STATE_READY:
 	case R1_STATE_STBY:
+	case R1_STATE_TRAN:
 		/*
-		 * In idle states, HPI is not needed and the caller
+		 * In idle and transfer states, HPI is not needed and the caller
 		 * can issue the next intended command immediately
 		 */
 		goto out;
