@@ -625,6 +625,9 @@ __tree_mod_log_free_eb(struct btrfs_fs_info *fs_info, struct extent_buffer *eb)
 	u32 nritems;
 	int ret;
 
+	if (btrfs_header_level(eb) == 0)
+		return;
+
 	nritems = btrfs_header_nritems(eb);
 	for (i = nritems - 1; i >= 0; i--) {
 		ret = tree_mod_log_insert_key_locked(fs_info, eb, i,
