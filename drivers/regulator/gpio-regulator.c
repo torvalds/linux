@@ -57,16 +57,17 @@ static int gpio_regulator_get_value(struct regulator_dev *dev)
 	return -EINVAL;
 }
 
-static int gpio_regulator_set_value(struct regulator_dev *dev,
-					int min, int max, unsigned *selector)
+static int gpio_regulator_set_voltage(struct regulator_dev *dev,
+					int min_uV, int max_uV,
+					unsigned *selector)
 {
 	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
 	int ptr, target = 0, state, best_val = INT_MAX;
 
 	for (ptr = 0; ptr < data->nr_states; ptr++)
 		if (data->states[ptr].value < best_val &&
-		    data->states[ptr].value >= min &&
-		    data->states[ptr].value <= max) {
+		    data->states[ptr].value >= min_uV &&
+		    data->states[ptr].value <= max_uV) {
 			target = data->states[ptr].gpios;
 			best_val = data->states[ptr].value;
 			if (selector)
@@ -85,13 +86,6 @@ static int gpio_regulator_set_value(struct regulator_dev *dev,
 	return 0;
 }
 
-static int gpio_regulator_set_voltage(struct regulator_dev *dev,
-					int min_uV, int max_uV,
-					unsigned *selector)
-{
-	return gpio_regulator_set_value(dev, min_uV, max_uV, selector);
-}
-
 static int gpio_regulator_list_voltage(struct regulator_dev *dev,
 				      unsigned selector)
 {
@@ -106,7 +100,27 @@ static int gpio_regulator_list_voltage(struct regulator_dev *dev,
 static int gpio_regulator_set_current_limit(struct regulator_dev *dev,
 					int min_uA, int max_uA)
 {
-	return gpio_regulator_set_value(dev, min_uA, max_uA, NULL);
+	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
+	int ptr, target = 0, state, best_val = 0;
+
+	for (ptr = 0; ptr < data->nr_states; ptr++)
+		if (data->states[ptr].value > best_val &&
+		    data->states[ptr].value >= min_uA &&
+		    data->states[ptr].value <= max_uA) {
+			target = data->states[ptr].gpios;
+			best_val = data->states[ptr].value;
+		}
+
+	if (best_val == 0)
+		return -EINVAL;
+
+	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
+		state = (target & (1 << ptr)) >> ptr;
+		gpio_set_value(data->gpios[ptr].gpio, state);
+	}
+	data->state = target;
+
+	return 0;
 }
 
 static struct regulator_ops gpio_regulator_voltage_ops = {
