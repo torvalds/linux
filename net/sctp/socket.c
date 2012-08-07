@@ -516,6 +516,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 				   struct sockaddr	*addrs,
 				   int 			addrcnt)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock		*sp;
 	struct sctp_endpoint		*ep;
 	struct sctp_association		*asoc;
@@ -530,7 +531,7 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 	int 				i;
 	int 				retval = 0;
 
-	if (!sctp_addip_enable)
+	if (!net->sctp.addip_enable)
 		return retval;
 
 	sp = sctp_sk(sk);
@@ -718,6 +719,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 				   struct sockaddr	*addrs,
 				   int			addrcnt)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock	*sp;
 	struct sctp_endpoint	*ep;
 	struct sctp_association	*asoc;
@@ -733,7 +735,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 	int			stored = 0;
 
 	chunk = NULL;
-	if (!sctp_addip_enable)
+	if (!net->sctp.addip_enable)
 		return retval;
 
 	sp = sctp_sk(sk);
@@ -3039,6 +3041,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optval,
 					     unsigned int optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock	*sp;
 	struct sctp_association	*asoc = NULL;
 	struct sctp_setpeerprim	prim;
@@ -3048,7 +3051,7 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 
 	sp = sctp_sk(sk);
 
-	if (!sctp_addip_enable)
+	if (!net->sctp.addip_enable)
 		return -EPERM;
 
 	if (optlen != sizeof(struct sctp_setpeerprim))
@@ -3285,9 +3288,10 @@ static int sctp_setsockopt_auth_chunk(struct sock *sk,
 				      char __user *optval,
 				      unsigned int optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authchunk val;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (optlen != sizeof(struct sctp_authchunk))
@@ -3317,11 +3321,12 @@ static int sctp_setsockopt_hmac_ident(struct sock *sk,
 				      char __user *optval,
 				      unsigned int optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_hmacalgo *hmacs;
 	u32 idents;
 	int err;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (optlen < sizeof(struct sctp_hmacalgo))
@@ -3354,11 +3359,12 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 				    char __user *optval,
 				    unsigned int optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authkey *authkey;
 	struct sctp_association *asoc;
 	int ret;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (optlen <= sizeof(struct sctp_authkey))
@@ -3395,10 +3401,11 @@ static int sctp_setsockopt_active_key(struct sock *sk,
 				      char __user *optval,
 				      unsigned int optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (optlen != sizeof(struct sctp_authkeyid))
@@ -3423,10 +3430,11 @@ static int sctp_setsockopt_del_key(struct sock *sk,
 				   char __user *optval,
 				   unsigned int optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (optlen != sizeof(struct sctp_authkeyid))
@@ -3849,6 +3857,7 @@ out:
  */
 SCTP_STATIC int sctp_init_sock(struct sock *sk)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_endpoint *ep;
 	struct sctp_sock *sp;
 
@@ -3878,7 +3887,7 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->default_timetolive = 0;
 
 	sp->default_rcv_context = 0;
-	sp->max_burst = sctp_max_burst;
+	sp->max_burst = net->sctp.max_burst;
 
 	/* Initialize default setup parameters. These parameters
 	 * can be modified with the SCTP_INITMSG socket option or
@@ -3886,24 +3895,24 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	 */
 	sp->initmsg.sinit_num_ostreams   = sctp_max_outstreams;
 	sp->initmsg.sinit_max_instreams  = sctp_max_instreams;
-	sp->initmsg.sinit_max_attempts   = sctp_max_retrans_init;
-	sp->initmsg.sinit_max_init_timeo = sctp_rto_max;
+	sp->initmsg.sinit_max_attempts   = net->sctp.max_retrans_init;
+	sp->initmsg.sinit_max_init_timeo = net->sctp.rto_max;
 
 	/* Initialize default RTO related parameters.  These parameters can
 	 * be modified for with the SCTP_RTOINFO socket option.
 	 */
-	sp->rtoinfo.srto_initial = sctp_rto_initial;
-	sp->rtoinfo.srto_max     = sctp_rto_max;
-	sp->rtoinfo.srto_min     = sctp_rto_min;
+	sp->rtoinfo.srto_initial = net->sctp.rto_initial;
+	sp->rtoinfo.srto_max     = net->sctp.rto_max;
+	sp->rtoinfo.srto_min     = net->sctp.rto_min;
 
 	/* Initialize default association related parameters. These parameters
 	 * can be modified with the SCTP_ASSOCINFO socket option.
 	 */
-	sp->assocparams.sasoc_asocmaxrxt = sctp_max_retrans_association;
+	sp->assocparams.sasoc_asocmaxrxt = net->sctp.max_retrans_association;
 	sp->assocparams.sasoc_number_peer_destinations = 0;
 	sp->assocparams.sasoc_peer_rwnd = 0;
 	sp->assocparams.sasoc_local_rwnd = 0;
-	sp->assocparams.sasoc_cookie_life = sctp_valid_cookie_life;
+	sp->assocparams.sasoc_cookie_life = net->sctp.valid_cookie_life;
 
 	/* Initialize default event subscriptions. By default, all the
 	 * options are off.
@@ -3913,10 +3922,10 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	/* Default Peer Address Parameters.  These defaults can
 	 * be modified via SCTP_PEER_ADDR_PARAMS
 	 */
-	sp->hbinterval  = sctp_hb_interval;
-	sp->pathmaxrxt  = sctp_max_retrans_path;
+	sp->hbinterval  = net->sctp.hb_interval;
+	sp->pathmaxrxt  = net->sctp.max_retrans_path;
 	sp->pathmtu     = 0; // allow default discovery
-	sp->sackdelay   = sctp_sack_timeout;
+	sp->sackdelay   = net->sctp.sack_timeout;
 	sp->sackfreq	= 2;
 	sp->param_flags = SPP_HB_ENABLE |
 			  SPP_PMTUD_ENABLE |
@@ -3967,10 +3976,10 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 
 	local_bh_disable();
 	percpu_counter_inc(&sctp_sockets_allocated);
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
-	if (sctp_default_auto_asconf) {
+	sock_prot_inuse_add(net, sk->sk_prot, 1);
+	if (net->sctp.default_auto_asconf) {
 		list_add_tail(&sp->auto_asconf_list,
-		    &sock_net(sk)->sctp.auto_asconf_splist);
+		    &net->sctp.auto_asconf_splist);
 		sp->do_auto_asconf = 1;
 	} else
 		sp->do_auto_asconf = 0;
@@ -5307,12 +5316,13 @@ static int sctp_getsockopt_maxburst(struct sock *sk, int len,
 static int sctp_getsockopt_hmac_ident(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_hmacalgo  __user *p = (void __user *)optval;
 	struct sctp_hmac_algo_param *hmacs;
 	__u16 data_len = 0;
 	u32 num_idents;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	hmacs = sctp_sk(sk)->ep->auth_hmacs_list;
@@ -5336,10 +5346,11 @@ static int sctp_getsockopt_hmac_ident(struct sock *sk, int len,
 static int sctp_getsockopt_active_key(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authkeyid val;
 	struct sctp_association *asoc;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (len < sizeof(struct sctp_authkeyid))
@@ -5368,6 +5379,7 @@ static int sctp_getsockopt_active_key(struct sock *sk, int len,
 static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authchunks __user *p = (void __user *)optval;
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
@@ -5375,7 +5387,7 @@ static int sctp_getsockopt_peer_auth_chunks(struct sock *sk, int len,
 	u32    num_chunks = 0;
 	char __user *to;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (len < sizeof(struct sctp_authchunks))
@@ -5411,6 +5423,7 @@ num:
 static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 				    char __user *optval, int __user *optlen)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_authchunks __user *p = (void __user *)optval;
 	struct sctp_authchunks val;
 	struct sctp_association *asoc;
@@ -5418,7 +5431,7 @@ static int sctp_getsockopt_local_auth_chunks(struct sock *sk, int len,
 	u32    num_chunks = 0;
 	char __user *to;
 
-	if (!sctp_auth_enable)
+	if (!net->sctp.auth_enable)
 		return -EACCES;
 
 	if (len < sizeof(struct sctp_authchunks))

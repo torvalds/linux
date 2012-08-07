@@ -65,6 +65,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 						struct sock *sk,
 						gfp_t gfp)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_hmac_algo_param *auth_hmacs = NULL;
 	struct sctp_chunks_param *auth_chunks = NULL;
 	struct sctp_shared_key *null_key;
@@ -74,7 +75,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	if (!ep->digest)
 		return NULL;
 
-	if (sctp_auth_enable) {
+	if (net->sctp.auth_enable) {
 		/* Allocate space for HMACS and CHUNKS authentication
 		 * variables.  There are arrays that we encode directly
 		 * into parameters to make the rest of the operations easier.
@@ -106,7 +107,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 		/* If the Add-IP functionality is enabled, we must
 		 * authenticate, ASCONF and ASCONF-ACK chunks
 		 */
-		if (sctp_addip_enable) {
+		if (net->sctp.addip_enable) {
 			auth_chunks->chunks[0] = SCTP_CID_ASCONF;
 			auth_chunks->chunks[1] = SCTP_CID_ASCONF_ACK;
 			auth_chunks->param_hdr.length =
@@ -140,14 +141,14 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	INIT_LIST_HEAD(&ep->asocs);
 
 	/* Use SCTP specific send buffer space queues.  */
-	ep->sndbuf_policy = sctp_sndbuf_policy;
+	ep->sndbuf_policy = net->sctp.sndbuf_policy;
 
 	sk->sk_data_ready = sctp_data_ready;
 	sk->sk_write_space = sctp_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
 	/* Get the receive buffer policy for this endpoint */
-	ep->rcvbuf_policy = sctp_rcvbuf_policy;
+	ep->rcvbuf_policy = net->sctp.rcvbuf_policy;
 
 	/* Initialize the secret key used with cookie. */
 	get_random_bytes(&ep->secret_key[0], SCTP_SECRET_SIZE);

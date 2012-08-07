@@ -119,69 +119,6 @@ struct sctp_hashbucket {
 
 /* The SCTP globals structure. */
 extern struct sctp_globals {
-	/* RFC2960 Section 14. Suggested SCTP Protocol Parameter Values
-	 *
-	 * The following protocol parameters are RECOMMENDED:
-	 *
-	 * RTO.Initial		    - 3	 seconds
-	 * RTO.Min		    - 1	 second
-	 * RTO.Max		   -  60 seconds
-	 * RTO.Alpha		    - 1/8  (3 when converted to right shifts.)
-	 * RTO.Beta		    - 1/4  (2 when converted to right shifts.)
-	 */
-	unsigned int rto_initial;
-	unsigned int rto_min;
-	unsigned int rto_max;
-
-	/* Note: rto_alpha and rto_beta are really defined as inverse
-	 * powers of two to facilitate integer operations.
-	 */
-	int rto_alpha;
-	int rto_beta;
-
-	/* Max.Burst		    - 4 */
-	int max_burst;
-
-	/* Whether Cookie Preservative is enabled(1) or not(0) */
-	int cookie_preserve_enable;
-
-	/* Valid.Cookie.Life	    - 60  seconds  */
-	unsigned int valid_cookie_life;
-
-	/* Delayed SACK timeout  200ms default*/
-	unsigned int sack_timeout;
-
-	/* HB.interval		    - 30 seconds  */
-	unsigned int hb_interval;
-
-	/* Association.Max.Retrans  - 10 attempts
-	 * Path.Max.Retrans	    - 5	 attempts (per destination address)
-	 * Max.Init.Retransmits	    - 8	 attempts
-	 */
-	int max_retrans_association;
-	int max_retrans_path;
-	int max_retrans_init;
-
-	/* Potentially-Failed.Max.Retrans sysctl value
-	 * taken from:
-	 * http://tools.ietf.org/html/draft-nishida-tsvwg-sctp-failover-05
-	 */
-	int pf_retrans;
-
-	/*
-	 * Policy for preforming sctp/socket accounting
-	 * 0   - do socket level accounting, all assocs share sk_sndbuf
-	 * 1   - do sctp accounting, each asoc may use sk_sndbuf bytes
-	 */
-	int sndbuf_policy;
-
-	/*
-	 * Policy for preforming sctp/socket accounting
-	 * 0   - do socket level accounting, all assocs share sk_rcvbuf
-	 * 1   - do sctp accounting, each asoc may use sk_rcvbuf bytes
-	 */
-	int rcvbuf_policy;
-
 	/* The following variables are implementation specific.	 */
 
 	/* Default initialization values to be applied to new associations. */
@@ -205,56 +142,11 @@ extern struct sctp_globals {
 	int port_hashsize;
 	struct sctp_bind_hashbucket *port_hashtable;
 
-	int default_auto_asconf;
-	
-	/* Flag to indicate if addip is enabled. */
-	int addip_enable;
-	int addip_noauth_enable;
-
-	/* Flag to indicate if PR-SCTP is enabled. */
-	int prsctp_enable;
-
-	/* Flag to idicate if SCTP-AUTH is enabled */
-	int auth_enable;
-
-	/*
-	 * Policy to control SCTP IPv4 address scoping
-	 * 0   - Disable IPv4 address scoping
-	 * 1   - Enable IPv4 address scoping
-	 * 2   - Selectively allow only IPv4 private addresses
-	 * 3   - Selectively allow only IPv4 link local address
-	 */
-	int ipv4_scope_policy;
-
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
         bool checksum_disable;
-
-	/* Threshold for rwnd update SACKS.  Receive buffer shifted this many
-	 * bits is an indicator of when to send and window update SACK.
-	 */
-	int rwnd_update_shift;
-
-	/* Threshold for autoclose timeout, in seconds. */
-	unsigned long max_autoclose;
 } sctp_globals;
 
-#define sctp_rto_initial		(sctp_globals.rto_initial)
-#define sctp_rto_min			(sctp_globals.rto_min)
-#define sctp_rto_max			(sctp_globals.rto_max)
-#define sctp_rto_alpha			(sctp_globals.rto_alpha)
-#define sctp_rto_beta			(sctp_globals.rto_beta)
-#define sctp_max_burst			(sctp_globals.max_burst)
-#define sctp_valid_cookie_life		(sctp_globals.valid_cookie_life)
-#define sctp_cookie_preserve_enable	(sctp_globals.cookie_preserve_enable)
-#define sctp_max_retrans_association	(sctp_globals.max_retrans_association)
-#define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
-#define sctp_rcvbuf_policy	 	(sctp_globals.rcvbuf_policy)
-#define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
-#define sctp_pf_retrans			(sctp_globals.pf_retrans)
-#define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
-#define sctp_sack_timeout		(sctp_globals.sack_timeout)
-#define sctp_hb_interval		(sctp_globals.hb_interval)
 #define sctp_max_instreams		(sctp_globals.max_instreams)
 #define sctp_max_outstreams		(sctp_globals.max_outstreams)
 #define sctp_address_families		(sctp_globals.address_families)
@@ -264,15 +156,7 @@ extern struct sctp_globals {
 #define sctp_assoc_hashtable		(sctp_globals.assoc_hashtable)
 #define sctp_port_hashsize		(sctp_globals.port_hashsize)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
-#define sctp_default_auto_asconf	(sctp_globals.default_auto_asconf)
-#define sctp_scope_policy		(sctp_globals.ipv4_scope_policy)
-#define sctp_addip_enable		(sctp_globals.addip_enable)
-#define sctp_addip_noauth		(sctp_globals.addip_noauth_enable)
-#define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
-#define sctp_auth_enable		(sctp_globals.auth_enable)
 #define sctp_checksum_disable		(sctp_globals.checksum_disable)
-#define sctp_rwnd_upd_shift		(sctp_globals.rwnd_update_shift)
-#define sctp_max_autoclose		(sctp_globals.max_autoclose)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {

@@ -918,12 +918,12 @@ static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
 	if (cid <= SCTP_CID_BASE_MAX)
 		return &chunk_event_table[cid][state];
 
-	if (sctp_prsctp_enable) {
+	if (net->sctp.prsctp_enable) {
 		if (cid == SCTP_CID_FWD_TSN)
 			return &prsctp_chunk_event_table[0][state];
 	}
 
-	if (sctp_addip_enable) {
+	if (net->sctp.addip_enable) {
 		if (cid == SCTP_CID_ASCONF)
 			return &addip_chunk_event_table[0][state];
 
@@ -931,7 +931,7 @@ static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
 			return &addip_chunk_event_table[1][state];
 	}
 
-	if (sctp_auth_enable) {
+	if (net->sctp.auth_enable) {
 		if (cid == SCTP_CID_AUTH)
 			return &auth_chunk_event_table[0][state];
 	}

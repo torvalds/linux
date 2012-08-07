@@ -77,7 +77,7 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	 * given destination transport address, set RTO to the protocol
 	 * parameter 'RTO.Initial'.
 	 */
-	peer->rto = msecs_to_jiffies(sctp_rto_initial);
+	peer->rto = msecs_to_jiffies(net->sctp.rto_initial);
 
 	peer->last_time_heard = jiffies;
 	peer->last_time_ecne_reduced = jiffies;
@@ -87,8 +87,8 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 			    SPP_SACKDELAY_ENABLE;
 
 	/* Initialize the default path max_retrans.  */
-	peer->pathmaxrxt  = sctp_max_retrans_path;
-	peer->pf_retrans  = sctp_pf_retrans;
+	peer->pathmaxrxt  = net->sctp.max_retrans_path;
+	peer->pf_retrans  = net->sctp.pf_retrans;
 
 	INIT_LIST_HEAD(&peer->transmitted);
 	INIT_LIST_HEAD(&peer->send_ready);
@@ -318,6 +318,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	SCTP_ASSERT(tp->rto_pending, "rto_pending not set", return);
 
 	if (tp->rttvar || tp->srtt) {
+		struct net *net = sock_net(tp->asoc->base.sk);
 		/* 6.3.1 C3) When a new RTT measurement R' is made, set
 		 * RTTVAR <- (1 - RTO.Beta) * RTTVAR + RTO.Beta * |SRTT - R'|
 		 * SRTT <- (1 - RTO.Alpha) * SRTT + RTO.Alpha * R'
@@ -329,10 +330,10 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		 * For example, assuming the default value of RTO.Alpha of
 		 * 1/8, rto_alpha would be expressed as 3.
 		 */
-		tp->rttvar = tp->rttvar - (tp->rttvar >> sctp_rto_beta)
-			+ ((abs(tp->srtt - rtt)) >> sctp_rto_beta);
-		tp->srtt = tp->srtt - (tp->srtt >> sctp_rto_alpha)
-			+ (rtt >> sctp_rto_alpha);
+		tp->rttvar = tp->rttvar - (tp->rttvar >> net->sctp.rto_beta)
+			+ ((abs(tp->srtt - rtt)) >> net->sctp.rto_beta);
+		tp->srtt = tp->srtt - (tp->srtt >> net->sctp.rto_alpha)
+			+ (rtt >> net->sctp.rto_alpha);
 	} else {
 		/* 6.3.1 C2) When the first RTT measurement R is made, set
 		 * SRTT <- R, RTTVAR <- R/2.

@@ -1169,6 +1169,70 @@ static int sctp_net_init(struct net *net)
 {
 	int status;
 
+	/*
+	 * 14. Suggested SCTP Protocol Parameter Values
+	 */
+	/* The following protocol parameters are RECOMMENDED:  */
+	/* RTO.Initial              - 3  seconds */
+	net->sctp.rto_initial			= SCTP_RTO_INITIAL;
+	/* RTO.Min                  - 1  second */
+	net->sctp.rto_min	 		= SCTP_RTO_MIN;
+	/* RTO.Max                 -  60 seconds */
+	net->sctp.rto_max 			= SCTP_RTO_MAX;
+	/* RTO.Alpha                - 1/8 */
+	net->sctp.rto_alpha			= SCTP_RTO_ALPHA;
+	/* RTO.Beta                 - 1/4 */
+	net->sctp.rto_beta			= SCTP_RTO_BETA;
+
+	/* Valid.Cookie.Life        - 60  seconds */
+	net->sctp.valid_cookie_life		= SCTP_DEFAULT_COOKIE_LIFE;
+
+	/* Whether Cookie Preservative is enabled(1) or not(0) */
+	net->sctp.cookie_preserve_enable 	= 1;
+
+	/* Max.Burst		    - 4 */
+	net->sctp.max_burst			= SCTP_DEFAULT_MAX_BURST;
+
+	/* Association.Max.Retrans  - 10 attempts
+	 * Path.Max.Retrans         - 5  attempts (per destination address)
+	 * Max.Init.Retransmits     - 8  attempts
+	 */
+	net->sctp.max_retrans_association	= 10;
+	net->sctp.max_retrans_path		= 5;
+	net->sctp.max_retrans_init		= 8;
+
+	/* Sendbuffer growth	    - do per-socket accounting */
+	net->sctp.sndbuf_policy			= 0;
+
+	/* Rcvbuffer growth	    - do per-socket accounting */
+	net->sctp.rcvbuf_policy			= 0;
+
+	/* HB.interval              - 30 seconds */
+	net->sctp.hb_interval			= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
+
+	/* delayed SACK timeout */
+	net->sctp.sack_timeout			= SCTP_DEFAULT_TIMEOUT_SACK;
+
+	/* Disable ADDIP by default. */
+	net->sctp.addip_enable = 0;
+	net->sctp.addip_noauth = 0;
+	net->sctp.default_auto_asconf = 0;
+
+	/* Enable PR-SCTP by default. */
+	net->sctp.prsctp_enable = 1;
+
+	/* Disable AUTH by default. */
+	net->sctp.auth_enable = 0;
+
+	/* Set SCOPE policy to enabled */
+	net->sctp.scope_policy = SCTP_SCOPE_POLICY_ENABLE;
+
+	/* Set the default rwnd update threshold */
+	net->sctp.rwnd_upd_shift = SCTP_DEFAULT_RWND_SHIFT;
+
+	/* Initialize maximum autoclose timeout. */
+	net->sctp.max_autoclose		= INT_MAX / HZ;
+
 	status = sctp_sysctl_net_register(net);
 	if (status)
 		goto err_sysctl_register;
@@ -1272,58 +1336,11 @@ SCTP_STATIC __init int sctp_init(void)
 	if (status)
 		goto err_percpu_counter_init;
 
-	/*
-	 * 14. Suggested SCTP Protocol Parameter Values
-	 */
-	/* The following protocol parameters are RECOMMENDED:  */
-	/* RTO.Initial              - 3  seconds */
-	sctp_rto_initial		= SCTP_RTO_INITIAL;
-	/* RTO.Min                  - 1  second */
-	sctp_rto_min	 		= SCTP_RTO_MIN;
-	/* RTO.Max                 -  60 seconds */
-	sctp_rto_max 			= SCTP_RTO_MAX;
-	/* RTO.Alpha                - 1/8 */
-	sctp_rto_alpha	        	= SCTP_RTO_ALPHA;
-	/* RTO.Beta                 - 1/4 */
-	sctp_rto_beta			= SCTP_RTO_BETA;
-
-	/* Valid.Cookie.Life        - 60  seconds */
-	sctp_valid_cookie_life		= SCTP_DEFAULT_COOKIE_LIFE;
-
-	/* Whether Cookie Preservative is enabled(1) or not(0) */
-	sctp_cookie_preserve_enable 	= 1;
-
-	/* Max.Burst		    - 4 */
-	sctp_max_burst 			= SCTP_DEFAULT_MAX_BURST;
-
-	/* Association.Max.Retrans  - 10 attempts
-	 * Path.Max.Retrans         - 5  attempts (per destination address)
-	 * Max.Init.Retransmits     - 8  attempts
-	 */
-	sctp_max_retrans_association 	= 10;
-	sctp_max_retrans_path		= 5;
-	sctp_max_retrans_init		= 8;
-
-	/* Sendbuffer growth	    - do per-socket accounting */
-	sctp_sndbuf_policy		= 0;
-
-	/* Rcvbuffer growth	    - do per-socket accounting */
-	sctp_rcvbuf_policy		= 0;
-
-	/* HB.interval              - 30 seconds */
-	sctp_hb_interval		= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;
-
-	/* delayed SACK timeout */
-	sctp_sack_timeout		= SCTP_DEFAULT_TIMEOUT_SACK;
-
 	/* Implementation specific variables. */
 
 	/* Initialize default stream count setup information. */
 	sctp_max_instreams    		= SCTP_DEFAULT_INSTREAMS;
 	sctp_max_outstreams   		= SCTP_DEFAULT_OUTSTREAMS;
-
-	/* Initialize maximum autoclose timeout. */
-	sctp_max_autoclose		= INT_MAX / HZ;
 
 	/* Initialize handle used for association ids. */
 	idr_init(&sctp_assocs_id);
@@ -1410,23 +1427,6 @@ SCTP_STATIC __init int sctp_init(void)
 
 	pr_info("Hash tables configured (established %d bind %d)\n",
 		sctp_assoc_hashsize, sctp_port_hashsize);
-
-	/* Disable ADDIP by default. */
-	sctp_addip_enable = 0;
-	sctp_addip_noauth = 0;
-	sctp_default_auto_asconf = 0;
-
-	/* Enable PR-SCTP by default. */
-	sctp_prsctp_enable = 1;
-
-	/* Disable AUTH by default. */
-	sctp_auth_enable = 0;
-
-	/* Set SCOPE policy to enabled */
-	sctp_scope_policy = SCTP_SCOPE_POLICY_ENABLE;
-
-	/* Set the default rwnd update threshold */
-	sctp_rwnd_upd_shift		= SCTP_DEFAULT_RWND_SHIFT;
 
 	sctp_sysctl_register();
 

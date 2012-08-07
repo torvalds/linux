@@ -82,6 +82,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 					  sctp_scope_t scope,
 					  gfp_t gfp)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
 	int i;
 	sctp_paramhdr_t *p;
@@ -124,7 +125,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * socket values.
 	 */
 	asoc->max_retrans = sp->assocparams.sasoc_asocmaxrxt;
-	asoc->pf_retrans  = sctp_pf_retrans;
+	asoc->pf_retrans  = net->sctp.pf_retrans;
 
 	asoc->rto_initial = msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	asoc->rto_max = msecs_to_jiffies(sp->rtoinfo.srto_max);
@@ -175,7 +176,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		min_t(unsigned long, sp->autoclose, sctp_max_autoclose) * HZ;
+		min_t(unsigned long, sp->autoclose, net->sctp.max_autoclose) * HZ;
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
@@ -281,7 +282,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * and will revert old behavior.
 	 */
 	asoc->peer.asconf_capable = 0;
-	if (sctp_addip_noauth)
+	if (net->sctp.addip_noauth)
 		asoc->peer.asconf_capable = 1;
 	asoc->asconf_addr_del_pending = NULL;
 	asoc->src_out_of_asoc_ok = 0;
@@ -1418,6 +1419,7 @@ void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
 /* Should we send a SACK to update our peer? */
 static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 {
+	struct net *net = sock_net(asoc->base.sk);
 	switch (asoc->state) {
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
@@ -1425,7 +1427,7 @@ static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 	case SCTP_STATE_SHUTDOWN_SENT:
 		if ((asoc->rwnd > asoc->a_rwnd) &&
 		    ((asoc->rwnd - asoc->a_rwnd) >= max_t(__u32,
-			   (asoc->base.sk->sk_rcvbuf >> sctp_rwnd_upd_shift),
+			   (asoc->base.sk->sk_rcvbuf >> net->sctp.rwnd_upd_shift),
 			   asoc->pathmtu)))
 			return 1;
 		break;
