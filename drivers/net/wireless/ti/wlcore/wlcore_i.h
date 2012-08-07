@@ -123,6 +123,7 @@ struct wl1271_chip {
 	u32 id;
 	char fw_ver_str[ETHTOOL_BUSINFO_LEN];
 	unsigned int fw_ver[NUM_FW_VER];
+	char phy_fw_ver_str[ETHTOOL_BUSINFO_LEN];
 };
 
 #define NUM_TX_QUEUES              4

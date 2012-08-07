@@ -1201,6 +1201,12 @@ static int wl18xx_handle_static_data(struct wl1271 *wl,
 	struct wl18xx_static_data_priv *static_data_priv =
 		(struct wl18xx_static_data_priv *) static_data->priv;
 
+	strncpy(wl->chip.phy_fw_ver_str, static_data_priv->phy_version,
+		sizeof(wl->chip.phy_fw_ver_str));
+
+	/* make sure the string is NULL-terminated */
+	wl->chip.phy_fw_ver_str[sizeof(wl->chip.phy_fw_ver_str) - 1] = '\0';
+
 	wl1271_info("PHY firmware version: %s", static_data_priv->phy_version);
 
 	return 0;
