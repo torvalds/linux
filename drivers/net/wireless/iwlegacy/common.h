@@ -1845,8 +1845,6 @@ __le32 il_add_beacon_time(struct il_priv *il, u32 base, u32 addon,
 			  u32 beacon_interval);
 
 #ifdef CONFIG_PM
-int il_pci_suspend(struct device *device);
-int il_pci_resume(struct device *device);
 extern const struct dev_pm_ops il_pm_ops;
 
 #define IL_LEGACY_PM_OPS	(&il_pm_ops)
