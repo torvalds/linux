@@ -1940,7 +1940,7 @@ static int sctp_process_hn_param(const struct sctp_association *asoc,
 	return 0;
 }
 
-static int sctp_verify_ext_param(union sctp_params param)
+static int sctp_verify_ext_param(struct net *net, union sctp_params param)
 {
 	__u16 num_ext = ntohs(param.p->length) - sizeof(sctp_paramhdr_t);
 	int have_auth = 0;
@@ -2081,7 +2081,8 @@ static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
  *	SCTP_IERROR_ERROR - stop processing, trigger an ERROR
  * 	SCTP_IERROR_NO_ERROR - continue with the chunk
  */
-static sctp_ierror_t sctp_verify_param(const struct sctp_association *asoc,
+static sctp_ierror_t sctp_verify_param(struct net *net,
+					const struct sctp_association *asoc,
 					union sctp_params param,
 					sctp_cid_t cid,
 					struct sctp_chunk *chunk,
@@ -2110,7 +2111,7 @@ static sctp_ierror_t sctp_verify_param(const struct sctp_association *asoc,
 		break;
 
 	case SCTP_PARAM_SUPPORTED_EXT:
-		if (!sctp_verify_ext_param(param))
+		if (!sctp_verify_ext_param(net, param))
 			return SCTP_IERROR_ABORT;
 		break;
 
@@ -2198,7 +2199,7 @@ fallthrough:
 }
 
 /* Verify the INIT packet before we process it.  */
-int sctp_verify_init(const struct sctp_association *asoc,
+int sctp_verify_init(struct net *net, const struct sctp_association *asoc,
 		     sctp_cid_t cid,
 		     sctp_init_chunk_t *peer_init,
 		     struct sctp_chunk *chunk,
@@ -2245,7 +2246,7 @@ int sctp_verify_init(const struct sctp_association *asoc,
 	/* Verify all the variable length parameters */
 	sctp_walk_params(param, peer_init, init_hdr.params) {
 
-		result = sctp_verify_param(asoc, param, cid, chunk, errp);
+		result = sctp_verify_param(net, asoc, param, cid, chunk, errp);
 		switch (result) {
 		    case SCTP_IERROR_ABORT:
 		    case SCTP_IERROR_NOMEM:
