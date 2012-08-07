@@ -393,22 +393,6 @@ void pti_writedata(struct pti_masterchannel *mc, u8 *buf, int count)
 }
 EXPORT_SYMBOL_GPL(pti_writedata);
 
-/**
- * pti_pci_remove()- Driver exit method to remove PTI from
- *		   PCI bus.
- * @pdev: variable containing pci info of PTI.
- */
-static void __devexit pti_pci_remove(struct pci_dev *pdev)
-{
-	struct pti_dev *drv_data = pci_get_drvdata(pdev);
-
-	iounmap(drv_data->pti_ioaddr);
-	pci_set_drvdata(pdev, NULL);
-	kfree(drv_data);
-	pci_release_region(pdev, 1);
-	pci_disable_device(pdev);
-}
-
 /*
  * for the tty_driver_*() basic function descriptions, see tty_driver.h.
  * Specific header comments made for PTI-related specifics.
@@ -879,6 +863,22 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 	register_console(&pti_console);
 
 	return retval;
+}
+
+/**
+ * pti_pci_remove()- Driver exit method to remove PTI from
+ *		   PCI bus.
+ * @pdev: variable containing pci info of PTI.
+ */
+static void __devexit pti_pci_remove(struct pci_dev *pdev)
+{
+	struct pti_dev *drv_data = pci_get_drvdata(pdev);
+
+	iounmap(drv_data->pti_ioaddr);
+	pci_set_drvdata(pdev, NULL);
+	kfree(drv_data);
+	pci_release_region(pdev, 1);
+	pci_disable_device(pdev);
 }
 
 static struct pci_driver pti_pci_driver = {
