@@ -83,10 +83,14 @@ static int __devinit ohci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;
+	struct usb_ohci_pdata *pdata = dev->dev.platform_data;
 	int irq;
 	int err = -ENOMEM;
 
-	BUG_ON(!dev->dev.platform_data);
+	if (!pdata) {
+		WARN_ON(1);
+		return -ENODEV;
+	}
 
 	if (usb_disabled())
 		return -ENODEV;
