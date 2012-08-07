@@ -27,18 +27,10 @@
 #include <linux/mmc/card.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
-#include <linux/i2c/tps65010.h>
 #include <linux/slab.h>
 
-#include <asm/io.h>
-#include <asm/irq.h>
-
-#include <plat/board.h>
 #include <plat/mmc.h>
-#include <asm/gpio.h>
 #include <plat/dma.h>
-#include <plat/mux.h>
-#include <plat/fpga.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x01
@@ -107,7 +99,6 @@ struct mmc_omap_slot {
 	u16			saved_con;
 	u16			bus_mode;
 	unsigned int		fclk_freq;
-	unsigned		powered:1;
 
 	struct tasklet_struct	cover_tasklet;
 	struct timer_list       cover_timer;
@@ -139,7 +130,6 @@ struct mmc_omap_host {
 	unsigned int		phys_base;
 	int			irq;
 	unsigned char		bus_mode;
-	unsigned char		hw_bus_mode;
 	unsigned int		reg_shift;
 
 	struct work_struct	cmd_abort_work;
