@@ -1366,7 +1366,7 @@ static int qla4xxx_conn_get_param(struct iscsi_cls_conn *cls_conn,
 
 	conn = cls_conn->dd_data;
 	qla_conn = conn->dd_data;
-	dst_addr = &qla_conn->qla_ep->dst_addr;
+	dst_addr = (struct sockaddr *)&qla_conn->qla_ep->dst_addr;
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:

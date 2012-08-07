@@ -1695,7 +1695,7 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 	conn = cls_conn->dd_data;
 	qla_conn = conn->dd_data;
 	sess = conn->session;
-	dst_addr = &qla_conn->qla_ep->dst_addr;
+	dst_addr = (struct sockaddr *)&qla_conn->qla_ep->dst_addr;
 
 	if (dst_addr->sa_family == AF_INET6)
 		options |= IPV6_DEFAULT_DDB_ENTRY;
