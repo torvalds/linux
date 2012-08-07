@@ -3715,6 +3715,9 @@ int snd_soc_register_dai(struct device *dev,
 		}
 	}
 
+	if (!dai->codec)
+		dai->dapm.idle_bias_off = 1;
+
 	list_add(&dai->list, &dai_list);
 
 	mutex_unlock(&client_mutex);
@@ -3802,6 +3805,9 @@ int snd_soc_register_dais(struct device *dev,
 				break;
 			}
 		}
+
+		if (!dai->codec)
+			dai->dapm.idle_bias_off = 1;
 
 		list_add(&dai->list, &dai_list);
 
