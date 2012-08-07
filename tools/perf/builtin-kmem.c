@@ -192,16 +192,15 @@ static void insert_caller_stat(unsigned long call_site,
 	}
 }
 
-static void process_alloc_event(void *data,
-				struct event_format *event,
-				int cpu,
-				u64 timestamp __used,
-				struct thread *thread __used,
-				int node)
+static void perf_evsel__process_alloc_event(struct perf_evsel *evsel,
+					    struct perf_sample *sample,
+					    int node)
 {
+	struct event_format *event = evsel->tp_format;
+	void *data = sample->raw_data;
 	unsigned long call_site;
 	unsigned long ptr;
-	int bytes_req;
+	int bytes_req, cpu = sample->cpu;
 	int bytes_alloc;
 	int node1, node2;
 
@@ -253,22 +252,18 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static void process_free_event(void *data,
-			       struct event_format *event,
-			       int cpu,
-			       u64 timestamp __used,
-			       struct thread *thread __used)
+static void perf_evsel__process_free_event(struct perf_evsel *evsel,
+					   struct perf_sample *sample)
 {
-	unsigned long ptr;
+	unsigned long ptr = raw_field_value(evsel->tp_format, "ptr",
+					    sample->raw_data);
 	struct alloc_stat *s_alloc, *s_caller;
-
-	ptr = raw_field_value(event, "ptr", data);
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
 	if (!s_alloc)
 		return;
 
-	if (cpu != s_alloc->alloc_cpu) {
+	if ((short)sample->cpu != s_alloc->alloc_cpu) {
 		s_alloc->pingpong++;
 
 		s_caller = search_alloc_stat(0, s_alloc->call_site,
@@ -279,26 +274,26 @@ static void process_free_event(void *data,
 	s_alloc->alloc_cpu = -1;
 }
 
-static void process_raw_event(struct perf_evsel *evsel, void *data,
-			      int cpu, u64 timestamp, struct thread *thread)
+static void perf_evsel__process_kmem_event(struct perf_evsel *evsel,
+					   struct perf_sample *sample)
 {
 	struct event_format *event = evsel->tp_format;
 
 	if (!strcmp(event->name, "kmalloc") ||
 	    !strcmp(event->name, "kmem_cache_alloc")) {
-		process_alloc_event(data, event, cpu, timestamp, thread, 0);
+		perf_evsel__process_alloc_event(evsel, sample, 0);
 		return;
 	}
 
 	if (!strcmp(event->name, "kmalloc_node") ||
 	    !strcmp(event->name, "kmem_cache_alloc_node")) {
-		process_alloc_event(data, event, cpu, timestamp, thread, 1);
+		perf_evsel__process_alloc_event(evsel, sample, 1);
 		return;
 	}
 
 	if (!strcmp(event->name, "kfree") ||
 	    !strcmp(event->name, "kmem_cache_free")) {
-		process_free_event(data, event, cpu, timestamp, thread);
+		perf_evsel__process_free_event(evsel, sample);
 		return;
 	}
 }
@@ -319,9 +314,7 @@ static int process_sample_event(struct perf_tool *tool __used,
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	process_raw_event(evsel, sample->raw_data, sample->cpu,
-			  sample->time, thread);
-
+	perf_evsel__process_kmem_event(evsel, sample);
 	return 0;
 }
 
