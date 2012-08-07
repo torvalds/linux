@@ -226,7 +226,7 @@ static const struct xc5000_fw_cfg xc5000a_1_6_114 = {
 	.pll_reg = 0x806c,
 };
 
-#define XC5000C_FIRMWARE "dvb-fe-xc5000c-41.024.5.fw"
+#define XC5000C_FIRMWARE "dvb-fe-xc5000c-4.1.30.7.fw"
 static const struct xc5000_fw_cfg xc5000c_41_024_5 = {
 	.name = XC5000C_FIRMWARE,
 	.size = 16497,
