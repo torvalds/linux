@@ -174,3 +174,25 @@ following:
 That way we can inject an arbitrary amount of code as replacement for a single
 instruction. This allows us to check for pending interrupts when setting EE=1
 for example.
+
+Hypercall ABIs in KVM on PowerPC
+=================================
+1) KVM hypercalls (ePAPR)
+
+These are ePAPR compliant hypercall implementation (mentioned above). Even
+generic hypercalls are implemented here, like the ePAPR idle hcall. These are
+available on all targets.
+
+2) PAPR hypercalls
+
+PAPR hypercalls are needed to run server PowerPC PAPR guests (-M pseries in QEMU).
+These are the same hypercalls that pHyp, the POWER hypervisor implements. Some of
+them are handled in the kernel, some are handled in user space. This is only
+available on book3s_64.
+
+3) OSI hypercalls
+
+Mac-on-Linux is another user of KVM on PowerPC, which has its own hypercall (long
+before KVM). This is supported to maintain compatibility. All these hypercalls get
+forwarded to user space. This is only useful on book3s_32, but can be used with
+book3s_64 as well.
