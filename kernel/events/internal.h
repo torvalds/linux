@@ -114,6 +114,10 @@ static inline int memcpy_common(void *dst, const void *src, size_t n)
 
 DEFINE_OUTPUT_COPY(__output_copy, memcpy_common)
 
+#define MEMCPY_SKIP(dst, src, n) (n)
+
+DEFINE_OUTPUT_COPY(__output_skip, MEMCPY_SKIP)
+
 #ifndef arch_perf_out_copy_user
 #define arch_perf_out_copy_user __copy_from_user_inatomic
 #endif

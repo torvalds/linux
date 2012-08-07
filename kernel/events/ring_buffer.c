@@ -188,6 +188,12 @@ unsigned int perf_output_copy(struct perf_output_handle *handle,
 	return __output_copy(handle, buf, len);
 }
 
+unsigned int perf_output_skip(struct perf_output_handle *handle,
+			      unsigned int len)
+{
+	return __output_skip(handle, NULL, len);
+}
+
 void perf_output_end(struct perf_output_handle *handle)
 {
 	perf_output_put_handle(handle);
