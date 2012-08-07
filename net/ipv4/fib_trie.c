@@ -1550,7 +1550,8 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		 * state.directly.
 		 */
 		if (pref_mismatch) {
-			int mp = KEYLENGTH - fls(pref_mismatch);
+			/* fls(x) = __fls(x) + 1 */
+			int mp = KEYLENGTH - __fls(pref_mismatch) - 1;
 
 			if (tkey_extract_bits(cn->key, mp, cn->pos - mp) != 0)
 				goto backtrace;
