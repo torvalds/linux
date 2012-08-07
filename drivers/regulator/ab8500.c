@@ -238,13 +238,6 @@ static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int ab8500_regulator_enable_time(struct regulator_dev *rdev)
-{
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return info->delay;
-}
-
 static int ab8500_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 					     unsigned int old_sel,
 					     unsigned int new_sel)
@@ -261,7 +254,6 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.get_voltage_sel = ab8500_regulator_get_voltage_sel,
 	.set_voltage_sel = ab8500_regulator_set_voltage_sel,
 	.list_voltage	= regulator_list_voltage_table,
-	.enable_time	= ab8500_regulator_enable_time,
 	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
@@ -276,7 +268,6 @@ static struct regulator_ops ab8500_regulator_fixed_ops = {
 	.is_enabled	= ab8500_regulator_is_enabled,
 	.get_voltage	= ab8500_fixed_get_voltage,
 	.list_voltage	= regulator_list_voltage_linear,
-	.enable_time	= ab8500_regulator_enable_time,
 };
 
 static struct ab8500_regulator_info
@@ -374,6 +365,7 @@ static struct ab8500_regulator_info
 			.owner		= THIS_MODULE,
 			.n_voltages	= 1,
 			.min_uV		= 2000000,
+			.enable_time	= 10000,
 		},
 		.delay			= 10000,
 		.update_bank		= 0x03,
