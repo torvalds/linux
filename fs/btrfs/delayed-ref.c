@@ -38,17 +38,14 @@
 static int comp_tree_refs(struct btrfs_delayed_tree_ref *ref2,
 			  struct btrfs_delayed_tree_ref *ref1)
 {
-	if (ref1->node.type == BTRFS_TREE_BLOCK_REF_KEY) {
-		if (ref1->root < ref2->root)
-			return -1;
-		if (ref1->root > ref2->root)
-			return 1;
-	} else {
-		if (ref1->parent < ref2->parent)
-			return -1;
-		if (ref1->parent > ref2->parent)
-			return 1;
-	}
+	if (ref1->root < ref2->root)
+		return -1;
+	if (ref1->root > ref2->root)
+		return 1;
+	if (ref1->parent < ref2->parent)
+		return -1;
+	if (ref1->parent > ref2->parent)
+		return 1;
 	return 0;
 }
 
@@ -85,7 +82,8 @@ static int comp_data_refs(struct btrfs_delayed_data_ref *ref2,
  * type of the delayed backrefs and content of delayed backrefs.
  */
 static int comp_entry(struct btrfs_delayed_ref_node *ref2,
-		      struct btrfs_delayed_ref_node *ref1)
+		      struct btrfs_delayed_ref_node *ref1,
+		      bool compare_seq)
 {
 	if (ref1->bytenr < ref2->bytenr)
 		return -1;
@@ -102,10 +100,12 @@ static int comp_entry(struct btrfs_delayed_ref_node *ref2,
 	if (ref1->type > ref2->type)
 		return 1;
 	/* merging of sequenced refs is not allowed */
-	if (ref1->seq < ref2->seq)
-		return -1;
-	if (ref1->seq > ref2->seq)
-		return 1;
+	if (compare_seq) {
+		if (ref1->seq < ref2->seq)
+			return -1;
+		if (ref1->seq > ref2->seq)
+			return 1;
+	}
 	if (ref1->type == BTRFS_TREE_BLOCK_REF_KEY ||
 	    ref1->type == BTRFS_SHARED_BLOCK_REF_KEY) {
 		return comp_tree_refs(btrfs_delayed_node_to_tree_ref(ref2),
@@ -139,7 +139,7 @@ static struct btrfs_delayed_ref_node *tree_insert(struct rb_root *root,
 		entry = rb_entry(parent_node, struct btrfs_delayed_ref_node,
 				 rb_node);
 
-		cmp = comp_entry(entry, ins);
+		cmp = comp_entry(entry, ins, 1);
 		if (cmp < 0)
 			p = &(*p)->rb_left;
 		else if (cmp > 0)
@@ -231,6 +231,114 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 	}
 	btrfs_put_delayed_ref(&head->node);
 	return 0;
+}
+
+static void inline drop_delayed_ref(struct btrfs_trans_handle *trans,
+				    struct btrfs_delayed_ref_root *delayed_refs,
+				    struct btrfs_delayed_ref_node *ref)
+{
+	rb_erase(&ref->rb_node, &delayed_refs->root);
+	ref->in_tree = 0;
+	btrfs_put_delayed_ref(ref);
+	delayed_refs->num_entries--;
+	if (trans->delayed_ref_updates)
+		trans->delayed_ref_updates--;
+}
+
+static int merge_ref(struct btrfs_trans_handle *trans,
+		     struct btrfs_delayed_ref_root *delayed_refs,
+		     struct btrfs_delayed_ref_node *ref, u64 seq)
+{
+	struct rb_node *node;
+	int merged = 0;
+	int mod = 0;
+	int done = 0;
+
+	node = rb_prev(&ref->rb_node);
+	while (node) {
+		struct btrfs_delayed_ref_node *next;
+
+		next = rb_entry(node, struct btrfs_delayed_ref_node, rb_node);
+		node = rb_prev(node);
+		if (next->bytenr != ref->bytenr)
+			break;
+		if (seq && next->seq >= seq)
+			break;
+		if (comp_entry(ref, next, 0))
+			continue;
+
+		if (ref->action == next->action) {
+			mod = next->ref_mod;
+		} else {
+			if (ref->ref_mod < next->ref_mod) {
+				struct btrfs_delayed_ref_node *tmp;
+
+				tmp = ref;
+				ref = next;
+				next = tmp;
+				done = 1;
+			}
+			mod = -next->ref_mod;
+		}
+
+		merged++;
+		drop_delayed_ref(trans, delayed_refs, next);
+		ref->ref_mod += mod;
+		if (ref->ref_mod == 0) {
+			drop_delayed_ref(trans, delayed_refs, ref);
+			break;
+		} else {
+			/*
+			 * You can't have multiples of the same ref on a tree
+			 * block.
+			 */
+			WARN_ON(ref->type == BTRFS_TREE_BLOCK_REF_KEY ||
+				ref->type == BTRFS_SHARED_BLOCK_REF_KEY);
+		}
+
+		if (done)
+			break;
+		node = rb_prev(&ref->rb_node);
+	}
+
+	return merged;
+}
+
+void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
+			      struct btrfs_fs_info *fs_info,
+			      struct btrfs_delayed_ref_root *delayed_refs,
+			      struct btrfs_delayed_ref_head *head)
+{
+	struct rb_node *node;
+	u64 seq = 0;
+
+	spin_lock(&fs_info->tree_mod_seq_lock);
+	if (!list_empty(&fs_info->tree_mod_seq_list)) {
+		struct seq_list *elem;
+
+		elem = list_first_entry(&fs_info->tree_mod_seq_list,
+					struct seq_list, list);
+		seq = elem->seq;
+	}
+	spin_unlock(&fs_info->tree_mod_seq_lock);
+
+	node = rb_prev(&head->node.rb_node);
+	while (node) {
+		struct btrfs_delayed_ref_node *ref;
+
+		ref = rb_entry(node, struct btrfs_delayed_ref_node,
+			       rb_node);
+		if (ref->bytenr != head->node.bytenr)
+			break;
+
+		/* We can't merge refs that are outside of our seq count */
+		if (seq && ref->seq >= seq)
+			break;
+		if (merge_ref(trans, delayed_refs, ref, seq))
+			node = rb_prev(&head->node.rb_node);
+		else
+			node = rb_prev(node);
+	}
 }
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
@@ -336,18 +444,11 @@ update_existing_ref(struct btrfs_trans_handle *trans,
 		 * every changing the extent allocation tree.
 		 */
 		existing->ref_mod--;
-		if (existing->ref_mod == 0) {
-			rb_erase(&existing->rb_node,
-				 &delayed_refs->root);
-			existing->in_tree = 0;
-			btrfs_put_delayed_ref(existing);
-			delayed_refs->num_entries--;
-			if (trans->delayed_ref_updates)
-				trans->delayed_ref_updates--;
-		} else {
+		if (existing->ref_mod == 0)
+			drop_delayed_ref(trans, delayed_refs, existing);
+		else
 			WARN_ON(existing->type == BTRFS_TREE_BLOCK_REF_KEY ||
 				existing->type == BTRFS_SHARED_BLOCK_REF_KEY);
-		}
 	} else {
 		WARN_ON(existing->type == BTRFS_TREE_BLOCK_REF_KEY ||
 			existing->type == BTRFS_SHARED_BLOCK_REF_KEY);
