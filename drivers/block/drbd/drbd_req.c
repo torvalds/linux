@@ -162,6 +162,10 @@ static void wake_all_senders(struct drbd_tconn *tconn) {
 /* must hold resource->req_lock */
 static void start_new_tl_epoch(struct drbd_tconn *tconn)
 {
+	/* no point closing an epoch, if it is empty, anyways. */
+	if (tconn->current_tle_writes == 0)
+		return;
+
 	tconn->current_tle_writes = 0;
 	atomic_inc(&tconn->current_tle_nr);
 	wake_all_senders(tconn);
@@ -861,9 +865,8 @@ static void maybe_pull_ahead(struct drbd_conf *mdev)
 	}
 
 	if (congested) {
-		if (mdev->tconn->current_tle_writes)
-			/* start a new epoch for non-mirrored writes */
-			start_new_tl_epoch(mdev->tconn);
+		/* start a new epoch for non-mirrored writes */
+		start_new_tl_epoch(mdev->tconn);
 
 		if (on_congestion == OC_PULL_AHEAD)
 			_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
@@ -950,7 +953,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 	if (unlikely(req->i.size == 0)) {
 		/* The only size==0 bios we expect are empty flushes. */
 		D_ASSERT(req->master_bio->bi_rw & REQ_FLUSH);
-		if (remote && mdev->tconn->current_tle_writes)
+		if (remote)
 			start_new_tl_epoch(mdev->tconn);
 		return 0;
 	}
@@ -1066,13 +1069,15 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 
 	/* which transfer log epoch does this belong to? */
 	req->epoch = atomic_read(&mdev->tconn->current_tle_nr);
-	if (rw == WRITE)
-		mdev->tconn->current_tle_writes++;
 
 	/* no point in adding empty flushes to the transfer log,
 	 * they are mapped to drbd barriers already. */
-	if (likely(req->i.size!=0))
+	if (likely(req->i.size!=0)) {
+		if (rw == WRITE)
+			mdev->tconn->current_tle_writes++;
+
 		list_add_tail(&req->tl_requests, &mdev->tconn->transfer_log);
+	}
 
 	if (rw == WRITE) {
 		if (!drbd_process_write_request(req))
