@@ -26,7 +26,7 @@
 #include <linux/io.h>
 
 #include "au0828.h"
-
+#include "media/tuner.h"
 #include <media/v4l2-common.h>
 
 static int i2c_scan;
@@ -147,8 +147,18 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
 	/* Set the I2C clock */
-	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
-		     dev->board.i2c_clk_divider);
+	if ((dev->board.tuner_type == TUNER_XC5000) &&
+	    (dev->board.tuner_addr == msg->addr) &&
+	    (msg->len == 64)) {
+		/* Hack to speed up firmware load.  The xc5000 lets us do up
+		   to 400 KHz when in firmware download mode */
+		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+			     AU0828_I2C_CLK_250KHZ);
+	} else {
+		/* Use the i2c clock speed in the board configuration */
+		au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+			     dev->board.i2c_clk_divider);
+	}
 
 	/* Hardware needs 8 bit addresses */
 	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
