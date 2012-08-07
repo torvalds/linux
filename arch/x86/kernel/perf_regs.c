@@ -1,5 +1,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/perf_event.h>
 #include <linux/bug.h>
 #include <linux/stddef.h>
 #include <asm/perf_regs.h>
@@ -71,6 +73,11 @@ int perf_reg_validate(u64 mask)
 
 	return 0;
 }
+
+u64 perf_reg_abi(struct task_struct *task)
+{
+	return PERF_SAMPLE_REGS_ABI_32;
+}
 #else /* CONFIG_X86_64 */
 #define REG_NOSUPPORT ((1ULL << PERF_REG_X86_DS) | \
 		       (1ULL << PERF_REG_X86_ES) | \
@@ -86,5 +93,13 @@ int perf_reg_validate(u64 mask)
 		return -EINVAL;
 
 	return 0;
+}
+
+u64 perf_reg_abi(struct task_struct *task)
+{
+	if (test_tsk_thread_flag(task, TIF_IA32))
+		return PERF_SAMPLE_REGS_ABI_32;
+	else
+		return PERF_SAMPLE_REGS_ABI_64;
 }
 #endif /* CONFIG_X86_32 */

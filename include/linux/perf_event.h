@@ -130,8 +130,9 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_STREAM_ID			= 1U << 9,
 	PERF_SAMPLE_RAW				= 1U << 10,
 	PERF_SAMPLE_BRANCH_STACK		= 1U << 11,
+	PERF_SAMPLE_REGS_USER			= 1U << 12,
 
-	PERF_SAMPLE_MAX = 1U << 12,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 13,		/* non-ABI */
 };
 
 /*
@@ -161,6 +162,15 @@ enum perf_branch_sample_type {
 	(PERF_SAMPLE_BRANCH_USER|\
 	 PERF_SAMPLE_BRANCH_KERNEL|\
 	 PERF_SAMPLE_BRANCH_HV)
+
+/*
+ * Values to determine ABI of the registers dump.
+ */
+enum perf_sample_regs_abi {
+	PERF_SAMPLE_REGS_ABI_NONE	= 0,
+	PERF_SAMPLE_REGS_ABI_32		= 1,
+	PERF_SAMPLE_REGS_ABI_64		= 2,
+};
 
 /*
  * The format of the data returned by read() on a perf event fd,
@@ -194,6 +204,7 @@ enum perf_event_read_format {
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
 #define PERF_ATTR_SIZE_VER1	72	/* add: config2 */
 #define PERF_ATTR_SIZE_VER2	80	/* add: branch_sample_type */
+#define PERF_ATTR_SIZE_VER3	88	/* add: sample_regs_user */
 
 /*
  * Hardware event_id to monitor via a performance monitoring event:
@@ -271,7 +282,13 @@ struct perf_event_attr {
 		__u64		bp_len;
 		__u64		config2; /* extension of config1 */
 	};
-	__u64	branch_sample_type; /* enum branch_sample_type */
+	__u64	branch_sample_type; /* enum perf_branch_sample_type */
+
+	/*
+	 * Defines set of user regs to dump on samples.
+	 * See asm/perf_regs.h for details.
+	 */
+	__u64	sample_regs_user;
 };
 
 /*
@@ -548,6 +565,9 @@ enum perf_event_type {
 	 *	  char                  data[size];}&& PERF_SAMPLE_RAW
 	 *
 	 *	{ u64 from, to, flags } lbr[nr];} && PERF_SAMPLE_BRANCH_STACK
+	 *
+	 * 	{ u64			abi; # enum perf_sample_regs_abi
+	 * 	  u64			regs[weight(mask)]; } && PERF_SAMPLE_REGS_USER
 	 * };
 	 */
 	PERF_RECORD_SAMPLE			= 9,
@@ -609,6 +629,7 @@ struct perf_guest_info_callbacks {
 #include <linux/static_key.h>
 #include <linux/atomic.h>
 #include <linux/sysfs.h>
+#include <linux/perf_regs.h>
 #include <asm/local.h>
 
 struct perf_callchain_entry {
@@ -652,6 +673,11 @@ struct perf_branch_entry {
 struct perf_branch_stack {
 	__u64				nr;
 	struct perf_branch_entry	entries[0];
+};
+
+struct perf_regs_user {
+	__u64		abi;
+	struct pt_regs	*regs;
 };
 
 struct task_struct;
@@ -1133,6 +1159,7 @@ struct perf_sample_data {
 	struct perf_callchain_entry	*callchain;
 	struct perf_raw_record		*raw;
 	struct perf_branch_stack	*br_stack;
+	struct perf_regs_user		regs_user;
 };
 
 static inline void perf_sample_data_init(struct perf_sample_data *data,
@@ -1142,7 +1169,9 @@ static inline void perf_sample_data_init(struct perf_sample_data *data,
 	data->addr = addr;
 	data->raw  = NULL;
 	data->br_stack = NULL;
-	data->period	= period;
+	data->period = period;
+	data->regs_user.abi = PERF_SAMPLE_REGS_ABI_NONE;
+	data->regs_user.regs = NULL;
 }
 
 extern void perf_output_sample(struct perf_output_handle *handle,
