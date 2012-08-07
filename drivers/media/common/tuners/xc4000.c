@@ -263,8 +263,7 @@ static int xc_send_i2c_data(struct xc4000_priv *priv, u8 *buf, int len)
 			printk(KERN_ERR "xc4000: I2C write failed (len=%i)\n",
 			       len);
 			if (len == 4) {
-				printk(KERN_ERR "bytes %02x %02x %02x %02x\n", buf[0],
-				       buf[1], buf[2], buf[3]);
+				printk(KERN_ERR "bytes %*ph\n", 4, buf);
 			}
 			return -EREMOTEIO;
 		}

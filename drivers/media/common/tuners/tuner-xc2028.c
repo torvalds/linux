@@ -1126,8 +1126,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 
 	priv->frequency = freq;
 
-	tuner_dbg("divisor= %02x %02x %02x %02x (freq=%d.%03d)\n",
-	       buf[0], buf[1], buf[2], buf[3],
+	tuner_dbg("divisor= %*ph (freq=%d.%03d)\n", 4, buf,
 	       freq / 1000000, (freq % 1000000) / 1000);
 
 	rc = 0;
