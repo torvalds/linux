@@ -375,7 +375,7 @@ static int au_iattr_test(struct au_iattr *ia, struct inode *h_inode)
 	return ia->i_ino != h_inode->i_ino
 		/* || ia->i_nlink != h_inode->i_nlink */
 		|| !uid_eq(ia->i_uid, h_inode->i_uid)
-		|| !uid_eq(ia->i_gid, h_inode->i_gid)
+		|| !gid_eq(ia->i_gid, h_inode->i_gid)
 		|| ia->i_version != h_inode->i_version
 /*
 		|| ia->i_size != h_inode->i_size
