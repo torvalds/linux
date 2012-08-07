@@ -457,7 +457,7 @@ static int sctp_copy_one_addr(struct net *net, struct sctp_bind_addr *dest,
 
 	if (sctp_is_any(NULL, addr)) {
 		error = sctp_copy_local_addr_list(net, dest, scope, gfp, flags);
-	} else if (sctp_in_scope(addr, scope)) {
+	} else if (sctp_in_scope(net, addr, scope)) {
 		/* Now that the address is in scope, check to see if
 		 * the address type is supported by local sock as
 		 * well as the remote peer.
@@ -494,7 +494,7 @@ int sctp_is_any(struct sock *sk, const union sctp_addr *addr)
 }
 
 /* Is 'addr' valid for 'scope'?  */
-int sctp_in_scope(const union sctp_addr *addr, sctp_scope_t scope)
+int sctp_in_scope(struct net *net, const union sctp_addr *addr, sctp_scope_t scope)
 {
 	sctp_scope_t addr_scope = sctp_scope(addr);
 
