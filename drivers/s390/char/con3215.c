@@ -942,6 +942,19 @@ static int __init con3215_init(void)
 console_initcall(con3215_init);
 #endif
 
+static int tty3215_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	struct raw3215_info *raw;
+
+	raw = raw3215[tty->index];
+	if (raw == NULL)
+		return -ENODEV;
+
+	tty->driver_data = raw;
+
+	return tty_port_install(&raw->port, driver, tty);
+}
+
 /*
  * tty3215_open
  *
@@ -949,14 +962,9 @@ console_initcall(con3215_init);
  */
 static int tty3215_open(struct tty_struct *tty, struct file * filp)
 {
-	struct raw3215_info *raw;
+	struct raw3215_info *raw = tty->driver_data;
 	int retval;
 
-	raw = raw3215[tty->index];
-	if (raw == NULL)
-		return -ENODEV;
-
-	tty->driver_data = raw;
 	tty_port_tty_set(&raw->port, tty);
 
 	tty->low_latency = 0;  /* don't use bottom half for pushing chars */
@@ -1117,6 +1125,7 @@ static void tty3215_start(struct tty_struct *tty)
 }
 
 static const struct tty_operations tty3215_ops = {
+	.install = tty3215_install,
 	.open = tty3215_open,
 	.close = tty3215_close,
 	.write = tty3215_write,
