@@ -1503,7 +1503,6 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	if (ns_max.susp_fen) {
 		/* case1: The outdate peer handler is successful: */
 		if (ns_max.pdsk <= D_OUTDATED) {
-			tl_clear(tconn);
 			rcu_read_lock();
 			idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 				if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
@@ -1512,10 +1511,13 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 				}
 			}
 			rcu_read_unlock();
-			conn_request_state(tconn,
-					   (union drbd_state) { { .susp_fen = 1 } },
-					   (union drbd_state) { { .susp_fen = 0 } },
-					   CS_VERBOSE);
+			spin_lock_irq(&tconn->req_lock);
+			_tl_restart(tconn, CONNECTION_LOST_WHILE_PENDING);
+			_conn_request_state(tconn,
+					    (union drbd_state) { { .susp_fen = 1 } },
+					    (union drbd_state) { { .susp_fen = 0 } },
+					    CS_VERBOSE);
+			spin_unlock_irq(&tconn->req_lock);
 		}
 		/* case2: The connection was established again: */
 		if (ns_min.conn >= C_CONNECTED) {
