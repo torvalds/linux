@@ -148,6 +148,7 @@ static void vb2_dc_put(void *buf_priv)
 		kfree(buf->sgt_base);
 	}
 	dma_free_coherent(buf->dev, buf->size, buf->vaddr, buf->dma_addr);
+	put_device(buf->dev);
 	kfree(buf);
 }
 
@@ -168,7 +169,8 @@ static void *vb2_dc_alloc(void *alloc_ctx, unsigned long size)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	buf->dev = dev;
+	/* Prevent the device from being released while the buffer is used */
+	buf->dev = get_device(dev);
 	buf->size = size;
 
 	buf->handler.refcount = &buf->refcount;
