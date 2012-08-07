@@ -515,7 +515,7 @@ static void change_speed(struct m68k_serial *info, struct tty_struct *tty)
 	unsigned cflag;
 	int	i;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 	if (!(port = info->port))
 		return;
 
@@ -617,7 +617,7 @@ static void rs_set_ldisc(struct tty_struct *tty)
 	if (serial_paranoia_check(info, tty->name, "rs_set_ldisc"))
 		return;
 
-	info->is_cons = (tty->termios->c_line == N_TTY);
+	info->is_cons = (tty->termios.c_line == N_TTY);
 	
 	printk("ttyS%d console mode %s\n", info->line, info->is_cons ? "on" : "off");
 }
@@ -985,7 +985,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	change_speed(info, tty);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios->c_cflag & CRTSCTS)) {
+	    !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		rs_start(tty);
 	}
@@ -1070,7 +1070,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		if (tty->ldisc.close)
 			(tty->ldisc.close)(tty);
 		tty->ldisc = ldiscs[N_TTY];
-		tty->termios->c_line = N_TTY;
+		tty->termios.c_line = N_TTY;
 		if (tty->ldisc.open)
 			(tty->ldisc.open)(tty);
 	}
