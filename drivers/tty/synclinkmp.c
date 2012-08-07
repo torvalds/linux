@@ -711,15 +711,11 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 
 /* tty callbacks */
 
-/* Called when a port is opened.  Init and enable port.
- */
-static int open(struct tty_struct *tty, struct file *filp)
+static int install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	SLMP_INFO *info;
-	int retval, line;
-	unsigned long flags;
+	int line = tty->index;
 
-	line = tty->index;
 	if (line >= synclinkmp_device_count) {
 		printk("%s(%d): open with invalid line #%d.\n",
 			__FILE__,__LINE__,line);
@@ -727,17 +723,30 @@ static int open(struct tty_struct *tty, struct file *filp)
 	}
 
 	info = synclinkmp_device_list;
-	while(info && info->line != line)
+	while (info && info->line != line)
 		info = info->next_device;
 	if (sanity_check(info, tty->name, "open"))
 		return -ENODEV;
-	if ( info->init_error ) {
+	if (info->init_error) {
 		printk("%s(%d):%s device is not allocated, init error=%d\n",
-			__FILE__,__LINE__,info->device_name,info->init_error);
+			__FILE__, __LINE__, info->device_name,
+			info->init_error);
 		return -ENODEV;
 	}
 
 	tty->driver_data = info;
+
+	return tty_port_install(&info->port, driver, tty);
+}
+
+/* Called when a port is opened.  Init and enable port.
+ */
+static int open(struct tty_struct *tty, struct file *filp)
+{
+	SLMP_INFO *info = tty->driver_data;
+	unsigned long flags;
+	int retval;
+
 	info->port.tty = tty;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3881,6 +3890,7 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 }
 
 static const struct tty_operations ops = {
+	.install = install,
 	.open = open,
 	.close = close,
 	.write = write,
