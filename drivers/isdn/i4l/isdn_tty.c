@@ -1486,6 +1486,18 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * ------------------------------------------------------------
  */
 
+static int isdn_tty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	modem_info *info = &dev->mdm.info[tty->index];
+
+	if (isdn_tty_paranoia_check(info, tty->name, __func__))
+		return -ENODEV;
+
+	tty->driver_data = info;
+
+	return tty_port_install(&info->port, driver, tty);
+}
+
 /*
  * This routine is called whenever a serial port is opened.  It
  * enables interrupts for a serial port, linking in its async structure into
@@ -1495,22 +1507,16 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 static int
 isdn_tty_open(struct tty_struct *tty, struct file *filp)
 {
-	struct tty_port *port;
-	modem_info *info;
+	modem_info *info = tty->driver_data;
+	struct tty_port *port = &info->port;
 	int retval;
 
-	info = &dev->mdm.info[tty->index];
-	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_open"))
-		return -ENODEV;
-	port = &info->port;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_open %s, count = %d\n", tty->name,
 	       port->count);
 #endif
 	port->count++;
-	tty->driver_data = info;
 	port->tty = tty;
-	tty->port = port;
 	/*
 	 * Start up serial port
 	 */
@@ -1738,6 +1744,7 @@ modem_write_profile(atemu *m)
 }
 
 static const struct tty_operations modem_ops = {
+	.install = isdn_tty_install,
 	.open = isdn_tty_open,
 	.close = isdn_tty_close,
 	.write = isdn_tty_write,
