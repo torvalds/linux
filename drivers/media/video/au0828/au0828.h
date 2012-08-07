@@ -225,6 +225,7 @@ struct au0828_dev {
 	unsigned int frame_count;
 	int ctrl_freq;
 	int input_type;
+	int std_set_in_tuner_core;
 	unsigned int ctrl_input;
 	enum au0828_dev_state dev_state;
 	enum au0828_stream_state stream_state;

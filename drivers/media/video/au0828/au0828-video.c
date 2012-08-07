@@ -1330,6 +1330,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	   buffer, which is currently hardcoded at 720x480 */
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, *norm);
+	dev->std_set_in_tuner_core = 1;
 	return 0;
 }
 
@@ -1539,6 +1540,15 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		return -EINVAL;
 
 	dev->ctrl_freq = freq->frequency;
+
+	if (dev->std_set_in_tuner_core == 0) {
+	  /* If we've never sent the standard in tuner core, do so now.  We
+	     don't do this at device probe because we don't want to incur
+	     the cost of a firmware load */
+	  v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std,
+			       dev->vdev->tvnorms);
+	  dev->std_set_in_tuner_core = 1;
+	}
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, freq);
 
