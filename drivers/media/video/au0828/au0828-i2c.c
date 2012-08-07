@@ -147,7 +147,8 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
 
 	/* Set the I2C clock */
-	if ((dev->board.tuner_type == TUNER_XC5000) &&
+	if (((dev->board.tuner_type == TUNER_XC5000) ||
+	     (dev->board.tuner_type == TUNER_XC5000C)) &&
 	    (dev->board.tuner_addr == msg->addr) &&
 	    (msg->len == 64)) {
 		/* Hack to speed up firmware load.  The xc5000 lets us do up
