@@ -544,6 +544,22 @@ static void __init rk2928_init_spim(void)
 #endif
 }
 
+#ifdef CONFIG_MTD_NAND_RK29XX
+static struct resource resources_nand[] = {
+	{
+		.start	= RK2928_NANDC_PHYS,
+		.end	= RK2928_NANDC_PHYS + RK2928_NANDC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_nand = {
+	.name		= "rk29xxnand",
+	.id		= -1,
+	.resource	= resources_nand,
+	.num_resources	= ARRAY_SIZE(resources_nand),
+};
+#endif
 #ifdef CONFIG_HDMI_RK2928
 static struct resource resource_hdmi[] = {
 	[0] = {
@@ -769,6 +785,9 @@ static int __init rk2928_init_devices(void)
 	rk2928_init_uart();
 	rk2928_init_i2c();
 	rk2928_init_spim();
+#ifdef CONFIG_MTD_NAND_RK29XX
+	platform_device_register(&device_nand);
+#endif
 #ifdef CONFIG_ADC_RK30
 	platform_device_register(&device_adc);
 #endif
