@@ -1865,7 +1865,7 @@ static void qla4_8xxx_minidump_process_rdocm(struct scsi_qla_host *ha,
 		r_addr += r_stride;
 	}
 	DEBUG2(ql4_printk(KERN_INFO, ha, "Leaving fn: %s datacount: 0x%lx\n",
-			  __func__, (loop_cnt * sizeof(uint32_t))));
+		__func__, (long unsigned int) (loop_cnt * sizeof(uint32_t))));
 	*d_ptr = data_ptr;
 }
 
