@@ -2798,23 +2798,6 @@ static const struct tty_operations mgslpc_ops = {
 	.proc_fops = &mgslpc_proc_fops,
 };
 
-static void synclink_cs_cleanup(void)
-{
-	int rc;
-
-	while(mgslpc_device_list)
-		mgslpc_remove_device(mgslpc_device_list);
-
-	if (serial_driver) {
-		if ((rc = tty_unregister_driver(serial_driver)))
-			printk("%s(%d) failed to unregister tty driver err=%d\n",
-			       __FILE__,__LINE__,rc);
-		put_tty_driver(serial_driver);
-	}
-
-	pcmcia_unregister_driver(&mgslpc_driver);
-}
-
 static int __init synclink_cs_init(void)
 {
     int rc;
@@ -2830,7 +2813,7 @@ static int __init synclink_cs_init(void)
     serial_driver = alloc_tty_driver(MAX_DEVICE_COUNT);
     if (!serial_driver) {
 	    rc = -ENOMEM;
-	    goto error;
+	    goto err_pcmcia_drv;
     }
 
     /* Initialize the tty_driver structure */
@@ -2850,25 +2833,29 @@ static int __init synclink_cs_init(void)
     if ((rc = tty_register_driver(serial_driver)) < 0) {
 	    printk("%s(%d):Couldn't register serial driver\n",
 		   __FILE__,__LINE__);
-	    put_tty_driver(serial_driver);
-	    serial_driver = NULL;
-	    goto error;
+	    goto err_put_tty;
     }
 
     printk("%s %s, tty major#%d\n",
 	   driver_name, driver_version,
 	   serial_driver->major);
 
-    return 0;
-
-error:
-    synclink_cs_cleanup();
-    return rc;
+	return 0;
+err_put_tty:
+	put_tty_driver(serial_driver);
+err_pcmcia_drv:
+	pcmcia_unregister_driver(&mgslpc_driver);
+	return rc;
 }
 
 static void __exit synclink_cs_exit(void)
 {
-	synclink_cs_cleanup();
+	while (mgslpc_device_list)
+		mgslpc_remove_device(mgslpc_device_list);
+
+	tty_unregister_driver(serial_driver);
+	put_tty_driver(serial_driver);
+	pcmcia_unregister_driver(&mgslpc_driver);
 }
 
 module_init(synclink_cs_init);
