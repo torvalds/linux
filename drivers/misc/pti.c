@@ -811,7 +811,7 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 			__func__, __LINE__);
 		pr_err("%s(%d): Error value returned: %d\n",
 			__func__, __LINE__, retval);
-		return retval;
+		goto err;
 	}
 
 	retval = pci_enable_device(pdev);
@@ -819,17 +819,16 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"%s: pci_enable_device() returned error %d\n",
 			__func__, retval);
-		return retval;
+		goto err_unreg_misc;
 	}
 
 	drv_data = kzalloc(sizeof(*drv_data), GFP_KERNEL);
-
 	if (drv_data == NULL) {
 		retval = -ENOMEM;
 		dev_err(&pdev->dev,
 			"%s(%d): kmalloc() returned NULL memory.\n",
 			__func__, __LINE__);
-		return retval;
+		goto err_disable_pci;
 	}
 	drv_data->pti_addr = pci_resource_start(pdev, pci_bar);
 
@@ -838,18 +837,15 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev,
 			"%s(%d): pci_request_region() returned error %d\n",
 			__func__, __LINE__, retval);
-		kfree(drv_data);
-		return retval;
+		goto err_free_dd;
 	}
 	drv_data->aperture_base = drv_data->pti_addr+APERTURE_14;
 	drv_data->pti_ioaddr =
 		ioremap_nocache((u32)drv_data->aperture_base,
 		APERTURE_LEN);
 	if (!drv_data->pti_ioaddr) {
-		pci_release_region(pdev, pci_bar);
 		retval = -ENOMEM;
-		kfree(drv_data);
-		return retval;
+		goto err_rel_reg;
 	}
 
 	pci_set_drvdata(pdev, drv_data);
@@ -862,6 +858,16 @@ static int __devinit pti_pci_probe(struct pci_dev *pdev,
 
 	register_console(&pti_console);
 
+	return 0;
+err_rel_reg:
+	pci_release_region(pdev, pci_bar);
+err_free_dd:
+	kfree(drv_data);
+err_disable_pci:
+	pci_disable_device(pdev);
+err_unreg_misc:
+	misc_deregister(&pti_char_driver);
+err:
 	return retval;
 }
 
@@ -937,25 +943,24 @@ static int __init pti_init(void)
 		pr_err("%s(%d): Error value returned: %d\n",
 			__func__, __LINE__, retval);
 
-		pti_tty_driver = NULL;
-		return retval;
+		goto put_tty;
 	}
 
 	retval = pci_register_driver(&pti_pci_driver);
-
 	if (retval) {
 		pr_err("%s(%d): PCI registration failed of pti driver\n",
 			__func__, __LINE__);
 		pr_err("%s(%d): Error value returned: %d\n",
 			__func__, __LINE__, retval);
-
-		tty_unregister_driver(pti_tty_driver);
-		pr_err("%s(%d): Unregistering TTY part of pti driver\n",
-			__func__, __LINE__);
-		pti_tty_driver = NULL;
-		return retval;
+		goto unreg_tty;
 	}
 
+	return 0;
+unreg_tty:
+	tty_unregister_driver(pti_tty_driver);
+put_tty:
+	put_tty_driver(pti_tty_driver);
+	pti_tty_driver = NULL;
 	return retval;
 }
 
@@ -964,17 +969,9 @@ static int __init pti_init(void)
  */
 static void __exit pti_exit(void)
 {
-	int retval;
-
-	retval = tty_unregister_driver(pti_tty_driver);
-	if (retval) {
-		pr_err("%s(%d): TTY unregistration failed of pti driver\n",
-			__func__, __LINE__);
-		pr_err("%s(%d): Error value returned: %d\n",
-			__func__, __LINE__, retval);
-	}
-
+	tty_unregister_driver(pti_tty_driver);
 	pci_unregister_driver(&pti_pci_driver);
+	put_tty_driver(pti_tty_driver);
 }
 
 module_init(pti_init);
