@@ -1800,6 +1800,7 @@ tty3270_exit(void)
 	driver = tty3270_driver;
 	tty3270_driver = NULL;
 	tty_unregister_driver(driver);
+	put_tty_driver(driver);
 	tty3270_del_views();
 }
 
