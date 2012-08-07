@@ -290,8 +290,7 @@ static int af9035_identify_state(struct dvb_usb_device *d, const char **name)
 	if (ret < 0)
 		goto err;
 
-	pr_debug("%s: reply=%02x %02x %02x %02x\n", __func__,
-		rbuf[0], rbuf[1], rbuf[2], rbuf[3]);
+	pr_debug("%s: reply=%*ph\n", __func__, 4, rbuf);
 	if (rbuf[0] || rbuf[1] || rbuf[2] || rbuf[3])
 		ret = WARM;
 	else

@@ -1199,8 +1199,7 @@ static int af9015_rc_query(struct dvb_usb_device *d)
 
 	/* Only process key if canary killed */
 	if (buf[16] != 0xff && buf[0] != 0x01) {
-		deb_rc("%s: key pressed %02x %02x %02x %02x\n", __func__,
-			buf[12], buf[13], buf[14], buf[15]);
+		deb_rc("%s: key pressed %*ph\n", __func__, 4, buf + 12);
 
 		/* Reset the canary */
 		ret = af9015_write_reg(d, 0x98e9, 0xff);

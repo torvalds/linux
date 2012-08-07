@@ -136,8 +136,8 @@ static int tt3650_ci_msg(struct dvb_usb_device *d, u8 cmd, u8 *data,
 	return 0;
 
 failed:
-	err("CI error %d; %02X %02X %02X -> %02X %02X %02X.",
-	     ret, SYNC_BYTE_OUT, id, cmd, buf[0], buf[1], buf[2]);
+	err("CI error %d; %02X %02X %02X -> %*ph.",
+	     ret, SYNC_BYTE_OUT, id, cmd, 3, buf);
 
 	return ret;
 }
@@ -556,8 +556,7 @@ static int pctv452e_rc_query(struct dvb_usb_device *d)
 		return ret;
 
 	if (debug > 3) {
-		info("%s: read: %2d: %02x %02x %02x: ", __func__,
-				ret, rx[0], rx[1], rx[2]);
+		info("%s: read: %2d: %*ph: ", __func__, ret, 3, rx);
 		for (i = 0; (i < rx[3]) && ((i+3) < PCTV_ANSWER_LEN); i++)
 			info(" %02x", rx[i+3]);
 
