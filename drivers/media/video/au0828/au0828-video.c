@@ -1325,12 +1325,19 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
 	struct au0828_fh *fh = priv;
 	struct au0828_dev *dev = fh->dev;
 
+	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
+		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
+
 	/* FIXME: when we support something other than NTSC, we are going to
 	   have to make the au0828 bridge adjust the size of its capture
 	   buffer, which is currently hardcoded at 720x480 */
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, *norm);
 	dev->std_set_in_tuner_core = 1;
+
+	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
+		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
+
 	return 0;
 }
 
@@ -1510,9 +1517,18 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	t->type = V4L2_TUNER_ANALOG_TV;
+
+	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
+		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 1);
+
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_tuner, t);
+
+	if (dev->dvb.frontend && dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl)
+		dev->dvb.frontend->ops.analog_ops.i2c_gate_ctrl(dev->dvb.frontend, 0);
+
 	dprintk(1, "VIDIOC_S_TUNER: signal = %x, afc = %x\n", t->signal,
 		t->afc);
+
 	return 0;
 
 }
