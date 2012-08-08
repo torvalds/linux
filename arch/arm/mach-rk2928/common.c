@@ -49,8 +49,8 @@ static void __init rk2928_l2_cache_init(void)
 	writel_relaxed(L2_LY_SET(1,L2_LY_SP_OFF)
 				|L2_LY_SET(1,L2_LY_RD_OFF)
 				|L2_LY_SET(1,L2_LY_WR_OFF), RK2928_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(L2_LY_SET(4,L2_LY_SP_OFF)
-				|L2_LY_SET(6,L2_LY_RD_OFF)
+	writel_relaxed(L2_LY_SET(2,L2_LY_SP_OFF)
+				|L2_LY_SET(3,L2_LY_RD_OFF)
 				|L2_LY_SET(1,L2_LY_WR_OFF), RK2928_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Prefetch Control */
