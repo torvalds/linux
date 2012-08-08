@@ -117,8 +117,8 @@ enum msg_end_type {
  * struct tegra_i2c_dev	- per device i2c context
  * @dev: device reference for power management
  * @adapter: core i2c layer adapter information
- * @clk: clock reference for i2c controller
- * @i2c_clk: clock reference for i2c bus
+ * @div_clk: clock reference for div clock of i2c controller.
+ * @fast_clk: clock reference for fast clock of i2c controller.
  * @base: ioremapped registers cookie
  * @cont_id: i2c controller id, used for for packet header
  * @irq: irq number of transfer complete interrupt
@@ -134,8 +134,8 @@ enum msg_end_type {
 struct tegra_i2c_dev {
 	struct device *dev;
 	struct i2c_adapter adapter;
-	struct clk *clk;
-	struct clk *i2c_clk;
+	struct clk *div_clk;
+	struct clk *fast_clk;
 	void __iomem *base;
 	int cont_id;
 	int irq;
@@ -356,11 +356,11 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	u32 val;
 	int err = 0;
 
-	clk_prepare_enable(i2c_dev->clk);
+	clk_prepare_enable(i2c_dev->div_clk);
 
-	tegra_periph_reset_assert(i2c_dev->clk);
+	tegra_periph_reset_assert(i2c_dev->div_clk);
 	udelay(2);
-	tegra_periph_reset_deassert(i2c_dev->clk);
+	tegra_periph_reset_deassert(i2c_dev->div_clk);
 
 	if (i2c_dev->is_dvc)
 		tegra_dvc_init(i2c_dev);
@@ -369,7 +369,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 		(0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
 	i2c_writel(i2c_dev, val, I2C_CNFG);
 	i2c_writel(i2c_dev, 0, I2C_INT_MASK);
-	clk_set_rate(i2c_dev->clk, i2c_dev->bus_clk_rate * 8);
+	clk_set_rate(i2c_dev->div_clk, i2c_dev->bus_clk_rate * 8);
 
 	if (!i2c_dev->is_dvc) {
 		u32 sl_cfg = i2c_readl(i2c_dev, I2C_SL_CNFG);
@@ -387,7 +387,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	if (tegra_i2c_flush_fifos(i2c_dev))
 		err = -ETIMEDOUT;
 
-	clk_disable_unprepare(i2c_dev->clk);
+	clk_disable_unprepare(i2c_dev->div_clk);
 
 	if (i2c_dev->irq_disabled) {
 		i2c_dev->irq_disabled = 0;
@@ -563,7 +563,7 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	if (i2c_dev->is_suspended)
 		return -EBUSY;
 
-	clk_prepare_enable(i2c_dev->clk);
+	clk_prepare_enable(i2c_dev->div_clk);
 	for (i = 0; i < num; i++) {
 		enum msg_end_type end_type = MSG_END_STOP;
 		if (i < (num - 1)) {
@@ -576,7 +576,7 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		if (ret)
 			break;
 	}
-	clk_disable_unprepare(i2c_dev->clk);
+	clk_disable_unprepare(i2c_dev->div_clk);
 	return ret ?: i;
 }
 
@@ -596,8 +596,8 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	struct tegra_i2c_dev *i2c_dev;
 	struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
-	struct clk *clk;
-	struct clk *i2c_clk;
+	struct clk *div_clk;
+	struct clk *fast_clk;
 	const unsigned int *prop;
 	void __iomem *base;
 	int irq;
@@ -622,16 +622,16 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	}
 	irq = res->start;
 
-	clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
+	div_clk = devm_clk_get(&pdev->dev, "div-clk");
+	if (IS_ERR(div_clk)) {
 		dev_err(&pdev->dev, "missing controller clock");
-		return PTR_ERR(clk);
+		return PTR_ERR(div_clk);
 	}
 
-	i2c_clk = devm_clk_get(&pdev->dev, "i2c");
-	if (IS_ERR(i2c_clk)) {
+	fast_clk = devm_clk_get(&pdev->dev, "fast-clk");
+	if (IS_ERR(fast_clk)) {
 		dev_err(&pdev->dev, "missing bus clock");
-		return PTR_ERR(i2c_clk);
+		return PTR_ERR(fast_clk);
 	}
 
 	i2c_dev = devm_kzalloc(&pdev->dev, sizeof(*i2c_dev), GFP_KERNEL);
@@ -641,8 +641,8 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	}
 
 	i2c_dev->base = base;
-	i2c_dev->clk = clk;
-	i2c_dev->i2c_clk = i2c_clk;
+	i2c_dev->div_clk = div_clk;
+	i2c_dev->fast_clk = fast_clk;
 	i2c_dev->adapter.algo = &tegra_i2c_algo;
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
@@ -681,7 +681,7 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_prepare_enable(i2c_dev->i2c_clk);
+	clk_prepare_enable(i2c_dev->fast_clk);
 
 	i2c_set_adapdata(&i2c_dev->adapter, i2c_dev);
 	i2c_dev->adapter.owner = THIS_MODULE;
@@ -696,7 +696,7 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add I2C adapter\n");
-		clk_disable_unprepare(i2c_dev->i2c_clk);
+		clk_disable_unprepare(i2c_dev->fast_clk);
 		return ret;
 	}
 
