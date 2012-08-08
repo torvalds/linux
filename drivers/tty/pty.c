@@ -444,11 +444,17 @@ static void __init legacy_pty_init(void)
 	if (legacy_count <= 0)
 		return;
 
-	pty_driver = alloc_tty_driver(legacy_count);
+	pty_driver = tty_alloc_driver(legacy_count,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_ALLOC);
 	if (!pty_driver)
 		panic("Couldn't allocate pty driver");
 
-	pty_slave_driver = alloc_tty_driver(legacy_count);
+	pty_slave_driver = tty_alloc_driver(legacy_count,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_ALLOC);
 	if (!pty_slave_driver)
 		panic("Couldn't allocate pty slave driver");
 
@@ -465,7 +471,6 @@ static void __init legacy_pty_init(void)
 	pty_driver->init_termios.c_lflag = 0;
 	pty_driver->init_termios.c_ispeed = 38400;
 	pty_driver->init_termios.c_ospeed = 38400;
-	pty_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW;
 	pty_driver->other = pty_slave_driver;
 	tty_set_operations(pty_driver, &master_pty_ops_bsd);
 
@@ -479,8 +484,6 @@ static void __init legacy_pty_init(void)
 	pty_slave_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	pty_slave_driver->init_termios.c_ispeed = 38400;
 	pty_slave_driver->init_termios.c_ospeed = 38400;
-	pty_slave_driver->flags = TTY_DRIVER_RESET_TERMIOS |
-					TTY_DRIVER_REAL_RAW;
 	pty_slave_driver->other = pty_driver;
 	tty_set_operations(pty_slave_driver, &slave_pty_ops_bsd);
 
@@ -673,10 +676,20 @@ static struct file_operations ptmx_fops;
 
 static void __init unix98_pty_init(void)
 {
-	ptm_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
+	ptm_driver = tty_alloc_driver(NR_UNIX98_PTY_MAX,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV |
+			TTY_DRIVER_DEVPTS_MEM |
+			TTY_DRIVER_DYNAMIC_ALLOC);
 	if (!ptm_driver)
 		panic("Couldn't allocate Unix98 ptm driver");
-	pts_driver = alloc_tty_driver(NR_UNIX98_PTY_MAX);
+	pts_driver = tty_alloc_driver(NR_UNIX98_PTY_MAX,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV |
+			TTY_DRIVER_DEVPTS_MEM |
+			TTY_DRIVER_DYNAMIC_ALLOC);
 	if (!pts_driver)
 		panic("Couldn't allocate Unix98 pts driver");
 
@@ -693,8 +706,6 @@ static void __init unix98_pty_init(void)
 	ptm_driver->init_termios.c_lflag = 0;
 	ptm_driver->init_termios.c_ispeed = 38400;
 	ptm_driver->init_termios.c_ospeed = 38400;
-	ptm_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	ptm_driver->other = pts_driver;
 	tty_set_operations(ptm_driver, &ptm_unix98_ops);
 
@@ -708,8 +719,6 @@ static void __init unix98_pty_init(void)
 	pts_driver->init_termios.c_cflag = B38400 | CS8 | CREAD;
 	pts_driver->init_termios.c_ispeed = 38400;
 	pts_driver->init_termios.c_ospeed = 38400;
-	pts_driver->flags = TTY_DRIVER_RESET_TERMIOS | TTY_DRIVER_REAL_RAW |
-		TTY_DRIVER_DYNAMIC_DEV | TTY_DRIVER_DEVPTS_MEM;
 	pts_driver->other = ptm_driver;
 	tty_set_operations(pts_driver, &pty_unix98_ops);
 
