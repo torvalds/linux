@@ -464,50 +464,17 @@ exit:
 }
 
 /*
- * PCM stuffs
- */
-static void ca0132_setup_stream(struct hda_codec *codec, hda_nid_t nid,
-				 u32 stream_tag,
-				 int channel_id, int format)
-{
-	unsigned int oldval, newval;
-
-	if (!nid)
-		return;
-
-	snd_printdd("ca0132_setup_stream: "
-		"NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
-		nid, stream_tag, channel_id, format);
-
-	/* update the format-id if changed */
-	oldval = snd_hda_codec_read(codec, nid, 0,
-				    AC_VERB_GET_STREAM_FORMAT,
-				    0);
-	if (oldval != format) {
-		msleep(20);
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_STREAM_FORMAT,
-				    format);
-	}
-
-	oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
-	newval = (stream_tag << 4) | channel_id;
-	if (oldval != newval) {
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_CHANNEL_STREAMID,
-				    newval);
-	}
-}
-
-static void ca0132_cleanup_stream(struct hda_codec *codec, hda_nid_t nid)
-{
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_STREAM_FORMAT, 0);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CHANNEL_STREAMID, 0);
-}
-
-/*
  * PCM callbacks
  */
+static int ca0132_playback_pcm_open(struct hda_pcm_stream *hinfo,
+				    struct hda_codec *codec,
+				    struct snd_pcm_substream *substream)
+{
+	struct ca0132_spec *spec = codec->spec;
+	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
+					     hinfo);
+}
+
 static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct hda_codec *codec,
 			unsigned int stream_tag,
@@ -515,10 +482,8 @@ static int ca0132_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->dacs[0], stream_tag, 0, format);
-
-	return 0;
+	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout,
+						stream_tag, format, substream);
 }
 
 static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
@@ -526,15 +491,20 @@ static int ca0132_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->dacs[0]);
-
-	return 0;
+	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
 }
 
 /*
  * Digital out
  */
+static int ca0132_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
+					struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
+{
+	struct ca0132_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
+}
+
 static int ca0132_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct hda_codec *codec,
 			unsigned int stream_tag,
@@ -542,10 +512,8 @@ static int ca0132_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->dig_out, stream_tag, 0, format);
-
-	return 0;
+	return snd_hda_multi_out_dig_prepare(codec, &spec->multiout,
+					     stream_tag, format, substream);
 }
 
 static int ca0132_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
@@ -553,65 +521,15 @@ static int ca0132_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 			struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->dig_out);
-
-	return 0;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
 }
 
-/*
- * Analog capture
- */
-static int ca0132_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			unsigned int stream_tag,
-			unsigned int format,
-			struct snd_pcm_substream *substream)
+static int ca0132_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
+					 struct hda_codec *codec,
+					 struct snd_pcm_substream *substream)
 {
 	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->adcs[substream->number],
-			     stream_tag, 0, format);
-
-	return 0;
-}
-
-static int ca0132_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			struct snd_pcm_substream *substream)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->adcs[substream->number]);
-
-	return 0;
-}
-
-/*
- * Digital capture
- */
-static int ca0132_dig_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			unsigned int stream_tag,
-			unsigned int format,
-			struct snd_pcm_substream *substream)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_setup_stream(codec, spec->dig_in, stream_tag, 0, format);
-
-	return 0;
-}
-
-static int ca0132_dig_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
-			struct hda_codec *codec,
-			struct snd_pcm_substream *substream)
-{
-	struct ca0132_spec *spec = codec->spec;
-
-	ca0132_cleanup_stream(codec, spec->dig_in);
-
-	return 0;
+	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
 
 /*
@@ -621,6 +539,7 @@ static struct hda_pcm_stream ca0132_pcm_analog_playback = {
 	.channels_min = 2,
 	.channels_max = 2,
 	.ops = {
+		.open = ca0132_playback_pcm_open,
 		.prepare = ca0132_playback_pcm_prepare,
 		.cleanup = ca0132_playback_pcm_cleanup
 	},
@@ -630,10 +549,6 @@ static struct hda_pcm_stream ca0132_pcm_analog_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
-	.ops = {
-		.prepare = ca0132_capture_pcm_prepare,
-		.cleanup = ca0132_capture_pcm_cleanup
-	},
 };
 
 static struct hda_pcm_stream ca0132_pcm_digital_playback = {
@@ -641,6 +556,8 @@ static struct hda_pcm_stream ca0132_pcm_digital_playback = {
 	.channels_min = 2,
 	.channels_max = 2,
 	.ops = {
+		.open = ca0132_dig_playback_pcm_open,
+		.close = ca0132_dig_playback_pcm_close,
 		.prepare = ca0132_dig_playback_pcm_prepare,
 		.cleanup = ca0132_dig_playback_pcm_cleanup
 	},
@@ -650,10 +567,6 @@ static struct hda_pcm_stream ca0132_pcm_digital_capture = {
 	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
-	.ops = {
-		.prepare = ca0132_dig_capture_pcm_prepare,
-		.cleanup = ca0132_dig_capture_pcm_cleanup
-	},
 };
 
 static int ca0132_build_pcms(struct hda_codec *codec)
@@ -960,6 +873,9 @@ static void ca0132_config(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+
+	codec->pcm_format_first = 1;
+	codec->no_sticky_stream = 1;
 
 	/* line-outs */
 	cfg->line_outs = 1;
