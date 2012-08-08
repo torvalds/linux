@@ -839,22 +839,26 @@ typedef struct drm_i915_private {
 		u8 max_delay;
 	} rps;
 
+	/* ilk-only ips/rps state. Everything in here is protected by the global
+	 * mchdev_lock in intel_pm.c */
+	struct {
+		u8 cur_delay;
+		u8 min_delay;
+		u8 max_delay;
+		u8 fmax;
+		u8 fstart;
 
-	u8 cur_delay;
-	u8 min_delay;
-	u8 max_delay;
-	u8 fmax;
-	u8 fstart;
+		u64 last_count1;
+		unsigned long last_time1;
+		unsigned long chipset_power;
+		u64 last_count2;
+		struct timespec last_time2;
+		unsigned long gfx_power;
+		u8 corr;
 
-	u64 last_count1;
-	unsigned long last_time1;
-	unsigned long chipset_power;
-	u64 last_count2;
-	struct timespec last_time2;
-	unsigned long gfx_power;
-	int c_m;
-	int r_t;
-	u8 corr;
+		int c_m;
+		int r_t;
+	} ips;
 
 	enum no_fbc_reason no_fbc_reason;
 
