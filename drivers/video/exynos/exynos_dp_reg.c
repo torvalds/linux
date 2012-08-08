@@ -401,6 +401,7 @@ int exynos_dp_start_aux_transaction(struct exynos_dp_device *dp)
 {
 	int reg;
 	int retval = 0;
+	int timeout_loop = 0;
 
 	/* Enable AUX CH operation */
 	reg = readl(dp->reg_base + EXYNOS_DP_AUX_CH_CTL_2);
@@ -409,8 +410,15 @@ int exynos_dp_start_aux_transaction(struct exynos_dp_device *dp)
 
 	/* Is AUX CH command reply received? */
 	reg = readl(dp->reg_base + EXYNOS_DP_INT_STA);
-	while (!(reg & RPLY_RECEIV))
+	while (!(reg & RPLY_RECEIV)) {
+		timeout_loop++;
+		if (DP_TIMEOUT_LOOP_COUNT < timeout_loop) {
+			dev_err(dp->dev, "AUX CH command reply failed!\n");
+			return -ETIMEDOUT;
+		}
 		reg = readl(dp->reg_base + EXYNOS_DP_INT_STA);
+		usleep_range(10, 11);
+	}
 
 	/* Clear interrupt source for AUX CH command reply */
 	writel(RPLY_RECEIV, dp->reg_base + EXYNOS_DP_INT_STA);
