@@ -4312,6 +4312,8 @@
 #define  PIPE_DDI_BPC_10				(1<<20)
 #define  PIPE_DDI_BPC_6					(2<<20)
 #define  PIPE_DDI_BPC_12				(3<<20)
+#define  PIPE_DDI_PVSYNC			(1<<17)
+#define  PIPE_DDI_PHSYNC			(1<<16)
 #define  PIPE_DDI_BFI_ENABLE			(1<<4)
 #define  PIPE_DDI_PORT_WIDTH_X1			(0<<1)
 #define  PIPE_DDI_PORT_WIDTH_X2			(1<<1)

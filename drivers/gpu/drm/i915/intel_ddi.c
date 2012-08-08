@@ -727,6 +727,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	temp &= ~PIPE_DDI_PORT_MASK;
 	temp &= ~PIPE_DDI_BPC_12;
 	temp &= ~PIPE_DDI_MODE_SELECT_MASK;
+	temp &= ~(PIPE_DDI_PVSYNC | PIPE_DDI_PHSYNC);
 	temp |= PIPE_DDI_SELECT_PORT(port) |
 			((intel_crtc->bpp > 24) ?
 				PIPE_DDI_BPC_12 :
@@ -737,6 +738,11 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 		temp |= PIPE_DDI_MODE_SELECT_HDMI;
 	else
 		temp |= PIPE_DDI_MODE_SELECT_DVI;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+		temp |= PIPE_DDI_PVSYNC;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+		temp |= PIPE_DDI_PHSYNC;
 
 	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
 
