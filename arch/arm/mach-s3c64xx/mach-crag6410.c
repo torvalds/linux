@@ -46,6 +46,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
@@ -57,7 +58,6 @@
 #include <mach/regs-gpio-memport.h>
 
 #include <plat/regs-serial.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>

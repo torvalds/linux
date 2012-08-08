@@ -43,6 +43,7 @@
 #endif
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -72,7 +73,6 @@
 #include <plat/ts.h>
 #include <plat/keypad.h>
 #include <plat/backlight.h>
-#include <plat/regs-fb-v4.h>
 
 #include "common.h"
 

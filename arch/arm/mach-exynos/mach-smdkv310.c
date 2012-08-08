@@ -26,9 +26,9 @@
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
