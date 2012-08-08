@@ -32,6 +32,7 @@
 #define CLK_LOOPS_JIFFY_REF 11996091ULL
 #define CLK_LOOPS_RATE_REF (1200) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
+#define LPJ_24M	(CLK_LOOPS_JIFFY_REF * 24) / CLK_LOOPS_RATE_REF
 
 
 struct apll_clk_set {
@@ -121,10 +122,12 @@ struct pll_clk_set {
 	.clksel0 = ACLK_CPU_DIV(RATIO_##_axi_div),\
 	.clksel1 = PCLK_CPU_DIV(RATIO_##_apb_div) | HCLK_CPU_DIV(RATIO_##_ahb_div) \
 	| ACLK_CORE_DIV(RATIO_##_aclk_core_div) | CLK_CORE_PERI_DIV(RATIO_##_periph_div),	\
-	.lpj	= 1500,	\
+	.lpj	= (CLK_LOOPS_JIFFY_REF * _mhz) / CLK_LOOPS_RATE_REF,	\
 }
+
 static const struct apll_clk_set apll_clks[] = {
-	_APLL_SET_CLKS(650, 6, 325, 2, 1, 1, 0, 	41, 21, 81, 21, 21),
+	_APLL_SET_CLKS( 650, 6, 325, 2, 1, 1, 0, 41, 21, 81, 21, 21),
+	_APLL_SET_CLKS(1000, 3, 125, 1, 1, 1, 0, 41, 21, 41, 21, 21),
 };
 
 #define _PLL_SET_CLKS(_mhz, _refdiv, _fbdiv, _postdiv1, _postdiv2, _dsmpd, _frac) \
@@ -709,6 +712,7 @@ static int pll_set_con(u8 id, u32 refdiv, u32 fbdiv, u32 postdiv1, u32 postdiv2,
 }
 static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
+	unsigned long flags;
 	struct _pll_data *pll_data=clk->pll;
 	struct apll_clk_set *clk_set=(struct apll_clk_set*)pll_data->table;
 
@@ -737,13 +741,16 @@ static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 		CLKDATA_DBG("apll get a rate\n");
 	
 		//enter slowmode
+		local_irq_save(flags);
 		cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
+		loops_per_jiffy = LPJ_24M;
 
 		cru_writel(clk_set->pllcon0, PLL_CONS(pll_id,0));
 		cru_writel(clk_set->pllcon1, PLL_CONS(pll_id,1));
 		cru_writel(clk_set->pllcon2, PLL_CONS(pll_id,2));
 		cru_writel(clk_set->clksel0, CRU_CLKSELS_CON(0));
 		cru_writel(clk_set->clksel1, CRU_CLKSELS_CON(1));
+		local_irq_restore(flags);
 
 		CLKDATA_DBG("pllcon0 %08x\n", cru_readl(PLL_CONS(0,0)));
 		CLKDATA_DBG("pllcon1 %08x\n", cru_readl(PLL_CONS(0,1)));
@@ -758,7 +765,10 @@ static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 		pll_wait_lock(pll_id);
 
 		//return form slow
+		local_irq_save(flags);
 		cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
+		loops_per_jiffy = clk_set->lpj;
+		local_irq_restore(flags);
 	} else {
 		// FIXME 
 		pll_clk_get_set(clk->parent->rate, rate, &refdiv, &fbdiv, &postdiv1, &postdiv2, &frac);	
