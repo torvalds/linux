@@ -271,9 +271,10 @@ static int adjd_s311_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	data->buffer = krealloc(data->buffer, indio_dev->scan_bytes,
-				GFP_KERNEL);
-	if (!data->buffer)
+
+	kfree(data->buffer);
+	data->buffer = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
+	if (data->buffer == NULL)
 		return -ENOMEM;
 
 	return 0;
