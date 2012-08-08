@@ -68,6 +68,14 @@
 			I5100_FERR_NF_MEM_M1ERR_MASK)
 #define	I5100_NERR_NF_MEM	0xa4	/* MC Next Non-Fatal Errors */
 #define I5100_EMASK_MEM		0xa8	/* MC Error Mask Register */
+#define I5100_MEM0EINJMSK0	0x200	/* Injection Mask0 Register Channel 0 */
+#define I5100_MEM1EINJMSK0	0x208	/* Injection Mask0 Register Channel 1 */
+#define		I5100_MEMXEINJMSK0_EINJEN	(1 << 27)
+#define I5100_MEM0EINJMSK1	0x204	/* Injection Mask1 Register Channel 0 */
+#define I5100_MEM1EINJMSK1	0x206	/* Injection Mask1 Register Channel 1 */
+
+/* Device 19, Function 0 */
+#define I5100_DINJ0 0x9a
 
 /* device 21 and 22, func 0 */
 #define I5100_MTR_0	0x154	/* Memory Technology Registers 0-3 */
@@ -344,6 +352,14 @@ struct i5100_priv {
 
 	struct delayed_work i5100_scrubbing;
 	int scrub_enable;
+
+	/* Error injection */
+	u8 inject_channel;
+	u8 inject_hlinesel;
+	u8 inject_deviceptr1;
+	u8 inject_deviceptr2;
+	u16 inject_eccmask1;
+	u16 inject_eccmask2;
 };
 
 /* map a rank/chan to a slot number on the mainboard */
@@ -864,6 +880,70 @@ static void i5100_init_csrows(struct mem_ctl_info *mci)
 	}
 }
 
+/****************************************************************************
+ *                       Error injection routines
+ ****************************************************************************/
+
+static void i5100_do_inject(struct mem_ctl_info *mci)
+{
+	struct i5100_priv *priv = mci->pvt_info;
+	u32 mask0;
+	u16 mask1;
+
+	/* MEM[1:0]EINJMSK0
+	 * 31    - ADDRMATCHEN
+	 * 29:28 - HLINESEL
+	 *         00 Reserved
+	 *         01 Lower half of cache line
+	 *         10 Upper half of cache line
+	 *         11 Both upper and lower parts of cache line
+	 * 27    - EINJEN
+	 * 25:19 - XORMASK1 for deviceptr1
+	 * 9:5   - SEC2RAM for deviceptr2
+	 * 4:0   - FIR2RAM for deviceptr1
+	 */
+	mask0 = ((priv->inject_hlinesel & 0x3) << 28) |
+		I5100_MEMXEINJMSK0_EINJEN |
+		((priv->inject_eccmask1 & 0xffff) << 10) |
+		((priv->inject_deviceptr2 & 0x1f) << 5) |
+		(priv->inject_deviceptr1 & 0x1f);
+
+	/* MEM[1:0]EINJMSK1
+	 * 15:0  - XORMASK2 for deviceptr2
+	 */
+	mask1 = priv->inject_eccmask2;
+
+	if (priv->inject_channel == 0) {
+		pci_write_config_dword(priv->mc, I5100_MEM0EINJMSK0, mask0);
+		pci_write_config_word(priv->mc, I5100_MEM0EINJMSK1, mask1);
+	} else {
+		pci_write_config_dword(priv->mc, I5100_MEM1EINJMSK0, mask0);
+		pci_write_config_word(priv->mc, I5100_MEM1EINJMSK1, mask1);
+	}
+
+	/* Error Injection Response Function
+	 * Intel 5100 Memory Controller Hub Chipset (318378) datasheet
+	 * hints about this register but carry no data about them. All
+	 * data regarding device 19 is based on experimentation and the
+	 * Intel 7300 Chipset Memory Controller Hub (318082) datasheet
+	 * which appears to be accurate for the i5100 in this area.
+	 *
+	 * The injection code don't work without setting this register.
+	 * The register needs to be flipped off then on else the hardware
+	 * will only preform the first injection.
+	 *
+	 * Stop condition bits 7:4
+	 * 1010 - Stop after one injection
+	 * 1011 - Never stop injecting faults
+	 *
+	 * Start condition bits 3:0
+	 * 1010 - Never start
+	 * 1011 - Start immediately
+	 */
+	pci_write_config_byte(priv->einj, I5100_DINJ0, 0xaa);
+	pci_write_config_byte(priv->einj, I5100_DINJ0, 0xab);
+}
+
 static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int rc;
@@ -992,6 +1072,13 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mci->edac_check = i5100_check_error;
 	mci->set_sdram_scrub_rate = i5100_set_scrub_rate;
 	mci->get_sdram_scrub_rate = i5100_get_scrub_rate;
+
+	priv->inject_channel = 0;
+	priv->inject_hlinesel = 0;
+	priv->inject_deviceptr1 = 0;
+	priv->inject_deviceptr2 = 0;
+	priv->inject_eccmask1 = 0;
+	priv->inject_eccmask2 = 0;
 
 	i5100_init_csrows(mci);
 
