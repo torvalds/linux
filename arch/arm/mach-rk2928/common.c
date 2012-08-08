@@ -11,7 +11,7 @@
 #include <plat/sram.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
-//#include <mach/iomux.h>
+#include <mach/iomux.h>
 #include <mach/fiq.h>
 //#include <mach/loader.h>
 //#include <mach/ddr.h>
@@ -86,18 +86,11 @@ static void __init rk2928_l2_cache_init(void)
 static int boot_mode;
 static void __init rk2928_boot_mode_init(void)
 {
-#if 0
-	u32 boot_flag = readl_relaxed(RK2928_PMU_BASE + PMU_SYS_REG0);
-	boot_mode = readl_relaxed(RK2928_PMU_BASE + PMU_SYS_REG1);
+	u32 boot_flag = 0;
+	boot_mode = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG1);
 
-	if (boot_flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
-		boot_mode = BOOT_MODE_RECOVERY;
-	} else if (strstr(boot_command_line, "(parameter)")) {
-		boot_mode = BOOT_MODE_RECOVERY;
-	}
 	if (boot_mode || boot_flag)
 		printk("Boot mode: %d flag: 0x%08x\n", boot_mode, boot_flag);
-#endif
 }
 
 int board_boot_mode(void)
