@@ -2796,7 +2796,9 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 			if ((mdev->ldev->md.uuid[UI_BITMAP] & ~((u64)1)) == (mdev->p_uuid[UI_HISTORY_START] & ~((u64)1)) &&
 			    (mdev->ldev->md.uuid[UI_HISTORY_START] & ~((u64)1)) == (mdev->p_uuid[UI_HISTORY_START + 1] & ~((u64)1))) {
 				dev_info(DEV, "was SyncSource, missed the resync finished event, corrected myself:\n");
-				drbd_uuid_set_bm(mdev, 0UL);
+				drbd_uuid_move_history(mdev);
+				mdev->ldev->md.uuid[UI_HISTORY_START] = mdev->ldev->md.uuid[UI_BITMAP];
+				mdev->ldev->md.uuid[UI_BITMAP] = 0;
 
 				drbd_uuid_dump(mdev, "self", mdev->ldev->md.uuid,
 					       mdev->state.disk >= D_NEGOTIATING ? drbd_bm_total_weight(mdev) : 0, 0);
@@ -2904,8 +2906,8 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 			if (mdev->tconn->agreed_pro_version < 91)
 				return -1091;
 
-			_drbd_uuid_set(mdev, UI_BITMAP, mdev->ldev->md.uuid[UI_HISTORY_START]);
-			_drbd_uuid_set(mdev, UI_HISTORY_START, mdev->ldev->md.uuid[UI_HISTORY_START + 1]);
+			__drbd_uuid_set(mdev, UI_BITMAP, mdev->ldev->md.uuid[UI_HISTORY_START]);
+			__drbd_uuid_set(mdev, UI_HISTORY_START, mdev->ldev->md.uuid[UI_HISTORY_START + 1]);
 
 			dev_info(DEV, "Last syncUUID did not get through, corrected:\n");
 			drbd_uuid_dump(mdev, "self", mdev->ldev->md.uuid,
@@ -2959,11 +2961,14 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		mydisk = mdev->new_state_tmp.disk;
 
 	dev_info(DEV, "drbd_sync_handshake:\n");
+
+	spin_lock_irq(&mdev->ldev->md.uuid_lock);
 	drbd_uuid_dump(mdev, "self", mdev->ldev->md.uuid, mdev->comm_bm_set, 0);
 	drbd_uuid_dump(mdev, "peer", mdev->p_uuid,
 		       mdev->p_uuid[UI_SIZE], mdev->p_uuid[UI_FLAGS]);
 
 	hg = drbd_uuid_compare(mdev, &rule_nr);
+	spin_unlock_irq(&mdev->ldev->md.uuid_lock);
 
 	dev_info(DEV, "uuid_compare()=%d by rule %d\n", hg, rule_nr);
 

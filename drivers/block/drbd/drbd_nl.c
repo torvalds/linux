@@ -1320,6 +1320,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		retcode = ERR_NOMEM;
 		goto fail;
 	}
+	spin_lock_init(&nbc->md.uuid_lock);
+
 	new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
 	if (!new_disk_conf) {
 		retcode = ERR_NOMEM;
@@ -2679,8 +2681,16 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 		goto nla_put_failure;
 
 	if (got_ldev) {
+		int err;
+
+		spin_lock_irq(&mdev->ldev->md.uuid_lock);
+		err = nla_put(skb, T_uuids, sizeof(si->uuids), mdev->ldev->md.uuid);
+		spin_unlock_irq(&mdev->ldev->md.uuid_lock);
+
+		if (err)
+			goto nla_put_failure;
+
 		if (nla_put_u32(skb, T_disk_flags, mdev->ldev->md.flags) ||
-		    nla_put(skb, T_uuids, sizeof(si->uuids), mdev->ldev->md.uuid) ||
 		    nla_put_u64(skb, T_bits_total, drbd_bm_bits(mdev)) ||
 		    nla_put_u64(skb, T_bits_oos, drbd_bm_total_weight(mdev)))
 			goto nla_put_failure;

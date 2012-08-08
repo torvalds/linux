@@ -747,6 +747,7 @@ struct drbd_md {
 	u64 md_offset;		/* sector offset to 'super' block */
 
 	u64 la_size_sect;	/* last agreed size, unit sectors */
+	spinlock_t uuid_lock;
 	u64 uuid[UI_SIZE];
 	u64 device_uuid;
 	u32 flags;
@@ -1119,8 +1120,9 @@ extern int  drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev);
 extern void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
 extern void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
 extern void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local);
-extern void _drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local);
 extern void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local);
+extern void drbd_uuid_move_history(struct drbd_conf *mdev) __must_hold(local);
+extern void __drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local);
 extern void drbd_md_set_flag(struct drbd_conf *mdev, int flags) __must_hold(local);
 extern void drbd_md_clear_flag(struct drbd_conf *mdev, int flags)__must_hold(local);
 extern int drbd_md_test_flag(struct drbd_backing_dev *, int);

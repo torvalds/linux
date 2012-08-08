@@ -838,8 +838,10 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 		put_ldev(mdev);
 		return -EIO;
 	}
+	spin_lock_irq(&mdev->ldev->md.uuid_lock);
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		p->uuid[i] = mdev->ldev ? cpu_to_be64(mdev->ldev->md.uuid[i]) : 0;
+	spin_unlock_irq(&mdev->ldev->md.uuid_lock);
 
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
 	p->uuid[UI_SIZE] = cpu_to_be64(mdev->comm_bm_set);
@@ -3015,7 +3017,7 @@ void drbd_md_mark_dirty(struct drbd_conf *mdev)
 }
 #endif
 
-static void drbd_uuid_move_history(struct drbd_conf *mdev) __must_hold(local)
+void drbd_uuid_move_history(struct drbd_conf *mdev) __must_hold(local)
 {
 	int i;
 
@@ -3023,7 +3025,7 @@ static void drbd_uuid_move_history(struct drbd_conf *mdev) __must_hold(local)
 		mdev->ldev->md.uuid[i+1] = mdev->ldev->md.uuid[i];
 }
 
-void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
+void __drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 {
 	if (idx == UI_CURRENT) {
 		if (mdev->state.role == R_PRIMARY)
@@ -3038,14 +3040,24 @@ void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 	drbd_md_mark_dirty(mdev);
 }
 
+void _drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&mdev->ldev->md.uuid_lock, flags);
+	__drbd_uuid_set(mdev, idx, val);
+	spin_unlock_irqrestore(&mdev->ldev->md.uuid_lock, flags);
+}
 
 void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 {
+	unsigned long flags;
+	spin_lock_irqsave(&mdev->ldev->md.uuid_lock, flags);
 	if (mdev->ldev->md.uuid[idx]) {
 		drbd_uuid_move_history(mdev);
 		mdev->ldev->md.uuid[UI_HISTORY_START] = mdev->ldev->md.uuid[idx];
 	}
-	_drbd_uuid_set(mdev, idx, val);
+	__drbd_uuid_set(mdev, idx, val);
+	spin_unlock_irqrestore(&mdev->ldev->md.uuid_lock, flags);
 }
 
 /**
@@ -3058,15 +3070,20 @@ void drbd_uuid_set(struct drbd_conf *mdev, int idx, u64 val) __must_hold(local)
 void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local)
 {
 	u64 val;
-	unsigned long long bm_uuid = mdev->ldev->md.uuid[UI_BITMAP];
+	unsigned long long bm_uuid;
+
+	get_random_bytes(&val, sizeof(u64));
+
+	spin_lock_irq(&mdev->ldev->md.uuid_lock);
+	bm_uuid = mdev->ldev->md.uuid[UI_BITMAP];
 
 	if (bm_uuid)
 		dev_warn(DEV, "bm UUID was already set: %llX\n", bm_uuid);
 
 	mdev->ldev->md.uuid[UI_BITMAP] = mdev->ldev->md.uuid[UI_CURRENT];
+	__drbd_uuid_set(mdev, UI_CURRENT, val);
+	spin_unlock_irq(&mdev->ldev->md.uuid_lock);
 
-	get_random_bytes(&val, sizeof(u64));
-	_drbd_uuid_set(mdev, UI_CURRENT, val);
 	drbd_print_uuids(mdev, "new current UUID");
 	/* get it to stable storage _now_ */
 	drbd_md_sync(mdev);
@@ -3074,9 +3091,11 @@ void drbd_uuid_new_current(struct drbd_conf *mdev) __must_hold(local)
 
 void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local)
 {
+	unsigned long flags;
 	if (mdev->ldev->md.uuid[UI_BITMAP] == 0 && val == 0)
 		return;
 
+	spin_lock_irqsave(&mdev->ldev->md.uuid_lock, flags);
 	if (val == 0) {
 		drbd_uuid_move_history(mdev);
 		mdev->ldev->md.uuid[UI_HISTORY_START] = mdev->ldev->md.uuid[UI_BITMAP];
@@ -3088,6 +3107,8 @@ void drbd_uuid_set_bm(struct drbd_conf *mdev, u64 val) __must_hold(local)
 
 		mdev->ldev->md.uuid[UI_BITMAP] = val & ~((u64)1);
 	}
+	spin_unlock_irqrestore(&mdev->ldev->md.uuid_lock, flags);
+
 	drbd_md_mark_dirty(mdev);
 }
 
