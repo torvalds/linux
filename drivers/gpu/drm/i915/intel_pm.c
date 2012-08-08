@@ -3188,7 +3188,6 @@ void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
 	 * set up, to avoid intel-ips sneaking in and reading bogus values. */
 	spin_lock(&mchdev_lock);
 	i915_mch_dev = dev_priv;
-	dev_priv->mchdev_lock = &mchdev_lock;
 	spin_unlock(&mchdev_lock);
 
 	ips_ping_for_i915_load();

@@ -850,7 +850,6 @@ typedef struct drm_i915_private {
 	int c_m;
 	int r_t;
 	u8 corr;
-	spinlock_t *mchdev_lock;
 
 	enum no_fbc_reason no_fbc_reason;
 
