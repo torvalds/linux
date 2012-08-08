@@ -2409,7 +2409,7 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate,unsigned lon
 {
 	CLKDATA_DBG("ENTER %s\n", __func__);
 
-	clk_set_rate_nolock(&clk_core_pre, 650 * MHZ);//816
+	clk_set_rate_nolock(&clk_core_pre, 1000 * MHZ);//816
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
