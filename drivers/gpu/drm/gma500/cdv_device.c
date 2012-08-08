@@ -58,10 +58,17 @@ static int cdv_output_init(struct drm_device *dev)
 	cdv_intel_lvds_init(dev, &dev_priv->mode_dev);
 
 	/* These bits indicate HDMI not SDVO on CDV */
-	if (REG_READ(SDVOB) & SDVO_DETECTED)
+	if (REG_READ(SDVOB) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOB);
-	if (REG_READ(SDVOC) & SDVO_DETECTED)
+		if (REG_READ(DP_B) & DP_DETECTED)
+			cdv_intel_dp_init(dev, &dev_priv->mode_dev, DP_B);
+	}
+
+	if (REG_READ(SDVOC) & SDVO_DETECTED) {
 		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOC);
+		if (REG_READ(DP_C) & DP_DETECTED)
+			cdv_intel_dp_init(dev, &dev_priv->mode_dev, DP_C);
+	}
 	return 0;
 }
 
