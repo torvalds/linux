@@ -1469,6 +1469,7 @@ extern int  drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr);
 extern int  drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local);
 extern int  drbd_bm_read(struct drbd_conf *mdev) __must_hold(local);
 extern int  drbd_bm_write(struct drbd_conf *mdev) __must_hold(local);
+extern int drbd_bm_write_all(struct drbd_conf *mdev) __must_hold(local);
 extern int  drbd_bm_write_copy_pages(struct drbd_conf *mdev) __must_hold(local);
 extern unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev,
 		unsigned long al_enr);
