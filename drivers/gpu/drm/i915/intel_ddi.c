@@ -725,14 +725,28 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
 	temp = I915_READ(DDI_FUNC_CTL(pipe));
 	temp &= ~PIPE_DDI_PORT_MASK;
-	temp &= ~PIPE_DDI_BPC_12;
+	temp &= ~PIPE_DDI_BPC_MASK;
 	temp &= ~PIPE_DDI_MODE_SELECT_MASK;
 	temp &= ~(PIPE_DDI_PVSYNC | PIPE_DDI_PHSYNC);
-	temp |= PIPE_DDI_SELECT_PORT(port) |
-			((intel_crtc->bpp > 24) ?
-				PIPE_DDI_BPC_12 :
-				PIPE_DDI_BPC_8) |
-			PIPE_DDI_FUNC_ENABLE;
+	temp |= PIPE_DDI_FUNC_ENABLE | PIPE_DDI_SELECT_PORT(port);
+
+	switch (intel_crtc->bpp) {
+	case 18:
+		temp |= PIPE_DDI_BPC_6;
+		break;
+	case 24:
+		temp |= PIPE_DDI_BPC_8;
+		break;
+	case 30:
+		temp |= PIPE_DDI_BPC_10;
+		break;
+	case 36:
+		temp |= PIPE_DDI_BPC_12;
+		break;
+	default:
+		WARN(1, "%d bpp unsupported by pipe DDI function\n",
+		     intel_crtc->bpp);
+	}
 
 	if (intel_hdmi->has_hdmi_sink)
 		temp |= PIPE_DDI_MODE_SELECT_HDMI;

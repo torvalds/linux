@@ -4308,6 +4308,7 @@
 #define  PIPE_DDI_MODE_SELECT_DP_SST	(2<<24)
 #define  PIPE_DDI_MODE_SELECT_DP_MST	(3<<24)
 #define  PIPE_DDI_MODE_SELECT_FDI		(4<<24)
+#define  PIPE_DDI_BPC_MASK			(7<<20)
 #define  PIPE_DDI_BPC_8					(0<<20)
 #define  PIPE_DDI_BPC_10				(1<<20)
 #define  PIPE_DDI_BPC_6					(2<<20)
