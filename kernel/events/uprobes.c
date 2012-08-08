@@ -345,24 +345,22 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned 
  * @mm: the probed process address space.
  * @auprobe: arch specific probepoint information.
  * @vaddr: the virtual address to insert the opcode.
- * @verify: if true, verify existance of breakpoint instruction.
  *
  * For mm @mm, restore the original opcode (opcode) at @vaddr.
  * Return 0 (success) or a negative errno.
  */
 int __weak
-set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr, bool verify)
+set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	if (verify) {
-		int result;
+	int result;
 
-		result = is_swbp_at_addr(mm, vaddr);
-		if (!result)
-			return -EINVAL;
+	result = is_swbp_at_addr(mm, vaddr);
+	if (!result)
+		return -EINVAL;
 
-		if (result != 1)
-			return result;
-	}
+	if (result != 1)
+		return result;
+
 	return write_opcode(auprobe, mm, vaddr, *(uprobe_opcode_t *)auprobe->insn);
 }
 
@@ -697,7 +695,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 static void
 remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	set_orig_insn(&uprobe->arch, mm, vaddr, true);
+	set_orig_insn(&uprobe->arch, mm, vaddr);
 }
 
 /*
