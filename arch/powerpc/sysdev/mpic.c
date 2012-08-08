@@ -1026,6 +1026,9 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 		return 0;
 	}
 
+	if (mpic_map_error_int(mpic, virq, hw))
+		return 0;
+
 	if (hw >= mpic->num_sources)
 		return -EINVAL;
 
@@ -1085,7 +1088,16 @@ static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 		 */
 		switch (intspec[2]) {
 		case 0:
-		case 1: /* no EISR/EIMR support for now, treat as shared IRQ */
+			break;
+		case 1:
+			if (!(mpic->flags & MPIC_FSL_HAS_EIMR))
+				break;
+
+			if (intspec[3] >= ARRAY_SIZE(mpic->err_int_vecs))
+				return -EINVAL;
+
+			*out_hwirq = mpic->err_int_vecs[intspec[3]];
+
 			break;
 		case 2:
 			if (intspec[0] >= ARRAY_SIZE(mpic->ipi_vecs))
@@ -1302,6 +1314,9 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic_map(mpic, mpic->paddr, &mpic->tmregs, MPIC_INFO(TIMER_BASE), 0x1000);
 
 	if (mpic->flags & MPIC_FSL) {
+		u32 brr1, version;
+		int ret;
+
 		/*
 		 * Yes, Freescale really did put global registers in the
 		 * magic per-cpu area -- and they don't even show up in the
@@ -1309,6 +1324,29 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 		 */
 		mpic_map(mpic, mpic->paddr, &mpic->thiscpuregs,
 			 MPIC_CPU_THISBASE, 0x1000);
+
+		brr1 = _mpic_read(mpic->reg_type, &mpic->thiscpuregs,
+				MPIC_FSL_BRR1);
+		version = brr1 & MPIC_FSL_BRR1_VER;
+
+		/* Error interrupt mask register (EIMR) is required for
+		 * handling individual device error interrupts. EIMR
+		 * was added in MPIC version 4.1.
+		 *
+		 * Over here we reserve vector number space for error
+		 * interrupt vectors. This space is stolen from the
+		 * global vector number space, as in case of ipis
+		 * and timer interrupts.
+		 *
+		 * Available vector space = intvec_top - 12, where 12
+		 * is the number of vectors which have been consumed by
+		 * ipis and timer interrupts.
+		 */
+		if (version >= 0x401) {
+			ret = mpic_setup_error_int(mpic, intvec_top - 12);
+			if (ret)
+				return NULL;
+		}
 	}
 
 	/* Reset */
@@ -1473,6 +1511,10 @@ void __init mpic_init(struct mpic *mpic)
 		if (version >= 0x0301)
 			num_timers = 8;
 	}
+
+	/* FSL mpic error interrupt intialization */
+	if (mpic->flags & MPIC_FSL_HAS_EIMR)
+		mpic_err_int_init(mpic, MPIC_FSL_ERR_INT);
 
 	/* Initialize timers to our reserved vectors and mask them for now */
 	for (i = 0; i < num_timers; i++) {
