@@ -723,12 +723,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
-	temp = I915_READ(DDI_FUNC_CTL(pipe));
-	temp &= ~PIPE_DDI_PORT_MASK;
-	temp &= ~PIPE_DDI_BPC_MASK;
-	temp &= ~PIPE_DDI_MODE_SELECT_MASK;
-	temp &= ~(PIPE_DDI_PVSYNC | PIPE_DDI_PHSYNC);
-	temp |= PIPE_DDI_FUNC_ENABLE | PIPE_DDI_SELECT_PORT(port);
+	temp = PIPE_DDI_FUNC_ENABLE | PIPE_DDI_SELECT_PORT(port);
 
 	switch (intel_crtc->bpp) {
 	case 18:
