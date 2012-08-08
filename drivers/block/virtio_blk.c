@@ -58,8 +58,18 @@ struct virtblk_req
 	struct bio *bio;
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
+	struct work_struct work;
+	struct virtio_blk *vblk;
+	int flags;
 	u8 status;
 	struct scatterlist sg[];
+};
+
+enum {
+	VBLK_IS_FLUSH		= 1,
+	VBLK_REQ_FLUSH		= 2,
+	VBLK_REQ_DATA		= 4,
+	VBLK_REQ_FUA		= 8,
 };
 
 static inline int virtblk_result(struct virtblk_req *vbr)
@@ -74,9 +84,133 @@ static inline int virtblk_result(struct virtblk_req *vbr)
 	}
 }
 
-static inline void virtblk_request_done(struct virtio_blk *vblk,
-					struct virtblk_req *vbr)
+static inline struct virtblk_req *virtblk_alloc_req(struct virtio_blk *vblk,
+						    gfp_t gfp_mask)
 {
+	struct virtblk_req *vbr;
+
+	vbr = mempool_alloc(vblk->pool, gfp_mask);
+	if (vbr && use_bio)
+		sg_init_table(vbr->sg, vblk->sg_elems);
+
+	vbr->vblk = vblk;
+
+	return vbr;
+}
+
+static void virtblk_add_buf_wait(struct virtio_blk *vblk,
+				 struct virtblk_req *vbr,
+				 unsigned long out,
+				 unsigned long in)
+{
+	DEFINE_WAIT(wait);
+
+	for (;;) {
+		prepare_to_wait_exclusive(&vblk->queue_wait, &wait,
+					  TASK_UNINTERRUPTIBLE);
+
+		spin_lock_irq(vblk->disk->queue->queue_lock);
+		if (virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
+				      GFP_ATOMIC) < 0) {
+			spin_unlock_irq(vblk->disk->queue->queue_lock);
+			io_schedule();
+		} else {
+			virtqueue_kick(vblk->vq);
+			spin_unlock_irq(vblk->disk->queue->queue_lock);
+			break;
+		}
+
+	}
+
+	finish_wait(&vblk->queue_wait, &wait);
+}
+
+static inline void virtblk_add_req(struct virtblk_req *vbr,
+				   unsigned int out, unsigned int in)
+{
+	struct virtio_blk *vblk = vbr->vblk;
+
+	spin_lock_irq(vblk->disk->queue->queue_lock);
+	if (unlikely(virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
+					GFP_ATOMIC) < 0)) {
+		spin_unlock_irq(vblk->disk->queue->queue_lock);
+		virtblk_add_buf_wait(vblk, vbr, out, in);
+		return;
+	}
+	virtqueue_kick(vblk->vq);
+	spin_unlock_irq(vblk->disk->queue->queue_lock);
+}
+
+static int virtblk_bio_send_flush(struct virtblk_req *vbr)
+{
+	unsigned int out = 0, in = 0;
+
+	vbr->flags |= VBLK_IS_FLUSH;
+	vbr->out_hdr.type = VIRTIO_BLK_T_FLUSH;
+	vbr->out_hdr.sector = 0;
+	vbr->out_hdr.ioprio = 0;
+	sg_set_buf(&vbr->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
+	sg_set_buf(&vbr->sg[out + in++], &vbr->status, sizeof(vbr->status));
+
+	virtblk_add_req(vbr, out, in);
+
+	return 0;
+}
+
+static int virtblk_bio_send_data(struct virtblk_req *vbr)
+{
+	struct virtio_blk *vblk = vbr->vblk;
+	unsigned int num, out = 0, in = 0;
+	struct bio *bio = vbr->bio;
+
+	vbr->flags &= ~VBLK_IS_FLUSH;
+	vbr->out_hdr.type = 0;
+	vbr->out_hdr.sector = bio->bi_sector;
+	vbr->out_hdr.ioprio = bio_prio(bio);
+
+	sg_set_buf(&vbr->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
+
+	num = blk_bio_map_sg(vblk->disk->queue, bio, vbr->sg + out);
+
+	sg_set_buf(&vbr->sg[num + out + in++], &vbr->status,
+		   sizeof(vbr->status));
+
+	if (num) {
+		if (bio->bi_rw & REQ_WRITE) {
+			vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;
+			out += num;
+		} else {
+			vbr->out_hdr.type |= VIRTIO_BLK_T_IN;
+			in += num;
+		}
+	}
+
+	virtblk_add_req(vbr, out, in);
+
+	return 0;
+}
+
+static void virtblk_bio_send_data_work(struct work_struct *work)
+{
+	struct virtblk_req *vbr;
+
+	vbr = container_of(work, struct virtblk_req, work);
+
+	virtblk_bio_send_data(vbr);
+}
+
+static void virtblk_bio_send_flush_work(struct work_struct *work)
+{
+	struct virtblk_req *vbr;
+
+	vbr = container_of(work, struct virtblk_req, work);
+
+	virtblk_bio_send_flush(vbr);
+}
+
+static inline void virtblk_request_done(struct virtblk_req *vbr)
+{
+	struct virtio_blk *vblk = vbr->vblk;
 	struct request *req = vbr->req;
 	int error = virtblk_result(vbr);
 
@@ -92,17 +226,47 @@ static inline void virtblk_request_done(struct virtio_blk *vblk,
 	mempool_free(vbr, vblk->pool);
 }
 
-static inline void virtblk_bio_done(struct virtio_blk *vblk,
-				    struct virtblk_req *vbr)
+static inline void virtblk_bio_flush_done(struct virtblk_req *vbr)
 {
-	bio_endio(vbr->bio, virtblk_result(vbr));
-	mempool_free(vbr, vblk->pool);
+	struct virtio_blk *vblk = vbr->vblk;
+
+	if (vbr->flags & VBLK_REQ_DATA) {
+		/* Send out the actual write data */
+		INIT_WORK(&vbr->work, virtblk_bio_send_data_work);
+		queue_work(virtblk_wq, &vbr->work);
+	} else {
+		bio_endio(vbr->bio, virtblk_result(vbr));
+		mempool_free(vbr, vblk->pool);
+	}
+}
+
+static inline void virtblk_bio_data_done(struct virtblk_req *vbr)
+{
+	struct virtio_blk *vblk = vbr->vblk;
+
+	if (unlikely(vbr->flags & VBLK_REQ_FUA)) {
+		/* Send out a flush before end the bio */
+		vbr->flags &= ~VBLK_REQ_DATA;
+		INIT_WORK(&vbr->work, virtblk_bio_send_flush_work);
+		queue_work(virtblk_wq, &vbr->work);
+	} else {
+		bio_endio(vbr->bio, virtblk_result(vbr));
+		mempool_free(vbr, vblk->pool);
+	}
+}
+
+static inline void virtblk_bio_done(struct virtblk_req *vbr)
+{
+	if (unlikely(vbr->flags & VBLK_IS_FLUSH))
+		virtblk_bio_flush_done(vbr);
+	else
+		virtblk_bio_data_done(vbr);
 }
 
 static void virtblk_done(struct virtqueue *vq)
 {
 	struct virtio_blk *vblk = vq->vdev->priv;
-	unsigned long bio_done = 0, req_done = 0;
+	bool bio_done = false, req_done = false;
 	struct virtblk_req *vbr;
 	unsigned long flags;
 	unsigned int len;
@@ -110,11 +274,11 @@ static void virtblk_done(struct virtqueue *vq)
 	spin_lock_irqsave(vblk->disk->queue->queue_lock, flags);
 	while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
 		if (vbr->bio) {
-			virtblk_bio_done(vblk, vbr);
-			bio_done++;
+			virtblk_bio_done(vbr);
+			bio_done = true;
 		} else {
-			virtblk_request_done(vblk, vbr);
-			req_done++;
+			virtblk_request_done(vbr);
+			req_done = true;
 		}
 	}
 	/* In case queue is stopped waiting for more buffers. */
@@ -124,18 +288,6 @@ static void virtblk_done(struct virtqueue *vq)
 
 	if (bio_done)
 		wake_up(&vblk->queue_wait);
-}
-
-static inline struct virtblk_req *virtblk_alloc_req(struct virtio_blk *vblk,
-						    gfp_t gfp_mask)
-{
-	struct virtblk_req *vbr;
-
-	vbr = mempool_alloc(vblk->pool, gfp_mask);
-	if (vbr && use_bio)
-		sg_init_table(vbr->sg, vblk->sg_elems);
-
-	return vbr;
 }
 
 static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
@@ -242,41 +394,12 @@ static void virtblk_request(struct request_queue *q)
 		virtqueue_kick(vblk->vq);
 }
 
-static void virtblk_add_buf_wait(struct virtio_blk *vblk,
-				 struct virtblk_req *vbr,
-				 unsigned long out,
-				 unsigned long in)
-{
-	DEFINE_WAIT(wait);
-
-	for (;;) {
-		prepare_to_wait_exclusive(&vblk->queue_wait, &wait,
-					  TASK_UNINTERRUPTIBLE);
-
-		spin_lock_irq(vblk->disk->queue->queue_lock);
-		if (virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
-				      GFP_ATOMIC) < 0) {
-			spin_unlock_irq(vblk->disk->queue->queue_lock);
-			io_schedule();
-		} else {
-			virtqueue_kick(vblk->vq);
-			spin_unlock_irq(vblk->disk->queue->queue_lock);
-			break;
-		}
-
-	}
-
-	finish_wait(&vblk->queue_wait, &wait);
-}
-
 static void virtblk_make_request(struct request_queue *q, struct bio *bio)
 {
 	struct virtio_blk *vblk = q->queuedata;
-	unsigned int num, out = 0, in = 0;
 	struct virtblk_req *vbr;
 
 	BUG_ON(bio->bi_phys_segments + 2 > vblk->sg_elems);
-	BUG_ON(bio->bi_rw & (REQ_FLUSH | REQ_FUA));
 
 	vbr = virtblk_alloc_req(vblk, GFP_NOIO);
 	if (!vbr) {
@@ -285,37 +408,18 @@ static void virtblk_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	vbr->bio = bio;
-	vbr->req = NULL;
-	vbr->out_hdr.type = 0;
-	vbr->out_hdr.sector = bio->bi_sector;
-	vbr->out_hdr.ioprio = bio_prio(bio);
+	vbr->flags = 0;
+	if (bio->bi_rw & REQ_FLUSH)
+		vbr->flags |= VBLK_REQ_FLUSH;
+	if (bio->bi_rw & REQ_FUA)
+		vbr->flags |= VBLK_REQ_FUA;
+	if (bio->bi_size)
+		vbr->flags |= VBLK_REQ_DATA;
 
-	sg_set_buf(&vbr->sg[out++], &vbr->out_hdr, sizeof(vbr->out_hdr));
-
-	num = blk_bio_map_sg(q, bio, vbr->sg + out);
-
-	sg_set_buf(&vbr->sg[num + out + in++], &vbr->status,
-		   sizeof(vbr->status));
-
-	if (num) {
-		if (bio->bi_rw & REQ_WRITE) {
-			vbr->out_hdr.type |= VIRTIO_BLK_T_OUT;
-			out += num;
-		} else {
-			vbr->out_hdr.type |= VIRTIO_BLK_T_IN;
-			in += num;
-		}
-	}
-
-	spin_lock_irq(vblk->disk->queue->queue_lock);
-	if (unlikely(virtqueue_add_buf(vblk->vq, vbr->sg, out, in, vbr,
-				       GFP_ATOMIC) < 0)) {
-		spin_unlock_irq(vblk->disk->queue->queue_lock);
-		virtblk_add_buf_wait(vblk, vbr, out, in);
-		return;
-	}
-	virtqueue_kick(vblk->vq);
-	spin_unlock_irq(vblk->disk->queue->queue_lock);
+	if (unlikely(vbr->flags & VBLK_REQ_FLUSH))
+		virtblk_bio_send_flush(vbr);
+	else
+		virtblk_bio_send_data(vbr);
 }
 
 /* return id (s/n) string for *disk to *id_str
@@ -529,7 +633,7 @@ static void virtblk_update_cache_mode(struct virtio_device *vdev)
 	u8 writeback = virtblk_get_cache_mode(vdev);
 	struct virtio_blk *vblk = vdev->priv;
 
-	if (writeback && !use_bio)
+	if (writeback)
 		blk_queue_flush(vblk->disk->queue, REQ_FLUSH);
 	else
 		blk_queue_flush(vblk->disk->queue, 0);
