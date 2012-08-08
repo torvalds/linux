@@ -501,6 +501,15 @@ static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
+		if (vcpu->mode == EXITING_GUEST_MODE) {
+			r = 1;
+			break;
+		}
+
+		/* Going into guest context! Yay! */
+		vcpu->mode = IN_GUEST_MODE;
+		smp_wmb();
+
 		break;
 	}
 
@@ -572,6 +581,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	kvm_guest_exit();
 
 out:
+	vcpu->mode = OUTSIDE_GUEST_MODE;
+	smp_wmb();
 	local_irq_enable();
 	return ret;
 }
