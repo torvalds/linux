@@ -170,6 +170,7 @@ static int cdv_backlight_init(struct drm_device *dev)
 			cdv_get_brightness(cdv_backlight_device);
 	backlight_update_status(cdv_backlight_device);
 	dev_priv->backlight_device = cdv_backlight_device;
+	dev_priv->backlight_enabled = true;
 	return 0;
 }
 

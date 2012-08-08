@@ -438,7 +438,8 @@ static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_96];
 		else
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_100];
-	} else if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+	} else if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+			psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
 		if (refclk == 27000)
 			limit = &cdv_intel_limits[CDV_LIMIT_DP_27];
 		else
@@ -1045,6 +1046,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	const struct cdv_intel_limit_t *limit;
 	u32 ddi_select = 0;
+	bool is_edp = false;
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_encoder *psb_intel_encoder =
@@ -1071,6 +1073,9 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_DISPLAYPORT:
 			is_dp = true;
 			break;
+		case INTEL_OUTPUT_EDP:
+			is_edp = true;
+			break;
 		default:
 			DRM_ERROR("invalid output type.\n");
 			return 0;
@@ -1083,7 +1088,15 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		/* high-end sku, 27/100 mhz */
 		refclk = 27000;
-	if (is_dp) {
+	if (is_dp || is_edp) {
+		/*
+		 * Based on the spec the low-end SKU has only CRT/LVDS. So it is
+		 * unnecessary to consider it for DP/eDP.
+		 * On the high-end SKU, it will use the 27/100M reference clk
+		 * for DP/eDP. When using SSC clock, the ref clk is 100MHz.Otherwise
+		 * it will be 27MHz. From the VBIOS code it seems that the pipe A choose
+		 * 27MHz for DP/eDP while the Pipe B chooses the 100MHz.
+		 */ 
 		if (pipe == 0)
 			refclk = 27000;
 		else
@@ -1133,6 +1146,31 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	/* setup pipeconf */
 	pipeconf = REG_READ(map->conf);
 
+	pipeconf &= ~(PIPE_BPC_MASK);
+	if (is_edp) {
+		switch (dev_priv->edp.bpp) {
+		case 24:
+			pipeconf |= PIPE_8BPC;
+			break;
+		case 18:
+			pipeconf |= PIPE_6BPC;
+			break;
+		case 30:
+			pipeconf |= PIPE_10BPC;
+			break;
+		default:
+			pipeconf |= PIPE_8BPC;
+			break;
+		}
+	} else if (is_lvds) {
+		/* the BPC will be 6 if it is 18-bit LVDS panel */
+		if ((REG_READ(LVDS) & LVDS_A3_POWER_MASK) == LVDS_A3_POWER_UP)
+			pipeconf |= PIPE_8BPC;
+		else
+			pipeconf |= PIPE_6BPC;
+	} else
+		pipeconf |= PIPE_8BPC;
+			
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 

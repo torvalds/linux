@@ -173,15 +173,46 @@
 #define PP_SEQUENCE_ON			(1 << 28)
 #define PP_SEQUENCE_OFF			(2 << 28)
 #define PP_SEQUENCE_MASK		0x30000000
+#define	PP_CYCLE_DELAY_ACTIVE		(1 << 27)
+#define	PP_SEQUENCE_STATE_ON_IDLE	(1 << 3)
+#define	PP_SEQUENCE_STATE_MASK		0x0000000f
+
 #define PP_CONTROL		0x61204
 #define POWER_TARGET_ON			(1 << 0)
+#define	PANEL_UNLOCK_REGS		(0xabcd << 16)
+#define	PANEL_UNLOCK_MASK		(0xffff << 16)
+#define	EDP_FORCE_VDD			(1 << 3)
+#define	EDP_BLC_ENABLE			(1 << 2)
+#define	PANEL_POWER_RESET		(1 << 1)
+#define	PANEL_POWER_OFF			(0 << 0)
+#define	PANEL_POWER_ON			(1 << 0)
 
+/* Poulsbo/Oaktrail */
 #define LVDSPP_ON		0x61208
 #define LVDSPP_OFF		0x6120c
 #define PP_CYCLE		0x61210
 
+/* Cedartrail */
 #define PP_ON_DELAYS		0x61208		/* Cedartrail */
+#define PANEL_PORT_SELECT_MASK 		(3 << 30)
+#define PANEL_PORT_SELECT_LVDS 		(0 << 30)
+#define PANEL_PORT_SELECT_EDP		(1 << 30)
+#define PANEL_POWER_UP_DELAY_MASK	(0x1fff0000)
+#define PANEL_POWER_UP_DELAY_SHIFT	16
+#define PANEL_LIGHT_ON_DELAY_MASK	(0x1fff)
+#define PANEL_LIGHT_ON_DELAY_SHIFT	0
+
 #define PP_OFF_DELAYS		0x6120c		/* Cedartrail */
+#define PANEL_POWER_DOWN_DELAY_MASK	(0x1fff0000)
+#define PANEL_POWER_DOWN_DELAY_SHIFT	16
+#define PANEL_LIGHT_OFF_DELAY_MASK	(0x1fff)
+#define PANEL_LIGHT_OFF_DELAY_SHIFT	0
+
+#define PP_DIVISOR		0x61210		/* Cedartrail */
+#define  PP_REFERENCE_DIVIDER_MASK	(0xffffff00)
+#define  PP_REFERENCE_DIVIDER_SHIFT	8
+#define  PANEL_POWER_CYCLE_DELAY_MASK	(0x1f)
+#define  PANEL_POWER_CYCLE_DELAY_SHIFT	0
 
 #define PFIT_CONTROL		0x61230
 #define PFIT_ENABLE			(1 << 31)
@@ -1502,5 +1533,10 @@ No status bits are changed.
 #define PIPE_GMCH_DATA_N(pipe) _PIPE(pipe, _PIPEA_GMCH_DATA_N, _PIPEB_GMCH_DATA_N)
 #define PIPE_DP_LINK_M(pipe) _PIPE(pipe, _PIPEA_DP_LINK_M, _PIPEB_DP_LINK_M)
 #define PIPE_DP_LINK_N(pipe) _PIPE(pipe, _PIPEA_DP_LINK_N, _PIPEB_DP_LINK_N)
+
+#define   PIPE_BPC_MASK				(7 << 5)
+#define   PIPE_8BPC				(0 << 5)
+#define   PIPE_10BPC				(1 << 5)
+#define   PIPE_6BPC				(2 << 5)
 
 #endif

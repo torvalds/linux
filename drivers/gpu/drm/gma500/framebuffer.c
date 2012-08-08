@@ -768,6 +768,9 @@ static void psb_setup_outputs(struct drm_device *dev)
 			crtc_mask = (1 << 0) | (1 << 1);
 			clone_mask = (1 << INTEL_OUTPUT_DISPLAYPORT);
 			break;
+		case INTEL_OUTPUT_EDP:
+			crtc_mask = (1 << 1);
+			clone_mask = (1 << INTEL_OUTPUT_EDP);
 		}
 		encoder->possible_crtcs = crtc_mask;
 		encoder->possible_clones =
