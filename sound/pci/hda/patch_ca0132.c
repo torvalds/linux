@@ -246,7 +246,7 @@ static void init_output(struct hda_codec *codec, hda_nid_t pin, hda_nid_t dac)
 					    AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_OUT_UNMUTE);
 	}
-	if (dac)
+	if (dac && (get_wcaps(codec, dac) & AC_WCAP_OUT_AMP))
 		snd_hda_codec_write(codec, dac, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO);
 }
@@ -261,7 +261,7 @@ static void init_input(struct hda_codec *codec, hda_nid_t pin, hda_nid_t adc)
 					    AC_VERB_SET_AMP_GAIN_MUTE,
 					    AMP_IN_UNMUTE(0));
 	}
-	if (adc)
+	if (adc && (get_wcaps(codec, adc) & AC_WCAP_IN_AMP))
 		snd_hda_codec_write(codec, adc, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(0));
 }
@@ -841,16 +841,14 @@ static int ca0132_build_controls(struct hda_codec *codec)
 						    spec->dig_out);
 		if (err < 0)
 			return err;
-		err = add_out_volume(codec, spec->dig_out, "IEC958");
+		err = snd_hda_create_spdif_share_sw(codec, &spec->multiout);
 		if (err < 0)
 			return err;
+		/* spec->multiout.share_spdif = 1; */
 	}
 
 	if (spec->dig_in) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in);
-		if (err < 0)
-			return err;
-		err = add_in_volume(codec, spec->dig_in, "IEC958");
 		if (err < 0)
 			return err;
 	}
@@ -912,6 +910,16 @@ static void ca0132_config(struct hda_codec *codec)
 	spec->input_labels[1] = "Line";
 	spec->adcs[1] = 0x08;
 	spec->num_inputs = 2;
+
+	/* SPDIF I/O */
+	spec->dig_out = 0x05;
+	spec->multiout.dig_out_nid = spec->dig_out;
+	cfg->dig_out_pins[0] = 0x0c;
+	cfg->dig_outs = 1;
+	cfg->dig_out_type[0] = HDA_PCM_TYPE_SPDIF;
+	spec->dig_in = 0x09;
+	cfg->dig_in_pin = 0x0e;
+	cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 }
 
 static void ca0132_init_chip(struct hda_codec *codec)
