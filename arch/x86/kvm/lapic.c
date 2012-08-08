@@ -1389,13 +1389,16 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 	return vector;
 }
 
-void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
+void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
+		struct kvm_lapic_state *s)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	kvm_lapic_set_base(vcpu, vcpu->arch.apic_base);
+	/* set SPIV separately to get count of SW disabled APICs right */
+	apic_set_spiv(apic, *((u32 *)(s->regs + APIC_SPIV)));
+	memcpy(vcpu->arch.apic->regs, s->regs, sizeof *s);
 	kvm_apic_set_version(vcpu);
-	apic_set_spiv(apic, kvm_apic_get_reg(apic, APIC_SPIV));
 
 	apic_update_ppr(apic);
 	hrtimer_cancel(&apic->lapic_timer.timer);
