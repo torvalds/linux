@@ -878,8 +878,7 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
 	mutex_init(&dev_drv->fb_win_id_mutex);
-	if (dev_drv->fb_layer_remap)
-		dev_drv->fb_layer_remap(dev_drv,FB_DEFAULT_ORDER); //102
+	dev_drv->fb_layer_remap(dev_drv,FB_DEFAULT_ORDER); //102
 	dev_drv->first_frame = 1;
 	
 	return 0;
