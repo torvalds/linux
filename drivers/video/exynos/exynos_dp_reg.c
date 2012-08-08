@@ -179,7 +179,7 @@ void exynos_dp_config_interrupt(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_INT_STA_MASK);
 }
 
-u32 exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp)
+enum pll_status exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp)
 {
 	u32 reg;
 
