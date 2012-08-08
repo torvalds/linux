@@ -1,6 +1,7 @@
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
+#include <xen/features.h>
 #include <xen/platform_pci.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
@@ -65,6 +66,12 @@ static int __init xen_guest_init(void)
 		return 0;
 	}
 	xen_domain_type = XEN_HVM_DOMAIN;
+
+	xen_setup_features();
+	if (xen_feature(XENFEAT_dom0))
+		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
+	else
+		xen_start_info->flags &= ~(SIF_INITDOMAIN|SIF_PRIVILEGED);
 
 	if (!shared_info_page)
 		shared_info_page = (struct shared_info *)
