@@ -650,8 +650,13 @@ static long sync_fence_ioctl_merge(struct sync_fence *fence, unsigned long arg)
 	struct sync_fence *fence2, *fence3;
 	struct sync_merge_data data;
 
-	if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
-		return -EFAULT;
+	if (fd < 0)
+		return fd;
+
+	if (copy_from_user(&data, (void __user *)arg, sizeof(data))) {
+		err = -EFAULT;
+		goto err_put_fd;
+	}
 
 	fence2 = sync_fence_fdget(data.fd2);
 	if (fence2 == NULL) {
