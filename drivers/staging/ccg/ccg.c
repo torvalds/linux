@@ -728,7 +728,7 @@ static int mass_storage_function_init(struct ccg_usb_function *f,
 	struct fsg_common *common;
 	int err;
 
-	memset(&fsg, 0, sizeof fsg);
+	memset(&fsg, 0, sizeof(fsg));
 	fsg.nluns = 1;
 	fsg.luns[0].removable = 1;
 	fsg.vendor_name = iManufacturer;
