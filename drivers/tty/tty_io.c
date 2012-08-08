@@ -3074,6 +3074,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 		unsigned long flags)
 {
 	struct tty_driver *driver;
+	int err;
 
 	if (!lines)
 		return ERR_PTR(-EINVAL);
@@ -3087,9 +3088,34 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	driver->num = lines;
 	driver->owner = owner;
 	driver->flags = flags;
-	/* later we'll move allocation of tables here */
+
+	if (!(flags & TTY_DRIVER_DEVPTS_MEM)) {
+		driver->ttys = kcalloc(lines, sizeof(*driver->ttys),
+				GFP_KERNEL);
+		driver->termios = kcalloc(lines, sizeof(*driver->termios),
+				GFP_KERNEL);
+		if (!driver->ttys || !driver->termios) {
+			err = -ENOMEM;
+			goto err_free_all;
+		}
+	}
+
+	if (!(flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
+		driver->ports = kcalloc(lines, sizeof(*driver->ports),
+				GFP_KERNEL);
+		if (!driver->ports) {
+			err = -ENOMEM;
+			goto err_free_all;
+		}
+	}
 
 	return driver;
+err_free_all:
+	kfree(driver->ports);
+	kfree(driver->ttys);
+	kfree(driver->termios);
+	kfree(driver);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL(__tty_alloc_driver);
 
@@ -3098,7 +3124,6 @@ static void destruct_tty_driver(struct kref *kref)
 	struct tty_driver *driver = container_of(kref, struct tty_driver, kref);
 	int i;
 	struct ktermios *tp;
-	void *p;
 
 	if (driver->flags & TTY_DRIVER_INSTALLED) {
 		/*
@@ -3115,14 +3140,12 @@ static void destruct_tty_driver(struct kref *kref)
 			if (!(driver->flags & TTY_DRIVER_DYNAMIC_DEV))
 				tty_unregister_device(driver, i);
 		}
-		p = driver->ttys;
 		proc_tty_unregister_driver(driver);
-		driver->ttys = NULL;
-		driver->termios = NULL;
-		kfree(p);
 		cdev_del(&driver->cdev);
 	}
 	kfree(driver->ports);
+	kfree(driver->termios);
+	kfree(driver->ttys);
 	kfree(driver);
 }
 
@@ -3153,26 +3176,7 @@ int tty_register_driver(struct tty_driver *driver)
 	int error;
 	int i;
 	dev_t dev;
-	void **p = NULL;
 	struct device *d;
-
-	if (!(driver->flags & TTY_DRIVER_DEVPTS_MEM) && driver->num) {
-		p = kzalloc(driver->num * 2 * sizeof(void *), GFP_KERNEL);
-		if (!p)
-			return -ENOMEM;
-	}
-	/*
-	 * There is too many lines in PTY and we won't need the array there
-	 * since it has an ->install hook where it assigns ports properly.
-	 */
-	if (driver->type != TTY_DRIVER_TYPE_PTY) {
-		driver->ports = kcalloc(driver->num, sizeof(struct tty_port *),
-				GFP_KERNEL);
-		if (!driver->ports) {
-			error = -ENOMEM;
-			goto err_free_p;
-		}
-	}
 
 	if (!driver->major) {
 		error = alloc_chrdev_region(&dev, driver->minor_start,
@@ -3186,15 +3190,7 @@ int tty_register_driver(struct tty_driver *driver)
 		error = register_chrdev_region(dev, driver->num, driver->name);
 	}
 	if (error < 0)
-		goto err_free_p;
-
-	if (p) {
-		driver->ttys = (struct tty_struct **)p;
-		driver->termios = (struct ktermios **)(p + driver->num);
-	} else {
-		driver->ttys = NULL;
-		driver->termios = NULL;
-	}
+		goto err;
 
 	cdev_init(&driver->cdev, &tty_fops);
 	driver->cdev.owner = driver->owner;
@@ -3211,7 +3207,7 @@ int tty_register_driver(struct tty_driver *driver)
 			d = tty_register_device(driver, i, NULL);
 			if (IS_ERR(d)) {
 				error = PTR_ERR(d);
-				goto err;
+				goto err_unreg_devs;
 			}
 		}
 	}
@@ -3219,7 +3215,7 @@ int tty_register_driver(struct tty_driver *driver)
 	driver->flags |= TTY_DRIVER_INSTALLED;
 	return 0;
 
-err:
+err_unreg_devs:
 	for (i--; i >= 0; i--)
 		tty_unregister_device(driver, i);
 
@@ -3229,10 +3225,7 @@ err:
 
 err_unreg_char:
 	unregister_chrdev_region(dev, driver->num);
-	driver->ttys = NULL;
-	driver->termios = NULL;
-err_free_p: /* destruct_tty_driver will free driver->ports */
-	kfree(p);
+err:
 	return error;
 }
 EXPORT_SYMBOL(tty_register_driver);
