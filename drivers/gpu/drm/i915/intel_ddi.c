@@ -726,12 +726,17 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	temp = I915_READ(DDI_FUNC_CTL(pipe));
 	temp &= ~PIPE_DDI_PORT_MASK;
 	temp &= ~PIPE_DDI_BPC_12;
+	temp &= ~PIPE_DDI_MODE_SELECT_MASK;
 	temp |= PIPE_DDI_SELECT_PORT(port) |
-			PIPE_DDI_MODE_SELECT_HDMI |
 			((intel_crtc->bpp > 24) ?
 				PIPE_DDI_BPC_12 :
 				PIPE_DDI_BPC_8) |
 			PIPE_DDI_FUNC_ENABLE;
+
+	if (intel_hdmi->has_hdmi_sink)
+		temp |= PIPE_DDI_MODE_SELECT_HDMI;
+	else
+		temp |= PIPE_DDI_MODE_SELECT_DVI;
 
 	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
 
