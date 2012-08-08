@@ -5573,7 +5573,7 @@ static void ixgbe_spoof_check(struct ixgbe_adapter *adapter)
 	if (!ssvpc)
 		return;
 
-	e_warn(drv, "%d Spoofed packets detected\n", ssvpc);
+	e_warn(drv, "%u Spoofed packets detected\n", ssvpc);
 }
 
 /**
