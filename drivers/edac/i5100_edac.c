@@ -338,6 +338,7 @@ struct i5100_priv {
 	unsigned ranksperchan;	/* number of ranks per channel */
 
 	struct pci_dev *mc;	/* device 16 func 1 */
+	struct pci_dev *einj;	/* device 19 func 0 */
 	struct pci_dev *ch0mm;	/* device 21 func 0 */
 	struct pci_dev *ch1mm;	/* device 22 func 0 */
 
@@ -869,7 +870,7 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
 	struct i5100_priv *priv;
-	struct pci_dev *ch0mm, *ch1mm;
+	struct pci_dev *ch0mm, *ch1mm, *einj;
 	int ret = 0;
 	u32 dw;
 	int ranksperch;
@@ -941,6 +942,22 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bail_disable_ch1;
 	}
 
+
+	/* device 19, func 0, Error injection */
+	einj = pci_get_device_func(PCI_VENDOR_ID_INTEL,
+				    PCI_DEVICE_ID_INTEL_5100_19, 0);
+	if (!einj) {
+		ret = -ENODEV;
+		goto bail_einj;
+	}
+
+	rc = pci_enable_device(einj);
+	if (rc < 0) {
+		ret = rc;
+		goto bail_disable_einj;
+	}
+
+
 	mci->pdev = &pdev->dev;
 
 	priv = mci->pvt_info;
@@ -948,6 +965,7 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	priv->mc = pdev;
 	priv->ch0mm = ch0mm;
 	priv->ch1mm = ch1mm;
+	priv->einj = einj;
 
 	INIT_DELAYED_WORK(&(priv->i5100_scrubbing), i5100_refresh_scrubbing);
 
@@ -999,6 +1017,12 @@ bail_scrub:
 	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
 	edac_mc_free(mci);
 
+bail_disable_einj:
+	pci_disable_device(einj);
+
+bail_einj:
+	pci_dev_put(einj);
+
 bail_disable_ch1:
 	pci_disable_device(ch1mm);
 
@@ -1036,8 +1060,10 @@ static void i5100_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_disable_device(priv->ch0mm);
 	pci_disable_device(priv->ch1mm);
+	pci_disable_device(priv->einj);
 	pci_dev_put(priv->ch0mm);
 	pci_dev_put(priv->ch1mm);
+	pci_dev_put(priv->einj);
 
 	edac_mc_free(mci);
 }
