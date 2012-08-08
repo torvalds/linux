@@ -146,16 +146,15 @@ static int apply_r_mips_lo16_rel(struct module *me, u32 *location, Elf_Addr v)
 {
 	unsigned long insnlo = *location;
 	Elf_Addr val, vallo;
+	struct mips_hi16 *l, *next;
 
 	/* Sign extend the addend we extract from the lo insn.  */
 	vallo = ((insnlo & 0xffff) ^ 0x8000) - 0x8000;
 
 	if (mips_hi16_list != NULL) {
-		struct mips_hi16 *l;
 
 		l = mips_hi16_list;
 		while (l != NULL) {
-			struct mips_hi16 *next;
 			unsigned long insn;
 
 			/*
@@ -201,6 +200,12 @@ static int apply_r_mips_lo16_rel(struct module *me, u32 *location, Elf_Addr v)
 	return 0;
 
 out_danger:
+	while (l) {
+		next = l->next;
+		kfree(l);
+		l = next;
+	}
+
 	pr_err("module %s: dangerous R_MIPS_LO16 REL relocation\n", me->name);
 
 	return -ENOEXEC;
