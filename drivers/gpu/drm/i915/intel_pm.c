@@ -2367,31 +2367,26 @@ static void gen6_disable_rps(struct drm_device *dev)
 
 int intel_enable_rc6(const struct drm_device *dev)
 {
-	/*
-	 * Respect the kernel parameter if it is set
-	 */
+	/* Respect the kernel parameter if it is set */
 	if (i915_enable_rc6 >= 0)
 		return i915_enable_rc6;
 
-	/*
-	 * Disable RC6 on Ironlake
-	 */
-	if (INTEL_INFO(dev)->gen == 5)
-		return 0;
-
-	/* On Haswell, only RC6 is available. So let's enable it by default to
-	 * provide better testing and coverage since the beginning.
-	 */
-	if (IS_HASWELL(dev))
+	if (INTEL_INFO(dev)->gen == 5) {
+		DRM_DEBUG_DRIVER("Ironlake: only RC6 available\n");
 		return INTEL_RC6_ENABLE;
+	}
 
-	/*
-	 * Disable rc6 on Sandybridge
-	 */
+	if (IS_HASWELL(dev)) {
+		DRM_DEBUG_DRIVER("Haswell: only RC6 available\n");
+		return INTEL_RC6_ENABLE;
+	}
+
+	/* snb/ivb have more than one rc6 state. */
 	if (INTEL_INFO(dev)->gen == 6) {
 		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
 		return INTEL_RC6_ENABLE;
 	}
+
 	DRM_DEBUG_DRIVER("RC6 and deep RC6 enabled\n");
 	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
