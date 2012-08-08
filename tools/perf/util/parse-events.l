@@ -151,6 +151,8 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 -			{ return '-'; }
 ,			{ return ','; }
 :			{ return ':'; }
+"{"			{ return '{'; }
+"}"			{ return '}'; }
 =			{ return '='; }
 \n			{ }
 

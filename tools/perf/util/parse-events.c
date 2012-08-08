@@ -611,19 +611,29 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 			 pmu_event_name(head_config));
 }
 
+int parse_events__modifier_group(struct list_head *list __used,
+				 char *event_mod __used)
+{
+	return 0;
+}
+
+void parse_events__group(char *name __used, struct list_head *list __used)
+{
+}
+
 void parse_events_update_lists(struct list_head *list_event,
 			       struct list_head *list_all)
 {
 	/*
 	 * Called for single event definition. Update the
-	 * 'all event' list, and reinit the 'signle event'
+	 * 'all event' list, and reinit the 'single event'
 	 * list, for next event definition.
 	 */
 	list_splice_tail(list_event, list_all);
 	free(list_event);
 }
 
-int parse_events_modifier(struct list_head *list, char *str)
+int parse_events__modifier_event(struct list_head *list, char *str)
 {
 	struct perf_evsel *evsel;
 	int exclude = 0, exclude_GH = 0;

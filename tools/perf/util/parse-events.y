@@ -30,7 +30,7 @@ do { \
 %token PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
-%token PE_PREFIX_MEM PE_PREFIX_RAW
+%token PE_PREFIX_MEM PE_PREFIX_RAW PE_PREFIX_GROUP
 %token PE_ERROR
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_HW
@@ -53,6 +53,11 @@ do { \
 %type <head> event_legacy_numeric
 %type <head> event_legacy_raw
 %type <head> event_def
+%type <head> event
+%type <head> events
+%type <head> group_def
+%type <head> group
+%type <head> groups
 
 %union
 {
@@ -64,33 +69,95 @@ do { \
 %%
 
 start:
-PE_START_EVENTS events
+PE_START_EVENTS start_events
 |
-PE_START_TERMS  terms
+PE_START_TERMS  start_terms
+
+start_events: groups
+{
+	struct parse_events_data__events *data = _data;
+
+	parse_events_update_lists($1, &data->list);
+}
+
+groups:
+groups ',' group
+{
+	struct list_head *list  = $1;
+	struct list_head *group = $3;
+
+	parse_events_update_lists(group, list);
+	$$ = list;
+}
+|
+groups ',' event
+{
+	struct list_head *list  = $1;
+	struct list_head *event = $3;
+
+	parse_events_update_lists(event, list);
+	$$ = list;
+}
+|
+group
+|
+event
+
+group:
+group_def ':' PE_MODIFIER_EVENT
+{
+	struct list_head *list = $1;
+
+	ABORT_ON(parse_events__modifier_group(list, $3));
+	$$ = list;
+}
+|
+group_def
+
+group_def:
+PE_NAME '{' events '}'
+{
+	struct list_head *list = $3;
+
+	parse_events__group($1, list);
+	$$ = list;
+}
+|
+'{' events '}'
+{
+	struct list_head *list = $2;
+
+	parse_events__group(NULL, list);
+	$$ = list;
+}
 
 events:
-events ',' event | event
+events ',' event
+{
+	struct list_head *event = $3;
+	struct list_head *list  = $1;
+
+	parse_events_update_lists(event, list);
+	$$ = list;
+}
+|
+event
 
 event:
 event_def PE_MODIFIER_EVENT
 {
-	struct parse_events_data__events *data = _data;
+	struct list_head *list = $1;
 
 	/*
 	 * Apply modifier on all events added by single event definition
 	 * (there could be more events added for multiple tracepoint
 	 * definitions via '*?'.
 	 */
-	ABORT_ON(parse_events_modifier($1, $2));
-	parse_events_update_lists($1, &data->list);
+	ABORT_ON(parse_events__modifier_event(list, $2));
+	$$ = list;
 }
 |
 event_def
-{
-	struct parse_events_data__events *data = _data;
-
-	parse_events_update_lists($1, &data->list);
-}
 
 event_def: event_pmu |
 	   event_legacy_symbol |
@@ -222,7 +289,7 @@ PE_RAW
 	$$ = list;
 }
 
-terms: event_config
+start_terms: event_config
 {
 	struct parse_events_data__terms *data = _data;
 	data->terms = $1;
