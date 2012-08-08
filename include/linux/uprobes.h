@@ -118,7 +118,6 @@ extern void uprobe_notify_resume(struct pt_regs *regs);
 extern bool uprobe_deny_signal(void);
 extern bool __weak arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
 extern void uprobe_clear_state(struct mm_struct *mm);
-extern void uprobe_reset_state(struct mm_struct *mm);
 #else /* !CONFIG_UPROBES */
 struct uprobes_state {
 };
@@ -161,9 +160,6 @@ static inline void uprobe_copy_process(struct task_struct *t)
 {
 }
 static inline void uprobe_clear_state(struct mm_struct *mm)
-{
-}
-static inline void uprobe_reset_state(struct mm_struct *mm)
 {
 }
 #endif /* !CONFIG_UPROBES */

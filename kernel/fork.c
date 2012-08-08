@@ -837,8 +837,6 @@ struct mm_struct *dup_mm(struct task_struct *tsk)
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	mm->pmd_huge_pte = NULL;
 #endif
-	uprobe_reset_state(mm);
-
 	if (!mm_init(mm, tsk))
 		goto fail_nomem;
 

@@ -1148,16 +1148,10 @@ void uprobe_clear_state(struct mm_struct *mm)
 	kfree(area);
 }
 
-/*
- * uprobe_reset_state - Free the area allocated for slots.
- */
-void uprobe_reset_state(struct mm_struct *mm)
-{
-	mm->uprobes_state.xol_area = NULL;
-}
-
 void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
 {
+	newmm->uprobes_state.xol_area = NULL;
+
 	if (test_bit(MMF_HAS_UPROBES, &oldmm->flags))
 		set_bit(MMF_HAS_UPROBES, &newmm->flags);
 }
