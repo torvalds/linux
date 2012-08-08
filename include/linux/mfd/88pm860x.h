@@ -35,12 +35,6 @@ enum {
 };
 
 enum {
-	PM8606_BACKLIGHT1 = 0,
-	PM8606_BACKLIGHT2,
-	PM8606_BACKLIGHT3,
-};
-
-enum {
 	PM8606_LED1_RED = 0,
 	PM8606_LED1_GREEN,
 	PM8606_LED1_BLUE,
@@ -340,10 +334,8 @@ enum {
 };
 
 struct pm860x_backlight_pdata {
-	int		id;
 	int		pwm;
 	int		iset;
-	unsigned long	flags;
 };
 
 struct pm860x_led_pdata {

@@ -21,10 +21,20 @@
 
 #define INT_STATUS_NUM			3
 
-static struct resource bk_resources[] __devinitdata = {
-	{PM8606_BACKLIGHT1, PM8606_BACKLIGHT1, "backlight-0", IORESOURCE_REG,},
-	{PM8606_BACKLIGHT2, PM8606_BACKLIGHT2, "backlight-1", IORESOURCE_REG,},
-	{PM8606_BACKLIGHT3, PM8606_BACKLIGHT3, "backlight-2", IORESOURCE_REG,},
+static struct resource bk0_resources[] __devinitdata = {
+	{2, 2, "duty cycle", IORESOURCE_REG, },
+	{3, 3, "always on",  IORESOURCE_REG, },
+	{3, 3, "current",    IORESOURCE_REG, },
+};
+static struct resource bk1_resources[] __devinitdata = {
+	{4, 4, "duty cycle", IORESOURCE_REG, },
+	{5, 5, "always on",  IORESOURCE_REG, },
+	{5, 5, "current",    IORESOURCE_REG, },
+};
+static struct resource bk2_resources[] __devinitdata = {
+	{6, 6, "duty cycle", IORESOURCE_REG, },
+	{7, 7, "always on",  IORESOURCE_REG, },
+	{5, 5, "current",    IORESOURCE_REG, },
 };
 
 static struct resource led_resources[] __devinitdata = {
@@ -99,9 +109,22 @@ static struct resource rtc_resources[] __devinitdata = {
 };
 
 static struct mfd_cell bk_devs[] = {
-	{"88pm860x-backlight", 0,},
-	{"88pm860x-backlight", 1,},
-	{"88pm860x-backlight", 2,},
+	{
+		.name = "88pm860x-backlight",
+		.id = 0,
+		.num_resources = ARRAY_SIZE(bk0_resources),
+		.resources = bk0_resources,
+	}, {
+		.name = "88pm860x-backlight",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(bk1_resources),
+		.resources = bk1_resources,
+	}, {
+		.name = "88pm860x-backlight",
+		.id = 2,
+		.num_resources = ARRAY_SIZE(bk2_resources),
+		.resources = bk2_resources,
+	},
 };
 
 static struct mfd_cell led_devs[] = {
@@ -615,36 +638,21 @@ static void __devinit device_osc_init(struct i2c_client *i2c)
 static void __devinit device_bk_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
-	int ret;
-	int i, j, id;
+	int ret, i;
 
-	if ((pdata == NULL) || (pdata->backlight == NULL))
-		return;
-
-	if (pdata->num_backlights > ARRAY_SIZE(bk_devs))
-		pdata->num_backlights = ARRAY_SIZE(bk_devs);
-
-	for (i = 0; i < pdata->num_backlights; i++) {
-		bk_devs[i].platform_data = &pdata->backlight[i];
-		bk_devs[i].pdata_size = sizeof(struct pm860x_backlight_pdata);
-
-		for (j = 0; j < ARRAY_SIZE(bk_devs); j++) {
-			id = bk_resources[j].start;
-			if (pdata->backlight[i].flags != id)
-				continue;
-
-			bk_devs[i].num_resources = 1;
-			bk_devs[i].resources = &bk_resources[j];
-			ret = mfd_add_devices(chip->dev, 0,
-					      &bk_devs[i], 1,
-					      &bk_resources[j], 0);
-			if (ret < 0) {
-				dev_err(chip->dev, "Failed to add "
-					"backlight subdev\n");
-				return;
-			}
+	if (pdata && pdata->backlight) {
+		if (pdata->num_backlights > ARRAY_SIZE(bk_devs))
+			pdata->num_backlights = ARRAY_SIZE(bk_devs);
+		for (i = 0; i < pdata->num_backlights; i++) {
+			bk_devs[i].platform_data = &pdata->backlight[i];
+			bk_devs[i].pdata_size =
+				sizeof(struct pm860x_backlight_pdata);
 		}
 	}
+	ret = mfd_add_devices(chip->dev, 0, bk_devs,
+			      ARRAY_SIZE(bk_devs), NULL, 0);
+	if (ret < 0)
+		dev_err(chip->dev, "Failed to add backlight subdev\n");
 }
 
 static void __devinit device_led_init(struct pm860x_chip *chip,
