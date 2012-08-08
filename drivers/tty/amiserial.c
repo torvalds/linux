@@ -1033,7 +1033,7 @@ static int get_serial_info(struct tty_struct *tty, struct serial_state *state,
 	if (!retinfo)
 		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
-	tty_lock();
+	tty_lock(tty);
 	tmp.line = tty->index;
 	tmp.port = state->port;
 	tmp.flags = state->tport.flags;
@@ -1042,7 +1042,7 @@ static int get_serial_info(struct tty_struct *tty, struct serial_state *state,
 	tmp.close_delay = state->tport.close_delay;
 	tmp.closing_wait = state->tport.closing_wait;
 	tmp.custom_divisor = state->custom_divisor;
-	tty_unlock();
+	tty_unlock(tty);
 	if (copy_to_user(retinfo,&tmp,sizeof(*retinfo)))
 		return -EFAULT;
 	return 0;
@@ -1059,12 +1059,12 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
 		return -EFAULT;
 
-	tty_lock();
+	tty_lock(tty);
 	change_spd = ((new_serial.flags ^ port->flags) & ASYNC_SPD_MASK) ||
 		new_serial.custom_divisor != state->custom_divisor;
 	if (new_serial.irq || new_serial.port != state->port ||
 			new_serial.xmit_fifo_size != state->xmit_fifo_size) {
-		tty_unlock();
+		tty_unlock(tty);
 		return -EINVAL;
 	}
   
@@ -1074,7 +1074,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 		    (new_serial.xmit_fifo_size != state->xmit_fifo_size) ||
 		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
 		     (port->flags & ~ASYNC_USR_MASK))) {
-			tty_unlock();
+			tty_unlock(tty);
 			return -EPERM;
 		}
 		port->flags = ((port->flags & ~ASYNC_USR_MASK) |
@@ -1084,7 +1084,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	}
 
 	if (new_serial.baud_base < 9600) {
-		tty_unlock();
+		tty_unlock(tty);
 		return -EINVAL;
 	}
 
@@ -1116,7 +1116,7 @@ check_and_exit:
 		}
 	} else
 		retval = startup(tty, state);
-	tty_unlock();
+	tty_unlock(tty);
 	return retval;
 }
 
