@@ -988,12 +988,12 @@ static void ca0132_config(struct hda_codec *codec)
 
 	/* Mic-in */
 	spec->input_pins[0] = 0x12;
-	spec->input_labels[0] = "Mic-In";
+	spec->input_labels[0] = "Mic";
 	spec->adcs[0] = 0x07;
 
 	/* Line-In */
 	spec->input_pins[1] = 0x11;
-	spec->input_labels[1] = "Line-In";
+	spec->input_labels[1] = "Line";
 	spec->adcs[1] = 0x08;
 	spec->num_inputs = 2;
 }
