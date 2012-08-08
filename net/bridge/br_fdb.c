@@ -312,7 +312,7 @@ int br_fdb_fillbuf(struct net_bridge *br, void *buf,
 
 			fe->is_local = f->is_local;
 			if (!f->is_static)
-				fe->ageing_timer_value = jiffies_to_clock_t(jiffies - f->updated);
+				fe->ageing_timer_value = jiffies_delta_to_clock_t(jiffies - f->updated);
 			++fe;
 			++num;
 		}
