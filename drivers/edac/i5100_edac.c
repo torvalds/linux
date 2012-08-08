@@ -27,6 +27,7 @@
 #include <linux/edac.h>
 #include <linux/delay.h>
 #include <linux/mmzone.h>
+#include <linux/debugfs.h>
 
 #include "edac_core.h"
 
@@ -360,7 +361,11 @@ struct i5100_priv {
 	u8 inject_deviceptr2;
 	u16 inject_eccmask1;
 	u16 inject_eccmask2;
+
+	struct dentry *debugfs;
 };
+
+static struct dentry *i5100_debugfs;
 
 /* map a rank/chan to a slot number on the mainboard */
 static int i5100_rank_to_slot(const struct mem_ctl_info *mci,
@@ -944,6 +949,61 @@ static void i5100_do_inject(struct mem_ctl_info *mci)
 	pci_write_config_byte(priv->einj, I5100_DINJ0, 0xab);
 }
 
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
+static ssize_t inject_enable_write(struct file *file, const char __user *data,
+		size_t count, loff_t *ppos)
+{
+	struct device *dev = file->private_data;
+	struct mem_ctl_info *mci = to_mci(dev);
+
+	i5100_do_inject(mci);
+
+	return count;
+}
+
+static int inject_enable_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static const struct file_operations i5100_inject_enable_fops = {
+	.open = inject_enable_open,
+	.write = inject_enable_write,
+	.llseek = generic_file_llseek,
+};
+
+static int i5100_setup_debugfs(struct mem_ctl_info *mci)
+{
+	struct i5100_priv *priv = mci->pvt_info;
+
+	if (!i5100_debugfs)
+		return -ENODEV;
+
+	priv->debugfs = debugfs_create_dir(mci->bus.name, i5100_debugfs);
+
+	if (!priv->debugfs)
+		return -ENOMEM;
+
+	debugfs_create_x8("inject_channel", S_IRUGO | S_IWUSR, priv->debugfs,
+			&priv->inject_channel);
+	debugfs_create_x8("inject_hlinesel", S_IRUGO | S_IWUSR, priv->debugfs,
+			&priv->inject_hlinesel);
+	debugfs_create_x8("inject_deviceptr1", S_IRUGO | S_IWUSR, priv->debugfs,
+			&priv->inject_deviceptr1);
+	debugfs_create_x8("inject_deviceptr2", S_IRUGO | S_IWUSR, priv->debugfs,
+			&priv->inject_deviceptr2);
+	debugfs_create_x16("inject_eccmask1", S_IRUGO | S_IWUSR, priv->debugfs,
+			&priv->inject_eccmask1);
+	debugfs_create_x16("inject_eccmask2", S_IRUGO | S_IWUSR, priv->debugfs,
+			&priv->inject_eccmask2);
+	debugfs_create_file("inject_enable", S_IWUSR, priv->debugfs,
+			&mci->dev, &i5100_inject_enable_fops);
+
+	return 0;
+
+}
+
 static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int rc;
@@ -1097,6 +1157,8 @@ static int i5100_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bail_scrub;
 	}
 
+	i5100_setup_debugfs(mci);
+
 	return ret;
 
 bail_scrub:
@@ -1141,6 +1203,9 @@ static void i5100_remove_one(struct pci_dev *pdev)
 
 	priv = mci->pvt_info;
 
+	if (priv->debugfs)
+		debugfs_remove_recursive(priv->debugfs);
+
 	priv->scrub_enable = 0;
 	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
 
@@ -1173,13 +1238,17 @@ static int __init i5100_init(void)
 {
 	int pci_rc;
 
-	pci_rc = pci_register_driver(&i5100_driver);
+	i5100_debugfs = debugfs_create_dir("i5100_edac", NULL);
 
+	pci_rc = pci_register_driver(&i5100_driver);
 	return (pci_rc < 0) ? pci_rc : 0;
 }
 
 static void __exit i5100_exit(void)
 {
+	if (i5100_debugfs)
+		debugfs_remove(i5100_debugfs);
+
 	pci_unregister_driver(&i5100_driver);
 }
 
