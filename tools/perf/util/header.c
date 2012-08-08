@@ -2452,6 +2452,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 	if (size_read + padding != size)
 		die("tracing data size mismatch");
 
+	perf_evlist__set_tracepoint_names(session->evlist, session->pevent);
+
 	return size_read + padding;
 }
 
