@@ -40,9 +40,8 @@ struct davinci_audio_dev {
 	struct davinci_pcm_dma_params dma_params[2];
 	void __iomem *base;
 	int sample_rate;
-	struct clk *clk;
+	struct device *dev;
 	unsigned int codec_fmt;
-	u8 clk_active;
 
 	/* McASP specific data */
 	int	tdm_slots;
