@@ -178,13 +178,15 @@ static struct tty_driver *ttyprintk_driver;
 static int __init ttyprintk_init(void)
 {
 	int ret = -ENOMEM;
-	void *rp;
 
 	tty_port_init(&tpk_port.port);
 	tpk_port.port.ops = &null_ops;
 	mutex_init(&tpk_port.port_write_mutex);
 
-	ttyprintk_driver = alloc_tty_driver(1);
+	ttyprintk_driver = tty_alloc_driver(1,
+			TTY_DRIVER_RESET_TERMIOS |
+			TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_UNNUMBERED_NODE);
 	if (!ttyprintk_driver)
 		return ret;
 
@@ -195,22 +197,11 @@ static int __init ttyprintk_init(void)
 	ttyprintk_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 	ttyprintk_driver->init_termios = tty_std_termios;
 	ttyprintk_driver->init_termios.c_oflag = OPOST | OCRNL | ONOCR | ONLRET;
-	ttyprintk_driver->flags = TTY_DRIVER_RESET_TERMIOS |
-		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(ttyprintk_driver, &ttyprintk_ops);
 
 	ret = tty_register_driver(ttyprintk_driver);
 	if (ret < 0) {
 		printk(KERN_ERR "Couldn't register ttyprintk driver\n");
-		goto error;
-	}
-
-	/* create our unnumbered device */
-	rp = device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 3), NULL,
-				ttyprintk_driver->name);
-	if (IS_ERR(rp)) {
-		printk(KERN_ERR "Couldn't create ttyprintk device\n");
-		ret = PTR_ERR(rp);
 		goto error;
 	}
 

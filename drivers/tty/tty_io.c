@@ -1216,7 +1216,10 @@ static void pty_line_name(struct tty_driver *driver, int index, char *p)
  */
 static void tty_line_name(struct tty_driver *driver, int index, char *p)
 {
-	sprintf(p, "%s%d", driver->name, index + driver->name_base);
+	if (driver->flags & TTY_DRIVER_UNNUMBERED_NODE)
+		strcpy(p, driver->name);
+	else
+		sprintf(p, "%s%d", driver->name, index + driver->name_base);
 }
 
 /**
@@ -3076,7 +3079,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 	struct tty_driver *driver;
 	int err;
 
-	if (!lines)
+	if (!lines || (flags & TTY_DRIVER_UNNUMBERED_NODE && lines > 1))
 		return ERR_PTR(-EINVAL);
 
 	driver = kzalloc(sizeof(struct tty_driver), GFP_KERNEL);
