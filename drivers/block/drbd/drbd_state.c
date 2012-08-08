@@ -1742,6 +1742,9 @@ conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state v
 		goto abort;
 	}
 
+	if (val.conn == C_DISCONNECTING)
+		set_bit(DISCONNECT_SENT, &tconn->flags);
+
 	wait_event(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)));
 	clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 

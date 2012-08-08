@@ -816,6 +816,7 @@ enum {
 				 * so shrink_page_list() would not recurse into,
 				 * and potentially deadlock on, this drbd worker.
 				 */
+	DISCONNECT_SENT,
 };
 
 struct drbd_tconn {			/* is a resource from the config file */

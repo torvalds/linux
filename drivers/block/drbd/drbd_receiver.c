@@ -522,7 +522,6 @@ static int drbd_recv(struct drbd_tconn *tconn, void *buf, size_t size)
 				conn_err(tconn, "sock_recvmsg returned %d\n", rv);
 			break;
 		} else if (rv == 0) {
-			conn_info(tconn, "sock was shut down by peer\n");
 			break;
 		} else	{
 			/* signal came in, or peer/link went down,
@@ -535,9 +534,25 @@ static int drbd_recv(struct drbd_tconn *tconn, void *buf, size_t size)
 
 	set_fs(oldfs);
 
+	if (rv == 0) {
+		if (test_bit(DISCONNECT_SENT, &tconn->flags)) {
+			long t;
+			rcu_read_lock();
+			t = rcu_dereference(tconn->net_conf)->ping_timeo * HZ/10;
+			rcu_read_unlock();
+
+			t = wait_event_timeout(tconn->ping_wait, tconn->cstate < C_WF_REPORT_PARAMS, t);
+
+			if (t)
+				goto out;
+		}
+		conn_info(tconn, "sock was shut down by peer\n");
+	}
+
 	if (rv != size)
 		conn_request_state(tconn, NS(conn, C_BROKEN_PIPE), CS_HARD);
 
+out:
 	return rv;
 }
 
@@ -894,6 +909,7 @@ static int conn_connect(struct drbd_tconn *tconn)
 		.door_bell = COMPLETION_INITIALIZER_ONSTACK(ad.door_bell),
 	};
 
+	clear_bit(DISCONNECT_SENT, &tconn->flags);
 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
 
@@ -5316,6 +5332,18 @@ int drbd_asender(struct drbd_thread *thi)
 			received += rv;
 			buf	 += rv;
 		} else if (rv == 0) {
+			if (test_bit(DISCONNECT_SENT, &tconn->flags)) {
+				long t;
+				rcu_read_lock();
+				t = rcu_dereference(tconn->net_conf)->ping_timeo * HZ/10;
+				rcu_read_unlock();
+
+				t = wait_event_timeout(tconn->ping_wait,
+						       tconn->cstate < C_WF_REPORT_PARAMS,
+						       t);
+				if (t)
+					break;
+			}
 			conn_err(tconn, "meta connection shut down by peer.\n");
 			goto reconnect;
 		} else if (rv == -EAGAIN) {
