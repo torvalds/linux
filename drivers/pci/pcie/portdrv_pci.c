@@ -200,6 +200,11 @@ static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
 		return status;
 
 	pci_save_state(dev);
+	/*
+	 * D3cold may not work properly on some PCIe port, so disable
+	 * it by default.
+	 */
+	dev->d3cold_allowed = false;
 	if (!pci_match_id(port_runtime_pm_black_list, dev))
 		pm_runtime_put_noidle(&dev->dev);
 
