@@ -730,6 +730,8 @@ static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 
 	omapdss_dpi_set_timings(dssdev, timings);
 
+	dssdev->panel.timings = *timings;
+
 	mutex_unlock(&drv_data->lock);
 }
 

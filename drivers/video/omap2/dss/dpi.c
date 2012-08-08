@@ -283,7 +283,6 @@ void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
 	mutex_lock(&dpi.lock);
 
 	dpi.timings = *timings;
-	dssdev->panel.timings = *timings;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 		r = dispc_runtime_get();

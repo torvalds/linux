@@ -483,6 +483,8 @@ static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
 	omapdss_dpi_set_timings(dssdev, timings);
+
+	dssdev->panel.timings = *timings;
 }
 
 static int tpo_td043_check_timings(struct omap_dss_device *dssdev,

@@ -234,6 +234,7 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_lock(&ddata->lock);
 	omapdss_dpi_set_timings(dssdev, timings);
+	dssdev->panel.timings = *timings;
 	mutex_unlock(&ddata->lock);
 }
 
