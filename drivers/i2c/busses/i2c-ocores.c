@@ -283,18 +283,9 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "Memory region busy\n");
-		return -EBUSY;
-	}
-
-	i2c->base = devm_ioremap_nocache(&pdev->dev, res->start,
-					 resource_size(res));
-	if (!i2c->base) {
-		dev_err(&pdev->dev, "Unable to map registers\n");
-		return -EIO;
-	}
+	i2c->base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!i2c->base)
+		return -EADDRNOTAVAIL;
 
 	pdata = pdev->dev.platform_data;
 	if (pdata) {
