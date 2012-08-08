@@ -1812,8 +1812,6 @@ replay:
 			return -ENODEV;
 		}
 
-		if (ifm->ifi_index)
-			return -EOPNOTSUPP;
 		if (tb[IFLA_MAP] || tb[IFLA_MASTER] || tb[IFLA_PROTINFO])
 			return -EOPNOTSUPP;
 
@@ -1839,10 +1837,14 @@ replay:
 			return PTR_ERR(dest_net);
 
 		dev = rtnl_create_link(net, dest_net, ifname, ops, tb);
-
-		if (IS_ERR(dev))
+		if (IS_ERR(dev)) {
 			err = PTR_ERR(dev);
-		else if (ops->newlink)
+			goto out;
+		}
+
+		dev->ifindex = ifm->ifi_index;
+
+		if (ops->newlink)
 			err = ops->newlink(net, dev, tb, data);
 		else
 			err = register_netdevice(dev);
