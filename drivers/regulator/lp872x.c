@@ -374,8 +374,8 @@ static int lp8725_buck_set_current_limit(struct regulator_dev *rdev,
 {
 	struct lp872x *lp = rdev_get_drvdata(rdev);
 	enum lp872x_regulator_id buck = rdev_get_id(rdev);
-	int i, max = ARRAY_SIZE(lp8725_buck_uA);
-	u8 addr, val;
+	int i;
+	u8 addr;
 
 	switch (buck) {
 	case LP8725_ID_BUCK1:
@@ -388,17 +388,15 @@ static int lp8725_buck_set_current_limit(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	for (i = 0 ; i < max ; i++)
+	for (i = ARRAY_SIZE(lp8725_buck_uA) - 1 ; i >= 0; i--) {
 		if (lp8725_buck_uA[i] >= min_uA &&
 			lp8725_buck_uA[i] <= max_uA)
-			break;
+			return lp872x_update_bits(lp, addr,
+						  LP8725_BUCK_CL_M,
+						  i << LP8725_BUCK_CL_S);
+	}
 
-	if (i == max)
-		return -EINVAL;
-
-	val = i << LP8725_BUCK_CL_S;
-
-	return lp872x_update_bits(lp, addr, LP8725_BUCK_CL_M, val);
+	return -EINVAL;
 }
 
 static int lp8725_buck_get_current_limit(struct regulator_dev *rdev)
