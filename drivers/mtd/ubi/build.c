@@ -1261,7 +1261,7 @@ out:
 	ubi_err("UBI error: cannot initialize UBI, error %d", err);
 	return err;
 }
-module_init(ubi_init);
+late_initcall(ubi_init);
 
 static void __exit ubi_exit(void)
 {
