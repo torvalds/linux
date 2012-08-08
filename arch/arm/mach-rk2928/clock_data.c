@@ -1434,9 +1434,9 @@ static struct clk cif0_in = {
 };
 
 /****************i2s*******************/
-#define I2S_SRC_12M  (0x0)
-#define I2S_SRC_DIV  (0x1)
-#define I2S_SRC_FRAC  (0x2)
+#define I2S_SRC_DIV  (0x0)
+#define I2S_SRC_FRAC  (0x1)
+#define I2S_SRC_12M  (0x2)
 
 static int i2s_set_rate(struct clk *clk, unsigned long rate)
 {
@@ -1454,8 +1454,8 @@ static int i2s_set_rate(struct clk *clk, unsigned long rate)
 		parent =clk->parents[I2S_SRC_FRAC];
 	}
 
-	CLKDATA_DBG(" %s set rate=%lu parent %s(old %s)\n",
-		clk->name,rate,parent->name,clk->parent->name);
+	CLKDATA_DBG("%s %s set rate=%lu parent %s(old %s)\n",
+		__func__, clk->name,rate,parent->name,clk->parent->name);
 
 	if(parent!=clk->parents[I2S_SRC_12M])
 	{
@@ -1487,6 +1487,26 @@ static struct clk clk_i2s_pll = {
 	CRU_SRC_SET(0x1,15),
 	CRU_PARENTS_SET(clk_i2s_div_parents),
 };
+static int i2s_fracdiv_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 numerator, denominator;
+	//clk_i2s_div->clk_i2s_pll->gpll/cpll
+	//clk->parent->parent
+	if(frac_div_get_seting(rate,clk->parent->parent->rate,
+			&numerator,&denominator)==0)
+	{
+		clk_set_rate_nolock(clk->parent,clk->parent->parent->rate);//PLL:DIV 1:
+		cru_writel_frac(numerator << 16 | denominator, clk->clksel_con);
+		CLKDATA_DBG("%s set rate=%lu,is ok\n",clk->name,rate);
+	}
+	else
+	{
+		CLKDATA_DBG("clk_frac_div can't get rate=%lu,%s\n",rate,clk->name);
+		return -ENOENT;
+	} 
+	return 0;
+}
+
 
 static struct clk clk_i2s_div = {
 	.name		= "i2s_div",
@@ -1495,22 +1515,22 @@ static struct clk clk_i2s_div = {
 	.gate_idx	= CLK_GATE_I2S_SRC,	
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_freediv,
-	.round_rate	= clksel_freediv_round_rate,
+	//.round_rate	= clksel_freediv_round_rate,
 	.clksel_con	= CRU_CLKSELS_CON(3),
 	CRU_DIV_SET(0x7f, 0, 64),
 };
 static struct clk clk_i2s_frac_div = {
 	.name		= "i2s_frac_div",
 	.parent		= &clk_i2s_div,
-	.recalc		= clksel_recalc_div,
-	.set_rate	= clksel_set_rate_freediv,
-	.round_rate	= clksel_freediv_round_rate,
+	.recalc		= clksel_recalc_frac,
+	.set_rate	= i2s_fracdiv_set_rate,
+	//.round_rate	= clksel_freediv_round_rate,
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_I2S_FRAC_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(7),
 };
 
-static struct clk *clk_i2s_parents[]		= {&clk_12m, &clk_i2s_div, &clk_i2s_frac_div};
+static struct clk *clk_i2s_parents[]		= {&clk_i2s_div, &clk_i2s_frac_div, &clk_12m};
 static struct clk clk_i2s = {
 	.name		= "i2s",
 	.parent		= &clk_i2s_div,
