@@ -289,7 +289,7 @@ struct tty_operations {
 struct tty_driver {
 	int	magic;		/* magic number for this structure */
 	struct kref kref;	/* Reference management */
-	struct cdev cdev;
+	struct cdev *cdevs;
 	struct module	*owner;
 	const char	*driver_name;
 	const char	*name;

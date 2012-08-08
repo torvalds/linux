@@ -3006,6 +3006,15 @@ EXPORT_SYMBOL_GPL(tty_put_char);
 
 struct class *tty_class;
 
+static int tty_cdev_add(struct tty_driver *driver, dev_t dev,
+		unsigned int index, unsigned int count)
+{
+	/* init here, since reused cdevs cause crashes */
+	cdev_init(&driver->cdevs[index], &tty_fops);
+	driver->cdevs[index].owner = driver->owner;
+	return cdev_add(&driver->cdevs[index], dev, count);
+}
+
 /**
  *	tty_register_device - register a tty device
  *	@driver: the tty driver that describes the tty device
@@ -3028,8 +3037,10 @@ struct class *tty_class;
 struct device *tty_register_device(struct tty_driver *driver, unsigned index,
 				   struct device *device)
 {
+	struct device *ret;
 	char name[64];
 	dev_t dev = MKDEV(driver->major, driver->minor_start) + index;
+	bool cdev = false;
 
 	if (index >= driver->num) {
 		printk(KERN_ERR "Attempt to register invalid tty line number "
@@ -3042,7 +3053,18 @@ struct device *tty_register_device(struct tty_driver *driver, unsigned index,
 	else
 		tty_line_name(driver, index, name);
 
-	return device_create(tty_class, device, dev, NULL, name);
+	if (!(driver->flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
+		int error = tty_cdev_add(driver, dev, index, 1);
+		if (error)
+			return ERR_PTR(error);
+		cdev = true;
+	}
+
+	ret = device_create(tty_class, device, dev, NULL, name);
+	if (IS_ERR(ret) && cdev)
+		cdev_del(&driver->cdevs[index]);
+
+	return ret;
 }
 EXPORT_SYMBOL(tty_register_device);
 
@@ -3061,6 +3083,8 @@ void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
 	device_destroy(tty_class,
 		MKDEV(driver->major, driver->minor_start) + index);
+	if (!(driver->flags & TTY_DRIVER_DYNAMIC_ALLOC))
+		cdev_del(&driver->cdevs[index]);
 }
 EXPORT_SYMBOL(tty_unregister_device);
 
@@ -3077,6 +3101,7 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 		unsigned long flags)
 {
 	struct tty_driver *driver;
+	unsigned int cdevs = 1;
 	int err;
 
 	if (!lines || (flags & TTY_DRIVER_UNNUMBERED_NODE && lines > 1))
@@ -3110,6 +3135,13 @@ struct tty_driver *__tty_alloc_driver(unsigned int lines, struct module *owner,
 			err = -ENOMEM;
 			goto err_free_all;
 		}
+		cdevs = lines;
+	}
+
+	driver->cdevs = kcalloc(cdevs, sizeof(*driver->cdevs), GFP_KERNEL);
+	if (!driver->cdevs) {
+		err = -ENOMEM;
+		goto err_free_all;
 	}
 
 	return driver;
@@ -3144,8 +3176,10 @@ static void destruct_tty_driver(struct kref *kref)
 				tty_unregister_device(driver, i);
 		}
 		proc_tty_unregister_driver(driver);
-		cdev_del(&driver->cdev);
+		if (driver->flags & TTY_DRIVER_DYNAMIC_ALLOC)
+			cdev_del(&driver->cdevs[0]);
 	}
+	kfree(driver->cdevs);
 	kfree(driver->ports);
 	kfree(driver->termios);
 	kfree(driver->ttys);
@@ -3195,11 +3229,11 @@ int tty_register_driver(struct tty_driver *driver)
 	if (error < 0)
 		goto err;
 
-	cdev_init(&driver->cdev, &tty_fops);
-	driver->cdev.owner = driver->owner;
-	error = cdev_add(&driver->cdev, dev, driver->num);
-	if (error)
-		goto err_unreg_char;
+	if (driver->flags & TTY_DRIVER_DYNAMIC_ALLOC) {
+		error = tty_cdev_add(driver, dev, 0, driver->num);
+		if (error)
+			goto err_unreg_char;
+	}
 
 	mutex_lock(&tty_mutex);
 	list_add(&driver->tty_drivers, &tty_drivers);
