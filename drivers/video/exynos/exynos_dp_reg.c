@@ -479,7 +479,8 @@ int exynos_dp_write_byte_to_dpcd(struct exynos_dp_device *dp,
 		if (retval == 0)
 			break;
 		else
-			dev_err(dp->dev, "Aux Transaction fail!\n");
+			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+				__func__);
 	}
 
 	return retval;
@@ -519,7 +520,8 @@ int exynos_dp_read_byte_from_dpcd(struct exynos_dp_device *dp,
 		if (retval == 0)
 			break;
 		else
-			dev_err(dp->dev, "Aux Transaction fail!\n");
+			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+				__func__);
 	}
 
 	/* Read data buffer */
@@ -583,7 +585,8 @@ int exynos_dp_write_bytes_to_dpcd(struct exynos_dp_device *dp,
 			if (retval == 0)
 				break;
 			else
-				dev_err(dp->dev, "Aux Transaction fail!\n");
+				dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+					__func__);
 		}
 
 		start_offset += cur_data_count;
@@ -640,7 +643,8 @@ int exynos_dp_read_bytes_from_dpcd(struct exynos_dp_device *dp,
 			if (retval == 0)
 				break;
 			else
-				dev_err(dp->dev, "Aux Transaction fail!\n");
+				dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+					__func__);
 		}
 
 		for (cur_data_idx = 0; cur_data_idx < cur_data_count;
@@ -685,7 +689,7 @@ int exynos_dp_select_i2c_device(struct exynos_dp_device *dp,
 	/* Start AUX transaction */
 	retval = exynos_dp_start_aux_transaction(dp);
 	if (retval != 0)
-		dev_err(dp->dev, "Aux Transaction fail!\n");
+		dev_dbg(dp->dev, "%s: Aux Transaction fail!\n", __func__);
 
 	return retval;
 }
@@ -725,7 +729,8 @@ int exynos_dp_read_byte_from_i2c(struct exynos_dp_device *dp,
 		if (retval == 0)
 			break;
 		else
-			dev_err(dp->dev, "Aux Transaction fail!\n");
+			dev_dbg(dp->dev, "%s: Aux Transaction fail!\n",
+				__func__);
 	}
 
 	/* Read data */
@@ -785,7 +790,9 @@ int exynos_dp_read_bytes_from_i2c(struct exynos_dp_device *dp,
 				if (retval == 0)
 					break;
 				else
-					dev_err(dp->dev, "Aux Transaction fail!\n");
+					dev_dbg(dp->dev,
+						"%s: Aux Transaction fail!\n",
+						__func__);
 			}
 			/* Check if Rx sends defer */
 			reg = readl(dp->reg_base + EXYNOS_DP_AUX_RX_COMM);
