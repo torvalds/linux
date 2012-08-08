@@ -167,7 +167,6 @@ config BATTERY_DA9030
 config BATTERY_DA9052
 	tristate "Dialog DA9052 Battery"
 	depends on PMIC_DA9052
-	depends on BROKEN
 	help
 	  Say Y here to enable support for batteries charger integrated into
 	  DA9052 PMIC.
