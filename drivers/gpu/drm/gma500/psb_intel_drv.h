@@ -134,7 +134,7 @@ struct psb_intel_encoder {
 	u32 ddi_select;	/* Channel info */
 #define DDI0_SELECT	0x01
 #define DDI1_SELECT	0x02
-#define DP_MASK		0x8000;	
+#define DP_MASK		0x8000
 #define DDI_MASK	0x03
 	void *dev_priv; /* For sdvo_priv, lvds_priv, etc... */
 

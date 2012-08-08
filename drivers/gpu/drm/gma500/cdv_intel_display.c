@@ -64,11 +64,16 @@ struct cdv_intel_limit_t {
 static bool cdv_intel_find_best_PLL(const struct cdv_intel_limit_t *limit,
 	struct drm_crtc *crtc, int target, int refclk,
 	struct cdv_intel_clock_t *best_clock);
+static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct drm_crtc *crtc, int target,
+				int refclk,
+				struct cdv_intel_clock_t *best_clock);
 
 #define CDV_LIMIT_SINGLE_LVDS_96	0
 #define CDV_LIMIT_SINGLE_LVDS_100	1
 #define CDV_LIMIT_DAC_HDMI_27		2
 #define CDV_LIMIT_DAC_HDMI_96		3
+#define CDV_LIMIT_DP_27			4
+#define CDV_LIMIT_DP_100		5
 
 static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	{			/* CDV_SIGNLE_LVDS_96MHz */
@@ -123,6 +128,30 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
 	.find_pll = cdv_intel_find_best_PLL,
 	 },
+	{			/* CDV_DP_27MHz */
+	 .dot = {.min = 160000, .max = 272000},
+	 .vco = {.min = 1809000, .max = 3564000},
+	 .n = {.min = 1, .max = 1},
+	 .m = {.min = 67, .max = 132},
+	 .m1 = {.min = 0, .max = 0},
+	 .m2 = {.min = 65, .max = 130},
+	 .p = {.min = 5, .max = 90},
+	 .p1 = {.min = 1, .max = 9},
+	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 10},
+	 .find_pll = cdv_intel_find_dp_pll,
+	 },
+	{			/* CDV_DP_100MHz */
+	 .dot = {.min = 160000, .max = 272000},
+	 .vco = {.min = 1800000, .max = 3600000},
+	 .n = {.min = 2, .max = 6},
+	 .m = {.min = 60, .max = 164},
+	 .m1 = {.min = 0, .max = 0},
+	 .m2 = {.min = 58, .max = 162},
+	 .p = {.min = 5, .max = 100},
+	 .p1 = {.min = 1, .max = 10},
+	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 10},
+	 .find_pll = cdv_intel_find_dp_pll,
+	 }	
 };
 
 #define _wait_for(COND, MS, W) ({ \
@@ -269,7 +298,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	ref_value &= ~(REF_CLK_MASK);
 
 	/* use DPLL_A for pipeB on CRT/HDMI */
-	if (pipe == 1 && !is_lvds) {
+	if (pipe == 1 && !is_lvds && !(ddi_select & DP_MASK)) {
 		DRM_DEBUG_KMS("use DPLLA for pipe B\n");
 		ref_value |= REF_CLK_DPLLA;
 	} else {
@@ -409,6 +438,11 @@ static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_96];
 		else
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_100];
+	} else if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		if (refclk == 27000)
+			limit = &cdv_intel_limits[CDV_LIMIT_DP_27];
+		else
+			limit = &cdv_intel_limits[CDV_LIMIT_DP_100];
 	} else {
 		if (refclk == 27000)
 			limit = &cdv_intel_limits[CDV_LIMIT_DAC_HDMI_27];
@@ -508,6 +542,49 @@ static bool cdv_intel_find_best_PLL(const struct cdv_intel_limit_t *limit,
 	}
 
 	return err != target;
+}
+
+static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct drm_crtc *crtc, int target,
+				int refclk,
+				struct cdv_intel_clock_t *best_clock)
+{
+	struct cdv_intel_clock_t clock;
+	if (refclk == 27000) {
+		if (target < 200000) {
+			clock.p1 = 2;
+			clock.p2 = 10;
+			clock.n = 1;
+			clock.m1 = 0;
+			clock.m2 = 118;
+		} else {
+			clock.p1 = 1;
+			clock.p2 = 10;
+			clock.n = 1;
+			clock.m1 = 0;
+			clock.m2 = 98;
+		}
+	} else if (refclk == 100000) {
+		if (target < 200000) {
+			clock.p1 = 2;
+			clock.p2 = 10;
+			clock.n = 5;
+			clock.m1 = 0;
+			clock.m2 = 160;
+		} else {
+			clock.p1 = 1;
+			clock.p2 = 10;
+			clock.n = 5;
+			clock.m1 = 0;
+			clock.m2 = 133;
+		}
+	} else
+		return false;
+	clock.m = clock.m2 + 2;
+	clock.p = clock.p1 * clock.p2;
+	clock.vco = (refclk * clock.m) / clock.n;
+	clock.dot = clock.vco / clock.p;
+	memcpy(best_clock, &clock, sizeof(struct cdv_intel_clock_t));
+	return true;
 }
 
 static int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
@@ -963,7 +1040,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll = 0, dspcntr, pipeconf;
 	bool ok;
 	bool is_crt = false, is_lvds = false, is_tv = false;
-	bool is_hdmi = false;
+	bool is_hdmi = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 	const struct cdv_intel_limit_t *limit;
@@ -991,6 +1068,9 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_HDMI:
 			is_hdmi = true;
 			break;
+		case INTEL_OUTPUT_DISPLAYPORT:
+			is_dp = true;
+			break;
 		default:
 			DRM_ERROR("invalid output type.\n");
 			return 0;
@@ -1003,6 +1083,12 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		/* high-end sku, 27/100 mhz */
 		refclk = 27000;
+	if (is_dp) {
+		if (pipe == 0)
+			refclk = 27000;
+		else
+			refclk = 100000;
+	}
 
 	if (is_lvds && dev_priv->lvds_use_ssc) {
 		refclk = dev_priv->lvds_ssc_freq * 1000;
@@ -1027,6 +1113,15 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		dpll |= 3;
 	}
 /*		dpll |= PLL_REF_INPUT_DREFCLK; */
+
+	if (is_dp) {
+/*FIXME		cdv_intel_dp_set_m_n(crtc, mode, adjusted_mode); */
+	} else {
+		REG_WRITE(PIPE_GMCH_DATA_M(pipe), 0);
+		REG_WRITE(PIPE_GMCH_DATA_N(pipe), 0);
+		REG_WRITE(PIPE_DP_LINK_M(pipe), 0);
+		REG_WRITE(PIPE_DP_LINK_N(pipe), 0);
+	}
 
 	dpll |= DPLL_SYNCLOCK_ENABLE;
 /*	if (is_lvds)
