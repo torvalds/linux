@@ -419,13 +419,6 @@ static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned int priority;
 
-	if (vcpu->requests) {
-		if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu)) {
-			smp_mb();
-			update_timer_ints(vcpu);
-		}
-	}
-
 	priority = __ffs(*pending);
 	while (priority < BOOKE_IRQPRIO_MAX) {
 		if (kvmppc_booke_irqprio_deliver(vcpu, priority))
@@ -461,6 +454,14 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+static void kvmppc_check_requests(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->requests) {
+		if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu))
+			update_timer_ints(vcpu);
+	}
+}
+
 /*
  * Common checks before entering the guest world.  Call with interrupts
  * disabled.
@@ -483,6 +484,15 @@ static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		if (signal_pending(current)) {
 			r = 1;
 			break;
+		}
+
+		smp_mb();
+		if (vcpu->requests) {
+			/* Make sure we process requests preemptable */
+			local_irq_enable();
+			kvmppc_check_requests(vcpu);
+			local_irq_disable();
+			continue;
 		}
 
 		if (kvmppc_core_prepare_to_enter(vcpu)) {
