@@ -266,4 +266,6 @@ size_t hex_width(u64 v);
 
 char *rtrim(char *s);
 
+void dump_stack(void);
+
 #endif
