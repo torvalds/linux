@@ -55,6 +55,8 @@ static int lb035q02_panel_power_on(struct omap_dss_device *dssdev)
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
+	omapdss_dpi_set_timings(dssdev, &dssdev->panel.timings);
+
 	r = omapdss_dpi_display_enable(dssdev);
 	if (r)
 		goto err0;

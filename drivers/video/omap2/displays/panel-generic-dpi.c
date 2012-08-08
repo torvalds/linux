@@ -565,6 +565,8 @@ static int generic_dpi_panel_power_on(struct omap_dss_device *dssdev)
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
+	omapdss_dpi_set_timings(dssdev, &dssdev->panel.timings);
+
 	r = omapdss_dpi_display_enable(dssdev);
 	if (r)
 		goto err0;
@@ -726,7 +728,7 @@ static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_lock(&drv_data->lock);
 
-	dpi_set_timings(dssdev, timings);
+	omapdss_dpi_set_timings(dssdev, timings);
 
 	mutex_unlock(&drv_data->lock);
 }

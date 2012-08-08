@@ -41,6 +41,7 @@ static struct {
 
 	struct mutex lock;
 
+	struct omap_video_timings timings;
 	struct dss_lcd_mgr_config mgr_config;
 } dpi;
 
@@ -123,7 +124,7 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
 
 static int dpi_set_mode(struct omap_dss_device *dssdev)
 {
-	struct omap_video_timings *t = &dssdev->panel.timings;
+	struct omap_video_timings *t = &dpi.timings;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	unsigned long pck;
@@ -272,8 +273,8 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_dpi_display_disable);
 
-void dpi_set_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
+void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
 {
 	int r;
 
@@ -281,7 +282,9 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_lock(&dpi.lock);
 
+	dpi.timings = *timings;
 	dssdev->panel.timings = *timings;
+
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 		r = dispc_runtime_get();
 		if (r)
@@ -296,7 +299,7 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_unlock(&dpi.lock);
 }
-EXPORT_SYMBOL(dpi_set_timings);
+EXPORT_SYMBOL(omapdss_dpi_set_timings);
 
 int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
