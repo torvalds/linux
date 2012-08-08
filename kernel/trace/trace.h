@@ -13,6 +13,11 @@
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
 
+#ifdef CONFIG_FTRACE_SYSCALLS
+#include <asm/unistd.h>		/* For NR_SYSCALLS	     */
+#include <asm/syscall.h>	/* some archs define it here */
+#endif
+
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
 
@@ -173,6 +178,12 @@ struct trace_array {
 	int			cpu;
 	int			buffer_disabled;
 	struct trace_cpu	trace_cpu;	/* place holder */
+#ifdef CONFIG_FTRACE_SYSCALLS
+	int			sys_refcount_enter;
+	int			sys_refcount_exit;
+	DECLARE_BITMAP(enabled_enter_syscalls, NR_syscalls);
+	DECLARE_BITMAP(enabled_exit_syscalls, NR_syscalls);
+#endif
 	int			stop_count;
 	int			clock_id;
 	struct tracer		*current_trace;
