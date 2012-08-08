@@ -221,7 +221,6 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 }
 
 static void python_process_event(union perf_event *perf_event __unused,
-				 struct pevent *pevent,
 				 struct perf_sample *sample,
 				 struct perf_evsel *evsel,
 				 struct machine *machine __unused,
@@ -248,7 +247,7 @@ static void python_process_event(union perf_event *perf_event __unused,
 	if (!event)
 		die("ug! no event found for type %d", (int)evsel->attr.config);
 
-	pid = trace_parse_common_pid(pevent, data);
+	pid = raw_field_value(event, "common_pid", data);
 
 	sprintf(handler_name, "%s__%s", event->system, event->name);
 
@@ -293,7 +292,7 @@ static void python_process_event(union perf_event *perf_event __unused,
 				offset = field->offset;
 			obj = PyString_FromString((char *)data + offset);
 		} else { /* FIELD_IS_NUMERIC */
-			val = read_size(pevent, data + field->offset,
+			val = read_size(event, data + field->offset,
 					field->size);
 			if (field->flags & FIELD_IS_SIGNED) {
 				if ((long long)val >= LONG_MIN &&

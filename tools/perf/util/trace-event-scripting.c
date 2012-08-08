@@ -36,7 +36,6 @@ static int stop_script_unsupported(void)
 }
 
 static void process_event_unsupported(union perf_event *event __unused,
-				      struct pevent *pevent __unused,
 				      struct perf_sample *sample __unused,
 				      struct perf_evsel *evsel __unused,
 				      struct machine *machine __unused,

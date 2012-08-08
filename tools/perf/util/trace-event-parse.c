@@ -162,9 +162,9 @@ int trace_parse_common_pid(struct pevent *pevent, void *data)
 	return pevent_data_pid(pevent, &record);
 }
 
-unsigned long long read_size(struct pevent *pevent, void *ptr, int size)
+unsigned long long read_size(struct event_format *event, void *ptr, int size)
 {
-	return pevent_read_number(pevent, ptr, size);
+	return pevent_read_number(event->pevent, ptr, size);
 }
 
 void event_format__print(struct event_format *event,

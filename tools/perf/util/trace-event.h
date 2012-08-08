@@ -58,7 +58,7 @@ int trace_parse_common_pid(struct pevent *pevent, void *data);
 
 struct event_format *trace_find_next_event(struct pevent *pevent,
 					   struct event_format *event);
-unsigned long long read_size(struct pevent *pevent, void *ptr, int size);
+unsigned long long read_size(struct event_format *event, void *ptr, int size);
 unsigned long long eval_flag(const char *flag);
 
 struct pevent_record *trace_read_data(struct pevent *pevent, int cpu);
@@ -81,7 +81,6 @@ struct scripting_ops {
 	int (*start_script) (const char *script, int argc, const char **argv);
 	int (*stop_script) (void);
 	void (*process_event) (union perf_event *event,
-			       struct pevent *pevent,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,

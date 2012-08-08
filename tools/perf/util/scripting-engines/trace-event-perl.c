@@ -258,7 +258,6 @@ static inline struct event_format *find_cache_event(struct perf_evsel *evsel)
 }
 
 static void perl_process_tracepoint(union perf_event *perf_event __unused,
-				    struct pevent *pevent,
 				    struct perf_sample *sample,
 				    struct perf_evsel *evsel,
 				    struct machine *machine __unused,
@@ -284,7 +283,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 	if (!event)
 		die("ug! no event found for type %d", evsel->attr.config);
 
-	pid = trace_parse_common_pid(pevent, data);
+	pid = raw_field_value(event, "common_pid", data);
 
 	sprintf(handler, "%s::%s", event->system, event->name);
 
@@ -317,7 +316,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 				offset = field->offset;
 			XPUSHs(sv_2mortal(newSVpv((char *)data + offset, 0)));
 		} else { /* FIELD_IS_NUMERIC */
-			val = read_size(pevent, data + field->offset,
+			val = read_size(event, data + field->offset,
 					field->size);
 			if (field->flags & FIELD_IS_SIGNED) {
 				XPUSHs(sv_2mortal(newSViv(val)));
@@ -346,9 +345,9 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 	LEAVE;
 }
 
-static void perl_process_event_generic(union perf_event *pevent __unused,
+static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
-				       struct perf_evsel *evsel __unused,
+				       struct perf_evsel *evsel,
 				       struct machine *machine __unused,
 				       struct thread *thread __unused)
 {
@@ -360,7 +359,7 @@ static void perl_process_event_generic(union perf_event *pevent __unused,
 	ENTER;
 	SAVETMPS;
 	PUSHMARK(SP);
-	XPUSHs(sv_2mortal(newSVpvn((const char *)pevent, pevent->header.size)));
+	XPUSHs(sv_2mortal(newSVpvn((const char *)event, event->header.size)));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)&evsel->attr, sizeof(evsel->attr))));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)sample, sizeof(*sample))));
 	XPUSHs(sv_2mortal(newSVpvn((const char *)sample->raw_data, sample->raw_size)));
@@ -373,13 +372,12 @@ static void perl_process_event_generic(union perf_event *pevent __unused,
 }
 
 static void perl_process_event(union perf_event *event,
-			       struct pevent *pevent,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
 			       struct thread *thread)
 {
-	perl_process_tracepoint(event, pevent, sample, evsel, machine, thread);
+	perl_process_tracepoint(event, sample, evsel, machine, thread);
 	perl_process_event_generic(event, sample, evsel, machine, thread);
 }
 
