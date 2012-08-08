@@ -247,6 +247,7 @@ static void __init spear320_dt_init(void)
 static const char * const spear320_dt_board_compat[] = {
 	"st,spear320",
 	"st,spear320-evb",
+	"st,spear320-hmi",
 	NULL,
 };
 
