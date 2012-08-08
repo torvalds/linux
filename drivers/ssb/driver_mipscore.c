@@ -190,16 +190,30 @@ static void ssb_mips_flash_detect(struct ssb_mipscore *mcore)
 {
 	struct ssb_bus *bus = mcore->dev->bus;
 
-	mcore->flash_buswidth = 2;
-	if (bus->chipco.dev) {
-		mcore->flash_window = 0x1c000000;
-		mcore->flash_window_size = 0x02000000;
+	/* When there is no chipcommon on the bus there is 4MB flash */
+	if (!bus->chipco.dev) {
+		mcore->flash_buswidth = 2;
+		mcore->flash_window = SSB_FLASH1;
+		mcore->flash_window_size = SSB_FLASH1_SZ;
+		return;
+	}
+
+	/* There is ChipCommon, so use it to read info about flash */
+	switch (bus->chipco.capabilities & SSB_CHIPCO_CAP_FLASHT) {
+	case SSB_CHIPCO_FLASHT_STSER:
+	case SSB_CHIPCO_FLASHT_ATSER:
+		pr_err("Serial flash not supported\n");
+		break;
+	case SSB_CHIPCO_FLASHT_PARA:
+		pr_debug("Found parallel flash\n");
+		mcore->flash_window = SSB_FLASH2;
+		mcore->flash_window_size = SSB_FLASH2_SZ;
 		if ((ssb_read32(bus->chipco.dev, SSB_CHIPCO_FLASH_CFG)
 		               & SSB_CHIPCO_CFG_DS16) == 0)
 			mcore->flash_buswidth = 1;
-	} else {
-		mcore->flash_window = 0x1fc00000;
-		mcore->flash_window_size = 0x00400000;
+		else
+			mcore->flash_buswidth = 2;
+		break;
 	}
 }
 
