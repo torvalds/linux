@@ -524,3 +524,10 @@
  * 1110		-none-	 -none-	  -none-   -none-    -none-
  * 1111		-none-	 -none-   -none-   -none-    -none-
 */
+
+/* FIMD Version 8 register offset definitions */
+#define FIMD_V8_VIDTCON0	(0x20010)
+#define FIMD_V8_VIDTCON1	(0x20014)
+#define FIMD_V8_VIDTCON2	(0x20018)
+#define FIMD_V8_VIDTCON3	(0x2001C)
+#define FIMD_V8_VIDCON1		(0x20004)
