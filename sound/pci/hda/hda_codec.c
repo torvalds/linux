@@ -1386,6 +1386,44 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_configure);
 
+/* update the stream-id if changed */
+static void update_pcm_stream_id(struct hda_codec *codec,
+				 struct hda_cvt_setup *p, hda_nid_t nid,
+				 u32 stream_tag, int channel_id)
+{
+	unsigned int oldval, newval;
+
+	if (p->stream_tag != stream_tag || p->channel_id != channel_id) {
+		oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
+		newval = (stream_tag << 4) | channel_id;
+		if (oldval != newval)
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_CHANNEL_STREAMID,
+					    newval);
+		p->stream_tag = stream_tag;
+		p->channel_id = channel_id;
+	}
+}
+
+/* update the format-id if changed */
+static void update_pcm_format(struct hda_codec *codec, struct hda_cvt_setup *p,
+			      hda_nid_t nid, int format)
+{
+	unsigned int oldval;
+
+	if (p->format_id != format) {
+		oldval = snd_hda_codec_read(codec, nid, 0,
+					    AC_VERB_GET_STREAM_FORMAT, 0);
+		if (oldval != format) {
+			msleep(1);
+			snd_hda_codec_write(codec, nid, 0,
+					    AC_VERB_SET_STREAM_FORMAT,
+					    format);
+		}
+		p->format_id = format;
+	}
+}
+
 /**
  * snd_hda_codec_setup_stream - set up the codec for streaming
  * @codec: the CODEC to set up
@@ -1400,7 +1438,6 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 {
 	struct hda_codec *c;
 	struct hda_cvt_setup *p;
-	unsigned int oldval, newval;
 	int type;
 	int i;
 
@@ -1413,29 +1450,13 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 	p = get_hda_cvt_setup(codec, nid);
 	if (!p)
 		return;
-	/* update the stream-id if changed */
-	if (p->stream_tag != stream_tag || p->channel_id != channel_id) {
-		oldval = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONV, 0);
-		newval = (stream_tag << 4) | channel_id;
-		if (oldval != newval)
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_CHANNEL_STREAMID,
-					    newval);
-		p->stream_tag = stream_tag;
-		p->channel_id = channel_id;
-	}
-	/* update the format-id if changed */
-	if (p->format_id != format) {
-		oldval = snd_hda_codec_read(codec, nid, 0,
-					    AC_VERB_GET_STREAM_FORMAT, 0);
-		if (oldval != format) {
-			msleep(1);
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_STREAM_FORMAT,
-					    format);
-		}
-		p->format_id = format;
-	}
+
+	if (codec->pcm_format_first)
+		update_pcm_format(codec, p, nid, format);
+	update_pcm_stream_id(codec, p, nid, stream_tag, channel_id);
+	if (!codec->pcm_format_first)
+		update_pcm_format(codec, p, nid, format);
+
 	p->active = 1;
 	p->dirty = 0;
 
