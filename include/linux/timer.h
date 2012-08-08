@@ -49,18 +49,26 @@ extern struct tvec_base boot_tvec_bases;
 #endif
 
 /*
- * Note that all tvec_bases are 2 byte aligned and lower bit of
- * base in timer_list is guaranteed to be zero. Use the LSB to
- * indicate whether the timer is deferrable.
+ * Note that all tvec_bases are at least 4 byte aligned and lower two bits
+ * of base in timer_list is guaranteed to be zero. Use them for flags.
  *
  * A deferrable timer will work normally when the system is busy, but
  * will not cause a CPU to come out of idle just to service it; instead,
  * the timer will be serviced when the CPU eventually wakes up with a
  * subsequent non-deferrable timer.
+ *
+ * An irqsafe timer is executed with IRQ disabled and it's safe to wait for
+ * the completion of the running instance from IRQ handlers, for example,
+ * by calling del_timer_sync().
+ *
+ * Note: The irq disabled callback execution is a special case for
+ * workqueue locking issues. It's not meant for executing random crap
+ * with interrupts disabled. Abuse is monitored!
  */
 #define TIMER_DEFERRABLE		0x1LU
+#define TIMER_IRQSAFE			0x2LU
 
-#define TIMER_FLAG_MASK			0x1LU
+#define TIMER_FLAG_MASK			0x3LU
 
 #define __TIMER_INITIALIZER(_function, _expires, _data, _flags) { \
 		.entry = { .prev = TIMER_ENTRY_STATIC },	\
