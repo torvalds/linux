@@ -2680,4 +2680,6 @@ MODULE_PARM_DESC(max_session_slots, "Maximum number of outstanding NFSv4.1 "
 module_param(send_implementation_id, ushort, 0644);
 MODULE_PARM_DESC(send_implementation_id,
 		"Send implementation ID with NFSv4.1 exchange_id");
+MODULE_ALIAS("nfs4");
+
 #endif /* CONFIG_NFS_V4 */
