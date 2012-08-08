@@ -221,6 +221,12 @@ struct kvm_sregs {
 
 			__u32 dbsr;	/* KVM_SREGS_E_UPDATE_DBSR */
 			__u32 dbcr[3];
+			/*
+			 * iac/dac registers are 64bit wide, while this API
+			 * interface provides only lower 32 bits on 64 bit
+			 * processors. ONE_REG interface is added for 64bit
+			 * iac/dac registers.
+			 */
 			__u32 iac[4];
 			__u32 dac[2];
 			__u32 dvc[2];
@@ -326,5 +332,11 @@ struct kvm_book3e_206_tlb_params {
 };
 
 #define KVM_REG_PPC_HIOR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x1)
+#define KVM_REG_PPC_IAC1	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x2)
+#define KVM_REG_PPC_IAC2	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x3)
+#define KVM_REG_PPC_IAC3	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x4)
+#define KVM_REG_PPC_IAC4	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x5)
+#define KVM_REG_PPC_DAC1	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x6)
+#define KVM_REG_PPC_DAC2	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x7)
 
 #endif /* __LINUX_KVM_POWERPC_H */

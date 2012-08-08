@@ -1351,12 +1351,56 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 int kvm_vcpu_ioctl_get_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 {
-	return -EINVAL;
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_IAC1:
+	case KVM_REG_PPC_IAC2:
+	case KVM_REG_PPC_IAC3:
+	case KVM_REG_PPC_IAC4: {
+		int iac = reg->id - KVM_REG_PPC_IAC1;
+		r = copy_to_user((u64 __user *)(long)reg->addr,
+				 &vcpu->arch.dbg_reg.iac[iac], sizeof(u64));
+		break;
+	}
+	case KVM_REG_PPC_DAC1:
+	case KVM_REG_PPC_DAC2: {
+		int dac = reg->id - KVM_REG_PPC_DAC1;
+		r = copy_to_user((u64 __user *)(long)reg->addr,
+				 &vcpu->arch.dbg_reg.dac[dac], sizeof(u64));
+		break;
+	}
+	default:
+		break;
+	}
+	return r;
 }
 
 int kvm_vcpu_ioctl_set_one_reg(struct kvm_vcpu *vcpu, struct kvm_one_reg *reg)
 {
-	return -EINVAL;
+	int r = -EINVAL;
+
+	switch (reg->id) {
+	case KVM_REG_PPC_IAC1:
+	case KVM_REG_PPC_IAC2:
+	case KVM_REG_PPC_IAC3:
+	case KVM_REG_PPC_IAC4: {
+		int iac = reg->id - KVM_REG_PPC_IAC1;
+		r = copy_from_user(&vcpu->arch.dbg_reg.iac[iac],
+			     (u64 __user *)(long)reg->addr, sizeof(u64));
+		break;
+	}
+	case KVM_REG_PPC_DAC1:
+	case KVM_REG_PPC_DAC2: {
+		int dac = reg->id - KVM_REG_PPC_DAC1;
+		r = copy_from_user(&vcpu->arch.dbg_reg.dac[dac],
+			     (u64 __user *)(long)reg->addr, sizeof(u64));
+		break;
+	}
+	default:
+		break;
+	}
+	return r;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)

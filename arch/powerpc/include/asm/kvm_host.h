@@ -346,6 +346,27 @@ struct kvmppc_slb {
 	bool class	: 1;
 };
 
+# ifdef CONFIG_PPC_FSL_BOOK3E
+#define KVMPPC_BOOKE_IAC_NUM	2
+#define KVMPPC_BOOKE_DAC_NUM	2
+# else
+#define KVMPPC_BOOKE_IAC_NUM	4
+#define KVMPPC_BOOKE_DAC_NUM	2
+# endif
+#define KVMPPC_BOOKE_MAX_IAC	4
+#define KVMPPC_BOOKE_MAX_DAC	2
+
+struct kvmppc_booke_debug_reg {
+	u32 dbcr0;
+	u32 dbcr1;
+	u32 dbcr2;
+#ifdef CONFIG_KVM_E500MC
+	u32 dbcr4;
+#endif
+	u64 iac[KVMPPC_BOOKE_MAX_IAC];
+	u64 dac[KVMPPC_BOOKE_MAX_DAC];
+};
+
 struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
@@ -440,8 +461,6 @@ struct kvm_vcpu_arch {
 
 	u32 ccr0;
 	u32 ccr1;
-	u32 dbcr0;
-	u32 dbcr1;
 	u32 dbsr;
 
 	u64 mmcr[3];
@@ -476,6 +495,7 @@ struct kvm_vcpu_arch {
 	u32 tlbcfg[4];
 	u32 mmucfg;
 	u32 epr;
+	struct kvmppc_booke_debug_reg dbg_reg;
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
