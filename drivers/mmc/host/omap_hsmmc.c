@@ -301,12 +301,12 @@ static int omap_hsmmc_reg_get(struct omap_hsmmc_host *host)
 	struct regulator *reg;
 	int ocr_value = 0;
 
-	mmc_slot(host).set_power = omap_hsmmc_set_power;
-
 	reg = regulator_get(host->dev, "vmmc");
 	if (IS_ERR(reg)) {
 		dev_dbg(host->dev, "vmmc regulator missing\n");
+		return PTR_ERR(reg);
 	} else {
+		mmc_slot(host).set_power = omap_hsmmc_set_power;
 		host->vcc = reg;
 		ocr_value = mmc_regulator_get_ocrmask(reg);
 		if (!mmc_slot(host).ocr_mask) {
