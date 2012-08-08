@@ -332,7 +332,7 @@ int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned 
 	 */
 	result = is_swbp_at_addr(mm, vaddr);
 	if (result == 1)
-		return -EEXIST;
+		return 0;
 
 	if (result)
 		return result;
@@ -657,7 +657,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	 * Hence behave as if probe already existed.
 	 */
 	if (!uprobe->consumers)
-		return -EEXIST;
+		return 0;
 
 	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
 		ret = copy_insn(uprobe, vma->vm_file);
@@ -817,17 +817,11 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		    vaddr_to_offset(vma, info->vaddr) != uprobe->offset)
 			goto unlock;
 
-		if (is_register) {
+		if (is_register)
 			err = install_breakpoint(uprobe, mm, vma, info->vaddr);
-			/*
-			 * We can race against uprobe_mmap(), see the
-			 * comment near uprobe_hash().
-			 */
-			if (err == -EEXIST)
-				err = 0;
-		} else {
+		else
 			remove_breakpoint(uprobe, mm, info->vaddr);
-		}
+
  unlock:
 		up_write(&mm->mmap_sem);
  free:
