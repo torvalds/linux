@@ -133,6 +133,11 @@ struct psb_intel_encoder {
 	void (*hot_plug)(struct psb_intel_encoder *);
 	int crtc_mask;
 	int clone_mask;
+	u32 ddi_select;	/* Channel info */
+#define DDI0_SELECT	0x01
+#define DDI1_SELECT	0x02
+#define DP_MASK		0x8000;	
+#define DDI_MASK	0x03
 	void *dev_priv; /* For sdvo_priv, lvds_priv, etc... */
 
 	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's

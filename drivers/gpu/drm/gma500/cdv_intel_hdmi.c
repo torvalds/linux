@@ -352,9 +352,11 @@ void cdv_hdmi_init(struct drm_device *dev,
 	switch (reg) {
 	case SDVOB:
 		ddc_bus = GPIOE;
+		psb_intel_encoder->ddi_select = DDI0_SELECT;
 		break;
 	case SDVOC:
 		ddc_bus = GPIOD;
+		psb_intel_encoder->ddi_select = DDI1_SELECT;
 		break;
 	default:
 		DRM_ERROR("unknown reg 0x%x for HDMI\n", reg);

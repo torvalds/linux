@@ -57,7 +57,13 @@ struct cdv_intel_clock_t {
 struct cdv_intel_limit_t {
 	struct cdv_intel_range_t dot, vco, n, m, m1, m2, p, p1;
 	struct cdv_intel_p2_t p2;
+	bool (*find_pll)(const struct cdv_intel_limit_t *, struct drm_crtc *,
+			int, int, struct cdv_intel_clock_t *);
 };
+
+static bool cdv_intel_find_best_PLL(const struct cdv_intel_limit_t *limit,
+	struct drm_crtc *crtc, int target, int refclk,
+	struct cdv_intel_clock_t *best_clock);
 
 #define CDV_LIMIT_SINGLE_LVDS_96	0
 #define CDV_LIMIT_SINGLE_LVDS_100	1
@@ -76,6 +82,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .p1 = {.min = 2, .max = 10},
 	 .p2 = {.dot_limit = 200000,
 		.p2_slow = 14, .p2_fast = 14},
+		.find_pll = cdv_intel_find_best_PLL,
 	 },
 	{			/* CDV_SINGLE_LVDS_100MHz */
 	 .dot = {.min = 20000, .max = 115500},
@@ -90,6 +97,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
 	 .p2 = {.dot_limit = 200000, .p2_slow = 14, .p2_fast = 14},
+	.find_pll = cdv_intel_find_best_PLL,
 	 },
 	{			/* CDV_DAC_HDMI_27MHz */
 	 .dot = {.min = 20000, .max = 400000},
@@ -101,6 +109,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .p = {.min = 5, .max = 90},
 	 .p1 = {.min = 1, .max = 9},
 	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
+	.find_pll = cdv_intel_find_best_PLL,
 	 },
 	{			/* CDV_DAC_HDMI_96MHz */
 	 .dot = {.min = 20000, .max = 400000},
@@ -112,6 +121,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 	 .p = {.min = 5, .max = 100},
 	 .p1 = {.min = 1, .max = 10},
 	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
+	.find_pll = cdv_intel_find_best_PLL,
 	 },
 };
 
@@ -216,7 +226,7 @@ static void cdv_sb_reset(struct drm_device *dev)
  */
 static int
 cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
-			       struct cdv_intel_clock_t *clock, bool is_lvds)
+			       struct cdv_intel_clock_t *clock, bool is_lvds, u32 ddi_select)
 {
 	struct psb_intel_crtc *psb_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_crtc->pipe;
@@ -336,30 +346,33 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	lane_reg = PSB_LANE0;
-	cdv_sb_read(dev, lane_reg, &lane_value);
-	lane_value &= ~(LANE_PLL_MASK);
-	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
-	cdv_sb_write(dev, lane_reg, lane_value);
+	if (ddi_select) {
+		if ((ddi_select & DDI_MASK) == DDI0_SELECT) {
+			lane_reg = PSB_LANE0;
+			cdv_sb_read(dev, lane_reg, &lane_value);
+			lane_value &= ~(LANE_PLL_MASK);
+			lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+			cdv_sb_write(dev, lane_reg, lane_value);
 
-	lane_reg = PSB_LANE1;
-	cdv_sb_read(dev, lane_reg, &lane_value);
-	lane_value &= ~(LANE_PLL_MASK);
-	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
-	cdv_sb_write(dev, lane_reg, lane_value);
+			lane_reg = PSB_LANE1;
+			cdv_sb_read(dev, lane_reg, &lane_value);
+			lane_value &= ~(LANE_PLL_MASK);
+			lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+			cdv_sb_write(dev, lane_reg, lane_value);
+		} else {
+			lane_reg = PSB_LANE2;
+			cdv_sb_read(dev, lane_reg, &lane_value);
+			lane_value &= ~(LANE_PLL_MASK);
+			lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+			cdv_sb_write(dev, lane_reg, lane_value);
 
-	lane_reg = PSB_LANE2;
-	cdv_sb_read(dev, lane_reg, &lane_value);
-	lane_value &= ~(LANE_PLL_MASK);
-	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
-	cdv_sb_write(dev, lane_reg, lane_value);
-
-	lane_reg = PSB_LANE3;
-	cdv_sb_read(dev, lane_reg, &lane_value);
-	lane_value &= ~(LANE_PLL_MASK);
-	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
-	cdv_sb_write(dev, lane_reg, lane_value);
-
+			lane_reg = PSB_LANE3;
+			cdv_sb_read(dev, lane_reg, &lane_value);
+			lane_value &= ~(LANE_PLL_MASK);
+			lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+			cdv_sb_write(dev, lane_reg, lane_value);
+		}
+	}
 	return 0;
 }
 
@@ -438,13 +451,12 @@ static bool cdv_intel_PLL_is_valid(struct drm_crtc *crtc,
 	return true;
 }
 
-static bool cdv_intel_find_best_PLL(struct drm_crtc *crtc, int target,
-				int refclk,
-				struct cdv_intel_clock_t *best_clock)
+static bool cdv_intel_find_best_PLL(const struct cdv_intel_limit_t *limit,
+	struct drm_crtc *crtc, int target, int refclk,
+	struct cdv_intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	struct cdv_intel_clock_t clock;
-	const struct cdv_intel_limit_t *limit = cdv_intel_limit(crtc, refclk);
 	int err = target;
 
 
@@ -954,6 +966,8 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_hdmi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	const struct cdv_intel_limit_t *limit;
+	u32 ddi_select = 0;
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_encoder *psb_intel_encoder =
@@ -963,6 +977,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		    || connector->encoder->crtc != crtc)
 			continue;
 
+		ddi_select = psb_intel_encoder->ddi_select;
 		switch (psb_intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
@@ -976,6 +991,9 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_HDMI:
 			is_hdmi = true;
 			break;
+		default:
+			DRM_ERROR("invalid output type.\n");
+			return 0;
 		}
 	}
 
@@ -992,8 +1010,10 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	drm_mode_debug_printmodeline(adjusted_mode);
+	
+	limit = cdv_intel_limit(crtc, refclk);
 
-	ok = cdv_intel_find_best_PLL(crtc, adjusted_mode->clock, refclk,
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk,
 				 &clock);
 	if (!ok) {
 		dev_err(dev->dev, "Couldn't find PLL settings for mode!\n");
@@ -1032,7 +1052,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	REG_WRITE(map->dpll, dpll | DPLL_VGA_MODE_DIS | DPLL_SYNCLOCK_ENABLE);
 	REG_READ(map->dpll);
 
-	cdv_dpll_set_clock_cdv(dev, crtc, &clock, is_lvds);
+	cdv_dpll_set_clock_cdv(dev, crtc, &clock, is_lvds, ddi_select);
 
 	udelay(150);
 
