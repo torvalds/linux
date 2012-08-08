@@ -913,7 +913,8 @@ static struct clk general_pll_clk = {
 	.set_rate	= gpll_clk_set_rate,
 	.pll		= &gpll_data,
 };
-#define SELECT_FROM_2PLLS {&general_pll_clk, &codec_pll_clk}
+#define SELECT_FROM_2PLLS_GC {&general_pll_clk, &codec_pll_clk}
+#define SELECT_FROM_2PLLS_CG {&codec_pll_clk, &general_pll_clk}
 /*********ddr******/
 static int ddr_clk_set_rate(struct clk *c, unsigned long rate)
 {
@@ -1102,8 +1103,8 @@ static struct clk pclk_cpu_pre = {
 	CRU_DIV_SET(PCLK_CPU_DIV_MASK, PCLK_CPU_DIV_SHIFT, 8),
 };
 /****************vcodec*******************/
-static struct clk *clk_aclk_vepu_parents[]		= SELECT_FROM_2PLLS;
-static struct clk *clk_aclk_vdpu_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_aclk_vepu_parents[]		= SELECT_FROM_2PLLS_CG;
+static struct clk *clk_aclk_vdpu_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk aclk_vepu = {
 	.name		= "aclk_vepu",
 	.parent		= &codec_pll_clk,
@@ -1145,7 +1146,7 @@ static struct clk hclk_vdpu = {
 
 /****************vio*******************/
 // name: lcdc0_aclk
-static struct clk *clk_aclk_vio_pre_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_aclk_vio_pre_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk aclk_vio_pre = {
 	.name		= "aclk_vio_pre",
 	.parent		= &clk_cpu_div,
@@ -1166,7 +1167,7 @@ static struct clk hclk_vio_pre = {
 };
 
 /****************periph*******************/
-static struct clk *peri_aclk_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *peri_aclk_parents[]		= SELECT_FROM_2PLLS_GC;
 static struct clk peri_aclk = {
 	.name		= "peri_aclk",
 	.parent		= &general_pll_clk,
@@ -1230,7 +1231,7 @@ static struct clk clk_timer0 = {
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_TIMER0,
 	.recalc		= clksel_recalc_equal_parent,
-	.clksel_con	= CRU_CLKSELS_CON(10),
+	.clksel_con	= CRU_CLKSELS_CON(2),
 	CRU_SRC_SET(0x1, 4),	
 	CRU_PARENTS_SET(clk_timer0_parents),
 };
@@ -1240,7 +1241,7 @@ static struct clk clk_timer1 = {
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_TIMER1,
 	.recalc		= clksel_recalc_equal_parent,
-	.clksel_con	= CRU_CLKSELS_CON(10),
+	.clksel_con	= CRU_CLKSELS_CON(2),
 	CRU_SRC_SET(0x1, 5),	
 	CRU_PARENTS_SET(clk_timer1_parents),
 };
@@ -1256,7 +1257,7 @@ static struct clk clk_spi = {
 	CRU_DIV_SET(0x7f, 0, 128),
 };
 /****************sdmmc*******************/
-static struct clk *clk_sdmmc0_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_sdmmc0_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_sdmmc0 = {
 	.name		= "sdmmc0",
 	.parent		= &general_pll_clk,
@@ -1288,7 +1289,7 @@ static struct clk clk_sdmmc0_drv = {
 };
 #endif
 /****************sdio*******************/
-static struct clk *clk_sdio_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_sdio_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_sdio = {
 	.name		= "sdio",
 	.parent		= &general_pll_clk,
@@ -1297,6 +1298,7 @@ static struct clk clk_sdio = {
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_freediv,
 	.clksel_con 	= CRU_CLKSELS_CON(12),
+	CRU_SRC_SET(0x1, 6),	
 	CRU_DIV_SET(0x3f,0,64),
 	CRU_PARENTS_SET(clk_sdio_parents),
 };
@@ -1319,7 +1321,7 @@ static struct clk clk_sdio_drv = {
 };
 #endif 
 /****************emmc*******************/
-static struct clk *clk_emmc_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_emmc_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_emmc = {
 	.name		= "emmc",
 	.parent		= &general_pll_clk,
@@ -1328,6 +1330,7 @@ static struct clk clk_emmc = {
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_freediv,
 	.clksel_con =CRU_CLKSELS_CON(12),
+	CRU_SRC_SET(0x1, 7),	
 	CRU_DIV_SET(0x3f,8,64),
 	CRU_PARENTS_SET(clk_emmc_parents),
 };
@@ -1350,7 +1353,8 @@ static struct clk clk_emmc_drv = {
 };
 #endif
 /****************lcdc*******************/
-static struct clk *dclk_lcdc_parents[]		= {&arm_pll_clk, &general_pll_clk, &codec_pll_clk};
+// DO NOT USE ARM_PLL
+static struct clk *dclk_lcdc_parents[]		= {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc = {
 	.name		= "dclk_lcdc",
 	.parent		= &general_pll_clk,
@@ -1363,7 +1367,7 @@ static struct clk dclk_lcdc = {
 	CRU_SRC_SET(0x3, 0),
 	CRU_PARENTS_SET(dclk_lcdc_parents),
 };
-static struct clk *sclk_lcdc_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *sclk_lcdc_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk sclk_lcdc = {
 	.name		= "sclk_lcdc",
 	.parent		= &general_pll_clk,
@@ -1378,7 +1382,7 @@ static struct clk sclk_lcdc = {
 };
 /****************gps*******************/
 #if 0
-static struct clk hclk_gps_parents		= SELECT_FROM_2PLLS;
+static struct clk hclk_gps_parents		= SELECT_FROM_2PLLS_CG;
 static struct clk hclk_gps = {
 	.name		= "hclk_gps",
 	.parent		= &general_pll_clk,
@@ -1389,7 +1393,7 @@ static struct clk hclk_gps = {
 };
 #endif
 /****************camera*******************/
-static struct clk *clk_cif_out_div_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_cif_out_div_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_cif_out_div = {
 	.name		= "cif_out_div",
 	.parent		= &general_pll_clk,
@@ -1402,7 +1406,7 @@ static struct clk clk_cif_out_div = {
 	CRU_DIV_SET(0x1f, 1, 32),
 	CRU_PARENTS_SET(clk_cif_out_div_parents),
 };
-static struct clk *clk_cif_out_parents[]		= {&xin24m, &clk_cif_out_div};
+static struct clk *clk_cif_out_parents[]		= {&clk_cif_out_div, &xin24m};
 static struct clk clk_cif_out = {
 	.name		= "cif0_out",
 	.parent		= &clk_cif_out_div,
@@ -1479,7 +1483,7 @@ static int i2s_set_rate(struct clk *clk, unsigned long rate)
 
 	return ret;
 };
-static struct clk *clk_i2s_div_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_i2s_div_parents[]		= SELECT_FROM_2PLLS_GC;
 static struct clk clk_i2s_pll = {
 	.name		= "i2s_pll",
 	.parent		= &general_pll_clk,
@@ -1574,7 +1578,7 @@ static struct clk clk_saradc = {
 };
 /****************gpu_pre*******************/
 // name: gpu_aclk
-static struct clk *clk_gpu_pre_parents[]		= SELECT_FROM_2PLLS;
+static struct clk *clk_gpu_pre_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_gpu_pre = {
 	.name		= "gpu_pre",
 	.parent		= &general_pll_clk,
@@ -1584,6 +1588,7 @@ static struct clk clk_gpu_pre = {
 	.set_rate	= clkset_rate_freediv_autosel_parents,
 	.round_rate	= clk_freediv_round_autosel_parents_rate,
 	.clksel_con	= CRU_CLKSELS_CON(34),
+	CRU_SRC_SET(0x1, 8),	
 	CRU_DIV_SET(0x1f, 0, 32),
 	CRU_PARENTS_SET(clk_gpu_pre_parents),
 };
@@ -1661,7 +1666,7 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 }
 
 
-static struct clk *clk_uart_pll_src_parents[]	= SELECT_FROM_2PLLS;
+static struct clk *clk_uart_pll_src_parents[]	= SELECT_FROM_2PLLS_GC;
 static struct clk clk_uart_pll = {
 	.name		= "uart_pll",
 	.parent		= &general_pll_clk,
@@ -1669,9 +1674,6 @@ static struct clk clk_uart_pll = {
 	CRU_SRC_SET(0x1, 15),
 	CRU_PARENTS_SET(clk_uart_pll_src_parents),
 };
-//static struct clk clk_uart0_div_parents		= SELECT_FROM_2PLLS;
-//static struct clk clk_uart1_div_parents		= SELECT_FROM_2PLLS;
-//static struct clk clk_uart2_div_parents		= SELECT_FROM_2PLLS;
 static struct clk clk_uart0_div = {
 	.name		= "uart0_div",
 	.parent		= &clk_uart_pll,
