@@ -1778,6 +1778,28 @@ static bool cdv_intel_dpc_is_edp(struct drm_device *dev)
 	return false;
 }
 
+/* Cedarview display clock gating
+
+   We need this disable dot get correct behaviour while enabling
+   DP/eDP. TODO - investigate if we can turn it back to normality
+   after enabling */
+static void cdv_disable_intel_clock_gating(struct drm_device *dev)
+{
+	u32 reg_value;
+	reg_value = REG_READ(DSPCLK_GATE_D);
+
+	reg_value |= (DPUNIT_PIPEB_GATE_DISABLE |
+			DPUNIT_PIPEA_GATE_DISABLE |
+			DPCUNIT_CLOCK_GATE_DISABLE |
+			DPLSUNIT_CLOCK_GATE_DISABLE |
+			DPOUNIT_CLOCK_GATE_DISABLE |
+		 	DPIOUNIT_CLOCK_GATE_DISABLE);	
+
+	REG_WRITE(DSPCLK_GATE_D, reg_value);
+
+	udelay(500);		
+}
+
 void
 cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg)
 {
@@ -1840,6 +1862,8 @@ cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 			psb_intel_encoder->ddi_select = (DP_MASK | DDI1_SELECT);
 			break;
 	}
+
+	cdv_disable_intel_clock_gating(dev);
 
 	cdv_intel_dp_i2c_init(psb_intel_connector, psb_intel_encoder, name);
         /* FIXME:fail check */

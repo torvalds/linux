@@ -1313,6 +1313,10 @@ No status bits are changed.
 # define VRHUNIT_CLOCK_GATE_DISABLE		(1 << 28) /* Fixed value on CDV */
 # define DPOUNIT_CLOCK_GATE_DISABLE		(1 << 11)
 # define DPIOUNIT_CLOCK_GATE_DISABLE		(1 << 6)
+# define DPUNIT_PIPEB_GATE_DISABLE		(1 << 30)
+# define DPUNIT_PIPEA_GATE_DISABLE		(1 << 25)
+# define DPCUNIT_CLOCK_GATE_DISABLE		(1 << 24)
+# define DPLSUNIT_CLOCK_GATE_DISABLE		(1 << 13)
 
 #define RAMCLK_GATE_D		0x6210
 
