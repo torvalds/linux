@@ -2277,9 +2277,10 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 *val)
 	u32 limits;
 
 	limits = 0;
-	if (*val >= dev_priv->max_delay)
-		*val = dev_priv->max_delay;
-	limits |= dev_priv->max_delay << 24;
+
+	if (*val >= dev_priv->rps.max_delay)
+		*val = dev_priv->rps.max_delay;
+	limits |= dev_priv->rps.max_delay << 24;
 
 	/* Only set the down limit when we've reached the lowest level to avoid
 	 * getting more interrupts, otherwise leave this clear. This prevents a
@@ -2287,9 +2288,9 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 *val)
 	 * the hw runs at the minimal clock before selecting the desired
 	 * frequency, if the down threshold expires in that window we will not
 	 * receive a down interrupt. */
-	if (*val <= dev_priv->min_delay) {
-		*val = dev_priv->min_delay;
-		limits |= dev_priv->min_delay << 16;
+	if (*val <= dev_priv->rps.min_delay) {
+		*val = dev_priv->rps.min_delay;
+		limits |= dev_priv->rps.min_delay << 16;
 	}
 
 	return limits;
@@ -2302,7 +2303,7 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	if (val == dev_priv->cur_delay)
+	if (val == dev_priv->rps.cur_delay)
 		return;
 
 	I915_WRITE(GEN6_RPNSWREQ,
@@ -2315,7 +2316,7 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	 */
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 
-	dev_priv->cur_delay = val;
+	dev_priv->rps.cur_delay = val;
 }
 
 static void gen6_disable_rps(struct drm_device *dev)
@@ -2331,9 +2332,9 @@ static void gen6_disable_rps(struct drm_device *dev)
 	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
 	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
 
-	spin_lock_irq(&dev_priv->rps_lock);
-	dev_priv->pm_iir = 0;
-	spin_unlock_irq(&dev_priv->rps_lock);
+	spin_lock_irq(&dev_priv->rps.lock);
+	dev_priv->rps.pm_iir = 0;
+	spin_unlock_irq(&dev_priv->rps.lock);
 
 	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
 }
@@ -2402,9 +2403,9 @@ static void gen6_enable_rps(struct drm_device *dev)
 	gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 
 	/* In units of 100MHz */
-	dev_priv->max_delay = rp_state_cap & 0xff;
-	dev_priv->min_delay = (rp_state_cap & 0xff0000) >> 16;
-	dev_priv->cur_delay = 0;
+	dev_priv->rps.max_delay = rp_state_cap & 0xff;
+	dev_priv->rps.min_delay = (rp_state_cap & 0xff0000) >> 16;
+	dev_priv->rps.cur_delay = 0;
 
 	/* disable the counters and set deterministic thresholds */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
@@ -2457,8 +2458,8 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
-		   dev_priv->max_delay << 24 |
-		   dev_priv->min_delay << 16);
+		   dev_priv->rps.max_delay << 24 |
+		   dev_priv->rps.min_delay << 16);
 
 	if (IS_HASWELL(dev)) {
 		I915_WRITE(GEN6_RP_UP_THRESHOLD, 59400);
@@ -2503,7 +2504,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 		     500))
 		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
 	if (pcu_mbox & (1<<31)) { /* OC supported */
-		dev_priv->max_delay = pcu_mbox & 0xff;
+		dev_priv->rps.max_delay = pcu_mbox & 0xff;
 		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
 	}
 
@@ -2511,10 +2512,10 @@ static void gen6_enable_rps(struct drm_device *dev)
 
 	/* requires MSI enabled */
 	I915_WRITE(GEN6_PMIER, GEN6_PM_DEFERRED_EVENTS);
-	spin_lock_irq(&dev_priv->rps_lock);
-	WARN_ON(dev_priv->pm_iir != 0);
+	spin_lock_irq(&dev_priv->rps.lock);
+	WARN_ON(dev_priv->rps.pm_iir != 0);
 	I915_WRITE(GEN6_PMIMR, 0);
-	spin_unlock_irq(&dev_priv->rps_lock);
+	spin_unlock_irq(&dev_priv->rps.lock);
 	/* enable all PM interrupts */
 	I915_WRITE(GEN6_PMINTRMSK, 0);
 
@@ -2546,9 +2547,9 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 	 * to use for memory access.  We do this by specifying the IA frequency
 	 * the PCU should use as a reference to determine the ring frequency.
 	 */
-	for (gpu_freq = dev_priv->max_delay; gpu_freq >= dev_priv->min_delay;
+	for (gpu_freq = dev_priv->rps.max_delay; gpu_freq >= dev_priv->rps.min_delay;
 	     gpu_freq--) {
-		int diff = dev_priv->max_delay - gpu_freq;
+		int diff = dev_priv->rps.max_delay - gpu_freq;
 
 		/*
 		 * For GPU frequencies less than 750MHz, just use the lowest
@@ -2991,7 +2992,7 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 
 	assert_spin_locked(&mchdev_lock);
 
-	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->cur_delay * 4));
+	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->rps.cur_delay * 4));
 	pxvid = (pxvid >> 24) & 0x7f;
 	ext_v = pvid_to_extvid(dev_priv, pxvid);
 

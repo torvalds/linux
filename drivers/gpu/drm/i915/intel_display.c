@@ -7218,7 +7218,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 * enqueue unpin/hotplug work. */
 	drm_irq_uninstall(dev);
 	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_work_sync(&dev_priv->rps_work);
+	cancel_work_sync(&dev_priv->rps.work);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();

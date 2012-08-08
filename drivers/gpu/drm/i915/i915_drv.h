@@ -819,9 +819,21 @@ typedef struct drm_i915_private {
 
 	bool mchbar_need_disable;
 
-	struct work_struct rps_work;
-	spinlock_t rps_lock;
-	u32 pm_iir;
+	/* gen6+ rps state */
+	struct {
+		struct work_struct work;
+		u32 pm_iir;
+		/* lock - irqsave spinlock that protectects the work_struct and
+		 * pm_iir. */
+		spinlock_t lock;
+
+		/* The below variables an all the rps hw state are protected by
+		 * dev->struct mutext. */
+		u8 cur_delay;
+		u8 min_delay;
+		u8 max_delay;
+	} rps;
+
 
 	u8 cur_delay;
 	u8 min_delay;

@@ -1274,7 +1274,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
 
-	for (gpu_freq = dev_priv->min_delay; gpu_freq <= dev_priv->max_delay;
+	for (gpu_freq = dev_priv->rps.min_delay;
+	     gpu_freq <= dev_priv->rps.max_delay;
 	     gpu_freq++) {
 		I915_WRITE(GEN6_PCODE_DATA, gpu_freq);
 		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
@@ -1712,7 +1713,7 @@ i915_max_freq_read(struct file *filp,
 		return ret;
 
 	len = snprintf(buf, sizeof(buf),
-		       "max freq: %d\n", dev_priv->max_delay * 50);
+		       "max freq: %d\n", dev_priv->rps.max_delay * 50);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (len > sizeof(buf))
@@ -1755,7 +1756,7 @@ i915_max_freq_write(struct file *filp,
 	/*
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
-	dev_priv->max_delay = val / 50;
+	dev_priv->rps.max_delay = val / 50;
 
 	gen6_set_rps(dev, val / 50);
 	mutex_unlock(&dev->struct_mutex);
@@ -1788,7 +1789,7 @@ i915_min_freq_read(struct file *filp, char __user *ubuf, size_t max,
 		return ret;
 
 	len = snprintf(buf, sizeof(buf),
-		       "min freq: %d\n", dev_priv->min_delay * 50);
+		       "min freq: %d\n", dev_priv->rps.min_delay * 50);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (len > sizeof(buf))
@@ -1829,7 +1830,7 @@ i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	/*
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
-	dev_priv->min_delay = val / 50;
+	dev_priv->rps.min_delay = val / 50;
 
 	gen6_set_rps(dev, val / 50);
 	mutex_unlock(&dev->struct_mutex);

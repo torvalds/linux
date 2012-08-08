@@ -349,16 +349,16 @@ static void notify_ring(struct drm_device *dev,
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    rps_work);
+						    rps.work);
 	u32 pm_iir, pm_imr;
 	u8 new_delay;
 
-	spin_lock_irq(&dev_priv->rps_lock);
-	pm_iir = dev_priv->pm_iir;
-	dev_priv->pm_iir = 0;
+	spin_lock_irq(&dev_priv->rps.lock);
+	pm_iir = dev_priv->rps.pm_iir;
+	dev_priv->rps.pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
 	I915_WRITE(GEN6_PMIMR, 0);
-	spin_unlock_irq(&dev_priv->rps_lock);
+	spin_unlock_irq(&dev_priv->rps.lock);
 
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
@@ -366,9 +366,9 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_lock(&dev_priv->dev->struct_mutex);
 
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
-		new_delay = dev_priv->cur_delay + 1;
+		new_delay = dev_priv->rps.cur_delay + 1;
 	else
-		new_delay = dev_priv->cur_delay - 1;
+		new_delay = dev_priv->rps.cur_delay - 1;
 
 	gen6_set_rps(dev_priv->dev, new_delay);
 
@@ -488,20 +488,20 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	 * IIR bits should never already be set because IMR should
 	 * prevent an interrupt from being shown in IIR. The warning
 	 * displays a case where we've unsafely cleared
-	 * dev_priv->pm_iir. Although missing an interrupt of the same
+	 * dev_priv->rps.pm_iir. Although missing an interrupt of the same
 	 * type is not a problem, it displays a problem in the logic.
 	 *
-	 * The mask bit in IMR is cleared by rps_work.
+	 * The mask bit in IMR is cleared by dev_priv->rps.work.
 	 */
 
-	spin_lock_irqsave(&dev_priv->rps_lock, flags);
-	WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
-	dev_priv->pm_iir |= pm_iir;
-	I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	WARN(dev_priv->rps.pm_iir & pm_iir, "Missed a PM interrupt\n");
+	dev_priv->rps.pm_iir |= pm_iir;
+	I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 	POSTING_READ(GEN6_PMIMR);
-	spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
 
-	queue_work(dev_priv->wq, &dev_priv->rps_work);
+	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
 static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
@@ -2649,7 +2649,7 @@ void intel_irq_init(struct drm_device *dev)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
-	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
+	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
