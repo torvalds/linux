@@ -24,7 +24,6 @@
 
 #include <mach/asp.h>
 #include <mach/edma.h>
-#include <mach/mux.h>
 
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
