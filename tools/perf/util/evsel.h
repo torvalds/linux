@@ -68,6 +68,8 @@ struct perf_evsel {
 	} handler;
 	unsigned int		sample_size;
 	bool 			supported;
+	/* parse modifier helper */
+	int			exclude_GH;
 };
 
 struct cpu_map;

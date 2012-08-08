@@ -633,14 +633,38 @@ void parse_events_update_lists(struct list_head *list_event,
 	free(list_event);
 }
 
-int parse_events__modifier_event(struct list_head *list, char *str)
-{
-	struct perf_evsel *evsel;
-	int exclude = 0, exclude_GH = 0;
-	int eu = 0, ek = 0, eh = 0, eH = 0, eG = 0, precise = 0;
+struct event_modifier {
+	int eu;
+	int ek;
+	int eh;
+	int eH;
+	int eG;
+	int precise;
+	int exclude_GH;
+};
 
-	if (str == NULL)
-		return 0;
+static int get_event_modifier(struct event_modifier *mod, char *str,
+			       struct perf_evsel *evsel)
+{
+	int eu = evsel ? evsel->attr.exclude_user : 0;
+	int ek = evsel ? evsel->attr.exclude_kernel : 0;
+	int eh = evsel ? evsel->attr.exclude_hv : 0;
+	int eH = evsel ? evsel->attr.exclude_host : 0;
+	int eG = evsel ? evsel->attr.exclude_guest : 0;
+	int precise = evsel ? evsel->attr.precise_ip : 0;
+
+	int exclude = eu | ek | eh;
+	int exclude_GH = evsel ? evsel->exclude_GH : 0;
+
+	/*
+	 * We are here for group and 'GH' was not set as event
+	 * modifier and whatever event/group modifier override
+	 * default 'GH' setup.
+	 */
+	if (evsel && !exclude_GH)
+		eH = eG = 0;
+
+	memset(mod, 0, sizeof(*mod));
 
 	while (*str) {
 		if (*str == 'u') {
@@ -684,13 +708,39 @@ int parse_events__modifier_event(struct list_head *list, char *str)
 	if (precise > 3)
 		return -EINVAL;
 
+	mod->eu = eu;
+	mod->ek = ek;
+	mod->eh = eh;
+	mod->eH = eH;
+	mod->eG = eG;
+	mod->precise = precise;
+	mod->exclude_GH = exclude_GH;
+	return 0;
+}
+
+int parse_events__modifier_event(struct list_head *list, char *str, bool add)
+{
+	struct perf_evsel *evsel;
+	struct event_modifier mod;
+
+	if (str == NULL)
+		return 0;
+
+	if (!add && get_event_modifier(&mod, str, NULL))
+		return -EINVAL;
+
 	list_for_each_entry(evsel, list, node) {
-		evsel->attr.exclude_user   = eu;
-		evsel->attr.exclude_kernel = ek;
-		evsel->attr.exclude_hv     = eh;
-		evsel->attr.precise_ip     = precise;
-		evsel->attr.exclude_host   = eH;
-		evsel->attr.exclude_guest  = eG;
+
+		if (add && get_event_modifier(&mod, str, evsel))
+			return -EINVAL;
+
+		evsel->attr.exclude_user   = mod.eu;
+		evsel->attr.exclude_kernel = mod.ek;
+		evsel->attr.exclude_hv     = mod.eh;
+		evsel->attr.precise_ip     = mod.precise;
+		evsel->attr.exclude_host   = mod.eH;
+		evsel->attr.exclude_guest  = mod.eG;
+		evsel->exclude_GH          = mod.exclude_GH;
 	}
 
 	return 0;

@@ -153,7 +153,7 @@ event_def PE_MODIFIER_EVENT
 	 * (there could be more events added for multiple tracepoint
 	 * definitions via '*?'.
 	 */
-	ABORT_ON(parse_events__modifier_event(list, $2));
+	ABORT_ON(parse_events__modifier_event(list, $2, false));
 	$$ = list;
 }
 |
