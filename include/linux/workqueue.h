@@ -102,6 +102,7 @@ struct work_struct {
 struct delayed_work {
 	struct work_struct work;
 	struct timer_list timer;
+	int cpu;
 };
 
 static inline struct delayed_work *to_delayed_work(struct work_struct *work)
