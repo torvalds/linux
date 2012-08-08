@@ -136,7 +136,7 @@ static inline u32 rga_read(u32 r)
 	return __raw_readl(drvdata->rga_base + r);
 }
 
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#if 1//defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 static void rga_soft_reset(void)
 {
 	u32 i;
@@ -590,6 +590,8 @@ static void rga_try_set_reg(void)
             #elif defined(CONFIG_ARCH_RK31)
             rga_soft_reset();
             #endif
+
+            rga_soft_reset();
             
             rga_write(0, RGA_MMU_CTRL);
 
@@ -652,6 +654,10 @@ static void print_info(struct rga_req *req)
 
     printk("clip.xmin = %d, clip.xmax = %d. clip.ymin = %d, clip.ymax = %d\n",
         req->clip.xmin, req->clip.xmax, req->clip.ymin, req->clip.ymax);
+
+    printk("alpha_rop_flag = %.8x\n", req->alpha_rop_flag);
+    printk("alpha_rop_mode = %.8x\n", req->alpha_rop_mode);
+    printk("PD_mode = %.8x\n", req->PD_mode);
 }
 #endif
 
@@ -778,7 +784,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     sah = req->src.act_h;
     daw = req->dst.act_w;
     dah = req->dst.act_h;
-
+     
     do
     {
         if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah)))
@@ -1055,7 +1061,7 @@ static irqreturn_t rga_irq_thread(int irq, void *dev_id)
 		rga_del_running_list();
 		rga_try_set_reg();
 	}
-    printk("****** rga irq prc avil ******\n");
+    //printk("****** rga irq prc avil ******\n");
 	mutex_unlock(&rga_service.lock);
 
 	return IRQ_HANDLED;
@@ -1252,7 +1258,7 @@ static int __init rga_init(void)
 			return ret;
 	}
 
-   // rga_test_0();
+    //rga_test_0();
 
 	INFO("Module initialized.\n");
 
@@ -1291,8 +1297,8 @@ EXPORT_SYMBOL(rk_direct_fb_show);
 
 #endif
 
-unsigned int src_buf[1920*1080];
-unsigned int dst_buf[1920*1080];
+unsigned int src_buf[320*240];
+unsigned int dst_buf[1024*768];
 
 void rga_test_0(void)
 {
@@ -1319,7 +1325,7 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0xff, 1920*1080*4);
+    memset(src_buf, 0xff, 320*240*4);
 
     dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
     outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
@@ -1345,8 +1351,8 @@ void rga_test_0(void)
     req.dst.act_w = 320;
     req.dst.act_h = 240;
 
-    req.dst.vir_w = 800;
-    req.dst.vir_h = 480;
+    req.dst.vir_w = 1024;
+    req.dst.vir_h = 768;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
     req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
@@ -1354,9 +1360,9 @@ void rga_test_0(void)
     //req.dst.format = RK_FORMAT_RGB_565;
 
     req.clip.xmin = 0;
-    req.clip.xmax = 799;
+    req.clip.xmax = 1023;
     req.clip.ymin = 0;
-    req.clip.ymax = 479;
+    req.clip.ymax = 767;
 
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
