@@ -155,6 +155,7 @@
 #define RK30_I2C0_PHYS          0x2002c000
 #define RK30_I2C0_SIZE          SZ_8K
 #define RK30_I2C1_PHYS          0x2002e000
+#define RK30_I2C1_BASE         RK30_IO_TO_VIRT1(RK30_I2C1_PHYS)
 #define RK30_I2C1_SIZE          SZ_8K
 #define RK30_PWM01_PHYS         0x20030000
 #define RK30_PWM01_BASE         RK30_IO_TO_VIRT1(RK30_PWM01_PHYS)
