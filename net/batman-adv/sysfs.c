@@ -20,6 +20,7 @@
 #include "main.h"
 #include "sysfs.h"
 #include "translation-table.h"
+#include "distributed-arp-table.h"
 #include "originator.h"
 #include "hard-interface.h"
 #include "gateway_common.h"
@@ -420,6 +421,9 @@ BATADV_ATTR_SIF_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 #ifdef CONFIG_BATMAN_ADV_BLA
 BATADV_ATTR_SIF_BOOL(bridge_loop_avoidance, S_IRUGO | S_IWUSR, NULL);
 #endif
+#ifdef CONFIG_BATMAN_ADV_DAT
+BATADV_ATTR_SIF_BOOL(distributed_arp_table, S_IRUGO | S_IWUSR, NULL);
+#endif
 BATADV_ATTR_SIF_BOOL(fragmentation, S_IRUGO | S_IWUSR, batadv_update_min_mtu);
 BATADV_ATTR_SIF_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
 static BATADV_ATTR(vis_mode, S_IRUGO | S_IWUSR, batadv_show_vis_mode,
@@ -444,6 +448,9 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_bonding,
 #ifdef CONFIG_BATMAN_ADV_BLA
 	&batadv_attr_bridge_loop_avoidance,
+#endif
+#ifdef CONFIG_BATMAN_ADV_DAT
+	&batadv_attr_distributed_arp_table,
 #endif
 	&batadv_attr_fragmentation,
 	&batadv_attr_ap_isolation,

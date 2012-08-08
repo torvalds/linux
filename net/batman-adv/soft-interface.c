@@ -480,6 +480,9 @@ struct net_device *batadv_softif_create(const char *name)
 	atomic_set(&bat_priv->aggregated_ogms, 1);
 	atomic_set(&bat_priv->bonding, 0);
 	atomic_set(&bat_priv->bridge_loop_avoidance, 0);
+#ifdef CONFIG_BATMAN_ADV_DAT
+	atomic_set(&bat_priv->distributed_arp_table, 1);
+#endif
 	atomic_set(&bat_priv->ap_isolation, 0);
 	atomic_set(&bat_priv->vis_mode, BATADV_VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->gw_mode, BATADV_GW_MODE_OFF);
