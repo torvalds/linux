@@ -791,7 +791,7 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 		if (psb_intel_crtc->active)
-			return;
+			break;
 
 		psb_intel_crtc->active = true;
 
@@ -835,7 +835,6 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		REG_WRITE(map->status, temp);
 		REG_READ(map->status);
 
-		cdv_intel_update_watermark(dev, crtc);
 		cdv_intel_crtc_load_lut(crtc);
 
 		/* Give the overlay scaler a chance to enable
@@ -845,7 +844,7 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	case DRM_MODE_DPMS_OFF:
 		if (!psb_intel_crtc->active)
-			return;
+			break;
 
 		psb_intel_crtc->active = false;
 
@@ -892,10 +891,10 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		/* Wait for the clocks to turn off. */
 		udelay(150);
-		cdv_intel_update_watermark(dev, crtc);
 		psb_intel_crtc->crtc_enable = false;
 		break;
 	}
+	cdv_intel_update_watermark(dev, crtc);
 	/*Set FIFO Watermarks*/
 	REG_WRITE(DSPARB, 0x3F3E);
 }
