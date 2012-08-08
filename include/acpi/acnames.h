@@ -66,8 +66,6 @@
 
 /* Method names - these methods must appear at the namespace root */
 
-#define METHOD_PATHNAME__BFS    "\\_BFS"
-#define METHOD_PATHNAME__GTS    "\\_GTS"
 #define METHOD_PATHNAME__PTS    "\\_PTS"
 #define METHOD_PATHNAME__SST    "\\_SI._SST"
 #define METHOD_PATHNAME__WAK    "\\_WAK"
