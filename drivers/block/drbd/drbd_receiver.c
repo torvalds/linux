@@ -504,37 +504,15 @@ static int drbd_recv(struct drbd_tconn *tconn, void *buf, size_t size)
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-
-	for (;;) {
-		rv = sock_recvmsg(tconn->data.socket, &msg, size, msg.msg_flags);
-		if (rv == size)
-			break;
-
-		/* Note:
-		 * ECONNRESET	other side closed the connection
-		 * ERESTARTSYS	(on  sock) we got a signal
-		 */
-
-		if (rv < 0) {
-			if (rv == -ECONNRESET)
-				conn_info(tconn, "sock was reset by peer\n");
-			else if (rv != -ERESTARTSYS)
-				conn_err(tconn, "sock_recvmsg returned %d\n", rv);
-			break;
-		} else if (rv == 0) {
-			break;
-		} else	{
-			/* signal came in, or peer/link went down,
-			 * after we read a partial message
-			 */
-			/* D_ASSERT(signal_pending(current)); */
-			break;
-		}
-	};
-
+	rv = sock_recvmsg(tconn->data.socket, &msg, size, msg.msg_flags);
 	set_fs(oldfs);
 
-	if (rv == 0) {
+	if (rv < 0) {
+		if (rv == -ECONNRESET)
+			conn_info(tconn, "sock was reset by peer\n");
+		else if (rv != -ERESTARTSYS)
+			conn_err(tconn, "sock_recvmsg returned %d\n", rv);
+	} else if (rv == 0) {
 		if (test_bit(DISCONNECT_SENT, &tconn->flags)) {
 			long t;
 			rcu_read_lock();
