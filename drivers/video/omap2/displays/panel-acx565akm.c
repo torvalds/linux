@@ -600,6 +600,8 @@ static int acx_panel_power_on(struct omap_dss_device *dssdev)
 
 	mutex_lock(&md->mutex);
 
+	omapdss_sdi_set_timings(dssdev, &dssdev->panel.timings);
+
 	r = omapdss_sdi_display_enable(dssdev);
 	if (r) {
 		pr_err("%s sdi enable failed\n", __func__);
@@ -732,6 +734,8 @@ static void acx_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
 	omapdss_sdi_set_timings(dssdev, timings);
+
+	dssdev->panel.timings = *timings;
 }
 
 static int acx_panel_check_timings(struct omap_dss_device *dssdev,
