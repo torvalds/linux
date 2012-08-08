@@ -216,7 +216,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_ops = {
+struct sensor_operate gsensor_kxtik_ops = {
 	.name				= "kxtik",
 	.type				= SENSOR_TYPE_ACCEL,		//sensor type and it should be correct
 	.id_i2c				= ACCEL_ID_KXTIK,		//i2c id number
@@ -237,14 +237,13 @@ struct sensor_operate gsensor_ops = {
 /****************operate according to sensor chip:end************/
 
 //function name should not be changed
-struct sensor_operate *gsensor_get_ops(void)
+static struct sensor_operate *gsensor_get_ops(void)
 {
-	return &gsensor_ops;
+	return &gsensor_kxtik_ops;
 }
 
-EXPORT_SYMBOL(gsensor_get_ops);
 
-static int __init gsensor_init(void)
+static int __init gsensor_kxtik_init(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int result = 0;
@@ -254,7 +253,7 @@ static int __init gsensor_init(void)
 	return result;
 }
 
-static void __exit gsensor_exit(void)
+static void __exit gsensor_kxtik_exit(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int type = ops->type;
@@ -262,7 +261,7 @@ static void __exit gsensor_exit(void)
 }
 
 
-module_init(gsensor_init);
-module_exit(gsensor_exit);
+module_init(gsensor_kxtik_init);
+module_exit(gsensor_kxtik_exit);
 
 

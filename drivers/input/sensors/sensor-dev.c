@@ -46,7 +46,7 @@
 #endif
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
-static struct sensor_operate *sensor_ops[SENSOR_NUM_TYPES]; 
+static struct sensor_operate *sensor_ops[SENSOR_NUM_ID]; 
 
 static int sensor_get_id(struct i2c_client *client, int *value)
 {
@@ -106,7 +106,7 @@ static int sensor_chip_init(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	struct sensor_operate *ops = sensor_ops[sensor->type];
+	struct sensor_operate *ops = sensor_ops[(int)sensor->i2c_id->driver_data];
 	int result = 0;
 	
 	if(ops)
@@ -120,9 +120,9 @@ static int sensor_chip_init(struct i2c_client *client)
 		goto error;
 	}
 
-	if(sensor->type != ops->type)
+	if((sensor->type != ops->type) || ((int)sensor->i2c_id->driver_data != ops->id_i2c))
 	{
-		printk("%s:type is different:%d,%d\n",__func__,sensor->type, sensor->type);
+		printk("%s:type or id is different:type=%d,%d,id=%d,%d\n",__func__,sensor->type, ops->type, (int)sensor->i2c_id->driver_data, ops->id_i2c);
 		result = -1;
 		goto error;
 	}
@@ -137,11 +137,11 @@ static int sensor_chip_init(struct i2c_client *client)
 	result = sensor_get_id(sensor->client, &sensor->devid);//get id
 	if(result < 0)
 	{	
-		printk("%s:fail to read devid:0x%x\n",__func__,sensor->devid);	
+		printk("%s:fail to read %s devid:0x%x\n",__func__, sensor->i2c_id->name, sensor->devid);	
 		goto error;
 	}
 	
-	printk("%s:sensor->devid=0x%x,ops=0x%p\n",__func__,sensor->devid,sensor->ops);
+	printk("%s:%s:devid=0x%x,ops=0x%p\n",__func__, sensor->i2c_id->name, sensor->devid,sensor->ops);
 
 	result = sensor_initial(sensor->client);	//init sensor
 	if(result < 0)
@@ -1027,8 +1027,14 @@ int sensor_register_slave(int type,struct i2c_client *client,
 			struct sensor_operate *(*get_sensor_ops)(void))
 {
 	int result = 0;
-	sensor_ops[type] = get_sensor_ops();
-	printk("%s:%s\n",__func__,sensor_ops[type]->name);
+	struct sensor_operate *ops = get_sensor_ops();
+	if((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID))
+	{	
+		printk("%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+		return -1;	
+	}
+	sensor_ops[ops->id_i2c] = ops;
+	printk("%s:%s,id=%d\n",__func__,sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 	return result;
 }
 
@@ -1038,8 +1044,14 @@ int sensor_unregister_slave(int type,struct i2c_client *client,
 			struct sensor_operate *(*get_sensor_ops)(void))
 {
 	int result = 0;
-	printk("%s:%s\n",__func__,sensor_ops[type]->name);
-	sensor_ops[type] = NULL;	
+	struct sensor_operate *ops = get_sensor_ops();
+	if((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID))
+	{	
+		printk("%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+		return -1;	
+	}
+	printk("%s:%s,id=%d\n",__func__,sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	sensor_ops[ops->id_i2c] = NULL;	
 	return result;
 }
 
@@ -1077,6 +1089,13 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	if((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL))
 	{	
 		dev_err(&client->adapter->dev, "sensor type is error %d\n", pdata->type);
+		result = -EFAULT;
+		goto out_no_free;	
+	}
+
+	if(((int)devid->driver_data >= SENSOR_NUM_ID) || ((int)devid->driver_data <= ID_INVALID))
+	{	
+		dev_err(&client->adapter->dev, "sensor id is error %d\n", (int)devid->driver_data);
 		result = -EFAULT;
 		goto out_no_free;	
 	}
@@ -1226,7 +1245,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	}
 #endif
 
-	printk("%s:initialized ok,sensor name:%s,type:%d\n",__func__,sensor->ops->name,type);
+	printk("%s:initialized ok,sensor name:%s,type:%d,id=%d\n\n",__func__,sensor->ops->name,type,(int)sensor->i2c_id->driver_data);
 
 	return result;
 	
@@ -1285,6 +1304,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"k3g", GYRO_ID_K3G},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},	
+	{"light_cm3217", LIGHT_ID_CM3217},
 	{"light_al3006", LIGHT_ID_AL3006},
 	{"ls_stk3171", LIGHT_ID_STK3171},
 	/*proximity sensor*/

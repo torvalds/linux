@@ -186,7 +186,7 @@ static int sensor_report_value(struct i2c_client *client)
 }
 
 
-struct sensor_operate light_ops = {
+struct sensor_operate light_cm3217_ops = {
 	.name				= "cm3217",
 	.type				= SENSOR_TYPE_LIGHT,	//sensor type and it should be correct
 	.id_i2c				= LIGHT_ID_CM3217,	//i2c id number
@@ -207,14 +207,13 @@ struct sensor_operate light_ops = {
 /****************operate according to sensor chip:end************/
 
 //function name should not be changed
-struct sensor_operate *light_get_ops(void)
+static struct sensor_operate *light_get_ops(void)
 {
-	return &light_ops;
+	return &light_cm3217_ops;
 }
 
-EXPORT_SYMBOL(light_get_ops);
 
-static int __init light_init(void)
+static int __init light_cm3217_init(void)
 {
 	struct sensor_operate *ops = light_get_ops();
 	int result = 0;
@@ -224,7 +223,7 @@ static int __init light_init(void)
 	return result;
 }
 
-static void __exit light_exit(void)
+static void __exit light_cm3217_exit(void)
 {
 	struct sensor_operate *ops = light_get_ops();
 	int type = ops->type;
@@ -232,7 +231,7 @@ static void __exit light_exit(void)
 }
 
 
-module_init(light_init);
-module_exit(light_exit);
+module_init(light_cm3217_init);
+module_exit(light_cm3217_exit);
 
 
