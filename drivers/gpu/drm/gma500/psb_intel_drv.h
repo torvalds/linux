@@ -29,10 +29,6 @@
  * Display related stuff
  */
 
-/* store information about an Ixxx DVO */
-/* The i830->i865 use multiple DVOs with multiple i2cs */
-/* the i915, i945 have a single sDVO i2c bus - which is different */
-#define MAX_OUTPUTS 6
 /* maximum connectors per crtcs in the mode set */
 #define INTELFB_CONN_LIMIT 4
 
@@ -69,6 +65,8 @@
 #define INTEL_OUTPUT_HDMI 6
 #define INTEL_OUTPUT_MIPI 7
 #define INTEL_OUTPUT_MIPI2 8
+#define INTEL_OUTPUT_DISPLAYPORT 9
+#define INTEL_OUTPUT_EDP 10
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
