@@ -639,6 +639,8 @@ struct radeon_vm {
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
 	struct radeon_fence		*fence;
+	/* last flush or NULL if we still need to flush */
+	struct radeon_fence		*last_flush;
 };
 
 struct radeon_vm_manager {
@@ -1116,7 +1118,6 @@ struct radeon_asic {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
 		int (*bind)(struct radeon_device *rdev, struct radeon_vm *vm, int id);
-		void (*tlb_flush)(struct radeon_device *rdev, struct radeon_vm *vm);
 		uint32_t (*page_flags)(struct radeon_device *rdev,
 				       struct radeon_vm *vm,
 				       uint32_t flags);
@@ -1135,6 +1136,7 @@ struct radeon_asic {
 		int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		int (*ib_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		bool (*is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
+		void (*vm_flush)(struct radeon_device *rdev, struct radeon_ib *ib);
 	} ring[RADEON_NUM_RINGS];
 	/* irqs */
 	struct {
@@ -1733,7 +1735,6 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
 #define radeon_asic_vm_bind(rdev, v, id) (rdev)->asic->vm.bind((rdev), (v), (id))
-#define radeon_asic_vm_tlb_flush(rdev, v) (rdev)->asic->vm.tlb_flush((rdev), (v))
 #define radeon_asic_vm_page_flags(rdev, v, flags) (rdev)->asic->vm.page_flags((rdev), (v), (flags))
 #define radeon_asic_vm_set_page(rdev, v, pfn, addr, flags) (rdev)->asic->vm.set_page((rdev), (v), (pfn), (addr), (flags))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
@@ -1742,6 +1743,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
 #define radeon_ring_is_lockup(rdev, r, cp) (rdev)->asic->ring[(r)].is_lockup((rdev), (cp))
+#define radeon_ring_vm_flush(rdev, r, ib) (rdev)->asic->ring[(r)].vm_flush((rdev), (ib))
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))

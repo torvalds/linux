@@ -520,6 +520,7 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 		break;
 	}
 	radeon_fence_unref(&vm->fence);
+	radeon_fence_unref(&vm->last_flush);
 
 	/* hw unbind */
 	rdev->vm_manager.use_bitmap &= ~(1 << vm->id);
@@ -639,6 +640,7 @@ retry_id:
 
 	/* do hw bind */
 	r = radeon_asic_vm_bind(rdev, vm, id);
+	radeon_fence_unref(&vm->last_flush);
 	if (r) {
 		radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
 		return r;
@@ -836,7 +838,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		}
 		radeon_asic_vm_set_page(rdev, bo_va->vm, i + pfn, addr, flags);
 	}
-	radeon_asic_vm_tlb_flush(rdev, bo_va->vm);
+	radeon_fence_unref(&vm->last_flush);
 	return 0;
 }
 

@@ -1502,22 +1502,7 @@ int cayman_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id)
 	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR + (id << 2), 0);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR + (id << 2), vm->last_pfn);
 	WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (id << 2), vm->pt_gpu_addr >> 12);
-	/* flush hdp cache */
-	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
-	/* bits 0-7 are the VM contexts0-7 */
-	WREG32(VM_INVALIDATE_REQUEST, 1 << id);
 	return 0;
-}
-
-void cayman_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm)
-{
-	if (vm->id == -1)
-		return;
-
-	/* flush hdp cache */
-	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
-	/* bits 0-7 are the VM contexts0-7 */
-	WREG32(VM_INVALIDATE_REQUEST, 1 << vm->id);
 }
 
 #define R600_PTE_VALID     (1 << 0)
@@ -1550,4 +1535,20 @@ void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
 	addr = addr & 0xFFFFFFFFFFFFF000ULL;
 	addr |= flags;
 	writeq(addr, ptr + (pfn * 8));
+}
+
+void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
+
+	if (!ib->vm || ib->vm->id == -1)
+		return;
+
+	/* flush hdp cache */
+	radeon_ring_write(ring, PACKET0(HDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	radeon_ring_write(ring, 0x1);
+
+	/* bits 0-7 are the VM contexts0-7 */
+	radeon_ring_write(ring, PACKET0(VM_INVALIDATE_REQUEST, 0));
+	radeon_ring_write(ring, 1 << ib->vm->id);
 }

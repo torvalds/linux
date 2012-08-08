@@ -1376,7 +1376,6 @@ static struct radeon_asic cayman_asic = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
 		.bind = &cayman_vm_bind,
-		.tlb_flush = &cayman_vm_tlb_flush,
 		.page_flags = &cayman_vm_page_flags,
 		.set_page = &cayman_vm_set_page,
 	},
@@ -1390,6 +1389,7 @@ static struct radeon_asic cayman_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1400,6 +1400,7 @@ static struct radeon_asic cayman_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1410,6 +1411,7 @@ static struct radeon_asic cayman_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		}
 	},
 	.irq = {
@@ -1479,7 +1481,6 @@ static struct radeon_asic trinity_asic = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
 		.bind = &cayman_vm_bind,
-		.tlb_flush = &cayman_vm_tlb_flush,
 		.page_flags = &cayman_vm_page_flags,
 		.set_page = &cayman_vm_set_page,
 	},
@@ -1493,6 +1494,7 @@ static struct radeon_asic trinity_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1503,6 +1505,7 @@ static struct radeon_asic trinity_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1513,6 +1516,7 @@ static struct radeon_asic trinity_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &evergreen_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		}
 	},
 	.irq = {
@@ -1582,7 +1586,6 @@ static struct radeon_asic si_asic = {
 		.init = &si_vm_init,
 		.fini = &si_vm_fini,
 		.bind = &si_vm_bind,
-		.tlb_flush = &si_vm_tlb_flush,
 		.page_flags = &cayman_vm_page_flags,
 		.set_page = &cayman_vm_set_page,
 	},
@@ -1596,6 +1599,7 @@ static struct radeon_asic si_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &si_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &si_ring_ib_execute,
@@ -1606,6 +1610,7 @@ static struct radeon_asic si_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &si_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &si_ring_ib_execute,
@@ -1616,6 +1621,7 @@ static struct radeon_asic si_asic = {
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
 			.is_lockup = &si_gpu_is_lockup,
+			.vm_flush = &cayman_vm_flush,
 		}
 	},
 	.irq = {
