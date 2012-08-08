@@ -9,7 +9,6 @@ struct machine;
 struct perf_sample;
 union perf_event;
 struct perf_tool;
-struct thread;
 
 extern int header_page_size_size;
 extern int header_page_ts_size;
@@ -76,6 +75,8 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 void tracing_data_put(struct tracing_data *tdata);
 
 
+struct addr_location;
+
 struct scripting_ops {
 	const char *name;
 	int (*start_script) (const char *script, int argc, const char **argv);
@@ -84,7 +85,7 @@ struct scripting_ops {
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
-			       struct thread *thread);
+			       struct addr_location *al);
 	int (*generate_script) (struct pevent *pevent, const char *outfile);
 };
 

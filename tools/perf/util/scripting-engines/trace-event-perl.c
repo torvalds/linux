@@ -261,7 +261,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 				    struct perf_sample *sample,
 				    struct perf_evsel *evsel,
 				    struct machine *machine __unused,
-				    struct thread *thread)
+				    struct addr_location *al)
 {
 	struct format_field *field;
 	static char handler[256];
@@ -272,6 +272,7 @@ static void perl_process_tracepoint(union perf_event *perf_event __unused,
 	int cpu = sample->cpu;
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
+	struct thread *thread = al->thread;
 	char *comm = thread->comm;
 
 	dSP;
@@ -349,7 +350,7 @@ static void perl_process_event_generic(union perf_event *event,
 				       struct perf_sample *sample,
 				       struct perf_evsel *evsel,
 				       struct machine *machine __unused,
-				       struct thread *thread __unused)
+				       struct addr_location *al __unused)
 {
 	dSP;
 
@@ -375,10 +376,10 @@ static void perl_process_event(union perf_event *event,
 			       struct perf_sample *sample,
 			       struct perf_evsel *evsel,
 			       struct machine *machine,
-			       struct thread *thread)
+			       struct addr_location *al)
 {
-	perl_process_tracepoint(event, sample, evsel, machine, thread);
-	perl_process_event_generic(event, sample, evsel, machine, thread);
+	perl_process_tracepoint(event, sample, evsel, machine, al);
+	perl_process_event_generic(event, sample, evsel, machine, al);
 }
 
 static void run_start_sub(void)
