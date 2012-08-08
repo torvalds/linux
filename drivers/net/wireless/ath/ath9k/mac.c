@@ -773,14 +773,9 @@ bool ath9k_hw_intrpend(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_intrpend);
 
-void ath9k_hw_disable_interrupts(struct ath_hw *ah)
+void ath9k_hw_kill_interrupts(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (!(ah->imask & ATH9K_INT_GLOBAL))
-		atomic_set(&ah->intr_ref_cnt, -1);
-	else
-		atomic_dec(&ah->intr_ref_cnt);
 
 	ath_dbg(common, INTERRUPT, "disable IER\n");
 	REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
@@ -792,6 +787,17 @@ void ath9k_hw_disable_interrupts(struct ath_hw *ah)
 		REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
 		(void) REG_READ(ah, AR_INTR_SYNC_ENABLE);
 	}
+}
+EXPORT_SYMBOL(ath9k_hw_kill_interrupts);
+
+void ath9k_hw_disable_interrupts(struct ath_hw *ah)
+{
+	if (!(ah->imask & ATH9K_INT_GLOBAL))
+		atomic_set(&ah->intr_ref_cnt, -1);
+	else
+		atomic_dec(&ah->intr_ref_cnt);
+
+	ath9k_hw_kill_interrupts(ah);
 }
 EXPORT_SYMBOL(ath9k_hw_disable_interrupts);
 
