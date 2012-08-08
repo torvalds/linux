@@ -288,4 +288,20 @@ extern void gma_intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed);
 extern void gma_intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
 extern void gma_intel_teardown_gmbus(struct drm_device *dev);
 
+/* DP support */
+extern void cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg);
+extern void psb_intel_dp_set_m_n(struct drm_crtc *crtc,
+					struct drm_display_mode *mode,
+					struct drm_display_mode *adjusted_mode);
+
+extern void psb_intel_attach_force_audio_property(struct drm_connector *connector);
+extern void psb_intel_attach_broadcast_rgb_property(struct drm_connector *connector);
+
+extern int cdv_sb_read(struct drm_device *dev, u32 reg, u32 *val);
+extern int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val);
+extern void cdv_sb_reset(struct drm_device *dev);
+
+extern void cdv_intel_attach_force_audio_property(struct drm_connector *connector);
+extern void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector);
+
 #endif				/* __INTEL_DRV_H__ */

@@ -30,7 +30,8 @@ gma500_gfx-$(CONFIG_DRM_GMA3600) +=  cdv_device.o \
 	  cdv_intel_crt.o \
 	  cdv_intel_display.o \
 	  cdv_intel_hdmi.o \
-	  cdv_intel_lvds.o
+	  cdv_intel_lvds.o \
+	  cdv_intel_dp.o
 
 gma500_gfx-$(CONFIG_DRM_GMA600) += oaktrail_device.o \
 	  oaktrail_crtc.o \

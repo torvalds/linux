@@ -171,7 +171,7 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 
 
-static int cdv_sb_read(struct drm_device *dev, u32 reg, u32 *val)
+int cdv_sb_read(struct drm_device *dev, u32 reg, u32 *val)
 {
 	int ret;
 
@@ -198,7 +198,7 @@ static int cdv_sb_read(struct drm_device *dev, u32 reg, u32 *val)
 	return 0;
 }
 
-static int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val)
+int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val)
 {
 	int ret;
 	static bool dpio_debug = true;
@@ -240,7 +240,7 @@ static int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val)
 /* Reset the DPIO configuration register.  The BIOS does this at every
  * mode set.
  */
-static void cdv_sb_reset(struct drm_device *dev)
+void cdv_sb_reset(struct drm_device *dev)
 {
 
 	REG_WRITE(DPIO_CFG, 0);

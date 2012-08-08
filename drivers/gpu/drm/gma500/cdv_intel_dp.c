@@ -33,7 +33,6 @@
 #include "drm_crtc_helper.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
-#include "psb_drm.h"
 #include "psb_intel_reg.h"
 #include "drm_dp_helper.h"
 
@@ -45,7 +44,7 @@
 
 #define CDV_FAST_LINK_TRAIN	1
 
-struct psb_intel_dp {
+struct cdv_intel_dp {
 	uint32_t output_reg;
 	uint32_t DP;
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
@@ -55,7 +54,7 @@ struct psb_intel_dp {
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[4];
-	struct psb_intel_output *output;
+	struct psb_intel_encoder *encoder;
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
 	uint8_t	train_set[4];
@@ -94,20 +93,20 @@ static uint32_t dp_vswing_premph_table[] = {
  * If a CPU or PCH DP output is attached to an eDP panel, this function
  * will return true, and false otherwise.
  */
-static bool is_edp(struct psb_intel_output *output)
+static bool is_edp(struct psb_intel_encoder *encoder)
 {
-	return output->type == INTEL_OUTPUT_EDP;
+	return encoder->type == INTEL_OUTPUT_EDP;
 }
 
 
-static void psb_intel_dp_start_link_train(struct psb_intel_output *output);
-static void psb_intel_dp_complete_link_train(struct psb_intel_output *output);
-static void psb_intel_dp_link_down(struct psb_intel_output *output);
+static void cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder);
+static void cdv_intel_dp_complete_link_train(struct psb_intel_encoder *encoder);
+static void cdv_intel_dp_link_down(struct psb_intel_encoder *encoder);
 
 static int
-psb_intel_dp_max_lane_count(struct psb_intel_output *output)
+cdv_intel_dp_max_lane_count(struct psb_intel_encoder *encoder)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_lane_count = 4;
 
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11) {
@@ -123,9 +122,9 @@ psb_intel_dp_max_lane_count(struct psb_intel_output *output)
 }
 
 static int
-psb_intel_dp_max_link_bw(struct psb_intel_output *output)
+cdv_intel_dp_max_link_bw(struct psb_intel_encoder *encoder)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
 
 	switch (max_link_bw) {
@@ -140,7 +139,7 @@ psb_intel_dp_max_link_bw(struct psb_intel_output *output)
 }
 
 static int
-psb_intel_dp_link_clock(uint8_t link_bw)
+cdv_intel_dp_link_clock(uint8_t link_bw)
 {
 	if (link_bw == DP_LINK_BW_2_7)
 		return 270000;
@@ -149,28 +148,28 @@ psb_intel_dp_link_clock(uint8_t link_bw)
 }
 
 static int
-psb_intel_dp_link_required(int pixel_clock, int bpp)
+cdv_intel_dp_link_required(int pixel_clock, int bpp)
 {
 	return (pixel_clock * bpp + 7) / 8;
 }
 
 static int
-psb_intel_dp_max_data_rate(int max_link_clock, int max_lanes)
+cdv_intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 {
 	return (max_link_clock * max_lanes * 19) / 20;
 }
 
 static int
-psb_intel_dp_mode_valid(struct drm_connector *connector,
+cdv_intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct psb_intel_output *output = to_psb_intel_output(connector);
+	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
 	struct drm_device *dev = connector->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int max_link_clock = psb_intel_dp_link_clock(psb_intel_dp_max_link_bw(output));
-	int max_lanes = psb_intel_dp_max_lane_count(output);
+	int max_link_clock = cdv_intel_dp_link_clock(cdv_intel_dp_max_link_bw(encoder));
+	int max_lanes = cdv_intel_dp_max_lane_count(encoder);
 
-	if (is_edp(output) && dev_priv->panel_fixed_mode) {
+	if (is_edp(encoder) && dev_priv->panel_fixed_mode) {
 		if (mode->hdisplay > dev_priv->panel_fixed_mode->hdisplay)
 			return MODE_PANEL;
 
@@ -180,9 +179,9 @@ psb_intel_dp_mode_valid(struct drm_connector *connector,
 
 	/* only refuse the mode on non eDP since we have seen some weird eDP panels
 	   which are outside spec tolerances but somehow work by magic */
-	if (!is_edp(output) &&
-	    (psb_intel_dp_link_required(mode->clock, 24)
-	     > psb_intel_dp_max_data_rate(max_link_clock, max_lanes)))
+	if (!is_edp(encoder) &&
+	    (cdv_intel_dp_link_required(mode->clock, 24)
+	     > cdv_intel_dp_max_data_rate(max_link_clock, max_lanes)))
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -215,13 +214,13 @@ unpack_aux(uint32_t src, uint8_t *dst, int dst_bytes)
 }
 
 static int
-psb_intel_dp_aux_ch(struct psb_intel_output *output,
+cdv_intel_dp_aux_ch(struct psb_intel_encoder *encoder,
 		uint8_t *send, int send_bytes,
 		uint8_t *recv, int recv_size)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	uint32_t output_reg = intel_dp->output_reg;
-	struct drm_device *dev = output->base.dev;
+	struct drm_device *dev = encoder->base.dev;
 	uint32_t ch_ctl = output_reg + 0x10;
 	uint32_t ch_data = ch_ctl + 4;
 	int i;
@@ -315,7 +314,7 @@ psb_intel_dp_aux_ch(struct psb_intel_output *output,
 
 /* Write data to the aux channel in native mode */
 static int
-psb_intel_dp_aux_native_write(struct psb_intel_output *output,
+cdv_intel_dp_aux_native_write(struct psb_intel_encoder *encoder,
 			  uint16_t address, uint8_t *send, int send_bytes)
 {
 	int ret;
@@ -332,7 +331,7 @@ psb_intel_dp_aux_native_write(struct psb_intel_output *output,
 	memcpy(&msg[4], send, send_bytes);
 	msg_bytes = send_bytes + 4;
 	for (;;) {
-		ret = psb_intel_dp_aux_ch(output, msg, msg_bytes, &ack, 1);
+		ret = cdv_intel_dp_aux_ch(encoder, msg, msg_bytes, &ack, 1);
 		if (ret < 0)
 			return ret;
 		if ((ack & AUX_NATIVE_REPLY_MASK) == AUX_NATIVE_REPLY_ACK)
@@ -347,15 +346,15 @@ psb_intel_dp_aux_native_write(struct psb_intel_output *output,
 
 /* Write a single byte to the aux channel in native mode */
 static int
-psb_intel_dp_aux_native_write_1(struct psb_intel_output *output,
+cdv_intel_dp_aux_native_write_1(struct psb_intel_encoder *encoder,
 			    uint16_t address, uint8_t byte)
 {
-	return psb_intel_dp_aux_native_write(output, address, &byte, 1);
+	return cdv_intel_dp_aux_native_write(encoder, address, &byte, 1);
 }
 
 /* read bytes from a native aux channel */
 static int
-psb_intel_dp_aux_native_read(struct psb_intel_output *output,
+cdv_intel_dp_aux_native_read(struct psb_intel_encoder *encoder,
 			 uint16_t address, uint8_t *recv, int recv_bytes)
 {
 	uint8_t msg[4];
@@ -374,7 +373,7 @@ psb_intel_dp_aux_native_read(struct psb_intel_output *output,
 	reply_bytes = recv_bytes + 1;
 
 	for (;;) {
-		ret = psb_intel_dp_aux_ch(output, msg, msg_bytes,
+		ret = cdv_intel_dp_aux_ch(encoder, msg, msg_bytes,
 				      reply, reply_bytes);
 		if (ret == 0)
 			return -EPROTO;
@@ -393,14 +392,14 @@ psb_intel_dp_aux_native_read(struct psb_intel_output *output,
 }
 
 static int
-psb_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
+cdv_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 		    uint8_t write_byte, uint8_t *read_byte)
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
-	struct psb_intel_dp *intel_dp = container_of(adapter,
-						struct psb_intel_dp,
+	struct cdv_intel_dp *intel_dp = container_of(adapter,
+						struct cdv_intel_dp,
 						adapter);
-	struct psb_intel_output *output = intel_dp->output;
+	struct psb_intel_encoder *encoder = intel_dp->encoder;
 	uint16_t address = algo_data->address;
 	uint8_t msg[5];
 	uint8_t reply[2];
@@ -440,7 +439,7 @@ psb_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 	}
 
 	for (retry = 0; retry < 5; retry++) {
-		ret = psb_intel_dp_aux_ch(output,
+		ret = cdv_intel_dp_aux_ch(encoder,
 				      msg, msg_bytes,
 				      reply, reply_bytes);
 		if (ret < 0) {
@@ -490,13 +489,13 @@ psb_intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 }
 
 static int
-psb_intel_dp_i2c_init(struct psb_intel_output *output, const char *name)
+cdv_intel_dp_i2c_init(struct psb_intel_connector *connector, struct psb_intel_encoder *encoder, const char *name)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	DRM_DEBUG_KMS("i2c_init %s\n", name);
 	intel_dp->algo.running = false;
 	intel_dp->algo.address = 0;
-	intel_dp->algo.aux_ch = psb_intel_dp_i2c_aux_ch;
+	intel_dp->algo.aux_ch = cdv_intel_dp_i2c_aux_ch;
 
 	memset(&intel_dp->adapter, '\0', sizeof (intel_dp->adapter));
 	intel_dp->adapter.owner = THIS_MODULE;
@@ -504,32 +503,32 @@ psb_intel_dp_i2c_init(struct psb_intel_output *output, const char *name)
 	strncpy (intel_dp->adapter.name, name, sizeof(intel_dp->adapter.name) - 1);
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
-	intel_dp->adapter.dev.parent = &output->base.kdev;
+	intel_dp->adapter.dev.parent = &connector->base.kdev;
 
 	return i2c_dp_aux_add_bus(&intel_dp->adapter);
 }
 
 static bool
-psb_intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+cdv_intel_dp_mode_fixup(struct drm_encoder *encoder, const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
-	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	int lane_count, clock;
-	int max_lane_count = psb_intel_dp_max_lane_count(output);
-	int max_clock = psb_intel_dp_max_link_bw(output) == DP_LINK_BW_2_7 ? 1 : 0;
+	int max_lane_count = cdv_intel_dp_max_lane_count(intel_encoder);
+	int max_clock = cdv_intel_dp_max_link_bw(intel_encoder) == DP_LINK_BW_2_7 ? 1 : 0;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
 
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = max_clock; clock >= 0; clock--) {
-			int link_avail = psb_intel_dp_max_data_rate(psb_intel_dp_link_clock(bws[clock]), lane_count);
+			int link_avail = cdv_intel_dp_max_data_rate(cdv_intel_dp_link_clock(bws[clock]), lane_count);
 
-			if (psb_intel_dp_link_required(mode->clock, 24)
+			if (cdv_intel_dp_link_required(mode->clock, 24)
 					<= link_avail) {
 				intel_dp->link_bw = bws[clock];
 				intel_dp->lane_count = lane_count;
-				adjusted_mode->clock = psb_intel_dp_link_clock(intel_dp->link_bw);
+				adjusted_mode->clock = cdv_intel_dp_link_clock(intel_dp->link_bw);
 				DRM_DEBUG_KMS("Display port link bw %02x lane "
 						"count %d clock %d\n",
 				       intel_dp->link_bw, intel_dp->lane_count,
@@ -542,7 +541,7 @@ psb_intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mo
 	return false;
 }
 
-struct psb_intel_dp_m_n {
+struct cdv_intel_dp_m_n {
 	uint32_t	tu;
 	uint32_t	gmch_m;
 	uint32_t	gmch_n;
@@ -567,11 +566,11 @@ psb_intel_reduce_ratio(uint32_t *num, uint32_t *den)
 }
 
 static void
-psb_intel_dp_compute_m_n(int bpp,
+cdv_intel_dp_compute_m_n(int bpp,
 		     int nlanes,
 		     int pixel_clock,
 		     int link_clock,
-		     struct psb_intel_dp_m_n *m_n)
+		     struct cdv_intel_dp_m_n *m_n)
 {
 	m_n->tu = 64;
 	m_n->gmch_m = (pixel_clock * bpp + 7) >> 3;
@@ -583,7 +582,7 @@ psb_intel_dp_compute_m_n(int bpp,
 }
 
 void
-psb_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
+cdv_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -591,25 +590,25 @@ psb_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	struct drm_encoder *encoder;
 	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
 	int lane_count = 4, bpp = 24;
-	struct psb_intel_dp_m_n m_n;
+	struct cdv_intel_dp_m_n m_n;
 	int pipe = intel_crtc->pipe;
 
 	/*
 	 * Find the lane count in the intel_encoder private
 	 */
 	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct psb_intel_output *intel_output;
-		struct psb_intel_dp *intel_dp;
+		struct psb_intel_encoder *intel_encoder;
+		struct cdv_intel_dp *intel_dp;
 
 		if (encoder->crtc != crtc)
 			continue;
 
-		intel_output = enc_to_psb_intel_output(encoder);
-		intel_dp = intel_output->dev_priv;
-		if (intel_output->type == INTEL_OUTPUT_DISPLAYPORT) {
+		intel_encoder = to_psb_intel_encoder(encoder);
+		intel_dp = intel_encoder->dev_priv;
+		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
 			lane_count = intel_dp->lane_count;
 			break;
-		} else if (is_edp(intel_output)) {
+		} else if (is_edp(intel_encoder)) {
 			lane_count = intel_dp->lane_count;
 			break;
 		}
@@ -620,7 +619,7 @@ psb_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	 * the number of bytes_per_pixel post-LUT, which we always
 	 * set up for 8-bits of R/G/B, or 3 bytes total.
 	 */
-	psb_intel_dp_compute_m_n(bpp, lane_count,
+	cdv_intel_dp_compute_m_n(bpp, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
 	{
@@ -634,13 +633,13 @@ psb_intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 }
 
 static void
-psb_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
+cdv_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
 {
-	struct psb_intel_output *intel_output = enc_to_psb_intel_output(encoder);
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
 	struct psb_intel_crtc *intel_crtc = to_psb_intel_crtc(crtc);
-	struct psb_intel_dp *intel_dp = intel_output->dev_priv;
+	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 
 
 	intel_dp->DP = DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
@@ -689,9 +688,9 @@ psb_intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode
 
 
 /* If the sink supports it, try to set the power state appropriately */
-static void psb_intel_dp_sink_dpms(struct psb_intel_output *output, int mode)
+static void cdv_intel_dp_sink_dpms(struct psb_intel_encoder *encoder, int mode)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret, i;
 
 	/* Should have a valid DPCD by this point */
@@ -699,7 +698,7 @@ static void psb_intel_dp_sink_dpms(struct psb_intel_output *output, int mode)
 		return;
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		ret = psb_intel_dp_aux_native_write_1(output, DP_SET_POWER,
+		ret = cdv_intel_dp_aux_native_write_1(encoder, DP_SET_POWER,
 						  DP_SET_POWER_D3);
 		if (ret != 1)
 			DRM_DEBUG_DRIVER("failed to write sink power state\n");
@@ -709,7 +708,7 @@ static void psb_intel_dp_sink_dpms(struct psb_intel_output *output, int mode)
 		 * time to wake up.
 		 */
 		for (i = 0; i < 3; i++) {
-			ret = psb_intel_dp_aux_native_write_1(output,
+			ret = cdv_intel_dp_aux_native_write_1(encoder,
 							  DP_SET_POWER,
 							  DP_SET_POWER_D0);
 			if (ret == 1)
@@ -719,42 +718,39 @@ static void psb_intel_dp_sink_dpms(struct psb_intel_output *output, int mode)
 	}
 }
 
-static void psb_intel_dp_prepare(struct drm_encoder *encoder)
+static void cdv_intel_dp_prepare(struct drm_encoder *encoder)
 {
-	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
 
 	/* Wake up the sink first */
-	psb_intel_dp_sink_dpms(output, DRM_MODE_DPMS_ON);
-
-	psb_intel_dp_link_down(output);
+	cdv_intel_dp_sink_dpms(intel_encoder, DRM_MODE_DPMS_ON);
+	cdv_intel_dp_link_down(intel_encoder);
 }
 
-static void psb_intel_dp_commit(struct drm_encoder *encoder)
+static void cdv_intel_dp_commit(struct drm_encoder *encoder)
 {
-	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
 
-	psb_intel_dp_start_link_train(output);
-
-	psb_intel_dp_complete_link_train(output);
-
+	cdv_intel_dp_start_link_train(intel_encoder);
+	cdv_intel_dp_complete_link_train(intel_encoder);
 }
 
 static void
-psb_intel_dp_dpms(struct drm_encoder *encoder, int mode)
+cdv_intel_dp_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct psb_intel_output *intel_output = enc_to_psb_intel_output(encoder);
-	struct psb_intel_dp *intel_dp = intel_output->dev_priv;
+	struct psb_intel_encoder *intel_encoder = to_psb_intel_encoder(encoder);
+	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct drm_device *dev = encoder->dev;
 	uint32_t dp_reg = REG_READ(intel_dp->output_reg);
 
 	if (mode != DRM_MODE_DPMS_ON) {
-		psb_intel_dp_sink_dpms(intel_output, mode);
-		psb_intel_dp_link_down(intel_output);
+		cdv_intel_dp_sink_dpms(intel_encoder, mode);
+		cdv_intel_dp_link_down(intel_encoder);
 	} else {
-		psb_intel_dp_sink_dpms(intel_output, mode);
+		cdv_intel_dp_sink_dpms(intel_encoder, mode);
 		if (!(dp_reg & DP_PORT_EN)) {
-			psb_intel_dp_start_link_train(intel_output);
-			psb_intel_dp_complete_link_train(intel_output);
+			cdv_intel_dp_start_link_train(intel_encoder);
+			cdv_intel_dp_complete_link_train(intel_encoder);
 		}
 	}
 }
@@ -764,7 +760,7 @@ psb_intel_dp_dpms(struct drm_encoder *encoder, int mode)
  * cases where the sink may still be asleep.
  */
 static bool
-psb_intel_dp_aux_native_read_retry(struct psb_intel_output *output, uint16_t address,
+cdv_intel_dp_aux_native_read_retry(struct psb_intel_encoder *encoder, uint16_t address,
 			       uint8_t *recv, int recv_bytes)
 {
 	int ret, i;
@@ -774,7 +770,7 @@ psb_intel_dp_aux_native_read_retry(struct psb_intel_output *output, uint16_t add
 	 * but we're also supposed to retry 3 times per the spec.
 	 */
 	for (i = 0; i < 3; i++) {
-		ret = psb_intel_dp_aux_native_read(output, address, recv,
+		ret = cdv_intel_dp_aux_native_read(encoder, address, recv,
 					       recv_bytes);
 		if (ret == recv_bytes)
 			return true;
@@ -789,44 +785,44 @@ psb_intel_dp_aux_native_read_retry(struct psb_intel_output *output, uint16_t add
  * link status information
  */
 static bool
-psb_intel_dp_get_link_status(struct psb_intel_output *output)
+cdv_intel_dp_get_link_status(struct psb_intel_encoder *encoder)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
-	return psb_intel_dp_aux_native_read_retry(output,
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
+	return cdv_intel_dp_aux_native_read_retry(encoder,
 					      DP_LANE0_1_STATUS,
 					      intel_dp->link_status,
 					      DP_LINK_STATUS_SIZE);
 }
 
 static uint8_t
-psb_intel_dp_link_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
+cdv_intel_dp_link_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
 		     int r)
 {
 	return link_status[r - DP_LANE0_1_STATUS];
 }
 
 static uint8_t
-psb_intel_get_adjust_request_voltage(uint8_t link_status[DP_LINK_STATUS_SIZE],
+cdv_intel_get_adjust_request_voltage(uint8_t link_status[DP_LINK_STATUS_SIZE],
 				 int lane)
 {
 	int	    i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
 	int	    s = ((lane & 1) ?
 			 DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT :
 			 DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT);
-	uint8_t l = psb_intel_dp_link_status(link_status, i);
+	uint8_t l = cdv_intel_dp_link_status(link_status, i);
 
 	return ((l >> s) & 3) << DP_TRAIN_VOLTAGE_SWING_SHIFT;
 }
 
 static uint8_t
-psb_intel_get_adjust_request_pre_emphasis(uint8_t link_status[DP_LINK_STATUS_SIZE],
+cdv_intel_get_adjust_request_pre_emphasis(uint8_t link_status[DP_LINK_STATUS_SIZE],
 				      int lane)
 {
 	int	    i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
 	int	    s = ((lane & 1) ?
 			 DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT :
 			 DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT);
-	uint8_t l = psb_intel_dp_link_status(link_status, i);
+	uint8_t l = cdv_intel_dp_link_status(link_status, i);
 
 	return ((l >> s) & 3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
 }
@@ -847,7 +843,7 @@ static char	*link_train_names[] = {
 #define CDV_DP_VOLTAGE_MAX	    DP_TRAIN_VOLTAGE_SWING_1200
 /*
 static uint8_t
-psb_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
+cdv_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
 {
 	switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 	case DP_TRAIN_VOLTAGE_SWING_400:
@@ -863,16 +859,16 @@ psb_intel_dp_pre_emphasis_max(uint8_t voltage_swing)
 }
 */
 static void
-psb_intel_get_adjust_train(struct psb_intel_output *output)
+cdv_intel_get_adjust_train(struct psb_intel_encoder *encoder)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	uint8_t v = 0;
 	uint8_t p = 0;
 	int lane;
 
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		uint8_t this_v = psb_intel_get_adjust_request_voltage(intel_dp->link_status, lane);
-		uint8_t this_p = psb_intel_get_adjust_request_pre_emphasis(intel_dp->link_status, lane);
+		uint8_t this_v = cdv_intel_get_adjust_request_voltage(intel_dp->link_status, lane);
+		uint8_t this_p = cdv_intel_get_adjust_request_pre_emphasis(intel_dp->link_status, lane);
 
 		if (this_v > v)
 			v = this_v;
@@ -892,25 +888,25 @@ psb_intel_get_adjust_train(struct psb_intel_output *output)
 
 
 static uint8_t
-psb_intel_get_lane_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
+cdv_intel_get_lane_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
 		      int lane)
 {
 	int i = DP_LANE0_1_STATUS + (lane >> 1);
 	int s = (lane & 1) * 4;
-	uint8_t l = psb_intel_dp_link_status(link_status, i);
+	uint8_t l = cdv_intel_dp_link_status(link_status, i);
 
 	return (l >> s) & 0xf;
 }
 
 /* Check for clock recovery is done on all channels */
 static bool
-psb_intel_clock_recovery_ok(uint8_t link_status[DP_LINK_STATUS_SIZE], int lane_count)
+cdv_intel_clock_recovery_ok(uint8_t link_status[DP_LINK_STATUS_SIZE], int lane_count)
 {
 	int lane;
 	uint8_t lane_status;
 
 	for (lane = 0; lane < lane_count; lane++) {
-		lane_status = psb_intel_get_lane_status(link_status, lane);
+		lane_status = cdv_intel_get_lane_status(link_status, lane);
 		if ((lane_status & DP_LANE_CR_DONE) == 0)
 			return false;
 	}
@@ -922,19 +918,19 @@ psb_intel_clock_recovery_ok(uint8_t link_status[DP_LINK_STATUS_SIZE], int lane_c
 			 DP_LANE_CHANNEL_EQ_DONE|\
 			 DP_LANE_SYMBOL_LOCKED)
 static bool
-psb_intel_channel_eq_ok(struct psb_intel_output *output)
+cdv_intel_channel_eq_ok(struct psb_intel_encoder *encoder)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	uint8_t lane_align;
 	uint8_t lane_status;
 	int lane;
 
-	lane_align = psb_intel_dp_link_status(intel_dp->link_status,
+	lane_align = cdv_intel_dp_link_status(intel_dp->link_status,
 					  DP_LANE_ALIGN_STATUS_UPDATED);
 	if ((lane_align & DP_INTERLANE_ALIGN_DONE) == 0)
 		return false;
 	for (lane = 0; lane < intel_dp->lane_count; lane++) {
-		lane_status = psb_intel_get_lane_status(intel_dp->link_status, lane);
+		lane_status = cdv_intel_get_lane_status(intel_dp->link_status, lane);
 		if ((lane_status & CHANNEL_EQ_BITS) != CHANNEL_EQ_BITS)
 			return false;
 	}
@@ -942,19 +938,19 @@ psb_intel_channel_eq_ok(struct psb_intel_output *output)
 }
 
 static bool
-psb_intel_dp_set_link_train(struct psb_intel_output *output,
+cdv_intel_dp_set_link_train(struct psb_intel_encoder *encoder,
 			uint32_t dp_reg_value,
 			uint8_t dp_train_pat)
 {
 	
-	struct drm_device *dev = output->base.dev;
+	struct drm_device *dev = encoder->base.dev;
 	int ret;
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 
 	REG_WRITE(intel_dp->output_reg, dp_reg_value);
 	REG_READ(intel_dp->output_reg);
 
-	ret = psb_intel_dp_aux_native_write_1(output,
+	ret = cdv_intel_dp_aux_native_write_1(encoder,
 				    DP_TRAINING_PATTERN_SET,
 				    dp_train_pat);
 
@@ -969,14 +965,14 @@ psb_intel_dp_set_link_train(struct psb_intel_output *output,
 
 
 static bool
-psb_intel_dplink_set_level(struct psb_intel_output *output,
+cdv_intel_dplink_set_level(struct psb_intel_encoder *encoder,
 			uint8_t dp_train_pat)
 {
 	
 	int ret;
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 
-	ret = psb_intel_dp_aux_native_write(output,
+	ret = cdv_intel_dp_aux_native_write(encoder,
 					DP_TRAINING_LANE0_SET,
 					intel_dp->train_set,
 					intel_dp->lane_count);
@@ -990,10 +986,10 @@ psb_intel_dplink_set_level(struct psb_intel_output *output,
 }
 
 static void
-psb_intel_dp_set_vswing_premph(struct psb_intel_output *output, uint8_t signal_level)
+cdv_intel_dp_set_vswing_premph(struct psb_intel_encoder *encoder, uint8_t signal_level)
 {
-	struct drm_device *dev = output->base.dev;
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct drm_device *dev = encoder->base.dev;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	struct ddi_regoff *ddi_reg;
 	int vswing, premph, index;
 
@@ -1013,53 +1009,53 @@ psb_intel_dp_set_vswing_premph(struct psb_intel_output *output, uint8_t signal_l
 #endif
 	DRM_DEBUG_KMS("Test2\n");
 	//return ;
-	psb_sb_reset(dev);
+	cdv_sb_reset(dev);
 	/* ;Swing voltage programming
         ;gfx_dpio_set_reg(0xc058, 0x0505313A) */
-	psb_sb_write(dev, ddi_reg->VSwing5, 0x0505313A);
+	cdv_sb_write(dev, ddi_reg->VSwing5, 0x0505313A);
 
 	/* ;gfx_dpio_set_reg(0x8154, 0x43406055) */
-	psb_sb_write(dev, ddi_reg->VSwing1, 0x43406055);
+	cdv_sb_write(dev, ddi_reg->VSwing1, 0x43406055);
 
 	/* ;gfx_dpio_set_reg(0x8148, 0x55338954)
 	 * The VSwing_PreEmph table is also considered based on the vswing/premp
 	 */
 	index = (vswing + premph) * 2;
 	if (premph == 1 && vswing == 1) {
-		psb_sb_write(dev, ddi_reg->VSwing2, 0x055738954);
+		cdv_sb_write(dev, ddi_reg->VSwing2, 0x055738954);
 	} else
-		psb_sb_write(dev, ddi_reg->VSwing2, dp_vswing_premph_table[index]);
+		cdv_sb_write(dev, ddi_reg->VSwing2, dp_vswing_premph_table[index]);
 
 	/* ;gfx_dpio_set_reg(0x814c, 0x40802040) */
 	if ((vswing + premph) == DP_TRAIN_VOLTAGE_SWING_1200)
-		psb_sb_write(dev, ddi_reg->VSwing3, 0x70802040);
+		cdv_sb_write(dev, ddi_reg->VSwing3, 0x70802040);
 	else
-		psb_sb_write(dev, ddi_reg->VSwing3, 0x40802040);
+		cdv_sb_write(dev, ddi_reg->VSwing3, 0x40802040);
 
 	/* ;gfx_dpio_set_reg(0x8150, 0x2b405555) */
-	//psb_sb_write(dev, ddi_reg->VSwing4, 0x2b405555);
+	/* cdv_sb_write(dev, ddi_reg->VSwing4, 0x2b405555); */
 
 	/* ;gfx_dpio_set_reg(0x8154, 0xc3406055) */
-	psb_sb_write(dev, ddi_reg->VSwing1, 0xc3406055);
+	cdv_sb_write(dev, ddi_reg->VSwing1, 0xc3406055);
 
 	/* ;Pre emphasis programming
 	 * ;gfx_dpio_set_reg(0xc02c, 0x1f030040)
 	 */
-	psb_sb_write(dev, ddi_reg->PreEmph1, 0x1f030040);
+	cdv_sb_write(dev, ddi_reg->PreEmph1, 0x1f030040);
 
 	/* ;gfx_dpio_set_reg(0x8124, 0x00004000) */
 	index = 2 * premph + 1;
-	psb_sb_write(dev, ddi_reg->PreEmph2, dp_vswing_premph_table[index]);
+	cdv_sb_write(dev, ddi_reg->PreEmph2, dp_vswing_premph_table[index]);
 	return;	
 }
 
 
 /* Enable corresponding port and start training pattern 1 */
 static void
-psb_intel_dp_start_link_train(struct psb_intel_output *output)
+cdv_intel_dp_start_link_train(struct psb_intel_encoder *encoder)
 {
-	struct drm_device *dev = output->base.dev;
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct drm_device *dev = encoder->base.dev;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int i;
 	uint8_t voltage;
 	bool clock_recovery = false;
@@ -1068,10 +1064,10 @@ psb_intel_dp_start_link_train(struct psb_intel_output *output)
 	uint32_t DP = intel_dp->DP;
 
 	DP |= DP_PORT_EN;
-		DP &= ~DP_LINK_TRAIN_MASK;
+	DP &= ~DP_LINK_TRAIN_MASK;
 		
-		reg = DP;	
-		reg |= DP_LINK_TRAIN_PAT_1;
+	reg = DP;	
+	reg |= DP_LINK_TRAIN_PAT_1;
 	/* Enable output, wait for it to become active */
 	REG_WRITE(intel_dp->output_reg, reg);
 	REG_READ(intel_dp->output_reg);
@@ -1079,7 +1075,7 @@ psb_intel_dp_start_link_train(struct psb_intel_output *output)
 
 	DRM_DEBUG_KMS("Link config\n");
 	/* Write the link configuration data */
-	psb_intel_dp_aux_native_write(output, DP_LINK_BW_SET,
+	cdv_intel_dp_aux_native_write(encoder, DP_LINK_BW_SET,
 				  intel_dp->link_configuration,
 				  2);
 
@@ -1095,19 +1091,19 @@ psb_intel_dp_start_link_train(struct psb_intel_output *output)
 	for (;;) {
 		/* Use intel_dp->train_set[0] to set the voltage and pre emphasis values */
 
-		if (!psb_intel_dp_set_link_train(output, reg, DP_TRAINING_PATTERN_1)) {
+		if (!cdv_intel_dp_set_link_train(encoder, reg, DP_TRAINING_PATTERN_1)) {
 			DRM_DEBUG_KMS("Failure in aux-transfer setting pattern 1\n");
 		}
-		psb_intel_dp_set_vswing_premph(output, intel_dp->train_set[0]);
+		cdv_intel_dp_set_vswing_premph(encoder, intel_dp->train_set[0]);
 		/* Set training pattern 1 */
 
-		psb_intel_dplink_set_level(output, DP_TRAINING_PATTERN_1);
+		cdv_intel_dplink_set_level(encoder, DP_TRAINING_PATTERN_1);
 
 		udelay(200);
-		if (!psb_intel_dp_get_link_status(output))
+		if (!cdv_intel_dp_get_link_status(encoder))
 			break;
 
-		if (psb_intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
+		if (cdv_intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
 			DRM_DEBUG_KMS("PT1 train is done\n");
 			clock_recovery = true;
 			break;
@@ -1130,7 +1126,7 @@ psb_intel_dp_start_link_train(struct psb_intel_output *output)
 		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Compute new intel_dp->train_set as requested by target */
-		psb_intel_get_adjust_train(output);
+		cdv_intel_get_adjust_train(encoder);
 
 	}
 
@@ -1142,10 +1138,10 @@ psb_intel_dp_start_link_train(struct psb_intel_output *output)
 }
 
 static void
-psb_intel_dp_complete_link_train(struct psb_intel_output *output)
+cdv_intel_dp_complete_link_train(struct psb_intel_encoder *encoder)
 {
-	struct drm_device *dev = output->base.dev;
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct drm_device *dev = encoder->base.dev;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	bool channel_eq = false;
 	int tries, cr_tries;
 	u32 reg;
@@ -1161,7 +1157,7 @@ psb_intel_dp_complete_link_train(struct psb_intel_output *output)
 
 	for (;;) {
 		/* channel eq pattern */
-		if (!psb_intel_dp_set_link_train(output, reg,
+		if (!cdv_intel_dp_set_link_train(encoder, reg,
 					     DP_TRAINING_PATTERN_2)) {
 			DRM_DEBUG_KMS("Failure in aux-transfer setting pattern 2\n");
 		}
@@ -1169,26 +1165,26 @@ psb_intel_dp_complete_link_train(struct psb_intel_output *output)
 
 		if (cr_tries > 5) {
 			DRM_ERROR("failed to train DP, aborting\n");
-			psb_intel_dp_link_down(output);
+			cdv_intel_dp_link_down(encoder);
 			break;
 		}
 
-		psb_intel_dp_set_vswing_premph(output, intel_dp->train_set[0]);
+		cdv_intel_dp_set_vswing_premph(encoder, intel_dp->train_set[0]);
 
-		psb_intel_dplink_set_level(output, DP_TRAINING_PATTERN_2);
+		cdv_intel_dplink_set_level(encoder, DP_TRAINING_PATTERN_2);
 
 		udelay(1000);
-		if (!psb_intel_dp_get_link_status(output))
+		if (!cdv_intel_dp_get_link_status(encoder))
 			break;
 
 		/* Make sure clock is still ok */
-		if (!psb_intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
-			psb_intel_dp_start_link_train(output);
+		if (!cdv_intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
+			cdv_intel_dp_start_link_train(encoder);
 			cr_tries++;
 			continue;
 		}
 
-		if (psb_intel_channel_eq_ok(output)) {
+		if (cdv_intel_channel_eq_ok(encoder)) {
 			DRM_DEBUG_KMS("PT2 train is done\n");
 			channel_eq = true;
 			break;
@@ -1196,15 +1192,15 @@ psb_intel_dp_complete_link_train(struct psb_intel_output *output)
 
 		/* Try 5 times, then try clock recovery if that fails */
 		if (tries > 5) {
-			psb_intel_dp_link_down(output);
-			psb_intel_dp_start_link_train(output);
+			cdv_intel_dp_link_down(encoder);
+			cdv_intel_dp_start_link_train(encoder);
 			tries = 0;
 			cr_tries++;
 			continue;
 		}
 
 		/* Compute new intel_dp->train_set as requested by target */
-		psb_intel_get_adjust_train(output);
+		cdv_intel_get_adjust_train(encoder);
 		++tries;
 
 	}
@@ -1213,15 +1209,15 @@ psb_intel_dp_complete_link_train(struct psb_intel_output *output)
 
 	REG_WRITE(intel_dp->output_reg, reg);
 	REG_READ(intel_dp->output_reg);
-	psb_intel_dp_aux_native_write_1(output,
+	cdv_intel_dp_aux_native_write_1(encoder,
 				    DP_TRAINING_PATTERN_SET, DP_TRAINING_PATTERN_DISABLE);
 }
 
 static void
-psb_intel_dp_link_down(struct psb_intel_output *output)
+cdv_intel_dp_link_down(struct psb_intel_encoder *encoder)
 {
-	struct drm_device *dev = output->base.dev;
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct drm_device *dev = encoder->base.dev;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	uint32_t DP = intel_dp->DP;
 
 	if ((REG_READ(intel_dp->output_reg) & DP_PORT_EN) == 0)
@@ -1243,13 +1239,13 @@ psb_intel_dp_link_down(struct psb_intel_output *output)
 }
 
 static enum drm_connector_status
-cdv_dp_detect(struct psb_intel_output *output)
+cdv_dp_detect(struct psb_intel_encoder *encoder)
 {
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	enum drm_connector_status status;
 
 	status = connector_status_disconnected;
-	if (psb_intel_dp_aux_native_read(output, 0x000, intel_dp->dpcd,
+	if (cdv_intel_dp_aux_native_read(encoder, 0x000, intel_dp->dpcd,
 				     sizeof (intel_dp->dpcd)) == sizeof (intel_dp->dpcd))
 	{
 		if (intel_dp->dpcd[DP_DPCD_REV] != 0)
@@ -1269,16 +1265,16 @@ cdv_dp_detect(struct psb_intel_output *output)
  * \return false if DP port is disconnected.
  */
 static enum drm_connector_status
-psb_intel_dp_detect(struct drm_connector *connector, bool force)
+cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 {
-	struct psb_intel_output *output = to_psb_intel_output(connector);
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	enum drm_connector_status status;
 	struct edid *edid = NULL;
 
 	intel_dp->has_audio = false;
 
-	status = cdv_dp_detect(output);
+	status = cdv_dp_detect(encoder);
 	if (status != connector_status_connected)
 		return status;
 
@@ -1296,20 +1292,18 @@ psb_intel_dp_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-static int psb_intel_dp_get_modes(struct drm_connector *connector)
+static int cdv_intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct psb_intel_output *intel_output = to_psb_intel_output(connector);
-	struct psb_intel_dp *intel_dp = intel_output->dev_priv;
+	struct psb_intel_encoder *intel_encoder = psb_intel_attached_encoder(connector);
+	struct cdv_intel_dp *intel_dp = intel_encoder->dev_priv;
 	struct edid *edid = NULL;
 	int ret = 0;
 
 
-	edid = drm_get_edid(&intel_output->base,
-			 	&intel_dp->adapter);
+	edid = drm_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
-		drm_mode_connector_update_edid_property(&intel_output->
-							base, edid);
-		ret = drm_add_edid_modes(&intel_output->base, edid);
+		drm_mode_connector_update_edid_property(connector, edid);
+		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
 
@@ -1317,10 +1311,10 @@ static int psb_intel_dp_get_modes(struct drm_connector *connector)
 }
 
 static bool
-psb_intel_dp_detect_audio(struct drm_connector *connector)
+cdv_intel_dp_detect_audio(struct drm_connector *connector)
 {
-	struct psb_intel_output *output = to_psb_intel_output(connector);
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	struct edid *edid;
 	bool has_audio = false;
 
@@ -1336,13 +1330,13 @@ psb_intel_dp_detect_audio(struct drm_connector *connector)
 }
 
 static int
-psb_intel_dp_set_property(struct drm_connector *connector,
+cdv_intel_dp_set_property(struct drm_connector *connector,
 		      struct drm_property *property,
 		      uint64_t val)
 {
 	struct drm_psb_private *dev_priv = connector->dev->dev_private;
-	struct psb_intel_output *output = to_psb_intel_output(connector);
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct psb_intel_encoder *encoder = psb_intel_attached_encoder(connector);
+	struct cdv_intel_dp *intel_dp = encoder->dev_priv;
 	int ret;
 
 	ret = drm_connector_property_set_value(connector, property, val);
@@ -1359,7 +1353,7 @@ psb_intel_dp_set_property(struct drm_connector *connector,
 		intel_dp->force_audio = i;
 
 		if (i == 0)
-			has_audio = psb_intel_dp_detect_audio(connector);
+			has_audio = cdv_intel_dp_detect_audio(connector);
 		else
 			has_audio = i > 0;
 
@@ -1381,8 +1375,8 @@ psb_intel_dp_set_property(struct drm_connector *connector,
 	return -EINVAL;
 
 done:
-	if (output->enc.crtc) {
-		struct drm_crtc *crtc = output->enc.crtc;
+	if (encoder->base.crtc) {
+		struct drm_crtc *crtc = encoder->base.crtc;
 		drm_crtc_helper_set_mode(crtc, &crtc->mode,
 					 crtc->x, crtc->y,
 					 crtc->fb);
@@ -1392,10 +1386,11 @@ done:
 }
 
 static void
-psb_intel_dp_destroy (struct drm_connector *connector)
+cdv_intel_dp_destroy (struct drm_connector *connector)
 {
-	struct psb_intel_output *output = to_psb_intel_output(connector);
-	struct psb_intel_dp *intel_dp = output->dev_priv;
+	struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
+	struct cdv_intel_dp *intel_dp = psb_intel_encoder->dev_priv;
 
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_sysfs_connector_remove(connector);
@@ -1403,86 +1398,83 @@ psb_intel_dp_destroy (struct drm_connector *connector)
 	kfree(connector);
 }
 
-static void psb_intel_dp_encoder_destroy(struct drm_encoder *encoder)
+static void cdv_intel_dp_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }
 
-static const struct drm_encoder_helper_funcs psb_intel_dp_helper_funcs = {
-	.dpms = psb_intel_dp_dpms,
-	.mode_fixup = psb_intel_dp_mode_fixup,
-	.prepare = psb_intel_dp_prepare,
-	.mode_set = psb_intel_dp_mode_set,
-	.commit = psb_intel_dp_commit,
+static const struct drm_encoder_helper_funcs cdv_intel_dp_helper_funcs = {
+	.dpms = cdv_intel_dp_dpms,
+	.mode_fixup = cdv_intel_dp_mode_fixup,
+	.prepare = cdv_intel_dp_prepare,
+	.mode_set = cdv_intel_dp_mode_set,
+	.commit = cdv_intel_dp_commit,
 };
 
-static const struct drm_connector_funcs psb_intel_dp_connector_funcs = {
+static const struct drm_connector_funcs cdv_intel_dp_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = psb_intel_dp_detect,
+	.detect = cdv_intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = psb_intel_dp_set_property,
-	.destroy = psb_intel_dp_destroy,
+	.set_property = cdv_intel_dp_set_property,
+	.destroy = cdv_intel_dp_destroy,
 };
 
-static const struct drm_connector_helper_funcs psb_intel_dp_connector_helper_funcs = {
-	.get_modes = psb_intel_dp_get_modes,
-	.mode_valid = psb_intel_dp_mode_valid,
+static const struct drm_connector_helper_funcs cdv_intel_dp_connector_helper_funcs = {
+	.get_modes = cdv_intel_dp_get_modes,
+	.mode_valid = cdv_intel_dp_mode_valid,
 	.best_encoder = psb_intel_best_encoder,
 };
 
-static const struct drm_encoder_funcs psb_intel_dp_enc_funcs = {
-	.destroy = psb_intel_dp_encoder_destroy,
+static const struct drm_encoder_funcs cdv_intel_dp_enc_funcs = {
+	.destroy = cdv_intel_dp_encoder_destroy,
 };
 
 
-static void
-psb_intel_dp_add_properties(struct psb_intel_output *output, struct drm_connector *connector)
+static void cdv_intel_dp_add_properties(struct drm_connector *connector)
 {
-	psb_intel_attach_force_audio_property(connector);
-	psb_intel_attach_broadcast_rgb_property(connector);
+	cdv_intel_attach_force_audio_property(connector);
+	cdv_intel_attach_broadcast_rgb_property(connector);
 }
 
 void
-psb_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg)
+cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg)
 {
+	struct psb_intel_encoder *psb_intel_encoder;
+	struct psb_intel_connector *psb_intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct psb_intel_output *psb_intel_output;
-	struct psb_intel_dp *intel_dp;
+	struct cdv_intel_dp *intel_dp;
 	const char *name = NULL;
-	int type;
 
-	psb_intel_output = kzalloc(sizeof(struct psb_intel_output) +
-			       sizeof(struct psb_intel_dp), GFP_KERNEL);
-	if (!psb_intel_output)
+	psb_intel_encoder = kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
+	if (!psb_intel_encoder)
 		return;
+        psb_intel_connector = kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
+        if (!psb_intel_connector)
+                goto err_connector;
+	intel_dp = kzalloc(sizeof(struct cdv_intel_dp), GFP_KERNEL);
+	if (!intel_dp)
+	        goto err_priv;
 
-	intel_dp = (struct psb_intel_dp *)(psb_intel_output + 1);
-	psb_intel_output->mode_dev = mode_dev;
-	connector = &psb_intel_output->base;
-	encoder = &psb_intel_output->enc;
-	psb_intel_output->dev_priv=intel_dp;
-	intel_dp->output = psb_intel_output;
+	connector = &psb_intel_connector->base;
+	encoder = &psb_intel_encoder->base;
 
+	drm_connector_init(dev, connector, &cdv_intel_dp_connector_funcs, DRM_MODE_CONNECTOR_DisplayPort);
+	drm_encoder_init(dev, encoder, &cdv_intel_dp_enc_funcs, DRM_MODE_ENCODER_TMDS);
+
+	psb_intel_connector_attach_encoder(psb_intel_connector, psb_intel_encoder);
+	psb_intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+
+	psb_intel_encoder->dev_priv=intel_dp;
+	intel_dp->encoder = psb_intel_encoder;
 	intel_dp->output_reg = output_reg;
 	
-	type = DRM_MODE_CONNECTOR_DisplayPort;
-	psb_intel_output->type = INTEL_OUTPUT_DISPLAYPORT;
-
-	drm_connector_init(dev, connector, &psb_intel_dp_connector_funcs, type);
-	drm_connector_helper_add(connector, &psb_intel_dp_connector_helper_funcs);
+	drm_encoder_helper_add(encoder, &cdv_intel_dp_helper_funcs);
+	drm_connector_helper_add(connector, &cdv_intel_dp_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	drm_encoder_init(dev, encoder, &psb_intel_dp_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(encoder, &psb_intel_dp_helper_funcs);
-
-	drm_mode_connector_attach_encoder(&psb_intel_output->base,
-					  &psb_intel_output->enc);
+	connector->interlace_allowed = false;
+	connector->doublescan_allowed = false;
 
 	drm_sysfs_connector_add(connector);
 
@@ -1490,15 +1482,21 @@ psb_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev
 	switch (output_reg) {
 		case DP_B:
 			name = "DPDDC-B";
-			psb_intel_output->ddi_select = (DP_MASK | DDI0_SELECT);
+			psb_intel_encoder->ddi_select = (DP_MASK | DDI0_SELECT);
 			break;
 		case DP_C:
 			name = "DPDDC-C";
-			psb_intel_output->ddi_select = (DP_MASK | DDI1_SELECT);
+			psb_intel_encoder->ddi_select = (DP_MASK | DDI1_SELECT);
 			break;
 	}
 
-	psb_intel_dp_i2c_init(psb_intel_output, name);
-	psb_intel_dp_add_properties(psb_intel_output, connector);
+	cdv_intel_dp_i2c_init(psb_intel_connector, psb_intel_encoder, name);
+        /* FIXME:fail check */
+	cdv_intel_dp_add_properties(connector);
+	return;
 
+err_priv:
+	kfree(psb_intel_connector);
+err_connector:
+	kfree(psb_intel_encoder);
 }
