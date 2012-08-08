@@ -300,6 +300,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	switch (ext) {
 #ifdef CONFIG_BOOKE
 	case KVM_CAP_PPC_BOOKE_SREGS:
+	case KVM_CAP_PPC_BOOKE_WATCHDOG:
 #else
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_HIOR:
@@ -476,6 +477,8 @@ enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	int ret;
+
 	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	tasklet_init(&vcpu->arch.tasklet, kvmppc_decrementer_func, (ulong)vcpu);
 	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
@@ -484,13 +487,14 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_KVM_EXIT_TIMING
 	mutex_init(&vcpu->arch.exit_timing_lock);
 #endif
-
-	return 0;
+	ret = kvmppc_subarch_vcpu_init(vcpu);
+	return ret;
 }
 
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	kvmppc_mmu_destroy(vcpu);
+	kvmppc_subarch_vcpu_uninit(vcpu);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -735,6 +739,12 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = 0;
 		vcpu->arch.papr_enabled = true;
 		break;
+#ifdef CONFIG_BOOKE
+	case KVM_CAP_PPC_BOOKE_WATCHDOG:
+		r = 0;
+		vcpu->arch.watchdog_enabled = true;
+		break;
+#endif
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB: {
 		struct kvm_config_tlb cfg;

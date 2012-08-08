@@ -118,6 +118,7 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_IMMEDIATE_EXIT    15
 #define KVM_REQ_PMU               16
 #define KVM_REQ_PMI               17
+#define KVM_REQ_WATCHDOG          18
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1

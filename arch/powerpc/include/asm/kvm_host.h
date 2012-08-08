@@ -471,6 +471,8 @@ struct kvm_vcpu_arch {
 	ulong fault_esr;
 	ulong queued_dear;
 	ulong queued_esr;
+	spinlock_t wdt_lock;
+	struct timer_list wdt_timer;
 	u32 tlbcfg[4];
 	u32 mmucfg;
 	u32 epr;
@@ -486,6 +488,7 @@ struct kvm_vcpu_arch {
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;
+	u8 watchdog_enabled;
 	u8 sane;
 	u8 cpu_type;
 	u8 hcall_needed;

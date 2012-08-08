@@ -145,6 +145,14 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		kvmppc_clr_tsr_bits(vcpu, spr_val);
 		break;
 	case SPRN_TCR:
+		/*
+		 * WRC is a 2-bit field that is supposed to preserve its
+		 * value once written to non-zero.
+		 */
+		if (vcpu->arch.tcr & TCR_WRC_MASK) {
+			spr_val &= ~TCR_WRC_MASK;
+			spr_val |= vcpu->arch.tcr & TCR_WRC_MASK;
+		}
 		kvmppc_set_tcr(vcpu, spr_val);
 		break;
 

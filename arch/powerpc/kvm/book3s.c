@@ -411,6 +411,15 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
+void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+}
+
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;

@@ -167,6 +167,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_OSI              18
 #define KVM_EXIT_PAPR_HCALL	  19
 #define KVM_EXIT_S390_UCONTROL	  20
+#define KVM_EXIT_WATCHDOG         21
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -628,6 +629,7 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_READONLY_MEM 81
 #endif
 #define KVM_CAP_IRQFD_RESAMPLE 82
+#define KVM_CAP_PPC_BOOKE_WATCHDOG 83
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

@@ -68,6 +68,8 @@ extern void kvmppc_emulate_dec(struct kvm_vcpu *vcpu);
 extern u32 kvmppc_get_dec(struct kvm_vcpu *vcpu, u64 tb);
 extern void kvmppc_decrementer_func(unsigned long data);
 extern int kvmppc_sanity_check(struct kvm_vcpu *vcpu);
+extern int kvmppc_subarch_vcpu_init(struct kvm_vcpu *vcpu);
+extern void kvmppc_subarch_vcpu_uninit(struct kvm_vcpu *vcpu);
 
 /* Core-specific hooks */
 
