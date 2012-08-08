@@ -1286,6 +1286,11 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("dam1", NULL, "dam1"),
 	CLK_DUPLICATE("dam2", NULL, "dam2"),
 	CLK_DUPLICATE("spdif_in", NULL, "spdif_in"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.0", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.1", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.2", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.3", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.4", "fast-clk"),
 };
 
 struct clk *tegra_ptr_clks[] = {

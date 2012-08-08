@@ -1056,6 +1056,10 @@ static struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("vde",	"tegra-aes",	"vde"),
 	CLK_DUPLICATE("cclk",	NULL,		"cpu"),
 	CLK_DUPLICATE("twd",	"smp_twd",	NULL),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.0", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.1", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.2", "fast-clk"),
+	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.3", "fast-clk"),
 };
 
 #define CLK(dev, con, ck)	\
