@@ -4395,8 +4395,8 @@
 
 /* LPT PIXCLK_GATE */
 #define PIXCLK_GATE			0xC6020
-#define  PIXCLK_GATE_UNGATE		1<<0
-#define  PIXCLK_GATE_GATE		0<<0
+#define  PIXCLK_GATE_UNGATE		(1<<0)
+#define  PIXCLK_GATE_GATE		(0<<0)
 
 /* SPLL */
 #define SPLL_CTL			0x46020
