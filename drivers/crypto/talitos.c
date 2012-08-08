@@ -38,6 +38,7 @@
 #include <linux/spinlock.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
@@ -1974,7 +1975,11 @@ struct talitos_alg_template {
 };
 
 static struct talitos_alg_template driver_algs[] = {
-	/* AEAD algorithms.  These use a single-pass ipsec_esp descriptor */
+	/*
+	 * AEAD algorithms. These use a single-pass ipsec_esp descriptor.
+	 * authencesn(*,*) is also registered, although not present
+	 * explicitly here.
+	 */
 	{	.type = CRYPTO_ALG_TYPE_AEAD,
 		.alg.crypto = {
 			.cra_name = "authenc(hmac(sha1),cbc(aes))",
@@ -2816,7 +2821,9 @@ static int talitos_probe(struct platform_device *ofdev)
 		if (hw_supports(dev, driver_algs[i].desc_hdr_template)) {
 			struct talitos_crypto_alg *t_alg;
 			char *name = NULL;
+			bool authenc = false;
 
+authencesn:
 			t_alg = talitos_alg_alloc(dev, &driver_algs[i]);
 			if (IS_ERR(t_alg)) {
 				err = PTR_ERR(t_alg);
@@ -2831,6 +2838,8 @@ static int talitos_probe(struct platform_device *ofdev)
 				err = crypto_register_alg(
 						&t_alg->algt.alg.crypto);
 				name = t_alg->algt.alg.crypto.cra_driver_name;
+				authenc = authenc ? !authenc :
+					  !(bool)memcmp(name, "authenc", 7);
 				break;
 			case CRYPTO_ALG_TYPE_AHASH:
 				err = crypto_register_ahash(
@@ -2843,8 +2852,25 @@ static int talitos_probe(struct platform_device *ofdev)
 				dev_err(dev, "%s alg registration failed\n",
 					name);
 				kfree(t_alg);
-			} else
+			} else {
 				list_add_tail(&t_alg->entry, &priv->alg_list);
+				if (authenc) {
+					struct crypto_alg *alg =
+						&driver_algs[i].alg.crypto;
+
+					name = alg->cra_name;
+					memmove(name + 10, name + 7,
+						strlen(name) - 7);
+					memcpy(name + 7, "esn", 3);
+
+					name = alg->cra_driver_name;
+					memmove(name + 10, name + 7,
+						strlen(name) - 7);
+					memcpy(name + 7, "esn", 3);
+
+					goto authencesn;
+				}
+			}
 		}
 	}
 	if (!list_empty(&priv->alg_list))
