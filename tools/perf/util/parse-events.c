@@ -611,14 +611,32 @@ int parse_events_add_pmu(struct list_head **list, int *idx,
 			 pmu_event_name(head_config));
 }
 
-int parse_events__modifier_group(struct list_head *list __used,
-				 char *event_mod __used)
+struct perf_evsel *parse_events__set_leader(struct list_head *list)
 {
-	return 0;
+	struct perf_evsel *evsel, *leader;
+
+	leader = list_entry(list->next, struct perf_evsel, node);
+	leader->leader = NULL;
+
+	list_for_each_entry(evsel, list, node)
+		if (evsel != leader)
+			evsel->leader = leader;
+
+	return leader;
 }
 
-void parse_events__group(char *name __used, struct list_head *list __used)
+int parse_events__modifier_group(struct list_head *list,
+				 char *event_mod)
 {
+	return parse_events__modifier_event(list, event_mod, true);
+}
+
+void parse_events__group(char *name, struct list_head *list)
+{
+	struct perf_evsel *leader;
+
+	leader = parse_events__set_leader(list);
+	leader->group_name = name ? strdup(name) : NULL;
 }
 
 void parse_events_update_lists(struct list_head *list_event,

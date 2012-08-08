@@ -21,7 +21,6 @@
 #include "perf_regs.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))
-#define GROUP_FD(group_fd, cpu) (*(int *)xyarray__entry(group_fd, cpu, 0))
 
 static int __perf_evsel__sample_size(u64 sample_type)
 {
@@ -493,6 +492,7 @@ void perf_evsel__delete(struct perf_evsel *evsel)
 {
 	perf_evsel__exit(evsel);
 	close_cgroup(evsel->cgrp);
+	free(evsel->group_name);
 	free(evsel->name);
 	free(evsel);
 }
@@ -568,9 +568,28 @@ int __perf_evsel__read(struct perf_evsel *evsel,
 	return 0;
 }
 
+static int get_group_fd(struct perf_evsel *evsel, int cpu, int thread)
+{
+	struct perf_evsel *leader = evsel->leader;
+	int fd;
+
+	if (!leader)
+		return -1;
+
+	/*
+	 * Leader must be already processed/open,
+	 * if not it's a bug.
+	 */
+	BUG_ON(!leader->fd);
+
+	fd = FD(leader, cpu, thread);
+	BUG_ON(fd == -1);
+
+	return fd;
+}
+
 static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-			      struct thread_map *threads, bool group,
-			      struct xyarray *group_fds)
+			      struct thread_map *threads)
 {
 	int cpu, thread;
 	unsigned long flags = 0;
@@ -586,12 +605,14 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	}
 
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
-		int group_fd = group_fds ? GROUP_FD(group_fds, cpu) : -1;
 
 		for (thread = 0; thread < threads->nr; thread++) {
+			int group_fd;
 
 			if (!evsel->cgrp)
 				pid = threads->map[thread];
+
+			group_fd = get_group_fd(evsel, cpu, thread);
 
 			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
 								     pid,
@@ -602,8 +623,9 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 				goto out_close;
 			}
 
-			if (group && group_fd == -1)
-				group_fd = FD(evsel, cpu, thread);
+			pr_debug("event cpu %d, thread %d, fd %d, group %d\n",
+				 cpu, pid, FD(evsel, cpu, thread),
+				 group_fd);
 		}
 	}
 
@@ -647,8 +669,7 @@ static struct {
 };
 
 int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
-		     struct thread_map *threads, bool group,
-		     struct xyarray *group_fd)
+		     struct thread_map *threads)
 {
 	if (cpus == NULL) {
 		/* Work around old compiler warnings about strict aliasing */
@@ -658,23 +679,19 @@ int perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 	if (threads == NULL)
 		threads = &empty_thread_map.map;
 
-	return __perf_evsel__open(evsel, cpus, threads, group, group_fd);
+	return __perf_evsel__open(evsel, cpus, threads);
 }
 
 int perf_evsel__open_per_cpu(struct perf_evsel *evsel,
-			     struct cpu_map *cpus, bool group,
-			     struct xyarray *group_fd)
+			     struct cpu_map *cpus)
 {
-	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map, group,
-				  group_fd);
+	return __perf_evsel__open(evsel, cpus, &empty_thread_map.map);
 }
 
 int perf_evsel__open_per_thread(struct perf_evsel *evsel,
-				struct thread_map *threads, bool group,
-				struct xyarray *group_fd)
+				struct thread_map *threads)
 {
-	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads, group,
-				  group_fd);
+	return __perf_evsel__open(evsel, &empty_cpu_map.map, threads);
 }
 
 static int perf_event__parse_id_sample(const union perf_event *event, u64 type,

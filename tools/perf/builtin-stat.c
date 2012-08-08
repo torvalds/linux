@@ -281,12 +281,8 @@ static int create_perf_stat_counter(struct perf_evsel *evsel,
 				    struct perf_evsel *first)
 {
 	struct perf_event_attr *attr = &evsel->attr;
-	struct xyarray *group_fd = NULL;
 	bool exclude_guest_missing = false;
 	int ret;
-
-	if (group && evsel != first)
-		group_fd = first->fd;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -299,8 +295,7 @@ retry:
 		evsel->attr.exclude_guest = evsel->attr.exclude_host = 0;
 
 	if (perf_target__has_cpu(&target)) {
-		ret = perf_evsel__open_per_cpu(evsel, evsel_list->cpus,
-					       group, group_fd);
+		ret = perf_evsel__open_per_cpu(evsel, evsel_list->cpus);
 		if (ret)
 			goto check_ret;
 		return 0;
@@ -311,8 +306,7 @@ retry:
 		attr->enable_on_exec = 1;
 	}
 
-	ret = perf_evsel__open_per_thread(evsel, evsel_list->threads,
-					  group, group_fd);
+	ret = perf_evsel__open_per_thread(evsel, evsel_list->threads);
 	if (!ret)
 		return 0;
 	/* fall through */
@@ -482,6 +476,9 @@ static int run_perf_stat(int argc __used, const char **argv)
 			perror("unable to read pipe");
 		close(child_ready_pipe[0]);
 	}
+
+	if (group)
+		perf_evlist__group(evsel_list);
 
 	first = list_entry(evsel_list->entries.next, struct perf_evsel, node);
 

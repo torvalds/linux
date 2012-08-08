@@ -108,6 +108,12 @@ void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 	evlist->nr_entries += nr_entries;
 }
 
+void perf_evlist__group(struct perf_evlist *evlist)
+{
+	if (evlist->nr_entries)
+		parse_events__set_leader(&evlist->entries);
+}
+
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
 	struct perf_event_attr attr = {
@@ -757,21 +763,13 @@ void perf_evlist__set_selected(struct perf_evlist *evlist,
 	evlist->selected = evsel;
 }
 
-int perf_evlist__open(struct perf_evlist *evlist, bool group)
+int perf_evlist__open(struct perf_evlist *evlist)
 {
-	struct perf_evsel *evsel, *first;
+	struct perf_evsel *evsel;
 	int err, ncpus, nthreads;
 
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
-
 	list_for_each_entry(evsel, &evlist->entries, node) {
-		struct xyarray *group_fd = NULL;
-
-		if (group && evsel != first)
-			group_fd = first->fd;
-
-		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads,
-				       group, group_fd);
+		err = perf_evsel__open(evsel, evlist->cpus, evlist->threads);
 		if (err < 0)
 			goto out_err;
 	}

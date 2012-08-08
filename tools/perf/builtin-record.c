@@ -185,18 +185,18 @@ static bool perf_evlist__equal(struct perf_evlist *evlist,
 
 static void perf_record__open(struct perf_record *rec)
 {
-	struct perf_evsel *pos, *first;
+	struct perf_evsel *pos;
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
 	struct perf_record_opts *opts = &rec->opts;
 
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
-
 	perf_evlist__config_attrs(evlist, opts);
+
+	if (opts->group)
+		perf_evlist__group(evlist);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct perf_event_attr *attr = &pos->attr;
-		struct xyarray *group_fd = NULL;
 		/*
 		 * Check if parse_single_tracepoint_event has already asked for
 		 * PERF_SAMPLE_TIME.
@@ -211,16 +211,13 @@ static void perf_record__open(struct perf_record *rec)
 		 */
 		bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
 
-		if (opts->group && pos != first)
-			group_fd = first->fd;
 fallback_missing_features:
 		if (opts->exclude_guest_missing)
 			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
 		attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 try_again:
-		if (perf_evsel__open(pos, evlist->cpus, evlist->threads,
-				     opts->group, group_fd) < 0) {
+		if (perf_evsel__open(pos, evlist->cpus, evlist->threads) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {

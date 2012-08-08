@@ -886,17 +886,14 @@ static void perf_top__mmap_read(struct perf_top *top)
 
 static void perf_top__start_counters(struct perf_top *top)
 {
-	struct perf_evsel *counter, *first;
+	struct perf_evsel *counter;
 	struct perf_evlist *evlist = top->evlist;
 
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	if (top->group)
+		perf_evlist__group(evlist);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;
-		struct xyarray *group_fd = NULL;
-
-		if (top->group && counter != first)
-			group_fd = first->fd;
 
 		attr->sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TID;
 
@@ -927,8 +924,7 @@ retry_sample_id:
 		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
-				     top->evlist->threads, top->group,
-				     group_fd) < 0) {
+				     top->evlist->threads) < 0) {
 			int err = errno;
 
 			if (err == EPERM || err == EACCES) {
