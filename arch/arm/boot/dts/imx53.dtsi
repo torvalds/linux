@@ -290,6 +290,7 @@
 				compatible = "fsl,imx53-sdma", "fsl,imx35-sdma";
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
 			};
 
 			cspi@63fc0000 {

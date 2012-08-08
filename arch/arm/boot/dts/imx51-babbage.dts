@@ -185,10 +185,6 @@
 		};
 
 		aips@80000000 {	/* aips-2 */
-			sdma@83fb0000 {
-				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
-			};
-
 			i2c@83fc4000 { /* I2C2 */
 				status = "okay";
 
