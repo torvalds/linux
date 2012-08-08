@@ -2272,13 +2272,13 @@ static void ironlake_disable_drps(struct drm_device *dev)
  * ourselves, instead of doing a rmw cycle (which might result in us clearing
  * all limits and the gpu stuck at whatever frequency it is at atm).
  */
-static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
+static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 *val)
 {
 	u32 limits;
 
 	limits = 0;
-	if (val >= dev_priv->max_delay)
-		val = dev_priv->max_delay;
+	if (*val >= dev_priv->max_delay)
+		*val = dev_priv->max_delay;
 	limits |= dev_priv->max_delay << 24;
 
 	/* Only set the down limit when we've reached the lowest level to avoid
@@ -2287,8 +2287,8 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 	 * the hw runs at the minimal clock before selecting the desired
 	 * frequency, if the down threshold expires in that window we will not
 	 * receive a down interrupt. */
-	if (val <= dev_priv->min_delay) {
-		val = dev_priv->min_delay;
+	if (*val <= dev_priv->min_delay) {
+		*val = dev_priv->min_delay;
 		limits |= dev_priv->min_delay << 16;
 	}
 
@@ -2298,7 +2298,7 @@ static u32 gen6_rps_limits(struct drm_i915_private *dev_priv, u8 val)
 void gen6_set_rps(struct drm_device *dev, u8 val)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 limits = gen6_rps_limits(dev_priv, val);
+	u32 limits = gen6_rps_limits(dev_priv, &val);
 
 	if (val == dev_priv->cur_delay)
 		return;
