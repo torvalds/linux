@@ -28,7 +28,7 @@
 #define LCD_WIDTH       202
 #define LCD_HEIGHT      152
 /* Other */
-#define DCLK_POL		0
+#define DCLK_POL		1
 #define SWAP_RB			0   
 
 void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
