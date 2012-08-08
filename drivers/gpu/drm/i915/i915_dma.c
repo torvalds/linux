@@ -1428,6 +1428,21 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	kfree(ap);
 }
 
+static void i915_dump_device_info(struct drm_i915_private *dev_priv)
+{
+	const struct intel_device_info *info = dev_priv->info;
+
+#define DEV_INFO_FLAG(name) info->name ? #name "," : ""
+#define DEV_INFO_SEP ,
+	DRM_DEBUG_DRIVER("i915 device info: gen=%i, pciid=0x%04x flags="
+			 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+			 info->gen,
+			 dev_priv->dev->pdev->device,
+			 DEV_INFO_FLAGS);
+#undef DEV_INFO_FLAG
+#undef DEV_INFO_SEP
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1452,7 +1467,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
-
 	/* i915 has 4 more counters */
 	dev->counters += 4;
 	dev->types[6] = _DRM_STAT_IRQ;
@@ -1467,6 +1481,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
 	dev_priv->info = info;
+
+	i915_dump_device_info(dev_priv);
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;

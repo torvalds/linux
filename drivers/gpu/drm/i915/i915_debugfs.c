@@ -61,28 +61,11 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	seq_printf(m, "gen: %d\n", info->gen);
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev));
-#define B(x) seq_printf(m, #x ": %s\n", yesno(info->x))
-	B(is_mobile);
-	B(is_i85x);
-	B(is_i915g);
-	B(is_i945gm);
-	B(is_g33);
-	B(need_gfx_hws);
-	B(is_g4x);
-	B(is_pineview);
-	B(is_broadwater);
-	B(is_crestline);
-	B(has_fbc);
-	B(has_pipe_cxsr);
-	B(has_hotplug);
-	B(cursor_needs_physical);
-	B(has_overlay);
-	B(overlay_needs_physical);
-	B(supports_tv);
-	B(has_bsd_ring);
-	B(has_blt_ring);
-	B(has_llc);
-#undef B
+#define DEV_INFO_FLAG(x) seq_printf(m, #x ": %s\n", yesno(info->x))
+#define DEV_INFO_SEP ;
+	DEV_INFO_FLAGS;
+#undef DEV_INFO_FLAG
+#undef DEV_INFO_SEP
 
 	return 0;
 }
