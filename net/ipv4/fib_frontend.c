@@ -218,7 +218,7 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb)
 	scope = RT_SCOPE_UNIVERSE;
 	if (!ipv4_is_zeronet(ip_hdr(skb)->saddr)) {
 		fl4.flowi4_oif = 0;
-		fl4.flowi4_iif = net->loopback_dev->ifindex;
+		fl4.flowi4_iif = LOOPBACK_IFINDEX;
 		fl4.daddr = ip_hdr(skb)->saddr;
 		fl4.saddr = 0;
 		fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);

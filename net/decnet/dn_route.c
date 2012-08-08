@@ -961,7 +961,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowidn *o
 		.saddr = oldflp->saddr,
 		.flowidn_scope = RT_SCOPE_UNIVERSE,
 		.flowidn_mark = oldflp->flowidn_mark,
-		.flowidn_iif = init_net.loopback_dev->ifindex,
+		.flowidn_iif = LOOPBACK_IFINDEX,
 		.flowidn_oif = oldflp->flowidn_oif,
 	};
 	struct dn_route *rt = NULL;
@@ -979,7 +979,7 @@ static int dn_route_output_slow(struct dst_entry **pprt, const struct flowidn *o
 		       "dn_route_output_slow: dst=%04x src=%04x mark=%d"
 		       " iif=%d oif=%d\n", le16_to_cpu(oldflp->daddr),
 		       le16_to_cpu(oldflp->saddr),
-		       oldflp->flowidn_mark, init_net.loopback_dev->ifindex,
+		       oldflp->flowidn_mark, LOOPBACK_IFINDEX,
 		       oldflp->flowidn_oif);
 
 	/* If we have an output interface, verify its a DECnet device */
@@ -1042,7 +1042,7 @@ source_ok:
 			if (!fld.daddr)
 				goto out;
 		}
-		fld.flowidn_oif = init_net.loopback_dev->ifindex;
+		fld.flowidn_oif = LOOPBACK_IFINDEX;
 		res.type = RTN_LOCAL;
 		goto make_route;
 	}

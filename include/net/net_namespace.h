@@ -105,6 +105,13 @@ struct net {
 	struct sock		*diag_nlsk;
 };
 
+/*
+ * ifindex generation is per-net namespace, and loopback is
+ * always the 1st device in ns (see net_dev_init), thus any
+ * loopback device should get ifindex 1
+ */
+
+#define LOOPBACK_IFINDEX	1
 
 #include <linux/seq_file_net.h>
 
