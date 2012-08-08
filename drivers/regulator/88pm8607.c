@@ -322,12 +322,12 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource!\n");
+		dev_err(&pdev->dev, "No REG resource!\n");
 		return -EINVAL;
 	}
 	for (i = 0; i < ARRAY_SIZE(pm8607_regulator_info); i++) {
 		info = &pm8607_regulator_info[i];
-		if (info->desc.id == res->start)
+		if (info->desc.vsel_reg == res->start)
 			break;
 	}
 	if (i == ARRAY_SIZE(pm8607_regulator_info)) {
@@ -351,7 +351,6 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	else
 		config.regmap = chip->regmap_companion;
 
-	/* replace driver_data with info */
 	info->regulator = regulator_register(&info->desc, &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
