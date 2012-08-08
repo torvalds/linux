@@ -154,6 +154,13 @@ struct btrfs_ordered_sum;
  */
 #define BTRFS_NAME_LEN 255
 
+/*
+ * Theoretical limit is larger, but we keep this down to a sane
+ * value. That should limit greatly the possibility of collisions on
+ * inode ref items.
+ */
+#define BTRFS_LINK_MAX 65535U
+
 /* 32 bytes in various csum fields */
 #define BTRFS_CSUM_SIZE 32
 
@@ -489,6 +496,8 @@ struct btrfs_super_block {
  */
 #define BTRFS_FEATURE_INCOMPAT_BIG_METADATA	(1ULL << 5)
 
+#define BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF	(1ULL << 6)
+
 #define BTRFS_FEATURE_COMPAT_SUPP		0ULL
 #define BTRFS_FEATURE_COMPAT_RO_SUPP		0ULL
 #define BTRFS_FEATURE_INCOMPAT_SUPP			\
@@ -496,7 +505,8 @@ struct btrfs_super_block {
 	 BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL |	\
 	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
 	 BTRFS_FEATURE_INCOMPAT_BIG_METADATA |		\
-	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO)
+	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO |		\
+	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF)
 
 /*
  * A leaf is full of items. offset and size tell us where to find
@@ -640,6 +650,14 @@ struct btrfs_dev_extent {
 struct btrfs_inode_ref {
 	__le64 index;
 	__le16 name_len;
+	/* name goes here */
+} __attribute__ ((__packed__));
+
+struct btrfs_inode_extref {
+	__le64 parent_objectid;
+	__le64 index;
+	__le16 name_len;
+	__u8   name[0];
 	/* name goes here */
 } __attribute__ ((__packed__));
 
@@ -1601,6 +1619,7 @@ struct btrfs_ioctl_defrag_range_args {
  */
 #define BTRFS_INODE_ITEM_KEY		1
 #define BTRFS_INODE_REF_KEY		12
+#define BTRFS_INODE_EXTREF_KEY		13
 #define BTRFS_XATTR_ITEM_KEY		24
 #define BTRFS_ORPHAN_ITEM_KEY		48
 /* reserve 2-15 close to the inode for later flexibility */
@@ -1986,6 +2005,13 @@ BTRFS_SETGET_STACK_FUNCS(block_group_flags,
 /* struct btrfs_inode_ref */
 BTRFS_SETGET_FUNCS(inode_ref_name_len, struct btrfs_inode_ref, name_len, 16);
 BTRFS_SETGET_FUNCS(inode_ref_index, struct btrfs_inode_ref, index, 64);
+
+/* struct btrfs_inode_extref */
+BTRFS_SETGET_FUNCS(inode_extref_parent, struct btrfs_inode_extref,
+		   parent_objectid, 64);
+BTRFS_SETGET_FUNCS(inode_extref_name_len, struct btrfs_inode_extref,
+		   name_len, 16);
+BTRFS_SETGET_FUNCS(inode_extref_index, struct btrfs_inode_extref, index, 64);
 
 /* struct btrfs_inode_item */
 BTRFS_SETGET_FUNCS(inode_generation, struct btrfs_inode_item, generation, 64);
@@ -3184,18 +3210,31 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   const char *name, int name_len,
 			   u64 inode_objectid, u64 ref_objectid, u64 *index);
-struct btrfs_inode_ref *
-btrfs_lookup_inode_ref(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root,
-			struct btrfs_path *path,
-			const char *name, int name_len,
-			u64 inode_objectid, u64 ref_objectid, int mod);
+int btrfs_get_inode_ref_index(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct btrfs_path *path,
+			      const char *name, int name_len,
+			      u64 inode_objectid, u64 ref_objectid, int mod,
+			      u64 *ret_index);
 int btrfs_insert_empty_inode(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid);
 int btrfs_lookup_inode(struct btrfs_trans_handle *trans, struct btrfs_root
 		       *root, struct btrfs_path *path,
 		       struct btrfs_key *location, int mod);
+
+struct btrfs_inode_extref *
+btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root,
+			  struct btrfs_path *path,
+			  const char *name, int name_len,
+			  u64 inode_objectid, u64 ref_objectid, int ins_len,
+			  int cow);
+
+int btrfs_find_name_in_ext_backref(struct btrfs_path *path,
+				   u64 ref_objectid, const char *name,
+				   int name_len,
+				   struct btrfs_inode_extref **extref_ret);
 
 /* file-item.c */
 int btrfs_del_csums(struct btrfs_trans_handle *trans,

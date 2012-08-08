@@ -2903,7 +2903,6 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
-	struct btrfs_inode_ref *ref;
 	struct btrfs_dir_item *di;
 	struct inode *inode = dentry->d_inode;
 	u64 index;
@@ -3017,17 +3016,17 @@ static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir,
 	}
 	btrfs_release_path(path);
 
-	ref = btrfs_lookup_inode_ref(trans, root, path,
-				dentry->d_name.name, dentry->d_name.len,
-				ino, dir_ino, 0);
-	if (IS_ERR(ref)) {
-		err = PTR_ERR(ref);
+	ret = btrfs_get_inode_ref_index(trans, root, path, dentry->d_name.name,
+					dentry->d_name.len, ino, dir_ino, 0,
+					&index);
+	if (ret) {
+		err = ret;
 		goto out;
 	}
-	BUG_ON(!ref); /* Logic error */
+
 	if (check_path_shared(root, path))
 		goto out;
-	index = btrfs_inode_ref_index(path->nodes[0], ref);
+
 	btrfs_release_path(path);
 
 	/*
@@ -4743,6 +4742,12 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(&key[0], BTRFS_INODE_ITEM_KEY);
 	key[0].offset = 0;
 
+	/*
+	 * Start new inodes with an inode_ref. This is slightly more
+	 * efficient for small numbers of hard links since they will
+	 * be packed into one item. Extended refs will kick in if we
+	 * add more hard links than can fit in the ref item.
+	 */
 	key[1].objectid = objectid;
 	btrfs_set_key_type(&key[1], BTRFS_INODE_REF_KEY);
 	key[1].offset = ref_objectid;
@@ -5049,7 +5054,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (root->objectid != BTRFS_I(inode)->root->objectid)
 		return -EXDEV;
 
-	if (inode->i_nlink == ~0U)
+	if (inode->i_nlink >= BTRFS_LINK_MAX)
 		return -EMLINK;
 
 	err = btrfs_set_inode_index(dir, &index);

@@ -1109,6 +1109,74 @@ static int inode_ref_info(u64 inum, u64 ioff, struct btrfs_root *fs_root,
 				found_key);
 }
 
+int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
+			  u64 start_off, struct btrfs_path *path,
+			  struct btrfs_inode_extref **ret_extref,
+			  u64 *found_off)
+{
+	int ret, slot;
+	struct btrfs_key key;
+	struct btrfs_key found_key;
+	struct btrfs_inode_extref *extref;
+	struct extent_buffer *leaf;
+	unsigned long ptr;
+
+	key.objectid = inode_objectid;
+	btrfs_set_key_type(&key, BTRFS_INODE_EXTREF_KEY);
+	key.offset = start_off;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		return ret;
+
+	while (1) {
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		if (slot >= btrfs_header_nritems(leaf)) {
+			/*
+			 * If the item at offset is not found,
+			 * btrfs_search_slot will point us to the slot
+			 * where it should be inserted. In our case
+			 * that will be the slot directly before the
+			 * next INODE_REF_KEY_V2 item. In the case
+			 * that we're pointing to the last slot in a
+			 * leaf, we must move one leaf over.
+			 */
+			ret = btrfs_next_leaf(root, path);
+			if (ret) {
+				if (ret >= 1)
+					ret = -ENOENT;
+				break;
+			}
+			continue;
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
+		/*
+		 * Check that we're still looking at an extended ref key for
+		 * this particular objectid. If we have different
+		 * objectid or type then there are no more to be found
+		 * in the tree and we can exit.
+		 */
+		ret = -ENOENT;
+		if (found_key.objectid != inode_objectid)
+			break;
+		if (btrfs_key_type(&found_key) != BTRFS_INODE_EXTREF_KEY)
+			break;
+
+		ret = 0;
+		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+		extref = (struct btrfs_inode_extref *)ptr;
+		*ret_extref = extref;
+		if (found_off)
+			*found_off = found_key.offset;
+		break;
+	}
+
+	return ret;
+}
+
 /*
  * this iterates to turn a btrfs_inode_ref into a full filesystem path. elements
  * of the path are separated by '/' and the path is guaranteed to be
