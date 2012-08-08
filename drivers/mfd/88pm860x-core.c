@@ -37,13 +37,35 @@ static struct resource bk2_resources[] __devinitdata = {
 	{5, 5, "current",    IORESOURCE_REG, },
 };
 
-static struct resource led_resources[] __devinitdata = {
-	{PM8606_LED1_RED,   PM8606_LED1_RED,   "led0-red",   IORESOURCE_REG,},
-	{PM8606_LED1_GREEN, PM8606_LED1_GREEN, "led0-green", IORESOURCE_REG,},
-	{PM8606_LED1_BLUE,  PM8606_LED1_BLUE,  "led0-blue",  IORESOURCE_REG,},
-	{PM8606_LED2_RED,   PM8606_LED2_RED,   "led1-red",   IORESOURCE_REG,},
-	{PM8606_LED2_GREEN, PM8606_LED2_GREEN, "led1-green", IORESOURCE_REG,},
-	{PM8606_LED2_BLUE,  PM8606_LED2_BLUE,  "led1-blue",  IORESOURCE_REG,},
+static struct resource led0_resources[] __devinitdata = {
+	/* RGB1 Red LED */
+	{0xd, 0xd, "control", IORESOURCE_REG, },
+	{0xc, 0xc, "blink",   IORESOURCE_REG, },
+};
+static struct resource led1_resources[] __devinitdata = {
+	/* RGB1 Green LED */
+	{0xe, 0xe, "control", IORESOURCE_REG, },
+	{0xc, 0xc, "blink",   IORESOURCE_REG, },
+};
+static struct resource led2_resources[] __devinitdata = {
+	/* RGB1 Blue LED */
+	{0xf, 0xf, "control", IORESOURCE_REG, },
+	{0xc, 0xc, "blink",   IORESOURCE_REG, },
+};
+static struct resource led3_resources[] __devinitdata = {
+	/* RGB2 Red LED */
+	{0x9, 0x9, "control", IORESOURCE_REG, },
+	{0x8, 0x8, "blink",   IORESOURCE_REG, },
+};
+static struct resource led4_resources[] __devinitdata = {
+	/* RGB2 Green LED */
+	{0xa, 0xa, "control", IORESOURCE_REG, },
+	{0x8, 0x8, "blink",   IORESOURCE_REG, },
+};
+static struct resource led5_resources[] __devinitdata = {
+	/* RGB2 Blue LED */
+	{0xb, 0xb, "control", IORESOURCE_REG, },
+	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
 
 static struct resource regulator_resources[] __devinitdata = {
@@ -128,12 +150,37 @@ static struct mfd_cell bk_devs[] = {
 };
 
 static struct mfd_cell led_devs[] = {
-	{"88pm860x-led", 0,},
-	{"88pm860x-led", 1,},
-	{"88pm860x-led", 2,},
-	{"88pm860x-led", 3,},
-	{"88pm860x-led", 4,},
-	{"88pm860x-led", 5,},
+	{
+		.name = "88pm860x-led",
+		.id = 0,
+		.num_resources = ARRAY_SIZE(led0_resources),
+		.resources = led0_resources,
+	}, {
+		.name = "88pm860x-led",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(led1_resources),
+		.resources = led1_resources,
+	}, {
+		.name = "88pm860x-led",
+		.id = 2,
+		.num_resources = ARRAY_SIZE(led2_resources),
+		.resources = led2_resources,
+	}, {
+		.name = "88pm860x-led",
+		.id = 3,
+		.num_resources = ARRAY_SIZE(led3_resources),
+		.resources = led3_resources,
+	}, {
+		.name = "88pm860x-led",
+		.id = 4,
+		.num_resources = ARRAY_SIZE(led4_resources),
+		.resources = led4_resources,
+	}, {
+		.name = "88pm860x-led",
+		.id = 5,
+		.num_resources = ARRAY_SIZE(led5_resources),
+		.resources = led5_resources,
+	},
 };
 
 static struct mfd_cell regulator_devs[] = {
@@ -658,35 +705,22 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 static void __devinit device_led_init(struct pm860x_chip *chip,
 				      struct pm860x_platform_data *pdata)
 {
-	int ret;
-	int i, j, id;
+	int ret, i;
 
-	if ((pdata == NULL) || (pdata->led == NULL))
-		return;
-
-	if (pdata->num_leds > ARRAY_SIZE(led_devs))
-		pdata->num_leds = ARRAY_SIZE(led_devs);
-
-	for (i = 0; i < pdata->num_leds; i++) {
-		led_devs[i].platform_data = &pdata->led[i];
-		led_devs[i].pdata_size = sizeof(struct pm860x_led_pdata);
-
-		for (j = 0; j < ARRAY_SIZE(led_devs); j++) {
-			id = led_resources[j].start;
-			if (pdata->led[i].flags != id)
-				continue;
-
-			led_devs[i].num_resources = 1;
-			led_devs[i].resources = &led_resources[j],
-			ret = mfd_add_devices(chip->dev, 0,
-					      &led_devs[i], 1,
-					      &led_resources[j], 0);
-			if (ret < 0) {
-				dev_err(chip->dev, "Failed to add "
-					"led subdev\n");
-				return;
-			}
+	if (pdata && pdata->led) {
+		if (pdata->num_leds > ARRAY_SIZE(led_devs))
+			pdata->num_leds = ARRAY_SIZE(led_devs);
+		for (i = 0; i < pdata->num_leds; i++) {
+			led_devs[i].platform_data = &pdata->led[i];
+			led_devs[i].pdata_size =
+				sizeof(struct pm860x_led_pdata);
 		}
+	}
+	ret = mfd_add_devices(chip->dev, 0, led_devs,
+			      ARRAY_SIZE(led_devs), NULL, 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add led subdev\n");
+		return;
 	}
 }
 

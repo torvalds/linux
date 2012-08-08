@@ -34,16 +34,6 @@ enum {
 	PM8606_ID_MAX,
 };
 
-enum {
-	PM8606_LED1_RED = 0,
-	PM8606_LED1_GREEN,
-	PM8606_LED1_BLUE,
-	PM8606_LED2_RED,
-	PM8606_LED2_GREEN,
-	PM8606_LED2_BLUE,
-	PM8607_LED_VIBRATOR,
-};
-
 
 /* 8606 Registers */
 #define PM8606_DCM_BOOST		(0x00)
@@ -339,9 +329,7 @@ struct pm860x_backlight_pdata {
 };
 
 struct pm860x_led_pdata {
-	int		id;
 	int		iset;
-	unsigned long	flags;
 };
 
 struct pm860x_rtc_pdata {
