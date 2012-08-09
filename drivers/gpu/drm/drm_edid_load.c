@@ -123,6 +123,7 @@ static u8 *edid_load(struct drm_connector *connector, char *name,
 	int fwsize, expected;
 	int builtin = 0, err = 0;
 	int i, valid_extensions = 0;
+	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
 
 	pdev = platform_device_register_simple(connector_name, -1, NULL, 0);
 	if (IS_ERR(pdev)) {
@@ -173,7 +174,8 @@ static u8 *edid_load(struct drm_connector *connector, char *name,
 	}
 	memcpy(edid, fwdata, fwsize);
 
-	if (!drm_edid_block_valid(edid, 0)) {
+	if (!drm_edid_block_valid(edid, 0, print_bad_edid)) {
+		connector->bad_edid_counter++;
 		DRM_ERROR("Base block of EDID firmware \"%s\" is invalid ",
 		    name);
 		kfree(edid);
@@ -185,7 +187,7 @@ static u8 *edid_load(struct drm_connector *connector, char *name,
 		if (i != valid_extensions + 1)
 			memcpy(edid + (valid_extensions + 1) * EDID_LENGTH,
 			    edid + i * EDID_LENGTH, EDID_LENGTH);
-		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i))
+		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i, print_bad_edid))
 			valid_extensions++;
 	}
 
