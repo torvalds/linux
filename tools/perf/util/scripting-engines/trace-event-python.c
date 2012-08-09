@@ -343,7 +343,7 @@ static void python_process_general_event(union perf_event *perf_event __unused,
 					 struct perf_sample *sample,
 					 struct perf_evsel *evsel,
 					 struct machine *machine __unused,
-					 struct addr_location *al __unused)
+					 struct addr_location *al)
 {
 	PyObject *handler, *retval, *t, *dict;
 	static char handler_name[64];
@@ -352,7 +352,7 @@ static void python_process_general_event(union perf_event *perf_event __unused,
 
 	/*
 	 * Use the MAX_FIELDS to make the function expandable, though
-	 * currently there is only one itme for the tuple.
+	 * currently there is only one item for the tuple.
 	 */
 	t = PyTuple_New(MAX_FIELDS);
 	if (!t)
@@ -365,10 +365,8 @@ static void python_process_general_event(union perf_event *perf_event __unused,
 	snprintf(handler_name, sizeof(handler_name), "%s", "process_event");
 
 	handler = PyDict_GetItemString(main_dict, handler_name);
-	if (handler && !PyCallable_Check(handler)) {
-		handler = NULL;
+	if (!handler || !PyCallable_Check(handler))
 		goto exit;
-	}
 
 	PyDict_SetItemString(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
 	PyDict_SetItemString(dict, "attr", PyString_FromStringAndSize(

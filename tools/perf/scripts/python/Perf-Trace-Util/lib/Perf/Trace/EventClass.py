@@ -1,12 +1,12 @@
 # EventClass.py
 #
-# This is a libray defining some events typs classes, which could
+# This is a library defining some events types classes, which could
 # be used by other scripts to analyzing the perf samples.
 #
 # Currently there are just a few classes defined for examples,
 # PerfEvent is the base class for all perf event sample, PebsEvent
 # is a HW base Intel x86 PEBS event, and user could add more SW/HW
-# event classes based on requriements.
+# event classes based on requirements.
 
 import struct
 

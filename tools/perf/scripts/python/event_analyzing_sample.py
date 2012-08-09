@@ -1,15 +1,15 @@
-# process_event.py: general event handler in python
+# event_analyzing_sample.py: general event handler in python
 #
-# Current perf report is alreay very powerful with the anotation integrated,
+# Current perf report is already very powerful with the annotation integrated,
 # and this script is not trying to be as powerful as perf report, but
 # providing end user/developer a flexible way to analyze the events other
 # than trace points.
 #
 # The 2 database related functions in this script just show how to gather
 # the basic information, and users can modify and write their own functions
-# according to their specific requirment.
+# according to their specific requirement.
 #
-# The first sample "show_general_events" just does a baisc grouping for all
+# The first function "show_general_events" just does a basic grouping for all
 # generic events with the help of sqlite, and the 2nd one "show_pebs_ll" is
 # for a x86 HW PMU event: PEBS with load latency data.
 #
@@ -85,7 +85,7 @@ def process_event(param_dict):
         else:
                 symbol = "Unknown_symbol"
 
-        # Creat the event object and insert it to the right table in database
+        # Create the event object and insert it to the right table in database
         event = create_event(name, comm, dso, symbol, raw_buf)
         insert_db(event)
 
@@ -109,7 +109,7 @@ def trace_end():
 
 #
 # As the event number may be very big, so we can't use linear way
-# to show the histgram in real number, but use a log2 algorithm.
+# to show the histogram in real number, but use a log2 algorithm.
 #
 
 def num2sym(num):
@@ -130,18 +130,18 @@ def show_general_events():
 
          # Group by thread
         commq = con.execute("select comm, count(comm) from gen_events group by comm order by -count(comm)")
-        print "\n%16s %8s %16s\n%s" % ("comm", "number", "histgram", "="*42)
+        print "\n%16s %8s %16s\n%s" % ("comm", "number", "histogram", "="*42)
         for row in commq:
              print "%16s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
         # Group by symbol
-        print "\n%32s %8s %16s\n%s" % ("symbol", "number", "histgram", "="*58)
+        print "\n%32s %8s %16s\n%s" % ("symbol", "number", "histogram", "="*58)
         symbolq = con.execute("select symbol, count(symbol) from gen_events group by symbol order by -count(symbol)")
         for row in symbolq:
              print "%32s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
         # Group by dso
-        print "\n%40s %8s %16s\n%s" % ("dso", "number", "histgram", "="*74)
+        print "\n%40s %8s %16s\n%s" % ("dso", "number", "histogram", "="*74)
         dsoq = con.execute("select dso, count(dso) from gen_events group by dso order by -count(dso)")
         for row in dsoq:
              print "%40s %8d     %s" % (row[0], row[1], num2sym(row[1]))
@@ -163,31 +163,27 @@ def show_pebs_ll():
 
         # Group by thread
         commq = con.execute("select comm, count(comm) from pebs_ll group by comm order by -count(comm)")
-        print "\n%16s %8s %16s\n%s" % ("comm", "number", "histgram", "="*42)
+        print "\n%16s %8s %16s\n%s" % ("comm", "number", "histogram", "="*42)
         for row in commq:
              print "%16s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
         # Group by symbol
-        print "\n%32s %8s %16s\n%s" % ("symbol", "number", "histgram", "="*58)
+        print "\n%32s %8s %16s\n%s" % ("symbol", "number", "histogram", "="*58)
         symbolq = con.execute("select symbol, count(symbol) from pebs_ll group by symbol order by -count(symbol)")
         for row in symbolq:
              print "%32s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
         # Group by dse
         dseq = con.execute("select dse, count(dse) from pebs_ll group by dse order by -count(dse)")
-        print "\n%32s %8s %16s\n%s" % ("dse", "number", "histgram", "="*58)
+        print "\n%32s %8s %16s\n%s" % ("dse", "number", "histogram", "="*58)
         for row in dseq:
              print "%32s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
         # Group by latency
         latq = con.execute("select lat, count(lat) from pebs_ll group by lat order by lat")
-        print "\n%32s %8s %16s\n%s" % ("latency", "number", "histgram", "="*58)
+        print "\n%32s %8s %16s\n%s" % ("latency", "number", "histogram", "="*58)
         for row in latq:
              print "%32s %8d     %s" % (row[0], row[1], num2sym(row[1]))
 
 def trace_unhandled(event_name, context, event_fields_dict):
 		print ' '.join(['%s=%s'%(k,str(v))for k,v in sorted(event_fields_dict.items())])
-
-def print_header(event_name, cpu, secs, nsecs, pid, comm):
-	print "%-20s %5u %05u.%09u %8u %-20s " % \
-	(event_name, cpu, secs, nsecs, pid, comm),
