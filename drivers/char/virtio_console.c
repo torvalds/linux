@@ -724,6 +724,26 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 	return fill_readbuf(port, ubuf, count, true);
 }
 
+static int wait_port_writable(struct port *port, bool nonblock)
+{
+	int ret;
+
+	if (will_write_block(port)) {
+		if (nonblock)
+			return -EAGAIN;
+
+		ret = wait_event_freezable(port->waitqueue,
+					   !will_write_block(port));
+		if (ret < 0)
+			return ret;
+	}
+	/* Port got hot-unplugged. */
+	if (!port->guest_connected)
+		return -ENODEV;
+
+	return 0;
+}
+
 static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 			       size_t count, loff_t *offp)
 {
@@ -740,18 +760,9 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 
 	nonblock = filp->f_flags & O_NONBLOCK;
 
-	if (will_write_block(port)) {
-		if (nonblock)
-			return -EAGAIN;
-
-		ret = wait_event_freezable(port->waitqueue,
-					   !will_write_block(port));
-		if (ret < 0)
-			return ret;
-	}
-	/* Port got hot-unplugged. */
-	if (!port->guest_connected)
-		return -ENODEV;
+	ret = wait_port_writable(port, nonblock);
+	if (ret < 0)
+		return ret;
 
 	count = min((size_t)(32 * 1024), count);
 
@@ -850,6 +861,10 @@ static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
 		.pos = *ppos,
 		.u.data = &sgl,
 	};
+
+	ret = wait_port_writable(port, filp->f_flags & O_NONBLOCK);
+	if (ret < 0)
+		return ret;
 
 	sgl.n = 0;
 	sgl.len = 0;
