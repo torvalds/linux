@@ -29,6 +29,7 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/mgmt.h>
 
 /* Handle HCI Event packets */
 
@@ -1875,6 +1876,22 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
+static u8 hci_to_mgmt_reason(u8 err)
+{
+	switch (err) {
+	case HCI_ERROR_CONNECTION_TIMEOUT:
+		return MGMT_DEV_DISCONN_TIMEOUT;
+	case HCI_ERROR_REMOTE_USER_TERM:
+	case HCI_ERROR_REMOTE_LOW_RESOURCES:
+	case HCI_ERROR_REMOTE_POWER_OFF:
+		return MGMT_DEV_DISCONN_REMOTE;
+	case HCI_ERROR_LOCAL_HOST_TERM:
+		return MGMT_DEV_DISCONN_LOCAL_HOST;
+	default:
+		return MGMT_DEV_DISCONN_UNKNOWN;
+	}
+}
+
 static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
@@ -1893,12 +1910,15 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags) &&
 	    (conn->type == ACL_LINK || conn->type == LE_LINK)) {
-		if (ev->status)
+		if (ev->status) {
 			mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
 					       conn->dst_type, ev->status);
-		else
+		} else {
+			u8 reason = hci_to_mgmt_reason(ev->reason);
+
 			mgmt_device_disconnected(hdev, &conn->dst, conn->type,
-						 conn->dst_type);
+						 conn->dst_type, reason);
+		}
 	}
 
 	if (ev->status == 0) {
