@@ -91,6 +91,13 @@ void board_gpio_resume(void);
 void __sramfunc board_pmu_suspend(void);
 void __sramfunc board_pmu_resume(void);
 
+#ifdef CONFIG_RK30_PWM_REGULATOR
+void  rk30_pwm_suspend_voltage_set(void);
+void  rk30_pwm_resume_voltage_set(void);
+void __sramfunc rk30_pwm_logic_suspend_voltage(void);
+ void __sramfunc rk30_pwm_logic_resume_voltage(void);
+#endif
+
 extern struct sys_timer rk30_timer;
 
 enum _periph_pll {
