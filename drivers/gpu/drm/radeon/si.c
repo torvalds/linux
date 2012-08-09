@@ -3968,3 +3968,22 @@ void si_fini(struct radeon_device *rdev)
 	rdev->bios = NULL;
 }
 
+/**
+ * si_get_gpu_clock - return GPU clock counter snapshot
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Fetches a GPU clock counter snapshot (SI).
+ * Returns the 64 bit clock counter snapshot.
+ */
+uint64_t si_get_gpu_clock(struct radeon_device *rdev)
+{
+	uint64_t clock;
+
+	mutex_lock(&rdev->gpu_clock_mutex);
+	WREG32(RLC_CAPTURE_GPU_CLOCK_COUNT, 1);
+	clock = (uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_LSB) |
+	        ((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
+	mutex_unlock(&rdev->gpu_clock_mutex);
+	return clock;
+}

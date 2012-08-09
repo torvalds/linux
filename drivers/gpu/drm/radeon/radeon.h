@@ -1534,6 +1534,7 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
+	struct mutex			gpu_clock_mutex;
 };
 
 int radeon_device_init(struct radeon_device *rdev,

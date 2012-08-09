@@ -368,6 +368,7 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 			unsigned num_gpu_pages,
 			struct radeon_sa_bo *vb);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
+uint64_t r600_get_gpu_clock(struct radeon_device *rdev);
 
 /*
  * rv770,rv730,rv710,rv740
@@ -468,5 +469,6 @@ int si_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id);
 void si_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
 void si_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm);
 int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
+uint64_t si_get_gpu_clock(struct radeon_device *rdev);
 
 #endif
