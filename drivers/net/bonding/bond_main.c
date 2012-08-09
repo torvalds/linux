@@ -1120,10 +1120,10 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
 
-			netdev_bonding_change(bond->dev, NETDEV_BONDING_FAILOVER);
+			call_netdevice_notifiers(NETDEV_BONDING_FAILOVER, bond->dev);
 			if (should_notify_peers)
-				netdev_bonding_change(bond->dev,
-						      NETDEV_NOTIFY_PEERS);
+				call_netdevice_notifiers(NETDEV_NOTIFY_PEERS,
+							 bond->dev);
 
 			read_lock(&bond->lock);
 			write_lock_bh(&bond->curr_slave_lock);
@@ -1560,8 +1560,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				 bond_dev->name,
 				 bond_dev->type, slave_dev->type);
 
-			res = netdev_bonding_change(bond_dev,
-						    NETDEV_PRE_TYPE_CHANGE);
+			res = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE,
+						       bond_dev);
 			res = notifier_to_errno(res);
 			if (res) {
 				pr_err("%s: refused to change device type\n",
@@ -1581,8 +1581,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				bond_dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 			}
 
-			netdev_bonding_change(bond_dev,
-					      NETDEV_POST_TYPE_CHANGE);
+			call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE,
+						 bond_dev);
 		}
 	} else if (bond_dev->type != slave_dev->type) {
 		pr_err("%s ether type (%d) is different from other slaves (%d), can not enslave it.\n",
@@ -1943,7 +1943,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	}
 
 	block_netpoll_tx();
-	netdev_bonding_change(bond_dev, NETDEV_RELEASE);
+	call_netdevice_notifiers(NETDEV_RELEASE, bond_dev);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -2586,7 +2586,7 @@ re_arm:
 			read_unlock(&bond->lock);
 			return;
 		}
-		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
+		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
 		rtnl_unlock();
 	}
 }
@@ -3205,7 +3205,7 @@ re_arm:
 			read_unlock(&bond->lock);
 			return;
 		}
-		netdev_bonding_change(bond->dev, NETDEV_NOTIFY_PEERS);
+		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, bond->dev);
 		rtnl_unlock();
 	}
 }
