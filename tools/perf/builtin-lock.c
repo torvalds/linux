@@ -903,16 +903,19 @@ static const struct option lock_options[] = {
 	OPT_END()
 };
 
+static const char * const lock_tracepoints[] = {
+	"lock:lock_acquire",    /* CONFIG_LOCKDEP */
+	"lock:lock_acquired",   /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	"lock:lock_contended",  /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	"lock:lock_release",    /* CONFIG_LOCKDEP */
+};
+
 static const char *record_args[] = {
 	"record",
 	"-R",
 	"-f",
 	"-m", "1024",
 	"-c", "1",
-	"-e", "lock:lock_acquire",
-	"-e", "lock:lock_acquired",
-	"-e", "lock:lock_contended",
-	"-e", "lock:lock_release",
 };
 
 static int __cmd_record(int argc, const char **argv)
@@ -920,14 +923,30 @@ static int __cmd_record(int argc, const char **argv)
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
 
-	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
-	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+	for (i = 0; i < ARRAY_SIZE(lock_tracepoints); i++) {
+		if (!is_valid_tracepoint(lock_tracepoints[i])) {
+				pr_err("tracepoint %s is not enabled. "
+				       "Are CONFIG_LOCKDEP and CONFIG_LOCK_STAT enabled?\n",
+				       lock_tracepoints[i]);
+				return 1;
+		}
+	}
 
+	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
+	/* factor of 2 is for -e in front of each tracepoint */
+	rec_argc += 2 * ARRAY_SIZE(lock_tracepoints);
+
+	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (rec_argv == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);
+
+	for (j = 0; j < ARRAY_SIZE(lock_tracepoints); j++) {
+		rec_argv[i++] = "-e";
+		rec_argv[i++] = strdup(lock_tracepoints[j]);
+	}
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
