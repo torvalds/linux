@@ -567,28 +567,33 @@ typedef enum fe_delivery_system {
 			<title><constant>DTV_ATSCMH_RS_FRAME_MODE</constant></title>
 			<para>RS frame mode.</para>
 			<para>Possible values are:</para>
+		  <section id="atscmh-rs-frame-mode">
 <programlisting>
 typedef enum atscmh_rs_frame_mode {
 	ATSCMH_RSFRAME_PRI_ONLY  = 0,
 	ATSCMH_RSFRAME_PRI_SEC   = 1,
 } atscmh_rs_frame_mode_t;
 </programlisting>
+		  </section>
 		</section>
 		<section id="DTV-ATSCMH-RS-FRAME-ENSEMBLE">
 			<title><constant>DTV_ATSCMH_RS_FRAME_ENSEMBLE</constant></title>
 			<para>RS frame ensemble.</para>
 			<para>Possible values are:</para>
+		  <section id="atscmh-rs-frame-ensemble">
 <programlisting>
 typedef enum atscmh_rs_frame_ensemble {
 	ATSCMH_RSFRAME_ENS_PRI   = 0,
 	ATSCMH_RSFRAME_ENS_SEC   = 1,
 } atscmh_rs_frame_ensemble_t;
 </programlisting>
+		  </section>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-PRI">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_PRI</constant></title>
 			<para>RS code mode (primary).</para>
 			<para>Possible values are:</para>
+		  <section id="atscmh-rs-code-mode">
 <programlisting>
 typedef enum atscmh_rs_code_mode {
 	ATSCMH_RSCODE_211_187    = 0,
@@ -596,6 +601,7 @@ typedef enum atscmh_rs_code_mode {
 	ATSCMH_RSCODE_235_187    = 2,
 } atscmh_rs_code_mode_t;
 </programlisting>
+		  </section>
 		</section>
 		<section id="DTV-ATSCMH-RS-CODE-MODE-SEC">
 			<title><constant>DTV_ATSCMH_RS_CODE_MODE_SEC</constant></title>
@@ -613,23 +619,27 @@ typedef enum atscmh_rs_code_mode {
 			<title><constant>DTV_ATSCMH_SCCC_BLOCK_MODE</constant></title>
 			<para>Series Concatenated Convolutional Code Block Mode.</para>
 			<para>Possible values are:</para>
+		  <section id="atscmh-sccc-block-mode">
 <programlisting>
 typedef enum atscmh_sccc_block_mode {
 	ATSCMH_SCCC_BLK_SEP      = 0,
 	ATSCMH_SCCC_BLK_COMB     = 1,
 } atscmh_sccc_block_mode_t;
 </programlisting>
+		  </section>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-A">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></title>
 			<para>Series Concatenated Convolutional Code Rate.</para>
 			<para>Possible values are:</para>
+		  <section id="atscmh-sccc-code-mode">
 <programlisting>
 typedef enum atscmh_sccc_code_mode {
 	ATSCMH_SCCC_CODE_HLF     = 0,
 	ATSCMH_SCCC_CODE_QTR     = 1,
 } atscmh_sccc_code_mode_t;
 </programlisting>
+		  </section>
 		</section>
 		<section id="DTV-ATSCMH-SCCC-CODE-MODE-B">
 			<title><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></title>
@@ -784,7 +794,7 @@ typedef enum fe_hierarchy {
 			many data types via a single multiplex. The API will soon support this
 			at which point this section will be expanded.</para>
 	</section>
-	<section id="DTV_ENUM_DELSYS">
+	<section id="DTV-ENUM-DELSYS">
 		<title><constant>DTV_ENUM_DELSYS</constant></title>
 		<para>A Multi standard frontend needs to advertise the delivery systems provided.
 			Applications need to enumerate the provided delivery systems, before using
@@ -925,13 +935,13 @@ typedef enum fe_hierarchy {
 				<listitem><para><link linkend="DTV-ATSCMH-PRC"><constant>DTV_ATSCMH_PRC</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-RS-FRAME-MODE"><constant>DTV_ATSCMH_RS_FRAME_MODE</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-RS-FRAME-ENSEMBLE"><constant>DTV_ATSCMH_RS_FRAME_ENSEMBLE</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-CODE-MODE-PRI"><constant>DTV_ATSCMH_CODE_MODE_PRI</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-CODE-MODE-SEC"><constant>DTV_ATSCMH_CODE_MODE_SEC</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-RS-CODE-MODE-PRI"><constant>DTV_ATSCMH_RS_CODE_MODE_PRI</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-RS-CODE-MODE-SEC"><constant>DTV_ATSCMH_RS_CODE_MODE_SEC</constant></link></para></listitem>
 				<listitem><para><link linkend="DTV-ATSCMH-SCCC-BLOCK-MODE"><constant>DTV_ATSCMH_SCCC_BLOCK_MODE</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-A"><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-B"><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-C"><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></link></para></listitem>
-				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE_MODE-D"><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-A"><constant>DTV_ATSCMH_SCCC_CODE_MODE_A</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-B"><constant>DTV_ATSCMH_SCCC_CODE_MODE_B</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-C"><constant>DTV_ATSCMH_SCCC_CODE_MODE_C</constant></link></para></listitem>
+				<listitem><para><link linkend="DTV-ATSCMH-SCCC-CODE-MODE-D"><constant>DTV_ATSCMH_SCCC_CODE_MODE_D</constant></link></para></listitem>
 			</itemizedlist>
 		</section>
 	</section>

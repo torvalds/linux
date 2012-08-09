@@ -66,7 +66,7 @@ supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET
 
 <para>The usage of this field is deprecated, as it doesn't report all supported standards, and
 will provide an incomplete information for frontends that support multiple delivery systems.
-Please use <link linkend="DTV_ENUM_DELSYS">DTV_ENUM_DELSYS</link> instead.</para>
+Please use <link linkend="DTV-ENUM-DELSYS">DTV_ENUM_DELSYS</link> instead.</para>
 </section>
 
 <section id="fe-caps-t">
