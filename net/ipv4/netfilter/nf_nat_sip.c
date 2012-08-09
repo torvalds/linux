@@ -173,7 +173,7 @@ static unsigned int ip_nat_sip(struct sk_buff *skb, unsigned int dataoff,
 		 * the reply. */
 		if (ct_sip_parse_address_param(ct, *dptr, matchend, *datalen,
 					       "maddr=", &poff, &plen,
-					       &addr) > 0 &&
+					       &addr, true) > 0 &&
 		    addr.ip == ct->tuplehash[dir].tuple.src.u3.ip &&
 		    addr.ip != ct->tuplehash[!dir].tuple.dst.u3.ip) {
 			buflen = sprintf(buffer, "%pI4",
@@ -187,7 +187,7 @@ static unsigned int ip_nat_sip(struct sk_buff *skb, unsigned int dataoff,
 		 * from which the server received the request. */
 		if (ct_sip_parse_address_param(ct, *dptr, matchend, *datalen,
 					       "received=", &poff, &plen,
-					       &addr) > 0 &&
+					       &addr, false) > 0 &&
 		    addr.ip == ct->tuplehash[dir].tuple.dst.u3.ip &&
 		    addr.ip != ct->tuplehash[!dir].tuple.src.u3.ip) {
 			buflen = sprintf(buffer, "%pI4",
