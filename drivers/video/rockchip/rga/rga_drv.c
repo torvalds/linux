@@ -577,22 +577,19 @@ static void rga_try_set_reg(void)
             reg = list_entry(rga_service.waiting.next, struct rga_reg, status_link);
 
             rga_power_on();
-            udelay(3);
+            udelay(1);
 
             rga_copy_reg(reg, 0);
-            rga_reg_from_wait_to_run(reg);
+            rga_reg_from_wait_to_run(reg);            
 
             dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
             outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
 
             #if defined(CONFIG_ARCH_RK30)
             rga_soft_reset();
-            #elif defined(CONFIG_ARCH_RK31)
-            rga_soft_reset();
             #endif
 
-            rga_soft_reset();
-            
+            rga_write(0x0, RGA_SYS_CTRL);                        
             rga_write(0, RGA_MMU_CTRL);
 
             /* CMD buff */
@@ -604,7 +601,7 @@ static void rga_try_set_reg(void)
                 uint32_t i;
                 uint32_t *p;
                 p = rga_service.cmd_buff;
-                printk(KERN_DEBUG "CMD_REG\n");
+                printk("CMD_REG\n");
                 for (i=0; i<7; i++)
                     printk("%.8x %.8x %.8x %.8x\n", p[0 + i*4], p[1+i*4], p[2 + i*4], p[3 + i*4]);
             }
@@ -622,17 +619,13 @@ static void rga_try_set_reg(void)
 #if RGA_TEST
             {
                 uint32_t i;
-                printk(KERN_DEBUG "CMD_READ_BACK_REG\n");
+                printk("CMD_READ_BACK_REG\n");
                 for (i=0; i<7; i++)
-                    printk(KERN_DEBUG "%.8x %.8x %.8x %.8x\n", rga_read(0x100 + i*16 + 0),
+                    printk("%.8x %.8x %.8x %.8x\n", rga_read(0x100 + i*16 + 0),
                             rga_read(0x100 + i*16 + 4), rga_read(0x100 + i*16 + 8), rga_read(0x100 + i*16 + 12));
             }
 #endif
         }
-//        else
-//        {
-//          rga_power_off();
-//        }
     }
 }
 
@@ -774,11 +767,9 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     int ret = -1;
     int num = 0;
     struct rga_reg *reg;
-    struct rga_req *req2;
+    struct rga_req req2;
 
     uint32_t saw, sah, daw, dah;
-
-    req2 = NULL;
 
     saw = req->src.act_w;
     sah = req->src.act_h;
@@ -789,11 +780,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     {
         if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah)))
         {
-            /* generate 2 cmd for pre scale */
-            req2 = kzalloc(sizeof(struct rga_req), GFP_KERNEL);
-            if(NULL == req2) {
-                return -EFAULT;
-            }
+            /* generate 2 cmd for pre scale */            
 
             ret = rga_check_param(req);
         	if(ret == -EINVAL) {
@@ -801,7 +788,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
                 break;
         	}
 
-            ret = RGA_gen_two_pro(req, req2);
+            ret = RGA_gen_two_pro(req, &req2);
             if(ret == -EINVAL) {
                 break;
             }
@@ -812,22 +799,18 @@ static int rga_blit(rga_session *session, struct rga_req *req)
                 break;
         	}
 
-            ret = rga_check_param(req2);
+            ret = rga_check_param(&req2);
         	if(ret == -EINVAL) {
                 printk("req 2 argument is inval\n");
                 break;
         	}
 
-            reg = rga_reg_init_2(session, req, req2);
+            reg = rga_reg_init_2(session, req, &req2);
             if(reg == NULL) {
                 break;
             }
             num = 2;
-
-            if(NULL != req2)
-            {
-                kfree(req2);
-            }
+            
         }
         else
         {
@@ -858,11 +841,6 @@ static int rga_blit(rga_session *session, struct rga_req *req)
         return 0;
     }
     while(0);
-
-    if(NULL != req2)
-    {
-        kfree(req2);
-    }
 
     return -EFAULT;
 }
@@ -973,7 +951,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
             }
             else
             {
-                ret = rga_blit_async(session, req);
+                ret = rga_blit_sync(session, req);
             }
 			break;
 		case RGA_FLUSH:
@@ -1103,8 +1081,6 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	atomic_set(&rga_service.src_format_swt, 0);
 	rga_service.last_prc_src_format = 1; /* default is yuv first*/
 	rga_service.enable = false;
-
-    printk("rga_drv_probe\n");
 
 	data = kzalloc(sizeof(struct rga_drvdata), GFP_KERNEL);
 	if(NULL == data)
@@ -1305,6 +1281,9 @@ void rga_test_0(void)
     struct rga_req req;
     rga_session session;
     unsigned int *src, *dst;
+    uint32_t i, j;
+    uint8_t *p;
+    uint8_t t;
 
     struct fb_info *fb;
 
@@ -1325,11 +1304,12 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0xff, 320*240*4);
+    memset(src_buf, 0x80, 320*240*4);
 
-    dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
+    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
 
+   
     #if 0
     memset(src_buf, 0x80, 800*480*4);
     memset(dst_buf, 0xcc, 800*480*4);
@@ -1343,7 +1323,7 @@ void rga_test_0(void)
 
     req.src.vir_w = 320;
     req.src.vir_h = 240;
-    req.src.yrgb_addr = (uint32_t)virt_to_phys(src);
+    req.src.yrgb_addr = (uint32_t)src;
     req.src.uv_addr = (uint32_t)virt_to_phys(src);
     req.src.v_addr = (uint32_t)virt_to_phys(src);
     req.src.format = 0;
@@ -1355,7 +1335,7 @@ void rga_test_0(void)
     req.dst.vir_h = 768;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
+    req.dst.yrgb_addr = (uint32_t)dst;
 
     //req.dst.format = RK_FORMAT_RGB_565;
 
@@ -1370,22 +1350,311 @@ void rga_test_0(void)
     //req.rotate_mode = 1;
     //req.scale_mode = 2;
 
-    //req.alpha_rop_flag = 0;
-    //req.alpha_rop_mode = 0x1;
+    //req.alpha_rop_flag = 1;
+    //req.alpha_rop_mode = 0x19;
+    req.PD_mode = 3;
 
     req.sina = 0;
     req.cosa = 65536;
 
-    //req.mmu_info.mmu_flag = 0x21;
-    //req.mmu_info.mmu_en = 1;
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
 
     rga_blit_sync(&session, &req);
+
+    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
+    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
+
+    for(j=0; j<17; j++)
+    {
+        for(i=0; i<8; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+
+        for(i=8; i<16; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+    }
+
+    p = (uint8_t *)src_buf;
+    p = p + 16 * 4;
+
+    for(i=0; i<16; i++)
+        src_buf[i] = 0;
+
+    for(j=0; j<16; j++)
+    {
+        for(i=0; i<16; i++)
+        {
+            t = j*16 + i;
+            src_buf[(j+1)*16 + i] = (t<<24)|(t<<16)|(t<<8)|t;
+        }
+    }
+
+    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
+
+    dmac_inv_range(&src_buf[0], &src_buf[320*240]);
+    outer_inv_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
+
+    printk("SRC DATA \n");
+    for(j=0; j<17; j++)
+    {
+        for(i=0; i<8; i++)
+        {
+            printk("%.8x, ", src_buf[j*16 + i]);            
+        }
+        printk("\n");
+
+        for(i=8; i<16; i++)
+        {
+            printk("%.8x, ", src_buf[j*16 + i]);            
+        }
+        printk("\n");
+    }    
+
+    req.src.act_w = 320;
+    req.src.act_h = 240;
+
+    req.src.vir_w = 320;
+    req.src.vir_h = 240;
+    req.src.yrgb_addr = (uint32_t)src;
+    req.src.uv_addr = (uint32_t)virt_to_phys(src);
+    req.src.v_addr = (uint32_t)virt_to_phys(src);
+    req.src.format = 0;
+
+    req.dst.act_w = 320;
+    req.dst.act_h = 240;
+
+    req.dst.vir_w = 1024;
+    req.dst.vir_h = 768;
+    req.dst.x_offset = 0;
+    req.dst.y_offset = 0;
+    req.dst.yrgb_addr = (uint32_t)(dst);
+
+    //req.dst.format = RK_FORMAT_RGB_565;
+
+    req.clip.xmin = 0;
+    req.clip.xmax = 1023;
+    req.clip.ymin = 0;
+    req.clip.ymax = 767;
+
+    //req.render_mode = color_fill_mode;
+    //req.fg_color = 0x80ffffff;
+
+    //req.rotate_mode = 1;
+    //req.scale_mode = 2;
+
+    req.alpha_rop_flag = 0x19;
+    req.alpha_rop_mode = 0x1;
+    req.PD_mode = 3;
+
+    req.sina = 0;
+    req.cosa = 65536;
+
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
+    
+    rga_blit_sync(&session, &req);
+
+    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
+    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
+
+    for(j=0; j<17; j++)
+    {
+        for(i=0; i<8; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+        for(i=8; i<16; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+    }
+
+    memset(src_buf, 0x80, 320*240*4);
+
+    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
+
+   
+    #if 0
+    memset(src_buf, 0x80, 800*480*4);
+    memset(dst_buf, 0xcc, 800*480*4);
+
+    dmac_flush_range(&dst_buf[0], &dst_buf[800*480]);
+    outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
+    #endif
+
+    req.src.act_w = 320;
+    req.src.act_h = 240;
+
+    req.src.vir_w = 320;
+    req.src.vir_h = 240;
+    req.src.yrgb_addr = (uint32_t)(src);
+    req.src.uv_addr = (uint32_t)virt_to_phys(src);
+    req.src.v_addr = (uint32_t)virt_to_phys(src);
+    req.src.format = 0;
+
+    req.dst.act_w = 320;
+    req.dst.act_h = 240;
+
+    req.dst.vir_w = 1024;
+    req.dst.vir_h = 768;
+    req.dst.x_offset = 0;
+    req.dst.y_offset = 0;
+    req.dst.yrgb_addr = (uint32_t)(dst);
+
+    //req.dst.format = RK_FORMAT_RGB_565;
+
+    req.clip.xmin = 0;
+    req.clip.xmax = 1023;
+    req.clip.ymin = 0;
+    req.clip.ymax = 767;
+
+    //req.render_mode = color_fill_mode;
+    //req.fg_color = 0x80ffffff;
+
+    //req.rotate_mode = 1;
+    //req.scale_mode = 2;
+
+    req.alpha_rop_flag = 0;
+    req.alpha_rop_mode = 0x0;
+
+    req.sina = 0;
+    req.cosa = 65536;
+
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
+
+    rga_blit_sync(&session, &req);
+
+    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
+    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
+
+    for(j=0; j<17; j++)
+    {
+        for(i=0; i<8; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+
+        for(i=8; i<16; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+    }
+
+    p = (uint8_t *)src_buf;
+    p = p + 16 * 4;
+
+    for(i=0; i<16; i++)
+        src_buf[i] = 0;
+
+    for(j=0; j<16; j++)
+    {
+        for(i=0; i<16; i++)
+        {
+            t = j*16 + i;
+            src_buf[(j+1)*16 + i] = (t<<24)|(t<<16)|(t<<8)|t;
+        }
+    }
+
+    dmac_inv_range(&src_buf[0], &src_buf[320*240]);
+    outer_inv_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
+    printk("SRC DATA \n");
+    for(j=0; j<17; j++)
+    {
+        for(i=0; i<8; i++)
+        {
+            printk("%.8x, ", src_buf[j*16 + i]);            
+        }
+        printk("\n");
+
+        for(i=8; i<16; i++)
+        {
+            printk("%.8x, ", src_buf[j*16 + i]);            
+        }
+        printk("\n");
+    }
+
+    dmac_flush_range(&src_buf[0], &src_buf[320*240]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[320*240]));
+
+    req.src.act_w = 320;
+    req.src.act_h = 240;
+
+    req.src.vir_w = 320;
+    req.src.vir_h = 240;
+    req.src.yrgb_addr = (uint32_t)(src);
+    req.src.uv_addr = (uint32_t)virt_to_phys(src);
+    req.src.v_addr = (uint32_t)virt_to_phys(src);
+    req.src.format = 0;
+
+    req.dst.act_w = 320;
+    req.dst.act_h = 240;
+
+    req.dst.vir_w = 1024;
+    req.dst.vir_h = 768;
+    req.dst.x_offset = 0;
+    req.dst.y_offset = 0;
+    req.dst.yrgb_addr = (uint32_t)(dst);
+
+    //req.dst.format = RK_FORMAT_RGB_565;
+
+    req.clip.xmin = 0;
+    req.clip.xmax = 1023;
+    req.clip.ymin = 0;
+    req.clip.ymax = 767;
+
+    //req.render_mode = color_fill_mode;
+    //req.fg_color = 0x80ffffff;
+
+    //req.rotate_mode = 1;
+    //req.scale_mode = 2;
+
+    req.alpha_rop_flag = 0x19;
+    req.alpha_rop_mode = 0x1;
+    req.PD_mode = 3;
+
+    req.sina = 0;
+    req.cosa = 65536;
+
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
+    
+    rga_blit_sync(&session, &req);
+
+    dmac_inv_range(&dst_buf[0], &dst_buf[320*240]);
+    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[320*240]));
+
+    for(j=0; j<17; j++)
+    {
+        for(i=0; i<8; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+        for(i=8; i<16; i++)
+        {
+            printk("%.8x, ", dst_buf[j*16 + i]);            
+        }
+        printk("\n");
+    }
 
     #if 1
     fb->var.bits_per_pixel = 32;
     
-    fb->var.xres = 800;
-    fb->var.yres = 480;
+    fb->var.xres = 1024;
+    fb->var.yres = 768;
 
     fb->var.red.length = 8;
     fb->var.red.offset = 0;
