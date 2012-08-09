@@ -754,7 +754,9 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
 				   struct bio_pair **bp,
 				   int len, gfp_t gfpmask)
 {
-	struct bio *tmp, *old_chain = *old, *new_chain = NULL, *tail = NULL;
+	struct bio *old_chain = *old;
+	struct bio *new_chain = NULL;
+	struct bio *tail;
 	int total = 0;
 
 	if (*bp) {
@@ -763,9 +765,12 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
 	}
 
 	while (old_chain && (total < len)) {
+		struct bio *tmp;
+
 		tmp = bio_kmalloc(gfpmask, old_chain->bi_max_vecs);
 		if (!tmp)
 			goto err_out;
+		gfpmask &= ~__GFP_WAIT;	/* can't wait after the first */
 
 		if (total + old_chain->bi_size > len) {
 			struct bio_pair *bp;
@@ -793,24 +798,18 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
 		}
 
 		tmp->bi_bdev = NULL;
-		gfpmask &= ~__GFP_WAIT;
 		tmp->bi_next = NULL;
-
-		if (!new_chain) {
-			new_chain = tail = tmp;
-		} else {
+		if (new_chain)
 			tail->bi_next = tmp;
-			tail = tmp;
-		}
+		else
+			new_chain = tmp;
+		tail = tmp;
 		old_chain = old_chain->bi_next;
 
 		total += tmp->bi_size;
 	}
 
 	BUG_ON(total < len);
-
-	if (tail)
-		tail->bi_next = NULL;
 
 	*old = old_chain;
 
