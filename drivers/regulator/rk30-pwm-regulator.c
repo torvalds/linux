@@ -74,6 +74,7 @@ const static int pwm_voltage_map[] = {
 };
 
 static struct clk *pwm_clk[2];
+static struct rk_pwm_dcdc *g_dcdc;
 
 static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 {
@@ -270,6 +271,12 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	if(!pdata->min_uV)
 		pdata->min_uV = 1000000;
 	
+	if(pdata->suspend_voltage < pdata->min_uV)
+		pdata->suspend_voltage = pdata->min_uV;
+	
+	if(pdata->suspend_voltage > pdata->max_uV)	
+		pdata->suspend_voltage = pdata->max_uV;
+	
 	dcdc = kzalloc(sizeof(struct rk_pwm_dcdc), GFP_KERNEL);
 	if (dcdc == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
@@ -315,9 +322,9 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 			clk_enable(pwm_clk[1]);
 		}
 #endif
-
-
-	platform_set_drvdata(pdev, dcdc);
+	
+	g_dcdc	= dcdc;
+	platform_set_drvdata(pdev, dcdc);	
 	printk(KERN_INFO "pwm_regulator.%d: driver initialized\n",id);
 
 	return 0;
@@ -331,10 +338,73 @@ err:
 
 }
 
+static int  __sramdata g_PWM_REG_LRC = 0;
+static int  __sramdata g_PWM_REG_HRC = 0;
+void pwm_suspend_voltage(void)
+{
+	struct rk_pwm_dcdc *dcdc = g_dcdc;
+	int suspend_voltage = 0;
+	int pwm_id = 0;
+	
+	if(!dcdc)
+		return;
+	pwm_id = dcdc->pdata->pwm_id;
+	suspend_voltage = dcdc->pdata->suspend_voltage;
+	
+	g_PWM_REG_LRC = pwm_read_reg(pwm_id, PWM_REG_LRC);
+	g_PWM_REG_HRC = pwm_read_reg(pwm_id,PWM_REG_HRC);
+
+	switch(suspend_voltage)
+	{
+		case 1000000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x20); // 1 .00
+		break;
+		
+		case 1050000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x1c); // 1 .05
+		break;
+		
+		case 1100000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x18); // 1 .1
+		break;
+
+		case 1150000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x13); // 1 .15
+		break;
+
+		default:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x20); // 1 .00
+		break;
+
+	}
+		
+}
+
+void pwm_resume_voltage(void)
+	{
+	struct rk_pwm_dcdc *dcdc = g_dcdc;	
+	int pwm_id = 0;
+	
+	if(!dcdc)
+		return;
+	pwm_id = dcdc->pdata->pwm_id;
+	pwm_write_reg(pwm_id, PWM_REG_LRC, g_PWM_REG_LRC);
+	pwm_write_reg(pwm_id,PWM_REG_HRC, g_PWM_REG_HRC);
+			
+}
+
+
 static int pwm_regulator_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
-	pwm_set_rate(pdata,1000*1000,100);//pwm clk will change to 24M after suspend
+	//struct rk_pwm_dcdc *dcdc = platform_get_drvdata(pdev);
+	//unsigned selector = 0;
+	//pwm_regulator_set_voltage(dcdc->regulator, 1100000, 1100000, &selector);
 	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
 	return 0;
 }
@@ -342,6 +412,9 @@ static int pwm_regulator_suspend(struct platform_device *pdev, pm_message_t stat
 static int pwm_regulator_resume(struct platform_device *pdev)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
+	//struct rk_pwm_dcdc *dcdc = platform_get_drvdata(pdev);
+	//unsigned selector = 0;
+	//pwm_regulator_set_voltage(dcdc->regulator, 1150000, 1150000, &selector);
 	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
 	return 0;
 }

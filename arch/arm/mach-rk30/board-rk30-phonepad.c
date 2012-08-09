@@ -1550,6 +1550,7 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 		.pwm_iomux_pwm = GPIO0D_PWM3,
 		.pwm_iomux_gpio = GPIO0D_GPIO0D6,
 		.pwm_voltage = 1100000,
+		.suspend_voltage = 1050000,
 		.min_uV = 1000000,
 		.max_uV	= 1400000,
 		.coefficient = 455,	//45.5%
