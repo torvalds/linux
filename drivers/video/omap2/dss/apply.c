@@ -1346,7 +1346,7 @@ void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
 	unsigned long flags;
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 
-	mutex_lock(&apply_lock);
+	spin_lock_irqsave(&data_lock, flags);
 
 	if (mp->enabled) {
 		DSSERR("cannot apply lcd config for %s: manager needs to be disabled\n",
@@ -1354,19 +1354,9 @@ void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
 		goto out;
 	}
 
-	spin_lock_irqsave(&data_lock, flags);
-
 	dss_apply_mgr_lcd_config(mgr, config);
-
-	dss_write_regs();
-	dss_set_go_bits();
-
-	spin_unlock_irqrestore(&data_lock, flags);
-
-	wait_pending_extra_info_updates();
-
 out:
-	mutex_unlock(&apply_lock);
+	spin_unlock_irqrestore(&data_lock, flags);
 }
 
 int dss_ovl_set_info(struct omap_overlay *ovl,
