@@ -777,10 +777,14 @@ i915_error_state_write(struct file *filp,
 	struct seq_file *m = filp->private_data;
 	struct i915_error_state_file_priv *error_priv = m->private;
 	struct drm_device *dev = error_priv->dev;
+	int ret;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	i915_destroy_error_state(dev);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1450,8 +1454,12 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
 		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
@@ -1652,7 +1660,7 @@ i915_ring_stop_write(struct file *filp,
 	struct drm_device *dev = filp->private_data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	char buf[20];
-	int val = 0;
+	int val = 0, ret;
 
 	if (cnt > 0) {
 		if (cnt > sizeof(buf) - 1)
@@ -1667,7 +1675,10 @@ i915_ring_stop_write(struct file *filp,
 
 	DRM_DEBUG_DRIVER("Stopping rings 0x%08x\n", val);
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	dev_priv->stop_rings = val;
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1844,12 +1855,15 @@ i915_cache_sharing_read(struct file *filp,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	char buf[80];
 	u32 snpcr;
-	int len;
+	int len, ret;
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
 
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 
@@ -1959,6 +1973,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
@@ -1970,7 +1985,10 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 	 * hanging here is probably a minor inconvenience not to be seen my
 	 * almost every user.
 	 */
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	gen6_gt_force_wake_put(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
