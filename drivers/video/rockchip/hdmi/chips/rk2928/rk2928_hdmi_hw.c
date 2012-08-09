@@ -33,17 +33,19 @@ static void rk2928_hdmi_sys_power_down(void)
 
 static void rk2928_hdmi_set_pwr_mode(int mode)
 {
+	int c=0;
 	hdmi_dbg(hdmi->dev,"%s \n",__FUNCTION__);
 	if(hdmi->pwr_mode == mode)
-		return;
+		return; 
     switch(mode){
      case NORMAL:
 	   	rk2928_hdmi_sys_power_down();
-	    HDMIWrReg(0xe3, 0x82);
-	    HDMIWrReg(0xe5, 0x00);
-	    HDMIWrReg(0xe4, 0x00);
-	    HDMIWrReg(0xe7, 0x00);
-		HDMIWrReg(0xe1, 0x8e);
+	    HDMIWrReg(0xe0, 0x0a);
+	    HDMIWrReg(0xe1, 0x03);
+	    HDMIWrReg(0xe2, 0x99);
+	    HDMIWrReg(0xe3, 0x0f);
+		HDMIWrReg(0xe4, 0x00);
+		HDMIWrReg(0xec, 0x02);
 	   	HDMIWrReg(0xce, 0x00);
 		HDMIWrReg(0xce, 0x01);
 		rk2928_hdmi_av_mute(1);
@@ -53,11 +55,12 @@ static void rk2928_hdmi_set_pwr_mode(int mode)
 	case LOWER_PWR:
 		rk2928_hdmi_av_mute(0);
 	   	rk2928_hdmi_sys_power_down();
-	    HDMIWrReg(0xe3, 0x02);
-	    HDMIWrReg(0xe5, 0x1c);
-	    HDMIWrReg(0xe1, 0x8c);
-	    HDMIWrReg(0xe7, 0x04);
-	    HDMIWrReg(0xe4, 0x03);
+		HDMIWrReg(0xe0, 0x0a);
+	    HDMIWrReg(0xe1, 0x03);
+	    HDMIWrReg(0xe2, 0x99);
+	    HDMIWrReg(0xe3, 0x0f);
+		HDMIWrReg(0xe4, 0x00);
+		HDMIWrReg(0xec, 0x02);
 		break;
 	default:
 	    hdmi_dbg(hdmi->dev,"unkown rk2928 hdmi pwr mode %d\n",mode);
@@ -266,13 +269,6 @@ static int rk2928_hdmi_config_video(struct hdmi_video_para *vpara)
 	else {
 		hdmi_dbg(hdmi->dev, "[%s] sucess output DVI.\n", __FUNCTION__);	
 	}
-	// Power on TMDS
-	HDMIWrReg(PHY_PRE_EMPHASIS, v_PRE_EMPHASIS(0) | v_TMDS_PWRDOWN(0)); // TMDS power on
-	
-	// Enable TMDS
-	value = HDMIRdReg(PHY_DRIVER);
-	value |= v_TX_ENABLE(1);
-	HDMIWrReg(PHY_DRIVER, value);
 
 	return 0;
 }
@@ -412,8 +408,8 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 	interrupt1 = HDMIRdReg(INTERRUPT_STATUS1);
 	HDMIWrReg(INTERRUPT_STATUS1, interrupt1);
 #if 1
-		hdmi_dbg(hdmi->dev, "[%s] interrupt1 %02x interrupt2 %02x \n",\
-			 __FUNCTION__, interrupt1, interrupt2);
+		hdmi_dbg(hdmi->dev, "[%s] interrupt1 %02x  \n",\
+			 __FUNCTION__, interrupt1);
 #endif
 	if(interrupt1 & m_INT_HOTPLUG ){
 		if(hdmi->state == HDMI_SLEEP)
@@ -435,6 +431,14 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
+static void rk2928_hdmi_reset(void)
+{
+	writel_relaxed(0x00010001,RK2928_CRU_BASE+ 0x128);
+	msleep(100);
+	writel_relaxed(0x00010000, RK2928_CRU_BASE + 0x128);
+	rk2928_hdmi_set_pwr_mode(NORMAL);
+}
+
 int rk2928_hdmi_initial(void)
 {
 	int rc = HDMI_ERROR_SUCESS;
@@ -446,8 +450,8 @@ int rk2928_hdmi_initial(void)
 	hdmi->config_audio = rk2928_hdmi_config_audio;
 	hdmi->detect_hotplug = rk2928_hdmi_detect_hotplug;
 	hdmi->read_edid = rk2928_hdmi_read_edid;
-	// internal hclk = hdmi_hclk/20
-	//HDMIWrReg(0x800, HDMI_INTERANL_CLK_DIV);
+	
+	rk2928_hdmi_reset();
 	
 	if(hdmi->hdcp_power_on_cb)
 		rc = hdmi->hdcp_power_on_cb();

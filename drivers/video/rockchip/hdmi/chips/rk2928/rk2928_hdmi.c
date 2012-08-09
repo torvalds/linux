@@ -65,8 +65,8 @@ static void hdmi_early_suspend(struct early_suspend *h)
 	flush_delayed_work(&hdmi->delay_work);
 	// When HDMI 1.1V and 2.5V power off, DDC channel will be pull down, current is produced
 	// from VCC_IO which is pull up outside soc. We need to switch DDC IO to GPIO.
-//	rk2928_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_GPIO0A7);
-//	rk2928_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_GPIO0A6);
+	rk30_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_GPIO0A7);
+	rk30_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_GPIO0A6);
 	return;
 }
 
@@ -75,8 +75,8 @@ static void hdmi_early_resume(struct early_suspend *h)
 	hdmi_dbg(hdmi->dev, "hdmi exit early resume\n");
 	mutex_lock(&hdmi->enable_mutex);
 	
-//	rk2928_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_HDMI_DDCSDA);
-//	rk2928_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_HDMI_DDCSCL);
+	rk30_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_HDMI_DDCSDA);
+	rk30_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_HDMI_DDCSCL);
 	
 	hdmi->suspend = 0;
 	rk2928_hdmi_initial();
@@ -93,9 +93,9 @@ static inline void hdmi_io_remap(void)
 	unsigned int value;
 	
 	// Remap HDMI IO Pin
-//	rk2928_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_HDMI_DDCSDA);
-//	rk2928_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_HDMI_DDCSCL);
-//	rk2928_mux_api_set(GPIO0B7_HDMI_HOTPLUGIN_NAME, GPIO0B_HDMI_HOTPLUGIN);
+	rk30_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_HDMI_DDCSDA);
+	rk30_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_HDMI_DDCSCL);
+	rk30_mux_api_set(GPIO0B7_HDMI_HOTPLUGIN_NAME, GPIO0B_HDMI_HOTPLUGIN);
 		
 	// Select LCDC0 as video source and enabled.
 //	value = (HDMI_SOURCE_DEFAULT << 14) | (1 << 30);
@@ -130,8 +130,8 @@ static int __devinit rk2928_hdmi_probe (struct platform_device *pdev)
 	}
 	hdmi->xscale = 95;
 	hdmi->yscale = 95;
-#if 0	
-	hdmi->hclk = clk_get(NULL,"hclk_hdmi");
+#if 1	
+	hdmi->hclk = clk_get(NULL,"pclk_hdmi");
 	if(IS_ERR(hdmi->hclk))
 	{
 		dev_err(hdmi->dev, "Unable to get hdmi hclk\n");
