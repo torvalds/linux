@@ -4041,20 +4041,6 @@ static bool bnx2x_get_load_status(struct bnx2x *bp, int engine)
 	return val != 0;
 }
 
-/*
- * Reset the load status for the current engine.
- */
-static void bnx2x_clear_load_status(struct bnx2x *bp)
-{
-	u32 val;
-	u32 mask = (BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
-		    BNX2X_PATH0_LOAD_CNT_MASK);
-	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
-	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
-	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~mask));
-	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
-}
-
 static void _print_next_block(int idx, const char *blk)
 {
 	pr_cont("%s%s", idx ? ", " : "", blk);
@@ -11427,9 +11413,6 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	 */
 	if (!chip_is_e1x)
 		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
-
-	/* Reset the load counter */
-	bnx2x_clear_load_status(bp);
 
 	dev->watchdog_timeo = TX_TIMEOUT;
 
