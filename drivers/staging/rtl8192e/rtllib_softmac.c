@@ -1687,7 +1687,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 		 * if the network does broadcast and the user did set essid
 		 * check if essid match
 		 * if the ap is not set, check that the user set the bssid
-		 * and the network does bradcast and that those two bssid match
+		 * and the network does broadcast and that those two bssid match
 		 */
 		if ((apset && apmatch &&
 		   ((ssidset && ssidbroad && ssidmatch) ||
@@ -2442,7 +2442,7 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 	return 0;
 }
 
-/* following are for a simplier TX queue management.
+/* following are for a simpler TX queue management.
  * Instead of using netif_[stop/wake]_queue the driver
  * will use these two functions (plus a reset one), that
  * will internally use the kernel netif_* and takes
