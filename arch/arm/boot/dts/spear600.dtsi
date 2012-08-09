@@ -59,6 +59,7 @@
 			interrupt-parent = <&vic1>;
 			interrupts = <24 23>;
 			interrupt-names = "macirq", "eth_wake_irq";
+			phy-mode = "gmii";
 			status = "disabled";
 		};
 

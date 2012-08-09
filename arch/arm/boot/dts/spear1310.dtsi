@@ -55,6 +55,7 @@
 			reg = <0x5c400000 0x8000>;
 			interrupts = <0 95 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 
@@ -63,6 +64,7 @@
 			reg = <0x5c500000 0x8000>;
 			interrupts = <0 96 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 
@@ -71,6 +73,7 @@
 			reg = <0x5c600000 0x8000>;
 			interrupts = <0 97 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "rmii";
 			status = "disabled";
 		};
 
@@ -79,6 +82,7 @@
 			reg = <0x5c700000 0x8000>;
 			interrupts = <0 98 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "rgmii";
 			status = "disabled";
 		};
 

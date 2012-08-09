@@ -53,6 +53,7 @@
 			reg = <0xe0800000 0x8000>;
 			interrupts = <23 22>;
 			interrupt-names = "macirq", "eth_wake_irq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 

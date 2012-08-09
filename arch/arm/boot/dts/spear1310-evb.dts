@@ -148,6 +148,7 @@
 		};
 
 		gmac0: eth@e2000000 {
+			phy-mode = "gmii";
 			status = "okay";
 		};
 
