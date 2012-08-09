@@ -1515,7 +1515,6 @@ static int sip_help_udp(struct sk_buff *skb, unsigned int protoff,
 }
 
 static struct nf_conntrack_helper sip[MAX_PORTS][4] __read_mostly;
-static char sip_names[MAX_PORTS][4][sizeof("sip-65535")] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sip_exp_policy[SIP_EXPECT_MAX + 1] = {
 	[SIP_EXPECT_SIGNALLING] = {
@@ -1585,9 +1584,9 @@ static int __init nf_conntrack_sip_init(void)
 			sip[i][j].me = THIS_MODULE;
 
 			if (ports[i] == SIP_PORT)
-				sprintf(sip_names[i][j], "sip");
+				sprintf(sip[i][j].name, "sip");
 			else
-				sprintf(sip_names[i][j], "sip-%u", i);
+				sprintf(sip[i][j].name, "sip-%u", i);
 
 			pr_debug("port #%u: %u\n", i, ports[i]);
 
