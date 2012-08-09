@@ -253,6 +253,22 @@ static inline struct radeon_fence *radeon_fence_later(struct radeon_fence *a,
 	}
 }
 
+static inline bool radeon_fence_is_earlier(struct radeon_fence *a,
+					   struct radeon_fence *b)
+{
+	if (!a) {
+		return false;
+	}
+
+	if (!b) {
+		return true;
+	}
+
+	BUG_ON(a->ring != b->ring);
+
+	return a->seq < b->seq;
+}
+
 /*
  * Tiling registers
  */
@@ -628,10 +644,13 @@ struct radeon_ring {
 /*
  * VM
  */
+
+#define RADEON_NUM_VM	16
+
 struct radeon_vm {
 	struct list_head		list;
 	struct list_head		va;
-	int				id;
+	unsigned			id;
 	unsigned			last_pfn;
 	u64				pt_gpu_addr;
 	u64				*pt;
@@ -646,7 +665,7 @@ struct radeon_vm {
 struct radeon_vm_manager {
 	struct mutex			lock;
 	struct list_head		lru_vm;
-	uint32_t			use_bitmap;
+	struct radeon_fence		*active[RADEON_NUM_VM];
 	struct radeon_sa_manager	sa_manager;
 	uint32_t			max_pfn;
 	/* number of VMIDs */
@@ -1117,7 +1136,6 @@ struct radeon_asic {
 	struct {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
-		int (*bind)(struct radeon_device *rdev, struct radeon_vm *vm, int id);
 		uint32_t (*page_flags)(struct radeon_device *rdev,
 				       struct radeon_vm *vm,
 				       uint32_t flags);
@@ -1734,7 +1752,6 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
-#define radeon_asic_vm_bind(rdev, v, id) (rdev)->asic->vm.bind((rdev), (v), (id))
 #define radeon_asic_vm_page_flags(rdev, v, flags) (rdev)->asic->vm.page_flags((rdev), (v), (flags))
 #define radeon_asic_vm_set_page(rdev, v, pfn, addr, flags) (rdev)->asic->vm.set_page((rdev), (v), (pfn), (addr), (flags))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
@@ -1817,6 +1834,11 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
 int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
+struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
+				       struct radeon_vm *vm, int ring);
+void radeon_vm_fence(struct radeon_device *rdev,
+		     struct radeon_vm *vm,
+		     struct radeon_fence *fence);
 int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_vm *vm,
 			    struct radeon_bo *bo,

@@ -437,7 +437,6 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 	int r;
 
 	if (!rdev->vm_manager.enabled) {
-		/* mark first vm as always in use, it's the system one */
 		/* allocate enough for 2 full VM pts */
 		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
 					      rdev->vm_manager.max_pfn * 8 * 2,
@@ -461,7 +460,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 
 	/* restore page table */
 	list_for_each_entry(vm, &rdev->vm_manager.lru_vm, list) {
-		if (vm->id == -1)
+		if (vm->sa_bo == NULL)
 			continue;
 
 		list_for_each_entry(bo_va, &vm->va, vm_list) {
@@ -474,11 +473,6 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 			if (r) {
 				DRM_ERROR("Failed to update pte for vm %d!\n", vm->id);
 			}
-		}
-
-		r = radeon_asic_vm_bind(rdev, vm, vm->id);
-		if (r) {
-			DRM_ERROR("Failed to bind vm %d!\n", vm->id);
 		}
 	}
 	return 0;
@@ -500,10 +494,6 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 {
 	struct radeon_bo_va *bo_va;
 
-	if (vm->id == -1) {
-		return;
-	}
-
 	/* wait for vm use to end */
 	while (vm->fence) {
 		int r;
@@ -523,9 +513,7 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	radeon_fence_unref(&vm->last_flush);
 
 	/* hw unbind */
-	rdev->vm_manager.use_bitmap &= ~(1 << vm->id);
 	list_del_init(&vm->list);
-	vm->id = -1;
 	radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
 	vm->pt = NULL;
 
@@ -544,6 +532,7 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 void radeon_vm_manager_fini(struct radeon_device *rdev)
 {
 	struct radeon_vm *vm, *tmp;
+	int i;
 
 	if (!rdev->vm_manager.enabled)
 		return;
@@ -552,6 +541,9 @@ void radeon_vm_manager_fini(struct radeon_device *rdev)
 	/* unbind all active vm */
 	list_for_each_entry_safe(vm, tmp, &rdev->vm_manager.lru_vm, list) {
 		radeon_vm_unbind_locked(rdev, vm);
+	}
+	for (i = 0; i < RADEON_NUM_VM; ++i) {
+		radeon_fence_unref(&rdev->vm_manager.active[i]);
 	}
 	radeon_asic_vm_fini(rdev);
 	mutex_unlock(&rdev->vm_manager.lock);
@@ -593,14 +585,13 @@ void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
 int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	struct radeon_vm *vm_evict;
-	unsigned i;
-	int id = -1, r;
+	int r;
 
 	if (vm == NULL) {
 		return -EINVAL;
 	}
 
-	if (vm->id != -1) {
+	if (vm->sa_bo != NULL) {
 		/* update lru */
 		list_del_init(&vm->list);
 		list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
@@ -623,33 +614,86 @@ retry:
 	vm->pt_gpu_addr = radeon_sa_bo_gpu_addr(vm->sa_bo);
 	memset(vm->pt, 0, RADEON_GPU_PAGE_ALIGN(vm->last_pfn * 8));
 
-retry_id:
-	/* search for free vm */
-	for (i = 0; i < rdev->vm_manager.nvm; i++) {
-		if (!(rdev->vm_manager.use_bitmap & (1 << i))) {
-			id = i;
-			break;
-		}
-	}
-	/* evict vm if necessary */
-	if (id == -1) {
-		vm_evict = list_first_entry(&rdev->vm_manager.lru_vm, struct radeon_vm, list);
-		radeon_vm_unbind(rdev, vm_evict);
-		goto retry_id;
-	}
-
-	/* do hw bind */
-	r = radeon_asic_vm_bind(rdev, vm, id);
-	radeon_fence_unref(&vm->last_flush);
-	if (r) {
-		radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
-		return r;
-	}
-	rdev->vm_manager.use_bitmap |= 1 << id;
-	vm->id = id;
 	list_add_tail(&vm->list, &rdev->vm_manager.lru_vm);
 	return radeon_vm_bo_update_pte(rdev, vm, rdev->ring_tmp_bo.bo,
 				       &rdev->ring_tmp_bo.bo->tbo.mem);
+}
+
+/**
+ * radeon_vm_grab_id - allocate the next free VMID
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm to allocate id for
+ * @ring: ring we want to submit job to
+ *
+ * Allocate an id for the vm (cayman+).
+ * Returns the fence we need to sync to (if any).
+ *
+ * Global and local mutex must be locked!
+ */
+struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
+				       struct radeon_vm *vm, int ring)
+{
+	struct radeon_fence *best[RADEON_NUM_RINGS] = {};
+	unsigned choices[2] = {};
+	unsigned i;
+
+	/* check if the id is still valid */
+	if (vm->fence && vm->fence == rdev->vm_manager.active[vm->id])
+		return NULL;
+
+	/* we definately need to flush */
+	radeon_fence_unref(&vm->last_flush);
+
+	/* skip over VMID 0, since it is the system VM */
+	for (i = 1; i < rdev->vm_manager.nvm; ++i) {
+		struct radeon_fence *fence = rdev->vm_manager.active[i];
+
+		if (fence == NULL) {
+			/* found a free one */
+			vm->id = i;
+			return NULL;
+		}
+
+		if (radeon_fence_is_earlier(fence, best[fence->ring])) {
+			best[fence->ring] = fence;
+			choices[fence->ring == ring ? 0 : 1] = i;
+		}
+	}
+
+	for (i = 0; i < 2; ++i) {
+		if (choices[i]) {
+			vm->id = choices[i];
+			return rdev->vm_manager.active[choices[i]];
+		}
+	}
+
+	/* should never happen */
+	BUG();
+	return NULL;
+}
+
+/**
+ * radeon_vm_fence - remember fence for vm
+ *
+ * @rdev: radeon_device pointer
+ * @vm: vm we want to fence
+ * @fence: fence to remember
+ *
+ * Fence the vm (cayman+).
+ * Set the fence used to protect page table and id.
+ *
+ * Global and local mutex must be locked!
+ */
+void radeon_vm_fence(struct radeon_device *rdev,
+		     struct radeon_vm *vm,
+		     struct radeon_fence *fence)
+{
+	radeon_fence_unref(&rdev->vm_manager.active[vm->id]);
+	rdev->vm_manager.active[vm->id] = radeon_fence_ref(fence);
+
+	radeon_fence_unref(&vm->fence);
+	vm->fence = radeon_fence_ref(fence);
 }
 
 /* object have to be reserved */
@@ -806,7 +850,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 	uint32_t flags;
 
 	/* nothing to do if vm isn't bound */
-	if (vm->id == -1)
+	if (vm->sa_bo == NULL)
 		return 0;
 
 	bo_va = radeon_bo_va(bo, vm);
@@ -928,7 +972,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	int r;
 
-	vm->id = -1;
+	vm->id = 0;
 	vm->fence = NULL;
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->list);

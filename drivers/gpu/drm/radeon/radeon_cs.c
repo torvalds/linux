@@ -485,6 +485,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 	radeon_cs_sync_rings(parser);
 	radeon_cs_sync_to(parser, vm->last_flush);
+	radeon_cs_sync_to(parser, radeon_vm_grab_id(rdev, vm, parser->ring));
 
 	if ((rdev->family >= CHIP_TAHITI) &&
 	    (parser->chunk_const_ib_idx != -1)) {
@@ -493,13 +494,11 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		r = radeon_ib_schedule(rdev, &parser->ib, NULL);
 	}
 
-out:
 	if (!r) {
-		if (vm->fence) {
-			radeon_fence_unref(&vm->fence);
-		}
-		vm->fence = radeon_fence_ref(parser->ib.fence);
+		radeon_vm_fence(rdev, vm, parser->ib.fence);
 	}
+
+out:
 	mutex_unlock(&vm->mutex);
 	mutex_unlock(&rdev->vm_manager.lock);
 	return r;

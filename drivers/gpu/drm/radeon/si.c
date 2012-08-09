@@ -2789,14 +2789,30 @@ void si_vm_fini(struct radeon_device *rdev)
 {
 }
 
-int si_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id)
+void si_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	if (id < 8)
-		WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (id << 2), vm->pt_gpu_addr >> 12);
-	else
-		WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((id - 8) << 2),
-		       vm->pt_gpu_addr >> 12);
-	return 0;
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
+	struct radeon_vm *vm = ib->vm;
+
+	if (vm == NULL)
+		return;
+
+	if (vm->id < 8) {
+		radeon_ring_write(ring, PACKET0(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR
+						+ (vm->id << 2), 0));
+	} else {
+		radeon_ring_write(ring, PACKET0(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR
+						+ ((vm->id - 8) << 2), 0));
+	}
+	radeon_ring_write(ring, vm->pt_gpu_addr >> 12);
+
+	/* flush hdp cache */
+	radeon_ring_write(ring, PACKET0(HDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	radeon_ring_write(ring, 0x1);
+
+	/* bits 0-7 are the VM contexts0-7 */
+	radeon_ring_write(ring, PACKET0(VM_INVALIDATE_REQUEST, 0));
+	radeon_ring_write(ring, 1 << ib->vm->id);
 }
 
 /*
