@@ -713,8 +713,12 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 		/* Proper support for digital audio needs a new logic and a new set
 		 * of registers, so we leave it for future patch bombing.
 		 */
-		DRM_DEBUG_DRIVER("HDMI audio on pipe %c not yet supported on DDI\n",
+		DRM_DEBUG_DRIVER("HDMI audio on pipe %c on DDI\n",
 				 pipe_name(intel_crtc->pipe));
+
+		/* write eld */
+		DRM_DEBUG_DRIVER("HDMI audio: write eld information\n");
+		intel_write_eld(encoder, adjusted_mode);
 	}
 
 	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
