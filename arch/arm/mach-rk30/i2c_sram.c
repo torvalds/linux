@@ -32,6 +32,7 @@ CH=2:(~(0x03<<24))&(~(0x03<<22))|(0x01<<24)|(0x01<<22),CH=3:(~(0x03<<26))&(~(0x0
 #define uint16 unsigned short
 #define uint32 unsigned int
 uint32 __sramdata data[5];
+uint8 __sramdata arm_voltage = 0;
 
 #define CRU_CLKGATE0_CON   0xd0
 #define CRU_CLKGATE8_CON	0xf0
@@ -308,7 +309,7 @@ void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
     data = 0x23;       //set arm 1.0v
     
     sram_i2c_init();  //init i2c device
-//  ret = sram_i2c_read(slaveaddr, slavereg);
+    arm_voltage = sram_i2c_read(slaveaddr, slavereg);
 //	sram_printhex(ret);
     sram_i2c_write(slaveaddr, slavereg, data);//	
     sram_i2c_deinit();  //deinit i2c device
@@ -322,10 +323,16 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
     uint8 data,ret;
 	slaveaddr = I2C_SADDR;            //slave device addr
     slavereg = 0x22;            // reg addr  
-    data = 0x2b;   
-	
+   	
     sram_i2c_init();  //init i2c device
-//    ret = sram_i2c_read(slaveaddr, slavereg);
+	if (arm_voltage >= 0x3b ){   // set arm <= 1.3v
+		data = 0x3b;
+	}
+	else if(arm_voltage <= 0x1f){
+		data = 0x1f;			 // set arm >= 0.95v
+	}
+	else
+		data = arm_voltage;
     sram_i2c_write(slaveaddr, slavereg, data);
     sram_i2c_deinit();  //deinit i2c device
 }
