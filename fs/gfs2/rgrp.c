@@ -228,8 +228,6 @@ static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
 	u64 mask = 0x5555555555555555ULL;
 	u32 bit;
 
-	BUG_ON(state > 3);
-
 	/* Mask off bits we don't care about at the start of the search */
 	mask <<= spoint;
 	tmp = gfs2_bit_search(ptr, mask, state);
