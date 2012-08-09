@@ -1,6 +1,27 @@
-/dts-v1/;
-
 /include/ "tegra30.dtsi"
+
+/**
+ * This file contains common DT entry for all fab version of Cardhu.
+ * There is multiple fab version of Cardhu starting from A01 to A07.
+ * Cardhu fab version A01 and A03 are not supported. Cardhu fab version
+ * A02 will have different sets of GPIOs for fixed regulator compare to
+ * Cardhu fab version A04. The Cardhu fab version A05, A06, A07 are
+ * compatible with fab version A04. Based on Cardhu fab version, the
+ * related dts file need to be chosen like for Cardhu fab version A02,
+ * use tegra30-cardhu-a02.dts, Cardhu fab version A04 and later, use
+ * tegra30-cardhu-a04.dts.
+ * The identification of board is done in two ways, by looking the sticker
+ * on PCB and by reading board id eeprom.
+ * The stciker will have number like 600-81291-1000-002 C.3. In this 4th
+ * number is the fab version like here it is 002 and hence fab version A02.
+ * The (downstream internal) U-Boot of Cardhu display the board-id as
+ * follows:
+ * BoardID: 0C5B, SKU: 0A01, Fab: 02, Rev: 45.00
+ * In this Fab version is 02 i.e. A02.
+ * The BoardID I2C eeprom is interfaced through i2c5 (pwr_i2c address 0x56).
+ * The location 0x8 of this eeprom contains the Fab version. It is 1 byte
+ * wide.
+ */
 
 / {
 	model = "NVIDIA Tegra30 Cardhu evaluation board";
