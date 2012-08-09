@@ -1475,10 +1475,6 @@ static void rbd_rq_fn(struct request_queue *q)
 		struct rbd_req_coll *coll;
 		struct ceph_snap_context *snapc;
 
-		/* peek at request from block layer */
-		if (!rq)
-			break;
-
 		dout("fetched request\n");
 
 		/* filter out block requests we don't understand */
