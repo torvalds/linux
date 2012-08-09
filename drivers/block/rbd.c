@@ -50,6 +50,10 @@
 #define	SECTOR_SHIFT	9
 #define	SECTOR_SIZE	(1ULL << SECTOR_SHIFT)
 
+/* It might be useful to have this defined elsewhere too */
+
+#define	U64_MAX	((u64) (~0ULL))
+
 #define RBD_DRV_NAME "rbd"
 #define RBD_DRV_NAME_LONG "rbd (rados block device)"
 
@@ -691,8 +695,17 @@ static u64 rbd_get_segment(struct rbd_image_header *header,
 static int rbd_get_num_segments(struct rbd_image_header *header,
 				u64 ofs, u64 len)
 {
-	u64 start_seg = ofs >> header->obj_order;
-	u64 end_seg = (ofs + len - 1) >> header->obj_order;
+	u64 start_seg;
+	u64 end_seg;
+
+	if (!len)
+		return 0;
+	if (len - 1 > U64_MAX - ofs)
+		return -ERANGE;
+
+	start_seg = ofs >> header->obj_order;
+	end_seg = (ofs + len - 1) >> header->obj_order;
+
 	return end_seg - start_seg + 1;
 }
 
@@ -1515,6 +1528,12 @@ static void rbd_rq_fn(struct request_queue *q)
 		     size, (unsigned long long) blk_rq_pos(rq) * SECTOR_SIZE);
 
 		num_segs = rbd_get_num_segments(&rbd_dev->header, ofs, size);
+		if (num_segs <= 0) {
+			spin_lock_irq(q->queue_lock);
+			__blk_end_request_all(rq, num_segs);
+			ceph_put_snap_context(snapc);
+			continue;
+		}
 		coll = rbd_alloc_coll(num_segs);
 		if (!coll) {
 			spin_lock_irq(q->queue_lock);
