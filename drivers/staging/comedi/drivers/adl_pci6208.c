@@ -27,8 +27,9 @@
 */
 /*
 Driver: adl_pci6208
-Description: ADLink PCI-6208A
-Devices: [ADLink] PCI-6208A (adl_pci6208)
+Description: ADLink PCI-6208/6216 Series Multi-channel Analog Output Cards
+Devices: (ADLink) PCI-6208 [adl_pci6208]
+	 (ADLink) PCI-6216 [adl_pci6216]
 Author: nsyeow <nsyeow@pd.jaring.my>
 Updated: Fri, 30 Jan 2004 14:44:27 +0800
 Status: untested
@@ -44,6 +45,12 @@ References:
 #include "../comedidev.h"
 
 /*
+ * ADLINK PCI Device ID's supported by this driver
+ */
+#define PCI_DEVICE_ID_PCI6208		0x6208
+#define PCI_DEVICE_ID_PCI6216		0x6216
+
+/*
  * PCI-6208/6216-GL register map
  */
 #define PCI6208_AO_CONTROL(x)		(0x00 + (2 * (x)))
@@ -55,7 +62,7 @@ References:
 #define PCI6208_DIO_DI_MASK		(0xf0)
 #define PCI6208_DIO_DI_SHIFT		(4)
 
-#define PCI6208_MAX_AO_CHANNELS		8
+#define PCI6208_MAX_AO_CHANNELS		16
 
 struct pci6208_board {
 	const char *name;
@@ -65,9 +72,13 @@ struct pci6208_board {
 
 static const struct pci6208_board pci6208_boards[] = {
 	{
-		.name		= "pci6208a",
-		.dev_id		= 0x6208,
+		.name		= "adl_pci6208",
+		.dev_id		= PCI_DEVICE_ID_PCI6208,
 		.ao_chans	= 8,
+	}, {
+		.name		= "adl_pci6216",
+		.dev_id		= PCI_DEVICE_ID_PCI6216,
+		.ao_chans	= 16,
 	},
 };
 
@@ -269,7 +280,8 @@ static void __devexit adl_pci6208_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x6208) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6208) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI6216) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci6208_pci_table);
