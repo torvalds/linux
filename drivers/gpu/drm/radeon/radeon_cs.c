@@ -286,30 +286,6 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	return 0;
 }
 
-static void radeon_bo_vm_fence_va(struct radeon_cs_parser *parser,
-				  struct radeon_fence *fence)
-{
-	struct radeon_fpriv *fpriv = parser->filp->driver_priv;
-	struct radeon_vm *vm = &fpriv->vm;
-	struct radeon_bo_list *lobj;
-
-	if (parser->chunk_ib_idx == -1) {
-		return;
-	}
-	if ((parser->cs_flags & RADEON_CS_USE_VM) == 0) {
-		return;
-	}
-
-	list_for_each_entry(lobj, &parser->validated, tv.head) {
-		struct radeon_bo_va *bo_va;
-		struct radeon_bo *rbo = lobj->bo;
-
-		bo_va = radeon_bo_va(rbo, vm);
-		radeon_fence_unref(&bo_va->fence);
-		bo_va->fence = radeon_fence_ref(fence);
-	}
-}
-
 /**
  * cs_parser_fini() - clean parser states
  * @parser:	parser structure holding parsing context.
@@ -323,8 +299,6 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	unsigned i;
 
 	if (!error) {
-		/* fence all bo va before ttm_eu_fence_buffer_objects so bo are still reserved */
-		radeon_bo_vm_fence_va(parser, parser->ib.fence);
 		ttm_eu_fence_buffer_objects(&parser->validated,
 					    parser->ib.fence);
 	} else {
@@ -475,7 +449,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
-	r = radeon_vm_bind(rdev, vm);
+	r = radeon_vm_alloc_pt(rdev, vm);
 	if (r) {
 		goto out;
 	}

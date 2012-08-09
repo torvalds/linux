@@ -301,7 +301,6 @@ struct radeon_bo_va {
 	uint64_t			soffset;
 	uint64_t			eoffset;
 	uint32_t			flags;
-	struct radeon_fence		*fence;
 	bool				valid;
 };
 
@@ -1832,8 +1831,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev);
 void radeon_vm_manager_fini(struct radeon_device *rdev);
 int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm);
 void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm);
-int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm);
-void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
+int radeon_vm_alloc_pt(struct radeon_device *rdev, struct radeon_vm *vm);
 struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 				       struct radeon_vm *vm, int ring);
 void radeon_vm_fence(struct radeon_device *rdev,
