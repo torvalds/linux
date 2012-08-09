@@ -494,18 +494,18 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 #define RK_FB_MEM_SIZE 3*SZ_1M
 
 #if defined(CONFIG_FB_ROCKCHIP)
-#define LCD_CS_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
-#define LCD_CS_PIN         RK30_PIN4_PC7
+#define LCD_CS_MUX_NAME    GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME
+#define LCD_CS_PIN         RK30_PIN2_PA7
 #define LCD_CS_VALUE       GPIO_HIGH
 
-#define LCD_EN_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
-#define LCD_EN_PIN         RK30_PIN6_PB4
+#define LCD_EN_MUX_NAME    GPIO2D7_TESTCLOCKOUT_NAME
+#define LCD_EN_PIN         RK30_PIN2_PD7
 #define LCD_EN_VALUE       GPIO_LOW
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
-	rk30_mux_api_set(LCD_CS_MUX_NAME, GPIO4C_GPIO4C7);
+	rk30_mux_api_set(LCD_CS_MUX_NAME, GPIO2A_GPIO2A7);
 	ret = gpio_request(LCD_CS_PIN, NULL);
 	if (ret != 0)
 	{
@@ -772,23 +772,23 @@ static struct platform_device *devices[] __initdata = {
 static int rk29_sdmmc0_cfg_gpio(void)
 {
 #ifdef CONFIG_SDMMC_RK29_OLD
-	rk30_mux_api_set(GPIO3B1_SDMMC0CMD_NAME, GPIO3B_SDMMC0_CMD);
-	rk30_mux_api_set(GPIO3B0_SDMMC0CLKOUT_NAME, GPIO3B_SDMMC0_CLKOUT);
-	rk30_mux_api_set(GPIO3B2_SDMMC0DATA0_NAME, GPIO3B_SDMMC0_DATA0);
-	rk30_mux_api_set(GPIO3B3_SDMMC0DATA1_NAME, GPIO3B_SDMMC0_DATA1);
-	rk30_mux_api_set(GPIO3B4_SDMMC0DATA2_NAME, GPIO3B_SDMMC0_DATA2);
-	rk30_mux_api_set(GPIO3B5_SDMMC0DATA3_NAME, GPIO3B_SDMMC0_DATA3);
+	rk30_mux_api_set(GPIO3A3_SDMMC0CMD_NAME, GPIO3A_SDMMC0CMD);
+	rk30_mux_api_set(GPIO3A2_SDMMC0CLKOUT_NAME, GPIO3A_SDMMC0CLKOUT);
+	rk30_mux_api_set(GPIO3A4_SDMMC0DATA0_NAME, GPIO3A_SDMMC0DATA0);
+	rk30_mux_api_set(GPIO3A5_SDMMC0DATA1_NAME, GPIO3A_SDMMC0DATA1);
+	rk30_mux_api_set(GPIO3A6_SDMMC0DATA2_NAME, GPIO3A_SDMMC0DATA2);
+	rk30_mux_api_set(GPIO3A7_SDMMC0DATA3_NAME, GPIO3A_SDMMC0DATA3);
 
-	rk30_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_GPIO3B6);
+	rk30_mux_api_set(GPIO3B0_SDMMC0DETECTN_NAME, GPIO3B_GPIO3B0);
 
-	rk30_mux_api_set(GPIO3A7_SDMMC0PWREN_NAME, GPIO3A_GPIO3A7);
-	gpio_request(RK30_PIN3_PA7, "sdmmc-power");
-	gpio_direction_output(RK30_PIN3_PA7, GPIO_LOW);
+	rk30_mux_api_set(GPIO3A1_SDMMC0PWREN_NAME, GPIO3A_GPIO3A1);
+	gpio_request(RK30_PIN3_PA1, "sdmmc-power");
+	gpio_direction_output(RK30_PIN3_PA1, GPIO_LOW);
 
 #else
 	rk29_sdmmc_set_iomux(0, 0xFFFF);
 
-	rk30_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0_DETECT_N);
+	rk30_mux_api_set(GPIO3B0_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0DETECTN);
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");

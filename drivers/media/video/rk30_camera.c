@@ -14,6 +14,7 @@
 
 static int rk_sensor_iomux(int pin)
 {    
+#if defined(CONFIG_ARCH_RK30)
     switch (pin)
     {
         case RK30_PIN0_PA0: 
@@ -846,6 +847,7 @@ static int rk_sensor_iomux(int pin)
             break;
         }
     }
+#endif
     return 0;
 }
 #define PMEM_CAM_BASE 0 //just for compile ,no meaning

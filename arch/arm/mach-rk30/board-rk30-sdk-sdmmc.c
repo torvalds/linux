@@ -25,17 +25,26 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
             #ifdef CONFIG_SDMMC0_RK29
             if(on)
             {
+	#if defined(CONFIG_ARCH_RK30)
                 gpio_direction_output(GPIO3B_GPIO3B0,GPIO_HIGH);//set mmc0-clk to high
                 gpio_direction_output(GPIO3B_GPIO3B1,GPIO_HIGH);// set mmc0-cmd to high.
                 gpio_direction_output(GPIO3B_GPIO3B2,GPIO_HIGH);//set mmc0-data0 to high.
                 gpio_direction_output(GPIO3B_GPIO3B3,GPIO_HIGH);//set mmc0-data1 to high.
                 gpio_direction_output(GPIO3B_GPIO3B4,GPIO_HIGH);//set mmc0-data2 to high.
                 gpio_direction_output(GPIO3B_GPIO3B5,GPIO_HIGH);//set mmc0-data3 to high.
-
+	#elif defined(CONFIG_ARCH_RK31)
+		gpio_direction_output(RK30_PIN3_PA2,GPIO_HIGH);//set mmc0-clk to high
+                gpio_direction_output(RK30_PIN3_PA3,GPIO_HIGH);// set mmc0-cmd to high.
+                gpio_direction_output(RK30_PIN3_PA4,GPIO_HIGH);//set mmc0-data0 to high.
+                gpio_direction_output(RK30_PIN3_PA5,GPIO_HIGH);//set mmc0-data1 to high.
+                gpio_direction_output(RK30_PIN3_PA6,GPIO_HIGH);//set mmc0-data2 to high.
+                gpio_direction_output(RK30_PIN3_PA7,GPIO_HIGH);//set mmc0-data3 to high.
+	#endif
                 mdelay(30);
             }
             else
             {
+	#if defined(CONFIG_ARCH_RK30)
                 rk30_mux_api_set(GPIO3B0_SDMMC0CLKOUT_NAME, GPIO3B_GPIO3B0);
                 gpio_request(RK30_PIN3_PB0, "mmc0-clk");
                 gpio_direction_output(RK30_PIN3_PB0,GPIO_LOW);//set mmc0-clk to low.
@@ -59,7 +68,31 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 rk30_mux_api_set(GPIO3B5_SDMMC0DATA3_NAME, GPIO3B_GPIO3B5);
                 gpio_request(RK30_PIN3_PB5, "mmc0-data3");
                 gpio_direction_output(RK30_PIN3_PB5,GPIO_LOW);//set mmc0-data3 to low.
+	#elif defined(CONFIG_ARCH_RK31)
+		rk30_mux_api_set(GPIO3A2_SDMMC0CLKOUT_NAME, GPIO3A_GPIO3A2);
+                gpio_request(RK30_PIN3_PA2, "mmc0-clk");
+                gpio_direction_output(RK30_PIN3_PA2,GPIO_LOW);//set mmc0-clk to low.
 
+                rk30_mux_api_set(GPIO3A3_SDMMC0CMD_NAME, GPIO3A_GPIO3A3);
+                gpio_request(RK30_PIN3_PA3, "mmc0-cmd");
+                gpio_direction_output(RK30_PIN3_PA3,GPIO_LOW);//set mmc0-cmd to low.
+
+                rk30_mux_api_set(GPIO3A4_SDMMC0DATA0_NAME, GPIO3A_GPIO3A4);
+                gpio_request(RK30_PIN3_PA4, "mmc0-data0");
+                gpio_direction_output(RK30_PIN3_PA4,GPIO_LOW);//set mmc0-data0 to low.
+
+                rk30_mux_api_set(GPIO3A5_SDMMC0DATA1_NAME, GPIO3A_GPIO3A5);
+                gpio_request(RK30_PIN3_PA5, "mmc0-data1");
+                gpio_direction_output(RK30_PIN3_PA5,GPIO_LOW);//set mmc0-data1 to low.
+
+                rk30_mux_api_set(GPIO3A6_SDMMC0DATA2_NAME, GPIO3A_GPIO3A6);
+                gpio_request(RK30_PIN3_PA6, "mmc0-data2");
+                gpio_direction_output(RK30_PIN3_PA6,GPIO_LOW);//set mmc0-data2 to low.
+
+                rk30_mux_api_set(GPIO3A7_SDMMC0DATA3_NAME, GPIO3A_GPIO3A7);
+                gpio_request(RK30_PIN3_PA7, "mmc0-data3");
+                gpio_direction_output(RK30_PIN3_PA7,GPIO_LOW);//set mmc0-data3 to low.
+	#endif
                 mdelay(30);
             }
             #endif
@@ -81,6 +114,7 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
             }
             else
             {
+	#if defined(CONFIG_ARCH_RK30)
                 rk30_mux_api_set(GPIO3C5_SDMMC1CLKOUT_NAME, GPIO3C_GPIO3C5);
                 gpio_request(RK30_PIN3_PC5, "mmc1-clk");
                 gpio_direction_output(RK30_PIN3_PC5,GPIO_LOW);//set mmc1-clk to low.
@@ -92,7 +126,19 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 rk30_mux_api_set(GPIO3C1_SDMMC1DATA0_NAME, GPIO3C_GPIO3C1);
                 gpio_request(RK30_PIN3_PC1, "mmc1-data0");
                 gpio_direction_output(RK30_PIN3_PC1,GPIO_LOW);//set mmc1-data0 to low.
+	#elif defined(CONFIG_ARCH_RK31)
+		rk30_mux_api_set(GPIO3C5_SDMMC1CLKOUT_RMIICLKOUT_RMIICLKIN_NAME, GPIO3C_GPIO3C5);
+                gpio_request(RK30_PIN3_PC5, "mmc1-clk");
+                gpio_direction_output(RK30_PIN3_PC5,GPIO_LOW);//set mmc1-clk to low.
 
+                rk30_mux_api_set(GPIO3C0_SDMMC1CMD_RMIITXEN_NAME, GPIO3C_GPIO3C0);
+                gpio_request(RK30_PIN3_PC0, "mmc1-cmd");
+                gpio_direction_output(RK30_PIN3_PC0,GPIO_LOW);//set mmc1-cmd to low.
+
+                rk30_mux_api_set(GPIO3C1_SDMMC1DATA0_RMIITXD1_NAME, GPIO3C_GPIO3C1);
+                gpio_request(RK30_PIN3_PC1, "mmc1-data0");
+                gpio_direction_output(RK30_PIN3_PC1,GPIO_LOW);//set mmc1-data0 to low.
+	#endif
                 mdelay(100);
             }
             #endif
@@ -114,9 +160,15 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
         
     	case 1://SDMMC_CTYPE_4BIT:
     	{
+	#if defined(CONFIG_ARCH_RK30)
         	rk30_mux_api_set(GPIO3B3_SDMMC0DATA1_NAME, GPIO3B_SDMMC0_DATA1);
         	rk30_mux_api_set(GPIO3B4_SDMMC0DATA2_NAME, GPIO3B_SDMMC0_DATA2);
         	rk30_mux_api_set(GPIO3B5_SDMMC0DATA3_NAME, GPIO3B_SDMMC0_DATA3);
+	#elif defined(CONFIG_ARCH_RK31)
+		rk30_mux_api_set(GPIO3A5_SDMMC0DATA1_NAME, GPIO3A_SDMMC0DATA1);
+                rk30_mux_api_set(GPIO3A6_SDMMC0DATA2_NAME, GPIO3A_SDMMC0DATA2);
+                rk30_mux_api_set(GPIO3A7_SDMMC0DATA3_NAME, GPIO3A_SDMMC0DATA3);
+	#endif
     	}
     	break;
 
@@ -124,6 +176,7 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
     	    break;
     	case 0xFFFF: //gpio_reset
     	{
+	#if defined(CONFIG_ARCH_RK30)
             rk30_mux_api_set(GPIO3A7_SDMMC0PWREN_NAME, GPIO3A_GPIO3A7);
             gpio_request(RK30_PIN3_PA7,"sdmmc-power");
             gpio_direction_output(RK30_PIN3_PA7,GPIO_HIGH); //power-off
@@ -133,14 +186,26 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
             gpio_direction_output(RK30_PIN3_PA7,GPIO_LOW); //power-on
 
             rk29_sdmmc_gpio_open(0, 1);
+	#elif defined(CONFIG_ARCH_RK31)
+	    rk30_mux_api_set(GPIO3A1_SDMMC0PWREN_NAME, GPIO3A_GPIO3A1);
+            gpio_request(RK30_PIN3_PA1,"sdmmc-power");
+            gpio_direction_output(RK30_PIN3_PA1,GPIO_HIGH); //power-off
+
+            rk29_sdmmc_gpio_open(0, 0);
+
+            gpio_direction_output(RK30_PIN3_PA1,GPIO_LOW); //power-on
+
+            rk29_sdmmc_gpio_open(0, 1);
+	#endif
     	}
     	break;
 
     	default: //case 0://SDMMC_CTYPE_1BIT:
         {
-        	rk30_mux_api_set(GPIO3B1_SDMMC0CMD_NAME, GPIO3B_SDMMC0_CMD);
-        	rk30_mux_api_set(GPIO3B0_SDMMC0CLKOUT_NAME, GPIO3B_SDMMC0_CLKOUT);
-        	rk30_mux_api_set(GPIO3B2_SDMMC0DATA0_NAME, GPIO3B_SDMMC0_DATA0);
+	#if defined(CONFIG_ARCH_RK30)
+            rk30_mux_api_set(GPIO3B1_SDMMC0CMD_NAME, GPIO3B_SDMMC0_CMD);
+            rk30_mux_api_set(GPIO3B0_SDMMC0CLKOUT_NAME, GPIO3B_SDMMC0_CLKOUT);
+            rk30_mux_api_set(GPIO3B2_SDMMC0DATA0_NAME, GPIO3B_SDMMC0_DATA0);
 
             rk30_mux_api_set(GPIO3B3_SDMMC0DATA1_NAME, GPIO3B_GPIO3B3);
             gpio_request(RK30_PIN3_PB3, "mmc0-data1");
@@ -153,6 +218,23 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
             rk30_mux_api_set(GPIO3B5_SDMMC0DATA3_NAME, GPIO3B_GPIO3B5);
             gpio_request(RK30_PIN3_PB5, "mmc0-data3");
             gpio_direction_output(RK30_PIN3_PB5,GPIO_HIGH);//set mmc0-data3 to high.
+	#elif defined(CONFIG_ARCH_RK31)
+	    rk30_mux_api_set(GPIO3A3_SDMMC0CMD_NAME, GPIO3A_SDMMC0CMD);
+            rk30_mux_api_set(GPIO3A2_SDMMC0CLKOUT_NAME, GPIO3A_SDMMC0CLKOUT);
+            rk30_mux_api_set(GPIO3A4_SDMMC0DATA0_NAME, GPIO3A_SDMMC0DATA0);
+
+            rk30_mux_api_set(GPIO3A5_SDMMC0DATA1_NAME, GPIO3A_GPIO3A5);
+            gpio_request(RK30_PIN3_PA5, "mmc0-data1");
+            gpio_direction_output(RK30_PIN3_PA5,GPIO_HIGH);//set mmc0-data1 to high.
+
+            rk30_mux_api_set(GPIO3A6_SDMMC0DATA2_NAME, GPIO3A_GPIO3A6);
+            gpio_request(RK30_PIN3_PA5, "mmc0-data2");
+            gpio_direction_output(RK30_PIN3_PA5,GPIO_HIGH);//set mmc0-data2 to high.
+
+            rk30_mux_api_set(GPIO3A7_SDMMC0DATA3_NAME, GPIO3A_GPIO3A7);
+            gpio_request(RK30_PIN3_PA7, "mmc0-data3");
+            gpio_direction_output(RK30_PIN3_PA7,GPIO_HIGH);//set mmc0-data3 to high.
+	#endif
     	}
     	break;
 	}
@@ -160,12 +242,21 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
 
 static void rk29_sdmmc_set_iomux_mmc1(unsigned int bus_width)
 {
+#if defined(CONFIG_ARCH_RK30)
     rk30_mux_api_set(GPIO3C0_SMMC1CMD_NAME, GPIO3C_SMMC1_CMD);
     rk30_mux_api_set(GPIO3C5_SDMMC1CLKOUT_NAME, GPIO3C_SDMMC1_CLKOUT);
     rk30_mux_api_set(GPIO3C1_SDMMC1DATA0_NAME, GPIO3C_SDMMC1_DATA0);
     rk30_mux_api_set(GPIO3C2_SDMMC1DATA1_NAME, GPIO3C_SDMMC1_DATA1);
     rk30_mux_api_set(GPIO3C3_SDMMC1DATA2_NAME, GPIO3C_SDMMC1_DATA2);
     rk30_mux_api_set(GPIO3C4_SDMMC1DATA3_NAME, GPIO3C_SDMMC1_DATA3);
+#elif defined(CONFIG_ARCH_RK31)
+    rk30_mux_api_set(GPIO3C0_SDMMC1CMD_RMIITXEN_NAME, GPIO3C_SDMMC1CMD);
+    rk30_mux_api_set(GPIO3C5_SDMMC1CLKOUT_RMIICLKOUT_RMIICLKIN_NAME, GPIO3C_SDMMC1CLKOUT);
+    rk30_mux_api_set(GPIO3C1_SDMMC1DATA0_RMIITXD1_NAME, GPIO3C_SDMMC1DATA0);
+    rk30_mux_api_set(GPIO3C2_SDMMC1DATA1_RMIITXD0_NAME, GPIO3C_SDMMC1DATA1);
+    rk30_mux_api_set(GPIO3C3_SDMMC1DATA2_RMIIRXD0_NAME, GPIO3C_SDMMC1DATA2);
+    rk30_mux_api_set(GPIO3C4_SDMMC1DATA3_RMIIRXD1_NAME, GPIO3C_SDMMC1DATA3);
+#endif
 }
 
 static void rk29_sdmmc_set_iomux_mmc2(unsigned int bus_width)
