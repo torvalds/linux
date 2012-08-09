@@ -115,19 +115,27 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 	return 0;
 }
 
+static void radeon_cs_sync_to(struct radeon_cs_parser *p,
+			      struct radeon_fence *fence)
+{
+	struct radeon_fence *other;
+
+	if (!fence)
+		return;
+
+	other = p->ib.sync_to[fence->ring];
+	p->ib.sync_to[fence->ring] = radeon_fence_later(fence, other);
+}
+
 static void radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
 	int i;
 
 	for (i = 0; i < p->nrelocs; i++) {
-		struct radeon_fence *a, *b;
-
-		if (!p->relocs[i].robj || !p->relocs[i].robj->tbo.sync_obj)
+		if (!p->relocs[i].robj)
 			continue;
 
-		a = p->relocs[i].robj->tbo.sync_obj;
-		b = p->ib.sync_to[a->ring];
-		p->ib.sync_to[a->ring] = radeon_fence_later(a, b);
+		radeon_cs_sync_to(p, p->relocs[i].robj->tbo.sync_obj);
 	}
 }
 
