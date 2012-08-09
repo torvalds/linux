@@ -2300,6 +2300,8 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 limits = gen6_rps_limits(dev_priv, &val);
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	if (val == dev_priv->cur_delay)
 		return;
 
