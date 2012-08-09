@@ -4277,6 +4277,53 @@
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI		(0xf << 16)
 #define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
 
+/* HSW Audio */
+#define   HSW_AUD_CONFIG_A		0x65000 /* Audio Configuration Transcoder A */
+#define   HSW_AUD_CONFIG_B		0x65100 /* Audio Configuration Transcoder B */
+#define   HSW_AUD_CFG(pipe) _PIPE(pipe, \
+					HSW_AUD_CONFIG_A, \
+					HSW_AUD_CONFIG_B)
+
+#define   HSW_AUD_MISC_CTRL_A		0x65010 /* Audio Misc Control Convert 1 */
+#define   HSW_AUD_MISC_CTRL_B		0x65110 /* Audio Misc Control Convert 2 */
+#define   HSW_AUD_MISC_CTRL(pipe) _PIPE(pipe, \
+					HSW_AUD_MISC_CTRL_A, \
+					HSW_AUD_MISC_CTRL_B)
+
+#define   HSW_AUD_DIP_ELD_CTRL_ST_A	0x650b4 /* Audio DIP and ELD Control State Transcoder A */
+#define   HSW_AUD_DIP_ELD_CTRL_ST_B	0x651b4 /* Audio DIP and ELD Control State Transcoder B */
+#define   HSW_AUD_DIP_ELD_CTRL(pipe) _PIPE(pipe, \
+					HSW_AUD_DIP_ELD_CTRL_ST_A, \
+					HSW_AUD_DIP_ELD_CTRL_ST_B)
+
+/* Audio Digital Converter */
+#define   HSW_AUD_DIG_CNVT_1		0x65080 /* Audio Converter 1 */
+#define   HSW_AUD_DIG_CNVT_2		0x65180 /* Audio Converter 1 */
+#define   AUD_DIG_CNVT(pipe) _PIPE(pipe, \
+					HSW_AUD_DIG_CNVT_1, \
+					HSW_AUD_DIG_CNVT_2)
+
+#define   HSW_AUD_EDID_DATA_A		0x65050
+#define   HSW_AUD_EDID_DATA_B		0x65150
+#define   HSW_AUD_EDID_DATA(pipe) _PIPE(pipe, \
+					HSW_AUD_EDID_DATA_A, \
+					HSW_AUD_EDID_DATA_B)
+
+#define   HSW_AUD_PIPE_CONV_CFG		0x6507c /* Audio pipe and converter configs */
+#define   HSW_AUD_PIN_ELD_CP_VLD	0x650c0 /* Audio ELD and CP Ready Status */
+#define   AUDIO_INACTIVE_C		(1<<11)
+#define   AUDIO_INACTIVE_B		(1<<7)
+#define   AUDIO_INACTIVE_A		(1<<3)
+#define   AUDIO_OUTPUT_ENABLE_A		(1<<2)
+#define   AUDIO_OUTPUT_ENABLE_B		(1<<6)
+#define   AUDIO_OUTPUT_ENABLE_C		(1<<10)
+#define   AUDIO_ELD_VALID_A		(1<<0)
+#define   AUDIO_ELD_VALID_B		(1<<4)
+#define   AUDIO_ELD_VALID_C		(1<<8)
+#define   AUDIO_CP_READY_A		(1<<1)
+#define   AUDIO_CP_READY_B		(1<<5)
+#define   AUDIO_CP_READY_C		(1<<9)
+
 /* HSW Power Wells */
 #define HSW_PWR_WELL_CTL1			0x45400 /* BIOS */
 #define HSW_PWR_WELL_CTL2			0x45404 /* Driver */
