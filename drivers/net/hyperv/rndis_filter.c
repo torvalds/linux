@@ -46,8 +46,14 @@ struct rndis_request {
 	/* Simplify allocation by having a netvsc packet inline */
 	struct hv_netvsc_packet	pkt;
 	struct hv_page_buffer buf;
-	/* FIXME: We assumed a fixed size request here. */
+
 	struct rndis_message request_msg;
+	/*
+	 * The buffer for the extended info after the RNDIS message. It's
+	 * referenced based on the data offset in the RNDIS message. Its size
+	 * is enough for current needs, and should be sufficient for the near
+	 * future.
+	 */
 	u8 ext[100];
 };
 
