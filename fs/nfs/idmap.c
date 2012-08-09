@@ -632,9 +632,6 @@ static int nfs_idmap_prepare_message(char *desc, struct idmap *idmap,
 	substring_t substr;
 	int token, ret;
 
-	memset(im,  0, sizeof(*im));
-	memset(msg, 0, sizeof(*msg));
-
 	im->im_type = IDMAP_TYPE_GROUP;
 	token = match_token(desc, nfs_idmap_tokens, &substr);
 
@@ -677,7 +674,7 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 	int ret = -ENOMEM;
 
 	/* msg and im are freed in idmap_pipe_destroy_msg */
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		goto out1;
 
