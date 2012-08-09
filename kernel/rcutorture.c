@@ -120,11 +120,11 @@ MODULE_PARM_DESC(torture_type, "Type of RCU to torture (rcu, rcu_bh, srcu)");
 
 #define TORTURE_FLAG "-torture:"
 #define PRINTK_STRING(s) \
-	do { printk(KERN_ALERT "%s" TORTURE_FLAG s "\n", torture_type); } while (0)
+	do { pr_alert("%s" TORTURE_FLAG s "\n", torture_type); } while (0)
 #define VERBOSE_PRINTK_STRING(s) \
-	do { if (verbose) printk(KERN_ALERT "%s" TORTURE_FLAG s "\n", torture_type); } while (0)
+	do { if (verbose) pr_alert("%s" TORTURE_FLAG s "\n", torture_type); } while (0)
 #define VERBOSE_PRINTK_ERRSTRING(s) \
-	do { if (verbose) printk(KERN_ALERT "%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
+	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! " s "\n", torture_type); } while (0)
 
 static char printk_buf[4096];
 
@@ -242,7 +242,7 @@ rcutorture_shutdown_notify(struct notifier_block *unused1,
 	if (fullstop == FULLSTOP_DONTSTOP)
 		fullstop = FULLSTOP_SHUTDOWN;
 	else
-		printk(KERN_WARNING /* but going down anyway, so... */
+		pr_warn(/* but going down anyway, so... */
 		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
 	mutex_unlock(&fullstop_mutex);
 	return NOTIFY_DONE;
@@ -255,7 +255,7 @@ rcutorture_shutdown_notify(struct notifier_block *unused1,
 static void rcutorture_shutdown_absorb(char *title)
 {
 	if (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
-		printk(KERN_NOTICE
+		pr_notice(
 		       "rcutorture thread %s parking due to system shutdown\n",
 		       title);
 		schedule_timeout_uninterruptible(MAX_SCHEDULE_TIMEOUT);
@@ -1276,7 +1276,7 @@ rcu_torture_stats_print(void)
 	int cnt;
 
 	cnt = rcu_torture_printk(printk_buf);
-	printk(KERN_ALERT "%s", printk_buf);
+	pr_alert("%s", printk_buf);
 }
 
 /*
@@ -1389,20 +1389,20 @@ rcu_torture_stutter(void *arg)
 static inline void
 rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, char *tag)
 {
-	printk(KERN_ALERT "%s" TORTURE_FLAG
-		"--- %s: nreaders=%d nfakewriters=%d "
-		"stat_interval=%d verbose=%d test_no_idle_hz=%d "
-		"shuffle_interval=%d stutter=%d irqreader=%d "
-		"fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
-		"test_boost=%d/%d test_boost_interval=%d "
-		"test_boost_duration=%d shutdown_secs=%d "
-		"onoff_interval=%d onoff_holdoff=%d\n",
-		torture_type, tag, nrealreaders, nfakewriters,
-		stat_interval, verbose, test_no_idle_hz, shuffle_interval,
-		stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
-		test_boost, cur_ops->can_boost,
-		test_boost_interval, test_boost_duration, shutdown_secs,
-		onoff_interval, onoff_holdoff);
+	pr_alert("%s" TORTURE_FLAG
+		 "--- %s: nreaders=%d nfakewriters=%d "
+		 "stat_interval=%d verbose=%d test_no_idle_hz=%d "
+		 "shuffle_interval=%d stutter=%d irqreader=%d "
+		 "fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
+		 "test_boost=%d/%d test_boost_interval=%d "
+		 "test_boost_duration=%d shutdown_secs=%d "
+		 "onoff_interval=%d onoff_holdoff=%d\n",
+		 torture_type, tag, nrealreaders, nfakewriters,
+		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
+		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
+		 test_boost, cur_ops->can_boost,
+		 test_boost_interval, test_boost_duration, shutdown_secs,
+		 onoff_interval, onoff_holdoff);
 }
 
 static struct notifier_block rcutorture_shutdown_nb = {
@@ -1469,9 +1469,9 @@ rcu_torture_shutdown(void *arg)
 	       !kthread_should_stop()) {
 		delta = shutdown_time - jiffies_snap;
 		if (verbose)
-			printk(KERN_ALERT "%s" TORTURE_FLAG
-			       "rcu_torture_shutdown task: %lu jiffies remaining\n",
-			       torture_type, delta);
+			pr_alert("%s" TORTURE_FLAG
+				 "rcu_torture_shutdown task: %lu jiffies remaining\n",
+				 torture_type, delta);
 		schedule_timeout_interruptible(delta);
 		jiffies_snap = ACCESS_ONCE(jiffies);
 	}
@@ -1517,16 +1517,16 @@ rcu_torture_onoff(void *arg)
 		cpu = (rcu_random(&rand) >> 4) % (maxcpu + 1);
 		if (cpu_online(cpu) && cpu_is_hotpluggable(cpu)) {
 			if (verbose)
-				printk(KERN_ALERT "%s" TORTURE_FLAG
-				       "rcu_torture_onoff task: offlining %d\n",
-				       torture_type, cpu);
+				pr_alert("%s" TORTURE_FLAG
+					 "rcu_torture_onoff task: offlining %d\n",
+					 torture_type, cpu);
 			starttime = jiffies;
 			n_offline_attempts++;
 			if (cpu_down(cpu) == 0) {
 				if (verbose)
-					printk(KERN_ALERT "%s" TORTURE_FLAG
-					       "rcu_torture_onoff task: offlined %d\n",
-					       torture_type, cpu);
+					pr_alert("%s" TORTURE_FLAG
+						 "rcu_torture_onoff task: offlined %d\n",
+						 torture_type, cpu);
 				n_offline_successes++;
 				delta = jiffies - starttime;
 				sum_offline += delta;
@@ -1541,16 +1541,16 @@ rcu_torture_onoff(void *arg)
 			}
 		} else if (cpu_is_hotpluggable(cpu)) {
 			if (verbose)
-				printk(KERN_ALERT "%s" TORTURE_FLAG
-				       "rcu_torture_onoff task: onlining %d\n",
-				       torture_type, cpu);
+				pr_alert("%s" TORTURE_FLAG
+					 "rcu_torture_onoff task: onlining %d\n",
+					 torture_type, cpu);
 			starttime = jiffies;
 			n_online_attempts++;
 			if (cpu_up(cpu) == 0) {
 				if (verbose)
-					printk(KERN_ALERT "%s" TORTURE_FLAG
-					       "rcu_torture_onoff task: onlined %d\n",
-					       torture_type, cpu);
+					pr_alert("%s" TORTURE_FLAG
+						 "rcu_torture_onoff task: onlined %d\n",
+						 torture_type, cpu);
 				n_online_successes++;
 				delta = jiffies - starttime;
 				sum_online += delta;
@@ -1626,14 +1626,14 @@ static int __cpuinit rcu_torture_stall(void *args)
 	if (!kthread_should_stop()) {
 		stop_at = get_seconds() + stall_cpu;
 		/* RCU CPU stall is expected behavior in following code. */
-		printk(KERN_ALERT "rcu_torture_stall start.\n");
+		pr_alert("rcu_torture_stall start.\n");
 		rcu_read_lock();
 		preempt_disable();
 		while (ULONG_CMP_LT(get_seconds(), stop_at))
 			continue;  /* Induce RCU CPU stall warning. */
 		preempt_enable();
 		rcu_read_unlock();
-		printk(KERN_ALERT "rcu_torture_stall end.\n");
+		pr_alert("rcu_torture_stall end.\n");
 	}
 	rcutorture_shutdown_absorb("rcu_torture_stall");
 	while (!kthread_should_stop())
@@ -1749,12 +1749,12 @@ static int rcu_torture_barrier_init(void)
 	if (n_barrier_cbs == 0)
 		return 0;
 	if (cur_ops->call == NULL || cur_ops->cb_barrier == NULL) {
-		printk(KERN_ALERT "%s" TORTURE_FLAG
-		       " Call or barrier ops missing for %s,\n",
-		       torture_type, cur_ops->name);
-		printk(KERN_ALERT "%s" TORTURE_FLAG
-		       " RCU barrier testing omitted from run.\n",
-		       torture_type);
+		pr_alert("%s" TORTURE_FLAG
+			 " Call or barrier ops missing for %s,\n",
+			 torture_type, cur_ops->name);
+		pr_alert("%s" TORTURE_FLAG
+			 " RCU barrier testing omitted from run.\n",
+			 torture_type);
 		return 0;
 	}
 	atomic_set(&barrier_cbs_count, 0);
@@ -1847,7 +1847,7 @@ rcu_torture_cleanup(void)
 	mutex_lock(&fullstop_mutex);
 	rcutorture_record_test_transition();
 	if (fullstop == FULLSTOP_SHUTDOWN) {
-		printk(KERN_WARNING /* but going down anyway, so... */
+		pr_warn(/* but going down anyway, so... */
 		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
 		mutex_unlock(&fullstop_mutex);
 		schedule_timeout_uninterruptible(10);
@@ -1971,17 +1971,17 @@ rcu_torture_init(void)
 			break;
 	}
 	if (i == ARRAY_SIZE(torture_ops)) {
-		printk(KERN_ALERT "rcu-torture: invalid torture type: \"%s\"\n",
-		       torture_type);
-		printk(KERN_ALERT "rcu-torture types:");
+		pr_alert("rcu-torture: invalid torture type: \"%s\"\n",
+			 torture_type);
+		pr_alert("rcu-torture types:");
 		for (i = 0; i < ARRAY_SIZE(torture_ops); i++)
-			printk(KERN_ALERT " %s", torture_ops[i]->name);
-		printk(KERN_ALERT "\n");
+			pr_alert(" %s", torture_ops[i]->name);
+		pr_alert("\n");
 		mutex_unlock(&fullstop_mutex);
 		return -EINVAL;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
-		printk(KERN_ALERT "rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
+		pr_alert("rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
 		fqs_duration = 0;
 	}
 	if (cur_ops->init)
