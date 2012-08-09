@@ -869,7 +869,14 @@ static int gfs2_glock_demote_wait(void *word)
 	return 0;
 }
 
-static void wait_on_holder(struct gfs2_holder *gh)
+/**
+ * gfs2_glock_wait - wait on a glock acquisition
+ * @gh: the glock holder
+ *
+ * Returns: 0 on success
+ */
+
+int gfs2_glock_wait(struct gfs2_holder *gh)
 {
 	unsigned long time1 = jiffies;
 
@@ -880,6 +887,7 @@ static void wait_on_holder(struct gfs2_holder *gh)
 		gh->gh_gl->gl_hold_time = min(gh->gh_gl->gl_hold_time +
 					      GL_GLOCK_HOLD_INCR,
 					      GL_GLOCK_MAX_HOLD);
+	return gh->gh_error;
 }
 
 static void wait_on_demote(struct gfs2_glock *gl)
@@ -913,19 +921,6 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 	if (gl->gl_ops->go_callback)
 		gl->gl_ops->go_callback(gl);
 	trace_gfs2_demote_rq(gl);
-}
-
-/**
- * gfs2_glock_wait - wait on a glock acquisition
- * @gh: the glock holder
- *
- * Returns: 0 on success
- */
-
-int gfs2_glock_wait(struct gfs2_holder *gh)
-{
-	wait_on_holder(gh);
-	return gh->gh_error;
 }
 
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
