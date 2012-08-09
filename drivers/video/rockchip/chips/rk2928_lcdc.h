@@ -385,6 +385,72 @@ typedef volatile struct tagLCDC_REG
 #define v_W0_CBR_VSP_OFFSET(x)   (((x)&0xff)<<24)
 
 
+//LCDC_SCL_REG0
+#define m_SCL_DSP_ZERO 		 (1<<4)
+#define m_SCL_DEN_INVERT	 (1<<3)
+#define m_SCL_SYNC_INVERT	 (1<<2)
+#define m_SCL_DCLK_INVERT	 (1<<1)
+#define m_SCL_EN	 	 (1<<0)
+#define v_SCL_DSP_ZERO(x) 	 (((x)&1)<<4)
+#define v_SCL_DEN_INVERT(x)	 (((x)&1)<<3)
+#define v_SCL_SYNC_INVERT(x)	 (((x)&1)<<2)
+#define v_SCL_DCLK_INVERT(x)	 (((x)&1)<<1)
+#define v_SCL_EN(x)	 	 (((x)&1)<<0)
+
+//LCDC_SCL_REG1
+#define m_SCL_V_FACTOR 		 (0x3fff<<16)
+#define m_SCL_H_FACTOR		 (0x3fff<<0)
+#define v_SCL_V_FACTOR(x) 		 (((x)&0x3fff)<<16)
+#define v_SCL_H_FACTOR(x)		 (((x)&0x3fff)<<0)
+
+
+//LCDC_SCL_REG2
+#define m_SCL_DSP_FRAME_VST	(0xfff<<16)
+#define m_SCL_DSP_FRAME_HST	(0xfff<<0)
+#define v_SCL_DSP_FRAME_VST(x)	(((x)&0xfff)<<16)
+#define v_SCL_DSP_FRAME_HST(x)	(((x)&0xfff)<<0)
+
+//LCDC_SCL_REG3
+#define m_SCL_DSP_HS_END	(0xff<<16)
+#define m_SCL_DSP_HTOTAL	(0xfff<<0)
+#define v_SCL_DSP_HS_END(x)	(((x)&0xff)<<16)
+#define v_SCL_DSP_HTOTAL(x)	(((x)&0xfff)<<0)
+
+//LCDC_SCL_REG4
+#define m_SCL_DSP_HACT_ST	(0x3ff<<16)
+#define m_SCL_DSP_HACT_END	(0xfff<<0)
+#define v_SCL_DSP_HACT_ST(x)	(((x)&0x3ff)<<16)
+#define v_SCL_DSP_HACT_END(x)	(((x)&0xfff)<<0)
+
+//LCDC_SCL_REG5
+#define m_SCL_DSP_VS_END	(0xff<<16)
+#define m_SCL_DSP_VTOTAL	(0xfff<<0)
+#define v_SCL_DSP_VS_END(x)	(((x)&0xff)<<16)
+#define v_SCL_DSP_VTOTAL(x)	(((x)&0xfff)<<0)
+
+//LCDC_SCL_REG6
+#define m_SCL_DSP_VACT_ST	(0xff<<16)
+#define m_SCL_DSP_VACT_END	(0xfff<<0)
+#define v_SCL_DSP_VACT_ST(x)	(((x)&0xff)<<16)
+#define v_SCL_DSP_VACT_END(x)	(((x)&0xfff)<<0)
+
+
+//LCDC_SCL_REG7
+#define m_SCL_DSP_HBOR_ST	(0x3ff<<16)
+#define m_SCL_DSP_HBOR_END	(0xfff<<0)
+#define v_SCL_DSP_HBOR_ST(x)	(((x)&0x3ff)<<16)
+#define v_SCL_DSP_HBOR_END(x)	(((x)&0xfff)<<0)
+
+//LCDC_SCL_REG8
+
+#define m_SCL_DSP_VBOR_ST	(0xff<<16)
+#define m_SCL_DSP_VBOR_END	(0xfff<<0)
+#define v_SCL_DSP_VBOR_ST(x)	(((x)&0xff)<<16)
+#define v_SCL_DSP_VBOR_END(x)	(((x)&0xfff)<<0)
+
+
+
+
 
 #define CalScale(x, y)	             (((u32)x*0x1000)/y)
 struct rk2928_lcdc_device{
@@ -407,6 +473,7 @@ struct rk2928_lcdc_device{
 	struct clk		*hclk;				//lcdc AHP clk
 	struct clk		*dclk;				//lcdc dclk
 	struct clk		*aclk;				//lcdc share memory frequency
+	struct clk		*sclk;				//scale clk
 	struct clk		*aclk_parent;		//lcdc aclk divider frequency source
 	struct clk		*aclk_ddr_lcdc; 	//DDR LCDC AXI clock disable.
 	struct clk		*aclk_disp_matrix;	//DISPLAY matrix AXI clock disable.

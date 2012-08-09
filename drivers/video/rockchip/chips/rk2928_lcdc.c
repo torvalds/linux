@@ -48,24 +48,17 @@ static int init_rk2928_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
 	if(lcdc_dev->id == 0) //lcdc0
 	{
-		lcdc_dev->pd = clk_get(NULL,"pd_lcdc0");
 		lcdc_dev->hclk = clk_get(NULL,"hclk_lcdc0"); 
 		lcdc_dev->aclk = clk_get(NULL,"aclk_lcdc0");
 		lcdc_dev->dclk = clk_get(NULL,"dclk_lcdc0");
-	}
-	else if(lcdc_dev->id == 1)
-	{
-		lcdc_dev->pd = clk_get(NULL,"pd_lcdc1");
-		lcdc_dev->hclk = clk_get(NULL,"hclk_lcdc1");  
-		lcdc_dev->aclk = clk_get(NULL,"aclk_lcdc1");
-		lcdc_dev->dclk = clk_get(NULL,"dclk_lcdc1");
+		lcdc_dev->sclk = clk_get(NULL,"sclk_lcdc0");
 	}
 	else
 	{
 		printk(KERN_ERR "invalid lcdc device!\n");
 		return -EINVAL;
 	}
-	if (IS_ERR(lcdc_dev->pd) || (IS_ERR(lcdc_dev->aclk)) ||(IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk)))
+	if (IS_ERR(lcdc_dev->sclk) || (IS_ERR(lcdc_dev->aclk)) ||(IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk)))
     	{
        		printk(KERN_ERR "failed to get lcdc%d clk source\n",lcdc_dev->id);
    	}
@@ -206,6 +199,27 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 	              v_VERPRD(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
 		LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
 	              v_VASP(screen->vsync_len + screen->upper_margin));
+
+
+		//set register for scaller
+		LcdMskReg(lcdc_dev,SCL_REG0,m_SCL_DSP_ZERO | m_SCL_DEN_INVERT |
+			m_SCL_SYNC_INVERT | m_SCL_DCLK_INVERT | m_SCL_EN,v_SCL_DSP_ZERO(0) |
+			v_SCL_DEN_INVERT(screen->pin_den) | v_SCL_SYNC_INVERT(screen->pin_hsync) |
+			v_SCL_DCLK_INVERT(screen->pin_dclk) | v_SCL_EN(1));
+		LcdWrReg(lcdc_dev,SCL_REG2,v_HASP(0) | v_HAEP(0));
+		LcdWrReg(lcdc_dev,SCL_REG3,v_HASP(screen->hsync_len + screen->left_margin + x_res) |
+			 v_HAEP(screen->hsync_len + screen->left_margin + x_res + right_margin));
+		LcdWrReg(lcdc_dev,SCL_REG4,v_HASP(screen->hsync_len + screen->left_margin) |
+			 v_HAEP(screen->hsync_len + screen->left_margin + x_res + right_margin));
+		LcdWrReg(lcdc_dev,SCL_REG5,v_VASP(screen->vsync_len + screen->upper_margin+y_res) |
+			 v_VAEP(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
+		LcdWrReg(lcdc_dev,SCL_REG6,v_VASP(screen->vsync_len + screen->upper_margin+y_res) |
+			 v_VAEP(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
+		LcdWrReg(lcdc_dev,SCL_REG8,v_VASP(screen->vsync_len + screen->upper_margin+y_res) |
+			 v_VAEP(screen->vsync_len + screen->upper_margin + y_res));
+		LcdWrReg(lcdc_dev,SCL_REG7,v_HASP(screen->hsync_len + screen->left_margin) |
+			 v_HAEP(screen->hsync_len + screen->left_margin + x_res ));
+		LcdWrReg(lcdc_dev,SCL_REG1,v_SCL_V_FACTOR(0x1000)|v_SCL_H_FACTOR(0x1000));
 		// let above to take effect
 		LCDC_REG_CFG_DONE();
 	}
@@ -216,8 +230,14 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 	{
         	printk(KERN_ERR ">>>>>> set lcdc%d dclk failed\n",lcdc_dev->id);
 	}
+	ret = clk_set_rate(lcdc_dev->sclk, screen->pixclock);
+	if(ret)
+	{
+        	printk(KERN_ERR ">>>>>> set lcdc%d sclk failed\n",lcdc_dev->id);
+	}
     	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	clk_enable(lcdc_dev->dclk);
+	clk_enable(lcdc_dev->sclk);
 	
 	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
 		(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
@@ -442,7 +462,7 @@ static  int win0_set_par(struct rk2928_lcdc_device *lcdc_dev,rk_screen *screen,
 				LcdMskReg(lcdc_dev, WIN_VIR,m_WIN0_VIR,v_WIN0_RGB888_VIRWIDTH(xvir));
 				break;
 		}
-
+		
 		LCDC_REG_CFG_DONE();
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
