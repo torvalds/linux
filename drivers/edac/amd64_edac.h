@@ -267,18 +267,19 @@
 #define online_spare_bad_dramcs(pvt, c)	(((pvt)->online_spare >> (4 + 4 * (c))) & 0x7)
 
 #define F10_NB_ARRAY_ADDR		0xB8
-#define F10_NB_ARRAY_DRAM_ECC		BIT(31)
+#define F10_NB_ARRAY_DRAM		BIT(31)
 
 /* Bits [2:1] are used to select 16-byte section within a 64-byte cacheline  */
-#define SET_NB_ARRAY_ADDRESS(section)	(((section) & 0x3) << 1)
+#define SET_NB_ARRAY_ADDR(section)	(((section) & 0x3) << 1)
 
 #define F10_NB_ARRAY_DATA		0xBC
-#define SET_NB_DRAM_INJECTION_WRITE(word, bits)  \
-					(BIT(((word) & 0xF) + 20) | \
-					BIT(17) | bits)
-#define SET_NB_DRAM_INJECTION_READ(word, bits)  \
-					(BIT(((word) & 0xF) + 20) | \
-					BIT(16) |  bits)
+#define SET_NB_DRAM_INJECTION_WRITE(inj)  \
+					(BIT(((inj.word) & 0xF) + 20) | \
+					BIT(17) | inj.bit_map)
+#define SET_NB_DRAM_INJECTION_READ(inj)  \
+					(BIT(((inj.word) & 0xF) + 20) | \
+					BIT(16) |  inj.bit_map)
+
 
 #define NBCAP				0xE8
 #define NBCAP_CHIPKILL			BIT(4)
