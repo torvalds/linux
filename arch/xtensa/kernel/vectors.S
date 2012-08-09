@@ -225,7 +225,13 @@ ENTRY(_DoubleExceptionVector)
 	/* Window overflow/underflow exception. Get stack pointer. */
 
 	mov	a3, a2
-	movi	a2, exc_table
+	/* This explicit literal and the following references to it are made
+	 * in order to fit DoubleExceptionVector.literals into the available
+	 * 16-byte gap before DoubleExceptionVector.text in the absence of
+	 * link time relaxation. See kernel/vmlinux.lds.S
+	 */
+	.literal .Lexc_table, exc_table
+	l32r	a2, .Lexc_table
 	l32i	a2, a2, EXC_TABLE_KSTK
 
 	/* Check for overflow/underflow exception, jump if overflow. */
@@ -255,7 +261,7 @@ ENTRY(_DoubleExceptionVector)
 	s32i	a0, a2, PT_AREG0
 
 	wsr	a3, excsave1		# save a3
-	movi	a3, exc_table
+	l32r	a3, .Lexc_table
 
 	rsr	a0, exccause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
@@ -267,7 +273,7 @@ ENTRY(_DoubleExceptionVector)
 
 	/* a0: depc, a1: a1, a2: a2, a3: trashed, depc: a0, excsave1: a3 */
 
-	movi	a3, exc_table
+	l32r	a3, .Lexc_table
 	s32i	a2, a3, EXC_TABLE_DOUBLE_SAVE	# temporary variable
 
 	/* Enter critical section. */
@@ -296,7 +302,7 @@ ENTRY(_DoubleExceptionVector)
 
 	/* a0: avail, a1: a1, a2: kstk, a3: avail, depc: a2, excsave: a3 */
 
-	movi	a3, exc_table
+	l32r	a3, .Lexc_table
 	rsr	a0, exccause
 	addx4	a0, a0, a3
 	l32i	a0, a0, EXC_TABLE_FAST_USER
