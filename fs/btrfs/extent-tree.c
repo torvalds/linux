@@ -2318,6 +2318,23 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 		ref->in_tree = 0;
 		rb_erase(&ref->rb_node, &delayed_refs->root);
 		delayed_refs->num_entries--;
+		if (locked_ref) {
+			/*
+			 * when we play the delayed ref, also correct the
+			 * ref_mod on head
+			 */
+			switch (ref->action) {
+			case BTRFS_ADD_DELAYED_REF:
+			case BTRFS_ADD_DELAYED_EXTENT:
+				locked_ref->node.ref_mod -= ref->ref_mod;
+				break;
+			case BTRFS_DROP_DELAYED_REF:
+				locked_ref->node.ref_mod += ref->ref_mod;
+				break;
+			default:
+				WARN_ON(1);
+			}
+		}
 		spin_unlock(&delayed_refs->lock);
 
 		ret = run_one_delayed_ref(trans, root, ref, extent_op,
