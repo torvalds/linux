@@ -33,6 +33,9 @@
  */
 
 /dts-v1/;
+
+/include/ "e5500_power_isa.dtsi"
+
 / {
 	compatible = "fsl,P5040";
 	#address-cells = <2>;
