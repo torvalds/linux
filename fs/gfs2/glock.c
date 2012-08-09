@@ -186,20 +186,6 @@ static void gfs2_glock_remove_from_lru(struct gfs2_glock *gl)
 }
 
 /**
- * __gfs2_glock_schedule_for_reclaim - Add a glock to the reclaim list
- * @gl: the glock
- *
- * If the glock is demotable, then we add it (or move it) to the end
- * of the glock LRU list.
- */
-
-static void __gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
-{
-	if (demote_ok(gl))
-		gfs2_glock_add_to_lru(gl);
-}
-
-/**
  * gfs2_glock_put_nolock() - Decrement reference count on glock
  * @gl: The glock to put
  *
@@ -1121,8 +1107,9 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		    !test_bit(GLF_DEMOTE, &gl->gl_flags))
 			fast_path = 1;
 	}
-	if (!test_bit(GLF_LFLUSH, &gl->gl_flags))
-		__gfs2_glock_schedule_for_reclaim(gl);
+	if (!test_bit(GLF_LFLUSH, &gl->gl_flags) && demote_ok(gl))
+		gfs2_glock_add_to_lru(gl);
+
 	trace_gfs2_glock_queue(gh, 0);
 	spin_unlock(&gl->gl_spin);
 	if (likely(fast_path))
