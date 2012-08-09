@@ -6,13 +6,17 @@ _perf()
 	local cur cmd
 
 	COMPREPLY=()
-	_get_comp_words_by_ref cur
+	_get_comp_words_by_ref cur prev
 
 	cmd=${COMP_WORDS[0]}
 
 	# List perf subcommands
 	if [ $COMP_CWORD -eq 1 ]; then
 		cmds=$($cmd --list-cmds)
+		COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
+	# List possible events for -e option
+	elif [[ $prev == "-e" && "${COMP_WORDS[1]}" == @(record|stat|top) ]]; then
+		cmds=$($cmd list --raw-dump)
 		COMPREPLY=( $( compgen -W '$cmds' -- "$cur" ) )
 	# Fall down to list regular files
 	else

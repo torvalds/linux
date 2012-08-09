@@ -96,10 +96,11 @@ void parse_events_update_lists(struct list_head *list_event,
 void parse_events_error(void *data, void *scanner, char const *msg);
 int parse_events__test(void);
 
-void print_events(const char *event_glob);
+void print_events(const char *event_glob, bool name_only);
 void print_events_type(u8 type);
-void print_tracepoint_events(const char *subsys_glob, const char *event_glob);
-int print_hwcache_events(const char *event_glob);
+void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
+			     bool name_only);
+int print_hwcache_events(const char *event_glob, bool name_only);
 extern int is_valid_tracepoint(const char *event_string);
 
 extern int valid_debugfs_mount(const char *debugfs);
