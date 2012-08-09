@@ -125,6 +125,17 @@ config REGULATOR_MAX8998
 	  via I2C bus. The provided regulator is suitable for S3C6410
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_TPS65910
+	tristate "TI TPS65910/TPS65911 Power Regulators"
+	depends on MFD_TPS65910
+	help
+	  This driver supports TPS65910/TPS65911 voltage regulator chips.
+
+config REGULATOR_TPS65912
+	tristate "TI TPS65912 Power regulator"
+	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	help
+	    This driver supports TPS65912 voltage regulator chip.
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
@@ -324,11 +335,7 @@ config REGULATOR_TPS6524X
 	  serial interface currently supported on the sequencer serial
 	  port controller.
 
-config REGULATOR_TPS65910
-	tristate "TI TPS65910 Power Regulator"
-	depends on MFD_TPS65910
-	help
-	  This driver supports TPS65910 voltage regulator chips.
+
 
 endif
 

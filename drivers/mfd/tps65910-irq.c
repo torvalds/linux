@@ -45,7 +45,7 @@ static irqreturn_t tps65910_irq(int irq, void *irq_data)
 	u32 irq_mask;
 	u8 reg;
 	int i;
-
+	
 	tps65910->read(tps65910, TPS65910_INT_STS, 1, &reg);
 	irq_sts = reg;
 	tps65910->read(tps65910, TPS65910_INT_STS2, 1, &reg);
@@ -145,12 +145,23 @@ static void tps65910_irq_disable(struct irq_data *data)
 	tps65910->irq_mask |= ( 1 << irq_to_tps65910_irq(tps65910, data->irq));
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tps65910_irq_set_wake(struct irq_data *data, unsigned int enable)
+{
+	struct tps65910 *tps65910 = irq_data_get_irq_chip_data(data);
+	return irq_set_irq_wake(tps65910->chip_irq, enable);
+}
+#else
+#define tps65910_irq_set_wake NULL
+#endif
+
 static struct irq_chip tps65910_irq_chip = {
 	.name = "tps65910",
 	.irq_bus_lock = tps65910_irq_lock,
 	.irq_bus_sync_unlock = tps65910_irq_sync_unlock,
 	.irq_disable = tps65910_irq_disable,
 	.irq_enable = tps65910_irq_enable,
+	.irq_set_wake = tps65910_irq_set_wake,
 };
 
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
@@ -158,17 +169,27 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 {
 	int ret, cur_irq;
 	int flags = IRQF_ONESHOT;
+	u8 reg;
 
 	if (!irq) {
 		dev_warn(tps65910->dev, "No interrupt support, no core IRQ\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	if (!pdata || !pdata->irq_base) {
 		dev_warn(tps65910->dev, "No interrupt support, no IRQ base\n");
-		return -EINVAL;
+		return 0;
 	}
 
+	/* Clear unattended interrupts */
+	tps65910->read(tps65910, TPS65910_INT_STS, 1, &reg);
+	tps65910->write(tps65910, TPS65910_INT_STS, 1, &reg);
+	tps65910->read(tps65910, TPS65910_INT_STS2, 1, &reg);
+	tps65910->write(tps65910, TPS65910_INT_STS2, 1, &reg);
+	tps65910->read(tps65910, TPS65910_INT_STS3, 1, &reg);
+	tps65910->write(tps65910, TPS65910_INT_STS3, 1, &reg);
+
+	/* Mask top level interrupts */
 	tps65910->irq_mask = 0xFFFFFF;
 
 	mutex_init(&tps65910->irq_lock);
@@ -215,6 +236,7 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 
 int tps65910_irq_exit(struct tps65910 *tps65910)
 {
-	free_irq(tps65910->chip_irq, tps65910);
+	if (tps65910->chip_irq)
+		free_irq(tps65910->chip_irq, tps65910);
 	return 0;
 }

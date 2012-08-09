@@ -44,6 +44,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
+#include <linux/mfd/tps65910.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -821,6 +823,7 @@ static struct platform_device device_ion = {
 	},
 };
 #endif
+
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
@@ -1075,7 +1078,22 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 };
 #endif
 #ifdef CONFIG_I2C1_RK30
+#ifdef CONFIG_MFD_TPS65910
+#define TPS65910_HOST_IRQ        RK2928_PIN3_PC6
+#include "board-rk30-sdk-tps65910.c"
+#endif
 static struct i2c_board_info __initdata i2c1_info[] = {
+
+#if defined (CONFIG_MFD_TPS65910)
+	{
+        .type           = "tps65910",
+        .addr           = TPS65910_I2C_ID0,
+        .flags          = 0,
+        .irq            = TPS65910_HOST_IRQ,
+    	.platform_data = &tps65910_data,
+	},
+#endif
+
 };
 #endif
 #ifdef CONFIG_I2C2_RK30
