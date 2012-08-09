@@ -2710,12 +2710,29 @@ static const struct cparams {
 	{ 0, 800, 231, 23784 },
 };
 
+/**
+ * Lock protecting IPS related data structures
+ *   - i915_mch_dev
+ *   - dev_priv->max_delay
+ *   - dev_priv->min_delay
+ *   - dev_priv->fmax
+ *   - dev_priv->gpu_busy
+ *   - dev_priv->gfx_power
+ */
+static DEFINE_SPINLOCK(mchdev_lock);
+
+/* Global for IPS driver to get at the current i915 device. Protected by
+ * mchdev_lock. */
+static struct drm_i915_private *i915_mch_dev;
+
 unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 {
 	u64 total_count, diff, ret;
 	u32 count1, count2, count3, m = 0, c = 0;
 	unsigned long now = jiffies_to_msecs(jiffies), diff1;
 	int i;
+
+	assert_spin_locked(&mchdev_lock);
 
 	diff1 = now - dev_priv->last_time1;
 
@@ -2918,15 +2935,14 @@ static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
 		return v_table[pxvid].vd;
 }
 
-void i915_update_gfx_val(struct drm_i915_private *dev_priv)
+static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 {
 	struct timespec now, diff1;
 	u64 diff;
 	unsigned long diffms;
 	u32 count;
 
-	if (dev_priv->info->gen != 5)
-		return;
+	assert_spin_locked(&mchdev_lock);
 
 	getrawmonotonic(&now);
 	diff1 = timespec_sub(now, dev_priv->last_time2);
@@ -2954,10 +2970,24 @@ void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 	dev_priv->gfx_power = diff;
 }
 
+void i915_update_gfx_val(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->info->gen != 5)
+		return;
+
+	spin_lock(&mchdev_lock);
+
+	__i915_update_gfx_val(dev_priv);
+
+	spin_unlock(&mchdev_lock);
+}
+
 unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 {
 	unsigned long t, corr, state1, corr2, state2;
 	u32 pxvid, ext_v;
+
+	assert_spin_locked(&mchdev_lock);
 
 	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->cur_delay * 4));
 	pxvid = (pxvid >> 24) & 0x7f;
@@ -2984,22 +3014,10 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 	state2 = (corr2 * state1) / 10000;
 	state2 /= 100; /* convert to mW */
 
-	i915_update_gfx_val(dev_priv);
+	__i915_update_gfx_val(dev_priv);
 
 	return dev_priv->gfx_power + state2;
 }
-
-/* Global for IPS driver to get at the current i915 device */
-static struct drm_i915_private *i915_mch_dev;
-/*
- * Lock protecting IPS related data structures
- *   - i915_mch_dev
- *   - dev_priv->max_delay
- *   - dev_priv->min_delay
- *   - dev_priv->fmax
- *   - dev_priv->gpu_busy
- */
-static DEFINE_SPINLOCK(mchdev_lock);
 
 /**
  * i915_read_mch_val - return value for IPS use
@@ -3163,6 +3181,8 @@ ips_ping_for_i915_load(void)
 
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
 {
+	/* We only register the i915 ips part with intel-ips once everything is
+	 * set up, to avoid intel-ips sneaking in and reading bogus values. */
 	spin_lock(&mchdev_lock);
 	i915_mch_dev = dev_priv;
 	dev_priv->mchdev_lock = &mchdev_lock;
