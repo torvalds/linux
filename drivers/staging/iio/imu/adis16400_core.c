@@ -610,7 +610,7 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static struct iio_chan_spec adis16400_channels[] = {
+static const struct iio_chan_spec adis16400_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -740,7 +740,7 @@ static struct iio_chan_spec adis16400_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(12)
 };
 
-static struct iio_chan_spec adis16350_channels[] = {
+static const struct iio_chan_spec adis16350_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
@@ -865,7 +865,7 @@ static struct iio_chan_spec adis16350_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(11)
 };
 
-static struct iio_chan_spec adis16300_channels[] = {
+static const struct iio_chan_spec adis16300_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,

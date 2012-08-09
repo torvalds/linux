@@ -355,7 +355,7 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-static struct iio_chan_spec adis16203_channels[] = {
+static const struct iio_chan_spec adis16203_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,

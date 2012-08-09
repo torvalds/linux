@@ -661,7 +661,7 @@ static const struct attribute_group ade7758_attribute_group = {
 	.attrs = ade7758_attributes,
 };
 
-static struct iio_chan_spec ade7758_channels[] = {
+static const struct iio_chan_spec ade7758_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,

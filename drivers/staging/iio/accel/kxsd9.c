@@ -186,7 +186,7 @@ error_ret:
 		.address = KXSD9_REG_##axis,				\
 	}
 
-static struct iio_chan_spec kxsd9_channels[] = {
+static const struct iio_chan_spec kxsd9_channels[] = {
 	KXSD9_ACCEL_CHAN(X), KXSD9_ACCEL_CHAN(Y), KXSD9_ACCEL_CHAN(Z),
 	{
 		.type = IIO_VOLTAGE,

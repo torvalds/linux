@@ -100,7 +100,7 @@ enum max1363_modes {
  */
 struct max1363_chip_info {
 	const struct iio_info		*info;
-	struct iio_chan_spec *channels;
+	const struct iio_chan_spec *channels;
 	int num_channels;
 	const enum max1363_modes	*mode_list;
 	enum max1363_modes		default_mode;
