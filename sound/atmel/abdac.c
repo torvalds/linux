@@ -534,7 +534,7 @@ out_put_pclk:
 	return retval;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atmel_abdac_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);

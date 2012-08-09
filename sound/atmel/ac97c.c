@@ -1134,7 +1134,7 @@ err_snd_card_new:
 	return retval;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int atmel_ac97c_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
