@@ -2131,26 +2131,42 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			err = fe->ops.read_status(fe, status);
 		break;
 	}
+
 	case FE_READ_BER:
-		if (fe->ops.read_ber)
-			err = fe->ops.read_ber(fe, (__u32*) parg);
+		if (fe->ops.read_ber) {
+			if (fepriv->thread)
+				err = fe->ops.read_ber(fe, (__u32 *) parg);
+			else
+				err = -EAGAIN;
+		}
 		break;
 
 	case FE_READ_SIGNAL_STRENGTH:
-		if (fe->ops.read_signal_strength)
-			err = fe->ops.read_signal_strength(fe, (__u16*) parg);
+		if (fe->ops.read_signal_strength) {
+			if (fepriv->thread)
+				err = fe->ops.read_signal_strength(fe, (__u16 *) parg);
+			else
+				err = -EAGAIN;
+		}
 		break;
 
 	case FE_READ_SNR:
-		if (fe->ops.read_snr)
-			err = fe->ops.read_snr(fe, (__u16*) parg);
+		if (fe->ops.read_snr) {
+			if (fepriv->thread)
+				err = fe->ops.read_snr(fe, (__u16 *) parg);
+			else
+				err = -EAGAIN;
+		}
 		break;
 
 	case FE_READ_UNCORRECTED_BLOCKS:
-		if (fe->ops.read_ucblocks)
-			err = fe->ops.read_ucblocks(fe, (__u32*) parg);
+		if (fe->ops.read_ucblocks) {
+			if (fepriv->thread)
+				err = fe->ops.read_ucblocks(fe, (__u32 *) parg);
+			else
+				err = -EAGAIN;
+		}
 		break;
-
 
 	case FE_DISEQC_RESET_OVERLOAD:
 		if (fe->ops.diseqc_reset_overload) {
