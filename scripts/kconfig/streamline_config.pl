@@ -252,7 +252,7 @@ sub read_kconfig {
     close($kinfile);
 
     # read in any configs that were found.
-    foreach $kconfig (@kconfigs) {
+    foreach my $kconfig (@kconfigs) {
 	if (!defined($read_kconfigs{$kconfig})) {
 	    $read_kconfigs{$kconfig} = 1;
 	    read_kconfig($kconfig);
