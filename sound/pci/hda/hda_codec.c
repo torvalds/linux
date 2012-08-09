@@ -4184,7 +4184,7 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
  *
  * This function returns 0 if successful, or a negative error code.
  */
-int __devinit snd_hda_build_pcms(struct hda_bus *bus)
+int snd_hda_build_pcms(struct hda_bus *bus)
 {
 	struct hda_codec *codec;
 

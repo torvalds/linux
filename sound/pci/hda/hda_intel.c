@@ -564,13 +564,17 @@ enum {
  * VGA-switcher support
  */
 #ifdef SUPPORT_VGA_SWITCHEROO
+#define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
+#else
+#define use_vga_switcheroo(chip)	0
+#endif
+
+#if defined(SUPPORT_VGA_SWITCHEROO) || defined(CONFIG_SND_HDA_PATCH_LOADER)
 #define DELAYED_INIT_MARK
 #define DELAYED_INITDATA_MARK
-#define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
 #else
 #define DELAYED_INIT_MARK	__devinit
 #define DELAYED_INITDATA_MARK	__devinitdata
-#define use_vga_switcheroo(chip)	0
 #endif
 
 static char *driver_short_names[] DELAYED_INITDATA_MARK = {
@@ -3155,12 +3159,38 @@ static void power_down_all_codecs(struct azx *chip)
 #endif
 }
 
+/* callback from request_firmware_nowait() */
+static void azx_firmware_cb(const struct firmware *fw, void *context)
+{
+	struct snd_card *card = context;
+	struct azx *chip = card->private_data;
+	struct pci_dev *pci = chip->pci;
+
+	if (!fw) {
+		snd_printk(KERN_ERR SFX "Cannot load firmware, aborting\n");
+		goto error;
+	}
+
+	chip->fw = fw;
+	if (!chip->disabled) {
+		/* continue probing */
+		if (azx_probe_continue(chip))
+			goto error;
+	}
+	return; /* OK */
+
+ error:
+	snd_card_free(card);
+	pci_set_drvdata(pci, NULL);
+}
+
 static int __devinit azx_probe(struct pci_dev *pci,
 			       const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
 	struct azx *chip;
+	bool probe_now;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
@@ -3182,18 +3212,22 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
+	probe_now = !chip->disabled;
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (patch[dev] && *patch[dev]) {
 		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
 			   patch[dev]);
-		err = request_firmware(&chip->fw, patch[dev], &pci->dev);
+		err = request_firmware_nowait(THIS_MODULE, true, patch[dev],
+					      &pci->dev, GFP_KERNEL, card,
+					      azx_firmware_cb);
 		if (err < 0)
 			goto out_free;
+		probe_now = false; /* continued in azx_firmware_cb() */
 	}
 #endif /* CONFIG_SND_HDA_PATCH_LOADER */
 
-	if (!chip->disabled) {
+	if (probe_now) {
 		err = azx_probe_continue(chip);
 		if (err < 0)
 			goto out_free;
