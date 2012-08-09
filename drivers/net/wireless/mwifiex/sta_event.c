@@ -278,10 +278,16 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_MIC_ERR_UNICAST:
 		dev_dbg(adapter->dev, "event: UNICAST MIC ERROR\n");
+		cfg80211_michael_mic_failure(priv->netdev, priv->cfg_bssid,
+					     NL80211_KEYTYPE_PAIRWISE,
+					     -1, NULL, GFP_KERNEL);
 		break;
 
 	case EVENT_MIC_ERR_MULTICAST:
 		dev_dbg(adapter->dev, "event: MULTICAST MIC ERROR\n");
+		cfg80211_michael_mic_failure(priv->netdev, priv->cfg_bssid,
+					     NL80211_KEYTYPE_GROUP,
+					     -1, NULL, GFP_KERNEL);
 		break;
 	case EVENT_MIB_CHANGED:
 	case EVENT_INIT_DONE:
