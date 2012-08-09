@@ -1716,7 +1716,7 @@ i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 
 	WARN_ON(i915_verify_lists(ring->dev));
 
-	seqno = ring->get_seqno(ring);
+	seqno = ring->get_seqno(ring, true);
 
 	for (i = 0; i < ARRAY_SIZE(ring->sync_seqno); i++)
 		if (seqno >= ring->sync_seqno[i])
@@ -1888,7 +1888,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	bool wait_forever = true;
 	int ret;
 
-	if (i915_seqno_passed(ring->get_seqno(ring), seqno))
+	if (i915_seqno_passed(ring->get_seqno(ring, true), seqno))
 		return 0;
 
 	trace_i915_gem_request_wait_begin(ring, seqno);
@@ -1907,7 +1907,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&before);
 
 #define EXIT_COND \
-	(i915_seqno_passed(ring->get_seqno(ring), seqno) || \
+	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
 	atomic_read(&dev_priv->mm.wedged))
 	do {
 		if (interruptible)
