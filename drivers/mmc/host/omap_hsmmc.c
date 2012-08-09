@@ -964,6 +964,18 @@ static inline void omap_hsmmc_reset_controller_fsm(struct omap_hsmmc_host *host,
 			__func__);
 }
 
+static void hsmmc_command_incomplete(struct omap_hsmmc_host *host, int err)
+{
+	omap_hsmmc_reset_controller_fsm(host, SRC);
+	host->cmd->error = err;
+
+	if (host->data) {
+		omap_hsmmc_reset_controller_fsm(host, SRD);
+		omap_hsmmc_dma_cleanup(host, err);
+	}
+
+}
+
 static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 {
 	struct mmc_data *data;
@@ -974,48 +986,15 @@ static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
 
 	if (status & ERR) {
 		omap_hsmmc_dbg_report_irq(host, status);
-		if ((status & CMD_TIMEOUT) ||
-			(status & CMD_CRC)) {
-			if (host->cmd) {
-				if (status & CMD_TIMEOUT) {
-					omap_hsmmc_reset_controller_fsm(host,
-									SRC);
-					host->cmd->error = -ETIMEDOUT;
-				} else {
-					host->cmd->error = -EILSEQ;
-				}
-				end_cmd = 1;
-			}
-			if (host->data || host->response_busy) {
-				if (host->data)
-					omap_hsmmc_dma_cleanup(host,
-								-ETIMEDOUT);
-				host->response_busy = 0;
-				omap_hsmmc_reset_controller_fsm(host, SRD);
-			}
-		}
-		if ((status & DATA_TIMEOUT) ||
-			(status & DATA_CRC)) {
-			if (host->data || host->response_busy) {
-				int err = (status & DATA_TIMEOUT) ?
-						-ETIMEDOUT : -EILSEQ;
+		if (status & (CMD_TIMEOUT | DATA_TIMEOUT))
+			hsmmc_command_incomplete(host, -ETIMEDOUT);
+		else if (status & (CMD_CRC | DATA_CRC))
+			hsmmc_command_incomplete(host, -EILSEQ);
 
-				if (host->data)
-					omap_hsmmc_dma_cleanup(host, err);
-				else
-					host->mrq->cmd->error = err;
-				host->response_busy = 0;
-				omap_hsmmc_reset_controller_fsm(host, SRD);
-				end_trans = 1;
-			}
-		}
-		if (status & CARD_ERR) {
-			dev_dbg(mmc_dev(host->mmc),
-				"Ignoring card err CMD%d\n", host->cmd->opcode);
-			if (host->cmd)
-				end_cmd = 1;
-			if (host->data)
-				end_trans = 1;
+		end_cmd = 1;
+		if (host->data || host->response_busy) {
+			end_trans = 1;
+			host->response_busy = 0;
 		}
 	}
 
