@@ -690,7 +690,7 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 
 			memcpy(param->ipn, enc_key->pn, IGTK_PN_LEN);
 			memcpy(param->key, enc_key->key_material,
-			       enc_key->key_len);
+			       WLAN_KEY_LEN_AES_CMAC);
 
 			key_param_len = sizeof(struct mwifiex_cmac_param);
 			key_material->key_param_set.key_len =
