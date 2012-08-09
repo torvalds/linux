@@ -296,13 +296,21 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_helper_hpd_irq_event(dev);
 }
 
+/* defined intel_pm.c */
+extern spinlock_t mchdev_lock;
+
 static void ironlake_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 busy_up, busy_down, max_avg, min_avg;
-	u8 new_delay = dev_priv->cur_delay;
+	u8 new_delay;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mchdev_lock, flags);
 
 	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
+
+	new_delay = dev_priv->cur_delay;
 
 	I915_WRITE16(MEMINTRSTS, MEMINT_EVAL_CHG);
 	busy_up = I915_READ(RCPREVBSYTUPAVG);
@@ -325,6 +333,8 @@ static void ironlake_handle_rps_change(struct drm_device *dev)
 
 	if (ironlake_set_drps(dev, new_delay))
 		dev_priv->cur_delay = new_delay;
+
+	spin_unlock_irqrestore(&mchdev_lock, flags);
 
 	return;
 }
