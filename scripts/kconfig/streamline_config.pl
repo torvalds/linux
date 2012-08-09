@@ -100,7 +100,7 @@ my @searchconfigs = (
 	},
 );
 
-sub find_config {
+sub read_config {
     foreach my $conf (@searchconfigs) {
 	my $file = $conf->{"file"};
 
@@ -115,17 +115,15 @@ sub find_config {
 
 	print STDERR "using config: '$file'\n";
 
-	open(CIN, "$exec $file |") || die "Failed to run $exec $file";
-	return;
+	open(my $infile, '-|', "$exec $file") || die "Failed to run $exec $file";
+	my @x = <$infile>;
+	close $infile;
+	return @x;
     }
     die "No config file found";
 }
 
-find_config;
-
-# Read in the entire config file into config_file
-my @config_file = <CIN>;
-close CIN;
+my @config_file = read_config;
 
 # Parse options
 my $localmodconfig = 0;
