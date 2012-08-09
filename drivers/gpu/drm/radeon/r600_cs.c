@@ -1620,8 +1620,13 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 	case V_038000_SQ_TEX_DIM_2D_ARRAY:
 		is_array = true;
 		break;
-	case V_038000_SQ_TEX_DIM_2D_MSAA:
 	case V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA:
+		is_array = true;
+		/* fall through */
+	case V_038000_SQ_TEX_DIM_2D_MSAA:
+		array_check.nsamples = 1 << llevel;
+		llevel = 0;
+		break;
 	default:
 		dev_warn(p->dev, "this kernel doesn't support %d texture dim\n", G_038000_DIM(word0));
 		return -EINVAL;

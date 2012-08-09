@@ -788,6 +788,13 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 	case V_030000_SQ_TEX_DIM_1D_ARRAY:
 	case V_030000_SQ_TEX_DIM_2D_ARRAY:
 		depth = 1;
+		break;
+	case V_030000_SQ_TEX_DIM_2D_MSAA:
+	case V_030000_SQ_TEX_DIM_2D_ARRAY_MSAA:
+		surf.nsamples = 1 << llevel;
+		llevel = 0;
+		depth = 1;
+		break;
 	case V_030000_SQ_TEX_DIM_3D:
 		break;
 	default:
