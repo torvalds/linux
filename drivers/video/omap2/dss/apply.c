@@ -1314,21 +1314,19 @@ void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
 	unsigned long flags;
-
-	mutex_lock(&apply_lock);
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 
 	spin_lock_irqsave(&data_lock, flags);
 
+	if (mp->updating) {
+		DSSERR("cannot set timings for %s: manager needs to be disabled\n",
+			mgr->name);
+		goto out;
+	}
+
 	dss_apply_mgr_timings(mgr, timings);
-
-	dss_write_regs();
-	dss_set_go_bits();
-
+out:
 	spin_unlock_irqrestore(&data_lock, flags);
-
-	wait_pending_extra_info_updates();
-
-	mutex_unlock(&apply_lock);
 }
 
 static void dss_apply_mgr_lcd_config(struct omap_overlay_manager *mgr,
