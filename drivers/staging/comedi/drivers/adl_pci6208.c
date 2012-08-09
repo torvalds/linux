@@ -33,8 +33,7 @@ Author: nsyeow <nsyeow@pd.jaring.my>
 Updated: Fri, 30 Jan 2004 14:44:27 +0800
 Status: untested
 
-Configuration Options:
-  none
+Configuration Options: not applicable, uses PCI auto config
 
 References:
 	- ni_660x.c
@@ -155,66 +154,40 @@ static int pci6208_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static struct pci_dev *pci6208_find_device(struct comedi_device *dev,
-					   struct comedi_devconfig *it)
+static const void *pci6208_find_boardinfo(struct comedi_device *dev,
+					  struct pci_dev *pcidev)
 {
-	const struct pci6208_board *thisboard;
-	struct pci_dev *pci_dev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
+	const struct pci6208_board *boardinfo;
 	int i;
 
-	for_each_pci_dev(pci_dev) {
-		if (pci_dev->vendor != PCI_VENDOR_ID_ADLINK)
-			continue;
-		for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
-			thisboard = &pci6208_boards[i];
-			if (thisboard->dev_id != pci_dev->device)
-				continue;
-			/* was a particular bus/slot requested? */
-			if (bus || slot) {
-				/* are we on the wrong bus/slot? */
-				if (pci_dev->bus->number != bus ||
-				    PCI_SLOT(pci_dev->devfn) != slot)
-					continue;
-			}
-			dev_dbg(dev->class_dev,
-				"Found %s on bus %d, slot, %d, irq=%d\n",
-				thisboard->name,
-				pci_dev->bus->number,
-				PCI_SLOT(pci_dev->devfn),
-				pci_dev->irq);
-			dev->board_ptr = thisboard;
-			return pci_dev;
-		}
+	for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
+		boardinfo = &pci6208_boards[i];
+		if (boardinfo->dev_id == pcidev->device)
+			return boardinfo;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int pci6208_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int pci6208_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev)
 {
-	const struct pci6208_board *thisboard;
+	const struct pci6208_board *boardinfo;
 	struct pci6208_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	boardinfo = pci6208_find_boardinfo(dev, pcidev);
+	if (!boardinfo)
+		return -ENODEV;
+	dev->board_ptr = boardinfo;
+	dev->board_name = boardinfo->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return ret;
 	devpriv = dev->private;
-
-	pcidev = pci6208_find_device(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
 
 	ret = comedi_pci_enable(pcidev, dev->driver->driver_name);
 	if (ret) {
@@ -232,7 +205,7 @@ static int pci6208_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE;
-	s->n_chan	= thisboard->ao_chans;
+	s->n_chan	= boardinfo->ao_chans;
 	s->maxdata	= 0xffff;
 	s->range_table	= &range_bipolar10;
 	s->insn_write	= pci6208_ao_winsn;
@@ -257,6 +230,15 @@ static int pci6208_attach(struct comedi_device *dev,
 	return 0;
 }
 
+static int pci6208_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	dev_warn(dev->class_dev,
+		"This driver does not support attach using comedi_config\n");
+
+	return -ENOSYS;
+}
+
 static void pci6208_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -264,7 +246,6 @@ static void pci6208_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
@@ -272,6 +253,7 @@ static struct comedi_driver adl_pci6208_driver = {
 	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
 	.attach		= pci6208_attach,
+	.attach_pci	= pci6208_attach_pci,
 	.detach		= pci6208_detach,
 };
 
