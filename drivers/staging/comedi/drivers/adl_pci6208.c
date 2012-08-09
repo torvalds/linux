@@ -196,12 +196,9 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 		return ret;
 	devpriv = dev->private;
 
-	ret = comedi_pci_enable(pcidev, dev->driver->driver_name);
-	if (ret) {
-		dev_err(dev->class_dev,
-			"Failed to enable PCI device and request regions\n");
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
 		return ret;
-	}
 	dev->iobase = pci_resource_start(pcidev, 2);
 
 	ret = comedi_alloc_subdevices(dev, 3);
