@@ -439,6 +439,37 @@ int ftrace_raw_output_prep(struct trace_iterator *iter,
 }
 EXPORT_SYMBOL(ftrace_raw_output_prep);
 
+static int ftrace_output_raw(struct trace_iterator *iter, char *name,
+			     char *fmt, va_list ap)
+{
+	struct trace_seq *s = &iter->seq;
+	int ret;
+
+	ret = trace_seq_printf(s, "%s: ", name);
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ret = trace_seq_vprintf(s, fmt, ap);
+
+	if (!ret)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	ret = ftrace_output_raw(iter, name, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ftrace_output_call);
+
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
 {

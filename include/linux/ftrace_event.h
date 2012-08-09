@@ -163,6 +163,8 @@ void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
+int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
+
 struct event_filter;
 
 enum trace_reg {
@@ -196,6 +198,9 @@ struct ftrace_event_class {
 
 extern int ftrace_event_reg(struct ftrace_event_call *event,
 			    enum trace_reg type, void *data);
+
+int ftrace_output_event(struct trace_iterator *iter, struct ftrace_event_call *event,
+			char *fmt, ...);
 
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
