@@ -273,9 +273,10 @@
 #define SET_NB_ARRAY_ADDR(section)	(((section) & 0x3) << 1)
 
 #define F10_NB_ARRAY_DATA		0xBC
+#define F10_NB_ARR_ECC_WR_REQ		BIT(17)
 #define SET_NB_DRAM_INJECTION_WRITE(inj)  \
 					(BIT(((inj.word) & 0xF) + 20) | \
-					BIT(17) | inj.bit_map)
+					F10_NB_ARR_ECC_WR_REQ | inj.bit_map)
 #define SET_NB_DRAM_INJECTION_READ(inj)  \
 					(BIT(((inj.word) & 0xF) + 20) | \
 					BIT(16) |  inj.bit_map)
@@ -306,9 +307,9 @@ enum amd_families {
 
 /* Error injection control structure */
 struct error_injection {
-	u32	section;
-	u32	word;
-	u32	bit_map;
+	u32	 section;
+	u32	 word;
+	u32	 bit_map;
 };
 
 /* low and high part of PCI config space regs */
@@ -460,6 +461,8 @@ struct amd64_family_type {
 	struct low_ops ops;
 };
 
+int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+			       u32 *val, const char *func);
 int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 				u32 val, const char *func);
 
@@ -476,3 +479,15 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);
 
 #define to_mci(k) container_of(k, struct mem_ctl_info, dev)
+
+/* Injection helpers */
+static inline void disable_caches(void *dummy)
+{
+	write_cr0(read_cr0() | X86_CR0_CD);
+	wbinvd();
+}
+
+static inline void enable_caches(void *dummy)
+{
+	write_cr0(read_cr0() & ~X86_CR0_CD);
+}

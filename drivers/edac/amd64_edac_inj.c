@@ -153,8 +153,8 @@ static ssize_t amd64_inject_write_store(struct device *dev,
 {
 	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
+	u32 section, word_bits, tmp;
 	unsigned long value;
-	u32 section, word_bits;
 	int ret;
 
 	ret = strict_strtoul(data, 10, &value);
@@ -168,8 +168,24 @@ static ssize_t amd64_inject_write_store(struct device *dev,
 
 	word_bits = SET_NB_DRAM_INJECTION_WRITE(pvt->injection);
 
+	pr_notice_once("Don't forget to decrease MCE polling interval in\n"
+			"/sys/bus/machinecheck/devices/machinecheck<CPUNUM>/check_interval\n"
+			"so that you can get the error report faster.\n");
+
+	on_each_cpu(disable_caches, NULL, 1);
+
 	/* Issue 'word' and 'bit' along with the READ request */
 	amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
+
+ retry:
+	/* wait until injection happens */
+	amd64_read_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, &tmp);
+	if (tmp & F10_NB_ARR_ECC_WR_REQ) {
+		cpu_relax();
+		goto retry;
+	}
+
+	on_each_cpu(enable_caches, NULL, 1);
 
 	edac_dbg(0, "section=0x%x word_bits=0x%x\n", section, word_bits);
 

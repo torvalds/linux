@@ -60,8 +60,8 @@ struct scrubrate {
 	{ 0x00, 0UL},        /* scrubbing off */
 };
 
-static int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
-				      u32 *val, const char *func)
+int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+			       u32 *val, const char *func)
 {
 	int err = 0;
 
@@ -1980,11 +1980,11 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 					    struct mce *m)
 {
-	u16 ec = EC(m->status);
-	u8 xec = XEC(m->status, 0x1f);
 	u8 ecc_type = (m->status >> 45) & 0x3;
+	u8 xec = XEC(m->status, 0x1f);
+	u16 ec = EC(m->status);
 
-	/* Bail early out if this was an 'observed' error */
+	/* Bail out early if this was an 'observed' error */
 	if (PP(ec) == NBSL_PP_OBS)
 		return;
 
