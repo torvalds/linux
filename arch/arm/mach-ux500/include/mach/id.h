@@ -41,6 +41,11 @@ static inline bool __attribute_const__ cpu_is_u8500(void)
 	return dbx500_partnumber() == 0x8500;
 }
 
+static inline bool __attribute_const__ cpu_is_u8520(void)
+{
+	return dbx500_partnumber() == 0x8520;
+}
+
 static inline bool __attribute_const__ cpu_is_u9540(void)
 {
 	return dbx500_partnumber() == 0x9540;
