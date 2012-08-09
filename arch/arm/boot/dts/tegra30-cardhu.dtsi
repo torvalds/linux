@@ -162,6 +162,7 @@
 			vcc1-supply = <&vdd_ac_bat_reg>;
 			vcc2-supply = <&vdd_ac_bat_reg>;
 			vcc3-supply = <&vio_reg>;
+			vcc4-supply = <&vdd_5v0_reg>;
 			vcc5-supply = <&vdd_ac_bat_reg>;
 			vcc6-supply = <&vdd2_reg>;
 			vcc7-supply = <&vdd_ac_bat_reg>;
@@ -234,6 +235,15 @@
 					regulator-always-on;
 				};
 
+				ldo5_reg: regulator@8 {
+					reg = <8>;
+					regulator-compatible = "ldo5";
+					regulator-name = "vddio_sdmmc,avdd_vdac";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+				};
+
 				ldo6_reg: regulator@9 {
 					reg = <9>;
 					regulator-compatible = "ldo6";
@@ -299,6 +309,143 @@
 			regulator-min-microvolt = <5000000>;
 			regulator-max-microvolt = <5000000>;
 			regulator-always-on;
+		};
+
+		cam_1v8_reg: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "cam_1v8";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			enable-active-high;
+			gpio = <&gpio 220 0>; /* gpio PBB4 */
+			vin-supply = <&vio_reg>;
+		};
+
+		cp_5v_reg: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "cp_5v";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-boot-on;
+			regulator-always-on;
+			enable-active-high;
+			gpio = <&pmic 0 0>; /* PMIC TPS65911 GPIO0 */
+		};
+
+		emmc_3v3_reg: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "emmc_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&gpio 25 0>; /* gpio PD1 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		modem_3v3_reg: regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "modem_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&gpio 30 0>; /* gpio PD6 */
+		};
+
+		pex_hvdd_3v3_reg: regulator@5 {
+			compatible = "regulator-fixed";
+			reg = <5>;
+			regulator-name = "pex_hvdd_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&gpio 95 0>; /* gpio PL7 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_cam1_ldo_reg: regulator@6 {
+			compatible = "regulator-fixed";
+			reg = <6>;
+			regulator-name = "vdd_cam1_ldo";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			enable-active-high;
+			gpio = <&gpio 142 0>; /* gpio PR6 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_cam2_ldo_reg: regulator@7 {
+			compatible = "regulator-fixed";
+			reg = <7>;
+			regulator-name = "vdd_cam2_ldo";
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			enable-active-high;
+			gpio = <&gpio 143 0>; /* gpio PR7 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_cam3_ldo_reg: regulator@8 {
+			compatible = "regulator-fixed";
+			reg = <8>;
+			regulator-name = "vdd_cam3_ldo";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&gpio 144 0>; /* gpio PS0 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_com_reg: regulator@9 {
+			compatible = "regulator-fixed";
+			reg = <9>;
+			regulator-name = "vdd_com";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&gpio 24 0>; /* gpio PD0 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_fuse_3v3_reg: regulator@10 {
+			compatible = "regulator-fixed";
+			reg = <10>;
+			regulator-name = "vdd_fuse_3v3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			enable-active-high;
+			gpio = <&gpio 94 0>; /* gpio PL6 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_pnl1_reg: regulator@11 {
+			compatible = "regulator-fixed";
+			reg = <11>;
+			regulator-name = "vdd_pnl1";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+			regulator-boot-on;
+			enable-active-high;
+			gpio = <&gpio 92 0>; /* gpio PL4 */
+			vin-supply = <&sys_3v3_reg>;
+		};
+
+		vdd_vid_reg: regulator@12 {
+			compatible = "regulator-fixed";
+			reg = <12>;
+			regulator-name = "vddio_vid";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			gpio = <&gpio 152 0>; /* GPIO PT0 */
+			gpio-open-drain;
+			vin-supply = <&vdd_5v0_reg>;
 		};
 	};
 
