@@ -5078,28 +5078,24 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
+	int pipe = to_intel_crtc(crtc)->pipe;
 
 	if (HAS_PCH_IBX(connector->dev)) {
-		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID_A;
-		aud_config = IBX_AUD_CONFIG_A;
-		aud_cntl_st = IBX_AUD_CNTL_ST_A;
+		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
+		aud_config = IBX_AUD_CFG(pipe);
+		aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else {
-		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID_A;
-		aud_config = CPT_AUD_CONFIG_A;
-		aud_cntl_st = CPT_AUD_CNTL_ST_A;
+		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
+		aud_config = CPT_AUD_CFG(pipe);
+		aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
 		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
 
-	i = to_intel_crtc(crtc)->pipe;
-	hdmiw_hdmiedid += i * 0x100;
-	aud_cntl_st += i * 0x100;
-	aud_config += i * 0x100;
-
-	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(i));
+	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
 
 	i = I915_READ(aud_cntl_st);
-	i = (i >> 29) & 0x3;		/* DIP_Port_Select, 0x1 = PortB */
+	i = (i >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
 	if (!i) {
 		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
 		/* operate blindly on all ports */

@@ -4247,7 +4247,15 @@
 #define G4X_HDMIW_HDMIEDID		0x6210C
 
 #define IBX_HDMIW_HDMIEDID_A		0xE2050
+#define IBX_HDMIW_HDMIEDID_B		0xE2150
+#define IBX_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
+					IBX_HDMIW_HDMIEDID_A, \
+					IBX_HDMIW_HDMIEDID_B)
 #define IBX_AUD_CNTL_ST_A		0xE20B4
+#define IBX_AUD_CNTL_ST_B		0xE21B4
+#define IBX_AUD_CNTL_ST(pipe) _PIPE(pipe, \
+					IBX_AUD_CNTL_ST_A, \
+					IBX_AUD_CNTL_ST_B)
 #define IBX_ELD_BUFFER_SIZE		(0x1f << 10)
 #define IBX_ELD_ADDRESS			(0x1f << 5)
 #define IBX_ELD_ACK			(1 << 4)
@@ -4256,7 +4264,15 @@
 #define IBX_CP_READYB			(1 << 1)
 
 #define CPT_HDMIW_HDMIEDID_A		0xE5050
+#define CPT_HDMIW_HDMIEDID_B		0xE5150
+#define CPT_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
+					CPT_HDMIW_HDMIEDID_A, \
+					CPT_HDMIW_HDMIEDID_B)
 #define CPT_AUD_CNTL_ST_A		0xE50B4
+#define CPT_AUD_CNTL_ST_B		0xE51B4
+#define CPT_AUD_CNTL_ST(pipe) _PIPE(pipe, \
+					CPT_AUD_CNTL_ST_A, \
+					CPT_AUD_CNTL_ST_B)
 #define CPT_AUD_CNTRL_ST2		0xE50C0
 
 /* These are the 4 32-bit write offset registers for each stream
@@ -4266,7 +4282,15 @@
 #define GEN7_SO_WRITE_OFFSET(n)		(0x5280 + (n) * 4)
 
 #define IBX_AUD_CONFIG_A			0xe2000
+#define IBX_AUD_CONFIG_B			0xe2100
+#define IBX_AUD_CFG(pipe) _PIPE(pipe, \
+					IBX_AUD_CONFIG_A, \
+					IBX_AUD_CONFIG_B)
 #define CPT_AUD_CONFIG_A			0xe5000
+#define CPT_AUD_CONFIG_B			0xe5100
+#define CPT_AUD_CFG(pipe) _PIPE(pipe, \
+					CPT_AUD_CONFIG_A, \
+					CPT_AUD_CONFIG_B)
 #define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
 #define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
 #define   AUD_CONFIG_UPPER_N_SHIFT		20
@@ -4302,6 +4326,7 @@
 #define   AUD_DIG_CNVT(pipe) _PIPE(pipe, \
 					HSW_AUD_DIG_CNVT_1, \
 					HSW_AUD_DIG_CNVT_2)
+#define   DIP_PORT_SEL_MASK		0x3
 
 #define   HSW_AUD_EDID_DATA_A		0x65050
 #define   HSW_AUD_EDID_DATA_B		0x65150
