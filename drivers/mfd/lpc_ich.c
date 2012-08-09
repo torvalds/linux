@@ -49,6 +49,7 @@
  *	document number TBD : DH89xxCC
  *	document number TBD : Panther Point
  *	document number TBD : Lynx Point
+ *	document number TBD : Lynx Point-LP
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -192,6 +193,7 @@ enum lpc_chipsets {
 	LPC_DH89XXCC,	/* DH89xxCC */
 	LPC_PPT,	/* Panther Point */
 	LPC_LPT,	/* Lynx Point */
+	LPC_LPT_LP,	/* Lynx Point-LP */
 };
 
 struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
@@ -468,6 +470,10 @@ struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
 		.name = "Lynx Point",
 		.iTCO_version = 2,
 	},
+	[LPC_LPT_LP] = {
+		.name = "Lynx Point_LP",
+		.iTCO_version = 2,
+	},
 };
 
 /*
@@ -641,6 +647,14 @@ static DEFINE_PCI_DEVICE_TABLE(lpc_ich_ids) = {
 	{ PCI_VDEVICE(INTEL, 0x8c5d), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c5e), LPC_LPT},
 	{ PCI_VDEVICE(INTEL, 0x8c5f), LPC_LPT},
+	{ PCI_VDEVICE(INTEL, 0x9c40), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c41), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c42), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c43), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c44), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c45), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c46), LPC_LPT_LP},
+	{ PCI_VDEVICE(INTEL, 0x9c47), LPC_LPT_LP},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, lpc_ich_ids);
