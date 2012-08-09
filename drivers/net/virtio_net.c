@@ -993,7 +993,7 @@ static void virtnet_config_changed_work(struct work_struct *work)
 		goto done;
 
 	if (v & VIRTIO_NET_S_ANNOUNCE) {
-		netif_notify_peers(vi->dev);
+		netdev_notify_peers(vi->dev);
 		virtnet_ack_link_announce(vi);
 	}
 

@@ -400,7 +400,7 @@ static void netvsc_send_garp(struct work_struct *w)
 	ndev_ctx = container_of(w, struct net_device_context, dwork.work);
 	net_device = hv_get_drvdata(ndev_ctx->device_ctx);
 	net = net_device->ndev;
-	netif_notify_peers(net);
+	netdev_notify_peers(net);
 }
 
 
