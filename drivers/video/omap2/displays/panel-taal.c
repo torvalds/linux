@@ -1060,6 +1060,9 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 		goto err0;
 	};
 
+	omapdss_dsi_set_size(dssdev, dssdev->panel.timings.x_res,
+		dssdev->panel.timings.y_res);
+
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to enable DSI\n");
@@ -1487,6 +1490,7 @@ static int taal_get_te(struct omap_dss_device *dssdev)
 static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	u16 dw, dh;
 	int r;
 
 	dev_dbg(&dssdev->dev, "rotate %d\n", rotate);
@@ -1507,6 +1511,16 @@ static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
 		if (r)
 			goto err;
 	}
+
+	if (rotate == 0 || rotate == 2) {
+		dw = dssdev->panel.timings.x_res;
+		dh = dssdev->panel.timings.y_res;
+	} else {
+		dw = dssdev->panel.timings.y_res;
+		dh = dssdev->panel.timings.x_res;
+	}
+
+	omapdss_dsi_set_size(dssdev, dw, dh);
 
 	td->rotate = rotate;
 

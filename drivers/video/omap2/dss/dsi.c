@@ -4328,7 +4328,8 @@ int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 	dsi->framedone_callback = callback;
 	dsi->framedone_data = data;
 
-	dssdev->driver->get_resolution(dssdev, &dw, &dh);
+	dw = dsi->timings.x_res;
+	dh = dsi->timings.y_res;
 
 #ifdef DEBUG
 	dsi->update_bytes = dw * dh *
@@ -4374,12 +4375,6 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 	u32 irq = 0;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_CMD_MODE) {
-		u16 dw, dh;
-
-		dssdev->driver->get_resolution(dssdev, &dw, &dh);
-
-		dsi->timings.x_res = dw;
-		dsi->timings.y_res = dh;
 		dsi->timings.hsw = 1;
 		dsi->timings.hfp = 1;
 		dsi->timings.hbp = 1;
@@ -4666,6 +4661,20 @@ void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
 	mutex_unlock(&dsi->lock);
 }
 EXPORT_SYMBOL(omapdss_dsi_set_timings);
+
+void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+
+	mutex_lock(&dsi->lock);
+
+	dsi->timings.x_res = w;
+	dsi->timings.y_res = h;
+
+	mutex_unlock(&dsi->lock);
+}
+EXPORT_SYMBOL(omapdss_dsi_set_size);
 
 static int __init dsi_init_display(struct omap_dss_device *dssdev)
 {
