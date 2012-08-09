@@ -24,6 +24,37 @@ const char perf_more_info_string[] =
 int use_browser = -1;
 static int use_pager = -1;
 
+struct cmd_struct {
+	const char *cmd;
+	int (*fn)(int, const char **, const char *);
+	int option;
+};
+
+static struct cmd_struct commands[] = {
+	{ "buildid-cache", cmd_buildid_cache, 0 },
+	{ "buildid-list", cmd_buildid_list, 0 },
+	{ "diff",	cmd_diff,	0 },
+	{ "evlist",	cmd_evlist,	0 },
+	{ "help",	cmd_help,	0 },
+	{ "list",	cmd_list,	0 },
+	{ "record",	cmd_record,	0 },
+	{ "report",	cmd_report,	0 },
+	{ "bench",	cmd_bench,	0 },
+	{ "stat",	cmd_stat,	0 },
+	{ "timechart",	cmd_timechart,	0 },
+	{ "top",	cmd_top,	0 },
+	{ "annotate",	cmd_annotate,	0 },
+	{ "version",	cmd_version,	0 },
+	{ "script",	cmd_script,	0 },
+	{ "sched",	cmd_sched,	0 },
+	{ "probe",	cmd_probe,	0 },
+	{ "kmem",	cmd_kmem,	0 },
+	{ "lock",	cmd_lock,	0 },
+	{ "kvm",	cmd_kvm,	0 },
+	{ "test",	cmd_test,	0 },
+	{ "inject",	cmd_inject,	0 },
+};
+
 struct pager_config {
 	const char *cmd;
 	int val;
@@ -160,6 +191,14 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 			fprintf(stderr, "dir: %s\n", debugfs_mountpoint);
 			if (envchanged)
 				*envchanged = 1;
+		} else if (!strcmp(cmd, "--list-cmds")) {
+			unsigned int i;
+
+			for (i = 0; i < ARRAY_SIZE(commands); i++) {
+				struct cmd_struct *p = commands+i;
+				printf("%s ", p->cmd);
+			}
+			exit(0);
 		} else {
 			fprintf(stderr, "Unknown option: %s\n", cmd);
 			usage(perf_usage_string);
@@ -245,12 +284,6 @@ const char perf_version_string[] = PERF_VERSION;
  */
 #define NEED_WORK_TREE	(1<<2)
 
-struct cmd_struct {
-	const char *cmd;
-	int (*fn)(int, const char **, const char *);
-	int option;
-};
-
 static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 {
 	int status;
@@ -296,30 +329,6 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
-	static struct cmd_struct commands[] = {
-		{ "buildid-cache", cmd_buildid_cache, 0 },
-		{ "buildid-list", cmd_buildid_list, 0 },
-		{ "diff",	cmd_diff,	0 },
-		{ "evlist",	cmd_evlist,	0 },
-		{ "help",	cmd_help,	0 },
-		{ "list",	cmd_list,	0 },
-		{ "record",	cmd_record,	0 },
-		{ "report",	cmd_report,	0 },
-		{ "bench",	cmd_bench,	0 },
-		{ "stat",	cmd_stat,	0 },
-		{ "timechart",	cmd_timechart,	0 },
-		{ "top",	cmd_top,	0 },
-		{ "annotate",	cmd_annotate,	0 },
-		{ "version",	cmd_version,	0 },
-		{ "script",	cmd_script,	0 },
-		{ "sched",	cmd_sched,	0 },
-		{ "probe",	cmd_probe,	0 },
-		{ "kmem",	cmd_kmem,	0 },
-		{ "lock",	cmd_lock,	0 },
-		{ "kvm",	cmd_kvm,	0 },
-		{ "test",	cmd_test,	0 },
-		{ "inject",	cmd_inject,	0 },
-	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;
 
