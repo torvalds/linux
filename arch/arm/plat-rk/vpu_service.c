@@ -211,7 +211,7 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
 	clk_enable(aclk_ddr_vepu);
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)
 	pmu_set_idle_request(IDLE_REQ_VIDEO, true);
 	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
 	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, true);
