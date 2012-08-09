@@ -76,6 +76,9 @@ static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
 #if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
 #define DEC_PHY_OFFSET 				0x200
+#if defined(CONFIG_ARCH_RK2928)
+#define RK29_VCODEC_PHYS			RK2928_VCODEC_PHYS
+#endif
 #elif defined(CONFIG_ARCH_RK30)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270, 0x8290, 0x4831 };
 #define DEC_PHY_OFFSET 				0x400
