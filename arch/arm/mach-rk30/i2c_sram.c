@@ -147,7 +147,7 @@ void __sramfunc sram_i2c_init()
 	divh = divl = rk30_ceil(div, 2);	
 	writel_relaxed(I2C_CLKDIV_VAL(divl, divh), SRAM_I2C_ADDRBASE + I2C_CLKDIV);
 	data[3]  = readl_relaxed(SRAM_I2C_ADDRBASE + I2C_CLKDIV);
-	sram_printhex(data[3]);
+	
 }
 
 
