@@ -166,5 +166,9 @@ config RK_PL330_DMA
 	select PL330
 	help
 	  DMA API Driver for PL330 DMAC
+	  
+config RK_PL330_DMA_TEST
+	bool "pl330 DMA memcpy test"
+	depends on RK_PL330_DMA	  
 
 endif
