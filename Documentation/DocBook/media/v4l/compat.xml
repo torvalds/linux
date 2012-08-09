@@ -2468,21 +2468,9 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  <structfield>reserved2</structfield> and removed
 	  <constant>V4L2_BUF_FLAG_INPUT</constant>.</para>
 	</listitem>
-      </orderedlist>
-    </section>
-
-    <section>
-      <title>V4L2 in Linux 3.6</title>
-      <orderedlist>
         <listitem>
 	  <para>Added V4L2_CAP_VIDEO_M2M and V4L2_CAP_VIDEO_M2M_MPLANE capabilities.</para>
         </listitem>
-      </orderedlist>
-    </section>
-
-    <section>
-      <title>V4L2 in Linux 3.6</title>
-      <orderedlist>
         <listitem>
 	  <para>Added support for frequency band enumerations: &VIDIOC-ENUM-FREQ-BANDS;.</para>
         </listitem>
