@@ -4178,8 +4178,7 @@ void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel)
 }
 EXPORT_SYMBOL(dsi_disable_video_output);
 
-static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
-		u16 w, u16 h)
+static void dsi_update_screen_dispc(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -4193,6 +4192,8 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	int r;
 	const unsigned channel = dsi->update_channel;
 	const unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
+	u16 w = dsi->timings.x_res;
+	u16 h = dsi->timings.y_res;
 
 	DSSDBG("dsi_update_screen_dispc(%dx%d)\n", w, h);
 
@@ -4241,6 +4242,8 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	r = schedule_delayed_work(&dsi->framedone_timeout_work,
 		msecs_to_jiffies(250));
 	BUG_ON(r == 0);
+
+	dss_mgr_set_timings(dssdev->manager, &dsi->timings);
 
 	dss_mgr_start_update(dssdev->manager);
 
@@ -4335,7 +4338,7 @@ int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 	dsi->update_bytes = dw * dh *
 		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
 #endif
-	dsi_update_screen_dispc(dssdev, dw, dh);
+	dsi_update_screen_dispc(dssdev);
 
 	return 0;
 }
