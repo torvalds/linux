@@ -171,8 +171,8 @@ sub read_kconfig {
 	$source =~ s/\$$env/$ENV{$env}/;
     }
 
-    open(KIN, "$source") || die "Can't open $kconfig";
-    while (<KIN>) {
+    open(my $kinfile, '<', $source) || die "Can't open $kconfig";
+    while (<$kinfile>) {
 	chomp;
 
 	# Make sure that lines ending with \ continue
@@ -249,7 +249,7 @@ sub read_kconfig {
 	    $state = "NONE";
 	}
     }
-    close(KIN);
+    close($kinfile);
 
     # read in any configs that were found.
     foreach $kconfig (@kconfigs) {
@@ -293,8 +293,8 @@ foreach my $makefile (@makefiles) {
     my $line = "";
     my %make_vars;
 
-    open(MIN,$makefile) || die "Can't open $makefile";
-    while (<MIN>) {
+    open(my $infile, '<', $makefile) || die "Can't open $makefile";
+    while (<$infile>) {
 	# if this line ends with a backslash, continue
 	chomp;
 	if (/^(.*)\\$/) {
@@ -341,10 +341,11 @@ foreach my $makefile (@makefiles) {
 	    }
 	}
     }
-    close(MIN);
+    close($infile);
 }
 
 my %modules;
+my $linfile;
 
 if (defined($lsmod_file)) {
     if ( ! -f $lsmod_file) {
@@ -354,13 +355,10 @@ if (defined($lsmod_file)) {
 		die "$lsmod_file not found";
 	}
     }
-    if ( -x $lsmod_file) {
-	# the file is executable, run it
-	open(LIN, "$lsmod_file|");
-    } else {
-	# Just read the contents
-	open(LIN, "$lsmod_file");
-    }
+
+    my $otype = ( -x $lsmod_file) ? '-|' : '<';
+    open($linfile, $otype, $lsmod_file);
+
 } else {
 
     # see what modules are loaded on this system
@@ -377,16 +375,16 @@ if (defined($lsmod_file)) {
 	$lsmod = "lsmod";
     }
 
-    open(LIN,"$lsmod|") || die "Can not call lsmod with $lsmod";
+    open($linfile, '-|', $lsmod) || die "Can not call lsmod with $lsmod";
 }
 
-while (<LIN>) {
+while (<$linfile>) {
 	next if (/^Module/);  # Skip the first line.
 	if (/^(\S+)/) {
 		$modules{$1} = 1;
 	}
 }
-close (LIN);
+close ($linfile);
 
 # add to the configs hash all configs that are needed to enable
 # a loaded module. This is a direct obj-${CONFIG_FOO} += bar.o
