@@ -135,7 +135,7 @@ GetOptions("localmodconfig" => \$localmodconfig,
 	   "localyesconfig" => \$localyesconfig);
 
 # Get the build source and top level Kconfig file (passed in)
-my $ksource = $ARGV[0];
+my $ksource = ($ARGV[0] ? $ARGV[0] : '.');
 my $kconfig = $ARGV[1];
 my $lsmod_file = $ENV{'LSMOD'};
 
