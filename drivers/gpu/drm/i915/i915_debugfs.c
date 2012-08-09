@@ -1956,16 +1956,11 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 	gen6_gt_force_wake_get(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -1974,24 +1969,11 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
-	/*
-	 * It's bad that we can potentially hang userspace if struct_mutex gets
-	 * forever stuck.  However, if we cannot acquire this lock it means that
-	 * almost certainly the driver has hung, is not unload-able. Therefore
-	 * hanging here is probably a minor inconvenience not to be seen my
-	 * almost every user.
-	 */
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
 	gen6_gt_force_wake_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
