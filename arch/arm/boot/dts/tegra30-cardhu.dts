@@ -126,12 +126,131 @@
 			ti,vsel0-state-high;
 			ti,vsel1-state-high;
 		};
+
+		pmic: tps65911@2d {
+			compatible = "ti,tps65911";
+			reg = <0x2d>;
+
+			interrupts = <0 86 0x4>;
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			vcc1-supply = <&vdd_ac_bat_reg>;
+			vcc2-supply = <&vdd_ac_bat_reg>;
+			vcc3-supply = <&vio_reg>;
+			vcc5-supply = <&vdd_ac_bat_reg>;
+			vcc6-supply = <&vdd2_reg>;
+			vcc7-supply = <&vdd_ac_bat_reg>;
+			vccio-supply = <&vdd_ac_bat_reg>;
+
+			regulators {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				vdd1_reg: regulator@0 {
+					reg = <0>;
+					regulator-compatible = "vdd1";
+					regulator-name = "vddio_ddr_1v2";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				vdd2_reg: regulator@1 {
+					reg = <1>;
+					regulator-compatible = "vdd2";
+					regulator-name = "vdd_1v5_gen";
+					regulator-min-microvolt = <1500000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+				};
+
+				vddctrl_reg: regulator@2 {
+					reg = <2>;
+					regulator-compatible = "vddctrl";
+					regulator-name = "vdd_cpu,vdd_sys";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
+				};
+
+				vio_reg: regulator@3 {
+					reg = <3>;
+					regulator-compatible = "vio";
+					regulator-name = "vdd_1v8_gen";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				ldo1_reg: regulator@4 {
+					reg = <4>;
+					regulator-compatible = "ldo1";
+					regulator-name = "vdd_pexa,vdd_pexb";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+				};
+
+				ldo2_reg: regulator@5 {
+					reg = <5>;
+					regulator-compatible = "ldo2";
+					regulator-name = "vdd_sata,avdd_plle";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+				};
+
+				/* LDO3 is not connected to anything */
+
+				ldo4_reg: regulator@7 {
+					reg = <7>;
+					regulator-compatible = "ldo4";
+					regulator-name = "vdd_rtc";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				ldo6_reg: regulator@9 {
+					reg = <9>;
+					regulator-compatible = "ldo6";
+					regulator-name = "avdd_dsi_csi,pwrdet_mipi";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+				};
+
+				ldo7_reg: regulator@10 {
+					reg = <10>;
+					regulator-compatible = "ldo7";
+					regulator-name = "vdd_pllm,x,u,a_p_c_s";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-always-on;
+				};
+
+				ldo8_reg: regulator@11 {
+					reg = <11>;
+					regulator-compatible = "ldo8";
+					regulator-name = "vdd_ddr_hs";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1000000>;
+					regulator-always-on;
+				};
+			};
+		};
 	};
 
 	ahub {
 		i2s@70080400 {
 			status = "okay";
 		};
+	};
+
+	pmc {
+		status = "okay";
+		nvidia,invert-interrupt;
 	};
 
 	sdhci@78000000 {
@@ -145,6 +264,21 @@
 	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_ac_bat_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vdd_ac_bat";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
 	};
 
 	sound {
