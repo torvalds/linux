@@ -1720,6 +1720,8 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
 
 	/* Poke in other ASIC variants here */
+	if (version == PINCTRL_NMK_STN8815)
+		nmk_pinctrl_stn8815_init(&npct->soc);
 	if (version == PINCTRL_NMK_DB8500)
 		nmk_pinctrl_db8500_init(&npct->soc);
 	if (version == PINCTRL_NMK_DB8540)

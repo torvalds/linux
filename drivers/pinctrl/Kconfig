@@ -86,6 +86,10 @@ config PINCTRL_NOMADIK
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_STN8815
+	bool "STN8815 pin controller driver"
+	depends on PINCTRL_NOMADIK && ARCH_NOMADIK
+
 config PINCTRL_DB8500
 	bool "DB8500 pin controller driver"
 	depends on PINCTRL_NOMADIK && ARCH_U8500

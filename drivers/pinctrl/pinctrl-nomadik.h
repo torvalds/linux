@@ -62,6 +62,19 @@ struct nmk_pinctrl_soc_data {
 	unsigned ngroups;
 };
 
+#ifdef CONFIG_PINCTRL_STN8815
+
+void nmk_pinctrl_stn8815_init(const struct nmk_pinctrl_soc_data **soc);
+
+#else
+
+static inline void
+nmk_pinctrl_stn8815_init(const struct nmk_pinctrl_soc_data **soc)
+{
+}
+
+#endif
+
 #ifdef CONFIG_PINCTRL_DB8500
 
 void nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc);
