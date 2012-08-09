@@ -1008,7 +1008,7 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 				u8		u1bAIFS;
 				u32		u4bAcParam;
 
-				/*  Retrieve paramters to update. */
+				/*  Retrieve parameters to update. */
 				eACI = pAcParam->f.AciAifsn.f.ACI;
 				u1bAIFS = pAcParam->f.AciAifsn.f.AIFSN * ChnlAccessSetting->SlotTimeTimer + aSifsTime;
 				u4bAcParam = ((((u32)(pAcParam->f.TXOPLimit)) << AC_PARAM_TXOP_LIMIT_OFFSET)	|
