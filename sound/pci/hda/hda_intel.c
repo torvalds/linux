@@ -55,6 +55,7 @@
 #include <sound/initval.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/firmware.h>
 #include "hda_codec.h"
 
 
@@ -470,6 +471,10 @@ struct azx {
 	struct snd_dma_buffer rb;
 	struct snd_dma_buffer posbuf;
 
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	const struct firmware *fw;
+#endif
+
 	/* flags */
 	int position_fix[2]; /* for both playback/capture streams */
 	int poll_count;
@@ -559,13 +564,17 @@ enum {
  * VGA-switcher support
  */
 #ifdef SUPPORT_VGA_SWITCHEROO
+#define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
+#else
+#define use_vga_switcheroo(chip)	0
+#endif
+
+#if defined(SUPPORT_VGA_SWITCHEROO) || defined(CONFIG_SND_HDA_PATCH_LOADER)
 #define DELAYED_INIT_MARK
 #define DELAYED_INITDATA_MARK
-#define use_vga_switcheroo(chip)	((chip)->use_vga_switcheroo)
 #else
 #define DELAYED_INIT_MARK	__devinit
 #define DELAYED_INITDATA_MARK	__devinitdata
-#define use_vga_switcheroo(chip)	0
 #endif
 
 static char *driver_short_names[] DELAYED_INITDATA_MARK = {
@@ -2639,6 +2648,10 @@ static int azx_free(struct azx *chip)
 		pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip->azx_dev);
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	if (chip->fw)
+		release_firmware(chip->fw);
+#endif
 	kfree(chip);
 
 	return 0;
@@ -3146,12 +3159,38 @@ static void power_down_all_codecs(struct azx *chip)
 #endif
 }
 
+/* callback from request_firmware_nowait() */
+static void azx_firmware_cb(const struct firmware *fw, void *context)
+{
+	struct snd_card *card = context;
+	struct azx *chip = card->private_data;
+	struct pci_dev *pci = chip->pci;
+
+	if (!fw) {
+		snd_printk(KERN_ERR SFX "Cannot load firmware, aborting\n");
+		goto error;
+	}
+
+	chip->fw = fw;
+	if (!chip->disabled) {
+		/* continue probing */
+		if (azx_probe_continue(chip))
+			goto error;
+	}
+	return; /* OK */
+
+ error:
+	snd_card_free(card);
+	pci_set_drvdata(pci, NULL);
+}
+
 static int __devinit azx_probe(struct pci_dev *pci,
 			       const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
 	struct azx *chip;
+	bool probe_now;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
@@ -3167,15 +3206,28 @@ static int __devinit azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	/* set this here since it's referred in snd_hda_load_patch() */
 	snd_card_set_dev(card, &pci->dev);
 
 	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
+	probe_now = !chip->disabled;
 
-	if (!chip->disabled) {
+#ifdef CONFIG_SND_HDA_PATCH_LOADER
+	if (patch[dev] && *patch[dev]) {
+		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
+			   patch[dev]);
+		err = request_firmware_nowait(THIS_MODULE, true, patch[dev],
+					      &pci->dev, GFP_KERNEL, card,
+					      azx_firmware_cb);
+		if (err < 0)
+			goto out_free;
+		probe_now = false; /* continued in azx_firmware_cb() */
+	}
+#endif /* CONFIG_SND_HDA_PATCH_LOADER */
+
+	if (probe_now) {
 		err = azx_probe_continue(chip);
 		if (err < 0)
 			goto out_free;
@@ -3205,12 +3257,13 @@ static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip)
 	if (err < 0)
 		goto out_free;
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
-	if (patch[dev] && *patch[dev]) {
-		snd_printk(KERN_ERR SFX "Applying patch firmware '%s'\n",
-			   patch[dev]);
-		err = snd_hda_load_patch(chip->bus, patch[dev]);
+	if (chip->fw) {
+		err = snd_hda_load_patch(chip->bus, chip->fw->size,
+					 chip->fw->data);
 		if (err < 0)
 			goto out_free;
+		release_firmware(chip->fw); /* no longer needed */
+		chip->fw = NULL;
 	}
 #endif
 	if ((probe_only[dev] & 1) == 0) {

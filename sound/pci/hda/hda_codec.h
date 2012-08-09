@@ -1072,7 +1072,7 @@ static inline void snd_hda_power_down(struct hda_codec *codec) {}
 /*
  * patch firmware
  */
-int snd_hda_load_patch(struct hda_bus *bus, const char *patch);
+int snd_hda_load_patch(struct hda_bus *bus, size_t size, const void *buf);
 #endif
 
 /*
