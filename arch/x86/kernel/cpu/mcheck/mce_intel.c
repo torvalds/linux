@@ -65,24 +65,15 @@ static void intel_threshold_interrupt(void)
 	mce_notify_irq();
 }
 
-static void print_update(char *type, int *hdr, int num)
-{
-	if (*hdr == 0)
-		printk(KERN_INFO "CPU %d MCA banks", smp_processor_id());
-	*hdr = 1;
-	printk(KERN_CONT " %s:%d", type, num);
-}
-
 /*
  * Enable CMCI (Corrected Machine Check Interrupt) for available MCE banks
  * on this CPU. Use the algorithm recommended in the SDM to discover shared
  * banks.
  */
-static void cmci_discover(int banks, int boot)
+static void cmci_discover(int banks)
 {
 	unsigned long *owned = (void *)&__get_cpu_var(mce_banks_owned);
 	unsigned long flags;
-	int hdr = 0;
 	int i;
 
 	raw_spin_lock_irqsave(&cmci_discover_lock, flags);
@@ -96,8 +87,7 @@ static void cmci_discover(int banks, int boot)
 
 		/* Already owned by someone else? */
 		if (val & MCI_CTL2_CMCI_EN) {
-			if (test_and_clear_bit(i, owned) && !boot)
-				print_update("SHD", &hdr, i);
+			clear_bit(i, owned);
 			__clear_bit(i, __get_cpu_var(mce_poll_banks));
 			continue;
 		}
@@ -109,16 +99,13 @@ static void cmci_discover(int banks, int boot)
 
 		/* Did the enable bit stick? -- the bank supports CMCI */
 		if (val & MCI_CTL2_CMCI_EN) {
-			if (!test_and_set_bit(i, owned) && !boot)
-				print_update("CMCI", &hdr, i);
+			set_bit(i, owned);
 			__clear_bit(i, __get_cpu_var(mce_poll_banks));
 		} else {
 			WARN_ON(!test_bit(i, __get_cpu_var(mce_poll_banks)));
 		}
 	}
 	raw_spin_unlock_irqrestore(&cmci_discover_lock, flags);
-	if (hdr)
-		printk(KERN_CONT "\n");
 }
 
 /*
@@ -186,7 +173,7 @@ void cmci_rediscover(int dying)
 			continue;
 		/* Recheck banks in case CPUs don't all have the same */
 		if (cmci_supported(&banks))
-			cmci_discover(banks, 0);
+			cmci_discover(banks);
 	}
 
 	set_cpus_allowed_ptr(current, old);
@@ -200,7 +187,7 @@ void cmci_reenable(void)
 {
 	int banks;
 	if (cmci_supported(&banks))
-		cmci_discover(banks, 0);
+		cmci_discover(banks);
 }
 
 static void intel_init_cmci(void)
@@ -211,7 +198,7 @@ static void intel_init_cmci(void)
 		return;
 
 	mce_threshold_vector = intel_threshold_interrupt;
-	cmci_discover(banks, 1);
+	cmci_discover(banks);
 	/*
 	 * For CPU #0 this runs with still disabled APIC, but that's
 	 * ok because only the vector is set up. We still do another
