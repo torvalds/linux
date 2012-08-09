@@ -561,7 +561,6 @@ config MACH_BUG
 config MACH_IMX31_DT
 	bool "Support i.MX31 platforms from device tree"
 	select SOC_IMX31
-	select USE_OF
 	help
 	  Include support for Freescale i.MX31 based platforms
 	  using the device tree for discovery.
