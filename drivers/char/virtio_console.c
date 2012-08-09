@@ -229,7 +229,6 @@ struct port {
 	bool guest_connected;
 };
 
-#define MAX_SPLICE_PAGES	32
 /* This is the very early arch-specified put chars function. */
 static int (*early_put_chars)(u32, const char *, int);
 
@@ -482,15 +481,16 @@ struct buffer_token {
 		void *buf;
 		struct scatterlist *sg;
 	} u;
-	bool sgpages;
+	/* If sgpages == 0 then buf is used, else sg is used */
+	unsigned int sgpages;
 };
 
-static void reclaim_sg_pages(struct scatterlist *sg)
+static void reclaim_sg_pages(struct scatterlist *sg, unsigned int nrpages)
 {
 	int i;
 	struct page *page;
 
-	for (i = 0; i < MAX_SPLICE_PAGES; i++) {
+	for (i = 0; i < nrpages; i++) {
 		page = sg_page(&sg[i]);
 		if (!page)
 			break;
@@ -511,7 +511,7 @@ static void reclaim_consumed_buffers(struct port *port)
 	}
 	while ((tok = virtqueue_get_buf(port->out_vq, &len))) {
 		if (tok->sgpages)
-			reclaim_sg_pages(tok->u.sg);
+			reclaim_sg_pages(tok->u.sg, tok->sgpages);
 		else
 			kfree(tok->u.buf);
 		kfree(tok);
@@ -581,7 +581,7 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
 	tok = kmalloc(sizeof(*tok), GFP_ATOMIC);
 	if (!tok)
 		return -ENOMEM;
-	tok->sgpages = false;
+	tok->sgpages = 0;
 	tok->u.buf = in_buf;
 
 	sg_init_one(sg, in_buf, in_count);
@@ -597,7 +597,7 @@ static ssize_t send_pages(struct port *port, struct scatterlist *sg, int nents,
 	tok = kmalloc(sizeof(*tok), GFP_ATOMIC);
 	if (!tok)
 		return -ENOMEM;
-	tok->sgpages = true;
+	tok->sgpages = nents;
 	tok->u.sg = sg;
 
 	return __send_to_port(port, sg, nents, in_count, tok, nonblock);
@@ -797,6 +797,7 @@ out:
 
 struct sg_list {
 	unsigned int n;
+	unsigned int size;
 	size_t len;
 	struct scatterlist *sg;
 };
@@ -807,7 +808,7 @@ static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	struct sg_list *sgl = sd->u.data;
 	unsigned int offset, len;
 
-	if (sgl->n == MAX_SPLICE_PAGES)
+	if (sgl->n == sgl->size)
 		return 0;
 
 	/* Try lock this page */
@@ -868,12 +869,12 @@ static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
 
 	sgl.n = 0;
 	sgl.len = 0;
-	sgl.sg = kmalloc(sizeof(struct scatterlist) * MAX_SPLICE_PAGES,
-			 GFP_KERNEL);
+	sgl.size = pipe->nrbufs;
+	sgl.sg = kmalloc(sizeof(struct scatterlist) * sgl.size, GFP_KERNEL);
 	if (unlikely(!sgl.sg))
 		return -ENOMEM;
 
-	sg_init_table(sgl.sg, MAX_SPLICE_PAGES);
+	sg_init_table(sgl.sg, sgl.size);
 	ret = __splice_from_pipe(pipe, &sd, pipe_to_sg);
 	if (likely(ret > 0))
 		ret = send_pages(port, sgl.sg, sgl.n, sgl.len, true);
