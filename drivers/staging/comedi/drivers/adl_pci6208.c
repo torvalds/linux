@@ -125,42 +125,37 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci6208_dio_insn_bits(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn,
-				 unsigned int *data)
+static int pci6208_di_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	unsigned int mask = data[0] & PCI6208_DIO_DO_MASK;
-	unsigned int bits = data[1];
+	unsigned int val;
 
-	if (mask) {
-		s->state &= ~mask;
-		s->state |= bits & mask;
+	val = inw(dev->iobase + PCI6208_DIO);
+	val = (val & PCI6208_DIO_DI_MASK) >> PCI6208_DIO_DI_SHIFT;
 
-		outw(s->state, dev->iobase + PCI6208_DIO);
-	}
-
-	s->state = inw(dev->iobase + PCI6208_DIO);
-	data[1] = s->state;
+	data[1] = val;
 
 	return insn->n;
 }
 
-static int pci6208_dio_insn_config(struct comedi_device *dev,
-				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn,
-				   unsigned int *data)
+static int pci6208_do_insn_bits(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned int mask = 1 << chan;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	switch (data[0]) {
-	case INSN_CONFIG_DIO_QUERY:
-		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
-		break;
-	default:
-		return -EINVAL;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
+
+		outw(s->state, dev->iobase + PCI6208_DIO);
 	}
+
+	data[1] = s->state;
 
 	return insn->n;
 }
@@ -185,6 +180,7 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	const struct pci6208_board *boardinfo;
 	struct pci6208_private *devpriv;
 	struct comedi_subdevice *s;
+	unsigned int val;
 	int ret;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
@@ -208,7 +204,7 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	}
 	dev->iobase = pci_resource_start(pcidev, 2);
 
-	ret = comedi_alloc_subdevices(dev, 2);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
@@ -223,17 +219,31 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	s->insn_read	= pci6208_ao_rinsn;
 
 	s = dev->subdevices + 1;
-	/* digital i/o subdevice */
-	s->type		= COMEDI_SUBD_DIO;
-	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;
-	s->n_chan	= 8;
+	/* digital input subdevice */
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 4;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_bits	= pci6208_dio_insn_bits;
-	s->insn_config	= pci6208_dio_insn_config;
+	s->insn_bits	= pci6208_di_insn_bits;
 
+	s = dev->subdevices + 2;
+	/* digital output subdevice */
+	s->type		= COMEDI_SUBD_DO;
+	s->subdev_flags	= SDF_WRITABLE;
+	s->n_chan	= 4;
+	s->maxdata	= 1;
+	s->range_table	= &range_digital;
+	s->insn_bits	= pci6208_do_insn_bits;
+
+	/*
+	 * Get the read back signals from the digital outputs
+	 * and save it as the initial state for the subdevice.
+	 */
+	val = inw(dev->iobase + PCI6208_DIO);
+	val = (val & PCI6208_DIO_DO_MASK) >> PCI6208_DIO_DO_SHIFT;
+	s->state	= val;
 	s->io_bits	= 0x0f;
-	s->state	= inw(dev->iobase + PCI6208_DIO);
 
 	dev_info(dev->class_dev, "%s: %s, I/O base=0x%04lx\n",
 		dev->driver->driver_name, dev->board_name, dev->iobase);
