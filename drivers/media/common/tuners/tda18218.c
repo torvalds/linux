@@ -282,7 +282,7 @@ struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, struct tda18218_config *cfg)
 {
 	struct tda18218_priv *priv = NULL;
-	u8 val;
+	u8 uninitialized_var(val);
 	int ret;
 	/* chip default registers values */
 	static u8 def_regs[] = {
