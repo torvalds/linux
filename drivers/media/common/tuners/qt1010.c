@@ -288,7 +288,7 @@ static int qt1010_init_meas1(struct qt1010_priv *priv,
 	return qt1010_writereg(priv, 0x1e, 0x00);
 }
 
-static u8 qt1010_init_meas2(struct qt1010_priv *priv,
+static int qt1010_init_meas2(struct qt1010_priv *priv,
 			    u8 reg_init_val, u8 *retval)
 {
 	u8 i, val;
