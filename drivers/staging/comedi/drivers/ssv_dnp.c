@@ -177,8 +177,6 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	printk(KERN_INFO "comedi%d: dnp: ", dev->minor);
-
 	dev->board_name = board->name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -195,8 +193,6 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_bits = dnp_dio_insn_bits;
 	s->insn_config = dnp_dio_insn_config;
 
-	printk("attached\n");
-
 	/* We use the I/O ports 0x22,0x23 and 0xa3-0xa9, which are always
 	 * allocated for the primary 8259, so we don't need to allocate them
 	 * ourselves. */
@@ -209,6 +205,7 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(PCMR, CSCIR);
 	outb((inb(CSCDR) & 0xAA), CSCDR);
 
+	dev_info(dev->class_dev, "%s: attached\n", dev->board_name);
 	return 1;
 }
 
