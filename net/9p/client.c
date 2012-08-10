@@ -76,6 +76,20 @@ inline int p9_is_proto_dotu(struct p9_client *clnt)
 }
 EXPORT_SYMBOL(p9_is_proto_dotu);
 
+/*
+ * Some error codes are taken directly from the server replies,
+ * make sure they are valid.
+ */
+static int safe_errno(int err)
+{
+	if ((err > 0) || (err < -MAX_ERRNO)) {
+		p9_debug(P9_DEBUG_ERROR, "Invalid error code %d\n", err);
+		return -EPROTO;
+	}
+	return err;
+}
+
+
 /* Interpret mount option for protocol version */
 static int get_protocol_version(char *s)
 {
@@ -782,7 +796,7 @@ again:
 		return req;
 reterr:
 	p9_free_req(c, req);
-	return ERR_PTR(err);
+	return ERR_PTR(safe_errno(err));
 }
 
 /**
@@ -865,7 +879,7 @@ static struct p9_req_t *p9_client_zc_rpc(struct p9_client *c, int8_t type,
 		return req;
 reterr:
 	p9_free_req(c, req);
-	return ERR_PTR(err);
+	return ERR_PTR(safe_errno(err));
 }
 
 static struct p9_fid *p9_fid_create(struct p9_client *clnt)
