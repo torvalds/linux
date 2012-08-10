@@ -563,8 +563,9 @@ static ssize_t ad7793_show_scale_available(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR_NAMED(in_m_in_scale_available, in-in_scale_available,
-			     S_IRUGO, ad7793_show_scale_available, NULL, 0);
+static IIO_DEVICE_ATTR_NAMED(in_m_in_scale_available,
+		in_voltage-voltage_scale_available, S_IRUGO,
+		ad7793_show_scale_available, NULL, 0);
 
 static struct attribute *ad7793_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
