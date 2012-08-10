@@ -2191,6 +2191,19 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		break;
 	}
 
+	case VIDIOC_SUBDEV_G_EDID:
+	case VIDIOC_SUBDEV_S_EDID: {
+		struct v4l2_subdev_edid *edid = parg;
+
+		if (edid->blocks) {
+			*user_ptr = (void __user *)edid->edid;
+			*kernel_ptr = (void *)&edid->edid;
+			*array_size = edid->blocks * 128;
+			ret = 1;
+		}
+		break;
+	}
+
 	case VIDIOC_S_EXT_CTRLS:
 	case VIDIOC_G_EXT_CTRLS:
 	case VIDIOC_TRY_EXT_CTRLS: {
