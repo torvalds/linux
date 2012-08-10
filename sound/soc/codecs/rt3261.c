@@ -53,7 +53,7 @@ static struct snd_soc_codec *rt3261_codec;
 #endif
 
 #include "rt3261.h"
-#if (CONFIG_SND_SOC_RT3261_MODULE | CONFIG_SND_SOC_RT3261)
+#if defined (CONFIG_SND_SOC_RT3261)
 #include "rt3261-dsp.h"
 #endif
 
@@ -532,72 +532,6 @@ int rt3261_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 	return jack_type;
 }
 EXPORT_SYMBOL(rt3261_headset_detect);
-
-/**
- * rt3261_conn_mux_path - connect MUX widget path.
- * @codec: SoC audio codec device.
- * @widget_name: widget name.
- * @path_name: path name.
- *
- * Make MUX path connected and update register.
- *
- * Returns 0 for success or negative error code.
- */
-int rt3261_conn_mux_path(struct snd_soc_codec *codec,
-		char *widget_name, char *path_name)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_dapm_widget *w;
-	struct snd_soc_dapm_path *path;
-	struct snd_kcontrol_new *kcontrol;
-	struct soc_enum *em;
-	unsigned int val, mask, bitmask;
-	int i, update = 0;
-
-	if (codec == NULL || widget_name == NULL || path_name == NULL)
-		return -EINVAL;
-
-	list_for_each_entry(w, &dapm->card->widgets, list)
-	{
-		if (!w->name || w->dapm != dapm)
-			continue;
-		if (!(strcmp(w->name, widget_name))) {
-			if (w->id != snd_soc_dapm_mux)
-				return -EINVAL;
-			dev_info(codec->dev, "w->name=%s\n", w->name);
-			list_for_each_entry(path, &w->sources, list_sink)
-			{
-				if (!(strcmp(path->name, path_name)))
-					path->connect = 1;
-				else
-					path->connect = 0;
-				dev_info(codec->dev,
-					"path->name=%s path->connect=%d\n",
-					path->name, path->connect);
-			}
-			update = 1;
-			break;
-		}
-	}
-
-	if (update) {
-		snd_soc_dapm_sync(dapm);
-
-		kcontrol = &w->kcontrols[0];
-		em = (struct soc_enum *)kcontrol->private_value;
-		for (i = 0; i < em->max; i++)
-			if (!(strcmp(path_name, em->texts[i])))
-				break;
-		for (bitmask = 1; bitmask < em->max; bitmask <<= 1)
-			;
-		val = i << em->shift_l;
-		mask = (bitmask - 1) << em->shift_l;
-		snd_soc_update_bits(codec, em->reg, mask, val);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(rt3261_conn_mux_path);
 
 static const char *rt3261_dacr2_src[] = { "TxDC_R", "TxDP_R" };
 
@@ -2164,7 +2098,7 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 
 	{"DAC R2 Mux", "IF2", "IF2 DAC R"},
 	{"DAC R2 Mux", "IF3", "IF3 DAC R"},
-#if (CONFIG_SND_SOC_RT3261_MODULE | CONFIG_SND_SOC_RT3261)
+#if defined (CONFIG_SND_SOC_RT3261)
 	{"DAC R2 Volume", NULL, "Mono dacr Mux"},
 	{"Mono dacr Mux", "TxDC_R", "DAC R2 Mux"},
 	{"Mono dacr Mux", "TxDP_R", "IF2 ADC R Mux"},
@@ -2815,7 +2749,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rt3261_dapm_routes));
 
 #if 0
-#if (CONFIG_SND_SOC_RT3261_MODULE | CONFIG_SND_SOC_RT3261)
+#if defined (CONFIG_SND_SOC_RT3261)
 	rt3261->dsp_sw = RT3261_DSP_AEC_NS_FENS;
 	rt3261_dsp_probe(codec);
 #endif
@@ -2830,6 +2764,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	realtek_ce_init_hwdep(codec);
 #endif
 #endif
+#endif
 
 	ret = device_create_file(codec->dev, &dev_attr_index_reg);
 	if (ret != 0) {
@@ -2837,7 +2772,6 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 			"Failed to create index_reg sysfs files: %d\n", ret);
 		return ret;
 	}
-#endif
 	rt3261_codec = codec;
 	return 0;
 }
@@ -2851,7 +2785,7 @@ static int rt3261_remove(struct snd_soc_codec *codec)
 #ifdef CONFIG_PM
 static int rt3261_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-#if (CONFIG_SND_SOC_RT3261_MODULE | CONFIG_SND_SOC_RT3261)
+#if defined (CONFIG_SND_SOC_RT3261)
 	/* After opening LDO of DSP, then close LDO of codec.
 	 * (1) DSP LDO power on
 	 * (2) DSP core power off
@@ -2867,7 +2801,7 @@ static int rt3261_suspend(struct snd_soc_codec *codec, pm_message_t state)
 static int rt3261_resume(struct snd_soc_codec *codec)
 {
 	rt3261_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-#if (CONFIG_SND_SOC_RT3261_MODULE | CONFIG_SND_SOC_RT3261)
+#if defined (CONFIG_SND_SOC_RT3261)
 	/* After opening LDO of codec, then close LDO of DSP. */
 	//rt3261_dsp_resume(codec);
 #endif

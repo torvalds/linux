@@ -32,19 +32,22 @@ static const u16 rt3261_dsp_init[][2] = {
 #define RT3261_DSP_INIT_NUM \
 	(sizeof(rt3261_dsp_init) / sizeof(rt3261_dsp_init[0]))
 
-static const u16 rt3261_dsp_48[][2] = {
+//static const u16 rt3261_dsp_48[][2] = {
+unsigned short rt3261_dsp_48[][2] = {
 	{0x22c8, 0x0026}, {0x22fe, 0x0fa0}, {0x22ff, 0x3893}, {0x22fa, 0x2487},
 	{0x2301, 0x0002},
 };
 #define RT3261_DSP_48_NUM (sizeof(rt3261_dsp_48) / sizeof(rt3261_dsp_48[0]))
 
-static const u16 rt3261_dsp_441[][2] = {
+//static const u16 rt3261_dsp_441[][2] = {
+unsigned short rt3261_dsp_441[][2] = {
 	{0x22c6, 0x0031}, {0x22c7, 0x0050}, {0x22c8, 0x0009}, {0x22fe, 0x0e5b},
 	{0x22ff, 0x3c83}, {0x22fa, 0x2484}, {0x2301, 0x0001},
 };
 #define RT3261_DSP_441_NUM (sizeof(rt3261_dsp_441) / sizeof(rt3261_dsp_441[0]))
 
-static const u16 rt3261_dsp_16[][2] = {
+//static const u16 rt3261_dsp_16[][2] = {
+unsigned short rt3261_dsp_16[][2] = {
 	{0x22c8, 0x0026}, {0x22fa, 0x2484}, {0x2301, 0x0002},
 };
 #define RT3261_DSP_16_NUM (sizeof(rt3261_dsp_16) / sizeof(rt3261_dsp_16[0]))
@@ -394,142 +397,6 @@ static int rt3261_dsp_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int rt3261_dsp_play_bp_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
-
-	ucontrol->value.integer.value[0] = rt3261->dsp_play_pass;
-
-	return 0;
-}
-
-static int rt3261_dsp_play_bp_put(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
-
-	if (rt3261->dsp_play_pass == ucontrol->value.integer.value[0])
-		return 0;
-	rt3261->dsp_play_pass = ucontrol->value.integer.value[0];
-
-	rt3261_conn_mux_path(codec, "DAC L2 Mux",
-		rt3261->dsp_play_pass ? "IF2" : "TxDC");
-	rt3261_conn_mux_path(codec, "DAC R2 Mux",
-		rt3261->dsp_play_pass ? "IF2" : "TxDC");
-
-	return 0;
-}
-
-static int rt3261_dsp_rec_bp_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
-
-	ucontrol->value.integer.value[0] = rt3261->dsp_rec_pass;
-
-	return 0;
-}
-
-static int rt3261_dsp_rec_bp_put(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
-
-	if (rt3261->dsp_rec_pass == ucontrol->value.integer.value[0])
-		return 0;
-	rt3261->dsp_rec_pass = ucontrol->value.integer.value[0];
-
-	rt3261_conn_mux_path(codec, "IF2 ADC L Mux",
-		rt3261->dsp_rec_pass ? "Mono ADC MIXL" : "TxDP");
-	rt3261_conn_mux_path(codec, "IF2 ADC R Mux",
-		rt3261->dsp_rec_pass ? "Mono ADC MIXR" : "TxDP");
-
-	return 0;
-}
-
-static int rt3261_dac_active_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_dapm_widget *w;
-
-	list_for_each_entry(w, &dapm->card->widgets, list)
-	{
-		if (!w->sname || w->dapm != dapm)
-			continue;
-		if (strstr(w->sname, "Playback")) {
-			pr_info("widget %s %s\n", w->name, w->sname);
-			ucontrol->value.integer.value[0] = w->active;
-			break;
-		}
-	}
-	return 0;
-}
-
-static int rt3261_dac_active_put(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_dapm_widget *w;
-
-	list_for_each_entry(w, &dapm->card->widgets, list)
-	{
-		if (!w->sname || w->dapm != dapm)
-			continue;
-		if (strstr(w->sname, "Playback")) {
-			pr_info("widget %s %s\n", w->name, w->sname);
-			w->active = 1;
-		}
-	}
-	return 0;
-}
-
-static int rt3261_adc_active_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_dapm_widget *w;
-
-	list_for_each_entry(w, &dapm->card->widgets, list)
-	{
-		if (!w->sname || w->dapm != dapm)
-			continue;
-		if (strstr(w->sname, "Capture")) {
-			pr_info("widget %s %s\n", w->name, w->sname);
-			ucontrol->value.integer.value[0] = w->active;
-			break;
-		}
-	}
-	return 0;
-}
-
-static int rt3261_adc_active_put(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_dapm_widget *w;
-
-	list_for_each_entry(w, &dapm->card->widgets, list)
-	{
-		if (!w->sname || w->dapm != dapm)
-			continue;
-		if (strstr(w->sname, "Capture")) {
-			pr_info("widget %s %s\n", w->name, w->sname);
-			w->active = 1;
-		}
-	}
-	return 0;
-}
-
 /* DSP Path Control 1 */
 static const char *rt3261_src_rxdp_mode[] = {
 	"Normal", "Divided by 3"};
@@ -617,14 +484,6 @@ static const struct snd_kcontrol_new rt3261_dsp_snd_controls[] = {
 	/* AEC */
 	SOC_ENUM_EXT("DSP Function Switch", rt3261_dsp_enum,
 		rt3261_dsp_get, rt3261_dsp_put),
-	SOC_SINGLE_EXT("DSP Playback Bypass", 0, 0, 1, 0,
-		rt3261_dsp_play_bp_get, rt3261_dsp_play_bp_put),
-	SOC_SINGLE_EXT("DSP Record Bypass", 0, 0, 1, 0,
-		rt3261_dsp_rec_bp_get, rt3261_dsp_rec_bp_put),
-	SOC_SINGLE_EXT("DAC Switch", 0, 0, 1, 0,
-		rt3261_dac_active_get, rt3261_dac_active_put),
-	SOC_SINGLE_EXT("ADC Switch", 0, 0, 1, 0,
-		rt3261_adc_active_get, rt3261_adc_active_put),
 };
 
 static int rt3261_dsp_patch_3(struct snd_soc_codec *codec)
@@ -898,7 +757,8 @@ rate_err:
 static int rt3261_dsp_set_mode(struct snd_soc_codec *codec, int mode)
 {
 	struct rt3261_dsp_param param;
-	int ret, i, tab_num;
+	int ret, i;
+/*
 	unsigned short (*mode_tab)[2];
 
 	switch (mode) {
@@ -925,12 +785,12 @@ static int rt3261_dsp_set_mode(struct snd_soc_codec *codec, int mode)
 		dev_info(codec->dev, "Disable\n");
 		return 0;
 	}
-
+*/
 	param.cmd_fmt = 0x00e0;
 	param.cmd = RT3261_DSP_CMD_MW;
-	for (i = 0; i < tab_num; i++) {
-		param.addr = mode_tab[i][0];
-		param.data = mode_tab[i][1];
+	for (i = 0; i < RT3261_DSP_AEC_NUM; i++) {
+		param.addr = rt3261_dsp_aec_ns_fens[i][0];
+		param.data = rt3261_dsp_aec_ns_fens[i][1];
 		ret = rt3261_dsp_write(codec, &param);
 		if (ret < 0)
 			goto mode_err;
@@ -1118,27 +978,21 @@ static ssize_t rt3261_dsp_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct rt3261_priv *rt3261 = i2c_get_clientdata(client);
 	struct snd_soc_codec *codec = rt3261->codec;
-	unsigned short (*rt3261_dsp_tab)[2];
+//	unsigned short (*rt3261_dsp_tab)[2];
 	unsigned int val;
-	int cnt = 0, i, tab_num;
+	int cnt = 0, i;
 
 	switch (rt3261->dsp_sw) {
 	case RT3261_DSP_AEC_NS_FENS:
 		cnt += sprintf(buf, "[ RT3261 DSP 'AEC' ]\n");
-		rt3261_dsp_tab = rt3261_dsp_aec_ns_fens;
-		tab_num = RT3261_DSP_AEC_NUM;
 		break;
 
 	case RT3261_DSP_HFBF:
 		cnt += sprintf(buf, "[ RT3261 DSP 'Beamforming' ]\n");
-		rt3261_dsp_tab = rt3261_dsp_hfbf;
-		tab_num = RT3261_DSP_HFBF_NUM;
 		break;
 
 	case RT3261_DSP_FFP:
 		cnt += sprintf(buf, "[ RT3261 DSP 'Far Field Pick-up' ]\n");
-		rt3261_dsp_tab = rt3261_dsp_ffp;
-		tab_num = RT3261_DSP_FFP_NUM;
 		break;
 
 	case RT3261_DSP_DIS:
@@ -1147,14 +1001,14 @@ static ssize_t rt3261_dsp_show(struct device *dev,
 		goto dsp_done;
 	}
 
-	for (i = 0; i < tab_num; i++) {
+	for (i = 0; i < RT3261_DSP_AEC_NUM; i++) {
 		if (cnt + RT3261_DSP_REG_DISP_LEN >= PAGE_SIZE)
 			break;
-		val = rt3261_dsp_read(codec, rt3261_dsp_tab[i][0]);
+		val = rt3261_dsp_read(codec, rt3261_dsp_aec_ns_fens[i][0]);
 		if (!val)
 			continue;
 		cnt += snprintf(buf + cnt, RT3261_DSP_REG_DISP_LEN,
-			"%04x: %04x\n", rt3261_dsp_tab[i][0], val);
+			"%04x: %04x\n", rt3261_dsp_aec_ns_fens[i][0], val);
 	}
 
 dsp_done:
@@ -1220,32 +1074,6 @@ int rt3261_dsp_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt3261_dsp_probe);
-
-int do_rt3261_dsp_set_mode(struct snd_soc_codec *codec, int mode) {
-	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
-	dev_dbg(codec->dev, "%s mode=%d\n",__func__,mode);
-	if(rt3261->dsp_sw == mode)
-		return 0;
-	rt3261->dsp_sw = mode;
-	if(rt3261->dsp_sw == RT3261_DSP_DIS)
-		rt3261->dsp_play_pass = rt3261->dsp_rec_pass = 1;
-	else
-		rt3261->dsp_play_pass = rt3261->dsp_rec_pass = 0;
-	rt3261_conn_mux_path(codec, "DAC L2 Mux",
-		rt3261->dsp_play_pass ? "IF2" : "TxDC");
-	rt3261_conn_mux_path(codec, "DAC R2 Mux",
-		rt3261->dsp_play_pass ? "IF2" : "TxDC");
-	rt3261_conn_mux_path(codec, "IF2 ADC L Mux",
-		rt3261->dsp_rec_pass ? "Mono ADC MIXL" : "TxDP");
-	rt3261_conn_mux_path(codec, "IF2 ADC R Mux",
-		rt3261->dsp_rec_pass ? "Mono ADC MIXR" : "TxDP");
-
-	if(rt3261->dsp_sw != RT3261_DSP_DIS)
-		rt3261_dsp_snd_effect(codec);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(do_rt3261_dsp_set_mode);
 
 #ifdef RTK_IOCTL
 int rt_codec_dsp_ioctl_common(struct snd_hwdep *hw, struct file *file, unsigned int cmd, unsigned long arg)
