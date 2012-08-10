@@ -203,7 +203,9 @@ struct rk_lcdc_device_driver{
 	int num_layer;
 	int num_buf;				//the num_of buffer
 	int fb_index_base;                     //the first fb index of the lcdc device
-	rk_screen *screen;
+	rk_screen *screen0;		      //some platform have only one lcdc,but extend
+	rk_screen *screen1;		      //two display devices for dual display,such as rk2918,rk2928
+	rk_screen *cur_screen;
 	u32 pixclock;
 
 	

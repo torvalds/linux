@@ -346,7 +346,7 @@ static int rk_fb_set_par(struct fb_info *info)
     	struct fb_fix_screeninfo *fix = &info->fix;
     	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     	struct layer_par *par = NULL;
-   	rk_screen *screen =dev_drv->screen;
+   	rk_screen *screen =dev_drv->screen0;
 	struct fb_info * info2 = NULL;
 	struct rk_lcdc_device_driver * dev_drv1  = NULL;
 	struct layer_par *par2 = NULL;
@@ -664,7 +664,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		}
 	#endif
 	hdmi_var->grayscale &= 0xff;
-	hdmi_var->grayscale |= (dev_drv->screen->x_res<<8) + (dev_drv->screen->y_res<<20);
+	hdmi_var->grayscale |= (dev_drv->cur_screen->x_res<<8) + (dev_drv->cur_screen->y_res<<20);
 	ret = info->fbops->fb_open(info,1);
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_set_par(info);
@@ -723,8 +723,8 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	}
 
 	var = &info->var;
-	screen_x = dev_drv->screen->x_res;
-	screen_y = dev_drv->screen->y_res;
+	screen_x = dev_drv->cur_screen->x_res;
+	screen_y = dev_drv->cur_screen->y_res;
 	xpos = (screen_x-screen_x*scale_x/100)>>1;
 	ypos = (screen_y-screen_y*scale_y/100)>>1;
 	xsize = screen_x*scale_x/100;
@@ -952,9 +952,9 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	init_lcdc_device_driver(dev_drv, def_drv,id);
 	if(dev_drv->screen_ctr_info->set_screen_info)
 	{
-		dev_drv->screen_ctr_info->set_screen_info(dev_drv->screen,
+		dev_drv->screen_ctr_info->set_screen_info(dev_drv->screen0,
 			dev_drv->screen_ctr_info->lcd_info);
-		if(SCREEN_NULL==dev_drv->screen->type)
+		if(SCREEN_NULL==dev_drv->screen0->type)
 		{
 			printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
 			fb_inf->num_lcdc--;
@@ -971,6 +971,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	}
 		
 	dev_drv->init_lcdc(dev_drv);
+	dev_drv->cur_screen = dev_drv->screen0;
 	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
 	dev_drv->fb_index_base = fb_inf->num_fb;
@@ -987,26 +988,25 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         fbi->var = def_var;
         fbi->fix = def_fix;
         sprintf(fbi->fix.id,"fb%d",fb_inf->num_fb);
-        fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
-        fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
+        fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->x_res;
+        fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->y_res;
 	fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
-        //fbi->var.bits_per_pixel = 16;
         #ifdef  CONFIG_LOGO_LINUX_BMP
     		fbi->var.bits_per_pixel = 32; 
 	#else
-			fbi->var.bits_per_pixel = 16; 
+		fbi->var.bits_per_pixel = 16; 
 	#endif
-        fbi->var.xres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
-        fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
-        fbi->var.width = fb_inf->lcdc_dev_drv[lcdc_id]->screen->width;
-        fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->screen->height;
+        fbi->var.xres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->x_res;
+        fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->y_res;
+        fbi->var.width = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->width;
+        fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->height;
         fbi->var.pixclock = fb_inf->lcdc_dev_drv[lcdc_id]->pixclock;
-        fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->left_margin;
-        fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->right_margin;
-        fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->upper_margin;
-        fbi->var.lower_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->lower_margin;
-        fbi->var.vsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen->vsync_len;
-        fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen->hsync_len;
+        fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->left_margin;
+        fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->right_margin;
+        fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->upper_margin;
+        fbi->var.lower_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->lower_margin;
+        fbi->var.vsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->vsync_len;
+        fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->hsync_len;
         fbi->fbops			 = &fb_ops;
         fbi->flags			 = FBINFO_FLAG_DEFAULT;
         fbi->pseudo_palette  = fb_inf->lcdc_dev_drv[lcdc_id]->layer_par[i]->pseudo_pal;
@@ -1093,8 +1093,8 @@ static void rkfb_early_suspend(struct early_suspend *h)
 			continue;
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
 			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
-		if(inf->lcdc_dev_drv[i]->screen->standby)
-			inf->lcdc_dev_drv[i]->screen->standby(1);
+		if(inf->lcdc_dev_drv[i]->screen0->standby)
+			inf->lcdc_dev_drv[i]->screen0->standby(1);
 		
 		inf->lcdc_dev_drv[i]->suspend(inf->lcdc_dev_drv[i]);
 	}
@@ -1111,8 +1111,8 @@ static void rkfb_early_resume(struct early_suspend *h)
 			continue;
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable)
 			inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable();
-		if(inf->lcdc_dev_drv[i]->screen->standby)
-			inf->lcdc_dev_drv[i]->screen->standby(0);
+		if(inf->lcdc_dev_drv[i]->screen0->standby)
+			inf->lcdc_dev_drv[i]->screen0->standby(0);
 		
 		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
 	}
