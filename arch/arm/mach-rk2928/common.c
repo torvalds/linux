@@ -13,7 +13,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/fiq.h>
-//#include <mach/loader.h>
+#include <mach/loader.h>
 //#include <mach/ddr.h>
 
 static void __init rk2928_cpu_axi_init(void)
@@ -86,11 +86,14 @@ static void __init rk2928_l2_cache_init(void)
 static int boot_mode;
 static void __init rk2928_boot_mode_init(void)
 {
-	u32 boot_flag = 0;
-	boot_mode = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG1);
+	u32 boot_flag = (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG4) | (readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG5) << 16)) - SYS_KERNRL_REBOOT_FLAG;
+	boot_mode = readl_relaxed(RK2928_GRF_BASE + GRF_OS_REG6);
 
+	if (boot_flag == BOOT_RECOVER) {
+		boot_mode = BOOT_MODE_RECOVERY;
+	}
 	if (boot_mode || boot_flag)
-		printk("Boot mode: %d flag: 0x%08x\n", boot_mode, boot_flag);
+		printk("Boot mode: %d flag: %d\n", boot_mode, boot_flag);
 }
 
 int board_boot_mode(void)
