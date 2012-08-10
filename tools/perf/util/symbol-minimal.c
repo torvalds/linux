@@ -260,6 +260,12 @@ out_close:
 	return -1;
 }
 
+bool symsrc__possibly_runtime(struct symsrc *ss __used)
+{
+	/* Assume all sym sources could be a runtime image. */
+	return true;
+}
+
 bool symsrc__has_symtab(struct symsrc *ss __used)
 {
 	return false;

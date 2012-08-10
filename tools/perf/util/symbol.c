@@ -1026,11 +1026,12 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 {
 	char *name;
 	int ret = -1;
-	struct symsrc ss;
 	u_int i;
 	struct machine *machine;
 	char *root_dir = (char *) "";
-	int want_symtab;
+	int ss_pos = 0;
+	struct symsrc ss_[2];
+	struct symsrc *syms_ss = NULL, *runtime_ss = NULL;
 
 	dso__set_loaded(dso, map->type);
 
@@ -1072,12 +1073,12 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		root_dir = machine->root_dir;
 
 	/* Iterate over candidate debug images.
-	 * On the first pass, only load images if they have a full symtab.
-	 * Failing that, do a second pass where we accept .dynsym also
+	 * Keep track of "interesting" ones (those which have a symtab, dynsym,
+	 * and/or opd section) for processing.
 	 */
-	want_symtab = 1;
-restart:
 	for (i = 0; i < DSO_BINARY_TYPE__SYMTAB_CNT; i++) {
+		struct symsrc *ss = &ss_[ss_pos];
+		bool next_slot = false;
 
 		enum dso_binary_type symtab_type = binary_type_symtab[i];
 
@@ -1086,45 +1087,55 @@ restart:
 			continue;
 
 		/* Name is now the name of the next image to try */
-		if (symsrc__init(&ss, dso, name, symtab_type) < 0)
+		if (symsrc__init(ss, dso, name, symtab_type) < 0)
 			continue;
 
-		if (want_symtab && !symsrc__has_symtab(&ss)) {
-			symsrc__destroy(&ss);
-			continue;
+		if (!syms_ss && symsrc__has_symtab(ss)) {
+			syms_ss = ss;
+			next_slot = true;
 		}
 
-		ret = dso__load_sym(dso, map, &ss, &ss, filter, 0);
-
-		/*
-		 * Some people seem to have debuginfo files _WITHOUT_ debug
-		 * info!?!?
-		 */
-		if (!ret) {
-			symsrc__destroy(&ss);
-			continue;
+		if (!runtime_ss && symsrc__possibly_runtime(ss)) {
+			runtime_ss = ss;
+			next_slot = true;
 		}
 
-		if (ret > 0) {
-			int nr_plt;
+		if (next_slot) {
+			ss_pos++;
 
-			nr_plt = dso__synthesize_plt_symbols(dso, &ss, map, filter);
-			if (nr_plt > 0)
-				ret += nr_plt;
-			symsrc__destroy(&ss);
-			break;
+			if (syms_ss && runtime_ss)
+				break;
 		}
+
 	}
 
-	/*
-	 * If we wanted a full symtab but no image had one,
-	 * relax our requirements and repeat the search.
-	 */
-	if (ret <= 0 && want_symtab) {
-		want_symtab = 0;
-		goto restart;
+	if (!runtime_ss && !syms_ss)
+		goto out_free;
+
+	if (runtime_ss && !syms_ss) {
+		syms_ss = runtime_ss;
 	}
 
+	/* We'll have to hope for the best */
+	if (!runtime_ss && syms_ss)
+		runtime_ss = syms_ss;
+
+	if (syms_ss)
+		ret = dso__load_sym(dso, map, syms_ss, runtime_ss, filter, 0);
+	else
+		ret = -1;
+
+	if (ret > 0 && runtime_ss->dynsym) {
+		int nr_plt;
+
+		nr_plt = dso__synthesize_plt_symbols(dso, runtime_ss, map, filter);
+		if (nr_plt > 0)
+			ret += nr_plt;
+	}
+
+	for (; ss_pos > 0; ss_pos--)
+		symsrc__destroy(&ss_[ss_pos - 1]);
+out_free:
 	free(name);
 	if (ret < 0 && strstr(dso->name, " (deleted)") != NULL)
 		return 0;

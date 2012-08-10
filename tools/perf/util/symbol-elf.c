@@ -525,6 +525,11 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
+bool symsrc__possibly_runtime(struct symsrc *ss)
+{
+	return ss->dynsym || ss->opdsec;
+}
+
 bool symsrc__has_symtab(struct symsrc *ss)
 {
 	return ss->symtab != NULL;
