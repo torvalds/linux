@@ -14,13 +14,13 @@
  * ---------------------------------------------------------------------------
  */
 
+#include <linux/version.h>
 #include "csr_wifi_hip_unifiversion.h"
 #include "unifi_priv.h"
 #include "csr_wifi_hip_conversions.h"
 #ifdef CSR_SUPPORT_WEXT_AP
 #include "csr_wifi_sme_sef.h"
 #endif
-
 
 /*
  * This file implements the SME SYS API and contains the following functions:

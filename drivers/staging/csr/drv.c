@@ -15,8 +15,6 @@
  * ---------------------------------------------------------------------------
  */
 
-
-
 /*
  * Porting Notes:
  * Part of this file contains an example for how to glue the OS layer
@@ -37,6 +35,7 @@
 #include <linux/poll.h>
 #include <asm/uaccess.h>
 #include <linux/jiffies.h>
+#include <linux/version.h>
 
 #include "csr_wifi_hip_unifiversion.h"
 #include "unifi_priv.h"

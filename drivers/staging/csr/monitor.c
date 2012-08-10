@@ -10,6 +10,7 @@
  * ---------------------------------------------------------------------------
  */
 
+#include <linux/version.h>
 #include "unifi_priv.h"
 
 #ifdef UNIFI_SNIFF_ARPHRD
@@ -22,8 +23,6 @@
 #ifndef ETH_P_80211_RAW
 #define ETH_P_80211_RAW ETH_P_ALL
 #endif
-
-
 
 /*
  * ---------------------------------------------------------------------------

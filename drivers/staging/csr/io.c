@@ -31,13 +31,13 @@
  * ---------------------------------------------------------------------------
  */
 #include <linux/proc_fs.h>
+#include <linux/version.h>
 
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_unifiversion.h"
 #include "csr_wifi_hip_unifi_udi.h"   /* for unifi_print_status() */
 #include "unifiio.h"
 #include "unifi_priv.h"
-
 
 /*
  * Array of pointers to context structs for unifi devices that are present.

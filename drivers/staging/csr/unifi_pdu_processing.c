@@ -14,7 +14,7 @@
  * ---------------------------------------------------------------------------
  */
 
-
+#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
