@@ -226,4 +226,44 @@ in the frequency range from 87,5 to 108,0 MHz</title>
       <title>VESA and Industry Standards and Guidelines for Computer Display Monitor Timing (DMT)</title>
     </biblioentry>
 
+    <biblioentry id="vesaedid">
+      <abbrev>EDID</abbrev>
+      <authorgroup>
+	<corpauthor>Video Electronics Standards Association
+(<ulink url="http://www.vesa.org">http://www.vesa.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>VESA Enhanced Extended Display Identification Data Standard</title>
+      <subtitle>Release A, Revision 2</subtitle>
+    </biblioentry>
+
+    <biblioentry id="hdcp">
+      <abbrev>HDCP</abbrev>
+      <authorgroup>
+	<corpauthor>Digital Content Protection LLC
+(<ulink url="http://www.digital-cp.com">http://www.digital-cp.com</ulink>)</corpauthor>
+      </authorgroup>
+      <title>High-bandwidth Digital Content Protection System</title>
+      <subtitle>Revision 1.3</subtitle>
+    </biblioentry>
+
+    <biblioentry id="hdmi">
+      <abbrev>HDMI</abbrev>
+      <authorgroup>
+	<corpauthor>HDMI Licensing LLC
+(<ulink url="http://www.hdmi.org">http://www.hdmi.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>High-Definition Multimedia Interface</title>
+      <subtitle>Specification Version 1.4a</subtitle>
+    </biblioentry>
+
+    <biblioentry id="dp">
+      <abbrev>DP</abbrev>
+      <authorgroup>
+	<corpauthor>Video Electronics Standards Association
+(<ulink url="http://www.vesa.org">http://www.vesa.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>VESA DisplayPort Standard</title>
+      <subtitle>Version 1, Revision 2</subtitle>
+    </biblioentry>
+
   </bibliography>
