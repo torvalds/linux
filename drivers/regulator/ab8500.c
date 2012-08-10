@@ -257,16 +257,10 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
 };
 
-static int ab8500_fixed_get_voltage(struct regulator_dev *rdev)
-{
-	return rdev->desc->min_uV;
-}
-
 static struct regulator_ops ab8500_regulator_fixed_ops = {
 	.enable		= ab8500_regulator_enable,
 	.disable	= ab8500_regulator_disable,
 	.is_enabled	= ab8500_regulator_is_enabled,
-	.get_voltage	= ab8500_fixed_get_voltage,
 	.list_voltage	= regulator_list_voltage_linear,
 };
 
