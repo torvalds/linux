@@ -99,7 +99,6 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
 		atomic_set(&rdev->irq.ring_int[i], 0);
-	rdev->irq.gui_idle = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
@@ -147,7 +146,6 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	/* Disable *all* interrupts */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
 		atomic_set(&rdev->irq.ring_int[i], 0);
-	rdev->irq.gui_idle = false;
 	for (i = 0; i < RADEON_MAX_HPD_PINS; i++)
 		rdev->irq.hpd[i] = false;
 	for (i = 0; i < RADEON_MAX_CRTCS; i++) {
@@ -457,34 +455,3 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
 	spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
 }
 
-/**
- * radeon_irq_kms_wait_gui_idle - waits for drawing engine to be idle
- *
- * @rdev: radeon device pointer
- *
- * Enabled the GUI idle interrupt and waits for it to fire (r6xx+).
- * This is currently used to make sure the 3D engine is idle for power
- * management, but should be replaces with proper fence waits.
- * GUI idle interrupts don't work very well on pre-r6xx hw and it also
- * does not take into account other aspects of the chip that may be busy.
- * DO NOT USE GOING FORWARD.
- */
-int radeon_irq_kms_wait_gui_idle(struct radeon_device *rdev)
-{
-	unsigned long irqflags;
-	int r;
-
-	spin_lock_irqsave(&rdev->irq.lock, irqflags);
-	rdev->irq.gui_idle = true;
-	radeon_irq_set(rdev);
-	spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
-
-	r = wait_event_timeout(rdev->irq.idle_queue, radeon_gui_idle(rdev),
-			       msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
-
-	spin_lock_irqsave(&rdev->irq.lock, irqflags);
-	rdev->irq.gui_idle = false;
-	radeon_irq_set(rdev);
-	spin_unlock_irqrestore(&rdev->irq.lock, irqflags);
-	return r;
-}

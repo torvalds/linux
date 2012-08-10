@@ -575,9 +575,6 @@ int rs600_irq_set(struct radeon_device *rdev)
 	if (atomic_read(&rdev->irq.ring_int[RADEON_RING_TYPE_GFX_INDEX])) {
 		tmp |= S_000040_SW_INT_EN(1);
 	}
-	if (rdev->irq.gui_idle) {
-		tmp |= S_000040_GUI_IDLE(1);
-	}
 	if (rdev->irq.crtc_vblank_int[0] ||
 	    atomic_read(&rdev->irq.pflip[0])) {
 		mode_int |= S_006540_D1MODE_VBLANK_INT_MASK(1);
@@ -609,12 +606,6 @@ static inline u32 rs600_irq_ack(struct radeon_device *rdev)
 	uint32_t irqs = RREG32(R_000044_GEN_INT_STATUS);
 	uint32_t irq_mask = S_000044_SW_INT(1);
 	u32 tmp;
-
-	/* the interrupt works, but the status bit is permanently asserted */
-	if (rdev->irq.gui_idle && radeon_gui_idle(rdev)) {
-		if (!rdev->irq.gui_idle_acked)
-			irq_mask |= S_000044_GUI_IDLE_STAT(1);
-	}
 
 	if (G_000044_DISPLAY_INT_STAT(irqs)) {
 		rdev->irq.stat_regs.r500.disp_int = RREG32(R_007EDC_DISP_INTERRUPT_STATUS);
@@ -675,9 +666,6 @@ int rs600_irq_process(struct radeon_device *rdev)
 	bool queue_hotplug = false;
 	bool queue_hdmi = false;
 
-	/* reset gui idle ack.  the status bit is broken */
-	rdev->irq.gui_idle_acked = false;
-
 	status = rs600_irq_ack(rdev);
 	if (!status &&
 	    !rdev->irq.stat_regs.r500.disp_int &&
@@ -690,11 +678,6 @@ int rs600_irq_process(struct radeon_device *rdev)
 		/* SW interrupt */
 		if (G_000044_SW_INT(status)) {
 			radeon_fence_process(rdev, RADEON_RING_TYPE_GFX_INDEX);
-		}
-		/* GUI idle */
-		if (G_000040_GUI_IDLE(status)) {
-			rdev->irq.gui_idle_acked = true;
-			wake_up(&rdev->irq.idle_queue);
 		}
 		/* Vertical blank interrupts */
 		if (G_007EDC_LB_D1_VBLANK_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
@@ -729,8 +712,6 @@ int rs600_irq_process(struct radeon_device *rdev)
 		}
 		status = rs600_irq_ack(rdev);
 	}
-	/* reset gui idle ack.  the status bit is broken */
-	rdev->irq.gui_idle_acked = false;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
 	if (queue_hdmi)
