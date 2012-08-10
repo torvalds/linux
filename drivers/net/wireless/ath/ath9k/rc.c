@@ -582,8 +582,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 }
 
 static u8 ath_rc_get_highest_rix(struct ath_rate_priv *ath_rc_priv,
-				 int *is_probing,
-				 bool legacy)
+				 int *is_probing)
 {
 	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	u32 best_thruput, this_thruput, now_msec;
@@ -605,8 +604,6 @@ static u8 ath_rc_get_highest_rix(struct ath_rate_priv *ath_rc_priv,
 		u8 per_thres;
 
 		rate = ath_rc_priv->valid_rate_index[index];
-		if (legacy && !(rate_table->info[rate].rate_flags & RC_LEGACY))
-			continue;
 		if (rate > ath_rc_priv->rate_max_phy)
 			continue;
 
@@ -770,7 +767,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	try_per_rate = 4;
 
 	rate_table = ath_rc_priv->rate_table;
-	rix = ath_rc_get_highest_rix(ath_rc_priv, &is_probe, false);
+	rix = ath_rc_get_highest_rix(ath_rc_priv, &is_probe);
 
 	if (conf_is_ht(&sc->hw->conf) &&
 	    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
@@ -804,7 +801,13 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 				       try_per_rate, rix, 0);
 	}
 
-	for ( ; i < 3; i++) {
+	for ( ; i < 4; i++) {
+		/*
+		 * Use twice the number of tries for the last MRR segment.
+		 */
+		if (i + 1 == 4)
+			try_per_rate = 8;
+
 		ath_rc_get_lower_rix(ath_rc_priv, rix, &rix);
 
 		/*
@@ -814,26 +817,6 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 				       try_per_rate, rix, 1);
 	}
 
-	/*
-	 * Use twice the number of tries for the last MRR segment.
-	 */
-	try_per_rate = 8;
-
-	/*
-	 * If the last rate in the rate series is MCS and has
-	 * more than 80% of per thresh, then use a legacy rate
-	 * as last retry to ensure that the frame is tried in both
-	 * MCS and legacy rate.
-	 */
-	ath_rc_get_lower_rix(ath_rc_priv, rix, &rix);
-
-	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy) &&
-	    (ath_rc_priv->per[rix] > 45))
-		rix = ath_rc_get_highest_rix(ath_rc_priv, &is_probe, true);
-
-	/* All other rates in the series have RTS enabled */
-	ath_rc_rate_set_series(rate_table, &rates[i], txrc,
-			       try_per_rate, rix, 1);
 	/*
 	 * NB:Change rate series to enable aggregation when operating
 	 * at lower MCS rates. When first rate in series is MCS2
