@@ -473,7 +473,7 @@ int dlm_lowcomms_connect_node(int nodeid)
 }
 
 /* Make a socket active */
-static int add_sock(struct socket *sock, struct connection *con)
+static void add_sock(struct socket *sock, struct connection *con)
 {
 	con->sock = sock;
 
@@ -483,7 +483,6 @@ static int add_sock(struct socket *sock, struct connection *con)
 	con->sock->sk->sk_state_change = lowcomms_state_change;
 	con->sock->sk->sk_user_data = con;
 	con->sock->sk->sk_allocation = GFP_NOFS;
-	return 0;
 }
 
 /* Add the port number to an IPv6 or 4 sockaddr and return the address
