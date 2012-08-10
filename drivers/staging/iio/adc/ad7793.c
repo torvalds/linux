@@ -604,9 +604,6 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 		*val = (smpl >> chan->scan_type.shift) &
 			((1 << (chan->scan_type.realbits)) - 1);
 
-		if (!unipolar)
-			*val -= (1 << (chan->scan_type.realbits - 1));
-
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -639,6 +636,12 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 		*val =  scale_uv;
 
 		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_OFFSET:
+		if (!unipolar)
+			*val -= (1 << (chan->scan_type.realbits - 1));
+		else
+			*val = 0;
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
@@ -720,7 +723,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 0,
 			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
@@ -732,7 +736,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 1,
 			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
@@ -744,7 +749,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
@@ -757,7 +763,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 3,
 			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
@@ -778,7 +785,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 5,
 			.scan_type = IIO_ST('u', 24, 32, 0),
 		},
@@ -793,7 +801,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 0,
 			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
@@ -805,7 +814,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 1,
 			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
@@ -817,7 +827,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
@@ -830,7 +841,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 3,
 			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
@@ -851,7 +863,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 5,
 			.scan_type = IIO_ST('u', 16, 32, 0),
 		},
