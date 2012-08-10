@@ -1257,9 +1257,7 @@ static inline void slave_disable_netpoll(struct slave *slave)
 		return;
 
 	slave->np = NULL;
-	synchronize_rcu_bh();
-	__netpoll_cleanup(np);
-	kfree(np);
+	__netpoll_free_rcu(np);
 }
 static inline bool slave_dev_support_netpoll(struct net_device *slave_dev)
 {

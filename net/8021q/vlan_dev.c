@@ -704,11 +704,7 @@ static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 
 	info->netpoll = NULL;
 
-        /* Wait for transmitting packets to finish before freeing. */
-        synchronize_rcu_bh();
-
-        __netpoll_cleanup(netpoll);
-        kfree(netpoll);
+	__netpoll_free_rcu(netpoll);
 }
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 

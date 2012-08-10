@@ -878,6 +878,24 @@ static int __init netpoll_init(void)
 }
 core_initcall(netpoll_init);
 
+static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
+{
+	struct netpoll_info *npinfo =
+			container_of(rcu_head, struct netpoll_info, rcu);
+
+	skb_queue_purge(&npinfo->arp_tx);
+	skb_queue_purge(&npinfo->txq);
+
+	/* we can't call cancel_delayed_work_sync here, as we are in softirq */
+	cancel_delayed_work(&npinfo->tx_work);
+
+	/* clean after last, unfinished work */
+	__skb_queue_purge(&npinfo->txq);
+	/* now cancel it again */
+	cancel_delayed_work(&npinfo->tx_work);
+	kfree(npinfo);
+}
+
 void __netpoll_cleanup(struct netpoll *np)
 {
 	struct netpoll_info *npinfo;
@@ -903,20 +921,24 @@ void __netpoll_cleanup(struct netpoll *np)
 			ops->ndo_netpoll_cleanup(np->dev);
 
 		RCU_INIT_POINTER(np->dev->npinfo, NULL);
-
-		/* avoid racing with NAPI reading npinfo */
-		synchronize_rcu_bh();
-
-		skb_queue_purge(&npinfo->arp_tx);
-		skb_queue_purge(&npinfo->txq);
-		cancel_delayed_work_sync(&npinfo->tx_work);
-
-		/* clean after last, unfinished work */
-		__skb_queue_purge(&npinfo->txq);
-		kfree(npinfo);
+		call_rcu_bh(&npinfo->rcu, rcu_cleanup_netpoll_info);
 	}
 }
 EXPORT_SYMBOL_GPL(__netpoll_cleanup);
+
+static void rcu_cleanup_netpoll(struct rcu_head *rcu_head)
+{
+	struct netpoll *np = container_of(rcu_head, struct netpoll, rcu);
+
+	__netpoll_cleanup(np);
+	kfree(np);
+}
+
+void __netpoll_free_rcu(struct netpoll *np)
+{
+	call_rcu_bh(&np->rcu, rcu_cleanup_netpoll);
+}
+EXPORT_SYMBOL_GPL(__netpoll_free_rcu);
 
 void netpoll_cleanup(struct netpoll *np)
 {

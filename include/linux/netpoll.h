@@ -23,6 +23,7 @@ struct netpoll {
 	u8 remote_mac[ETH_ALEN];
 
 	struct list_head rx; /* rx_np list element */
+	struct rcu_head rcu;
 };
 
 struct netpoll_info {
@@ -38,6 +39,7 @@ struct netpoll_info {
 	struct delayed_work tx_work;
 
 	struct netpoll *netpoll;
+	struct rcu_head rcu;
 };
 
 void netpoll_send_udp(struct netpoll *np, const char *msg, int len);
@@ -48,6 +50,7 @@ int netpoll_setup(struct netpoll *np);
 int netpoll_trap(void);
 void netpoll_set_trap(int trap);
 void __netpoll_cleanup(struct netpoll *np);
+void __netpoll_free_rcu(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
 int __netpoll_rx(struct sk_buff *skb);
 void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
