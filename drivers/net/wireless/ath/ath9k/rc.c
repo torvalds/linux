@@ -504,49 +504,48 @@ static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv)
 	return hi;
 }
 
-static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv)
+static inline bool ath_rc_check_legacy(u8 rate, u8 dot11rate, u16 rate_flags,
+				       u32 phy, u32 capflag)
 {
-	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
-	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
-	u32 phy, capflag = ath_rc_priv->ht_cap;
-	u16 rate_flags;
-	u8 i, j, hi = 0, rate, dot11rate, valid_rate_count;
+	if (rate != dot11rate || WLAN_RC_PHY_HT(phy))
+		return false;
 
-	for (i = 0; i < rateset->rs_nrates; i++) {
-		for (j = 0; j < rate_table->rate_cnt; j++) {
-			phy = rate_table->info[j].phy;
-			rate_flags = rate_table->info[j].rate_flags;
-			rate = rateset->rs_rates[i];
-			dot11rate = rate_table->info[j].dot11rate;
+	if ((rate_flags & WLAN_RC_CAP_MODE(capflag)) != WLAN_RC_CAP_MODE(capflag))
+		return false;
 
-			if (rate != dot11rate
-			    || ((rate_flags & WLAN_RC_CAP_MODE(capflag)) !=
-				WLAN_RC_CAP_MODE(capflag))
-			    || !(rate_flags & WLAN_RC_CAP_STREAM(capflag))
-			    || WLAN_RC_PHY_HT(phy))
-				continue;
+	if (!(rate_flags & WLAN_RC_CAP_STREAM(capflag)))
+		return false;
 
-			if (!ath_rc_valid_phyrate(phy, capflag, 0))
-				continue;
-
-			valid_rate_count = ath_rc_priv->valid_phy_ratecnt[phy];
-			ath_rc_priv->valid_phy_rateidx[phy][valid_rate_count] = j;
-			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-			ath_rc_priv->valid_rate_index[j] = true;
-			hi = max(hi, j);
-		}
-	}
-
-	return hi;
+	return true;
 }
 
-static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
+static inline bool ath_rc_check_ht(u8 rate, u8 dot11rate, u16 rate_flags,
+				   u32 phy, u32 capflag)
+{
+	if (rate != dot11rate || !WLAN_RC_PHY_HT(phy))
+		return false;
+
+	if (!WLAN_RC_PHY_HT_VALID(rate_flags, capflag))
+		return false;
+
+	if (!(rate_flags & WLAN_RC_CAP_STREAM(capflag)))
+		return false;
+
+	return true;
+}
+
+static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv, bool legacy)
 {
 	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
-	struct ath_rateset *rateset = &ath_rc_priv->neg_ht_rates;
+	struct ath_rateset *rateset;
 	u32 phy, capflag = ath_rc_priv->ht_cap;
 	u16 rate_flags;
 	u8 i, j, hi = 0, rate, dot11rate, valid_rate_count;
+
+	if (legacy)
+		rateset = &ath_rc_priv->neg_rates;
+	else
+		rateset = &ath_rc_priv->neg_ht_rates;
 
 	for (i = 0; i < rateset->rs_nrates; i++) {
 		for (j = 0; j < rate_table->rate_cnt; j++) {
@@ -555,9 +554,14 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 			rate = rateset->rs_rates[i];
 			dot11rate = rate_table->info[j].dot11rate;
 
-			if ((rate != dot11rate) || !WLAN_RC_PHY_HT(phy) ||
-			    !(rate_flags & WLAN_RC_CAP_STREAM(capflag)) ||
-			    !WLAN_RC_PHY_HT_VALID(rate_flags, capflag))
+			if (legacy &&
+			    !ath_rc_check_legacy(rate, dot11rate,
+						 rate_flags, phy, capflag))
+				continue;
+
+			if (!legacy &&
+			    !ath_rc_check_ht(rate, dot11rate,
+					     rate_flags, phy, capflag))
 				continue;
 
 			if (!ath_rc_valid_phyrate(phy, capflag, 0))
@@ -1181,10 +1185,10 @@ static void ath_rc_init(struct ath_softc *sc,
 	if (!rateset->rs_nrates) {
 		hi = ath_rc_init_validrates(ath_rc_priv);
 	} else {
-		hi = ath_rc_setvalid_rates(ath_rc_priv);
+		hi = ath_rc_setvalid_rates(ath_rc_priv, true);
 
 		if (ath_rc_priv->ht_cap & WLAN_RC_HT_FLAG)
-			hthi = ath_rc_setvalid_htrates(ath_rc_priv);
+			hthi = ath_rc_setvalid_rates(ath_rc_priv, false);
 
 		hi = max(hi, hthi);
 	}
