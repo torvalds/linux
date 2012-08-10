@@ -2837,13 +2837,13 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *encoder;
+	struct intel_encoder *intel_encoder;
 
 	/*
 	 * If there's a non-PCH eDP on this crtc, it must be DP_A, and that
 	 * must be driven by its own crtc; no sharing is possible.
 	 */
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
 
 		/* On Haswell, LPT PCH handles the VGA connection via FDI, and Haswell
 		 * CPU handles all others */
@@ -2851,19 +2851,19 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 			/* It is still unclear how this will work on PPT, so throw up a warning */
 			WARN_ON(!HAS_PCH_LPT(dev));
 
-			if (encoder->type == DRM_MODE_ENCODER_DAC) {
+			if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
 				DRM_DEBUG_KMS("Haswell detected DAC encoder, assuming is PCH\n");
 				return true;
 			} else {
 				DRM_DEBUG_KMS("Haswell detected encoder %d, assuming is CPU\n",
-						encoder->type);
+					      intel_encoder->type);
 				return false;
 			}
 		}
 
-		switch (encoder->type) {
+		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_EDP:
-			if (!intel_encoder_is_pch_edp(&encoder->base))
+			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
 				return false;
 			continue;
 		}
