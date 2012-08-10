@@ -42,7 +42,7 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
 
 
-static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
+static int rk30_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 {
 	int i = 0;
 	int __iomem *c;
@@ -131,7 +131,7 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 {
 	int ret = -EINVAL;
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
-	rk_screen *screen = lcdc_dev->screen;
+	rk_screen *screen = dev_drv->cur_screen;
 	u64 ft;
 	int fps;
 	u16 face;
@@ -671,7 +671,7 @@ static int rk30_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	struct layer_par *par = NULL;
-	rk_screen *screen = lcdc_dev->screen;
+	rk_screen *screen = dev_drv->cur_screen;
 	if(!screen)
 	{
 		printk(KERN_ERR "screen is null!\n");
@@ -700,7 +700,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	struct layer_par *par = NULL;
-	rk_screen *screen = lcdc_dev->screen;
+	rk_screen *screen = dev_drv->cur_screen;
 	unsigned long flags;
 	int timeout;
 	if(!screen)
@@ -737,7 +737,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
 		init_completion(&dev_drv->frame_done);
 		spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-		timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->screen->ft+5));
+		timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
 		if(!timeout&&(!dev_drv->frame_done.done))
 		{
 			printk(KERN_ERR "wait for new frame start time out!\n");
@@ -757,8 +757,8 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 	switch(cmd)
 	{
 		case FBIOGET_PANEL_SIZE:    //get panel size
-                	panel_size[0] = lcdc_dev->screen->x_res;
-                	panel_size[1] = lcdc_dev->screen->y_res;
+                	panel_size[0] = dev_drv->screen0->x_res;
+                	panel_size[1] = dev_drv->screen0->y_res;
             		if(copy_to_user(argp, panel_size, 8)) 
 				return -EFAULT;
 			break;
@@ -840,7 +840,7 @@ set:0 get
 static int rk30_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool set)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
-	rk_screen * screen = dev_drv->screen;
+	rk_screen * screen = dev_drv->cur_screen;
 	u64 ft = 0;
 	u32 dotclk;
 	int ret;
@@ -868,7 +868,8 @@ static int rk30_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool 
 	return fps;
 }
 
-static int rk30_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,int order)
+static int rk30_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
+	enum fb_win_map_order order)
 {
        mutex_lock(&dev_drv->fb_win_id_mutex);
        if(order == FB_DEFAULT_ORDER )
@@ -888,7 +889,7 @@ static int rk30_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,int order)
 
 static int rk30_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *id)
 {
-       int layer_id;
+       int layer_id = 0;
        mutex_lock(&dev_drv->fb_win_id_mutex);
        if(!strcmp(id,"fb0")||!strcmp(id,"fb4"))
        {
@@ -1045,7 +1046,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.def_layer_par		= lcdc_layer,
 	.num_layer		= ARRAY_SIZE(lcdc_layer),
 	.open			= rk30_lcdc_open,
-	.init_lcdc		= init_rk30_lcdc,
+	.init_lcdc		= rk30_lcdc_init,
 	.ioctl			= rk30_lcdc_ioctl,
 	.suspend		= rk30_lcdc_early_suspend,
 	.resume			= rk30_lcdc_early_resume,
@@ -1137,7 +1138,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	lcdc_dev->dsp_lut_addr_base = &lcdc_dev->preg->DSP_LUT_ADDR;
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
 	lcdc_dev->driver.dev=&pdev->dev;
-	lcdc_dev->driver.screen = screen;
+	lcdc_dev->driver.screen0 = screen;
 	lcdc_dev->driver.screen_ctr_info = screen_ctr_info;
 	spin_lock_init(&lcdc_dev->reg_lock);
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
@@ -1213,20 +1214,20 @@ static struct platform_driver rk30lcdc_driver = {
 	.shutdown   = rk30_lcdc_shutdown,
 };
 
-static int __init rk30_lcdc_init(void)
+static int __init rk30_lcdc_module_init(void)
 {
     return platform_driver_register(&rk30lcdc_driver);
 }
 
-static void __exit rk30_lcdc_exit(void)
+static void __exit rk30_lcdc_module_exit(void)
 {
     platform_driver_unregister(&rk30lcdc_driver);
 }
 
 
 
-fs_initcall(rk30_lcdc_init);
-module_exit(rk30_lcdc_exit);
+fs_initcall(rk30_lcdc_module_init);
+module_exit(rk30_lcdc_module_exit);
 
 
 
