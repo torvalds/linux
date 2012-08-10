@@ -129,8 +129,8 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	return 0;
 }
 
-static struct pwm_device *of_pwm_simple_xlate(struct pwm_chip *pc,
-					      const struct of_phandle_args *args)
+static struct pwm_device *
+of_pwm_simple_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
 {
 	struct pwm_device *pwm;
 
@@ -527,7 +527,7 @@ void __init pwm_add_table(struct pwm_lookup *table, size_t num)
 struct pwm_device *pwm_get(struct device *dev, const char *con_id)
 {
 	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
-	const char *dev_id = dev ? dev_name(dev): NULL;
+	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct pwm_chip *chip = NULL;
 	unsigned int index = 0;
 	unsigned int best = 0;
@@ -609,7 +609,7 @@ void pwm_put(struct pwm_device *pwm)
 	mutex_lock(&pwm_lock);
 
 	if (!test_and_clear_bit(PWMF_REQUESTED, &pwm->flags)) {
-		pr_warning("PWM device already freed\n");
+		pr_warn("PWM device already freed\n");
 		goto out;
 	}
 
