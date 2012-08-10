@@ -322,19 +322,28 @@ out_opt:
 }
 
 /*
- * Find a ceph client with specific addr and configuration.
+ * Find a ceph client with specific addr and configuration.  If
+ * found, bump its reference count.
  */
-static struct rbd_client *__rbd_client_find(struct ceph_options *ceph_opts)
+static struct rbd_client *rbd_client_find(struct ceph_options *ceph_opts)
 {
 	struct rbd_client *client_node;
+	bool found = false;
 
 	if (ceph_opts->flags & CEPH_OPT_NOSHARE)
 		return NULL;
 
-	list_for_each_entry(client_node, &rbd_client_list, node)
-		if (!ceph_compare_options(ceph_opts, client_node->client))
-			return client_node;
-	return NULL;
+	spin_lock(&rbd_client_list_lock);
+	list_for_each_entry(client_node, &rbd_client_list, node) {
+		if (!ceph_compare_options(ceph_opts, client_node->client)) {
+			kref_get(&client_node->kref);
+			found = true;
+			break;
+		}
+	}
+	spin_unlock(&rbd_client_list_lock);
+
+	return found ? client_node : NULL;
 }
 
 /*
@@ -416,22 +425,16 @@ static struct rbd_client *rbd_get_client(const char *mon_addr,
 		return ERR_CAST(ceph_opts);
 	}
 
-	spin_lock(&rbd_client_list_lock);
-	rbdc = __rbd_client_find(ceph_opts);
+	rbdc = rbd_client_find(ceph_opts);
 	if (rbdc) {
 		/* using an existing client */
-		kref_get(&rbdc->kref);
-		spin_unlock(&rbd_client_list_lock);
-
 		ceph_destroy_options(ceph_opts);
 		kfree(rbd_opts);
 
 		return rbdc;
 	}
-	spin_unlock(&rbd_client_list_lock);
 
 	rbdc = rbd_client_create(ceph_opts, rbd_opts);
-
 	if (IS_ERR(rbdc))
 		kfree(rbd_opts);
 
