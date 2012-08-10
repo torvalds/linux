@@ -605,7 +605,7 @@ int kallsyms__parse(const char *filename, void *arg,
 
 		/*
 		 * module symbols are not sorted so we add all
-		 * symbols with zero length and rely on
+		 * symbols, setting length to 1, and rely on
 		 * symbols__fixup_end() to fix it up.
 		 */
 		err = process_symbol(arg, symbol_name,
