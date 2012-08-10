@@ -70,6 +70,7 @@ struct nouveau_fifo {
 	u16 min;
 	u16 max;
 
+	int  (*chid)(struct nouveau_fifo *, struct nouveau_object *);
 	void (*pause)(struct nouveau_fifo *, unsigned long *);
 	void (*start)(struct nouveau_fifo *, unsigned long *);
 };

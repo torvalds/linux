@@ -132,6 +132,21 @@ _nouveau_fifo_channel_wr32(struct nouveau_object *object, u32 addr, u32 data)
 	iowrite32_native(data, chan->user + addr);
 }
 
+int
+nouveau_fifo_chid(struct nouveau_fifo *priv, struct nouveau_object *object)
+{
+	int engidx = nv_hclass(priv) & 0xff;
+
+	while (object && object->parent) {
+		if ( nv_iclass(object->parent, NV_ENGCTX_CLASS) &&
+		    (nv_hclass(object->parent) & 0xff) == engidx)
+			return nouveau_fifo_chan(object)->chid;
+		object = object->parent;
+	}
+
+	return -1;
+}
+
 void
 nouveau_fifo_destroy(struct nouveau_fifo *priv)
 {
@@ -160,6 +175,7 @@ nouveau_fifo_create_(struct nouveau_object *parent,
 	if (!priv->channel)
 		return -ENOMEM;
 
+	priv->chid = nouveau_fifo_chid;
 	spin_lock_init(&priv->lock);
 	return 0;
 }
