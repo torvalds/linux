@@ -427,6 +427,10 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	if (!p || p->br != br)
 		return -EINVAL;
 
+	/* Since more than one interface can be attached to a bridge,
+	 * there still maybe an alternate path for netconsole to use;
+	 * therefore there is no reason for a NETDEV_RELEASE event.
+	 */
 	del_nbp(p);
 
 	spin_lock_bh(&br->lock);
