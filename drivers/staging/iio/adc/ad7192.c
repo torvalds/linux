@@ -826,8 +826,6 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			if (!unipolar)
-				*val -= (1 << (chan->scan_type.realbits - 1));
 			break;
 		case IIO_TEMP:
 			*val -= 0x800000;
@@ -853,6 +851,12 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_OFFSET:
+		if (!unipolar)
+			*val -= (1 << (chan->scan_type.realbits - 1));
+		else
+			*val = 0;
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
@@ -942,7 +946,8 @@ static const struct iio_info ad7195_info = {
 	  .channel = _chan,						\
 	  .channel2 = _chan2,						\
 	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT |				\
+	  IIO_CHAN_INFO_OFFSET_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('u', 24, 32, 0)}
@@ -952,7 +957,8 @@ static const struct iio_info ad7195_info = {
 	  .indexed = 1,							\
 	  .channel = _chan,						\
 	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT |				\
+	  IIO_CHAN_INFO_OFFSET_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('u', 24, 32, 0)}
