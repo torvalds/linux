@@ -63,6 +63,13 @@ static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 
 #ifdef CONFIG_NETPOLL
+static inline int netpoll_rx_on(struct sk_buff *skb)
+{
+	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
+
+	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
+}
+
 static inline bool netpoll_rx(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo;
@@ -70,11 +77,11 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 	bool ret = false;
 
 	local_irq_save(flags);
-	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
-	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
+	if (!netpoll_rx_on(skb))
 		goto out;
 
+	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 	spin_lock(&npinfo->rx_lock);
 	/* check rx_flags again with the lock held */
 	if (npinfo->rx_flags && __netpoll_rx(skb, npinfo))
@@ -84,13 +91,6 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 out:
 	local_irq_restore(flags);
 	return ret;
-}
-
-static inline int netpoll_rx_on(struct sk_buff *skb)
-{
-	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
-
-	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
 }
 
 static inline int netpoll_receive_skb(struct sk_buff *skb)
