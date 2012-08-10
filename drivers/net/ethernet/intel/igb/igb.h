@@ -344,7 +344,6 @@ struct igb_adapter {
 
 	/* OS defined structs */
 	struct pci_dev *pdev;
-	struct hwtstamp_config hwtstamp_config;
 
 	spinlock_t stats64_lock;
 	struct rtnl_link_stats64 stats64;
@@ -380,8 +379,8 @@ struct igb_adapter {
 
 #ifdef CONFIG_IGB_PTP
 	struct ptp_clock *ptp_clock;
-	struct ptp_clock_info caps;
-	struct delayed_work overflow_work;
+	struct ptp_clock_info ptp_caps;
+	struct delayed_work ptp_overflow_work;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -440,10 +439,14 @@ extern void igb_power_up_link(struct igb_adapter *);
 extern void igb_set_fw_version(struct igb_adapter *);
 #ifdef CONFIG_IGB_PTP
 extern void igb_ptp_init(struct igb_adapter *adapter);
-extern void igb_ptp_remove(struct igb_adapter *adapter);
-extern void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
-				   struct skb_shared_hwtstamps *hwtstamps,
-				   u64 systim);
+extern void igb_ptp_stop(struct igb_adapter *adapter);
+extern void igb_ptp_tx_hwtstamp(struct igb_q_vector *q_vector,
+				struct igb_tx_buffer *buffer_info);
+extern void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
+				union e1000_adv_rx_desc *rx_desc,
+				struct sk_buff *skb);
+extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
+				  struct ifreq *ifr, int cmd);
 #endif /* CONFIG_IGB_PTP */
 
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
