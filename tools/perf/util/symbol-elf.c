@@ -619,7 +619,8 @@ out_close:
 	return err;
 }
 
-int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
+int dso__load_sym(struct dso *dso, struct map *map,
+		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
 		  symbol_filter_t filter, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
@@ -630,31 +631,27 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 	int err = -1;
 	uint32_t idx;
 	GElf_Ehdr ehdr;
-	GElf_Shdr shdr, opdshdr;
+	GElf_Shdr shdr;
 	Elf_Data *syms, *opddata = NULL;
 	GElf_Sym sym;
-	Elf_Scn *sec, *sec_strndx, *opdsec;
+	Elf_Scn *sec, *sec_strndx;
 	Elf *elf;
 	int nr = 0;
-	size_t opdidx = 0;
 
-	dso->symtab_type = ss->type;
+	dso->symtab_type = syms_ss->type;
 
-	if (!ss->symtab) {
-		ss->symtab  = ss->dynsym;
-		ss->symshdr = ss->dynshdr;
+	if (!syms_ss->symtab) {
+		syms_ss->symtab  = syms_ss->dynsym;
+		syms_ss->symshdr = syms_ss->dynshdr;
 	}
 
-	elf = ss->elf;
-	ehdr = ss->ehdr;
-	sec = ss->symtab;
-	shdr = ss->symshdr;
+	elf = syms_ss->elf;
+	ehdr = syms_ss->ehdr;
+	sec = syms_ss->symtab;
+	shdr = syms_ss->symshdr;
 
-	opdsec = ss->opdsec;
-	opdshdr = ss->opdshdr;
-	opdidx  = ss->opdidx;
-	if (opdsec)
-		opddata = elf_rawdata(opdsec, NULL);
+	if (runtime_ss->opdsec)
+		opddata = elf_rawdata(runtime_ss->opdsec, NULL);
 
 	syms = elf_getdata(sec, NULL);
 	if (syms == NULL)
@@ -679,13 +676,14 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 	nr_syms = shdr.sh_size / shdr.sh_entsize;
 
 	memset(&sym, 0, sizeof(sym));
-	dso->adjust_symbols = ss->adjust_symbols;
+	dso->adjust_symbols = runtime_ss->adjust_symbols;
 	elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 		struct symbol *f;
 		const char *elf_name = elf_sym__name(&sym, symstrs);
 		char *demangled = NULL;
 		int is_label = elf_sym__is_label(&sym);
 		const char *section_name;
+		bool used_opd = false;
 
 		if (kmap && kmap->ref_reloc_sym && kmap->ref_reloc_sym->name &&
 		    strcmp(elf_name, kmap->ref_reloc_sym->name) == 0)
@@ -704,14 +702,16 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 				continue;
 		}
 
-		if (opdsec && sym.st_shndx == opdidx) {
-			u32 offset = sym.st_value - opdshdr.sh_addr;
+		if (runtime_ss->opdsec && sym.st_shndx == runtime_ss->opdidx) {
+			u32 offset = sym.st_value - syms_ss->opdshdr.sh_addr;
 			u64 *opd = opddata->d_buf + offset;
 			sym.st_value = DSO__SWAP(dso, u64, *opd);
-			sym.st_shndx = elf_addr_to_index(elf, sym.st_value);
+			sym.st_shndx = elf_addr_to_index(runtime_ss->elf,
+					sym.st_value);
+			used_opd = true;
 		}
 
-		sec = elf_getscn(elf, sym.st_shndx);
+		sec = elf_getscn(runtime_ss->elf, sym.st_shndx);
 		if (!sec)
 			goto out_elf_end;
 
@@ -777,7 +777,8 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 			goto new_symbol;
 		}
 
-		if (curr_dso->adjust_symbols && sym.st_value) {
+		if ((used_opd && runtime_ss->adjust_symbols)
+				|| (!used_opd && syms_ss->adjust_symbols)) {
 			pr_debug4("%s: adjusting symbol: st_value: %#" PRIx64 " "
 				  "sh_addr: %#" PRIx64 " sh_offset: %#" PRIx64 "\n", __func__,
 				  (u64)sym.st_value, (u64)shdr.sh_addr,

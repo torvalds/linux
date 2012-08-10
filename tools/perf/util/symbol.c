@@ -1094,7 +1094,7 @@ restart:
 			continue;
 		}
 
-		ret = dso__load_sym(dso, map, &ss, filter, 0);
+		ret = dso__load_sym(dso, map, &ss, &ss, filter, 0);
 
 		/*
 		 * Some people seem to have debuginfo files _WITHOUT_ debug
@@ -1380,7 +1380,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	if (symsrc__init(&ss, dso, symfs_vmlinux, symtab_type))
 		return -1;
 
-	err = dso__load_sym(dso, map, &ss, filter, 0);
+	err = dso__load_sym(dso, map, &ss, &ss, filter, 0);
 	symsrc__destroy(&ss);
 
 	if (err > 0) {
