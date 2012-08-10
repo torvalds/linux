@@ -71,7 +71,6 @@
 #define DEV_NAME_LEN		32
 #define MAX_INT_FORMAT_WIDTH	((5 * sizeof (int)) / 2 + 1)
 
-#define RBD_NOTIFY_TIMEOUT_DEFAULT	10
 #define RBD_READ_ONLY_DEFAULT		false
 
 /*
@@ -95,7 +94,6 @@ struct rbd_image_header {
 };
 
 struct rbd_options {
-	int	notify_timeout;
 	bool	read_only;
 };
 
@@ -343,7 +341,6 @@ static struct rbd_client *__rbd_client_find(struct ceph_options *opt)
  * mount options
  */
 enum {
-	Opt_notify_timeout,
 	Opt_last_int,
 	/* int args above */
 	Opt_last_string,
@@ -355,7 +352,6 @@ enum {
 };
 
 static match_table_t rbdopt_tokens = {
-	{Opt_notify_timeout, "notify_timeout=%d"},
 	/* int args above */
 	/* string args above */
 	{Opt_read_only, "read_only"},
@@ -394,9 +390,6 @@ static int parse_rbd_opts_token(char *c, void *private)
 	}
 
 	switch (token) {
-	case Opt_notify_timeout:
-		rbdopt->notify_timeout = intval;
-		break;
 	case Opt_read_only:
 		rbdopt->read_only = true;
 		break;
@@ -425,7 +418,6 @@ static struct rbd_client *rbd_get_client(const char *mon_addr,
 	if (!rbd_opts)
 		return ERR_PTR(-ENOMEM);
 
-	rbd_opts->notify_timeout = RBD_NOTIFY_TIMEOUT_DEFAULT;
 	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
 
 	opt = ceph_parse_options(options, mon_addr,
