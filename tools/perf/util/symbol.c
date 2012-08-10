@@ -1388,10 +1388,8 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 	filename = dso__build_id_filename(dso, NULL, 0);
 	if (filename != NULL) {
 		err = dso__load_vmlinux(dso, map, filename, filter);
-		if (err > 0) {
-			dso__set_long_name(dso, filename);
+		if (err > 0)
 			goto out;
-		}
 		free(filename);
 	}
 
