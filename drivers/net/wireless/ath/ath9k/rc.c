@@ -1264,22 +1264,11 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int final_ts_idx = 0, tx_status = 0;
 	int long_retry = 0;
-	__le16 fc;
+	__le16 fc = hdr->frame_control;
 	int i;
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
-	for (i = 0; i < sc->hw->max_rates; i++) {
-		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
-		if (rate->idx < 0 || !rate->count)
-			break;
-
-		final_ts_idx = i;
-		long_retry = rate->count - 1;
-	}
 
 	if (!priv_sta || !ieee80211_is_data(fc))
 		return;
@@ -1291,6 +1280,15 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 
 	if (tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED)
 		return;
+
+	for (i = 0; i < sc->hw->max_rates; i++) {
+		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
+		if (rate->idx < 0 || !rate->count)
+			break;
+
+		final_ts_idx = i;
+		long_retry = rate->count - 1;
+	}
 
 	if (!(tx_info->flags & IEEE80211_TX_STAT_ACK))
 		tx_status = 1;
