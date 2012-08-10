@@ -253,18 +253,13 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
-	/* gui idle int has issues on older chips it seems */
-	if (rdev->family >= CHIP_R600) {
-		if (rdev->irq.installed) {
-			/* wait for GPU to become idle */
-			radeon_irq_kms_wait_gui_idle(rdev);
-		}
-	} else {
-		struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
-		if (ring->ready) {
-			radeon_fence_wait_empty_locked(rdev, RADEON_RING_TYPE_GFX_INDEX);
-		}
+	/* wait for the rings to drain */
+	for (i = 0; i < RADEON_NUM_RINGS; i++) {
+		struct radeon_ring *ring = &rdev->ring[i];
+		if (ring->ready)
+			radeon_fence_wait_empty_locked(rdev, i);
 	}
+
 	radeon_unmap_vram_bos(rdev);
 
 	if (rdev->irq.installed) {
