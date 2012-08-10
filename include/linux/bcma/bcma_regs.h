@@ -85,4 +85,6 @@
 							 * (2 ZettaBytes), high 32 bits
 							 */
 
+#define BCMA_SFLASH			0x1c000000
+
 #endif /* LINUX_BCMA_REGS_H_ */

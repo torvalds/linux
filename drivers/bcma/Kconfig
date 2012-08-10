@@ -48,7 +48,7 @@ config BCMA_DRIVER_MIPS
 
 config BCMA_SFLASH
 	bool
-	depends on BCMA_DRIVER_MIPS && BROKEN
+	depends on BCMA_DRIVER_MIPS
 	default y
 
 config BCMA_NFLASH
