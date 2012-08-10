@@ -563,7 +563,7 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp)
 
 int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
-					  char type, u64 start, u64 end))
+					  char type, u64 start))
 {
 	char *line = NULL;
 	size_t n;
@@ -603,13 +603,8 @@ int kallsyms__parse(const char *filename, void *arg,
 			break;
 		}
 
-		/*
-		 * module symbols are not sorted so we add all
-		 * symbols, setting length to 1, and rely on
-		 * symbols__fixup_end() to fix it up.
-		 */
 		err = process_symbol(arg, symbol_name,
-				     symbol_type, start, start);
+				     symbol_type, start);
 		if (err)
 			break;
 	}
@@ -636,7 +631,7 @@ static u8 kallsyms2elf_type(char type)
 }
 
 static int map__process_kallsym_symbol(void *arg, const char *name,
-				       char type, u64 start, u64 end)
+				       char type, u64 start)
 {
 	struct symbol *sym;
 	struct process_kallsyms_args *a = arg;
@@ -645,8 +640,12 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	if (!symbol_type__is_a(type, a->map->type))
 		return 0;
 
-	sym = symbol__new(start, end - start + 1,
-			  kallsyms2elf_type(type), name);
+	/*
+	 * module symbols are not sorted so we add all
+	 * symbols, setting length to 0, and rely on
+	 * symbols__fixup_end() to fix it up.
+	 */
+	sym = symbol__new(start, 0, kallsyms2elf_type(type), name);
 	if (sym == NULL)
 		return -ENOMEM;
 	/*
@@ -1729,7 +1728,7 @@ struct process_args {
 };
 
 static int symbol__in_kernel(void *arg, const char *name,
-			     char type __used, u64 start, u64 end __used)
+			     char type __used, u64 start)
 {
 	struct process_args *args = arg;
 
