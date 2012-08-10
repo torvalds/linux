@@ -699,37 +699,25 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 				   const struct ath_rate_table *rate_table,
 				   struct ieee80211_tx_info *tx_info)
 {
-	struct ieee80211_tx_rate *rates = tx_info->control.rates;
-	int i = 0, rix = 0, cix, enable_g_protection = 0;
+	struct ieee80211_bss_conf *bss_conf;
 
-	/* get the cix for the lowest valid rix */
-	for (i = 3; i >= 0; i--) {
-		if (rates[i].count && (rates[i].idx >= 0)) {
-			rix = ath_rc_get_rateindex(rate_table, &rates[i]);
-			break;
-		}
-	}
-	cix = rate_table->info[rix].ctrl_rate;
+	if (!tx_info->control.vif)
+		return;
+	/*
+	 * For legacy frames, mac80211 takes care of CTS protection.
+	 */
+	if (!(tx_info->control.rates[0].flags & IEEE80211_TX_RC_MCS))
+		return;
 
-	/* All protection frames are transmited at 2Mb/s for 802.11g,
-	 * otherwise we transmit them at 1Mb/s */
-	if (sc->hw->conf.channel->band == IEEE80211_BAND_2GHZ &&
-	    !conf_is_ht(&sc->hw->conf))
-		enable_g_protection = 1;
+	bss_conf = &tx_info->control.vif->bss_conf;
+
+	if (!bss_conf->basic_rates)
+		return;
 
 	/*
-	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
-	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
+	 * For now, use the lowest allowed basic rate for HT frames.
 	 */
-	if ((tx_info->control.vif &&
-	     tx_info->control.vif->bss_conf.use_cts_prot) &&
-	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
-	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
-		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
-		cix = rate_table->info[enable_g_protection].ctrl_rate;
-	}
-
-	tx_info->control.rts_cts_rate_idx = cix;
+	tx_info->control.rts_cts_rate_idx = __ffs(bss_conf->basic_rates);
 }
 
 static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
@@ -853,7 +841,6 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		rates[0].count = ATH_TXMAXTRY;
 	}
 
-	/* Setup RTS/CTS */
 	ath_rc_rate_set_rtscts(sc, rate_table, tx_info);
 }
 
