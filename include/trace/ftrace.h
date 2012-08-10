@@ -302,15 +302,11 @@ static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 #undef __array
 #define __array(type, item, len)					\
 	do {								\
-		mutex_lock(&event_storage_mutex);			\
 		BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);			\
-		snprintf(event_storage, sizeof(event_storage),		\
-			 "%s[%d]", #type, len);				\
-		ret = trace_define_field(event_call, event_storage, #item, \
-				 offsetof(typeof(field), item),		\
-				 sizeof(field.item),			\
-				 is_signed_type(type), FILTER_OTHER);	\
-		mutex_unlock(&event_storage_mutex);			\
+		ret = ftrace_event_define_field(event_call, #type, len,	\
+				#item, offsetof(typeof(field), item),   \
+				sizeof(field.item),			\
+			 	is_signed_type(type), FILTER_OTHER); \
 		if (ret)						\
 			return ret;					\
 	} while (0);

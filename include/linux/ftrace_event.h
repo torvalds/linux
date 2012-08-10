@@ -202,6 +202,10 @@ extern int ftrace_event_reg(struct ftrace_event_call *event,
 int ftrace_output_event(struct trace_iterator *iter, struct ftrace_event_call *event,
 			char *fmt, ...);
 
+int ftrace_event_define_field(struct ftrace_event_call *call,
+			      char *type, int len, char *item, int offset,
+			      int field_size, int sign, int filter);
+
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_CAP_ANY_BIT,
@@ -499,10 +503,6 @@ enum {
 	FILTER_PTR_STRING,
 	FILTER_TRACE_FN,
 };
-
-#define EVENT_STORAGE_SIZE 128
-extern struct mutex event_storage_mutex;
-extern char event_storage[EVENT_STORAGE_SIZE];
 
 extern int trace_event_raw_init(struct ftrace_event_call *call);
 extern int trace_define_field(struct ftrace_event_call *call, const char *type,

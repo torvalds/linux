@@ -20,6 +20,10 @@ static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
 static int next_event_type = __TRACE_LAST_TYPE + 1;
 
+#define EVENT_STORAGE_SIZE 128
+static DEFINE_MUTEX(event_storage_mutex);
+static char event_storage[EVENT_STORAGE_SIZE];
+
 int trace_print_seq(struct seq_file *m, struct trace_seq *s)
 {
 	int len = s->len >= PAGE_SIZE ? PAGE_SIZE - 1 : s->len;
@@ -469,6 +473,23 @@ int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ftrace_output_call);
+
+int ftrace_event_define_field(struct ftrace_event_call *call,
+			      char *type, int len, char *item, int offset,
+			      int field_size, int sign, int filter)
+{
+	int ret;
+
+	mutex_lock(&event_storage_mutex);
+	snprintf(event_storage, sizeof(event_storage),
+		 "%s[%d]", type, len);
+	ret = trace_define_field(call, event_storage, item, offset,
+				 field_size, sign, filter);
+	mutex_unlock(&event_storage_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ftrace_event_define_field);
 
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
