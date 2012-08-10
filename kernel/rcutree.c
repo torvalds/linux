@@ -746,14 +746,15 @@ static void print_other_cpu_stall(struct rcu_state *rsp)
 	rcu_for_each_leaf_node(rsp, rnp) {
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		ndetected += rcu_print_task_stall(rnp);
+		if (rnp->qsmask != 0) {
+			for (cpu = 0; cpu <= rnp->grphi - rnp->grplo; cpu++)
+				if (rnp->qsmask & (1UL << cpu)) {
+					print_cpu_stall_info(rsp,
+							     rnp->grplo + cpu);
+					ndetected++;
+				}
+		}
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		if (rnp->qsmask == 0)
-			continue;
-		for (cpu = 0; cpu <= rnp->grphi - rnp->grplo; cpu++)
-			if (rnp->qsmask & (1UL << cpu)) {
-				print_cpu_stall_info(rsp, rnp->grplo + cpu);
-				ndetected++;
-			}
 	}
 
 	/*
