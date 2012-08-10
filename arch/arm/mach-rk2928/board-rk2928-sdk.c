@@ -61,6 +61,7 @@
 #endif
 
 #include "board-rk2928-sdk-camera.c"
+#include "board-rk2928-sdk-key.c"
 
 #if defined (CONFIG_EETI_EGALAX)
 #define TOUCH_RESET_PIN  RK2928_PIN3_PC3
