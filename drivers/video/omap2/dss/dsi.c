@@ -334,6 +334,7 @@ struct dsi_data {
 
 	struct dss_lcd_mgr_config mgr_config;
 	struct omap_video_timings timings;
+	enum omap_dss_dsi_pixel_format pix_fmt;
 };
 
 struct dsi_packet_sent_handler_data {
@@ -3612,7 +3613,7 @@ static void dsi_config_vp_num_line_buffers(struct omap_dss_device *dssdev)
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-		int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
+		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		unsigned line_buf_size = dsi_get_line_buf_size(dsidev);
 		struct omap_video_timings *timings = &dsi->timings;
 		/*
@@ -3744,7 +3745,7 @@ static void dsi_config_cmd_mode_interleaving(struct omap_dss_device *dssdev)
 	int tclk_trail, ths_exit, exiths_clk;
 	bool ddr_alwon;
 	struct omap_video_timings *timings = &dsi->timings;
-	int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
+	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	int ndl = dsi->num_lanes_used - 1;
 	int dsi_fclk_hsdiv = dssdev->clocks.dsi.regm_dsi + 1;
 	int hsa_interleave_hs = 0, hsa_interleave_lp = 0;
@@ -3854,6 +3855,7 @@ static void dsi_config_cmd_mode_interleaving(struct omap_dss_device *dssdev)
 static int dsi_proto_config(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	u32 r;
 	int buswidth = 0;
 
@@ -3873,7 +3875,7 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 	dsi_set_lp_rx_timeout(dsidev, 0x1fff, true, true);
 	dsi_set_hs_tx_timeout(dsidev, 0x1fff, true, true);
 
-	switch (dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt)) {
+	switch (dsi_get_pixel_size(dsi->pix_fmt)) {
 	case 16:
 		buswidth = 0;
 		break;
@@ -3997,7 +3999,7 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 		int window_sync = dssdev->panel.dsi_vm_data.window_sync;
 		bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
 		struct omap_video_timings *timings = &dsi->timings;
-		int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
+		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		int tl, t_he, width_bytes;
 
 		t_he = hsync_end ?
@@ -4106,13 +4108,13 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	int bpp = dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
+	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	u8 data_type;
 	u16 word_count;
 	int r;
 
 	if (dssdev->panel.dsi_mode == OMAP_DSS_DSI_VIDEO_MODE) {
-		switch (dssdev->panel.dsi_pix_fmt) {
+		switch (dsi->pix_fmt) {
 		case OMAP_DSS_DSI_FMT_RGB888:
 			data_type = MIPI_DSI_PACKED_PIXEL_STREAM_24;
 			break;
@@ -4199,7 +4201,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev)
 
 	dsi_vc_config_source(dsidev, channel, DSI_VC_SOURCE_VP);
 
-	bytespp	= dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
+	bytespp	= dsi_get_pixel_size(dsi->pix_fmt) / 8;
 	bytespl = w * bytespp;
 	bytespf = bytespl * h;
 
@@ -4336,7 +4338,7 @@ int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 
 #ifdef DEBUG
 	dsi->update_bytes = dw * dh *
-		dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt) / 8;
+		dsi_get_pixel_size(dsi->pix_fmt) / 8;
 #endif
 	dsi_update_screen_dispc(dssdev);
 
@@ -4420,7 +4422,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 
 	dsi->mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 	dsi->mgr_config.video_port_width =
-			dsi_get_pixel_size(dssdev->panel.dsi_pix_fmt);
+			dsi_get_pixel_size(dsi->pix_fmt);
 	dsi->mgr_config.lcden_sig_polarity = 0;
 
 	dss_mgr_set_lcd_config(dssdev->manager, &dsi->mgr_config);
@@ -4678,6 +4680,20 @@ void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
 	mutex_unlock(&dsi->lock);
 }
 EXPORT_SYMBOL(omapdss_dsi_set_size);
+
+void omapdss_dsi_set_pixel_format(struct omap_dss_device *dssdev,
+		enum omap_dss_dsi_pixel_format fmt)
+{
+	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+
+	mutex_lock(&dsi->lock);
+
+	dsi->pix_fmt = fmt;
+
+	mutex_unlock(&dsi->lock);
+}
+EXPORT_SYMBOL(omapdss_dsi_set_pixel_format);
 
 static int __init dsi_init_display(struct omap_dss_device *dssdev)
 {

@@ -1062,6 +1062,7 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 
 	omapdss_dsi_set_size(dssdev, dssdev->panel.timings.x_res,
 		dssdev->panel.timings.y_res);
+	omapdss_dsi_set_pixel_format(dssdev, OMAP_DSS_DSI_FMT_RGB888);
 
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {

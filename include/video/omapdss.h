@@ -722,6 +722,8 @@ int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
 void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings);
 void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
+void omapdss_dsi_set_pixel_format(struct omap_dss_device *dssdev,
+		enum omap_dss_dsi_pixel_format fmt);
 
 int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data);
