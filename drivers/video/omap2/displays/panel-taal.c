@@ -1065,6 +1065,12 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	omapdss_dsi_set_pixel_format(dssdev, OMAP_DSS_DSI_FMT_RGB888);
 	omapdss_dsi_set_operation_mode(dssdev, OMAP_DSS_DSI_CMD_MODE);
 
+	r = omapdss_dsi_set_clocks(dssdev, 216000000, 10000000);
+	if (r) {
+		dev_err(&dssdev->dev, "failed to set HS and LP clocks\n");
+		goto err0;
+	}
+
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {
 		dev_err(&dssdev->dev, "failed to enable DSI\n");
