@@ -679,21 +679,15 @@ struct accept_wait_data {
 
 };
 
-static void incomming_connection(struct sock *sk)
+static void drbd_incoming_connection(struct sock *sk)
 {
 	struct accept_wait_data *ad = sk->sk_user_data;
-	struct drbd_tconn *tconn = ad->tconn;
+	void (*state_change)(struct sock *sk);
 
-	if (sk->sk_state != TCP_ESTABLISHED)
-		conn_warn(tconn, "unexpected tcp state change. sk_state = %d\n", sk->sk_state);
-
-	write_lock_bh(&sk->sk_callback_lock);
-	sk->sk_state_change = ad->original_sk_state_change;
-	sk->sk_user_data = NULL;
-	write_unlock_bh(&sk->sk_callback_lock);
-
-	sk->sk_state_change(sk);
-	complete(&ad->door_bell);
+	state_change = ad->original_sk_state_change;
+	if (sk->sk_state == TCP_ESTABLISHED)
+		complete(&ad->door_bell);
+	state_change(sk);
 }
 
 static int prepare_listen_socket(struct drbd_tconn *tconn, struct accept_wait_data *ad)
@@ -736,7 +730,7 @@ static int prepare_listen_socket(struct drbd_tconn *tconn, struct accept_wait_da
 	ad->s_listen = s_listen;
 	write_lock_bh(&s_listen->sk->sk_callback_lock);
 	ad->original_sk_state_change = s_listen->sk->sk_state_change;
-	s_listen->sk->sk_state_change = incomming_connection;
+	s_listen->sk->sk_state_change = drbd_incoming_connection;
 	s_listen->sk->sk_user_data = ad;
 	write_unlock_bh(&s_listen->sk->sk_callback_lock);
 
@@ -757,6 +751,14 @@ out:
 	}
 
 	return -EIO;
+}
+
+static void unregister_state_change(struct sock *sk, struct accept_wait_data *ad)
+{
+	write_lock_bh(&sk->sk_callback_lock);
+	sk->sk_state_change = ad->original_sk_state_change;
+	sk->sk_user_data = NULL;
+	write_unlock_bh(&sk->sk_callback_lock);
 }
 
 static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn, struct accept_wait_data *ad)
@@ -788,6 +790,9 @@ static struct socket *drbd_wait_for_connect(struct drbd_tconn *tconn, struct acc
 			conn_request_state(tconn, NS(conn, C_DISCONNECTING), CS_HARD);
 		}
 	}
+
+	if (s_estab)
+		unregister_state_change(s_estab->sk, ad);
 
 	return s_estab;
 }
