@@ -201,6 +201,22 @@ config IPV6_TUNNEL
 
 	  If unsure, say N.
 
+config IPV6_GRE
+	tristate "IPv6: GRE tunnel"
+	select IPV6_TUNNEL
+	---help---
+	  Tunneling means encapsulating data of one protocol type within
+	  another protocol and sending it over a channel that understands the
+	  encapsulating protocol. This particular tunneling driver implements
+	  GRE (Generic Routing Encapsulation) and at this time allows
+	  encapsulating of IPv4 or IPv6 over existing IPv6 infrastructure.
+	  This driver is useful if the other endpoint is a Cisco router: Cisco
+	  likes GRE much better than the other Linux tunneling driver ("IP
+	  tunneling" above). In addition, GRE allows multicast redistribution
+	  through the tunnel.
+
+	  Saying M here will produce a module called ip6_gre. If unsure, say N.
+
 config IPV6_MULTIPLE_TABLES
 	bool "IPv6: Multiple Routing Tables"
 	depends on EXPERIMENTAL
