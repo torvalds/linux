@@ -266,7 +266,8 @@ void symsrc__destroy(struct symsrc *ss)
 	close(ss->fd);
 }
 
-int dso__synthesize_plt_symbols(struct dso *dso __used, char *name __used,
+int dso__synthesize_plt_symbols(struct dso *dso __used,
+				struct symsrc *ss __used,
 				struct map *map __used,
 				symbol_filter_t filter __used)
 {

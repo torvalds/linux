@@ -1091,21 +1091,23 @@ restart:
 
 		ret = dso__load_sym(dso, map, &ss, filter, 0,
 				    want_symtab);
-		symsrc__destroy(&ss);
 
 		/*
 		 * Some people seem to have debuginfo files _WITHOUT_ debug
 		 * info!?!?
 		 */
-		if (!ret)
+		if (!ret) {
+			symsrc__destroy(&ss);
 			continue;
+		}
 
 		if (ret > 0) {
 			int nr_plt;
 
-			nr_plt = dso__synthesize_plt_symbols(dso, name, map, filter);
+			nr_plt = dso__synthesize_plt_symbols(dso, &ss, map, filter);
 			if (nr_plt > 0)
 				ret += nr_plt;
+			symsrc__destroy(&ss);
 			break;
 		}
 	}

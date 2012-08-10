@@ -370,8 +370,8 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 int dso__test_data(void);
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 		  symbol_filter_t filter, int kmodule, int want_symtab);
-int dso__synthesize_plt_symbols(struct dso *dso, char *name, struct map *map,
-				symbol_filter_t filter);
+int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
+				struct map *map, symbol_filter_t filter);
 
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);
 void symbols__fixup_duplicate(struct rb_root *symbols);
