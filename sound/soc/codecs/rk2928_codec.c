@@ -37,15 +37,17 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
+#include <mach/iomux.h>
+
 #include "rk2928_codec.h"
 
 static struct rk2928_codec_data {
 	struct device	*dev;
-	struct clk		*hclk;
 	int 			regbase;
 	int				regbase_phy;
 	int				regsize_phy;
-	int	mute;
+	int				mute;
+	int				hdmi_enable;
 } rk2928_data;
 
 static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
@@ -64,18 +66,14 @@ static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route rk2928_audio_map[] = {
-	{"DACL Drv", "DACL Amp", "DACL"},
-	{"DACR Drv", "DACR Amp", "DACR"},
-	{"SPKL", NULL, "DACL Drv"},
-	{"SPKR", NULL, "DACR Drv"},
+	{"SPKL", "DACL Amp", "DACL"},
+	{"SPKR", "DACR Amp", "DACR"},
+//	{"SPKL", NULL, "DACL Drv"},
+//	{"SPKR", NULL, "DACR Drv"},
 	{"ADCL", NULL, "MICL"},
 	{"ADCR", NULL, "MICR"},
 };
 
-void codec_set_spk(bool on)
-{
-	
-}
 
 static unsigned int rk2928_read(struct snd_soc_codec *codec, unsigned int reg)
 {	
@@ -101,6 +99,22 @@ static int rk2928_write_mask(struct snd_soc_codec *codec, unsigned int reg,
 	return rk2928_write(codec, reg, regvalue);
 }
 
+void codec_set_spk(bool on)
+{
+	if(on == 0) {
+		DBG("%s speaker is disabled\n", __FUNCTION__);
+		rk2928_data.hdmi_enable = 1;
+		if(rk2928_data.mute = 0)
+			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
+	}
+	else {
+		DBG("%s speaker is enabled\n", __FUNCTION__);
+		rk2928_data.hdmi_enable = 0;
+		if(rk2928_data.mute = 0)
+			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+	}
+}
+
 static int rk2928_audio_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
@@ -117,9 +131,9 @@ static int rk2928_audio_hw_params(struct snd_pcm_substream *substream,
 static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
-//	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-//	struct snd_soc_codec *codec = rtd->codec;
-//	struct rk2928_codec_data *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct rk2928_codec_data *priv = snd_soc_codec_get_drvdata(codec);
 	int err = 0;
 
 	DBG("%s cmd 0x%x", __FUNCTION__, cmd);
@@ -128,10 +142,25 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+//				rk2928_write(codec, CODEC_REG_DAC_GAIN, v_GAIN_DAC(DAC_GAIN_3DB_P));
+				if(!rk2928_data.hdmi_enable)
+					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+				rk2928_data.mute = 0;
+			}
+			else {
+				rk2928_write(codec, CODEC_REG_ADC_PGA_GAIN, 0xFF);
+//				rk2928_write(codec, 0x08, 0xff);
+//				rk2928_write(codec, 0x09, 0x07);
+			}
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+				rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
+				rk2928_data.mute = 1;
+			}
 			break;
 		default:
 			err = -EINVAL;
@@ -209,15 +238,17 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 		ret = -ENXIO;
 		goto err1;
 	}
+	// Select SDI input from internal audio codec
+	writel(0x04000400, RK2928_GRF_BASE + GRF_SOC_CON0);
 	
+	// Mute and Power off codec
 	rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
-	rk2928_write(codec, CODEC_REG_DAC_GAIN, v_GAIN_DAC(DAC_GAIN_3DB_P));
 	rk2928_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	
 	snd_soc_dapm_new_controls(dapm, rk2928_dapm_widgets,
 			ARRAY_SIZE(rk2928_dapm_widgets));
 	snd_soc_dapm_add_routes(dapm, rk2928_audio_map, ARRAY_SIZE(rk2928_audio_map));
-	
+
 	return 0;
 	
 err1:

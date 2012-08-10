@@ -11,6 +11,8 @@
 #ifndef __RK2928_CODEC_H__
 #define __RK2928_CODEC_H__
 
+#define CODEC_REG_ADC_DIGITAL_GIAN_L 0x08
+#define CODEC_REG_ADC_DIGITAL_GIAN_H 0x09
 
 #define CODEC_REG_ADC_PGA_GAIN	0x0b
 	#define m_MIC_GAIN_CHANNEL_L		(0x0F << 4)
