@@ -68,7 +68,9 @@ struct radio_tea5777 {
 	bool has_am;			/* Device can tune to AM freqs */
 	bool write_before_read;		/* must write before read quirk */
 	bool needs_write;		/* for write before read quirk */
+	u32 band;			/* current band */
 	u32 freq;			/* current frequency */
+	u32 audmode;			/* last set audmode */
 	u32 seek_rangelow;		/* current hwseek limits */
 	u32 seek_rangehigh;
 	u32 read_reg;

@@ -39,13 +39,11 @@ MODULE_AUTHOR("Hans de Goede <perex@perex.cz>");
 MODULE_DESCRIPTION("Routines for control of TEA5777 Philips AM/FM radio tuner chips");
 MODULE_LICENSE("GPL");
 
-/* Fixed FM only band for now, will implement multi-band support when the
-   VIDIOC_ENUM_FREQ_BANDS API is upstream */
-#define TEA5777_FM_RANGELOW		(76000 * 16)
-#define TEA5777_FM_RANGEHIGH		(108000 * 16)
-
 #define TEA5777_FM_IF			150 /* kHz */
-#define TEA5777_FM_FREQ_STEP		50 /* kHz */
+#define TEA5777_FM_FREQ_STEP		50  /* kHz */
+
+#define TEA5777_AM_IF			21  /* kHz */
+#define TEA5777_AM_FREQ_STEP		1   /* kHz */
 
 /* Write reg, common bits */
 #define TEA5777_W_MUTE_MASK		(1LL << 47)
@@ -94,7 +92,7 @@ MODULE_LICENSE("GPL");
 #define TEA5777_W_FM_PLL_SHIFT		32
 #define TEA5777_W_FM_FREF_MASK		(0x03LL << 30)
 #define TEA5777_W_FM_FREF_SHIFT		30
-#define TEA5777_W_FM_FREF_VALUE		0 /* 50 kHz tune steps, 150 kHz IF */
+#define TEA5777_W_FM_FREF_VALUE		0LL /* 50k steps, 150k IF */
 
 #define TEA5777_W_FM_FORCEMONO_MASK	(1LL << 15)
 #define TEA5777_W_FM_FORCEMONO_SHIFT	15
@@ -115,6 +113,8 @@ MODULE_LICENSE("GPL");
 #define TEA5777_W_AM_AGCIF_SHIFT	32
 #define TEA5777_W_AM_MWLW_MASK		(1LL << 31)
 #define TEA5777_W_AM_MWLW_SHIFT		31
+#define TEA5777_W_AM_LW			0LL
+#define TEA5777_W_AM_MW			1LL
 #define TEA5777_W_AM_LNA_MASK		(1LL << 30)
 #define TEA5777_W_AM_LNA_SHIFT		30
 
@@ -147,9 +147,41 @@ MODULE_LICENSE("GPL");
 #define TEA5777_R_FM_PLL_MASK		0x1fff
 #define TEA5777_R_FM_PLL_SHIFT		0
 
+enum { BAND_FM, BAND_AM };
+
+static const struct v4l2_frequency_band bands[] = {
+	{
+		.type = V4L2_TUNER_RADIO,
+		.index = 0,
+		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
+			      V4L2_TUNER_CAP_FREQ_BANDS |
+			      V4L2_TUNER_CAP_HWSEEK_BOUNDED |
+			      V4L2_TUNER_CAP_HWSEEK_PROG_LIM,
+		.rangelow   =  76000 * 16,
+		.rangehigh  = 108000 * 16,
+		.modulation = V4L2_BAND_MODULATION_FM,
+	},
+	{
+		.type = V4L2_TUNER_RADIO,
+		.index = 1,
+		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_FREQ_BANDS |
+			      V4L2_TUNER_CAP_HWSEEK_BOUNDED |
+			      V4L2_TUNER_CAP_HWSEEK_PROG_LIM,
+		.rangelow   =  530 * 16,
+		.rangehigh  = 1710 * 16,
+		.modulation = V4L2_BAND_MODULATION_AM,
+	},
+};
+
 static u32 tea5777_freq_to_v4l2_freq(struct radio_tea5777 *tea, u32 freq)
 {
-	return (freq * TEA5777_FM_FREQ_STEP + TEA5777_FM_IF) * 16;
+	switch (tea->band) {
+	case BAND_FM:
+		return (freq * TEA5777_FM_FREQ_STEP + TEA5777_FM_IF) * 16;
+	case BAND_AM:
+		return (freq * TEA5777_AM_FREQ_STEP + TEA5777_AM_IF) * 16;
+	}
+	return 0; /* Never reached */
 }
 
 static int radio_tea5777_set_freq(struct radio_tea5777 *tea)
@@ -157,15 +189,40 @@ static int radio_tea5777_set_freq(struct radio_tea5777 *tea)
 	u32 freq;
 	int res;
 
-	freq = clamp_t(u32, tea->freq,
-		       TEA5777_FM_RANGELOW, TEA5777_FM_RANGEHIGH);
+	freq = clamp(tea->freq, bands[tea->band].rangelow,
+				bands[tea->band].rangehigh);
 	freq = (freq + 8) / 16; /* to kHz */
 
-	freq = (freq - TEA5777_FM_IF) / TEA5777_FM_FREQ_STEP;
-
-	tea->write_reg &= ~(TEA5777_W_FM_PLL_MASK | TEA5777_W_FM_FREF_MASK);
-	tea->write_reg |= (u64)freq << TEA5777_W_FM_PLL_SHIFT;
-	tea->write_reg |= TEA5777_W_FM_FREF_VALUE << TEA5777_W_FM_FREF_SHIFT;
+	switch (tea->band) {
+	case BAND_FM:
+		tea->write_reg &= ~TEA5777_W_AM_FM_MASK;
+		freq = (freq - TEA5777_FM_IF) / TEA5777_FM_FREQ_STEP;
+		tea->write_reg &= ~TEA5777_W_FM_PLL_MASK;
+		tea->write_reg |= (u64)freq << TEA5777_W_FM_PLL_SHIFT;
+		tea->write_reg &= ~TEA5777_W_FM_FREF_MASK;
+		tea->write_reg |= TEA5777_W_FM_FREF_VALUE <<
+				  TEA5777_W_FM_FREF_SHIFT;
+		tea->write_reg &= ~TEA5777_W_FM_FORCEMONO_MASK;
+		if (tea->audmode == V4L2_TUNER_MODE_MONO)
+			tea->write_reg |= 1LL << TEA5777_W_FM_FORCEMONO_SHIFT;
+		break;
+	case BAND_AM:
+		tea->write_reg &= ~TEA5777_W_AM_FM_MASK;
+		tea->write_reg |= (1LL << TEA5777_W_AM_FM_SHIFT);
+		freq = (freq - TEA5777_AM_IF) / TEA5777_AM_FREQ_STEP;
+		tea->write_reg &= ~TEA5777_W_AM_PLL_MASK;
+		tea->write_reg |= (u64)freq << TEA5777_W_AM_PLL_SHIFT;
+		tea->write_reg &= ~TEA5777_W_AM_AGCRF_MASK;
+		tea->write_reg &= ~TEA5777_W_AM_AGCRF_MASK;
+		tea->write_reg &= ~TEA5777_W_AM_MWLW_MASK;
+		tea->write_reg |= TEA5777_W_AM_MW << TEA5777_W_AM_MWLW_SHIFT;
+		tea->write_reg &= ~TEA5777_W_AM_LNA_MASK;
+		tea->write_reg |= 1LL << TEA5777_W_AM_LNA_SHIFT;
+		tea->write_reg &= ~TEA5777_W_AM_PEAK_MASK;
+		tea->write_reg |= 1LL << TEA5777_W_AM_PEAK_SHIFT;
+		tea->write_reg &= ~TEA5777_W_AM_CALLIGN_MASK;
+		break;
+	}
 
 	res = tea->ops->write_reg(tea, tea->write_reg);
 	if (res)
@@ -223,6 +280,19 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
+static int vidioc_enum_freq_bands(struct file *file, void *priv,
+					 struct v4l2_frequency_band *band)
+{
+	struct radio_tea5777 *tea = video_drvdata(file);
+
+	if (band->tuner != 0 || band->index >= ARRAY_SIZE(bands) ||
+	    (!tea->has_am && band->index == BAND_AM))
+		return -EINVAL;
+
+	*band = bands[band->index];
+	return 0;
+}
+
 static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
@@ -243,13 +313,18 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		strlcpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
-			V4L2_TUNER_CAP_HWSEEK_BOUNDED;
-	v->rangelow   = TEA5777_FM_RANGELOW;
-	v->rangehigh  = TEA5777_FM_RANGEHIGH;
-	v->rxsubchans = (tea->read_reg & TEA5777_R_FM_STEREO_MASK) ?
-			V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
-	v->audmode = (tea->write_reg & TEA5777_W_FM_FORCEMONO_MASK) ?
-		V4L2_TUNER_MODE_MONO : V4L2_TUNER_MODE_STEREO;
+			V4L2_TUNER_CAP_FREQ_BANDS |
+			V4L2_TUNER_CAP_HWSEEK_BOUNDED |
+			V4L2_TUNER_CAP_HWSEEK_PROG_LIM;
+	v->rangelow   = tea->has_am ? bands[BAND_AM].rangelow :
+				      bands[BAND_FM].rangelow;
+	v->rangehigh  = bands[BAND_FM].rangehigh;
+	if (tea->band == BAND_FM &&
+			(tea->read_reg & TEA5777_R_FM_STEREO_MASK))
+		v->rxsubchans = V4L2_TUNER_SUB_STEREO;
+	else
+		v->rxsubchans = V4L2_TUNER_SUB_MONO;
+	v->audmode = tea->audmode;
 	/* shift - 12 to convert 4-bits (0-15) scale to 16-bits (0-65535) */
 	v->signal = (tea->read_reg & TEA5777_R_LEVEL_MASK) >>
 		    (TEA5777_R_LEVEL_SHIFT - 12);
@@ -264,16 +339,20 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
 	struct radio_tea5777 *tea = video_drvdata(file);
+	u32 orig_audmode = tea->audmode;
 
 	if (v->index)
 		return -EINVAL;
 
-	if (v->audmode == V4L2_TUNER_MODE_MONO)
-		tea->write_reg |= TEA5777_W_FM_FORCEMONO_MASK;
-	else
-		tea->write_reg &= ~TEA5777_W_FM_FORCEMONO_MASK;
+	if (v->audmode > V4L2_TUNER_MODE_STEREO)
+		v->audmode = V4L2_TUNER_MODE_STEREO;
 
-	return radio_tea5777_set_freq(tea);
+	tea->audmode = v->audmode;
+
+	if (tea->audmode != orig_audmode && tea->band == BAND_FM)
+		return radio_tea5777_set_freq(tea);
+
+	return 0;
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
@@ -296,6 +375,11 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 
+	if (tea->has_am && f->frequency < (20000 * 16))
+		tea->band = BAND_AM;
+	else
+		tea->band = BAND_FM;
+
 	tea->freq = f->frequency;
 	return radio_tea5777_set_freq(tea);
 }
@@ -304,32 +388,56 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 					struct v4l2_hw_freq_seek *a)
 {
 	struct radio_tea5777 *tea = video_drvdata(file);
-	u32 orig_freq = tea->freq;
 	unsigned long timeout;
-	int res, spacing = 200 * 16; /* 200 kHz */
-	/* These are fixed *for now* */
-	const u32 seek_rangelow  = TEA5777_FM_RANGELOW;
-	const u32 seek_rangehigh = TEA5777_FM_RANGEHIGH;
+	int i, res, spacing;
+	u32 orig_freq;
 
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
 
-	tea->write_reg |= TEA5777_W_PROGBLIM_MASK;
-	if (seek_rangelow != tea->seek_rangelow) {
-		tea->write_reg &= ~TEA5777_W_UPDWN_MASK;
-		tea->freq = seek_rangelow;
-		res = radio_tea5777_set_freq(tea);
-		if (res)
-			goto leave;
-		tea->seek_rangelow = tea->freq;
+	if (a->rangelow || a->rangehigh) {
+		for (i = 0; i < ARRAY_SIZE(bands); i++) {
+			if (i == BAND_AM && !tea->has_am)
+				continue;
+			if (bands[i].rangelow  >= a->rangelow &&
+			    bands[i].rangehigh <= a->rangehigh)
+				break;
+		}
+		if (i == ARRAY_SIZE(bands))
+			return -EINVAL; /* No matching band found */
+
+		tea->band = i;
+		if (tea->freq < a->rangelow || tea->freq > a->rangehigh) {
+			tea->freq = clamp(tea->freq, a->rangelow,
+						     a->rangehigh);
+			res = radio_tea5777_set_freq(tea);
+			if (res)
+				return res;
+		}
+	} else {
+		a->rangelow  = bands[tea->band].rangelow;
+		a->rangehigh = bands[tea->band].rangehigh;
 	}
-	if (seek_rangehigh != tea->seek_rangehigh) {
-		tea->write_reg |= TEA5777_W_UPDWN_MASK;
-		tea->freq = seek_rangehigh;
+
+	spacing   = (tea->band == BAND_AM) ? (5 * 16) : (200 * 16); /* kHz */
+	orig_freq = tea->freq;
+
+	tea->write_reg |= TEA5777_W_PROGBLIM_MASK;
+	if (tea->seek_rangelow != a->rangelow) {
+		tea->write_reg &= ~TEA5777_W_UPDWN_MASK;
+		tea->freq = a->rangelow;
 		res = radio_tea5777_set_freq(tea);
 		if (res)
 			goto leave;
-		tea->seek_rangehigh = tea->freq;
+		tea->seek_rangelow = a->rangelow;
+	}
+	if (tea->seek_rangehigh != a->rangehigh) {
+		tea->write_reg |= TEA5777_W_UPDWN_MASK;
+		tea->freq = a->rangehigh;
+		res = radio_tea5777_set_freq(tea);
+		if (res)
+			goto leave;
+		tea->seek_rangehigh = a->rangehigh;
 	}
 	tea->write_reg &= ~TEA5777_W_PROGBLIM_MASK;
 
@@ -417,6 +525,7 @@ static const struct v4l2_ioctl_ops tea575x_ioctl_ops = {
 	.vidioc_g_frequency = vidioc_g_frequency,
 	.vidioc_s_frequency = vidioc_s_frequency,
 	.vidioc_s_hw_freq_seek = vidioc_s_hw_freq_seek,
+	.vidioc_enum_freq_bands = vidioc_enum_freq_bands,
 	.vidioc_log_status  = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
@@ -439,8 +548,9 @@ int radio_tea5777_init(struct radio_tea5777 *tea, struct module *owner)
 			 (1LL << TEA5777_W_IFW_SHIFT) |
 			 (1LL << TEA5777_W_INTEXT_SHIFT) |
 			 (1LL << TEA5777_W_CHP0_SHIFT) |
-			 (2LL << TEA5777_W_SLEV_SHIFT);
+			 (1LL << TEA5777_W_SLEV_SHIFT);
 	tea->freq = 90500 * 16;	/* 90.5Mhz default */
+	tea->audmode = V4L2_TUNER_MODE_STEREO;
 	res = radio_tea5777_set_freq(tea);
 	if (res) {
 		v4l2_err(tea->v4l2_dev, "can't set initial freq (%d)\n", res);
