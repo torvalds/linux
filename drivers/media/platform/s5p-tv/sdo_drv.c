@@ -374,15 +374,15 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	dev_info(dev, "fout_vpll.rate = %lu\n", clk_get_rate(sclk_vpll));
 
 	/* acquire regulator */
-	sdev->vdac = regulator_get(dev, "vdd33a_dac");
+	sdev->vdac = devm_regulator_get(dev, "vdd33a_dac");
 	if (IS_ERR_OR_NULL(sdev->vdac)) {
 		dev_err(dev, "failed to get regulator 'vdac'\n");
 		goto fail_fout_vpll;
 	}
-	sdev->vdet = regulator_get(dev, "vdet");
+	sdev->vdet = devm_regulator_get(dev, "vdet");
 	if (IS_ERR_OR_NULL(sdev->vdet)) {
 		dev_err(dev, "failed to get regulator 'vdet'\n");
-		goto fail_vdac;
+		goto fail_fout_vpll;
 	}
 
 	/* enable gate for dac clock, because mixer uses it */
@@ -406,8 +406,6 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	dev_info(dev, "probe succeeded\n");
 	return 0;
 
-fail_vdac:
-	regulator_put(sdev->vdac);
 fail_fout_vpll:
 	clk_put(sdev->fout_vpll);
 fail_dacphy:
@@ -428,8 +426,6 @@ static int __devexit sdo_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	clk_disable(sdev->dac);
-	regulator_put(sdev->vdet);
-	regulator_put(sdev->vdac);
 	clk_put(sdev->fout_vpll);
 	clk_put(sdev->dacphy);
 	clk_put(sdev->dac);
