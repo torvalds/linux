@@ -424,13 +424,6 @@ static void ath_rc_sort_validrates(struct ath_rate_priv *ath_rc_priv)
 	}
 }
 
-static inline void ath_rc_set_valid_rate_idx(struct ath_rate_priv *ath_rc_priv,
-					   u8 index, int valid_tx_rate)
-{
-	BUG_ON(index > ath_rc_priv->rate_table_size);
-	ath_rc_priv->valid_rate_index[index] = !!valid_tx_rate;
-}
-
 static inline
 int ath_rc_get_nextvalid_txrate(const struct ath_rate_table *rate_table,
 				struct ath_rate_priv *ath_rc_priv,
@@ -503,7 +496,7 @@ static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv)
 
 			ath_rc_priv->valid_phy_rateidx[phy][valid_rate_count] = i;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-			ath_rc_set_valid_rate_idx(ath_rc_priv, i, 1);
+			ath_rc_priv->valid_rate_index[i] = true;
 			hi = i;
 		}
 	}
@@ -539,7 +532,7 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv)
 			valid_rate_count = ath_rc_priv->valid_phy_ratecnt[phy];
 			ath_rc_priv->valid_phy_rateidx[phy][valid_rate_count] = j;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-			ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
+			ath_rc_priv->valid_rate_index[j] = true;
 			hi = max(hi, j);
 		}
 	}
@@ -573,7 +566,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 			valid_rate_count = ath_rc_priv->valid_phy_ratecnt[phy];
 			ath_rc_priv->valid_phy_rateidx[phy][valid_rate_count] = j;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
-			ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
+			ath_rc_priv->valid_rate_index[j] = true;
 			hi = max(hi, j);
 		}
 	}
