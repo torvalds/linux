@@ -3497,7 +3497,7 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec, hda_nid_t fg
 {
 	int sup = snd_hda_param_read(codec, fg, AC_PAR_POWER_STATE);
 
-	if (sup < 0)
+	if (sup == -1)
 		return false;
 	if (sup & power_state)
 		return true;
