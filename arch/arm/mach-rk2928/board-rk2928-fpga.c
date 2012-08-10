@@ -492,6 +492,8 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
 
 #endif /* CONFIG_VIDEO_RK29 */
 
+#include "board-rk2928-fpga-key.c"
+
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
