@@ -423,7 +423,6 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 base;
 
 	/* only revE and later have the DRAM Hole Address Register */
 	if (boot_cpu_data.x86 == 0xf && pvt->ext_model < K8_REV_E) {
@@ -462,10 +461,8 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 	 * addresses in the hole so that they start at 0x100000000.
 	 */
 
-	base = dhar_base(pvt);
-
-	*hole_base = base;
-	*hole_size = (0x1ull << 32) - base;
+	*hole_base = dhar_base(pvt);
+	*hole_size = (1ULL << 32) - *hole_base;
 
 	if (boot_cpu_data.x86 > 0xf)
 		*hole_offset = f10_dhar_offset(pvt);
@@ -513,15 +510,15 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u64 dram_base, hole_base, hole_offset, hole_size, dram_addr;
-	int ret = 0;
+	int ret;
 
 	dram_base = get_dram_base(pvt, pvt->mc_node_id);
 
 	ret = amd64_get_dram_hole_info(mci, &hole_base, &hole_offset,
 				      &hole_size);
 	if (!ret) {
-		if ((sys_addr >= (1ull << 32)) &&
-		    (sys_addr < ((1ull << 32) + hole_size))) {
+		if ((sys_addr >= (1ULL << 32)) &&
+		    (sys_addr < ((1ULL << 32) + hole_size))) {
 			/* use DHAR to translate SysAddr to DramAddr */
 			dram_addr = sys_addr - hole_offset;
 
