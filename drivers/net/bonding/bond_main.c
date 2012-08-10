@@ -398,7 +398,7 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
 	skb->queue_mapping = qdisc_skb_cb(skb)->slave_dev_queue_mapping;
 
-	if (unlikely(netpoll_tx_running(slave_dev)))
+	if (unlikely(netpoll_tx_running(bond->dev)))
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
 	else
 		dev_queue_xmit(skb);
