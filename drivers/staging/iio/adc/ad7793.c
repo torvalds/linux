@@ -1,5 +1,5 @@
 /*
- * AD7792/AD7793 SPI ADC driver
+ * AD7792/AD7793/AD7794/AD7795 SPI ADC driver
  *
  * Copyright 2011-2012 Analog Devices Inc.
  *
@@ -37,7 +37,8 @@
  */
 
 struct ad7793_chip_info {
-	struct iio_chan_spec	channel[7];
+	const struct iio_chan_spec *channels;
+	unsigned int num_channels;
 };
 
 struct ad7793_state {
@@ -55,6 +56,8 @@ struct ad7793_state {
 enum ad7793_supported_device_ids {
 	ID_AD7792,
 	ID_AD7793,
+	ID_AD7794,
+	ID_AD7795,
 };
 
 static struct ad7793_state *ad_sigma_delta_to_ad7793(struct ad_sigma_delta *sd)
@@ -127,7 +130,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 
 	id &= AD7793_ID_MASK;
 
-	if (!((id == AD7792_ID) || (id == AD7793_ID))) {
+	if (!((id == AD7792_ID) || (id == AD7793_ID) || (id == AD7795_ID))) {
 		dev_err(&st->sd.spi->dev, "device ID query failed\n");
 		goto out;
 	}
@@ -155,7 +158,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	/* Populate available ADC input ranges */
 	for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++) {
 		scale_uv = ((u64)st->int_vref_mv * 100000000)
-			>> (st->chip_info->channel[0].scan_type.realbits -
+			>> (st->chip_info->channels[0].scan_type.realbits -
 			(!!(st->conf & AD7793_CONF_UNIPOLAR) ? 0 : 1));
 		scale_uv >>= i;
 
@@ -383,28 +386,52 @@ static const struct iio_info ad7793_info = {
 	.driver_module = THIS_MODULE,
 };
 
+#define DECLARE_AD7793_CHANNELS(_name, _b, _sb) \
+const struct iio_chan_spec _name##_channels[] = { \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), 0), \
+	AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, (_b), (_sb), 0), \
+	AD_SD_TEMP_CHANNEL(4, AD7793_CH_TEMP, (_b), (_sb), 0), \
+	AD_SD_SUPPLY_CHANNEL(5, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), 0), \
+	IIO_CHAN_SOFT_TIMESTAMP(6), \
+}
+
+#define DECLARE_AD7795_CHANNELS(_name, _b, _sb) \
+const struct iio_chan_spec _name##_channels[] = { \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(3, 3, 3, AD7795_CH_AIN4P_AIN4M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(4, 4, 4, AD7795_CH_AIN5P_AIN5M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(5, 5, 5, AD7795_CH_AIN6P_AIN6M, (_b), (_sb), 0), \
+	AD_SD_SHORTED_CHANNEL(6, 0, AD7795_CH_AIN1M_AIN1M, (_b), (_sb), 0), \
+	AD_SD_TEMP_CHANNEL(7, AD7793_CH_TEMP, (_b), (_sb), 0), \
+	AD_SD_SUPPLY_CHANNEL(8, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), 0), \
+	IIO_CHAN_SOFT_TIMESTAMP(9), \
+}
+
+static DECLARE_AD7793_CHANNELS(ad7792, 16, 32);
+static DECLARE_AD7793_CHANNELS(ad7793, 24, 32);
+static DECLARE_AD7795_CHANNELS(ad7794, 16, 32);
+static DECLARE_AD7795_CHANNELS(ad7795, 24, 32);
+
 static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
-	[ID_AD7793] = {
-		.channel = {
-			AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, 24, 32, 0),
-			AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, 24, 32, 0),
-			AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, 24, 32, 0),
-			AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, 24, 32, 0),
-			AD_SD_TEMP_CHANNEL(4, AD7793_CH_TEMP, 24, 32, 0),
-			AD_SD_SUPPLY_CHANNEL(5, 3, AD7793_CH_AVDD_MONITOR, 24, 32, 0),
-			IIO_CHAN_SOFT_TIMESTAMP(6),
-		},
-	},
 	[ID_AD7792] = {
-		.channel = {
-			AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, 16, 32, 0),
-			AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, 16, 32, 0),
-			AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, 16, 32, 0),
-			AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, 16, 32, 0),
-			AD_SD_TEMP_CHANNEL(4, AD7793_CH_TEMP, 16, 32, 0),
-			AD_SD_SUPPLY_CHANNEL(5, 3, AD7793_CH_AVDD_MONITOR, 16, 32, 0),
-			IIO_CHAN_SOFT_TIMESTAMP(6),
-		},
+		.channels = ad7792_channels,
+		.num_channels = ARRAY_SIZE(ad7792_channels),
+	},
+	[ID_AD7793] = {
+		.channels = ad7793_channels,
+		.num_channels = ARRAY_SIZE(ad7793_channels),
+	},
+	[ID_AD7794] = {
+		.channels = ad7794_channels,
+		.num_channels = ARRAY_SIZE(ad7794_channels),
+	},
+	[ID_AD7795] = {
+		.channels = ad7795_channels,
+		.num_channels = ARRAY_SIZE(ad7795_channels),
 	},
 };
 
@@ -457,8 +484,8 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = st->chip_info->channel;
-	indio_dev->num_channels = 7;
+	indio_dev->channels = st->chip_info->channels;
+	indio_dev->num_channels = st->chip_info->num_channels;
 	indio_dev->info = &ad7793_info;
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
@@ -510,6 +537,8 @@ static int ad7793_remove(struct spi_device *spi)
 static const struct spi_device_id ad7793_id[] = {
 	{"ad7792", ID_AD7792},
 	{"ad7793", ID_AD7793},
+	{"ad7794", ID_AD7794},
+	{"ad7795", ID_AD7795},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7793_id);
@@ -526,5 +555,5 @@ static struct spi_driver ad7793_driver = {
 module_spi_driver(ad7793_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD7792/3 ADC");
+MODULE_DESCRIPTION("Analog Devices AD7793 and simialr ADCs");
 MODULE_LICENSE("GPL v2");
