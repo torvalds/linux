@@ -722,7 +722,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 0,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[1] = {
 			.type = IIO_VOLTAGE,
@@ -734,7 +734,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 1,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[2] = {
 			.type = IIO_VOLTAGE,
@@ -746,7 +746,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[3] = {
 			.type = IIO_VOLTAGE,
@@ -759,7 +759,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 3,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[4] = {
 			.type = IIO_TEMP,
@@ -769,7 +769,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
-			.scan_type = IIO_ST('s', 24, 32, 0),
+			.scan_type = IIO_ST('u', 24, 32, 0),
 		},
 		.channel[5] = {
 			.type = IIO_VOLTAGE,
@@ -780,7 +780,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 5,
-			.scan_type = IIO_ST('s', 24, 32, 0),
+			.scan_type = IIO_ST('u', 24, 32, 0),
 		},
 		.channel[6] = IIO_CHAN_SOFT_TIMESTAMP(6),
 	},
@@ -795,7 +795,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 0,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[1] = {
 			.type = IIO_VOLTAGE,
@@ -807,7 +807,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 1,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[2] = {
 			.type = IIO_VOLTAGE,
@@ -819,7 +819,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[3] = {
 			.type = IIO_VOLTAGE,
@@ -832,7 +832,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 3,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[4] = {
 			.type = IIO_TEMP,
@@ -842,7 +842,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
-			.scan_type = IIO_ST('s', 16, 32, 0),
+			.scan_type = IIO_ST('u', 16, 32, 0),
 		},
 		.channel[5] = {
 			.type = IIO_VOLTAGE,
@@ -853,7 +853,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 5,
-			.scan_type = IIO_ST('s', 16, 32, 0),
+			.scan_type = IIO_ST('u', 16, 32, 0),
 		},
 		.channel[6] = IIO_CHAN_SOFT_TIMESTAMP(6),
 	},
