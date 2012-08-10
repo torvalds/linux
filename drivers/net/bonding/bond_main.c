@@ -1235,12 +1235,12 @@ static inline int slave_enable_netpoll(struct slave *slave)
 	struct netpoll *np;
 	int err = 0;
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc(sizeof(*np), GFP_ATOMIC);
 	err = -ENOMEM;
 	if (!np)
 		goto out;
 
-	err = __netpoll_setup(np, slave->dev);
+	err = __netpoll_setup(np, slave->dev, GFP_ATOMIC);
 	if (err) {
 		kfree(np);
 		goto out;
@@ -1292,7 +1292,7 @@ static void bond_netpoll_cleanup(struct net_device *bond_dev)
 	read_unlock(&bond->lock);
 }
 
-static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
+static int bond_netpoll_setup(struct net_device *dev, struct netpoll_info *ni, gfp_t gfp)
 {
 	struct bonding *bond = netdev_priv(dev);
 	struct slave *slave;

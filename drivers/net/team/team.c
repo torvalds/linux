@@ -795,16 +795,17 @@ static void team_port_leave(struct team *team, struct team_port *port)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+static int team_port_enable_netpoll(struct team *team, struct team_port *port,
+				    gfp_t gfp)
 {
 	struct netpoll *np;
 	int err;
 
-	np = kzalloc(sizeof(*np), GFP_KERNEL);
+	np = kzalloc(sizeof(*np), gfp);
 	if (!np)
 		return -ENOMEM;
 
-	err = __netpoll_setup(np, port->dev);
+	err = __netpoll_setup(np, port->dev, gfp);
 	if (err) {
 		kfree(np);
 		return err;
@@ -833,7 +834,8 @@ static struct netpoll_info *team_netpoll_info(struct team *team)
 }
 
 #else
-static int team_port_enable_netpoll(struct team *team, struct team_port *port)
+static int team_port_enable_netpoll(struct team *team, struct team_port *port,
+				    gfp_t gfp)
 {
 	return 0;
 }
@@ -913,7 +915,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	}
 
 	if (team_netpoll_info(team)) {
-		err = team_port_enable_netpoll(team, port);
+		err = team_port_enable_netpoll(team, port, GFP_KERNEL);
 		if (err) {
 			netdev_err(dev, "Failed to enable netpoll on device %s\n",
 				   portname);
@@ -1443,7 +1445,7 @@ static void team_netpoll_cleanup(struct net_device *dev)
 }
 
 static int team_netpoll_setup(struct net_device *dev,
-			      struct netpoll_info *npifo)
+			      struct netpoll_info *npifo, gfp_t gfp)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -1451,7 +1453,7 @@ static int team_netpoll_setup(struct net_device *dev,
 
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
-		err = team_port_enable_netpoll(team, port);
+		err = team_port_enable_netpoll(team, port, gfp);
 		if (err) {
 			__team_netpoll_cleanup(team);
 			break;

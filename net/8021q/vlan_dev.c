@@ -669,19 +669,20 @@ static void vlan_dev_poll_controller(struct net_device *dev)
 	return;
 }
 
-static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo)
+static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo,
+				  gfp_t gfp)
 {
 	struct vlan_dev_priv *info = vlan_dev_priv(dev);
 	struct net_device *real_dev = info->real_dev;
 	struct netpoll *netpoll;
 	int err = 0;
 
-	netpoll = kzalloc(sizeof(*netpoll), GFP_KERNEL);
+	netpoll = kzalloc(sizeof(*netpoll), gfp);
 	err = -ENOMEM;
 	if (!netpoll)
 		goto out;
 
-	err = __netpoll_setup(netpoll, real_dev);
+	err = __netpoll_setup(netpoll, real_dev, gfp);
 	if (err) {
 		kfree(netpoll);
 		goto out;

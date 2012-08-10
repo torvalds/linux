@@ -213,7 +213,8 @@ static void br_netpoll_cleanup(struct net_device *dev)
 	}
 }
 
-static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
+static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni,
+			    gfp_t gfp)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct net_bridge_port *p, *n;
@@ -222,8 +223,7 @@ static int br_netpoll_setup(struct net_device *dev, struct netpoll_info *ni)
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
 		if (!p->dev)
 			continue;
-
-		err = br_netpoll_enable(p);
+		err = br_netpoll_enable(p, gfp);
 		if (err)
 			goto fail;
 	}
@@ -236,17 +236,17 @@ fail:
 	goto out;
 }
 
-int br_netpoll_enable(struct net_bridge_port *p)
+int br_netpoll_enable(struct net_bridge_port *p, gfp_t gfp)
 {
 	struct netpoll *np;
 	int err = 0;
 
-	np = kzalloc(sizeof(*p->np), GFP_KERNEL);
+	np = kzalloc(sizeof(*p->np), gfp);
 	err = -ENOMEM;
 	if (!np)
 		goto out;
 
-	err = __netpoll_setup(np, p->dev);
+	err = __netpoll_setup(np, p->dev, gfp);
 	if (err) {
 		kfree(np);
 		goto out;
