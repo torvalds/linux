@@ -23,6 +23,7 @@ config DRM_USB
 	tristate
 	depends on DRM
 	select USB
+	select USB_SUPPORT
 
 config DRM_KMS_HELPER
 	tristate
