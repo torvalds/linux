@@ -232,6 +232,9 @@ int dso__synthesize_plt_symbols(struct dso *dso, char *name, struct map *map,
 	if (symstrs == NULL)
 		goto out_elf_end;
 
+	if (symstrs->d_size == 0)
+		goto out_elf_end;
+
 	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 	plt_offset = shdr_plt.sh_offset;
 
