@@ -94,7 +94,7 @@ static unsigned short snd_cs46xx_codec_read(struct snd_cs46xx *chip,
 
 	if (snd_BUG_ON(codec_index != CS46XX_PRIMARY_CODEC_INDEX &&
 		       codec_index != CS46XX_SECONDARY_CODEC_INDEX))
-		return -EINVAL;
+		return 0xffff;
 
 	chip->active_ctrl(chip, 1);
 
