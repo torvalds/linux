@@ -100,6 +100,7 @@ struct sensor_operate {
 	int type;
 	int	id_i2c;
 	int	range[2];
+	int 	brightness[2];//backlight min_brightness max_brightness 
 	int read_reg;
 	int read_len;
 	int id_reg;

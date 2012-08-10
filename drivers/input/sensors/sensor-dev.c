@@ -1192,6 +1192,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 			sensor->input_dev->name = "lightsensor-level";
 			set_bit(EV_ABS, sensor->input_dev->evbit);
 			input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);			
+			input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH ,  sensor->ops->brightness[0],sensor->ops->brightness[1], 0, 0);
 			break;
 		case SENSOR_TYPE_PROXIMITY:
 			sensor->input_dev->name = "proximity";	
