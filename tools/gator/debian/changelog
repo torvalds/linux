@@ -1,3 +1,52 @@
+gator (5.17.0) saucy; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 18 Dec 2013 15:56:33 +0000
+
+gator (5.16.0) raring; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Tue, 10 Oct 2013 20:10:18 +0100
+
+gator (5.15.1) raring; urgency=low
+
+  * Fix gator-module-dkms install when kernel didn't already include
+    a version of gator. See issue https://cards.linaro.org/browse/ARM-44
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Tue, 30 Jul 2013 15:42:43 +0100
+
+gator (5.15.0) raring; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Tue, 11 Jun 2013 12:34:11 +0100
+
+gator (5.14.0) quantal; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 3 Apr 2013 14:34:18 +0100
+
+gator (5.13.0) quantal; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Mon, 14 Jan 2013 10:04:42 +0000
+
+gator (5.12.0) precise; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 24 Oct 2012 17:08:17 +0000
+
+gator (5.11.0) precise; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Fri, 10 Aug 2012 14:34:23 +0000
+
 gator (5.10.1) precise; urgency=low
 
   * Add gator-module-dkms package.
