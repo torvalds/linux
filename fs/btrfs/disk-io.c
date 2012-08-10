@@ -377,9 +377,13 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		ret = read_extent_buffer_pages(io_tree, eb, start,
 					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
-		if (!ret && !verify_parent_transid(io_tree, eb,
+		if (!ret) {
+			if (!verify_parent_transid(io_tree, eb,
 						   parent_transid, 0))
-			break;
+				break;
+			else
+				ret = -EIO;
+		}
 
 		/*
 		 * This buffer's crc is fine, but its contents are corrupted, so
