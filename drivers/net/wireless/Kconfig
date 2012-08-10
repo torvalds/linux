@@ -55,6 +55,16 @@ choice
 	  ---help---
 	    A library for Broadcom BCM4319 SDIO WLAN devices. 
 
+        config MT6620
+          depends on WLAN_80211 && MMC && MTK_COMBO
+          select WIRELESS_EXT
+          select WEXT_PRIV
+          select IEEE80211
+          select FW_LOADER
+          bool "MTK MT6620 WiFi SDIO"
+          ---help---
+            A library for MTK_wcn_combo SDIO WLAN devices.
+
 	config MV8686
 	  depends on WLAN_80211 && MMC
 	  select WIRELESS_EXT
