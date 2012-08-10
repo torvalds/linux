@@ -547,14 +547,15 @@ int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 void igb_ptp_init(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
 
 	switch (hw->mac.type) {
 	case e1000_i210:
 	case e1000_i211:
 	case e1000_i350:
 	case e1000_82580:
+		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
-		strcpy(adapter->ptp_caps.name, "igb-82580");
 		adapter->ptp_caps.max_adj = 62499999;
 		adapter->ptp_caps.n_ext_ts = 0;
 		adapter->ptp_caps.pps = 0;
@@ -570,10 +571,9 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		/* Enable the timer functions by clearing bit 31. */
 		wr32(E1000_TSAUXC, 0x0);
 		break;
-
 	case e1000_82576:
+		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
-		strcpy(adapter->ptp_caps.name, "igb-82576");
 		adapter->ptp_caps.max_adj = 1000000000;
 		adapter->ptp_caps.n_ext_ts = 0;
 		adapter->ptp_caps.pps = 0;
@@ -589,7 +589,6 @@ void igb_ptp_init(struct igb_adapter *adapter)
 		/* Dial the nominal frequency. */
 		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
 		break;
-
 	default:
 		adapter->ptp_clock = NULL;
 		return;
