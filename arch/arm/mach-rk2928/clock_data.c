@@ -1393,6 +1393,24 @@ static struct clk hclk_gps = {
 };
 #endif
 /****************camera*******************/
+static int cif_out_set_rate(struct clk *clk, unsigned long rate)
+{
+	int ret = 0;
+	struct clk *parent;
+
+	if (rate == 24 * MHZ) {
+		parent =clk->parents[1];
+	} else {
+		parent=clk->parents[0];
+		ret = clk_set_rate_nolock(parent, rate);
+		if (ret)
+			return ret;
+	}
+	if (clk->parent != parent)
+		ret = clk_set_parent_nolock(clk, parent);
+
+	return ret;
+}
 static struct clk *clk_cif_out_div_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_cif_out_div = {
 	.name		= "cif_out_div",
@@ -1410,6 +1428,7 @@ static struct clk *clk_cif_out_parents[]		= {&clk_cif_out_div, &xin24m};
 static struct clk clk_cif_out = {
 	.name		= "cif0_out",
 	.parent		= &clk_cif_out_div,
+	.set_rate	= cif_out_set_rate,
 	.clksel_con	= CRU_CLKSELS_CON(29),
 	CRU_SRC_SET(0x1, 7),
 	CRU_PARENTS_SET(clk_cif_out_parents),
