@@ -57,7 +57,10 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 			     struct net_device *dev);
 static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
+	unsigned long flags;
+	local_irq_save(flags);
 	netpoll_send_skb_on_dev(np, skb, np->dev);
+	local_irq_restore(flags);
 }
 
 
