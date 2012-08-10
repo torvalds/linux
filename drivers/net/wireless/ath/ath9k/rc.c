@@ -552,15 +552,16 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 {
 	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	struct ath_rateset *rateset = &ath_rc_priv->neg_ht_rates;
-	u32 capflag = ath_rc_priv->ht_cap;
-	u8 i, j, hi = 0;
+	u32 phy, capflag = ath_rc_priv->ht_cap;
+	u16 rate_flags;
+	u8 i, j, hi = 0, rate, dot11rate, valid_rate_count;
 
 	for (i = 0; i < rateset->rs_nrates; i++) {
 		for (j = 0; j < rate_table->rate_cnt; j++) {
-			u32 phy = rate_table->info[j].phy;
-			u16 rate_flags = rate_table->info[j].rate_flags;
-			u8 rate = rateset->rs_rates[i];
-			u8 dot11rate = rate_table->info[j].dot11rate;
+			phy = rate_table->info[j].phy;
+			rate_flags = rate_table->info[j].rate_flags;
+			rate = rateset->rs_rates[i];
+			dot11rate = rate_table->info[j].dot11rate;
 
 			if ((rate != dot11rate) || !WLAN_RC_PHY_HT(phy) ||
 			    !(rate_flags & WLAN_RC_CAP_STREAM(capflag)) ||
@@ -570,8 +571,8 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 			if (!ath_rc_valid_phyrate(phy, capflag, 0))
 				continue;
 
-			ath_rc_priv->valid_phy_rateidx[phy]
-				[ath_rc_priv->valid_phy_ratecnt[phy]] = j;
+			valid_rate_count = ath_rc_priv->valid_phy_ratecnt[phy];
+			ath_rc_priv->valid_phy_rateidx[phy][valid_rate_count] = j;
 			ath_rc_priv->valid_phy_ratecnt[phy] += 1;
 			ath_rc_set_valid_rate_idx(ath_rc_priv, j, 1);
 			hi = max(hi, j);
