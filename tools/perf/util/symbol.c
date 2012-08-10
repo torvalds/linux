@@ -1079,14 +1079,14 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 restart:
 	for (i = 0; i < DSO_BINARY_TYPE__SYMTAB_CNT; i++) {
 
-		dso->symtab_type = binary_type_symtab[i];
+		enum dso_binary_type symtab_type = binary_type_symtab[i];
 
-		if (dso__binary_type_file(dso, dso->symtab_type,
+		if (dso__binary_type_file(dso, symtab_type,
 					  root_dir, name, PATH_MAX))
 			continue;
 
 		/* Name is now the name of the next image to try */
-		if (symsrc__init(&ss, dso, name, dso->symtab_type) < 0)
+		if (symsrc__init(&ss, dso, name, symtab_type) < 0)
 			continue;
 
 		ret = dso__load_sym(dso, map, &ss, filter, 0,
@@ -1361,16 +1361,17 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	int err = -1;
 	struct symsrc ss;
 	char symfs_vmlinux[PATH_MAX];
+	enum dso_binary_type symtab_type;
 
 	snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s%s",
 		 symbol_conf.symfs, vmlinux);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
-		dso->symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+		symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
 	else
-		dso->symtab_type = DSO_BINARY_TYPE__VMLINUX;
+		symtab_type = DSO_BINARY_TYPE__VMLINUX;
 
-	if (symsrc__init(&ss, dso, symfs_vmlinux, dso->symtab_type))
+	if (symsrc__init(&ss, dso, symfs_vmlinux, symtab_type))
 		return -1;
 
 	err = dso__load_sym(dso, map, &ss, filter, 0, 0);

@@ -645,6 +645,8 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 	int nr = 0;
 	size_t opdidx = 0;
 
+	dso->symtab_type = ss->type;
+
 	elf = ss->elf;
 	ehdr = ss->ehdr;
 	sec = ss->symtab;
