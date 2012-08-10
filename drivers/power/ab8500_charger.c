@@ -3387,10 +3387,10 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 	flush_scheduled_work();
 	if (di->usb_chg.enabled)
 		power_supply_unregister(&di->usb_chg.psy);
-#if !defined(CONFIG_CHARGER_PM2301)
-	if (di->ac_chg.enabled)
+
+	if (di->ac_chg.enabled && !di->ac_chg.external)
 		power_supply_unregister(&di->ac_chg.psy);
-#endif
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
