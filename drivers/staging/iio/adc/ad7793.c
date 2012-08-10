@@ -922,7 +922,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	else if (voltage_uv)
 		st->int_vref_mv = voltage_uv / 1000;
 	else
-		st->int_vref_mv = 2500; /* Build-in ref */
+		st->int_vref_mv = 1170; /* Build-in ref */
 
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
