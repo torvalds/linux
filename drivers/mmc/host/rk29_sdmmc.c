@@ -3019,7 +3019,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
     {
         host->errorstep = 0xf2;
 
-        if(12==host->cmd->opcode)
+        if(0) //(12==host->cmd->opcode)
         {
              printk(KERN_ERR "%d... cmd=%d(arg=0x%x),blksz=%d,blocks=%d,errorStep=0x%x,\n host->state=%x, statusReg=0x%x  [%s]\n",\
                  __LINE__,host->mrq->cmd->opcode, host->mrq->cmd->arg, host->mrq->cmd->data->blksz, host->mrq->cmd->data->blocks,\

@@ -653,7 +653,7 @@ EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
 
 
 
-#if 1//defined(CONFIG_WIFI_CONTROL_FUNC)
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_power = rk29sdk_wifi_power,
         .set_reset = rk29sdk_wifi_reset,
