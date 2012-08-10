@@ -201,10 +201,6 @@ static DEFINE_SPINLOCK(rbd_client_list_lock);
 
 static int __rbd_init_snaps_header(struct rbd_device *rbd_dev);
 static void rbd_dev_release(struct device *dev);
-static ssize_t rbd_snap_add(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf,
-			    size_t count);
 static void __rbd_remove_snap_dev(struct rbd_device *rbd_dev,
 				  struct rbd_snap *snap);
 
@@ -1307,71 +1303,7 @@ static int rbd_req_sync_unwatch(struct rbd_device *dev,
 	return ret;
 }
 
-struct rbd_notify_info {
-	struct rbd_device *dev;
-};
-
-static void rbd_notify_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
-{
-	struct rbd_device *dev = (struct rbd_device *)data;
-	if (!dev)
-		return;
-
-	dout("rbd_notify_cb %s notify_id=%lld opcode=%d\n", dev->obj_md_name,
-		notify_id, (int)opcode);
-}
-
-/*
- * Request sync osd notify
- */
-static int rbd_req_sync_notify(struct rbd_device *dev,
-		          const char *obj)
-{
-	struct ceph_osd_req_op *ops;
-	struct ceph_osd_client *osdc = &dev->rbd_client->client->osdc;
-	struct ceph_osd_event *event;
-	struct rbd_notify_info info;
-	int payload_len = sizeof(u32) + sizeof(u32);
-	int ret;
-
-	ret = rbd_create_rw_ops(&ops, 1, CEPH_OSD_OP_NOTIFY, payload_len);
-	if (ret < 0)
-		return ret;
-
-	info.dev = dev;
-
-	ret = ceph_osdc_create_event(osdc, rbd_notify_cb, 1,
-				     (void *)&info, &event);
-	if (ret < 0)
-		goto fail;
-
-	ops[0].watch.ver = 1;
-	ops[0].watch.flag = 1;
-	ops[0].watch.cookie = event->cookie;
-	ops[0].watch.prot_ver = RADOS_NOTIFY_VER;
-	ops[0].watch.timeout = 12;
-
-	ret = rbd_req_sync_op(dev, NULL,
-			       CEPH_NOSNAP,
-			       0,
-			       CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			       ops,
-			       1, obj, 0, 0, NULL, NULL, NULL);
-	if (ret < 0)
-		goto fail_event;
-
-	ret = ceph_osdc_wait_event(event, CEPH_OSD_TIMEOUT_DEFAULT);
-	dout("ceph_osdc_wait_event returned %d\n", ret);
-	rbd_destroy_ops(ops);
-	return 0;
-
-fail_event:
-	ceph_osdc_cancel_event(event);
-fail:
-	rbd_destroy_ops(ops);
-	return ret;
-}
-
+#if 0
 /*
  * Request sync osd read
  */
@@ -1411,6 +1343,7 @@ static int rbd_req_sync_exec(struct rbd_device *dev,
 	dout("cls_exec returned %d\n", ret);
 	return ret;
 }
+#endif
 
 static struct rbd_req_coll *rbd_alloc_coll(int num_reqs)
 {
@@ -1645,57 +1578,6 @@ out_dh:
 	return rc;
 }
 
-/*
- * create a snapshot
- */
-static int rbd_header_add_snap(struct rbd_device *dev,
-			       const char *snap_name,
-			       gfp_t gfp_flags)
-{
-	int name_len = strlen(snap_name);
-	u64 new_snapid;
-	int ret;
-	void *data, *p, *e;
-	u64 ver;
-	struct ceph_mon_client *monc;
-
-	/* we should create a snapshot only if we're pointing at the head */
-	if (dev->snap_id != CEPH_NOSNAP)
-		return -EINVAL;
-
-	monc = &dev->rbd_client->client->monc;
-	ret = ceph_monc_create_snapid(monc, dev->poolid, &new_snapid);
-	dout("created snapid=%lld\n", new_snapid);
-	if (ret < 0)
-		return ret;
-
-	data = kmalloc(name_len + 16, gfp_flags);
-	if (!data)
-		return -ENOMEM;
-
-	p = data;
-	e = data + name_len + 16;
-
-	ceph_encode_string_safe(&p, e, snap_name, name_len, bad);
-	ceph_encode_64_safe(&p, e, new_snapid, bad);
-
-	ret = rbd_req_sync_exec(dev, dev->obj_md_name, "rbd", "snap_add",
-				data, p - data, &ver);
-
-	kfree(data);
-
-	if (ret < 0)
-		return ret;
-
-	down_write(&dev->header_rwsem);
-	dev->header.snapc->seq = new_snapid;
-	up_write(&dev->header_rwsem);
-
-	return 0;
-bad:
-	return -ERANGE;
-}
-
 static void __rbd_remove_all_snaps(struct rbd_device *rbd_dev)
 {
 	struct rbd_snap *snap;
@@ -1923,7 +1805,6 @@ static DEVICE_ATTR(pool, S_IRUGO, rbd_pool_show, NULL);
 static DEVICE_ATTR(name, S_IRUGO, rbd_name_show, NULL);
 static DEVICE_ATTR(refresh, S_IWUSR, NULL, rbd_image_refresh);
 static DEVICE_ATTR(current_snap, S_IRUGO, rbd_snap_show, NULL);
-static DEVICE_ATTR(create_snap, S_IWUSR, NULL, rbd_snap_add);
 
 static struct attribute *rbd_attrs[] = {
 	&dev_attr_size.attr,
@@ -1933,7 +1814,6 @@ static struct attribute *rbd_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_current_snap.attr,
 	&dev_attr_refresh.attr,
-	&dev_attr_create_snap.attr,
 	NULL
 };
 
@@ -2560,47 +2440,6 @@ static ssize_t rbd_remove(struct bus_type *bus,
 
 done:
 	mutex_unlock(&ctl_mutex);
-	return ret;
-}
-
-static ssize_t rbd_snap_add(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf,
-			    size_t count)
-{
-	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
-	int ret;
-	char *name = kmalloc(count + 1, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
-
-	snprintf(name, count, "%s", buf);
-
-	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-
-	ret = rbd_header_add_snap(rbd_dev,
-				  name, GFP_KERNEL);
-	if (ret < 0)
-		goto err_unlock;
-
-	ret = __rbd_update_snaps(rbd_dev);
-	if (ret < 0)
-		goto err_unlock;
-
-	/* shouldn't hold ctl_mutex when notifying.. notify might
-	   trigger a watch callback that would need to get that mutex */
-	mutex_unlock(&ctl_mutex);
-
-	/* make a best effort, don't error if failed */
-	rbd_req_sync_notify(rbd_dev, rbd_dev->obj_md_name);
-
-	ret = count;
-	kfree(name);
-	return ret;
-
-err_unlock:
-	mutex_unlock(&ctl_mutex);
-	kfree(name);
 	return ret;
 }
 
