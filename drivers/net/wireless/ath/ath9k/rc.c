@@ -993,9 +993,6 @@ static void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
 	stats->per = per;
 }
 
-/* Update PER, RSSI and whatever else that the code thinks it is doing.
-   If you can make sense of all this, you really need to go out more. */
-
 static void ath_rc_update_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
 			     struct ieee80211_tx_info *tx_info,
@@ -1069,25 +1066,43 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 
 }
 
+static void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
+{
+	struct ath_rc_stats *stats;
+
+	stats = &rc->rcstats[final_rate];
+	stats->success++;
+}
 
 static void ath_rc_tx_status(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
-			     struct ieee80211_tx_info *tx_info,
-			     int final_ts_idx, int xretries, int long_retry)
+			     struct sk_buff *skb)
 {
-	const struct ath_rate_table *rate_table;
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rates = tx_info->status.rates;
+	struct ieee80211_tx_rate *rate;
+	int final_ts_idx = 0, xretries = 0, long_retry = 0;
 	u8 flags;
 	u32 i = 0, rix;
 
-	rate_table = ath_rc_priv->rate_table;
+	for (i = 0; i < sc->hw->max_rates; i++) {
+		rate = &tx_info->status.rates[i];
+		if (rate->idx < 0 || !rate->count)
+			break;
+
+		final_ts_idx = i;
+		long_retry = rate->count - 1;
+	}
+
+	if (!(tx_info->flags & IEEE80211_TX_STAT_ACK))
+		xretries = 1;
 
 	/*
 	 * If the first rate is not the final index, there
 	 * are intermediate rate failures to be processed.
 	 */
 	if (final_ts_idx != 0) {
-		/* Process intermediate rates that failed.*/
 		for (i = 0; i < final_ts_idx ; i++) {
 			if (rates[i].count != 0 && (rates[i].idx >= 0)) {
 				flags = rates[i].flags;
@@ -1101,8 +1116,8 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 
 				rix = ath_rc_get_rateindex(rate_table, &rates[i]);
 				ath_rc_update_ht(sc, ath_rc_priv, tx_info,
-						rix, xretries ? 1 : 2,
-						rates[i].count);
+						 rix, xretries ? 1 : 2,
+						 rates[i].count);
 			}
 		}
 	} else {
@@ -1116,15 +1131,16 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 			xretries = 2;
 	}
 
-	flags = rates[i].flags;
+	flags = rates[final_ts_idx].flags;
 
 	/* If HT40 and we have switched mode from 40 to 20 => don't update */
 	if ((flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
 	    !(ath_rc_priv->ht_cap & WLAN_RC_40_FLAG))
 		return;
 
-	rix = ath_rc_get_rateindex(rate_table, &rates[i]);
+	rix = ath_rc_get_rateindex(rate_table, &rates[final_ts_idx]);
 	ath_rc_update_ht(sc, ath_rc_priv, tx_info, rix, xretries, long_retry);
+	ath_debug_stat_rc(ath_rc_priv, rix);
 }
 
 static const
@@ -1248,15 +1264,6 @@ static bool ath_tx_aggr_check(struct ath_softc *sc, struct ieee80211_sta *sta,
 /* mac80211 Rate Control callbacks */
 /***********************************/
 
-static void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
-{
-	struct ath_rc_stats *stats;
-
-	stats = &rc->rcstats[final_rate];
-	stats->success++;
-}
-
-
 static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta,
 			  struct sk_buff *skb)
@@ -1265,10 +1272,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	int final_ts_idx = 0, tx_status = 0;
-	int long_retry = 0;
 	__le16 fc = hdr->frame_control;
-	int i;
 
 	if (!priv_sta || !ieee80211_is_data(fc))
 		return;
@@ -1281,20 +1285,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	if (tx_info->flags & IEEE80211_TX_STAT_TX_FILTERED)
 		return;
 
-	for (i = 0; i < sc->hw->max_rates; i++) {
-		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
-		if (rate->idx < 0 || !rate->count)
-			break;
-
-		final_ts_idx = i;
-		long_retry = rate->count - 1;
-	}
-
-	if (!(tx_info->flags & IEEE80211_TX_STAT_ACK))
-		tx_status = 1;
-
-	ath_rc_tx_status(sc, ath_rc_priv, tx_info, final_ts_idx, tx_status,
-			 long_retry);
+	ath_rc_tx_status(sc, ath_rc_priv, skb);
 
 	/* Check if aggregation has to be enabled for this tid */
 	if (conf_is_ht(&sc->hw->conf) &&
@@ -1310,10 +1301,6 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 				ieee80211_start_tx_ba_session(sta, tid, 0);
 		}
 	}
-
-	ath_debug_stat_rc(ath_rc_priv,
-		ath_rc_get_rateindex(ath_rc_priv->rate_table,
-			&tx_info->status.rates[final_ts_idx]));
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
