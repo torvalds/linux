@@ -113,8 +113,8 @@ config AD7793
 	depends on SPI
 	select AD_SIGMA_DELTA
 	help
-	  Say yes here to build support for Analog Devices AD7792, AD7793, AD7794
-	  and AD7795 SPI analog to digital converters (ADC).
+	  Say yes here to build support for Analog Devices AD7785, AD7792, AD7793,
+	  AD7794 and AD7795 SPI analog to digital converters (ADC).
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the

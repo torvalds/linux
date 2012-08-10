@@ -1,5 +1,5 @@
 /*
- * AD7792/AD7793/AD7794/AD7795 SPI ADC driver
+ * AD7785/AD7792/AD7793/AD7794/AD7795 SPI ADC driver
  *
  * Copyright 2011-2012 Analog Devices Inc.
  *
@@ -54,6 +54,7 @@ struct ad7793_state {
 };
 
 enum ad7793_supported_device_ids {
+	ID_AD7785,
 	ID_AD7792,
 	ID_AD7793,
 	ID_AD7794,
@@ -386,14 +387,14 @@ static const struct iio_info ad7793_info = {
 	.driver_module = THIS_MODULE,
 };
 
-#define DECLARE_AD7793_CHANNELS(_name, _b, _sb) \
+#define DECLARE_AD7793_CHANNELS(_name, _b, _sb, _s) \
 const struct iio_chan_spec _name##_channels[] = { \
-	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
-	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), 0), \
-	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), 0), \
-	AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, (_b), (_sb), 0), \
-	AD_SD_TEMP_CHANNEL(4, AD7793_CH_TEMP, (_b), (_sb), 0), \
-	AD_SD_SUPPLY_CHANNEL(5, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), (_s)), \
+	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), (_s)), \
+	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), (_s)), \
+	AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, (_b), (_sb), (_s)), \
+	AD_SD_TEMP_CHANNEL(4, AD7793_CH_TEMP, (_b), (_sb), (_s)), \
+	AD_SD_SUPPLY_CHANNEL(5, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), (_s)), \
 	IIO_CHAN_SOFT_TIMESTAMP(6), \
 }
 
@@ -411,12 +412,17 @@ const struct iio_chan_spec _name##_channels[] = { \
 	IIO_CHAN_SOFT_TIMESTAMP(9), \
 }
 
-static DECLARE_AD7793_CHANNELS(ad7792, 16, 32);
-static DECLARE_AD7793_CHANNELS(ad7793, 24, 32);
+static DECLARE_AD7793_CHANNELS(ad7785, 20, 32, 4);
+static DECLARE_AD7793_CHANNELS(ad7792, 16, 32, 0);
+static DECLARE_AD7793_CHANNELS(ad7793, 24, 32, 0);
 static DECLARE_AD7795_CHANNELS(ad7794, 16, 32);
 static DECLARE_AD7795_CHANNELS(ad7795, 24, 32);
 
 static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
+	[ID_AD7785] = {
+		.channels = ad7785_channels,
+		.num_channels = ARRAY_SIZE(ad7785_channels),
+	},
 	[ID_AD7792] = {
 		.channels = ad7792_channels,
 		.num_channels = ARRAY_SIZE(ad7792_channels),
@@ -535,6 +541,7 @@ static int ad7793_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7793_id[] = {
+	{"ad7785", ID_AD7785},
 	{"ad7792", ID_AD7792},
 	{"ad7793", ID_AD7793},
 	{"ad7794", ID_AD7794},
