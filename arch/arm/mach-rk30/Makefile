@@ -22,7 +22,12 @@ obj-$(CONFIG_DDR_FREQ) += ddr_freq.o
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
 
 obj-$(CONFIG_MACH_RK3066_SDK) += board-rk30-sdk.o board-rk30-sdk-key.o
+
+ifeq ($(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC),y)
 obj-$(CONFIG_MACH_RK30_SDK) += board-rk30-sdk.o board-rk30-sdk-key.o
+else
+obj-$(CONFIG_MACH_RK30_SDK) += board-rk30-sdk.o board-rk30-sdk-key.o board-rk30-sdk-rfkill.o
+endif
 obj-$(CONFIG_MACH_RK30_PHONE) += board-rk30-phone.o board-rk30-phone-key.o
 obj-$(CONFIG_MACH_RK30_PHONE_PAD) += board-rk30-phonepad.o board-rk30-phonepad-key.o board-rk30-phonepad-rfkill.o
 obj-$(CONFIG_MACH_RK30_PHONE_LOQUAT) += board-rk30-phone-loquat.o board-rk30-phone-loquat-key.o
