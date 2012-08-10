@@ -754,7 +754,7 @@ static ssize_t ad7192_set(struct device *dev,
 		else
 			st->mode &= ~AD7192_MODE_ACX;
 
-		ad7192_write_reg(st, AD7192_REG_GPOCON, 3, st->mode);
+		ad7192_write_reg(st, AD7192_REG_MODE, 3, st->mode);
 		break;
 	default:
 		ret = -EINVAL;
