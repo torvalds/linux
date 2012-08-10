@@ -459,7 +459,7 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	regs = devm_ioremap(dev, res->start, resource_size(res));
+	regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
 	if (!regs) {
 		dev_err(dev, "ioremap failed\n");
 		return -ENOMEM;
