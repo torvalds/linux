@@ -41,6 +41,7 @@
 
 /* Mode Register Bit Designations (AD7793_REG_MODE) */
 #define AD7793_MODE_SEL(x)	(((x) & 0x7) << 13) /* Operation Mode Select */
+#define AD7793_MODE_SEL_MASK	(0x7 << 13) /* Operation Mode Select mask */
 #define AD7793_MODE_CLKSRC(x)	(((x) & 0x3) << 6) /* ADC Clock Source Select */
 #define AD7793_MODE_RATE(x)	((x) & 0xF) /* Filter Update Rate Select */
 
@@ -70,6 +71,7 @@
 #define AD7793_CONF_REFSEL	(1 << 7) /* INT/EXT Reference Select */
 #define AD7793_CONF_BUF		(1 << 4) /* Buffered Mode Enable */
 #define AD7793_CONF_CHAN(x)	((x) & 0x7) /* Channel select */
+#define AD7793_CONF_CHAN_MASK	0x7 /* Channel select mask */
 
 #define AD7793_CH_AIN1P_AIN1M	0 /* AIN1(+) - AIN1(-) */
 #define AD7793_CH_AIN2P_AIN2M	1 /* AIN2(+) - AIN2(-) */
