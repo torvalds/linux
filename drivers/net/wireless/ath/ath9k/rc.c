@@ -405,9 +405,9 @@ static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 	return rix;
 }
 
-static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
-				   struct ath_rate_priv *ath_rc_priv)
+static void ath_rc_sort_validrates(struct ath_rate_priv *ath_rc_priv)
 {
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	u8 i, j, idx, idx_next;
 
 	for (i = ath_rc_priv->max_valid_rate - 1; i > 0; i--) {
@@ -422,14 +422,6 @@ static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 			}
 		}
 	}
-}
-
-static void ath_rc_init_valid_rate_idx(struct ath_rate_priv *ath_rc_priv)
-{
-	u8 i;
-
-	for (i = 0; i < ath_rc_priv->rate_table_size; i++)
-		ath_rc_priv->valid_rate_index[i] = 0;
 }
 
 static inline void ath_rc_set_valid_rate_idx(struct ath_rate_priv *ath_rc_priv,
@@ -495,10 +487,9 @@ ath_rc_get_lower_rix(const struct ath_rate_table *rate_table,
 	return 0;
 }
 
-static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv,
-				 const struct ath_rate_table *rate_table,
-				 u32 capflag)
+static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv)
 {
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	u8 i, hi = 0;
 
 	for (i = 0; i < rate_table->rate_cnt; i++) {
@@ -506,7 +497,7 @@ static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv,
 			u32 phy = rate_table->info[i].phy;
 			u8 valid_rate_count = 0;
 
-			if (!ath_rc_valid_phyrate(phy, capflag, 0))
+			if (!ath_rc_valid_phyrate(phy, ath_rc_priv->ht_cap, 0))
 				continue;
 
 			valid_rate_count = ath_rc_priv->valid_phy_ratecnt[phy];
@@ -521,14 +512,13 @@ static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv,
 	return hi;
 }
 
-static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
-				const struct ath_rate_table *rate_table,
-				struct ath_rateset *rateset,
-				u32 capflag)
+static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv)
 {
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
+	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
+	u32 capflag = ath_rc_priv->ht_cap;
 	u8 i, j, hi = 0;
 
-	/* Use intersection of working rates and valid rates */
 	for (i = 0; i < rateset->rs_nrates; i++) {
 		for (j = 0; j < rate_table->rate_cnt; j++) {
 			u32 phy = rate_table->info[j].phy;
@@ -565,13 +555,13 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 	return hi;
 }
 
-static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
-				  const struct ath_rate_table *rate_table,
-				  struct ath_rateset *rateset, u32 capflag)
+static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 {
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
+	struct ath_rateset *rateset = &ath_rc_priv->neg_ht_rates;
+	u32 capflag = ath_rc_priv->ht_cap;
 	u8 i, j, hi = 0;
 
-	/* Use intersection of working rates and valid rates */
 	for (i = 0; i < rateset->rs_nrates; i++) {
 		for (j = 0; j < rate_table->rate_cnt; j++) {
 			u32 phy = rate_table->info[j].phy;
@@ -1200,27 +1190,19 @@ struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
 }
 
 static void ath_rc_init(struct ath_softc *sc,
-			struct ath_rate_priv *ath_rc_priv,
-			struct ieee80211_supported_band *sband,
-			struct ieee80211_sta *sta,
-			const struct ath_rate_table *rate_table)
+			struct ath_rate_priv *ath_rc_priv)
 {
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	struct ath_rateset *ht_mcs = &ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
 
-	/* Initial rate table size. Will change depending
-	 * on the working rate set */
 	ath_rc_priv->rate_table_size = RATE_TABLE_SIZE;
 
-	/* Initialize thresholds according to the global rate table */
 	for (i = 0 ; i < ath_rc_priv->rate_table_size; i++) {
 		ath_rc_priv->per[i] = 0;
+		ath_rc_priv->valid_rate_index[i] = 0;
 	}
-
-	/* Determine the valid rates */
-	ath_rc_init_valid_rate_idx(ath_rc_priv);
 
 	for (i = 0; i < WLAN_RC_PHY_MAX; i++) {
 		for (j = 0; j < RATE_TABLE_SIZE; j++)
@@ -1229,25 +1211,19 @@ static void ath_rc_init(struct ath_softc *sc,
 	}
 
 	if (!rateset->rs_nrates) {
-		/* No working rate, just initialize valid rates */
-		hi = ath_rc_init_validrates(ath_rc_priv, rate_table,
-					    ath_rc_priv->ht_cap);
+		hi = ath_rc_init_validrates(ath_rc_priv);
 	} else {
-		/* Use intersection of working rates and valid rates */
-		hi = ath_rc_setvalid_rates(ath_rc_priv, rate_table,
-					   rateset, ath_rc_priv->ht_cap);
-		if (ath_rc_priv->ht_cap & WLAN_RC_HT_FLAG) {
-			hthi = ath_rc_setvalid_htrates(ath_rc_priv,
-						       rate_table,
-						       ht_mcs,
-						       ath_rc_priv->ht_cap);
-		}
+		hi = ath_rc_setvalid_rates(ath_rc_priv);
+
+		if (ath_rc_priv->ht_cap & WLAN_RC_HT_FLAG)
+			hthi = ath_rc_setvalid_htrates(ath_rc_priv);
+
 		hi = max(hi, hthi);
 	}
 
 	ath_rc_priv->rate_table_size = hi + 1;
 	ath_rc_priv->rate_max_phy = 0;
-	BUG_ON(ath_rc_priv->rate_table_size > RATE_TABLE_SIZE);
+	WARN_ON(ath_rc_priv->rate_table_size > RATE_TABLE_SIZE);
 
 	for (i = 0, k = 0; i < WLAN_RC_PHY_MAX; i++) {
 		for (j = 0; j < ath_rc_priv->valid_phy_ratecnt[i]; j++) {
@@ -1255,21 +1231,20 @@ static void ath_rc_init(struct ath_softc *sc,
 				ath_rc_priv->valid_phy_rateidx[i][j];
 		}
 
-		if (!ath_rc_valid_phyrate(i, rate_table->initial_ratemax, 1)
-		    || !ath_rc_priv->valid_phy_ratecnt[i])
+		if (!ath_rc_valid_phyrate(i, rate_table->initial_ratemax, 1) ||
+		    !ath_rc_priv->valid_phy_ratecnt[i])
 			continue;
 
 		ath_rc_priv->rate_max_phy = ath_rc_priv->valid_phy_rateidx[i][j-1];
 	}
-	BUG_ON(ath_rc_priv->rate_table_size > RATE_TABLE_SIZE);
-	BUG_ON(k > RATE_TABLE_SIZE);
+	WARN_ON(ath_rc_priv->rate_table_size > RATE_TABLE_SIZE);
+	WARN_ON(k > RATE_TABLE_SIZE);
 
 	ath_rc_priv->max_valid_rate = k;
-	ath_rc_sort_validrates(rate_table, ath_rc_priv);
+	ath_rc_sort_validrates(ath_rc_priv);
 	ath_rc_priv->rate_max_phy = (k > 4) ?
-					ath_rc_priv->valid_rate_index[k-4] :
-					ath_rc_priv->valid_rate_index[k-1];
-	ath_rc_priv->rate_table = rate_table;
+		ath_rc_priv->valid_rate_index[k-4] :
+		ath_rc_priv->valid_rate_index[k-1];
 
 	ath_dbg(common, CONFIG, "RC Initialized with capabilities: 0x%x\n",
 		ath_rc_priv->ht_cap);
@@ -1392,7 +1367,6 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 	struct ath_softc *sc = priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	const struct ath_rate_table *rate_table;
 	int i, j = 0;
 
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -1414,15 +1388,15 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 		ath_rc_priv->neg_ht_rates.rs_nrates = j;
 	}
 
-	rate_table = ath_choose_rate_table(sc, sband->band,
-					   sta->ht_cap.ht_supported);
-	if (!rate_table) {
+	ath_rc_priv->rate_table = ath_choose_rate_table(sc, sband->band,
+							sta->ht_cap.ht_supported);
+	if (!ath_rc_priv->rate_table) {
 		ath_err(common, "No rate table chosen\n");
 		return;
 	}
 
 	ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta);
-	ath_rc_init(sc, priv_sta, sband, sta, rate_table);
+	ath_rc_init(sc, priv_sta);
 }
 
 static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
@@ -1431,13 +1405,10 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	const struct ath_rate_table *rate_table = NULL;
 
 	if (changed & IEEE80211_RC_BW_CHANGED) {
-		rate_table = ath_choose_rate_table(sc, sband->band,
-						   sta->ht_cap.ht_supported);
 		ath_rc_priv->ht_cap = ath_rc_build_ht_caps(sc, sta);
-		ath_rc_init(sc, priv_sta, sband, sta, rate_table);
+		ath_rc_init(sc, priv_sta);
 
 		ath_dbg(ath9k_hw_common(sc->sc_ah), CONFIG,
 			"Operating HT Bandwidth changed to: %d\n",
