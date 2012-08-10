@@ -90,7 +90,54 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 
 void kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
+	/* We misuse TLB_FLUSH to indicate that we want to clear
+	   all shadow cache entries */
+	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
+		kvmppc_mmu_pte_flush(vcpu, 0, 0);
 }
+
+/************* MMU Notifiers *************/
+
+int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
+{
+	trace_kvm_unmap_hva(hva);
+
+	/*
+	 * Flush all shadow tlb entries everywhere. This is slow, but
+	 * we are 100% sure that we catch the to be unmapped page
+	 */
+	kvm_flush_remote_tlbs(kvm);
+
+	return 0;
+}
+
+int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
+{
+	/* kvm_unmap_hva flushes everything anyways */
+	kvm_unmap_hva(kvm, start);
+
+	return 0;
+}
+
+int kvm_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	/* XXX could be more clever ;) */
+	return 0;
+}
+
+int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
+{
+	/* XXX could be more clever ;) */
+	return 0;
+}
+
+void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+{
+	/* The page will get remapped properly on its next fault */
+	kvm_unmap_hva(kvm, hva);
+}
+
+/*****************************************/
 
 static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 {

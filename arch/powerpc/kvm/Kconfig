@@ -36,6 +36,7 @@ config KVM_BOOK3S_64_HANDLER
 config KVM_BOOK3S_PR
 	bool
 	select KVM_MMIO
+	select MMU_NOTIFIER
 
 config KVM_BOOK3S_32
 	tristate "KVM support for PowerPC book3s_32 processors"
