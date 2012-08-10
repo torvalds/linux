@@ -108,8 +108,8 @@ struct smp_cmd_security_req {
 #define SMP_CONFIRM_FAILED		0x04
 #define SMP_PAIRING_NOTSUPP		0x05
 #define SMP_ENC_KEY_SIZE		0x06
-#define SMP_CMD_NOTSUPP		0x07
-#define SMP_UNSPECIFIED		0x08
+#define SMP_CMD_NOTSUPP			0x07
+#define SMP_UNSPECIFIED			0x08
 #define SMP_REPEATED_ATTEMPTS		0x09
 
 #define SMP_MIN_ENC_KEY_SIZE		7
@@ -123,8 +123,8 @@ struct smp_chan {
 	struct l2cap_conn *conn;
 	u8		preq[7]; /* SMP Pairing Request */
 	u8		prsp[7]; /* SMP Pairing Response */
-	u8              prnd[16]; /* SMP Pairing Random (local) */
-	u8              rrnd[16]; /* SMP Pairing Random (remote) */
+	u8		prnd[16]; /* SMP Pairing Random (local) */
+	u8		rrnd[16]; /* SMP Pairing Random (remote) */
 	u8		pcnf[16]; /* SMP Pairing Confirm */
 	u8		tk[16]; /* SMP Temporary Key */
 	u8		enc_key_size;
