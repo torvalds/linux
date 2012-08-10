@@ -672,8 +672,8 @@ static void vlan_dev_poll_controller(struct net_device *dev)
 static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *npinfo,
 				  gfp_t gfp)
 {
-	struct vlan_dev_priv *info = vlan_dev_priv(dev);
-	struct net_device *real_dev = info->real_dev;
+	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
+	struct net_device *real_dev = vlan->real_dev;
 	struct netpoll *netpoll;
 	int err = 0;
 
@@ -688,7 +688,7 @@ static int vlan_dev_netpoll_setup(struct net_device *dev, struct netpoll_info *n
 		goto out;
 	}
 
-	info->netpoll = netpoll;
+	vlan->netpoll = netpoll;
 
 out:
 	return err;
@@ -696,13 +696,13 @@ out:
 
 static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 {
-	struct vlan_dev_priv *info = vlan_dev_priv(dev);
-	struct netpoll *netpoll = info->netpoll;
+	struct vlan_dev_priv *vlan= vlan_dev_priv(dev);
+	struct netpoll *netpoll = vlan->netpoll;
 
 	if (!netpoll)
 		return;
 
-	info->netpoll = NULL;
+	vlan->netpoll = NULL;
 
 	__netpoll_free_rcu(netpoll);
 }
