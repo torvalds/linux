@@ -69,6 +69,22 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
 	return value;
 }
 
+static void input_start_autorepeat(struct input_dev *dev, int code)
+{
+	if (test_bit(EV_REP, dev->evbit) &&
+	    dev->rep[REP_PERIOD] && dev->rep[REP_DELAY] &&
+	    dev->timer.data) {
+		dev->repeat_key = code;
+		mod_timer(&dev->timer,
+			  jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]));
+	}
+}
+
+static void input_stop_autorepeat(struct input_dev *dev)
+{
+	del_timer(&dev->timer);
+}
+
 /*
  * Pass event first through all filters and then, if event has not been
  * filtered out, through all open handles. This function is called with
@@ -105,6 +121,15 @@ static void input_pass_event(struct input_dev *dev,
 	}
 
 	rcu_read_unlock();
+
+	/* trigger auto repeat for key events */
+	if (type == EV_KEY && value != 2) {
+		if (value)
+			input_start_autorepeat(dev, code);
+		else
+			input_stop_autorepeat(dev);
+	}
+
 }
 
 /*
@@ -140,22 +165,6 @@ static void input_repeat_key(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-static void input_start_autorepeat(struct input_dev *dev, int code)
-{
-	if (test_bit(EV_REP, dev->evbit) &&
-	    dev->rep[REP_PERIOD] && dev->rep[REP_DELAY] &&
-	    dev->timer.data) {
-		dev->repeat_key = code;
-		mod_timer(&dev->timer,
-			  jiffies + msecs_to_jiffies(dev->rep[REP_DELAY]));
-	}
-}
-
-static void input_stop_autorepeat(struct input_dev *dev)
-{
-	del_timer(&dev->timer);
 }
 
 #define INPUT_IGNORE_EVENT	0
@@ -252,11 +261,6 @@ static void input_handle_event(struct input_dev *dev,
 
 				__change_bit(code, dev->key);
 				disposition = INPUT_PASS_TO_HANDLERS;
-
-				if (value)
-					input_start_autorepeat(dev, code);
-				else
-					input_stop_autorepeat(dev);
 			}
 		}
 		break;
