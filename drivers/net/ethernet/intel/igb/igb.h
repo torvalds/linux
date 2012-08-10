@@ -34,9 +34,11 @@
 #include "e1000_mac.h"
 #include "e1000_82575.h"
 
+#ifdef CONFIG_IGB_PTP
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
+#endif /* CONFIG_IGB_PTP */
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 
@@ -376,12 +378,15 @@ struct igb_adapter {
 	int node;
 	u32 *shadow_vfta;
 
+#ifdef CONFIG_IGB_PTP
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info caps;
 	struct delayed_work overflow_work;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
+#endif /* CONFIG_IGB_PTP */
+
 	char fw_version[32];
 };
 
@@ -436,12 +441,11 @@ extern void igb_set_fw_version(struct igb_adapter *);
 #ifdef CONFIG_IGB_PTP
 extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_remove(struct igb_adapter *adapter);
-
 extern void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
 				   struct skb_shared_hwtstamps *hwtstamps,
 				   u64 systim);
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)

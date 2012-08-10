@@ -2180,11 +2180,12 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	}
 
 #endif
+
 #ifdef CONFIG_IGB_PTP
 	/* do hw tstamp init after resetting */
 	igb_ptp_init(adapter);
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
 	dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
@@ -2260,8 +2261,8 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	pm_runtime_get_noresume(&pdev->dev);
 #ifdef CONFIG_IGB_PTP
 	igb_ptp_remove(adapter);
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
 	 * disable watchdog from being rescheduled.
@@ -3184,8 +3185,10 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	srrctl |= (PAGE_SIZE / 2) >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 #endif
 	srrctl |= E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
+#ifdef CONFIG_IGB_PTP
 	if (hw->mac.type >= e1000_82580)
 		srrctl |= E1000_SRRCTL_TIMESTAMP;
+#endif /* CONFIG_IGB_PTP */
 	/* Only set Drop Enable if we are supporting multiple queues */
 	if (adapter->vfs_allocated_count || adapter->num_rx_queues > 1)
 		srrctl |= E1000_SRRCTL_DROP_EN;
@@ -4229,9 +4232,11 @@ static __le32 igb_tx_cmd_type(u32 tx_flags)
 	if (tx_flags & IGB_TX_FLAGS_VLAN)
 		cmd_type |= cpu_to_le32(E1000_ADVTXD_DCMD_VLE);
 
+#ifdef CONFIG_IGB_PTP
 	/* set timestamp bit if present */
 	if (tx_flags & IGB_TX_FLAGS_TSTAMP)
 		cmd_type |= cpu_to_le32(E1000_ADVTXD_MAC_TSTAMP);
+#endif /* CONFIG_IGB_PTP */
 
 	/* set segmentation bits for TSO */
 	if (tx_flags & IGB_TX_FLAGS_TSO)
@@ -4462,10 +4467,12 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
+#ifdef CONFIG_IGB_PTP
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
 	}
+#endif /* CONFIG_IGB_PTP */
 
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
@@ -5772,8 +5779,8 @@ static void igb_tx_hwtstamp(struct igb_q_vector *q_vector,
 	igb_systim_to_hwtstamp(adapter, &shhwtstamps, regval);
 	skb_tstamp_tx(buffer_info->skb, &shhwtstamps);
 }
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 /**
  * igb_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: pointer to q_vector containing needed info
@@ -5821,8 +5828,8 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 #ifdef CONFIG_IGB_PTP
 		/* retrieve hardware timestamp */
 		igb_tx_hwtstamp(q_vector, tx_buffer);
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 		tx_buffer->skb = NULL;
@@ -6033,8 +6040,8 @@ static void igb_rx_hwtstamp(struct igb_q_vector *q_vector,
 
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
+#endif /* CONFIG_IGB_PTP */
 
-#endif
 static void igb_rx_vlan(struct igb_ring *ring,
 			union e1000_adv_rx_desc *rx_desc,
 			struct sk_buff *skb)
@@ -6147,7 +6154,7 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 
 #ifdef CONFIG_IGB_PTP
 		igb_rx_hwtstamp(q_vector, rx_desc, skb);
-#endif
+#endif /* CONFIG_IGB_PTP */
 		igb_rx_hash(rx_ring, rx_desc, skb);
 		igb_rx_checksum(rx_ring, rx_desc, skb);
 		igb_rx_vlan(rx_ring, rx_desc, skb);
@@ -6340,6 +6347,7 @@ static int igb_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
+#ifdef CONFIG_IGB_PTP
 /**
  * igb_hwtstamp_ioctl - control hardware time stamping
  * @netdev:
@@ -6514,6 +6522,7 @@ static int igb_hwtstamp_ioctl(struct net_device *netdev,
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
 }
+#endif /* CONFIG_IGB_PTP */
 
 /**
  * igb_ioctl -
@@ -6528,8 +6537,10 @@ static int igb_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
 		return igb_mii_ioctl(netdev, ifr, cmd);
+#ifdef CONFIG_IGB_PTP
 	case SIOCSHWTSTAMP:
 		return igb_hwtstamp_ioctl(netdev, ifr, cmd);
+#endif /* CONFIG_IGB_PTP */
 	default:
 		return -EOPNOTSUPP;
 	}
