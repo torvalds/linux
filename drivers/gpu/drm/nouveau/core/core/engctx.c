@@ -105,6 +105,7 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	if (client->vm)
 		atomic_inc(&client->vm->engref[nv_engidx(engobj)]);
 	list_add(&nv_engctx(engctx)->head, &engine->contexts);
+	nv_engctx(engctx)->addr = ~0ULL;
 	spin_unlock_irqrestore(&engine->lock, save);
 	return 0;
 }

@@ -112,6 +112,8 @@ nvc0_fifo_context_attach(struct nouveau_object *parent,
 					    NV_MEM_ACCESS_RW, &ectx->vma);
 		if (ret)
 			return ret;
+
+		nv_engctx(ectx)->addr = nv_gpuobj(base)->addr >> 12;
 	}
 
 	nv_wo32(base, addr + 0x00, lower_32_bits(ectx->vma.offset) | 4);

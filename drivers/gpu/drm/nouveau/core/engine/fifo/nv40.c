@@ -128,11 +128,12 @@ nv40_fifo_context_attach(struct nouveau_object *parent,
 	}
 
 	spin_lock_irqsave(&priv->base.lock, flags);
+	nv_engctx(engctx)->addr = nv_gpuobj(engctx)->addr >> 4;
 	nv_mask(priv, 0x002500, 0x00000001, 0x00000000);
 
 	if ((nv_rd32(priv, 0x003204) & priv->base.max) == chan->base.chid)
-		nv_wr32(priv, reg, nv_gpuobj(engctx)->addr >> 4);
-	nv_wo32(priv->ramfc, chan->ramfc + ctx, nv_gpuobj(engctx)->addr >> 4);
+		nv_wr32(priv, reg, nv_engctx(engctx)->addr);
+	nv_wo32(priv->ramfc, chan->ramfc + ctx, nv_engctx(engctx)->addr);
 
 	nv_mask(priv, 0x002500, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&priv->base.lock, flags);

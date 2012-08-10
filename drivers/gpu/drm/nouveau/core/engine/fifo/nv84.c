@@ -62,6 +62,7 @@ nv84_fifo_context_attach(struct nouveau_object *parent,
 		return -EINVAL;
 	}
 
+	nv_engctx(ectx)->addr = nv_gpuobj(base)->addr >> 12;
 	nv_wo32(base->eng, addr + 0x00, 0x00190000);
 	nv_wo32(base->eng, addr + 0x04, lower_32_bits(limit));
 	nv_wo32(base->eng, addr + 0x08, lower_32_bits(start));

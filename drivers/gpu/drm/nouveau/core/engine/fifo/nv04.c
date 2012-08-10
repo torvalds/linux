@@ -102,6 +102,14 @@ nv04_fifo_object_detach(struct nouveau_object *parent, int cookie)
 	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
+int
+nv04_fifo_context_attach(struct nouveau_object *parent,
+			 struct nouveau_object *object)
+{
+	nv_engctx(object)->addr = nouveau_fifo_chan(parent)->chid;
+	return 0;
+}
+
 static int
 nv04_fifo_chan_ctor(struct nouveau_object *parent,
 		    struct nouveau_object *engine,
@@ -127,6 +135,7 @@ nv04_fifo_chan_ctor(struct nouveau_object *parent,
 
 	nv_parent(chan)->object_attach = nv04_fifo_object_attach;
 	nv_parent(chan)->object_detach = nv04_fifo_object_detach;
+	nv_parent(chan)->context_attach = nv04_fifo_context_attach;
 	chan->ramfc = chan->base.chid * 32;
 
 	nv_wo32(priv->ramfc, chan->ramfc + 0x00, args->offset);

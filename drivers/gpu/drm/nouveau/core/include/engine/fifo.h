@@ -106,5 +106,6 @@ extern struct nouveau_oclass nvc0_fifo_oclass;
 extern struct nouveau_oclass nve0_fifo_oclass;
 
 void nv04_fifo_intr(struct nouveau_subdev *);
+int  nv04_fifo_context_attach(struct nouveau_object *, struct nouveau_object *);
 
 #endif

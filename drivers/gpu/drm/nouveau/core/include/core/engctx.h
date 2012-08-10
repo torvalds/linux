@@ -13,6 +13,7 @@ struct nouveau_engctx {
 	struct nouveau_gpuobj base;
 	struct nouveau_vma vma;
 	struct list_head head;
+	u64 addr;
 };
 
 static inline struct nouveau_engctx *
