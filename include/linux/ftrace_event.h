@@ -206,6 +206,21 @@ int ftrace_event_define_field(struct ftrace_event_call *call,
 			      char *type, int len, char *item, int offset,
 			      int field_size, int sign, int filter);
 
+struct ftrace_event_buffer {
+	struct ring_buffer		*buffer;
+	struct ring_buffer_event	*event;
+	struct ftrace_event_file	*ftrace_file;
+	void				*entry;
+	unsigned long			flags;
+	int				pc;
+};
+
+void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
+				  struct ftrace_event_file *ftrace_file,
+				  unsigned long len);
+
+void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
+
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
 	TRACE_EVENT_FL_CAP_ANY_BIT,

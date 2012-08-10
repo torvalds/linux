@@ -532,37 +532,27 @@ static notrace void							\
 ftrace_raw_event_##call(void *__data, proto)				\
 {									\
 	struct ftrace_event_file *ftrace_file = __data;			\
-	struct ftrace_event_call *event_call = ftrace_file->event_call;	\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	struct ring_buffer_event *event;				\
+	struct ftrace_event_buffer fbuffer;				\
 	struct ftrace_raw_##call *entry;				\
-	struct ring_buffer *buffer;					\
-	unsigned long irq_flags;					\
 	int __data_size;						\
-	int pc;								\
 									\
 	if (ftrace_trigger_soft_disabled(ftrace_file))			\
 		return;							\
 									\
-	local_save_flags(irq_flags);					\
-	pc = preempt_count();						\
-									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,	\
-				 event_call->event.type,		\
-				 sizeof(*entry) + __data_size,		\
-				 irq_flags, pc);			\
-	if (!event)							\
+	entry = ftrace_event_buffer_reserve(&fbuffer, ftrace_file,	\
+				 sizeof(*entry) + __data_size);		\
+									\
+	if (!entry)							\
 		return;							\
-	entry	= ring_buffer_event_data(event);			\
 									\
 	tstruct								\
 									\
 	{ assign; }							\
 									\
-	event_trigger_unlock_commit(ftrace_file, buffer, event, entry, \
-				    irq_flags, pc);		       \
+	ftrace_event_buffer_commit(&fbuffer);				\
 }
 /*
  * The ftrace_test_probe is compiled out, it is only here as a build time check
