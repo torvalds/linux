@@ -66,7 +66,7 @@ static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 
 
 #ifdef CONFIG_NETPOLL
-static inline int netpoll_rx_on(struct sk_buff *skb)
+static inline bool netpoll_rx_on(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
@@ -125,7 +125,7 @@ static inline void netpoll_poll_unlock(void *have)
 	}
 }
 
-static inline int netpoll_tx_running(struct net_device *dev)
+static inline bool netpoll_tx_running(struct net_device *dev)
 {
 	return irqs_disabled();
 }
@@ -133,11 +133,11 @@ static inline int netpoll_tx_running(struct net_device *dev)
 #else
 static inline bool netpoll_rx(struct sk_buff *skb)
 {
-	return 0;
+	return false;
 }
-static inline int netpoll_rx_on(struct sk_buff *skb)
+static inline bool netpoll_rx_on(struct sk_buff *skb)
 {
-	return 0;
+	return false;
 }
 static inline int netpoll_receive_skb(struct sk_buff *skb)
 {
@@ -153,9 +153,9 @@ static inline void netpoll_poll_unlock(void *have)
 static inline void netpoll_netdev_init(struct net_device *dev)
 {
 }
-static inline int netpoll_tx_running(struct net_device *dev)
+static inline bool netpoll_tx_running(struct net_device *dev)
 {
-	return 0;
+	return false;
 }
 #endif
 
