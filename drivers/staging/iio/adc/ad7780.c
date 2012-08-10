@@ -131,9 +131,10 @@ static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_type = {
-				.sign = 's',
+				.sign = 'u',
 				.realbits = 24,
 				.storagebits = 32,
 				.shift = 8,
@@ -146,9 +147,10 @@ static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_type = {
-				.sign = 's',
+				.sign = 'u',
 				.realbits = 20,
 				.storagebits = 32,
 				.shift = 12,
