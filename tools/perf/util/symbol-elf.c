@@ -525,6 +525,10 @@ static int dso__swap_init(struct dso *dso, unsigned char eidata)
 	return 0;
 }
 
+bool symsrc__has_symtab(struct symsrc *ss)
+{
+	return ss->symtab != NULL;
+}
 
 void symsrc__destroy(struct symsrc *ss)
 {
@@ -616,7 +620,7 @@ out_close:
 }
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
-		  symbol_filter_t filter, int kmodule, int want_symtab)
+		  symbol_filter_t filter, int kmodule)
 {
 	struct kmap *kmap = dso->kernel ? map__kmap(map) : NULL;
 	struct map *curr_map = map;
@@ -636,20 +640,15 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 
 	dso->symtab_type = ss->type;
 
+	if (!ss->symtab) {
+		ss->symtab  = ss->dynsym;
+		ss->symshdr = ss->dynshdr;
+	}
+
 	elf = ss->elf;
 	ehdr = ss->ehdr;
 	sec = ss->symtab;
 	shdr = ss->symshdr;
-
-	if (sec == NULL) {
-		if (want_symtab)
-			goto out_elf_end;
-
-		sec  = ss->dynsym;
-		shdr = ss->dynshdr;
-		if (sec == NULL)
-			goto out_elf_end;
-	}
 
 	opdsec = ss->opdsec;
 	opdshdr = ss->opdshdr;

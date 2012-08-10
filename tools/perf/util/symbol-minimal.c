@@ -260,6 +260,11 @@ out_close:
 	return -1;
 }
 
+bool symsrc__has_symtab(struct symsrc *ss __used)
+{
+	return false;
+}
+
 void symsrc__destroy(struct symsrc *ss)
 {
 	free(ss->name);
@@ -275,8 +280,7 @@ int dso__synthesize_plt_symbols(struct dso *dso __used,
 }
 
 int dso__load_sym(struct dso *dso, struct map *map __used, struct symsrc *ss,
-		  symbol_filter_t filter __used, int kmodule __used,
-		  int want_symtab __used)
+		  symbol_filter_t filter __used, int kmodule __used)
 {
 	unsigned char *build_id[BUILD_ID_SIZE];
 

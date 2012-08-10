@@ -252,6 +252,7 @@ struct symsrc {
 void symsrc__destroy(struct symsrc *ss);
 int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		 enum dso_binary_type type);
+bool symsrc__has_symtab(struct symsrc *ss);
 
 #define DSO__SWAP(dso, type, val)			\
 ({							\
@@ -369,7 +370,7 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    u8 *data, ssize_t size);
 int dso__test_data(void);
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
-		  symbol_filter_t filter, int kmodule, int want_symtab);
+		  symbol_filter_t filter, int kmodule);
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
 				struct map *map, symbol_filter_t filter);
 
