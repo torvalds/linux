@@ -262,14 +262,6 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	return addr;
 }
 
-u64 map__objdump_2ip(struct map *map, u64 addr)
-{
-	u64 ip = map->dso->adjust_symbols ?
-			addr :
-			map->unmap_ip(map, addr);	/* RIP -> IP */
-	return ip;
-}
-
 void map_groups__init(struct map_groups *mg)
 {
 	int i;
