@@ -136,7 +136,6 @@ struct ad7192_state {
 	struct spi_device		*spi;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
-	struct ad7192_platform_data	*pdata;
 	wait_queue_head_t		wq_data_avail;
 	bool				done;
 	bool				irq_dis;
@@ -347,10 +346,10 @@ out:
 	return ret;
 }
 
-static int ad7192_setup(struct ad7192_state *st)
+static int ad7192_setup(struct ad7192_state *st,
+	const struct ad7192_platform_data *pdata)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(st->spi);
-	struct ad7192_platform_data *pdata = st->pdata;
 	unsigned long long scale_uv;
 	int i, ret, id;
 	u8 ones[6];
@@ -985,7 +984,7 @@ static const struct iio_chan_spec ad7192_channels[] = {
 
 static int __devinit ad7192_probe(struct spi_device *spi)
 {
-	struct ad7192_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7192_platform_data *pdata = spi->dev.platform_data;
 	struct ad7192_state *st;
 	struct iio_dev *indio_dev;
 	int ret , voltage_uv = 0;
@@ -1014,8 +1013,6 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 
 		voltage_uv = regulator_get_voltage(st->reg);
 	}
-
-	st->pdata = pdata;
 
 	if (pdata && pdata->vref_mv)
 		st->int_vref_mv = pdata->vref_mv;
@@ -1047,7 +1044,7 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	if (ret)
 		goto error_ring_cleanup;
 
-	ret = ad7192_setup(st);
+	ret = ad7192_setup(st, pdata);
 	if (ret)
 		goto error_remove_trigger;
 
