@@ -543,13 +543,12 @@ static void arp_reply(struct sk_buff *skb)
 	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 }
 
-int __netpoll_rx(struct sk_buff *skb)
+int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 {
 	int proto, len, ulen;
 	int hits = 0;
 	const struct iphdr *iph;
 	struct udphdr *uh;
-	struct netpoll_info *npinfo = skb->dev->npinfo;
 	struct netpoll *np, *tmp;
 
 	if (list_empty(&npinfo->rx_np))

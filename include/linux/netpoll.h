@@ -52,7 +52,7 @@ void netpoll_set_trap(int trap);
 void __netpoll_cleanup(struct netpoll *np);
 void __netpoll_free_rcu(struct netpoll *np);
 void netpoll_cleanup(struct netpoll *np);
-int __netpoll_rx(struct sk_buff *skb);
+int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo);
 void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 			     struct net_device *dev);
 static inline void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
@@ -77,7 +77,7 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 
 	spin_lock(&npinfo->rx_lock);
 	/* check rx_flags again with the lock held */
-	if (npinfo->rx_flags && __netpoll_rx(skb))
+	if (npinfo->rx_flags && __netpoll_rx(skb, npinfo))
 		ret = true;
 	spin_unlock(&npinfo->rx_lock);
 
