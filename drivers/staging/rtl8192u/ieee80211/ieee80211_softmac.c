@@ -1448,7 +1448,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 			( apset && apmatch &&
 				((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset)) ) ||
 			/* if the ap is not set, check that the user set the bssid
-			 * and the network does bradcast and that those two bssid matches
+			 * and the network does broadcast and that those two bssid matches
 			 */
 			(!apset && ssidset && ssidbroad && ssidmatch)
 			){
@@ -2520,7 +2520,7 @@ void ieee80211_associate_retry_wq(struct work_struct *work)
 
 	/* until we do not set the state to IEEE80211_NOLINK
 	* there are no possibility to have someone else trying
-	* to start an association procdure (we get here with
+	* to start an association procedure (we get here with
 	* ieee->state = IEEE80211_ASSOCIATING).
 	* When we set the state to IEEE80211_NOLINK it is possible
 	* that the RX path run an attempt to associate, but

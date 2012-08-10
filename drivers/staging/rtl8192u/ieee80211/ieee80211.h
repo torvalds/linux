@@ -2114,7 +2114,7 @@ struct ieee80211_device {
                                   struct ieee80211_network * network, u16 type);
         int (*is_qos_active) (struct net_device *dev, struct sk_buff *skb);
 
-	/* Softmac-generated frames (mamagement) are TXed via this
+	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
 	 * not set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
@@ -2192,7 +2192,7 @@ struct ieee80211_device {
 	int (*handle_assoc_response) (struct net_device * dev, struct ieee80211_assoc_response_frame * resp, struct ieee80211_network * network);
 
 
-	/* check whether Tx hw resouce available */
+	/* check whether Tx hw resource available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
 	//added by wb for HT related
 //	void (*SwChnlByTimerHandler)(struct net_device *dev, int channel);
