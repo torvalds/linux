@@ -51,10 +51,10 @@
 				gpios {
 					pinctrl_gpio_hog: gpiohog {
 						fsl,pins = <
-							   144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
-							   121  0x80000000	/* MX6Q_PAD_EIM_D19__GPIO_3_19 */
-							   953  0x80000000	/* MX6Q_PAD_GPIO_0__CCM_CLKO */
-							   >;
+							144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
+							121  0x80000000	/* MX6Q_PAD_EIM_D19__GPIO_3_19 */
+							953  0x80000000	/* MX6Q_PAD_GPIO_0__CCM_CLKO */
+						>;
 					};
 				};
 			};
