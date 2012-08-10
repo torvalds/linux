@@ -1080,7 +1080,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #ifdef CONFIG_I2C1_RK30
 #ifdef CONFIG_MFD_TPS65910
 #define TPS65910_HOST_IRQ        RK2928_PIN3_PC6
-#include "board-rk30-sdk-tps65910.c"
+#include "board-rk2928-sdk-tps65910.c"
 #endif
 static struct i2c_board_info __initdata i2c1_info[] = {
 
