@@ -1355,7 +1355,7 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 	struct ath_rate_priv *rc = file->private_data;
 	char *buf;
 	unsigned int len = 0, max;
-	int i = 0;
+	int rix;
 	ssize_t retval;
 
 	if (rc->rate_table == NULL)
@@ -1371,7 +1371,8 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 		       "HT", "MCS", "Rate",
 		       "Success", "Retries", "XRetries", "PER");
 
-	for (i = 0; i < rc->rate_table_size; i++) {
+	for (rix = 0; rix < rc->max_valid_rate; rix++) {
+		u8 i = rc->valid_rate_index[rix];
 		u32 ratekbps = rc->rate_table->info[i].ratekbps;
 		struct ath_rc_stats *stats = &rc->rcstats[i];
 		char mcs[5];
