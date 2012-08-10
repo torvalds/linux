@@ -293,12 +293,12 @@ static apbio_write_fptr apbio_write;
 
 static u32 tegra_apb_readl_direct(unsigned long offset)
 {
-	return readl(IO_TO_VIRT(offset));
+	return readl(IO_ADDRESS(offset));
 }
 
 static void tegra_apb_writel_direct(u32 value, unsigned long offset)
 {
-	writel(value, IO_TO_VIRT(offset));
+	writel(value, IO_ADDRESS(offset));
 }
 
 void tegra_apb_io_init(void)
