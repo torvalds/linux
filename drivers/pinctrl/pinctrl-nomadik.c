@@ -1292,7 +1292,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 						NOMADIK_GPIO_TO_IRQ(pdata->first_gpio),
 						0, &nmk_gpio_irq_simple_ops, nmk_chip);
 	if (!nmk_chip->domain) {
-		pr_err("%s: Failed to create irqdomain\n", np->full_name);
+		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;
 		goto out;
 	}
