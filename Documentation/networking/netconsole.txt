@@ -51,8 +51,23 @@ Built-in netconsole starts immediately after the TCP stack is
 initialized and attempts to bring up the supplied dev at the supplied
 address.
 
-The remote host can run either 'netcat -u -l -p <port>',
-'nc -l -u <port>' or syslogd.
+The remote host has several options to receive the kernel messages,
+for example:
+
+1) syslogd
+
+2) netcat
+
+   On distributions using a BSD-based netcat version (e.g. Fedora,
+   openSUSE and Ubuntu) the listening port must be specified without
+   the -p switch:
+
+   'nc -u -l -p <port>' / 'nc -u -l <port>' or
+   'netcat -u -l -p <port>' / 'netcat -u -l <port>'
+
+3) socat
+
+   'socat udp-recv:<port> -'
 
 Dynamic reconfiguration:
 ========================
