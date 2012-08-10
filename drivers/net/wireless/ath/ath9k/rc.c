@@ -682,8 +682,6 @@ static void ath_rc_rate_set_series(const struct ath_rate_table *rate_table,
 	rate->count = tries;
 	rate->idx = rate_table->info[rix].ratecode;
 
-	if (txrc->short_preamble)
-		rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
 	if (txrc->rts || rtsctsenable)
 		rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 
