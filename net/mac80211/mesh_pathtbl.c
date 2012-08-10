@@ -279,40 +279,42 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 				    struct mesh_path *from_mpath,
 				    bool copy)
 {
-	struct sk_buff *skb, *cp_skb = NULL;
-	struct sk_buff_head gateq, failq;
+	struct sk_buff *skb, *fskb, *tmp;
+	struct sk_buff_head failq;
 	unsigned long flags;
-	int num_skbs;
 
 	BUG_ON(gate_mpath == from_mpath);
 	BUG_ON(!gate_mpath->next_hop);
 
-	__skb_queue_head_init(&gateq);
 	__skb_queue_head_init(&failq);
 
 	spin_lock_irqsave(&from_mpath->frame_queue.lock, flags);
 	skb_queue_splice_init(&from_mpath->frame_queue, &failq);
 	spin_unlock_irqrestore(&from_mpath->frame_queue.lock, flags);
 
-	num_skbs = skb_queue_len(&failq);
-
-	while (num_skbs--) {
-		skb = __skb_dequeue(&failq);
-		if (copy) {
-			cp_skb = skb_copy(skb, GFP_ATOMIC);
-			if (cp_skb)
-				__skb_queue_tail(&failq, cp_skb);
+	skb_queue_walk_safe(&failq, fskb, tmp) {
+		if (skb_queue_len(&gate_mpath->frame_queue) >=
+				  MESH_FRAME_QUEUE_LEN) {
+			mpath_dbg(gate_mpath->sdata, "mpath queue full!\n");
+			break;
 		}
 
+		skb = skb_copy(fskb, GFP_ATOMIC);
+		if (WARN_ON(!skb))
+			break;
+
 		prepare_for_gate(skb, gate_mpath->dst, gate_mpath);
-		__skb_queue_tail(&gateq, skb);
+		skb_queue_tail(&gate_mpath->frame_queue, skb);
+
+		if (copy)
+			continue;
+
+		__skb_unlink(fskb, &failq);
+		kfree_skb(fskb);
 	}
 
-	spin_lock_irqsave(&gate_mpath->frame_queue.lock, flags);
-	skb_queue_splice(&gateq, &gate_mpath->frame_queue);
 	mpath_dbg(gate_mpath->sdata, "Mpath queue for gate %pM has %d frames\n",
 		  gate_mpath->dst, skb_queue_len(&gate_mpath->frame_queue));
-	spin_unlock_irqrestore(&gate_mpath->frame_queue.lock, flags);
 
 	if (!copy)
 		return;
