@@ -11,7 +11,10 @@ struct nouveau_engine {
 	struct nouveau_subdev base;
 	struct nouveau_oclass *cclass;
 	struct nouveau_oclass *sclass;
+
 	struct list_head contexts;
+	spinlock_t lock;
+
 	void (*tile_prog)(struct nouveau_engine *, int region);
 	int  (*tlb_flush)(struct nouveau_engine *);
 };

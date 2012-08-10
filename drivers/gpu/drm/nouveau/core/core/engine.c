@@ -50,5 +50,6 @@ nouveau_engine_create_(struct nouveau_object *parent,
 	}
 
 	INIT_LIST_HEAD(&engine->contexts);
+	spin_lock_init(&engine->lock);
 	return 0;
 }

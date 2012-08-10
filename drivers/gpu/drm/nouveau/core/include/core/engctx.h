@@ -15,7 +15,7 @@ struct nouveau_engctx {
 	struct list_head head;
 };
 
-static inline void *
+static inline struct nouveau_engctx *
 nv_engctx(void *obj)
 {
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA

@@ -30,6 +30,25 @@
 
 #include <subdev/vm.h>
 
+static inline int
+nouveau_engctx_exists(struct nouveau_object *parent,
+		      struct nouveau_engine *engine, void **pobject)
+{
+	struct nouveau_engctx *engctx;
+	struct nouveau_object *parctx;
+
+	list_for_each_entry(engctx, &engine->contexts, head) {
+		parctx = nv_pclass(nv_object(engctx), NV_PARENT_CLASS);
+		if (parctx == parent) {
+			atomic_inc(&nv_object(engctx)->refcount);
+			*pobject = engctx;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int
 nouveau_engctx_create_(struct nouveau_object *parent,
 		       struct nouveau_object *engobj,
@@ -41,23 +60,22 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	struct nouveau_client *client = nouveau_client(parent);
 	struct nouveau_engine *engine = nv_engine(engobj);
 	struct nouveau_subdev *subdev = nv_subdev(engine);
-	struct nouveau_engctx *engctx;
-	struct nouveau_object *ctxpar;
+	struct nouveau_object *engctx;
+	unsigned long save;
 	int ret;
 
-	/* use existing context for the engine if one is available */
-	mutex_lock(&subdev->mutex);
-	list_for_each_entry(engctx, &engine->contexts, head) {
-		ctxpar = nv_pclass(nv_object(engctx), NV_PARENT_CLASS);
-		if (ctxpar == parent) {
-			atomic_inc(&nv_object(engctx)->refcount);
-			*pobject = engctx;
-			mutex_unlock(&subdev->mutex);
-			return 1;
-		}
-	}
-	mutex_unlock(&subdev->mutex);
+	/* check if this engine already has a context for the parent object,
+	 * and reference it instead of creating a new one
+	 */
+	spin_lock_irqsave(&engine->lock, save);
+	ret = nouveau_engctx_exists(parent, engine, pobject);
+	spin_unlock_irqrestore(&engine->lock, save);
+	if (ret)
+		return ret;
 
+	/* create the new context, supports creating both raw objects and
+	 * objects backed by instance memory
+	 */
 	if (size) {
 		ret = nouveau_gpuobj_create_(parent, engobj, oclass,
 					     NV_ENGCTX_CLASS,
@@ -69,25 +87,43 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 	}
 
 	engctx = *pobject;
-	if (engctx && client->vm)
-		atomic_inc(&client->vm->engref[nv_engidx(engobj)]);
 	if (ret)
 		return ret;
 
-	list_add(&engctx->head, &engine->contexts);
+	/* must take the lock again and re-check a context doesn't already
+	 * exist (in case of a race) - the lock had to be dropped before as
+	 * it's not possible to allocate the object with it held.
+	 */
+	spin_lock_irqsave(&engine->lock, save);
+	ret = nouveau_engctx_exists(parent, engine, pobject);
+	if (ret) {
+		spin_unlock_irqrestore(&engine->lock, save);
+		nouveau_object_ref(NULL, &engctx);
+		return ret;
+	}
+
+	if (client->vm)
+		atomic_inc(&client->vm->engref[nv_engidx(engobj)]);
+	list_add(&nv_engctx(engctx)->head, &engine->contexts);
+	spin_unlock_irqrestore(&engine->lock, save);
 	return 0;
 }
 
 void
 nouveau_engctx_destroy(struct nouveau_engctx *engctx)
 {
-	struct nouveau_object *engine = nv_object(engctx)->engine;
+	struct nouveau_object *engobj = nv_object(engctx)->engine;
+	struct nouveau_engine *engine = nv_engine(engobj);
 	struct nouveau_client *client = nouveau_client(engctx);
+	unsigned long save;
 
 	nouveau_gpuobj_unmap(&engctx->vma);
+	spin_lock_irqsave(&engine->lock, save);
 	list_del(&engctx->head);
+	spin_unlock_irqrestore(&engine->lock, save);
+
 	if (client->vm)
-		atomic_dec(&client->vm->engref[nv_engidx(engine)]);
+		atomic_dec(&client->vm->engref[nv_engidx(engobj)]);
 
 	if (engctx->base.size)
 		nouveau_gpuobj_destroy(&engctx->base);
