@@ -1175,10 +1175,8 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 	if (result < 0) {
 		log_print("Failed to set SO_REUSEADDR on socket: %d", result);
 	}
-	sock->sk->sk_user_data = con;
 	con->rx_action = tcp_accept_from_sock;
 	con->connect_action = tcp_connect_to_sock;
-	con->sock = sock;
 
 	/* Bind to our port */
 	make_sockaddr(saddr, dlm_config.ci_tcp_port, &addr_len);
