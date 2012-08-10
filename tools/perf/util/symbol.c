@@ -1364,13 +1364,14 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	if (fd < 0)
 		return -1;
 
-	dso__set_long_name(dso, (char *)vmlinux);
-	dso__set_loaded(dso, map->type);
 	err = dso__load_sym(dso, map, symfs_vmlinux, fd, filter, 0, 0);
 	close(fd);
 
-	if (err > 0)
+	if (err > 0) {
+		dso__set_long_name(dso, (char *)vmlinux);
+		dso__set_loaded(dso, map->type);
 		pr_debug("Using %s for symbols\n", symfs_vmlinux);
+	}
 
 	return err;
 }
