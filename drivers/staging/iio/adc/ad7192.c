@@ -798,6 +798,11 @@ static const struct attribute_group ad7195_attribute_group = {
 	.attrs = ad7195_attributes,
 };
 
+static unsigned int ad7192_get_temp_scale(bool unipolar)
+{
+	return unipolar ? 2815 * 2 : 2815;
+}
+
 static int ad7192_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
@@ -824,17 +829,6 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 		*val = (smpl >> chan->scan_type.shift) &
 			((1 << (chan->scan_type.realbits)) - 1);
 
-		switch (chan->type) {
-		case IIO_VOLTAGE:
-			break;
-		case IIO_TEMP:
-			*val -= 0x800000;
-			*val /= 2815; /* temp Kelvin */
-			*val -= 273; /* temp Celsius */
-			break;
-		default:
-			return -EINVAL;
-		}
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -846,16 +840,20 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&indio_dev->mlock);
 			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_TEMP:
-			*val =  1000;
-			return IIO_VAL_INT;
+			*val = 0;
+			*val2 = 1000000000 / ad7192_get_temp_scale(unipolar);
+			return IIO_VAL_INT_PLUS_NANO;
 		default:
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_OFFSET:
 		if (!unipolar)
-			*val -= (1 << (chan->scan_type.realbits - 1));
+			*val = -(1 << (chan->scan_type.realbits - 1));
 		else
 			*val = 0;
+		/* Kelvin to Celsius */
+		if (chan->type == IIO_TEMP)
+			*val -= 273 * ad7192_get_temp_scale(unipolar);
 		return IIO_VAL_INT;
 	}
 
