@@ -323,7 +323,7 @@ static int __devinit sii9234_probe(struct i2c_client *client,
 	struct sii9234_context *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&client->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		dev_err(dev, "out of memory\n");
 		ret = -ENOMEM;
@@ -331,18 +331,17 @@ static int __devinit sii9234_probe(struct i2c_client *client,
 	}
 	ctx->client = client;
 
-	ctx->power = regulator_get(dev, "hdmi-en");
+	ctx->power = devm_regulator_get(dev, "hdmi-en");
 	if (IS_ERR(ctx->power)) {
 		dev_err(dev, "failed to acquire regulator hdmi-en\n");
-		ret = PTR_ERR(ctx->power);
-		goto fail_ctx;
+		return PTR_ERR(ctx->power);
 	}
 
 	ctx->gpio_n_reset = pdata->gpio_n_reset;
 	ret = gpio_request(ctx->gpio_n_reset, "MHL_RST");
 	if (ret) {
 		dev_err(dev, "failed to acquire MHL_RST gpio\n");
-		goto fail_power;
+		return ret;
 	}
 
 	v4l2_i2c_subdev_init(&ctx->sd, client, &sii9234_ops);
@@ -373,12 +372,6 @@ fail_pm:
 	pm_runtime_disable(dev);
 	gpio_free(ctx->gpio_n_reset);
 
-fail_power:
-	regulator_put(ctx->power);
-
-fail_ctx:
-	kfree(ctx);
-
 fail:
 	dev_err(dev, "probe failed\n");
 
@@ -393,8 +386,6 @@ static int __devexit sii9234_remove(struct i2c_client *client)
 
 	pm_runtime_disable(dev);
 	gpio_free(ctx->gpio_n_reset);
-	regulator_put(ctx->power);
-	kfree(ctx);
 
 	dev_info(dev, "remove successful\n");
 
