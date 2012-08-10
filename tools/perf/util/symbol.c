@@ -1503,9 +1503,8 @@ do_kallsyms:
 	free(kallsyms_allocated_filename);
 
 	if (err > 0) {
+		dso__set_long_name(dso, strdup("[kernel.kallsyms]"));
 out_fixup:
-		if (kallsyms_filename != NULL)
-			dso__set_long_name(dso, strdup("[kernel.kallsyms]"));
 		map__fixup_start(map);
 		map__fixup_end(map);
 	}
