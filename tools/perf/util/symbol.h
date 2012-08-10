@@ -11,6 +11,12 @@
 #include <stdio.h>
 #include <byteswap.h>
 
+#ifndef NO_LIBELF_SUPPORT
+#include <libelf.h>
+#include <gelf.h>
+#include <elf.h>
+#endif
+
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
 
@@ -219,6 +225,34 @@ struct dso {
 	char		 name[0];
 };
 
+struct symsrc {
+	char *name;
+	int fd;
+	enum dso_binary_type type;
+
+#ifndef NO_LIBELF_SUPPORT
+	Elf *elf;
+	GElf_Ehdr ehdr;
+
+	Elf_Scn *opdsec;
+	size_t opdidx;
+	GElf_Shdr opdshdr;
+
+	Elf_Scn *symtab;
+	GElf_Shdr symshdr;
+
+	Elf_Scn *dynsym;
+	size_t dynsym_idx;
+	GElf_Shdr dynshdr;
+
+	bool adjust_symbols;
+#endif
+};
+
+void symsrc__destroy(struct symsrc *ss);
+int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
+		 enum dso_binary_type type);
+
 #define DSO__SWAP(dso, type, val)			\
 ({							\
 	type ____r = val;				\
@@ -334,7 +368,7 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 			    struct machine *machine, u64 addr,
 			    u8 *data, ssize_t size);
 int dso__test_data(void);
-int dso__load_sym(struct dso *dso, struct map *map, const char *name, int fd,
+int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *ss,
 		  symbol_filter_t filter, int kmodule, int want_symtab);
 int dso__synthesize_plt_symbols(struct dso *dso, char *name, struct map *map,
 				symbol_filter_t filter);

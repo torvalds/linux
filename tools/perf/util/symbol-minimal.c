@@ -241,6 +241,31 @@ out:
 	return ret;
 }
 
+int symsrc__init(struct symsrc *ss, struct dso *dso __used, const char *name,
+	         enum dso_binary_type type)
+{
+	int fd = open(name, O_RDONLY);
+	if (fd < 0)
+		return -1;
+
+	ss->name = strdup(name);
+	if (!ss->name)
+		goto out_close;
+
+	ss->type = type;
+
+	return 0;
+out_close:
+	close(fd);
+	return -1;
+}
+
+void symsrc__destroy(struct symsrc *ss)
+{
+	free(ss->name);
+	close(ss->fd);
+}
+
 int dso__synthesize_plt_symbols(struct dso *dso __used, char *name __used,
 				struct map *map __used,
 				symbol_filter_t filter __used)
@@ -248,14 +273,13 @@ int dso__synthesize_plt_symbols(struct dso *dso __used, char *name __used,
 	return 0;
 }
 
-int dso__load_sym(struct dso *dso, struct map *map __used,
-		  const char *name, int fd __used,
+int dso__load_sym(struct dso *dso, struct map *map __used, struct symsrc *ss,
 		  symbol_filter_t filter __used, int kmodule __used,
 		  int want_symtab __used)
 {
 	unsigned char *build_id[BUILD_ID_SIZE];
 
-	if (filename__read_build_id(name, build_id, BUILD_ID_SIZE) > 0) {
+	if (filename__read_build_id(ss->name, build_id, BUILD_ID_SIZE) > 0) {
 		dso__set_build_id(dso, build_id);
 		return 1;
 	}

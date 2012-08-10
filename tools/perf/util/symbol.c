@@ -1026,7 +1026,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 {
 	char *name;
 	int ret = -1;
-	int fd;
+	struct symsrc ss;
 	u_int i;
 	struct machine *machine;
 	char *root_dir = (char *) "";
@@ -1086,13 +1086,12 @@ restart:
 			continue;
 
 		/* Name is now the name of the next image to try */
-		fd = open(name, O_RDONLY);
-		if (fd < 0)
+		if (symsrc__init(&ss, dso, name, dso->symtab_type) < 0)
 			continue;
 
-		ret = dso__load_sym(dso, map, name, fd, filter, 0,
+		ret = dso__load_sym(dso, map, &ss, filter, 0,
 				    want_symtab);
-		close(fd);
+		symsrc__destroy(&ss);
 
 		/*
 		 * Some people seem to have debuginfo files _WITHOUT_ debug
@@ -1359,22 +1358,23 @@ out_failure:
 int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, symbol_filter_t filter)
 {
-	int err = -1, fd;
+	int err = -1;
+	struct symsrc ss;
 	char symfs_vmlinux[PATH_MAX];
 
 	snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s%s",
 		 symbol_conf.symfs, vmlinux);
-	fd = open(symfs_vmlinux, O_RDONLY);
-	if (fd < 0)
-		return -1;
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
 		dso->symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__VMLINUX;
 
-	err = dso__load_sym(dso, map, symfs_vmlinux, fd, filter, 0, 0);
-	close(fd);
+	if (symsrc__init(&ss, dso, symfs_vmlinux, dso->symtab_type))
+		return -1;
+
+	err = dso__load_sym(dso, map, &ss, filter, 0, 0);
+	symsrc__destroy(&ss);
 
 	if (err > 0) {
 		dso__set_long_name(dso, (char *)vmlinux);
