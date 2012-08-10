@@ -448,6 +448,10 @@
 #define      GRF_OS_REG1                          0x01cc
 #define      GRF_OS_REG2                          0x01d0
 #define      GRF_OS_REG3                          0x01d4
+#define      GRF_OS_REG4                          0x01d8
+#define      GRF_OS_REG5                          0x01dc
+#define      GRF_OS_REG6                          0x01e0
+#define      GRF_OS_REG7                          0x01e4
 
 #define MUX_CFG(desc,reg,off,interl,mux_mode,bflags)	\
 {						  	\
