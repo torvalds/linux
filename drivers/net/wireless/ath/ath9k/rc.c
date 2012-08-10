@@ -1120,15 +1120,6 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 						 rates[i].count);
 			}
 		}
-	} else {
-		/*
-		 * Handle the special case of MIMO PS burst, where the second
-		 * aggregate is sent out with only one rate and one try.
-		 * Treating it as an excessive retry penalizes the rate
-		 * inordinately.
-		 */
-		if (rates[0].count == 1 && xretries == 1)
-			xretries = 2;
 	}
 
 	flags = rates[final_ts_idx].flags;
