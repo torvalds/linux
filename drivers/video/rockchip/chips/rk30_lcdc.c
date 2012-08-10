@@ -851,33 +851,43 @@ static int rk30_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool 
 	return fps;
 }
 
-static int rk30_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
-        enum fb_win_map_order order)
+static int rk30_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,int order)
 {
-        return 0;
+       mutex_lock(&dev_drv->fb_win_id_mutex);
+       if(order == FB_DEFAULT_ORDER )
+	{
+		order = FB0_WIN2_FB1_WIN0_FB2_WIN1;
+	}
+       dev_drv->fb2_win_id  = order/100;
+       dev_drv->fb1_win_id = (order/10)%10;
+       dev_drv->fb0_win_id = order%10;
+       mutex_unlock(&dev_drv->fb_win_id_mutex);
+
+       printk("fb0:win%d\nfb1:win%d\nfb2:win%d\n",dev_drv->fb0_win_id,dev_drv->fb1_win_id,
+               dev_drv->fb2_win_id);
+
+       return 0;
 }
 
 static int rk30_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *id)
 {
-	int layer_id;
+       int layer_id;
+       mutex_lock(&dev_drv->fb_win_id_mutex);
+       if(!strcmp(id,"fb0")||!strcmp(id,"fb4"))
+       {
+               layer_id = dev_drv->fb0_win_id;
+       }
+       else if(!strcmp(id,"fb1")||!strcmp(id,"fb5"))
+       {
+               layer_id = dev_drv->fb1_win_id;
+       }
+       else if(!strcmp(id,"fb2")||!strcmp(id,"fb6"))
+       {
+               layer_id = dev_drv->fb2_win_id;
+       }
+       mutex_unlock(&dev_drv->fb_win_id_mutex);
 
-        mutex_lock(&dev_drv->fb_win_id_mutex);
-	if (!strcmp(id,"fb1") || !strcmp(id,"fb3"))
-	{
-		layer_id = 0;
-	}
-	else if (!strcmp(id,"fb0") || !strcmp(id,"fb2"))
-	{
-		layer_id = 1;
-	}
-	else
-	{
-		printk(KERN_ERR "%s: unsupported %s", __func__, id);
-		layer_id = -ENODEV;
-	}
-        mutex_unlock(&dev_drv->fb_win_id_mutex);
-
-	return layer_id;
+       return  layer_id;
 }
 
 int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
@@ -986,8 +996,8 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.ovl_mgr		= rk30_lcdc_ovl_mgr,
 	.get_disp_info		= rk30_lcdc_get_disp_info,
 	.fps_mgr		= rk30_lcdc_fps_mgr,
-	.fb_get_layer		= rk30_fb_get_layer,
-	.fb_layer_remap		= rk30_fb_layer_remap,
+	.fb_get_layer           = rk30_fb_get_layer,
+	.fb_layer_remap         = rk30_fb_layer_remap,
 };
 #ifdef CONFIG_PM
 static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
