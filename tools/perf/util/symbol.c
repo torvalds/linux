@@ -923,6 +923,7 @@ char dso__symtab_origin(const struct dso *dso)
 {
 	static const char origin[] = {
 		[DSO_BINARY_TYPE__KALLSYMS]		= 'k',
+		[DSO_BINARY_TYPE__VMLINUX]		= 'v',
 		[DSO_BINARY_TYPE__JAVA_JIT]		= 'j',
 		[DSO_BINARY_TYPE__DEBUGLINK]		= 'l',
 		[DSO_BINARY_TYPE__BUILD_ID_CACHE]	= 'B',
@@ -933,6 +934,7 @@ char dso__symtab_origin(const struct dso *dso)
 		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]	= 'K',
 		[DSO_BINARY_TYPE__GUEST_KALLSYMS]	= 'g',
 		[DSO_BINARY_TYPE__GUEST_KMODULE]	= 'G',
+		[DSO_BINARY_TYPE__GUEST_VMLINUX]	= 'V',
 	};
 
 	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__NOT_FOUND)
@@ -1008,7 +1010,9 @@ int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
 
 	default:
 	case DSO_BINARY_TYPE__KALLSYMS:
+	case DSO_BINARY_TYPE__VMLINUX:
 	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
+	case DSO_BINARY_TYPE__GUEST_VMLINUX:
 	case DSO_BINARY_TYPE__JAVA_JIT:
 	case DSO_BINARY_TYPE__NOT_FOUND:
 		ret = -1;
@@ -1363,6 +1367,11 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 	fd = open(symfs_vmlinux, O_RDONLY);
 	if (fd < 0)
 		return -1;
+
+	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
+		dso->symtab_type = DSO_BINARY_TYPE__GUEST_VMLINUX;
+	else
+		dso->symtab_type = DSO_BINARY_TYPE__VMLINUX;
 
 	err = dso__load_sym(dso, map, symfs_vmlinux, fd, filter, 0, 0);
 	close(fd);
