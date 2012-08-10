@@ -112,6 +112,7 @@ extern int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn,
 				     ulong val);
 extern int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn,
 				     ulong *val);
+extern void kvmppc_core_check_requests(struct kvm_vcpu *vcpu);
 
 extern int kvmppc_booke_init(void);
 extern void kvmppc_booke_exit(void);
@@ -149,6 +150,8 @@ extern int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm,
 
 extern int kvmppc_bookehv_init(void);
 extern void kvmppc_bookehv_exit(void);
+
+extern int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu);
 
 /*
  * Cuts out inst bits with ordering according to spec.

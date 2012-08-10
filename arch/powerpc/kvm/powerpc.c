@@ -47,6 +47,63 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+#ifndef CONFIG_KVM_BOOK3S_64_HV
+/*
+ * Common checks before entering the guest world.  Call with interrupts
+ * disabled.
+ *
+ * returns !0 if a signal is pending and check_signal is true
+ */
+int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
+{
+	int r = 0;
+
+	WARN_ON_ONCE(!irqs_disabled());
+	while (true) {
+		if (need_resched()) {
+			local_irq_enable();
+			cond_resched();
+			local_irq_disable();
+			continue;
+		}
+
+		if (signal_pending(current)) {
+			r = 1;
+			break;
+		}
+
+		smp_mb();
+		if (vcpu->requests) {
+			/* Make sure we process requests preemptable */
+			local_irq_enable();
+			trace_kvm_check_requests(vcpu);
+			kvmppc_core_check_requests(vcpu);
+			local_irq_disable();
+			continue;
+		}
+
+		if (kvmppc_core_prepare_to_enter(vcpu)) {
+			/* interrupts got enabled in between, so we
+			   are back at square 1 */
+			continue;
+		}
+
+		if (vcpu->mode == EXITING_GUEST_MODE) {
+			r = 1;
+			break;
+		}
+
+		/* Going into guest context! Yay! */
+		vcpu->mode = IN_GUEST_MODE;
+		smp_wmb();
+
+		break;
+	}
+
+	return r;
+}
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
+
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 {
 	int nr = kvmppc_get_gpr(vcpu, 11);

@@ -88,6 +88,10 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	kvmppc_giveup_ext(vcpu, MSR_VSX);
 }
 
+void kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
+{
+}
+
 static void kvmppc_recalc_shadow_msr(struct kvm_vcpu *vcpu)
 {
 	ulong smsr = vcpu->arch.shared->msr;
@@ -815,19 +819,9 @@ program_interrupt:
 		 * again due to a host external interrupt.
 		 */
 		__hard_irq_disable();
-		if (signal_pending(current)) {
-			__hard_irq_enable();
-#ifdef EXIT_DEBUG
-			printk(KERN_EMERG "KVM: Going back to host\n");
-#endif
-			vcpu->stat.signal_exits++;
+		if (kvmppc_prepare_to_enter(vcpu)) {
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
-		} else {
-			/* In case an interrupt came in that was triggered
-			 * from userspace (like DEC), we need to check what
-			 * to inject now! */
-			kvmppc_core_prepare_to_enter(vcpu);
 		}
 	}
 
@@ -1029,8 +1023,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	kvmppc_core_prepare_to_enter(vcpu);
-
 	/*
 	 * Interrupts could be timers for the guest which we have to inject
 	 * again, so let's postpone them until we're in the guest and if we
@@ -1038,9 +1030,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * a host external interrupt.
 	 */
 	__hard_irq_disable();
-
-	/* No need to go into the guest when all we do is going out */
-	if (signal_pending(current)) {
+	if (kvmppc_prepare_to_enter(vcpu)) {
 		__hard_irq_enable();
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		ret = -EINTR;

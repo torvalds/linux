@@ -455,70 +455,14 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	return r;
 }
 
-static void kvmppc_check_requests(struct kvm_vcpu *vcpu)
+void kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
-	trace_kvm_check_requests(vcpu);
-
 	if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu))
 		update_timer_ints(vcpu);
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
 		kvmppc_core_flush_tlb(vcpu);
 #endif
-}
-
-/*
- * Common checks before entering the guest world.  Call with interrupts
- * disabled.
- *
- * returns !0 if a signal is pending and check_signal is true
- */
-static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
-{
-	int r = 0;
-
-	WARN_ON_ONCE(!irqs_disabled());
-	while (true) {
-		if (need_resched()) {
-			local_irq_enable();
-			cond_resched();
-			local_irq_disable();
-			continue;
-		}
-
-		if (signal_pending(current)) {
-			r = 1;
-			break;
-		}
-
-		smp_mb();
-		if (vcpu->requests) {
-			/* Make sure we process requests preemptable */
-			local_irq_enable();
-			kvmppc_check_requests(vcpu);
-			local_irq_disable();
-			continue;
-		}
-
-		if (kvmppc_core_prepare_to_enter(vcpu)) {
-			/* interrupts got enabled in between, so we
-			   are back at square 1 */
-			continue;
-		}
-
-		if (vcpu->mode == EXITING_GUEST_MODE) {
-			r = 1;
-			break;
-		}
-
-		/* Going into guest context! Yay! */
-		vcpu->mode = IN_GUEST_MODE;
-		smp_wmb();
-
-		break;
-	}
-
-	return r;
 }
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
