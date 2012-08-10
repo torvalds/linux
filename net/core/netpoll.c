@@ -26,6 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/if_vlan.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <asm/unaligned.h>
@@ -334,6 +335,14 @@ void netpoll_send_skb_on_dev(struct netpoll *np, struct sk_buff *skb,
 		     tries > 0; --tries) {
 			if (__netif_tx_trylock(txq)) {
 				if (!netif_xmit_stopped(txq)) {
+					if (vlan_tx_tag_present(skb) &&
+					    !(netif_skb_features(skb) & NETIF_F_HW_VLAN_TX)) {
+						skb = __vlan_put_tag(skb, vlan_tx_tag_get(skb));
+						if (unlikely(!skb))
+							break;
+						skb->vlan_tci = 0;
+					}
+
 					status = ops->ndo_start_xmit(skb, dev);
 					if (status == NETDEV_TX_OK)
 						txq_trans_update(txq);
@@ -565,6 +574,12 @@ int __netpoll_rx(struct sk_buff *skb, struct netpoll_info *npinfo)
 	    atomic_read(&trapped)) {
 		skb_queue_tail(&npinfo->arp_tx, skb);
 		return 1;
+	}
+
+	if (skb->protocol == cpu_to_be16(ETH_P_8021Q)) {
+		skb = vlan_untag(skb);
+		if (unlikely(!skb))
+			goto out;
 	}
 
 	proto = ntohs(eth_hdr(skb)->h_proto);
