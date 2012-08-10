@@ -267,7 +267,8 @@ struct wrpll_tmds_clock {
 	u16 r2;		/* Reference divider */
 };
 
-/* Table of matching values for WRPLL clocks programming for each frequency */
+/* Table of matching values for WRPLL clocks programming for each frequency.
+ * The code assumes this table is sorted. */
 static const struct wrpll_tmds_clock wrpll_tmds_clock_table[] = {
 	{19750,	38,	25,	18},
 	{20000,	48,	32,	18},
@@ -276,7 +277,6 @@ static const struct wrpll_tmds_clock wrpll_tmds_clock_table[] = {
 	{22000,	36,	22,	15},
 	{23000,	36,	23,	15},
 	{23500,	40,	40,	23},
-	{23750,	26,	16,	14},
 	{23750,	26,	16,	14},
 	{24000,	36,	24,	15},
 	{25000,	36,	25,	15},
@@ -436,7 +436,6 @@ static const struct wrpll_tmds_clock wrpll_tmds_clock_table[] = {
 	{107214,	8,	27,	17},
 	{108000,	8,	24,	15},
 	{108108,	8,	173,	108},
-	{109000,	6,	23,	19},
 	{109000,	6,	23,	19},
 	{110000,	6,	22,	18},
 	{110013,	6,	22,	18},
@@ -614,7 +613,6 @@ static const struct wrpll_tmds_clock wrpll_tmds_clock_table[] = {
 	{218250,	4,	42,	26},
 	{218750,	4,	34,	21},
 	{219000,	4,	47,	29},
-	{219000,	4,	47,	29},
 	{220000,	4,	44,	27},
 	{220640,	4,	49,	30},
 	{220750,	4,	36,	22},
@@ -658,7 +656,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	int port = intel_hdmi->ddi_port;
 	int pipe = intel_crtc->pipe;
-	int p, n2, r2, valid=0;
+	int p, n2, r2;
 	u32 temp, i;
 
 	/* On Haswell, we need to enable the clocks and prepare DDI function to
@@ -666,26 +664,23 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	 */
 	DRM_DEBUG_KMS("Preparing HDMI DDI mode for Haswell on port %c, pipe %c\n", port_name(port), pipe_name(pipe));
 
-	for (i=0; i < ARRAY_SIZE(wrpll_tmds_clock_table); i++) {
-		if (crtc->mode.clock == wrpll_tmds_clock_table[i].clock) {
-			p = wrpll_tmds_clock_table[i].p;
-			n2 = wrpll_tmds_clock_table[i].n2;
-			r2 = wrpll_tmds_clock_table[i].r2;
-
-			DRM_DEBUG_KMS("WR PLL clock: found settings for %dKHz refresh rate: p=%d, n2=%d, r2=%d\n",
-					crtc->mode.clock,
-					p, n2, r2);
-
-			valid = 1;
+	for (i = 0; i < ARRAY_SIZE(wrpll_tmds_clock_table); i++)
+		if (crtc->mode.clock <= wrpll_tmds_clock_table[i].clock)
 			break;
-		}
-	}
 
-	if (!valid) {
-		DRM_ERROR("Unable to find WR PLL clock settings for %dKHz refresh rate\n",
-				crtc->mode.clock);
-		return;
-	}
+	if (i == ARRAY_SIZE(wrpll_tmds_clock_table))
+		i--;
+
+	p = wrpll_tmds_clock_table[i].p;
+	n2 = wrpll_tmds_clock_table[i].n2;
+	r2 = wrpll_tmds_clock_table[i].r2;
+
+	if (wrpll_tmds_clock_table[i].clock != crtc->mode.clock)
+		DRM_INFO("WR PLL: using settings for %dKHz on %dKHz mode\n",
+			 wrpll_tmds_clock_table[i].clock, crtc->mode.clock);
+
+	DRM_DEBUG_KMS("WR PLL: %dKHz refresh rate with p=%d, n2=%d r2=%d\n",
+		      crtc->mode.clock, p, n2, r2);
 
 	/* Enable LCPLL if disabled */
 	temp = I915_READ(LCPLL_CTL);
