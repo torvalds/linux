@@ -471,8 +471,7 @@ static int ath_rc_valid_phyrate(u32 phy, u32 capflag, int ignore_cw)
 }
 
 static inline int
-ath_rc_get_lower_rix(const struct ath_rate_table *rate_table,
-		     struct ath_rate_priv *ath_rc_priv,
+ath_rc_get_lower_rix(struct ath_rate_priv *ath_rc_priv,
 		     u8 cur_valid_txrate, u8 *next_idx)
 {
 	int8_t i;
@@ -582,13 +581,11 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv)
 	return hi;
 }
 
-/* Finds the highest rate index we can use */
-static u8 ath_rc_get_highest_rix(struct ath_softc *sc,
-			         struct ath_rate_priv *ath_rc_priv,
-				 const struct ath_rate_table *rate_table,
+static u8 ath_rc_get_highest_rix(struct ath_rate_priv *ath_rc_priv,
 				 int *is_probing,
 				 bool legacy)
 {
+	const struct ath_rate_table *rate_table = ath_rc_priv->rate_table;
 	u32 best_thruput, this_thruput, now_msec;
 	u8 rate, next_rate, best_rate, maxindex, minindex;
 	int8_t index = 0;
@@ -773,14 +770,8 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	try_per_rate = 4;
 
 	rate_table = ath_rc_priv->rate_table;
-	rix = ath_rc_get_highest_rix(sc, ath_rc_priv, rate_table,
-				     &is_probe, false);
+	rix = ath_rc_get_highest_rix(ath_rc_priv, &is_probe, false);
 
-	/*
-	 * If we're in HT mode and both us and our peer supports LDPC.
-	 * We don't need to check our own device's capabilities as our own
-	 * ht capabilities would have already been intersected with our peer's.
-	 */
 	if (conf_is_ht(&sc->hw->conf) &&
 	    (sta->ht_cap.cap & IEEE80211_HT_CAP_LDPC_CODING))
 		tx_info->flags |= IEEE80211_TX_CTL_LDPC;
@@ -790,35 +781,42 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 		tx_info->flags |= (1 << IEEE80211_TX_CTL_STBC_SHIFT);
 
 	if (is_probe) {
-		/* set one try for probe rates. For the
-		 * probes don't enable rts */
+		/*
+		 * Set one try for probe rates. For the
+		 * probes don't enable RTS.
+		 */
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       1, rix, 0);
-
-		/* Get the next tried/allowed rate. No RTS for the next series
-		 * after the probe rate
+		/*
+		 * Get the next tried/allowed rate.
+		 * No RTS for the next series after the probe rate.
 		 */
-		ath_rc_get_lower_rix(rate_table, ath_rc_priv, rix, &rix);
+		ath_rc_get_lower_rix(ath_rc_priv, rix, &rix);
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, rix, 0);
 
 		tx_info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 	} else {
-		/* Set the chosen rate. No RTS for first series entry. */
+		/*
+		 * Set the chosen rate. No RTS for first series entry.
+		 */
 		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, rix, 0);
 	}
 
-	/* Fill in the other rates for multirate retry */
 	for ( ; i < 3; i++) {
+		ath_rc_get_lower_rix(ath_rc_priv, rix, &rix);
 
-		ath_rc_get_lower_rix(rate_table, ath_rc_priv, rix, &rix);
-		/* All other rates in the series have RTS enabled */
+		/*
+		 * All other rates in the series have RTS enabled.
+		 */
 		ath_rc_rate_set_series(rate_table, &rates[i], txrc,
 				       try_per_rate, rix, 1);
 	}
 
-	/* Use twice the number of tries for the last MRR segment. */
+	/*
+	 * Use twice the number of tries for the last MRR segment.
+	 */
 	try_per_rate = 8;
 
 	/*
@@ -827,11 +825,11 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	 * as last retry to ensure that the frame is tried in both
 	 * MCS and legacy rate.
 	 */
-	ath_rc_get_lower_rix(rate_table, ath_rc_priv, rix, &rix);
+	ath_rc_get_lower_rix(ath_rc_priv, rix, &rix);
+
 	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy) &&
 	    (ath_rc_priv->per[rix] > 45))
-		rix = ath_rc_get_highest_rix(sc, ath_rc_priv, rate_table,
-				&is_probe, true);
+		rix = ath_rc_get_highest_rix(ath_rc_priv, &is_probe, true);
 
 	/* All other rates in the series have RTS enabled */
 	ath_rc_rate_set_series(rate_table, &rates[i], txrc,
@@ -1061,8 +1059,8 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	if (ath_rc_priv->per[tx_rate] >= 55 && tx_rate > 0 &&
 	    rate_table->info[tx_rate].ratekbps <=
 	    rate_table->info[ath_rc_priv->rate_max_phy].ratekbps) {
-		ath_rc_get_lower_rix(rate_table, ath_rc_priv,
-				     (u8)tx_rate, &ath_rc_priv->rate_max_phy);
+		ath_rc_get_lower_rix(ath_rc_priv, (u8)tx_rate,
+				     &ath_rc_priv->rate_max_phy);
 
 		/* Don't probe for a little while. */
 		ath_rc_priv->probe_time = now_msec;
