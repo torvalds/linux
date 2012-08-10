@@ -1174,7 +1174,7 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 
 	chan = l2cap_chan_create();
 	if (!chan) {
-		l2cap_sock_kill(sk);
+		sk_free(sk);
 		return NULL;
 	}
 
