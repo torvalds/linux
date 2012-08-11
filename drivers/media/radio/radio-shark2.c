@@ -166,13 +166,6 @@ static void shark_led_work(struct work_struct *work)
 	struct shark_device *shark =
 		container_of(work, struct shark_device, led_work);
 	int i, res, brightness, actual_len;
-	/*
-	 * We use the v4l2_dev lock and registered bit to ensure the device
-	 * does not get unplugged and unreffed while we're running.
-	 */
-	mutex_lock(&shark->tea.mutex);
-	if (!video_is_registered(&shark->tea.vd))
-		goto leave;
 
 	for (i = 0; i < 2; i++) {
 		if (!test_and_clear_bit(i, &shark->brightness_new))
@@ -191,8 +184,6 @@ static void shark_led_work(struct work_struct *work)
 			v4l2_err(&shark->v4l2_dev, "set LED %s error: %d\n",
 				 shark->led_names[i], res);
 	}
-leave:
-	mutex_unlock(&shark->tea.mutex);
 }
 
 static void shark_led_set_blue(struct led_classdev *led_cdev,
@@ -231,6 +222,8 @@ static void usb_shark_disconnect(struct usb_interface *intf)
 	for (i = 0; i < NO_LEDS; i++)
 		led_classdev_unregister(&shark->leds[i]);
 
+	cancel_work_sync(&shark->led_work);
+
 	v4l2_device_put(&shark->v4l2_dev);
 }
 
@@ -238,7 +231,6 @@ static void usb_shark_release(struct v4l2_device *v4l2_dev)
 {
 	struct shark_device *shark = v4l2_dev_to_shark(v4l2_dev);
 
-	cancel_work_sync(&shark->led_work);
 	v4l2_device_unregister(&shark->v4l2_dev);
 	kfree(shark->transfer_buffer);
 	kfree(shark);
