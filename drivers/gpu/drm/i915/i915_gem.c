@@ -1276,6 +1276,42 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
 	return i915_gem_get_gtt_size(dev, size, tiling_mode);
 }
 
+static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	int ret;
+
+	if (obj->base.map_list.map)
+		return 0;
+
+	ret = drm_gem_create_mmap_offset(&obj->base);
+	if (ret != -ENOSPC)
+		return ret;
+
+	/* Badly fragmented mmap space? The only way we can recover
+	 * space is by destroying unwanted objects. We can't randomly release
+	 * mmap_offsets as userspace expects them to be persistent for the
+	 * lifetime of the objects. The closest we can is to release the
+	 * offsets on purgeable objects by truncating it and marking it purged,
+	 * which prevents userspace from ever using that object again.
+	 */
+	i915_gem_purge(dev_priv, obj->base.size >> PAGE_SHIFT);
+	ret = drm_gem_create_mmap_offset(&obj->base);
+	if (ret != -ENOSPC)
+		return ret;
+
+	i915_gem_shrink_all(dev_priv);
+	return drm_gem_create_mmap_offset(&obj->base);
+}
+
+static void i915_gem_object_free_mmap_offset(struct drm_i915_gem_object *obj)
+{
+	if (!obj->base.map_list.map)
+		return;
+
+	drm_gem_free_mmap_offset(&obj->base);
+}
+
 int
 i915_gem_mmap_gtt(struct drm_file *file,
 		  struct drm_device *dev,
@@ -1307,11 +1343,9 @@ i915_gem_mmap_gtt(struct drm_file *file,
 		goto out;
 	}
 
-	if (!obj->base.map_list.map) {
-		ret = drm_gem_create_mmap_offset(&obj->base);
-		if (ret)
-			goto out;
-	}
+	ret = i915_gem_object_create_mmap_offset(obj);
+	if (ret)
+		goto out;
 
 	*offset = (u64)obj->base.map_list.hash.key << PAGE_SHIFT;
 
@@ -1360,8 +1394,7 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	inode = obj->base.filp->f_path.dentry->d_inode;
 	shmem_truncate_range(inode, 0, (loff_t)-1);
 
-	if (obj->base.map_list.map)
-		drm_gem_free_mmap_offset(&obj->base);
+	i915_gem_object_free_mmap_offset(obj);
 
 	obj->madv = __I915_MADV_PURGED;
 }
@@ -3615,8 +3648,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	}
 
 	i915_gem_object_put_pages_gtt(obj);
-	if (obj->base.map_list.map)
-		drm_gem_free_mmap_offset(&obj->base);
+	i915_gem_object_free_mmap_offset(obj);
 
 	drm_gem_object_release(&obj->base);
 	i915_gem_info_remove_obj(dev_priv, obj->base.size);
