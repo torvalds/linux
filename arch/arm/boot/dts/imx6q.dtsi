@@ -552,6 +552,26 @@
 							48  0x1b0b0	/* MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL */
 						>;
 					};
+
+					pinctrl_enet_2: enetgrp-2 {
+						fsl,pins = <
+							890 0x1b0b0	/* MX6Q_PAD_KEY_COL1__ENET_MDIO */
+							909 0x1b0b0	/* MX6Q_PAD_KEY_COL2__ENET_MDC */
+							24  0x1b0b0	/* MX6Q_PAD_RGMII_TXC__ENET_RGMII_TXC */
+							30  0x1b0b0	/* MX6Q_PAD_RGMII_TD0__ENET_RGMII_TD0 */
+							34  0x1b0b0	/* MX6Q_PAD_RGMII_TD1__ENET_RGMII_TD1 */
+							39  0x1b0b0	/* MX6Q_PAD_RGMII_TD2__ENET_RGMII_TD2 */
+							44  0x1b0b0	/* MX6Q_PAD_RGMII_TD3__ENET_RGMII_TD3 */
+							56  0x1b0b0	/* MX6Q_PAD_RGMII_TX_CTL__RGMII_TX_CTL */
+							702 0x1b0b0	/* MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK */
+							74  0x1b0b0	/* MX6Q_PAD_RGMII_RXC__ENET_RGMII_RXC */
+							52  0x1b0b0	/* MX6Q_PAD_RGMII_RD0__ENET_RGMII_RD0 */
+							61  0x1b0b0	/* MX6Q_PAD_RGMII_RD1__ENET_RGMII_RD1 */
+							66  0x1b0b0	/* MX6Q_PAD_RGMII_RD2__ENET_RGMII_RD2 */
+							70  0x1b0b0	/* MX6Q_PAD_RGMII_RD3__ENET_RGMII_RD3 */
+							48  0x1b0b0	/* MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL */
+						>;
+					};
 				};
 
 				gpmi-nand {
@@ -594,6 +614,15 @@
 						fsl,pins = <
 							183 0x1b0b1	/* MX6Q_PAD_EIM_D26__UART2_TXD */
 							191 0x1b0b1	/* MX6Q_PAD_EIM_D27__UART2_RXD */
+						>;
+					};
+				};
+
+				uart4 {
+					pinctrl_uart4_1: uart4grp-1 {
+						fsl,pins = <
+							877 0x1b0b1	/* MX6Q_PAD_KEY_COL0__UART4_TXD */
+							885 0x1b0b1	/* MX6Q_PAD_KEY_ROW0__UART4_RXD */
 						>;
 					};
 				};

@@ -28,8 +28,27 @@
 			status = "disabled"; /* gpmi nand conflicts with SD */
 		};
 
+		aips-bus@02000000 { /* AIPS1 */
+			iomuxc@020e0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_hog>;
+
+				hog {
+					pinctrl_hog: hoggrp {
+						fsl,pins = <
+							176  0x80000000	/* MX6Q_PAD_EIM_D25__GPIO_3_25 */
+							1363 0x80000000	/* MX6Q_PAD_NANDF_CS0__GPIO_6_11 */
+							1369 0x80000000 /* MX6Q_PAD_NANDF_CS1__GPIO_6_14 */
+						>;
+					};
+				};
+			};
+		};
+
 		aips-bus@02100000 { /* AIPS2 */
 			ethernet@02188000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_enet_2>;
 				phy-mode = "rgmii";
 				status = "okay";
 			};
@@ -52,6 +71,8 @@
 			};
 
 			uart4: serial@021f0000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart4_1>;
 				status = "okay";
 			};
 		};
