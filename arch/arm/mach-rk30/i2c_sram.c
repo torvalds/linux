@@ -303,12 +303,15 @@ void __sramfunc rk30_suspend_voltage_set(unsigned int vol)
 {
     uint8 slaveaddr;
     uint16 slavereg;
-    uint8 data,ret;
+    uint8 data,ret = 0;
+	uint8 rtc_status_reg = 0x11;
 	slaveaddr = I2C_SADDR;            //slave device addr
     slavereg = 0x22;            // reg addr
     data = 0x23;       //set arm 1.0v
     
     sram_i2c_init();  //init i2c device
+    ret = sram_i2c_read(slaveaddr, rtc_status_reg);
+	sram_i2c_write(slaveaddr, rtc_status_reg, ret);
     arm_voltage = sram_i2c_read(slaveaddr, slavereg);
 //	sram_printhex(ret);
     sram_i2c_write(slaveaddr, slavereg, data);//	
@@ -320,7 +323,7 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 {
     uint8 slaveaddr;
     uint16 slavereg;
-    uint8 data,ret;
+    uint8 data,ret = 0;
 	slaveaddr = I2C_SADDR;            //slave device addr
     slavereg = 0x22;            // reg addr  
    	
