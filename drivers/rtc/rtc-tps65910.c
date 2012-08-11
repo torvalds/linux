@@ -350,21 +350,43 @@ static int tps65910_rtc_irq_set_freq(struct device *dev, int freq)
 	return ret;
 }
 
-
-
 static irqreturn_t tps65910_alm_irq(int irq, void *data)
 {
 	struct tps65910_rtc *tps65910_rtc = data;
+	int ret;
+	u8 rtc_ctl;
 
+	/*Dummy read -- mandatory for status register*/
+	ret = tps65910_reg_read(tps65910_rtc->tps65910, TPS65910_RTC_STATUS);
+	if (ret < 0) {
+		printk("%s:Failed to read RTC status: %d\n", __func__, ret);
+		return ret;
+	}
+		
+	ret = tps65910_reg_read(tps65910_rtc->tps65910, TPS65910_RTC_STATUS);
+	if (ret < 0) {
+		printk("%s:Failed to read RTC status: %d\n", __func__, ret);
+		return ret;
+	}
+	rtc_ctl = ret&0xff;
+
+	//The alarm interrupt keeps its low level, until the micro-controller write 1 in the ALARM bit of the RTC_STATUS_REG register.	
+	ret = tps65910_reg_write(tps65910_rtc->tps65910, TPS65910_RTC_STATUS,rtc_ctl);
+	if (ret < 0) {
+		printk("%s:Failed to read RTC status: %d\n", __func__, ret);
+		return ret;
+	}
+	
 	rtc_update_irq(tps65910_rtc->rtc, 1, RTC_IRQF | RTC_AF);
 	
+	printk("%s:irq=%d,rtc_ctl=0x%x\n",__func__,irq,rtc_ctl);
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t tps65910_per_irq(int irq, void *data)
 {
 	struct tps65910_rtc *tps65910_rtc = data;
-
+	
 	rtc_update_irq(tps65910_rtc->rtc, 1, RTC_IRQF | RTC_UF);
 
 	//printk("%s:irq=%d\n",__func__,irq);
@@ -558,6 +580,7 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	//tps65910_set_bits(tps65910_rtc->tps65910, TPS65910_RTC_INTERRUPTS,
 	//			       BIT_RTC_INTERRUPTS_REG_IT_TIMER_M);
 
+	enable_irq_wake(alm_irq); // so tps65910 alarm irq can wake up system
 	g_pdev = pdev;
 	
 	printk("%s:ok\n",__func__);
@@ -610,6 +633,8 @@ static ssize_t rtc_tps65910_test_write(struct file *file,
 	int nr = 0, ret;
 	struct platform_device *pdev;	
 	struct rtc_time tm;
+	struct rtc_wkalrm alrm;
+	struct tps65910_rtc *tps65910_rtc;
 	
 	if(count > 3)
 		return -EFAULT;
@@ -618,7 +643,7 @@ static ssize_t rtc_tps65910_test_write(struct file *file,
 		return -EFAULT;
 
 	sscanf(nr_buf, "%d", &nr);
-	if(nr >= 2 || nr < 0)
+	if(nr > 5 || nr < 0)
 	{
 		printk("%s:data is error\n",__func__);
 		return -EFAULT;
@@ -629,6 +654,10 @@ static ssize_t rtc_tps65910_test_write(struct file *file,
 	else
 		pdev = g_pdev;
 
+	
+	tps65910_rtc = dev_get_drvdata(&pdev->dev);
+	
+	//test rtc time
 	if(nr == 0)
 	{	
 		tm.tm_wday = 6;
@@ -661,6 +690,56 @@ static ssize_t rtc_tps65910_test_write(struct file *file,
 	printk("%s:ok\n",__func__);
 	else
 	printk("%s:error\n",__func__);
+	
+
+	//test rtc alarm
+	if(nr == 2)
+	{
+		//2000-01-01 00:00:30
+		if(tm.tm_sec < 30)
+		{
+			alrm.time.tm_sec = tm.tm_sec+30;	
+			alrm.time.tm_min = tm.tm_min;
+		}
+		else
+		{
+			alrm.time.tm_sec = tm.tm_sec-30;
+			alrm.time.tm_min = tm.tm_min+1;
+		}
+		alrm.time.tm_hour = tm.tm_hour;
+		alrm.time.tm_mday = tm.tm_mday;
+		alrm.time.tm_mon = tm.tm_mon;
+		alrm.time.tm_year = tm.tm_year;		
+		tps65910_rtc_alarm_irq_enable(&pdev->dev, 1);
+		tps65910_rtc_setalarm(&pdev->dev, &alrm);
+
+		dev_info(&pdev->dev, "Set alarm %4d-%02d-%02d(%d) %02d:%02d:%02d\n",
+				1900 + alrm.time.tm_year, alrm.time.tm_mon + 1, alrm.time.tm_mday, alrm.time.tm_wday,
+				alrm.time.tm_hour, alrm.time.tm_min, alrm.time.tm_sec);
+	}
+
+	
+	if(nr == 3)
+	{	
+		ret = tps65910_reg_read(tps65910_rtc->tps65910, TPS65910_RTC_STATUS);
+		if (ret < 0) {
+			printk("%s:Failed to read RTC status: %d\n", __func__, ret);
+			return ret;
+		}
+		printk("%s:ret=0x%x\n",__func__,ret&0xff);
+
+		ret = tps65910_reg_write(tps65910_rtc->tps65910, TPS65910_RTC_STATUS, ret&0xff);
+		if (ret < 0) {
+			printk("%s:Failed to read RTC status: %d\n", __func__, ret);
+			return ret;
+		}
+	}
+
+	if(nr == 4)
+	tps65910_rtc_update_irq_enable(&pdev->dev, 1);
+
+	if(nr == 5)
+	tps65910_rtc_update_irq_enable(&pdev->dev, 0);
 	
 	return count;
 }
