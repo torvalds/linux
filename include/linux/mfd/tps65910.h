@@ -18,6 +18,7 @@
 #define __LINUX_MFD_TPS65910_H
 
 #include <linux/gpio.h>
+#include <linux/wakelock.h>
 
 /* TPS chip id list */
 #define TPS65910			0
@@ -802,6 +803,7 @@ struct tps65910 {
 	struct i2c_client *i2c_client;
 	struct regmap *regmap;
 	struct mutex io_mutex;
+	struct wake_lock 	irq_wake;
 	unsigned int id;
 	int (*read)(struct tps65910 *tps65910, u8 reg, int size, void *dest);
 	int (*write)(struct tps65910 *tps65910, u8 reg, int size, void *src);
