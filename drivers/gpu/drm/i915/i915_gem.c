@@ -1385,6 +1385,11 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
 	struct inode *inode;
 
+	i915_gem_object_free_mmap_offset(obj);
+
+	if (obj->base.filp == NULL)
+		return;
+
 	/* Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
@@ -1392,8 +1397,6 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	 */
 	inode = obj->base.filp->f_path.dentry->d_inode;
 	shmem_truncate_range(inode, 0, (loff_t)-1);
-
-	i915_gem_object_free_mmap_offset(obj);
 
 	obj->madv = __I915_MADV_PURGED;
 }
