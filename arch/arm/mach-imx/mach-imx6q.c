@@ -22,7 +22,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/pinctrl/machine.h>
 #include <linux/phy.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/anatop.h>
@@ -159,12 +158,6 @@ static void __init imx6q_usb_init(void)
 
 static void __init imx6q_init_machine(void)
 {
-	/*
-	 * This should be removed when all imx6q boards have pinctrl
-	 * states for devices defined in device tree.
-	 */
-	pinctrl_provide_dummies();
-
 	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
 		imx6q_sabrelite_init();
 
