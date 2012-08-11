@@ -288,10 +288,14 @@ static int p54_get_maxpower(struct p54_common *priv, void *data)
 		for (j = 0; j < ARRAY_SIZE(pda->point); j++) {
 			struct pda_channel_output_limit_point_longbow *point =
 				&pda->point[j];
-			rawpower = max(rawpower, le16_to_cpu(point->val_qpsk));
-			rawpower = max(rawpower, le16_to_cpu(point->val_bpsk));
-			rawpower = max(rawpower, le16_to_cpu(point->val_16qam));
-			rawpower = max(rawpower, le16_to_cpu(point->val_64qam));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_qpsk));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_bpsk));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_16qam));
+			rawpower = max_t(u16,
+				rawpower, le16_to_cpu(point->val_64qam));
 		}
 		/* longbow seems to use 1/16 dBm units */
 		return rawpower / 16;
