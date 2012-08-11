@@ -183,6 +183,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		end_pfn = ((pos + (PMD_SIZE - 1))>>PMD_SHIFT)
 				 << (PMD_SHIFT - PAGE_SHIFT);
 #else /* CONFIG_X86_64 */
+	/*[x86_64][mm]] let end_pfn align with 1<<PMD_SHIT*/
 	end_pfn = ((pos + (PMD_SIZE - 1)) >> PMD_SHIFT)
 			<< (PMD_SHIFT - PAGE_SHIFT);
 #endif
