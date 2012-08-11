@@ -209,9 +209,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.b:  specify the version is  NOT sure stable.
 *v0.x.c:  1. add cif reset when resolution changed to avoid of collecting data erro
           2. irq process is splitted to two step.
-*v0.x.e: fix bugs of early suspend when display_pd is closed.          
+*v0.x.e: fix bugs of early suspend when display_pd is closed. 
+*v0.x.f: fix calculate ipp memory size is enough or not in try_fmt function; 
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0xe)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0xf)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -1616,7 +1617,8 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	bool is_capture = rk_camera_fmt_capturechk(f);
 	bool vipmem_is_overflow = false;
     struct v4l2_mbus_framefmt mf;
-
+    int bytes_per_line_host;
+    
 	usr_w = pix->width;
 	usr_h = pix->height;
 	RKCAMERA_DG("%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
@@ -1657,13 +1659,14 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 		goto RK_CAMERA_TRY_FMT_END;
     RKCAMERA_DG("%s mf.width:%d  mf.height:%d\n",__FUNCTION__,mf.width,mf.height);
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP       
-	if ((mf.width > usr_w) && (mf.height > usr_h)) {
+	if ((mf.width != usr_w) || (mf.height != usr_h)) {
+        bytes_per_line_host = soc_mbus_bytes_per_line(mf.width,icd->current_fmt->host_fmt); 
 		if (is_capture) {
-			vipmem_is_overflow = (PAGE_ALIGN(pix->bytesperline*pix->height) > pcdev->vipmem_size);
+			vipmem_is_overflow = (PAGE_ALIGN(bytes_per_line_host*mf.height) > pcdev->vipmem_size);
 		} else {
 			/* Assume preview buffer minimum is 4 */
-			vipmem_is_overflow = (PAGE_ALIGN(pix->bytesperline*pix->height)*4 > pcdev->vipmem_size);
-		}
+			vipmem_is_overflow = (PAGE_ALIGN(bytes_per_line_host*mf.height)*4 > pcdev->vipmem_size);
+		}        
 		if (vipmem_is_overflow == false) {
 			pix->width = usr_w;
 			pix->height = usr_h;
@@ -1672,26 +1675,14 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
             pix->width = mf.width;
             pix->height = mf.height;            
 		}
-	} else if ((mf.width < usr_w) && (mf.height < usr_h)) {
-		if (((usr_w>>1) < mf.width) && ((usr_h>>1) < mf.height)) {
-			if (is_capture) {
-				vipmem_is_overflow = (PAGE_ALIGN(pix->bytesperline*pix->height) > pcdev->vipmem_size);
-			} else {
-				vipmem_is_overflow = (PAGE_ALIGN(pix->bytesperline*pix->height)*4 > pcdev->vipmem_size);
-			}
-			if (vipmem_is_overflow == false) {
-				pix->width = usr_w;
-				pix->height = usr_h;
-			} else {
-				RKCAMERA_TR("vipmem for IPP is overflow, This resolution(%dx%d -> %dx%d) is invalidate!\n",mf.width,mf.height,usr_w,usr_h);
-		                pix->width = mf.width;
-		                pix->height = mf.height;
-			}
-		} else {
-			RKCAMERA_TR("The aspect ratio(%dx%d/%dx%d) is bigger than 2 !\n",mf.width,mf.height,usr_w,usr_h);
-		            pix->width = mf.width;
-		            pix->height = mf.height;
-		}
+        
+        if ((mf.width < usr_w) || (mf.height < usr_h)) {
+            if (((usr_w>>1) > mf.width) || ((usr_h>>1) > mf.height)) {
+                RKCAMERA_TR("The aspect ratio(%dx%d/%dx%d) is bigger than 2 !\n",mf.width,mf.height,usr_w,usr_h);
+                pix->width = mf.width;
+                pix->height = mf.height;
+            }
+        }        
 	}
 	#else
 	//need to change according to crop and scale capablicity
