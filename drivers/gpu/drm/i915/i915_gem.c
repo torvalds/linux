@@ -41,7 +41,8 @@ static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *o
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 static __must_check int i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 						    unsigned alignment,
-						    bool map_and_fenceable);
+						    bool map_and_fenceable,
+						    bool nonblocking);
 static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -609,7 +610,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 	char __user *user_data;
 	int page_offset, page_length, ret;
 
-	ret = i915_gem_object_pin(obj, 0, true);
+	ret = i915_gem_object_pin(obj, 0, true, true);
 	if (ret)
 		goto out;
 
@@ -925,10 +926,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-	if (obj->gtt_space &&
-	    obj->cache_level == I915_CACHE_NONE &&
+	if (obj->cache_level == I915_CACHE_NONE &&
 	    obj->tiling_mode == I915_TILING_NONE &&
-	    obj->map_and_fenceable &&
 	    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file);
 		/* Note that the gtt paths might fail with non-page-backed user
@@ -936,7 +935,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		 * textures). Fallback to the shmem path in that case. */
 	}
 
-	if (ret == -EFAULT)
+	if (ret == -EFAULT || ret == -ENOSPC)
 		ret = i915_gem_shmem_pwrite(dev, obj, args, file);
 
 out:
@@ -1115,7 +1114,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			goto unlock;
 	}
 	if (!obj->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0, true);
+		ret = i915_gem_object_bind_to_gtt(obj, 0, true, false);
 		if (ret)
 			goto unlock;
 
@@ -2772,7 +2771,8 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 static int
 i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 			    unsigned alignment,
-			    bool map_and_fenceable)
+			    bool map_and_fenceable,
+			    bool nonblocking)
 {
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -2848,7 +2848,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	if (obj->gtt_space == NULL) {
 		ret = i915_gem_evict_something(dev, size, alignment,
 					       obj->cache_level,
-					       map_and_fenceable);
+					       map_and_fenceable,
+					       nonblocking);
 		if (ret)
 			return ret;
 
@@ -3188,7 +3189,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 	 * (e.g. libkms for the bootup splash), we have to ensure that we
 	 * always use map_and_fenceable for all scanout buffers.
 	 */
-	ret = i915_gem_object_pin(obj, alignment, true);
+	ret = i915_gem_object_pin(obj, alignment, true, false);
 	if (ret)
 		return ret;
 
@@ -3325,7 +3326,8 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 int
 i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    uint32_t alignment,
-		    bool map_and_fenceable)
+		    bool map_and_fenceable,
+		    bool nonblocking)
 {
 	int ret;
 
@@ -3349,7 +3351,8 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 
 	if (obj->gtt_space == NULL) {
 		ret = i915_gem_object_bind_to_gtt(obj, alignment,
-						  map_and_fenceable);
+						  map_and_fenceable,
+						  nonblocking);
 		if (ret)
 			return ret;
 	}
@@ -3407,7 +3410,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	obj->user_pin_count++;
 	obj->pin_filp = file;
 	if (obj->user_pin_count == 1) {
-		ret = i915_gem_object_pin(obj, args->alignment, true);
+		ret = i915_gem_object_pin(obj, args->alignment, true, false);
 		if (ret)
 			goto out;
 	}

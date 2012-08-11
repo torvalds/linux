@@ -354,7 +354,7 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 		obj->tiling_mode != I915_TILING_NONE;
 	need_mappable = need_fence || need_reloc_mappable(obj);
 
-	ret = i915_gem_object_pin(obj, entry->alignment, need_mappable);
+	ret = i915_gem_object_pin(obj, entry->alignment, need_mappable, false);
 	if (ret)
 		return ret;
 

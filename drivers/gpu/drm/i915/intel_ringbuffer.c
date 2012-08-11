@@ -391,7 +391,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 
 	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
 
-	ret = i915_gem_object_pin(obj, 4096, true);
+	ret = i915_gem_object_pin(obj, 4096, true, false);
 	if (ret)
 		goto err_unref;
 
@@ -979,7 +979,7 @@ static int init_status_page(struct intel_ring_buffer *ring)
 
 	i915_gem_object_set_cache_level(obj, I915_CACHE_LLC);
 
-	ret = i915_gem_object_pin(obj, 4096, true);
+	ret = i915_gem_object_pin(obj, 4096, true, false);
 	if (ret != 0) {
 		goto err_unref;
 	}
@@ -1036,7 +1036,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	ring->obj = obj;
 
-	ret = i915_gem_object_pin(obj, PAGE_SIZE, true);
+	ret = i915_gem_object_pin(obj, PAGE_SIZE, true, false);
 	if (ret)
 		goto err_unref;
 
