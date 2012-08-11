@@ -872,8 +872,14 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	dev_drv->get_disp_info  = def_drv->get_disp_info;
 	dev_drv->ovl_mgr	= def_drv->ovl_mgr;
 	dev_drv->fps_mgr	= def_drv->fps_mgr;
-	dev_drv->fb_get_layer   = def_drv->fb_get_layer;
-	dev_drv->fb_layer_remap = def_drv->fb_layer_remap;
+	if(def_drv->fb_get_layer)
+		dev_drv->fb_get_layer   = def_drv->fb_get_layer;
+	if(def_drv->fb_layer_remap)
+		dev_drv->fb_layer_remap = def_drv->fb_layer_remap;
+	if(def_drv->set_dsp_lut)
+		dev_drv->set_dsp_lut    = def_drv->set_dsp_lut;
+	if(def_drv->read_dsp_lut)
+		dev_drv->read_dsp_lut   = def_drv->read_dsp_lut;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);

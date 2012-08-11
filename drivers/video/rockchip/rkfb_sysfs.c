@@ -237,6 +237,50 @@ static ssize_t set_fb_win_map(struct device *dev,struct device_attribute *attr,
 	
 }
 
+static ssize_t show_dsp_lut(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	
+}
+static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	int dsp_lut[256];
+	char *start = buf;
+	int i=256,temp;
+	int space_max = 10;
+
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	
+	for(i=0;i<256;i++)
+	{
+		temp = i;
+		dsp_lut[i] = temp + (temp<<8) + (temp<<16);  //init by default value
+	}
+	printk("%s\n",start);
+	for(i=0;i<256;i++)
+	{
+		temp = simple_strtoul(start,NULL,10);
+		do
+		{
+			start++;
+			space_max--;
+		}while ((*start != ' ')&&space_max);
+		
+		if(!space_max)
+			break;
+		else
+			start++;
+	}
+	
+	dev_drv->set_dsp_lut(dev_drv,dsp_lut);
+
+	return count;
+	
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
@@ -246,6 +290,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(overlay, S_IRUGO | S_IWUSR, show_overlay, set_overlay),
 	__ATTR(fps, S_IRUGO | S_IWUSR, show_fps, set_fps),
 	__ATTR(map, S_IRUGO | S_IWUSR, show_fb_win_map, set_fb_win_map),
+	__ATTR(dsp_lut, S_IRUGO | S_IWUSR, show_dsp_lut, set_dsp_lut),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

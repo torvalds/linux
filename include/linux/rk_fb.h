@@ -232,6 +232,8 @@ struct rk_lcdc_device_driver{
 	int (*fps_mgr)(struct rk_lcdc_device_driver *dev_drv,int fps,bool set);
 	int (*fb_get_layer)(struct rk_lcdc_device_driver *dev_drv,const char *id);                                      //find layer for fb
 	int (*fb_layer_remap)(struct rk_lcdc_device_driver *dev_drv,enum fb_win_map_order order);
+	int (*set_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
+	int (*read_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
 	
 };
 
