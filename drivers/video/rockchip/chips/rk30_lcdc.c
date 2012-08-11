@@ -856,7 +856,7 @@ static int rk30_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,int order)
        mutex_lock(&dev_drv->fb_win_id_mutex);
        if(order == FB_DEFAULT_ORDER )
 	{
-		order = FB0_WIN2_FB1_WIN0_FB2_WIN1;
+		order = FB0_WIN1_FB1_WIN0_FB2_WIN2;
 	}
        dev_drv->fb2_win_id  = order/100;
        dev_drv->fb1_win_id = (order/10)%10;
@@ -890,6 +890,33 @@ static int rk30_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *i
        return  layer_id;
 }
 
+static int rk30_read_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
+{
+
+	return 0;
+}
+
+static int rk30_set_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
+{
+	int i=0;
+	int __iomem *c;
+	int v;
+
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(0));
+	LCDC_REG_CFG_DONE();  
+	for(i=0;i<256;i++)
+	{
+		v = lut[i];
+		c = lcdc_dev->dsp_lut_addr_base+i;
+		writel_relaxed(v,c);
+		
+	}
+	LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(1));
+	LCDC_REG_CFG_DONE();
+
+	return 0;
+}
 int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
@@ -998,6 +1025,8 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fps_mgr		= rk30_lcdc_fps_mgr,
 	.fb_get_layer           = rk30_fb_get_layer,
 	.fb_layer_remap         = rk30_fb_layer_remap,
+	.set_dsp_lut            = rk30_set_dsp_lut,
+	.read_dsp_lut            = rk30_read_dsp_lut,
 };
 #ifdef CONFIG_PM
 static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1071,6 +1100,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	}
 	
     	lcdc_dev->preg = (LCDC_REG*)lcdc_dev->reg_vir_base;
+	lcdc_dev->dsp_lut_addr_base = &lcdc_dev->preg->DSP_LUT_ADDR;
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
 	lcdc_dev->driver.dev=&pdev->dev;
 	lcdc_dev->driver.screen = screen;

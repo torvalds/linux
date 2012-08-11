@@ -71,6 +71,10 @@ typedef volatile struct tagLCDC_REG
 	unsigned int MCU_BYPASS_WPORT;         //0x100 MCU BYPASS MODE, DATA Write Only Port
 	unsigned int reserved2[(0x200-0x104)/4];
 	unsigned int MCU_BYPASS_RPORT;         //0x200 MCU BYPASS MODE, DATA Read Only Port   
+	unsigned int reserved3[(0x400-0x204)/4];
+	unsigned int WIN2_LUT_ADDR;
+	unsigned int reserved4[(0x800-0x404)/4];
+	unsigned int DSP_LUT_ADDR;
   
 } LCDC_REG, *pLCDC_REG;
 
@@ -164,8 +168,7 @@ typedef volatile struct tagLCDC_REG
 #define v_W2_RGB_ALPHA_SWAP(x)   (((x)&1)<<28)
 #define v_W2_8pp_PALETTE_ENDIAN_SELECT (((x)&1)<<29)
 #define v_W2_LUT_RAM_EN(x)      (((x)&1)<<30)
-#define v_DSP_LUT_RAM_EN(x)¡¡¡¡¡¡(((x)&1)<<31)
-
+#define v_DSP_LUT_RAM_EN(x)      (((x)&1)<<31)
 
 //LCDC_DSP_CTRL_REG0
 #define m_DISPLAY_FORMAT             (0x0f<<0)
@@ -478,6 +481,7 @@ struct rk30_lcdc_device{
 	
 	LCDC_REG *preg;         // LCDC reg base address and backup reg 
     	LCDC_REG regbak;
+	int __iomem *dsp_lut_addr_base;
 
 	void __iomem *reg_vir_base;  	// virtual basic address of lcdc register
 	u32 reg_phy_base;       	// physical basic address of lcdc register
