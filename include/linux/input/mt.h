@@ -28,12 +28,14 @@ struct input_mt_slot {
  * @trkid: stores MT tracking ID for the next contact
  * @num_slots: number of MT slots the device uses
  * @slot: MT slot currently being transmitted
+ * @flags: input_mt operation flags
  * @slots: array of slots holding current values of tracked contacts
  */
 struct input_mt {
 	int trkid;
 	int num_slots;
 	int slot;
+	unsigned int flags;
 	struct input_mt_slot slots[];
 };
 
@@ -49,7 +51,8 @@ static inline int input_mt_get_value(const struct input_mt_slot *slot,
 	return slot->abs[code - ABS_MT_FIRST];
 }
 
-int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots);
+int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
+			unsigned int flags);
 void input_mt_destroy_slots(struct input_dev *dev);
 
 static inline int input_mt_new_trkid(struct input_mt *mt)
