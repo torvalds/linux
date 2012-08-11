@@ -258,15 +258,6 @@ static int usb_shark_probe(struct usb_interface *intf,
 	if (!shark->transfer_buffer)
 		goto err_alloc_buffer;
 
-	/*
-	 * Work around a bug in usbhid/hid-core.c, where it leaves a dangling
-	 * pointer in intfdata causing v4l2-device.c to not set it. Which
-	 * results in usb_shark_disconnect() referencing the dangling pointer
-	 *
-	 * REMOVE (as soon as the above bug is fixed, patch submitted)
-	 */
-	usb_set_intfdata(intf, NULL);
-
 	shark->v4l2_dev.release = usb_shark_release;
 	v4l2_device_set_name(&shark->v4l2_dev, DRV_NAME, &shark_instance);
 	retval = v4l2_device_register(&intf->dev, &shark->v4l2_dev);
