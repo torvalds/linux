@@ -51,8 +51,13 @@
 				gpios {
 					pinctrl_gpio_hog: gpiohog {
 						fsl,pins = <
-							144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
+							1450 0x80000000	/* MX6Q_PAD_NANDF_D6__GPIO_2_6 */
+							1458 0x80000000	/* MX6Q_PAD_NANDF_D7__GPIO_2_7 */
 							121  0x80000000	/* MX6Q_PAD_EIM_D19__GPIO_3_19 */
+							144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
+							152  0x80000000	/* MX6Q_PAD_EIM_D23__GPIO_3_23 */
+							1262 0x80000000 /* MX6Q_PAD_SD3_DAT5__GPIO_7_0 */
+							1270 0x1f0b0	/* MX6Q_PAD_SD3_DAT4__GPIO_7_1 */
 							953  0x80000000	/* MX6Q_PAD_GPIO_0__CCM_CLKO */
 						>;
 					};
@@ -71,12 +76,16 @@
 			};
 
 			ethernet@02188000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_enet_1>;
 				phy-mode = "rgmii";
 				phy-reset-gpios = <&gpio3 23 0>;
 				status = "okay";
 			};
 
 			usdhc@02198000 { /* uSDHC3 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc3_2>;
 				cd-gpios = <&gpio7 0 0>;
 				wp-gpios = <&gpio7 1 0>;
 				vmmc-supply = <&reg_3p3v>;
@@ -84,6 +93,8 @@
 			};
 
 			usdhc@0219c000 { /* uSDHC4 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc4_2>;
 				cd-gpios = <&gpio2 6 0>;
 				wp-gpios = <&gpio2 7 0>;
 				vmmc-supply = <&reg_3p3v>;

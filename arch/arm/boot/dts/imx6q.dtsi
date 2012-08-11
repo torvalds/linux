@@ -532,6 +532,28 @@
 					};
 				};
 
+				enet {
+					pinctrl_enet_1: enetgrp-1 {
+						fsl,pins = <
+							695 0x1b0b0	/* MX6Q_PAD_ENET_MDIO__ENET_MDIO */
+							756 0x1b0b0	/* MX6Q_PAD_ENET_MDC__ENET_MDC */
+							24  0x1b0b0	/* MX6Q_PAD_RGMII_TXC__ENET_RGMII_TXC */
+							30  0x1b0b0	/* MX6Q_PAD_RGMII_TD0__ENET_RGMII_TD0 */
+							34  0x1b0b0	/* MX6Q_PAD_RGMII_TD1__ENET_RGMII_TD1 */
+							39  0x1b0b0	/* MX6Q_PAD_RGMII_TD2__ENET_RGMII_TD2 */
+							44  0x1b0b0	/* MX6Q_PAD_RGMII_TD3__ENET_RGMII_TD3 */
+							56  0x1b0b0	/* MX6Q_PAD_RGMII_TX_CTL__RGMII_TX_CTL */
+							702 0x1b0b0	/* MX6Q_PAD_ENET_REF_CLK__ENET_TX_CLK */
+							74  0x1b0b0	/* MX6Q_PAD_RGMII_RXC__ENET_RGMII_RXC */
+							52  0x1b0b0	/* MX6Q_PAD_RGMII_RD0__ENET_RGMII_RD0 */
+							61  0x1b0b0	/* MX6Q_PAD_RGMII_RD1__ENET_RGMII_RD1 */
+							66  0x1b0b0	/* MX6Q_PAD_RGMII_RD2__ENET_RGMII_RD2 */
+							70  0x1b0b0	/* MX6Q_PAD_RGMII_RD3__ENET_RGMII_RD3 */
+							48  0x1b0b0	/* MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL */
+						>;
+					};
+				};
+
 				gpmi-nand {
 					pinctrl_gpmi_nand_1: gpmi-nand-1 {
 						fsl,pins = <
@@ -591,6 +613,17 @@
 							1241 0x17059	/* MX6Q_PAD_SD3_DAT7__USDHC3_DAT7 */
 						>;
 					};
+
+					pinctrl_usdhc3_2: usdhc3grp-2 {
+						fsl,pins = <
+							1273 0x17059	/* MX6Q_PAD_SD3_CMD__USDHC3_CMD */
+							1281 0x10059	/* MX6Q_PAD_SD3_CLK__USDHC3_CLK	*/
+							1289 0x17059	/* MX6Q_PAD_SD3_DAT0__USDHC3_DAT0 */
+							1297 0x17059	/* MX6Q_PAD_SD3_DAT1__USDHC3_DAT1 */
+							1305 0x17059	/* MX6Q_PAD_SD3_DAT2__USDHC3_DAT2 */
+							1312 0x17059	/* MX6Q_PAD_SD3_DAT3__USDHC3_DAT3 */
+						>;
+					};
 				};
 
 				usdhc4 {
@@ -606,6 +639,17 @@
 							1501 0x17059	/* MX6Q_PAD_SD4_DAT5__USDHC4_DAT5 */
 							1509 0x17059	/* MX6Q_PAD_SD4_DAT6__USDHC4_DAT6 */
 							1517 0x17059	/* MX6Q_PAD_SD4_DAT7__USDHC4_DAT7 */
+						>;
+					};
+
+					pinctrl_usdhc4_2: usdhc4grp-2 {
+						fsl,pins = <
+							1386 0x17059	/* MX6Q_PAD_SD4_CMD__USDHC4_CMD */
+							1392 0x10059	/* MX6Q_PAD_SD4_CLK__USDHC4_CLK	*/
+							1462 0x17059	/* MX6Q_PAD_SD4_DAT0__USDHC4_DAT0 */
+							1470 0x17059	/* MX6Q_PAD_SD4_DAT1__USDHC4_DAT1 */
+							1478 0x17059	/* MX6Q_PAD_SD4_DAT2__USDHC4_DAT2 */
+							1486 0x17059	/* MX6Q_PAD_SD4_DAT3__USDHC4_DAT3 */
 						>;
 					};
 				};
