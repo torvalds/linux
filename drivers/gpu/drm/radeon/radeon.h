@@ -1135,11 +1135,9 @@ struct radeon_asic {
 	struct {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
-		uint32_t (*page_flags)(struct radeon_device *rdev,
-				       struct radeon_vm *vm,
-				       uint32_t flags);
 		void (*set_page)(struct radeon_device *rdev, struct radeon_vm *vm,
-				 unsigned pfn, uint64_t addr, uint32_t flags);
+				 unsigned pfn, struct ttm_mem_reg *mem,
+				 unsigned npages, uint32_t flags);
 	} vm;
 	/* ring specific callbacks */
 	struct {
@@ -1751,8 +1749,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
 #define radeon_asic_vm_init(rdev) (rdev)->asic->vm.init((rdev))
 #define radeon_asic_vm_fini(rdev) (rdev)->asic->vm.fini((rdev))
-#define radeon_asic_vm_page_flags(rdev, v, flags) (rdev)->asic->vm.page_flags((rdev), (v), (flags))
-#define radeon_asic_vm_set_page(rdev, v, pfn, addr, flags) (rdev)->asic->vm.set_page((rdev), (v), (pfn), (addr), (flags))
+#define radeon_asic_vm_set_page(rdev, v, pfn, mem, npages, flags) (rdev)->asic->vm.set_page((rdev), (v), (pfn), (mem), (npages), (flags))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
 #define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)].ring_test((rdev), (cp))
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))
@@ -1837,6 +1834,9 @@ struct radeon_fence *radeon_vm_grab_id(struct radeon_device *rdev,
 void radeon_vm_fence(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_fence *fence);
+u64 radeon_vm_get_addr(struct radeon_device *rdev,
+                       struct ttm_mem_reg *mem,
+                       unsigned pfn);
 int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_vm *vm,
 			    struct radeon_bo *bo,

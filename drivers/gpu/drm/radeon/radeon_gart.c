@@ -450,7 +450,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 		r = radeon_asic_vm_init(rdev);
 		if (r)
 			return r;
-	
+
 		rdev->vm_manager.enabled = true;
 
 		r = radeon_sa_bo_manager_start(rdev, &rdev->vm_manager.sa_manager);
@@ -773,9 +773,9 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
  * to (cayman+).
  * Returns the physical address of the page.
  */
-static u64 radeon_vm_get_addr(struct radeon_device *rdev,
-			      struct ttm_mem_reg *mem,
-			      unsigned pfn)
+u64 radeon_vm_get_addr(struct radeon_device *rdev,
+		       struct ttm_mem_reg *mem,
+		       unsigned pfn)
 {
 	u64 addr = 0;
 
@@ -819,9 +819,8 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct ttm_mem_reg *mem)
 {
 	struct radeon_bo_va *bo_va;
-	unsigned ngpu_pages, i;
-	uint64_t addr = 0, pfn;
-	uint32_t flags;
+	unsigned ngpu_pages;
+	uint64_t pfn;
 
 	/* nothing to do if vm isn't bound */
 	if (vm->sa_bo == NULL)
@@ -848,14 +847,11 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			bo_va->flags |= RADEON_VM_PAGE_SYSTEM;
 		}
 	}
-	pfn = bo_va->soffset / RADEON_GPU_PAGE_SIZE;
-	flags = radeon_asic_vm_page_flags(rdev, bo_va->vm, bo_va->flags);
-	for (i = 0, addr = 0; i < ngpu_pages; i++) {
-		if (mem && bo_va->valid) {
-			addr = radeon_vm_get_addr(rdev, mem, i);
-		}
-		radeon_asic_vm_set_page(rdev, bo_va->vm, i + pfn, addr, flags);
+	if (!bo_va->valid) {
+		mem = NULL;
 	}
+	pfn = bo_va->soffset / RADEON_GPU_PAGE_SIZE;
+	radeon_asic_vm_set_page(rdev, bo_va->vm, pfn, mem, ngpu_pages, bo_va->flags);
 	radeon_fence_unref(&vm->last_flush);
 	return 0;
 }

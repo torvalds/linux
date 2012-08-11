@@ -1375,7 +1375,6 @@ static struct radeon_asic cayman_asic = {
 	.vm = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
-		.page_flags = &cayman_vm_page_flags,
 		.set_page = &cayman_vm_set_page,
 	},
 	.ring = {
@@ -1479,7 +1478,6 @@ static struct radeon_asic trinity_asic = {
 	.vm = {
 		.init = &cayman_vm_init,
 		.fini = &cayman_vm_fini,
-		.page_flags = &cayman_vm_page_flags,
 		.set_page = &cayman_vm_set_page,
 	},
 	.ring = {
@@ -1583,7 +1581,6 @@ static struct radeon_asic si_asic = {
 	.vm = {
 		.init = &si_vm_init,
 		.fini = &si_vm_fini,
-		.page_flags = &cayman_vm_page_flags,
 		.set_page = &cayman_vm_set_page,
 	},
 	.ring = {

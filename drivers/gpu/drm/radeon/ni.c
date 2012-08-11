@@ -1503,9 +1503,7 @@ void cayman_vm_fini(struct radeon_device *rdev)
 #define R600_PTE_READABLE  (1 << 5)
 #define R600_PTE_WRITEABLE (1 << 6)
 
-uint32_t cayman_vm_page_flags(struct radeon_device *rdev,
-			      struct radeon_vm *vm,
-			      uint32_t flags)
+uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags)
 {
 	uint32_t r600_flags = 0;
 
@@ -1520,13 +1518,23 @@ uint32_t cayman_vm_page_flags(struct radeon_device *rdev,
 }
 
 void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
-			unsigned pfn, uint64_t addr, uint32_t flags)
+			unsigned pfn, struct ttm_mem_reg *mem,
+			unsigned npages, uint32_t flags)
 {
 	void __iomem *ptr = (void *)vm->pt;
+	uint64_t addr;
+	int i;
 
-	addr = addr & 0xFFFFFFFFFFFFF000ULL;
-	addr |= flags;
-	writeq(addr, ptr + (pfn * 8));
+	addr = flags = cayman_vm_page_flags(rdev, flags);
+
+        for (i = 0; i < npages; ++i, ++pfn) {
+                if (mem) {
+                        addr = radeon_vm_get_addr(rdev, mem, i);
+			addr = addr & 0xFFFFFFFFFFFFF000ULL;
+			addr |= flags;
+                }
+		writeq(addr, ptr + (pfn * 8));
+        }
 }
 
 void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
