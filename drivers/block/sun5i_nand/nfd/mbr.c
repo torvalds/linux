@@ -111,13 +111,24 @@ __s32 _free_mbr(void)
 int mbr2disks(struct nand_disk* disk_array)
 {
 	int part_cnt = 0;
-	int part_index;
+	int part_index = 0;
+
+	PRINT("The %d disk name = %s, class name = %s, disk start = 0, disk size = %d\n",
+		part_index, "DEVICE", "NAND", DiskSize);
+
+	/*
+	 * for nand recovery in case it's trashed during formatting always
+	 * make the nand device before possibly failing on a bad mbr
+	 */
+	disk_array[part_index].offset = 0;
+	disk_array[part_index].size = DiskSize;
+	part_index++;
 
 	if(_get_mbr()){
 		printk("get mbr error\n" );
-		return part_cnt;
+		return part_index;
 	}
-	part_index = 0;
+
 	//查找出所有的LINUX盘符
 	for(part_cnt = 0; part_cnt < mbr->PartCount && part_cnt < MAX_PART_COUNT; part_cnt++)
 	{
