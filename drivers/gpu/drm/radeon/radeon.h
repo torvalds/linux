@@ -1135,6 +1135,8 @@ struct radeon_asic {
 	struct {
 		int (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
+
+		u32 pt_ring_index;
 		void (*set_page)(struct radeon_device *rdev, struct radeon_vm *vm,
 				 unsigned pfn, struct ttm_mem_reg *mem,
 				 unsigned npages, uint32_t flags);

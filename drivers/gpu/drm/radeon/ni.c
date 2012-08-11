@@ -1521,20 +1521,24 @@ void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
 			unsigned pfn, struct ttm_mem_reg *mem,
 			unsigned npages, uint32_t flags)
 {
-	void __iomem *ptr = (void *)vm->pt;
-	uint64_t addr;
+	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
+	uint64_t addr, pt = vm->pt_gpu_addr + pfn * 8;
 	int i;
 
 	addr = flags = cayman_vm_page_flags(rdev, flags);
 
-        for (i = 0; i < npages; ++i, ++pfn) {
-                if (mem) {
-                        addr = radeon_vm_get_addr(rdev, mem, i);
+	radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, 1 + npages * 2));
+	radeon_ring_write(ring, pt & 0xffffffff);
+	radeon_ring_write(ring, (pt >> 32) & 0xff);
+	for (i = 0; i < npages; ++i) {
+		if (mem) {
+			addr = radeon_vm_get_addr(rdev, mem, i);
 			addr = addr & 0xFFFFFFFFFFFFF000ULL;
 			addr |= flags;
-                }
-		writeq(addr, ptr + (pfn * 8));
-        }
+		}
+		radeon_ring_write(ring, addr & 0xffffffff);
+		radeon_ring_write(ring, (addr >> 32) & 0xffffffff);
+	}
 }
 
 void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
