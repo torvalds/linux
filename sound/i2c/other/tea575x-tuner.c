@@ -191,7 +191,7 @@ static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
 	return snd_tea575x_val_to_freq(tea, snd_tea575x_read(tea));
 }
 
-static void snd_tea575x_set_freq(struct snd_tea575x *tea)
+void snd_tea575x_set_freq(struct snd_tea575x *tea)
 {
 	u32 freq = tea->freq / 16;	/* to kHz */
 	u32 band = 0;
@@ -571,3 +571,4 @@ module_exit(alsa_tea575x_module_exit)
 
 EXPORT_SYMBOL(snd_tea575x_init);
 EXPORT_SYMBOL(snd_tea575x_exit);
+EXPORT_SYMBOL(snd_tea575x_set_freq);

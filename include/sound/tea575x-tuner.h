@@ -73,5 +73,6 @@ struct snd_tea575x {
 
 int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner);
 void snd_tea575x_exit(struct snd_tea575x *tea);
+void snd_tea575x_set_freq(struct snd_tea575x *tea);
 
 #endif /* __SOUND_TEA575X_TUNER_H */
