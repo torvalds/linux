@@ -748,6 +748,8 @@ source "drivers/media/video/tm6000/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
+source "drivers/media/video/stk1160/Kconfig"
+
 endif # V4L_USB_DRIVERS
 
 #
