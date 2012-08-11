@@ -184,7 +184,7 @@ static u32 tea5777_freq_to_v4l2_freq(struct radio_tea5777 *tea, u32 freq)
 	return 0; /* Never reached */
 }
 
-static int radio_tea5777_set_freq(struct radio_tea5777 *tea)
+int radio_tea5777_set_freq(struct radio_tea5777 *tea)
 {
 	u32 freq;
 	int res;
