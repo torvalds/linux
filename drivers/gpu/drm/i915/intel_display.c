@@ -5584,12 +5584,13 @@ mode_fits_in_fbdev(struct drm_device *dev,
 	return fb;
 }
 
-bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
-				struct drm_connector *connector,
+bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
 				struct intel_load_detect_pipe *old)
 {
 	struct intel_crtc *intel_crtc;
+	struct intel_encoder *intel_encoder =
+		intel_attached_encoder(connector);
 	struct drm_crtc *possible_crtc;
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
@@ -5694,10 +5695,11 @@ fail:
 	return false;
 }
 
-void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
-				    struct drm_connector *connector,
+void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct intel_load_detect_pipe *old)
 {
+	struct intel_encoder *intel_encoder =
+		intel_attached_encoder(connector);
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
 
