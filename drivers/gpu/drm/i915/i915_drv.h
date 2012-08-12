@@ -428,12 +428,6 @@ typedef struct drm_i915_private {
 
 	struct resource mch_res;
 
-	unsigned int cpp;
-	int back_offset;
-	int front_offset;
-	int current_page;
-	int page_flipping;
-
 	atomic_t irq_received;
 
 	/* protects the irq masks */
@@ -451,7 +445,6 @@ typedef struct drm_i915_private {
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
 
-	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int num_pipe;
 	int num_pch_pll;
 
@@ -790,6 +783,12 @@ typedef struct drm_i915_private {
 	struct {
 		unsigned allow_batchbuffer : 1;
 		u32 __iomem *gfx_hws_cpu_addr;
+
+		unsigned int cpp;
+		int back_offset;
+		int front_offset;
+		int current_page;
+		int page_flipping;
 	} dri1;
 
 	/* Kernel Modesetting */
