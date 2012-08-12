@@ -286,6 +286,19 @@
 					};
 				};
 
+				esdhc2 {
+					pinctrl_esdhc2_1: esdhc2grp-1 {
+						fsl,pins = <
+							1038 0x1d5	/* MX53_PAD_SD2_CMD__ESDHC2_CMD */
+							1032 0x1d5	/* MX53_PAD_SD2_CLK__ESDHC2_CLK */
+							1062 0x1d5	/* MX53_PAD_SD2_DATA0__ESDHC2_DAT0 */
+							1056 0x1d5	/* MX53_PAD_SD2_DATA1__ESDHC2_DAT1 */
+							1050 0x1d5	/* MX53_PAD_SD2_DATA2__ESDHC2_DAT2 */
+							1044 0x1d5	/* MX53_PAD_SD2_DATA3__ESDHC2_DAT3 */
+						>;
+					};
+				};
+
 				esdhc3 {
 					pinctrl_esdhc3_1: esdhc3grp-1 {
 						fsl,pins = <
@@ -333,6 +346,26 @@
 						fsl,pins = <
 							828 0x1c5	/* MX53_PAD_PATA_DIOW__UART1_TXD_MUX */
 							832 0x1c5	/* MX53_PAD_PATA_DMACK__UART1_RXD_MUX */
+						>;
+					};
+				};
+
+				uart2 {
+					pinctrl_uart2_1: uart2grp-1 {
+						fsl,pins = <
+							841 0x1c5	/* MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX */
+							836 0x1c5	/* MX53_PAD_PATA_DMARQ__UART2_TXD_MUX */
+						>;
+					};
+				};
+
+				uart3 {
+					pinctrl_uart3_1: uart3grp-1 {
+						fsl,pins = <
+							884 0x1c5	/* MX53_PAD_PATA_CS_0__UART3_TXD_MUX */
+							888 0x1c5	/* MX53_PAD_PATA_CS_1__UART3_RXD_MUX */
+							875 0x1c5	/* MX53_PAD_PATA_DA_1__UART3_CTS */
+							880 0x1c5	/* MX53_PAD_PATA_DA_2__UART3_RTS */
 						>;
 					};
 				};
