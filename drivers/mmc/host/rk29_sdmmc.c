@@ -69,6 +69,16 @@ int debug_level = 5;
 #define SDMMC_USE_INT_UNBUSY     1
 #endif
 
+#if defined(CONFIG_ARCH_RK29)
+#define RK29_SDMMC0DETECTN_GPIO RK29_PIN2_PA2
+#define RK29_SDMMC0PWREN_GPIO   RK29_PIN5_PD5
+
+#elif defined(CONFIG_ARCH_RK30)
+#define RK29_SDMMC0DETECTN_GPIO RK30_PIN3_PB6
+#define RK29_SDMMC0PWREN_GPIO   RK30_PIN3_PA7
+
+#endif
+
 #define RK29_SDMMC_ERROR_FLAGS		(SDMMC_INT_FRUN | SDMMC_INT_HLE )
 
 #if SDMMC_USE_INT_UNBUSY
@@ -84,7 +94,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.4.01 The last modify date is 2012-08-09"
+#define RK29_SDMMC_VERSION "Ver.4.02 The last modify date is 2012-08-12"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -1438,7 +1448,7 @@ static int sdmmc_send_cmd_start(struct rk29_sdmmc *host, unsigned int cmd)
 	    udelay(2);
 	}
 	
-	if(!tmo) 
+	if(!tmo && test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags)) 
 	{
 		printk(KERN_WARNING "%s.. %d   set cmd(value=0x%x) register timeout error !   [%s]\n",\
 				__FUNCTION__,__LINE__, cmd, host->dma_name);
@@ -2288,13 +2298,22 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
         {
             case MMC_POWER_UP:
             	rk29_sdmmc_write(host->regs, SDMMC_PWREN, POWER_ENABLE);
-            	
+            	            	
             	//reset the controller if it is SDMMC0
             	if(RK29_CTRL_SDMMC_ID == host->pdev->id)
             	{
             	    xbwprintk(7, "%s..%d..POWER_UP, call reset_controller, initialized_flags=%d [%s]\n",\
             	        __FUNCTION__, __LINE__, host->mmc->re_initialized_flags,host->dma_name);
             	        
+                #if defined(CONFIG_ARCH_RK29)
+                    //power-on; (#define RK29_SDMMC0PWREN_GPIO  RK29_PIN5_PD5 in RK2918 platform)
+                    gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_LOW);
+                #elif defined(CONFIG_ARCH_RK30)
+                    //power-on; (#define RK29_SDMMC0PWREN_GPIO  RK30_PIN3_PA7 in RK3066 platform)
+                    gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_LOW);
+                #endif    
+                    //printk("##########vcc_sd power on##########\n");
+                    
             	    mdelay(5);
             	        
             	    rk29_sdmmc_hw_init(host);
@@ -2307,7 +2326,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
                 {
                 	rk29_sdmmc_control_clock(host, FALSE);
                 	rk29_sdmmc_write(host->regs, SDMMC_PWREN, POWER_DISABLE);
-                
+                	                
                 	if(5 == host->bus_mode)
                 	{
                         mdelay(5);
@@ -2316,6 +2335,16 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
                             
                         rk29_sdmmc_reset_controller(host);
                 	}
+
+                #if defined(CONFIG_ARCH_RK29)
+                    //power-off 
+                    gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_HIGH); 
+                    
+                #elif defined(CONFIG_ARCH_RK30)
+                    //power-off
+                    gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_HIGH);                     
+                #endif
+                    //printk("##########vcc_sd power off##########\n");
               
             	}
 
@@ -3558,11 +3587,12 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	host->write_protect = pdata->write_prt;	
 #endif	
 
-
-   if(RK29_CTRL_SDMMC_ID != host->pdev->id)   
+#if 0
+   if(RK29_CTRL_SDMMC_ID == host->pdev->id)   
     {
        rk29_sdmmc_hw_init(host);
     }
+#endif
 
     ret = request_irq(host->irq, rk29_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret)
@@ -3731,80 +3761,51 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
+static irqreturn_t det_keys_isr(int irq, void *dev_id)
+{
+	struct rk29_sdmmc *host = dev_id;
+	dev_info(&host->pdev->dev, "sd det_gpio changed(%s), send wakeup key!\n",
+		gpio_get_value(RK29_SDMMC0DETECTN_GPIO)?"removed":"insert");
+	rk29_sdmmc_detect_change((unsigned long)dev_id);
+
+	return IRQ_HANDLED;
+}
+
+static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
+{
+	int ret = 0;
+	
 #if defined(CONFIG_ARCH_RK29)
-static irqreturn_t det_keys_isr(int irq, void *dev_id)
-{
-	struct rk29_sdmmc *host = dev_id;
-	dev_info(&host->pdev->dev, "sd det_gpio changed(%s), send wakeup key!\n",
-		gpio_get_value(RK29_PIN2_PA2)?"removed":"insert");
-	rk29_sdmmc_detect_change((unsigned long)dev_id);
-
-	return IRQ_HANDLED;
-}
-
-static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
-{
-	int ret = 0;
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
-	gpio_request(RK29_PIN2_PA2, "sd_detect");
-	gpio_direction_input(RK29_PIN2_PA2);
-
-	host->gpio_irq = gpio_to_irq(RK29_PIN2_PA2);
-	ret = request_irq(host->gpio_irq, det_keys_isr,
-					    (gpio_get_value(RK29_PIN2_PA2))?IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING,
-					    "sd_detect",
-					    host);
-	
-	enable_irq_wake(host->gpio_irq);
-
-	return ret;
-}
-static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
-{
-	disable_irq_wake(host->gpio_irq);
-	free_irq(host->gpio_irq,host);
-	gpio_free(RK29_PIN2_PA2);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
-}
-
+    rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
 #elif defined(CONFIG_ARCH_RK30)
-static irqreturn_t det_keys_isr(int irq, void *dev_id)
-{
-	struct rk29_sdmmc *host = dev_id;
-	dev_info(&host->pdev->dev, "sd det_gpio changed(%s), send wakeup key!\n",
-		gpio_get_value(RK30_PIN3_PB6)?"removed":"insert");
-	rk29_sdmmc_detect_change((unsigned long)dev_id);
-
-	return IRQ_HANDLED;
-}
-
-static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
-{
-	int ret = 0;
 	rk29_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_GPIO3B6);
-	gpio_request(RK30_PIN3_PB6, "sd_detect");
-	gpio_direction_input(RK30_PIN3_PB6);
-
-	host->gpio_irq = gpio_to_irq(RK30_PIN3_PB6);
-	ret = request_irq(host->gpio_irq, det_keys_isr,
-					    (gpio_get_value(RK30_PIN3_PB6))?IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING,
-					    "sd_detect",
-					    host);
-	
-	enable_irq_wake(host->gpio_irq);
-
-	return ret;
-}
-static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
-{
-	disable_irq_wake(host->gpio_irq);
-	free_irq(host->gpio_irq,host);
-	gpio_free(RK30_PIN3_PB6);
-	rk29_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0_DETECT_N);
-}
-
 #endif
 
+	gpio_request(RK29_SDMMC0DETECTN_GPIO, "sd_detect");
+	gpio_direction_input(RK29_SDMMC0DETECTN_GPIO);
+
+	host->gpio_irq = gpio_to_irq(RK29_SDMMC0DETECTN_GPIO);
+	ret = request_irq(host->gpio_irq, det_keys_isr,
+					    (gpio_get_value(RK29_SDMMC0DETECTN_GPIO))?IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING,
+					    "sd_detect",
+					    host);
+	
+	enable_irq_wake(host->gpio_irq);
+
+	return ret;
+}
+static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
+{
+	disable_irq_wake(host->gpio_irq);
+	free_irq(host->gpio_irq,host);
+	gpio_free(RK29_SDMMC0DETECTN_GPIO);
+	
+#if defined(CONFIG_ARCH_RK29)
+    rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
+#elif defined(CONFIG_ARCH_RK30)
+	rk29_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0_DETECT_N);
+#endif	
+}
 
 static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
 {
