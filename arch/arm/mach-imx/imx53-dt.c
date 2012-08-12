@@ -17,7 +17,6 @@
 #include <linux/irq.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/pinctrl/machine.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <mach/common.h>
@@ -77,8 +76,6 @@ static void __init imx53_dt_init(void)
 	struct device_node *node;
 	const struct of_device_id *of_id;
 	void (*func)(void);
-
-	pinctrl_provide_dummies();
 
 	node = of_find_matching_node(NULL, imx53_iomuxc_of_match);
 	if (node) {

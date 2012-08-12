@@ -108,6 +108,8 @@ config	SOC_IMX53
 	select ARCH_MX5
 	select ARCH_MX53
 	select HAVE_CAN_FLEXCAN if CAN
+	select PINCTRL
+	select PINCTRL_IMX53
 
 if ARCH_IMX_V4_V5
 
