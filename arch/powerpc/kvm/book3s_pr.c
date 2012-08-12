@@ -1152,6 +1152,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 
 out:
+	vcpu->mode = OUTSIDE_GUEST_MODE;
 	preempt_enable();
 	return ret;
 }
