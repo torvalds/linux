@@ -248,6 +248,16 @@
 					};
 				};
 
+				ecspi1 {
+					pinctrl_ecspi1_1: ecspi1grp-1 {
+						fsl,pins = <
+							433 0x80000000	/* MX53_PAD_EIM_D16__ECSPI1_SCLK */
+							439 0x80000000	/* MX53_PAD_EIM_D17__ECSPI1_MISO */
+							445 0x80000000	/* MX53_PAD_EIM_D18__ECSPI1_MOSI */
+						>;
+					};
+				};
+
 				esdhc1 {
 					pinctrl_esdhc1_1: esdhc1grp-1 {
 						fsl,pins = <
