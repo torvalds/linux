@@ -867,8 +867,6 @@ program_interrupt:
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
 		} else {
-			/* Going back to guest */
-			kvm_guest_enter();
 			kvmppc_lazy_ee_enable();
 		}
 	}

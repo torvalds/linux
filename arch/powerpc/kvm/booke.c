@@ -954,8 +954,6 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
 			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
 		} else {
-			/* Going back to guest */
-			kvm_guest_enter();
 			kvmppc_lazy_ee_enable();
 		}
 	}

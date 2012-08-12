@@ -101,11 +101,14 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			/* Got an interrupt in between, try again */
 			local_irq_enable();
 			local_irq_disable();
+			kvm_guest_exit();
 			continue;
 		}
 
 		trace_hardirqs_on();
 #endif
+
+		kvm_guest_enter();
 
 		/* Going into guest context! Yay! */
 		vcpu->mode = IN_GUEST_MODE;
