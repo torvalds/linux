@@ -50,14 +50,6 @@ static const struct of_dev_auxdata imx53_auxdata_lookup[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static const struct of_device_id imx53_iomuxc_of_match[] __initconst = {
-	{ .compatible = "fsl,imx53-iomuxc-ard", .data = imx53_ard_common_init, },
-	{ .compatible = "fsl,imx53-iomuxc-evk", .data = imx53_evk_common_init, },
-	{ .compatible = "fsl,imx53-iomuxc-qsb", .data = imx53_qsb_common_init, },
-	{ .compatible = "fsl,imx53-iomuxc-smd", .data = imx53_smd_common_init, },
-	{ /* sentinel */ }
-};
-
 static void __init imx53_qsb_init(void)
 {
 	struct clk *clk;
@@ -73,18 +65,6 @@ static void __init imx53_qsb_init(void)
 
 static void __init imx53_dt_init(void)
 {
-	struct device_node *node;
-	const struct of_device_id *of_id;
-	void (*func)(void);
-
-	node = of_find_matching_node(NULL, imx53_iomuxc_of_match);
-	if (node) {
-		of_id = of_match_node(imx53_iomuxc_of_match, node);
-		func = of_id->data;
-		func();
-		of_node_put(node);
-	}
-
 	if (of_machine_is_compatible("fsl,imx53-qsb"))
 		imx53_qsb_init();
 
