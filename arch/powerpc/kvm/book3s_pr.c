@@ -868,12 +868,15 @@ program_interrupt:
 		 */
 		__hard_irq_disable();
 		if (kvmppc_prepare_to_enter(vcpu)) {
+			/* local_irq_enable(); */
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
+		} else {
+			/* Going back to guest */
+			kvm_guest_enter();
 		}
 	}
 
-	kvm_guest_enter();
 	trace_kvm_book3s_reenter(r, vcpu);
 
 	return r;
@@ -1123,7 +1126,8 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
-	kvm_guest_exit();
+	/* No need for kvm_guest_exit. It's done in handle_exit.
+	   We also get here with interrupts enabled. */
 
 	current->thread.regs->msr = ext_msr;
 

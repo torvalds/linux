@@ -481,6 +481,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	local_irq_disable();
 	if (kvmppc_prepare_to_enter(vcpu)) {
+		local_irq_enable();
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		ret = -EINTR;
 		goto out;
@@ -512,6 +513,9 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
+	/* No need for kvm_guest_exit. It's done in handle_exit.
+	   We also get here with interrupts enabled. */
+
 #ifdef CONFIG_PPC_FPU
 	kvmppc_save_guest_fp(vcpu);
 
@@ -527,12 +531,9 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	current->thread.fpexc_mode = fpexc_mode;
 #endif
 
-	kvm_guest_exit();
-
 out:
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
-	local_irq_enable();
 	return ret;
 }
 
@@ -947,13 +948,15 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	if (!(r & RESUME_HOST)) {
 		local_irq_disable();
 		if (kvmppc_prepare_to_enter(vcpu)) {
+			local_irq_enable();
 			run->exit_reason = KVM_EXIT_INTR;
 			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
 			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+		} else {
+			/* Going back to guest */
+			kvm_guest_enter();
 		}
 	}
-
-	kvm_guest_enter();
 
 	return r;
 }
