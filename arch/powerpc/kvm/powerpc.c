@@ -30,6 +30,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
 #include <asm/cputhreads.h>
+#include <asm/irqflags.h>
 #include "timing.h"
 #include "../mm/mmu_decl.h"
 
@@ -92,6 +93,19 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			r = 1;
 			break;
 		}
+
+#ifdef CONFIG_PPC64
+		/* lazy EE magic */
+		hard_irq_disable();
+		if (lazy_irq_pending()) {
+			/* Got an interrupt in between, try again */
+			local_irq_enable();
+			local_irq_disable();
+			continue;
+		}
+
+		trace_hardirqs_on();
+#endif
 
 		/* Going into guest context! Yay! */
 		vcpu->mode = IN_GUEST_MODE;

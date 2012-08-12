@@ -52,8 +52,6 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 #define MSR_USER32 MSR_USER
 #define MSR_USER64 MSR_USER
 #define HW_PAGE_SIZE PAGE_SIZE
-#define __hard_irq_disable local_irq_disable
-#define __hard_irq_enable local_irq_enable
 #endif
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -597,12 +595,10 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
 
-	/* We get here with MSR.EE=0, so enable it to be a nice citizen */
-	__hard_irq_enable();
+	/* We get here with MSR.EE=1 */
 
 	trace_kvm_exit(exit_nr, vcpu);
 	kvm_guest_exit();
-	preempt_enable();
 
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
@@ -854,7 +850,6 @@ program_interrupt:
 	}
 	}
 
-	preempt_disable();
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if
 		 * we aren't already exiting to userspace for some other
@@ -866,14 +861,15 @@ program_interrupt:
 		 * and if we really did time things so badly, then we just exit
 		 * again due to a host external interrupt.
 		 */
-		__hard_irq_disable();
+		local_irq_disable();
 		if (kvmppc_prepare_to_enter(vcpu)) {
-			/* local_irq_enable(); */
+			local_irq_enable();
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
 		} else {
 			/* Going back to guest */
 			kvm_guest_enter();
+			kvmppc_lazy_ee_enable();
 		}
 	}
 
@@ -1066,8 +1062,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 #endif
 	ulong ext_msr;
 
-	preempt_disable();
-
 	/* Check if we can run the vcpu at all */
 	if (!vcpu->arch.sane) {
 		kvm_run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -1081,9 +1075,9 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * really did time things so badly, then we just exit again due to
 	 * a host external interrupt.
 	 */
-	__hard_irq_disable();
+	local_irq_disable();
 	if (kvmppc_prepare_to_enter(vcpu)) {
-		__hard_irq_enable();
+		local_irq_enable();
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		ret = -EINTR;
 		goto out;
@@ -1122,7 +1116,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shared->msr & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
-	kvm_guest_enter();
+	kvmppc_lazy_ee_enable();
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
@@ -1157,7 +1151,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 out:
 	vcpu->mode = OUTSIDE_GUEST_MODE;
-	preempt_enable();
 	return ret;
 }
 

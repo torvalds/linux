@@ -170,20 +170,21 @@ kvmppc_handler_skip_ins:
  * Call kvmppc_handler_trampoline_enter in real mode
  *
  * On entry, r4 contains the guest shadow MSR
+ * MSR.EE has to be 0 when calling this function
  */
 _GLOBAL(kvmppc_entry_trampoline)
 	mfmsr	r5
 	LOAD_REG_ADDR(r7, kvmppc_handler_trampoline_enter)
 	toreal(r7)
 
-	li	r9, MSR_RI
-	ori	r9, r9, MSR_EE
-	andc	r9, r5, r9	/* Clear EE and RI in MSR value */
 	li	r6, MSR_IR | MSR_DR
-	ori	r6, r6, MSR_EE
-	andc	r6, r5, r6	/* Clear EE, DR and IR in MSR value */
-	MTMSR_EERI(r9)		/* Clear EE and RI in MSR */
-	mtsrr0	r7		/* before we set srr0/1 */
+	andc	r6, r5, r6	/* Clear DR and IR in MSR value */
+	/*
+	 * Set EE in HOST_MSR so that it's enabled when we get into our
+	 * C exit handler function
+	 */
+	ori	r5, r5, MSR_EE
+	mtsrr0	r7
 	mtsrr1	r6
 	RFI
 
