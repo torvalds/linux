@@ -125,6 +125,9 @@ void reset_files_struct(struct files_struct *);
 int unshare_files(struct files_struct **);
 struct files_struct *dup_fd(struct files_struct *, int *);
 
+extern int __alloc_fd(struct files_struct *files,
+		      unsigned start, unsigned end, unsigned flags);
+
 extern struct kmem_cache *files_cachep;
 
 #endif /* __LINUX_FDTABLE_H */

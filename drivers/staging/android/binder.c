@@ -362,71 +362,22 @@ struct binder_transaction {
 static void
 binder_defer_work(struct binder_proc *proc, enum binder_deferred_state defer);
 
-/*
- * copied from get_unused_fd_flags
- */
 int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
 {
 	struct files_struct *files = proc->files;
-	int fd, error;
-	struct fdtable *fdt;
 	unsigned long rlim_cur;
 	unsigned long irqs;
 
 	if (files == NULL)
 		return -ESRCH;
 
-	error = -EMFILE;
-	spin_lock(&files->file_lock);
+	if (!lock_task_sighand(proc->tsk, &irqs))
+		return -EMFILE;
 
-repeat:
-	fdt = files_fdtable(files);
-	fd = find_next_zero_bit(fdt->open_fds, fdt->max_fds, files->next_fd);
+	rlim_cur = task_rlimit(proc->tsk, RLIMIT_NOFILE);
+	unlock_task_sighand(proc->tsk, &irqs);
 
-	/*
-	 * N.B. For clone tasks sharing a files structure, this test
-	 * will limit the total number of files that can be opened.
-	 */
-	rlim_cur = 0;
-	if (lock_task_sighand(proc->tsk, &irqs)) {
-		rlim_cur = proc->tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
-		unlock_task_sighand(proc->tsk, &irqs);
-	}
-	if (fd >= rlim_cur)
-		goto out;
-
-	/* Do we need to expand the fd array or fd set?  */
-	error = expand_files(files, fd);
-	if (error < 0)
-		goto out;
-
-	if (error) {
-		/*
-		 * If we needed to expand the fs array we
-		 * might have blocked - try again.
-		 */
-		error = -EMFILE;
-		goto repeat;
-	}
-
-	__set_open_fd(fd, fdt);
-	if (flags & O_CLOEXEC)
-		__set_close_on_exec(fd, fdt);
-	else
-		__clear_close_on_exec(fd, fdt);
-	files->next_fd = fd + 1;
-#if 1
-	/* Sanity check */
-	if (fdt->fd[fd] != NULL) {
-		pr_warn("get_unused_fd: slot %d not NULL!\n", fd);
-		fdt->fd[fd] = NULL;
-	}
-#endif
-	error = fd;
-
-out:
-	spin_unlock(&files->file_lock);
-	return error;
+	return __alloc_fd(files, 0, rlim_cur, flags);
 }
 
 /*
