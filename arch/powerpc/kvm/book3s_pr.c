@@ -601,6 +601,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	__hard_irq_enable();
 
 	trace_kvm_exit(exit_nr, vcpu);
+	kvm_guest_exit();
 	preempt_enable();
 
 	switch (exit_nr) {
@@ -872,6 +873,7 @@ program_interrupt:
 		}
 	}
 
+	kvm_guest_enter();
 	trace_kvm_book3s_reenter(r, vcpu);
 
 	return r;

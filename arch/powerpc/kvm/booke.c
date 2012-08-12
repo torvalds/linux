@@ -650,6 +650,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	local_irq_enable();
 
 	trace_kvm_exit(exit_nr, vcpu);
+	kvm_guest_exit();
 
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
@@ -951,6 +952,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
 		}
 	}
+
+	kvm_guest_enter();
 
 	return r;
 }
