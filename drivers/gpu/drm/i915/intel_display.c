@@ -2709,11 +2709,10 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
-static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
+static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
@@ -2752,6 +2751,35 @@ static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
 			udelay(100);
 		}
 	}
+}
+
+static void ironlake_fdi_pll_disable(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = intel_crtc->pipe;
+	u32 reg, temp;
+
+	/* Switch from PCDclk to Rawclk */
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	I915_WRITE(reg, temp & ~FDI_PCDCLK);
+
+	/* Disable CPU FDI TX PLL */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	I915_WRITE(reg, temp & ~FDI_TX_PLL_ENABLE);
+
+	POSTING_READ(reg);
+	udelay(100);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	I915_WRITE(reg, temp & ~FDI_RX_PLL_ENABLE);
+
+	/* Wait for the clocks to turn off. */
+	POSTING_READ(reg);
+	udelay(100);
 }
 
 static void cpt_phase_pointer_disable(struct drm_device *dev, int pipe)
@@ -3201,7 +3229,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	is_pch_port = intel_crtc_driving_pch(crtc);
 
 	if (is_pch_port)
-		ironlake_fdi_pll_enable(crtc);
+		ironlake_fdi_pll_enable(intel_crtc);
 	else
 		ironlake_fdi_disable(crtc);
 
@@ -3304,26 +3332,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	/* disable PCH DPLL */
 	intel_disable_pch_pll(intel_crtc);
 
-	/* Switch from PCDclk to Rawclk */
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~FDI_PCDCLK);
-
-	/* Disable CPU FDI TX PLL */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~FDI_TX_PLL_ENABLE);
-
-	POSTING_READ(reg);
-	udelay(100);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~FDI_RX_PLL_ENABLE);
-
-	/* Wait for the clocks to turn off. */
-	POSTING_READ(reg);
-	udelay(100);
+	ironlake_fdi_pll_disable(intel_crtc);
 
 	intel_crtc->active = false;
 	intel_update_watermarks(dev);
