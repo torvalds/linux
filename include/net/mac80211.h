@@ -1897,10 +1897,14 @@ enum ieee80211_frame_release_type {
  * @IEEE80211_RC_BW_CHANGED: The bandwidth that can be used to transmit
  *	to this station changed.
  * @IEEE80211_RC_SMPS_CHANGED: The SMPS state of the station changed.
+ * @IEEE80211_RC_SUPP_RATES_CHANGED: The supported rate set of this peer
+ *	changed (in IBSS mode) due to discovering more information about
+ *	the peer.
  */
 enum ieee80211_rate_control_changed {
 	IEEE80211_RC_BW_CHANGED		= BIT(0),
 	IEEE80211_RC_SMPS_CHANGED	= BIT(1),
+	IEEE80211_RC_SUPP_RATES_CHANGED	= BIT(2),
 };
 
 /**

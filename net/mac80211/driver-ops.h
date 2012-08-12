@@ -528,6 +528,9 @@ static inline void drv_sta_rc_update(struct ieee80211_local *local,
 	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
 
+	WARN_ON(changed & IEEE80211_RC_SUPP_RATES_CHANGED &&
+		sdata->vif.type != NL80211_IFTYPE_ADHOC);
+
 	trace_drv_sta_rc_update(local, sdata, sta, changed);
 	if (local->ops->sta_rc_update)
 		local->ops->sta_rc_update(&local->hw, &sdata->vif,
