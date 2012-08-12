@@ -1453,6 +1453,10 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
 	bool hw_rfkill;
 	unsigned long flags;
 
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
+	iwl_disable_interrupts(trans);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
+
 	iwl_apm_stop(trans);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
