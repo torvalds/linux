@@ -5615,21 +5615,12 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	if (encoder->crtc) {
 		crtc = encoder->crtc;
 
-		intel_crtc = to_intel_crtc(crtc);
-		old->dpms_mode = intel_crtc->dpms_mode;
+		old->dpms_mode = connector->dpms;
 		old->load_detect_temp = false;
 
 		/* Make sure the crtc and connector are running */
-		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
-			struct drm_encoder_helper_funcs *encoder_funcs;
-			struct drm_crtc_helper_funcs *crtc_funcs;
-
-			crtc_funcs = crtc->helper_private;
-			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-
-			encoder_funcs = encoder->helper_private;
-			encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-		}
+		if (connector->dpms != DRM_MODE_DPMS_ON)
+			connector->funcs->dpms(connector, DRM_MODE_DPMS_ON);
 
 		return true;
 	}
@@ -5657,7 +5648,7 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	connector->encoder = encoder;
 
 	intel_crtc = to_intel_crtc(crtc);
-	old->dpms_mode = intel_crtc->dpms_mode;
+	old->dpms_mode = connector->dpms;
 	old->load_detect_temp = true;
 	old->release_fb = NULL;
 
@@ -5682,22 +5673,25 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
 	if (IS_ERR(crtc->fb)) {
 		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
-		crtc->fb = old_fb;
-		return false;
+		goto fail;
 	}
 
 	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, old_fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
-		crtc->fb = old_fb;
-		return false;
+		goto fail;
 	}
 
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	return true;
+fail:
+	connector->encoder = NULL;
+	encoder->crtc = NULL;
+	crtc->fb = old_fb;
+	return false;
 }
 
 void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
@@ -5706,9 +5700,6 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector),
@@ -5716,6 +5707,7 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 
 	if (old->load_detect_temp) {
 		connector->encoder = NULL;
+		encoder->crtc = NULL;
 		drm_helper_disable_unused_functions(dev);
 
 		if (old->release_fb)
@@ -5725,10 +5717,8 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 	}
 
 	/* Switch crtc and encoder back off if necessary */
-	if (old->dpms_mode != DRM_MODE_DPMS_ON) {
-		encoder_funcs->dpms(encoder, old->dpms_mode);
-		crtc_funcs->dpms(crtc, old->dpms_mode);
-	}
+	if (old->dpms_mode != DRM_MODE_DPMS_ON)
+		connector->funcs->dpms(connector, old->dpms_mode);
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
