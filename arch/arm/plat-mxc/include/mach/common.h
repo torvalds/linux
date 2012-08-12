@@ -52,7 +52,6 @@ extern void imx31_soc_init(void);
 extern void imx35_soc_init(void);
 extern void imx50_soc_init(void);
 extern void imx51_soc_init(void);
-extern void imx53_soc_init(void);
 extern void imx51_init_late(void);
 extern void imx53_init_late(void);
 extern void epit_timer_init(void __iomem *base, int irq);
