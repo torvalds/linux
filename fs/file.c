@@ -477,8 +477,8 @@ out:
 	return error;
 }
 
-int get_unused_fd(void)
+int get_unused_fd_flags(unsigned flags)
 {
-	return alloc_fd(0, 0);
+	return alloc_fd(0, flags);
 }
-EXPORT_SYMBOL(get_unused_fd);
+EXPORT_SYMBOL(get_unused_fd_flags);
