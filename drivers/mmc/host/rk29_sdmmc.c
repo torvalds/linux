@@ -2305,13 +2305,8 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
             	    xbwprintk(7, "%s..%d..POWER_UP, call reset_controller, initialized_flags=%d [%s]\n",\
             	        __FUNCTION__, __LINE__, host->mmc->re_initialized_flags,host->dma_name);
             	        
-                #if defined(CONFIG_ARCH_RK29)
-                    //power-on; (#define RK29_SDMMC0PWREN_GPIO  RK29_PIN5_PD5 in RK2918 platform)
-                    gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_LOW);
-                #elif defined(CONFIG_ARCH_RK30)
                     //power-on; (#define RK29_SDMMC0PWREN_GPIO  RK30_PIN3_PA7 in RK3066 platform)
                     gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_LOW);
-                #endif    
                     //printk("##########vcc_sd power on##########\n");
                     
             	    mdelay(5);
@@ -2336,14 +2331,8 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
                         rk29_sdmmc_reset_controller(host);
                 	}
 
-                #if defined(CONFIG_ARCH_RK29)
                     //power-off 
                     gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_HIGH); 
-                    
-                #elif defined(CONFIG_ARCH_RK30)
-                    //power-off
-                    gpio_direction_output(RK29_SDMMC0PWREN_GPIO,GPIO_HIGH);                     
-                #endif
                     //printk("##########vcc_sd power off##########\n");
               
             	}
