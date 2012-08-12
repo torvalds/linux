@@ -602,7 +602,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	trace_kvm_exit(exit_nr, vcpu);
 	preempt_enable();
-	kvm_resched(vcpu);
+
 	switch (exit_nr) {
 	case BOOK3S_INTERRUPT_INST_STORAGE:
 	{
