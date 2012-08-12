@@ -163,7 +163,7 @@ struct ch7017_priv {
 };
 
 static void ch7017_dump_regs(struct intel_dvo_device *dvo);
-static void ch7017_dpms(struct intel_dvo_device *dvo, int mode);
+static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable);
 
 static bool ch7017_read(struct intel_dvo_device *dvo, u8 addr, u8 *val)
 {
@@ -309,7 +309,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 	lvds_power_down = CH7017_LVDS_POWER_DOWN_DEFAULT_RESERVED |
 			  (mode->hdisplay & 0x0700) >> 8;
 
-	ch7017_dpms(dvo, DRM_MODE_DPMS_OFF);
+	ch7017_dpms(dvo, false);
 	ch7017_write(dvo, CH7017_HORIZONTAL_ACTIVE_PIXEL_INPUT,
 			horizontal_active_pixel_input);
 	ch7017_write(dvo, CH7017_HORIZONTAL_ACTIVE_PIXEL_OUTPUT,
@@ -331,7 +331,7 @@ static void ch7017_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the CH7017 power state */
-static void ch7017_dpms(struct intel_dvo_device *dvo, int mode)
+static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	uint8_t val;
 
@@ -345,7 +345,7 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, int mode)
 			CH7017_DAC3_POWER_DOWN |
 			CH7017_TV_POWER_DOWN_EN);
 
-	if (mode == DRM_MODE_DPMS_ON) {
+	if (enable) {
 		/* Turn on the LVDS */
 		ch7017_write(dvo, CH7017_LVDS_POWER_DOWN,
 			     val & ~CH7017_LVDS_POWER_DOWN_EN);

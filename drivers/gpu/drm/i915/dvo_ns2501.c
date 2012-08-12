@@ -493,19 +493,19 @@ static void ns2501_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the NS2501 power state */
-static void ns2501_dpms(struct intel_dvo_device *dvo, int mode)
+static void ns2501_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	bool ok;
 	bool restore = false;
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 	unsigned char ch;
 
-	DRM_DEBUG_KMS("%s: Trying set the dpms of the DVO to %d\n",
-		      __FUNCTION__, mode);
+	DRM_DEBUG_KMS("%s: Trying set the dpms of the DVO to %i\n",
+		      __FUNCTION__, enable);
 
 	ch = ns->reg_8_shadow;
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		ch |= NS2501_8_PD;
 	else
 		ch &= ~NS2501_8_PD;
@@ -519,12 +519,10 @@ static void ns2501_dpms(struct intel_dvo_device *dvo, int mode)
 			ok &= ns2501_writeb(dvo, NS2501_REG8, ch);
 			ok &=
 			    ns2501_writeb(dvo, 0x34,
-					  (mode ==
-					   DRM_MODE_DPMS_ON) ? (0x03) : (0x00));
+					  enable ? 0x03 : 0x00);
 			ok &=
 			    ns2501_writeb(dvo, 0x35,
-					  (mode ==
-					   DRM_MODE_DPMS_ON) ? (0xff) : (0x00));
+					  enable ? 0xff : 0x00);
 			if (!ok) {
 				if (restore)
 					restore_dvo(dvo);
