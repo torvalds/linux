@@ -873,6 +873,9 @@ void __init setup_arch(char **cmdline_p)
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
 #endif
 
+	/*[x86_64] [mm] [Junwei]: x86 will split the memeory map(from e820) by 4G(1<<32)*/
+	printk(KERN_INFO "%s:  max_pfn=%lu(%lx), max_low_pfn=%lu(%lx), highmem=%p\n",
+		__func__, max_pfn, max_pfn, max_low_pfn, max_low_pfn, high_memory);
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
