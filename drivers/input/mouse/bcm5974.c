@@ -183,18 +183,19 @@ struct tp_finger {
 	__le16 abs_y;		/* absolute y coodinate */
 	__le16 rel_x;		/* relative x coodinate */
 	__le16 rel_y;		/* relative y coodinate */
-	__le16 size_major;	/* finger size, major axis? */
-	__le16 size_minor;	/* finger size, minor axis? */
+	__le16 tool_major;	/* tool area, major axis */
+	__le16 tool_minor;	/* tool area, minor axis */
 	__le16 orientation;	/* 16384 when point, else 15 bit angle */
-	__le16 force_major;	/* trackpad force, major axis? */
-	__le16 force_minor;	/* trackpad force, minor axis? */
+	__le16 touch_major;	/* touch area, major axis */
+	__le16 touch_minor;	/* touch area, minor axis */
 	__le16 unused[3];	/* zeros */
 	__le16 multi;		/* one finger: varies, more fingers: constant */
 } __attribute__((packed,aligned(2)));
 
 /* trackpad finger data size, empirically at least ten fingers */
+#define MAX_FINGERS		16
 #define SIZEOF_FINGER		sizeof(struct tp_finger)
-#define SIZEOF_ALL_FINGERS	(16 * SIZEOF_FINGER)
+#define SIZEOF_ALL_FINGERS	(MAX_FINGERS * SIZEOF_FINGER)
 #define MAX_FINGER_ORIENTATION	16384
 
 /* device-specific parameters */
@@ -482,13 +483,13 @@ static void report_finger_data(struct input_dev *input,
 			       const struct tp_finger *f)
 {
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
-			 raw2int(f->force_major) << 1);
+			 raw2int(f->touch_major) << 1);
 	input_report_abs(input, ABS_MT_TOUCH_MINOR,
-			 raw2int(f->force_minor) << 1);
+			 raw2int(f->touch_minor) << 1);
 	input_report_abs(input, ABS_MT_WIDTH_MAJOR,
-			 raw2int(f->size_major) << 1);
+			 raw2int(f->tool_major) << 1);
 	input_report_abs(input, ABS_MT_WIDTH_MINOR,
-			 raw2int(f->size_minor) << 1);
+			 raw2int(f->tool_minor) << 1);
 	input_report_abs(input, ABS_MT_ORIENTATION,
 			 MAX_FINGER_ORIENTATION - raw2int(f->orientation));
 	input_report_abs(input, ABS_MT_POSITION_X, raw2int(f->abs_x));
@@ -521,8 +522,8 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		for (i = 0; i < raw_n; i++)
 			report_finger_data(input, c, &f[i]);
 
-		raw_p = raw2int(f->force_major);
-		raw_w = raw2int(f->size_major);
+		raw_p = raw2int(f->touch_major);
+		raw_w = raw2int(f->tool_major);
 		raw_x = raw2int(f->abs_x);
 		raw_y = raw2int(f->abs_y);
 
@@ -542,7 +543,7 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 			abs_y = int2bound(&c->y, c->y.devmax - raw_y);
 			while (raw_n--) {
 				ptest = int2bound(&c->p,
-						  raw2int(f->force_major));
+						  raw2int(f->touch_major));
 				if (ptest > PRESSURE_LOW)
 					nmax++;
 				if (ptest > PRESSURE_HIGH)
