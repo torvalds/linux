@@ -454,6 +454,7 @@ static int __init pcc_cpufreq_probe(void)
 					mem_resource->address_length);
 	if (pcch_virt_addr == NULL) {
 		pr_debug("probe: could not map shared mem region\n");
+		ret = -ENOMEM;
 		goto out_free;
 	}
 	pcch_hdr = pcch_virt_addr;
