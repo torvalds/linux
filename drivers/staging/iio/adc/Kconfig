@@ -200,6 +200,18 @@ config LPC32XX_ADC
 	  activate only one via device tree selection.  Provides direct access
 	  via sysfs.
 
+config MXS_LRADC
+	tristate "Freescale i.MX28 LRADC"
+	depends on ARCH_MXS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for i.MX28 LRADC convertor
+	  built into these chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mxs-lradc.
+
 config SPEAR_ADC
 	tristate "ST SPEAr ADC"
 	depends on PLAT_SPEAR
