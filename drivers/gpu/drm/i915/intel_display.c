@@ -1432,7 +1432,7 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
  *
  * Unfortunately needed by dvo_ns2501 since the dvo depends on it running.
  */
-void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	int reg;
 	u32 val;

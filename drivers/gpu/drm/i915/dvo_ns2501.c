@@ -75,11 +75,6 @@ struct ns2501_priv {
 #define NSPTR(d) ((NS2501Ptr)(d->DriverPrivate.ptr))
 
 /*
- * Include the PLL launcher prototype
- */
-extern void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe);
-
-/*
  * For reasons unclear to me, the ns2501 at least on the Fujitsu/Siemens
  * laptops does not react on the i2c bus unless
  * both the PLL is running and the display is configured in its native
@@ -112,8 +107,6 @@ static void enable_dvo(struct intel_dvo_device *dvo)
 	I915_WRITE(_DPLL_A, 0xd0820000);
 	I915_WRITE(DVOC_SRCDIM, 0x400300);	// 1024x768
 	I915_WRITE(FW_BLC, 0x1080304);
-
-	intel_enable_pll(dev_priv, 0);
 
 	I915_WRITE(DVOC, 0x90004084);
 }
