@@ -140,11 +140,13 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
             gpio_request(RK30_PIN3_PA7,"sdmmc-power");
             gpio_direction_output(RK30_PIN3_PA7,GPIO_HIGH); //power-off
 
+        #if 0 //replace the power control into rk29_sdmmc_set_ios(); modifyed by xbw at 2012-08-12
             rk29_sdmmc_gpio_open(0, 0);
 
             gpio_direction_output(RK30_PIN3_PA7,GPIO_LOW); //power-on
 
             rk29_sdmmc_gpio_open(0, 1);
+          #endif  
     	}
     	break;
 
