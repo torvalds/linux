@@ -1230,7 +1230,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_fb_helper_crtc **crtcs;
 	struct drm_display_mode **modes;
-	struct drm_encoder *encoder;
 	struct drm_mode_set *modeset;
 	bool *enabled;
 	int width, height;
@@ -1240,11 +1239,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 
 	width = dev->mode_config.max_width;
 	height = dev->mode_config.max_height;
-
-	/* clean out all the encoder/crtc combos */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		encoder->crtc = NULL;
-	}
 
 	crtcs = kcalloc(dev->mode_config.num_connector,
 			sizeof(struct drm_fb_helper_crtc *), GFP_KERNEL);
