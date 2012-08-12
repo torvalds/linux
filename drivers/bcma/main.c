@@ -145,6 +145,14 @@ static int bcma_register_cores(struct bcma_bus *bus)
 	}
 #endif
 
+#ifdef CONFIG_BCMA_NFLASH
+	if (bus->drv_cc.nflash.present) {
+		err = platform_device_register(&bcma_nflash_dev);
+		if (err)
+			bcma_err(bus, "Error registering NAND flash\n");
+	}
+#endif
+
 	return 0;
 }
 

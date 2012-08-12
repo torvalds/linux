@@ -66,6 +66,7 @@ static inline int bcma_sflash_init(struct bcma_drv_cc *cc)
 #ifdef CONFIG_BCMA_NFLASH
 /* driver_chipcommon_nflash.c */
 int bcma_nflash_init(struct bcma_drv_cc *cc);
+extern struct platform_device bcma_nflash_dev;
 #else
 static inline int bcma_nflash_init(struct bcma_drv_cc *cc)
 {
