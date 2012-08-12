@@ -46,7 +46,7 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 
 	mt = kzalloc(sizeof(*mt) + num_slots * sizeof(*mt->slots), GFP_KERNEL);
 	if (!mt)
-		return -ENOMEM;
+		goto err_mem;
 
 	mt->num_slots = num_slots;
 	mt->flags = flags;
@@ -74,6 +74,12 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 	}
 	if (flags & INPUT_MT_DIRECT)
 		__set_bit(INPUT_PROP_DIRECT, dev->propbit);
+	if (flags & INPUT_MT_TRACK) {
+		unsigned int n2 = num_slots * num_slots;
+		mt->red = kcalloc(n2, sizeof(*mt->red), GFP_KERNEL);
+		if (!mt->red)
+			goto err_mem;
+	}
 
 	/* Mark slots as 'unused' */
 	for (i = 0; i < num_slots; i++)
@@ -81,6 +87,9 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 
 	dev->mt = mt;
 	return 0;
+err_mem:
+	kfree(mt);
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(input_mt_init_slots);
 
@@ -93,7 +102,10 @@ EXPORT_SYMBOL(input_mt_init_slots);
  */
 void input_mt_destroy_slots(struct input_dev *dev)
 {
-	kfree(dev->mt);
+	if (dev->mt) {
+		kfree(dev->mt->red);
+		kfree(dev->mt);
+	}
 	dev->mt = NULL;
 }
 EXPORT_SYMBOL(input_mt_destroy_slots);
@@ -243,3 +255,131 @@ void input_mt_sync_frame(struct input_dev *dev)
 	mt->frame++;
 }
 EXPORT_SYMBOL(input_mt_sync_frame);
+
+static int adjust_dual(int *begin, int step, int *end, int eq)
+{
+	int f, *p, s, c;
+
+	if (begin == end)
+		return 0;
+
+	f = *begin;
+	p = begin + step;
+	s = p == end ? f + 1 : *p;
+
+	for (; p != end; p += step)
+		if (*p < f)
+			s = f, f = *p;
+		else if (*p < s)
+			s = *p;
+
+	c = (f + s + 1) / 2;
+	if (c == 0 || (c > 0 && !eq))
+		return 0;
+	if (s < 0)
+		c *= 2;
+
+	for (p = begin; p != end; p += step)
+		*p -= c;
+
+	return (c < s && s <= 0) || (f >= 0 && f < c);
+}
+
+static void find_reduced_matrix(int *w, int nr, int nc, int nrc)
+{
+	int i, k, sum;
+
+	for (k = 0; k < nrc; k++) {
+		for (i = 0; i < nr; i++)
+			adjust_dual(w + i, nr, w + i + nrc, nr <= nc);
+		sum = 0;
+		for (i = 0; i < nrc; i += nr)
+			sum += adjust_dual(w + i, 1, w + i + nr, nc <= nr);
+		if (!sum)
+			break;
+	}
+}
+
+static int input_mt_set_matrix(struct input_mt *mt,
+			       const struct input_mt_pos *pos, int num_pos)
+{
+	const struct input_mt_pos *p;
+	struct input_mt_slot *s;
+	int *w = mt->red;
+	int x, y;
+
+	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
+		if (!input_mt_is_active(s))
+			continue;
+		x = input_mt_get_value(s, ABS_MT_POSITION_X);
+		y = input_mt_get_value(s, ABS_MT_POSITION_Y);
+		for (p = pos; p != pos + num_pos; p++) {
+			int dx = x - p->x, dy = y - p->y;
+			*w++ = dx * dx + dy * dy;
+		}
+	}
+
+	return w - mt->red;
+}
+
+static void input_mt_set_slots(struct input_mt *mt,
+			       int *slots, int num_pos)
+{
+	struct input_mt_slot *s;
+	int *w = mt->red, *p;
+
+	for (p = slots; p != slots + num_pos; p++)
+		*p = -1;
+
+	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
+		if (!input_mt_is_active(s))
+			continue;
+		for (p = slots; p != slots + num_pos; p++)
+			if (*w++ < 0)
+				*p = s - mt->slots;
+	}
+
+	for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
+		if (input_mt_is_active(s))
+			continue;
+		for (p = slots; p != slots + num_pos; p++)
+			if (*p < 0) {
+				*p = s - mt->slots;
+				break;
+			}
+	}
+}
+
+/**
+ * input_mt_assign_slots() - perform a best-match assignment
+ * @dev: input device with allocated MT slots
+ * @slots: the slot assignment to be filled
+ * @pos: the position array to match
+ * @num_pos: number of positions
+ *
+ * Performs a best match against the current contacts and returns
+ * the slot assignment list. New contacts are assigned to unused
+ * slots.
+ *
+ * Returns zero on success, or negative error in case of failure.
+ */
+int input_mt_assign_slots(struct input_dev *dev, int *slots,
+			  const struct input_mt_pos *pos, int num_pos)
+{
+	struct input_mt *mt = dev->mt;
+	int nrc;
+
+	if (!mt || !mt->red)
+		return -ENXIO;
+	if (num_pos > mt->num_slots)
+		return -EINVAL;
+	if (num_pos < 1)
+		return 0;
+
+	nrc = input_mt_set_matrix(mt, pos, num_pos);
+	find_reduced_matrix(mt->red, num_pos, nrc / num_pos, nrc);
+	input_mt_set_slots(mt, slots, num_pos);
+
+	return 0;
+}
+EXPORT_SYMBOL(input_mt_assign_slots);
