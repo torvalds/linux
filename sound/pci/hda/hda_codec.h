@@ -386,6 +386,10 @@ enum {
 /* DIGITAL2 bits */
 #define AC_DIG2_CC			(0x7f<<0)
 
+/* DIGITAL3 bits */
+#define AC_DIG3_ICT			(0xf<<0)
+#define AC_DIG3_KAE			(1<<7)
+
 /* Pin widget control - 8bit */
 #define AC_PINCTL_EPT			(0x3<<0)
 #define AC_PINCTL_EPT_NATIVE		0

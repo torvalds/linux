@@ -402,6 +402,9 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 {
 	unsigned int digi1 = snd_hda_codec_read(codec, nid, 0,
 						AC_VERB_GET_DIGI_CONVERT_1, 0);
+	unsigned char digi2 = digi1 >> 8;
+	unsigned char digi3 = digi1 >> 16;
+
 	snd_iprintf(buffer, "  Digital:");
 	if (digi1 & AC_DIG1_ENABLE)
 		snd_iprintf(buffer, " Enabled");
@@ -419,9 +422,13 @@ static void print_digital_conv(struct snd_info_buffer *buffer,
 		snd_iprintf(buffer, " Pro");
 	if (digi1 & AC_DIG1_LEVEL)
 		snd_iprintf(buffer, " GenLevel");
+	if (digi3 & AC_DIG3_KAE)
+		snd_iprintf(buffer, " KAE");
 	snd_iprintf(buffer, "\n");
 	snd_iprintf(buffer, "  Digital category: 0x%x\n",
-		    (digi1 >> 8) & AC_DIG2_CC);
+		    digi2 & AC_DIG2_CC);
+	snd_iprintf(buffer, "  IEC Coding Type: 0x%x\n",
+			digi3 & AC_DIG3_ICT);
 }
 
 static const char *get_pwr_state(u32 state)
