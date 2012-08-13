@@ -75,9 +75,6 @@ obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 dvb-usb-technisat-usb2-objs = technisat-usb2.o
 obj-$(CONFIG_DVB_USB_TECHNISAT_USB2) += dvb-usb-technisat-usb2.o
 
-dvb-usb-it913x-objs := it913x.o
-obj-$(CONFIG_DVB_USB_IT913X) += dvb-usb-it913x.o
-
 ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb/frontends/
 # due to tuner-xc3028
