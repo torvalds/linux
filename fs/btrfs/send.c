@@ -1035,7 +1035,7 @@ struct backref_ctx {
 
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
 {
-	u64 root = (u64)key;
+	u64 root = (u64)(uintptr_t)key;
 	struct clone_root *cr = (struct clone_root *)elt;
 
 	if (root < cr->root->objectid)
@@ -1069,7 +1069,7 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 	u64 i_size;
 
 	/* First check if the root is in the list of accepted clone sources */
-	found = bsearch((void *)root, bctx->sctx->clone_roots,
+	found = bsearch((void *)(uintptr_t)root, bctx->sctx->clone_roots,
 			bctx->sctx->clone_roots_cnt,
 			sizeof(struct clone_root),
 			__clone_root_cmp_bsearch);
