@@ -26,7 +26,7 @@
  * Date: Feb. 19, 2004
  *
  * Functions:
- *      IFRFbWriteEmbeded      - Embeded write RF register via MAC
+ *      IFRFbWriteEmbeded      - Embedded write RF register via MAC
  *
  * Revision History:
  *
@@ -711,7 +711,7 @@ const BYTE RFaby11aChannelIndex[200] = {
 /*---------------------  Export Functions  --------------------------*/
 
 /*
- * Description: Write to IF/RF, by embeded programming
+ * Description: Write to IF/RF, by embedded programming
  *
  * Parameters:
  *  In:

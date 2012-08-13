@@ -54,7 +54,7 @@
  *      bMgrPrepareBeaconToSend - Prepare Beacon frame
  *      s_vMgrLogStatus - Log 802.11 Status
  *      vMgrRxManagePacket - Rcv management frame dispatch function
- *      s_vMgrFormatTIM- Assember TIM field of beacon
+ *      s_vMgrFormatTIM- Assembler TIM field of beacon
  *      vMgrTimerInit- Initial 1-sec and command call back funtions
  *
  * Revision History:
@@ -2032,7 +2032,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 }
 
                 //
-                // Preamble may change dynamiclly
+                // Preamble may change dynamically
                 //
                 byOldPreambleType = pDevice->byPreambleType;
                 if (WLAN_GET_CAP_INFO_SHORTPREAMBLE(pBSSList->wCapInfo)) {
@@ -2044,7 +2044,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
                 if (pDevice->byPreambleType != byOldPreambleType)
                     CARDvSetRSPINF(pDevice, (BYTE)pDevice->byBBType);
             //
-            // Basic Rate Set may change dynamiclly
+            // Basic Rate Set may change dynamically
             //
             if (pBSSList->eNetworkTypeInUse == PHY_TYPE_11B) {
                 uRateLen = WLAN_RATES_MAXLEN_11B;

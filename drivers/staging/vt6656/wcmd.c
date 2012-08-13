@@ -751,7 +751,7 @@ void vRunCommand(void *hDeviceContext)
                       pDevice->nTxDataTimeCout = 0;
 		 }
 		 else {
-		   // printk("mike:-->First time triger TimerTxData InSleep\n");
+		   // printk("mike:-->First time trigger TimerTxData InSleep\n");
 		 }
 		pDevice->IsTxDataTrigger = TRUE;
                 add_timer(&pDevice->sTimerTxData);

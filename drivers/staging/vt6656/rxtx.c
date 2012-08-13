@@ -987,7 +987,7 @@ s_vFillRTSHead (
         uRTSFrameLen -= 4;
     }
 
-    // Note: So far RTSHead dosen't appear in ATIM & Beacom DMA, so we don't need to take them into account.
+    // Note: So far RTSHead doesn't appear in ATIM & Beacom DMA, so we don't need to take them into account.
     //       Otherwise, we need to modified codes for them.
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
         if (byFBOption == AUTO_FB_NONE) {
@@ -2770,7 +2770,7 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
                 pMgmt->abyPSTxMap[0] |= byMask[0];
                 return 0;
             }
-            // muticast/broadcast data rate
+            // multicast/broadcast data rate
 
             if (pDevice->byBBType != BB_TYPE_11A)
                 pDevice->wCurrentRate = RATE_2M;
