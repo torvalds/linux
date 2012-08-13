@@ -970,7 +970,6 @@ void __init iop13xx_pci_init(void)
 	__raw_writel(__raw_readl(IOP13XX_XBG_BECSR) & 3, IOP13XX_XBG_BECSR);
 
 	/* Setup the Min Address for PCI memory... */
-	pcibios_min_io = 0;
 	pcibios_min_mem = IOP13XX_PCIX_LOWER_MEM_BA;
 
 	/* if Linux is given control of an ATU
@@ -1003,7 +1002,7 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 	if (nr > 1)
 		return 0;
 
-	res = kcalloc(2, sizeof(struct resource), GFP_KERNEL);
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
 	if (!res)
 		panic("PCI: unable to alloc resources");
 
@@ -1042,17 +1041,13 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 				  << IOP13XX_ATUX_PCIXSR_FUNC_NUM;
 		__raw_writel(pcixsr, IOP13XX_ATUX_PCIXSR);
 
-		res[0].start = IOP13XX_PCIX_LOWER_IO_PA + IOP13XX_PCIX_IO_BUS_OFFSET;
-		res[0].end   = IOP13XX_PCIX_UPPER_IO_PA;
-		res[0].name  = "IQ81340 ATUX PCI I/O Space";
-		res[0].flags = IORESOURCE_IO;
+		pci_ioremap_io(0, IOP13XX_PCIX_LOWER_IO_PA);
 
-		res[1].start = IOP13XX_PCIX_LOWER_MEM_RA;
-		res[1].end   = IOP13XX_PCIX_UPPER_MEM_RA;
-		res[1].name  = "IQ81340 ATUX PCI Memory Space";
-		res[1].flags = IORESOURCE_MEM;
+		res->start = IOP13XX_PCIX_LOWER_MEM_RA;
+		res->end   = IOP13XX_PCIX_UPPER_MEM_RA;
+		res->name  = "IQ81340 ATUX PCI Memory Space";
+		res->flags = IORESOURCE_MEM;
 		sys->mem_offset = IOP13XX_PCIX_MEM_OFFSET;
-		sys->io_offset = IOP13XX_PCIX_LOWER_IO_PA;
 		break;
 	case IOP13XX_INIT_ATU_ATUE:
 		/* Note: the function number field in the PCSR is ro */
@@ -1063,17 +1058,13 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 
 		__raw_writel(pcsr, IOP13XX_ATUE_PCSR);
 
-		res[0].start = IOP13XX_PCIE_LOWER_IO_PA + IOP13XX_PCIE_IO_BUS_OFFSET;
-		res[0].end   = IOP13XX_PCIE_UPPER_IO_PA;
-		res[0].name  = "IQ81340 ATUE PCI I/O Space";
-		res[0].flags = IORESOURCE_IO;
+		pci_ioremap_io(SZ_64K, IOP13XX_PCIE_LOWER_IO_PA);
 
-		res[1].start = IOP13XX_PCIE_LOWER_MEM_RA;
-		res[1].end   = IOP13XX_PCIE_UPPER_MEM_RA;
-		res[1].name  = "IQ81340 ATUE PCI Memory Space";
-		res[1].flags = IORESOURCE_MEM;
+		res->start = IOP13XX_PCIE_LOWER_MEM_RA;
+		res->end   = IOP13XX_PCIE_UPPER_MEM_RA;
+		res->name  = "IQ81340 ATUE PCI Memory Space";
+		res->flags = IORESOURCE_MEM;
 		sys->mem_offset = IOP13XX_PCIE_MEM_OFFSET;
-		sys->io_offset = IOP13XX_PCIE_LOWER_IO_PA;
 		sys->map_irq = iop13xx_pcie_map_irq;
 		break;
 	default:
@@ -1081,11 +1072,9 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 		return 0;
 	}
 
-	request_resource(&ioport_resource, &res[0]);
-	request_resource(&iomem_resource, &res[1]);
+	request_resource(&iomem_resource, res);
 
-	pci_add_resource_offset(&sys->resources, &res[0], sys->io_offset);
-	pci_add_resource_offset(&sys->resources, &res[1], sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, res, sys->mem_offset);
 
 	return 1;
 }
