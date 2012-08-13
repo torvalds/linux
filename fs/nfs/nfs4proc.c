@@ -2013,8 +2013,12 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 	nfs_fattr_init(fattr);
 
 	if (state != NULL) {
+		struct nfs_lockowner lockowner = {
+			.l_owner = current->files,
+			.l_pid = current->tgid,
+		};
 		nfs4_select_rw_stateid(&arg.stateid, state, FMODE_WRITE,
-				current->files, current->tgid);
+				&lockowner);
 	} else if (nfs4_copy_delegation_stateid(&arg.stateid, inode,
 				FMODE_WRITE)) {
 		/* Use that stateid */

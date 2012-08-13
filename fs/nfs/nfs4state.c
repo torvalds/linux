@@ -911,14 +911,22 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 }
 
 static bool nfs4_copy_lock_stateid(nfs4_stateid *dst, struct nfs4_state *state,
-		fl_owner_t fl_owner, pid_t fl_pid)
+		const struct nfs_lockowner *lockowner)
 {
 	struct nfs4_lock_state *lsp;
+	fl_owner_t fl_owner;
+	pid_t fl_pid;
 	bool ret = false;
+
+
+	if (lockowner == NULL)
+		goto out;
 
 	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
 		goto out;
 
+	fl_owner = lockowner->l_owner;
+	fl_pid = lockowner->l_pid;
 	spin_lock(&state->state_lock);
 	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
 	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0) {
@@ -946,11 +954,11 @@ static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
  * requests.
  */
 void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
-		fmode_t fmode, fl_owner_t fl_owner, pid_t fl_pid)
+		fmode_t fmode, const struct nfs_lockowner *lockowner)
 {
 	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode))
 		return;
-	if (nfs4_copy_lock_stateid(dst, state, fl_owner, fl_pid))
+	if (nfs4_copy_lock_stateid(dst, state, lockowner))
 		return;
 	nfs4_copy_open_stateid(dst, state);
 }

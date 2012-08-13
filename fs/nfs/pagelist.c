@@ -292,7 +292,9 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
 		return false;
-	if (req->wb_lock_context->lockowner != prev->wb_lock_context->lockowner)
+	if (req->wb_lock_context->lockowner.l_owner != prev->wb_lock_context->lockowner.l_owner)
+		return false;
+	if (req->wb_lock_context->lockowner.l_pid != prev->wb_lock_context->lockowner.l_pid)
 		return false;
 	if (req->wb_context->state != prev->wb_context->state)
 		return false;
