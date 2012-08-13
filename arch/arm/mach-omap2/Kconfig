@@ -74,6 +74,7 @@ config SOC_OMAP5
 	select HAVE_SMP
 	select ARM_CPU_SUSPEND if PM
 	select SOC_HAS_REALTIME_COUNTER
+	select ARM_ARCH_TIMER
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2

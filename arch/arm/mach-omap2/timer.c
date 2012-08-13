@@ -41,6 +41,7 @@
 #include <plat/dmtimer.h>
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
+#include <asm/arch_timer.h>
 #include "common.h"
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -488,9 +489,15 @@ OMAP_SYS_TIMER(4)
 #ifdef CONFIG_SOC_OMAP5
 static void __init omap5_timer_init(void)
 {
+	int err;
+
 	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
 	omap2_clocksource_init(2, OMAP4_MPU_SOURCE);
 	realtime_counter_init();
+
+	err = arch_timer_of_register();
+	if (err)
+		pr_err("%s: arch_timer_register failed %d\n", __func__, err);
 }
 OMAP_SYS_TIMER(5)
 #endif
