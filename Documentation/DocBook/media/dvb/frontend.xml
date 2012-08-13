@@ -207,18 +207,44 @@ spec.</para>
 <para>Several functions of the frontend device use the fe_status data type defined
 by</para>
 <programlisting>
- typedef enum fe_status {
-	 FE_HAS_SIGNAL     = 0x01,   /&#x22C6;  found something above the noise level &#x22C6;/
-	 FE_HAS_CARRIER    = 0x02,   /&#x22C6;  found a DVB signal  &#x22C6;/
-	 FE_HAS_VITERBI    = 0x04,   /&#x22C6;  FEC is stable  &#x22C6;/
-	 FE_HAS_SYNC       = 0x08,   /&#x22C6;  found sync bytes  &#x22C6;/
-	 FE_HAS_LOCK       = 0x10,   /&#x22C6;  everything's working... &#x22C6;/
-	 FE_TIMEDOUT       = 0x20,   /&#x22C6;  no lock within the last ~2 seconds &#x22C6;/
-	 FE_REINIT         = 0x40    /&#x22C6;  frontend was reinitialized,  &#x22C6;/
- } fe_status_t;                      /&#x22C6;  application is recommned to reset &#x22C6;/
+typedef enum fe_status {
+	FE_HAS_SIGNAL		= 0x01,
+	FE_HAS_CARRIER		= 0x02,
+	FE_HAS_VITERBI		= 0x04,
+	FE_HAS_SYNC		= 0x08,
+	FE_HAS_LOCK		= 0x10,
+	FE_TIMEDOUT		= 0x20,
+	FE_REINIT		= 0x40,
+} fe_status_t;
 </programlisting>
-<para>to indicate the current state and/or state changes of the frontend hardware.
+<para>to indicate the current state and/or state changes of the frontend hardware:
 </para>
+
+<informaltable><tgroup cols="2"><tbody>
+<row>
+<entry align="char">FE_HAS_SIGNAL</entry>
+<entry align="char">The frontend has found something above the noise level</entry>
+</row><row>
+<entry align="char">FE_HAS_CARRIER</entry>
+<entry align="char">The frontend has found a DVB signal</entry>
+</row><row>
+<entry align="char">FE_HAS_VITERBI</entry>
+<entry align="char">The frontend FEC code is stable</entry>
+</row><row>
+<entry align="char">FE_HAS_SYNC</entry>
+<entry align="char">Syncronization bytes was found</entry>
+</row><row>
+<entry align="char">FE_HAS_LOCK</entry>
+<entry align="char">The DVB were locked and everything is working</entry>
+</row><row>
+<entry align="char">FE_TIMEDOUT</entry>
+<entry align="char">no lock within the last about 2 seconds</entry>
+</row><row>
+<entry align="char">FE_REINIT</entry>
+<entry align="char">The frontend was reinitialized, application is
+recommended to reset DiSEqC, tone and parameters</entry>
+</row>
+</tbody></tgroup></informaltable>
 
 </section>
 
