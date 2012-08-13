@@ -113,6 +113,7 @@ static struct {
 	struct semaphore bus_lock;
 
 	struct omap_video_timings timings;
+	int pixel_size;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -764,10 +765,10 @@ static int rfbi_configure(int rfbi_module, int bpp, int lines)
 	return 0;
 }
 
-int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
-		int data_lines)
+int omap_rfbi_configure(struct omap_dss_device *dssdev, int data_lines)
 {
-	return rfbi_configure(dssdev->phy.rfbi.channel, pixel_size, data_lines);
+	return rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
+			data_lines);
 }
 EXPORT_SYMBOL(omap_rfbi_configure);
 
@@ -784,6 +785,12 @@ void omapdss_rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
 	rfbi.timings.y_res = h;
 }
 EXPORT_SYMBOL(omapdss_rfbi_set_size);
+
+void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev, int pixel_size)
+{
+	rfbi.pixel_size = pixel_size;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_pixel_size);
 
 static void rfbi_dump_regs(struct seq_file *s)
 {
@@ -835,7 +842,7 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	/* Do we need fifohandcheck for RFBI? */
 	mgr_config.fifohandcheck = false;
 
-	mgr_config.video_port_width = dssdev->ctrl.pixel_size;
+	mgr_config.video_port_width = rfbi.pixel_size;
 	mgr_config.lcden_sig_polarity = 0;
 
 	dss_mgr_set_lcd_config(dssdev->manager, &mgr_config);
@@ -890,9 +897,8 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 
 	rfbi_config_lcd_manager(dssdev);
 
-	rfbi_configure(dssdev->phy.rfbi.channel,
-			       dssdev->ctrl.pixel_size,
-			       dssdev->phy.rfbi.data_lines);
+	rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
+			dssdev->phy.rfbi.data_lines);
 
 	rfbi_set_timings(dssdev->phy.rfbi.channel,
 			 &dssdev->ctrl.rfbi_timings);
