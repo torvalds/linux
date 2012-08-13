@@ -1131,9 +1131,6 @@ static int __init amd_iommu_init_pci(void)
 			break;
 	}
 
-	/* Make sure ACS will be enabled */
-	pci_request_acs();
-
 	ret = amd_iommu_init_devices();
 
 	print_iommu_info();
@@ -1651,6 +1648,9 @@ static bool detect_ivrs(void)
 	}
 
 	early_acpi_os_unmap_memory((char __iomem *)ivrs_base, ivrs_size);
+
+	/* Make sure ACS will be enabled during PCI probe */
+	pci_request_acs();
 
 	return true;
 }

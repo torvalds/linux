@@ -197,7 +197,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	neigh = __ipv4_neigh_lookup_noref(dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&arp_tbl, &nexthop, dev, false);
-	if (neigh) {
+	if (!IS_ERR(neigh)) {
 		int res = dst_neigh_output(dst, neigh, skb);
 
 		rcu_read_unlock_bh();

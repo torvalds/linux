@@ -20,6 +20,7 @@
 #define __LINUX_IOMMU_H
 
 #include <linux/errno.h>
+#include <linux/types.h>
 
 #define IOMMU_READ	(1)
 #define IOMMU_WRITE	(2)
@@ -30,6 +31,7 @@ struct iommu_group;
 struct bus_type;
 struct device;
 struct iommu_domain;
+struct notifier_block;
 
 /* iommu fault flags */
 #define IOMMU_FAULT_READ	0x0

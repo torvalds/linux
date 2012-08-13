@@ -877,8 +877,6 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	struct hdmi_eld *eld;
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
 
-	hinfo->nid = 0; /* clear the leftover value */
-
 	/* Validate hinfo */
 	pin_idx = hinfo_to_pin_index(spec, hinfo);
 	if (snd_BUG_ON(pin_idx < 0))
@@ -1163,6 +1161,14 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	return hdmi_setup_stream(codec, cvt_nid, pin_nid, stream_tag, format);
 }
 
+static int generic_hdmi_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					     struct hda_codec *codec,
+					     struct snd_pcm_substream *substream)
+{
+	snd_hda_codec_cleanup_stream(codec, hinfo->nid);
+	return 0;
+}
+
 static int hdmi_pcm_close(struct hda_pcm_stream *hinfo,
 			  struct hda_codec *codec,
 			  struct snd_pcm_substream *substream)
@@ -1202,6 +1208,7 @@ static const struct hda_pcm_ops generic_ops = {
 	.open = hdmi_pcm_open,
 	.close = hdmi_pcm_close,
 	.prepare = generic_hdmi_playback_pcm_prepare,
+	.cleanup = generic_hdmi_playback_pcm_cleanup,
 };
 
 static int generic_hdmi_build_pcms(struct hda_codec *codec)
@@ -1220,7 +1227,6 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
 		pstr->substreams = 1;
 		pstr->ops = generic_ops;
-		pstr->nid = 1; /* FIXME: just for avoiding a debug WARNING */
 		/* other pstr fields are set in open */
 	}
 
