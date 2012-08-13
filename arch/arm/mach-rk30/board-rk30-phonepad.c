@@ -81,6 +81,10 @@
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
 
+#if defined(CONFIG_MT6620)
+#include <linux/gps.h>
+#endif
+
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
 #else
@@ -1353,6 +1357,7 @@ static struct platform_device device_ion = {
 #endif
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK30_PIN6_PB2
+#define RK29SDK_WIFI_SDIO_CARD_INT         RK30_PIN3_PD2
 
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
@@ -1408,6 +1413,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
+
+#if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    .status = rk29sdk_wifi_mmc0_status,
+    .register_status_notify = rk29sdk_wifi_mmc0_status_register,
+#endif
+
 	.detect_irq = RK30_PIN3_PB6,	// INVALID_GPIO
 	.enable_sd_wakeup = 0,
 
@@ -1472,7 +1483,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #endif
 
 #if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC) || defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	.status = rk29sdk_wifi_status,
 	.register_status_notify = rk29sdk_wifi_status_register,
 #endif
@@ -1484,6 +1495,10 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.write_prt = SDMMC1_WRITE_PROTECT_PIN,
 #else
 	.write_prt = INVALID_GPIO,
+#endif
+
+#if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
+    .sdio_INT_gpio = RK29SDK_WIFI_SDIO_CARD_INT,
 #endif
 
 #else
@@ -1659,9 +1674,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK_IRDA
 	&irda_device,
 #endif
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC)||defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	&rk29sdk_wifi_device,
 #endif
+
+#if defined(CONFIG_MT6620)
+    &mt3326_device_gps,
+#endif   
+
 #ifdef CONFIG_RK29_SUPPORT_MODEM
 	&rk30_device_modem,
 #endif
@@ -2070,6 +2090,10 @@ static void __init machine_rk30_board_init(void)
 	rk29sdk_wifi_bt_gpio_control_init();
 #endif
   dcr_en_low();
+
+#if defined(CONFIG_MT6620)
+    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 16*1000000);
+#endif
 }
 
 static void __init rk30_reserve(void)
