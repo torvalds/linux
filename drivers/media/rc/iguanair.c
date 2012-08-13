@@ -484,9 +484,8 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	init_completion(&ir->completion);
 
 	pipein = usb_rcvintpipe(udev, idesc->endpoint[0].desc.bEndpointAddress);
-	usb_fill_int_urb(ir->urb_in, udev, pipein, ir->buf_in,
-		MAX_PACKET_SIZE, iguanair_rx, ir,
-		idesc->endpoint[0].desc.bInterval);
+	usb_fill_int_urb(ir->urb_in, udev, pipein, ir->buf_in, MAX_PACKET_SIZE,
+							 iguanair_rx, ir, 1);
 	ir->urb_in->transfer_dma = ir->dma_in;
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
