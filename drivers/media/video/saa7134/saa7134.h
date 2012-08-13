@@ -130,7 +130,6 @@ struct saa7134_card_ir {
 	u32			mask_keycode, mask_keydown, mask_keyup;
 
 	bool                    running;
-	bool			active;
 
 	struct timer_list       timer;
 

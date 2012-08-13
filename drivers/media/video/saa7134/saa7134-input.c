@@ -446,11 +446,8 @@ static void saa7134_input_timer(unsigned long data)
 static void ir_raw_decode_timer_end(unsigned long data)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-	struct saa7134_card_ir *ir = dev->remote;
 
 	ir_raw_event_handle(dev->remote->dev);
-
-	ir->active = false;
 }
 
 static int __saa7134_ir_start(void *priv)
@@ -501,7 +498,6 @@ static int __saa7134_ir_start(void *priv)
 	}
 
 	ir->running = true;
-	ir->active = false;
 
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
@@ -532,7 +528,6 @@ static void __saa7134_ir_stop(void *priv)
 	if (ir->polling || ir->raw_decode)
 		del_timer_sync(&ir->timer);
 
-	ir->active = false;
 	ir->running = false;
 
 	return;
@@ -1035,10 +1030,11 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	 * the event. This time is enough for NEC protocol. May need adjustments
 	 * to work with other protocols.
 	 */
-	if (!ir->active) {
+	smp_mb();
+
+	if (!timer_pending(&ir->timer)) {
 		timeout = jiffies + msecs_to_jiffies(15);
 		mod_timer(&ir->timer, timeout);
-		ir->active = true;
 	}
 
 	return 1;
