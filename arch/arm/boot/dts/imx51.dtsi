@@ -211,6 +211,122 @@
 				status = "disabled";
 			};
 
+			iomuxc@73fa8000 {
+				compatible = "fsl,imx51-iomuxc";
+				reg = <0x73fa8000 0x4000>;
+
+				audmux {
+					pinctrl_audmux_1: audmuxgrp-1 {
+						fsl,pins = <
+							384 0x80000000	/* MX51_PAD_AUD3_BB_TXD__AUD3_TXD */
+							386 0x80000000	/* MX51_PAD_AUD3_BB_RXD__AUD3_RXD */
+							389 0x80000000	/* MX51_PAD_AUD3_BB_CK__AUD3_TXC */
+							391 0x80000000	/* MX51_PAD_AUD3_BB_FS__AUD3_TXFS */
+						>;
+					};
+				};
+
+				fec {
+					pinctrl_fec_1: fecgrp-1 {
+						fsl,pins = <
+							128 0x80000000	/* MX51_PAD_EIM_EB2__FEC_MDIO */
+							134 0x80000000	/* MX51_PAD_EIM_EB3__FEC_RDATA1 */
+							146 0x80000000	/* MX51_PAD_EIM_CS2__FEC_RDATA2 */
+							152 0x80000000	/* MX51_PAD_EIM_CS3__FEC_RDATA3 */
+							158 0x80000000	/* MX51_PAD_EIM_CS4__FEC_RX_ER */
+							165 0x80000000	/* MX51_PAD_EIM_CS5__FEC_CRS */
+							206 0x80000000	/* MX51_PAD_NANDF_RB2__FEC_COL */
+							213 0x80000000	/* MX51_PAD_NANDF_RB3__FEC_RX_CLK */
+							293 0x80000000	/* MX51_PAD_NANDF_D9__FEC_RDATA0 */
+							298 0x80000000	/* MX51_PAD_NANDF_D8__FEC_TDATA0 */
+							225 0x80000000	/* MX51_PAD_NANDF_CS2__FEC_TX_ER */
+							231 0x80000000	/* MX51_PAD_NANDF_CS3__FEC_MDC */
+							237 0x80000000	/* MX51_PAD_NANDF_CS4__FEC_TDATA1 */
+							243 0x80000000	/* MX51_PAD_NANDF_CS5__FEC_TDATA2 */
+							250 0x80000000	/* MX51_PAD_NANDF_CS6__FEC_TDATA3 */
+							255 0x80000000	/* MX51_PAD_NANDF_CS7__FEC_TX_EN */
+							260 0x80000000	/* MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK */
+						>;
+					};
+				};
+
+				ecspi1 {
+					pinctrl_ecspi1_1: ecspi1grp-1 {
+						fsl,pins = <
+							398 0x185	/* MX51_PAD_CSPI1_MISO__ECSPI1_MISO */
+							394 0x185	/* MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI */
+							409 0x185	/* MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK */
+						>;
+					};
+				};
+
+				esdhc1 {
+					pinctrl_esdhc1_1: esdhc1grp-1 {
+						fsl,pins = <
+							666 0x400020d5	/* MX51_PAD_SD1_CMD__SD1_CMD */
+							669 0x20d5	/* MX51_PAD_SD1_CLK__SD1_CLK */
+							672 0x20d5	/* MX51_PAD_SD1_DATA0__SD1_DATA0 */
+							678 0x20d5	/* MX51_PAD_SD1_DATA1__SD1_DATA1 */
+							684 0x20d5	/* MX51_PAD_SD1_DATA2__SD1_DATA2 */
+							691 0x20d5	/* MX51_PAD_SD1_DATA3__SD1_DATA3 */
+						>;
+					};
+				};
+
+				esdhc2 {
+					pinctrl_esdhc2_1: esdhc2grp-1 {
+						fsl,pins = <
+							704 0x400020d5	/* MX51_PAD_SD2_CMD__SD2_CMD */
+							707 0x20d5	/* MX51_PAD_SD2_CLK__SD2_CLK */
+							710 0x20d5	/* MX51_PAD_SD2_DATA0__SD2_DATA0 */
+							712 0x20d5	/* MX51_PAD_SD2_DATA1__SD2_DATA1 */
+							715 0x20d5	/* MX51_PAD_SD2_DATA2__SD2_DATA2 */
+							719 0x20d5	/* MX51_PAD_SD2_DATA3__SD2_DATA3 */
+						>;
+					};
+				};
+
+				i2c2 {
+					pinctrl_i2c2_1: i2c2grp-1 {
+						fsl,pins = <
+							449 0x400001ed	/* MX51_PAD_KEY_COL4__I2C2_SCL */
+							454 0x400001ed	/* MX51_PAD_KEY_COL5__I2C2_SDA */
+						>;
+					};
+				};
+
+				uart1 {
+					pinctrl_uart1_1: uart1grp-1 {
+						fsl,pins = <
+							413 0x1c5	/* MX51_PAD_UART1_RXD__UART1_RXD */
+							416 0x1c5	/* MX51_PAD_UART1_TXD__UART1_TXD */
+							418 0x1c5	/* MX51_PAD_UART1_RTS__UART1_RTS */
+							420 0x1c5	/* MX51_PAD_UART1_CTS__UART1_CTS */
+						>;
+					};
+				};
+
+				uart2 {
+					pinctrl_uart2_1: uart2grp-1 {
+						fsl,pins = <
+							423 0x1c5	/* MX51_PAD_UART2_RXD__UART2_RXD */
+							426 0x1c5	/* MX51_PAD_UART2_TXD__UART2_TXD */
+						>;
+					};
+				};
+
+				uart3 {
+					pinctrl_uart3_1: uart3grp-1 {
+						fsl,pins = <
+							54 0x1c5	/* MX51_PAD_EIM_D25__UART3_RXD */
+							59 0x1c5	/* MX51_PAD_EIM_D26__UART3_TXD */
+							65 0x1c5	/* MX51_PAD_EIM_D27__UART3_RTS */
+							49 0x1c5	/* MX51_PAD_EIM_D24__UART3_CTS */
+						>;
+					};
+				};
+			};
+
 			uart1: serial@73fbc000 {
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fbc000 0x4000>;
