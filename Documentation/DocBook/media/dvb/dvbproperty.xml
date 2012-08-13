@@ -821,6 +821,7 @@ typedef enum fe_hierarchy {
 	<programlisting>
 enum fe_interleaving {
 	INTERLEAVING_NONE,
+	INTERLEAVING_AUTO,
 	INTERLEAVING_240,
 	INTERLEAVING_720,
 };
