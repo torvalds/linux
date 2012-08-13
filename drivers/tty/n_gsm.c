@@ -879,7 +879,7 @@ static int gsm_dlci_data_output_framed(struct gsm_mux *gsm,
 	if (len > gsm->mtu) {
 		if (dlci->adaption == 3) {
 			/* Over long frame, bin it */
-			kfree_skb(dlci->skb);
+			dev_kfree_skb_any(dlci->skb);
 			dlci->skb = NULL;
 			return 0;
 		}
@@ -908,7 +908,7 @@ static int gsm_dlci_data_output_framed(struct gsm_mux *gsm,
 	skb_pull(dlci->skb, len);
 	__gsm_data_queue(dlci, msg);
 	if (last) {
-		kfree_skb(dlci->skb);
+		dev_kfree_skb_any(dlci->skb);
 		dlci->skb = NULL;
 	}
 	return size;
@@ -1688,7 +1688,7 @@ static void gsm_dlci_free(struct kref *ref)
 	dlci->gsm->dlci[dlci->addr] = NULL;
 	kfifo_free(dlci->fifo);
 	while ((dlci->skb = skb_dequeue(&dlci->skb_list)))
-		kfree_skb(dlci->skb);
+		dev_kfree_skb(dlci->skb);
 	kfree(dlci);
 }
 
@@ -2039,7 +2039,7 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 {
 	int i;
 	struct gsm_dlci *dlci = gsm->dlci[0];
-	struct gsm_msg *txq, *utxq;
+	struct gsm_msg *txq, *ntxq;
 	struct gsm_control *gc;
 
 	gsm->dead = 1;
