@@ -12,7 +12,7 @@
 #include <linux/amba/pl022.h>
 #include <linux/err.h>
 #include <mach/coh901318.h>
-#include <mach/dma_channels.h>
+#include "dma_channels.h"
 
 /*
  * The following is for the actual devices on the SSP/SPI bus

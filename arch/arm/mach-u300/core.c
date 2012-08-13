@@ -45,12 +45,12 @@
 #include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
-#include <mach/dma_channels.h>
 
 #include "timer.h"
 #include "spi.h"
 #include "i2c.h"
 #include "u300-gpio.h"
+#include "dma_channels.h"
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The
