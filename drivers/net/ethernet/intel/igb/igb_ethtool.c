@@ -1498,6 +1498,9 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 		break;
 	}
 
+	/* add small delay to avoid loopback test failure */
+	msleep(50);
+
 	/* force 1000, set loopback */
 	igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
 

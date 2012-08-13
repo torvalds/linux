@@ -156,8 +156,12 @@
 				    : (0x0E018 + ((_n) * 0x40)))
 #define E1000_TXDCTL(_n)  ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) \
 				    : (0x0E028 + ((_n) * 0x40)))
-#define E1000_DCA_TXCTRL(_n) (0x03814 + (_n << 8))
-#define E1000_DCA_RXCTRL(_n) (0x02814 + (_n << 8))
+#define E1000_RXCTL(_n)	  ((_n) < 4 ? (0x02814 + ((_n) * 0x100)) : \
+				      (0x0C014 + ((_n) * 0x40)))
+#define E1000_DCA_RXCTRL(_n)	E1000_RXCTL(_n)
+#define E1000_TXCTL(_n)   ((_n) < 4 ? (0x03814 + ((_n) * 0x100)) : \
+				      (0x0E014 + ((_n) * 0x40)))
+#define E1000_DCA_TXCTRL(_n) E1000_TXCTL(_n)
 #define E1000_TDWBAL(_n)  ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) \
 				    : (0x0E038 + ((_n) * 0x40)))
 #define E1000_TDWBAH(_n)  ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) \

@@ -178,6 +178,24 @@ static void e1000_regdump(struct e1000_hw *hw, struct e1000_reg_info *reginfo)
 	pr_info("%-15s %08x %08x\n", rname, regs[0], regs[1]);
 }
 
+static void e1000e_dump_ps_pages(struct e1000_adapter *adapter,
+				 struct e1000_buffer *bi)
+{
+	int i;
+	struct e1000_ps_page *ps_page;
+
+	for (i = 0; i < adapter->rx_ps_pages; i++) {
+		ps_page = &bi->ps_pages[i];
+
+		if (ps_page->page) {
+			pr_info("packet dump for ps_page %d:\n", i);
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS,
+				       16, 1, page_address(ps_page->page),
+				       PAGE_SIZE, true);
+		}
+	}
+}
+
 /*
  * e1000e_dump - Print registers, Tx-ring and Rx-ring
  */
@@ -299,10 +317,10 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 			(unsigned long long)buffer_info->time_stamp,
 			buffer_info->skb, next_desc);
 
-		if (netif_msg_pktdata(adapter) && buffer_info->dma != 0)
+		if (netif_msg_pktdata(adapter) && buffer_info->skb)
 			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS,
-				       16, 1, phys_to_virt(buffer_info->dma),
-				       buffer_info->length, true);
+				       16, 1, buffer_info->skb->data,
+				       buffer_info->skb->len, true);
 	}
 
 	/* Print Rx Ring Summary */
@@ -381,10 +399,8 @@ rx_ring_summary:
 					buffer_info->skb, next_desc);
 
 				if (netif_msg_pktdata(adapter))
-					print_hex_dump(KERN_INFO, "",
-						DUMP_PREFIX_ADDRESS, 16, 1,
-						phys_to_virt(buffer_info->dma),
-						adapter->rx_ps_bsize0, true);
+					e1000e_dump_ps_pages(adapter,
+							     buffer_info);
 			}
 		}
 		break;
@@ -444,12 +460,12 @@ rx_ring_summary:
 					(unsigned long long)buffer_info->dma,
 					buffer_info->skb, next_desc);
 
-				if (netif_msg_pktdata(adapter))
+				if (netif_msg_pktdata(adapter) &&
+				    buffer_info->skb)
 					print_hex_dump(KERN_INFO, "",
 						       DUMP_PREFIX_ADDRESS, 16,
 						       1,
-						       phys_to_virt
-						       (buffer_info->dma),
+						       buffer_info->skb->data,
 						       adapter->rx_buffer_len,
 						       true);
 			}
