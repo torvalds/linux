@@ -4814,6 +4814,32 @@ static const struct snd_kcontrol_new ad1882_3stack_mixers[] = {
 	{ } /* end */
 };
 
+/* simple auto-mute control for AD1882 3-stack board */
+#define AD1882_HP_EVENT	0x01
+
+static void ad1882_3stack_automute(struct hda_codec *codec)
+{
+	bool mute = snd_hda_jack_detect(codec, 0x11);
+	snd_hda_codec_write(codec, 0x12, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    mute ? 0 : PIN_OUT);
+}
+
+static int ad1882_3stack_automute_init(struct hda_codec *codec)
+{
+	ad198x_init(codec);
+	ad1882_3stack_automute(codec);
+	return 0;
+}
+
+static void ad1882_3stack_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	switch (res >> 26) {
+	case AD1882_HP_EVENT:
+		ad1882_3stack_automute(codec);
+		break;
+	}
+}
+
 static const struct snd_kcontrol_new ad1882_6stack_mixers[] = {
 	HDA_CODEC_MUTE("Surround Playback Switch", 0x16, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_MONO("Center Playback Switch", 0x24, 1, 0x0, HDA_OUTPUT),
@@ -4928,6 +4954,11 @@ static const struct hda_verb ad1882_init_verbs[] = {
 	{ } /* end */
 };
 
+static const struct hda_verb ad1882_3stack_automute_verbs[] = {
+	{0x11, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1882_HP_EVENT},
+	{ } /* end */
+};
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 static const struct hda_amp_list ad1882_loopbacks[] = {
 	{ 0x20, HDA_INPUT, 0 }, /* Front Mic */
@@ -4942,12 +4973,14 @@ static const struct hda_amp_list ad1882_loopbacks[] = {
 enum {
 	AD1882_3STACK,
 	AD1882_6STACK,
+	AD1882_3STACK_AUTOMUTE,
 	AD1882_MODELS
 };
 
 static const char * const ad1882_models[AD1986A_MODELS] = {
 	[AD1882_3STACK]		= "3stack",
 	[AD1882_6STACK]		= "6stack",
+	[AD1882_3STACK_AUTOMUTE] = "3stack-automute",
 };
 
 
@@ -5002,6 +5035,7 @@ static int patch_ad1882(struct hda_codec *codec)
 	switch (board_config) {
 	default:
 	case AD1882_3STACK:
+	case AD1882_3STACK_AUTOMUTE:
 		spec->num_mixers = 3;
 		spec->mixers[2] = ad1882_3stack_mixers;
 		spec->channel_mode = ad1882_modes;
@@ -5009,6 +5043,12 @@ static int patch_ad1882(struct hda_codec *codec)
 		spec->need_dac_fix = 1;
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
+		if (board_config != AD1882_3STACK) {
+			spec->init_verbs[spec->num_init_verbs++] =
+				ad1882_3stack_automute_verbs;
+			codec->patch_ops.unsol_event = ad1882_3stack_unsol_event;
+			codec->patch_ops.init = ad1882_3stack_automute_init;
+		}
 		break;
 	case AD1882_6STACK:
 		spec->num_mixers = 3;
