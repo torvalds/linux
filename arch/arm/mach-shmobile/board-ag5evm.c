@@ -213,6 +213,84 @@ static struct platform_device irda_device = {
 	.num_resources  = ARRAY_SIZE(irda_resources),
 };
 
+/* MIPI-DSI */
+static struct resource mipidsi0_resources[] = {
+	[0] = {
+		.name	= "DSI0",
+		.start  = 0xfeab0000,
+		.end    = 0xfeab3fff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "DSI0",
+		.start  = 0xfeab4000,
+		.end    = 0xfeab7fff,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static int sh_mipi_set_dot_clock(struct platform_device *pdev,
+				 void __iomem *base,
+				 int enable)
+{
+	struct clk *pck, *phy;
+	int ret;
+
+	pck = clk_get(&pdev->dev, "dsip_clk");
+	if (IS_ERR(pck)) {
+		ret = PTR_ERR(pck);
+		goto sh_mipi_set_dot_clock_pck_err;
+	}
+
+	phy = clk_get(&pdev->dev, "dsiphy_clk");
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto sh_mipi_set_dot_clock_phy_err;
+	}
+
+	if (enable) {
+		clk_set_rate(pck, clk_round_rate(pck,  24000000));
+		clk_set_rate(phy, clk_round_rate(pck, 510000000));
+		clk_enable(pck);
+		clk_enable(phy);
+	} else {
+		clk_disable(pck);
+		clk_disable(phy);
+	}
+
+	ret = 0;
+
+	clk_put(phy);
+sh_mipi_set_dot_clock_phy_err:
+	clk_put(pck);
+sh_mipi_set_dot_clock_pck_err:
+	return ret;
+}
+
+static struct sh_mobile_lcdc_info lcdc0_info;
+
+static struct sh_mipi_dsi_info mipidsi0_info = {
+	.data_format	= MIPI_RGB888,
+	.lcd_chan	= &lcdc0_info.ch[0],
+	.lane		= 2,
+	.vsynw_offset	= 20,
+	.clksrc		= 1,
+	.flags		= SH_MIPI_DSI_HSABM		|
+			  SH_MIPI_DSI_SYNC_PULSES_MODE	|
+			  SH_MIPI_DSI_HSbyteCLK,
+	.set_dot_clock	= sh_mipi_set_dot_clock,
+};
+
+static struct platform_device mipidsi0_device = {
+	.name           = "sh-mipi-dsi",
+	.num_resources  = ARRAY_SIZE(mipidsi0_resources),
+	.resource       = mipidsi0_resources,
+	.id             = 0,
+	.dev	= {
+		.platform_data	= &mipidsi0_info,
+	},
+};
+
 static unsigned char lcd_backlight_seq[3][2] = {
 	{ 0x04, 0x07 },
 	{ 0x23, 0x80 },
@@ -275,6 +353,7 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 			.display_on = lcd_backlight_on,
 			.display_off = lcd_backlight_reset,
 		},
+		.tx_dev = &mipidsi0_device,
 	}
 };
 
@@ -299,82 +378,6 @@ static struct platform_device lcdc0_device = {
 	.dev	= {
 		.platform_data	= &lcdc0_info,
 		.coherent_dma_mask = ~0,
-	},
-};
-
-/* MIPI-DSI */
-static struct resource mipidsi0_resources[] = {
-	[0] = {
-		.name	= "DSI0",
-		.start  = 0xfeab0000,
-		.end    = 0xfeab3fff,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.name	= "DSI0",
-		.start  = 0xfeab4000,
-		.end    = 0xfeab7fff,
-		.flags  = IORESOURCE_MEM,
-	},
-};
-
-static int sh_mipi_set_dot_clock(struct platform_device *pdev,
-				 void __iomem *base,
-				 int enable)
-{
-	struct clk *pck, *phy;
-	int ret;
-
-	pck = clk_get(&pdev->dev, "dsip_clk");
-	if (IS_ERR(pck)) {
-		ret = PTR_ERR(pck);
-		goto sh_mipi_set_dot_clock_pck_err;
-	}
-
-	phy = clk_get(&pdev->dev, "dsiphy_clk");
-	if (IS_ERR(phy)) {
-		ret = PTR_ERR(phy);
-		goto sh_mipi_set_dot_clock_phy_err;
-	}
-
-	if (enable) {
-		clk_set_rate(pck, clk_round_rate(pck,  24000000));
-		clk_set_rate(phy, clk_round_rate(pck, 510000000));
-		clk_enable(pck);
-		clk_enable(phy);
-	} else {
-		clk_disable(pck);
-		clk_disable(phy);
-	}
-
-	ret = 0;
-
-	clk_put(phy);
-sh_mipi_set_dot_clock_phy_err:
-	clk_put(pck);
-sh_mipi_set_dot_clock_pck_err:
-	return ret;
-}
-
-static struct sh_mipi_dsi_info mipidsi0_info = {
-	.data_format	= MIPI_RGB888,
-	.lcd_chan	= &lcdc0_info.ch[0],
-	.lane		= 2,
-	.vsynw_offset	= 20,
-	.clksrc		= 1,
-	.flags		= SH_MIPI_DSI_HSABM		|
-			  SH_MIPI_DSI_SYNC_PULSES_MODE	|
-			  SH_MIPI_DSI_HSbyteCLK,
-	.set_dot_clock	= sh_mipi_set_dot_clock,
-};
-
-static struct platform_device mipidsi0_device = {
-	.name           = "sh-mipi-dsi",
-	.num_resources  = ARRAY_SIZE(mipidsi0_resources),
-	.resource       = mipidsi0_resources,
-	.id             = 0,
-	.dev	= {
-		.platform_data	= &mipidsi0_info,
 	},
 };
 
@@ -531,8 +534,8 @@ static struct platform_device *ag5evm_devices[] __initdata = {
 	&fsi_device,
 	&mmc_device,
 	&irda_device,
-	&lcdc0_device,
 	&mipidsi0_device,
+	&lcdc0_device,
 	&sdhi0_device,
 	&sdhi1_device,
 };
