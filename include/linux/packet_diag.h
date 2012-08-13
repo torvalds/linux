@@ -13,6 +13,7 @@ struct packet_diag_req {
 };
 
 #define PACKET_SHOW_INFO	0x00000001 /* Basic packet_sk information */
+#define PACKET_SHOW_MCLIST	0x00000002 /* A set of packet_diag_mclist-s */
 
 struct packet_diag_msg {
 	__u8	pdiag_family;
@@ -25,6 +26,7 @@ struct packet_diag_msg {
 
 enum {
 	PACKET_DIAG_INFO,
+	PACKET_DIAG_MCLIST,
 
 	PACKET_DIAG_MAX,
 };
@@ -42,6 +44,14 @@ struct packet_diag_info {
 #define PDI_ORIGDEV	0x4
 #define PDI_VNETHDR	0x8
 #define PDI_LOSS	0x10
+};
+
+struct packet_diag_mclist {
+	__u32	pdmc_index;
+	__u32	pdmc_count;
+	__u16	pdmc_type;
+	__u16	pdmc_alen;
+	__u8	pdmc_addr[MAX_ADDR_LEN];
 };
 
 #endif

@@ -1,6 +1,7 @@
 #include <linux/module.h>
 #include <linux/sock_diag.h>
 #include <linux/net.h>
+#include <linux/netdevice.h>
 #include <linux/packet_diag.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -32,6 +33,40 @@ static int pdiag_put_info(const struct packet_sock *po, struct sk_buff *nlskb)
 	return nla_put(nlskb, PACKET_DIAG_INFO, sizeof(pinfo), &pinfo);
 }
 
+static int pdiag_put_mclist(const struct packet_sock *po, struct sk_buff *nlskb)
+{
+	struct nlattr *mca;
+	struct packet_mclist *ml;
+
+	mca = nla_nest_start(nlskb, PACKET_DIAG_MCLIST);
+	if (!mca)
+		return -EMSGSIZE;
+
+	rtnl_lock();
+	for (ml = po->mclist; ml; ml = ml->next) {
+		struct packet_diag_mclist *dml;
+
+		dml = nla_reserve_nohdr(nlskb, sizeof(*dml));
+		if (!dml) {
+			rtnl_unlock();
+			nla_nest_cancel(nlskb, mca);
+			return -EMSGSIZE;
+		}
+
+		dml->pdmc_index = ml->ifindex;
+		dml->pdmc_type = ml->type;
+		dml->pdmc_alen = ml->alen;
+		dml->pdmc_count = ml->count;
+		BUILD_BUG_ON(sizeof(dml->pdmc_addr) != sizeof(ml->addr));
+		memcpy(dml->pdmc_addr, ml->addr, sizeof(ml->addr));
+	}
+
+	rtnl_unlock();
+	nla_nest_end(nlskb, mca);
+
+	return 0;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -52,6 +87,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag
 
 	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
 			pdiag_put_info(po, skb))
+		goto out_nlmsg_trim;
+
+	if ((req->pdiag_show & PACKET_SHOW_MCLIST) &&
+			pdiag_put_mclist(po, skb))
 		goto out_nlmsg_trim;
 
 	return nlmsg_end(skb, nlh);
