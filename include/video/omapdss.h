@@ -719,6 +719,8 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
+void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings);
 
 int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data);
