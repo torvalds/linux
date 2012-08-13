@@ -467,7 +467,7 @@ void kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
-	int ret;
+	int ret, s;
 #ifdef CONFIG_PPC_FPU
 	unsigned int fpscr;
 	int fpexc_mode;
@@ -480,10 +480,10 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
-	if (kvmppc_prepare_to_enter(vcpu)) {
+	s = kvmppc_prepare_to_enter(vcpu);
+	if (s <= 0) {
 		local_irq_enable();
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		ret = -EINTR;
+		ret = s;
 		goto out;
 	}
 	kvmppc_lazy_ee_enable();
@@ -642,6 +642,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
                        unsigned int exit_nr)
 {
 	int r = RESUME_HOST;
+	int s;
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
@@ -948,11 +949,10 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	if (!(r & RESUME_HOST)) {
 		local_irq_disable();
-		if (kvmppc_prepare_to_enter(vcpu)) {
+		s = kvmppc_prepare_to_enter(vcpu);
+		if (s <= 0) {
 			local_irq_enable();
-			run->exit_reason = KVM_EXIT_INTR;
-			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+			r = (s << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
 		} else {
 			kvmppc_lazy_ee_enable();
 		}

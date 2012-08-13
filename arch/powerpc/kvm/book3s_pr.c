@@ -589,6 +589,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
                        unsigned int exit_nr)
 {
 	int r = RESUME_HOST;
+	int s;
 
 	vcpu->stat.sum_exits++;
 
@@ -862,10 +863,10 @@ program_interrupt:
 		 * again due to a host external interrupt.
 		 */
 		local_irq_disable();
-		if (kvmppc_prepare_to_enter(vcpu)) {
+		s = kvmppc_prepare_to_enter(vcpu);
+		if (s <= 0) {
 			local_irq_enable();
-			run->exit_reason = KVM_EXIT_INTR;
-			r = -EINTR;
+			r = s;
 		} else {
 			kvmppc_lazy_ee_enable();
 		}
@@ -1074,10 +1075,9 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * a host external interrupt.
 	 */
 	local_irq_disable();
-	if (kvmppc_prepare_to_enter(vcpu)) {
+	ret = kvmppc_prepare_to_enter(vcpu);
+	if (ret <= 0) {
 		local_irq_enable();
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		ret = -EINTR;
 		goto out;
 	}
 

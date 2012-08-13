@@ -53,11 +53,14 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
  * Common checks before entering the guest world.  Call with interrupts
  * disabled.
  *
- * returns !0 if a signal is pending and check_signal is true
+ * returns:
+ *
+ * == 1 if we're ready to go into guest state
+ * <= 0 if we need to go back to the host with return value
  */
 int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
-	int r = 0;
+	int r = 1;
 
 	WARN_ON_ONCE(!irqs_disabled());
 	while (true) {
@@ -69,7 +72,9 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		}
 
 		if (signal_pending(current)) {
-			r = 1;
+			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+			vcpu->run->exit_reason = KVM_EXIT_INTR;
+			r = -EINTR;
 			break;
 		}
 
