@@ -2889,6 +2889,10 @@ static int gsmtty_install(struct tty_driver *driver, struct tty_struct *tty)
 	gsm = gsm_mux[mux];
 	if (gsm->dead)
 		return -EL2HLT;
+	/* If DLCI 0 is not yet fully open return an error. This is ok from a locking
+	   perspective as we don't have to worry about this if DLCI0 is lost */
+	if (gsm->dlci[0] && gsm->dlci[0]->state != DLCI_OPEN) 
+		return -EL2NSYNC;
 	dlci = gsm->dlci[line];
 	if (dlci == NULL) {
 		alloc = true;
