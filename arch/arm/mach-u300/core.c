@@ -1440,7 +1440,6 @@ static struct platform_device pinctrl_device = {
  * GPIO block, with different number of ports.
  */
 static struct u300_gpio_platform u300_gpio_plat = {
-	.variant = U300_GPIO_COH901571_3_BS335,
 	.ports = 7,
 	.gpio_base = 0,
 	.gpio_irq_base = IRQ_U300_GPIO_BASE,
