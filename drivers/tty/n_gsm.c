@@ -691,10 +691,6 @@ static void gsm_data_kick(struct gsm_mux *gsm)
 			msg = msg->next;
 			continue;
 		}
-		if (gsm->dlci[msg->addr]->constipated) {
-			msg = msg->next;
-			continue;
-		}
 		if (gsm->encoding != 0) {
 			gsm->txframe[0] = GSM1_SOF;
 			len = gsm_stuff_frame(msg->data,
@@ -748,8 +744,6 @@ static void __gsm_data_queue(struct gsm_dlci *dlci, struct gsm_msg *msg)
 	u8 *dp = msg->data;
 	u8 *fcs = dp + msg->len;
 
-	WARN_ONCE(dlci->constipated, "%s: queueing from a constipated DLCI",
-		__func__);
 	/* Fill in the header */
 	if (gsm->encoding == 0) {
 		if (msg->len < 128)
@@ -959,9 +953,6 @@ static void gsm_dlci_data_sweep(struct gsm_mux *gsm)
 			break;
 		dlci = gsm->dlci[i];
 		if (dlci == NULL || dlci->constipated) {
-			if (dlci && (debug & 0x20))
-				pr_info("%s: DLCI %d is constipated",
-					__func__, i);
 			i++;
 			continue;
 		}
@@ -991,12 +982,8 @@ static void gsm_dlci_data_kick(struct gsm_dlci *dlci)
 	unsigned long flags;
 	int sweep;
 
-	if (dlci->constipated) {
-		if (debug & 0x20)
-			pr_info("%s: DLCI %d is constipated",
-				__func__, dlci->addr);
+	if (dlci->constipated)
 		return;
-	}
 
 	spin_lock_irqsave(&dlci->gsm->tx_lock, flags);
 	/* If we have nothing running then we need to fire up */
@@ -1072,15 +1059,9 @@ static void gsm_process_modem(struct tty_struct *tty, struct gsm_dlci *dlci,
 	/* Flow control/ready to communicate */
 	fc = (modem & MDM_FC) || !(modem & MDM_RTR);
 	if (fc && !dlci->constipated) {
-		if (debug & 0x20)
-			pr_info("%s: DLCI %d START constipated (tx_bytes=%d)",
-				__func__, dlci->addr, dlci->gsm->tx_bytes);
 		/* Need to throttle our output on this device */
 		dlci->constipated = 1;
 	} else if (!fc && dlci->constipated) {
-		if (debug & 0x20)
-			pr_info("%s: DLCI %d END constipated (tx_bytes=%d)",
-				__func__, dlci->addr, dlci->gsm->tx_bytes);
 		dlci->constipated = 0;
 		gsm_dlci_data_kick(dlci);
 	}
@@ -1257,8 +1238,6 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 		break;
 	case CMD_FCON:
 		/* Modem can accept data again */
-		if (debug & 0x20)
-			pr_info("%s: GSM END constipation", __func__);
 		gsm->constipated = 0;
 		gsm_control_reply(gsm, CMD_FCON, NULL, 0);
 		/* Kick the link in case it is idling */
@@ -1268,8 +1247,6 @@ static void gsm_control_message(struct gsm_mux *gsm, unsigned int command,
 		break;
 	case CMD_FCOFF:
 		/* Modem wants us to STFU */
-		if (debug & 0x20)
-			pr_info("%s: GSM START constipation", __func__);
 		gsm->constipated = 1;
 		gsm_control_reply(gsm, CMD_FCOFF, NULL, 0);
 		break;
