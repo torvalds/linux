@@ -1052,7 +1052,7 @@ void ipoib_neigh_free(struct ipoib_neigh *neigh)
 	for (n = rcu_dereference_protected(*np,
 					    lockdep_is_held(&ntbl->rwlock));
 	     n != NULL;
-	     n = rcu_dereference_protected(neigh->hnext,
+	     n = rcu_dereference_protected(*np,
 					lockdep_is_held(&ntbl->rwlock))) {
 		if (n == neigh) {
 			/* found */
