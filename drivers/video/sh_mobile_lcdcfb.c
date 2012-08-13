@@ -2187,7 +2187,7 @@ sh_mobile_lcdc_channel_fb_cleanup(struct sh_mobile_lcdc_chan *ch)
 
 static int __devinit
 sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
-			       const struct fb_videomode *mode,
+			       const struct fb_videomode *modes,
 			       unsigned int num_modes)
 {
 	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
@@ -2213,7 +2213,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	info->pseudo_palette = &ch->pseudo_palette;
 	info->par = ch;
 
-	fb_videomode_to_modelist(mode, num_modes, &info->modelist);
+	fb_videomode_to_modelist(modes, num_modes, &info->modelist);
 
 	ret = fb_alloc_cmap(&info->cmap, PALETTE_NR, 0);
 	if (ret < 0) {
@@ -2247,7 +2247,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	 * default.
 	 */
 	var = &info->var;
-	fb_videomode_to_var(var, mode);
+	fb_videomode_to_var(var, modes);
 	var->width = ch->display.width;
 	var->height = ch->display.height;
 	var->xres_virtual = ch->xres_virtual;
