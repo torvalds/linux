@@ -43,25 +43,8 @@ static const struct of_dev_auxdata imx51_auxdata_lookup[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static const struct of_device_id imx51_iomuxc_of_match[] __initconst = {
-	{ .compatible = "fsl,imx51-iomuxc-babbage", .data = imx51_babbage_common_init, },
-	{ /* sentinel */ }
-};
-
 static void __init imx51_dt_init(void)
 {
-	struct device_node *node;
-	const struct of_device_id *of_id;
-	void (*func)(void);
-
-	node = of_find_matching_node(NULL, imx51_iomuxc_of_match);
-	if (node) {
-		of_id = of_match_node(imx51_iomuxc_of_match, node);
-		func = of_id->data;
-		func();
-		of_node_put(node);
-	}
-
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     imx51_auxdata_lookup, NULL);
 }
