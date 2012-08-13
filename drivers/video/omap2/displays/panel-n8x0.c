@@ -151,14 +151,16 @@ static void blizzard_ctrl_setup_update(struct omap_dss_device *dssdev,
 			BLIZZARD_SRC_WRITE_LCD_DESTRUCTIVE;
 
 	omapdss_rfbi_set_pixel_size(dssdev, 16);
+	omapdss_rfbi_set_data_lines(dssdev, 8);
 
-	omap_rfbi_configure(dssdev, 8);
+	omap_rfbi_configure(dssdev);
 
 	blizzard_write(BLIZZARD_INPUT_WIN_X_START_0, tmp, 18);
 
 	omapdss_rfbi_set_pixel_size(dssdev, 16);
+	omapdss_rfbi_set_data_lines(dssdev, 16);
 
-	omap_rfbi_configure(dssdev, 16);
+	omap_rfbi_configure(dssdev);
 }
 
 static void mipid_transfer(struct spi_device *spi, int cmd, const u8 *wbuf,
@@ -304,6 +306,7 @@ static int n8x0_panel_power_on(struct omap_dss_device *dssdev)
 	omapdss_rfbi_set_size(dssdev, dssdev->panel.timings.x_res,
 		dssdev->panel.timings.y_res);
 	omapdss_rfbi_set_pixel_size(dssdev, dssdev->ctrl.pixel_size);
+	omapdss_rfbi_set_data_lines(dssdev, dssdev->phy.rfbi.data_lines);
 
 	r = omapdss_rfbi_display_enable(dssdev);
 	if (r)

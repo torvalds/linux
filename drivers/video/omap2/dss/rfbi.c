@@ -114,6 +114,7 @@ static struct {
 
 	struct omap_video_timings timings;
 	int pixel_size;
+	int data_lines;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -765,10 +766,10 @@ static int rfbi_configure(int rfbi_module, int bpp, int lines)
 	return 0;
 }
 
-int omap_rfbi_configure(struct omap_dss_device *dssdev, int data_lines)
+int omap_rfbi_configure(struct omap_dss_device *dssdev)
 {
 	return rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
-			data_lines);
+			rfbi.data_lines);
 }
 EXPORT_SYMBOL(omap_rfbi_configure);
 
@@ -791,6 +792,12 @@ void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev, int pixel_size)
 	rfbi.pixel_size = pixel_size;
 }
 EXPORT_SYMBOL(omapdss_rfbi_set_pixel_size);
+
+void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
+{
+	rfbi.data_lines = data_lines;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_data_lines);
 
 static void rfbi_dump_regs(struct seq_file *s)
 {
@@ -898,7 +905,7 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 	rfbi_config_lcd_manager(dssdev);
 
 	rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
-			dssdev->phy.rfbi.data_lines);
+			rfbi.data_lines);
 
 	rfbi_set_timings(dssdev->phy.rfbi.channel,
 			 &dssdev->ctrl.rfbi_timings);
