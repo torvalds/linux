@@ -1486,8 +1486,7 @@ static void send_to_sock(struct connection *con)
 				}
 				cond_resched();
 				goto out;
-			}
-			if (ret <= 0)
+			} else if (ret < 0)
 				goto send_error;
 		}
 
@@ -1504,7 +1503,6 @@ static void send_to_sock(struct connection *con)
 		if (e->len == 0 && e->users == 0) {
 			list_del(&e->list);
 			free_entry(e);
-			continue;
 		}
 	}
 	spin_unlock(&con->writequeue_lock);
@@ -1522,7 +1520,6 @@ out_connect:
 	mutex_unlock(&con->sock_mutex);
 	if (!test_bit(CF_INIT_PENDING, &con->flags))
 		lowcomms_connect_sock(con);
-	return;
 }
 
 static void clean_one_writequeue(struct connection *con)
