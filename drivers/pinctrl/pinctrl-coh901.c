@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
-#include <mach/gpio-u300.h>
+#include <linux/platform_data/pinctrl-coh901.h>
 #include "pinctrl-coh901.h"
 
 #define U300_GPIO_PORT_STRIDE				(0x30)

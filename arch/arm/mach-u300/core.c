@@ -31,6 +31,7 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/clk-u300.h>
+#include <linux/platform_data/pinctrl-coh901.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -43,7 +44,6 @@
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 #include <mach/dma_channels.h>
-#include <mach/gpio-u300.h>
 
 #include "spi.h"
 #include "i2c.h"
