@@ -950,7 +950,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 }
 
 /**
- * radeon_vm_init - tear down a vm instance
+ * radeon_vm_fini - tear down a vm instance
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
