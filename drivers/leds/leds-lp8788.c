@@ -63,7 +63,7 @@ static int lp8788_led_init_device(struct lp8788_led *led,
 	/* scale configuration */
 	addr = LP8788_ISINK_CTRL;
 	mask = 1 << (cfg->num + LP8788_ISINK_SCALE_OFFSET);
-	val = cfg->scale << cfg->num;
+	val = cfg->scale << (cfg->num + LP8788_ISINK_SCALE_OFFSET);
 	ret = lp8788_update_bits(led->lp, addr, mask, val);
 	if (ret)
 		return ret;
