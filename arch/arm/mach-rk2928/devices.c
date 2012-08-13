@@ -779,6 +779,19 @@ static struct platform_device device_acodec = {
 };
 #endif
 
+static struct resource resource_arm_pmu = {
+	.start		= IRQ_ARM_PMU,
+	.end		= IRQ_ARM_PMU,
+	.flags		= IORESOURCE_IRQ,
+};
+
+struct platform_device device_arm_pmu = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= 1,
+	.resource	= &resource_arm_pmu,
+};
+
 static int __init rk2928_init_devices(void)
 {
 	rk2928_init_dma();
@@ -817,6 +830,7 @@ static int __init rk2928_init_devices(void)
 #ifdef CONFIG_HDMI_RK2928
 	platform_device_register(&device_hdmi);
 #endif
+	platform_device_register(&device_arm_pmu);
 	return 0;
 }
 arch_initcall(rk2928_init_devices);
