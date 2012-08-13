@@ -38,13 +38,13 @@
 #include <asm/memory.h>
 #include <asm/hardware/vic.h>
 #include <asm/mach/map.h>
-#include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
+#include <mach/irqs.h>
 
 #include "timer.h"
 #include "spi.h"
@@ -1807,6 +1807,7 @@ MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
 	.atag_offset	= 0x100,
 	.map_io		= u300_map_io,
+	.nr_irqs	= NR_IRQS_U300,
 	.init_irq	= u300_init_irq,
 	.handle_irq	= vic_handle_irq,
 	.timer		= &u300_timer,
