@@ -678,7 +678,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 		return err;
 
 	err = mlx4_buddy_init(&mr_table->mtt_buddy,
-			      ilog2(dev->caps.num_mtts /
+			      ilog2((u32)dev->caps.num_mtts /
 			      (1 << log_mtts_per_seg)));
 	if (err)
 		goto err_buddy;
@@ -688,7 +688,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 			mlx4_alloc_mtt_range(dev,
 					     fls(dev->caps.reserved_mtts - 1));
 		if (priv->reserved_mtts < 0) {
-			mlx4_warn(dev, "MTT table of order %d is too small.\n",
+			mlx4_warn(dev, "MTT table of order %u is too small.\n",
 				  mr_table->mtt_buddy.max_order);
 			err = -ENOMEM;
 			goto err_reserve_mtts;
