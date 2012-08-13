@@ -917,16 +917,18 @@ void svc_close_xprt(struct svc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(svc_close_xprt);
 
-static void svc_close_list(struct list_head *xprt_list, struct net *net)
+static void svc_close_list(struct svc_serv *serv, struct list_head *xprt_list, struct net *net)
 {
 	struct svc_xprt *xprt;
 
+	spin_lock(&serv->sv_lock);
 	list_for_each_entry(xprt, xprt_list, xpt_list) {
 		if (xprt->xpt_net != net)
 			continue;
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		set_bit(XPT_BUSY, &xprt->xpt_flags);
 	}
+	spin_unlock(&serv->sv_lock);
 }
 
 static void svc_clear_pools(struct svc_serv *serv, struct net *net)
@@ -949,24 +951,28 @@ static void svc_clear_pools(struct svc_serv *serv, struct net *net)
 	}
 }
 
-static void svc_clear_list(struct list_head *xprt_list, struct net *net)
+static void svc_clear_list(struct svc_serv *serv, struct list_head *xprt_list, struct net *net)
 {
 	struct svc_xprt *xprt;
 	struct svc_xprt *tmp;
+	LIST_HEAD(victims);
 
+	spin_lock(&serv->sv_lock);
 	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
 		if (xprt->xpt_net != net)
 			continue;
-		svc_delete_xprt(xprt);
+		list_move(&xprt->xpt_list, &victims);
 	}
-	list_for_each_entry(xprt, xprt_list, xpt_list)
-		BUG_ON(xprt->xpt_net == net);
+	spin_unlock(&serv->sv_lock);
+
+	list_for_each_entry_safe(xprt, tmp, &victims, xpt_list)
+		svc_delete_xprt(xprt);
 }
 
 void svc_close_net(struct svc_serv *serv, struct net *net)
 {
-	svc_close_list(&serv->sv_tempsocks, net);
-	svc_close_list(&serv->sv_permsocks, net);
+	svc_close_list(serv, &serv->sv_tempsocks, net);
+	svc_close_list(serv, &serv->sv_permsocks, net);
 
 	svc_clear_pools(serv, net);
 	/*
@@ -974,8 +980,8 @@ void svc_close_net(struct svc_serv *serv, struct net *net)
 	 * svc_xprt_enqueue will not add new entries without taking the
 	 * sp_lock and checking XPT_BUSY.
 	 */
-	svc_clear_list(&serv->sv_tempsocks, net);
-	svc_clear_list(&serv->sv_permsocks, net);
+	svc_clear_list(serv, &serv->sv_tempsocks, net);
+	svc_clear_list(serv, &serv->sv_permsocks, net);
 }
 
 /*
