@@ -455,14 +455,18 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	return r;
 }
 
-void kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
+int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
+	int r = 1; /* Indicate we want to get back into the guest */
+
 	if (kvm_check_request(KVM_REQ_PENDING_TIMER, vcpu))
 		update_timer_ints(vcpu);
 #if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
 		kvmppc_core_flush_tlb(vcpu);
 #endif
+
+	return r;
 }
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)

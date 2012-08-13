@@ -86,12 +86,16 @@ void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 	kvmppc_giveup_ext(vcpu, MSR_VSX);
 }
 
-void kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
+int kvmppc_core_check_requests(struct kvm_vcpu *vcpu)
 {
+	int r = 1; /* Indicate we want to get back into the guest */
+
 	/* We misuse TLB_FLUSH to indicate that we want to clear
 	   all shadow cache entries */
 	if (kvm_check_request(KVM_REQ_TLB_FLUSH, vcpu))
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
+
+	return r;
 }
 
 /************* MMU Notifiers *************/
