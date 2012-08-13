@@ -76,7 +76,7 @@ static bool cdv_intel_find_dp_pll(const struct cdv_intel_limit_t *limit, struct 
 #define CDV_LIMIT_DP_100		5
 
 static const struct cdv_intel_limit_t cdv_intel_limits[] = {
-	{			/* CDV_SIGNLE_LVDS_96MHz */
+	{			/* CDV_SINGLE_LVDS_96MHz */
 	 .dot = {.min = 20000, .max = 115500},
 	 .vco = {.min = 1800000, .max = 3600000},
 	 .n = {.min = 2, .max = 6},
