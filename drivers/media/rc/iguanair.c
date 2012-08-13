@@ -36,8 +36,8 @@ struct iguanair {
 	struct usb_device *udev;
 
 	int pipe_out;
+	uint16_t version;
 	uint8_t bufsize;
-	uint8_t version[2];
 
 	struct mutex lock;
 
@@ -97,8 +97,8 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 		switch (ir->buf_in[3]) {
 		case CMD_GET_VERSION:
 			if (len == 6) {
-				ir->version[0] = ir->buf_in[4];
-				ir->version[1] = ir->buf_in[5];
+				ir->version = (ir->buf_in[5] << 8) |
+							ir->buf_in[4];
 				complete(&ir->completion);
 			}
 			break;
@@ -110,8 +110,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 			break;
 		case CMD_GET_FEATURES:
 			if (len > 5) {
-				if (ir->version[0] >= 4)
-					ir->cycle_overhead = ir->buf_in[5];
+				ir->cycle_overhead = ir->buf_in[5];
 				complete(&ir->completion);
 			}
 			break;
@@ -219,6 +218,12 @@ static int iguanair_get_features(struct iguanair *ir)
 		goto out;
 	}
 
+	if (ir->version < 0x205) {
+		dev_err(ir->dev, "firmware 0x%04x is too old\n", ir->version);
+		rc = -ENODEV;
+		goto out;
+	}
+
 	ir->bufsize = 150;
 	ir->cycle_overhead = 65;
 
@@ -229,9 +234,6 @@ static int iguanair_get_features(struct iguanair *ir)
 		dev_info(ir->dev, "failed to get buffer size\n");
 		goto out;
 	}
-
-	if (ir->version[0] == 0 || ir->version[1] == 0)
-		goto out;
 
 	packet.cmd = CMD_GET_FEATURES;
 
@@ -485,8 +487,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 		goto out2;
 
 	snprintf(ir->name, sizeof(ir->name),
-		"IguanaWorks USB IR Transceiver version %d.%d",
-		ir->version[0], ir->version[1]);
+		"IguanaWorks USB IR Transceiver version 0x%04x", ir->version);
 
 	usb_make_path(ir->udev, ir->phys, sizeof(ir->phys));
 
