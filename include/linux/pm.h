@@ -43,12 +43,8 @@ struct device;
 
 #ifdef CONFIG_PM
 extern const char power_group_name[];		/* = "power" */
-
-extern void dev_pm_syscore_device(struct device *dev, bool val);
 #else
 #define power_group_name	NULL
-
-static inline void dev_pm_syscore_device(struct device *dev, bool val) {}
 #endif
 
 typedef struct pm_message {
@@ -515,13 +511,13 @@ struct dev_pm_info {
 	bool			is_suspended:1;	/* Ditto */
 	bool			ignore_children:1;
 	bool			early_init:1;	/* Owned by the PM core */
-	bool			syscore:1;
 	spinlock_t		lock;
 #ifdef CONFIG_PM_SLEEP
 	struct list_head	entry;
 	struct completion	completion;
 	struct wakeup_source	*wakeup;
 	bool			wakeup_path:1;
+	bool			syscore:1;
 #else
 	unsigned int		should_wakeup:1;
 #endif

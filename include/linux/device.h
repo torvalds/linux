@@ -772,6 +772,13 @@ static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
 	dev->power.ignore_children = enable;
 }
 
+static inline void dev_pm_syscore_device(struct device *dev, bool val)
+{
+#ifdef CONFIG_PM_SLEEP
+	dev->power.syscore = val;
+#endif
+}
+
 static inline void device_lock(struct device *dev)
 {
 	mutex_lock(&dev->mutex);
