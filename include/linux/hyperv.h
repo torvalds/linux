@@ -181,6 +181,17 @@ enum hv_kvp_exchg_pool {
 	KVP_POOL_COUNT /* Number of pools, must be last. */
 };
 
+/*
+ * Some Hyper-V status codes.
+ */
+
+#define HV_S_OK				0x00000000
+#define HV_E_FAIL			0x80004005
+#define HV_S_CONT			0x80070103
+#define HV_ERROR_NOT_SUPPORTED		0x80070032
+#define HV_ERROR_MACHINE_LOCKED		0x800704F7
+#define HV_ERROR_DEVICE_NOT_CONNECTED	0x8007048F
+
 #define ADDR_FAMILY_NONE	0x00
 #define ADDR_FAMILY_IPV4	0x01
 #define ADDR_FAMILY_IPV6	0x02
@@ -1048,12 +1059,6 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 #define ICMSGHDRFLAG_REQUEST		2
 #define ICMSGHDRFLAG_RESPONSE		4
 
-#define HV_S_OK				0x00000000
-#define HV_E_FAIL			0x80004005
-#define HV_S_CONT			0x80070103
-#define HV_ERROR_NOT_SUPPORTED		0x80070032
-#define HV_ERROR_MACHINE_LOCKED		0x800704F7
-#define HV_ERROR_DEVICE_NOT_CONNECTED	0x8007048F
 
 /*
  * While we want to handle util services as regular devices,

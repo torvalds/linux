@@ -71,13 +71,14 @@ enum key_index {
 static char kvp_send_buffer[4096];
 static char kvp_recv_buffer[4096 * 2];
 static struct sockaddr_nl addr;
+static int in_hand_shake = 1;
 
 static char *os_name = "";
 static char *os_major = "";
 static char *os_minor = "";
 static char *processor_arch;
 static char *os_build;
-static char *lic_version;
+static char *lic_version = "Unknown version";
 static struct utsname uts_buf;
 
 
@@ -394,7 +395,7 @@ static int kvp_get_value(int pool, __u8 *key, int key_size, __u8 *value,
 	return 1;
 }
 
-static void kvp_pool_enumerate(int pool, int index, __u8 *key, int key_size,
+static int kvp_pool_enumerate(int pool, int index, __u8 *key, int key_size,
 				__u8 *value, int value_size)
 {
 	struct kvp_record *record;
@@ -406,16 +407,12 @@ static void kvp_pool_enumerate(int pool, int index, __u8 *key, int key_size,
 	record = kvp_file_info[pool].records;
 
 	if (index >= kvp_file_info[pool].num_records) {
-		/*
-		 * This is an invalid index; terminate enumeration;
-		 * - a NULL value will do the trick.
-		 */
-		strcpy(value, "");
-		return;
+		return 1;
 	}
 
 	memcpy(key, record[index].key, key_size);
 	memcpy(value, record[index].value, value_size);
+	return 0;
 }
 
 
@@ -646,6 +643,8 @@ int main(void)
 	char	*p;
 	char	*key_value;
 	char	*key_name;
+	int	op;
+	int	pool;
 
 	daemon(1, 0);
 	openlog("KVP", 0, LOG_USER);
@@ -687,7 +686,7 @@ int main(void)
 	message->id.val = CN_KVP_VAL;
 
 	hv_msg = (struct hv_kvp_msg *)message->data;
-	hv_msg->kvp_hdr.operation = KVP_OP_REGISTER;
+	hv_msg->kvp_hdr.operation = KVP_OP_REGISTER1;
 	message->ack = 0;
 	message->len = sizeof(struct hv_kvp_msg);
 
@@ -721,12 +720,21 @@ int main(void)
 		incoming_cn_msg = (struct cn_msg *)NLMSG_DATA(incoming_msg);
 		hv_msg = (struct hv_kvp_msg *)incoming_cn_msg->data;
 
-		switch (hv_msg->kvp_hdr.operation) {
-		case KVP_OP_REGISTER:
+		/*
+		 * We will use the KVP header information to pass back
+		 * the error from this daemon. So, first copy the state
+		 * and set the error code to success.
+		 */
+		op = hv_msg->kvp_hdr.operation;
+		pool = hv_msg->kvp_hdr.pool;
+		hv_msg->error = HV_S_OK;
+
+		if ((in_hand_shake) && (op == KVP_OP_REGISTER1)) {
 			/*
 			 * Driver is registering with us; stash away the version
 			 * information.
 			 */
+			in_hand_shake = 0;
 			p = (char *)hv_msg->body.kvp_register.version;
 			lic_version = malloc(strlen(p) + 1);
 			if (lic_version) {
@@ -737,44 +745,39 @@ int main(void)
 				syslog(LOG_ERR, "malloc failed");
 			}
 			continue;
+		}
 
-		/*
-		 * The current protocol with the kernel component uses a
-		 * NULL key name to pass an error condition.
-		 * For the SET, GET and DELETE operations,
-		 * use the existing protocol to pass back error.
-		 */
-
+		switch (op) {
 		case KVP_OP_SET:
-			if (kvp_key_add_or_modify(hv_msg->kvp_hdr.pool,
+			if (kvp_key_add_or_modify(pool,
 					hv_msg->body.kvp_set.data.key,
 					hv_msg->body.kvp_set.data.key_size,
 					hv_msg->body.kvp_set.data.value,
 					hv_msg->body.kvp_set.data.value_size))
-				strcpy(hv_msg->body.kvp_set.data.key, "");
+					hv_msg->error = HV_S_CONT;
 			break;
 
 		case KVP_OP_GET:
-			if (kvp_get_value(hv_msg->kvp_hdr.pool,
+			if (kvp_get_value(pool,
 					hv_msg->body.kvp_set.data.key,
 					hv_msg->body.kvp_set.data.key_size,
 					hv_msg->body.kvp_set.data.value,
 					hv_msg->body.kvp_set.data.value_size))
-				strcpy(hv_msg->body.kvp_set.data.key, "");
+					hv_msg->error = HV_S_CONT;
 			break;
 
 		case KVP_OP_DELETE:
-			if (kvp_key_delete(hv_msg->kvp_hdr.pool,
+			if (kvp_key_delete(pool,
 					hv_msg->body.kvp_delete.key,
 					hv_msg->body.kvp_delete.key_size))
-				strcpy(hv_msg->body.kvp_delete.key, "");
+					hv_msg->error = HV_S_CONT;
 			break;
 
 		default:
 			break;
 		}
 
-		if (hv_msg->kvp_hdr.operation != KVP_OP_ENUMERATE)
+		if (op != KVP_OP_ENUMERATE)
 			goto kvp_done;
 
 		/*
@@ -782,13 +785,14 @@ int main(void)
 		 * both the key and the value; if not read from the
 		 * appropriate pool.
 		 */
-		if (hv_msg->kvp_hdr.pool != KVP_POOL_AUTO) {
-			kvp_pool_enumerate(hv_msg->kvp_hdr.pool,
+		if (pool != KVP_POOL_AUTO) {
+			if (kvp_pool_enumerate(pool,
 					hv_msg->body.kvp_enum_data.index,
 					hv_msg->body.kvp_enum_data.data.key,
 					HV_KVP_EXCHANGE_MAX_KEY_SIZE,
 					hv_msg->body.kvp_enum_data.data.value,
-					HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
+					HV_KVP_EXCHANGE_MAX_VALUE_SIZE))
+					hv_msg->error = HV_S_CONT;
 			goto kvp_done;
 		}
 
@@ -841,11 +845,7 @@ int main(void)
 			strcpy(key_name, "ProcessorArchitecture");
 			break;
 		default:
-			strcpy(key_value, "Unknown Key");
-			/*
-			 * We use a null key name to terminate enumeration.
-			 */
-			strcpy(key_name, "");
+			hv_msg->error = HV_S_CONT;
 			break;
 		}
 		/*

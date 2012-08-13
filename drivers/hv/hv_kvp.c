@@ -48,13 +48,24 @@ static struct {
 	void *kvp_context; /* for the channel callback */
 } kvp_transaction;
 
+/*
+ * Before we can accept KVP messages from the host, we need
+ * to handshake with the user level daemon. This state tracks
+ * if we are in the handshake phase.
+ */
+static bool in_hand_shake = true;
+
+/*
+ * This state maintains the version number registered by the daemon.
+ */
+static int dm_reg_value;
+
 static void kvp_send_key(struct work_struct *dummy);
 
-#define TIMEOUT_FIRED 1
 
 static void kvp_respond_to_host(char *key, char *value, int error);
 static void kvp_work_func(struct work_struct *dummy);
-static void kvp_register(void);
+static void kvp_register(int);
 
 static DECLARE_DELAYED_WORK(kvp_work, kvp_work_func);
 static DECLARE_WORK(kvp_sendkey_work, kvp_send_key);
@@ -68,7 +79,7 @@ static u8 *recv_buffer;
  */
 
 static void
-kvp_register(void)
+kvp_register(int reg_value)
 {
 
 	struct cn_msg *msg;
@@ -83,7 +94,7 @@ kvp_register(void)
 		msg->id.idx =  CN_KVP_IDX;
 		msg->id.val = CN_KVP_VAL;
 
-		kvp_msg->kvp_hdr.operation = KVP_OP_REGISTER;
+		kvp_msg->kvp_hdr.operation = reg_value;
 		strcpy(version, HV_DRV_VERSION);
 		msg->len = sizeof(struct hv_kvp_msg);
 		cn_netlink_send(msg, 0, GFP_ATOMIC);
@@ -97,8 +108,42 @@ kvp_work_func(struct work_struct *dummy)
 	 * If the timer fires, the user-mode component has not responded;
 	 * process the pending transaction.
 	 */
-	kvp_respond_to_host("Unknown key", "Guest timed out", TIMEOUT_FIRED);
+	kvp_respond_to_host("Unknown key", "Guest timed out", HV_E_FAIL);
 }
+
+static int kvp_handle_handshake(struct hv_kvp_msg *msg)
+{
+	int ret = 1;
+
+	switch (msg->kvp_hdr.operation) {
+	case KVP_OP_REGISTER:
+		dm_reg_value = KVP_OP_REGISTER;
+		pr_info("KVP: IP injection functionality not available\n");
+		pr_info("KVP: Upgrade the KVP daemon\n");
+		break;
+	case KVP_OP_REGISTER1:
+		dm_reg_value = KVP_OP_REGISTER1;
+		break;
+	default:
+		pr_info("KVP: incompatible daemon\n");
+		pr_info("KVP: KVP version: %d, Daemon version: %d\n",
+			KVP_OP_REGISTER1, msg->kvp_hdr.operation);
+		ret = 0;
+	}
+
+	if (ret) {
+		/*
+		 * We have a compatible daemon; complete the handshake.
+		 */
+		pr_info("KVP: user-mode registering done.\n");
+		kvp_register(dm_reg_value);
+		kvp_transaction.active = false;
+		if (kvp_transaction.kvp_context)
+			hv_kvp_onchannelcallback(kvp_transaction.kvp_context);
+	}
+	return ret;
+}
+
 
 /*
  * Callback when data is received from user mode.
@@ -109,27 +154,52 @@ kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
 	struct hv_kvp_msg *message;
 	struct hv_kvp_msg_enumerate *data;
+	int	error = 0;
 
 	message = (struct hv_kvp_msg *)msg->data;
-	switch (message->kvp_hdr.operation) {
+
+	/*
+	 * If we are negotiating the version information
+	 * with the daemon; handle that first.
+	 */
+
+	if (in_hand_shake) {
+		if (kvp_handle_handshake(message))
+			in_hand_shake = false;
+		return;
+	}
+
+	/*
+	 * Based on the version of the daemon, we propagate errors from the
+	 * daemon differently.
+	 */
+
+	data = &message->body.kvp_enum_data;
+
+	switch (dm_reg_value) {
 	case KVP_OP_REGISTER:
-		pr_info("KVP: user-mode registering done.\n");
-		kvp_register();
-		kvp_transaction.active = false;
-		hv_kvp_onchannelcallback(kvp_transaction.kvp_context);
+		/*
+		 * Null string is used to pass back error condition.
+		 */
+		if (data->data.key[0] == 0)
+			error = HV_S_CONT;
 		break;
 
-	default:
-		data = &message->body.kvp_enum_data;
+	case KVP_OP_REGISTER1:
 		/*
-		 * Complete the transaction by forwarding the key value
-		 * to the host. But first, cancel the timeout.
+		 * We use the message header information from
+		 * the user level daemon to transmit errors.
 		 */
-		if (cancel_delayed_work_sync(&kvp_work))
-			kvp_respond_to_host(data->data.key,
-					 data->data.value,
-					!strlen(data->data.key));
+		error = message->error;
+		break;
 	}
+
+	/*
+	 * Complete the transaction by forwarding the key value
+	 * to the host. But first, cancel the timeout.
+	 */
+	if (cancel_delayed_work_sync(&kvp_work))
+		kvp_respond_to_host(data->data.key, data->data.value, error);
 }
 
 static void
@@ -287,6 +357,7 @@ kvp_respond_to_host(char *key, char *value, int error)
 		 */
 		return;
 
+	icmsghdrp->status = error;
 
 	/*
 	 * If the error parameter is set, terminate the host's enumeration
@@ -294,14 +365,11 @@ kvp_respond_to_host(char *key, char *value, int error)
 	 */
 	if (error) {
 		/*
-		 * Something failed or the we have timedout;
-		 * terminate the current  host-side iteration.
+		 * Something failed or we have timedout;
+		 * terminate the current host-side iteration.
 		 */
-		icmsghdrp->status = HV_S_CONT;
 		goto response_done;
 	}
-
-	icmsghdrp->status = HV_S_OK;
 
 	kvp_msg = (struct hv_kvp_msg *)
 			&recv_buffer[sizeof(struct vmbuspipe_hdr) +
