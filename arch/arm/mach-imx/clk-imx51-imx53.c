@@ -303,6 +303,7 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_prepare_enable(clk[aips_tz2]); /* fec */
 	clk_prepare_enable(clk[spba]);
 	clk_prepare_enable(clk[emi_fast_gate]); /* fec */
+	clk_prepare_enable(clk[emi_slow_gate]); /* eim */
 	clk_prepare_enable(clk[tmax1]);
 	clk_prepare_enable(clk[tmax2]); /* esdhc2, fec */
 	clk_prepare_enable(clk[tmax3]); /* esdhc1, esdhc4 */

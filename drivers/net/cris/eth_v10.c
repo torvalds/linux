@@ -1712,7 +1712,7 @@ e100_set_network_leds(int active)
 static void
 e100_netpoll(struct net_device* netdev)
 {
-	e100rxtx_interrupt(NETWORK_DMA_TX_IRQ_NBR, netdev, NULL);
+	e100rxtx_interrupt(NETWORK_DMA_TX_IRQ_NBR, netdev);
 }
 #endif
 
