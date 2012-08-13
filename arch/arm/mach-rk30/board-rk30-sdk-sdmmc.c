@@ -445,6 +445,26 @@ static struct resource resources[] = {
 
 ///////////////////////////////////////////////////////////////////////////////////
 #elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+#if defined(CONFIG_MACH_RK30_PHONE_PAD)
+   #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+   #define USE_SDMMC_CONTROLLER_FOR_WIFI 0
+   #define RK29SDK_WIFI_COMBO_GPIO_POWER_N	RK30_PIN4_PD2
+   #define RK29SDK_WIFI_COMBO_GPIO_RESET_N	RK30_PIN4_PD1
+   #define RK29SDK_WIFI_COMBO_GPIO_VDDIO	RK30_PIN1_PA6	
+   #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B	RK30_PIN1_PA7	 
+   #define RK29SDK_WIFI_COMBO_GPS_SYNC		RK30_PIN3_PC7	 
+       
+   #else
+   #define USE_SDMMC_CONTROLLER_FOR_WIFI 1
+   #define RK29SDK_WIFI_COMBO_GPIO_POWER_N	RK30_PIN3_PC7	
+   #define RK29SDK_WIFI_COMBO_GPIO_RESET_N	RK30_PIN3_PD1	
+   #define RK29SDK_WIFI_COMBO_GPIO_WIFI_INT_B	RK30_PIN3_PD2
+       
+   //#define RK29SDK_WIFI_COMBO_GPIO_VDDIO	      RK30_PIN6_PB4   
+   #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B	RK30_PIN6_PA7	 
+   #define RK29SDK_WIFI_COMBO_GPS_SYNC		RK30_PIN3_PD0	 
+   #endif
+#else
 
     #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     #define USE_SDMMC_CONTROLLER_FOR_WIFI 0
@@ -464,7 +484,7 @@ static struct resource resources[] = {
     #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B    RK30_PIN3_PC6    
     #define RK29SDK_WIFI_COMBO_GPS_SYNC          RK30_PIN3_PC7    
     #endif
-
+#endif
 
 #define debug_combo_system 0
 
