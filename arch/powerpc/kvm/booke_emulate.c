@@ -237,6 +237,9 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_IVOR15:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG] = spr_val;
 		break;
+	case SPRN_MCSR:
+		vcpu->arch.mcsr &= ~spr_val;
+		break;
 
 	default:
 		emulated = EMULATE_FAIL;
@@ -328,6 +331,9 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		break;
 	case SPRN_IVOR15:
 		*spr_val = vcpu->arch.ivor[BOOKE_IRQPRIO_DEBUG];
+		break;
+	case SPRN_MCSR:
+		*spr_val = vcpu->arch.mcsr;
 		break;
 
 	default:
