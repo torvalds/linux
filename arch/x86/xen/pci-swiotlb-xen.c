@@ -97,6 +97,6 @@ int pci_xen_swiotlb_init_late(void)
 EXPORT_SYMBOL_GPL(pci_xen_swiotlb_init_late);
 
 IOMMU_INIT_FINISH(pci_xen_swiotlb_detect,
-		  0,
+		  NULL,
 		  pci_xen_swiotlb_init,
-		  0);
+		  NULL);
