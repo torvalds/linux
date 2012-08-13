@@ -1656,7 +1656,12 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	if (!l)
 		return -ESRCH;
 
-	fa_head = get_fa_head(l, plen);
+	li = find_leaf_info(l, plen);
+
+	if (!li)
+		return -ESRCH;
+
+	fa_head = &li->falh;
 	fa = fib_find_alias(fa_head, tos, 0);
 
 	if (!fa)
@@ -1691,9 +1696,6 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	fa = fa_to_delete;
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
-
-	l = fib_find_node(t, key);
-	li = find_leaf_info(l, plen);
 
 	list_del_rcu(&fa->fa_list);
 
