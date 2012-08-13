@@ -23,6 +23,8 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/pgtable.h>
@@ -33,6 +35,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/syspld.h>
+
+#include <asm/hardware/clps7111.h>
 
 #include "common.h"
 
@@ -106,6 +110,64 @@ static void __init p720t_init_early(void)
 		PLD_COM1 = 0;
 	}
 }
+
+/*
+ * LED controled by CPLD
+ */
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+static void p720t_led_set(struct led_classdev *cdev,
+			      enum led_brightness b)
+{
+	u8 reg = clps_readb(PDDR);
+
+	if (b != LED_OFF)
+		reg |= 0x1;
+	else
+		reg &= ~0x1;
+
+	clps_writeb(reg, PDDR);
+}
+
+static enum led_brightness p720t_led_get(struct led_classdev *cdev)
+{
+	u8 reg = clps_readb(PDDR);
+
+	return (reg & 0x1) ? LED_FULL : LED_OFF;
+}
+
+static int __init p720t_leds_init(void)
+{
+
+	struct led_classdev *cdev;
+	int ret;
+
+	if (!machine_is_p720t())
+		return -ENODEV;
+
+	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
+	if (!cdev)
+		return -ENOMEM;
+
+	cdev->name = "p720t:0";
+	cdev->brightness_set = p720t_led_set;
+	cdev->brightness_get = p720t_led_get;
+	cdev->default_trigger = "heartbeat";
+
+	ret = led_classdev_register(NULL, cdev);
+	if (ret	< 0) {
+		kfree(cdev);
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(p720t_leds_init);
+#endif
 
 MACHINE_START(P720T, "ARM-Prospector720T")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */

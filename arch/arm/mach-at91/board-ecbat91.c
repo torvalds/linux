@@ -138,11 +138,20 @@ static struct spi_board_info __initdata ecb_at91spi_devices[] = {
 	},
 };
 
+/*
+ * LEDs
+ */
+static struct gpio_led ecb_leds[] = {
+	{	/* D1 */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PC7,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	}
+};
+
 static void __init ecb_at91board_init(void)
 {
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PC7, AT91_PIN_PC7);
-
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -165,6 +174,9 @@ static void __init ecb_at91board_init(void)
 
 	/* SPI */
 	at91_add_device_spi(ecb_at91spi_devices, ARRAY_SIZE(ecb_at91spi_devices));
+
+	/* LEDs */
+	at91_gpio_leds(ecb_leds, ARRAY_SIZE(ecb_leds));
 }
 
 MACHINE_START(ECBAT91, "emQbit's ECB_AT91")

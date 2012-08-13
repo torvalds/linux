@@ -93,10 +93,26 @@ static struct spi_board_info eco920_spi_devices[] = {
 	},
 };
 
+/*
+ * LEDs
+ */
+static struct gpio_led eco920_leds[] = {
+	{       /* D1 */
+		.name                   = "led1",
+		.gpio                   = AT91_PIN_PB0,
+		.active_low             = 1,
+		.default_trigger        = "heartbeat",
+	},
+	{       /* D2 */
+		.name                   = "led2",
+		.gpio                   = AT91_PIN_PB1,
+		.active_low             = 1,
+		.default_trigger        = "timer",
+	}
+};
+
 static void __init eco920_board_init(void)
 {
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
 	/* DBGU on ttyS0. (Rx & Tx only */
 	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
@@ -127,6 +143,8 @@ static void __init eco920_board_init(void)
 	);
 
 	at91_add_device_spi(eco920_spi_devices, ARRAY_SIZE(eco920_spi_devices));
+	/* LEDs */
+	at91_gpio_leds(eco920_leds, ARRAY_SIZE(eco920_leds));
 }
 
 MACHINE_START(ECO920, "eco920")

@@ -220,8 +220,6 @@ static struct gpio_led csb_leds[] = {
 
 static void __init csb337_board_init(void)
 {
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
 	/* Serial */
 	/* DBGU on ttyS0 */
 	at91_register_uart(0, 0, 0);

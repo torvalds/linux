@@ -13,7 +13,6 @@
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/leds.h>
 #include <asm/param.h>
 #include <asm/system_misc.h>
 

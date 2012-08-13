@@ -12,9 +12,10 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <linux/leds.h>
 
 #include <asm/hardware/dec21285.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/system_misc.h>
@@ -26,13 +27,6 @@
 #define IRDA_IO_BASE		0x180
 #define GP1_IO_BASE		0x338
 #define GP2_IO_BASE		0x33a
-
-
-#ifdef CONFIG_LEDS
-#define DEFAULT_LEDS	0
-#else
-#define DEFAULT_LEDS	GPIO_GREEN_LED
-#endif
 
 /*
  * Winbond WB83977F accessibility stuff
@@ -611,15 +605,9 @@ static void __init rwa010_init(void)
 static int __init nw_hw_init(void)
 {
 	if (machine_is_netwinder()) {
-		unsigned long flags;
-
 		wb977_init();
 		cpld_init();
 		rwa010_init();
-
-		raw_spin_lock_irqsave(&nw_gpio_lock, flags);
-		nw_gpio_modify_op(GPIO_RED_LED|GPIO_GREEN_LED, DEFAULT_LEDS);
-		raw_spin_unlock_irqrestore(&nw_gpio_lock, flags);
 	}
 	return 0;
 }
@@ -671,6 +659,102 @@ static void netwinder_restart(char mode, const char *cmd)
 		outb(0xc4, 0x338);
 	}
 }
+
+/* LEDs */
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct netwinder_led {
+	struct led_classdev     cdev;
+	u8                      mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} netwinder_leds[] = {
+	{ "netwinder:green", "heartbeat", },
+	{ "netwinder:red", "cpu0", },
+};
+
+/*
+ * The LED control in Netwinder is reversed:
+ *  - setting bit means turn off LED
+ *  - clearing bit means turn on LED
+ */
+static void netwinder_led_set(struct led_classdev *cdev,
+		enum led_brightness b)
+{
+	struct netwinder_led *led = container_of(cdev,
+			struct netwinder_led, cdev);
+	unsigned long flags;
+	u32 reg;
+
+	spin_lock_irqsave(&nw_gpio_lock, flags);
+	reg = nw_gpio_read();
+	if (b != LED_OFF)
+		reg &= ~led->mask;
+	else
+		reg |= led->mask;
+	nw_gpio_modify_op(led->mask, reg);
+	spin_unlock_irqrestore(&nw_gpio_lock, flags);
+}
+
+static enum led_brightness netwinder_led_get(struct led_classdev *cdev)
+{
+	struct netwinder_led *led = container_of(cdev,
+			struct netwinder_led, cdev);
+	unsigned long flags;
+	u32 reg;
+
+	spin_lock_irqsave(&nw_gpio_lock, flags);
+	reg = nw_gpio_read();
+	spin_unlock_irqrestore(&nw_gpio_lock, flags);
+
+	return (reg & led->mask) ? LED_OFF : LED_FULL;
+}
+
+static int __init netwinder_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_netwinder())
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(netwinder_leds); i++) {
+		struct netwinder_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = netwinder_leds[i].name;
+		led->cdev.brightness_set = netwinder_led_set;
+		led->cdev.brightness_get = netwinder_led_get;
+		led->cdev.default_trigger = netwinder_leds[i].trigger;
+
+		if (i == 0)
+			led->mask = GPIO_GREEN_LED;
+		else
+			led->mask = GPIO_RED_LED;
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(netwinder_leds_init);
+#endif
 
 MACHINE_START(NETWINDER, "Rebel-NetWinder")
 	/* Maintainer: Russell King/Rebel.com */

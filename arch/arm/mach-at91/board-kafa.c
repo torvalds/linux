@@ -66,11 +66,20 @@ static struct at91_udc_data __initdata kafa_udc_data = {
 	.pullup_pin	= AT91_PIN_PB7,
 };
 
+/*
+ * LEDs
+ */
+static struct gpio_led kafa_leds[] = {
+	{	/* D1 */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PB4,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+};
+
 static void __init kafa_board_init(void)
 {
-	/* Set up the LEDs */
-	at91_init_leds(AT91_PIN_PB4, AT91_PIN_PB4);
-
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -88,6 +97,8 @@ static void __init kafa_board_init(void)
 	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
+	/* LEDs */
+	at91_gpio_leds(kafa_leds, ARRAY_SIZE(kafa_leds));
 }
 
 MACHINE_START(KAFA, "Sperry-Sun KAFA")

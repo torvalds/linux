@@ -17,6 +17,8 @@
 #include <linux/irq.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/gpio.h>
+#include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -43,8 +45,48 @@ static struct platform_device cerfuart2_device = {
 	.resource	= cerfuart2_resources,
 };
 
+/* LEDs */
+struct gpio_led cerf_gpio_leds[] = {
+	{
+		.name			= "cerf:d0",
+		.default_trigger	= "heartbeat",
+		.gpio			= 0,
+	},
+	{
+		.name			= "cerf:d1",
+		.default_trigger	= "cpu0",
+		.gpio			= 1,
+	},
+	{
+		.name			= "cerf:d2",
+		.default_trigger	= "default-on",
+		.gpio			= 2,
+	},
+	{
+		.name			= "cerf:d3",
+		.default_trigger	= "default-on",
+		.gpio			= 3,
+	},
+
+};
+
+static struct gpio_led_platform_data cerf_gpio_led_info = {
+	.leds		= cerf_gpio_leds,
+	.num_leds	= ARRAY_SIZE(cerf_gpio_leds),
+};
+
+static struct platform_device cerf_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &cerf_gpio_led_info,
+	}
+};
+
+
 static struct platform_device *cerf_devices[] __initdata = {
 	&cerfuart2_device,
+	&cerf_leds,
 };
 
 #ifdef CONFIG_SA1100_CERF_FLASH_32MB

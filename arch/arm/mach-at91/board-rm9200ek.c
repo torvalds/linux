@@ -148,9 +148,6 @@ static struct gpio_led ek_leds[] = {
 
 static void __init ek_board_init(void)
 {
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB1, AT91_PIN_PB2);
-
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
