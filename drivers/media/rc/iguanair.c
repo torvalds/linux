@@ -155,6 +155,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 static void iguanair_rx(struct urb *urb)
 {
 	struct iguanair *ir;
+	int rc;
 
 	if (!urb)
 		return;
@@ -180,7 +181,9 @@ static void iguanair_rx(struct urb *urb)
 		break;
 	}
 
-	usb_submit_urb(urb, GFP_ATOMIC);
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
+	if (rc && rc != -ENODEV)
+		dev_warn(ir->dev, "failed to resubmit urb: %d\n", rc);
 }
 
 static int iguanair_send(struct iguanair *ir, void *data, unsigned size)
@@ -423,7 +426,7 @@ static void iguanair_close(struct rc_dev *rdev)
 
 	rc = iguanair_receiver(ir, false);
 	ir->receiver_on = false;
-	if (rc)
+	if (rc && rc != -ENODEV)
 		dev_warn(ir->dev, "failed to disable receiver: %d\n", rc);
 
 	mutex_unlock(&ir->lock);
@@ -516,8 +519,6 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 
 	usb_set_intfdata(intf, ir);
 
-	dev_info(&intf->dev, "Registered %s", ir->name);
-
 	return 0;
 out2:
 	usb_kill_urb(ir->urb_in);
@@ -536,12 +537,11 @@ static void __devexit iguanair_disconnect(struct usb_interface *intf)
 {
 	struct iguanair *ir = usb_get_intfdata(intf);
 
+	rc_unregister_device(ir->rc);
 	usb_set_intfdata(intf, NULL);
-
 	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);
 	usb_free_coherent(ir->udev, MAX_PACKET_SIZE, ir->buf_in, ir->dma_in);
-	rc_unregister_device(ir->rc);
 	kfree(ir);
 }
 
@@ -558,6 +558,8 @@ static int iguanair_suspend(struct usb_interface *intf, pm_message_t message)
 			dev_warn(ir->dev, "failed to disable receiver for suspend\n");
 	}
 
+	usb_kill_urb(ir->urb_in);
+
 	mutex_unlock(&ir->lock);
 
 	return rc;
@@ -569,6 +571,10 @@ static int iguanair_resume(struct usb_interface *intf)
 	int rc = 0;
 
 	mutex_lock(&ir->lock);
+
+	rc = usb_submit_urb(ir->urb_in, GFP_KERNEL);
+	if (rc)
+		dev_warn(&intf->dev, "failed to submit urb: %d\n", rc);
 
 	if (ir->receiver_on) {
 		rc = iguanair_receiver(ir, true);
@@ -593,7 +599,8 @@ static struct usb_driver iguanair_driver = {
 	.suspend = iguanair_suspend,
 	.resume = iguanair_resume,
 	.reset_resume = iguanair_resume,
-	.id_table = iguanair_table
+	.id_table = iguanair_table,
+	.soft_unbind = 1	/* we want to disable receiver on unbind */
 };
 
 module_usb_driver(iguanair_driver);
