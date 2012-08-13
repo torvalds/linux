@@ -696,9 +696,9 @@ void __init llc_station_init(void)
 			(unsigned long)&llc_main_station);
 	llc_main_station.ack_timer.expires  = jiffies +
 						sysctl_llc_station_ack_timeout;
-	llc_set_station_handler(llc_station_rcv);
 	llc_main_station.maximum_retry	= 1;
 	llc_main_station.state		= LLC_STATION_STATE_UP;
+	llc_set_station_handler(llc_station_rcv);
 }
 
 void llc_station_exit(void)
