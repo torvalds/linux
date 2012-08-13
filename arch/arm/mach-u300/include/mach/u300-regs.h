@@ -28,7 +28,6 @@
 #define PLAT_NAND_CLE			(1 << 16)
 #define PLAT_NAND_ALE			(1 << 17)
 
-
 /* AHB Peripherals */
 #define U300_AHB_PER_PHYS_BASE		0xa0000000
 #define U300_AHB_PER_VIRT_BASE		0xff010000
@@ -46,11 +45,7 @@
 #define U300_BOOTROM_VIRT_BASE		0xffff0000
 
 /* SEMI config base */
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_SEMI_CONFIG_BASE		0x2FFE0000
-#else
-#define U300_SEMI_CONFIG_BASE		0x30000000
-#endif
 
 /*
  * AHB peripherals
@@ -99,10 +94,8 @@
 /* SPI controller */
 #define U300_SPI_BASE			(U300_FAST_PER_PHYS_BASE+0x6000)
 
-#ifdef CONFIG_MACH_U300_BS335
 /* Fast UART1 on U335 only */
 #define U300_UART1_BASE			(U300_SLOW_PER_PHYS_BASE+0x7000)
-#endif
 
 /*
  * SLOW peripherals
@@ -151,10 +144,8 @@
  * REST peripherals
  */
 
-/* ISP (image signal processor) is only available in U335 */
-#ifdef CONFIG_MACH_U300_BS335
+/* ISP (image signal processor) */
 #define U300_ISP_BASE			(0xA0008000)
-#endif
 
 /* DMA Controller base */
 #define U300_DMAC_BASE			(0xC0020000)
@@ -166,17 +157,9 @@
 #define U300_APEX_BASE			(0xc0030000)
 
 /* Video Encoder Base */
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_VIDEOENC_BASE		(0xc0080000)
-#else
-#define U300_VIDEOENC_BASE		(0xc0040000)
-#endif
 
 /* XGAM Base */
 #define U300_XGAM_BASE			(0xd0000000)
-
-/*
- * Virtual accessor macros for static devices
- */
 
 #endif

@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/include/mach/dma_channels.h
  *
  *
- * Copyright (C) 2007-2009 ST-Ericsson
+ * Copyright (C) 2007-2012 ST-Ericsson
  * License terms: GNU General Public License (GPL) version 2
  * Map file for the U300 dma driver.
  * Author: Per Friden <per.friden@stericsson.com>
@@ -50,19 +50,10 @@
 #define U300_DMA_GENERAL_PURPOSE_6    35
 #define U300_DMA_GENERAL_PURPOSE_7    36
 #define U300_DMA_GENERAL_PURPOSE_8    37
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_DMA_UART1_TX             38
 #define U300_DMA_UART1_RX             39
-#else
-#define U300_DMA_GENERAL_PURPOSE_9    38
-#define U300_DMA_GENERAL_PURPOSE_10   39
-#endif
 
-#ifdef CONFIG_MACH_U300_BS335
 #define U300_DMA_DEVICE_CHANNELS      32
-#else
-#define U300_DMA_DEVICE_CHANNELS      30
-#endif
 #define U300_DMA_CHANNELS             40
 
 

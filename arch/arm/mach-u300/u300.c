@@ -29,23 +29,7 @@ static void __init u300_init_machine(void)
 	u300_init_devices();
 }
 
-#ifdef CONFIG_MACH_U300_BS2X
-#define MACH_U300_STRING "Ericsson AB U300 S25/S26/B25/B26 Prototype Board"
-#endif
-
-#ifdef CONFIG_MACH_U300_BS330
-#define MACH_U300_STRING "Ericsson AB U330 S330/B330 Prototype Board"
-#endif
-
-#ifdef CONFIG_MACH_U300_BS335
-#define MACH_U300_STRING "Ericsson AB U335 S335/B335 Prototype Board"
-#endif
-
-#ifdef CONFIG_MACH_U300_BS365
-#define MACH_U300_STRING "Ericsson AB U365 S365/B365 Prototype Board"
-#endif
-
-MACHINE_START(U300, MACH_U300_STRING)
+MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
 	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
 	.atag_offset	= 0x100,
 	.map_io		= u300_map_io,
