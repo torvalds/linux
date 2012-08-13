@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 
+#include <linux/regulator/of_regulator.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/tps65217.h>
@@ -281,37 +282,130 @@ static const struct regulator_desc regulators[] = {
 			   NULL),
 };
 
+#ifdef CONFIG_OF
+static struct of_regulator_match reg_matches[] = {
+	{ .name = "dcdc1", .driver_data = (void *)TPS65217_DCDC_1 },
+	{ .name = "dcdc2", .driver_data = (void *)TPS65217_DCDC_2 },
+	{ .name = "dcdc3", .driver_data = (void *)TPS65217_DCDC_3 },
+	{ .name = "ldo1", .driver_data = (void *)TPS65217_LDO_1 },
+	{ .name = "ldo2", .driver_data = (void *)TPS65217_LDO_2 },
+	{ .name = "ldo3", .driver_data = (void *)TPS65217_LDO_3 },
+	{ .name = "ldo4", .driver_data = (void *)TPS65217_LDO_4 },
+};
+
+static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
+{
+	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
+	struct device_node *node = tps->dev->of_node;
+	struct tps65217_board *pdata;
+	struct device_node *regs;
+	int i, count;
+
+	regs = of_find_node_by_name(node, "regulators");
+	if (!regs)
+		return NULL;
+
+	count = of_regulator_match(pdev->dev.parent, regs,
+				reg_matches, TPS65217_NUM_REGULATOR);
+	of_node_put(regs);
+	if ((count < 0) || (count > TPS65217_NUM_REGULATOR))
+		return NULL;
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	for (i = 0; i < count; i++) {
+		if (!reg_matches[i].init_data || !reg_matches[i].of_node)
+			continue;
+
+		pdata->tps65217_init_data[i] = reg_matches[i].init_data;
+		pdata->of_node[i] = reg_matches[i].of_node;
+	}
+
+	return pdata;
+}
+#else
+static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
+{
+	return NULL;
+}
+#endif
+
 static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
 {
+	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
+	struct tps65217_board *pdata = dev_get_platdata(tps->dev);
+	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
-	struct tps65217 *tps;
-	struct tps_info *info = &tps65217_pmic_regs[pdev->id];
 	struct regulator_config config = { };
+	int i, ret;
 
-	/* Already set by core driver */
-	tps = dev_to_tps65217(pdev->dev.parent);
-	tps->info[pdev->id] = info;
+	if (tps->dev->of_node)
+		pdata = tps65217_parse_dt(pdev);
 
-	config.dev = &pdev->dev;
-	config.of_node = pdev->dev.of_node;
-	config.init_data = pdev->dev.platform_data;
-	config.driver_data = tps;
+	if (!pdata) {
+		dev_err(&pdev->dev, "Platform data not found\n");
+		return -EINVAL;
+	}
 
-	rdev = regulator_register(&regulators[pdev->id], &config);
-	if (IS_ERR(rdev))
-		return PTR_ERR(rdev);
+	if (tps65217_chip_id(tps) != TPS65217) {
+		dev_err(&pdev->dev, "Invalid tps chip version\n");
+		return -ENODEV;
+	}
 
-	platform_set_drvdata(pdev, rdev);
+	platform_set_drvdata(pdev, tps);
 
+	for (i = 0; i < TPS65217_NUM_REGULATOR; i++) {
+
+		reg_data = pdata->tps65217_init_data[i];
+
+		/*
+		 * Regulator API handles empty constraints but not NULL
+		 * constraints
+		 */
+		if (!reg_data)
+			continue;
+
+		/* Register the regulators */
+		tps->info[i] = &tps65217_pmic_regs[i];
+
+		config.dev = tps->dev;
+		config.init_data = reg_data;
+		config.driver_data = tps;
+		config.regmap = tps->regmap;
+		if (tps->dev->of_node)
+			config.of_node = pdata->of_node[i];
+
+		rdev = regulator_register(&regulators[i], &config);
+		if (IS_ERR(rdev)) {
+			dev_err(tps->dev, "failed to register %s regulator\n",
+				pdev->name);
+			ret = PTR_ERR(rdev);
+			goto err_unregister_regulator;
+		}
+
+		/* Save regulator for cleanup */
+		tps->rdev[i] = rdev;
+	}
 	return 0;
+
+err_unregister_regulator:
+	while (--i >= 0)
+		regulator_unregister(tps->rdev[i]);
+
+	return ret;
 }
 
 static int __devexit tps65217_regulator_remove(struct platform_device *pdev)
 {
-	struct regulator_dev *rdev = platform_get_drvdata(pdev);
+	struct tps65217 *tps = platform_get_drvdata(pdev);
+	unsigned int i;
+
+	for (i = 0; i < TPS65217_NUM_REGULATOR; i++)
+		regulator_unregister(tps->rdev[i]);
 
 	platform_set_drvdata(pdev, NULL);
-	regulator_unregister(rdev);
 
 	return 0;
 }
