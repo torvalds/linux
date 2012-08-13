@@ -2338,7 +2338,7 @@ static struct tty_port_operations mxser_port_ops = {
  */
 
 static bool allow_overlapping_vector;
-module_param(allow_overlapping_vector, bool, 444);
+module_param(allow_overlapping_vector, bool, S_IRUGO);
 MODULE_PARM_DESC(allow_overlapping_vector, "whether we allow ISA cards to be configured such that vector overlabs IO ports (default=no)");
 
 static bool mxser_overlapping_vector(struct mxser_board *brd)
