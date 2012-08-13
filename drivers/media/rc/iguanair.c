@@ -75,6 +75,7 @@ struct iguanair {
 
 #define MAX_PACKET_SIZE		8u
 #define TIMEOUT			1000
+#define RX_RESOLUTION		21333
 
 struct packet {
 	uint16_t start;
@@ -143,7 +144,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 			} else {
 				rawir.pulse = (ir->buf_in[i] & 0x80) == 0;
 				rawir.duration = ((ir->buf_in[i] & 0x7f) + 1) *
-									 21330;
+								 RX_RESOLUTION;
 			}
 
 			ir_raw_event_store_with_filter(ir->rc, &rawir);
@@ -517,7 +518,9 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	rc->s_tx_carrier = iguanair_set_tx_carrier;
 	rc->tx_ir = iguanair_tx;
 	rc->driver_name = DRIVER_NAME;
-	rc->map_name = RC_MAP_EMPTY;
+	rc->map_name = RC_MAP_RC6_MCE;
+	rc->timeout = MS_TO_NS(100);
+	rc->rx_resolution = RX_RESOLUTION;
 
 	iguanair_set_tx_carrier(rc, 38000);
 
