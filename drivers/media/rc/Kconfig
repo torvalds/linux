@@ -274,6 +274,19 @@ config IR_IGUANA
 	   To compile this driver as a module, choose M here: the module will
 	   be called iguanair.
 
+config IR_TTUSBIR
+	tristate "TechnoTrend USB IR Receiver"
+	depends on RC_CORE
+	select USB
+	select NEW_LEDS
+	select LEDS_CLASS
+	---help---
+	   Say Y here if you want to use the TechnoTrend USB IR Receiver. The
+	   driver can control the led.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called ttusbir.
+
 config RC_LOOPBACK
 	tristate "Remote Control Loopback Driver"
 	depends on RC_CORE
