@@ -327,7 +327,7 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 {
 	struct iguanair *ir = dev->priv;
 	uint8_t space, *payload;
-	unsigned i, size, rc;
+	unsigned i, size, rc, bytes;
 	struct send_packet *packet;
 
 	mutex_lock(&ir->lock);
@@ -335,17 +335,22 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 	/* convert from us to carrier periods */
 	for (i = size = 0; i < count; i++) {
 		txbuf[i] = DIV_ROUND_CLOSEST(txbuf[i] * ir->carrier, 1000000);
-		size += (txbuf[i] + 126) / 127;
+		bytes = (txbuf[i] + 126) / 127;
+		if (size + bytes > ir->bufsize) {
+			count = i;
+			break;
+		}
+		size += bytes;
+	}
+
+	if (count == 0) {
+		rc = -EINVAL;
+		goto out;
 	}
 
 	packet = kmalloc(sizeof(*packet) + size, GFP_KERNEL);
 	if (!packet) {
 		rc = -ENOMEM;
-		goto out;
-	}
-
-	if (size > ir->bufsize) {
-		rc = -E2BIG;
 		goto out;
 	}
 
@@ -376,7 +381,7 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 		rc = iguanair_receiver(ir, false);
 		if (rc) {
 			dev_warn(ir->dev, "disable receiver before transmit failed\n");
-			goto out;
+			goto out_kfree;
 		}
 	}
 
@@ -392,11 +397,12 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 			dev_warn(ir->dev, "re-enable receiver after transmit failed\n");
 	}
 
+out_kfree:
+	kfree(packet);
 out:
 	mutex_unlock(&ir->lock);
-	kfree(packet);
 
-	return rc;
+	return rc ? rc : count;
 }
 
 static int iguanair_open(struct rc_dev *rdev)
@@ -444,7 +450,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	rc = rc_allocate_device();
 	if (!ir || !rc) {
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -453,7 +459,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	ir->urb_in = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!ir->buf_in || !ir->urb_in) {
-		ret = ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
