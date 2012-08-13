@@ -63,6 +63,6 @@ void __init pci_xen_swiotlb_init(void)
 	}
 }
 IOMMU_INIT_FINISH(pci_xen_swiotlb_detect,
-		  0,
+		  NULL,
 		  pci_xen_swiotlb_init,
-		  0);
+		  NULL);
