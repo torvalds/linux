@@ -22,27 +22,17 @@
 #ifndef RTL28XXU_H
 #define RTL28XXU_H
 
-#define DVB_USB_LOG_PREFIX "rtl28xxu"
-#include "dvb-usb.h"
+#include "dvb_usb.h"
 
-#define deb_info(args...) dprintk(dvb_usb_rtl28xxu_debug, 0x01, args)
-#define deb_rc(args...)   dprintk(dvb_usb_rtl28xxu_debug, 0x02, args)
-#define deb_xfer(args...) dprintk(dvb_usb_rtl28xxu_debug, 0x04, args)
-#define deb_reg(args...)  dprintk(dvb_usb_rtl28xxu_debug, 0x08, args)
-#define deb_i2c(args...)  dprintk(dvb_usb_rtl28xxu_debug, 0x10, args)
-#define deb_fw(args...)   dprintk(dvb_usb_rtl28xxu_debug, 0x20, args)
-
-#define deb_dump(r, t, v, i, b, l, func) { \
-	int loop_; \
-	func("%02x %02x %02x %02x %02x %02x %02x %02x", \
-		t, r, v & 0xff, v >> 8, i & 0xff, i >> 8, l & 0xff, l >> 8); \
+#define deb_dump(r, t, v, i, b, l) { \
+	char *direction; \
 	if (t == (USB_TYPE_VENDOR | USB_DIR_OUT)) \
-		func(" >>> "); \
+		direction = ">>>"; \
 	else \
-		func(" <<< "); \
-	for (loop_ = 0; loop_ < l; loop_++) \
-		func("%02x ", b[loop_]); \
-	func("\n");\
+		direction = "<<<"; \
+	dev_dbg(&d->udev->dev, "%s: %02x %02x %02x %02x %02x %02x %02x %02x " \
+			"%s [%d bytes]\n",  __func__, t, r, v & 0xff, v >> 8, \
+			i & 0xff, i >> 8, l & 0xff, l >> 8, direction, l); \
 }
 
 /*

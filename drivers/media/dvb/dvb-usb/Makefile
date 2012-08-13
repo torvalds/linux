@@ -78,9 +78,6 @@ obj-$(CONFIG_DVB_USB_TECHNISAT_USB2) += dvb-usb-technisat-usb2.o
 dvb-usb-it913x-objs := it913x.o
 obj-$(CONFIG_DVB_USB_IT913X) += dvb-usb-it913x.o
 
-dvb-usb-rtl28xxu-objs = rtl28xxu.o
-obj-$(CONFIG_DVB_USB_RTL28XXU) += dvb-usb-rtl28xxu.o
-
 ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb/frontends/
 # due to tuner-xc3028
