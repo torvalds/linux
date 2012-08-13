@@ -766,10 +766,6 @@ static int lme2510_download_firmware(struct dvb_usb_device *d,
 		}
 	}
 
-	usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0),
-			0x06, 0x80, 0x0200, 0x00, data, 0x0109, 1000);
-
-
 	data[0] = 0x8a;
 	len_in = 1;
 	msleep(2000);
