@@ -23,15 +23,6 @@ extern dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 extern void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 				   size_t size, enum dma_data_direction dir,
 				   struct dma_attrs *attrs);
-/*
-extern int
-xen_swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nents,
-		   enum dma_data_direction dir);
-
-extern void
-xen_swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
-		     enum dma_data_direction dir);
-*/
 extern int
 xen_swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
 			 int nelems, enum dma_data_direction dir,
