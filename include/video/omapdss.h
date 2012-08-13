@@ -749,11 +749,8 @@ void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev);
-int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
-		u16 *x, u16 *y, u16 *w, u16 *h);
-int omap_rfbi_update(struct omap_dss_device *dssdev,
-		u16 x, u16 y, u16 w, u16 h,
-		void (*callback)(void *), void *data);
+int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
+		void *data);
 int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
 		int data_lines);
 

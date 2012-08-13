@@ -300,21 +300,24 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
-static int rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
-		u16 height, void (*callback)(void *data), void *data)
+static int rfbi_transfer_area(struct omap_dss_device *dssdev,
+		void (*callback)(void *data), void *data)
 {
 	u32 l;
 	int r;
-	struct omap_video_timings timings = {
-		.hsw		= 1,
-		.hfp		= 1,
-		.hbp		= 1,
-		.vsw		= 1,
-		.vfp		= 0,
-		.vbp		= 0,
-		.x_res		= width,
-		.y_res		= height,
-	};
+	struct omap_video_timings timings;
+	u16 width, height;
+
+	dssdev->driver->get_resolution(dssdev, &width, &height);
+
+	timings.x_res = width;
+	timings.y_res = height;
+	timings.hsw = 1;
+	timings.hfp = 1;
+	timings.hbp = 1;
+	timings.vsw = 1;
+	timings.vfp = 0;
+	timings.vbp = 0;
 
 	/*BUG_ON(callback == 0);*/
 	BUG_ON(rfbi.framedone_callback != NULL);
@@ -777,53 +780,10 @@ int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
 }
 EXPORT_SYMBOL(omap_rfbi_configure);
 
-int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
-		u16 *x, u16 *y, u16 *w, u16 *h)
+int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
+		void *data)
 {
-	u16 dw, dh;
-	struct omap_video_timings timings = {
-		.hsw		= 1,
-		.hfp		= 1,
-		.hbp		= 1,
-		.vsw		= 1,
-		.vfp		= 0,
-		.vbp		= 0,
-		.x_res		= *w,
-		.y_res		= *h,
-	};
-
-	dssdev->driver->get_resolution(dssdev, &dw, &dh);
-
-	if  (*x > dw || *y > dh)
-		return -EINVAL;
-
-	if (*x + *w > dw)
-		return -EINVAL;
-
-	if (*y + *h > dh)
-		return -EINVAL;
-
-	if (*w == 1)
-		return -EINVAL;
-
-	if (*w == 0 || *h == 0)
-		return -EINVAL;
-
-	dss_mgr_set_timings(dssdev->manager, &timings);
-
-	return 0;
-}
-EXPORT_SYMBOL(omap_rfbi_prepare_update);
-
-int omap_rfbi_update(struct omap_dss_device *dssdev,
-		u16 x, u16 y, u16 w, u16 h,
-		void (*callback)(void *), void *data)
-{
-	int r;
-
-	r = rfbi_transfer_area(dssdev, w, h, callback, data);
-
-	return r;
+	return rfbi_transfer_area(dssdev, callback, data);
 }
 EXPORT_SYMBOL(omap_rfbi_update);
 

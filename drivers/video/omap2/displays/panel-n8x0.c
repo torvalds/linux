@@ -625,17 +625,25 @@ static int n8x0_panel_update(struct omap_dss_device *dssdev,
 		u16 x, u16 y, u16 w, u16 h)
 {
 	struct panel_drv_data *ddata = get_drv_data(dssdev);
+	u16 dw, dh;
 
 	dev_dbg(&dssdev->dev, "update\n");
+
+	dw = dssdev->panel.timings.x_res;
+	dh = dssdev->panel.timings.y_res;
+
+	if (x != 0 || y != 0 || w != dw || h != dh) {
+		dev_err(&dssdev->dev, "invaid update region %d, %d, %d, %d\n",
+			x, y, w, h);
+		return -EINVAL;
+	}
 
 	mutex_lock(&ddata->lock);
 	rfbi_bus_lock();
 
-	omap_rfbi_prepare_update(dssdev, &x, &y, &w, &h);
-
 	blizzard_ctrl_setup_update(dssdev, x, y, w, h);
 
-	omap_rfbi_update(dssdev, x, y, w, h, update_done, NULL);
+	omap_rfbi_update(dssdev, update_done, NULL);
 
 	mutex_unlock(&ddata->lock);
 
