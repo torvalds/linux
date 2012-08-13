@@ -2366,7 +2366,7 @@ static int dsi_cio_init(struct omap_dss_device *dssdev)
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		/* DDR_CLK_ALWAYS_ON */
 		REG_FLD_MOD(dsidev, DSI_CLK_CTRL,
-			dssdev->panel.dsi_vm_data.ddr_clk_always_on, 13, 13);
+			dssdev->panel.dsi_vm_timings.ddr_clk_always_on, 13, 13);
 	}
 
 	dsi->ulps_enabled = false;
@@ -2704,7 +2704,7 @@ void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 	dsi_force_tx_stop_mode_io(dsidev);
 
 	/* start the DDR clock by sending a NULL packet */
-	if (dssdev->panel.dsi_vm_data.ddr_clk_always_on && enable)
+	if (dssdev->panel.dsi_vm_timings.ddr_clk_always_on && enable)
 		dsi_vc_send_null(dssdev, channel);
 }
 EXPORT_SYMBOL(omapdss_dsi_vc_enable_hs);
@@ -3638,8 +3638,8 @@ static void dsi_config_vp_num_line_buffers(struct omap_dss_device *dssdev)
 static void dsi_config_vp_sync_events(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	bool vsync_end = dssdev->panel.dsi_vm_data.vp_vsync_end;
-	bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
+	bool vsync_end = dssdev->panel.dsi_vm_timings.vp_vsync_end;
+	bool hsync_end = dssdev->panel.dsi_vm_timings.vp_hsync_end;
 	u32 r;
 
 	r = dsi_read_reg(dsidev, DSI_CTRL);
@@ -3656,10 +3656,10 @@ static void dsi_config_vp_sync_events(struct omap_dss_device *dssdev)
 static void dsi_config_blanking_modes(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
-	int blanking_mode = dssdev->panel.dsi_vm_data.blanking_mode;
-	int hfp_blanking_mode = dssdev->panel.dsi_vm_data.hfp_blanking_mode;
-	int hbp_blanking_mode = dssdev->panel.dsi_vm_data.hbp_blanking_mode;
-	int hsa_blanking_mode = dssdev->panel.dsi_vm_data.hsa_blanking_mode;
+	int blanking_mode = dssdev->panel.dsi_vm_timings.blanking_mode;
+	int hfp_blanking_mode = dssdev->panel.dsi_vm_timings.hfp_blanking_mode;
+	int hbp_blanking_mode = dssdev->panel.dsi_vm_timings.hbp_blanking_mode;
+	int hsa_blanking_mode = dssdev->panel.dsi_vm_timings.hsa_blanking_mode;
 	u32 r;
 
 	/*
@@ -3992,14 +3992,14 @@ static void dsi_proto_timings(struct omap_dss_device *dssdev)
 
 	 if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		/* TODO: Implement a video mode check_timings function */
-		int hsa = dssdev->panel.dsi_vm_data.hsa;
-		int hfp = dssdev->panel.dsi_vm_data.hfp;
-		int hbp = dssdev->panel.dsi_vm_data.hbp;
-		int vsa = dssdev->panel.dsi_vm_data.vsa;
-		int vfp = dssdev->panel.dsi_vm_data.vfp;
-		int vbp = dssdev->panel.dsi_vm_data.vbp;
-		int window_sync = dssdev->panel.dsi_vm_data.window_sync;
-		bool hsync_end = dssdev->panel.dsi_vm_data.vp_hsync_end;
+		int hsa = dssdev->panel.dsi_vm_timings.hsa;
+		int hfp = dssdev->panel.dsi_vm_timings.hfp;
+		int hbp = dssdev->panel.dsi_vm_timings.hbp;
+		int vsa = dssdev->panel.dsi_vm_timings.vsa;
+		int vfp = dssdev->panel.dsi_vm_timings.vfp;
+		int vbp = dssdev->panel.dsi_vm_timings.vbp;
+		int window_sync = dssdev->panel.dsi_vm_timings.window_sync;
+		bool hsync_end = dssdev->panel.dsi_vm_timings.vp_hsync_end;
 		struct omap_video_timings *timings = &dsi->timings;
 		int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 		int tl, t_he, width_bytes;

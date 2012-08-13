@@ -243,7 +243,7 @@ void rfbi_bus_unlock(void);
 
 /* DSI */
 
-struct omap_dss_dsi_videomode_data {
+struct omap_dss_dsi_videomode_timings {
 	/* DSI video mode blanking data */
 	/* Unit: byte clock cycles */
 	u16 hsa;
@@ -564,7 +564,7 @@ struct omap_dss_device {
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;
-		struct omap_dss_dsi_videomode_data dsi_vm_data;
+		struct omap_dss_dsi_videomode_timings dsi_vm_timings;
 	} panel;
 
 	struct {
