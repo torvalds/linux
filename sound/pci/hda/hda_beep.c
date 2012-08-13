@@ -231,15 +231,22 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 }
 EXPORT_SYMBOL_HDA(snd_hda_detach_beep_device);
 
+static bool ctl_has_mute(struct snd_kcontrol *kcontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	return query_amp_caps(codec, get_amp_nid(kcontrol),
+			      get_amp_direction(kcontrol)) & AC_AMPCAP_MUTE;
+}
+
 /* get/put callbacks for beep mute mixer switches */
 int snd_hda_mixer_amp_switch_get_beep(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_beep *beep = codec->beep;
-	if (beep && !beep->enabled) {
+	if (beep && (!beep->enabled || !ctl_has_mute(kcontrol))) {
 		ucontrol->value.integer.value[0] =
-			ucontrol->value.integer.value[1] = 0;
+			ucontrol->value.integer.value[1] = beep->enabled;
 		return 0;
 	}
 	return snd_hda_mixer_amp_switch_get(kcontrol, ucontrol);
@@ -263,6 +270,8 @@ int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
 			enable |= *valp;
 		snd_hda_enable_beep_device(codec, enable);
 	}
+	if (!ctl_has_mute(kcontrol))
+		return 0;
 	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put_beep);
