@@ -89,11 +89,6 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		if (vcpu->mode == EXITING_GUEST_MODE) {
-			r = 1;
-			break;
-		}
-
 #ifdef CONFIG_PPC64
 		/* lazy EE magic */
 		hard_irq_disable();
