@@ -586,8 +586,8 @@ static int sh_mobile_lcdc_display_notify(struct sh_mobile_lcdc_chan *ch,
 				 * Just turn on, if we run a resume here, the
 				 * logo disappears.
 				 */
-				info->var.width = monspec->max_x * 10;
-				info->var.height = monspec->max_y * 10;
+				info->var.width = ch->display.width;
+				info->var.height = ch->display.height;
 				sh_mobile_lcdc_display_on(ch);
 			} else {
 				/* New monitor or have to wake up */
@@ -2248,8 +2248,8 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	 */
 	var = &info->var;
 	fb_videomode_to_var(var, mode);
-	var->width = ch->cfg->panel_cfg.width;
-	var->height = ch->cfg->panel_cfg.height;
+	var->width = ch->display.width;
+	var->height = ch->display.height;
 	var->xres_virtual = ch->xres_virtual;
 	var->yres_virtual = ch->yres_virtual;
 	var->activate = FB_ACTIVATE_NOW;
