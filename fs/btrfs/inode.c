@@ -1949,6 +1949,8 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 			btrfs_abort_transaction(trans, root, ret);
 			goto out_unlock;
 		}
+	} else {
+		btrfs_set_inode_last_trans(trans, inode);
 	}
 	ret = 0;
 out_unlock:
