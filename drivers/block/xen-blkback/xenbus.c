@@ -196,7 +196,7 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 	}
 }
 
-void xen_blkif_free(struct xen_blkif *blkif)
+static void xen_blkif_free(struct xen_blkif *blkif)
 {
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
@@ -257,7 +257,7 @@ static struct attribute_group xen_vbdstat_group = {
 VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
 VBD_SHOW(mode, "%s\n", be->mode);
 
-int xenvbd_sysfs_addif(struct xenbus_device *dev)
+static int xenvbd_sysfs_addif(struct xenbus_device *dev)
 {
 	int error;
 
@@ -281,7 +281,7 @@ fail1:	device_remove_file(&dev->dev, &dev_attr_physical_device);
 	return error;
 }
 
-void xenvbd_sysfs_delif(struct xenbus_device *dev)
+static void xenvbd_sysfs_delif(struct xenbus_device *dev)
 {
 	sysfs_remove_group(&dev->dev.kobj, &xen_vbdstat_group);
 	device_remove_file(&dev->dev, &dev_attr_mode);
