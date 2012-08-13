@@ -69,7 +69,7 @@ enum key_index {
 };
 
 static char kvp_send_buffer[4096];
-static char kvp_recv_buffer[4096];
+static char kvp_recv_buffer[4096 * 2];
 static struct sockaddr_nl addr;
 
 static char *os_name = "";
