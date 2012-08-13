@@ -108,7 +108,7 @@ struct gsm_mux_net {
  */
 
 struct gsm_msg {
-	struct gsm_msg *next;
+	struct list_head list;
 	u8 addr;		/* DLCI address + flags */
 	u8 ctrl;		/* Control byte + flags */
 	unsigned int len;	/* Length of data block (can be zero) */
@@ -245,8 +245,7 @@ struct gsm_mux {
 	unsigned int tx_bytes;		/* TX data outstanding */
 #define TX_THRESH_HI		8192
 #define TX_THRESH_LO		2048
-	struct gsm_msg *tx_head;	/* Pending data packets */
-	struct gsm_msg *tx_tail;
+	struct list_head tx_list;	/* Pending data packets */
 
 	/* Control messages */
 	struct timer_list t2_timer;	/* Retransmit timer for commands */
@@ -663,7 +662,7 @@ static struct gsm_msg *gsm_data_alloc(struct gsm_mux *gsm, u8 addr, int len,
 	m->len = len;
 	m->addr = addr;
 	m->ctrl = ctrl;
-	m->next = NULL;
+	INIT_LIST_HEAD(&m->list);
 	return m;
 }
 
@@ -681,16 +680,13 @@ static struct gsm_msg *gsm_data_alloc(struct gsm_mux *gsm, u8 addr, int len,
 
 static void gsm_data_kick(struct gsm_mux *gsm)
 {
-	struct gsm_msg *msg = gsm->tx_head;
-	struct gsm_msg *free_msg;
+	struct gsm_msg *msg, *nmsg;
 	int len;
 	int skip_sof = 0;
 
-	while (msg) {
-		if (gsm->constipated && msg->addr) {
-			msg = msg->next;
+	list_for_each_entry_safe(msg, nmsg, &gsm->tx_list, list) {
+		if (gsm->constipated && msg->addr)
 			continue;
-		}
 		if (gsm->encoding != 0) {
 			gsm->txframe[0] = GSM1_SOF;
 			len = gsm_stuff_frame(msg->data,
@@ -718,14 +714,9 @@ static void gsm_data_kick(struct gsm_mux *gsm)
 		   burst */
 		skip_sof = 1;
 
-		if (gsm->tx_head == msg)
-			gsm->tx_head = msg->next;
-		free_msg = msg;
-		msg = msg->next;
-		kfree(free_msg);
+		list_del(&msg->list);
+		kfree(msg);
 	}
-	if (!gsm->tx_head)
-		gsm->tx_tail = NULL;
 }
 
 /**
@@ -774,11 +765,7 @@ static void __gsm_data_queue(struct gsm_dlci *dlci, struct gsm_msg *msg)
 	msg->data = dp;
 
 	/* Add to the actual output queue */
-	if (gsm->tx_tail)
-		gsm->tx_tail->next = msg;
-	else
-		gsm->tx_head = msg;
-	gsm->tx_tail = msg;
+	list_add_tail(&msg->list, &gsm->tx_list);
 	gsm->tx_bytes += msg->len;
 	gsm_data_kick(gsm);
 }
@@ -2052,7 +2039,7 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 {
 	int i;
 	struct gsm_dlci *dlci = gsm->dlci[0];
-	struct gsm_msg *txq;
+	struct gsm_msg *txq, *utxq;
 	struct gsm_control *gc;
 
 	gsm->dead = 1;
@@ -2087,11 +2074,9 @@ void gsm_cleanup_mux(struct gsm_mux *gsm)
 		if (gsm->dlci[i])
 			gsm_dlci_release(gsm->dlci[i]);
 	/* Now wipe the queues */
-	for (txq = gsm->tx_head; txq != NULL; txq = gsm->tx_head) {
-		gsm->tx_head = txq->next;
+	list_for_each_entry_safe(txq, ntxq, &gsm->tx_list, list)
 		kfree(txq);
-	}
-	gsm->tx_tail = NULL;
+	INIT_LIST_HEAD(&gsm->tx_list);
 }
 EXPORT_SYMBOL_GPL(gsm_cleanup_mux);
 
@@ -2202,6 +2187,7 @@ struct gsm_mux *gsm_alloc_mux(void)
 	}
 	spin_lock_init(&gsm->lock);
 	kref_init(&gsm->ref);
+	INIT_LIST_HEAD(&gsm->tx_list);
 
 	gsm->t1 = T1;
 	gsm->t2 = T2;
