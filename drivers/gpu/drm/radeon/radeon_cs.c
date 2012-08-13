@@ -372,10 +372,15 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 static int radeon_bo_vm_update_pte(struct radeon_cs_parser *parser,
 				   struct radeon_vm *vm)
 {
+	struct radeon_device *rdev = parser->rdev;
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
 	int r;
 
+	r = radeon_vm_bo_update_pte(rdev, vm, rdev->ring_tmp_bo.bo, &rdev->ring_tmp_bo.bo->tbo.mem);
+	if (r) {
+		return r;
+	}
 	list_for_each_entry(lobj, &parser->validated, tv.head) {
 		bo = lobj->bo;
 		r = radeon_vm_bo_update_pte(parser->rdev, vm, bo, &bo->tbo.mem);
