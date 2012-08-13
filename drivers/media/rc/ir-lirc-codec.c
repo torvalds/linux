@@ -105,7 +105,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 	struct lirc_codec *lirc;
 	struct rc_dev *dev;
 	unsigned int *txbuf; /* buffer with values to transmit */
-	ssize_t ret = 0;
+	ssize_t ret = -EINVAL;
 	size_t count;
 
 	lirc = lirc_get_pdata(file);
