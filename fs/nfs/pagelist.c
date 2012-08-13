@@ -102,6 +102,7 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 		   unsigned int offset, unsigned int count)
 {
 	struct nfs_page		*req;
+	struct nfs_lock_context *l_ctx;
 
 	/* try to allocate the request struct */
 	req = nfs_page_alloc();
@@ -109,11 +110,12 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 		return ERR_PTR(-ENOMEM);
 
 	/* get lock context early so we can deal with alloc failures */
-	req->wb_lock_context = nfs_get_lock_context(ctx);
-	if (req->wb_lock_context == NULL) {
+	l_ctx = nfs_get_lock_context(ctx);
+	if (IS_ERR(l_ctx)) {
 		nfs_page_free(req);
-		return ERR_PTR(-ENOMEM);
+		return ERR_CAST(l_ctx);
 	}
+	req->wb_lock_context = l_ctx;
 
 	/* Initialize the request struct. Initially, we assume a
 	 * long write-back delay. This will be adjusted in

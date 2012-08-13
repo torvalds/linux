@@ -578,7 +578,7 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 		spin_unlock(&inode->i_lock);
 		new = kmalloc(sizeof(*new), GFP_KERNEL);
 		if (new == NULL)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		nfs_init_lock_context(new);
 		spin_lock(&inode->i_lock);
 		res = __nfs_find_lock_context(ctx);
