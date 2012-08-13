@@ -7,6 +7,31 @@
 
 #include "internal.h"
 
+static int pdiag_put_info(const struct packet_sock *po, struct sk_buff *nlskb)
+{
+	struct packet_diag_info pinfo;
+
+	pinfo.pdi_index = po->ifindex;
+	pinfo.pdi_version = po->tp_version;
+	pinfo.pdi_reserve = po->tp_reserve;
+	pinfo.pdi_copy_thresh = po->copy_thresh;
+	pinfo.pdi_tstamp = po->tp_tstamp;
+
+	pinfo.pdi_flags = 0;
+	if (po->running)
+		pinfo.pdi_flags |= PDI_RUNNING;
+	if (po->auxdata)
+		pinfo.pdi_flags |= PDI_AUXDATA;
+	if (po->origdev)
+		pinfo.pdi_flags |= PDI_ORIGDEV;
+	if (po->has_vnet_hdr)
+		pinfo.pdi_flags |= PDI_VNETHDR;
+	if (po->tp_loss)
+		pinfo.pdi_flags |= PDI_LOSS;
+
+	return nla_put(nlskb, PACKET_DIAG_INFO, sizeof(pinfo), &pinfo);
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -25,7 +50,15 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag
 	rp->pdiag_ino = sk_ino;
 	sock_diag_save_cookie(sk, rp->pdiag_cookie);
 
+	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
+			pdiag_put_info(po, skb))
+		goto out_nlmsg_trim;
+
 	return nlmsg_end(skb, nlh);
+
+out_nlmsg_trim:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
