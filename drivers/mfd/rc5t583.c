@@ -281,7 +281,7 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 
 	if (i2c->irq) {
 		ret = rc5t583_irq_init(rc5t583, i2c->irq, pdata->irq_base);
-		/* Still continue with waring if irq init fails */
+		/* Still continue with warning, if irq init fails */
 		if (ret)
 			dev_warn(&i2c->dev, "IRQ init failed: %d\n", ret);
 		else
