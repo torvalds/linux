@@ -69,6 +69,11 @@
 #define OMAP3_SECURE_TIMER	1
 #endif
 
+#define REALTIME_COUNTER_BASE				0x48243200
+#define INCREMENTER_NUMERATOR_OFFSET			0x10
+#define INCREMENTER_DENUMERATOR_RELOAD_OFFSET		0x14
+#define NUMERATOR_DENUMERATOR_MASK			0xfffff000
+
 /* Clockevent code */
 
 static struct omap_dm_timer clkev;
@@ -346,6 +351,84 @@ static void __init omap2_clocksource_init(int gptimer_id,
 		omap2_gptimer_clocksource_init(gptimer_id, fck_source);
 }
 
+#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
+/*
+ * The realtime counter also called master counter, is a free-running
+ * counter, which is related to real time. It produces the count used
+ * by the CPU local timer peripherals in the MPU cluster. The timer counts
+ * at a rate of 6.144 MHz. Because the device operates on different clocks
+ * in different power modes, the master counter shifts operation between
+ * clocks, adjusting the increment per clock in hardware accordingly to
+ * maintain a constant count rate.
+ */
+static void __init realtime_counter_init(void)
+{
+	void __iomem *base;
+	static struct clk *sys_clk;
+	unsigned long rate;
+	unsigned int reg, num, den;
+
+	base = ioremap(REALTIME_COUNTER_BASE, SZ_32);
+	if (!base) {
+		pr_err("%s: ioremap failed\n", __func__);
+		return;
+	}
+	sys_clk = clk_get(NULL, "sys_clkin_ck");
+	if (!sys_clk) {
+		pr_err("%s: failed to get system clock handle\n", __func__);
+		iounmap(base);
+		return;
+	}
+
+	rate = clk_get_rate(sys_clk);
+	/* Numerator/denumerator values refer TRM Realtime Counter section */
+	switch (rate) {
+	case 1200000:
+		num = 64;
+		den = 125;
+		break;
+	case 1300000:
+		num = 768;
+		den = 1625;
+		break;
+	case 19200000:
+		num = 8;
+		den = 25;
+		break;
+	case 2600000:
+		num = 384;
+		den = 1625;
+		break;
+	case 2700000:
+		num = 256;
+		den = 1125;
+		break;
+	case 38400000:
+	default:
+		/* Program it for 38.4 MHz */
+		num = 4;
+		den = 25;
+		break;
+	}
+
+	/* Program numerator and denumerator registers */
+	reg = __raw_readl(base + INCREMENTER_NUMERATOR_OFFSET) &
+			NUMERATOR_DENUMERATOR_MASK;
+	reg |= num;
+	__raw_writel(reg, base + INCREMENTER_NUMERATOR_OFFSET);
+
+	reg = __raw_readl(base + INCREMENTER_NUMERATOR_OFFSET) &
+			NUMERATOR_DENUMERATOR_MASK;
+	reg |= den;
+	__raw_writel(reg, base + INCREMENTER_DENUMERATOR_RELOAD_OFFSET);
+
+	iounmap(base);
+}
+#else
+static inline void __init realtime_counter_init(void)
+{}
+#endif
+
 #define OMAP_SYS_TIMER_INIT(name, clkev_nr, clkev_src,			\
 				clksrc_nr, clksrc_src)			\
 static void __init omap##name##_timer_init(void)			\
@@ -403,7 +486,12 @@ OMAP_SYS_TIMER(4)
 #endif
 
 #ifdef CONFIG_SOC_OMAP5
-OMAP_SYS_TIMER_INIT(5, 1, OMAP4_CLKEV_SOURCE, 2, OMAP4_MPU_SOURCE)
+static void __init omap5_timer_init(void)
+{
+	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
+	omap2_clocksource_init(2, OMAP4_MPU_SOURCE);
+	realtime_counter_init();
+}
 OMAP_SYS_TIMER(5)
 #endif
 
