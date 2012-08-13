@@ -701,7 +701,7 @@ void __init llc_station_init(void)
 	llc_main_station.state		= LLC_STATION_STATE_UP;
 }
 
-void __exit llc_station_exit(void)
+void llc_station_exit(void)
 {
 	llc_set_station_handler(NULL);
 }
