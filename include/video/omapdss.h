@@ -753,5 +753,6 @@ int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
 		void *data);
 int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
 		int data_lines);
+void omapdss_rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
 
 #endif

@@ -297,6 +297,9 @@ static int n8x0_panel_power_on(struct omap_dss_device *dssdev)
 			goto err_plat_en;
 	}
 
+	omapdss_rfbi_set_size(dssdev, dssdev->panel.timings.x_res,
+		dssdev->panel.timings.y_res);
+
 	r = omapdss_rfbi_display_enable(dssdev);
 	if (r)
 		goto err_rfbi_en;
