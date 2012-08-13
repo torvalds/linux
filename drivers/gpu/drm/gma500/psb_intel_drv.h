@@ -193,7 +193,6 @@ struct psb_intel_crtc {
 	u32 mode_flags;
 
 	bool active;
-	bool crtc_enable;
 
 	/* Saved Crtc HW states */
 	struct psb_intel_crtc_state *crtc_state;

@@ -930,7 +930,6 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Give the overlay scaler a chance to enable
 		 * if it's on this pipe */
 		/* psb_intel_crtc_dpms_video(crtc, true); TODO */
-		psb_intel_crtc->crtc_enable = true;
 		break;
 	case DRM_MODE_DPMS_OFF:
 		if (!psb_intel_crtc->active)
@@ -981,7 +980,6 @@ static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		/* Wait for the clocks to turn off. */
 		udelay(150);
-		psb_intel_crtc->crtc_enable = false;
 		break;
 	}
 	cdv_intel_update_watermark(dev, crtc);
