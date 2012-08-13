@@ -115,6 +115,7 @@ static struct {
 	struct omap_video_timings timings;
 	int pixel_size;
 	int data_lines;
+	struct rfbi_timings intf_timings;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -799,6 +800,13 @@ void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 }
 EXPORT_SYMBOL(omapdss_rfbi_set_data_lines);
 
+void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
+		struct rfbi_timings *timings)
+{
+	rfbi.intf_timings = *timings;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_interface_timings);
+
 static void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
@@ -907,9 +915,7 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 	rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
 			rfbi.data_lines);
 
-	rfbi_set_timings(dssdev->phy.rfbi.channel,
-			 &dssdev->ctrl.rfbi_timings);
-
+	rfbi_set_timings(dssdev->phy.rfbi.channel, &rfbi.intf_timings);
 
 	return 0;
 err1:

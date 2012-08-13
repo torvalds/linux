@@ -765,5 +765,7 @@ void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev,
 		int pixel_size);
 void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev,
 		int data_lines);
+void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
+		struct rfbi_timings *timings);
 
 #endif

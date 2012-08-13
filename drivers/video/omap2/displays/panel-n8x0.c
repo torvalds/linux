@@ -307,6 +307,7 @@ static int n8x0_panel_power_on(struct omap_dss_device *dssdev)
 		dssdev->panel.timings.y_res);
 	omapdss_rfbi_set_pixel_size(dssdev, dssdev->ctrl.pixel_size);
 	omapdss_rfbi_set_data_lines(dssdev, dssdev->phy.rfbi.data_lines);
+	omapdss_rfbi_set_interface_timings(dssdev, &dssdev->ctrl.rfbi_timings);
 
 	r = omapdss_rfbi_display_enable(dssdev);
 	if (r)
