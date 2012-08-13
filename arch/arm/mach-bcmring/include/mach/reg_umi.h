@@ -30,7 +30,7 @@
 #define __ASM_ARCH_REG_UMI_H
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/reg.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/mm_io.h>
 
 /* ---- Constants and Types ---------------------------------------------- */
@@ -233,5 +233,5 @@
 #define REG_UMI_BCH_ERR_LOC_WORD              0x00000018
 /* location within a page (512 byte) */
 #define REG_UMI_BCH_ERR_LOC_PAGE              0x00001FE0
-#define REG_UMI_BCH_ERR_LOC_ADDR(index)     (__REG32(HW_UMI_BASE + 0x64 + (index / 2)*4) >> ((index % 2) * 16))
+#define REG_UMI_BCH_ERR_LOC_ADDR(index)     (readl(HW_UMI_BASE + 0x64 + (index / 2)*4) >> ((index % 2) * 16))
 #endif

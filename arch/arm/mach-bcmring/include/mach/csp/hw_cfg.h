@@ -18,7 +18,7 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 #include <mach/csp/cap_inline.h>
 
 #if defined(__KERNEL__)

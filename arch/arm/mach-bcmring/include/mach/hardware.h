@@ -22,7 +22,7 @@
 #define __ASM_ARCH_HARDWARE_H
 
 #include <asm/sizes.h>
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 #include <mach/csp/mm_io.h>
 
 /* Hardware addresses of major areas.

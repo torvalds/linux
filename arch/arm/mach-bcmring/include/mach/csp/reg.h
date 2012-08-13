@@ -25,13 +25,14 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/stdint.h>
+#include <linux/types.h>
+#include <linux/io.h>
 
 /* ---- Public Constants and Types --------------------------------------- */
 
-#define __REG32(x)      (*((volatile uint32_t *)(x)))
-#define __REG16(x)      (*((volatile uint16_t *)(x)))
-#define __REG8(x)       (*((volatile uint8_t *) (x)))
+#define __REG32(x)      (*((volatile uint32_t __iomem *)(x)))
+#define __REG16(x)      (*((volatile uint16_t __iomem *)(x)))
+#define __REG8(x)       (*((volatile uint8_t __iomem *) (x)))
 
 /* Macros used to define a sequence of reserved registers. The start / end */
 /* are byte offsets in the particular register definition, with the "end" */
@@ -84,31 +85,31 @@
 
 #endif
 
-static inline void reg32_modify_and(volatile uint32_t *reg, uint32_t value)
+static inline void reg32_modify_and(volatile uint32_t __iomem *reg, uint32_t value)
 {
 	REG_LOCAL_IRQ_SAVE;
-	*reg &= value;
+	__raw_writel(__raw_readl(reg) & value, reg);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
-static inline void reg32_modify_or(volatile uint32_t *reg, uint32_t value)
+static inline void reg32_modify_or(volatile uint32_t __iomem *reg, uint32_t value)
 {
 	REG_LOCAL_IRQ_SAVE;
-	*reg |= value;
+	__raw_writel(__raw_readl(reg) | value, reg);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
-static inline void reg32_modify_mask(volatile uint32_t *reg, uint32_t mask,
+static inline void reg32_modify_mask(volatile uint32_t __iomem *reg, uint32_t mask,
 				     uint32_t value)
 {
 	REG_LOCAL_IRQ_SAVE;
-	*reg = (*reg & mask) | value;
+	__raw_writel((__raw_readl(reg) & mask) | value, reg);
 	REG_LOCAL_IRQ_RESTORE;
 }
 
-static inline void reg32_write(volatile uint32_t *reg, uint32_t value)
+static inline void reg32_write(volatile uint32_t __iomem *reg, uint32_t value)
 {
-	*reg = value;
+	__raw_writel(value, reg);
 }
 
 #endif /* CSP_REG_H */

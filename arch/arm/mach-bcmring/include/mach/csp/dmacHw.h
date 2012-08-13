@@ -23,9 +23,9 @@
 #ifndef _DMACHW_H
 #define _DMACHW_H
 
-#include <stddef.h>
+#include <linux/stddef.h>
 
-#include <csp/stdint.h>
+#include <linux/types.h>
 #include <mach/csp/dmacHw_reg.h>
 
 /* Define DMA Channel ID using DMA controller number (m) and channel number (c).
