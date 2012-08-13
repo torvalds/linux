@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 
 struct sh_mtu2_priv {
 	void __iomem *mapbase;
@@ -123,6 +124,9 @@ static int sh_mtu2_enable(struct sh_mtu2_priv *p)
 {
 	int ret;
 
+	pm_runtime_get_sync(&p->pdev->dev);
+	dev_pm_syscore_device(&p->pdev->dev, true);
+
 	/* enable clock */
 	ret = clk_enable(p->clk);
 	if (ret) {
@@ -157,6 +161,9 @@ static void sh_mtu2_disable(struct sh_mtu2_priv *p)
 
 	/* stop clock */
 	clk_disable(p->clk);
+
+	dev_pm_syscore_device(&p->pdev->dev, false);
+	pm_runtime_put(&p->pdev->dev);
 }
 
 static irqreturn_t sh_mtu2_interrupt(int irq, void *dev_id)
@@ -317,18 +324,17 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 {
 	struct sh_mtu2_priv *p = platform_get_drvdata(pdev);
+	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	int ret;
 
 	if (!is_early_platform_device(pdev)) {
-		struct sh_timer_config *cfg = pdev->dev.platform_data;
-
-		if (cfg->clockevent_rating)
-			dev_pm_syscore_device(&pdev->dev, true);
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
 	}
 
 	if (p) {
 		dev_info(&pdev->dev, "kept as earlytimer\n");
-		return 0;
+		goto out;
 	}
 
 	p = kmalloc(sizeof(*p), GFP_KERNEL);
@@ -341,8 +347,19 @@ static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 	if (ret) {
 		kfree(p);
 		platform_set_drvdata(pdev, NULL);
+		pm_runtime_idle(&pdev->dev);
+		return ret;
 	}
-	return ret;
+	if (is_early_platform_device(pdev))
+		return 0;
+
+ out:
+	if (cfg->clockevent_rating)
+		pm_runtime_irq_safe(&pdev->dev);
+	else
+		pm_runtime_idle(&pdev->dev);
+
+	return 0;
 }
 
 static int __devexit sh_mtu2_remove(struct platform_device *pdev)
