@@ -152,6 +152,7 @@ typedef enum fe_code_rate {
 	FEC_AUTO,
 	FEC_3_5,
 	FEC_9_10,
+	FEC_2_5,
 } fe_code_rate_t;
 
 
@@ -169,6 +170,7 @@ typedef enum fe_modulation {
 	APSK_16,
 	APSK_32,
 	DQPSK,
+	QAM_4_NR,
 } fe_modulation_t;
 
 typedef enum fe_transmit_mode {
@@ -179,6 +181,8 @@ typedef enum fe_transmit_mode {
 	TRANSMISSION_MODE_1K,
 	TRANSMISSION_MODE_16K,
 	TRANSMISSION_MODE_32K,
+	TRANSMISSION_MODE_C1,
+	TRANSMISSION_MODE_C3780,
 } fe_transmit_mode_t;
 
 #if defined(__DVB_CORE__) || !defined (__KERNEL__)
@@ -202,6 +206,9 @@ typedef enum fe_guard_interval {
 	GUARD_INTERVAL_1_128,
 	GUARD_INTERVAL_19_128,
 	GUARD_INTERVAL_19_256,
+	GUARD_INTERVAL_PN420,
+	GUARD_INTERVAL_PN595,
+	GUARD_INTERVAL_PN945,
 } fe_guard_interval_t;
 
 
@@ -213,6 +220,11 @@ typedef enum fe_hierarchy {
 	HIERARCHY_AUTO
 } fe_hierarchy_t;
 
+enum fe_interleaving {
+	INTERLEAVING_NONE,
+	INTERLEAVING_240,
+	INTERLEAVING_720,
+};
 
 #if defined(__DVB_CORE__) || !defined (__KERNEL__)
 struct dvb_qpsk_parameters {
@@ -337,7 +349,9 @@ struct dvb_frontend_event {
 #define DTV_ATSCMH_SCCC_CODE_MODE_C	58
 #define DTV_ATSCMH_SCCC_CODE_MODE_D	59
 
-#define DTV_MAX_COMMAND				DTV_ATSCMH_SCCC_CODE_MODE_D
+#define DTV_INTERLEAVING			60
+
+#define DTV_MAX_COMMAND				DTV_INTERLEAVING
 
 typedef enum fe_pilot {
 	PILOT_ON,
@@ -366,7 +380,7 @@ typedef enum fe_delivery_system {
 	SYS_ISDBC,
 	SYS_ATSC,
 	SYS_ATSCMH,
-	SYS_DMBTH,
+	SYS_DTMB,
 	SYS_CMMB,
 	SYS_DAB,
 	SYS_DVBT2,
@@ -374,8 +388,9 @@ typedef enum fe_delivery_system {
 	SYS_DVBC_ANNEX_C,
 } fe_delivery_system_t;
 
-
+/* backward compatibility */
 #define SYS_DVBC_ANNEX_AC	SYS_DVBC_ANNEX_A
+#define SYS_DMBTH SYS_DTMB /* DMB-TH is legacy name, use DTMB instead */
 
 /* ATSC-MH */
 

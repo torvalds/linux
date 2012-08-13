@@ -428,7 +428,7 @@ static int atbm8830_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 }
 
 static struct dvb_frontend_ops atbm8830_ops = {
-	.delsys = { SYS_DMBTH },
+	.delsys = { SYS_DTMB },
 	.info = {
 		.name = "AltoBeam ATBM8830/8831 DMB-TH",
 		.frequency_min = 474000000,

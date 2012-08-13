@@ -179,7 +179,7 @@ static enum dvbv3_emulation_type dvbv3_type(u32 delivery_system)
 	case SYS_DVBT:
 	case SYS_DVBT2:
 	case SYS_ISDBT:
-	case SYS_DMBTH:
+	case SYS_DTMB:
 		return DVBV3_OFDM;
 	case SYS_ATSC:
 	case SYS_ATSCMH:
@@ -997,6 +997,7 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_CODE_RATE_LP, 1, 0),
 	_DTV_CMD(DTV_GUARD_INTERVAL, 1, 0),
 	_DTV_CMD(DTV_TRANSMISSION_MODE, 1, 0),
+	_DTV_CMD(DTV_INTERLEAVING, 1, 0),
 
 	_DTV_CMD(DTV_ISDBT_PARTIAL_RECEPTION, 1, 0),
 	_DTV_CMD(DTV_ISDBT_SOUND_BROADCASTING, 1, 0),
@@ -1028,6 +1029,7 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_GUARD_INTERVAL, 0, 0),
 	_DTV_CMD(DTV_TRANSMISSION_MODE, 0, 0),
 	_DTV_CMD(DTV_HIERARCHY, 0, 0),
+	_DTV_CMD(DTV_INTERLEAVING, 0, 0),
 
 	_DTV_CMD(DTV_ENUM_DELSYS, 0, 0),
 
@@ -1326,6 +1328,9 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	case DTV_HIERARCHY:
 		tvp->u.data = c->hierarchy;
 		break;
+	case DTV_INTERLEAVING:
+		tvp->u.data = c->interleaving;
+		break;
 
 	/* ISDB-T Support here */
 	case DTV_ISDBT_PARTIAL_RECEPTION:
@@ -1593,7 +1598,7 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 	 * The DVBv3 or DVBv5 call is requesting a different system. So,
 	 * emulation is needed.
 	 *
-	 * Emulate newer delivery systems like ISDBT, DVBT and DMBTH
+	 * Emulate newer delivery systems like ISDBT, DVBT and DTMB
 	 * for older DVBv5 applications. The emulation will try to use
 	 * the auto mode for most things, and will assume that the desired
 	 * delivery system is the last one at the ops.delsys[] array
@@ -1714,6 +1719,9 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_HIERARCHY:
 		c->hierarchy = tvp->u.data;
+		break;
+	case DTV_INTERLEAVING:
+		c->interleaving = tvp->u.data;
 		break;
 
 	/* ISDB-T Support here */
@@ -2012,7 +2020,7 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 		case SYS_DVBT:
 		case SYS_DVBT2:
 		case SYS_ISDBT:
-		case SYS_DMBTH:
+		case SYS_DTMB:
 			fepriv->min_delay = HZ / 20;
 			fepriv->step_size = fe->ops.info.frequency_stepsize * 2;
 			fepriv->max_drift = (fe->ops.info.frequency_stepsize * 2) + 1;

@@ -412,7 +412,7 @@ EXPORT_SYMBOL(lgs8gl5_attach);
 
 
 static struct dvb_frontend_ops lgs8gl5_ops = {
-	.delsys = { SYS_DMBTH },
+	.delsys = { SYS_DTMB },
 	.info = {
 		.name			= "Legend Silicon LGS-8GL5 DMB-TH",
 		.frequency_min		= 474000000,
