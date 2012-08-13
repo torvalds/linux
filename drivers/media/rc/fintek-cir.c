@@ -295,6 +295,7 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
 	u8 sample;
+	bool event = false;
 	int i;
 
 	for (i = 0; i < fintek->pkts; i++) {
@@ -332,7 +333,9 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 			fit_dbg("Storing %s with duration %d",
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
-			ir_raw_event_store_with_filter(fintek->rdev, &rawir);
+			if (ir_raw_event_store_with_filter(fintek->rdev,
+									&rawir))
+				event = true;
 			break;
 		}
 
@@ -342,8 +345,10 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 
 	fintek->pkts = 0;
 
-	fit_dbg("Calling ir_raw_event_handle");
-	ir_raw_event_handle(fintek->rdev);
+	if (event) {
+		fit_dbg("Calling ir_raw_event_handle");
+		ir_raw_event_handle(fintek->rdev);
+	}
 }
 
 /* copy data from hardware rx register into driver buffer */

@@ -121,8 +121,9 @@ static void ttusbir_bulk_complete(struct urb *urb)
  */
 static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 {
+	struct ir_raw_event rawir;
 	unsigned i, v, b;
-	DEFINE_IR_RAW_EVENT(rawir);
+	bool event = false;
 
 	init_ir_raw_event(&rawir);
 
@@ -132,12 +133,14 @@ static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 		case 0xfe:
 			rawir.pulse = false;
 			rawir.duration = NS_PER_BYTE;
-			ir_raw_event_store_with_filter(tt->rc, &rawir);
+			if (ir_raw_event_store_with_filter(tt->rc, &rawir))
+				event = true;
 			break;
 		case 0:
 			rawir.pulse = true;
 			rawir.duration = NS_PER_BYTE;
-			ir_raw_event_store_with_filter(tt->rc, &rawir);
+			if (ir_raw_event_store_with_filter(tt->rc, &rawir))
+				event = true;
 			break;
 		default:
 			/* one edge per byte */
@@ -150,16 +153,20 @@ static void ttusbir_process_ir_data(struct ttusbir *tt, uint8_t *buf)
 			}
 
 			rawir.duration = NS_PER_BIT * (8 - b);
-			ir_raw_event_store_with_filter(tt->rc, &rawir);
+			if (ir_raw_event_store_with_filter(tt->rc, &rawir))
+				event = true;
 
 			rawir.pulse = !rawir.pulse;
 			rawir.duration = NS_PER_BIT * b;
-			ir_raw_event_store_with_filter(tt->rc, &rawir);
+			if (ir_raw_event_store_with_filter(tt->rc, &rawir))
+				event = true;
 			break;
 		}
 	}
 
-	ir_raw_event_handle(tt->rc);
+	/* don't wakeup when there's nothing to do */
+	if (event)
+		ir_raw_event_handle(tt->rc);
 }
 
 static void ttusbir_urb_complete(struct urb *urb)

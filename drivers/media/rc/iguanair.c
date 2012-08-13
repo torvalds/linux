@@ -134,6 +134,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 	} else if (len >= 7) {
 		DEFINE_IR_RAW_EVENT(rawir);
 		unsigned i;
+		bool event = false;
 
 		init_ir_raw_event(&rawir);
 
@@ -147,10 +148,12 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 								 RX_RESOLUTION;
 			}
 
-			ir_raw_event_store_with_filter(ir->rc, &rawir);
+			if (ir_raw_event_store_with_filter(ir->rc, &rawir))
+				event = true;
 		}
 
-		ir_raw_event_handle(ir->rc);
+		if (event)
+			ir_raw_event_handle(ir->rc);
 	}
 }
 

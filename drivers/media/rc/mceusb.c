@@ -974,6 +974,7 @@ static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
+	bool event = false;
 	int i = 0;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
@@ -1004,7 +1005,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
-			ir_raw_event_store_with_filter(ir->rc, &rawir);
+			if (ir_raw_event_store_with_filter(ir->rc, &rawir))
+				event = true;
 			break;
 		case CMD_DATA:
 			ir->rem--;
@@ -1032,8 +1034,10 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 		if (ir->parser_state != CMD_HEADER && !ir->rem)
 			ir->parser_state = CMD_HEADER;
 	}
-	mce_dbg(ir->dev, "processed IR data, calling ir_raw_event_handle\n");
-	ir_raw_event_handle(ir->rc);
+	if (event) {
+		mce_dbg(ir->dev, "processed IR data, calling ir_raw_event_handle\n");
+		ir_raw_event_handle(ir->rc);
+	}
 }
 
 static void mceusb_dev_recv(struct urb *urb)
