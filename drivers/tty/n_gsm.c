@@ -971,16 +971,19 @@ static void gsm_dlci_data_sweep(struct gsm_mux *gsm)
 static void gsm_dlci_data_kick(struct gsm_dlci *dlci)
 {
 	unsigned long flags;
+	int sweep;
 
 	spin_lock_irqsave(&dlci->gsm->tx_lock, flags);
 	/* If we have nothing running then we need to fire up */
+	sweep = (dlci->gsm->tx_bytes < TX_THRESH_LO);
 	if (dlci->gsm->tx_bytes == 0) {
 		if (dlci->net)
 			gsm_dlci_data_output_framed(dlci->gsm, dlci);
 		else
 			gsm_dlci_data_output(dlci->gsm, dlci);
-	} else if (dlci->gsm->tx_bytes < TX_THRESH_LO)
-		gsm_dlci_data_sweep(dlci->gsm);
+	}
+	if (sweep)
+ 		gsm_dlci_data_sweep(dlci->gsm);
 	spin_unlock_irqrestore(&dlci->gsm->tx_lock, flags);
 }
 
