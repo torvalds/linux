@@ -1068,7 +1068,7 @@ static const struct dev_pm_ops dm644x_ccdc_pm_ops = {
 	.resume = dm644x_ccdc_resume,
 };
 
-static struct platform_driver dm644x_ccdc_driver = {
+static __refdata struct platform_driver dm644x_ccdc_driver = {
 	.driver = {
 		.name	= "dm644x_ccdc",
 		.owner = THIS_MODULE,

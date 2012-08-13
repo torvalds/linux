@@ -1148,7 +1148,7 @@ static int isif_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver isif_driver = {
+static __refdata struct platform_driver isif_driver = {
 	.driver = {
 		.name	= "isif",
 		.owner = THIS_MODULE,

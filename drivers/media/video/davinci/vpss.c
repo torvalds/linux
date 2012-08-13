@@ -460,7 +460,7 @@ static int __devexit vpss_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vpss_driver = {
+static __refdata struct platform_driver vpss_driver = {
 	.driver = {
 		.name	= "vpss",
 		.owner = THIS_MODULE,

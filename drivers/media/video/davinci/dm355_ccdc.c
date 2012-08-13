@@ -1060,7 +1060,7 @@ static int dm355_ccdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dm355_ccdc_driver = {
+static __refdata struct platform_driver dm355_ccdc_driver = {
 	.driver = {
 		.name	= "dm355_ccdc",
 		.owner = THIS_MODULE,
