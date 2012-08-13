@@ -23,4 +23,9 @@ int  nouveau_handle_fini(struct nouveau_handle *, bool suspend);
 struct nouveau_object *
 nouveau_handle_ref(struct nouveau_object *, u32 name);
 
+struct nouveau_handle *nouveau_handle_get_class(struct nouveau_object *, u16);
+struct nouveau_handle *nouveau_handle_get_vinst(struct nouveau_object *, u64);
+struct nouveau_handle *nouveau_handle_get_cinst(struct nouveau_object *, u32);
+void nouveau_handle_put(struct nouveau_handle *);
+
 #endif

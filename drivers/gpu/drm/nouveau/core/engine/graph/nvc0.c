@@ -226,10 +226,12 @@ nvc0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 static void
 nvc0_graph_intr(struct nouveau_subdev *subdev)
 {
-	struct nvc0_graph_priv *priv = (void *)subdev;
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_handle *handle = NULL;
-	u64 inst = (u64)(nv_rd32(priv, 0x409b00) & 0x0fffffff) << 12;
+	struct nouveau_object *engctx;
+	struct nouveau_handle *handle;
+	struct nvc0_graph_priv *priv = (void *)subdev;
+	u64 inst = nv_rd32(priv, 0x409b00) & 0x0fffffff;
 	u32 stat = nv_rd32(priv, 0x400100);
 	u32 addr = nv_rd32(priv, 0x400704);
 	u32 mthd = (addr & 0x00003ffc);
@@ -237,24 +239,28 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	u32 data = nv_rd32(priv, 0x400708);
 	u32 code = nv_rd32(priv, 0x400110);
 	u32 class = nv_rd32(priv, 0x404200 + (subc * 4));
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000010) {
-		handle = nouveau_engctx_lookup_class(engine, inst, class);
+		handle = nouveau_handle_get_class(engctx, class);
 		if (!handle || nv_call(handle->object, mthd, data)) {
-			nv_error(priv, "ILLEGAL_MTHD ch 0x%010llx "
+			nv_error(priv, "ILLEGAL_MTHD ch %d [0x%010llx] "
 				     "subc %d class 0x%04x mthd 0x%04x "
 				     "data 0x%08x\n",
-				 inst, subc, class, mthd, data);
+				 chid, inst << 12, subc, class, mthd, data);
 		}
-		nouveau_engctx_handle_put(handle);
+		nouveau_handle_put(handle);
 		nv_wr32(priv, 0x400100, 0x00000010);
 		stat &= ~0x00000010;
 	}
 
 	if (stat & 0x00000020) {
-		nv_error(priv, "ILLEGAL_CLASS ch 0x%010llx subc %d "
+		nv_error(priv, "ILLEGAL_CLASS ch %d [0x%010llx] subc %d "
 			     "class 0x%04x mthd 0x%04x data 0x%08x\n",
-			inst, subc, class, mthd, data);
+			chid, inst << 12, subc, class, mthd, data);
 		nv_wr32(priv, 0x400100, 0x00000020);
 		stat &= ~0x00000020;
 	}
@@ -262,16 +268,17 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	if (stat & 0x00100000) {
 		nv_error(priv, "DATA_ERROR [");
 		nouveau_enum_print(nv50_data_error_names, code);
-		printk("] ch 0x%010llx subc %d class 0x%04x "
+		printk("] ch %d [0x%010llx] subc %d class 0x%04x "
 		       "mthd 0x%04x data 0x%08x\n",
-		       inst, subc, class, mthd, data);
+		       chid, inst << 12, subc, class, mthd, data);
 		nv_wr32(priv, 0x400100, 0x00100000);
 		stat &= ~0x00100000;
 	}
 
 	if (stat & 0x00200000) {
 		u32 trap = nv_rd32(priv, 0x400108);
-		nv_error(priv, "TRAP ch 0x%010llx status 0x%08x\n", inst, trap);
+		nv_error(priv, "TRAP ch %d [0x%010llx] status 0x%08x\n",
+			 chid, inst << 12, trap);
 		nv_wr32(priv, 0x400108, trap);
 		nv_wr32(priv, 0x400100, 0x00200000);
 		stat &= ~0x00200000;
@@ -289,6 +296,7 @@ nvc0_graph_intr(struct nouveau_subdev *subdev)
 	}
 
 	nv_wr32(priv, 0x400500, 0x00010001);
+	nouveau_engctx_put(engctx);
 }
 
 int

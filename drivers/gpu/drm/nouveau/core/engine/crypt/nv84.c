@@ -30,6 +30,7 @@
 
 #include <subdev/fb.h>
 
+#include <engine/fifo.h>
 #include <engine/crypt.h>
 
 struct nv84_crypt_priv {
@@ -133,23 +134,31 @@ static struct nouveau_bitfield nv84_crypt_intr_mask[] = {
 static void
 nv84_crypt_intr(struct nouveau_subdev *subdev)
 {
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
+	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_object *engctx;
 	struct nv84_crypt_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x102130);
 	u32 mthd = nv_rd32(priv, 0x102190);
 	u32 data = nv_rd32(priv, 0x102194);
 	u32 inst = nv_rd32(priv, 0x102188) & 0x7fffffff;
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat) {
 		nv_error(priv, "");
 		nouveau_bitfield_print(nv84_crypt_intr_mask, stat);
-		printk(" ch 0x%010llx mthd 0x%04x data 0x%08x\n",
-		       (u64)inst << 12, mthd, data);
+		printk(" ch %d [0x%010llx] mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, mthd, data);
 	}
 
 	nv_wr32(priv, 0x102130, stat);
 	nv_wr32(priv, 0x10200c, 0x10);
 
 	nv50_fb_trap(nouveau_fb(priv), 1);
+	nouveau_engctx_put(engctx);
 }
 
 static int

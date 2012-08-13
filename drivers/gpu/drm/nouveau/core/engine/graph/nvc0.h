@@ -35,6 +35,7 @@
 #include <subdev/bar.h>
 #include <subdev/timer.h>
 
+#include <engine/fifo.h>
 #include <engine/graph.h>
 
 #define GPC_MAX 4

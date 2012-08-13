@@ -30,6 +30,7 @@
 #include <subdev/timer.h>
 #include <subdev/fb.h>
 
+#include <engine/fifo.h>
 #include <engine/crypt.h>
 
 #include "fuc/nv98.fuc.h"
@@ -102,6 +103,9 @@ static struct nouveau_enum nv98_crypt_isr_error_name[] = {
 static void
 nv98_crypt_intr(struct nouveau_subdev *subdev)
 {
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
+	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_object *engctx;
 	struct nv98_crypt_priv *priv = (void *)subdev;
 	u32 disp = nv_rd32(priv, 0x08701c);
 	u32 stat = nv_rd32(priv, 0x087008) & disp & ~(disp >> 16);
@@ -111,12 +115,16 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
 	u32 data = nv_rd32(priv, 0x087044);
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
 		nouveau_enum_print(nv98_crypt_isr_error_name, ssta);
-		printk("] ch 0x%08x subc %d mthd 0x%04x data 0x%08x\n",
-		       inst, subc, mthd, data);
+		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, subc, mthd, data);
 		nv_wr32(priv, 0x087004, 0x00000040);
 		stat &= ~0x00000040;
 	}
@@ -127,6 +135,7 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 	}
 
 	nv50_fb_trap(nouveau_fb(priv), 1);
+	nouveau_engctx_put(engctx);
 }
 
 static int

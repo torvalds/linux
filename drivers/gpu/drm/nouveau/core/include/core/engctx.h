@@ -13,6 +13,7 @@ struct nouveau_engctx {
 	struct nouveau_gpuobj base;
 	struct nouveau_vma vma;
 	struct list_head head;
+	unsigned long save;
 	u64 addr;
 };
 
@@ -44,19 +45,7 @@ int  _nouveau_engctx_fini(struct nouveau_object *, bool suspend);
 #define _nouveau_engctx_rd32 _nouveau_gpuobj_rd32
 #define _nouveau_engctx_wr32 _nouveau_gpuobj_wr32
 
-struct nouveau_object *
-nouveau_engctx_lookup(struct nouveau_engine *, u64 addr);
-
-struct nouveau_handle *
-nouveau_engctx_lookup_class(struct nouveau_engine *, u64, u16);
-
-struct nouveau_handle *
-nouveau_engctx_lookup_vinst(struct nouveau_engine *, u64, u64);
-
-struct nouveau_handle *
-nouveau_engctx_lookup_cinst(struct nouveau_engine *, u64, u32);
-
-void
-nouveau_engctx_handle_put(struct nouveau_handle *);
+struct nouveau_object *nouveau_engctx_get(struct nouveau_engine *, u64 addr);
+void nouveau_engctx_put(struct nouveau_object *);
 
 #endif

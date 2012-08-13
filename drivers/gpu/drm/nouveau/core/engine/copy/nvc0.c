@@ -27,6 +27,7 @@
 #include <core/class.h>
 #include <core/engctx.h>
 
+#include <engine/fifo.h>
 #include <engine/copy.h>
 
 #include "fuc/nvc0.fuc.h"
@@ -113,6 +114,9 @@ static struct nouveau_enum nvc0_copy_isr_error_name[] = {
 static void
 nvc0_copy_intr(struct nouveau_subdev *subdev)
 {
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
+	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_object *engctx;
 	int idx = nv_engidx(nv_object(subdev)) - NVDEV_ENGINE_COPY0;
 	struct nvc0_copy_priv *priv = (void *)subdev;
 	u32 disp = nv_rd32(priv, 0x10401c + (idx * 0x1000));
@@ -124,12 +128,16 @@ nvc0_copy_intr(struct nouveau_subdev *subdev)
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
 	u32 data = nv_rd32(priv, 0x104044 + (idx * 0x1000));
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
 		nouveau_enum_print(nvc0_copy_isr_error_name, ssta);
-		printk("] ch 0x%010llx subc %d mthd 0x%04x data 0x%08x\n",
-		       (u64)inst << 12, subc, mthd, data);
+		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, (u64)inst << 12, subc, mthd, data);
 		nv_wr32(priv, 0x104004 + (idx * 0x1000), 0x00000040);
 		stat &= ~0x00000040;
 	}
@@ -138,6 +146,8 @@ nvc0_copy_intr(struct nouveau_subdev *subdev)
 		nv_error(priv, "unhandled intr 0x%08x\n", stat);
 		nv_wr32(priv, 0x104004 + (idx * 0x1000), stat);
 	}
+
+	nouveau_engctx_put(engctx);
 }
 
 static int

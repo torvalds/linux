@@ -30,6 +30,7 @@
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 
+#include <engine/fifo.h>
 #include <engine/copy.h>
 
 #include "fuc/nva3.fuc.h"
@@ -102,21 +103,28 @@ static struct nouveau_enum nva3_copy_isr_error_name[] = {
 static void
 nva3_copy_intr(struct nouveau_subdev *subdev)
 {
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
+	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_object *engctx;
 	struct nva3_copy_priv *priv = (void *)subdev;
 	u32 dispatch = nv_rd32(priv, 0x10401c);
 	u32 stat = nv_rd32(priv, 0x104008) & dispatch & ~(dispatch >> 16);
-	u32 inst = nv_rd32(priv, 0x104050) & 0x3fffffff;
+	u64 inst = nv_rd32(priv, 0x104050) & 0x3fffffff;
 	u32 ssta = nv_rd32(priv, 0x104040) & 0x0000ffff;
 	u32 addr = nv_rd32(priv, 0x104040) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
 	u32 data = nv_rd32(priv, 0x104044);
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
 		nv_error(priv, "DISPATCH_ERROR [");
 		nouveau_enum_print(nva3_copy_isr_error_name, ssta);
-		printk("] ch 0x%08x subc %d mthd 0x%04x data 0x%08x\n",
-		       inst, subc, mthd, data);
+		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
+		       chid, inst << 12, subc, mthd, data);
 		nv_wr32(priv, 0x104004, 0x00000040);
 		stat &= ~0x00000040;
 	}
@@ -127,6 +135,7 @@ nva3_copy_intr(struct nouveau_subdev *subdev)
 	}
 
 	nv50_fb_trap(nouveau_fb(priv), 1);
+	nouveau_engctx_put(engctx);
 }
 
 static int

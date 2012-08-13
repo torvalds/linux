@@ -256,26 +256,32 @@ nv40_graph_tile_prog(struct nouveau_engine *engine, int i)
 static void
 nv40_graph_intr(struct nouveau_subdev *subdev)
 {
-	struct nv40_graph_priv *priv = (void *)subdev;
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_object *engctx;
 	struct nouveau_handle *handle = NULL;
+	struct nv40_graph_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, NV03_PGRAPH_INTR);
 	u32 nsource = nv_rd32(priv, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nv_rd32(priv, NV03_PGRAPH_NSTATUS);
-	u32 inst = (nv_rd32(priv, 0x40032c) & 0x000fffff) << 4;
+	u32 inst = nv_rd32(priv, 0x40032c) & 0x000fffff;
 	u32 addr = nv_rd32(priv, NV04_PGRAPH_TRAPPED_ADDR);
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00001ffc);
 	u32 data = nv_rd32(priv, NV04_PGRAPH_TRAPPED_DATA);
 	u32 class = nv_rd32(priv, 0x400160 + subc * 4) & 0xffff;
 	u32 show = stat;
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & NV_PGRAPH_INTR_ERROR) {
 		if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
-			handle = nouveau_engctx_lookup_class(engine, inst, class);
+			handle = nouveau_handle_get_class(engctx, class);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~NV_PGRAPH_INTR_ERROR;
-			nouveau_engctx_handle_put(handle);
+			nouveau_handle_put(handle);
 		}
 
 		if (nsource & NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION) {
@@ -294,10 +300,12 @@ nv40_graph_intr(struct nouveau_subdev *subdev)
 		printk(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
 		printk("\n");
-		nv_error(priv, "ch 0x%08x subc %d class 0x%04x "
+		nv_error(priv, "ch %d [0x%08x] subc %d class 0x%04x "
 			       "mthd 0x%04x data 0x%08x\n",
-			 inst, subc, class, mthd, data);
+			 chid, inst << 4, subc, class, mthd, data);
 	}
+
+	nouveau_engctx_put(engctx);
 }
 
 static int

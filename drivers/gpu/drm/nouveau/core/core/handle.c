@@ -187,3 +187,37 @@ nouveau_handle_ref(struct nouveau_object *parent, u32 name)
 
 	return object;
 }
+
+struct nouveau_handle *
+nouveau_handle_get_class(struct nouveau_object *engctx, u16 oclass)
+{
+	struct nouveau_namedb *namedb;
+	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
+		return nouveau_namedb_get_class(namedb, oclass);
+	return NULL;
+}
+
+struct nouveau_handle *
+nouveau_handle_get_vinst(struct nouveau_object *engctx, u64 vinst)
+{
+	struct nouveau_namedb *namedb;
+	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
+		return nouveau_namedb_get_vinst(namedb, vinst);
+	return NULL;
+}
+
+struct nouveau_handle *
+nouveau_handle_get_cinst(struct nouveau_object *engctx, u32 cinst)
+{
+	struct nouveau_namedb *namedb;
+	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
+		return nouveau_namedb_get_cinst(namedb, cinst);
+	return NULL;
+}
+
+void
+nouveau_handle_put(struct nouveau_handle *handle)
+{
+	if (handle)
+		nouveau_namedb_put(handle);
+}

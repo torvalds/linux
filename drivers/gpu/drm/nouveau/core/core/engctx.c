@@ -59,7 +59,6 @@ nouveau_engctx_create_(struct nouveau_object *parent,
 {
 	struct nouveau_client *client = nouveau_client(parent);
 	struct nouveau_engine *engine = nv_engine(engobj);
-	struct nouveau_subdev *subdev = nv_subdev(engine);
 	struct nouveau_object *engctx;
 	unsigned long save;
 	int ret;
@@ -210,58 +209,28 @@ _nouveau_engctx_fini(struct nouveau_object *object, bool suspend)
 }
 
 struct nouveau_object *
-nouveau_engctx_lookup(struct nouveau_engine *engine, u64 addr)
+nouveau_engctx_get(struct nouveau_engine *engine, u64 addr)
 {
 	struct nouveau_engctx *engctx;
+	unsigned long flags;
 
+	spin_lock_irqsave(&engine->lock, flags);
 	list_for_each_entry(engctx, &engine->contexts, head) {
-		if (engctx->base.size &&
-		    nv_gpuobj(engctx)->addr == addr)
+		if (engctx->addr == addr) {
+			engctx->save = flags;
 			return nv_object(engctx);
+		}
 	}
-
-	return NULL;
-}
-
-struct nouveau_handle *
-nouveau_engctx_lookup_class(struct nouveau_engine *engine, u64 addr, u16 oclass)
-{
-	struct nouveau_object *engctx = nouveau_engctx_lookup(engine, addr);
-	struct nouveau_namedb *namedb;
-
-	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
-		return nouveau_namedb_get_class(namedb, oclass);
-
-	return NULL;
-}
-
-struct nouveau_handle *
-nouveau_engctx_lookup_vinst(struct nouveau_engine *engine, u64 addr, u64 vinst)
-{
-	struct nouveau_object *engctx = nouveau_engctx_lookup(engine, addr);
-	struct nouveau_namedb *namedb;
-
-	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
-		return nouveau_namedb_get_vinst(namedb, vinst);
-
-	return NULL;
-}
-
-struct nouveau_handle *
-nouveau_engctx_lookup_cinst(struct nouveau_engine *engine, u64 addr, u32 cinst)
-{
-	struct nouveau_object *engctx = nouveau_engctx_lookup(engine, addr);
-	struct nouveau_namedb *namedb;
-
-	if (engctx && (namedb = (void *)nv_pclass(engctx, NV_NAMEDB_CLASS)))
-		return nouveau_namedb_get_cinst(namedb, cinst);
-
+	spin_unlock_irqrestore(&engine->lock, flags);
 	return NULL;
 }
 
 void
-nouveau_engctx_handle_put(struct nouveau_handle *handle)
+nouveau_engctx_put(struct nouveau_object *object)
 {
-	if (handle)
-		nouveau_namedb_put(handle);
+	if (object) {
+		struct nouveau_engine *engine = nv_engine(object->engine);
+		struct nouveau_engctx *engctx = nv_engctx(object);
+		spin_unlock_irqrestore(&engine->lock, engctx->save);
+	}
 }

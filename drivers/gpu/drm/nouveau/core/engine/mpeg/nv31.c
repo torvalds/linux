@@ -26,13 +26,14 @@
 #include <core/class.h>
 #include <core/engctx.h>
 #include <core/handle.h>
-#include <core/engine/graph/nv40.h>
 
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 #include <subdev/instmem.h>
 
+#include <engine/fifo.h>
 #include <engine/mpeg.h>
+#include <engine/graph/nv40.h>
 
 struct nv31_mpeg_priv {
 	struct nouveau_mpeg base;
@@ -195,30 +196,34 @@ nv31_mpeg_tile_prog(struct nouveau_engine *engine, int i)
 void
 nv31_mpeg_intr(struct nouveau_subdev *subdev)
 {
-	struct nv31_mpeg_priv *priv = (void *)subdev;
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_handle *handle = NULL;
-	u32 inst = (nv_rd32(priv, 0x00b318) & 0x000fffff) << 4;
+	struct nouveau_object *engctx;
+	struct nouveau_handle *handle;
+	struct nv31_mpeg_priv *priv = (void *)subdev;
+	u32 inst = nv_rd32(priv, 0x00b318) & 0x000fffff;
 	u32 stat = nv_rd32(priv, 0x00b100);
 	u32 type = nv_rd32(priv, 0x00b230);
 	u32 mthd = nv_rd32(priv, 0x00b234);
 	u32 data = nv_rd32(priv, 0x00b238);
 	u32 show = stat;
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x01000000) {
 		/* happens on initial binding of the object */
-		if (handle && type == 0x00000020 && mthd == 0x0000) {
+		if (type == 0x00000020 && mthd == 0x0000) {
 			nv_mask(priv, 0x00b308, 0x00000000, 0x00000000);
 			show &= ~0x01000000;
 		}
 
-		if (handle && type == 0x00000010) {
-			handle = nouveau_engctx_lookup_class(engine, inst, 0x3174);
-
-			if (handle && !nv_call(handle->object, mthd, data)) {
-				nouveau_engctx_handle_put(handle);
+		if (type == 0x00000010) {
+			handle = nouveau_handle_get_class(engctx, 0x3174);
+			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~0x01000000;
-			}
+			nouveau_handle_put(handle);
 		}
 	}
 
@@ -227,8 +232,10 @@ nv31_mpeg_intr(struct nouveau_subdev *subdev)
 
 	if (show) {
 		nv_error(priv, "ch %d [0x%08x] 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			 inst, stat, type, mthd, data);
+			 chid, inst << 4, stat, type, mthd, data);
 	}
+
+	nouveau_engctx_put(engctx);
 }
 
 static int

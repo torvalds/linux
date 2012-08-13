@@ -32,6 +32,7 @@
 #include <subdev/vm.h>
 #include <subdev/timer.h>
 
+#include <engine/fifo.h>
 #include <engine/graph.h>
 
 #include "nv50.h"
@@ -462,7 +463,8 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 }
 
 static int
-nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display, u64 inst)
+nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display,
+			int chid, u64 inst)
 {
 	u32 status = nv_rd32(priv, 0x400108);
 	u32 ustatus;
@@ -495,11 +497,11 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display, u64 inst)
 
 			nv_error(priv, "TRAP DISPATCH_FAULT\n");
 			if (display && (addr & 0x80000000)) {
-				nv_error(priv, "ch 0x%010llx "
+				nv_error(priv, "ch %d [0x%010llx] "
 					     "subc %d class 0x%04x mthd 0x%04x "
 					     "data 0x%08x%08x "
 					     "400808 0x%08x 400848 0x%08x\n",
-					inst, subc, class, mthd, datah,
+					chid, inst, subc, class, mthd, datah,
 					datal, addr, r848);
 			} else
 			if (display) {
@@ -521,10 +523,10 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display, u64 inst)
 
 			nv_error(priv, "TRAP DISPATCH_QUERY\n");
 			if (display && (addr & 0x80000000)) {
-				nv_error(priv, "ch 0x%010llx "
+				nv_error(priv, "ch %d [0x%010llx] "
 					     "subc %d class 0x%04x mthd 0x%04x "
 					     "data 0x%08x 40084c 0x%08x\n",
-					inst, subc, class, mthd,
+					chid, inst, subc, class, mthd,
 					data, addr);
 			} else
 			if (display) {
@@ -675,23 +677,29 @@ nv50_graph_trap_handler(struct nv50_graph_priv *priv, u32 display, u64 inst)
 static void
 nv50_graph_intr(struct nouveau_subdev *subdev)
 {
-	struct nv50_graph_priv *priv = (void *)subdev;
+	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_object *engctx;
 	struct nouveau_handle *handle = NULL;
+	struct nv50_graph_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, 0x400100);
-	u64 inst = (u64)(nv_rd32(priv, 0x40032c) & 0x0fffffff) << 12;
+	u32 inst = nv_rd32(priv, 0x40032c) & 0x0fffffff;
 	u32 addr = nv_rd32(priv, 0x400704);
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00001ffc);
 	u32 data = nv_rd32(priv, 0x400708);
 	u32 class = nv_rd32(priv, 0x400814);
 	u32 show = stat;
+	int chid;
+
+	engctx = nouveau_engctx_get(engine, inst);
+	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000010) {
-		handle = nouveau_engctx_lookup_class(engine, inst, class);
+		handle = nouveau_handle_get_class(engctx, class);
 		if (handle && !nv_call(handle->object, mthd, data))
 			show &= ~0x00000010;
-		nouveau_engctx_handle_put(handle);
+		nouveau_handle_put(handle);
 	}
 
 	if (show & 0x00100000) {
@@ -702,7 +710,7 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 	}
 
 	if (stat & 0x00200000) {
-		if (!nv50_graph_trap_handler(priv, show, inst))
+		if (!nv50_graph_trap_handler(priv, show, chid, (u64)inst << 12))
 			show &= ~0x00200000;
 	}
 
@@ -713,14 +721,16 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 		nv_info(priv, "");
 		nouveau_bitfield_print(nv50_graph_intr_name, show);
 		printk("\n");
-		nv_error(priv, "ch 0x%010llx subc %d class 0x%04x "
+		nv_error(priv, "ch %d [0x%010llx] subc %d class 0x%04x "
 			       "mthd 0x%04x data 0x%08x\n",
-			 inst, subc, class, mthd, data);
+			 chid, (u64)inst << 12, subc, class, mthd, data);
 		nv50_fb_trap(nouveau_fb(priv), 1);
 	}
 
 	if (nv_rd32(priv, 0x400824) & (1 << 31))
 		nv_wr32(priv, 0x400824, nv_rd32(priv, 0x400824) & ~(1 << 31));
+
+	nouveau_engctx_put(engctx);
 }
 
 static int

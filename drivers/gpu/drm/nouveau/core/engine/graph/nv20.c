@@ -195,9 +195,10 @@ nv20_graph_tile_prog(struct nouveau_engine *engine, int i)
 void
 nv20_graph_intr(struct nouveau_subdev *subdev)
 {
-	struct nv20_graph_priv *priv = (void *)subdev;
 	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_handle *handle = NULL;
+	struct nouveau_object *engctx;
+	struct nouveau_handle *handle;
+	struct nv20_graph_priv *priv = (void *)subdev;
 	u32 stat = nv_rd32(priv, NV03_PGRAPH_INTR);
 	u32 nsource = nv_rd32(priv, NV03_PGRAPH_NSOURCE);
 	u32 nstatus = nv_rd32(priv, NV03_PGRAPH_NSTATUS);
@@ -207,15 +208,15 @@ nv20_graph_intr(struct nouveau_subdev *subdev)
 	u32 mthd = (addr & 0x00001ffc);
 	u32 data = nv_rd32(priv, NV04_PGRAPH_TRAPPED_DATA);
 	u32 class = nv_rd32(priv, 0x400160 + subc * 4) & 0xfff;
-	u32 inst = nv_ro32(priv->ctxtab, (chid * 4)) << 4;
 	u32 show = stat;
 
+	engctx = nouveau_engctx_get(engine, chid);
 	if (stat & NV_PGRAPH_INTR_ERROR) {
 		if (nsource & NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD) {
-			handle = nouveau_engctx_lookup_class(engine, inst, class);
+			handle = nouveau_handle_get_class(engctx, class);
 			if (handle && !nv_call(handle->object, mthd, data))
 				show &= ~NV_PGRAPH_INTR_ERROR;
-			nouveau_engctx_handle_put(handle);
+			nouveau_handle_put(handle);
 		}
 	}
 
@@ -233,6 +234,8 @@ nv20_graph_intr(struct nouveau_subdev *subdev)
 		nv_info(priv, "ch %d/%d class 0x%04x mthd 0x%04x data 0x%08x\n",
 			chid, subc, class, mthd, data);
 	}
+
+	nouveau_engctx_put(engctx);
 }
 
 static int
