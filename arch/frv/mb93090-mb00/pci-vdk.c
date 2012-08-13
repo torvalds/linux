@@ -268,7 +268,7 @@ static void __init pci_fixup_umc_ide(struct pci_dev *d)
 		d->resource[i].flags |= PCI_BASE_ADDRESS_SPACE_IO;
 }
 
-static void __init pci_fixup_ide_bases(struct pci_dev *d)
+static void __devinit pci_fixup_ide_bases(struct pci_dev *d)
 {
 	int i;
 
@@ -287,7 +287,7 @@ static void __init pci_fixup_ide_bases(struct pci_dev *d)
 	}
 }
 
-static void __init pci_fixup_ide_trash(struct pci_dev *d)
+static void __devinit pci_fixup_ide_trash(struct pci_dev *d)
 {
 	int i;
 

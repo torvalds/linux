@@ -541,19 +541,6 @@ static const int rta_max[RTM_NR_FAMILIES] =
 	[RTM_FAM(RTM_NEWACTION)]    = TCAA_MAX,
 };
 
-void __rta_fill(struct sk_buff *skb, int attrtype, int attrlen, const void *data)
-{
-	struct rtattr *rta;
-	int size = RTA_LENGTH(attrlen);
-
-	rta = (struct rtattr *)skb_put(skb, RTA_ALIGN(size));
-	rta->rta_type = attrtype;
-	rta->rta_len = size;
-	memcpy(RTA_DATA(rta), data, attrlen);
-	memset(RTA_DATA(rta) + attrlen, 0, RTA_ALIGN(size) - size);
-}
-EXPORT_SYMBOL(__rta_fill);
-
 int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, unsigned int group, int echo)
 {
 	struct sock *rtnl = net->rtnl;
@@ -628,7 +615,7 @@ nla_put_failure:
 EXPORT_SYMBOL(rtnetlink_put_metrics);
 
 int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
-		       u32 ts, u32 tsage, long expires, u32 error)
+		       long expires, u32 error)
 {
 	struct rta_cacheinfo ci = {
 		.rta_lastuse = jiffies_to_clock_t(jiffies - dst->lastuse),
@@ -636,13 +623,15 @@ int rtnl_put_cacheinfo(struct sk_buff *skb, struct dst_entry *dst, u32 id,
 		.rta_clntref = atomic_read(&(dst->__refcnt)),
 		.rta_error = error,
 		.rta_id =  id,
-		.rta_ts = ts,
-		.rta_tsage = tsage,
 	};
 
-	if (expires)
-		ci.rta_expires = jiffies_to_clock_t(expires);
+	if (expires) {
+		unsigned long clock;
 
+		clock = jiffies_to_clock_t(abs(expires));
+		clock = min_t(unsigned long, clock, INT_MAX);
+		ci.rta_expires = (expires > 0) ? clock : -clock;
+	}
 	return nla_put(skb, RTA_CACHEINFO, sizeof(ci), &ci);
 }
 EXPORT_SYMBOL_GPL(rtnl_put_cacheinfo);
@@ -674,6 +663,12 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 	}
 }
 
+static unsigned int rtnl_dev_get_flags(const struct net_device *dev)
+{
+	return (dev->flags & ~(IFF_PROMISC | IFF_ALLMULTI)) |
+	       (dev->gflags & (IFF_PROMISC | IFF_ALLMULTI));
+}
+
 static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 					   const struct ifinfomsg *ifm)
 {
@@ -682,7 +677,7 @@ static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 	/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
 	if (ifm->ifi_change)
 		flags = (flags & ifm->ifi_change) |
-			(dev->flags & ~ifm->ifi_change);
+			(rtnl_dev_get_flags(dev) & ~ifm->ifi_change);
 
 	return flags;
 }
@@ -786,6 +781,8 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(4) /* IFLA_LINK */
 	       + nla_total_size(4) /* IFLA_MASTER */
 	       + nla_total_size(4) /* IFLA_PROMISCUITY */
+	       + nla_total_size(4) /* IFLA_NUM_TX_QUEUES */
+	       + nla_total_size(4) /* IFLA_NUM_RX_QUEUES */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
 	       + nla_total_size(ext_filter_mask
@@ -904,6 +901,10 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	    nla_put_u32(skb, IFLA_MTU, dev->mtu) ||
 	    nla_put_u32(skb, IFLA_GROUP, dev->group) ||
 	    nla_put_u32(skb, IFLA_PROMISCUITY, dev->promiscuity) ||
+	    nla_put_u32(skb, IFLA_NUM_TX_QUEUES, dev->num_tx_queues) ||
+#ifdef CONFIG_RPS
+	    nla_put_u32(skb, IFLA_NUM_RX_QUEUES, dev->num_rx_queues) ||
+#endif
 	    (dev->ifindex != dev->iflink &&
 	     nla_put_u32(skb, IFLA_LINK, dev->iflink)) ||
 	    (dev->master &&
@@ -1121,6 +1122,8 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
 	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
 	[IFLA_PROMISCUITY]	= { .type = NLA_U32 },
+	[IFLA_NUM_TX_QUEUES]	= { .type = NLA_U32 },
+	[IFLA_NUM_RX_QUEUES]	= { .type = NLA_U32 },
 };
 EXPORT_SYMBOL(ifla_policy);
 
@@ -1378,6 +1381,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 			goto errout;
 		send_addr_notify = 1;
 		modified = 1;
+		add_device_randomness(dev->dev_addr, dev->addr_len);
 	}
 
 	if (tb[IFLA_MTU]) {
@@ -1639,17 +1643,22 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 {
 	int err;
 	struct net_device *dev;
-	unsigned int num_queues = 1;
+	unsigned int num_tx_queues = 1;
+	unsigned int num_rx_queues = 1;
 
-	if (ops->get_tx_queues) {
-		err = ops->get_tx_queues(src_net, tb);
-		if (err < 0)
-			goto err;
-		num_queues = err;
-	}
+	if (tb[IFLA_NUM_TX_QUEUES])
+		num_tx_queues = nla_get_u32(tb[IFLA_NUM_TX_QUEUES]);
+	else if (ops->get_num_tx_queues)
+		num_tx_queues = ops->get_num_tx_queues();
+
+	if (tb[IFLA_NUM_RX_QUEUES])
+		num_rx_queues = nla_get_u32(tb[IFLA_NUM_RX_QUEUES]);
+	else if (ops->get_num_rx_queues)
+		num_rx_queues = ops->get_num_rx_queues();
 
 	err = -ENOMEM;
-	dev = alloc_netdev_mq(ops->priv_size, ifname, ops->setup, num_queues);
+	dev = alloc_netdev_mqs(ops->priv_size, ifname, ops->setup,
+			       num_tx_queues, num_rx_queues);
 	if (!dev)
 		goto err;
 
@@ -2189,7 +2198,7 @@ skip:
 }
 
 /**
- * ndo_dflt_fdb_dump: default netdevice operation to dump an FDB table.
+ * ndo_dflt_fdb_dump - default netdevice operation to dump an FDB table.
  * @nlh: netlink message header
  * @dev: netdevice
  *
@@ -2366,8 +2375,13 @@ static struct notifier_block rtnetlink_dev_notifier = {
 static int __net_init rtnetlink_net_init(struct net *net)
 {
 	struct sock *sk;
-	sk = netlink_kernel_create(net, NETLINK_ROUTE, RTNLGRP_MAX,
-				   rtnetlink_rcv, &rtnl_mutex, THIS_MODULE);
+	struct netlink_kernel_cfg cfg = {
+		.groups		= RTNLGRP_MAX,
+		.input		= rtnetlink_rcv,
+		.cb_mutex	= &rtnl_mutex,
+	};
+
+	sk = netlink_kernel_create(net, NETLINK_ROUTE, THIS_MODULE, &cfg);
 	if (!sk)
 		return -ENOMEM;
 	net->rtnl = sk;

@@ -53,11 +53,12 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 }
 
 /**
- * host_init_wd - mei initialization wd.
+ * mei_wd_host_init - connect to the watchdog client
  *
  * @dev: the device structure
  * returns -ENENT if wd client cannot be found
  *         -EIO if write has failed
+ *         0 on success
  */
 int mei_wd_host_init(struct mei_device *dev)
 {
@@ -137,7 +138,6 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 		return 0;
 
 	dev->wd_timeout = 0;
-	dev->wd_due_counter = 0;
 	memcpy(dev->wd_data, mei_stop_wd_params, MEI_WD_PARAMS_SIZE);
 	dev->stop = true;
 
@@ -341,7 +341,7 @@ static const struct watchdog_ops wd_ops = {
 };
 static const struct watchdog_info wd_info = {
 		.identity = INTEL_AMT_WATCHDOG_ID,
-		.options = WDIOF_KEEPALIVEPING,
+		.options = WDIOF_KEEPALIVEPING | WDIOF_ALARMONLY,
 };
 
 static struct watchdog_device amt_wd_dev = {
@@ -356,8 +356,6 @@ static struct watchdog_device amt_wd_dev = {
 void  mei_watchdog_register(struct mei_device *dev)
 {
 	dev_dbg(&dev->pdev->dev, "dev->wd_timeout =%d.\n", dev->wd_timeout);
-
-	dev->wd_due_counter = !!dev->wd_timeout;
 
 	if (watchdog_register_device(&amt_wd_dev)) {
 		dev_err(&dev->pdev->dev,

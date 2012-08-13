@@ -85,11 +85,30 @@ const static struct of_device_id irq_match[] = {
 	{}
 };
 
+#ifdef CONFIG_CACHE_L2X0
+static void highbank_l2x0_disable(void)
+{
+	/* Disable PL310 L2 Cache controller */
+	highbank_smc1(0x102, 0x0);
+}
+#endif
+
 static void __init highbank_init_irq(void)
 {
 	of_irq_init(irq_match);
+
+#ifdef CONFIG_CACHE_L2X0
+	/* Enable PL310 L2 Cache controller */
+	highbank_smc1(0x102, 0x1);
 	l2x0_of_init(0, ~0UL);
+	outer_cache.disable = highbank_l2x0_disable;
+#endif
 }
+
+static struct clk_lookup lookup = {
+	.dev_id = "sp804",
+	.con_id = NULL,
+};
 
 static void __init highbank_timer_init(void)
 {
@@ -108,6 +127,8 @@ static void __init highbank_timer_init(void)
 	irq = irq_of_parse_and_map(np, 0);
 
 	highbank_clocks_init();
+	lookup.clk = of_clk_get(np, 0);
+	clkdev_add(&lookup);
 
 	sp804_clocksource_and_sched_clock_init(timer_base + 0x20, "timer1");
 	sp804_clockevents_init(timer_base, irq, "timer0");

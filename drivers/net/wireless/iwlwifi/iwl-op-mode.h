@@ -111,22 +111,25 @@ struct iwl_cfg;
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD the this Rx responds to.
- *	Must be atomic.
+ *	Must be atomic and called with BH disabled.
  * @queue_full: notifies that a HW queue is full.
- *	Must be atomic
+ *	Must be atomic and called with BH disabled.
  * @queue_not_full: notifies that a HW queue is not full any more.
- *	Must be atomic
+ *	Must be atomic and called with BH disabled.
  * @hw_rf_kill:notifies of a change in the HW rf kill switch. True means that
  *	the radio is killed. Must be atomic.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
  *	Must be atomic
- * @nic_error: error notification. Must be atomic
- * @cmd_queue_full: Called when the command queue gets full. Must be atomic.
+ * @nic_error: error notification. Must be atomic and must be called with BH
+ *	disabled.
+ * @cmd_queue_full: Called when the command queue gets full. Must be atomic and
+ *	called with BH disabled.
  * @nic_config: configure NIC, called before firmware is started.
  *	May sleep
- * @wimax_active: invoked when WiMax becomes active.  Must be atomic.
+ * @wimax_active: invoked when WiMax becomes active.  Must be atomic and called
+ *	with BH disabled.
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -145,6 +148,9 @@ struct iwl_op_mode_ops {
 	void (*wimax_active)(struct iwl_op_mode *op_mode);
 };
 
+int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops);
+void iwl_opmode_deregister(const char *name);
+
 /**
  * struct iwl_op_mode - operational mode
  *
@@ -162,7 +168,6 @@ struct iwl_op_mode {
 static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
 {
 	might_sleep();
-
 	op_mode->ops->stop(op_mode);
 }
 
@@ -217,10 +222,5 @@ static inline void iwl_op_mode_wimax_active(struct iwl_op_mode *op_mode)
 {
 	op_mode->ops->wimax_active(op_mode);
 }
-
-/*****************************************************
-* Op mode layers implementations
-******************************************************/
-extern const struct iwl_op_mode_ops iwl_dvm_ops;
 
 #endif /* __iwl_op_mode_h__ */

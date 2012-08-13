@@ -513,21 +513,10 @@ static struct pci_driver ali15x3_driver = {
 	.remove		= __devexit_p(ali15x3_remove),
 };
 
-static int __init i2c_ali15x3_init(void)
-{
-	return pci_register_driver(&ali15x3_driver);
-}
-
-static void __exit i2c_ali15x3_exit(void)
-{
-	pci_unregister_driver(&ali15x3_driver);
-}
+module_pci_driver(ali15x3_driver);
 
 MODULE_AUTHOR ("Frodo Looijaard <frodol@dds.nl>, "
 		"Philip Edelbrock <phil@netroedge.com>, "
 		"and Mark D. Studebaker <mdsxyz123@yahoo.com>");
 MODULE_DESCRIPTION("ALI15X3 SMBus driver");
 MODULE_LICENSE("GPL");
-
-module_init(i2c_ali15x3_init);
-module_exit(i2c_ali15x3_exit);

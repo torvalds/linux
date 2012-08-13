@@ -53,12 +53,31 @@ struct page {
 	struct {
 		union {
 			pgoff_t index;		/* Our offset within mapping. */
-			void *freelist;		/* slub first free object */
+			void *freelist;		/* slub/slob first free object */
+			bool pfmemalloc;	/* If set by the page allocator,
+						 * ALLOC_NO_WATERMARKS was set
+						 * and the low watermark was not
+						 * met implying that the system
+						 * is under some pressure. The
+						 * caller should try ensure
+						 * this page is only used to
+						 * free other pages.
+						 */
 		};
 
 		union {
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+	defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
 			/* Used for cmpxchg_double in slub */
 			unsigned long counters;
+#else
+			/*
+			 * Keep _count separate from slub cmpxchg_double data.
+			 * As the rest of the double word is protected by
+			 * slab_lock but _count is not.
+			 */
+			unsigned counters;
+#endif
 
 			struct {
 
@@ -81,11 +100,12 @@ struct page {
 					 */
 					atomic_t _mapcount;
 
-					struct {
+					struct { /* SLUB */
 						unsigned inuse:16;
 						unsigned objects:15;
 						unsigned frozen:1;
 					};
+					int units;	/* SLOB */
 				};
 				atomic_t _count;		/* Usage count, see below. */
 			};
@@ -106,6 +126,12 @@ struct page {
 			short int pages;
 			short int pobjects;
 #endif
+		};
+
+		struct list_head list;	/* slobs list of pages */
+		struct {		/* slab fields */
+			struct kmem_cache *slab_cache;
+			struct slab *slab_page;
 		};
 	};
 

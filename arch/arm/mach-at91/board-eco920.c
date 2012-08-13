@@ -25,6 +25,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/board.h>
+#include <mach/at91_aic.h>
 #include <mach/at91rm9200_mc.h>
 #include <mach/at91_ramc.h>
 #include <mach/cpu.h>
@@ -132,6 +133,7 @@ MACHINE_START(ECO920, "eco920")
 	/* Maintainer: Sascha Hauer */
 	.timer		= &at91rm9200_timer,
 	.map_io		= at91_map_io,
+	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= eco920_init_early,
 	.init_irq	= at91_init_irq_default,
 	.init_machine	= eco920_board_init,

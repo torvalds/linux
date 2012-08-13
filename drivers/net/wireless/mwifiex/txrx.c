@@ -161,15 +161,11 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 		goto done;
 
 	for (i = 0; i < adapter->priv_num; i++) {
-
 		tpriv = adapter->priv[i];
 
-		if ((GET_BSS_ROLE(tpriv) == MWIFIEX_BSS_ROLE_STA) &&
-		    (tpriv->media_connected)) {
-			if (netif_queue_stopped(tpriv->netdev))
-				mwifiex_wake_up_net_dev_queue(tpriv->netdev,
-							      adapter);
-		}
+		if (tpriv->media_connected &&
+		    netif_queue_stopped(tpriv->netdev))
+			mwifiex_wake_up_net_dev_queue(tpriv->netdev, adapter);
 	}
 done:
 	dev_kfree_skb_any(skb);

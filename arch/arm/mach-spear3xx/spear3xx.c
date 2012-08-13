@@ -4,7 +4,7 @@
  * SPEAr3XX machines common source file
  *
  * Copyright (C) 2009-2012 ST Microelectronics
- * Viresh Kumar <viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -46,7 +46,8 @@ struct pl022_ssp_controller pl022_plat_data = {
 struct pl08x_platform_data pl080_plat_data = {
 	.memcpy_channel = {
 		.bus_id = "memcpy",
-		.cctl = (PL080_BSIZE_16 << PL080_CONTROL_SB_SIZE_SHIFT | \
+		.cctl_memcpy =
+			(PL080_BSIZE_16 << PL080_CONTROL_SB_SIZE_SHIFT | \
 			PL080_BSIZE_16 << PL080_CONTROL_DB_SIZE_SHIFT | \
 			PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT | \
 			PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT | \
@@ -87,7 +88,7 @@ void __init spear3xx_map_io(void)
 
 static void __init spear3xx_timer_init(void)
 {
-	char pclk_name[] = "pll3_48m_clk";
+	char pclk_name[] = "pll3_clk";
 	struct clk *gpt_clk, *pclk;
 
 	spear3xx_clk_init();

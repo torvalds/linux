@@ -355,12 +355,10 @@ protects *all* the dcache state of a given dentry.
 via rcu-walk path walk (basically, if the file can have had a path name in the
 vfs namespace).
 
-	i_dentry and i_rcu share storage in a union, and the vfs expects
-i_dentry to be reinitialized before it is freed, so an:
-
-  INIT_LIST_HEAD(&inode->i_dentry);
-
-must be done in the RCU callback.
+	Even though i_dentry and i_rcu share storage in a union, we will
+initialize the former in inode_init_always(), so just leave it alone in
+the callback.  It used to be necessary to clean it there, but not anymore
+(starting at 3.2).
 
 --
 [recommended]
@@ -433,3 +431,14 @@ release it yourself.
 	d_alloc_root() is gone, along with a lot of bugs caused by code
 misusing it.  Replacement: d_make_root(inode).  The difference is,
 d_make_root() drops the reference to inode if dentry allocation fails.  
+
+--
+[mandatory]
+	The witch is dead!  Well, 2/3 of it, anyway.  ->d_revalidate() and
+->lookup() do *not* take struct nameidata anymore; just the flags.
+--
+[mandatory]
+	->create() doesn't take struct nameidata *; unlike the previous
+two, it gets "is it an O_EXCL or equivalent?" boolean argument.  Note that
+local filesystems can ignore tha argument - they are guaranteed that the
+object doesn't exist.  It's remote/distributed ones that might care...

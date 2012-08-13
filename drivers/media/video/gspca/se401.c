@@ -45,15 +45,6 @@ MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("Endpoints se401");
 MODULE_LICENSE("GPL");
 
-/* controls */
-enum e_ctrl {
-	BRIGHTNESS,
-	GAIN,
-	EXPOSURE,
-	FREQ,
-	NCTRL	/* number of controls */
-};
-
 /* exposure change state machine states */
 enum {
 	EXPO_CHANGED,
@@ -64,7 +55,11 @@ enum {
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-	struct gspca_ctrl ctrls[NCTRL];
+	struct { /* exposure/freq control cluster */
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *freq;
+	};
+	bool has_brightness;
 	struct v4l2_pix_format fmts[MAX_MODES];
 	int pixels_read;
 	int packet_read;
@@ -77,60 +72,6 @@ struct sd {
 	int expo_change_state;
 };
 
-static void setbrightness(struct gspca_dev *gspca_dev);
-static void setgain(struct gspca_dev *gspca_dev);
-static void setexposure(struct gspca_dev *gspca_dev);
-
-static const struct ctrl sd_ctrls[NCTRL] = {
-[BRIGHTNESS] = {
-		{
-			.id      = V4L2_CID_BRIGHTNESS,
-			.type    = V4L2_CTRL_TYPE_INTEGER,
-			.name    = "Brightness",
-			.minimum = 0,
-			.maximum = 255,
-			.step    = 1,
-			.default_value = 15,
-		},
-		.set_control = setbrightness
-	},
-[GAIN] = {
-		{
-			.id      = V4L2_CID_GAIN,
-			.type    = V4L2_CTRL_TYPE_INTEGER,
-			.name    = "Gain",
-			.minimum = 0,
-			.maximum = 50, /* Really 63 but > 50 is not pretty */
-			.step    = 1,
-			.default_value = 25,
-		},
-		.set_control = setgain
-	},
-[EXPOSURE] = {
-		{
-			.id = V4L2_CID_EXPOSURE,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "Exposure",
-			.minimum = 0,
-			.maximum = 32767,
-			.step = 1,
-			.default_value = 15000,
-		},
-		.set_control = setexposure
-	},
-[FREQ] = {
-		{
-			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
-			.type    = V4L2_CTRL_TYPE_MENU,
-			.name    = "Light frequency filter",
-			.minimum = 0,
-			.maximum = 2,
-			.step    = 1,
-			.default_value = 0,
-		},
-		.set_control = setexposure
-	},
-};
 
 static void se401_write_req(struct gspca_dev *gspca_dev, u16 req, u16 value,
 			    int silent)
@@ -224,22 +165,15 @@ static int se401_get_feature(struct gspca_dev *gspca_dev, u16 selector)
 	return gspca_dev->usb_buf[0] | (gspca_dev->usb_buf[1] << 8);
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
+static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (gspca_dev->ctrl_dis & (1 << BRIGHTNESS))
-		return;
-
 	/* HDG: this does not seem to do anything on my cam */
-	se401_write_req(gspca_dev, SE401_REQ_SET_BRT,
-			sd->ctrls[BRIGHTNESS].val, 0);
+	se401_write_req(gspca_dev, SE401_REQ_SET_BRT, val, 0);
 }
 
-static void setgain(struct gspca_dev *gspca_dev)
+static void setgain(struct gspca_dev *gspca_dev, s32 val)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-	u16 gain = 63 - sd->ctrls[GAIN].val;
+	u16 gain = 63 - val;
 
 	/* red color gain */
 	se401_set_feature(gspca_dev, HV7131_REG_ARCG, gain);
@@ -249,10 +183,10 @@ static void setgain(struct gspca_dev *gspca_dev)
 	se401_set_feature(gspca_dev, HV7131_REG_ABCG, gain);
 }
 
-static void setexposure(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev, s32 val, s32 freq)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int integration = sd->ctrls[EXPOSURE].val << 6;
+	int integration = val << 6;
 	u8 expose_h, expose_m, expose_l;
 
 	/* Do this before the set_feature calls, for proper timing wrt
@@ -262,9 +196,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	   through so be it */
 	sd->expo_change_state = EXPO_CHANGED;
 
-	if (sd->ctrls[FREQ].val == V4L2_CID_POWER_LINE_FREQUENCY_50HZ)
+	if (freq == V4L2_CID_POWER_LINE_FREQUENCY_50HZ)
 		integration = integration - integration % 106667;
-	if (sd->ctrls[FREQ].val == V4L2_CID_POWER_LINE_FREQUENCY_60HZ)
+	if (freq == V4L2_CID_POWER_LINE_FREQUENCY_60HZ)
 		integration = integration - integration % 88889;
 
 	expose_h = (integration >> 16);
@@ -375,15 +309,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->bulk = 1;
 	cam->bulk_size = BULK_SIZE;
 	cam->bulk_nurbs = 4;
-	cam->ctrls = sd->ctrls;
 	sd->resetlevel = 0x2d; /* Set initial resetlevel */
 
 	/* See if the camera supports brightness */
 	se401_read_req(gspca_dev, SE401_REQ_GET_BRT, 1);
-	if (gspca_dev->usb_err) {
-		gspca_dev->ctrl_dis = (1 << BRIGHTNESS);
-		gspca_dev->usb_err = 0;
-	}
+	sd->has_brightness = !!gspca_dev->usb_err;
+	gspca_dev->usb_err = 0;
 
 	return 0;
 }
@@ -442,9 +373,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	se401_set_feature(gspca_dev, SE401_OPERATINGMODE, mode);
 
-	setbrightness(gspca_dev);
-	setgain(gspca_dev);
-	setexposure(gspca_dev);
 	se401_set_feature(gspca_dev, HV7131_REG_ARLV, sd->resetlevel);
 
 	sd->packet_read = 0;
@@ -666,27 +594,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, u8 *data, int len)
 		sd_pkt_scan_janggu(gspca_dev, data, len);
 }
 
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu)
-{
-	switch (menu->id) {
-	case V4L2_CID_POWER_LINE_FREQUENCY:
-		switch (menu->index) {
-		case V4L2_CID_POWER_LINE_FREQUENCY_DISABLED:
-			strcpy((char *) menu->name, "NoFliker");
-			return 0;
-		case V4L2_CID_POWER_LINE_FREQUENCY_50HZ:
-			strcpy((char *) menu->name, "50 Hz");
-			return 0;
-		case V4L2_CID_POWER_LINE_FREQUENCY_60HZ:
-			strcpy((char *) menu->name, "60 Hz");
-			return 0;
-		}
-		break;
-	}
-	return -EINVAL;
-}
-
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev, u8 *data, int len)
 {
@@ -714,19 +621,73 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev, u8 *data, int len)
 }
 #endif
 
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
+
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightness(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_GAIN:
+		setgain(gspca_dev, ctrl->val);
+		break;
+	case V4L2_CID_EXPOSURE:
+		setexposure(gspca_dev, ctrl->val, sd->freq->val);
+		break;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
+	if (sd->has_brightness)
+		v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 15);
+	/* max is really 63 but > 50 is not pretty */
+	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 50, 1, 25);
+	sd->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 32767, 1, 15000);
+	sd->freq = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+			V4L2_CID_POWER_LINE_FREQUENCY,
+			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0, 0);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	v4l2_ctrl_cluster(2, &sd->exposure);
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.dq_callback = sd_dq_callback,
 	.pkt_scan = sd_pkt_scan,
-	.querymenu = sd_querymenu,
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif
@@ -769,6 +730,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 	.pre_reset = sd_pre_reset,
 	.post_reset = sd_post_reset,

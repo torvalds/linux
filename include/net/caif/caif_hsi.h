@@ -93,25 +93,25 @@ struct cfhsi_desc {
 #endif
 
 /* Structure implemented by the CAIF HSI driver. */
-struct cfhsi_drv {
-	void (*tx_done_cb) (struct cfhsi_drv *drv);
-	void (*rx_done_cb) (struct cfhsi_drv *drv);
-	void (*wake_up_cb) (struct cfhsi_drv *drv);
-	void (*wake_down_cb) (struct cfhsi_drv *drv);
+struct cfhsi_cb_ops {
+	void (*tx_done_cb) (struct cfhsi_cb_ops *drv);
+	void (*rx_done_cb) (struct cfhsi_cb_ops *drv);
+	void (*wake_up_cb) (struct cfhsi_cb_ops *drv);
+	void (*wake_down_cb) (struct cfhsi_cb_ops *drv);
 };
 
 /* Structure implemented by HSI device. */
-struct cfhsi_dev {
-	int (*cfhsi_up) (struct cfhsi_dev *dev);
-	int (*cfhsi_down) (struct cfhsi_dev *dev);
-	int (*cfhsi_tx) (u8 *ptr, int len, struct cfhsi_dev *dev);
-	int (*cfhsi_rx) (u8 *ptr, int len, struct cfhsi_dev *dev);
-	int (*cfhsi_wake_up) (struct cfhsi_dev *dev);
-	int (*cfhsi_wake_down) (struct cfhsi_dev *dev);
-	int (*cfhsi_get_peer_wake) (struct cfhsi_dev *dev, bool *status);
-	int (*cfhsi_fifo_occupancy)(struct cfhsi_dev *dev, size_t *occupancy);
-	int (*cfhsi_rx_cancel)(struct cfhsi_dev *dev);
-	struct cfhsi_drv *drv;
+struct cfhsi_ops {
+	int (*cfhsi_up) (struct cfhsi_ops *dev);
+	int (*cfhsi_down) (struct cfhsi_ops *dev);
+	int (*cfhsi_tx) (u8 *ptr, int len, struct cfhsi_ops *dev);
+	int (*cfhsi_rx) (u8 *ptr, int len, struct cfhsi_ops *dev);
+	int (*cfhsi_wake_up) (struct cfhsi_ops *dev);
+	int (*cfhsi_wake_down) (struct cfhsi_ops *dev);
+	int (*cfhsi_get_peer_wake) (struct cfhsi_ops *dev, bool *status);
+	int (*cfhsi_fifo_occupancy) (struct cfhsi_ops *dev, size_t *occupancy);
+	int (*cfhsi_rx_cancel)(struct cfhsi_ops *dev);
+	struct cfhsi_cb_ops *cb_ops;
 };
 
 /* Structure holds status of received CAIF frames processing */
@@ -132,17 +132,26 @@ enum {
 	CFHSI_PRIO_LAST,
 };
 
+struct cfhsi_config {
+	u32 inactivity_timeout;
+	u32 aggregation_timeout;
+	u32 head_align;
+	u32 tail_align;
+	u32 q_high_mark;
+	u32 q_low_mark;
+};
+
 /* Structure implemented by CAIF HSI drivers. */
 struct cfhsi {
 	struct caif_dev_common cfdev;
 	struct net_device *ndev;
 	struct platform_device *pdev;
 	struct sk_buff_head qhead[CFHSI_PRIO_LAST];
-	struct cfhsi_drv drv;
-	struct cfhsi_dev *dev;
+	struct cfhsi_cb_ops cb_ops;
+	struct cfhsi_ops *ops;
 	int tx_state;
 	struct cfhsi_rx_state rx_state;
-	unsigned long inactivity_timeout;
+	struct cfhsi_config cfg;
 	int rx_len;
 	u8 *rx_ptr;
 	u8 *tx_buf;
@@ -150,8 +159,6 @@ struct cfhsi {
 	u8 *rx_flip_buf;
 	spinlock_t lock;
 	int flow_off_sent;
-	u32 q_low_mark;
-	u32 q_high_mark;
 	struct list_head list;
 	struct work_struct wake_up_work;
 	struct work_struct wake_down_work;
@@ -164,13 +171,31 @@ struct cfhsi {
 	struct timer_list rx_slowpath_timer;
 
 	/* TX aggregation */
-	unsigned long aggregation_timeout;
 	int aggregation_len;
 	struct timer_list aggregation_timer;
 
 	unsigned long bits;
 };
-
 extern struct platform_driver cfhsi_driver;
+
+/**
+ * enum ifla_caif_hsi - CAIF HSI NetlinkRT parameters.
+ * @IFLA_CAIF_HSI_INACTIVITY_TOUT: Inactivity timeout before
+ *			taking the HSI wakeline down, in milliseconds.
+ * When using RT Netlink to create, destroy or configure a CAIF HSI interface,
+ * enum ifla_caif_hsi is used to specify the configuration attributes.
+ */
+enum ifla_caif_hsi {
+	__IFLA_CAIF_HSI_UNSPEC,
+	__IFLA_CAIF_HSI_INACTIVITY_TOUT,
+	__IFLA_CAIF_HSI_AGGREGATION_TOUT,
+	__IFLA_CAIF_HSI_HEAD_ALIGN,
+	__IFLA_CAIF_HSI_TAIL_ALIGN,
+	__IFLA_CAIF_HSI_QHIGH_WATERMARK,
+	__IFLA_CAIF_HSI_QLOW_WATERMARK,
+	__IFLA_CAIF_HSI_MAX
+};
+
+extern struct cfhsi_ops *cfhsi_get_ops(void);
 
 #endif		/* CAIF_HSI_H_ */

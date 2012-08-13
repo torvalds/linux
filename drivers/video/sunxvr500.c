@@ -12,7 +12,7 @@
 
 #include <asm/io.h>
 
-/* XXX This device has a 'dev-comm' property which aparently is
+/* XXX This device has a 'dev-comm' property which apparently is
  * XXX a pointer into the openfirmware's address space which is
  * XXX a shared area the kernel driver can use to keep OBP
  * XXX informed about the current resolution setting.  The idea

@@ -41,8 +41,6 @@
 #include "usb_ops.h"
 #include "usb_osintf.h"
 
-#define DRVER  "v7_0.20100831"
-
 static struct usb_interface *pintf;
 
 static int r871xu_drv_init(struct usb_interface *pusb_intf,
@@ -102,6 +100,8 @@ static struct usb_device_id rtl871x_usb_id_tbl[] = {
 	/* - */
 	{USB_DEVICE(0x20F4, 0x646B)},
 	{USB_DEVICE(0x083A, 0xC512)},
+	{USB_DEVICE(0x25D4, 0x4CA1)},
+	{USB_DEVICE(0x25D4, 0x4CAB)},
 
 /* RTL8191SU */
 	/* Realtek */
@@ -372,7 +372,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	struct net_device *pnetdev;
 	struct usb_device *udev;
 
-	printk(KERN_INFO "r8712u: DriverVersion: %s\n", DRVER);
+	printk(KERN_INFO "r8712u: Staging version\n");
 	/* In this probe function, O.S. will provide the usb interface pointer
 	 * to driver. We have to increase the reference count of the usb device
 	 * structure by using the usb_get_dev function.

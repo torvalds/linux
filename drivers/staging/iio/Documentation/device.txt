@@ -12,7 +12,7 @@ struct iio_dev *indio_dev = iio_device_alloc(sizeof(struct chip_state));
 where chip_state is a structure of local state data for this instance of
 the chip.
 
-That data can be accessed using iio_priv(struct iio_dev *)
+That data can be accessed using iio_priv(struct iio_dev *).
 
 Then fill in the following:
 
@@ -29,8 +29,6 @@ Then fill in the following:
 	* info->driver_module:
 		Set to THIS_MODULE. Used to ensure correct ownership
 		of various resources allocate by the core.
-	* info->num_interrupt_lines:
-		Number of event triggering hardware lines the device has.
 	* info->event_attrs:
 		Attributes used to enable / disable hardware events.
 	* info->attrs:
@@ -41,7 +39,7 @@ Then fill in the following:
 		and for associate parameters such as offsets and scales.
 	* info->write_raw:
 		Raw value writing function. Used for writable device values such
-		as DAC values and caliboffset.
+		as DAC values and calibbias.
 	* info->read_event_config:
 		Typically only set if there are some interrupt lines.  This
 		is used to read if an on sensor event detector is enabled.
@@ -64,8 +62,8 @@ Then fill in the following:
 	Poll function related elements. This controls what occurs when a trigger
 	to which this device is attached sends an event.
 - indio_dev->channels:
-	Specification of device channels. Most attributes etc are built
-	form this spec.
+	Specification of device channels. Most attributes etc. are built
+	from this spec.
 - indio_dev->num_channels:
 	How many channels are there?
 
@@ -78,4 +76,4 @@ be registered afterwards (otherwise the whole parentage of devices
 gets confused)
 
 On remove, iio_device_unregister(indio_dev) will remove the device from
-the core, and iio_device_free will clean up.
+the core, and iio_device_free(indio_dev) will clean up.

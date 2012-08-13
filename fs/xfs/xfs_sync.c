@@ -359,6 +359,15 @@ xfs_quiesce_attr(
 	 * added an item to the AIL, thus flush it again.
 	 */
 	xfs_ail_push_all_sync(mp->m_ail);
+
+	/*
+	 * The superblock buffer is uncached and xfsaild_push() will lock and
+	 * set the XBF_ASYNC flag on the buffer. We cannot do xfs_buf_iowait()
+	 * here but a lock on the superblock buffer will block until iodone()
+	 * has completed.
+	 */
+	xfs_buf_lock(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
 }
 
 static void
@@ -386,23 +395,23 @@ xfs_sync_worker(
 	 * We shouldn't write/force the log if we are in the mount/unmount
 	 * process or on a read only filesystem. The workqueue still needs to be
 	 * active in both cases, however, because it is used for inode reclaim
-	 * during these times.  Use the s_umount semaphore to provide exclusion
-	 * with unmount.
+	 * during these times.  Use the MS_ACTIVE flag to avoid doing anything
+	 * during mount.  Doing work during unmount is avoided by calling
+	 * cancel_delayed_work_sync on this work queue before tearing down
+	 * the ail and the log in xfs_log_unmount.
 	 */
-	if (down_read_trylock(&mp->m_super->s_umount)) {
-		if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
-			/* dgc: errors ignored here */
-			if (mp->m_super->s_frozen == SB_UNFROZEN &&
-			    xfs_log_need_covered(mp))
-				error = xfs_fs_log_dummy(mp);
-			else
-				xfs_log_force(mp, 0);
+	if (!(mp->m_super->s_flags & MS_ACTIVE) &&
+	    !(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		/* dgc: errors ignored here */
+		if (mp->m_super->s_writers.frozen == SB_UNFROZEN &&
+		    xfs_log_need_covered(mp))
+			error = xfs_fs_log_dummy(mp);
+		else
+			xfs_log_force(mp, 0);
 
-			/* start pushing all the metadata that is currently
-			 * dirty */
-			xfs_ail_push_all(mp->m_ail);
-		}
-		up_read(&mp->m_super->s_umount);
+		/* start pushing all the metadata that is currently
+		 * dirty */
+		xfs_ail_push_all(mp->m_ail);
 	}
 
 	/* queue us up again */
@@ -712,8 +721,8 @@ restart:
 	 * Note that xfs_iflush will never block on the inode buffer lock, as
 	 * xfs_ifree_cluster() can lock the inode buffer before it locks the
 	 * ip->i_lock, and we are doing the exact opposite here.  As a result,
-	 * doing a blocking xfs_itobp() to get the cluster buffer would result
-	 * in an ABBA deadlock with xfs_ifree_cluster().
+	 * doing a blocking xfs_imap_to_bp() to get the cluster buffer would
+	 * result in an ABBA deadlock with xfs_ifree_cluster().
 	 *
 	 * As xfs_ifree_cluser() must gather all inodes that are active in the
 	 * cache to mark them stale, if we hit this case we don't actually want

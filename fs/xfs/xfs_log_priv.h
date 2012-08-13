@@ -19,7 +19,7 @@
 #define __XFS_LOG_PRIV_H__
 
 struct xfs_buf;
-struct log;
+struct xlog;
 struct xlog_ticket;
 struct xfs_mount;
 
@@ -352,7 +352,7 @@ typedef struct xlog_in_core {
 	struct xlog_in_core	*ic_next;
 	struct xlog_in_core	*ic_prev;
 	struct xfs_buf		*ic_bp;
-	struct log		*ic_log;
+	struct xlog		*ic_log;
 	int			ic_size;
 	int			ic_offset;
 	int			ic_bwritecnt;
@@ -409,7 +409,7 @@ struct xfs_cil_ctx {
  * operations almost as efficient as the old logging methods.
  */
 struct xfs_cil {
-	struct log		*xc_log;
+	struct xlog		*xc_log;
 	struct list_head	xc_cil;
 	spinlock_t		xc_cil_lock;
 	struct xfs_cil_ctx	*xc_ctx;
@@ -487,7 +487,7 @@ struct xlog_grant_head {
  * overflow 31 bits worth of byte offset, so using a byte number will mean
  * that round off problems won't occur when releasing partial reservations.
  */
-typedef struct log {
+struct xlog {
 	/* The following fields don't need locking */
 	struct xfs_mount	*l_mp;	        /* mount point */
 	struct xfs_ail		*l_ailp;	/* AIL log is working with */
@@ -540,7 +540,7 @@ typedef struct log {
 	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
 #endif
 
-} xlog_t;
+};
 
 #define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
 	((log)->l_buf_cancel_table + ((__uint64_t)blkno % XLOG_BC_TABLE_SIZE))
@@ -548,14 +548,27 @@ typedef struct log {
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
 /* common routines */
-extern int	 xlog_recover(xlog_t *log);
-extern int	 xlog_recover_finish(xlog_t *log);
-extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
+extern int
+xlog_recover(
+	struct xlog		*log);
+extern int
+xlog_recover_finish(
+	struct xlog		*log);
+extern void
+xlog_pack_data(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
-struct xlog_ticket *xlog_ticket_alloc(struct log *log, int unit_bytes,
-				int count, char client, bool permanent,
-				xfs_km_flags_t alloc_flags);
+struct xlog_ticket *
+xlog_ticket_alloc(
+	struct xlog	*log,
+	int		unit_bytes,
+	int		count,
+	char		client,
+	bool		permanent,
+	xfs_km_flags_t	alloc_flags);
 
 
 static inline void
@@ -567,9 +580,14 @@ xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)
 }
 
 void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
-int	xlog_write(struct log *log, struct xfs_log_vec *log_vector,
-				struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
-				xlog_in_core_t **commit_iclog, uint flags);
+int
+xlog_write(
+	struct xlog		*log,
+	struct xfs_log_vec	*log_vector,
+	struct xlog_ticket	*tic,
+	xfs_lsn_t		*start_lsn,
+	struct xlog_in_core	**commit_iclog,
+	uint			flags);
 
 /*
  * When we crack an atomic LSN, we sample it first so that the value will not
@@ -629,17 +647,23 @@ xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 /*
  * Committed Item List interfaces
  */
-int	xlog_cil_init(struct log *log);
-void	xlog_cil_init_post_recovery(struct log *log);
-void	xlog_cil_destroy(struct log *log);
+int
+xlog_cil_init(struct xlog *log);
+void
+xlog_cil_init_post_recovery(struct xlog *log);
+void
+xlog_cil_destroy(struct xlog *log);
 
 /*
  * CIL force routines
  */
-xfs_lsn_t xlog_cil_force_lsn(struct log *log, xfs_lsn_t sequence);
+xfs_lsn_t
+xlog_cil_force_lsn(
+	struct xlog *log,
+	xfs_lsn_t sequence);
 
 static inline void
-xlog_cil_force(struct log *log)
+xlog_cil_force(struct xlog *log)
 {
 	xlog_cil_force_lsn(log, log->l_cilp->xc_current_sequence);
 }

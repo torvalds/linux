@@ -1,4 +1,4 @@
-* I2C
+* Marvell MMP I2C controller
 
 Required properties :
 
@@ -32,3 +32,20 @@ Examples:
 		interrupts = <58>;
 	};
 
+* Marvell MV64XXX I2C controller
+
+Required properties :
+
+ - reg             : Offset and length of the register set for the device
+ - compatible      : Should be "marvell,mv64xxx-i2c"
+ - interrupts      : The interrupt number
+ - clock-frequency : Desired I2C bus clock frequency in Hz.
+
+Examples:
+
+	i2c@11000 {
+		compatible = "marvell,mv64xxx-i2c";
+		reg = <0x11000 0x20>;
+		interrupts = <29>;
+		clock-frequency = <100000>;
+	};

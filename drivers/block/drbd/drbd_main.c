@@ -1514,6 +1514,13 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* Do not change the order of the if above and the two below... */
 	if (os.pdsk == D_DISKLESS && ns.pdsk > D_DISKLESS) {      /* attach on the peer */
+		/* we probably will start a resync soon.
+		 * make sure those things are properly reset. */
+		mdev->rs_total = 0;
+		mdev->rs_failed = 0;
+		atomic_set(&mdev->rs_pending_cnt, 0);
+		drbd_rs_cancel_all(mdev);
+
 		drbd_send_uuids(mdev);
 		drbd_send_state(mdev, ns);
 	}
@@ -1630,9 +1637,24 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			eh = mdev->ldev->dc.on_io_error;
 			was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
 
-			/* Immediately allow completion of all application IO, that waits
-			   for completion from the local disk. */
-			tl_abort_disk_io(mdev);
+			if (was_io_error && eh == EP_CALL_HELPER)
+				drbd_khelper(mdev, "local-io-error");
+
+			/* Immediately allow completion of all application IO,
+			 * that waits for completion from the local disk,
+			 * if this was a force-detach due to disk_timeout
+			 * or administrator request (drbdsetup detach --force).
+			 * Do NOT abort otherwise.
+			 * Aborting local requests may cause serious problems,
+			 * if requests are completed to upper layers already,
+			 * and then later the already submitted local bio completes.
+			 * This can cause DMA into former bio pages that meanwhile
+			 * have been re-used for other things.
+			 * So aborting local requests may cause crashes,
+			 * or even worse, silent data corruption.
+			 */
+			if (test_and_clear_bit(FORCE_DETACH, &mdev->flags))
+				tl_abort_disk_io(mdev);
 
 			/* current state still has to be D_FAILED,
 			 * there is only one way out: to D_DISKLESS,
@@ -1653,9 +1675,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			drbd_md_sync(mdev);
 		}
 		put_ldev(mdev);
-
-		if (was_io_error && eh == EP_CALL_HELPER)
-			drbd_khelper(mdev, "local-io-error");
 	}
 
         /* second half of local IO error, failure to attach,
@@ -1668,10 +1687,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
                         dev_err(DEV,
                                 "ASSERT FAILED: disk is %s while going diskless\n",
                                 drbd_disk_str(mdev->state.disk));
-
-                mdev->rs_total = 0;
-                mdev->rs_failed = 0;
-                atomic_set(&mdev->rs_pending_cnt, 0);
 
 		if (ns.conn >= C_CONNECTED)
 			drbd_send_state(mdev, ns);
@@ -2194,7 +2209,8 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 {
 	struct p_sizes p;
 	sector_t d_size, u_size;
-	int q_order_type, max_bio_size;
+	int q_order_type;
+	unsigned int max_bio_size;
 	int ok;
 
 	if (get_ldev_if_state(mdev, D_NEGOTIATING)) {
@@ -2203,7 +2219,7 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 		u_size = mdev->ldev->dc.disk_size;
 		q_order_type = drbd_queue_order_type(mdev);
 		max_bio_size = queue_max_hw_sectors(mdev->ldev->backing_bdev->bd_disk->queue) << 9;
-		max_bio_size = min_t(int, max_bio_size, DRBD_MAX_BIO_SIZE);
+		max_bio_size = min(max_bio_size, DRBD_MAX_BIO_SIZE);
 		put_ldev(mdev);
 	} else {
 		d_size = 0;
@@ -2214,7 +2230,7 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 
 	/* Never allow old drbd (up to 8.3.7) to see more than 32KiB */
 	if (mdev->agreed_pro_version <= 94)
-		max_bio_size = min_t(int, max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+		max_bio_size = min(max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
 
 	p.d_size = cpu_to_be64(d_size);
 	p.u_size = cpu_to_be64(u_size);
@@ -3541,6 +3557,22 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 		goto out;
 	}
 
+	if (test_bit(CALLBACK_PENDING, &mdev->flags)) {
+		r |= (1 << BDI_async_congested);
+		/* Without good local data, we would need to read from remote,
+		 * and that would need the worker thread as well, which is
+		 * currently blocked waiting for that usermode helper to
+		 * finish.
+		 */
+		if (!get_ldev_if_state(mdev, D_UP_TO_DATE))
+			r |= (1 << BDI_sync_congested);
+		else
+			put_ldev(mdev);
+		r &= bdi_bits;
+		reason = 'c';
+		goto out;
+	}
+
 	if (get_ldev(mdev)) {
 		q = bdev_get_queue(mdev->ldev->backing_bdev);
 		r = bdi_congested(&q->backing_dev_info, bdi_bits);
@@ -3604,6 +3636,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	q->backing_dev_info.congested_data = mdev;
 
 	blk_queue_make_request(q, drbd_make_request);
+	blk_queue_flush(q, REQ_FLUSH | REQ_FUA);
 	/* Setting the max_hw_sectors to an odd value of 8kibyte here
 	   This triggers a max_bio_size message upon first attach or connect */
 	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE_SAFE >> 8);
@@ -3870,7 +3903,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
 		/* this was a try anyways ... */
 		dev_err(DEV, "meta data update failed!\n");
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 	}
 
 	/* Update mdev->ldev->md.la_size_sect,
@@ -3950,9 +3983,9 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 
 	spin_lock_irq(&mdev->req_lock);
 	if (mdev->state.conn < C_CONNECTED) {
-		int peer;
+		unsigned int peer;
 		peer = be32_to_cpu(buffer->la_peer_max_bio_size);
-		peer = max_t(int, peer, DRBD_MAX_BIO_SIZE_SAFE);
+		peer = max(peer, DRBD_MAX_BIO_SIZE_SAFE);
 		mdev->peer_max_bio_size = peer;
 	}
 	spin_unlock_irq(&mdev->req_lock);

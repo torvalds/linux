@@ -5,7 +5,7 @@ static void read_int_callback(struct urb *urb/*, struct pt_regs *regs*/)
 {
 	int		status = urb->status;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)urb->context;
-	PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter ;
+	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter ;
 
 	if (netif_msg_intr(Adapter))
 		pr_info(PFX "%s: interrupt status %d\n",

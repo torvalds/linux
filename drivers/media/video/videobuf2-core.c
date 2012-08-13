@@ -336,9 +336,9 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	struct vb2_queue *q = vb->vb2_queue;
 	int ret;
 
-	/* Copy back data such as timestamp, flags, input, etc. */
+	/* Copy back data such as timestamp, flags, etc. */
 	memcpy(b, &vb->v4l2_buf, offsetof(struct v4l2_buffer, m));
-	b->input = vb->v4l2_buf.input;
+	b->reserved2 = vb->v4l2_buf.reserved2;
 	b->reserved = vb->v4l2_buf.reserved;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(q->type)) {
@@ -454,7 +454,50 @@ static int __verify_mmap_ops(struct vb2_queue *q)
 }
 
 /**
- * vb2_reqbufs() - Initiate streaming
+ * __verify_memory_type() - Check whether the memory type and buffer type
+ * passed to a buffer operation are compatible with the queue.
+ */
+static int __verify_memory_type(struct vb2_queue *q,
+		enum v4l2_memory memory, enum v4l2_buf_type type)
+{
+	if (memory != V4L2_MEMORY_MMAP && memory != V4L2_MEMORY_USERPTR) {
+		dprintk(1, "reqbufs: unsupported memory type\n");
+		return -EINVAL;
+	}
+
+	if (type != q->type) {
+		dprintk(1, "reqbufs: requested type is incorrect\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Make sure all the required memory ops for given memory type
+	 * are available.
+	 */
+	if (memory == V4L2_MEMORY_MMAP && __verify_mmap_ops(q)) {
+		dprintk(1, "reqbufs: MMAP for current setup unsupported\n");
+		return -EINVAL;
+	}
+
+	if (memory == V4L2_MEMORY_USERPTR && __verify_userptr_ops(q)) {
+		dprintk(1, "reqbufs: USERPTR for current setup unsupported\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Place the busy tests at the end: -EBUSY can be ignored when
+	 * create_bufs is called with count == 0, but count == 0 should still
+	 * do the memory and type validation.
+	 */
+	if (q->fileio) {
+		dprintk(1, "reqbufs: file io in progress\n");
+		return -EBUSY;
+	}
+	return 0;
+}
+
+/**
+ * __reqbufs() - Initiate streaming
  * @q:		videobuf2 queue
  * @req:	struct passed from userspace to vidioc_reqbufs handler in driver
  *
@@ -476,44 +519,14 @@ static int __verify_mmap_ops(struct vb2_queue *q)
  * The return values from this function are intended to be directly returned
  * from vidioc_reqbufs handler in driver.
  */
-int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
+static int __reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 {
 	unsigned int num_buffers, allocated_buffers, num_planes = 0;
-	int ret = 0;
-
-	if (q->fileio) {
-		dprintk(1, "reqbufs: file io in progress\n");
-		return -EBUSY;
-	}
-
-	if (req->memory != V4L2_MEMORY_MMAP
-			&& req->memory != V4L2_MEMORY_USERPTR) {
-		dprintk(1, "reqbufs: unsupported memory type\n");
-		return -EINVAL;
-	}
-
-	if (req->type != q->type) {
-		dprintk(1, "reqbufs: requested type is incorrect\n");
-		return -EINVAL;
-	}
+	int ret;
 
 	if (q->streaming) {
 		dprintk(1, "reqbufs: streaming active\n");
 		return -EBUSY;
-	}
-
-	/*
-	 * Make sure all the required memory ops for given memory type
-	 * are available.
-	 */
-	if (req->memory == V4L2_MEMORY_MMAP && __verify_mmap_ops(q)) {
-		dprintk(1, "reqbufs: MMAP for current setup unsupported\n");
-		return -EINVAL;
-	}
-
-	if (req->memory == V4L2_MEMORY_USERPTR && __verify_userptr_ops(q)) {
-		dprintk(1, "reqbufs: USERPTR for current setup unsupported\n");
-		return -EINVAL;
 	}
 
 	if (req->count == 0 || q->num_buffers != 0 || q->memory != req->memory) {
@@ -595,10 +608,23 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 
 	return 0;
 }
+
+/**
+ * vb2_reqbufs() - Wrapper for __reqbufs() that also verifies the memory and
+ * type values.
+ * @q:		videobuf2 queue
+ * @req:	struct passed from userspace to vidioc_reqbufs handler in driver
+ */
+int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
+{
+	int ret = __verify_memory_type(q, req->memory, req->type);
+
+	return ret ? ret : __reqbufs(q, req);
+}
 EXPORT_SYMBOL_GPL(vb2_reqbufs);
 
 /**
- * vb2_create_bufs() - Allocate buffers and any required auxiliary structs
+ * __create_bufs() - Allocate buffers and any required auxiliary structs
  * @q:		videobuf2 queue
  * @create:	creation parameters, passed from userspace to vidioc_create_bufs
  *		handler in driver
@@ -612,48 +638,16 @@ EXPORT_SYMBOL_GPL(vb2_reqbufs);
  * The return values from this function are intended to be directly returned
  * from vidioc_create_bufs handler in driver.
  */
-int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+static int __create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 {
 	unsigned int num_planes = 0, num_buffers, allocated_buffers;
-	int ret = 0;
-
-	if (q->fileio) {
-		dprintk(1, "%s(): file io in progress\n", __func__);
-		return -EBUSY;
-	}
-
-	if (create->memory != V4L2_MEMORY_MMAP
-			&& create->memory != V4L2_MEMORY_USERPTR) {
-		dprintk(1, "%s(): unsupported memory type\n", __func__);
-		return -EINVAL;
-	}
-
-	if (create->format.type != q->type) {
-		dprintk(1, "%s(): requested type is incorrect\n", __func__);
-		return -EINVAL;
-	}
-
-	/*
-	 * Make sure all the required memory ops for given memory type
-	 * are available.
-	 */
-	if (create->memory == V4L2_MEMORY_MMAP && __verify_mmap_ops(q)) {
-		dprintk(1, "%s(): MMAP for current setup unsupported\n", __func__);
-		return -EINVAL;
-	}
-
-	if (create->memory == V4L2_MEMORY_USERPTR && __verify_userptr_ops(q)) {
-		dprintk(1, "%s(): USERPTR for current setup unsupported\n", __func__);
-		return -EINVAL;
-	}
+	int ret;
 
 	if (q->num_buffers == VIDEO_MAX_FRAME) {
 		dprintk(1, "%s(): maximum number of buffers already allocated\n",
 			__func__);
 		return -ENOBUFS;
 	}
-
-	create->index = q->num_buffers;
 
 	if (!q->num_buffers) {
 		memset(q->plane_sizes, 0, sizeof(q->plane_sizes));
@@ -675,9 +669,9 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	/* Finally, allocate buffers and video memory */
 	ret = __vb2_queue_alloc(q, create->memory, num_buffers,
 				num_planes);
-	if (ret < 0) {
-		dprintk(1, "Memory allocation failed with error: %d\n", ret);
-		return ret;
+	if (ret == 0) {
+		dprintk(1, "Memory allocation failed\n");
+		return -ENOMEM;
 	}
 
 	allocated_buffers = ret;
@@ -708,7 +702,7 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 
 	if (ret < 0) {
 		__vb2_queue_free(q, allocated_buffers);
-		return ret;
+		return -ENOMEM;
 	}
 
 	/*
@@ -718,6 +712,23 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	create->count = allocated_buffers;
 
 	return 0;
+}
+
+/**
+ * vb2_create_bufs() - Wrapper for __create_bufs() that also verifies the
+ * memory and type values.
+ * @q:		videobuf2 queue
+ * @create:	creation parameters, passed from userspace to vidioc_create_bufs
+ *		handler in driver
+ */
+int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
+{
+	int ret = __verify_memory_type(q, create->memory, create->format.type);
+
+	create->index = q->num_buffers;
+	if (create->count == 0)
+		return ret != -EBUSY ? ret : 0;
+	return ret ? ret : __create_bufs(q, create);
 }
 EXPORT_SYMBOL_GPL(vb2_create_bufs);
 
@@ -860,7 +871,6 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b,
 
 	vb->v4l2_buf.field = b->field;
 	vb->v4l2_buf.timestamp = b->timestamp;
-	vb->v4l2_buf.input = b->input;
 	vb->v4l2_buf.flags = b->flags & ~V4L2_BUFFER_STATE_FLAGS;
 
 	return 0;
@@ -2114,6 +2124,263 @@ size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
 	return __vb2_perform_fileio(q, data, count, ppos, nonblocking, 0);
 }
 EXPORT_SYMBOL_GPL(vb2_write);
+
+
+/*
+ * The following functions are not part of the vb2 core API, but are helper
+ * functions that plug into struct v4l2_ioctl_ops, struct v4l2_file_operations
+ * and struct vb2_ops.
+ * They contain boilerplate code that most if not all drivers have to do
+ * and so they simplify the driver code.
+ */
+
+/* The queue is busy if there is a owner and you are not that owner. */
+static inline bool vb2_queue_is_busy(struct video_device *vdev, struct file *file)
+{
+	return vdev->queue->owner && vdev->queue->owner != file->private_data;
+}
+
+/* vb2 ioctl helpers */
+
+int vb2_ioctl_reqbufs(struct file *file, void *priv,
+			  struct v4l2_requestbuffers *p)
+{
+	struct video_device *vdev = video_devdata(file);
+	int res = __verify_memory_type(vdev->queue, p->memory, p->type);
+
+	if (res)
+		return res;
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	res = __reqbufs(vdev->queue, p);
+	/* If count == 0, then the owner has released all buffers and he
+	   is no longer owner of the queue. Otherwise we have a new owner. */
+	if (res == 0)
+		vdev->queue->owner = p->count ? file->private_data : NULL;
+	return res;
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_reqbufs);
+
+int vb2_ioctl_create_bufs(struct file *file, void *priv,
+			  struct v4l2_create_buffers *p)
+{
+	struct video_device *vdev = video_devdata(file);
+	int res = __verify_memory_type(vdev->queue, p->memory, p->format.type);
+
+	p->index = vdev->queue->num_buffers;
+	/* If count == 0, then just check if memory and type are valid.
+	   Any -EBUSY result from __verify_memory_type can be mapped to 0. */
+	if (p->count == 0)
+		return res != -EBUSY ? res : 0;
+	if (res)
+		return res;
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	res = __create_bufs(vdev->queue, p);
+	if (res == 0)
+		vdev->queue->owner = file->private_data;
+	return res;
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_create_bufs);
+
+int vb2_ioctl_prepare_buf(struct file *file, void *priv,
+			  struct v4l2_buffer *p)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	return vb2_prepare_buf(vdev->queue, p);
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_prepare_buf);
+
+int vb2_ioctl_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	/* No need to call vb2_queue_is_busy(), anyone can query buffers. */
+	return vb2_querybuf(vdev->queue, p);
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_querybuf);
+
+int vb2_ioctl_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	return vb2_qbuf(vdev->queue, p);
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_qbuf);
+
+int vb2_ioctl_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	return vb2_dqbuf(vdev->queue, p, file->f_flags & O_NONBLOCK);
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_dqbuf);
+
+int vb2_ioctl_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	return vb2_streamon(vdev->queue, i);
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_streamon);
+
+int vb2_ioctl_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (vb2_queue_is_busy(vdev, file))
+		return -EBUSY;
+	return vb2_streamoff(vdev->queue, i);
+}
+EXPORT_SYMBOL_GPL(vb2_ioctl_streamoff);
+
+/* v4l2_file_operations helpers */
+
+int vb2_fop_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	return vb2_mmap(vdev->queue, vma);
+}
+EXPORT_SYMBOL_GPL(vb2_fop_mmap);
+
+int vb2_fop_release(struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	if (file->private_data == vdev->queue->owner) {
+		vb2_queue_release(vdev->queue);
+		vdev->queue->owner = NULL;
+	}
+	return v4l2_fh_release(file);
+}
+EXPORT_SYMBOL_GPL(vb2_fop_release);
+
+ssize_t vb2_fop_write(struct file *file, char __user *buf,
+		size_t count, loff_t *ppos)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
+	bool must_lock = !test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags) && lock;
+	int err = -EBUSY;
+
+	if (must_lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	if (vb2_queue_is_busy(vdev, file))
+		goto exit;
+	err = vb2_write(vdev->queue, buf, count, ppos,
+		       file->f_flags & O_NONBLOCK);
+	if (err >= 0)
+		vdev->queue->owner = file->private_data;
+exit:
+	if (must_lock)
+		mutex_unlock(lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(vb2_fop_write);
+
+ssize_t vb2_fop_read(struct file *file, char __user *buf,
+		size_t count, loff_t *ppos)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->queue->lock ? vdev->queue->lock : vdev->lock;
+	bool must_lock = !test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags) && vdev->lock;
+	int err = -EBUSY;
+
+	if (must_lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	if (vb2_queue_is_busy(vdev, file))
+		goto exit;
+	err = vb2_read(vdev->queue, buf, count, ppos,
+		       file->f_flags & O_NONBLOCK);
+	if (err >= 0)
+		vdev->queue->owner = file->private_data;
+exit:
+	if (must_lock)
+		mutex_unlock(lock);
+	return err;
+}
+EXPORT_SYMBOL_GPL(vb2_fop_read);
+
+unsigned int vb2_fop_poll(struct file *file, poll_table *wait)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct vb2_queue *q = vdev->queue;
+	struct mutex *lock = q->lock ? q->lock : vdev->lock;
+	unsigned long req_events = poll_requested_events(wait);
+	unsigned res;
+	void *fileio;
+	/* Yuck. We really need to get rid of this flag asap. If it is
+	   set, then the core took the serialization lock before calling
+	   poll(). This is being phased out, but for now we have to handle
+	   this case. */
+	bool locked = test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags);
+	bool must_lock = false;
+
+	/* Try to be smart: only lock if polling might start fileio,
+	   otherwise locking will only introduce unwanted delays. */
+	if (q->num_buffers == 0 && q->fileio == NULL) {
+		if (!V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_READ) &&
+				(req_events & (POLLIN | POLLRDNORM)))
+			must_lock = true;
+		else if (V4L2_TYPE_IS_OUTPUT(q->type) && (q->io_modes & VB2_WRITE) &&
+				(req_events & (POLLOUT | POLLWRNORM)))
+			must_lock = true;
+	}
+
+	/* If locking is needed, but this helper doesn't know how, then you
+	   shouldn't be using this helper but you should write your own. */
+	WARN_ON(must_lock && !locked && !lock);
+
+	if (must_lock && !locked && lock && mutex_lock_interruptible(lock))
+		return POLLERR;
+
+	fileio = q->fileio;
+
+	res = vb2_poll(vdev->queue, file, wait);
+
+	/* If fileio was started, then we have a new queue owner. */
+	if (must_lock && !fileio && q->fileio)
+		q->owner = file->private_data;
+	if (must_lock && !locked && lock)
+		mutex_unlock(lock);
+	return res;
+}
+EXPORT_SYMBOL_GPL(vb2_fop_poll);
+
+#ifndef CONFIG_MMU
+unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	return vb2_get_unmapped_area(vdev->queue, addr, len, pgoff, flags);
+}
+EXPORT_SYMBOL_GPL(vb2_fop_get_unmapped_area);
+#endif
+
+/* vb2_ops helpers. Only use if vq->lock is non-NULL. */
+
+void vb2_ops_wait_prepare(struct vb2_queue *vq)
+{
+	mutex_unlock(vq->lock);
+}
+EXPORT_SYMBOL_GPL(vb2_ops_wait_prepare);
+
+void vb2_ops_wait_finish(struct vb2_queue *vq)
+{
+	mutex_lock(vq->lock);
+}
+EXPORT_SYMBOL_GPL(vb2_ops_wait_finish);
 
 MODULE_DESCRIPTION("Driver helper framework for Video for Linux 2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>, Marek Szyprowski");

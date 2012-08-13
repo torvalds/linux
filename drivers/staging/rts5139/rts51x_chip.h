@@ -204,7 +204,7 @@ struct trace_msg_t {
 /*---- error code ----*/
 #define CUR_ERR                 0x70	/* current error                    */
 
-/*---- sense key Infomation ----*/
+/*---- sense key Information ----*/
 
 #define SKSV                    0x80
 #define CDB_ILLEGAL             0x40

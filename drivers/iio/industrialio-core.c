@@ -64,14 +64,21 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_CAPACITANCE] = "capacitance",
 	[IIO_ALTVOLTAGE] = "altvoltage",
+	[IIO_CCT] = "cct",
 };
 
 static const char * const iio_modifier_names[] = {
 	[IIO_MOD_X] = "x",
 	[IIO_MOD_Y] = "y",
 	[IIO_MOD_Z] = "z",
+	[IIO_MOD_ROOT_SUM_SQUARED_X_Y] = "sqrt(x^2+y^2)",
+	[IIO_MOD_SUM_SQUARED_X_Y_Z] = "x^2+y^2+z^2",
 	[IIO_MOD_LIGHT_BOTH] = "both",
 	[IIO_MOD_LIGHT_IR] = "ir",
+	[IIO_MOD_LIGHT_CLEAR] = "clear",
+	[IIO_MOD_LIGHT_RED] = "red",
+	[IIO_MOD_LIGHT_GREEN] = "green",
+	[IIO_MOD_LIGHT_BLUE] = "blue",
 };
 
 /* relies on pairs of these shared then separate */
@@ -288,6 +295,69 @@ static ssize_t iio_write_channel_ext_info(struct device *dev,
 	return ext_info->write(indio_dev, ext_info->private,
 			       this_attr->c, buf, len);
 }
+
+ssize_t iio_enum_available_read(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, char *buf)
+{
+	const struct iio_enum *e = (const struct iio_enum *)priv;
+	unsigned int i;
+	size_t len = 0;
+
+	if (!e->num_items)
+		return 0;
+
+	for (i = 0; i < e->num_items; ++i)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s ", e->items[i]);
+
+	/* replace last space with a newline */
+	buf[len - 1] = '\n';
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(iio_enum_available_read);
+
+ssize_t iio_enum_read(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, char *buf)
+{
+	const struct iio_enum *e = (const struct iio_enum *)priv;
+	int i;
+
+	if (!e->get)
+		return -EINVAL;
+
+	i = e->get(indio_dev, chan);
+	if (i < 0)
+		return i;
+	else if (i >= e->num_items)
+		return -EINVAL;
+
+	return sprintf(buf, "%s\n", e->items[i]);
+}
+EXPORT_SYMBOL_GPL(iio_enum_read);
+
+ssize_t iio_enum_write(struct iio_dev *indio_dev,
+	uintptr_t priv, const struct iio_chan_spec *chan, const char *buf,
+	size_t len)
+{
+	const struct iio_enum *e = (const struct iio_enum *)priv;
+	unsigned int i;
+	int ret;
+
+	if (!e->set)
+		return -EINVAL;
+
+	for (i = 0; i < e->num_items; i++) {
+		if (sysfs_streq(buf, e->items[i]))
+			break;
+	}
+
+	if (i == e->num_items)
+		return -EINVAL;
+
+	ret = e->set(indio_dev, chan, i);
+	return ret ? ret : len;
+}
+EXPORT_SYMBOL_GPL(iio_enum_write);
 
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
@@ -661,7 +731,6 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	 * New channel registration method - relies on the fact a group does
 	 * not need to be initialized if it is name is NULL.
 	 */
-	INIT_LIST_HEAD(&indio_dev->channel_attr_list);
 	if (indio_dev->channels)
 		for (i = 0; i < indio_dev->num_channels; i++) {
 			ret = iio_device_add_channel_sysfs(indio_dev,
@@ -725,12 +794,16 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(device);
-	cdev_del(&indio_dev->chrdev);
+	if (indio_dev->chrdev.dev)
+		cdev_del(&indio_dev->chrdev);
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
 	iio_device_unregister_debugfs(indio_dev);
+
+	ida_simple_remove(&iio_ida, indio_dev->id);
+	kfree(indio_dev);
 }
 
 static struct device_type iio_dev_type = {
@@ -761,6 +834,7 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
 		mutex_init(&dev->info_exist_lock);
+		INIT_LIST_HEAD(&dev->channel_attr_list);
 
 		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 		if (dev->id < 0) {
@@ -778,10 +852,8 @@ EXPORT_SYMBOL(iio_device_alloc);
 
 void iio_device_free(struct iio_dev *dev)
 {
-	if (dev) {
-		ida_simple_remove(&iio_ida, dev->id);
-		kfree(dev);
-	}
+	if (dev)
+		put_device(&dev->dev);
 }
 EXPORT_SYMBOL(iio_device_free);
 
@@ -902,7 +974,7 @@ void iio_device_unregister(struct iio_dev *indio_dev)
 	mutex_lock(&indio_dev->info_exist_lock);
 	indio_dev->info = NULL;
 	mutex_unlock(&indio_dev->info_exist_lock);
-	device_unregister(&indio_dev->dev);
+	device_del(&indio_dev->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
 subsys_initcall(iio_init);

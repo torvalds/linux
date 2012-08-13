@@ -97,9 +97,10 @@ int wait_for_pll_align(void)
 	while (i-- && (bfin_read32(CGU0_STAT) & CGU0_STAT_CLKSALGN));
 
 	if (bfin_read32(CGU0_STAT) & CGU0_STAT_CLKSALGN) {
-		printk(KERN_DEBUG "fail to align clk\n");
+		printk(KERN_CRIT "fail to align clk\n");
 		return -1;
 	}
+
 	return 0;
 }
 

@@ -47,9 +47,9 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
+	idr_init(&dev_priv->object_idr);
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->chipset = chipset;
-	idr_init(&dev->object_name_idr);
 
 	return 0;
 }
@@ -105,10 +105,9 @@ static struct drm_driver driver = {
 	.load = sis_driver_load,
 	.unload = sis_driver_unload,
 	.open = sis_driver_open,
+	.preclose = sis_reclaim_buffers_locked,
 	.postclose = sis_driver_postclose,
 	.dma_quiescent = sis_idle,
-	.reclaim_buffers = NULL,
-	.reclaim_buffers_idlelocked = sis_reclaim_buffers_locked,
 	.lastclose = sis_lastclose,
 	.ioctls = sis_ioctls,
 	.fops = &sis_driver_fops,

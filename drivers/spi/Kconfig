@@ -125,7 +125,7 @@ config SPI_BUTTERFLY
 
 config SPI_COLDFIRE_QSPI
 	tristate "Freescale Coldfire QSPI controller"
-	depends on (M520x || M523x || M5249 || M527x || M528x || M532x)
+	depends on (M520x || M523x || M5249 || M525x || M527x || M528x || M532x)
 	help
 	  This enables support for the Coldfire QSPI controller in master
 	  mode.
@@ -143,6 +143,15 @@ config SPI_EP93XX
 	help
 	  This enables using the Cirrus EP93xx SPI controller in master
 	  mode.
+
+config SPI_FALCON
+	tristate "Falcon SPI controller support"
+	depends on SOC_FALCON
+	help
+	  The external bus unit (EBU) found on the FALC-ON SoC has SPI
+	  emulation that is designed for serial flash access. This driver
+	  has only been tested with m25p80 type chips. The hardware has no
+	  support for other types of SPI peripherals.
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
@@ -357,7 +366,7 @@ config SPI_STMP3XXX
 
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
-	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
+	depends on ARCH_TEGRA && (TEGRA_SYSTEM_DMA || TEGRA20_APB_DMA)
 	help
 	  SPI driver for NVidia Tegra SoCs
 
@@ -383,6 +392,13 @@ config SPI_TXX9
 	depends on GENERIC_GPIO && CPU_TX49XX
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
+
+config SPI_XCOMM
+	tristate "Analog Devices AD-FMCOMMS1-EBZ SPI-I2C-bridge driver"
+	depends on I2C
+	help
+	  Support for the SPI-I2C bridge found on the Analog Devices
+	  AD-FMCOMMS1-EBZ board.
 
 config SPI_XILINX
 	tristate "Xilinx SPI controller common module"

@@ -13,6 +13,7 @@ config AD7291
 config AD7298
 	tristate "Analog Devices AD7298 ADC driver"
 	depends on SPI
+	select IIO_TRIGGERED_BUFFER if IIO_BUFFER
 	help
 	  Say yes here to build support for Analog Devices AD7298
 	  8 Channel ADC with temperature sensor.
@@ -24,8 +25,7 @@ config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB
 	select IIO_BUFFER
-	select IIO_TRIGGER
-	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices:
 	  ad7606, ad7606-6, ad7606-4 analog to digital converters (ADC).
@@ -63,7 +63,7 @@ config AD799X_RING_BUFFER
 	bool "Analog Devices AD799x: use ring buffer"
 	depends on AD799X
 	select IIO_BUFFER
-	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to include ring buffer support in the AD799X
 	  ADC driver.
@@ -72,8 +72,7 @@ config AD7476
 	tristate "Analog Devices AD7475/6/7/8 AD7466/7/8 and AD7495 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_KFIFO_BUF
-	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7475, AD7476, AD7477, AD7478, AD7466, AD7467, AD7468, AD7495
@@ -87,8 +86,7 @@ config AD7887
 	tristate "Analog Devices AD7887 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_KFIFO_BUF
-	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7887 SPI analog to digital converter (ADC).
@@ -113,8 +111,7 @@ config AD7793
 	tristate "Analog Devices AD7792 AD7793 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_KFIFO_BUF
-	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices
 	  AD7792 and AD7793 SPI analog to digital converters (ADC).
@@ -135,8 +132,7 @@ config AD7192
 	tristate "Analog Devices AD7190 AD7192 AD7195 ADC driver"
 	depends on SPI
 	select IIO_BUFFER
-	select IIO_KFIFO_BUF
-	select IIO_TRIGGER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices AD7190,
 	  AD7192 or AD7195 SPI analog to digital converters (ADC).

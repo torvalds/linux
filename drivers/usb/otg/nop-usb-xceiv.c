@@ -117,7 +117,7 @@ static int __devinit nop_usb_xceiv_probe(struct platform_device *pdev)
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
 
-	err = usb_set_transceiver(&nop->phy);
+	err = usb_add_phy(&nop->phy, USB_PHY_TYPE_USB2);
 	if (err) {
 		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
 			err);
@@ -139,7 +139,7 @@ static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
 {
 	struct nop_usb_xceiv *nop = platform_get_drvdata(pdev);
 
-	usb_set_transceiver(NULL);
+	usb_remove_phy(&nop->phy);
 
 	platform_set_drvdata(pdev, NULL);
 	kfree(nop->phy.otg);

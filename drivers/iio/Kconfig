@@ -8,8 +8,7 @@ menuconfig IIO
 	help
 	  The industrial I/O subsystem provides a unified framework for
 	  drivers for many different types of embedded sensors using a
-	  number of different physical interfaces (i2c, spi, etc). See
-	  Documentation/iio for more information.
+	  number of different physical interfaces (i2c, spi, etc).
 
 if IIO
 
@@ -29,6 +28,13 @@ config IIO_KFIFO_BUF
 	  rather than a ring buffer. Note that this currently provides
 	  no buffer events so it is up to userspace to work out how
 	  often to read from the buffer.
+
+config IIO_TRIGGERED_BUFFER
+	tristate
+	select IIO_TRIGGER
+	select IIO_KFIFO_BUF
+	help
+	  Provides helper functions for setting up triggered buffers.
 
 endif # IIO_BUFFER
 
@@ -50,5 +56,8 @@ config IIO_CONSUMERS_PER_TRIGGER
 
 source "drivers/iio/adc/Kconfig"
 source "drivers/iio/amplifiers/Kconfig"
+source "drivers/iio/light/Kconfig"
+source "drivers/iio/frequency/Kconfig"
+source "drivers/iio/dac/Kconfig"
 
 endif # IIO

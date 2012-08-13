@@ -187,6 +187,7 @@ struct rt2x00_chip {
 #define RT3070		0x3070
 #define RT3071		0x3071
 #define RT3090		0x3090	/* 2.4GHz PCIe */
+#define RT3290		0x3290
 #define RT3390		0x3390
 #define RT3572		0x3572
 #define RT3593		0x3593

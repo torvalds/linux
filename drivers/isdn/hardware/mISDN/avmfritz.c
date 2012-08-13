@@ -449,7 +449,8 @@ hdlc_fill_fifo(struct bchannel *bch)
 {
 	struct fritzcard *fc = bch->hw;
 	struct hdlc_hw *hdlc;
-	int count, fs, cnt = 0, idx, fillempty = 0;
+	int count, fs, cnt = 0, idx;
+	bool fillempty = false;
 	u8 *p;
 	u32 *ptr, val, addr;
 
@@ -462,7 +463,7 @@ hdlc_fill_fifo(struct bchannel *bch)
 			return;
 		count = fs;
 		p = bch->fill;
-		fillempty = 1;
+		fillempty = true;
 	} else {
 		count = bch->tx_skb->len - bch->tx_idx;
 		if (count <= 0)
@@ -477,7 +478,7 @@ hdlc_fill_fifo(struct bchannel *bch)
 			hdlc->ctrl.sr.cmd |= HDLC_CMD_XME;
 	}
 	ptr = (u32 *)p;
-	if (fillempty) {
+	if (!fillempty) {
 		pr_debug("%s.B%d: %d/%d/%d", fc->name, bch->nr, count,
 			 bch->tx_idx, bch->tx_skb->len);
 		bch->tx_idx += count;

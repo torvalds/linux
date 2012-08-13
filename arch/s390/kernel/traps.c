@@ -1,8 +1,6 @@
 /*
- *  arch/s390/kernel/traps.c
- *
  *  S390 version
- *    Copyright (C) 1999,2000 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999, 2000
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *               Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
  *
@@ -187,7 +185,7 @@ void show_registers(struct pt_regs *regs)
 {
 	char *mode;
 
-	mode = (regs->psw.mask & PSW_MASK_PSTATE) ? "User" : "Krnl";
+	mode = user_mode(regs) ? "User" : "Krnl";
 	printk("%s PSW : %p %p",
 	       mode, (void *) regs->psw.mask,
 	       (void *) regs->psw.addr);
@@ -227,7 +225,7 @@ void show_regs(struct pt_regs *regs)
 	       (void *) current->thread.ksp);
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
-	if (!(regs->psw.mask & PSW_MASK_PSTATE))
+	if (!user_mode(regs))
 		show_trace(NULL, (unsigned long *) regs->gprs[15]);
 	show_last_breaking_event(regs);
 }
@@ -302,7 +300,7 @@ static void __kprobes do_trap(struct pt_regs *regs,
 		       regs->int_code, si_signo) == NOTIFY_STOP)
 		return;
 
-        if (regs->psw.mask & PSW_MASK_PSTATE) {
+	if (user_mode(regs)) {
 		info.si_signo = si_signo;
 		info.si_errno = 0;
 		info.si_code = si_code;
@@ -343,7 +341,7 @@ void __kprobes do_per_trap(struct pt_regs *regs)
 
 static void default_trap_handler(struct pt_regs *regs)
 {
-        if (regs->psw.mask & PSW_MASK_PSTATE) {
+	if (user_mode(regs)) {
 		report_user_fault(regs, SIGSEGV);
 		do_exit(SIGSEGV);
 	} else
@@ -412,7 +410,7 @@ static void __kprobes illegal_op(struct pt_regs *regs)
 
 	location = get_psw_address(regs);
 
-	if (regs->psw.mask & PSW_MASK_PSTATE) {
+	if (user_mode(regs)) {
 		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
 			return;
 		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
@@ -480,7 +478,7 @@ void specification_exception(struct pt_regs *regs)
 
 	location = (__u16 __user *) get_psw_address(regs);
 
-        if (regs->psw.mask & PSW_MASK_PSTATE) {
+	if (user_mode(regs)) {
 		get_user(*((__u16 *) opcode), location);
 		switch (opcode[0]) {
 		case 0x28: /* LDR Rx,Ry   */
@@ -533,7 +531,7 @@ static void data_exception(struct pt_regs *regs)
 		asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
 
 #ifdef CONFIG_MATHEMU
-        else if (regs->psw.mask & PSW_MASK_PSTATE) {
+	else if (user_mode(regs)) {
         	__u8 opcode[6];
 		get_user(*((__u16 *) opcode), location);
 		switch (opcode[0]) {
@@ -600,7 +598,7 @@ static void data_exception(struct pt_regs *regs)
 static void space_switch_exception(struct pt_regs *regs)
 {
 	/* Set user psw back to home space mode. */
-	if (regs->psw.mask & PSW_MASK_PSTATE)
+	if (user_mode(regs))
 		regs->psw.mask |= PSW_ASC_HOME;
 	/* Send SIGILL. */
 	do_trap(regs, SIGILL, ILL_PRVOPC, "space switch event");

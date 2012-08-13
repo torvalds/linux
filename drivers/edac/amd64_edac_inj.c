@@ -1,7 +1,10 @@
 #include "amd64_edac.h"
 
-static ssize_t amd64_inject_section_show(struct mem_ctl_info *mci, char *buf)
+static ssize_t amd64_inject_section_show(struct device *dev,
+					 struct device_attribute *mattr,
+					 char *buf)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	return sprintf(buf, "0x%x\n", pvt->injection.section);
 }
@@ -12,9 +15,11 @@ static ssize_t amd64_inject_section_show(struct mem_ctl_info *mci, char *buf)
  *
  * range: 0..3
  */
-static ssize_t amd64_inject_section_store(struct mem_ctl_info *mci,
+static ssize_t amd64_inject_section_store(struct device *dev,
+					  struct device_attribute *mattr,
 					  const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int ret = 0;
@@ -33,8 +38,11 @@ static ssize_t amd64_inject_section_store(struct mem_ctl_info *mci,
 	return ret;
 }
 
-static ssize_t amd64_inject_word_show(struct mem_ctl_info *mci, char *buf)
+static ssize_t amd64_inject_word_show(struct device *dev,
+					struct device_attribute *mattr,
+					char *buf)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	return sprintf(buf, "0x%x\n", pvt->injection.word);
 }
@@ -45,9 +53,11 @@ static ssize_t amd64_inject_word_show(struct mem_ctl_info *mci, char *buf)
  *
  * range: 0..8
  */
-static ssize_t amd64_inject_word_store(struct mem_ctl_info *mci,
-					const char *data, size_t count)
+static ssize_t amd64_inject_word_store(struct device *dev,
+				       struct device_attribute *mattr,
+				       const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int ret = 0;
@@ -66,8 +76,11 @@ static ssize_t amd64_inject_word_store(struct mem_ctl_info *mci,
 	return ret;
 }
 
-static ssize_t amd64_inject_ecc_vector_show(struct mem_ctl_info *mci, char *buf)
+static ssize_t amd64_inject_ecc_vector_show(struct device *dev,
+					    struct device_attribute *mattr,
+					    char *buf)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	return sprintf(buf, "0x%x\n", pvt->injection.bit_map);
 }
@@ -77,9 +90,11 @@ static ssize_t amd64_inject_ecc_vector_show(struct mem_ctl_info *mci, char *buf)
  * corresponding bit within the error injection word above. When used during a
  * DRAM ECC read, it holds the contents of the of the DRAM ECC bits.
  */
-static ssize_t amd64_inject_ecc_vector_store(struct mem_ctl_info *mci,
-					     const char *data, size_t count)
+static ssize_t amd64_inject_ecc_vector_store(struct device *dev,
+				       struct device_attribute *mattr,
+				       const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	int ret = 0;
@@ -103,9 +118,11 @@ static ssize_t amd64_inject_ecc_vector_store(struct mem_ctl_info *mci,
  * Do a DRAM ECC read. Assemble staged values in the pvt area, format into
  * fields needed by the injection registers and read the NB Array Data Port.
  */
-static ssize_t amd64_inject_read_store(struct mem_ctl_info *mci,
-					const char *data, size_t count)
+static ssize_t amd64_inject_read_store(struct device *dev,
+				       struct device_attribute *mattr,
+				       const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	u32 section, word_bits;
@@ -125,7 +142,8 @@ static ssize_t amd64_inject_read_store(struct mem_ctl_info *mci,
 		/* Issue 'word' and 'bit' along with the READ request */
 		amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
 
-		debugf0("section=0x%x word_bits=0x%x\n", section, word_bits);
+		edac_dbg(0, "section=0x%x word_bits=0x%x\n",
+			 section, word_bits);
 
 		return count;
 	}
@@ -136,9 +154,11 @@ static ssize_t amd64_inject_read_store(struct mem_ctl_info *mci,
  * Do a DRAM ECC write. Assemble staged values in the pvt area and format into
  * fields needed by the injection registers.
  */
-static ssize_t amd64_inject_write_store(struct mem_ctl_info *mci,
+static ssize_t amd64_inject_write_store(struct device *dev,
+					struct device_attribute *mattr,
 					const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct amd64_pvt *pvt = mci->pvt_info;
 	unsigned long value;
 	u32 section, word_bits;
@@ -158,7 +178,8 @@ static ssize_t amd64_inject_write_store(struct mem_ctl_info *mci,
 		/* Issue 'word' and 'bit' along with the READ request */
 		amd64_write_pci_cfg(pvt->F3, F10_NB_ARRAY_DATA, word_bits);
 
-		debugf0("section=0x%x word_bits=0x%x\n", section, word_bits);
+		edac_dbg(0, "section=0x%x word_bits=0x%x\n",
+			 section, word_bits);
 
 		return count;
 	}
@@ -168,46 +189,47 @@ static ssize_t amd64_inject_write_store(struct mem_ctl_info *mci,
 /*
  * update NUM_INJ_ATTRS in case you add new members
  */
-struct mcidev_sysfs_attribute amd64_inj_attrs[] = {
 
-	{
-		.attr = {
-			.name = "inject_section",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show = amd64_inject_section_show,
-		.store = amd64_inject_section_store,
-	},
-	{
-		.attr = {
-			.name = "inject_word",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show = amd64_inject_word_show,
-		.store = amd64_inject_word_store,
-	},
-	{
-		.attr = {
-			.name = "inject_ecc_vector",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show = amd64_inject_ecc_vector_show,
-		.store = amd64_inject_ecc_vector_store,
-	},
-	{
-		.attr = {
-			.name = "inject_write",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show = NULL,
-		.store = amd64_inject_write_store,
-	},
-	{
-		.attr = {
-			.name = "inject_read",
-			.mode = (S_IRUGO | S_IWUSR)
-		},
-		.show = NULL,
-		.store = amd64_inject_read_store,
-	},
-};
+static DEVICE_ATTR(inject_section, S_IRUGO | S_IWUSR,
+		   amd64_inject_section_show, amd64_inject_section_store);
+static DEVICE_ATTR(inject_word, S_IRUGO | S_IWUSR,
+		   amd64_inject_word_show, amd64_inject_word_store);
+static DEVICE_ATTR(inject_ecc_vector, S_IRUGO | S_IWUSR,
+		   amd64_inject_ecc_vector_show, amd64_inject_ecc_vector_store);
+static DEVICE_ATTR(inject_write, S_IRUGO | S_IWUSR,
+		   NULL, amd64_inject_write_store);
+static DEVICE_ATTR(inject_read, S_IRUGO | S_IWUSR,
+		   NULL, amd64_inject_read_store);
+
+
+int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci)
+{
+	int rc;
+
+	rc = device_create_file(&mci->dev, &dev_attr_inject_section);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_word);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_ecc_vector);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_write);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_read);
+	if (rc < 0)
+		return rc;
+
+	return 0;
+}
+
+void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci)
+{
+	device_remove_file(&mci->dev, &dev_attr_inject_section);
+	device_remove_file(&mci->dev, &dev_attr_inject_word);
+	device_remove_file(&mci->dev, &dev_attr_inject_ecc_vector);
+	device_remove_file(&mci->dev, &dev_attr_inject_write);
+	device_remove_file(&mci->dev, &dev_attr_inject_read);
+}

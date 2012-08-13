@@ -32,6 +32,30 @@
 			linux,default-trigger = "mmc0";
 		};
 	};
+
+	sound: sound {
+		compatible = "ti,abe-twl6040";
+		ti,model = "PandaBoard";
+
+		ti,mclk-freq = <38400000>;
+
+		ti,mcpdm = <&mcpdm>;
+
+		ti,twl6040 = <&twl6040>;
+
+		/* Audio routing */
+		ti,audio-routing =
+			"Headset Stereophone", "HSOL",
+			"Headset Stereophone", "HSOR",
+			"Ext Spk", "HFL",
+			"Ext Spk", "HFR",
+			"Line Out", "AUXL",
+			"Line Out", "AUXR",
+			"HSMIC", "Headset Mic",
+			"Headset Mic", "Headset Mic Bias",
+			"AFML", "Line In",
+			"AFMR", "Line In";
+	};
 };
 
 &i2c1 {
@@ -42,6 +66,19 @@
 		/* SPI = 0, IRQ# = 7, 4 = active high level-sensitive */
 		interrupts = <0 7 4>; /* IRQ_SYS_1N cascaded to gic */
 		interrupt-parent = <&gic>;
+	};
+
+	twl6040: twl@4b {
+		compatible = "ti,twl6040";
+		reg = <0x4b>;
+		/* SPI = 0, IRQ# = 119, 4 = active high level-sensitive */
+		interrupts = <0 119 4>; /* IRQ_SYS_2N cascaded to gic */
+		interrupt-parent = <&gic>;
+		ti,audpwron-gpio = <&gpio4 31 0>;  /* gpio line 127 */
+
+		vio-supply = <&v1v8>;
+		v2v1-supply = <&v2v1>;
+		enable-active-high;
 	};
 };
 
@@ -74,15 +111,15 @@
 };
 
 &mmc2 {
-	status = "disable";
+	status = "disabled";
 };
 
 &mmc3 {
-	status = "disable";
+	status = "disabled";
 };
 
 &mmc4 {
-	status = "disable";
+	status = "disabled";
 };
 
 &mmc5 {

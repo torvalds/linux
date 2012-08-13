@@ -23,6 +23,7 @@ struct sh_mobile_sdhi_info {
 	int dma_slave_rx;
 	unsigned long tmio_flags;
 	unsigned long tmio_caps;
+	unsigned long tmio_caps2;
 	u32 tmio_ocr_mask;	/* available MMC voltages */
 	unsigned int cd_gpio;
 	struct tmio_mmc_data *pdata;

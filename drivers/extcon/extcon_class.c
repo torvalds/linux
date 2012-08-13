@@ -65,7 +65,7 @@ const char *extcon_cable_name[] = {
 	NULL,
 };
 
-struct class *extcon_class;
+static struct class *extcon_class;
 #if defined(CONFIG_ANDROID)
 static struct class_compat *switch_class;
 #endif /* CONFIG_ANDROID */
@@ -762,7 +762,7 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 #if defined(CONFIG_ANDROID)
 	if (switch_class)
 		ret = class_compat_create_link(switch_class, edev->dev,
-					       dev);
+					       NULL);
 #endif /* CONFIG_ANDROID */
 
 	spin_lock_init(&edev->lock);

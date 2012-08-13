@@ -978,10 +978,10 @@ static int mwifiex_decode_rx_packet(struct mwifiex_adapter *adapter,
 		dev_dbg(adapter->dev, "info: --- Rx: Event ---\n");
 		adapter->event_cause = *(u32 *) skb->data;
 
-		skb_pull(skb, MWIFIEX_EVENT_HEADER_LEN);
-
 		if ((skb->len > 0) && (skb->len  < MAX_EVENT_SIZE))
-			memcpy(adapter->event_body, skb->data, skb->len);
+			memcpy(adapter->event_body,
+			       skb->data + MWIFIEX_EVENT_HEADER_LEN,
+			       skb->len);
 
 		/* event cause has been saved to adapter->event_cause */
 		adapter->event_received = true;

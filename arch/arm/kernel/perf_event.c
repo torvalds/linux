@@ -47,17 +47,14 @@ static DEFINE_PER_CPU(struct pmu_hw_events, cpu_hw_events);
 /* Set at runtime when we know what CPU type we are. */
 static struct arm_pmu *cpu_pmu;
 
-enum arm_perf_pmu_ids
-armpmu_get_pmu_id(void)
+const char *perf_pmu_name(void)
 {
-	int id = -ENODEV;
+	if (!cpu_pmu)
+		return NULL;
 
-	if (cpu_pmu != NULL)
-		id = cpu_pmu->id;
-
-	return id;
+	return cpu_pmu->pmu.name;
 }
-EXPORT_SYMBOL_GPL(armpmu_get_pmu_id);
+EXPORT_SYMBOL_GPL(perf_pmu_name);
 
 int perf_num_counters(void)
 {
@@ -503,7 +500,7 @@ __hw_perf_event_init(struct perf_event *event)
 	     event_requires_mode_exclusion(&event->attr)) {
 		pr_debug("ARM performance counters do not support "
 			 "mode exclusion\n");
-		return -EPERM;
+		return -EOPNOTSUPP;
 	}
 
 	/*
@@ -760,7 +757,7 @@ init_hw_perf_events(void)
 			cpu_pmu->name, cpu_pmu->num_events);
 		cpu_pmu_init(cpu_pmu);
 		register_cpu_notifier(&pmu_cpu_notifier);
-		armpmu_register(cpu_pmu, "cpu", PERF_TYPE_RAW);
+		armpmu_register(cpu_pmu, cpu_pmu->name, PERF_TYPE_RAW);
 	} else {
 		pr_info("no hardware support available\n");
 	}

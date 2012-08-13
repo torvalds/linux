@@ -34,7 +34,6 @@
 #define RADEON_IDLE_LOOP_MS 100
 #define RADEON_RECLOCK_DELAY_MS 200
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
-#define RADEON_WAIT_IDLE_TIMEOUT 200
 
 static const char *radeon_pm_state_type_name[5] = {
 	"Default",
@@ -251,21 +250,14 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		return;
 
 	mutex_lock(&rdev->ddev->struct_mutex);
-	mutex_lock(&rdev->vram_mutex);
+	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
 	/* gui idle int has issues on older chips it seems */
 	if (rdev->family >= CHIP_R600) {
 		if (rdev->irq.installed) {
-			/* wait for GPU idle */
-			rdev->pm.gui_idle = false;
-			rdev->irq.gui_idle = true;
-			radeon_irq_set(rdev);
-			wait_event_interruptible_timeout(
-				rdev->irq.idle_queue, rdev->pm.gui_idle,
-				msecs_to_jiffies(RADEON_WAIT_IDLE_TIMEOUT));
-			rdev->irq.gui_idle = false;
-			radeon_irq_set(rdev);
+			/* wait for GPU to become idle */
+			radeon_irq_kms_wait_gui_idle(rdev);
 		}
 	} else {
 		struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
@@ -303,7 +295,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
 
 	mutex_unlock(&rdev->ring_lock);
-	mutex_unlock(&rdev->vram_mutex);
+	up_write(&rdev->pm.mclk_lock);
 	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
@@ -801,9 +793,13 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 		int i;
 
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-			not_processed += radeon_fence_count_emitted(rdev, i);
-			if (not_processed >= 3)
-				break;
+			struct radeon_ring *ring = &rdev->ring[i];
+
+			if (ring->ready) {
+				not_processed += radeon_fence_count_emitted(rdev, i);
+				if (not_processed >= 3)
+					break;
+			}
 		}
 
 		if (not_processed >= 3) { /* should upclock */

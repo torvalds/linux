@@ -81,7 +81,7 @@ static int pseries_eeh_init(void)
 	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
 	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
 	ibm_configure_pe		= rtas_token("ibm,configure-pe");
-	ibm_configure_bridge		= rtas_token ("ibm,configure-bridge");
+	ibm_configure_bridge		= rtas_token("ibm,configure-bridge");
 
 	/* necessary sanity check */
 	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE) {
@@ -89,7 +89,7 @@ static int pseries_eeh_init(void)
 			__func__);
 		return -EINVAL;
 	} else if (ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE) {
-		pr_warning("%s: RTAS service <ibm, set-slot-reset> invalid\n",
+		pr_warning("%s: RTAS service <ibm,set-slot-reset> invalid\n",
 			__func__);
 		return -EINVAL;
 	} else if (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&

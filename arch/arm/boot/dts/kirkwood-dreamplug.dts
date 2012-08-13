@@ -4,7 +4,7 @@
 
 / {
 	model = "Globalscale Technologies Dreamplug";
-	compatible = "globalscale,dreamplug-003-ds2001", "globalscale,dreamplug", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "globalscale,dreamplug-003-ds2001", "globalscale,dreamplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";
@@ -19,6 +19,56 @@
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "ok";
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			m25p40@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "mx25l1606e";
+				reg = <0>;
+				spi-max-frequency = <50000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x0 0x80000>;
+					label = "u-boot";
+				};
+
+				partition@100000 {
+					reg = <0x100000 0x10000>;
+					label = "u-boot env";
+				};
+
+				partition@180000 {
+					reg = <0x180000 0x10000>;
+					label = "dtb";
+				};
+			};
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <1>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		bluetooth {
+			label = "dreamplug:blue:bluetooth";
+			gpios = <&gpio1 15 1>;
+		};
+		wifi {
+			label = "dreamplug:green:wifi";
+			gpios = <&gpio1 16 1>;
+		};
+		wifi-ap {
+			label = "dreamplug:green:wifi_ap";
+			gpios = <&gpio1 17 1>;
 		};
 	};
 };

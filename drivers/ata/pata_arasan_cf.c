@@ -4,7 +4,7 @@
  * Arasan Compact Flash host controller source file
  *
  * Copyright (C) 2011 ST Microelectronics
- * Viresh Kumar <viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -184,10 +184,8 @@
 struct arasan_cf_dev {
 	/* pointer to ata_host structure */
 	struct ata_host *host;
-	/* clk structure, only if HAVE_CLK is defined */
-#ifdef CONFIG_HAVE_CLK
+	/* clk structure */
 	struct clk *clk;
-#endif
 
 	/* physical base address of controller */
 	dma_addr_t pbase;
@@ -312,13 +310,11 @@ static int cf_init(struct arasan_cf_dev *acdev)
 	unsigned long flags;
 	int ret = 0;
 
-#ifdef CONFIG_HAVE_CLK
 	ret = clk_enable(acdev->clk);
 	if (ret) {
 		dev_dbg(acdev->host->dev, "clock enable failed");
 		return ret;
 	}
-#endif
 
 	spin_lock_irqsave(&acdev->host->lock, flags);
 	/* configure CF interface clock */
@@ -344,9 +340,7 @@ static void cf_exit(struct arasan_cf_dev *acdev)
 	writel(readl(acdev->vbase + OP_MODE) & ~CFHOST_ENB,
 			acdev->vbase + OP_MODE);
 	spin_unlock_irqrestore(&acdev->host->lock, flags);
-#ifdef CONFIG_HAVE_CLK
 	clk_disable(acdev->clk);
-#endif
 }
 
 static void dma_callback(void *dev)
@@ -828,13 +822,11 @@ static int __devinit arasan_cf_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-#ifdef CONFIG_HAVE_CLK
 	acdev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(acdev->clk)) {
 		dev_warn(&pdev->dev, "Clock not found\n");
 		return PTR_ERR(acdev->clk);
 	}
-#endif
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
@@ -899,9 +891,7 @@ static int __devinit arasan_cf_probe(struct platform_device *pdev)
 			&arasan_cf_sht);
 
 free_clk:
-#ifdef CONFIG_HAVE_CLK
 	clk_put(acdev->clk);
-#endif
 	return ret;
 }
 
@@ -912,9 +902,7 @@ static int __devexit arasan_cf_remove(struct platform_device *pdev)
 
 	ata_host_detach(host);
 	cf_exit(acdev);
-#ifdef CONFIG_HAVE_CLK
 	clk_put(acdev->clk);
-#endif
 
 	return 0;
 }
@@ -959,7 +947,7 @@ static struct platform_driver arasan_cf_driver = {
 
 module_platform_driver(arasan_cf_driver);
 
-MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");
+MODULE_AUTHOR("Viresh Kumar <viresh.linux@gmail.com>");
 MODULE_DESCRIPTION("Arasan ATA Compact Flash driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);

@@ -708,7 +708,7 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	bool printed = false;
 	struct rb_node *node;
 	int i = 0;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * If have one single callchain root, don't bother printing
@@ -747,8 +747,11 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 		root = &cnode->rb_root;
 	}
 
-	return __callchain__fprintf_graph(fp, root, total_samples,
+	ret += __callchain__fprintf_graph(fp, root, total_samples,
 					  1, 1, left_margin);
+	ret += fprintf(fp, "\n");
+
+	return ret;
 }
 
 static size_t __callchain__fprintf_flat(FILE *fp,

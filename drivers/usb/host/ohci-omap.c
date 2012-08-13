@@ -18,16 +18,18 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
 #include <plat/mux.h>
-#include <mach/irqs.h>
 #include <plat/fpga.h>
-#include <plat/usb.h>
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <mach/usb.h>
 
 
 /* OMAP-1510 OHCI has its own MMU for DMA */
@@ -167,14 +169,15 @@ static int omap_1510_local_bus_init(void)
 
 static void start_hnp(struct ohci_hcd *ohci)
 {
-	const unsigned	port = ohci_to_hcd(ohci)->self.otg_port - 1;
+	struct usb_hcd *hcd = ohci_to_hcd(ohci);
+	const unsigned	port = hcd->self.otg_port - 1;
 	unsigned long	flags;
 	u32 l;
 
-	otg_start_hnp(ohci->transceiver->otg);
+	otg_start_hnp(hcd->phy->otg);
 
 	local_irq_save(flags);
-	ohci->transceiver->state = OTG_STATE_A_SUSPEND;
+	hcd->phy->state = OTG_STATE_A_SUSPEND;
 	writel (RH_PS_PSS, &ohci->regs->roothub.portstatus [port]);
 	l = omap_readl(OTG_CTRL);
 	l &= ~OTG_A_BUSREQ;
@@ -211,18 +214,18 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 
 #ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {
-		ohci->transceiver = usb_get_transceiver();
-		if (ohci->transceiver) {
-			int	status = otg_set_host(ohci->transceiver->otg,
+		hcd->phy = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (!IS_ERR_OR_NULL(hcd->phy)) {
+			int	status = otg_set_host(hcd->phy->otg,
 						&ohci_to_hcd(ohci)->self);
-			dev_dbg(hcd->self.controller, "init %s transceiver, status %d\n",
-					ohci->transceiver->label, status);
+			dev_dbg(hcd->self.controller, "init %s phy, status %d\n",
+					hcd->phy->label, status);
 			if (status) {
-				usb_put_transceiver(ohci->transceiver);
+				usb_put_phy(hcd->phy);
 				return status;
 			}
 		} else {
-			dev_err(hcd->self.controller, "can't find transceiver\n");
+			dev_err(hcd->self.controller, "can't find phy\n");
 			return -ENODEV;
 		}
 		ohci->start_hnp = start_hnp;
@@ -403,9 +406,9 @@ usb_hcd_omap_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
 	usb_remove_hcd(hcd);
-	if (ohci->transceiver) {
-		(void) otg_set_host(ohci->transceiver->otg, 0);
-		usb_put_transceiver(ohci->transceiver);
+	if (!IS_ERR_OR_NULL(hcd->phy)) {
+		(void) otg_set_host(hcd->phy->otg, 0);
+		usb_put_phy(hcd->phy);
 	}
 	if (machine_is_omap_osk())
 		gpio_free(9);

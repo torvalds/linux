@@ -2,10 +2,8 @@
 #define _S390_SWAB_H
 
 /*
- *  include/asm-s390/swab.h
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 

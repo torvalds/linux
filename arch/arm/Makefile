@@ -10,6 +10,9 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
+# Ensure linker flags are correct
+LDFLAGS		:=
+
 LDFLAGS_vmlinux	:=-p --no-undefined -X
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
@@ -157,6 +160,7 @@ machine-$(CONFIG_ARCH_MV78XX0)		:= mv78xx0
 machine-$(CONFIG_ARCH_IMX_V4_V5)	:= imx
 machine-$(CONFIG_ARCH_IMX_V6_V7)	:= imx
 machine-$(CONFIG_ARCH_MXS)		:= mxs
+machine-$(CONFIG_ARCH_MVEBU)		:= mvebu
 machine-$(CONFIG_ARCH_NETX)		:= netx
 machine-$(CONFIG_ARCH_NOMADIK)		:= nomadik
 machine-$(CONFIG_ARCH_OMAP1)		:= omap1
@@ -186,6 +190,7 @@ machine-$(CONFIG_ARCH_VEXPRESS)		:= vexpress
 machine-$(CONFIG_ARCH_VT8500)		:= vt8500
 machine-$(CONFIG_ARCH_W90X900)		:= w90x900
 machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
+machine-$(CONFIG_ARCH_SOCFPGA)		:= socfpga
 machine-$(CONFIG_MACH_SPEAR1310)	:= spear13xx
 machine-$(CONFIG_MACH_SPEAR1340)	:= spear13xx
 machine-$(CONFIG_MACH_SPEAR300)		:= spear3xx

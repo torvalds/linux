@@ -235,20 +235,6 @@ void omap4_cminst_clkdm_disable_hwsup(u8 part, s16 inst, u16 cdoffs)
 }
 
 /**
- * omap4_cminst_clkdm_force_sleep - try to put a clockdomain into idle
- * @part: PRCM partition ID that the clockdomain registers exist in
- * @inst: CM instance register offset (*_INST macro)
- * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
- *
- * Put a clockdomain referred to by (@part, @inst, @cdoffs) into idle
- * No return value.
- */
-void omap4_cminst_clkdm_force_sleep(u8 part, s16 inst, u16 cdoffs)
-{
-	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, part, inst, cdoffs);
-}
-
-/**
  * omap4_cminst_clkdm_force_sleep - try to take a clockdomain out of idle
  * @part: PRCM partition ID that the clockdomain registers exist in
  * @inst: CM instance register offset (*_INST macro)
@@ -313,9 +299,9 @@ int omap4_cminst_wait_module_idle(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_off
 
 	omap_test_timeout((_clkctrl_idlest(part, inst, cdoffs, clkctrl_offs) ==
 			   CLKCTRL_IDLEST_DISABLED),
-			  MAX_MODULE_READY_TIME, i);
+			  MAX_MODULE_DISABLE_TIME, i);
 
-	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
+	return (i < MAX_MODULE_DISABLE_TIME) ? 0 : -EBUSY;
 }
 
 /**

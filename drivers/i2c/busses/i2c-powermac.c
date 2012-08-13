@@ -227,28 +227,138 @@ static int __devexit i2c_powermac_remove(struct platform_device *dev)
 	return 0;
 }
 
+static u32 __devinit i2c_powermac_get_addr(struct i2c_adapter *adap,
+					   struct pmac_i2c_bus *bus,
+					   struct device_node *node)
+{
+	const __be32 *prop;
+	int len;
+
+	/* First check for valid "reg" */
+	prop = of_get_property(node, "reg", &len);
+	if (prop && (len >= sizeof(int)))
+		return (be32_to_cpup(prop) & 0xff) >> 1;
+
+	/* Then check old-style "i2c-address" */
+	prop = of_get_property(node, "i2c-address", &len);
+	if (prop && (len >= sizeof(int)))
+		return (be32_to_cpup(prop) & 0xff) >> 1;
+
+	/* Now handle some devices with missing "reg" properties */
+	if (!strcmp(node->name, "cereal"))
+		return 0x60;
+	else if (!strcmp(node->name, "deq"))
+		return 0x34;
+
+	dev_warn(&adap->dev, "No i2c address for %s\n", node->full_name);
+
+	return 0xffffffff;
+}
+
+static void __devinit i2c_powermac_create_one(struct i2c_adapter *adap,
+					      const char *type,
+					      u32 addr)
+{
+	struct i2c_board_info info = {};
+	struct i2c_client *newdev;
+
+	strncpy(info.type, type, sizeof(info.type));
+	info.addr = addr;
+	newdev = i2c_new_device(adap, &info);
+	if (!newdev)
+		dev_err(&adap->dev,
+			"i2c-powermac: Failure to register missing %s\n",
+			type);
+}
+
+static void __devinit i2c_powermac_add_missing(struct i2c_adapter *adap,
+					       struct pmac_i2c_bus *bus,
+					       bool found_onyx)
+{
+	struct device_node *busnode = pmac_i2c_get_bus_node(bus);
+	int rc;
+
+	/* Check for the onyx audio codec */
+#define ONYX_REG_CONTROL		67
+	if (of_device_is_compatible(busnode, "k2-i2c") && !found_onyx) {
+		union i2c_smbus_data data;
+
+		rc = i2c_smbus_xfer(adap, 0x46, 0, I2C_SMBUS_READ,
+				    ONYX_REG_CONTROL, I2C_SMBUS_BYTE_DATA,
+				    &data);
+		if (rc >= 0)
+			i2c_powermac_create_one(adap, "MAC,pcm3052", 0x46);
+
+		rc = i2c_smbus_xfer(adap, 0x47, 0, I2C_SMBUS_READ,
+				    ONYX_REG_CONTROL, I2C_SMBUS_BYTE_DATA,
+				    &data);
+		if (rc >= 0)
+			i2c_powermac_create_one(adap, "MAC,pcm3052", 0x47);
+	}
+}
+
+static bool __devinit i2c_powermac_get_type(struct i2c_adapter *adap,
+					    struct device_node *node,
+					    u32 addr, char *type, int type_size)
+{
+	char tmp[16];
+
+	/* Note: we to _NOT_ want the standard
+	 * i2c drivers to match with any of our powermac stuff
+	 * unless they have been specifically modified to handle
+	 * it on a case by case basis. For example, for thermal
+	 * control, things like lm75 etc... shall match with their
+	 * corresponding windfarm drivers, _NOT_ the generic ones,
+	 * so we force a prefix of AAPL, onto the modalias to
+	 * make that happen
+	 */
+
+	/* First try proper modalias */
+	if (of_modalias_node(node, tmp, sizeof(tmp)) >= 0) {
+		snprintf(type, type_size, "MAC,%s", tmp);
+		return true;
+	}
+
+	/* Now look for known workarounds */
+	if (!strcmp(node->name, "deq")) {
+		/* Apple uses address 0x34 for TAS3001 and 0x35 for TAS3004 */
+		if (addr == 0x34) {
+			snprintf(type, type_size, "MAC,tas3001");
+			return true;
+		} else if (addr == 0x35) {
+			snprintf(type, type_size, "MAC,tas3004");
+			return true;
+		}
+	}
+
+	dev_err(&adap->dev, "i2c-powermac: modalias failure"
+		" on %s\n", node->full_name);
+	return false;
+}
+
 static void __devinit i2c_powermac_register_devices(struct i2c_adapter *adap,
 						    struct pmac_i2c_bus *bus)
 {
 	struct i2c_client *newdev;
 	struct device_node *node;
+	bool found_onyx = 0;
+
+	/*
+	 * In some cases we end up with the via-pmu node itself, in this
+	 * case we skip this function completely as the device-tree will
+	 * not contain anything useful.
+	 */
+	if (!strcmp(adap->dev.of_node->name, "via-pmu"))
+		return;
 
 	for_each_child_of_node(adap->dev.of_node, node) {
 		struct i2c_board_info info = {};
-		struct dev_archdata dev_ad = {};
-		const __be32 *reg;
-		char tmp[16];
 		u32 addr;
-		int len;
 
 		/* Get address & channel */
-		reg = of_get_property(node, "reg", &len);
-		if (!reg || (len < sizeof(int))) {
-			dev_err(&adap->dev, "i2c-powermac: invalid reg on %s\n",
-				node->full_name);
+		addr = i2c_powermac_get_addr(adap, bus, node);
+		if (addr == 0xffffffff)
 			continue;
-		}
-		addr = be32_to_cpup(reg);
 
 		/* Multibus setup, check channel */
 		if (!pmac_i2c_match_adapter(node, adap))
@@ -257,27 +367,23 @@ static void __devinit i2c_powermac_register_devices(struct i2c_adapter *adap,
 		dev_dbg(&adap->dev, "i2c-powermac: register %s\n",
 			node->full_name);
 
-		/* Make up a modalias. Note: we to _NOT_ want the standard
-		 * i2c drivers to match with any of our powermac stuff
-		 * unless they have been specifically modified to handle
-		 * it on a case by case basis. For example, for thermal
-		 * control, things like lm75 etc... shall match with their
-		 * corresponding windfarm drivers, _NOT_ the generic ones,
-		 * so we force a prefix of AAPL, onto the modalias to
-		 * make that happen
+		/*
+		 * Keep track of some device existence to handle
+		 * workarounds later.
 		 */
-		if (of_modalias_node(node, tmp, sizeof(tmp)) < 0) {
-			dev_err(&adap->dev, "i2c-powermac: modalias failure"
-				" on %s\n", node->full_name);
+		if (of_device_is_compatible(node, "pcm3052"))
+			found_onyx = true;
+
+		/* Make up a modalias */
+		if (!i2c_powermac_get_type(adap, node, addr,
+					   info.type, sizeof(info.type))) {
 			continue;
 		}
-		snprintf(info.type, sizeof(info.type), "MAC,%s", tmp);
 
 		/* Fill out the rest of the info structure */
-		info.addr = (addr & 0xff) >> 1;
+		info.addr = addr;
 		info.irq = irq_of_parse_and_map(node, 0);
 		info.of_node = of_node_get(node);
-		info.archdata = &dev_ad;
 
 		newdev = i2c_new_device(adap, &info);
 		if (!newdev) {
@@ -292,6 +398,9 @@ static void __devinit i2c_powermac_register_devices(struct i2c_adapter *adap,
 			continue;
 		}
 	}
+
+	/* Additional workarounds */
+	i2c_powermac_add_missing(adap, bus, found_onyx);
 }
 
 static int __devinit i2c_powermac_probe(struct platform_device *dev)
