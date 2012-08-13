@@ -26,6 +26,8 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
+#include "timer.h"
+
 /*
  * APP side special timer registers
  * This timer contains four timers which can fire an interrupt each.

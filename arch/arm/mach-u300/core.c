@@ -39,12 +39,15 @@
 #include <asm/hardware/vic.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 
 #include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 #include <mach/dma_channels.h>
 
+#include "timer.h"
 #include "spi.h"
 #include "i2c.h"
 #include "u300-gpio.h"
@@ -76,7 +79,7 @@ static struct map_desc u300_io_desc[] __initdata = {
 	},
 };
 
-void __init u300_map_io(void)
+static void __init u300_map_io(void)
 {
 	iotable_init(u300_io_desc, ARRAY_SIZE(u300_io_desc));
 	/* We enable a real big DMA buffer if need be. */
@@ -1600,7 +1603,7 @@ static struct platform_device *platform_devs[] __initdata = {
  * together so some interrupts are connected to the first one and some
  * to the second one.
  */
-void __init u300_init_irq(void)
+static void __init u300_init_irq(void)
 {
 	u32 mask[2] = {0, 0};
 	struct clk *clk;
@@ -1742,7 +1745,7 @@ static void __init u300_assign_physmem(void)
 	}
 }
 
-void __init u300_init_devices(void)
+static void __init u300_init_machine(void)
 {
 	int i;
 	u16 val;
@@ -1783,7 +1786,7 @@ void __init u300_init_devices(void)
 /* Forward declare this function from the watchdog */
 void coh901327_watchdog_reset(void);
 
-void u300_restart(char mode, const char *cmd)
+static void u300_restart(char mode, const char *cmd)
 {
 	switch (mode) {
 	case 's':
@@ -1799,3 +1802,14 @@ void u300_restart(char mode, const char *cmd)
 	/* Wait for system do die/reset. */
 	while (1);
 }
+
+MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
+	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
+	.atag_offset	= 0x100,
+	.map_io		= u300_map_io,
+	.init_irq	= u300_init_irq,
+	.handle_irq	= vic_handle_irq,
+	.timer		= &u300_timer,
+	.init_machine	= u300_init_machine,
+	.restart	= u300_restart,
+MACHINE_END
