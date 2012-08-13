@@ -101,6 +101,8 @@ config	SOC_IMX51
 	select SOC_IMX5
 	select ARCH_MX5
 	select ARCH_MX51
+	select PINCTRL
+	select PINCTRL_IMX51
 
 if ARCH_IMX_V4_V5
 
