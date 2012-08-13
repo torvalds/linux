@@ -35,7 +35,7 @@ struct iguanair {
 	struct device *dev;
 	struct usb_device *udev;
 
-	int pipe_in, pipe_out;
+	int pipe_out;
 	uint8_t bufsize;
 	uint8_t version[2];
 
@@ -82,11 +82,6 @@ struct packet {
 	uint8_t cmd;
 };
 
-struct response_packet {
-	struct packet header;
-	uint8_t data[4];
-};
-
 struct send_packet {
 	struct packet header;
 	uint8_t length;
@@ -100,6 +95,26 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 {
 	if (len >= 4 && ir->buf_in[0] == 0 && ir->buf_in[1] == 0) {
 		switch (ir->buf_in[3]) {
+		case CMD_GET_VERSION:
+			if (len == 6) {
+				ir->version[0] = ir->buf_in[4];
+				ir->version[1] = ir->buf_in[5];
+				complete(&ir->completion);
+			}
+			break;
+		case CMD_GET_BUFSIZE:
+			if (len >= 5) {
+				ir->bufsize = ir->buf_in[4];
+				complete(&ir->completion);
+			}
+			break;
+		case CMD_GET_FEATURES:
+			if (len > 5) {
+				if (ir->version[0] >= 4)
+					ir->cycle_overhead = ir->buf_in[5];
+				complete(&ir->completion);
+			}
+			break;
 		case CMD_TX_OVERFLOW:
 			ir->tx_overflow = true;
 		case CMD_RECEIVER_OFF:
@@ -169,31 +184,22 @@ static void iguanair_rx(struct urb *urb)
 	usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-static int iguanair_send(struct iguanair *ir, void *data, unsigned size,
-			struct response_packet *response, unsigned *res_len)
+static int iguanair_send(struct iguanair *ir, void *data, unsigned size)
 {
-	unsigned offset, len;
 	int rc, transferred;
 
-	for (offset = 0; offset < size; offset += MAX_PACKET_SIZE) {
-		len = min(size - offset, MAX_PACKET_SIZE);
+	INIT_COMPLETION(ir->completion);
 
-		if (ir->tx_overflow)
-			return -EOVERFLOW;
+	rc = usb_interrupt_msg(ir->udev, ir->pipe_out, data, size,
+							&transferred, TIMEOUT);
+	if (rc)
+		return rc;
 
-		rc = usb_interrupt_msg(ir->udev, ir->pipe_out, data + offset,
-						len, &transferred, TIMEOUT);
-		if (rc)
-			return rc;
+	if (transferred != size)
+		return -EIO;
 
-		if (transferred != len)
-			return -EIO;
-	}
-
-	if (response) {
-		rc = usb_interrupt_msg(ir->udev, ir->pipe_in, response,
-					sizeof(*response), res_len, TIMEOUT);
-	}
+	if (wait_for_completion_timeout(&ir->completion, TIMEOUT) == 0)
+		return -ETIMEDOUT;
 
 	return rc;
 }
@@ -201,65 +207,39 @@ static int iguanair_send(struct iguanair *ir, void *data, unsigned size,
 static int iguanair_get_features(struct iguanair *ir)
 {
 	struct packet packet;
-	struct response_packet response;
-	int rc, len;
+	int rc;
 
 	packet.start = 0;
 	packet.direction = DIR_OUT;
 	packet.cmd = CMD_GET_VERSION;
 
-	rc = iguanair_send(ir, &packet, sizeof(packet), &response, &len);
+	rc = iguanair_send(ir, &packet, sizeof(packet));
 	if (rc) {
 		dev_info(ir->dev, "failed to get version\n");
 		goto out;
 	}
 
-	if (len != 6) {
-		dev_info(ir->dev, "failed to get version\n");
-		rc = -EIO;
-		goto out;
-	}
-
-	ir->version[0] = response.data[0];
-	ir->version[1] = response.data[1];
 	ir->bufsize = 150;
 	ir->cycle_overhead = 65;
 
 	packet.cmd = CMD_GET_BUFSIZE;
 
-	rc = iguanair_send(ir, &packet, sizeof(packet), &response, &len);
+	rc = iguanair_send(ir, &packet, sizeof(packet));
 	if (rc) {
 		dev_info(ir->dev, "failed to get buffer size\n");
 		goto out;
 	}
-
-	if (len != 5) {
-		dev_info(ir->dev, "failed to get buffer size\n");
-		rc = -EIO;
-		goto out;
-	}
-
-	ir->bufsize = response.data[0];
 
 	if (ir->version[0] == 0 || ir->version[1] == 0)
 		goto out;
 
 	packet.cmd = CMD_GET_FEATURES;
 
-	rc = iguanair_send(ir, &packet, sizeof(packet), &response, &len);
+	rc = iguanair_send(ir, &packet, sizeof(packet));
 	if (rc) {
 		dev_info(ir->dev, "failed to get features\n");
 		goto out;
 	}
-
-	if (len < 5) {
-		dev_info(ir->dev, "failed to get features\n");
-		rc = -EIO;
-		goto out;
-	}
-
-	if (len > 5 && ir->version[0] >= 4)
-		ir->cycle_overhead = response.data[1];
 
 out:
 	return rc;
@@ -269,17 +249,8 @@ static int iguanair_receiver(struct iguanair *ir, bool enable)
 {
 	struct packet packet = { 0, DIR_OUT, enable ?
 				CMD_RECEIVER_ON : CMD_RECEIVER_OFF };
-	int rc;
 
-	INIT_COMPLETION(ir->completion);
-
-	rc = iguanair_send(ir, &packet, sizeof(packet), NULL, NULL);
-	if (rc)
-		return rc;
-
-	wait_for_completion_timeout(&ir->completion, TIMEOUT);
-
-	return 0;
+	return iguanair_send(ir, &packet, sizeof(packet));
 }
 
 /*
@@ -406,17 +377,10 @@ static int iguanair_tx(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	ir->tx_overflow = false;
 
-	INIT_COMPLETION(ir->completion);
+	rc = iguanair_send(ir, packet, size + 8);
 
-	rc = iguanair_send(ir, packet, size + 8, NULL, NULL);
-
-	if (rc == 0) {
-		wait_for_completion_timeout(&ir->completion, TIMEOUT);
-		if (ir->tx_overflow)
-			rc = -EOVERFLOW;
-	}
-
-	ir->tx_overflow = false;
+	if (rc == 0 && ir->tx_overflow)
+		rc = -EOVERFLOW;
 
 	if (ir->receiver_on) {
 		if (iguanair_receiver(ir, true))
@@ -436,8 +400,6 @@ static int iguanair_open(struct rc_dev *rdev)
 	int rc;
 
 	mutex_lock(&ir->lock);
-
-	usb_submit_urb(ir->urb_in, GFP_KERNEL);
 
 	BUG_ON(ir->receiver_on);
 
@@ -462,8 +424,6 @@ static void iguanair_close(struct rc_dev *rdev)
 	if (rc)
 		dev_warn(ir->dev, "failed to disable receiver: %d\n", rc);
 
-	usb_kill_urb(ir->urb_in);
-
 	mutex_unlock(&ir->lock);
 }
 
@@ -473,7 +433,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct iguanair *ir;
 	struct rc_dev *rc;
-	int ret;
+	int ret, pipein;
 	struct usb_host_interface *idesc;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
@@ -483,7 +443,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 		goto out;
 	}
 
-	ir->buf_in = usb_alloc_coherent(udev, MAX_PACKET_SIZE, GFP_ATOMIC,
+	ir->buf_in = usb_alloc_coherent(udev, MAX_PACKET_SIZE, GFP_KERNEL,
 								&ir->dma_in);
 	ir->urb_in = usb_alloc_urb(0, GFP_KERNEL);
 
@@ -502,24 +462,27 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	ir->rc = rc;
 	ir->dev = &intf->dev;
 	ir->udev = udev;
-	ir->pipe_in = usb_rcvintpipe(udev,
-				idesc->endpoint[0].desc.bEndpointAddress);
 	ir->pipe_out = usb_sndintpipe(udev,
 				idesc->endpoint[1].desc.bEndpointAddress);
 	mutex_init(&ir->lock);
 	init_completion(&ir->completion);
 
-	ret = iguanair_get_features(ir);
-	if (ret) {
-		dev_warn(&intf->dev, "failed to get device features");
-		goto out;
-	}
-
-	usb_fill_int_urb(ir->urb_in, ir->udev, ir->pipe_in, ir->buf_in,
+	pipein = usb_rcvintpipe(udev, idesc->endpoint[0].desc.bEndpointAddress);
+	usb_fill_int_urb(ir->urb_in, udev, pipein, ir->buf_in,
 		MAX_PACKET_SIZE, iguanair_rx, ir,
 		idesc->endpoint[0].desc.bInterval);
 	ir->urb_in->transfer_dma = ir->dma_in;
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+
+	ret = usb_submit_urb(ir->urb_in, GFP_KERNEL);
+	if (ret) {
+		dev_warn(&intf->dev, "failed to submit urb: %d\n", ret);
+		goto out;
+	}
+
+	ret = iguanair_get_features(ir);
+	if (ret)
+		goto out2;
 
 	snprintf(ir->name, sizeof(ir->name),
 		"IguanaWorks USB IR Transceiver version %d.%d",
@@ -547,7 +510,7 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	ret = rc_register_device(rc);
 	if (ret < 0) {
 		dev_err(&intf->dev, "failed to register rc device %d", ret);
-		goto out;
+		goto out2;
 	}
 
 	usb_set_intfdata(intf, ir);
@@ -555,6 +518,8 @@ static int __devinit iguanair_probe(struct usb_interface *intf,
 	dev_info(&intf->dev, "Registered %s", ir->name);
 
 	return 0;
+out2:
+	usb_kill_urb(ir->urb_in);
 out:
 	if (ir) {
 		usb_free_urb(ir->urb_in);
