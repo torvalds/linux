@@ -190,17 +190,17 @@ void kvm_pic_update_irq(struct kvm_pic *s)
 
 int kvm_pic_set_irq(struct kvm_pic *s, int irq, int irq_source_id, int level)
 {
-	int ret = -1;
+	int ret, irq_level;
+
+	BUG_ON(irq < 0 || irq >= PIC_NUM_PINS);
 
 	pic_lock(s);
-	if (irq >= 0 && irq < PIC_NUM_PINS) {
-		int irq_level = __kvm_irq_line_state(&s->irq_states[irq],
-						     irq_source_id, level);
-		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, irq_level);
-		pic_update_irq(s);
-		trace_kvm_pic_set_irq(irq >> 3, irq & 7, s->pics[irq >> 3].elcr,
-				      s->pics[irq >> 3].imr, ret == 0);
-	}
+	irq_level = __kvm_irq_line_state(&s->irq_states[irq],
+					 irq_source_id, level);
+	ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, irq_level);
+	pic_update_irq(s);
+	trace_kvm_pic_set_irq(irq >> 3, irq & 7, s->pics[irq >> 3].elcr,
+			      s->pics[irq >> 3].imr, ret == 0);
 	pic_unlock(s);
 
 	return ret;
