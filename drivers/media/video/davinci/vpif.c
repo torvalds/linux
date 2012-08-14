@@ -417,7 +417,7 @@ int vpif_channel_getfid(u8 channel_id)
 }
 EXPORT_SYMBOL(vpif_channel_getfid);
 
-static int __init vpif_probe(struct platform_device *pdev)
+static int __devinit vpif_probe(struct platform_device *pdev)
 {
 	int status = 0;
 
@@ -490,7 +490,7 @@ static const struct dev_pm_ops vpif_pm = {
 #define vpif_pm_ops NULL
 #endif
 
-static __refdata struct platform_driver vpif_driver = {
+static struct platform_driver vpif_driver = {
 	.driver = {
 		.name	= "vpif",
 		.owner = THIS_MODULE,

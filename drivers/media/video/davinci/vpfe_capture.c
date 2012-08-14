@@ -1829,7 +1829,7 @@ static struct vpfe_device *vpfe_initialize(void)
  * itself to the V4L2 driver and initializes fields of each
  * device objects
  */
-static __init int vpfe_probe(struct platform_device *pdev)
+static __devinit int vpfe_probe(struct platform_device *pdev)
 {
 	struct vpfe_subdev_info *sdinfo;
 	struct vpfe_config *vpfe_cfg;
@@ -2066,7 +2066,7 @@ static const struct dev_pm_ops vpfe_dev_pm_ops = {
 	.resume = vpfe_resume,
 };
 
-static __refdata struct platform_driver vpfe_driver = {
+static struct platform_driver vpfe_driver = {
 	.driver = {
 		.name = CAPTURE_DRV_NAME,
 		.owner = THIS_MODULE,

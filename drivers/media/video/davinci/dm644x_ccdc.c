@@ -957,7 +957,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int __init dm644x_ccdc_probe(struct platform_device *pdev)
+static int __devinit dm644x_ccdc_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	int status = 0;
@@ -1068,7 +1068,7 @@ static const struct dev_pm_ops dm644x_ccdc_pm_ops = {
 	.resume = dm644x_ccdc_resume,
 };
 
-static __refdata struct platform_driver dm644x_ccdc_driver = {
+static struct platform_driver dm644x_ccdc_driver = {
 	.driver = {
 		.name	= "dm644x_ccdc",
 		.owner = THIS_MODULE,

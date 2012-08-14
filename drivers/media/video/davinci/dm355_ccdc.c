@@ -965,7 +965,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int __init dm355_ccdc_probe(struct platform_device *pdev)
+static int __devinit dm355_ccdc_probe(struct platform_device *pdev)
 {
 	void (*setup_pinmux)(void);
 	struct resource	*res;
@@ -1060,7 +1060,7 @@ static int dm355_ccdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __refdata struct platform_driver dm355_ccdc_driver = {
+static struct platform_driver dm355_ccdc_driver = {
 	.driver = {
 		.name	= "dm355_ccdc",
 		.owner = THIS_MODULE,
