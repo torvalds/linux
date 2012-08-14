@@ -8,4 +8,4 @@ gspca_m5602-objs := m5602_core.o \
 		    m5602_s5k83a.o \
 		    m5602_s5k4aa.o
 
-ccflags-y += -I$(srctree)/drivers/media/video/gspca
+ccflags-y += -I$(srctree)/drivers/media/usb/gspca

@@ -99,20 +99,12 @@ obj-$(CONFIG_VIDEO_VINO) += vino.o
 obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
-obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
-obj-$(CONFIG_VIDEO_TLG2300) += tlg2300/
-obj-$(CONFIG_VIDEO_CX231XX) += cx231xx/
 obj-$(CONFIG_VIDEO_CX25821) += cx25821/
-obj-$(CONFIG_VIDEO_USBVISION) += usbvision/
-obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2/
-obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
-obj-$(CONFIG_VIDEO_TM6000) += tm6000/
 obj-$(CONFIG_VIDEO_MXB) += mxb.o
 obj-$(CONFIG_VIDEO_HEXIUM_ORION) += hexium_orion.o
 obj-$(CONFIG_VIDEO_HEXIUM_GEMINI) += hexium_gemini.o
 obj-$(CONFIG_STA2X11_VIP) += sta2x11_vip.o
 obj-$(CONFIG_VIDEO_TIMBERDALE)	+= timblogiw.o
-obj-$(CONFIG_VIDEO_STK1160) += stk1160/
 
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
 
@@ -130,11 +122,6 @@ obj-$(CONFIG_VIDEO_OMAP3)	+= omap3isp/
 obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
 obj-$(CONFIG_USB_STKWEBCAM)     += stkwebcam.o
 
-obj-$(CONFIG_USB_SN9C102)       += sn9c102/
-obj-$(CONFIG_USB_PWC)           += pwc/
-obj-$(CONFIG_USB_GSPCA)         += gspca/
-
-obj-$(CONFIG_VIDEO_HDPVR)	+= hdpvr/
 
 obj-$(CONFIG_USB_S2255)		+= s2255drv.o
 
@@ -179,9 +166,6 @@ obj-$(CONFIG_ARCH_DAVINCI)		+= davinci/
 
 obj-$(CONFIG_VIDEO_SH_VOU)		+= sh_vou.o
 
-obj-$(CONFIG_VIDEO_AU0828) += au0828/
-
-obj-$(CONFIG_USB_VIDEO_CLASS)	+= uvc/
 obj-$(CONFIG_VIDEO_SAA7164)     += saa7164/
 
 obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o

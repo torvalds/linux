@@ -616,16 +616,6 @@ menuconfig V4L_USB_DRIVERS
 
 if V4L_USB_DRIVERS && MEDIA_CAMERA_SUPPORT
 
-	comment "Webcam devices"
-
-source "drivers/media/video/uvc/Kconfig"
-
-source "drivers/media/video/gspca/Kconfig"
-
-source "drivers/media/video/pwc/Kconfig"
-
-source "drivers/media/video/cpia2/Kconfig"
-
 config USB_ZR364XX
 	tristate "USB ZR364XX Camera support"
 	depends on VIDEO_V4L2
@@ -662,39 +652,8 @@ config USB_S2255
 	  Say Y here if you want support for the Sensoray 2255 USB device.
 	  This driver can be compiled as a module, called s2255drv.
 
-source "drivers/media/video/sn9c102/Kconfig"
 
 endif # V4L_USB_DRIVERS && MEDIA_CAMERA_SUPPORT
-
-if V4L_USB_DRIVERS
-
-	comment "Webcam and/or TV USB devices"
-
-source "drivers/media/video/em28xx/Kconfig"
-
-endif
-
-if V4L_USB_DRIVERS && MEDIA_ANALOG_TV_SUPPORT
-
-	comment "TV USB devices"
-
-source "drivers/media/video/au0828/Kconfig"
-
-source "drivers/media/video/pvrusb2/Kconfig"
-
-source "drivers/media/video/hdpvr/Kconfig"
-
-source "drivers/media/video/tlg2300/Kconfig"
-
-source "drivers/media/video/cx231xx/Kconfig"
-
-source "drivers/media/video/tm6000/Kconfig"
-
-source "drivers/media/video/usbvision/Kconfig"
-
-source "drivers/media/video/stk1160/Kconfig"
-
-endif # V4L_USB_DRIVERS
 
 #
 # PCI drivers configuration - No devices here are for webcams

@@ -6,5 +6,5 @@ gspca_stv06xx-objs := stv06xx.o \
 		      stv06xx_pb0100.o \
 		      stv06xx_st6422.o
 
-ccflags-y += -I$(srctree)/drivers/media/video/gspca
+ccflags-y += -I$(srctree)/drivers/media/usb/gspca
 
