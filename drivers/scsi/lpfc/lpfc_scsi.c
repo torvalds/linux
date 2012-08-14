@@ -4502,9 +4502,10 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		ret = FAILED;
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 				 "0748 abort handler timed out waiting "
-				 "for abort to complete: ret %#x, ID %d, "
-				 "LUN %d\n",
-				 ret, cmnd->device->id, cmnd->device->lun);
+				 "for abortng I/O (xri:x%x) to complete: "
+				 "ret %#x, ID %d, LUN %d\n",
+				 iocb->sli4_xritag, ret,
+				 cmnd->device->id, cmnd->device->lun);
 	}
 	goto out;
 
