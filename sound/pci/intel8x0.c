@@ -2620,7 +2620,7 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -2741,7 +2741,7 @@ static SIMPLE_DEV_PM_OPS(intel8x0_pm, intel8x0_suspend, intel8x0_resume);
 #define INTEL8X0_PM_OPS	&intel8x0_pm
 #else
 #define INTEL8X0_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 #define INTEL8X0_TESTBUF_SIZE	32768	/* enough large for one shot */
 

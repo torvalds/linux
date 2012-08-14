@@ -2646,7 +2646,7 @@ int __devinit snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device, struct
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 int __devinit snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu)
 {
 	int len;

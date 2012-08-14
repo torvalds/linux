@@ -206,7 +206,7 @@ static void __devexit snd_card_emu10k1_remove(struct pci_dev *pci)
 }
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_emu10k1_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -268,7 +268,7 @@ static SIMPLE_DEV_PM_OPS(snd_emu10k1_pm, snd_emu10k1_suspend, snd_emu10k1_resume
 #define SND_EMU10K1_PM_OPS	&snd_emu10k1_pm
 #else
 #define SND_EMU10K1_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver emu10k1_driver = {
 	.name = KBUILD_MODNAME,

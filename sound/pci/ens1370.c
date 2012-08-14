@@ -2032,7 +2032,7 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 	synchronize_irq(ensoniq->irq);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_ensoniq_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -2094,7 +2094,7 @@ static SIMPLE_DEV_PM_OPS(snd_ensoniq_pm, snd_ensoniq_suspend, snd_ensoniq_resume
 #define SND_ENSONIQ_PM_OPS	&snd_ensoniq_pm
 #else
 #define SND_ENSONIQ_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static int __devinit snd_ensoniq_create(struct snd_card *card,
 				     struct pci_dev *pci,

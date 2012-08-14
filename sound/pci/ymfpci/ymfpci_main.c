@@ -2242,7 +2242,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 	pci_set_power_state(chip->pci, 3);
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	vfree(chip->saved_regs);
 #endif
 	if (chip->irq >= 0)
@@ -2272,7 +2272,7 @@ static int snd_ymfpci_dev_free(struct snd_device *device)
 	return snd_ymfpci_free(chip);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int saved_regs_index[] = {
 	/* spdif */
 	YDSXGR_SPDIFOUTCTRL,
@@ -2374,7 +2374,7 @@ static int snd_ymfpci_resume(struct device *dev)
 }
 
 SIMPLE_DEV_PM_OPS(snd_ymfpci_pm, snd_ymfpci_suspend, snd_ymfpci_resume);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 int __devinit snd_ymfpci_create(struct snd_card *card,
 				struct pci_dev * pci,
@@ -2452,7 +2452,7 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		return err;
 	}
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	chip->saved_regs = vmalloc(YDSXGR_NUM_SAVED_REGS * sizeof(u32));
 	if (chip->saved_regs == NULL) {
 		snd_ymfpci_free(chip);

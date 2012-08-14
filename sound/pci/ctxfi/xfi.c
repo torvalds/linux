@@ -125,7 +125,7 @@ static void __devexit ct_card_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ct_card_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);

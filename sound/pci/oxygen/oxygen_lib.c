@@ -726,7 +726,7 @@ void oxygen_pci_remove(struct pci_dev *pci)
 }
 EXPORT_SYMBOL(oxygen_pci_remove);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int oxygen_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -824,7 +824,7 @@ static int oxygen_pci_resume(struct device *dev)
 
 SIMPLE_DEV_PM_OPS(oxygen_pci_pm, oxygen_pci_suspend, oxygen_pci_resume);
 EXPORT_SYMBOL(oxygen_pci_pm);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 void oxygen_pci_shutdown(struct pci_dev *pci)
 {

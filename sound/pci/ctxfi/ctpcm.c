@@ -427,7 +427,7 @@ int ct_alsa_pcm_create(struct ct_atc *atc,
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 			snd_dma_pci_data(atc->pci), 128*1024, 128*1024);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	atc->pcms[device] = pcm;
 #endif
 

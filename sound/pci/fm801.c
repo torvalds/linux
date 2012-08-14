@@ -205,7 +205,7 @@ struct fm801 {
 	struct snd_tea575x tea;
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u16 saved_regs[0x20];
 #endif
 };
@@ -1361,7 +1361,7 @@ static void __devexit snd_card_fm801_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static unsigned char saved_regs[] = {
 	FM801_PCM_VOL, FM801_I2S_VOL, FM801_FM_VOL, FM801_REC_SRC,
 	FM801_PLY_CTRL, FM801_PLY_COUNT, FM801_PLY_BUF1, FM801_PLY_BUF2,
@@ -1421,7 +1421,7 @@ static SIMPLE_DEV_PM_OPS(snd_fm801_pm, snd_fm801_suspend, snd_fm801_resume);
 #define SND_FM801_PM_OPS	&snd_fm801_pm
 #else
 #define SND_FM801_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver fm801_driver = {
 	.name = KBUILD_MODNAME,

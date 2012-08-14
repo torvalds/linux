@@ -384,7 +384,7 @@ struct snd_ice1712 {
 	char **ext_clock_names;
 	int ext_clock_count;
 	void (*pro_open)(struct snd_ice1712 *, struct snd_pcm_substream *);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	int (*pm_suspend)(struct snd_ice1712 *);
 	int (*pm_resume)(struct snd_ice1712 *);
 	unsigned int pm_suspend_enabled:1;

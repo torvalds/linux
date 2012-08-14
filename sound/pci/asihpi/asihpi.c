@@ -2968,7 +2968,7 @@ static struct pci_driver driver = {
 	.id_table = asihpi_pci_tbl,
 	.probe = snd_asihpi_probe,
 	.remove = __devexit_p(snd_asihpi_remove),
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*	.suspend = snd_asihpi_suspend,
 	.resume = snd_asihpi_resume, */
 #endif

@@ -1241,7 +1241,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
  *  Create the EMU10K1 instance
  */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int alloc_pm_buffer(struct snd_emu10k1 *emu);
 static void free_pm_buffer(struct snd_emu10k1 *emu);
 #endif
@@ -1275,7 +1275,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		snd_dma_free_pages(&emu->ptb_pages);
 	vfree(emu->page_ptr_table);
 	vfree(emu->page_addr_table);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	free_pm_buffer(emu);
 #endif
 	if (emu->port)
@@ -1971,7 +1971,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	err = snd_emu10k1_init(emu, enable_ir, 0);
 	if (err < 0)
 		goto error;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	err = alloc_pm_buffer(emu);
 	if (err < 0)
 		goto error;
@@ -2000,7 +2000,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	return err;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static unsigned char saved_regs[] = {
 	CPF, PTRX, CVCF, VTFT, Z1, Z2, PSST, DSL, CCCA, CCR, CLP,
 	FXRT, MAPA, MAPB, ENVVOL, ATKHLDV, DCYSUSV, LFOVAL1, ENVVAL,

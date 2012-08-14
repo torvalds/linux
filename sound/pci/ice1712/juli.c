@@ -486,7 +486,7 @@ static int __devinit juli_add_controls(struct snd_ice1712 *ice)
  * suspend/resume
  * */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int juli_resume(struct snd_ice1712 *ice)
 {
 	struct snd_akm4xxx *ak = ice->akm;
@@ -652,7 +652,7 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 
 	ice->spdif.ops.open = juli_spdif_in_open;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	ice->pm_resume = juli_resume;
 	ice->pm_suspend = juli_suspend;
 	ice->pm_suspend_enabled = 1;
