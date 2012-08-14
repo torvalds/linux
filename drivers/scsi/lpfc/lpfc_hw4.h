@@ -2573,7 +2573,7 @@ struct lpfc_mbx_get_sli4_parameters {
 };
 
 struct lpfc_rscr_desc_generic {
-#define LPFC_RSRC_DESC_WSIZE			18
+#define LPFC_RSRC_DESC_WSIZE			22
 	uint32_t desc[LPFC_RSRC_DESC_WSIZE];
 };
 
@@ -2583,6 +2583,9 @@ struct lpfc_rsrc_desc_pcie {
 #define lpfc_rsrc_desc_pcie_type_MASK		0x000000ff
 #define lpfc_rsrc_desc_pcie_type_WORD		word0
 #define LPFC_RSRC_DESC_TYPE_PCIE		0x40
+#define lpfc_rsrc_desc_pcie_length_SHIFT	8
+#define lpfc_rsrc_desc_pcie_length_MASK		0x000000ff
+#define lpfc_rsrc_desc_pcie_length_WORD		word0
 	uint32_t word1;
 #define lpfc_rsrc_desc_pcie_pfnum_SHIFT		0
 #define lpfc_rsrc_desc_pcie_pfnum_MASK		0x000000ff
@@ -2610,6 +2613,12 @@ struct lpfc_rsrc_desc_fcfcoe {
 #define lpfc_rsrc_desc_fcfcoe_type_MASK		0x000000ff
 #define lpfc_rsrc_desc_fcfcoe_type_WORD		word0
 #define LPFC_RSRC_DESC_TYPE_FCFCOE		0x43
+#define lpfc_rsrc_desc_fcfcoe_length_SHIFT	8
+#define lpfc_rsrc_desc_fcfcoe_length_MASK	0x000000ff
+#define lpfc_rsrc_desc_fcfcoe_length_WORD	word0
+#define LPFC_RSRC_DESC_TYPE_FCFCOE_V0_RSVD	0
+#define LPFC_RSRC_DESC_TYPE_FCFCOE_V0_LENGTH	72
+#define LPFC_RSRC_DESC_TYPE_FCFCOE_V1_LENGTH	88
 	uint32_t word1;
 #define lpfc_rsrc_desc_fcfcoe_vfnum_SHIFT	0
 #define lpfc_rsrc_desc_fcfcoe_vfnum_MASK	0x000000ff
@@ -2668,6 +2677,12 @@ struct lpfc_rsrc_desc_fcfcoe {
 #define lpfc_rsrc_desc_fcfcoe_eq_cnt_SHIFT	16
 #define lpfc_rsrc_desc_fcfcoe_eq_cnt_MASK	0x0000ffff
 #define lpfc_rsrc_desc_fcfcoe_eq_cnt_WORD	word13
+/* extended FC/FCoE Resource Descriptor when length = 88 bytes */
+	uint32_t bw_min;
+	uint32_t bw_max;
+	uint32_t iops_min;
+	uint32_t iops_max;
+	uint32_t reserved[4];
 };
 
 struct lpfc_func_cfg {

@@ -6299,8 +6299,9 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	uint32_t shdr_status, shdr_add_status;
 	struct lpfc_mbx_get_func_cfg *get_func_cfg;
 	struct lpfc_rsrc_desc_fcfcoe *desc;
+	char *pdesc_0;
 	uint32_t desc_count;
-	int length, i, rc = 0;
+	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
@@ -6412,18 +6413,17 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 			 LPFC_MBOX_OPCODE_GET_FUNCTION_CONFIG,
 			 length, LPFC_SLI4_MBX_EMBED);
 
-	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
+	rc2 = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
 	shdr = (union lpfc_sli4_cfg_shdr *)
 				&pmb->u.mqe.un.sli4_config.header.cfg_shdr;
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
-	if (rc || shdr_status || shdr_add_status) {
+	if (rc2 || shdr_status || shdr_add_status) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3026 Mailbox failed , mbxCmd x%x "
 				"GET_FUNCTION_CONFIG, mbxStatus x%x\n",
 				bf_get(lpfc_mqe_command, &pmb->u.mqe),
 				bf_get(lpfc_mqe_status, &pmb->u.mqe));
-		rc = -EIO;
 		goto read_cfg_out;
 	}
 
@@ -6431,11 +6431,18 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	get_func_cfg = &pmb->u.mqe.un.get_func_cfg;
 	desc_count = get_func_cfg->func_cfg.rsrc_desc_count;
 
+	pdesc_0 = (char *)&get_func_cfg->func_cfg.desc[0];
+	desc = (struct lpfc_rsrc_desc_fcfcoe *)pdesc_0;
+	length = bf_get(lpfc_rsrc_desc_fcfcoe_length, desc);
+	if (length == LPFC_RSRC_DESC_TYPE_FCFCOE_V0_RSVD)
+		length = LPFC_RSRC_DESC_TYPE_FCFCOE_V0_LENGTH;
+	else if (length != LPFC_RSRC_DESC_TYPE_FCFCOE_V1_LENGTH)
+		goto read_cfg_out;
+
 	for (i = 0; i < LPFC_RSRC_DESC_MAX_NUM; i++) {
-		desc = (struct lpfc_rsrc_desc_fcfcoe *)
-			&get_func_cfg->func_cfg.desc[i];
+		desc = (struct lpfc_rsrc_desc_fcfcoe *)(pdesc_0 + length * i);
 		if (LPFC_RSRC_DESC_TYPE_FCFCOE ==
-		    bf_get(lpfc_rsrc_desc_pcie_type, desc)) {
+		    bf_get(lpfc_rsrc_desc_fcfcoe_type, desc)) {
 			phba->sli4_hba.iov.pf_number =
 				bf_get(lpfc_rsrc_desc_fcfcoe_pfnum, desc);
 			phba->sli4_hba.iov.vf_number =
@@ -6449,13 +6456,11 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				"3027 GET_FUNCTION_CONFIG: pf_number:%d, "
 				"vf_number:%d\n", phba->sli4_hba.iov.pf_number,
 				phba->sli4_hba.iov.vf_number);
-	else {
+	else
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3028 GET_FUNCTION_CONFIG: failed to find "
 				"Resrouce Descriptor:x%x\n",
 				LPFC_RSRC_DESC_TYPE_FCFCOE);
-		rc = -EIO;
-	}
 
 read_cfg_out:
 	mempool_free(pmb, phba->mbox_mem_pool);
