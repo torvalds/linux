@@ -977,6 +977,7 @@ static int __devinit moxa_pci_probe(struct pci_dev *pdev,
 	board->basemem = ioremap_nocache(pci_resource_start(pdev, 2), 0x4000);
 	if (board->basemem == NULL) {
 		dev_err(&pdev->dev, "can't remap io space 2\n");
+		retval = -ENOMEM;
 		goto err_reg;
 	}
 
