@@ -277,12 +277,6 @@ out_free_devname:
 void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 {
 	struct task_struct *p;
-	char *tmp = kzalloc(sizeof(char) * PATH_MAX, GFP_KERNEL);
-
-	if (!tmp) {
-		pr_warn("Unable to attach cgrp due to alloc failure!\n");
-		return;
-	}
 
 	cgroup_taskset_for_each(p, cgrp, tset) {
 		unsigned int fd;
@@ -296,32 +290,24 @@ void net_prio_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 			continue;
 		}
 
-		rcu_read_lock();
+		spin_lock(&files->file_lock);
 		fdt = files_fdtable(files);
 		for (fd = 0; fd < fdt->max_fds; fd++) {
-			char *path;
 			struct file *file;
 			struct socket *sock;
-			unsigned long s;
-			int rv, err = 0;
+			int err;
 
 			file = fcheck_files(files, fd);
 			if (!file)
 				continue;
 
-			path = d_path(&file->f_path, tmp, PAGE_SIZE);
-			rv = sscanf(path, "socket:[%lu]", &s);
-			if (rv <= 0)
-				continue;
-
 			sock = sock_from_file(file, &err);
-			if (!err)
+			if (sock)
 				sock_update_netprioidx(sock->sk, p);
 		}
-		rcu_read_unlock();
+		spin_unlock(&files->file_lock);
 		task_unlock(p);
 	}
-	kfree(tmp);
 }
 
 static struct cftype ss_files[] = {
