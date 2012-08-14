@@ -6542,6 +6542,9 @@ static int
 lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 {
 	int cfg_fcp_io_channel;
+	uint32_t cpu;
+	uint32_t i = 0;
+
 
 	/*
 	 * Sanity check for configured queue parameters against the run-time
@@ -6550,6 +6553,17 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 
 	/* Sanity check on HBA EQ parameters */
 	cfg_fcp_io_channel = phba->cfg_fcp_io_channel;
+
+	/* It doesn't make sense to have more io channels then CPUs */
+	for_each_online_cpu(cpu) {
+		i++;
+	}
+	if (i < cfg_fcp_io_channel) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"3188 Reducing IO channels to match number of "
+				"CPUs: from %d to %d\n", cfg_fcp_io_channel, i);
+		cfg_fcp_io_channel = i;
+	}
 
 	if (cfg_fcp_io_channel >
 	    phba->sli4_hba.max_cfg_param.max_eq) {
