@@ -3737,9 +3737,10 @@ out:
 static void nfs4_write_cached_acl(struct inode *inode, struct page **pages, size_t pgbase, size_t acl_len)
 {
 	struct nfs4_cached_acl *acl;
+	size_t buflen = sizeof(*acl) + acl_len;
 
-	if (pages && acl_len <= PAGE_SIZE) {
-		acl = kmalloc(sizeof(*acl) + acl_len, GFP_KERNEL);
+	if (pages && buflen <= PAGE_SIZE) {
+		acl = kmalloc(buflen, GFP_KERNEL);
 		if (acl == NULL)
 			goto out;
 		acl->cached = 1;
