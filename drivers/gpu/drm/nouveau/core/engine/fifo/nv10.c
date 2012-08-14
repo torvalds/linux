@@ -61,7 +61,7 @@ nv10_fifo_chan_ctor(struct nouveau_object *parent,
 {
 	struct nv04_fifo_priv *priv = (void *)engine;
 	struct nv04_fifo_chan *chan;
-	struct nv_channel_dma_class *args = data;
+	struct nv03_channel_dma_class *args = data;
 	int ret;
 
 	if (size < sizeof(*args))

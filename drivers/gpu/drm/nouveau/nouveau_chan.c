@@ -223,7 +223,7 @@ nouveau_channel_dma(struct nouveau_drm *drm, struct nouveau_cli *cli,
 {
 	static const u16 oclasses[] = { 0x406e, 0x176e, 0x006e, 0x006b, 0 };
 	const u16 *oclass = oclasses;
-	struct nv_channel_dma_class args;
+	struct nv03_channel_dma_class args;
 	struct nouveau_channel *chan;
 	int ret;
 

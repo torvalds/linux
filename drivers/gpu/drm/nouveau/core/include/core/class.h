@@ -57,7 +57,7 @@ struct nv_dma_class {
  * 406e: NV40_CHANNEL_DMA
  */
 
-struct nv_channel_dma_class {
+struct nv03_channel_dma_class {
 	u32 pushbuf;
 	u32 pad0;
 	u64 offset;
