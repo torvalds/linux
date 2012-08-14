@@ -25,6 +25,8 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
+#include <subdev/timer.h>
+
 #include "nv50.h"
 
 /*******************************************************************************
@@ -295,18 +297,39 @@ nv50_disp_base_init(struct nouveau_object *object)
 		nv_wr32(priv, 0x6101f0 + (i * 0x04), tmp);
 	}
 
-	/* intr 100 */
-	/* 6194e8 shit */
-	/* intr */
-	/* set 610010 from engctx */
-	/* acquire mast? */
+	/* steal display away from vbios, or something like that */
+	if (nv_rd32(priv, 0x610024) & 0x00000100) {
+		nv_wr32(priv, 0x610024, 0x00000100);
+		nv_mask(priv, 0x6194e8, 0x00000001, 0x00000000);
+		if (!nv_wait(priv, 0x6194e8, 0x00000002, 0x00000000)) {
+			nv_error(priv, "timeout acquiring display\n");
+			return -EBUSY;
+		}
+	}
+
+	/* point at display engine memory area (hash table, objects) */
+	nv_wr32(priv, 0x610010, (nv_gpuobj(object->parent)->addr >> 8) | 9);
+
+	/* enable supervisor interrupts, disable everything else */
+	nv_wr32(priv, 0x610024, 0x00000370);
+	nv_wr32(priv, 0x610020, 0x00000000);
 	return 0;
 }
 
 static int
 nv50_disp_base_fini(struct nouveau_object *object, bool suspend)
 {
+	struct nv50_disp_priv *priv = (void *)object->engine;
 	struct nv50_disp_base *base = (void *)object;
+
+	/* disable all interrupts */
+	nv_wr32(priv, 0x610024, 0x00000000);
+	nv_wr32(priv, 0x610020, 0x00000000);
+
+	/* return control of display to vbios */
+	nv_mask(priv, 0x6194e8, 0x00000001, 0x00000001);
+	nv_wait(priv, 0x6194e8, 0x00000002, 0x00000002);
+
 	return nouveau_parent_fini(&base->base, suspend);
 }
 
