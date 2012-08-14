@@ -249,14 +249,52 @@ nv50_disp_base_dtor(struct nouveau_object *object)
 static int
 nv50_disp_base_init(struct nouveau_object *object)
 {
+	struct nv50_disp_priv *priv = (void *)object->engine;
 	struct nv50_disp_base *base = (void *)object;
-	int ret;
+	int ret, i;
+	u32 tmp;
 
 	ret = nouveau_parent_init(&base->base);
 	if (ret)
 		return ret;
 
-	/* caps */
+	/* The below segments of code copying values from one register to
+	 * another appear to inform EVO of the display capabilities or
+	 * something similar.  NFI what the 0x614004 caps are for..
+	 */
+	tmp = nv_rd32(priv, 0x614004);
+	nv_wr32(priv, 0x610184, tmp);
+
+	/* ... CRTC caps */
+	for (i = 0; i < priv->head.nr; i++) {
+		tmp = nv_rd32(priv, 0x616100 + (i * 0x800));
+		nv_wr32(priv, 0x610190 + (i * 0x10), tmp);
+		tmp = nv_rd32(priv, 0x616104 + (i * 0x800));
+		nv_wr32(priv, 0x610194 + (i * 0x10), tmp);
+		tmp = nv_rd32(priv, 0x616108 + (i * 0x800));
+		nv_wr32(priv, 0x610198 + (i * 0x10), tmp);
+		tmp = nv_rd32(priv, 0x61610c + (i * 0x800));
+		nv_wr32(priv, 0x61019c + (i * 0x10), tmp);
+	}
+
+	/* ... DAC caps */
+	for (i = 0; i < priv->dac.nr; i++) {
+		tmp = nv_rd32(priv, 0x61a000 + (i * 0x800));
+		nv_wr32(priv, 0x6101d0 + (i * 0x04), tmp);
+	}
+
+	/* ... SOR caps */
+	for (i = 0; i < priv->sor.nr; i++) {
+		tmp = nv_rd32(priv, 0x61c000 + (i * 0x800));
+		nv_wr32(priv, 0x6101e0 + (i * 0x04), tmp);
+	}
+
+	/* ... EXT caps */
+	for (i = 0; i < 3; i++) {
+		tmp = nv_rd32(priv, 0x61e000 + (i * 0x800));
+		nv_wr32(priv, 0x6101f0 + (i * 0x04), tmp);
+	}
+
 	/* intr 100 */
 	/* 6194e8 shit */
 	/* intr */
