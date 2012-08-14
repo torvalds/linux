@@ -570,11 +570,19 @@ static void set_work_cwq(struct work_struct *work,
 static void set_work_cpu_and_clear_pending(struct work_struct *work,
 					   unsigned int cpu)
 {
+	/*
+	 * The following wmb is paired with the implied mb in
+	 * test_and_set_bit(PENDING) and ensures all updates to @work made
+	 * here are visible to and precede any updates by the next PENDING
+	 * owner.
+	 */
+	smp_wmb();
 	set_work_data(work, (unsigned long)cpu << WORK_OFFQ_CPU_SHIFT, 0);
 }
 
 static void clear_work_data(struct work_struct *work)
 {
+	smp_wmb();	/* see set_work_cpu_and_clear_pending() */
 	set_work_data(work, WORK_STRUCT_NO_CPU, 0);
 }
 
@@ -2182,14 +2190,11 @@ __acquires(&gcwq->lock)
 		wake_up_worker(pool);
 
 	/*
-	 * Record the last CPU and clear PENDING.  The following wmb is
-	 * paired with the implied mb in test_and_set_bit(PENDING) and
-	 * ensures all updates to @work made here are visible to and
-	 * precede any updates by the next PENDING owner.  Also, clear
-	 * PENDING inside @gcwq->lock so that PENDING and queued state
-	 * changes happen together while IRQ is disabled.
+	 * Record the last CPU and clear PENDING which should be the last
+	 * update to @work.  Also, do this inside @gcwq->lock so that
+	 * PENDING and queued state changes happen together while IRQ is
+	 * disabled.
 	 */
-	smp_wmb();
 	set_work_cpu_and_clear_pending(work, gcwq->cpu);
 
 	spin_unlock_irq(&gcwq->lock);
