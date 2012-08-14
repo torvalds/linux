@@ -322,11 +322,11 @@ static inline void kvmppc_e500_ref_release(struct tlbe_ref *ref)
 static void clear_tlb1_bitmap(struct kvmppc_vcpu_e500 *vcpu_e500)
 {
 	if (vcpu_e500->g2h_tlb1_map)
-		memset(vcpu_e500->g2h_tlb1_map,
-		       sizeof(u64) * vcpu_e500->gtlb_params[1].entries, 0);
+		memset(vcpu_e500->g2h_tlb1_map, 0,
+		       sizeof(u64) * vcpu_e500->gtlb_params[1].entries);
 	if (vcpu_e500->h2g_tlb1_rmap)
-		memset(vcpu_e500->h2g_tlb1_rmap,
-		       sizeof(unsigned int) * host_tlb_params[1].entries, 0);
+		memset(vcpu_e500->h2g_tlb1_rmap, 0,
+		       sizeof(unsigned int) * host_tlb_params[1].entries);
 }
 
 static void clear_tlb_privs(struct kvmppc_vcpu_e500 *vcpu_e500)
