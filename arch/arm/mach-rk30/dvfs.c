@@ -33,6 +33,10 @@
 #else
 #define DVFS_DBG(fmt, args...) printk(KERN_DEBUG "DVFS DBG:\t"fmt, ##args)
 #endif
+
+#define DVFS_SET_VOLT_FAILURE 	1
+#define DVFS_SET_VOLT_SUCCESS	0
+
 #define DVFS_ERR(fmt, args...) printk(KERN_ERR "DVFS ERR:\t"fmt, ##args)
 #define DVFS_LOG(fmt, args...) printk(KERN_DEBUG "DVFS LOG:\t"fmt, ##args)
 
@@ -394,6 +398,21 @@ int clk_enable_dvfs(struct clk *clk)
 		}
 #endif
 		dvfs_vd_get_newvolt_byclk(dvfs_clk);
+		if(dvfs_clk->vd->cur_volt<dvfs_clk->set_volt)
+		{
+			int ret;
+			mutex_lock(&rk_dvfs_mutex);
+			ret = dvfs_regulator_set_voltage_readback(dvfs_clk->vd->regulator, dvfs_clk->set_volt, dvfs_clk->set_volt);
+			if (ret < 0) {
+				dvfs_clk->vd->volt_set_flag = DVFS_SET_VOLT_FAILURE;
+				dvfs_clk->enable_dvfs = 0;
+				DVFS_ERR("dvfs enable clk %s,set volt error \n", dvfs_clk->name);
+				mutex_unlock(&rk_dvfs_mutex);
+				return -1;
+			}
+			dvfs_clk->vd->volt_set_flag = DVFS_SET_VOLT_SUCCESS;
+			mutex_unlock(&rk_dvfs_mutex);
+		}
 		dvfs_clk->enable_dvfs++;
 	} else {
 		DVFS_ERR("dvfs already enable clk enable = %d!\n", dvfs_clk->enable_dvfs);
@@ -694,8 +713,7 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 	return 0;
 }
 #endif
-#define DVFS_SET_VOLT_FAILURE	1
-#define DVFS_SET_VOLT_SUCCESS	0
+
 #define ARM_HIGHER_LOGIC	(150 * 1000)
 #define LOGIC_HIGHER_ARM	(100 * 1000)
 
@@ -1019,6 +1037,8 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	/* need round rate */
 	rate_old = clk_get_rate(clk);
 	rate_new = clk_round_rate_nolock(clk, rate_hz);
+	if(rate_new==rate_old)
+		return 0;
 	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu) old (%lu)\n", 
 			dvfs_clk->name, rate_hz, rate_new, rate_old);
 
@@ -1145,6 +1165,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	/* need round rate */
 	rate_old = clk_get_rate(clk);
 	rate_new = clk_round_rate_nolock(clk, rate_hz);
+	if(rate_new==rate_old)
+		return 0;
 	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu) old (%lu)\n", 
 			dvfs_clk->name, rate_hz, rate_new, rate_old);
 
@@ -1270,18 +1292,21 @@ static struct cpufreq_frequency_table dep_cpu2core_table[] = {
 static struct vd_node vd_cpu = {
 	.name 		= "vd_cpu",
 	.regulator_name	= "vdd_cpu",
+	.volt_set_flag		=DVFS_SET_VOLT_FAILURE,
 	.vd_dvfs_target	= dvfs_target_cpu,
 };
 
 static struct vd_node vd_core = {
 	.name 		= "vd_core",
 	.regulator_name = "vdd_core",
+	.volt_set_flag		=DVFS_SET_VOLT_FAILURE,
 	.vd_dvfs_target	= dvfs_target_core,
 };
 
 static struct vd_node vd_rtc = {
 	.name 		= "vd_rtc",
 	.regulator_name	= "vdd_rtc",
+	.volt_set_flag		=DVFS_SET_VOLT_FAILURE,
 	.vd_dvfs_target	= NULL,
 };
 

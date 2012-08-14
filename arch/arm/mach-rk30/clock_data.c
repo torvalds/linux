@@ -26,6 +26,7 @@
 #include "clock.h"
 #include <mach/pmu.h>
 #include <mach/dvfs.h>
+#include <mach/ddr.h>
 
 #define MHZ			(1000*1000)
 #define KHZ			(1000)
@@ -1115,12 +1116,24 @@ static int ddr_clk_set_rate(struct clk *c, unsigned long rate)
 	return 0;
 }
 
+static long ddr_clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	return ddr_set_pll(rate/MHZ,0)*MHZ;
+}
+static unsigned long ddr_clk_recalc_rate(struct clk *clk)
+{
+	u32 shift = get_cru_bits(clk->clksel_con,clk->div_mask,clk->div_shift);
+	unsigned long rate = clk->parent->recalc(clk->parent)>> shift;
+	pr_debug("%s new clock rate is %lu (shift %u)\n", clk->name, rate, shift);
+	return rate;
+}
 static struct clk *clk_ddr_parents[2] = {&ddr_pll_clk, &general_pll_clk};
 static struct clk clk_ddr = {
 	.name		= "ddr",	
 	.parent		= &ddr_pll_clk,
-	.recalc		= clksel_recalc_shift,
+	.recalc		= ddr_clk_recalc_rate,
 	.set_rate	= ddr_clk_set_rate,
+	.round_rate	= ddr_clk_round_rate,
 	.clksel_con	= CRU_CLKSELS_CON(26),
 	//CRU_DIV_SET(0x3,0,4),
 	//CRU_SRC_SET(1,8),

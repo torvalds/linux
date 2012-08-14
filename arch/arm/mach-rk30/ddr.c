@@ -2978,7 +2978,6 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     DDR_RESTORE_SP(save_sp);
     local_fiq_enable();
     local_irq_restore(flags);
-    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     return ret;
 }
 
@@ -3221,6 +3220,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     ddr_adjust_config(mem_type);
 
     value=ddr_change_freq(freq);
+    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     ddr_print("init success!!! freq=%dMHz\n", value);
 
     for(value=0;value<4;value++)
