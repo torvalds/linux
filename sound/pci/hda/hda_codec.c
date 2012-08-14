@@ -4411,20 +4411,16 @@ void snd_hda_update_power_acct(struct hda_codec *codec)
 /* Transition to powered up, if wait_power_down then wait for a pending
  * transition to D3 to complete. A pending D3 transition is indicated
  * with power_transition == -1. */
+/* call this with codec->power_lock held! */
 static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 {
 	struct hda_bus *bus = codec->bus;
 
-	spin_lock(&codec->power_lock);
-	codec->power_count++;
-	trace_hda_power_count(codec);
 	/* Return if power_on or transitioning to power_on, unless currently
 	 * powering down. */
 	if ((codec->power_on || codec->power_transition > 0) &&
-	    !(wait_power_down && codec->power_transition < 0)) {
-		spin_unlock(&codec->power_lock);
+	    !(wait_power_down && codec->power_transition < 0))
 		return;
-	}
 	spin_unlock(&codec->power_lock);
 
 	cancel_delayed_work_sync(&codec->power_work);
@@ -4433,10 +4429,9 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 	/* If the power down delayed work was cancelled above before starting,
 	 * then there is no need to go through power up here.
 	 */
-	if (codec->power_on) {
-		spin_unlock(&codec->power_lock);
+	if (codec->power_on)
 		return;
-	}
+
 	trace_hda_power_up(codec);
 	snd_hda_update_power_acct(codec);
 	codec->power_on = 1;
@@ -4450,66 +4445,45 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 
 	spin_lock(&codec->power_lock);
 	codec->power_transition = 0;
-	spin_unlock(&codec->power_lock);
 }
-
-/**
- * snd_hda_power_up - Power-up the codec
- * @codec: HD-audio codec
- *
- * Increment the power-up counter and power up the hardware really when
- * not turned on yet.
- */
-void snd_hda_power_up(struct hda_codec *codec)
-{
-	__snd_hda_power_up(codec, false);
-}
-EXPORT_SYMBOL_HDA(snd_hda_power_up);
-
-/**
- * snd_hda_power_up_d3wait - Power-up the codec after waiting for any pending
- *   D3 transition to complete.  This differs from snd_hda_power_up() when
- *   power_transition == -1.  snd_hda_power_up sees this case as a nop,
- *   snd_hda_power_up_d3wait waits for the D3 transition to complete then powers
- *   back up.
- * @codec: HD-audio codec
- *
- * Cancel any power down operation hapenning on the work queue, then power up.
- */
-void snd_hda_power_up_d3wait(struct hda_codec *codec)
-{
-	/* This will cancel and wait for pending power_work to complete. */
-	__snd_hda_power_up(codec, true);
-}
-EXPORT_SYMBOL_HDA(snd_hda_power_up_d3wait);
 
 #define power_save(codec)	\
 	((codec)->bus->power_save ? *(codec)->bus->power_save : 0)
 
-/**
- * snd_hda_power_down - Power-down the codec
- * @codec: HD-audio codec
- *
- * Decrement the power-up counter and schedules the power-off work if
- * the counter rearches to zero.
- */
-void snd_hda_power_down(struct hda_codec *codec)
+/* Transition to powered down */
+static void __snd_hda_power_down(struct hda_codec *codec)
 {
-	spin_lock(&codec->power_lock);
-	--codec->power_count;
-	trace_hda_power_count(codec);
-	if (!codec->power_on || codec->power_count || codec->power_transition) {
-		spin_unlock(&codec->power_lock);
+	if (!codec->power_on || codec->power_count || codec->power_transition)
 		return;
-	}
+
 	if (power_save(codec)) {
 		codec->power_transition = -1; /* avoid reentrance */
 		queue_delayed_work(codec->bus->workq, &codec->power_work,
 				msecs_to_jiffies(power_save(codec) * 1000));
 	}
+}
+
+/**
+ * snd_hda_power_save - Power-up/down/sync the codec
+ * @codec: HD-audio codec
+ * @delta: the counter delta to change
+ *
+ * Change the power-up counter via @delta, and power up or down the hardware
+ * appropriately.  For the power-down, queue to the delayed action.
+ * Passing zero to @delta means to synchronize the power state.
+ */
+void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait)
+{
+	spin_lock(&codec->power_lock);
+	codec->power_count += delta;
+	trace_hda_power_count(codec);
+	if (delta > 0)
+		__snd_hda_power_up(codec, d3wait);
+	else
+		__snd_hda_power_down(codec);
 	spin_unlock(&codec->power_lock);
 }
-EXPORT_SYMBOL_HDA(snd_hda_power_down);
+EXPORT_SYMBOL_HDA(snd_hda_power_save);
 
 /**
  * snd_hda_check_amp_list_power - Check the amp list and update the power

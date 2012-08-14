@@ -1062,15 +1062,63 @@ const char *snd_hda_get_jack_location(u32 cfg);
  * power saving
  */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-void snd_hda_power_up(struct hda_codec *codec);
-void snd_hda_power_up_d3wait(struct hda_codec *codec);
-void snd_hda_power_down(struct hda_codec *codec);
+void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
-static inline void snd_hda_power_up(struct hda_codec *codec) {}
-static inline void snd_hda_power_up_d3wait(struct hda_codec *codec) {}
-static inline void snd_hda_power_down(struct hda_codec *codec) {}
+static inline void snd_hda_power_save(struct hda_codec *codec, int delta,
+				      bool d3wait) {}
 #endif
+
+/**
+ * snd_hda_power_up - Power-up the codec
+ * @codec: HD-audio codec
+ *
+ * Increment the power-up counter and power up the hardware really when
+ * not turned on yet.
+ */
+static inline void snd_hda_power_up(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, 1, false);
+}
+
+/**
+ * snd_hda_power_up_d3wait - Power-up the codec after waiting for any pending
+ *   D3 transition to complete.  This differs from snd_hda_power_up() when
+ *   power_transition == -1.  snd_hda_power_up sees this case as a nop,
+ *   snd_hda_power_up_d3wait waits for the D3 transition to complete then powers
+ *   back up.
+ * @codec: HD-audio codec
+ *
+ * Cancel any power down operation hapenning on the work queue, then power up.
+ */
+static inline void snd_hda_power_up_d3wait(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, 1, true);
+}
+
+/**
+ * snd_hda_power_down - Power-down the codec
+ * @codec: HD-audio codec
+ *
+ * Decrement the power-up counter and schedules the power-off work if
+ * the counter rearches to zero.
+ */
+static inline void snd_hda_power_down(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, -1, false);
+}
+
+/**
+ * snd_hda_power_sync - Synchronize the power-save status
+ * @codec: HD-audio codec
+ *
+ * Synchronize the actual power state with the power account;
+ * called when power_save parameter is changed
+ */
+static inline void snd_hda_power_sync(struct hda_codec *codec)
+{
+	snd_hda_power_save(codec, 0, false);
+}
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 /*
