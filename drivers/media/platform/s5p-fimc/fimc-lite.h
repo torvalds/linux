@@ -108,6 +108,7 @@ struct flite_buffer {
  * @test_pattern: test pattern controls
  * @index: FIMC-LITE platform device index
  * @pipeline: video capture pipeline data structure
+ * @pipeline_ops: media pipeline ops for the video node driver
  * @slock: spinlock protecting this data structure and the hw registers
  * @lock: mutex serializing video device and the subdev operations
  * @clock: FIMC-LITE gate clock
@@ -142,6 +143,7 @@ struct fimc_lite {
 	struct v4l2_ctrl	*test_pattern;
 	u32			index;
 	struct fimc_pipeline	pipeline;
+	const struct fimc_pipeline_ops *pipeline_ops;
 
 	struct mutex		lock;
 	spinlock_t		slock;

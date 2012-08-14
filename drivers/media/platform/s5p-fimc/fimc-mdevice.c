@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-ctrls.h>
 #include <media/media-device.h>
+#include <media/s5p_fimc.h>
 
 #include "fimc-core.h"
 #include "fimc-lite.h"
@@ -38,7 +39,8 @@ static int __fimc_md_set_camclk(struct fimc_md *fmd,
  *
  * Caller holds the graph mutex.
  */
-void fimc_pipeline_prepare(struct fimc_pipeline *p, struct media_entity *me)
+static void fimc_pipeline_prepare(struct fimc_pipeline *p,
+				  struct media_entity *me)
 {
 	struct media_pad *pad = &me->pads[0];
 	struct v4l2_subdev *sd;
@@ -114,7 +116,7 @@ static int __subdev_set_power(struct v4l2_subdev *sd, int on)
  *
  * Needs to be called with the graph mutex held.
  */
-int fimc_pipeline_s_power(struct fimc_pipeline *p, bool state)
+static int fimc_pipeline_s_power(struct fimc_pipeline *p, bool state)
 {
 	unsigned int i;
 	int ret;
@@ -134,15 +136,15 @@ int fimc_pipeline_s_power(struct fimc_pipeline *p, bool state)
 }
 
 /**
- * __fimc_pipeline_initialize - update the pipeline information, enable power
- *                              of all pipeline subdevs and the sensor clock
+ * __fimc_pipeline_open - update the pipeline information, enable power
+ *                        of all pipeline subdevs and the sensor clock
  * @me: media entity to start graph walk with
  * @prep: true to acquire sensor (and csis) subdevs
  *
  * This function must be called with the graph mutex held.
  */
-static int __fimc_pipeline_initialize(struct fimc_pipeline *p,
-				      struct media_entity *me, bool prep)
+static int __fimc_pipeline_open(struct fimc_pipeline *p,
+				struct media_entity *me, bool prep)
 {
 	int ret;
 
@@ -159,28 +161,27 @@ static int __fimc_pipeline_initialize(struct fimc_pipeline *p,
 	return fimc_pipeline_s_power(p, 1);
 }
 
-int fimc_pipeline_initialize(struct fimc_pipeline *p, struct media_entity *me,
-			     bool prep)
+static int fimc_pipeline_open(struct fimc_pipeline *p,
+			      struct media_entity *me, bool prep)
 {
 	int ret;
 
 	mutex_lock(&me->parent->graph_mutex);
-	ret =  __fimc_pipeline_initialize(p, me, prep);
+	ret =  __fimc_pipeline_open(p, me, prep);
 	mutex_unlock(&me->parent->graph_mutex);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fimc_pipeline_initialize);
 
 /**
- * __fimc_pipeline_shutdown - disable the sensor clock and pipeline power
+ * __fimc_pipeline_close - disable the sensor clock and pipeline power
  * @fimc: fimc device terminating the pipeline
  *
  * Disable power of all subdevs in the pipeline and turn off the external
  * sensor clock.
  * Called with the graph mutex held.
  */
-static int __fimc_pipeline_shutdown(struct fimc_pipeline *p)
+static int __fimc_pipeline_close(struct fimc_pipeline *p)
 {
 	int ret = 0;
 
@@ -191,7 +192,7 @@ static int __fimc_pipeline_shutdown(struct fimc_pipeline *p)
 	return ret == -ENXIO ? 0 : ret;
 }
 
-int fimc_pipeline_shutdown(struct fimc_pipeline *p)
+static int fimc_pipeline_close(struct fimc_pipeline *p)
 {
 	struct media_entity *me;
 	int ret;
@@ -201,12 +202,11 @@ int fimc_pipeline_shutdown(struct fimc_pipeline *p)
 
 	me = &p->subdevs[IDX_SENSOR]->entity;
 	mutex_lock(&me->parent->graph_mutex);
-	ret = __fimc_pipeline_shutdown(p);
+	ret = __fimc_pipeline_close(p);
 	mutex_unlock(&me->parent->graph_mutex);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(fimc_pipeline_shutdown);
 
 /**
  * fimc_pipeline_s_stream - invoke s_stream on pipeline subdevs
@@ -232,7 +232,13 @@ int fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
 	return 0;
 
 }
-EXPORT_SYMBOL_GPL(fimc_pipeline_s_stream);
+
+/* Media pipeline operations for the FIMC/FIMC-LITE video device driver */
+static const struct fimc_pipeline_ops fimc_pipeline_ops = {
+	.open		= fimc_pipeline_open,
+	.close		= fimc_pipeline_close,
+	.set_stream	= fimc_pipeline_s_stream,
+};
 
 /*
  * Sensor subdevice helper functions
@@ -347,6 +353,7 @@ static int fimc_register_callback(struct device *dev, void *p)
 	if (fimc->pdev->id < 0 || fimc->pdev->id >= FIMC_MAX_DEVS)
 		return 0;
 
+	fimc->pipeline_ops = &fimc_pipeline_ops;
 	fmd->fimc[fimc->pdev->id] = fimc;
 	sd->grp_id = FIMC_GROUP_ID;
 
@@ -372,6 +379,7 @@ static int fimc_lite_register_callback(struct device *dev, void *p)
 	if (fimc->index >= FIMC_LITE_MAX_DEVS)
 		return 0;
 
+	fimc->pipeline_ops = &fimc_pipeline_ops;
 	fmd->fimc_lite[fimc->index] = fimc;
 	sd->grp_id = FLITE_GROUP_ID;
 
@@ -473,12 +481,14 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 		if (fmd->fimc[i] == NULL)
 			continue;
 		v4l2_device_unregister_subdev(&fmd->fimc[i]->vid_cap.subdev);
+		fmd->fimc[i]->pipeline_ops = NULL;
 		fmd->fimc[i] = NULL;
 	}
 	for (i = 0; i < FIMC_LITE_MAX_DEVS; i++) {
 		if (fmd->fimc_lite[i] == NULL)
 			continue;
 		v4l2_device_unregister_subdev(&fmd->fimc_lite[i]->subdev);
+		fmd->fimc[i]->pipeline_ops = NULL;
 		fmd->fimc_lite[i] = NULL;
 	}
 	for (i = 0; i < CSIS_MAX_ENTITIES; i++) {
@@ -832,7 +842,7 @@ static int fimc_md_link_notify(struct media_pad *source,
 	}
 
 	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
-		ret = __fimc_pipeline_shutdown(pipeline);
+		ret = __fimc_pipeline_close(pipeline);
 		pipeline->subdevs[IDX_SENSOR] = NULL;
 		pipeline->subdevs[IDX_CSIS] = NULL;
 
@@ -851,8 +861,8 @@ static int fimc_md_link_notify(struct media_pad *source,
 	if (fimc) {
 		mutex_lock(&fimc->lock);
 		if (fimc->vid_cap.refcnt > 0) {
-			ret = __fimc_pipeline_initialize(pipeline,
-							 source->entity, true);
+			ret = __fimc_pipeline_open(pipeline,
+						   source->entity, true);
 		if (!ret)
 			ret = fimc_capture_ctrls_create(fimc);
 		}
@@ -860,8 +870,8 @@ static int fimc_md_link_notify(struct media_pad *source,
 	} else {
 		mutex_lock(&fimc_lite->lock);
 		if (fimc_lite->ref_count > 0) {
-			ret = __fimc_pipeline_initialize(pipeline,
-							 source->entity, true);
+			ret = __fimc_pipeline_open(pipeline,
+						   source->entity, true);
 		}
 		mutex_unlock(&fimc_lite->lock);
 	}

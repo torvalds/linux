@@ -118,7 +118,8 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (streaming)
-		return fimc_pipeline_s_stream(&fimc->pipeline, 0);
+		return fimc_pipeline_call(fimc, set_stream,
+					  &fimc->pipeline, 0);
 	else
 		return 0;
 }
@@ -264,7 +265,8 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		fimc_activate_capture(ctx);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_s_stream(&fimc->pipeline, 1);
+			fimc_pipeline_call(fimc, set_stream,
+					   &fimc->pipeline, 1);
 	}
 
 	return 0;
@@ -288,7 +290,7 @@ int fimc_capture_suspend(struct fimc_dev *fimc)
 	int ret = fimc_stop_capture(fimc, suspend);
 	if (ret)
 		return ret;
-	return fimc_pipeline_shutdown(&fimc->pipeline);
+	return fimc_pipeline_call(fimc, close, &fimc->pipeline);
 }
 
 static void buffer_queue(struct vb2_buffer *vb);
@@ -304,8 +306,8 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 
 	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
 	vid_cap->buf_index = 0;
-	fimc_pipeline_initialize(&fimc->pipeline, &vid_cap->vfd.entity,
-				 false);
+	fimc_pipeline_call(fimc, open, &fimc->pipeline,
+			   &vid_cap->vfd.entity, false);
 	fimc_capture_hw_init(fimc);
 
 	clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
@@ -422,7 +424,8 @@ static void buffer_queue(struct vb2_buffer *vb)
 		spin_unlock_irqrestore(&fimc->slock, flags);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_s_stream(&fimc->pipeline, 1);
+			fimc_pipeline_call(fimc, set_stream,
+					   &fimc->pipeline, 1);
 		return;
 	}
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -502,8 +505,8 @@ static int fimc_capture_open(struct file *file)
 	}
 
 	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_pipeline_initialize(&fimc->pipeline,
-				       &fimc->vid_cap.vfd.entity, true);
+		ret = fimc_pipeline_call(fimc, open, &fimc->pipeline,
+					 &fimc->vid_cap.vfd.entity, true);
 
 		if (!ret && !fimc->vid_cap.user_subdev_api)
 			ret = fimc_capture_set_default_format(fimc);
@@ -536,7 +539,7 @@ static int fimc_capture_close(struct file *file)
 	if (--fimc->vid_cap.refcnt == 0) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
 		fimc_stop_capture(fimc, false);
-		fimc_pipeline_shutdown(&fimc->pipeline);
+		fimc_pipeline_call(fimc, close, &fimc->pipeline);
 		clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
 	}
 

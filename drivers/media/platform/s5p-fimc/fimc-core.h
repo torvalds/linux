@@ -440,6 +440,7 @@ struct fimc_dev {
 	unsigned long			state;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct fimc_pipeline		pipeline;
+	const struct fimc_pipeline_ops	*pipeline_ops;
 };
 
 /**
