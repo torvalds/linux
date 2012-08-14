@@ -1653,9 +1653,6 @@ static struct platform_device device_rfkill_rk = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_RK30_PWM_REGULATOR
-	&pwm_regulator_device[0],
-#endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif

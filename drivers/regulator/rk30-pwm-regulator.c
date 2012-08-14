@@ -255,7 +255,7 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	int id = pdev->id;
 	int ret ;
     	char gpio_name[20];
-
+	
 	if (!pdata)
 		return -ENODEV;
 
@@ -451,7 +451,7 @@ static void __exit pwm_regulator_module_exit(void)
 }
 
 
-subsys_initcall(pwm_regulator_module_init);
+fs_initcall(pwm_regulator_module_init);
 
 module_exit(pwm_regulator_module_exit);
 

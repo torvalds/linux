@@ -52,6 +52,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 		printk(KERN_ERR "Unable to write TPS65910_DEVCTRL2 reg\n");
 		return err;
 	}
+	
 	 #if 1
 	/* set PSKIP=0 */
         val = tps65910_reg_read(tps65910, TPS65910_DCDCCTRL);
@@ -238,6 +239,10 @@ int tps65910_post_init(struct tps65910 *tps65910)
 
 	g_pmic_type = PMIC_TYPE_TPS65910;
 	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
+
+	#ifdef CONFIG_RK30_PWM_REGULATOR
+	platform_device_register(&pwm_regulator_device[0]);
+	#endif
 	
 	dcdc = regulator_get(NULL, "vio");	//vcc_io
 	regulator_set_voltage(dcdc, 3000000, 3000000);
@@ -315,15 +320,6 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	printk("%s set vmmc vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
-
-	#ifdef CONFIG_RK30_PWM_REGULATOR
-	dcdc = regulator_get(NULL, "vdd_core"); // vdd_log
-	regulator_set_voltage(dcdc, 1100000, 1100000);
-	regulator_enable(dcdc);
-	printk("%s set vdd_core=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-	#endif
 	
 	printk("%s,line=%d END\n", __func__,__LINE__);
 	
