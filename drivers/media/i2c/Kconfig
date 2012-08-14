@@ -562,5 +562,9 @@ config VIDEO_M52790
 	 To compile this driver as a module, choose M here: the
 	 module will be called m52790.
 
+if SOC_CAMERA
+	source "drivers/media/i2c/soc_camera/Kconfig"
+endif
+
 endmenu
 endif

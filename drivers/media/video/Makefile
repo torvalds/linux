@@ -6,21 +6,6 @@ omap2cam-objs	:=	omap24xxcam.o omap24xxcam-dma.o
 
 obj-$(CONFIG_VIDEO_VINO) += indycam.o
 
-obj-$(CONFIG_SOC_CAMERA_IMX074)		+= imx074.o
-obj-$(CONFIG_SOC_CAMERA_MT9M001)	+= mt9m001.o
-obj-$(CONFIG_SOC_CAMERA_MT9M111)	+= mt9m111.o
-obj-$(CONFIG_SOC_CAMERA_MT9T031)	+= mt9t031.o
-obj-$(CONFIG_SOC_CAMERA_MT9T112)	+= mt9t112.o
-obj-$(CONFIG_SOC_CAMERA_MT9V022)	+= mt9v022.o
-obj-$(CONFIG_SOC_CAMERA_OV2640)		+= ov2640.o
-obj-$(CONFIG_SOC_CAMERA_OV5642)		+= ov5642.o
-obj-$(CONFIG_SOC_CAMERA_OV6650)		+= ov6650.o
-obj-$(CONFIG_SOC_CAMERA_OV772X)		+= ov772x.o
-obj-$(CONFIG_SOC_CAMERA_OV9640)		+= ov9640.o
-obj-$(CONFIG_SOC_CAMERA_OV9740)		+= ov9740.o
-obj-$(CONFIG_SOC_CAMERA_RJ54N1)		+= rj54n1cb0c.o
-obj-$(CONFIG_SOC_CAMERA_TW9910)		+= tw9910.o
-
 obj-$(CONFIG_VIDEO_VINO) += vino.o
 obj-$(CONFIG_VIDEO_TIMBERDALE)	+= timblogiw.o
 
@@ -78,3 +63,4 @@ obj-$(CONFIG_ARCH_OMAP)	+= omap/
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
 ccflags-y += -I$(srctree)/drivers/media/tuners
+ccflags-y += -I$(srctree)/drivers/media/i2c/soc_camera
