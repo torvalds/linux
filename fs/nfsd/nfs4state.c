@@ -4578,7 +4578,7 @@ void nfsd_forget_openowners(u64 num)
 	printk(KERN_INFO "NFSD: Forgot %d open owners", count);
 }
 
-int nfsd_process_n_delegations(u64 num, struct list_head *list)
+static int nfsd_process_n_delegations(u64 num, struct list_head *list)
 {
 	int i, count = 0;
 	struct nfs4_file *fp, *fnext;
