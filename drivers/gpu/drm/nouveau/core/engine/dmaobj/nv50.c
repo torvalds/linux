@@ -109,6 +109,7 @@ nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	switch (nv_mclass(parent)) {
+	case 0x506e:
 	case 0x506f:
 	case 0x826e:
 	case 0x826f:
