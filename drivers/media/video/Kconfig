@@ -619,8 +619,6 @@ menuconfig V4L_PCI_DRIVERS
 
 if V4L_PCI_DRIVERS
 
-source "drivers/media/video/bt8xx/Kconfig"
-
 source "drivers/media/video/cx18/Kconfig"
 
 source "drivers/media/video/cx23885/Kconfig"
