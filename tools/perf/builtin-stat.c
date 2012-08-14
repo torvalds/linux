@@ -480,7 +480,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 	if (group)
 		perf_evlist__set_leader(evsel_list);
 
-	first = list_entry(evsel_list->entries.next, struct perf_evsel, node);
+	first = perf_evlist__first(evsel_list);
 
 	list_for_each_entry(counter, &evsel_list->entries, node) {
 		if (create_perf_stat_counter(counter, first) < 0) {

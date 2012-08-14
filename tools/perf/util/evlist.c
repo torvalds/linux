@@ -57,7 +57,7 @@ void perf_evlist__config_attrs(struct perf_evlist *evlist,
 	if (evlist->cpus->map[0] < 0)
 		opts->no_inherit = true;
 
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	first = perf_evlist__first(evlist);
 
 	list_for_each_entry(evsel, &evlist->entries, node) {
 		perf_evsel__config(evsel, opts, first);
@@ -376,7 +376,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 	int hash;
 
 	if (evlist->nr_entries == 1)
-		return list_entry(evlist->entries.next, struct perf_evsel, node);
+		return perf_evlist__first(evlist);
 
 	hash = hash_64(id, PERF_EVLIST__HLIST_BITS);
 	head = &evlist->heads[hash];
@@ -386,7 +386,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id)
 			return sid->evsel;
 
 	if (!perf_evlist__sample_id_all(evlist))
-		return list_entry(evlist->entries.next, struct perf_evsel, node);
+		return perf_evlist__first(evlist);
 
 	return NULL;
 }
@@ -694,11 +694,9 @@ int perf_evlist__set_filters(struct perf_evlist *evlist)
 	return 0;
 }
 
-bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist)
+bool perf_evlist__valid_sample_type(struct perf_evlist *evlist)
 {
-	struct perf_evsel *pos, *first;
-
-	pos = first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
 
 	list_for_each_entry_continue(pos, &evlist->entries, node) {
 		if (first->attr.sample_type != pos->attr.sample_type)
@@ -708,22 +706,18 @@ bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist)
 	return true;
 }
 
-u64 perf_evlist__sample_type(const struct perf_evlist *evlist)
+u64 perf_evlist__sample_type(struct perf_evlist *evlist)
 {
-	struct perf_evsel *first;
-
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	struct perf_evsel *first = perf_evlist__first(evlist);
 	return first->attr.sample_type;
 }
 
-u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist)
+u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist)
 {
-	struct perf_evsel *first;
+	struct perf_evsel *first = perf_evlist__first(evlist);
 	struct perf_sample *data;
 	u64 sample_type;
 	u16 size = 0;
-
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
 
 	if (!first->attr.sample_id_all)
 		goto out;
@@ -748,11 +742,9 @@ out:
 	return size;
 }
 
-bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist)
+bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist)
 {
-	struct perf_evsel *pos, *first;
-
-	pos = first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	struct perf_evsel *first = perf_evlist__first(evlist), *pos = first;
 
 	list_for_each_entry_continue(pos, &evlist->entries, node) {
 		if (first->attr.sample_id_all != pos->attr.sample_id_all)
@@ -762,11 +754,9 @@ bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist)
 	return true;
 }
 
-bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
+bool perf_evlist__sample_id_all(struct perf_evlist *evlist)
 {
-	struct perf_evsel *first;
-
-	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	struct perf_evsel *first = perf_evlist__first(evlist);
 	return first->attr.sample_id_all;
 }
 
@@ -896,6 +886,6 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
 			      struct perf_sample *sample, bool swapped)
 {
-	struct perf_evsel *e = list_entry(evlist->entries.next, struct perf_evsel, node);
-	return perf_evsel__parse_sample(e, event, sample, swapped);
+	struct perf_evsel *evsel = perf_evlist__first(evlist);
+	return perf_evsel__parse_sample(evsel, event, sample, swapped);
 }

@@ -172,12 +172,12 @@ static bool perf_evlist__equal(struct perf_evlist *evlist,
 	if (evlist->nr_entries != other->nr_entries)
 		return false;
 
-	pair = list_entry(other->entries.next, struct perf_evsel, node);
+	pair = perf_evlist__first(other);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		if (memcmp(&pos->attr, &pair->attr, sizeof(pos->attr) != 0))
 			return false;
-		pair = list_entry(pair->node.next, struct perf_evsel, node);
+		pair = perf_evsel__next(pair);
 	}
 
 	return true;

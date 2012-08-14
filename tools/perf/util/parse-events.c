@@ -834,7 +834,7 @@ int parse_filter(const struct option *opt, const char *str,
 	struct perf_evsel *last = NULL;
 
 	if (evlist->nr_entries > 0)
-		last = list_entry(evlist->entries.prev, struct perf_evsel, node);
+		last = perf_evlist__last(evlist);
 
 	if (last == NULL || last->attr.type != PERF_TYPE_TRACEPOINT) {
 		fprintf(stderr,

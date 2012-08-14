@@ -1689,7 +1689,7 @@ int perf_session__write_header(struct perf_session *session,
 	lseek(fd, sizeof(f_header), SEEK_SET);
 
 	if (session->evlist != evlist)
-		pair = list_entry(session->evlist->entries.next, struct perf_evsel, node);
+		pair = perf_evlist__first(session->evlist);
 
 	list_for_each_entry(attr, &evlist->entries, node) {
 		attr->id_offset = lseek(fd, 0, SEEK_CUR);
@@ -1704,7 +1704,7 @@ out_err_write:
 			if (err < 0)
 				goto out_err_write;
 			attr->ids += pair->ids;
-			pair = list_entry(pair->node.next, struct perf_evsel, node);
+			pair = perf_evsel__next(pair);
 		}
 	}
 

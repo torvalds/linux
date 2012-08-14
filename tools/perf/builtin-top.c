@@ -509,7 +509,7 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->nr_entries) {
-					top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
+					top->sym_evsel = perf_evlist__first(top->evlist);
 					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
@@ -518,7 +518,7 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
-				top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
+				top->sym_evsel = perf_evlist__first(top->evlist);
 			break;
 		case 'f':
 			prompt_integer(&top->count_filter, "Enter display event count filter");
@@ -1326,7 +1326,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 			pos->attr.sample_period = top.default_interval;
 	}
 
-	top.sym_evsel = list_entry(top.evlist->entries.next, struct perf_evsel, node);
+	top.sym_evsel = perf_evlist__first(top.evlist);
 
 	symbol_conf.priv_size = sizeof(struct annotation);
 

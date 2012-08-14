@@ -710,7 +710,7 @@ static int test__PERF_RECORD(void)
 	/*
 	 * Config the evsels, setting attr->comm on the first one, etc.
 	 */
-	evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
+	evsel = perf_evlist__first(evlist);
 	evsel->attr.sample_type |= PERF_SAMPLE_CPU;
 	evsel->attr.sample_type |= PERF_SAMPLE_TID;
 	evsel->attr.sample_type |= PERF_SAMPLE_TIME;
