@@ -42,13 +42,13 @@ void __sramfunc sram_printch(char byte)
 	u32 clk_gate2, clk_gate4, clk_gate8;
 
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_ACLK_PEIRPH % 16)
-			  | (1 << CLK_GATE_HCLK_PEIRPH % 16)
-			  | (1 << CLK_GATE_PCLK_PEIRPH % 16)
+			  | (1 << CLK_GATE_ACLK_PERIPH % 16)
+			  | (1 << CLK_GATE_HCLK_PERIPH % 16)
+			  | (1 << CLK_GATE_PCLK_PERIPH % 16)
 			  , clk_gate2, CRU_CLKGATES_CON(2), 0
-			  | (1 << ((CLK_GATE_ACLK_PEIRPH % 16) + 16))
-			  | (1 << ((CLK_GATE_HCLK_PEIRPH % 16) + 16))
-			  | (1 << ((CLK_GATE_PCLK_PEIRPH % 16) + 16)));
+			  | (1 << ((CLK_GATE_ACLK_PERIPH % 16) + 16))
+			  | (1 << ((CLK_GATE_HCLK_PERIPH % 16) + 16))
+			  | (1 << ((CLK_GATE_PCLK_PERIPH % 16) + 16)));
 	gate_save_soc_clk((1 << CLK_GATE_ACLK_CPU_PERI % 16)
 			  , clk_gate4, CRU_CLKGATES_CON(4),
 			  (1 << ((CLK_GATE_ACLK_CPU_PERI % 16) + 16)));
@@ -375,8 +375,8 @@ static void __sramfunc rk30_sram_suspend(void)
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
 	if(clkgt_regs[8]&((1<<12)|(1<13))){
 		gate_save_soc_clk(0
-				  | (1 << CLK_GATE_PEIRPH_SRC % 16)
-				  | (1 << CLK_GATE_PCLK_PEIRPH % 16)
+				  | (1 << CLK_GATE_PERIPH_SRC % 16)
+				  | (1 << CLK_GATE_PCLK_PERIPH % 16)
 				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
 	}else{
 		gate_save_soc_clk(0
@@ -489,9 +489,9 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_DDR_GPLL % 16)
 			  , clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
 	gate_save_soc_clk(0
-			  | (1 << CLK_GATE_PEIRPH_SRC % 16)
-			  | (1 << CLK_GATE_PCLK_PEIRPH % 16)
-			  | (1 << CLK_GATE_ACLK_PEIRPH % 16)
+			  | (1 << CLK_GATE_PERIPH_SRC % 16)
+			  | (1 << CLK_GATE_PCLK_PERIPH % 16)
+			  | (1 << CLK_GATE_ACLK_PERIPH % 16)
 			  , clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[3], CRU_CLKGATES_CON(3), 0xff9f);
 	gate_save_soc_clk(0

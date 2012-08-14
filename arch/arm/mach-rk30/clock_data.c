@@ -1521,7 +1521,7 @@ static struct clk aclk_periph = {
 	.name		= "aclk_periph",
 	.parent		= &general_pll_clk,
 	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_ACLK_PEIRPH,
+	.gate_idx	= CLK_GATE_ACLK_PERIPH,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_freediv,
 	.clksel_con	= CRU_CLKSELS_CON(10),
@@ -1529,13 +1529,13 @@ static struct clk aclk_periph = {
 	CRU_SRC_SET(1,15),
 	CRU_PARENTS_SET(aclk_periph_parents),
 };
-GATE_CLK(periph_src, aclk_periph, PEIRPH_SRC);
+GATE_CLK(periph_src, aclk_periph, PERIPH_SRC);
 
 static struct clk pclk_periph = {
 	.name		= "pclk_periph",
 	.parent		= &aclk_periph,
 	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_PCLK_PEIRPH,
+	.gate_idx	= CLK_GATE_PCLK_PERIPH,
 	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
  	.clksel_con	= CRU_CLKSELS_CON(10),
@@ -1546,7 +1546,7 @@ static struct clk hclk_periph = {
 	.name		= "hclk_periph",
 	.parent		= &aclk_periph,
 	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_HCLK_PEIRPH,
+	.gate_idx	= CLK_GATE_HCLK_PERIPH,
 	.recalc		= clksel_recalc_shift,
 	.set_rate	= clksel_set_rate_shift,
 	.clksel_con = CRU_CLKSELS_CON(10),
