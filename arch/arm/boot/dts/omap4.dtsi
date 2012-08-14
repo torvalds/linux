@@ -295,5 +295,10 @@
 			interrupt-parent = <&gic>;
 			ti,hwmods = "dmic";
 		};
+
+		keypad: keypad@4a31c000 {
+			compatible = "ti,omap4-keypad";
+			ti,hwmods = "kbd";
+		};
 	};
 };
