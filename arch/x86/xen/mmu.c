@@ -1240,6 +1240,25 @@ static void __init xen_pagetable_setup_done(pgd_t *base)
 			xen_start_info->mfn_list = new_mfn_list;
 		}
 	}
+	/* At this stage, cleanup_highmap has already cleaned __ka space
+	 * from _brk_limit way up to the max_pfn_mapped (which is the end of
+	 * the ramdisk). We continue on, erasing PMD entries that point to page
+	 * tables - do note that they are accessible at this stage via __va.
+	 * For good measure we also round up to the PMD - which means that if
+	 * anybody is using __ka address to the initial boot-stack - and try
+	 * to use it - they are going to crash. The xen_start_info has been
+	 * taken care of already in xen_setup_kernel_pagetable. */
+	addr = xen_start_info->pt_base;
+	size = roundup(xen_start_info->nr_pt_frames * PAGE_SIZE, PMD_SIZE);
+
+	xen_cleanhighmap(addr, addr + size);
+	xen_start_info->pt_base = (unsigned long)__va(__pa(xen_start_info->pt_base));
+#ifdef DEBUG
+	/* This is superflous and is not neccessary, but you know what
+	 * lets do it. The MODULES_VADDR -> MODULES_END should be clear of
+	 * anything at this stage. */
+	xen_cleanhighmap(MODULES_VADDR, roundup(MODULES_VADDR, PUD_SIZE) - 1);
+#endif
 #endif
 	xen_post_allocator_init();
 }
