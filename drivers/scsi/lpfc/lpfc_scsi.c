@@ -3476,9 +3476,15 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	}
 	lp = (uint32_t *)cmnd->sense_buffer;
 
-	if (!scsi_status && (resp_info & RESID_UNDER) &&
-		vport->cfg_log_verbose & LOG_FCP_UNDER)
-		logit = LOG_FCP_UNDER;
+	/* special handling for under run conditions */
+	if (!scsi_status && (resp_info & RESID_UNDER)) {
+		/* don't log under runs if fcp set... */
+		if (vport->cfg_log_verbose & LOG_FCP)
+			logit = LOG_FCP_ERROR;
+		/* unless operator says so */
+		if (vport->cfg_log_verbose & LOG_FCP_UNDER)
+			logit = LOG_FCP_UNDER;
+	}
 
 	lpfc_printf_vlog(vport, KERN_WARNING, logit,
 			 "9024 FCP command x%x failed: x%x SNS x%x x%x "
@@ -3654,10 +3660,10 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 		else if (lpfc_cmd->status >= IOSTAT_CNT)
 			lpfc_cmd->status = IOSTAT_DEFAULT;
-		if (lpfc_cmd->status == IOSTAT_FCP_RSP_ERROR
-			&& !lpfc_cmd->fcp_rsp->rspStatus3
-			&& (lpfc_cmd->fcp_rsp->rspStatus2 & RESID_UNDER)
-			&& !(phba->cfg_log_verbose & LOG_FCP_UNDER))
+		if (lpfc_cmd->status == IOSTAT_FCP_RSP_ERROR &&
+		    !lpfc_cmd->fcp_rsp->rspStatus3 &&
+		    (lpfc_cmd->fcp_rsp->rspStatus2 & RESID_UNDER) &&
+		    !(vport->cfg_log_verbose & LOG_FCP_UNDER))
 			logit = 0;
 		else
 			logit = LOG_FCP | LOG_FCP_UNDER;
