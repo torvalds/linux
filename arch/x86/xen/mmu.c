@@ -1227,7 +1227,6 @@ static void __init xen_pagetable_setup_done(pgd_t *base)
 			/* We should be in __ka space. */
 			BUG_ON(xen_start_info->mfn_list < __START_KERNEL_map);
 			addr = xen_start_info->mfn_list;
-			size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 			/* We roundup to the PMD, which means that if anybody at this stage is
 			 * using the __ka address of xen_start_info or xen_start_info->shared_info
 			 * they are in going to crash. Fortunatly we have already revectored
@@ -1235,6 +1234,7 @@ static void __init xen_pagetable_setup_done(pgd_t *base)
 			size = roundup(size, PMD_SIZE);
 			xen_cleanhighmap(addr, addr + size);
 
+			size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
 			memblock_free(__pa(xen_start_info->mfn_list), size);
 			/* And revector! Bye bye old array */
 			xen_start_info->mfn_list = new_mfn_list;
