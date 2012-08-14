@@ -41,19 +41,18 @@
 #ifdef CONFIG_DVB_USB_DEBUG
 #define dprintk(var, level, args...) \
 	do { if ((var & level)) printk(args); } while (0)
-#define DVB_USB_DEBUG_STATUS
-#else
-#define dprintk(args...)
-#define debug_dump(b, l, func)
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
-#endif
-
 #define debug_dump(b, l, func) {\
 	int loop_; \
 	for (loop_ = 0; loop_ < l; loop_++) \
 		func("%02x ", b[loop_]); \
 	func("\n");\
 }
+#define DVB_USB_DEBUG_STATUS
+#else
+#define dprintk(args...)
+#define debug_dump(b, l, func)
+#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#endif
 
 #define deb_info(args...) dprintk(dvb_usb_anysee_debug, 0x01, args)
 #define deb_xfer(args...) dprintk(dvb_usb_anysee_debug, 0x02, args)
