@@ -561,6 +561,8 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	struct hdmi_cm cm;
 	const struct hdmi_config *t;
 
+	mutex_lock(&hdmi.lock);
+
 	cm = hdmi_get_code(timings);
 	hdmi.ip_data.cfg.cm = cm;
 
@@ -579,6 +581,8 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	} else {
 		dss_mgr_set_timings(dssdev->manager, &t->timings);
 	}
+
+	mutex_unlock(&hdmi.lock);
 }
 
 static void hdmi_dump_regs(struct seq_file *s)
