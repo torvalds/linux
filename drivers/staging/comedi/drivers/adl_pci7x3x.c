@@ -121,7 +121,7 @@ static int adl_pci7x3x_do_insn_bits(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	unsigned int reg = (unsigned int)s->private;
+	unsigned long reg = (unsigned long)s->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
@@ -147,7 +147,7 @@ static int adl_pci7x3x_di_insn_bits(struct comedi_device *dev,
 				    struct comedi_insn *insn,
 				    unsigned int *data)
 {
-	unsigned int reg = (unsigned int)s->private;
+	unsigned long reg = (unsigned long)s->private;
 
 	data[1] = inl(dev->iobase + reg);
 
