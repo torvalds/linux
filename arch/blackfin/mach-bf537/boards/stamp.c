@@ -1525,7 +1525,7 @@ static struct platform_device bfin_sport_spi1_device = {
 
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 static struct platform_device bfin_fb_device = {
-	.name = "bf537-lq035",
+	.name = "bf537_lq035",
 };
 #endif
 
