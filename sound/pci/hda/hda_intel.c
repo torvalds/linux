@@ -110,8 +110,15 @@ MODULE_PARM_DESC(beep_mode, "Select HDA Beep registration mode "
 #endif
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+static int param_set_xint(const char *val, const struct kernel_param *kp);
+static struct kernel_param_ops param_ops_xint = {
+	.set = param_set_xint,
+	.get = param_get_int,
+};
+#define param_check_xint param_check_int
+
 static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
-module_param(power_save, int, 0644);
+module_param(power_save, xint, 0644);
 MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
 		 "(in second, 0 = disable).");
 
@@ -502,6 +509,9 @@ struct azx {
 
 	/* reboot notifier (for mysterious hangup problem at power-down) */
 	struct notifier_block reboot_notifier;
+
+	/* card list (for power_save trigger) */
+	struct list_head list;
 };
 
 /* driver types */
@@ -2407,6 +2417,48 @@ static void azx_power_notify(struct hda_bus *bus)
 		 !bus->power_keep_link_on)
 		azx_stop_chip(chip);
 }
+
+static DEFINE_MUTEX(card_list_lock);
+static LIST_HEAD(card_list);
+
+static void azx_add_card_list(struct azx *chip)
+{
+	mutex_lock(&card_list_lock);
+	list_add(&chip->list, &card_list);
+	mutex_unlock(&card_list_lock);
+}
+
+static void azx_del_card_list(struct azx *chip)
+{
+	mutex_lock(&card_list_lock);
+	list_del_init(&chip->list);
+	mutex_unlock(&card_list_lock);
+}
+
+/* trigger power-save check at writing parameter */
+static int param_set_xint(const char *val, const struct kernel_param *kp)
+{
+	struct azx *chip;
+	struct hda_codec *c;
+	int prev = power_save;
+	int ret = param_set_int(val, kp);
+
+	if (ret || prev == power_save)
+		return ret;
+
+	mutex_lock(&card_list_lock);
+	list_for_each_entry(chip, &card_list, list) {
+		if (!chip->bus || chip->disabled)
+			continue;
+		list_for_each_entry(c, &chip->bus->codec_list, list)
+			snd_hda_power_sync(c);
+	}
+	mutex_unlock(&card_list_lock);
+	return 0;
+}
+#else
+#define azx_add_card_list(chip) /* NOP */
+#define azx_del_card_list(chip) /* NOP */
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
 #if defined(CONFIG_PM_SLEEP) || defined(SUPPORT_VGA_SWITCHEROO)
@@ -2603,6 +2655,8 @@ static int __devinit register_vga_switcheroo(struct azx *chip)
 static int azx_free(struct azx *chip)
 {
 	int i;
+
+	azx_del_card_list(chip);
 
 	azx_notifier_unregister(chip);
 
@@ -2911,6 +2965,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 	INIT_LIST_HEAD(&chip->pcm_list);
+	INIT_LIST_HEAD(&chip->list);
 	init_vga_switcheroo(chip);
 
 	chip->position_fix[0] = chip->position_fix[1] =
@@ -3288,6 +3343,7 @@ static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip)
 	chip->running = 1;
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
+	azx_add_card_list(chip);
 
 	return 0;
 
