@@ -48,6 +48,7 @@ struct sh_mobile_lcdc_chan_cfg;
 struct sh_mipi_dsi_info {
 	enum sh_mipi_dsi_data_fmt	data_format;
 	struct sh_mobile_lcdc_chan_cfg	*lcd_chan;
+	int				channel;
 	int				lane;
 	unsigned long			flags;
 	u32				clksrc;
