@@ -101,12 +101,10 @@ static int write_update_netdev_table(struct net_device *dev)
 	u32 max_len;
 	struct netprio_map *map;
 
-	rtnl_lock();
 	max_len = atomic_read(&max_prioidx) + 1;
 	map = rtnl_dereference(dev->priomap);
 	if (!map || map->priomap_len < max_len)
 		ret = extend_netdev_table(dev, max_len);
-	rtnl_unlock();
 
 	return ret;
 }
@@ -256,17 +254,17 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 	if (!dev)
 		goto out_free_devname;
 
+	rtnl_lock();
 	ret = write_update_netdev_table(dev);
 	if (ret < 0)
 		goto out_put_dev;
 
-	rcu_read_lock();
-	map = rcu_dereference(dev->priomap);
+	map = rtnl_dereference(dev->priomap);
 	if (map)
 		map->priomap[prioidx] = priority;
-	rcu_read_unlock();
 
 out_put_dev:
+	rtnl_unlock();
 	dev_put(dev);
 
 out_free_devname:
