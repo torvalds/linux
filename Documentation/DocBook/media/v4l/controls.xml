@@ -3505,7 +3505,7 @@ This encodes up to 31 pre-defined programme types.</entry>
 	  </row>
 	  <row><entry spanname="descr">Sets the Programme Service name (PS_NAME) for transmission.
 It is intended for static display on a receiver. It is the primary aid to listeners in programme service
-identification and selection.  In Annex E of <xref linkend="en50067" />, the RDS specification,
+identification and selection.  In Annex E of <xref linkend="iec62106" />, the RDS specification,
 there is a full description of the correct character encoding for Programme Service name strings.
 Also from RDS specification, PS is usually a single eight character text. However, it is also possible
 to find receivers which can scroll strings sized as 8 x N characters. So, this control must be configured
@@ -3519,7 +3519,7 @@ with steps of 8 characters. The result is it must always contain a string with s
 what is being broadcasted. RDS Radio Text can be applied when broadcaster wishes to transmit longer PS names,
 programme-related information or any other text. In these cases, RadioText should be used in addition to
 <constant>V4L2_CID_RDS_TX_PS_NAME</constant>. The encoding for Radio Text strings is also fully described
-in Annex E of <xref linkend="en50067" />. The length of Radio Text strings depends on which RDS Block is being
+in Annex E of <xref linkend="iec62106" />. The length of Radio Text strings depends on which RDS Block is being
 used to transmit it, either 32 (2A block) or 64 (2B block).  However, it is also possible
 to find receivers which can scroll strings sized as 32 x N or 64 x N characters. So, this control must be configured
 with steps of 32 or 64 characters. The result is it must always contain a string with size multiple of 32 or 64. </entry>
@@ -3650,7 +3650,7 @@ manually or automatically if set to zero. Unit, range and step are driver-specif
       </table>
 
 <para>For more details about RDS specification, refer to
-<xref linkend="en50067" /> document, from CENELEC.</para>
+<xref linkend="iec62106" /> document, from CENELEC.</para>
     </section>
 
     <section id="flash-controls">

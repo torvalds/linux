@@ -178,23 +178,23 @@ Signal - NTSC for Studio Applications"</title>
 1125-Line High-Definition Production"</title>
     </biblioentry>
 
-    <biblioentry id="en50067">
-      <abbrev>EN&nbsp;50067</abbrev>
+    <biblioentry id="iec62106">
+      <abbrev>IEC&nbsp;62106</abbrev>
       <authorgroup>
-	<corpauthor>European Committee for Electrotechnical Standardization
-(<ulink url="http://www.cenelec.eu">http://www.cenelec.eu</ulink>)</corpauthor>
+	<corpauthor>International Electrotechnical Commission
+(<ulink url="http://www.iec.ch">http://www.iec.ch</ulink>)</corpauthor>
       </authorgroup>
       <title>Specification of the radio data system (RDS) for VHF/FM sound broadcasting
 in the frequency range from 87,5 to 108,0 MHz</title>
     </biblioentry>
 
     <biblioentry id="nrsc4">
-      <abbrev>NRSC-4</abbrev>
+      <abbrev>NRSC-4-B</abbrev>
       <authorgroup>
 	<corpauthor>National Radio Systems Committee
 (<ulink url="http://www.nrscstandards.org">http://www.nrscstandards.org</ulink>)</corpauthor>
       </authorgroup>
-      <title>NRSC-4: United States RBDS Standard</title>
+      <title>NRSC-4-B: United States RBDS Standard</title>
     </biblioentry>
 
     <biblioentry id="iso12232">
