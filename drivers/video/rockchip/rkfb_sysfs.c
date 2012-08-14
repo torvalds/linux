@@ -263,6 +263,7 @@ static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
 	for(i=0;i<256;i++)
 	{
 		temp = simple_strtoul(start,NULL,10);
+		dsp_lut[i] = temp;
 		do
 		{
 			start++;
