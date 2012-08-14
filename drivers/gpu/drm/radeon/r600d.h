@@ -602,6 +602,9 @@
 #define RLC_HB_WPTR                                       0x3f1c
 #define RLC_HB_WPTR_LSB_ADDR                              0x3f14
 #define RLC_HB_WPTR_MSB_ADDR                              0x3f18
+#define RLC_GPU_CLOCK_COUNT_LSB				  0x3f38
+#define RLC_GPU_CLOCK_COUNT_MSB				  0x3f3c
+#define RLC_CAPTURE_GPU_CLOCK_COUNT			  0x3f40
 #define RLC_MC_CNTL                                       0x3f44
 #define RLC_UCODE_CNTL                                    0x3f48
 #define RLC_UCODE_ADDR                                    0x3f2c

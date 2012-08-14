@@ -213,7 +213,7 @@ static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
 	return val;
 }
 
-u32 intel_panel_get_backlight(struct drm_device *dev)
+static u32 intel_panel_get_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 val;
