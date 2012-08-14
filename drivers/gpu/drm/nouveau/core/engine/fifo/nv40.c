@@ -232,7 +232,7 @@ nv40_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nv40_fifo_sclass[] = {
-	{ 0x006e, &nv40_fifo_ofuncs },
+	{ 0x406e, &nv40_fifo_ofuncs },
 	{}
 };
 

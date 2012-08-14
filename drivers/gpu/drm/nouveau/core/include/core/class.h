@@ -53,6 +53,7 @@ struct nv_dma_class {
 
 /* 006b: NV03_CHANNEL_DMA
  * 006e: NV10_CHANNEL_DMA
+ * 176e: NV17_CHANNEL_DMA
  * 406e: NV40_CHANNEL_DMA
  */
 

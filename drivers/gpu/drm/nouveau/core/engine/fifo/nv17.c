@@ -113,7 +113,7 @@ nv17_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nv17_fifo_sclass[] = {
-	{ 0x006e, &nv17_fifo_ofuncs },
+	{ 0x176e, &nv17_fifo_ofuncs },
 	{}
 };
 

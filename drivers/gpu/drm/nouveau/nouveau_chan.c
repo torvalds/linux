@@ -221,7 +221,7 @@ static int
 nouveau_channel_dma(struct nouveau_drm *drm, struct nouveau_cli *cli,
 		    u32 parent, u32 handle, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { 0x006e, 0 };
+	static const u16 oclasses[] = { 0x406e, 0x176e, 0x006e, 0x006b, 0 };
 	const u16 *oclass = oclasses;
 	struct nv_channel_dma_class args;
 	struct nouveau_channel *chan;
@@ -305,7 +305,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	}
 
 	/* initialise dma tracking parameters */
-	switch (nv_hclass(chan->object) & 0xffff) {
+	switch (nv_hclass(chan->object) & 0x00ff) {
+	case 0x006b:
 	case 0x006e:
 		chan->user_put = 0x40;
 		chan->user_get = 0x44;

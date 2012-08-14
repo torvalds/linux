@@ -247,7 +247,7 @@ nv04_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nv04_fifo_sclass[] = {
-	{ 0x006e, &nv04_fifo_ofuncs },
+	{ 0x006b, &nv04_fifo_ofuncs },
 	{}
 };
 

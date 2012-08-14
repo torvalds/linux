@@ -118,7 +118,10 @@ nv04_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	switch (nv_mclass(parent)) {
+	case 0x006b:
 	case 0x006e:
+	case 0x176e:
+	case 0x406e:
 		ret = dmaeng->bind(dmaeng, *pobject, &dmaobj->base, &gpuobj);
 		nouveau_object_ref(NULL, pobject);
 		*pobject = nv_object(gpuobj);
