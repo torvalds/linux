@@ -2732,7 +2732,7 @@ static void mgslpc_add_device(MGSLPC_INFO *info)
 	hdlcdev_init(info);
 #endif
 	tty_port_register_device(&info->port, serial_driver, info->line,
-			&info->p_dev.dev);
+			&info->p_dev->dev);
 }
 
 static void mgslpc_remove_device(MGSLPC_INFO *remove_info)
