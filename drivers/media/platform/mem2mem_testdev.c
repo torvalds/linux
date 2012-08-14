@@ -911,10 +911,9 @@ static int m2mtest_open(struct file *file)
 	v4l2_ctrl_new_custom(hdl, &m2mtest_ctrl_trans_time_msec, NULL);
 	v4l2_ctrl_new_custom(hdl, &m2mtest_ctrl_trans_num_bufs, NULL);
 	if (hdl->error) {
-		int err = hdl->error;
-
+		rc = hdl->error;
 		v4l2_ctrl_handler_free(hdl);
-		return err;
+		goto open_unlock;
 	}
 	ctx->fh.ctrl_handler = hdl;
 	v4l2_ctrl_handler_setup(hdl);
@@ -946,7 +945,7 @@ static int m2mtest_open(struct file *file)
 
 open_unlock:
 	mutex_unlock(&dev->dev_mutex);
-	return 0;
+	return rc;
 }
 
 static int m2mtest_release(struct file *file)
