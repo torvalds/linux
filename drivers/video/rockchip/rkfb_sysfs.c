@@ -259,7 +259,7 @@ static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
 		temp = i;
 		dsp_lut[i] = temp + (temp<<8) + (temp<<16);  //init by default value
 	}
-	printk("%s\n",start);
+	//printk("%s\n",start);
 	for(i=0;i<256;i++)
 	{
 		temp = simple_strtoul(start,NULL,10);
