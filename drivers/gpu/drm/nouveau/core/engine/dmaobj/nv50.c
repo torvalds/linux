@@ -110,6 +110,7 @@ nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	switch (nv_mclass(parent)) {
 	case 0x506f:
+	case 0x826e:
 	case 0x826f:
 		ret = dmaeng->bind(dmaeng, *pobject, &dmaobj->base, &gpuobj);
 		nouveau_object_ref(NULL, pobject);

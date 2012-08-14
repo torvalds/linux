@@ -147,10 +147,71 @@ nv84_fifo_object_attach(struct nouveau_object *parent,
 }
 
 static int
-nv84_fifo_chan_ctor(struct nouveau_object *parent,
-		    struct nouveau_object *engine,
-		    struct nouveau_oclass *oclass, void *data, u32 size,
-		    struct nouveau_object **pobject)
+nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
+			struct nouveau_object *engine,
+			struct nouveau_oclass *oclass, void *data, u32 size,
+			struct nouveau_object **pobject)
+{
+	struct nouveau_bar *bar = nouveau_bar(parent);
+	struct nv50_fifo_base *base = (void *)parent;
+	struct nv50_fifo_chan *chan;
+	struct nv03_channel_dma_class *args = data;
+	int ret;
+
+	if (size < sizeof(*args))
+		return -EINVAL;
+
+	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
+					  0x2000, args->pushbuf,
+					  (1 << NVDEV_ENGINE_DMAOBJ) |
+					  (1 << NVDEV_ENGINE_SW) |
+					  (1 << NVDEV_ENGINE_GR) |
+					  (1 << NVDEV_ENGINE_MPEG) |
+					  (1 << NVDEV_ENGINE_ME) |
+					  (1 << NVDEV_ENGINE_VP) |
+					  (1 << NVDEV_ENGINE_CRYPT) |
+					  (1 << NVDEV_ENGINE_BSP) |
+					  (1 << NVDEV_ENGINE_PPP) |
+					  (1 << NVDEV_ENGINE_COPY0) |
+					  (1 << NVDEV_ENGINE_UNK1C1), &chan);
+	*pobject = nv_object(chan);
+	if (ret)
+		return ret;
+
+	ret = nouveau_ramht_new(parent, parent, 0x8000, 16, &chan->ramht);
+	if (ret)
+		return ret;
+
+	nv_parent(chan)->context_attach = nv84_fifo_context_attach;
+	nv_parent(chan)->context_detach = nv84_fifo_context_detach;
+	nv_parent(chan)->object_attach = nv84_fifo_object_attach;
+	nv_parent(chan)->object_detach = nv50_fifo_object_detach;
+
+	nv_wo32(base->ramfc, 0x08, lower_32_bits(args->offset));
+	nv_wo32(base->ramfc, 0x0c, upper_32_bits(args->offset));
+	nv_wo32(base->ramfc, 0x10, lower_32_bits(args->offset));
+	nv_wo32(base->ramfc, 0x14, upper_32_bits(args->offset));
+	nv_wo32(base->ramfc, 0x3c, 0x003f6078);
+	nv_wo32(base->ramfc, 0x44, 0x01003fff);
+	nv_wo32(base->ramfc, 0x48, chan->base.pushgpu->node->offset >> 4);
+	nv_wo32(base->ramfc, 0x4c, 0xffffffff);
+	nv_wo32(base->ramfc, 0x60, 0x7fffffff);
+	nv_wo32(base->ramfc, 0x78, 0x00000000);
+	nv_wo32(base->ramfc, 0x7c, 0x30000001);
+	nv_wo32(base->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
+				   (4 << 24) /* SEARCH_FULL */ |
+				   (chan->ramht->base.node->offset >> 4));
+	nv_wo32(base->ramfc, 0x88, base->cache->addr >> 10);
+	nv_wo32(base->ramfc, 0x98, nv_gpuobj(base)->addr >> 12);
+	bar->flush(bar);
+	return 0;
+}
+
+static int
+nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
+			struct nouveau_object *engine,
+			struct nouveau_oclass *oclass, void *data, u32 size,
+			struct nouveau_object **pobject)
 {
 	struct nouveau_bar *bar = nouveau_bar(parent);
 	struct nv50_fifo_base *base = (void *)parent;
@@ -228,8 +289,18 @@ nv84_fifo_chan_init(struct nouveau_object *object)
 }
 
 static struct nouveau_ofuncs
-nv84_fifo_ofuncs = {
-	.ctor = nv84_fifo_chan_ctor,
+nv84_fifo_ofuncs_dma = {
+	.ctor = nv84_fifo_chan_ctor_dma,
+	.dtor = nv50_fifo_chan_dtor,
+	.init = nv84_fifo_chan_init,
+	.fini = nv50_fifo_chan_fini,
+	.rd32 = _nouveau_fifo_channel_rd32,
+	.wr32 = _nouveau_fifo_channel_wr32,
+};
+
+static struct nouveau_ofuncs
+nv84_fifo_ofuncs_ind = {
+	.ctor = nv84_fifo_chan_ctor_ind,
 	.dtor = nv50_fifo_chan_dtor,
 	.init = nv84_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
@@ -239,7 +310,8 @@ nv84_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nv84_fifo_sclass[] = {
-	{ 0x826f, &nv84_fifo_ofuncs },
+	{ 0x826e, &nv84_fifo_ofuncs_dma },
+	{ 0x826f, &nv84_fifo_ofuncs_ind },
 	{}
 };
 
