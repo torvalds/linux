@@ -7,6 +7,6 @@ obj-$(CONFIG_VIDEO_SAA7164) += saa7164.o
 ccflags-y += -I$(srctree)/drivers/media/video
 ccflags-y += -I$(srctree)/drivers/media/common/tuners
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
-ccflags-y += -I$(srctree)/drivers/media/dvb/frontends
+ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
 
 ccflags-y += $(extra-cflags-y) $(extra-cflags-m)

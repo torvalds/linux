@@ -19,4 +19,4 @@ obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2.o
 ccflags-y += -Idrivers/media/video
 ccflags-y += -Idrivers/media/common/tuners
 ccflags-y += -Idrivers/media/dvb-core
-ccflags-y += -Idrivers/media/dvb/frontends
+ccflags-y += -Idrivers/media/dvb-frontends
