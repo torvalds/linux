@@ -86,6 +86,8 @@
 #define LCD_V2_LIDD_CLK_EN		BIT(1)
 #define LCD_V2_CORE_CLK_EN		BIT(0)
 #define LCD_V2_LPP_B10			26
+#define LCD_V2_TFT_24BPP_MODE		BIT(25)
+#define LCD_V2_TFT_24BPP_UNPACK		BIT(26)
 
 /* LCD Raster Timing 2 Register */
 #define LCD_AC_BIAS_TRANSITIONS_PER_INT(x)	((x) << 16)
@@ -156,7 +158,6 @@ struct da8xx_fb_par {
 	unsigned int		dma_end;
 	struct clk *lcdc_clk;
 	int irq;
-	unsigned short pseudo_palette[16];
 	unsigned int palette_sz;
 	unsigned int pxl_clk;
 	int blank;
@@ -175,6 +176,7 @@ struct da8xx_fb_par {
 	unsigned int		lcd_fck_rate;
 #endif
 	void (*panel_power_ctrl)(int);
+	u32 pseudo_palette[16];
 };
 
 /* Variable Screen Information */
@@ -499,6 +501,9 @@ static int lcd_cfg_frame_buffer(struct da8xx_fb_par *par, u32 width, u32 height,
 {
 	u32 reg;
 
+	if (bpp > 16 && lcd_revision == LCD_VERSION_1)
+		return -EINVAL;
+
 	/* Set the Panel Width */
 	/* Pixels per line = (PPL + 1)*16 */
 	if (lcd_revision == LCD_VERSION_1) {
@@ -542,14 +547,19 @@ static int lcd_cfg_frame_buffer(struct da8xx_fb_par *par, u32 width, u32 height,
 	reg = lcdc_read(LCD_RASTER_CTRL_REG) & ~(1 << 8);
 	if (raster_order)
 		reg |= LCD_RASTER_ORDER;
-	lcdc_write(reg, LCD_RASTER_CTRL_REG);
+
+	par->palette_sz = 16 * 2;
 
 	switch (bpp) {
 	case 1:
 	case 2:
 	case 4:
 	case 16:
-		par->palette_sz = 16 * 2;
+		break;
+	case 24:
+		reg |= LCD_V2_TFT_24BPP_MODE;
+	case 32:
+		reg |= LCD_V2_TFT_24BPP_UNPACK;
 		break;
 
 	case 8:
@@ -560,9 +570,12 @@ static int lcd_cfg_frame_buffer(struct da8xx_fb_par *par, u32 width, u32 height,
 		return -EINVAL;
 	}
 
+	lcdc_write(reg, LCD_RASTER_CTRL_REG);
+
 	return 0;
 }
 
+#define CNVT_TOHW(val, width) ((((val) << (width)) + 0x7FFF - (val)) >> 16)
 static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			      unsigned blue, unsigned transp,
 			      struct fb_info *info)
@@ -578,13 +591,38 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR)
 		return 1;
 
-	if (info->var.bits_per_pixel == 4) {
-		if (regno > 15)
-			return 1;
+	if (info->var.bits_per_pixel > 16 && lcd_revision == LCD_VERSION_1)
+		return -EINVAL;
 
-		if (info->var.grayscale) {
-			pal = regno;
-		} else {
+	switch (info->fix.visual) {
+	case FB_VISUAL_TRUECOLOR:
+		red = CNVT_TOHW(red, info->var.red.length);
+		green = CNVT_TOHW(green, info->var.green.length);
+		blue = CNVT_TOHW(blue, info->var.blue.length);
+		break;
+	case FB_VISUAL_PSEUDOCOLOR:
+		switch (info->var.bits_per_pixel) {
+		case 4:
+			if (regno > 15)
+				return -EINVAL;
+
+			if (info->var.grayscale) {
+				pal = regno;
+			} else {
+				red >>= 4;
+				green >>= 8;
+				blue >>= 12;
+
+				pal = red & 0x0f00;
+				pal |= green & 0x00f0;
+				pal |= blue & 0x000f;
+			}
+			if (regno == 0)
+				pal |= 0x2000;
+			palette[regno] = pal;
+			break;
+
+		case 8:
 			red >>= 4;
 			green >>= 8;
 			blue >>= 12;
@@ -592,36 +630,36 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			pal = (red & 0x0f00);
 			pal |= (green & 0x00f0);
 			pal |= (blue & 0x000f);
+
+			if (palette[regno] != pal) {
+				update_hw = 1;
+				palette[regno] = pal;
+			}
+			break;
 		}
-		if (regno == 0)
-			pal |= 0x2000;
-		palette[regno] = pal;
+		break;
+	}
 
-	} else if (info->var.bits_per_pixel == 8) {
-		red >>= 4;
-		green >>= 8;
-		blue >>= 12;
+	/* Truecolor has hardware independent palette */
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+		u32 v;
 
-		pal = (red & 0x0f00);
-		pal |= (green & 0x00f0);
-		pal |= (blue & 0x000f);
+		if (regno > 15)
+			return -EINVAL;
 
-		if (palette[regno] != pal) {
-			update_hw = 1;
-			palette[regno] = pal;
+		v = (red << info->var.red.offset) |
+			(green << info->var.green.offset) |
+			(blue << info->var.blue.offset);
+
+		switch (info->var.bits_per_pixel) {
+		case 16:
+			((u16 *) (info->pseudo_palette))[regno] = v;
+			break;
+		case 24:
+		case 32:
+			((u32 *) (info->pseudo_palette))[regno] = v;
+			break;
 		}
-	} else if ((info->var.bits_per_pixel == 16) && regno < 16) {
-		red >>= (16 - info->var.red.length);
-		red <<= info->var.red.offset;
-
-		green >>= (16 - info->var.green.length);
-		green <<= info->var.green.offset;
-
-		blue >>= (16 - info->var.blue.length);
-		blue <<= info->var.blue.offset;
-
-		par->pseudo_palette[regno] = red | green | blue;
-
 		if (palette[0] != 0x4000) {
 			update_hw = 1;
 			palette[0] = 0x4000;
@@ -634,6 +672,7 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 
 	return 0;
 }
+#undef CNVT_TOHW
 
 static void lcd_reset(struct da8xx_fb_par *par)
 {
@@ -842,6 +881,9 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 {
 	int err = 0;
 
+	if (var->bits_per_pixel > 16 && lcd_revision == LCD_VERSION_1)
+		return -EINVAL;
+
 	switch (var->bits_per_pixel) {
 	case 1:
 	case 8:
@@ -875,6 +917,26 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 5;
 		var->transp.offset = 0;
 		var->transp.length = 0;
+		var->nonstd = 0;
+		break;
+	case 24:
+		var->red.offset = 16;
+		var->red.length = 8;
+		var->green.offset = 8;
+		var->green.length = 8;
+		var->blue.offset = 0;
+		var->blue.length = 8;
+		var->nonstd = 0;
+		break;
+	case 32:
+		var->transp.offset = 24;
+		var->transp.length = 8;
+		var->red.offset = 16;
+		var->red.length = 8;
+		var->green.offset = 8;
+		var->green.length = 8;
+		var->blue.offset = 0;
+		var->blue.length = 8;
 		var->nonstd = 0;
 		break;
 	default:
