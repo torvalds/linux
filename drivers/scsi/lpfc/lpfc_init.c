@@ -9524,7 +9524,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		}
 		/* Default to single EQ for non-MSI-X */
 		if (phba->intr_type != MSIX)
-			adjusted_fcp_io_channel = 0;
+			adjusted_fcp_io_channel = 1;
 		else if (phba->sli4_hba.msix_vec_nr <
 					phba->cfg_fcp_io_channel)
 			adjusted_fcp_io_channel = phba->sli4_hba.msix_vec_nr;
