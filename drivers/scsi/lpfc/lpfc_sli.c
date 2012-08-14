@@ -8555,56 +8555,6 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 	return 0;
 }
 
-/* lpfc_sli_abts_recover_port - Recover a port that failed an ABTS.
- * @vport: pointer to virtual port object.
- * @ndlp: nodelist pointer for the impacted rport.
- *
- * The driver calls this routine in response to a XRI ABORT CQE
- * event from the port.  In this event, the driver is required to
- * recover its login to the rport even though its login may be valid
- * from the driver's perspective.  The failed ABTS notice from the
- * port indicates the rport is not responding.
- */
-static void
-lpfc_sli_abts_recover_port(struct lpfc_vport *vport,
-			   struct lpfc_nodelist *ndlp)
-{
-	struct Scsi_Host *shost;
-	struct lpfc_hba *phba;
-	unsigned long flags = 0;
-
-	shost = lpfc_shost_from_vport(vport);
-	phba = vport->phba;
-	if (ndlp->nlp_state != NLP_STE_MAPPED_NODE) {
-		lpfc_printf_log(phba, KERN_INFO,
-			LOG_SLI, "3093 No rport recovery needed. "
-			"rport in state 0x%x\n",
-			ndlp->nlp_state);
-		return;
-	}
-	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"3094 Start rport recovery on shost id 0x%x "
-			"fc_id 0x%06x vpi 0x%x rpi 0x%x state 0x%x "
-			"flags 0x%x\n",
-			shost->host_no, ndlp->nlp_DID,
-			vport->vpi, ndlp->nlp_rpi, ndlp->nlp_state,
-			ndlp->nlp_flag);
-	/*
-	 * The rport is not responding.  Don't attempt ADISC recovery.
-	 * Remove the FCP-2 flag to force a PLOGI.
-	 */
-	spin_lock_irqsave(shost->host_lock, flags);
-	ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-	spin_unlock_irqrestore(shost->host_lock, flags);
-	lpfc_disc_state_machine(vport, ndlp, NULL,
-				NLP_EVT_DEVICE_RECOVERY);
-	lpfc_cancel_retry_delay_tmo(vport, ndlp);
-	spin_lock_irqsave(shost->host_lock, flags);
-	ndlp->nlp_flag |= NLP_NPR_2B_DISC;
-	spin_unlock_irqrestore(shost->host_lock, flags);
-	lpfc_disc_start(vport);
-}
-
 /* lpfc_sli_abts_err_handler - handle a failed ABTS request from an SLI3 port.
  * @phba: Pointer to HBA context object.
  * @iocbq: Pointer to iocb object.

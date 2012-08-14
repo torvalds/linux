@@ -559,6 +559,9 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		case NLP_STE_PRLI_ISSUE:
 			statep = "PRLI  ";
 			break;
+		case NLP_STE_LOGO_ISSUE:
+			statep = "LOGO  ";
+			break;
 		case NLP_STE_UNMAPPED_NODE:
 			statep = "UNMAP ";
 			break;
@@ -583,8 +586,13 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 			"WWNN %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x ",
 			*name, *(name+1), *(name+2), *(name+3),
 			*(name+4), *(name+5), *(name+6), *(name+7));
-		len +=  snprintf(buf+len, size-len, "RPI:%03d flag:x%08x ",
-			ndlp->nlp_rpi, ndlp->nlp_flag);
+		if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
+			len +=  snprintf(buf+len, size-len, "RPI:%03d ",
+				ndlp->nlp_rpi);
+		else
+			len +=  snprintf(buf+len, size-len, "RPI:none ");
+		len +=  snprintf(buf+len, size-len, "flag:x%08x ",
+			ndlp->nlp_flag);
 		if (!ndlp->nlp_type)
 			len +=  snprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)
