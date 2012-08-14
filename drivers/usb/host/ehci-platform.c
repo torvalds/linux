@@ -128,8 +128,10 @@ static int __devinit ehci_platform_probe(struct platform_device *dev)
 	}
 
 	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs)
+	if (!hcd->regs) {
+		err = -ENOMEM;
 		goto err_release_region;
+	}
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
 		goto err_iounmap;
