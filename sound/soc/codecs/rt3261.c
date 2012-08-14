@@ -631,6 +631,7 @@ static int rt3261_dmic_put(struct snd_kcontrol *kcontrol,
 }
 
 //bard 8-9 s
+#if 0
 static int rt3261_mic1_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -692,6 +693,7 @@ static int rt3261_mic2_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+#endif
 //bard 8-9 e
 
 /* IN1/IN2 Input Type */
@@ -742,9 +744,11 @@ static const char *rt3261_dmic_mode[] = {"Disable", "DMIC1", "DMIC2"};
 static const SOC_ENUM_SINGLE_DECL(rt3261_dmic_enum, 0, 0, rt3261_dmic_mode);
 
 //bard 8-9 s
+#if 0
 static const char *rt3261_mic_mode[] = {"off", "on",};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_mic_enum, 0, 0, rt3261_mic_mode);
+#endif
 //bard 8-9 e
 
 #ifdef RT3261_REG_RW
@@ -884,6 +888,7 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	},
 #endif
 //bard 8-9 s
+#if 0
 	SOC_SINGLE_TLV("Main Mic Capture Volume", RT3261_IN1_IN2,
 		RT3261_BST_SFT1,  8, 0, bst_tlv), 
 	SOC_SINGLE_TLV("Headset Mic Capture Volume", RT3261_IN3_IN4,
@@ -892,6 +897,7 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 		rt3261_mic1_get, rt3261_mic1_put),
 	SOC_ENUM_EXT("Headset Mic Capture Switch", rt3261_mic_enum,
 		rt3261_mic2_get, rt3261_mic2_put),
+#endif
 //bard 8-9 e
 };
 
