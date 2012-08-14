@@ -95,6 +95,19 @@ config SND_OMAP_SOC_SDP3430
 	  Say Y if you want to add support for SoC audio on Texas Instruments
 	  SDP3430.
 
+config SND_OMAP_SOC_OMAP_TWL4030
+	tristate "SoC Audio support for TI SoC based boards with twl4030 codec"
+	depends on TWL4030_CORE && SND_OMAP_SOC
+	select SND_OMAP_SOC_MCBSP
+	select SND_SOC_TWL4030
+	help
+	  Say Y if you want to add support for SoC audio on TI SoC based boards
+	  using twl4030 as c codec. This driver currently supports:
+	  - Beagleboard or Devkit8000
+	  - Gumstix Overo or CompuLab CM-T35/CM-T3730
+	  - IGEP v2
+	  - OMAP3EVM
+
 config SND_OMAP_SOC_OMAP_ABE_TWL6040
 	tristate "SoC Audio support for OMAP boards using ABE and twl6040 codec"
 	depends on TWL6040_CORE && SND_OMAP_SOC && ARCH_OMAP4
