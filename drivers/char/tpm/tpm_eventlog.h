@@ -68,4 +68,19 @@ enum tcpa_pc_event_ids {
 };
 
 int read_log(struct tpm_bios_log *log);
+
+#if defined(CONFIG_TCG_IBMVTPM) || defined(CONFIG_TCG_IBMVTPM_MODULE) || \
+	defined(CONFIG_ACPI)
+extern struct dentry **tpm_bios_log_setup(char *);
+extern void tpm_bios_log_teardown(struct dentry **);
+#else
+static inline struct dentry **tpm_bios_log_setup(char *name)
+{
+	return NULL;
+}
+static inline void tpm_bios_log_teardown(struct dentry **dir)
+{
+}
+#endif
+
 #endif
