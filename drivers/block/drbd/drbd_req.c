@@ -304,18 +304,6 @@ static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_
 	if (!atomic_sub_and_test(put, &req->completion_ref))
 		return 0;
 
-	if (drbd_suspended(mdev)) {
-		/* We do not allow completion while suspended.  Re-get a
-		 * reference, so whatever happens when this is resumed
-		 * may put and complete. */
-
-		D_ASSERT(!(req->rq_state & RQ_COMPLETION_SUSP));
-		req->rq_state |= RQ_COMPLETION_SUSP;
-		atomic_inc(&req->completion_ref);
-		return 0;
-	}
-
-	/* else */
 	drbd_req_complete(req, m);
 
 	if (req->rq_state & RQ_POSTPONED) {
@@ -337,6 +325,9 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 	unsigned s = req->rq_state;
 	int c_put = 0;
 	int k_put = 0;
+
+	if (drbd_suspended(mdev) && !((s | clear) & RQ_COMPLETION_SUSP))
+		set |= RQ_COMPLETION_SUSP;
 
 	/* apply */
 
@@ -365,6 +356,9 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 
 	if (!(s & RQ_NET_SENT) && (set & RQ_NET_SENT))
 		atomic_add(req->i.size >> 9, &mdev->ap_in_flight);
+
+	if (!(s & RQ_COMPLETION_SUSP) && (set & RQ_COMPLETION_SUSP))
+		atomic_inc(&req->completion_ref);
 
 	/* progress: put references */
 
