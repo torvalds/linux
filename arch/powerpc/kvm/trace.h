@@ -31,6 +31,60 @@ TRACE_EVENT(kvm_ppc_instr,
 		  __entry->inst, __entry->pc, __entry->emulate)
 );
 
+#ifdef CONFIG_PPC_BOOK3S
+#define kvm_trace_symbol_exit \
+	{0x100, "SYSTEM_RESET"}, \
+	{0x200, "MACHINE_CHECK"}, \
+	{0x300, "DATA_STORAGE"}, \
+	{0x380, "DATA_SEGMENT"}, \
+	{0x400, "INST_STORAGE"}, \
+	{0x480, "INST_SEGMENT"}, \
+	{0x500, "EXTERNAL"}, \
+	{0x501, "EXTERNAL_LEVEL"}, \
+	{0x502, "EXTERNAL_HV"}, \
+	{0x600, "ALIGNMENT"}, \
+	{0x700, "PROGRAM"}, \
+	{0x800, "FP_UNAVAIL"}, \
+	{0x900, "DECREMENTER"}, \
+	{0x980, "HV_DECREMENTER"}, \
+	{0xc00, "SYSCALL"}, \
+	{0xd00, "TRACE"}, \
+	{0xe00, "H_DATA_STORAGE"}, \
+	{0xe20, "H_INST_STORAGE"}, \
+	{0xe40, "H_EMUL_ASSIST"}, \
+	{0xf00, "PERFMON"}, \
+	{0xf20, "ALTIVEC"}, \
+	{0xf40, "VSX"}
+#else
+#define kvm_trace_symbol_exit \
+	{0, "CRITICAL"}, \
+	{1, "MACHINE_CHECK"}, \
+	{2, "DATA_STORAGE"}, \
+	{3, "INST_STORAGE"}, \
+	{4, "EXTERNAL"}, \
+	{5, "ALIGNMENT"}, \
+	{6, "PROGRAM"}, \
+	{7, "FP_UNAVAIL"}, \
+	{8, "SYSCALL"}, \
+	{9, "AP_UNAVAIL"}, \
+	{10, "DECREMENTER"}, \
+	{11, "FIT"}, \
+	{12, "WATCHDOG"}, \
+	{13, "DTLB_MISS"}, \
+	{14, "ITLB_MISS"}, \
+	{15, "DEBUG"}, \
+	{32, "SPE_UNAVAIL"}, \
+	{33, "SPE_FP_DATA"}, \
+	{34, "SPE_FP_ROUND"}, \
+	{35, "PERFORMANCE_MONITOR"}, \
+	{36, "DOORBELL"}, \
+	{37, "DOORBELL_CRITICAL"}, \
+	{38, "GUEST_DBELL"}, \
+	{39, "GUEST_DBELL_CRIT"}, \
+	{40, "HV_SYSCALL"}, \
+	{41, "HV_PRIV"}
+#endif
+
 TRACE_EVENT(kvm_exit,
 	TP_PROTO(unsigned int exit_nr, struct kvm_vcpu *vcpu),
 	TP_ARGS(exit_nr, vcpu),
@@ -62,7 +116,7 @@ TRACE_EVENT(kvm_exit,
 		__entry->last_inst	= vcpu->arch.last_inst;
 	),
 
-	TP_printk("exit=0x%x"
+	TP_printk("exit=%s"
 		" | pc=0x%lx"
 		" | msr=0x%lx"
 		" | dar=0x%lx"
@@ -71,7 +125,7 @@ TRACE_EVENT(kvm_exit,
 #endif
 		" | last_inst=0x%lx"
 		,
-		__entry->exit_nr,
+		__print_symbolic(__entry->exit_nr, kvm_trace_symbol_exit),
 		__entry->pc,
 		__entry->msr,
 		__entry->dar,
