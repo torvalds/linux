@@ -650,6 +650,8 @@ config DVB_TUNER_DIB0090
 comment "SEC control devices for DVB-S"
 	depends on DVB_CORE
 
+source "drivers/media/dvb-frontends/drx39xyj/Kconfig"
+
 config DVB_LNBP21
 	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C

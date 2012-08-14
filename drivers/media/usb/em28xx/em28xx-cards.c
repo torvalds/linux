@@ -214,6 +214,17 @@ static struct em28xx_reg_seq terratec_cinergy_USB_XS_FR_digital[] = {
 	{	-1,		-1,	-1,		-1},
 };
 
+/* PCTV HD Mini (80e) GPIOs
+   0-5: not used
+   6:   demod reset, active low
+   7:   LED on, active high */
+static struct em28xx_reg_seq em2874_pctv_80e_digital[] = {
+	{EM28XX_R06_I2C_CLK,    0x45,   0xff,		  10}, /*400 KHz*/
+	{EM2874_R80_GPIO_P0_CTRL, 0x80,   0xff,		  100},/*Demod reset*/
+	{EM2874_R80_GPIO_P0_CTRL, 0xc0,   0xff,		  10},
+	{  -1,			-1,	-1,		  -1},
+};
+
 /* eb1a:2868 Reddo DVB-C USB TV Box
    GPIO4 - CU1216L NIM
    Other GPIOs seems to be don't care. */
@@ -2128,6 +2139,13 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_gpio	= default_tuner_gpio,
 		.def_i2c_bus	= 1,
 	},
+	[EM2874_BOARD_PCTV_HD_MINI_80E] = {
+		.name         = "Pinnacle PCTV HD Mini",
+		.tuner_type   = TUNER_ABSENT,
+		.has_dvb      = 1,
+		.dvb_gpio     = em2874_pctv_80e_digital,
+		.decoder      = EM28XX_NODECODER,
+	},
 	/* 1ae7:9003/9004 SpeedLink Vicious And Devine Laplace webcam
 	 * Empia EM2765 + OmniVision OV2640 */
 	[EM2765_BOARD_SPEEDLINK_VAD_LAPLACE] = {
@@ -2290,6 +2308,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2882_BOARD_PINNACLE_HYBRID_PRO_330E },
 	{ USB_DEVICE(0x2304, 0x0227),
 			.driver_info = EM2880_BOARD_PINNACLE_PCTV_HD_PRO },
+	{ USB_DEVICE(0x2304, 0x023f),
+			.driver_info = EM2874_BOARD_PCTV_HD_MINI_80E },
 	{ USB_DEVICE(0x0413, 0x6023),
 			.driver_info = EM2800_BOARD_LEADTEK_WINFAST_USBII },
 	{ USB_DEVICE(0x093b, 0xa003),

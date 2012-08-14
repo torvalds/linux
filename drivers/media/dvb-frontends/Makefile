@@ -92,6 +92,7 @@ obj-$(CONFIG_DVB_HD29L2) += hd29l2.o
 obj-$(CONFIG_DVB_DS3000) += ds3000.o
 obj-$(CONFIG_DVB_TS2020) += ts2020.o
 obj-$(CONFIG_DVB_MB86A16) += mb86a16.o
+obj-$(CONFIG_DVB_DRX39XYJ) += drx39xyj/
 obj-$(CONFIG_DVB_MB86A20S) += mb86a20s.o
 obj-$(CONFIG_DVB_IX2505V) += ix2505v.o
 obj-$(CONFIG_DVB_STV0367) += stv0367.o

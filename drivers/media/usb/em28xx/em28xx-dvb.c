@@ -41,6 +41,7 @@
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
 #include "tda1002x.h"
+#include "drx39xyj/drx39xxj.h"
 #include "tda18271.h"
 #include "s921.h"
 #include "drxd.h"
@@ -821,6 +822,20 @@ static const struct m88ds3103_config pctv_461e_m88ds3103_config = {
 	.agc = 0x99,
 };
 
+
+static struct tda18271_std_map drx_j_std_map = {
+	.atsc_6   = { .if_freq = 5000, .agc_mode = 3, .std = 0, .if_lvl = 1,
+		      .rfagc_top = 0x37, },
+	.qam_6    = { .if_freq = 5380, .agc_mode = 3, .std = 3, .if_lvl = 1,
+		      .rfagc_top = 0x37, },
+};
+
+static struct tda18271_config pinnacle_80e_dvb_config = {
+	.std_map = &drx_j_std_map,
+	.gate    = TDA18271_GATE_DIGITAL,
+	.role    = TDA18271_MASTER,
+};
+
 /* ------------------------------------------------------------------ */
 
 static int em28xx_attach_xc3028(u8 addr, struct em28xx *dev)
@@ -1372,6 +1387,18 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				&kworld_ub435q_v2_config)) {
 			result = -EINVAL;
 			goto out_free;
+		}
+		break;
+	case EM2874_BOARD_PCTV_HD_MINI_80E:
+		dvb->fe[0] = dvb_attach(drx39xxj_attach, &dev->i2c_adap[dev->def_i2c_bus]);
+		if (dvb->fe[0] != NULL) {
+			dvb->fe[0] = dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+						&dev->i2c_adap[dev->def_i2c_bus],
+						&pinnacle_80e_dvb_config);
+			if (!dvb->fe[0]) {
+				result = -EINVAL;
+				goto out_free;
+			}
 		}
 		break;
 	case EM28178_BOARD_PCTV_461E:
