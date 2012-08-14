@@ -118,7 +118,7 @@ struct coda_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vfd;
 	struct platform_device	*plat_dev;
-	struct coda_devtype	*devtype;
+	const struct coda_devtype *devtype;
 
 	void __iomem		*regs_base;
 	struct clk		*clk_per;
@@ -1687,7 +1687,7 @@ enum coda_platform {
 	CODA_IMX27,
 };
 
-static struct coda_devtype coda_devdata[] = {
+static const struct coda_devtype coda_devdata[] = {
 	[CODA_IMX27] = {
 		.firmware    = "v4l-codadx6-imx27.bin",
 		.product     = CODA_DX6,
