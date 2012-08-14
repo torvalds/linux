@@ -199,7 +199,7 @@ static int it913x_init_tuner(struct it913x_fe_state *state)
 
 	if (reg < 0)
 		return -ENODEV;
-	else if (reg < sizeof(nv))
+	else if (reg < ARRAY_SIZE(nv))
 		nv_val = nv[reg];
 	else
 		nv_val = 2;
