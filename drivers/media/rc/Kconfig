@@ -288,7 +288,7 @@ config IR_TTUSBIR
 	   be called ttusbir.
 
 config IR_RX51
-	tristate "Nokia N900 IR transmitter diode
+	tristate "Nokia N900 IR transmitter diode"
 	depends on MACH_NOKIA_RX51 && OMAP_DM_TIMER
 	---help---
 	   Say Y or M here if you want to enable support for the IR
