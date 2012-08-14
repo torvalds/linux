@@ -156,7 +156,7 @@ source "drivers/media/i2c/Kconfig"
 #
 # V4L platform/mem2mem drivers
 #
-source "drivers/media/video/Kconfig"
+source "drivers/media/platform/Kconfig"
 
 source "drivers/media/radio/Kconfig"
 
