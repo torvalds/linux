@@ -48,6 +48,21 @@ nv50_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 		case NV84_CHANNEL_DMA_CLASS:
 		case NV50_CHANNEL_IND_CLASS:
 		case NV84_CHANNEL_IND_CLASS:
+		case NV50_DISP_MAST_CLASS:
+		case NV84_DISP_MAST_CLASS:
+		case NV94_DISP_MAST_CLASS:
+		case NVA0_DISP_MAST_CLASS:
+		case NVA3_DISP_MAST_CLASS:
+		case NV50_DISP_SYNC_CLASS:
+		case NV84_DISP_SYNC_CLASS:
+		case NV94_DISP_SYNC_CLASS:
+		case NVA0_DISP_SYNC_CLASS:
+		case NVA3_DISP_SYNC_CLASS:
+		case NV50_DISP_OVLY_CLASS:
+		case NV84_DISP_OVLY_CLASS:
+		case NV94_DISP_OVLY_CLASS:
+		case NVA0_DISP_OVLY_CLASS:
+		case NVA3_DISP_OVLY_CLASS:
 			break;
 		default:
 			return -EINVAL;

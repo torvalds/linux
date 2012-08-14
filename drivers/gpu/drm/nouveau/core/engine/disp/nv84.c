@@ -25,21 +25,24 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
+#include <core/class.h>
+
 #include "nv50.h"
 
 static struct nouveau_oclass
 nv84_disp_sclass[] = {
-	{ 0x827d, &nv50_disp_mast_ofuncs }, /* master */
-	{ 0x827c, &nv50_disp_dmac_ofuncs }, /* sync */
-	{ 0x827e, &nv50_disp_dmac_ofuncs }, /* overlay */
-	{ 0x827b, &nv50_disp_pioc_ofuncs }, /* overlay (pio) */
-	{ 0x827a, &nv50_disp_pioc_ofuncs }, /* cursor (pio) */
+	{ NV84_DISP_MAST_CLASS, &nv50_disp_mast_ofuncs },
+	{ NV84_DISP_SYNC_CLASS, &nv50_disp_sync_ofuncs },
+	{ NV84_DISP_OVLY_CLASS, &nv50_disp_ovly_ofuncs },
+	{ NV84_DISP_OIMM_CLASS, &nv50_disp_oimm_ofuncs },
+	{ NV84_DISP_CURS_CLASS, &nv50_disp_curs_ofuncs },
 	{}
 };
 
 static struct nouveau_oclass
 nv84_disp_base_oclass[] = {
-	{ 0x8270, &nv50_disp_base_ofuncs },
+	{ NV84_DISP_CLASS, &nv50_disp_base_ofuncs },
+	{}
 };
 
 static int

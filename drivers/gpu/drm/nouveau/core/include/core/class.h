@@ -153,4 +153,107 @@ struct nve0_channel_ind_class {
 	u32 engine;
 };
 
+/* 5070: NV50_DISP
+ * 8270: NV84_DISP
+ * 8370: NVA0_DISP
+ * 8870: NV94_DISP
+ * 8570: NVA3_DISP
+ */
+
+#define NV50_DISP_CLASS                                              0x00005070
+#define NV84_DISP_CLASS                                              0x00008270
+#define NVA0_DISP_CLASS                                              0x00008370
+#define NV94_DISP_CLASS                                              0x00008870
+#define NVA3_DISP_CLASS                                              0x00008570
+
+struct nv50_display_class {
+};
+
+/* 507a: NV50_DISP_CURS
+ * 827a: NV84_DISP_CURS
+ * 837a: NVA0_DISP_CURS
+ * 887a: NV94_DISP_CURS
+ * 857a: NVA3_DISP_CURS
+ */
+
+#define NV50_DISP_CURS_CLASS                                         0x0000507a
+#define NV84_DISP_CURS_CLASS                                         0x0000827a
+#define NVA0_DISP_CURS_CLASS                                         0x0000837a
+#define NV94_DISP_CURS_CLASS                                         0x0000887a
+#define NVA3_DISP_CURS_CLASS                                         0x0000857a
+
+struct nv50_display_curs_class {
+	u32 head;
+};
+
+/* 507b: NV50_DISP_OIMM
+ * 827b: NV84_DISP_OIMM
+ * 837b: NVA0_DISP_OIMM
+ * 887b: NV94_DISP_OIMM
+ * 857b: NVA3_DISP_OIMM
+ */
+
+#define NV50_DISP_OIMM_CLASS                                         0x0000507b
+#define NV84_DISP_OIMM_CLASS                                         0x0000827b
+#define NVA0_DISP_OIMM_CLASS                                         0x0000837b
+#define NV94_DISP_OIMM_CLASS                                         0x0000887b
+#define NVA3_DISP_OIMM_CLASS                                         0x0000857b
+
+struct nv50_display_oimm_class {
+	u32 head;
+};
+
+/* 507c: NV50_DISP_SYNC
+ * 827c: NV84_DISP_SYNC
+ * 837c: NVA0_DISP_SYNC
+ * 887c: NV94_DISP_SYNC
+ * 857c: NVA3_DISP_SYNC
+ */
+
+#define NV50_DISP_SYNC_CLASS                                         0x0000507c
+#define NV84_DISP_SYNC_CLASS                                         0x0000827c
+#define NVA0_DISP_SYNC_CLASS                                         0x0000837c
+#define NV94_DISP_SYNC_CLASS                                         0x0000887c
+#define NVA3_DISP_SYNC_CLASS                                         0x0000857c
+
+struct nv50_display_sync_class {
+	u32 pushbuf;
+	u32 head;
+};
+
+/* 507d: NV50_DISP_MAST
+ * 827d: NV84_DISP_MAST
+ * 837d: NVA0_DISP_MAST
+ * 887d: NV94_DISP_MAST
+ * 857d: NVA3_DISP_MAST
+ */
+
+#define NV50_DISP_MAST_CLASS                                         0x0000507d
+#define NV84_DISP_MAST_CLASS                                         0x0000827d
+#define NVA0_DISP_MAST_CLASS                                         0x0000837d
+#define NV94_DISP_MAST_CLASS                                         0x0000887d
+#define NVA3_DISP_MAST_CLASS                                         0x0000857d
+
+struct nv50_display_mast_class {
+	u32 pushbuf;
+};
+
+/* 507e: NV50_DISP_OVLY
+ * 827e: NV84_DISP_OVLY
+ * 837e: NVA0_DISP_OVLY
+ * 887e: NV94_DISP_OVLY
+ * 857e: NVA3_DISP_OVLY
+ */
+
+#define NV50_DISP_OVLY_CLASS                                         0x0000507e
+#define NV84_DISP_OVLY_CLASS                                         0x0000827e
+#define NVA0_DISP_OVLY_CLASS                                         0x0000837e
+#define NV94_DISP_OVLY_CLASS                                         0x0000887e
+#define NVA3_DISP_OVLY_CLASS                                         0x0000857e
+
+struct nv50_display_ovly_class {
+	u32 pushbuf;
+	u32 head;
+};
+
 #endif
