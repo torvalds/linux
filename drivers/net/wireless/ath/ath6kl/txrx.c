@@ -698,21 +698,26 @@ void ath6kl_tx_complete(struct htc_target *target,
 		list_del(&packet->list);
 
 		ath6kl_cookie = (struct ath6kl_cookie *)packet->pkt_cntxt;
-		if (!ath6kl_cookie)
-			goto fatal;
+		if (WARN_ON_ONCE(!ath6kl_cookie))
+			continue;
 
 		status = packet->status;
 		skb = ath6kl_cookie->skb;
 		eid = packet->endpoint;
 		map_no = ath6kl_cookie->map_no;
 
-		if (!skb || !skb->data)
-			goto fatal;
+		if (WARN_ON_ONCE(!skb || !skb->data)) {
+			dev_kfree_skb(skb);
+			ath6kl_free_cookie(ar, ath6kl_cookie);
+			continue;
+		}
 
 		__skb_queue_tail(&skb_queue, skb);
 
-		if (!status && (packet->act_len != skb->len))
-			goto fatal;
+		if (WARN_ON_ONCE(!status && (packet->act_len != skb->len))) {
+			ath6kl_free_cookie(ar, ath6kl_cookie);
+			continue;
+		}
 
 		ar->tx_pending[eid]--;
 
@@ -793,11 +798,6 @@ void ath6kl_tx_complete(struct htc_target *target,
 	if (wake_event)
 		wake_up(&ar->event_wq);
 
-	return;
-
-fatal:
-	WARN_ON(1);
-	spin_unlock_bh(&ar->lock);
 	return;
 }
 
