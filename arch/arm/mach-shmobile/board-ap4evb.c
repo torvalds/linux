@@ -557,6 +557,7 @@ static struct sh_mobile_lcdc_info lcdc_info;
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
 	.lcd_chan	= &lcdc_info.ch[0],
+	.channel	= LCDC_CHAN_MAINLCD,
 	.lane		= 2,
 	.vsynw_offset	= 17,
 	.phyctrl	= 0x6 << 8,
