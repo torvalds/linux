@@ -1054,8 +1054,8 @@ struct nfsd4_operation {
 	char *op_name;
 	/* Try to get response size before operation */
 	nfsd4op_rsize op_rsize_bop;
-	stateid_setter op_get_currentstateid;
-	stateid_getter op_set_currentstateid;
+	stateid_getter op_get_currentstateid;
+	stateid_setter op_set_currentstateid;
 };
 
 static struct nfsd4_operation nfsd4_ops[];
