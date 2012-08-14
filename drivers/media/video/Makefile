@@ -87,16 +87,12 @@ obj-$(CONFIG_SOC_CAMERA_TW9910)		+= tw9910.o
 
 # And now the v4l2 drivers:
 
-obj-$(CONFIG_VIDEO_ZORAN) += zoran/
 obj-$(CONFIG_VIDEO_CQCAM) += c-qcam.o
 obj-$(CONFIG_VIDEO_BWQCAM) += bw-qcam.o
 obj-$(CONFIG_VIDEO_W9966) += w9966.o
 obj-$(CONFIG_VIDEO_PMS) += pms.o
 obj-$(CONFIG_VIDEO_VINO) += vino.o
 obj-$(CONFIG_VIDEO_MEYE) += meye.o
-obj-$(CONFIG_VIDEO_SAA7134) += saa7134/
-obj-$(CONFIG_VIDEO_CX88) += cx88/
-obj-$(CONFIG_VIDEO_CX25821) += cx25821/
 obj-$(CONFIG_VIDEO_MXB) += mxb.o
 obj-$(CONFIG_VIDEO_HEXIUM_ORION) += hexium_orion.o
 obj-$(CONFIG_VIDEO_HEXIUM_GEMINI) += hexium_gemini.o
@@ -116,13 +112,9 @@ obj-$(CONFIG_VIDEO_VIA_CAMERA) += via-camera.o
 
 obj-$(CONFIG_VIDEO_OMAP3)	+= omap3isp/
 
-obj-$(CONFIG_VIDEO_IVTV) += ivtv/
-obj-$(CONFIG_VIDEO_CX18) += cx18/
-
 obj-$(CONFIG_VIDEO_VIU) += fsl-viu.o
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_MEM2MEM_TESTDEV) += mem2mem_testdev.o
-obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 
 obj-$(CONFIG_VIDEO_AK881X)		+= ak881x.o
 
@@ -156,8 +148,6 @@ obj-$(CONFIG_BLACKFIN)                  += blackfin/
 obj-$(CONFIG_ARCH_DAVINCI)		+= davinci/
 
 obj-$(CONFIG_VIDEO_SH_VOU)		+= sh_vou.o
-
-obj-$(CONFIG_VIDEO_SAA7164)     += saa7164/
 
 obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 

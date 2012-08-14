@@ -619,14 +619,6 @@ menuconfig V4L_PCI_DRIVERS
 
 if V4L_PCI_DRIVERS
 
-source "drivers/media/video/cx18/Kconfig"
-
-source "drivers/media/video/cx23885/Kconfig"
-
-source "drivers/media/video/cx25821/Kconfig"
-
-source "drivers/media/video/cx88/Kconfig"
-
 config VIDEO_HEXIUM_GEMINI
 	tristate "Hexium Gemini frame grabber"
 	depends on PCI && VIDEO_V4L2 && I2C
@@ -649,8 +641,6 @@ config VIDEO_HEXIUM_ORION
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_orion.
-
-source "drivers/media/video/ivtv/Kconfig"
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
@@ -682,11 +672,6 @@ config VIDEO_MXB
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxb.
 
-source "drivers/media/video/saa7134/Kconfig"
-
-source "drivers/media/video/saa7164/Kconfig"
-
-source "drivers/media/video/zoran/Kconfig"
 
 config STA2X11_VIP
 	tristate "STA2X11 VIP Video For Linux"

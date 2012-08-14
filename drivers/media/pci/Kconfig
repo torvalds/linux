@@ -2,40 +2,36 @@
 # DVB device configuration
 #
 
-menuconfig DVB_CAPTURE_DRIVERS
-	bool "DVB/ATSC PCI adapters"
-	depends on DVB_CORE
-	default y
-	---help---
-	  Say Y to select Digital TV adapters
+menu "Media PCI Adapters"
+	visible if PCI && MEDIA_SUPPORT
 
-if DVB_CAPTURE_DRIVERS && DVB_CORE && PCI && I2C
+if MEDIA_ANALOG_TV_SUPPORT
+	comment "Media capture/analog TV support"
+source "drivers/media/pci/ivtv/Kconfig"
+source "drivers/media/pci/zoran/Kconfig"
+endif
 
-comment "Supported SAA7146 based PCI Adapters"
-source "drivers/media/pci/ttpci/Kconfig"
-
-comment "Supported FlexCopII (B2C2) PCI Adapters"
-source "drivers/media/pci/b2c2/Kconfig"
-
-comment "Supported BT878 Adapters"
+if MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
+	comment "Media capture/analog/hybrid TV support"
+source "drivers/media/pci/cx18/Kconfig"
+source "drivers/media/pci/cx23885/Kconfig"
+source "drivers/media/pci/cx25821/Kconfig"
+source "drivers/media/pci/cx88/Kconfig"
 source "drivers/media/pci/bt8xx/Kconfig"
+source "drivers/media/pci/saa7134/Kconfig"
+source "drivers/media/pci/saa7164/Kconfig"
+endif
 
-comment "Supported Pluto2 Adapters"
+if MEDIA_DIGITAL_TV_SUPPORT
+	comment "Media digital TV PCI Adapters"
+source "drivers/media/pci/ttpci/Kconfig"
+source "drivers/media/pci/b2c2/Kconfig"
 source "drivers/media/pci/pluto2/Kconfig"
-
-comment "Supported SDMC DM1105 Adapters"
 source "drivers/media/pci/dm1105/Kconfig"
-
-comment "Supported Earthsoft PT1 Adapters"
 source "drivers/media/pci/pt1/Kconfig"
-
-comment "Supported Mantis Adapters"
 source "drivers/media/pci/mantis/Kconfig"
-
-comment "Supported nGene Adapters"
 source "drivers/media/pci/ngene/Kconfig"
-
-comment "Supported ddbridge ('Octopus') Adapters"
 source "drivers/media/pci/ddbridge/Kconfig"
+endif
 
-endif # DVB_CAPTURE_DRIVERS
+endmenu
