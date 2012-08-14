@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/smiapp/smiapp-limits.h
+ * drivers/media/i2c/smiapp/smiapp-limits.h
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *

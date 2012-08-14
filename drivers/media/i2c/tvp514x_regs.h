@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/tvp514x_regs.h
+ * drivers/media/i2c/tvp514x_regs.h
  *
  * Copyright (C) 2008 Texas Instruments Inc
  * Author: Vaibhav Hiremath <hvaibhav@ti.com>

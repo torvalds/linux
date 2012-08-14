@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/tcm825x.c
+ * drivers/media/i2c/tcm825x.c
  *
  * TCM825X camera sensor driver.
  *

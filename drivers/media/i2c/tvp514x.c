@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/tvp514x.c
+ * drivers/media/i2c/tvp514x.c
  *
  * TI TVP5146/47 decoder driver
  *

@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/smiapp/smiapp-regs.c
+ * drivers/media/i2c/smiapp/smiapp-regs.c
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *

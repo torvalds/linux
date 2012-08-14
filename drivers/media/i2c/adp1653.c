@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/adp1653.c
+ * drivers/media/i2c/adp1653.c
  *
  * Copyright (C) 2008--2011 Nokia Corporation
  *

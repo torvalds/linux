@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/smiapp/smiapp-quirk.h
+ * drivers/media/i2c/smiapp/smiapp-quirk.h
  *
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *

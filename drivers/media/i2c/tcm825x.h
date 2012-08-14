@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/tcm825x.h
+ * drivers/media/i2c/tcm825x.h
  *
  * Register definitions for the TCM825X CameraChip.
  *

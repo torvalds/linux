@@ -1,5 +1,5 @@
 /*
- * drivers/media/video/as3645a.c - AS3645A and LM3555 flash controllers driver
+ * drivers/media/i2c/as3645a.c - AS3645A and LM3555 flash controllers driver
  *
  * Copyright (C) 2008-2011 Nokia Corporation
  * Copyright (c) 2011, Intel Corporation.
