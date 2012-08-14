@@ -369,7 +369,7 @@ static int sh_mipi_setup(struct sh_mipi *mipi, struct sh_mipi_dsi_info *pdata)
 	/* setup LCD panel */
 
 	/* cf. drivers/video/omap/lcd_mipid.c */
-	sh_mipi_dcs(ch->chan, MIPI_DCS_EXIT_SLEEP_MODE);
+	sh_mipi_dcs(pdata->channel, MIPI_DCS_EXIT_SLEEP_MODE);
 	msleep(120);
 	/*
 	 * [7] - Page Address Mode
@@ -381,11 +381,11 @@ static int sh_mipi_setup(struct sh_mipi *mipi, struct sh_mipi_dsi_info *pdata)
 	 * [1] - Flip Horizontal
 	 * [0] - Flip Vertical
 	 */
-	sh_mipi_dcs_param(ch->chan, MIPI_DCS_SET_ADDRESS_MODE, 0x00);
+	sh_mipi_dcs_param(pdata->channel, MIPI_DCS_SET_ADDRESS_MODE, 0x00);
 	/* cf. set_data_lines() */
-	sh_mipi_dcs_param(ch->chan, MIPI_DCS_SET_PIXEL_FORMAT,
+	sh_mipi_dcs_param(pdata->channel, MIPI_DCS_SET_PIXEL_FORMAT,
 			  pixfmt << 4);
-	sh_mipi_dcs(ch->chan, MIPI_DCS_SET_DISPLAY_ON);
+	sh_mipi_dcs(pdata->channel, MIPI_DCS_SET_DISPLAY_ON);
 
 	/* Enable timeout counters */
 	iowrite32(0x00000f00, base + DSICTRL);
