@@ -94,6 +94,13 @@ config MACH_TS219_DT
 	  or MV6282. If you have the wrong one, the buttons will not
 	  work.
 
+config MACH_DOCKSTAR_DT
+	bool "Seagate FreeAgent Dockstar (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate FreeAgent Dockstar (Flattened Device Tree).
+
 config MACH_GOFLEXNET_DT
 	bool "Seagate GoFlex Net (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT

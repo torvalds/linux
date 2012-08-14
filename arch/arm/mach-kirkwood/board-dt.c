@@ -81,6 +81,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("qnap,ts219"))
 		qnap_dt_ts219_init();
 
+	if (of_machine_is_compatible("seagate,dockstar"))
+		dockstar_dt_init();
+
 	if (of_machine_is_compatible("seagate,goflexnet"))
 		goflexnet_init();
 
@@ -101,6 +104,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"iom,iconnect",
 	"raidsonic,ib-nas62x0",
 	"qnap,ts219",
+	"seagate,dockstar",
 	"seagate,goflexnet",
 	"buffalo,lsxl",
 	"iom,ix2-200",
