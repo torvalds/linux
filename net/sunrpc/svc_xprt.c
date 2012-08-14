@@ -208,6 +208,15 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 	return xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
 }
 
+void svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *new)
+{
+	clear_bit(XPT_TEMP, &new->xpt_flags);
+	spin_lock_bh(&serv->sv_lock);
+	list_add(&new->xpt_list, &serv->sv_permsocks);
+	spin_unlock_bh(&serv->sv_lock);
+	svc_xprt_received(new);
+}
+
 int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
 		    struct net *net, const int family,
 		    const unsigned short port, int flags)
@@ -232,13 +241,8 @@ int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
 			module_put(xcl->xcl_owner);
 			return PTR_ERR(newxprt);
 		}
-
-		clear_bit(XPT_TEMP, &newxprt->xpt_flags);
-		spin_lock_bh(&serv->sv_lock);
-		list_add(&newxprt->xpt_list, &serv->sv_permsocks);
-		spin_unlock_bh(&serv->sv_lock);
+		svc_add_new_perm_xprt(serv, newxprt);
 		newport = svc_xprt_local_port(newxprt);
-		svc_xprt_received(newxprt);
 		return newport;
 	}
  err:

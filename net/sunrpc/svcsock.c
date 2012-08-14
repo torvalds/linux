@@ -1478,11 +1478,7 @@ int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
 	}
 	if (kernel_getsockname(svsk->sk_sock, sin, &salen) == 0)
 		svc_xprt_set_local(&svsk->sk_xprt, sin, salen);
-	clear_bit(XPT_TEMP, &svsk->sk_xprt.xpt_flags);
-	spin_lock_bh(&serv->sv_lock);
-	list_add(&svsk->sk_xprt.xpt_list, &serv->sv_permsocks);
-	spin_unlock_bh(&serv->sv_lock);
-	svc_xprt_received(&svsk->sk_xprt);
+	svc_add_new_perm_xprt(serv, &svsk->sk_xprt);
 	return svc_one_sock_name(svsk, name_return, len);
 out:
 	sockfd_put(so);
