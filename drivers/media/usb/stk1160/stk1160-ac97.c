@@ -133,8 +133,7 @@ int stk1160_ac97_register(struct stk1160 *dev)
 
 err:
 	dev->snd_card = NULL;
-	if (card)
-		snd_card_free(card);
+	snd_card_free(card);
 	return rc;
 }
 
