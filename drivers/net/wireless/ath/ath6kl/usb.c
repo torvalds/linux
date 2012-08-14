@@ -1196,7 +1196,14 @@ static struct usb_driver ath6kl_usb_driver = {
 
 static int ath6kl_usb_init(void)
 {
-	usb_register(&ath6kl_usb_driver);
+	int ret;
+
+	ret = usb_register(&ath6kl_usb_driver);
+	if (ret) {
+		ath6kl_err("usb registration failed: %d\n", ret);
+		return ret;
+	}
+
 	return 0;
 }
 
