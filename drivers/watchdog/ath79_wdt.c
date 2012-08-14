@@ -284,6 +284,7 @@ static void ath97_wdt_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver ath79_wdt_driver = {
+	.probe		= ath79_wdt_probe,
 	.remove		= ath79_wdt_remove,
 	.shutdown	= ath97_wdt_shutdown,
 	.driver		= {
@@ -292,17 +293,7 @@ static struct platform_driver ath79_wdt_driver = {
 	},
 };
 
-static int __init ath79_wdt_init(void)
-{
-	return platform_driver_probe(&ath79_wdt_driver, ath79_wdt_probe);
-}
-module_init(ath79_wdt_init);
-
-static void __exit ath79_wdt_exit(void)
-{
-	platform_driver_unregister(&ath79_wdt_driver);
-}
-module_exit(ath79_wdt_exit);
+module_platform_driver(ath79_wdt_driver);
 
 MODULE_DESCRIPTION("Atheros AR71XX/AR724X/AR913X hardware watchdog driver");
 MODULE_AUTHOR("Gabor Juhos <juhosg@openwrt.org");
