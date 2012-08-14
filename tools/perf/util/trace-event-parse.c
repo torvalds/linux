@@ -293,7 +293,7 @@ struct event_format *trace_find_next_event(struct pevent *pevent,
 {
 	static int idx;
 
-	if (!pevent->events)
+	if (!pevent || !pevent->events)
 		return NULL;
 
 	if (!event) {
