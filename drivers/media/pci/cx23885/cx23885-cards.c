@@ -36,7 +36,7 @@
 #include "xc5000.h"
 #include "cx23888-ir.h"
 
-static unsigned int netup_card_rev = 1;
+static unsigned int netup_card_rev = 4;
 module_param(netup_card_rev, int, 0644);
 MODULE_PARM_DESC(netup_card_rev,
 		"NetUP Dual DVB-T/C CI card revision");
