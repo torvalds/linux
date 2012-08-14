@@ -825,7 +825,7 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 		return NULL;
 
 	if (group)
-		perf_evlist__group(evlist);
+		perf_evlist__set_leader(evlist);
 
 	if (perf_evlist__open(evlist) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);

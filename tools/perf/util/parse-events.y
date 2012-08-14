@@ -119,7 +119,7 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $3;
 
-	parse_events__group($1, list);
+	parse_events__set_leader($1, list);
 	$$ = list;
 }
 |
@@ -127,7 +127,7 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $2;
 
-	parse_events__group(NULL, list);
+	parse_events__set_leader(NULL, list);
 	$$ = list;
 }
 

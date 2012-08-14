@@ -193,7 +193,7 @@ static void perf_record__open(struct perf_record *rec)
 	perf_evlist__config_attrs(evlist, opts);
 
 	if (opts->group)
-		perf_evlist__group(evlist);
+		perf_evlist__set_leader(evlist);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
 		struct perf_event_attr *attr = &pos->attr;

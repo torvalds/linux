@@ -890,7 +890,7 @@ static void perf_top__start_counters(struct perf_top *top)
 	struct perf_evlist *evlist = top->evlist;
 
 	if (top->group)
-		perf_evlist__group(evlist);
+		perf_evlist__set_leader(evlist);
 
 	list_for_each_entry(counter, &evlist->entries, node) {
 		struct perf_event_attr *attr = &counter->attr;

@@ -622,10 +622,6 @@ static int __perf_evsel__open(struct perf_evsel *evsel, struct cpu_map *cpus,
 				err = -errno;
 				goto out_close;
 			}
-
-			pr_debug("event cpu %d, thread %d, fd %d, group %d\n",
-				 cpu, pid, FD(evsel, cpu, thread),
-				 group_fd);
 		}
 	}
 

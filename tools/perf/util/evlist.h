@@ -118,6 +118,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist,
 void perf_evlist__delete_maps(struct perf_evlist *evlist);
 int perf_evlist__set_filters(struct perf_evlist *evlist);
 
+void __perf_evlist__set_leader(struct list_head *list);
+void perf_evlist__set_leader(struct perf_evlist *evlist);
+
 u64 perf_evlist__sample_type(const struct perf_evlist *evlist);
 bool perf_evlist__sample_id_all(const const struct perf_evlist *evlist);
 u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist);
@@ -131,6 +134,4 @@ bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist);
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list,
 				   int nr_entries);
-
-void perf_evlist__group(struct perf_evlist *evlist);
 #endif /* __PERF_EVLIST_H */
