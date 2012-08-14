@@ -4,6 +4,8 @@
 
 # DVB USB-only drivers
 obj-y := ttusb-dec/ ttusb-budget/ dvb-usb/ dvb-usb-v2/ siano/ b2c2/
+obj-y := zr364xx/ stkwebcam/ s2255/
+
 obj-$(CONFIG_USB_VIDEO_CLASS)	+= uvc/
 obj-$(CONFIG_USB_GSPCA)         += gspca/
 obj-$(CONFIG_USB_PWC)           += pwc/

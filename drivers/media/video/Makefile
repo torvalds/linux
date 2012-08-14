@@ -4,8 +4,6 @@
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
-stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
-
 omap2cam-objs	:=	omap24xxcam.o omap24xxcam-dma.o
 
 # Helper modules
@@ -118,12 +116,6 @@ obj-$(CONFIG_VIDEO_MMP_CAMERA) += marvell-ccic/
 obj-$(CONFIG_VIDEO_VIA_CAMERA) += via-camera.o
 
 obj-$(CONFIG_VIDEO_OMAP3)	+= omap3isp/
-
-obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
-obj-$(CONFIG_USB_STKWEBCAM)     += stkwebcam.o
-
-
-obj-$(CONFIG_USB_S2255)		+= s2255drv.o
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 obj-$(CONFIG_VIDEO_CX18) += cx18/
