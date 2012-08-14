@@ -294,6 +294,9 @@ struct dio200_board {
 	enum dio200_layout layout;
 };
 
+#define IS_ISA_BOARD(board)	(DO_ISA && (board)->bustype == isa_bustype)
+#define IS_PCI_BOARD(board)	(DO_PCI && (board)->bustype == pci_bustype)
+
 static const struct dio200_board dio200_boards[] = {
 #if DO_ISA
 	{
@@ -1231,10 +1234,10 @@ static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 	char tmpbuf[60];
 	int tmplen;
 
-	if (DO_ISA && thisboard->bustype == isa_bustype)
+	if (IS_ISA_BOARD(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(base %#lx) ", dev->iobase);
-	else if (DO_PCI && thisboard->bustype == pci_bustype)
+	else if (IS_PCI_BOARD(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(pci %s) ", pci_name(pcidev));
 	else
@@ -1362,7 +1365,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* Process options and reserve resources according to bus type. */
-	if (DO_ISA && thisboard->bustype == isa_bustype) {
+	if (IS_ISA_BOARD(thisboard)) {
 		unsigned long iobase;
 		unsigned int irq;
 
@@ -1372,7 +1375,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret < 0)
 			return ret;
 		return dio200_common_attach(dev, iobase, irq, 0);
-	} else if (DO_PCI && thisboard->bustype == pci_bustype) {
+	} else if (IS_PCI_BOARD(thisboard)) {
 		struct pci_dev *pci_dev;
 
 		pci_dev = dio200_find_pci_dev(dev, it);
