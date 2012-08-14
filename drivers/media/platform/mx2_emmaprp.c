@@ -896,7 +896,7 @@ static int emmaprp_probe(struct platform_device *pdev)
 	int irq_emma;
 	int ret;
 
-	pcdev = kzalloc(sizeof *pcdev, GFP_KERNEL);
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev)
 		return -ENOMEM;
 
@@ -904,27 +904,24 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	pcdev->clk_emma_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(pcdev->clk_emma_ipg)) {
-		ret = PTR_ERR(pcdev->clk_emma_ipg);
-		goto free_dev;
+		return PTR_ERR(pcdev->clk_emma_ipg);
 	}
 
 	pcdev->clk_emma_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(pcdev->clk_emma_ipg)) {
-		ret = PTR_ERR(pcdev->clk_emma_ahb);
-		goto free_dev;
+		return PTR_ERR(pcdev->clk_emma_ahb);
 	}
 
 	irq_emma = platform_get_irq(pdev, 0);
 	res_emma = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (irq_emma < 0 || res_emma == NULL) {
 		dev_err(&pdev->dev, "Missing platform resources data\n");
-		ret = -ENODEV;
-		goto free_dev;
+		return -ENODEV;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &pcdev->v4l2_dev);
 	if (ret)
-		goto free_dev;
+		return ret;
 
 	mutex_init(&pcdev->dev_mutex);
 
@@ -946,21 +943,20 @@ static int emmaprp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcdev);
 
-	if (devm_request_mem_region(&pdev->dev, res_emma->start,
-	    resource_size(res_emma), MEM2MEM_NAME) == NULL)
+	pcdev->base_emma = devm_request_and_ioremap(&pdev->dev, res_emma);
+	if (!pcdev->base_emma) {
+		ret = -ENXIO;
 		goto rel_vdev;
-
-	pcdev->base_emma = devm_ioremap(&pdev->dev, res_emma->start,
-					resource_size(res_emma));
-	if (!pcdev->base_emma)
-		goto rel_vdev;
+	}
 
 	pcdev->irq_emma = irq_emma;
 	pcdev->res_emma = res_emma;
 
 	if (devm_request_irq(&pdev->dev, pcdev->irq_emma, emmaprp_irq,
-			     0, MEM2MEM_NAME, pcdev) < 0)
+			     0, MEM2MEM_NAME, pcdev) < 0) {
+		ret = -ENODEV;
 		goto rel_vdev;
+	}
 
 	pcdev->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(pcdev->alloc_ctx)) {
@@ -993,8 +989,6 @@ rel_vdev:
 	video_device_release(vfd);
 unreg_dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
-free_dev:
-	kfree(pcdev);
 
 	return ret;
 }
@@ -1009,7 +1003,6 @@ static int emmaprp_remove(struct platform_device *pdev)
 	v4l2_m2m_release(pcdev->m2m_dev);
 	vb2_dma_contig_cleanup_ctx(pcdev->alloc_ctx);
 	v4l2_device_unregister(&pcdev->v4l2_dev);
-	kfree(pcdev);
 
 	return 0;
 }
