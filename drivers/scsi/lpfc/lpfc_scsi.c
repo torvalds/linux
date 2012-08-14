@@ -60,12 +60,6 @@ static char *dif_op_str[] = {
 	"PROT_WRITE_PASS",
 };
 
-static char *dif_grd_str[] = {
-	"NO_GUARD",
-	"DIF_CRC",
-	"DIX_IP",
-};
-
 struct scsi_dif_tuple {
 	__be16 guard_tag;       /* Checksum */
 	__be16 app_tag;         /* Opaque storage */
@@ -4311,49 +4305,25 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	if (scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) {
 		if (vport->phba->cfg_enable_bg) {
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-				"9033 BLKGRD: rcvd protected cmd:%02x op=%s "
-				"guard=%s\n", cmnd->cmnd[0],
-				dif_op_str[scsi_get_prot_op(cmnd)],
-				dif_grd_str[scsi_host_get_guard(shost)]);
-			if (cmnd->cmnd[0] == READ_10)
-				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-					"9035 BLKGRD: READ @ sector %llu, "
-					"cnt %u, rpt %d\n",
-					(unsigned long long)scsi_get_lba(cmnd),
-					blk_rq_sectors(cmnd->request),
-					(cmnd->cmnd[1]>>5));
-			else if (cmnd->cmnd[0] == WRITE_10)
-				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-					"9036 BLKGRD: WRITE @ sector %llu, "
-					"cnt %u, wpt %d\n",
-					(unsigned long long)scsi_get_lba(cmnd),
-					blk_rq_sectors(cmnd->request),
-					(cmnd->cmnd[1]>>5));
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_BG,
+					 "9033 BLKGRD: rcvd %s cmd:x%x "
+					 "sector x%llx cnt %u pt %x\n",
+					 dif_op_str[scsi_get_prot_op(cmnd)],
+					 cmnd->cmnd[0],
+					 (unsigned long long)scsi_get_lba(cmnd),
+					 blk_rq_sectors(cmnd->request),
+					 (cmnd->cmnd[1]>>5));
 		}
-
 		err = lpfc_bg_scsi_prep_dma_buf(phba, lpfc_cmd);
 	} else {
 		if (vport->phba->cfg_enable_bg) {
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-				"9038 BLKGRD: rcvd unprotected cmd:"
-				"%02x op=%s guard=%s\n", cmnd->cmnd[0],
-				dif_op_str[scsi_get_prot_op(cmnd)],
-				dif_grd_str[scsi_host_get_guard(shost)]);
-			if (cmnd->cmnd[0] == READ_10)
-				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-					"9040 dbg: READ @ sector %llu, "
-					"cnt %u, rpt %d\n",
-					(unsigned long long)scsi_get_lba(cmnd),
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_BG,
+					 "9038 BLKGRD: rcvd PROT_NORMAL cmd: "
+					 "x%x sector x%llx cnt %u pt %x\n",
+					 cmnd->cmnd[0],
+					 (unsigned long long)scsi_get_lba(cmnd),
 					 blk_rq_sectors(cmnd->request),
-					(cmnd->cmnd[1]>>5));
-			else if (cmnd->cmnd[0] == WRITE_10)
-				lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
-					"9041 dbg: WRITE @ sector %llu, "
-					"cnt %u, wpt %d\n",
-					(unsigned long long)scsi_get_lba(cmnd),
-					blk_rq_sectors(cmnd->request),
-					(cmnd->cmnd[1]>>5));
+					 (cmnd->cmnd[1]>>5));
 		}
 		err = lpfc_scsi_prep_dma_buf(phba, lpfc_cmd);
 	}
