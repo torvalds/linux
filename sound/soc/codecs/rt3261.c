@@ -89,8 +89,6 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_HP_VOL      	, 0x8888},
 	{RT3261_OUTPUT      	, 0x8888},//unmute OUTVOLL/R
 	{RT3261_SPO_CLSD_RATIO 	, 0x0001},
-	{RT3261_I2S1_SDP	, 0xe000},
-	{RT3261_I2S2_SDP	, 0x8040},
 };
 #define RT3261_INIT_REG_LEN ARRAY_SIZE(init_list)
 
@@ -2370,6 +2368,8 @@ static int rt3261_hw_params(struct snd_pcm_substream *substream,
 	int pre_div, bclk_ms, frame_size;
 
 	rt3261->lrck[dai->id] = params_rate(params);
+	if(dai->id == 1)
+		rt3261->lrck[dai->id] = 8000;
 	pre_div = get_clk_info(rt3261->sysclk, rt3261->lrck[dai->id]);
 	if (pre_div < 0) {
 		dev_err(codec->dev, "Unsupported clock setting\n");
