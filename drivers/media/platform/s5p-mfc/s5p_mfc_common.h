@@ -570,4 +570,9 @@ struct mfc_control {
 #define ctrl_to_ctx(__ctrl) \
 	container_of((__ctrl)->handler, struct s5p_mfc_ctx, ctrl_handler)
 
+void clear_work_bit(struct s5p_mfc_ctx *ctx);
+void set_work_bit(struct s5p_mfc_ctx *ctx);
+void clear_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
+void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx);
+
 #endif /* S5P_MFC_COMMON_H_ */

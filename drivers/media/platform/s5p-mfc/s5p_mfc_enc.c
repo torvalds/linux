@@ -643,11 +643,8 @@ static int enc_post_seq_start(struct s5p_mfc_ctx *ctx)
 		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
 	ctx->state = MFCINST_RUNNING;
-	if (s5p_mfc_ctx_ready(ctx)) {
-		spin_lock_irqsave(&dev->condlock, flags);
-		set_bit(ctx->num, &dev->ctx_work_bits);
-		spin_unlock_irqrestore(&dev->condlock, flags);
-	}
+	if (s5p_mfc_ctx_ready(ctx))
+		set_work_bit_irqsave(ctx);
 	s5p_mfc_try_run(dev);
 	return 0;
 }
@@ -755,11 +752,8 @@ static int enc_post_frame_start(struct s5p_mfc_ctx *ctx)
 		vb2_buffer_done(mb_entry->b, VB2_BUF_STATE_DONE);
 	}
 	spin_unlock_irqrestore(&dev->irqlock, flags);
-	if ((ctx->src_queue_cnt == 0) || (ctx->dst_queue_cnt == 0)) {
-		spin_lock(&dev->condlock);
-		clear_bit(ctx->num, &dev->ctx_work_bits);
-		spin_unlock(&dev->condlock);
-	}
+	if ((ctx->src_queue_cnt == 0) || (ctx->dst_queue_cnt == 0))
+		clear_work_bit(ctx);
 	return 0;
 }
 
@@ -922,7 +916,6 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	struct s5p_mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
-	unsigned long flags;
 	int ret = 0;
 
 	ret = vidioc_try_fmt(file, priv, f);
@@ -947,9 +940,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		ctx->dst_bufs_cnt = 0;
 		ctx->capture_state = QUEUE_FREE;
 		s5p_mfc_alloc_instance_buffer(ctx);
-		spin_lock_irqsave(&dev->condlock, flags);
-		set_bit(ctx->num, &dev->ctx_work_bits);
-		spin_unlock_irqrestore(&dev->condlock, flags);
+		set_work_bit_irqsave(ctx);
 		s5p_mfc_clean_ctx_int_flags(ctx);
 		s5p_mfc_try_run(dev);
 		if (s5p_mfc_wait_for_done_ctx(ctx, \
@@ -1719,15 +1710,11 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(q->drv_priv);
 	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned long flags;
 
 	v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
 	/* If context is ready then dev = work->data;schedule it to run */
-	if (s5p_mfc_ctx_ready(ctx)) {
-		spin_lock_irqsave(&dev->condlock, flags);
-		set_bit(ctx->num, &dev->ctx_work_bits);
-		spin_unlock_irqrestore(&dev->condlock, flags);
-	}
+	if (s5p_mfc_ctx_ready(ctx))
+		set_work_bit_irqsave(ctx);
 	s5p_mfc_try_run(dev);
 	return 0;
 }
@@ -1793,11 +1780,8 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 	} else {
 		mfc_err("unsupported buffer type (%d)\n", vq->type);
 	}
-	if (s5p_mfc_ctx_ready(ctx)) {
-		spin_lock_irqsave(&dev->condlock, flags);
-		set_bit(ctx->num, &dev->ctx_work_bits);
-		spin_unlock_irqrestore(&dev->condlock, flags);
-	}
+	if (s5p_mfc_ctx_ready(ctx))
+		set_work_bit_irqsave(ctx);
 	s5p_mfc_try_run(dev);
 }
 

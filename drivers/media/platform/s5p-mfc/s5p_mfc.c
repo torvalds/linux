@@ -41,14 +41,47 @@ module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level - higher value produces more verbose messages");
 
 /* Helper functions for interrupt processing */
+
 /* Remove from hw execution round robin */
-static void clear_work_bit(struct s5p_mfc_ctx *ctx)
+void clear_work_bit(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 
 	spin_lock(&dev->condlock);
-	clear_bit(ctx->num, &dev->ctx_work_bits);
+	__clear_bit(ctx->num, &dev->ctx_work_bits);
 	spin_unlock(&dev->condlock);
+}
+
+/* Add to hw execution round robin */
+void set_work_bit(struct s5p_mfc_ctx *ctx)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
+
+	spin_lock(&dev->condlock);
+	__set_bit(ctx->num, &dev->ctx_work_bits);
+	spin_unlock(&dev->condlock);
+}
+
+/* Remove from hw execution round robin */
+void clear_work_bit_irqsave(struct s5p_mfc_ctx *ctx)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->condlock, flags);
+	__clear_bit(ctx->num, &dev->ctx_work_bits);
+	spin_unlock_irqrestore(&dev->condlock, flags);
+}
+
+/* Add to hw execution round robin */
+void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->condlock, flags);
+	__set_bit(ctx->num, &dev->ctx_work_bits);
+	spin_unlock_irqrestore(&dev->condlock, flags);
 }
 
 /* Wake up context wait_queue */
@@ -504,9 +537,7 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 	ctx->int_type = reason;
 	ctx->int_err = err;
 	ctx->int_cond = 1;
-	spin_lock(&dev->condlock);
-	clear_bit(ctx->num, &dev->ctx_work_bits);
-	spin_unlock(&dev->condlock);
+	clear_work_bit(ctx);
 	if (err == 0) {
 		ctx->state = MFCINST_RUNNING;
 		if (!ctx->dpb_flush_flag) {
@@ -681,7 +712,6 @@ static int s5p_mfc_open(struct file *file)
 	struct s5p_mfc_dev *dev = video_drvdata(file);
 	struct s5p_mfc_ctx *ctx = NULL;
 	struct vb2_queue *q;
-	unsigned long flags;
 	int ret = 0;
 
 	mfc_debug_enter();
@@ -714,9 +744,7 @@ static int s5p_mfc_open(struct file *file)
 		}
 	}
 	/* Mark context as idle */
-	spin_lock_irqsave(&dev->condlock, flags);
-	clear_bit(ctx->num, &dev->ctx_work_bits);
-	spin_unlock_irqrestore(&dev->condlock, flags);
+	clear_work_bit_irqsave(ctx);
 	dev->ctx[ctx->num] = ctx;
 	if (s5p_mfc_get_node_type(file) == MFCNODE_DECODER) {
 		ctx->type = MFCINST_DECODER;
@@ -843,7 +871,6 @@ static int s5p_mfc_release(struct file *file)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned long flags;
 
 	mfc_debug_enter();
 	mutex_lock(&dev->mfc_mutex);
@@ -851,17 +878,13 @@ static int s5p_mfc_release(struct file *file)
 	vb2_queue_release(&ctx->vq_src);
 	vb2_queue_release(&ctx->vq_dst);
 	/* Mark context as idle */
-	spin_lock_irqsave(&dev->condlock, flags);
-	clear_bit(ctx->num, &dev->ctx_work_bits);
-	spin_unlock_irqrestore(&dev->condlock, flags);
+	clear_work_bit_irqsave(ctx);
 	/* If instance was initialised then
 	 * return instance and free reosurces */
 	if (ctx->inst_no != MFC_NO_INSTANCE_SET) {
 		mfc_debug(2, "Has to free instance\n");
 		ctx->state = MFCINST_RETURN_INST;
-		spin_lock_irqsave(&dev->condlock, flags);
-		set_bit(ctx->num, &dev->ctx_work_bits);
-		spin_unlock_irqrestore(&dev->condlock, flags);
+		set_work_bit_irqsave(ctx);
 		s5p_mfc_clean_ctx_int_flags(ctx);
 		s5p_mfc_try_run(dev);
 		/* Wait until instance is returned or timeout occured */
