@@ -3829,12 +3829,15 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		spin_lock_irq(&phba->hbalock);
+		lpfc_cmd->pCmd = NULL;
+		spin_unlock_irq(&phba->hbalock);
+
 		/*
 		 * If there is a thread waiting for command completion
 		 * wake up the thread.
 		 */
 		spin_lock_irqsave(shost->host_lock, flags);
-		lpfc_cmd->pCmd = NULL;
 		if (lpfc_cmd->waitq)
 			wake_up(lpfc_cmd->waitq);
 		spin_unlock_irqrestore(shost->host_lock, flags);
@@ -3868,12 +3871,15 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 	}
 
+	spin_lock_irq(&phba->hbalock);
+	lpfc_cmd->pCmd = NULL;
+	spin_unlock_irq(&phba->hbalock);
+
 	/*
 	 * If there is a thread waiting for command completion
 	 * wake up the thread.
 	 */
 	spin_lock_irqsave(shost->host_lock, flags);
-	lpfc_cmd->pCmd = NULL;
 	if (lpfc_cmd->waitq)
 		wake_up(lpfc_cmd->waitq);
 	spin_unlock_irqrestore(shost->host_lock, flags);
@@ -4409,7 +4415,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	}
 
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
-	if (!lpfc_cmd) {
+	if (!lpfc_cmd || !lpfc_cmd->pCmd) {
 		spin_unlock_irq(&phba->hbalock);
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "2873 SCSI Layer I/O Abort Request IO CMPL Status "
