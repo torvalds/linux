@@ -33,7 +33,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/hardware/gic.h>
-//#include <mach/dvfs.h>
+#include <mach/dvfs.h>
 
 #include <mach/board.h>
 #include <mach/hardware.h>
@@ -762,10 +762,56 @@ static void __init rk2928_reserve(void)
 #endif
 	board_mem_reserved();
 }
+/**
+ * dvfs_cpu_logic_table: table for arm and logic dvfs 
+ * @frequency	: arm frequency
+ * @cpu_volt	: arm voltage depend on frequency
+ * @logic_volt	: logic voltage arm requests depend on frequency
+ * comments	: min arm/logic voltage
+ */
+static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
+	{.frequency = 216 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 312 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 408 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 504 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
+	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#if 0
+	{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#endif
+	//{.frequency = 1000 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dvfs_gpu_table[] = {
+	{.frequency = 266 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1275 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dvfs_ddr_table[] = {
+	{.frequency = 300 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1125 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+#define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
+static struct cpufreq_frequency_table cpu_dvfs_table[DVFS_CPU_TABLE_SIZE];
+static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];
 
 void __init board_clock_init(void)
 {
 	rk2928_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
+	dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);
+	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
+	//dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
+	printk("%s end\n", __func__);
 }
 
 

@@ -23,7 +23,7 @@
 #include <linux/delay.h>
 #include <mach/clock.h>
 #include "clock.h"
-//#include <mach/dvfs.h>
+#include <mach/dvfs.h>
 #include <linux/delay.h>
 
 #define CLOCK_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args);
@@ -126,6 +126,7 @@ int clk_register(struct clk *clk)
 		return -EINVAL;
 	//INIT_LIST_HEAD(&clk->sibling);
 	INIT_LIST_HEAD(&clk->children);
+
 	/*
 	 * trap out already registered clocks
 	 */
@@ -138,11 +139,10 @@ int clk_register(struct clk *clk)
 	else if (clk->parents)
 		clk->parent =clk_default_get_parent(clk);
 	
-	if (clk->parent){
+	if (clk->parent)
 		list_add(&clk->sibling, &clk->parent->children);
-	} else {
+	else
 		list_add(&clk->sibling, &root_clks);
-	}
 	list_add(&clk->node, &clocks);
 	mutex_unlock(&clocks_mutex);	
 	return 0;
@@ -318,7 +318,7 @@ int clk_set_parent_nolock(struct clk *clk, struct clk *parent)
 	return ret;
 }
 /**********************************dvfs****************************************************/
-#if 0
+
 struct clk_node *clk_get_dvfs_info(struct clk *clk)
 {
     return clk->dvfs_info;
@@ -338,7 +338,7 @@ void clk_register_dvfs(struct clk_node *dvfs_clk, struct clk *clk)
 {
     clk->dvfs_info = dvfs_clk;
 }
-#endif
+
 
 /*-------------------------------------------------------------------------
  * Optional clock functions defined in include/linux/clk.h
@@ -398,10 +398,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	}
 	if (rate == clk->rate)
 		return 0;
-#if 0
 	if (clk->dvfs_info!=NULL&&is_support_dvfs(clk->dvfs_info))
 		return dvfs_set_rate(clk, rate);
-#endif
+
 	LOCK();
 	ret = clk_set_rate_nolock(clk, rate);
 	UNLOCK();
@@ -703,7 +702,8 @@ void clk_register_dump_ops(struct clk_dump_ops *ops)
 {
 	dump_def_ops=ops;
 }
-	
+
+#ifdef CONFIG_RK_CLOCK_PROC
 static int proc_clk_show(struct seq_file *s, void *v)
 {
 	struct clk* clk;
@@ -747,4 +747,5 @@ static int __init clk_proc_init(void)
 
 }
 late_initcall(clk_proc_init);
+#endif /* CONFIG_RK_CLOCK_PROC */
 
