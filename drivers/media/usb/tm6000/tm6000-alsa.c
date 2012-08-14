@@ -487,10 +487,11 @@ error:
 
 static int tm6000_audio_fini(struct tm6000_core *dev)
 {
-	struct snd_tm6000_card	*chip = dev->adev;
+	struct snd_tm6000_card *chip;
 
 	if (!dev)
 		return 0;
+	chip = dev->adev;
 
 	if (!chip)
 		return 0;

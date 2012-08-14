@@ -1861,11 +1861,12 @@ static int s2255_release(struct file *file)
 static int s2255_mmap_v4l(struct file *file, struct vm_area_struct *vma)
 {
 	struct s2255_fh *fh = file->private_data;
-	struct s2255_dev *dev = fh->dev;
+	struct s2255_dev *dev;
 	int ret;
 
 	if (!fh)
 		return -ENODEV;
+	dev = fh->dev;
 	dprintk(4, "%s, vma=0x%08lx\n", __func__, (unsigned long)vma);
 	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;

@@ -319,12 +319,13 @@ static int tm6000_ir_change_protocol(struct rc_dev *rc, u64 rc_type)
 static int __tm6000_ir_int_start(struct rc_dev *rc)
 {
 	struct tm6000_IR *ir = rc->priv;
-	struct tm6000_core *dev = ir->dev;
+	struct tm6000_core *dev;
 	int pipe, size;
 	int err = -ENOMEM;
 
 	if (!ir)
 		return -ENODEV;
+	dev = ir->dev;
 
 	dprintk(2, "%s\n",__func__);
 
