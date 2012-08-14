@@ -25,14 +25,315 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
-struct nv50_disp_priv {
-	struct nouveau_disp base;
+#include "nv50.h"
+
+/*******************************************************************************
+ * EVO channel common helpers
+ ******************************************************************************/
+
+static u32
+nv50_disp_chan_rd32(struct nouveau_object *object, u64 addr)
+{
+	return 0xdeadcafe;
+}
+
+static void
+nv50_disp_chan_wr32(struct nouveau_object *object, u64 addr, u32 data)
+{
+}
+
+/*******************************************************************************
+ * EVO master channel object
+ ******************************************************************************/
+
+static int
+nv50_disp_mast_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *data, u32 size,
+		    struct nouveau_object **pobject)
+{
+	struct nv50_disp_chan *chan;
+	int ret;
+
+	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
+	*pobject = nv_object(chan);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void
+nv50_disp_mast_dtor(struct nouveau_object *object)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	nouveau_object_destroy(&chan->base);
+}
+
+static int
+nv50_disp_mast_init(struct nouveau_object *object)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	int ret;
+
+	ret = nouveau_object_init(&chan->base);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int
+nv50_disp_mast_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	return nouveau_object_fini(&chan->base, suspend);
+}
+
+struct nouveau_ofuncs
+nv50_disp_mast_ofuncs = {
+	.ctor = nv50_disp_mast_ctor,
+	.dtor = nv50_disp_mast_dtor,
+	.init = nv50_disp_mast_init,
+	.fini = nv50_disp_mast_fini,
+	.rd32 = nv50_disp_chan_rd32,
+	.wr32 = nv50_disp_chan_wr32,
+};
+
+/*******************************************************************************
+ * EVO DMA channel objects (sync, overlay)
+ ******************************************************************************/
+
+static int
+nv50_disp_dmac_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *data, u32 size,
+		    struct nouveau_object **pobject)
+{
+	struct nv50_disp_chan *chan;
+	int ret;
+
+	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
+	*pobject = nv_object(chan);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void
+nv50_disp_dmac_dtor(struct nouveau_object *object)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	nouveau_object_destroy(&chan->base);
+}
+
+static int
+nv50_disp_dmac_init(struct nouveau_object *object)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	int ret;
+
+	ret = nouveau_object_init(&chan->base);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int
+nv50_disp_dmac_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	return nouveau_object_fini(&chan->base, suspend);
+}
+
+struct nouveau_ofuncs
+nv50_disp_dmac_ofuncs = {
+	.ctor = nv50_disp_dmac_ctor,
+	.dtor = nv50_disp_dmac_dtor,
+	.init = nv50_disp_dmac_init,
+	.fini = nv50_disp_dmac_fini,
+	.rd32 = nv50_disp_chan_rd32,
+	.wr32 = nv50_disp_chan_wr32,
+};
+
+/*******************************************************************************
+ * EVO PIO channel objects (cursor, immediate overlay controls)
+ ******************************************************************************/
+
+static int
+nv50_disp_pioc_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *data, u32 size,
+		    struct nouveau_object **pobject)
+{
+	struct nv50_disp_chan *chan;
+	int ret;
+
+	ret = nouveau_object_create(parent, engine, oclass, 0, &chan);
+	*pobject = nv_object(chan);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void
+nv50_disp_pioc_dtor(struct nouveau_object *object)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	nouveau_object_destroy(&chan->base);
+}
+
+static int
+nv50_disp_pioc_init(struct nouveau_object *object)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	int ret;
+
+	ret = nouveau_object_init(&chan->base);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int
+nv50_disp_pioc_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nv50_disp_chan *chan = (void *)object;
+	return nouveau_object_fini(&chan->base, suspend);
+}
+
+struct nouveau_ofuncs
+nv50_disp_pioc_ofuncs = {
+	.ctor = nv50_disp_pioc_ctor,
+	.dtor = nv50_disp_pioc_dtor,
+	.init = nv50_disp_pioc_init,
+	.fini = nv50_disp_pioc_fini,
+	.rd32 = nv50_disp_chan_rd32,
+	.wr32 = nv50_disp_chan_wr32,
+};
+
+/*******************************************************************************
+ * Base display object
+ ******************************************************************************/
+
+static int
+nv50_disp_base_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *data, u32 size,
+		    struct nouveau_object **pobject)
+{
+	struct nv50_disp_priv *priv = (void *)engine;
+	struct nv50_disp_base *base;
+	int ret;
+
+	ret = nouveau_parent_create(parent, engine, oclass, 0,
+				    priv->sclass, 0, &base);
+	*pobject = nv_object(base);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void
+nv50_disp_base_dtor(struct nouveau_object *object)
+{
+	struct nv50_disp_base *base = (void *)object;
+	nouveau_parent_destroy(&base->base);
+}
+
+static int
+nv50_disp_base_init(struct nouveau_object *object)
+{
+	struct nv50_disp_base *base = (void *)object;
+	int ret;
+
+	ret = nouveau_parent_init(&base->base);
+	if (ret)
+		return ret;
+
+	/* caps */
+	/* intr 100 */
+	/* 6194e8 shit */
+	/* intr */
+	/* set 610010 from engctx */
+	/* acquire mast? */
+	return 0;
+}
+
+static int
+nv50_disp_base_fini(struct nouveau_object *object, bool suspend)
+{
+	struct nv50_disp_base *base = (void *)object;
+	return nouveau_parent_fini(&base->base, suspend);
+}
+
+struct nouveau_ofuncs
+nv50_disp_base_ofuncs = {
+	.ctor = nv50_disp_base_ctor,
+	.dtor = nv50_disp_base_dtor,
+	.init = nv50_disp_base_init,
+	.fini = nv50_disp_base_fini,
+};
+
+static struct nouveau_oclass
+nv50_disp_base_oclass[] = {
+	{ 0x5070, &nv50_disp_base_ofuncs },
 };
 
 static struct nouveau_oclass
 nv50_disp_sclass[] = {
-	{},
+	{ 0x507d, &nv50_disp_mast_ofuncs }, /* master */
+	{ 0x507c, &nv50_disp_dmac_ofuncs }, /* sync */
+	{ 0x507e, &nv50_disp_dmac_ofuncs }, /* overlay */
+	{ 0x507b, &nv50_disp_pioc_ofuncs }, /* overlay (pio) */
+	{ 0x507a, &nv50_disp_pioc_ofuncs }, /* cursor (pio) */
+	{}
 };
+
+/*******************************************************************************
+ * Display context, tracks instmem allocation and prevents more than one
+ * client using the display hardware at any time.
+ ******************************************************************************/
+
+static int
+nv50_disp_data_ctor(struct nouveau_object *parent,
+		    struct nouveau_object *engine,
+		    struct nouveau_oclass *oclass, void *data, u32 size,
+		    struct nouveau_object **pobject)
+{
+	struct nouveau_engctx *ectx;
+	int ret;
+
+	ret = nouveau_engctx_create(parent, engine, oclass, NULL, 0x10000,
+				    0x10000, NVOBJ_FLAG_ZERO_ALLOC, &ectx);
+	*pobject = nv_object(ectx);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+struct nouveau_oclass
+nv50_disp_cclass = {
+	.handle = NV_ENGCTX(DISP, 0x50),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_disp_data_ctor,
+		.dtor = _nouveau_engctx_dtor,
+		.init = _nouveau_engctx_init,
+		.fini = _nouveau_engctx_fini,
+		.rd32 = _nouveau_engctx_rd32,
+		.wr32 = _nouveau_engctx_wr32,
+	},
+};
+
+/*******************************************************************************
+ * Display engine implementation
+ ******************************************************************************/
 
 static void
 nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
@@ -71,7 +372,7 @@ nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
 		disp->vblank.notify(disp->vblank.data, crtc);
 }
 
-static void
+void
 nv50_disp_intr(struct nouveau_subdev *subdev)
 {
 	struct nv50_disp_priv *priv = (void *)subdev;
@@ -105,8 +406,13 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_engine(priv)->sclass = nv50_disp_sclass;
+	nv_engine(priv)->sclass = nv50_disp_base_oclass;
+	nv_engine(priv)->cclass = &nv50_disp_cclass;
 	nv_subdev(priv)->intr = nv50_disp_intr;
+	priv->sclass = nv50_disp_sclass;
+	priv->head.nr = 2;
+	priv->dac.nr = 3;
+	priv->sor.nr = 2;
 
 	INIT_LIST_HEAD(&priv->base.vblank.list);
 	spin_lock_init(&priv->base.vblank.lock);
