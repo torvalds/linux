@@ -3819,7 +3819,7 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	if (ret)
 		goto out_free;
 
-	acl_len = res.acl_len - res.acl_data_offset;
+	acl_len = res.acl_len;
 	if (acl_len > args.acl_len)
 		nfs4_write_cached_acl(inode, NULL, 0, acl_len);
 	else
