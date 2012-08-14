@@ -712,7 +712,7 @@ static ssize_t __write_ports_addxprt(char *buf)
 	int port, err;
 	struct net *net = &init_net;
 
-	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
+	if (sscanf(buf, "%15s %5u", transport, &port) != 2)
 		return -EINVAL;
 
 	if (port < 1 || port > USHRT_MAX)
