@@ -5,6 +5,12 @@
 menu "Media PCI Adapters"
 	visible if PCI && MEDIA_SUPPORT
 
+if MEDIA_CAMERA_SUPPORT
+	comment "Media capture support"
+source "drivers/media/pci/meye/Kconfig"
+source "drivers/media/pci/sta2x11/Kconfig"
+endif
+
 if MEDIA_ANALOG_TV_SUPPORT
 	comment "Media capture/analog TV support"
 source "drivers/media/pci/ivtv/Kconfig"

@@ -606,51 +606,6 @@ config VIDEO_VIVI
 	  In doubt, say N.
 
 #
-# PCI drivers configuration - No devices here are for webcams
-#
-
-menuconfig V4L_PCI_DRIVERS
-	bool "V4L PCI(e) devices"
-	depends on PCI
-	depends on MEDIA_ANALOG_TV_SUPPORT
-	default y
-	---help---
-	  Say Y here to enable support for these PCI(e) drivers.
-
-if V4L_PCI_DRIVERS
-
-config VIDEO_MEYE
-	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
-	depends on PCI && SONY_LAPTOP && VIDEO_V4L2
-	---help---
-	  This is the video4linux driver for the Motion Eye camera found
-	  in the Vaio Picturebook laptops. Please read the material in
-	  <file:Documentation/video4linux/meye.txt> for more information.
-
-	  If you say Y or M here, you need to say Y or M to "Sony Laptop
-	  Extras" in the misc device section.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called meye.
-
-
-
-config STA2X11_VIP
-	tristate "STA2X11 VIP Video For Linux"
-	depends on STA2X11
-	select VIDEO_ADV7180 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEOBUF_DMA_CONTIG
-	depends on PCI && VIDEO_V4L2 && VIRT_TO_BUS
-	help
-	  Say Y for support for STA2X11 VIP (Video Input Port) capture
-	  device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called sta2x11_vip.
-
-endif # V4L_PCI_DRIVERS
-
-#
 # ISA & parallel port drivers configuration
 #	All devices here are webcam or grabber devices
 #
