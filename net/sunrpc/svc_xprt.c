@@ -238,7 +238,7 @@ int svc_create_xprt(struct svc_serv *serv, const char *xprt_name,
 		list_add(&newxprt->xpt_list, &serv->sv_permsocks);
 		spin_unlock_bh(&serv->sv_lock);
 		newport = svc_xprt_local_port(newxprt);
-		clear_bit(XPT_BUSY, &newxprt->xpt_flags);
+		svc_xprt_received(newxprt);
 		return newport;
 	}
  err:
