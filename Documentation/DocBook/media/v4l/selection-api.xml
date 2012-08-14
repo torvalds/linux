@@ -40,6 +40,7 @@ cropping and composing rectangles have the same size.</para>
     <section>
       <title>Selection targets</title>
 
+      <para>
       <figure id="sel-targets-capture">
 	<title>Cropping and composing targets</title>
 	<mediaobject>
@@ -52,11 +53,11 @@ cropping and composing rectangles have the same size.</para>
 	  </textobject>
 	</mediaobject>
       </figure>
+      </para>
 
+      <para>See <xref linkend="v4l2-selection-targets" /> for more
+    information.</para>
     </section>
-
-    See <xref linkend="v4l2-selection-targets" /> for more
-    information.
 
   <section>
 
@@ -216,18 +217,17 @@ composing and cropping operations by setting the appropriate targets.  The V4L2
 API lacks any support for composing to and cropping from an image inside a
 memory buffer.  The application could configure a capture device to fill only a
 part of an image by abusing V4L2 API.  Cropping a smaller image from a larger
-one is achieved by setting the field <structfield>
-&v4l2-pix-format;::bytesperline </structfield>.  Introducing an image offsets
-could be done by modifying field <structfield> &v4l2-buffer;::m:userptr
-</structfield> before calling <constant> VIDIOC_QBUF </constant>. Those
+one is achieved by setting the field
+&v4l2-pix-format;<structfield>::bytesperline</structfield>.  Introducing an image offsets
+could be done by modifying field &v4l2-buffer;<structfield>::m_userptr</structfield>
+before calling <constant> VIDIOC_QBUF </constant>. Those
 operations should be avoided because they are not portable (endianness), and do
 not work for macroblock and Bayer formats and mmap buffers.  The selection API
 deals with configuration of buffer cropping/composing in a clear, intuitive and
 portable way.  Next, with the selection API the concepts of the padded target
-and constraints flags are introduced.  Finally, <structname> &v4l2-crop;
-</structname> and <structname> &v4l2-cropcap; </structname> have no reserved
-fields. Therefore there is no way to extend their functionality.  The new
-<structname> &v4l2-selection; </structname> provides a lot of place for future
+and constraints flags are introduced.  Finally, &v4l2-crop; and &v4l2-cropcap;
+have no reserved fields. Therefore there is no way to extend their functionality.
+The new &v4l2-selection; provides a lot of place for future
 extensions.  Driver developers are encouraged to implement only selection API.
 The former cropping API would be simulated using the new one. </para>
 
