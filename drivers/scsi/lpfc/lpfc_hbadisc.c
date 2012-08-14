@@ -3509,7 +3509,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *pmb = NULL;
 	MAILBOX_t *mb;
 	struct static_vport_info *vport_info;
-	int rc = 0, i;
+	int mbx_wait_rc = 0, i;
 	struct fc_vport_identifiers vport_id;
 	struct fc_vport *new_fc_vport;
 	struct Scsi_Host *shost;
@@ -3526,7 +3526,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 				" allocate mailbox memory\n");
 		return;
 	}
-
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb = &pmb->u.mb;
 
 	vport_info = kzalloc(sizeof(struct static_vport_info), GFP_KERNEL);
@@ -3540,24 +3540,31 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 	vport_buff = (uint8_t *) vport_info;
 	do {
+		/* free dma buffer from previous round */
+		if (pmb->context1) {
+			mp = (struct lpfc_dmabuf *)pmb->context1;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 		if (lpfc_dump_static_vport(phba, pmb, offset))
 			goto out;
 
 		pmb->vport = phba->pport;
-		rc = lpfc_sli_issue_mbox_wait(phba, pmb, LPFC_MBOX_TMO);
+		mbx_wait_rc = lpfc_sli_issue_mbox_wait(phba, pmb,
+							LPFC_MBOX_TMO);
 
-		if ((rc != MBX_SUCCESS) || mb->mbxStatus) {
+		if ((mbx_wait_rc != MBX_SUCCESS) || mb->mbxStatus) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0544 lpfc_create_static_vport failed to"
 				" issue dump mailbox command ret 0x%x "
 				"status 0x%x\n",
-				rc, mb->mbxStatus);
+				mbx_wait_rc, mb->mbxStatus);
 			goto out;
 		}
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			byte_count = pmb->u.mqe.un.mb_words[5];
-			mp = (struct lpfc_dmabuf *) pmb->context2;
+			mp = (struct lpfc_dmabuf *)pmb->context1;
 			if (byte_count > sizeof(struct static_vport_info) -
 					offset)
 				byte_count = sizeof(struct static_vport_info)
@@ -3621,9 +3628,9 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 out:
 	kfree(vport_info);
-	if (rc != MBX_TIMEOUT) {
-		if (pmb->context2) {
-			mp = (struct lpfc_dmabuf *) pmb->context2;
+	if (mbx_wait_rc != MBX_TIMEOUT) {
+		if (pmb->context1) {
+			mp = (struct lpfc_dmabuf *)pmb->context1;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
