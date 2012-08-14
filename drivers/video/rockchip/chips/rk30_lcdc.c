@@ -904,7 +904,8 @@ static int rk30_set_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
 
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(0));
-	LCDC_REG_CFG_DONE();  
+	LCDC_REG_CFG_DONE();
+	msleep(25);
 	for(i=0;i<256;i++)
 	{
 		v = lut[i];
