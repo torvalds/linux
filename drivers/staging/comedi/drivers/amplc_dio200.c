@@ -1417,7 +1417,6 @@ static int __devinit dio200_attach_pci(struct comedi_device *dev,
 static void dio200_detach(struct comedi_device *dev)
 {
 	const struct dio200_board *thisboard = comedi_board(dev);
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct dio200_layout_struct *layout;
 	unsigned n;
 
@@ -1442,13 +1441,16 @@ static void dio200_detach(struct comedi_device *dev)
 			}
 		}
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
-	} else {
+	if (IS_ISA_BOARD(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, DIO200_IO_SIZE);
+	} else if (IS_PCI_BOARD(thisboard)) {
+		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+		if (pcidev) {
+			if (dev->iobase)
+				comedi_pci_disable(pcidev);
+			pci_dev_put(pcidev);
+		}
 	}
 }
 
