@@ -2264,9 +2264,9 @@ static int em28xx_v4l2_close(struct file *filp)
 		if (dev->state & DEV_DISCONNECTED) {
 			em28xx_release_resources(dev);
 			kfree(dev->alt_max_pkt_size);
+			mutex_unlock(&dev->lock);
 			kfree(dev);
 			kfree(fh);
-			mutex_unlock(&dev->lock);
 			return 0;
 		}
 
