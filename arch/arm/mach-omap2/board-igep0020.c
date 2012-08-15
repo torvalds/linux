@@ -554,6 +554,8 @@ static const struct usbhs_omap_board_data igep3_usbhs_bdata __initconst = {
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux board_mux[] __initdata = {
+	/* SMSC9221 LAN Controller ETH IRQ (GPIO_176) */
+	OMAP3_MUX(MCSPI1_CS2, OMAP_MUX_MODE4 | OMAP_PIN_INPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #endif
