@@ -24,6 +24,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/pci.h>
 #include <mach/dove.h>
+#include <mach/pm.h>
 #include <mach/bridge-regs.h>
 #include <asm/mach/arch.h>
 #include <linux/irq.h>
@@ -69,14 +70,68 @@ void __init dove_map_io(void)
  * CLK tree
  ****************************************************************************/
 static int dove_tclk;
+
+static DEFINE_SPINLOCK(gating_lock);
 static struct clk *tclk;
+
+static struct clk __init *dove_register_gate(const char *name,
+					     const char *parent, u8 bit_idx)
+{
+	return clk_register_gate(NULL, name, parent, 0,
+				 (void __iomem *)CLOCK_GATING_CONTROL,
+				 bit_idx, 0, &gating_lock);
+}
 
 static void __init dove_clk_init(void)
 {
+	struct clk *usb0, *usb1, *sata, *pex0, *pex1, *sdio0, *sdio1;
+	struct clk *nand, *camera, *i2s0, *i2s1, *crypto, *ac97, *pdma;
+	struct clk *xor0, *xor1, *ge, *gephy;
+
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
 				       dove_tclk);
 
-	orion_clkdev_init(tclk);
+	usb0 = dove_register_gate("usb0", "tclk", CLOCK_GATING_BIT_USB0);
+	usb1 = dove_register_gate("usb1", "tclk", CLOCK_GATING_BIT_USB1);
+	sata = dove_register_gate("sata", "tclk", CLOCK_GATING_BIT_SATA);
+	pex0 = dove_register_gate("pex0", "tclk", CLOCK_GATING_BIT_PCIE0);
+	pex1 = dove_register_gate("pex1", "tclk", CLOCK_GATING_BIT_PCIE1);
+	sdio0 = dove_register_gate("sdio0", "tclk", CLOCK_GATING_BIT_SDIO0);
+	sdio1 = dove_register_gate("sdio1", "tclk", CLOCK_GATING_BIT_SDIO1);
+	nand = dove_register_gate("nand", "tclk", CLOCK_GATING_BIT_NAND);
+	camera = dove_register_gate("camera", "tclk", CLOCK_GATING_BIT_CAMERA);
+	i2s0 = dove_register_gate("i2s0", "tclk", CLOCK_GATING_BIT_I2S0);
+	i2s1 = dove_register_gate("i2s1", "tclk", CLOCK_GATING_BIT_I2S1);
+	crypto = dove_register_gate("crypto", "tclk", CLOCK_GATING_BIT_CRYPTO);
+	ac97 = dove_register_gate("ac97", "tclk", CLOCK_GATING_BIT_AC97);
+	pdma = dove_register_gate("pdma", "tclk", CLOCK_GATING_BIT_PDMA);
+	xor0 = dove_register_gate("xor0", "tclk", CLOCK_GATING_BIT_XOR0);
+	xor1 = dove_register_gate("xor1", "tclk", CLOCK_GATING_BIT_XOR1);
+	gephy = dove_register_gate("gephy", "tclk", CLOCK_GATING_BIT_GIGA_PHY);
+	ge = dove_register_gate("ge", "gephy", CLOCK_GATING_BIT_GBE);
+
+	orion_clkdev_add(NULL, "orion_spi.0", tclk);
+	orion_clkdev_add(NULL, "orion_spi.1", tclk);
+	orion_clkdev_add(NULL, "orion_wdt", tclk);
+	orion_clkdev_add(NULL, "mv64xxx_i2c.0", tclk);
+
+	orion_clkdev_add(NULL, "orion-ehci.0", usb0);
+	orion_clkdev_add(NULL, "orion-ehci.1", usb1);
+	orion_clkdev_add(NULL, "mv643xx_eth.0", ge);
+	orion_clkdev_add("0", "sata_mv.0", sata);
+	orion_clkdev_add("0", "pcie", pex0);
+	orion_clkdev_add("1", "pcie", pex1);
+	orion_clkdev_add(NULL, "sdhci-dove.0", sdio0);
+	orion_clkdev_add(NULL, "sdhci-dove.1", sdio1);
+	orion_clkdev_add(NULL, "orion_nand", nand);
+	orion_clkdev_add(NULL, "cafe1000-ccic.0", camera);
+	orion_clkdev_add(NULL, "kirkwood-i2s.0", i2s0);
+	orion_clkdev_add(NULL, "kirkwood-i2s.1", i2s1);
+	orion_clkdev_add(NULL, "mv_crypto", crypto);
+	orion_clkdev_add(NULL, "dove-ac97", ac97);
+	orion_clkdev_add(NULL, "dove-pdma", pdma);
+	orion_clkdev_add(NULL, "mv_xor_shared.0", xor0);
+	orion_clkdev_add(NULL, "mv_xor_shared.1", xor1);
 }
 
 /*****************************************************************************
