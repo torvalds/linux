@@ -54,20 +54,6 @@ static const struct comedi_lrange range_pci1050_ai = { 3, {
 
 static const char range_codes_pci1050_ai[] = { 0x00, 0x10, 0x30 };
 
-struct boardtype {
-	const char *name;
-	int device_id;
-};
-
-static const struct boardtype boardtypes[] = {
-	{
-	.name = "dyna_pci1050",
-	.device_id = 0x1050,
-	},
-	/*  dummy entry corresponding to driver name */
-	{.name = DRV_NAME},
-};
-
 struct dyna_pci10xx_private {
 	struct mutex mutex;
 	unsigned long BADR3;
@@ -194,35 +180,16 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const void *dyna_pci10xx_find_boardinfo(struct comedi_device *dev,
-					       struct pci_dev *pcidev)
-{
-	const struct boardtype *thisboard;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
-		thisboard = &boardtypes[i];
-		if (pcidev->device != thisboard->device_id)
-			return thisboard;
-	}
-	return NULL;
-}
-
 static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 				   struct pci_dev *pcidev)
 {
-	const struct boardtype *thisboard;
 	struct dyna_pci10xx_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	comedi_set_hw_dev(dev, &pcidev->dev);
 
-	thisboard = dyna_pci10xx_find_boardinfo(dev, pcidev);
-	if (!thisboard)
-		return -ENODEV;
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret)
@@ -282,8 +249,7 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 	s->state = 0;
 	s->insn_bits = dyna_pci10xx_do_insn_bits;
 
-	dev_info(dev->class_dev, "%s: %s attached\n",
-		dev->driver->driver_name, dev->board_name);
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 0;
 }
