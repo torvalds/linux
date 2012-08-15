@@ -775,8 +775,9 @@ void wl12xx_queue_recovery_work(struct wl1271 *wl)
 	WARN_ON(!test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
 
 	/* Avoid a recursive recovery */
-	if (!test_and_set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags)) {
+	if (wl->state == WLCORE_STATE_ON) {
 		wl->state = WLCORE_STATE_RESTARTING;
+		set_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags);
 		wlcore_disable_interrupts_nosync(wl);
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);
 	}
