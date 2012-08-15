@@ -1356,9 +1356,15 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 	if (!(wq->flags & WQ_UNBOUND)) {
 		struct global_cwq *gcwq = get_work_gcwq(work);
 
-		if (gcwq && gcwq->cpu != WORK_CPU_UNBOUND)
+		/*
+		 * If we cannot get the last gcwq from @work directly,
+		 * select the last CPU such that it avoids unnecessarily
+		 * triggering non-reentrancy check in __queue_work().
+		 */
+		lcpu = cpu;
+		if (gcwq)
 			lcpu = gcwq->cpu;
-		else
+		if (lcpu == WORK_CPU_UNBOUND)
 			lcpu = raw_smp_processor_id();
 	} else {
 		lcpu = WORK_CPU_UNBOUND;
