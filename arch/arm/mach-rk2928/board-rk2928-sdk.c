@@ -33,7 +33,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/hardware/gic.h>
-//#include <mach/dvfs.h>
+#include <mach/dvfs.h>
 
 #include <mach/board.h>
 #include <mach/hardware.h>
@@ -379,6 +379,59 @@ static struct platform_device device_ion = {
 };
 #endif
 
+#if CONFIG_RK30_PWM_REGULATOR
+const static int pwm_voltage_map[] = {
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+};
+
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[1] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[1] = {
+	{
+		.pwm_id = 2,
+		.pwm_gpio = RK2928_PIN0_PD4,
+		.pwm_iomux_name = GPIO0D4_PWM_2_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM_2, 
+		.pwm_iomux_gpio = GPIO0D_GPIO0D4,
+		.pwm_voltage = 1200000,
+		.suspend_voltage = 1050000,
+		.min_uV = 1000000,
+		.max_uV	= 1400000,
+		.coefficient = 455,	//45.5%
+		.pwm_voltage_map = pwm_voltage_map,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+};
+
+struct platform_device pwm_regulator_device[1] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
+};
+#endif
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
@@ -717,10 +770,15 @@ static void __init rk30_i2c_register_board_info(void)
 //end of i2c
 
 #define POWER_ON_PIN RK2928_PIN3_PC5   //power_hold
-static void rk30_pm_power_off(void)
+static void rk2928_pm_power_off(void)
 {
-	printk(KERN_ERR "rk30_pm_power_off start...\n");
+	printk(KERN_ERR "rk2928_pm_power_off start...\n");
+	
+	#if defined(CONFIG_MFD_TPS65910)
+		tps65910_device_shutdown();//tps65910 shutdown
+	#endif
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+	
 };
 
 static void __init rk2928_board_init(void)
@@ -729,7 +787,7 @@ static void __init rk2928_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
         gpio_free(POWER_ON_PIN);
 	
-	pm_power_off = rk30_pm_power_off;
+	pm_power_off = rk2928_pm_power_off;
 	
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
@@ -762,10 +820,56 @@ static void __init rk2928_reserve(void)
 #endif
 	board_mem_reserved();
 }
+/**
+ * dvfs_cpu_logic_table: table for arm and logic dvfs 
+ * @frequency	: arm frequency
+ * @cpu_volt	: arm voltage depend on frequency
+ * @logic_volt	: logic voltage arm requests depend on frequency
+ * comments	: min arm/logic voltage
+ */
+static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
+	{.frequency = 216 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 312 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//0.975V/1.000V
+	{.frequency = 408 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 504 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
+	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
+	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#if 0
+	{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	{.frequency = 1248 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+#endif
+	//{.frequency = 1000 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dvfs_gpu_table[] = {
+	{.frequency = 266 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1275 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dvfs_ddr_table[] = {
+	{.frequency = 300 * 1000,	.index = 1050 * 1000},
+	{.frequency = 400 * 1000,	.index = 1125 * 1000},
+	{.frequency = CPUFREQ_TABLE_END},
+};
+
+#define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
+static struct cpufreq_frequency_table cpu_dvfs_table[DVFS_CPU_TABLE_SIZE];
+static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];
 
 void __init board_clock_init(void)
 {
 	rk2928_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
+	dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);
+	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
+	//dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
+	printk("%s end\n", __func__);
 }
 
 

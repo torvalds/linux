@@ -24,6 +24,7 @@
 #include <mach/cru.h>
 #include <mach/iomux.h>
 #include <mach/clock.h>
+#include <mach/dvfs.h>
 #include "clock.h"
 //#include <mach/pmu.h>
 
@@ -61,6 +62,7 @@ struct pll_clk_set {
 #define CLKDATA_LOG(fmt, args...) do {} while(0)
 #endif
 #define CLKDATA_ERR(fmt, args...) printk(KERN_ERR "CLKDATA_ERR:\t"fmt, ##args)
+#define CLKDATA_WARNNING(fmt, args...) printk("CLKDATA_WANNING:\t"fmt, ##args)
 
 #define cru_readl(offset)	readl_relaxed(RK2928_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK2928_CRU_BASE + offset); dsb(); } while (0)
@@ -126,8 +128,19 @@ struct pll_clk_set {
 }
 
 static const struct apll_clk_set apll_clks[] = {
-	_APLL_SET_CLKS( 650, 6, 325, 2, 1, 1, 0, 41, 21, 81, 21, 21),
-	_APLL_SET_CLKS(1000, 3, 125, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS(1248, 1, 52, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS(1200, 1, 50, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS(1104, 1, 46, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS(1008, 1, 42, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 912, 1, 38, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 816, 1, 34, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 696, 1, 29, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 600, 1, 25, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 504, 1, 21, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 408, 1, 17, 1, 1, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 312, 1, 52, 2, 2, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS( 216, 1, 36, 2, 2, 1, 0, 41, 21, 41, 21, 21),
+	_APLL_SET_CLKS(   0, 1, 0, 1, 1, 1, 0, 41, 21, 41, 21, 21),
 };
 
 #define _PLL_SET_CLKS(_mhz, _refdiv, _fbdiv, _postdiv1, _postdiv2, _dsmpd, _frac) \
@@ -316,6 +329,12 @@ static int clksel_set_rate_freediv(struct clk *clk, unsigned long rate)
 			set_cru_bits_w_msk(div,clk->div_mask,clk->div_shift,clk->clksel_con);
 			//clk->rate = new_rate;
 			CLKDATA_DBG("clksel_set_rate_freediv for clock %s to rate %ld (div %d)\n", clk->name, rate, div + 1);
+			return 0;
+		}
+		if (div == clk->div_max - 1) {
+			CLKDATA_WARNNING("%s clk=%s, div=%u, rate=%lu, new_rate=%u\n",
+					__func__, clk->name, div, rate, new_rate);
+			set_cru_bits_w_msk(div,clk->div_mask,clk->div_shift,clk->clksel_con);
 			return 0;
 		}
 	}
@@ -734,7 +753,7 @@ static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 	CLKDATA_DBG("pllcon0 %08x\n", cru_readl(PLL_CONS(0,0)));
 	CLKDATA_DBG("pllcon1 %08x\n", cru_readl(PLL_CONS(0,1)));
 	CLKDATA_DBG("pllcon2 %08x\n", cru_readl(PLL_CONS(0,2)));
-	CLKDATA_DBG("pllcon3 %08x\n", cru_readl(PLL_CONS(0,3)));
+	//CLKDATA_DBG("pllcon3 %08x\n", cru_readl(PLL_CONS(0,3)));
 	CLKDATA_DBG("clksel0 %08x\n", cru_readl(CRU_CLKSELS_CON(0)));
 	CLKDATA_DBG("clksel1 %08x\n", cru_readl(CRU_CLKSELS_CON(1)));
 	if(clk_set->rate==rate) {
@@ -761,7 +780,7 @@ static int apll_clk_set_rate(struct clk *clk, unsigned long rate)
 		//rk2928_clock_udelay(5);
 
 		//wating lock state
-		rk2928_clock_udelay(clk_set->rst_dly);
+		rk2928_clock_udelay(clk_set->rst_dly);	
 		pll_wait_lock(pll_id);
 
 		//return form slow
@@ -1003,7 +1022,7 @@ static int arm_core_clk_set_rate(struct clk *c, unsigned long rate)
 	//set arm pll div 1
 	//set_cru_bits_w_msk(0,c->div_mask,c->div_shift,c->clksel_con);
 	
-	CLKDATA_DBG("Failed to change clk pll %s to %lu\n",c->name,rate);
+	CLKDATA_DBG("change clk pll %s to %lu\n",c->name,rate);
 	ret = clk_set_rate_nolock(c->parent, rate);
 	if (ret) {
 		CLKDATA_ERR("Failed to change clk pll %s to %lu\n",c->name,rate);
@@ -1013,6 +1032,7 @@ static int arm_core_clk_set_rate(struct clk *c, unsigned long rate)
 	return 0;
 }
 static struct clk clk_core_pre = {
+	//.name		= "cpu",
 	.name		= "core_pre",
 	.parent		= &arm_pll_clk,
 	.recalc		= clksel_recalc_div,
@@ -1599,6 +1619,7 @@ static struct clk clk_saradc = {
 // name: gpu_aclk
 static struct clk *clk_gpu_pre_parents[]		= SELECT_FROM_2PLLS_CG;
 static struct clk clk_gpu_pre = {
+	//.name		= "gpu",
 	.name		= "gpu_pre",
 	.parent		= &general_pll_clk,
 	.mode		= gate_mode,
@@ -2428,7 +2449,7 @@ static void __init rk2928_clock_common_init(unsigned long gpll_rate,unsigned lon
 {
 	CLKDATA_DBG("ENTER %s\n", __func__);
 
-	clk_set_rate_nolock(&clk_core_pre, 1000 * MHZ);//816
+	clk_set_rate_nolock(&clk_core_pre, 816 * MHZ);//816
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
@@ -2530,8 +2551,8 @@ void __init _rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,int fl
 
 void __init rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags)
 {
-	printk("%s version:	2012-8-7\n", __func__);
+	printk("%s version:	2012-8-14\n", __func__);
 	_rk2928_clock_data_init(gpll,cpll,flags);
-	//rk2928_dvfs_init();
+	rk30_dvfs_init();
 }
 
