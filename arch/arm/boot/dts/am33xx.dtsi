@@ -102,36 +102,42 @@
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
+			status = "disabled";
 		};
 
 		uart2: serial@48022000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
+			status = "disabled";
 		};
 
 		uart3: serial@48024000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
+			status = "disabled";
 		};
 
 		uart4: serial@481A6000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
+			status = "disabled";
 		};
 
 		uart5: serial@481A8000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart5";
 			clock-frequency = <48000000>;
+			status = "disabled";
 		};
 
 		uart6: serial@481AA000 {
 			compatible = "ti,omap3-uart";
 			ti,hwmods = "uart6";
 			clock-frequency = <48000000>;
+			status = "disabled";
 		};
 
 		i2c1: i2c@44E0B000 {
@@ -139,6 +145,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c1";
+			status = "disabled";
 		};
 
 		i2c2: i2c@4802A000 {
@@ -146,6 +153,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c2";
+			status = "disabled";
 		};
 
 		i2c3: i2c@4819C000 {
@@ -153,6 +161,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			ti,hwmods = "i2c3";
+			status = "disabled";
 		};
 	};
 };
