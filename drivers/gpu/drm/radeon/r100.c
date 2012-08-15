@@ -80,10 +80,12 @@ MODULE_FIRMWARE(FIRMWARE_R520);
  */
 void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
 {
-	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
 	int i;
 
-	if (radeon_crtc->crtc_id == 0) {
+	if (crtc >= rdev->num_crtc)
+		return;
+
+	if (crtc == 0) {
 		if (RREG32(RADEON_CRTC_GEN_CNTL) & RADEON_CRTC_EN) {
 			for (i = 0; i < rdev->usec_timeout; i++) {
 				if (!(RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR))
