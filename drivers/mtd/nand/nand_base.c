@@ -243,25 +243,6 @@ static void nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 }
 
 /**
- * nand_verify_buf - [DEFAULT] Verify chip data against buffer
- * @mtd: MTD device structure
- * @buf: buffer containing the data to compare
- * @len: number of bytes to compare
- *
- * Default verify function for 8bit buswidth.
- */
-static int nand_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
-{
-	int i;
-	struct nand_chip *chip = mtd->priv;
-
-	for (i = 0; i < len; i++)
-		if (buf[i] != readb(chip->IO_ADDR_R))
-			return -EFAULT;
-	return 0;
-}
-
-/**
  * nand_write_buf16 - [DEFAULT] write buffer to chip
  * @mtd: MTD device structure
  * @buf: data buffer
@@ -298,28 +279,6 @@ static void nand_read_buf16(struct mtd_info *mtd, uint8_t *buf, int len)
 
 	for (i = 0; i < len; i++)
 		p[i] = readw(chip->IO_ADDR_R);
-}
-
-/**
- * nand_verify_buf16 - [DEFAULT] Verify chip data against buffer
- * @mtd: MTD device structure
- * @buf: buffer containing the data to compare
- * @len: number of bytes to compare
- *
- * Default verify function for 16bit buswidth.
- */
-static int nand_verify_buf16(struct mtd_info *mtd, const uint8_t *buf, int len)
-{
-	int i;
-	struct nand_chip *chip = mtd->priv;
-	u16 *p = (u16 *) buf;
-	len >>= 1;
-
-	for (i = 0; i < len; i++)
-		if (p[i] != readw(chip->IO_ADDR_R))
-			return -EFAULT;
-
-	return 0;
 }
 
 /**
@@ -2120,16 +2079,6 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		status = chip->waitfunc(mtd, chip);
 	}
 
-#ifdef CONFIG_MTD_NAND_VERIFY_WRITE
-	/* Send command to read back the data */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-
-	if (chip->verify_buf(mtd, buf, mtd->writesize))
-		return -EIO;
-
-	/* Make sure the next page prog is preceded by a status read */
-	chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
-#endif
 	return 0;
 }
 
@@ -2804,8 +2753,6 @@ static void nand_set_defaults(struct nand_chip *chip, int busw)
 		chip->write_buf = busw ? nand_write_buf16 : nand_write_buf;
 	if (!chip->read_buf)
 		chip->read_buf = busw ? nand_read_buf16 : nand_read_buf;
-	if (!chip->verify_buf)
-		chip->verify_buf = busw ? nand_verify_buf16 : nand_verify_buf;
 	if (!chip->scan_bbt)
 		chip->scan_bbt = nand_default_bbt;
 

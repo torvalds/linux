@@ -394,8 +394,6 @@ struct nand_buffers {
  * @read_word:		[REPLACEABLE] read one word from the chip
  * @write_buf:		[REPLACEABLE] write data from the buffer to the chip
  * @read_buf:		[REPLACEABLE] read data from the chip into the buffer
- * @verify_buf:		[REPLACEABLE] verify buffer contents against the chip
- *			data.
  * @select_chip:	[REPLACEABLE] select chip nr
  * @block_bad:		[REPLACEABLE] check, if the block is bad
  * @block_markbad:	[REPLACEABLE] mark the block bad
@@ -478,7 +476,6 @@ struct nand_chip {
 	u16 (*read_word)(struct mtd_info *mtd);
 	void (*write_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void (*read_buf)(struct mtd_info *mtd, uint8_t *buf, int len);
-	int (*verify_buf)(struct mtd_info *mtd, const uint8_t *buf, int len);
 	void (*select_chip)(struct mtd_info *mtd, int chip);
 	int (*block_bad)(struct mtd_info *mtd, loff_t ofs, int getchip);
 	int (*block_markbad)(struct mtd_info *mtd, loff_t ofs);

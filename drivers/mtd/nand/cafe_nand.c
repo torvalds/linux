@@ -576,13 +576,6 @@ static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 		status = chip->waitfunc(mtd, chip);
 	}
 
-#ifdef CONFIG_MTD_NAND_VERIFY_WRITE
-	/* Send command to read back the data */
-	chip->cmdfunc(mtd, NAND_CMD_READ0, 0, page);
-
-	if (chip->verify_buf(mtd, buf, mtd->writesize))
-		return -EIO;
-#endif
 	return 0;
 }
 

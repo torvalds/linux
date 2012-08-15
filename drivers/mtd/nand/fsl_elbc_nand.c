@@ -614,41 +614,6 @@ static void fsl_elbc_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 		        len, avail);
 }
 
-/*
- * Verify buffer against the FCM Controller Data Buffer
- */
-static int fsl_elbc_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *chip = mtd->priv;
-	struct fsl_elbc_mtd *priv = chip->priv;
-	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = priv->ctrl->nand;
-	int i;
-
-	if (len < 0) {
-		dev_err(priv->dev, "write_buf of %d bytes", len);
-		return -EINVAL;
-	}
-
-	if ((unsigned int)len >
-			elbc_fcm_ctrl->read_bytes - elbc_fcm_ctrl->index) {
-		dev_err(priv->dev,
-			"verify_buf beyond end of buffer "
-			"(%d requested, %u available)\n",
-			len, elbc_fcm_ctrl->read_bytes - elbc_fcm_ctrl->index);
-
-		elbc_fcm_ctrl->index = elbc_fcm_ctrl->read_bytes;
-		return -EINVAL;
-	}
-
-	for (i = 0; i < len; i++)
-		if (in_8(&elbc_fcm_ctrl->addr[elbc_fcm_ctrl->index + i])
-				!= buf[i])
-			break;
-
-	elbc_fcm_ctrl->index += len;
-	return i == len && elbc_fcm_ctrl->status == LTESR_CC ? 0 : -EIO;
-}
-
 /* This function is called after Program and Erase Operations to
  * check for success or failure.
  */
@@ -798,7 +763,6 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	chip->read_byte = fsl_elbc_read_byte;
 	chip->write_buf = fsl_elbc_write_buf;
 	chip->read_buf = fsl_elbc_read_buf;
-	chip->verify_buf = fsl_elbc_verify_buf;
 	chip->select_chip = fsl_elbc_select_chip;
 	chip->cmdfunc = fsl_elbc_cmdfunc;
 	chip->waitfunc = fsl_elbc_wait;

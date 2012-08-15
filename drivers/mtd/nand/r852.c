@@ -309,27 +309,6 @@ static uint8_t r852_read_byte(struct mtd_info *mtd)
 	return r852_read_reg(dev, R852_DATALINE);
 }
 
-
-/*
- * Readback the buffer to verify it
- */
-int r852_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
-{
-	struct r852_device *dev = r852_get_dev(mtd);
-
-	/* We can't be sure about anything here... */
-	if (dev->card_unstable)
-		return -1;
-
-	/* This will never happen, unless you wired up a nand chip
-		with > 512 bytes page size to the reader */
-	if (len > SM_SECTOR_SIZE)
-		return 0;
-
-	r852_read_buf(mtd, dev->tmp_buffer, len);
-	return memcmp(buf, dev->tmp_buffer, len);
-}
-
 /*
  * Control several chip lines & send commands
  */
@@ -882,7 +861,6 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->read_byte = r852_read_byte;
 	chip->read_buf = r852_read_buf;
 	chip->write_buf = r852_write_buf;
-	chip->verify_buf = r852_verify_buf;
 
 	/* ecc */
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;

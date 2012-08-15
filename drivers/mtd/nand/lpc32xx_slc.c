@@ -369,24 +369,6 @@ static void lpc32xx_nand_write_buf(struct mtd_info *mtd, const uint8_t *buf, int
 }
 
 /*
- * Verify data in buffer to data on device
- */
-static int lpc32xx_verify_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
-{
-	struct nand_chip *chip = mtd->priv;
-	struct lpc32xx_nand_host *host = chip->priv;
-	int i;
-
-	/* DATA register must be read as 32 bits or it will fail */
-	for (i = 0; i < len; i++) {
-		if (buf[i] != (uint8_t)readl(SLC_DATA(host->io_base)))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
-/*
  * Read the OOB data from the device without ECC using FIFO method
  */
 static int lpc32xx_nand_read_oob_syndrome(struct mtd_info *mtd,
@@ -871,7 +853,6 @@ static int __devinit lpc32xx_nand_probe(struct platform_device *pdev)
 	chip->ecc.correct = nand_correct_data;
 	chip->ecc.strength = 1;
 	chip->ecc.hwctl = lpc32xx_nand_ecc_enable;
-	chip->verify_buf = lpc32xx_verify_buf;
 
 	/* bitflip_threshold's default is defined as ecc_strength anyway.
 	 * Unfortunately, it is set only later at add_mtd_device(). Meanwhile

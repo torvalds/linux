@@ -100,23 +100,6 @@ static void gpio_nand_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 	readsb(this->IO_ADDR_R, buf, len);
 }
 
-static int gpio_nand_verifybuf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-	unsigned char read, *p = (unsigned char *) buf;
-	int i, err = 0;
-
-	for (i = 0; i < len; i++) {
-		read = readb(this->IO_ADDR_R);
-		if (read != p[i]) {
-			pr_debug("%s: err at %d (read %04x vs %04x)\n",
-			       __func__, i, read, p[i]);
-			err = -EFAULT;
-		}
-	}
-	return err;
-}
-
 static void gpio_nand_writebuf16(struct mtd_info *mtd, const u_char *buf,
 				 int len)
 {
@@ -147,26 +130,6 @@ static void gpio_nand_readbuf16(struct mtd_info *mtd, u_char *buf, int len)
 			*ptr = readw(this->IO_ADDR_R);
 	}
 }
-
-static int gpio_nand_verifybuf16(struct mtd_info *mtd, const u_char *buf,
-				 int len)
-{
-	struct nand_chip *this = mtd->priv;
-	unsigned short read, *p = (unsigned short *) buf;
-	int i, err = 0;
-	len >>= 1;
-
-	for (i = 0; i < len; i++) {
-		read = readw(this->IO_ADDR_R);
-		if (read != p[i]) {
-			pr_debug("%s: err at %d (read %04x vs %04x)\n",
-			       __func__, i, read, p[i]);
-			err = -EFAULT;
-		}
-	}
-	return err;
-}
-
 
 static int gpio_nand_devready(struct mtd_info *mtd)
 {
@@ -391,11 +354,9 @@ static int __devinit gpio_nand_probe(struct platform_device *dev)
 	if (this->options & NAND_BUSWIDTH_16) {
 		this->read_buf   = gpio_nand_readbuf16;
 		this->write_buf  = gpio_nand_writebuf16;
-		this->verify_buf = gpio_nand_verifybuf16;
 	} else {
 		this->read_buf   = gpio_nand_readbuf;
 		this->write_buf  = gpio_nand_writebuf;
-		this->verify_buf = gpio_nand_verifybuf;
 	}
 
 	/* set the mtd private data for the nand driver */

@@ -332,27 +332,6 @@ static void bcm_umi_nand_read_buf(struct mtd_info *mtd, u_char * buf, int len)
 #endif
 }
 
-static uint8_t readbackbuf[NAND_MAX_PAGESIZE];
-static int bcm_umi_nand_verify_buf(struct mtd_info *mtd, const u_char * buf,
-				   int len)
-{
-	/*
-	 * Try to readback page with ECC correction. This is necessary
-	 * for MLC parts which may have permanently stuck bits.
-	 */
-	struct nand_chip *chip = mtd->priv;
-	int ret = chip->ecc.read_page(mtd, chip, readbackbuf, 0, 0);
-	if (ret < 0)
-		return -EFAULT;
-	else {
-		if (memcmp(readbackbuf, buf, len) == 0)
-			return 0;
-
-		return -EFAULT;
-	}
-	return 0;
-}
-
 static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
@@ -416,7 +395,6 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 
 	this->write_buf = bcm_umi_nand_write_buf;
 	this->read_buf = bcm_umi_nand_read_buf;
-	this->verify_buf = bcm_umi_nand_verify_buf;
 
 	this->cmd_ctrl = bcm_umi_nand_hwcontrol;
 	this->ecc.mode = NAND_ECC_HW;

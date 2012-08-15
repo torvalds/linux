@@ -376,19 +376,6 @@ static void doc2000_readbuf_dword(struct mtd_info *mtd, u_char *buf, int len)
 	}
 }
 
-static int doc2000_verifybuf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-	struct doc_priv *doc = this->priv;
-	void __iomem *docptr = doc->virtadr;
-	int i;
-
-	for (i = 0; i < len; i++)
-		if (buf[i] != ReadDOC(docptr, 2k_CDSN_IO))
-			return -EFAULT;
-	return 0;
-}
-
 static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 {
 	struct nand_chip *this = mtd->priv;
@@ -526,26 +513,6 @@ static void doc2001_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 	buf[i] = ReadDOC(docptr, LastDataRead);
 }
 
-static int doc2001_verifybuf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-	struct doc_priv *doc = this->priv;
-	void __iomem *docptr = doc->virtadr;
-	int i;
-
-	/* Start read pipeline */
-	ReadDOC(docptr, ReadPipeInit);
-
-	for (i = 0; i < len - 1; i++)
-		if (buf[i] != ReadDOC(docptr, Mil_CDSN_IO)) {
-			ReadDOC(docptr, LastDataRead);
-			return i;
-		}
-	if (buf[i] != ReadDOC(docptr, LastDataRead))
-		return i;
-	return 0;
-}
-
 static u_char doc2001plus_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *this = mtd->priv;
@@ -608,33 +575,6 @@ static void doc2001plus_readbuf(struct mtd_info *mtd, u_char *buf, int len)
 		printk("%02x ", buf[len - 1]);
 	if (debug)
 		printk("\n");
-}
-
-static int doc2001plus_verifybuf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-	struct doc_priv *doc = this->priv;
-	void __iomem *docptr = doc->virtadr;
-	int i;
-
-	if (debug)
-		printk("verifybuf of %d bytes: ", len);
-
-	/* Start read pipeline */
-	ReadDOC(docptr, Mplus_ReadPipeInit);
-	ReadDOC(docptr, Mplus_ReadPipeInit);
-
-	for (i = 0; i < len - 2; i++)
-		if (buf[i] != ReadDOC(docptr, Mil_CDSN_IO)) {
-			ReadDOC(docptr, Mplus_LastDataRead);
-			ReadDOC(docptr, Mplus_LastDataRead);
-			return i;
-		}
-	if (buf[len - 2] != ReadDOC(docptr, Mplus_LastDataRead))
-		return len - 2;
-	if (buf[len - 1] != ReadDOC(docptr, Mplus_LastDataRead))
-		return len - 1;
-	return 0;
 }
 
 static void doc2001plus_select_chip(struct mtd_info *mtd, int chip)
@@ -1432,7 +1372,6 @@ static inline int __init doc2000_init(struct mtd_info *mtd)
 	this->read_byte = doc2000_read_byte;
 	this->write_buf = doc2000_writebuf;
 	this->read_buf = doc2000_readbuf;
-	this->verify_buf = doc2000_verifybuf;
 	this->scan_bbt = nftl_scan_bbt;
 
 	doc->CDSNControl = CDSN_CTRL_FLASH_IO | CDSN_CTRL_ECC_IO;
@@ -1449,7 +1388,6 @@ static inline int __init doc2001_init(struct mtd_info *mtd)
 	this->read_byte = doc2001_read_byte;
 	this->write_buf = doc2001_writebuf;
 	this->read_buf = doc2001_readbuf;
-	this->verify_buf = doc2001_verifybuf;
 
 	ReadDOC(doc->virtadr, ChipID);
 	ReadDOC(doc->virtadr, ChipID);
@@ -1480,7 +1418,6 @@ static inline int __init doc2001plus_init(struct mtd_info *mtd)
 	this->read_byte = doc2001plus_read_byte;
 	this->write_buf = doc2001plus_writebuf;
 	this->read_buf = doc2001plus_readbuf;
-	this->verify_buf = doc2001plus_verifybuf;
 	this->scan_bbt = inftl_scan_bbt;
 	this->cmd_ctrl = NULL;
 	this->select_chip = doc2001plus_select_chip;
