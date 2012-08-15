@@ -289,19 +289,11 @@ static void __init mxs_machine_init(void)
 }
 
 static const char *imx23_dt_compat[] __initdata = {
-	"fsl,imx23-evk",
-	"fsl,stmp378x_devb"
-	"olimex,imx23-olinuxino",
 	"fsl,imx23",
 	NULL,
 };
 
 static const char *imx28_dt_compat[] __initdata = {
-	"bluegiga,apx4devkit",
-	"crystalfontz,cfa10036",
-	"denx,m28evk",
-	"fsl,imx28-evk",
-	"karo,tx28",
 	"fsl,imx28",
 	NULL,
 };
