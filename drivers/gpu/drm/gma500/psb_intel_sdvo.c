@@ -1292,7 +1292,6 @@ psb_intel_sdvo_get_analog_edid(struct drm_connector *connector)
 
 	return drm_get_edid(connector,
 			    &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
-	return NULL;
 }
 
 static enum drm_connector_status
