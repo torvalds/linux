@@ -193,6 +193,11 @@ static u8 mgmt_status_table[] = {
 	MGMT_STATUS_CONNECT_FAILED,	/* MAC Connection Failed */
 };
 
+bool mgmt_valid_hdev(struct hci_dev *hdev)
+{
+	return hdev->dev_type == HCI_BREDR;
+}
+
 static u8 mgmt_status(u8 hci_status)
 {
 	if (hci_status < ARRAY_SIZE(mgmt_status_table))
@@ -317,7 +322,6 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 			   u16 data_len)
 {
 	struct mgmt_rp_read_index_list *rp;
-	struct list_head *p;
 	struct hci_dev *d;
 	size_t rp_len;
 	u16 count;
@@ -328,7 +332,10 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 	read_lock(&hci_dev_list_lock);
 
 	count = 0;
-	list_for_each(p, &hci_dev_list) {
+	list_for_each_entry(d, &hci_dev_list, list) {
+		if (!mgmt_valid_hdev(d))
+			continue;
+
 		count++;
 	}
 
@@ -344,6 +351,9 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 	i = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (test_bit(HCI_SETUP, &d->dev_flags))
+			continue;
+
+		if (!mgmt_valid_hdev(d))
 			continue;
 
 		rp->index[i++] = cpu_to_le16(d->id);
@@ -370,10 +380,10 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	settings |= MGMT_SETTING_DISCOVERABLE;
 	settings |= MGMT_SETTING_PAIRABLE;
 
-	if (hdev->features[6] & LMP_SIMPLE_PAIR)
+	if (lmp_ssp_capable(hdev))
 		settings |= MGMT_SETTING_SSP;
 
-	if (!(hdev->features[4] & LMP_NO_BREDR)) {
+	if (lmp_bredr_capable(hdev)) {
 		settings |= MGMT_SETTING_BREDR;
 		settings |= MGMT_SETTING_LINK_SECURITY;
 	}
@@ -381,7 +391,7 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	if (enable_hs)
 		settings |= MGMT_SETTING_HS;
 
-	if (hdev->features[4] & LMP_LE)
+	if (lmp_le_capable(hdev))
 		settings |= MGMT_SETTING_LE;
 
 	return settings;
@@ -403,7 +413,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_PAIRABLE;
 
-	if (!(hdev->features[4] & LMP_NO_BREDR))
+	if (lmp_bredr_capable(hdev))
 		settings |= MGMT_SETTING_BREDR;
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
@@ -1111,7 +1121,7 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
+	if (!lmp_ssp_capable(hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
 				 MGMT_STATUS_NOT_SUPPORTED);
 		goto failed;
@@ -1195,7 +1205,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (!(hdev->features[4] & LMP_LE)) {
+	if (!lmp_le_capable(hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				 MGMT_STATUS_NOT_SUPPORTED);
 		goto unlock;
@@ -2191,7 +2201,7 @@ static int read_local_oob_data(struct sock *sk, struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
+	if (!lmp_ssp_capable(hdev)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_READ_LOCAL_OOB_DATA,
 				 MGMT_STATUS_NOT_SUPPORTED);
 		goto unlock;
@@ -2820,12 +2830,18 @@ static void cmd_status_rsp(struct pending_cmd *cmd, void *data)
 
 int mgmt_index_added(struct hci_dev *hdev)
 {
+	if (!mgmt_valid_hdev(hdev))
+		return -ENOTSUPP;
+
 	return mgmt_event(MGMT_EV_INDEX_ADDED, hdev, NULL, 0, NULL);
 }
 
 int mgmt_index_removed(struct hci_dev *hdev)
 {
 	u8 status = MGMT_STATUS_INVALID_INDEX;
+
+	if (!mgmt_valid_hdev(hdev))
+		return -ENOTSUPP;
 
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 
