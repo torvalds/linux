@@ -33,6 +33,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/regulator/consumer.h>
 #include <video/omapdss.h>
 
 #include "ti_hdmi.h"
@@ -62,6 +63,7 @@ static struct {
 	struct hdmi_ip_data ip_data;
 
 	struct clk *sys_clk;
+	struct regulator *vdda_hdmi_dac_reg;
 
 	int ct_cp_hpd_gpio;
 	int ls_oe_gpio;
@@ -331,6 +333,19 @@ static int __init hdmi_init_display(struct omap_dss_device *dssdev)
 
 	dss_init_hdmi_ip_ops(&hdmi.ip_data);
 
+	if (hdmi.vdda_hdmi_dac_reg == NULL) {
+		struct regulator *reg;
+
+		reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
+
+		if (IS_ERR(reg)) {
+			DSSERR("can't get VDDA_HDMI_DAC regulator\n");
+			return PTR_ERR(reg);
+		}
+
+		hdmi.vdda_hdmi_dac_reg = reg;
+	}
+
 	r = gpio_request_array(gpios, ARRAY_SIZE(gpios));
 	if (r)
 		return r;
@@ -495,6 +510,10 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	/* wait 300us after CT_CP_HPD for the 5V power output to reach 90% */
 	udelay(300);
 
+	r = regulator_enable(hdmi.vdda_hdmi_dac_reg);
+	if (r)
+		goto err_vdac_enable;
+
 	r = hdmi_runtime_get();
 	if (r)
 		goto err_runtime_get;
@@ -562,6 +581,8 @@ err_phy_enable:
 err_pll_enable:
 	hdmi_runtime_put();
 err_runtime_get:
+	regulator_disable(hdmi.vdda_hdmi_dac_reg);
+err_vdac_enable:
 	gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
 	gpio_set_value(hdmi.ls_oe_gpio, 0);
 	return -EIO;
@@ -575,6 +596,8 @@ static void hdmi_power_off(struct omap_dss_device *dssdev)
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 	hdmi_runtime_put();
+
+	regulator_disable(hdmi.vdda_hdmi_dac_reg);
 
 	gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
 	gpio_set_value(hdmi.ls_oe_gpio, 0);
