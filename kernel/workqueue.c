@@ -3680,7 +3680,7 @@ static int __devinit workqueue_cpu_down_callback(struct notifier_block *nfb,
 	case CPU_DOWN_PREPARE:
 		/* unbinding should happen on the local CPU */
 		INIT_WORK_ONSTACK(&unbind_work, gcwq_unbind_fn);
-		schedule_work_on(cpu, &unbind_work);
+		queue_work_on(cpu, system_highpri_wq, &unbind_work);
 		flush_work(&unbind_work);
 		break;
 	}
