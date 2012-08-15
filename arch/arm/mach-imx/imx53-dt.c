@@ -105,10 +105,6 @@ static struct sys_timer imx53_timer = {
 };
 
 static const char *imx53_dt_board_compat[] __initdata = {
-	"fsl,imx53-ard",
-	"fsl,imx53-evk",
-	"fsl,imx53-qsb",
-	"fsl,imx53-smd",
 	"fsl,imx53",
 	NULL
 };
