@@ -54,13 +54,6 @@ static const struct comedi_lrange range_pci1050_ai = { 3, {
 
 static const char range_codes_pci1050_ai[] = { 0x00, 0x10, 0x30 };
 
-static const struct comedi_lrange range_pci1050_ao = { 1, {
-							  UNI_RANGE(10)
-							  }
-};
-
-static const char range_codes_pci1050_ao[] = { 0x00 };
-
 struct boardtype {
 	const char *name;
 	int device_id;
@@ -74,8 +67,6 @@ struct boardtype {
 	int do_bits;
 	const struct comedi_lrange *range_ai;
 	const char *range_codes_ai;
-	const struct comedi_lrange *range_ao;
-	const char *range_codes_ao;
 };
 
 static const struct boardtype boardtypes[] = {
@@ -92,8 +83,6 @@ static const struct boardtype boardtypes[] = {
 	.do_bits = 16,
 	.range_ai = &range_pci1050_ai,
 	.range_codes_ai = range_codes_pci1050_ai,
-	.range_ao = &range_pci1050_ao,
-	.range_codes_ao = range_codes_pci1050_ao,
 	},
 	/*  dummy entry corresponding to driver name */
 	{.name = DRV_NAME},
@@ -290,7 +279,7 @@ static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = thisboard->ao_chans;
 	s->maxdata = 0x0FFF;
-	s->range_table = thisboard->range_ao;
+	s->range_table = &range_unipolar10;
 	s->len_chanlist = 16;
 	s->insn_write = dyna_pci10xx_insn_write_ao;
 
