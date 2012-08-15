@@ -104,9 +104,6 @@ struct dyna_pci10xx_private {
 	unsigned long BADR3;
 };
 
-#define thisboard ((const struct boardtype *)dev->board_ptr)
-#define devpriv ((struct dyna_pci10xx_private *)dev->private)
-
 /******************************************************************************/
 /************************** READ WRITE FUNCTIONS ******************************/
 /******************************************************************************/
@@ -116,6 +113,8 @@ static int dyna_pci10xx_insn_read_ai(struct comedi_device *dev,
 			struct comedi_subdevice *s,
 			struct comedi_insn *insn, unsigned int *data)
 {
+	const struct boardtype *thisboard = comedi_board(dev);
+	struct dyna_pci10xx_private *devpriv = dev->private;
 	int n, counter;
 	u16 d = 0;
 	unsigned int chan, range;
@@ -159,6 +158,8 @@ static int dyna_pci10xx_insn_write_ao(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	const struct boardtype *thisboard = comedi_board(dev);
+	struct dyna_pci10xx_private *devpriv = dev->private;
 	int n;
 	unsigned int chan, range;
 
@@ -181,6 +182,7 @@ static int dyna_pci10xx_di_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	struct dyna_pci10xx_private *devpriv = dev->private;
 	u16 d = 0;
 
 	mutex_lock(&devpriv->mutex);
@@ -200,6 +202,8 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	struct dyna_pci10xx_private *devpriv = dev->private;
+
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit.
 	 * s->state contains the previous write data
@@ -257,20 +261,22 @@ static struct pci_dev *dyna_pci10xx_find_pci_dev(struct comedi_device *dev,
 static int dyna_pci10xx_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct boardtype *thisboard;
+	struct dyna_pci10xx_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
 
-	if (alloc_private(dev, sizeof(struct dyna_pci10xx_private)) < 0) {
-		printk(KERN_ERR "comedi: dyna_pci10xx: "
-			"failed to allocate memory!\n");
-		return -ENOMEM;
-	}
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	pcidev = dyna_pci10xx_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	thisboard = comedi_board(dev);
 
 	dev->board_name = thisboard->name;
 	dev->irq = 0;
@@ -342,6 +348,7 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 static void dyna_pci10xx_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct dyna_pci10xx_private *devpriv = dev->private;
 
 	if (devpriv)
 		mutex_destroy(&devpriv->mutex);
