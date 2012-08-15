@@ -1734,7 +1734,12 @@ registers, find a list below:
   Arch  |       Register        | Width (bits)
         |                       |
   PPC   | KVM_REG_PPC_HIOR      | 64
-
+  PPC   | KVM_REG_PPC_IAC1      | 64
+  PPC   | KVM_REG_PPC_IAC2      | 64
+  PPC   | KVM_REG_PPC_IAC3      | 64
+  PPC   | KVM_REG_PPC_IAC4      | 64
+  PPC   | KVM_REG_PPC_DAC1      | 64
+  PPC   | KVM_REG_PPC_DAC2      | 64
 
 4.69 KVM_GET_ONE_REG
 
@@ -1750,7 +1755,7 @@ kvm_one_reg struct passed in. On success, the register value can be found
 at the memory location pointed to by "addr".
 
 The list of registers accessible using this interface is identical to the
-list in 4.64.
+list in 4.68.
 
 
 4.70 KVM_KVMCLOCK_CTRL
