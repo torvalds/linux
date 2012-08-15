@@ -391,7 +391,7 @@ static int uid_m_show(struct seq_file *seq, void *v)
 	struct user_namespace *lower_ns;
 	uid_t lower;
 
-	lower_ns = current_user_ns();
+	lower_ns = seq_user_ns(seq);
 	if ((lower_ns == ns) && lower_ns->parent)
 		lower_ns = lower_ns->parent;
 
@@ -412,7 +412,7 @@ static int gid_m_show(struct seq_file *seq, void *v)
 	struct user_namespace *lower_ns;
 	gid_t lower;
 
-	lower_ns = current_user_ns();
+	lower_ns = seq_user_ns(seq);
 	if ((lower_ns == ns) && lower_ns->parent)
 		lower_ns = lower_ns->parent;
 
@@ -688,8 +688,12 @@ ssize_t proc_uid_map_write(struct file *file, const char __user *buf, size_t siz
 {
 	struct seq_file *seq = file->private_data;
 	struct user_namespace *ns = seq->private;
+	struct user_namespace *seq_ns = seq_user_ns(seq);
 
 	if (!ns->parent)
+		return -EPERM;
+
+	if ((seq_ns != ns) && (seq_ns != ns->parent))
 		return -EPERM;
 
 	return map_write(file, buf, size, ppos, CAP_SETUID,
@@ -700,8 +704,12 @@ ssize_t proc_gid_map_write(struct file *file, const char __user *buf, size_t siz
 {
 	struct seq_file *seq = file->private_data;
 	struct user_namespace *ns = seq->private;
+	struct user_namespace *seq_ns = seq_user_ns(seq);
 
 	if (!ns->parent)
+		return -EPERM;
+
+	if ((seq_ns != ns) && (seq_ns != ns->parent))
 		return -EPERM;
 
 	return map_write(file, buf, size, ppos, CAP_SETGID,
