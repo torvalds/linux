@@ -307,8 +307,6 @@ static const struct of_device_id altera_spi_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, altera_spi_match);
-#else /* CONFIG_OF */
-#define altera_spi_match NULL
 #endif /* CONFIG_OF */
 
 static struct platform_driver altera_spi_driver = {
@@ -318,7 +316,7 @@ static struct platform_driver altera_spi_driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.pm = NULL,
-		.of_match_table = altera_spi_match,
+		.of_match_table = of_match_ptr(altera_spi_match),
 	},
 };
 module_platform_driver(altera_spi_driver);
