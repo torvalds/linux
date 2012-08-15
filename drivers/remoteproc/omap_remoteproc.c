@@ -116,6 +116,9 @@ static int omap_rproc_start(struct rproc *rproc)
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
 
+	if (pdata->set_bootaddr)
+		pdata->set_bootaddr(rproc->bootaddr);
+
 	oproc->nb.notifier_call = omap_rproc_mbox_callback;
 
 	/* every omap rproc is assigned a mailbox instance for messaging */
