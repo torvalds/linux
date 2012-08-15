@@ -638,6 +638,10 @@ enum wmi_cmd_id {
 	WMI_VOICE_DETECTION_ENABLE_CMDID,
 
 	WMI_SET_TXE_NOTIFY_CMDID,
+
+	WMI_SET_RECOVERY_TEST_PARAMETER_CMDID, /*0xf094*/
+
+	WMI_ENABLE_SCHED_SCAN_CMDID,
 };
 
 enum wmi_mgmt_frame_type {
@@ -949,6 +953,11 @@ struct wmi_scan_params_cmd {
 
 	/* msecs */
 	__le32 max_dfsch_act_time;
+} __packed;
+
+/* WMI_ENABLE_SCHED_SCAN_CMDID */
+struct wmi_enable_sched_scan_cmd {
+	u8 enable;
 } __packed;
 
 /* WMI_SET_BSS_FILTER_CMDID */
@@ -2559,6 +2568,7 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 			     u32 home_dwell_time, u32 force_scan_interval,
 			     s8 num_chan, u16 *ch_list, u32 no_cck,
 			     u32 *rates);
+int ath6kl_wmi_enable_sched_scan_cmd(struct wmi *wmi, u8 if_idx, bool enable);
 
 int ath6kl_wmi_scanparams_cmd(struct wmi *wmi, u8 if_idx, u16 fg_start_sec,
 			      u16 fg_end_sec, u16 bg_sec,
