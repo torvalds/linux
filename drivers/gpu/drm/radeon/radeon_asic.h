@@ -389,6 +389,7 @@ void r700_cp_fini(struct radeon_device *rdev);
 struct evergreen_mc_save {
 	u32 vga_render_control;
 	u32 vga_hdp_control;
+	bool crtc_enabled[RADEON_MAX_CRTCS];
 };
 
 void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev);
