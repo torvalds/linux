@@ -55,8 +55,9 @@
 #define USB_DEVICE_ID_ASUS_LCM2     0x175b
 
 MODULE_AUTHOR("Jakub Schmidtke, sjakub@gmail.com");
-MODULE_DESCRIPTION("Asus OLED Driver v" ASUS_OLED_VERSION);
+MODULE_DESCRIPTION("Asus OLED Driver");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(ASUS_OLED_VERSION);
 
 static struct class *oled_class;
 static int oled_num;
