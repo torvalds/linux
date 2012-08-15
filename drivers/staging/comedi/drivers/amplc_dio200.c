@@ -294,9 +294,6 @@ struct dio200_board {
 	enum dio200_layout layout;
 };
 
-#define IS_ISA_BOARD(board)	(DO_ISA && (board)->bustype == isa_bustype)
-#define IS_PCI_BOARD(board)	(DO_PCI && (board)->bustype == pci_bustype)
-
 static const struct dio200_board dio200_boards[] = {
 #if DO_ISA
 	{
@@ -455,6 +452,16 @@ struct dio200_subdev_intr {
 	int continuous;
 };
 
+static inline bool is_pci_board(const struct dio200_board *board)
+{
+	return DO_PCI && board->bustype == pci_bustype;
+}
+
+static inline bool is_isa_board(const struct dio200_board *board)
+{
+	return DO_ISA && board->bustype == isa_bustype;
+}
+
 /*
  * This function looks for a board matching the supplied PCI device.
  */
@@ -464,7 +471,7 @@ dio200_find_pci_board(struct pci_dev *pci_dev)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(dio200_boards); i++)
-		if (dio200_boards[i].bustype == pci_bustype &&
+		if (is_pci_board(&dio200_boards[i]) &&
 		    pci_dev->device == dio200_boards[i].devid)
 			return &dio200_boards[i];
 	return NULL;
@@ -1234,10 +1241,10 @@ static void dio200_report_attach(struct comedi_device *dev, unsigned int irq)
 	char tmpbuf[60];
 	int tmplen;
 
-	if (IS_ISA_BOARD(thisboard))
+	if (is_isa_board(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(base %#lx) ", dev->iobase);
-	else if (IS_PCI_BOARD(thisboard))
+	else if (is_pci_board(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(pci %s) ", pci_name(pcidev));
 	else
@@ -1365,7 +1372,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 
 	/* Process options and reserve resources according to bus type. */
-	if (IS_ISA_BOARD(thisboard)) {
+	if (is_isa_board(thisboard)) {
 		unsigned long iobase;
 		unsigned int irq;
 
@@ -1375,7 +1382,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (ret < 0)
 			return ret;
 		return dio200_common_attach(dev, iobase, irq, 0);
-	} else if (IS_PCI_BOARD(thisboard)) {
+	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pci_dev;
 
 		pci_dev = dio200_find_pci_dev(dev, it);
@@ -1444,10 +1451,10 @@ static void dio200_detach(struct comedi_device *dev)
 			}
 		}
 	}
-	if (IS_ISA_BOARD(thisboard)) {
+	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, DIO200_IO_SIZE);
-	} else if (IS_PCI_BOARD(thisboard)) {
+	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 		if (pcidev) {
 			if (dev->iobase)
