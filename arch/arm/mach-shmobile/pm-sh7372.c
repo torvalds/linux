@@ -424,16 +424,14 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 	unsigned long msk, msk2;
 
 	/* check active clocks to determine potential wakeup sources */
-	if (sh7372_sysc_valid(&msk, &msk2)) {
-		if (!console_suspend_enabled && a4s_suspend_ready) {
-			/* convert INTC mask/sense to SYSC mask/sense */
-			sh7372_setup_sysc(msk, msk2);
+	if (sh7372_sysc_valid(&msk, &msk2) && a4s_suspend_ready) {
+		/* convert INTC mask/sense to SYSC mask/sense */
+		sh7372_setup_sysc(msk, msk2);
 
-			/* enter A4S sleep with PLLC0 off */
-			pr_debug("entering A4S\n");
-			sh7372_enter_a4s_common(0);
-			return 0;
-		}
+		/* enter A4S sleep with PLLC0 off */
+		pr_debug("entering A4S\n");
+		sh7372_enter_a4s_common(0);
+		return 0;
 	}
 
 	/* default to enter A3SM sleep with PLLC0 off */
