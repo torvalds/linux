@@ -2345,22 +2345,10 @@ int evergreen_asic_reset(struct radeon_device *rdev)
 
 u32 evergreen_get_vblank_counter(struct radeon_device *rdev, int crtc)
 {
-	switch (crtc) {
-	case 0:
-		return RREG32(CRTC_STATUS_FRAME_COUNT + EVERGREEN_CRTC0_REGISTER_OFFSET);
-	case 1:
-		return RREG32(CRTC_STATUS_FRAME_COUNT + EVERGREEN_CRTC1_REGISTER_OFFSET);
-	case 2:
-		return RREG32(CRTC_STATUS_FRAME_COUNT + EVERGREEN_CRTC2_REGISTER_OFFSET);
-	case 3:
-		return RREG32(CRTC_STATUS_FRAME_COUNT + EVERGREEN_CRTC3_REGISTER_OFFSET);
-	case 4:
-		return RREG32(CRTC_STATUS_FRAME_COUNT + EVERGREEN_CRTC4_REGISTER_OFFSET);
-	case 5:
-		return RREG32(CRTC_STATUS_FRAME_COUNT + EVERGREEN_CRTC5_REGISTER_OFFSET);
-	default:
+	if (crtc >= rdev->num_crtc)
 		return 0;
-	}
+	else
+		return RREG32(CRTC_STATUS_FRAME_COUNT + crtc_offsets[crtc]);
 }
 
 void evergreen_disable_interrupt_state(struct radeon_device *rdev)
