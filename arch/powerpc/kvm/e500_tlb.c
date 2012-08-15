@@ -303,10 +303,8 @@ static inline void kvmppc_e500_ref_setup(struct tlbe_ref *ref,
 	ref->pfn = pfn;
 	ref->flags = E500_TLB_VALID;
 
-	if (tlbe_is_writable(gtlbe)) {
-		ref->flags |= E500_TLB_DIRTY;
+	if (tlbe_is_writable(gtlbe))
 		kvm_set_pfn_dirty(pfn);
-	}
 }
 
 static inline void kvmppc_e500_ref_release(struct tlbe_ref *ref)
