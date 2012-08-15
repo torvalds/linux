@@ -150,16 +150,6 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 		adapter->flags2 &= ~(IXGBE_FLAG2_RSC_CAPABLE |
 				     IXGBE_FLAG2_RSC_ENABLED);
 
-#ifdef IXGBE_FCOE
-		/*
-		 * When SR-IOV is enabled 82599 cannot support jumbo frames
-		 * so we must disable FCoE because we cannot support FCoE MTU.
-		 */
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			adapter->flags &= ~(IXGBE_FLAG_FCOE_ENABLED |
-					    IXGBE_FLAG_FCOE_CAPABLE);
-#endif
-
 		/* enable spoof checking for all VFs */
 		for (i = 0; i < adapter->num_vfs; i++)
 			adapter->vfinfo[i].spoofchk_enabled = true;
@@ -353,31 +343,77 @@ static int ixgbe_set_vf_vlan(struct ixgbe_adapter *adapter, int add, int vid,
 	return adapter->hw.mac.ops.set_vfta(&adapter->hw, vid, vf, (bool)add);
 }
 
-static void ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf)
+static s32 ixgbe_set_vf_lpe(struct ixgbe_adapter *adapter, u32 *msgbuf, u32 vf)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int new_mtu = msgbuf[1];
+	int max_frame = msgbuf[1];
 	u32 max_frs;
-	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
-	/* Only X540 supports jumbo frames in IOV mode */
-	if (adapter->hw.mac.type != ixgbe_mac_X540)
-		return;
+	/*
+	 * For 82599EB we have to keep all PFs and VFs operating with
+	 * the same max_frame value in order to avoid sending an oversize
+	 * frame to a VF.  In order to guarantee this is handled correctly
+	 * for all cases we have several special exceptions to take into
+	 * account before we can enable the VF for receive
+	 */
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		struct net_device *dev = adapter->netdev;
+		int pf_max_frame = dev->mtu + ETH_HLEN;
+		u32 reg_offset, vf_shift, vfre;
+		s32 err = 0;
 
-	/* MTU < 68 is an error and causes problems on some kernels */
-	if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE)) {
-		e_err(drv, "VF mtu %d out of range\n", new_mtu);
-		return;
+#ifdef CONFIG_FCOE
+		if (dev->features & NETIF_F_FCOE_MTU)
+			pf_max_frame = max_t(int, pf_max_frame,
+					     IXGBE_FCOE_JUMBO_FRAME_SIZE);
+
+#endif /* CONFIG_FCOE */
+		/*
+		 * If the PF or VF are running w/ jumbo frames enabled we
+		 * need to shut down the VF Rx path as we cannot support
+		 * jumbo frames on legacy VFs
+		 */
+		if ((pf_max_frame > ETH_FRAME_LEN) ||
+		    (max_frame > (ETH_FRAME_LEN + ETH_FCS_LEN)))
+			err = -EINVAL;
+
+		/* determine VF receive enable location */
+		vf_shift = vf % 32;
+		reg_offset = vf / 32;
+
+		/* enable or disable receive depending on error */
+		vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
+		if (err)
+			vfre &= ~(1 << vf_shift);
+		else
+			vfre |= 1 << vf_shift;
+		IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), vfre);
+
+		if (err) {
+			e_err(drv, "VF max_frame %d out of range\n", max_frame);
+			return err;
+		}
 	}
 
-	max_frs = (IXGBE_READ_REG(hw, IXGBE_MAXFRS) &
-		   IXGBE_MHADD_MFS_MASK) >> IXGBE_MHADD_MFS_SHIFT;
-	if (max_frs < new_mtu) {
-		max_frs = new_mtu << IXGBE_MHADD_MFS_SHIFT;
+	/* MTU < 68 is an error and causes problems on some kernels */
+	if (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE) {
+		e_err(drv, "VF max_frame %d out of range\n", max_frame);
+		return -EINVAL;
+	}
+
+	/* pull current max frame size from hardware */
+	max_frs = IXGBE_READ_REG(hw, IXGBE_MAXFRS);
+	max_frs &= IXGBE_MHADD_MFS_MASK;
+	max_frs >>= IXGBE_MHADD_MFS_SHIFT;
+
+	if (max_frs < max_frame) {
+		max_frs = max_frame << IXGBE_MHADD_MFS_SHIFT;
 		IXGBE_WRITE_REG(hw, IXGBE_MAXFRS, max_frs);
 	}
 
-	e_info(hw, "VF requests change max MTU to %d\n", new_mtu);
+	e_info(hw, "VF requests change max MTU to %d\n", max_frame);
+
+	return 0;
 }
 
 static void ixgbe_set_vmolr(struct ixgbe_hw *hw, u32 vf, bool aupe)
@@ -532,11 +568,28 @@ static inline void ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	/* enable transmit and receive for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
-	reg |= (reg | (1 << vf_shift));
+	reg |= 1 << vf_shift;
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
 
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
-	reg |= (reg | (1 << vf_shift));
+	reg |= 1 << vf_shift;
+	/*
+	 * The 82599 cannot support a mix of jumbo and non-jumbo PF/VFs.
+	 * For more info take a look at ixgbe_set_vf_lpe
+	 */
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		struct net_device *dev = adapter->netdev;
+		int pf_max_frame = dev->mtu + ETH_HLEN;
+
+#ifdef CONFIG_FCOE
+		if (dev->features & NETIF_F_FCOE_MTU)
+			pf_max_frame = max_t(int, pf_max_frame,
+					     IXGBE_FCOE_JUMBO_FRAME_SIZE);
+
+#endif /* CONFIG_FCOE */
+		if (pf_max_frame > ETH_FRAME_LEN)
+			reg &= ~(1 << vf_shift);
+	}
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
 
 	/* Enable counting of spoofed packets in the SSVPC register */
@@ -633,7 +686,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		                                 hash_list, vf);
 		break;
 	case IXGBE_VF_SET_LPE:
-		ixgbe_set_vf_lpe(adapter, msgbuf);
+		retval = ixgbe_set_vf_lpe(adapter, msgbuf, vf);
 		break;
 	case IXGBE_VF_SET_VLAN:
 		add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)

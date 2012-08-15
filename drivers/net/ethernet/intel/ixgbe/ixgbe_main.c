@@ -3263,6 +3263,11 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 		max_frame = IXGBE_FCOE_JUMBO_FRAME_SIZE;
 
 #endif /* IXGBE_FCOE */
+
+	/* adjust max frame to be at least the size of a standard frame */
+	if (max_frame < (ETH_FRAME_LEN + ETH_FCS_LEN))
+		max_frame = (ETH_FRAME_LEN + ETH_FCS_LEN);
+
 	mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
 	if (max_frame != (mhadd >> IXGBE_MHADD_MFS_SHIFT)) {
 		mhadd &= ~IXGBE_MHADD_MFS_MASK;
@@ -4828,14 +4833,14 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 
 	/*
-	 * For 82599EB we cannot allow PF to change MTU greater than 1500
-	 * in SR-IOV mode as it may cause buffer overruns in guest VFs that
-	 * don't allocate and chain buffers correctly.
+	 * For 82599EB we cannot allow legacy VFs to enable their receive
+	 * paths when MTU greater than 1500 is configured.  So display a
+	 * warning that legacy VFs will be disabled.
 	 */
 	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
 	    (adapter->hw.mac.type == ixgbe_mac_82599EB) &&
 	    (max_frame > MAXIMUM_ETHERNET_VLAN_SIZE))
-			return -EINVAL;
+		e_warn(probe, "Setting MTU > 1500 will disable legacy VFs\n");
 
 	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 
