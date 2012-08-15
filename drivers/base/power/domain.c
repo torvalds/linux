@@ -1829,7 +1829,16 @@ int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td)
 }
 EXPORT_SYMBOL_GPL(__pm_genpd_remove_callbacks);
 
-int genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
+/**
+ * pm_genpd_attach_cpuidle - Connect the given PM domain with cpuidle.
+ * @genpd: PM domain to be connected with cpuidle.
+ * @state: cpuidle state this domain can disable/enable.
+ *
+ * Make a PM domain behave as though it contained a CPU core, that is, instead
+ * of calling its power down routine it will enable the given cpuidle state so
+ * that the cpuidle subsystem can power it down (if possible and desirable).
+ */
+int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 {
 	struct cpuidle_driver *cpuidle_drv;
 	struct gpd_cpu_data *cpu_data;
@@ -1878,7 +1887,14 @@ int genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 	goto out;
 }
 
-int genpd_detach_cpuidle(struct generic_pm_domain *genpd)
+/**
+ * pm_genpd_detach_cpuidle - Remove the cpuidle connection from a PM domain.
+ * @genpd: PM domain to remove the cpuidle connection from.
+ *
+ * Remove the cpuidle connection set up by pm_genpd_attach_cpuidle() from the
+ * given PM domain.
+ */
+int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
 {
 	struct gpd_cpu_data *cpu_data;
 	struct cpuidle_state *idle_state;
