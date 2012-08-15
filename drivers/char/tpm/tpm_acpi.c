@@ -96,6 +96,11 @@ int read_log(struct tpm_bios_log *log)
 	log->bios_event_log_end = log->bios_event_log + len;
 
 	virt = acpi_os_map_memory(start, len);
+	if (!virt) {
+		kfree(log->bios_event_log);
+		printk("%s: ERROR - Unable to map memory\n", __func__);
+		return -EIO;
+	}
 
 	memcpy(log->bios_event_log, virt, len);
 
