@@ -35,8 +35,6 @@
 #include <linux/l3g4200d.h>
 #include <linux/sensor-dev.h>
 
-#define SENSOR_ON		1
-#define SENSOR_OFF		0
 
 #if 0
 #define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
@@ -300,7 +298,7 @@ static int sensor_irq_init(struct i2c_client *client)
 			goto error;	       
 		}
 		client->irq = irq;
-		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE))
+		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL))
 		disable_irq_nosync(client->irq);//disable irq
 		printk("%s:use irq=%d\n",__func__,irq);
 	}
@@ -399,8 +397,8 @@ static long gsensor_dev_ioctl(struct file *file,
 		    		}			
 				if(sensor->pdata->irq_enable)
 				{
-					//printk("%s:enable irq,irq=%d\n",__func__,client->irq);
-					//enable_irq(client->irq);	//enable irq
+					DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+					enable_irq(client->irq);	//enable irq
 				}	
 				else
 				{
@@ -429,8 +427,8 @@ static long gsensor_dev_ioctl(struct file *file,
 				
 				if(sensor->pdata->irq_enable)
 				{				
-					//printk("%s:disable irq,irq=%d\n",__func__,client->irq);
-					//disable_irq_nosync(client->irq);//disable irq
+					DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+					disable_irq_nosync(client->irq);//disable irq
 				}
 				else
 				cancel_delayed_work_sync(&sensor->delaywork);		
@@ -451,20 +449,8 @@ static long gsensor_dev_ioctl(struct file *file,
 			mutex_unlock(&sensor->operation_mutex);
 			goto error;
 		}
-		if(sensor->status_cur == SENSOR_OFF)
-		{		
-			if(sensor->pdata->irq_enable)
-			{
-				//printk("%s:enable irq,irq=%d\n",__func__,client->irq);
-				//enable_irq(client->irq);	//enable irq
-			}	
-			else
-			{
-				PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
-				schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-			}
-			sensor->status_cur = SENSOR_ON;
-		}			
+
+		sensor->status_cur = SENSOR_ON;
 	        mutex_unlock(&sensor->operation_mutex);	
 	        DBG("%s:GSENSOR_IOCTL_APP_SET_RATE OK\n", __func__);
 		break;
