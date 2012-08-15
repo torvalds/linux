@@ -295,28 +295,38 @@ static unsigned char lcd_backlight_seq[3][2] = {
 	{ 0x03, 0x01 },
 };
 
-static void lcd_backlight_on(void)
+static int lcd_backlight_set_brightness(int brightness)
 {
-	struct i2c_adapter *a;
+	struct i2c_adapter *adap;
 	struct i2c_msg msg;
-	int k;
+	unsigned int i;
+	int ret;
 
-	a = i2c_get_adapter(1);
-	for (k = 0; a && k < 3; k++) {
+	if (brightness == 0) {
+		/* Reset the chip */
+		gpio_set_value(GPIO_PORT235, 0);
+		mdelay(24);
+		gpio_set_value(GPIO_PORT235, 1);
+		return 0;
+	}
+
+	adap = i2c_get_adapter(1);
+	if (adap == NULL)
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(lcd_backlight_seq); i++) {
 		msg.addr = 0x6d;
-		msg.buf = &lcd_backlight_seq[k][0];
+		msg.buf = &lcd_backlight_seq[i][0];
 		msg.len = 2;
 		msg.flags = 0;
-		if (i2c_transfer(a, &msg, 1) != 1)
+
+		ret = i2c_transfer(adap, &msg, 1);
+		if (ret < 0)
 			break;
 	}
-}
 
-static void lcd_backlight_reset(void)
-{
-	gpio_set_value(GPIO_PORT235, 0);
-	mdelay(24);
-	gpio_set_value(GPIO_PORT235, 1);
+	i2c_put_adapter(adap);
+	return ret < 0 ? ret : 0;
 }
 
 /* LCDC0 */
@@ -348,8 +358,11 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 		.panel_cfg = {
 			.width = 44,
 			.height = 79,
-			.display_on = lcd_backlight_on,
-			.display_off = lcd_backlight_reset,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
+			.set_brightness = lcd_backlight_set_brightness,
 		},
 		.tx_dev = &mipidsi0_device,
 	}
@@ -622,7 +635,7 @@ static void __init ag5evm_init(void)
 	/* LCD backlight controller */
 	gpio_request(GPIO_PORT235, NULL); /* RESET */
 	gpio_direction_output(GPIO_PORT235, 0);
-	lcd_backlight_reset();
+	lcd_backlight_set_brightness(0);
 
 	/* enable SDHI0 on CN15 [SD I/F] */
 	gpio_request(GPIO_FN_SDHIWP0, NULL);
