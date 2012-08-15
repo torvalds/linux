@@ -642,6 +642,12 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 	dep = to_dwc3_ep(ep);
 	dwc = dep->dwc;
 
+	if (dep->flags & DWC3_EP_ENABLED) {
+		dev_WARN_ONCE(dwc->dev, true, "%s is already enabled\n",
+				dep->name);
+		return 0;
+	}
+
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
 		strlcat(dep->name, "-control", sizeof(dep->name));
@@ -657,12 +663,6 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 		break;
 	default:
 		dev_err(dwc->dev, "invalid endpoint transfer type\n");
-	}
-
-	if (dep->flags & DWC3_EP_ENABLED) {
-		dev_WARN_ONCE(dwc->dev, true, "%s is already enabled\n",
-				dep->name);
-		return 0;
 	}
 
 	dev_vdbg(dwc->dev, "Enabling %s\n", dep->name);
