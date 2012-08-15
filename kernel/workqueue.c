@@ -1198,6 +1198,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	struct cpu_workqueue_struct *cwq;
 	struct list_head *worklist;
 	unsigned int work_flags;
+	unsigned int req_cpu = cpu;
 
 	/*
 	 * While a work item is PENDING && off queue, a task trying to
@@ -1253,7 +1254,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 
 	/* gcwq determined, get cwq and queue */
 	cwq = get_cwq(gcwq->cpu, wq);
-	trace_workqueue_queue_work(cpu, cwq, work);
+	trace_workqueue_queue_work(req_cpu, cwq, work);
 
 	if (WARN_ON(!list_empty(&work->entry))) {
 		spin_unlock(&gcwq->lock);
