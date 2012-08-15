@@ -1499,8 +1499,6 @@ static void qt_unthrottle(struct tty_struct *tty)
 		}
 	}
 	mutex_unlock(&qt_port->lock);
-	return;
-
 }
 
 static int qt_calc_num_ports(struct usb_serial *serial)
