@@ -621,29 +621,6 @@ static struct omap_dss_device sdp4430_lcd_device = {
 	.phy.dsi		= {
 		.module		= 0,
 	},
-
-	.clocks = {
-		.dispc = {
-			.channel = {
-				/* Logic Clock = 172.8 MHz */
-				.lck_div	= 1,
-				/* Pixel Clock = 34.56 MHz */
-				.pck_div	= 5,
-				.lcd_clk_src	= OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,
-			},
-			.dispc_fclk_src	= OMAP_DSS_CLK_SRC_FCK,
-		},
-
-		.dsi = {
-			.regn		= 16,	/* Fint = 2.4 MHz */
-			.regm		= 180,	/* DDR Clock = 216 MHz */
-			.regm_dispc	= 5,	/* PLL1_CLK1 = 172.8 MHz */
-			.regm_dsi	= 5,	/* PLL1_CLK2 = 172.8 MHz */
-
-			.lp_clk_div	= 10,	/* LP Clock = 8.64 MHz */
-			.dsi_fclk_src	= OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,
-		},
-	},
 	.channel		= OMAP_DSS_CHANNEL_LCD,
 };
 
@@ -667,29 +644,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	.phy.dsi		= {
 
 		.module		= 1,
-	},
-
-	.clocks = {
-		.dispc = {
-			.channel = {
-				/* Logic Clock = 172.8 MHz */
-				.lck_div	= 1,
-				/* Pixel Clock = 34.56 MHz */
-				.pck_div	= 5,
-				.lcd_clk_src	= OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC,
-			},
-			.dispc_fclk_src	= OMAP_DSS_CLK_SRC_FCK,
-		},
-
-		.dsi = {
-			.regn		= 16,	/* Fint = 2.4 MHz */
-			.regm		= 180,	/* DDR Clock = 216 MHz */
-			.regm_dispc	= 5,	/* PLL1_CLK1 = 172.8 MHz */
-			.regm_dsi	= 5,	/* PLL1_CLK2 = 172.8 MHz */
-
-			.lp_clk_div	= 10,	/* LP Clock = 8.64 MHz */
-			.dsi_fclk_src	= OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI,
-		},
 	},
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
