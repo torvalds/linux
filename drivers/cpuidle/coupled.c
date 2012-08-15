@@ -693,7 +693,7 @@ static int cpuidle_coupled_cpu_notify(struct notifier_block *nb,
 	mutex_lock(&cpuidle_lock);
 
 	dev = per_cpu(cpuidle_devices, cpu);
-	if (!dev->coupled)
+	if (!dev || !dev->coupled)
 		goto out;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
