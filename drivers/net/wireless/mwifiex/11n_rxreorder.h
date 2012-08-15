@@ -38,6 +38,8 @@
 #define ADDBA_RSP_STATUS_ACCEPT 0
 
 #define MWIFIEX_DEF_11N_RX_SEQ_NUM	0xffff
+#define BA_SETUP_MAX_PACKET_THRESHOLD	16
+#define BA_SETUP_PACKET_OFFSET		16
 
 static inline void mwifiex_reset_11n_rx_seq_num(struct mwifiex_private *priv)
 {
@@ -68,5 +70,8 @@ struct mwifiex_rx_reorder_tbl *mwifiex_11n_get_rxreorder_tbl(struct
 							   mwifiex_private
 							   *priv, int tid,
 							   u8 *ta);
+struct mwifiex_rx_reorder_tbl *
+mwifiex_11n_get_rx_reorder_tbl(struct mwifiex_private *priv, int tid, u8 *ta);
+void mwifiex_11n_del_rx_reorder_tbl_by_ta(struct mwifiex_private *priv, u8 *ta);
 
 #endif /* _MWIFIEX_11N_RXREORDER_H_ */

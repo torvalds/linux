@@ -316,7 +316,7 @@ send_rsp:
 static inline int a2mp_cmd_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 			       struct a2mp_cmd *hdr)
 {
-	BT_DBG("ident %d code %d", hdr->ident, hdr->code);
+	BT_DBG("ident %d code 0x%2.2x", hdr->ident, hdr->code);
 
 	skb_pull(skb, le16_to_cpu(hdr->len));
 	return 0;
@@ -325,17 +325,19 @@ static inline int a2mp_cmd_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 /* Handle A2MP signalling */
 static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 {
-	struct a2mp_cmd *hdr = (void *) skb->data;
+	struct a2mp_cmd *hdr;
 	struct amp_mgr *mgr = chan->data;
 	int err = 0;
 
 	amp_mgr_get(mgr);
 
 	while (skb->len >= sizeof(*hdr)) {
-		struct a2mp_cmd *hdr = (void *) skb->data;
-		u16 len = le16_to_cpu(hdr->len);
+		u16 len;
 
-		BT_DBG("code 0x%02x id %d len %d", hdr->code, hdr->ident, len);
+		hdr = (void *) skb->data;
+		len = le16_to_cpu(hdr->len);
+
+		BT_DBG("code 0x%2.2x id %d len %u", hdr->code, hdr->ident, len);
 
 		skb_pull(skb, sizeof(*hdr));
 
@@ -393,7 +395,9 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 
 	if (err) {
 		struct a2mp_cmd_rej rej;
+
 		rej.reason = __constant_cpu_to_le16(0);
+		hdr = (void *) skb->data;
 
 		BT_DBG("Send A2MP Rej: cmd 0x%2.2x err %d", hdr->code, err);
 
@@ -412,7 +416,7 @@ static int a2mp_chan_recv_cb(struct l2cap_chan *chan, struct sk_buff *skb)
 
 static void a2mp_chan_close_cb(struct l2cap_chan *chan)
 {
-	l2cap_chan_destroy(chan);
+	l2cap_chan_put(chan);
 }
 
 static void a2mp_chan_state_change_cb(struct l2cap_chan *chan, int state)

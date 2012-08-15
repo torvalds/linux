@@ -48,17 +48,17 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		u8 *da, __le16 llid, __le16 plid, __le16 reason);
 
 static inline
-void mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
+u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_inc(&sdata->u.mesh.mshstats.estab_plinks);
-	mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata);
 }
 
 static inline
-void mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
+u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_dec(&sdata->u.mesh.mshstats.estab_plinks);
-	mesh_accept_plinks_update(sdata);
+	return mesh_accept_plinks_update(sdata);
 }
 
 /**
@@ -170,22 +170,21 @@ out:
  * @sta: mesh peer link to deactivate
  *
  * All mesh paths with this peer as next hop will be flushed
+ * Returns beacon changed flag if the beacon content changed.
  *
  * Locking: the caller must hold sta->lock
  */
-static bool __mesh_plink_deactivate(struct sta_info *sta)
+static u32 __mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	bool deactivated = false;
+	u32 changed = 0;
 
-	if (sta->plink_state == NL80211_PLINK_ESTAB) {
-		mesh_plink_dec_estab_count(sdata);
-		deactivated = true;
-	}
+	if (sta->plink_state == NL80211_PLINK_ESTAB)
+		changed = mesh_plink_dec_estab_count(sdata);
 	sta->plink_state = NL80211_PLINK_BLOCKED;
 	mesh_path_flush_by_nexthop(sta);
 
-	return deactivated;
+	return changed;
 }
 
 /**
@@ -198,18 +197,17 @@ static bool __mesh_plink_deactivate(struct sta_info *sta)
 void mesh_plink_deactivate(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	bool deactivated;
+	u32 changed;
 
 	spin_lock_bh(&sta->lock);
-	deactivated = __mesh_plink_deactivate(sta);
+	changed = __mesh_plink_deactivate(sta);
 	sta->reason = cpu_to_le16(WLAN_REASON_MESH_PEER_CANCELED);
 	mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
 			    sta->sta.addr, sta->llid, sta->plid,
 			    sta->reason);
 	spin_unlock_bh(&sta->lock);
 
-	if (deactivated)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
@@ -541,15 +539,14 @@ int mesh_plink_open(struct sta_info *sta)
 void mesh_plink_block(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	bool deactivated;
+	u32 changed;
 
 	spin_lock_bh(&sta->lock);
-	deactivated = __mesh_plink_deactivate(sta);
+	changed = __mesh_plink_deactivate(sta);
 	sta->plink_state = NL80211_PLINK_BLOCKED;
 	spin_unlock_bh(&sta->lock);
 
-	if (deactivated)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 
@@ -852,9 +849,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			del_timer(&sta->plink_timer);
 			sta->plink_state = NL80211_PLINK_ESTAB;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_inc_estab_count(sdata);
+			changed |= mesh_plink_inc_estab_count(sdata);
 			changed |= mesh_set_ht_prot_mode(sdata);
-			changed |= BSS_CHANGED_BEACON;
 			mpl_dbg(sdata, "Mesh plink with %pM ESTABLISHED\n",
 				sta->sta.addr);
 			break;
@@ -888,9 +884,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			del_timer(&sta->plink_timer);
 			sta->plink_state = NL80211_PLINK_ESTAB;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_inc_estab_count(sdata);
+			changed |= mesh_plink_inc_estab_count(sdata);
 			changed |= mesh_set_ht_prot_mode(sdata);
-			changed |= BSS_CHANGED_BEACON;
 			mpl_dbg(sdata, "Mesh plink with %pM ESTABLISHED\n",
 				sta->sta.addr);
 			mesh_plink_frame_tx(sdata,
@@ -908,13 +903,12 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		case CLS_ACPT:
 			reason = cpu_to_le16(WLAN_REASON_MESH_CLOSE);
 			sta->reason = reason;
-			__mesh_plink_deactivate(sta);
+			changed |= __mesh_plink_deactivate(sta);
 			sta->plink_state = NL80211_PLINK_HOLDING;
 			llid = sta->llid;
 			mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
 			spin_unlock_bh(&sta->lock);
 			changed |= mesh_set_ht_prot_mode(sdata);
-			changed |= BSS_CHANGED_BEACON;
 			mesh_plink_frame_tx(sdata, WLAN_SP_MESH_PEERING_CLOSE,
 					    sta->sta.addr, llid, plid, reason);
 			break;

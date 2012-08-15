@@ -653,7 +653,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	/* Initialize control structure and load firmware */
-	data = kzalloc(sizeof(struct bfusb_data), GFP_KERNEL);
+	data = devm_kzalloc(&intf->dev, sizeof(struct bfusb_data), GFP_KERNEL);
 	if (!data) {
 		BT_ERR("Can't allocate memory for control structure");
 		goto done;
@@ -674,7 +674,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	if (request_firmware(&firmware, "bfubase.frm", &udev->dev) < 0) {
 		BT_ERR("Firmware request failed");
-		goto error;
+		goto done;
 	}
 
 	BT_DBG("firmware data %p size %zu", firmware->data, firmware->size);
@@ -690,7 +690,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	hdev = hci_alloc_dev();
 	if (!hdev) {
 		BT_ERR("Can't allocate HCI device");
-		goto error;
+		goto done;
 	}
 
 	data->hdev = hdev;
@@ -708,7 +708,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
 		hci_free_dev(hdev);
-		goto error;
+		goto done;
 	}
 
 	usb_set_intfdata(intf, data);
@@ -717,9 +717,6 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 release:
 	release_firmware(firmware);
-
-error:
-	kfree(data);
 
 done:
 	return -EIO;
@@ -741,7 +738,6 @@ static void bfusb_disconnect(struct usb_interface *intf)
 
 	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
-	kfree(data);
 }
 
 static struct usb_driver bfusb_driver = {

@@ -3516,6 +3516,7 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 {
 	unsigned int i;
 	u16 *rates;
+	s16 rate_idx_scaled = 0;
 
 	/* max_pwr is power level we got from driver/user in 0.5dB
 	 * units, switch to 0.25dB units so we can compare */
@@ -3562,20 +3563,32 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 		for (i = 8; i <= 15; i++)
 			rates[i] -= ah->ah_txpower.txp_cck_ofdm_gainf_delta;
 
+	/* Save min/max and current tx power for this channel
+	 * in 0.25dB units.
+	 *
+	 * Note: We use rates[0] for current tx power because
+	 * it covers most of the rates, in most cases. It's our
+	 * tx power limit and what the user expects to see. */
+	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
+	ah->ah_txpower.txp_cur_pwr = 2 * rates[0];
+
+	/* Set max txpower for correct OFDM operation on all rates
+	 * -that is the txpower for 54Mbit-, it's used for the PAPD
+	 * gain probe and it's in 0.5dB units */
+	ah->ah_txpower.txp_ofdm = rates[7];
+
 	/* Now that we have all rates setup use table offset to
 	 * match the power range set by user with the power indices
 	 * on PCDAC/PDADC table */
 	for (i = 0; i < 16; i++) {
-		rates[i] += ah->ah_txpower.txp_offset;
+		rate_idx_scaled = rates[i] + ah->ah_txpower.txp_offset;
 		/* Don't get out of bounds */
-		if (rates[i] > 63)
-			rates[i] = 63;
+		if (rate_idx_scaled > 63)
+			rate_idx_scaled = 63;
+		if (rate_idx_scaled < 0)
+			rate_idx_scaled = 0;
+		rates[i] = rate_idx_scaled;
 	}
-
-	/* Min/max in 0.25dB units */
-	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
-	ah->ah_txpower.txp_cur_pwr = 2 * rates[0];
-	ah->ah_txpower.txp_ofdm = rates[7];
 }
 
 
@@ -3639,9 +3652,16 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	if (!ah->ah_txpower.txp_setup ||
 	    (channel->hw_value != curr_channel->hw_value) ||
 	    (channel->center_freq != curr_channel->center_freq)) {
-		/* Reset TX power values */
+		/* Reset TX power values but preserve requested
+		 * tx power from above */
+		int requested_txpower = ah->ah_txpower.txp_requested;
+
 		memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
+
+		/* Restore TPC setting and requested tx power */
 		ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
+
+		ah->ah_txpower.txp_requested = requested_txpower;
 
 		/* Calculate the powertable */
 		ret = ath5k_setup_channel_powertable(ah, channel,
@@ -3789,8 +3809,9 @@ ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * RF buffer settings on 5211/5212+ so that we
 	 * properly set curve indices.
 	 */
-	ret = ath5k_hw_txpower(ah, channel, ah->ah_txpower.txp_cur_pwr ?
-			ah->ah_txpower.txp_cur_pwr / 2 : AR5K_TUNE_MAX_TXPOWER);
+	ret = ath5k_hw_txpower(ah, channel, ah->ah_txpower.txp_requested ?
+					ah->ah_txpower.txp_requested * 2 :
+					AR5K_TUNE_MAX_TXPOWER);
 	if (ret)
 		return ret;
 
