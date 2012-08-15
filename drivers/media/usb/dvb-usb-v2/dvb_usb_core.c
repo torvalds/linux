@@ -489,6 +489,11 @@ static int dvb_usb_fe_init(struct dvb_frontend *fe)
 	dev_dbg(&d->udev->dev, "%s: adap=%d fe=%d\n", __func__, adap->id,
 			fe->id);
 
+	if (!adap->suspend_resume_active) {
+		adap->active_fe = fe->id;
+		mutex_lock(&adap->sync_mutex);
+	}
+
 	ret = dvb_usbv2_device_power_ctrl(d, 1);
 	if (ret < 0)
 		goto err;
@@ -504,23 +509,11 @@ static int dvb_usb_fe_init(struct dvb_frontend *fe)
 		if (ret < 0)
 			goto err;
 	}
-
-	return 0;
 err:
-	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
+	if (!adap->suspend_resume_active)
+		mutex_unlock(&adap->sync_mutex);
 
-static int dvb_usb_fe_init_lock(struct dvb_frontend *fe)
-{
-	int ret;
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-	mutex_lock(&adap->sync_mutex);
-
-	ret = dvb_usb_fe_init(fe);
-	adap->active_fe = fe->id;
-
-	mutex_unlock(&adap->sync_mutex);
+	dev_dbg(&d->udev->dev, "%s: ret=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -531,6 +524,9 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 	struct dvb_usb_device *d = adap_to_d(adap);
 	dev_dbg(&d->udev->dev, "%s: adap=%d fe=%d\n", __func__, adap->id,
 			fe->id);
+
+	if (!adap->suspend_resume_active)
+		mutex_lock(&adap->sync_mutex);
 
 	if (adap->fe_sleep[fe->id]) {
 		ret = adap->fe_sleep[fe->id](fe);
@@ -547,23 +543,13 @@ static int dvb_usb_fe_sleep(struct dvb_frontend *fe)
 	ret = dvb_usbv2_device_power_ctrl(d, 0);
 	if (ret < 0)
 		goto err;
-
-	return 0;
 err:
-	dev_dbg(&d->udev->dev, "%s: failed=%d\n", __func__, ret);
-	return ret;
-}
+	if (!adap->suspend_resume_active) {
+		adap->active_fe = -1;
+		mutex_unlock(&adap->sync_mutex);
+	}
 
-static int dvb_usb_fe_sleep_lock(struct dvb_frontend *fe)
-{
-	int ret;
-	struct dvb_usb_adapter *adap = fe->dvb->priv;
-	mutex_lock(&adap->sync_mutex);
-
-	ret = dvb_usb_fe_sleep(fe);
-	adap->active_fe = -1;
-
-	mutex_unlock(&adap->sync_mutex);
+	dev_dbg(&d->udev->dev, "%s: ret=%d\n", __func__, ret);
 	return ret;
 }
 
@@ -594,9 +580,9 @@ int dvb_usbv2_adapter_frontend_init(struct dvb_usb_adapter *adap)
 		adap->fe[i]->id = i;
 		/* re-assign sleep and wakeup functions */
 		adap->fe_init[i] = adap->fe[i]->ops.init;
-		adap->fe[i]->ops.init = dvb_usb_fe_init_lock;
+		adap->fe[i]->ops.init = dvb_usb_fe_init;
 		adap->fe_sleep[i] = adap->fe[i]->ops.sleep;
-		adap->fe[i]->ops.sleep = dvb_usb_fe_sleep_lock;
+		adap->fe[i]->ops.sleep = dvb_usb_fe_sleep;
 
 		ret = dvb_register_frontend(&adap->dvb_adap, adap->fe[i]);
 		if (ret < 0) {
@@ -978,6 +964,7 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 		active_fe = d->adapter[i].active_fe;
 		if (d->adapter[i].dvb_adap.priv && active_fe != -1) {
 			fe = d->adapter[i].fe[active_fe];
+			d->adapter[i].suspend_resume_active = true;
 
 			if (d->props->streaming_ctrl)
 				d->props->streaming_ctrl(fe, 0);
@@ -985,10 +972,7 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 			/* stop usb streaming */
 			usb_urb_killv2(&d->adapter[i].stream);
 
-			if (fe->ops.tuner_ops.sleep)
-				fe->ops.tuner_ops.sleep(fe);
-
-			dvb_usb_fe_sleep(fe);
+			dvb_frontend_suspend(fe);
 		}
 	}
 
@@ -1008,19 +992,15 @@ int dvb_usbv2_resume(struct usb_interface *intf)
 		if (d->adapter[i].dvb_adap.priv && active_fe != -1) {
 			fe = d->adapter[i].fe[active_fe];
 
-			dvb_usb_fe_init(fe);
-
-			if (fe->ops.tuner_ops.init)
-				fe->ops.tuner_ops.init(fe);
-
-			/* acquire dvb-core perform retune */
-			dvb_frontend_retune(fe);
+			dvb_frontend_resume(fe);
 
 			/* resume usb streaming */
 			usb_urb_submitv2(&d->adapter[i].stream, NULL);
 
 			if (d->props->streaming_ctrl)
 				d->props->streaming_ctrl(fe, 1);
+
+			d->adapter[i].suspend_resume_active = false;
 		}
 	}
 

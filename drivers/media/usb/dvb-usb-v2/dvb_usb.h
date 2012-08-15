@@ -295,6 +295,7 @@ struct usb_data_stream {
  * @stream: adapter the usb data stream
  * @id: index of this adapter (starting with 0)
  * @ts_type: transport stream, input stream, type
+ * @suspend_resume_active: set when there is ongoing suspend / resume
  * @pid_filtering: is hardware pid_filtering used or not
  * @feed_count: current feed count
  * @max_feed_count: maimum feed count device can handle
@@ -312,6 +313,7 @@ struct dvb_usb_adapter {
 	struct usb_data_stream stream;
 	u8 id;
 	u8 ts_type;
+	bool suspend_resume_active;
 	bool pid_filtering;
 	u8 feed_count;
 	u8 max_feed_count;
@@ -381,6 +383,7 @@ extern int dvb_usbv2_probe(struct usb_interface *,
 extern void dvb_usbv2_disconnect(struct usb_interface *);
 extern int dvb_usbv2_suspend(struct usb_interface *, pm_message_t);
 extern int dvb_usbv2_resume(struct usb_interface *);
+#define dvb_usbv2_reset_resume dvb_usbv2_resume
 
 /* the generic read/write method for device control */
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
