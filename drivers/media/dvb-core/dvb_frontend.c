@@ -1816,7 +1816,7 @@ static int dvb_frontend_ioctl(struct file *file,
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	int err = -EOPNOTSUPP;
+	int err = -ENOTTY;
 
 	dev_dbg(fe->dvb->device, "%s: (%d)\n", __func__, _IOC_NR(cmd));
 	if (fepriv->exit != DVB_FE_NO_EXIT)
@@ -1934,7 +1934,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 		}
 
 	} else
-		err = -EOPNOTSUPP;
+		err = -ENOTTY;
 
 out:
 	kfree(tvp);
@@ -2067,7 +2067,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int err = -EOPNOTSUPP;
+	int err = -ENOTTY;
 
 	switch (cmd) {
 	case FE_GET_INFO: {
