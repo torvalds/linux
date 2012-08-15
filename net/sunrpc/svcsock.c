@@ -305,57 +305,6 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 	return len;
 }
 
-/**
- * svc_sock_names - construct a list of listener names in a string
- * @serv: pointer to RPC service
- * @buf: pointer to a buffer to fill in with socket names
- * @buflen: size of the buffer to be filled
- * @toclose: pointer to '\0'-terminated C string containing the name
- *		of a listener to be closed
- *
- * Fills in @buf with a '\n'-separated list of names of listener
- * sockets.  If @toclose is not NULL, the socket named by @toclose
- * is closed, and is not included in the output list.
- *
- * Returns positive length of the socket name string, or a negative
- * errno value on error.
- */
-int svc_sock_names(struct svc_serv *serv, char *buf, const size_t buflen,
-		   const char *toclose)
-{
-	struct svc_sock *svsk, *closesk = NULL;
-	int len = 0;
-
-	if (!serv)
-		return 0;
-
-	spin_lock_bh(&serv->sv_lock);
-	list_for_each_entry(svsk, &serv->sv_permsocks, sk_xprt.xpt_list) {
-		int onelen = svc_one_sock_name(svsk, buf + len, buflen - len);
-		if (onelen < 0) {
-			len = onelen;
-			break;
-		}
-		if (toclose && strcmp(toclose, buf + len) == 0) {
-			closesk = svsk;
-			svc_xprt_get(&closesk->sk_xprt);
-		} else
-			len += onelen;
-	}
-	spin_unlock_bh(&serv->sv_lock);
-
-	if (closesk) {
-		/* Should unregister with portmap, but you cannot
-		 * unregister just one protocol...
-		 */
-		svc_close_xprt(&closesk->sk_xprt);
-		svc_xprt_put(&closesk->sk_xprt);
-	} else if (toclose)
-		return -ENOENT;
-	return len;
-}
-EXPORT_SYMBOL_GPL(svc_sock_names);
-
 /*
  * Check input queue length
  */
