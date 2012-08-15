@@ -158,8 +158,11 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 			.height = 58,
 			.setup_sys = kfr2r09_lcd_setup,
 			.start_transfer = kfr2r09_lcd_start,
-			.display_on = kfr2r09_lcd_on,
-			.display_off = kfr2r09_lcd_off,
+		},
+		.bl_info = {
+			.name = "sh_mobile_lcdc_bl",
+			.max_brightness = 1,
+			.set_brightness = kfr2r09_lcd_set_brightness,
 		},
 		.sys_bus_cfg = {
 			.ldmt2r = 0x07010904,
