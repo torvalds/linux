@@ -1741,6 +1741,7 @@ retry:
 	/* rebind busy workers */
 	for_each_busy_worker(worker, i, pos, gcwq) {
 		struct work_struct *rebind_work = &worker->rebind_work;
+		struct workqueue_struct *wq;
 
 		/* morph UNBOUND to REBIND */
 		worker->flags &= ~WORKER_UNBOUND;
@@ -1750,11 +1751,20 @@ retry:
 				     work_data_bits(rebind_work)))
 			continue;
 
-		/* wq doesn't matter, use the default one */
 		debug_work_activate(rebind_work);
-		insert_work(get_cwq(gcwq->cpu, system_wq), rebind_work,
-			    worker->scheduled.next,
-			    work_color_to_flags(WORK_NO_COLOR));
+
+		/*
+		 * wq doesn't really matter but let's keep @worker->pool
+		 * and @cwq->pool consistent for sanity.
+		 */
+		if (worker_pool_pri(worker->pool))
+			wq = system_highpri_wq;
+		else
+			wq = system_wq;
+
+		insert_work(get_cwq(gcwq->cpu, wq), rebind_work,
+			worker->scheduled.next,
+			work_color_to_flags(WORK_NO_COLOR));
 	}
 }
 
