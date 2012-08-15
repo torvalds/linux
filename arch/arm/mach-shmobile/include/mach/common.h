@@ -86,8 +86,6 @@ extern int r8a7779_boot_secondary(unsigned int cpu);
 extern void r8a7779_smp_prepare_cpus(void);
 extern void r8a7779_register_twd(void);
 
-extern void shmobile_init_late(void);
-
 #ifdef CONFIG_SUSPEND
 int shmobile_suspend_init(void);
 #else
@@ -99,5 +97,11 @@ int shmobile_cpuidle_init(void);
 #else
 static inline int shmobile_cpuidle_init(void) { return 0; }
 #endif
+
+static inline void shmobile_init_late(void)
+{
+	shmobile_suspend_init();
+	shmobile_cpuidle_init();
+}
 
 #endif /* __ARCH_MACH_COMMON_H */
