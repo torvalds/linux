@@ -186,6 +186,14 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		return -EIO;
 	}
+	if (driv->attach == NULL) {
+		/* driver does not support manual configuration */
+		dev_warn(dev->class_dev,
+			 "driver '%s' does not support attach using comedi_config\n",
+			 driv->driver_name);
+		module_put(driv->module);
+		return -ENOSYS;
+	}
 	/* initialize dev->driver here so
 	 * comedi_error() can be called from attach */
 	dev->driver = driv;
@@ -885,12 +893,17 @@ static int comedi_auto_config_wrapper(struct comedi_device *dev, void *context)
 		dev->board_ptr = comedi_recognize(driv, it->board_name);
 		if (dev->board_ptr == NULL) {
 			printk(KERN_WARNING
-			       "comedi: auto config failed to find board entry"
-			       " '%s' for driver '%s'\n", it->board_name,
-			       driv->driver_name);
+			       "comedi: auto config failed to find board entry '%s' for driver '%s'\n",
+			       it->board_name, driv->driver_name);
 			comedi_report_boards(driv);
 			return -EINVAL;
 		}
+	}
+	if (!driv->attach) {
+		printk(KERN_WARNING
+		       "comedi: BUG! driver '%s' using old-style auto config but has no attach handler\n",
+		       driv->driver_name);
+		return -EINVAL;
 	}
 	return driv->attach(dev, it);
 }
