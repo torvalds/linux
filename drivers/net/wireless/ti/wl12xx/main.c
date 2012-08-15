@@ -1184,9 +1184,16 @@ static int wl12xx_enable_interrupts(struct wl1271 *wl)
 	ret = wlcore_write_reg(wl, REG_INTERRUPT_MASK,
 			       WL1271_ACX_INTR_ALL & ~(WL12XX_INTR_MASK));
 	if (ret < 0)
-		goto out;
+		goto disable_interrupts;
 
 	ret = wlcore_write32(wl, WL12XX_HI_CFG, HI_CFG_DEF_VAL);
+	if (ret < 0)
+		goto disable_interrupts;
+
+	return ret;
+
+disable_interrupts:
+	wlcore_disable_interrupts(wl);
 
 out:
 	return ret;
