@@ -2206,7 +2206,7 @@ static void __init machine_rk30_board_init(void)
   dcr_en_low();
 
 #if defined(CONFIG_MT6620)
-    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 16*1000000);
+    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 48*1000000);
 #endif
 }
 
@@ -2267,7 +2267,8 @@ static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];
 
 void __init board_clock_init(void)
 {
-	rk30_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
+	//support uart 1-3Mbits/s 
+	rk30_clock_data_init(periph_pll_default, codec_pll_768mhz, RK30_CLOCKS_DEFAULT_FLAGS | CLK_FLG_UART_1_3M);
 	dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);
 	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
 	dvfs_set_freq_volt_table(clk_get(NULL, "ddr"), dvfs_ddr_table);
