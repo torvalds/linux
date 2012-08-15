@@ -20,6 +20,7 @@
 #include <linux/kfifo.h>
 
 #include "omap_drv.h"
+#include "omap_dmm_tiler.h"
 
 /* some hackery because omapdss has an 'enum omap_plane' (which would be
  * better named omap_plane_id).. and compiler seems unhappy about having
@@ -43,10 +44,9 @@ struct omap_plane {
 	struct omap_overlay *ovl;
 	struct omap_overlay_info info;
 
-	/* Source values, converted to integers because we don't support
-	 * fractional positions:
-	 */
-	unsigned int src_x, src_y;
+	/* position/orientation of scanout within the fb: */
+	struct omap_drm_window win;
+
 
 	/* last fb that we pinned: */
 	struct drm_framebuffer *pinned_fb;
@@ -289,6 +289,7 @@ static void update_scanout(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct omap_overlay_info *info = &omap_plane->info;
+	struct omap_drm_window *win = &omap_plane->win;
 	int ret;
 
 	ret = update_pin(plane, plane->fb);
@@ -299,11 +300,10 @@ static void update_scanout(struct drm_plane *plane)
 		return;
 	}
 
-	omap_framebuffer_update_scanout(plane->fb,
-			omap_plane->src_x, omap_plane->src_y, info);
+	omap_framebuffer_update_scanout(plane->fb, win, info);
 
 	DBG("%s: %d,%d: %08x %08x (%d)", omap_plane->ovl->name,
-			omap_plane->src_x, omap_plane->src_y,
+			win->src_x, win->src_y,
 			(u32)info->paddr, (u32)info->p_uv_addr,
 			info->screen_width);
 }
@@ -316,21 +316,18 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		uint32_t src_w, uint32_t src_h)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct omap_drm_window *win = &omap_plane->win;
+
+	win->crtc_x = crtc_x;
+	win->crtc_y = crtc_y;
+	win->crtc_w = crtc_w;
+	win->crtc_h = crtc_h;
 
 	/* src values are in Q16 fixed point, convert to integer: */
-	src_x = src_x >> 16;
-	src_y = src_y >> 16;
-	src_w = src_w >> 16;
-	src_h = src_h >> 16;
-
-	omap_plane->info.pos_x = crtc_x;
-	omap_plane->info.pos_y = crtc_y;
-	omap_plane->info.out_width = crtc_w;
-	omap_plane->info.out_height = crtc_h;
-	omap_plane->info.width = src_w;
-	omap_plane->info.height = src_h;
-	omap_plane->src_x = src_x;
-	omap_plane->src_y = src_y;
+	win->src_x = src_x >> 16;
+	win->src_y = src_y >> 16;
+	win->src_w = src_w >> 16;
+	win->src_h = src_h >> 16;
 
 	/* note: this is done after this fxn returns.. but if we need
 	 * to do a commit/update_scanout, etc before this returns we
@@ -359,6 +356,8 @@ static int omap_plane_update(struct drm_plane *plane,
 
 static int omap_plane_disable(struct drm_plane *plane)
 {
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	omap_plane->win.rotation = BIT(DRM_ROTATE_0);
 	return omap_plane_dpms(plane, DRM_MODE_DPMS_OFF);
 }
 
@@ -409,10 +408,60 @@ void omap_plane_on_endwin(struct drm_plane *plane,
 	install_irq(plane);
 }
 
+/* helper to install properties which are common to planes and crtcs */
+void omap_plane_install_properties(struct drm_plane *plane,
+		struct drm_mode_object *obj)
+{
+	struct drm_device *dev = plane->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+	struct drm_property *prop;
+
+	prop = priv->rotation_prop;
+	if (!prop) {
+		const struct drm_prop_enum_list props[] = {
+				{ DRM_ROTATE_0,   "rotate-0" },
+				{ DRM_ROTATE_90,  "rotate-90" },
+				{ DRM_ROTATE_180, "rotate-180" },
+				{ DRM_ROTATE_270, "rotate-270" },
+				{ DRM_REFLECT_X,  "reflect-x" },
+				{ DRM_REFLECT_Y,  "reflect-y" },
+		};
+		prop = drm_property_create_bitmask(dev, 0, "rotation",
+				props, ARRAY_SIZE(props));
+		if (prop == NULL)
+			return;
+		priv->rotation_prop = prop;
+	}
+	drm_object_attach_property(obj, prop, 0);
+}
+
+int omap_plane_set_property(struct drm_plane *plane,
+		struct drm_property *property, uint64_t val)
+{
+	struct omap_plane *omap_plane = to_omap_plane(plane);
+	struct omap_drm_private *priv = plane->dev->dev_private;
+	int ret = -EINVAL;
+
+	if (property == priv->rotation_prop) {
+		struct omap_overlay *ovl = omap_plane->ovl;
+
+		DBG("%s: rotation: %02x", ovl->name, (uint32_t)val);
+		omap_plane->win.rotation = val;
+
+		if (ovl->is_enabled(ovl))
+			ret = omap_plane_dpms(plane, DRM_MODE_DPMS_ON);
+		else
+			ret = 0;
+	}
+
+	return ret;
+}
+
 static const struct drm_plane_funcs omap_plane_funcs = {
 		.update_plane = omap_plane_update,
 		.disable_plane = omap_plane_disable,
 		.destroy = omap_plane_destroy,
+		.set_property = omap_plane_set_property,
 };
 
 /* initialize plane */
@@ -455,6 +504,8 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	drm_plane_init(dev, plane, possible_crtcs, &omap_plane_funcs,
 			omap_plane->formats, omap_plane->nformats, priv);
 
+	omap_plane_install_properties(plane, &plane->base);
+
 	/* get our starting configuration, set defaults for parameters
 	 * we don't currently use, etc:
 	 */
@@ -462,7 +513,6 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	omap_plane->info.rotation_type = OMAP_DSS_ROT_DMA;
 	omap_plane->info.rotation = OMAP_DSS_ROT_0;
 	omap_plane->info.global_alpha = 0xff;
-	omap_plane->info.mirror = 0;
 	omap_plane->info.mirror = 0;
 
 	/* Set defaults depending on whether we are a CRTC or overlay

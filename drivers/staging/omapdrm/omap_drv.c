@@ -649,6 +649,8 @@ static int dev_firstopen(struct drm_device *dev)
  */
 static void dev_lastclose(struct drm_device *dev)
 {
+	int i;
+
 	/* we don't support vga-switcheroo.. so just make sure the fbdev
 	 * mode is active
 	 */
@@ -656,6 +658,21 @@ static void dev_lastclose(struct drm_device *dev)
 	int ret;
 
 	DBG("lastclose: dev=%p", dev);
+
+	/* need to restore default rotation state.. not sure if there is
+	 * a cleaner way to restore properties to default state?  Maybe
+	 * a flag that properties should automatically be restored to
+	 * default state on lastclose?
+	 */
+	for (i = 0; i < priv->num_crtcs; i++) {
+		drm_object_property_set_value(&priv->crtcs[i]->base,
+				priv->rotation_prop, 0);
+	}
+
+	for (i = 0; i < priv->num_planes; i++) {
+		drm_object_property_set_value(&priv->planes[i]->base,
+				priv->rotation_prop, 0);
+	}
 
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
 	if (ret)
