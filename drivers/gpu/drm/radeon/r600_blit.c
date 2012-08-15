@@ -489,7 +489,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
 	ADVANCE_RING();
 }
 
-static uint32_t i2f(uint32_t input)
+uint32_t int2float(uint32_t input)
 {
 	u32 result, i, exponent, fraction;
 
@@ -632,20 +632,20 @@ r600_blit_copy(struct drm_device *dev,
 				vb = r600_nomm_get_vb_ptr(dev);
 			}
 
-			vb[0] = i2f(dst_x);
+			vb[0] = int2float(dst_x);
 			vb[1] = 0;
-			vb[2] = i2f(src_x);
+			vb[2] = int2float(src_x);
 			vb[3] = 0;
 
-			vb[4] = i2f(dst_x);
-			vb[5] = i2f(h);
-			vb[6] = i2f(src_x);
-			vb[7] = i2f(h);
+			vb[4] = int2float(dst_x);
+			vb[5] = int2float(h);
+			vb[6] = int2float(src_x);
+			vb[7] = int2float(h);
 
-			vb[8] = i2f(dst_x + cur_size);
-			vb[9] = i2f(h);
-			vb[10] = i2f(src_x + cur_size);
-			vb[11] = i2f(h);
+			vb[8] = int2float(dst_x + cur_size);
+			vb[9] = int2float(h);
+			vb[10] = int2float(src_x + cur_size);
+			vb[11] = int2float(h);
 
 			/* src */
 			set_tex_resource(dev_priv, FMT_8,
@@ -721,20 +721,20 @@ r600_blit_copy(struct drm_device *dev,
 				vb = r600_nomm_get_vb_ptr(dev);
 			}
 
-			vb[0] = i2f(dst_x / 4);
+			vb[0] = int2float(dst_x / 4);
 			vb[1] = 0;
-			vb[2] = i2f(src_x / 4);
+			vb[2] = int2float(src_x / 4);
 			vb[3] = 0;
 
-			vb[4] = i2f(dst_x / 4);
-			vb[5] = i2f(h);
-			vb[6] = i2f(src_x / 4);
-			vb[7] = i2f(h);
+			vb[4] = int2float(dst_x / 4);
+			vb[5] = int2float(h);
+			vb[6] = int2float(src_x / 4);
+			vb[7] = int2float(h);
 
-			vb[8] = i2f((dst_x + cur_size) / 4);
-			vb[9] = i2f(h);
-			vb[10] = i2f((src_x + cur_size) / 4);
-			vb[11] = i2f(h);
+			vb[8] = int2float((dst_x + cur_size) / 4);
+			vb[9] = int2float(h);
+			vb[10] = int2float((src_x + cur_size) / 4);
+			vb[11] = int2float(h);
 
 			/* src */
 			set_tex_resource(dev_priv, FMT_8_8_8_8,
@@ -804,20 +804,20 @@ r600_blit_swap(struct drm_device *dev,
 	dx2 = dx + w;
 	dy2 = dy + h;
 
-	vb[0] = i2f(dx);
-	vb[1] = i2f(dy);
-	vb[2] = i2f(sx);
-	vb[3] = i2f(sy);
+	vb[0] = int2float(dx);
+	vb[1] = int2float(dy);
+	vb[2] = int2float(sx);
+	vb[3] = int2float(sy);
 
-	vb[4] = i2f(dx);
-	vb[5] = i2f(dy2);
-	vb[6] = i2f(sx);
-	vb[7] = i2f(sy2);
+	vb[4] = int2float(dx);
+	vb[5] = int2float(dy2);
+	vb[6] = int2float(sx);
+	vb[7] = int2float(sy2);
 
-	vb[8] = i2f(dx2);
-	vb[9] = i2f(dy2);
-	vb[10] = i2f(sx2);
-	vb[11] = i2f(sy2);
+	vb[8] = int2float(dx2);
+	vb[9] = int2float(dy2);
+	vb[10] = int2float(sx2);
+	vb[11] = int2float(sy2);
 
 	switch(cpp) {
 	case 4:
