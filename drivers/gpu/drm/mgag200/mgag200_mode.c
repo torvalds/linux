@@ -1399,7 +1399,6 @@ static int mga_vga_get_modes(struct drm_connector *connector)
 	if (edid) {
 		drm_mode_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
-		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 	return ret;

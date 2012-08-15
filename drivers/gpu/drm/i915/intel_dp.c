@@ -2145,7 +2145,6 @@ intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *ada
 		ret = drm_add_edid_modes(connector, intel_dp->edid);
 		drm_edid_to_eld(connector,
 				intel_dp->edid);
-		connector->display_info.raw_edid = NULL;
 		return intel_dp->edid_mode_count;
 	}
 
@@ -2191,7 +2190,6 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
-			connector->display_info.raw_edid = NULL;
 			kfree(edid);
 		}
 	}
@@ -2256,8 +2254,6 @@ intel_dp_detect_audio(struct drm_connector *connector)
 	edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
-
-		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 

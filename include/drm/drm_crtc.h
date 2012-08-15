@@ -216,8 +216,6 @@ struct drm_display_info {
 	u32 color_formats;
 
 	u8 cea_rev;
-
-	char *raw_edid; /* if any */
 };
 
 struct drm_framebuffer_funcs {

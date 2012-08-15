@@ -114,8 +114,8 @@ static u8 generic_edid[GENERIC_EDIDS][128] = {
 	},
 };
 
-static int edid_load(struct drm_connector *connector, char *name,
-		     char *connector_name)
+static u8 *edid_load(struct drm_connector *connector, char *name,
+			char *connector_name)
 {
 	const struct firmware *fw;
 	struct platform_device *pdev;
@@ -205,7 +205,6 @@ static int edid_load(struct drm_connector *connector, char *name,
 		edid = new_edid;
 	}
 
-	connector->display_info.raw_edid = edid;
 	DRM_INFO("Got %s EDID base block and %d extension%s from "
 	    "\"%s\" for connector \"%s\"\n", builtin ? "built-in" :
 	    "external", valid_extensions, valid_extensions == 1 ? "" : "s",
@@ -215,7 +214,10 @@ relfw_out:
 	release_firmware(fw);
 
 out:
-	return err;
+	if (err)
+		return ERR_PTR(err);
+
+	return edid;
 }
 
 int drm_load_edid_firmware(struct drm_connector *connector)
@@ -223,6 +225,7 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 	char *connector_name = drm_get_connector_name(connector);
 	char *edidname = edid_firmware, *last, *colon;
 	int ret;
+	struct edid *edid;
 
 	if (*edidname == '\0')
 		return 0;
@@ -240,13 +243,13 @@ int drm_load_edid_firmware(struct drm_connector *connector)
 	if (*last == '\n')
 		*last = '\0';
 
-	ret = edid_load(connector, edidname, connector_name);
-	if (ret)
+	edid = (struct edid *) edid_load(connector, edidname, connector_name);
+	if (IS_ERR_OR_NULL(edid))
 		return 0;
 
-	drm_mode_connector_update_edid_property(connector,
-	    (struct edid *) connector->display_info.raw_edid);
+	drm_mode_connector_update_edid_property(connector, edid);
+	ret = drm_add_edid_modes(connector, edid);
+	kfree(edid);
 
-	return drm_add_edid_modes(connector, (struct edid *)
-	    connector->display_info.raw_edid);
+	return ret;
 }

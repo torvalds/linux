@@ -157,8 +157,6 @@ static enum drm_connector_status cdv_hdmi_detect(
 			hdmi_priv->has_hdmi_audio =
 						drm_detect_monitor_audio(edid);
 		}
-
-		psb_intel_connector->base.display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 	return status;

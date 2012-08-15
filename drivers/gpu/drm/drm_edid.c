@@ -399,10 +399,7 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	if (drm_probe_ddc(adapter))
 		edid = (struct edid *)drm_do_get_edid(connector, adapter);
 
-	connector->display_info.raw_edid = (char *)edid;
-
 	return edid;
-
 }
 EXPORT_SYMBOL(drm_get_edid);
 
