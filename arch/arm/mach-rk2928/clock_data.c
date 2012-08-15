@@ -62,6 +62,7 @@ struct pll_clk_set {
 #define CLKDATA_LOG(fmt, args...) do {} while(0)
 #endif
 #define CLKDATA_ERR(fmt, args...) printk(KERN_ERR "CLKDATA_ERR:\t"fmt, ##args)
+#define CLKDATA_WARNNING(fmt, args...) printk("CLKDATA_WANNING:\t"fmt, ##args)
 
 #define cru_readl(offset)	readl_relaxed(RK2928_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK2928_CRU_BASE + offset); dsb(); } while (0)
@@ -328,6 +329,12 @@ static int clksel_set_rate_freediv(struct clk *clk, unsigned long rate)
 			set_cru_bits_w_msk(div,clk->div_mask,clk->div_shift,clk->clksel_con);
 			//clk->rate = new_rate;
 			CLKDATA_DBG("clksel_set_rate_freediv for clock %s to rate %ld (div %d)\n", clk->name, rate, div + 1);
+			return 0;
+		}
+		if (div == clk->div_max - 1) {
+			CLKDATA_WARNNING("%s clk=%s, div=%u, rate=%lu, new_rate=%u\n",
+					__func__, clk->name, div, rate, new_rate);
+			set_cru_bits_w_msk(div,clk->div_mask,clk->div_shift,clk->clksel_con);
 			return 0;
 		}
 	}
