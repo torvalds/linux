@@ -307,6 +307,15 @@ void dvb_frontend_reinitialise(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(dvb_frontend_reinitialise);
 
+void dvb_frontend_retune(struct dvb_frontend *fe)
+{
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+
+	fepriv->state = FESTATE_RETUNE;
+	dvb_frontend_wakeup(fe);
+}
+EXPORT_SYMBOL(dvb_frontend_retune);
+
 static void dvb_frontend_swzigzag_update_delay(struct dvb_frontend_private *fepriv, int locked)
 {
 	int q2;

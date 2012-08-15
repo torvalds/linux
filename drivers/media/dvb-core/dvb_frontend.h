@@ -418,6 +418,7 @@ extern int dvb_unregister_frontend(struct dvb_frontend *fe);
 extern void dvb_frontend_detach(struct dvb_frontend *fe);
 
 extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
+extern void dvb_frontend_retune(struct dvb_frontend *fe);
 
 extern void dvb_frontend_sleep_until(struct timeval *waketime, u32 add_usec);
 extern s32 timeval_usec_diff(struct timeval lasttime, struct timeval curtime);
