@@ -952,7 +952,7 @@ EXPORT_SYMBOL(dvb_usbv2_disconnect);
 int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 {
 	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	int i, active_fe;
+	int ret = 0, i, active_fe;
 	struct dvb_frontend *fe;
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
@@ -972,18 +972,17 @@ int dvb_usbv2_suspend(struct usb_interface *intf, pm_message_t msg)
 			/* stop usb streaming */
 			usb_urb_killv2(&d->adapter[i].stream);
 
-			dvb_frontend_suspend(fe);
+			ret = dvb_frontend_suspend(fe);
 		}
 	}
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(dvb_usbv2_suspend);
 
-int dvb_usbv2_resume(struct usb_interface *intf)
+static int dvb_usbv2_resume_common(struct dvb_usb_device *d)
 {
-	struct dvb_usb_device *d = usb_get_intfdata(intf);
-	int i, active_fe;
+	int ret = 0, i, active_fe;
 	struct dvb_frontend *fe;
 	dev_dbg(&d->udev->dev, "%s:\n", __func__);
 
@@ -992,7 +991,7 @@ int dvb_usbv2_resume(struct usb_interface *intf)
 		if (d->adapter[i].dvb_adap.priv && active_fe != -1) {
 			fe = d->adapter[i].fe[active_fe];
 
-			dvb_frontend_resume(fe);
+			ret = dvb_frontend_resume(fe);
 
 			/* resume usb streaming */
 			usb_urb_submitv2(&d->adapter[i].stream, NULL);
@@ -1009,9 +1008,36 @@ int dvb_usbv2_resume(struct usb_interface *intf)
 		schedule_delayed_work(&d->rc_query_work,
 				msecs_to_jiffies(d->rc.interval));
 
-	return 0;
+	return ret;
+}
+
+int dvb_usbv2_resume(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	dev_dbg(&d->udev->dev, "%s:\n", __func__);
+
+	return dvb_usbv2_resume_common(d);
 }
 EXPORT_SYMBOL(dvb_usbv2_resume);
+
+int dvb_usbv2_reset_resume(struct usb_interface *intf)
+{
+	struct dvb_usb_device *d = usb_get_intfdata(intf);
+	int ret;
+	dev_dbg(&d->udev->dev, "%s:\n", __func__);
+
+	dvb_usbv2_device_power_ctrl(d, 1);
+
+	if (d->props->init)
+		d->props->init(d);
+
+	ret = dvb_usbv2_resume_common(d);
+
+	dvb_usbv2_device_power_ctrl(d, 0);
+
+	return ret;
+}
+EXPORT_SYMBOL(dvb_usbv2_reset_resume);
 
 MODULE_VERSION("2.0");
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");

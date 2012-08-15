@@ -383,7 +383,7 @@ extern int dvb_usbv2_probe(struct usb_interface *,
 extern void dvb_usbv2_disconnect(struct usb_interface *);
 extern int dvb_usbv2_suspend(struct usb_interface *, pm_message_t);
 extern int dvb_usbv2_resume(struct usb_interface *);
-#define dvb_usbv2_reset_resume dvb_usbv2_resume
+extern int dvb_usbv2_reset_resume(struct usb_interface *);
 
 /* the generic read/write method for device control */
 extern int dvb_usbv2_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16);
