@@ -1485,14 +1485,14 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (priv->conf.ht.mode == HT_MODE_DEFAULT) {
 		/*
 		 * Only support mimo with multiple antennas. Fall back to
-		 * siso20.
+		 * siso40.
 		 */
 		if (wl18xx_is_mimo_supported(wl))
 			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
 					  &wl18xx_mimo_ht_cap_2ghz);
 		else
 			wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ,
-					  &wl18xx_siso20_ht_cap);
+					  &wl18xx_siso40_ht_cap_2ghz);
 
 		/* 5Ghz is always wide */
 		wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ,
