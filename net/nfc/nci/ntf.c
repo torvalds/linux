@@ -176,6 +176,8 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 			protocol = NFC_PROTO_ISO14443_B_MASK;
 	else if (rf_protocol == NCI_RF_PROTOCOL_T3T)
 		protocol = NFC_PROTO_FELICA_MASK;
+	else if (rf_protocol == NCI_RF_PROTOCOL_NFC_DEP)
+		protocol = NFC_PROTO_NFC_DEP_MASK;
 	else
 		protocol = 0;
 
@@ -505,6 +507,24 @@ exit:
 
 		/* set the available credits to initial value */
 		atomic_set(&ndev->credits_cnt, ndev->initial_num_credits);
+
+		/* store general bytes to be reported later in dep_link_up */
+		if (ntf.rf_interface == NCI_RF_INTERFACE_NFC_DEP) {
+			ndev->remote_gb_len = 0;
+
+			if (ntf.activation_params_len > 0) {
+				/* ATR_RES general bytes at offset 15 */
+				ndev->remote_gb_len = min_t(__u8,
+					(ntf.activation_params
+					.poll_nfc_dep.atr_res_len
+					- NFC_ATR_RES_GT_OFFSET),
+					NFC_MAX_GT_LEN);
+				memcpy(ndev->remote_gb,
+				       (ntf.activation_params.poll_nfc_dep
+				       .atr_res + NFC_ATR_RES_GT_OFFSET),
+				       ndev->remote_gb_len);
+			}
+		}
 	}
 
 	if (atomic_read(&ndev->state) == NCI_DISCOVERY) {

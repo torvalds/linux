@@ -138,6 +138,10 @@ struct nci_dev {
 	data_exchange_cb_t	data_exchange_cb;
 	void			*data_exchange_cb_context;
 	struct sk_buff		*rx_data_reassembly;
+
+	/* stored during intf_activated_ntf */
+	__u8 remote_gb[NFC_MAX_GT_LEN];
+	__u8 remote_gb_len;
 };
 
 /* ----- NCI Devices ----- */

@@ -564,7 +564,7 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
 
-	pr_debug("target_idx %d\n", target->idx);
+	pr_debug("entry\n");
 
 	if (!ndev->target_active_prot) {
 		pr_err("unable to deactivate target, no active target\n");
@@ -578,6 +578,38 @@ static void nci_deactivate_target(struct nfc_dev *nfc_dev,
 			    msecs_to_jiffies(NCI_RF_DEACTIVATE_TIMEOUT));
 	}
 }
+
+
+static int nci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
+			   __u8 comm_mode, __u8 *gb, size_t gb_len)
+{
+	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
+	int rc;
+
+	pr_debug("target_idx %d, comm_mode %d\n", target->idx, comm_mode);
+
+	rc = nci_activate_target(nfc_dev, target, NFC_PROTO_NFC_DEP);
+	if (rc)
+		return rc;
+
+	rc = nfc_set_remote_general_bytes(nfc_dev, ndev->remote_gb,
+					  ndev->remote_gb_len);
+	if (!rc)
+		rc = nfc_dep_link_is_up(nfc_dev, target->idx, NFC_COMM_PASSIVE,
+					NFC_RF_INITIATOR);
+
+	return rc;
+}
+
+static int nci_dep_link_down(struct nfc_dev *nfc_dev)
+{
+	pr_debug("entry\n");
+
+	nci_deactivate_target(nfc_dev, NULL);
+
+	return 0;
+}
+
 
 static int nci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 			  struct sk_buff *skb,
@@ -612,6 +644,8 @@ static struct nfc_ops nci_nfc_ops = {
 	.dev_down = nci_dev_down,
 	.start_poll = nci_start_poll,
 	.stop_poll = nci_stop_poll,
+	.dep_link_up = nci_dep_link_up,
+	.dep_link_down = nci_dep_link_down,
 	.activate_target = nci_activate_target,
 	.deactivate_target = nci_deactivate_target,
 	.im_transceive = nci_transceive,
