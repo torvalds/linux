@@ -1407,14 +1407,23 @@ static struct i2c_board_info i2c1_devices[] = {
 #define GPIO_PORT168CR	0xE60520A8
 #define SRCR4		0xe61580bc
 #define USCCR1		0xE6058144
-#define DEV_LATENCY_NS	250000
 static void __init mackerel_init(void)
 {
-	struct gpd_timing_data latencies = {
-		.stop_latency_ns = DEV_LATENCY_NS,
-		.start_latency_ns = DEV_LATENCY_NS,
-		.save_state_latency_ns = DEV_LATENCY_NS,
-		.restore_state_latency_ns = DEV_LATENCY_NS,
+	struct pm_domain_device domain_devices[] = {
+		{ "A4LC", &lcdc_device, },
+		{ "A4LC", &hdmi_lcdc_device, },
+		{ "A4LC", &meram_device, },
+		{ "A4MP", &fsi_device, },
+		{ "A3SP", &usbhs0_device, },
+		{ "A3SP", &usbhs1_device, },
+		{ "A3SP", &nand_flash_device, },
+		{ "A3SP", &sh_mmcif_device, },
+		{ "A3SP", &sdhi0_device, },
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+		{ "A3SP", &sdhi1_device, },
+#endif
+		{ "A3SP", &sdhi2_device, },
+		{ "A4R", &ceu_device, },
 	};
 	u32 srcr4;
 	struct clk *clk;
@@ -1630,20 +1639,8 @@ static void __init mackerel_init(void)
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
-	rmobile_add_device_to_domain_td("A4LC", &lcdc_device, &latencies);
-	rmobile_add_device_to_domain_td("A4LC", &hdmi_lcdc_device, &latencies);
-	rmobile_add_device_to_domain_td("A4LC", &meram_device, &latencies);
-	rmobile_add_device_to_domain_td("A4MP", &fsi_device, &latencies);
-	rmobile_add_device_to_domain_td("A3SP", &usbhs0_device, &latencies);
-	rmobile_add_device_to_domain_td("A3SP", &usbhs1_device, &latencies);
-	rmobile_add_device_to_domain_td("A3SP", &nand_flash_device, &latencies);
-	rmobile_add_device_to_domain_td("A3SP", &sh_mmcif_device, &latencies);
-	rmobile_add_device_to_domain_td("A3SP", &sdhi0_device, &latencies);
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	rmobile_add_device_to_domain_td("A3SP", &sdhi1_device, &latencies);
-#endif
-	rmobile_add_device_to_domain_td("A3SP", &sdhi2_device, &latencies);
-	rmobile_add_device_to_domain_td("A4R", &ceu_device, &latencies);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 
 	hdmi_init_pm_clock();
 	sh7372_pm_init();

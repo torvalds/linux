@@ -167,4 +167,20 @@ void rmobile_add_device_to_domain_td(const char *domain_name,
 	if (pm_clk_no_clocks(dev))
 		pm_clk_add(dev, NULL);
 }
+
+void rmobile_add_devices_to_domains(struct pm_domain_device data[],
+				    int size)
+{
+	struct gpd_timing_data latencies = {
+		.stop_latency_ns = DEFAULT_DEV_LATENCY_NS,
+		.start_latency_ns = DEFAULT_DEV_LATENCY_NS,
+		.save_state_latency_ns = DEFAULT_DEV_LATENCY_NS,
+		.restore_state_latency_ns = DEFAULT_DEV_LATENCY_NS,
+	};
+	int j;
+
+	for (j = 0; j < size; j++)
+		rmobile_add_device_to_domain_td(data[j].domain_name,
+						data[j].pdev, &latencies);
+}
 #endif /* CONFIG_PM */
