@@ -227,72 +227,48 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static struct pci_dev *dyna_pci10xx_find_pci_dev(struct comedi_device *dev,
-						 struct comedi_devconfig *it)
+static const void *dyna_pci10xx_find_boardinfo(struct comedi_device *dev,
+					       struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
+	const struct boardtype *thisboard;
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_DYNALOG)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
-			if (pcidev->device != boardtypes[i].device_id)
-				continue;
-
-			dev->board_ptr = &boardtypes[i];
-			return pcidev;
-		}
+	for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
+		thisboard = &boardtypes[i];
+		if (pcidev->device != thisboard->device_id)
+			return thisboard;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int dyna_pci10xx_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int dyna_pci10xx_attach_pci(struct comedi_device *dev,
+				   struct pci_dev *pcidev)
 {
 	const struct boardtype *thisboard;
 	struct dyna_pci10xx_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	thisboard = dyna_pci10xx_find_boardinfo(dev, pcidev);
+	if (!thisboard)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret)
 		return ret;
 	devpriv = dev->private;
 
-	pcidev = dyna_pci10xx_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
-
-	dev->board_name = thisboard->name;
-	dev->irq = 0;
-
-	if (comedi_pci_enable(pcidev, DRV_NAME)) {
-		printk(KERN_ERR "comedi: dyna_pci10xx: "
-			"failed to enable PCI device and request regions!");
-		return -EIO;
-	}
-
-	mutex_init(&devpriv->mutex);
-
-	printk(KERN_INFO "comedi: dyna_pci10xx: device found!\n");
-
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
 	devpriv->BADR3 = pci_resource_start(pcidev, 3);
+
+	mutex_init(&devpriv->mutex);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -339,10 +315,19 @@ static int dyna_pci10xx_attach(struct comedi_device *dev,
 	s->state = 0;
 	s->insn_bits = dyna_pci10xx_do_insn_bits;
 
-	printk(KERN_INFO "comedi: dyna_pci10xx: %s - device setup completed!\n",
-		thisboard->name);
+	dev_info(dev->class_dev, "%s: %s attached\n",
+		dev->driver->driver_name, dev->board_name);
 
-	return 1;
+	return 0;
+}
+
+static int dyna_pci10xx_attach(struct comedi_device *dev,
+			       struct comedi_devconfig *it)
+{
+	dev_warn(dev->class_dev,
+		"This driver does not support attach using comedi_config\n");
+
+	return -ENOSYS;
 }
 
 static void dyna_pci10xx_detach(struct comedi_device *dev)
@@ -355,7 +340,6 @@ static void dyna_pci10xx_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
@@ -363,10 +347,8 @@ static struct comedi_driver dyna_pci10xx_driver = {
 	.driver_name	= "dyna_pci10xx",
 	.module		= THIS_MODULE,
 	.attach		= dyna_pci10xx_attach,
+	.attach_pci	= dyna_pci10xx_attach_pci,
 	.detach		= dyna_pci10xx_detach,
-	.board_name	= &boardtypes[0].name,
-	.offset		= sizeof(struct boardtype),
-	.num_names	= ARRAY_SIZE(boardtypes),
 };
 
 static int __devinit dyna_pci10xx_pci_probe(struct pci_dev *dev,
