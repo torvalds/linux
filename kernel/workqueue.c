@@ -269,12 +269,14 @@ struct workqueue_struct {
 };
 
 struct workqueue_struct *system_wq __read_mostly;
+struct workqueue_struct *system_highpri_wq __read_mostly;
 struct workqueue_struct *system_long_wq __read_mostly;
 struct workqueue_struct *system_nrt_wq __read_mostly;
 struct workqueue_struct *system_unbound_wq __read_mostly;
 struct workqueue_struct *system_freezable_wq __read_mostly;
 struct workqueue_struct *system_nrt_freezable_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_wq);
+EXPORT_SYMBOL_GPL(system_highpri_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
 EXPORT_SYMBOL_GPL(system_unbound_wq);
@@ -3928,6 +3930,7 @@ static int __init init_workqueues(void)
 	}
 
 	system_wq = alloc_workqueue("events", 0, 0);
+	system_highpri_wq = alloc_workqueue("events_highpri", WQ_HIGHPRI, 0);
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
 	system_nrt_wq = alloc_workqueue("events_nrt", WQ_NON_REENTRANT, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND,
@@ -3936,9 +3939,9 @@ static int __init init_workqueues(void)
 					      WQ_FREEZABLE, 0);
 	system_nrt_freezable_wq = alloc_workqueue("events_nrt_freezable",
 			WQ_NON_REENTRANT | WQ_FREEZABLE, 0);
-	BUG_ON(!system_wq || !system_long_wq || !system_nrt_wq ||
-	       !system_unbound_wq || !system_freezable_wq ||
-		!system_nrt_freezable_wq);
+	BUG_ON(!system_wq || !system_highpri_wq || !system_long_wq ||
+	       !system_nrt_wq || !system_unbound_wq || !system_freezable_wq ||
+	       !system_nrt_freezable_wq);
 	return 0;
 }
 early_initcall(init_workqueues);
