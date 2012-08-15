@@ -433,6 +433,15 @@ void omap_plane_install_properties(struct drm_plane *plane,
 		priv->rotation_prop = prop;
 	}
 	drm_object_attach_property(obj, prop, 0);
+
+        prop = priv->zorder_prop;
+        if (!prop) {
+		prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
+		if (prop == NULL)
+			return;
+		priv->zorder_prop = prop;
+	}
+	drm_object_attach_property(obj, prop, 0);
 }
 
 int omap_plane_set_property(struct drm_plane *plane,
@@ -447,6 +456,16 @@ int omap_plane_set_property(struct drm_plane *plane,
 
 		DBG("%s: rotation: %02x", ovl->name, (uint32_t)val);
 		omap_plane->win.rotation = val;
+
+		if (ovl->is_enabled(ovl))
+			ret = omap_plane_dpms(plane, DRM_MODE_DPMS_ON);
+		else
+			ret = 0;
+	} else if (property == priv->zorder_prop) {
+		struct omap_overlay *ovl = omap_plane->ovl;
+
+		DBG("%s: zorder: %d", ovl->name, (uint32_t)val);
+		omap_plane->info.zorder = val;
 
 		if (ovl->is_enabled(ovl))
 			ret = omap_plane_dpms(plane, DRM_MODE_DPMS_ON);

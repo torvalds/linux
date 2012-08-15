@@ -62,6 +62,7 @@ struct omap_drm_private {
 
 	/* properties: */
 	struct drm_property *rotation_prop;
+	struct drm_property *zorder_prop;
 };
 
 /* this should probably be in drm-core to standardize amongst drivers */
