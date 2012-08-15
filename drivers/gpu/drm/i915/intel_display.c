@@ -7234,7 +7234,7 @@ struct intel_display_error_state {
 		u32 position;
 		u32 base;
 		u32 size;
-	} cursor[2];
+	} cursor[I915_MAX_PIPES];
 
 	struct intel_pipe_error_state {
 		u32 conf;
@@ -7246,7 +7246,7 @@ struct intel_display_error_state {
 		u32 vtotal;
 		u32 vblank;
 		u32 vsync;
-	} pipe[2];
+	} pipe[I915_MAX_PIPES];
 
 	struct intel_plane_error_state {
 		u32 control;
@@ -7256,7 +7256,7 @@ struct intel_display_error_state {
 		u32 addr;
 		u32 surface;
 		u32 tile_offset;
-	} plane[2];
+	} plane[I915_MAX_PIPES];
 };
 
 struct intel_display_error_state *
@@ -7270,7 +7270,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 	if (error == NULL)
 		return NULL;
 
-	for (i = 0; i < 2; i++) {
+	for_each_pipe(i) {
 		error->cursor[i].control = I915_READ(CURCNTR(i));
 		error->cursor[i].position = I915_READ(CURPOS(i));
 		error->cursor[i].base = I915_READ(CURBASE(i));
@@ -7303,9 +7303,11 @@ intel_display_print_error_state(struct seq_file *m,
 				struct drm_device *dev,
 				struct intel_display_error_state *error)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
 
-	for (i = 0; i < 2; i++) {
+	seq_printf(m, "Num Pipes: %d\n", dev_priv->num_pipe);
+	for_each_pipe(i) {
 		seq_printf(m, "Pipe [%d]:\n", i);
 		seq_printf(m, "  CONF: %08x\n", error->pipe[i].conf);
 		seq_printf(m, "  SRC: %08x\n", error->pipe[i].source);
