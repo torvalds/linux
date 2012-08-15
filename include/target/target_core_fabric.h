@@ -63,7 +63,6 @@ struct target_core_fabric_ops {
 	int (*queue_status)(struct se_cmd *);
 	int (*queue_tm_rsp)(struct se_cmd *);
 	u16 (*set_fabric_sense_len)(struct se_cmd *, u32);
-	u16 (*get_fabric_sense_len)(void);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */

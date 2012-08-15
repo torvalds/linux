@@ -402,7 +402,6 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "	.queue_data_in			= " + fabric_mod_name + "_queue_data_in,\n"
 	buf += "	.queue_status			= " + fabric_mod_name + "_queue_status,\n"
 	buf += "	.queue_tm_rsp			= " + fabric_mod_name + "_queue_tm_rsp,\n"
-	buf += "	.get_fabric_sense_len		= " + fabric_mod_name + "_get_fabric_sense_len,\n"
 	buf += "	.set_fabric_sense_len		= " + fabric_mod_name + "_set_fabric_sense_len,\n"
 	buf += "	.is_state_remove		= " + fabric_mod_name + "_is_state_remove,\n"
 	buf += "	/*\n"
@@ -905,13 +904,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "	return 0;\n"
 			buf += "}\n\n"
 			bufi += "int " + fabric_mod_name + "_queue_tm_rsp(struct se_cmd *);\n"
-
-		if re.search('get_fabric_sense_len\)\(', fo):
-			buf += "u16 " + fabric_mod_name + "_get_fabric_sense_len(void)\n"
-			buf += "{\n"
-			buf += "	return 0;\n"
-			buf += "}\n\n"
-			bufi += "u16 " + fabric_mod_name + "_get_fabric_sense_len(void);\n"
 
 		if re.search('set_fabric_sense_len\)\(', fo):
 			buf += "u16 " + fabric_mod_name + "_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)\n"

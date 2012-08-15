@@ -1480,11 +1480,6 @@ static u16 usbg_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
 	return 0;
 }
 
-static u16 usbg_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
 static const char *usbg_check_wwn(const char *name)
 {
 	const char *n;
@@ -1910,7 +1905,6 @@ static struct target_core_fabric_ops usbg_ops = {
 	.queue_data_in			= usbg_send_read_response,
 	.queue_status			= usbg_send_status_response,
 	.queue_tm_rsp			= usbg_queue_tm_rsp,
-	.get_fabric_sense_len		= usbg_get_fabric_sense_len,
 	.set_fabric_sense_len		= usbg_set_fabric_sense_len,
 	.check_stop_free		= usbg_check_stop_free,
 

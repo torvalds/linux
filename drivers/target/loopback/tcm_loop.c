@@ -851,11 +851,6 @@ static u16 tcm_loop_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length
 	return 0;
 }
 
-static u16 tcm_loop_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
 static char *tcm_loop_dump_proto_id(struct tcm_loop_hba *tl_hba)
 {
 	switch (tl_hba->tl_proto_id) {
@@ -1374,7 +1369,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.queue_status = &tcm_loop_queue_status;
 	fabric->tf_ops.queue_tm_rsp = &tcm_loop_queue_tm_rsp;
 	fabric->tf_ops.set_fabric_sense_len = &tcm_loop_set_fabric_sense_len;
-	fabric->tf_ops.get_fabric_sense_len = &tcm_loop_get_fabric_sense_len;
 
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
