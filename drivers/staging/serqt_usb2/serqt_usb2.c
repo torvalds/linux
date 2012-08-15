@@ -1458,7 +1458,6 @@ static void qt_throttle(struct tty_struct *tty)
 	qt_port->RxHolding = 1;
 
 	mutex_unlock(&qt_port->lock);
-	return;
 }
 
 static void qt_unthrottle(struct tty_struct *tty)
