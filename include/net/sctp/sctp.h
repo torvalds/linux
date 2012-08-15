@@ -367,8 +367,8 @@ void sctp_dbg_objcnt_exit(struct net *);
 #define SCTP_DBG_OBJCNT_INC(name)
 #define SCTP_DBG_OBJCNT_DEC(name)
 
-static inline void sctp_dbg_objcnt_init(struct net *) { return; }
-static inline void sctp_dbg_objcnt_exit(struct net *) { return; }
+static inline void sctp_dbg_objcnt_init(struct net *net) { return; }
+static inline void sctp_dbg_objcnt_exit(struct net *net) { return; }
 
 #endif /* CONFIG_SCTP_DBG_OBJCOUNT */
 
