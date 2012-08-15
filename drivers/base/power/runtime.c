@@ -147,6 +147,8 @@ static int rpm_check_suspend_allowed(struct device *dev)
 	    || (dev->power.request_pending
 			&& dev->power.request == RPM_REQ_RESUME))
 		retval = -EAGAIN;
+	else if (__dev_pm_qos_read_value(dev) < 0)
+		retval = -EPERM;
 	else if (dev->power.runtime_status == RPM_SUSPENDED)
 		retval = 1;
 
@@ -399,12 +401,6 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 			dev->power.request_pending = true;
 			queue_work(pm_wq, &dev->power.work);
 		}
-		goto out;
-	}
-
-	if (__dev_pm_qos_read_value(dev) < 0) {
-		/* Negative PM QoS constraint means "never suspend". */
-		retval = -EPERM;
 		goto out;
 	}
 
