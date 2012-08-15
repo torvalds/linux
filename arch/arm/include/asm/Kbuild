@@ -33,3 +33,4 @@ generic-y += sockios.h
 generic-y += termbits.h
 generic-y += timex.h
 generic-y += types.h
+generic-y += unaligned.h
