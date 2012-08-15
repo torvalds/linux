@@ -929,7 +929,7 @@ int dvfs_scale_volt_bystep(struct vd_node *vd_clk, struct vd_node *vd_dep, int v
 
 	if (check_volt_correct(volt_old, &volt_new, volt_dep_old, &volt_dep_new, 
 				clk_biger_than_dep, dep_biger_than_clk) < 0) {
-		DVFS_ERR("CURRENT VOLT INCORRECT\n");
+		DVFS_ERR("CURRENT VOLT INCORRECT, VD=%s, VD_DEP=%s\n", vd_clk->name, vd_dep->name);
 		return -1;
 	}
 	DVFS_DBG("ENTER %s, volt=%d(old=%d), volt_dep=%d(dep_old=%d)\n", __func__, 
