@@ -1888,6 +1888,16 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 }
 
 /**
+ * pm_genpd_name_attach_cpuidle - Find PM domain and connect cpuidle to it.
+ * @name: Name of the domain to connect to cpuidle.
+ * @state: cpuidle state this domain can manipulate.
+ */
+int pm_genpd_name_attach_cpuidle(const char *name, int state)
+{
+	return pm_genpd_attach_cpuidle(pm_genpd_lookup_name(name), state);
+}
+
+/**
  * pm_genpd_detach_cpuidle - Remove the cpuidle connection from a PM domain.
  * @genpd: PM domain to remove the cpuidle connection from.
  *
@@ -1923,6 +1933,15 @@ int pm_genpd_detach_cpuidle(struct generic_pm_domain *genpd)
  out:
 	genpd_release_lock(genpd);
 	return ret;
+}
+
+/**
+ * pm_genpd_name_detach_cpuidle - Find PM domain and disconnect cpuidle from it.
+ * @name: Name of the domain to disconnect cpuidle from.
+ */
+int pm_genpd_name_detach_cpuidle(const char *name)
+{
+	return pm_genpd_detach_cpuidle(pm_genpd_lookup_name(name));
 }
 
 /* Default device callbacks for generic PM domains. */
