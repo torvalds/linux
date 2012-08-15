@@ -247,7 +247,6 @@ static void ProcessLineStatus(struct quatech_port *qt_port,
 	qt_port->shadowLSR =
 	    line_status & (SERIAL_LSR_OE | SERIAL_LSR_PE | SERIAL_LSR_FE |
 			   SERIAL_LSR_BI);
-	return;
 }
 
 static void ProcessModemStatus(struct quatech_port *qt_port,
@@ -256,7 +255,6 @@ static void ProcessModemStatus(struct quatech_port *qt_port,
 
 	qt_port->shadowMSR = modem_status;
 	wake_up_interruptible(&qt_port->wait);
-	return;
 }
 
 static void ProcessRxChar(struct tty_struct *tty, struct usb_serial_port *port,
