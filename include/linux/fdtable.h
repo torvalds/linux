@@ -94,13 +94,7 @@ struct vfsmount;
 struct dentry;
 
 extern int expand_files(struct files_struct *, int nr);
-extern void free_fdtable_rcu(struct rcu_head *rcu);
 extern void __init files_defer_init(void);
-
-static inline void free_fdtable(struct fdtable *fdt)
-{
-	call_rcu(&fdt->rcu, free_fdtable_rcu);
-}
 
 static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)
 {

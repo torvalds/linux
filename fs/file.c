@@ -84,7 +84,7 @@ static void free_fdtable_work(struct work_struct *work)
 	}
 }
 
-void free_fdtable_rcu(struct rcu_head *rcu)
+static void free_fdtable_rcu(struct rcu_head *rcu)
 {
 	struct fdtable *fdt = container_of(rcu, struct fdtable, rcu);
 	struct fdtable_defer *fddef;
@@ -114,6 +114,11 @@ void free_fdtable_rcu(struct rcu_head *rcu)
 		spin_unlock(&fddef->lock);
 		put_cpu_var(fdtable_defer_list);
 	}
+}
+
+static inline void free_fdtable(struct fdtable *fdt)
+{
+	call_rcu(&fdt->rcu, free_fdtable_rcu);
 }
 
 /*
@@ -386,6 +391,99 @@ out_release:
 	kmem_cache_free(files_cachep, newf);
 out:
 	return NULL;
+}
+
+static void close_files(struct files_struct * files)
+{
+	int i, j;
+	struct fdtable *fdt;
+
+	j = 0;
+
+	/*
+	 * It is safe to dereference the fd table without RCU or
+	 * ->file_lock because this is the last reference to the
+	 * files structure.  But use RCU to shut RCU-lockdep up.
+	 */
+	rcu_read_lock();
+	fdt = files_fdtable(files);
+	rcu_read_unlock();
+	for (;;) {
+		unsigned long set;
+		i = j * BITS_PER_LONG;
+		if (i >= fdt->max_fds)
+			break;
+		set = fdt->open_fds[j++];
+		while (set) {
+			if (set & 1) {
+				struct file * file = xchg(&fdt->fd[i], NULL);
+				if (file) {
+					filp_close(file, files);
+					cond_resched();
+				}
+			}
+			i++;
+			set >>= 1;
+		}
+	}
+}
+
+struct files_struct *get_files_struct(struct task_struct *task)
+{
+	struct files_struct *files;
+
+	task_lock(task);
+	files = task->files;
+	if (files)
+		atomic_inc(&files->count);
+	task_unlock(task);
+
+	return files;
+}
+
+void put_files_struct(struct files_struct *files)
+{
+	struct fdtable *fdt;
+
+	if (atomic_dec_and_test(&files->count)) {
+		close_files(files);
+		/*
+		 * Free the fd and fdset arrays if we expanded them.
+		 * If the fdtable was embedded, pass files for freeing
+		 * at the end of the RCU grace period. Otherwise,
+		 * you can free files immediately.
+		 */
+		rcu_read_lock();
+		fdt = files_fdtable(files);
+		if (fdt != &files->fdtab)
+			kmem_cache_free(files_cachep, files);
+		free_fdtable(fdt);
+		rcu_read_unlock();
+	}
+}
+
+void reset_files_struct(struct files_struct *files)
+{
+	struct task_struct *tsk = current;
+	struct files_struct *old;
+
+	old = tsk->files;
+	task_lock(tsk);
+	tsk->files = files;
+	task_unlock(tsk);
+	put_files_struct(old);
+}
+
+void exit_files(struct task_struct *tsk)
+{
+	struct files_struct * files = tsk->files;
+
+	if (files) {
+		task_lock(tsk);
+		tsk->files = NULL;
+		task_unlock(tsk);
+		put_files_struct(files);
+	}
 }
 
 static void __devinit fdtable_defer_list_init(int cpu)
