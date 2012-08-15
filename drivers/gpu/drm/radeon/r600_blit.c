@@ -499,7 +499,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
  * as the fractional bits will not fit in a float.  (It would be better to
  * round towards even as the fpu does, but that is slower.)
  */
-uint32_t int2float(uint32_t x)
+__pure uint32_t int2float(uint32_t x)
 {
 	uint32_t msb, exponent, fraction;
 
