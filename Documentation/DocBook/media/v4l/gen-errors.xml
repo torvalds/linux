@@ -7,6 +7,13 @@
     <tbody valign="top">
 	<!-- Keep it ordered alphabetically -->
       <row>
+	<entry>EAGAIN</entry>
+	<entry>The ioctl can't be handled because the device is in state where
+	       it can't perform it. This could happen for example in case where
+	       device is sleeping and ioctl is performed to query statistics.
+	</entry>
+      </row>
+      <row>
 	<entry>EBADF</entry>
 	<entry>The file descriptor is not a valid.</entry>
       </row>
@@ -49,11 +56,6 @@
 	<entry>On USB devices, the stream ioctl's can return this error, meaning
 	       that this request would overcommit the usb bandwidth reserved
 	       for periodic transfers (up to 80% of the USB bandwidth).</entry>
-      </row>
-      <row>
-	<entry>ENOSYS or EOPNOTSUPP</entry>
-	<entry>Function not available for this device (dvb API only. Will likely
-	       be replaced anytime soon by ENOTTY).</entry>
       </row>
       <row>
 	<entry>EPERM</entry>
