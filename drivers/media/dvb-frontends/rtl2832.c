@@ -668,31 +668,6 @@ err:
 	return ret;
 }
 
-static int rtl2832_read_snr(struct dvb_frontend *fe, u16 *snr)
-{
-	*snr = 0;
-	return 0;
-}
-
-static int rtl2832_read_ber(struct dvb_frontend *fe, u32 *ber)
-{
-	*ber = 0;
-	return 0;
-}
-
-static int rtl2832_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
-{
-	*ucblocks = 0;
-	return 0;
-}
-
-
-static int rtl2832_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
-{
-	*strength = 0;
-	return 0;
-}
-
 static struct dvb_frontend_ops rtl2832_ops;
 
 static void rtl2832_release(struct dvb_frontend *fe)
@@ -776,10 +751,6 @@ static struct dvb_frontend_ops rtl2832_ops = {
 	.set_frontend = rtl2832_set_frontend,
 
 	.read_status = rtl2832_read_status,
-	.read_snr = rtl2832_read_snr,
-	.read_ber = rtl2832_read_ber,
-	.read_ucblocks = rtl2832_read_ucblocks,
-	.read_signal_strength = rtl2832_read_signal_strength,
 	.i2c_gate_ctrl = rtl2832_i2c_gate_ctrl,
 };
 
