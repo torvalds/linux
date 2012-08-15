@@ -361,6 +361,33 @@ static int nci_extract_activation_params_iso_dep(struct nci_dev *ndev,
 	return NCI_STATUS_OK;
 }
 
+static int nci_extract_activation_params_nfc_dep(struct nci_dev *ndev,
+			struct nci_rf_intf_activated_ntf *ntf, __u8 *data)
+{
+	struct activation_params_poll_nfc_dep *poll;
+	int i;
+
+	switch (ntf->activation_rf_tech_and_mode) {
+	case NCI_NFC_A_PASSIVE_POLL_MODE:
+	case NCI_NFC_F_PASSIVE_POLL_MODE:
+		poll = &ntf->activation_params.poll_nfc_dep;
+		poll->atr_res_len = min_t(__u8, *data++, 63);
+		pr_debug("atr_res_len %d\n", poll->atr_res_len);
+		if (poll->atr_res_len > 0) {
+			for (i = 0; i < poll->atr_res_len; i++)
+				poll->atr_res[poll->atr_res_len-1-i] = data[i];
+		}
+		break;
+
+	default:
+		pr_err("unsupported activation_rf_tech_and_mode 0x%x\n",
+		       ntf->activation_rf_tech_and_mode);
+		return NCI_STATUS_RF_PROTOCOL_ERROR;
+	}
+
+	return NCI_STATUS_OK;
+}
+
 static void nci_target_auto_activated(struct nci_dev *ndev,
 				      struct nci_rf_intf_activated_ntf *ntf)
 {
@@ -451,6 +478,11 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 		switch (ntf.rf_interface) {
 		case NCI_RF_INTERFACE_ISO_DEP:
 			err = nci_extract_activation_params_iso_dep(ndev,
+								    &ntf, data);
+			break;
+
+		case NCI_RF_INTERFACE_NFC_DEP:
+			err = nci_extract_activation_params_nfc_dep(ndev,
 								    &ntf, data);
 			break;
 

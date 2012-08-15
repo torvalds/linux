@@ -351,6 +351,11 @@ struct activation_params_nfcb_poll_iso_dep {
 	__u8	attrib_res[50];
 };
 
+struct activation_params_poll_nfc_dep {
+	__u8	atr_res_len;
+	__u8	atr_res[63];
+};
+
 struct nci_rf_intf_activated_ntf {
 	__u8	rf_discovery_id;
 	__u8	rf_interface;
@@ -374,6 +379,7 @@ struct nci_rf_intf_activated_ntf {
 	union {
 		struct activation_params_nfca_poll_iso_dep nfca_poll_iso_dep;
 		struct activation_params_nfcb_poll_iso_dep nfcb_poll_iso_dep;
+		struct activation_params_poll_nfc_dep poll_nfc_dep;
 	} activation_params;
 
 } __packed;
