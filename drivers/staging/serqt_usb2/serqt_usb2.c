@@ -1412,7 +1412,7 @@ static int qt_tiocmget(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct quatech_port *qt_port = qt_get_port_private(port);
-	int retval = -ENODEV;
+	int retval;
 
 	if (!serial)
 		return -ENODEV;
@@ -1430,7 +1430,7 @@ static int qt_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct quatech_port *qt_port = qt_get_port_private(port);
-	int retval = -ENODEV;
+	int retval;
 
 	if (!serial)
 		return -ENODEV;
