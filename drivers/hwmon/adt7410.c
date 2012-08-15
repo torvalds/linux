@@ -236,9 +236,14 @@ static ssize_t adt7410_show_t_hyst(struct device *dev,
 				   char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	struct adt7410_data *data = adt7410_update_device(dev);
+	struct adt7410_data *data;
 	int nr = attr->index;
-	int hyst = (data->hyst & ADT7410_T_HYST_MASK) * 1000;
+	int hyst;
+
+	data = adt7410_update_device(dev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+	hyst = (data->hyst & ADT7410_T_HYST_MASK) * 1000;
 
 	/*
 	 * hysteresis is stored as a 4 bit offset in the device, convert it
