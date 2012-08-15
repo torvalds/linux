@@ -58,13 +58,9 @@ struct boardtype {
 	const char *name;
 	int device_id;
 	int ai_chans;
-	int ai_bits;
 	int ao_chans;
-	int ao_bits;
 	int di_chans;
-	int di_bits;
 	int do_chans;
-	int do_bits;
 	const struct comedi_lrange *range_ai;
 	const char *range_codes_ai;
 };
@@ -74,13 +70,9 @@ static const struct boardtype boardtypes[] = {
 	.name = "dyna_pci1050",
 	.device_id = 0x1050,
 	.ai_chans = 16,
-	.ai_bits = 12,
 	.ao_chans = 16,
-	.ao_bits = 12,
 	.di_chans = 16,
-	.di_bits = 16,
 	.do_chans = 16,
-	.do_bits = 16,
 	.range_ai = &range_pci1050_ai,
 	.range_codes_ai = range_codes_pci1050_ai,
 	},
