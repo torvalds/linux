@@ -43,6 +43,7 @@
 #define CFG_INPUT_SOURCE_PRIORITY               BIT(2)
 #define CFG_FLOAT_VOLTAGE			0x03
 #define CFG_FLOAT_VOLTAGE_THRESHOLD_MASK	0xc0
+#define CFG_FLOAT_VOLTAGE_MASK			0x3F
 #define CFG_FLOAT_VOLTAGE_THRESHOLD_SHIFT	6
 #define CFG_STAT				0x05
 #define CFG_STAT_DISABLED			BIT(5)
@@ -490,6 +491,7 @@ static int smb347_set_voltage_limits(struct smb347_charger *smb)
 		val = clamp_val(val, 3500000, 4500000) - 3500000;
 		val /= 20000;
 
+		ret &= ~CFG_FLOAT_VOLTAGE_MASK;
 		ret |= val;
 	}
 
