@@ -926,6 +926,7 @@ config ARCH_U300
 	select COMMON_CLK
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
+	select SPARSE_IRQ
 	help
 	  Support for ST-Ericsson U300 series mobile platforms.
 

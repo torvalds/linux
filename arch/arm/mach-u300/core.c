@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/core.c
  *
  *
- * Copyright (C) 2007-2010 ST-Ericsson SA
+ * Copyright (C) 2007-2012 ST-Ericsson SA
  * License terms: GNU General Public License (GPL) version 2
  * Core platform support, IRQ handling and device definitions.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
@@ -31,23 +31,26 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_data/clk-u300.h>
+#include <linux/platform_data/pinctrl-coh901.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/hardware/vic.h>
 #include <asm/mach/map.h>
-#include <asm/mach/irq.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 
 #include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
-#include <mach/dma_channels.h>
-#include <mach/gpio-u300.h>
+#include <mach/irqs.h>
 
+#include "timer.h"
 #include "spi.h"
 #include "i2c.h"
 #include "u300-gpio.h"
+#include "dma_channels.h"
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The
@@ -76,7 +79,7 @@ static struct map_desc u300_io_desc[] __initdata = {
 	},
 };
 
-void __init u300_map_io(void)
+static void __init u300_map_io(void)
 {
 	iotable_init(u300_io_desc, ARRAY_SIZE(u300_io_desc));
 	/* We enable a real big DMA buffer if need be. */
@@ -101,7 +104,6 @@ static AMBA_APB_DEVICE(uart0, "uart0", 0, U300_UART0_BASE,
 	{ IRQ_U300_UART0 }, &uart0_plat_data);
 
 /* The U335 have an additional UART1 on the APP CPU */
-#ifdef CONFIG_MACH_U300_BS335
 static struct amba_pl011_data uart1_plat_data = {
 #ifdef CONFIG_COH901318
 	.dma_filter = coh901318_filter_id,
@@ -113,7 +115,6 @@ static struct amba_pl011_data uart1_plat_data = {
 /* Fast device at 0x7000 offset */
 static AMBA_APB_DEVICE(uart1, "uart1", 0, U300_UART1_BASE,
 	{ IRQ_U300_UART1 }, &uart1_plat_data);
-#endif
 
 /* AHB device at 0x4000 offset */
 static AMBA_APB_DEVICE(pl172, "pl172", 0, U300_EMIF_CFG_BASE, { }, NULL);
@@ -152,9 +153,7 @@ static AMBA_APB_DEVICE(mmcsd, "mmci", 0, U300_MMCSD_BASE,
  */
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
-#ifdef CONFIG_MACH_U300_BS335
 	&uart1_device,
-#endif
 	&pl022_device,
 	&pl172_device,
 	&mmcsd_device,
@@ -188,7 +187,6 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT2,
 		.flags = IORESOURCE_IRQ,
 	},
-#if defined(CONFIG_MACH_U300_BS365) || defined(CONFIG_MACH_U300_BS335)
 	{
 		.name  = "gpio3",
 		.start = IRQ_U300_GPIO_PORT3,
@@ -201,8 +199,6 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT4,
 		.flags = IORESOURCE_IRQ,
 	},
-#endif
-#ifdef CONFIG_MACH_U300_BS335
 	{
 		.name  = "gpio5",
 		.start = IRQ_U300_GPIO_PORT5,
@@ -215,7 +211,6 @@ static struct resource gpio_resources[] = {
 		.end   = IRQ_U300_GPIO_PORT6,
 		.flags = IORESOURCE_IRQ,
 	},
-#endif /* CONFIG_MACH_U300_BS335 */
 };
 
 static struct resource keypad_resources[] = {
@@ -323,7 +318,6 @@ static struct resource dma_resource[] = {
 	}
 };
 
-#ifdef CONFIG_MACH_U300_BS335
 /* points out all dma slave channels.
  * Syntax is [A1, B1, A2, B2, .... ,-1,-1]
  * Select all channels from A to B, end of list is marked with -1,-1
@@ -335,14 +329,6 @@ static int dma_slave_channels[] = {
 /* points out all dma memcpy channels. */
 static int dma_memcpy_channels[] = {
 	U300_DMA_GENERAL_PURPOSE_0, U300_DMA_GENERAL_PURPOSE_8, -1, -1};
-
-#else /* CONFIG_MACH_U300_BS335 */
-
-static int dma_slave_channels[] = {U300_DMA_MSL_TX_0, U300_DMA_SPI_RX, -1, -1};
-static int dma_memcpy_channels[] = {
-	U300_DMA_GENERAL_PURPOSE_0, U300_DMA_GENERAL_PURPOSE_10, -1, -1};
-
-#endif
 
 /** register dma for memory access
  *
@@ -1395,7 +1381,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.param.ctrl_lli = flags_memcpy_lli,
 		.param.ctrl_lli_last = flags_memcpy_lli_last,
 	},
-#ifdef CONFIG_MACH_U300_BS335
 	{
 		.number = U300_DMA_UART1_TX,
 		.name = "UART1 TX",
@@ -1406,28 +1391,6 @@ const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 		.name = "UART1 RX",
 		.priority_high = 0,
 	}
-#else
-	{
-		.number = U300_DMA_GENERAL_PURPOSE_9,
-		.name = "GENERAL 09",
-		.priority_high = 0,
-
-		.param.config = flags_memcpy_config,
-		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
-		.param.ctrl_lli = flags_memcpy_lli,
-		.param.ctrl_lli_last = flags_memcpy_lli_last,
-	},
-	{
-		.number = U300_DMA_GENERAL_PURPOSE_10,
-		.name = "GENERAL 10",
-		.priority_high = 0,
-
-		.param.config = flags_memcpy_config,
-		.param.ctrl_lli_chained = flags_memcpy_lli_chained,
-		.param.ctrl_lli = flags_memcpy_lli,
-		.param.ctrl_lli_last = flags_memcpy_lli_last,
-	}
-#endif
 };
 
 
@@ -1480,18 +1443,7 @@ static struct platform_device pinctrl_device = {
  * GPIO block, with different number of ports.
  */
 static struct u300_gpio_platform u300_gpio_plat = {
-#if defined(CONFIG_MACH_U300_BS2X) || defined(CONFIG_MACH_U300_BS330)
-	.variant = U300_GPIO_COH901335,
-	.ports = 3,
-#endif
-#ifdef CONFIG_MACH_U300_BS335
-	.variant = U300_GPIO_COH901571_3_BS335,
 	.ports = 7,
-#endif
-#ifdef CONFIG_MACH_U300_BS365
-	.variant = U300_GPIO_COH901571_3_BS365,
-	.ports = 5,
-#endif
 	.gpio_base = 0,
 	.gpio_irq_base = IRQ_U300_GPIO_BASE,
 	.pinctrl_device = &pinctrl_device,
@@ -1651,7 +1603,7 @@ static struct platform_device *platform_devs[] __initdata = {
  * together so some interrupts are connected to the first one and some
  * to the second one.
  */
-void __init u300_init_irq(void)
+static void __init u300_init_irq(void)
 {
 	u32 mask[2] = {0, 0};
 	struct clk *clk;
@@ -1756,29 +1708,11 @@ static void __init u300_init_check_chip(void)
 	printk(KERN_INFO "Initializing U300 system on %s baseband chip " \
 	       "(chip ID 0x%04x)\n", chipname, val);
 
-#ifdef CONFIG_MACH_U300_BS330
-	if ((val & 0xFF00U) != 0xd800) {
-		printk(KERN_ERR "Platform configured for BS330 " \
-		       "with DB3200 but %s detected, expect problems!",
-		       chipname);
-	}
-#endif
-#ifdef CONFIG_MACH_U300_BS335
 	if ((val & 0xFF00U) != 0xf000 && (val & 0xFF00U) != 0xf100) {
 		printk(KERN_ERR "Platform configured for BS335 " \
 		       " with DB3350 but %s detected, expect problems!",
 		       chipname);
 	}
-#endif
-#ifdef CONFIG_MACH_U300_BS365
-	if ((val & 0xFF00U) != 0xe800) {
-		printk(KERN_ERR "Platform configured for BS365 " \
-		       "with DB3210 but %s detected, expect problems!",
-		       chipname);
-	}
-#endif
-
-
 }
 
 /*
@@ -1811,7 +1745,7 @@ static void __init u300_assign_physmem(void)
 	}
 }
 
-void __init u300_init_devices(void)
+static void __init u300_init_machine(void)
 {
 	int i;
 	u16 val;
@@ -1852,7 +1786,7 @@ void __init u300_init_devices(void)
 /* Forward declare this function from the watchdog */
 void coh901327_watchdog_reset(void);
 
-void u300_restart(char mode, const char *cmd)
+static void u300_restart(char mode, const char *cmd)
 {
 	switch (mode) {
 	case 's':
@@ -1868,3 +1802,15 @@ void u300_restart(char mode, const char *cmd)
 	/* Wait for system do die/reset. */
 	while (1);
 }
+
+MACHINE_START(U300, "Ericsson AB U335 S335/B335 Prototype Board")
+	/* Maintainer: Linus Walleij <linus.walleij@stericsson.com> */
+	.atag_offset	= 0x100,
+	.map_io		= u300_map_io,
+	.nr_irqs	= NR_IRQS_U300,
+	.init_irq	= u300_init_irq,
+	.handle_irq	= vic_handle_irq,
+	.timer		= &u300_timer,
+	.init_machine	= u300_init_machine,
+	.restart	= u300_restart,
+MACHINE_END
