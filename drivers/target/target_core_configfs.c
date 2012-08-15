@@ -457,10 +457,6 @@ static int target_fabric_tf_ops_check(
 		pr_err("Missing tfo->queue_tm_rsp()\n");
 		return -EINVAL;
 	}
-	if (!tfo->set_fabric_sense_len) {
-		pr_err("Missing tfo->set_fabric_sense_len()\n");
-		return -EINVAL;
-	}
 	/*
 	 * We at least require tfo->fabric_make_wwn(), tfo->fabric_drop_wwn()
 	 * tfo->fabric_make_tpg() and tfo->fabric_drop_tpg() in

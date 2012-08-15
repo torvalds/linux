@@ -953,7 +953,7 @@ done:
 	 */
 	transport_init_se_cmd(&cmd->se_cmd, &lio_target_fabric_configfs->tf_ops,
 			conn->sess->se_sess, hdr->data_length, cmd->data_direction,
-			sam_task_attr, &cmd->sense_buffer[0]);
+			sam_task_attr, cmd->sense_buffer + 2);
 
 	pr_debug("Got SCSI Command, ITT: 0x%08x, CmdSN: 0x%08x,"
 		" ExpXferLen: %u, Length: %u, CID: %hu\n", hdr->itt,
@@ -1700,7 +1700,7 @@ static int iscsit_handle_task_mgt_cmd(
 		transport_init_se_cmd(&cmd->se_cmd,
 				      &lio_target_fabric_configfs->tf_ops,
 				      conn->sess->se_sess, 0, DMA_NONE,
-				      MSG_SIMPLE_TAG, &cmd->sense_buffer[0]);
+				      MSG_SIMPLE_TAG, cmd->sense_buffer + 2);
 
 		switch (function) {
 		case ISCSI_TM_FUNC_ABORT_TASK:
@@ -3092,15 +3092,18 @@ static int iscsit_send_status(
 	if (cmd->se_cmd.sense_buffer &&
 	   ((cmd->se_cmd.se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) ||
 	    (cmd->se_cmd.se_cmd_flags & SCF_EMULATED_TASK_SENSE))) {
+		put_unaligned_be16(cmd->se_cmd.scsi_sense_length, cmd->sense_buffer);
+		cmd->se_cmd.scsi_sense_length += sizeof (__be16);
+
 		padding		= -(cmd->se_cmd.scsi_sense_length) & 3;
 		hton24(hdr->dlength, cmd->se_cmd.scsi_sense_length);
-		iov[iov_count].iov_base	= cmd->se_cmd.sense_buffer;
+		iov[iov_count].iov_base	= cmd->sense_buffer;
 		iov[iov_count++].iov_len =
 				(cmd->se_cmd.scsi_sense_length + padding);
 		tx_size += cmd->se_cmd.scsi_sense_length;
 
 		if (padding) {
-			memset(cmd->se_cmd.sense_buffer +
+			memset(cmd->sense_buffer +
 				cmd->se_cmd.scsi_sense_length, 0, padding);
 			tx_size += padding;
 			pr_debug("Adding %u bytes of padding to"
@@ -3109,7 +3112,7 @@ static int iscsit_send_status(
 
 		if (conn->conn_ops->DataDigest) {
 			iscsit_do_crypto_hash_buf(&conn->conn_tx_hash,
-				cmd->se_cmd.sense_buffer,
+				cmd->sense_buffer,
 				(cmd->se_cmd.scsi_sense_length + padding),
 				0, NULL, (u8 *)&cmd->data_crc);
 

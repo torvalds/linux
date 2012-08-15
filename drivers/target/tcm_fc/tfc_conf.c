@@ -495,11 +495,6 @@ static void ft_set_default_node_attr(struct se_node_acl *se_nacl)
 {
 }
 
-static u16 ft_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_len)
-{
-	return 0;
-}
-
 static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
@@ -537,7 +532,6 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,
 	.queue_tm_rsp =			ft_queue_tm_resp,
-	.set_fabric_sense_len =		ft_set_fabric_sense_len,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

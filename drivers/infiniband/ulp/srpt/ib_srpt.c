@@ -3564,11 +3564,6 @@ static int srpt_get_tcm_cmd_state(struct se_cmd *se_cmd)
 	return srpt_get_cmd_state(ioctx);
 }
 
-static u16 srpt_set_fabric_sense_len(struct se_cmd *cmd, u32 sense_length)
-{
-	return 0;
-}
-
 /**
  * srpt_parse_i_port_id() - Parse an initiator port ID.
  * @name: ASCII representation of a 128-bit initiator port ID.
@@ -3948,7 +3943,6 @@ static struct target_core_fabric_ops srpt_template = {
 	.queue_data_in			= srpt_queue_response,
 	.queue_status			= srpt_queue_status,
 	.queue_tm_rsp			= srpt_queue_response,
-	.set_fabric_sense_len		= srpt_set_fabric_sense_len,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

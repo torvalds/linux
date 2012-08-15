@@ -1847,11 +1847,6 @@ static int sbp_queue_tm_rsp(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static u16 sbp_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
-{
-	return 0;
-}
-
 static int sbp_check_stop_free(struct se_cmd *se_cmd)
 {
 	struct sbp_target_request *req = container_of(se_cmd,
@@ -2529,7 +2524,6 @@ static struct target_core_fabric_ops sbp_ops = {
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,
 	.queue_tm_rsp			= sbp_queue_tm_rsp,
-	.set_fabric_sense_len		= sbp_set_fabric_sense_len,
 	.check_stop_free		= sbp_check_stop_free,
 
 	.fabric_make_wwn		= sbp_make_tport,
