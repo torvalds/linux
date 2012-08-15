@@ -14,8 +14,10 @@ extern int shmobile_clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
-extern void (*shmobile_cpuidle_modes[])(void);
-extern void (*shmobile_cpuidle_setup)(struct cpuidle_driver *drv);
+struct cpuidle_device;
+extern int shmobile_enter_wfi(struct cpuidle_device *dev,
+			      struct cpuidle_driver *drv, int index);
+extern void shmobile_cpuidle_set_driver(struct cpuidle_driver *drv);
 
 extern void sh7367_init_irq(void);
 extern void sh7367_map_io(void);

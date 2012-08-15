@@ -21,6 +21,7 @@
 #include <linux/irq.h>
 #include <linux/bitrev.h>
 #include <linux/console.h>
+#include <asm/cpuidle.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
@@ -347,7 +348,8 @@ static int sh7372_do_idle_core_standby(unsigned long unused)
 	return 0;
 }
 
-static void sh7372_enter_core_standby(void)
+static int sh7372_enter_core_standby(struct cpuidle_device *dev,
+				     struct cpuidle_driver *drv, int index)
 {
 	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
 
@@ -358,52 +360,61 @@ static void sh7372_enter_core_standby(void)
 
 	 /* disable reset vector translation */
 	__raw_writel(0, SBAR);
+
+	return 1;
 }
 
-static void sh7372_enter_a3sm_pll_on(void)
+static int sh7372_enter_a3sm_pll_on(struct cpuidle_device *dev,
+				    struct cpuidle_driver *drv, int index)
 {
 	sh7372_enter_a3sm_common(1);
+	return 2;
 }
 
-static void sh7372_enter_a3sm_pll_off(void)
+static int sh7372_enter_a3sm_pll_off(struct cpuidle_device *dev,
+				     struct cpuidle_driver *drv, int index)
 {
 	sh7372_enter_a3sm_common(0);
+	return 3;
 }
 
-static void sh7372_cpuidle_setup(struct cpuidle_driver *drv)
-{
-	struct cpuidle_state *state = &drv->states[drv->state_count];
-
-	snprintf(state->name, CPUIDLE_NAME_LEN, "C2");
-	strncpy(state->desc, "Core Standby Mode", CPUIDLE_DESC_LEN);
-	state->exit_latency = 10;
-	state->target_residency = 20 + 10;
-	state->flags = CPUIDLE_FLAG_TIME_VALID;
-	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_core_standby;
-	drv->state_count++;
-
-	state = &drv->states[drv->state_count];
-	snprintf(state->name, CPUIDLE_NAME_LEN, "C3");
-	strncpy(state->desc, "A3SM PLL ON", CPUIDLE_DESC_LEN);
-	state->exit_latency = 20;
-	state->target_residency = 30 + 20;
-	state->flags = CPUIDLE_FLAG_TIME_VALID;
-	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_a3sm_pll_on;
-	drv->state_count++;
-
-	state = &drv->states[drv->state_count];
-	snprintf(state->name, CPUIDLE_NAME_LEN, "C4");
-	strncpy(state->desc, "A3SM PLL OFF", CPUIDLE_DESC_LEN);
-	state->exit_latency = 120;
-	state->target_residency = 30 + 120;
-	state->flags = CPUIDLE_FLAG_TIME_VALID;
-	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_a3sm_pll_off;
-	drv->state_count++;
-}
+static struct cpuidle_driver sh7372_cpuidle_driver = {
+	.name			= "sh7372_cpuidle",
+	.owner			= THIS_MODULE,
+	.en_core_tk_irqen	= 1,
+	.state_count		= 4,
+	.safe_state_index	= 0, /* C1 */
+	.states[0] = ARM_CPUIDLE_WFI_STATE,
+	.states[0].enter = shmobile_enter_wfi,
+	.states[1] = {
+		.name = "C2",
+		.desc = "Core Standby Mode",
+		.exit_latency = 10,
+		.target_residency = 20 + 10,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.enter = sh7372_enter_core_standby,
+	},
+	.states[2] = {
+		.name = "C3",
+		.desc = "A3SM PLL ON",
+		.exit_latency = 20,
+		.target_residency = 30 + 20,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.enter = sh7372_enter_a3sm_pll_on,
+	},
+	.states[3] = {
+		.name = "C4",
+		.desc = "A3SM PLL OFF",
+		.exit_latency = 120,
+		.target_residency = 30 + 120,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.enter = sh7372_enter_a3sm_pll_off,
+	},
+};
 
 static void sh7372_cpuidle_init(void)
 {
-	shmobile_cpuidle_setup = sh7372_cpuidle_setup;
+	shmobile_cpuidle_set_driver(&sh7372_cpuidle_driver);
 }
 #else
 static void sh7372_cpuidle_init(void) {}
