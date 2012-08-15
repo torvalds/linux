@@ -370,11 +370,6 @@ static int mackerel_set_brightness(int brightness)
 	return 0;
 }
 
-static int mackerel_get_brightness(void)
-{
-	return gpio_get_value(GPIO_PORT31);
-}
-
 static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
 		.meram_size     = 0x40,
@@ -403,7 +398,6 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
 			.set_brightness = mackerel_set_brightness,
-			.get_brightness = mackerel_get_brightness,
 		},
 		.meram_cfg = &lcd_meram_cfg,
 	}
