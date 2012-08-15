@@ -110,13 +110,24 @@ struct rmobile_pm_domain sh7372_pd_a3ri = {
 	.bit_shift = 8,
 };
 
+static bool a4s_suspend_ready;
+
 static int sh7372_pd_a4s_suspend(void)
 {
 	/*
 	 * The A4S domain contains the CPU core and therefore it should
-	 * only be turned off if the CPU is in use.
+	 * only be turned off if the CPU is not in use.  This may happen
+	 * during system suspend, when SYSC is going to be used for generating
+	 * resume signals and a4s_suspend_ready is set to let
+	 * sh7372_enter_suspend() know that it can turn A4S off.
 	 */
+	a4s_suspend_ready = true;
 	return -EBUSY;
+}
+
+static void sh7372_pd_a4s_resume(void)
+{
+	a4s_suspend_ready = false;
 }
 
 struct rmobile_pm_domain sh7372_pd_a4s = {
@@ -125,6 +136,7 @@ struct rmobile_pm_domain sh7372_pd_a4s = {
 	.gov = &pm_domain_always_on_gov,
 	.no_debug = true,
 	.suspend = sh7372_pd_a4s_suspend,
+	.resume = sh7372_pd_a4s_resume,
 };
 
 static int sh7372_a3sp_pd_suspend(void)
@@ -390,8 +402,7 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 
 	/* check active clocks to determine potential wakeup sources */
 	if (sh7372_sysc_valid(&msk, &msk2)) {
-		if (!console_suspend_enabled &&
-		    sh7372_pd_a4s.genpd.status == GPD_STATE_POWER_OFF) {
+		if (!console_suspend_enabled && a4s_suspend_ready) {
 			/* convert INTC mask/sense to SYSC mask/sense */
 			sh7372_setup_sysc(msk, msk2);
 
