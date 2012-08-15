@@ -671,6 +671,18 @@ SOC_SINGLE_TLV("AIF2 EQ5 Volume", WM8994_AIF2_EQ_GAINS_2, 6, 31, 0,
 	       eq_tlv),
 };
 
+static const struct snd_kcontrol_new wm8994_drc_controls[] = {
+SND_SOC_BYTES_MASK("AIF1.1 DRC", WM8994_AIF1_DRC1_1, 5,
+		   WM8994_AIF1DAC1_DRC_ENA | WM8994_AIF1ADC1L_DRC_ENA |
+		   WM8994_AIF1ADC1R_DRC_ENA),
+SND_SOC_BYTES_MASK("AIF1.2 DRC", WM8994_AIF1_DRC2_1, 5,
+		   WM8994_AIF1DAC2_DRC_ENA | WM8994_AIF1ADC2L_DRC_ENA |
+		   WM8994_AIF1ADC2R_DRC_ENA),
+SND_SOC_BYTES_MASK("AIF2 DRC", WM8994_AIF2_DRC_1, 5,
+		   WM8994_AIF2DAC_DRC_ENA | WM8994_AIF2ADCL_DRC_ENA |
+		   WM8994_AIF2ADCR_DRC_ENA),
+};
+
 static const char *wm8958_ng_text[] = {
 	"30ms", "125ms", "250ms", "500ms",
 };
@@ -3166,13 +3178,18 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 
 		ret = snd_soc_add_codec_controls(wm8994->hubs.codec, controls,
 					   ARRAY_SIZE(controls));
-		if (ret != 0)
-			dev_err(wm8994->hubs.codec->dev,
-				"Failed to add DRC mode controls: %d\n", ret);
-
 		for (i = 0; i < WM8994_NUM_DRC; i++)
 			wm8994_set_drc(codec, i);
+	} else {
+		ret = snd_soc_add_codec_controls(wm8994->hubs.codec,
+						 wm8994_drc_controls,
+						 ARRAY_SIZE(wm8994_drc_controls));
 	}
+
+	if (ret != 0)
+		dev_err(wm8994->hubs.codec->dev,
+			"Failed to add DRC mode controls: %d\n", ret);
+
 
 	dev_dbg(codec->dev, "%d ReTune Mobile configurations\n",
 		pdata->num_retune_mobile_cfgs);
