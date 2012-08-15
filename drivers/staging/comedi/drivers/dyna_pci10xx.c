@@ -41,7 +41,6 @@
 #include <linux/mutex.h>
 
 #define PCI_VENDOR_ID_DYNALOG		0x10b5
-#define DRV_NAME			"dyna_pci10xx"
 
 #define READ_TIMEOUT 50
 
