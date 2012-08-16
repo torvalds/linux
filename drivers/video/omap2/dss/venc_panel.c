@@ -68,6 +68,7 @@ static ssize_t display_output_type_store(struct device *dev,
 
 	if (dssdev->phy.venc.type != new_type) {
 		dssdev->phy.venc.type = new_type;
+		omapdss_venc_set_type(dssdev, new_type);
 		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 			omapdss_venc_display_disable(dssdev);
 			omapdss_venc_display_enable(dssdev);
@@ -128,6 +129,7 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 	}
 
 	omapdss_venc_set_timings(dssdev, &dssdev->panel.timings);
+	omapdss_venc_set_type(dssdev, dssdev->phy.venc.type);
 
 	r = omapdss_venc_display_enable(dssdev);
 	if (r)

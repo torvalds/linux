@@ -302,6 +302,7 @@ static struct {
 	struct clk	*tv_dac_clk;
 
 	struct omap_video_timings timings;
+	enum omap_dss_venc_type type;
 } venc;
 
 static inline void venc_write_reg(int idx, u32 val)
@@ -436,12 +437,12 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 	venc_reset();
 	venc_write_config(venc_timings_to_config(&venc.timings));
 
-	dss_set_venc_output(dssdev->phy.venc.type);
+	dss_set_venc_output(venc.type);
 	dss_set_dac_pwrdn_bgz(1);
 
 	l = 0;
 
-	if (dssdev->phy.venc.type == OMAP_DSS_VENC_TYPE_COMPOSITE)
+	if (venc.type == OMAP_DSS_VENC_TYPE_COMPOSITE)
 		l |= 1 << 1;
 	else /* S-Video */
 		l |= (1 << 0) | (1 << 2);
@@ -626,6 +627,16 @@ err:
 	mutex_unlock(&venc.venc_lock);
 
 	return r;
+}
+
+void omapdss_venc_set_type(struct omap_dss_device *dssdev,
+		enum omap_dss_venc_type type)
+{
+	mutex_lock(&venc.venc_lock);
+
+	venc.type = type;
+
+	mutex_unlock(&venc.venc_lock);
 }
 
 static int __init venc_init_display(struct omap_dss_device *dssdev)
