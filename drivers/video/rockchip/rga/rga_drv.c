@@ -356,7 +356,7 @@ static int rga_check_param(const struct rga_req *req)
 		return	-EINVAL;
 	}
 
-    if (unlikely((req->dst.vir_w <= 0) || (req->dst.vir_w > 2048) || (req->dst.vir_h <= 0) || (req->dst.vir_h > 2048)))
+    if (unlikely((req->dst.vir_w <= 0) || (req->dst.vir_w > 4096) || (req->dst.vir_h <= 0) || (req->dst.vir_h > 2048)))
     {
 		ERR("invalid destination resolution vir_w = %d, vir_h = %d\n", req->dst.vir_w, req->dst.vir_h);
 		return	-EINVAL;
@@ -951,7 +951,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
             }
             else
             {
-                ret = rga_blit_sync(session, req);
+                ret = rga_blit_async(session, req);
             }
 			break;
 		case RGA_FLUSH:
