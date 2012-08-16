@@ -243,7 +243,6 @@ struct audio_dev {
 
 	struct list_head		idle_reqs;
 	struct usb_ep			*in_ep;
-	struct usb_endpoint_descriptor	*in_desc;
 
 	spinlock_t			lock;
 
@@ -620,7 +619,10 @@ audio_unbind(struct usb_configuration *c, struct usb_function *f)
 		audio_request_free(req, audio->in_ep);
 
 	snd_card_free_when_closed(audio->card);
-	kfree(audio);
+	audio->card = NULL;
+	audio->pcm = NULL;
+	audio->substream = NULL;
+	audio->in_ep = NULL;
 }
 
 static void audio_pcm_playback_start(struct audio_dev *audio)
@@ -736,6 +738,19 @@ static int audio_pcm_playback_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static struct audio_dev _audio_dev = {
+	.func = {
+		.name = "audio_source",
+		.bind = audio_bind,
+		.unbind = audio_unbind,
+		.set_alt = audio_set_alt,
+		.setup = audio_setup,
+		.disable = audio_disable,
+	},
+	.lock = __SPIN_LOCK_UNLOCKED(_audio_dev.lock),
+	.idle_reqs = LIST_HEAD_INIT(_audio_dev.idle_reqs),
+};
+
 static struct snd_pcm_ops audio_playback_ops = {
 	.open		= audio_pcm_open,
 	.close		= audio_pcm_close,
@@ -758,27 +773,12 @@ int audio_source_bind_config(struct usb_configuration *c,
 	config->card = -1;
 	config->device = -1;
 
-	audio = kzalloc(sizeof *audio, GFP_KERNEL);
-	if (!audio)
-		return -ENOMEM;
-
-	audio->func.name = "audio_source";
-
-	spin_lock_init(&audio->lock);
-
-	audio->func.bind = audio_bind;
-	audio->func.unbind = audio_unbind;
-	audio->func.set_alt = audio_set_alt;
-	audio->func.setup = audio_setup;
-	audio->func.disable = audio_disable;
-	audio->in_desc = &fs_as_in_ep_desc;
-
-	INIT_LIST_HEAD(&audio->idle_reqs);
+	audio = &_audio_dev;
 
 	err = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			THIS_MODULE, 0, &card);
 	if (err)
-		goto snd_card_fail;
+		return err;
 
 	snd_card_set_dev(card, &c->cdev->gadget->dev);
 
@@ -817,7 +817,5 @@ add_fail:
 register_fail:
 pcm_fail:
 	snd_card_free(audio->card);
-snd_card_fail:
-	kfree(audio);
 	return err;
 }
