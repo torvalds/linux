@@ -1,5 +1,5 @@
 /*
- * exynos_thermal.h - Samsung EXYNOS4 TMU (Thermal Management Unit)
+ * exynos_thermal.h - Samsung EXYNOS TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2011 Samsung Electronics
  *  Donggeun Kim <dg77.kim@samsung.com>
@@ -28,8 +28,12 @@ enum calibration_type {
 	TYPE_NONE,
 };
 
+enum soc_type {
+	SOC_ARCH_EXYNOS4210 = 1,
+	SOC_ARCH_EXYNOS,
+};
 /**
- * struct exynos4_tmu_platform_data
+ * struct exynos_tmu_platform_data
  * @threshold: basic temperature for generating interrupt
  *	       25 <= threshold <= 125 [unit: degree Celsius]
  * @trigger_levels: array for each interrupt levels
@@ -63,11 +67,15 @@ enum calibration_type {
  * @reference_voltage: reference voltage of amplifier
  *	in the positive-TC generator block
  *	0 <= reference_voltage <= 31
+ * @noise_cancel_mode: noise cancellation mode
+ *	000, 100, 101, 110 and 111 can be different modes
+ * @type: determines the type of SOC
+ * @efuse_value: platform defined fuse value
  * @cal_type: calibration type for temperature
  *
- * This structure is required for configuration of exynos4_tmu driver.
+ * This structure is required for configuration of exynos_tmu driver.
  */
-struct exynos4_tmu_platform_data {
+struct exynos_tmu_platform_data {
 	u8 threshold;
 	u8 trigger_levels[4];
 	bool trigger_level0_en;
@@ -77,7 +85,10 @@ struct exynos4_tmu_platform_data {
 
 	u8 gain;
 	u8 reference_voltage;
+	u8 noise_cancel_mode;
+	u32 efuse_value;
 
 	enum calibration_type cal_type;
+	enum soc_type type;
 };
 #endif /* _LINUX_EXYNOS_THERMAL_H */

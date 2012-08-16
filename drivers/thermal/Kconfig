@@ -49,7 +49,7 @@ config RCAR_THERMAL
 
 config EXYNOS_THERMAL
 	tristate "Temperature sensor on Samsung EXYNOS"
-	depends on ARCH_EXYNOS4 && THERMAL
+	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5) && THERMAL
 	help
 	  If you say yes here you get support for TMU (Thermal Managment
 	  Unit) on SAMSUNG EXYNOS series of SoC.
