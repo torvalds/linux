@@ -236,7 +236,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
         //calculate the timeout value for SDMMC; added by xbw at 2011-09-27
         if(mrq->data)
         {
-            unit = 3*(1<<20);// unit=3MB
+            unit = 2*(1<<20);// unit=2MB
             datasize = mrq->data->blksz*mrq->data->blocks;
             multi = datasize/unit;
             multi += (datasize%unit)?1:0;
@@ -260,8 +260,12 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
     {
         host->doneflag = 0;
         mrq->cmd->error = -EIO;
-        printk(KERN_WARNING "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
-            __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
+
+        if(0 == mrq->cmd->retries)
+        {
+            printk(KERN_WARNING "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
+                __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
+        }
     }
 #else
 	wait_for_completion(&complete);
