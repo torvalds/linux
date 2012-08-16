@@ -1556,6 +1556,56 @@ static int process_build_id(struct perf_file_section *section,
 	return 0;
 }
 
+static struct perf_evsel *
+perf_evlist__find_by_index(struct perf_evlist *evlist, int idx)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (evsel->idx == idx)
+			return evsel;
+	}
+
+	return NULL;
+}
+
+static void
+perf_evlist__set_event_name(struct perf_evlist *evlist, struct perf_evsel *event)
+{
+	struct perf_evsel *evsel;
+
+	if (!event->name)
+		return;
+
+	evsel = perf_evlist__find_by_index(evlist, event->idx);
+	if (!evsel)
+		return;
+
+	if (evsel->name)
+		return;
+
+	evsel->name = strdup(event->name);
+}
+
+static int
+process_event_desc(struct perf_file_section *section __unused,
+		   struct perf_header *header, int feat __unused, int fd,
+		   void *data __used)
+{
+	struct perf_session *session = container_of(header, struct perf_session, header);
+	struct perf_evsel *evsel, *events = read_event_desc(header, fd);
+
+	if (!events)
+		return 0;
+
+	for (evsel = events; evsel->attr.size; evsel++)
+		perf_evlist__set_event_name(session->evlist, evsel);
+
+	free_event_desc(events);
+
+	return 0;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
@@ -1589,7 +1639,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_CPUDESC,	cpudesc),
 	FEAT_OPA(HEADER_CPUID,		cpuid),
 	FEAT_OPA(HEADER_TOTAL_MEM,	total_mem),
-	FEAT_OPA(HEADER_EVENT_DESC,	event_desc),
+	FEAT_OPP(HEADER_EVENT_DESC,	event_desc),
 	FEAT_OPA(HEADER_CMDLINE,	cmdline),
 	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
 	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
