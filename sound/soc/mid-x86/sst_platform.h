@@ -27,6 +27,8 @@
 #ifndef __SST_PLATFORMDRV_H__
 #define __SST_PLATFORMDRV_H__
 
+#include "sst_dsp.h"
+
 #define SST_MONO		1
 #define SST_STEREO		2
 #define SST_MAX_CAP		5
@@ -42,7 +44,6 @@
 #define SST_MIN_PERIODS		2
 #define SST_MAX_PERIODS		(1024*2)
 #define SST_FIFO_SIZE		0
-#define SST_CODEC_TYPE_PCM	1
 
 struct pcm_stream_info {
 	int str_id;
@@ -83,6 +84,7 @@ enum sst_audio_device_type {
 	SND_SST_DEVICE_VIBRA,
 	SND_SST_DEVICE_HAPTIC,
 	SND_SST_DEVICE_CAPTURE,
+	SND_SST_DEVICE_COMPRESS,
 };
 
 /* PCM Parameters */
@@ -107,6 +109,24 @@ struct sst_stream_params {
 	struct sst_pcm_params sparams;
 };
 
+struct sst_compress_cb {
+	void *param;
+	void (*compr_cb)(void *param);
+};
+
+struct compress_sst_ops {
+	const char *name;
+	int (*open) (struct snd_sst_params *str_params,
+			struct sst_compress_cb *cb);
+	int (*control) (unsigned int cmd, unsigned int str_id);
+	int (*tstamp) (unsigned int str_id, struct snd_compr_tstamp *tstamp);
+	int (*ack) (unsigned int str_id, unsigned long bytes);
+	int (*close) (unsigned int str_id);
+	int (*get_caps) (struct snd_compr_caps *caps);
+	int (*get_codec_caps) (struct snd_compr_codec_caps *codec);
+
+};
+
 struct sst_ops {
 	int (*open) (struct sst_stream_params *str_param);
 	int (*device_control) (int cmd, void *arg);
@@ -115,8 +135,11 @@ struct sst_ops {
 
 struct sst_runtime_stream {
 	int     stream_status;
+	unsigned int id;
+	size_t bytes_written;
 	struct pcm_stream_info stream_info;
 	struct sst_ops *ops;
+	struct compress_sst_ops *compr_ops;
 	spinlock_t	status_lock;
 };
 
@@ -124,6 +147,7 @@ struct sst_device {
 	char *name;
 	struct device *dev;
 	struct sst_ops *ops;
+	struct compress_sst_ops *compr_ops;
 };
 
 int sst_register_dsp(struct sst_device *sst);
