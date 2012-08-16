@@ -1576,19 +1576,28 @@ add_cea_modes(struct drm_connector *connector, struct edid *edid)
 }
 
 static void
-parse_hdmi_vsdb(struct drm_connector *connector, uint8_t *db)
+parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 {
-	connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
+	u8 len = cea_db_payload_len(db);
 
-	connector->dvi_dual = db[6] & 1;
-	connector->max_tmds_clock = db[7] * 5;
-
-	connector->latency_present[0] = db[8] >> 7;
-	connector->latency_present[1] = (db[8] >> 6) & 1;
-	connector->video_latency[0] = db[9];
-	connector->audio_latency[0] = db[10];
-	connector->video_latency[1] = db[11];
-	connector->audio_latency[1] = db[12];
+	if (len >= 6) {
+		connector->eld[5] |= (db[6] >> 7) << 1;  /* Supports_AI */
+		connector->dvi_dual = db[6] & 1;
+	}
+	if (len >= 7)
+		connector->max_tmds_clock = db[7] * 5;
+	if (len >= 8) {
+		connector->latency_present[0] = db[8] >> 7;
+		connector->latency_present[1] = (db[8] >> 6) & 1;
+	}
+	if (len >= 9)
+		connector->video_latency[0] = db[9];
+	if (len >= 10)
+		connector->audio_latency[0] = db[10];
+	if (len >= 11)
+		connector->video_latency[1] = db[11];
+	if (len >= 12)
+		connector->audio_latency[1] = db[12];
 
 	DRM_LOG_KMS("HDMI: DVI dual %d, "
 		    "max TMDS clock %d, "
@@ -1684,7 +1693,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 				break;
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
-				if (db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
+				if (dbl >= 5 && db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
 					parse_hdmi_vsdb(connector, db);
 				break;
 			default:
