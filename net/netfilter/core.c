@@ -131,14 +131,13 @@ unsigned int nf_iterate(struct list_head *head,
 			int hook_thresh)
 {
 	unsigned int verdict;
+	struct nf_hook_ops *elem = list_entry_rcu(*i, struct nf_hook_ops, list);
 
 	/*
 	 * The caller must not block between calls to this
 	 * function because of risk of continuing from deleted element.
 	 */
-	list_for_each_continue_rcu(*i, head) {
-		struct nf_hook_ops *elem = (struct nf_hook_ops *)*i;
-
+	list_for_each_entry_continue_rcu(elem, head, list) {
 		if (hook_thresh > elem->priority)
 			continue;
 
@@ -155,11 +154,14 @@ repeat:
 				continue;
 			}
 #endif
-			if (verdict != NF_REPEAT)
+			if (verdict != NF_REPEAT) {
+				*i = &elem->list;
 				return verdict;
+			}
 			goto repeat;
 		}
 	}
+	*i = &elem->list;
 	return NF_ACCEPT;
 }
 
