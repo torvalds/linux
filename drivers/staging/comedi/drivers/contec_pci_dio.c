@@ -42,26 +42,28 @@ enum contec_model {
 
 struct contec_board {
 	const char *name;
-	int in_offs;
-	int out_offs;
 };
 static const struct contec_board contec_boards[] = {
-	{"PIO1616L", 0, 2 },
+	{"PIO1616L", },
 };
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172
+
+/*
+ * Register map
+ */
+#define PIO1616L_DI_REG		0x00
+#define PIO1616L_DO_REG		0x02
 
 static int contec_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct contec_board *thisboard = comedi_board(dev);
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
 
-		outw(s->state, dev->iobase + thisboard->out_offs);
+		outw(s->state, dev->iobase + PIO1616L_DO_REG);
 	}
 	return insn->n;
 }
@@ -70,9 +72,7 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	const struct contec_board *thisboard = comedi_board(dev);
-
-	data[1] = inw(dev->iobase + thisboard->in_offs);
+	data[1] = inw(dev->iobase + PIO1616L_DI_REG);
 
 	return insn->n;
 }
