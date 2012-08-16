@@ -60,7 +60,7 @@ static int media_name_valid(const char *name)
 	len = strlen(name);
 	if ((len + 1) > TIPC_MAX_MEDIA_NAME)
 		return 0;
-	return strspn(name, tipc_alphabet) == len;
+	return 1;
 }
 
 /**
@@ -206,9 +206,7 @@ static int bearer_name_validate(const char *name,
 
 	/* validate component parts of bearer name */
 	if ((media_len <= 1) || (media_len > TIPC_MAX_MEDIA_NAME) ||
-	    (if_len <= 1) || (if_len > TIPC_MAX_IF_NAME) ||
-	    (strspn(media_name, tipc_alphabet) != (media_len - 1)) ||
-	    (strspn(if_name, tipc_alphabet) != (if_len - 1)))
+	    (if_len <= 1) || (if_len > TIPC_MAX_IF_NAME))
 		return 0;
 
 	/* return bearer name components, if necessary */

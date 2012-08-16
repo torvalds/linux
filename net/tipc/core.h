@@ -85,8 +85,6 @@ extern int tipc_remote_management;
  * Other global variables
  */
 extern int tipc_random;
-extern const char tipc_alphabet[];
-
 
 /*
  * Routines available to privileged subsystems

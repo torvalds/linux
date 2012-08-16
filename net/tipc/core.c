@@ -50,9 +50,6 @@
 /* global variables used by multiple sub-systems within TIPC */
 int tipc_random;
 
-const char tipc_alphabet[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
-
 /* configurable TIPC parameters */
 u32 tipc_own_addr;
 int tipc_max_ports;
