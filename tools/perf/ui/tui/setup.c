@@ -11,8 +11,6 @@
 #include "../libslang.h"
 #include "../keysyms.h"
 
-pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
-
 static volatile int ui__need_resize;
 
 extern struct perf_error_ops perf_tui_eops;
