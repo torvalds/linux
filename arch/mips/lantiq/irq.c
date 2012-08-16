@@ -297,6 +297,9 @@ static int icu_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hw)
 	struct irq_chip *chip = &ltq_irq_type;
 	int i;
 
+	if (hw < MIPS_CPU_IRQ_CASCADE)
+		return 0;
+
 	for (i = 0; i < exin_avail; i++)
 		if (hw == ltq_eiu_irq[i])
 			chip = &ltq_eiu_type;
