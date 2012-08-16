@@ -608,11 +608,11 @@ static int write_nrcpus(int fd, struct perf_header *h __used,
 static int write_event_desc(int fd, struct perf_header *h __used,
 			    struct perf_evlist *evlist)
 {
-	struct perf_evsel *attr;
+	struct perf_evsel *evsel;
 	u32 nre = 0, nri, sz;
 	int ret;
 
-	list_for_each_entry(attr, &evlist->entries, node)
+	list_for_each_entry(evsel, &evlist->entries, node)
 		nre++;
 
 	/*
@@ -625,14 +625,14 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 	/*
 	 * size of perf_event_attr struct
 	 */
-	sz = (u32)sizeof(attr->attr);
+	sz = (u32)sizeof(evsel->attr);
 	ret = do_write(fd, &sz, sizeof(sz));
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(attr, &evlist->entries, node) {
+	list_for_each_entry(evsel, &evlist->entries, node) {
 
-		ret = do_write(fd, &attr->attr, sz);
+		ret = do_write(fd, &evsel->attr, sz);
 		if (ret < 0)
 			return ret;
 		/*
@@ -642,7 +642,7 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		 * copy into an nri to be independent of the
 		 * type of ids,
 		 */
-		nri = attr->ids;
+		nri = evsel->ids;
 		ret = do_write(fd, &nri, sizeof(nri));
 		if (ret < 0)
 			return ret;
@@ -650,13 +650,13 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		/*
 		 * write event string as passed on cmdline
 		 */
-		ret = do_write_string(fd, perf_evsel__name(attr));
+		ret = do_write_string(fd, perf_evsel__name(evsel));
 		if (ret < 0)
 			return ret;
 		/*
 		 * write unique ids for this event
 		 */
-		ret = do_write(fd, attr->id, attr->ids * sizeof(u64));
+		ret = do_write(fd, evsel->id, evsel->ids * sizeof(u64));
 		if (ret < 0)
 			return ret;
 	}
@@ -1683,7 +1683,7 @@ int perf_session__write_header(struct perf_session *session,
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
 	struct perf_header *header = &session->header;
-	struct perf_evsel *attr, *pair = NULL;
+	struct perf_evsel *evsel, *pair = NULL;
 	int err;
 
 	lseek(fd, sizeof(f_header), SEEK_SET);
@@ -1691,9 +1691,9 @@ int perf_session__write_header(struct perf_session *session,
 	if (session->evlist != evlist)
 		pair = perf_evlist__first(session->evlist);
 
-	list_for_each_entry(attr, &evlist->entries, node) {
-		attr->id_offset = lseek(fd, 0, SEEK_CUR);
-		err = do_write(fd, attr->id, attr->ids * sizeof(u64));
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
+		err = do_write(fd, evsel->id, evsel->ids * sizeof(u64));
 		if (err < 0) {
 out_err_write:
 			pr_debug("failed to write perf header\n");
@@ -1703,19 +1703,19 @@ out_err_write:
 			err = do_write(fd, pair->id, pair->ids * sizeof(u64));
 			if (err < 0)
 				goto out_err_write;
-			attr->ids += pair->ids;
+			evsel->ids += pair->ids;
 			pair = perf_evsel__next(pair);
 		}
 	}
 
 	header->attr_offset = lseek(fd, 0, SEEK_CUR);
 
-	list_for_each_entry(attr, &evlist->entries, node) {
+	list_for_each_entry(evsel, &evlist->entries, node) {
 		f_attr = (struct perf_file_attr){
-			.attr = attr->attr,
+			.attr = evsel->attr,
 			.ids  = {
-				.offset = attr->id_offset,
-				.size   = attr->ids * sizeof(u64),
+				.offset = evsel->id_offset,
+				.size   = evsel->ids * sizeof(u64),
 			}
 		};
 		err = do_write(fd, &f_attr, sizeof(f_attr));
@@ -2277,12 +2277,12 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 				   struct perf_session *session,
 				   perf_event__handler_t process)
 {
-	struct perf_evsel *attr;
+	struct perf_evsel *evsel;
 	int err = 0;
 
-	list_for_each_entry(attr, &session->evlist->entries, node) {
-		err = perf_event__synthesize_attr(tool, &attr->attr, attr->ids,
-						  attr->id, process);
+	list_for_each_entry(evsel, &session->evlist->entries, node) {
+		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
+						  evsel->id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
 			return err;
