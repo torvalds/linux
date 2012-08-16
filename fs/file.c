@@ -599,17 +599,29 @@ EXPORT_SYMBOL(put_unused_fd);
  *
  * It should never happen - if we allow dup2() do it, _really_ bad things
  * will follow.
+ *
+ * NOTE: __fd_install() variant is really, really low-level; don't
+ * use it unless you are forced to by truly lousy API shoved down
+ * your throat.  'files' *MUST* be either current->files or obtained
+ * by get_files_struct(current) done by whoever had given it to you,
+ * or really bad things will happen.  Normally you want to use
+ * fd_install() instead.
  */
 
-void fd_install(unsigned int fd, struct file *file)
+void __fd_install(struct files_struct *files, unsigned int fd,
+		struct file *file)
 {
-	struct files_struct *files = current->files;
 	struct fdtable *fdt;
 	spin_lock(&files->file_lock);
 	fdt = files_fdtable(files);
 	BUG_ON(fdt->fd[fd] != NULL);
 	rcu_assign_pointer(fdt->fd[fd], file);
 	spin_unlock(&files->file_lock);
+}
+
+void fd_install(unsigned int fd, struct file *file)
+{
+	__fd_install(current->files, fd, file);
 }
 
 EXPORT_SYMBOL(fd_install);
