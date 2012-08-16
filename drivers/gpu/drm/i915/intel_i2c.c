@@ -486,9 +486,6 @@ int intel_setup_gmbus(struct drm_device *dev)
 		bus->dev_priv = dev_priv;
 
 		bus->adapter.algo = &gmbus_algorithm;
-		ret = i2c_add_adapter(&bus->adapter);
-		if (ret)
-			goto err;
 
 		/* By default use a conservative clock rate */
 		bus->reg0 = port | GMBUS_RATE_100KHZ;
@@ -498,6 +495,10 @@ int intel_setup_gmbus(struct drm_device *dev)
 			bus->force_bit = true;
 
 		intel_gpio_setup(bus, port);
+
+		ret = i2c_add_adapter(&bus->adapter);
+		if (ret)
+			goto err;
 	}
 
 	intel_i2c_reset(dev_priv->dev);
