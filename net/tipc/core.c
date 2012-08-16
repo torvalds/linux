@@ -48,15 +48,15 @@
 
 
 /* global variables used by multiple sub-systems within TIPC */
-int tipc_random;
+int tipc_random __read_mostly;
 
 /* configurable TIPC parameters */
-u32 tipc_own_addr;
-int tipc_max_ports;
+u32 tipc_own_addr __read_mostly;
+int tipc_max_ports __read_mostly;
 int tipc_max_subscriptions;
 int tipc_max_publications;
-int tipc_net_id;
-int tipc_remote_management;
+int tipc_net_id __read_mostly;
+int tipc_remote_management __read_mostly;
 
 
 /**

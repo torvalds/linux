@@ -74,17 +74,17 @@ int tipc_snprintf(char *buf, int len, const char *fmt, ...);
 /*
  * Global configuration variables
  */
-extern u32 tipc_own_addr;
-extern int tipc_max_ports;
+extern u32 tipc_own_addr __read_mostly;
+extern int tipc_max_ports __read_mostly;
 extern int tipc_max_subscriptions;
 extern int tipc_max_publications;
-extern int tipc_net_id;
-extern int tipc_remote_management;
+extern int tipc_net_id __read_mostly;
+extern int tipc_remote_management __read_mostly;
 
 /*
  * Other global variables
  */
-extern int tipc_random;
+extern int tipc_random __read_mostly;
 
 /*
  * Routines available to privileged subsystems
