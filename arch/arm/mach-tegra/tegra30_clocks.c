@@ -35,6 +35,7 @@
 
 #include "clock.h"
 #include "fuse.h"
+#include "tegra_cpu_car.h"
 
 #define USE_PLL_LOCK_BITS 0
 
@@ -298,6 +299,16 @@
 
 /* FIXME: recommended safety delay after lock is detected */
 #define PLL_POST_LOCK_DELAY		100
+
+/* Tegra CPU clock and reset control regs */
+#define TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX		0x4c
+#define TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET	0x340
+#define TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR	0x344
+#define TEGRA30_CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR	0x34c
+#define TEGRA30_CLK_RST_CONTROLLER_CPU_CMPLX_STATUS	0x470
+
+#define CPU_CLOCK(cpu)	(0x1 << (8 + cpu))
+#define CPU_RESET(cpu)	(0x1111ul << (cpu))
 
 /**
 * Structure defining the fields for USB UTMI clocks Parameters.
@@ -2221,3 +2232,64 @@ struct clk_ops tegra_cml_clk_ops = {
 struct clk_ops tegra_pciex_clk_ops = {
 	.recalc_rate = tegra30_clk_fixed_recalc_rate,
 };
+
+/* Tegra30 CPU clock and reset control functions */
+static void tegra30_wait_cpu_in_reset(u32 cpu)
+{
+	unsigned int reg;
+
+	do {
+		reg = readl(reg_clk_base +
+			    TEGRA30_CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
+		cpu_relax();
+	} while (!(reg & (1 << cpu)));	/* check CPU been reset or not */
+
+	return;
+}
+
+static void tegra30_put_cpu_in_reset(u32 cpu)
+{
+	writel(CPU_RESET(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET);
+	dmb();
+}
+
+static void tegra30_cpu_out_of_reset(u32 cpu)
+{
+	writel(CPU_RESET(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR);
+	wmb();
+}
+
+static void tegra30_enable_cpu_clock(u32 cpu)
+{
+	unsigned int reg;
+
+	writel(CPU_CLOCK(cpu),
+	       reg_clk_base + TEGRA30_CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR);
+	reg = readl(reg_clk_base +
+		    TEGRA30_CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR);
+}
+
+static void tegra30_disable_cpu_clock(u32 cpu)
+{
+
+	unsigned int reg;
+
+	reg = readl(reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+	writel(reg | CPU_CLOCK(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+}
+
+static struct tegra_cpu_car_ops tegra30_cpu_car_ops = {
+	.wait_for_reset	= tegra30_wait_cpu_in_reset,
+	.put_in_reset	= tegra30_put_cpu_in_reset,
+	.out_of_reset	= tegra30_cpu_out_of_reset,
+	.enable_clock	= tegra30_enable_cpu_clock,
+	.disable_clock	= tegra30_disable_cpu_clock,
+};
+
+void __init tegra30_cpu_car_ops_init(void)
+{
+	tegra_cpu_car_ops = &tegra30_cpu_car_ops;
+}

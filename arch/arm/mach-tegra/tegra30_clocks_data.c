@@ -32,6 +32,7 @@
 #include "clock.h"
 #include "fuse.h"
 #include "tegra30_clocks.h"
+#include "tegra_cpu_car.h"
 
 #define DEFINE_CLK_TEGRA(_name, _rate, _ops, _flags,		\
 		   _parent_names, _parents, _parent)		\
@@ -1366,4 +1367,6 @@ void __init tegra30_init_clocks(void)
 
 	for (i = 0; i < ARRAY_SIZE(tegra_clk_out_list); i++)
 		tegra30_init_one_clock(tegra_clk_out_list[i]);
+
+	tegra30_cpu_car_ops_init();
 }

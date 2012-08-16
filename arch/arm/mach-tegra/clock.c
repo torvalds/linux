@@ -31,6 +31,10 @@
 
 #include "board.h"
 #include "clock.h"
+#include "tegra_cpu_car.h"
+
+/* Global data of Tegra CPU CAR ops */
+struct tegra_cpu_car_ops *tegra_cpu_car_ops;
 
 /*
  * Locking:

@@ -33,6 +33,7 @@
 #include "clock.h"
 #include "fuse.h"
 #include "tegra2_emc.h"
+#include "tegra_cpu_car.h"
 
 #define RST_DEVICES			0x004
 #define RST_DEVICES_SET			0x300
@@ -151,6 +152,14 @@
 #define PMC_BLINK_TIMER_ENB		(1 << 15)
 #define PMC_BLINK_TIMER_DATA_OFF_SHIFT	16
 #define PMC_BLINK_TIMER_DATA_OFF_MASK	0xffff
+
+/* Tegra CPU clock and reset control regs */
+#define TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX		0x4c
+#define TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET	0x340
+#define TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR	0x344
+
+#define CPU_CLOCK(cpu)	(0x1 << (8 + cpu))
+#define CPU_RESET(cpu)	(0x1111ul << (cpu))
 
 static void __iomem *reg_clk_base = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
 static void __iomem *reg_pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
@@ -1553,3 +1562,64 @@ struct clk_ops tegra_cdev_clk_ops = {
 	.disable = tegra20_cdev_clk_disable,
 	.recalc_rate = tegra20_cdev_recalc_rate,
 };
+
+/* Tegra20 CPU clock and reset control functions */
+static void tegra20_wait_cpu_in_reset(u32 cpu)
+{
+	unsigned int reg;
+
+	do {
+		reg = readl(reg_clk_base +
+			    TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET);
+		cpu_relax();
+	} while (!(reg & (1 << cpu)));	/* check CPU been reset or not */
+
+	return;
+}
+
+static void tegra20_put_cpu_in_reset(u32 cpu)
+{
+	writel(CPU_RESET(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET);
+	dmb();
+}
+
+static void tegra20_cpu_out_of_reset(u32 cpu)
+{
+	writel(CPU_RESET(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR);
+	wmb();
+}
+
+static void tegra20_enable_cpu_clock(u32 cpu)
+{
+	unsigned int reg;
+
+	reg = readl(reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+	writel(reg & ~CPU_CLOCK(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+	barrier();
+	reg = readl(reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+}
+
+static void tegra20_disable_cpu_clock(u32 cpu)
+{
+	unsigned int reg;
+
+	reg = readl(reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+	writel(reg | CPU_CLOCK(cpu),
+	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
+}
+
+static struct tegra_cpu_car_ops tegra20_cpu_car_ops = {
+	.wait_for_reset	= tegra20_wait_cpu_in_reset,
+	.put_in_reset	= tegra20_put_cpu_in_reset,
+	.out_of_reset	= tegra20_cpu_out_of_reset,
+	.enable_clock	= tegra20_enable_cpu_clock,
+	.disable_clock	= tegra20_disable_cpu_clock,
+};
+
+void __init tegra20_cpu_car_ops_init(void)
+{
+	tegra_cpu_car_ops = &tegra20_cpu_car_ops;
+}
