@@ -44,12 +44,18 @@ static int contec_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= data[0] & data[1];
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
 		outw(s->state, dev->iobase + PIO1616L_DO_REG);
 	}
+
+	data[1] = s->state;
+
 	return insn->n;
 }
 
