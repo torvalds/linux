@@ -55,12 +55,11 @@ static const struct contec_board contec_boards[] = {
 
 #define PCI_DEVICE_ID_PIO1616L 0x8172
 
-#define thisboard ((const struct contec_board *)dev->board_ptr)
-
 static int contec_do_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	const struct contec_board *thisboard = comedi_board(dev);
 
 	dev_dbg(dev->class_dev, "contec_do_insn_bits called\n");
 	dev_dbg(dev->class_dev, "data: %d %d\n", data[0], data[1]);
@@ -79,6 +78,7 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	const struct contec_board *thisboard = comedi_board(dev);
 
 	dev_dbg(dev->class_dev, "contec_di_insn_bits called\n");
 	dev_dbg(dev->class_dev, "data: %d %d\n", data[0], data[1]);
@@ -116,13 +116,12 @@ static struct pci_dev *contec_find_pci_dev(struct comedi_device *dev,
 
 static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct contec_board *thisboard;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
 
 	printk("comedi%d: contec: ", dev->minor);
-
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -132,6 +131,8 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	thisboard = comedi_board(dev);
+	dev->board_name = thisboard->name;
 
 	if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
 		printk("error enabling PCI device and request regions!\n");
