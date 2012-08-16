@@ -41,3 +41,4 @@ obj-$(CONFIG_LCD_B101EW05)    += lcd_b101ew05.o
 obj-$(CONFIG_LCD_HJ050NA_06A)    += lcd_hj050na_06a.o
 obj-$(CONFIG_LCD_HSD100PXN_FOR_TDW851) += lcd_hsd100pxn_for_tdw851.o
 obj-$(CONFIG_LCD_HV070WSA100)    += lcd_hv070wsa.o
+obj-$(CONFIG_LCD_COMMON)    += lcd_common.o
