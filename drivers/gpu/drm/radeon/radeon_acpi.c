@@ -36,6 +36,13 @@
 
 #include <linux/vga_switcheroo.h>
 
+struct atif_verify_interface {
+	u16 size;		/* structure size in bytes (includes size field) */
+	u16 version;		/* version */
+	u32 notification_mask;	/* supported notifications mask */
+	u32 function_bits;	/* supported functions bit vector */
+} __packed;
+
 /* Call the ATIF method
  */
 static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
@@ -75,12 +82,73 @@ static union acpi_object *radeon_atif_call(acpi_handle handle, int function,
 	return buffer.pointer;
 }
 
+static void radeon_atif_parse_notification(struct radeon_atif_notifications *n, u32 mask)
+{
+	n->display_switch = mask & ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED;
+	n->expansion_mode_change = mask & ATIF_EXPANSION_MODE_CHANGE_REQUEST_SUPPORTED;
+	n->thermal_state = mask & ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED;
+	n->forced_power_state = mask & ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED;
+	n->system_power_state = mask & ATIF_SYSTEM_POWER_SOURCE_CHANGE_REQUEST_SUPPORTED;
+	n->display_conf_change = mask & ATIF_DISPLAY_CONF_CHANGE_REQUEST_SUPPORTED;
+	n->px_gfx_switch = mask & ATIF_PX_GFX_SWITCH_REQUEST_SUPPORTED;
+	n->brightness_change = mask & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST_SUPPORTED;
+	n->dgpu_display_event = mask & ATIF_DGPU_DISPLAY_EVENT_SUPPORTED;
+}
+
+static void radeon_atif_parse_functions(struct radeon_atif_functions *f, u32 mask)
+{
+	f->system_params = mask & ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED;
+	f->sbios_requests = mask & ATIF_GET_SYSTEM_BIOS_REQUESTS_SUPPORTED;
+	f->select_active_disp = mask & ATIF_SELECT_ACTIVE_DISPLAYS_SUPPORTED;
+	f->lid_state = mask & ATIF_GET_LID_STATE_SUPPORTED;
+	f->get_tv_standard = mask & ATIF_GET_TV_STANDARD_FROM_CMOS_SUPPORTED;
+	f->set_tv_standard = mask & ATIF_SET_TV_STANDARD_IN_CMOS_SUPPORTED;
+	f->get_panel_expansion_mode = mask & ATIF_GET_PANEL_EXPANSION_MODE_FROM_CMOS_SUPPORTED;
+	f->set_panel_expansion_mode = mask & ATIF_SET_PANEL_EXPANSION_MODE_IN_CMOS_SUPPORTED;
+	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED;
+	f->graphics_device_types = mask & ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED;
+}
+
+static int radeon_atif_verify_interface(acpi_handle handle,
+		struct radeon_atif *atif)
+{
+	union acpi_object *info;
+	struct atif_verify_interface output;
+	size_t size;
+	int err = 0;
+
+	info = radeon_atif_call(handle, ATIF_FUNCTION_VERIFY_INTERFACE, NULL);
+	if (!info)
+		return -EIO;
+
+	memset(&output, 0, sizeof(output));
+
+	size = *(u16 *) info->buffer.pointer;
+	if (size < 12) {
+		DRM_INFO("ATIF buffer is too small: %lu\n", size);
+		err = -EINVAL;
+		goto out;
+	}
+	size = min(sizeof(output), size);
+
+	memcpy(&output, info->buffer.pointer, size);
+
+	/* TODO: check version? */
+	DRM_DEBUG_DRIVER("ATIF version %u\n", output.version);
+
+	radeon_atif_parse_notification(&atif->notifications, output.notification_mask);
+	radeon_atif_parse_functions(&atif->functions, output.function_bits);
+
+out:
+	kfree(info);
+	return err;
+}
+
 /* Call all ACPI methods here */
 int radeon_acpi_init(struct radeon_device *rdev)
 {
 	acpi_handle handle;
-	union acpi_object *info;
-	int ret = 0;
+	int ret;
 
 	/* Get the device handle */
 	handle = DEVICE_ACPI_HANDLE(&rdev->pdev->dev);
@@ -90,11 +158,10 @@ int radeon_acpi_init(struct radeon_device *rdev)
 		return 0;
 
 	/* Call the ATIF method */
-	info = radeon_atif_call(handle, ATIF_FUNCTION_VERIFY_INTERFACE, NULL);
-	if (!info)
-		ret = -EIO;
+	ret = radeon_atif_verify_interface(handle, &rdev->atif);
+	if (ret)
+		DRM_DEBUG_DRIVER("Call to verify_interface failed: %d\n", ret);
 
-	kfree(info);
 	return ret;
 }
 

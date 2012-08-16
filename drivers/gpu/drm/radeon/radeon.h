@@ -1424,6 +1424,44 @@ struct r600_vram_scratch {
 	u64				gpu_addr;
 };
 
+/*
+ * ACPI
+ */
+struct radeon_atif_notification_cfg {
+	bool enabled;
+	int command_code;
+};
+
+struct radeon_atif_notifications {
+	bool display_switch;
+	bool expansion_mode_change;
+	bool thermal_state;
+	bool forced_power_state;
+	bool system_power_state;
+	bool display_conf_change;
+	bool px_gfx_switch;
+	bool brightness_change;
+	bool dgpu_display_event;
+};
+
+struct radeon_atif_functions {
+	bool system_params;
+	bool sbios_requests;
+	bool select_active_disp;
+	bool lid_state;
+	bool get_tv_standard;
+	bool set_tv_standard;
+	bool get_panel_expansion_mode;
+	bool set_panel_expansion_mode;
+	bool temperature_change;
+	bool graphics_device_types;
+};
+
+struct radeon_atif {
+	struct radeon_atif_notifications notifications;
+	struct radeon_atif_functions functions;
+	struct radeon_atif_notification_cfg notification_cfg;
+};
 
 /*
  * Core structure, functions and helpers.
@@ -1516,6 +1554,8 @@ struct radeon_device {
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
 	struct mutex			gpu_clock_mutex;
+	/* ACPI interface */
+	struct radeon_atif		atif;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
