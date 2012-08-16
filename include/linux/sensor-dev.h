@@ -52,6 +52,7 @@ enum sensor_id {
 	ACCEL_ID_ADXL34X,
 	ACCEL_ID_MMA8450,
 	ACCEL_ID_MMA845X,
+	ACCEL_ID_MMA7660,
 	ACCEL_ID_MPU6050,
 
 	COMPASS_ID_ALL,
@@ -84,6 +85,7 @@ enum sensor_id {
 
 	PRESSURE_ID_ALL,
 	PRESSURE_ID_BMA085,
+	SENSOR_NUM_ID,
 };
 
 
@@ -98,6 +100,7 @@ struct sensor_operate {
 	int type;
 	int	id_i2c;
 	int	range[2];
+	int 	brightness[2];//backlight min_brightness max_brightness 
 	int read_reg;
 	int read_len;
 	int id_reg;

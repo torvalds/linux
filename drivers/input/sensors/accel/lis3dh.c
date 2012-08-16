@@ -91,7 +91,7 @@ struct sensor_reg_data {
 	char data;
 };
 
-struct i2c_client *this_client=NULL;
+struct i2c_client *lis3dgh_client=NULL;
 static struct class *sensor_class = NULL;
 
 static ssize_t sensor_setoratitention(struct device *dev,
@@ -101,7 +101,7 @@ static ssize_t sensor_setoratitention(struct device *dev,
 	char gsensororatation[20];
 	
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(this_client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(lis3dgh_client);	
 	struct sensor_platform_data *pdata = sensor->pdata;
 
 	
@@ -156,6 +156,7 @@ static int  sensor_sys_init(void)
       }
    	return 0;
 }
+
 
 /****************operate according to sensor chip:start************/
 
@@ -215,8 +216,8 @@ static int sensor_init(struct i2c_client *client)
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	this_client = client;
-	
+	lis3dgh_client = client;
+
 	sensor->status_cur = SENSOR_OFF;
 	
 	for(i=0;i<(sizeof(reg_data)/sizeof(struct sensor_reg_data));i++)
@@ -248,8 +249,8 @@ static int sensor_init(struct i2c_client *client)
 		}
 
 	}
-	sensor_sys_init();
 	
+	sensor_sys_init();
 	return result;
 }
 
@@ -360,7 +361,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_ops = {
+struct sensor_operate gsensor_lis3dh_ops = {
 	.name				= "lis3dh",
 	.type				= SENSOR_TYPE_ACCEL,		//sensor type and it should be correct
 	.id_i2c				= ACCEL_ID_LIS3DH,		//i2c id number
@@ -381,14 +382,13 @@ struct sensor_operate gsensor_ops = {
 /****************operate according to sensor chip:end************/
 
 //function name should not be changed
-struct sensor_operate *gsensor_get_ops(void)
+static struct sensor_operate *gsensor_get_ops(void)
 {
-	return &gsensor_ops;
+	return &gsensor_lis3dh_ops;
 }
 
-EXPORT_SYMBOL(gsensor_get_ops);
 
-static int __init gsensor_init(void)
+static int __init gsensor_lis3dh_init(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int result = 0;
@@ -398,7 +398,7 @@ static int __init gsensor_init(void)
 	return result;
 }
 
-static void __exit gsensor_exit(void)
+static void __exit gsensor_lis3dh_exit(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int type = ops->type;
@@ -406,7 +406,7 @@ static void __exit gsensor_exit(void)
 }
 
 
-module_init(gsensor_init);
-module_exit(gsensor_exit);
+module_init(gsensor_lis3dh_init);
+module_exit(gsensor_lis3dh_exit);
 
 

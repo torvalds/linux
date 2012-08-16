@@ -39,100 +39,100 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	//gpio_request(PMU_POWER_SLEEP, "NULL");
 	//gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
 	
-	val = tps65910_reg_read(tps65910, TPS65910_REG_DEVCTRL2);
+	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL2);
 	if (val<0) {
-		printk(KERN_ERR "Unable to read TPS65910_REG_DEVCTRL2 reg\n");
+		printk(KERN_ERR "Unable to read TPS65910_DEVCTRL2 reg\n");
 		return val;
 	}
 	/* Set sleep state active high and allow device turn-off after PWRON long press */
-	val |= (TPS65910_DEV2_SLEEPSIG_POL | TPS65910_DEV2_PWON_LP_OFF);
+	val |= (DEVCTRL2_SLEEPSIG_POL_MASK | DEVCTRL2_PWON_LP_OFF_MASK);
 
-	err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL2, val);
+	err = tps65910_reg_write(tps65910, TPS65910_DEVCTRL2, val);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL2 reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_DEVCTRL2 reg\n");
 		return err;
 	}
+	
 	 #if 1
 	/* set PSKIP=0 */
-        val = tps65910_reg_read(tps65910, TPS65910_REG_DCDCCTRL);
+        val = tps65910_reg_read(tps65910, TPS65910_DCDCCTRL);
         if (val<0) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
-	//val &= ~(1 << 4);
-		val &= 0xFC;
-	//	val |= 0x03;
 
-        err = tps65910_reg_write(tps65910, TPS65910_REG_DCDCCTRL, val);
+	val &= ~DEVCTRL_DEV_OFF_MASK;
+	val &= ~DEVCTRL_DEV_SLP_MASK;
+        err = tps65910_reg_write(tps65910, TPS65910_DCDCCTRL, val);
         if (err) {
-                printk(KERN_ERR "Unable to write TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to write TPS65910_DCDCCTRL reg\n");
                 return err;
         }
 	#endif
 	/* Set the maxinum load current */
 	/* VDD1 */
-	val = tps65910_reg_read(tps65910, TPS65910_REG_VDD1);
+	val = tps65910_reg_read(tps65910, TPS65910_VDD1);
 	if (val<0) {
-		printk(KERN_ERR "Unable to read TPS65910_REG_VDD1 reg\n");
+		printk(KERN_ERR "Unable to read TPS65910_VDD1 reg\n");
 		return val;
 	}
 
-	val |= (1<<5);
-	val |= (0x07<<2);
-	err = tps65910_reg_write(tps65910, TPS65910_REG_VDD1, val);
+	val |= (1<<5);		//when 1: 1.5 A
+	val |= (0x07<<2);	//TSTEP[2:0] = 111 : 2.5 mV/¦Ìs(sampling 3 Mhz/5)
+	err = tps65910_reg_write(tps65910, TPS65910_VDD1, val);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_VDD1 reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_VDD1 reg\n");
 		return err;
 	}
 
 	/* VDD2 */
-	val = tps65910_reg_read(tps65910, TPS65910_REG_VDD2);
+	val = tps65910_reg_read(tps65910, TPS65910_VDD2);
 	if (val<0) {
-		printk(KERN_ERR "Unable to read TPS65910_REG_VDD2 reg\n");
+		printk(KERN_ERR "Unable to read TPS65910_VDD2 reg\n");
 		return val;
 	}
 
-	val |= (1<<5);
-	err = tps65910_reg_write(tps65910, TPS65910_REG_VDD2, val);
+	val |= (1<<5);		//when 1: 1.5 A
+	err = tps65910_reg_write(tps65910, TPS65910_VDD2, val);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_VDD2 reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_VDD2 reg\n");
 		return err;
 	}
 
 	/* VIO */
-	val = tps65910_reg_read(tps65910, TPS65910_REG_VIO);
+	val = tps65910_reg_read(tps65910, TPS65910_VIO);
 	if (val<0) {
-		printk(KERN_ERR "Unable to read TPS65910_REG_VIO reg\n");
+		printk(KERN_ERR "Unable to read TPS65910_VIO reg\n");
 		return -EIO;
 	}
 
-	val |= (1<<6);
-	err = tps65910_reg_write(tps65910, TPS65910_REG_VIO, val);
+	val |= (1<<6);	//when 01: 1.0 A
+	err = tps65910_reg_write(tps65910, TPS65910_VIO, val);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_VIO reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_VIO reg\n");
 		return err;
 	}
 	#if 1
 	/* Mask ALL interrupts */
-	err = tps65910_reg_write(tps65910,TPS65910_REG_INT_MSK, 0xFF);
+	err = tps65910_reg_write(tps65910,TPS65910_INT_MSK, 0xFF);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_INT_MSK reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_INT_MSK reg\n");
 		return err;
 	}
 	
-	err = tps65910_reg_write(tps65910, TPS65910_REG_INT_MSK2, 0x03);
+	err = tps65910_reg_write(tps65910, TPS65910_INT_MSK2, 0x03);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_INT_MSK2 reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_INT_MSK2 reg\n");
 		return err;
 	}
 
 	/* Set RTC Power, disable Smart Reflex in DEVCTRL_REG */
 	#if 1
 	val = 0;
-	val |= (TPS65910_SR_CTL_I2C_SEL);
-	err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL, val);
+	val |= (DEVCTRL_SR_CTL_I2C_SEL_MASK);
+	err = tps65910_reg_write(tps65910, TPS65910_DEVCTRL, val);
 	if (err) {
-		printk(KERN_ERR "Unable to write TPS65910_REG_DEVCTRL reg\n");
+		printk(KERN_ERR "Unable to write TPS65910_DEVCTRL reg\n");
 		return err;
 	}
 	printk(KERN_INFO "TPS65910 Set default voltage.\n");
@@ -141,9 +141,9 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	//read sleep control register  for debug
 	for(i=0; i<6; i++)
 	{
-        err = tps65910_reg_read(tps65910, &val, TPS65910_REG_DEVCTRL+i);
+        err = tps65910_reg_read(tps65910, &val, TPS65910_DEVCTRL+i);
         if (err) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return -EIO;
         }
 		else
@@ -154,65 +154,72 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	#if 1
 	//sleep control register
 	/*set func when in sleep mode */
-	val = tps65910_reg_read(tps65910, TPS65910_REG_DEVCTRL);
+	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL);
         if (val<0) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
-		val |= (1 << 1);
-		err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL, val);
-		if (err) {
-			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-					\n", TPS65910_REG_VDIG1);
-			return err;
-		}
-		/* open ldo when in sleep mode */
-        val = tps65910_reg_read(tps65910, TPS65910_REG_SLEEP_KEEP_LDO_ON);
+	
+	val |= (1 << 1);
+	err = tps65910_reg_write(tps65910, TPS65910_DEVCTRL, val);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_VDIG1);
+		return err;
+	}
+	
+	/* open ldo when in sleep mode */
+        val = tps65910_reg_read(tps65910, TPS65910_SLEEP_KEEP_LDO_ON);
         if (val<0) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
-		val &= 0;
-		err = tps65910_reg_write(tps65910, TPS65910_REG_SLEEP_KEEP_LDO_ON, val);
-		if (err) {
-			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-					\n", TPS65910_REG_VDIG1);
-			return err;
-		}
-		/*set dc mode when in sleep mode */
-        val = tps65910_reg_read(tps65910, TPS65910_REG_SLEEP_KEEP_RES_ON);
+	
+	val &= 0;
+	err = tps65910_reg_write(tps65910, TPS65910_SLEEP_KEEP_LDO_ON, val);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_VDIG1);
+		return err;
+	}
+		
+	/*set dc mode when in sleep mode */
+        val = tps65910_reg_read(tps65910, TPS65910_SLEEP_KEEP_RES_ON);
         if (val<0) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
-		val  |= 0xff;
-		err = tps65910_reg_write(tps65910, TPS65910_REG_SLEEP_KEEP_RES_ON, val);
-		if (err) {
-			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-					\n", TPS65910_REG_VDIG1);
-			return err;
-		}
-		/*close ldo when in sleep mode */
-        val = tps65910_reg_read(tps65910, TPS65910_REG_SLEEP_SET_LDO_OFF);
+	
+	val  |= 0xff;
+	err = tps65910_reg_write(tps65910, TPS65910_SLEEP_KEEP_RES_ON, val);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_VDIG1);
+		return err;
+	}
+	
+	/*close ldo when in sleep mode */
+        val = tps65910_reg_read(tps65910, TPS65910_SLEEP_SET_LDO_OFF);
         if (val<0) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return val;
         }
-		val |= 0x9B;
-		err = tps65910_reg_write(tps65910, TPS65910_REG_SLEEP_SET_LDO_OFF, val);
-		if (err) {
-			printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
-					\n", TPS65910_REG_VDIG1);
-			return err;
-		}
+	
+	val |= 0x0b;
+	err = tps65910_reg_write(tps65910, TPS65910_SLEEP_SET_LDO_OFF, val);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_VDIG1);
+		return err;
+	}
 	#endif
 	#if 0
 	//read sleep control register  for debug
 	for(i=0; i<6; i++)
 	{
-        err = tps65910_reg_read(tps65910, &val, TPS65910_REG_DEVCTRL+i);
+        err = tps65910_reg_read(tps65910, &val, TPS65910_DEVCTRL+i);
         if (err) {
-                printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
                 return -EIO;
         }
 		else
@@ -232,6 +239,10 @@ int tps65910_post_init(struct tps65910 *tps65910)
 
 	g_pmic_type = PMIC_TYPE_TPS65910;
 	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
+
+	#ifdef CONFIG_RK30_PWM_REGULATOR
+	platform_device_register(&pwm_regulator_device[0]);
+	#endif
 	
 	dcdc = regulator_get(NULL, "vio");	//vcc_io
 	regulator_set_voltage(dcdc, 3000000, 3000000);
@@ -309,15 +320,6 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	printk("%s set vmmc vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
-
-	#ifdef CONFIG_RK30_PWM_REGULATOR
-	dcdc = regulator_get(NULL, "vdd_core"); // vdd_log
-	regulator_set_voltage(dcdc, 1100000, 1100000);
-	regulator_enable(dcdc);
-	printk("%s set vdd_core=%dmV end\n", __func__, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
-	#endif
 	
 	printk("%s,line=%d END\n", __func__,__LINE__);
 	
@@ -600,6 +602,7 @@ void __sramfunc board_pmu_tps65910_resume(void)
 static struct tps65910_board tps65910_data = {
 	.irq 	= (unsigned)TPS65910_HOST_IRQ,		
 	.irq_base = NR_GIC_IRQS + NR_GPIO_IRQS,
+	.gpio_base = TPS65910_GPIO_EXPANDER_BASE,
 	
 	.pre_init = tps65910_pre_init,
 	.post_init = tps65910_post_init,
@@ -619,6 +622,7 @@ static struct tps65910_board tps65910_data = {
 	.tps65910_pmic_init_data[TPS65910_REG_VAUX2] = &tps65910_ldo4,
 	.tps65910_pmic_init_data[TPS65910_REG_VAUX33] = &tps65910_ldo5,
 	.tps65910_pmic_init_data[TPS65910_REG_VMMC] = &tps65910_ldo6,
+
  
 };
 

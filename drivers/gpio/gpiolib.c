@@ -1225,7 +1225,7 @@ done:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 	return status;
 }
-EXPORT_SYMBOL_GPL(gpio_request);
+EXPORT_SYMBOL(gpio_request);//EXPORT_SYMBOL_GPL(gpio_request);
 
 void gpio_free(unsigned gpio)
 {
@@ -1262,7 +1262,9 @@ void gpio_free(unsigned gpio)
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
-EXPORT_SYMBOL_GPL(gpio_free);
+//EXPORT_SYMBOL_GPL(gpio_free);
+EXPORT_SYMBOL(gpio_free);
+
 
 /**
  * gpio_request_one - request a single GPIO with initial configuration
@@ -1418,7 +1420,9 @@ fail:
 			__func__, gpio, status);
 	return status;
 }
-EXPORT_SYMBOL_GPL(gpio_direction_input);
+//EXPORT_SYMBOL_GPL(gpio_direction_input);
+EXPORT_SYMBOL(gpio_direction_input);
+
 
 int gpio_direction_output(unsigned gpio, int value)
 {
@@ -1475,7 +1479,8 @@ fail:
 			__func__, gpio, status);
 	return status;
 }
-EXPORT_SYMBOL_GPL(gpio_direction_output);
+//EXPORT_SYMBOL_GPL(gpio_direction_output);
+EXPORT_SYMBOL(gpio_direction_output);
 
 /* 
 gpio pull up or pull down
@@ -1536,7 +1541,8 @@ fail:
 			__func__, gpio, status);
 	return status;
 }
-EXPORT_SYMBOL_GPL(gpio_pull_updown);
+//EXPORT_SYMBOL_GPL(gpio_pull_updown);
+EXPORT_SYMBOL(gpio_pull_updown);
 
 /**
  * gpio_set_debounce - sets @debounce time for a @gpio
@@ -1626,7 +1632,9 @@ int __gpio_get_value(unsigned gpio)
 	trace_gpio_value(gpio, 1, value);
 	return value;
 }
-EXPORT_SYMBOL_GPL(__gpio_get_value);
+//EXPORT_SYMBOL_GPL(__gpio_get_value);
+EXPORT_SYMBOL(__gpio_get_value);
+
 
 /**
  * __gpio_set_value() - assign a gpio's value
@@ -1650,7 +1658,8 @@ void __gpio_set_value(unsigned gpio, int value)
 	trace_gpio_value(gpio, 0, value);
 	chip->set(chip, gpio - chip->base, value);
 }
-EXPORT_SYMBOL_GPL(__gpio_set_value);
+//EXPORT_SYMBOL_GPL(__gpio_set_value);
+EXPORT_SYMBOL(__gpio_set_value);
 
 /**
  * __gpio_cansleep() - report whether gpio value access will sleep

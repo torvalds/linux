@@ -92,7 +92,19 @@ static void rk29_sdmmc_gpio_open(int device_id, int on)
                 rk30_mux_api_set(GPIO3C1_SDMMC1DATA0_NAME, GPIO3C_GPIO3C1);
                 gpio_request(RK30_PIN3_PC1, "mmc1-data0");
                 gpio_direction_output(RK30_PIN3_PC1,GPIO_LOW);//set mmc1-data0 to low.
+            #if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+                rk29_mux_api_set(GPIO3C2_SDMMC1DATA1_NAME, GPIO3C_GPIO3C2);
+                gpio_request(RK30_PIN3_PC2, "mmc1-data1");
+                gpio_direction_output(RK30_PIN3_PC2,GPIO_LOW);//set mmc1-data1 to low.
 
+                rk29_mux_api_set(GPIO3C3_SDMMC1DATA2_NAME, GPIO3C_GPIO3C3);
+                gpio_request(RK30_PIN3_PC3, "mmc1-data2");
+                gpio_direction_output(RK30_PIN3_PC3,GPIO_LOW);//set mmc1-data2 to low.
+
+                rk29_mux_api_set(GPIO3C4_SDMMC1DATA3_NAME, GPIO3C_GPIO3C4);
+                gpio_request(RK30_PIN3_PC4, "mmc1-data3");
+                gpio_direction_output(RK30_PIN3_PC4,GPIO_LOW);//set mmc1-data3 to low.
+           #endif
                 mdelay(100);
             }
             #endif
@@ -128,11 +140,13 @@ static void rk29_sdmmc_set_iomux_mmc0(unsigned int bus_width)
             gpio_request(RK30_PIN3_PA7,"sdmmc-power");
             gpio_direction_output(RK30_PIN3_PA7,GPIO_HIGH); //power-off
 
+        #if 0 //replace the power control into rk29_sdmmc_set_ios(); modifyed by xbw at 2012-08-12
             rk29_sdmmc_gpio_open(0, 0);
 
             gpio_direction_output(RK30_PIN3_PA7,GPIO_LOW); //power-on
 
             rk29_sdmmc_gpio_open(0, 1);
+          #endif  
     	}
     	break;
 
@@ -197,9 +211,23 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
 
 #endif
 
+static int rk29sdk_wifi_status(struct device *dev);
+static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
 
-//int rk29sdk_wifi_power_state = 0;
-//int rk29sdk_bt_power_state = 0;
+#if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+static int rk29sdk_wifi_mmc0_status(struct device *dev);
+static int rk29sdk_wifi_mmc0_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
+static int rk29sdk_wifi_mmc0_cd = 0;   /* wifi virtual 'card detect' status */
+static void (*wifi_mmc0_status_cb)(int card_present, void *dev_id);
+static void *wifi_mmc0_status_cb_devid;
+
+int rk29sdk_wifi_power_state = 0;
+int rk29sdk_bt_power_state = 0;
+#endif
+
+static int rk29sdk_wifi_cd = 0;   /* wifi virtual 'card detect' status */
+static void (*wifi_status_cb)(int card_present, void *dev_id);
+static void *wifi_status_cb_devid;
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 //#define RK29SDK_WIFI_BT_GPIO_POWER_N       RK30_PIN3_PD0
@@ -283,10 +311,6 @@ err_skb_alloc:
 
         return -ENOMEM;
 }
-
-static int rk29sdk_wifi_cd = 0;   /* wifi virtual 'card detect' status */
-static void (*wifi_status_cb)(int card_present, void *dev_id);
-static void *wifi_status_cb_devid;
 
 static int rk29sdk_wifi_status(struct device *dev)
 {
@@ -418,6 +442,240 @@ static struct resource resources[] = {
 	},
 };
 
+
+///////////////////////////////////////////////////////////////////////////////////
+#elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+#if defined(CONFIG_MACH_RK30_PHONE_PAD)
+   #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+   #define USE_SDMMC_CONTROLLER_FOR_WIFI 0
+   #define RK29SDK_WIFI_COMBO_GPIO_POWER_N	RK30_PIN4_PD2
+   #define RK29SDK_WIFI_COMBO_GPIO_RESET_N	RK30_PIN4_PD1
+   #define RK29SDK_WIFI_COMBO_GPIO_VDDIO	RK30_PIN1_PA6	
+   #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B	RK30_PIN1_PA7	 
+   #define RK29SDK_WIFI_COMBO_GPS_SYNC		RK30_PIN3_PC7	 
+       
+   #else
+   #define USE_SDMMC_CONTROLLER_FOR_WIFI 1
+   #define RK29SDK_WIFI_COMBO_GPIO_POWER_N	RK30_PIN3_PC7	
+   #define RK29SDK_WIFI_COMBO_GPIO_RESET_N	RK30_PIN3_PD1	
+   #define RK29SDK_WIFI_COMBO_GPIO_WIFI_INT_B	RK30_PIN3_PD2
+       
+   //#define RK29SDK_WIFI_COMBO_GPIO_VDDIO	      RK30_PIN6_PB4   
+   #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B	RK30_PIN6_PA7	 
+   #define RK29SDK_WIFI_COMBO_GPS_SYNC		RK30_PIN3_PD0	 
+   #endif
+#else
+
+    #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+    #define USE_SDMMC_CONTROLLER_FOR_WIFI 0
+    #define RK29SDK_WIFI_COMBO_GPIO_POWER_N      RK30_PIN4_PD2
+    #define RK29SDK_WIFI_COMBO_GPIO_RESET_N      RK30_PIN4_PD1
+    #define RK29SDK_WIFI_COMBO_GPIO_VDDIO        RK30_PIN1_PA6   
+    #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B    RK30_PIN1_PA7    
+    #define RK29SDK_WIFI_COMBO_GPS_SYNC          RK30_PIN3_PC7    
+    
+    #else
+    #define USE_SDMMC_CONTROLLER_FOR_WIFI 1
+    #define RK29SDK_WIFI_COMBO_GPIO_POWER_N      RK30_PIN3_PD0   
+    #define RK29SDK_WIFI_COMBO_GPIO_RESET_N      RK30_PIN3_PD1   
+    #define RK29SDK_WIFI_COMBO_GPIO_WIFI_INT_B   RK30_PIN3_PD2
+    
+    #define RK29SDK_WIFI_COMBO_GPIO_VDDIO        RK30_PIN6_PB4   
+    #define RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B    RK30_PIN3_PC6    
+    #define RK29SDK_WIFI_COMBO_GPS_SYNC          RK30_PIN3_PC7    
+    #endif
+#endif
+
+#define debug_combo_system 0
+
+int rk29sdk_wifi_combo_get_BGFgpio(void)
+{
+    return RK29SDK_WIFI_COMBO_GPIO_BGF_INT_B;
+}
+EXPORT_SYMBOL(rk29sdk_wifi_combo_get_BGFgpio);
+
+
+int rk29sdk_wifi_combo_get_GPS_SYNC_gpio(void)
+{
+    return RK29SDK_WIFI_COMBO_GPS_SYNC;
+}
+EXPORT_SYMBOL(rk29sdk_wifi_combo_get_GPS_SYNC_gpio);
+
+
+static int rk29sdk_wifi_combo_module_gpio_init(void)
+{        
+    if (gpio_request(RK29SDK_WIFI_COMBO_GPIO_RESET_N, "combo-RST"))
+    {
+        pr_info("%s:request combo-RST failed\n", __func__);
+        return -1;
+    }
+    gpio_direction_output(RK29SDK_WIFI_COMBO_GPIO_RESET_N, GPIO_LOW);
+
+    if (gpio_request(RK29SDK_WIFI_COMBO_GPIO_POWER_N, "combo-PMUEN"))
+	{
+		pr_info("%s:request combo-PMUEN failed\n", __func__);
+		return -1;
+	}
+	
+	//gpio_pull_updown(RK29SDK_WIFI_COMBO_GPIO_POWER_N,0);
+	//gpio_direction_input(RK29SDK_WIFI_COMBO_GPIO_POWER_N);
+	gpio_direction_output(RK29SDK_WIFI_COMBO_GPIO_POWER_N, GPIO_LOW);
+    return 0;
+}
+
+
+int rk29sdk_wifi_combo_module_power(int on)
+{
+     if(on)
+    {
+        //gpio_set_value(RK29SDK_WIFI_COMBO_GPIO_VDDIO, GPIO_HIGH);
+        //mdelay(10);
+        gpio_set_value(RK29SDK_WIFI_COMBO_GPIO_POWER_N, GPIO_HIGH);     
+        mdelay(10);
+        pr_info("combo-module turn on power\n");
+    }
+    else
+    {
+        gpio_set_value(RK29SDK_WIFI_COMBO_GPIO_POWER_N, GPIO_LOW);        
+        mdelay(10);
+        //gpio_set_value(RK29SDK_WIFI_COMBO_GPIO_VDDIO, GPIO_LOW);
+        pr_info("combo-module turn off power\n");
+    }
+     return 0;
+    
+}
+EXPORT_SYMBOL(rk29sdk_wifi_combo_module_power);
+
+
+int rk29sdk_wifi_combo_module_reset(int on)
+{
+    if(on)
+    {
+        gpio_set_value(RK29SDK_WIFI_COMBO_GPIO_RESET_N, GPIO_HIGH);     
+        pr_info("combo-module reset out 1\n");
+    }
+    else
+    {
+        gpio_set_value(RK29SDK_WIFI_COMBO_GPIO_RESET_N, GPIO_LOW);        
+        pr_info("combo-module  reset out 0\n");
+    }
+
+    return 0;   
+}
+EXPORT_SYMBOL(rk29sdk_wifi_combo_module_reset);
+
+
+static int rk29sdk_wifi_mmc0_status(struct device *dev)
+{
+        return rk29sdk_wifi_mmc0_cd;
+}
+
+static int rk29sdk_wifi_mmc0_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
+{
+        if(wifi_mmc0_status_cb)
+                return -EAGAIN;
+        wifi_mmc0_status_cb = callback;
+        wifi_mmc0_status_cb_devid = dev_id;
+        return 0;
+}
+
+
+static int rk29sdk_wifi_status(struct device *dev)
+{
+        return rk29sdk_wifi_cd;
+}
+
+static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
+{
+        if(wifi_status_cb)
+                return -EAGAIN;
+        wifi_status_cb = callback;
+        wifi_status_cb_devid = dev_id;
+        return 0;
+}
+extern unsigned int sdio_irq_global;
+
+int rk29sdk_wifi_power(int on)
+{
+    pr_info("%s: %d\n", __func__, on);
+    if (on){
+    
+        #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)  
+            
+          #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+             rk29_sdmmc_gpio_open(0, 1); 
+          #else
+            rk29_sdmmc_gpio_open(1, 0);                
+            mdelay(10);
+            rk29_sdmmc_gpio_open(1, 1); 
+          #endif 
+        #endif
+    
+            mdelay(100);
+            pr_info("wifi turn on power\n");
+    }
+    else
+    {    
+#if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+        #if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+        rk29_sdmmc_gpio_open(0, 0);
+        #else
+        rk29_sdmmc_gpio_open(1, 0);
+        #endif
+#endif      
+        mdelay(100);
+        pr_info("wifi shut off power\n");
+         
+    }
+    
+    rk29sdk_wifi_power_state = on;
+    return 0;
+
+}
+EXPORT_SYMBOL(rk29sdk_wifi_power);
+
+
+int rk29sdk_wifi_reset(int on)
+{    
+    return 0;
+}
+EXPORT_SYMBOL(rk29sdk_wifi_reset);
+
+
+#if defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
+int rk29sdk_wifi_set_carddetect(int val)
+{
+    pr_info("%s:%d\n", __func__, val);
+    rk29sdk_wifi_mmc0_cd = val;
+    if (wifi_mmc0_status_cb){
+            wifi_mmc0_status_cb(val, wifi_mmc0_status_cb_devid);
+    }else {
+            pr_warning("%s,in mmc0 nobody to notify\n", __func__);
+    }
+    return 0; 
+}
+
+#else
+int rk29sdk_wifi_set_carddetect(int val)
+{
+    pr_info("%s:%d\n", __func__, val);
+    rk29sdk_wifi_cd = val;
+    if (wifi_status_cb){
+            wifi_status_cb(val, wifi_status_cb_devid);
+    }else {
+            pr_warning("%s,in mmc1 nobody to notify\n", __func__);
+    }
+    return 0; 
+}
+#endif
+
+EXPORT_SYMBOL(rk29sdk_wifi_set_carddetect);
+
+#endif  ///  #endif ---#elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+
+
+
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 static struct wifi_platform_data rk29sdk_wifi_control = {
         .set_power = rk29sdk_wifi_power,
         .set_reset = rk29sdk_wifi_reset,
@@ -434,6 +692,38 @@ static struct platform_device rk29sdk_wifi_device = {
                 .platform_data = &rk29sdk_wifi_control,
          },
 };
+
+#elif defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+
+    #if debug_combo_system
+        static struct combo_module_platform_data rk29sdk_combo_module_control = {
+            .set_power = rk29sdk_wifi_combo_module_power,
+            .set_reset = rk29sdk_wifi_combo_module_reset,  
+        };
+
+        static struct platform_device  rk29sdk_combo_module_device = {
+                .name = "combo-system",
+                .id = 1,
+                .dev = {
+                        .platform_data = &rk29sdk_combo_module_control,
+                 },
+        };
+    #endif
+
+static struct wifi_platform_data rk29sdk_wifi_control = {
+        .set_power = rk29sdk_wifi_power,
+        .set_reset = rk29sdk_wifi_reset,
+        .set_carddetect = rk29sdk_wifi_set_carddetect,
+};
+
+static struct platform_device rk29sdk_wifi_device = {
+        .name = "combo-wifi",
+        .id = 1,
+        .dev = {
+                .platform_data = &rk29sdk_wifi_control,
+         },
+};
+
 #endif
 
 

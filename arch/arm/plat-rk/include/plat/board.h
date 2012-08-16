@@ -95,6 +95,7 @@ struct rk29_sdmmc_platform_data {
 	int detect_irq;
 	int enable_sd_wakeup;
 	int write_prt;
+	unsigned int sdio_INT_gpio; //add gpio INT for sdio interrupt.Modifed by xbw at 2012-08-09
 };
 
 struct gsensor_platform_data {

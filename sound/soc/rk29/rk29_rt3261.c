@@ -1,7 +1,7 @@
 /*
- * rk29_rt5625.c  --  SoC audio for rockchip
+ * rk29_rt3261.c  --  SoC audio for rockchip
  *
- * Driver for rockchip rt5625 audio
+ * Driver for rockchip rt3261 audio
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -101,7 +101,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 	{
-		       DBG("rk29_hw_params_rt5625:failed to set the sysclk for codec side\n"); 
+		DBG("rk29_hw_params_rt3261:failed to set the sysclk for codec side\n"); 
 		return ret;
 	}
 
@@ -125,19 +125,8 @@ static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
        
-	/* set codec DAI configuration */
-	//#if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
-	DBG("Enter::%s----codec slave\n",__FUNCTION__);
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-				SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	/*#endif
-	//#if defined (CONFIG_SND_CODEC_SOC_MASTER) 
-	DBG("Enter::%s----codec master\n",__FUNCTION__);
-
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
 		SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-	#endif*/
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -158,17 +147,24 @@ static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	//snd_soc_dai_set_pll(codec_dai, RT5625_PLL_MCLK_TO_VSYSCLK, 0, pll_out, 24576000);???????
+	DBG("Enter:%s, %d, rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
 
 	/*Set the system clk for codec*/
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 24576000, SND_SOC_CLOCK_IN);
+	snd_soc_dai_set_pll(codec_dai, 0, RT3261_PLL1_S_MCLK, pll_out, 256 * 8000);
+
+ 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 256 * 8000, SND_SOC_CLOCK_IN);
+
 
 	if (ret < 0) {
-		printk("rk29_hw_params_rt5625:failed to set the sysclk for codec side\n"); 
+		printk("rk29_hw_params_rt3261:failed to set the sysclk for codec side\n"); 
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+
+	DBG("Enter:%s, %d, pll_out/4/params_rate(params) = %d \n", __FUNCTION__, __LINE__, (pll_out/4)/params_rate(params));
  
 	return 0;
 }

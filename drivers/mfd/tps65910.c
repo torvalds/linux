@@ -36,7 +36,7 @@ static struct mfd_cell tps65910s[] = {
 	},
 };
 
-#define TPS65910_SPEED 	400 * 1000
+#define TPS65910_SPEED 	200 * 1000
 
 static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 				  int bytes, void *dest)
@@ -51,14 +51,14 @@ static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
 	xfer[0].flags = 0;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
-	xfer[0].scl_rate = 200*1000;
+	xfer[0].scl_rate = TPS65910_SPEED;
 
 	/* Read data */
 	xfer[1].addr = i2c->addr;
 	xfer[1].flags = I2C_M_RD;
 	xfer[1].len = bytes;
 	xfer[1].buf = dest;
-	xfer[1].scl_rate = 200*1000;
+	xfer[1].scl_rate = TPS65910_SPEED;
 
 	ret = i2c_transfer(i2c->adapter, xfer, 2);
 	//for(i=0;i<bytes;i++)
@@ -239,7 +239,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	struct tps65910_board *pmic_plat_data;
 	struct tps65910_platform_data *init_data;
 	int ret = 0;
-
+	
 	pmic_plat_data = dev_get_platdata(&i2c->dev);
 	if (!pmic_plat_data)
 		return -EINVAL;
@@ -292,7 +292,8 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 			goto err;
 		}
 	}
-	printk("%s:irq=%d,irq_base=%d\n",__func__,init_data->irq,init_data->irq_base);
+
+	printk("%s:irq=%d,irq_base=%d,gpio_base=%d\n",__func__,init_data->irq,init_data->irq_base,pmic_plat_data->gpio_base);
 	return ret;
 
 err:
@@ -310,15 +311,15 @@ int tps65910_device_shutdown(void)
 	
 	printk("%s\n",__func__);
 
-	val = tps65910_reg_read(tps65910, TPS65910_REG_DEVCTRL);
+	val = tps65910_reg_read(tps65910, TPS65910_DEVCTRL);
         if (val<0) {
                 printk(KERN_ERR "Unable to read TPS65910_REG_DCDCCTRL reg\n");
                 return -EIO;
         }
 	
-	val |= (1 << 3)|(1 << 0);
-	val &= ~(1 << 6);	//keep rtc
-	err = tps65910_reg_write(tps65910, TPS65910_REG_DEVCTRL, val);
+	val |= DEVCTRL_DEV_OFF_MASK;
+	val &= ~DEVCTRL_CK32K_CTRL_MASK;	//keep rtc
+	err = tps65910_reg_write(tps65910, TPS65910_DEVCTRL, val);
 	if (err) {
 		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
 				\n", TPS65910_REG_VDIG1);

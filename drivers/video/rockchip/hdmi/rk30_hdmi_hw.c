@@ -61,6 +61,8 @@ int rk30_hdmi_detect_hotplug(void)
 	int value =	HDMIRdReg(HPD_MENS_STA);
 	
 	hdmi_dbg(hdmi->dev, "[%s] value %02x\n", __FUNCTION__, value);
+	#if 0
+	// When HPD and TMDS_CLK was high, HDMI is actived.
 	value &= m_HOTPLUG_STATUS | m_MSEN_STATUS;
 	if(value  == (m_HOTPLUG_STATUS | m_MSEN_STATUS) )
 		return HDMI_HPD_ACTIVED;
@@ -68,6 +70,15 @@ int rk30_hdmi_detect_hotplug(void)
 		return HDMI_HPD_INSERT;
 	else
 		return HDMI_HPD_REMOVED;
+	#else
+	// When HPD was high, HDMI is actived.
+	if(value & m_HOTPLUG_STATUS)
+		return HDMI_HPD_ACTIVED;
+	else if(value & m_MSEN_STATUS)
+		return HDMI_HPD_INSERT;
+	else
+		return HDMI_HPD_REMOVED;
+	#endif
 }
 
 #define HDMI_EDID_DDC_CLK	90000

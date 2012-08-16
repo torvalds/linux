@@ -111,13 +111,30 @@ menu "Support for RK power manage"
 config CLK_SWITCH_TO_32K
 	bool "Support clock switch to 32.768k"
 
+config RK30_I2C_INSRAM
+	bool "Support i2c control interface in sram"
+	
+
 endmenu
 endif
 
+
+choice WIFI_CONTROL
+       prompt "wifi control func Type."
+       default WIFI_CONTROL_FUNC
+ 
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help
           Enables Power/Reset/Carddetect function abstraction
+
+config WIFI_COMBO_MODULE_CONTROL_FUNC
+        bool "Enable WiFi_combo_module control function abstraction"
+        help
+          Enables Power/Reset/Carddetect function abstraction
+
+endchoice
+
 
 config RK29_VPU
 	tristate "VPU (Video Processing Unit) service driver in kernel"
@@ -162,5 +179,9 @@ config RK_PL330_DMA
 	select PL330
 	help
 	  DMA API Driver for PL330 DMAC
+	  
+config RK_PL330_DMA_TEST
+	bool "pl330 DMA memcpy test"
+	depends on RK_PL330_DMA	  
 
 endif

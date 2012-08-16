@@ -1251,10 +1251,21 @@ config SOC_CAMERA_SP0838
 	help
 	  This is a sp0838 camera driver for rockchip
 	  
-config S5K5CA_USER_DEFINED_SERIES
+config SP0838_USER_DEFINED_SERIES
 	depends on SOC_CAMERA_SP0838
 	bool "sp0838 user defined init series"
 	default n
+
+config SOC_CAMERA_SP2518
+	tristate "sp2518 camera support for rockchip"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a sp2518 camera driver for rockchip
+	  
+config SP2518_USER_DEFINED_SERIES
+	depends on SOC_CAMERA_SP2518
+	bool "sp2518 user defined init series"
+	default n	
 
 
 config SOC_CAMERA_OV9640

@@ -558,6 +558,11 @@ struct station_info {
 	struct sta_bss_parameters bss_param;
 
 	int generation;
+
+#if defined(CONFIG_MT6620)	
+	const u8 *assoc_req_ies;
+    size_t assoc_req_ies_len;
+#endif    
 };
 
 /**

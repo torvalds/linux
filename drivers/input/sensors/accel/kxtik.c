@@ -40,7 +40,7 @@
 #define DBG(x...)
 #endif
 
-struct i2c_client *this_client=NULL;
+struct i2c_client *kxtik_client=NULL;
 static struct class *sensor_class = NULL;
 
 static ssize_t sensor_setoratitention(struct device *dev,
@@ -50,7 +50,7 @@ static ssize_t sensor_setoratitention(struct device *dev,
 	char gsensororatation[20];
 	
 	struct sensor_private_data *sensor =
-	    (struct sensor_private_data *) i2c_get_clientdata(this_client);	
+	    (struct sensor_private_data *) i2c_get_clientdata(kxtik_client);	
 	struct sensor_platform_data *pdata = sensor->pdata;
 
 	
@@ -106,6 +106,7 @@ static int  sensor_sys_init(void)
    	return 0;
 }
 
+
 /****************operate according to sensor chip:start************/
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
@@ -136,7 +137,7 @@ static int sensor_active(struct i2c_client *client, int enable, int rate)
 	
 	return result;
 
-}
+} 
 
 static int sensor_init(struct i2c_client *client)
 {	
@@ -150,8 +151,8 @@ static int sensor_init(struct i2c_client *client)
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	this_client = client;
 	
+	kxtik_client=client;
 	sensor->status_cur = SENSOR_OFF;
 	
 	result = sensor_write_reg(client, KXTIK_DATA_CTRL_REG, KXTIK_ODR400F);
@@ -178,8 +179,9 @@ static int sensor_init(struct i2c_client *client)
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+
 	sensor_sys_init();
+	
 	return result;
 }
 
@@ -282,7 +284,7 @@ static int sensor_report_value(struct i2c_client *client)
 	return ret;
 }
 
-struct sensor_operate gsensor_ops = {
+struct sensor_operate gsensor_kxtik_ops = {
 	.name				= "kxtik",
 	.type				= SENSOR_TYPE_ACCEL,		//sensor type and it should be correct
 	.id_i2c				= ACCEL_ID_KXTIK,		//i2c id number
@@ -303,14 +305,13 @@ struct sensor_operate gsensor_ops = {
 /****************operate according to sensor chip:end************/
 
 //function name should not be changed
-struct sensor_operate *gsensor_get_ops(void)
+static struct sensor_operate *gsensor_get_ops(void)
 {
-	return &gsensor_ops;
+	return &gsensor_kxtik_ops;
 }
 
-EXPORT_SYMBOL(gsensor_get_ops);
 
-static int __init gsensor_init(void)
+static int __init gsensor_kxtik_init(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int result = 0;
@@ -320,7 +321,7 @@ static int __init gsensor_init(void)
 	return result;
 }
 
-static void __exit gsensor_exit(void)
+static void __exit gsensor_kxtik_exit(void)
 {
 	struct sensor_operate *ops = gsensor_get_ops();
 	int type = ops->type;
@@ -328,7 +329,6 @@ static void __exit gsensor_exit(void)
 }
 
 
-module_init(gsensor_init);
-module_exit(gsensor_exit);
-
+module_init(gsensor_kxtik_init);
+module_exit(gsensor_kxtik_exit);
 

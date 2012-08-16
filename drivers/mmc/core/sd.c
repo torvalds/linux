@@ -306,7 +306,9 @@ static int mmc_read_switch(struct mmc_card *card)
 		goto out;
 	}
 
-	if (card->scr.sda_spec3) {
+    //mask the the SD Ver3.0 support,modifyed by xbw at 2012-8-09
+	//if (card->scr.sda_spec3) {
+	if(0) {
 		card->sw_caps.sd3_bus_mode = status[13];
 
 		/* Find out Driver Strengths supported by the card */

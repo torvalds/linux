@@ -44,6 +44,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -65,6 +66,10 @@
 #endif
 #if defined(CONFIG_ANDROID_TIMED_GPIO)
 #include "../../../drivers/staging/android/timed_gpio.h"
+#endif
+
+#if defined(CONFIG_MT6620)
+#include <linux/gps.h>
 #endif
 
 #ifdef  CONFIG_THREE_FB_BUFFER
@@ -866,6 +871,25 @@ static struct sensor_platform_data lis3dh_info = {
 	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
 #endif
+#if defined (CONFIG_GS_KXTIK)
+#define KXTIK_INT_PIN   RK30_PIN4_PC0
+
+static int kxtik_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	return 0;
+}
+
+static struct sensor_platform_data kxtik_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+	.init_platform_hw = kxtik_init_platform_hw,
+	.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
+};
+
+#endif
 #if defined (CONFIG_COMPASS_AK8975)
 static struct sensor_platform_data akm8975_info =
 {
@@ -936,6 +960,38 @@ static struct sensor_platform_data cm3217_info = {
 
 #endif
 
+#if defined(CONFIG_PS_AL3006)
+static struct sensor_platform_data proximity_al3006_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+#if defined(CONFIG_PS_STK3171)
+static struct sensor_platform_data proximity_stk3171_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+
+#if defined(CONFIG_LS_AL3006)
+static struct sensor_platform_data light_al3006_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+#if defined(CONFIG_LS_STK3171)
+static struct sensor_platform_data light_stk3171_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
 #ifdef CONFIG_FB_ROCKCHIP
 
 #define LCD_CS_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
@@ -1163,14 +1219,15 @@ static struct platform_device device_ion = {
 #include "board-rk30-sdk-sdmmc.c"
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
-#define SDMMC0_WRITE_PROTECT_PIN	RK30_PIN3_PB7	//According to your own project to set the value of write-protect-pin.
+#define SDMMC0_WRITE_PROTECT_PIN	RK30_PIN3_PB2	//According to your own project to set the value of write-protect-pin.
 #endif
 
 #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
-#define SDMMC1_WRITE_PROTECT_PIN	RK30_PIN3_PC7	//According to your own project to set the value of write-protect-pin.
+#define SDMMC1_WRITE_PROTECT_PIN	RK30_PIN3_PB3	//According to your own project to set the value of write-protect-pin.
 #endif
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK30_PIN6_PB2
+#define RK29SDK_WIFI_SDIO_CARD_INT         RK30_PIN3_PD2
 
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
@@ -1226,6 +1283,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
+
+#if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    .status = rk29sdk_wifi_mmc0_status,
+    .register_status_notify = rk29sdk_wifi_mmc0_status_register,
+#endif
+
 	.detect_irq = RK30_PIN3_PB6,	// INVALID_GPIO
 	.enable_sd_wakeup = 0,
 
@@ -1290,7 +1353,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #endif
 
 #if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC) || defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	.status = rk29sdk_wifi_status,
 	.register_status_notify = rk29sdk_wifi_status_register,
 #endif
@@ -1302,6 +1365,10 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.write_prt = SDMMC1_WRITE_PROTECT_PIN,
 #else
 	.write_prt = INVALID_GPIO,
+#endif
+
+#if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
+    .sdio_INT_gpio = RK29SDK_WIFI_SDIO_CARD_INT,
 #endif
 
 #else
@@ -1332,6 +1399,60 @@ static struct platform_device rk30_device_adc_battery = {
         .dev = {
                 .platform_data = &rk30_adc_battery_platdata,
         },
+};
+#endif
+
+#if CONFIG_RK30_PWM_REGULATOR
+const static int pwm_voltage_map[] = {
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+};
+
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[1] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[1] = {
+	{
+		.pwm_id = 3,
+		.pwm_gpio = RK30_PIN0_PD7,
+		.pwm_iomux_name = GPIO0D7_PWM3_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM3,
+		.pwm_iomux_gpio = GPIO0D_GPIO0D6,
+		.pwm_voltage = 1100000,
+		.suspend_voltage = 1050000,
+		.min_uV = 1000000,
+		.max_uV	= 1400000,
+		.coefficient = 455,	//45.5%
+		.pwm_voltage_map = pwm_voltage_map,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+};
+
+struct platform_device pwm_regulator_device[1] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
 };
 #endif
 
@@ -1421,9 +1542,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK_IRDA
 	&irda_device,
 #endif
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC)||defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	&rk29sdk_wifi_device,
 #endif
+
+#if defined(CONFIG_MT6620)
+    &mt3326_device_gps,
+#endif   
+
 #ifdef CONFIG_RK29_SUPPORT_MODEM
 	&rk30_device_modem,
 #endif
@@ -1468,6 +1594,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &lis3dh_info,
 	},
 #endif
+#if defined (CONFIG_GS_KXTIK)
+	{
+		.type	        = "gs_kxtik",
+		.addr	        = 0x0F,
+		.flags	        = 0,
+		.irq	        = KXTIK_INT_PIN,
+		.platform_data = &kxtik_info,
+	},
+#endif
 #if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type          = "ak8975",
@@ -1484,6 +1619,45 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 		.irq           = L3G4200D_INT_PIN,
 		.platform_data = &l3g4200d_info,
+	},
+#endif
+#if defined (CONFIG_LS_AL3006)
+	{
+		.type           = "light_al3006",
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &light_al3006_info,
+	},
+#endif
+#if defined (CONFIG_LS_STK3171)
+	{
+		.type           = "ls_stk3171",
+		.addr           = 0x48,            
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &light_stk3171_info,
+	},
+#endif
+
+
+#if defined (CONFIG_PS_AL3006)
+	{
+		.type           = "proximity_al3006",
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &proximity_al3006_info,
+	},
+#endif
+
+#if defined (CONFIG_PS_STK3171)
+	{
+		.type           = "ps_stk3171",
+		.addr           = 0x48,            
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &proximity_stk3171_info,
 	},
 #endif
 #if defined (CONFIG_SND_SOC_RK1000)
@@ -1609,7 +1783,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #endif
 #if defined (CONFIG_LS_CM3217)
 	{
-		.type          = "lightsensor",
+		.type          = "light_cm3217",
 		.addr          = 0x10,
 		.flags         = 0,
 		.platform_data = &cm3217_info,
@@ -1711,6 +1885,10 @@ static void __init machine_rk30_board_init(void)
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
+#endif
+
+#if defined(CONFIG_MT6620)
+    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 16*1000000);
 #endif
 }
 

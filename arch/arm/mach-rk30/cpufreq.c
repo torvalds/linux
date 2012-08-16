@@ -31,6 +31,8 @@
 #include <linux/earlysuspend.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
+#include <mach/ddr.h>
+#include <linux/cpu.h>
 #ifdef DEBUG
 #define FREQ_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args)
 #define FREQ_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args)
@@ -68,6 +70,7 @@ static struct clk *cpu_gpll;
 static DEFINE_MUTEX(cpufreq_mutex);
 
 static struct clk *gpu_clk;
+static struct clk *ddr_clk;
 #define GPU_MAX_RATE 350*1000*1000
 
 static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate);
@@ -220,11 +223,20 @@ static int rk30_verify_speed(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_verify(policy, freq_table);
 }
 
+uint32_t ddr_set_rate(uint32_t nMHz);
+
+int ddr_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate)
+{
+	#if defined (CONFIG_DDR_FREQ)
+	ddr_set_rate(rate/(1000*1000));
+	#endif
+	return 0;
+}
+
 static int rk30_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu == 0) {
 		int i;
-		struct clk *ddr_clk;
 		
 		gpu_clk = clk_get(NULL, "gpu");
 		if (!IS_ERR(gpu_clk))
@@ -233,8 +245,9 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		ddr_clk = clk_get(NULL, "ddr");
 		if (!IS_ERR(ddr_clk))
 		{
+			dvfs_clk_register_set_rate_callback(ddr_clk, ddr_scale_rate_for_dvfs);
 			clk_enable_dvfs(ddr_clk);
-			clk_set_rate(ddr_clk,clk_get_rate(ddr_clk)-1);
+			//clk_set_rate(ddr_clk,clk_get_rate(ddr_clk)-1);
 		}
 		
 		cpu_clk = clk_get(NULL, "cpu");
