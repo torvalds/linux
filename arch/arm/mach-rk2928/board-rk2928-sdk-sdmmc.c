@@ -203,6 +203,7 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #define RK30SDK_WIFI_GPIO_POWER_N       RK2928_PIN0_PD6
+#define RK29SDK_WIFI_GPIO_RESET_N       RK2928_PIN3_PC2
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -309,12 +310,12 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
            return -1;
     }
 
-    /*if (gpio_request(RK29SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
+    if (gpio_request(RK29SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
            pr_info("%s: request wifi reset gpio failed\n", __func__);
            gpio_free(RK30SDK_WIFI_GPIO_POWER_N);
            return -1;
     }
-
+	/*
     if (gpio_request(RK29SDK_BT_GPIO_RESET_N, "bt reset")) {
           pr_info("%s: request bt reset gpio failed\n", __func__);
           gpio_free(RK29SDK_WIFI_GPIO_RESET_N);
@@ -322,7 +323,7 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     }*/
 
     gpio_direction_output(RK30SDK_WIFI_GPIO_POWER_N, GPIO_LOW);
-    //gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
+    gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
     //gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
@@ -351,12 +352,12 @@ static int rk29sdk_wifi_power(int on)
         pr_info("%s: %d\n", __func__, on);
         if (on){
                 gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, GPIO_HIGH);
-
+				mdelay(50);
                 #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
                 rk29_sdmmc_gpio_open(1, 1); //added by xbw at 2011-10-13
                 #endif
 
-                //gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_HIGH);
+                gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_HIGH);
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
@@ -373,7 +374,7 @@ static int rk29sdk_wifi_power(int on)
 //                {
 //                        pr_info("wifi shouldn't shut off power, bt is using it!\n");
 //                }
-                //gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
+                  gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
 
         }
 
@@ -385,8 +386,8 @@ static int rk29sdk_wifi_reset_state;
 static int rk29sdk_wifi_reset(int on)
 {
         pr_info("%s: %d\n", __func__, on);
-        //gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, on);
-        //mdelay(100);
+        gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, on);
+        mdelay(100);
         rk29sdk_wifi_reset_state = on;
         return 0;
 }

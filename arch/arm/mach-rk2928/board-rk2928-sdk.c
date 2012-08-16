@@ -379,6 +379,59 @@ static struct platform_device device_ion = {
 };
 #endif
 
+#if CONFIG_RK30_PWM_REGULATOR
+const static int pwm_voltage_map[] = {
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+};
+
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[1] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[1] = {
+	{
+		.pwm_id = 2,
+		.pwm_gpio = RK2928_PIN0_PD4,
+		.pwm_iomux_name = GPIO0D4_PWM_2_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM_2, 
+		.pwm_iomux_gpio = GPIO0D_GPIO0D4,
+		.pwm_voltage = 1200000,
+		.suspend_voltage = 1050000,
+		.min_uV = 1000000,
+		.max_uV	= 1400000,
+		.coefficient = 455,	//45.5%
+		.pwm_voltage_map = pwm_voltage_map,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+};
+
+struct platform_device pwm_regulator_device[1] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
+};
+#endif
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
@@ -717,10 +770,15 @@ static void __init rk30_i2c_register_board_info(void)
 //end of i2c
 
 #define POWER_ON_PIN RK2928_PIN3_PC5   //power_hold
-static void rk30_pm_power_off(void)
+static void rk2928_pm_power_off(void)
 {
-	printk(KERN_ERR "rk30_pm_power_off start...\n");
+	printk(KERN_ERR "rk2928_pm_power_off start...\n");
+	
+	#if defined(CONFIG_MFD_TPS65910)
+		tps65910_device_shutdown();//tps65910 shutdown
+	#endif
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+	
 };
 
 static void __init rk2928_board_init(void)
@@ -729,7 +787,7 @@ static void __init rk2928_board_init(void)
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
         gpio_free(POWER_ON_PIN);
 	
-	pm_power_off = rk30_pm_power_off;
+	pm_power_off = rk2928_pm_power_off;
 	
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));

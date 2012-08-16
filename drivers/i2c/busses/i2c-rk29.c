@@ -111,7 +111,9 @@ struct rk29_i2c_data {
 #endif	
 };
 
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK30)
 static struct wake_lock idlelock; /* only for i2c0 */
+#endif
 
 static void rk29_set_ack(struct rk29_i2c_data *i2c)
 {
@@ -558,8 +560,10 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 	i2c->udelay_time = RK29_UDELAY_TIME(i2c->scl_rate);
 	i2c->ack_timeout = RK29_I2C_ACK_TIMEOUT_COUNT * i2c->udelay_time;
 
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK30)
 	if (adap->nr == 0)
 		wake_lock(&idlelock);
+#endif
 
 	for (i = 0; i < num; i++) 
 	{
@@ -572,8 +576,10 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 		}
 	}
 
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK30)
 	if (adap->nr == 0)
 		wake_unlock(&idlelock);
+#endif
 
 	/*
 	if( --retry && num < 0)
@@ -887,7 +893,9 @@ static struct platform_driver rk29_i2c_driver = {
 
 static int __init rk29_i2c_adap_init(void)
 {
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK30)
 	wake_lock_init(&idlelock, WAKE_LOCK_IDLE, "i2c0");
+#endif
 	return platform_driver_register(&rk29_i2c_driver);
 }
 
