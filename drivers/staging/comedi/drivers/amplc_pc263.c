@@ -93,6 +93,20 @@ static const struct pc263_board pc263_boards[] = {
 #endif
 };
 
+/* test if ISA supported and this is an ISA board */
+static inline bool is_isa_board(const struct pc263_board *board)
+{
+	return IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
+		&& board->bustype == isa_bustype;
+}
+
+/* test if PCI supported and this is a PCI board */
+static inline bool is_pci_board(const struct pc263_board *board)
+{
+	return IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+		&& board->bustype == pci_bustype;
+}
+
 /*
  * This function looks for a board matching the supplied PCI device.
  */
@@ -101,7 +115,7 @@ static const struct pc263_board *pc263_find_pci_board(struct pci_dev *pci_dev)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pc263_boards); i++)
-		if (pc263_boards[i].bustype == pci_bustype &&
+		if (is_pci_board(&pc263_boards[i]) &&
 		    pci_dev->device == pc263_boards[i].devid)
 			return &pc263_boards[i];
 	return NULL;
@@ -187,11 +201,9 @@ static void pc263_report_attach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	char tmpbuf[40];
 
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
-	    thisboard->bustype == isa_bustype)
+	if (is_isa_board(thisboard))
 		snprintf(tmpbuf, sizeof(tmpbuf), "(base %#lx) ", dev->iobase);
-	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
-		 thisboard->bustype == pci_bustype)
+	else if (is_pci_board(thisboard))
 		snprintf(tmpbuf, sizeof(tmpbuf), "(pci %s) ",
 			 pci_name(pcidev));
 	else
@@ -259,15 +271,13 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach\n");
 
 	/* Process options and reserve resources according to bus type. */
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA) &&
-	    thisboard->bustype == isa_bustype) {
+	if (is_isa_board(thisboard)) {
 		unsigned long iobase = it->options[0];
 		ret = pc263_request_region(dev, iobase, PC263_IO_SIZE);
 		if (ret < 0)
 			return ret;
 		return pc263_common_attach(dev, iobase);
-	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI) &&
-		   thisboard->bustype == pci_bustype) {
+	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pci_dev;
 
 		pci_dev = pc263_find_pci_dev(dev, it);
