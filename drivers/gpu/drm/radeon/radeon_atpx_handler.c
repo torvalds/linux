@@ -166,6 +166,16 @@ out:
 	return err;
 }
 
+/**
+ * radeon_atpx_set_discrete_state - power up/down discrete GPU
+ *
+ * @atpx: atpx info struct
+ * @state: discrete GPU state (0 = power down, 1 = power up)
+ *
+ * Execute the ATPX_FUNCTION_POWER_CONTROL ATPX function to
+ * power down/up the discrete GPU (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_set_discrete_state(struct radeon_atpx *atpx, u8 state)
 {
 	struct acpi_buffer params;
@@ -187,6 +197,17 @@ static int radeon_atpx_set_discrete_state(struct radeon_atpx *atpx, u8 state)
 	return 0;
 }
 
+/**
+ * radeon_atpx_switch_disp_mux - switch display mux
+ *
+ * @atpx: atpx info struct
+ * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
+ *
+ * Execute the ATPX_FUNCTION_DISPLAY_MUX_CONTROL ATPX function to
+ * switch the display mux between the discrete GPU and integrated GPU
+ * (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_switch_disp_mux(struct radeon_atpx *atpx, u16 mux_id)
 {
 	struct acpi_buffer params;
@@ -208,6 +229,17 @@ static int radeon_atpx_switch_disp_mux(struct radeon_atpx *atpx, u16 mux_id)
 	return 0;
 }
 
+/**
+ * radeon_atpx_switch_i2c_mux - switch i2c/hpd mux
+ *
+ * @atpx: atpx info struct
+ * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
+ *
+ * Execute the ATPX_FUNCTION_I2C_MUX_CONTROL ATPX function to
+ * switch the i2c/hpd mux between the discrete GPU and integrated GPU
+ * (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_switch_i2c_mux(struct radeon_atpx *atpx, u16 mux_id)
 {
 	struct acpi_buffer params;
@@ -229,6 +261,17 @@ static int radeon_atpx_switch_i2c_mux(struct radeon_atpx *atpx, u16 mux_id)
 	return 0;
 }
 
+/**
+ * radeon_atpx_switch_start - notify the sbios of a GPU switch
+ *
+ * @atpx: atpx info struct
+ * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
+ *
+ * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION ATPX
+ * function to notify the sbios that a switch between the discrete GPU and
+ * integrated GPU has begun (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_switch_start(struct radeon_atpx *atpx, u16 mux_id)
 {
 	struct acpi_buffer params;
@@ -250,6 +293,17 @@ static int radeon_atpx_switch_start(struct radeon_atpx *atpx, u16 mux_id)
 	return 0;
 }
 
+/**
+ * radeon_atpx_switch_end - notify the sbios of a GPU switch
+ *
+ * @atpx: atpx info struct
+ * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
+ *
+ * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION ATPX
+ * function to notify the sbios that a switch between the discrete GPU and
+ * integrated GPU has ended (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_switch_end(struct radeon_atpx *atpx, u16 mux_id)
 {
 	struct acpi_buffer params;
@@ -271,6 +325,15 @@ static int radeon_atpx_switch_end(struct radeon_atpx *atpx, u16 mux_id)
 	return 0;
 }
 
+/**
+ * radeon_atpx_switchto - switch to the requested GPU
+ *
+ * @id: GPU to switch to
+ *
+ * Execute the necessary ATPX functions to switch between the discrete GPU and
+ * integrated GPU (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
 {
 	u16 gpu_id;
@@ -288,6 +351,16 @@ static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
 	return 0;
 }
 
+/**
+ * radeon_atpx_switchto - switch to the requested GPU
+ *
+ * @id: GPU to switch to
+ * @state: requested power state (0 = off, 1 = on)
+ *
+ * Execute the necessary ATPX function to power down/up the discrete GPU
+ * (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
 				   enum vga_switcheroo_state state)
 {
@@ -299,6 +372,14 @@ static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
 	return 0;
 }
 
+/**
+ * radeon_atpx_pci_probe_handle - look up the ATRM and ATPX handles
+ *
+ * @pdev: pci device
+ *
+ * Look up the ATPX and ATRM handles (all asics).
+ * Returns true if the handles are found, false if not.
+ */
 static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 {
 	acpi_handle dhandle, atpx_handle;
@@ -317,12 +398,26 @@ static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 	return true;
 }
 
+/**
+ * radeon_atpx_init - verify the ATPX interface
+ *
+ * Verify the ATPX interface (all asics).
+ * Returns 0 on success, error on failure.
+ */
 static int radeon_atpx_init(void)
 {
 	/* set up the ATPX handle */
 	return radeon_atpx_verify_interface(&radeon_atpx_priv.atpx);
 }
 
+/**
+ * radeon_atpx_get_client_id - get the client id
+ *
+ * @pdev: pci device
+ *
+ * look up whether we are the integrated or discrete GPU (all asics).
+ * Returns the client id.
+ */
 static int radeon_atpx_get_client_id(struct pci_dev *pdev)
 {
 	if (radeon_atpx_priv.dhandle == DEVICE_ACPI_HANDLE(&pdev->dev))
@@ -338,6 +433,12 @@ static struct vga_switcheroo_handler radeon_atpx_handler = {
 	.get_client_id = radeon_atpx_get_client_id,
 };
 
+/**
+ * radeon_atpx_detect - detect whether we have PX
+ *
+ * Check if we have a PX system (all asics).
+ * Returns true if we have a PX system, false if not.
+ */
 static bool radeon_atpx_detect(void)
 {
 	char acpi_method_name[255] = { 0 };
@@ -362,6 +463,11 @@ static bool radeon_atpx_detect(void)
 	return false;
 }
 
+/**
+ * radeon_register_atpx_handler - register with vga_switcheroo
+ *
+ * Register the PX callbacks with vga_switcheroo (all asics).
+ */
 void radeon_register_atpx_handler(void)
 {
 	bool r;
@@ -374,6 +480,11 @@ void radeon_register_atpx_handler(void)
 	vga_switcheroo_register_handler(&radeon_atpx_handler);
 }
 
+/**
+ * radeon_unregister_atpx_handler - unregister with vga_switcheroo
+ *
+ * Unregister the PX callbacks with vga_switcheroo (all asics).
+ */
 void radeon_unregister_atpx_handler(void)
 {
 	vga_switcheroo_unregister_handler();
