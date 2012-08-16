@@ -1316,7 +1316,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN6_PA5,
         .batt_low_pin    = RK30_PIN6_PA0,
@@ -1439,7 +1439,7 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SEW868)
 	&rk30_device_sew868,
 #endif
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
  	&rk30_device_adc_battery,
 #endif
 #ifdef CONFIG_RFKILL_RK
