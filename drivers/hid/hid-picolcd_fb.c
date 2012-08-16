@@ -18,6 +18,7 @@
  ***************************************************************************/
 
 #include <linux/hid.h>
+#include <linux/vmalloc.h>
 #include "usbhid/usbhid.h"
 #include <linux/usb.h>
 
