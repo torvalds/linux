@@ -931,7 +931,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 
 	ret = m5mols_sensor_power(info, true);
 	if (ret)
-		goto out_me;
+		goto out_irq;
 
 	ret = m5mols_fw_start(sd);
 	if (!ret)
@@ -940,6 +940,8 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 	m5mols_sensor_power(info, false);
 	if (!ret)
 		return 0;
+out_irq:
+	free_irq(client->irq, sd);
 out_me:
 	media_entity_cleanup(&sd->entity);
 out_reg:
