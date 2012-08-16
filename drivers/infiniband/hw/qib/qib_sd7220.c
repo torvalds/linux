@@ -372,7 +372,7 @@ static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
 		/* Read CTRL reg for each channel to check TRIMDONE */
 		if (baduns & (1 << chn)) {
 			qib_dev_err(dd,
-				"Reseting TRIMDONE on chn %d (%s)\n",
+				"Resetting TRIMDONE on chn %d (%s)\n",
 				chn, where);
 			ret = qib_sd7220_reg_mod(dd, IB_7220_SERDES,
 				IB_CTRL2(chn), 0x10, 0x10);
