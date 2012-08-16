@@ -151,6 +151,22 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	return -EINVAL;
 }
 
+static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size_t length, enum dma_data_direction direction)
+{
+	struct drm_i915_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->base.dev;
+	int ret;
+	bool write = (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_set_to_cpu_domain(obj, write);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
 static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
@@ -162,6 +178,7 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.mmap = i915_gem_dmabuf_mmap,
 	.vmap = i915_gem_dmabuf_vmap,
 	.vunmap = i915_gem_dmabuf_vunmap,
+	.begin_cpu_access = i915_gem_begin_cpu_access,
 };
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
