@@ -247,7 +247,7 @@ static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
 {
 	int dsp_lut[256];
 	char *start = buf;
-	int i=256,temp;
+	int i=256,j,temp;
 	int space_max = 10;
 
 	struct fb_info *fbi = dev_get_drvdata(dev);
@@ -259,9 +259,10 @@ static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
 		temp = i;
 		dsp_lut[i] = temp + (temp<<8) + (temp<<16);  //init by default value
 	}
-	//printk("%s\n",start);
+	//printk("count:%d\n>>%s\n\n",count,start);
 	for(i=0;i<256;i++)
 	{
+		space_max = 10;  //max space number 10;
 		temp = simple_strtoul(start,NULL,10);
 		dsp_lut[i] = temp;
 		do
@@ -275,7 +276,14 @@ static ssize_t set_dsp_lut(struct device *dev,struct device_attribute *attr,
 		else
 			start++;
 	}
-	
+#if 0
+	for(i=0;i<16;i++)
+	{
+		for(j=0;j<16;j++)
+			printk("0x%08x ",dsp_lut[i*16+j]);
+		printk("\n");
+	}
+#endif
 	dev_drv->set_dsp_lut(dev_drv,dsp_lut);
 
 	return count;
