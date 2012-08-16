@@ -58,8 +58,6 @@ void notify_remote_via_irq(int irq);
 
 void xen_irq_resume(void);
 
-void xen_hvm_prepare_kexec(struct shared_info *sip, unsigned long pfn);
-
 /* Clear an irq's pending state, in preparation for polling on it */
 void xen_clear_irq_pending(int irq);
 void xen_set_irq_pending(int irq);
