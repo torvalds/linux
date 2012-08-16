@@ -1060,7 +1060,9 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 
 	mutex_lock(&dev->device_lock);
 
-	mei_wd_stop(dev, false);
+	cancel_delayed_work(&dev->timer_work);
+
+	mei_wd_stop(dev);
 
 	mei_device = NULL;
 
@@ -1115,8 +1117,11 @@ static int mei_pci_suspend(struct device *device)
 	if (!dev)
 		return -ENODEV;
 	mutex_lock(&dev->device_lock);
+
+	cancel_delayed_work(&dev->timer_work);
+
 	/* Stop watchdog if exists */
-	err = mei_wd_stop(dev, true);
+	err = mei_wd_stop(dev);
 	/* Set new mei state */
 	if (dev->dev_state == MEI_DEV_ENABLED ||
 	    dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET) {

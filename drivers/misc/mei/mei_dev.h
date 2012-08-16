@@ -33,6 +33,8 @@
 #define MEI_WD_MIN_TIMEOUT       120  /* seconds */
 #define MEI_WD_MAX_TIMEOUT     65535  /* seconds */
 
+#define MEI_WD_STOP_TIMEOUT      10 /* msecs */
+
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
 
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
@@ -118,6 +120,12 @@ enum mei_file_transaction_states {
 	MEI_FLOW_CONTROL,
 	MEI_READING,
 	MEI_READ_COMPLETE
+};
+
+enum mei_wd_states {
+	MEI_WD_IDLE,
+	MEI_WD_RUNNING,
+	MEI_WD_STOPPING,
 };
 
 /* MEI CB */
@@ -228,7 +236,6 @@ struct mei_device {
 	enum mei_dev_state dev_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
-	bool stop;
 	bool need_reset;
 
 	u32 extra_write_index;
@@ -248,11 +255,10 @@ struct mei_device {
 	bool mei_host_buffer_is_empty;
 
 	struct mei_cl wd_cl;
+	enum mei_wd_states wd_state;
 	bool wd_interface_reg;
 	bool wd_pending;
-	bool wd_stopped;
-	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
-	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
+	u16 wd_timeout;
 	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
 
 

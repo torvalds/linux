@@ -330,7 +330,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
-	dev->stop = false;
 	dev->wd_pending = false;
 
 	/* update the state of the registers after reset */

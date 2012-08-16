@@ -67,6 +67,7 @@ int mei_wd_host_init(struct mei_device *dev)
 	/* look for WD client and connect to it */
 	dev->wd_cl.state = MEI_FILE_DISCONNECTED;
 	dev->wd_timeout = MEI_WD_DEFAULT_TIMEOUT;
+	dev->wd_state = MEI_WD_IDLE;
 
 	/* find ME WD client */
 	mei_me_cl_update_filext(dev, &dev->wd_cl,
@@ -128,18 +129,17 @@ int mei_wd_send(struct mei_device *dev)
  *	-EIO when message send fails
  *	-EINVAL when invalid message is to be sent
  */
-int mei_wd_stop(struct mei_device *dev, bool preserve)
+int mei_wd_stop(struct mei_device *dev)
 {
 	int ret;
-	u16 wd_timeout = dev->wd_timeout;
 
-	cancel_delayed_work(&dev->timer_work);
-	if (dev->wd_cl.state != MEI_FILE_CONNECTED || !dev->wd_timeout)
+	if (dev->wd_cl.state != MEI_FILE_CONNECTED ||
+	    dev->wd_state != MEI_WD_RUNNING)
 		return 0;
 
-	dev->wd_timeout = 0;
 	memcpy(dev->wd_data, mei_stop_wd_params, MEI_WD_STOP_MSG_SIZE);
-	dev->stop = true;
+
+	dev->wd_state = MEI_WD_STOPPING;
 
 	ret = mei_flow_ctrl_creds(dev, &dev->wd_cl);
 	if (ret < 0)
@@ -161,13 +161,14 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 	} else {
 		dev->wd_pending = true;
 	}
-	dev->wd_stopped = false;
+
 	mutex_unlock(&dev->device_lock);
 
 	ret = wait_event_interruptible_timeout(dev->wait_stop_wd,
-					dev->wd_stopped, 10 * HZ);
+					dev->wd_state == MEI_WD_IDLE,
+					msecs_to_jiffies(MEI_WD_STOP_TIMEOUT));
 	mutex_lock(&dev->device_lock);
-	if (dev->wd_stopped) {
+	if (dev->wd_state == MEI_WD_IDLE) {
 		dev_dbg(&dev->pdev->dev, "wd: stop completed ret=%d.\n", ret);
 		ret = 0;
 	} else {
@@ -176,9 +177,6 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 		dev_warn(&dev->pdev->dev,
 			"wd: stop failed to complete ret=%d.\n", ret);
 	}
-
-	if (preserve)
-		dev->wd_timeout = wd_timeout;
 
 out:
 	return ret;
@@ -239,7 +237,7 @@ static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
-	mei_wd_stop(dev, false);
+	mei_wd_stop(dev);
 	mutex_unlock(&dev->device_lock);
 
 	return 0;
@@ -268,6 +266,8 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 		ret = -ENODEV;
 		goto end;
 	}
+
+	dev->wd_state = MEI_WD_RUNNING;
 
 	/* Check if we can send the ping to HW*/
 	if (dev->mei_host_buffer_is_empty &&

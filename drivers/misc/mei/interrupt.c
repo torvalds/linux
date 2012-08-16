@@ -1224,10 +1224,9 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 		}
 	}
 
-	if (dev->stop && !dev->wd_pending) {
-		dev->wd_stopped = true;
+	if (dev->wd_state == MEI_WD_STOPPING) {
+		dev->wd_state = MEI_WD_IDLE;
 		wake_up_interruptible(&dev->wait_stop_wd);
-		return 0;
 	}
 
 	if (dev->extra_write_index) {
@@ -1250,14 +1249,12 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 
 			dev->wd_pending = false;
 
-			if (dev->wd_timeout)
+			if (dev->wd_state == MEI_WD_RUNNING)
 				*slots -= mei_data2slots(MEI_WD_START_MSG_SIZE);
 			else
 				*slots -= mei_data2slots(MEI_WD_STOP_MSG_SIZE);
 		}
 	}
-	if (dev->stop)
-		return -ENODEV;
 
 	/* complete control write list CB */
 	dev_dbg(&dev->pdev->dev, "complete control write list cb.\n");
