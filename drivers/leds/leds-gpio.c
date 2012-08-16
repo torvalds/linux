@@ -228,7 +228,6 @@ static struct gpio_leds_priv * __devinit gpio_leds_create_of(struct platform_dev
 {
 	return NULL;
 }
-#define of_gpio_leds_match NULL
 #endif /* CONFIG_OF_GPIO */
 
 
@@ -287,7 +286,7 @@ static struct platform_driver gpio_led_driver = {
 	.driver		= {
 		.name	= "leds-gpio",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_gpio_leds_match,
+		.of_match_table = of_match_ptr(of_gpio_leds_match),
 	},
 };
 
