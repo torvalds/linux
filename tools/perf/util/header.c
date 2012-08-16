@@ -23,8 +23,8 @@
 
 static bool no_buildid_cache = false;
 
-static int event_count;
-static struct perf_trace_event_type *events;
+static int trace_event_count;
+static struct perf_trace_event_type *trace_events;
 
 static u32 header_argc;
 static const char **header_argv;
@@ -36,24 +36,24 @@ int perf_header__push_event(u64 id, const char *name)
 	if (strlen(name) > MAX_EVENT_NAME)
 		pr_warning("Event %s will be truncated\n", name);
 
-	nevents = realloc(events, (event_count + 1) * sizeof(*events));
+	nevents = realloc(trace_events, (trace_event_count + 1) * sizeof(*trace_events));
 	if (nevents == NULL)
 		return -ENOMEM;
-	events = nevents;
+	trace_events = nevents;
 
-	memset(&events[event_count], 0, sizeof(struct perf_trace_event_type));
-	events[event_count].event_id = id;
-	strncpy(events[event_count].name, name, MAX_EVENT_NAME - 1);
-	event_count++;
+	memset(&trace_events[trace_event_count], 0, sizeof(struct perf_trace_event_type));
+	trace_events[trace_event_count].event_id = id;
+	strncpy(trace_events[trace_event_count].name, name, MAX_EVENT_NAME - 1);
+	trace_event_count++;
 	return 0;
 }
 
 char *perf_header__find_event(u64 id)
 {
 	int i;
-	for (i = 0 ; i < event_count; i++) {
-		if (events[i].event_id == id)
-			return events[i].name;
+	for (i = 0 ; i < trace_event_count; i++) {
+		if (trace_events[i].event_id == id)
+			return trace_events[i].name;
 	}
 	return NULL;
 }
@@ -1726,9 +1726,9 @@ out_err_write:
 	}
 
 	header->event_offset = lseek(fd, 0, SEEK_CUR);
-	header->event_size = event_count * sizeof(struct perf_trace_event_type);
-	if (events) {
-		err = do_write(fd, events, header->event_size);
+	header->event_size = trace_event_count * sizeof(struct perf_trace_event_type);
+	if (trace_events) {
+		err = do_write(fd, trace_events, header->event_size);
 		if (err < 0) {
 			pr_debug("failed to write perf header events\n");
 			return err;
@@ -2211,13 +2211,13 @@ int perf_session__read_header(struct perf_session *session, int fd)
 
 	if (f_header.event_types.size) {
 		lseek(fd, f_header.event_types.offset, SEEK_SET);
-		events = malloc(f_header.event_types.size);
-		if (events == NULL)
+		trace_events = malloc(f_header.event_types.size);
+		if (trace_events == NULL)
 			return -ENOMEM;
-		if (perf_header__getbuffer64(header, fd, events,
+		if (perf_header__getbuffer64(header, fd, trace_events,
 					     f_header.event_types.size))
 			goto out_errno;
-		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
+		trace_event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
 
 	perf_header__process_sections(header, fd, &session->pevent,
@@ -2362,8 +2362,8 @@ int perf_event__synthesize_event_types(struct perf_tool *tool,
 	struct perf_trace_event_type *type;
 	int i, err = 0;
 
-	for (i = 0; i < event_count; i++) {
-		type = &events[i];
+	for (i = 0; i < trace_event_count; i++) {
+		type = &trace_events[i];
 
 		err = perf_event__synthesize_event_type(tool, type->event_id,
 							type->name, process,
