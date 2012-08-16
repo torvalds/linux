@@ -148,7 +148,6 @@ struct nouveau_pm_temp_sensor_constants {
 struct nouveau_pm_threshold_temp {
 	s16 critical;
 	s16 down_clock;
-	s16 fan_boost;
 };
 
 struct nouveau_pm_fan {

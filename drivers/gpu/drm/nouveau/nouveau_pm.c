@@ -891,10 +891,7 @@ nouveau_pm_init(struct drm_device *dev)
 		}
 		pm->voltage_get = nouveau_voltage_gpio_get;
 		pm->voltage_set = nouveau_voltage_gpio_set;
-		if (device->chipset == 0x50)
-			pm->temp_get = nv40_temp_get;
-		else
-			pm->temp_get = nv84_temp_get;
+		pm->temp_get = nv84_temp_get;
 		pm->pwm_get = nv50_pm_pwm_get;
 		pm->pwm_set = nv50_pm_pwm_set;
 	} else

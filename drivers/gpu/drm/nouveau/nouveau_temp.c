@@ -30,187 +30,23 @@
 #include "nouveau_pm.h"
 
 #include <subdev/i2c.h>
-
-static void
-nouveau_temp_vbios_parse(struct drm_device *dev, u8 *temp)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_pm *pm = nouveau_pm(dev);
-	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
-	struct nouveau_pm_threshold_temp *temps = &pm->threshold_temp;
-	int i, headerlen, recordlen, entries;
-
-	if (!temp) {
-		NV_DEBUG(drm, "temperature table pointer invalid\n");
-		return;
-	}
-
-	/* Set the default sensor's contants */
-	sensor->offset_constant = 0;
-	sensor->offset_mult = 0;
-	sensor->offset_div = 1;
-	sensor->slope_mult = 1;
-	sensor->slope_div = 1;
-
-	/* Set the default temperature thresholds */
-	temps->critical = 110;
-	temps->down_clock = 100;
-	temps->fan_boost = 90;
-
-	/* Set the default range for the pwm fan */
-	pm->fan.min_duty = 30;
-	pm->fan.max_duty = 100;
-
-	/* Set the known default values to setup the temperature sensor */
-	if (nv_device(drm->device)->card_type >= NV_40) {
-		switch (nv_device(drm->device)->chipset) {
-		case 0x43:
-			sensor->offset_mult = 32060;
-			sensor->offset_div = 1000;
-			sensor->slope_mult = 792;
-			sensor->slope_div = 1000;
-			break;
-
-		case 0x44:
-		case 0x47:
-		case 0x4a:
-			sensor->offset_mult = 27839;
-			sensor->offset_div = 1000;
-			sensor->slope_mult = 780;
-			sensor->slope_div = 1000;
-			break;
-
-		case 0x46:
-			sensor->offset_mult = -24775;
-			sensor->offset_div = 100;
-			sensor->slope_mult = 467;
-			sensor->slope_div = 10000;
-			break;
-
-		case 0x49:
-			sensor->offset_mult = -25051;
-			sensor->offset_div = 100;
-			sensor->slope_mult = 458;
-			sensor->slope_div = 10000;
-			break;
-
-		case 0x4b:
-			sensor->offset_mult = -24088;
-			sensor->offset_div = 100;
-			sensor->slope_mult = 442;
-			sensor->slope_div = 10000;
-			break;
-
-		case 0x50:
-			sensor->offset_mult = -22749;
-			sensor->offset_div = 100;
-			sensor->slope_mult = 431;
-			sensor->slope_div = 10000;
-			break;
-
-		case 0x67:
-			sensor->offset_mult = -26149;
-			sensor->offset_div = 100;
-			sensor->slope_mult = 484;
-			sensor->slope_div = 10000;
-			break;
-		}
-	}
-
-	headerlen = temp[1];
-	recordlen = temp[2];
-	entries = temp[3];
-	temp = temp + headerlen;
-
-	/* Read the entries from the table */
-	for (i = 0; i < entries; i++) {
-		s16 value = ROM16(temp[1]);
-
-		switch (temp[0]) {
-		case 0x01:
-			if ((value & 0x8f) == 0)
-				sensor->offset_constant = (value >> 9) & 0x7f;
-			break;
-
-		case 0x04:
-			if ((value & 0xf00f) == 0xa000) /* core */
-				temps->critical = (value&0x0ff0) >> 4;
-			break;
-
-		case 0x07:
-			if ((value & 0xf00f) == 0xa000) /* core */
-				temps->down_clock = (value&0x0ff0) >> 4;
-			break;
-
-		case 0x08:
-			if ((value & 0xf00f) == 0xa000) /* core */
-				temps->fan_boost = (value&0x0ff0) >> 4;
-			break;
-
-		case 0x10:
-			sensor->offset_mult = value;
-			break;
-
-		case 0x11:
-			sensor->offset_div = value;
-			break;
-
-		case 0x12:
-			sensor->slope_mult = value;
-			break;
-
-		case 0x13:
-			sensor->slope_div = value;
-			break;
-		case 0x22:
-			pm->fan.min_duty = value & 0xff;
-			pm->fan.max_duty = (value & 0xff00) >> 8;
-			break;
-		case 0x26:
-			pm->fan.pwm_freq = value;
-			break;
-		}
-		temp += recordlen;
-	}
-
-	nouveau_temp_safety_checks(dev);
-
-	/* check the fan min/max settings */
-	if (pm->fan.min_duty < 10)
-		pm->fan.min_duty = 10;
-	if (pm->fan.max_duty > 100)
-		pm->fan.max_duty = 100;
-	if (pm->fan.max_duty < pm->fan.min_duty)
-		pm->fan.max_duty = pm->fan.min_duty;
-}
+#include <subdev/bios/therm.h>
 
 static int
 nv40_sensor_setup(struct drm_device *dev)
 {
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nouveau_pm *pm = nouveau_pm(dev);
-	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
-	s32 offset = sensor->offset_mult / sensor->offset_div;
-	s32 sensor_calibration;
 
-	/* set up the sensors */
-	sensor_calibration = 120 - offset - sensor->offset_constant;
-	sensor_calibration = sensor_calibration * sensor->slope_div /
-				sensor->slope_mult;
-
-	if (nv_device(drm->device)->chipset >= 0x46)
-		sensor_calibration |= 0x80000000;
-	else
-		sensor_calibration |= 0x10000000;
-
-	nv_wr32(device, 0x0015b0, sensor_calibration);
-
-	/* Wait for the sensor to update */
-	msleep(5);
-
-	/* read */
-	return nv_rd32(device, 0x0015b4) & 0x1fff;
+	/* enable ADC readout and disable the ALARM threshold */
+	if (nv_device(drm->device)->chipset >= 0x46) {
+		nv_mask(device, 0x15b8, 0x80000000, 0);
+		nv_wr32(device, 0x15b0, 0x80003fff);
+		return nv_rd32(device, 0x15b4) & 0x3fff;
+	} else {
+		nv_wr32(device, 0x15b0, 0xff);
+		return nv_rd32(device, 0x15b4) & 0xff;
+	}
 }
 
 int
@@ -220,20 +56,30 @@ nv40_temp_get(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_pm *pm = nouveau_pm(dev);
 	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
-	int offset = sensor->offset_mult / sensor->offset_div;
 	int core_temp;
 
-	if (nv_device(drm->device)->card_type >= NV_50) {
-		core_temp = nv_rd32(device, 0x20008);
+	if (nv_device(drm->device)->chipset >= 0x46) {
+		nv_wr32(device, 0x15b0, 0x80003fff);
+		core_temp = nv_rd32(device, 0x15b4) & 0x3fff;
 	} else {
-		core_temp = nv_rd32(device, 0x0015b4) & 0x1fff;
-		/* Setup the sensor if the temperature is 0 */
-		if (core_temp == 0)
-			core_temp = nv40_sensor_setup(dev);
+		nv_wr32(device, 0x15b0, 0xff);
+		core_temp = nv_rd32(device, 0x15b4) & 0xff;
 	}
 
+	/* Setup the sensor if the temperature is 0 */
+	if (core_temp == 0)
+		core_temp = nv40_sensor_setup(dev);
+
+	if (sensor->slope_div == 0)
+		sensor->slope_div = 1;
+	if (sensor->offset_div == 0)
+		sensor->offset_div = 1;
+	if (sensor->slope_mult < 1)
+		sensor->slope_mult = 1;
+
 	core_temp = core_temp * sensor->slope_mult / sensor->slope_div;
-	core_temp = core_temp + offset + sensor->offset_constant;
+	core_temp = core_temp + sensor->offset_mult / sensor->offset_div;
+	core_temp = core_temp + sensor->offset_constant - 8;
 
 	return core_temp;
 }
@@ -260,11 +106,6 @@ nouveau_temp_safety_checks(struct drm_device *dev)
 		temps->down_clock = 110;
 	else if (temps->down_clock < 60)
 		temps->down_clock = 60;
-
-	if (temps->fan_boost > 100)
-		temps->fan_boost = 100;
-	else if (temps->fan_boost < 40)
-		temps->fan_boost = 40;
 }
 
 static bool
@@ -309,24 +150,40 @@ void
 nouveau_temp_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvbios *bios = &drm->vbios;
-	struct bit_entry P;
-	u8 *temp = NULL;
+	struct nouveau_device *device = nv_device(drm->device);
+	struct nouveau_bios *bios = nouveau_bios(device);
+	struct nouveau_pm *pm = nouveau_pm(dev);
+	struct nouveau_pm_temp_sensor_constants *sensor = &pm->sensor_constants;
+	struct nouveau_pm_threshold_temp *temps = &pm->threshold_temp;
+	struct nvbios_therm_sensor bios_sensor;
+	struct nvbios_therm_fan bios_fan;
 
-	if (bios->type == NVBIOS_BIT) {
-		if (bit_table(dev, 'P', &P))
-			return;
+	/* store some safe defaults */
+	sensor->offset_constant = 0;
+	sensor->offset_mult = 0;
+	sensor->offset_div = 1;
+	sensor->slope_mult = 1;
+	sensor->slope_div = 1;
 
-		if (P.version == 1)
-			temp = ROMPTR(dev, P.data[12]);
-		else if (P.version == 2)
-			temp = ROMPTR(dev, P.data[16]);
-		else
-			NV_WARN(drm, "unknown temp for BIT P %d\n", P.version);
+	if (!nvbios_therm_sensor_parse(bios, NVBIOS_THERM_DOMAIN_CORE,
+				       &bios_sensor)) {
+		sensor->slope_mult = bios_sensor.slope_mult;
+		sensor->slope_div = bios_sensor.slope_div;
+		sensor->offset_mult = bios_sensor.offset_num;
+		sensor->offset_div = bios_sensor.offset_den;
+		sensor->offset_constant = bios_sensor.offset_constant;
 
-		nouveau_temp_vbios_parse(dev, temp);
+		temps->down_clock = bios_sensor.thrs_down_clock.temp;
+		temps->critical = bios_sensor.thrs_critical.temp;
 	}
 
+	if (nvbios_therm_fan_parse(bios, &bios_fan)) {
+		pm->fan.min_duty = bios_fan.min_duty;
+		pm->fan.max_duty = bios_fan.max_duty;
+		pm->fan.pwm_freq = bios_fan.pwm_freq;
+	}
+
+	nouveau_temp_safety_checks(dev);
 	nouveau_temp_probe_i2c(dev);
 }
 
