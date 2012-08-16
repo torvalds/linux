@@ -51,7 +51,7 @@ static const struct regulator_desc arizona_ldo1 = {
 	.vsel_mask = ARIZONA_LDO1_VSEL_MASK,
 	.min_uV = 900000,
 	.uV_step = 50000,
-	.n_voltages = 7,
+	.n_voltages = 6,
 
 	.owner = THIS_MODULE,
 };
