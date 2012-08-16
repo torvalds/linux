@@ -1,8 +1,9 @@
 /*
- * exynos4_tmu.c - Samsung EXYNOS4 TMU (Thermal Management Unit)
+ * exynos_thermal.c - Samsung EXYNOS TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2011 Samsung Electronics
  *  Donggeun Kim <dg77.kim@samsung.com>
+ *  Amit Daniel Kachhap <amit.kachhap@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,10 +34,7 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 
-#include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
-
-#include <linux/platform_data/exynos4_tmu.h>
+#include <linux/platform_data/exynos_thermal.h>
 
 #define EXYNOS4_TMU_REG_TRIMINFO	0x0
 #define EXYNOS4_TMU_REG_CONTROL		0x20
@@ -70,7 +68,6 @@
 
 struct exynos4_tmu_data {
 	struct exynos4_tmu_platform_data *pdata;
-	struct device *hwmon_dev;
 	struct resource *mem;
 	void __iomem *base;
 	int irq;
@@ -246,8 +243,6 @@ static void exynos4_tmu_work(struct work_struct *work)
 
 	writel(EXYNOS4_TMU_INTCLEAR_VAL, data->base + EXYNOS4_TMU_REG_INTCLEAR);
 
-	kobject_uevent(&data->hwmon_dev->kobj, KOBJ_CHANGE);
-
 	enable_irq(data->irq);
 
 	clk_disable(data->clk);
@@ -263,87 +258,6 @@ static irqreturn_t exynos4_tmu_irq(int irq, void *id)
 
 	return IRQ_HANDLED;
 }
-
-static ssize_t exynos4_tmu_show_name(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "exynos4-tmu\n");
-}
-
-static ssize_t exynos4_tmu_show_temp(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct exynos4_tmu_data *data = dev_get_drvdata(dev);
-	int ret;
-
-	ret = exynos4_tmu_read(data);
-	if (ret < 0)
-		return ret;
-
-	/* convert from degree Celsius to millidegree Celsius */
-	return sprintf(buf, "%d\n", ret * 1000);
-}
-
-static ssize_t exynos4_tmu_show_alarm(struct device *dev,
-		struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct exynos4_tmu_data *data = dev_get_drvdata(dev);
-	struct exynos4_tmu_platform_data *pdata = data->pdata;
-	int temp;
-	unsigned int trigger_level;
-
-	temp = exynos4_tmu_read(data);
-	if (temp < 0)
-		return temp;
-
-	trigger_level = pdata->threshold + pdata->trigger_levels[attr->index];
-
-	return sprintf(buf, "%d\n", !!(temp > trigger_level));
-}
-
-static ssize_t exynos4_tmu_show_level(struct device *dev,
-		struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct exynos4_tmu_data *data = dev_get_drvdata(dev);
-	struct exynos4_tmu_platform_data *pdata = data->pdata;
-	unsigned int temp = pdata->threshold +
-			pdata->trigger_levels[attr->index];
-
-	return sprintf(buf, "%u\n", temp * 1000);
-}
-
-static DEVICE_ATTR(name, S_IRUGO, exynos4_tmu_show_name, NULL);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, exynos4_tmu_show_temp, NULL, 0);
-
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO,
-		exynos4_tmu_show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp1_crit_alarm, S_IRUGO,
-		exynos4_tmu_show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp1_emergency_alarm, S_IRUGO,
-		exynos4_tmu_show_alarm, NULL, 3);
-
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, exynos4_tmu_show_level, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, exynos4_tmu_show_level, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp1_emergency, S_IRUGO,
-		exynos4_tmu_show_level, NULL, 3);
-
-static struct attribute *exynos4_tmu_attributes[] = {
-	&dev_attr_name.attr,
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_emergency_alarm.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_crit.dev_attr.attr,
-	&sensor_dev_attr_temp1_emergency.dev_attr.attr,
-	NULL,
-};
-
-static const struct attribute_group exynos4_tmu_attr_group = {
-	.attrs = exynos4_tmu_attributes,
-};
 
 static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 {
@@ -418,25 +332,9 @@ static int __devinit exynos4_tmu_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = sysfs_create_group(&pdev->dev.kobj, &exynos4_tmu_attr_group);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to create sysfs group\n");
-		goto err_clk;
-	}
-
-	data->hwmon_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		ret = PTR_ERR(data->hwmon_dev);
-		dev_err(&pdev->dev, "Failed to register hwmon device\n");
-		goto err_create_group;
-	}
-
 	exynos4_tmu_control(pdev, true);
 
 	return 0;
-
-err_create_group:
-	sysfs_remove_group(&pdev->dev.kobj, &exynos4_tmu_attr_group);
 err_clk:
 	platform_set_drvdata(pdev, NULL);
 	clk_put(data->clk);
@@ -457,9 +355,6 @@ static int __devexit exynos4_tmu_remove(struct platform_device *pdev)
 	struct exynos4_tmu_data *data = platform_get_drvdata(pdev);
 
 	exynos4_tmu_control(pdev, false);
-
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&pdev->dev.kobj, &exynos4_tmu_attr_group);
 
 	clk_put(data->clk);
 
@@ -495,7 +390,7 @@ static int exynos4_tmu_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(exynos4_tmu_pm,
 			 exynos4_tmu_suspend, exynos4_tmu_resume);
-#define EXYNOS4_TMU_PM	&exynos4_tmu_pm
+#define EXYNOS4_TMU_PM	(&exynos4_tmu_pm)
 #else
 #define EXYNOS4_TMU_PM	NULL
 #endif

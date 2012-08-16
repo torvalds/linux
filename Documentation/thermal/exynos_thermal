@@ -46,36 +46,7 @@ The threshold levels are defined as follows:
   The threshold and each trigger_level are set
   through the corresponding registers.
 
-When an interrupt occurs, this driver notify user space of
-one of four threshold levels for the interrupt
-through kobject_uevent_env and sysfs_notify functions.
+When an interrupt occurs, this driver notify kernel thermal framework
+with the function exynos4_report_trigger.
 Although an interrupt condition for level_0 can be set,
-it is not notified to user space through sysfs_notify function.
-
-Sysfs Interface
----------------
-name		name of the temperature sensor
-		RO
-
-temp1_input	temperature
-		RO
-
-temp1_max	temperature for level_1 interrupt
-		RO
-
-temp1_crit	temperature for level_2 interrupt
-		RO
-
-temp1_emergency	temperature for level_3 interrupt
-		RO
-
-temp1_max_alarm	alarm for level_1 interrupt
-		RO
-
-temp1_crit_alarm
-		alarm for level_2 interrupt
-		RO
-
-temp1_emergency_alarm
-		alarm for level_3 interrupt
-		RO
+it can be used to synchronize the cooling action.

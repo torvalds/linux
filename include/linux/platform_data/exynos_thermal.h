@@ -1,5 +1,5 @@
 /*
- * exynos4_tmu.h - Samsung EXYNOS4 TMU (Thermal Management Unit)
+ * exynos_thermal.h - Samsung EXYNOS4 TMU (Thermal Management Unit)
  *
  *  Copyright (C) 2011 Samsung Electronics
  *  Donggeun Kim <dg77.kim@samsung.com>
@@ -19,8 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef _LINUX_EXYNOS4_TMU_H
-#define _LINUX_EXYNOS4_TMU_H
+#ifndef _LINUX_EXYNOS_THERMAL_H
+#define _LINUX_EXYNOS_THERMAL_H
 
 enum calibration_type {
 	TYPE_ONE_POINT_TRIMMING,
@@ -80,4 +80,4 @@ struct exynos4_tmu_platform_data {
 
 	enum calibration_type cal_type;
 };
-#endif /* _LINUX_EXYNOS4_TMU_H */
+#endif /* _LINUX_EXYNOS_THERMAL_H */
