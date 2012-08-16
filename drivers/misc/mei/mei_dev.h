@@ -25,9 +25,14 @@
 /*
  * watch dog definition
  */
-#define MEI_WATCHDOG_DATA_SIZE         16
-#define MEI_START_WD_DATA_SIZE         20
-#define MEI_WD_PARAMS_SIZE             4
+#define MEI_WD_HDR_SIZE       4
+#define MEI_WD_STOP_MSG_SIZE  MEI_WD_HDR_SIZE
+#define MEI_WD_START_MSG_SIZE (MEI_WD_HDR_SIZE + 16)
+
+#define MEI_WD_DEFAULT_TIMEOUT   120  /* seconds */
+#define MEI_WD_MIN_TIMEOUT       120  /* seconds */
+#define MEI_WD_MAX_TIMEOUT     65535  /* seconds */
+
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
 
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
@@ -248,7 +253,7 @@ struct mei_device {
 	bool wd_stopped;
 	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
 	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
-	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
+	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
 
 
 	struct file *iamthif_file_object;
