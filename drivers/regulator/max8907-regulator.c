@@ -286,7 +286,8 @@ static __devinit int max8907_regulator_probe(struct platform_device *pdev)
 	    MAX8907_II2RR_VERSION_REV_B) {
 		pmic->desc[MAX8907_SD1].min_uV = 637500;
 		pmic->desc[MAX8907_SD1].uV_step = 12500;
-		pmic->desc[MAX8907_SD1].n_voltages = (1425000 - 637500) / 12500;
+		pmic->desc[MAX8907_SD1].n_voltages =
+						(1425000 - 637500) / 12500 + 1;
 	}
 
 	for (i = 0; i < MAX8907_NUM_REGULATORS; i++) {
