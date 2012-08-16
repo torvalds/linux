@@ -239,8 +239,10 @@ int iio_read_channel_raw(struct iio_channel *chan, int *val)
 		goto err_unlock;
 	}
 
-	ret = chan->indio_dev->info->read_raw(chan->indio_dev, chan->channel,
-					      val, &val2, 0);
+	ret = chan->indio_dev->info->read_raw(chan->indio_dev,
+					      chan->channel,
+					      val, &val2,
+					      IIO_CHAN_INFO_RAW);
 err_unlock:
 	mutex_unlock(&chan->indio_dev->info_exist_lock);
 
