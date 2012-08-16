@@ -37,7 +37,7 @@
 #include <linux/of.h>
 #include <linux/of_mtd.h>
 #include <linux/of_gpio.h>
-#include <linux/amba/pl08x.h>
+#include <linux/mtd/lpc32xx_mlc.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
@@ -171,6 +171,7 @@ static struct nand_bbt_descr lpc32xx_nand_bbt_mirror = {
 
 struct lpc32xx_nand_host {
 	struct nand_chip	nand_chip;
+	struct lpc32xx_mlc_platform_data *pdata;
 	struct clk		*clk;
 	struct mtd_info		mtd;
 	void __iomem		*io_base;
@@ -581,9 +582,15 @@ static int lpc32xx_dma_setup(struct lpc32xx_nand_host *host)
 	struct mtd_info *mtd = &host->mtd;
 	dma_cap_mask_t mask;
 
+	if (!host->pdata || !host->pdata->dma_filter) {
+		dev_err(mtd->dev.parent, "no DMA platform data\n");
+		return -ENOENT;
+	}
+
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-	host->dma_chan = dma_request_channel(mask, pl08x_filter_id, "nand-mlc");
+	host->dma_chan = dma_request_channel(mask, host->pdata->dma_filter,
+					     "nand-mlc");
 	if (!host->dma_chan) {
 		dev_err(mtd->dev.parent, "Failed to request DMA channel\n");
 		return -EBUSY;
@@ -702,6 +709,8 @@ static int __devinit lpc32xx_nand_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 	lpc32xx_wp_disable(host);
+
+	host->pdata = pdev->dev.platform_data;
 
 	nand_chip->priv = host;		/* link the private data structures */
 	mtd->priv = nand_chip;
