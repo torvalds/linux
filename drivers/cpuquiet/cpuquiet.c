@@ -26,7 +26,7 @@ DEFINE_MUTEX(cpuquiet_lock);
 
 static int __init cpuquiet_init(void)
 {
-	return cpuquiet_add_class_sysfs(&cpu_sysdev_class);
+	return cpuquiet_add_interface(cpu_subsys.dev_root);
 }
 
 core_initcall(cpuquiet_init);

@@ -62,8 +62,7 @@ static void stats_update(struct cpuquiet_cpu_stat *stat, bool up)
 	bool was_up = stat->up_down_count & 0x1;
 
 	if (was_up)
-		stat->time_up_total = cputime64_add(stat->time_up_total,
-			cputime64_sub(cur_jiffies, stat->last_update));
+		stat->time_up_total += cur_jiffies - stat->last_update;
 
 	if (was_up != up)
 		stat->up_down_count++;
@@ -136,7 +135,7 @@ int cpuquiet_register_driver(struct cpuquiet_driver *drv)
 {
 	int err = -EBUSY;
 	unsigned int cpu;
-	struct sys_device *sys_dev;
+	struct device *dev;
 	u64 cur_jiffies;
 
 	if (!drv)
@@ -151,9 +150,9 @@ int cpuquiet_register_driver(struct cpuquiet_driver *drv)
 		stats[cpu].last_update = cur_jiffies;
 		if (cpu_online(cpu))
 			stats[cpu].up_down_count = 1;
-		sys_dev = get_cpu_sysdev(cpu);
-		if (sys_dev) {
-			cpuquiet_add_dev(sys_dev, cpu);
+		dev = get_cpu_device(cpu);
+		if (dev) {
+			cpuquiet_add_dev(dev, cpu);
 			cpuquiet_cpu_kobject_init(&stats[cpu].cpu_kobject,
 					&ktype_cpu_stats, "stats", cpu);
 		}

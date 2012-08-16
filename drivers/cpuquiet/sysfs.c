@@ -180,7 +180,7 @@ int cpuquiet_cpu_kobject_init(struct kobject *kobj, struct kobj_type *type,
 	return err;
 }
 
-int cpuquiet_add_class_sysfs(struct sysdev_class *cls)
+int cpuquiet_add_interface(struct device *dev)
 {
 	int err;
 
@@ -190,7 +190,7 @@ int cpuquiet_add_class_sysfs(struct sysdev_class *cls)
 		return -ENOMEM;
 
 	err = kobject_init_and_add(cpuquiet_global_kobject,
-			&ktype_cpuquiet_sysfs, &cls->kset.kobj, "cpuquiet");
+			&ktype_cpuquiet_sysfs, &dev->kobj, "cpuquiet");
 	if (!err)
 		kobject_uevent(cpuquiet_global_kobject, KOBJ_ADD);
 
@@ -270,7 +270,7 @@ static struct kobj_type ktype_cpuquiet = {
 	.default_attrs = cpuquiet_default_cpu_attrs,
 };
 
-void cpuquiet_add_dev(struct sys_device *sys_dev, unsigned int cpu)
+void cpuquiet_add_dev(struct device *device, unsigned int cpu)
 {
 	struct cpuquiet_dev *dev;
 	int err;
@@ -279,7 +279,7 @@ void cpuquiet_add_dev(struct sys_device *sys_dev, unsigned int cpu)
 	dev->cpu = cpu;
 	cpuquiet_cpu_devices[cpu] = dev;
 	err = kobject_init_and_add(&dev->kobj, &ktype_cpuquiet,
-				&sys_dev->kobj, "cpuquiet");
+				&device->kobj, "cpuquiet");
 	if (!err)
 		kobject_uevent(&dev->kobj, KOBJ_ADD);
 }
