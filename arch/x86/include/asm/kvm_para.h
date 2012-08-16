@@ -102,14 +102,14 @@ struct kvm_vcpu_pv_apf_data {
 extern void kvmclock_init(void);
 extern int kvm_register_clock(char *txt);
 
-#ifdef CONFIG_KVM_CLOCK
+#ifdef CONFIG_KVM_GUEST
 bool kvm_check_and_clear_guest_paused(void);
 #else
 static inline bool kvm_check_and_clear_guest_paused(void)
 {
 	return false;
 }
-#endif /* CONFIG_KVMCLOCK */
+#endif /* CONFIG_KVM_GUEST */
 
 /* This instruction is vmcall.  On non-VT architectures, it will generate a
  * trap that we will then rewrite to the appropriate instruction.

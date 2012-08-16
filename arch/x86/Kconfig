@@ -573,23 +573,18 @@ config PARAVIRT_TIME_ACCOUNTING
 
 source "arch/x86/xen/Kconfig"
 
-config KVM_CLOCK
-	bool "KVM paravirtualized clock"
+config KVM_GUEST
+	bool "KVM Guest support (including kvmclock)"
+	select PARAVIRT
 	select PARAVIRT
 	select PARAVIRT_CLOCK
-	---help---
-	  Turning on this option will allow you to run a paravirtualized clock
-	  when running over the KVM hypervisor. Instead of relying on a PIT
-	  (or probably other) emulation by the underlying device model, the host
-	  provides the guest with timing infrastructure such as time of day, and
-	  system time
-
-config KVM_GUEST
-	bool "KVM Guest support"
-	select PARAVIRT
+	default y if PARAVIRT_GUEST
 	---help---
 	  This option enables various optimizations for running under the KVM
-	  hypervisor.
+	  hypervisor. It includes a paravirtualized clock, so that instead
+	  of relying on a PIT (or probably other) emulation by the
+	  underlying device model, the host provides the guest with
+	  timing infrastructure such as time of day, and system time
 
 source "arch/x86/lguest/Kconfig"
 
