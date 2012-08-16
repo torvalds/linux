@@ -369,7 +369,6 @@ static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
 
 extern struct pci_dev *alloc_pci_dev(void);
 
-#define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
 #define for_each_pci_dev(d) while ((d = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, d)) != NULL)
 
