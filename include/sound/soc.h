@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <sound/compress_driver.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 
@@ -399,6 +400,7 @@ int snd_soc_platform_read(struct snd_soc_platform *platform,
 int snd_soc_platform_write(struct snd_soc_platform *platform,
 					unsigned int reg, unsigned int val);
 int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
+int soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
 
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream);
@@ -632,6 +634,13 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
+struct snd_soc_compr_ops {
+	int (*startup)(struct snd_compr_stream *);
+	void (*shutdown)(struct snd_compr_stream *);
+	int (*set_params)(struct snd_compr_stream *);
+	int (*trigger)(struct snd_compr_stream *);
+};
+
 /* SoC cache ops */
 struct snd_soc_cache_ops {
 	const char *name;
@@ -787,8 +796,11 @@ struct snd_soc_platform_driver {
 	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
 		struct snd_soc_dai *);
 
-	/* platform stream ops */
+	/* platform stream pcm ops */
 	struct snd_pcm_ops *ops;
+
+	/* platform stream compress ops */
+	struct snd_compr_ops *compr_ops;
 
 	/* platform stream completion event */
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
@@ -891,6 +903,7 @@ struct snd_soc_dai_link {
 
 	/* machine stream operations */
 	struct snd_soc_ops *ops;
+	struct snd_soc_compr_ops *compr_ops;
 };
 
 struct snd_soc_codec_conf {
@@ -1027,6 +1040,7 @@ struct snd_soc_pcm_runtime {
 
 	/* runtime devices */
 	struct snd_pcm *pcm;
+	struct snd_compr *compr;
 	struct snd_soc_codec *codec;
 	struct snd_soc_platform *platform;
 	struct snd_soc_dai *codec_dai;
