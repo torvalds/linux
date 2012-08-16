@@ -610,12 +610,13 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 		/* Aligned */
 		break;
 	case 1:
-		/* Allow single byte watchpoint. */
-		if (info->ctrl.len == ARM_BREAKPOINT_LEN_1)
-			break;
 	case 2:
 		/* Allow halfword watchpoints and breakpoints. */
 		if (info->ctrl.len == ARM_BREAKPOINT_LEN_2)
+			break;
+	case 3:
+		/* Allow single byte watchpoint. */
+		if (info->ctrl.len == ARM_BREAKPOINT_LEN_1)
 			break;
 	default:
 		ret = -EINVAL;
