@@ -53,7 +53,7 @@ struct perf_evsel {
 	u64			*id;
 	struct perf_counts	*counts;
 	int			idx;
-	int			ids;
+	u32			ids;
 	struct hists		hists;
 	char			*name;
 	struct event_format	*tp_format;

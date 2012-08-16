@@ -2240,7 +2240,7 @@ out_delete_evlist:
 }
 
 int perf_event__synthesize_attr(struct perf_tool *tool,
-				struct perf_event_attr *attr, u16 ids, u64 *id,
+				struct perf_event_attr *attr, u32 ids, u64 *id,
 				perf_event__handler_t process)
 {
 	union perf_event *ev;
@@ -2261,9 +2261,12 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 	memcpy(ev->attr.id, id, ids * sizeof(u64));
 
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
-	ev->attr.header.size = size;
+	ev->attr.header.size = (u16)size;
 
-	err = process(tool, ev, NULL, NULL);
+	if (ev->attr.header.size == size)
+		err = process(tool, ev, NULL, NULL);
+	else
+		err = -E2BIG;
 
 	free(ev);
 
@@ -2292,7 +2295,7 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 int perf_event__process_attr(union perf_event *event,
 			     struct perf_evlist **pevlist)
 {
-	unsigned int i, ids, n_ids;
+	u32 i, ids, n_ids;
 	struct perf_evsel *evsel;
 	struct perf_evlist *evlist = *pevlist;
 
