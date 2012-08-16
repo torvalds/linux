@@ -668,7 +668,7 @@ static int find_next_online_cpu(struct ehca_comp_pool *pool)
 		if (cpu >= nr_cpu_ids)
 			cpu = cpumask_first(cpu_online_mask);
 		pool->last_cpu = cpu;
-	} while (!per_cpu_ptr(pool->cpu_comp_tasks, cpu)->active)
+	} while (!per_cpu_ptr(pool->cpu_comp_tasks, cpu)->active);
 	spin_unlock_irqrestore(&pool->last_cpu_lock, flags);
 
 	return cpu;
