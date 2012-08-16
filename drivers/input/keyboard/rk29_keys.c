@@ -30,6 +30,7 @@
 #define EMPTY_ADVALUE					950
 #define DRIFT_ADVALUE					70
 #define INVALID_ADVALUE 				10
+#define EV_MENU					KEY_F1
 
 
 #if 0
@@ -57,6 +58,68 @@ struct rk29_keys_drvdata {
 };
 
 static struct input_dev *input_dev;
+struct rk29_keys_Arrary {
+	char keyArrary[20];
+};
+
+static ssize_t rk29key_set(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+ 	struct rk29_keys_platform_data *pdata = dev->platform_data;
+	int i,j,start,end;
+	char rk29keyArrary[400];
+	struct rk29_keys_Arrary Arrary[]={"menu","home","esc","sensor","play","vol+","vol-"}; 
+	char *p;
+	  
+	for(i=0;i<7;i++)
+	{
+		
+		p = strstr(buf,&Arrary[i]);
+		
+		start = strcspn(p,":");
+		
+		if(i<6)
+			end = strcspn(p,",");
+		else
+			end = strcspn(p,"}");
+	
+		memset(rk29keyArrary,0,sizeof(rk29keyArrary));
+		
+		strncpy(rk29keyArrary,p+start+1,end-start-1);
+							 		
+		for(j=0;j<7;j++)
+		{		
+			if(strcmp(pdata->buttons[j].desc,&Arrary[i])==0)
+			{
+				if(strcmp(rk29keyArrary,"MENU")==0)
+					pdata->buttons[j].code = EV_MENU;
+				else if(strcmp(rk29keyArrary,"HOME")==0)
+					pdata->buttons[j].code = KEY_HOME;
+				else if(strcmp(rk29keyArrary,"ESC")==0)
+					pdata->buttons[j].code = KEY_BACK;
+				else if(strcmp(rk29keyArrary,"sensor")==0)
+					pdata->buttons[j].code = KEY_CAMERA;
+				else if(strcmp(rk29keyArrary,"PLAY")==0)
+					pdata->buttons[j].code = KEY_POWER;
+				else if(strcmp(rk29keyArrary,"VOLUP")==0)
+					pdata->buttons[j].code = KEY_VOLUMEUP;
+				else if(strcmp(rk29keyArrary,"VOLDOWN")==0)
+					pdata->buttons[j].code = KEY_VOLUMEDOWN;
+				else
+				     continue;
+		 	}
+
+		}
+			
+   	}
+
+	for(i=0;i<7;i++)
+		printk("desc=%s, code=%d\n",pdata->buttons[i].desc,pdata->buttons[i].code);
+	return 0; 
+
+}
+
+static DEVICE_ATTR(rk29key,0777, NULL, rk29key_set);
 
 void rk29_send_power_key(int state)
 {
@@ -321,6 +384,13 @@ static int __devinit keys_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, wakeup);
 	error = device_create_file(&pdev->dev, &dev_attr_get_adc_value);
+
+	error = device_create_file(&pdev->dev,&dev_attr_rk29key);
+	if(error )
+	{
+		pr_err("failed to create key file error: %d\n", error);
+	}
+
 
 	input_dev = input;
 	return error;
