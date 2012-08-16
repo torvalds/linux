@@ -26,6 +26,7 @@ struct radeon_atpx_functions {
 };
 
 struct radeon_atpx {
+	acpi_handle handle;
 	struct radeon_atpx_functions functions;
 };
 
@@ -33,7 +34,6 @@ static struct radeon_atpx_priv {
 	bool atpx_detected;
 	/* handle for device - and atpx */
 	acpi_handle dhandle;
-	acpi_handle atpx_handle;
 	struct radeon_atpx atpx;
 } radeon_atpx_priv;
 
@@ -41,6 +41,16 @@ struct atpx_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 version;		/* version */
 	u32 function_bits;	/* supported functions bit vector */
+} __packed;
+
+struct atpx_power_control {
+	u16 size;
+	u8 dgpu_state;
+} __packed;
+
+struct atpx_mux {
+	u16 size;
+	u16 mux;
 } __packed;
 
 /**
@@ -123,15 +133,14 @@ static void radeon_atpx_parse_functions(struct radeon_atpx_functions *f, u32 mas
  * (all asics).
  * returns 0 on success, error on failure.
  */
-static int radeon_atpx_verify_interface(acpi_handle handle,
-					struct radeon_atpx *atpx)
+static int radeon_atpx_verify_interface(struct radeon_atpx *atpx)
 {
 	union acpi_object *info;
 	struct atpx_verify_interface output;
 	size_t size;
 	int err = 0;
 
-	info = radeon_atpx_call(handle, ATPX_FUNCTION_VERIFY_INTERFACE, NULL);
+	info = radeon_atpx_call(atpx->handle, ATPX_FUNCTION_VERIFY_INTERFACE, NULL);
 	if (!info)
 		return -EIO;
 
@@ -157,82 +166,124 @@ out:
 	return err;
 }
 
-static int radeon_atpx_execute(acpi_handle handle, int cmd_id, u16 value)
+static int radeon_atpx_set_discrete_state(struct radeon_atpx *atpx, u8 state)
 {
-	acpi_status status;
-	union acpi_object atpx_arg_elements[2];
-	struct acpi_object_list atpx_arg;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	uint8_t buf[4] = {0};
+	struct acpi_buffer params;
+	union acpi_object *info;
+	struct atpx_power_control input;
 
-	if (!handle)
-		return -EINVAL;
-
-	atpx_arg.count = 2;
-	atpx_arg.pointer = &atpx_arg_elements[0];
-
-	atpx_arg_elements[0].type = ACPI_TYPE_INTEGER;
-	atpx_arg_elements[0].integer.value = cmd_id;
-
-	buf[2] = value & 0xff;
-	buf[3] = (value >> 8) & 0xff;
-
-	atpx_arg_elements[1].type = ACPI_TYPE_BUFFER;
-	atpx_arg_elements[1].buffer.length = 4;
-	atpx_arg_elements[1].buffer.pointer = buf;
-
-	status = acpi_evaluate_object(handle, NULL, &atpx_arg, &buffer);
-	if (ACPI_FAILURE(status)) {
-		printk("%s: failed to call ATPX: %s\n", __func__, acpi_format_exception(status));
-		return -ENOSYS;
+	if (atpx->functions.power_cntl) {
+		input.size = 3;
+		input.dgpu_state = state;
+		params.length = input.size;
+		params.pointer = &input;
+		info = radeon_atpx_call(atpx->handle,
+					ATPX_FUNCTION_POWER_CONTROL,
+					&params);
+		if (!info)
+			return -EIO;
+		kfree(info);
 	}
-	kfree(buffer.pointer);
-
 	return 0;
 }
 
-static int radeon_atpx_set_discrete_state(acpi_handle handle, int state)
+static int radeon_atpx_switch_disp_mux(struct radeon_atpx *atpx, u16 mux_id)
 {
-	return radeon_atpx_execute(handle, ATPX_FUNCTION_POWER_CONTROL, state);
+	struct acpi_buffer params;
+	union acpi_object *info;
+	struct atpx_mux input;
+
+	if (atpx->functions.disp_mux_cntl) {
+		input.size = 4;
+		input.mux = mux_id;
+		params.length = input.size;
+		params.pointer = &input;
+		info = radeon_atpx_call(atpx->handle,
+					ATPX_FUNCTION_DISPLAY_MUX_CONTROL,
+					&params);
+		if (!info)
+			return -EIO;
+		kfree(info);
+	}
+	return 0;
 }
 
-static int radeon_atpx_switch_mux(acpi_handle handle, int mux_id)
+static int radeon_atpx_switch_i2c_mux(struct radeon_atpx *atpx, u16 mux_id)
 {
-	return radeon_atpx_execute(handle, ATPX_FUNCTION_DISPLAY_MUX_CONTROL, mux_id);
+	struct acpi_buffer params;
+	union acpi_object *info;
+	struct atpx_mux input;
+
+	if (atpx->functions.i2c_mux_cntl) {
+		input.size = 4;
+		input.mux = mux_id;
+		params.length = input.size;
+		params.pointer = &input;
+		info = radeon_atpx_call(atpx->handle,
+					ATPX_FUNCTION_I2C_MUX_CONTROL,
+					&params);
+		if (!info)
+			return -EIO;
+		kfree(info);
+	}
+	return 0;
 }
 
-static int radeon_atpx_switch_i2c_mux(acpi_handle handle, int mux_id)
+static int radeon_atpx_switch_start(struct radeon_atpx *atpx, u16 mux_id)
 {
-	return radeon_atpx_execute(handle, ATPX_FUNCTION_I2C_MUX_CONTROL, mux_id);
+	struct acpi_buffer params;
+	union acpi_object *info;
+	struct atpx_mux input;
+
+	if (atpx->functions.switch_start) {
+		input.size = 4;
+		input.mux = mux_id;
+		params.length = input.size;
+		params.pointer = &input;
+		info = radeon_atpx_call(atpx->handle,
+					ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION,
+					&params);
+		if (!info)
+			return -EIO;
+		kfree(info);
+	}
+	return 0;
 }
 
-static int radeon_atpx_switch_start(acpi_handle handle, int gpu_id)
+static int radeon_atpx_switch_end(struct radeon_atpx *atpx, u16 mux_id)
 {
-	return radeon_atpx_execute(handle,
-				   ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION,
-				   gpu_id);
-}
+	struct acpi_buffer params;
+	union acpi_object *info;
+	struct atpx_mux input;
 
-static int radeon_atpx_switch_end(acpi_handle handle, int gpu_id)
-{
-	return radeon_atpx_execute(handle,
-				   ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION,
-				   gpu_id);
+	if (atpx->functions.switch_end) {
+		input.size = 4;
+		input.mux = mux_id;
+		params.length = input.size;
+		params.pointer = &input;
+		info = radeon_atpx_call(atpx->handle,
+					ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION,
+					&params);
+		if (!info)
+			return -EIO;
+		kfree(info);
+	}
+	return 0;
 }
 
 static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
 {
-	int gpu_id;
+	u16 gpu_id;
 
 	if (id == VGA_SWITCHEROO_IGD)
 		gpu_id = ATPX_INTEGRATED_GPU;
 	else
 		gpu_id = ATPX_DISCRETE_GPU;
 
-	radeon_atpx_switch_start(radeon_atpx_priv.atpx_handle, gpu_id);
-	radeon_atpx_switch_mux(radeon_atpx_priv.atpx_handle, gpu_id);
-	radeon_atpx_switch_i2c_mux(radeon_atpx_priv.atpx_handle, gpu_id);
-	radeon_atpx_switch_end(radeon_atpx_priv.atpx_handle, gpu_id);
+	radeon_atpx_switch_start(&radeon_atpx_priv.atpx, gpu_id);
+	radeon_atpx_switch_disp_mux(&radeon_atpx_priv.atpx, gpu_id);
+	radeon_atpx_switch_i2c_mux(&radeon_atpx_priv.atpx, gpu_id);
+	radeon_atpx_switch_end(&radeon_atpx_priv.atpx, gpu_id);
 
 	return 0;
 }
@@ -244,7 +295,7 @@ static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
 	if (id == VGA_SWITCHEROO_IGD)
 		return 0;
 
-	radeon_atpx_set_discrete_state(radeon_atpx_priv.atpx_handle, state);
+	radeon_atpx_set_discrete_state(&radeon_atpx_priv.atpx, state);
 	return 0;
 }
 
@@ -262,15 +313,14 @@ static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 		return false;
 
 	radeon_atpx_priv.dhandle = dhandle;
-	radeon_atpx_priv.atpx_handle = atpx_handle;
+	radeon_atpx_priv.atpx.handle = atpx_handle;
 	return true;
 }
 
 static int radeon_atpx_init(void)
 {
 	/* set up the ATPX handle */
-	return radeon_atpx_verify_interface(radeon_atpx_priv.atpx_handle,
-					    &radeon_atpx_priv.atpx);
+	return radeon_atpx_verify_interface(&radeon_atpx_priv.atpx);
 }
 
 static int radeon_atpx_get_client_id(struct pci_dev *pdev)
@@ -303,7 +353,7 @@ static bool radeon_atpx_detect(void)
 	}
 
 	if (has_atpx && vga_count == 2) {
-		acpi_get_name(radeon_atpx_priv.atpx_handle, ACPI_FULL_PATHNAME, &buffer);
+		acpi_get_name(radeon_atpx_priv.atpx.handle, ACPI_FULL_PATHNAME, &buffer);
 		printk(KERN_INFO "VGA switcheroo: detected switching method %s handle\n",
 		       acpi_method_name);
 		radeon_atpx_priv.atpx_detected = true;
