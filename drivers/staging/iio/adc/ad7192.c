@@ -967,7 +967,7 @@ static const struct iio_info ad7195_info = {
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
 
-static struct iio_chan_spec ad7192_channels[] = {
+static const struct iio_chan_spec ad7192_channels[] = {
 	AD7192_CHAN_DIFF(1, 2, NULL, AD7192_CH_AIN1P_AIN2M, 0),
 	AD7192_CHAN_DIFF(3, 4, NULL, AD7192_CH_AIN3P_AIN4M, 1),
 	AD7192_CHAN_TEMP(0, AD7192_CH_TEMP, 2),

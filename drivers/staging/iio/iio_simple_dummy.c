@@ -63,7 +63,7 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
  * This array of structures tells the IIO core about what the device
  * actually provides for a given channel.
  */
-static struct iio_chan_spec iio_dummy_channels[] = {
+static const struct iio_chan_spec iio_dummy_channels[] = {
 	/* indexed ADC channel in_voltage0_raw etc */
 	{
 		.type = IIO_VOLTAGE,

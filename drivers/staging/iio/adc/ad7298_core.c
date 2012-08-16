@@ -38,7 +38,7 @@
 		},							\
 	}
 
-static struct iio_chan_spec ad7298_channels[] = {
+static const struct iio_chan_spec ad7298_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.indexed = 1,

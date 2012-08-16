@@ -108,7 +108,7 @@ static const struct iio_info lpc32xx_adc_iio_info = {
 	.scan_index = _index,				\
 }
 
-static struct iio_chan_spec lpc32xx_adc_iio_channels[] = {
+static const struct iio_chan_spec lpc32xx_adc_iio_channels[] = {
 	LPC32XX_ADC_CHANNEL(0),
 	LPC32XX_ADC_CHANNEL(1),
 	LPC32XX_ADC_CHANNEL(2),

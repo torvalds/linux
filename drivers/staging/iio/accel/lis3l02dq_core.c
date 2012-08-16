@@ -538,7 +538,7 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 		.event_mask = LIS3L02DQ_EVENT_MASK,		\
 	 }
 
-static struct iio_chan_spec lis3l02dq_channels[] = {
+static const struct iio_chan_spec lis3l02dq_channels[] = {
 	LIS3L02DQ_CHAN(0, IIO_MOD_X),
 	LIS3L02DQ_CHAN(1, IIO_MOD_Y),
 	LIS3L02DQ_CHAN(2, IIO_MOD_Z),

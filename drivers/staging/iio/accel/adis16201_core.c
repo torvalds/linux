@@ -390,7 +390,7 @@ static int adis16201_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static struct iio_chan_spec adis16201_channels[] = {
+static const struct iio_chan_spec adis16201_channels[] = {
 	{
 		.type = IIO_VOLTAGE,
 		.indexed = 1,

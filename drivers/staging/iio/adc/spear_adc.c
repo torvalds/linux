@@ -189,7 +189,7 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 	},						\
 }
 
-static struct iio_chan_spec spear_adc_iio_channels[] = {
+static const struct iio_chan_spec spear_adc_iio_channels[] = {
 	SPEAR_ADC_CHAN(0),
 	SPEAR_ADC_CHAN(1),
 	SPEAR_ADC_CHAN(2),

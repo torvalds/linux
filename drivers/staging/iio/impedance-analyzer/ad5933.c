@@ -108,7 +108,7 @@ static struct ad5933_platform_data ad5933_default_pdata  = {
 	.vref_mv = 3300,
 };
 
-static struct iio_chan_spec ad5933_channels[] = {
+static const struct iio_chan_spec ad5933_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.indexed = 1,

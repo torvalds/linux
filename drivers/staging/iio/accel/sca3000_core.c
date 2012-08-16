@@ -450,7 +450,7 @@ static IIO_DEVICE_ATTR(revision, S_IRUGO, sca3000_show_rev, NULL, 0);
 		.event_mask = SCA3000_EVENT_MASK,		\
 	 }
 
-static struct iio_chan_spec sca3000_channels[] = {
+static const struct iio_chan_spec sca3000_channels[] = {
 	SCA3000_CHAN(0, IIO_MOD_X),
 	SCA3000_CHAN(1, IIO_MOD_Y),
 	SCA3000_CHAN(2, IIO_MOD_Z),
