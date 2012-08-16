@@ -882,14 +882,12 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		/* by default we allow the insn since we don't have checks for
 		 * all possible cases yet */
 	default:
-		printk(KERN_WARNING
-		       "comedi: no check for data length of config insn id "
-		       "%i is implemented.\n"
-		       " Add a check to %s in %s.\n"
-		       " Assuming n=%i is correct.\n", data[0], __func__,
-		       __FILE__, insn->n);
+		pr_warn("comedi: No check for data length of config insn id %i is implemented.\n",
+			data[0]);
+		pr_warn("comedi: Add a check to %s in %s.\n",
+			__func__, __FILE__);
+		pr_warn("comedi: Assuming n=%i is correct.\n", insn->n);
 		return 0;
-		break;
 	}
 	return -EINVAL;
 }
@@ -2034,8 +2032,8 @@ void do_become_nonbusy(struct comedi_device *dev, struct comedi_subdevice *s)
 		comedi_reset_async_buf(async);
 		async->inttrig = NULL;
 	} else {
-		printk(KERN_ERR
-		       "BUG: (?) do_become_nonbusy called with async=0\n");
+		dev_err(dev->class_dev,
+			"BUG: (?) do_become_nonbusy called with async=NULL\n");
 	}
 
 	s->busy = NULL;
@@ -2211,14 +2209,12 @@ static int __init comedi_init(void)
 	int i;
 	int retval;
 
-	printk(KERN_INFO "comedi: version " COMEDI_RELEASE
-	       " - http://www.comedi.org\n");
+	pr_info("comedi: version " COMEDI_RELEASE " - http://www.comedi.org\n");
 
 	if (comedi_num_legacy_minors < 0 ||
 	    comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
-		printk(KERN_ERR "comedi: error: invalid value for module "
-		       "parameter \"comedi_num_legacy_minors\".  Valid values "
-		       "are 0 through %i.\n", COMEDI_NUM_BOARD_MINORS);
+		pr_err("comedi: error: invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
+		       COMEDI_NUM_BOARD_MINORS);
 		return -EINVAL;
 	}
 
@@ -2247,7 +2243,7 @@ static int __init comedi_init(void)
 	}
 	comedi_class = class_create(THIS_MODULE, "comedi");
 	if (IS_ERR(comedi_class)) {
-		printk(KERN_ERR "comedi: failed to create class");
+		pr_err("comedi: failed to create class\n");
 		cdev_del(&comedi_cdev);
 		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					 COMEDI_NUM_MINORS);
@@ -2295,8 +2291,7 @@ module_exit(comedi_cleanup);
 
 void comedi_error(const struct comedi_device *dev, const char *s)
 {
-	printk(KERN_ERR "comedi%d: %s: %s\n", dev->minor,
-	       dev->driver->driver_name, s);
+	dev_err(dev->class_dev, "%s: %s\n", dev->driver->driver_name, s);
 }
 EXPORT_SYMBOL(comedi_error);
 
@@ -2420,9 +2415,7 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		comedi_device_cleanup(info->device);
 		kfree(info->device);
 		kfree(info);
-		printk(KERN_ERR
-		       "comedi: error: "
-		       "ran out of minor numbers for board device files.\n");
+		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
 		return -EBUSY;
 	}
 	info->device->minor = i;
@@ -2499,9 +2492,7 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	spin_unlock(&comedi_file_info_table_lock);
 	if (i == COMEDI_NUM_MINORS) {
 		kfree(info);
-		printk(KERN_ERR
-		       "comedi: error: "
-		       "ran out of minor numbers for board device files.\n");
+		pr_err("comedi: error: ran out of minor numbers for board device files.\n");
 		return -EBUSY;
 	}
 	s->minor = i;

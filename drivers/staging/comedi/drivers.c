@@ -119,8 +119,8 @@ static void __comedi_device_detach(struct comedi_device *dev)
 	if (dev->driver)
 		dev->driver->detach(dev);
 	else
-		printk(KERN_WARNING
-		       "BUG: dev->driver=NULL in comedi_device_detach()\n");
+		dev_warn(dev->class_dev,
+			 "BUG: dev->driver=NULL in comedi_device_detach()\n");
 	cleanup_device(dev);
 }
 
@@ -142,8 +142,7 @@ static int comedi_device_postconfig(struct comedi_device *dev)
 		return ret;
 	}
 	if (!dev->board_name) {
-		printk(KERN_WARNING "BUG: dev->board_name=<%p>\n",
-		       dev->board_name);
+		dev_warn(dev->class_dev, "BUG: dev->board_name=NULL\n");
 		dev->board_name = "BUG";
 	}
 	smp_wmb();
@@ -161,7 +160,6 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (driv = comedi_drivers; driv; driv = driv->next) {
 		if (!try_module_get(driv->module)) {
-			printk(KERN_INFO "comedi: failed to increment module count, skipping\n");
 			continue;
 		}
 		if (driv->num_names) {
@@ -177,8 +175,6 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/*  report valid board names before returning error */
 		for (driv = comedi_drivers; driv; driv = driv->next) {
 			if (!try_module_get(driv->module)) {
-				printk(KERN_INFO
-				       "comedi: failed to increment module count\n");
 				continue;
 			}
 			comedi_report_boards(driv);
@@ -233,8 +229,9 @@ int comedi_driver_unregister(struct comedi_driver *driver)
 		mutex_lock(&dev->mutex);
 		if (dev->attached && dev->driver == driver) {
 			if (dev->use_count)
-				printk(KERN_WARNING "BUG! detaching device with use_count=%d\n",
-						dev->use_count);
+				dev_warn(dev->class_dev,
+					 "BUG! detaching device with use_count=%d\n",
+					 dev->use_count);
 			comedi_device_detach(dev);
 		}
 		mutex_unlock(&dev->mutex);
@@ -281,8 +278,8 @@ static int postconfig(struct comedi_device *dev)
 			async =
 			    kzalloc(sizeof(struct comedi_async), GFP_KERNEL);
 			if (async == NULL) {
-				printk(KERN_INFO
-				       "failed to allocate async struct\n");
+				dev_warn(dev->class_dev,
+					 "failed to allocate async struct\n");
 				return -ENOMEM;
 			}
 			init_waitqueue_head(&async->wait_head);
@@ -298,7 +295,8 @@ static int postconfig(struct comedi_device *dev)
 			async->prealloc_buf = NULL;
 			async->prealloc_bufsz = 0;
 			if (comedi_buf_alloc(dev, s, buf_size) < 0) {
-				printk(KERN_INFO "Buffer allocation failed\n");
+				dev_warn(dev->class_dev,
+					 "Buffer allocation failed\n");
 				return -ENOMEM;
 			}
 			if (s->buf_change) {
@@ -378,17 +376,17 @@ static void comedi_report_boards(struct comedi_driver *driv)
 	unsigned int i;
 	const char *const *name_ptr;
 
-	printk(KERN_INFO "comedi: valid board names for %s driver are:\n",
-	       driv->driver_name);
+	pr_info("comedi: valid board names for %s driver are:\n",
+		driv->driver_name);
 
 	name_ptr = driv->board_name;
 	for (i = 0; i < driv->num_names; i++) {
-		printk(KERN_INFO " %s\n", *name_ptr);
+		pr_info(" %s\n", *name_ptr);
 		name_ptr = (const char **)((char *)name_ptr + driv->offset);
 	}
 
 	if (driv->num_names == 0)
-		printk(KERN_INFO " %s\n", driv->driver_name);
+		pr_info(" %s\n", driv->driver_name);
 }
 
 static int poll_invalid(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -592,9 +590,9 @@ static unsigned int comedi_buf_munge(struct comedi_async *async,
 
 		block_size = num_bytes - count;
 		if (block_size < 0) {
-			printk(KERN_WARNING
-			       "%s: %s: bug! block_size is negative\n",
-			       __FILE__, __func__);
+			dev_warn(s->device->class_dev,
+				 "%s: %s: bug! block_size is negative\n",
+				 __FILE__, __func__);
 			break;
 		}
 		if ((int)(async->munge_ptr + block_size -
@@ -675,7 +673,8 @@ unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
 {
 	if ((int)(async->buf_write_count + nbytes -
 		  async->buf_write_alloc_count) > 0) {
-		printk(KERN_INFO "comedi: attempted to write-free more bytes than have been write-allocated.\n");
+		dev_info(async->subdevice->device->class_dev,
+			 "attempted to write-free more bytes than have been write-allocated.\n");
 		nbytes = async->buf_write_alloc_count - async->buf_write_count;
 	}
 	async->buf_write_count += nbytes;
@@ -711,8 +710,8 @@ unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 	smp_mb();
 	if ((int)(async->buf_read_count + nbytes -
 		  async->buf_read_alloc_count) > 0) {
-		printk(KERN_INFO
-		       "comedi: attempted to read-free more bytes than have been read-allocated.\n");
+		dev_info(async->subdevice->device->class_dev,
+			 "attempted to read-free more bytes than have been read-allocated.\n");
 		nbytes = async->buf_read_alloc_count - async->buf_read_count;
 	}
 	async->buf_read_count += nbytes;
@@ -861,10 +860,9 @@ comedi_auto_config_helper(struct device *hardware_device,
 	mutex_lock(&comedi_dev->mutex);
 	if (comedi_dev->attached)
 		ret = -EBUSY;
-	else if (!try_module_get(driver->module)) {
-		printk(KERN_INFO "comedi: failed to increment module count\n");
+	else if (!try_module_get(driver->module))
 		ret = -EIO;
-	} else {
+	else {
 		/* set comedi_dev->driver here for attach wrapper */
 		comedi_dev->driver = driver;
 		ret = (*attach_wrapper)(comedi_dev, context);
@@ -892,17 +890,17 @@ static int comedi_auto_config_wrapper(struct comedi_device *dev, void *context)
 		 * has already been copied to it->board_name */
 		dev->board_ptr = comedi_recognize(driv, it->board_name);
 		if (dev->board_ptr == NULL) {
-			printk(KERN_WARNING
-			       "comedi: auto config failed to find board entry '%s' for driver '%s'\n",
-			       it->board_name, driv->driver_name);
+			dev_warn(dev->class_dev,
+				 "auto config failed to find board entry '%s' for driver '%s'\n",
+				 it->board_name, driv->driver_name);
 			comedi_report_boards(driv);
 			return -EINVAL;
 		}
 	}
 	if (!driv->attach) {
-		printk(KERN_WARNING
-		       "comedi: BUG! driver '%s' using old-style auto config but has no attach handler\n",
-		       driv->driver_name);
+		dev_warn(dev->class_dev,
+			 "BUG! driver '%s' using old-style auto config but has no attach handler\n",
+			 driv->driver_name);
 		return -EINVAL;
 	}
 	return driv->attach(dev, it);
