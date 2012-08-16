@@ -313,15 +313,18 @@ static int __devinit pc263_attach_pci(struct comedi_device *dev,
 
 static void pc263_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct pc263_board *thisboard = comedi_board(dev);
 
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
-	} else {
+	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, PC263_IO_SIZE);
+	} else if (is_pci_board(thisboard)) {
+		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+		if (pcidev) {
+			if (dev->iobase)
+				comedi_pci_disable(pcidev);
+			pci_dev_put(pcidev);
+		}
 	}
 }
 
