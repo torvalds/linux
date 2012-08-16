@@ -304,9 +304,9 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 	}
 
 	/* Refuse subscription if global limit exceeded */
-	if (atomic_read(&topsrv.subscription_count) >= tipc_max_subscriptions) {
+	if (atomic_read(&topsrv.subscription_count) >= TIPC_MAX_SUBSCRIPTIONS) {
 		pr_warn("Subscription rejected, limit reached (%u)\n",
-			tipc_max_subscriptions);
+			TIPC_MAX_SUBSCRIPTIONS);
 		subscr_terminate(subscriber);
 		return NULL;
 	}
