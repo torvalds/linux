@@ -45,7 +45,6 @@ struct kmem_cache {
 	unsigned int colour_off;	/* colour offset */
 	struct kmem_cache *slabp_cache;
 	unsigned int slab_size;
-	unsigned int dflags;		/* dynamic flags */
 
 	/* constructor func */
 	void (*ctor)(void *obj);
