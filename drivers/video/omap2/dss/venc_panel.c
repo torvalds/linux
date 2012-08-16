@@ -130,6 +130,8 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 
 	omapdss_venc_set_timings(dssdev, &dssdev->panel.timings);
 	omapdss_venc_set_type(dssdev, dssdev->phy.venc.type);
+	omapdss_venc_invert_vid_out_polarity(dssdev,
+		dssdev->phy.venc.invert_polarity);
 
 	r = omapdss_venc_display_enable(dssdev);
 	if (r)

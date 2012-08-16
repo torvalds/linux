@@ -303,6 +303,7 @@ static struct {
 
 	struct omap_video_timings timings;
 	enum omap_dss_venc_type type;
+	bool invert_polarity;
 } venc;
 
 static inline void venc_write_reg(int idx, u32 val)
@@ -447,7 +448,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 	else /* S-Video */
 		l |= (1 << 0) | (1 << 2);
 
-	if (dssdev->phy.venc.invert_polarity == false)
+	if (venc.invert_polarity == false)
 		l |= 1 << 3;
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
@@ -635,6 +636,16 @@ void omapdss_venc_set_type(struct omap_dss_device *dssdev,
 	mutex_lock(&venc.venc_lock);
 
 	venc.type = type;
+
+	mutex_unlock(&venc.venc_lock);
+}
+
+void omapdss_venc_invert_vid_out_polarity(struct omap_dss_device *dssdev,
+		bool invert_polarity)
+{
+	mutex_lock(&venc.venc_lock);
+
+	venc.invert_polarity = invert_polarity;
 
 	mutex_unlock(&venc.venc_lock);
 }
