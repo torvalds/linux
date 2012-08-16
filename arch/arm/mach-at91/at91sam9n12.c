@@ -228,8 +228,8 @@ void __init at91sam9n12_initialize(void)
 	at91_gpio_init(NULL, 0);
 }
 
-struct at91_init_soc __initdata at91sam9n12_soc = {
+AT91_SOC_START(sam9n12)
 	.map_io = at91sam9n12_map_io,
 	.register_clocks = at91sam9n12_register_clocks,
 	.init = at91sam9n12_initialize,
-};
+AT91_SOC_END

@@ -323,8 +323,8 @@ void __init at91sam9x5_initialize(void)
  *  Interrupt initialization
  * -------------------------------------------------------------------- */
 
-struct at91_init_soc __initdata at91sam9x5_soc = {
+AT91_SOC_START(sam9x5)
 	.map_io = at91sam9x5_map_io,
 	.register_clocks = at91sam9x5_register_clocks,
 	.init = at91sam9x5_initialize,
-};
+AT91_SOC_END
