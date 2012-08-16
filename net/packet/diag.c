@@ -109,6 +109,22 @@ static int pdiag_put_rings_cfg(struct packet_sock *po, struct sk_buff *skb)
 	return ret;
 }
 
+static int pdiag_put_fanout(struct packet_sock *po, struct sk_buff *nlskb)
+{
+	int ret = 0;
+
+	mutex_lock(&fanout_mutex);
+	if (po->fanout) {
+		u32 val;
+
+		val = (u32)po->fanout->id | ((u32)po->fanout->type << 16);
+		ret = nla_put_u32(nlskb, PACKET_DIAG_FANOUT, val);
+	}
+	mutex_unlock(&fanout_mutex);
+
+	return ret;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
@@ -137,6 +153,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag
 
 	if ((req->pdiag_show & PACKET_SHOW_RING_CFG) &&
 			pdiag_put_rings_cfg(po, skb))
+		goto out_nlmsg_trim;
+
+	if ((req->pdiag_show & PACKET_SHOW_FANOUT) &&
+			pdiag_put_fanout(po, skb))
 		goto out_nlmsg_trim;
 
 	return nlmsg_end(skb, nlh);

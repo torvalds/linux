@@ -67,7 +67,25 @@ struct packet_ring_buffer {
 	atomic_t		pending;
 };
 
-struct packet_fanout;
+extern struct mutex fanout_mutex;
+#define PACKET_FANOUT_MAX	256
+
+struct packet_fanout {
+#ifdef CONFIG_NET_NS
+	struct net		*net;
+#endif
+	unsigned int		num_members;
+	u16			id;
+	u8			type;
+	u8			defrag;
+	atomic_t		rr_cur;
+	struct list_head	list;
+	struct sock		*arr[PACKET_FANOUT_MAX];
+	spinlock_t		lock;
+	atomic_t		sk_ref;
+	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
+};
+
 struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
 	struct sock		sk;

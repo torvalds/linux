@@ -207,24 +207,6 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *,
 		struct tpacket3_hdr *);
 static void packet_flush_mclist(struct sock *sk);
 
-#define PACKET_FANOUT_MAX	256
-
-struct packet_fanout {
-#ifdef CONFIG_NET_NS
-	struct net		*net;
-#endif
-	unsigned int		num_members;
-	u16			id;
-	u8			type;
-	u8			defrag;
-	atomic_t		rr_cur;
-	struct list_head	list;
-	struct sock		*arr[PACKET_FANOUT_MAX];
-	spinlock_t		lock;
-	atomic_t		sk_ref;
-	struct packet_type	prot_hook ____cacheline_aligned_in_smp;
-};
-
 struct packet_skb_cb {
 	unsigned int origlen;
 	union {
@@ -1148,7 +1130,8 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 	return po->prot_hook.func(skb, dev, &po->prot_hook, orig_dev);
 }
 
-static DEFINE_MUTEX(fanout_mutex);
+DEFINE_MUTEX(fanout_mutex);
+EXPORT_SYMBOL_GPL(fanout_mutex);
 static LIST_HEAD(fanout_list);
 
 static void __fanout_link(struct sock *sk, struct packet_sock *po)
@@ -1260,9 +1243,9 @@ static void fanout_release(struct sock *sk)
 	if (!f)
 		return;
 
+	mutex_lock(&fanout_mutex);
 	po->fanout = NULL;
 
-	mutex_lock(&fanout_mutex);
 	if (atomic_dec_and_test(&f->sk_ref)) {
 		list_del(&f->list);
 		dev_remove_pack(&f->prot_hook);
