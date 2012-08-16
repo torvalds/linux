@@ -42,7 +42,6 @@
 #include <mach/irqs.h>
 
 #include "board.h"
-#include "board-harmony.h"
 #include "clock.h"
 #include "devices.h"
 
@@ -108,15 +107,9 @@ static void __init trimslice_init(void)
 
 static void __init harmony_init(void)
 {
+#ifdef CONFIG_TEGRA_PCI
 	int ret;
 
-	ret = harmony_regulator_init();
-	if (ret) {
-		pr_err("harmony_regulator_init() failed: %d\n", ret);
-		return;
-	}
-
-#ifdef CONFIG_TEGRA_PCI
 	ret = harmony_pcie_init();
 	if (ret)
 		pr_err("harmony_pcie_init() failed: %d\n", ret);
