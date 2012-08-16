@@ -145,7 +145,8 @@ static int pci_enable(struct clk *clk)
 {
 	unsigned int val = ltq_cgu_r32(ifccr);
 	/* set bus clock speed */
-	if (of_machine_is_compatible("lantiq,ar9")) {
+	if (of_machine_is_compatible("lantiq,ar9") ||
+			of_machine_is_compatible("lantiq,vr9")) {
 		val &= ~0x1f00000;
 		if (clk->rate == CLOCK_33M)
 			val |= 0xe00000;
