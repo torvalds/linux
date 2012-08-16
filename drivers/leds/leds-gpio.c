@@ -269,13 +269,13 @@ static int __devinit gpio_led_probe(struct platform_device *pdev)
 
 static int __devexit gpio_led_remove(struct platform_device *pdev)
 {
-	struct gpio_leds_priv *priv = dev_get_drvdata(&pdev->dev);
+	struct gpio_leds_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < priv->num_leds; i++)
 		delete_gpio_led(&priv->leds[i]);
 
-	dev_set_drvdata(&pdev->dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
