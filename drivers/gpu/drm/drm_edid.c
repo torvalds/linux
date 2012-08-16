@@ -1621,6 +1621,21 @@ monitor_name(struct detailed_timing *t, void *data)
 		*(u8 **)data = t->data.other_data.data.str.str;
 }
 
+static bool cea_db_is_hdmi_vsdb(const u8 *db)
+{
+	int hdmi_id;
+
+	if (cea_db_tag(db) != VENDOR_BLOCK)
+		return false;
+
+	if (cea_db_payload_len(db) < 5)
+		return false;
+
+	hdmi_id = db[1] | (db[2] << 8) | (db[3] << 16);
+
+	return hdmi_id == HDMI_IDENTIFIER;
+}
+
 /**
  * drm_edid_to_eld - build ELD from EDID
  * @connector: connector corresponding to the HDMI/DP sink
@@ -1693,7 +1708,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 				break;
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
-				if (dbl >= 5 && db[1] == 0x03 && db[2] == 0x0c && db[3] == 0)
+				if (cea_db_is_hdmi_vsdb(db))
 					parse_hdmi_vsdb(connector, db);
 				break;
 			default:
@@ -1778,35 +1793,26 @@ EXPORT_SYMBOL(drm_select_eld);
 bool drm_detect_hdmi_monitor(struct edid *edid)
 {
 	u8 *edid_ext;
-	int i, hdmi_id;
+	int i;
 	int start_offset, end_offset;
-	bool is_hdmi = false;
 
 	edid_ext = drm_find_cea_extension(edid);
 	if (!edid_ext)
-		goto end;
+		return false;
 
 	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
-		goto end;
+		return false;
 
 	/*
 	 * Because HDMI identifier is in Vendor Specific Block,
 	 * search it from all data blocks of CEA extension.
 	 */
 	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
-		/* Find vendor specific block */
-		if (cea_db_tag(&edid_ext[i]) == VENDOR_BLOCK) {
-			hdmi_id = edid_ext[i + 1] | (edid_ext[i + 2] << 8) |
-				  edid_ext[i + 3] << 16;
-			/* Find HDMI identifier */
-			if (hdmi_id == HDMI_IDENTIFIER)
-				is_hdmi = true;
-			break;
-		}
+		if (cea_db_is_hdmi_vsdb(&edid_ext[i]))
+			return true;
 	}
 
-end:
-	return is_hdmi;
+	return false;
 }
 EXPORT_SYMBOL(drm_detect_hdmi_monitor);
 
