@@ -724,6 +724,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	if (temp_int != NULL) {
 		inter = temp_int->internal;
 		(inter->cis_used)++;
+                inter->fpga_rw = config->fpga_rw;
 		ci_dbg_print("%s: Find Internal Structure!\n", __func__);
 	} else {
 		inter = kzalloc(sizeof(struct fpga_internal), GFP_KERNEL);
@@ -743,7 +744,6 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 
 	ci_dbg_print("%s: setting state = %p for ci = %d\n", __func__,
 						state, ci_nr - 1);
-	inter->state[ci_nr - 1] = state;
 	state->internal = inter;
 	state->nr = ci_nr - 1;
 
@@ -764,6 +764,8 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 				   /* n_slots */ 1);
 	if (0 != ret)
 		goto err;
+
+       inter->state[ci_nr - 1] = state;
 
 	altera_hw_filt_init(config, ci_nr);
 
