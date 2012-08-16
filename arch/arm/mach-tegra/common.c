@@ -34,6 +34,7 @@
 #include "fuse.h"
 #include "pmc.h"
 #include "apbio.h"
+#include "sleep.h"
 
 /*
  * Storage for debug-macro.S's state.
@@ -147,6 +148,7 @@ void __init tegra30_init_early(void)
 	tegra_init_cache(0x441, 0x551);
 	tegra_pmc_init();
 	tegra_powergate_init();
+	tegra30_hotplug_init();
 }
 #endif
 
