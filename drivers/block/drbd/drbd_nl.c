@@ -977,6 +977,8 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	nbc->dc.fencing       = DRBD_FENCING_DEF;
 	nbc->dc.max_bio_bvecs = DRBD_MAX_BIO_BVECS_DEF;
 
+	spin_lock_init(&nbc->md.uuid_lock);
+
 	if (!disk_conf_from_tags(mdev, nlp->tag_list, &nbc->dc)) {
 		retcode = ERR_MANDATORY_TAG;
 		goto fail;
@@ -2170,8 +2172,11 @@ static int drbd_nl_get_uuids(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	tl = reply->tag_list;
 
 	if (get_ldev(mdev)) {
+		unsigned long flags;
+		spin_lock_irqsave(&mdev->ldev->md.uuid_lock, flags);
 		tl = tl_add_blob(tl, T_uuids, mdev->ldev->md.uuid, UI_SIZE*sizeof(u64));
 		tl = tl_add_int(tl, T_uuids_flags, &mdev->ldev->md.flags);
+		spin_unlock_irqrestore(&mdev->ldev->md.uuid_lock, flags);
 		put_ldev(mdev);
 	}
 	put_unaligned(TT_END, tl++); /* Close the tag list */
