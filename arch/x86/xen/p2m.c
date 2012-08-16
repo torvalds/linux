@@ -396,6 +396,7 @@ unsigned long __init xen_revector_p2m_tree(void)
 	unsigned long va_start;
 	unsigned long va_end;
 	unsigned long pfn;
+	unsigned long pfn_free = 0;
 	unsigned long *mfn_list = NULL;
 	unsigned long size;
 
@@ -442,11 +443,18 @@ unsigned long __init xen_revector_p2m_tree(void)
 		if (mid_p >= (unsigned long *)va_start && mid_p <= (unsigned long *)va_end) {
 			unsigned long *new;
 
-			new = &mfn_list[pfn];
+			if (pfn_free  > (size / sizeof(unsigned long))) {
+				WARN(1, "Only allocated for %ld pages, but we want %ld!\n",
+				     size / sizeof(unsigned long), pfn_free);
+				return 0;
+			}
+			new = &mfn_list[pfn_free];
 
 			copy_page(new, mid_p);
-			p2m_top[topidx][mididx] = &mfn_list[pfn];
-			p2m_top_mfn_p[topidx][mididx] = virt_to_mfn(&mfn_list[pfn]);
+			p2m_top[topidx][mididx] = &mfn_list[pfn_free];
+			p2m_top_mfn_p[topidx][mididx] = virt_to_mfn(&mfn_list[pfn_free]);
+
+			pfn_free += P2M_PER_PAGE;
 
 		}
 		/* This should be the leafs allocated for identity from _brk. */
