@@ -23,6 +23,8 @@
 					+ IO_CPU_VIRT)
 #define TEGRA_FLOW_CTRL_VIRT (TEGRA_FLOW_CTRL_BASE - IO_PPSB_PHYS \
 					+ IO_PPSB_VIRT)
+#define TEGRA_CLK_RESET_VIRT (TEGRA_CLK_RESET_BASE - IO_PPSB_PHYS \
+					+ IO_PPSB_VIRT)
 
 #ifdef __ASSEMBLY__
 /* returns the offset of the flow controller halt register for a cpu */
@@ -72,8 +74,10 @@
 #else
 
 #ifdef CONFIG_HOTPLUG_CPU
+void tegra20_hotplug_init(void);
 void tegra30_hotplug_init(void);
 #else
+static inline void tegra20_hotplug_init(void) {}
 static inline void tegra30_hotplug_init(void) {}
 #endif
 

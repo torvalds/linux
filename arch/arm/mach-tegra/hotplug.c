@@ -56,6 +56,14 @@ int platform_cpu_disable(unsigned int cpu)
 	return cpu == 0 ? -EPERM : 0;
 }
 
+#ifdef CONFIG_ARCH_TEGRA_2x_SOC
+extern void tegra20_hotplug_shutdown(void);
+void __init tegra20_hotplug_init(void)
+{
+	tegra_hotplug_shutdown = tegra20_hotplug_shutdown;
+}
+#endif
+
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 extern void tegra30_hotplug_shutdown(void);
 void __init tegra30_hotplug_init(void)
