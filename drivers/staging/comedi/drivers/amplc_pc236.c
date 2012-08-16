@@ -228,12 +228,13 @@ static int pc236_request_region(struct comedi_device *dev, unsigned long from,
  */
 static void pc236_intr_disable(struct comedi_device *dev)
 {
+	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 0;
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) && devpriv->lcr_iobase)
+	if (is_pci_board(thisboard))
 		outl(PCI236_INTR_DISABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
@@ -245,12 +246,13 @@ static void pc236_intr_disable(struct comedi_device *dev)
  */
 static void pc236_intr_enable(struct comedi_device *dev)
 {
+	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pc236_private *devpriv = dev->private;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 1;
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) && devpriv->lcr_iobase)
+	if (is_pci_board(thisboard))
 		outl(PCI236_INTR_ENABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
@@ -264,6 +266,7 @@ static void pc236_intr_enable(struct comedi_device *dev)
  */
 static int pc236_intr_check(struct comedi_device *dev)
 {
+	const struct pc236_board *thisboard = comedi_board(dev);
 	struct pc236_private *devpriv = dev->private;
 	int retval = 0;
 	unsigned long flags;
@@ -271,8 +274,7 @@ static int pc236_intr_check(struct comedi_device *dev)
 	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
 		retval = 1;
-		if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) &&
-		    devpriv->lcr_iobase) {
+		if (is_pci_board(thisboard)) {
 			if ((inl(devpriv->lcr_iobase + PLX9052_INTCSR)
 			     & PLX9052_INTCSR_LI1STAT_MASK)
 			    == PLX9052_INTCSR_LI1STAT_INACTIVE) {
