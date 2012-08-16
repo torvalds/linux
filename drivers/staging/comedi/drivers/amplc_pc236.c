@@ -135,6 +135,20 @@ struct pc236_private {
 	int enable_irq;
 };
 
+/* test if ISA supported and this is an ISA board */
+static inline bool is_isa_board(const struct pc236_board *board)
+{
+	return IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA)
+		&& board->bustype == isa_bustype;
+}
+
+/* test if PCI supported and this is a PCI board */
+static inline bool is_pci_board(const struct pc236_board *board)
+{
+	return IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI)
+		&& board->bustype == pci_bustype;
+}
+
 /*
  * This function looks for a board matching the supplied PCI device.
  */
@@ -143,7 +157,7 @@ static const struct pc236_board *pc236_find_pci_board(struct pci_dev *pci_dev)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(pc236_boards); i++)
-		if (pc236_boards[i].bustype == pci_bustype &&
+		if (is_pci_board(&pc236_boards[i]) &&
 		    pci_dev->device == pc236_boards[i].devid)
 			return &pc236_boards[i];
 	return NULL;
@@ -414,15 +428,13 @@ static void pc236_report_attach(struct comedi_device *dev, unsigned int irq)
 	char tmpbuf[60];
 	int tmplen;
 
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA) &&
-	    thisboard->bustype == isa_bustype)
+	if (is_isa_board(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(base %#lx) ", dev->iobase);
-	else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) &&
-		 thisboard->bustype == pci_bustype) {
+	else if (is_pci_board(thisboard))
 		tmplen = scnprintf(tmpbuf, sizeof(tmpbuf),
 				   "(pci %s) ", pci_name(pcidev));
-	} else
+	else
 		tmplen = 0;
 	if (irq)
 		tmplen += scnprintf(&tmpbuf[tmplen], sizeof(tmpbuf) - tmplen,
@@ -517,16 +529,14 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 	}
 	/* Process options according to bus type. */
-	if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_ISA) &&
-	    thisboard->bustype == isa_bustype) {
+	if (is_isa_board(thisboard)) {
 		unsigned long iobase = it->options[0];
 		unsigned int irq = it->options[1];
 		ret = pc236_request_region(dev, iobase, PC236_IO_SIZE);
 		if (ret < 0)
 			return ret;
 		return pc236_common_attach(dev, iobase, irq, 0);
-	} else if (IS_ENABLED(CONFIG_COMEDI_AMPLC_PC236_PCI) &&
-		   thisboard->bustype == pci_bustype) {
+	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pci_dev;
 
 		pci_dev = pc236_find_pci_dev(dev, it);
