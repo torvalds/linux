@@ -36,17 +36,6 @@ Configuration Options:
 
 #include "../comedidev.h"
 
-enum contec_model {
-	PIO1616L = 0,
-};
-
-struct contec_board {
-	const char *name;
-};
-static const struct contec_board contec_boards[] = {
-	{"PIO1616L", },
-};
-
 #define PCI_DEVICE_ID_PIO1616L 0x8172
 
 /*
@@ -94,7 +83,6 @@ static struct pci_dev *contec_find_pci_dev(struct comedi_device *dev,
 		    pcidev->device != PCI_DEVICE_ID_PIO1616L)
 			continue;
 
-		dev->board_ptr = contec_boards + 0;
 		return pcidev;
 	}
 	dev_err(dev->class_dev,
@@ -105,7 +93,6 @@ static struct pci_dev *contec_find_pci_dev(struct comedi_device *dev,
 
 static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct contec_board *thisboard;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
@@ -120,8 +107,7 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
-	dev->board_name = thisboard->name;
+	dev->board_name = dev->driver->driver_name;
 
 	if (comedi_pci_enable(pcidev, "contec_pci_dio")) {
 		printk("error enabling PCI device and request regions!\n");
@@ -182,8 +168,7 @@ static void __devexit contec_pci_dio_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(contec_pci_dio_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L),
-		.driver_data = PIO1616L },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CONTEC, PCI_DEVICE_ID_PIO1616L) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, contec_pci_dio_pci_table);
