@@ -26,6 +26,8 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -737,13 +739,74 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_GPL(omap_mcbsp_st_add_controls);
 
+static struct omap_mcbsp_platform_data omap2420_pdata = {
+	.reg_step = 4,
+	.reg_size = 2,
+};
+
+static struct omap_mcbsp_platform_data omap2430_pdata = {
+	.reg_step = 4,
+	.reg_size = 4,
+	.has_ccr = true,
+};
+
+static struct omap_mcbsp_platform_data omap3_pdata = {
+	.reg_step = 4,
+	.reg_size = 4,
+	.has_ccr = true,
+	.has_wakeup = true,
+};
+
+static struct omap_mcbsp_platform_data omap4_pdata = {
+	.reg_step = 4,
+	.reg_size = 4,
+	.has_ccr = true,
+	.has_wakeup = true,
+};
+
+static const struct of_device_id omap_mcbsp_of_match[] = {
+	{
+		.compatible = "ti,omap2420-mcbsp",
+		.data = &omap2420_pdata,
+	},
+	{
+		.compatible = "ti,omap2430-mcbsp",
+		.data = &omap2430_pdata,
+	},
+	{
+		.compatible = "ti,omap3-mcbsp",
+		.data = &omap3_pdata,
+	},
+	{
+		.compatible = "ti,omap4-mcbsp",
+		.data = &omap4_pdata,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, omap_mcbsp_of_match);
+
 static __devinit int asoc_mcbsp_probe(struct platform_device *pdev)
 {
 	struct omap_mcbsp_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct omap_mcbsp *mcbsp;
+	const struct of_device_id *match;
 	int ret;
 
-	if (!pdata) {
+	match = of_match_device(omap_mcbsp_of_match, &pdev->dev);
+	if (match) {
+		struct device_node *node = pdev->dev.of_node;
+		int buffer_size;
+
+		pdata = devm_kzalloc(&pdev->dev,
+				     sizeof(struct omap_mcbsp_platform_data),
+				     GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		memcpy(pdata, match->data, sizeof(*pdata));
+		if (!of_property_read_u32(node, "ti,buffer-size", &buffer_size))
+			pdata->buffer_size = buffer_size;
+	} else if (!pdata) {
 		dev_err(&pdev->dev, "missing platform data.\n");
 		return -EINVAL;
 	}
@@ -785,6 +848,7 @@ static struct platform_driver asoc_mcbsp_driver = {
 	.driver = {
 			.name = "omap-mcbsp",
 			.owner = THIS_MODULE,
+			.of_match_table = omap_mcbsp_of_match,
 	},
 
 	.probe = asoc_mcbsp_probe,

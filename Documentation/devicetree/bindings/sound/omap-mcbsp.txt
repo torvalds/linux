@@ -1,0 +1,45 @@
+* Texas Instruments OMAP2+ McBSP module
+
+Required properties:
+- compatible: "ti,omap2420-mcbsp" for McBSP on OMAP2420
+	      "ti,omap2430-mcbsp" for McBSP on OMAP2430
+	      "ti,omap3-mcbsp" for McBSP on OMAP3
+	      "ti,omap4-mcbsp" for McBSP on OMAP4 and newer SoC
+- reg: Register location and size, for OMAP4+ as an array:
+       <MPU access base address, size>,
+       <L3 interconnect address, size>;
+- interrupts: Interrupt numbers for the McBSP port, as an array in case the
+	      McBSP IP have more interrupt lines:
+	<OCP compliant irq>,
+	<TX irq>,
+	<RX irq>;
+- interrupt-parent: The parent interrupt controller
+- ti,buffer-size: Size of the FIFO on the port (OMAP2430 and newer SoC)
+- ti,hwmods: Name of the hwmod associated to the McBSP port
+
+Sidetone support for OMAP3 McBSP2 and 3 ports:
+- sidetone { }: Within this section the following parameters are required:
+- reg: Register location and size for the ST block
+- interrupts: The interrupt number for the ST block
+- interrupt-parent: The parent interrupt controller for the ST block
+
+Example:
+
+mcbsp2: mcbsp@49022000 {
+	compatible = "ti,omap3-mcbsp";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	reg = <0x49022000 0xff>;
+	interrupts = <0 17 0x4>, /* OCP compliant interrup */
+		     <0 62 0x4>, /* TX interrup */
+		     <0 63 0x4>; /* RX interrup */
+	interrupt-parent = <&intc>;
+	ti,buffer-size = <1280>;
+	ti,hwmods = "mcbsp2";
+
+	sidetone {
+		reg = <0x49028000 0xff>;
+		interrupts = <0 4 0x4>;
+		interrupt-parent = <&intc>;
+	};
+};
