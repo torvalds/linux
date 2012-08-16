@@ -5,9 +5,9 @@ config UX500_SOC_COMMON
 	default y
 	select ARM_GIC
 	select HAS_MTU
-	select PL310_ERRATA_753970
+	select PL310_ERRATA_753970 if CACHE_PL310
 	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
+	select ARM_ERRATA_764369 if SMP
 	select CACHE_L2X0
 	select PINCTRL
 	select PINCTRL_NOMADIK
