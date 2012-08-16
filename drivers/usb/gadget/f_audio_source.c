@@ -525,7 +525,7 @@ static int audio_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct audio_dev *audio = func_to_audio(f);
 
 	pr_debug("audio_set_alt intf %d, alt %d\n", intf, alt);
-	usb_ep_enable(audio->in_ep, audio->in_desc);
+	usb_ep_enable(audio->in_ep, &fs_as_in_ep_desc);
 	return 0;
 }
 
