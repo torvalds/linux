@@ -90,16 +90,8 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 	struct fdtable_defer *fddef;
 
 	BUG_ON(!fdt);
+	BUG_ON(fdt->max_fds <= NR_OPEN_DEFAULT);
 
-	if (fdt->max_fds <= NR_OPEN_DEFAULT) {
-		/*
-		 * This fdtable is embedded in the files structure and that
-		 * structure itself is getting destroyed.
-		 */
-		kmem_cache_free(files_cachep,
-				container_of(fdt, struct files_struct, fdtab));
-		return;
-	}
 	if (!is_vmalloc_addr(fdt->fd) && !is_vmalloc_addr(fdt->open_fds)) {
 		kfree(fdt->fd);
 		kfree(fdt->open_fds);
@@ -114,11 +106,6 @@ static void free_fdtable_rcu(struct rcu_head *rcu)
 		spin_unlock(&fddef->lock);
 		put_cpu_var(fdtable_defer_list);
 	}
-}
-
-static inline void free_fdtable(struct fdtable *fdt)
-{
-	call_rcu(&fdt->rcu, free_fdtable_rcu);
 }
 
 /*
@@ -234,7 +221,7 @@ static int expand_fdtable(struct files_struct *files, int nr)
 		copy_fdtable(new_fdt, cur_fdt);
 		rcu_assign_pointer(files->fdt, new_fdt);
 		if (cur_fdt->max_fds > NR_OPEN_DEFAULT)
-			free_fdtable(cur_fdt);
+			call_rcu(&cur_fdt->rcu, free_fdtable_rcu);
 	} else {
 		/* Somebody else expanded, so undo our attempt */
 		__free_fdtable(new_fdt);
