@@ -1388,37 +1388,48 @@ static int soc_probe_link_dais(struct snd_soc_card *card, int num, int order)
 	if (ret < 0)
 		pr_warn("asoc: failed to add pmdown_time sysfs:%d\n", ret);
 
-	if (!dai_link->params) {
-		/* create the pcm */
-		ret = soc_new_pcm(rtd, num);
+	if (cpu_dai->driver->compress_dai) {
+		/*create compress_device"*/
+		ret = soc_new_compress(rtd, num);
 		if (ret < 0) {
-			pr_err("asoc: can't create pcm %s :%d\n",
-			       dai_link->stream_name, ret);
+			pr_err("asoc: can't create compress %s\n",
+					 dai_link->stream_name);
 			return ret;
 		}
 	} else {
-		/* link the DAI widgets */
-		play_w = codec_dai->playback_widget;
-		capture_w = cpu_dai->capture_widget;
-		if (play_w && capture_w) {
-			ret = snd_soc_dapm_new_pcm(card, dai_link->params,
-						   capture_w, play_w);
-			if (ret != 0) {
-				dev_err(card->dev, "Can't link %s to %s: %d\n",
-					play_w->name, capture_w->name, ret);
+
+		if (!dai_link->params) {
+			/* create the pcm */
+			ret = soc_new_pcm(rtd, num);
+			if (ret < 0) {
+				pr_err("asoc: can't create pcm %s :%d\n",
+				       dai_link->stream_name, ret);
 				return ret;
 			}
-		}
-
-		play_w = cpu_dai->playback_widget;
-		capture_w = codec_dai->capture_widget;
-		if (play_w && capture_w) {
-			ret = snd_soc_dapm_new_pcm(card, dai_link->params,
+		} else {
+			/* link the DAI widgets */
+			play_w = codec_dai->playback_widget;
+			capture_w = cpu_dai->capture_widget;
+			if (play_w && capture_w) {
+				ret = snd_soc_dapm_new_pcm(card, dai_link->params,
 						   capture_w, play_w);
-			if (ret != 0) {
-				dev_err(card->dev, "Can't link %s to %s: %d\n",
-					play_w->name, capture_w->name, ret);
-				return ret;
+				if (ret != 0) {
+					dev_err(card->dev, "Can't link %s to %s: %d\n",
+						play_w->name, capture_w->name, ret);
+					return ret;
+				}
+			}
+
+			play_w = cpu_dai->playback_widget;
+			capture_w = codec_dai->capture_widget;
+			if (play_w && capture_w) {
+				ret = snd_soc_dapm_new_pcm(card, dai_link->params,
+						   capture_w, play_w);
+				if (ret != 0) {
+					dev_err(card->dev, "Can't link %s to %s: %d\n",
+						play_w->name, capture_w->name, ret);
+					return ret;
+				}
 			}
 		}
 	}
