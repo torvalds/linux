@@ -7,6 +7,7 @@ extern struct perf_error_ops perf_gtk_eops;
 int perf_gtk__init(void)
 {
 	perf_error__register(&perf_gtk_eops);
+	perf_gtk__init_helpline();
 	return gtk_init_check(NULL, NULL) ? 0 : -1;
 }
 
