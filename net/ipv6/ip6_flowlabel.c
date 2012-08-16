@@ -91,12 +91,9 @@ static struct ip6_flowlabel *fl_lookup(struct net *net, __be32 label)
 
 static void fl_free(struct ip6_flowlabel *fl)
 {
-	switch (fl->share) {
-	case IPV6_FL_S_PROCESS:
-		put_pid(fl->owner.pid);
-		break;
-	}
 	if (fl) {
+		if (fl->share == IPV6_FL_S_PROCESS)
+			put_pid(fl->owner.pid);
 		release_net(fl->fl_net);
 		kfree(fl->opt);
 	}
