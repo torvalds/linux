@@ -58,7 +58,16 @@ struct eth_bearer {
 static struct tipc_media eth_media_info;
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
-static struct notifier_block notifier;
+
+static int recv_notification(struct notifier_block *nb, unsigned long evt,
+			      void *dv);
+/*
+ * Network device notifier info
+ */
+static struct notifier_block notifier = {
+	.notifier_call	= recv_notification,
+	.priority	= 0
+};
 
 /**
  * eth_media_addr_set - initialize Ethernet media address structure
@@ -357,8 +366,6 @@ int tipc_eth_media_start(void)
 	if (res)
 		return res;
 
-	notifier.notifier_call = &recv_notification;
-	notifier.priority = 0;
 	res = register_netdevice_notifier(&notifier);
 	if (!res)
 		eth_started = 1;
