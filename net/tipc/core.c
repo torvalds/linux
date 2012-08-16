@@ -98,9 +98,8 @@ int tipc_core_start_net(unsigned long addr)
 {
 	int res;
 
-	res = tipc_net_start(addr);
-	if (!res)
-		res = tipc_eth_media_start();
+	tipc_net_start(addr);
+	res = tipc_eth_media_start();
 	if (res)
 		tipc_core_stop_net();
 	return res;
