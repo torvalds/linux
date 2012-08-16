@@ -196,6 +196,8 @@ struct wl1271 {
 	unsigned long roc_map[BITS_TO_LONGS(WL12XX_MAX_ROLES)];
 	unsigned long rate_policies_map[
 			BITS_TO_LONGS(WL12XX_MAX_RATE_POLICIES)];
+	unsigned long klv_templates_map[
+			BITS_TO_LONGS(WLCORE_MAX_KLV_TEMPLATES)];
 
 	struct list_head wlvif_list;
 

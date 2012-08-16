@@ -993,7 +993,7 @@ int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 
 	ret = wl1271_cmd_template_set(wl, wlvif->role_id, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
-				      CMD_TEMPL_KLV_IDX_NULL_DATA,
+				      wlvif->sta.klv_template_id,
 				      wlvif->basic_rate);
 
 out:

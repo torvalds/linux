@@ -66,6 +66,7 @@
 #define WLCORE_NUM_BANDS           2
 
 #define WL12XX_MAX_RATE_POLICIES 16
+#define WLCORE_MAX_KLV_TEMPLATES 4
 
 /* Defined by FW as 0. Will not be freed or allocated. */
 #define WL12XX_SYSTEM_HLID         0
@@ -336,6 +337,8 @@ struct wl12xx_vif {
 			u8 basic_rate_idx;
 			u8 ap_rate_idx;
 			u8 p2p_rate_idx;
+
+			u8 klv_template_id;
 
 			bool qos;
 		} sta;

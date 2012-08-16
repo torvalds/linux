@@ -1965,6 +1965,27 @@ static void wl12xx_free_rate_policy(struct wl1271 *wl, u8 *idx)
 	*idx = WL12XX_MAX_RATE_POLICIES;
 }
 
+static int wlcore_allocate_klv_template(struct wl1271 *wl, u8 *idx)
+{
+	u8 policy = find_first_zero_bit(wl->klv_templates_map,
+					WLCORE_MAX_KLV_TEMPLATES);
+	if (policy >= WLCORE_MAX_KLV_TEMPLATES)
+		return -EBUSY;
+
+	__set_bit(policy, wl->klv_templates_map);
+	*idx = policy;
+	return 0;
+}
+
+static void wlcore_free_klv_template(struct wl1271 *wl, u8 *idx)
+{
+	if (WARN_ON(*idx >= WLCORE_MAX_KLV_TEMPLATES))
+		return;
+
+	__clear_bit(*idx, wl->klv_templates_map);
+	*idx = WLCORE_MAX_KLV_TEMPLATES;
+}
+
 static u8 wl12xx_get_role_type(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	switch (wlvif->bss_type) {
@@ -2029,6 +2050,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 		wl12xx_allocate_rate_policy(wl, &wlvif->sta.basic_rate_idx);
 		wl12xx_allocate_rate_policy(wl, &wlvif->sta.ap_rate_idx);
 		wl12xx_allocate_rate_policy(wl, &wlvif->sta.p2p_rate_idx);
+		wlcore_allocate_klv_template(wl, &wlvif->sta.klv_template_id);
 		wlvif->basic_rate_set = CONF_TX_RATE_MASK_BASIC;
 		wlvif->basic_rate = CONF_TX_RATE_MASK_BASIC;
 		wlvif->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -2360,6 +2382,7 @@ deinit:
 		wl12xx_free_rate_policy(wl, &wlvif->sta.basic_rate_idx);
 		wl12xx_free_rate_policy(wl, &wlvif->sta.ap_rate_idx);
 		wl12xx_free_rate_policy(wl, &wlvif->sta.p2p_rate_idx);
+		wlcore_free_klv_template(wl, &wlvif->sta.klv_template_id);
 	} else {
 		wlvif->ap.bcast_hlid = WL12XX_INVALID_LINK_ID;
 		wlvif->ap.global_hlid = WL12XX_INVALID_LINK_ID;
@@ -2524,7 +2547,7 @@ static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		goto out;
 
 	ret = wl1271_acx_keep_alive_config(wl, wlvif,
-					   CMD_TEMPL_KLV_IDX_NULL_DATA,
+					   wlvif->sta.klv_template_id,
 					   ACX_KEEP_ALIVE_TPL_VALID);
 	if (ret < 0)
 		goto out;
@@ -2546,7 +2569,7 @@ static int wl1271_unjoin(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	/* invalidate keep-alive template */
 	wl1271_acx_keep_alive_config(wl, wlvif,
-				     CMD_TEMPL_KLV_IDX_NULL_DATA,
+				     wlvif->sta.klv_template_id,
 				     ACX_KEEP_ALIVE_TPL_INVALID);
 
 	/* to stop listening to a channel, we disconnect */
@@ -2587,11 +2610,6 @@ static int wl1271_sta_handle_idle(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wlvif->rate_set =
 			wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 		ret = wl1271_acx_sta_rate_policies(wl, wlvif);
-		if (ret < 0)
-			goto out;
-		ret = wl1271_acx_keep_alive_config(
-			wl, wlvif, CMD_TEMPL_KLV_IDX_NULL_DATA,
-			ACX_KEEP_ALIVE_TPL_INVALID);
 		if (ret < 0)
 			goto out;
 		clear_bit(WLVIF_FLAG_IN_USE, &wlvif->flags);
