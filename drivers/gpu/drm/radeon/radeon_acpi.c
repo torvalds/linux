@@ -74,6 +74,12 @@ struct atif_sbios_requests {
 #define ATIF_NOTIFY_81		1
 #define ATIF_NOTIFY_N		2
 
+struct atcs_verify_interface {
+	u16 size;		/* structure size in bytes (includes size field) */
+	u16 version;		/* version */
+	u32 function_bits;	/* supported functions bit vector */
+} __packed;
+
 /* Call the ATIF method
  */
 /**
@@ -383,6 +389,118 @@ int radeon_atif_handler(struct radeon_device *rdev,
 	return NOTIFY_BAD;
 }
 
+/* Call the ATCS method
+ */
+/**
+ * radeon_atcs_call - call an ATCS method
+ *
+ * @handle: acpi handle
+ * @function: the ATCS function to execute
+ * @params: ATCS function params
+ *
+ * Executes the requested ATCS function (all asics).
+ * Returns a pointer to the acpi output buffer.
+ */
+static union acpi_object *radeon_atcs_call(acpi_handle handle, int function,
+					   struct acpi_buffer *params)
+{
+	acpi_status status;
+	union acpi_object atcs_arg_elements[2];
+	struct acpi_object_list atcs_arg;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	atcs_arg.count = 2;
+	atcs_arg.pointer = &atcs_arg_elements[0];
+
+	atcs_arg_elements[0].type = ACPI_TYPE_INTEGER;
+	atcs_arg_elements[0].integer.value = function;
+
+	if (params) {
+		atcs_arg_elements[1].type = ACPI_TYPE_BUFFER;
+		atcs_arg_elements[1].buffer.length = params->length;
+		atcs_arg_elements[1].buffer.pointer = params->pointer;
+	} else {
+		/* We need a second fake parameter */
+		atcs_arg_elements[1].type = ACPI_TYPE_INTEGER;
+		atcs_arg_elements[1].integer.value = 0;
+	}
+
+	status = acpi_evaluate_object(handle, "ATCS", &atcs_arg, &buffer);
+
+	/* Fail only if calling the method fails and ATIF is supported */
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+		DRM_DEBUG_DRIVER("failed to evaluate ATCS got %s\n",
+				 acpi_format_exception(status));
+		kfree(buffer.pointer);
+		return NULL;
+	}
+
+	return buffer.pointer;
+}
+
+/**
+ * radeon_atcs_parse_functions - parse supported functions
+ *
+ * @f: supported functions struct
+ * @mask: supported functions mask from ATCS
+ *
+ * Use the supported functions mask from ATCS function
+ * ATCS_FUNCTION_VERIFY_INTERFACE to determine what functions
+ * are supported (all asics).
+ */
+static void radeon_atcs_parse_functions(struct radeon_atcs_functions *f, u32 mask)
+{
+	f->get_ext_state = mask & ATCS_GET_EXTERNAL_STATE_SUPPORTED;
+	f->pcie_perf_req = mask & ATCS_PCIE_PERFORMANCE_REQUEST_SUPPORTED;
+	f->pcie_dev_rdy = mask & ATCS_PCIE_DEVICE_READY_NOTIFICATION_SUPPORTED;
+	f->pcie_bus_width = mask & ATCS_SET_PCIE_BUS_WIDTH_SUPPORTED;
+}
+
+/**
+ * radeon_atcs_verify_interface - verify ATCS
+ *
+ * @handle: acpi handle
+ * @atcs: radeon atcs struct
+ *
+ * Execute the ATCS_FUNCTION_VERIFY_INTERFACE ATCS function
+ * to initialize ATCS and determine what features are supported
+ * (all asics).
+ * returns 0 on success, error on failure.
+ */
+static int radeon_atcs_verify_interface(acpi_handle handle,
+					struct radeon_atcs *atcs)
+{
+	union acpi_object *info;
+	struct atcs_verify_interface output;
+	size_t size;
+	int err = 0;
+
+	info = radeon_atcs_call(handle, ATCS_FUNCTION_VERIFY_INTERFACE, NULL);
+	if (!info)
+		return -EIO;
+
+	memset(&output, 0, sizeof(output));
+
+	size = *(u16 *) info->buffer.pointer;
+	if (size < 8) {
+		DRM_INFO("ATCS buffer is too small: %lu\n", size);
+		err = -EINVAL;
+		goto out;
+	}
+	size = min(sizeof(output), size);
+
+	memcpy(&output, info->buffer.pointer, size);
+
+	/* TODO: check version? */
+	DRM_DEBUG_DRIVER("ATCS version %u\n", output.version);
+
+	radeon_atcs_parse_functions(&atcs->functions, output.function_bits);
+
+out:
+	kfree(info);
+	return err;
+}
+
 /**
  * radeon_acpi_event - handle notify events
  *
@@ -428,6 +546,7 @@ int radeon_acpi_init(struct radeon_device *rdev)
 {
 	acpi_handle handle;
 	struct radeon_atif *atif = &rdev->atif;
+	struct radeon_atcs *atcs = &rdev->atcs;
 	int ret;
 
 	/* Get the device handle */
@@ -437,10 +556,16 @@ int radeon_acpi_init(struct radeon_device *rdev)
 	if (!ASIC_IS_AVIVO(rdev) || !rdev->bios || !handle)
 		return 0;
 
+	/* Call the ATCS method */
+	ret = radeon_atcs_verify_interface(handle, atcs);
+	if (ret) {
+		DRM_DEBUG_DRIVER("Call to ATCS verify_interface failed: %d\n", ret);
+	}
+
 	/* Call the ATIF method */
 	ret = radeon_atif_verify_interface(handle, atif);
 	if (ret) {
-		DRM_DEBUG_DRIVER("Call to verify_interface failed: %d\n", ret);
+		DRM_DEBUG_DRIVER("Call to ATIF verify_interface failed: %d\n", ret);
 		goto out;
 	}
 

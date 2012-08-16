@@ -1464,6 +1464,17 @@ struct radeon_atif {
 	struct radeon_encoder *backlight_ctl;
 };
 
+struct radeon_atcs_functions {
+	bool get_ext_state;
+	bool pcie_perf_req;
+	bool pcie_dev_rdy;
+	bool pcie_bus_width;
+};
+
+struct radeon_atcs {
+	struct radeon_atcs_functions functions;
+};
+
 /*
  * Core structure, functions and helpers.
  */
@@ -1557,6 +1568,7 @@ struct radeon_device {
 	struct mutex			gpu_clock_mutex;
 	/* ACPI interface */
 	struct radeon_atif		atif;
+	struct radeon_atcs		atcs;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
