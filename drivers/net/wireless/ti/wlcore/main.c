@@ -2544,6 +2544,11 @@ static int wl1271_unjoin(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		ieee80211_chswitch_done(vif, false);
 	}
 
+	/* invalidate keep-alive template */
+	wl1271_acx_keep_alive_config(wl, wlvif,
+				     CMD_TEMPL_KLV_IDX_NULL_DATA,
+				     ACX_KEEP_ALIVE_TPL_INVALID);
+
 	/* to stop listening to a channel, we disconnect */
 	ret = wl12xx_cmd_role_stop_sta(wl, wlvif);
 	if (ret < 0)
