@@ -84,6 +84,7 @@ static unsigned short ltq_eiu_irq[MAX_EIU] = {
 static int exin_avail;
 static void __iomem *ltq_icu_membase[MAX_IM];
 static void __iomem *ltq_eiu_membase;
+static struct irq_domain *ltq_domain;
 
 void ltq_disable_irq(struct irq_data *d)
 {
@@ -219,10 +220,14 @@ DEFINE_HWx_IRQDISPATCH(2)
 DEFINE_HWx_IRQDISPATCH(3)
 DEFINE_HWx_IRQDISPATCH(4)
 
+#if MIPS_CPU_TIMER_IRQ == 7
 static void ltq_hw5_irqdispatch(void)
 {
 	do_IRQ(MIPS_CPU_TIMER_IRQ);
 }
+#else
+DEFINE_HWx_IRQDISPATCH(5)
+#endif
 
 #ifdef CONFIG_MIPS_MT_SMP
 void __init arch_init_ipiirq(int irq, struct irqaction *action)
@@ -270,7 +275,7 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 	unsigned int i;
 
-	if (pending & CAUSEF_IP7) {
+	if ((MIPS_CPU_TIMER_IRQ == 7) && (pending & CAUSEF_IP7)) {
 		do_IRQ(MIPS_CPU_TIMER_IRQ);
 		goto out;
 	} else {
@@ -376,7 +381,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		set_vi_handler(7, ltq_hw5_irqdispatch);
 	}
 
-	irq_domain_add_linear(node,
+	ltq_domain = irq_domain_add_linear(node,
 		(MAX_IM * INT_NUM_IM_OFFSET) + MIPS_CPU_IRQ_CASCADE,
 		&irq_domain_ops, 0);
 
@@ -401,12 +406,20 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 
 	/* tell oprofile which irq to use */
 	cp0_perfcount_irq = LTQ_PERF_IRQ;
+
+	/*
+	 * if the timer irq is not one of the mips irqs we need to
+	 * create a mapping
+	 */
+	if (MIPS_CPU_TIMER_IRQ != 7)
+		irq_create_mapping(ltq_domain, MIPS_CPU_TIMER_IRQ);
+
 	return 0;
 }
 
 unsigned int __cpuinit get_c0_compare_int(void)
 {
-	return CP0_LEGACY_COMPARE_IRQ;
+	return MIPS_CPU_TIMER_IRQ;
 }
 
 static struct of_device_id __initdata of_irq_ids[] = {
