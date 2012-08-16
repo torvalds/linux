@@ -1497,7 +1497,7 @@ static int ddb_class_create(void)
 	ddb_class = class_create(THIS_MODULE, DDB_NAME);
 	if (IS_ERR(ddb_class)) {
 		unregister_chrdev(ddb_major, DDB_NAME);
-		return -1;
+		return PTR_ERR(ddb_class);
 	}
 	ddb_class->devnode = ddb_devnode;
 	return 0;
@@ -1701,11 +1701,18 @@ static struct pci_driver ddb_pci_driver = {
 
 static __init int module_init_ddbridge(void)
 {
+	int ret;
+
 	printk(KERN_INFO "Digital Devices PCIE bridge driver, "
 	       "Copyright (C) 2010-11 Digital Devices GmbH\n");
-	if (ddb_class_create())
-		return -1;
-	return pci_register_driver(&ddb_pci_driver);
+
+	ret = ddb_class_create();
+	if (ret < 0)
+		return ret;
+	ret = pci_register_driver(&ddb_pci_driver);
+	if (ret < 0)
+		ddb_class_destroy();
+	return ret;
 }
 
 static __exit void module_exit_ddbridge(void)
