@@ -85,7 +85,7 @@ static char *wled_type = "unknown";
 static char *bled_type = "unknown";
 
 module_param(wled_type, charp, 0444);
-MODULE_PARM_DESC(wlan_status, "Set the wled type on boot "
+MODULE_PARM_DESC(wled_type, "Set the wled type on boot "
 		 "(unknown, led or rfkill). "
 		 "default is unknown");
 
