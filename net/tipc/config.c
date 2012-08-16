@@ -208,21 +208,6 @@ static struct sk_buff *cfg_set_remote_mng(void)
 	return tipc_cfg_reply_none();
 }
 
-static struct sk_buff *cfg_set_max_publications(void)
-{
-	u32 value;
-
-	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
-		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
-
-	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value < 1 || value > 65535)
-		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
-						   " (max publications must be 1-65535)");
-	tipc_max_publications = value;
-	return tipc_cfg_reply_none();
-}
-
 static struct sk_buff *cfg_set_max_ports(void)
 {
 	u32 value;
@@ -342,9 +327,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_SET_MAX_PORTS:
 		rep_tlv_buf = cfg_set_max_ports();
 		break;
-	case TIPC_CMD_SET_MAX_PUBL:
-		rep_tlv_buf = cfg_set_max_publications();
-		break;
 	case TIPC_CMD_SET_NETID:
 		rep_tlv_buf = cfg_set_netid();
 		break;
@@ -353,9 +335,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 		break;
 	case TIPC_CMD_GET_MAX_PORTS:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_ports);
-		break;
-	case TIPC_CMD_GET_MAX_PUBL:
-		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_max_publications);
 		break;
 	case TIPC_CMD_GET_NETID:
 		rep_tlv_buf = tipc_cfg_reply_unsigned(tipc_net_id);
@@ -374,6 +353,8 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_GET_MAX_NODES:
 	case TIPC_CMD_SET_MAX_SUBSCR:
 	case TIPC_CMD_GET_MAX_SUBSCR:
+	case TIPC_CMD_SET_MAX_PUBL:
+	case TIPC_CMD_GET_MAX_PUBL:
 	case TIPC_CMD_SET_LOG_SIZE:
 	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED

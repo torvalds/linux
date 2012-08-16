@@ -53,7 +53,6 @@ int tipc_random __read_mostly;
 /* configurable TIPC parameters */
 u32 tipc_own_addr __read_mostly;
 int tipc_max_ports __read_mostly;
-int tipc_max_publications;
 int tipc_net_id __read_mostly;
 int tipc_remote_management __read_mostly;
 
@@ -155,7 +154,6 @@ static int __init tipc_init(void)
 
 	tipc_own_addr = 0;
 	tipc_remote_management = 1;
-	tipc_max_publications = 10000;
 	tipc_max_ports = CONFIG_TIPC_PORTS;
 	tipc_net_id = 4711;
 

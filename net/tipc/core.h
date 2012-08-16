@@ -62,6 +62,7 @@
 
 #define ULTRA_STRING_MAX_LEN	32768
 #define TIPC_MAX_SUBSCRIPTIONS	65535
+#define TIPC_MAX_PUBLICATIONS	65535
 
 struct tipc_msg;	/* msg.h */
 
@@ -77,7 +78,6 @@ int tipc_snprintf(char *buf, int len, const char *fmt, ...);
  */
 extern u32 tipc_own_addr __read_mostly;
 extern int tipc_max_ports __read_mostly;
-extern int tipc_max_publications;
 extern int tipc_net_id __read_mostly;
 extern int tipc_remote_management __read_mostly;
 

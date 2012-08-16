@@ -667,9 +667,9 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 {
 	struct publication *publ;
 
-	if (table.local_publ_count >= tipc_max_publications) {
+	if (table.local_publ_count >= TIPC_MAX_PUBLICATIONS) {
 		pr_warn("Publication failed, local publication limit reached (%u)\n",
-			tipc_max_publications);
+			TIPC_MAX_PUBLICATIONS);
 		return NULL;
 	}
 
