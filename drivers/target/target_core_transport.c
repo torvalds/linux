@@ -958,7 +958,7 @@ int
 transport_set_vpd_ident(struct t10_vpd *vpd, unsigned char *page_83)
 {
 	static const char hex_str[] = "0123456789abcdef";
-	int j = 0, i = 4; /* offset to start of the identifer */
+	int j = 0, i = 4; /* offset to start of the identifier */
 
 	/*
 	 * The VPD Code Set (encoding)
@@ -2760,7 +2760,7 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	cmd->transport_state &= ~(CMD_T_ACTIVE | CMD_T_STOP);
 
-	pr_debug("wait_for_tasks: Stopped wait_for_compltion("
+	pr_debug("wait_for_tasks: Stopped wait_for_completion("
 		"&cmd->t_transport_stop_comp) for ITT: 0x%08x\n",
 		cmd->se_tfo->get_task_tag(cmd));
 

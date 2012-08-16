@@ -1620,7 +1620,7 @@ static int core_scsi3_decode_spec_i_port(
 				goto out;
 			}
 			/*
-			 * Locate the desination initiator ACL to be registered
+			 * Locate the destination initiator ACL to be registered
 			 * from the decoded fabric module specific TransportID
 			 * at *i_str.
 			 */
@@ -4257,7 +4257,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 			buf[off++] = ((port->sep_rtpi >> 8) & 0xff);
 			buf[off++] = (port->sep_rtpi & 0xff);
 		} else
-			off += 2; /* Skip over RELATIVE TARGET PORT IDENTIFER */
+			off += 2; /* Skip over RELATIVE TARGET PORT IDENTIFIER */
 
 		/*
 		 * Now, have the $FABRIC_MOD fill in the protocol identifier

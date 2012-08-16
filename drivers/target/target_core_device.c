@@ -531,7 +531,7 @@ static struct se_port *core_alloc_port(struct se_device *dev)
 	}
 again:
 	/*
-	 * Allocate the next RELATIVE TARGET PORT IDENTIFER for this struct se_device
+	 * Allocate the next RELATIVE TARGET PORT IDENTIFIER for this struct se_device
 	 * Here is the table from spc4r17 section 7.7.3.8.
 	 *
 	 *    Table 473 -- RELATIVE TARGET PORT IDENTIFIER field
@@ -548,7 +548,7 @@ again:
 
 	list_for_each_entry(port_tmp, &dev->dev_sep_list, sep_list) {
 		/*
-		 * Make sure RELATIVE TARGET PORT IDENTIFER is unique
+		 * Make sure RELATIVE TARGET PORT IDENTIFIER is unique
 		 * for 16-bit wrap..
 		 */
 		if (port->sep_rtpi == port_tmp->sep_rtpi)
@@ -595,7 +595,7 @@ static void core_export_port(
 	}
 
 	dev->dev_port_count++;
-	port->sep_index = port->sep_rtpi; /* RELATIVE TARGET PORT IDENTIFER */
+	port->sep_index = port->sep_rtpi; /* RELATIVE TARGET PORT IDENTIFIER */
 }
 
 /*
