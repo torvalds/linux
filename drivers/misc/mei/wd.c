@@ -341,7 +341,9 @@ static const struct watchdog_ops wd_ops = {
 };
 static const struct watchdog_info wd_info = {
 		.identity = INTEL_AMT_WATCHDOG_ID,
-		.options = WDIOF_KEEPALIVEPING | WDIOF_ALARMONLY,
+		.options = WDIOF_KEEPALIVEPING |
+			   WDIOF_SETTIMEOUT |
+			   WDIOF_ALARMONLY,
 };
 
 static struct watchdog_device amt_wd_dev = {
