@@ -55,8 +55,8 @@
  */
 #define LTQ_ICU_EBU_IRQ		22
 
-#define ltq_icu_w32(x, y)	ltq_w32((x), ltq_icu_membase + (y))
-#define ltq_icu_r32(x)		ltq_r32(ltq_icu_membase + (x))
+#define ltq_icu_w32(m, x, y)	ltq_w32((x), ltq_icu_membase[m] + (y))
+#define ltq_icu_r32(m, x)	ltq_r32(ltq_icu_membase[m] + (x))
 
 #define ltq_eiu_w32(x, y)	ltq_w32((x), ltq_eiu_membase + (y))
 #define ltq_eiu_r32(x)		ltq_r32(ltq_eiu_membase + (x))
@@ -82,17 +82,17 @@ static unsigned short ltq_eiu_irq[MAX_EIU] = {
 };
 
 static int exin_avail;
-static void __iomem *ltq_icu_membase;
+static void __iomem *ltq_icu_membase[MAX_IM];
 static void __iomem *ltq_eiu_membase;
 
 void ltq_disable_irq(struct irq_data *d)
 {
 	u32 ier = LTQ_ICU_IM0_IER;
 	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	int im = offset / INT_NUM_IM_OFFSET;
 
-	ier += LTQ_ICU_OFFSET * (offset / INT_NUM_IM_OFFSET);
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(ltq_icu_r32(ier) & ~BIT(offset), ier);
+	ltq_icu_w32(im, ltq_icu_r32(im, ier) & ~BIT(offset), ier);
 }
 
 void ltq_mask_and_ack_irq(struct irq_data *d)
@@ -100,32 +100,31 @@ void ltq_mask_and_ack_irq(struct irq_data *d)
 	u32 ier = LTQ_ICU_IM0_IER;
 	u32 isr = LTQ_ICU_IM0_ISR;
 	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	int im = offset / INT_NUM_IM_OFFSET;
 
-	ier += LTQ_ICU_OFFSET * (offset / INT_NUM_IM_OFFSET);
-	isr += LTQ_ICU_OFFSET * (offset / INT_NUM_IM_OFFSET);
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(ltq_icu_r32(ier) & ~BIT(offset), ier);
-	ltq_icu_w32(BIT(offset), isr);
+	ltq_icu_w32(im, ltq_icu_r32(im, ier) & ~BIT(offset), ier);
+	ltq_icu_w32(im, BIT(offset), isr);
 }
 
 static void ltq_ack_irq(struct irq_data *d)
 {
 	u32 isr = LTQ_ICU_IM0_ISR;
 	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	int im = offset / INT_NUM_IM_OFFSET;
 
-	isr += LTQ_ICU_OFFSET * (offset / INT_NUM_IM_OFFSET);
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(BIT(offset), isr);
+	ltq_icu_w32(im, BIT(offset), isr);
 }
 
 void ltq_enable_irq(struct irq_data *d)
 {
 	u32 ier = LTQ_ICU_IM0_IER;
 	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
+	int im = offset / INT_NUM_IM_OFFSET;
 
-	ier += LTQ_ICU_OFFSET  * (offset / INT_NUM_IM_OFFSET);
 	offset %= INT_NUM_IM_OFFSET;
-	ltq_icu_w32(ltq_icu_r32(ier) | BIT(offset), ier);
+	ltq_icu_w32(im, ltq_icu_r32(im, ier) | BIT(offset), ier);
 }
 
 static unsigned int ltq_startup_eiu_irq(struct irq_data *d)
@@ -192,7 +191,7 @@ static void ltq_hw_irqdispatch(int module)
 {
 	u32 irq;
 
-	irq = ltq_icu_r32(LTQ_ICU_IM0_IOSR + (module * LTQ_ICU_OFFSET));
+	irq = ltq_icu_r32(module, LTQ_ICU_IM0_IOSR);
 	if (irq == 0)
 		return;
 
@@ -275,7 +274,7 @@ asmlinkage void plat_irq_dispatch(void)
 		do_IRQ(MIPS_CPU_TIMER_IRQ);
 		goto out;
 	} else {
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < MAX_IM; i++) {
 			if (pending & (CAUSEF_IP2 << i)) {
 				ltq_hw_irqdispatch(i);
 				goto out;
@@ -318,15 +317,19 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	struct resource res;
 	int i;
 
-	if (of_address_to_resource(node, 0, &res))
-		panic("Failed to get icu memory range");
+	for (i = 0; i < MAX_IM; i++) {
+		if (of_address_to_resource(node, i, &res))
+			panic("Failed to get icu memory range");
 
-	if (request_mem_region(res.start, resource_size(&res), res.name) < 0)
-		pr_err("Failed to request icu memory");
+		if (request_mem_region(res.start, resource_size(&res),
+					res.name) < 0)
+			pr_err("Failed to request icu memory");
 
-	ltq_icu_membase = ioremap_nocache(res.start, resource_size(&res));
-	if (!ltq_icu_membase)
-		panic("Failed to remap icu memory");
+		ltq_icu_membase[i] = ioremap_nocache(res.start,
+					resource_size(&res));
+		if (!ltq_icu_membase[i])
+			panic("Failed to remap icu memory");
+	}
 
 	/* the external interrupts are optional and xway only */
 	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu");
@@ -351,17 +354,17 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 	}
 
 	/* turn off all irqs by default */
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < MAX_IM; i++) {
 		/* make sure all irqs are turned off by default */
-		ltq_icu_w32(0, LTQ_ICU_IM0_IER + (i * LTQ_ICU_OFFSET));
+		ltq_icu_w32(i, 0, LTQ_ICU_IM0_IER);
 		/* clear all possibly pending interrupts */
-		ltq_icu_w32(~0, LTQ_ICU_IM0_ISR + (i * LTQ_ICU_OFFSET));
+		ltq_icu_w32(i, ~0, LTQ_ICU_IM0_ISR);
 	}
 
 	mips_cpu_irq_init();
 
-	for (i = 2; i <= 6; i++)
-		setup_irq(i, &cascade);
+	for (i = 0; i < MAX_IM; i++)
+		setup_irq(i + 2, &cascade);
 
 	if (cpu_has_vint) {
 		pr_info("Setting up vectored interrupts\n");
@@ -373,7 +376,8 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 		set_vi_handler(7, ltq_hw5_irqdispatch);
 	}
 
-	irq_domain_add_linear(node, 6 * INT_NUM_IM_OFFSET,
+	irq_domain_add_linear(node,
+		(MAX_IM * INT_NUM_IM_OFFSET) + MIPS_CPU_IRQ_CASCADE,
 		&irq_domain_ops, 0);
 
 #if defined(CONFIG_MIPS_MT_SMP)
