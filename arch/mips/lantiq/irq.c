@@ -341,7 +341,7 @@ int __init icu_of_init(struct device_node *node, struct device_node *parent)
 
 	/* the external interrupts are optional and xway only */
 	eiu_node = of_find_compatible_node(NULL, NULL, "lantiq,eiu");
-	if (eiu_node && of_address_to_resource(eiu_node, 0, &res)) {
+	if (eiu_node && !of_address_to_resource(eiu_node, 0, &res)) {
 		/* find out how many external irq sources we have */
 		const __be32 *count = of_get_property(node,
 							"lantiq,count",	NULL);
