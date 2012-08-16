@@ -347,7 +347,7 @@ register_unifi_sdio(CsrSdioFunction *sdio_dev, int bus_id, struct device *dev)
     /*
      * We use the slot number as unifi device index.
      */
-    snprintf(priv->proc_entry_name, 64, "driver/unifi%d", priv->instance);
+    scnprintf(priv->proc_entry_name, 64, "driver/unifi%d", priv->instance);
     /*
      * The following complex casting is in place in order to eliminate 64-bit compilation warning
      * "cast to/from pointer from/to integer of different size"
@@ -904,54 +904,54 @@ uf_read_proc(char *page, char **start, off_t offset, int count,
 
     orig_p = p;
 
-    written = CsrSnprintf(p, remain, "UniFi SDIO Driver: %s %s %s\n",
+    written = scnprintf(p, remain, "UniFi SDIO Driver: %s %s %s\n",
             CSR_WIFI_VERSION, __DATE__, __TIME__);
     UNIFI_SNPRINTF_RET(p, remain, written);
 #ifdef CSR_SME_USERSPACE
-    written = CsrSnprintf(p, remain, "SME: CSR userspace ");
+    written = scnprintf(p, remain, "SME: CSR userspace ");
     UNIFI_SNPRINTF_RET(p, remain, written);
 #ifdef CSR_SUPPORT_WEXT
-    written = CsrSnprintf(p, remain, "with WEXT support\n");
+    written = scnprintf(p, remain, "with WEXT support\n");
 #else
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
 #endif /* CSR_SUPPORT_WEXT */
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif /* CSR_SME_USERSPACE */
 #ifdef CSR_NATIVE_LINUX
-    written = CsrSnprintf(p, remain, "SME: native\n");
+    written = scnprintf(p, remain, "SME: native\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif
 
 #ifdef CSR_SUPPORT_SME
-    written = CsrSnprintf(p, remain,
-            "Firmware (ROM) build:%lu, Patch:%lu\n",
+    written = scnprintf(p, remain,
+            "Firmware (ROM) build:%u, Patch:%u\n",
             priv->card_info.fw_build,
             priv->sme_versions.firmwarePatch);
     UNIFI_SNPRINTF_RET(p, remain, written);
 #endif
     p += unifi_print_status(priv->card, p, &remain);
 
-    written = CsrSnprintf(p, remain, "Last dbg str: %s\n",
+    written = scnprintf(p, remain, "Last dbg str: %s\n",
             priv->last_debug_string);
     UNIFI_SNPRINTF_RET(p, remain, written);
 
-    written = CsrSnprintf(p, remain, "Last dbg16:");
+    written = scnprintf(p, remain, "Last dbg16:");
     UNIFI_SNPRINTF_RET(p, remain, written);
     for (i = 0; i < 8; i++) {
-        written = CsrSnprintf(p, remain, " %04X",
+        written = scnprintf(p, remain, " %04X",
                 priv->last_debug_word16[i]);
         UNIFI_SNPRINTF_RET(p, remain, written);
     }
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
-    written = CsrSnprintf(p, remain, "           ");
+    written = scnprintf(p, remain, "           ");
     UNIFI_SNPRINTF_RET(p, remain, written);
     for (; i < 16; i++) {
-        written = CsrSnprintf(p, remain, " %04X",
+        written = scnprintf(p, remain, " %04X",
                 priv->last_debug_word16[i]);
         UNIFI_SNPRINTF_RET(p, remain, written);
     }
-    written = CsrSnprintf(p, remain, "\n");
+    written = scnprintf(p, remain, "\n");
     UNIFI_SNPRINTF_RET(p, remain, written);
     *start = page;
 
