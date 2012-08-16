@@ -1517,16 +1517,57 @@ do_cea_modes (struct drm_connector *connector, u8 *db, u8 len)
 }
 
 static int
+cea_db_payload_len(const u8 *db)
+{
+	return db[0] & 0x1f;
+}
+
+static int
+cea_db_tag(const u8 *db)
+{
+	return db[0] >> 5;
+}
+
+static int
+cea_revision(const u8 *cea)
+{
+	return cea[1];
+}
+
+static int
+cea_db_offsets(const u8 *cea, int *start, int *end)
+{
+	/* Data block offset in CEA extension block */
+	*start = 4;
+	*end = cea[2];
+	if (*end == 0)
+		*end = 127;
+	if (*end < 4 || *end > 127)
+		return -ERANGE;
+	return 0;
+}
+
+#define for_each_cea_db(cea, i, start, end) \
+	for ((i) = (start); (i) < (end) && (i) + cea_db_payload_len(&(cea)[(i)]) < (end); (i) += cea_db_payload_len(&(cea)[(i)]) + 1)
+
+static int
 add_cea_modes(struct drm_connector *connector, struct edid *edid)
 {
 	u8 * cea = drm_find_cea_extension(edid);
 	u8 * db, dbl;
 	int modes = 0;
 
-	if (cea && cea[1] >= 3) {
-		for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
-			dbl = db[0] & 0x1f;
-			if (((db[0] & 0xe0) >> 5) == VIDEO_BLOCK)
+	if (cea && cea_revision(cea) >= 3) {
+		int i, start, end;
+
+		if (cea_db_offsets(cea, &start, &end))
+			return 0;
+
+		for_each_cea_db(cea, i, start, end) {
+			db = &cea[i];
+			dbl = cea_db_payload_len(db);
+
+			if (cea_db_tag(db) == VIDEO_BLOCK)
 				modes += do_cea_modes (connector, db+1, dbl);
 		}
 	}
@@ -1617,19 +1658,29 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	eld[18] = edid->prod_code[0];
 	eld[19] = edid->prod_code[1];
 
-	if (cea[1] >= 3)
-		for (db = cea + 4; db < cea + cea[2]; db += dbl + 1) {
-			dbl = db[0] & 0x1f;
-			
-			switch ((db[0] & 0xe0) >> 5) {
+	if (cea_revision(cea) >= 3) {
+		int i, start, end;
+
+		if (cea_db_offsets(cea, &start, &end)) {
+			start = 0;
+			end = 0;
+		}
+
+		for_each_cea_db(cea, i, start, end) {
+			db = &cea[i];
+			dbl = cea_db_payload_len(db);
+
+			switch (cea_db_tag(db)) {
 			case AUDIO_BLOCK:
 				/* Audio Data Block, contains SADs */
 				sad_count = dbl / 3;
-				memcpy(eld + 20 + mnl, &db[1], dbl);
+				if (dbl >= 1)
+					memcpy(eld + 20 + mnl, &db[1], dbl);
 				break;
 			case SPEAKER_BLOCK:
-                                /* Speaker Allocation Data Block */
-				eld[7] = db[1];
+				/* Speaker Allocation Data Block */
+				if (dbl >= 1)
+					eld[7] = db[1];
 				break;
 			case VENDOR_BLOCK:
 				/* HDMI Vendor-Specific Data Block */
@@ -1640,6 +1691,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 				break;
 			}
 		}
+	}
 	eld[5] |= sad_count << 4;
 	eld[2] = (20 + mnl + sad_count * 3 + 3) / 4;
 
@@ -1725,19 +1777,16 @@ bool drm_detect_hdmi_monitor(struct edid *edid)
 	if (!edid_ext)
 		goto end;
 
-	/* Data block offset in CEA extension block */
-	start_offset = 4;
-	end_offset = edid_ext[2];
+	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
+		goto end;
 
 	/*
 	 * Because HDMI identifier is in Vendor Specific Block,
 	 * search it from all data blocks of CEA extension.
 	 */
-	for (i = start_offset; i < end_offset;
-		/* Increased by data block len */
-		i += ((edid_ext[i] & 0x1f) + 1)) {
+	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
 		/* Find vendor specific block */
-		if ((edid_ext[i] >> 5) == VENDOR_BLOCK) {
+		if (cea_db_tag(&edid_ext[i]) == VENDOR_BLOCK) {
 			hdmi_id = edid_ext[i + 1] | (edid_ext[i + 2] << 8) |
 				  edid_ext[i + 3] << 16;
 			/* Find HDMI identifier */
@@ -1780,15 +1829,13 @@ bool drm_detect_monitor_audio(struct edid *edid)
 		goto end;
 	}
 
-	/* Data block offset in CEA extension block */
-	start_offset = 4;
-	end_offset = edid_ext[2];
+	if (cea_db_offsets(edid_ext, &start_offset, &end_offset))
+		goto end;
 
-	for (i = start_offset; i < end_offset;
-			i += ((edid_ext[i] & 0x1f) + 1)) {
-		if ((edid_ext[i] >> 5) == AUDIO_BLOCK) {
+	for_each_cea_db(edid_ext, i, start_offset, end_offset) {
+		if (cea_db_tag(&edid_ext[i]) == AUDIO_BLOCK) {
 			has_audio = true;
-			for (j = 1; j < (edid_ext[i] & 0x1f); j += 3)
+			for (j = 1; j < cea_db_payload_len(&edid_ext[i]) + 1; j += 3)
 				DRM_DEBUG_KMS("CEA audio format %d\n",
 					      (edid_ext[i + j] >> 3) & 0xf);
 			goto end;
