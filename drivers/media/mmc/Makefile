@@ -1,1 +1,1 @@
-obj-y := siano/
+obj-y += siano/

@@ -1,4 +1,4 @@
-em28xx-y :=	em28xx-video.o em28xx-i2c.o em28xx-cards.o
+em28xx-y +=	em28xx-video.o em28xx-i2c.o em28xx-cards.o
 em28xx-y +=	em28xx-core.o  em28xx-vbi.o
 
 em28xx-alsa-objs := em28xx-audio.o

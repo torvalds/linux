@@ -1,5 +1,5 @@
 
-saa7134-y :=	saa7134-cards.o saa7134-core.o saa7134-i2c.o
+saa7134-y +=	saa7134-cards.o saa7134-core.o saa7134-i2c.o
 saa7134-y +=	saa7134-ts.o saa7134-tvaudio.o saa7134-vbi.o
 saa7134-y +=	saa7134-video.o
 saa7134-$(CONFIG_VIDEO_SAA7134_RC) += saa7134-input.o
