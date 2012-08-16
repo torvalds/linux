@@ -5066,6 +5066,91 @@ static void g4x_write_eld(struct drm_connector *connector,
 	I915_WRITE(G4X_AUD_CNTL_ST, i);
 }
 
+static void haswell_write_eld(struct drm_connector *connector,
+				     struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	uint8_t *eld = connector->eld;
+	struct drm_device *dev = crtc->dev;
+	uint32_t eldv;
+	uint32_t i;
+	int len;
+	int pipe = to_intel_crtc(crtc)->pipe;
+	int tmp;
+
+	int hdmiw_hdmiedid = HSW_AUD_EDID_DATA(pipe);
+	int aud_cntl_st = HSW_AUD_DIP_ELD_CTRL(pipe);
+	int aud_config = HSW_AUD_CFG(pipe);
+	int aud_cntrl_st2 = HSW_AUD_PIN_ELD_CP_VLD;
+
+
+	DRM_DEBUG_DRIVER("HDMI: Haswell Audio initialize....\n");
+
+	/* Audio output enable */
+	DRM_DEBUG_DRIVER("HDMI audio: enable codec\n");
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp |= (AUDIO_OUTPUT_ENABLE_A << (pipe * 4));
+	I915_WRITE(aud_cntrl_st2, tmp);
+
+	/* Wait for 1 vertical blank */
+	intel_wait_for_vblank(dev, pipe);
+
+	/* Set ELD valid state */
+	tmp = I915_READ(aud_cntrl_st2);
+	DRM_DEBUG_DRIVER("HDMI audio: pin eld vld status=0x%8x\n", tmp);
+	tmp |= (AUDIO_ELD_VALID_A << (pipe * 4));
+	I915_WRITE(aud_cntrl_st2, tmp);
+	tmp = I915_READ(aud_cntrl_st2);
+	DRM_DEBUG_DRIVER("HDMI audio: eld vld status=0x%8x\n", tmp);
+
+	/* Enable HDMI mode */
+	tmp = I915_READ(aud_config);
+	DRM_DEBUG_DRIVER("HDMI audio: audio conf: 0x%8x\n", tmp);
+	/* clear N_programing_enable and N_value_index */
+	tmp &= ~(AUD_CONFIG_N_VALUE_INDEX | AUD_CONFIG_N_PROG_ENABLE);
+	I915_WRITE(aud_config, tmp);
+
+	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
+
+	eldv = AUDIO_ELD_VALID_A << (pipe * 4);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
+		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
+		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
+	} else
+		I915_WRITE(aud_config, 0);
+
+	if (intel_eld_uptodate(connector,
+			       aud_cntrl_st2, eldv,
+			       aud_cntl_st, IBX_ELD_ADDRESS,
+			       hdmiw_hdmiedid))
+		return;
+
+	i = I915_READ(aud_cntrl_st2);
+	i &= ~eldv;
+	I915_WRITE(aud_cntrl_st2, i);
+
+	if (!eld[0])
+		return;
+
+	i = I915_READ(aud_cntl_st);
+	i &= ~IBX_ELD_ADDRESS;
+	I915_WRITE(aud_cntl_st, i);
+	i = (i >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
+	DRM_DEBUG_DRIVER("port num:%d\n", i);
+
+	len = min_t(uint8_t, eld[2], 21);	/* 84 bytes of hw ELD buffer */
+	DRM_DEBUG_DRIVER("ELD size %d\n", len);
+	for (i = 0; i < len; i++)
+		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
+
+	i = I915_READ(aud_cntrl_st2);
+	i |= eldv;
+	I915_WRITE(aud_cntrl_st2, i);
+
+}
+
 static void ironlake_write_eld(struct drm_connector *connector,
 				     struct drm_crtc *crtc)
 {
@@ -6936,7 +7021,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else if (IS_HASWELL(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
-			dev_priv->display.write_eld = ironlake_write_eld;
+			dev_priv->display.write_eld = haswell_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_G4X(dev)) {
