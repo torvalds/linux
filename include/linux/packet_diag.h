@@ -14,6 +14,7 @@ struct packet_diag_req {
 
 #define PACKET_SHOW_INFO	0x00000001 /* Basic packet_sk information */
 #define PACKET_SHOW_MCLIST	0x00000002 /* A set of packet_diag_mclist-s */
+#define PACKET_SHOW_RING_CFG	0x00000004 /* Rings configuration parameters */
 
 struct packet_diag_msg {
 	__u8	pdiag_family;
@@ -27,6 +28,8 @@ struct packet_diag_msg {
 enum {
 	PACKET_DIAG_INFO,
 	PACKET_DIAG_MCLIST,
+	PACKET_DIAG_RX_RING,
+	PACKET_DIAG_TX_RING,
 
 	PACKET_DIAG_MAX,
 };
@@ -52,6 +55,16 @@ struct packet_diag_mclist {
 	__u16	pdmc_type;
 	__u16	pdmc_alen;
 	__u8	pdmc_addr[MAX_ADDR_LEN];
+};
+
+struct packet_diag_ring {
+	__u32	pdr_block_size;
+	__u32	pdr_block_nr;
+	__u32	pdr_frame_size;
+	__u32	pdr_frame_nr;
+	__u32	pdr_retire_tmo;
+	__u32	pdr_sizeof_priv;
+	__u32	pdr_features;
 };
 
 #endif

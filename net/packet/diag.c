@@ -67,12 +67,54 @@ static int pdiag_put_mclist(const struct packet_sock *po, struct sk_buff *nlskb)
 	return 0;
 }
 
+static int pdiag_put_ring(struct packet_ring_buffer *ring, int ver, int nl_type,
+		struct sk_buff *nlskb)
+{
+	struct packet_diag_ring pdr;
+
+	if (!ring->pg_vec || ((ver > TPACKET_V2) &&
+				(nl_type == PACKET_DIAG_TX_RING)))
+		return 0;
+
+	pdr.pdr_block_size = ring->pg_vec_pages << PAGE_SHIFT;
+	pdr.pdr_block_nr = ring->pg_vec_len;
+	pdr.pdr_frame_size = ring->frame_size;
+	pdr.pdr_frame_nr = ring->frame_max + 1;
+
+	if (ver > TPACKET_V2) {
+		pdr.pdr_retire_tmo = ring->prb_bdqc.retire_blk_tov;
+		pdr.pdr_sizeof_priv = ring->prb_bdqc.blk_sizeof_priv;
+		pdr.pdr_features = ring->prb_bdqc.feature_req_word;
+	} else {
+		pdr.pdr_retire_tmo = 0;
+		pdr.pdr_sizeof_priv = 0;
+		pdr.pdr_features = 0;
+	}
+
+	return nla_put(nlskb, nl_type, sizeof(pdr), &pdr);
+}
+
+static int pdiag_put_rings_cfg(struct packet_sock *po, struct sk_buff *skb)
+{
+	int ret;
+
+	mutex_lock(&po->pg_vec_lock);
+	ret = pdiag_put_ring(&po->rx_ring, po->tp_version,
+			PACKET_DIAG_RX_RING, skb);
+	if (!ret)
+		ret = pdiag_put_ring(&po->tx_ring, po->tp_version,
+				PACKET_DIAG_TX_RING, skb);
+	mutex_unlock(&po->pg_vec_lock);
+
+	return ret;
+}
+
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag_req *req,
 		u32 pid, u32 seq, u32 flags, int sk_ino)
 {
 	struct nlmsghdr *nlh;
 	struct packet_diag_msg *rp;
-	const struct packet_sock *po = pkt_sk(sk);
+	struct packet_sock *po = pkt_sk(sk);
 
 	nlh = nlmsg_put(skb, pid, seq, SOCK_DIAG_BY_FAMILY, sizeof(*rp), flags);
 	if (!nlh)
@@ -91,6 +133,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb, struct packet_diag
 
 	if ((req->pdiag_show & PACKET_SHOW_MCLIST) &&
 			pdiag_put_mclist(po, skb))
+		goto out_nlmsg_trim;
+
+	if ((req->pdiag_show & PACKET_SHOW_RING_CFG) &&
+			pdiag_put_rings_cfg(po, skb))
 		goto out_nlmsg_trim;
 
 	return nlmsg_end(skb, nlh);
