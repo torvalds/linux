@@ -803,50 +803,6 @@ struct file *dentry_open(const struct path *path, int flags,
 }
 EXPORT_SYMBOL(dentry_open);
 
-static void __put_unused_fd(struct files_struct *files, unsigned int fd)
-{
-	struct fdtable *fdt = files_fdtable(files);
-	__clear_open_fd(fd, fdt);
-	if (fd < files->next_fd)
-		files->next_fd = fd;
-}
-
-void put_unused_fd(unsigned int fd)
-{
-	struct files_struct *files = current->files;
-	spin_lock(&files->file_lock);
-	__put_unused_fd(files, fd);
-	spin_unlock(&files->file_lock);
-}
-
-EXPORT_SYMBOL(put_unused_fd);
-
-/*
- * Install a file pointer in the fd array.
- *
- * The VFS is full of places where we drop the files lock between
- * setting the open_fds bitmap and installing the file in the file
- * array.  At any such point, we are vulnerable to a dup2() race
- * installing a file in the array before us.  We need to detect this and
- * fput() the struct file we are about to overwrite in this case.
- *
- * It should never happen - if we allow dup2() do it, _really_ bad things
- * will follow.
- */
-
-void fd_install(unsigned int fd, struct file *file)
-{
-	struct files_struct *files = current->files;
-	struct fdtable *fdt;
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	BUG_ON(fdt->fd[fd] != NULL);
-	rcu_assign_pointer(fdt->fd[fd], file);
-	spin_unlock(&files->file_lock);
-}
-
-EXPORT_SYMBOL(fd_install);
-
 static inline int build_open_flags(int flags, umode_t mode, struct open_flags *op)
 {
 	int lookup_flags = 0;
