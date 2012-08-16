@@ -122,6 +122,16 @@ static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
 }
 #endif
 
+static void kvmppc_vcpu_sync_fpu(struct kvm_vcpu *vcpu)
+{
+#if defined(CONFIG_PPC_FPU) && !defined(CONFIG_KVM_BOOKE_HV)
+	/* We always treat the FP bit as enabled from the host
+	   perspective, so only need to adjust the shadow MSR */
+	vcpu->arch.shadow_msr &= ~MSR_FP;
+	vcpu->arch.shadow_msr |= vcpu->arch.shared->msr & MSR_FP;
+#endif
+}
+
 /*
  * Helper function for "full" MSR writes.  No need to call this if only
  * EE/CE/ME/DE/RI are changing.
@@ -138,6 +148,7 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 
 	kvmppc_mmu_msr_notify(vcpu, old_msr);
 	kvmppc_vcpu_sync_spe(vcpu);
+	kvmppc_vcpu_sync_fpu(vcpu);
 }
 
 static void kvmppc_booke_queue_irqprio(struct kvm_vcpu *vcpu,
