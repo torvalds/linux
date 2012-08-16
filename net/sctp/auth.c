@@ -695,7 +695,7 @@ int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc)
 		return 0;
 
 	net = sock_net(asoc->base.sk);
-	if (!net->sctp.auth_enable);
+	if (!net->sctp.auth_enable)
 		return 0;
 
 	return __sctp_auth_cid(chunk,
