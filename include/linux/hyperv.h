@@ -487,7 +487,7 @@ struct vmtransfer_page_range {
 struct vmtransfer_page_packet_header {
 	struct vmpacket_descriptor d;
 	u16 xfer_pageset_id;
-	bool sender_owns_set;
+	u8  sender_owns_set;
 	u8 reserved;
 	u32 range_cnt;
 	struct vmtransfer_page_range ranges[1];
@@ -641,7 +641,7 @@ struct vmbus_channel_query_vmbus_version {
 /* VMBus Version Supported parameters */
 struct vmbus_channel_version_supported {
 	struct vmbus_channel_message_header header;
-	bool version_supported;
+	u8 version_supported;
 } __packed;
 
 /* Offer Channel parameters */
@@ -650,7 +650,7 @@ struct vmbus_channel_offer_channel {
 	struct vmbus_channel_offer offer;
 	u32 child_relid;
 	u8 monitorid;
-	bool monitor_allocated;
+	u8 monitor_allocated;
 } __packed;
 
 /* Rescind Offer parameters */
@@ -786,7 +786,7 @@ struct vmbus_channel_initiate_contact {
 
 struct vmbus_channel_version_response {
 	struct vmbus_channel_message_header header;
-	bool version_supported;
+	u8 version_supported;
 } __packed;
 
 enum vmbus_channel_state {
