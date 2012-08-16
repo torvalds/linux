@@ -194,7 +194,7 @@ static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 	int err = -ENODEV;
 	struct mei_device *dev;
 
-	dev = pci_get_drvdata(mei_device);
+	dev = watchdog_get_drvdata(wd_dev);
 	if (!dev)
 		return -ENODEV;
 
@@ -231,8 +231,8 @@ end_unlock:
 static int mei_wd_ops_stop(struct watchdog_device *wd_dev)
 {
 	struct mei_device *dev;
-	dev = pci_get_drvdata(mei_device);
 
+	dev = watchdog_get_drvdata(wd_dev);
 	if (!dev)
 		return -ENODEV;
 
@@ -254,8 +254,8 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 {
 	int ret = 0;
 	struct mei_device *dev;
-	dev = pci_get_drvdata(mei_device);
 
+	dev = watchdog_get_drvdata(wd_dev);
 	if (!dev)
 		return -ENODEV;
 
@@ -309,8 +309,8 @@ end:
 static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int timeout)
 {
 	struct mei_device *dev;
-	dev = pci_get_drvdata(mei_device);
 
+	dev = watchdog_get_drvdata(wd_dev);
 	if (!dev)
 		return -ENODEV;
 
@@ -355,25 +355,28 @@ static struct watchdog_device amt_wd_dev = {
 };
 
 
-void  mei_watchdog_register(struct mei_device *dev)
+void mei_watchdog_register(struct mei_device *dev)
 {
-	dev_dbg(&dev->pdev->dev, "dev->wd_timeout =%d.\n", dev->wd_timeout);
-
 	if (watchdog_register_device(&amt_wd_dev)) {
 		dev_err(&dev->pdev->dev,
 			"wd: unable to register watchdog device.\n");
 		dev->wd_interface_reg = false;
-	} else {
-		dev_dbg(&dev->pdev->dev,
-			"wd: successfully register watchdog interface.\n");
-		dev->wd_interface_reg = true;
+		return;
 	}
+
+	dev_dbg(&dev->pdev->dev,
+		"wd: successfully register watchdog interface.\n");
+	dev->wd_interface_reg = true;
+	watchdog_set_drvdata(&amt_wd_dev, dev);
 }
 
 void mei_watchdog_unregister(struct mei_device *dev)
 {
-	if (dev->wd_interface_reg)
-		watchdog_unregister_device(&amt_wd_dev);
+	if (!dev->wd_interface_reg)
+		return;
+
+	watchdog_set_drvdata(&amt_wd_dev, NULL);
+	watchdog_unregister_device(&amt_wd_dev);
 	dev->wd_interface_reg = false;
 }
 
