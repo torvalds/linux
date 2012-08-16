@@ -187,8 +187,8 @@ static int __init ttyprintk_init(void)
 			TTY_DRIVER_RESET_TERMIOS |
 			TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_UNNUMBERED_NODE);
-	if (!ttyprintk_driver)
-		return ret;
+	if (IS_ERR(ttyprintk_driver))
+		return PTR_ERR(ttyprintk_driver);
 
 	ttyprintk_driver->driver_name = "ttyprintk";
 	ttyprintk_driver->name = "ttyprintk";

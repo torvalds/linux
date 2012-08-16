@@ -2813,8 +2813,8 @@ static int __init synclink_cs_init(void)
 	serial_driver = tty_alloc_driver(MAX_DEVICE_COUNT,
 			TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_DYNAMIC_DEV);
-	if (!serial_driver) {
-		rc = -ENOMEM;
+	if (IS_ERR(serial_driver)) {
+		rc = PTR_ERR(serial_driver);
 		goto err;
 	}
 

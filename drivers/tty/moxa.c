@@ -1048,8 +1048,8 @@ static int __init moxa_init(void)
 	moxaDriver = tty_alloc_driver(MAX_PORTS + 1,
 			TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_DYNAMIC_DEV);
-	if (!moxaDriver)
-		return -ENOMEM;
+	if (IS_ERR(moxaDriver))
+		return PTR_ERR(moxaDriver);
 
 	moxaDriver->name = "ttyMX";
 	moxaDriver->major = ttymajor;

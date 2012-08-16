@@ -448,14 +448,14 @@ static void __init legacy_pty_init(void)
 			TTY_DRIVER_RESET_TERMIOS |
 			TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_DYNAMIC_ALLOC);
-	if (!pty_driver)
+	if (IS_ERR(pty_driver))
 		panic("Couldn't allocate pty driver");
 
 	pty_slave_driver = tty_alloc_driver(legacy_count,
 			TTY_DRIVER_RESET_TERMIOS |
 			TTY_DRIVER_REAL_RAW |
 			TTY_DRIVER_DYNAMIC_ALLOC);
-	if (!pty_slave_driver)
+	if (IS_ERR(pty_slave_driver))
 		panic("Couldn't allocate pty slave driver");
 
 	pty_driver->driver_name = "pty_master";
@@ -682,7 +682,7 @@ static void __init unix98_pty_init(void)
 			TTY_DRIVER_DYNAMIC_DEV |
 			TTY_DRIVER_DEVPTS_MEM |
 			TTY_DRIVER_DYNAMIC_ALLOC);
-	if (!ptm_driver)
+	if (IS_ERR(ptm_driver))
 		panic("Couldn't allocate Unix98 ptm driver");
 	pts_driver = tty_alloc_driver(NR_UNIX98_PTY_MAX,
 			TTY_DRIVER_RESET_TERMIOS |
@@ -690,7 +690,7 @@ static void __init unix98_pty_init(void)
 			TTY_DRIVER_DYNAMIC_DEV |
 			TTY_DRIVER_DEVPTS_MEM |
 			TTY_DRIVER_DYNAMIC_ALLOC);
-	if (!pts_driver)
+	if (IS_ERR(pts_driver))
 		panic("Couldn't allocate Unix98 pts driver");
 
 	ptm_driver->driver_name = "pty_master";
