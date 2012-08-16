@@ -319,7 +319,8 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 		break;
 
 	default:
-		scnprintf(bf, sizeof(bf), "%s", "unknown attr type");
+		scnprintf(bf, sizeof(bf), "unknown attr type: %d",
+			  evsel->attr.type);
 		break;
 	}
 
