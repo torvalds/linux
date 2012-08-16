@@ -515,12 +515,6 @@ EXPORT_SYMBOL(slab_buffer_size);
 static int slab_max_order = SLAB_MAX_ORDER_LO;
 static bool slab_max_order_set __initdata;
 
-static inline struct kmem_cache *page_get_cache(struct page *page)
-{
-	BUG_ON(!PageSlab(page));
-	return page->slab_cache;
-}
-
 static inline struct kmem_cache *virt_to_cache(const void *obj)
 {
 	struct page *page = virt_to_head_page(obj);
