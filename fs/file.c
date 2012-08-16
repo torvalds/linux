@@ -447,18 +447,14 @@ void put_files_struct(struct files_struct *files)
 
 	if (atomic_dec_and_test(&files->count)) {
 		close_files(files);
-		/*
-		 * Free the fd and fdset arrays if we expanded them.
-		 * If the fdtable was embedded, pass files for freeing
-		 * at the end of the RCU grace period. Otherwise,
-		 * you can free files immediately.
-		 */
+		/* not really needed, since nobody can see us */
 		rcu_read_lock();
 		fdt = files_fdtable(files);
-		if (fdt != &files->fdtab)
-			kmem_cache_free(files_cachep, files);
-		free_fdtable(fdt);
 		rcu_read_unlock();
+		/* free the arrays if they are not embedded */
+		if (fdt != &files->fdtab)
+			__free_fdtable(fdt);
+		kmem_cache_free(files_cachep, files);
 	}
 }
 
