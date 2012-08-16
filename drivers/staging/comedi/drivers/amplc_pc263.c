@@ -48,6 +48,9 @@ The state of the outputs can be read.
 
 #define PC263_DRIVER_NAME	"amplc_pc263"
 
+#define DO_ISA	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
+#define DO_PCI	IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+
 /* PCI263 PCI configuration register information */
 #define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_AMPLICON_PCI263 0x000c
@@ -70,14 +73,14 @@ struct pc263_board {
 	enum pc263_model model;
 };
 static const struct pc263_board pc263_boards[] = {
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
+#if DO_ISA
 	{
 		.name = "pc263",
 		.bustype = isa_bustype,
 		.model = pc263_model,
 	},
 #endif
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+#if DO_PCI
 	{
 		.name = "pci263",
 		.devid = PCI_DEVICE_ID_AMPLICON_PCI263,
@@ -96,15 +99,13 @@ static const struct pc263_board pc263_boards[] = {
 /* test if ISA supported and this is an ISA board */
 static inline bool is_isa_board(const struct pc263_board *board)
 {
-	return IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_ISA)
-		&& board->bustype == isa_bustype;
+	return DO_ISA && board->bustype == isa_bustype;
 }
 
 /* test if PCI supported and this is a PCI board */
 static inline bool is_pci_board(const struct pc263_board *board)
 {
-	return IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
-		&& board->bustype == pci_bustype;
+	return DO_PCI && board->bustype == pci_bustype;
 }
 
 /*
@@ -298,7 +299,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int __devinit pc263_attach_pci(struct comedi_device *dev,
 				      struct pci_dev *pci_dev)
 {
-	if (!IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI))
+	if (!DO_PCI)
 		return -EINVAL;
 
 	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach pci %s\n",
@@ -345,7 +346,7 @@ static struct comedi_driver amplc_pc263_driver = {
 	.num_names = ARRAY_SIZE(pc263_boards),
 };
 
-#if IS_ENABLED(CONFIG_COMEDI_AMPLC_PC263_PCI)
+#if DO_PCI
 static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMPLICON, PCI_DEVICE_ID_AMPLICON_PCI263) },
 	{0}
