@@ -1312,6 +1312,8 @@ ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			}
 			ip6_tnl_parm_from_user(&p1, &p);
 			t = ip6_tnl_locate(net, &p1, 0);
+		} else {
+			memset(&p, 0, sizeof(p));
 		}
 		if (t == NULL)
 			t = netdev_priv(dev);
