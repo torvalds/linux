@@ -27,6 +27,7 @@ do { \
 
 %token PE_START_EVENTS PE_START_TERMS
 %token PE_VALUE PE_VALUE_SYM_HW PE_VALUE_SYM_SW PE_RAW PE_TERM
+%token PE_EVENT_NAME
 %token PE_NAME
 %token PE_MODIFIER_EVENT PE_MODIFIER_BP
 %token PE_NAME_CACHE_TYPE PE_NAME_CACHE_OP_RESULT
@@ -42,6 +43,7 @@ do { \
 %type <str> PE_NAME_CACHE_OP_RESULT
 %type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
+%type <str> PE_EVENT_NAME
 %type <num> value_sym
 %type <head> event_config
 %type <term> event_term
@@ -53,6 +55,8 @@ do { \
 %type <head> event_legacy_numeric
 %type <head> event_legacy_raw
 %type <head> event_def
+%type <head> event_mod
+%type <head> event_name
 %type <head> event
 %type <head> events
 %type <head> group_def
@@ -143,8 +147,10 @@ events ',' event
 |
 event
 
-event:
-event_def PE_MODIFIER_EVENT
+event: event_mod
+
+event_mod:
+event_name PE_MODIFIER_EVENT
 {
 	struct list_head *list = $1;
 
@@ -155,6 +161,16 @@ event_def PE_MODIFIER_EVENT
 	 */
 	ABORT_ON(parse_events__modifier_event(list, $2, false));
 	$$ = list;
+}
+|
+event_name
+
+event_name:
+PE_EVENT_NAME event_def
+{
+	ABORT_ON(parse_events_name($2, $1));
+	free($1);
+	$$ = $2;
 }
 |
 event_def

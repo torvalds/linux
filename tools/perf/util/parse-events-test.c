@@ -301,12 +301,13 @@ static int test__checkevent_breakpoint_modifier(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = perf_evlist__first(evlist);
 
+
 	TEST_ASSERT_VAL("wrong exclude_user", !evsel->attr.exclude_user);
 	TEST_ASSERT_VAL("wrong exclude_kernel", evsel->attr.exclude_kernel);
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->attr.precise_ip);
 	TEST_ASSERT_VAL("wrong name",
-			!strcmp(perf_evsel__name(evsel), "mem:0x0:rw:u"));
+			!strcmp(perf_evsel__name(evsel), "mem:0:u"));
 
 	return test__checkevent_breakpoint(evlist);
 }
@@ -320,7 +321,7 @@ static int test__checkevent_breakpoint_x_modifier(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", !evsel->attr.precise_ip);
 	TEST_ASSERT_VAL("wrong name",
-			!strcmp(perf_evsel__name(evsel), "mem:0x0:x:k"));
+			!strcmp(perf_evsel__name(evsel), "mem:0:x:k"));
 
 	return test__checkevent_breakpoint_x(evlist);
 }
@@ -334,7 +335,7 @@ static int test__checkevent_breakpoint_r_modifier(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", !evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", evsel->attr.precise_ip);
 	TEST_ASSERT_VAL("wrong name",
-			!strcmp(perf_evsel__name(evsel), "mem:0x0:r:hp"));
+			!strcmp(perf_evsel__name(evsel), "mem:0:r:hp"));
 
 	return test__checkevent_breakpoint_r(evlist);
 }
@@ -348,7 +349,7 @@ static int test__checkevent_breakpoint_w_modifier(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", evsel->attr.precise_ip);
 	TEST_ASSERT_VAL("wrong name",
-			!strcmp(perf_evsel__name(evsel), "mem:0x0:w:up"));
+			!strcmp(perf_evsel__name(evsel), "mem:0:w:up"));
 
 	return test__checkevent_breakpoint_w(evlist);
 }
@@ -362,7 +363,7 @@ static int test__checkevent_breakpoint_rw_modifier(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong exclude_hv", evsel->attr.exclude_hv);
 	TEST_ASSERT_VAL("wrong precise_ip", evsel->attr.precise_ip);
 	TEST_ASSERT_VAL("wrong name",
-			!strcmp(perf_evsel__name(evsel), "mem:0x0:rw:kp"));
+			!strcmp(perf_evsel__name(evsel), "mem:0:rw:kp"));
 
 	return test__checkevent_breakpoint_rw(evlist);
 }
@@ -437,7 +438,7 @@ static int test__checkevent_pmu_name(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong config",  2 == evsel->attr.config);
 	TEST_ASSERT_VAL("wrong name",
-			!strcmp(perf_evsel__name(evsel), "raw 0x2:u"));
+			!strcmp(perf_evsel__name(evsel), "cpu/config=2/u"));
 
 	return 0;
 }
