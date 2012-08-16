@@ -49,21 +49,6 @@ struct tipc_bearer tipc_bearers[MAX_BEARERS];
 static void bearer_disable(struct tipc_bearer *b_ptr);
 
 /**
- * media_name_valid - validate media name
- *
- * Returns 1 if media name is valid, otherwise 0.
- */
-static int media_name_valid(const char *name)
-{
-	u32 len;
-
-	len = strlen(name);
-	if ((len + 1) > TIPC_MAX_MEDIA_NAME)
-		return 0;
-	return 1;
-}
-
-/**
  * tipc_media_find - locates specified media object by name
  */
 struct tipc_media *tipc_media_find(const char *name)
@@ -102,7 +87,7 @@ int tipc_register_media(struct tipc_media *m_ptr)
 
 	write_lock_bh(&tipc_net_lock);
 
-	if (!media_name_valid(m_ptr->name))
+	if ((strlen(m_ptr->name) + 1) > TIPC_MAX_MEDIA_NAME)
 		goto exit;
 	if ((m_ptr->bcast_addr.media_id != m_ptr->type_id) ||
 	    !m_ptr->bcast_addr.broadcast)
