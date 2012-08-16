@@ -25,81 +25,12 @@
 #include <plat/omap_device.h>
 #include <linux/pm_runtime.h>
 
-#include "control.h"
-
 /*
  * FIXME: Find a mechanism to enable/disable runtime the McBSP ICLK autoidle.
  * Sidetone needs non-gated ICLK and sidetone autoidle is broken.
  */
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
-
-/* McBSP1 internal signal muxing function for OMAP2/3 */
-static int omap2_mcbsp1_mux_rx_clk(struct device *dev, const char *signal,
-				   const char *src)
-{
-	u32 v;
-
-	v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-
-	if (!strcmp(signal, "clkr")) {
-		if (!strcmp(src, "clkr"))
-			v &= ~OMAP2_MCBSP1_CLKR_MASK;
-		else if (!strcmp(src, "clkx"))
-			v |= OMAP2_MCBSP1_CLKR_MASK;
-		else
-			return -EINVAL;
-	} else if (!strcmp(signal, "fsr")) {
-		if (!strcmp(src, "fsr"))
-			v &= ~OMAP2_MCBSP1_FSR_MASK;
-		else if (!strcmp(src, "fsx"))
-			v |= OMAP2_MCBSP1_FSR_MASK;
-		else
-			return -EINVAL;
-	} else {
-		return -EINVAL;
-	}
-
-	omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-
-	return 0;
-}
-
-/* McBSP4 internal signal muxing function for OMAP4 */
-#define OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_FSX	(1 << 31)
-#define OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_CLKX	(1 << 30)
-static int omap4_mcbsp4_mux_rx_clk(struct device *dev, const char *signal,
-				   const char *src)
-{
-	u32 v;
-
-	/*
-	 * In CONTROL_MCBSPLP register only bit 30 (CLKR mux), and bit 31 (FSR
-	 * mux) is used */
-	v = omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_MCBSPLP);
-
-	if (!strcmp(signal, "clkr")) {
-		if (!strcmp(src, "clkr"))
-			v &= ~OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_CLKX;
-		else if (!strcmp(src, "clkx"))
-			v |= OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_CLKX;
-		else
-			return -EINVAL;
-	} else if (!strcmp(signal, "fsr")) {
-		if (!strcmp(src, "fsr"))
-			v &= ~OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_FSX;
-		else if (!strcmp(src, "fsx"))
-			v |= OMAP4_CONTROL_MCBSPLP_ALBCTRLRX_FSX;
-		else
-			return -EINVAL;
-	} else {
-		return -EINVAL;
-	}
-
-	omap4_ctrl_pad_writel(v, OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_MCBSPLP);
-
-	return 0;
-}
 
 static int omap3_enable_st_clock(unsigned int id, bool enable)
 {
@@ -142,14 +73,6 @@ static int __init omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		pdata->reg_size = 4;
 		pdata->has_ccr = true;
 	}
-
-	/* On OMAP2/3 the McBSP1 port has 6 pin configuration */
-	if (id == 1 && oh->class->rev < MCBSP_CONFIG_TYPE4)
-		pdata->mux_signal = omap2_mcbsp1_mux_rx_clk;
-
-	/* On OMAP4 the McBSP4 port has 6 pin configuration */
-	if (id == 4 && oh->class->rev == MCBSP_CONFIG_TYPE4)
-		pdata->mux_signal = omap4_mcbsp4_mux_rx_clk;
 
 	if (oh->class->rev == MCBSP_CONFIG_TYPE2) {
 		/* The FIFO has 128 locations */
