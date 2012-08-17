@@ -118,7 +118,9 @@
 	} while (0)
 
 #ifdef DEBUG
+#ifndef mali_debug_level
 extern int mali_debug_level;
+#endif
 
 #define MALI_DEBUG_CODE(code) code
 #define MALI_DEBUG_PRINT(level, args)  do { \

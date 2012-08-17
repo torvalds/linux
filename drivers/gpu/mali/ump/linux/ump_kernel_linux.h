@@ -8,8 +8,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __UMP_KERNEL_H__
-#define __UMP_KERNEL_H__
+#ifndef __UMP_KERNEL_LINUX_H__
+#define __UMP_KERNEL_LINUX_H__
 
 int ump_kernel_device_initialize(void);
 void ump_kernel_device_terminate(void);

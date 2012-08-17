@@ -19,6 +19,7 @@
 #include <mali_osk.h>
 #include <ump_kernel_memory_backend.h>
 #include "ump_uk_types.h"
+#include "ump_kernel_common.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -39,7 +40,7 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_map( ump_memory_allocation * descript
 
 void _ump_osk_mem_mapregion_term( ump_memory_allocation * descriptor );
 
-void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk_msync_op op );
+void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk_msync_op op, ump_session_data * session_data );
 
 #ifdef __cplusplus
 }

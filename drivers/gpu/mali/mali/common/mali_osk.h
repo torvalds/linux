@@ -165,9 +165,6 @@ typedef void (*_mali_osk_irq_bhandler_t)( void * arg );
  * This is public for allocation on stack. On systems that support it, this is just a single 32-bit value.
  * On others, it could be encapsulating an object stored elsewhere.
  *
- * Even though the structure has space for a u32, the counters will only
- * represent signed 24-bit integers.
- *
  * Regardless of implementation, the \ref _mali_osk_atomic functions \b must be used
  * for all accesses to the variable's value, even if atomicity is not required.
  * Do not access u.val or u.obj directly.
@@ -185,6 +182,40 @@ typedef struct
 
 /** @defgroup _mali_osk_lock OSK Mutual Exclusion Locks
  * @{ */
+
+
+/** @brief OSK Mutual Exclusion Lock ordered list
+ *
+ * This lists the various types of locks in the system and is used to check
+ * that locks are taken in the correct order.
+ *
+ * Holding more than one lock of the same order at the same time is not
+ * allowed.
+ *
+ */
+typedef enum
+{
+	_MALI_OSK_LOCK_ORDER_LAST = 0,
+
+	_MALI_OSK_LOCK_ORDER_PM_EXECUTE,
+	_MALI_OSK_LOCK_ORDER_UTILIZATION,
+	_MALI_OSK_LOCK_ORDER_L2_COUNTER,
+	_MALI_OSK_LOCK_ORDER_PROFILING,
+	_MALI_OSK_LOCK_ORDER_L2_COMMAND,
+	_MALI_OSK_LOCK_ORDER_PM_CORE_STATE,
+	_MALI_OSK_LOCK_ORDER_GROUP,
+	_MALI_OSK_LOCK_ORDER_SCHEDULER,
+
+	_MALI_OSK_LOCK_ORDER_DESCRIPTOR_MAP,
+	_MALI_OSK_LOCK_ORDER_MEM_PT_CACHE,
+	_MALI_OSK_LOCK_ORDER_MEM_INFO,
+	_MALI_OSK_LOCK_ORDER_MEM_SESSION,
+
+	_MALI_OSK_LOCK_ORDER_SESSIONS,
+
+	_MALI_OSK_LOCK_ORDER_FIRST
+} _mali_osk_lock_order_t;
+
 
 /** @brief OSK Mutual Exclusion Lock flags type
  *
@@ -271,6 +302,17 @@ typedef enum
 
 /** @brief Private type for Mutual Exclusion lock objects */
 typedef struct _mali_osk_lock_t_struct _mali_osk_lock_t;
+
+#ifdef DEBUG
+/** @brief Macro for asserting that the current thread holds a given lock
+ */
+#define MALI_DEBUG_ASSERT_LOCK_HELD(l) MALI_DEBUG_ASSERT(_mali_osk_lock_get_owner(l) == _mali_osk_get_tid());
+
+/** @brief returns a lock's owner (thread id) if debugging is enabled
+ */
+u32 _mali_osk_lock_get_owner( _mali_osk_lock_t *lock );
+#endif
+
 /** @} */ /* end group _mali_osk_lock */
 
 /** @defgroup _mali_osk_low_level_memory OSK Low-level Memory Operations
@@ -526,20 +568,35 @@ typedef struct _mali_osk_list_s
 typedef enum _mali_osk_resource_type
 {
 	RESOURCE_TYPE_FIRST =0,  /**< Duplicate resource marker for the first resource*/
+
 	MEMORY              =0,  /**< Physically contiguous memory block, not managed by the OS */
 	OS_MEMORY           =1,  /**< Memory managed by and shared with the OS */
-	MALI200             =3,  /**< Mali200 Programmable Fragment Shader */
-	MALIGP2             =4,  /**< MaliGP2 Programmable Vertex Shader */
-	MMU                 =5,  /**< Mali MMU (Memory Management Unit) */
-	FPGA_FRAMEWORK      =6,  /**< Mali registers specific to FPGA implementations */
-	MALI400L2           =7,  /**< Mali400 L2 Cache */
-	MALI300L2           =7, /**< Mali300 L2 Cache */
-	MALI400GP           =8,  /**< Mali400 Programmable Vertex Shader Core */
-	MALI300GP           =8, /**< Mali300 Programmable Vertex Shader Core */
-	MALI400PP           =9,  /**< Mali400 Programmable Fragment Shader Core */
-	MALI300PP           =9, /**< Mali300 Programmable Fragment Shader Core */
-	MEM_VALIDATION      =10, /**< External Memory Validator */
-	PMU                 =11, /**< Power Manangement Unit */
+
+	MALI_PP             =2,  /**< Mali Pixel Processor core */
+	MALI450PP           =2,  /**< Compatibility option */
+	MALI400PP           =2,  /**< Compatibility option */
+	MALI300PP           =2,  /**< Compatibility option */
+	MALI200             =2,  /**< Compatibility option */
+	
+	MALI_GP             =3,  /**< Mali Geometry Processor core */
+	MALI450GP           =3,  /**< Compatibility option */
+	MALI400GP           =3,  /**< Compatibility option */
+	MALI300GP           =3,  /**< Compatibility option */
+	MALIGP2             =3,  /**< Compatibility option */
+
+	MMU                 =4,  /**< Mali MMU (Memory Management Unit) */
+
+	FPGA_FRAMEWORK      =5,  /**< Mali registers specific to FPGA implementations */
+
+	MALI_L2             =6,  /**< Mali Level 2 cache core */
+	MALI450L2           =6,  /**< Compatibility option */
+	MALI400L2           =6,  /**< Compatibility option */
+	MALI300L2           =6,  /**< Compatibility option */
+
+	MEM_VALIDATION      =7, /**< External Memory Validator */
+
+	PMU                 =8, /**< Power Manangement Unit */
+
 	RESOURCE_TYPE_COUNT      /**< The total number of known resources */
 } _mali_osk_resource_type_t;
 
@@ -725,11 +782,6 @@ void _mali_osk_atomic_dec( _mali_osk_atomic_t *atom );
 
 /** @brief Decrement an atomic counter, return new value
  *
- * Although the value returned is a u32, only numbers with signed 24-bit
- * precision (sign extended to u32) are returned.
- *
- * @note It is an error to decrement the counter beyond -(1<<23)
- *
  * @param atom pointer to an atomic counter
  * @return The new value, after decrement */
 u32 _mali_osk_atomic_dec_return( _mali_osk_atomic_t *atom );
@@ -743,18 +795,10 @@ void _mali_osk_atomic_inc( _mali_osk_atomic_t *atom );
 
 /** @brief Increment an atomic counter, return new value
  *
- * Although the value returned is a u32, only numbers with signed 24-bit
- * precision (sign extended to u32) are returned.
- *
- * @note It is an error to increment the counter beyond (1<<23)-1
- *
  * @param atom pointer to an atomic counter */
 u32 _mali_osk_atomic_inc_return( _mali_osk_atomic_t *atom );
 
 /** @brief Initialize an atomic counter
- *
- * The counters have storage for signed 24-bit integers. Initializing to signed
- * values requiring more than 24-bits storage will fail.
  *
  * @note the parameter required is a u32, and so signed integers should be
  * cast to u32.
@@ -767,9 +811,6 @@ u32 _mali_osk_atomic_inc_return( _mali_osk_atomic_t *atom );
 _mali_osk_errcode_t _mali_osk_atomic_init( _mali_osk_atomic_t *atom, u32 val );
 
 /** @brief Read a value from an atomic counter
- *
- * Although the value returned is a u32, only numbers with signed 24-bit
- * precision (sign extended to u32) are returned.
  *
  * This can only be safely used to determine the value of the counter when it
  * is guaranteed that other threads will not be modifying the counter. This
@@ -1623,6 +1664,41 @@ u64 _mali_osk_time_get_ns( void );
 u32 _mali_osk_clz( u32 val );
 /** @} */ /* end group _mali_osk_math */
 
+/** @defgroup _mali_osk_wait_queue OSK Wait Queue functionality
+ * @{ */
+/** @brief Private type for wait queue objects */
+typedef struct _mali_osk_wait_queue_t_struct _mali_osk_wait_queue_t;
+
+/** @brief Initialize an empty Wait Queue */
+_mali_osk_wait_queue_t* _mali_osk_wait_queue_init( void );
+
+/** @brief Sleep  if condition is false
+ *
+ * @param queue the queue to use
+ * @param condition function pointer to a boolean function
+ *
+ * Put thread to sleep if the given \a codition function returns false. When
+ * being asked to wake up again, the condition will be re-checked and the
+ * thread only woken up if the condition is now true.
+ */
+void _mali_osk_wait_queue_wait_event( _mali_osk_wait_queue_t *queue, mali_bool (*condition)(void) );
+
+/** @brief Wake up all threads in wait queue if their respective conditions are
+ * true
+ *
+ * @param queue the queue whose threads should be woken up
+ *
+ * Wake up all threads in wait queue \a queue whose condition is now true.
+ */
+void _mali_osk_wait_queue_wake_up( _mali_osk_wait_queue_t *queue );
+
+/** @brief terminate a wait queue
+ *
+ * @param queue the queue to terminate.
+ */
+void _mali_osk_wait_queue_term( _mali_osk_wait_queue_t *queue );
+/** @} */ /* end group _mali_osk_wait_queue */
+
 
 /** @addtogroup _mali_osk_miscellaneous
  * @{ */
@@ -1646,6 +1722,7 @@ void _mali_osk_dbgmsg( const char *fmt, ... );
  * @param size the total number of bytes allowed to write to \a buf
  * @param fmt a _mali_osu_vsnprintf() style format string
  * @param ... a variable-number of parameters suitable for \a fmt
+ * @return The number of bytes written to \a buf
  */
 u32 _mali_osk_snprintf( char *buf, u32 size, const char *fmt, ... );
 
@@ -1684,8 +1761,19 @@ u32 _mali_osk_get_pid(void);
  */
 u32 _mali_osk_get_tid(void);
 
-/** @} */ /* end group  _mali_osk_miscellaneous */
+/** @brief Enable OS controlled runtime power management
+ */
+void _mali_osk_pm_dev_enable(void);
 
+/** @brief Tells the OS that device is now idle
+ */
+_mali_osk_errcode_t _mali_osk_pm_dev_idle(void);
+
+/** @brief Tells the OS that the device is about to become active
+ */
+_mali_osk_errcode_t _mali_osk_pm_dev_activate(void);
+
+/** @} */ /* end group  _mali_osk_miscellaneous */
 
 /** @} */ /* end group osuapi */
 

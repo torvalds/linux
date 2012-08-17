@@ -147,6 +147,9 @@ _mali_osk_errcode_t _ump_ukk_open( void** context )
 
 	*context = (void*)session_data;
 
+	session_data->cache_operations_ongoing = 0 ;
+	session_data->has_pending_level1_cache_flush = 0;
+
 	DBG_MSG(2, ("New session opened\n"));
 
 	return _MALI_OSK_ERR_OK;

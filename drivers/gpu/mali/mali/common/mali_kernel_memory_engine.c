@@ -161,21 +161,34 @@ _mali_osk_errcode_t mali_allocation_engine_allocate_memory(mali_allocation_engin
 
 void mali_allocation_engine_release_memory(mali_allocation_engine mem_engine, mali_memory_allocation * descriptor)
 {
+	mali_allocation_engine_release_pt1_mali_pagetables_unmap(mem_engine, descriptor);
+	mali_allocation_engine_release_pt2_physical_memory_free(mem_engine, descriptor);
+}
+
+void mali_allocation_engine_release_pt1_mali_pagetables_unmap(mali_allocation_engine mem_engine, mali_memory_allocation * descriptor)
+{
 	memory_engine * engine = (memory_engine*)mem_engine;
-	mali_physical_memory_allocation * active_allocation_tracker;
 
 	MALI_DEBUG_ASSERT_POINTER(engine);
 	MALI_DEBUG_ASSERT_POINTER(descriptor);
 
-	/* Determine whether we need to remove this from a tracking list */
+	/* Calling: mali_address_manager_release()  */
+	/* This function is allowed to be called several times, and it only does the release on the first call. */
+	engine->mali_address->release(descriptor);
+}
+
+void mali_allocation_engine_release_pt2_physical_memory_free(mali_allocation_engine mem_engine, mali_memory_allocation * descriptor)
+{
+	memory_engine * engine = (memory_engine*)mem_engine;
+	mali_physical_memory_allocation * active_allocation_tracker;
+
+	/* Remove this from a tracking list in session_data->memory_head */
 	if ( ! _mali_osk_list_empty( &descriptor->list ) )
 	{
 		_mali_osk_list_del( &descriptor->list );
 		/* Clear the list for debug mode, catch use-after-free */
 		MALI_DEBUG_CODE( descriptor->list.next = descriptor->list.prev = NULL; )
 	}
-
-	engine->mali_address->release(descriptor);
 
 	active_allocation_tracker = &descriptor->physical_allocation;
 	while (NULL != active_allocation_tracker)
@@ -198,7 +211,6 @@ void mali_allocation_engine_release_memory(mali_allocation_engine mem_engine, ma
 		engine->process_address->release(descriptor);
 	}
 }
-
 
 _mali_osk_errcode_t mali_allocation_engine_map_physical(mali_allocation_engine mem_engine, mali_memory_allocation * descriptor, u32 offset, u32 phys, u32 cpu_usage_adjust, u32 size)
 {
@@ -244,7 +256,7 @@ _mali_osk_errcode_t mali_allocation_engine_map_physical(mali_allocation_engine m
 		}
 	}
 
-	MALI_DEBUG_PRINT(4, ("Mapping phys 0x%08X length 0x%08X at offset 0x%08X to CPUVA 0x%08X\n", phys, size, offset, (u32)(descriptor->mapping) + offset));
+	MALI_DEBUG_PRINT(7, ("Mapping phys 0x%08X length 0x%08X at offset 0x%08X to CPUVA 0x%08X\n", phys, size, offset, (u32)(descriptor->mapping) + offset));
 
 	/* Mali address manager must use the physical address - no point in asking
 	 * it to allocate another one for us */

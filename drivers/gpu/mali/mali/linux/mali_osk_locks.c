@@ -51,7 +51,7 @@ typedef enum
 struct _mali_osk_lock_t_struct
 {
     _mali_osk_internal_locktype type;
-	unsigned long flags; 
+	unsigned long flags;
     union
     {
         spinlock_t spinlock;
@@ -61,6 +61,15 @@ struct _mali_osk_lock_t_struct
 	MALI_DEBUG_CODE(
 				  /** original flags for debug checking */
 				  _mali_osk_lock_flags_t orig_flags;
+
+				  /* id of the thread currently holding this lock, 0 if no
+				   * threads hold it. */
+				  u32 owner;
+				  /* number of owners this lock currently has (can be > 1 if
+				   * taken in R/O mode. */
+				  u32 nOwners;
+				  /* what mode the lock was taken in */
+				  _mali_osk_lock_mode_t mode;
 	); /* MALI_DEBUG_CODE */
 };
 
@@ -71,11 +80,11 @@ _mali_osk_lock_t *_mali_osk_lock_init( _mali_osk_lock_flags_t flags, u32 initial
 	/* Validate parameters: */
 	/* Flags acceptable */
 	MALI_DEBUG_ASSERT( 0 == ( flags & ~(_MALI_OSK_LOCKFLAG_SPINLOCK
-									  | _MALI_OSK_LOCKFLAG_SPINLOCK_IRQ
-									  | _MALI_OSK_LOCKFLAG_NONINTERRUPTABLE
-									  | _MALI_OSK_LOCKFLAG_READERWRITER
-									  | _MALI_OSK_LOCKFLAG_ORDERED
-									  | _MALI_OSK_LOCKFLAG_ONELOCK )) );
+                                      | _MALI_OSK_LOCKFLAG_SPINLOCK_IRQ
+                                      | _MALI_OSK_LOCKFLAG_NONINTERRUPTABLE
+                                      | _MALI_OSK_LOCKFLAG_READERWRITER
+                                      | _MALI_OSK_LOCKFLAG_ORDERED
+                                      | _MALI_OSK_LOCKFLAG_ONELOCK )) );
 	/* Spinlocks are always non-interruptable */
 	MALI_DEBUG_ASSERT( (((flags & _MALI_OSK_LOCKFLAG_SPINLOCK) || (flags & _MALI_OSK_LOCKFLAG_SPINLOCK_IRQ)) && (flags & _MALI_OSK_LOCKFLAG_NONINTERRUPTABLE))
 					 || !(flags & _MALI_OSK_LOCKFLAG_SPINLOCK));
@@ -126,13 +135,34 @@ _mali_osk_lock_t *_mali_osk_lock_init( _mali_osk_lock_flags_t flags, u32 initial
 		sema_init( &lock->obj.sema, 1 );
 	}
 
-	MALI_DEBUG_CODE(
-				  /* Debug tracking of flags */
-				  lock->orig_flags = flags;
-				  ); /* MALI_DEBUG_CODE */
+#ifdef DEBUG
+	/* Debug tracking of flags */
+	lock->orig_flags = flags;
+
+	/* Debug tracking of lock owner */
+	lock->owner = 0;
+	lock->nOwners = 0;
+#endif /* DEBUG */
 
     return lock;
 }
+
+#ifdef DEBUG
+u32 _mali_osk_lock_get_owner( _mali_osk_lock_t *lock )
+{
+	return lock->owner;
+}
+
+u32 _mali_osk_lock_get_number_owners( _mali_osk_lock_t *lock )
+{
+	return lock->nOwners;
+}
+
+u32 _mali_osk_lock_get_mode( _mali_osk_lock_t *lock )
+{
+	return lock->mode;
+}
+#endif /* DEBUG */
 
 _mali_osk_errcode_t _mali_osk_lock_wait( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode)
 {
@@ -162,6 +192,7 @@ _mali_osk_errcode_t _mali_osk_lock_wait( _mali_osk_lock_t *lock, _mali_osk_lock_
 	case _MALI_OSK_INTERNAL_LOCKTYPE_MUTEX:
 		if ( down_interruptible(&lock->obj.sema) )
 		{
+			MALI_PRINT_ERROR(("Can not lock mutex\n"));
 			err = _MALI_OSK_ERR_RESTARTSYSCALL;
 		}
 		break;
@@ -188,6 +219,31 @@ _mali_osk_errcode_t _mali_osk_lock_wait( _mali_osk_lock_t *lock, _mali_osk_lock_
 		break;
 	}
 
+#ifdef DEBUG
+	/* This thread is now the owner of this lock */
+	if (_MALI_OSK_ERR_OK == err)
+	{
+		if (mode == _MALI_OSK_LOCKMODE_RW)
+		{
+			/*MALI_DEBUG_ASSERT(0 == lock->owner);*/
+			if (0 != lock->owner)
+			{
+				printk(KERN_ERR "%d: ERROR: Lock %p already has owner %d\n", _mali_osk_get_tid(), lock, lock->owner);
+				dump_stack();
+			}
+			lock->owner = _mali_osk_get_tid();
+			lock->mode = mode;
+			++lock->nOwners;
+		}
+		else /* mode == _MALI_OSK_LOCKMODE_RO */
+		{
+			lock->owner |= _mali_osk_get_tid();
+			lock->mode = mode;
+			++lock->nOwners;
+		}
+	}
+#endif
+
     return err;
 }
 
@@ -204,6 +260,37 @@ void _mali_osk_lock_signal( _mali_osk_lock_t *lock, _mali_osk_lock_mode_t mode )
 	 * information, which is only stored when built for DEBUG */
 	MALI_DEBUG_ASSERT( _MALI_OSK_LOCKMODE_RW == mode
 					 || (_MALI_OSK_LOCKMODE_RO == mode && (_MALI_OSK_LOCKFLAG_READERWRITER & lock->orig_flags)) );
+
+#ifdef DEBUG
+	/* make sure the thread releasing the lock actually was the owner */
+	if (mode == _MALI_OSK_LOCKMODE_RW)
+	{
+		/*MALI_DEBUG_ASSERT(_mali_osk_get_tid() == lock->owner);*/
+		if (_mali_osk_get_tid() != lock->owner)
+		{
+			printk(KERN_ERR "%d: ERROR: Lock %p owner was %d\n", _mali_osk_get_tid(), lock, lock->owner);
+			dump_stack();
+		}
+		/* This lock now has no owner */
+		lock->owner = 0;
+		--lock->nOwners;
+	}
+	else /* mode == _MALI_OSK_LOCKMODE_RO */
+	{
+		if ((_mali_osk_get_tid() & lock->owner) != _mali_osk_get_tid())
+		{
+			printk(KERN_ERR "%d: ERROR: Not an owner of %p lock.\n", _mali_osk_get_tid(), lock);
+			dump_stack();
+		}
+
+		/* if this is the last thread holding this lock in R/O mode, set owner
+		 * back to 0 */
+		if (0 == --lock->nOwners)
+		{
+			lock->owner = 0;
+		}
+	}
+#endif /* DEBUG */
 
 	switch ( lock->type )
 	{

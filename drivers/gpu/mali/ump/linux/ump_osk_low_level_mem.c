@@ -210,31 +210,72 @@ _mali_osk_errcode_t _ump_osk_mem_mapregion_map( ump_memory_allocation * descript
 	return retval;
 }
 
+static void level1_cache_flush_all(void)
+{
+	DBG_MSG(4, ("UMP[xx] Flushing complete L1 cache\n"));
+	__cpuc_flush_kern_all();
+}
 
-void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk_msync_op op )
+void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk_msync_op op, ump_session_data * session_data )
 {
 	int i;
 	const void *start_v, *end_v;
 
-	DBG_MSG(3, ("Flushing nr of blocks: %u, size: %u. First: paddr: 0x%08x vaddr: 0x%08x offset: 0x%08x size:%uB\n",
-	            mem->nr_blocks, mem->size_bytes, mem->block_array[0].addr, virt, offset, size));
-
 	/* Flush L1 using virtual address, the entire range in one go.
 	 * Only flush if user space process has a valid write mapping on given address. */
-	if(access_ok(VERIFY_WRITE, virt, size))
+	if( (mem) && (virt!=NULL) && (access_ok(VERIFY_WRITE, virt, size)) )
 	{
 		start_v = (void *)virt;
 		end_v   = (void *)(start_v + size - 1);
 		/*  There is no dmac_clean_range, so the L1 is always flushed,
 		 *  also for UMP_MSYNC_CLEAN. */
 		dmac_flush_range(start_v, end_v);
+		DBG_MSG(3, ("UMP[%02u] Flushing CPU L1 Cache. Cpu address: %x-%x\n", mem->secure_id, start_v,end_v));
 	}
 	else
 	{
-		DBG_MSG(1, ("Attempt to flush %d@%x as part of ID %u rejected: there is no valid mapping.\n",
-		            size, virt, mem->secure_id));
-		return;
+		if (session_data)
+		{
+			if (op == _UMP_UK_MSYNC_FLUSH_L1  )
+			{
+				DBG_MSG(4, ("UMP Pending L1 cache flushes: %d\n", session_data->has_pending_level1_cache_flush));
+				session_data->has_pending_level1_cache_flush = 0;
+				level1_cache_flush_all();
+				return;
+			}
+			else
+			{
+				if (session_data->cache_operations_ongoing)
+				{
+					session_data->has_pending_level1_cache_flush++;
+					DBG_MSG(4, ("UMP[%02u] Defering the L1 flush. Nr pending:%d\n", mem->secure_id, session_data->has_pending_level1_cache_flush) );
+				}
+				else
+				{
+					/* Flushing the L1 cache for each switch_user() if ump_cache_operations_control(START) is not called */
+					level1_cache_flush_all();
+				}
+			}
+		}
+		else
+		{
+			DBG_MSG(4, ("Unkown state %s %d\n", __FUNCTION__, __LINE__));
+			level1_cache_flush_all();
+		}
 	}
+
+	if ( NULL == mem ) return;
+
+	if ( mem->size_bytes==size)
+	{
+		DBG_MSG(3, ("UMP[%02u] Flushing CPU L2 Cache\n",mem->secure_id));
+	}
+	else
+	{
+		DBG_MSG(3, ("UMP[%02u] Flushing CPU L2 Cache. Blocks:%u, TotalSize:%u. FlushSize:%u Offset:0x%x FirstPaddr:0x%08x\n",
+	            mem->secure_id, mem->nr_blocks, mem->size_bytes, size, offset, mem->block_array[0].addr));
+	}
+
 
 	/* Flush L2 using physical addresses, block for block. */
 	for (i=0 ; i < mem->nr_blocks; i++)
@@ -286,6 +327,9 @@ void _ump_osk_msync( ump_dd_mem * mem, void * virt, u32 offset, u32 size, ump_uk
 						break;
 				case _UMP_UK_MSYNC_CLEAN_AND_INVALIDATE:
 						outer_flush_range(start_p, end_p);
+						break;
+				case _UMP_UK_MSYNC_INVALIDATE:
+						outer_inv_range(start_p, end_p);
 						break;
 				default:
 						break;

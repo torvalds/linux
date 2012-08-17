@@ -15,28 +15,31 @@
 #include <linux/module.h>   /* kernel module definitions */
 #include <linux/fs.h>       /* file system operations */
 #include <linux/cdev.h>     /* character device definitions */
-#include <linux/mm.h> /* memory mananger definitions */
-#include <linux/device.h>
-
-/* the mali kernel subsystem types */
-#include "mali_kernel_subsystem.h"
-
-/* A memory subsystem always exists, so no need to conditionally include it */
+#include <linux/mm.h>       /* memory manager definitions */
+#include <linux/mali/mali_utgard_ioctl.h>
 #include "mali_kernel_common.h"
-#include "mali_kernel_session_manager.h"
+#include "mali_session.h"
 #include "mali_kernel_core.h"
-
 #include "mali_osk.h"
 #include "mali_kernel_linux.h"
 #include "mali_ukk.h"
-#include "mali_kernel_ioctl.h"
 #include "mali_ukk_wrappers.h"
 #include "mali_kernel_pm.h"
-
 #include "mali_kernel_sysfs.h"
-
-/* */
+#include "mali_platform.h"
 #include "mali_kernel_license.h"
+
+/* Streamline support for the Mali driver */
+#if defined(CONFIG_TRACEPOINTS) && MALI_TIMELINE_PROFILING_ENABLED
+/* Ask Linux to create the tracepoints */
+#define CREATE_TRACE_POINTS
+#include "mali_linux_trace.h"
+#endif /* CONFIG_TRACEPOINTS */
+
+static _mali_osk_errcode_t initialize_kernel_device(void);
+static int initialize_sysfs(void);
+static void terminate_kernel_device(void);
+
 
 /* from the __malidrv_build_info.c file that is generated during build */
 extern const char *__malidrv_build_info(void);
@@ -51,29 +54,23 @@ int mali_major = 0;
 module_param(mali_major, int, S_IRUGO); /* r--r--r-- */
 MODULE_PARM_DESC(mali_major, "Device major number");
 
-int mali_benchmark = 0;
-module_param(mali_benchmark, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH); /* rw-rw-r-- */
-MODULE_PARM_DESC(mali_benchmark, "Bypass Mali hardware when non-zero");
-
-extern int mali_hang_check_interval;
-module_param(mali_hang_check_interval, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH);
-MODULE_PARM_DESC(mali_hang_check_interval, "Interval at which to check for progress after the hw watchdog has been triggered");
-
-extern int mali_max_job_runtime;
 module_param(mali_max_job_runtime, int, S_IRUSR | S_IWUSR | S_IWGRP | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mali_max_job_runtime, "Maximum allowed job runtime in msecs.\nJobs will be killed after this no matter what");
 
-#if defined(USING_MALI400_L2_CACHE)
 extern int mali_l2_max_reads;
 module_param(mali_l2_max_reads, int, S_IRUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mali_l2_max_reads, "Maximum reads for Mali L2 cache");
-#endif
 
 #if MALI_TIMELINE_PROFILING_ENABLED
 extern int mali_boot_profiling;
 module_param(mali_boot_profiling, int, S_IRUSR | S_IRGRP | S_IROTH);
 MODULE_PARM_DESC(mali_boot_profiling, "Start profiling as a part of Mali driver initialization");
 #endif
+
+/* Export symbols from common code: mali_user_settings.c */
+#include "mali_user_settings_db.h"
+EXPORT_SYMBOL(mali_set_user_setting);
+EXPORT_SYMBOL(mali_get_user_setting);
 
 static char mali_dev_name[] = "mali"; /* should be const, but the functions we call requires non-cost */
 
@@ -108,57 +105,74 @@ struct file_operations mali_fops =
 
 int mali_driver_init(void)
 {
-	int err;
-#if USING_MALI_PMM
-#if MALI_LICENSE_IS_GPL
-#ifdef CONFIG_PM
-	err = _mali_dev_platform_register();
-	if (err)
-	{
-		return err;
-	}
-#endif
-#endif
-#endif
-	err = mali_kernel_constructor();
-	if (_MALI_OSK_ERR_OK != err)
-	{
-#if USING_MALI_PMM
-#if MALI_LICENSE_IS_GPL
-#ifdef CONFIG_PM
-		_mali_dev_platform_unregister();
-#endif
-#endif
-#endif
-		MALI_PRINT(("Failed to initialize driver (error %d)\n", err));
-		return -EFAULT;
-	}
+	int ret = 0;
 
-	/* print build options */
-	MALI_DEBUG_PRINT(2, ("%s\n", __malidrv_build_info()));
+	MALI_DEBUG_PRINT(2, ("\n"));
+	MALI_DEBUG_PRINT(2, ("Inserting Mali v%d device driver. \n",_MALI_API_VERSION));
+	MALI_DEBUG_PRINT(2, ("Compiled: %s, time: %s.\n", __DATE__, __TIME__));
+	MALI_DEBUG_PRINT(2, ("Driver revision: %s\n", SVN_REV_STRING));
 
-    return 0;
+	ret = _mali_dev_platform_register();
+	if (0 != ret) goto platform_register_failed;
+	ret = map_errcode(initialize_kernel_device());
+	if (0 != ret) goto initialize_kernel_device_failed;
+
+	ret = map_errcode(mali_platform_init());
+	if (0 != ret) goto platform_init_failed;
+
+	mali_osk_low_level_mem_init();
+
+	ret = map_errcode(mali_initialize_subsystems());
+	if (0 != ret) goto initialize_subsystems_failed;
+
+	ret = initialize_sysfs();
+	if (0 != ret) goto initialize_sysfs_failed;
+
+	MALI_PRINT(("Mali device driver loaded\n"));
+
+	return 0; /* Success */
+
+	/* Error handling */
+initialize_sysfs_failed:
+	mali_terminate_subsystems();
+initialize_subsystems_failed:
+	mali_osk_low_level_mem_term();
+	mali_platform_deinit();
+platform_init_failed:
+	terminate_kernel_device();
+initialize_kernel_device_failed:
+	_mali_dev_platform_unregister();
+platform_register_failed:
+	return ret;
 }
 
 void mali_driver_exit(void)
 {
-	mali_kernel_destructor();
+	MALI_DEBUG_PRINT(2, ("\n"));
+	MALI_DEBUG_PRINT(2, ("Unloading Mali v%d device driver.\n",_MALI_API_VERSION));
+
+	/* No need to terminate sysfs, this will be done automatically along with device termination */
+
+	mali_terminate_subsystems();
+
+	mali_osk_low_level_mem_term();
+
+	mali_platform_deinit();
+
+	terminate_kernel_device();
+	_mali_dev_platform_unregister();
 
 #if MALI_LICENSE_IS_GPL
-#if USING_MALI_PMM
-#ifdef CONFIG_PM
-	_mali_dev_platform_unregister();
-#endif
-#endif
-
+	/* @@@@ clean up the work queues! This should not be terminated here, since it isn't inited in the function above! */
 	flush_workqueue(mali_wq);
 	destroy_workqueue(mali_wq);
 	mali_wq = NULL;
 #endif
+
+	MALI_PRINT(("Mali device driver unloaded\n"));
 }
 
-/* called from _mali_osk_init */
-int initialize_kernel_device(void)
+static int initialize_kernel_device(void)
 {
 	int err;
 	dev_t dev = 0;
@@ -194,28 +208,25 @@ int initialize_kernel_device(void)
 			goto init_cdev_err;
 	}
 
-	err = mali_sysfs_register(&device, dev, mali_dev_name);
-	if (err)
-	{
-			goto init_sysfs_err;
-	}
-
 	/* Success! */
 	return 0;
 
-init_sysfs_err:
-	cdev_del(&device.cdev);
 init_cdev_err:
 	unregister_chrdev_region(dev, 1/*count*/);
 init_chrdev_err:
 	return err;
 }
 
-/* called from _mali_osk_term */
-void terminate_kernel_device(void)
+static int initialize_sysfs(void)
 {
 	dev_t dev = MKDEV(mali_major, 0);
-	
+	return mali_sysfs_register(&device, dev, mali_dev_name);
+}
+
+static void terminate_kernel_device(void)
+{
+	dev_t dev = MKDEV(mali_major, 0);
+
 	mali_sysfs_unregister(&device, dev, mali_dev_name);
 
 	/* unregister char device */
@@ -238,7 +249,7 @@ static int mali_mmap(struct file * filp, struct vm_area_struct * vma)
 		return -EFAULT;
 	}
 
-	MALI_DEBUG_PRINT(3, ("MMap() handler: start=0x%08X, phys=0x%08X, size=0x%08X\n", (unsigned int)vma->vm_start, (unsigned int)(vma->vm_pgoff << PAGE_SHIFT), (unsigned int)(vma->vm_end - vma->vm_start)) );
+	MALI_DEBUG_PRINT(4, ("MMap() handler: start=0x%08X, phys=0x%08X, size=0x%08X\n", (unsigned int)vma->vm_start, (unsigned int)(vma->vm_pgoff << PAGE_SHIFT), (unsigned int)(vma->vm_end - vma->vm_start)) );
 
 	/* Re-pack the arguments that mmap() packed for us */
 	args.ctx = session_data;
@@ -324,7 +335,7 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 		MALI_DEBUG_PRINT(7, ("filp->private_data was NULL\n"));
 		return -ENOTTY;
 	}
-	
+
 	if (NULL == (void *)arg)
 	{
 		MALI_DEBUG_PRINT(7, ("arg was NULL\n"));
@@ -353,6 +364,10 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 			err = post_notification_wrapper(session_data, (_mali_uk_post_notification_s __user *)arg);
 			break;
 
+		case MALI_IOC_GET_USER_SETTINGS:
+			err = get_user_settings_wrapper(session_data, (_mali_uk_get_user_settings_s __user *)arg);
+			break;
+
 #if MALI_TIMELINE_PROFILING_ENABLED
 		case MALI_IOC_PROFILING_START:
 			err = profiling_start_wrapper(session_data, (_mali_uk_profiling_start_s __user *)arg);
@@ -375,8 +390,27 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 			break;
 
 		case MALI_IOC_PROFILING_GET_CONFIG:
-			err = profiling_get_config_wrapper(session_data, (_mali_uk_profiling_get_config_s __user *)arg);
+			/* Deprecated: still compatible with get_user_settings */
+			err = get_user_settings_wrapper(session_data, (_mali_uk_get_user_settings_s __user *)arg);
 			break;
+
+		case MALI_IOC_PROFILING_REPORT_SW_COUNTERS:
+			err = profiling_report_sw_counters_wrapper(session_data, (_mali_uk_sw_counters_report_s __user *)arg);
+			break;
+
+#else
+
+		case MALI_IOC_PROFILING_START:              /* FALL-THROUGH */
+		case MALI_IOC_PROFILING_ADD_EVENT:          /* FALL-THROUGH */
+		case MALI_IOC_PROFILING_STOP:               /* FALL-THROUGH */
+		case MALI_IOC_PROFILING_GET_EVENT:          /* FALL-THROUGH */
+		case MALI_IOC_PROFILING_CLEAR:              /* FALL-THROUGH */
+		case MALI_IOC_PROFILING_GET_CONFIG:         /* FALL-THROUGH */
+		case MALI_IOC_PROFILING_REPORT_SW_COUNTERS: /* FALL-THROUGH */
+			MALI_DEBUG_PRINT(2, ("Profiling not supported\n"));
+			err = -ENOTTY;
+			break;
+
 #endif
 
 		case MALI_IOC_MEM_INIT:
@@ -403,14 +437,6 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 			err = mem_dump_mmu_page_table_wrapper(session_data, (_mali_uk_dump_mmu_page_table_s __user *)arg);
 			break;
 
-		case MALI_IOC_MEM_GET_BIG_BLOCK:
-			err = mem_get_big_block_wrapper(filp, (_mali_uk_get_big_block_s __user *)arg);
-			break;
-
-		case MALI_IOC_MEM_FREE_BIG_BLOCK:
-			err = mem_free_big_block_wrapper(session_data, (_mali_uk_free_big_block_s __user *)arg);
-			break;
-
 #if MALI_USE_UNIFIED_MEMORY_PROVIDER != 0
 
 		case MALI_IOC_MEM_ATTACH_UMP:
@@ -434,10 +460,6 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 			err = pp_start_job_wrapper(session_data, (_mali_uk_pp_start_job_s __user *)arg);
 			break;
 
-		case MALI_IOC_PP_ABORT_JOB:
-			err = pp_abort_job_wrapper(session_data, (_mali_uk_pp_abort_job_s __user *)arg);
-			break;
-
 		case MALI_IOC_PP_NUMBER_OF_CORES_GET:
 			err = pp_get_number_of_cores_wrapper(session_data, (_mali_uk_get_pp_number_of_cores_s __user *)arg);
 			break;
@@ -446,12 +468,12 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 			err = pp_get_core_version_wrapper(session_data, (_mali_uk_get_pp_core_version_s __user *)arg);
 			break;
 
-		case MALI_IOC_GP2_START_JOB:
-			err = gp_start_job_wrapper(session_data, (_mali_uk_gp_start_job_s __user *)arg);
+		case MALI_IOC_PP_DISABLE_WB:
+			err = pp_disable_wb_wrapper(session_data, (_mali_uk_pp_disable_wb_s __user *)arg);
 			break;
 
-		case MALI_IOC_GP2_ABORT_JOB:
-			err = gp_abort_job_wrapper(session_data, (_mali_uk_gp_abort_job_s __user *)arg);
+		case MALI_IOC_GP2_START_JOB:
+			err = gp_start_job_wrapper(session_data, (_mali_uk_gp_start_job_s __user *)arg);
 			break;
 
 		case MALI_IOC_GP2_NUMBER_OF_CORES_GET:
@@ -468,6 +490,12 @@ static int mali_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 
 		case MALI_IOC_VSYNC_EVENT_REPORT:
 			err = vsync_event_report_wrapper(session_data, (_mali_uk_vsync_event_report_s __user *)arg);
+			break;
+
+		case MALI_IOC_MEM_GET_BIG_BLOCK: /* Fallthrough */
+		case MALI_IOC_MEM_FREE_BIG_BLOCK:
+			MALI_PRINT_ERROR(("Non-MMU mode is no longer supported.\n"));
+			err = -ENOTTY;
 			break;
 
 		default:

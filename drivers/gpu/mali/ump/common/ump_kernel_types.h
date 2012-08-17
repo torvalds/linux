@@ -14,6 +14,22 @@
 #include "ump_kernel_interface.h"
 #include "mali_osk.h"
 
+
+typedef enum
+{
+	UMP_USED_BY_CPU = 0,
+	UMP_USED_BY_MALI = 1,
+	UMP_USED_BY_UNKNOWN_DEVICE= 100,
+} ump_hw_usage;
+
+typedef enum
+{
+	UMP_NOT_LOCKED = 0,
+	UMP_READ = 1,
+	UMP_READ_WRITE = 3,
+} ump_lock_usage;
+
+
 /*
  * This struct is what is "behind" a ump_dd_handle
  */
@@ -28,6 +44,8 @@ typedef struct ump_dd_mem
 	void * ctx;
 	void * backend_info;
 	int is_cached;
+	ump_hw_usage hw_device;
+	ump_lock_usage lock_usage;
 } ump_dd_mem;
 
 

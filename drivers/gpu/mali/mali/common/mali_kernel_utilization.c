@@ -104,14 +104,15 @@ static void calculate_gpu_utilization(void* arg)
 
 	_mali_osk_timer_add(utilization_timer, _mali_osk_time_mstoticks(MALI_GPU_UTILIZATION_TIMEOUT));
 
+
 	mali_gpu_utilization_handler(utilization);
 }
 
-
-
 _mali_osk_errcode_t mali_utilization_init(void)
 {
-	time_data_lock = _mali_osk_lock_init( _MALI_OSK_LOCKFLAG_SPINLOCK_IRQ|_MALI_OSK_LOCKFLAG_NONINTERRUPTABLE, 0, 0 );
+	time_data_lock = _mali_osk_lock_init(_MALI_OSK_LOCKFLAG_ORDERED | _MALI_OSK_LOCKFLAG_SPINLOCK_IRQ |
+	                     _MALI_OSK_LOCKFLAG_NONINTERRUPTABLE, 0, _MALI_OSK_LOCK_ORDER_UTILIZATION);
+
 	if (NULL == time_data_lock)
 	{
 		return _MALI_OSK_ERR_FAULT;
@@ -154,8 +155,6 @@ void mali_utilization_term(void)
 	_mali_osk_lock_term(time_data_lock);
 }
 
-
-
 void mali_utilization_core_start(u64 time_now)
 {
 	if (_mali_osk_atomic_inc_return(&num_running_cores) == 1)
@@ -192,8 +191,6 @@ void mali_utilization_core_start(u64 time_now)
 		}
 	}
 }
-
-
 
 void mali_utilization_core_end(u64 time_now)
 {

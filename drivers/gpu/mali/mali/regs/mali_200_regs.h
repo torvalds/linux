@@ -51,7 +51,7 @@ enum mali200_mgmt_ctrl_mgmt {
 #endif
 	MALI200_REG_VAL_CTRL_MGMT_FORCE_RESET      = (1<<5),
 	MALI200_REG_VAL_CTRL_MGMT_START_RENDERING  = (1<<6),
-#if defined(USING_MALI400)
+#if defined(USING_MALI400) || defined(USING_MALI450)
 	MALI400PP_REG_VAL_CTRL_MGMT_SOFT_RESET     = (1<<7),
 #endif
 };
@@ -72,7 +72,7 @@ enum mali200_mgmt_irq {
 	MALI400PP_REG_VAL_IRQ_RESET_COMPLETED       = (1<<12),
 };
 
-#if defined USING_MALI200
+#if defined(USING_MALI200)
 #define MALI200_REG_VAL_IRQ_MASK_ALL  ((enum mali200_mgmt_irq) (\
     MALI200_REG_VAL_IRQ_END_OF_FRAME                           |\
     MALI200_REG_VAL_IRQ_END_OF_TILE                            |\
@@ -83,7 +83,7 @@ enum mali200_mgmt_irq {
     MALI200_REG_VAL_IRQ_CNT_0_LIMIT                            |\
     MALI200_REG_VAL_IRQ_CNT_1_LIMIT                            |\
     MALI200_REG_VAL_IRQ_WRITE_BOUNDARY_ERROR))
-#elif defined USING_MALI400
+#elif defined(USING_MALI400) || defined(USING_MALI450)
 #define MALI200_REG_VAL_IRQ_MASK_ALL  ((enum mali200_mgmt_irq) (\
     MALI200_REG_VAL_IRQ_END_OF_FRAME                           |\
     MALI200_REG_VAL_IRQ_END_OF_TILE                            |\
@@ -102,14 +102,14 @@ enum mali200_mgmt_irq {
 #error "No supported mali core defined"
 #endif
 
-#if defined USING_MALI200
+#if defined(USING_MALI200)
 #define MALI200_REG_VAL_IRQ_MASK_USED ((enum mali200_mgmt_irq) (\
     MALI200_REG_VAL_IRQ_END_OF_FRAME                           |\
     MALI200_REG_VAL_IRQ_HANG                                   |\
     MALI200_REG_VAL_IRQ_FORCE_HANG                             |\
     MALI200_REG_VAL_IRQ_BUS_ERROR                              |\
     MALI200_REG_VAL_IRQ_WRITE_BOUNDARY_ERROR))
-#elif defined USING_MALI400
+#elif defined(USING_MALI400) || defined(USING_MALI450)
 #define MALI200_REG_VAL_IRQ_MASK_USED ((enum mali200_mgmt_irq) (\
     MALI200_REG_VAL_IRQ_END_OF_FRAME                           |\
     MALI200_REG_VAL_IRQ_HANG                                   |\
@@ -134,11 +134,14 @@ enum mali200_mgmt_status {
 enum mali200_render_unit
 {
 	MALI200_REG_ADDR_FRAME = 0x0000,
+	MALI200_REG_ADDR_STACK = 0x0030
 };
 
-#if defined USING_MALI200
+#if defined(USING_MALI200)
 #define MALI200_NUM_REGS_FRAME ((0x04C/4)+1)
-#elif defined USING_MALI400
+#elif defined(USING_MALI400)
+#define MALI200_NUM_REGS_FRAME ((0x058/4)+1)
+#elif defined(USING_MALI450)
 #define MALI200_NUM_REGS_FRAME ((0x058/4)+1)
 #else
 #error "No supported mali core defined"
@@ -150,21 +153,20 @@ enum mali200_wb_unit {
     MALI200_REG_ADDR_WB2 = 0x0300
 };
 
+enum mali200_wb_unit_regs {
+	MALI200_REG_ADDR_WB_SOURCE_SELECT = 0x0000,
+};
+
 /** The number of registers in one single writeback unit */
 #ifndef MALI200_NUM_REGS_WBx
 #define MALI200_NUM_REGS_WBx ((0x02C/4)+1)
 #endif
 
 /* This should be in the top 16 bit of the version register of Mali PP */
-#if defined USING_MALI200
-#define MALI_PP_PRODUCT_ID 0xC807
-#elif defined USING_MALI400
+#define MALI200_PP_PRODUCT_ID 0xC807
 #define MALI300_PP_PRODUCT_ID 0xCE07
 #define MALI400_PP_PRODUCT_ID 0xCD07
-#define MALI_PP_PRODUCT_ID MALI400_PP_PRODUCT_ID
-#else
-#error "No supported mali core defined"
-#endif
+#define MALI450_PP_PRODUCT_ID 0xCF07
 
 
 #endif /* _MALI200_REGS_H_ */

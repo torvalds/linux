@@ -13,7 +13,7 @@
 #include "mali_ukk.h"
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
-#include "mali_kernel_session_manager.h"
+#include "mali_session.h"
 #include "mali_ukk_wrappers.h"
 
 

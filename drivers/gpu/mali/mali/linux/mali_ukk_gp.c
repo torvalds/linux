@@ -13,7 +13,7 @@
 #include "mali_ukk.h"
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
-#include "mali_kernel_session_manager.h"
+#include "mali_session.h"
 #include "mali_ukk_wrappers.h"
 
 int gp_start_job_wrapper(struct mali_session_data *session_data, _mali_uk_gp_start_job_s __user *uargs)
@@ -36,6 +36,7 @@ int gp_start_job_wrapper(struct mali_session_data *session_data, _mali_uk_gp_sta
     if (_MALI_OSK_ERR_OK != err) return map_errcode(err);
 
     kargs.ctx = NULL; /* prevent kernel address to be returned to user space */
+    
     if (0 != copy_to_user(uargs, &kargs, sizeof(_mali_uk_gp_start_job_s)))
 	{
 		/*
@@ -52,22 +53,6 @@ int gp_start_job_wrapper(struct mali_session_data *session_data, _mali_uk_gp_sta
 
     return 0;
 }
-
-int gp_abort_job_wrapper(struct mali_session_data *session_data, _mali_uk_gp_abort_job_s __user *uargs)
-{
-    _mali_uk_gp_abort_job_s kargs;
-
-    MALI_CHECK_NON_NULL(uargs, -EINVAL);
-    MALI_CHECK_NON_NULL(session_data, -EINVAL);
-
-    if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_gp_abort_job_s))) return -EFAULT;
-
-    kargs.ctx = session_data;
-    _mali_ukk_gp_abort_job(&kargs);
-
-    return 0;
-}
-
 
 int gp_get_core_version_wrapper(struct mali_session_data *session_data, _mali_uk_get_gp_core_version_s __user *uargs)
 {

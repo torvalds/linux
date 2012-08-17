@@ -13,7 +13,7 @@
 #include "mali_ukk.h"
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
-#include "mali_kernel_session_manager.h"
+#include "mali_session.h"
 #include "mali_ukk_wrappers.h"
 
 int mem_init_wrapper(struct mali_session_data *session_data, _mali_uk_init_mem_s __user *uargs)
@@ -256,81 +256,4 @@ int mem_dump_mmu_page_table_wrapper(struct mali_session_data *session_data, _mal
 err_exit:
     if (kargs.buffer) _mali_osk_vfree(kargs.buffer);
     return rc;
-}
-
-
-
-int mem_get_big_block_wrapper( struct file * filp, _mali_uk_get_big_block_s __user * argument )
-{
-	_mali_uk_get_big_block_s uk_args;
-	_mali_osk_errcode_t err_code;
-
-	/* validate input */
-	/* the session_data pointer was validated by caller */
-    MALI_CHECK_NON_NULL( argument, -EINVAL);
-
-	/* get call arguments from user space. copy_from_user returns how many bytes which where NOT copied */
-	if ( 0 != copy_from_user(&uk_args, (void __user *)argument, sizeof(_mali_uk_get_big_block_s)) )
-	{
-		return -EFAULT;
-	}
-
-	/* This interface inserts something into the ukk_private word */
-    uk_args.ukk_private = (u32)filp;
-    uk_args.ctx = filp->private_data;
-	err_code = _mali_ukk_get_big_block( &uk_args );
-
-	/* Do not leak the private word back into user space */
-	uk_args.ukk_private = 0;
-
-	if ( _MALI_OSK_ERR_OK != err_code )
-	{
-		return map_errcode(err_code);
-	}
-
-	/* From this point on, we must roll-back any failing action to preserve the
-	 * meaning of the U/K interface (e.g. when excluded) */
-
-	/* transfer response back to user space */
-	if ( 0 != copy_to_user(argument, &uk_args, sizeof(_mali_uk_get_big_block_s)) )
-	{
-		/* Roll-back - the _mali_uk_get_big_block call succeeded, so all
-		 * values in uk_args will be correct */
-		_mali_uk_free_big_block_s uk_args_rollback = {0, };
-
-		uk_args_rollback.ctx = uk_args.ctx;
-		uk_args_rollback.cookie = uk_args.cookie;
-		err_code = _mali_ukk_free_big_block( &uk_args_rollback );
-
-		if ( _MALI_OSK_ERR_OK != err_code )
-		{
-			/* error in DEBUG and RELEASE */
-			MALI_PRINT_ERROR( ("Failed to rollback get_big_block: %.8X\n", (u32)err_code) );
-		}
-        return -EFAULT;
-	}
-
-    return 0;
-}
-
-int mem_free_big_block_wrapper(struct mali_session_data *session_data, _mali_uk_free_big_block_s __user * argument)
-{
-	_mali_uk_free_big_block_s uk_args;
-	_mali_osk_errcode_t err_code;
-
-	/* validate input */
-	/* the session_data pointer was validated by caller */
-    MALI_CHECK_NON_NULL( argument, -EINVAL );
-
-	/* get call arguments from user space. get_user returns 0 on success */
-	if ( 0 != get_user(uk_args.cookie, &argument->cookie) )
-	{
-		return -EFAULT;
-	}
-
-    uk_args.ctx = session_data;
-	err_code = _mali_ukk_free_big_block( &uk_args );
-
-	/* Return the error that _mali_ukk_free_big_block produced */
-	return map_errcode(err_code);
 }

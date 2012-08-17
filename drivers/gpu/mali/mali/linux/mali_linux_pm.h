@@ -12,8 +12,6 @@
 #ifndef __MALI_LINUX_PM_H__
 #define __MALI_LINUX_PM_H__
 
-#if USING_MALI_PMM
-
 #ifdef CONFIG_PM
 /* Number of power states supported for making power up and down */
 typedef enum
@@ -49,5 +47,4 @@ int mali_device_resume(u32 event_id, struct task_struct **pwr_mgmt_thread);
 int mali_get_ospmm_thread_state(void);
 
 #endif /* CONFIG_PM */
-#endif /* USING_MALI_PMM */
 #endif /* __MALI_LINUX_PM_H___ */

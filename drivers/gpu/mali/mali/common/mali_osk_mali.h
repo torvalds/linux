@@ -26,36 +26,6 @@ extern "C"
 /** @addtogroup _mali_osk_miscellaneous
  * @{ */
 
-/** @brief Initialize the OSK layer
- *
- * This function is used to setup any initialization of OSK functionality, if
- * required.
- *
- * This must be the first function called from the common code, specifically,
- * from the common code entry-point, mali_kernel_constructor.
- *
- * The OS-integration into the OS's kernel must handle calling of
- * mali_kernel_constructor when the device driver is loaded.
- *
- * @return _MALI_OSK_ERR_OK on success, or a suitable _mali_osk_errcode_t on
- * failure.
- */
-_mali_osk_errcode_t _mali_osk_init( void );
-
-/** @brief Terminate the OSK layer
- *
- * This function is used to terminate any resources initialized by
- * _mali_osk_init.
- *
- * This must be the last function called from the common code, specifically,
- * from the common code closedown function, mali_kernel_destructor, and the
- * error path in mali_kernel_constructor.
- *
- * The OS-integration into the OS's kernel must handle calling of
- * mali_kernel_destructor when the device driver is terminated.
- */
-void _mali_osk_term( void );
-
 /** @brief Read the Mali Resource configuration
  *
  * Populates a _mali_arch_resource_t array from configuration settings, which

@@ -13,7 +13,7 @@
 #include "mali_ukk.h"
 #include "mali_osk.h"
 #include "mali_kernel_common.h"
-#include "mali_kernel_session_manager.h"
+#include "mali_session.h"
 #include "mali_ukk_wrappers.h"
 
 int pp_start_job_wrapper(struct mali_session_data *session_data, _mali_uk_pp_start_job_s __user *uargs)
@@ -34,36 +34,6 @@ int pp_start_job_wrapper(struct mali_session_data *session_data, _mali_uk_pp_sta
 	kargs.ctx = session_data;
 	err = _mali_ukk_pp_start_job(&kargs);
 	if (_MALI_OSK_ERR_OK != err) return map_errcode(err);
-
-	if (0 != put_user(kargs.returned_user_job_ptr, &uargs->returned_user_job_ptr) ||
-	    0 != put_user(kargs.status, &uargs->status))
-	{
-		/*
-		 * If this happens, then user space will not know that the job was actually started,
-		 * and if we return a queued job, then user space will still think that one is still queued.
-		 * This will typically lead to a deadlock in user space.
-		 * This could however only happen if user space deliberately passes a user buffer which
-		 * passes the access_ok(VERIFY_WRITE) check, but isn't fully writable at the time of copy_to_user().
-		 * The official Mali driver will never attempt to do that, and kernel space should not be affected.
-		 * That is why we do not bother to do a complex rollback in this very very very rare case.
-		 */
-		return -EFAULT;
-	}
-
-    return 0;
-}
-
-int pp_abort_job_wrapper(struct mali_session_data *session_data, _mali_uk_pp_abort_job_s __user *uargs)
-{
-    _mali_uk_pp_abort_job_s kargs;
-
-    MALI_CHECK_NON_NULL(uargs, -EINVAL);
-    MALI_CHECK_NON_NULL(session_data, -EINVAL);
-
-    if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_pp_abort_job_s))) return -EFAULT;
-
-    kargs.ctx = session_data;
-    _mali_ukk_pp_abort_job(&kargs);
 
     return 0;
 }
@@ -98,6 +68,21 @@ int pp_get_core_version_wrapper(struct mali_session_data *session_data, _mali_uk
     if (_MALI_OSK_ERR_OK != err) return map_errcode(err);
 
     if (0 != put_user(kargs.version, &uargs->version)) return -EFAULT;
+
+    return 0;
+}
+
+int pp_disable_wb_wrapper(struct mali_session_data *session_data, _mali_uk_pp_disable_wb_s __user *uargs)
+{
+	_mali_uk_pp_disable_wb_s kargs;
+
+    MALI_CHECK_NON_NULL(uargs, -EINVAL);
+    MALI_CHECK_NON_NULL(session_data, -EINVAL);
+
+    if (0 != copy_from_user(&kargs, uargs, sizeof(_mali_uk_pp_disable_wb_s))) return -EFAULT;
+
+    kargs.ctx = session_data;
+    _mali_ukk_pp_job_disable_wb(&kargs);
 
     return 0;
 }

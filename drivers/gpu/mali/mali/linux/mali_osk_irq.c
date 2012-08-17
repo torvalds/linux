@@ -18,7 +18,6 @@
 #include <linux/version.h>
 
 #include "mali_osk.h"
-#include "mali_kernel_core.h"
 #include "mali_kernel_common.h"
 #include "mali_kernel_license.h"
 #include "mali_kernel_linux.h"
@@ -34,7 +33,7 @@ typedef struct _mali_osk_irq_t_struct
 } mali_osk_irq_object_t;
 
 #if MALI_LICENSE_IS_GPL
-static struct workqueue_struct *pmm_wq=NULL;
+static struct workqueue_struct *pmm_wq = NULL;
 struct workqueue_struct *mali_wq = NULL;
 #endif
 
@@ -74,7 +73,7 @@ _mali_osk_irq_t *_mali_osk_irq_init( u32 irqnum, _mali_osk_irq_uhandler_t uhandl
 		if(NULL == mali_wq)
 		{
 			MALI_PRINT_ERROR(("Unable to create Mali workqueue\n"));
-			kfree( irq_object );
+			kfree(irq_object);
 			return NULL;
 		}
 	}
@@ -136,7 +135,7 @@ _mali_osk_irq_t *_mali_osk_irq_init( u32 irqnum, _mali_osk_irq_uhandler_t uhandl
 	irq_object->data = data;
 
 	/* Is this a real IRQ handler we need? */
-	if (!mali_benchmark && irqnum != _MALI_OSK_IRQ_NUMBER_FAKE && irqnum != _MALI_OSK_IRQ_NUMBER_PMM) 
+	if (irqnum != _MALI_OSK_IRQ_NUMBER_FAKE && irqnum != _MALI_OSK_IRQ_NUMBER_PMM)
 	{
 		if (-1 == irqnum)
 		{
@@ -183,10 +182,17 @@ void _mali_osk_irq_schedulework( _mali_osk_irq_t *irq )
 void _mali_osk_flush_workqueue( _mali_osk_irq_t *irq )
 {
 #if MALI_LICENSE_IS_GPL
-	mali_osk_irq_object_t *irq_object = (mali_osk_irq_object_t *)irq;
-        if(irq_object->irqnum == _MALI_OSK_IRQ_NUMBER_PMM )
-        {
-		flush_workqueue(pmm_wq);	
+	if (NULL != irq)
+	{
+		mali_osk_irq_object_t *irq_object = (mali_osk_irq_object_t *)irq;
+		if(irq_object->irqnum == _MALI_OSK_IRQ_NUMBER_PMM )
+		{
+			flush_workqueue(pmm_wq);
+		}
+		else
+		{
+			flush_workqueue(mali_wq);
+		}
 	}
 	else
 	{
@@ -206,10 +212,7 @@ void _mali_osk_irq_term( _mali_osk_irq_t *irq )
 		destroy_workqueue(pmm_wq);
 	}
 #endif
-	if (!mali_benchmark)
-	{
-		free_irq(irq_object->irqnum, irq_object);
-	}
+	free_irq(irq_object->irqnum, irq_object);
 	kfree(irq_object);
 	flush_scheduled_work();
 }

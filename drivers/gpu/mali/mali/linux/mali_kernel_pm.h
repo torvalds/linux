@@ -11,9 +11,7 @@
 #ifndef __MALI_KERNEL_PM_H__
 #define __MALI_KERNEL_PM_H__
 
-#ifdef USING_MALI_PMM
 int _mali_dev_platform_register(void);
 void _mali_dev_platform_unregister(void);
-#endif /* USING_MALI_PMM */
 
 #endif /* __MALI_KERNEL_PM_H__ */

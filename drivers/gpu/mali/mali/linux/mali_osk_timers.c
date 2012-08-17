@@ -34,7 +34,7 @@ _mali_osk_timer_t *_mali_osk_timer_init(void)
 
 void _mali_osk_timer_add( _mali_osk_timer_t *tim, u32 ticks_to_expire )
 {
-    MALI_DEBUG_ASSERT_POINTER(tim);
+	MALI_DEBUG_ASSERT_POINTER(tim);
     tim->timer.expires = _mali_osk_time_tickcount() + ticks_to_expire;
     add_timer(&(tim->timer));
 }

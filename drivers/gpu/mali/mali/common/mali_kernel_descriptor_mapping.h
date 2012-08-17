@@ -93,7 +93,9 @@ void mali_descriptor_mapping_call_for_each(mali_descriptor_mapping * map, void (
  * For the descriptor to be reused it has to be freed
  * @param map The map to free the descriptor from
  * @param descriptor The descriptor ID to free
+ *
+ * @return old value of descriptor mapping
  */
-void mali_descriptor_mapping_free(mali_descriptor_mapping * map, int descriptor);
+void *mali_descriptor_mapping_free(mali_descriptor_mapping * map, int descriptor);
 
 #endif /* __MALI_KERNEL_DESCRIPTOR_MAPPING_H__ */

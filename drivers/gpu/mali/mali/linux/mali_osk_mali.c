@@ -18,25 +18,7 @@
 #include "mali_kernel_common.h" /* MALI_xxx macros */
 #include "mali_osk.h"           /* kernel side OS functions */
 #include "mali_uk_types.h"
-#include "mali_kernel_linux.h"  /* exports initialize/terminate_kernel_device() definition of mali_osk_low_level_mem_init() and term */
 #include "arch/config.h"        /* contains the configuration of the arch we are compiling for */
-
-/* is called from mali_kernel_constructor in common code */
-_mali_osk_errcode_t _mali_osk_init( void )
-{
-	if (0 != initialize_kernel_device()) MALI_ERROR(_MALI_OSK_ERR_FAULT);
-
-	mali_osk_low_level_mem_init();
-	
-	MALI_SUCCESS;
-}
-
-/* is called from mali_kernel_deconstructor in common code */
-void _mali_osk_term( void )
-{
-	mali_osk_low_level_mem_term();
-	terminate_kernel_device();
-}
 
 _mali_osk_errcode_t _mali_osk_resources_init( _mali_osk_resource_t **arch_config, u32 *num_resources )
 {

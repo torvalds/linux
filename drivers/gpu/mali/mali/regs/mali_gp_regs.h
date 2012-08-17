@@ -12,9 +12,9 @@
 #define _MALIGP2_CONROL_REGS_H_
 
 /**
- * These are the different geometry processor controll registers.
+ * These are the different geometry processor control registers.
  * Their usage is to control and monitor the operation of the
- * Vertex Shader and the Polygon List Builer in the geometry processor.
+ * Vertex Shader and the Polygon List Builder in the geometry processor.
  * Addresses are in 32-bit word relative sizes.
  * @see [P0081] "Geometry Processor Data Structures" for details
  */
@@ -60,7 +60,7 @@ typedef enum
 	MALIGP2_REG_VAL_CMD_RESET				= (1<< 5),
 	MALIGP2_REG_VAL_CMD_FORCE_HANG			= (1<< 6),
 	MALIGP2_REG_VAL_CMD_STOP_BUS 			= (1<< 9),
-#if defined(USING_MALI400)
+#if defined(USING_MALI400) || defined(USING_MALI450)
 	MALI400GP_REG_VAL_CMD_SOFT_RESET		= (1<<10),
 #endif
 } mgp_contr_reg_val_cmd;
@@ -84,7 +84,7 @@ typedef enum
 #define MALIGP2_REG_VAL_IRQ_WRITE_BOUND_ERR     (1 << 9)
 #define MALIGP2_REG_VAL_IRQ_SYNC_ERROR          (1 << 10)
 #define MALIGP2_REG_VAL_IRQ_AXI_BUS_ERROR       (1 << 11)
-#if defined USING_MALI400
+#if defined(USING_MALI400) || defined(USING_MALI450)
 #define MALI400GP_REG_VAL_IRQ_AXI_BUS_STOPPED     (1 << 12)
 #define MALI400GP_REG_VAL_IRQ_VS_INVALID_CMD      (1 << 13)
 #define MALI400GP_REG_VAL_IRQ_PLB_INVALID_CMD     (1 << 14)
@@ -97,7 +97,7 @@ typedef enum
 #endif
 
 /* Mask defining all IRQs in MaliGP2 */
-#if defined USING_MALI200
+#if defined(USING_MALI200)
 #define MALIGP2_REG_VAL_IRQ_MASK_ALL \
 	(\
 		MALIGP2_REG_VAL_IRQ_VS_END_CMD_LST      | \
@@ -112,7 +112,7 @@ typedef enum
 		MALIGP2_REG_VAL_IRQ_WRITE_BOUND_ERR     | \
 		MALIGP2_REG_VAL_IRQ_SYNC_ERROR          | \
 		MALIGP2_REG_VAL_IRQ_AXI_BUS_ERROR)
-#elif defined USING_MALI400
+#elif defined(USING_MALI400) || defined(USING_MALI450)
 #define MALIGP2_REG_VAL_IRQ_MASK_ALL \
 	(\
 		MALIGP2_REG_VAL_IRQ_VS_END_CMD_LST      | \
@@ -139,7 +139,7 @@ typedef enum
 #endif
 
 /* Mask defining the IRQs in MaliGP2 which we use*/
-#if defined USING_MALI200
+#if defined(USING_MALI200)
 #define MALIGP2_REG_VAL_IRQ_MASK_USED \
 	(\
 		MALIGP2_REG_VAL_IRQ_VS_END_CMD_LST      | \
@@ -150,7 +150,7 @@ typedef enum
 		MALIGP2_REG_VAL_IRQ_WRITE_BOUND_ERR     | \
 		MALIGP2_REG_VAL_IRQ_SYNC_ERROR 			| \
 		MALIGP2_REG_VAL_IRQ_AXI_BUS_ERROR)
-#elif defined USING_MALI400
+#elif defined(USING_MALI400) || defined(USING_MALI450)
 #define MALIGP2_REG_VAL_IRQ_MASK_USED \
 	(\
 		MALIGP2_REG_VAL_IRQ_VS_END_CMD_LST      | \
@@ -197,15 +197,10 @@ typedef enum
 	MALIGP2_REG_VAL_STATUS_WRITE_BOUND_ERR )
 
 /* This should be in the top 16 bit of the version register of gp.*/
-#if defined(USING_MALI200)
-#define MALI_GP_PRODUCT_ID 0xA07
-#elif defined(USING_MALI400)
+#define MALI200_GP_PRODUCT_ID 0xA07
 #define MALI300_GP_PRODUCT_ID 0xC07
 #define MALI400_GP_PRODUCT_ID 0xB07
-#define MALI_GP_PRODUCT_ID MALI400_GP_PRODUCT_ID
-#else
-#error "No supported mali core defined"
-#endif
+#define MALI450_GP_PRODUCT_ID 0xD07
 
 /**
  * The different sources for instrumented on the geometry processor.

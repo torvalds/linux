@@ -44,6 +44,14 @@ void _ump_ukk_unmap_mem( _ump_uk_unmap_mem_s *args );
 
 void _ump_ukk_msync( _ump_uk_msync_s *args );
 
+void _ump_ukk_cache_operations_control(_ump_uk_cache_operations_control_s* args);
+
+void _ump_ukk_switch_hw_usage(_ump_uk_switch_hw_usage_s *args );
+
+void _ump_ukk_lock(_ump_uk_lock_s *args );
+
+void _ump_ukk_unlock(_ump_uk_unlock_s *args );
+
 u32 _ump_ukk_report_memory_usage( void );
 
 #ifdef __cplusplus

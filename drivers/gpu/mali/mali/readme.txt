@@ -3,15 +3,13 @@ Building the Mali Device Driver for Linux
 
 Build the Mali Device Driver for Linux by running the following make command:
 
-KDIR=<kdir_path> USING_UMP=<ump_option> USING_PMM=<pmm_option> BUILD=<build_option> \
+KDIR=<kdir_path> USING_UMP=<ump_option> BUILD=<build_option> \
 TARGET_PLATFORM=<target_platform> CONFIG=<your_config> make
 
 where
     kdir_path: Path to your Linux Kernel directory
     ump_option: 1 = Enable UMP support(*)
                 0 = disable UMP support
-    pmm_option: 1 = Enable power management
-                0 = Disable power management
     build_option: debug = debug build of driver
                   release = release build of driver
     target_platform: Name of the sub-folder in platform/ that contains the

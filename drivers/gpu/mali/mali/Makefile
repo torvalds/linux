@@ -68,6 +68,14 @@ $(warning Host CPU $(CPU))
 $(warning OS_MEMORY $(USING_OS_MEMORY))
 endif
 
+# Set up build config
+export CONFIG_MALI400=m
+
+ifeq ($(USING_GPU_UTILIZATION),1)
+export EXTRA_DEFINES += -DCONFIG_MALI400_GPU_UTILIZATION=1
+export CONFIG_MALI400_GPU_UTILIZATION := y
+endif
+
 all: $(UMP_SYMVERS_FILE)
 	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) modules
 	@rm $(FILES_PREFIX)__malidrv_build_info.c $(FILES_PREFIX)__malidrv_build_info.o

@@ -136,6 +136,9 @@ void mali_allocation_engine_destroy(mali_allocation_engine engine);
 int mali_allocation_engine_allocate_memory(mali_allocation_engine engine, mali_memory_allocation * descriptor, mali_physical_memory_allocator * physical_provider, _mali_osk_list_t *tracking_list );
 void mali_allocation_engine_release_memory(mali_allocation_engine engine, mali_memory_allocation * descriptor);
 
+void mali_allocation_engine_release_pt1_mali_pagetables_unmap(mali_allocation_engine engine, mali_memory_allocation * descriptor);
+void mali_allocation_engine_release_pt2_physical_memory_free(mali_allocation_engine engine, mali_memory_allocation * descriptor);
+
 int mali_allocation_engine_map_physical(mali_allocation_engine engine, mali_memory_allocation * descriptor, u32 offset, u32 phys, u32 cpu_usage_adjust, u32 size);
 void mali_allocation_engine_unmap_physical(mali_allocation_engine engine, mali_memory_allocation * descriptor, u32 offset, u32 size, _mali_osk_mem_mapregion_flags_t unmap_flags);
 
