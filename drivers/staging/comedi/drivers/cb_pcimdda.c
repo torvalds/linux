@@ -101,7 +101,6 @@ struct cb_pcimdda_board {
 	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
-	int dio_chans;
 	/* how many bytes into the BADR are the DIO ports */
 	int dio_offset;
 	int regs_badrindex;	/* IO Region for the control, analog output,
@@ -115,7 +114,6 @@ static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
 	 .device_id = PCI_ID_PCIM_DDA06_16,
 	 .ao_chans = 6,
 	 .ao_bits = 16,
-	 .dio_chans = 24,
 	 .dio_offset = 12,
 	 .regs_badrindex = 3,
 	 .reg_sz = 16,
@@ -274,15 +272,11 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 
 	s = dev->subdevices + 1;
 	/* digital i/o subdevice */
-	if (thisboard->dio_chans) {
-		ret = subdev_8255_init(dev, s, NULL,
-				dev->iobase + thisboard->dio_offset);
-		if (ret)
-			return ret;
-		devpriv->attached_to_8255 = 1;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	ret = subdev_8255_init(dev, s, NULL,
+			dev->iobase + thisboard->dio_offset);
+	if (ret)
+		return ret;
+	devpriv->attached_to_8255 = 1;
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
