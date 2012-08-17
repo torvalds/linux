@@ -105,16 +105,12 @@ Configuration Options:
 struct cb_pcimdda_board {
 	const char *name;
 	unsigned short device_id;
-	int ao_chans;
-	int ao_bits;
 };
 
 static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
 	{
 	 .name = "cb_pcimdda06-16",
 	 .device_id = PCI_ID_PCIM_DDA06_16,
-	 .ao_chans = 6,
-	 .ao_bits = 16,
 	 }
 };
 
@@ -258,8 +254,8 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	/* analog output subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = thisboard->ao_chans;
-	s->maxdata = (1 << thisboard->ao_bits) - 1;
+	s->n_chan = 6;
+	s->maxdata = 0xffff;
 	/* this is hard-coded here */
 	if (it->options[2])
 		s->range_table = &range_bipolar10;
