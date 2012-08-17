@@ -57,12 +57,7 @@ output modes on the board:
     then issue one comedi_data_read() on any channel on the AO subdevice
     to initiate the simultaneous XFER.
 
-Configuration Options:
-  [0] PCI bus (optional)
-  [1] PCI slot (optional)
-  [2] analog output range jumper setting
-      0 == +/- 5 V
-      1 == +/- 10 V
+Configuration Options: not applicable, uses PCI auto config
 */
 
 /*
@@ -157,46 +152,20 @@ static int cb_pcimdda_ao_rinsn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static struct pci_dev *cb_pcimdda_probe(struct comedi_device *dev,
-					struct comedi_devconfig *it)
-{
-	struct pci_dev *pcidev = NULL;
-
-	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		if (pcidev->device != PCI_ID_PCIM_DDA06_16)
-			continue;
-		if (it->options[0] || it->options[1]) {
-			if (pcidev->bus->number != it->options[0] ||
-				PCI_SLOT(pcidev->devfn) != it->options[1]) {
-				continue;
-			}
-		}
-
-		return pcidev;
-	}
-	return NULL;
-}
-
-static int cb_pcimdda_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
+static int cb_pcimdda_attach_pci(struct comedi_device *dev,
+				 struct pci_dev *pcidev)
 {
 	struct cb_pcimdda_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret)
 		return ret;
 	devpriv = dev->private;
-
-	pcidev = cb_pcimdda_probe(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -208,19 +177,14 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 		return ret;
 
 	s = dev->subdevices + 0;
-
 	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-	s->n_chan = 6;
-	s->maxdata = 0xffff;
-	/* this is hard-coded here */
-	if (it->options[2])
-		s->range_table = &range_bipolar10;
-	else
-		s->range_table = &range_bipolar5;
-	s->insn_write = &cb_pcimdda_ao_winsn;
-	s->insn_read = &cb_pcimdda_ao_rinsn;
+	s->type		= COMEDI_SUBD_AO;
+	s->subdev_flags	= SDF_WRITABLE | SDF_READABLE;
+	s->n_chan	= 6;
+	s->maxdata	= 0xffff;
+	s->range_table	= &range_bipolar5;
+	s->insn_write	= cb_pcimdda_ao_winsn;
+	s->insn_read	= cb_pcimdda_ao_rinsn;
 
 	s = dev->subdevices + 1;
 	/* digital i/o subdevice */
@@ -243,14 +207,13 @@ static void cb_pcimdda_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
 static struct comedi_driver cb_pcimdda_driver = {
 	.driver_name	= "cb_pcimdda",
 	.module		= THIS_MODULE,
-	.attach		= cb_pcimdda_attach,
+	.attach_pci	= cb_pcimdda_attach_pci,
 	.detach		= cb_pcimdda_detach,
 };
 
