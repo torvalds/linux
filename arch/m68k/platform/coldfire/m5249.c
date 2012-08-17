@@ -57,7 +57,7 @@ static void __init m5249_qspi_init(void)
 {
 	/* QSPI irq setup */
 	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL4 | MCFSIM_ICR_PRI0,
-	       MCF_MBAR + MCFSIM_QSPIICR);
+	       MCFSIM_QSPIICR);
 	mcf_mapirq2imr(MCF_IRQ_QSPI, MCFINTC_QSPI);
 }
 

@@ -34,18 +34,18 @@
 #define	MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pend */
 #define	MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */
 #define	MCFSIM_AVR		(MCF_MBAR + 0x4b)	/* Autovector Ctrl */
-#define	MCFSIM_ICR0		0x4c		/* Intr Ctrl reg 0 (r/w) */
-#define	MCFSIM_ICR1		0x4d		/* Intr Ctrl reg 1 (r/w) */
-#define	MCFSIM_ICR2		0x4e		/* Intr Ctrl reg 2 (r/w) */
-#define	MCFSIM_ICR3		0x4f		/* Intr Ctrl reg 3 (r/w) */
-#define	MCFSIM_ICR4		0x50		/* Intr Ctrl reg 4 (r/w) */
-#define	MCFSIM_ICR5		0x51		/* Intr Ctrl reg 5 (r/w) */
-#define	MCFSIM_ICR6		0x52		/* Intr Ctrl reg 6 (r/w) */
-#define	MCFSIM_ICR7		0x53		/* Intr Ctrl reg 7 (r/w) */
-#define	MCFSIM_ICR8		0x54		/* Intr Ctrl reg 8 (r/w) */
-#define	MCFSIM_ICR9		0x55		/* Intr Ctrl reg 9 (r/w) */
-#define	MCFSIM_ICR10		0x56		/* Intr Ctrl reg 10 (r/w) */
-#define	MCFSIM_ICR11		0x57		/* Intr Ctrl reg 11 (r/w) */
+#define	MCFSIM_ICR0		(MCF_MBAR + 0x4c)	/* Intr Ctrl reg 0 */
+#define	MCFSIM_ICR1		(MCF_MBAR + 0x4d)	/* Intr Ctrl reg 1 */
+#define	MCFSIM_ICR2		(MCF_MBAR + 0x4e)	/* Intr Ctrl reg 2 */
+#define	MCFSIM_ICR3		(MCF_MBAR + 0x4f)	/* Intr Ctrl reg 3 */
+#define	MCFSIM_ICR4		(MCF_MBAR + 0x50)	/* Intr Ctrl reg 4 */
+#define	MCFSIM_ICR5		(MCF_MBAR + 0x51)	/* Intr Ctrl reg 5 */
+#define	MCFSIM_ICR6		(MCF_MBAR + 0x52)	/* Intr Ctrl reg 6 */
+#define	MCFSIM_ICR7		(MCF_MBAR + 0x53)	/* Intr Ctrl reg 7 */
+#define	MCFSIM_ICR8		(MCF_MBAR + 0x54)	/* Intr Ctrl reg 8 */
+#define	MCFSIM_ICR9		(MCF_MBAR + 0x55)	/* Intr Ctrl reg 9 */
+#define	MCFSIM_ICR10		(MCF_MBAR + 0x56)	/* Intr Ctrl reg 10 */
+#define	MCFSIM_ICR11		(MCF_MBAR + 0x57)	/* Intr Ctrl reg 11 */
 
 #define MCFSIM_CSAR0		0x80		/* CS 0 Address 0 reg (r/w) */
 #define MCFSIM_CSMR0		0x84		/* CS 0 Mask 0 reg (r/w) */

@@ -21,23 +21,23 @@
 /*
  *	Define the 5206 SIM register set addresses.
  */
-#define	MCFSIM_SIMR		0x03		/* SIM Config reg (r/w) */
-#define	MCFSIM_ICR1		0x14		/* Intr Ctrl reg 1 (r/w) */
-#define	MCFSIM_ICR2		0x15		/* Intr Ctrl reg 2 (r/w) */
-#define	MCFSIM_ICR3		0x16		/* Intr Ctrl reg 3 (r/w) */
-#define	MCFSIM_ICR4		0x17		/* Intr Ctrl reg 4 (r/w) */
-#define	MCFSIM_ICR5		0x18		/* Intr Ctrl reg 5 (r/w) */
-#define	MCFSIM_ICR6		0x19		/* Intr Ctrl reg 6 (r/w) */
-#define	MCFSIM_ICR7		0x1a		/* Intr Ctrl reg 7 (r/w) */
-#define	MCFSIM_ICR8		0x1b		/* Intr Ctrl reg 8 (r/w) */
-#define	MCFSIM_ICR9		0x1c		/* Intr Ctrl reg 9 (r/w) */
-#define	MCFSIM_ICR10		0x1d		/* Intr Ctrl reg 10 (r/w) */
-#define	MCFSIM_ICR11		0x1e		/* Intr Ctrl reg 11 (r/w) */
-#define	MCFSIM_ICR12		0x1f		/* Intr Ctrl reg 12 (r/w) */
-#define	MCFSIM_ICR13		0x20		/* Intr Ctrl reg 13 (r/w) */
+#define	MCFSIM_SIMR		(MCF_MBAR + 0x03)	/* SIM Config reg */
+#define	MCFSIM_ICR1		(MCF_MBAR + 0x14)	/* Intr Ctrl reg 1 */
+#define	MCFSIM_ICR2		(MCF_MBAR + 0x15)	/* Intr Ctrl reg 2 */
+#define	MCFSIM_ICR3		(MCF_MBAR + 0x16)	/* Intr Ctrl reg 3 */
+#define	MCFSIM_ICR4		(MCF_MBAR + 0x17)	/* Intr Ctrl reg 4 */
+#define	MCFSIM_ICR5		(MCF_MBAR + 0x18)	/* Intr Ctrl reg 5 */
+#define	MCFSIM_ICR6		(MCF_MBAR + 0x19)	/* Intr Ctrl reg 6 */
+#define	MCFSIM_ICR7		(MCF_MBAR + 0x1a)	/* Intr Ctrl reg 7 */
+#define	MCFSIM_ICR8		(MCF_MBAR + 0x1b)	/* Intr Ctrl reg 8 */
+#define	MCFSIM_ICR9		(MCF_MBAR + 0x1c)	/* Intr Ctrl reg 9 */
+#define	MCFSIM_ICR10		(MCF_MBAR + 0x1d)	/* Intr Ctrl reg 10 */
+#define	MCFSIM_ICR11		(MCF_MBAR + 0x1e)	/* Intr Ctrl reg 11 */
+#define	MCFSIM_ICR12		(MCF_MBAR + 0x1f)	/* Intr Ctrl reg 12 */
+#define	MCFSIM_ICR13		(MCF_MBAR + 0x20)	/* Intr Ctrl reg 13 */
 #ifdef CONFIG_M5206e
-#define	MCFSIM_ICR14		0x21		/* Intr Ctrl reg 14 (r/w) */
-#define	MCFSIM_ICR15		0x22		/* Intr Ctrl reg 15 (r/w) */
+#define	MCFSIM_ICR14		(MCF_MBAR + 0x21)	/* Intr Ctrl reg 14 */
+#define	MCFSIM_ICR15		(MCF_MBAR + 0x22)	/* Intr Ctrl reg 15 */
 #endif
 
 #define	MCFSIM_IMR		(MCF_MBAR + 0x36)	/* Interrupt Mask */

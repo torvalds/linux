@@ -27,10 +27,10 @@
 #define	MCFSIM_APMR		0x0e		/* Active Low Power reg (r/w) */
 #define	MCFSIM_DIR		0x10		/* Device Identity reg (r/w) */
 
-#define	MCFSIM_ICR1		0x20		/* Intr Ctrl reg 1 (r/w) */
-#define	MCFSIM_ICR2		0x24		/* Intr Ctrl reg 2 (r/w) */
-#define	MCFSIM_ICR3		0x28		/* Intr Ctrl reg 3 (r/w) */
-#define	MCFSIM_ICR4		0x2c		/* Intr Ctrl reg 4 (r/w) */
+#define	MCFSIM_ICR1		(MCF_MBAR + 0x20)	/* Intr Ctrl reg 1 */
+#define	MCFSIM_ICR2		(MCF_MBAR + 0x24)	/* Intr Ctrl reg 2 */
+#define	MCFSIM_ICR3		(MCF_MBAR + 0x28)	/* Intr Ctrl reg 3 */
+#define	MCFSIM_ICR4		(MCF_MBAR + 0x2c)	/* Intr Ctrl reg 4 */
 
 #define	MCFSIM_ISR		(MCF_MBAR + 0x30)	/* Intr Source */
 #define	MCFSIM_PITR		(MCF_MBAR + 0x34)	/* Intr Transition */
