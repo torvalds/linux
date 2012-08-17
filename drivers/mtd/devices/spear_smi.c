@@ -981,7 +981,7 @@ static int __devinit spear_smi_probe(struct platform_device *pdev)
 	dev->pdev = pdev;
 	dev->clk_rate = pdata->clk_rate;
 
-	if (dev->clk_rate < 0 || dev->clk_rate > SMI_MAX_CLOCK_FREQ)
+	if (dev->clk_rate > SMI_MAX_CLOCK_FREQ)
 		dev->clk_rate = SMI_MAX_CLOCK_FREQ;
 
 	dev->num_flashes = pdata->num_flashes;
