@@ -1402,7 +1402,7 @@ static struct platform_device rk30_device_adc_battery = {
 };
 #endif
 
-#if CONFIG_RK30_PWM_REGULATOR
+#ifdef CONFIG_RK30_PWM_REGULATOR
 const static int pwm_voltage_map[] = {
 	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
