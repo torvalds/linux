@@ -4526,6 +4526,10 @@ static int drbd_disconnected(struct drbd_conf *mdev)
 	   necessary to reclain net_ee in drbd_finish_peer_reqs(). */
 	drbd_flush_workqueue(mdev);
 
+	/* need to do it again, drbd_finish_peer_reqs() may have populated it
+	 * again via drbd_try_clear_on_disk_bm(). */
+	drbd_rs_cancel_all(mdev);
+
 	kfree(mdev->p_uuid);
 	mdev->p_uuid = NULL;
 
