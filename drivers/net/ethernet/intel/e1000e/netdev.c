@@ -3446,7 +3446,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 
 			/*
 			 * if short on Rx space, Rx wins and must trump Tx
-			 * adjustment or use Early Receive if available
+			 * adjustment
 			 */
 			if (pba < min_rx_space)
 				pba = min_rx_space;
