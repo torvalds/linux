@@ -105,8 +105,6 @@ Configuration Options:
  * struct.
  */
 struct cb_pcimdda_private {
-	char attached_to_8255;	/* boolean */
-
 #define MAX_AO_READBACK_CHANNELS 6
 	/* Used for AO readback */
 	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
@@ -248,7 +246,6 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 			dev->iobase + PCIMDDA_8255_BASE_REG);
 	if (ret)
 		return ret;
-	devpriv->attached_to_8255 = 1;
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
@@ -258,14 +255,9 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 static void cb_pcimdda_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct cb_pcimdda_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->subdevices && devpriv->attached_to_8255) {
-			subdev_8255_cleanup(dev, dev->subdevices + 2);
-			devpriv->attached_to_8255 = 0;
-		}
-	}
+	if (dev->subdevices)
+		subdev_8255_cleanup(dev, dev->subdevices + 2);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
