@@ -22,7 +22,9 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <net/sock.h>
 
 #include "usbip_common.h"
@@ -36,6 +38,8 @@ unsigned long usbip_debug_flag = 0xffffffff;
 unsigned long usbip_debug_flag;
 #endif
 EXPORT_SYMBOL_GPL(usbip_debug_flag);
+module_param(usbip_debug_flag, ulong, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(usbip_debug_flag, "debug flags (defined in usbip_common.h)");
 
 /* FIXME */
 struct device_attribute dev_attr_usbip_debug;
