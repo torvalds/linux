@@ -125,7 +125,7 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		__this_cpu_write(alert_counter, 0);
 	}
 	if (__get_cpu_var(wd_enabled)) {
-		pcr_ops->write_pic(0, picl_value(nmi_hz));
+		pcr_ops->write_pic(0, pcr_ops->nmi_picl_value(nmi_hz));
 		pcr_ops->write_pcr(0, pcr_enable);
 	}
 
@@ -223,7 +223,7 @@ void start_nmi_watchdog(void *unused)
 	atomic_inc(&nmi_active);
 
 	pcr_ops->write_pcr(0, PCR_PIC_PRIV);
-	pcr_ops->write_pic(0, picl_value(nmi_hz));
+	pcr_ops->write_pic(0, pcr_ops->nmi_picl_value(nmi_hz));
 
 	pcr_ops->write_pcr(0, pcr_enable);
 }
@@ -234,7 +234,7 @@ static void nmi_adjust_hz_one(void *unused)
 		return;
 
 	pcr_ops->write_pcr(0, PCR_PIC_PRIV);
-	pcr_ops->write_pic(0, picl_value(nmi_hz));
+	pcr_ops->write_pic(0, pcr_ops->nmi_picl_value(nmi_hz));
 
 	pcr_ops->write_pcr(0, pcr_enable);
 }

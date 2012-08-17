@@ -27,7 +27,6 @@
 				 (0xff << PCR_N2_MASK1_SHIFT))
 
 u64 pcr_enable;
-unsigned int picl_shift;
 
 /* Performance counter interrupts run unmasked at PIL level 15.
  * Therefore we can't do things like wakeups and other work
@@ -98,11 +97,19 @@ static void direct_pic_write(unsigned long reg_num, u64 val)
 			     "rd	%%pic, %%g0" : : "r" (val));
 }
 
+static u64 direct_picl_value(unsigned int nmi_hz)
+{
+	u32 delta = local_cpu_data().clock_tick / nmi_hz;
+
+	return ((u64)((0 - delta) & 0xffffffff)) << 32;
+}
+
 static const struct pcr_ops direct_pcr_ops = {
 	.read_pcr	= direct_pcr_read,
 	.write_pcr	= direct_pcr_write,
 	.read_pic	= direct_pic_read,
 	.write_pic	= direct_pic_write,
+	.nmi_picl_value	= direct_picl_value,
 };
 
 static void n2_pcr_write(unsigned long reg_num, u64 val)
@@ -118,11 +125,19 @@ static void n2_pcr_write(unsigned long reg_num, u64 val)
 		direct_pcr_write(reg_num, val);
 }
 
+static u64 n2_picl_value(unsigned int nmi_hz)
+{
+	u32 delta = local_cpu_data().clock_tick / (nmi_hz << 2);
+
+	return ((u64)((0 - delta) & 0xffffffff)) << 32;
+}
+
 static const struct pcr_ops n2_pcr_ops = {
 	.read_pcr	= direct_pcr_read,
 	.write_pcr	= n2_pcr_write,
 	.read_pic	= direct_pic_read,
 	.write_pic	= direct_pic_write,
+	.nmi_picl_value	= n2_picl_value,
 };
 
 static unsigned long perf_hsvc_group;
@@ -180,7 +195,6 @@ int __init pcr_arch_init(void)
 	case hypervisor:
 		pcr_ops = &n2_pcr_ops;
 		pcr_enable = PCR_N2_ENABLE;
-		picl_shift = 2;
 		break;
 
 	case cheetah:
