@@ -104,69 +104,25 @@ static unsigned long logo_height;
 static unsigned long data_long;
 static unsigned long data_start;
 static unsigned char *logo_data;
-static struct color logo_clut[MAX_LINUX_LOGO_COLORS];
-static unsigned int logo_clutsize;
 
 static void die(const char *fmt, ...)
     __attribute__ ((noreturn)) __attribute ((format (printf, 1, 2)));
 static void usage(void) __attribute ((noreturn));
 
-static unsigned int get_number(FILE *fp)
-{
-    int c, val;
-
-    /* Skip leading whitespace */
-    do {
-	c = fgetc(fp);
-	if (c == EOF)
-	    die("%s: end of file\n", filename);
-	if (c == '#') {
-	    /* Ignore comments 'till end of line */
-	    do {
-		c = fgetc(fp);
-		if (c == EOF)
-		    die("%s: end of file\n", filename);
-	    } while (c != '\n');
-	}
-    } while (isspace(c));
-
-    /* Parse decimal number */
-    val = 0;
-    while (isdigit(c)) {
-	val = 10*val+c-'0';
-	c = fgetc(fp);
-	if (c == EOF)
-	    die("%s: end of file\n", filename);
-    }
-    return val;
-}
-
-static unsigned int get_number255(FILE *fp, unsigned int maxval)
-{
-    unsigned int val = get_number(fp);
-    return (255*val+maxval/2)/maxval;
-}
-
 static void read_image(void)
 {
-	FILE *fp;
-	unsigned long i;
+	int fd;
 	struct stat s;
-	char j = 0;
-	int magic;
-	unsigned int maxval;
-	char read_buf[0x28];
-	long ret = 0;
 	unsigned char *data;
 	
 	/* open image file */
-	fp = open(filename, O_RDONLY);
-	if (!fp)
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
 		die("Cannot open file isll.. %s: %s\n", filename, strerror(errno));
 
-	if (fstat(fp, &s) < 0) {
-        die("Cannot stat file isll.. %s: %s\n", filename, strerror(errno));
-    }
+	if (fstat(fd, &s) < 0)
+		die("Cannot stat file isll.. %s: %s\n", filename, strerror(errno));
+
 #if 0
 	ret = fread(read_buf,1,0x26,fp);
 	if (ret != 0x26)
@@ -195,9 +151,9 @@ static void read_image(void)
 	if (ret != data_long)
 		die("read file %s: error logo_data=%ld\n", filename,ret);
 #else
-    data = mmap(0, s.st_size, PROT_READ, MAP_SHARED, fp, 0);
-    if (data == MAP_FAILED)
-        die("read file %s: error logo_data\n", filename);
+	data = mmap(0, s.st_size, PROT_READ, MAP_SHARED, fd, 0);
+	if (data == MAP_FAILED)
+		die("read file %s: error logo_data\n", filename);
 	logo_data = data + 54;
 	logo_height = (data[0x19]<<24) + (data[0x18]<<16) +(data[0x17]<<8) +(data[0x16]);
 	logo_width  = (data[0x15]<<24) + (data[0x14]<<16) +(data[0x13]<<8) +(data[0x12]);
@@ -218,7 +174,7 @@ static void read_image(void)
 logo_data[9],logo_data[10],logo_data[11]);
 #endif
     /* close file */
-    close(fp);
+    close(fd);
 }
 
 
