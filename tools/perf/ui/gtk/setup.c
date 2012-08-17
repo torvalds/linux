@@ -13,6 +13,8 @@ int perf_gtk__init(void)
 
 void perf_gtk__exit(bool wait_for_ok __used)
 {
+	if (!perf_gtk__is_active_context(pgctx))
+		return;
 	perf_error__unregister(&perf_gtk_eops);
 	gtk_main_quit();
 }
