@@ -491,6 +491,68 @@ done:
 	return;
 }
 
+static void kvp_process_ipconfig_file(char *cmd,
+					char *config_buf, int len,
+					int element_size, int offset)
+{
+	char buf[256];
+	char *p;
+	char *x;
+	FILE *file;
+
+	/*
+	 * First execute the command.
+	 */
+	file = popen(cmd, "r");
+	if (file == NULL)
+		return;
+
+	if (offset == 0)
+		memset(config_buf, 0, len);
+	while ((p = fgets(buf, sizeof(buf), file)) != NULL) {
+		if ((len - strlen(config_buf)) < (element_size + 1))
+			break;
+
+		x = strchr(p, '\n');
+		*x = '\0';
+		strcat(config_buf, p);
+		strcat(config_buf, ";");
+	}
+	pclose(file);
+}
+
+static void kvp_get_ipconfig_info(char *if_name,
+				 struct hv_kvp_ipaddr_value *buffer)
+{
+	char cmd[512];
+
+	/*
+	 * Get the address of default gateway (ipv4).
+	 */
+	sprintf(cmd, "%s %s", "ip route show dev", if_name);
+	strcat(cmd, " | awk '/default/ {print $3 }'");
+
+	/*
+	 * Execute the command to gather gateway info.
+	 */
+	kvp_process_ipconfig_file(cmd, (char *)buffer->gate_way,
+				(MAX_GATEWAY_SIZE * 2), INET_ADDRSTRLEN, 0);
+
+	/*
+	 * Get the address of default gateway (ipv6).
+	 */
+	sprintf(cmd, "%s %s", "ip -f inet6  route show dev", if_name);
+	strcat(cmd, " | awk '/default/ {print $3 }'");
+
+	/*
+	 * Execute the command to gather gateway info (ipv6).
+	 */
+	kvp_process_ipconfig_file(cmd, (char *)buffer->gate_way,
+				(MAX_GATEWAY_SIZE * 2), INET6_ADDRSTRLEN, 1);
+
+}
+
+
 static unsigned int hweight32(unsigned int *w)
 {
 	unsigned int res = *w - ((*w >> 1) & 0x55555555);
@@ -650,6 +712,12 @@ kvp_get_ip_address(int family, char *if_name, int op,
 				strcat((char *)ip_buffer->sub_net, ";");
 				sn_offset += strlen(sn_str) + 1;
 			}
+
+			/*
+			 * Collect other ip related configuration info.
+			 */
+
+			kvp_get_ipconfig_info(if_name, ip_buffer);
 		}
 
 gather_ipaddr:
