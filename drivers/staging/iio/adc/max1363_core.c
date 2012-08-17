@@ -1367,7 +1367,7 @@ error_out:
 	return ret;
 }
 
-static int max1363_remove(struct i2c_client *client)
+static int __devexit max1363_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct max1363_state *st = iio_priv(indio_dev);
@@ -1434,7 +1434,7 @@ static struct i2c_driver max1363_driver = {
 		.name = "max1363",
 	},
 	.probe = max1363_probe,
-	.remove = max1363_remove,
+	.remove = __devexit_p(max1363_remove),
 	.id_table = max1363_id,
 };
 module_i2c_driver(max1363_driver);

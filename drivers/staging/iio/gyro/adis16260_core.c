@@ -698,7 +698,7 @@ error_ret:
 	return ret;
 }
 
-static int adis16260_remove(struct spi_device *spi)
+static int __devexit adis16260_remove(struct spi_device *spi)
 {
 	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);

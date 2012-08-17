@@ -1204,7 +1204,7 @@ error_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int adis16400_remove(struct spi_device *spi)
+static int __devexit adis16400_remove(struct spi_device *spi)
 {
 	int ret;
 	struct iio_dev *indio_dev =  spi_get_drvdata(spi);
