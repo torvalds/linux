@@ -39,28 +39,6 @@ struct hv_context hv_context = {
 };
 
 /*
- * query_hypervisor_presence
- * - Query the cpuid for presence of windows hypervisor
- */
-static int query_hypervisor_presence(void)
-{
-	unsigned int eax;
-	unsigned int ebx;
-	unsigned int ecx;
-	unsigned int edx;
-	unsigned int op;
-
-	eax = 0;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	op = HVCPUID_VERSION_FEATURES;
-	cpuid(op, &eax, &ebx, &ecx, &edx);
-
-	return ecx & HV_PRESENT_BIT;
-}
-
-/*
  * query_hypervisor_info - Get version info of the windows hypervisor
  */
 static int query_hypervisor_info(void)
@@ -159,9 +137,6 @@ int hv_init(void)
 	memset(hv_context.synic_event_page, 0, sizeof(void *) * NR_CPUS);
 	memset(hv_context.synic_message_page, 0,
 	       sizeof(void *) * NR_CPUS);
-
-	if (!query_hypervisor_presence())
-		goto cleanup;
 
 	max_leaf = query_hypervisor_info();
 

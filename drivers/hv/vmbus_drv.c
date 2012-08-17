@@ -719,9 +719,34 @@ static struct acpi_driver vmbus_acpi_driver = {
 	},
 };
 
+/*
+ * query_hypervisor_presence
+ * - Query the cpuid for presence of windows hypervisor
+ */
+static int query_hypervisor_presence(void)
+{
+	unsigned int eax;
+	unsigned int ebx;
+	unsigned int ecx;
+	unsigned int edx;
+	unsigned int op;
+
+	eax = 0;
+	ebx = 0;
+	ecx = 0;
+	edx = 0;
+	op = HVCPUID_VERSION_FEATURES;
+	cpuid(op, &eax, &ebx, &ecx, &edx);
+
+	return ecx & HV_PRESENT_BIT;
+}
+
 static int __init hv_acpi_init(void)
 {
 	int ret, t;
+
+	if (!query_hypervisor_presence())
+		return -ENODEV;
 
 	init_completion(&probe_event);
 
