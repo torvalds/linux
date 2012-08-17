@@ -57,7 +57,7 @@ static struct clk_tegra tegra_clk_32k_hw = {
 static struct clk tegra_clk_32k = {
 	.name = "clk_32k",
 	.hw = &tegra_clk_32k_hw.hw,
-	.ops = &tegra_clk_32k_ops,
+	.ops = &tegra30_clk_32k_ops,
 	.flags = CLK_IS_ROOT,
 };
 

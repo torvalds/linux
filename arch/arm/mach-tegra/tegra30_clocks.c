@@ -478,7 +478,7 @@ static unsigned long tegra30_clk_fixed_recalc_rate(struct clk_hw *hw,
 	return to_clk_tegra(hw)->fixed_rate;
 }
 
-struct clk_ops tegra_clk_32k_ops = {
+struct clk_ops tegra30_clk_32k_ops = {
 	.recalc_rate = tegra30_clk_fixed_recalc_rate,
 };
 

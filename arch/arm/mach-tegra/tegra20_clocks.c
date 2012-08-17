@@ -231,6 +231,16 @@ static int clk_div16_get_divider(unsigned long parent_rate, unsigned long rate)
 	return divider_u16 - 1;
 }
 
+static unsigned long tegra_clk_fixed_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	return to_clk_tegra(hw)->fixed_rate;
+}
+
+struct clk_ops tegra_clk_32k_ops = {
+	.recalc_rate = tegra_clk_fixed_recalc_rate,
+};
+
 /* clk_m functions */
 static unsigned long tegra20_clk_m_recalc_rate(struct clk_hw *hw,
 			unsigned long prate)

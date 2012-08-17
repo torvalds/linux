@@ -17,7 +17,7 @@
 #ifndef __MACH_TEGRA30_CLOCK_H
 #define __MACH_TEGRA30_CLOCK_H
 
-extern struct clk_ops tegra_clk_32k_ops;
+extern struct clk_ops tegra30_clk_32k_ops;
 extern struct clk_ops tegra30_clk_m_ops;
 extern struct clk_ops tegra_clk_m_div_ops;
 extern struct clk_ops tegra_pll_ref_ops;
