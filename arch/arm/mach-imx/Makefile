@@ -71,14 +71,13 @@ obj-$(CONFIG_DEBUG_LL) += lluart.o
 obj-$(CONFIG_HAVE_IMX_GPC) += gpc.o
 obj-$(CONFIG_HAVE_IMX_MMDC) += mmdc.o
 obj-$(CONFIG_HAVE_IMX_SRC) += src.o
-obj-$(CONFIG_CPU_V7) += head-v7.o
-AFLAGS_head-v7.o :=-Wa,-march=armv7-a
-obj-$(CONFIG_SMP) += platsmp.o
+AFLAGS_headsmp.o :=-Wa,-march=armv7-a
+obj-$(CONFIG_SMP) += headsmp.o platsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_SOC_IMX6Q) += clk-imx6q.o mach-imx6q.o
 
 ifeq ($(CONFIG_PM),y)
-obj-$(CONFIG_SOC_IMX6Q) += pm-imx6q.o
+obj-$(CONFIG_SOC_IMX6Q) += pm-imx6q.o headsmp.o
 endif
 
 # i.MX5 based machines
