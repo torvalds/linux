@@ -56,14 +56,6 @@ Please report success/failure with other different cards to
 /* maximum number of ao channels for supported boards */
 #define MAX_AO_CHANNELS 8
 
-/* PCI-DDA base addresses */
-#define DIGITALIO_BADRINDEX	2
-	/*  DIGITAL I/O is pci_dev->resource[2] */
-#define DIGITALIO_SIZE 8
-	/*  DIGITAL I/O uses 8 I/O port addresses */
-#define DAC_BADRINDEX	3
-	/*  DAC is pci_dev->resource[3] */
-
 /* Digital I/O registers */
 #define PORT1A 0		/*  PORT 1A DATA */
 
@@ -670,86 +662,55 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 	return 1;
 }
 
-static struct pci_dev *cb_pcidda_find_pci_dev(struct comedi_device *dev,
-					      struct comedi_devconfig *it)
+static const void *cb_pcidda_find_boardinfo(struct comedi_device *dev,
+					    struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
+	const struct cb_pcidda_board *thisboard;
 	int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_CB)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(cb_pcidda_boards); i++) {
-			if (cb_pcidda_boards[i].device_id != pcidev->device)
-				continue;
-			dev->board_ptr = cb_pcidda_boards + i;
-			return pcidev;
-		}
+	for (i = 0; i < ARRAY_SIZE(cb_pcidda_boards); i++) {
+		thisboard = &cb_pcidda_boards[i];
+		if (thisboard->device_id != pcidev->device)
+			return thisboard;
 	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
 	return NULL;
 }
 
-static int cb_pcidda_attach(struct comedi_device *dev,
-			    struct comedi_devconfig *it)
+static int cb_pcidda_attach_pci(struct comedi_device *dev,
+				struct pci_dev *pcidev)
 {
 	const struct cb_pcidda_board *thisboard;
 	struct cb_pcidda_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int index;
 	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	thisboard = cb_pcidda_find_boardinfo(dev, pcidev);
+	if (!pcidev)
+		return -ENODEV;
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret)
 		return ret;
 	devpriv = dev->private;
 
-	pcidev = cb_pcidda_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
 
-	/*
-	 * Enable PCI device and request regions.
-	 */
-	if (comedi_pci_enable(pcidev, thisboard->name)) {
-		dev_err(dev->class_dev,
-			"cb_pcidda: failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
-
-/*
- * Allocate the I/O ports.
- */
-	devpriv->digitalio = pci_resource_start(pcidev, DIGITALIO_BADRINDEX);
-	devpriv->dac = pci_resource_start(pcidev, DAC_BADRINDEX);
+	devpriv->digitalio = pci_resource_start(pcidev, 2);
+	devpriv->dac = pci_resource_start(pcidev, 3);
 	dev->iobase = devpriv->dac;
 
-/*
- * Warn about the status of the driver.
- */
 	if (thisboard->status == 2)
 		printk
 		    ("WARNING: DRIVER FOR THIS BOARD NOT CHECKED WITH MANUAL. "
 		     "WORKS ASSUMING FULL COMPATIBILITY WITH PCI-DDA08/12. "
 		     "PLEASE REPORT USAGE TO <ivanmr@altavista.com>.\n");
-
-/*
- * Initialize dev->board_name.
- */
-	dev->board_name = thisboard->name;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -785,28 +746,29 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 	for (index = 0; index < thisboard->ao_chans; index++)
 		cb_pcidda_calibrate(dev, index, devpriv->ao_range[index]);
 
-	return 1;
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+
+	return 0;
 }
 
 static void cb_pcidda_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
-	}
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 1);
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
 	}
 }
 
 static struct comedi_driver cb_pcidda_driver = {
 	.driver_name	= "cb_pcidda",
 	.module		= THIS_MODULE,
-	.attach		= cb_pcidda_attach,
+	.attach_pci	= cb_pcidda_attach_pci,
 	.detach		= cb_pcidda_detach,
 };
 
