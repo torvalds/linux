@@ -540,7 +540,7 @@ static int __devexit mcfqspi_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int mcfqspi_suspend(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
 
 	spi_master_suspend(master);
@@ -552,7 +552,7 @@ static int mcfqspi_suspend(struct device *dev)
 
 static int mcfqspi_resume(struct device *dev)
 {
-	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
+	struct spi_master *master = dev_get_drvdata(dev);
 	struct mcfqspi *mcfqspi = spi_master_get_devdata(master);
 
 	spi_master_resume(master);
