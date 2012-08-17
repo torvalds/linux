@@ -98,17 +98,10 @@ Configuration Options:
 #define PCIMDDA_DA_CHAN(x)		(0x00 + (x) * 2)
 #define PCIMDDA_8255_BASE_REG		0x0c
 
-/*
- * this structure is for data unique to this hardware driver.  If
- * several hardware drivers keep similar information in this structure,
- * feel free to suggest moving the variable to the struct comedi_device
- * struct.
- */
-struct cb_pcimdda_private {
-#define MAX_AO_READBACK_CHANNELS 6
-	/* Used for AO readback */
-	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
+#define MAX_AO_READBACK_CHANNELS	6
 
+struct cb_pcimdda_private {
+	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
 };
 
 static int cb_pcimdda_ao_winsn(struct comedi_device *dev,
