@@ -416,8 +416,9 @@ static void vfio_device_release(struct kref *kref)
 /* Device reference always implies a group reference */
 static void vfio_device_put(struct vfio_device *device)
 {
+	struct vfio_group *group = device->group;
 	kref_put(&device->kref, vfio_device_release);
-	vfio_group_put(device->group);
+	vfio_group_put(group);
 }
 
 static void vfio_device_get(struct vfio_device *device)
