@@ -137,7 +137,6 @@ static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
  * struct.
  */
 struct cb_pcimdda_private {
-	unsigned long dio_registers;
 	char attached_to_8255;	/* boolean */
 
 #define MAX_AO_READBACK_CHANNELS 6
@@ -243,11 +242,11 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	struct cb_pcimdda_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	int err;
+	int ret;
 
-	err = alloc_private(dev, sizeof(*devpriv));
-	if (err)
-		return err;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
 	devpriv = dev->private;
 
 	pcidev = cb_pcimdda_probe(dev, it);
@@ -257,15 +256,14 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
-	err = comedi_pci_enable(pcidev, dev->board_name);
-	if (err)
-		return err;
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
 	dev->iobase = pci_resource_start(pcidev, thisboard->regs_badrindex);
-	devpriv->dio_registers = dev->iobase + thisboard->dio_offset;
 
-	err = comedi_alloc_subdevices(dev, 2);
-	if (err)
-		return err;
+	ret = comedi_alloc_subdevices(dev, 2);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 
@@ -287,11 +285,10 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	if (thisboard->dio_chans) {
 		switch (thisboard->dio_method) {
 		case DIO_8255:
-			/*
-			 * this is a straight 8255, so register us with
-			 * the 8255 driver
-			 */
-			subdev_8255_init(dev, s, NULL, devpriv->dio_registers);
+			ret = subdev_8255_init(dev, s, NULL,
+					dev->iobase + thisboard->dio_offset);
+			if (ret)
+				return ret;
 			devpriv->attached_to_8255 = 1;
 			break;
 		case DIO_INTERNAL:
