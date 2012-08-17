@@ -379,7 +379,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	u8 data_format = var->nonstd&0xff;
 	var->pixclock = dev_drv->pixclock;
  	
-	printk("-----data_format=%d\n",data_format);
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
