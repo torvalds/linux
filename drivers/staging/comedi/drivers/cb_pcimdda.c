@@ -137,7 +137,6 @@ static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
  * struct.
  */
 struct cb_pcimdda_private {
-	unsigned long registers;	/* set by probe */
 	unsigned long dio_registers;
 	char attached_to_8255;	/* boolean */
 	/* would be useful for a PCI device */
@@ -157,7 +156,7 @@ static int cb_pcimdda_ao_winsn(struct comedi_device *dev,
 	struct cb_pcimdda_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
-	unsigned long offset = devpriv->registers + chan * 2;
+	unsigned long offset = dev->iobase + chan * 2;
 
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
@@ -201,7 +200,7 @@ static int cb_pcimdda_ao_rinsn(struct comedi_device *dev,
 	int chan = CR_CHAN(insn->chanspec);
 
 	for (i = 0; i < insn->n; i++) {
-		inw(devpriv->registers + chan * 2);
+		inw(dev->iobase + chan * 2);
 		/*
 		 * should I set data[i] to the result of the actual read
 		 * on the register or the cached unsigned int in
@@ -263,9 +262,9 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	err = comedi_pci_enable(pcidev, dev->board_name);
 	if (err)
 		return err;
-	devpriv->registers = pci_resource_start(devpriv->pci_dev,
+	dev->iobase = pci_resource_start(devpriv->pci_dev,
 						thisboard->regs_badrindex);
-	devpriv->dio_registers = devpriv->registers + thisboard->dio_offset;
+	devpriv->dio_registers = dev->iobase + thisboard->dio_offset;
 
 	err = comedi_alloc_subdevices(dev, 2);
 	if (err)
@@ -323,7 +322,7 @@ static void cb_pcimdda_detach(struct comedi_device *dev)
 			devpriv->attached_to_8255 = 0;
 		}
 		if (devpriv->pci_dev) {
-			if (devpriv->registers)
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
 			pci_dev_put(devpriv->pci_dev);
 		}
