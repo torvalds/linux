@@ -28,7 +28,7 @@ extern struct clk_ops tegra30_plle_ops;
 extern struct clk_ops tegra_cml_clk_ops;
 extern struct clk_ops tegra_pciex_clk_ops;
 extern struct clk_ops tegra_sync_source_ops;
-extern struct clk_ops tegra_audio_sync_clk_ops;
+extern struct clk_ops tegra30_audio_sync_clk_ops;
 extern struct clk_ops tegra30_clk_double_ops;
 extern struct clk_ops tegra_clk_out_ops;
 extern struct clk_ops tegra30_super_ops;

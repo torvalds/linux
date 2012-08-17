@@ -520,7 +520,7 @@ static const char *mux_audio_sync_clk[] = {
 	};							\
 	static struct clk tegra_##_name = {			\
 		.name = #_name,					\
-		.ops = &tegra_audio_sync_clk_ops,		\
+		.ops = &tegra30_audio_sync_clk_ops,		\
 		.hw = &tegra_##_name##_hw.hw,			\
 		.parent_names = mux_audio_sync_clk,		\
 		.parents = tegra_sync_source_list,		\
