@@ -139,8 +139,6 @@ static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
 struct cb_pcimdda_private {
 	unsigned long dio_registers;
 	char attached_to_8255;	/* boolean */
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
 
 #define MAX_AO_READBACK_CHANNELS 6
 	/* Used for AO readback */
@@ -255,15 +253,14 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	pcidev = cb_pcimdda_probe(dev, it);
 	if (!pcidev)
 		return -EIO;
-	devpriv->pci_dev = pcidev;
+	comedi_set_hw_dev(dev, &pcidev->dev);
 	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
 	err = comedi_pci_enable(pcidev, dev->board_name);
 	if (err)
 		return err;
-	dev->iobase = pci_resource_start(devpriv->pci_dev,
-						thisboard->regs_badrindex);
+	dev->iobase = pci_resource_start(pcidev, thisboard->regs_badrindex);
 	devpriv->dio_registers = dev->iobase + thisboard->dio_offset;
 
 	err = comedi_alloc_subdevices(dev, 2);
@@ -314,6 +311,7 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 
 static void cb_pcimdda_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct cb_pcimdda_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -321,11 +319,11 @@ static void cb_pcimdda_detach(struct comedi_device *dev)
 			subdev_8255_cleanup(dev, dev->subdevices + 2);
 			devpriv->attached_to_8255 = 0;
 		}
-		if (devpriv->pci_dev) {
-			if (dev->iobase)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 
