@@ -218,6 +218,11 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	u32 scratch_addr = pc->gtt_offset + 128;
 	int ret;
 
+	/* Force SNB workarounds for PIPE_CONTROL flushes */
+	ret = intel_emit_post_sync_nonzero_flush(ring);
+	if (ret)
+		return ret;
+
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
 	 * impact.
@@ -303,20 +308,6 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 	intel_ring_advance(ring);
 
 	return 0;
-}
-
-static int
-gen6_render_ring_flush__wa(struct intel_ring_buffer *ring,
-			   u32 invalidate_domains, u32 flush_domains)
-{
-	int ret;
-
-	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	ret = intel_emit_post_sync_nonzero_flush(ring);
-	if (ret)
-		return ret;
-
-	return gen6_render_ring_flush(ring, invalidate_domains, flush_domains);
 }
 
 static void ring_write_tail(struct intel_ring_buffer *ring,
@@ -1435,7 +1426,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->add_request = gen6_add_request;
 		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)
-			ring->flush = gen6_render_ring_flush__wa;
+			ring->flush = gen6_render_ring_flush;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT;
