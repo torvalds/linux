@@ -983,6 +983,9 @@ static int em28xx_dvb_init(struct em28xx *dev)
 				   &dev->i2c_adap, &kworld_a340_config);
 		break;
 	case EM28174_BOARD_PCTV_290E:
+		/* set default GPIO0 for LNA, used if GPIOLIB is undefined */
+		dvb->lna_gpio = CXD2820R_GPIO_E | CXD2820R_GPIO_O |
+				CXD2820R_GPIO_L;
 		dvb->fe[0] = dvb_attach(cxd2820r_attach,
 					&em28xx_cxd2820r_config,
 					&dev->i2c_adap,

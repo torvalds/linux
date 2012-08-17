@@ -567,7 +567,7 @@ static int cxd2820r_get_frontend_algo(struct dvb_frontend *fe)
 static void cxd2820r_release(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
-	int ret;
+	int uninitialized_var(ret); /* silence compiler warning */
 
 	dev_dbg(&priv->i2c->dev, "%s\n", __func__);
 
@@ -688,9 +688,9 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 {
 	struct cxd2820r_priv *priv;
 	int ret;
-	u8 tmp;
+	u8 tmp, gpio[GPIO_COUNT];
 
-	priv = kzalloc(sizeof (struct cxd2820r_priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct cxd2820r_priv), GFP_KERNEL);
 	if (!priv) {
 		ret = -ENOMEM;
 		dev_err(&i2c->dev, "%s: kzalloc() failed\n",
@@ -699,7 +699,9 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 	}
 
 	priv->i2c = i2c;
-	memcpy(&priv->cfg, cfg, sizeof (struct cxd2820r_config));
+	memcpy(&priv->cfg, cfg, sizeof(struct cxd2820r_config));
+	memcpy(&priv->fe.ops, &cxd2820r_ops, sizeof(struct dvb_frontend_ops));
+	priv->fe.demodulator_priv = priv;
 
 	priv->bank[0] = priv->bank[1] = 0xff;
 	ret = cxd2820r_rd_reg(priv, 0x000fd, &tmp);
@@ -707,9 +709,9 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 	if (ret || tmp != 0xe1)
 		goto error;
 
-#ifdef CONFIG_GPIOLIB
-	/* add GPIOs */
 	if (gpio_chip_base) {
+#ifdef CONFIG_GPIOLIB
+		/* add GPIOs */
 		priv->gpio_chip.label = KBUILD_MODNAME;
 		priv->gpio_chip.dev = &priv->i2c->dev;
 		priv->gpio_chip.owner = THIS_MODULE;
@@ -728,11 +730,20 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 				priv->gpio_chip.base);
 
 		*gpio_chip_base = priv->gpio_chip.base;
-	}
+#else
+		/*
+		 * Use static GPIO configuration if GPIOLIB is undefined.
+		 * This is fallback condition.
+		 */
+		gpio[0] = (*gpio_chip_base >> 0) & 0x07;
+		gpio[1] = (*gpio_chip_base >> 3) & 0x07;
+		gpio[2] = 0;
+		ret = cxd2820r_gpio(&priv->fe, gpio);
+		if (ret)
+			goto error;
 #endif
+	}
 
-	memcpy(&priv->fe.ops, &cxd2820r_ops, sizeof (struct dvb_frontend_ops));
-	priv->fe.demodulator_priv = priv;
 	return &priv->fe;
 error:
 	dev_dbg(&i2c->dev, "%s: failed=%d\n", __func__, ret);
