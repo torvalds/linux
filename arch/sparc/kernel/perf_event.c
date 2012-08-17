@@ -752,7 +752,6 @@ out:
 static void sparc_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	u64 pcr;
 
 	if (cpuc->enabled)
 		return;
@@ -760,11 +759,8 @@ static void sparc_pmu_enable(struct pmu *pmu)
 	cpuc->enabled = 1;
 	barrier();
 
-	pcr = cpuc->pcr[0];
-	if (!cpuc->n_events) {
-		pcr = 0;
-	} else {
-		pcr = maybe_change_configuration(cpuc, pcr);
+	if (cpuc->n_events) {
+		u64 pcr = maybe_change_configuration(cpuc, cpuc->pcr[0]);
 
 		/* We require that all of the events have the same
 		 * configuration, so just fetch the settings from the
