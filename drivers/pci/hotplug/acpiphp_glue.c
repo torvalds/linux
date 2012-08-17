@@ -1461,34 +1461,6 @@ int __init acpiphp_get_num_slots(void)
 }
 
 
-#if 0
-/**
- * acpiphp_for_each_slot - call function for each slot
- * @fn: callback function
- * @data: context to be passed to callback function
- */
-static int acpiphp_for_each_slot(acpiphp_callback fn, void *data)
-{
-	struct list_head *node;
-	struct acpiphp_bridge *bridge;
-	struct acpiphp_slot *slot;
-	int retval = 0;
-
-	list_for_each (node, &bridge_list) {
-		bridge = (struct acpiphp_bridge *)node;
-		for (slot = bridge->slots; slot; slot = slot->next) {
-			retval = fn(slot, data);
-			if (!retval)
-				goto err_exit;
-		}
-	}
-
- err_exit:
-	return retval;
-}
-#endif
-
-
 /**
  * acpiphp_enable_slot - power on slot
  * @slot: ACPI PHP slot
