@@ -73,6 +73,8 @@ extern void r600_ih_ring_fini(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
+extern void si_rlc_fini(struct radeon_device *rdev);
+extern int si_rlc_init(struct radeon_device *rdev);
 
 #define BONAIRE_IO_MC_REGS_SIZE 36
 
@@ -4680,4 +4682,338 @@ restart_ih:
 		goto restart_ih;
 
 	return IRQ_HANDLED;
+}
+
+/*
+ * startup/shutdown callbacks
+ */
+/**
+ * cik_startup - program the asic to a functional state
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Programs the asic to a functional state (CIK).
+ * Called by cik_init() and cik_resume().
+ * Returns 0 for success, error for failure.
+ */
+static int cik_startup(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
+		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw) {
+			r = cik_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
+		    !rdev->mec_fw || !rdev->sdma_fw || !rdev->rlc_fw ||
+		    !rdev->mc_fw) {
+			r = cik_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+
+		r = ci_mc_load_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load MC firmware!\n");
+			return r;
+		}
+	}
+
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
+	cik_mc_program(rdev);
+	r = cik_pcie_gart_enable(rdev);
+	if (r)
+		return r;
+	cik_gpu_init(rdev);
+
+	/* allocate rlc buffers */
+	r = si_rlc_init(rdev);
+	if (r) {
+		DRM_ERROR("Failed to init rlc BOs!\n");
+		return r;
+	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
+	r = radeon_fence_driver_start_ring(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_fence_driver_start_ring(rdev, R600_RING_TYPE_DMA_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing DMA fences (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_DMA1_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing DMA fences (%d).\n", r);
+		return r;
+	}
+
+	/* Enable IRQ */
+	if (!rdev->irq.installed) {
+		r = radeon_irq_kms_init(rdev);
+		if (r)
+			return r;
+	}
+
+	r = cik_irq_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: IH init failed (%d).\n", r);
+		radeon_irq_kms_fini(rdev);
+		return r;
+	}
+	cik_irq_set(rdev);
+
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
+			     CP_RB0_RPTR, CP_RB0_WPTR,
+			     0, 0xfffff, RADEON_CP_PACKET2);
+	if (r)
+		return r;
+
+	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, R600_WB_DMA_RPTR_OFFSET,
+			     SDMA0_GFX_RB_RPTR + SDMA0_REGISTER_OFFSET,
+			     SDMA0_GFX_RB_WPTR + SDMA0_REGISTER_OFFSET,
+			     2, 0xfffffffc, SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+	if (r)
+		return r;
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, CAYMAN_WB_DMA1_RPTR_OFFSET,
+			     SDMA0_GFX_RB_RPTR + SDMA1_REGISTER_OFFSET,
+			     SDMA0_GFX_RB_WPTR + SDMA1_REGISTER_OFFSET,
+			     2, 0xfffffffc, SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0));
+	if (r)
+		return r;
+
+	r = cik_cp_resume(rdev);
+	if (r)
+		return r;
+
+	r = cik_sdma_resume(rdev);
+	if (r)
+		return r;
+
+	r = radeon_ib_pool_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_vm_manager_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
+		return r;
+	}
+
+	return 0;
+}
+
+/**
+ * cik_resume - resume the asic to a functional state
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Programs the asic to a functional state (CIK).
+ * Called at resume.
+ * Returns 0 for success, error for failure.
+ */
+int cik_resume(struct radeon_device *rdev)
+{
+	int r;
+
+	/* post card */
+	atom_asic_init(rdev->mode_info.atom_context);
+
+	rdev->accel_working = true;
+	r = cik_startup(rdev);
+	if (r) {
+		DRM_ERROR("cik startup failed on resume\n");
+		rdev->accel_working = false;
+		return r;
+	}
+
+	return r;
+
+}
+
+/**
+ * cik_suspend - suspend the asic
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Bring the chip into a state suitable for suspend (CIK).
+ * Called at suspend.
+ * Returns 0 for success.
+ */
+int cik_suspend(struct radeon_device *rdev)
+{
+	radeon_vm_manager_fini(rdev);
+	cik_cp_enable(rdev, false);
+	cik_sdma_enable(rdev, false);
+	cik_irq_suspend(rdev);
+	radeon_wb_disable(rdev);
+	cik_pcie_gart_disable(rdev);
+	return 0;
+}
+
+/* Plan is to move initialization in that function and use
+ * helper function so that radeon_device_init pretty much
+ * do nothing more than calling asic specific function. This
+ * should also allow to remove a bunch of callback function
+ * like vram_info.
+ */
+/**
+ * cik_init - asic specific driver and hw init
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Setup asic specific driver variables and program the hw
+ * to a functional state (CIK).
+ * Called at driver startup.
+ * Returns 0 for success, errors for failure.
+ */
+int cik_init(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	/* Read BIOS */
+	if (!radeon_get_bios(rdev)) {
+		if (ASIC_IS_AVIVO(rdev))
+			return -EINVAL;
+	}
+	/* Must be an ATOMBIOS */
+	if (!rdev->is_atom_bios) {
+		dev_err(rdev->dev, "Expecting atombios for cayman GPU\n");
+		return -EINVAL;
+	}
+	r = radeon_atombios_init(rdev);
+	if (r)
+		return r;
+
+	/* Post card if necessary */
+	if (!radeon_card_posted(rdev)) {
+		if (!rdev->bios) {
+			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			return -EINVAL;
+		}
+		DRM_INFO("GPU not posted. posting now...\n");
+		atom_asic_init(rdev->mode_info.atom_context);
+	}
+	/* Initialize scratch registers */
+	cik_scratch_init(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
+	/* Initialize clocks */
+	radeon_get_clock_info(rdev->ddev);
+
+	/* Fence driver */
+	r = radeon_fence_driver_init(rdev);
+	if (r)
+		return r;
+
+	/* initialize memory controller */
+	r = cik_mc_init(rdev);
+	if (r)
+		return r;
+	/* Memory manager */
+	r = radeon_bo_init(rdev);
+	if (r)
+		return r;
+
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 1024 * 1024);
+
+	ring = &rdev->ring[R600_RING_TYPE_DMA_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 256 * 1024);
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 256 * 1024);
+
+	rdev->ih.ring_obj = NULL;
+	r600_ih_ring_init(rdev, 64 * 1024);
+
+	r = r600_pcie_gart_init(rdev);
+	if (r)
+		return r;
+
+	rdev->accel_working = true;
+	r = cik_startup(rdev);
+	if (r) {
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		cik_cp_fini(rdev);
+		cik_sdma_fini(rdev);
+		cik_irq_fini(rdev);
+		si_rlc_fini(rdev);
+		radeon_wb_fini(rdev);
+		radeon_ib_pool_fini(rdev);
+		radeon_vm_manager_fini(rdev);
+		radeon_irq_kms_fini(rdev);
+		cik_pcie_gart_fini(rdev);
+		rdev->accel_working = false;
+	}
+
+	/* Don't start up if the MC ucode is missing.
+	 * The default clocks and voltages before the MC ucode
+	 * is loaded are not suffient for advanced operations.
+	 */
+	if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {
+		DRM_ERROR("radeon: MC ucode required for NI+.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/**
+ * cik_fini - asic specific driver and hw fini
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Tear down the asic specific driver variables and program the hw
+ * to an idle state (CIK).
+ * Called at driver unload.
+ */
+void cik_fini(struct radeon_device *rdev)
+{
+	cik_cp_fini(rdev);
+	cik_sdma_fini(rdev);
+	cik_irq_fini(rdev);
+	si_rlc_fini(rdev);
+	radeon_wb_fini(rdev);
+	radeon_vm_manager_fini(rdev);
+	radeon_ib_pool_fini(rdev);
+	radeon_irq_kms_fini(rdev);
+	cik_pcie_gart_fini(rdev);
+	r600_vram_scratch_fini(rdev);
+	radeon_gem_fini(rdev);
+	radeon_fence_driver_fini(rdev);
+	radeon_bo_fini(rdev);
+	radeon_atombios_fini(rdev);
+	kfree(rdev->bios);
+	rdev->bios = NULL;
 }
