@@ -149,47 +149,121 @@ struct board_private_struct {
 
 };
 
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-
-/*---------------------------------------------------------------------------
-  HELPER FUNCTION DECLARATIONS
------------------------------------------------------------------------------*/
-
 /* returns a maxdata value for a given n_bits */
 static inline unsigned int figure_out_maxdata(int bits)
 {
 	return ((unsigned int)1 << bits) - 1;
 }
 
-/*
- *  Probes for a supported device.
- *
- *  Prerequisite: private be allocated already inside dev
- *
- *  If the device is found, it returns 0 and has the following side effects:
- *
- *  o  assigns a struct pci_dev * to dev->private->pci_dev
- *  o  assigns a struct board * to dev->board_ptr
- *  o  sets dev->private->registers
- *  o  sets dev->private->dio_registers
- *
- *  Otherwise, returns a -errno on error
- */
-static int probe(struct comedi_device *dev, const struct comedi_devconfig *it);
+static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+		    struct comedi_insn *insn, unsigned int *data)
+{
+	struct board_private_struct *devpriv = dev->private;
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
+	unsigned long offset = devpriv->registers + chan * 2;
 
-/*---------------------------------------------------------------------------
-  FUNCTION DEFINITIONS
------------------------------------------------------------------------------*/
+	/* Writing a list of values to an AO channel is probably not
+	 * very useful, but that's how the interface is defined. */
+	for (i = 0; i < insn->n; i++) {
+		/*  first, load the low byte */
+		outb((char)(data[i] & 0x00ff), offset);
+		/*  next, write the high byte -- only after this is written is
+		   the channel voltage updated in the DAC, unless
+		   we're in simultaneous xfer mode (jumper on card)
+		   then a rinsn is necessary to actually update the DAC --
+		   see ao_rinsn() below... */
+		outb((char)(data[i] >> 8 & 0x00ff), offset + 1);
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
+		/* for testing only.. the actual rinsn SHOULD do an inw!
+		   (see the stuff about simultaneous XFER mode on this board) */
+		devpriv->ao_readback[chan] = data[i];
+	}
+
+	/* return the number of samples read/written */
+	return i;
+}
+
+/* AO subdevices should have a read insn as well as a write insn.
+
+   Usually this means copying a value stored in devpriv->ao_readback.
+   However, since this board has this jumper setting called "Simultaneous
+   Xfer mode" (off by default), we will support it.  Simultaneaous xfer
+   mode is accomplished by loading ALL the values you want for AO in all the
+   channels, then READing off one of the AO registers to initiate the
+   instantaneous simultaneous update of all DAC outputs, which makes
+   all AO channels update simultaneously.  This is useful for some control
+   applications, I would imagine.
+*/
+static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+		    struct comedi_insn *insn, unsigned int *data)
+{
+	struct board_private_struct *devpriv = dev->private;
+	int i;
+	int chan = CR_CHAN(insn->chanspec);
+
+	for (i = 0; i < insn->n; i++) {
+		inw(devpriv->registers + chan * 2);
+		/*
+		 * should I set data[i] to the result of the actual read
+		 * on the register or the cached unsigned int in
+		 * devpriv->ao_readback[]?
+		 */
+		data[i] = devpriv->ao_readback[chan];
+	}
+
+	return i;
+}
+
+static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
+{
+	const struct board_struct *thisboard;
+	struct board_private_struct *devpriv = dev->private;
+	struct pci_dev *pcidev = NULL;
+	int index;
+	unsigned long registers;
+
+	for_each_pci_dev(pcidev) {
+		/*  is it not a computer boards card? */
+		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
+			continue;
+		/*  loop through cards supported by this driver */
+		for (index = 0; index < ARRAY_SIZE(boards); index++) {
+			if (boards[index].device_id != pcidev->device)
+				continue;
+			/*  was a particular bus/slot requested? */
+			if (it->options[0] || it->options[1]) {
+				/*  are we on the wrong bus/slot? */
+				if (pcidev->bus->number != it->options[0] ||
+				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
+					continue;
+				}
+			}
+			/* found ! */
+
+			devpriv->pci_dev = pcidev;
+			dev->board_ptr = boards + index;
+			thisboard = comedi_board(dev);
+			if (comedi_pci_enable(pcidev, thisboard->name)) {
+				printk
+				    ("cb_pcimdda: Failed to enable PCI device and request regions\n");
+				return -EIO;
+			}
+			registers =
+			    pci_resource_start(devpriv->pci_dev,
+					       thisboard->regs_badrindex);
+			devpriv->registers = registers;
+			devpriv->dio_registers
+			    = devpriv->registers + thisboard->dio_offset;
+			return 0;
+		}
+	}
+
+	printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
+	       "card found at the requested position\n");
+	return -ENODEV;
+}
+
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct board_struct *thisboard;
@@ -282,133 +356,6 @@ static void detach(struct comedi_device *dev)
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
-}
-
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
-{
-	struct board_private_struct *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned long offset = devpriv->registers + chan * 2;
-
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
-	for (i = 0; i < insn->n; i++) {
-		/*  first, load the low byte */
-		outb((char)(data[i] & 0x00ff), offset);
-		/*  next, write the high byte -- only after this is written is
-		   the channel voltage updated in the DAC, unless
-		   we're in simultaneous xfer mode (jumper on card)
-		   then a rinsn is necessary to actually update the DAC --
-		   see ao_rinsn() below... */
-		outb((char)(data[i] >> 8 & 0x00ff), offset + 1);
-
-		/* for testing only.. the actual rinsn SHOULD do an inw!
-		   (see the stuff about simultaneous XFER mode on this board) */
-		devpriv->ao_readback[chan] = data[i];
-	}
-
-	/* return the number of samples read/written */
-	return i;
-}
-
-/* AO subdevices should have a read insn as well as a write insn.
-
-   Usually this means copying a value stored in devpriv->ao_readback.
-   However, since this board has this jumper setting called "Simultaneous
-   Xfer mode" (off by default), we will support it.  Simultaneaous xfer
-   mode is accomplished by loading ALL the values you want for AO in all the
-   channels, then READing off one of the AO registers to initiate the
-   instantaneous simultaneous update of all DAC outputs, which makes
-   all AO channels update simultaneously.  This is useful for some control
-   applications, I would imagine.
-*/
-static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data)
-{
-	struct board_private_struct *devpriv = dev->private;
-	int i;
-	int chan = CR_CHAN(insn->chanspec);
-
-	for (i = 0; i < insn->n; i++) {
-		inw(devpriv->registers + chan * 2);
-		/*
-		 * should I set data[i] to the result of the actual read
-		 * on the register or the cached unsigned int in
-		 * devpriv->ao_readback[]?
-		 */
-		data[i] = devpriv->ao_readback[chan];
-	}
-
-	return i;
-}
-
-/*---------------------------------------------------------------------------
-  HELPER FUNCTION DEFINITIONS
------------------------------------------------------------------------------*/
-
-/*
- *  Probes for a supported device.
- *
- *  Prerequisite: private be allocated already inside dev
- *
- *  If the device is found, it returns 0 and has the following side effects:
- *
- *  o  assigns a struct pci_dev * to dev->private->pci_dev
- *  o  assigns a struct board * to dev->board_ptr
- *  o  sets dev->private->registers
- *  o  sets dev->private->dio_registers
- *
- *  Otherwise, returns a -errno on error
- */
-static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
-{
-	const struct board_struct *thisboard;
-	struct board_private_struct *devpriv = dev->private;
-	struct pci_dev *pcidev = NULL;
-	int index;
-	unsigned long registers;
-
-	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
-		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		/*  loop through cards supported by this driver */
-		for (index = 0; index < ARRAY_SIZE(boards); index++) {
-			if (boards[index].device_id != pcidev->device)
-				continue;
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			/* found ! */
-
-			devpriv->pci_dev = pcidev;
-			dev->board_ptr = boards + index;
-			thisboard = comedi_board(dev);
-			if (comedi_pci_enable(pcidev, thisboard->name)) {
-				printk
-				    ("cb_pcimdda: Failed to enable PCI device and request regions\n");
-				return -EIO;
-			}
-			registers =
-			    pci_resource_start(devpriv->pci_dev,
-					       thisboard->regs_badrindex);
-			devpriv->registers = registers;
-			devpriv->dio_registers
-			    = devpriv->registers + thisboard->dio_offset;
-			return 0;
-		}
-	}
-
-	printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
-	       "card found at the requested position\n");
-	return -ENODEV;
 }
 
 static struct comedi_driver cb_pcimdda_driver = {
