@@ -282,8 +282,16 @@ struct acpi_device_wakeup {
 	int prepare_count;
 };
 
-/* Device */
+struct acpi_device_physical_node {
+	u8 node_id;
+	struct list_head node;
+	struct device *dev;
+};
 
+/* set maximum of physical nodes to 32 for expansibility */
+#define ACPI_MAX_PHYSICAL_NODE	32
+
+/* Device */
 struct acpi_device {
 	int device_type;
 	acpi_handle handle;		/* no handle for fixed hardware */
@@ -304,6 +312,10 @@ struct acpi_device {
 	struct device dev;
 	struct acpi_bus_ops bus_ops;	/* workaround for different code path for hotplug */
 	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
+	u8 physical_node_count;
+	struct list_head physical_node_list;
+	struct mutex physical_node_lock;
+	DECLARE_BITMAP(physical_node_id_bitmap, ACPI_MAX_PHYSICAL_NODE);
 };
 
 static inline void *acpi_driver_data(struct acpi_device *d)
@@ -394,7 +406,6 @@ struct acpi_bus_type {
 };
 int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
-struct device *acpi_get_physical_device(acpi_handle);
 
 struct acpi_pci_root {
 	struct list_head node;

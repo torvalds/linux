@@ -481,6 +481,8 @@ static int acpi_device_register(struct acpi_device *device)
 	INIT_LIST_HEAD(&device->children);
 	INIT_LIST_HEAD(&device->node);
 	INIT_LIST_HEAD(&device->wakeup_list);
+	INIT_LIST_HEAD(&device->physical_node_list);
+	mutex_init(&device->physical_node_lock);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
 	if (!new_bus_id) {
