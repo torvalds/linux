@@ -280,15 +280,6 @@ static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
 	return 0;
 }
 
-static int adl_pci7x3x_attach(struct comedi_device *dev,
-			      struct comedi_devconfig *it)
-{
-	dev_warn(dev->class_dev,
-		"This driver does not support attach using comedi_config\n");
-
-	return -ENOSYS;
-}
-
 static void adl_pci7x3x_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -302,7 +293,6 @@ static void adl_pci7x3x_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci7x3x_driver = {
 	.driver_name	= "adl_pci7x3x",
 	.module		= THIS_MODULE,
-	.attach		= adl_pci7x3x_attach,
 	.attach_pci	= adl_pci7x3x_attach_pci,
 	.detach		= adl_pci7x3x_detach,
 };
