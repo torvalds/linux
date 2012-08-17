@@ -2596,6 +2596,7 @@ cont:
 		}
 		path[0].p_depth = depth;
 		path[0].p_hdr = ext_inode_hdr(inode);
+		i = 0;
 
 		if (ext4_ext_check(inode, path[0].p_hdr, depth)) {
 			err = -EIO;
