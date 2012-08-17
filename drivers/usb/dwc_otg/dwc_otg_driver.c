@@ -1203,6 +1203,9 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK30
     unsigned int * otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON2);
 #endif
+#ifdef CONFIG_ARCH_RK2928
+    unsigned int * otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON5);
+#endif
     
 #ifdef CONFIG_ARCH_RK29   
     regval = * otg_phy_con1; 
@@ -1287,6 +1290,35 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     clk_enable(ahbclk);
     
     *otg_phy_con = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
+    udelay(3);
+    clk_disable(phyclk);
+    clk_disable(ahbclk);
+#endif
+#endif
+//need to be checked @wlf
+#ifdef CONFIG_ARCH_RK2928                
+#ifndef CONFIG_USB20_HOST
+    otg_phy_con = (unsigned int*)(USBGRF_UOC1_CON5);
+    /*
+     * disable usb host 2.0 phy if not support
+     */
+    phyclk = clk_get(NULL, "otgphy1");
+    if (IS_ERR(phyclk)) {
+            retval = PTR_ERR(phyclk);
+            DWC_ERROR("can't get USBPHY1 clock\n");
+           goto fail;
+    }
+    clk_enable(phyclk);
+    
+    ahbclk = clk_get(NULL, "hclk_otg1");
+    if (IS_ERR(ahbclk)) {
+            retval = PTR_ERR(ahbclk);
+            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
+           goto fail;
+    }
+    clk_enable(ahbclk);
+    
+    *otg_phy_con = ((0x01<<0)|(0x00<<1)|(0x05<<4))|(((0x01<<0)|(0x01<<1)|(0x07<<4))<<16);   // enter suspend.
     udelay(3);
     clk_disable(phyclk);
     clk_disable(ahbclk);
@@ -1381,6 +1413,42 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * Enable usb phy 0
 	 */
     *otg_phy_con = ((0x01<<2)<<16);
+    
+	dwc_otg_device->phyclk = phyclk;
+	dwc_otg_device->ahbclk = ahbclk;
+#endif
+//need to be checked @wlf
+#if 0//def CONFIG_ARCH_RK2928    
+    otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON5);
+        cru_set_soft_reset(SOFT_RST_USBPHY0, true);
+	cru_set_soft_reset(SOFT_RST_OTGC0, true);
+	cru_set_soft_reset(SOFT_RST_USBOTG0, true);
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_USBOTG0, false);
+	cru_set_soft_reset(SOFT_RST_OTGC0, false);
+	cru_set_soft_reset(SOFT_RST_USBPHY0, false);
+
+    phyclk = clk_get(NULL, "otgphy0");
+    if (IS_ERR(phyclk)) {
+            retval = PTR_ERR(phyclk);
+            DWC_ERROR("can't get USBPHY0 clock\n");
+           goto fail;
+    }
+    clk_enable(phyclk);
+    
+    ahbclk = clk_get(NULL, "hclk_otg0");
+    if (IS_ERR(ahbclk)) {
+            retval = PTR_ERR(ahbclk);
+            DWC_ERROR("can't get USB otg0 ahb bus clock\n");
+           goto fail;
+    }
+    clk_enable(ahbclk);
+    
+	/*
+	 * Enable usb phy 0
+	 */
+    *otg_phy_con =  (0x01<<16);
     
 	dwc_otg_device->phyclk = phyclk;
 	dwc_otg_device->ahbclk = ahbclk;
@@ -1519,6 +1587,9 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 #endif
 #ifdef CONFIG_ARCH_RK30
     USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);    
+#endif
+#ifdef CONFIG_ARCH_RK2928
+    USB_IOMUX_INIT(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);    
 #endif
 	/*
 	 * Initialize the HCD
@@ -2057,7 +2128,10 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
     *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
 #endif
-        
+#ifdef CONFIG_ARCH_RK2928
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON5);
+    *otg_phy_con1 = (0x01<<16);    // exit suspend.
+#endif
     #if 0
     *otg_phy_con1 |= (0x01<<2);
     *otg_phy_con1 |= (0x01<<3);    // exit suspend.
@@ -2084,6 +2158,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK30  
     *(unsigned int*)(USBGRF_UOC1_CON2+4) = ((1<<5)|((1<<5)<<16));
 #endif    
+#ifdef CONFIG_ARCH_RK2928  
+    *(unsigned int*)(USBGRF_UOC1_CON5-4) = ((1<<5)|((1<<5)<<16));
+#endif   
 	if (dwc_otg_device == 0) 
 	{
 		dev_err(dev, "kmalloc of dwc_otg_device failed\n");
@@ -2108,6 +2185,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK30  
     ahbclk = clk_get(NULL, "hclk_otg1");
 #endif    
+#ifdef CONFIG_ARCH_RK2928
+    ahbclk = clk_get(NULL, "hclk_otg1");    //need to be checked @wlf
+#endif 
     if (IS_ERR(ahbclk)) {
             retval = PTR_ERR(ahbclk);
             DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
@@ -2213,15 +2293,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #endif    
 #ifdef CONFIG_ARCH_RK30
     USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
-#ifdef CONFIG_MACH_RK30_DS1001B
-    USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_GPIO0A5); 
-    if(gpio_request(RK30_PIN0_PA5,"host_drv")<0){
-        DWC_ERROR("request of host power control failed\n");
-        gpio_free(RK30_PIN0_PA5);
-    }
-    gpio_direction_output(RK30_PIN0_PA5, GPIO_HIGH);
-    gpio_set_value(RK30_PIN0_PA5, GPIO_HIGH);
-#endif
 #endif
 	/*
 	 * Initialize the DWC_otg core.
@@ -2246,9 +2317,15 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifndef CONFIG_USB20_HOST_EN
     clk_disable(phyclk);
     clk_disable(ahbclk);
+#if defined(CONFIG_ARCH_RK29)   
     otgreg &= ~(0x01<<14);    // suspend.
-    otgreg |= (0x01<<13);     // software control
+    otgreg |= (0x01<<13);     // software control enable
     *otg_phy_con1 = otgreg;
+#elif defined(CONFIG_ARCH_RK30)
+    *otg_phy_con1 = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
+#elif defined(CONFIG_ARCH_RK2928)
+    *otg_phy_con1 = ((0x01<<0)|(0x00<<1)|(0x05<<4))|(((0x01<<0)|(0x01<<1)|(0x07<<4))<<16);   // enter suspend.
+#endif
 #endif
 	return 0;
 

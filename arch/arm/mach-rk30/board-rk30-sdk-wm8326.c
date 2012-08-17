@@ -5,6 +5,7 @@
 #include <linux/mfd/wm831x/pmu.h>
 
 #include <mach/sram.h>
+#include <linux/earlysuspend.h>
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
@@ -498,7 +499,8 @@ struct regulator_init_data wm831x_regulator_init_dcdc[WM831X_MAX_DCDC] = {
 			.min_uV = 600000,
 			.max_uV = 1800000,	//0.6-1.8V
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL | REGULATOR_MODE_FAST | REGULATOR_MODE_IDLE,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(dcdc1_consumers),
 		.consumer_supplies = dcdc1_consumers,
@@ -509,7 +511,8 @@ struct regulator_init_data wm831x_regulator_init_dcdc[WM831X_MAX_DCDC] = {
 			.min_uV = 600000,
 			.max_uV = 1800000,	//0.6-1.8V
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL | REGULATOR_MODE_FAST | REGULATOR_MODE_IDLE,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(dcdc2_consumers),
 		.consumer_supplies = dcdc2_consumers,
@@ -520,7 +523,8 @@ struct regulator_init_data wm831x_regulator_init_dcdc[WM831X_MAX_DCDC] = {
 			.min_uV = 850000,
 			.max_uV = 3400000,	//0.85-3.4V
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL | REGULATOR_MODE_FAST | REGULATOR_MODE_IDLE,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(dcdc3_consumers),
 		.consumer_supplies = dcdc3_consumers,
@@ -531,7 +535,8 @@ struct regulator_init_data wm831x_regulator_init_dcdc[WM831X_MAX_DCDC] = {
 			.min_uV = 850000,
 			.max_uV = 3400000,	//0.85-3.4V
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_STANDBY | REGULATOR_MODE_NORMAL | REGULATOR_MODE_FAST | REGULATOR_MODE_IDLE,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(dcdc4_consumers),
 		.consumer_supplies = dcdc4_consumers,
@@ -572,7 +577,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 900000,
 			.max_uV = 3300000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo1_consumers),
 		.consumer_supplies = ldo1_consumers,
@@ -583,7 +589,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 900000,
 			.max_uV = 3300000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo2_consumers),
 		.consumer_supplies = ldo2_consumers,
@@ -594,7 +601,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 900000,
 			.max_uV = 3300000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo3_consumers),
 		.consumer_supplies = ldo3_consumers,
@@ -605,7 +613,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 900000,
 			.max_uV = 3300000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo4_consumers),
 		.consumer_supplies = ldo4_consumers,
@@ -616,7 +625,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 900000,
 			.max_uV = 3300000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo5_consumers),
 		.consumer_supplies = ldo5_consumers,
@@ -627,7 +637,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 900000,
 			.max_uV = 3300000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo6_consumers),
 		.consumer_supplies = ldo6_consumers,
@@ -638,7 +649,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 1000000,
 			.max_uV = 3500000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo7_consumers),
 		.consumer_supplies = ldo7_consumers,
@@ -649,7 +661,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 1000000,
 			.max_uV = 3500000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo8_consumers),
 		.consumer_supplies = ldo8_consumers,
@@ -660,7 +673,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 1000000,
 			.max_uV = 3500000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo9_consumers),
 		.consumer_supplies = ldo9_consumers,
@@ -671,7 +685,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 1000000,
 			.max_uV = 3500000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo10_consumers),
 		.consumer_supplies = ldo10_consumers,
@@ -682,7 +697,8 @@ struct regulator_init_data wm831x_regulator_init_ldo[WM831X_MAX_LDO] = {
 			.min_uV = 800000,
 			.max_uV = 1550000,
 			.apply_uV = true,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_MODE,
+			.valid_modes_mask = REGULATOR_MODE_IDLE | REGULATOR_MODE_NORMAL,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(ldo11_consumers),
 		.consumer_supplies = ldo11_consumers,
@@ -776,6 +792,93 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 out:
 	return 0;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+void wm831x_pmu_early_suspend(struct regulator_dev *rdev)
+{
+	struct regulator *dcdc;
+	struct regulator *ldo;
+	printk("%s\n", __func__);
+	
+	dcdc = regulator_get(NULL, "dcdc4");	//vcc_io
+	regulator_set_voltage(dcdc, 2800000, 2800000);
+	regulator_set_mode(dcdc, REGULATOR_MODE_STANDBY);
+	regulator_enable(dcdc);
+	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+
+	ldo = regulator_get(NULL, "ldo1");	//
+	regulator_set_mode(ldo, REGULATOR_MODE_IDLE);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);
+	
+	ldo = regulator_get(NULL, "ldo4");
+	regulator_set_mode(ldo, REGULATOR_MODE_IDLE);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);
+	
+	ldo = regulator_get(NULL, "ldo6");
+	regulator_set_mode(ldo, REGULATOR_MODE_IDLE);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);
+
+	ldo = regulator_get(NULL, "ldo8");
+	regulator_set_mode(ldo, REGULATOR_MODE_IDLE);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);	
+		
+}
+void wm831x_pmu_early_resume(struct regulator_dev *rdev)
+{
+	struct regulator *dcdc;
+	struct regulator *ldo;
+	printk("%s\n", __func__);
+	
+	dcdc = regulator_get(NULL, "dcdc4");	//vcc_io
+	regulator_set_voltage(dcdc, 3000000, 3000000);
+	regulator_set_mode(dcdc, REGULATOR_MODE_FAST);
+	regulator_enable(dcdc);
+	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+
+	ldo = regulator_get(NULL, "ldo1");	//
+	regulator_set_mode(ldo, REGULATOR_MODE_NORMAL);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);
+
+	ldo = regulator_get(NULL, "ldo4");
+	regulator_set_mode(ldo, REGULATOR_MODE_NORMAL);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);
+
+	ldo = regulator_get(NULL, "ldo6");
+	regulator_set_mode(ldo, REGULATOR_MODE_NORMAL);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);
+
+	ldo = regulator_get(NULL, "ldo8");
+	regulator_set_mode(ldo, REGULATOR_MODE_NORMAL);
+	regulator_enable(ldo);
+	regulator_put(ldo);
+	udelay(100);	
+}
+#else
+void wm831x_pmu_early_suspend(struct regulator_dev *rdev)
+{
+}
+void wm831x_pmu_early_resume(struct regulator_dev *rdev)
+{
+}
+#endif
 
 void __sramfunc board_pmu_wm8326_suspend(void)
 {	
