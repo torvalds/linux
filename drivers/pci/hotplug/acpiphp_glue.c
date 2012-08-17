@@ -869,17 +869,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	return retval;
 }
 
-static void disable_bridges(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (dev->subordinate) {
-			disable_bridges(dev->subordinate);
-			pci_disable_device(dev);
-		}
-	}
-}
-
 /* return first device in slot, acquiring a reference on it */
 static struct pci_dev *dev_in_slot(struct acpiphp_slot *slot)
 {
@@ -932,10 +921,6 @@ static int disable_device(struct acpiphp_slot *slot)
 	 */
 	while ((pdev = dev_in_slot(slot))) {
 		pci_stop_bus_device(pdev);
-		if (pdev->subordinate) {
-			disable_bridges(pdev->subordinate);
-			pci_disable_device(pdev);
-		}
 		__pci_remove_bus_device(pdev);
 		pci_dev_put(pdev);
 	}
