@@ -707,7 +707,7 @@ static void queue_comp_task(struct ehca_cq *__cq)
 	BUG_ON(!cpu_online(cpu_id));
 
 	cct = per_cpu_ptr(pool->cpu_comp_tasks, cpu_id);
-	thread = per_cpu_ptr(pool->cpu_comp_threads, cpu_id);
+	thread = *per_cpu_ptr(pool->cpu_comp_threads, cpu_id);
 	BUG_ON(!cct || !thread);
 
 	spin_lock_irqsave(&cct->task_lock, flags);
@@ -716,7 +716,7 @@ static void queue_comp_task(struct ehca_cq *__cq)
 	if (cq_jobs > 0) {
 		cpu_id = find_next_online_cpu(pool);
 		cct = per_cpu_ptr(pool->cpu_comp_tasks, cpu_id);
-		thread = per_cpu_ptr(pool->cpu_comp_threads, cpu_id);
+		thread = *per_cpu_ptr(pool->cpu_comp_threads, cpu_id);
 		BUG_ON(!cct || !thread);
 	}
 	__queue_comp_task(__cq, cct, thread);
@@ -761,7 +761,7 @@ static void comp_task_park(unsigned int cpu)
 
 	cpu = find_next_online_cpu(pool);
 	target = per_cpu_ptr(pool->cpu_comp_tasks, cpu);
-	thread = per_cpu_ptr(pool->cpu_comp_threads, cpu);
+	thread = *per_cpu_ptr(pool->cpu_comp_threads, cpu);
 	spin_lock_irq(&target->task_lock);
 	list_for_each_entry_safe(cq, tmp, &list, entry) {
 		list_del(&cq->entry);
@@ -788,7 +788,7 @@ static int comp_task_should_run(unsigned int cpu)
 	return cct->cq_jobs;
 }
 
-static int comp_task(unsigned int cpu)
+static void comp_task(unsigned int cpu)
 {
 	struct ehca_cpu_comp_task *cct = this_cpu_ptr(pool->cpu_comp_tasks);
 	int cql_empty;
