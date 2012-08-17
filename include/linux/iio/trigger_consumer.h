@@ -10,6 +10,12 @@
 #ifndef __LINUX_IIO_TRIGGER_CONSUMER_H__
 #define __LINUX_IIO_TRIGGER_CONSUMER_H__
 
+#include <linux/interrupt.h>
+#include <linux/types.h>
+
+struct iio_dev;
+struct iio_trigger;
+
 /**
  * struct iio_poll_func - poll function pair
  *
