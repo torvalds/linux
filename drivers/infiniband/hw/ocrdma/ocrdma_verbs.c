@@ -2219,7 +2219,6 @@ static bool ocrdma_poll_success_scqe(struct ocrdma_qp *qp,
 	u32 wqe_idx;
 
 	if (!qp->wqe_wr_id_tbl[tail].signaled) {
-		expand = true;	/* CQE cannot be consumed yet */
 		*polled = false;    /* WC cannot be consumed yet */
 	} else {
 		ibwc->status = IB_WC_SUCCESS;
@@ -2227,10 +2226,11 @@ static bool ocrdma_poll_success_scqe(struct ocrdma_qp *qp,
 		ibwc->qp = &qp->ibqp;
 		ocrdma_update_wc(qp, ibwc, tail);
 		*polled = true;
-		wqe_idx = le32_to_cpu(cqe->wq.wqeidx) &	OCRDMA_CQE_WQEIDX_MASK;
-		if (tail != wqe_idx)
-			expand = true; /* Coalesced CQE can't be consumed yet */
 	}
+	wqe_idx = le32_to_cpu(cqe->wq.wqeidx) &	OCRDMA_CQE_WQEIDX_MASK;
+	if (tail != wqe_idx)
+		expand = true; /* Coalesced CQE can't be consumed yet */
+
 	ocrdma_hwq_inc_tail(&qp->sq);
 	return expand;
 }
