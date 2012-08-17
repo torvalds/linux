@@ -322,6 +322,9 @@
 #define E1000_FCRTC_RTH_COAL_SHIFT      4
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
+/* Timestamp in Rx buffer */
+#define E1000_RXPBS_CFG_TS_EN           0x80000000
+
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
 
