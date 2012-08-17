@@ -32,11 +32,8 @@ static void pci_stop_dev(struct pci_dev *dev)
 
 static void pci_destroy_dev(struct pci_dev *dev)
 {
-	/* Remove the device from the device lists, and prevent any further
-	 * list accesses from this device */
 	down_write(&pci_bus_sem);
 	list_del(&dev->bus_list);
-	dev->bus_list.next = dev->bus_list.prev = NULL;
 	up_write(&pci_bus_sem);
 
 	pci_free_resources(dev);
