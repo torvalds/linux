@@ -67,6 +67,7 @@ struct exynos_mixer_ops {
 	void (*dpms)(void *ctx, int mode);
 
 	/* overlay */
+	void (*wait_for_vblank)(void *ctx);
 	void (*win_mode_set)(void *ctx, struct exynos_drm_overlay *overlay);
 	void (*win_commit)(void *ctx, int zpos);
 	void (*win_disable)(void *ctx, int zpos);

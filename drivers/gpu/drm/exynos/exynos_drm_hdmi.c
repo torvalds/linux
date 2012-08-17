@@ -274,10 +274,21 @@ static void drm_mixer_disable(struct device *subdrv_dev, int zpos)
 	ctx->enabled[win] = false;
 }
 
+static void drm_mixer_wait_for_vblank(struct device *subdrv_dev)
+{
+	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (mixer_ops && mixer_ops->wait_for_vblank)
+		mixer_ops->wait_for_vblank(ctx->mixer_ctx->ctx);
+}
+
 static struct exynos_drm_overlay_ops drm_hdmi_overlay_ops = {
 	.mode_set = drm_mixer_mode_set,
 	.commit = drm_mixer_commit,
 	.disable = drm_mixer_disable,
+	.wait_for_vblank = drm_mixer_wait_for_vblank,
 };
 
 static struct exynos_drm_manager hdmi_manager = {
