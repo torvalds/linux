@@ -4933,8 +4933,10 @@ S:	Maintained
 F:	drivers/mmc/host/omap.c
 
 OMAP HS MMC SUPPORT
+M:	Venkatraman S <svenkatr@ti.com>
+L:	linux-mmc@vger.kernel.org
 L:	linux-omap@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	drivers/mmc/host/omap_hsmmc.c
 
 OMAP RANDOM NUMBER GENERATOR SUPPORT
