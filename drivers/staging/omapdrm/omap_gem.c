@@ -226,7 +226,8 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	struct page **pages;
-	int i, npages = obj->size >> PAGE_SHIFT;
+	int npages = obj->size >> PAGE_SHIFT;
+	int i, ret;
 	dma_addr_t *addrs;
 
 	WARN_ON(omap_obj->pages);
@@ -246,18 +247,32 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	 */
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
 		addrs = kmalloc(npages * sizeof(addrs), GFP_KERNEL);
+		if (!addrs) {
+			ret = -ENOMEM;
+			goto free_pages;
+		}
+
 		for (i = 0; i < npages; i++) {
 			addrs[i] = dma_map_page(dev->dev, pages[i],
 					0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 		}
 	} else {
 		addrs = kzalloc(npages * sizeof(addrs), GFP_KERNEL);
+		if (!addrs) {
+			ret = -ENOMEM;
+			goto free_pages;
+		}
 	}
 
 	omap_obj->addrs = addrs;
 	omap_obj->pages = pages;
 
 	return 0;
+
+free_pages:
+	_drm_gem_put_pages(obj, pages, true, false);
+
+	return ret;
 }
 
 /** release backing pages */
