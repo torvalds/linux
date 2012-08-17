@@ -491,17 +491,50 @@ done:
 	return;
 }
 
+static int kvp_process_ip_address(void *addrp,
+				int family, char *buffer,
+				int length,  int *offset)
+{
+	struct sockaddr_in *addr;
+	struct sockaddr_in6 *addr6;
+	int addr_length;
+	char tmp[50];
+	const char *str;
+
+	if (family == AF_INET) {
+		addr = (struct sockaddr_in *)addrp;
+		str = inet_ntop(family, &addr->sin_addr, tmp, 50);
+		addr_length = INET_ADDRSTRLEN;
+	} else {
+		addr6 = (struct sockaddr_in6 *)addrp;
+		str = inet_ntop(family, &addr6->sin6_addr.s6_addr, tmp, 50);
+		addr_length = INET6_ADDRSTRLEN;
+	}
+
+	if ((length - *offset) < addr_length + 1)
+		return 1;
+	if (str == NULL) {
+		strcpy(buffer, "inet_ntop failed\n");
+		return 1;
+	}
+	if (*offset == 0)
+		strcpy(buffer, tmp);
+	else
+		strcat(buffer, tmp);
+	strcat(buffer, ";");
+
+	*offset += strlen(str) + 1;
+	return 0;
+}
+
 static int
 kvp_get_ip_address(int family, char *if_name, int op,
 		 void  *out_buffer, int length)
 {
 	struct ifaddrs *ifap;
 	struct ifaddrs *curp;
-	int ipv4_len = strlen("255.255.255.255") + 1;
-	int ipv6_len = strlen("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")+1;
 	int offset = 0;
 	const char *str;
-	char tmp[50];
 	int error = 0;
 	char *buffer;
 	struct hv_kvp_ipaddr_value *ip_buffer;
@@ -556,55 +589,12 @@ kvp_get_ip_address(int family, char *if_name, int op,
 			continue;
 		}
 
-		if ((curp->ifa_addr->sa_family == AF_INET) &&
-			((family == AF_INET) || (family == 0))) {
-			struct sockaddr_in *addr =
-			(struct sockaddr_in *) curp->ifa_addr;
-
-			str = inet_ntop(AF_INET, &addr->sin_addr, tmp, 50);
-			if (str == NULL) {
-				strcpy(buffer, "inet_ntop failed\n");
-				error = 1;
-				goto getaddr_done;
-			}
-			if (offset == 0)
-				strcpy(buffer, tmp);
-			else
-				strcat(buffer, tmp);
-			strcat(buffer, ";");
-
-			offset += strlen(str) + 1;
-			if ((length - offset) < (ipv4_len + 1))
-				goto getaddr_done;
-
-		} else if ((family == AF_INET6) || (family == 0)) {
-
-			/*
-			 * We only support AF_INET and AF_INET6
-			 * and the list of addresses is separated by a ";".
-			 */
-			struct sockaddr_in6 *addr =
-				(struct sockaddr_in6 *) curp->ifa_addr;
-
-			str = inet_ntop(AF_INET6,
-					&addr->sin6_addr.s6_addr,
-					tmp, 50);
-			if (str == NULL) {
-				strcpy(buffer, "inet_ntop failed\n");
-				error = 1;
-				goto getaddr_done;
-			}
-			if (offset == 0)
-				strcpy(buffer, tmp);
-			else
-				strcat(buffer, tmp);
-			strcat(buffer, ";");
-			offset += strlen(str) + 1;
-			if ((length - offset) < (ipv6_len + 1))
-				goto getaddr_done;
-
-		}
-
+		error = kvp_process_ip_address(curp->ifa_addr,
+						curp->ifa_addr->sa_family,
+						buffer,
+						length, &offset);
+		if (error)
+			goto getaddr_done;
 
 		curp = curp->ifa_next;
 	}
