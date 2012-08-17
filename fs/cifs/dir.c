@@ -356,18 +356,11 @@ cifs_create_get_file_info:
 cifs_create_set_dentry:
 	if (rc != 0) {
 		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
+		CIFSSMBClose(xid, tcon, *fileHandle);
 		goto out;
 	}
 	d_drop(direntry);
 	d_add(direntry, newinode);
-
-	/* ENOENT for create?  How weird... */
-	rc = -ENOENT;
-	if (!newinode) {
-		CIFSSMBClose(xid, tcon, *fileHandle);
-		goto out;
-	}
-	rc = 0;
 
 out:
 	kfree(buf);
