@@ -2323,9 +2323,12 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		if (ret < 0)
 			goto out_fail;
 	}
-
-	/* Workaround for handling zero-length control CDBs */
-	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB) && !cmd->data_length) {
+	/*
+	 * If this command doesn't have any payload and we don't have to call
+	 * into the fabric for data transfers, go ahead and complete it right
+	 * away.
+	 */
+	if (!cmd->data_length) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;
