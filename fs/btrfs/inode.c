@@ -247,7 +247,7 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 		return 1;
 	}
 
-	ret = btrfs_drop_extents(trans, inode, start, aligned_end,
+	ret = btrfs_drop_extents(trans, root, inode, start, aligned_end,
 				 &hint_byte, 1);
 	if (ret)
 		return ret;
@@ -1803,7 +1803,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * the caller is expected to unpin it and allow it to be merged
 	 * with the others.
 	 */
-	ret = btrfs_drop_extents(trans, inode, file_pos, file_pos + num_bytes,
+	ret = btrfs_drop_extents(trans, root, inode, file_pos,
+				 file_pos + num_bytes,
 				 &hint, 0);
 	if (ret)
 		goto out;
@@ -1929,11 +1930,10 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 						ordered_extent->len,
 						compress_type, 0, 0,
 						BTRFS_FILE_EXTENT_REG);
-		unpin_extent_cache(&BTRFS_I(inode)->extent_tree,
-				   ordered_extent->file_offset,
-				   ordered_extent->len);
 	}
-
+	unpin_extent_cache(&BTRFS_I(inode)->extent_tree,
+			   ordered_extent->file_offset, ordered_extent->len,
+			   trans->transid);
 	if (ret < 0) {
 		btrfs_abort_transaction(trans, root, ret);
 		goto out_unlock;
@@ -2592,6 +2592,18 @@ static void btrfs_read_locked_inode(struct inode *inode)
 
 	inode_set_bytes(inode, btrfs_inode_nbytes(leaf, inode_item));
 	BTRFS_I(inode)->generation = btrfs_inode_generation(leaf, inode_item);
+	BTRFS_I(inode)->last_trans = btrfs_inode_transid(leaf, inode_item);
+
+	/*
+	 * If we were modified in the current generation and evicted from memory
+	 * and then re-read we need to do a full sync since we don't have any
+	 * idea about which extents were modified before we were evicted from
+	 * cache.
+	 */
+	if (BTRFS_I(inode)->last_trans == root->fs_info->generation)
+		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			&BTRFS_I(inode)->runtime_flags);
+
 	inode->i_version = btrfs_inode_sequence(leaf, inode_item);
 	inode->i_generation = BTRFS_I(inode)->generation;
 	inode->i_rdev = 0;
@@ -3269,8 +3281,13 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	path->reada = -1;
 
+	/*
+	 * We want to drop from the next block forward in case this new size is
+	 * not block aligned since we will be keeping the last block of the
+	 * extent just the way it is.
+	 */
 	if (root->ref_cows || root == root->fs_info->tree_root)
-		btrfs_drop_extent_cache(inode, new_size & (~mask), (u64)-1, 0);
+		btrfs_drop_extent_cache(inode, (new_size + mask) & (~mask), (u64)-1, 0);
 
 	/*
 	 * This function is also used to drop the items in the log tree before
@@ -3579,6 +3596,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map *em = NULL;
 	struct extent_state *cached_state = NULL;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	u64 mask = root->sectorsize - 1;
 	u64 hole_start = (oldsize + mask) & ~mask;
 	u64 block_end = (size + mask) & ~mask;
@@ -3615,6 +3633,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 		last_byte = min(extent_map_end(em), block_end);
 		last_byte = (last_byte + mask) & ~mask;
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
+			struct extent_map *hole_em;
 			u64 hint_byte = 0;
 			hole_size = last_byte - cur_offset;
 
@@ -3624,7 +3643,8 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 				break;
 			}
 
-			err = btrfs_drop_extents(trans, inode, cur_offset,
+			err = btrfs_drop_extents(trans, root, inode,
+						 cur_offset,
 						 cur_offset + hole_size,
 						 &hint_byte, 1);
 			if (err) {
@@ -3643,9 +3663,39 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 				break;
 			}
 
-			btrfs_drop_extent_cache(inode, hole_start,
-					last_byte - 1, 0);
+			btrfs_drop_extent_cache(inode, cur_offset,
+						cur_offset + hole_size - 1, 0);
+			hole_em = alloc_extent_map();
+			if (!hole_em) {
+				set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+					&BTRFS_I(inode)->runtime_flags);
+				goto next;
+			}
+			hole_em->start = cur_offset;
+			hole_em->len = hole_size;
+			hole_em->orig_start = cur_offset;
 
+			hole_em->block_start = EXTENT_MAP_HOLE;
+			hole_em->block_len = 0;
+			hole_em->bdev = root->fs_info->fs_devices->latest_bdev;
+			hole_em->compress_type = BTRFS_COMPRESS_NONE;
+			hole_em->generation = trans->transid;
+
+			while (1) {
+				write_lock(&em_tree->lock);
+				err = add_extent_mapping(em_tree, hole_em);
+				if (!err)
+					list_move(&hole_em->list,
+						  &em_tree->modified_extents);
+				write_unlock(&em_tree->lock);
+				if (err != -EEXIST)
+					break;
+				btrfs_drop_extent_cache(inode, cur_offset,
+							cur_offset +
+							hole_size - 1, 0);
+			}
+			free_extent_map(hole_em);
+next:
 			btrfs_update_inode(trans, root, inode);
 			btrfs_end_transaction(trans, root);
 		}
@@ -4672,6 +4722,14 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	BTRFS_I(inode)->root = root;
 	BTRFS_I(inode)->generation = trans->transid;
 	inode->i_generation = BTRFS_I(inode)->generation;
+
+	/*
+	 * We could have gotten an inode number from somebody who was fsynced
+	 * and then removed in this same transaction, so let's just set full
+	 * sync since it will be a full sync anyway and this will blow away the
+	 * old info in the log.
+	 */
+	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
 
 	if (S_ISDIR(mode))
 		owner = 0;
@@ -6839,6 +6897,15 @@ static int btrfs_truncate(struct inode *inode)
 					   &BTRFS_I(inode)->runtime_flags))
 		btrfs_add_ordered_operation(trans, root, inode);
 
+	/*
+	 * So if we truncate and then write and fsync we normally would just
+	 * write the extents that changed, which is a problem if we need to
+	 * first truncate that entire inode.  So set this flag so we write out
+	 * all of the extents in the inode to the sync log so we're completely
+	 * safe.
+	 */
+	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
+
 	while (1) {
 		ret = btrfs_block_rsv_refill(root, rsv, min_size);
 		if (ret) {
@@ -7510,6 +7577,8 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 				       loff_t actual_len, u64 *alloc_hint,
 				       struct btrfs_trans_handle *trans)
 {
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map *em;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
 	u64 cur_offset = start;
@@ -7550,6 +7619,37 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		btrfs_drop_extent_cache(inode, cur_offset,
 					cur_offset + ins.offset -1, 0);
 
+		em = alloc_extent_map();
+		if (!em) {
+			set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+				&BTRFS_I(inode)->runtime_flags);
+			goto next;
+		}
+
+		em->start = cur_offset;
+		em->orig_start = cur_offset;
+		em->len = ins.offset;
+		em->block_start = ins.objectid;
+		em->block_len = ins.offset;
+		em->bdev = root->fs_info->fs_devices->latest_bdev;
+		set_bit(EXTENT_FLAG_PREALLOC, &em->flags);
+		em->generation = trans->transid;
+
+		while (1) {
+			write_lock(&em_tree->lock);
+			ret = add_extent_mapping(em_tree, em);
+			if (!ret)
+				list_move(&em->list,
+					  &em_tree->modified_extents);
+			write_unlock(&em_tree->lock);
+			if (ret != -EEXIST)
+				break;
+			btrfs_drop_extent_cache(inode, cur_offset,
+						cur_offset + ins.offset - 1,
+						0);
+		}
+		free_extent_map(em);
+next:
 		num_bytes -= ins.offset;
 		cur_offset += ins.offset;
 		*alloc_hint = ins.objectid + ins.offset;

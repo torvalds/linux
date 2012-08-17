@@ -23,15 +23,18 @@ struct extent_map {
 	u64 orig_start;
 	u64 block_start;
 	u64 block_len;
+	u64 generation;
 	unsigned long flags;
 	struct block_device *bdev;
 	atomic_t refs;
 	unsigned int in_tree;
 	unsigned int compress_type;
+	struct list_head list;
 };
 
 struct extent_map_tree {
 	struct rb_root map;
+	struct list_head modified_extents;
 	rwlock_t lock;
 };
 
@@ -60,7 +63,7 @@ struct extent_map *alloc_extent_map(void);
 void free_extent_map(struct extent_map *em);
 int __init extent_map_init(void);
 void extent_map_exit(void);
-int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len);
+int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len, u64 gen);
 struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 len);
 #endif

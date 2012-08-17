@@ -459,13 +459,14 @@ int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
  * [start, end].  Existing extents are split as required.
  */
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
-			    int skip_pinned)
+			       int skip_pinned)
 {
 	struct extent_map *em;
 	struct extent_map *split = NULL;
 	struct extent_map *split2 = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	u64 len = end - start + 1;
+	u64 gen;
 	int ret;
 	int testend = 1;
 	unsigned long flags;
@@ -490,6 +491,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			break;
 		}
 		flags = em->flags;
+		gen = em->generation;
 		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
 			if (testend && em->start + em->len >= start + len) {
 				free_extent_map(em);
@@ -518,12 +520,13 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 				split->block_len = em->block_len;
 			else
 				split->block_len = split->len;
-
+			split->generation = gen;
 			split->bdev = em->bdev;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
 			ret = add_extent_mapping(em_tree, split);
 			BUG_ON(ret); /* Logic error */
+			list_move(&split->list, &em_tree->modified_extents);
 			free_extent_map(split);
 			split = split2;
 			split2 = NULL;
@@ -537,6 +540,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->bdev = em->bdev;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
+			split->generation = gen;
 
 			if (compressed) {
 				split->block_len = em->block_len;
@@ -550,6 +554,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 
 			ret = add_extent_mapping(em_tree, split);
 			BUG_ON(ret); /* Logic error */
+			list_move(&split->list, &em_tree->modified_extents);
 			free_extent_map(split);
 			split = NULL;
 		}
@@ -576,13 +581,13 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
  * it is either truncated or split.  Anything entirely inside the range
  * is deleted from the tree.
  */
-int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
-		       u64 start, u64 end, u64 *hint_byte, int drop_cache)
+int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root, struct inode *inode,
+			 struct btrfs_path *path, u64 start, u64 end,
+			 u64 *hint_byte, int drop_cache)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *fi;
-	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key new_key;
 	u64 ino = btrfs_ino(inode);
@@ -597,13 +602,10 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
 	int recow;
 	int ret;
 	int modify_tree = -1;
+	int update_refs = (root->ref_cows || root == root->fs_info->tree_root);
 
 	if (drop_cache)
 		btrfs_drop_extent_cache(inode, start, end - 1, 0);
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
 
 	if (start >= BTRFS_I(inode)->disk_i_size)
 		modify_tree = 0;
@@ -707,7 +709,7 @@ next_slot:
 							extent_end - start);
 			btrfs_mark_buffer_dirty(leaf);
 
-			if (disk_bytenr > 0) {
+			if (update_refs && disk_bytenr > 0) {
 				ret = btrfs_inc_extent_ref(trans, root,
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
@@ -734,7 +736,7 @@ next_slot:
 			btrfs_set_file_extent_num_bytes(leaf, fi,
 							extent_end - end);
 			btrfs_mark_buffer_dirty(leaf);
-			if (disk_bytenr > 0) {
+			if (update_refs && disk_bytenr > 0) {
 				inode_sub_bytes(inode, end - key.offset);
 				*hint_byte = disk_bytenr;
 			}
@@ -753,7 +755,7 @@ next_slot:
 			btrfs_set_file_extent_num_bytes(leaf, fi,
 							start - key.offset);
 			btrfs_mark_buffer_dirty(leaf);
-			if (disk_bytenr > 0) {
+			if (update_refs && disk_bytenr > 0) {
 				inode_sub_bytes(inode, extent_end - start);
 				*hint_byte = disk_bytenr;
 			}
@@ -777,12 +779,13 @@ next_slot:
 				del_nr++;
 			}
 
-			if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
+			if (update_refs &&
+			    extent_type == BTRFS_FILE_EXTENT_INLINE) {
 				inode_sub_bytes(inode,
 						extent_end - key.offset);
 				extent_end = ALIGN(extent_end,
 						   root->sectorsize);
-			} else if (disk_bytenr > 0) {
+			} else if (update_refs && disk_bytenr > 0) {
 				ret = btrfs_free_extent(trans, root,
 						disk_bytenr, num_bytes, 0,
 						root->root_key.objectid,
@@ -806,7 +809,7 @@ next_slot:
 					      del_nr);
 			if (ret) {
 				btrfs_abort_transaction(trans, root, ret);
-				goto out;
+				break;
 			}
 
 			del_nr = 0;
@@ -825,7 +828,22 @@ next_slot:
 			btrfs_abort_transaction(trans, root, ret);
 	}
 
-out:
+	btrfs_release_path(path);
+	return ret;
+}
+
+int btrfs_drop_extents(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, struct inode *inode, u64 start,
+		       u64 end, u64 *hint_byte, int drop_cache)
+{
+	struct btrfs_path *path;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	ret = __btrfs_drop_extents(trans, root, inode, path, start, end,
+				   hint_byte, drop_cache);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -891,8 +909,6 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	int recow;
 	int ret;
 	u64 ino = btrfs_ino(inode);
-
-	btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1556,6 +1572,14 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	    BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
 		BTRFS_I(inode)->last_trans = 0;
+
+		/*
+		 * We'v had everything committed since the last time we were
+		 * modified so clear this flag in case it was set for whatever
+		 * reason, it's no longer relevant.
+		 */
+		clear_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+			  &BTRFS_I(inode)->runtime_flags);
 		mutex_unlock(&inode->i_mutex);
 		goto out;
 	}

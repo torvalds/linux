@@ -2576,7 +2576,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 					datal -= off - key.offset;
 				}
 
-				ret = btrfs_drop_extents(trans, inode,
+				ret = btrfs_drop_extents(trans, root, inode,
 							 new_key.offset,
 							 new_key.offset + datal,
 							 &hint_byte, 1);
@@ -2650,7 +2650,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				size -= skip + trim;
 				datal -= skip + trim;
 
-				ret = btrfs_drop_extents(trans, inode,
+				ret = btrfs_drop_extents(trans, root, inode,
 							 new_key.offset,
 							 new_key.offset + datal,
 							 &hint_byte, 1);

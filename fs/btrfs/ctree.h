@@ -3315,9 +3315,17 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info);
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			    int skip_pinned);
+int btrfs_replace_extent_cache(struct inode *inode, struct extent_map *replace,
+			       u64 start, u64 end, int skip_pinned,
+			       int modified);
 extern const struct file_operations btrfs_file_operations;
-int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
-		       u64 start, u64 end, u64 *hint_byte, int drop_cache);
+int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root, struct inode *inode,
+			 struct btrfs_path *path, u64 start, u64 end,
+			 u64 *hint_byte, int drop_cache);
+int btrfs_drop_extents(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root, struct inode *inode, u64 start,
+		       u64 end, u64 *hint_byte, int drop_cache);
 int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 			      struct inode *inode, u64 start, u64 end);
 int btrfs_release_file(struct inode *inode, struct file *file);
