@@ -78,7 +78,6 @@ void pci_remove_bus(struct pci_bus *pci_bus)
 }
 EXPORT_SYMBOL(pci_remove_bus);
 
-static void __pci_remove_behind_bridge(struct pci_dev *dev);
 static void pci_stop_bus_device(struct pci_dev *dev);
 
 /**
@@ -95,11 +94,14 @@ static void pci_stop_bus_device(struct pci_dev *dev);
  */
 static void __pci_remove_bus_device(struct pci_dev *dev)
 {
-	if (dev->subordinate) {
-		struct pci_bus *b = dev->subordinate;
+	struct pci_bus *bus = dev->subordinate;
+	struct pci_dev *child, *tmp;
 
-		__pci_remove_behind_bridge(dev);
-		pci_remove_bus(b);
+	if (bus) {
+		list_for_each_entry_safe(child, tmp, &bus->devices, bus_list)
+			__pci_remove_bus_device(child);
+
+		pci_remove_bus(bus);
 		dev->subordinate = NULL;
 	}
 
@@ -112,32 +114,6 @@ void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 	__pci_remove_bus_device(dev);
 }
 
-static void __pci_remove_behind_bridge(struct pci_dev *dev)
-{
-	struct pci_dev *child, *tmp;
-
-	if (dev->subordinate)
-		list_for_each_entry_safe(child, tmp,
-					 &dev->subordinate->devices, bus_list)
-			__pci_remove_bus_device(child);
-}
-
-static void pci_stop_bus_devices(struct pci_bus *bus)
-{
-	struct pci_dev *dev, *tmp;
-
-	/*
-	 * VFs could be removed by pci_stop_and_remove_bus_device() in the
-	 *  pci_stop_bus_devices() code path for PF.
-	 *  aka, bus->devices get updated in the process.
-	 * but VFs are inserted after PFs when SRIOV is enabled for PF,
-	 * We can iterate the list backwards to get prev valid PF instead
-	 *  of removed VF.
-	 */
-	list_for_each_entry_safe_reverse(dev, tmp, &bus->devices, bus_list)
-		pci_stop_bus_device(dev);
-}
-
 /**
  * pci_stop_bus_device - stop a PCI device and any children
  * @dev: the device to stop
@@ -148,8 +124,19 @@ static void pci_stop_bus_devices(struct pci_bus *bus)
  */
 static void pci_stop_bus_device(struct pci_dev *dev)
 {
-	if (dev->subordinate)
-		pci_stop_bus_devices(dev->subordinate);
+	struct pci_bus *bus = dev->subordinate;
+	struct pci_dev *child, *tmp;
+
+	/*
+	 * Removing an SR-IOV PF device removes all the associated VFs,
+	 * which will update the bus->devices list and confuse the
+	 * iterator.  Therefore, iterate in reverse so we remove the VFs
+	 * first, then the PF.
+	 */
+	if (bus)
+		list_for_each_entry_safe_reverse(child, tmp,
+						 &bus->devices, bus_list)
+			pci_stop_bus_device(child);
 
 	pci_stop_dev(dev);
 }
