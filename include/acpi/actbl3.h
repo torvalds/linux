@@ -75,7 +75,6 @@
 /* Reserved table signatures */
 
 #define ACPI_SIG_CSRT           "CSRT"	/* Core System Resources Table */
-#define ACPI_SIG_DBG2           "DBG2"	/* Debug Port table 2 */
 #define ACPI_SIG_MATR           "MATR"	/* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
 #define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
