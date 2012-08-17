@@ -85,11 +85,6 @@ static const struct pcidio_board pcidio_boards[] = {
 	 },
 };
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct pcidio_board *)dev->board_ptr)
-
 static struct pci_dev *pcidio_find_pci_dev(struct comedi_device *dev,
 					   struct comedi_devconfig *it)
 {
@@ -122,6 +117,7 @@ static struct pci_dev *pcidio_find_pci_dev(struct comedi_device *dev,
 
 static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcidio_board *thisboard;
 	struct pci_dev *pcidev;
 	int i;
 	int ret;
@@ -130,11 +126,7 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
-
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
+	thisboard = comedi_board(dev);
 	dev->board_name = thisboard->name;
 
 	if (comedi_pci_enable(pcidev, thisboard->name))
@@ -158,6 +150,7 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcidio_detach(struct comedi_device *dev)
 {
+	const struct pcidio_board *thisboard = comedi_board(dev);
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (pcidev) {
