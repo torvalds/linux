@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -38,9 +38,16 @@
 #include <media/soc_mediabus.h>
 #include <mach/io.h>
 #include <plat/ipp.h>
+
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 #include <mach/rk30_camera.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
+#endif
+
+#if defined(CONFIG_ARCH_RK2928)
+#include <mach/rk2928_camera.h>
+#endif
 
 static int debug ;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -140,6 +147,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define ENABLE_32BIT_BYPASS                (0x01<<6)
 #define DISABLE_32BIT_BYPASS               (0x00<<6)
 
+#if (defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31))
 //CRU,PIXCLOCK
 #define CRU_PCLK_REG30                     0xbc
 #define ENANABLE_INVERT_PCLK_CIF0          ((0x1<<24)|(0x1<<8))
@@ -152,6 +160,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MASK_RST_CIF1                      (0x01 << 31)
 #define RQUEST_RST_CIF0                    (0x01 << 14)
 #define RQUEST_RST_CIF1                    (0x01 << 15)
+#endif
 
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
@@ -162,9 +171,18 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define read_cif_reg(base,addr) __raw_readl(addr+(base))
 #define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
 
+#if (defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31))
 #define write_cru_reg(addr, val)  __raw_writel(val, addr+RK30_CRU_BASE)
 #define read_cru_reg(addr) __raw_readl(addr+RK30_CRU_BASE)
 #define mask_cru_reg(addr, msk, val)	write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
+#endif
+
+#if defined(CONFIG_ARCH_RK2928)
+#define write_cru_reg(addr, val)  
+#define read_cru_reg(addr)                 0 
+#define mask_cru_reg(addr, msk, val)	
+#endif
+
 
 //when work_with_ipp is not enabled,CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_OFF is not defined.something wrong with it
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP//CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_OFF
@@ -940,8 +958,9 @@ static int rk_camera_add_device(struct soc_camera_device *icd)
         goto ebusy;
     }
 
-    RKCAMERA_DG("RK Camera driver attached to %s\n",dev_name(icd->pdev));
-    
+    dev_info(&icd->dev, "RK Camera driver attached to camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
+
 	pcdev->frame_inval = RK_CAM_FRAME_INVAL_INIT;
     pcdev->active = NULL;
     pcdev->icd = NULL;
@@ -1005,7 +1024,8 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
 	mutex_lock(&camera_lock);
     BUG_ON(icd != pcdev->icd);
 
-    RKCAMERA_DG("RK Camera driver detached from %s\n",dev_name(icd->pdev));
+    dev_info(&icd->dev, "RK Camera driver detached from camera%d(%s)\n",
+             icd->devnum,dev_name(icd->pdev));
 
 	/* ddl@rock-chips.com: Application will call VIDIOC_STREAMOFF before close device, but
 	   stream may be turn on again before close device, if suspend and resume happened. */
@@ -1246,26 +1266,29 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
 			cif_fmt_val = YUV_INPUT_ORDER_YUYV(cif_fmt_val);
             break;
     }
+#if 1
+        {
+#ifdef CONFIG_ARCH_RK30
+           mdelay(100);
+            if(IS_CIF0()){
+        //		pmu_set_idle_request(IDLE_REQ_VIO, true);
+        		cru_set_soft_reset(SOFT_RST_CIF0, true);
+        		udelay(5);
+        		cru_set_soft_reset(SOFT_RST_CIF0, false);
+        //		pmu_set_idle_request(IDLE_REQ_VIO, false);
 
-    {
-       mdelay(100);
-        if(IS_CIF0()){
-    //		pmu_set_idle_request(IDLE_REQ_VIO, true);
-    		cru_set_soft_reset(SOFT_RST_CIF0, true);
-    		udelay(5);
-    		cru_set_soft_reset(SOFT_RST_CIF0, false);
-    //		pmu_set_idle_request(IDLE_REQ_VIO, false);
-
-        }else{
-    //	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
-    		cru_set_soft_reset(SOFT_RST_CIF1, true);
-    		udelay(5);
-    		cru_set_soft_reset(SOFT_RST_CIF1, false);
-    //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
+            }else{
+        //	 	pmu_set_idle_request(IDLE_REQ_VIO, true);
+        		cru_set_soft_reset(SOFT_RST_CIF1, true);
+        		udelay(5);
+        		cru_set_soft_reset(SOFT_RST_CIF1, false);
+        //		pmu_set_idle_request(IDLE_REQ_VIO, false);  
+            }
+#endif
         }
-    }
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01|0x200);    //capture complete interrupt enable
+#endif
     write_cif_reg(pcdev->base,CIF_CIF_FOR,cif_fmt_val);         /* ddl@rock-chips.com: VIP capture mode and capture format must be set before FS register set */
 
    // read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);                     /* clear vip interrupte single  */
@@ -2173,7 +2196,9 @@ static int rk_camera_set_ctrl(struct soc_camera_device *icd,
 
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	const struct v4l2_queryctrl *qctrl;
+#ifdef CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_ON    
     struct rk_camera_dev *pcdev = ici->priv;
+#endif
     int ret = 0;
 
 	qctrl = rk_camera_soc_camera_find_qctrl(ici->ops, sctrl->id);
@@ -2234,6 +2259,7 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
 };
 static void rk_camera_cif_iomux(int cif_index)
 {
+#ifdef CONFIG_ARCH_RK30
     switch(cif_index){
         case 0:
             rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);
@@ -2260,6 +2286,8 @@ static void rk_camera_cif_iomux(int cif_index)
         default:
             printk("cif index is erro!!!\n");
         }
+#else
+#endif
                 
             
 }
@@ -2271,9 +2299,18 @@ static int rk_camera_probe(struct platform_device *pdev)
     int irq,i;
     int err = 0;
 
-    RKCAMERA_TR("RK30 Camera driver version: v%d.%d.%d\n",(RK_CAM_VERSION_CODE&0xff0000)>>16,
-        (RK_CAM_VERSION_CODE&0xff00)>>8,RK_CAM_VERSION_CODE&0xff);
+    RKCAMERA_DG("%s(%d) Enter..\n",__FUNCTION__,__LINE__);    
 
+    if ((pdev->id == RK_CAM_PLATFORM_DEV_ID_1) && (RK_SUPPORT_CIF1 == 0)) {
+        RKCAMERA_TR("%s(%d): This chip is not support CIF1!!\n",__FUNCTION__,__LINE__);
+        BUG();
+    }
+
+    if ((pdev->id == RK_CAM_PLATFORM_DEV_ID_0) && (RK_SUPPORT_CIF0 == 0)) {
+        RKCAMERA_TR("%s(%d): This chip is not support CIF0!!\n",__FUNCTION__,__LINE__);
+        BUG();
+    }
+    
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
     irq = platform_get_irq(pdev, 0);
     if (!res || irq < 0) {
@@ -2372,7 +2409,7 @@ static int rk_camera_probe(struct platform_device *pdev)
         }
    	}
    
-#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+//#ifdef CONFIG_VIDEO_RK29_WORK_IPP
     if(IS_CIF0()) {
     	pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif0");
     } else {
@@ -2380,7 +2417,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     }
     if (pcdev->camera_wq == NULL)
     	goto exit_free_irq;
-#endif
+//#endif
 
 	pcdev->camera_reinit_work.pcdev = pcdev;
 	INIT_WORK(&(pcdev->camera_reinit_work.work), rk_camera_reinit_work);

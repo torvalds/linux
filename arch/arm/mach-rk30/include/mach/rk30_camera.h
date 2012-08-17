@@ -21,8 +21,17 @@
 #ifndef __ASM_ARCH_CAMERA_RK30_H_
 
 #define __ASM_ARCH_CAMERA_RK29_H_
+#ifdef CONFIG_ARCH_RK30
 #define RK29_CAM_DRV_NAME "rk-camera-rk30"
+#define RK_SUPPORT_CIF0   1
+#define RK_SUPPORT_CIF1   1
+#endif
 
+#ifdef CONFIG_ARCH_RK31
+#define RK29_CAM_DRV_NAME "rk-camera-rk31"
+#define RK_SUPPORT_CIF0   1
+#define RK_SUPPORT_CIF1   0
+#endif
 #include <plat/rk_camera.h>
 
 #endif
