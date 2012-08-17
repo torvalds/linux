@@ -257,7 +257,7 @@ static void cb_pcimdda_detach(struct comedi_device *dev)
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
 	if (dev->subdevices)
-		subdev_8255_cleanup(dev, dev->subdevices + 2);
+		subdev_8255_cleanup(dev, dev->subdevices + 1);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
