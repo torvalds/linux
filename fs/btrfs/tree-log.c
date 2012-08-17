@@ -785,6 +785,95 @@ out:
 	return match;
 }
 
+static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  struct btrfs_path *path,
+				  struct btrfs_root *log_root,
+				  struct inode *dir, struct inode *inode,
+				  struct btrfs_key *key,
+				  struct extent_buffer *eb,
+				  struct btrfs_inode_ref *ref,
+				  char *name, int namelen, int *search_done)
+{
+	int ret;
+	struct btrfs_dir_item *di;
+
+	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
+	if (ret == 0) {
+		char *victim_name;
+		int victim_name_len;
+		struct btrfs_inode_ref *victim_ref;
+		unsigned long ptr;
+		unsigned long ptr_end;
+		struct extent_buffer *leaf = path->nodes[0];
+
+		/* are we trying to overwrite a back ref for the root directory
+		 * if so, just jump out, we're done
+		 */
+		if (key->objectid == key->offset)
+			return 1;
+
+		/* check all the names in this back reference to see
+		 * if they are in the log.  if so, we allow them to stay
+		 * otherwise they must be unlinked as a conflict
+		 */
+		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
+		ptr_end = ptr + btrfs_item_size_nr(leaf, path->slots[0]);
+		while (ptr < ptr_end) {
+			victim_ref = (struct btrfs_inode_ref *)ptr;
+			victim_name_len = btrfs_inode_ref_name_len(leaf,
+								   victim_ref);
+			victim_name = kmalloc(victim_name_len, GFP_NOFS);
+			BUG_ON(!victim_name);
+
+			read_extent_buffer(leaf, victim_name,
+					   (unsigned long)(victim_ref + 1),
+					   victim_name_len);
+
+			if (!backref_in_log(log_root, key, victim_name,
+					    victim_name_len)) {
+				btrfs_inc_nlink(inode);
+				btrfs_release_path(path);
+
+				ret = btrfs_unlink_inode(trans, root, dir,
+							 inode, victim_name,
+							 victim_name_len);
+				btrfs_run_delayed_items(trans, root);
+			}
+			kfree(victim_name);
+			ptr = (unsigned long)(victim_ref + 1) + victim_name_len;
+		}
+		BUG_ON(ret);
+
+		/*
+		 * NOTE: we have searched root tree and checked the
+		 * coresponding ref, it does not need to check again.
+		 */
+		*search_done = 1;
+	}
+	btrfs_release_path(path);
+
+	/* look for a conflicting sequence number */
+	di = btrfs_lookup_dir_index_item(trans, root, path, btrfs_ino(dir),
+					 btrfs_inode_ref_index(eb, ref),
+					 name, namelen, 0);
+	if (di && !IS_ERR(di)) {
+		ret = drop_one_dir_item(trans, root, path, dir, di);
+		BUG_ON(ret);
+	}
+	btrfs_release_path(path);
+
+	/* look for a conflicing name */
+	di = btrfs_lookup_dir_item(trans, root, path, btrfs_ino(dir),
+				   name, namelen, 0);
+	if (di && !IS_ERR(di)) {
+		ret = drop_one_dir_item(trans, root, path, dir, di);
+		BUG_ON(ret);
+	}
+	btrfs_release_path(path);
+
+	return 0;
+}
 
 /*
  * replay one inode back reference item found in the log tree.
@@ -800,7 +889,6 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_key *key)
 {
 	struct btrfs_inode_ref *ref;
-	struct btrfs_dir_item *di;
 	struct inode *dir;
 	struct inode *inode;
 	unsigned long ref_ptr;
@@ -829,126 +917,54 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	ref_ptr = btrfs_item_ptr_offset(eb, slot);
 	ref_end = ref_ptr + btrfs_item_size_nr(eb, slot);
 
-again:
-	ref = (struct btrfs_inode_ref *)ref_ptr;
+	while (ref_ptr < ref_end) {
+		ref = (struct btrfs_inode_ref *)ref_ptr;
 
-	namelen = btrfs_inode_ref_name_len(eb, ref);
-	name = kmalloc(namelen, GFP_NOFS);
-	BUG_ON(!name);
+		namelen = btrfs_inode_ref_name_len(eb, ref);
+		name = kmalloc(namelen, GFP_NOFS);
+		BUG_ON(!name);
 
-	read_extent_buffer(eb, name, (unsigned long)(ref + 1), namelen);
+		read_extent_buffer(eb, name, (unsigned long)(ref + 1), namelen);
 
-	/* if we already have a perfect match, we're done */
-	if (inode_in_dir(root, path, btrfs_ino(dir), btrfs_ino(inode),
-			 btrfs_inode_ref_index(eb, ref),
-			 name, namelen)) {
-		goto out;
-	}
+		/* if we already have a perfect match, we're done */
+		if (!inode_in_dir(root, path, btrfs_ino(dir), btrfs_ino(inode),
+				  btrfs_inode_ref_index(eb, ref),
+				  name, namelen)) {
+			/*
+			 * look for a conflicting back reference in the
+			 * metadata. if we find one we have to unlink that name
+			 * of the file before we add our new link.  Later on, we
+			 * overwrite any existing back reference, and we don't
+			 * want to create dangling pointers in the directory.
+			 */
 
-	/*
-	 * look for a conflicting back reference in the metadata.
-	 * if we find one we have to unlink that name of the file
-	 * before we add our new link.  Later on, we overwrite any
-	 * existing back reference, and we don't want to create
-	 * dangling pointers in the directory.
-	 */
-
-	if (search_done)
-		goto insert;
-
-	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
-	if (ret == 0) {
-		char *victim_name;
-		int victim_name_len;
-		struct btrfs_inode_ref *victim_ref;
-		unsigned long ptr;
-		unsigned long ptr_end;
-		struct extent_buffer *leaf = path->nodes[0];
-
-		/* are we trying to overwrite a back ref for the root directory
-		 * if so, just jump out, we're done
-		 */
-		if (key->objectid == key->offset)
-			goto out_nowrite;
-
-		/* check all the names in this back reference to see
-		 * if they are in the log.  if so, we allow them to stay
-		 * otherwise they must be unlinked as a conflict
-		 */
-		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
-		ptr_end = ptr + btrfs_item_size_nr(leaf, path->slots[0]);
-		while (ptr < ptr_end) {
-			victim_ref = (struct btrfs_inode_ref *)ptr;
-			victim_name_len = btrfs_inode_ref_name_len(leaf,
-								   victim_ref);
-			victim_name = kmalloc(victim_name_len, GFP_NOFS);
-			BUG_ON(!victim_name);
-
-			read_extent_buffer(leaf, victim_name,
-					   (unsigned long)(victim_ref + 1),
-					   victim_name_len);
-
-			if (!backref_in_log(log, key, victim_name,
-					    victim_name_len)) {
-				btrfs_inc_nlink(inode);
-				btrfs_release_path(path);
-
-				ret = btrfs_unlink_inode(trans, root, dir,
-							 inode, victim_name,
-							 victim_name_len);
-				btrfs_run_delayed_items(trans, root);
+			if (!search_done) {
+				ret = __add_inode_ref(trans, root, path, log,
+						      dir, inode, key, eb, ref,
+						      name, namelen,
+						      &search_done);
+				if (ret == 1)
+					goto out;
+				BUG_ON(ret);
 			}
-			kfree(victim_name);
-			ptr = (unsigned long)(victim_ref + 1) + victim_name_len;
+
+			/* insert our name */
+			ret = btrfs_add_link(trans, dir, inode, name, namelen,
+					     0, btrfs_inode_ref_index(eb, ref));
+			BUG_ON(ret);
+
+			btrfs_update_inode(trans, root, inode);
 		}
-		BUG_ON(ret);
 
-		/*
-		 * NOTE: we have searched root tree and checked the
-		 * coresponding ref, it does not need to check again.
-		 */
-		search_done = 1;
+		ref_ptr = (unsigned long)(ref + 1) + namelen;
+		kfree(name);
 	}
-	btrfs_release_path(path);
-
-	/* look for a conflicting sequence number */
-	di = btrfs_lookup_dir_index_item(trans, root, path, btrfs_ino(dir),
-					 btrfs_inode_ref_index(eb, ref),
-					 name, namelen, 0);
-	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
-		BUG_ON(ret);
-	}
-	btrfs_release_path(path);
-
-	/* look for a conflicing name */
-	di = btrfs_lookup_dir_item(trans, root, path, btrfs_ino(dir),
-				   name, namelen, 0);
-	if (di && !IS_ERR(di)) {
-		ret = drop_one_dir_item(trans, root, path, dir, di);
-		BUG_ON(ret);
-	}
-	btrfs_release_path(path);
-
-insert:
-	/* insert our name */
-	ret = btrfs_add_link(trans, dir, inode, name, namelen, 0,
-			     btrfs_inode_ref_index(eb, ref));
-	BUG_ON(ret);
-
-	btrfs_update_inode(trans, root, inode);
-
-out:
-	ref_ptr = (unsigned long)(ref + 1) + namelen;
-	kfree(name);
-	if (ref_ptr < ref_end)
-		goto again;
 
 	/* finally write the back reference in the inode */
 	ret = overwrite_item(trans, root, path, eb, slot, key);
 	BUG_ON(ret);
 
-out_nowrite:
+out:
 	btrfs_release_path(path);
 	iput(dir);
 	iput(inode);
