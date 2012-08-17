@@ -4669,7 +4669,7 @@ static int e1000_tso(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	struct e1000_buffer *buffer_info;
 	unsigned int i;
 	u32 cmd_length = 0;
-	u16 ipcse = 0, tucse, mss;
+	u16 ipcse = 0, mss;
 	u8 ipcss, ipcso, tucss, tucso, hdr_len;
 
 	if (!skb_is_gso(skb))
@@ -4703,7 +4703,6 @@ static int e1000_tso(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	ipcso = (void *)&(ip_hdr(skb)->check) - (void *)skb->data;
 	tucss = skb_transport_offset(skb);
 	tucso = (void *)&(tcp_hdr(skb)->check) - (void *)skb->data;
-	tucse = 0;
 
 	cmd_length |= (E1000_TXD_CMD_DEXT | E1000_TXD_CMD_TSE |
 	               E1000_TXD_CMD_TCP | (skb->len - (hdr_len)));
@@ -4717,7 +4716,7 @@ static int e1000_tso(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	context_desc->lower_setup.ip_fields.ipcse  = cpu_to_le16(ipcse);
 	context_desc->upper_setup.tcp_fields.tucss = tucss;
 	context_desc->upper_setup.tcp_fields.tucso = tucso;
-	context_desc->upper_setup.tcp_fields.tucse = cpu_to_le16(tucse);
+	context_desc->upper_setup.tcp_fields.tucse = 0;
 	context_desc->tcp_seg_setup.fields.mss     = cpu_to_le16(mss);
 	context_desc->tcp_seg_setup.fields.hdr_len = hdr_len;
 	context_desc->cmd_and_length = cpu_to_le32(cmd_length);
