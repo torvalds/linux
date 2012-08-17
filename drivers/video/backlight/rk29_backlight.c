@@ -50,6 +50,41 @@ static struct clk *pwm_clk;
 static struct backlight_device *rk29_bl;
 static int suspend_flag = 0;
 
+
+int convertint(char s[])  
+{  
+    int i;  
+    int n = 0;  
+    for (i = 0; s[i] >= '0' && s[i] <= '9'; ++i)  
+    {  
+        n = 10 * n + (s[i] - '0');  
+    }  
+    return n;  
+} 
+
+static ssize_t backlight_write(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+   
+	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
+	int number;
+
+	number = convertint(buf);
+	
+	rk29_bl_info->min_brightness=number;
+	return 0;
+}
+
+
+static ssize_t backlight_read(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
+
+	printk("rk29_bl_info->min_brightness=%d\n",rk29_bl_info->min_brightness);
+}
+static DEVICE_ATTR(rk29backlight, 0777, backlight_read, backlight_write);
+
 static int rk29_bl_update_status(struct backlight_device *bl)
 {
 	u32 divh,div_total;
@@ -232,6 +267,11 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	rk29_bl->props.brightness = BL_STEP / 2;
 
 	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
+	ret = device_create_file(&pdev->dev,&dev_attr_rk29backlight);
+	if(ret)
+	{
+		dev_err(&pdev->dev, "failed to create sysfs file\n");
+	}
 
 	register_early_suspend(&bl_early_suspend);
 

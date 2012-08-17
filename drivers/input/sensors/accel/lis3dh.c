@@ -91,6 +91,72 @@ struct sensor_reg_data {
 	char data;
 };
 
+struct i2c_client *lis3dgh_client=NULL;
+static struct class *sensor_class = NULL;
+
+static ssize_t sensor_setoratitention(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i=0;
+	char gsensororatation[20];
+	
+	struct sensor_private_data *sensor =
+	    (struct sensor_private_data *) i2c_get_clientdata(lis3dgh_client);	
+	struct sensor_platform_data *pdata = sensor->pdata;
+
+	
+  	char *p = strstr(buf,"gsensor");
+	int start = strcspn(p,"{");
+	int end = strcspn(p,"}");
+	
+	strncpy(gsensororatation,p+start,end-start+1);
+	char *tmp=gsensororatation;
+	
+
+    	while(strncmp(tmp,"}",1)!=0)
+   	 {
+    		if((strncmp(tmp,",",1)==0)||(strncmp(tmp,"{",1)==0))
+		{
+			
+			 tmp++;		
+			 continue;
+		}	
+		else if(strncmp(tmp,"-",1)==0)
+		{
+			pdata->orientation[i++]=-1;
+			DBG("i=%d,data=%d\n",i,pdata->orientation[i]);
+			 tmp++;
+		}		
+		else
+		{
+			pdata->orientation[i++]=tmp[0]-48;		
+			DBG("----i=%d,data=%d\n",i,pdata->orientation[i]);	
+		}	
+		tmp++;
+	
+						
+   	 }
+
+	for(i=0;i<9;i++)
+		DBG("i=%d gsensor_info=%d\n",i,pdata->orientation[i]);
+	return 0;
+
+}
+
+static CLASS_ATTR(oratiention, 0777, NULL,sensor_setoratitention);
+
+static int  sensor_sys_init(void)
+{
+	int ret ;
+	sensor_class = class_create(THIS_MODULE, "gsensor");
+   	ret =  class_create_file(sensor_class, &class_attr_oratiention);
+      if (ret)
+      {
+       printk("Fail to creat class oratiention.\n");
+      }
+   	return 0;
+}
+
 
 /****************operate according to sensor chip:start************/
 
@@ -150,7 +216,8 @@ static int sensor_init(struct i2c_client *client)
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return result;
 	}
-	
+	lis3dgh_client = client;
+
 	sensor->status_cur = SENSOR_OFF;
 	
 	for(i=0;i<(sizeof(reg_data)/sizeof(struct sensor_reg_data));i++)
@@ -183,6 +250,7 @@ static int sensor_init(struct i2c_client *client)
 
 	}
 	
+	sensor_sys_init();
 	return result;
 }
 

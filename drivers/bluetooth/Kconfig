@@ -257,4 +257,15 @@ config BT_WILINK
 
 	  Say Y here to compile support for Texas Instrument's WiLink7 driver
 	  into the kernel or say M to compile it as module.
+
+if BCM4330
+choice
+        prompt "Select the bluetooth module"
+        default BT_MODULE_NH660
+
+        config BT_MODULE_NH660
+        bool "AzureWave NH660"
+endchoice
+endif
+
 endmenu

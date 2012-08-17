@@ -16,6 +16,7 @@ obj-$(CONFIG_LOGO_SUPERH_VGA16)		+= logo_superh_vga16.o
 obj-$(CONFIG_LOGO_SUPERH_CLUT224)	+= logo_superh_clut224.o
 obj-$(CONFIG_LOGO_M32R_CLUT224)		+= logo_m32r_clut224.o
 obj-$(CONFIG_LOGO_G3_CLUT224)		+= logo_g3_clut224.o
+obj-$(CONFIG_LOGO_LINUX_BMP)		+= logo_bmp.o
 
 
 obj-$(CONFIG_LOGO_CHARGER_CLUT224)         += logo_charger00_clut224.o logo_charger01_clut224.o logo_charger02_clut224.o logo_charger03_clut224.o logo_charger04_clut224.o logo_charger05_clut224.o logo_charger06_clut224.o logo_charger07_clut224.o logo_charger08_clut224.o 
@@ -41,11 +42,19 @@ extra-y += $(call logo-cfiles,_clut224,ppm)
 # Gray 256
 extra-y += $(call logo-cfiles,_gray256,pgm)
 
+extra-y += $(call logo-cfiles,_bmp,bmp)
+
+bmptologo := scripts/bmptologo
 pnmtologo := scripts/pnmtologo
 
 # Create commands like "pnmtologo -t mono -n logo_mac_mono -o ..."
 quiet_cmd_logo = LOGO    $@
 	cmd_logo = $(pnmtologo) \
+			-t $(patsubst $*_%,%,$(notdir $(basename $<))) \
+			-n $(notdir $(basename $<)) -o $@ $<
+
+quiet_cmd_bmplogo = LOGO    $@
+	cmd_bmplogo = $(bmptologo) \
 			-t $(patsubst $*_%,%,$(notdir $(basename $<))) \
 			-n $(notdir $(basename $<)) -o $@ $<
 
@@ -61,5 +70,8 @@ $(obj)/%_clut224.c: $(src)/%_clut224.ppm $(pnmtologo) FORCE
 $(obj)/%_gray256.c: $(src)/%_gray256.pgm $(pnmtologo) FORCE
 	$(call if_changed,logo)
 
+$(obj)/%_bmp.c: $(src)/%_bmp.bmp $(bmptologo) FORCE
+	$(call if_changed,bmplogo)
+
 # Files generated that shall be removed upon make clean
-clean-files := *.o *_mono.c *_vga16.c *_clut224.c *_gray256.c
+clean-files := *.o *_mono.c *_vga16.c *_clut224.c *_gray256.c *_bmp.c

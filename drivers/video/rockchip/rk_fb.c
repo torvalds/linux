@@ -31,6 +31,7 @@
 #include<linux/rk_fb.h>
 #include <plat/ipp.h>
 #include "hdmi/rk_hdmi.h"
+#include <linux/linux_logo.h>
 
 
 
@@ -377,6 +378,8 @@ static int rk_fb_set_par(struct fb_info *info)
 	u32 yvir = var->yres_virtual;
 	u8 data_format = var->nonstd&0xff;
 	var->pixclock = dev_drv->pixclock;
+ 	
+	printk("-----data_format=%d\n",data_format);
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
@@ -564,7 +567,11 @@ static struct fb_var_screeninfo def_var = {
     .green  = {5,6,0},
     .blue   = {0,5,0},
     .transp = {0,0,0},	
+    #ifdef  CONFIG_LOGO_LINUX_BMP
+	.nonstd      = HAL_PIXEL_FORMAT_RGBA_8888,
+	#else
     .nonstd      = HAL_PIXEL_FORMAT_RGB_565,   //(ypos<<20+xpos<<8+format) format
+    #endif
     .grayscale   = 0,  //(ysize<<20+xsize<<8)
     .activate    = FB_ACTIVATE_NOW,
     .accel_flags = 0,
@@ -891,7 +898,21 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	
 	return 0;
 }
+static  struct linux_logo *logo = NULL;
+char  fb_prepare_bmp_logo(struct fb_info *info, int rotate) 
+{
+	logo = fb_find_logo(24);
+	if (logo == NULL)
+		printk("%s....%s..error\n",__FILE__,__FUNCTION__);
+	return 1;
+}
 
+void fb_show_bmp_logo(struct fb_info *info, int rotate)
+{
+	char *framebase = info->screen_base;
+	memcpy(framebase,logo->data,(logo->width)*(logo->height)*4);
+
+}
 int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	struct rk_lcdc_device_driver *def_drv,int id)
 {
@@ -961,7 +982,12 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
         fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
 	fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
-        fbi->var.bits_per_pixel = 16;
+        //fbi->var.bits_per_pixel = 16;
+        #ifdef  CONFIG_LOGO_LINUX_BMP
+    		fbi->var.bits_per_pixel = 32; 
+		#else
+			fbi->var.bits_per_pixel = 16; 
+		#endif
         fbi->var.xres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
         fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
         fbi->var.width = fb_inf->lcdc_dev_drv[lcdc_id]->screen->width;
@@ -994,12 +1020,21 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     {
 	    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_open(fb_inf->fb[fb_inf->num_fb-2],1);
 	    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_set_par(fb_inf->fb[fb_inf->num_fb-2]);
-	    if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
+		#ifdef  CONFIG_LOGO_LINUX_BMP
+	   	if(fb_prepare_bmp_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
+	        /* Start display and show logo on boot */
+	        fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
+	        fb_show_bmp_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
+			fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
+	    }
+		#else
+		if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
 	        /* Start display and show logo on boot */
 	        fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
 	        fb_show_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
-		fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
+			fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
 	    }
+		#endif
     }
 #endif
 	return 0;
