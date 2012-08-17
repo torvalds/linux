@@ -96,3 +96,16 @@ Contact:	"Theodore Ts'o" <tytso@mit.edu>
 Description:
 		The maximum number of megabytes the writeback code will
 		try to write out before move on to another inode.
+
+What:		/sys/fs/ext4/<disk>/extent_max_zeroout_kb
+Date:		August 2012
+Contact:	"Theodore Ts'o" <tytso@mit.edu>
+Description:
+		The maximum number of kilobytes which will be zeroed
+		out in preference to creating a new uninitialized
+		extent when manipulating an inode's extent tree.  Note
+		that using a larger value will increase the
+		variability of time necessary to complete a random
+		write operation (since a 4k random write might turn
+		into a much larger write due to the zeroout
+		operation).
