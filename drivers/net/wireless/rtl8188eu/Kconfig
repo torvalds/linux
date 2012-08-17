@@ -1,8 +1,0 @@
-config RTL8188EUS
-	tristate "Realtek rtl8188EU Support"
-    select WIRELESS_EXT
-    select WEXT_PRIV
-    select IEEE80211
-	---help---
-	  Help message of RTL8188EU & RTL8189ES
-
