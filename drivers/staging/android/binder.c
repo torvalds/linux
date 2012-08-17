@@ -415,13 +415,13 @@ repeat:
 	else
 		__clear_close_on_exec(fd, fdt);
 	files->next_fd = fd + 1;
-#if 1
+
 	/* Sanity check */
 	if (fdt->fd[fd] != NULL) {
 		pr_warn("get_unused_fd: slot %d not NULL!\n", fd);
 		fdt->fd[fd] = NULL;
 	}
-#endif
+
 	error = fd;
 
 out:
