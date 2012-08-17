@@ -12,6 +12,7 @@
 #include <linux/kdb.h>
 #include <linux/kdebug.h>
 #include <linux/export.h>
+#include <linux/hardirq.h>
 #include "kdb_private.h"
 #include "../debug_core.h"
 
@@ -51,6 +52,9 @@ int kdb_stub(struct kgdb_state *ks)
 	ks->pass_exception = 0;
 	if (atomic_read(&kgdb_setting_breakpoint))
 		reason = KDB_REASON_KEYBOARD;
+
+	if (in_nmi())
+		reason = KDB_REASON_NMI;
 
 	for (i = 0, bp = kdb_breakpoints; i < KDB_MAXBPT; i++, bp++) {
 		if ((bp->bp_enabled) && (bp->bp_addr == addr)) {

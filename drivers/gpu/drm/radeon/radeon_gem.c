@@ -134,25 +134,16 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	struct radeon_device *rdev = rbo->rdev;
 	struct radeon_fpriv *fpriv = file_priv->driver_priv;
 	struct radeon_vm *vm = &fpriv->vm;
-	struct radeon_bo_va *bo_va, *tmp;
 
 	if (rdev->family < CHIP_CAYMAN) {
 		return;
 	}
 
 	if (radeon_bo_reserve(rbo, false)) {
+		dev_err(rdev->dev, "leaking bo va because we fail to reserve bo\n");
 		return;
 	}
-	list_for_each_entry_safe(bo_va, tmp, &rbo->va, bo_list) {
-		if (bo_va->vm == vm) {
-			/* remove from this vm address space */
-			mutex_lock(&vm->mutex);
-			list_del(&bo_va->vm_list);
-			mutex_unlock(&vm->mutex);
-			list_del(&bo_va->bo_list);
-			kfree(bo_va);
-		}
-	}
+	radeon_vm_bo_rmv(rdev, vm, rbo);
 	radeon_bo_unreserve(rbo);
 }
 
@@ -298,6 +289,7 @@ int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
 int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp)
 {
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_busy *args = data;
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
@@ -323,13 +315,14 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	drm_gem_object_unreference_unlocked(gobj);
-	r = radeon_gem_handle_lockup(robj->rdev, r);
+	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
 }
 
 int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *filp)
 {
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_gem_wait_idle *args = data;
 	struct drm_gem_object *gobj;
 	struct radeon_bo *robj;
@@ -342,10 +335,10 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	robj = gem_to_radeon_bo(gobj);
 	r = radeon_bo_wait(robj, NULL, false);
 	/* callback hw specific functions if any */
-	if (robj->rdev->asic->ioctl_wait_idle)
-		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
+	if (rdev->asic->ioctl_wait_idle)
+		robj->rdev->asic->ioctl_wait_idle(rdev, robj);
 	drm_gem_object_unreference_unlocked(gobj);
-	r = radeon_gem_handle_lockup(robj->rdev, r);
+	r = radeon_gem_handle_lockup(rdev, r);
 	return r;
 }
 

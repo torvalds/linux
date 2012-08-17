@@ -431,18 +431,6 @@ static struct pci_driver ali1563_pci_driver = {
 	.remove		= __devexit_p(ali1563_remove),
 };
 
-static int __init ali1563_init(void)
-{
-	return pci_register_driver(&ali1563_pci_driver);
-}
-
-module_init(ali1563_init);
-
-static void __exit ali1563_exit(void)
-{
-	pci_unregister_driver(&ali1563_pci_driver);
-}
-
-module_exit(ali1563_exit);
+module_pci_driver(ali1563_pci_driver);
 
 MODULE_LICENSE("GPL");

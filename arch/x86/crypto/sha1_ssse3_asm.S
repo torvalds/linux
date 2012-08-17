@@ -468,7 +468,7 @@ W_PRECALC_SSSE3
  */
 SHA1_VECTOR_ASM     sha1_transform_ssse3
 
-#ifdef SHA1_ENABLE_AVX_SUPPORT
+#ifdef CONFIG_AS_AVX
 
 .macro W_PRECALC_AVX
 

@@ -133,7 +133,7 @@ config I2C_PIIX4
 	    ATI IXP300
 	    ATI IXP400
 	    ATI SB600
-	    ATI SB700
+	    ATI SB700/SP5100
 	    ATI SB800
 	    AMD Hudson-2
 	    Serverworks OSB4
@@ -142,6 +142,10 @@ config I2C_PIIX4
 	    Serverworks HT-1000
 	    Serverworks HT-1100
 	    SMSC Victory66
+
+	  Some AMD chipsets contain two PIIX4-compatible SMBus
+	  controllers. This driver will attempt to use both controllers
+	  on the SB700/SP5100, if they have been initialized by the BIOS.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.
@@ -458,7 +462,7 @@ config I2C_MPC
 
 config I2C_MV64XXX
 	tristate "Marvell mv64xxx I2C Controller"
-	depends on (MV64X60 || PLAT_ORION) && EXPERIMENTAL
+	depends on (MV64X60 || PLAT_ORION)
 	help
 	  If you say yes to this option, support will be included for the
 	  built-in I2C interface on the Marvell 64xxx line of host bridges.
@@ -479,10 +483,11 @@ config I2C_MXS
 
 config I2C_NOMADIK
 	tristate "ST-Ericsson Nomadik/Ux500 I2C Controller"
-	depends on PLAT_NOMADIK
+	depends on ARM_AMBA
 	help
 	  If you say yes to this option, support will be included for the
-	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures.
+	  I2C interface from ST-Ericsson's Nomadik and Ux500 architectures,
+	  as well as the STA2X11 PCIe I/O HUB.
 
 config I2C_NUC900
 	tristate "NUC900 I2C Driver"

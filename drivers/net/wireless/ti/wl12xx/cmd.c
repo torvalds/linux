@@ -65,6 +65,7 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 	struct wl1271_general_parms_cmd *gen_parms;
 	struct wl1271_ini_general_params *gp =
 		&((struct wl1271_nvs_file *)wl->nvs)->general_params;
+	struct wl12xx_priv *priv = wl->priv;
 	bool answer = false;
 	int ret;
 
@@ -84,11 +85,15 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	memcpy(&gen_parms->general_params, gp, sizeof(*gp));
 
-	if (gp->tx_bip_fem_auto_detect)
+	/* If we started in PLT FEM_DETECT mode, force auto detect */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		gen_parms->general_params.tx_bip_fem_auto_detect = true;
+
+	if (gen_parms->general_params.tx_bip_fem_auto_detect)
 		answer = true;
 
 	/* Override the REF CLK from the NVS with the one from platform data */
-	gen_parms->general_params.ref_clock = wl->ref_clock;
+	gen_parms->general_params.ref_clock = priv->ref_clock;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
@@ -105,8 +110,17 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* If we are in calibrator based fem auto detect - save fem nr */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		wl->fem_manuf = gp->tx_bip_fem_manufacturer;
+
 	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
-		     answer ? "auto" : "manual", gp->tx_bip_fem_manufacturer);
+		answer == false ?
+			"manual" :
+		wl->plt_mode == PLT_FEM_DETECT ?
+			"calibrator_fem_detect" :
+			"auto",
+		gp->tx_bip_fem_manufacturer);
 
 out:
 	kfree(gen_parms);
@@ -118,6 +132,7 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 	struct wl128x_general_parms_cmd *gen_parms;
 	struct wl128x_ini_general_params *gp =
 		&((struct wl128x_nvs_file *)wl->nvs)->general_params;
+	struct wl12xx_priv *priv = wl->priv;
 	bool answer = false;
 	int ret;
 
@@ -137,12 +152,16 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 
 	memcpy(&gen_parms->general_params, gp, sizeof(*gp));
 
-	if (gp->tx_bip_fem_auto_detect)
+	/* If we started in PLT FEM_DETECT mode, force auto detect */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		gen_parms->general_params.tx_bip_fem_auto_detect = true;
+
+	if (gen_parms->general_params.tx_bip_fem_auto_detect)
 		answer = true;
 
 	/* Replace REF and TCXO CLKs with the ones from platform data */
-	gen_parms->general_params.ref_clock = wl->ref_clock;
-	gen_parms->general_params.tcxo_ref_clock = wl->tcxo_clock;
+	gen_parms->general_params.ref_clock = priv->ref_clock;
+	gen_parms->general_params.tcxo_ref_clock = priv->tcxo_clock;
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), answer);
 	if (ret < 0) {
@@ -159,8 +178,17 @@ int wl128x_cmd_general_parms(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* If we are in calibrator based fem auto detect - save fem nr */
+	if (wl->plt_mode == PLT_FEM_DETECT)
+		wl->fem_manuf = gp->tx_bip_fem_manufacturer;
+
 	wl1271_debug(DEBUG_CMD, "FEM autodetect: %s, manufacturer: %d\n",
-		     answer ? "auto" : "manual", gp->tx_bip_fem_manufacturer);
+		answer == false ?
+			"manual" :
+		wl->plt_mode == PLT_FEM_DETECT ?
+			"calibrator_fem_detect" :
+			"auto",
+		gp->tx_bip_fem_manufacturer);
 
 out:
 	kfree(gen_parms);
@@ -172,7 +200,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	struct wl1271_nvs_file *nvs = (struct wl1271_nvs_file *)wl->nvs;
 	struct wl1271_radio_parms_cmd *radio_parms;
 	struct wl1271_ini_general_params *gp = &nvs->general_params;
-	int ret;
+	int ret, fem_idx;
 
 	if (!wl->nvs)
 		return -ENODEV;
@@ -183,11 +211,13 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
+	fem_idx = WL12XX_FEM_TO_NVS_ENTRY(gp->tx_bip_fem_manufacturer);
+
 	/* 2.4GHz parameters */
 	memcpy(&radio_parms->static_params_2, &nvs->stat_radio_params_2,
 	       sizeof(struct wl1271_ini_band_params_2));
 	memcpy(&radio_parms->dyn_params_2,
-	       &nvs->dyn_radio_params_2[gp->tx_bip_fem_manufacturer].params,
+	       &nvs->dyn_radio_params_2[fem_idx].params,
 	       sizeof(struct wl1271_ini_fem_params_2));
 
 	/* 5GHz parameters */
@@ -195,7 +225,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       &nvs->stat_radio_params_5,
 	       sizeof(struct wl1271_ini_band_params_5));
 	memcpy(&radio_parms->dyn_params_5,
-	       &nvs->dyn_radio_params_5[gp->tx_bip_fem_manufacturer].params,
+	       &nvs->dyn_radio_params_5[fem_idx].params,
 	       sizeof(struct wl1271_ini_fem_params_5));
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
@@ -214,7 +244,7 @@ int wl128x_cmd_radio_parms(struct wl1271 *wl)
 	struct wl128x_nvs_file *nvs = (struct wl128x_nvs_file *)wl->nvs;
 	struct wl128x_radio_parms_cmd *radio_parms;
 	struct wl128x_ini_general_params *gp = &nvs->general_params;
-	int ret;
+	int ret, fem_idx;
 
 	if (!wl->nvs)
 		return -ENODEV;
@@ -225,11 +255,13 @@ int wl128x_cmd_radio_parms(struct wl1271 *wl)
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
+	fem_idx = WL12XX_FEM_TO_NVS_ENTRY(gp->tx_bip_fem_manufacturer);
+
 	/* 2.4GHz parameters */
 	memcpy(&radio_parms->static_params_2, &nvs->stat_radio_params_2,
 	       sizeof(struct wl128x_ini_band_params_2));
 	memcpy(&radio_parms->dyn_params_2,
-	       &nvs->dyn_radio_params_2[gp->tx_bip_fem_manufacturer].params,
+	       &nvs->dyn_radio_params_2[fem_idx].params,
 	       sizeof(struct wl128x_ini_fem_params_2));
 
 	/* 5GHz parameters */
@@ -237,7 +269,7 @@ int wl128x_cmd_radio_parms(struct wl1271 *wl)
 	       &nvs->stat_radio_params_5,
 	       sizeof(struct wl128x_ini_band_params_5));
 	memcpy(&radio_parms->dyn_params_5,
-	       &nvs->dyn_radio_params_5[gp->tx_bip_fem_manufacturer].params,
+	       &nvs->dyn_radio_params_5[fem_idx].params,
 	       sizeof(struct wl128x_ini_fem_params_5));
 
 	radio_parms->fem_vendor_and_options = nvs->fem_vendor_and_options;

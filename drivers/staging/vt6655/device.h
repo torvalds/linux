@@ -69,10 +69,6 @@
 #ifndef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #endif
-//2008-4-14<add> by chester for led issue
-//#define FOR_LED_ON_NOTEBOOK
-//
-
 
 //
 // device specific
@@ -91,12 +87,6 @@
 #include "key.h"
 #include "mac.h"
 
-//PLICE_DEBUG->
-//#define		THREAD
-
-//#define	TASK_LET
-//PLICE_DEBUG<-
-
 
 /*---------------------  Export Definitions -------------------------*/
 
@@ -104,11 +94,6 @@
 
 #define MAX_MULTICAST_ADDRESS_NUM       32
 #define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * ETH_ALEN)
-
-
-//#define OP_MODE_INFRASTRUCTURE  0
-//#define OP_MODE_ADHOC           1
-//#define OP_MODE_AP              2
 
 #define DUPLICATE_RX_CACHE_LENGTH       5
 

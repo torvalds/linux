@@ -57,6 +57,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		const __be32 *paddr;
 		u32 addr;
 		int len;
+		bool is_c45;
 
 		/* A PHY must have a reg property in the range [0-31] */
 		paddr = of_get_property(child, "reg", &len);
@@ -79,11 +80,18 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				mdio->irq[addr] = PHY_POLL;
 		}
 
-		phy = get_phy_device(mdio, addr);
+		is_c45 = of_device_is_compatible(child,
+						 "ethernet-phy-ieee802.3-c45");
+		phy = get_phy_device(mdio, addr, is_c45);
+
 		if (!phy || IS_ERR(phy)) {
-			dev_err(&mdio->dev, "error probing PHY at address %i\n",
-				addr);
-			continue;
+			phy = phy_device_create(mdio, addr, 0, false, NULL);
+			if (!phy || IS_ERR(phy)) {
+				dev_err(&mdio->dev,
+					"error creating PHY at address %i\n",
+					addr);
+				continue;
+			}
 		}
 
 		/* Associate the OF node with the device structure so it

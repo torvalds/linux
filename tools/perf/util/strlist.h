@@ -4,14 +4,15 @@
 #include <linux/rbtree.h>
 #include <stdbool.h>
 
+#include "rblist.h"
+
 struct str_node {
 	struct rb_node rb_node;
 	const char     *s;
 };
 
 struct strlist {
-	struct rb_root entries;
-	unsigned int   nr_entries;
+	struct rblist rblist;
 	bool	       dupstr;
 };
 
@@ -32,18 +33,18 @@ static inline bool strlist__has_entry(struct strlist *self, const char *entry)
 
 static inline bool strlist__empty(const struct strlist *self)
 {
-	return self->nr_entries == 0;
+	return rblist__empty(&self->rblist);
 }
 
 static inline unsigned int strlist__nr_entries(const struct strlist *self)
 {
-	return self->nr_entries;
+	return rblist__nr_entries(&self->rblist);
 }
 
 /* For strlist iteration */
 static inline struct str_node *strlist__first(struct strlist *self)
 {
-	struct rb_node *rn = rb_first(&self->entries);
+	struct rb_node *rn = rb_first(&self->rblist.entries);
 	return rn ? rb_entry(rn, struct str_node, rb_node) : NULL;
 }
 static inline struct str_node *strlist__next(struct str_node *sn)

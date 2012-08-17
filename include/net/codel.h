@@ -305,6 +305,8 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 			}
 		}
 	} else if (drop) {
+		u32 delta;
+
 		if (params->ecn && INET_ECN_set_ce(skb)) {
 			stats->ecn_mark++;
 		} else {
@@ -320,9 +322,11 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 		 * assume that the drop rate that controlled the queue on the
 		 * last cycle is a good starting point to control it now.
 		 */
-		if (codel_time_before(now - vars->drop_next,
+		delta = vars->count - vars->lastcount;
+		if (delta > 1 &&
+		    codel_time_before(now - vars->drop_next,
 				      16 * params->interval)) {
-			vars->count = (vars->count - vars->lastcount) | 1;
+			vars->count = delta;
 			/* we dont care if rec_inv_sqrt approximation
 			 * is not very precise :
 			 * Next Newton steps will correct it quadratically.

@@ -1,6 +1,7 @@
 config VIDEO_SMIAPP
 	tristate "SMIA++/SMIA sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAVE_CLK
+	depends on MEDIA_CAMERA_SUPPORT
 	select VIDEO_SMIAPP_PLL
 	---help---
 	  This is a generic driver for SMIA++/SMIA camera modules.

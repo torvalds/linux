@@ -2,9 +2,6 @@ if ARCH_MXS
 
 source "arch/arm/mach-mxs/devices/Kconfig"
 
-config MXS_OCOTP
-	bool
-
 config SOC_IMX23
 	bool
 	select ARM_AMBA
@@ -16,6 +13,7 @@ config SOC_IMX28
 	bool
 	select ARM_AMBA
 	select CPU_ARM926T
+	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_PWM
 	select PINCTRL_IMX28
 
@@ -65,7 +63,6 @@ config MACH_MX28EVK
 	select MXS_HAVE_PLATFORM_MXS_SAIF
 	select MXS_HAVE_PLATFORM_MXS_I2C
 	select MXS_HAVE_PLATFORM_RTC_STMP3XXX
-	select MXS_OCOTP
 	help
 	  Include support for MX28EVK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -93,7 +90,6 @@ config MODULE_M28
 	select MXS_HAVE_PLATFORM_MXS_I2C
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXSFB
-	select MXS_OCOTP
 
 config MODULE_APX4
 	bool
@@ -105,7 +101,6 @@ config MODULE_APX4
 	select MXS_HAVE_PLATFORM_MXS_I2C
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXS_SAIF
-	select MXS_OCOTP
 
 config MACH_TX28
 	bool "Ka-Ro TX28 module"

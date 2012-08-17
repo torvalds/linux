@@ -140,12 +140,12 @@ int drm_open(struct inode *inode, struct file *filp)
 	}
 	if (!retcode) {
 		mutex_lock(&dev->struct_mutex);
-		if (minor->type == DRM_MINOR_LEGACY) {
-			if (dev->dev_mapping == NULL)
-				dev->dev_mapping = inode->i_mapping;
-			else if (dev->dev_mapping != inode->i_mapping)
-				retcode = -ENODEV;
-		}
+		if (dev->dev_mapping == NULL)
+			dev->dev_mapping = &inode->i_data;
+		/* ihold ensures nobody can remove inode with our i_data */
+		ihold(container_of(dev->dev_mapping, struct inode, i_data));
+		inode->i_mapping = dev->dev_mapping;
+		filp->f_mapping = dev->dev_mapping;
 		mutex_unlock(&dev->struct_mutex);
 	}
 
@@ -508,6 +508,9 @@ int drm_release(struct inode *inode, struct file *filp)
 			drm_master_put(&file_priv->minor->master);
 		}
 	}
+
+	BUG_ON(dev->dev_mapping == NULL);
+	iput(container_of(dev->dev_mapping, struct inode, i_data));
 
 	/* drop the reference held my the file priv */
 	drm_master_put(&file_priv->master);

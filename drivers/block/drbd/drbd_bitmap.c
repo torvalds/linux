@@ -1096,7 +1096,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 
 	if (ctx->error) {
 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 		err = -EIO; /* ctx->error ? */
 	}
 
@@ -1212,7 +1212,7 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 	wait_until_done_or_disk_failure(mdev, mdev->ldev, &ctx->done);
 
 	if (ctx->error)
-		drbd_chk_io_error(mdev, 1, true);
+		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
 		/* that should force detach, so the in memory bitmap will be
 		 * gone in a moment as well. */
 
@@ -1475,10 +1475,17 @@ void _drbd_bm_set_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 		first_word = 0;
 		spin_lock_irq(&b->bm_lock);
 	}
-
 	/* last page (respectively only page, for first page == last page) */
 	last_word = MLPP(el >> LN2_BPL);
-	bm_set_full_words_within_one_page(mdev->bitmap, last_page, first_word, last_word);
+
+	/* consider bitmap->bm_bits = 32768, bitmap->bm_number_of_pages = 1. (or multiples).
+	 * ==> e = 32767, el = 32768, last_page = 2,
+	 * and now last_word = 0.
+	 * We do not want to touch last_page in this case,
+	 * as we did not allocate it, it is not present in bitmap->bm_pages.
+	 */
+	if (last_word)
+		bm_set_full_words_within_one_page(mdev->bitmap, last_page, first_word, last_word);
 
 	/* possibly trailing bits.
 	 * example: (e & 63) == 63, el will be e+1.

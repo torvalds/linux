@@ -677,7 +677,7 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 	struct bd2802_led_platform_data *pdata;
 	int ret, i;
 
-	led = kzalloc(sizeof(struct bd2802_led), GFP_KERNEL);
+	led = devm_kzalloc(&client->dev, sizeof(struct bd2802_led), GFP_KERNEL);
 	if (!led) {
 		dev_err(&client->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
@@ -697,7 +697,7 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 	ret = bd2802_write_byte(client, BD2802_REG_CLKSETUP, 0x00);
 	if (ret < 0) {
 		dev_err(&client->dev, "failed to detect device\n");
-		goto failed_free;
+		return ret;
 	} else
 		dev_info(&client->dev, "return 0x%02x\n", ret);
 
@@ -729,9 +729,6 @@ static int __devinit bd2802_probe(struct i2c_client *client,
 failed_unregister_dev_file:
 	for (i--; i >= 0; i--)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
-failed_free:
-	kfree(led);
-
 	return ret;
 }
 
@@ -746,7 +743,6 @@ static int __exit bd2802_remove(struct i2c_client *client)
 		bd2802_disable_adv_conf(led);
 	for (i = 0; i < ARRAY_SIZE(bd2802_attributes); i++)
 		device_remove_file(&led->client->dev, bd2802_attributes[i]);
-	kfree(led);
 
 	return 0;
 }

@@ -15,8 +15,8 @@ obj-y				+= init.o cpu.o
 obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
 obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o
 
-obj-y				+= clock.o
-obj-y				+= pwm-clock.o
+obj-$(CONFIG_SAMSUNG_CLOCK)	+= clock.o
+obj-$(CONFIG_SAMSUNG_CLOCK)	+= pwm-clock.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 obj-$(CONFIG_S5P_CLOCK)		+= s5p-clock.o
@@ -59,11 +59,3 @@ obj-$(CONFIG_SAMSUNG_WAKEMASK)	+= wakeup-mask.o
 
 obj-$(CONFIG_S5P_PM)		+= s5p-pm.o s5p-irq-pm.o
 obj-$(CONFIG_S5P_SLEEP)		+= s5p-sleep.o
-
-# PD support
-
-obj-$(CONFIG_SAMSUNG_PD)	+= pd.o
-
-# PWM support
-
-obj-$(CONFIG_HAVE_PWM)		+= pwm.o

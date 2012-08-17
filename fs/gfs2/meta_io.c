@@ -52,7 +52,7 @@ static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wb
 		/*
 		 * If it's a fully non-blocking write attempt and we cannot
 		 * lock the buffer then redirty the page.  Note that this can
-		 * potentially cause a busy-wait loop from pdflush and kswapd
+		 * potentially cause a busy-wait loop from flusher thread and kswapd
 		 * activity, but those code paths have their own higher-level
 		 * throttling.
 		 */
@@ -213,8 +213,10 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct buffer_head *bh;
 
-	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags))) {
+		*bhp = NULL;
 		return -EIO;
+	}
 
 	*bhp = bh = gfs2_getbuf(gl, blkno, CREATE);
 
@@ -235,6 +237,7 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		if (tr && tr->tr_touched)
 			gfs2_io_error_bh(sdp, bh);
 		brelse(bh);
+		*bhp = NULL;
 		return -EIO;
 	}
 

@@ -1922,7 +1922,7 @@ realloc:
 		/* misaligned, free current one and try allocating
 		 * size + VXGE_CACHE_LINE_SIZE memory
 		 */
-		kfree((void *) vaddr);
+		kfree(vaddr);
 		size += VXGE_CACHE_LINE_SIZE;
 		realloc_flag = 1;
 		goto realloc;

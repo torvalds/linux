@@ -339,7 +339,6 @@ void __init pci_versatile_preinit(void)
 static int __init versatile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
-	int devslot = PCI_SLOT(dev->devfn);
 
 	/* slot,  pin,	irq
 	 *  24     1     27

@@ -222,9 +222,9 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
  * PARAMETERS:  obj_desc                - Field to be read
  *              field_datum_byte_offset - Byte offset of this datum within the
  *                                        parent field
- *              Value                   - Where to store value (must at least
+ *              value                   - Where to store value (must at least
  *                                        64 bits)
- *              Function                - Read or Write flag plus other region-
+ *              function                - Read or Write flag plus other region-
  *                                        dependent flags
  *
  * RETURN:      Status
@@ -315,7 +315,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_register_overflow
  *
  * PARAMETERS:  obj_desc                - Register(Field) to be written
- *              Value                   - Value to be stored
+ *              value                   - Value to be stored
  *
  * RETURN:      TRUE if value overflows the field, FALSE otherwise
  *
@@ -365,7 +365,7 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
  * PARAMETERS:  obj_desc                - Field to be read
  *              field_datum_byte_offset - Byte offset of this datum within the
  *                                        parent field
- *              Value                   - Where to store value (must be 64 bits)
+ *              value                   - Where to store value (must be 64 bits)
  *              read_write              - Read or Write flag
  *
  * RETURN:      Status
@@ -574,7 +574,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_write_with_update_rule
  *
  * PARAMETERS:  obj_desc                - Field to be written
- *              Mask                    - bitmask within field datum
+ *              mask                    - bitmask within field datum
  *              field_value             - Value to write
  *              field_datum_byte_offset - Offset of datum within field
  *
@@ -678,7 +678,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_extract_from_field
  *
  * PARAMETERS:  obj_desc            - Field to be read
- *              Buffer              - Where to store the field data
+ *              buffer              - Where to store the field data
  *              buffer_length       - Length of Buffer
  *
  * RETURN:      Status
@@ -823,7 +823,7 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
  * FUNCTION:    acpi_ex_insert_into_field
  *
  * PARAMETERS:  obj_desc            - Field to be written
- *              Buffer              - Data to be written
+ *              buffer              - Data to be written
  *              buffer_length       - Length of Buffer
  *
  * RETURN:      Status

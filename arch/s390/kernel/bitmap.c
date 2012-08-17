@@ -2,7 +2,7 @@
  *    Bitmaps for set_bit, clear_bit, test_and_set_bit, ...
  *    See include/asm/{bitops.h|posix_types.h} for details
  *
- *    Copyright IBM Corp. 1999,2009
+ *    Copyright IBM Corp. 1999, 2009
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
  */
 

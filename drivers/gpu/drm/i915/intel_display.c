@@ -869,6 +869,7 @@ intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	unsigned long bestppm, ppm, absppm;
 	int dotclk, flag;
 
+	flag = 0;
 	dotclk = target * 1000;
 	bestppm = 1000000;
 	ppm = absppm = 0;
@@ -3751,17 +3752,6 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			if (lvds_bpc < display_bpc) {
 				DRM_DEBUG_KMS("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
 				display_bpc = lvds_bpc;
-			}
-			continue;
-		}
-
-		if (intel_encoder->type == INTEL_OUTPUT_EDP) {
-			/* Use VBT settings if we have an eDP panel */
-			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
-
-			if (edp_bpc < display_bpc) {
-				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
-				display_bpc = edp_bpc;
 			}
 			continue;
 		}
@@ -7093,19 +7083,6 @@ static void i915_disable_vga(struct drm_device *dev)
 	POSTING_READ(vga_reg);
 }
 
-static void ivb_pch_pwm_override(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/*
-	 * IVB has CPU eDP backlight regs too, set things up to let the
-	 * PCH regs control the backlight
-	 */
-	I915_WRITE(BLC_PWM_CPU_CTL2, BLM_PWM_ENABLE);
-	I915_WRITE(BLC_PWM_CPU_CTL, 0);
-	I915_WRITE(BLC_PWM_PCH_CTL1, BLM_PCH_PWM_ENABLE | BLM_PCH_OVERRIDE_ENABLE);
-}
-
 void intel_modeset_init_hw(struct drm_device *dev)
 {
 	/* We attempt to init the necessary power wells early in the initialization
@@ -7120,9 +7097,6 @@ void intel_modeset_init_hw(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_enable_gt_powersave(dev);
 	mutex_unlock(&dev->struct_mutex);
-
-	if (IS_IVYBRIDGE(dev))
-		ivb_pch_pwm_override(dev);
 }
 
 void intel_modeset_init(struct drm_device *dev)

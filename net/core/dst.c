@@ -94,7 +94,7 @@ loop:
 			 * But we do not have state "obsoleted, but
 			 * referenced by parent", so it is right.
 			 */
-			if (dst->obsolete > 1)
+			if (dst->obsolete > 0)
 				continue;
 
 			___dst_free(dst);
@@ -149,10 +149,18 @@ int dst_discard(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(dst_discard);
 
-const u32 dst_default_metrics[RTAX_MAX];
+const u32 dst_default_metrics[RTAX_MAX + 1] = {
+	/* This initializer is needed to force linker to place this variable
+	 * into const section. Otherwise it might end into bss section.
+	 * We really want to avoid false sharing on this variable, and catch
+	 * any writes on it.
+	 */
+	[RTAX_MAX] = 0xdeadbeef,
+};
+
 
 void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
-		int initial_ref, int initial_obsolete, int flags)
+		int initial_ref, int initial_obsolete, unsigned short flags)
 {
 	struct dst_entry *dst;
 
@@ -171,7 +179,6 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	dst_init_metrics(dst, dst_default_metrics, true);
 	dst->expires = 0UL;
 	dst->path = dst;
-	RCU_INIT_POINTER(dst->_neighbour, NULL);
 #ifdef CONFIG_XFRM
 	dst->xfrm = NULL;
 #endif
@@ -188,6 +195,7 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
+	dst->pending_confirm = 0;
 	dst->next = NULL;
 	if (!(flags & DST_NOCOUNT))
 		dst_entries_add(ops, 1);
@@ -202,7 +210,7 @@ static void ___dst_free(struct dst_entry *dst)
 	 */
 	if (dst->dev == NULL || !(dst->dev->flags&IFF_UP))
 		dst->input = dst->output = dst_discard;
-	dst->obsolete = 2;
+	dst->obsolete = DST_OBSOLETE_DEAD;
 }
 
 void __dst_free(struct dst_entry *dst)
@@ -224,18 +232,11 @@ EXPORT_SYMBOL(__dst_free);
 struct dst_entry *dst_destroy(struct dst_entry * dst)
 {
 	struct dst_entry *child;
-	struct neighbour *neigh;
 
 	smp_rmb();
 
 again:
-	neigh = rcu_dereference_protected(dst->_neighbour, 1);
 	child = dst->child;
-
-	if (neigh) {
-		RCU_INIT_POINTER(dst->_neighbour, NULL);
-		neigh_release(neigh);
-	}
 
 	if (!(dst->flags & DST_NOCOUNT))
 		dst_entries_add(dst->ops, -1);
@@ -360,19 +361,9 @@ static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (!unregister) {
 		dst->input = dst->output = dst_discard;
 	} else {
-		struct neighbour *neigh;
-
 		dst->dev = dev_net(dst->dev)->loopback_dev;
 		dev_hold(dst->dev);
 		dev_put(dev);
-		rcu_read_lock();
-		neigh = dst_get_neighbour_noref(dst);
-		if (neigh && neigh->dev == dev) {
-			neigh->dev = dst->dev;
-			dev_hold(dst->dev);
-			dev_put(dev);
-		}
-		rcu_read_unlock();
 	}
 }
 

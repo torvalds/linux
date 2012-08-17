@@ -45,11 +45,11 @@
 #include <asm/mach/map.h>
 
 #include <plat/flash.h>
-#include <plat/usb.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 
 #include <mach/hardware.h>
+#include <mach/usb.h>
 
 #include "common.h"
 

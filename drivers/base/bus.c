@@ -743,7 +743,6 @@ int bus_add_driver(struct device_driver *drv)
 		}
 	}
 
-	kobject_uevent(&priv->kobj, KOBJ_ADD);
 	return 0;
 
 out_unregister:

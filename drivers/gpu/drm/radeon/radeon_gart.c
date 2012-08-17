@@ -438,8 +438,9 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 
 	if (!rdev->vm_manager.enabled) {
 		/* mark first vm as always in use, it's the system one */
+		/* allocate enough for 2 full VM pts */
 		r = radeon_sa_bo_manager_init(rdev, &rdev->vm_manager.sa_manager,
-					      rdev->vm_manager.max_pfn * 8,
+					      rdev->vm_manager.max_pfn * 8 * 2,
 					      RADEON_GEM_DOMAIN_VRAM);
 		if (r) {
 			dev_err(rdev->dev, "failed to allocate vm bo (%dKB)\n",
@@ -813,7 +814,7 @@ int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 		return -EINVAL;
 	}
 
-	if (bo_va->valid)
+	if (bo_va->valid && mem)
 		return 0;
 
 	ngpu_pages = radeon_bo_ngpu_pages(bo);
@@ -858,10 +859,26 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 		     struct radeon_bo *bo)
 {
 	struct radeon_bo_va *bo_va;
+	int r;
 
 	bo_va = radeon_bo_va(bo, vm);
 	if (bo_va == NULL)
 		return 0;
+
+	/* wait for va use to end */
+	while (bo_va->fence) {
+		r = radeon_fence_wait(bo_va->fence, false);
+		if (r) {
+			DRM_ERROR("error while waiting for fence: %d\n", r);
+		}
+		if (r == -EDEADLK) {
+			r = radeon_gpu_reset(rdev);
+			if (!r)
+				continue;
+		}
+		break;
+	}
+	radeon_fence_unref(&bo_va->fence);
 
 	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
@@ -915,7 +932,15 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 	mutex_init(&vm->mutex);
 	INIT_LIST_HEAD(&vm->list);
 	INIT_LIST_HEAD(&vm->va);
-	vm->last_pfn = 0;
+	/* SI requires equal sized PTs for all VMs, so always set
+	 * last_pfn to max_pfn.  cayman allows variable sized
+	 * pts so we can grow then as needed.  Once we switch
+	 * to two level pts we can unify this again.
+	 */
+	if (rdev->family >= CHIP_TAHITI)
+		vm->last_pfn = rdev->vm_manager.max_pfn;
+	else
+		vm->last_pfn = 0;
 	/* map the ib pool buffer at 0 in virtual address space, set
 	 * read only
 	 */
@@ -925,7 +950,7 @@ int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)
 }
 
 /**
- * radeon_vm_init - tear down a vm instance
+ * radeon_vm_fini - tear down a vm instance
  *
  * @rdev: radeon_device pointer
  * @vm: requested vm
@@ -943,12 +968,15 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	radeon_vm_unbind_locked(rdev, vm);
 	mutex_unlock(&rdev->vm_manager.lock);
 
-	/* remove all bo */
+	/* remove all bo at this point non are busy any more because unbind
+	 * waited for the last vm fence to signal
+	 */
 	r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
 	if (!r) {
 		bo_va = radeon_bo_va(rdev->ring_tmp_bo.bo, vm);
 		list_del_init(&bo_va->bo_list);
 		list_del_init(&bo_va->vm_list);
+		radeon_fence_unref(&bo_va->fence);
 		radeon_bo_unreserve(rdev->ring_tmp_bo.bo);
 		kfree(bo_va);
 	}
@@ -960,6 +988,7 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 		r = radeon_bo_reserve(bo_va->bo, false);
 		if (!r) {
 			list_del_init(&bo_va->bo_list);
+			radeon_fence_unref(&bo_va->fence);
 			radeon_bo_unreserve(bo_va->bo);
 			kfree(bo_va);
 		}

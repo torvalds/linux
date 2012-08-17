@@ -1209,9 +1209,10 @@ static int sis_chip_init(struct sis7019 *sis)
 }
 
 #ifdef CONFIG_PM
-static int sis_suspend(struct pci_dev *pci, pm_message_t state)
+static int sis_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct sis7019 *sis = card->private_data;
 	void __iomem *ioaddr = sis->ioaddr;
 	int i;
@@ -1241,13 +1242,14 @@ static int sis_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int sis_resume(struct pci_dev *pci)
+static int sis_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct sis7019 *sis = card->private_data;
 	void __iomem *ioaddr = sis->ioaddr;
 	int i;
@@ -1298,6 +1300,11 @@ error:
 	snd_card_disconnect(card);
 	return -EIO;
 }
+
+static SIMPLE_DEV_PM_OPS(sis_pm, sis_suspend, sis_resume);
+#define SIS_PM_OPS	&sis_pm
+#else
+#define SIS_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 static int sis_alloc_suspend(struct sis7019 *sis)
@@ -1481,11 +1488,9 @@ static struct pci_driver sis7019_driver = {
 	.id_table = snd_sis7019_ids,
 	.probe = snd_sis7019_probe,
 	.remove = __devexit_p(snd_sis7019_remove),
-
-#ifdef CONFIG_PM
-	.suspend = sis_suspend,
-	.resume = sis_resume,
-#endif
+	.driver = {
+		.pm = SIS_PM_OPS,
+	},
 };
 
 module_pci_driver(sis7019_driver);

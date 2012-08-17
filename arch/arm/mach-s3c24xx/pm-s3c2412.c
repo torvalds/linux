@@ -26,7 +26,6 @@
 #include <asm/irq.h>
 
 #include <mach/regs-power.h>
-#include <mach/regs-gpioj.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-dsc.h>
 

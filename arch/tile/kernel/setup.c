@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/kexec.h>
 #include <linux/pci.h>
+#include <linux/swiotlb.h>
 #include <linux/initrd.h>
 #include <linux/io.h>
 #include <linux/highmem.h>
@@ -109,7 +110,7 @@ static unsigned int __initdata maxnodemem_pfn[MAX_NUMNODES] = {
 };
 static nodemask_t __initdata isolnodes;
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 enum { DEFAULT_PCI_RESERVE_MB = 64 };
 static unsigned int __initdata pci_reserve_mb = DEFAULT_PCI_RESERVE_MB;
 unsigned long __initdata pci_reserve_start_pfn = -1U;
@@ -160,7 +161,7 @@ static int __init setup_isolnodes(char *str)
 }
 early_param("isolnodes", setup_isolnodes);
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 static int __init setup_pci_reserve(char* str)
 {
 	unsigned long mb;
@@ -171,7 +172,7 @@ static int __init setup_pci_reserve(char* str)
 
 	pci_reserve_mb = mb;
 	pr_info("Reserving %dMB for PCIE root complex mappings\n",
-	       pci_reserve_mb);
+		pci_reserve_mb);
 	return 0;
 }
 early_param("pci_reserve", setup_pci_reserve);
@@ -411,7 +412,7 @@ static void __init setup_memory(void)
 			continue;
 		}
 #endif
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 		/*
 		 * Blocks that overlap the pci reserved region must
 		 * have enough space to hold the maximum percpu data
@@ -604,11 +605,9 @@ static void __init setup_bootmem_allocator_node(int i)
 	/* Free all the space back into the allocator. */
 	free_bootmem(PFN_PHYS(start), PFN_PHYS(end - start));
 
-#if defined(CONFIG_PCI)
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 	/*
-	 * Throw away any memory aliased by the PCI region.  FIXME: this
-	 * is a temporary hack to work around bug 10502, and needs to be
-	 * fixed properly.
+	 * Throw away any memory aliased by the PCI region.
 	 */
 	if (pci_reserve_start_pfn < end && pci_reserve_end_pfn > start)
 		reserve_bootmem(PFN_PHYS(pci_reserve_start_pfn),
@@ -658,6 +657,8 @@ static void __init zone_sizes_init(void)
 	unsigned long zones_size[MAX_NR_ZONES] = { 0 };
 	int size = percpu_size();
 	int num_cpus = smp_height * smp_width;
+	const unsigned long dma_end = (1UL << (32 - PAGE_SHIFT));
+
 	int i;
 
 	for (i = 0; i < num_cpus; ++i)
@@ -729,6 +730,14 @@ static void __init zone_sizes_init(void)
 		zones_size[ZONE_NORMAL] = end - start;
 #endif
 
+		if (start < dma_end) {
+			zones_size[ZONE_DMA] = min(zones_size[ZONE_NORMAL],
+						   dma_end - start);
+			zones_size[ZONE_NORMAL] -= zones_size[ZONE_DMA];
+		} else {
+			zones_size[ZONE_DMA] = 0;
+		}
+
 		/* Take zone metadata from controller 0 if we're isolnode. */
 		if (node_isset(i, isolnodes))
 			NODE_DATA(i)->bdata = &bootmem_node_data[0];
@@ -738,7 +747,7 @@ static void __init zone_sizes_init(void)
 		       PFN_UP(node_percpu[i]));
 
 		/* Track the type of memory on each node */
-		if (zones_size[ZONE_NORMAL])
+		if (zones_size[ZONE_NORMAL] || zones_size[ZONE_DMA])
 			node_set_state(i, N_NORMAL_MEMORY);
 #ifdef CONFIG_HIGHMEM
 		if (end != start)
@@ -1343,7 +1352,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_cpu_maps();
 
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 	/*
 	 * Initialize the PCI structures.  This is done before memory
 	 * setup so that we know whether or not a pci_reserve region
@@ -1371,6 +1380,10 @@ void __init setup_arch(char **cmdline_p)
 	 * NOTE: before this point _nobody_ is allowed to allocate
 	 * any memory using the bootmem allocator.
 	 */
+
+#ifdef CONFIG_SWIOTLB
+	swiotlb_init(0);
+#endif
 
 	paging_init();
 	setup_numa_mapping();
@@ -1522,11 +1535,10 @@ static struct resource code_resource = {
 };
 
 /*
- * We reserve all resources above 4GB so that PCI won't try to put
- * mappings above 4GB; the standard allows that for some devices but
- * the probing code trunates values to 32 bits.
+ * On Pro, we reserve all resources above 4GB so that PCI won't try to put
+ * mappings above 4GB.
  */
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 static struct resource* __init
 insert_non_bus_resource(void)
 {
@@ -1571,8 +1583,7 @@ static int __init request_standard_resources(void)
 	int i;
 	enum { CODE_DELTA = MEM_SV_INTRPT - PAGE_OFFSET };
 
-	iomem_resource.end = -1LL;
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 	insert_non_bus_resource();
 #endif
 
@@ -1580,7 +1591,7 @@ static int __init request_standard_resources(void)
 		u64 start_pfn = node_start_pfn[i];
 		u64 end_pfn = node_end_pfn[i];
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && !defined(__tilegx__)
 		if (start_pfn <= pci_reserve_start_pfn &&
 		    end_pfn > pci_reserve_start_pfn) {
 			if (end_pfn > pci_reserve_end_pfn)

@@ -118,6 +118,7 @@ struct ad7879 {
 	unsigned int		irq;
 	bool			disabled;	/* P: input->mutex */
 	bool			suspended;	/* P: input->mutex */
+	bool			swap_xy;
 	u16			conversion_data[AD7879_NR_SENSE];
 	char			phys[32];
 	u8			first_conversion_delay;
@@ -160,6 +161,9 @@ static int ad7879_report(struct ad7879 *ts)
 	y = ts->conversion_data[AD7879_SEQ_YPOS] & MAX_12BIT;
 	z1 = ts->conversion_data[AD7879_SEQ_Z1] & MAX_12BIT;
 	z2 = ts->conversion_data[AD7879_SEQ_Z2] & MAX_12BIT;
+
+	if (ts->swap_xy)
+		swap(x, y);
 
 	/*
 	 * The samples processed here are already preprocessed by the AD7879.
@@ -520,6 +524,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	ts->dev = dev;
 	ts->input = input_dev;
 	ts->irq = irq;
+	ts->swap_xy = pdata->swap_xy;
 
 	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
 
@@ -597,7 +602,7 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 			AD7879_TMR(ts->pen_down_acc_interval);
 
 	err = request_threaded_irq(ts->irq, NULL, ad7879_irq,
-				   IRQF_TRIGGER_FALLING,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   dev_name(dev), ts);
 	if (err) {
 		dev_err(dev, "irq %d busy?\n", ts->irq);

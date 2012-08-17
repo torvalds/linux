@@ -31,9 +31,9 @@
 .endm
 
 #elif defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
-      defined(CONFIG_M5249) || defined(CONFIG_M527x) || \
-      defined(CONFIG_M528x) || defined(CONFIG_M5307) || \
-      defined(CONFIG_M5407)
+      defined(CONFIG_M5249) || defined(CONFIG_M525x) || \
+      defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+      defined(CONFIG_M5307) || defined(CONFIG_M5407)
 /*
  *	Not all these devices have exactly the same DRAM controller,
  *	but the DCMR register is virtually identical - give or take
@@ -230,8 +230,8 @@ _vstart:
 	/*
 	 *	Move ROM filesystem above bss :-)
 	 */
-	lea	_sbss,%a0			/* get start of bss */
-	lea	_ebss,%a1			/* set up destination  */
+	lea	__bss_start,%a0			/* get start of bss */
+	lea	__bss_stop,%a1			/* set up destination  */
 	movel	%a0,%a2				/* copy of bss start */
 
 	movel	8(%a0),%d0			/* get size of ROMFS */
@@ -249,7 +249,7 @@ _copy_romfs:
 	bne	_copy_romfs
 
 #else /* CONFIG_ROMFS_FS */
-	lea	_ebss,%a1
+	lea	__bss_stop,%a1
 	movel	%a1,_ramstart
 #endif /* CONFIG_ROMFS_FS */
 
@@ -257,8 +257,8 @@ _copy_romfs:
 	/*
 	 *	Zero out the bss region.
 	 */
-	lea	_sbss,%a0			/* get start of bss */
-	lea	_ebss,%a1			/* get end of bss */
+	lea	__bss_start,%a0			/* get start of bss */
+	lea	__bss_stop,%a1			/* get end of bss */
 	clrl	%d0				/* set value */
 _clear_bss:
 	movel	%d0,(%a0)+			/* clear each word */

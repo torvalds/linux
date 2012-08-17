@@ -1432,7 +1432,7 @@ static int __init imx_udc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get USB clock\n");
 		goto fail2;
 	}
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 
 	if (clk_get_rate(clk) != 48000000) {
 		D_INI(&pdev->dev,
@@ -1496,7 +1496,7 @@ fail4:
 		free_irq(imx_usb->usbd_int[i], imx_usb);
 fail3:
 	clk_put(clk);
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 fail2:
 	iounmap(base);
 fail1:
@@ -1521,7 +1521,7 @@ static int __exit imx_udc_remove(struct platform_device *pdev)
 		free_irq(imx_usb->usbd_int[i], imx_usb);
 
 	clk_put(imx_usb->clk);
-	clk_disable(imx_usb->clk);
+	clk_disable_unprepare(imx_usb->clk);
 	iounmap(imx_usb->base);
 
 	release_mem_region(imx_usb->res->start, resource_size(imx_usb->res));

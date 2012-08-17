@@ -594,7 +594,11 @@ unsigned radeon_ring_backup(struct radeon_device *rdev, struct radeon_ring *ring
 	}
 
 	/* and then save the content of the ring */
-	*data = kmalloc(size * 4, GFP_KERNEL);
+	*data = kmalloc_array(size, sizeof(uint32_t), GFP_KERNEL);
+	if (!*data) {
+		mutex_unlock(&rdev->ring_lock);
+		return 0;
+	}
 	for (i = 0; i < size; ++i) {
 		(*data)[i] = ring->ring[ptr++];
 		ptr &= ring->ptr_mask;

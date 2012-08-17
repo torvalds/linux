@@ -102,7 +102,8 @@ static int cis820x_config_intr(struct phy_device *phydev)
 }
 
 /* Cicada 8201, a.k.a Vitesse VSC8201 */
-static struct phy_driver cis8201_driver = {
+static struct phy_driver cis820x_driver[] = {
+{
 	.phy_id		= 0x000fc410,
 	.name		= "Cicada Cis8201",
 	.phy_id_mask	= 0x000ffff0,
@@ -113,11 +114,8 @@ static struct phy_driver cis8201_driver = {
 	.read_status	= &genphy_read_status,
 	.ack_interrupt	= &cis820x_ack_interrupt,
 	.config_intr	= &cis820x_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
-
-/* Cicada 8204 */
-static struct phy_driver cis8204_driver = {
+	.driver		= { .owner = THIS_MODULE,},
+}, {
 	.phy_id		= 0x000fc440,
 	.name		= "Cicada Cis8204",
 	.phy_id_mask	= 0x000fffc0,
@@ -128,32 +126,19 @@ static struct phy_driver cis8204_driver = {
 	.read_status	= &genphy_read_status,
 	.ack_interrupt	= &cis820x_ack_interrupt,
 	.config_intr	= &cis820x_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
+	.driver		= { .owner = THIS_MODULE,},
+} };
 
 static int __init cicada_init(void)
 {
-	int ret;
-
-	ret = phy_driver_register(&cis8204_driver);
-	if (ret)
-		goto err1;
-
-	ret = phy_driver_register(&cis8201_driver);
-	if (ret)
-		goto err2;
-	return 0;
-
-err2:
-	phy_driver_unregister(&cis8204_driver);
-err1:
-	return ret;
+	return phy_drivers_register(cis820x_driver,
+		ARRAY_SIZE(cis820x_driver));
 }
 
 static void __exit cicada_exit(void)
 {
-	phy_driver_unregister(&cis8204_driver);
-	phy_driver_unregister(&cis8201_driver);
+	phy_drivers_unregister(cis820x_driver,
+		ARRAY_SIZE(cis820x_driver));
 }
 
 module_init(cicada_init);

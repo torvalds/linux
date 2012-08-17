@@ -243,7 +243,7 @@ static int pre_map_gar_callback(struct apei_exec_context *ctx,
 	u8 ins = entry->instruction;
 
 	if (ctx->ins_table[ins].flags & APEI_EXEC_INS_ACCESS_REGISTER)
-		return acpi_os_map_generic_address(&entry->register_region);
+		return apei_map_generic_address(&entry->register_region);
 
 	return 0;
 }
@@ -276,7 +276,7 @@ static int post_unmap_gar_callback(struct apei_exec_context *ctx,
 	u8 ins = entry->instruction;
 
 	if (ctx->ins_table[ins].flags & APEI_EXEC_INS_ACCESS_REGISTER)
-		acpi_os_unmap_generic_address(&entry->register_region);
+		apei_unmap_generic_address(&entry->register_region);
 
 	return 0;
 }
@@ -586,6 +586,11 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 	}
 	*access_bit_width = 1UL << (access_size_code + 2);
 
+	/* Fixup common BIOS bug */
+	if (bit_width == 32 && bit_offset == 0 && (*paddr & 0x03) == 0 &&
+	    *access_bit_width < 32)
+		*access_bit_width = 32;
+
 	if ((bit_width + bit_offset) > *access_bit_width) {
 		pr_warning(FW_BUG APEI_PFX
 			   "Invalid bit width + offset in GAR [0x%llx/%u/%u/%u/%u]\n",
@@ -605,6 +610,19 @@ static int apei_check_gar(struct acpi_generic_address *reg, u64 *paddr,
 
 	return 0;
 }
+
+int apei_map_generic_address(struct acpi_generic_address *reg)
+{
+	int rc;
+	u32 access_bit_width;
+	u64 address;
+
+	rc = apei_check_gar(reg, &address, &access_bit_width);
+	if (rc)
+		return rc;
+	return acpi_os_map_generic_address(reg);
+}
+EXPORT_SYMBOL_GPL(apei_map_generic_address);
 
 /* read GAR in interrupt (including NMI) or process context */
 int apei_read(u64 *val, struct acpi_generic_address *reg)

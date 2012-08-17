@@ -131,16 +131,13 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 
 int lbs_mesh_set_channel(struct lbs_private *priv, u8 channel)
 {
+	priv->mesh_channel = channel;
 	return lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, channel);
 }
 
 static uint16_t lbs_mesh_get_channel(struct lbs_private *priv)
 {
-	struct wireless_dev *mesh_wdev = priv->mesh_dev->ieee80211_ptr;
-	if (mesh_wdev->channel)
-		return mesh_wdev->channel->hw_value;
-	else
-		return 1;
+	return priv->mesh_channel ?: 1;
 }
 
 /***************************************************************************

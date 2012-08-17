@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "SMP alternatives: " fmt
+
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
@@ -63,8 +65,11 @@ static int __init setup_noreplace_paravirt(char *str)
 __setup("noreplace-paravirt", setup_noreplace_paravirt);
 #endif
 
-#define DPRINTK(fmt, args...) if (debug_alternative) \
-	printk(KERN_DEBUG fmt, args)
+#define DPRINTK(fmt, ...)				\
+do {							\
+	if (debug_alternative)				\
+		printk(KERN_DEBUG fmt, ##__VA_ARGS__);	\
+} while (0)
 
 /*
  * Each GENERIC_NOPX is of X bytes, and defined as an array of bytes
@@ -219,7 +224,7 @@ void __init arch_init_ideal_nops(void)
 			ideal_nops = intel_nops;
 #endif
 		}
-
+		break;
 	default:
 #ifdef CONFIG_X86_64
 		ideal_nops = k8_nops;
@@ -428,7 +433,7 @@ void alternatives_smp_switch(int smp)
 	 * If this still occurs then you should see a hang
 	 * or crash shortly after this line:
 	 */
-	printk("lockdep: fixing up alternatives.\n");
+	pr_info("lockdep: fixing up alternatives\n");
 #endif
 
 	if (noreplace_smp || smp_alt_once || skip_smp_alternatives)
@@ -444,14 +449,14 @@ void alternatives_smp_switch(int smp)
 	if (smp == smp_mode) {
 		/* nothing */
 	} else if (smp) {
-		printk(KERN_INFO "SMP alternatives: switching to SMP code\n");
+		pr_info("switching to SMP code\n");
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
 		clear_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
 		list_for_each_entry(mod, &smp_alt_modules, next)
 			alternatives_smp_lock(mod->locks, mod->locks_end,
 					      mod->text, mod->text_end);
 	} else {
-		printk(KERN_INFO "SMP alternatives: switching to UP code\n");
+		pr_info("switching to UP code\n");
 		set_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
 		set_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
 		list_for_each_entry(mod, &smp_alt_modules, next)
@@ -546,7 +551,7 @@ void __init alternative_instructions(void)
 #ifdef CONFIG_SMP
 	if (smp_alt_once) {
 		if (1 == num_possible_cpus()) {
-			printk(KERN_INFO "SMP alternatives: switching to UP code\n");
+			pr_info("switching to UP code\n");
 			set_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
 			set_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
 
@@ -664,7 +669,7 @@ static int __kprobes stop_machine_text_poke(void *data)
 	struct text_poke_param *p;
 	int i;
 
-	if (atomic_dec_and_test(&stop_machine_first)) {
+	if (atomic_xchg(&stop_machine_first, 0)) {
 		for (i = 0; i < tpp->nparams; i++) {
 			p = &tpp->params[i];
 			text_poke(p->addr, p->opcode, p->len);

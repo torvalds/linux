@@ -113,7 +113,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
  *
  * FUNCTION:    acpi_ex_resolve_operands
  *
- * PARAMETERS:  Opcode              - Opcode being interpreted
+ * PARAMETERS:  opcode              - Opcode being interpreted
  *              stack_ptr           - Pointer to the operand stack to be
  *                                    resolved
  *              walk_state          - Current state
@@ -307,7 +307,7 @@ acpi_ex_resolve_operands(u16 opcode,
 		case ARGI_DEVICE_REF:
 		case ARGI_TARGETREF:	/* Allows implicit conversion rules before store */
 		case ARGI_FIXED_TARGET:	/* No implicit conversion before store to target */
-		case ARGI_SIMPLE_TARGET:	/* Name, Local, or Arg - no implicit conversion  */
+		case ARGI_SIMPLE_TARGET:	/* Name, Local, or arg - no implicit conversion  */
 
 			/*
 			 * Need an operand of type ACPI_TYPE_LOCAL_REFERENCE
@@ -410,7 +410,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/*
 			 * Need an operand of type ACPI_TYPE_INTEGER,
 			 * But we can implicitly convert from a STRING or BUFFER
-			 * Aka - "Implicit Source Operand Conversion"
+			 * aka - "Implicit Source Operand Conversion"
 			 */
 			status =
 			    acpi_ex_convert_to_integer(obj_desc, stack_ptr, 16);
@@ -437,7 +437,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/*
 			 * Need an operand of type ACPI_TYPE_BUFFER,
 			 * But we can implicitly convert from a STRING or INTEGER
-			 * Aka - "Implicit Source Operand Conversion"
+			 * aka - "Implicit Source Operand Conversion"
 			 */
 			status = acpi_ex_convert_to_buffer(obj_desc, stack_ptr);
 			if (ACPI_FAILURE(status)) {
@@ -463,7 +463,7 @@ acpi_ex_resolve_operands(u16 opcode,
 			/*
 			 * Need an operand of type ACPI_TYPE_STRING,
 			 * But we can implicitly convert from a BUFFER or INTEGER
-			 * Aka - "Implicit Source Operand Conversion"
+			 * aka - "Implicit Source Operand Conversion"
 			 */
 			status = acpi_ex_convert_to_string(obj_desc, stack_ptr,
 							   ACPI_IMPLICIT_CONVERT_HEX);
