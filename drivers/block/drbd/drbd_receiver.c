@@ -534,7 +534,6 @@ static int drbd_recv(struct drbd_conf *mdev, void *buf, size_t size)
 				dev_err(DEV, "sock_recvmsg returned %d\n", rv);
 			break;
 		} else if (rv == 0) {
-			dev_info(DEV, "sock was shut down by peer\n");
 			break;
 		} else	{
 			/* signal came in, or peer/link went down,
@@ -547,9 +546,21 @@ static int drbd_recv(struct drbd_conf *mdev, void *buf, size_t size)
 
 	set_fs(oldfs);
 
+	if (rv == 0) {
+		if (test_bit(DISCONNECT_SENT, &mdev->flags)) {
+			long t; /* time_left */
+			t = wait_event_timeout(mdev->state_wait, mdev->state.conn < C_CONNECTED,
+					       mdev->net_conf->ping_timeo * HZ/10);
+			if (t)
+				goto out;
+		}
+		dev_info(DEV, "sock was shut down by peer\n");
+	}
+
 	if (rv != size)
 		drbd_force_state(mdev, NS(conn, C_BROKEN_PIPE));
 
+out:
 	return rv;
 }
 
@@ -760,6 +771,7 @@ static int drbd_connect(struct drbd_conf *mdev)
 
 	D_ASSERT(!mdev->data.socket);
 
+	clear_bit(DISCONNECT_SENT, &mdev->flags);
 	if (drbd_request_state(mdev, NS(conn, C_WF_CONNECTION)) < SS_SUCCESS)
 		return -2;
 
@@ -4680,6 +4692,13 @@ int drbd_asender(struct drbd_thread *thi)
 			received += rv;
 			buf	 += rv;
 		} else if (rv == 0) {
+			if (test_bit(DISCONNECT_SENT, &mdev->flags)) {
+				long t; /* time_left */
+				t = wait_event_timeout(mdev->state_wait, mdev->state.conn < C_CONNECTED,
+						       mdev->net_conf->ping_timeo * HZ/10);
+				if (t)
+					break;
+			}
 			dev_err(DEV, "meta connection shut down by peer.\n");
 			goto reconnect;
 		} else if (rv == -EAGAIN) {

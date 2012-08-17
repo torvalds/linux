@@ -857,6 +857,7 @@ enum {
 				 * so shrink_page_list() would not recurse into,
 				 * and potentially deadlock on, this drbd worker.
 				 */
+	DISCONNECT_SENT,	/* Currently the last bit in this 32bit word */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */

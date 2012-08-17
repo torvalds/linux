@@ -659,6 +659,9 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 			goto abort;
 		}
 
+		if (mask.conn == C_MASK && val.conn == C_DISCONNECTING)
+			set_bit(DISCONNECT_SENT, &mdev->flags);
+
 		wait_event(mdev->state_wait,
 			(rv = _req_st_cond(mdev, mask, val)));
 
