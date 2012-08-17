@@ -20,14 +20,6 @@
  * perf_event support layer.
  */
 
-#define PCR_SUN4U_ENABLE	(PCR_PIC_PRIV | PCR_STRACE | PCR_UTRACE)
-#define PCR_N2_ENABLE		(PCR_PIC_PRIV | PCR_STRACE | PCR_UTRACE | \
-				 PCR_N2_TOE_OV1 | \
-				 (2 << PCR_N2_SL1_SHIFT) | \
-				 (0xff << PCR_N2_MASK1_SHIFT))
-
-u64 pcr_enable;
-
 /* Performance counter interrupts run unmasked at PIL level 15.
  * Therefore we can't do things like wakeups and other work
  * that expects IRQ disabling to be adhered to in locking etc.
@@ -105,11 +97,13 @@ static u64 direct_picl_value(unsigned int nmi_hz)
 }
 
 static const struct pcr_ops direct_pcr_ops = {
-	.read_pcr	= direct_pcr_read,
-	.write_pcr	= direct_pcr_write,
-	.read_pic	= direct_pic_read,
-	.write_pic	= direct_pic_write,
-	.nmi_picl_value	= direct_picl_value,
+	.read_pcr		= direct_pcr_read,
+	.write_pcr		= direct_pcr_write,
+	.read_pic		= direct_pic_read,
+	.write_pic		= direct_pic_write,
+	.nmi_picl_value		= direct_picl_value,
+	.pcr_nmi_enable		= (PCR_PIC_PRIV | PCR_STRACE | PCR_UTRACE),
+	.pcr_nmi_disable	= PCR_PIC_PRIV,
 };
 
 static void n2_pcr_write(unsigned long reg_num, u64 val)
@@ -133,11 +127,16 @@ static u64 n2_picl_value(unsigned int nmi_hz)
 }
 
 static const struct pcr_ops n2_pcr_ops = {
-	.read_pcr	= direct_pcr_read,
-	.write_pcr	= n2_pcr_write,
-	.read_pic	= direct_pic_read,
-	.write_pic	= direct_pic_write,
-	.nmi_picl_value	= n2_picl_value,
+	.read_pcr		= direct_pcr_read,
+	.write_pcr		= n2_pcr_write,
+	.read_pic		= direct_pic_read,
+	.write_pic		= direct_pic_write,
+	.nmi_picl_value		= n2_picl_value,
+	.pcr_nmi_enable		= (PCR_PIC_PRIV | PCR_STRACE | PCR_UTRACE |
+				   PCR_N2_TOE_OV1 |
+				   (2 << PCR_N2_SL1_SHIFT) |
+				   (0xff << PCR_N2_MASK1_SHIFT)),
+	.pcr_nmi_disable	= PCR_PIC_PRIV,
 };
 
 static unsigned long perf_hsvc_group;
@@ -194,13 +193,11 @@ int __init pcr_arch_init(void)
 	switch (tlb_type) {
 	case hypervisor:
 		pcr_ops = &n2_pcr_ops;
-		pcr_enable = PCR_N2_ENABLE;
 		break;
 
 	case cheetah:
 	case cheetah_plus:
 		pcr_ops = &direct_pcr_ops;
-		pcr_enable = PCR_SUN4U_ENABLE;
 		break;
 
 	case spitfire:

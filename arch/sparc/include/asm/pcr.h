@@ -7,6 +7,8 @@ struct pcr_ops {
 	u64 (*read_pic)(unsigned long);
 	void (*write_pic)(unsigned long, u64);
 	u64 (*nmi_picl_value)(unsigned int nmi_hz);
+	u64 pcr_nmi_enable;
+	u64 pcr_nmi_disable;
 };
 extern const struct pcr_ops *pcr_ops;
 
@@ -29,8 +31,6 @@ extern void schedule_deferred_pcr_work(void);
 #define PCR_N2_SL1		0x78000000
 #define PCR_N2_SL1_SHIFT	27
 #define PCR_N2_OV1		0x80000000
-
-extern u64 pcr_enable;
 
 extern int pcr_arch_init(void);
 
