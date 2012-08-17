@@ -436,7 +436,9 @@ struct mv643xx_eth_private {
 	/*
 	 * Hardware-specific parameters.
 	 */
+#if defined(CONFIG_HAVE_CLK)
 	struct clk *clk;
+#endif
 	unsigned int t_clk;
 };
 
@@ -1894,7 +1896,7 @@ static int rxq_init(struct mv643xx_eth_private *mp, int index)
 		goto out_free;
 	}
 
-	rx_desc = (struct rx_desc *)rxq->rx_desc_area;
+	rx_desc = rxq->rx_desc_area;
 	for (i = 0; i < rxq->rx_ring_size; i++) {
 		int nexti;
 
@@ -1999,7 +2001,7 @@ static int txq_init(struct mv643xx_eth_private *mp, int index)
 
 	txq->tx_desc_area_size = size;
 
-	tx_desc = (struct tx_desc *)txq->tx_desc_area;
+	tx_desc = txq->tx_desc_area;
 	for (i = 0; i < txq->tx_ring_size; i++) {
 		struct tx_desc *txd = tx_desc + i;
 		int nexti;
@@ -2895,17 +2897,17 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mp->dev = dev;
 
 	/*
-	 * Get the clk rate, if there is one, otherwise use the default.
+	 * Start with a default rate, and if there is a clock, allow
+	 * it to override the default.
 	 */
+	mp->t_clk = 133000000;
+#if defined(CONFIG_HAVE_CLK)
 	mp->clk = clk_get(&pdev->dev, (pdev->id ? "1" : "0"));
 	if (!IS_ERR(mp->clk)) {
 		clk_prepare_enable(mp->clk);
 		mp->t_clk = clk_get_rate(mp->clk);
-	} else {
-		mp->t_clk = 133000000;
-		printk(KERN_WARNING "Unable to get clock");
 	}
-
+#endif
 	set_params(mp, pd);
 	netif_set_real_num_tx_queues(dev, mp->txq_count);
 	netif_set_real_num_rx_queues(dev, mp->rxq_count);
@@ -2981,6 +2983,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	return 0;
 
 out:
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(mp->clk)) {
+		clk_disable_unprepare(mp->clk);
+		clk_put(mp->clk);
+	}
+#endif
 	free_netdev(dev);
 
 	return err;
@@ -2995,10 +3003,13 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 		phy_detach(mp->phy);
 	cancel_work_sync(&mp->tx_timeout_task);
 
+#if defined(CONFIG_HAVE_CLK)
 	if (!IS_ERR(mp->clk)) {
 		clk_disable_unprepare(mp->clk);
 		clk_put(mp->clk);
 	}
+#endif
+
 	free_netdev(mp->dev);
 
 	platform_set_drvdata(pdev, NULL);

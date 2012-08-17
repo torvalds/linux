@@ -265,9 +265,9 @@ long compat_sys_shmat(int first, int second, compat_uptr_t third, int version,
 #else
 long compat_sys_semctl(int semid, int semnum, int cmd, int arg);
 long compat_sys_msgsnd(int msqid, struct compat_msgbuf __user *msgp,
-		size_t msgsz, int msgflg);
+		compat_ssize_t msgsz, int msgflg);
 long compat_sys_msgrcv(int msqid, struct compat_msgbuf __user *msgp,
-		size_t msgsz, long msgtyp, int msgflg);
+		compat_ssize_t msgsz, long msgtyp, int msgflg);
 long compat_sys_shmat(int shmid, compat_uptr_t shmaddr, int shmflg);
 #endif
 long compat_sys_msgctl(int first, int second, void __user *uptr);

@@ -189,7 +189,7 @@ struct s3c_fb_vsync {
 
 /**
  * struct s3c_fb - overall hardware state of the hardware
- * @slock: The spinlock protection for this data sturcture.
+ * @slock: The spinlock protection for this data sturucture.
  * @dev: The device that we bound to, for printing, etc.
  * @bus_clk: The clk (hclk) feeding our interface and possibly pixclk.
  * @lcd_clk: The clk (sclk) feeding pixclk.
@@ -361,7 +361,7 @@ static int s3c_fb_calc_pixclk(struct s3c_fb *sfb, unsigned int pixclk)
 	result = (unsigned int)tmp / 1000;
 
 	dev_dbg(sfb->dev, "pixclk=%u, clk=%lu, div=%d (%lu)\n",
-		pixclk, clk, result, clk / result);
+		pixclk, clk, result, result ? clk / result : clk);
 
 	return result;
 }
@@ -1348,8 +1348,14 @@ static void s3c_fb_clear_win(struct s3c_fb *sfb, int win)
 	writel(0, regs + VIDOSD_A(win, sfb->variant));
 	writel(0, regs + VIDOSD_B(win, sfb->variant));
 	writel(0, regs + VIDOSD_C(win, sfb->variant));
-	reg = readl(regs + SHADOWCON);
-	writel(reg & ~SHADOWCON_WINx_PROTECT(win), regs + SHADOWCON);
+
+	if (sfb->variant.has_shadowcon) {
+		reg = readl(sfb->regs + SHADOWCON);
+		reg &= ~(SHADOWCON_WINx_PROTECT(win) |
+			SHADOWCON_CHx_ENABLE(win) |
+			SHADOWCON_CHx_LOCAL_ENABLE(win));
+		writel(reg, sfb->regs + SHADOWCON);
+	}
 }
 
 static int __devinit s3c_fb_probe(struct platform_device *pdev)

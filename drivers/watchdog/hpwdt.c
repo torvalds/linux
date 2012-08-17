@@ -146,7 +146,7 @@ struct cmn_registers {
 }  __attribute__((packed));
 
 static unsigned int hpwdt_nmi_decoding;
-static unsigned int allow_kdump;
+static unsigned int allow_kdump = 1;
 static unsigned int is_icru;
 static DEFINE_SPINLOCK(rom_lock);
 static void *cru_rom_addr;
@@ -756,6 +756,8 @@ error:
 static void hpwdt_exit_nmi_decoding(void)
 {
 	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+	unregister_nmi_handler(NMI_SERR, "hpwdt");
+	unregister_nmi_handler(NMI_IO_CHECK, "hpwdt");
 	if (cru_rom_addr)
 		iounmap(cru_rom_addr);
 }

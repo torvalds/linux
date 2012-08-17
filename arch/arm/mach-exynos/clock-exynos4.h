@@ -23,6 +23,9 @@ extern struct clksrc_sources exynos4_clkset_group;
 extern struct clk *exynos4_clkset_aclk_top_list[];
 extern struct clk *exynos4_clkset_group_list[];
 
+extern struct clksrc_sources exynos4_clkset_mout_g2d0;
+extern struct clksrc_sources exynos4_clkset_mout_g2d1;
+
 extern int exynos4_clksrc_mask_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_lcd1_ctrl(struct clk *clk, int enable);

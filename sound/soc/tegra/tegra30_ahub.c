@@ -56,8 +56,8 @@ static int tegra30_ahub_runtime_suspend(struct device *dev)
 	regcache_cache_only(ahub->regmap_apbif, true);
 	regcache_cache_only(ahub->regmap_ahub, true);
 
-	clk_disable(ahub->clk_apbif);
-	clk_disable(ahub->clk_d_audio);
+	clk_disable_unprepare(ahub->clk_apbif);
+	clk_disable_unprepare(ahub->clk_d_audio);
 
 	return 0;
 }
@@ -77,12 +77,12 @@ static int tegra30_ahub_runtime_resume(struct device *dev)
 {
 	int ret;
 
-	ret = clk_enable(ahub->clk_d_audio);
+	ret = clk_prepare_enable(ahub->clk_d_audio);
 	if (ret) {
 		dev_err(dev, "clk_enable d_audio failed: %d\n", ret);
 		return ret;
 	}
-	ret = clk_enable(ahub->clk_apbif);
+	ret = clk_prepare_enable(ahub->clk_apbif);
 	if (ret) {
 		dev_err(dev, "clk_enable apbif failed: %d\n", ret);
 		clk_disable(ahub->clk_d_audio);
@@ -629,3 +629,4 @@ MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra30 AHUB driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_DEVICE_TABLE(of, tegra30_ahub_of_match);

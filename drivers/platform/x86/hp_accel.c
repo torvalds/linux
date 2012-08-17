@@ -352,21 +352,23 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 }
 
 
-#ifdef CONFIG_PM
-static int lis3lv02d_suspend(struct acpi_device *device, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int lis3lv02d_suspend(struct device *dev)
 {
 	/* make sure the device is off when we suspend */
 	lis3lv02d_poweroff(&lis3_dev);
 	return 0;
 }
 
-static int lis3lv02d_resume(struct acpi_device *device)
+static int lis3lv02d_resume(struct device *dev)
 {
 	return lis3lv02d_poweron(&lis3_dev);
 }
+
+static SIMPLE_DEV_PM_OPS(hp_accel_pm, lis3lv02d_suspend, lis3lv02d_resume);
+#define HP_ACCEL_PM (&hp_accel_pm)
 #else
-#define lis3lv02d_suspend NULL
-#define lis3lv02d_resume NULL
+#define HP_ACCEL_PM NULL
 #endif
 
 /* For the HP MDPS aka 3D Driveguard */
@@ -377,9 +379,8 @@ static struct acpi_driver lis3lv02d_driver = {
 	.ops = {
 		.add     = lis3lv02d_add,
 		.remove  = lis3lv02d_remove,
-		.suspend = lis3lv02d_suspend,
-		.resume  = lis3lv02d_resume,
-	}
+	},
+	.drv.pm = HP_ACCEL_PM,
 };
 
 static int __init lis3lv02d_init_module(void)

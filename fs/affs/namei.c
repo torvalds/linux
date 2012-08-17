@@ -211,7 +211,7 @@ affs_find_entry(struct inode *dir, struct dentry *dentry)
 }
 
 struct dentry *
-affs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
+affs_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
 	struct super_block *sb = dir->i_sb;
 	struct buffer_head *bh;
@@ -255,7 +255,7 @@ affs_unlink(struct inode *dir, struct dentry *dentry)
 }
 
 int
-affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, struct nameidata *nd)
+affs_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	struct super_block *sb = dir->i_sb;
 	struct inode	*inode;

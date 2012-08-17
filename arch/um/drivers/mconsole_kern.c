@@ -705,7 +705,6 @@ static void stack_proc(void *arg)
 	struct task_struct *from = current, *to = arg;
 
 	to->thread.saved_task = from;
-	rcu_switch_from(from);
 	switch_to(from, to, from);
 }
 
@@ -775,8 +774,7 @@ static int __init mconsole_init(void)
 	register_reboot_notifier(&reboot_notifier);
 
 	err = um_request_irq(MCONSOLE_IRQ, sock, IRQ_READ, mconsole_interrupt,
-			     IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			     "mconsole", (void *)sock);
+			     IRQF_SHARED, "mconsole", (void *)sock);
 	if (err) {
 		printk(KERN_ERR "Failed to get IRQ for management console\n");
 		goto out;

@@ -244,6 +244,16 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	return nfs4_wait_on_slot_tbl(&ses->fc_slot_table);
 }
 
+static void nfs41_finish_session_reset(struct nfs_client *clp)
+{
+	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+	/* create_session negotiated new slot table */
+	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
+	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
+	nfs41_setup_state_renewal(clp);
+}
+
 int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	int status;
@@ -259,8 +269,7 @@ do_confirm:
 	status = nfs4_proc_create_session(clp, cred);
 	if (status != 0)
 		goto out;
-	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
-	nfs41_setup_state_renewal(clp);
+	nfs41_finish_session_reset(clp);
 	nfs_mark_client_ready(clp, NFS_CS_READY);
 out:
 	return status;
@@ -1597,10 +1606,15 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 			return -ESERVERFAULT;
 		/* Lease confirmation error: retry after purging the lease */
 		ssleep(1);
-	case -NFS4ERR_CLID_INUSE:
 	case -NFS4ERR_STALE_CLIENTID:
 		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 		break;
+	case -NFS4ERR_CLID_INUSE:
+		pr_err("NFS: Server %s reports our clientid is in use\n",
+			clp->cl_hostname);
+		nfs_mark_client_ready(clp, -EPERM);
+		clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
+		return -EPERM;
 	case -EACCES:
 		if (clp->cl_machine_cred == NULL)
 			return -EACCES;
@@ -1633,7 +1647,7 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 	return 0;
 }
 
-static int nfs4_reclaim_lease(struct nfs_client *clp)
+static int nfs4_establish_lease(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
 	const struct nfs4_state_recovery_ops *ops =
@@ -1646,7 +1660,41 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 	status = ops->establish_clid(clp, cred);
 	put_rpccred(cred);
 	if (status != 0)
+		return status;
+	pnfs_destroy_all_layouts(clp);
+	return 0;
+}
+
+/*
+ * Returns zero or a negative errno.  NFS4ERR values are converted
+ * to local errno values.
+ */
+static int nfs4_reclaim_lease(struct nfs_client *clp)
+{
+	int status;
+
+	status = nfs4_establish_lease(clp);
+	if (status < 0)
 		return nfs4_handle_reclaim_lease_error(clp, status);
+	if (test_and_clear_bit(NFS4CLNT_SERVER_SCOPE_MISMATCH, &clp->cl_state))
+		nfs4_state_start_reclaim_nograce(clp);
+	if (!test_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state))
+		set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
+	clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
+	clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+	return 0;
+}
+
+static int nfs4_purge_lease(struct nfs_client *clp)
+{
+	int status;
+
+	status = nfs4_establish_lease(clp);
+	if (status < 0)
+		return nfs4_handle_reclaim_lease_error(clp, status);
+	clear_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
+	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+	nfs4_state_start_reclaim_nograce(clp);
 	return 0;
 }
 
@@ -1755,6 +1803,8 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	struct rpc_cred *cred;
 	int status;
 
+	if (!nfs4_has_session(clp))
+		return 0;
 	nfs4_begin_drain_session(clp);
 	cred = nfs4_get_exchange_id_cred(clp);
 	status = nfs4_proc_destroy_session(clp->cl_session, cred);
@@ -1772,16 +1822,9 @@ static int nfs4_reset_session(struct nfs_client *clp)
 		status = nfs4_handle_reclaim_lease_error(clp, status);
 		goto out;
 	}
-	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
-	/* create_session negotiated new slot table */
-	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
-	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
+	nfs41_finish_session_reset(clp);
 	dprintk("%s: session reset was successful for server %s!\n",
 			__func__, clp->cl_hostname);
-
-	 /* Let the state manager reestablish state */
-	if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-		nfs41_setup_state_renewal(clp);
 out:
 	if (cred)
 		put_rpccred(cred);
@@ -1790,12 +1833,14 @@ out:
 
 static int nfs4_recall_slot(struct nfs_client *clp)
 {
-	struct nfs4_slot_table *fc_tbl = &clp->cl_session->fc_slot_table;
-	struct nfs4_channel_attrs *fc_attrs = &clp->cl_session->fc_attrs;
+	struct nfs4_slot_table *fc_tbl;
 	struct nfs4_slot *new, *old;
 	int i;
 
+	if (!nfs4_has_session(clp))
+		return 0;
 	nfs4_begin_drain_session(clp);
+	fc_tbl = &clp->cl_session->fc_slot_table;
 	new = kmalloc(fc_tbl->target_max_slots * sizeof(struct nfs4_slot),
 		      GFP_NOFS);
         if (!new)
@@ -1808,11 +1853,10 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 	fc_tbl->slots = new;
 	fc_tbl->max_slots = fc_tbl->target_max_slots;
 	fc_tbl->target_max_slots = 0;
-	fc_attrs->max_reqs = fc_tbl->max_slots;
+	clp->cl_session->fc_attrs.max_reqs = fc_tbl->max_slots;
 	spin_unlock(&fc_tbl->slot_tbl_lock);
 
 	kfree(old);
-	nfs4_end_drain_session(clp);
 	return 0;
 }
 
@@ -1821,6 +1865,8 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 	struct rpc_cred *cred;
 	int ret;
 
+	if (!nfs4_has_session(clp))
+		return 0;
 	nfs4_begin_drain_session(clp);
 	cred = nfs4_get_exchange_id_cred(clp);
 	ret = nfs4_proc_bind_conn_to_session(clp, cred);
@@ -1855,37 +1901,29 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 static void nfs4_state_manager(struct nfs_client *clp)
 {
 	int status = 0;
+	const char *section = "", *section_sep = "";
 
 	/* Ensure exclusive access to NFSv4 state */
 	do {
 		if (test_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state)) {
-			status = nfs4_reclaim_lease(clp);
+			section = "purge state";
+			status = nfs4_purge_lease(clp);
 			if (status < 0)
 				goto out_error;
-			clear_bit(NFS4CLNT_PURGE_STATE, &clp->cl_state);
-			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+			continue;
 		}
 
-		if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
+		if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state)) {
+			section = "lease expired";
 			/* We're going to have to re-establish a clientid */
 			status = nfs4_reclaim_lease(clp);
 			if (status < 0)
 				goto out_error;
-			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-				continue;
-			clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
-
-			if (test_and_clear_bit(NFS4CLNT_SERVER_SCOPE_MISMATCH,
-					       &clp->cl_state))
-				nfs4_state_start_reclaim_nograce(clp);
-			else
-				set_bit(NFS4CLNT_RECLAIM_REBOOT,
-					&clp->cl_state);
-
-			pnfs_destroy_all_layouts(clp);
+			continue;
 		}
 
 		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
+			section = "check lease";
 			status = nfs4_check_lease(clp);
 			if (status < 0)
 				goto out_error;
@@ -1894,8 +1932,8 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		}
 
 		/* Initialize or reset the session */
-		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)
-		   && nfs4_has_session(clp)) {
+		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)) {
+			section = "reset session";
 			status = nfs4_reset_session(clp);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 				continue;
@@ -1905,8 +1943,18 @@ static void nfs4_state_manager(struct nfs_client *clp)
 
 		/* Send BIND_CONN_TO_SESSION */
 		if (test_and_clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION,
-				&clp->cl_state) && nfs4_has_session(clp)) {
+				&clp->cl_state)) {
+			section = "bind conn to session";
 			status = nfs4_bind_conn_to_session(clp);
+			if (status < 0)
+				goto out_error;
+			continue;
+		}
+
+		/* Recall session slots */
+		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)) {
+			section = "recall slot";
+			status = nfs4_recall_slot(clp);
 			if (status < 0)
 				goto out_error;
 			continue;
@@ -1914,6 +1962,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 
 		/* First recover reboot state... */
 		if (test_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state)) {
+			section = "reclaim reboot";
 			status = nfs4_do_reclaim(clp,
 				clp->cl_mvops->reboot_recovery_ops);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) ||
@@ -1928,6 +1977,7 @@ static void nfs4_state_manager(struct nfs_client *clp)
 
 		/* Now recover expired state... */
 		if (test_and_clear_bit(NFS4CLNT_RECLAIM_NOGRACE, &clp->cl_state)) {
+			section = "reclaim nograce";
 			status = nfs4_do_reclaim(clp,
 				clp->cl_mvops->nograce_recovery_ops);
 			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) ||
@@ -1943,15 +1993,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			nfs_client_return_marked_delegations(clp);
 			continue;
 		}
-		/* Recall session slots */
-		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)
-		   && nfs4_has_session(clp)) {
-			status = nfs4_recall_slot(clp);
-			if (status < 0)
-				goto out_error;
-			continue;
-		}
-
 
 		nfs4_clear_state_manager_bit(clp);
 		/* Did we race with an attempt to give us more work? */
@@ -1962,8 +2003,11 @@ static void nfs4_state_manager(struct nfs_client *clp)
 	} while (atomic_read(&clp->cl_count) > 1);
 	return;
 out_error:
-	pr_warn_ratelimited("NFS: state manager failed on NFSv4 server %s"
-			" with error %d\n", clp->cl_hostname, -status);
+	if (strlen(section))
+		section_sep = ": ";
+	pr_warn_ratelimited("NFS: state manager%s%s failed on NFSv4 server %s"
+			" with error %d\n", section_sep, section,
+			clp->cl_hostname, -status);
 	nfs4_end_drain_session(clp);
 	nfs4_clear_state_manager_bit(clp);
 }

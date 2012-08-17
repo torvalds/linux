@@ -715,9 +715,6 @@ kdb_printit:
 	/* check for having reached the LINES number of printed lines */
 	if (kdb_nextline == linecount) {
 		char buf1[16] = "";
-#if defined(CONFIG_SMP)
-		char buf2[32];
-#endif
 
 		/* Watch out for recursion here.  Any routine that calls
 		 * kdb_printf will come back through here.  And kdb_read
@@ -731,14 +728,6 @@ kdb_printit:
 		moreprompt = kdbgetenv("MOREPROMPT");
 		if (moreprompt == NULL)
 			moreprompt = "more> ";
-
-#if defined(CONFIG_SMP)
-		if (strchr(moreprompt, '%')) {
-			sprintf(buf2, moreprompt, get_cpu());
-			put_cpu();
-			moreprompt = buf2;
-		}
-#endif
 
 		kdb_input_flush();
 		c = console_drivers;

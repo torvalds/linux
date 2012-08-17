@@ -73,6 +73,9 @@ int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
 #define perf_evlist__set_tracepoints_handlers_array(evlist, array) \
 	perf_evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
 
+struct perf_evsel *
+perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id);
+
 void perf_evlist__id_add(struct perf_evlist *evlist, struct perf_evsel *evsel,
 			 int cpu, int thread, u64 id);
 
@@ -118,6 +121,9 @@ int perf_evlist__set_filters(struct perf_evlist *evlist);
 u64 perf_evlist__sample_type(const struct perf_evlist *evlist);
 bool perf_evlist__sample_id_all(const const struct perf_evlist *evlist);
 u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist);
+
+int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
+			      struct perf_sample *sample, bool swapped);
 
 bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist);
 bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist);

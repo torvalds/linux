@@ -15,6 +15,8 @@ pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 
 static volatile int ui__need_resize;
 
+extern struct perf_error_ops perf_tui_eops;
+
 void ui__refresh_dimensions(bool force)
 {
 	if (force || ui__need_resize) {
@@ -122,6 +124,8 @@ int ui__init(void)
 	signal(SIGINT, ui__signal);
 	signal(SIGQUIT, ui__signal);
 	signal(SIGTERM, ui__signal);
+
+	perf_error__register(&perf_tui_eops);
 out:
 	return err;
 }
@@ -137,4 +141,6 @@ void ui__exit(bool wait_for_ok)
 	SLsmg_refresh();
 	SLsmg_reset_smg();
 	SLang_reset_tty();
+
+	perf_error__unregister(&perf_tui_eops);
 }

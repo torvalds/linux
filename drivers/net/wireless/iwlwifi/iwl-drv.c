@@ -77,8 +77,33 @@
 /* private includes */
 #include "iwl-fw-file.h"
 
+/******************************************************************************
+ *
+ * module boiler plate
+ *
+ ******************************************************************************/
+
+/*
+ * module name, copyright, version, etc.
+ */
+#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for Linux"
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+#define VD "d"
+#else
+#define VD
+#endif
+
+#define DRV_VERSION     IWLWIFI_VERSION VD
+
+MODULE_DESCRIPTION(DRV_DESCRIPTION);
+MODULE_VERSION(DRV_VERSION);
+MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
+MODULE_LICENSE("GPL");
+
 /**
  * struct iwl_drv - drv common data
+ * @list: list of drv structures using this opmode
  * @fw: the iwl_fw structure
  * @op_mode: the running op_mode
  * @trans: transport layer
@@ -89,6 +114,7 @@
  * @request_firmware_complete: the firmware has been obtained from user space
  */
 struct iwl_drv {
+	struct list_head list;
 	struct iwl_fw fw;
 
 	struct iwl_op_mode *op_mode;
@@ -102,7 +128,19 @@ struct iwl_drv {
 	struct completion request_firmware_complete;
 };
 
+#define DVM_OP_MODE	0
+#define MVM_OP_MODE	1
 
+/* Protects the table contents, i.e. the ops pointer & drv list */
+static struct mutex iwlwifi_opmode_table_mtx;
+static struct iwlwifi_opmode_table {
+	const char *name;			/* name: iwldvm, iwlmvm, etc */
+	const struct iwl_op_mode_ops *ops;	/* pointer to op_mode ops */
+	struct list_head drv;		/* list of devices using this op_mode */
+} iwlwifi_opmode_table[] = {		/* ops set when driver is initialized */
+	{ .name = "iwldvm", .ops = NULL },
+	{ .name = "iwlmvm", .ops = NULL },
+};
 
 /*
  * struct fw_sec: Just for the image parsing proccess.
@@ -721,7 +759,6 @@ static int validate_sec_sizes(struct iwl_drv *drv,
 	return 0;
 }
 
-
 /**
  * iwl_ucode_callback - callback when firmware was loaded
  *
@@ -733,6 +770,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	struct iwl_drv *drv = context;
 	struct iwl_fw *fw = &drv->fw;
 	struct iwl_ucode_header *ucode;
+	struct iwlwifi_opmode_table *op;
 	int err;
 	struct iwl_firmware_pieces pieces;
 	const unsigned int api_max = drv->cfg->ucode_api_max;
@@ -740,6 +778,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	const unsigned int api_min = drv->cfg->ucode_api_min;
 	u32 api_ver;
 	int i;
+	bool load_module = false;
 
 	fw->ucode_capa.max_probe_length = 200;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -861,13 +900,40 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
+
+	mutex_lock(&iwlwifi_opmode_table_mtx);
+	op = &iwlwifi_opmode_table[DVM_OP_MODE];
+
+	/* add this device to the list of devices using this op_mode */
+	list_add_tail(&drv->list, &op->drv);
+
+	if (op->ops) {
+		const struct iwl_op_mode_ops *ops = op->ops;
+		drv->op_mode = ops->start(drv->trans, drv->cfg, &drv->fw);
+
+		if (!drv->op_mode) {
+			mutex_unlock(&iwlwifi_opmode_table_mtx);
+			goto out_unbind;
+		}
+	} else {
+		load_module = true;
+	}
+	mutex_unlock(&iwlwifi_opmode_table_mtx);
+
+	/*
+	 * Complete the firmware request last so that
+	 * a driver unbind (stop) doesn't run while we
+	 * are doing the start() above.
+	 */
 	complete(&drv->request_firmware_complete);
 
-	drv->op_mode = iwl_dvm_ops.start(drv->trans, drv->cfg, &drv->fw);
-
-	if (!drv->op_mode)
-		goto out_free_fw;
-
+	/*
+	 * Load the module last so we don't block anything
+	 * else from proceeding if the module fails to load
+	 * or hangs loading.
+	 */
+	if (load_module)
+		request_module("%s", op->name);
 	return;
 
  try_again:
@@ -901,6 +967,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 	drv->cfg = cfg;
 
 	init_completion(&drv->request_firmware_complete);
+	INIT_LIST_HEAD(&drv->list);
 
 	ret = iwl_request_firmware(drv, true);
 
@@ -923,6 +990,16 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 	iwl_dealloc_ucode(drv);
 
+	mutex_lock(&iwlwifi_opmode_table_mtx);
+	/*
+	 * List is empty (this item wasn't added)
+	 * when firmware loading failed -- in that
+	 * case we can't remove it from any list.
+	 */
+	if (!list_empty(&drv->list))
+		list_del(&drv->list);
+	mutex_unlock(&iwlwifi_opmode_table_mtx);
+
 	kfree(drv);
 }
 
@@ -936,8 +1013,78 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.power_level = IWL_POWER_INDEX_1,
 	.bt_ch_announce = true,
 	.auto_agg = true,
+	.wd_disable = true,
 	/* the rest are 0 by default */
 };
+EXPORT_SYMBOL_GPL(iwlwifi_mod_params);
+
+int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
+{
+	int i;
+	struct iwl_drv *drv;
+
+	mutex_lock(&iwlwifi_opmode_table_mtx);
+	for (i = 0; i < ARRAY_SIZE(iwlwifi_opmode_table); i++) {
+		if (strcmp(iwlwifi_opmode_table[i].name, name))
+			continue;
+		iwlwifi_opmode_table[i].ops = ops;
+		list_for_each_entry(drv, &iwlwifi_opmode_table[i].drv, list)
+			drv->op_mode = ops->start(drv->trans, drv->cfg,
+						  &drv->fw);
+		mutex_unlock(&iwlwifi_opmode_table_mtx);
+		return 0;
+	}
+	mutex_unlock(&iwlwifi_opmode_table_mtx);
+	return -EIO;
+}
+EXPORT_SYMBOL_GPL(iwl_opmode_register);
+
+void iwl_opmode_deregister(const char *name)
+{
+	int i;
+	struct iwl_drv *drv;
+
+	mutex_lock(&iwlwifi_opmode_table_mtx);
+	for (i = 0; i < ARRAY_SIZE(iwlwifi_opmode_table); i++) {
+		if (strcmp(iwlwifi_opmode_table[i].name, name))
+			continue;
+		iwlwifi_opmode_table[i].ops = NULL;
+
+		/* call the stop routine for all devices */
+		list_for_each_entry(drv, &iwlwifi_opmode_table[i].drv, list) {
+			if (drv->op_mode) {
+				iwl_op_mode_stop(drv->op_mode);
+				drv->op_mode = NULL;
+			}
+		}
+		mutex_unlock(&iwlwifi_opmode_table_mtx);
+		return;
+	}
+	mutex_unlock(&iwlwifi_opmode_table_mtx);
+}
+EXPORT_SYMBOL_GPL(iwl_opmode_deregister);
+
+static int __init iwl_drv_init(void)
+{
+	int i;
+
+	mutex_init(&iwlwifi_opmode_table_mtx);
+
+	for (i = 0; i < ARRAY_SIZE(iwlwifi_opmode_table); i++)
+		INIT_LIST_HEAD(&iwlwifi_opmode_table[i].drv);
+
+	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	pr_info(DRV_COPYRIGHT "\n");
+
+	return iwl_pci_register_driver();
+}
+module_init(iwl_drv_init);
+
+static void __exit iwl_drv_exit(void)
+{
+	iwl_pci_unregister_driver();
+}
+module_exit(iwl_drv_exit);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 module_param_named(debug, iwlwifi_mod_params.debug_level, uint,

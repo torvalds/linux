@@ -128,7 +128,7 @@ u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
 	u32 us_config;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
+	RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
 		 "EntryNo:%x, ulKeyId=%x, ulEncAlg=%x, ulUseDK=%x MacAddr %pM\n",
 		 ul_entry_idx, ul_key_id, ul_enc_alg,
 		 ul_default_key, mac_addr);
@@ -146,7 +146,7 @@ u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
 	}
 
 	rtl_cam_program_entry(hw, ul_entry_idx, mac_addr,
-			      (u8 *) key_content, us_config);
+			      key_content, us_config);
 
 	RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG, "<===\n");
 
@@ -342,7 +342,8 @@ void rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 			/* Remove from HW Security CAM */
 			memset(rtlpriv->sec.hwsec_cam_sta_addr[i], 0, ETH_ALEN);
 			rtlpriv->sec.hwsec_cam_bitmap &= ~(BIT(0) << i);
-			pr_info("&&&&&&&&&del entry %d\n", i);
+			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
+				 "del CAM entry %d\n", i);
 		}
 	}
 	return;

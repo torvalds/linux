@@ -1508,7 +1508,7 @@ static void b43legacy_release_firmware(struct b43legacy_wldev *dev)
 
 static void b43legacy_print_fw_helptext(struct b43legacy_wl *wl)
 {
-	b43legacyerr(wl, "You must go to http://linuxwireless.org/en/users/"
+	b43legacyerr(wl, "You must go to http://wireless.kernel.org/en/users/"
 		     "Drivers/b43#devicefirmware "
 		     "and download the correct firmware (version 3).\n");
 }
@@ -2633,7 +2633,7 @@ static int b43legacy_switch_phymode(struct b43legacy_wl *wl,
 	if (prev_status >= B43legacy_STAT_STARTED) {
 		err = b43legacy_wireless_core_start(up_dev);
 		if (err) {
-			b43legacyerr(wl, "Fatal: Coult not start device for "
+			b43legacyerr(wl, "Fatal: Could not start device for "
 			       "newly selected %s-PHY mode\n",
 			       phymode_to_string(new_mode));
 			b43legacy_wireless_core_exit(up_dev);

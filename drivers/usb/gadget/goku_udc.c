@@ -102,7 +102,7 @@ goku_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	unsigned long	flags;
 
 	ep = container_of(_ep, struct goku_ep, ep);
-	if (!_ep || !desc || ep->ep.desc
+	if (!_ep || !desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 	dev = ep->dev;
@@ -1836,7 +1836,7 @@ static int goku_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* init to known state, then setup irqs */
 	udc_reset(dev);
 	udc_reinit (dev);
-	if (request_irq(pdev->irq, goku_irq, IRQF_SHARED/*|IRQF_SAMPLE_RANDOM*/,
+	if (request_irq(pdev->irq, goku_irq, IRQF_SHARED,
 			driver_name, dev) != 0) {
 		DBG(dev, "request interrupt %d failed\n", pdev->irq);
 		retval = -EBUSY;

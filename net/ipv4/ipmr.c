@@ -524,8 +524,8 @@ failure:
 }
 #endif
 
-/*
- *	Delete a VIF entry
+/**
+ *	vif_delete - Delete a VIF entry
  *	@notify: Set to 1, if the caller is a notifier_call
  */
 
@@ -1574,6 +1574,7 @@ static inline int ipmr_forward_finish(struct sk_buff *skb)
 	struct ip_options *opt = &(IPCB(skb)->opt);
 
 	IP_INC_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), IPSTATS_MIB_OUTOCTETS, skb->len);
 
 	if (unlikely(opt->optlen))
 		ip_forward_options(skb);
@@ -1794,9 +1795,12 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
 		.flowi4_tos = RT_TOS(iph->tos),
-		.flowi4_oif = rt->rt_oif,
-		.flowi4_iif = rt->rt_iif,
-		.flowi4_mark = rt->rt_mark,
+		.flowi4_oif = (rt_is_output_route(rt) ?
+			       skb->dev->ifindex : 0),
+		.flowi4_iif = (rt_is_output_route(rt) ?
+			       net->loopback_dev->ifindex :
+			       skb->dev->ifindex),
+		.flowi4_mark = skb->mark,
 	};
 	struct mr_table *mrt;
 	int err;
@@ -2005,37 +2009,37 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 {
 	int ct;
 	struct rtnexthop *nhp;
-	u8 *b = skb_tail_pointer(skb);
-	struct rtattr *mp_head;
+	struct nlattr *mp_attr;
 
 	/* If cache is unresolved, don't try to parse IIF and OIF */
 	if (c->mfc_parent >= MAXVIFS)
 		return -ENOENT;
 
-	if (VIF_EXISTS(mrt, c->mfc_parent))
-		RTA_PUT(skb, RTA_IIF, 4, &mrt->vif_table[c->mfc_parent].dev->ifindex);
+	if (VIF_EXISTS(mrt, c->mfc_parent) &&
+	    nla_put_u32(skb, RTA_IIF, mrt->vif_table[c->mfc_parent].dev->ifindex) < 0)
+		return -EMSGSIZE;
 
-	mp_head = (struct rtattr *)skb_put(skb, RTA_LENGTH(0));
+	if (!(mp_attr = nla_nest_start(skb, RTA_MULTIPATH)))
+		return -EMSGSIZE;
 
 	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
 		if (VIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
-			if (skb_tailroom(skb) < RTA_ALIGN(RTA_ALIGN(sizeof(*nhp)) + 4))
-				goto rtattr_failure;
-			nhp = (struct rtnexthop *)skb_put(skb, RTA_ALIGN(sizeof(*nhp)));
+			if (!(nhp = nla_reserve_nohdr(skb, sizeof(*nhp)))) {
+				nla_nest_cancel(skb, mp_attr);
+				return -EMSGSIZE;
+			}
+
 			nhp->rtnh_flags = 0;
 			nhp->rtnh_hops = c->mfc_un.res.ttls[ct];
 			nhp->rtnh_ifindex = mrt->vif_table[ct].dev->ifindex;
 			nhp->rtnh_len = sizeof(*nhp);
 		}
 	}
-	mp_head->rta_type = RTA_MULTIPATH;
-	mp_head->rta_len = skb_tail_pointer(skb) - (u8 *)mp_head;
+
+	nla_nest_end(skb, mp_attr);
+
 	rtm->rtm_type = RTN_MULTICAST;
 	return 1;
-
-rtattr_failure:
-	nlmsg_trim(skb, b);
-	return -EMSGSIZE;
 }
 
 int ipmr_get_route(struct net *net, struct sk_buff *skb,

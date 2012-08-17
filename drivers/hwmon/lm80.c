@@ -543,11 +543,9 @@ static int lm80_probe(struct i2c_client *client,
 	struct lm80_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct lm80_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct lm80_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -562,7 +560,7 @@ static int lm80_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &lm80_group);
 	if (err)
-		goto error_free;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -574,9 +572,6 @@ static int lm80_probe(struct i2c_client *client,
 
 error_remove:
 	sysfs_remove_group(&client->dev.kobj, &lm80_group);
-error_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -587,7 +582,6 @@ static int lm80_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm80_group);
 
-	kfree(data);
 	return 0;
 }
 

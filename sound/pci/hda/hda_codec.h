@@ -323,6 +323,9 @@ enum {
 #define AC_PWRST_D1			0x01
 #define AC_PWRST_D2			0x02
 #define AC_PWRST_D3			0x03
+#define AC_PWRST_ERROR                  (1<<8)
+#define AC_PWRST_CLK_STOP_OK            (1<<9)
+#define AC_PWRST_SETTING_RESET          (1<<10)
 
 /* Processing capabilies */
 #define AC_PCAP_BENIGN			(1<<0)
@@ -703,7 +706,7 @@ struct hda_codec_ops {
 	void (*set_power_state)(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
 #ifdef CONFIG_PM
-	int (*suspend)(struct hda_codec *codec, pm_message_t state);
+	int (*suspend)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
 #endif
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -1056,10 +1059,12 @@ const char *snd_hda_get_jack_location(u32 cfg);
  */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 void snd_hda_power_up(struct hda_codec *codec);
+void snd_hda_power_up_d3wait(struct hda_codec *codec);
 void snd_hda_power_down(struct hda_codec *codec);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else
 static inline void snd_hda_power_up(struct hda_codec *codec) {}
+static inline void snd_hda_power_up_d3wait(struct hda_codec *codec) {}
 static inline void snd_hda_power_down(struct hda_codec *codec) {}
 #endif
 

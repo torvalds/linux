@@ -883,7 +883,7 @@ static const struct iio_info ade7758_info = {
 
 static int __devinit ade7758_probe(struct spi_device *spi)
 {
-	int i, ret;
+	int ret;
 	struct ade7758_state *st;
 	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
@@ -915,11 +915,6 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &ade7758_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
-
-	for (i = 0; i < AD7758_NUM_WAVESRC; i++)
-		set_bit(i, &st->available_scan_masks[i]);
-
-	indio_dev->available_scan_masks = st->available_scan_masks;
 
 	ret = ade7758_configure_ring(indio_dev);
 	if (ret)

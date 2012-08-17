@@ -292,7 +292,7 @@ static int __init imx23_pinctrl_init(void)
 {
 	return platform_driver_register(&imx23_pinctrl_driver);
 }
-arch_initcall(imx23_pinctrl_init);
+postcore_initcall(imx23_pinctrl_init);
 
 static void __exit imx23_pinctrl_exit(void)
 {

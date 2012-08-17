@@ -97,7 +97,7 @@ static void cirrus_crtc_dpms(struct drm_crtc *crtc, int mode)
  * to just pass that straight through, so this does nothing
  */
 static bool cirrus_crtc_mode_fixup(struct drm_crtc *crtc,
-				   struct drm_display_mode *mode,
+				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
 	return true;
@@ -429,8 +429,8 @@ void cirrus_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 
 
 static bool cirrus_encoder_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+				      const struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted_mode)
 {
 	return true;
 }

@@ -10,6 +10,15 @@
 
 #define BCMA_CORE_SIZE		0x1000
 
+#define bcma_err(bus, fmt, ...) \
+	pr_err("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+#define bcma_warn(bus, fmt, ...) \
+	pr_warn("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+#define bcma_info(bus, fmt, ...) \
+	pr_info("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+#define bcma_debug(bus, fmt, ...) \
+	pr_debug("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+
 struct bcma_bus;
 
 /* main.c */
@@ -41,6 +50,28 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 /* driver_chipcommon_pmu.c */
 u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc);
 u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc);
+
+#ifdef CONFIG_BCMA_SFLASH
+/* driver_chipcommon_sflash.c */
+int bcma_sflash_init(struct bcma_drv_cc *cc);
+#else
+static inline int bcma_sflash_init(struct bcma_drv_cc *cc)
+{
+	bcma_err(cc->core->bus, "Serial flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_BCMA_SFLASH */
+
+#ifdef CONFIG_BCMA_NFLASH
+/* driver_chipcommon_nflash.c */
+int bcma_nflash_init(struct bcma_drv_cc *cc);
+#else
+static inline int bcma_nflash_init(struct bcma_drv_cc *cc)
+{
+	bcma_err(cc->core->bus, "NAND flash not supported\n");
+	return 0;
+}
+#endif /* CONFIG_BCMA_NFLASH */
 
 #ifdef CONFIG_BCMA_HOST_PCI
 /* host_pci.c */

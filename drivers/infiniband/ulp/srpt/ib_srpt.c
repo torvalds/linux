@@ -1377,10 +1377,14 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		break;
 	case SRPT_STATE_NEED_DATA:
 		/* DMA_TO_DEVICE (write) - RDMA read error. */
+
+		/* XXX(hch): this is a horrible layering violation.. */
 		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
 		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
+		ioctx->cmd.transport_state &= ~CMD_T_ACTIVE;
 		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
-		transport_generic_handle_data(&ioctx->cmd);
+
+		complete(&ioctx->cmd.transport_lun_stop_comp);
 		break;
 	case SRPT_STATE_CMD_RSP_SENT:
 		/*
@@ -1463,9 +1467,10 @@ static void srpt_handle_send_comp(struct srpt_rdma_ch *ch,
 /**
  * srpt_handle_rdma_comp() - Process an IB RDMA completion notification.
  *
- * Note: transport_generic_handle_data() is asynchronous so unmapping the
- * data that has been transferred via IB RDMA must be postponed until the
- * check_stop_free() callback.
+ * XXX: what is now target_execute_cmd used to be asynchronous, and unmapping
+ * the data that has been transferred via IB RDMA had to be postponed until the
+ * check_stop_free() callback.  None of this is nessecary anymore and needs to
+ * be cleaned up.
  */
 static void srpt_handle_rdma_comp(struct srpt_rdma_ch *ch,
 				  struct srpt_send_ioctx *ioctx,
@@ -1477,7 +1482,7 @@ static void srpt_handle_rdma_comp(struct srpt_rdma_ch *ch,
 	if (opcode == SRPT_RDMA_READ_LAST) {
 		if (srpt_test_and_set_cmd_state(ioctx, SRPT_STATE_NEED_DATA,
 						SRPT_STATE_DATA_IN))
-			transport_generic_handle_data(&ioctx->cmd);
+			target_execute_cmd(&ioctx->cmd);
 		else
 			printk(KERN_ERR "%s[%d]: wrong state = %d\n", __func__,
 			       __LINE__, srpt_get_cmd_state(ioctx));

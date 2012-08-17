@@ -46,7 +46,7 @@ MODULE_DESCRIPTION("TI DaVinci VPIF Display driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VPIF_DISPLAY_VERSION);
 
-#define DM646X_V4L2_STD (V4L2_STD_525_60 | V4L2_STD_625_50)
+#define VPIF_V4L2_STD (V4L2_STD_525_60 | V4L2_STD_625_50)
 
 #define vpif_err(fmt, arg...)	v4l2_err(&vpif_obj.v4l2_dev, fmt, ## arg)
 #define vpif_dbg(level, debug, fmt, arg...)	\
@@ -82,89 +82,38 @@ static struct vpif_config_params config_params = {
 
 static struct vpif_device vpif_obj = { {NULL} };
 static struct device *vpif_dev;
+static void vpif_calculate_offsets(struct channel_obj *ch);
+static void vpif_config_addr(struct channel_obj *ch, int muxmode);
 
 /*
- * vpif_uservirt_to_phys: This function is used to convert user
- * space virtual address to physical address.
- */
-static u32 vpif_uservirt_to_phys(u32 virtp)
-{
-	struct mm_struct *mm = current->mm;
-	unsigned long physp = 0;
-	struct vm_area_struct *vma;
-
-	vma = find_vma(mm, virtp);
-
-	/* For kernel direct-mapped memory, take the easy way */
-	if (virtp >= PAGE_OFFSET) {
-		physp = virt_to_phys((void *)virtp);
-	} else if (vma && (vma->vm_flags & VM_IO) && (vma->vm_pgoff)) {
-		/* this will catch, kernel-allocated, mmaped-to-usermode addr */
-		physp = (vma->vm_pgoff << PAGE_SHIFT) + (virtp - vma->vm_start);
-	} else {
-		/* otherwise, use get_user_pages() for general userland pages */
-		int res, nr_pages = 1;
-		struct page *pages;
-		down_read(&current->mm->mmap_sem);
-
-		res = get_user_pages(current, current->mm,
-				     virtp, nr_pages, 1, 0, &pages, NULL);
-		up_read(&current->mm->mmap_sem);
-
-		if (res == nr_pages) {
-			physp = __pa(page_address(&pages[0]) +
-							(virtp & ~PAGE_MASK));
-		} else {
-			vpif_err("get_user_pages failed\n");
-			return 0;
-		}
-	}
-
-	return physp;
-}
-
-/*
- * buffer_prepare: This is the callback function called from videobuf_qbuf()
+ * buffer_prepare: This is the callback function called from vb2_qbuf()
  * function the buffer is prepared and user space virtual address is converted
  * into physical address
  */
-static int vpif_buffer_prepare(struct videobuf_queue *q,
-			       struct videobuf_buffer *vb,
-			       enum v4l2_field field)
+static int vpif_buffer_prepare(struct vb2_buffer *vb)
 {
-	struct vpif_fh *fh = q->priv_data;
+	struct vpif_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
+	struct vb2_queue *q = vb->vb2_queue;
 	struct common_obj *common;
 	unsigned long addr;
 
 	common = &fh->channel->common[VPIF_VIDEO_INDEX];
-	if (VIDEOBUF_NEEDS_INIT == vb->state) {
-		vb->width	= common->width;
-		vb->height	= common->height;
-		vb->size	= vb->width * vb->height;
-		vb->field	= field;
-	}
-	vb->state = VIDEOBUF_PREPARED;
+	if (vb->state != VB2_BUF_STATE_ACTIVE &&
+		vb->state != VB2_BUF_STATE_PREPARED) {
+		vb2_set_plane_payload(vb, 0, common->fmt.fmt.pix.sizeimage);
+		if (vb2_plane_vaddr(vb, 0) &&
+		vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0))
+			goto buf_align_exit;
 
-	/* if user pointer memory mechanism is used, get the physical
-	 * address of the buffer */
-	if (V4L2_MEMORY_USERPTR == common->memory) {
-		if (!vb->baddr) {
-			vpif_err("buffer_address is 0\n");
-			return -EINVAL;
+		addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+		if (q->streaming &&
+			(V4L2_BUF_TYPE_SLICED_VBI_OUTPUT != q->type)) {
+			if (!ISALIGNED(addr + common->ytop_off) ||
+			!ISALIGNED(addr + common->ybtm_off) ||
+			!ISALIGNED(addr + common->ctop_off) ||
+			!ISALIGNED(addr + common->cbtm_off))
+				goto buf_align_exit;
 		}
-
-		vb->boff = vpif_uservirt_to_phys(vb->baddr);
-		if (!ISALIGNED(vb->boff))
-			goto buf_align_exit;
-	}
-
-	addr = vb->boff;
-	if (q->streaming && (V4L2_BUF_TYPE_SLICED_VBI_OUTPUT != q->type)) {
-		if (!ISALIGNED(addr + common->ytop_off) ||
-		    !ISALIGNED(addr + common->ybtm_off) ||
-		    !ISALIGNED(addr + common->ctop_off) ||
-		    !ISALIGNED(addr + common->cbtm_off))
-			goto buf_align_exit;
 	}
 	return 0;
 
@@ -174,71 +123,240 @@ buf_align_exit:
 }
 
 /*
- * vpif_buffer_setup: This function allocates memory for the buffers
+ * vpif_buffer_queue_setup: This function allocates memory for the buffers
  */
-static int vpif_buffer_setup(struct videobuf_queue *q, unsigned int *count,
-				unsigned int *size)
+static int vpif_buffer_queue_setup(struct vb2_queue *vq,
+				const struct v4l2_format *fmt,
+				unsigned int *nbuffers, unsigned int *nplanes,
+				unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct vpif_fh *fh = q->priv_data;
+	struct vpif_fh *fh = vb2_get_drv_priv(vq);
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	unsigned long size;
 
-	if (V4L2_MEMORY_MMAP != common->memory)
-		return 0;
+	if (V4L2_MEMORY_MMAP == common->memory) {
+		size = config_params.channel_bufsize[ch->channel_id];
+		/*
+		* Checking if the buffer size exceeds the available buffer
+		* ycmux_mode = 0 means 1 channel mode HD and
+		* ycmux_mode = 1 means 2 channels mode SD
+		*/
+		if (ch->vpifparams.std_info.ycmux_mode == 0) {
+			if (config_params.video_limit[ch->channel_id])
+				while (size * *nbuffers >
+					(config_params.video_limit[0]
+						+ config_params.video_limit[1]))
+					(*nbuffers)--;
+		} else {
+			if (config_params.video_limit[ch->channel_id])
+				while (size * *nbuffers >
+				config_params.video_limit[ch->channel_id])
+					(*nbuffers)--;
+		}
+	} else {
+		size = common->fmt.fmt.pix.sizeimage;
+	}
 
-	*size = config_params.channel_bufsize[ch->channel_id];
-	if (*count < config_params.min_numbuffers)
-		*count = config_params.min_numbuffers;
+	if (*nbuffers < config_params.min_numbuffers)
+			*nbuffers = config_params.min_numbuffers;
 
+	*nplanes = 1;
+	sizes[0] = size;
+	alloc_ctxs[0] = common->alloc_ctx;
 	return 0;
 }
 
 /*
  * vpif_buffer_queue: This function adds the buffer to DMA queue
  */
-static void vpif_buffer_queue(struct videobuf_queue *q,
-			      struct videobuf_buffer *vb)
+static void vpif_buffer_queue(struct vb2_buffer *vb)
 {
-	struct vpif_fh *fh = q->priv_data;
-	struct common_obj *common;
-
-	common = &fh->channel->common[VPIF_VIDEO_INDEX];
-
-	/* add the buffer to the DMA queue */
-	list_add_tail(&vb->queue, &common->dma_queue);
-	vb->state = VIDEOBUF_QUEUED;
-}
-
-/*
- * vpif_buffer_release: This function is called from the videobuf layer to
- * free memory allocated to the buffers
- */
-static void vpif_buffer_release(struct videobuf_queue *q,
-				struct videobuf_buffer *vb)
-{
-	struct vpif_fh *fh = q->priv_data;
+	struct vpif_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
+	struct vpif_disp_buffer *buf = container_of(vb,
+				struct vpif_disp_buffer, vb);
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common;
-	unsigned int buf_size = 0;
 
 	common = &ch->common[VPIF_VIDEO_INDEX];
 
-	videobuf_dma_contig_free(q, vb);
-	vb->state = VIDEOBUF_NEEDS_INIT;
-
-	if (V4L2_MEMORY_MMAP != common->memory)
-		return;
-
-	buf_size = config_params.channel_bufsize[ch->channel_id];
+	/* add the buffer to the DMA queue */
+	list_add_tail(&buf->list, &common->dma_queue);
 }
 
-static struct videobuf_queue_ops video_qops = {
-	.buf_setup	= vpif_buffer_setup,
-	.buf_prepare	= vpif_buffer_prepare,
-	.buf_queue	= vpif_buffer_queue,
-	.buf_release	= vpif_buffer_release,
-};
+/*
+ * vpif_buf_cleanup: This function is called from the videobuf2 layer to
+ * free memory allocated to the buffers
+ */
+static void vpif_buf_cleanup(struct vb2_buffer *vb)
+{
+	struct vpif_fh *fh = vb2_get_drv_priv(vb->vb2_queue);
+	struct vpif_disp_buffer *buf = container_of(vb,
+					struct vpif_disp_buffer, vb);
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common;
+	unsigned long flags;
+
+	common = &ch->common[VPIF_VIDEO_INDEX];
+
+	spin_lock_irqsave(&common->irqlock, flags);
+	if (vb->state == VB2_BUF_STATE_ACTIVE)
+		list_del_init(&buf->list);
+	spin_unlock_irqrestore(&common->irqlock, flags);
+}
+
+static void vpif_wait_prepare(struct vb2_queue *vq)
+{
+	struct vpif_fh *fh = vb2_get_drv_priv(vq);
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common;
+
+	common = &ch->common[VPIF_VIDEO_INDEX];
+	mutex_unlock(&common->lock);
+}
+
+static void vpif_wait_finish(struct vb2_queue *vq)
+{
+	struct vpif_fh *fh = vb2_get_drv_priv(vq);
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common;
+
+	common = &ch->common[VPIF_VIDEO_INDEX];
+	mutex_lock(&common->lock);
+}
+
+static int vpif_buffer_init(struct vb2_buffer *vb)
+{
+	struct vpif_disp_buffer *buf = container_of(vb,
+					struct vpif_disp_buffer, vb);
+
+	INIT_LIST_HEAD(&buf->list);
+
+	return 0;
+}
+
 static u8 channel_first_int[VPIF_NUMOBJECTS][2] = { {1, 1} };
+
+static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
+{
+	struct vpif_display_config *vpif_config_data =
+					vpif_dev->platform_data;
+	struct vpif_fh *fh = vb2_get_drv_priv(vq);
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct vpif_params *vpif = &ch->vpifparams;
+	unsigned long addr = 0;
+	int ret;
+
+	/* If buffer queue is empty, return error */
+	if (list_empty(&common->dma_queue)) {
+		vpif_err("buffer queue is empty\n");
+		return -EIO;
+	}
+
+	/* Get the next frame from the buffer queue */
+	common->next_frm = common->cur_frm =
+			    list_entry(common->dma_queue.next,
+				       struct vpif_disp_buffer, list);
+
+	list_del(&common->cur_frm->list);
+	/* Mark state of the current frame to active */
+	common->cur_frm->vb.state = VB2_BUF_STATE_ACTIVE;
+
+	/* Initialize field_id and started member */
+	ch->field_id = 0;
+	common->started = 1;
+	addr = vb2_dma_contig_plane_dma_addr(&common->cur_frm->vb, 0);
+	/* Calculate the offset for Y and C data  in the buffer */
+	vpif_calculate_offsets(ch);
+
+	if ((ch->vpifparams.std_info.frm_fmt &&
+		((common->fmt.fmt.pix.field != V4L2_FIELD_NONE)
+		&& (common->fmt.fmt.pix.field != V4L2_FIELD_ANY)))
+		|| (!ch->vpifparams.std_info.frm_fmt
+		&& (common->fmt.fmt.pix.field == V4L2_FIELD_NONE))) {
+		vpif_err("conflict in field format and std format\n");
+		return -EINVAL;
+	}
+
+	/* clock settings */
+	ret =
+	    vpif_config_data->set_clock(ch->vpifparams.std_info.ycmux_mode,
+					ch->vpifparams.std_info.hd_sd);
+	if (ret < 0) {
+		vpif_err("can't set clock\n");
+		return ret;
+	}
+
+	/* set the parameters and addresses */
+	ret = vpif_set_video_params(vpif, ch->channel_id + 2);
+	if (ret < 0)
+		return ret;
+
+	common->started = ret;
+	vpif_config_addr(ch, ret);
+	common->set_addr((addr + common->ytop_off),
+			    (addr + common->ybtm_off),
+			    (addr + common->ctop_off),
+			    (addr + common->cbtm_off));
+
+	/* Set interrupt for both the fields in VPIF
+	    Register enable channel in VPIF register */
+	if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
+		channel2_intr_assert();
+		channel2_intr_enable(1);
+		enable_channel2(1);
+		if (vpif_config_data->ch2_clip_en)
+			channel2_clipping_enable(1);
+	}
+
+	if ((VPIF_CHANNEL3_VIDEO == ch->channel_id)
+		|| (common->started == 2)) {
+		channel3_intr_assert();
+		channel3_intr_enable(1);
+		enable_channel3(1);
+		if (vpif_config_data->ch3_clip_en)
+			channel3_clipping_enable(1);
+	}
+	channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
+
+	return 0;
+}
+
+/* abort streaming and wait for last buffer */
+static int vpif_stop_streaming(struct vb2_queue *vq)
+{
+	struct vpif_fh *fh = vb2_get_drv_priv(vq);
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common;
+
+	if (!vb2_is_streaming(vq))
+		return 0;
+
+	common = &ch->common[VPIF_VIDEO_INDEX];
+
+	/* release all active buffers */
+	while (!list_empty(&common->dma_queue)) {
+		common->next_frm = list_entry(common->dma_queue.next,
+						struct vpif_disp_buffer, list);
+		list_del(&common->next_frm->list);
+		vb2_buffer_done(&common->next_frm->vb, VB2_BUF_STATE_ERROR);
+	}
+
+	return 0;
+}
+
+static struct vb2_ops video_qops = {
+	.queue_setup		= vpif_buffer_queue_setup,
+	.wait_prepare		= vpif_wait_prepare,
+	.wait_finish		= vpif_wait_finish,
+	.buf_init		= vpif_buffer_init,
+	.buf_prepare		= vpif_buffer_prepare,
+	.start_streaming	= vpif_start_streaming,
+	.stop_streaming		= vpif_stop_streaming,
+	.buf_cleanup		= vpif_buf_cleanup,
+	.buf_queue		= vpif_buffer_queue,
+};
 
 static void process_progressive_mode(struct common_obj *common)
 {
@@ -246,14 +364,14 @@ static void process_progressive_mode(struct common_obj *common)
 
 	/* Get the next buffer from buffer queue */
 	common->next_frm = list_entry(common->dma_queue.next,
-				struct videobuf_buffer, queue);
+				struct vpif_disp_buffer, list);
 	/* Remove that buffer from the buffer queue */
-	list_del(&common->next_frm->queue);
+	list_del(&common->next_frm->list);
 	/* Mark status of the buffer as active */
-	common->next_frm->state = VIDEOBUF_ACTIVE;
+	common->next_frm->vb.state = VB2_BUF_STATE_ACTIVE;
 
 	/* Set top and bottom field addrs in VPIF registers */
-	addr = videobuf_to_dma_contig(common->next_frm);
+	addr = vb2_dma_contig_plane_dma_addr(&common->next_frm->vb, 0);
 	common->set_addr(addr + common->ytop_off,
 				 addr + common->ybtm_off,
 				 addr + common->ctop_off,
@@ -271,11 +389,10 @@ static void process_interlaced_mode(int fid, struct common_obj *common)
 		/* one frame is displayed If next frame is
 		 *  available, release cur_frm and move on */
 		/* Copy frame display time */
-		do_gettimeofday(&common->cur_frm->ts);
+		do_gettimeofday(&common->cur_frm->vb.v4l2_buf.timestamp);
 		/* Change status of the cur_frm */
-		common->cur_frm->state = VIDEOBUF_DONE;
-		/* unlock semaphore on cur_frm */
-		wake_up_interruptible(&common->cur_frm->done);
+		vb2_buffer_done(&common->cur_frm->vb,
+					    VB2_BUF_STATE_DONE);
 		/* Make cur_frm pointing to next_frm */
 		common->cur_frm = common->next_frm;
 
@@ -307,6 +424,9 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	int channel_id = 0;
 
 	channel_id = *(int *)(dev_id);
+	if (!vpif_intr_status(channel_id + 2))
+		return IRQ_NONE;
+
 	ch = dev->dev[channel_id];
 	field = ch->common[VPIF_VIDEO_INDEX].fmt.fmt.pix.field;
 	for (i = 0; i < VPIF_NUMOBJECTS; i++) {
@@ -323,9 +443,10 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 			if (!channel_first_int[i][channel_id]) {
 				/* Mark status of the cur_frm to
 				 * done and unlock semaphore on it */
-				do_gettimeofday(&common->cur_frm->ts);
-				common->cur_frm->state = VIDEOBUF_DONE;
-				wake_up_interruptible(&common->cur_frm->done);
+				do_gettimeofday(&common->cur_frm->vb.
+						v4l2_buf.timestamp);
+				vb2_buffer_done(&common->cur_frm->vb,
+					    VB2_BUF_STATE_DONE);
 				/* Make cur_frm pointing to next_frm */
 				common->cur_frm = common->next_frm;
 			}
@@ -443,10 +564,7 @@ static void vpif_calculate_offsets(struct channel_obj *ch)
 		vid_ch->buf_field = common->fmt.fmt.pix.field;
 	}
 
-	if (V4L2_MEMORY_USERPTR == common->memory)
-		sizeimage = common->fmt.fmt.pix.sizeimage;
-	else
-		sizeimage = config_params.channel_bufsize[ch->channel_id];
+	sizeimage = common->fmt.fmt.pix.sizeimage;
 
 	hpitch = common->fmt.fmt.pix.bytesperline;
 	vpitch = sizeimage / (hpitch * 2);
@@ -523,10 +641,7 @@ static int vpif_check_format(struct channel_obj *ch,
 	if (pixfmt->bytesperline <= 0)
 		goto invalid_pitch_exit;
 
-	if (V4L2_MEMORY_USERPTR == common->memory)
-		sizeimage = pixfmt->sizeimage;
-	else
-		sizeimage = config_params.channel_bufsize[ch->channel_id];
+	sizeimage = pixfmt->sizeimage;
 
 	if (vpif_update_resolution(ch))
 		return -EINVAL;
@@ -583,7 +698,7 @@ static int vpif_mmap(struct file *filep, struct vm_area_struct *vma)
 
 	vpif_dbg(2, debug, "vpif_mmap\n");
 
-	return videobuf_mmap_mapper(&common->buffer_queue, vma);
+	return vb2_mmap(&common->buffer_queue, vma);
 }
 
 /*
@@ -596,7 +711,7 @@ static unsigned int vpif_poll(struct file *filep, poll_table *wait)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
 	if (common->started)
-		return videobuf_poll_stream(filep, &common->buffer_queue, wait);
+		return vb2_poll(&common->buffer_queue, filep, wait);
 
 	return 0;
 }
@@ -665,9 +780,11 @@ static int vpif_release(struct file *filep)
 			channel3_intr_enable(0);
 		}
 		common->started = 0;
+
 		/* Free buffers allocated */
-		videobuf_queue_cancel(&common->buffer_queue);
-		videobuf_mmap_free(&common->buffer_queue);
+		vb2_queue_release(&common->buffer_queue);
+		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
+
 		common->numbuffers =
 		    config_params.numbuffers[ch->channel_id];
 	}
@@ -806,6 +923,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common;
 	enum v4l2_field field;
+	struct vb2_queue *q;
 	u8 index = 0;
 
 	/* This file handle has not initialized the channel,
@@ -825,9 +943,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 
 	common = &ch->common[index];
 
-	if (common->fmt.type != reqbuf->type)
+	if (common->fmt.type != reqbuf->type || !vpif_dev)
 		return -EINVAL;
-
 	if (0 != common->io_usrs)
 		return -EBUSY;
 
@@ -839,14 +956,21 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	} else {
 		field = V4L2_VBI_INTERLACED;
 	}
+	/* Initialize videobuf2 queue as per the buffer type */
+	common->alloc_ctx = vb2_dma_contig_init_ctx(vpif_dev);
+	if (!common->alloc_ctx) {
+		vpif_err("Failed to get the context\n");
+		return -EINVAL;
+	}
+	q = &common->buffer_queue;
+	q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+	q->io_modes = VB2_MMAP | VB2_USERPTR;
+	q->drv_priv = fh;
+	q->ops = &video_qops;
+	q->mem_ops = &vb2_dma_contig_memops;
+	q->buf_struct_size = sizeof(struct vpif_disp_buffer);
 
-	/* Initialize videobuf queue as per the buffer type */
-	videobuf_queue_dma_contig_init(&common->buffer_queue,
-					    &video_qops, NULL,
-					    &common->irqlock,
-					    reqbuf->type, field,
-					    sizeof(struct videobuf_buffer), fh,
-					    &common->lock);
+	vb2_queue_init(q);
 
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;
@@ -855,9 +979,8 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	/* Store type of memory requested in channel object */
 	common->memory = reqbuf->memory;
 	INIT_LIST_HEAD(&common->dma_queue);
-
 	/* Allocate buffers */
-	return videobuf_reqbufs(&common->buffer_queue, reqbuf);
+	return vb2_reqbufs(&common->buffer_queue, reqbuf);
 }
 
 static int vpif_querybuf(struct file *file, void *priv,
@@ -870,22 +993,25 @@ static int vpif_querybuf(struct file *file, void *priv,
 	if (common->fmt.type != tbuf->type)
 		return -EINVAL;
 
-	return videobuf_querybuf(&common->buffer_queue, tbuf);
+	return vb2_querybuf(&common->buffer_queue, tbuf);
 }
 
 static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
+	struct vpif_fh *fh = NULL;
+	struct channel_obj *ch = NULL;
+	struct common_obj *common = NULL;
 
-	struct vpif_fh *fh = priv;
-	struct channel_obj *ch = fh->channel;
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	struct v4l2_buffer tbuf = *buf;
-	struct videobuf_buffer *buf1;
-	unsigned long addr = 0;
-	unsigned long flags;
-	int ret = 0;
+	if (!buf || !priv)
+		return -EINVAL;
 
-	if (common->fmt.type != tbuf.type)
+	fh = priv;
+	ch = fh->channel;
+	if (!ch)
+		return -EINVAL;
+
+	common = &(ch->common[VPIF_VIDEO_INDEX]);
+	if (common->fmt.type != buf->type)
 		return -EINVAL;
 
 	if (!fh->io_allowed[VPIF_VIDEO_INDEX]) {
@@ -893,73 +1019,7 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 		return -EACCES;
 	}
 
-	if (!(list_empty(&common->dma_queue)) ||
-	    (common->cur_frm != common->next_frm) ||
-	    !(common->started) ||
-	    (common->started && (0 == ch->field_id)))
-		return videobuf_qbuf(&common->buffer_queue, buf);
-
-	/* bufferqueue is empty store buffer address in VPIF registers */
-	mutex_lock(&common->buffer_queue.vb_lock);
-	buf1 = common->buffer_queue.bufs[tbuf.index];
-	if (buf1->memory != tbuf.memory) {
-		vpif_err("invalid buffer type\n");
-		goto qbuf_exit;
-	}
-
-	if ((buf1->state == VIDEOBUF_QUEUED) ||
-	    (buf1->state == VIDEOBUF_ACTIVE)) {
-		vpif_err("invalid state\n");
-		goto qbuf_exit;
-	}
-
-	switch (buf1->memory) {
-	case V4L2_MEMORY_MMAP:
-		if (buf1->baddr == 0)
-			goto qbuf_exit;
-		break;
-
-	case V4L2_MEMORY_USERPTR:
-		if (tbuf.length < buf1->bsize)
-			goto qbuf_exit;
-
-		if ((VIDEOBUF_NEEDS_INIT != buf1->state)
-			    && (buf1->baddr != tbuf.m.userptr)) {
-			vpif_buffer_release(&common->buffer_queue, buf1);
-			buf1->baddr = tbuf.m.userptr;
-		}
-		break;
-
-	default:
-		goto qbuf_exit;
-	}
-
-	local_irq_save(flags);
-	ret = vpif_buffer_prepare(&common->buffer_queue, buf1,
-					common->buffer_queue.field);
-	if (ret < 0) {
-		local_irq_restore(flags);
-		goto qbuf_exit;
-	}
-
-	buf1->state = VIDEOBUF_ACTIVE;
-	addr = buf1->boff;
-	common->next_frm = buf1;
-	if (tbuf.type != V4L2_BUF_TYPE_SLICED_VBI_OUTPUT) {
-		common->set_addr((addr + common->ytop_off),
-				 (addr + common->ybtm_off),
-				 (addr + common->ctop_off),
-				 (addr + common->cbtm_off));
-	}
-
-	local_irq_restore(flags);
-	list_add_tail(&buf1->stream, &common->buffer_queue.stream);
-	mutex_unlock(&common->buffer_queue.vb_lock);
-	return 0;
-
-qbuf_exit:
-	mutex_unlock(&common->buffer_queue.vb_lock);
-	return -EINVAL;
+	return vb2_qbuf(&common->buffer_queue, buf);
 }
 
 static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
@@ -969,7 +1029,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
-	if (!(*std_id & DM646X_V4L2_STD))
+	if (!(*std_id & VPIF_V4L2_STD))
 		return -EINVAL;
 
 	if (common->started) {
@@ -1026,7 +1086,7 @@ static int vpif_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 
-	return videobuf_dqbuf(&common->buffer_queue, p,
+	return vb2_dqbuf(&common->buffer_queue, p,
 					(file->f_flags & O_NONBLOCK));
 }
 
@@ -1037,10 +1097,6 @@ static int vpif_streamon(struct file *file, void *priv,
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct channel_obj *oth_ch = vpif_obj.dev[!ch->channel_id];
-	struct vpif_params *vpif = &ch->vpifparams;
-	struct vpif_display_config *vpif_config_data =
-					vpif_dev->platform_data;
-	unsigned long addr = 0;
 	int ret = 0;
 
 	if (buftype != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
@@ -1072,82 +1128,13 @@ static int vpif_streamon(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	/* Call videobuf_streamon to start streaming in videobuf */
-	ret = videobuf_streamon(&common->buffer_queue);
+	/* Call vb2_streamon to start streaming in videobuf2 */
+	ret = vb2_streamon(&common->buffer_queue, buftype);
 	if (ret < 0) {
-		vpif_err("videobuf_streamon\n");
+		vpif_err("vb2_streamon\n");
 		return ret;
 	}
 
-	/* If buffer queue is empty, return error */
-	if (list_empty(&common->dma_queue)) {
-		vpif_err("buffer queue is empty\n");
-		return -EIO;
-	}
-
-	/* Get the next frame from the buffer queue */
-	common->next_frm = common->cur_frm =
-			    list_entry(common->dma_queue.next,
-				       struct videobuf_buffer, queue);
-
-	list_del(&common->cur_frm->queue);
-	/* Mark state of the current frame to active */
-	common->cur_frm->state = VIDEOBUF_ACTIVE;
-
-	/* Initialize field_id and started member */
-	ch->field_id = 0;
-	common->started = 1;
-	if (buftype == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		addr = common->cur_frm->boff;
-		/* Calculate the offset for Y and C data  in the buffer */
-		vpif_calculate_offsets(ch);
-
-		if ((ch->vpifparams.std_info.frm_fmt &&
-			((common->fmt.fmt.pix.field != V4L2_FIELD_NONE)
-			&& (common->fmt.fmt.pix.field != V4L2_FIELD_ANY)))
-			|| (!ch->vpifparams.std_info.frm_fmt
-			&& (common->fmt.fmt.pix.field == V4L2_FIELD_NONE))) {
-			vpif_err("conflict in field format and std format\n");
-			return -EINVAL;
-		}
-
-		/* clock settings */
-		ret =
-		 vpif_config_data->set_clock(ch->vpifparams.std_info.ycmux_mode,
-						ch->vpifparams.std_info.hd_sd);
-		if (ret < 0) {
-			vpif_err("can't set clock\n");
-			return ret;
-		}
-
-		/* set the parameters and addresses */
-		ret = vpif_set_video_params(vpif, ch->channel_id + 2);
-		if (ret < 0)
-			return ret;
-
-		common->started = ret;
-		vpif_config_addr(ch, ret);
-		common->set_addr((addr + common->ytop_off),
-				 (addr + common->ybtm_off),
-				 (addr + common->ctop_off),
-				 (addr + common->cbtm_off));
-
-		/* Set interrupt for both the fields in VPIF
-		   Register enable channel in VPIF register */
-		if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
-			channel2_intr_assert();
-			channel2_intr_enable(1);
-			enable_channel2(1);
-		}
-
-		if ((VPIF_CHANNEL3_VIDEO == ch->channel_id)
-			|| (common->started == 2)) {
-			channel3_intr_assert();
-			channel3_intr_enable(1);
-			enable_channel3(1);
-		}
-		channel_first_int[VPIF_VIDEO_INDEX][ch->channel_id] = 1;
-	}
 	return ret;
 }
 
@@ -1157,6 +1144,8 @@ static int vpif_streamoff(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct vpif_display_config *vpif_config_data =
+					vpif_dev->platform_data;
 
 	if (buftype != V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		vpif_err("buffer type not supported\n");
@@ -1176,18 +1165,22 @@ static int vpif_streamoff(struct file *file, void *priv,
 	if (buftype == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
 		/* disable channel */
 		if (VPIF_CHANNEL2_VIDEO == ch->channel_id) {
+			if (vpif_config_data->ch2_clip_en)
+				channel2_clipping_enable(0);
 			enable_channel2(0);
 			channel2_intr_enable(0);
 		}
 		if ((VPIF_CHANNEL3_VIDEO == ch->channel_id) ||
 					(2 == common->started)) {
+			if (vpif_config_data->ch3_clip_en)
+				channel3_clipping_enable(0);
 			enable_channel3(0);
 			channel3_intr_enable(0);
 		}
 	}
 
 	common->started = 0;
-	return videobuf_streamoff(&common->buffer_queue);
+	return vb2_streamoff(&common->buffer_queue, buftype);
 }
 
 static int vpif_cropcap(struct file *file, void *priv,
@@ -1220,7 +1213,7 @@ static int vpif_enum_output(struct file *file, void *fh,
 
 	strcpy(output->name, config->output[output->index]);
 	output->type = V4L2_OUTPUT_TYPE_ANALOG;
-	output->std = DM646X_V4L2_STD;
+	output->std = VPIF_V4L2_STD;
 
 	return 0;
 }
@@ -1605,7 +1598,7 @@ static struct video_device vpif_video_template = {
 	.name		= "vpif",
 	.fops		= &vpif_fops,
 	.ioctl_ops	= &vpif_ioctl_ops,
-	.tvnorms	= DM646X_V4L2_STD,
+	.tvnorms	= VPIF_V4L2_STD,
 	.current_norm	= V4L2_STD_625_50,
 
 };
@@ -1687,9 +1680,9 @@ static __init int vpif_probe(struct platform_device *pdev)
 	struct video_device *vfd;
 	struct resource *res;
 	int subdev_count;
+	size_t size;
 
 	vpif_dev = &pdev->dev;
-
 	err = initialize_vpif();
 
 	if (err) {
@@ -1706,8 +1699,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 	k = 0;
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
-			if (request_irq(i, vpif_channel_isr, IRQF_DISABLED,
-					"DM646x_Display",
+			if (request_irq(i, vpif_channel_isr, IRQF_SHARED,
+					"VPIF_Display",
 				(void *)(&vpif_obj.dev[k]->channel_id))) {
 				err = -EBUSY;
 				goto vpif_int_err;
@@ -1737,11 +1730,29 @@ static __init int vpif_probe(struct platform_device *pdev)
 		vfd->v4l2_dev = &vpif_obj.v4l2_dev;
 		vfd->release = video_device_release;
 		snprintf(vfd->name, sizeof(vfd->name),
-			 "DM646x_VPIFDisplay_DRIVER_V%s",
+			 "VPIF_Display_DRIVER_V%s",
 			 VPIF_DISPLAY_VERSION);
 
 		/* Set video_dev to the video device */
 		ch->video_dev = vfd;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		size = resource_size(res);
+		/* The resources are divided into two equal memory and when
+		 * we have HD output we can add them together
+		 */
+		for (j = 0; j < VPIF_DISPLAY_MAX_DEVICES; j++) {
+			ch = vpif_obj.dev[j];
+			ch->channel_id = j;
+
+			/* only enabled if second resource exists */
+			config_params.video_limit[ch->channel_id] = 0;
+			if (size)
+				config_params.video_limit[ch->channel_id] =
+									size/2;
+		}
 	}
 
 	for (j = 0; j < VPIF_DISPLAY_MAX_DEVICES; j++) {
@@ -1823,7 +1834,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	}
 
 	v4l2_info(&vpif_obj.v4l2_dev,
-			"DM646x VPIF display driver initialized\n");
+			" VPIF display driver initialized\n");
 	return 0;
 
 probe_subdev_out:
@@ -1871,10 +1882,81 @@ static int vpif_remove(struct platform_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int vpif_suspend(struct device *dev)
+{
+	struct common_obj *common;
+	struct channel_obj *ch;
+	int i;
+
+	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
+		/* Get the pointer to the channel object */
+		ch = vpif_obj.dev[i];
+		common = &ch->common[VPIF_VIDEO_INDEX];
+		mutex_lock(&common->lock);
+		if (atomic_read(&ch->usrs) && common->io_usrs) {
+			/* Disable channel */
+			if (ch->channel_id == VPIF_CHANNEL2_VIDEO) {
+				enable_channel2(0);
+				channel2_intr_enable(0);
+			}
+			if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
+					common->started == 2) {
+				enable_channel3(0);
+				channel3_intr_enable(0);
+			}
+		}
+		mutex_unlock(&common->lock);
+	}
+
+	return 0;
+}
+
+static int vpif_resume(struct device *dev)
+{
+
+	struct common_obj *common;
+	struct channel_obj *ch;
+	int i;
+
+	for (i = 0; i < VPIF_DISPLAY_MAX_DEVICES; i++) {
+		/* Get the pointer to the channel object */
+		ch = vpif_obj.dev[i];
+		common = &ch->common[VPIF_VIDEO_INDEX];
+		mutex_lock(&common->lock);
+		if (atomic_read(&ch->usrs) && common->io_usrs) {
+			/* Enable channel */
+			if (ch->channel_id == VPIF_CHANNEL2_VIDEO) {
+				enable_channel2(1);
+				channel2_intr_enable(1);
+			}
+			if (ch->channel_id == VPIF_CHANNEL3_VIDEO ||
+					common->started == 2) {
+				enable_channel3(1);
+				channel3_intr_enable(1);
+			}
+		}
+		mutex_unlock(&common->lock);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops vpif_pm = {
+	.suspend        = vpif_suspend,
+	.resume         = vpif_resume,
+};
+
+#define vpif_pm_ops (&vpif_pm)
+#else
+#define vpif_pm_ops NULL
+#endif
+
 static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 			.name	= "vpif_display",
 			.owner	= THIS_MODULE,
+			.pm	= vpif_pm_ops,
 	},
 	.probe	= vpif_probe,
 	.remove	= vpif_remove,

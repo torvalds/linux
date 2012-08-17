@@ -100,6 +100,9 @@ struct video_device
 	/* Control handler associated with this device node. May be NULL. */
 	struct v4l2_ctrl_handler *ctrl_handler;
 
+	/* vb2_queue associated with this device node. May be NULL. */
+	struct vb2_queue *queue;
+
 	/* Priority state. If NULL, then v4l2_dev->prio will be used. */
 	struct v4l2_prio_state *prio;
 

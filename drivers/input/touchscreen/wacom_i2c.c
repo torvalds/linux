@@ -149,7 +149,7 @@ static int __devinit wacom_i2c_probe(struct i2c_client *client,
 {
 	struct wacom_i2c *wac_i2c;
 	struct input_dev *input;
-	struct wacom_features features;
+	struct wacom_features features = { 0 };
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {

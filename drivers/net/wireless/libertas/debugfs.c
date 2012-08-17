@@ -483,7 +483,7 @@ static ssize_t lbs_rdmac_write(struct file *file,
 		res = -EFAULT;
 		goto out_unlock;
 	}
-	priv->mac_offset = simple_strtoul((char *)buf, NULL, 16);
+	priv->mac_offset = simple_strtoul(buf, NULL, 16);
 	res = count;
 out_unlock:
 	free_page(addr);
@@ -565,7 +565,7 @@ static ssize_t lbs_rdbbp_write(struct file *file,
 		res = -EFAULT;
 		goto out_unlock;
 	}
-	priv->bbp_offset = simple_strtoul((char *)buf, NULL, 16);
+	priv->bbp_offset = simple_strtoul(buf, NULL, 16);
 	res = count;
 out_unlock:
 	free_page(addr);

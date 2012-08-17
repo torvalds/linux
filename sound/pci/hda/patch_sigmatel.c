@@ -101,6 +101,8 @@ enum {
 	STAC_92HD83XXX_HP_cNB11_INTQUAD,
 	STAC_HP_DV7_4000,
 	STAC_HP_ZEPHYR,
+	STAC_92HD83XXX_HP_LED,
+	STAC_92HD83XXX_HP_INV_LED,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -1675,6 +1677,8 @@ static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = "hp_cNB11_intquad",
 	[STAC_HP_DV7_4000] = "hp-dv7-4000",
 	[STAC_HP_ZEPHYR] = "hp-zephyr",
+	[STAC_92HD83XXX_HP_LED] = "hp-led",
+	[STAC_92HD83XXX_HP_INV_LED] = "hp-inv-led",
 };
 
 static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1729,6 +1733,8 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3561,
 			  "HP", STAC_HP_ZEPHYR),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3660,
+			  "HP Mini", STAC_92HD83XXX_HP_LED),
 	{} /* terminator */
 };
 
@@ -4367,13 +4373,18 @@ static int stac92xx_init(struct hda_codec *codec)
 					 AC_PINCTL_IN_EN);
 	for (i = 0; i < spec->num_pwrs; i++)  {
 		hda_nid_t nid = spec->pwr_nids[i];
-		int pinctl, def_conf;
+		unsigned int pinctl, def_conf;
 
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
 		def_conf = get_defcfg_connect(def_conf);
 		if (def_conf == AC_JACK_PORT_NONE) {
 			/* power off unused ports */
 			stac_toggle_power_map(codec, nid, 0);
+			continue;
+		}
+		if (def_conf == AC_JACK_PORT_FIXED) {
+			/* no need for jack detection for fixed pins */
+			stac_toggle_power_map(codec, nid, 1);
 			continue;
 		}
 		/* power on when no jack detection is available */
@@ -4409,7 +4420,12 @@ static int stac92xx_init(struct hda_codec *codec)
 	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
-	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+	if (spec->gpio_led) {
+		if (spec->vmaster_mute.hook)
+			snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+		else /* the very first init call doesn't have vmaster yet */
+			stac92xx_update_led_status(codec, false);
+	}
 
 	/* sync the power-map */
 	if (spec->num_pwrs)
@@ -4992,7 +5008,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 	return 0;
 }
 
-static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
+static int stac92xx_suspend(struct hda_codec *codec)
 {
 	stac92xx_shutup(codec);
 	return 0;
@@ -5502,6 +5518,7 @@ static void stac92hd8x_fill_auto_spec(struct hda_codec *codec)
 static int patch_stac92hd83xxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
+	int default_polarity = -1; /* no default cfg */
 	int err;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5550,9 +5567,15 @@ again:
 	case STAC_HP_ZEPHYR:
 		spec->init = stac92hd83xxx_hp_zephyr_init;
 		break;
+	case STAC_92HD83XXX_HP_LED:
+		default_polarity = 0;
+		break;
+	case STAC_92HD83XXX_HP_INV_LED:
+		default_polarity = 1;
+		break;
 	}
 
-	if (find_mute_led_cfg(codec, -1/*no default cfg*/))
+	if (find_mute_led_cfg(codec, default_polarity))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);

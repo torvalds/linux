@@ -24,25 +24,11 @@ static int ehci_sh_reset(struct usb_hcd *hcd)
 	int ret;
 
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs + HC_LENGTH(ehci, ehci_readl(ehci,
-		&ehci->caps->hc_capbase));
 
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
-
-	ret = ehci_halt(ehci);
+	ret = ehci_setup(hcd);
 	if (unlikely(ret))
 		return ret;
 
-	ret = ehci_init(hcd);
-	if (unlikely(ret))
-		return ret;
-
-	ehci->sbrn = 0x20;
-
-	ehci_reset(ehci);
 	ehci_port_power(ehci, 0);
 
 	return ret;
@@ -126,8 +112,7 @@ static int ehci_hcd_sh_probe(struct platform_device *pdev)
 		goto fail_create_hcd;
 	}
 
-	if (pdev->dev.platform_data != NULL)
-		pdata = pdev->dev.platform_data;
+	pdata = pdev->dev.platform_data;
 
 	/* initialize hcd */
 	hcd = usb_create_hcd(&ehci_sh_hc_driver, &pdev->dev,

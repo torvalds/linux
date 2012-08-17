@@ -49,34 +49,45 @@ static u32 orig_hid1[2];
 
 /************************ MC SYSFS parts ***********************************/
 
-static ssize_t mpc85xx_mc_inject_data_hi_show(struct mem_ctl_info *mci,
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
+
+static ssize_t mpc85xx_mc_inject_data_hi_show(struct device *dev,
+					      struct device_attribute *mattr,
 					      char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	return sprintf(data, "0x%08x",
 		       in_be32(pdata->mc_vbase +
 			       MPC85XX_MC_DATA_ERR_INJECT_HI));
 }
 
-static ssize_t mpc85xx_mc_inject_data_lo_show(struct mem_ctl_info *mci,
+static ssize_t mpc85xx_mc_inject_data_lo_show(struct device *dev,
+					      struct device_attribute *mattr,
 					      char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	return sprintf(data, "0x%08x",
 		       in_be32(pdata->mc_vbase +
 			       MPC85XX_MC_DATA_ERR_INJECT_LO));
 }
 
-static ssize_t mpc85xx_mc_inject_ctrl_show(struct mem_ctl_info *mci, char *data)
+static ssize_t mpc85xx_mc_inject_ctrl_show(struct device *dev,
+					   struct device_attribute *mattr,
+					   char *data)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	return sprintf(data, "0x%08x",
 		       in_be32(pdata->mc_vbase + MPC85XX_MC_ECC_ERR_INJECT));
 }
 
-static ssize_t mpc85xx_mc_inject_data_hi_store(struct mem_ctl_info *mci,
+static ssize_t mpc85xx_mc_inject_data_hi_store(struct device *dev,
+					       struct device_attribute *mattr,
 					       const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	if (isdigit(*data)) {
 		out_be32(pdata->mc_vbase + MPC85XX_MC_DATA_ERR_INJECT_HI,
@@ -86,9 +97,11 @@ static ssize_t mpc85xx_mc_inject_data_hi_store(struct mem_ctl_info *mci,
 	return 0;
 }
 
-static ssize_t mpc85xx_mc_inject_data_lo_store(struct mem_ctl_info *mci,
+static ssize_t mpc85xx_mc_inject_data_lo_store(struct device *dev,
+					       struct device_attribute *mattr,
 					       const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	if (isdigit(*data)) {
 		out_be32(pdata->mc_vbase + MPC85XX_MC_DATA_ERR_INJECT_LO,
@@ -98,9 +111,11 @@ static ssize_t mpc85xx_mc_inject_data_lo_store(struct mem_ctl_info *mci,
 	return 0;
 }
 
-static ssize_t mpc85xx_mc_inject_ctrl_store(struct mem_ctl_info *mci,
-					    const char *data, size_t count)
+static ssize_t mpc85xx_mc_inject_ctrl_store(struct device *dev,
+					       struct device_attribute *mattr,
+					       const char *data, size_t count)
 {
+	struct mem_ctl_info *mci = to_mci(dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 	if (isdigit(*data)) {
 		out_be32(pdata->mc_vbase + MPC85XX_MC_ECC_ERR_INJECT,
@@ -110,38 +125,35 @@ static ssize_t mpc85xx_mc_inject_ctrl_store(struct mem_ctl_info *mci,
 	return 0;
 }
 
-static struct mcidev_sysfs_attribute mpc85xx_mc_sysfs_attributes[] = {
-	{
-	 .attr = {
-		  .name = "inject_data_hi",
-		  .mode = (S_IRUGO | S_IWUSR)
-		  },
-	 .show = mpc85xx_mc_inject_data_hi_show,
-	 .store = mpc85xx_mc_inject_data_hi_store},
-	{
-	 .attr = {
-		  .name = "inject_data_lo",
-		  .mode = (S_IRUGO | S_IWUSR)
-		  },
-	 .show = mpc85xx_mc_inject_data_lo_show,
-	 .store = mpc85xx_mc_inject_data_lo_store},
-	{
-	 .attr = {
-		  .name = "inject_ctrl",
-		  .mode = (S_IRUGO | S_IWUSR)
-		  },
-	 .show = mpc85xx_mc_inject_ctrl_show,
-	 .store = mpc85xx_mc_inject_ctrl_store},
+DEVICE_ATTR(inject_data_hi, S_IRUGO | S_IWUSR,
+	    mpc85xx_mc_inject_data_hi_show, mpc85xx_mc_inject_data_hi_store);
+DEVICE_ATTR(inject_data_lo, S_IRUGO | S_IWUSR,
+	    mpc85xx_mc_inject_data_lo_show, mpc85xx_mc_inject_data_lo_store);
+DEVICE_ATTR(inject_ctrl, S_IRUGO | S_IWUSR,
+	    mpc85xx_mc_inject_ctrl_show, mpc85xx_mc_inject_ctrl_store);
 
-	/* End of list */
-	{
-	 .attr = {.name = NULL}
-	 }
-};
-
-static void mpc85xx_set_mc_sysfs_attributes(struct mem_ctl_info *mci)
+static int mpc85xx_create_sysfs_attributes(struct mem_ctl_info *mci)
 {
-	mci->mc_driver_sysfs_attributes = mpc85xx_mc_sysfs_attributes;
+	int rc;
+
+	rc = device_create_file(&mci->dev, &dev_attr_inject_data_hi);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_data_lo);
+	if (rc < 0)
+		return rc;
+	rc = device_create_file(&mci->dev, &dev_attr_inject_ctrl);
+	if (rc < 0)
+		return rc;
+
+	return 0;
+}
+
+static void mpc85xx_remove_sysfs_attributes(struct mem_ctl_info *mci)
+{
+	device_remove_file(&mci->dev, &dev_attr_inject_data_hi);
+	device_remove_file(&mci->dev, &dev_attr_inject_data_lo);
+	device_remove_file(&mci->dev, &dev_attr_inject_ctrl);
 }
 
 /**************************** PCI Err device ***************************/
@@ -268,7 +280,7 @@ static int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_DR, ~0);
 
 	if (edac_pci_add_device(pci, pdata->edac_idx) > 0) {
-		debugf3("%s(): failed edac_pci_add_device()\n", __func__);
+		edac_dbg(3, "failed edac_pci_add_device()\n");
 		goto err;
 	}
 
@@ -291,7 +303,7 @@ static int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
 	}
 
 	devres_remove_group(&op->dev, mpc85xx_pci_err_probe);
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 	printk(KERN_INFO EDAC_MOD_STR " PCI err registered\n");
 
 	return 0;
@@ -309,7 +321,7 @@ static int mpc85xx_pci_err_remove(struct platform_device *op)
 	struct edac_pci_ctl_info *pci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_CAP_DR,
 		 orig_pci_err_cap_dr);
@@ -570,7 +582,7 @@ static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
 	pdata->edac_idx = edac_dev_idx++;
 
 	if (edac_device_add_device(edac_dev) > 0) {
-		debugf3("%s(): failed edac_device_add_device()\n", __func__);
+		edac_dbg(3, "failed edac_device_add_device()\n");
 		goto err;
 	}
 
@@ -598,7 +610,7 @@ static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
 
 	devres_remove_group(&op->dev, mpc85xx_l2_err_probe);
 
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 	printk(KERN_INFO EDAC_MOD_STR " L2 err registered\n");
 
 	return 0;
@@ -616,7 +628,7 @@ static int mpc85xx_l2_err_remove(struct platform_device *op)
 	struct edac_device_ctl_info *edac_dev = dev_get_drvdata(&op->dev);
 	struct mpc85xx_l2_pdata *pdata = edac_dev->pvt_info;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		out_be32(pdata->l2_vbase + MPC85XX_L2_ERRINTEN, 0);
@@ -813,7 +825,7 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 	pfn = err_addr >> PAGE_SHIFT;
 
 	for (row_index = 0; row_index < mci->nr_csrows; row_index++) {
-		csrow = &mci->csrows[row_index];
+		csrow = mci->csrows[row_index];
 		if ((pfn >= csrow->first_page) && (pfn <= csrow->last_page))
 			break;
 	}
@@ -854,16 +866,16 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 		mpc85xx_mc_printk(mci, KERN_ERR, "PFN out of range!\n");
 
 	if (err_detect & DDR_EDE_SBE)
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 				     pfn, err_addr & ~PAGE_MASK, syndrome,
 				     row_index, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 
 	if (err_detect & DDR_EDE_MBE)
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 				     pfn, err_addr & ~PAGE_MASK, syndrome,
 				     row_index, 0, -1,
-				     mci->ctl_name, "", NULL);
+				     mci->ctl_name, "");
 
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT, err_detect);
 }
@@ -933,8 +945,8 @@ static void __devinit mpc85xx_init_csrows(struct mem_ctl_info *mci)
 		u32 start;
 		u32 end;
 
-		csrow = &mci->csrows[index];
-		dimm = csrow->channels[0].dimm;
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		cs_bnds = in_be32(pdata->mc_vbase + MPC85XX_MC_CS_BNDS_0 +
 				  (index * MPC85XX_MC_CS_BNDS_OFS));
@@ -980,7 +992,8 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = 1;
 	layers[1].is_virt_csrow = false;
-	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), sizeof(*pdata));
+	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
+			    sizeof(*pdata));
 	if (!mci) {
 		devres_release_group(&op->dev, mpc85xx_mc_err_probe);
 		return -ENOMEM;
@@ -989,9 +1002,9 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	pdata = mci->pvt_info;
 	pdata->name = "mpc85xx_mc_err";
 	pdata->irq = NO_IRQ;
-	mci->dev = &op->dev;
+	mci->pdev = &op->dev;
 	pdata->edac_idx = edac_mc_idx++;
-	dev_set_drvdata(mci->dev, mci);
+	dev_set_drvdata(mci->pdev, mci);
 	mci->ctl_name = pdata->name;
 	mci->dev_name = pdata->name;
 
@@ -1025,7 +1038,7 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 		goto err;
 	}
 
-	debugf3("%s(): init mci\n", __func__);
+	edac_dbg(3, "init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_RDDR2 |
 	    MEM_FLAG_DDR | MEM_FLAG_DDR2;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
@@ -1040,8 +1053,6 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 
 	mci->scrub_mode = SCRUB_SW_SRC;
 
-	mpc85xx_set_mc_sysfs_attributes(mci);
-
 	mpc85xx_init_csrows(mci);
 
 	/* store the original error disable bits */
@@ -1053,7 +1064,13 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT, ~0);
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
+		goto err;
+	}
+
+	if (mpc85xx_create_sysfs_attributes(mci)) {
+		edac_mc_del_mc(mci->pdev);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto err;
 	}
 
@@ -1087,7 +1104,7 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	}
 
 	devres_remove_group(&op->dev, mpc85xx_mc_err_probe);
-	debugf3("%s(): success\n", __func__);
+	edac_dbg(3, "success\n");
 	printk(KERN_INFO EDAC_MOD_STR " MC err registered\n");
 
 	return 0;
@@ -1105,7 +1122,7 @@ static int mpc85xx_mc_err_remove(struct platform_device *op)
 	struct mem_ctl_info *mci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 
-	debugf0("%s()\n", __func__);
+	edac_dbg(0, "\n");
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_INT_EN, 0);
@@ -1116,6 +1133,7 @@ static int mpc85xx_mc_err_remove(struct platform_device *op)
 		 orig_ddr_err_disable);
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_SBE, orig_ddr_err_sbe);
 
+	mpc85xx_remove_sysfs_attributes(mci);
 	edac_mc_del_mc(&op->dev);
 	edac_mc_free(mci);
 	return 0;

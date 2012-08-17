@@ -210,7 +210,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
  * FUNCTION:    acpi_ps_get_next_namepath
  *
  * PARAMETERS:  parser_state        - Current parser state object
- *              Arg                 - Where the namepath will be stored
+ *              arg                 - Where the namepath will be stored
  *              arg_count           - If the namepath points to a control method
  *                                    the method's argument is returned here.
  *              possible_method_call - Whether the namepath can possibly be the
@@ -379,7 +379,7 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
  *
  * PARAMETERS:  parser_state        - Current parser state object
  *              arg_type            - The argument type (AML_*_ARG)
- *              Arg                 - Where the argument is returned
+ *              arg                 - Where the argument is returned
  *
  * RETURN:      None
  *
@@ -618,6 +618,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 
 				arg = acpi_ps_alloc_op(AML_INT_BYTELIST_OP);
 				if (!arg) {
+					acpi_ps_free_op(field);
 					return_PTR(NULL);
 				}
 
@@ -662,6 +663,7 @@ static union acpi_parse_object *acpi_ps_get_next_field(struct acpi_parse_state
 		} else {
 			arg = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
 			if (!arg) {
+				acpi_ps_free_op(field);
 				return_PTR(NULL);
 			}
 

@@ -291,6 +291,16 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	target_i915_obj = to_intel_bo(target_obj);
 	target_offset = target_i915_obj->gtt_offset;
 
+	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
+	 * pipe_control writes because the gpu doesn't properly redirect them
+	 * through the ppgtt for non_secure batchbuffers. */
+	if (unlikely(IS_GEN6(dev) &&
+	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
+	    !target_i915_obj->has_global_gtt_mapping)) {
+		i915_gem_gtt_bind_object(target_i915_obj,
+					 target_i915_obj->cache_level);
+	}
+
 	/* The target buffer should have appeared before us in the
 	 * exec_object list, so it should have a GTT space bound by now.
 	 */
@@ -397,16 +407,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			(reloc_page + (reloc->offset & ~PAGE_MASK));
 		iowrite32(reloc->delta, reloc_entry);
 		io_mapping_unmap_atomic(reloc_page);
-	}
-
-	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
-	 * pipe_control writes because the gpu doesn't properly redirect them
-	 * through the ppgtt for non_secure batchbuffers. */
-	if (unlikely(IS_GEN6(dev) &&
-	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !target_i915_obj->has_global_gtt_mapping)) {
-		i915_gem_gtt_bind_object(target_i915_obj,
-					 target_i915_obj->cache_level);
 	}
 
 	/* and update the user's relocation entry */
@@ -810,33 +810,16 @@ err:
 	return ret;
 }
 
-static int
+static void
 i915_gem_execbuffer_flush(struct drm_device *dev,
 			  uint32_t invalidate_domains,
-			  uint32_t flush_domains,
-			  uint32_t flush_rings)
+			  uint32_t flush_domains)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	int i, ret;
-
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
 		intel_gtt_chipset_flush();
 
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
-
-	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
-		for (i = 0; i < I915_NUM_RINGS; i++)
-			if (flush_rings & (1 << i)) {
-				ret = i915_gem_flush_ring(&dev_priv->ring[i],
-							  invalidate_domains,
-							  flush_domains);
-				if (ret)
-					return ret;
-			}
-	}
-
-	return 0;
 }
 
 static int
@@ -885,12 +868,9 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 		i915_gem_object_set_to_gpu_domain(obj, ring, &cd);
 
 	if (cd.invalidate_domains | cd.flush_domains) {
-		ret = i915_gem_execbuffer_flush(ring->dev,
-						cd.invalidate_domains,
-						cd.flush_domains,
-						cd.flush_rings);
-		if (ret)
-			return ret;
+		i915_gem_execbuffer_flush(ring->dev,
+					  cd.invalidate_domains,
+					  cd.flush_domains);
 	}
 
 	if (cd.flips) {
@@ -905,6 +885,16 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 			return ret;
 	}
 
+	/* Unconditionally invalidate gpu caches and ensure that we do flush
+	 * any residual writes from the previous batch.
+	 */
+	ret = i915_gem_flush_ring(ring,
+				  I915_GEM_GPU_DOMAINS,
+				  ring->gpu_caches_dirty ? I915_GEM_GPU_DOMAINS : 0);
+	if (ret)
+		return ret;
+
+	ring->gpu_caches_dirty = false;
 	return 0;
 }
 
@@ -983,26 +973,13 @@ i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 				    struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_request *request;
-	u32 invalidate;
 
-	/*
-	 * Ensure that the commands in the batch buffer are
-	 * finished before the interrupt fires.
-	 *
-	 * The sampler always gets flushed on i965 (sigh).
-	 */
-	invalidate = I915_GEM_DOMAIN_COMMAND;
-	if (INTEL_INFO(dev)->gen >= 4)
-		invalidate |= I915_GEM_DOMAIN_SAMPLER;
-	if (ring->flush(ring, invalidate, 0)) {
-		i915_gem_next_request_seqno(ring);
-		return;
-	}
+	/* Unconditionally force add_request to emit a full flush. */
+	ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL || i915_add_request(ring, file, request)) {
-		i915_gem_next_request_seqno(ring);
 		kfree(request);
 	}
 }
@@ -1044,6 +1021,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_ring_buffer *ring;
+	u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 exec_start, exec_len;
 	u32 seqno;
 	u32 mask;
@@ -1065,9 +1043,19 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		break;
 	case I915_EXEC_BSD:
 		ring = &dev_priv->ring[VCS];
+		if (ctx_id != 0) {
+			DRM_DEBUG("Ring %s doesn't support contexts\n",
+				  ring->name);
+			return -EPERM;
+		}
 		break;
 	case I915_EXEC_BLT:
 		ring = &dev_priv->ring[BCS];
+		if (ctx_id != 0) {
+			DRM_DEBUG("Ring %s doesn't support contexts\n",
+				  ring->name);
+			return -EPERM;
+		}
 		break;
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
@@ -1240,6 +1228,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		}
 	}
 
+	ret = i915_switch_context(ring, file, ctx_id);
+	if (ret)
+		goto err;
+
 	if (ring == &dev_priv->ring[RCS] &&
 	    mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(ring, 4);
@@ -1367,6 +1359,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	exec2.num_cliprects = args->num_cliprects;
 	exec2.cliprects_ptr = args->cliprects_ptr;
 	exec2.flags = I915_EXEC_RENDER;
+	i915_execbuffer2_set_context_id(exec2, 0);
 
 	ret = i915_gem_do_execbuffer(dev, data, file, &exec2, exec2_list);
 	if (!ret) {

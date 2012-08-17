@@ -1886,6 +1886,8 @@ static inline int ip6mr_forward2_finish(struct sk_buff *skb)
 {
 	IP6_INC_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
 			 IPSTATS_MIB_OUTFORWDATAGRAMS);
+	IP6_ADD_STATS_BH(dev_net(skb_dst(skb)->dev), ip6_dst_idev(skb_dst(skb)),
+			 IPSTATS_MIB_OUTOCTETS, skb->len);
 	return dst_output(skb);
 }
 
@@ -2102,8 +2104,9 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	if (c->mf6c_parent >= MAXMIFS)
 		return -ENOENT;
 
-	if (MIF_EXISTS(mrt, c->mf6c_parent))
-		RTA_PUT(skb, RTA_IIF, 4, &mrt->vif6_table[c->mf6c_parent].dev->ifindex);
+	if (MIF_EXISTS(mrt, c->mf6c_parent) &&
+	    nla_put_u32(skb, RTA_IIF, mrt->vif6_table[c->mf6c_parent].dev->ifindex) < 0)
+		return -EMSGSIZE;
 
 	mp_head = (struct rtattr *)skb_put(skb, RTA_LENGTH(0));
 

@@ -18,9 +18,7 @@
 #include "bna.h"
 #include "bfi.h"
 
-/**
- * IB
- */
+/* IB */
 static void
 bna_ib_coalescing_timeo_set(struct bna_ib *ib, u8 coalescing_timeo)
 {
@@ -29,9 +27,7 @@ bna_ib_coalescing_timeo_set(struct bna_ib *ib, u8 coalescing_timeo)
 				(u32)ib->coalescing_timeo, 0);
 }
 
-/**
- * RXF
- */
+/* RXF */
 
 #define bna_rxf_vlan_cfg_soft_reset(rxf)				\
 do {									\
@@ -1312,9 +1308,7 @@ bna_rxf_vlan_strip_cfg_apply(struct bna_rxf *rxf)
 	return 0;
 }
 
-/**
- * RX
- */
+/* RX */
 
 #define	BNA_GET_RXQS(qcfg)	(((qcfg)->rxp_type == BNA_RXP_SINGLE) ?	\
 	(qcfg)->num_paths : ((qcfg)->num_paths * 2))
@@ -2791,9 +2785,8 @@ const u32 bna_napi_dim_vector[BNA_LOAD_T_MAX][BNA_BIAS_T_MAX] = {
 	{1, 2},
 };
 
-/**
- * TX
- */
+/* TX */
+
 #define call_tx_stop_cbfn(tx)						\
 do {									\
 	if ((tx)->stop_cbfn) {						\

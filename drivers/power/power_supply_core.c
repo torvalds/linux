@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/power_supply.h>
+#include <linux/thermal.h>
 #include "power_supply.h"
 
 /* exported for the APM Power driver, APM emulation */
@@ -169,6 +170,63 @@ static void power_supply_dev_release(struct device *dev)
 	kfree(dev);
 }
 
+#ifdef CONFIG_THERMAL
+static int power_supply_read_temp(struct thermal_zone_device *tzd,
+		unsigned long *temp)
+{
+	struct power_supply *psy;
+	union power_supply_propval val;
+	int ret;
+
+	WARN_ON(tzd == NULL);
+	psy = tzd->devdata;
+	ret = psy->get_property(psy, POWER_SUPPLY_PROP_TEMP, &val);
+
+	/* Convert tenths of degree Celsius to milli degree Celsius. */
+	if (!ret)
+		*temp = val.intval * 100;
+
+	return ret;
+}
+
+static struct thermal_zone_device_ops psy_tzd_ops = {
+	.get_temp = power_supply_read_temp,
+};
+
+static int psy_register_thermal(struct power_supply *psy)
+{
+	int i;
+
+	/* Register battery zone device psy reports temperature */
+	for (i = 0; i < psy->num_properties; i++) {
+		if (psy->properties[i] == POWER_SUPPLY_PROP_TEMP) {
+			psy->tzd = thermal_zone_device_register(psy->name, 0, 0,
+					psy, &psy_tzd_ops, 0, 0, 0, 0);
+			if (IS_ERR(psy->tzd))
+				return PTR_ERR(psy->tzd);
+			break;
+		}
+	}
+	return 0;
+}
+
+static void psy_unregister_thermal(struct power_supply *psy)
+{
+	if (IS_ERR_OR_NULL(psy->tzd))
+		return;
+	thermal_zone_device_unregister(psy->tzd);
+}
+#else
+static int psy_register_thermal(struct power_supply *psy)
+{
+	return 0;
+}
+
+static void psy_unregister_thermal(struct power_supply *psy)
+{
+}
+#endif
+
 int power_supply_register(struct device *parent, struct power_supply *psy)
 {
 	struct device *dev;
@@ -197,6 +255,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	if (rc)
 		goto device_add_failed;
 
+	rc = psy_register_thermal(psy);
+	if (rc)
+		goto register_thermal_failed;
+
 	rc = power_supply_create_triggers(psy);
 	if (rc)
 		goto create_triggers_failed;
@@ -206,6 +268,8 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	goto success;
 
 create_triggers_failed:
+	psy_unregister_thermal(psy);
+register_thermal_failed:
 	device_del(dev);
 kobject_set_name_failed:
 device_add_failed:
@@ -220,6 +284,7 @@ void power_supply_unregister(struct power_supply *psy)
 	cancel_work_sync(&psy->changed_work);
 	sysfs_remove_link(&psy->dev->kobj, "powers");
 	power_supply_remove_triggers(psy);
+	psy_unregister_thermal(psy);
 	device_unregister(psy->dev);
 }
 EXPORT_SYMBOL_GPL(power_supply_unregister);

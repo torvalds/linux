@@ -122,7 +122,9 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
 #define TLV_TYPE_UAP_BEACON_PERIOD  (PROPRIETARY_TLV_BASE_ID + 44)
 #define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
+#define TLV_TYPE_UAP_BCAST_SSID     (PROPRIETARY_TLV_BASE_ID + 48)
 #define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
+#define TLV_TYPE_UAP_WEP_KEY        (PROPRIETARY_TLV_BASE_ID + 59)
 #define TLV_TYPE_UAP_WPA_PASSPHRASE (PROPRIETARY_TLV_BASE_ID + 60)
 #define TLV_TYPE_UAP_ENCRY_PROTOCOL (PROPRIETARY_TLV_BASE_ID + 64)
 #define TLV_TYPE_UAP_AKMP           (PROPRIETARY_TLV_BASE_ID + 65)
@@ -160,6 +162,12 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define MWIFIEX_TX_DATA_BUF_SIZE_8K        8192
 
 #define ISSUPP_11NENABLED(FwCapInfo) (FwCapInfo & BIT(11))
+
+#define MWIFIEX_DEF_HT_CAP	(IEEE80211_HT_CAP_DSSSCCK40 | \
+				 (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT) | \
+				 IEEE80211_HT_CAP_SM_PS)
+
+#define MWIFIEX_DEF_AMPDU	IEEE80211_HT_AMPDU_PARM_FACTOR
 
 /* dev_cap bitmap
  * BIT
@@ -217,7 +225,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_BBP_REG_ACCESS                    0x001a
 #define HostCmd_CMD_RF_REG_ACCESS                     0x001b
 #define HostCmd_CMD_PMIC_REG_ACCESS                   0x00ad
-#define HostCmd_CMD_802_11_RF_CHANNEL                 0x001d
+#define HostCmd_CMD_RF_TX_PWR                         0x001e
+#define HostCmd_CMD_RF_ANTENNA                        0x0020
 #define HostCmd_CMD_802_11_DEAUTHENTICATE             0x0024
 #define HostCmd_CMD_MAC_CONTROL                       0x0028
 #define HostCmd_CMD_802_11_AD_HOC_START               0x002b
@@ -312,6 +321,12 @@ enum ENH_PS_MODES {
 #define HostCmd_BSS_NUM_MASK            0x0f00
 
 #define HostCmd_BSS_TYPE_MASK           0xf000
+
+#define HostCmd_ACT_SET_RX              0x0001
+#define HostCmd_ACT_SET_TX              0x0002
+#define HostCmd_ACT_SET_BOTH            0x0003
+
+#define RF_ANTENNA_AUTO                 0xFFFF
 
 #define HostCmd_SET_SEQ_NO_BSS_INFO(seq, num, type) {   \
 	(((seq) & 0x00ff) |                             \
@@ -868,6 +883,25 @@ struct host_cmd_ds_txpwr_cfg {
 	__le32 mode;
 } __packed;
 
+struct host_cmd_ds_rf_tx_pwr {
+	__le16 action;
+	__le16 cur_level;
+	u8 max_power;
+	u8 min_power;
+} __packed;
+
+struct host_cmd_ds_rf_ant_mimo {
+	__le16 action_tx;
+	__le16 tx_ant_mode;
+	__le16 action_rx;
+	__le16 rx_ant_mode;
+};
+
+struct host_cmd_ds_rf_ant_siso {
+	__le16 action;
+	__le16 ant_mode;
+};
+
 struct mwifiex_bcn_param {
 	u8 bssid[ETH_ALEN];
 	u8 rssi;
@@ -1194,6 +1228,13 @@ struct host_cmd_tlv_passphrase {
 	u8 passphrase[0];
 } __packed;
 
+struct host_cmd_tlv_wep_key {
+	struct host_cmd_tlv tlv;
+	u8 key_index;
+	u8 is_default;
+	u8 key[1];
+};
+
 struct host_cmd_tlv_auth_type {
 	struct host_cmd_tlv tlv;
 	u8 auth_type;
@@ -1207,6 +1248,11 @@ struct host_cmd_tlv_encrypt_protocol {
 struct host_cmd_tlv_ssid {
 	struct host_cmd_tlv tlv;
 	u8 ssid[0];
+} __packed;
+
+struct host_cmd_tlv_bcast_ssid {
+	struct host_cmd_tlv tlv;
+	u8 bcast_ctl;
 } __packed;
 
 struct host_cmd_tlv_beacon_period {
@@ -1243,14 +1289,6 @@ struct host_cmd_tlv_channel_band {
 	struct host_cmd_tlv tlv;
 	u8 band_config;
 	u8 channel;
-} __packed;
-
-struct host_cmd_ds_802_11_rf_channel {
-	__le16 action;
-	__le16 current_channel;
-	__le16 rf_type;
-	__le16 reserved;
-	u8 reserved_1[32];
 } __packed;
 
 struct host_cmd_ds_version_ext {
@@ -1337,10 +1375,12 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_802_11_rssi_info rssi_info;
 		struct host_cmd_ds_802_11_rssi_info_rsp rssi_info_rsp;
 		struct host_cmd_ds_802_11_snmp_mib smib;
-		struct host_cmd_ds_802_11_rf_channel rf_channel;
 		struct host_cmd_ds_tx_rate_query tx_rate;
 		struct host_cmd_ds_tx_rate_cfg tx_rate_cfg;
 		struct host_cmd_ds_txpwr_cfg txp_cfg;
+		struct host_cmd_ds_rf_tx_pwr txp;
+		struct host_cmd_ds_rf_ant_mimo ant_mimo;
+		struct host_cmd_ds_rf_ant_siso ant_siso;
 		struct host_cmd_ds_802_11_ps_mode_enh psmode_enh;
 		struct host_cmd_ds_802_11_hs_cfg_enh opt_hs_cfg;
 		struct host_cmd_ds_802_11_scan scan;

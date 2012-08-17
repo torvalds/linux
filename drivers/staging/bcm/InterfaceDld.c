@@ -7,7 +7,7 @@ int InterfaceFileDownload(PVOID arg, struct file *flp, unsigned int on_chip_loc)
 	int errno = 0, len = 0; /* ,is_config_file = 0 */
 	loff_t pos = 0;
 	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)arg;
-	/* PMINI_ADAPTER Adapter = psIntfAdapter->psAdapter; */
+	/* struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter; */
 	char *buff = kmalloc(MAX_TRANSFER_CTRL_BYTE_USB, GFP_KERNEL);
 
 	if (!buff)
@@ -132,7 +132,7 @@ exit:
 	return Status;
 }
 
-static int bcm_download_config_file(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
+static int bcm_download_config_file(struct bcm_mini_adapter *Adapter, struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
 	B_UINT32 value = 0;
@@ -208,7 +208,7 @@ static int bcm_download_config_file(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwIn
 static int bcm_compare_buff_contents(unsigned char *readbackbuff, unsigned char *buff, unsigned int len)
 {
 	int retval = STATUS_SUCCESS;
-	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
+	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 	if ((len-sizeof(unsigned int)) < 4) {
 		if (memcmp(readbackbuff , buff, len))
 			retval = -EINVAL;
@@ -229,7 +229,7 @@ static int bcm_compare_buff_contents(unsigned char *readbackbuff, unsigned char 
 	return retval;
 }
 
-int bcm_ioctl_fw_download(PMINI_ADAPTER Adapter, FIRMWARE_INFO *psFwInfo)
+int bcm_ioctl_fw_download(struct bcm_mini_adapter *Adapter, struct bcm_firmware_info *psFwInfo)
 {
 	int retval = STATUS_SUCCESS;
 	PUCHAR buff = NULL;
@@ -278,7 +278,7 @@ error:
 	return retval;
 }
 
-static INT buffDnld(PMINI_ADAPTER Adapter, PUCHAR mappedbuffer, UINT u32FirmwareLength, ULONG u32StartingAddress)
+static INT buffDnld(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer, UINT u32FirmwareLength, ULONG u32StartingAddress)
 {
 	unsigned int len = 0;
 	int retval = STATUS_SUCCESS;
@@ -299,7 +299,7 @@ static INT buffDnld(PMINI_ADAPTER Adapter, PUCHAR mappedbuffer, UINT u32Firmware
 	return retval;
 }
 
-static INT buffRdbkVerify(PMINI_ADAPTER Adapter, PUCHAR mappedbuffer, UINT u32FirmwareLength, ULONG u32StartingAddress)
+static INT buffRdbkVerify(struct bcm_mini_adapter *Adapter, PUCHAR mappedbuffer, UINT u32FirmwareLength, ULONG u32StartingAddress)
 {
 	UINT len = u32FirmwareLength;
 	INT retval = STATUS_SUCCESS;
@@ -334,7 +334,7 @@ static INT buffRdbkVerify(PMINI_ADAPTER Adapter, PUCHAR mappedbuffer, UINT u32Fi
 	return retval;
 }
 
-INT buffDnldVerify(PMINI_ADAPTER Adapter, unsigned char *mappedbuffer, unsigned int u32FirmwareLength, unsigned long u32StartingAddress)
+INT buffDnldVerify(struct bcm_mini_adapter *Adapter, unsigned char *mappedbuffer, unsigned int u32FirmwareLength, unsigned long u32StartingAddress)
 {
 	INT status = STATUS_SUCCESS;
 

@@ -11,20 +11,14 @@
  * Software Foundation; version 2 of the License.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
-#include <linux/fs.h>
-#include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <linux/serial.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include "../ipack.h"
 #include "ipoctal.h"
@@ -48,12 +42,9 @@ struct ipoctal {
 	struct scc2698_channel		*chan_regs;
 	struct scc2698_block		*block_regs;
 	struct ipoctal_stats		chan_stats[NR_CHANNELS];
-	char				*buffer[NR_CHANNELS];
 	unsigned int			nb_bytes[NR_CHANNELS];
 	unsigned int			count_wr[NR_CHANNELS];
-	struct ipoctal_config		chan_config[NR_CHANNELS];
 	wait_queue_head_t		queue[NR_CHANNELS];
-	unsigned short			error_flag[NR_CHANNELS];
 	spinlock_t			lock[NR_CHANNELS];
 	unsigned int			pointer_read[NR_CHANNELS];
 	unsigned int			pointer_write[NR_CHANNELS];
@@ -116,14 +107,13 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 	ipoctal = ipoctal_find_board(tty);
 
 	if (ipoctal == NULL) {
-		pr_err("Device not found. Major %d\n", tty->driver->major);
+		dev_err(tty->dev, "Device not found. Major %d\n",
+			tty->driver->major);
 		return -ENODEV;
 	}
 
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
 			     CR_ENABLE_RX);
-	tty->driver_data = ipoctal;
-
 	return 0;
 }
 
@@ -136,12 +126,15 @@ static int ipoctal_open(struct tty_struct *tty, struct file *file)
 	ipoctal = ipoctal_find_board(tty);
 
 	if (ipoctal == NULL) {
-		pr_err("Device not found. Major %d\n", tty->driver->major);
+		dev_err(tty->dev, "Device not found. Major %d\n",
+			tty->driver->major);
 		return -ENODEV;
 	}
 
 	if (atomic_read(&ipoctal->open[channel]))
 		return -EBUSY;
+
+	tty->driver_data = ipoctal;
 
 	res = tty_port_open(&ipoctal->tty_port[channel], tty, file);
 	if (res)
@@ -276,23 +269,19 @@ static int ipoctal_irq_handler(void *arg)
 						     CR_CMD_RESET_ERR_STATUS);
 
 				if (sr & SR_OVERRUN_ERROR) {
-					ipoctal->error_flag[channel] |= UART_OVERRUN;
 					ipoctal->chan_stats[channel].overrun_err++;
 					/* Overrun doesn't affect the current character*/
 					tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 				}
 				if (sr & SR_PARITY_ERROR) {
-					ipoctal->error_flag[channel] |= UART_PARITY;
 					ipoctal->chan_stats[channel].parity_err++;
 					flag = TTY_PARITY;
 				}
 				if (sr & SR_FRAMING_ERROR) {
-					ipoctal->error_flag[channel] |= UART_FRAMING;
 					ipoctal->chan_stats[channel].framing_err++;
 					flag = TTY_FRAME;
 				}
 				if (sr & SR_RECEIVED_BREAK) {
-					ipoctal->error_flag[channel] |= UART_BREAK;
 					ipoctal->chan_stats[channel].rcv_break++;
 					flag = TTY_BREAK;
 				}
@@ -310,8 +299,8 @@ static int ipoctal_irq_handler(void *arg)
 				ipoctal->nb_bytes[channel] = 0;
 				continue;
 			}
-			spin_lock(&ipoctal->lock[channel]);
-			value = ipoctal->buffer[channel][*pointer_write];
+
+			value = ipoctal->tty_port[channel].xmit_buf[*pointer_write];
 			ipoctal_write_io_reg(ipoctal,
 					     &ipoctal->chan_regs[channel].u.w.thr,
 					     value);
@@ -320,7 +309,6 @@ static int ipoctal_irq_handler(void *arg)
 			(*pointer_write)++;
 			*pointer_write = *pointer_write % PAGE_SIZE;
 			ipoctal->nb_bytes[channel]--;
-			spin_unlock(&ipoctal->lock[channel]);
 
 			if ((ipoctal->nb_bytes[channel] == 0) &&
 			    (waitqueue_active(&ipoctal->queue[channel]))) {
@@ -381,7 +369,9 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
 						IPACK_ID_SPACE);
 	if (res) {
-		pr_err("Unable to map slot [%d:%d] ID space!\n", bus_nr, slot);
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] ID space!\n",
+			bus_nr, slot);
 		return res;
 	}
 
@@ -396,14 +386,18 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev, 0,
 						IPACK_IO_SPACE);
 	if (res) {
-		pr_err("Unable to map slot [%d:%d] IO space!\n", bus_nr, slot);
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] IO space!\n",
+			bus_nr, slot);
 		goto out_unregister_id_space;
 	}
 
 	res = ipoctal->dev->bus->ops->map_space(ipoctal->dev,
 					   0x8000, IPACK_MEM_SPACE);
 	if (res) {
-		pr_err("Unable to map slot [%d:%d] MEM space!\n", bus_nr, slot);
+		dev_err(&ipoctal->dev->dev,
+			"Unable to map slot [%d:%d] MEM space!\n",
+			bus_nr, slot);
 		goto out_unregister_io_space;
 	}
 
@@ -417,6 +411,20 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	for (i = 0; i < NR_CHANNELS ; i++) {
 		ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
 				     CR_DISABLE_RX | CR_DISABLE_TX);
+		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+				     CR_CMD_RESET_RX);
+		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+				     CR_CMD_RESET_TX);
+		ipoctal_write_io_reg(ipoctal,
+				     &ipoctal->chan_regs[i].u.w.mr,
+				     MR1_CHRL_8_BITS | MR1_ERROR_CHAR |
+				     MR1_RxINT_RxRDY); /* mr1 */
+		ipoctal_write_io_reg(ipoctal,
+				     &ipoctal->chan_regs[i].u.w.mr,
+				     0); /* mr2 */
+		ipoctal_write_io_reg(ipoctal,
+				     &ipoctal->chan_regs[i].u.w.csr,
+				     TX_CLK_9600  | RX_CLK_9600);
 	}
 
 	for (i = 0; i < IP_OCTAL_NB_BLOCKS; i++) {
@@ -441,7 +449,8 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	 */
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev, vector,
 				       ipoctal_irq_handler, ipoctal);
-	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_ID_SPACE, 0, vector);
+	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_MEM_SPACE, 0,
+				       vector);
 
 	/* Register the TTY device */
 
@@ -472,7 +481,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	tty_set_operations(tty, &ipoctal_fops);
 	res = tty_register_driver(tty);
 	if (res) {
-		pr_err("Can't register tty driver.\n");
+		dev_err(&ipoctal->dev->dev, "Can't register tty driver.\n");
 		put_tty_driver(tty);
 		goto out_unregister_slot_unmap;
 	}
@@ -488,7 +497,6 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		ipoctal_reset_stats(&ipoctal->chan_stats[i]);
 		ipoctal->nb_bytes[i] = 0;
 		init_waitqueue_head(&ipoctal->queue[i]);
-		ipoctal->error_flag[i] = UART_NOERROR;
 
 		spin_lock_init(&ipoctal->lock[i]);
 		ipoctal->pointer_read[i] = 0;
@@ -546,8 +554,6 @@ static int ipoctal_write(struct ipoctal *ipoctal, unsigned int channel,
 	ipoctal->count_wr[channel] = 0;
 
 	ipoctal_copy_write_buffer(ipoctal, channel, buf, count);
-
-	ipoctal->error_flag[channel] = UART_NOERROR;
 
 	/* As the IP-OCTAL 485 only supports half duplex, do it manually */
 	if (ipoctal->board_id == IP_OCTAL_485_ID) {
@@ -665,22 +671,18 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 		if (cflag & CRTSCTS) {
 			mr1 |= MR1_RxRTS_CONTROL_ON;
 			mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_ON;
-			ipoctal->chan_config[channel].flow_control = 1;
 		} else {
 			mr1 |= MR1_RxRTS_CONTROL_OFF;
 			mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_OFF;
-			ipoctal->chan_config[channel].flow_control = 0;
 		}
 		break;
 	case IP_OCTAL_422_ID:
 		mr1 |= MR1_RxRTS_CONTROL_OFF;
 		mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_OFF;
-		ipoctal->chan_config[channel].flow_control = 0;
 		break;
 	case IP_OCTAL_485_ID:
 		mr1 |= MR1_RxRTS_CONTROL_OFF;
 		mr2 |= MR2_TxRTS_CONTROL_ON | MR2_CTS_ENABLE_TX_OFF;
-		ipoctal->chan_config[channel].flow_control = 0;
 		break;
 	default:
 		return;
@@ -743,12 +745,6 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.mr, mr1);
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.mr, mr2);
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.csr, csr);
-
-	/* save the setup in the structure */
-	ipoctal->chan_config[channel].baud = tty_get_baud_rate(tty);
-	ipoctal->chan_config[channel].bits_per_char = cflag & CSIZE;
-	ipoctal->chan_config[channel].parity = cflag & PARENB;
-	ipoctal->chan_config[channel].stop_bits = cflag & CSTOPB;
 
 	/* Enable again the RX */
 	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
@@ -853,11 +849,6 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 
 	tty_unregister_driver(ipoctal->tty_drv);
 	put_tty_driver(ipoctal->tty_drv);
-
-	/* Tell the carrier board to free all the resources for this device */
-	if (ipoctal->dev->bus->ops->remove_device != NULL)
-		ipoctal->dev->bus->ops->remove_device(ipoctal->dev);
-
 	list_del(&ipoctal->list);
 	kfree(ipoctal);
 }
@@ -889,7 +880,7 @@ static void __exit ipoctal_exit(void)
 	struct ipoctal *p, *next;
 
 	list_for_each_entry_safe(p, next, &ipoctal_list, list)
-		__ipoctal_remove(p);
+		p->dev->bus->ops->remove_device(p->dev);
 
 	ipack_driver_unregister(&driver);
 }

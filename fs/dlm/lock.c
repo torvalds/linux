@@ -90,6 +90,7 @@ static void __receive_convert_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 static int receive_extralen(struct dlm_message *ms);
 static void do_purge(struct dlm_ls *ls, int nodeid, int pid);
 static void del_timeout(struct dlm_lkb *lkb);
+static void toss_rsb(struct kref *kref);
 
 /*
  * Lock compatibilty matrix - thanks Steve
@@ -170,9 +171,11 @@ void dlm_print_lkb(struct dlm_lkb *lkb)
 
 static void dlm_print_rsb(struct dlm_rsb *r)
 {
-	printk(KERN_ERR "rsb: nodeid %d flags %lx first %x rlc %d name %s\n",
-	       r->res_nodeid, r->res_flags, r->res_first_lkid,
-	       r->res_recover_locks_count, r->res_name);
+	printk(KERN_ERR "rsb: nodeid %d master %d dir %d flags %lx first %x "
+	       "rlc %d name %s\n",
+	       r->res_nodeid, r->res_master_nodeid, r->res_dir_nodeid,
+	       r->res_flags, r->res_first_lkid, r->res_recover_locks_count,
+	       r->res_name);
 }
 
 void dlm_dump_rsb(struct dlm_rsb *r)
@@ -327,6 +330,37 @@ static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
  * Basic operations on rsb's and lkb's
  */
 
+/* This is only called to add a reference when the code already holds
+   a valid reference to the rsb, so there's no need for locking. */
+
+static inline void hold_rsb(struct dlm_rsb *r)
+{
+	kref_get(&r->res_ref);
+}
+
+void dlm_hold_rsb(struct dlm_rsb *r)
+{
+	hold_rsb(r);
+}
+
+/* When all references to the rsb are gone it's transferred to
+   the tossed list for later disposal. */
+
+static void put_rsb(struct dlm_rsb *r)
+{
+	struct dlm_ls *ls = r->res_ls;
+	uint32_t bucket = r->res_bucket;
+
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
+	kref_put(&r->res_ref, toss_rsb);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
+}
+
+void dlm_put_rsb(struct dlm_rsb *r)
+{
+	put_rsb(r);
+}
+
 static int pre_rsb_struct(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r1, *r2;
@@ -411,11 +445,10 @@ static int rsb_cmp(struct dlm_rsb *r, const char *name, int nlen)
 }
 
 int dlm_search_rsb_tree(struct rb_root *tree, char *name, int len,
-			unsigned int flags, struct dlm_rsb **r_ret)
+			struct dlm_rsb **r_ret)
 {
 	struct rb_node *node = tree->rb_node;
 	struct dlm_rsb *r;
-	int error = 0;
 	int rc;
 
 	while (node) {
@@ -432,10 +465,8 @@ int dlm_search_rsb_tree(struct rb_root *tree, char *name, int len,
 	return -EBADR;
 
  found:
-	if (r->res_nodeid && (flags & R_MASTER))
-		error = -ENOTBLK;
 	*r_ret = r;
-	return error;
+	return 0;
 }
 
 static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
@@ -467,47 +498,6 @@ static int rsb_insert(struct dlm_rsb *rsb, struct rb_root *tree)
 	return 0;
 }
 
-static int _search_rsb(struct dlm_ls *ls, char *name, int len, int b,
-		       unsigned int flags, struct dlm_rsb **r_ret)
-{
-	struct dlm_rsb *r;
-	int error;
-
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, flags, &r);
-	if (!error) {
-		kref_get(&r->res_ref);
-		goto out;
-	}
-	if (error == -ENOTBLK)
-		goto out;
-
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, flags, &r);
-	if (error)
-		goto out;
-
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
-	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
-	if (error)
-		return error;
-
-	if (dlm_no_directory(ls))
-		goto out;
-
-	if (r->res_nodeid == -1) {
-		rsb_clear_flag(r, RSB_MASTER_UNCERTAIN);
-		r->res_first_lkid = 0;
-	} else if (r->res_nodeid > 0) {
-		rsb_set_flag(r, RSB_MASTER_UNCERTAIN);
-		r->res_first_lkid = 0;
-	} else {
-		DLM_ASSERT(r->res_nodeid == 0, dlm_print_rsb(r););
-		DLM_ASSERT(!rsb_flag(r, RSB_MASTER_UNCERTAIN),);
-	}
- out:
-	*r_ret = r;
-	return error;
-}
-
 /*
  * Find rsb in rsbtbl and potentially create/add one
  *
@@ -520,71 +510,575 @@ static int _search_rsb(struct dlm_ls *ls, char *name, int len, int b,
  * Searching for an rsb means looking through both the normal list and toss
  * list.  When found on the toss list the rsb is moved to the normal list with
  * ref count of 1; when found on normal list the ref count is incremented.
+ *
+ * rsb's on the keep list are being used locally and refcounted.
+ * rsb's on the toss list are not being used locally, and are not refcounted.
+ *
+ * The toss list rsb's were either
+ * - previously used locally but not any more (were on keep list, then
+ *   moved to toss list when last refcount dropped)
+ * - created and put on toss list as a directory record for a lookup
+ *   (we are the dir node for the res, but are not using the res right now,
+ *   but some other node is)
+ *
+ * The purpose of find_rsb() is to return a refcounted rsb for local use.
+ * So, if the given rsb is on the toss list, it is moved to the keep list
+ * before being returned.
+ *
+ * toss_rsb() happens when all local usage of the rsb is done, i.e. no
+ * more refcounts exist, so the rsb is moved from the keep list to the
+ * toss list.
+ *
+ * rsb's on both keep and toss lists are used for doing a name to master
+ * lookups.  rsb's that are in use locally (and being refcounted) are on
+ * the keep list, rsb's that are not in use locally (not refcounted) and
+ * only exist for name/master lookups are on the toss list.
+ *
+ * rsb's on the toss list who's dir_nodeid is not local can have stale
+ * name/master mappings.  So, remote requests on such rsb's can potentially
+ * return with an error, which means the mapping is stale and needs to
+ * be updated with a new lookup.  (The idea behind MASTER UNCERTAIN and
+ * first_lkid is to keep only a single outstanding request on an rsb
+ * while that rsb has a potentially stale master.)
  */
 
-static int find_rsb(struct dlm_ls *ls, char *name, int namelen,
-		    unsigned int flags, struct dlm_rsb **r_ret)
+static int find_rsb_dir(struct dlm_ls *ls, char *name, int len,
+			uint32_t hash, uint32_t b,
+			int dir_nodeid, int from_nodeid,
+			unsigned int flags, struct dlm_rsb **r_ret)
 {
 	struct dlm_rsb *r = NULL;
-	uint32_t hash, bucket;
+	int our_nodeid = dlm_our_nodeid();
+	int from_local = 0;
+	int from_other = 0;
+	int from_dir = 0;
+	int create = 0;
 	int error;
 
-	if (namelen > DLM_RESNAME_MAXLEN) {
-		error = -EINVAL;
-		goto out;
+	if (flags & R_RECEIVE_REQUEST) {
+		if (from_nodeid == dir_nodeid)
+			from_dir = 1;
+		else
+			from_other = 1;
+	} else if (flags & R_REQUEST) {
+		from_local = 1;
 	}
 
-	if (dlm_no_directory(ls))
-		flags |= R_CREATE;
+	/*
+	 * flags & R_RECEIVE_RECOVER is from dlm_recover_master_copy, so
+	 * from_nodeid has sent us a lock in dlm_recover_locks, believing
+	 * we're the new master.  Our local recovery may not have set
+	 * res_master_nodeid to our_nodeid yet, so allow either.  Don't
+	 * create the rsb; dlm_recover_process_copy() will handle EBADR
+	 * by resending.
+	 *
+	 * If someone sends us a request, we are the dir node, and we do
+	 * not find the rsb anywhere, then recreate it.  This happens if
+	 * someone sends us a request after we have removed/freed an rsb
+	 * from our toss list.  (They sent a request instead of lookup
+	 * because they are using an rsb from their toss list.)
+	 */
 
-	hash = jhash(name, namelen, 0);
-	bucket = hash & (ls->ls_rsbtbl_size - 1);
+	if (from_local || from_dir ||
+	    (from_other && (dir_nodeid == our_nodeid))) {
+		create = 1;
+	}
 
  retry:
-	if (flags & R_CREATE) {
+	if (create) {
 		error = pre_rsb_struct(ls);
 		if (error < 0)
 			goto out;
 	}
 
-	spin_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock(&ls->ls_rsbtbl[b].lock);
 
-	error = _search_rsb(ls, name, namelen, bucket, flags, &r);
-	if (!error)
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	if (error)
+		goto do_toss;
+	
+	/*
+	 * rsb is active, so we can't check master_nodeid without lock_rsb.
+	 */
+
+	kref_get(&r->res_ref);
+	error = 0;
+	goto out_unlock;
+
+
+ do_toss:
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	if (error)
+		goto do_new;
+
+	/*
+	 * rsb found inactive (master_nodeid may be out of date unless
+	 * we are the dir_nodeid or were the master)  No other thread
+	 * is using this rsb because it's on the toss list, so we can
+	 * look at or update res_master_nodeid without lock_rsb.
+	 */
+
+	if ((r->res_master_nodeid != our_nodeid) && from_other) {
+		/* our rsb was not master, and another node (not the dir node)
+		   has sent us a request */
+		log_debug(ls, "find_rsb toss from_other %d master %d dir %d %s",
+			  from_nodeid, r->res_master_nodeid, dir_nodeid,
+			  r->res_name);
+		error = -ENOTBLK;
+		goto out_unlock;
+	}
+
+	if ((r->res_master_nodeid != our_nodeid) && from_dir) {
+		/* don't think this should ever happen */
+		log_error(ls, "find_rsb toss from_dir %d master %d",
+			  from_nodeid, r->res_master_nodeid);
+		dlm_print_rsb(r);
+		/* fix it and go on */
+		r->res_master_nodeid = our_nodeid;
+		r->res_nodeid = 0;
+		rsb_clear_flag(r, RSB_MASTER_UNCERTAIN);
+		r->res_first_lkid = 0;
+	}
+
+	if (from_local && (r->res_master_nodeid != our_nodeid)) {
+		/* Because we have held no locks on this rsb,
+		   res_master_nodeid could have become stale. */
+		rsb_set_flag(r, RSB_MASTER_UNCERTAIN);
+		r->res_first_lkid = 0;
+	}
+
+	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+	goto out_unlock;
+
+
+ do_new:
+	/*
+	 * rsb not found
+	 */
+
+	if (error == -EBADR && !create)
 		goto out_unlock;
 
-	if (error == -EBADR && !(flags & R_CREATE))
-		goto out_unlock;
-
-	/* the rsb was found but wasn't a master copy */
-	if (error == -ENOTBLK)
-		goto out_unlock;
-
-	error = get_rsb_struct(ls, name, namelen, &r);
+	error = get_rsb_struct(ls, name, len, &r);
 	if (error == -EAGAIN) {
-		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
 		goto retry;
 	}
 	if (error)
 		goto out_unlock;
 
 	r->res_hash = hash;
-	r->res_bucket = bucket;
-	r->res_nodeid = -1;
+	r->res_bucket = b;
+	r->res_dir_nodeid = dir_nodeid;
 	kref_init(&r->res_ref);
 
-	/* With no directory, the master can be set immediately */
-	if (dlm_no_directory(ls)) {
-		int nodeid = dlm_dir_nodeid(r);
-		if (nodeid == dlm_our_nodeid())
-			nodeid = 0;
-		r->res_nodeid = nodeid;
+	if (from_dir) {
+		/* want to see how often this happens */
+		log_debug(ls, "find_rsb new from_dir %d recreate %s",
+			  from_nodeid, r->res_name);
+		r->res_master_nodeid = our_nodeid;
+		r->res_nodeid = 0;
+		goto out_add;
 	}
-	error = rsb_insert(r, &ls->ls_rsbtbl[bucket].keep);
+
+	if (from_other && (dir_nodeid != our_nodeid)) {
+		/* should never happen */
+		log_error(ls, "find_rsb new from_other %d dir %d our %d %s",
+			  from_nodeid, dir_nodeid, our_nodeid, r->res_name);
+		dlm_free_rsb(r);
+		error = -ENOTBLK;
+		goto out_unlock;
+	}
+
+	if (from_other) {
+		log_debug(ls, "find_rsb new from_other %d dir %d %s",
+			  from_nodeid, dir_nodeid, r->res_name);
+	}
+
+	if (dir_nodeid == our_nodeid) {
+		/* When we are the dir nodeid, we can set the master
+		   node immediately */
+		r->res_master_nodeid = our_nodeid;
+		r->res_nodeid = 0;
+	} else {
+		/* set_master will send_lookup to dir_nodeid */
+		r->res_master_nodeid = 0;
+		r->res_nodeid = -1;
+	}
+
+ out_add:
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
  out_unlock:
-	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
  out:
 	*r_ret = r;
+	return error;
+}
+
+/* During recovery, other nodes can send us new MSTCPY locks (from
+   dlm_recover_locks) before we've made ourself master (in
+   dlm_recover_masters). */
+
+static int find_rsb_nodir(struct dlm_ls *ls, char *name, int len,
+			  uint32_t hash, uint32_t b,
+			  int dir_nodeid, int from_nodeid,
+			  unsigned int flags, struct dlm_rsb **r_ret)
+{
+	struct dlm_rsb *r = NULL;
+	int our_nodeid = dlm_our_nodeid();
+	int recover = (flags & R_RECEIVE_RECOVER);
+	int error;
+
+ retry:
+	error = pre_rsb_struct(ls);
+	if (error < 0)
+		goto out;
+
+	spin_lock(&ls->ls_rsbtbl[b].lock);
+
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	if (error)
+		goto do_toss;
+
+	/*
+	 * rsb is active, so we can't check master_nodeid without lock_rsb.
+	 */
+
+	kref_get(&r->res_ref);
+	goto out_unlock;
+
+
+ do_toss:
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	if (error)
+		goto do_new;
+
+	/*
+	 * rsb found inactive. No other thread is using this rsb because
+	 * it's on the toss list, so we can look at or update
+	 * res_master_nodeid without lock_rsb.
+	 */
+
+	if (!recover && (r->res_master_nodeid != our_nodeid) && from_nodeid) {
+		/* our rsb is not master, and another node has sent us a
+		   request; this should never happen */
+		log_error(ls, "find_rsb toss from_nodeid %d master %d dir %d",
+			  from_nodeid, r->res_master_nodeid, dir_nodeid);
+		dlm_print_rsb(r);
+		error = -ENOTBLK;
+		goto out_unlock;
+	}
+
+	if (!recover && (r->res_master_nodeid != our_nodeid) &&
+	    (dir_nodeid == our_nodeid)) {
+		/* our rsb is not master, and we are dir; may as well fix it;
+		   this should never happen */
+		log_error(ls, "find_rsb toss our %d master %d dir %d",
+			  our_nodeid, r->res_master_nodeid, dir_nodeid);
+		dlm_print_rsb(r);
+		r->res_master_nodeid = our_nodeid;
+		r->res_nodeid = 0;
+	}
+
+	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+	goto out_unlock;
+
+
+ do_new:
+	/*
+	 * rsb not found
+	 */
+
+	error = get_rsb_struct(ls, name, len, &r);
+	if (error == -EAGAIN) {
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		goto retry;
+	}
+	if (error)
+		goto out_unlock;
+
+	r->res_hash = hash;
+	r->res_bucket = b;
+	r->res_dir_nodeid = dir_nodeid;
+	r->res_master_nodeid = dir_nodeid;
+	r->res_nodeid = (dir_nodeid == our_nodeid) ? 0 : dir_nodeid;
+	kref_init(&r->res_ref);
+
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+ out_unlock:
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
+ out:
+	*r_ret = r;
+	return error;
+}
+
+static int find_rsb(struct dlm_ls *ls, char *name, int len, int from_nodeid,
+		    unsigned int flags, struct dlm_rsb **r_ret)
+{
+	uint32_t hash, b;
+	int dir_nodeid;
+
+	if (len > DLM_RESNAME_MAXLEN)
+		return -EINVAL;
+
+	hash = jhash(name, len, 0);
+	b = hash & (ls->ls_rsbtbl_size - 1);
+
+	dir_nodeid = dlm_hash2nodeid(ls, hash);
+
+	if (dlm_no_directory(ls))
+		return find_rsb_nodir(ls, name, len, hash, b, dir_nodeid,
+				      from_nodeid, flags, r_ret);
+	else
+		return find_rsb_dir(ls, name, len, hash, b, dir_nodeid,
+				      from_nodeid, flags, r_ret);
+}
+
+/* we have received a request and found that res_master_nodeid != our_nodeid,
+   so we need to return an error or make ourself the master */
+
+static int validate_master_nodeid(struct dlm_ls *ls, struct dlm_rsb *r,
+				  int from_nodeid)
+{
+	if (dlm_no_directory(ls)) {
+		log_error(ls, "find_rsb keep from_nodeid %d master %d dir %d",
+			  from_nodeid, r->res_master_nodeid,
+			  r->res_dir_nodeid);
+		dlm_print_rsb(r);
+		return -ENOTBLK;
+	}
+
+	if (from_nodeid != r->res_dir_nodeid) {
+		/* our rsb is not master, and another node (not the dir node)
+	   	   has sent us a request.  this is much more common when our
+	   	   master_nodeid is zero, so limit debug to non-zero.  */
+
+		if (r->res_master_nodeid) {
+			log_debug(ls, "validate master from_other %d master %d "
+				  "dir %d first %x %s", from_nodeid,
+				  r->res_master_nodeid, r->res_dir_nodeid,
+				  r->res_first_lkid, r->res_name);
+		}
+		return -ENOTBLK;
+	} else {
+		/* our rsb is not master, but the dir nodeid has sent us a
+	   	   request; this could happen with master 0 / res_nodeid -1 */
+
+		if (r->res_master_nodeid) {
+			log_error(ls, "validate master from_dir %d master %d "
+				  "first %x %s",
+				  from_nodeid, r->res_master_nodeid,
+				  r->res_first_lkid, r->res_name);
+		}
+
+		r->res_master_nodeid = dlm_our_nodeid();
+		r->res_nodeid = 0;
+		return 0;
+	}
+}
+
+/*
+ * We're the dir node for this res and another node wants to know the
+ * master nodeid.  During normal operation (non recovery) this is only
+ * called from receive_lookup(); master lookups when the local node is
+ * the dir node are done by find_rsb().
+ *
+ * normal operation, we are the dir node for a resource
+ * . _request_lock
+ * . set_master
+ * . send_lookup
+ * . receive_lookup
+ * . dlm_master_lookup flags 0
+ *
+ * recover directory, we are rebuilding dir for all resources
+ * . dlm_recover_directory
+ * . dlm_rcom_names
+ *   remote node sends back the rsb names it is master of and we are dir of
+ * . dlm_master_lookup RECOVER_DIR (fix_master 0, from_master 1)
+ *   we either create new rsb setting remote node as master, or find existing
+ *   rsb and set master to be the remote node.
+ *
+ * recover masters, we are finding the new master for resources
+ * . dlm_recover_masters
+ * . recover_master
+ * . dlm_send_rcom_lookup
+ * . receive_rcom_lookup
+ * . dlm_master_lookup RECOVER_MASTER (fix_master 1, from_master 0)
+ */
+
+int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, char *name, int len,
+		      unsigned int flags, int *r_nodeid, int *result)
+{
+	struct dlm_rsb *r = NULL;
+	uint32_t hash, b;
+	int from_master = (flags & DLM_LU_RECOVER_DIR);
+	int fix_master = (flags & DLM_LU_RECOVER_MASTER);
+	int our_nodeid = dlm_our_nodeid();
+	int dir_nodeid, error, toss_list = 0;
+
+	if (len > DLM_RESNAME_MAXLEN)
+		return -EINVAL;
+
+	if (from_nodeid == our_nodeid) {
+		log_error(ls, "dlm_master_lookup from our_nodeid %d flags %x",
+			  our_nodeid, flags);
+		return -EINVAL;
+	}
+
+	hash = jhash(name, len, 0);
+	b = hash & (ls->ls_rsbtbl_size - 1);
+
+	dir_nodeid = dlm_hash2nodeid(ls, hash);
+	if (dir_nodeid != our_nodeid) {
+		log_error(ls, "dlm_master_lookup from %d dir %d our %d h %x %d",
+			  from_nodeid, dir_nodeid, our_nodeid, hash,
+			  ls->ls_num_nodes);
+		*r_nodeid = -1;
+		return -EINVAL;
+	}
+
+ retry:
+	error = pre_rsb_struct(ls);
+	if (error < 0)
+		return error;
+
+	spin_lock(&ls->ls_rsbtbl[b].lock);
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	if (!error) {
+		/* because the rsb is active, we need to lock_rsb before
+		   checking/changing re_master_nodeid */
+
+		hold_rsb(r);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		lock_rsb(r);
+		goto found;
+	}
+
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	if (error)
+		goto not_found;
+
+	/* because the rsb is inactive (on toss list), it's not refcounted
+	   and lock_rsb is not used, but is protected by the rsbtbl lock */
+
+	toss_list = 1;
+ found:
+	if (r->res_dir_nodeid != our_nodeid) {
+		/* should not happen, but may as well fix it and carry on */
+		log_error(ls, "dlm_master_lookup res_dir %d our %d %s",
+			  r->res_dir_nodeid, our_nodeid, r->res_name);
+		r->res_dir_nodeid = our_nodeid;
+	}
+
+	if (fix_master && dlm_is_removed(ls, r->res_master_nodeid)) {
+		/* Recovery uses this function to set a new master when
+		   the previous master failed.  Setting NEW_MASTER will
+		   force dlm_recover_masters to call recover_master on this
+		   rsb even though the res_nodeid is no longer removed. */
+
+		r->res_master_nodeid = from_nodeid;
+		r->res_nodeid = from_nodeid;
+		rsb_set_flag(r, RSB_NEW_MASTER);
+
+		if (toss_list) {
+			/* I don't think we should ever find it on toss list. */
+			log_error(ls, "dlm_master_lookup fix_master on toss");
+			dlm_dump_rsb(r);
+		}
+	}
+
+	if (from_master && (r->res_master_nodeid != from_nodeid)) {
+		/* this will happen if from_nodeid became master during
+		   a previous recovery cycle, and we aborted the previous
+		   cycle before recovering this master value */
+
+		log_limit(ls, "dlm_master_lookup from_master %d "
+			  "master_nodeid %d res_nodeid %d first %x %s",
+			  from_nodeid, r->res_master_nodeid, r->res_nodeid,
+			  r->res_first_lkid, r->res_name);
+
+		if (r->res_master_nodeid == our_nodeid) {
+			log_error(ls, "from_master %d our_master", from_nodeid);
+			dlm_dump_rsb(r);
+			dlm_send_rcom_lookup_dump(r, from_nodeid);
+			goto out_found;
+		}
+
+		r->res_master_nodeid = from_nodeid;
+		r->res_nodeid = from_nodeid;
+		rsb_set_flag(r, RSB_NEW_MASTER);
+	}
+
+	if (!r->res_master_nodeid) {
+		/* this will happen if recovery happens while we're looking
+		   up the master for this rsb */
+
+		log_debug(ls, "dlm_master_lookup master 0 to %d first %x %s",
+			  from_nodeid, r->res_first_lkid, r->res_name);
+		r->res_master_nodeid = from_nodeid;
+		r->res_nodeid = from_nodeid;
+	}
+
+	if (!from_master && !fix_master &&
+	    (r->res_master_nodeid == from_nodeid)) {
+		/* this can happen when the master sends remove, the dir node
+		   finds the rsb on the keep list and ignores the remove,
+		   and the former master sends a lookup */
+
+		log_limit(ls, "dlm_master_lookup from master %d flags %x "
+			  "first %x %s", from_nodeid, flags,
+			  r->res_first_lkid, r->res_name);
+	}
+
+ out_found:
+	*r_nodeid = r->res_master_nodeid;
+	if (result)
+		*result = DLM_LU_MATCH;
+
+	if (toss_list) {
+		r->res_toss_time = jiffies;
+		/* the rsb was inactive (on toss list) */
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+	} else {
+		/* the rsb was active */
+		unlock_rsb(r);
+		put_rsb(r);
+	}
+	return 0;
+
+ not_found:
+	error = get_rsb_struct(ls, name, len, &r);
+	if (error == -EAGAIN) {
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		goto retry;
+	}
+	if (error)
+		goto out_unlock;
+
+	r->res_hash = hash;
+	r->res_bucket = b;
+	r->res_dir_nodeid = our_nodeid;
+	r->res_master_nodeid = from_nodeid;
+	r->res_nodeid = from_nodeid;
+	kref_init(&r->res_ref);
+	r->res_toss_time = jiffies;
+
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].toss);
+	if (error) {
+		/* should never happen */
+		dlm_free_rsb(r);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		goto retry;
+	}
+
+	if (result)
+		*result = DLM_LU_ADD;
+	*r_nodeid = from_nodeid;
+	error = 0;
+ out_unlock:
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
 	return error;
 }
 
@@ -605,17 +1099,27 @@ static void dlm_dump_rsb_hash(struct dlm_ls *ls, uint32_t hash)
 	}
 }
 
-/* This is only called to add a reference when the code already holds
-   a valid reference to the rsb, so there's no need for locking. */
-
-static inline void hold_rsb(struct dlm_rsb *r)
+void dlm_dump_rsb_name(struct dlm_ls *ls, char *name, int len)
 {
-	kref_get(&r->res_ref);
-}
+	struct dlm_rsb *r = NULL;
+	uint32_t hash, b;
+	int error;
 
-void dlm_hold_rsb(struct dlm_rsb *r)
-{
-	hold_rsb(r);
+	hash = jhash(name, len, 0);
+	b = hash & (ls->ls_rsbtbl_size - 1);
+
+	spin_lock(&ls->ls_rsbtbl[b].lock);
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	if (!error)
+		goto out_dump;
+
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	if (error)
+		goto out;
+ out_dump:
+	dlm_dump_rsb(r);
+ out:
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
 }
 
 static void toss_rsb(struct kref *kref)
@@ -632,24 +1136,6 @@ static void toss_rsb(struct kref *kref)
 		dlm_free_lvb(r->res_lvbptr);
 		r->res_lvbptr = NULL;
 	}
-}
-
-/* When all references to the rsb are gone it's transferred to
-   the tossed list for later disposal. */
-
-static void put_rsb(struct dlm_rsb *r)
-{
-	struct dlm_ls *ls = r->res_ls;
-	uint32_t bucket = r->res_bucket;
-
-	spin_lock(&ls->ls_rsbtbl[bucket].lock);
-	kref_put(&r->res_ref, toss_rsb);
-	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
-}
-
-void dlm_put_rsb(struct dlm_rsb *r)
-{
-	put_rsb(r);
 }
 
 /* See comment for unhold_lkb */
@@ -1138,61 +1624,170 @@ static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms)
 	return error;
 }
 
-static void dir_remove(struct dlm_rsb *r)
+/* If there's an rsb for the same resource being removed, ensure
+   that the remove message is sent before the new lookup message.
+   It should be rare to need a delay here, but if not, then it may
+   be worthwhile to add a proper wait mechanism rather than a delay. */
+
+static void wait_pending_remove(struct dlm_rsb *r)
 {
-	int to_nodeid;
-
-	if (dlm_no_directory(r->res_ls))
-		return;
-
-	to_nodeid = dlm_dir_nodeid(r);
-	if (to_nodeid != dlm_our_nodeid())
-		send_remove(r);
-	else
-		dlm_dir_remove_entry(r->res_ls, to_nodeid,
-				     r->res_name, r->res_length);
+	struct dlm_ls *ls = r->res_ls;
+ restart:
+	spin_lock(&ls->ls_remove_spin);
+	if (ls->ls_remove_len &&
+	    !rsb_cmp(r, ls->ls_remove_name, ls->ls_remove_len)) {
+		log_debug(ls, "delay lookup for remove dir %d %s",
+		  	  r->res_dir_nodeid, r->res_name);
+		spin_unlock(&ls->ls_remove_spin);
+		msleep(1);
+		goto restart;
+	}
+	spin_unlock(&ls->ls_remove_spin);
 }
 
-/* FIXME: make this more efficient */
+/*
+ * ls_remove_spin protects ls_remove_name and ls_remove_len which are
+ * read by other threads in wait_pending_remove.  ls_remove_names
+ * and ls_remove_lens are only used by the scan thread, so they do
+ * not need protection.
+ */
 
-static int shrink_bucket(struct dlm_ls *ls, int b)
+static void shrink_bucket(struct dlm_ls *ls, int b)
 {
-	struct rb_node *n;
+	struct rb_node *n, *next;
 	struct dlm_rsb *r;
-	int count = 0, found;
+	char *name;
+	int our_nodeid = dlm_our_nodeid();
+	int remote_count = 0;
+	int i, len, rv;
 
-	for (;;) {
-		found = 0;
-		spin_lock(&ls->ls_rsbtbl[b].lock);
-		for (n = rb_first(&ls->ls_rsbtbl[b].toss); n; n = rb_next(n)) {
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			if (!time_after_eq(jiffies, r->res_toss_time +
-					   dlm_config.ci_toss_secs * HZ))
-				continue;
-			found = 1;
-			break;
+	memset(&ls->ls_remove_lens, 0, sizeof(int) * DLM_REMOVE_NAMES_MAX);
+
+	spin_lock(&ls->ls_rsbtbl[b].lock);
+	for (n = rb_first(&ls->ls_rsbtbl[b].toss); n; n = next) {
+		next = rb_next(n);
+		r = rb_entry(n, struct dlm_rsb, res_hashnode);
+
+		/* If we're the directory record for this rsb, and
+		   we're not the master of it, then we need to wait
+		   for the master node to send us a dir remove for
+		   before removing the dir record. */
+
+		if (!dlm_no_directory(ls) &&
+		    (r->res_master_nodeid != our_nodeid) &&
+		    (dlm_dir_nodeid(r) == our_nodeid)) {
+			continue;
 		}
 
-		if (!found) {
-			spin_unlock(&ls->ls_rsbtbl[b].lock);
-			break;
+		if (!time_after_eq(jiffies, r->res_toss_time +
+				   dlm_config.ci_toss_secs * HZ)) {
+			continue;
 		}
 
-		if (kref_put(&r->res_ref, kill_rsb)) {
-			rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
-			spin_unlock(&ls->ls_rsbtbl[b].lock);
+		if (!dlm_no_directory(ls) &&
+		    (r->res_master_nodeid == our_nodeid) &&
+		    (dlm_dir_nodeid(r) != our_nodeid)) {
 
-			if (is_master(r))
-				dir_remove(r);
-			dlm_free_rsb(r);
-			count++;
-		} else {
-			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			/* We're the master of this rsb but we're not
+			   the directory record, so we need to tell the
+			   dir node to remove the dir record. */
+
+			ls->ls_remove_lens[remote_count] = r->res_length;
+			memcpy(ls->ls_remove_names[remote_count], r->res_name,
+			       DLM_RESNAME_MAXLEN);
+			remote_count++;
+
+			if (remote_count >= DLM_REMOVE_NAMES_MAX)
+				break;
+			continue;
+		}
+
+		if (!kref_put(&r->res_ref, kill_rsb)) {
 			log_error(ls, "tossed rsb in use %s", r->res_name);
+			continue;
 		}
-	}
 
-	return count;
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		dlm_free_rsb(r);
+	}
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
+
+	/*
+	 * While searching for rsb's to free, we found some that require
+	 * remote removal.  We leave them in place and find them again here
+	 * so there is a very small gap between removing them from the toss
+	 * list and sending the removal.  Keeping this gap small is
+	 * important to keep us (the master node) from being out of sync
+	 * with the remote dir node for very long.
+	 *
+	 * From the time the rsb is removed from toss until just after
+	 * send_remove, the rsb name is saved in ls_remove_name.  A new
+	 * lookup checks this to ensure that a new lookup message for the
+	 * same resource name is not sent just before the remove message.
+	 */
+
+	for (i = 0; i < remote_count; i++) {
+		name = ls->ls_remove_names[i];
+		len = ls->ls_remove_lens[i];
+
+		spin_lock(&ls->ls_rsbtbl[b].lock);
+		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+		if (rv) {
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			log_debug(ls, "remove_name not toss %s", name);
+			continue;
+		}
+
+		if (r->res_master_nodeid != our_nodeid) {
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			log_debug(ls, "remove_name master %d dir %d our %d %s",
+				  r->res_master_nodeid, r->res_dir_nodeid,
+				  our_nodeid, name);
+			continue;
+		}
+
+		if (r->res_dir_nodeid == our_nodeid) {
+			/* should never happen */
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			log_error(ls, "remove_name dir %d master %d our %d %s",
+				  r->res_dir_nodeid, r->res_master_nodeid,
+				  our_nodeid, name);
+			continue;
+		}
+
+		if (!time_after_eq(jiffies, r->res_toss_time +
+				   dlm_config.ci_toss_secs * HZ)) {
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			log_debug(ls, "remove_name toss_time %lu now %lu %s",
+				  r->res_toss_time, jiffies, name);
+			continue;
+		}
+
+		if (!kref_put(&r->res_ref, kill_rsb)) {
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			log_error(ls, "remove_name in use %s", name);
+			continue;
+		}
+
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+
+		/* block lookup of same name until we've sent remove */
+		spin_lock(&ls->ls_remove_spin);
+		ls->ls_remove_len = len;
+		memcpy(ls->ls_remove_name, name, DLM_RESNAME_MAXLEN);
+		spin_unlock(&ls->ls_remove_spin);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+
+		send_remove(r);
+
+		/* allow lookup of name again */
+		spin_lock(&ls->ls_remove_spin);
+		ls->ls_remove_len = 0;
+		memset(ls->ls_remove_name, 0, DLM_RESNAME_MAXLEN);
+		spin_unlock(&ls->ls_remove_spin);
+
+		dlm_free_rsb(r);
+	}
 }
 
 void dlm_scan_rsbs(struct dlm_ls *ls)
@@ -1684,10 +2279,14 @@ static int conversion_deadlock_detect(struct dlm_rsb *r, struct dlm_lkb *lkb2)
  * immediate request, it is 0 if called later, after the lock has been
  * queued.
  *
+ * recover is 1 if dlm_recover_grant() is trying to grant conversions
+ * after recovery.
+ *
  * References are from chapter 6 of "VAXcluster Principles" by Roy Davis
  */
 
-static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
+static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
+			   int recover)
 {
 	int8_t conv = (lkb->lkb_grmode != DLM_LOCK_IV);
 
@@ -1719,7 +2318,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	 */
 
 	if (queue_conflict(&r->res_grantqueue, lkb))
-		goto out;
+		return 0;
 
 	/*
 	 * 6-3: By default, a conversion request is immediately granted if the
@@ -1728,7 +2327,24 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	 */
 
 	if (queue_conflict(&r->res_convertqueue, lkb))
-		goto out;
+		return 0;
+
+	/*
+	 * The RECOVER_GRANT flag means dlm_recover_grant() is granting
+	 * locks for a recovered rsb, on which lkb's have been rebuilt.
+	 * The lkb's may have been rebuilt on the queues in a different
+	 * order than they were in on the previous master.  So, granting
+	 * queued conversions in order after recovery doesn't make sense
+	 * since the order hasn't been preserved anyway.  The new order
+	 * could also have created a new "in place" conversion deadlock.
+	 * (e.g. old, failed master held granted EX, with PR->EX, NL->EX.
+	 * After recovery, there would be no granted locks, and possibly
+	 * NL->EX, PR->EX, an in-place conversion deadlock.)  So, after
+	 * recovery, grant conversions without considering order.
+	 */
+
+	if (conv && recover)
+		return 1;
 
 	/*
 	 * 6-5: But the default algorithm for deciding whether to grant or
@@ -1765,7 +2381,7 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 		if (list_empty(&r->res_convertqueue))
 			return 1;
 		else
-			goto out;
+			return 0;
 	}
 
 	/*
@@ -1811,12 +2427,12 @@ static int _can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now)
 	if (!now && !conv && list_empty(&r->res_convertqueue) &&
 	    first_in_list(lkb, &r->res_waitqueue))
 		return 1;
- out:
+
 	return 0;
 }
 
 static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
-			  int *err)
+			  int recover, int *err)
 {
 	int rv;
 	int8_t alt = 0, rqmode = lkb->lkb_rqmode;
@@ -1825,7 +2441,7 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 	if (err)
 		*err = 0;
 
-	rv = _can_be_granted(r, lkb, now);
+	rv = _can_be_granted(r, lkb, now, recover);
 	if (rv)
 		goto out;
 
@@ -1866,7 +2482,7 @@ static int can_be_granted(struct dlm_rsb *r, struct dlm_lkb *lkb, int now,
 
 	if (alt) {
 		lkb->lkb_rqmode = alt;
-		rv = _can_be_granted(r, lkb, now);
+		rv = _can_be_granted(r, lkb, now, 0);
 		if (rv)
 			lkb->lkb_sbflags |= DLM_SBF_ALTMODE;
 		else
@@ -1890,6 +2506,7 @@ static int grant_pending_convert(struct dlm_rsb *r, int high, int *cw,
 				 unsigned int *count)
 {
 	struct dlm_lkb *lkb, *s;
+	int recover = rsb_flag(r, RSB_RECOVER_GRANT);
 	int hi, demoted, quit, grant_restart, demote_restart;
 	int deadlk;
 
@@ -1903,7 +2520,7 @@ static int grant_pending_convert(struct dlm_rsb *r, int high, int *cw,
 		demoted = is_demoted(lkb);
 		deadlk = 0;
 
-		if (can_be_granted(r, lkb, 0, &deadlk)) {
+		if (can_be_granted(r, lkb, 0, recover, &deadlk)) {
 			grant_lock_pending(r, lkb);
 			grant_restart = 1;
 			if (count)
@@ -1947,7 +2564,7 @@ static int grant_pending_wait(struct dlm_rsb *r, int high, int *cw,
 	struct dlm_lkb *lkb, *s;
 
 	list_for_each_entry_safe(lkb, s, &r->res_waitqueue, lkb_statequeue) {
-		if (can_be_granted(r, lkb, 0, NULL)) {
+		if (can_be_granted(r, lkb, 0, 0, NULL)) {
 			grant_lock_pending(r, lkb);
 			if (count)
 				(*count)++;
@@ -2078,8 +2695,7 @@ static void send_blocking_asts_all(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
-	struct dlm_ls *ls = r->res_ls;
-	int i, error, dir_nodeid, ret_nodeid, our_nodeid = dlm_our_nodeid();
+	int our_nodeid = dlm_our_nodeid();
 
 	if (rsb_flag(r, RSB_MASTER_UNCERTAIN)) {
 		rsb_clear_flag(r, RSB_MASTER_UNCERTAIN);
@@ -2093,53 +2709,37 @@ static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		return 1;
 	}
 
-	if (r->res_nodeid == 0) {
+	if (r->res_master_nodeid == our_nodeid) {
 		lkb->lkb_nodeid = 0;
 		return 0;
 	}
 
-	if (r->res_nodeid > 0) {
-		lkb->lkb_nodeid = r->res_nodeid;
+	if (r->res_master_nodeid) {
+		lkb->lkb_nodeid = r->res_master_nodeid;
 		return 0;
 	}
 
-	DLM_ASSERT(r->res_nodeid == -1, dlm_dump_rsb(r););
-
-	dir_nodeid = dlm_dir_nodeid(r);
-
-	if (dir_nodeid != our_nodeid) {
-		r->res_first_lkid = lkb->lkb_id;
-		send_lookup(r, lkb);
-		return 1;
-	}
-
-	for (i = 0; i < 2; i++) {
-		/* It's possible for dlm_scand to remove an old rsb for
-		   this same resource from the toss list, us to create
-		   a new one, look up the master locally, and find it
-		   already exists just before dlm_scand does the
-		   dir_remove() on the previous rsb. */
-
-		error = dlm_dir_lookup(ls, our_nodeid, r->res_name,
-				       r->res_length, &ret_nodeid);
-		if (!error)
-			break;
-		log_debug(ls, "dir_lookup error %d %s", error, r->res_name);
-		schedule();
-	}
-	if (error && error != -EEXIST)
-		return error;
-
-	if (ret_nodeid == our_nodeid) {
-		r->res_first_lkid = 0;
+	if (dlm_dir_nodeid(r) == our_nodeid) {
+		/* This is a somewhat unusual case; find_rsb will usually
+		   have set res_master_nodeid when dir nodeid is local, but
+		   there are cases where we become the dir node after we've
+		   past find_rsb and go through _request_lock again.
+		   confirm_master() or process_lookup_list() needs to be
+		   called after this. */
+		log_debug(r->res_ls, "set_master %x self master %d dir %d %s",
+			  lkb->lkb_id, r->res_master_nodeid, r->res_dir_nodeid,
+			  r->res_name);
+		r->res_master_nodeid = our_nodeid;
 		r->res_nodeid = 0;
 		lkb->lkb_nodeid = 0;
-	} else {
-		r->res_first_lkid = lkb->lkb_id;
-		r->res_nodeid = ret_nodeid;
-		lkb->lkb_nodeid = ret_nodeid;
+		return 0;
 	}
-	return 0;
+
+	wait_pending_remove(r);
+
+	r->res_first_lkid = lkb->lkb_id;
+	send_lookup(r, lkb);
+	return 1;
 }
 
 static void process_lookup_list(struct dlm_rsb *r)
@@ -2464,7 +3064,7 @@ static int do_request(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	int error = 0;
 
-	if (can_be_granted(r, lkb, 1, NULL)) {
+	if (can_be_granted(r, lkb, 1, 0, NULL)) {
 		grant_lock(r, lkb);
 		queue_cast(r, lkb, 0);
 		goto out;
@@ -2504,7 +3104,7 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	/* changing an existing lock may allow others to be granted */
 
-	if (can_be_granted(r, lkb, 1, &deadlk)) {
+	if (can_be_granted(r, lkb, 1, 0, &deadlk)) {
 		grant_lock(r, lkb);
 		queue_cast(r, lkb, 0);
 		goto out;
@@ -2530,7 +3130,7 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	if (is_demoted(lkb)) {
 		grant_pending_convert(r, DLM_LOCK_IV, NULL, NULL);
-		if (_can_be_granted(r, lkb, 1)) {
+		if (_can_be_granted(r, lkb, 1, 0)) {
 			grant_lock(r, lkb);
 			queue_cast(r, lkb, 0);
 			goto out;
@@ -2584,7 +3184,7 @@ static void do_unlock_effects(struct dlm_rsb *r, struct dlm_lkb *lkb,
 }
 
 /* returns: 0 did nothing, -DLM_ECANCEL canceled lock */
- 
+
 static int do_cancel(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	int error;
@@ -2708,11 +3308,11 @@ static int request_lock(struct dlm_ls *ls, struct dlm_lkb *lkb, char *name,
 
 	error = validate_lock_args(ls, lkb, args);
 	if (error)
-		goto out;
+		return error;
 
-	error = find_rsb(ls, name, len, R_CREATE, &r);
+	error = find_rsb(ls, name, len, 0, R_REQUEST, &r);
 	if (error)
-		goto out;
+		return error;
 
 	lock_rsb(r);
 
@@ -2723,8 +3323,6 @@ static int request_lock(struct dlm_ls *ls, struct dlm_lkb *lkb, char *name,
 
 	unlock_rsb(r);
 	put_rsb(r);
-
- out:
 	return error;
 }
 
@@ -3402,11 +4000,72 @@ static int validate_message(struct dlm_lkb *lkb, struct dlm_message *ms)
 	return error;
 }
 
+static void send_repeat_remove(struct dlm_ls *ls, char *ms_name, int len)
+{
+	char name[DLM_RESNAME_MAXLEN + 1];
+	struct dlm_message *ms;
+	struct dlm_mhandle *mh;
+	struct dlm_rsb *r;
+	uint32_t hash, b;
+	int rv, dir_nodeid;
+
+	memset(name, 0, sizeof(name));
+	memcpy(name, ms_name, len);
+
+	hash = jhash(name, len, 0);
+	b = hash & (ls->ls_rsbtbl_size - 1);
+
+	dir_nodeid = dlm_hash2nodeid(ls, hash);
+
+	log_error(ls, "send_repeat_remove dir %d %s", dir_nodeid, name);
+
+	spin_lock(&ls->ls_rsbtbl[b].lock);
+	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	if (!rv) {
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		log_error(ls, "repeat_remove on keep %s", name);
+		return;
+	}
+
+	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	if (!rv) {
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		log_error(ls, "repeat_remove on toss %s", name);
+		return;
+	}
+
+	/* use ls->remove_name2 to avoid conflict with shrink? */
+
+	spin_lock(&ls->ls_remove_spin);
+	ls->ls_remove_len = len;
+	memcpy(ls->ls_remove_name, name, DLM_RESNAME_MAXLEN);
+	spin_unlock(&ls->ls_remove_spin);
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
+
+	rv = _create_message(ls, sizeof(struct dlm_message) + len,
+			     dir_nodeid, DLM_MSG_REMOVE, &ms, &mh);
+	if (rv)
+		return;
+
+	memcpy(ms->m_extra, name, len);
+	ms->m_hash = hash;
+
+	send_message(mh, ms);
+
+	spin_lock(&ls->ls_remove_spin);
+	ls->ls_remove_len = 0;
+	memset(ls->ls_remove_name, 0, DLM_RESNAME_MAXLEN);
+	spin_unlock(&ls->ls_remove_spin);
+}
+
 static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 {
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
-	int error, namelen;
+	int from_nodeid;
+	int error, namelen = 0;
+
+	from_nodeid = ms->m_header.h_nodeid;
 
 	error = create_lkb(ls, &lkb);
 	if (error)
@@ -3420,15 +4079,32 @@ static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 		goto fail;
 	}
 
+	/* The dir node is the authority on whether we are the master
+	   for this rsb or not, so if the master sends us a request, we should
+	   recreate the rsb if we've destroyed it.   This race happens when we
+	   send a remove message to the dir node at the same time that the dir
+	   node sends us a request for the rsb. */
+
 	namelen = receive_extralen(ms);
 
-	error = find_rsb(ls, ms->m_extra, namelen, R_MASTER, &r);
+	error = find_rsb(ls, ms->m_extra, namelen, from_nodeid,
+			 R_RECEIVE_REQUEST, &r);
 	if (error) {
 		__put_lkb(ls, lkb);
 		goto fail;
 	}
 
 	lock_rsb(r);
+
+	if (r->res_master_nodeid != dlm_our_nodeid()) {
+		error = validate_master_nodeid(ls, r, from_nodeid);
+		if (error) {
+			unlock_rsb(r);
+			put_rsb(r);
+			__put_lkb(ls, lkb);
+			goto fail;
+		}
+	}
 
 	attach_lkb(r, lkb);
 	error = do_request(r, lkb);
@@ -3445,6 +4121,31 @@ static int receive_request(struct dlm_ls *ls, struct dlm_message *ms)
 	return 0;
 
  fail:
+	/* TODO: instead of returning ENOTBLK, add the lkb to res_lookup
+	   and do this receive_request again from process_lookup_list once
+	   we get the lookup reply.  This would avoid a many repeated
+	   ENOTBLK request failures when the lookup reply designating us
+	   as master is delayed. */
+
+	/* We could repeatedly return -EBADR here if our send_remove() is
+	   delayed in being sent/arriving/being processed on the dir node.
+	   Another node would repeatedly lookup up the master, and the dir
+	   node would continue returning our nodeid until our send_remove
+	   took effect.
+
+	   We send another remove message in case our previous send_remove
+	   was lost/ignored/missed somehow. */
+
+	if (error != -ENOTBLK) {
+		log_limit(ls, "receive_request %x from %d %d",
+			  ms->m_lkid, from_nodeid, error);
+	}
+
+	if (namelen && error == -EBADR) {
+		send_repeat_remove(ls, ms->m_extra, namelen);
+		msleep(1000);
+	}
+
 	setup_stub_lkb(ls, ms);
 	send_request_reply(&ls->ls_stub_rsb, &ls->ls_stub_lkb, error);
 	return error;
@@ -3651,49 +4352,110 @@ static int receive_bast(struct dlm_ls *ls, struct dlm_message *ms)
 
 static void receive_lookup(struct dlm_ls *ls, struct dlm_message *ms)
 {
-	int len, error, ret_nodeid, dir_nodeid, from_nodeid, our_nodeid;
+	int len, error, ret_nodeid, from_nodeid, our_nodeid;
 
 	from_nodeid = ms->m_header.h_nodeid;
 	our_nodeid = dlm_our_nodeid();
 
 	len = receive_extralen(ms);
 
-	dir_nodeid = dlm_hash2nodeid(ls, ms->m_hash);
-	if (dir_nodeid != our_nodeid) {
-		log_error(ls, "lookup dir_nodeid %d from %d",
-			  dir_nodeid, from_nodeid);
-		error = -EINVAL;
-		ret_nodeid = -1;
-		goto out;
-	}
-
-	error = dlm_dir_lookup(ls, from_nodeid, ms->m_extra, len, &ret_nodeid);
+	error = dlm_master_lookup(ls, from_nodeid, ms->m_extra, len, 0,
+				  &ret_nodeid, NULL);
 
 	/* Optimization: we're master so treat lookup as a request */
 	if (!error && ret_nodeid == our_nodeid) {
 		receive_request(ls, ms);
 		return;
 	}
- out:
 	send_lookup_reply(ls, ms, ret_nodeid, error);
 }
 
 static void receive_remove(struct dlm_ls *ls, struct dlm_message *ms)
 {
-	int len, dir_nodeid, from_nodeid;
+	char name[DLM_RESNAME_MAXLEN+1];
+	struct dlm_rsb *r;
+	uint32_t hash, b;
+	int rv, len, dir_nodeid, from_nodeid;
 
 	from_nodeid = ms->m_header.h_nodeid;
 
 	len = receive_extralen(ms);
 
-	dir_nodeid = dlm_hash2nodeid(ls, ms->m_hash);
-	if (dir_nodeid != dlm_our_nodeid()) {
-		log_error(ls, "remove dir entry dir_nodeid %d from %d",
-			  dir_nodeid, from_nodeid);
+	if (len > DLM_RESNAME_MAXLEN) {
+		log_error(ls, "receive_remove from %d bad len %d",
+			  from_nodeid, len);
 		return;
 	}
 
-	dlm_dir_remove_entry(ls, from_nodeid, ms->m_extra, len);
+	dir_nodeid = dlm_hash2nodeid(ls, ms->m_hash);
+	if (dir_nodeid != dlm_our_nodeid()) {
+		log_error(ls, "receive_remove from %d bad nodeid %d",
+			  from_nodeid, dir_nodeid);
+		return;
+	}
+
+	/* Look for name on rsbtbl.toss, if it's there, kill it.
+	   If it's on rsbtbl.keep, it's being used, and we should ignore this
+	   message.  This is an expected race between the dir node sending a
+	   request to the master node at the same time as the master node sends
+	   a remove to the dir node.  The resolution to that race is for the
+	   dir node to ignore the remove message, and the master node to
+	   recreate the master rsb when it gets a request from the dir node for
+	   an rsb it doesn't have. */
+
+	memset(name, 0, sizeof(name));
+	memcpy(name, ms->m_extra, len);
+
+	hash = jhash(name, len, 0);
+	b = hash & (ls->ls_rsbtbl_size - 1);
+
+	spin_lock(&ls->ls_rsbtbl[b].lock);
+
+	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	if (rv) {
+		/* verify the rsb is on keep list per comment above */
+		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+		if (rv) {
+			/* should not happen */
+			log_error(ls, "receive_remove from %d not found %s",
+				  from_nodeid, name);
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			return;
+		}
+		if (r->res_master_nodeid != from_nodeid) {
+			/* should not happen */
+			log_error(ls, "receive_remove keep from %d master %d",
+				  from_nodeid, r->res_master_nodeid);
+			dlm_print_rsb(r);
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
+			return;
+		}
+
+		log_debug(ls, "receive_remove from %d master %d first %x %s",
+			  from_nodeid, r->res_master_nodeid, r->res_first_lkid,
+			  name);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		return;
+	}
+
+	if (r->res_master_nodeid != from_nodeid) {
+		log_error(ls, "receive_remove toss from %d master %d",
+			  from_nodeid, r->res_master_nodeid);
+		dlm_print_rsb(r);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		return;
+	}
+
+	if (kref_put(&r->res_ref, kill_rsb)) {
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+		dlm_free_rsb(r);
+	} else {
+		log_error(ls, "receive_remove from %d rsb ref error",
+			  from_nodeid);
+		dlm_print_rsb(r);
+		spin_unlock(&ls->ls_rsbtbl[b].lock);
+	}
 }
 
 static void receive_purge(struct dlm_ls *ls, struct dlm_message *ms)
@@ -3706,6 +4468,7 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
 	int error, mstype, result;
+	int from_nodeid = ms->m_header.h_nodeid;
 
 	error = find_lkb(ls, ms->m_remid, &lkb);
 	if (error)
@@ -3723,8 +4486,7 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	error = remove_from_waiters(lkb, DLM_MSG_REQUEST_REPLY);
 	if (error) {
 		log_error(ls, "receive_request_reply %x remote %d %x result %d",
-			  lkb->lkb_id, ms->m_header.h_nodeid, ms->m_lkid,
-			  ms->m_result);
+			  lkb->lkb_id, from_nodeid, ms->m_lkid, ms->m_result);
 		dlm_dump_rsb(r);
 		goto out;
 	}
@@ -3732,8 +4494,9 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	/* Optimization: the dir node was also the master, so it took our
 	   lookup as a request and sent request reply instead of lookup reply */
 	if (mstype == DLM_MSG_LOOKUP) {
-		r->res_nodeid = ms->m_header.h_nodeid;
-		lkb->lkb_nodeid = r->res_nodeid;
+		r->res_master_nodeid = from_nodeid;
+		r->res_nodeid = from_nodeid;
+		lkb->lkb_nodeid = from_nodeid;
 	}
 
 	/* this is the value returned from do_request() on the master */
@@ -3767,18 +4530,30 @@ static int receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	case -EBADR:
 	case -ENOTBLK:
 		/* find_rsb failed to find rsb or rsb wasn't master */
-		log_debug(ls, "receive_request_reply %x %x master diff %d %d",
-			  lkb->lkb_id, lkb->lkb_flags, r->res_nodeid, result);
-		r->res_nodeid = -1;
-		lkb->lkb_nodeid = -1;
+		log_limit(ls, "receive_request_reply %x from %d %d "
+			  "master %d dir %d first %x %s", lkb->lkb_id,
+			  from_nodeid, result, r->res_master_nodeid,
+			  r->res_dir_nodeid, r->res_first_lkid, r->res_name);
+
+		if (r->res_dir_nodeid != dlm_our_nodeid() &&
+		    r->res_master_nodeid != dlm_our_nodeid()) {
+			/* cause _request_lock->set_master->send_lookup */
+			r->res_master_nodeid = 0;
+			r->res_nodeid = -1;
+			lkb->lkb_nodeid = -1;
+		}
 
 		if (is_overlap(lkb)) {
 			/* we'll ignore error in cancel/unlock reply */
 			queue_cast_overlap(r, lkb);
 			confirm_master(r, result);
 			unhold_lkb(lkb); /* undoes create_lkb() */
-		} else
+		} else {
 			_request_lock(r, lkb);
+
+			if (r->res_master_nodeid == dlm_our_nodeid())
+				confirm_master(r, 0);
+		}
 		break;
 
 	default:
@@ -3994,6 +4769,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *r;
 	int error, ret_nodeid;
+	int do_lookup_list = 0;
 
 	error = find_lkb(ls, ms->m_lkid, &lkb);
 	if (error) {
@@ -4001,7 +4777,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		return;
 	}
 
-	/* ms->m_result is the value returned by dlm_dir_lookup on dir node
+	/* ms->m_result is the value returned by dlm_master_lookup on dir node
 	   FIXME: will a non-zero error ever be returned? */
 
 	r = lkb->lkb_resource;
@@ -4013,12 +4789,37 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		goto out;
 
 	ret_nodeid = ms->m_nodeid;
+
+	/* We sometimes receive a request from the dir node for this
+	   rsb before we've received the dir node's loookup_reply for it.
+	   The request from the dir node implies we're the master, so we set
+	   ourself as master in receive_request_reply, and verify here that
+	   we are indeed the master. */
+
+	if (r->res_master_nodeid && (r->res_master_nodeid != ret_nodeid)) {
+		/* This should never happen */
+		log_error(ls, "receive_lookup_reply %x from %d ret %d "
+			  "master %d dir %d our %d first %x %s",
+			  lkb->lkb_id, ms->m_header.h_nodeid, ret_nodeid,
+			  r->res_master_nodeid, r->res_dir_nodeid,
+			  dlm_our_nodeid(), r->res_first_lkid, r->res_name);
+	}
+
 	if (ret_nodeid == dlm_our_nodeid()) {
+		r->res_master_nodeid = ret_nodeid;
 		r->res_nodeid = 0;
-		ret_nodeid = 0;
+		do_lookup_list = 1;
 		r->res_first_lkid = 0;
+	} else if (ret_nodeid == -1) {
+		/* the remote node doesn't believe it's the dir node */
+		log_error(ls, "receive_lookup_reply %x from %d bad ret_nodeid",
+			  lkb->lkb_id, ms->m_header.h_nodeid);
+		r->res_master_nodeid = 0;
+		r->res_nodeid = -1;
+		lkb->lkb_nodeid = -1;
 	} else {
-		/* set_master() will copy res_nodeid to lkb_nodeid */
+		/* set_master() will set lkb_nodeid from r */
+		r->res_master_nodeid = ret_nodeid;
 		r->res_nodeid = ret_nodeid;
 	}
 
@@ -4033,7 +4834,7 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	_request_lock(r, lkb);
 
  out_list:
-	if (!ret_nodeid)
+	if (do_lookup_list)
 		process_lookup_list(r);
  out:
 	unlock_rsb(r);
@@ -4047,7 +4848,7 @@ static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 	int error = 0, noent = 0;
 
 	if (!dlm_is_member(ls, ms->m_header.h_nodeid)) {
-		log_debug(ls, "ignore non-member message %d from %d %x %x %d",
+		log_limit(ls, "receive %d from non-member %d %x %x %d",
 			  ms->m_type, ms->m_header.h_nodeid, ms->m_lkid,
 			  ms->m_remid, ms->m_result);
 		return;
@@ -4174,6 +4975,15 @@ static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 				int nodeid)
 {
 	if (dlm_locking_stopped(ls)) {
+		/* If we were a member of this lockspace, left, and rejoined,
+		   other nodes may still be sending us messages from the
+		   lockspace generation before we left. */
+		if (!ls->ls_generation) {
+			log_limit(ls, "receive %d from %d ignore old gen",
+				  ms->m_type, nodeid);
+			return;
+		}
+
 		dlm_add_requestqueue(ls, nodeid, ms);
 	} else {
 		dlm_wait_requestqueue(ls);
@@ -4651,9 +5461,10 @@ static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls, int bucket)
 
 		if (!rsb_flag(r, RSB_RECOVER_GRANT))
 			continue;
-		rsb_clear_flag(r, RSB_RECOVER_GRANT);
-		if (!is_master(r))
+		if (!is_master(r)) {
+			rsb_clear_flag(r, RSB_RECOVER_GRANT);
 			continue;
+		}
 		hold_rsb(r);
 		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 		return r;
@@ -4698,7 +5509,9 @@ void dlm_recover_grant(struct dlm_ls *ls)
 		rsb_count++;
 		count = 0;
 		lock_rsb(r);
+		/* the RECOVER_GRANT flag is checked in the grant path */
 		grant_pending_locks(r, &count);
+		rsb_clear_flag(r, RSB_RECOVER_GRANT);
 		lkb_count += count;
 		confirm_master(r, 0);
 		unlock_rsb(r);
@@ -4798,6 +5611,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	struct dlm_rsb *r;
 	struct dlm_lkb *lkb;
 	uint32_t remid = 0;
+	int from_nodeid = rc->rc_header.h_nodeid;
 	int error;
 
 	if (rl->rl_parent_lkid) {
@@ -4815,21 +5629,21 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	   we make ourselves master, dlm_recover_masters() won't touch the
 	   MSTCPY locks we've received early. */
 
-	error = find_rsb(ls, rl->rl_name, le16_to_cpu(rl->rl_namelen), 0, &r);
+	error = find_rsb(ls, rl->rl_name, le16_to_cpu(rl->rl_namelen),
+			 from_nodeid, R_RECEIVE_RECOVER, &r);
 	if (error)
 		goto out;
 
-	if (dlm_no_directory(ls) && (dlm_dir_nodeid(r) != dlm_our_nodeid())) {
-		log_error(ls, "dlm_recover_master_copy remote %d %x not dir",
-			  rc->rc_header.h_nodeid, remid);
-		error = -EBADR;
-		put_rsb(r);
-		goto out;
-	}
-
 	lock_rsb(r);
 
-	lkb = search_remid(r, rc->rc_header.h_nodeid, remid);
+	if (dlm_no_directory(ls) && (dlm_dir_nodeid(r) != dlm_our_nodeid())) {
+		log_error(ls, "dlm_recover_master_copy remote %d %x not dir",
+			  from_nodeid, remid);
+		error = -EBADR;
+		goto out_unlock;
+	}
+
+	lkb = search_remid(r, from_nodeid, remid);
 	if (lkb) {
 		error = -EEXIST;
 		goto out_remid;
@@ -4866,7 +5680,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
  out:
 	if (error && error != -EEXIST)
 		log_debug(ls, "dlm_recover_master_copy remote %d %x error %d",
-			  rc->rc_header.h_nodeid, remid, error);
+			  from_nodeid, remid, error);
 	rl->rl_result = cpu_to_le32(error);
 	return error;
 }

@@ -83,6 +83,14 @@ int sk_filter(struct sock *sk, struct sk_buff *skb)
 	int err;
 	struct sk_filter *filter;
 
+	/*
+	 * If the skb was allocated from pfmemalloc reserves, only
+	 * allow SOCK_MEMALLOC sockets to use it as this socket is
+	 * helping free memory
+	 */
+	if (skb_pfmemalloc(skb) && !sock_flag(sk, SOCK_MEMALLOC))
+		return -ENOMEM;
+
 	err = security_sock_rcv_skb(sk, skb);
 	if (err)
 		return err;
@@ -616,9 +624,9 @@ static int __sk_prepare_filter(struct sk_filter *fp)
 /**
  *	sk_unattached_filter_create - create an unattached filter
  *	@fprog: the filter program
- *	@sk: the socket to use
+ *	@pfp: the unattached filter that is created
  *
- * Create a filter independent ofr any socket. We first run some
+ * Create a filter independent of any socket. We first run some
  * sanity checks on it to make sure it does not explode on us later.
  * If an error occurs or there is insufficient memory for the filter
  * a negative errno code is returned. On success the return is zero.

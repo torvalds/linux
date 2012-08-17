@@ -146,7 +146,7 @@ extern int fixup_exception(struct pt_regs *regs);
 #ifdef __tilegx__
 #define __get_user_1(x, ptr, ret) __get_user_asm(ld1u, x, ptr, ret)
 #define __get_user_2(x, ptr, ret) __get_user_asm(ld2u, x, ptr, ret)
-#define __get_user_4(x, ptr, ret) __get_user_asm(ld4u, x, ptr, ret)
+#define __get_user_4(x, ptr, ret) __get_user_asm(ld4s, x, ptr, ret)
 #define __get_user_8(x, ptr, ret) __get_user_asm(ld, x, ptr, ret)
 #else
 #define __get_user_1(x, ptr, ret) __get_user_asm(lb_u, x, ptr, ret)

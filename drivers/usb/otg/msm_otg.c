@@ -1555,9 +1555,9 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 	phy->otg->set_host = msm_otg_set_host;
 	phy->otg->set_peripheral = msm_otg_set_peripheral;
 
-	ret = usb_set_transceiver(&motg->phy);
+	ret = usb_add_phy(&motg->phy, USB_PHY_TYPE_USB2);
 	if (ret) {
-		dev_err(&pdev->dev, "usb_set_transceiver failed\n");
+		dev_err(&pdev->dev, "usb_add_phy failed\n");
 		goto free_irq;
 	}
 
@@ -1624,7 +1624,7 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 0);
 	pm_runtime_disable(&pdev->dev);
 
-	usb_set_transceiver(NULL);
+	usb_remove_phy(phy);
 	free_irq(motg->irq, motg);
 
 	/*

@@ -453,7 +453,7 @@ static void efx_ethtool_get_strings(struct net_device *net_dev,
 	switch (string_set) {
 	case ETH_SS_STATS:
 		for (i = 0; i < EFX_ETHTOOL_NUM_STATS; i++)
-			strncpy(ethtool_strings[i].name,
+			strlcpy(ethtool_strings[i].name,
 				efx_ethtool_stats[i].name,
 				sizeof(ethtool_strings[i].name));
 		break;
@@ -680,21 +680,27 @@ static int efx_ethtool_set_ringparam(struct net_device *net_dev,
 				     struct ethtool_ringparam *ring)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	u32 txq_entries;
 
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending ||
 	    ring->rx_pending > EFX_MAX_DMAQ_SIZE ||
 	    ring->tx_pending > EFX_MAX_DMAQ_SIZE)
 		return -EINVAL;
 
-	if (ring->rx_pending < EFX_MIN_RING_SIZE ||
-	    ring->tx_pending < EFX_MIN_RING_SIZE) {
+	if (ring->rx_pending < EFX_RXQ_MIN_ENT) {
 		netif_err(efx, drv, efx->net_dev,
-			  "TX and RX queues cannot be smaller than %ld\n",
-			  EFX_MIN_RING_SIZE);
+			  "RX queues cannot be smaller than %u\n",
+			  EFX_RXQ_MIN_ENT);
 		return -EINVAL;
 	}
 
-	return efx_realloc_channels(efx, ring->rx_pending, ring->tx_pending);
+	txq_entries = max(ring->tx_pending, EFX_TXQ_MIN_ENT(efx));
+	if (txq_entries != ring->tx_pending)
+		netif_warn(efx, drv, efx->net_dev,
+			   "increasing TX queue size to minimum of %u\n",
+			   txq_entries);
+
+	return efx_realloc_channels(efx, ring->rx_pending, txq_entries);
 }
 
 static int efx_ethtool_set_pauseparam(struct net_device *net_dev,

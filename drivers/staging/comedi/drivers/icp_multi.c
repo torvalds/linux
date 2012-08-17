@@ -148,7 +148,7 @@ struct boardtype {
 struct icp_multi_private {
 	struct pcilst_struct *card;	/*  pointer to card */
 	char valid;		/*  card is usable */
-	void *io_addr;		/*  Pointer to mapped io address */
+	void __iomem *io_addr;		/*  Pointer to mapped io address */
 	resource_size_t phys_iobase;	/*  Physical io address */
 	unsigned int AdcCmdStatus;	/*  ADC Command/Status register */
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
@@ -542,7 +542,7 @@ static int icp_multi_insn_bits_di(struct comedi_device *dev,
 {
 	data[1] = readw(devpriv->io_addr + ICP_MULTI_DI);
 
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -585,7 +585,7 @@ static int icp_multi_insn_bits_do(struct comedi_device *dev,
 #ifdef ICP_MULTI_EXTDEBUG
 	printk(KERN_DEBUG "icp multi EDBG: END: icp_multi_insn_bits_do(...)\n");
 #endif
-	return 2;
+	return insn->n;
 }
 
 /*
@@ -835,7 +835,7 @@ static int icp_multi_attach(struct comedi_device *dev,
 	printk(KERN_WARNING
 	       "icp_multi EDBG: BGN: icp_multi_attach(...)\n");
 
-	/*  Alocate private data storage space */
+	/*  Allocate private data storage space */
 	ret = alloc_private(dev, sizeof(struct icp_multi_private));
 	if (ret < 0)
 		return ret;
@@ -903,8 +903,8 @@ static int icp_multi_attach(struct comedi_device *dev,
 	if (this_board->n_ctrs)
 		n_subdevices++;
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
 
 	icp_multi_reset(dev);

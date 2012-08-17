@@ -354,7 +354,7 @@ static void __init u300_timer_init(void)
 	/* Clock the interrupt controller */
 	clk = clk_get_sys("apptimer", NULL);
 	BUG_ON(IS_ERR(clk));
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
 
 	setup_sched_clock(u300_read_sched_clock, 32, rate);

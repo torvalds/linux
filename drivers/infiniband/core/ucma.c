@@ -909,6 +909,13 @@ static int ucma_set_option_id(struct ucma_context *ctx, int optname,
 		}
 		ret = rdma_set_reuseaddr(ctx->cm_id, *((int *) optval) ? 1 : 0);
 		break;
+	case RDMA_OPTION_ID_AFONLY:
+		if (optlen != sizeof(int)) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = rdma_set_afonly(ctx->cm_id, *((int *) optval) ? 1 : 0);
+		break;
 	default:
 		ret = -ENOSYS;
 	}
@@ -995,23 +1002,18 @@ static ssize_t ucma_set_option(struct ucma_file *file, const char __user *inbuf,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	optval = kmalloc(cmd.optlen, GFP_KERNEL);
-	if (!optval) {
-		ret = -ENOMEM;
-		goto out1;
-	}
-
-	if (copy_from_user(optval, (void __user *) (unsigned long) cmd.optval,
-			   cmd.optlen)) {
-		ret = -EFAULT;
-		goto out2;
+	optval = memdup_user((void __user *) (unsigned long) cmd.optval,
+			     cmd.optlen);
+	if (IS_ERR(optval)) {
+		ret = PTR_ERR(optval);
+		goto out;
 	}
 
 	ret = ucma_set_option_level(ctx, cmd.level, cmd.optname, optval,
 				    cmd.optlen);
-out2:
 	kfree(optval);
-out1:
+
+out:
 	ucma_put_ctx(ctx);
 	return ret;
 }

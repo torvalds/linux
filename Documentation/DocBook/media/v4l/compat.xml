@@ -2377,10 +2377,11 @@ that used it. It was originally scheduled for removal in 2.6.35.
 	  <para>V4L2_CTRL_FLAG_VOLATILE was added to signal volatile controls to userspace.</para>
         </listitem>
         <listitem>
-	  <para>Add selection API for extended control over cropping and
-composing. Does not affect the compatibility of current drivers and
-applications.  See <link linkend="selection-api"> selection API </link> for
-details.</para>
+	  <para>Add selection API for extended control over cropping
+	  and composing. Does not affect the compatibility of current
+	  drivers and applications. See <link
+	  linkend="selection-api"> selection API </link> for
+	  details.</para>
         </listitem>
       </orderedlist>
     </section>
@@ -2454,6 +2455,36 @@ details.</para>
 	  <constant>V4L2_CID_AUTO_FOCUS_STATUS</constant> and
 	  <constant>V4L2_CID_AUTO_FOCUS_RANGE</constant>.
 	  </para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.6</title>
+      <orderedlist>
+	<listitem>
+	  <para>Replaced <structfield>input</structfield> in
+	  <structname>v4l2_buffer</structname> by
+	  <structfield>reserved2</structfield> and removed
+	  <constant>V4L2_BUF_FLAG_INPUT</constant>.</para>
+	</listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.6</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added V4L2_CAP_VIDEO_M2M and V4L2_CAP_VIDEO_M2M_MPLANE capabilities.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.6</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added support for frequency band enumerations: &VIDIOC-ENUM-FREQ-BANDS;.</para>
         </listitem>
       </orderedlist>
     </section>
@@ -2586,6 +2617,9 @@ ioctls.</para>
         <listitem>
 	  <para><link linkend="v4l2-auto-focus-area"><constant>
 	  V4L2_CID_AUTO_FOCUS_AREA</constant></link> control.</para>
+        </listitem>
+        <listitem>
+	  <para>Support for frequency band enumeration: &VIDIOC-ENUM-FREQ-BANDS; ioctl.</para>
         </listitem>
       </itemizedlist>
     </section>

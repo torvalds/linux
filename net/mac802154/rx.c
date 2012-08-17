@@ -77,6 +77,7 @@ mac802154_subif_rx(struct ieee802154_dev *hw, struct sk_buff *skb, u8 lqi)
 	}
 
 	mac802154_monitors_rx(priv, skb);
+	mac802154_wpans_rx(priv, skb);
 out:
 	dev_kfree_skb(skb);
 	return;

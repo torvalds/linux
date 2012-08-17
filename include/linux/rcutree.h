@@ -32,7 +32,7 @@
 
 extern void rcu_init(void);
 extern void rcu_note_context_switch(int cpu);
-extern int rcu_needs_cpu(int cpu);
+extern int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies);
 extern void rcu_cpu_stall_reset(void);
 
 /*

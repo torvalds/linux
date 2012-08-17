@@ -47,6 +47,16 @@ struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2 = {
 	.midle_shift	= SYSC_TYPE2_MIDLEMODE_SHIFT,
 	.sidle_shift	= SYSC_TYPE2_SIDLEMODE_SHIFT,
 	.srst_shift	= SYSC_TYPE2_SOFTRESET_SHIFT,
+	.dmadisable_shift = SYSC_TYPE2_DMADISABLE_SHIFT,
+};
+
+/**
+ * struct omap_hwmod_sysc_type3 - TYPE3 sysconfig scheme.
+ * Used by some IPs on AM33xx
+ */
+struct omap_hwmod_sysc_fields omap_hwmod_sysc_type3 = {
+	.midle_shift	= SYSC_TYPE3_MIDLEMODE_SHIFT,
+	.sidle_shift	= SYSC_TYPE3_SIDLEMODE_SHIFT,
 };
 
 struct omap_dss_dispc_dev_attr omap2_3_dss_dispc_dev_attr = {

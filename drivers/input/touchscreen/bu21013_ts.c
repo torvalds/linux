@@ -509,7 +509,8 @@ static int __devinit bu21013_probe(struct i2c_client *client,
 	input_set_drvdata(in_dev, bu21013_data);
 
 	error = request_threaded_irq(pdata->irq, NULL, bu21013_gpio_irq,
-				     IRQF_TRIGGER_FALLING | IRQF_SHARED,
+				     IRQF_TRIGGER_FALLING | IRQF_SHARED |
+					IRQF_ONESHOT,
 				     DRIVER_TP, bu21013_data);
 	if (error) {
 		dev_err(&client->dev, "request irq %d failed\n", pdata->irq);

@@ -6,20 +6,82 @@ menuconfig MEDIA_SUPPORT
 	tristate "Multimedia support"
 	depends on HAS_IOMEM
 	help
-	  If you want to use Video for Linux, DVB for Linux, or DAB adapters,
+	  If you want to use Webcams, Video grabber devices and/or TV devices
 	  enable this option and other options below.
+	  Additional info and docs are available on the web at
+	  <http://linuxtv.org>
 
 if MEDIA_SUPPORT
 
 comment "Multimedia core support"
 
 #
+# Multimedia support - automatically enable V4L2 and DVB core
+#
+config MEDIA_CAMERA_SUPPORT
+	bool "Cameras/video grabbers support"
+	---help---
+	  Enable support for webcams and video grabbers.
+
+	  Say Y when you have a webcam or a video capture grabber board.
+
+config MEDIA_ANALOG_TV_SUPPORT
+	bool "Analog TV support"
+	---help---
+	  Enable analog TV support.
+
+	  Say Y when you have a TV board with analog support or with a
+	  hybrid analog/digital TV chipset.
+
+	  Note: There are several DVB cards that are based on chips that
+		support both analog and digital TV. Disabling this option
+		will disable support for them.
+
+config MEDIA_DIGITAL_TV_SUPPORT
+	bool "Digital TV support"
+	---help---
+	  Enable digital TV support.
+
+	  Say Y when you have a board with digital support or a board with
+	  hybrid digital TV and analog TV.
+
+config MEDIA_RADIO_SUPPORT
+	bool "AM/FM radio receivers/transmitters support"
+	---help---
+	  Enable AM/FM radio support.
+
+	  Additional info and docs are available on the web at
+	  <http://linuxtv.org>
+
+	  Say Y when you have a board with radio support.
+
+	  Note: There are several TV cards that are based on chips that
+		support radio reception. Disabling this option will
+		disable support for them.
+
+config MEDIA_RC_SUPPORT
+	bool "Remote Controller support"
+	depends on INPUT
+	---help---
+	  Enable support for Remote Controllers on Linux. This is
+	  needed in order to support several video capture adapters,
+	  standalone IR receivers/transmitters, and RF receivers.
+
+	  Enable this option if you have a video capture board even
+	  if you don't need IR, as otherwise, you may not be able to
+	  compile the driver for your adapter.
+
+	  Say Y when you have a TV or an IR device.
+
+#
 # Media controller
+#	Selectable only for webcam/grabbers, as other drivers don't use it
 #
 
 config MEDIA_CONTROLLER
 	bool "Media Controller API (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	depends on MEDIA_CAMERA_SUPPORT
 	---help---
 	  Enable the media controller API used to query media devices internal
 	  topology and configure it dynamically.
@@ -27,26 +89,15 @@ config MEDIA_CONTROLLER
 	  This API is mostly used by camera interfaces in embedded platforms.
 
 #
-# V4L core and enabled API's
+# Video4Linux support
+#	Only enables if one of the V4L2 types (ATV, webcam, radio) is selected
 #
 
 config VIDEO_DEV
-	tristate "Video For Linux"
-	---help---
-	  V4L core support for video capture and overlay devices, webcams and
-	  AM/FM radio cards.
-
-	  This kernel includes support for the new Video for Linux Two API,
-	  (V4L2).
-
-	  Additional info and docs are available on the web at
-	  <http://linuxtv.org>
-
-	  Documentation for V4L2 is also available on the web at
-	  <http://bytesex.org/v4l/>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called videodev.
+	tristate
+	depends on MEDIA_SUPPORT
+	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_RADIO_SUPPORT
+	default y
 
 config VIDEO_V4L2_COMMON
 	tristate
@@ -64,25 +115,15 @@ config VIDEO_V4L2_SUBDEV_API
 
 #
 # DVB Core
+#	Only enables if one of DTV is selected
 #
 
 config DVB_CORE
-	tristate "DVB for Linux"
+	tristate
+	depends on MEDIA_SUPPORT
+	depends on MEDIA_DIGITAL_TV_SUPPORT
+	default y
 	select CRC32
-	help
-	  DVB core utility functions for device handling, software fallbacks etc.
-
-	  Enable this if you own a DVB/ATSC adapter and want to use it or if
-	  you compile Linux for a digital SetTopBox.
-
-	  Say Y when you have a DVB or an ATSC card and want to use it.
-
-	  API specs and user tools are available from <http://www.linuxtv.org/>.
-
-	  Please report problems regarding this support to the LinuxDVB
-	  mailing list.
-
-	  If unsure say N.
 
 config DVB_NET
 	bool "DVB Network Support"
@@ -97,12 +138,7 @@ config DVB_NET
 	  You may want to disable the network support on embedded devices. If
 	  unsure say Y.
 
-config VIDEO_MEDIA
-	tristate
-	default (DVB_CORE && (VIDEO_DEV = n)) || (VIDEO_DEV && (DVB_CORE = n)) || (DVB_CORE && VIDEO_DEV)
-
-comment "Multimedia drivers"
-
+comment "Media drivers"
 source "drivers/media/common/Kconfig"
 source "drivers/media/rc/Kconfig"
 
