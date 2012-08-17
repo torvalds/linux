@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -33,7 +33,7 @@ u32 _mali_osk_snprintf( char *buf, u32 size, const char *fmt, ... )
 	va_list args;
 	va_start(args, fmt);
 
-	res = vsnprintf(buf, (size_t)size, fmt, args);
+	res = vscnprintf(buf, (size_t)size, fmt, args);
 
 	va_end(args);
 	return res;
@@ -42,6 +42,7 @@ u32 _mali_osk_snprintf( char *buf, u32 size, const char *fmt, ... )
 void _mali_osk_abort(void)
 {
 	/* make a simple fault by dereferencing a NULL pointer */
+	dump_stack();
 	*(int *)0 = 0;
 }
 

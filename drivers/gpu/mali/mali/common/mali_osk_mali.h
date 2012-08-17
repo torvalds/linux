@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -25,36 +25,6 @@ extern "C"
 
 /** @addtogroup _mali_osk_miscellaneous
  * @{ */
-
-/** @brief Initialize the OSK layer
- *
- * This function is used to setup any initialization of OSK functionality, if
- * required.
- *
- * This must be the first function called from the common code, specifically,
- * from the common code entry-point, mali_kernel_constructor.
- *
- * The OS-integration into the OS's kernel must handle calling of
- * mali_kernel_constructor when the device driver is loaded.
- *
- * @return _MALI_OSK_ERR_OK on success, or a suitable _mali_osk_errcode_t on
- * failure.
- */
-_mali_osk_errcode_t _mali_osk_init( void );
-
-/** @brief Terminate the OSK layer
- *
- * This function is used to terminate any resources initialized by
- * _mali_osk_init.
- *
- * This must be the last function called from the common code, specifically,
- * from the common code closedown function, mali_kernel_destructor, and the
- * error path in mali_kernel_constructor.
- *
- * The OS-integration into the OS's kernel must handle calling of
- * mali_kernel_destructor when the device driver is terminated.
- */
-void _mali_osk_term( void );
 
 /** @brief Read the Mali Resource configuration
  *

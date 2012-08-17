@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -146,6 +146,9 @@ _mali_osk_errcode_t _ump_ukk_open( void** context )
 	session_data->api_version = MAKE_VERSION_ID(1);
 
 	*context = (void*)session_data;
+
+	session_data->cache_operations_ongoing = 0 ;
+	session_data->has_pending_level1_cache_flush = 0;
 
 	DBG_MSG(2, ("New session opened\n"));
 

@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -76,7 +76,7 @@ mali_physical_memory_allocator * mali_block_allocator_create(u32 base_address, u
 		info = _mali_osk_malloc(sizeof(block_allocator));
 		if (NULL != info)
 		{
-            info->mutex = _mali_osk_lock_init( _MALI_OSK_LOCKFLAG_ORDERED, 0, 105);
+            info->mutex = _mali_osk_lock_init( _MALI_OSK_LOCKFLAG_ORDERED, 0, _MALI_OSK_LOCK_ORDER_MEM_INFO);
             if (NULL != info->mutex)
             {
         		info->all_blocks = _mali_osk_malloc(sizeof(block_info) * num_blocks);
@@ -355,7 +355,7 @@ static void block_allocator_release_page_table_block( mali_page_table_block *pag
 	_mali_osk_mem_unmapioregion( page_table_block->phys_base, page_table_block->size, page_table_block->mapping );
 
 	/** @note This loop handles the case where more than one block_info was linked.
-	 * Probably unnecssary for page table block releasing. */
+	 * Probably unnecessary for page table block releasing. */
 	while (block)
 	{
 		next = block->next;

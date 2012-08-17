@@ -1,66 +1,67 @@
 #
 # Copyright (C) 2010-2012 ARM Limited. All rights reserved.
-# 
+#
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
-# 
+#
 # A copy of the licence is included with the program, and can also be obtained from Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
-DRIVER_DIR_UMP=$(srctree)/$(src)
+# Set default configuration to use, if Makefile didn't provide one.
+# Change this to use a different config.h
+CONFIG ?= os_memory_64m
 
-UMP_FILE_PREFIX =
+# Validate selected config
+ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(src))
+$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
+else
+# Link arch to the selected arch-config directory
+$(shell [ -L $(src)/arch ] && rm $(src)/arch)
+$(shell ln -sf arch-$(CONFIG) $(src)/arch)
+$(shell touch $(src)/arch/config.h)
+endif
+
 UDD_FILE_PREFIX = ../mali/
 
-ifneq ($(DRIVER_DIR_UMP),)
-include $(DRIVER_DIR_UMP)/Makefile.common
-else
-include ./Makefile.common
-endif
+# Get subversion revision number, fall back to 0000 if no svn info is available
+SVN_REV := $(shell ((svnversion | grep -qv exported && echo -n 'Revision: ' && svnversion) || git svn info | sed -e 's/$$$$/M/' | grep '^Revision: ' || echo ${MALI_RELEASE_NAME}) 2>/dev/null | sed -e 's/^Revision: //')
 
-# For each arch check: CROSS_COMPILE , KDIR , CFLAGS += -DARCH
+ccflags-y += -DSVN_REV=$(SVN_REV)
+ccflags-y += -DSVN_REV_STRING=\"$(SVN_REV)\"
 
-ARCH ?= arm
-BUILD ?= debug
-
-EXTRA_CFLAGS += -DDEBUG -DMALI_STATE_TRACKING=0
-ifeq ($(BUILD), debug)
-EXTRA_CFLAGS += -DDEBUG
-endif
-
-# linux build system integration
-
-EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP) -I$(DRIVER_DIR_UMP)/common -I$(DRIVER_DIR_UMP)/linux -I$(DRIVER_DIR_UMP)/../mali/common -I$(DRIVER_DIR_UMP)/../mali/linux -I$(DRIVER_DIR_UMP)/../../ump/include/ump -I$(DRIVER_DIR_UMP)/../include/ump
+ccflags-y += -I$(src) -I$(src)/common -I$(src)/linux -I$(src)/../mali/common -I$(src)/../mali/linux -I$(src)/../ump/include/ump
+ccflags-y += -DMALI_STATE_TRACKING=0
+ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(DRIVER_DIR_UMP)/linux/license/gpl/*),)
-EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP)/linux/license/proprietary
+ifeq ($(wildcard $(src)/linux/license/gpl/*),)
+ccflags-y += -I$(src)/linux/license/proprietary
 else
-EXTRA_CFLAGS += -I$(DRIVER_DIR_UMP)/linux/license/gpl
+ccflags-y += -I$(src)/linux/license/gpl
 endif
 
-SRC +=	$(UMP_FILE_PREFIX)linux/ump_kernel_linux.c \
-	$(UMP_FILE_PREFIX)linux/ump_kernel_memory_backend_os.c \
-	$(UMP_FILE_PREFIX)linux/ump_kernel_memory_backend_dedicated.c \
-	$(UMP_FILE_PREFIX)linux/ump_memory_backend.c \
-	$(UMP_FILE_PREFIX)linux/ump_ukk_wrappers.c \
-	$(UMP_FILE_PREFIX)linux/ump_ukk_ref_wrappers.c \
-	$(UMP_FILE_PREFIX)linux/ump_osk_atomics.c \
-	$(UMP_FILE_PREFIX)linux/ump_osk_low_level_mem.c \
-	$(UMP_FILE_PREFIX)linux/ump_osk_misc.c \
-	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.c \
-	$(UDD_FILE_PREFIX)linux/mali_osk_locks.c \
-	$(UDD_FILE_PREFIX)linux/mali_osk_memory.c \
-	$(UDD_FILE_PREFIX)linux/mali_osk_math.c \
-	$(UDD_FILE_PREFIX)linux/mali_osk_misc.c
+ump-y = common/ump_kernel_common.o \
+	common/ump_kernel_descriptor_mapping.o \
+	common/ump_kernel_api.o \
+	common/ump_kernel_ref_drv.o \
+	linux/ump_kernel_linux.o \
+	linux/ump_kernel_memory_backend_os.o \
+	linux/ump_kernel_memory_backend_dedicated.o \
+	linux/ump_memory_backend.o \
+	linux/ump_ukk_wrappers.o \
+	linux/ump_ukk_ref_wrappers.o \
+	linux/ump_osk_atomics.o \
+	linux/ump_osk_low_level_mem.o \
+	linux/ump_osk_misc.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_atomics.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_locks.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_memory.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_math.o \
+	$(UDD_FILE_PREFIX)linux/mali_osk_misc.o
 
-# Selecting files to compile by parsing the config file
-
-MODULE:=ump.ko
-
-obj-m := $(MODULE:.ko=.o)
-$(MODULE:.ko=-y) := $(SRC:.c=.o)
+obj-$(CONFIG_UMP) := ump.o

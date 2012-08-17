@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -119,9 +119,9 @@ static u32 _kernel_page_allocate(void)
 {
 	struct page *new_page;
 	u32 linux_phys_addr;
-	
+
 	new_page = alloc_page(GFP_HIGHUSER | __GFP_ZERO | __GFP_REPEAT | __GFP_NOWARN | __GFP_COLD);
-	
+
 	if ( NULL == new_page )
 	{
 		return 0;
@@ -140,7 +140,7 @@ static void _kernel_page_release(u32 physical_address)
 	#if 1
 	dma_unmap_page(NULL, physical_address, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	#endif
-	
+
 	unmap_page = pfn_to_page( physical_address >> PAGE_SHIFT );
 	MALI_DEBUG_ASSERT_POINTER( unmap_page );
 	__free_page( unmap_page );
@@ -150,19 +150,19 @@ static AllocationList * _allocation_list_item_get(void)
 {
 	AllocationList *item = NULL;
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&allocation_list_spinlock,flags);
 	if ( pre_allocated_memory )
 	{
 		item = pre_allocated_memory;
 		pre_allocated_memory = pre_allocated_memory->next;
 		pre_allocated_memory_size_current -= PAGE_SIZE;
-		
+
 		spin_unlock_irqrestore(&allocation_list_spinlock,flags);
 		return item;
 	}
 	spin_unlock_irqrestore(&allocation_list_spinlock,flags);
-	
+
 	item = _mali_osk_malloc( sizeof(AllocationList) );
 	if ( NULL == item)
 	{
@@ -192,7 +192,7 @@ static void _allocation_list_item_release(AllocationList * item)
 		return;
 	}
 	spin_unlock_irqrestore(&allocation_list_spinlock,flags);
-	
+
 	_kernel_page_release(item->physaddr);
 	_mali_osk_free( item );
 }

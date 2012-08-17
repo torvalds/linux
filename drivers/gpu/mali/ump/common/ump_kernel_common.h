@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef __UMP_KERNEL_H__
-#define __UMP_KERNEL_H__
+#ifndef __UMP_KERNEL_COMMON_H__
+#define __UMP_KERNEL_COMMON_H__
 
 #include "ump_kernel_types.h"
 #include "ump_kernel_interface.h"
@@ -77,6 +77,8 @@ typedef struct ump_session_data
 	int api_version;
 	_mali_osk_lock_t * lock;
 	ump_descriptor_mapping * cookies_map; /**< Secure mapping of cookies from _ump_ukk_map_mem() */
+	int cache_operations_ongoing;
+	int has_pending_level1_cache_flush;
 } ump_session_data;
 
 
@@ -123,4 +125,4 @@ int map_errcode( _mali_osk_errcode_t err );
 #define __user
 #endif
 
-#endif /* __UMP_KERNEL_H__ */
+#endif /* __UMP_KERNEL_COMMON_H__ */

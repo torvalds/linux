@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -65,7 +65,8 @@ _mali_osk_notification_t *_mali_osk_notification_create( u32 type, u32 size )
 	/* OPT Recycling of notification objects */
     _mali_osk_notification_wrapper_t *notification;
 
-	notification = (_mali_osk_notification_wrapper_t *)kmalloc( sizeof(_mali_osk_notification_wrapper_t) + size, GFP_KERNEL );
+	notification = (_mali_osk_notification_wrapper_t *)kmalloc( sizeof(_mali_osk_notification_wrapper_t) + size,
+	                                                            GFP_KERNEL | __GFP_HIGH | __GFP_REPEAT);
     if (NULL == notification)
     {
 		MALI_DEBUG_PRINT(1, ("Failed to create a notification object\n"));
@@ -99,8 +100,6 @@ void _mali_osk_notification_delete( _mali_osk_notification_t *object )
 
     notification = container_of( object, _mali_osk_notification_wrapper_t, data );
 
-	/* Remove from the list */
-	list_del(&notification->list);
 	/* Free the container */
 	kfree(notification);
 }

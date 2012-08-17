@@ -1,9 +1,9 @@
 #
 # Copyright (C) 2010-2011 ARM Limited. All rights reserved.
-# 
+#
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
-# 
+#
 # A copy of the licence is included with the program, and can also be obtained from Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
@@ -11,18 +11,14 @@
 # This file is called by the Linux build system.
 
 OSKOS=linux
-FILES_PREFIX=
 
 # set up defaults if not defined by the user
 USING_UMP ?= 0
 USING_OS_MEMORY ?= 0
-USING_MALI_PMU ?= 0
-USING_PMM ?= 1
-USING_GPU_UTILIZATION ?= 0
-USING_MALI_RUN_TIME_PM ?= 1
 USING_MALI_PMM_TESTSUITE ?= 0
 OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB ?= 6
-USING_PROFILING ?= 0
+USING_PROFILING ?= 1
+USING_INTERNAL_PROFILING ?= 0
 DISABLE_PP0 ?= 0
 DISABLE_PP1 ?= 0
 DISABLE_PP2 ?= 0
@@ -32,23 +28,111 @@ BUILD ?= debug
 TARGET_PLATFORM ?= default
 KERNEL_RUNTIME_PM_ENABLED ?= 0
 CONFIG ?= pb-virtex5-m200
+MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP ?= 0
+MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED ?= 0
+MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS ?= 0
+
+DEFINES := $(EXTRA_DEFINES)
 
 # Get path to driver source from Linux build system
-DRIVER_DIR=$(srctree)/$(src)
+DRIVER_DIR=$(src)
+
+# For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
+# The ARM proprietary product will only include the license/proprietary directory
+# The GPL product will only include the license/gpl directory
+
+ifeq ($(wildcard $(DRIVER_DIR)/linux/license/gpl/*),)
+ccflags-y += -I$(DRIVER_DIR)/linux/license/proprietary
+# Disable profiling for proprietary
+override USING_PROFILING := 0
+$(warning "USING_PROFILING not supported, disabling.")
+else
+ccflags-y += -I$(DRIVER_DIR)/linux/license/gpl
+endif
+
+
+ifeq ($(USING_PROFILING),1)
+ifeq ($(USING_INTERNAL_PROFILING),0)
+ifndef CONFIG_TRACEPOINTS
+# Should default to gator profiling, but we dont have the kernel feature required, so disable profiling
+override USING_PROFILING = 0
+$(warning "CONFIG_TRACEPOINTS required for USING_PROFILING")
+endif
+endif
+endif
+
+ifeq ($(USING_PROFILING),0)
+# make sure user hasnt selected incompatible flags
+override USING_INTERNAL_PROFILING = 0
+endif
 
 MALI_RELEASE_NAME=$(shell cat $(DRIVER_DIR)/.version 2> /dev/null)
-include $(DRIVER_DIR)/Makefile.common
+
+# Check if a Mali Core sub module should be enabled, true or false returned
+submodule_enabled = $(shell gcc $(DEFINES) -E $1/arch/config.h | grep type | grep -c $(2))
+
+OSKFILES = \
+	$(OSKOS)/mali_osk_atomics.c \
+	$(OSKOS)/mali_osk_irq.c \
+	$(OSKOS)/mali_osk_locks.c \
+	$(OSKOS)/mali_osk_wait_queue.c \
+	$(OSKOS)/mali_osk_low_level_mem.c \
+	$(OSKOS)/mali_osk_math.c \
+	$(OSKOS)/mali_osk_memory.c \
+	$(OSKOS)/mali_osk_misc.c \
+	$(OSKOS)/mali_osk_mali.c \
+	$(OSKOS)/mali_osk_notification.c \
+	$(OSKOS)/mali_osk_time.c \
+	$(OSKOS)/mali_osk_timers.c
+
+UKKFILES = \
+	$(OSKOS)/mali_ukk_mem.c \
+	$(OSKOS)/mali_ukk_gp.c \
+	$(OSKOS)/mali_ukk_pp.c \
+	$(OSKOS)/mali_ukk_core.c
+
+ifeq ($(USING_PROFILING),1)
+UKKFILES += \
+	$(OSKOS)/mali_ukk_profiling.c
+endif
+
+ifeq ($(MALI_PLATFORM_FILE),)
+MALI_PLATFORM_FILE = platform/default/mali_platform.c
+endif
+
+# Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
+SVN_REV := $(shell (cd $(DRIVER_DIR); (svnversion | grep -qv exported && svnversion) || git svn info | grep '^Revision: '| sed -e 's/^Revision: //' ) 2>/dev/null )
+ifeq ($(SVN_REV),)
+SVN_REV := $(MALI_RELEASE_NAME)
+else
+SVN_REV := $(MALI_RELEASE_NAME)-r$(SVN_REV)
+endif
+
+# Validate selected config
+ifneq ($(shell [ -d $(DRIVER_DIR)/arch-$(CONFIG) ] && [ -f $(DRIVER_DIR)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
+$(warning Current directory is $(shell pwd))
+$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
+else
+# Link arch to the selected arch-config directory
+$(shell [ -L $(DRIVER_DIR)/arch ] && rm $(DRIVER_DIR)/arch)
+$(shell ln -sf arch-$(CONFIG) $(DRIVER_DIR)/arch)
+$(shell touch $(DRIVER_DIR)/arch/config.h)
+endif
 
 # Set up our defines, which will be passed to gcc
 DEFINES += -DUSING_OS_MEMORY=$(USING_OS_MEMORY)
 DEFINES += -DUSING_MMU=1
 DEFINES += -DUSING_UMP=$(USING_UMP)
 DEFINES += -D_MALI_OSK_SPECIFIC_INDIRECT_MMAP
-DEFINES += -DMALI_TIMELINE_PROFILING_ENABLED=$(USING_PROFILING)
+DEFINES += -DMALI_INTERNAL_TIMELINE_PROFILING_ENABLED=$(USING_INTERNAL_PROFILING)
 DEFINES += -DDISABLE_PP0=$(DISABLE_PP0)
 DEFINES += -DDISABLE_PP1=$(DISABLE_PP1)
 DEFINES += -DDISABLE_PP2=$(DISABLE_PP2)
 DEFINES += -DDISABLE_PP3=$(DISABLE_PP3)
+DEFINES += -DMALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP=$(MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP)
+DEFINES += -DMALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED=$(MALI_PP_SCHEDULER_KEEP_SUB_JOB_STARTS_ALIGNED)
+DEFINES += -DMALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS=$(MALI_PP_SCHEDULER_FORCE_NO_JOB_OVERLAP_BETWEEN_APPS)
+DEFINES += -DMALI_TIMELINE_PROFILING_ENABLED=$(USING_PROFILING)
 DEFINES += -DMALI_POWER_MGMT_TEST_SUITE=$(USING_MALI_PMM_TESTSUITE)
 ifeq ($(shell test $(SUBLEVEL) -gt 32 -a $(PATCHLEVEL) = 6 -a $(VERSION) = 2 -o $(VERSION) -gt 2 && echo "OK"),OK)
 # MALI_STATE_TRACKING is only supported on Linux kernels from version 2.6.32.
@@ -60,22 +144,13 @@ DEFINES += -DMALI_OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB=$(OS_MEMORY_KERNEL_BUFFER_S
 
 MALI_PLATFORM_FILE = platform/$(TARGET_PLATFORM)/mali_platform.c
 
-DEFINES += -DUSING_MALI_PMM=$(USING_PMM)
-DEFINES += -DMALI_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
 
-ifneq ($(call submodule_enabled, $(DRIVER_DIR), PMU),0)
-	USING_MALI_PMU = 1
-endif
-
-ifeq ($(USING_MALI_RUN_TIME_PM),1)
 ifdef CONFIG_PM
 ifdef CONFIG_PM_RUNTIME
 	KERNEL_RUNTIME_PM_ENABLED = 1
 endif
 endif
-endif
 
-DEFINES += -DUSING_MALI_PMU=$(USING_MALI_PMU)
 DEFINES += -DMALI_PMM_RUNTIME_JOB_CONTROL_ON=$(KERNEL_RUNTIME_PM_ENABLED)
 
 ifeq ($(BUILD), debug)
@@ -84,143 +159,119 @@ endif
 DEFINES += -DSVN_REV=$(SVN_REV)
 DEFINES += -DSVN_REV_STRING=\"$(SVN_REV)\"
 
-# Linux has its own mmap cleanup handlers (see mali_kernel_mem_mmu.c)
+# Linux has its own mmap cleanup handlers (see mali_kernel_memory.c)
 DEFINES += -DMALI_UKK_HAS_IMPLICIT_MMAP_CLEANUP
 
 ifeq ($(USING_UMP),1)
 	DEFINES += -DMALI_USE_UNIFIED_MEMORY_PROVIDER=1
-	ccflags-y += -I$(DRIVER_DIR)/../../ump/include/ump
-	ccflags-y += -I$(DRIVER_DIR)/../include/ump -I$(DRIVER_DIR)/../../include/ump
+	ccflags-y += -I$(DRIVER_DIR)/../ump/include/ump
 else
 	DEFINES += -DMALI_USE_UNIFIED_MEMORY_PROVIDER=0
 endif
 
 # Use our defines when compiling
-ccflags-y += $(DEFINES) -I$(DRIVER_DIR) -I$(DRIVER_DIR)/common -I$(DRIVER_DIR)/linux -I$(DRIVER_DIR)/platform
-
-# For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
-# The ARM proprietary product will only include the license/proprietary directory
-# The GPL product will only include the license/gpl directory
-
-ifeq ($(wildcard $(DRIVER_DIR)/linux/license/gpl/*),)
-ccflags-y += -I$(DRIVER_DIR)/linux/license/proprietary
-else
-ccflags-y += -I$(DRIVER_DIR)/linux/license/gpl
-endif
-ccflags-y += -I$(DRIVER_DIR)/common/pmm
+ccflags-y += $(DEFINES) -I$(DRIVER_DIR) -I$(DRIVER_DIR)/include -I$(DRIVER_DIR)/common -I$(DRIVER_DIR)/linux -I$(DRIVER_DIR)/platform
 
 # Source files which always are included in a build
 SRC = \
 	common/mali_kernel_core.c \
 	linux/mali_kernel_linux.c \
 	$(OSKOS)/mali_osk_indir_mmap.c \
-	common/mali_kernel_rendercore.c \
 	common/mali_kernel_descriptor_mapping.c \
+	common/mali_session.c \
+	common/mali_device_pause_resume.c \
 	common/mali_kernel_vsync.c \
 	linux/mali_ukk_vsync.c \
 	linux/mali_kernel_sysfs.c \
-	common/mali_kernel_mem_mmu.c \
+	common/mali_mmu.c \
+	common/mali_mmu_page_directory.c \
+	common/mali_memory.c \
 	common/mali_kernel_memory_engine.c \
 	common/mali_block_allocator.c \
 	common/mali_kernel_mem_os.c \
+	common/mali_mem_validation.c \
+	common/mali_hw_core.c \
+	common/mali_gp.c \
+	common/mali_pp.c \
+	common/mali_pp_job.c \
+	common/mali_gp_job.c \
+	common/mali_scheduler.c \
+	common/mali_gp_scheduler.c \
+	common/mali_pp_scheduler.c \
+	common/mali_cluster.c \
+	common/mali_group.c \
+	common/mali_dlbu.c \
+	common/mali_pm.c \
+	common/mali_pmu.c \
+	common/mali_user_settings_db.c \
+	$(OSKOS)/mali_osk_pm.c \
+	linux/mali_kernel_pm.c \
+	linux/mali_pmu_power_up_down.c \
 	$(MALI_PLATFORM_FILE) \
 	$(OSKFILES) \
 	$(UKKFILES) \
 	__malidrv_build_info.c
 
-ifeq ($(USING_PROFILING),1)
-SRC += \
-	common/mali_kernel_profiling.c \
-	timestamp-$(TIMESTAMP)/mali_timestamp.c
-ccflags-y += -I$(DRIVER_DIR)/timestamp-$(TIMESTAMP)
-endif
-
 # Selecting files to compile by parsing the config file
 
-ifeq ($(USING_PMM),1)
-ifeq ($(USING_MALI_PMU),1)
-SRC +=	\
-	common/pmm/mali_pmm_pmu.c
+ifeq ($(USING_INTERNAL_PROFILING),1)
+PROFILING_BACKEND_SOURCES = \
+    linux/mali_osk_profiling_internal.c \
+    timestamp-$(TIMESTAMP)/mali_timestamp.c
+ccflags-y += -I$(DRIVER_DIR)/timestamp-$(TIMESTAMP)
+else
+ifeq ($(USING_PROFILING),1)
+PROFILING_BACKEND_SOURCES = \
+    linux/mali_osk_profiling_gator.c
 endif
-SRC += \
-	common/pmm/mali_pmm.c \
-	common/pmm/mali_pmm_policy.c \
-	common/pmm/mali_pmm_policy_alwayson.c \
-	common/pmm/mali_pmm_policy_jobcontrol.c \
-	common/pmm/mali_pmm_state.c \
-	linux/mali_kernel_pm.c \
-	linux/mali_osk_pm.c \
-	linux/mali_device_pause_resume.c
 endif
+
+# Add the profiling sources
+SRC += $(PROFILING_BACKEND_SOURCES)
 
 ifeq ($(USING_MALI_PMM_TESTSUITE),1)
 ccflags-y += -I$(DRIVER_DIR)/platform/mali_pmu_testing
-ifeq ($(USING_MALI_PMU),0)
-SRC += \
-	platform/mali_pmu_testing/mali_platform_pmu_internal_testing.c
-endif
 endif
 
-ifeq ($(USING_GPU_UTILIZATION),1)
-SRC += \
-	common/mali_kernel_utilization.c
-endif
+mali-$(CONFIG_MALI400_GPU_UTILIZATION) += common/mali_kernel_utilization.o
 
 ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI400PP),0)
 	# Mali-400 PP in use
 	ccflags-y += -DUSING_MALI400
-	SRC += common/mali_kernel_MALI200.c
-endif
-
-ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI400GP),0)
-	# Mali-400 GP in use
-	SRC += common/mali_kernel_GP2.c
 endif
 
 ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI300PP),0)
 	# Mali-400 PP in use
 	ccflags-y += -DUSING_MALI400
-	SRC += common/mali_kernel_MALI200.c
-endif
-
-ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI300GP),0)
-	# Mali-400 GP in use
-	SRC += common/mali_kernel_GP2.c
 endif
 
 ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI200),0)
 	# Mali200 in use
 	ccflags-y += -DUSING_MALI200
-	SRC += common/mali_kernel_MALI200.c
 endif
 
-ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALIGP2),0)
-	# MaliGP2 in use
-	SRC += common/mali_kernel_GP2.c
-endif
+# Always build in support for Mali L2 cache
+SRC += common/mali_l2_cache.c
 
-ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI400L2),0)
-	# Mali Level2 cache in use
-	ccflags-y += -DUSING_MALI400_L2_CACHE
-	SRC += common/mali_kernel_l2_cache.c
-endif
-
-ifneq ($(call submodule_enabled, $(DRIVER_DIR), MALI300L2),0)
-	# Mali Level2 cache in use
-	ccflags-y += -DUSING_MALI400_L2_CACHE
-	SRC += common/mali_kernel_l2_cache.c
-endif
-
-# Tell the Linux build system from which .o file to create the kernel module
-obj-m := mali.o
 # Tell the Linux build system to enable building of our .c files
-mali-y := $(SRC:.c=.o)
+mali-y += $(SRC:.c=.o)
+# Tell the Linux build system from which .o file to create the kernel module
+obj-$(CONFIG_MALI400) := mali.o
 
-# Extend common version-string
+
+VERSION_STRINGS :=
+VERSION_STRINGS += CONFIG=$(CONFIG)
+VERSION_STRINGS += USING_OS_MEMORY=$(USING_OS_MEMORY)
+VERSION_STRINGS += API_VERSION=$(shell cd $(DRIVER_DIR); grep "\#define _MALI_API_VERSION" $(FILES_PREFIX)include/linux/mali/mali_utgard_uk_types.h | cut -d' ' -f 3 )
+VERSION_STRINGS += REPO_URL=$(shell cd $(DRIVER_DIR); (svn info || git svn info || echo 'URL: $(MALI_RELEASE_NAME)') 2>/dev/null | grep '^URL: ' | cut -d: -f2- | cut -b2-)
+VERSION_STRINGS += REVISION=$(SVN_REV)
+VERSION_STRINGS += CHANGED_REVISION=$(shell cd $(DRIVER_DIR); (svn info || git svn info || echo 'Last Changed Rev: $(MALI_RELEASE_NAME)') 2>/dev/null | grep '^Last Changed Rev: ' | cut -d: -f2- | cut -b2-)
+VERSION_STRINGS += CHANGE_DATE=$(shell cd $(DRIVER_DIR); (svn info || git svn info || echo 'Last Changed Date: $(MALI_RELEASE_NAME)') 2>/dev/null | grep '^Last Changed Date: ' | cut -d: -f2- | cut -b2-)
+VERSION_STRINGS += BUILD_DATE=$(shell date)
+
 VERSION_STRINGS += BUILD=$(shell echo $(BUILD) | tr a-z A-Z)
 VERSION_STRINGS += CPU=$(CPU)
 VERSION_STRINGS += USING_UMP=$(USING_UMP)
-VERSION_STRINGS += USING_PMM=$(USING_PMM)
 VERSION_STRINGS += USING_MALI200=$(call submodule_enabled, $(DRIVER_DIR), MALI200)
 VERSION_STRINGS += USING_MALI400=$(call submodule_enabled, $(DRIVER_DIR), MALI400)
 VERSION_STRINGS += USING_MALI400_L2_CACHE=$(call submodule_enabled, $(DRIVER_DIR), MALI400L2)
@@ -229,8 +280,8 @@ VERSION_STRINGS += KDIR=$(KDIR)
 VERSION_STRINGS += MALI_PLATFORM_FILE=$(MALI_PLATFORM_FILE)
 VERSION_STRINGS += OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB=$(OS_MEMORY_KERNEL_BUFFER_SIZE_IN_MB)
 VERSION_STRINGS += USING_PROFILING=$(USING_PROFILING)
-VERSION_STRINGS += USING_GPU_UTILIZATION=$(USING_GPU_UTILIZATION)
-VERSION_STRINGS += USING_MALI_RUN_TIME_PM=$(USING_MALI_RUN_TIME_PM)
+VERSION_STRINGS += USING_INTERNAL_PROFILING=$(USING_INTERNAL_PROFILING)
+VERSION_STRINGS += USING_GPU_UTILIZATION=$(CONFIG_MALI400_GPU_UTILIZATION)
 
 # Create file with Mali driver configuration
 $(DRIVER_DIR)/__malidrv_build_info.c:

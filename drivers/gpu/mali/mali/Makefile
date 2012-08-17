@@ -1,9 +1,9 @@
 #
 # Copyright (C) 2010-2012 ARM Limited. All rights reserved.
-# 
+#
 # This program is free software and is provided to you under the terms of the GNU General Public License version 2
 # as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
-# 
+#
 # A copy of the licence is included with the program, and can also be obtained from Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
@@ -66,6 +66,14 @@ ifdef ARM_INTERNAL_BUILD
 $(warning Config $(CONFIG))
 $(warning Host CPU $(CPU))
 $(warning OS_MEMORY $(USING_OS_MEMORY))
+endif
+
+# Set up build config
+export CONFIG_MALI400=m
+
+ifeq ($(USING_GPU_UTILIZATION),1)
+export EXTRA_DEFINES += -DCONFIG_MALI400_GPU_UTILIZATION=1
+export CONFIG_MALI400_GPU_UTILIZATION := y
 endif
 
 all: $(UMP_SYMVERS_FILE)

@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -43,6 +43,14 @@ _mali_osk_errcode_t _ump_uku_get_api_version( _ump_uk_api_version_s *args );
 void _ump_ukk_unmap_mem( _ump_uk_unmap_mem_s *args );
 
 void _ump_ukk_msync( _ump_uk_msync_s *args );
+
+void _ump_ukk_cache_operations_control(_ump_uk_cache_operations_control_s* args);
+
+void _ump_ukk_switch_hw_usage(_ump_uk_switch_hw_usage_s *args );
+
+void _ump_ukk_lock(_ump_uk_lock_s *args );
+
+void _ump_ukk_unlock(_ump_uk_unlock_s *args );
 
 u32 _ump_ukk_report_memory_usage( void );
 

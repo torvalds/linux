@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -350,6 +350,22 @@ static int ump_file_ioctl(struct inode *inode, struct file *filp, unsigned int c
 
 		case UMP_IOC_MSYNC:
 			err = ump_msync_wrapper((u32 __user *)argument, session_data);
+			break;
+
+		case UMP_IOC_CACHE_OPERATIONS_CONTROL:
+			err = ump_cache_operations_control_wrapper((u32 __user *)argument, session_data);
+			break;
+
+		case UMP_IOC_SWITCH_HW_USAGE:
+			err = ump_switch_hw_usage_wrapper((u32 __user *)argument, session_data);
+			break;
+
+		case UMP_IOC_LOCK:
+			err = ump_lock_wrapper((u32 __user *)argument, session_data);
+			break;
+
+		case UMP_IOC_UNLOCK:
+			err = ump_unlock_wrapper((u32 __user *)argument, session_data);
 			break;
 
 		default:

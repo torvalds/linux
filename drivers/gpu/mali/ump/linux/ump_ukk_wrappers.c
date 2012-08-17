@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -168,6 +168,139 @@ int ump_msync_wrapper(u32 __user * argument, struct ump_session_data  * session_
 		MSG_ERR(("copy_to_user() failed in ump_ioctl_msync()\n"));
 		return -EFAULT;
 	}
+
+	return 0; /* success */
+}
+int ump_cache_operations_control_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+{
+	_ump_uk_cache_operations_control_s user_interaction;
+
+	/* Sanity check input parameters */
+	if (NULL == argument || NULL == session_data)
+	{
+		MSG_ERR(("NULL parameter in ump_ioctl_size_get()\n"));
+		return -ENOTTY;
+	}
+
+	if (0 != copy_from_user(&user_interaction, argument, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_from_user() in ump_ioctl_cache_operations_control()\n"));
+		return -EFAULT;
+	}
+
+	user_interaction.ctx = (void *) session_data;
+
+	_ump_ukk_cache_operations_control((_ump_uk_cache_operations_control_s*) &user_interaction );
+
+	user_interaction.ctx = NULL;
+
+#if 0  /* No data to copy back */
+	if (0 != copy_to_user(argument, &user_interaction, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_to_user() failed in ump_ioctl_cache_operations_control()\n"));
+		return -EFAULT;
+	}
+#endif
+	return 0; /* success */
+}
+
+int ump_switch_hw_usage_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+{
+	_ump_uk_switch_hw_usage_s user_interaction;
+
+	/* Sanity check input parameters */
+	if (NULL == argument || NULL == session_data)
+	{
+		MSG_ERR(("NULL parameter in ump_ioctl_size_get()\n"));
+		return -ENOTTY;
+	}
+
+	if (0 != copy_from_user(&user_interaction, argument, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_from_user() in ump_ioctl_switch_hw_usage()\n"));
+		return -EFAULT;
+	}
+
+	user_interaction.ctx = (void *) session_data;
+
+	_ump_ukk_switch_hw_usage( &user_interaction );
+
+	user_interaction.ctx = NULL;
+
+#if 0  /* No data to copy back */
+	if (0 != copy_to_user(argument, &user_interaction, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_to_user() failed in ump_ioctl_switch_hw_usage()\n"));
+		return -EFAULT;
+	}
+#endif
+	return 0; /* success */
+}
+
+int ump_lock_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+{
+	_ump_uk_lock_s user_interaction;
+
+	/* Sanity check input parameters */
+	if (NULL == argument || NULL == session_data)
+	{
+		MSG_ERR(("NULL parameter in ump_ioctl_size_get()\n"));
+		return -ENOTTY;
+	}
+
+	if (0 != copy_from_user(&user_interaction, argument, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_from_user() in ump_ioctl_switch_hw_usage()\n"));
+		return -EFAULT;
+	}
+
+	user_interaction.ctx = (void *) session_data;
+
+	_ump_ukk_lock( &user_interaction );
+
+	user_interaction.ctx = NULL;
+
+#if 0  /* No data to copy back */
+	if (0 != copy_to_user(argument, &user_interaction, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_to_user() failed in ump_ioctl_switch_hw_usage()\n"));
+		return -EFAULT;
+	}
+#endif
+
+	return 0; /* success */
+}
+
+int ump_unlock_wrapper(u32 __user * argument, struct ump_session_data  * session_data)
+{
+	_ump_uk_unlock_s user_interaction;
+
+	/* Sanity check input parameters */
+	if (NULL == argument || NULL == session_data)
+	{
+		MSG_ERR(("NULL parameter in ump_ioctl_size_get()\n"));
+		return -ENOTTY;
+	}
+
+	if (0 != copy_from_user(&user_interaction, argument, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_from_user() in ump_ioctl_switch_hw_usage()\n"));
+		return -EFAULT;
+	}
+
+	user_interaction.ctx = (void *) session_data;
+
+	_ump_ukk_unlock( &user_interaction );
+
+	user_interaction.ctx = NULL;
+
+#if 0  /* No data to copy back */
+	if (0 != copy_to_user(argument, &user_interaction, sizeof(user_interaction)))
+	{
+		MSG_ERR(("copy_to_user() failed in ump_ioctl_switch_hw_usage()\n"));
+		return -EFAULT;
+	}
+#endif
 
 	return 0; /* success */
 }

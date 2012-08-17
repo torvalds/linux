@@ -1,9 +1,9 @@
 /*
  * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
- * 
+ *
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
- * 
+ *
  * A copy of the licence is included with the program, and can also be obtained from Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
@@ -95,6 +95,8 @@ UMP_KERNEL_API_EXPORT ump_dd_handle ump_dd_handle_create_from_phys_blocks(ump_dd
 	mem->release_func = phys_blocks_release;
 	/* For now UMP handles created by ump_dd_handle_create_from_phys_blocks() is forced to be Uncached */
 	mem->is_cached = 0;
+	mem->hw_device = _UMP_UK_USED_BY_CPU;
+	mem->lock_usage = UMP_NOT_LOCKED;
 
 	_mali_osk_lock_signal(device.secure_id_map_lock, _MALI_OSK_LOCKMODE_RW);
 	DBG_MSG(3, ("UMP memory created. ID: %u, size: %lu\n", mem->secure_id, mem->size_bytes));
@@ -163,6 +165,7 @@ _mali_osk_errcode_t _ump_ukk_allocate( _ump_uk_allocate_s *user_interaction )
 	}
 
 	new_allocation->size_bytes = UMP_SIZE_ALIGN(user_interaction->size); /* Page align the size */
+	new_allocation->lock_usage = UMP_NOT_LOCKED;
 
 	/* Now, ask the active memory backend to do the actual memory allocation */
 	if (!device.backend->allocate( device.backend->ctx, new_allocation ) )
@@ -174,7 +177,7 @@ _mali_osk_errcode_t _ump_ukk_allocate( _ump_uk_allocate_s *user_interaction )
 		_mali_osk_free(session_memory_element);
 		return _MALI_OSK_ERR_INVALID_FUNC;
 	}
-
+	new_allocation->hw_device = _UMP_UK_USED_BY_CPU;
 	new_allocation->ctx = device.backend->ctx;
 	new_allocation->release_func = device.backend->release;
 
