@@ -135,9 +135,6 @@ static const struct board_struct boards[] = {
  */
 #define thisboard    ((const struct board_struct *)dev->board_ptr)
 
-#define REG_SZ (thisboard->reg_sz)
-#define REGS_BADRINDEX (thisboard->regs_badrindex)
-
 /*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
@@ -406,7 +403,7 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 			}
 			registers =
 			    pci_resource_start(devpriv->pci_dev,
-					       REGS_BADRINDEX);
+					       thisboard->regs_badrindex);
 			devpriv->registers = registers;
 			devpriv->dio_registers
 			    = devpriv->registers + thisboard->dio_offset;
