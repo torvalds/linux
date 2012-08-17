@@ -61,26 +61,6 @@ void smiapp_replace_limit(struct smiapp_sensor *sensor,
 	sensor->limits[limit] = val;
 }
 
-int smiapp_replace_limit_at(struct smiapp_sensor *sensor,
-			    u32 reg, u32 val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	int i;
-
-	for (i = 0; smiapp_reg_limits[i].addr; i++) {
-		if ((smiapp_reg_limits[i].addr & 0xffff) != reg)
-			continue;
-
-		smiapp_replace_limit(sensor, i, val);
-
-		return 0;
-	}
-
-	dev_dbg(&client->dev, "quirk: bad register 0x%4.4x\n", reg);
-
-	return -EINVAL;
-}
-
 bool smiapp_quirk_reg(struct smiapp_sensor *sensor,
 		      u32 reg, u32 *val)
 {
