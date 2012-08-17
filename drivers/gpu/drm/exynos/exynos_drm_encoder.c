@@ -45,6 +45,7 @@
  * @dpms: store the encoder dpms value.
  */
 struct exynos_drm_encoder {
+	struct drm_crtc			*old_crtc;
 	struct drm_encoder		drm_encoder;
 	struct exynos_drm_manager	*manager;
 	int dpms;
@@ -124,22 +125,74 @@ exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static void disable_plane_to_crtc(struct drm_device *dev,
+						struct drm_crtc *old_crtc,
+						struct drm_crtc *new_crtc)
+{
+	struct drm_plane *plane;
+
+	/*
+	 * if old_crtc isn't same as encoder->crtc then it means that
+	 * user changed crtc id to another one so the plane to old_crtc
+	 * should be disabled and plane->crtc should be set to new_crtc
+	 * (encoder->crtc)
+	 */
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		if (plane->crtc == old_crtc) {
+			/*
+			 * do not change below call order.
+			 *
+			 * plane->funcs->disable_plane call checks
+			 * if encoder->crtc is same as plane->crtc and if same
+			 * then overlay_ops->disable callback will be called
+			 * to diasble current hw overlay so plane->crtc should
+			 * have new_crtc because new_crtc was set to
+			 * encoder->crtc in advance.
+			 */
+			plane->crtc = new_crtc;
+			plane->funcs->disable_plane(plane);
+		}
+	}
+}
+
 static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 					 struct drm_display_mode *mode,
 					 struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
-	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
-	struct exynos_drm_manager_ops *manager_ops = manager->ops;
+	struct exynos_drm_manager *manager;
+	struct exynos_drm_manager_ops *manager_ops;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder)
+		if (connector->encoder == encoder) {
+			struct exynos_drm_encoder *exynos_encoder;
+
+			exynos_encoder = to_exynos_encoder(encoder);
+
+			if (exynos_encoder->old_crtc != encoder->crtc &&
+					exynos_encoder->old_crtc) {
+
+				/*
+				 * disable a plane to old crtc and change
+				 * crtc of the plane to new one.
+				 */
+				disable_plane_to_crtc(dev,
+						exynos_encoder->old_crtc,
+						encoder->crtc);
+			}
+
+			manager = exynos_drm_get_manager(encoder);
+			manager_ops = manager->ops;
+
 			if (manager_ops && manager_ops->mode_set)
 				manager_ops->mode_set(manager->dev,
 							adjusted_mode);
+
+			exynos_encoder->old_crtc = encoder->crtc;
+		}
 	}
 }
 
