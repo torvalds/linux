@@ -2217,7 +2217,7 @@ S:	Maintained
 F:	drivers/scsi/tmscsim.*
 
 DC395x SCSI driver
-M:	Oliver Neukum <oliver@neukum.name>
+M:	Oliver Neukum <oliver@neukum.org>
 M:	Ali Akcaagac <aliakc@web.de>
 M:	Jamie Lenehan <lenehan@twibble.org>
 W:	http://twibble.org/dist/dc395x/
@@ -4537,7 +4537,7 @@ S:	Supported
 F:	arch/microblaze/
 
 MICROTEK X6 SCANNER
-M:	Oliver Neukum <oliver@neukum.name>
+M:	Oliver Neukum <oliver@neukum.org>
 S:	Maintained
 F:	drivers/usb/image/microtek.*
 
@@ -7076,7 +7076,7 @@ F:	include/linux/mtd/ubi.h
 F:	include/mtd/ubi-user.h
 
 USB ACM DRIVER
-M:	Oliver Neukum <oliver@neukum.name>
+M:	Oliver Neukum <oliver@neukum.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	Documentation/usb/acm.txt
@@ -7097,7 +7097,7 @@ S:	Supported
 F:	drivers/block/ub.c
 
 USB CDC ETHERNET DRIVER
-M:	Oliver Neukum <oliver@neukum.name>
+M:	Oliver Neukum <oliver@neukum.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/net/usb/cdc_*.c
@@ -7170,7 +7170,7 @@ F:	drivers/usb/host/isp116x*
 F:	include/linux/usb/isp116x.h
 
 USB KAWASAKI LSI DRIVER
-M:	Oliver Neukum <oliver@neukum.name>
+M:	Oliver Neukum <oliver@neukum.org>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
 F:	drivers/usb/serial/kl5kusb105.*
