@@ -638,7 +638,10 @@
 			};
 
 			lradc@80050000 {
+				compatible = "fsl,imx28-lradc";
 				reg = <0x80050000 0x2000>;
+				interrupts = <10 14 15 16 17 18 19
+						20 21 22 23 24 25>;
 				status = "disabled";
 			};
 
