@@ -107,9 +107,6 @@ struct cb_pcimdda_board {
 	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
-	int regs_badrindex;	/* IO Region for the control, analog output,
-				   and DIO registers */
-	int reg_sz;		/* number of bytes of registers in io region */
 };
 
 static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
@@ -118,8 +115,6 @@ static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
 	 .device_id = PCI_ID_PCIM_DDA06_16,
 	 .ao_chans = 6,
 	 .ao_bits = 16,
-	 .regs_badrindex = 3,
-	 .reg_sz = 16,
 	 }
 };
 
@@ -252,7 +247,7 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-	dev->iobase = pci_resource_start(pcidev, thisboard->regs_badrindex);
+	dev->iobase = pci_resource_start(pcidev, 3);
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
