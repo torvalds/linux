@@ -3746,6 +3746,10 @@ static irqreturn_t e1000_intr_msi_test(int irq, void *data)
 	e_dbg("icr is %08X\n", icr);
 	if (icr & E1000_ICR_RXSEQ) {
 		adapter->flags &= ~FLAG_MSI_TEST_FAILED;
+		/*
+		 * Force memory writes to complete before acknowledging the
+		 * interrupt is handled.
+		 */
 		wmb();
 	}
 
@@ -3787,6 +3791,10 @@ static int e1000_test_msi_interrupt(struct e1000_adapter *adapter)
 		goto msi_test_failed;
 	}
 
+	/*
+	 * Force memory writes to complete before enabling and firing an
+	 * interrupt.
+	 */
 	wmb();
 
 	e1000_irq_enable(adapter);
@@ -3798,7 +3806,7 @@ static int e1000_test_msi_interrupt(struct e1000_adapter *adapter)
 
 	e1000_irq_disable(adapter);
 
-	rmb();
+	rmb();			/* read flags after interrupt has been fired */
 
 	if (adapter->flags & FLAG_MSI_TEST_FAILED) {
 		adapter->int_mode = E1000E_INT_MODE_LEGACY;
