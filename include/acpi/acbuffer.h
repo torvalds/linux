@@ -45,6 +45,11 @@
 #define __ACBUFFER_H__
 
 /*
+ * Contains buffer structures for these predefined names:
+ * _FDE, _GRT, _GTM, _PLD, _SRT
+ */
+
+/*
  * Note: C bitfields are not used for this reason:
  *
  * "Bitfields are great and easy to read, but unfortunately the C language
@@ -55,6 +60,44 @@
  * and stuck with it." Norman Ramsey.
  * See http://stackoverflow.com/a/1053662/41661
  */
+
+/* _FDE return value */
+
+struct acpi_fde_info {
+	u32 floppy0;
+	u32 floppy1;
+	u32 floppy2;
+	u32 floppy3;
+	u32 tape;
+};
+
+/*
+ * _GRT return value
+ * _SRT input value
+ */
+struct acpi_grt_info {
+	u16 year;
+	u8 month;
+	u8 day;
+	u8 hour;
+	u8 minute;
+	u8 second;
+	u8 valid;
+	u16 milliseconds;
+	u16 timezone;
+	u8 daylight;
+	u8 reserved[3];
+};
+
+/* _GTM return value */
+
+struct acpi_gtm_info {
+	u32 pio_speed0;
+	u32 dma_speed0;
+	u32 pio_speed1;
+	u32 dma_speed1;
+	u32 flags;
+};
 
 /*
  * Formatted _PLD return value. The minimum size is a package containing
