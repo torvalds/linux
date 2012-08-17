@@ -10,7 +10,7 @@ usbipd \- USB/IP server daemon
 provides USB/IP clients access to exported USB devices.
 
 Devices have to explicitly be exported using
-.B usbip_bind_driver
+.B usbip bind
 before usbipd makes them available to other hosts.
 
 The daemon accepts connections from USB/IP clients
@@ -27,6 +27,11 @@ Run as a daemon process.
 \fB\-d\fR, \fB\-\-debug\fR
 .IP
 Print debugging information.
+.PP
+
+\fB\-h\fR, \fB\-\-help\fR
+.IP
+Print the program help message and exit.
 .PP
 
 .HP
@@ -48,15 +53,14 @@ USB/IP client can connect and use exported devices.
     server:# usbipd -D
         - Start usbip daemon.
 
-    server:# usbip_bind_driver --list
+    server:# usbip list --local
         - List driver assignments for usb devices.
 
-    server:# usbip_bind_driver --usbip 1-2
+    server:# usbip bind --busid=1-2
         - Bind usbip-host.ko to the device of busid 1-2.
         - A usb device 1-2 is now exportable to other hosts!
-        - Use 'usbip_bind_driver --other 1-2' when you want to shutdown exporting and use the device locally.
+        - Use 'usbip unbind --busid=1-2' when you want to shutdown exporting and use the device locally.
 
 .SH "SEE ALSO"
-\fBusbip\fP\fB(8)\fB\fP,
-\fBusbip_attach_driver\fP\fB(8)\fB\fP
+\fBusbip\fP\fB(8)\fB\fP
 
