@@ -91,7 +91,7 @@ static void rk_init_camera_plateform_data(void)
 static void rk30_camera_request_reserve_mem(void)
 {
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
-    #ifdef VIDEO_RKCIF_WORK_SIMUL_OFF
+    #ifdef CONFIG_VIDEO_RKCIF_WORK_SIMUL_OFF
         rk_camera_platform_data.meminfo.name = "camera_ipp_mem";
         rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",PMEM_CAMIPP_NECESSARY);
         rk_camera_platform_data.meminfo.size= PMEM_CAMIPP_NECESSARY;

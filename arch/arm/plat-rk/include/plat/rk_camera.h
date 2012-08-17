@@ -138,6 +138,12 @@
 #define RK29_CAM_FLASHACTIVE_H	(0x01<<RK29_CAM_FLASHACTIVE_BITPOS)
 #define RK29_CAM_FLASHACTIVE_L  (0x00<<RK29_CAM_FLASHACTIVE_BITPOS)
 
+#define RK_CAM_SCALE_CROP_ARM      0
+#define RK_CAM_SCALE_CROP_IPP      1
+#define RK_CAM_SCALE_CROP_RGA      2
+#define RK_CAM_SCALE_CROP_PP       3
+
+
 /* v4l2_subdev_core_ops.ioctl  ioctl_cmd macro */
 #define RK29_CAM_SUBDEV_ACTIVATE            0x00
 #define RK29_CAM_SUBDEV_DEACTIVATE          0x01
@@ -233,6 +239,7 @@ struct rk29camera_platform_ioctl_cb {
 
 typedef struct rk29_camera_sensor_cb {
     int (*sensor_cb)(void *arg); 
+	int (*scale_crop_cb)(struct work_struct *work);
 }rk29_camera_sensor_cb_s;
 #endif /* __ASM_ARCH_CAMERA_H_ */
 
