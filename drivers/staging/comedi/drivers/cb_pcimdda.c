@@ -102,18 +102,11 @@ struct cb_pcimdda_board {
 	int ao_chans;
 	int ao_bits;
 	int dio_chans;
-	int dio_method;
 	/* how many bytes into the BADR are the DIO ports */
 	int dio_offset;
 	int regs_badrindex;	/* IO Region for the control, analog output,
 				   and DIO registers */
 	int reg_sz;		/* number of bytes of registers in io region */
-};
-
-enum DIO_METHODS {
-	DIO_NONE = 0,
-	DIO_8255,
-	DIO_INTERNAL		/* unimplemented */
 };
 
 static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
@@ -123,7 +116,6 @@ static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
 	 .ao_chans = 6,
 	 .ao_bits = 16,
 	 .dio_chans = 24,
-	 .dio_method = DIO_8255,
 	 .dio_offset = 12,
 	 .regs_badrindex = 3,
 	 .reg_sz = 16,
@@ -283,20 +275,11 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	s = dev->subdevices + 1;
 	/* digital i/o subdevice */
 	if (thisboard->dio_chans) {
-		switch (thisboard->dio_method) {
-		case DIO_8255:
-			ret = subdev_8255_init(dev, s, NULL,
-					dev->iobase + thisboard->dio_offset);
-			if (ret)
-				return ret;
-			devpriv->attached_to_8255 = 1;
-			break;
-		case DIO_INTERNAL:
-		default:
-			printk("DIO_INTERNAL not implemented yet!\n");
-			return -ENXIO;
-			break;
-		}
+		ret = subdev_8255_init(dev, s, NULL,
+				dev->iobase + thisboard->dio_offset);
+		if (ret)
+			return ret;
+		devpriv->attached_to_8255 = 1;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
