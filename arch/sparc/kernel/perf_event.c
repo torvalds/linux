@@ -148,6 +148,9 @@ struct sparc_pmu {
 	int				irq_bit;
 	int				upper_nop;
 	int				lower_nop;
+	unsigned int			flags;
+#define SPARC_PMU_ALL_EXCLUDES_SAME	0x00000001
+#define SPARC_PMU_HAS_CONFLICTS		0x00000002
 };
 
 static const struct perf_event_map ultra3_perfmon_event_map[] = {
@@ -272,6 +275,8 @@ static const struct sparc_pmu ultra3_pmu = {
 	.event_mask	= 0x3f,
 	.upper_nop	= 0x1c,
 	.lower_nop	= 0x14,
+	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
+			   SPARC_PMU_HAS_CONFLICTS),
 };
 
 /* Niagara1 is very limited.  The upper PIC is hard-locked to count
@@ -401,6 +406,8 @@ static const struct sparc_pmu niagara1_pmu = {
 	.event_mask	= 0x7,
 	.upper_nop	= 0x0,
 	.lower_nop	= 0x0,
+	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
+			   SPARC_PMU_HAS_CONFLICTS),
 };
 
 static const struct perf_event_map niagara2_perfmon_event_map[] = {
@@ -529,6 +536,8 @@ static const struct sparc_pmu niagara2_pmu = {
 	.irq_bit	= 0x30,
 	.upper_nop	= 0x220,
 	.lower_nop	= 0x220,
+	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
+			   SPARC_PMU_HAS_CONFLICTS),
 };
 
 static const struct sparc_pmu *sparc_pmu __read_mostly;
@@ -944,6 +953,14 @@ static int sparc_check_constraints(struct perf_event **evts,
 	if (n_ev > MAX_HWEVENTS)
 		return -1;
 
+	if (!(sparc_pmu->flags & SPARC_PMU_HAS_CONFLICTS)) {
+		int i;
+
+		for (i = 0; i < n_ev; i++)
+			evts[i]->hw.idx = i;
+		return 0;
+	}
+
 	msk0 = perf_event_get_msk(events[0]);
 	if (n_ev == 1) {
 		if (msk0 & PIC_LOWER)
@@ -998,6 +1015,9 @@ static int check_excludes(struct perf_event **evts, int n_prev, int n_new)
 	int eu = 0, ek = 0, eh = 0;
 	struct perf_event *event;
 	int i, n, first;
+
+	if (!(sparc_pmu->flags & SPARC_PMU_ALL_EXCLUDES_SAME))
+		return 0;
 
 	n = n_prev + n_new;
 	if (n <= 1)
