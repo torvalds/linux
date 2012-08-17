@@ -56,11 +56,11 @@ AC_ARG_WITH([tcp-wrappers],
 	    [AS_HELP_STRING([--with-tcp-wrappers],
 			    [use the libwrap (TCP wrappers) library])],
 	    dnl [ACTION-IF-GIVEN]
-	    [saved_LIBS="$LIBS"
-	     if test "$withval" = "yes"; then
+	    [if test "$withval" = "yes"; then
 		     AC_MSG_RESULT([yes])
 		     AC_MSG_CHECKING([for hosts_access in -lwrap])
-		     LIBS="-lwrap $LIBS"
+		     saved_LIBS="$LIBS"
+		     LIBS="-lwrap $saved_LIBS"
 		     AC_TRY_LINK(
 		       [int hosts_access(); int allow_severity, deny_severity;],
 		       [hosts_access()],
@@ -69,9 +69,9 @@ AC_ARG_WITH([tcp-wrappers],
 				  [use tcp wrapper]) wrap_LIB="-lwrap"],
 		       [AC_MSG_RESULT([not found]); exit 1])
 	     else
-		     AC_MSG_RESULT([no])
-	     fi
-	     LIBS="$saved_LIBS"],
+		     AC_MSG_RESULT([no]);
+		     LIBS="$saved_LIBS"
+	     fi],
 	    dnl [ACTION-IF-NOT-GIVEN]
 	    [AC_MSG_RESULT([(default)])
 	     AC_MSG_CHECKING([for hosts_access in -lwrap])
