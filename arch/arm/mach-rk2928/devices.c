@@ -280,10 +280,16 @@ static struct platform_device device_lcdc = {
 #endif
 
 #ifdef CONFIG_I2C0_RK30
+static int i2c0_check_idle(void)
+{
+	return I2C_IDLE;
+}
+
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
 	.is_div_from_arm = 1,
 	.adap_type = I2C0_ADAP_TYPE,
+	.check_idle = &i2c0_check_idle,
 };
 
 static struct resource resources_i2c0[] = {
@@ -311,10 +317,16 @@ static struct platform_device device_i2c0 = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
+static int i2c1_check_idle(void)
+{
+	return I2C_IDLE;
+}
+
 static struct rk30_i2c_platform_data default_i2c1_data = {
 	.bus_num = 1,
 	.is_div_from_arm = 1,
 	.adap_type = I2C1_ADAP_TYPE,
+	.check_idle = &i2c1_check_idle,
 };
 
 static struct resource resources_i2c1[] = {
@@ -342,10 +354,16 @@ static struct platform_device device_i2c1 = {
 #endif
 
 #ifdef CONFIG_I2C2_RK30
+static int i2c2_check_idle(void)
+{
+	return I2C_IDLE;
+}
+
 static struct rk30_i2c_platform_data default_i2c2_data = {
 	.bus_num = 2,
 	.is_div_from_arm = 0,
 	.adap_type = I2C2_ADAP_TYPE,
+	.check_idle = &i2c2_check_idle,
 };
 
 static struct resource resources_i2c2[] = {
@@ -373,10 +391,16 @@ static struct platform_device device_i2c2 = {
 #endif
 
 #ifdef CONFIG_I2C3_RK30
+static int i2c3_check_idle(void)
+{
+	return I2C_IDLE;
+}
+
 static struct rk30_i2c_platform_data default_i2c3_data = {
 	.bus_num = 3,
 	.is_div_from_arm = 0,
 	.adap_type = I2C3_ADAP_TYPE,
+	.check_idle = &i2c3_check_idle,
 };
 
 static struct resource resources_i2c3[] = {
