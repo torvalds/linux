@@ -1338,17 +1338,17 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 	mb_check_buddy(e4b);
 }
 
-static int mb_find_extent(struct ext4_buddy *e4b, int order, int block,
+static int mb_find_extent(struct ext4_buddy *e4b, int block,
 				int needed, struct ext4_free_extent *ex)
 {
 	int next = block;
-	int max;
+	int max, order;
 	void *buddy;
 
 	assert_spin_locked(ext4_group_lock_ptr(e4b->bd_sb, e4b->bd_group));
 	BUG_ON(ex == NULL);
 
-	buddy = mb_find_buddy(e4b, order, &max);
+	buddy = mb_find_buddy(e4b, 0, &max);
 	BUG_ON(buddy == NULL);
 	BUG_ON(block >= max);
 	if (mb_test_bit(block, buddy)) {
@@ -1358,12 +1358,9 @@ static int mb_find_extent(struct ext4_buddy *e4b, int order, int block,
 		return 0;
 	}
 
-	/* FIXME dorp order completely ? */
-	if (likely(order == 0)) {
-		/* find actual order */
-		order = mb_find_order_for_block(e4b, block);
-		block = block >> order;
-	}
+	/* find actual order */
+	order = mb_find_order_for_block(e4b, block);
+	block = block >> order;
 
 	ex->fe_len = 1 << order;
 	ex->fe_start = block << order;
@@ -1549,7 +1546,7 @@ static void ext4_mb_check_limits(struct ext4_allocation_context *ac,
 		/* recheck chunk's availability - we don't know
 		 * when it was found (within this lock-unlock
 		 * period or not) */
-		max = mb_find_extent(e4b, 0, bex->fe_start, gex->fe_len, &ex);
+		max = mb_find_extent(e4b, bex->fe_start, gex->fe_len, &ex);
 		if (max >= gex->fe_len) {
 			ext4_mb_use_best_found(ac, e4b);
 			return;
@@ -1641,7 +1638,7 @@ int ext4_mb_try_best_found(struct ext4_allocation_context *ac,
 		return err;
 
 	ext4_lock_group(ac->ac_sb, group);
-	max = mb_find_extent(e4b, 0, ex.fe_start, ex.fe_len, &ex);
+	max = mb_find_extent(e4b, ex.fe_start, ex.fe_len, &ex);
 
 	if (max > 0) {
 		ac->ac_b_ex = ex;
@@ -1672,7 +1669,7 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 		return err;
 
 	ext4_lock_group(ac->ac_sb, group);
-	max = mb_find_extent(e4b, 0, ac->ac_g_ex.fe_start,
+	max = mb_find_extent(e4b, ac->ac_g_ex.fe_start,
 			     ac->ac_g_ex.fe_len, &ex);
 
 	if (max >= ac->ac_g_ex.fe_len && ac->ac_g_ex.fe_len == sbi->s_stripe) {
@@ -1788,7 +1785,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			break;
 		}
 
-		mb_find_extent(e4b, 0, i, ac->ac_g_ex.fe_len, &ex);
+		mb_find_extent(e4b, i, ac->ac_g_ex.fe_len, &ex);
 		BUG_ON(ex.fe_len <= 0);
 		if (free < ex.fe_len) {
 			ext4_grp_locked_error(sb, e4b->bd_group, 0, 0,
@@ -1840,7 +1837,7 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 
 	while (i < EXT4_CLUSTERS_PER_GROUP(sb)) {
 		if (!mb_test_bit(i, bitmap)) {
-			max = mb_find_extent(e4b, 0, i, sbi->s_stripe, &ex);
+			max = mb_find_extent(e4b, i, sbi->s_stripe, &ex);
 			if (max >= sbi->s_stripe) {
 				ac->ac_found++;
 				ac->ac_b_ex = ex;
