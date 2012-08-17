@@ -206,7 +206,7 @@ static int wm831x_gp_ldo_set_mode(struct regulator_dev *rdev,
 	int on_reg = ldo->base + WM831X_LDO_ON_CONTROL;
 	int ret;
 
-	printk("%s base=%x,mode=%x\n", __FUNCTION__,ldo->base,mode);
+//	printk("%s base=%x,mode=%x\n", __FUNCTION__,ldo->base,mode);
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
 		ret = wm831x_set_bits(wm831x, on_reg,
