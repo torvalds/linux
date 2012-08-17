@@ -93,6 +93,12 @@ Configuration Options:
 #define PCI_ID_PCIM_DDA06_16		0x0053
 
 /*
+ * Register map, 8-bit access only
+ */
+#define PCIMDDA_DA_CHAN(x)		(0x00 + (x) * 2)
+#define PCIMDDA_8255_BASE_REG		0x0c
+
+/*
  * This is straight from skel.c -- I did this in case this source file
  * will someday support more than 1 board...
  */
