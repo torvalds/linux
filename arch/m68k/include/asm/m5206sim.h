@@ -85,9 +85,9 @@
 #define	MCFSIM_DMCR		0xc6		/* Default control */
 
 #ifdef CONFIG_M5206e
-#define	MCFSIM_PAR		0xca		/* Pin Assignment reg (r/w) */
+#define	MCFSIM_PAR		(MCF_MBAR + 0xca)	/* Pin Assignment */
 #else
-#define	MCFSIM_PAR		0xcb		/* Pin Assignment reg (r/w) */
+#define	MCFSIM_PAR		(MCF_MBAR + 0xcb)	/* Pin Assignment */
 #endif
 
 #define	MCFTIMER_BASE1		(MCF_MBAR + 0x100)	/* Base of TIMER1 */

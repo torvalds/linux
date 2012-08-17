@@ -29,7 +29,7 @@
 #define	MCFSIM_SYPCR		(MCF_MBAR + 0x01)	/* System Protection */
 #define	MCFSIM_SWIVR		(MCF_MBAR + 0x02)	/* SW Watchdog intr */
 #define	MCFSIM_SWSR		(MCF_MBAR + 0x03)	/* SW Watchdog srv */
-#define	MCFSIM_PAR		0x04		/* Pin Assignment reg (r/w) */
+#define	MCFSIM_PAR		(MCF_MBAR + 0x04)	/* Pin Assignment */
 #define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
 #define	MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
 #define	MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
