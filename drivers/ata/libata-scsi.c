@@ -1655,7 +1655,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		if (unlikely(scmd->cmd_len < 10))
 			goto invalid_fld;
 		scsi_10_lba_len(cdb, &block, &n_block);
-		if (unlikely(cdb[1] & (1 << 3)))
+		if (cdb[1] & (1 << 3))
 			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	case READ_6:
@@ -1675,7 +1675,7 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc)
 		if (unlikely(scmd->cmd_len < 16))
 			goto invalid_fld;
 		scsi_16_lba_len(cdb, &block, &n_block);
-		if (unlikely(cdb[1] & (1 << 3)))
+		if (cdb[1] & (1 << 3))
 			tf_flags |= ATA_TFLAG_FUA;
 		break;
 	default:
