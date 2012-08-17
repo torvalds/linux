@@ -131,11 +131,6 @@ static const struct board_struct boards[] = {
 };
 
 /*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard    ((const struct board_struct *)dev->board_ptr)
-
-/*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
  * feel free to suggest moving the variable to the struct comedi_device
@@ -153,12 +148,6 @@ struct board_private_struct {
 	unsigned int ao_readback[MAX_AO_READBACK_CHANNELS];
 
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct board_private_struct *)dev->private)
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data);
@@ -203,17 +192,15 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it);
  */
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct board_struct *thisboard;
+	struct board_private_struct *devpriv;
 	struct comedi_subdevice *s;
 	int err;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- * if this function fails (returns negative) then the private area is
- * kfree'd by comedi
- */
-	if (alloc_private(dev, sizeof(struct board_private_struct)) < 0)
-		return -ENOMEM;
+	err = alloc_private(dev, sizeof(*devpriv));
+	if (err)
+		return err;
+	devpriv = dev->private;
 
 /*
  * If you can probe the device to determine what device in a series
@@ -223,6 +210,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	err = probe(dev, it);
 	if (err)
 		return err;
+	thisboard = comedi_board(dev);
 
 /* Output some info */
 	printk("comedi%d: %s: ", dev->minor, thisboard->name);
@@ -281,6 +269,8 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void detach(struct comedi_device *dev)
 {
+	struct board_private_struct *devpriv = dev->private;
+
 	if (devpriv) {
 		if (dev->subdevices && devpriv->attached_to_8255) {
 			subdev_8255_cleanup(dev, dev->subdevices + 2);
@@ -297,6 +287,7 @@ static void detach(struct comedi_device *dev)
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct board_private_struct *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long offset = devpriv->registers + chan * 2;
@@ -336,6 +327,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		    struct comedi_insn *insn, unsigned int *data)
 {
+	struct board_private_struct *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -372,6 +364,8 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
  */
 static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 {
+	const struct board_struct *thisboard;
+	struct board_private_struct *devpriv = dev->private;
 	struct pci_dev *pcidev = NULL;
 	int index;
 	unsigned long registers;
@@ -396,6 +390,7 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 
 			devpriv->pci_dev = pcidev;
 			dev->board_ptr = boards + index;
+			thisboard = comedi_board(dev);
 			if (comedi_pci_enable(pcidev, thisboard->name)) {
 				printk
 				    ("cb_pcimdda: Failed to enable PCI device and request regions\n");
