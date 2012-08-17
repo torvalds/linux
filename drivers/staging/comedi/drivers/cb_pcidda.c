@@ -203,11 +203,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 };
 
 /*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct cb_pcidda_board *)dev->board_ptr)
-
-/*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
  * feel free to suggest moving the variable to the struct comedi_device
@@ -228,12 +223,6 @@ struct cb_pcidda_private {
 	unsigned int ao_range[MAX_AO_CHANNELS];
 	u16 eeprom_data[EEPROM_SIZE];	/*  software copy of board's eeprom */
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct cb_pcidda_private *)dev->private)
 
 /* static int cb_pcidda_ai_rinsn(struct comedi_device *dev,struct comedi_subdevice *s,struct comedi_insn *insn,unsigned int *data); */
 static int cb_pcidda_ao_winsn(struct comedi_device *dev,
@@ -289,21 +278,23 @@ static struct pci_dev *cb_pcidda_find_pci_dev(struct comedi_device *dev,
 static int cb_pcidda_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
+	const struct cb_pcidda_board *thisboard;
+	struct cb_pcidda_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int index;
 	int ret;
 
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(struct cb_pcidda_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	pcidev = cb_pcidda_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	thisboard = comedi_board(dev);
 
 	/*
 	 * Enable PCI device and request regions.
@@ -585,6 +576,7 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int command;
 	unsigned int channel, range;
 
@@ -634,6 +626,7 @@ static int cb_pcidda_ao_winsn(struct comedi_device *dev,
 /* lowlevel read from eeprom */
 static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int value = 0;
 	int i;
 	const int value_width = 16;	/*  number of bits wide values are */
@@ -651,6 +644,7 @@ static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 				 unsigned int num_bits)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	int i;
 
 	for (i = 1; i <= num_bits; i++) {
@@ -667,6 +661,7 @@ static void cb_pcidda_serial_out(struct comedi_device *dev, unsigned int value,
 static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 					  unsigned int address)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int i;
 	unsigned int cal2_bits;
 	unsigned int value;
@@ -703,6 +698,7 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev,
 				   unsigned int caldac, unsigned int channel,
 				   unsigned int value)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int cal2_bits;
 	unsigned int i;
 	/* caldacs use 3 bit channel specification */
@@ -797,6 +793,7 @@ static unsigned int eeprom_fine_byte(unsigned int word)
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 				unsigned int range)
 {
+	struct cb_pcidda_private *devpriv = dev->private;
 	unsigned int coarse_offset, fine_offset, coarse_gain, fine_gain;
 
 	/* remember range so we can tell when we need to readjust calibration */
