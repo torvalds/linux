@@ -13,6 +13,7 @@
 #include <asm/pil.h>
 #include <asm/pcr.h>
 #include <asm/nmi.h>
+#include <asm/asi.h>
 #include <asm/spitfire.h>
 
 /* This code is shared between various users of the performance
@@ -139,6 +140,57 @@ static const struct pcr_ops n2_pcr_ops = {
 	.pcr_nmi_disable	= PCR_PIC_PRIV,
 };
 
+static u64 n4_pcr_read(unsigned long reg_num)
+{
+	unsigned long val;
+
+	(void) sun4v_vt_get_perfreg(reg_num, &val);
+
+	return val;
+}
+
+static void n4_pcr_write(unsigned long reg_num, u64 val)
+{
+	(void) sun4v_vt_set_perfreg(reg_num, val);
+}
+
+static u64 n4_pic_read(unsigned long reg_num)
+{
+	unsigned long val;
+
+	__asm__ __volatile__("ldxa [%1] %2, %0"
+			     : "=r" (val)
+			     : "r" (reg_num * 0x8UL), "i" (ASI_PIC));
+
+	return val;
+}
+
+static void n4_pic_write(unsigned long reg_num, u64 val)
+{
+	__asm__ __volatile__("stxa %0, [%1] %2"
+			     : /* no outputs */
+			     : "r" (val), "r" (reg_num * 0x8UL), "i" (ASI_PIC));
+}
+
+static u64 n4_picl_value(unsigned int nmi_hz)
+{
+	u32 delta = local_cpu_data().clock_tick / (nmi_hz << 2);
+
+	return ((u64)((0 - delta) & 0xffffffff));
+}
+
+static const struct pcr_ops n4_pcr_ops = {
+	.read_pcr		= n4_pcr_read,
+	.write_pcr		= n4_pcr_write,
+	.read_pic		= n4_pic_read,
+	.write_pic		= n4_pic_write,
+	.nmi_picl_value		= n4_picl_value,
+	.pcr_nmi_enable		= (PCR_N4_PICNPT | PCR_N4_STRACE |
+				   PCR_N4_UTRACE | PCR_N4_TOE |
+				   (26 << PCR_N4_SL_SHIFT)),
+	.pcr_nmi_disable	= PCR_N4_PICNPT,
+};
+
 static unsigned long perf_hsvc_group;
 static unsigned long perf_hsvc_major;
 static unsigned long perf_hsvc_minor;
@@ -157,6 +209,10 @@ static int __init register_perf_hsvc(void)
 
 		case SUN4V_CHIP_NIAGARA3:
 			perf_hsvc_group = HV_GRP_KT_CPU;
+			break;
+
+		case SUN4V_CHIP_NIAGARA4:
+			perf_hsvc_group = HV_GRP_VT_CPU;
 			break;
 
 		default:
@@ -183,6 +239,29 @@ static void __init unregister_perf_hsvc(void)
 	sun4v_hvapi_unregister(perf_hsvc_group);
 }
 
+static int __init setup_sun4v_pcr_ops(void)
+{
+	int ret = 0;
+
+	switch (sun4v_chip_type) {
+	case SUN4V_CHIP_NIAGARA1:
+	case SUN4V_CHIP_NIAGARA2:
+	case SUN4V_CHIP_NIAGARA3:
+		pcr_ops = &n2_pcr_ops;
+		break;
+
+	case SUN4V_CHIP_NIAGARA4:
+		pcr_ops = &n4_pcr_ops;
+		break;
+
+	default:
+		ret = -ENODEV;
+		break;
+	}
+
+	return ret;
+}
+
 int __init pcr_arch_init(void)
 {
 	int err = register_perf_hsvc();
@@ -192,7 +271,9 @@ int __init pcr_arch_init(void)
 
 	switch (tlb_type) {
 	case hypervisor:
-		pcr_ops = &n2_pcr_ops;
+		err = setup_sun4v_pcr_ops();
+		if (err)
+			goto out_unregister;
 		break;
 
 	case cheetah:

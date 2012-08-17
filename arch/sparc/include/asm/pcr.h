@@ -32,6 +32,19 @@ extern void schedule_deferred_pcr_work(void);
 #define PCR_N2_SL1_SHIFT	27
 #define PCR_N2_OV1		0x80000000
 
+#define PCR_N4_OV		0x00000001 /* PIC overflow             */
+#define PCR_N4_TOE		0x00000002 /* Trap On Event            */
+#define PCR_N4_UTRACE		0x00000004 /* Trace user events        */
+#define PCR_N4_STRACE		0x00000008 /* Trace supervisor events  */
+#define PCR_N4_HTRACE		0x00000010 /* Trace hypervisor events  */
+#define PCR_N4_MASK		0x000007e0 /* Event mask               */
+#define PCR_N4_MASK_SHIFT	5
+#define PCR_N4_SL		0x0000f800 /* Event Select             */
+#define PCR_N4_SL_SHIFT		11
+#define PCR_N4_PICNPT		0x00010000 /* PIC non-privileged trap  */
+#define PCR_N4_PICNHT		0x00020000 /* PIC non-hypervisor trap  */
+#define PCR_N4_NTC		0x00040000 /* Next-To-Commit wrap      */
+
 extern int pcr_arch_init(void);
 
 #endif /* __PCR_H */
