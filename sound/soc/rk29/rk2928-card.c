@@ -55,35 +55,10 @@ static int rk2928_dai_hw_params(struct snd_pcm_substream *substream,
     #endif		
     if (ret < 0)
         return ret;
-	
-    switch(params_rate(params)) {
-        case 8000:
-        case 16000:
-        case 24000:
-        case 32000:
-        case 48000:
-        case 96000:
-            pll_out = 12288000;
-            break;
-        case 11025:
-        case 22050:
-        case 44100:
-        case 88200:
-            pll_out = 11289600;
-            break;
-        case 176400:
-			pll_out = 11289600*2;
-        	break;
-        case 192000:
-        	pll_out = 12288000*2;
-        	break;
-        default:
-            DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
-            return -EINVAL;
-            break;
-	}
+        
 	DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
-
+	pll_out = 256 * params_rate(params);
+	
 	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 	
 		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
 	#endif	

@@ -60,21 +60,11 @@
 
 #define RGA_MAJOR		255
 
-#if 1
-#if CONFIG_ARCH_RK2928
-#define RK30_RGA_PHYS	0x1010C000
-#define RK30_RGA_SIZE	SZ_8K
-#define RGA_RESET_TIMEOUT	1000
-#elif CONFIG_ARCH_RK30
-#define RK30_RGA_PHYS	0x10114000
-#define RK30_RGA_SIZE	SZ_8K
-#define RGA_RESET_TIMEOUT	1000
-#elif CONFIG_ARCH_RK31
-#define RK30_RGA_PHYS	0x10114000
-#define RK30_RGA_SIZE	SZ_8K
-#define RGA_RESET_TIMEOUT	1000
+#if defined(CONFIG_ARCH_RK2928)
+#define RK30_RGA_PHYS		RK2928_RGA_PHYS
+#define RK30_RGA_SIZE		RK2928_RGA_SIZE
 #endif
-#endif
+#define RGA_RESET_TIMEOUT	1000
 
 /* Driver information */
 #define DRIVER_DESC		"RGA Device Driver"
@@ -136,7 +126,6 @@ static inline u32 rga_read(u32 r)
 	return __raw_readl(drvdata->rga_base + r);
 }
 
-#if 1//defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
 static void rga_soft_reset(void)
 {
 	u32 i;
@@ -157,7 +146,6 @@ static void rga_soft_reset(void)
 	if(i == RGA_RESET_TIMEOUT)
 		ERR("soft reset timeout.\n");
 }
-#endif
 
 static void rga_dump(void)
 {
@@ -356,7 +344,7 @@ static int rga_check_param(const struct rga_req *req)
 		return	-EINVAL;
 	}
 
-    if (unlikely((req->dst.vir_w <= 0) || (req->dst.vir_w > 2048) || (req->dst.vir_h <= 0) || (req->dst.vir_h > 2048)))
+    if (unlikely((req->dst.vir_w <= 0) || (req->dst.vir_w > 4096) || (req->dst.vir_h <= 0) || (req->dst.vir_h > 2048)))
     {
 		ERR("invalid destination resolution vir_w = %d, vir_h = %d\n", req->dst.vir_w, req->dst.vir_h);
 		return	-EINVAL;
@@ -580,7 +568,7 @@ static void rga_try_set_reg(void)
             udelay(1);
 
             rga_copy_reg(reg, 0);
-            rga_reg_from_wait_to_run(reg);            
+            rga_reg_from_wait_to_run(reg);
 
             dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
             outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
@@ -606,6 +594,7 @@ static void rga_try_set_reg(void)
                     printk("%.8x %.8x %.8x %.8x\n", p[0 + i*4], p[1+i*4], p[2 + i*4], p[3 + i*4]);
             }
 #endif
+
             /* master mode */
             rga_write((0x1<<2)|(0x1<<3), RGA_SYS_CTRL);
 
@@ -951,7 +940,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
             }
             else
             {
-                ret = rga_blit_sync(session, req);
+                ret = rga_blit_async(session, req);
             }
 			break;
 		case RGA_FLUSH:
@@ -1039,7 +1028,6 @@ static irqreturn_t rga_irq_thread(int irq, void *dev_id)
 		rga_del_running_list();
 		rga_try_set_reg();
 	}
-    //printk("****** rga irq prc avil ******\n");
 	mutex_unlock(&rga_service.lock);
 
 	return IRQ_HANDLED;
@@ -1096,27 +1084,14 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	data->aclk_rga = clk_get(NULL, "aclk_rga");
 	data->hclk_rga = clk_get(NULL, "hclk_rga");
 
-    
 	/* map the memory */
-    #if defined(CONFIG_ARCH_RK2928)
-	if (!request_mem_region(RK2928_RGA_PHYS, RK2928_RGA_SIZE, "rga_io"))
-    #elif defined(CONFIG_ARCH_RK30)
-    if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
-    #elif defined(CONFIG_ARCH_RK31)
-    if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
-    #endif    
+	if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io"))
 	{
 		pr_info("failed to reserve rga HW regs\n");
 		return -EBUSY;
 	}
     
-    #if defined(CONFIG_ARCH_RK2928)
-	data->rga_base = (void*)ioremap_nocache(RK2928_RGA_PHYS, RK2928_RGA_SIZE);
-    #elif defined(CONFIG_ARCH_RK30)
-    data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
-    #elif defined(CONFIG_ARCH_RK31)
-    data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
-    #endif
+	data->rga_base = (void*)ioremap_nocache(RK30_RGA_PHYS, RK30_RGA_SIZE);
 	if (data->rga_base == NULL)
 	{
 		ERR("rga ioremap failed\n");
