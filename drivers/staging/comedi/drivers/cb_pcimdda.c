@@ -110,62 +110,51 @@ static int cb_pcimdda_ao_winsn(struct comedi_device *dev,
 			       unsigned int *data)
 {
 	struct cb_pcimdda_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned long offset = dev->iobase + PCIMDDA_DA_CHAN(chan);
+	unsigned int val = 0;
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
-	unsigned long offset = dev->iobase + chan * 2;
 
-	/* Writing a list of values to an AO channel is probably not
-	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
-		/*  first, load the low byte */
-		outb((char)(data[i] & 0x00ff), offset);
-		/*  next, write the high byte -- only after this is written is
-		   the channel voltage updated in the DAC, unless
-		   we're in simultaneous xfer mode (jumper on card)
-		   then a rinsn is necessary to actually update the DAC --
-		   see cb_pcimdda_ao_rinsn() below... */
-		outb((char)(data[i] >> 8 & 0x00ff), offset + 1);
+		val = data[i];
 
-		/* for testing only.. the actual rinsn SHOULD do an inw!
-		   (see the stuff about simultaneous XFER mode on this board) */
-		devpriv->ao_readback[chan] = data[i];
+		/*
+		 * Write the LSB then MSB.
+		 *
+		 * If the simultaneous xfer mode is selected by the
+		 * jumper on the card, a read instruction is needed
+		 * in order to initiate the simultaneous transfer.
+		 * Otherwise, the DAC will be updated when the MSB
+		 * is written.
+		 */
+		outb(val & 0x00ff, offset);
+		outb((val >> 8) & 0x00ff, offset + 1);
 	}
 
-	/* return the number of samples read/written */
-	return i;
+	/* Cache the last value for readback */
+	devpriv->ao_readback[chan] = val;
+
+	return insn->n;
 }
 
-/* AO subdevices should have a read insn as well as a write insn.
-
-   Usually this means copying a value stored in devpriv->ao_readback.
-   However, since this board has this jumper setting called "Simultaneous
-   Xfer mode" (off by default), we will support it.  Simultaneaous xfer
-   mode is accomplished by loading ALL the values you want for AO in all the
-   channels, then READing off one of the AO registers to initiate the
-   instantaneous simultaneous update of all DAC outputs, which makes
-   all AO channels update simultaneously.  This is useful for some control
-   applications, I would imagine.
-*/
 static int cb_pcimdda_ao_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn,
 			       unsigned int *data)
 {
 	struct cb_pcimdda_private *devpriv = dev->private;
-	int i;
 	int chan = CR_CHAN(insn->chanspec);
+	unsigned long offset = dev->iobase + PCIMDDA_DA_CHAN(chan);
+	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		inw(dev->iobase + chan * 2);
-		/*
-		 * should I set data[i] to the result of the actual read
-		 * on the register or the cached unsigned int in
-		 * devpriv->ao_readback[]?
-		 */
+		/* Initiate the simultaneous transfer */
+		inw(offset);
+
 		data[i] = devpriv->ao_readback[chan];
 	}
 
-	return i;
+	return insn->n;
 }
 
 static struct pci_dev *cb_pcimdda_probe(struct comedi_device *dev,
