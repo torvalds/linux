@@ -348,7 +348,7 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	 * Disable the other backlight choices.
 	 */
 	acpi_video_dmi_promote_vendor();
-#ifdef CONFIG_ACPI_VIDEO
+#if defined (CONFIG_ACPI_VIDEO) || defined (CONFIG_ACPI_VIDEO_MODULE)
 	acpi_video_unregister();
 #endif
 	apple_bl_unregister();
@@ -371,7 +371,7 @@ static void __devexit gmux_remove(struct pnp_dev *pnp)
 	kfree(gmux_data);
 
 	acpi_video_dmi_demote_vendor();
-#ifdef CONFIG_ACPI_VIDEO
+#if defined (CONFIG_ACPI_VIDEO) || defined (CONFIG_ACPI_VIDEO_MODULE)
 	acpi_video_register();
 #endif
 	apple_bl_register();
