@@ -16,6 +16,8 @@
 #include <linux/linkage.h>
 #include <asm/mcpm.h>
 
+#include "vlock.h"
+
 .if MCPM_SYNC_CLUSTER_CPUS
 .error "cpus must be the first member of struct mcpm_sync_struct"
 .endif
@@ -69,10 +71,11 @@ ENTRY(mcpm_entry_point)
 	 * position independent way.
 	 */
 	adr	r5, 3f
-	ldmia	r5, {r6, r7, r8}
+	ldmia	r5, {r6, r7, r8, r11}
 	add	r6, r5, r6			@ r6 = mcpm_entry_vectors
 	ldr	r7, [r5, r7]			@ r7 = mcpm_power_up_setup_phys
 	add	r8, r5, r8			@ r8 = mcpm_sync
+	add	r11, r5, r11			@ r11 = first_man_locks
 
 	mov	r0, #MCPM_SYNC_CLUSTER_SIZE
 	mla	r8, r0, r10, r8			@ r8 = sync cluster base
@@ -86,13 +89,22 @@ ENTRY(mcpm_entry_point)
 	@ At this point, the cluster cannot unexpectedly enter the GOING_DOWN
 	@ state, because there is at least one active CPU (this CPU).
 
-	@ Note: the following is racy as another CPU might be testing
-	@ the same flag at the same moment.  That'll be fixed later.
+	mov	r0, #VLOCK_SIZE
+	mla	r11, r0, r10, r11		@ r11 = cluster first man lock
+	mov	r0, r11
+	mov	r1, r9				@ cpu
+	bl	vlock_trylock			@ implies DMB
+
+	cmp	r0, #0				@ failed to get the lock?
+	bne	mcpm_setup_wait		@ wait for cluster setup if so
+
 	ldrb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
 	cmp	r0, #CLUSTER_UP			@ cluster already up?
 	bne	mcpm_setup			@ if not, set up the cluster
 
-	@ Otherwise, skip setup:
+	@ Otherwise, release the first man lock and skip setup:
+	mov	r0, r11
+	bl	vlock_unlock
 	b	mcpm_setup_complete
 
 mcpm_setup:
@@ -142,6 +154,19 @@ mcpm_setup_leave:
 	dsb
 	sev
 
+	mov	r0, r11
+	bl	vlock_unlock	@ implies DMB
+	b	mcpm_setup_complete
+
+	@ In the contended case, non-first men wait here for cluster setup
+	@ to complete:
+mcpm_setup_wait:
+	ldrb	r0, [r8, #MCPM_SYNC_CLUSTER_CLUSTER]
+	cmp	r0, #CLUSTER_UP
+	wfene
+	bne	mcpm_setup_wait
+	dmb
+
 mcpm_setup_complete:
 	@ If a platform-specific CPU setup hook is needed, it is
 	@ called from here.
@@ -173,11 +198,17 @@ mcpm_entry_gated:
 3:	.word	mcpm_entry_vectors - .
 	.word	mcpm_power_up_setup_phys - 3b
 	.word	mcpm_sync - 3b
+	.word	first_man_locks - 3b
 
 ENDPROC(mcpm_entry_point)
 
 	.bss
-	.align	5
+
+	.align	CACHE_WRITEBACK_ORDER
+	.type	first_man_locks, #object
+first_man_locks:
+	.space	VLOCK_SIZE * MAX_NR_CLUSTERS
+	.align	CACHE_WRITEBACK_ORDER
 
 	.type	mcpm_entry_vectors, #object
 ENTRY(mcpm_entry_vectors)

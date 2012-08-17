@@ -11,4 +11,4 @@ obj-$(CONFIG_SHARP_PARAM)	+= sharpsl_param.o
 obj-$(CONFIG_SHARP_SCOOP)	+= scoop.o
 obj-$(CONFIG_PCI_HOST_ITE8152)  += it8152.o
 obj-$(CONFIG_ARM_TIMER_SP804)	+= timer-sp.o
-obj-$(CONFIG_MCPM)		+= mcpm_head.o mcpm_entry.o
+obj-$(CONFIG_MCPM)		+= mcpm_head.o mcpm_entry.o vlock.o
