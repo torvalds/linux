@@ -8,7 +8,7 @@
  * the Free Software Foundation.
  */
 #ifndef _IIO_INKERN_CONSUMER_H_
-#define _IIO_INKERN_CONSUMER_H
+#define _IIO_INKERN_CONSUMER_H_
 #include <linux/iio/types.h>
 
 struct iio_dev;
