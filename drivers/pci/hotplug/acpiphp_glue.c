@@ -920,8 +920,7 @@ static int disable_device(struct acpiphp_slot *slot)
 	 * here.
 	 */
 	while ((pdev = dev_in_slot(slot))) {
-		pci_stop_bus_device(pdev);
-		__pci_remove_bus_device(pdev);
+		pci_stop_and_remove_bus_device(pdev);
 		pci_dev_put(pdev);
 	}
 
