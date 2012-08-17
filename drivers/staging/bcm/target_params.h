@@ -32,7 +32,7 @@ typedef struct _TARGET_PARAMS
       B_UINT32 m_u32PowerSavingModesEnable; //bit 1: 1 Idlemode enable; bit2: 1 Sleepmode Enable
 	  /* PowerSaving Mode Options:
 	     bit 0 = 1: CPE mode - to keep pcmcia if alive;
-	     bit 1 = 1: CINR reporing in Idlemode Msg
+	     bit 1 = 1: CINR reporting in Idlemode Msg
 	     bit 2 = 1: Default PSC Enable in sleepmode*/
       B_UINT32 m_u32PowerSavingModeOptions;
 

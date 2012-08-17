@@ -3932,7 +3932,7 @@ int validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, PFLASH2X_READWRIT
 				BcmGetSectionValStartOffset(Adapter, ISO_IMAGE2_PART3);
 		}
 
-		/* since this uiSectEndoffset is the size of iso Image. hence for calculating the vitual endoffset
+		/* since this uiSectEndoffset is the size of iso Image. hence for calculating the virtual endoffset
 		 * it should be added in startoffset. so that check done in last of this function can be valued.
 		 */
 		uiSectEndOffset = uiSectStartOffset + uiSectEndOffset;

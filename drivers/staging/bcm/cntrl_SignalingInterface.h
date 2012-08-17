@@ -223,7 +223,7 @@ typedef struct _stServiceFlowParamSI{
 	/**  8bit Indicates whether or not MBS service is requested for this Serivce Flow*/
 	B_UINT8							u8MBSService;
 
-    /**  8bit QOS Parameter Set specifies proper application of QoS paramters to Provisioned, Admitted and Active sets*/
+    /**  8bit QOS Parameter Set specifies proper application of QoS parameters to Provisioned, Admitted and Active sets*/
     B_UINT8                         u8QosParamSet;
 
    /**  8bit Traffic Priority Of the Service Flow */
