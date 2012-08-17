@@ -137,6 +137,7 @@ struct asus_oled_dev {
 	size_t			buf_size;
 	char			*buf;
 	uint8_t			enabled;
+	uint8_t			enabled_post_resume;
 	struct device		*dev;
 };
 
@@ -765,11 +766,45 @@ static void asus_oled_disconnect(struct usb_interface *interface)
 	dev_info(&interface->dev, "Disconnected Asus OLED device\n");
 }
 
+#ifdef CONFIG_PM
+static int asus_oled_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct asus_oled_dev *odev;
+
+	odev = usb_get_intfdata(intf);
+	if (!odev)
+		return -ENODEV;
+
+	odev->enabled_post_resume = odev->enabled;
+	enable_oled(odev, 0);
+
+	return 0;
+}
+
+static int asus_oled_resume(struct usb_interface *intf)
+{
+	struct asus_oled_dev *odev;
+
+	odev = usb_get_intfdata(intf);
+	if (!odev)
+		return -ENODEV;
+
+	enable_oled(odev, odev->enabled_post_resume);
+
+	return 0;
+}
+#else
+#define asus_oled_suspend NULL
+#define asus_oled_resume NULL
+#endif
+
 static struct usb_driver oled_driver = {
 	.name =		ASUS_OLED_NAME,
 	.probe =	asus_oled_probe,
 	.disconnect =	asus_oled_disconnect,
 	.id_table =	id_table,
+	.suspend =	asus_oled_suspend,
+	.resume =	asus_oled_resume,
 };
 
 static CLASS_ATTR_STRING(version, S_IRUGO,
