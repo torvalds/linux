@@ -21,7 +21,7 @@ config NET_TEAM_MODE_BROADCAST
 	---help---
 	  Basic mode where packets are transmitted always by all suitable ports.
 
-	  All added ports are setup to have team's mac address.
+	  All added ports are setup to have team's device address.
 
 	  To compile this team mode as a module, choose M here: the module
 	  will be called team_mode_broadcast.
@@ -33,7 +33,7 @@ config NET_TEAM_MODE_ROUNDROBIN
 	  Basic mode where port used for transmitting packets is selected in
 	  round-robin fashion using packet counter.
 
-	  All added ports are setup to have team's mac address.
+	  All added ports are setup to have team's device address.
 
 	  To compile this team mode as a module, choose M here: the module
 	  will be called team_mode_roundrobin.

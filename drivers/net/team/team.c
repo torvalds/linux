@@ -54,29 +54,29 @@ static struct team_port *team_port_get_rtnl(const struct net_device *dev)
 }
 
 /*
- * Since the ability to change mac address for open port device is tested in
+ * Since the ability to change device address for open port device is tested in
  * team_port_add, this function can be called without control of return value
  */
-static int __set_port_mac(struct net_device *port_dev,
-			  const unsigned char *dev_addr)
+static int __set_port_dev_addr(struct net_device *port_dev,
+			       const unsigned char *dev_addr)
 {
 	struct sockaddr addr;
 
-	memcpy(addr.sa_data, dev_addr, ETH_ALEN);
-	addr.sa_family = ARPHRD_ETHER;
+	memcpy(addr.sa_data, dev_addr, port_dev->addr_len);
+	addr.sa_family = port_dev->type;
 	return dev_set_mac_address(port_dev, &addr);
 }
 
-static int team_port_set_orig_mac(struct team_port *port)
+static int team_port_set_orig_dev_addr(struct team_port *port)
 {
-	return __set_port_mac(port->dev, port->orig.dev_addr);
+	return __set_port_dev_addr(port->dev, port->orig.dev_addr);
 }
 
-int team_port_set_team_mac(struct team_port *port)
+int team_port_set_team_dev_addr(struct team_port *port)
 {
-	return __set_port_mac(port->dev, port->team->dev->dev_addr);
+	return __set_port_dev_addr(port->dev, port->team->dev->dev_addr);
 }
-EXPORT_SYMBOL(team_port_set_team_mac);
+EXPORT_SYMBOL(team_port_set_team_dev_addr);
 
 static void team_refresh_port_linkup(struct team_port *port)
 {
@@ -965,6 +965,8 @@ static struct netpoll_info *team_netpoll_info(struct team *team)
 #endif
 
 static void __team_port_change_check(struct team_port *port, bool linkup);
+static int team_dev_type_check_change(struct net_device *dev,
+				      struct net_device *port_dev);
 
 static int team_port_add(struct team *team, struct net_device *port_dev)
 {
@@ -973,9 +975,8 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	char *portname = port_dev->name;
 	int err;
 
-	if (port_dev->flags & IFF_LOOPBACK ||
-	    port_dev->type != ARPHRD_ETHER) {
-		netdev_err(dev, "Device %s is of an unsupported type\n",
+	if (port_dev->flags & IFF_LOOPBACK) {
+		netdev_err(dev, "Device %s is loopback device. Loopback devices can't be added as a team port\n",
 			   portname);
 		return -EINVAL;
 	}
@@ -985,6 +986,10 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 				"of a team device\n", portname);
 		return -EBUSY;
 	}
+
+	err = team_dev_type_check_change(dev, port_dev);
+	if (err)
+		return err;
 
 	if (port_dev->flags & IFF_UP) {
 		netdev_err(dev, "Device %s is up. Set it down before adding it as a team port\n",
@@ -1008,7 +1013,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_set_mtu;
 	}
 
-	memcpy(port->orig.dev_addr, port_dev->dev_addr, ETH_ALEN);
+	memcpy(port->orig.dev_addr, port_dev->dev_addr, port_dev->addr_len);
 
 	err = team_port_enter(team, port);
 	if (err) {
@@ -1089,7 +1094,7 @@ err_vids_add:
 
 err_dev_open:
 	team_port_leave(team, port);
-	team_port_set_orig_mac(port);
+	team_port_set_orig_dev_addr(port);
 
 err_port_enter:
 	dev_set_mtu(port_dev, port->orig.mtu);
@@ -1126,7 +1131,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	vlan_vids_del_by_dev(port_dev, dev);
 	dev_close(port_dev);
 	team_port_leave(team, port);
-	team_port_set_orig_mac(port);
+	team_port_set_orig_dev_addr(port);
 	dev_set_mtu(port_dev, port->orig.mtu);
 	synchronize_rcu();
 	kfree(port);
@@ -1477,17 +1482,18 @@ static void team_set_rx_mode(struct net_device *dev)
 
 static int team_set_mac_address(struct net_device *dev, void *p)
 {
+	struct sockaddr *addr = p;
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
-	int err;
 
-	err = eth_mac_addr(dev, p);
-	if (err)
-		return err;
+	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
-		if (team->ops.port_change_mac)
-			team->ops.port_change_mac(team, port);
+		if (team->ops.port_change_dev_addr)
+			team->ops.port_change_dev_addr(team, port);
 	rcu_read_unlock();
 	return 0;
 }
@@ -1717,6 +1723,45 @@ static const struct net_device_ops team_netdev_ops = {
 /***********************
  * rt netlink interface
  ***********************/
+
+static void team_setup_by_port(struct net_device *dev,
+			       struct net_device *port_dev)
+{
+	dev->header_ops	= port_dev->header_ops;
+	dev->type = port_dev->type;
+	dev->hard_header_len = port_dev->hard_header_len;
+	dev->addr_len = port_dev->addr_len;
+	dev->mtu = port_dev->mtu;
+	memcpy(dev->broadcast, port_dev->broadcast, port_dev->addr_len);
+	memcpy(dev->dev_addr, port_dev->dev_addr, port_dev->addr_len);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
+}
+
+static int team_dev_type_check_change(struct net_device *dev,
+				      struct net_device *port_dev)
+{
+	struct team *team = netdev_priv(dev);
+	char *portname = port_dev->name;
+	int err;
+
+	if (dev->type == port_dev->type)
+		return 0;
+	if (!list_empty(&team->port_list)) {
+		netdev_err(dev, "Device %s is of different type\n", portname);
+		return -EBUSY;
+	}
+	err = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE, dev);
+	err = notifier_to_errno(err);
+	if (err) {
+		netdev_err(dev, "Refused to change device type\n");
+		return err;
+	}
+	dev_uc_flush(dev);
+	dev_mc_flush(dev);
+	team_setup_by_port(dev, port_dev);
+	call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+	return 0;
+}
 
 static void team_setup(struct net_device *dev)
 {
