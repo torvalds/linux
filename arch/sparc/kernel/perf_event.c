@@ -25,7 +25,6 @@
 #include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
-#include <asm/perfctr.h>
 #include <asm/cacheflush.h>
 
 #include "kernel.h"
@@ -564,7 +563,7 @@ static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_
 	val |= hwc->config;
 	cpuc->pcr = val;
 
-	pcr_ops->write(0, cpuc->pcr);
+	pcr_ops->write_pcr(0, cpuc->pcr);
 }
 
 static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
@@ -578,14 +577,14 @@ static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw
 	val |= nop;
 	cpuc->pcr = val;
 
-	pcr_ops->write(0, cpuc->pcr);
+	pcr_ops->write_pcr(0, cpuc->pcr);
 }
 
 static u32 read_pmc(int idx)
 {
 	u64 val;
 
-	read_pic(val);
+	val = pcr_ops->read_pic(0);
 	if (idx == PIC_UPPER_INDEX)
 		val >>= 32;
 
@@ -603,10 +602,10 @@ static void write_pmc(int idx, u64 val)
 	mask = ((u64) 0xffffffff) << shift;
 	val <<= shift;
 
-	read_pic(pic);
+	pic = pcr_ops->read_pic(0);
 	pic &= ~mask;
 	pic |= val;
-	write_pic(pic);
+	pcr_ops->write_pic(0, pic);
 }
 
 static u64 sparc_perf_event_update(struct perf_event *event,
@@ -736,7 +735,7 @@ static void sparc_pmu_enable(struct pmu *pmu)
 		cpuc->pcr = pcr | cpuc->event[0]->hw.config_base;
 	}
 
-	pcr_ops->write(0, cpuc->pcr);
+	pcr_ops->write_pcr(0, cpuc->pcr);
 }
 
 static void sparc_pmu_disable(struct pmu *pmu)
@@ -755,7 +754,7 @@ static void sparc_pmu_disable(struct pmu *pmu)
 		 sparc_pmu->hv_bit | sparc_pmu->irq_bit);
 	cpuc->pcr = val;
 
-	pcr_ops->write(0, cpuc->pcr);
+	pcr_ops->write_pcr(0, cpuc->pcr);
 }
 
 static int active_event_index(struct cpu_hw_events *cpuc,
@@ -856,7 +855,7 @@ static void perf_stop_nmi_watchdog(void *unused)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	stop_nmi_watchdog(NULL);
-	cpuc->pcr = pcr_ops->read(0);
+	cpuc->pcr = pcr_ops->read_pcr(0);
 }
 
 void perf_event_grab_pmc(void)
@@ -1264,8 +1263,8 @@ void perf_event_print_debug(void)
 
 	cpu = smp_processor_id();
 
-	pcr = pcr_ops->read(0);
-	read_pic(pic);
+	pcr = pcr_ops->read_pcr(0);
+	pic = pcr_ops->read_pic(0);
 
 	pr_info("\n");
 	pr_info("CPU#%d: PCR[%016llx] PIC[%016llx]\n",
@@ -1306,7 +1305,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 	 * overflow so we don't lose any events.
 	 */
 	if (sparc_pmu->irq_bit)
-		pcr_ops->write(0, cpuc->pcr);
+		pcr_ops->write_pcr(0, cpuc->pcr);
 
 	for (i = 0; i < cpuc->n_events; i++) {
 		struct perf_event *event = cpuc->event[i];

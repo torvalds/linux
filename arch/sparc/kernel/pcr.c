@@ -14,7 +14,6 @@
 #include <asm/pcr.h>
 #include <asm/nmi.h>
 #include <asm/spitfire.h>
-#include <asm/perfctr.h>
 
 /* This code is shared between various users of the performance
  * counters.  Users will be oprofile, pseudo-NMI watchdog, and the
@@ -65,19 +64,45 @@ static u64 direct_pcr_read(unsigned long reg_num)
 	u64 val;
 
 	WARN_ON_ONCE(reg_num != 0);
-	read_pcr(val);
+	__asm__ __volatile__("rd %%pcr, %0" : "=r" (val));
 	return val;
 }
 
 static void direct_pcr_write(unsigned long reg_num, u64 val)
 {
 	WARN_ON_ONCE(reg_num != 0);
-	write_pcr(val);
+	__asm__ __volatile__("wr %0, 0x0, %%pcr" : : "r" (val));
+}
+
+static u64 direct_pic_read(unsigned long reg_num)
+{
+	u64 val;
+
+	WARN_ON_ONCE(reg_num != 0);
+	__asm__ __volatile__("rd %%pic, %0" : "=r" (val));
+	return val;
+}
+
+static void direct_pic_write(unsigned long reg_num, u64 val)
+{
+	WARN_ON_ONCE(reg_num != 0);
+
+	/* Blackbird errata workaround.  See commentary in
+	 * arch/sparc64/kernel/smp.c:smp_percpu_timer_interrupt()
+	 * for more information.
+	 */
+	__asm__ __volatile__("ba,pt	%%xcc, 99f\n\t"
+			     " nop\n\t"
+			     ".align	64\n"
+			  "99:wr	%0, 0x0, %%pic\n\t"
+			     "rd	%%pic, %%g0" : : "r" (val));
 }
 
 static const struct pcr_ops direct_pcr_ops = {
-	.read	= direct_pcr_read,
-	.write	= direct_pcr_write,
+	.read_pcr	= direct_pcr_read,
+	.write_pcr	= direct_pcr_write,
+	.read_pic	= direct_pic_read,
+	.write_pic	= direct_pic_write,
 };
 
 static void n2_pcr_write(unsigned long reg_num, u64 val)
@@ -88,14 +113,16 @@ static void n2_pcr_write(unsigned long reg_num, u64 val)
 	if (val & PCR_N2_HTRACE) {
 		ret = sun4v_niagara2_setperf(HV_N2_PERF_SPARC_CTL, val);
 		if (ret != HV_EOK)
-			write_pcr(val);
+			direct_pcr_write(reg_num, val);
 	} else
-		write_pcr(val);
+		direct_pcr_write(reg_num, val);
 }
 
 static const struct pcr_ops n2_pcr_ops = {
-	.read	= direct_pcr_read,
-	.write	= n2_pcr_write,
+	.read_pcr	= direct_pcr_read,
+	.write_pcr	= n2_pcr_write,
+	.read_pic	= direct_pic_read,
+	.write_pic	= direct_pic_write,
 };
 
 static unsigned long perf_hsvc_group;
