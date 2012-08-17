@@ -213,54 +213,30 @@ static int cb_pcimdda_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-static int cb_pcimdda_probe(struct comedi_device *dev,
-			    const struct comedi_devconfig *it)
+static struct pci_dev *cb_pcimdda_probe(struct comedi_device *dev,
+					struct comedi_devconfig *it)
 {
-	const struct cb_pcimdda_board *thisboard;
-	struct cb_pcimdda_private *devpriv = dev->private;
 	struct pci_dev *pcidev = NULL;
 	int index;
-	unsigned long registers;
 
 	for_each_pci_dev(pcidev) {
-		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
-		/*  loop through cards supported by this driver */
 		for (index = 0; index < ARRAY_SIZE(cb_pcimdda_boards); index++) {
 			if (cb_pcimdda_boards[index].device_id != pcidev->device)
 				continue;
-			/*  was a particular bus/slot requested? */
 			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
 				if (pcidev->bus->number != it->options[0] ||
 				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
 					continue;
 				}
 			}
-			/* found ! */
 
-			devpriv->pci_dev = pcidev;
 			dev->board_ptr = cb_pcimdda_boards + index;
-			thisboard = comedi_board(dev);
-			if (comedi_pci_enable(pcidev, thisboard->name)) {
-				printk
-				    ("cb_pcimdda: Failed to enable PCI device and request regions\n");
-				return -EIO;
-			}
-			registers =
-			    pci_resource_start(devpriv->pci_dev,
-					       thisboard->regs_badrindex);
-			devpriv->registers = registers;
-			devpriv->dio_registers
-			    = devpriv->registers + thisboard->dio_offset;
-			return 0;
+			return pcidev;
 		}
 	}
-
-	printk("cb_pcimdda: No supported ComputerBoards/MeasurementComputing "
-	       "card found at the requested position\n");
-	return -ENODEV;
+	return NULL;
 }
 
 static int cb_pcimdda_attach(struct comedi_device *dev,
@@ -268,6 +244,7 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 {
 	const struct cb_pcimdda_board *thisboard;
 	struct cb_pcimdda_private *devpriv;
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int err;
 
@@ -276,24 +253,19 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 		return err;
 	devpriv = dev->private;
 
-/*
- * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, dev->board_ptr
- * should already be initialized.
- */
-	err = cb_pcimdda_probe(dev, it);
+	pcidev = cb_pcimdda_probe(dev, it);
+	if (!pcidev)
+		return -EIO;
+	devpriv->pci_dev = pcidev;
+	thisboard = comedi_board(dev);
+	dev->board_name = thisboard->name;
+
+	err = comedi_pci_enable(pcidev, dev->board_name);
 	if (err)
 		return err;
-	thisboard = comedi_board(dev);
-
-/* Output some info */
-	printk("comedi%d: %s: ", dev->minor, thisboard->name);
-
-/*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
- */
-	dev->board_name = thisboard->name;
+	devpriv->registers = pci_resource_start(devpriv->pci_dev,
+						thisboard->regs_badrindex);
+	devpriv->dio_registers = devpriv->registers + thisboard->dio_offset;
 
 	err = comedi_alloc_subdevices(dev, 2);
 	if (err)
@@ -336,7 +308,7 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk("attached\n");
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
 
 	return 1;
 }
