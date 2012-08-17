@@ -108,15 +108,6 @@ static int contec_attach_pci(struct comedi_device *dev,
 	return 0;
 }
 
-static int contec_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it)
-{
-	dev_warn(dev->class_dev,
-		"This driver does not support attach using comedi_config\n");
-
-	return -ENOSYS;
-}
-
 static void contec_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -130,7 +121,6 @@ static void contec_detach(struct comedi_device *dev)
 static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
-	.attach		= contec_attach,
 	.attach_pci	= contec_attach_pci,
 	.detach		= contec_detach,
 };
