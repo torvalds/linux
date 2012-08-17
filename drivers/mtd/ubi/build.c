@@ -565,6 +565,34 @@ void ubi_free_internal_volumes(struct ubi_device *ubi)
 	}
 }
 
+static int get_bad_peb_limit(const struct ubi_device *ubi, int max_beb_per1024)
+{
+	int limit, device_pebs;
+	uint64_t device_size;
+
+	if (!max_beb_per1024)
+		return 0;
+
+	/*
+	 * Here we are using size of the entire flash chip and
+	 * not just the MTD partition size because the maximum
+	 * number of bad eraseblocks is a percentage of the
+	 * whole device and bad eraseblocks are not fairly
+	 * distributed over the flash chip. So the worst case
+	 * is that all the bad eraseblocks of the chip are in
+	 * the MTD partition we are attaching (ubi->mtd).
+	 */
+	device_size = mtd_get_device_size(ubi->mtd);
+	device_pebs = mtd_div_by_eb(device_size, ubi->mtd);
+	limit = mult_frac(device_pebs, max_beb_per1024, 1024);
+
+	/* Round it up */
+	if (mult_frac(limit, 1024, max_beb_per1024) < device_pebs)
+		limit += 1;
+
+	return limit;
+}
+
 /**
  * io_init - initialize I/O sub-system for a given UBI device.
  * @ubi: UBI device description object
@@ -582,6 +610,8 @@ void ubi_free_internal_volumes(struct ubi_device *ubi)
  */
 static int io_init(struct ubi_device *ubi)
 {
+	const int max_beb_per1024 = CONFIG_MTD_UBI_BEB_LIMIT;
+
 	if (ubi->mtd->numeraseregions != 0) {
 		/*
 		 * Some flashes have several erase regions. Different regions
@@ -610,29 +640,7 @@ static int io_init(struct ubi_device *ubi)
 
 	if (mtd_can_have_bb(ubi->mtd)) {
 		ubi->bad_allowed = 1;
-		if (CONFIG_MTD_UBI_BEB_LIMIT > 0) {
-			int per1024 = CONFIG_MTD_UBI_BEB_LIMIT;
-			int limit, device_pebs;
-			uint64_t device_size;
-
-			/*
-			 * Here we are using size of the entire flash chip and
-			 * not just the MTD partition size because the maximum
-			 * number of bad eraseblocks is a percentage of the
-			 * whole device and bad eraseblocks are not fairly
-			 * distributed over the flash chip. So the worst case
-			 * is that all the bad eraseblocks of the chip are in
-			 * the MTD partition we are attaching (ubi->mtd).
-			 */
-			device_size = mtd_get_device_size(ubi->mtd);
-			device_pebs = mtd_div_by_eb(device_size, ubi->mtd);
-			limit = mult_frac(device_pebs, per1024, 1024);
-
-			/* Round it up */
-			if (mult_frac(limit, 1024, per1024) < device_pebs)
-				limit += 1;
-			ubi->bad_peb_limit = limit;
-		}
+		ubi->bad_peb_limit = get_bad_peb_limit(ubi, max_beb_per1024);
 	}
 
 	if (ubi->mtd->type == MTD_NORFLASH) {
