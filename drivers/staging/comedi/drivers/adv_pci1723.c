@@ -301,8 +301,6 @@ static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
 			continue;
-		if (pci_is_enabled(pcidev))
-			continue;
 		return pcidev;
 	}
 	dev_err(dev->class_dev,
