@@ -698,6 +698,9 @@
 #define RLC_UCODE_ADDR                                    0xC32C
 #define RLC_UCODE_DATA                                    0xC330
 
+#define RLC_GPU_CLOCK_COUNT_LSB                           0xC338
+#define RLC_GPU_CLOCK_COUNT_MSB                           0xC33C
+#define RLC_CAPTURE_GPU_CLOCK_COUNT                       0xC340
 #define RLC_MC_CNTL                                       0xC344
 #define RLC_UCODE_CNTL                                    0xC348
 

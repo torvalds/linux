@@ -451,7 +451,6 @@ int i915_switch_context(struct intel_ring_buffer *ring,
 	struct drm_i915_file_private *file_priv = NULL;
 	struct i915_hw_context *to;
 	struct drm_i915_gem_object *from_obj = ring->last_context_obj;
-	int ret;
 
 	if (dev_priv->hw_contexts_disabled)
 		return 0;

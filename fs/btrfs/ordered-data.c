@@ -596,7 +596,7 @@ void btrfs_start_ordered_extent(struct inode *inode,
 	/*
 	 * pages in the range can be dirty, clean or writeback.  We
 	 * start IO on any dirty ones so the wait doesn't stall waiting
-	 * for pdflush to find them
+	 * for the flusher thread to find them
 	 */
 	if (!test_bit(BTRFS_ORDERED_DIRECT, &entry->flags))
 		filemap_fdatawrite_range(inode->i_mapping, start, end);

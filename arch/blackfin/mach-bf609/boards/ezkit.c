@@ -818,6 +818,21 @@ static struct platform_device bfin_i2s = {
 };
 #endif
 
+#if defined(CONFIG_SND_BF5XX_SOC_AD1836) \
+	        || defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+static const char * const ad1836_link[] = {
+	"bfin-tdm.0",
+	"spi0.76",
+};
+static struct platform_device bfin_ad1836_machine = {
+	.name = "bfin-snd-ad1836",
+	.id = -1,
+	.dev = {
+		.platform_data = (void *)ad1836_link,
+	},
+};
+#endif
+
 #if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61) || \
 	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61_MODULE)
 static struct platform_device adau1761_device = {
@@ -1556,6 +1571,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_SND_BF6XX_SOC_I2S) || \
 	defined(CONFIG_SND_BF6XX_SOC_I2S_MODULE)
 	&bfin_i2s,
+#endif
+#if defined(CONFIG_SND_BF5XX_SOC_AD1836) || \
+	defined(CONFIG_SND_BF5XX_SOC_AD1836_MODULE)
+	&bfin_ad1836_machine,
 #endif
 #if defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61) || \
 	defined(CONFIG_SND_SOC_BFIN_EVAL_ADAU1X61_MODULE)

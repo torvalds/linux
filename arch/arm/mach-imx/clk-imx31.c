@@ -130,7 +130,7 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[nfc], NULL, "mxc_nand.0");
 	clk_register_clkdev(clk[ipu_gate], NULL, "ipu-core");
 	clk_register_clkdev(clk[ipu_gate], NULL, "mx3_sdc_fb");
-	clk_register_clkdev(clk[kpp_gate], "kpp", NULL);
+	clk_register_clkdev(clk[kpp_gate], NULL, "imx-keypad");
 	clk_register_clkdev(clk[usb_div_post], "per", "mxc-ehci.0");
 	clk_register_clkdev(clk[usb_gate], "ahb", "mxc-ehci.0");
 	clk_register_clkdev(clk[ipg], "ipg", "mxc-ehci.0");

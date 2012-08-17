@@ -1121,10 +1121,8 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	upmx->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENOENT;
-		goto out_no_resource;
-	}
+	if (!res)
+		return -ENOENT;
 	upmx->phybase = res->start;
 	upmx->physize = resource_size(res);
 
@@ -1165,8 +1163,6 @@ out_no_remap:
 	platform_set_drvdata(pdev, NULL);
 out_no_memregion:
 	release_mem_region(upmx->phybase, upmx->physize);
-out_no_resource:
-	devm_kfree(&pdev->dev, upmx);
 	return ret;
 }
 

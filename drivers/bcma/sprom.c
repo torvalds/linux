@@ -507,7 +507,9 @@ static bool bcma_sprom_onchip_available(struct bcma_bus *bus)
 		/* for these chips OTP is always available */
 		present = true;
 		break;
-
+	case BCMA_CHIP_ID_BCM43228:
+		present = chip_status & BCMA_CC_CHIPST_43228_OTP_PRESENT;
+		break;
 	default:
 		present = false;
 		break;
