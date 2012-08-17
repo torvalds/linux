@@ -564,7 +564,7 @@ static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_
 	val |= hwc->config;
 	cpuc->pcr = val;
 
-	pcr_ops->write(cpuc->pcr);
+	pcr_ops->write(0, cpuc->pcr);
 }
 
 static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
@@ -578,7 +578,7 @@ static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw
 	val |= nop;
 	cpuc->pcr = val;
 
-	pcr_ops->write(cpuc->pcr);
+	pcr_ops->write(0, cpuc->pcr);
 }
 
 static u32 read_pmc(int idx)
@@ -736,7 +736,7 @@ static void sparc_pmu_enable(struct pmu *pmu)
 		cpuc->pcr = pcr | cpuc->event[0]->hw.config_base;
 	}
 
-	pcr_ops->write(cpuc->pcr);
+	pcr_ops->write(0, cpuc->pcr);
 }
 
 static void sparc_pmu_disable(struct pmu *pmu)
@@ -755,7 +755,7 @@ static void sparc_pmu_disable(struct pmu *pmu)
 		 sparc_pmu->hv_bit | sparc_pmu->irq_bit);
 	cpuc->pcr = val;
 
-	pcr_ops->write(cpuc->pcr);
+	pcr_ops->write(0, cpuc->pcr);
 }
 
 static int active_event_index(struct cpu_hw_events *cpuc,
@@ -856,7 +856,7 @@ static void perf_stop_nmi_watchdog(void *unused)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	stop_nmi_watchdog(NULL);
-	cpuc->pcr = pcr_ops->read();
+	cpuc->pcr = pcr_ops->read(0);
 }
 
 void perf_event_grab_pmc(void)
@@ -1264,7 +1264,7 @@ void perf_event_print_debug(void)
 
 	cpu = smp_processor_id();
 
-	pcr = pcr_ops->read();
+	pcr = pcr_ops->read(0);
 	read_pic(pic);
 
 	pr_info("\n");
@@ -1306,7 +1306,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 	 * overflow so we don't lose any events.
 	 */
 	if (sparc_pmu->irq_bit)
-		pcr_ops->write(cpuc->pcr);
+		pcr_ops->write(0, cpuc->pcr);
 
 	for (i = 0; i < cpuc->n_events; i++) {
 		struct perf_event *event = cpuc->event[i];

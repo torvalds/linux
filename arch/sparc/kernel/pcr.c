@@ -60,16 +60,18 @@ void arch_irq_work_raise(void)
 const struct pcr_ops *pcr_ops;
 EXPORT_SYMBOL_GPL(pcr_ops);
 
-static u64 direct_pcr_read(void)
+static u64 direct_pcr_read(unsigned long reg_num)
 {
 	u64 val;
 
+	WARN_ON_ONCE(reg_num != 0);
 	read_pcr(val);
 	return val;
 }
 
-static void direct_pcr_write(u64 val)
+static void direct_pcr_write(unsigned long reg_num, u64 val)
 {
+	WARN_ON_ONCE(reg_num != 0);
 	write_pcr(val);
 }
 
@@ -78,10 +80,11 @@ static const struct pcr_ops direct_pcr_ops = {
 	.write	= direct_pcr_write,
 };
 
-static void n2_pcr_write(u64 val)
+static void n2_pcr_write(unsigned long reg_num, u64 val)
 {
 	unsigned long ret;
 
+	WARN_ON_ONCE(reg_num != 0);
 	if (val & PCR_N2_HTRACE) {
 		ret = sun4v_niagara2_setperf(HV_N2_PERF_SPARC_CTL, val);
 		if (ret != HV_EOK)

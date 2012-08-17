@@ -2,8 +2,8 @@
 #define __PCR_H
 
 struct pcr_ops {
-	u64 (*read)(void);
-	void (*write)(u64);
+	u64 (*read)(unsigned long);
+	void (*write)(unsigned long, u64);
 };
 extern const struct pcr_ops *pcr_ops;
 
