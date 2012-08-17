@@ -119,11 +119,6 @@ static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
 };
 
 /*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct cb_pcimdas_board *)dev->board_ptr)
-
-/*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
  * feel free to suggest moving the variable to the struct comedi_device
@@ -136,12 +131,6 @@ struct cb_pcimdas_private {
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct cb_pcimdas_private *)dev->private)
 
 static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
@@ -193,21 +182,23 @@ static struct pci_dev *cb_pcimdas_find_pci_dev(struct comedi_device *dev,
 static int cb_pcimdas_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
+	const struct cb_pcimdas_board *thisboard;
+	struct cb_pcimdas_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	unsigned long iobase_8255;
 	int ret;
 
-/*
- * Allocate the private structure area.
- */
-	if (alloc_private(dev, sizeof(struct cb_pcimdas_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	pcidev = cb_pcimdas_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	thisboard = comedi_board(dev);
 
 	/*  Warn about non-tested features */
 	switch (thisboard->device_id) {
@@ -299,6 +290,8 @@ static int cb_pcimdas_ai_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	const struct cb_pcimdas_board *thisboard = comedi_board(dev);
+	struct cb_pcimdas_private *devpriv = dev->private;
 	int n, i;
 	unsigned int d;
 	unsigned int busy;
@@ -368,6 +361,7 @@ static int cb_pcimdas_ao_winsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct cb_pcimdas_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
@@ -397,6 +391,7 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct cb_pcimdas_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
