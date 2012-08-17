@@ -533,7 +533,6 @@ static int __devexit mcfqspi_remove(struct platform_device *pdev)
 	iounmap(mcfqspi->iobase);
 	release_mem_region(res->start, resource_size(res));
 	spi_unregister_master(master);
-	spi_master_put(master);
 
 	return 0;
 }
