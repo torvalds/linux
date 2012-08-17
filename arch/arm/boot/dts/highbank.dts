@@ -132,6 +132,7 @@
 			reg = <0xffe0e000 0x1000>;
 			interrupts = <0 90 4>;
 			clocks = <&eclk>;
+			status = "disabled";
 		};
 
 		memory-controller@fff00000 {
@@ -156,6 +157,7 @@
 			interrupts = <0 14 4>;
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
+			status = "disabled";
 		};
 
 		gpiof: gpio@fff31000 {
@@ -166,6 +168,7 @@
 			interrupts = <0 15 4>;
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
+			status = "disabled";
 		};
 
 		gpiog: gpio@fff32000 {
@@ -176,6 +179,7 @@
 			interrupts = <0 16 4>;
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
+			status = "disabled";
 		};
 
 		gpioh: gpio@fff33000 {
@@ -186,6 +190,7 @@
 			interrupts = <0 17 4>;
 			clocks = <&pclk>;
 			clock-names = "apb_pclk";
+			status = "disabled";
 		};
 
 		timer {
