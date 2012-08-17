@@ -120,12 +120,13 @@ mempool_t *xfs_ioend_pool;
  * in the future, too.
  */
 enum {
-	Opt_barrier, Opt_nobarrier, Opt_err
+	Opt_barrier, Opt_nobarrier, Opt_inode64, Opt_err
 };
 
 static const match_table_t tokens = {
 	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
+	{Opt_inode64, "inode64"},
 	{Opt_err, NULL}
 };
 
@@ -1031,6 +1032,30 @@ xfs_restore_resvblks(struct xfs_mount *mp)
 	xfs_reserve_blocks(mp, &resblks, NULL);
 }
 
+STATIC void
+xfs_set_inode64(struct xfs_mount *mp)
+{
+	int i = 0;
+
+	for (i = 0; i < mp->m_sb.sb_agcount; i++) {
+		struct xfs_perag	*pag;
+
+		pag = xfs_perag_get(mp, i);
+		pag->pagi_inodeok = 1;
+		pag->pagf_metadata = 0;
+		xfs_perag_put(pag);
+	}
+
+	/* There is no need for lock protection on m_flags,
+	 * the rw_semaphore of the VFS superblock is locked
+	 * during mount/umount/remount operations, so this is
+	 * enough to avoid concurency on the m_flags field
+	 */
+	mp->m_flags &= ~(XFS_MOUNT_32BITINODES |
+			 XFS_MOUNT_SMALL_INUMS);
+	mp->m_maxagi = i;
+}
+
 STATIC int
 xfs_fs_remount(
 	struct super_block	*sb,
@@ -1055,6 +1080,9 @@ xfs_fs_remount(
 			break;
 		case Opt_nobarrier:
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
+			break;
+		case Opt_inode64:
+			xfs_set_inode64(mp);
 			break;
 		default:
 			/*
