@@ -660,6 +660,14 @@ config USB_SERIAL_ZIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called zio.
 
+config USB_SERIAL_ZTE
+	tristate "ZTE USB serial driver"
+	help
+	  Say Y here if you want to use a ZTE USB to serial device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zte.
+
 config USB_SERIAL_SSU100
 	tristate "USB Quatech SSU-100 Single Port Serial Driver"
 	help
