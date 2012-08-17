@@ -22,9 +22,9 @@ static void usb_urb_complete(struct urb *urb)
 	int i;
 	u8 *b;
 
-	dev_dbg(&stream->udev->dev, "%s: %s urb completed status=%d " \
-			"length=%d/%d pack_num=%d errors=%d\n", __func__,
-			ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
+	dev_dbg_ratelimited(&stream->udev->dev, "%s: %s urb completed " \
+			"status=%d length=%d/%d pack_num=%d errors=%d\n",
+			__func__, ptype == PIPE_ISOCHRONOUS ? "isoc" : "bulk",
 			urb->status, urb->actual_length,
 			urb->transfer_buffer_length,
 			urb->number_of_packets, urb->error_count);
@@ -38,7 +38,8 @@ static void usb_urb_complete(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:        /* error */
-		dev_dbg(&stream->udev->dev, "%s: urb completition failed=%d\n",
+		dev_dbg_ratelimited(&stream->udev->dev,
+				"%s: urb completition failed=%d\n",
 				__func__, urb->status);
 		break;
 	}
