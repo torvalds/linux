@@ -258,6 +258,54 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
+gen7_render_ring_flush(struct intel_ring_buffer *ring,
+		       u32 invalidate_domains, u32 flush_domains)
+{
+	u32 flags = 0;
+	struct pipe_control *pc = ring->private;
+	u32 scratch_addr = pc->gtt_offset + 128;
+	int ret;
+
+	/* Just flush everything.  Experiments have shown that reducing the
+	 * number of bits based on the write domains has little performance
+	 * impact.
+	 */
+	if (flush_domains) {
+		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
+		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
+		/*
+		 * Ensure that any following seqno writes only happen
+		 * when the render cache is indeed flushed.
+		 */
+		flags |= PIPE_CONTROL_CS_STALL;
+	}
+	if (invalidate_domains) {
+		flags |= PIPE_CONTROL_TLB_INVALIDATE;
+		flags |= PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_VF_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
+		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
+		/*
+		 * TLB invalidate requires a post-sync write.
+		 */
+		flags |= PIPE_CONTROL_QW_WRITE;
+	}
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4));
+	intel_ring_emit(ring, flags);
+	intel_ring_emit(ring, scratch_addr | PIPE_CONTROL_GLOBAL_GTT);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
 gen6_render_ring_flush__wa(struct intel_ring_buffer *ring,
 			   u32 invalidate_domains, u32 flush_domains)
 {
@@ -1385,7 +1433,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
-		ring->flush = gen6_render_ring_flush;
+		ring->flush = gen7_render_ring_flush;
 		if (INTEL_INFO(dev)->gen == 6)
 			ring->flush = gen6_render_ring_flush__wa;
 		ring->irq_get = gen6_ring_get_irq;
