@@ -249,7 +249,7 @@ static ssize_t bat_param_read(struct device *dev,struct device_attribute *attr, 
 #endif
 	return 0;
 }
-DEVICE_ATTR(batparam, 0777, bat_param_read,NULL);
+DEVICE_ATTR(batparam, 0664, bat_param_read,NULL);
 
 
 static ssize_t rkbatt_show_debug_attrs(struct device *dev,
