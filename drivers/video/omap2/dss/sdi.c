@@ -34,6 +34,8 @@ static struct {
 	struct regulator *vdds_sdi_reg;
 
 	struct dss_lcd_mgr_config mgr_config;
+	struct omap_video_timings timings;
+	int datapairs;
 } sdi;
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
@@ -51,7 +53,7 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_video_timings *t = &dssdev->panel.timings;
+	struct omap_video_timings *t = &sdi.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long pck;
@@ -77,8 +79,8 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_get_dispc;
 
 	/* 15.5.9.1.2 */
-	dssdev->panel.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	dssdev->panel.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	t->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	t->sync_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
 
 	r = dss_calc_clock_div(t->pixel_clock * 1000, &dss_cinfo, &dispc_cinfo);
 	if (r)
@@ -105,7 +107,8 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 
 	sdi_config_lcd_manager(dssdev);
 
-	dss_sdi_init(dssdev->phy.sdi.datapairs);
+	dss_sdi_init(sdi.datapairs);
+
 	r = dss_sdi_enable();
 	if (r)
 		goto err_sdi_enable;
@@ -145,6 +148,29 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 	omap_dss_stop_device(dssdev);
 }
 EXPORT_SYMBOL(omapdss_sdi_display_disable);
+
+void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	int r;
+
+	sdi.timings = *timings;
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+		omapdss_sdi_display_disable(dssdev);
+
+		r = omapdss_sdi_display_enable(dssdev);
+		if (r)
+			DSSERR("failed to set new timings\n");
+	}
+}
+EXPORT_SYMBOL(omapdss_sdi_set_timings);
+
+void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
+{
+	sdi.datapairs = datapairs;
+}
+EXPORT_SYMBOL(omapdss_sdi_set_datapairs);
 
 static int __init sdi_init_display(struct omap_dss_device *dssdev)
 {

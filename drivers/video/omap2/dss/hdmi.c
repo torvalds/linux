@@ -459,7 +459,6 @@ static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 static int hdmi_power_on(struct omap_dss_device *dssdev)
 {
 	int r;
-	const struct hdmi_config *timing;
 	struct omap_video_timings *p;
 	unsigned long phy;
 
@@ -469,22 +468,10 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	dss_mgr_disable(dssdev->manager);
 
-	p = &dssdev->panel.timings;
+	p = &hdmi.ip_data.cfg.timings;
 
-	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n",
-		dssdev->panel.timings.x_res,
-		dssdev->panel.timings.y_res);
+	DSSDBG("hdmi_power_on x_res= %d y_res = %d\n", p->x_res, p->y_res);
 
-	timing = hdmi_get_timings();
-	if (timing == NULL) {
-		/* HDMI code 4 corresponds to 640 * 480 VGA */
-		hdmi.ip_data.cfg.cm.code = 4;
-		/* DVI mode 1 corresponds to HDMI 0 to DVI */
-		hdmi.ip_data.cfg.cm.mode = HDMI_DVI;
-		hdmi.ip_data.cfg = vesa_timings[0];
-	} else {
-		hdmi.ip_data.cfg = *timing;
-	}
 	phy = p->pixel_clock;
 
 	hdmi_compute_pll(dssdev, phy, &hdmi.ip_data.pll_data);
@@ -521,7 +508,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	dispc_enable_gamma_table(0);
 
 	/* tv size */
-	dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
+	dss_mgr_set_timings(dssdev->manager, p);
 
 	r = hdmi.ip_data.ops->video_enable(&hdmi.ip_data);
 	if (r)
@@ -568,13 +555,20 @@ int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
 
 }
 
-void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
+void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
 {
 	struct hdmi_cm cm;
+	const struct hdmi_config *t;
 
-	cm = hdmi_get_code(&dssdev->panel.timings);
-	hdmi.ip_data.cfg.cm.code = cm.code;
-	hdmi.ip_data.cfg.cm.mode = cm.mode;
+	mutex_lock(&hdmi.lock);
+
+	cm = hdmi_get_code(timings);
+	hdmi.ip_data.cfg.cm = cm;
+
+	t = hdmi_get_timings();
+	if (t != NULL)
+		hdmi.ip_data.cfg = *t;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 		int r;
@@ -585,8 +579,10 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 		if (r)
 			DSSERR("failed to power on device\n");
 	} else {
-		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
+		dss_mgr_set_timings(dssdev->manager, &t->timings);
 	}
+
+	mutex_unlock(&hdmi.lock);
 }
 
 static void hdmi_dump_regs(struct seq_file *s)
@@ -930,6 +926,7 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
 	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
 	hdmi.ip_data.phy_offset = HDMI_PHY;
+
 	mutex_init(&hdmi.ip_data.lock);
 
 	hdmi_panel_init();

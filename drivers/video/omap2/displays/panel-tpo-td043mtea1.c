@@ -337,6 +337,9 @@ static int tpo_td043_enable_dss(struct omap_dss_device *dssdev)
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
+	omapdss_dpi_set_timings(dssdev, &dssdev->panel.timings);
+	omapdss_dpi_set_data_lines(dssdev, dssdev->phy.dpi.data_lines);
+
 	r = omapdss_dpi_display_enable(dssdev);
 	if (r)
 		goto err0;
@@ -480,7 +483,9 @@ static void tpo_td043_remove(struct omap_dss_device *dssdev)
 static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
-	dpi_set_timings(dssdev, timings);
+	omapdss_dpi_set_timings(dssdev, timings);
+
+	dssdev->panel.timings = *timings;
 }
 
 static int tpo_td043_check_timings(struct omap_dss_device *dssdev,

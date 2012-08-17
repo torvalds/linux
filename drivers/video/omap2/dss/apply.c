@@ -1302,7 +1302,7 @@ err:
 }
 
 static void dss_apply_mgr_timings(struct omap_overlay_manager *mgr,
-		struct omap_video_timings *timings)
+		const struct omap_video_timings *timings)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 
@@ -1311,7 +1311,7 @@ static void dss_apply_mgr_timings(struct omap_overlay_manager *mgr,
 }
 
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
-		struct omap_video_timings *timings)
+		const struct omap_video_timings *timings)
 {
 	unsigned long flags;
 

@@ -111,6 +111,11 @@ static struct {
 	struct omap_dss_device *dssdev[2];
 
 	struct semaphore bus_lock;
+
+	struct omap_video_timings timings;
+	int pixel_size;
+	int data_lines;
+	struct rfbi_timings intf_timings;
 } rfbi;
 
 static inline void rfbi_write_reg(const struct rfbi_reg idx, u32 val)
@@ -300,28 +305,20 @@ void omap_rfbi_write_pixels(const void __iomem *buf, int scr_width,
 }
 EXPORT_SYMBOL(omap_rfbi_write_pixels);
 
-static int rfbi_transfer_area(struct omap_dss_device *dssdev, u16 width,
-		u16 height, void (*callback)(void *data), void *data)
+static int rfbi_transfer_area(struct omap_dss_device *dssdev,
+		void (*callback)(void *data), void *data)
 {
 	u32 l;
 	int r;
-	struct omap_video_timings timings = {
-		.hsw		= 1,
-		.hfp		= 1,
-		.hbp		= 1,
-		.vsw		= 1,
-		.vfp		= 0,
-		.vbp		= 0,
-		.x_res		= width,
-		.y_res		= height,
-	};
+	u16 width = rfbi.timings.x_res;
+	u16 height = rfbi.timings.y_res;
 
 	/*BUG_ON(callback == 0);*/
 	BUG_ON(rfbi.framedone_callback != NULL);
 
 	DSSDBG("rfbi_transfer_area %dx%d\n", width, height);
 
-	dss_mgr_set_timings(dssdev->manager, &timings);
+	dss_mgr_set_timings(dssdev->manager, &rfbi.timings);
 
 	r = dss_mgr_enable(dssdev->manager);
 	if (r)
@@ -770,62 +767,45 @@ static int rfbi_configure(int rfbi_module, int bpp, int lines)
 	return 0;
 }
 
-int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
-		int data_lines)
+int omap_rfbi_configure(struct omap_dss_device *dssdev)
 {
-	return rfbi_configure(dssdev->phy.rfbi.channel, pixel_size, data_lines);
+	return rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
+			rfbi.data_lines);
 }
 EXPORT_SYMBOL(omap_rfbi_configure);
 
-int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
-		u16 *x, u16 *y, u16 *w, u16 *h)
+int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
+		void *data)
 {
-	u16 dw, dh;
-	struct omap_video_timings timings = {
-		.hsw		= 1,
-		.hfp		= 1,
-		.hbp		= 1,
-		.vsw		= 1,
-		.vfp		= 0,
-		.vbp		= 0,
-		.x_res		= *w,
-		.y_res		= *h,
-	};
-
-	dssdev->driver->get_resolution(dssdev, &dw, &dh);
-
-	if  (*x > dw || *y > dh)
-		return -EINVAL;
-
-	if (*x + *w > dw)
-		return -EINVAL;
-
-	if (*y + *h > dh)
-		return -EINVAL;
-
-	if (*w == 1)
-		return -EINVAL;
-
-	if (*w == 0 || *h == 0)
-		return -EINVAL;
-
-	dss_mgr_set_timings(dssdev->manager, &timings);
-
-	return 0;
-}
-EXPORT_SYMBOL(omap_rfbi_prepare_update);
-
-int omap_rfbi_update(struct omap_dss_device *dssdev,
-		u16 x, u16 y, u16 w, u16 h,
-		void (*callback)(void *), void *data)
-{
-	int r;
-
-	r = rfbi_transfer_area(dssdev, w, h, callback, data);
-
-	return r;
+	return rfbi_transfer_area(dssdev, callback, data);
 }
 EXPORT_SYMBOL(omap_rfbi_update);
+
+void omapdss_rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h)
+{
+	rfbi.timings.x_res = w;
+	rfbi.timings.y_res = h;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_size);
+
+void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev, int pixel_size)
+{
+	rfbi.pixel_size = pixel_size;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_pixel_size);
+
+void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
+{
+	rfbi.data_lines = data_lines;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_data_lines);
+
+void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
+		struct rfbi_timings *timings)
+{
+	rfbi.intf_timings = *timings;
+}
+EXPORT_SYMBOL(omapdss_rfbi_set_interface_timings);
 
 static void rfbi_dump_regs(struct seq_file *s)
 {
@@ -877,10 +857,31 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 	/* Do we need fifohandcheck for RFBI? */
 	mgr_config.fifohandcheck = false;
 
-	mgr_config.video_port_width = dssdev->ctrl.pixel_size;
+	mgr_config.video_port_width = rfbi.pixel_size;
 	mgr_config.lcden_sig_polarity = 0;
 
 	dss_mgr_set_lcd_config(dssdev->manager, &mgr_config);
+
+	/*
+	 * Set rfbi.timings with default values, the x_res and y_res fields
+	 * are expected to be already configured by the panel driver via
+	 * omapdss_rfbi_set_size()
+	 */
+	rfbi.timings.hsw = 1;
+	rfbi.timings.hfp = 1;
+	rfbi.timings.hbp = 1;
+	rfbi.timings.vsw = 1;
+	rfbi.timings.vfp = 0;
+	rfbi.timings.vbp = 0;
+
+	rfbi.timings.interlace = false;
+	rfbi.timings.hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	rfbi.timings.vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	rfbi.timings.data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
+	rfbi.timings.de_level = OMAPDSS_SIG_ACTIVE_HIGH;
+	rfbi.timings.sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+
+	dss_mgr_set_timings(dssdev->manager, &rfbi.timings);
 }
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
@@ -911,13 +912,10 @@ int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 
 	rfbi_config_lcd_manager(dssdev);
 
-	rfbi_configure(dssdev->phy.rfbi.channel,
-			       dssdev->ctrl.pixel_size,
-			       dssdev->phy.rfbi.data_lines);
+	rfbi_configure(dssdev->phy.rfbi.channel, rfbi.pixel_size,
+			rfbi.data_lines);
 
-	rfbi_set_timings(dssdev->phy.rfbi.channel,
-			 &dssdev->ctrl.rfbi_timings);
-
+	rfbi_set_timings(dssdev->phy.rfbi.channel, &rfbi.intf_timings);
 
 	return 0;
 err1:

@@ -243,7 +243,7 @@ void rfbi_bus_unlock(void);
 
 /* DSI */
 
-struct omap_dss_dsi_videomode_data {
+struct omap_dss_dsi_videomode_timings {
 	/* DSI video mode blanking data */
 	/* Unit: byte clock cycles */
 	u16 hsa;
@@ -564,7 +564,7 @@ struct omap_dss_device {
 
 		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
 		enum omap_dss_dsi_mode dsi_mode;
-		struct omap_dss_dsi_videomode_data dsi_vm_data;
+		struct omap_dss_dsi_videomode_timings dsi_vm_timings;
 	} panel;
 
 	struct {
@@ -719,6 +719,15 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
 		bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
+void omapdss_dsi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings);
+void omapdss_dsi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
+void omapdss_dsi_set_pixel_format(struct omap_dss_device *dssdev,
+		enum omap_dss_dsi_pixel_format fmt);
+void omapdss_dsi_set_operation_mode(struct omap_dss_device *dssdev,
+		enum omap_dss_dsi_mode mode);
+void omapdss_dsi_set_videomode_timings(struct omap_dss_device *dssdev,
+		struct omap_dss_dsi_videomode_timings *timings);
 
 int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
 		void (*callback)(int, void *), void *data);
@@ -734,22 +743,29 @@ void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
 
 int omapdss_dpi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dpi_display_disable(struct omap_dss_device *dssdev);
-void dpi_set_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings);
+void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings);
 int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings);
+void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines);
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev);
+void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings);
+void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs);
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev);
-int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
-		u16 *x, u16 *y, u16 *w, u16 *h);
-int omap_rfbi_update(struct omap_dss_device *dssdev,
-		u16 x, u16 y, u16 w, u16 h,
-		void (*callback)(void *), void *data);
-int omap_rfbi_configure(struct omap_dss_device *dssdev, int pixel_size,
+int omap_rfbi_update(struct omap_dss_device *dssdev, void (*callback)(void *),
+		void *data);
+int omap_rfbi_configure(struct omap_dss_device *dssdev);
+void omapdss_rfbi_set_size(struct omap_dss_device *dssdev, u16 w, u16 h);
+void omapdss_rfbi_set_pixel_size(struct omap_dss_device *dssdev,
+		int pixel_size);
+void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev,
 		int data_lines);
+void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
+		struct rfbi_timings *timings);
 
 #endif
