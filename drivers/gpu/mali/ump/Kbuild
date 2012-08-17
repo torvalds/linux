@@ -12,17 +12,6 @@
 # Change this to use a different config.h
 CONFIG ?= os_memory_64m
 
-# Validate selected config
-ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
-$(warning Current directory is $(src))
-$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
-else
-# Link arch to the selected arch-config directory
-$(shell [ -L $(src)/arch ] && rm $(src)/arch)
-$(shell ln -sf arch-$(CONFIG) $(src)/arch)
-$(shell touch $(src)/arch/config.h)
-endif
-
 UDD_FILE_PREFIX = ../mali/
 
 # Get subversion revision number, fall back to 0000 if no svn info is available
@@ -39,10 +28,10 @@ ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(src)/linux/license/gpl/*),)
-ccflags-y += -I$(src)/linux/license/proprietary
+ifeq ($(wildcard $(PWD)/$(src)/linux/license/gpl/*),)
+ccflags-y += -I$(PWD)/$(src)/linux/license/proprietary
 else
-ccflags-y += -I$(src)/linux/license/gpl
+ccflags-y += -I$(PWD)/$(src)/linux/license/gpl
 endif
 
 ump-y = common/ump_kernel_common.o \
