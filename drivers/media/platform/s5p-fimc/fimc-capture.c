@@ -1596,7 +1596,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	struct vb2_queue *q;
 	int ret = -ENOMEM;
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
