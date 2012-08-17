@@ -769,7 +769,6 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 		monc->monmap->mon_inst[i].name.num = cpu_to_le64(i);
 	}
 	monc->monmap->num_mon = num_mon;
-	monc->have_fsid = false;
 	return 0;
 }
 
