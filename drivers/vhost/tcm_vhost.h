@@ -91,7 +91,7 @@ struct tcm_vhost_tport {
 
 struct vhost_scsi_target {
 	int abi_version;
-	unsigned char vhost_wwpn[TRANSPORT_IQN_LEN];
+	char vhost_wwpn[TRANSPORT_IQN_LEN];
 	unsigned short vhost_tpgt;
 };
 
