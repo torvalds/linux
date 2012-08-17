@@ -39,11 +39,6 @@
 
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
 
-/*
- * MEI PCI Device object
- */
-extern struct pci_dev *mei_device;
-
 
 /*
  * AMTHI Client UUID
