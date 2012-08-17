@@ -248,15 +248,6 @@ static int pci6208_attach_pci(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci6208_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
-{
-	dev_warn(dev->class_dev,
-		"This driver does not support attach using comedi_config\n");
-
-	return -ENOSYS;
-}
-
 static void pci6208_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -270,7 +261,6 @@ static void pci6208_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci6208_driver = {
 	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
-	.attach		= pci6208_attach,
 	.attach_pci	= pci6208_attach_pci,
 	.detach		= pci6208_detach,
 };
