@@ -148,15 +148,30 @@ static int igb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 				   SUPPORTED_100baseT_Full |
 				   SUPPORTED_1000baseT_Full|
 				   SUPPORTED_Autoneg |
-				   SUPPORTED_TP);
-		ecmd->advertising = (ADVERTISED_TP |
-				     ADVERTISED_Pause);
+				   SUPPORTED_TP |
+				   SUPPORTED_Pause);
+		ecmd->advertising = ADVERTISED_TP;
 
 		if (hw->mac.autoneg == 1) {
 			ecmd->advertising |= ADVERTISED_Autoneg;
 			/* the e1000 autoneg seems to match ethtool nicely */
 			ecmd->advertising |= hw->phy.autoneg_advertised;
 		}
+
+		if (hw->mac.autoneg != 1)
+			ecmd->advertising &= ~(ADVERTISED_Pause |
+					       ADVERTISED_Asym_Pause);
+
+		if (hw->fc.requested_mode == e1000_fc_full)
+			ecmd->advertising |= ADVERTISED_Pause;
+		else if (hw->fc.requested_mode == e1000_fc_rx_pause)
+			ecmd->advertising |= (ADVERTISED_Pause |
+					      ADVERTISED_Asym_Pause);
+		else if (hw->fc.requested_mode == e1000_fc_tx_pause)
+			ecmd->advertising |=  ADVERTISED_Asym_Pause;
+		else
+			ecmd->advertising &= ~(ADVERTISED_Pause |
+					       ADVERTISED_Asym_Pause);
 
 		ecmd->port = PORT_TP;
 		ecmd->phy_address = hw->phy.addr;
