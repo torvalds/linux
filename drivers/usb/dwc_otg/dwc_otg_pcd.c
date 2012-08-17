@@ -1682,7 +1682,7 @@ int dwc_otg20phy_suspend( int exitsuspend )
     }
     if( !exitsuspend && (pcd->phy_suspend == 0)) {
         pcd->phy_suspend = 1;
-       *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
+        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
       //  *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.   enable dm,dp  debug_wlf @2012.8.10
         udelay(3);
         clk_disable(pcd->otg_dev->phyclk);

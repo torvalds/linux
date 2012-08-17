@@ -1,5 +1,5 @@
 config SND_RK29_SOC
-	tristate "SoC Audio for the rockchip RK29/RK30 System-on-Chip"
+	tristate "SoC Audio for the Rockchip System-on-Chip"
 	depends on PLAT_RK && SND_SOC
 	help
 	  Say Y or M if you want to add support for codecs attached to
@@ -12,21 +12,21 @@ config SND_RK29_SOC_I2S
 config SND_RK29_SOC_I2S_8CH
         bool "Soc RK29 I2S 8 Channel support(I2S0)"
         default y
-	depends on SND_RK29_SOC_I2S
+	depends on SND_RK29_SOC_I2S && !ARCH_RK31
 	help
                 This supports the use of the 8 Channel I2S interface on rk29 processors.
 
 config SND_RK29_SOC_I2S_2CH
         bool "Soc RK29 I2S 2 Channel support(I2S1)"
         default n
-	depends on SND_RK29_SOC_I2S
+	depends on SND_RK29_SOC_I2S && !ARCH_RK2928
 	help
                 This supports the use of the 2 Channel I2S interface on rk29 processors.
 
 config SND_RK_SOC_I2S2_2CH
 	bool "Soc RK29 I2S 2 Channel support(I2S2)"
 	default n
-	depends on SND_RK29_SOC_I2S && ARCH_RK30
+	depends on SND_RK29_SOC_I2S && ARCH_RK30 && !ARCH_RK2928
 	help
 		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
 
@@ -186,7 +186,17 @@ config SND_RK29_SOC_RK610
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK610(JETTA).
 
-if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_RT3261 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111 || SND_RK29_SOC_HDMI || SND_RK29_SOC_RK610 || SND_RK29_SOC_AIC3262
+config SND_RK_SOC_RK2928
+	tristate "SoC I2S Audio support for rockchip - RK2928"
+	depends on SND_RK29_SOC && ARCH_RK2928
+	select SND_RK29_SOC_I2S
+	select SND_SOC_RK2928
+	select SND_RK29_CODEC_SOC_SLAVE
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the RK2928 internal codec.
+
+if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_RT3261 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111 || SND_RK29_SOC_HDMI || SND_RK29_SOC_RK610 || SND_RK29_SOC_AIC3262 || SND_RK_SOC_RK2928
 choice
   bool "Set i2s type"
   default SND_RK29_CODEC_SOC_SLAVE

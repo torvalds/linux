@@ -1257,8 +1257,8 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     }
     clk_enable(ahbclk);
     
-    regval &= ~(0x01<<14);    // exit suspend.
-    regval |= (0x01<<13);    // software control
+    regval &= ~(0x01<<14);    // enter suspend.
+    regval |= (0x01<<13);    // software control enable.    
 
     *otg_phy_con1 = regval;
     udelay(3);
@@ -1629,6 +1629,26 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
         clk_disable(dwc_otg_device->ahbclk);
         *otg_phy_con1 |= (0x01<<2);
         *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
+    }
+#endif
+#endif
+#ifdef CONFIG_ARCH_RK30                   
+#ifndef CONFIG_DWC_OTG_DEVICE_ONLY
+    if(dwc_otg_device->hcd->host_enabled == 0)
+    {
+        clk_disable(dwc_otg_device->phyclk);
+        clk_disable(dwc_otg_device->ahbclk);
+       *otg_phy_con = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
+    }
+#endif
+#endif
+#ifdef CONFIG_ARCH_RK2928                   
+#ifndef CONFIG_DWC_OTG_DEVICE_ONLY
+    if(dwc_otg_device->hcd->host_enabled == 0)
+    {
+        clk_disable(dwc_otg_device->phyclk);
+        clk_disable(dwc_otg_device->ahbclk);
+       *otg_phy_con =   ((0x01<<0)|(0x00<<1)|(0x05<<4))|(((0x01<<0)|(0x01<<1)|(0x07<<4))<<16);   // enter suspend.
     }
 #endif
 #endif
@@ -2119,9 +2139,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK29    
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
     otgreg = * otg_phy_con1;
-    otgreg |= (0x01<<13);    // software control
+    otgreg |= (0x01<<13);    // software control enable
     otgreg |= (0x01<<14);    // exit suspend.
-    otgreg &= ~(0x01<<13);    // software control
+    otgreg &= ~(0x01<<13);    // software control disable
     *otg_phy_con1 = otgreg;
 #endif
 #ifdef CONFIG_ARCH_RK30

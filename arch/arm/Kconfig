@@ -871,6 +871,17 @@ config ARCH_RK29
 	help
 	  Support for Rockchip's RK29xx SoCs.
 
+config ARCH_RK2928
+	bool "Rockchip RK2928"
+	select PLAT_RK
+	select CPU_V7
+	select ARM_GIC
+	select RK_PL330_DMA
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARM_ERRATA_754322
+	help
+	  Support for Rockchip's RK2928 SoCs.
+
 config ARCH_RK30
 	bool "Rockchip RK30xx"
 	select PLAT_RK
@@ -883,6 +894,19 @@ config ARCH_RK30
 	select ARM_ERRATA_754322
 	help
 	  Support for Rockchip's RK30xx SoCs.
+
+config ARCH_RK31
+	bool "Rockchip RK31xx"
+	select PLAT_RK
+	select CPU_V7
+	select ARM_GIC
+	select RK_PL330_DMA
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select ARM_ERRATA_764369
+	select ARM_ERRATA_754322
+	help
+	  Support for Rockchip's RK31xx SoCs.
 
 config PLAT_SPEAR
 	bool "ST SPEAr"
@@ -986,6 +1010,7 @@ source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/plat-rk/Kconfig"
 source "arch/arm/mach-rk29/Kconfig"
+source "arch/arm/mach-rk2928/Kconfig"
 source "arch/arm/mach-rk30/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"

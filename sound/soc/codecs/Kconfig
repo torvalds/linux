@@ -426,3 +426,7 @@ config SND_SOC_WM2000
 
 config SND_SOC_WM9090
 	tristate
+
+config SND_SOC_RK2928
+	tristate
+	depends on ARCH_RK2928

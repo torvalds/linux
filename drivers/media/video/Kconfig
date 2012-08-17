@@ -1412,7 +1412,7 @@ endchoice
 
 choice
 	prompt "RKXX CIF work simultaneity"
-	depends on VIDEO_RK29
+	depends on VIDEO_RK29 && ARCH_RK30
 	default VIDEO_RKCIF_WORK_SIMUL_OFF
 	---help---
                CIFs work simultaneity 

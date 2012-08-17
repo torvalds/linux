@@ -386,7 +386,13 @@ typedef struct rga_service_info {
 
 
 
+#if defined(CONFIG_ARCH_RK2928)
+#define RGA_BASE                 0x1010c000
+#elif defined(CONFIG_ARCH_RK30)
 #define RGA_BASE                 0x10114000
+#elif defined(CONFIG_ARCH_RK31)
+#define RGA_BASE                 0x10114000
+#endif
 
 //General Registers
 #define RGA_SYS_CTRL             0x000

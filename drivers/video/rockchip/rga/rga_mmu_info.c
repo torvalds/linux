@@ -24,7 +24,33 @@ extern rga_service_info rga_service;
 
 #define KERNEL_SPACE_VALID    0xc0000000
 
+#define V7_VATOPA_SUCESS_MASK	(0x1)
+#define V7_VATOPA_GET_PADDR(X)	(X & 0xFFFFF000)
+#define V7_VATOPA_GET_INER(X)		((X>>4) & 7)
+#define V7_VATOPA_GET_OUTER(X)		((X>>2) & 3)
+#define V7_VATOPA_GET_SH(X)		((X>>7) & 1)
+#define V7_VATOPA_GET_NS(X)		((X>>9) & 1)
+#define V7_VATOPA_GET_SS(X)		((X>>1) & 1)
+
+
 int mmu_flag = 0;
+
+unsigned int armv7_va_to_pa(unsigned int v_addr)
+{
+	unsigned int p_addr;
+	__asm__ volatile (	"mcr p15, 0, %1, c7, c8, 0\n" 
+						"isb\n"
+						"dsb\n"
+						"mrc p15, 0, %0, c7, c4, 0\n"
+						: "=r" (p_addr)
+						: "r" (v_addr)
+						: "cc");
+
+	if (p_addr & V7_VATOPA_SUCESS_MASK)
+		return 0xFFFFFFFF;
+	else
+		return (V7_VATOPA_GET_SS(p_addr) ? 0xFFFFFFFF : V7_VATOPA_GET_PADDR(p_addr));
+}
 
 static int rga_mem_size_cal(uint32_t Mem, uint32_t MemSize, uint32_t *StartAddr) 
 {
@@ -222,6 +248,7 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t i;
     uint32_t status;
     uint32_t Address;
+    uint32_t temp;
     status = 0;
     Address = 0;
 
@@ -238,71 +265,25 @@ static int rga_MapUserMemory(struct page **pages,
                 NULL
                 );
         up_read(&current->mm->mmap_sem);
-
+                        
         if(result <= 0 || result < pageCount) 
         {
-            struct vm_area_struct *vma;
+            status = 0;
 
             for(i=0; i<pageCount; i++)
-            {                
-                vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
-
-                if (vma && (vma->vm_flags & VM_PFNMAP) )
+            {   
+                temp = armv7_va_to_pa((Memory + i) << PAGE_SHIFT);
+                if (temp == 0xffffffff)
                 {
-                    do
-                    {
-                        pte_t       * pte;
-                        spinlock_t  * ptl;
-                        unsigned long pfn;                                                                        
-                        pgd_t * pgd;
-                        pud_t * pud;
-                        
-                        pgd = pgd_offset(current->mm, (Memory + i) << PAGE_SHIFT);
-
-                        if(pgd_val(*pgd) == 0)
-                        {
-                            printk("pgd value is zero \n");
-                            break;
-                        }
-                        
-                        pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
-                        if (pud)
-                        {
-                            pmd_t * pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
-                            if (pmd)
-                            {
-                                pte = pte_offset_map_lock(current->mm, pmd, (Memory + i) << PAGE_SHIFT, &ptl);
-                                if (!pte)
-                                {
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            break;
-                        }
-
-                        pfn = pte_pfn(*pte);
-                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i) << PAGE_SHIFT)) & ~PAGE_MASK));                        
-                        pte_unmap_unlock(pte, ptl);                                                                        
-                    }
-                    while (0);
-
-                    pageTable[i] = Address;
-                }
-                else
-                {
+                    printk("rga find mmu phy ddr error\n ");
                     status = RGA_OUT_OF_RESOURCES;
                     break;
-                }     
+                }
+                
+                pageTable[i] = temp;                
             }
 
-            return 0;
+            return status;
         }
 
         for (i = 0; i < pageCount; i++)

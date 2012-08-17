@@ -3465,7 +3465,11 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 #else
     if(RK29_CTRL_SDMMC_ID== host->pdev->id)
     {
+#ifdef CONFIG_ARCH_RK2928
+	mmc->f_max = SD_FPP_FREQ;
+#else
         mmc->f_max = SDHC_FPP_FREQ;
+#endif
     }
     else
     {

@@ -57,7 +57,7 @@
 
 #define REG_NUM_DEC 				(60)
 #define REG_NUM_PP				(41)
-#if defined(CONFIG_ARCH_RK29)
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 #define REG_NUM_ENC 				(96)
 #elif defined(CONFIG_ARCH_RK30)
 #define REG_NUM_ENC 				(164)
@@ -66,16 +66,19 @@
 #define SIZE_REG(reg)				((reg)*4)
 
 #define DEC_IO_SIZE 				((100 + 1) * 4) /* bytes */
-#if defined(CONFIG_ARCH_RK29)
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 #define ENC_IO_SIZE 				(96 * 4)	/* bytes */
 #elif defined(CONFIG_ARCH_RK30)
 #define ENC_IO_SIZE 				(164 * 4)	/* bytes */
 #endif
 #define REG_NUM_DEC_PP				(REG_NUM_DEC+REG_NUM_PP)
 static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
-#if defined(CONFIG_ARCH_RK29)
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
 #define DEC_PHY_OFFSET 				0x200
+#if defined(CONFIG_ARCH_RK2928)
+#define RK29_VCODEC_PHYS			RK2928_VCODEC_PHYS
+#endif
 #elif defined(CONFIG_ARCH_RK30)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270, 0x8290, 0x4831 };
 #define DEC_PHY_OFFSET 				0x400
@@ -208,7 +211,7 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
 	clk_enable(aclk_ddr_vepu);
-#elif defined(CONFIG_ARCH_RK30)
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)
 	pmu_set_idle_request(IDLE_REQ_VIDEO, true);
 	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
 	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, true);
@@ -290,7 +293,7 @@ static void vpu_service_power_off(void)
 	}
 
 	printk("vpu: power off...");
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK29)
 	pmu_set_power_domain(PD_VCODEC, false);
 #else
 	clk_disable(pd_video);
@@ -334,7 +337,7 @@ static void vpu_service_power_on(void)
 		clk_enable(hclk_vepu);
 		clk_enable(hclk_cpu_vcodec);
 		udelay(10);
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK29)
 		pmu_set_power_domain(PD_VCODEC, true);
 #else
 		clk_enable(pd_video);

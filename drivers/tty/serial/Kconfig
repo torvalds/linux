@@ -1567,7 +1567,7 @@ config UART2_DMA_RK29
 	 	 3:both enable dma tx and rx 
 config UART3_RK29
 	bool "Serial port 3 support"
-	depends on SERIAL_RK29
+	depends on SERIAL_RK29 && !ARCH_RK2928
 
 config UART3_CTS_RTS_RK29
 	bool "Serial port 3 CTS/RTS support"

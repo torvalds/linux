@@ -14,6 +14,7 @@
 
 static int rk_sensor_iomux(int pin)
 {    
+#if defined(CONFIG_ARCH_RK30)
     switch (pin)
     {
         case RK30_PIN0_PA0: 
@@ -846,6 +847,576 @@ static int rk_sensor_iomux(int pin)
             break;
         }
     }
+#elif defined(CONFIG_ARCH_RK31)
+    switch (pin)
+    {
+        case RK30_PIN0_PA0:
+        case RK30_PIN0_PA1: 
+		case RK30_PIN0_PA2:
+		case RK30_PIN0_PA3:
+		case RK30_PIN0_PA4:
+		case RK30_PIN0_PA5:
+		case RK30_PIN0_PA6:
+        case RK30_PIN0_PA7:
+        case RK30_PIN0_PB0:
+        case RK30_PIN0_PB1:
+        case RK30_PIN0_PB2:
+        case RK30_PIN0_PB3:
+        case RK30_PIN0_PB4:
+        case RK30_PIN0_PB5:
+        case RK30_PIN0_PB6:
+        case RK30_PIN0_PB7:
+        case RK30_PIN0_PC0:
+        {
+             rk30_mux_api_set(GPIO0C0_FLASHDATA8_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC1:
+        {
+             rk30_mux_api_set(GPIO0C1_FLASHDATA9_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC2:
+        {
+             rk30_mux_api_set(GPIO0C2_FLASHDATA10_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC3:
+        {
+             rk30_mux_api_set(GPIO0C3_FLASHDATA11_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC4:
+        {
+             rk30_mux_api_set(GPIO0C4_FLASHDATA12_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC5:
+        {
+             rk30_mux_api_set(GPIO0C5_FLASHDATA13_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC6:
+        {
+             rk30_mux_api_set(GPIO0C6_FLASHDATA14_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PC7:
+        {
+             rk30_mux_api_set(GPIO0C7_FLASHDATA15_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD0:
+        {
+             rk30_mux_api_set(GPIO0D0_FLASHDQS_EMMCCLKOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD1:
+        {
+             rk30_mux_api_set(GPIO0D1_FLASHCSN1_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD2:
+        {
+             rk30_mux_api_set(GPIO0D2_FLASHCSN2_EMMCCMD_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD3:
+        {
+             rk30_mux_api_set(GPIO0D3_FLASHCSN3_EMMCRSTNOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD4:
+        {
+             rk30_mux_api_set(GPIO0D4_SPI1RXD_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD5:
+        {
+             rk30_mux_api_set(GPIO0D5_SPI1TXD_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD6:
+        {
+             rk30_mux_api_set(GPIO0D6_SPI1CLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN0_PD7:
+        {
+             rk30_mux_api_set(GPIO0D7_SPI1CSN0_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA0:
+        {
+             rk30_mux_api_set(GPIO1A0_UART0SIN_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA1:
+        {
+             rk30_mux_api_set(GPIO1A1_UART0SOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA2:
+        {
+             rk30_mux_api_set(GPIO1A2_UART0CTSN_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA3:
+        {
+             rk30_mux_api_set(GPIO1A3_UART0RTSN_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA4:
+        {
+             rk30_mux_api_set(GPIO1A4_UART1SIN_SPI0RXD_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA5:
+        {
+             rk30_mux_api_set(GPIO1A5_UART1SOUT_SPI0TXD_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA6:
+        {
+             rk30_mux_api_set(GPIO1A6_UART1CTSN_SPI0CLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PA7:
+        {
+             rk30_mux_api_set(GPIO1A7_UART1RTSN_SPI0CSN0_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB0:
+        {
+             rk30_mux_api_set(GPIO1B0_UART2SIN_JTAGTDI_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB1:
+        {
+             rk30_mux_api_set(GPIO1B1_UART2SOUT_JTAGTDO_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB2:
+        {
+             rk30_mux_api_set(GPIO1B2_UART3SIN_GPSMAG_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB3:
+        {
+             rk30_mux_api_set(GPIO1B3_UART3SOUT_GPSSIG_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB4:
+        {
+             rk30_mux_api_set(GPIO1B4_UART3CTSN_GPSRFCLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB5:
+        {
+             rk30_mux_api_set(GPIO1B5_UART3RTSN_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB6:
+        {
+             rk30_mux_api_set(GPIO1B6_SPDIFTX_SPI1CSN1_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PB7:
+        {
+             rk30_mux_api_set(GPIO1B7_SPI0CSN1_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PC0:
+        {
+             rk30_mux_api_set(GPIO1C0_I2SCLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PC1:
+        {
+             rk30_mux_api_set(GPIO1C1_I2SSCLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PC2:
+        {
+             rk30_mux_api_set(GPIO1C2_I2SLRCLKRX_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PC3:
+        {
+             rk30_mux_api_set(GPIO1C3_I2SLRCLKTX_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PC4:
+        {
+             rk30_mux_api_set(GPIO1C4_I2SSDI_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PC5:
+        case RK30_PIN1_PC6:
+        case RK30_PIN1_PC7:
+            break;	
+        case RK30_PIN1_PD0:
+        {
+             rk30_mux_api_set(GPIO1D0_I2C0SDA_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD1:
+        {
+             rk30_mux_api_set(GPIO1D1_I2C0SCL_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD2:
+        {
+             rk30_mux_api_set(GPIO1D2_I2C1SDA_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD3:
+        {
+             rk30_mux_api_set(GPIO1D3_I2C1SCL_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD4:
+        {
+             rk30_mux_api_set(GPIO1D4_I2C2SDA_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD5:
+        {
+             rk30_mux_api_set(GPIO1D5_I2C2SCL_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD6:
+        {
+             rk30_mux_api_set(GPIO1D6_I2C4SDA_NAME,0);
+            break;	
+        }
+        case RK30_PIN1_PD7:
+        {
+             rk30_mux_api_set(GPIO1D7_I2C4SCL_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA0:
+        {
+             rk30_mux_api_set(GPIO2A0_LCDC1DATA0_SMCDATA0_TRACEDATA0_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA1:
+        {
+             rk30_mux_api_set(GPIO2A1_LCDC1DATA1_SMCDATA1_TRACEDATA1_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA2:
+        {
+             rk30_mux_api_set(GPIO2A2_LCDC1DATA2_SMCDATA2_TRACEDATA2_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA3:
+        {
+             rk30_mux_api_set(GPIO2A3_LCDC1DATA3_SMCDATA3_TRACEDATA3_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA4:
+        {
+             rk30_mux_api_set(GPIO2A4_LCDC1DATA4_SMCDATA4_TRACEDATA4_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA5:
+        {
+             rk30_mux_api_set(GPIO2A5_LCDC1DATA5_SMCDATA5_TRACEDATA5_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA6:
+        {
+             rk30_mux_api_set(GPIO2A6_LCDC1DATA6_SMCDATA6_TRACEDATA6_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PA7:
+        {
+             rk30_mux_api_set(GPIO2A7_LCDC1DATA7_SMCDATA7_TRACEDATA7_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB0:
+        {
+             rk30_mux_api_set(GPIO2B0_LCDC1DATA8_SMCDATA8_TRACEDATA8_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB1:
+        {
+             rk30_mux_api_set(GPIO2B1_LCDC1DATA9_SMCDATA9_TRACEDATA9_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB2:
+        {
+             rk30_mux_api_set(GPIO2B2_LCDC1DATA10_SMCDATA10_TRACEDATA10_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB3:
+        {
+             rk30_mux_api_set(GPIO2B3_LCDC1DATA11_SMCDATA11_TRACEDATA11_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB4:
+        {
+             rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB5:
+        {
+             rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCDATA13_TRACEDATA13_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB6:
+        {
+             rk30_mux_api_set(GPIO2B6_LCDC1DATA14_SMCDATA14_TRACEDATA14_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PB7:
+        {
+             rk30_mux_api_set(GPIO2B7_LCDC1DATA15_SMCDATA15_TRACEDATA15_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC0:
+        {
+             rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC1:
+        {
+             rk30_mux_api_set(GPIO2C1_LCDC1DATA17_SMCADDR1_TRACECTL_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC2:
+        {
+             rk30_mux_api_set(GPIO2C2_LCDC1DATA18_SMCADDR2_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC3:
+        {
+             rk29_mux_api_set(GPIO2C3_LCDC1DATA19_SMCADDR3_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC4:
+        {
+             rk30_mux_api_set(GPIO2C4_LCDC1DATA20_SMCADDR4_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC5:
+        {
+             rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SMCADDR5_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC6:
+        {
+             rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SMCADDR6_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PC7:
+        {
+             rk30_mux_api_set(GPIO2C7_LCDC1DATA23_SMCADDR7_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD0:
+        {
+             rk30_mux_api_set(GPIO2D0_LCDC1DCLK_SMCCSN0_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD1:
+        {
+             rk30_mux_api_set(GPIO2D1_LCDC1DEN_SMCWEN_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD2:
+        {
+             rk30_mux_api_set(GPIO2D2_LCDC1HSYNC_SMCOEN_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD3:
+        {
+             rk30_mux_api_set(GPIO2D3_LCDC1VSYNC_SMCADVN_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD4:
+        {
+             rk30_mux_api_set(GPIO2D4_SMCBLSN0_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD5:
+        {
+             rk30_mux_api_set(GPIO2D5_SMCBLSN1_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD6:
+        {
+             rk30_mux_api_set(GPIO2D6_SMCCSN1_NAME,0);
+            break;	
+        }
+        case RK30_PIN2_PD7:
+        {
+             rk30_mux_api_set(GPIO2D7_TESTCLOCKOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA0:
+        {
+             rk30_mux_api_set(GPIO3A0_SDMMC0RSTNOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA1:
+        {
+             rk30_mux_api_set(GPIO3A1_SDMMC0PWREN_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA2:
+        {
+             rk30_mux_api_set(GPIO3A2_SDMMC0CLKOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA3:
+        {
+             rk30_mux_api_set(GPIO3A3_SDMMC0CMD_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA4:
+        {
+             rk30_mux_api_set(GPIO3A4_SDMMC0DATA0_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA5:
+        {
+             rk30_mux_api_set(GPIO3A5_SDMMC0DATA1_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA6:
+        {
+             rk30_mux_api_set(GPIO3A6_SDMMC0DATA2_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PA7:
+        {
+             rk30_mux_api_set(GPIO3A7_SDMMC0DATA3_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB0:
+        {
+             rk30_mux_api_set(GPIO3B0_SDMMC0DETECTN_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB1:
+        {
+             rk30_mux_api_set(GPIO3B1_SDMMC0WRITEPRT_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB2:        
+            break;
+        case RK30_PIN3_PB3:
+        {
+             rk30_mux_api_set(GPIO3B3_CIFCLKOUT_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB4:
+        {
+             rk30_mux_api_set(GPIO3B4_CIFDATA0_HSADCDATA8_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB5:
+        {
+             rk30_mux_api_set(GPIO3B5_CIFDATA1_HSADCDATA9_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB6:
+        {
+             rk30_mux_api_set(GPIO3B6_CIFDATA10_I2C3SDA_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PB7:
+        {
+             rk30_mux_api_set(GPIO3B7_CIFDATA11_I2C3SCL_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC0:
+        {
+             rk30_mux_api_set(GPIO3C0_SDMMC1CMD_RMIITXEN_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC1:
+        {
+             rk30_mux_api_set(GPIO3C1_SDMMC1DATA0_RMIITXD1_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC2:
+        {
+             rk30_mux_api_set(GPIO3C2_SDMMC1DATA1_RMIITXD0_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC3:
+        {
+             rk30_mux_api_set(GPIO3C3_SDMMC1DATA2_RMIIRXD0_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC4:
+        {
+             rk30_mux_api_set(GPIO3C4_SDMMC1DATA3_RMIIRXD1_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC5:
+        {
+             rk30_mux_api_set(GPIO3C5_SDMMC1CLKOUT_RMIICLKOUT_RMIICLKIN_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC6:
+        {
+             rk30_mux_api_set(GPIO3C6_SDMMC1DETECTN_RMIIRXERR_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PC7:
+        {
+             rk30_mux_api_set(GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD0:
+        {
+             rk30_mux_api_set(GPIO3D0_SDMMC1PWREN_MIIMD_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD1:
+        {
+             rk30_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD2:
+        {
+             rk30_mux_api_set(GPIO3D2_SDMMC1INTN_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD3:
+        {
+             rk30_mux_api_set(GPIO3D3_PWM0_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD4:
+        {
+             rk30_mux_api_set(GPIO3D4_PWM1_JTAGTRSTN_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD5:
+        {
+             rk30_mux_api_set(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD6:
+        {
+             rk30_mux_api_set(GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME,0);
+            break;	
+        }
+        case RK30_PIN3_PD7:        
+            break;        
+        default:
+        {
+            printk("Pin=%d isn't RK GPIO, Please init it's iomux yourself!",pin);
+            break;
+        }
+    }
+
+#endif
     return 0;
 }
 #define PMEM_CAM_BASE 0 //just for compile ,no meaning
@@ -967,6 +1538,7 @@ static int rk_register_camera_devices(void)
     host_registered_1 = 0;
     for (i=0; i<RK_CAM_NUM; i++) {
         if (rk_camera_platform_data.register_dev[i].device_info.name) {
+            
             if (rk_camera_platform_data.register_dev[i].link_info.bus_id == RK_CAM_PLATFORM_DEV_ID_0) {
             #if RK_SUPPORT_CIF0
                 if (!host_registered_0) {
@@ -997,9 +1569,8 @@ static int rk_register_camera_devices(void)
         }
     }
  #if PMEM_CAM_NECESSARY
-            platform_device_register(&android_pmem_cam_device);
+    platform_device_register(&android_pmem_cam_device);
  #endif
-    
 	return 0;
 }
 

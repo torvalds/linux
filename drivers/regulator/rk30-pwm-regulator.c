@@ -67,6 +67,9 @@ struct rk_pwm_dcdc {
 #elif defined(CONFIG_ARCH_RK29)
 #define pwm_write_reg(id, addr, val)        __raw_writel(val, addr+(RK29_PWM_BASE+id*0x10))
 #define pwm_read_reg(id, addr)              __raw_readl(addr+(RK29_PWM_BASE+id*0x10))    
+#elif defined(CONFIG_ARCH_RK2928)
+#define pwm_write_reg(id, addr, val)        __raw_writel(val, addr+(RK2928_PWM_BASE+id*0x10))
+#define pwm_read_reg(id, addr)              __raw_readl(addr+(RK2928_PWM_BASE+id*0x10))
 #endif
 
 const static int pwm_voltage_map[] = {
@@ -81,19 +84,21 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	u32 divh,divTotal;
 	int id = pdata->pwm_id;
 	unsigned long clkrate;
-	
-	if ( id >3 || id <0 )
-	{
+
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
+	clkrate = clk_get_rate(pwm_clk[0]);
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+	if (id == 0 || id == 1) {
+		clkrate = clk_get_rate(pwm_clk[0]);
+	} else if (id== 2 || id == 3) {
+		clkrate = clk_get_rate(pwm_clk[1]);
+	} else {
 		printk("%s:pwm id error,id=%d\n",__func__,id);
 		return -1;
 	}
-
-	if((id==0) || (id == 1))
-	clkrate = clk_get_rate(pwm_clk[0]);
-	else	
-	clkrate = clk_get_rate(pwm_clk[1]);
+#endif
 	
-	DBG("%s:id=%d,rate=%d,clkrate=%d\n",__func__,id,rate,clkrate);
+	DBG("%s:id=%d,rate=%d,clkrate=%d\n",__func__,id,rate,clkrate); 
 
 	if(rate == 0)
 	{
@@ -321,6 +326,13 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 			pwm_clk[1] = clk_get(NULL, "pwm23");		
 			clk_enable(pwm_clk[1]);
 		}
+#elif defined(CONFIG_ARCH_RK2928)
+		pwm_clk[0] = clk_get(NULL, "pwm01");
+		if (IS_ERR(pwm_clk[0])) {
+			printk("pwm_clk get error %p\n", pwm_clk[0]);
+			return -EINVAL;
+		}
+		clk_enable(pwm_clk[0]);
 #endif
 	
 	g_dcdc	= dcdc;

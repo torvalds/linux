@@ -426,7 +426,7 @@ config SPI_NUC900
 
 config SPIM_RK29
 	tristate "RK SPI master controller core support"
-	depends on (ARCH_RK29 || ARCH_RK30) && SPI_MASTER
+	depends on PLAT_RK && SPI_MASTER
 	help
 	  general driver for SPI controller core from RockChips 
 
@@ -438,13 +438,12 @@ config SPIM0_RK29
 
 config SPIM1_RK29
 	bool "RK SPI1 master controller"
-	depends on SPIM_RK29
+	depends on SPIM_RK29 && !ARCH_RK2928
 	help
 	  enable SPI1 master controller for RK29 	
 
 config RK_SPIM_TEST
 	bool "RK SPIM test"
-	depends on (SPIM0_RK29 && SPIM1_RK29)
 
 config LCD_USE_SPIM_CONTROL
 	bool "Switch gpio to spim with spin lock"

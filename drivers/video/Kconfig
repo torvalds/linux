@@ -2438,7 +2438,11 @@ source "drivers/video/omap2/Kconfig"
 
 source "drivers/video/backlight/Kconfig"
 source "drivers/video/display/Kconfig"
+
+if !LCDC_RK30 && !LCDC_RK2928
 source "drivers/video/hdmi/Kconfig"
+endif
+
 source "drivers/video/rockchip/Kconfig"
 
 if VT

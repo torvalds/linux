@@ -19,8 +19,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 #ifndef __ASM_ARCH_CAMERA_RK30_H_
+#define __ASM_ARCH_CAMERA_RK30_H_
 
-#define __ASM_ARCH_CAMERA_RK29_H_
 #ifdef CONFIG_ARCH_RK30
 #define RK29_CAM_DRV_NAME "rk-camera-rk30"
 #define RK_SUPPORT_CIF0   1
@@ -32,6 +32,7 @@
 #define RK_SUPPORT_CIF0   1
 #define RK_SUPPORT_CIF1   0
 #endif
+
 #include <plat/rk_camera.h>
 
 #endif

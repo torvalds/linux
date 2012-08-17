@@ -1,0 +1,15 @@
+if ARCH_RK2928
+
+choice
+	prompt "RK2928 Board Type"
+	default MACH_RK2928_SDK
+
+config MACH_RK2928_FPGA
+	bool "RK2928 FPGA board"
+
+config MACH_RK2928_SDK
+	bool "RK2928 SDK board"
+
+endchoice
+
+endif

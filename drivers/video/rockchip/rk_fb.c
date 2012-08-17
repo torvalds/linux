@@ -63,25 +63,7 @@ defautl:we alloc three buffer,one for fb0 and fb2 display ui,one for ipp rotate
         pass the phy addr to fix.smem_start by ioctl
 ****************************************************************************/
 
-int get_fb_layer_id(struct fb_fix_screeninfo *fix)
-{
-	int layer_id;
-	if(!strcmp(fix->id,"fb1")||!strcmp(fix->id,"fb3"))
-	{
-		layer_id = 0;
-	}
-	else if(!strcmp(fix->id,"fb0")||!strcmp(fix->id,"fb2"))
-	{
-		layer_id = 1;
-	}
-	else
-	{
-		printk(KERN_ERR "unsupported %s",fix->id);
-		layer_id = -ENODEV;
-	}
 
-	return layer_id;
-}
 
 /**********************************************************************
 this is for hdmi
@@ -104,7 +86,7 @@ static int rk_fb_open(struct fb_info *info,int user)
     struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     int layer_id;
   
-    layer_id = get_fb_layer_id(&info->fix);
+    layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
     if(dev_drv->layer_par[layer_id]->state)
     {
     	return 0;    // if this layer aready opened ,no need to reopen
@@ -179,7 +161,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	u32 xvir = var->xres_virtual;
 	u8 data_format = var->nonstd&0xff;
 	
-	layer_id = get_fb_layer_id(fix);
+	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	if(layer_id < 0)
 	{
 		return  -ENODEV;
@@ -249,7 +231,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	u32 yuv_phy[2];
-	int layer_id = get_fb_layer_id(&info->fix);
+	int  layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	int enable; // enable fb:1 enable;0 disable 
 	int ovl;	//overlay:0 win1 on the top of win0;1,win0 on the top of win1
 	int num_buf; //buffer_number
@@ -318,7 +300,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int layer_id;
 	
-	layer_id = get_fb_layer_id(fix);
+	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	if(layer_id < 0)
 	{
 		return  -ENODEV;
@@ -391,7 +373,7 @@ static int rk_fb_set_par(struct fb_info *info)
 			}
 		#endif 
 	#endif
-	layer_id = get_fb_layer_id(fix);
+	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	if(layer_id < 0)
 	{
 		return  -ENODEV;
@@ -651,7 +633,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		info = inf->fb[2];
 	}
 
-	layer_id = get_fb_layer_id(&info->fix);
+	 layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	if(!enable)
 	{
 		if(dev_drv->layer_par[layer_id]->state) 
@@ -890,28 +872,37 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	dev_drv->get_disp_info  = def_drv->get_disp_info;
 	dev_drv->ovl_mgr	= def_drv->ovl_mgr;
 	dev_drv->fps_mgr	= def_drv->fps_mgr;
+	dev_drv->fb_get_layer   = def_drv->fb_get_layer;
+	dev_drv->fb_layer_remap = def_drv->fb_layer_remap;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
+	mutex_init(&dev_drv->fb_win_id_mutex);
+	if (dev_drv->fb_layer_remap)
+		dev_drv->fb_layer_remap(dev_drv,FB_DEFAULT_ORDER); //102
 	dev_drv->first_frame = 1;
 	
 	return 0;
 }
-static  struct linux_logo *logo = NULL;
-char  fb_prepare_bmp_logo(struct fb_info *info, int rotate) 
+
+#ifdef CONFIG_LOGO_LINUX_BMP
+static const struct linux_logo *bmp_logo;
+static int fb_prepare_bmp_logo(struct fb_info *info, int rotate)
 {
-	logo = fb_find_logo(24);
-	if (logo == NULL)
-		printk("%s....%s..error\n",__FILE__,__FUNCTION__);
+	bmp_logo = fb_find_logo(24);
+	if (bmp_logo == NULL) {
+		printk("%s error\n", __func__);
+		return 0;
+	}
 	return 1;
 }
 
-void fb_show_bmp_logo(struct fb_info *info, int rotate)
+static void fb_show_bmp_logo(struct fb_info *info, int rotate)
 {
-	char *framebase = info->screen_base;
-	memcpy(framebase,logo->data,(logo->width)*(logo->height)*4);
-
+	memcpy(info->screen_base, bmp_logo->data, bmp_logo->width * bmp_logo->height * 4);
 }
+#endif
+
 int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	struct rk_lcdc_device_driver *def_drv,int id)
 {

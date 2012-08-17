@@ -28,3 +28,18 @@ config MACH_RK30_PHONE_A22
 endchoice
 
 endif
+
+if ARCH_RK31
+
+choice
+	prompt "RK31xx Board Type"
+
+config MACH_RK31_FPGA
+	bool "RK31 FPGA board"
+
+config MACH_RK3066B_SDK
+	bool "RK3066B(RK31) SDK board"
+
+endchoice
+
+endif
