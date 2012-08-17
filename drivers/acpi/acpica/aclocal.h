@@ -707,15 +707,18 @@ union acpi_parse_value {
 	u8                              disasm_opcode;  /* Subtype used for disassembly */\
 	char                            aml_op_name[16])	/* Op name (debug only) */
 
-#define ACPI_DASM_BUFFER                0x00
-#define ACPI_DASM_RESOURCE              0x01
-#define ACPI_DASM_STRING                0x02
-#define ACPI_DASM_UNICODE               0x03
-#define ACPI_DASM_EISAID                0x04
-#define ACPI_DASM_MATCHOP               0x05
-#define ACPI_DASM_LNOT_PREFIX           0x06
-#define ACPI_DASM_LNOT_SUFFIX           0x07
-#define ACPI_DASM_IGNORE                0x08
+/* Flags for disasm_flags field above */
+
+#define ACPI_DASM_BUFFER                0x00	/* Buffer is a simple data buffer */
+#define ACPI_DASM_RESOURCE              0x01	/* Buffer is a Resource Descriptor */
+#define ACPI_DASM_STRING                0x02	/* Buffer is a ASCII string */
+#define ACPI_DASM_UNICODE               0x03	/* Buffer is a Unicode string */
+#define ACPI_DASM_PLD_METHOD            0x04	/* Buffer is a _PLD method bit-packed buffer */
+#define ACPI_DASM_EISAID                0x05	/* Integer is an EISAID */
+#define ACPI_DASM_MATCHOP               0x06	/* Parent opcode is a Match() operator */
+#define ACPI_DASM_LNOT_PREFIX           0x07	/* Start of a Lnot_equal (etc.) pair of opcodes */
+#define ACPI_DASM_LNOT_SUFFIX           0x08	/* End  of a Lnot_equal (etc.) pair of opcodes */
+#define ACPI_DASM_IGNORE                0x09	/* Not used at this time */
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -1025,6 +1028,7 @@ struct acpi_port_info {
  ****************************************************************************/
 
 struct acpi_db_method_info {
+	acpi_handle method;
 	acpi_handle main_thread_gate;
 	acpi_handle thread_complete_gate;
 	acpi_thread_id *threads;
