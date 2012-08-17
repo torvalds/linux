@@ -516,37 +516,15 @@ static int drbd_recv(struct drbd_conf *mdev, void *buf, size_t size)
 
 	oldfs = get_fs();
 	set_fs(KERNEL_DS);
-
-	for (;;) {
-		rv = sock_recvmsg(mdev->data.socket, &msg, size, msg.msg_flags);
-		if (rv == size)
-			break;
-
-		/* Note:
-		 * ECONNRESET	other side closed the connection
-		 * ERESTARTSYS	(on  sock) we got a signal
-		 */
-
-		if (rv < 0) {
-			if (rv == -ECONNRESET)
-				dev_info(DEV, "sock was reset by peer\n");
-			else if (rv != -ERESTARTSYS)
-				dev_err(DEV, "sock_recvmsg returned %d\n", rv);
-			break;
-		} else if (rv == 0) {
-			break;
-		} else	{
-			/* signal came in, or peer/link went down,
-			 * after we read a partial message
-			 */
-			/* D_ASSERT(signal_pending(current)); */
-			break;
-		}
-	};
-
+	rv = sock_recvmsg(mdev->data.socket, &msg, size, msg.msg_flags);
 	set_fs(oldfs);
 
-	if (rv == 0) {
+	if (rv < 0) {
+		if (rv == -ECONNRESET)
+			dev_info(DEV, "sock was reset by peer\n");
+		else if (rv != -ERESTARTSYS)
+			dev_err(DEV, "sock_recvmsg returned %d\n", rv);
+	} else if (rv == 0) {
 		if (test_bit(DISCONNECT_SENT, &mdev->flags)) {
 			long t; /* time_left */
 			t = wait_event_timeout(mdev->state_wait, mdev->state.conn < C_CONNECTED,
