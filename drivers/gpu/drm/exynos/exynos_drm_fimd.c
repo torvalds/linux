@@ -747,15 +747,9 @@ static void fimd_clear_win(struct fimd_context *ctx, int win)
 	writel(val, ctx->regs + SHADOWCON);
 }
 
-static int fimd_power_on(struct fimd_context *ctx, bool enable)
+static int fimd_clock(struct fimd_context *ctx, bool enable)
 {
-	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct device *dev = subdrv->dev;
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	if (enable != false && enable != true)
-		return -EINVAL;
 
 	if (enable) {
 		int ret;
@@ -769,18 +763,31 @@ static int fimd_power_on(struct fimd_context *ctx, bool enable)
 			clk_disable(ctx->bus_clk);
 			return ret;
 		}
+	} else {
+		clk_disable(ctx->lcd_clk);
+		clk_disable(ctx->bus_clk);
+	}
+
+	return 0;
+}
+
+static int fimd_activate(struct fimd_context *ctx, bool enable)
+{
+	if (enable) {
+		int ret;
+		struct device *dev = ctx->subdrv.dev;
+
+		ret = fimd_clock(ctx, true);
+		if (ret < 0)
+			return ret;
 
 		ctx->suspended = false;
 
 		/* if vblank was enabled status, enable it again. */
 		if (test_and_clear_bit(0, &ctx->irq_flags))
 			fimd_enable_vblank(dev);
-
-		fimd_apply(dev);
 	} else {
-		clk_disable(ctx->lcd_clk);
-		clk_disable(ctx->bus_clk);
-
+		fimd_clock(ctx, false);
 		ctx->suspended = true;
 	}
 
@@ -930,15 +937,15 @@ static int fimd_suspend(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
 
-	if (pm_runtime_suspended(dev))
-		return 0;
-
 	/*
 	 * do not use pm_runtime_suspend(). if pm_runtime_suspend() is
 	 * called here, an error would be returned by that interface
 	 * because the usage_count of pm runtime is more than 1.
 	 */
-	return fimd_power_on(ctx, false);
+	if (!pm_runtime_suspended(dev))
+		return fimd_activate(ctx, false);
+
+	return 0;
 }
 
 static int fimd_resume(struct device *dev)
@@ -950,8 +957,21 @@ static int fimd_resume(struct device *dev)
 	 * of pm runtime would still be 1 so in this case, fimd driver
 	 * should be on directly not drawing on pm runtime interface.
 	 */
-	if (!pm_runtime_suspended(dev))
-		return fimd_power_on(ctx, true);
+	if (pm_runtime_suspended(dev)) {
+		int ret;
+
+		ret = fimd_activate(ctx, true);
+		if (ret < 0)
+			return ret;
+
+		/*
+		 * in case of dpms on(standby), fimd_apply function will
+		 * be called by encoder's dpms callback to update fimd's
+		 * registers but in case of sleep wakeup, it's not.
+		 * so fimd_apply function should be called at here.
+		 */
+		fimd_apply(dev);
+	}
 
 	return 0;
 }
@@ -964,7 +984,7 @@ static int fimd_runtime_suspend(struct device *dev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	return fimd_power_on(ctx, false);
+	return fimd_activate(ctx, false);
 }
 
 static int fimd_runtime_resume(struct device *dev)
@@ -973,7 +993,7 @@ static int fimd_runtime_resume(struct device *dev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	return fimd_power_on(ctx, true);
+	return fimd_activate(ctx, true);
 }
 #endif
 
