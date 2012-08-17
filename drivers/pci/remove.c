@@ -78,8 +78,6 @@ void pci_remove_bus(struct pci_bus *pci_bus)
 }
 EXPORT_SYMBOL(pci_remove_bus);
 
-static void pci_stop_bus_device(struct pci_dev *dev);
-
 /**
  * pci_stop_and_remove_bus_device - remove a PCI device and any children
  * @dev: the device to remove
@@ -92,37 +90,7 @@ static void pci_stop_bus_device(struct pci_dev *dev);
  * device lists, remove the /proc entry, and notify userspace
  * (/sbin/hotplug).
  */
-static void __pci_remove_bus_device(struct pci_dev *dev)
-{
-	struct pci_bus *bus = dev->subordinate;
-	struct pci_dev *child, *tmp;
-
-	if (bus) {
-		list_for_each_entry_safe(child, tmp, &bus->devices, bus_list)
-			__pci_remove_bus_device(child);
-
-		pci_remove_bus(bus);
-		dev->subordinate = NULL;
-	}
-
-	pci_destroy_dev(dev);
-}
-
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)
-{
-	pci_stop_bus_device(dev);
-	__pci_remove_bus_device(dev);
-}
-
-/**
- * pci_stop_bus_device - stop a PCI device and any children
- * @dev: the device to stop
- *
- * Stop a PCI device (detach the driver, remove from the global list
- * and so on). This also stop any subordinate buses and children in a
- * depth-first manner.
- */
-static void pci_stop_bus_device(struct pci_dev *dev)
 {
 	struct pci_bus *bus = dev->subordinate;
 	struct pci_dev *child, *tmp;
@@ -133,12 +101,16 @@ static void pci_stop_bus_device(struct pci_dev *dev)
 	 * iterator.  Therefore, iterate in reverse so we remove the VFs
 	 * first, then the PF.
 	 */
-	if (bus)
+	if (bus) {
 		list_for_each_entry_safe_reverse(child, tmp,
 						 &bus->devices, bus_list)
-			pci_stop_bus_device(child);
+			pci_stop_and_remove_bus_device(child);
+
+		pci_remove_bus(bus);
+		dev->subordinate = NULL;
+	}
 
 	pci_stop_dev(dev);
+	pci_destroy_dev(dev);
 }
-
 EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
