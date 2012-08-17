@@ -99,22 +99,6 @@ Configuration Options:
 #define PCIMDDA_8255_BASE_REG		0x0c
 
 /*
- * This is straight from skel.c -- I did this in case this source file
- * will someday support more than 1 board...
- */
-struct cb_pcimdda_board {
-	const char *name;
-	unsigned short device_id;
-};
-
-static const struct cb_pcimdda_board cb_pcimdda_boards[] = {
-	{
-	 .name = "cb_pcimdda06-16",
-	 .device_id = PCI_ID_PCIM_DDA06_16,
-	 }
-};
-
-/*
  * this structure is for data unique to this hardware driver.  If
  * several hardware drivers keep similar information in this structure,
  * feel free to suggest moving the variable to the struct comedi_device
@@ -197,24 +181,20 @@ static struct pci_dev *cb_pcimdda_probe(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
 	struct pci_dev *pcidev = NULL;
-	int index;
 
 	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
-		for (index = 0; index < ARRAY_SIZE(cb_pcimdda_boards); index++) {
-			if (cb_pcimdda_boards[index].device_id != pcidev->device)
+		if (pcidev->device != PCI_ID_PCIM_DDA06_16)
+			continue;
+		if (it->options[0] || it->options[1]) {
+			if (pcidev->bus->number != it->options[0] ||
+				PCI_SLOT(pcidev->devfn) != it->options[1]) {
 				continue;
-			if (it->options[0] || it->options[1]) {
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
 			}
-
-			dev->board_ptr = cb_pcimdda_boards + index;
-			return pcidev;
 		}
+
+		return pcidev;
 	}
 	return NULL;
 }
@@ -222,7 +202,6 @@ static struct pci_dev *cb_pcimdda_probe(struct comedi_device *dev,
 static int cb_pcimdda_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
-	const struct cb_pcimdda_board *thisboard;
 	struct cb_pcimdda_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
@@ -237,8 +216,7 @@ static int cb_pcimdda_attach(struct comedi_device *dev,
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
-	thisboard = comedi_board(dev);
-	dev->board_name = thisboard->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
