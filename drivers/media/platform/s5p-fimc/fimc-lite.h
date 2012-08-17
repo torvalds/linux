@@ -9,7 +9,7 @@
 #ifndef FIMC_LITE_H_
 #define FIMC_LITE_H_
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <linux/io.h>
 #include <linux/irqreturn.h>
 #include <linux/platform_device.h>
