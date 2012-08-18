@@ -350,6 +350,21 @@ static int pci1723_attach(struct comedi_device *dev,
 		s->insn_write = pci1723_ao_write_winsn;
 		s->insn_read = pci1723_insn_read_ao;
 
+		subdev++;
+	}
+
+	if (this_board->n_diochan) {
+		s = dev->subdevices + subdev;
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags =
+		    SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan = this_board->n_diochan;
+		s->maxdata = 1;
+		s->len_chanlist = this_board->n_diochan;
+		s->range_table = &range_digital;
+		s->insn_config = pci1723_dio_insn_config;
+		s->insn_bits = pci1723_dio_insn_bits;
+
 		/* read DIO config */
 		switch (inw(dev->iobase + PCI1723_DIGITAL_IO_PORT_MODE)
 								       & 0x03) {
@@ -369,20 +384,6 @@ static int pci1723_attach(struct comedi_device *dev,
 		/* read DIO port state */
 		s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
 
-		subdev++;
-	}
-
-	if (this_board->n_diochan) {
-		s = dev->subdevices + subdev;
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags =
-		    SDF_READABLE | SDF_WRITABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->n_diochan;
-		s->maxdata = 1;
-		s->len_chanlist = this_board->n_diochan;
-		s->range_table = &range_digital;
-		s->insn_config = pci1723_dio_insn_config;
-		s->insn_bits = pci1723_dio_insn_bits;
 		subdev++;
 	}
 
