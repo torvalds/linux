@@ -93,6 +93,7 @@ struct vhost_scsi_target {
 	int abi_version;
 	char vhost_wwpn[TRANSPORT_IQN_LEN];
 	unsigned short vhost_tpgt;
+	unsigned short reserved;
 };
 
 /* VHOST_SCSI specific defines */

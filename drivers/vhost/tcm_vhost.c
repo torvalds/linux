@@ -995,11 +995,15 @@ static long vhost_scsi_ioctl(struct file *f, unsigned int ioctl,
 	case VHOST_SCSI_SET_ENDPOINT:
 		if (copy_from_user(&backend, argp, sizeof backend))
 			return -EFAULT;
+		if (backend.reserved != 0)
+			return -EOPNOTSUPP;
 
 		return vhost_scsi_set_endpoint(vs, &backend);
 	case VHOST_SCSI_CLEAR_ENDPOINT:
 		if (copy_from_user(&backend, argp, sizeof backend))
 			return -EFAULT;
+		if (backend.reserved != 0)
+			return -EOPNOTSUPP;
 
 		return vhost_scsi_clear_endpoint(vs, &backend);
 	case VHOST_SCSI_GET_ABI_VERSION:
