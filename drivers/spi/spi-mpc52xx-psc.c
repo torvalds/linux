@@ -481,7 +481,7 @@ static int __devinit mpc52xx_psc_spi_of_probe(struct platform_device *op)
 
 static int __devexit mpc52xx_psc_spi_of_remove(struct platform_device *op)
 {
-	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct spi_master *master = spi_master_get(dev_get_drvdata(&op->dev));
 	struct mpc52xx_psc_spi *mps = spi_master_get_devdata(master);
 
 	flush_workqueue(mps->workqueue);
@@ -490,6 +490,7 @@ static int __devexit mpc52xx_psc_spi_of_remove(struct platform_device *op)
 	free_irq(mps->irq, mps);
 	if (mps->psc)
 		iounmap(mps->psc);
+	spi_master_put(master);
 
 	return 0;
 }
