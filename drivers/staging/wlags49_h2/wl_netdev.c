@@ -1773,7 +1773,6 @@ void wl_wds_netif_carrier_off( struct wl_private *lp )
         }
     }
 
-    return;
 } // wl_wds_netif_carrier_off
 /*============================================================================*/
 
