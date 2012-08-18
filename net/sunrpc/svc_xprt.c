@@ -743,7 +743,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	svc_xprt_received(xprt);
 
 	/* No data, incomplete (TCP) read, or accept() */
-	if (len == 0 || len == -EAGAIN)
+	if (len <= 0)
 		goto out;
 
 	clear_bit(XPT_OLD, &xprt->xpt_flags);
