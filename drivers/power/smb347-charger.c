@@ -45,6 +45,8 @@
 #define CFG_FLOAT_VOLTAGE_THRESHOLD_MASK	0xc0
 #define CFG_FLOAT_VOLTAGE_MASK			0x3F
 #define CFG_FLOAT_VOLTAGE_THRESHOLD_SHIFT	6
+#define CFG_CHARGE_CONTROL			0x04
+#define CFG_AUTOMATIC_RECHARGE_DISABLE		BIT(7)
 #define CFG_STAT				0x05
 #define CFG_STAT_DISABLED			BIT(5)
 #define CFG_STAT_ACTIVE_HIGH			BIT(7)
@@ -902,6 +904,19 @@ static int smb347_hw_init(struct smb347_charger *smb)
 	ret = smb347_write(smb, CFG_OTHER, ret);
 	if (ret < 0)
 		goto fail;
+
+	/* If configured by platform data, disable AUTOMATIC RECHARGE */
+	if (smb->pdata->disable_automatic_recharge) {
+		ret = smb347_read(smb, CFG_CHARGE_CONTROL);
+		if (ret < 0)
+			goto fail;
+
+		ret |= CFG_AUTOMATIC_RECHARGE_DISABLE;
+
+		ret = smb347_write(smb, CFG_CHARGE_CONTROL, ret);
+		if (ret < 0)
+			goto fail;
+	}
 
 	ret = smb347_read(smb, CFG_PIN);
 	if (ret < 0)
