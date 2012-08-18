@@ -2414,7 +2414,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		goto out;
 	}
 
-	mode = op->mode & S_IALLUGO;
+	mode = op->mode;
 	if ((open_flag & O_CREAT) && !IS_POSIXACL(dir))
 		mode &= ~current_umask();
 
@@ -2452,7 +2452,7 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 	}
 
 	if (open_flag & O_CREAT) {
-		error = may_o_create(&nd->path, dentry, op->mode);
+		error = may_o_create(&nd->path, dentry, mode);
 		if (error) {
 			create_error = error;
 			if (open_flag & O_EXCL)
@@ -2488,6 +2488,10 @@ static int atomic_open(struct nameidata *nd, struct dentry *dentry,
 		if (file->f_path.dentry) {
 			dput(dentry);
 			dentry = file->f_path.dentry;
+		}
+		if (create_error && dentry->d_inode == NULL) {
+			error = create_error;
+			goto out;
 		}
 		goto looked_up;
 	}
