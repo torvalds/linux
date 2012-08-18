@@ -494,7 +494,7 @@ free_master:
 
 static int __devexit mpc512x_psc_spi_do_remove(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
+	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(master);
 
 	flush_workqueue(mps->workqueue);
@@ -503,6 +503,7 @@ static int __devexit mpc512x_psc_spi_do_remove(struct device *dev)
 	free_irq(mps->irq, mps);
 	if (mps->psc)
 		iounmap(mps->psc);
+	spi_master_put(master);
 
 	return 0;
 }
