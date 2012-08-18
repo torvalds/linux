@@ -1795,22 +1795,19 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
 
     DBG_FUNC( "wl_send_dma" );
 
-    if( lp == NULL )
-    {
+    if( lp == NULL ) {
         DBG_ERROR( DbgInfo, "Private adapter struct is NULL\n" );
         return FALSE;
     }
 
-    if( lp->dev == NULL )
-    {
+    if( lp->dev == NULL ) {
         DBG_ERROR( DbgInfo, "net_device struct in wl_private is NULL\n" );
         return FALSE;
     }
 
     /* AGAIN, ALL THE QUEUEING DONE HERE IN I/O MODE IS NOT PERFORMED */
 
-    if( skb == NULL )
-    {
+    if( skb == NULL ) {
         DBG_WARNING (DbgInfo, "Nothing to send.\n");
         return FALSE;
     }
@@ -1820,8 +1817,7 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
     /* Get a free descriptor */
     desc = wl_pci_dma_get_tx_packet( lp );
 
-    if( desc == NULL )
-    {
+    if( desc == NULL ) {
         if( lp->netif_queue_on == TRUE ) {
             netif_stop_queue( lp->dev );
             WL_WDS_NETIF_STOP_QUEUE( lp );
@@ -1837,8 +1833,7 @@ int wl_send_dma( struct wl_private *lp, struct sk_buff *skb, int port )
 
     desc_next = desc->next_desc_addr;
 
-    if( desc_next->buf_addr == NULL )
-    {
+    if( desc_next->buf_addr == NULL ) {
         DBG_ERROR( DbgInfo, "DMA descriptor buf_addr is NULL\n" );
         return FALSE;
     }
