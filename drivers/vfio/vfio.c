@@ -396,7 +396,6 @@ static void vfio_device_release(struct kref *kref)
 						  struct vfio_device, kref);
 	struct vfio_group *group = device->group;
 
-	mutex_lock(&group->device_lock);
 	list_del(&device->group_next);
 	mutex_unlock(&group->device_lock);
 
@@ -412,7 +411,7 @@ static void vfio_device_release(struct kref *kref)
 static void vfio_device_put(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
-	kref_put(&device->kref, vfio_device_release);
+	kref_put_mutex(&device->kref, vfio_device_release, &group->device_lock);
 	vfio_group_put(group);
 }
 
