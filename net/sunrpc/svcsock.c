@@ -620,10 +620,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if (!svc_udp_get_dest_address(rqstp, cmh)) {
 		net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
 				     cmh->cmsg_level, cmh->cmsg_type);
-out_free:
-		trace_kfree_skb(skb, svc_udp_recvfrom);
-		skb_free_datagram_locked(svsk->sk_sk, skb);
-		return 0;
+		goto out_free;
 	}
 	rqstp->rq_daddrlen = svc_addr_len(svc_daddr(rqstp));
 
@@ -662,6 +659,10 @@ out_free:
 		serv->sv_stats->netudpcnt++;
 
 	return len;
+out_free:
+	trace_kfree_skb(skb, svc_udp_recvfrom);
+	skb_free_datagram_locked(svsk->sk_sk, skb);
+	return 0;
 }
 
 static int
