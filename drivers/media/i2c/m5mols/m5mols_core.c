@@ -937,7 +937,7 @@ static int __devinit m5mols_probe(struct i2c_client *client,
 	if (!ret)
 		ret = m5mols_init_controls(sd);
 
-	m5mols_sensor_power(info, false);
+	ret = m5mols_sensor_power(info, false);
 	if (!ret)
 		return 0;
 out_me:
