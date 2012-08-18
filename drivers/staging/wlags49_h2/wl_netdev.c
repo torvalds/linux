@@ -1763,15 +1763,14 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
  ******************************************************************************/
 void wl_wds_netif_carrier_off( struct wl_private *lp )
 {
-    int count;
-    /*------------------------------------------------------------------------*/
+	int count;
 
-    if( lp != NULL ) {
-        for( count = 0; count < NUM_WDS_PORTS; count++ ) {
-            if( lp->wds_port[count].is_registered )
-                netif_carrier_off( lp->wds_port[count].dev );
-        }
-    }
+	if( lp != NULL ) {
+		for( count = 0; count < NUM_WDS_PORTS; count++ ) {
+			if( lp->wds_port[count].is_registered )
+				netif_carrier_off( lp->wds_port[count].dev );
+		}
+	}
 
 } // wl_wds_netif_carrier_off
 /*============================================================================*/
