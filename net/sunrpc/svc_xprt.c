@@ -208,6 +208,26 @@ static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
 	return xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
 }
 
+/*
+ * svc_xprt_received conditionally queues the transport for processing
+ * by another thread. The caller must hold the XPT_BUSY bit and must
+ * not thereafter touch transport data.
+ *
+ * Note: XPT_DATA only gets cleared when a read-attempt finds no (or
+ * insufficient) data.
+ */
+static void svc_xprt_received(struct svc_xprt *xprt)
+{
+	BUG_ON(!test_bit(XPT_BUSY, &xprt->xpt_flags));
+	/* As soon as we clear busy, the xprt could be closed and
+	 * 'put', so we need a reference to call svc_xprt_enqueue with:
+	 */
+	svc_xprt_get(xprt);
+	clear_bit(XPT_BUSY, &xprt->xpt_flags);
+	svc_xprt_enqueue(xprt);
+	svc_xprt_put(xprt);
+}
+
 void svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *new)
 {
 	clear_bit(XPT_TEMP, &new->xpt_flags);
@@ -397,27 +417,6 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 
 	return xprt;
 }
-
-/*
- * svc_xprt_received conditionally queues the transport for processing
- * by another thread. The caller must hold the XPT_BUSY bit and must
- * not thereafter touch transport data.
- *
- * Note: XPT_DATA only gets cleared when a read-attempt finds no (or
- * insufficient) data.
- */
-void svc_xprt_received(struct svc_xprt *xprt)
-{
-	BUG_ON(!test_bit(XPT_BUSY, &xprt->xpt_flags));
-	/* As soon as we clear busy, the xprt could be closed and
-	 * 'put', so we need a reference to call svc_xprt_enqueue with:
-	 */
-	svc_xprt_get(xprt);
-	clear_bit(XPT_BUSY, &xprt->xpt_flags);
-	svc_xprt_enqueue(xprt);
-	svc_xprt_put(xprt);
-}
-EXPORT_SYMBOL_GPL(svc_xprt_received);
 
 /**
  * svc_reserve - change the space reserved for the reply to a request.
