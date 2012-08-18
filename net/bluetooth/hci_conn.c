@@ -521,8 +521,8 @@ static struct hci_conn *hci_connect_acl(struct hci_dev *hdev, bdaddr_t *dst,
 	return acl;
 }
 
-static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, bdaddr_t *dst,
-				     u8 sec_level, u8 auth_type)
+static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type,
+				bdaddr_t *dst, u8 sec_level, u8 auth_type)
 {
 	struct hci_conn *acl;
 	struct hci_conn *sco;
@@ -531,9 +531,9 @@ static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, bdaddr_t *dst,
 	if (IS_ERR(acl))
 		return acl;
 
-	sco = hci_conn_hash_lookup_ba(hdev, SCO_LINK, dst);
+	sco = hci_conn_hash_lookup_ba(hdev, type, dst);
 	if (!sco) {
-		sco = hci_conn_add(hdev, SCO_LINK, dst);
+		sco = hci_conn_add(hdev, type, dst);
 		if (!sco) {
 			hci_conn_put(acl);
 			return ERR_PTR(-ENOMEM);
@@ -574,7 +574,8 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	case ACL_LINK:
 		return hci_connect_acl(hdev, dst, sec_level, auth_type);
 	case SCO_LINK:
-		return hci_connect_sco(hdev, dst, sec_level, auth_type);
+	case ESCO_LINK:
+		return hci_connect_sco(hdev, type, dst, sec_level, auth_type);
 	}
 
 	return ERR_PTR(-EINVAL);
