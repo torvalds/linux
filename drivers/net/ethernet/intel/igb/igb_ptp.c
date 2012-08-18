@@ -289,6 +289,31 @@ static int igb_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
+/**
+ * igb_ptp_tx_work
+ * @work: pointer to work struct
+ *
+ * This work function polls the TSYNCTXCTL valid bit to determine when a
+ * timestamp has been taken for the current stored skb.
+ */
+void igb_ptp_tx_work(struct work_struct *work)
+{
+	struct igb_adapter *adapter = container_of(work, struct igb_adapter,
+						   ptp_tx_work);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 tsynctxctl;
+
+	if (!adapter->ptp_tx_skb)
+		return;
+
+	tsynctxctl = rd32(E1000_TSYNCTXCTL);
+	if (tsynctxctl & E1000_TSYNCTXCTL_VALID)
+		igb_ptp_tx_hwtstamp(adapter);
+	else
+		/* reschedule to check later */
+		schedule_work(&adapter->ptp_tx_work);
+}
+
 static void igb_ptp_overflow_check(struct work_struct *work)
 {
 	struct igb_adapter *igb =
@@ -305,31 +330,25 @@ static void igb_ptp_overflow_check(struct work_struct *work)
 
 /**
  * igb_ptp_tx_hwtstamp - utility function which checks for TX time stamp
- * @q_vector: pointer to q_vector containing needed info
- * @buffer: pointer to igb_tx_buffer structure
+ * @adapter: Board private structure.
  *
  * If we were asked to do hardware stamping and such a time stamp is
  * available, then it must have been for this skb here because we only
  * allow only one such packet into the queue.
  */
-void igb_ptp_tx_hwtstamp(struct igb_q_vector *q_vector,
-			 struct igb_tx_buffer *buffer_info)
+void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter)
 {
-	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u64 regval;
-
-	/* if skb does not support hw timestamp or TX stamp not valid exit */
-	if (likely(!(buffer_info->tx_flags & IGB_TX_FLAGS_TSTAMP)) ||
-	    !(rd32(E1000_TSYNCTXCTL) & E1000_TSYNCTXCTL_VALID))
-		return;
 
 	regval = rd32(E1000_TXSTMPL);
 	regval |= (u64)rd32(E1000_TXSTMPH) << 32;
 
 	igb_ptp_systim_to_hwtstamp(adapter, &shhwtstamps, regval);
-	skb_tstamp_tx(buffer_info->skb, &shhwtstamps);
+	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
+	dev_kfree_skb_any(adapter->ptp_tx_skb);
+	adapter->ptp_tx_skb = NULL;
 }
 
 void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
@@ -603,16 +622,26 @@ void igb_ptp_init(struct igb_adapter *adapter)
 
 	spin_lock_init(&adapter->tmreg_lock);
 
+	INIT_WORK(&adapter->ptp_tx_work, igb_ptp_tx_work);
+
 	schedule_delayed_work(&adapter->ptp_overflow_work,
 			      IGB_SYSTIM_OVERFLOW_PERIOD);
+
+	/* Initialize the time sync interrupts for devices that support it. */
+	if (hw->mac.type >= e1000_82580) {
+		wr32(E1000_TSIM, E1000_TSIM_TXTS);
+		wr32(E1000_IMS, E1000_IMS_TS);
+	}
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps);
 	if (IS_ERR(adapter->ptp_clock)) {
 		adapter->ptp_clock = NULL;
 		dev_err(&adapter->pdev->dev, "ptp_clock_register failed\n");
-	} else
+	} else {
 		dev_info(&adapter->pdev->dev, "added PHC on %s\n",
 			 adapter->netdev->name);
+		adapter->flags |= IGB_FLAG_PTP;
+	}
 }
 
 /**
@@ -624,20 +653,61 @@ void igb_ptp_init(struct igb_adapter *adapter)
 void igb_ptp_stop(struct igb_adapter *adapter)
 {
 	switch (adapter->hw.mac.type) {
-	case e1000_i211:
-	case e1000_i210:
-	case e1000_i350:
-	case e1000_82580:
 	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
 		cancel_delayed_work_sync(&adapter->ptp_overflow_work);
+		break;
+	case e1000_i210:
+	case e1000_i211:
+		/* No delayed work to cancel. */
 		break;
 	default:
 		return;
 	}
 
+	cancel_work_sync(&adapter->ptp_tx_work);
+
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);
 		dev_info(&adapter->pdev->dev, "removed PHC on %s\n",
 			 adapter->netdev->name);
+		adapter->flags &= ~IGB_FLAG_PTP;
 	}
+}
+
+/**
+ * igb_ptp_reset - Re-enable the adapter for PTP following a reset.
+ * @adapter: Board private structure.
+ *
+ * This function handles the reset work required to re-enable the PTP device.
+ **/
+void igb_ptp_reset(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (!(adapter->flags & IGB_FLAG_PTP))
+		return;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_82576:
+		/* Dial the nominal frequency. */
+		wr32(E1000_TIMINCA, INCPERIOD_82576 | INCVALUE_82576);
+		break;
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
+		/* Enable the timer functions and interrupts. */
+		wr32(E1000_TSAUXC, 0x0);
+		wr32(E1000_TSIM, E1000_TSIM_TXTS);
+		wr32(E1000_IMS, E1000_IMS_TS);
+		break;
+	default:
+		/* No work to do. */
+		return;
+	}
+
+	timecounter_init(&adapter->tc, &adapter->cc,
+			 ktime_to_ns(ktime_get_real()));
 }

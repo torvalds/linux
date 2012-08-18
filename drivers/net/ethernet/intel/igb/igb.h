@@ -381,6 +381,8 @@ struct igb_adapter {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	struct delayed_work ptp_overflow_work;
+	struct work_struct ptp_tx_work;
+	struct sk_buff *ptp_tx_skb;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
@@ -394,6 +396,7 @@ struct igb_adapter {
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
 #define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
 #define IGB_FLAG_DMAC              (1 << 4)
+#define IGB_FLAG_PTP               (1 << 5)
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE           20408
@@ -440,8 +443,9 @@ extern void igb_set_fw_version(struct igb_adapter *);
 #ifdef CONFIG_IGB_PTP
 extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_stop(struct igb_adapter *adapter);
-extern void igb_ptp_tx_hwtstamp(struct igb_q_vector *q_vector,
-				struct igb_tx_buffer *buffer_info);
+extern void igb_ptp_reset(struct igb_adapter *adapter);
+extern void igb_ptp_tx_work(struct work_struct *work);
+extern void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
 extern void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 				union e1000_adv_rx_desc *rx_desc,
 				struct sk_buff *skb);

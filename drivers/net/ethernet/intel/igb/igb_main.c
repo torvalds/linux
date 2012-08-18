@@ -1751,6 +1751,11 @@ void igb_reset(struct igb_adapter *adapter)
 	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
+#ifdef CONFIG_IGB_PTP
+	/* Re-enable PTP, where applicable. */
+	igb_ptp_reset(adapter);
+#endif /* CONFIG_IGB_PTP */
+
 	igb_get_phy_info(hw);
 }
 
@@ -4234,7 +4239,7 @@ static __le32 igb_tx_cmd_type(u32 tx_flags)
 
 #ifdef CONFIG_IGB_PTP
 	/* set timestamp bit if present */
-	if (tx_flags & IGB_TX_FLAGS_TSTAMP)
+	if (unlikely(tx_flags & IGB_TX_FLAGS_TSTAMP))
 		cmd_type |= cpu_to_le32(E1000_ADVTXD_MAC_TSTAMP);
 #endif /* CONFIG_IGB_PTP */
 
@@ -4445,6 +4450,9 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				struct igb_ring *tx_ring)
 {
+#ifdef CONFIG_IGB_PTP
+	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
+#endif /* CONFIG_IGB_PTP */
 	struct igb_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
@@ -4468,9 +4476,14 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	first->gso_segs = 1;
 
 #ifdef CONFIG_IGB_PTP
-	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+	if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+		     !(adapter->ptp_tx_skb))) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		tx_flags |= IGB_TX_FLAGS_TSTAMP;
+
+		adapter->ptp_tx_skb = skb_get(skb);
+		if (adapter->hw.mac.type == e1000_82576)
+			schedule_work(&adapter->ptp_tx_work);
 	}
 #endif /* CONFIG_IGB_PTP */
 
@@ -4858,6 +4871,19 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 		if (!test_bit(__IGB_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
+
+#ifdef CONFIG_IGB_PTP
+	if (icr & E1000_ICR_TS) {
+		u32 tsicr = rd32(E1000_TSICR);
+
+		if (tsicr & E1000_TSICR_TXTS) {
+			/* acknowledge the interrupt */
+			wr32(E1000_TSICR, E1000_TSICR_TXTS);
+			/* retrieve hardware timestamp */
+			schedule_work(&adapter->ptp_tx_work);
+		}
+	}
+#endif /* CONFIG_IGB_PTP */
 
 	wr32(E1000_EIMS, adapter->eims_other);
 
@@ -5650,6 +5676,19 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
+#ifdef CONFIG_IGB_PTP
+	if (icr & E1000_ICR_TS) {
+		u32 tsicr = rd32(E1000_TSICR);
+
+		if (tsicr & E1000_TSICR_TXTS) {
+			/* acknowledge the interrupt */
+			wr32(E1000_TSICR, E1000_TSICR_TXTS);
+			/* retrieve hardware timestamp */
+			schedule_work(&adapter->ptp_tx_work);
+		}
+	}
+#endif /* CONFIG_IGB_PTP */
+
 	napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -5690,6 +5729,19 @@ static irqreturn_t igb_intr(int irq, void *data)
 		if (!test_bit(__IGB_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
+
+#ifdef CONFIG_IGB_PTP
+	if (icr & E1000_ICR_TS) {
+		u32 tsicr = rd32(E1000_TSICR);
+
+		if (tsicr & E1000_TSICR_TXTS) {
+			/* acknowledge the interrupt */
+			wr32(E1000_TSICR, E1000_TSICR_TXTS);
+			/* retrieve hardware timestamp */
+			schedule_work(&adapter->ptp_tx_work);
+		}
+	}
+#endif /* CONFIG_IGB_PTP */
 
 	napi_schedule(&q_vector->napi);
 
@@ -5793,11 +5845,6 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		/* update the statistics for this packet */
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
-
-#ifdef CONFIG_IGB_PTP
-		/* retrieve hardware timestamp */
-		igb_ptp_tx_hwtstamp(q_vector, tx_buffer);
-#endif /* CONFIG_IGB_PTP */
 
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
