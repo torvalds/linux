@@ -454,7 +454,7 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 				GFP_KERNEL);
 		if (!ms->gpio_cs) {
 			rc = -ENOMEM;
-			goto err_alloc;
+			goto err_alloc_gpio;
 		}
 
 		for (i = 0; i < ms->gpio_cs_count; i++) {
@@ -514,12 +514,13 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 
  err_register:
 	dev_err(&ms->master->dev, "initialization failed\n");
-	spi_master_put(master);
  err_gpio:
 	while (i-- > 0)
 		gpio_free(ms->gpio_cs[i]);
 
 	kfree(ms->gpio_cs);
+ err_alloc_gpio:
+	spi_master_put(master);
  err_alloc:
  err_init:
 	iounmap(regs);
