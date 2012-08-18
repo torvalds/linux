@@ -1563,6 +1563,7 @@ static int stb0899_get_frontend(struct dvb_frontend *fe)
 
 	dprintk(state->verbose, FE_DEBUG, 1, "Get params");
 	p->symbol_rate = internal->srate;
+	p->frequency = internal->freq;
 
 	return 0;
 }
