@@ -114,11 +114,6 @@ TODO:
 
 /* static unsigned short pci_list_builded=0;      =1 list of card is know */
 
-static const struct comedi_lrange range_pci1723 = { 1, {
-							BIP_RANGE(10)
-							}
-};
-
 /*
  * Board descriptions for pci1723 boards.
  */
@@ -144,7 +139,7 @@ static const struct pci1723_board boardtypes[] = {
 	 .n_aochan = 8,
 	 .n_diochan = 16,
 	 .ao_maxdata = 0xffff,
-	 .rangelist_ao = &range_pci1723,
+	 .rangelist_ao = &range_bipolar10,
 	 },
 };
 
