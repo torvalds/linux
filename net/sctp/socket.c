@@ -70,6 +70,7 @@
 #include <linux/init.h>
 #include <linux/crypto.h>
 #include <linux/slab.h>
+#include <linux/file.h>
 
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -4276,6 +4277,7 @@ static int sctp_getsockopt_peeloff(struct sock *sk, int len, char __user *optval
 {
 	sctp_peeloff_arg_t peeloff;
 	struct socket *newsock;
+	struct file *newfile;
 	int retval = 0;
 
 	if (len < sizeof(sctp_peeloff_arg_t))
@@ -4289,22 +4291,35 @@ static int sctp_getsockopt_peeloff(struct sock *sk, int len, char __user *optval
 		goto out;
 
 	/* Map the socket to an unused fd that can be returned to the user.  */
-	retval = sock_map_fd(newsock, 0);
+	retval = get_unused_fd();
 	if (retval < 0) {
 		sock_release(newsock);
 		goto out;
+	}
+
+	newfile = sock_alloc_file(newsock, 0);
+	if (unlikely(IS_ERR(newfile))) {
+		put_unused_fd(retval);
+		sock_release(newsock);
+		return PTR_ERR(newfile);
 	}
 
 	SCTP_DEBUG_PRINTK("%s: sk: %p newsk: %p sd: %d\n",
 			  __func__, sk, newsock->sk, retval);
 
 	/* Return the fd mapped to the new socket.  */
-	peeloff.sd = retval;
-	if (put_user(len, optlen))
+	if (put_user(len, optlen)) {
+		fput(newfile);
+		put_unused_fd(retval);
 		return -EFAULT;
-	if (copy_to_user(optval, &peeloff, len))
-		retval = -EFAULT;
-
+	}
+	peeloff.sd = retval;
+	if (copy_to_user(optval, &peeloff, len)) {
+		fput(newfile);
+		put_unused_fd(retval);
+		return -EFAULT;
+	}
+	fd_install(retval, newfile);
 out:
 	return retval;
 }

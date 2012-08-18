@@ -346,7 +346,7 @@ static struct file_system_type sock_fs_type = {
  *	but we take care of internal coherence yet.
  */
 
-static struct file *sock_alloc_file(struct socket *sock, int flags)
+struct file *sock_alloc_file(struct socket *sock, int flags)
 {
 	struct qstr name = { .name = "" };
 	struct path path;
@@ -375,8 +375,9 @@ static struct file *sock_alloc_file(struct socket *sock, int flags)
 	file->private_data = sock;
 	return file;
 }
+EXPORT_SYMBOL(sock_alloc_file);
 
-int sock_map_fd(struct socket *sock, int flags)
+static int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
 	int fd = get_unused_fd_flags(flags);
@@ -392,7 +393,6 @@ int sock_map_fd(struct socket *sock, int flags)
 	put_unused_fd(fd);
 	return PTR_ERR(newfile);
 }
-EXPORT_SYMBOL(sock_map_fd);
 
 struct socket *sock_from_file(struct file *file, int *err)
 {
