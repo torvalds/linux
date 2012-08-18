@@ -36,15 +36,6 @@ Configuration options:
 #include "8255.h"
 #include "8253.h"
 
-#undef PCI_DIO_EXTDEBUG		/* if defined, enable extensive debug logging */
-
-#undef DPRINTK
-#ifdef PCI_DIO_EXTDEBUG
-#define DPRINTK(fmt, args...) printk(fmt, ## args)
-#else
-#define DPRINTK(fmt, args...)
-#endif
-
 #define PCI_VENDOR_ID_ADVANTECH		0x13fe
 
 /* hardware types of the cards */
@@ -816,8 +807,6 @@ static int pci1760_reset(struct comedi_device *dev)
 */
 static int pci_dio_reset(struct comedi_device *dev)
 {
-	DPRINTK("adv_pci_dio EDBG: BGN: pci171x_reset(...)\n");
-
 	switch (this_board->cardtype) {
 	case TYPE_PCI1730:
 		outb(0, dev->iobase + PCI1730_DO);	/*  clear outputs */
@@ -916,8 +905,6 @@ static int pci_dio_reset(struct comedi_device *dev)
 							  * interrupts */
 		break;
 	}
-
-	DPRINTK("adv_pci_dio EDBG: END: pci171x_reset(...)\n");
 
 	return 0;
 }
