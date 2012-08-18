@@ -1198,7 +1198,6 @@ err_freq:
 
 err_out:
 	dev_set_drvdata(dev, NULL);
-	devm_kfree(dev, s);
 
 	return ret;
 }
@@ -1233,8 +1232,6 @@ static int __devexit max310x_remove(struct spi_device *spi)
 		s->pdata->suspend(1);
 	if (s->pdata->exit)
 		s->pdata->exit();
-
-	devm_kfree(dev, s);
 
 	return ret;
 }
