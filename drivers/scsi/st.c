@@ -4156,6 +4156,7 @@ static int st_probe(struct device *dev)
 				printk(KERN_ERR
 				       "st%d: out of memory. Device not attached.\n",
 				       dev_num);
+				cdev_del(cdev);
 				goto out_free_tape;
 			}
 			cdev->owner = THIS_MODULE;
@@ -4194,17 +4195,13 @@ out_free_tape:
 				  "tape");
 		for (j=0; j < 2; j++) {
 			if (STm->cdevs[j]) {
-				if (cdev == STm->cdevs[j])
-					cdev = NULL;
-					device_destroy(&st_sysfs_class,
-						       MKDEV(SCSI_TAPE_MAJOR,
-							     TAPE_MINOR(i, mode, j)));
+				device_destroy(&st_sysfs_class,
+					       MKDEV(SCSI_TAPE_MAJOR,
+						     TAPE_MINOR(i, mode, j)));
 				cdev_del(STm->cdevs[j]);
 			}
 		}
 	}
-	if (cdev)
-		cdev_del(cdev);
 	write_lock(&st_dev_arr_lock);
 	scsi_tapes[dev_num] = NULL;
 	st_nr_dev--;
