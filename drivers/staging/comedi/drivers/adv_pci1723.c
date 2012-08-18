@@ -157,16 +157,12 @@ struct pci1723_private {
 	short ao_data[8];	/* data output buffer */
 };
 
-/* The following macro to make it easy to access the private structure. */
-#define devpriv ((struct pci1723_private *)dev->private)
-
-#define this_board boardtypes
-
 /*
  * The pci1723 card reset;
  */
 static int pci1723_reset(struct comedi_device *dev)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int i;
 
 	outw(0x01, dev->iobase + PCI1723_SYN_SET);
@@ -196,6 +192,7 @@ static int pci1723_insn_read_ao(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int n, chan;
 
 	chan = CR_CHAN(insn->chanspec);
@@ -212,6 +209,7 @@ static int pci1723_ao_write_winsn(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pci1723_private *devpriv = dev->private;
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
 
@@ -296,6 +294,7 @@ static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
 			continue;
+		dev->board_ptr = &boardtypes[0];
 		return pcidev;
 	}
 	dev_err(dev->class_dev,
@@ -307,31 +306,28 @@ static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
 static int pci1723_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	const struct pci1723_board *this_board;
+	struct pci1723_private *devpriv;
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices;
 
-	printk(KERN_ERR "comedi%d: adv_pci1723: board=%s",
-						dev->minor, this_board->name);
-
-	ret = alloc_private(dev, sizeof(struct pci1723_private));
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
-		return -ENOMEM;
-	}
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret < 0)
+		return ret;
+	devpriv = dev->private;
 
 	pcidev = pci1723_find_pci_dev(dev, it);
 	if (!pcidev)
 		return -EIO;
 	comedi_set_hw_dev(dev, &pcidev->dev);
+	this_board = comedi_board(dev);
+	dev->board_name = this_board->name;
 
-	ret = comedi_pci_enable(pcidev, "adv_pci1723");
+	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-
 	dev->iobase = pci_resource_start(pcidev, 2);
-
-	dev->board_name = this_board->name;
 
 	n_subdevices = 0;
 
@@ -399,14 +395,17 @@ static int pci1723_attach(struct comedi_device *dev,
 
 	pci1723_reset(dev);
 
+	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
+
 	return 0;
 }
 
 static void pci1723_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci1723_private *devpriv = dev->private;
 
-	if (dev->private) {
+	if (devpriv) {
 		if (devpriv->valid)
 			pci1723_reset(dev);
 	}
