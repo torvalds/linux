@@ -238,49 +238,20 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static struct pci_dev *pci1723_find_pci_dev(struct comedi_device *dev,
-					    struct comedi_devconfig *it)
-{
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_ADVANTECH)
-			continue;
-		if (pcidev->device != 0x1723)
-			continue;
-		return pcidev;
-	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
-	return NULL;
-}
-
-static int pci1723_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int pci1723_attach_pci(struct comedi_device *dev,
+			      struct pci_dev *pcidev)
 {
 	struct pci1723_private *devpriv;
-	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
 	int ret;
+
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return ret;
 	devpriv = dev->private;
-
-	pcidev = pci1723_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-	dev->board_name = dev->driver->driver_name;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -353,14 +324,13 @@ static void pci1723_detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-		pci_dev_put(pcidev);
 	}
 }
 
 static struct comedi_driver adv_pci1723_driver = {
 	.driver_name	= "adv_pci1723",
 	.module		= THIS_MODULE,
-	.attach		= pci1723_attach,
+	.attach_pci	= pci1723_attach_pci,
 	.detach		= pci1723_detach,
 };
 
