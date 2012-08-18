@@ -168,7 +168,6 @@ struct pci1723_private {
 static int pci1723_reset(struct comedi_device *dev)
 {
 	int i;
-	DPRINTK("adv_pci1723 EDBG: BGN: pci1723_reset(...)\n");
 
 	outw(0x01, dev->iobase + PCI1723_SYN_SET);
 					       /* set synchronous output mode */
@@ -190,7 +189,6 @@ static int pci1723_reset(struct comedi_device *dev)
 	/* set asynchronous output mode */
 	outw(0, dev->iobase + PCI1723_SYN_SET);
 
-	DPRINTK("adv_pci1723 EDBG: END: pci1723_reset(...)\n");
 	return 0;
 }
 
@@ -201,7 +199,6 @@ static int pci1723_insn_read_ao(struct comedi_device *dev,
 	int n, chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	DPRINTK(" adv_PCI1723 DEBUG: pci1723_insn_read_ao() -----\n");
 	for (n = 0; n < insn->n; n++)
 		data[n] = devpriv->ao_data[chan];
 
@@ -217,8 +214,6 @@ static int pci1723_ao_write_winsn(struct comedi_device *dev,
 {
 	int n, chan;
 	chan = CR_CHAN(insn->chanspec);
-
-	DPRINTK("PCI1723: the pci1723_ao_write_winsn() ------\n");
 
 	for (n = 0; n < insn->n; n++) {
 
