@@ -107,12 +107,8 @@ TODO:
 
 #define PCI1723_SELECT_CALIBRATION 0x28	/* Select the calibration Ref_V */
 
-/* This structure is for data unique to this hardware driver. */
 struct pci1723_private {
-	int valid;		/* card is usable; */
-
 	unsigned char da_range[8];	/* D/A output range for each channel */
-
 	short ao_data[8];	/* data output buffer */
 };
 
@@ -262,8 +258,6 @@ static int pci1723_attach_pci(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	pci1723_reset(dev);
-
 	s = dev->subdevices + 0;
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
@@ -303,8 +297,6 @@ static int pci1723_attach_pci(struct comedi_device *dev,
 	/* read DIO port state */
 	s->state = inw(dev->iobase + PCI1723_READ_DIGITAL_INPUT_DATA);
 
-	devpriv->valid = 1;
-
 	pci1723_reset(dev);
 
 	dev_info(dev->class_dev, "%s attached\n", dev->board_name);
@@ -315,15 +307,12 @@ static int pci1723_attach_pci(struct comedi_device *dev,
 static void pci1723_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pci1723_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (devpriv->valid)
-			pci1723_reset(dev);
-	}
 	if (pcidev) {
-		if (dev->iobase)
+		if (dev->iobase) {
+			pci1723_reset(dev);
 			comedi_pci_disable(pcidev);
+		}
 	}
 }
 
