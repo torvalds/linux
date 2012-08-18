@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/i2c-tegra.h>
 #include <linux/of_i2c.h>
+#include <linux/of_device.h>
 #include <linux/module.h>
 
 #include <asm/unaligned.h>
@@ -114,8 +115,18 @@ enum msg_end_type {
 };
 
 /**
+ * struct tegra_i2c_hw_feature : Different HW support on Tegra
+ * @has_continue_xfer_support: Continue transfer supports.
+ */
+
+struct tegra_i2c_hw_feature {
+	bool has_continue_xfer_support;
+};
+
+/**
  * struct tegra_i2c_dev	- per device i2c context
  * @dev: device reference for power management
+ * @hw: Tegra i2c hw feature.
  * @adapter: core i2c layer adapter information
  * @div_clk: clock reference for div clock of i2c controller.
  * @fast_clk: clock reference for fast clock of i2c controller.
@@ -133,6 +144,7 @@ enum msg_end_type {
  */
 struct tegra_i2c_dev {
 	struct device *dev;
+	const struct tegra_i2c_hw_feature *hw;
 	struct i2c_adapter adapter;
 	struct clk *div_clk;
 	struct clk *fast_clk;
@@ -582,14 +594,38 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
-		I2C_FUNC_PROTOCOL_MANGLING | I2C_FUNC_NOSTART;
+	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
+	u32 ret = I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL | I2C_FUNC_10BIT_ADDR |
+				I2C_FUNC_PROTOCOL_MANGLING;
+
+	if (i2c_dev->hw->has_continue_xfer_support)
+		ret |= I2C_FUNC_NOSTART;
+	return ret;
 }
 
 static const struct i2c_algorithm tegra_i2c_algo = {
 	.master_xfer	= tegra_i2c_xfer,
 	.functionality	= tegra_i2c_func,
 };
+
+static const struct tegra_i2c_hw_feature tegra20_i2c_hw = {
+	.has_continue_xfer_support = false,
+};
+
+static const struct tegra_i2c_hw_feature tegra30_i2c_hw = {
+	.has_continue_xfer_support = true,
+};
+
+#if defined(CONFIG_OF)
+/* Match table for of_platform binding */
+static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra30-i2c", .data = &tegra30_i2c_hw, },
+	{ .compatible = "nvidia,tegra20-i2c", .data = &tegra20_i2c_hw, },
+	{ .compatible = "nvidia,tegra20-i2c-dvc", .data = &tegra20_i2c_hw, },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
+#endif
 
 static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 {
@@ -659,11 +695,18 @@ static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 			i2c_dev->bus_clk_rate = be32_to_cpup(prop);
 	}
 
-	if (pdev->dev.of_node)
+	i2c_dev->hw = &tegra20_i2c_hw;
+
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_device(of_match_ptr(tegra_i2c_of_match),
+						&pdev->dev);
+		i2c_dev->hw = match->data;
 		i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
 						"nvidia,tegra20-i2c-dvc");
-	else if (pdev->id == 3)
+	} else if (pdev->id == 3) {
 		i2c_dev->is_dvc = 1;
+	}
 	init_completion(&i2c_dev->msg_complete);
 
 	platform_set_drvdata(pdev, i2c_dev);
@@ -749,16 +792,6 @@ static SIMPLE_DEV_PM_OPS(tegra_i2c_pm, tegra_i2c_suspend, tegra_i2c_resume);
 #define TEGRA_I2C_PM	(&tegra_i2c_pm)
 #else
 #define TEGRA_I2C_PM	NULL
-#endif
-
-#if defined(CONFIG_OF)
-/* Match table for of_platform binding */
-static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
-	{ .compatible = "nvidia,tegra20-i2c", },
-	{ .compatible = "nvidia,tegra20-i2c-dvc", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 #endif
 
 static struct platform_driver tegra_i2c_driver = {
