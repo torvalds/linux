@@ -418,7 +418,7 @@ config USB_OHCI_HCD_PLATFORM
 	default n
 	---help---
 	  Adds an OHCI host driver for a generic platform device, which
-	  provieds a memory space and an irq.
+	  provides a memory space and an irq.
 
 	  If unsure, say N.
 
@@ -428,7 +428,7 @@ config USB_EHCI_HCD_PLATFORM
 	default n
 	---help---
 	  Adds an EHCI host driver for a generic platform device, which
-	  provieds a memory space and an irq.
+	  provides a memory space and an irq.
 
 	  If unsure, say N.
 
