@@ -78,7 +78,7 @@ struct st_modedef {
 #define ST_MODE_SHIFT (7 - ST_NBR_MODE_BITS)
 #define ST_MODE_MASK ((ST_NBR_MODES - 1) << ST_MODE_SHIFT)
 
-#define ST_MAX_TAPES 128
+#define ST_MAX_TAPES (1 << (20 - (ST_NBR_MODE_BITS + 1)))
 #define ST_MAX_TAPE_ENTRIES  (ST_MAX_TAPES << (ST_NBR_MODE_BITS + 1))
 
 /* The status related to each partition */
