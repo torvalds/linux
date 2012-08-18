@@ -264,6 +264,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 	return group;
 }
 
+/* called with vfio.group_lock held */
 static void vfio_group_release(struct kref *kref)
 {
 	struct vfio_group *group = container_of(kref, struct vfio_group, kref);
@@ -287,13 +288,7 @@ static void vfio_group_release(struct kref *kref)
 
 static void vfio_group_put(struct vfio_group *group)
 {
-	mutex_lock(&vfio.group_lock);
-	/*
-	 * Release needs to unlock to unregister the notifier, so only
-	 * unlock if not released.
-	 */
-	if (!kref_put(&group->kref, vfio_group_release))
-		mutex_unlock(&vfio.group_lock);
+	kref_put_mutex(&group->kref, vfio_group_release, &vfio.group_lock);
 }
 
 /* Assume group_lock or group reference is held */
