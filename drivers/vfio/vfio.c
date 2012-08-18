@@ -1111,10 +1111,10 @@ static int vfio_group_get_device_fd(struct vfio_group *group, char *buf)
 		 */
 		filep->f_mode |= (FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
 
-		fd_install(ret, filep);
-
 		vfio_device_get(device);
 		atomic_inc(&group->container_users);
+
+		fd_install(ret, filep);
 		break;
 	}
 	mutex_unlock(&group->device_lock);
