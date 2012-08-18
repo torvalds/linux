@@ -529,7 +529,7 @@ static int __devinit mpc52xx_spi_probe(struct platform_device *op)
 
 static int __devexit mpc52xx_spi_remove(struct platform_device *op)
 {
-	struct spi_master *master = dev_get_drvdata(&op->dev);
+	struct spi_master *master = spi_master_get(dev_get_drvdata(&op->dev));
 	struct mpc52xx_spi *ms = spi_master_get_devdata(master);
 	int i;
 
@@ -541,8 +541,8 @@ static int __devexit mpc52xx_spi_remove(struct platform_device *op)
 
 	kfree(ms->gpio_cs);
 	spi_unregister_master(master);
-	spi_master_put(master);
 	iounmap(ms->regs);
+	spi_master_put(master);
 
 	return 0;
 }
