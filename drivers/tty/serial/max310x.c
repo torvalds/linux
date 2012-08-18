@@ -1207,6 +1207,7 @@ static int __devexit max310x_remove(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	struct max310x_port *s = dev_get_drvdata(dev);
+	int ret = 0;
 
 	dev_dbg(dev, "Removing port\n");
 
@@ -1219,8 +1220,11 @@ static int __devexit max310x_remove(struct spi_device *spi)
 	uart_unregister_driver(&s->uart);
 
 #ifdef CONFIG_GPIOLIB
-	if (s->pdata->gpio_base)
-		gpiochip_remove(&s->gpio);
+	if (s->pdata->gpio_base) {
+		ret = gpiochip_remove(&s->gpio);
+		if (ret)
+			dev_err(dev, "Failed to remove gpio chip: %d\n", ret);
+	}
 #endif
 
 	dev_set_drvdata(dev, NULL);
@@ -1232,7 +1236,7 @@ static int __devexit max310x_remove(struct spi_device *spi)
 
 	devm_kfree(dev, s);
 
-	return 0;
+	return ret;
 }
 
 static const struct spi_device_id max310x_id_table[] = {
