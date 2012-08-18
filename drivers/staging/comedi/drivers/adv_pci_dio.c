@@ -1184,6 +1184,8 @@ static void pci_dio_detach(struct comedi_device *dev)
 	if (devpriv) {
 		if (devpriv->valid)
 			pci_dio_reset(dev);
+	}
+	if (dev->subdevices) {
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
 			if (s->type == COMEDI_SUBD_DIO)
