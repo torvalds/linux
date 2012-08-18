@@ -652,7 +652,6 @@ void wl_tx_timeout( struct net_device *dev )
     wl_unlock( lp, &flags );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_tx_timeout
 /*============================================================================*/
 
@@ -1292,7 +1291,6 @@ void wl_device_dealloc( struct net_device *dev )
     free_netdev( dev );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_device_dealloc
 /*============================================================================*/
 
@@ -1547,7 +1545,6 @@ void wl_wds_device_alloc( struct wl_private *lp )
     WL_WDS_NETIF_STOP_QUEUE( lp );
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_wds_device_alloc
 /*============================================================================*/
 
@@ -1593,7 +1590,6 @@ void wl_wds_device_dealloc( struct wl_private *lp )
     }
 
     DBG_LEAVE( DbgInfo );
-    return;
 } // wl_wds_device_dealloc
 /*============================================================================*/
 
@@ -1629,8 +1625,6 @@ void wl_wds_netif_start_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_start_queue
 /*============================================================================*/
 
@@ -1666,8 +1660,6 @@ void wl_wds_netif_stop_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_stop_queue
 /*============================================================================*/
 
@@ -1703,8 +1695,6 @@ void wl_wds_netif_wake_queue( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_wake_queue
 /*============================================================================*/
 
@@ -1738,8 +1728,6 @@ void wl_wds_netif_carrier_on( struct wl_private *lp )
             }
         }
     }
-
-    return;
 } // wl_wds_netif_carrier_on
 /*============================================================================*/
 
