@@ -346,22 +346,15 @@ static struct file_system_type sock_fs_type = {
  *	but we take care of internal coherence yet.
  */
 
-static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
+static struct file *sock_alloc_file(struct socket *sock, int flags)
 {
 	struct qstr name = { .name = "" };
 	struct path path;
 	struct file *file;
-	int fd;
-
-	fd = get_unused_fd_flags(flags);
-	if (unlikely(fd < 0))
-		return fd;
 
 	path.dentry = d_alloc_pseudo(sock_mnt->mnt_sb, &name);
-	if (unlikely(!path.dentry)) {
-		put_unused_fd(fd);
-		return -ENOMEM;
-	}
+	if (unlikely(!path.dentry))
+		return ERR_PTR(-ENOMEM);
 	path.mnt = mntget(sock_mnt);
 
 	d_instantiate(path.dentry, SOCK_INODE(sock));
@@ -373,28 +366,31 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 		/* drop dentry, keep inode */
 		ihold(path.dentry->d_inode);
 		path_put(&path);
-		put_unused_fd(fd);
-		return -ENFILE;
+		return ERR_PTR(-ENFILE);
 	}
 
 	sock->file = file;
 	file->f_flags = O_RDWR | (flags & O_NONBLOCK);
 	file->f_pos = 0;
 	file->private_data = sock;
-
-	*f = file;
-	return fd;
+	return file;
 }
 
 int sock_map_fd(struct socket *sock, int flags)
 {
 	struct file *newfile;
-	int fd = sock_alloc_file(sock, &newfile, flags);
+	int fd = get_unused_fd_flags(flags);
+	if (unlikely(fd < 0))
+		return fd;
 
-	if (likely(fd >= 0))
+	newfile = sock_alloc_file(sock, flags);
+	if (likely(!IS_ERR(newfile))) {
 		fd_install(fd, newfile);
+		return fd;
+	}
 
-	return fd;
+	put_unused_fd(fd);
+	return PTR_ERR(newfile);
 }
 EXPORT_SYMBOL(sock_map_fd);
 
@@ -1394,17 +1390,32 @@ SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
 	if (err < 0)
 		goto out_release_both;
 
-	fd1 = sock_alloc_file(sock1, &newfile1, flags);
+	fd1 = get_unused_fd_flags(flags);
 	if (unlikely(fd1 < 0)) {
 		err = fd1;
 		goto out_release_both;
 	}
-
-	fd2 = sock_alloc_file(sock2, &newfile2, flags);
+	fd2 = get_unused_fd_flags(flags);
 	if (unlikely(fd2 < 0)) {
 		err = fd2;
+		put_unused_fd(fd1);
+		goto out_release_both;
+	}
+
+	newfile1 = sock_alloc_file(sock1, flags);
+	if (unlikely(IS_ERR(newfile1))) {
+		err = PTR_ERR(newfile1);
+		put_unused_fd(fd1);
+		put_unused_fd(fd2);
+		goto out_release_both;
+	}
+
+	newfile2 = sock_alloc_file(sock2, flags);
+	if (IS_ERR(newfile2)) {
+		err = PTR_ERR(newfile2);
 		fput(newfile1);
 		put_unused_fd(fd1);
+		put_unused_fd(fd2);
 		sock_release(sock2);
 		goto out;
 	}
@@ -1536,9 +1547,16 @@ SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
 	 */
 	__module_get(newsock->ops->owner);
 
-	newfd = sock_alloc_file(newsock, &newfile, flags);
+	newfd = get_unused_fd_flags(flags);
 	if (unlikely(newfd < 0)) {
 		err = newfd;
+		sock_release(newsock);
+		goto out_put;
+	}
+	newfile = sock_alloc_file(newsock, flags);
+	if (unlikely(IS_ERR(newfile))) {
+		err = PTR_ERR(newfile);
+		put_unused_fd(newfd);
 		sock_release(newsock);
 		goto out_put;
 	}
