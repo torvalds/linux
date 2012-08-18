@@ -411,11 +411,10 @@ static struct uprobe *__find_uprobe(struct inode *inode, loff_t offset)
 static struct uprobe *find_uprobe(struct inode *inode, loff_t offset)
 {
 	struct uprobe *uprobe;
-	unsigned long flags;
 
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	uprobe = __find_uprobe(inode, offset);
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 
 	return uprobe;
 }
@@ -462,12 +461,11 @@ static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
  */
 static struct uprobe *insert_uprobe(struct uprobe *uprobe)
 {
-	unsigned long flags;
 	struct uprobe *u;
 
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	u = __insert_uprobe(uprobe);
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 
 	/* For now assume that the instruction need not be single-stepped */
 	uprobe->flags |= UPROBE_SKIP_SSTEP;
@@ -705,11 +703,9 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vad
  */
 static void delete_uprobe(struct uprobe *uprobe)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	rb_erase(&uprobe->rb_node, &uprobes_tree);
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 	iput(uprobe->inode);
 	put_uprobe(uprobe);
 	atomic_dec(&uprobe_events);
@@ -968,7 +964,6 @@ static void build_probe_list(struct inode *inode,
 				struct list_head *head)
 {
 	loff_t min, max;
-	unsigned long flags;
 	struct rb_node *n, *t;
 	struct uprobe *u;
 
@@ -976,7 +971,7 @@ static void build_probe_list(struct inode *inode,
 	min = vaddr_to_offset(vma, start);
 	max = min + (end - start) - 1;
 
-	spin_lock_irqsave(&uprobes_treelock, flags);
+	spin_lock(&uprobes_treelock);
 	n = find_node_in_range(inode, min, max);
 	if (n) {
 		for (t = n; t; t = rb_prev(t)) {
@@ -994,7 +989,7 @@ static void build_probe_list(struct inode *inode,
 			atomic_inc(&u->ref);
 		}
 	}
-	spin_unlock_irqrestore(&uprobes_treelock, flags);
+	spin_unlock(&uprobes_treelock);
 }
 
 /*
