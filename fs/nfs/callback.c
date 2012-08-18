@@ -45,7 +45,7 @@ unsigned short nfs_callback_tcpport6;
 static int
 nfs4_callback_svc(void *vrqstp)
 {
-	int err, preverr = 0;
+	int err;
 	struct svc_rqst *rqstp = vrqstp;
 
 	set_freezable();
@@ -55,20 +55,8 @@ nfs4_callback_svc(void *vrqstp)
 		 * Listen for a request on the socket
 		 */
 		err = svc_recv(rqstp, MAX_SCHEDULE_TIMEOUT);
-		if (err == -EAGAIN || err == -EINTR) {
-			preverr = err;
+		if (err == -EAGAIN || err == -EINTR)
 			continue;
-		}
-		if (err < 0) {
-			if (err != preverr) {
-				printk(KERN_WARNING "NFS: %s: unexpected error "
-					"from svc_recv (%d)\n", __func__, err);
-				preverr = err;
-			}
-			schedule_timeout_uninterruptible(HZ);
-			continue;
-		}
-		preverr = err;
 		svc_process(rqstp);
 	}
 	return 0;

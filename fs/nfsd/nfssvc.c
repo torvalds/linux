@@ -487,7 +487,7 @@ static int
 nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
-	int err, preverr = 0;
+	int err;
 
 	/* Lock module and set up kernel thread */
 	mutex_lock(&nfsd_mutex);
@@ -534,16 +534,6 @@ nfsd(void *vrqstp)
 			;
 		if (err == -EINTR)
 			break;
-		else if (err < 0) {
-			if (err != preverr) {
-				printk(KERN_WARNING "%s: unexpected error "
-					"from svc_recv (%d)\n", __func__, -err);
-				preverr = err;
-			}
-			schedule_timeout_uninterruptible(HZ);
-			continue;
-		}
-
 		validate_process_creds();
 		svc_process(rqstp);
 		validate_process_creds();
