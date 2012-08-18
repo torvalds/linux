@@ -1176,39 +1176,18 @@ static int pci_dio_attach_pci(struct comedi_device *dev,
 
 static void pci_dio_detach(struct comedi_device *dev)
 {
-	const struct dio_boardtype *this_board = comedi_board(dev);
 	struct pci_dio_private *devpriv = dev->private;
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	int i, j;
 	struct comedi_subdevice *s;
-	int subdev;
+	int i;
 
 	if (devpriv) {
 		if (devpriv->valid)
 			pci_dio_reset(dev);
-		subdev = 0;
-		for (i = 0; i < MAX_DI_SUBDEVS; i++) {
-			if (this_board->sdi[i].chans)
-				subdev++;
-		}
-		for (i = 0; i < MAX_DO_SUBDEVS; i++) {
-			if (this_board->sdo[i].chans)
-				subdev++;
-		}
-		for (i = 0; i < MAX_DIO_SUBDEVG; i++) {
-			for (j = 0; j < this_board->sdio[i].regs; j++) {
-				s = dev->subdevices + subdev;
-				subdev_8255_cleanup(dev, s);
-				subdev++;
-			}
-		}
-		if (this_board->boardid.chans)
-			subdev++;
-		for (i = 0; i < MAX_8254_SUBDEVS; i++)
-			if (this_board->s8254[i].chans)
-				subdev++;
 		for (i = 0; i < dev->n_subdevices; i++) {
 			s = dev->subdevices + i;
+			if (s->type == COMEDI_SUBD_DIO)
+				subdev_8255_cleanup(dev, s);
 			s->private = NULL;
 		}
 	}
