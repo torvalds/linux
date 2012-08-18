@@ -67,6 +67,7 @@ struct st_modedef {
 	short default_density;	/* Forced density, -1 = no value */
 	int default_blksize;	/* Forced blocksize, -1 = no value */
 	struct scsi_tape *tape;
+	struct device *devs[2];  /* Auto-rewind and non-rewind devices */
 	struct cdev *cdevs[2];  /* Auto-rewind and non-rewind devices */
 };
 
