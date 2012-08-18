@@ -1590,7 +1590,7 @@ static int nfs_parse_mount_options(char *raw,
 
 	/*
 	 * verify that any proto=/mountproto= options match the address
-	 * familiies in the addr=/mountaddr= options.
+	 * families in the addr=/mountaddr= options.
 	 */
 	if (protofamily != AF_UNSPEC &&
 	    protofamily != mnt->nfs_server.address.ss_family)
