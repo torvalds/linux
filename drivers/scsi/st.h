@@ -66,6 +66,7 @@ struct st_modedef {
 	unsigned char default_compression;	/* 0 = don't touch, etc */
 	short default_density;	/* Forced density, -1 = no value */
 	int default_blksize;	/* Forced blocksize, -1 = no value */
+	struct scsi_tape *tape;
 	struct cdev *cdevs[2];  /* Auto-rewind and non-rewind devices */
 };
 
@@ -99,6 +100,7 @@ struct scsi_tape {
 	struct mutex lock;	/* For serialization */
 	struct completion wait;	/* For SCSI commands */
 	struct st_buffer *buffer;
+	int index;
 
 	/* Drive characteristics */
 	unsigned char omit_blklims;
