@@ -2614,6 +2614,7 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		create_singlethread_workqueue("ab8500_charger_wq");
 	if (di->charger_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
+		ret = -ENOMEM;
 		goto free_device_info;
 	}
 
