@@ -415,8 +415,8 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		u8 type, u8 code, int offset, __be32 info)
 {
 	const struct ipv6hdr *ipv6h = (const struct ipv6hdr *)skb->data;
-	__be16 *p = (__be16 *)(ipv6h + 1);
-	int grehlen = sizeof(ipv6h) + 4;
+	__be16 *p = (__be16 *)(skb->data + offset);
+	int grehlen = offset + 4;
 	struct ip6_tnl *t;
 	__be16 flags;
 
@@ -432,8 +432,10 @@ static void ip6gre_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	}
 
 	/* If only 8 bytes returned, keyed message will be dropped here */
-	if (skb_headlen(skb) < grehlen)
+	if (!pskb_may_pull(skb, grehlen))
 		return;
+	ipv6h = (const struct ipv6hdr *)skb->data;
+	p = (__be16 *)(skb->data + offset);
 
 	rcu_read_lock();
 
