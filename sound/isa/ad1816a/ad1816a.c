@@ -244,13 +244,37 @@ static void __devexit snd_ad1816a_pnp_remove(struct pnp_card_link * pcard)
 	pnp_set_card_drvdata(pcard, NULL);
 }
 
+#ifdef CONFIG_PM
+static int snd_ad1816a_pnp_suspend(struct pnp_card_link *pcard,
+				   pm_message_t state)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_ad1816a_suspend(card->private_data);
+	return 0;
+}
+
+static int snd_ad1816a_pnp_resume(struct pnp_card_link *pcard)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+
+	snd_ad1816a_resume(card->private_data);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
 static struct pnp_card_driver ad1816a_pnpc_driver = {
 	.flags		= PNP_DRIVER_RES_DISABLE,
 	.name		= "ad1816a",
 	.id_table	= snd_ad1816a_pnpids,
 	.probe		= snd_ad1816a_pnp_detect,
 	.remove		= __devexit_p(snd_ad1816a_pnp_remove),
-	/* FIXME: suspend/resume */
+#ifdef CONFIG_PM
+	.suspend	= snd_ad1816a_pnp_suspend,
+	.resume		= snd_ad1816a_pnp_resume,
+#endif
 };
 
 static int __init alsa_card_ad1816a_init(void)

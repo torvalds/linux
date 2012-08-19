@@ -491,7 +491,7 @@ static int snd_ad1816a_capture_close(struct snd_pcm_substream *substream)
 }
 
 
-static void __devinit snd_ad1816a_init(struct snd_ad1816a *chip)
+static void snd_ad1816a_init(struct snd_ad1816a *chip)
 {
 	unsigned long flags;
 
@@ -510,6 +510,32 @@ static void __devinit snd_ad1816a_init(struct snd_ad1816a *chip)
 
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
+
+#ifdef CONFIG_PM
+void snd_ad1816a_suspend(struct snd_ad1816a *chip)
+{
+	int reg;
+	unsigned long flags;
+
+	snd_pcm_suspend_all(chip->pcm);
+	spin_lock_irqsave(&chip->lock, flags);
+	for (reg = 0; reg < 48; reg++)
+		chip->image[reg] = snd_ad1816a_read(chip, reg);
+	spin_unlock_irqrestore(&chip->lock, flags);
+}
+
+void snd_ad1816a_resume(struct snd_ad1816a *chip)
+{
+	int reg;
+	unsigned long flags;
+
+	snd_ad1816a_init(chip);
+	spin_lock_irqsave(&chip->lock, flags);
+	for (reg = 0; reg < 48; reg++)
+		snd_ad1816a_write(chip, reg, chip->image[reg]);
+	spin_unlock_irqrestore(&chip->lock, flags);
+}
+#endif
 
 static int __devinit snd_ad1816a_probe(struct snd_ad1816a *chip)
 {

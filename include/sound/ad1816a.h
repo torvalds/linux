@@ -147,6 +147,9 @@ struct snd_ad1816a {
 	unsigned int c_dma_size;
 
 	struct snd_timer *timer;
+#ifdef CONFIG_PM
+	unsigned short image[48];
+#endif
 };
 
 
@@ -171,5 +174,9 @@ extern int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm 
 extern int snd_ad1816a_mixer(struct snd_ad1816a *chip);
 extern int snd_ad1816a_timer(struct snd_ad1816a *chip, int device,
 			     struct snd_timer **rtimer);
+#ifdef CONFIG_PM
+extern void snd_ad1816a_suspend(struct snd_ad1816a *chip);
+extern void snd_ad1816a_resume(struct snd_ad1816a *chip);
+#endif
 
 #endif	/* __SOUND_AD1816A_H */
