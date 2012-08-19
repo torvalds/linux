@@ -420,7 +420,8 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	}
 
 	/* check offset */
-	tmp = r600_fmt_get_nblocksy(format, height) * r600_fmt_get_nblocksx(format, pitch) * r600_fmt_get_blocksize(format);
+	tmp = r600_fmt_get_nblocksy(format, height) * r600_fmt_get_nblocksx(format, pitch) *
+	      r600_fmt_get_blocksize(format) * track->nsamples;
 	switch (array_mode) {
 	default:
 	case V_0280A0_ARRAY_LINEAR_GENERAL:
@@ -611,7 +612,7 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 
 		ntiles = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
 		nviews = G_028004_SLICE_MAX(track->db_depth_view) + 1;
-		tmp = ntiles * bpe * 64 * nviews;
+		tmp = ntiles * bpe * 64 * nviews * track->nsamples;
 		if ((tmp + track->db_offset) > radeon_bo_size(track->db_bo)) {
 			dev_warn(p->dev, "z/stencil buffer (%d) too small (0x%08X %d %d %d -> %u have %lu)\n",
 					array_mode,
@@ -1562,7 +1563,7 @@ unsigned r600_mip_minify(unsigned size, unsigned level)
 }
 
 static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
-			      unsigned w0, unsigned h0, unsigned d0, unsigned format,
+			      unsigned w0, unsigned h0, unsigned d0, unsigned nsamples, unsigned format,
 			      unsigned block_align, unsigned height_align, unsigned base_align,
 			      unsigned *l0_size, unsigned *mipmap_size)
 {
@@ -1590,7 +1591,7 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
 
 		depth = r600_mip_minify(d0, i);
 
-		size = nbx * nby * blocksize;
+		size = nbx * nby * blocksize * nsamples;
 		if (nfaces)
 			size *= nfaces;
 		else
@@ -1742,7 +1743,7 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 
 		nfaces = larray - barray + 1;
 	}
-	r600_texture_size(nfaces, blevel, llevel, w0, h0, d0, format,
+	r600_texture_size(nfaces, blevel, llevel, w0, h0, d0, array_check.nsamples, format,
 			  pitch_align, height_align, base_align,
 			  &l0_size, &mipmap_size);
 	/* using get ib will give us the offset into the texture bo */
