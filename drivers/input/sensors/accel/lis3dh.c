@@ -325,7 +325,7 @@ static int __init gsensor_lis3dh_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, gsensor_get_ops);
-	printk("%s\n",__func__);
+	DBG("%s\n",__func__);
 	return result;
 }
 

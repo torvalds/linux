@@ -741,7 +741,7 @@ static int __init compass_akm8975_init(void)
 	atomic_set(&open_flag, 0);		
 	init_waitqueue_head(&open_wq);
 			
-	printk("%s\n",__func__);
+	DBG("%s\n",__func__);
 error:
 	return result;
 }

@@ -252,7 +252,7 @@ static int __init proximity_stk3171_init(void)
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, proximity_get_ops);
-	printk("%s\n",__func__);
+	DBG("%s\n",__func__);
 	return result;
 }
 
