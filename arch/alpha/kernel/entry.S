@@ -663,58 +663,6 @@ kernel_thread:
 	br	ret_to_kernel
 .end kernel_thread
 
-/*
- * kernel_execve(path, argv, envp)
- */
-	.align	4
-	.globl	kernel_execve
-	.ent	kernel_execve
-kernel_execve:
-	/* We can be called from a module.  */
-	ldgp	$gp, 0($27)
-	lda	$sp, -(32+SIZEOF_PT_REGS+8)($sp)
-	.frame	$sp, 32+SIZEOF_PT_REGS+8, $26, 0
-	stq	$26, 0($sp)
-	stq	$16, 8($sp)
-	stq	$17, 16($sp)
-	stq	$18, 24($sp)
-	.prologue 1
-
-	lda	$16, 32($sp)
-	lda	$17, 0
-	lda	$18, SIZEOF_PT_REGS
-	bsr	$26, memset		!samegp
-
-	/* Avoid the HAE being gratuitously wrong, which would cause us
-	   to do the whole turn off interrupts thing and restore it.  */
-	ldq	$2, alpha_mv+HAE_CACHE
-	stq	$2, 152+32($sp)
-
-	ldq	$16, 8($sp)
-	ldq	$17, 16($sp)
-	ldq	$18, 24($sp)
-	lda	$19, 32($sp)
-	bsr	$26, do_execve		!samegp
-
-	ldq	$26, 0($sp)
-	bne	$0, 1f			/* error! */
-
-	/* Move the temporary pt_regs struct from its current location
-	   to the top of the kernel stack frame.  See copy_thread for
-	   details for a normal process.  */
-	lda	$16, 0x4000 - SIZEOF_PT_REGS($8)
-	lda	$17, 32($sp)
-	lda	$18, SIZEOF_PT_REGS
-	bsr	$26, memmove		!samegp
-
-	/* Take that over as our new stack frame and visit userland!  */
-	lda	$sp, 0x4000 - SIZEOF_PT_REGS($8)
-	br	$31, ret_from_sys_call
-
-1:	lda	$sp, 32+SIZEOF_PT_REGS+8($sp)
-	ret
-.end kernel_execve
-
 
 /*
  * Special system calls.  Most of these are special in that they either
