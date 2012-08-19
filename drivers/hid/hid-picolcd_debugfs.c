@@ -703,9 +703,9 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 			hid_debug_event(hdev, buff);
 		} else if (raw_data[1] + 1 <= size) {
 			snprintf(buff, BUFF_SZ, "\tData length: %d\n\tIR Data: ",
-					raw_data[1]-1);
+					raw_data[1]);
 			hid_debug_event(hdev, buff);
-			dump_buff_as_hex(buff, BUFF_SZ, raw_data+2, raw_data[1]-1);
+			dump_buff_as_hex(buff, BUFF_SZ, raw_data+2, raw_data[1]);
 			hid_debug_event(hdev, buff);
 		} else {
 			snprintf(buff, BUFF_SZ, "\tOverflowing data length: %d\n",
