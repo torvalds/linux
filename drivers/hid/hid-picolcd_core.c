@@ -477,14 +477,6 @@ static int picolcd_probe_lcd(struct hid_device *hdev, struct picolcd_data *data)
 {
 	int error;
 
-	error = picolcd_check_version(hdev);
-	if (error)
-		return error;
-
-	if (data->version[0] != 0 && data->version[1] != 3)
-		hid_info(hdev, "Device with untested firmware revision, please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
-			 dev_name(&hdev->dev));
-
 	/* Setup keypad input device */
 	error = picolcd_init_keys(data, picolcd_in_report(REPORT_KEY_STATE, hdev));
 	if (error)
@@ -533,16 +525,6 @@ err:
 
 static int picolcd_probe_bootloader(struct hid_device *hdev, struct picolcd_data *data)
 {
-	int error;
-
-	error = picolcd_check_version(hdev);
-	if (error)
-		return error;
-
-	if (data->version[0] != 1 && data->version[1] != 0)
-		hid_info(hdev, "Device with untested bootloader revision, please submit /sys/kernel/debug/hid/%s/rdesc for this device.\n",
-			 dev_name(&hdev->dev));
-
 	picolcd_init_devfs(data, NULL, NULL,
 			picolcd_out_report(REPORT_BL_READ_MEMORY, hdev),
 			picolcd_out_report(REPORT_BL_WRITE_MEMORY, hdev), NULL);
