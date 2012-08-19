@@ -23,6 +23,7 @@
  */
 
 #include <core/gpuobj.h>
+#include <core/class.h>
 
 #include <subdev/fb.h>
 #include <engine/dmaobj.h>
@@ -109,16 +110,18 @@ nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	switch (nv_mclass(parent)) {
-	case 0x506e:
-	case 0x506f:
-	case 0x826e:
-	case 0x826f:
+	case NV_DEVICE_CLASS:
+		break;
+	case NV50_CHANNEL_DMA_CLASS:
+	case NV84_CHANNEL_DMA_CLASS:
+	case NV50_CHANNEL_IND_CLASS:
+	case NV84_CHANNEL_IND_CLASS:
 		ret = dmaeng->bind(dmaeng, *pobject, &dmaobj->base, &gpuobj);
 		nouveau_object_ref(NULL, pobject);
 		*pobject = nv_object(gpuobj);
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	return ret;
