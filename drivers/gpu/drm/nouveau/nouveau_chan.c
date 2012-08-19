@@ -182,7 +182,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nouveau_cli *cli,
 	return 0;
 }
 
-int
+static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
 		    u32 parent, u32 handle, u32 engine,
 		    struct nouveau_channel **pchan)

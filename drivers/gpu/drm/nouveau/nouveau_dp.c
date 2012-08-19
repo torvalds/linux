@@ -286,7 +286,7 @@ dp_link_train_fini(struct drm_device *dev, struct dp_state *dp)
 	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
 }
 
-bool
+static bool
 nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 		      struct dp_train_func *func)
 {

@@ -1,4 +1,4 @@
-u32 nva3_pcopy_data[] = {
+static u32 nva3_pcopy_data[] = {
 /* 0x0000: ctx_object */
 	0x00000000,
 /* 0x0004: ctx_dma */
@@ -183,7 +183,7 @@ u32 nva3_pcopy_data[] = {
 	0x00000800,
 };
 
-u32 nva3_pcopy_code[] = {
+static u32 nva3_pcopy_code[] = {
 /* 0x0000: main */
 	0x04fe04bd,
 	0x3517f000,

@@ -1,4 +1,4 @@
-uint32_t nvc0_grgpc_data[] = {
+static uint32_t nvc0_grgpc_data[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -150,7 +150,7 @@ uint32_t nvc0_grgpc_data[] = {
 	0x08000750,
 };
 
-uint32_t nvc0_grgpc_code[] = {
+static uint32_t nvc0_grgpc_code[] = {
 	0x03060ef5,
 	0x9800d898,
 	0x86f001d9,

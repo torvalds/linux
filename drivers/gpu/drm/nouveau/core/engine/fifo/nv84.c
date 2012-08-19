@@ -319,7 +319,7 @@ nv84_fifo_sclass[] = {
  * FIFO context - basically just the instmem reserved for the channel
  ******************************************************************************/
 
-int
+static int
 nv84_fifo_context_ctor(struct nouveau_object *parent,
 		       struct nouveau_object *engine,
 		       struct nouveau_oclass *oclass, void *data, u32 size,

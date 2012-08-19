@@ -101,7 +101,7 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-void
+static void
 nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
 	struct nouveau_mm *mm = man->priv;
@@ -176,7 +176,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-void
+static void
 nouveau_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
 }
@@ -248,7 +248,7 @@ nv04_gart_manager_new(struct ttm_mem_type_manager *man,
 	return 0;
 }
 
-void
+static void
 nv04_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
 }

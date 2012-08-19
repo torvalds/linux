@@ -73,7 +73,7 @@ nv50_graph_object_ctor(struct nouveau_object *parent,
 	return 0;
 }
 
-struct nouveau_ofuncs
+static struct nouveau_ofuncs
 nv50_graph_ofuncs = {
 	.ctor = nv50_graph_object_ctor,
 	.dtor = _nouveau_gpuobj_dtor,

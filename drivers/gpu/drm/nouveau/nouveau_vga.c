@@ -7,6 +7,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_acpi.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_vga.h"
 
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)

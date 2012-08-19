@@ -64,7 +64,7 @@ static int nouveau_noaccel = 0;
 module_param_named(noaccel, nouveau_noaccel, int, 0400);
 
 MODULE_PARM_DESC(modeset, "enable driver");
-int nouveau_modeset = -1;
+static int nouveau_modeset = -1;
 module_param_named(modeset, nouveau_modeset, int, 0400);
 
 static struct drm_driver driver;
@@ -238,7 +238,7 @@ nouveau_drm_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
 	return 0;
 }
 
-int
+static int
 nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	struct pci_dev *pdev = dev->pdev;
@@ -352,7 +352,7 @@ fail_device:
 	return ret;
 }
 
-int
+static int
 nouveau_drm_unload(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -490,7 +490,7 @@ nouveau_drm_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-int
+static int
 nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct pci_dev *pdev = dev->pdev;
@@ -519,7 +519,7 @@ nouveau_drm_open(struct drm_device *dev, struct drm_file *fpriv)
 	return 0;
 }
 
-void
+static void
 nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct nouveau_cli *cli = nouveau_cli(fpriv);
@@ -533,7 +533,7 @@ nouveau_drm_preclose(struct drm_device *dev, struct drm_file *fpriv)
 	mutex_unlock(&drm->client.mutex);
 }
 
-void
+static void
 nouveau_drm_postclose(struct drm_device *dev, struct drm_file *fpriv)
 {
 	struct nouveau_cli *cli = nouveau_cli(fpriv);

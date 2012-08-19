@@ -34,7 +34,7 @@ struct nvc0_vmmgr_priv {
 	spinlock_t lock;
 };
 
-void
+static void
 nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 index,
 		struct nouveau_gpuobj *pgt[2])
 {
@@ -64,7 +64,7 @@ nvc0_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 	return phys;
 }
 
-void
+static void
 nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
@@ -80,7 +80,7 @@ nvc0_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	}
 }
 
-void
+static void
 nvc0_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
@@ -95,7 +95,7 @@ nvc0_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	}
 }
 
-void
+static void
 nvc0_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
@@ -132,7 +132,7 @@ nvc0_vm_flush_engine(struct nouveau_subdev *subdev, u64 addr, int type)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-void
+static void
 nvc0_vm_flush(struct nouveau_vm *vm)
 {
 	struct nouveau_vm_pgd *vpgd;

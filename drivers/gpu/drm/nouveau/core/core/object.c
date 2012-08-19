@@ -61,7 +61,7 @@ nouveau_object_create_(struct nouveau_object *parent,
 	return 0;
 }
 
-int
+static int
 _nouveau_object_ctor(struct nouveau_object *parent,
 		     struct nouveau_object *engine,
 		     struct nouveau_oclass *oclass, void *data, u32 size,
@@ -91,7 +91,7 @@ nouveau_object_destroy(struct nouveau_object *object)
 	kfree(object);
 }
 
-void
+static void
 _nouveau_object_dtor(struct nouveau_object *object)
 {
 	nouveau_object_destroy(object);
@@ -103,7 +103,7 @@ nouveau_object_init(struct nouveau_object *object)
 	return 0;
 }
 
-int
+static int
 _nouveau_object_init(struct nouveau_object *object)
 {
 	return nouveau_object_init(object);
@@ -115,7 +115,7 @@ nouveau_object_fini(struct nouveau_object *object, bool suspend)
 	return 0;
 }
 
-int
+static int
 _nouveau_object_fini(struct nouveau_object *object, bool suspend)
 {
 	return nouveau_object_fini(object, suspend);

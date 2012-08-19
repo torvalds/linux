@@ -1,4 +1,4 @@
-uint32_t nvc0_grhub_data[] = {
+static uint32_t nvc0_grhub_data[] = {
 	0x00000000,
 	0x00000000,
 	0x00000000,
@@ -194,7 +194,7 @@ uint32_t nvc0_grhub_data[] = {
 	0x00000000,
 };
 
-uint32_t nvc0_grhub_code[] = {
+static uint32_t nvc0_grhub_code[] = {
 	0x03090ef5,
 	0x9800d898,
 	0x86f001d9,

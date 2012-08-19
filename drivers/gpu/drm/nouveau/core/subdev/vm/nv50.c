@@ -34,7 +34,7 @@ struct nv50_vmmgr_priv {
 	spinlock_t lock;
 };
 
-void
+static void
 nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 		struct nouveau_gpuobj *pgt[2])
 {
@@ -76,7 +76,7 @@ vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 	return phys;
 }
 
-void
+static void
 nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
@@ -123,7 +123,7 @@ nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	}
 }
 
-void
+static void
 nv50_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
@@ -137,7 +137,7 @@ nv50_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	}
 }
 
-void
+static void
 nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 {
 	pte <<= 3;
@@ -148,7 +148,7 @@ nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 	}
 }
 
-void
+static void
 nv50_vm_flush(struct nouveau_vm *vm)
 {
 	struct nouveau_engine *engine;

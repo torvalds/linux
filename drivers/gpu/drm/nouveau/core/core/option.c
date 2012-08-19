@@ -22,7 +22,7 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
+#include <core/option.h>
 #include <core/debug.h>
 
 /* compares unterminated string 'str' with zero-terminated string 'cmp' */

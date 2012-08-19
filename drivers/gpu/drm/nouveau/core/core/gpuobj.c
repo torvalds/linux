@@ -139,7 +139,7 @@ struct nouveau_gpuobj_class {
 	u32 flags;
 };
 
-int
+static int
 _nouveau_gpuobj_ctor(struct nouveau_object *parent,
 		     struct nouveau_object *engine,
 		     struct nouveau_oclass *oclass, void *data, u32 size,

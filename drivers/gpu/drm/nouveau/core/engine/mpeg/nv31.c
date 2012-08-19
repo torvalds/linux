@@ -109,7 +109,7 @@ nv31_mpeg_mthd_dma(struct nouveau_object *object, u32 mthd, void *arg, u32 len)
 	return 0;
 }
 
-struct nouveau_ofuncs
+static struct nouveau_ofuncs
 nv31_mpeg_ofuncs = {
 	.ctor = nv31_mpeg_object_ctor,
 	.dtor = _nouveau_gpuobj_dtor,
@@ -119,7 +119,7 @@ nv31_mpeg_ofuncs = {
 	.wr32 = _nouveau_gpuobj_wr32,
 };
 
-struct nouveau_omthds
+static struct nouveau_omthds
 nv31_mpeg_omthds[] = {
 	{ 0x0190, nv31_mpeg_mthd_dma },
 	{ 0x01a0, nv31_mpeg_mthd_dma },

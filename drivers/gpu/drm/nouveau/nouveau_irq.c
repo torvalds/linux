@@ -25,6 +25,7 @@
 #include <subdev/mc.h>
 
 #include "nouveau_drm.h"
+#include "nouveau_irq.h"
 #include "nv50_display.h"
 
 void

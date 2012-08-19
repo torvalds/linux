@@ -132,7 +132,7 @@ _nouveau_fifo_channel_wr32(struct nouveau_object *object, u32 addr, u32 data)
 	iowrite32_native(data, chan->user + addr);
 }
 
-int
+static int
 nouveau_fifo_chid(struct nouveau_fifo *priv, struct nouveau_object *object)
 {
 	int engidx = nv_hclass(priv) & 0xff;

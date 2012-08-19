@@ -26,6 +26,7 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
+#include <subdev/bios/conn.h>
 
 u16
 dcb_conntab(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)

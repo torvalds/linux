@@ -210,7 +210,7 @@ mxm_shadow_wmi(struct nouveau_mxm *mxm, u8 version)
 }
 #endif
 
-struct mxm_shadow_h {
+static struct mxm_shadow_h {
 	const char *name;
 	bool (*exec)(struct nouveau_mxm *, u8 version);
 } _mxm_shadow[] = {
