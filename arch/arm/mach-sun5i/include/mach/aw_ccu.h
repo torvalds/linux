@@ -27,6 +27,11 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 
+/* define if need use pll6 to take the place of pll4,
+   this definition is significative on C ver. only */
+#define USE_PLL6M_REPLACE_PLL4      (1)
+
+
 /* define clock error type      */
 typedef enum __AW_CCU_ERR
 {

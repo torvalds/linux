@@ -104,7 +104,8 @@ typedef struct __CCMU_PLL4_VE_REG0018
     __u32   FactorK:2;          //bit4,  PLL4 factor K
     __u32   reserved1:2;        //bit6,  reserved
     __u32   FactorN:5;          //bit8,  PLL4 factor N
-    __u32   reserved2:3;        //bit13, reserved
+    __u32   reserved2:1;        //bit13, reserved
+    __u32   PllSwitch:2;        //bit14, PLL4 output switch, 00-pll4, 01-pll3x2, 10/11-pll6
     __u32   FactorP:2;          //bit16, PLL4 output external divider P
     __u32   reserved3:1;        //bit18, reserved
     __u32   VCOGain:1;          //bit19, PLL4 VCO gain control
@@ -605,6 +606,7 @@ typedef struct __CCMU_REG_LIST
     volatile __ccmu_lvds_clk_reg014c_t      LvdsClk;    //0x014C, LVDS module clock control
     volatile __ccmu_hdmi_clk_reg0150_t      HdmiClk;    //0x0150, HDMI module clock control
     volatile __ccmu_mali400_clk_reg0154_t   MaliClk;    //0x0154, MALI400 module clock control
+    volatile __u32                          reserved21; //0x0158, reserved
     volatile __ccmu_mbus_clk_reg015c_t      MbusClk;    //0x015c, MBUS clock control
     volatile __ccmu_iep_clk_reg0160_t       IepClk;     //0x0160, IEP clock control
 

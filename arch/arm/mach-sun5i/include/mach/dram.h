@@ -25,6 +25,7 @@
 #define __AW_DRAM_H__
 
 #include <linux/kernel.h>
+#include <mach/platform.h>
 
 struct dram_para_t
 {
@@ -66,6 +67,37 @@ unsigned int dram_hostport_check_ahb_fifo_status(unsigned int port_idx);
 void dram_hostport_setup(unsigned int port, unsigned int prio, unsigned int wait_cycle, unsigned int cmd_num);
 void dram_power_save_process(void);
 unsigned int dram_power_up_process(void);
+
+
+#define DRAM_HOST_CFG_BASE          (SW_VA_DRAM_IO_BASE + 0x250)
+typedef struct __DRAM_HOST_CFG_REG{
+    unsigned int    AcsEn:1;    //bit0, host port access enable
+    unsigned int    reserved0:1;    //bit1
+    unsigned int    PrioLevel:2;    //bit2, host port poriority level
+    unsigned int    WaitState:4;    //bit4, host port wait state
+    unsigned int    CmdNum:8;       //bit8, host port command number
+    unsigned int    reserved1:14;   //bit16
+    unsigned int    WrCntEn:1;      //bit30, host port write counter enable
+    unsigned int    RdCntEn:1;      //bit31, host port read counter enable
+} __dram_host_cfg_reg_t;
+
+typedef enum __DRAM_HOST_PORT{
+    DRAM_HOST_CPU   = 16,
+    DRAM_HOST_GPU   = 17,
+    DRAM_HOST_BE    = 18,
+    DRAM_HOST_FE    = 19,
+    DRAM_HOST_CSI   = 20,
+    DRAM_HOST_TSDM  = 21,
+    DRAM_HOST_VE    = 22,
+    DRAM_HOST_USB   = 24,
+    DRAM_HOST_NDMA  = 25,
+    DRAM_HOST_ATH   = 26,
+    DRAM_HOST_IEP   = 27,
+    DRAM_HOST_SDHC  = 28,
+    DRAM_HOST_DDMA  = 29,
+    DRAM_HOST_GPS   = 30,
+} __dram_host_port_e;
+
 
 #endif  /* __AW_DRAM_H__ */
 
