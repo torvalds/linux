@@ -491,6 +491,25 @@ void fuse_request_send_background_locked(struct fuse_conn *fc,
 	fuse_request_send_nowait_locked(fc, req);
 }
 
+void fuse_force_forget(struct file *file, u64 nodeid)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_forget_in inarg;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.nlookup = 1;
+	req = fuse_get_req_nofail(fc, file);
+	req->in.h.opcode = FUSE_FORGET;
+	req->in.h.nodeid = nodeid;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	req->isreply = 0;
+	fuse_request_send_nowait(fc, req);
+}
+
 /*
  * Lock the request.  Up to the next unlock_request() there mustn't be
  * anything that could cause a page-fault.  If the request was already

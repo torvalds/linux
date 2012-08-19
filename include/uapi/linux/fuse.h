@@ -193,6 +193,7 @@ struct fuse_file_lock {
 #define FUSE_FLOCK_LOCKS	(1 << 10)
 #define FUSE_HAS_IOCTL_DIR	(1 << 11)
 #define FUSE_AUTO_INVAL_DATA	(1 << 12)
+#define FUSE_DO_READDIRPLUS	(1 << 13)
 
 /**
  * CUSE INIT request/reply flags
@@ -299,6 +300,7 @@ enum fuse_opcode {
 	FUSE_NOTIFY_REPLY  = 41,
 	FUSE_BATCH_FORGET  = 42,
 	FUSE_FALLOCATE     = 43,
+	FUSE_READDIRPLUS   = 44,
 
 	/* CUSE specific operations */
 	CUSE_INIT          = 4096,
@@ -629,6 +631,16 @@ struct fuse_dirent {
 #define FUSE_DIRENT_ALIGN(x) (((x) + sizeof(__u64) - 1) & ~(sizeof(__u64) - 1))
 #define FUSE_DIRENT_SIZE(d) \
 	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET + (d)->namelen)
+
+struct fuse_direntplus {
+	struct fuse_entry_out entry_out;
+	struct fuse_dirent dirent;
+};
+
+#define FUSE_NAME_OFFSET_DIRENTPLUS \
+	offsetof(struct fuse_direntplus, dirent.name)
+#define FUSE_DIRENTPLUS_SIZE(d) \
+	FUSE_DIRENT_ALIGN(FUSE_NAME_OFFSET_DIRENTPLUS + (d)->dirent.namelen)
 
 struct fuse_notify_inval_inode_out {
 	__u64	ino;

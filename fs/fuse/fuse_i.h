@@ -487,6 +487,9 @@ struct fuse_conn {
 	/** Use enhanced/automatic page cache invalidation. */
 	unsigned auto_inval_data:1;
 
+	/** Does the filesystem support readdir-plus? */
+	unsigned do_readdirplus:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
@@ -577,6 +580,9 @@ void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
 		       u64 nodeid, u64 nlookup);
 
 struct fuse_forget_link *fuse_alloc_forget(void);
+
+/* Used by READDIRPLUS */
+void fuse_force_forget(struct file *file, u64 nodeid);
 
 /**
  * Initialize READ or READDIR request
