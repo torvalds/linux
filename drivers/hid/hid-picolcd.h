@@ -90,11 +90,6 @@ struct picolcd_data {
 
 #ifdef CONFIG_HID_PICOLCD_FB
 	/* Framebuffer stuff */
-	u8 fb_update_rate;
-	u8 fb_bpp;
-	u8 fb_force;
-	u8 *fb_vbitmap;		/* local copy of what was sent to PicoLCD */
-	u8 *fb_bitmap;		/* framebuffer */
 	struct fb_info *fb_info;
 #endif /* CONFIG_HID_PICOLCD_FB */
 #ifdef CONFIG_HID_PICOLCD_LCD
@@ -119,9 +114,21 @@ struct picolcd_data {
 	int status;
 #define PICOLCD_BOOTLOADER 1
 #define PICOLCD_FAILED 2
-#define PICOLCD_READY_FB 4
 };
 
+#ifdef CONFIG_HID_PICOLCD_FB
+struct picolcd_fb_data {
+	/* Framebuffer stuff */
+	spinlock_t lock;
+	struct picolcd_data *picolcd;
+	u8 update_rate;
+	u8 bpp;
+	u8 force;
+	u8 ready;
+	u8 *vbitmap;		/* local copy of what was sent to PicoLCD */
+	u8 *bitmap;		/* framebuffer */
+};
+#endif /* CONFIG_HID_PICOLCD_FB */
 
 /* Find a given report */
 #define picolcd_in_report(id, dev) picolcd_report(id, dev, HID_INPUT_REPORT)
