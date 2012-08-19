@@ -165,7 +165,7 @@ struct snd_ad1816a {
 
 extern int snd_ad1816a_create(struct snd_card *card, unsigned long port,
 			      int irq, int dma1, int dma2,
-			      struct snd_ad1816a **chip);
+			      struct snd_ad1816a *chip);
 
 extern int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm);
 extern int snd_ad1816a_mixer(struct snd_ad1816a *chip);
