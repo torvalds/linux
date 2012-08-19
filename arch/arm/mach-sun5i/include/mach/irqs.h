@@ -122,6 +122,9 @@
 #define SW_INT_IRQNO_GPU_RSV5           79
 #define SW_INT_IRQNO_GPU_RSV6           80
 
+#define SW_INT_IRQNO_SYNC_TIMER0	82
+#define SW_INT_IRQNO_SYNC_TIMER1	83
+
 #define SW_INT_END		                  95
 
 #endif
