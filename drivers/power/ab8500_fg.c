@@ -2506,6 +2506,7 @@ static int __devinit ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_wq = create_singlethread_workqueue("ab8500_fg_wq");
 	if (di->fg_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
+		ret = -ENOMEM;
 		goto free_device_info;
 	}
 
