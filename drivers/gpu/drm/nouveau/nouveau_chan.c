@@ -187,7 +187,11 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nouveau_cli *cli,
 		    u32 parent, u32 handle, u32 engine,
 		    struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { 0xa06f, 0x906f, 0x826f, 0x506f, 0 };
+	static const u16 oclasses[] = { NVE0_CHANNEL_IND_CLASS,
+					NVC0_CHANNEL_IND_CLASS,
+					NV84_CHANNEL_IND_CLASS,
+					NV50_CHANNEL_IND_CLASS,
+					0 };
 	const u16 *oclass = oclasses;
 	struct nve0_channel_ind_class args;
 	struct nouveau_channel *chan;
@@ -221,7 +225,11 @@ static int
 nouveau_channel_dma(struct nouveau_drm *drm, struct nouveau_cli *cli,
 		    u32 parent, u32 handle, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { 0x406e, 0x176e, 0x006e, 0x006b, 0 };
+	static const u16 oclasses[] = { NV40_CHANNEL_DMA_CLASS,
+					NV17_CHANNEL_DMA_CLASS,
+					NV10_CHANNEL_DMA_CLASS,
+					NV03_CHANNEL_DMA_CLASS,
+					0 };
 	const u16 *oclass = oclasses;
 	struct nv03_channel_dma_class args;
 	struct nouveau_channel *chan;

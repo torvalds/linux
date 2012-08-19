@@ -106,7 +106,7 @@ nv10_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nv10_fifo_sclass[] = {
-	{ 0x006e, &nv10_fifo_ofuncs },
+	{ NV10_CHANNEL_DMA_CLASS, &nv10_fifo_ofuncs },
 	{}
 };
 

@@ -310,8 +310,8 @@ nv84_fifo_ofuncs_ind = {
 
 static struct nouveau_oclass
 nv84_fifo_sclass[] = {
-	{ 0x826e, &nv84_fifo_ofuncs_dma },
-	{ 0x826f, &nv84_fifo_ofuncs_ind },
+	{ NV84_CHANNEL_DMA_CLASS, &nv84_fifo_ofuncs_dma },
+	{ NV84_CHANNEL_IND_CLASS, &nv84_fifo_ofuncs_ind },
 	{}
 };
 

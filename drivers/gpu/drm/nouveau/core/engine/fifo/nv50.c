@@ -346,8 +346,8 @@ nv50_fifo_ofuncs_ind = {
 
 static struct nouveau_oclass
 nv50_fifo_sclass[] = {
-	{ 0x506e, &nv50_fifo_ofuncs_dma },
-	{ 0x506f, &nv50_fifo_ofuncs_ind },
+	{ NV50_CHANNEL_DMA_CLASS, &nv50_fifo_ofuncs_dma },
+	{ NV50_CHANNEL_IND_CLASS, &nv50_fifo_ofuncs_ind },
 	{}
 };
 

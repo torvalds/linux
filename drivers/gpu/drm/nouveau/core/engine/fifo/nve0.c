@@ -303,7 +303,7 @@ nve0_fifo_ofuncs = {
 
 static struct nouveau_oclass
 nve0_fifo_sclass[] = {
-	{ 0xa06f, &nve0_fifo_ofuncs },
+	{ NVE0_CHANNEL_IND_CLASS, &nve0_fifo_ofuncs },
 	{}
 };
 
