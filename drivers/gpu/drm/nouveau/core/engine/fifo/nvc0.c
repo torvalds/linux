@@ -324,7 +324,7 @@ nvc0_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
-struct nouveau_enum nvc0_fifo_fault_unit[] = {
+static const struct nouveau_enum nvc0_fifo_fault_unit[] = {
 	{ 0x00, "PGRAPH" },
 	{ 0x03, "PEEPHOLE" },
 	{ 0x04, "BAR1" },
@@ -340,7 +340,7 @@ struct nouveau_enum nvc0_fifo_fault_unit[] = {
 	{}
 };
 
-struct nouveau_enum nvc0_fifo_fault_reason[] = {
+static const struct nouveau_enum nvc0_fifo_fault_reason[] = {
 	{ 0x00, "PT_NOT_PRESENT" },
 	{ 0x01, "PT_TOO_SHORT" },
 	{ 0x02, "PAGE_NOT_PRESENT" },
@@ -353,7 +353,7 @@ struct nouveau_enum nvc0_fifo_fault_reason[] = {
 	{}
 };
 
-struct nouveau_enum nvc0_fifo_fault_hubclient[] = {
+static const struct nouveau_enum nvc0_fifo_fault_hubclient[] = {
 	{ 0x01, "PCOPY0" },
 	{ 0x02, "PCOPY1" },
 	{ 0x04, "DISPATCH" },
@@ -371,7 +371,7 @@ struct nouveau_enum nvc0_fifo_fault_hubclient[] = {
 	{}
 };
 
-struct nouveau_enum nvc0_fifo_fault_gpcclient[] = {
+static const struct nouveau_enum nvc0_fifo_fault_gpcclient[] = {
 	{ 0x01, "TEX" },
 	{ 0x0c, "ESETUP" },
 	{ 0x0e, "CTXCTL" },
@@ -379,7 +379,7 @@ struct nouveau_enum nvc0_fifo_fault_gpcclient[] = {
 	{}
 };
 
-struct nouveau_bitfield nvc0_fifo_subfifo_intr[] = {
+static const struct nouveau_bitfield nvc0_fifo_subfifo_intr[] = {
 /*	{ 0x00008000, "" }	seen with null ib push */
 	{ 0x00200000, "ILLEGAL_MTHD" },
 	{ 0x00800000, "EMPTY_SUBC" },

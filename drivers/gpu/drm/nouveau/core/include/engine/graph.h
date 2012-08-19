@@ -60,13 +60,13 @@ extern struct nouveau_oclass nv50_graph_oclass;
 extern struct nouveau_oclass nvc0_graph_oclass;
 extern struct nouveau_oclass nve0_graph_oclass;
 
-extern struct nouveau_bitfield nv04_graph_nsource[];
+extern const struct nouveau_bitfield nv04_graph_nsource[];
 extern struct nouveau_ofuncs nv04_graph_ofuncs;
 bool nv04_graph_idle(void *obj);
 
-extern struct nouveau_bitfield nv10_graph_intr_name[];
-extern struct nouveau_bitfield nv10_graph_nstatus[];
+extern const struct nouveau_bitfield nv10_graph_intr_name[];
+extern const struct nouveau_bitfield nv10_graph_nstatus[];
 
-extern struct nouveau_enum nv50_data_error_names[];
+extern const struct nouveau_enum nv50_data_error_names[];
 
 #endif

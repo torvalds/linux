@@ -232,7 +232,7 @@ nv84_graph_tlb_flush(struct nouveau_engine *engine)
 	return timeout ? -EBUSY : 0;
 }
 
-static struct nouveau_enum nv50_mp_exec_error_names[] = {
+static const struct nouveau_enum nv50_mp_exec_error_names[] = {
 	{ 3, "STACK_UNDERFLOW", NULL },
 	{ 4, "QUADON_ACTIVE", NULL },
 	{ 8, "TIMEOUT", NULL },
@@ -241,30 +241,30 @@ static struct nouveau_enum nv50_mp_exec_error_names[] = {
 	{}
 };
 
-static struct nouveau_bitfield nv50_graph_trap_m2mf[] = {
+static const struct nouveau_bitfield nv50_graph_trap_m2mf[] = {
 	{ 0x00000001, "NOTIFY" },
 	{ 0x00000002, "IN" },
 	{ 0x00000004, "OUT" },
 	{}
 };
 
-static struct nouveau_bitfield nv50_graph_trap_vfetch[] = {
+static const struct nouveau_bitfield nv50_graph_trap_vfetch[] = {
 	{ 0x00000001, "FAULT" },
 	{}
 };
 
-static struct nouveau_bitfield nv50_graph_trap_strmout[] = {
+static const struct nouveau_bitfield nv50_graph_trap_strmout[] = {
 	{ 0x00000001, "FAULT" },
 	{}
 };
 
-static struct nouveau_bitfield nv50_graph_trap_ccache[] = {
+static const struct nouveau_bitfield nv50_graph_trap_ccache[] = {
 	{ 0x00000001, "FAULT" },
 	{}
 };
 
 /* There must be a *lot* of these. Will take some time to gather them up. */
-struct nouveau_enum nv50_data_error_names[] = {
+const struct nouveau_enum nv50_data_error_names[] = {
 	{ 0x00000003, "INVALID_OPERATION", NULL },
 	{ 0x00000004, "INVALID_VALUE", NULL },
 	{ 0x00000005, "INVALID_ENUM", NULL },
@@ -310,7 +310,7 @@ struct nouveau_enum nv50_data_error_names[] = {
 	{}
 };
 
-static struct nouveau_bitfield nv50_graph_intr_name[] = {
+static const struct nouveau_bitfield nv50_graph_intr_name[] = {
 	{ 0x00000001, "NOTIFY" },
 	{ 0x00000002, "COMPUTE_QUERY" },
 	{ 0x00000010, "ILLEGAL_MTHD" },

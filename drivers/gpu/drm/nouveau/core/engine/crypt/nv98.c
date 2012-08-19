@@ -92,7 +92,7 @@ nv98_crypt_cclass = {
  * PCRYPT engine/subdev functions
  ******************************************************************************/
 
-static struct nouveau_enum nv98_crypt_isr_error_name[] = {
+static const struct nouveau_enum nv98_crypt_isr_error_name[] = {
 	{ 0x0000, "ILLEGAL_MTHD" },
 	{ 0x0001, "INVALID_BITFIELD" },
 	{ 0x0002, "INVALID_ENUM" },

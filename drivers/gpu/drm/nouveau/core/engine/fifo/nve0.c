@@ -368,11 +368,11 @@ nve0_fifo_cclass = {
  * PFIFO engine
  ******************************************************************************/
 
-struct nouveau_enum nve0_fifo_fault_unit[] = {
+static const struct nouveau_enum nve0_fifo_fault_unit[] = {
 	{}
 };
 
-struct nouveau_enum nve0_fifo_fault_reason[] = {
+static const struct nouveau_enum nve0_fifo_fault_reason[] = {
 	{ 0x00, "PT_NOT_PRESENT" },
 	{ 0x01, "PT_TOO_SHORT" },
 	{ 0x02, "PAGE_NOT_PRESENT" },
@@ -385,15 +385,15 @@ struct nouveau_enum nve0_fifo_fault_reason[] = {
 	{}
 };
 
-struct nouveau_enum nve0_fifo_fault_hubclient[] = {
+static const struct nouveau_enum nve0_fifo_fault_hubclient[] = {
 	{}
 };
 
-struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
+static const struct nouveau_enum nve0_fifo_fault_gpcclient[] = {
 	{}
 };
 
-struct nouveau_bitfield nve0_fifo_subfifo_intr[] = {
+static const struct nouveau_bitfield nve0_fifo_subfifo_intr[] = {
 	{ 0x00200000, "ILLEGAL_MTHD" },
 	{ 0x00800000, "EMPTY_SUBC" },
 	{}

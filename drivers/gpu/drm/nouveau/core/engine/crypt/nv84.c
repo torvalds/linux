@@ -122,7 +122,7 @@ nv84_crypt_cclass = {
  * PCRYPT engine/subdev functions
  ******************************************************************************/
 
-static struct nouveau_bitfield nv84_crypt_intr_mask[] = {
+static const struct nouveau_bitfield nv84_crypt_intr_mask[] = {
 	{ 0x00000001, "INVALID_STATE" },
 	{ 0x00000002, "ILLEGAL_MTHD" },
 	{ 0x00000004, "ILLEGAL_CLASS" },

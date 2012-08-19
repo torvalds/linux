@@ -93,7 +93,7 @@ nva3_copy_cclass = {
  * PCOPY engine/subdev functions
  ******************************************************************************/
 
-static struct nouveau_enum nva3_copy_isr_error_name[] = {
+static const struct nouveau_enum nva3_copy_isr_error_name[] = {
 	{ 0x0001, "ILLEGAL_MTHD" },
 	{ 0x0002, "INVALID_ENUM" },
 	{ 0x0003, "INVALID_BITFIELD" },

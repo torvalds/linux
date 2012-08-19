@@ -4,7 +4,7 @@
 struct nouveau_enum {
 	u32 value;
 	const char *name;
-	void *data;
+	const void *data;
 };
 
 const struct nouveau_enum *

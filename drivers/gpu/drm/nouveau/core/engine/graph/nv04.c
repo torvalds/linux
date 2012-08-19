@@ -1213,13 +1213,13 @@ nv04_graph_idle(void *obj)
 	return true;
 }
 
-static struct nouveau_bitfield
+static const struct nouveau_bitfield
 nv04_graph_intr_name[] = {
 	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
 	{}
 };
 
-static struct nouveau_bitfield
+static const struct nouveau_bitfield
 nv04_graph_nstatus[] = {
 	{ NV04_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV04_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
@@ -1228,7 +1228,7 @@ nv04_graph_nstatus[] = {
 	{}
 };
 
-struct nouveau_bitfield
+const struct nouveau_bitfield
 nv04_graph_nsource[] = {
 	{ NV03_PGRAPH_NSOURCE_NOTIFICATION,       "NOTIFICATION" },
 	{ NV03_PGRAPH_NSOURCE_DATA_ERROR,         "DATA_ERROR" },

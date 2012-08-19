@@ -331,7 +331,7 @@ nv50_fb_oclass = {
 	},
 };
 
-static struct nouveau_enum vm_dispatch_subclients[] = {
+static const struct nouveau_enum vm_dispatch_subclients[] = {
 	{ 0x00000000, "GRCTX", NULL },
 	{ 0x00000001, "NOTIFY", NULL },
 	{ 0x00000002, "QUERY", NULL },
@@ -342,14 +342,14 @@ static struct nouveau_enum vm_dispatch_subclients[] = {
 	{}
 };
 
-static struct nouveau_enum vm_ccache_subclients[] = {
+static const struct nouveau_enum vm_ccache_subclients[] = {
 	{ 0x00000000, "CB", NULL },
 	{ 0x00000001, "TIC", NULL },
 	{ 0x00000002, "TSC", NULL },
 	{}
 };
 
-static struct nouveau_enum vm_prop_subclients[] = {
+static const struct nouveau_enum vm_prop_subclients[] = {
 	{ 0x00000000, "RT0", NULL },
 	{ 0x00000001, "RT1", NULL },
 	{ 0x00000002, "RT2", NULL },
@@ -366,19 +366,19 @@ static struct nouveau_enum vm_prop_subclients[] = {
 	{}
 };
 
-static struct nouveau_enum vm_pfifo_subclients[] = {
+static const struct nouveau_enum vm_pfifo_subclients[] = {
 	{ 0x00000000, "PUSHBUF", NULL },
 	{ 0x00000001, "SEMAPHORE", NULL },
 	{}
 };
 
-static struct nouveau_enum vm_bar_subclients[] = {
+static const struct nouveau_enum vm_bar_subclients[] = {
 	{ 0x00000000, "FB", NULL },
 	{ 0x00000001, "IN", NULL },
 	{}
 };
 
-static struct nouveau_enum vm_client[] = {
+static const struct nouveau_enum vm_client[] = {
 	{ 0x00000000, "STRMOUT", NULL },
 	{ 0x00000003, "DISPATCH", vm_dispatch_subclients },
 	{ 0x00000004, "PFIFO_WRITE", NULL },
@@ -397,7 +397,7 @@ static struct nouveau_enum vm_client[] = {
 	{}
 };
 
-static struct nouveau_enum vm_engine[] = {
+static const struct nouveau_enum vm_engine[] = {
 	{ 0x00000000, "PGRAPH", NULL },
 	{ 0x00000001, "PVP", NULL },
 	{ 0x00000004, "PEEPHOLE", NULL },
@@ -413,7 +413,7 @@ static struct nouveau_enum vm_engine[] = {
 	{}
 };
 
-static struct nouveau_enum vm_fault[] = {
+static const struct nouveau_enum vm_fault[] = {
 	{ 0x00000000, "PT_NOT_PRESENT", NULL },
 	{ 0x00000001, "PT_TOO_SHORT", NULL },
 	{ 0x00000002, "PAGE_NOT_PRESENT", NULL },

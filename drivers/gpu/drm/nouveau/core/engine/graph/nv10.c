@@ -1135,13 +1135,13 @@ nv10_graph_tile_prog(struct nouveau_engine *engine, int i)
 	pfifo->start(pfifo, &flags);
 }
 
-struct nouveau_bitfield nv10_graph_intr_name[] = {
+const struct nouveau_bitfield nv10_graph_intr_name[] = {
 	{ NV_PGRAPH_INTR_NOTIFY, "NOTIFY" },
 	{ NV_PGRAPH_INTR_ERROR,  "ERROR"  },
 	{}
 };
 
-struct nouveau_bitfield nv10_graph_nstatus[] = {
+const struct nouveau_bitfield nv10_graph_nstatus[] = {
 	{ NV10_PGRAPH_NSTATUS_STATE_IN_USE,       "STATE_IN_USE" },
 	{ NV10_PGRAPH_NSTATUS_INVALID_STATE,      "INVALID_STATE" },
 	{ NV10_PGRAPH_NSTATUS_BAD_ARGUMENT,       "BAD_ARGUMENT" },
