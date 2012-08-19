@@ -85,7 +85,9 @@ struct picolcd_data {
 	/* input stuff */
 	u8 pressed_keys[2];
 	struct input_dev *input_keys;
-	struct input_dev *input_cir;
+#ifdef CONFIG_HID_PICOLCD_CIR
+	struct rc_dev *rc_dev;
+#endif
 	unsigned short keycode[PICOLCD_KEYS];
 
 #ifdef CONFIG_HID_PICOLCD_FB
@@ -114,6 +116,7 @@ struct picolcd_data {
 	int status;
 #define PICOLCD_BOOTLOADER 1
 #define PICOLCD_FAILED 2
+#define PICOLCD_CIR_SHUN 4
 };
 
 #ifdef CONFIG_HID_PICOLCD_FB

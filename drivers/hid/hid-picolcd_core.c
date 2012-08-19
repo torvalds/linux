@@ -356,8 +356,7 @@ static int picolcd_raw_event(struct hid_device *hdev,
 		if (data->input_keys)
 			ret = picolcd_raw_keypad(data, report, raw_data+1, size-1);
 	} else if (report->id == REPORT_IR_DATA) {
-		if (data->input_cir)
-			ret = picolcd_raw_cir(data, report, raw_data+1, size-1);
+		ret = picolcd_raw_cir(data, report, raw_data+1, size-1);
 	} else {
 		spin_lock_irqsave(&data->lock, flags);
 		/*
