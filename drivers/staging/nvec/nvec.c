@@ -294,8 +294,10 @@ struct nvec_msg *nvec_write_sync(struct nvec_chip *nvec,
 
 	nvec->sync_write_pending = (data[1] << 8) + data[0];
 
-	if (nvec_write_async(nvec, data, size) < 0)
+	if (nvec_write_async(nvec, data, size) < 0) {
+		mutex_unlock(&nvec->sync_write_mutex);
 		return NULL;
+	}
 
 	dev_dbg(nvec->dev, "nvec_sync_write: 0x%04x\n",
 					nvec->sync_write_pending);
