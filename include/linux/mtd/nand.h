@@ -630,6 +630,7 @@ struct platform_device;
  *			ALE/CLE/nCE. Also used to write command and address
  * @write_buf:		platform specific function for write buffer
  * @read_buf:		platform specific function for read buffer
+ * @read_byte:		platform specific function to read one byte from chip
  * @priv:		private data to transport driver specific settings
  *
  * All fields are optional and depend on the hardware driver requirements
