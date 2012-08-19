@@ -127,6 +127,7 @@ struct sensor_platform_data {
 	int x_min;              //filter
 	int y_min;
 	int z_min;
+	int factory;
 	unsigned char address;
 	signed char orientation[9];
 	short m_layout[4][3][3];

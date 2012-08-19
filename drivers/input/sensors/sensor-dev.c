@@ -45,6 +45,8 @@
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
 static struct sensor_operate *sensor_ops[SENSOR_NUM_ID]; 
+static struct class *g_sensor_class[SENSOR_NUM_TYPES];
+
 
 static int sensor_get_id(struct i2c_client *client, int *value)
 {
@@ -481,6 +483,72 @@ static long gsensor_dev_ioctl(struct file *file,
 error:
 	return result;
 }
+
+static ssize_t gsensor_set_orientation_online(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i=0;
+	char orientation[20];
+	
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
+	struct sensor_platform_data *pdata = sensor->pdata;
+
+	
+  	char *p = strstr(buf,"gsensor_class");
+	int start = strcspn(p,"{");
+	int end = strcspn(p,"}");
+	
+	strncpy(orientation,p+start,end-start+1);
+	char *tmp = orientation;
+	
+
+    	while(strncmp(tmp,"}",1)!=0)
+   	 {
+    		if((strncmp(tmp,",",1)==0)||(strncmp(tmp,"{",1)==0))
+		{
+			
+			 tmp++;		
+			 continue;
+		}	
+		else if(strncmp(tmp,"-",1)==0)
+		{
+			pdata->orientation[i++]=-1;
+			DBG("i=%d,data=%d\n",i,pdata->orientation[i]);
+			 tmp++;
+		}		
+		else
+		{
+			pdata->orientation[i++]=tmp[0]-48;		
+			DBG("----i=%d,data=%d\n",i,pdata->orientation[i]);	
+		}	
+		tmp++;
+	
+						
+   	 }
+
+	for(i=0;i<9;i++)
+		DBG("i=%d gsensor_info=%d\n",i,pdata->orientation[i]);
+	return 0;
+
+}
+
+static CLASS_ATTR(orientation, 0660, NULL,gsensor_set_orientation_online);
+
+static int  gsensor_class_init(void)
+{
+	int ret ;
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];	
+	g_sensor_class[SENSOR_TYPE_ACCEL] = class_create(THIS_MODULE, "gsensor_class");
+	ret =  class_create_file(g_sensor_class[SENSOR_TYPE_ACCEL], &class_attr_orientation);
+	if (ret)
+	{
+		printk("%s:Fail to creat class\n",__func__);
+		return ret;
+	}
+	printk("%s:%s\n",__func__,sensor->i2c_id->name);
+	return 0;
+}
+
 
 
 static int compass_dev_open(struct inode *inode, struct file *file)
@@ -1222,6 +1290,16 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	
 	g_sensor[type] = sensor;
 
+	if((type == SENSOR_TYPE_ACCEL) && (sensor->pdata->factory))	//only support  setting gsensor orientation online now	
+	{
+		result = gsensor_class_init();
+		if (result) {
+			dev_err(&client->dev,
+				"fail to register misc device %s\n", sensor->i2c_id->name);
+			goto out_misc_device_register_device_failed;
+		}
+	}
+	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if((sensor->ops->suspend) && (sensor->ops->resume))
 	{
