@@ -2291,8 +2291,8 @@ int regulator_set_voltage_time(struct regulator *regulator,
 EXPORT_SYMBOL_GPL(regulator_set_voltage_time);
 
 /**
- *regulator_set_voltage_time_sel - get raise/fall time
- * @regulator: regulator source
+ * regulator_set_voltage_time_sel - get raise/fall time
+ * @rdev: regulator source device
  * @old_selector: selector for starting voltage
  * @new_selector: selector for target voltage
  *
