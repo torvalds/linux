@@ -26,7 +26,7 @@
 #define GPIO6_PB1_UNEN_MASK  0x02000000
 
 #ifdef CONFIG_MFD_TPS65910
-#define PMU_POWER_SLEEP RK2928_PIN3_PD2	
+#define PMU_POWER_SLEEP RK2928_PIN1_PA1	
 extern int platform_device_register(struct platform_device *pdev);
 
 int tps65910_pre_init(struct tps65910 *tps65910){
