@@ -30,6 +30,7 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
+#include <mach/iomux.h>
 #include "rk2928_lcdc.h"
 #include "../lvds/rk_lvds.h"
 
@@ -71,6 +72,30 @@ static int init_rk2928_lcdc(struct rk_lcdc_device_driver *dev_drv)
 #ifdef CONFIG_RK_LVDS
 	rk_lvds_register(lcdc_dev->screen);
 #endif
+        	if(lcdc_dev->screen->type == SCREEN_RGB) //iomux for RGB screen
+	{
+		
+		rk30_mux_api_set(GPIO2B0_LCDC0_DCLK_LCDC1_DCLK_NAME, GPIO2B_LCDC0_DCLK);
+		rk30_mux_api_set(GPIO2B1_LCDC0_HSYNC_LCDC1_HSYNC_NAME, GPIO2B_LCDC0_HSYNC);
+		rk30_mux_api_set(GPIO2B2_LCDC0_VSYNC_LCDC1_VSYNC_NAME, GPIO2B_LCDC0_VSYNC);
+		rk30_mux_api_set(GPIO2B3_LCDC0_DEN_LCDC1_DEN_NAME, GPIO2B_LCDC0_DEN);
+		rk30_mux_api_set(GPIO2B4_LCDC0_D10_LCDC1_D10_NAME, GPIO2B_LCDC0_D10);
+		rk30_mux_api_set(GPIO2B5_LCDC0_D11_LCDC1_D11_NAME, GPIO2B_LCDC0_D11);
+		rk30_mux_api_set(GPIO2B6_LCDC0_D12_LCDC1_D12_NAME, GPIO2B_LCDC0_D12);
+		rk30_mux_api_set(GPIO2B7_LCDC0_D13_LCDC1_D13_NAME, GPIO2B_LCDC0_D13);
+		rk30_mux_api_set(GPIO2C0_LCDC0_D14_LCDC1_D14_NAME, GPIO2C_LCDC0_D14);
+		rk30_mux_api_set(GPIO2C1_LCDC0_D15_LCDC1_D15_NAME, GPIO2C_LCDC0_D15);
+		rk30_mux_api_set(GPIO2C2_LCDC0_D16_LCDC1_D16_NAME, GPIO2C_LCDC0_D16);
+		rk30_mux_api_set(GPIO2C3_LCDC0_D17_LCDC1_D17_NAME, GPIO2C_LCDC0_D17);
+		//rk30_mux_api_set(GPIO2C4_LCDC0_D18_LCDC1_D18_I2C2_SDA_NAME, GPIO2C_LCDC1_D18);
+		//rk30_mux_api_set(GPIO2C5_LCDC0_D19_LCDC1_D19_I2C2_SCL_NAME, GPIO2C_LCDC1_D19);
+		//rk30_mux_api_set(GPIO2C6_LCDC0_D20_LCDC1_D20_UART2_SIN_NAME, GPIO2C_LCDC1_D20);
+		//rk30_mux_api_set(GPIO2C7_LCDC0_D21_LCDC1_D21_UART2_SOUT_NAME, GPIO2C_LCDC1_D21);
+		//rk30_mux_api_set(GPIO2D0_LCDC0_D22_LCDC1_D22_NAME, GPIO2D_LCDC1_D22);
+		//rk30_mux_api_set(GPIO2D1_LCDC0_D23_LCDC1_D23_NAME, GPIO2D_LCDC1_D23);
+		printk("RGB screen connect to rk2928\n");
+
+	}
 
 	clk_enable(lcdc_dev->pd);
 	clk_enable(lcdc_dev->hclk);  //enable aclk and hclk for register config

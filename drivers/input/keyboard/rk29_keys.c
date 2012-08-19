@@ -29,7 +29,7 @@
 
 #define EMPTY_ADVALUE					950
 #define DRIFT_ADVALUE					70
-#define INVALID_ADVALUE 				10
+#define INVALID_ADVALUE 				-1
 #define EV_MENU					KEY_F1
 
 
