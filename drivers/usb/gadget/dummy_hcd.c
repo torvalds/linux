@@ -2503,10 +2503,8 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 	hs_hcd->has_tt = 1;
 
 	retval = usb_add_hcd(hs_hcd, 0, 0);
-	if (retval != 0) {
-		usb_put_hcd(hs_hcd);
-		return retval;
-	}
+	if (retval)
+		goto put_usb2_hcd;
 
 	if (mod_data.is_super_speed) {
 		ss_hcd = usb_create_shared_hcd(&dummy_hcd, &pdev->dev,
@@ -2525,6 +2523,8 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 put_usb3_hcd:
 	usb_put_hcd(ss_hcd);
 dealloc_usb2_hcd:
+	usb_remove_hcd(hs_hcd);
+put_usb2_hcd:
 	usb_put_hcd(hs_hcd);
 	the_controller.hs_hcd = the_controller.ss_hcd = NULL;
 	return retval;
