@@ -1,8 +1,11 @@
 #ifndef __NOUVEAU_CLASS_H__
 #define __NOUVEAU_CLASS_H__
 
-/* 0080: NV_DEVICE
+/* Device class
+ *
+ * 0080: NV_DEVICE
  */
+#define NV_DEVICE_CLASS                                              0x00000080
 
 #define NV_DEVICE_DISABLE_IDENTIFY                        0x0000000000000001ULL
 #define NV_DEVICE_DISABLE_MMIO                            0x0000000000000002ULL
@@ -27,10 +30,15 @@ struct nv_device_class {
 	u64 debug0;	/* as above, but *internal* ids, and *NOT* ABI */
 };
 
-/* 0002: NV_DMA_FROM_MEMORY
+/* DMA object classes
+ *
+ * 0002: NV_DMA_FROM_MEMORY
  * 0003: NV_DMA_TO_MEMORY
  * 003d: NV_DMA_IN_MEMORY
  */
+#define NV_DMA_FROM_MEMORY_CLASS                                     0x00000002
+#define NV_DMA_TO_MEMORY_CLASS                                       0x00000003
+#define NV_DMA_IN_MEMORY_CLASS                                       0x0000003d
 
 #define NV_DMA_TARGET_MASK                                           0x000000ff
 #define NV_DMA_TARGET_VM                                             0x00000000
@@ -51,13 +59,21 @@ struct nv_dma_class {
 	u64 limit;
 };
 
-/* 006b: NV03_CHANNEL_DMA
+/* DMA FIFO channel classes
+ *
+ * 006b: NV03_CHANNEL_DMA
  * 006e: NV10_CHANNEL_DMA
  * 176e: NV17_CHANNEL_DMA
  * 406e: NV40_CHANNEL_DMA
  * 506e: NV50_CHANNEL_DMA
  * 826e: NV84_CHANNEL_DMA
  */
+#define NV03_CHANNEL_DMA_CLASS                                       0x0000006b
+#define NV10_CHANNEL_DMA_CLASS                                       0x0000006e
+#define NV17_CHANNEL_DMA_CLASS                                       0x0000176e
+#define NV40_CHANNEL_DMA_CLASS                                       0x0000406e
+#define NV50_CHANNEL_DMA_CLASS                                       0x0000506e
+#define NV84_CHANNEL_DMA_CLASS                                       0x0000826e
 
 struct nv03_channel_dma_class {
 	u32 pushbuf;
@@ -65,10 +81,18 @@ struct nv03_channel_dma_class {
 	u64 offset;
 };
 
-/* 506f: NV50_CHANNEL_IND
+/* Indirect FIFO channel classes
+ *
+ * 506f: NV50_CHANNEL_IND
  * 826f: NV84_CHANNEL_IND
  * 906f: NVC0_CHANNEL_IND
+ * a06f: NVE0_CHANNEL_IND
  */
+
+#define NV50_CHANNEL_IND_CLASS                                       0x0000506f
+#define NV84_CHANNEL_IND_CLASS                                       0x0000826f
+#define NVC0_CHANNEL_IND_CLASS                                       0x0000906f
+#define NVE0_CHANNEL_IND_CLASS                                       0x0000a06f
 
 struct nv50_channel_ind_class {
 	u32 pushbuf;
@@ -76,16 +100,13 @@ struct nv50_channel_ind_class {
 	u64 ioffset;
 };
 
-/* a06f: NVE0_CHANNEL_IND
- */
-
-#define NVE0_CHANNEL_IND_ENGINE_GR  0x00000001
-#define NVE0_CHANNEL_IND_ENGINE_VP  0x00000002
-#define NVE0_CHANNEL_IND_ENGINE_PPP 0x00000004
-#define NVE0_CHANNEL_IND_ENGINE_BSP 0x00000008
-#define NVE0_CHANNEL_IND_ENGINE_CE0 0x00000010
-#define NVE0_CHANNEL_IND_ENGINE_CE1 0x00000020
-#define NVE0_CHANNEL_IND_ENGINE_ENC 0x00000040
+#define NVE0_CHANNEL_IND_ENGINE_GR                                   0x00000001
+#define NVE0_CHANNEL_IND_ENGINE_VP                                   0x00000002
+#define NVE0_CHANNEL_IND_ENGINE_PPP                                  0x00000004
+#define NVE0_CHANNEL_IND_ENGINE_BSP                                  0x00000008
+#define NVE0_CHANNEL_IND_ENGINE_CE0                                  0x00000010
+#define NVE0_CHANNEL_IND_ENGINE_CE1                                  0x00000020
+#define NVE0_CHANNEL_IND_ENGINE_ENC                                  0x00000040
 
 struct nve0_channel_ind_class {
 	u32 pushbuf;
