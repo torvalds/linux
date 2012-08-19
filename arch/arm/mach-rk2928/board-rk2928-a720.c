@@ -259,6 +259,27 @@ static struct platform_device device_ion = {
 };
 #endif
 
+/*MMA7660 gsensor*/
+#if defined (CONFIG_GS_MMA7660)
+#define MMA7660_INT_PIN   RK2928_PIN1_PB1
+
+static int mma7660_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	return 0;
+}
+
+static struct sensor_platform_data mma7660_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+        .init_platform_hw = mma7660_init_platform_hw,
+        .orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+};
+#endif
+
+
 #if CONFIG_RK30_PWM_REGULATOR
 const static int pwm_voltage_map[] = {
 	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
@@ -345,6 +366,16 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 #ifdef CONFIG_I2C1_RK30
 static struct i2c_board_info __initdata i2c1_info[] = {
+#if defined (CONFIG_GS_MMA7660)
+		{
+			.type		= "gs_mma7660",
+			.addr		= 0x4c,
+			.flags		= 0,
+			.irq		= MMA7660_INT_PIN,
+			.platform_data = &mma7660_info,
+		},
+#endif
+
 };
 #endif
 #ifdef CONFIG_I2C2_RK30
