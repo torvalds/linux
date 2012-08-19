@@ -129,7 +129,7 @@ import os
 import sys
 
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
-	'/scripts/python/perf-script-Util/lib/Perf/Trace')
+	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
 from perf_trace_context import *
 from Core import *
@@ -216,7 +216,7 @@ import os
 import sys
 
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
-	'/scripts/python/perf-script-Util/lib/Perf/Trace')
+	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
 from perf_trace_context import *
 from Core import *
@@ -279,7 +279,7 @@ import os
 import sys
 
 sys.path.append(os.environ['PERF_EXEC_PATH'] + \
-	'/scripts/python/perf-script-Util/lib/Perf/Trace')
+	'/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
 from perf_trace_context import *
 from Core import *
@@ -391,7 +391,7 @@ drwxr-xr-x 4 trz trz 4096 2010-01-26 22:30 .
 drwxr-xr-x 4 trz trz 4096 2010-01-26 22:29 ..
 drwxr-xr-x 2 trz trz 4096 2010-01-26 22:29 bin
 -rw-r--r-- 1 trz trz 2548 2010-01-26 22:29 check-perf-script.py
-drwxr-xr-x 3 trz trz 4096 2010-01-26 22:49 perf-script-Util
+drwxr-xr-x 3 trz trz 4096 2010-01-26 22:49 Perf-Trace-Util
 -rw-r--r-- 1 trz trz 1462 2010-01-26 22:30 syscall-counts.py
 ----
 
@@ -518,7 +518,7 @@ descriptions below):
  import sys
 
  sys.path.append(os.environ['PERF_EXEC_PATH'] + \
-	      '/scripts/python/perf-script-Util/lib/Perf/Trace')
+	      '/scripts/python/Perf-Trace-Util/lib/Perf/Trace')
 
  from perf_trace_context import *
  from Core import *
