@@ -469,6 +469,7 @@ PYRF_OBJS += $(OUTPUT)util/xyarray.o
 ifdef NO_LIBELF
 	NO_DWARF := 1
 	NO_DEMANGLE := 1
+	NO_LIBUNWIND := 1
 else
 FLAGS_LIBELF=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS)
 ifneq ($(call try-cc,$(SOURCE_LIBELF),$(FLAGS_LIBELF)),y)

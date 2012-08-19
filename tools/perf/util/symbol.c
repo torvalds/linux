@@ -1125,7 +1125,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	else
 		ret = -1;
 
-	if (ret > 0 && runtime_ss->dynsym) {
+	if (ret > 0) {
 		int nr_plt;
 
 		nr_plt = dso__synthesize_plt_symbols(dso, runtime_ss, map, filter);

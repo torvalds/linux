@@ -183,6 +183,9 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss, struct map *
 	Elf *elf;
 	int nr = 0, symidx, err = 0;
 
+	if (!ss->dynsym)
+		return 0;
+
 	elf = ss->elf;
 	ehdr = ss->ehdr;
 
