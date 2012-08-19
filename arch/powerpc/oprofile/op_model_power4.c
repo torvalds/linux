@@ -61,10 +61,10 @@ static int power4_reg_setup(struct op_counter_config *ctr,
 	else
 		mmcr0_val |= MMCR0_PROBLEM_DISABLE;
 
-	if (__is_processor(PV_POWER4) || __is_processor(PV_POWER4p) ||
-	    __is_processor(PV_970) || __is_processor(PV_970FX) ||
-	    __is_processor(PV_970MP) || __is_processor(PV_970GX) ||
-	    __is_processor(PV_POWER5) || __is_processor(PV_POWER5p))
+	if (pvr_version_is(PVR_POWER4) || pvr_version_is(PVR_POWER4p) ||
+	    pvr_version_is(PVR_970) || pvr_version_is(PVR_970FX) ||
+	    pvr_version_is(PVR_970MP) || pvr_version_is(PVR_970GX) ||
+	    pvr_version_is(PVR_POWER5) || pvr_version_is(PVR_POWER5p))
 		use_slot_nums = 1;
 
 	return 0;
@@ -84,9 +84,9 @@ extern void ppc_enable_pmcs(void);
  */
 static inline int mmcra_must_set_sample(void)
 {
-	if (__is_processor(PV_POWER4) || __is_processor(PV_POWER4p) ||
-	    __is_processor(PV_970) || __is_processor(PV_970FX) ||
-	    __is_processor(PV_970MP) || __is_processor(PV_970GX))
+	if (pvr_version_is(PVR_POWER4) || pvr_version_is(PVR_POWER4p) ||
+	    pvr_version_is(PVR_970) || pvr_version_is(PVR_970FX) ||
+	    pvr_version_is(PVR_970MP) || pvr_version_is(PVR_970GX))
 		return 1;
 
 	return 0;
@@ -276,7 +276,7 @@ static bool pmc_overflow(unsigned long val)
 	 * PMCs because a user might set a period of less than 256 and we
 	 * don't want to mistakenly reset them.
 	 */
-	if (__is_processor(PV_POWER7) && ((0x80000000 - val) <= 256))
+	if (pvr_version_is(PVR_POWER7) && ((0x80000000 - val) <= 256))
 		return true;
 
 	return false;

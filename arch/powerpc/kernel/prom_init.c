@@ -1691,7 +1691,7 @@ static void __init prom_initialize_tce_table(void)
 		 * else will impact performance, so we always allocate 8MB.
 		 * Anton
 		 */
-		if (__is_processor(PV_POWER4) || __is_processor(PV_POWER4p))
+		if (pvr_version_is(PVR_POWER4) || pvr_version_is(PVR_POWER4p))
 			minsize = 8UL << 20;
 		else
 			minsize = 4UL << 20;

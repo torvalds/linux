@@ -6304,14 +6304,14 @@ static struct ata_port_info sata_port_info = {
 
 #ifdef CONFIG_PPC_PSERIES
 static const u16 ipr_blocked_processors[] = {
-	PV_NORTHSTAR,
-	PV_PULSAR,
-	PV_POWER4,
-	PV_ICESTAR,
-	PV_SSTAR,
-	PV_POWER4p,
-	PV_630,
-	PV_630p
+	PVR_NORTHSTAR,
+	PVR_PULSAR,
+	PVR_POWER4,
+	PVR_ICESTAR,
+	PVR_SSTAR,
+	PVR_POWER4p,
+	PVR_630,
+	PVR_630p
 };
 
 /**
@@ -6331,7 +6331,7 @@ static int ipr_invalid_adapter(struct ipr_ioa_cfg *ioa_cfg)
 
 	if ((ioa_cfg->type == 0x5702) && (ioa_cfg->pdev->revision < 4)) {
 		for (i = 0; i < ARRAY_SIZE(ipr_blocked_processors); i++){
-			if (__is_processor(ipr_blocked_processors[i]))
+			if (pvr_version_is(ipr_blocked_processors[i]))
 				return 1;
 		}
 	}

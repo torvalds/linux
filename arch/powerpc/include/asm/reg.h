@@ -937,7 +937,7 @@
 #define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)	/* Version field */
 #define PVR_REV(pvr)	(((pvr) >>   0) & 0xFFFF)	/* Revison field */
 
-#define __is_processor(pv)	(PVR_VER(mfspr(SPRN_PVR)) == (pv))
+#define pvr_version_is(pvr)	(PVR_VER(mfspr(SPRN_PVR)) == (pvr))
 
 /*
  * IBM has further subdivided the standard PowerPC 16-bit version and
@@ -1002,25 +1002,24 @@
 #define PVR_476_ISS	0x00052000
 
 /* 64-bit processors */
-/* XXX the prefix should be PVR_, we'll do a global sweep to fix it one day */
-#define PV_NORTHSTAR	0x0033
-#define PV_PULSAR	0x0034
-#define PV_POWER4	0x0035
-#define PV_ICESTAR	0x0036
-#define PV_SSTAR	0x0037
-#define PV_POWER4p	0x0038
-#define PV_970		0x0039
-#define PV_POWER5	0x003A
-#define PV_POWER5p	0x003B
-#define PV_970FX	0x003C
-#define PV_POWER6	0x003E
-#define PV_POWER7	0x003F
-#define PV_630		0x0040
-#define PV_630p	0x0041
-#define PV_970MP	0x0044
-#define PV_970GX	0x0045
-#define PV_BE		0x0070
-#define PV_PA6T		0x0090
+#define PVR_NORTHSTAR	0x0033
+#define PVR_PULSAR	0x0034
+#define PVR_POWER4	0x0035
+#define PVR_ICESTAR	0x0036
+#define PVR_SSTAR	0x0037
+#define PVR_POWER4p	0x0038
+#define PVR_970		0x0039
+#define PVR_POWER5	0x003A
+#define PVR_POWER5p	0x003B
+#define PVR_970FX	0x003C
+#define PVR_POWER6	0x003E
+#define PVR_POWER7	0x003F
+#define PVR_630		0x0040
+#define PVR_630p	0x0041
+#define PVR_970MP	0x0044
+#define PVR_970GX	0x0045
+#define PVR_BE		0x0070
+#define PVR_PA6T	0x0090
 
 /* Macros for setting and retrieving special purpose registers */
 #ifndef __ASSEMBLY__

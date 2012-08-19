@@ -1396,7 +1396,7 @@ static bool pmc_overflow(unsigned long val)
 	 * PMCs because a user might set a period of less than 256 and we
 	 * don't want to mistakenly reset them.
 	 */
-	if (__is_processor(PV_POWER7) && ((0x80000000 - val) <= 256))
+	if (pvr_version_is(PVR_POWER7) && ((0x80000000 - val) <= 256))
 		return true;
 
 	return false;
