@@ -231,7 +231,7 @@ omap2_onenand_calc_sync_timings(struct omap_onenand_platform_data *cfg,
 		break;
 	}
 
-	div = gpmc_cs_calc_divider(cs, min_gpmc_clk_period);
+	div = gpmc_calc_divider(min_gpmc_clk_period);
 	gpmc_clk_ns = gpmc_ticks_to_ns(div);
 	if (gpmc_clk_ns < 15) /* >66Mhz */
 		onenand_flags |= ONENAND_FLAG_HF;
