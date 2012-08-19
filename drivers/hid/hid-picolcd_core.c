@@ -446,7 +446,7 @@ static int picolcd_init_keys(struct picolcd_data *data,
 	idev->id.vendor  = hdev->vendor;
 	idev->id.product = hdev->product;
 	idev->id.version = hdev->version;
-	idev->dev.parent = hdev->dev.parent;
+	idev->dev.parent = &hdev->dev;
 	idev->keycode     = &data->keycode;
 	idev->keycodemax  = PICOLCD_KEYS;
 	idev->keycodesize = sizeof(data->keycode[0]);
