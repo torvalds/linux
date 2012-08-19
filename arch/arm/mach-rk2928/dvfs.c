@@ -1167,8 +1167,9 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		if (volt_dep_new < 0) 
 			goto fail_roll_back;
 
-		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
-					LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
+		ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
+		//ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
+		//			LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
 		if (ret < 0) 
 			goto fail_roll_back;
 	}
@@ -1197,8 +1198,9 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		if (volt_dep_new < 0) 
 			goto out;
 
-		ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
-					LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
+		ret = dvfs_scale_volt_direct(dvfs_clk->vd, volt_new);
+		//ret = dvfs_scale_volt_bystep(dvfs_clk->vd, dvfs_clk_cpu->vd, volt_new, volt_dep_new, 
+		//			LOGIC_HIGHER_ARM, ARM_HIGHER_LOGIC); 
 		if (ret < 0) 
 			goto out;
 	}
