@@ -129,13 +129,9 @@ static int __init iptable_mangle_init(void)
 	mangle_ops = xt_hook_link(&packet_mangler, iptable_mangle_hook);
 	if (IS_ERR(mangle_ops)) {
 		ret = PTR_ERR(mangle_ops);
-		goto cleanup_table;
+		unregister_pernet_subsys(&iptable_mangle_net_ops);
 	}
 
-	return ret;
-
- cleanup_table:
-	unregister_pernet_subsys(&iptable_mangle_net_ops);
 	return ret;
 }
 

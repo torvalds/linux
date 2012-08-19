@@ -73,13 +73,9 @@ static int __init iptable_raw_init(void)
 	rawtable_ops = xt_hook_link(&packet_raw, iptable_raw_hook);
 	if (IS_ERR(rawtable_ops)) {
 		ret = PTR_ERR(rawtable_ops);
-		goto cleanup_table;
+		unregister_pernet_subsys(&iptable_raw_net_ops);
 	}
 
-	return ret;
-
- cleanup_table:
-	unregister_pernet_subsys(&iptable_raw_net_ops);
 	return ret;
 }
 
