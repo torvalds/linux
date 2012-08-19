@@ -653,7 +653,6 @@ static void picolcd_remove(struct hid_device *hdev)
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
-	hid_set_drvdata(hdev, NULL);
 
 	/* Shortcut potential pending reply that will never arrive */
 	spin_lock_irqsave(&data->lock, flags);
@@ -671,6 +670,7 @@ static void picolcd_remove(struct hid_device *hdev)
 	picolcd_exit_cir(data);
 	picolcd_exit_keys(data);
 
+	hid_set_drvdata(hdev, NULL);
 	mutex_destroy(&data->mutex);
 	/* Finally, clean up the picolcd data itself */
 	kfree(data);
