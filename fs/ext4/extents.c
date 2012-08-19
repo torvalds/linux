@@ -3301,7 +3301,7 @@ out:
  * to an uninitialized extent.
  *
  * Writing to an uninitialized extent may result in splitting the uninitialized
- * extent into multiple /initialized uninitialized extents (up to three)
+ * extent into multiple initialized/uninitialized extents (up to three)
  * There are three possibilities:
  *   a> There is no split required: Entire extent should be uninitialized
  *   b> Splits in two extents: Write is happening at either end of the extent
