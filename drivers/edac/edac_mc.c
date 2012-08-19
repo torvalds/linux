@@ -441,13 +441,6 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 
 	mci->op_state = OP_ALLOC;
 
-	/* at this point, the root kobj is valid, and in order to
-	 * 'free' the object, then the function:
-	 *      edac_mc_unregister_sysfs_main_kobj() must be called
-	 * which will perform kobj unregistration and the actual free
-	 * will occur during the kobject callback operation
-	 */
-
 	return mci;
 
 error:

@@ -14,7 +14,6 @@
 
 #include <linux/atomic.h>
 #include <linux/device.h>
-#include <linux/kobject.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
