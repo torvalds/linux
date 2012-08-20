@@ -47,7 +47,7 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	nr = exynos_drm_format_num_buffers(fb->pixel_format);
+	nr = exynos_drm_fb_get_buf_cnt(fb);
 	for (i = 0; i < nr; i++) {
 		struct exynos_drm_gem_buf *buffer = exynos_drm_fb_buffer(fb, i);
 
