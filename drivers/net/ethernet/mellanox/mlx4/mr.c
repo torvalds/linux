@@ -37,6 +37,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/vmalloc.h>
 
 #include <linux/mlx4/cmd.h>
 
@@ -120,7 +121,7 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
 
-	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
+	buddy->bits = kcalloc(buddy->max_order + 1, sizeof (long *),
 			      GFP_KERNEL);
 	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
 				  GFP_KERNEL);
@@ -129,10 +130,12 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 
 	for (i = 0; i <= buddy->max_order; ++i) {
 		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kmalloc(s * sizeof (long), GFP_KERNEL);
-		if (!buddy->bits[i])
-			goto err_out_free;
-		bitmap_zero(buddy->bits[i], 1 << (buddy->max_order - i));
+		buddy->bits[i] = kcalloc(s, sizeof (long), GFP_KERNEL | __GFP_NOWARN);
+		if (!buddy->bits[i]) {
+			buddy->bits[i] = vzalloc(s * sizeof(long));
+			if (!buddy->bits[i])
+				goto err_out_free;
+		}
 	}
 
 	set_bit(0, buddy->bits[buddy->max_order]);
@@ -142,7 +145,10 @@ static int mlx4_buddy_init(struct mlx4_buddy *buddy, int max_order)
 
 err_out_free:
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		if (buddy->bits[i] && is_vmalloc_addr(buddy->bits[i]))
+			vfree(buddy->bits[i]);
+		else
+			kfree(buddy->bits[i]);
 
 err_out:
 	kfree(buddy->bits);
@@ -156,7 +162,10 @@ static void mlx4_buddy_cleanup(struct mlx4_buddy *buddy)
 	int i;
 
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		if (is_vmalloc_addr(buddy->bits[i]))
+			vfree(buddy->bits[i]);
+		else
+			kfree(buddy->bits[i]);
 
 	kfree(buddy->bits);
 	kfree(buddy->num_free);
@@ -668,7 +677,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 		return err;
 
 	err = mlx4_buddy_init(&mr_table->mtt_buddy,
-			      ilog2(dev->caps.num_mtts /
+			      ilog2((u32)dev->caps.num_mtts /
 			      (1 << log_mtts_per_seg)));
 	if (err)
 		goto err_buddy;
@@ -678,7 +687,7 @@ int mlx4_init_mr_table(struct mlx4_dev *dev)
 			mlx4_alloc_mtt_range(dev,
 					     fls(dev->caps.reserved_mtts - 1));
 		if (priv->reserved_mtts < 0) {
-			mlx4_warn(dev, "MTT table of order %d is too small.\n",
+			mlx4_warn(dev, "MTT table of order %u is too small.\n",
 				  mr_table->mtt_buddy.max_order);
 			err = -ENOMEM;
 			goto err_reserve_mtts;

@@ -1263,6 +1263,8 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 union igp_info {
 	struct _ATOM_INTEGRATED_SYSTEM_INFO info;
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_2;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 info_6;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_7 info_7;
 };
 
 bool radeon_atombios_sideport_present(struct radeon_device *rdev)
@@ -1390,27 +1392,50 @@ static void radeon_atombios_get_igp_ss_overrides(struct radeon_device *rdev,
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
 	u16 data_offset, size;
-	struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 *igp_info;
+	union igp_info *igp_info;
 	u8 frev, crev;
 	u16 percentage = 0, rate = 0;
 
 	/* get any igp specific overrides */
 	if (atom_parse_data_header(mode_info->atom_context, index, &size,
 				   &frev, &crev, &data_offset)) {
-		igp_info = (struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 *)
+		igp_info = (union igp_info *)
 			(mode_info->atom_context->bios + data_offset);
-		switch (id) {
-		case ASIC_INTERNAL_SS_ON_TMDS:
-			percentage = le16_to_cpu(igp_info->usDVISSPercentage);
-			rate = le16_to_cpu(igp_info->usDVISSpreadRateIn10Hz);
+		switch (crev) {
+		case 6:
+			switch (id) {
+			case ASIC_INTERNAL_SS_ON_TMDS:
+				percentage = le16_to_cpu(igp_info->info_6.usDVISSPercentage);
+				rate = le16_to_cpu(igp_info->info_6.usDVISSpreadRateIn10Hz);
+				break;
+			case ASIC_INTERNAL_SS_ON_HDMI:
+				percentage = le16_to_cpu(igp_info->info_6.usHDMISSPercentage);
+				rate = le16_to_cpu(igp_info->info_6.usHDMISSpreadRateIn10Hz);
+				break;
+			case ASIC_INTERNAL_SS_ON_LVDS:
+				percentage = le16_to_cpu(igp_info->info_6.usLvdsSSPercentage);
+				rate = le16_to_cpu(igp_info->info_6.usLvdsSSpreadRateIn10Hz);
+				break;
+			}
 			break;
-		case ASIC_INTERNAL_SS_ON_HDMI:
-			percentage = le16_to_cpu(igp_info->usHDMISSPercentage);
-			rate = le16_to_cpu(igp_info->usHDMISSpreadRateIn10Hz);
+		case 7:
+			switch (id) {
+			case ASIC_INTERNAL_SS_ON_TMDS:
+				percentage = le16_to_cpu(igp_info->info_7.usDVISSPercentage);
+				rate = le16_to_cpu(igp_info->info_7.usDVISSpreadRateIn10Hz);
+				break;
+			case ASIC_INTERNAL_SS_ON_HDMI:
+				percentage = le16_to_cpu(igp_info->info_7.usHDMISSPercentage);
+				rate = le16_to_cpu(igp_info->info_7.usHDMISSpreadRateIn10Hz);
+				break;
+			case ASIC_INTERNAL_SS_ON_LVDS:
+				percentage = le16_to_cpu(igp_info->info_7.usLvdsSSPercentage);
+				rate = le16_to_cpu(igp_info->info_7.usLvdsSSpreadRateIn10Hz);
+				break;
+			}
 			break;
-		case ASIC_INTERNAL_SS_ON_LVDS:
-			percentage = le16_to_cpu(igp_info->usLvdsSSPercentage);
-			rate = le16_to_cpu(igp_info->usLvdsSSpreadRateIn10Hz);
+		default:
+			DRM_ERROR("Unsupported IGP table: %d %d\n", frev, crev);
 			break;
 		}
 		if (percentage)

@@ -1869,7 +1869,7 @@ static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_destructor= tcp_twsk_destructor,
 };
 
-static void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
+void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 
@@ -1877,6 +1877,7 @@ static void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
 	sk->sk_rx_dst = dst;
 	inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
 }
+EXPORT_SYMBOL(inet_sk_rx_dst_set);
 
 const struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	   = ip_queue_xmit,

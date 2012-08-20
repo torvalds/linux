@@ -1348,10 +1348,16 @@ static int pmz_verify_port(struct uart_port *port, struct serial_struct *ser)
 static int pmz_poll_get_char(struct uart_port *port)
 {
 	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+	int tries = 2;
 
-	while ((read_zsreg(uap, R0) & Rx_CH_AV) == 0)
-		udelay(5);
-	return read_zsdata(uap);
+	while (tries) {
+		if ((read_zsreg(uap, R0) & Rx_CH_AV) != 0)
+			return read_zsdata(uap);
+		if (tries--)
+			udelay(5);
+	}
+
+	return NO_POLL_CHAR;
 }
 
 static void pmz_poll_put_char(struct uart_port *port, unsigned char c)

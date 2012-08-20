@@ -3,6 +3,7 @@ Kernel driver w1_therm
 
 Supported chips:
   * Maxim ds18*20 based temperature sensors.
+  * Maxim ds1825 based temperature sensors.
 
 Author: Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 
@@ -15,6 +16,7 @@ supported family codes:
 W1_THERM_DS18S20	0x10
 W1_THERM_DS1822		0x22
 W1_THERM_DS18B20	0x28
+W1_THERM_DS1825		0x3B
 
 Support is provided through the sysfs w1_slave file.  Each open and
 read sequence will initiate a temperature conversion then provide two

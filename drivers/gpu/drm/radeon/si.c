@@ -1639,11 +1639,19 @@ static void si_gpu_init(struct radeon_device *rdev)
 		/* XXX what about 12? */
 		rdev->config.si.tile_config |= (3 << 0);
 		break;
-	}
-	if ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT)
-		rdev->config.si.tile_config |= 1 << 4;
-	else
+	}	
+	switch ((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) {
+	case 0: /* four banks */
 		rdev->config.si.tile_config |= 0 << 4;
+		break;
+	case 1: /* eight banks */
+		rdev->config.si.tile_config |= 1 << 4;
+		break;
+	case 2: /* sixteen banks */
+	default:
+		rdev->config.si.tile_config |= 2 << 4;
+		break;
+	}
 	rdev->config.si.tile_config |=
 		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.si.tile_config |=
@@ -3960,3 +3968,22 @@ void si_fini(struct radeon_device *rdev)
 	rdev->bios = NULL;
 }
 
+/**
+ * si_get_gpu_clock - return GPU clock counter snapshot
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Fetches a GPU clock counter snapshot (SI).
+ * Returns the 64 bit clock counter snapshot.
+ */
+uint64_t si_get_gpu_clock(struct radeon_device *rdev)
+{
+	uint64_t clock;
+
+	mutex_lock(&rdev->gpu_clock_mutex);
+	WREG32(RLC_CAPTURE_GPU_CLOCK_COUNT, 1);
+	clock = (uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_LSB) |
+	        ((uint64_t)RREG32(RLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
+	mutex_unlock(&rdev->gpu_clock_mutex);
+	return clock;
+}

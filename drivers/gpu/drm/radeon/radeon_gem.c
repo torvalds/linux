@@ -134,25 +134,16 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	struct radeon_device *rdev = rbo->rdev;
 	struct radeon_fpriv *fpriv = file_priv->driver_priv;
 	struct radeon_vm *vm = &fpriv->vm;
-	struct radeon_bo_va *bo_va, *tmp;
 
 	if (rdev->family < CHIP_CAYMAN) {
 		return;
 	}
 
 	if (radeon_bo_reserve(rbo, false)) {
+		dev_err(rdev->dev, "leaking bo va because we fail to reserve bo\n");
 		return;
 	}
-	list_for_each_entry_safe(bo_va, tmp, &rbo->va, bo_list) {
-		if (bo_va->vm == vm) {
-			/* remove from this vm address space */
-			mutex_lock(&vm->mutex);
-			list_del(&bo_va->vm_list);
-			mutex_unlock(&vm->mutex);
-			list_del(&bo_va->bo_list);
-			kfree(bo_va);
-		}
-	}
+	radeon_vm_bo_rmv(rdev, vm, rbo);
 	radeon_bo_unreserve(rbo);
 }
 

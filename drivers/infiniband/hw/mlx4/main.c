@@ -423,6 +423,7 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 				 struct ib_device_modify *props)
 {
 	struct mlx4_cmd_mailbox *mailbox;
+	unsigned long flags;
 
 	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
 		return -EOPNOTSUPP;
@@ -430,9 +431,9 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	if (!(mask & IB_DEVICE_MODIFY_NODE_DESC))
 		return 0;
 
-	spin_lock(&to_mdev(ibdev)->sm_lock);
+	spin_lock_irqsave(&to_mdev(ibdev)->sm_lock, flags);
 	memcpy(ibdev->node_desc, props->node_desc, 64);
-	spin_unlock(&to_mdev(ibdev)->sm_lock);
+	spin_unlock_irqrestore(&to_mdev(ibdev)->sm_lock, flags);
 
 	/*
 	 * If possible, pass node desc to FW, so it can generate

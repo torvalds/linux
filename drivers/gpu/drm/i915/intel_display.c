@@ -869,6 +869,7 @@ intel_vlv_find_best_pll(const intel_limit_t *limit, struct drm_crtc *crtc,
 	unsigned long bestppm, ppm, absppm;
 	int dotclk, flag;
 
+	flag = 0;
 	dotclk = target * 1000;
 	bestppm = 1000000;
 	ppm = absppm = 0;
@@ -3749,17 +3750,6 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 			if (lvds_bpc < display_bpc) {
 				DRM_DEBUG_KMS("clamping display bpc (was %d) to LVDS (%d)\n", display_bpc, lvds_bpc);
 				display_bpc = lvds_bpc;
-			}
-			continue;
-		}
-
-		if (intel_encoder->type == INTEL_OUTPUT_EDP) {
-			/* Use VBT settings if we have an eDP panel */
-			unsigned int edp_bpc = dev_priv->edp.bpp / 3;
-
-			if (edp_bpc < display_bpc) {
-				DRM_DEBUG_KMS("clamping display bpc (was %d) to eDP (%d)\n", display_bpc, edp_bpc);
-				display_bpc = edp_bpc;
 			}
 			continue;
 		}
