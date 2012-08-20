@@ -49,6 +49,9 @@
 /* Maximum number of comma-separated items in the 'mtd=' parameter */
 #define MTD_PARAM_MAX_COUNT 2
 
+/* Maximum value for the number of bad PEBs per 1024 PEBs */
+#define MAX_MTD_UBI_BEB_LIMIT 768
+
 #ifdef CONFIG_MTD_UBI_MODULE
 #define ubi_is_module() 1
 #else
@@ -851,6 +854,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 {
 	struct ubi_device *ubi;
 	int i, err, ref = 0;
+
+	if (max_beb_per1024 < 0 || max_beb_per1024 > MAX_MTD_UBI_BEB_LIMIT)
+		return -EINVAL;
+
+	if (!max_beb_per1024)
+		max_beb_per1024 = CONFIG_MTD_UBI_BEB_LIMIT;
 
 	/*
 	 * Check if we already have the same MTD device attached.
