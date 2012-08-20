@@ -13,3 +13,4 @@ config HDMI_RK30_DEBUG
 		help
 		  Enableds verbose debugging the the HDMI drivers
 
+source "drivers/video/rockchip/hdmi/chips/rk30/hdcp/Kconfig"
