@@ -97,7 +97,7 @@ BBuGetFrameTime(
     );
 
 void
-BBvCaculateParameter (
+BBvCalculateParameter (
     PSDevice pDevice,
     unsigned int cbFrameLength,
     unsigned short wRate,

@@ -28,9 +28,9 @@
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
  *      CARDvSetLoopbackMode - Set Loopback mode
  *      CARDbSoftwareReset - Sortware reset NIC
- *      CARDqGetTSFOffset - Caculate TSFOffset
+ *      CARDqGetTSFOffset - Calculate TSFOffset
  *      CARDbGetCurrentTSF - Read Current NIC TSF counter
- *      CARDqGetNextTBTT - Caculate Next Beacon TSF counter
+ *      CARDqGetNextTBTT - Calculate Next Beacon TSF counter
  *      CARDvSetFirstNextTBTT - Set NIC Beacon time
  *      CARDvUpdateNextTBTT - Sync. NIC Beacon time
  *      CARDbRadioPowerOff - Turn Off NIC Radio Power
@@ -100,7 +100,7 @@ const unsigned short cwRXBCNTSFOff[MAX_RATE] =
 
 static
 void
-s_vCaculateOFDMRParameter(
+s_vCalculateOFDMRParameter(
     unsigned char byRate,
     CARD_PHY_TYPE ePHYType,
     unsigned char *pbyTxRate,
@@ -111,7 +111,7 @@ s_vCaculateOFDMRParameter(
 /*---------------------  Export Functions  --------------------------*/
 
 /*
- * Description: Caculate TxRate and RsvTime fields for RSPINF in OFDM mode.
+ * Description: Calculate TxRate and RsvTime fields for RSPINF in OFDM mode.
  *
  * Parameters:
  *  In:
@@ -126,7 +126,7 @@ s_vCaculateOFDMRParameter(
  */
 static
 void
-s_vCaculateOFDMRParameter (
+s_vCalculateOFDMRParameter (
     unsigned char byRate,
     CARD_PHY_TYPE ePHYType,
     unsigned char *pbyTxRate,
@@ -251,7 +251,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
     MACvSelectPage1(pDevice->PortOffset);
 
     //RSPINF_b_1
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          VNTWIFIbyGetACKTxRate(RATE_1M, pvSupportRateIEs, pvExtSupportRateIEs),
                          PK_TYPE_11B,
@@ -262,7 +262,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     ///RSPINF_b_2
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          VNTWIFIbyGetACKTxRate(RATE_2M, pvSupportRateIEs, pvExtSupportRateIEs),
                          PK_TYPE_11B,
@@ -273,7 +273,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     //RSPINF_b_5
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          VNTWIFIbyGetACKTxRate(RATE_5M, pvSupportRateIEs, pvExtSupportRateIEs),
                          PK_TYPE_11B,
@@ -284,7 +284,7 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     //RSPINF_b_11
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          VNTWIFIbyGetACKTxRate(RATE_11M, pvSupportRateIEs, pvExtSupportRateIEs),
                          PK_TYPE_11B,
@@ -295,51 +295,51 @@ s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, 
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     //RSPINF_a_6
-    s_vCaculateOFDMRParameter(RATE_6M,
+    s_vCalculateOFDMRParameter(RATE_6M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_6, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_9
-    s_vCaculateOFDMRParameter(RATE_9M,
+    s_vCalculateOFDMRParameter(RATE_9M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_9, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_12
-    s_vCaculateOFDMRParameter(RATE_12M,
+    s_vCalculateOFDMRParameter(RATE_12M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_12, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_18
-    s_vCaculateOFDMRParameter(RATE_18M,
+    s_vCalculateOFDMRParameter(RATE_18M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_18, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_24
-    s_vCaculateOFDMRParameter(RATE_24M,
+    s_vCalculateOFDMRParameter(RATE_24M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_24, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_36
-    s_vCaculateOFDMRParameter(
+    s_vCalculateOFDMRParameter(
                               VNTWIFIbyGetACKTxRate(RATE_36M, pvSupportRateIEs, pvExtSupportRateIEs),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_36, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_48
-    s_vCaculateOFDMRParameter(
+    s_vCalculateOFDMRParameter(
                               VNTWIFIbyGetACKTxRate(RATE_48M, pvSupportRateIEs, pvExtSupportRateIEs),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_48, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_54
-    s_vCaculateOFDMRParameter(
+    s_vCalculateOFDMRParameter(
                               VNTWIFIbyGetACKTxRate(RATE_54M, pvSupportRateIEs, pvExtSupportRateIEs),
                               ePHYType,
                               &byTxRate,
@@ -1739,7 +1739,7 @@ void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
     MACvSelectPage1(pDevice->PortOffset);
 
     //RSPINF_b_1
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          CARDwGetCCKControlRate((void *)pDevice, RATE_1M),
                          PK_TYPE_11B,
@@ -1750,7 +1750,7 @@ void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_1, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     ///RSPINF_b_2
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          CARDwGetCCKControlRate((void *)pDevice, RATE_2M),
                          PK_TYPE_11B,
@@ -1761,7 +1761,7 @@ void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_2, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     //RSPINF_b_5
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          CARDwGetCCKControlRate((void *)pDevice, RATE_5M),
                          PK_TYPE_11B,
@@ -1772,7 +1772,7 @@ void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_5, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     //RSPINF_b_11
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          CARDwGetCCKControlRate((void *)pDevice, RATE_11M),
                          PK_TYPE_11B,
@@ -1783,56 +1783,56 @@ void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 
     VNSvOutPortD(pDevice->PortOffset + MAC_REG_RSPINF_B_11, MAKEDWORD(wLen,MAKEWORD(bySignal,byServ)));
     //RSPINF_a_6
-    s_vCaculateOFDMRParameter(RATE_6M,
+    s_vCalculateOFDMRParameter(RATE_6M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_6, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_9
-    s_vCaculateOFDMRParameter(RATE_9M,
+    s_vCalculateOFDMRParameter(RATE_9M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_9, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_12
-    s_vCaculateOFDMRParameter(RATE_12M,
+    s_vCalculateOFDMRParameter(RATE_12M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_12, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_18
-    s_vCaculateOFDMRParameter(RATE_18M,
+    s_vCalculateOFDMRParameter(RATE_18M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
    VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_18, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_24
-    s_vCaculateOFDMRParameter(RATE_24M,
+    s_vCalculateOFDMRParameter(RATE_24M,
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_24, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_36
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_36M),
+    s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_36M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_36, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_48
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_48M),
+    s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_48M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_48, MAKEWORD(byTxRate,byRsvTime));
     //RSPINF_a_54
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_54M),
+    s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_54M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_RSPINF_A_54, MAKEWORD(byTxRate,byRsvTime));
 
     //RSPINF_a_72
-    s_vCaculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_54M),
+    s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)pDevice, RATE_54M),
                               ePHYType,
                               &byTxRate,
                               &byRsvTime);
@@ -2042,7 +2042,7 @@ bool CARDbSoftwareReset (void *pDeviceHandler)
 
 
 /*
- * Description: Caculate TSF offset of two TSF input
+ * Description: Calculate TSF offset of two TSF input
  *              Get TSF Offset from RxBCN's TSF and local TSF
  *
  * Parameters:
