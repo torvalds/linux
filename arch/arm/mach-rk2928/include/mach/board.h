@@ -57,6 +57,16 @@ struct eeti_egalax_platform_data{
  
 };
 #endif
+#if defined (CONFIG_TOUCHSCREEN_SITRONIX_A720)
+struct ft5x0x_platform_data{
+	  u16     model;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*ft5x0x_platform_sleep)(void);
+    int     (*ft5x0x_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+#endif
 enum _periph_pll {
 	periph_pll_1485mhz = 148500000,
 	periph_pll_297mhz = 297000000,

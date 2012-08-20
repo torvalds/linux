@@ -54,6 +54,7 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
+#include "board-rk2928-a720-camera.c" 
 #include "board-rk2928-a720-key.c"
 
 #ifdef  CONFIG_THREE_FB_BUFFER
@@ -259,13 +260,51 @@ static struct platform_device device_ion = {
 };
 #endif
 
+
+#if defined(CONFIG_TOUCHSCREEN_SITRONIX_A720)
+
+#define TOUCH_RESET_PIN	 RK2928_PIN1_PA3
+#define TOUCH_INT_PIN 	 RK2928_PIN1_PB3
+int ft5306_init_platform_hw(void)
+{
+
+        //printk("ft5306_init_platform_hw\n");
+        if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+                gpio_free(TOUCH_RESET_PIN);
+                printk("ft5306_init_platform_hw gpio_request error\n");
+                return -EIO;
+        }
+
+        if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+                gpio_free(TOUCH_INT_PIN);
+                printk("ift5306_init_platform_hw gpio_request error\n");
+                return -EIO;
+        }
+        gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+        msleep(300);
+        return 0;
+
+}
+
+struct ft5x0x_platform_data sitronix_info = {
+        .model = 5007,
+        .init_platform_hw= ft5306_init_platform_hw,
+};
+
+#endif
+
+
 /*MMA7660 gsensor*/
 #if defined (CONFIG_GS_MMA7660)
 #define MMA7660_INT_PIN   RK2928_PIN1_PB1
 
 static int mma7660_init_platform_hw(void)
 {
-	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+	rk30_mux_api_set(GPIO1B1_SPI_TXD_UART1_SOUT_NAME, GPIO1B_GPIO1B1);
 
 	return 0;
 }
@@ -333,7 +372,69 @@ struct platform_device pwm_regulator_device[1] = {
 	},
 };
 #endif
+/**************************************************************************************************
+ * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
+**************************************************************************************************/
+#ifdef CONFIG_SDMMC_RK29
+#include "board-rk2928-sdk-sdmmc.c"
 
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+#define SDMMC0_WRITE_PROTECT_PIN	RK2928_PIN1_PA7	//According to your own project to set the value of write-protect-pin.
+#endif
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+#define SDMMC1_WRITE_PROTECT_PIN	RK2928_PIN0_PD5	//According to your own project to set the value of write-protect-pin.
+#endif
+
+#define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK2928_PIN0_PB2
+
+#endif //endif ---#ifdef CONFIG_SDMMC_RK29
+
+#ifdef CONFIG_SDMMC0_RK29
+static int rk29_sdmmc0_cfg_gpio(void)
+{
+	rk29_sdmmc_set_iomux(0, 0xFFFF);
+
+	rk30_mux_api_set(GPIO1C1_MMC0_DETN_NAME, GPIO1C_MMC0_DETN);
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
+	gpio_direction_input(SDMMC0_WRITE_PROTECT_PIN);
+#endif
+
+	return 0;
+}
+
+#define CONFIG_SDMMC0_USE_DMA
+struct rk29_sdmmc_platform_data default_sdmmc0_data = {
+	.host_ocr_avail =
+	    (MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
+	     MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
+	     MMC_VDD_33_34 | MMC_VDD_34_35 | MMC_VDD_35_36),
+	.host_caps =
+	    (MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.io_init = rk29_sdmmc0_cfg_gpio,
+
+#if !defined(CONFIG_SDMMC_RK29_OLD)
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif
+
+	.dma_name = "sd_mmc",
+#ifdef CONFIG_SDMMC0_USE_DMA
+	.use_dma = 1,
+#else
+	.use_dma = 0,
+#endif
+	.detect_irq = RK2928_PIN1_PC1,	// INVALID_GPIO
+	.enable_sd_wakeup = 0,
+
+#if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
+	.write_prt = SDMMC0_WRITE_PROTECT_PIN,
+#else
+	.write_prt = INVALID_GPIO,
+#endif
+};
+#endif // CONFIG_SDMMC0_RK29
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
@@ -380,6 +481,15 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 #endif
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
+#if defined (CONFIG_TOUCHSCREEN_SITRONIX_A720)
+{
+        .type	        ="sitronix",
+	.addr           = 0x38,
+	.flags          = 0,
+	.irq            = TOUCH_INT_PIN,
+	.platform_data = &sitronix_info,
+},
+#endif
 };
 #endif
 #ifdef CONFIG_I2C3_RK30
@@ -426,7 +536,7 @@ static void __init rk30_i2c_register_board_info(void)
 }
 //end of i2c
 
-#define POWER_ON_PIN RK2928_PIN1_PA4   //power_hold
+#define POWER_ON_PIN RK2928_PIN1_PA2   //power_hold
 static void rk2928_pm_power_off(void)
 {
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
@@ -481,8 +591,8 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 	{.frequency = 600 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1200 * 1000},//1.025V/1.050V
 	{.frequency = 696 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.000V/1.025V
 	{.frequency = 816 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
-	{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	//{.frequency = 912 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
+	//{.frequency = 1008 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
 #if 0
 	{.frequency = 1104 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
 	{.frequency = 1200 * 1000,	.cpu_volt = 1400 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
