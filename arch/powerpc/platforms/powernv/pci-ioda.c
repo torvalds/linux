@@ -1411,9 +1411,9 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	/* Allocate aux data & arrays */
 	size = _ALIGN_UP(phb->ioda.total_pe / 8, sizeof(unsigned long));
 	m32map_off = size;
-	size += phb->ioda.total_pe;
+	size += phb->ioda.total_pe * sizeof(phb->ioda.m32_segmap[0]);
 	iomap_off = size;
-	size += phb->ioda.total_pe;
+	size += phb->ioda.total_pe * sizeof(phb->ioda.io_segmap[0]);
 	pemap_off = size;
 	size += phb->ioda.total_pe * sizeof(struct pnv_ioda_pe);
 	aux = alloc_bootmem(size);
