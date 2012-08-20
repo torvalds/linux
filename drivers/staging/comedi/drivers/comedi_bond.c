@@ -60,10 +60,6 @@ Configuration Options:
 #define MAX_CHANS 256
 
 #define MODULE_NAME "comedi_bond"
-#ifndef STR
-#  define STR1(x) #x
-#  define STR(x) STR1(x)
-#endif
 
 struct BondedDevice {
 	struct comedi_device *dev;
