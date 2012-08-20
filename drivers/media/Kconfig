@@ -146,34 +146,31 @@ comment "Media drivers"
 source "drivers/media/rc/Kconfig"
 
 #
-# Tuner drivers for DVB and V4L
-#
-
-source "drivers/media/tuners/Kconfig"
-
-source "drivers/media/i2c/Kconfig"
-
-#
 # V4L platform/mem2mem drivers
 #
-source "drivers/media/platform/Kconfig"
 
-source "drivers/media/radio/Kconfig"
-
-source "drivers/media/pci/Kconfig"
 source "drivers/media/usb/Kconfig"
+source "drivers/media/pci/Kconfig"
+source "drivers/media/platform/Kconfig"
 source "drivers/media/mmc/Kconfig"
 source "drivers/media/parport/Kconfig"
+source "drivers/media/radio/Kconfig"
 
 comment "Supported FireWire (IEEE 1394) Adapters"
 	depends on DVB_CORE && FIREWIRE
 source "drivers/media/firewire/Kconfig"
 
-comment "Supported DVB Frontends"
-	depends on DVB_CORE
-source "drivers/media/dvb-frontends/Kconfig"
-
-# Common drivers
+# Common driver options
 source "drivers/media/common/Kconfig"
+
+#
+# Ancillary drivers (tuners, i2c, frontends)
+#
+
+comment "Media ancillary drivers (tuners, sensors, i2c, frontends)"
+
+source "drivers/media/tuners/Kconfig"
+source "drivers/media/i2c/Kconfig"
+source "drivers/media/dvb-frontends/Kconfig"
 
 endif # MEDIA_SUPPORT
