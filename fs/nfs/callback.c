@@ -38,8 +38,6 @@ static struct nfs_callback_data nfs_callback_info[NFS4_MAX_MINOR_VERSION + 1];
 static DEFINE_MUTEX(nfs_callback_mutex);
 static struct svc_program nfs4_callback_program;
 
-unsigned short nfs_callback_tcpport6;
-
 static int nfs4_callback_up_net(struct svc_serv *serv, struct net *net)
 {
 	int ret;
@@ -56,9 +54,9 @@ static int nfs4_callback_up_net(struct svc_serv *serv, struct net *net)
 	ret = svc_create_xprt(serv, "tcp", net, PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
-		nfs_callback_tcpport6 = ret;
+		nn->nfs_callback_tcpport6 = ret;
 		dprintk("NFS: Callback listener port = %u (af %u, net %p)\n",
-				nfs_callback_tcpport6, PF_INET6, net);
+				nn->nfs_callback_tcpport6, PF_INET6, net);
 	} else if (ret != -EAFNOSUPPORT)
 		goto out_err;
 	return 0;

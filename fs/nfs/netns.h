@@ -23,6 +23,7 @@ struct nfs_net {
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct idr cb_ident_idr; /* Protected by nfs_client_lock */
 	unsigned short nfs_callback_tcpport;
+	unsigned short nfs_callback_tcpport6;
 #endif
 	spinlock_t nfs_client_lock;
 	struct timespec boot_time;
