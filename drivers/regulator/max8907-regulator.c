@@ -248,10 +248,30 @@ static int max8907_regulator_parse_dt(struct platform_device *pdev)
 
 	return 0;
 }
+
+static inline struct regulator_init_data *match_init_data(int index)
+{
+	return max8907_matches[index].init_data;
+}
+
+static inline struct device_node *match_of_node(int index)
+{
+	return max8907_matches[index].of_node;
+}
 #else
 static int max8907_regulator_parse_dt(struct platform_device *pdev)
 {
 	return 0;
+}
+
+static inline struct regulator_init_data *match_init_data(int index)
+{
+	return NULL;
+}
+
+static inline struct device_node *match_of_node(int index)
+{
+	return NULL;
 }
 #endif
 
@@ -295,11 +315,11 @@ static __devinit int max8907_regulator_probe(struct platform_device *pdev)
 		if (pdata)
 			idata = pdata->init_data[i];
 		else
-			idata = max8907_matches[i].init_data;
+			idata = match_init_data(i);
 		config.init_data = idata;
 		config.driver_data = pmic;
 		config.regmap = max8907->regmap_gen;
-		config.of_node = max8907_matches[i].of_node;
+		config.of_node = match_of_node(i);
 
 		switch (pmic->desc[i].id) {
 		case MAX8907_MBATT:
