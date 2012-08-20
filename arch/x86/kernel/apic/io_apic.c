@@ -1356,6 +1356,16 @@ static void setup_ioapic_irq(unsigned int irq, struct irq_cfg *cfg,
 	if (!IO_APIC_IRQ(irq))
 		return;
 
+	/*
+	 * For legacy irqs, cfg->domain starts with cpu 0. Now that IO-APIC
+	 * can handle this irq and the apic driver is finialized at this point,
+	 * update the cfg->domain.
+	 */
+	if (irq < legacy_pic->nr_legacy_irqs &&
+	    cpumask_equal(cfg->domain, cpumask_of(0)))
+		apic->vector_allocation_domain(0, cfg->domain,
+					       apic->target_cpus());
+
 	if (assign_irq_vector(irq, cfg, apic->target_cpus()))
 		return;
 

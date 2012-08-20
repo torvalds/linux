@@ -72,7 +72,7 @@ KBUILD_CFLAGS	:= $(LINUXINCLUDE) -m32 -g -Os -D_SETUP -D__KERNEL__ -D_WAKEUP \
 		   -Wall -Wstrict-prototypes \
 		   -march=i386 -mregparm=3 \
 		   -include $(srctree)/$(src)/../../boot/code16gcc.h \
-		   -fno-strict-aliasing -fomit-frame-pointer \
+		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
 		   $(call cc-option, -ffreestanding) \
 		   $(call cc-option, -fno-toplevel-reorder,\
 			$(call cc-option, -fno-unit-at-a-time)) \
