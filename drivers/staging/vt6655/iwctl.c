@@ -358,7 +358,7 @@ int iwctl_giwscan(struct net_device *dev,
 
 
 /*
- * Wireless Handler : set frequence or channel
+ * Wireless Handler : set frequency or channel
  */
 
 int iwctl_siwfreq(struct net_device *dev,
@@ -404,7 +404,7 @@ int iwctl_siwfreq(struct net_device *dev,
 }
 
 /*
- * Wireless Handler : get frequence or channel
+ * Wireless Handler : get frequency or channel
  */
 
 int iwctl_giwfreq(struct net_device *dev,
@@ -1346,7 +1346,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 
 		}else if(index>0){
 	//when the length is 0 the request only changes the default transmit key index
-	//check the new key has a non zero lenget
+	//check the new key if it has a non zero length
 	if(pDevice->bEncryptionEnable==false)
 	{
 		rc = -EINVAL;

@@ -1354,7 +1354,8 @@ CARDbSetQuiet (
 /*
  *
  * Description:
- *    Do Quiet, It will called by either ISR (after start) or VNTWIFI (before start) so do not need SPINLOCK
+ *    Do Quiet, It will be called by either ISR(after start) 
+ *    or VNTWIFI(before start) so we do not need a SPINLOCK
  *
  * Parameters:
  *  In:

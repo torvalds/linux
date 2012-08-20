@@ -518,7 +518,7 @@ static void s_vCompleteCurrentMeasure (PSDevice pDevice, unsigned char byResult)
 
 
 //
-// Initialiation of MAC & BBP registers
+// Initialisation of MAC & BBP registers
 //
 
 static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
@@ -1064,7 +1064,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
     //Mask out the options cannot be set to the chip
     pDevice->sOpts.flags &= pChip_info->flags;
 
-    //Enable the chip specified capbilities
+    //Enable the chip specified capabilities
     pDevice->flags = pDevice->sOpts.flags | (pChip_info->flags & 0xFF000000UL);
     pDevice->tx_80211 = device_dma0_tx_80211;
     pDevice->sMgmtObj.pAdapter = (void *)pDevice;
@@ -1678,7 +1678,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
                 uFrameSize = pTD->pTDInfo->dwReqCount - uFIFOHeaderSize;
                 pTxBufHead = (PSTxBufHead) (pTD->pTDInfo->buf);
                 // Update the statistics based on the Transmit status
-                // now, we DO'NT check TSR0_CDH
+                // now, we DONT check TSR0_CDH
 
                 STAvUpdateTDStatCounter(&pDevice->scStatistic,
                         byTsr0, byTsr1,

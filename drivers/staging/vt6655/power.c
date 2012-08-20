@@ -207,7 +207,7 @@ PSbConsiderPowerDown(
     if (pDevice->bCmdRunning)
         return false;
 
-    // Froce PSEN on
+    // Force PSEN on
     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PSEN);
 
     // check if all TD are empty,

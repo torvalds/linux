@@ -26,8 +26,8 @@
  * Date: May 8, 2002
  *
  * Functions:
- *      nsMgrObjectInitial - Initialize Management Objet data structure
- *      vMgrObjectReset - Reset Management Objet data structure
+ *      nsMgrObjectInitial - Initialize Management Object data structure
+ *      vMgrObjectReset - Reset Management Object data structure
  *      vMgrAssocBeginSta - Start associate function
  *      vMgrReAssocBeginSta - Start reassociate function
  *      vMgrDisassocBeginSta - Start disassociate function
@@ -54,7 +54,7 @@
  *      bMgrPrepareBeaconToSend - Prepare Beacon frame
  *      s_vMgrLogStatus - Log 802.11 Status
  *      vMgrRxManagePacket - Rcv management frame dispatch function
- *      s_vMgrFormatTIM- Assember TIM field of beacon
+ *      s_vMgrFormatTIM- Assembler TIM field of beacon
  *      vMgrTimerInit- Initial 1-sec and command call back funtions
  *
  * Revision History:
@@ -425,7 +425,7 @@ vMgrTimerInit(
 /*+
  *
  * Routine Description:
- *    Reset the management object  structure.
+ *    Reset the management object structure.
  *
  * Return Value:
  *    None.
@@ -1287,14 +1287,14 @@ s_vMgrRxAuthentication(
     vMgrDecodeAuthen(&sFrame);
     switch (cpu_to_le16((*(sFrame.pwAuthSequence )))){
         case 1:
-            //AP funciton
+            //AP function
             s_vMgrRxAuthenSequence_1(pDevice,pMgmt, &sFrame);
             break;
         case 2:
             s_vMgrRxAuthenSequence_2(pDevice, pMgmt, &sFrame);
             break;
         case 3:
-            //AP funciton
+            //AP function
             s_vMgrRxAuthenSequence_3(pDevice, pMgmt, &sFrame);
             break;
         case 4:
@@ -1923,7 +1923,7 @@ s_vMgrRxBeacon(
             byIEChannel = sFrame.pDSParms->byCurrChannel;
         }
         if (byCurrChannel != byIEChannel) {
-            // adjust channel info. bcs we rcv adjcent channel pakckets
+            // adjust channel info. bcs we rcv adjacent channel packets
             bChannelHit = false;
             byCurrChannel = byIEChannel;
         }
@@ -2081,7 +2081,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
                 }
             }
             //
-            // Basic Rate Set may change dynamiclly
+            // Basic Rate Set may change dynamically
             //
             if (pBSSList->eNetworkTypeInUse == PHY_TYPE_11B) {
                 uRateLen = WLAN_RATES_MAXLEN_11B;
@@ -2134,7 +2134,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
     }
 
 //    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Beacon 2 \n");
-    // check if CF field exisit
+    // check if CF field exists
     if (WLAN_GET_CAP_INFO_ESS(*sFrame.pwCapInfo)) {
         if (sFrame.pCFParms->wCFPDurRemaining > 0) {
             // TODO: deal with CFP period to set NAV
@@ -2244,7 +2244,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 		    if (pMgmt->sNodeDBTable[0].uInActiveCount != 0)
 		 	    pMgmt->sNodeDBTable[0].uInActiveCount = 0;
 
-            // adhoc mode:TSF updated only when beacon larger then local TSF
+            // adhoc mode:TSF updated only when beacon larger than local TSF
             if (bTSFLargeDiff && bTSFOffsetPostive &&
                 (pMgmt->eCurrState == WMAC_STATE_JOINTED))
                 bUpdateTSF = true;
@@ -2252,7 +2252,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
             // During dpc, already in spinlocked.
             if (BSSDBbIsSTAInNodeDB(pMgmt, sFrame.pHdr->sA3.abyAddr2, &uNodeIndex)) {
 
-                // Update the STA, (Techically the Beacons of all the IBSS nodes
+                // Update the STA, (Technically the Beacons of all the IBSS nodes
 		        // should be identical, but that's not happening in practice.
                 pMgmt->abyCurrSuppRates[1] = RATEuSetIE((PWLAN_IE_SUPP_RATES)sFrame.pSuppRates,
                                                         (PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates,
@@ -2305,7 +2305,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==true)
 */
             }
 
-            // if other stations jointed, indicate connect to upper layer..
+            // if other stations joined, indicate connection to upper layer..
             if (pMgmt->eCurrState == WMAC_STATE_STARTED) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Current IBSS State: [Started]........to: [Jointed] \n");
                 pMgmt->eCurrState = WMAC_STATE_JOINTED;
@@ -3081,8 +3081,8 @@ s_vMgrSynchBSS (
                //   }
            // }
   //   if( uSameBssidNum>=2) {	 //we only check AP in hidden sssid  mode
-        if ((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) ||           //networkmanager 0.7.0 does not give the pairwise-key selsection,
-             (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) {         // so we need re-selsect it according to real pairwise-key info.
+        if ((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) ||           //networkmanager 0.7.0 does not give the pairwise-key selection,
+             (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) {         // so we need re-select it according to real pairwise-key info.
                if(pCurr->bWPAValid == true)  {   //WPA-PSK
                           pMgmt->eAuthenMode = WMAC_AUTH_WPAPSK;
 		    if(pCurr->abyPKType[0] == WPA_TKIP) {
@@ -3193,7 +3193,7 @@ s_vMgrFormatTIM(
  *
  *
  * Return Value:
- *    PTR to frame; or NULL on allocation failue
+ *    PTR to frame; or NULL on allocation failure
  *
 -*/
 
@@ -3310,7 +3310,7 @@ s_MgrMakeBeacon(
             *((unsigned short *)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
             sFrame.pRSNWPA->len +=2;
 
-            // RSN Capabilites
+            // RSN Capabilities
             *((unsigned short *)(sFrame.pBuf + sFrame.len + sFrame.pRSNWPA->len))=0;
             sFrame.pRSNWPA->len +=2;
             sFrame.len += sFrame.pRSNWPA->len + WLAN_IEHDR_LEN;
@@ -3420,7 +3420,7 @@ s_MgrMakeBeacon(
  *
  *
  * Return Value:
- *    PTR to frame; or NULL on allocation failue
+ *    PTR to frame; or NULL on allocation failure
  *
 -*/
 
@@ -3611,7 +3611,7 @@ s_MgrMakeProbeResponse(
  *
  *
  * Return Value:
- *    A ptr to frame or NULL on allocation failue
+ *    A ptr to frame or NULL on allocation failure
  *
 -*/
 
@@ -3652,7 +3652,7 @@ s_MgrMakeAssocRequest(
     memcpy( sFrame.pHdr->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
     memcpy( sFrame.pHdr->sA3.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 
-    // Set the capibility and listen interval
+    // Set the capability and listen interval
     *(sFrame.pwCapInfo) = cpu_to_le16(wCurrCapInfo);
     *(sFrame.pwListenInterval) = cpu_to_le16(wListenInterval);
 
@@ -3762,7 +3762,7 @@ s_MgrMakeAssocRequest(
 
         sFrame.pRSNWPA->len +=6;
 
-        // RSN Capabilites
+        // RSN Capabilities
 
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
@@ -3831,7 +3831,7 @@ s_MgrMakeAssocRequest(
         }
         sFrame.pRSN->len +=6;
 
-        // RSN Capabilites
+        // RSN Capabilities
         if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == true) {
             memcpy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
@@ -3886,7 +3886,7 @@ s_MgrMakeAssocRequest(
  *
  *
  * Return Value:
- *    A ptr to frame or NULL on allocation failue
+ *    A ptr to frame or NULL on allocation failure
  *
 -*/
 
@@ -3929,7 +3929,7 @@ s_MgrMakeReAssocRequest(
     memcpy( sFrame.pHdr->sA3.abyAddr2, pMgmt->abyMACAddr, WLAN_ADDR_LEN);
     memcpy( sFrame.pHdr->sA3.abyAddr3, pMgmt->abyCurrBSSID, WLAN_BSSID_LEN);
 
-    /* Set the capibility and listen interval */
+    /* Set the capability and listen interval */
     *(sFrame.pwCapInfo) = cpu_to_le16(wCurrCapInfo);
     *(sFrame.pwListenInterval) = cpu_to_le16(wListenInterval);
 
@@ -4019,7 +4019,7 @@ s_MgrMakeReAssocRequest(
 
         sFrame.pRSNWPA->len +=6;
 
-        // RSN Capabilites
+        // RSN Capabilities
         *pbyRSN++=0x00;
         *pbyRSN++=0x00;
         sFrame.pRSNWPA->len +=2;
@@ -4087,7 +4087,7 @@ s_MgrMakeReAssocRequest(
         }
         sFrame.pRSN->len +=6;
 
-        // RSN Capabilites
+        // RSN Capabilities
         if (pMgmt->pCurrBSS->sRSNCapObj.bRSNCapExist == true) {
             memcpy(&sFrame.pRSN->abyRSN[16], &pMgmt->pCurrBSS->sRSNCapObj.wRSNCap, 2);
         } else {
@@ -4138,7 +4138,7 @@ s_MgrMakeReAssocRequest(
  *
  *
  * Return Value:
- *    PTR to frame; or NULL on allocation failue
+ *    PTR to frame; or NULL on allocation failure
  *
 -*/
 
@@ -4212,7 +4212,7 @@ s_MgrMakeAssocResponse(
  *
  *
  * Return Value:
- *    PTR to frame; or NULL on allocation failue
+ *    PTR to frame; or NULL on allocation failure
  *
 -*/
 
@@ -4333,7 +4333,7 @@ s_vMgrRxProbeResponse(
             byIEChannel = sFrame.pDSParms->byCurrChannel;
         }
         if (byCurrChannel != byIEChannel) {
-            // adjust channel info. bcs we rcv adjcent channel pakckets
+            // adjust channel info. bcs we rcv adjacent channel packets
             bChannelHit = false;
             byCurrChannel = byIEChannel;
         }

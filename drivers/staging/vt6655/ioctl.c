@@ -111,7 +111,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	case WLAN_CMD_ZONETYPE_SET:
-		/* mike add :cann't support. */
+		/* mike add :can't support. */
 		result = -EOPNOTSUPP;
 		break;
 

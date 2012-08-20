@@ -28,8 +28,8 @@
  * Functions:
  *      BBuGetFrameTime        - Calculate data frame transmitting time
  *      BBvCaculateParameter   - Caculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
- *      BBbReadEmbeded         - Embeded read baseband register via MAC
- *      BBbWriteEmbeded        - Embeded write baseband register via MAC
+ *      BBbReadEmbeded         - Embedded read baseband register via MAC
+ *      BBbWriteEmbeded        - Embedded write baseband register via MAC
  *      BBbIsRegBitsOn         - Test if baseband register bits on
  *      BBbIsRegBitsOff        - Test if baseband register bits off
  *      BBbVT3253Init          - VIA VT3253 baseband chip init code
@@ -2001,7 +2001,7 @@ BBvCaculateParameter (
 }
 
 /*
- * Description: Read a byte from BASEBAND, by embeded programming
+ * Description: Read a byte from BASEBAND, by embedded programming
  *
  * Parameters:
  *  In:
@@ -2043,7 +2043,7 @@ bool BBbReadEmbeded (unsigned long dwIoBase, unsigned char byBBAddr, unsigned ch
 
 
 /*
- * Description: Write a Byte to BASEBAND, by embeded programming
+ * Description: Write a Byte to BASEBAND, by embedded programming
  *
  * Parameters:
  *  In:

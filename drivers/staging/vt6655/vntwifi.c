@@ -60,7 +60,7 @@
  * Parameters:
  *  In:
  *      pMgmtHandle - pointer to management object
- *      eOPMode     - Opreation Mode
+ *      eOPMode     - Operation Mode
  *  Out:
  *      none
  *

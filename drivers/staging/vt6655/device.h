@@ -327,7 +327,7 @@ typedef struct tagSDeFragControlBlock
 //flags for driver status
 #define     DEVICE_FLAGS_OPENED          0x00010000UL
 #define     DEVICE_FLAGS_WOL_ENABLED     0x00080000UL
-//flags for capbilities
+//flags for capabilities
 #define     DEVICE_FLAGS_TX_ALIGN        0x01000000UL
 #define     DEVICE_FLAGS_HAVE_CAM        0x02000000UL
 #define     DEVICE_FLAGS_FLOW_CTRL       0x04000000UL
@@ -567,7 +567,7 @@ typedef struct __device_info {
     bool bPrvActive4RadioOFF;
     bool bGPIOBlockRead;
 
-    // Beacon releated
+    // Beacon related
     unsigned short wSeqCounter;
     unsigned short wBCNBufLen;
     bool bBeaconBufReady;
