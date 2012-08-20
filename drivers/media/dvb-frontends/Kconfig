@@ -1,20 +1,5 @@
-config DVB_FE_CUSTOMISE
-	bool "Customise the frontend modules to build"
-	depends on DVB_CORE
-	depends on EXPERT
-	default y if EXPERT
-	help
-	  This allows the user to select/deselect frontend drivers for their
-	  hardware from the build.
-
-	  Use this option with care as deselecting frontends which are in fact
-	  necessary will result in DVB devices which cannot be tuned due to lack
-	  of driver support.
-
-	  If unsure say N.
-
 menu "Customise DVB Frontends"
-	visible if DVB_FE_CUSTOMISE
+	visible if !MEDIA_SUBDRV_AUTOSELECT
 
 comment "Multistandard (satellite) frontends"
 	depends on DVB_CORE
@@ -22,7 +7,7 @@ comment "Multistandard (satellite) frontends"
 config DVB_STB0899
 	tristate "STB0899 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/S2/DSS Multistandard demodulator. Say Y when you want
 	  to support this demodulator based frontends
@@ -30,7 +15,7 @@ config DVB_STB0899
 config DVB_STB6100
 	tristate "STB6100 based tuners"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A Silicon tuner from ST used in conjunction with the STB0899
 	  demodulator. Say Y when you want to support this tuner.
@@ -38,7 +23,7 @@ config DVB_STB6100
 config DVB_STV090x
 	tristate "STV0900/STV0903(A/B) based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  DVB-S/S2/DSS Multistandard Professional/Broadcast demodulators.
 	  Say Y when you want to support these frontends.
@@ -46,7 +31,7 @@ config DVB_STV090x
 config DVB_STV6110x
 	tristate "STV6110/(A) based tuners"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A Silicon tuner that supports DVB-S and DVB-S2 modes
 
@@ -56,7 +41,7 @@ comment "Multistandard (cable + terrestrial) frontends"
 config DVB_DRXK
 	tristate "Micronas DRXK based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Micronas DRX-K DVB-C/T demodulator.
 
@@ -65,7 +50,7 @@ config DVB_DRXK
 config DVB_TDA18271C2DD
 	tristate "NXP TDA18271C2 silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  NXP TDA18271 silicon tuner.
 
@@ -77,119 +62,119 @@ comment "DVB-S (satellite) frontends"
 config DVB_CX24110
 	tristate "Conexant CX24110 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_CX24123
 	tristate "Conexant CX24123 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT312
 	tristate "Zarlink VP310/MT312/ZL10313 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_ZL10036
 	tristate "Zarlink ZL10036 silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_ZL10039
 	tristate "Zarlink ZL10039 silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_S5H1420
 	tristate "Samsung S5H1420 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_STV0288
 	tristate "ST STV0288 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_STB6000
 	tristate "ST STB6000 silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	  help
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
 config DVB_STV0299
 	tristate "ST STV0299 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_STV6110
 	tristate "ST STV6110 silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	  help
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
 config DVB_STV0900
 	tristate "ST STV0900 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/S2 demodulator. Say Y when you want to support this frontend.
 
 config DVB_TDA8083
 	tristate "Philips TDA8083 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA10086
 	tristate "Philips TDA10086 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA8261
 	tristate "Philips TDA8261 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_VES1X93
 	tristate "VLSI VES1893 or VES1993 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_TUNER_ITD1000
 	tristate "Integrant ITD1000 Zero IF tuner for DVB-S/DSS"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_TUNER_CX24113
 	tristate "Conexant CX24113/CX24128 tuner for DVB-S/DSS"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
@@ -197,42 +182,42 @@ config DVB_TUNER_CX24113
 config DVB_TDA826X
 	tristate "Philips TDA826X silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S silicon tuner module. Say Y when you want to support this tuner.
 
 config DVB_TUA6100
 	tristate "Infineon TUA6100 PLL"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S PLL chip.
 
 config DVB_CX24116
 	tristate "Conexant CX24116 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/S2 tuner module. Say Y when you want to support this frontend.
 
 config DVB_SI21XX
 	tristate "Silicon Labs SI21XX based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_DS3000
 	tristate "Montage Tehnology DS3000 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/S2 tuner module. Say Y when you want to support this frontend.
 
 config DVB_MB86A16
 	tristate "Fujitsu MB86A16 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S/DSS Direct Conversion reveiver.
 	  Say Y when you want to support this frontend.
@@ -240,7 +225,7 @@ config DVB_MB86A16
 config DVB_TDA10071
 	tristate "NXP TDA10071"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
@@ -250,7 +235,7 @@ comment "DVB-T (terrestrial) frontends"
 config DVB_SP8870
 	tristate "Spase sp8870 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -262,7 +247,7 @@ config DVB_SP8870
 config DVB_SP887X
 	tristate "Spase sp887x based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -274,28 +259,28 @@ config DVB_SP887X
 config DVB_CX22700
 	tristate "Conexant CX22700 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_CX22702
 	tristate "Conexant cx22702 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_S5H1432
 	tristate "Samsung s5h1432 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_DRXD
 	tristate "Micronas DRXD driver"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -306,14 +291,14 @@ config DVB_DRXD
 config DVB_L64781
 	tristate "LSI L64781"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA1004X
 	tristate "Philips TDA10045H/TDA10046H based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
@@ -326,28 +311,28 @@ config DVB_TDA1004X
 config DVB_NXT6000
 	tristate "NxtWave Communications NXT6000 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_MT352
 	tristate "Zarlink MT352 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_ZL10353
 	tristate "Zarlink ZL10353 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_DIB3000MB
 	tristate "DiBcom 3000M-B"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
@@ -355,7 +340,7 @@ config DVB_DIB3000MB
 config DVB_DIB3000MC
 	tristate "DiBcom 3000P/M-C"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
@@ -363,7 +348,7 @@ config DVB_DIB3000MC
 config DVB_DIB7000M
 	tristate "DiBcom 7000MA/MB/PA/PB/MC"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
@@ -371,7 +356,7 @@ config DVB_DIB7000M
 config DVB_DIB7000P
 	tristate "DiBcom 7000PC"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
@@ -379,7 +364,7 @@ config DVB_DIB7000P
 config DVB_DIB9000
 	tristate "DiBcom 9000"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Designed for mobile usage. Say Y when you want
 	  to support this frontend.
@@ -387,56 +372,56 @@ config DVB_DIB9000
 config DVB_TDA10048
 	tristate "Philips TDA10048HN based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_AF9013
 	tristate "Afatech AF9013 demodulator"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
 config DVB_EC100
 	tristate "E3C EC100"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
 config DVB_HD29L2
 	tristate "HDIC HD29L2"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
 config DVB_STV0367
 	tristate "ST STV0367 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T/C tuner module. Say Y when you want to support this frontend.
 
 config DVB_CXD2820R
 	tristate "Sony CXD2820R"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
 config DVB_RTL2830
 	tristate "Realtek RTL2830 DVB-T"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
 config DVB_RTL2832
 	tristate "Realtek RTL2832 DVB-T"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
 
@@ -446,28 +431,28 @@ comment "DVB-C (cable) frontends"
 config DVB_VES1820
 	tristate "VLSI VES1820 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA10021
 	tristate "Philips TDA10021 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA10023
 	tristate "Philips TDA10023 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_STV0297
 	tristate "ST STV0297 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
@@ -477,7 +462,7 @@ comment "ATSC (North American/Korean Terrestrial/Cable DTV) frontends"
 config DVB_NXT200X
 	tristate "NxtWave Communications NXT2002/NXT2004 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -491,7 +476,7 @@ config DVB_NXT200X
 config DVB_OR51211
 	tristate "Oren OR51211 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
@@ -503,7 +488,7 @@ config DVB_OR51211
 config DVB_OR51132
 	tristate "Oren OR51132 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -518,7 +503,7 @@ config DVB_OR51132
 config DVB_BCM3510
 	tristate "Broadcom BCM3510"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB/16VSB and QAM64/256 tuner module. Say Y when you want to
 	  support this frontend.
@@ -526,7 +511,7 @@ config DVB_BCM3510
 config DVB_LGDT330X
 	tristate "LG Electronics LGDT3302/LGDT3303 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -534,7 +519,7 @@ config DVB_LGDT330X
 config DVB_LGDT3305
 	tristate "LG Electronics LGDT3304 and LGDT3305 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -542,7 +527,7 @@ config DVB_LGDT3305
 config DVB_LG2160
 	tristate "LG Electronics LG216x based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC/MH demodulator module. Say Y when you want
 	  to support this frontend.
@@ -550,7 +535,7 @@ config DVB_LG2160
 config DVB_S5H1409
 	tristate "Samsung S5H1409 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -563,7 +548,7 @@ config DVB_AU8522_DTV
 	tristate "Auvitek AU8522 based DTV demod"
 	depends on DVB_CORE && I2C
 	select DVB_AU8522
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB, QAM64/256 & NTSC demodulator module. Say Y when
 	  you want to enable DTV demodulation support for this frontend.
@@ -572,7 +557,7 @@ config DVB_AU8522_V4L
 	tristate "Auvitek AU8522 based ATV demod"
 	depends on VIDEO_V4L2 && I2C
 	select DVB_AU8522
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB, QAM64/256 & NTSC demodulator module. Say Y when
 	  you want to enable ATV demodulation support for this frontend.
@@ -580,7 +565,7 @@ config DVB_AU8522_V4L
 config DVB_S5H1411
 	tristate "Samsung S5H1411 based"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
@@ -591,7 +576,7 @@ comment "ISDB-T (terrestrial) frontends"
 config DVB_S921
 	tristate "Sharp S921 frontend"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  AN ISDB-T DQPSK, QPSK, 16QAM and 64QAM 1seg tuner module.
 	  Say Y when you want to support this frontend.
@@ -599,7 +584,7 @@ config DVB_S921
 config DVB_DIB8000
 	tristate "DiBcom 8000MB/MC"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for DiBcom's DiB8000 ISDB-T/ISDB-Tsb demodulator.
 	  Say Y when you want to support this frontend.
@@ -607,7 +592,7 @@ config DVB_DIB8000
 config DVB_MB86A20S
 	tristate "Fujitsu mb86a20s"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for Fujitsu mb86a20s ISDB-T/ISDB-Tsb demodulator.
 	  Say Y when you want to support this frontend.
@@ -618,7 +603,7 @@ comment "Digital terrestrial only tuners/PLL"
 config DVB_PLL
 	tristate "Generic I2C PLL based tuners"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  This module drives a number of tuners based on PLL chips with a
 	  common I2C interface. Say Y when you want to support these tuners.
@@ -626,7 +611,7 @@ config DVB_PLL
 config DVB_TUNER_DIB0070
 	tristate "DiBcom DiB0070 silicon base-band tuner"
 	depends on I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
 	  This device is only used inside a SiP called together with a
@@ -635,7 +620,7 @@ config DVB_TUNER_DIB0070
 config DVB_TUNER_DIB0090
 	tristate "DiBcom DiB0090 silicon base-band tuner"
 	depends on I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for the silicon baseband tuner DiB0090 from DiBcom.
 	  This device is only used inside a SiP called together with a
@@ -647,14 +632,14 @@ comment "SEC control devices for DVB-S"
 config DVB_LNBP21
 	tristate "LNBP21/LNBH24 SEC controllers"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An SEC control chips.
 
 config DVB_LNBP22
 	tristate "LNBP22 SEC controllers"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  LNB power supply and control voltage
 	  regulator chip with step-up converter
@@ -664,33 +649,33 @@ config DVB_LNBP22
 config DVB_ISL6405
 	tristate "ISL6405 SEC controller"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An SEC control chip.
 
 config DVB_ISL6421
 	tristate "ISL6421 SEC controller"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An SEC control chip.
 
 config DVB_ISL6423
 	tristate "ISL6423 SEC controller"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A SEC controller chip from Intersil
 
 config DVB_A8293
 	tristate "Allegro A8293"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 
 config DVB_LGS8GL5
 	tristate "Silicon Legend LGS-8GL5 demodulator (OFDM)"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
@@ -698,21 +683,21 @@ config DVB_LGS8GXX
 	tristate "Legend Silicon LGS8913/LGS8GL5/LGS8GXX DMB-TH demodulator"
 	depends on DVB_CORE && I2C
 	select FW_LOADER
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
 config DVB_ATBM8830
 	tristate "AltoBeam ATBM8830/8831 DMB-TH demodulator"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA665x
 	tristate "TDA665x tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for tuner modules based on Philips TDA6650/TDA6651 chips.
 	  Say Y when you want to support this chip.
@@ -723,14 +708,14 @@ config DVB_TDA665x
 config DVB_IX2505V
 	tristate "Sharp IX2505V silicon tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
 config DVB_IT913X_FE
 	tristate "it913x frontend and it9137 tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-T tuner module.
 	  Say Y when you want to support this frontend.
@@ -738,7 +723,7 @@ config DVB_IT913X_FE
 config DVB_M88RS2000
 	tristate "M88RS2000 DVB-S demodulator and tuner"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-S tuner module.
 	  Say Y when you want to support this frontend.
@@ -746,7 +731,7 @@ config DVB_M88RS2000
 config DVB_AF9033
 	tristate "Afatech AF9033 DVB-T demodulator"
 	depends on DVB_CORE && I2C
-	default m if DVB_FE_CUSTOMISE
+	default m if !MEDIA_SUBDRV_AUTOSELECT
 
 comment "Tools to develop new frontends"
 

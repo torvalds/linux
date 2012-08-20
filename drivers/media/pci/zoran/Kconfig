@@ -14,8 +14,8 @@ config VIDEO_ZORAN
 config VIDEO_ZORAN_DC30
 	tristate "Pinnacle/Miro DC30(+) support"
 	depends on VIDEO_ZORAN
-	select VIDEO_ADV7175 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_VPX3220 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_ADV7175 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_VPX3220 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for the Pinnacle/Miro DC30(+) MJPEG capture/playback
 	  card. This also supports really old DC10 cards based on the
@@ -32,16 +32,16 @@ config VIDEO_ZORAN_ZR36060
 config VIDEO_ZORAN_BUZ
 	tristate "Iomega Buz support"
 	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_SAA7185 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA711X if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_SAA7185 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for the Iomega Buz MJPEG capture/playback card.
 
 config VIDEO_ZORAN_DC10
 	tristate "Pinnacle/Miro DC10(+) support"
 	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA7110 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ADV7175 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA7110 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_ADV7175 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for the Pinnacle/Miro DC10(+) MJPEG capture/playback
 	  card.
@@ -49,8 +49,8 @@ config VIDEO_ZORAN_DC10
 config VIDEO_ZORAN_LML33
 	tristate "Linux Media Labs LML33 support"
 	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_BT819 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_BT819 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_BT856 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for the Linux Media Labs LML33 MJPEG capture/playback
 	  card.
@@ -58,8 +58,8 @@ config VIDEO_ZORAN_LML33
 config VIDEO_ZORAN_LML33R10
 	tristate "Linux Media Labs LML33R10 support"
 	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_ADV7170 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA711X if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_ADV7170 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback
 	  card.
@@ -67,8 +67,8 @@ config VIDEO_ZORAN_LML33R10
 config VIDEO_ZORAN_AVS6EYES
 	tristate "AverMedia 6 Eyes support (EXPERIMENTAL)"
 	depends on VIDEO_ZORAN_ZR36060 && EXPERIMENTAL
-	select VIDEO_BT856 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_BT866 if VIDEO_HELPER_CHIPS_AUTO
-	select VIDEO_KS0127 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_BT856 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_BT866 if MEDIA_SUBDRV_AUTOSELECT
+	select VIDEO_KS0127 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for the AverMedia 6 Eyes video surveillance card.

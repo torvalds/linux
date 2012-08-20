@@ -16,21 +16,8 @@ config VIDEO_TVEEPROM
 
 if VIDEO_V4L2
 
-config VIDEO_HELPER_CHIPS_AUTO
-	bool "Autoselect pertinent encoders/decoders and other helper chips"
-	default y if !EXPERT
-	---help---
-	  Most video cards may require additional modules to encode or
-	  decode audio/video standards. This option will autoselect
-	  all pertinent modules to each selected video module.
-
-	  Unselect this only if you know exactly what you are doing, since
-	  it may break support on some boards.
-
-	  In doubt, say Y.
-
 config VIDEO_IR_I2C
-	tristate "I2C module for IR" if !VIDEO_HELPER_CHIPS_AUTO
+	tristate "I2C module for IR" if !MEDIA_SUBDRV_AUTOSELECT
 	depends on I2C && RC_CORE
 	default y
 	---help---
@@ -47,7 +34,7 @@ config VIDEO_IR_I2C
 #
 
 menu "Encoders, decoders, sensors and other helper chips"
-	visible if !VIDEO_HELPER_CHIPS_AUTO
+	visible if !MEDIA_SUBDRV_AUTOSELECT
 
 comment "Audio decoders, processors and mixers"
 
@@ -561,10 +548,14 @@ config VIDEO_M52790
 
 	 To compile this driver as a module, choose M here: the
 	 module will be called m52790.
+endmenu
+	 
+menu "Sensors used on soc_camera driver"
 
 if SOC_CAMERA
 	source "drivers/media/i2c/soc_camera/Kconfig"
 endif
 
 endmenu
+
 endif
