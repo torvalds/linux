@@ -297,12 +297,12 @@ static void enable_dc_servo(struct snd_soc_codec *codec)
 			hubs->dcs_codes_l, hubs->dcs_codes_r);
 
 		/* HPOUT1R */
-		offset = reg_r;
+		offset = (s8)reg_r;
 		offset += hubs->dcs_codes_r;
 		dcs_cfg = (u8)offset << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1L */
-		offset = reg_l;
+		offset = (s8)reg_l;
 		offset += hubs->dcs_codes_l;
 		dcs_cfg |= (u8)offset;
 
