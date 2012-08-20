@@ -942,7 +942,7 @@ static int smc_phy_fixed(struct net_device *dev)
 	return 1;
 }
 
-/*
+/**
  * smc_phy_reset - reset the phy
  * @dev: net device
  * @phy: phy address
@@ -976,7 +976,7 @@ static int smc_phy_reset(struct net_device *dev, int phy)
 	return bmcr & BMCR_RESET;
 }
 
-/*
+/**
  * smc_phy_powerdown - powerdown phy
  * @dev: net device
  *
@@ -1000,7 +1000,7 @@ static void smc_phy_powerdown(struct net_device *dev)
 	smc_phy_write(dev, phy, MII_BMCR, bmcr | BMCR_PDOWN);
 }
 
-/*
+/**
  * smc_phy_check_media - check the media status and adjust TCR
  * @dev: net device
  * @init: set true for initialisation

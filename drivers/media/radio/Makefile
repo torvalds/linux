@@ -11,6 +11,8 @@ obj-$(CONFIG_RADIO_CADET) += radio-cadet.o
 obj-$(CONFIG_RADIO_TYPHOON) += radio-typhoon.o
 obj-$(CONFIG_RADIO_TERRATEC) += radio-terratec.o
 obj-$(CONFIG_RADIO_MAXIRADIO) += radio-maxiradio.o
+obj-$(CONFIG_RADIO_SHARK) += radio-shark.o
+obj-$(CONFIG_RADIO_SHARK2) += shark2.o
 obj-$(CONFIG_RADIO_RTRACK) += radio-aimslab.o
 obj-$(CONFIG_RADIO_ZOLTRIX) += radio-zoltrix.o
 obj-$(CONFIG_RADIO_GEMTEK) += radio-gemtek.o
@@ -28,5 +30,7 @@ obj-$(CONFIG_RADIO_TEF6862) += tef6862.o
 obj-$(CONFIG_RADIO_TIMBERDALE) += radio-timb.o
 obj-$(CONFIG_RADIO_WL1273) += radio-wl1273.o
 obj-$(CONFIG_RADIO_WL128X) += wl128x/
+
+shark2-objs := radio-shark2.o radio-tea5777.o
 
 ccflags-y += -Isound

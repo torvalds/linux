@@ -23,6 +23,7 @@
  * 				Storage is local on the stack now.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/time.h>

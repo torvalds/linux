@@ -1,8 +1,9 @@
 MMC/SD/SDIO slot directly connected to a SPI bus
 
+This file documents differences between the core properties described
+by mmc.txt and the properties used by the mmc_spi driver.
+
 Required properties:
-- compatible : should be "mmc-spi-slot".
-- reg : should specify SPI address (chip-select number).
 - spi-max-frequency : maximum frequency for this device (Hz).
 - voltage-ranges : two cells are required, first cell specifies minimum
   slot voltage (mV), second cell specifies maximum slot voltage (mV).
@@ -11,8 +12,7 @@ Required properties:
 Optional properties:
 - gpios : may specify GPIOs in this order: Card-Detect GPIO,
   Write-Protect GPIO. Note that this does not follow the
-  binding from mmc.txt, for historic reasons.
-- interrupts : the interrupt of a card detect interrupt.
+  binding from mmc.txt, for historical reasons.
 - interrupt-parent : the phandle for the interrupt controller that
   services interrupts for this device.
 

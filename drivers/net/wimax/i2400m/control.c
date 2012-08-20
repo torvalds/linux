@@ -130,7 +130,7 @@ ssize_t i2400m_tlv_match(const struct i2400m_tlv_hdr *tlv,
 	    && le16_to_cpu(tlv->length) + sizeof(*tlv) != tlv_size) {
 		size_t size = le16_to_cpu(tlv->length) + sizeof(*tlv);
 		printk(KERN_WARNING "W: tlv type 0x%x mismatched because of "
-		       "size (got %zu vs %zu expected)\n",
+		       "size (got %zu vs %zd expected)\n",
 		       tlv_type, size, tlv_size);
 		return size;
 	}
@@ -235,7 +235,7 @@ const struct i2400m_tlv_hdr *i2400m_tlv_find(
 			break;
 		if (match > 0)
 			dev_warn(dev, "TLV type 0x%04x found with size "
-				 "mismatch (%zu vs %zu needed)\n",
+				 "mismatch (%zu vs %zd needed)\n",
 				 tlv_type, match, tlv_size);
 	}
 	return tlv;

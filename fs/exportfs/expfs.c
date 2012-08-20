@@ -19,19 +19,19 @@
 #define dprintk(fmt, args...) do{}while(0)
 
 
-static int get_name(struct vfsmount *mnt, struct dentry *dentry, char *name,
-		struct dentry *child);
+static int get_name(const struct path *path, char *name, struct dentry *child);
 
 
 static int exportfs_get_name(struct vfsmount *mnt, struct dentry *dir,
 		char *name, struct dentry *child)
 {
 	const struct export_operations *nop = dir->d_sb->s_export_op;
+	struct path path = {.mnt = mnt, .dentry = dir};
 
 	if (nop->get_name)
 		return nop->get_name(dir, name, child);
 	else
-		return get_name(mnt, dir, name, child);
+		return get_name(&path, name, child);
 }
 
 /*
@@ -44,13 +44,14 @@ find_acceptable_alias(struct dentry *result,
 {
 	struct dentry *dentry, *toput = NULL;
 	struct inode *inode;
+	struct hlist_node *p;
 
 	if (acceptable(context, result))
 		return result;
 
 	inode = result->d_inode;
 	spin_lock(&inode->i_lock);
-	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
+	hlist_for_each_entry(dentry, p, &inode->i_dentry, d_alias) {
 		dget(dentry);
 		spin_unlock(&inode->i_lock);
 		if (toput)
@@ -248,11 +249,10 @@ static int filldir_one(void * __buf, const char * name, int len,
  * calls readdir on the parent until it finds an entry with
  * the same inode number as the child, and returns that.
  */
-static int get_name(struct vfsmount *mnt, struct dentry *dentry,
-		char *name, struct dentry *child)
+static int get_name(const struct path *path, char *name, struct dentry *child)
 {
 	const struct cred *cred = current_cred();
-	struct inode *dir = dentry->d_inode;
+	struct inode *dir = path->dentry->d_inode;
 	int error;
 	struct file *file;
 	struct getdents_callback buffer;
@@ -266,7 +266,7 @@ static int get_name(struct vfsmount *mnt, struct dentry *dentry,
 	/*
 	 * Open the directory ...
 	 */
-	file = dentry_open(dget(dentry), mntget(mnt), O_RDONLY, cred);
+	file = dentry_open(path, O_RDONLY, cred);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;

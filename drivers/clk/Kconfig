@@ -25,7 +25,6 @@ menu "Common Clock Framework"
 
 config COMMON_CLK_DEBUG
 	bool "DebugFS representation of clock tree"
-	depends on COMMON_CLK
 	select DEBUG_FS
 	---help---
 	  Creates a directory hierchy in debugfs for visualizing the clk
@@ -33,5 +32,12 @@ config COMMON_CLK_DEBUG
 	  that export information specific to that clk node: clk_rate,
 	  clk_flags, clk_prepare_count, clk_enable_count &
 	  clk_notifier_count.
+
+config COMMON_CLK_WM831X
+	tristate "Clock driver for WM831x/2x PMICs"
+	depends on MFD_WM831X
+	---help---
+          Supports the clocking subsystem of the WM831x/2x series of
+	  PMICs from Wolfson Microlectronics.
 
 endmenu

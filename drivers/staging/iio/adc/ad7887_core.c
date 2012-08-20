@@ -201,20 +201,12 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
-	if (ret)
-		goto error_cleanup_ring;
-
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_unregister_ring;
 
 	return 0;
 error_unregister_ring:
-	iio_buffer_unregister(indio_dev);
-error_cleanup_ring:
 	ad7887_ring_cleanup(indio_dev);
 error_disable_reg:
 	if (!IS_ERR(st->reg))
@@ -233,7 +225,6 @@ static int ad7887_remove(struct spi_device *spi)
 	struct ad7887_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	ad7887_ring_cleanup(indio_dev);
 	if (!IS_ERR(st->reg)) {
 		regulator_disable(st->reg);

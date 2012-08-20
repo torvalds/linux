@@ -1,7 +1,5 @@
 /*
- *  arch/s390/kernel/compat_signal.c
- *
- *    Copyright (C) IBM Corp. 2000,2006
+ *    Copyright IBM Corp. 2000, 2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
  *               Gerhard Tonn (ton@de.ibm.com)                  
  *

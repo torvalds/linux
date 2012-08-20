@@ -26,6 +26,8 @@
  *
  */
 
+#define pr_fmt(fmt) "summit: %s: " fmt, __func__
+
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <asm/io.h>
@@ -235,8 +237,8 @@ static int summit_apic_id_registered(void)
 
 static void summit_setup_apic_routing(void)
 {
-	printk("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
-						nr_ioapics);
+	pr_info("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
+		nr_ioapics);
 }
 
 static int summit_cpu_present_to_apicid(int mps_cpu)
@@ -263,43 +265,48 @@ static int summit_check_phys_apicid_present(int physical_apicid)
 	return 1;
 }
 
-static unsigned int summit_cpu_mask_to_apicid(const struct cpumask *cpumask)
+static inline int
+summit_cpu_mask_to_apicid(const struct cpumask *cpumask, unsigned int *dest_id)
 {
 	unsigned int round = 0;
-	int cpu, apicid = 0;
+	unsigned int cpu, apicid = 0;
 
 	/*
 	 * The cpus in the mask must all be on the apic cluster.
 	 */
-	for_each_cpu(cpu, cpumask) {
+	for_each_cpu_and(cpu, cpumask, cpu_online_mask) {
 		int new_apicid = early_per_cpu(x86_cpu_to_logical_apicid, cpu);
 
 		if (round && APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-			printk("%s: Not a valid mask!\n", __func__);
-			return BAD_APICID;
+			pr_err("Not a valid mask!\n");
+			return -EINVAL;
 		}
 		apicid |= new_apicid;
 		round++;
 	}
-	return apicid;
+	if (!round)
+		return -EINVAL;
+	*dest_id = apicid;
+	return 0;
 }
 
-static unsigned int summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
-			      const struct cpumask *andmask)
+static int
+summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
+			      const struct cpumask *andmask,
+			      unsigned int *apicid)
 {
-	int apicid = early_per_cpu(x86_cpu_to_logical_apicid, 0);
 	cpumask_var_t cpumask;
+	*apicid = early_per_cpu(x86_cpu_to_logical_apicid, 0);
 
 	if (!alloc_cpumask_var(&cpumask, GFP_ATOMIC))
-		return apicid;
+		return 0;
 
 	cpumask_and(cpumask, inmask, andmask);
-	cpumask_and(cpumask, cpumask, cpu_online_mask);
-	apicid = summit_cpu_mask_to_apicid(cpumask);
+	summit_cpu_mask_to_apicid(cpumask, apicid);
 
 	free_cpumask_var(cpumask);
 
-	return apicid;
+	return 0;
 }
 
 /*
@@ -318,20 +325,6 @@ static int probe_summit(void)
 {
 	/* probed later in mptable/ACPI hooks */
 	return 0;
-}
-
-static void summit_vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-	/* Careful. Some cpus do not strictly honor the set of cpus
-	 * specified in the interrupt destination when using lowest
-	 * priority interrupt delivery mode.
-	 *
-	 * In particular there was a hyperthreading cpu observed to
-	 * deliver interrupts to the wrong hyperthread when only one
-	 * hyperthread was specified in the interrupt desitination.
-	 */
-	cpumask_clear(retmask);
-	cpumask_bits(retmask)[0] = APIC_ALL_CPUS;
 }
 
 #ifdef CONFIG_X86_SUMMIT_NUMA
@@ -355,7 +348,7 @@ static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		}
 	}
 	if (i == rio_table_hdr->num_rio_dev) {
-		printk(KERN_ERR "%s: Couldn't find owner Cyclone for Winnipeg!\n", __func__);
+		pr_err("Couldn't find owner Cyclone for Winnipeg!\n");
 		return last_bus;
 	}
 
@@ -366,7 +359,7 @@ static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		}
 	}
 	if (i == rio_table_hdr->num_scal_dev) {
-		printk(KERN_ERR "%s: Couldn't find owner Twister for Cyclone!\n", __func__);
+		pr_err("Couldn't find owner Twister for Cyclone!\n");
 		return last_bus;
 	}
 
@@ -396,7 +389,7 @@ static int setup_pci_node_map_for_wpeg(int wpeg_num, int last_bus)
 		num_buses = 9;
 		break;
 	default:
-		printk(KERN_INFO "%s: Unsupported Winnipeg type!\n", __func__);
+		pr_info("Unsupported Winnipeg type!\n");
 		return last_bus;
 	}
 
@@ -411,13 +404,15 @@ static int build_detail_arrays(void)
 	int i, scal_detail_size, rio_detail_size;
 
 	if (rio_table_hdr->num_scal_dev > MAX_NUMNODES) {
-		printk(KERN_WARNING "%s: MAX_NUMNODES too low!  Defined as %d, but system has %d nodes.\n", __func__, MAX_NUMNODES, rio_table_hdr->num_scal_dev);
+		pr_warn("MAX_NUMNODES too low!  Defined as %d, but system has %d nodes\n",
+			MAX_NUMNODES, rio_table_hdr->num_scal_dev);
 		return 0;
 	}
 
 	switch (rio_table_hdr->version) {
 	default:
-		printk(KERN_WARNING "%s: Invalid Rio Grande Table Version: %d\n", __func__, rio_table_hdr->version);
+		pr_warn("Invalid Rio Grande Table Version: %d\n",
+			rio_table_hdr->version);
 		return 0;
 	case 2:
 		scal_detail_size = 11;
@@ -462,7 +457,7 @@ void setup_summit(void)
 		offset = *((unsigned short *)(ptr + offset));
 	}
 	if (!rio_table_hdr) {
-		printk(KERN_ERR "%s: Unable to locate Rio Grande Table in EBDA - bailing!\n", __func__);
+		pr_err("Unable to locate Rio Grande Table in EBDA - bailing!\n");
 		return;
 	}
 
@@ -509,7 +504,7 @@ static struct apic apic_summit = {
 	.check_apicid_used		= summit_check_apicid_used,
 	.check_apicid_present		= summit_check_apicid_present,
 
-	.vector_allocation_domain	= summit_vector_allocation_domain,
+	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= summit_init_apic_ldr,
 
 	.ioapic_phys_id_map		= summit_ioapic_phys_id_map,
@@ -527,7 +522,6 @@ static struct apic apic_summit = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0xFF << 24,
 
-	.cpu_mask_to_apicid		= summit_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= summit_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= summit_send_IPI_mask,

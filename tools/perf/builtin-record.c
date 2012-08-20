@@ -265,7 +265,7 @@ try_again:
 
 			if (err == ENOENT) {
 				ui__error("The %s event is not supported.\n",
-					    event_name(pos));
+					  perf_evsel__name(pos));
 				exit(EXIT_FAILURE);
 			}
 
@@ -916,7 +916,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_header__push_event(pos->attr.config, event_name(pos)))
+		if (perf_header__push_event(pos->attr.config, perf_evsel__name(pos)))
 			goto out_free_fd;
 	}
 

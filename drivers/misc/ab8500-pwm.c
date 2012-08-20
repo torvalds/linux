@@ -142,16 +142,10 @@ static int __devexit ab8500_pwm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id ab8500_pwm_match[] = {
-	{ .compatible = "stericsson,ab8500-pwm", },
-	{}
-};
-
 static struct platform_driver ab8500_pwm_driver = {
 	.driver = {
 		.name = "ab8500-pwm",
 		.owner = THIS_MODULE,
-		.of_match_table = ab8500_pwm_match,
 	},
 	.probe = ab8500_pwm_probe,
 	.remove = __devexit_p(ab8500_pwm_remove),

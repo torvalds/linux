@@ -26,6 +26,7 @@
 #include <linux/kdev_t.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -113,15 +114,6 @@ struct cx8800_fmt {
 	int   depth;
 	int   flags;
 	u32   cxformat;
-};
-
-struct cx88_ctrl {
-	struct v4l2_queryctrl  v;
-	u32                    off;
-	u32                    reg;
-	u32                    sreg;
-	u32                    mask;
-	u32                    shift;
 };
 
 /* ----------------------------------------------------------- */
@@ -359,6 +351,10 @@ struct cx88_core {
 
 	/* config info -- analog */
 	struct v4l2_device 	   v4l2_dev;
+	struct v4l2_ctrl_handler   video_hdl;
+	struct v4l2_ctrl	   *chroma_agc;
+	struct v4l2_ctrl_handler   audio_hdl;
+	struct v4l2_subdev	   *sd_wm8775;
 	struct i2c_client 	   *i2c_rtc;
 	unsigned int               boardnr;
 	struct cx88_board	   board;
@@ -409,8 +405,6 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 	return container_of(v4l2_dev, struct cx88_core, v4l2_dev);
 }
 
-#define WM8775_GID	(1 << 0)
-
 #define call_hw(core, grpid, o, f, args...) \
 	do {							\
 		if (!core->i2c_rc) {				\
@@ -424,6 +418,36 @@ static inline struct cx88_core *to_core(struct v4l2_device *v4l2_dev)
 
 #define call_all(core, o, f, args...) call_hw(core, 0, o, f, ##args)
 
+#define WM8775_GID      (1 << 0)
+
+#define wm8775_s_ctrl(core, id, val) \
+	do {									\
+		struct v4l2_ctrl *ctrl_ =					\
+			v4l2_ctrl_find(core->sd_wm8775->ctrl_handler, id);	\
+		if (ctrl_ && !core->i2c_rc) {					\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 1);			\
+			v4l2_ctrl_s_ctrl(ctrl_, val);				\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 0);			\
+		}								\
+	} while (0)
+
+#define wm8775_g_ctrl(core, id) \
+	({									\
+		struct v4l2_ctrl *ctrl_ =					\
+			v4l2_ctrl_find(core->sd_wm8775->ctrl_handler, id);	\
+		s32 val = 0;							\
+		if (ctrl_ && !core->i2c_rc) {					\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 1);			\
+			val = v4l2_ctrl_g_ctrl(ctrl_);				\
+			if (core->gate_ctrl)					\
+				core->gate_ctrl(core, 0);			\
+		}								\
+		val;								\
+	})
+
 struct cx8800_dev;
 struct cx8802_dev;
 
@@ -431,19 +455,11 @@ struct cx8802_dev;
 /* function 0: video stuff                                     */
 
 struct cx8800_fh {
+	struct v4l2_fh		   fh;
 	struct cx8800_dev          *dev;
-	enum v4l2_buf_type         type;
-	int                        radio;
 	unsigned int               resources;
 
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           *clips;
-	unsigned int               nclips;
-
 	/* video capture */
-	const struct cx8800_fmt    *fmt;
-	unsigned int               width,height;
 	struct videobuf_queue      vidq;
 
 	/* vbi capture */
@@ -468,6 +484,8 @@ struct cx8800_dev {
 	struct pci_dev             *pci;
 	unsigned char              pci_rev,pci_lat;
 
+	const struct cx8800_fmt    *fmt;
+	unsigned int               width, height;
 
 	/* capture queues */
 	struct cx88_dmaqueue       vidq;
@@ -488,6 +506,7 @@ struct cx8800_dev {
 /* function 2: mpeg stuff                                      */
 
 struct cx8802_fh {
+	struct v4l2_fh		   fh;
 	struct cx8802_dev          *dev;
 	struct videobuf_queue      mpegq;
 };
@@ -552,7 +571,7 @@ struct cx8802_dev {
 	unsigned char              mpeg_active; /* nonzero if mpeg encoder is active */
 
 	/* mpeg params */
-	struct cx2341x_mpeg_params params;
+	struct cx2341x_handler     cxhdl;
 #endif
 
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
@@ -722,11 +741,8 @@ void cx8802_cancel_buffers(struct cx8802_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
-extern const u32 cx88_user_ctrls[];
-extern int cx8800_ctrl_query(struct cx88_core *core,
-			     struct v4l2_queryctrl *qctrl);
 int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i);
 int cx88_set_freq (struct cx88_core  *core,struct v4l2_frequency *f);
-int cx88_get_control(struct cx88_core *core, struct v4l2_control *ctl);
-int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl);
 int cx88_video_mux(struct cx88_core *core, unsigned int input);
+void cx88_querycap(struct file *file, struct cx88_core *core,
+		struct v4l2_capability *cap);

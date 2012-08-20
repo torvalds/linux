@@ -242,7 +242,7 @@ int rxrpc_kernel_send_data(struct rxrpc_call *call, struct msghdr *msg,
 
 EXPORT_SYMBOL(rxrpc_kernel_send_data);
 
-/*
+/**
  * rxrpc_kernel_abort_call - Allow a kernel service to abort a call
  * @call: The call to be aborted
  * @abort_code: The abort code to stick into the ABORT packet

@@ -73,8 +73,6 @@ static int          msglevel                = MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 /*---------------------  Static Definitions -------------------------*/
-#define CRITICAL_PACKET_LEN      256    // if packet size < 256 -> in-direct send
-                                        //    packet size >= 256 -> direct send
 
 const WORD wTimeStampOff[2][MAX_RATE] = {
         {384, 288, 226, 209, 54, 43, 37, 31, 28, 25, 24, 23}, // Long Preamble

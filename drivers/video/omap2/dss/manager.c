@@ -500,16 +500,12 @@ static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 	if (r)
 		return r;
 
-	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC) {
+	if (mgr->device->type == OMAP_DISPLAY_TYPE_VENC)
 		irq = DISPC_IRQ_EVSYNC_ODD;
-	} else if (mgr->device->type == OMAP_DISPLAY_TYPE_HDMI) {
+	else if (mgr->device->type == OMAP_DISPLAY_TYPE_HDMI)
 		irq = DISPC_IRQ_EVSYNC_EVEN;
-	} else {
-		if (mgr->id == OMAP_DSS_CHANNEL_LCD)
-			irq = DISPC_IRQ_VSYNC;
-		else
-			irq = DISPC_IRQ_VSYNC2;
-	}
+	else
+		irq = dispc_mgr_get_vsync_irq(mgr->id);
 
 	r = omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
 
@@ -544,6 +540,10 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 		case 2:
 			mgr->name = "lcd2";
 			mgr->id = OMAP_DSS_CHANNEL_LCD2;
+			break;
+		case 3:
+			mgr->name = "lcd3";
+			mgr->id = OMAP_DSS_CHANNEL_LCD3;
 			break;
 		}
 
@@ -665,9 +665,40 @@ int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
 	return 0;
 }
 
+static int dss_mgr_check_lcd_config(struct omap_overlay_manager *mgr,
+		const struct dss_lcd_mgr_config *config)
+{
+	struct dispc_clock_info cinfo = config->clock_info;
+	int dl = config->video_port_width;
+	bool stallmode = config->stallmode;
+	bool fifohandcheck = config->fifohandcheck;
+
+	if (cinfo.lck_div < 1 || cinfo.lck_div > 255)
+		return -EINVAL;
+
+	if (cinfo.pck_div < 1 || cinfo.pck_div > 255)
+		return -EINVAL;
+
+	if (dl != 12 && dl != 16 && dl != 18 && dl != 24)
+		return -EINVAL;
+
+	/* fifohandcheck should be used only with stallmode */
+	if (stallmode == false && fifohandcheck == true)
+		return -EINVAL;
+
+	/*
+	 * io pad mode can be only checked by using dssdev connected to the
+	 * manager. Ignore checking these for now, add checks when manager
+	 * is capable of holding information related to the connected interface
+	 */
+
+	return 0;
+}
+
 int dss_mgr_check(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info,
 		const struct omap_video_timings *mgr_timings,
+		const struct dss_lcd_mgr_config *lcd_config,
 		struct omap_overlay_info **overlay_infos)
 {
 	struct omap_overlay *ovl;
@@ -680,6 +711,10 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 	}
 
 	r = dss_mgr_check_timings(mgr, mgr_timings);
+	if (r)
+		return r;
+
+	r = dss_mgr_check_lcd_config(mgr, lcd_config);
 	if (r)
 		return r;
 

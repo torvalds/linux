@@ -264,7 +264,7 @@ META_COLLECTOR(int_rtiif)
 	if (unlikely(skb_rtable(skb) == NULL))
 		*err = -1;
 	else
-		dst->value = skb_rtable(skb)->rt_iif;
+		dst->value = inet_iif(skb);
 }
 
 /**************************************************************************

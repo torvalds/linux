@@ -232,7 +232,7 @@ static void __devinit ie6xx_wdt_debugfs_init(void)
 		S_IFREG | S_IRUGO, NULL, NULL, &ie6xx_wdt_dbg_operations);
 }
 
-static void __devexit ie6xx_wdt_debugfs_exit(void)
+static void ie6xx_wdt_debugfs_exit(void)
 {
 	debugfs_remove(ie6xx_wdt_data.debugfs);
 }
@@ -242,7 +242,7 @@ static void __devinit ie6xx_wdt_debugfs_init(void)
 {
 }
 
-static void __devexit ie6xx_wdt_debugfs_exit(void)
+static void ie6xx_wdt_debugfs_exit(void)
 {
 }
 #endif

@@ -63,7 +63,7 @@ acpi_ns_dump_one_device(acpi_handle obj_handle,
  * FUNCTION:    acpi_ns_print_pathname
  *
  * PARAMETERS:  num_segments        - Number of ACPI name segments
- *              Pathname            - The compressed (internal) path
+ *              pathname            - The compressed (internal) path
  *
  * RETURN:      None
  *
@@ -107,10 +107,10 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
  *
  * FUNCTION:    acpi_ns_dump_pathname
  *
- * PARAMETERS:  Handle              - Object
- *              Msg                 - Prefix message
- *              Level               - Desired debug level
- *              Component           - Caller's component ID
+ * PARAMETERS:  handle              - Object
+ *              msg                 - Prefix message
+ *              level               - Desired debug level
+ *              component           - Caller's component ID
  *
  * RETURN:      None
  *
@@ -143,8 +143,8 @@ acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component)
  * FUNCTION:    acpi_ns_dump_one_object
  *
  * PARAMETERS:  obj_handle          - Node to be dumped
- *              Level               - Nesting level of the handle
- *              Context             - Passed into walk_namespace
+ *              level               - Nesting level of the handle
+ *              context             - Passed into walk_namespace
  *              return_value        - Not used
  *
  * RETURN:      Status
@@ -615,7 +615,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
  *
  * FUNCTION:    acpi_ns_dump_objects
  *
- * PARAMETERS:  Type                - Object type to be dumped
+ * PARAMETERS:  type                - Object type to be dumped
  *              display_type        - 0 or ACPI_DISPLAY_SUMMARY
  *              max_depth           - Maximum depth of dump. Use ACPI_UINT32_MAX
  *                                    for an effectively unlimited depth.
@@ -671,7 +671,7 @@ acpi_ns_dump_objects(acpi_object_type type,
  *
  * FUNCTION:    acpi_ns_dump_entry
  *
- * PARAMETERS:  Handle              - Node to be dumped
+ * PARAMETERS:  handle              - Node to be dumped
  *              debug_level         - Output level
  *
  * RETURN:      None

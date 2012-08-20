@@ -66,23 +66,6 @@ static inline int invalid_64bit_range(unsigned long addr, unsigned long len)
 	return 0;
 }
 
-/* Does start,end straddle the VA-space hole?  */
-static inline int straddles_64bit_va_hole(unsigned long start, unsigned long end)
-{
-	unsigned long va_exclude_start, va_exclude_end;
-
-	va_exclude_start = VA_EXCLUDE_START;
-	va_exclude_end   = VA_EXCLUDE_END;
-
-	if (likely(start < va_exclude_start && end < va_exclude_start))
-		return 0;
-
-	if (likely(start >= va_exclude_end && end >= va_exclude_end))
-		return 0;
-
-	return 1;
-}
-
 /* These functions differ from the default implementations in
  * mm/mmap.c in two ways:
  *
@@ -487,7 +470,7 @@ SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second
 		switch (call) {
 		case SHMAT: {
 			ulong raddr;
-			err = do_shmat(first, ptr, (int)second, &raddr);
+			err = do_shmat(first, ptr, (int)second, &raddr, SHMLBA);
 			if (!err) {
 				if (put_user(raddr,
 					     (ulong __user *) third))

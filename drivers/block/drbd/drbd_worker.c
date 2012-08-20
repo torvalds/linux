@@ -111,7 +111,7 @@ void drbd_endio_read_sec_final(struct drbd_epoch_entry *e) __releases(local)
 	if (list_empty(&mdev->read_ee))
 		wake_up(&mdev->ee_wait);
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
-		__drbd_chk_io_error(mdev, false);
+		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	drbd_queue_work(&mdev->data.work, &e->w);
@@ -154,7 +154,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 		: list_empty(&mdev->active_ee);
 
 	if (test_bit(__EE_WAS_ERROR, &e->flags))
-		__drbd_chk_io_error(mdev, false);
+		__drbd_chk_io_error(mdev, DRBD_IO_ERROR);
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
 
 	if (is_syncer_req)
@@ -1499,14 +1499,6 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 	if (mdev->state.conn >= C_SYNC_SOURCE && mdev->state.conn < C_AHEAD) {
 		dev_err(DEV, "Resync already running!\n");
 		return;
-	}
-
-	if (mdev->state.conn < C_AHEAD) {
-		/* In case a previous resync run was aborted by an IO error/detach on the peer. */
-		drbd_rs_cancel_all(mdev);
-		/* This should be done when we abort the resync. We definitely do not
-		   want to have this for connections going back and forth between
-		   Ahead/Behind and SyncSource/SyncTarget */
 	}
 
 	if (side == C_SYNC_TARGET) {

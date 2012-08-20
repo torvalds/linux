@@ -22,6 +22,8 @@ extern unsigned long vdso64_rt_sigtramp;
 extern unsigned long vdso32_sigtramp;
 extern unsigned long vdso32_rt_sigtramp;
 
+int __cpuinit vdso_getcpu_init(void);
+
 #else /* __ASSEMBLY__ */
 
 #ifdef __VDSO64__

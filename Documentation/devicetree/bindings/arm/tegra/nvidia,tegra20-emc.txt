@@ -1,0 +1,100 @@
+Embedded Memory Controller
+
+Properties:
+- name : Should be emc
+- #address-cells : Should be 1
+- #size-cells : Should be 0
+- compatible : Should contain "nvidia,tegra20-emc".
+- reg : Offset and length of the register set for the device
+- nvidia,use-ram-code : If present, the sub-nodes will be addressed
+  and chosen using the ramcode board selector. If omitted, only one
+  set of tables can be present and said tables will be used
+  irrespective of ram-code configuration.
+
+Child device nodes describe the memory settings for different configurations and clock rates.
+
+Example:
+
+	memory-controller@7000f400 {
+		#address-cells = < 1 >;
+		#size-cells = < 0 >;
+		compatible = "nvidia,tegra20-emc";
+		reg = <0x7000f4000 0x200>;
+	}
+
+
+Embedded Memory Controller ram-code table
+
+If the emc node has the nvidia,use-ram-code property present, then the
+next level of nodes below the emc table are used to specify which settings
+apply for which ram-code settings.
+
+If the emc node lacks the nvidia,use-ram-code property, this level is omitted
+and the tables are stored directly under the emc node (see below).
+
+Properties:
+
+- name : Should be emc-tables
+- nvidia,ram-code : the binary representation of the ram-code board strappings
+  for which this node (and children) are valid.
+
+
+
+Embedded Memory Controller configuration table
+
+This is a table containing the EMC register settings for the various
+operating speeds of the memory controller. They are always located as
+subnodes of the emc controller node.
+
+There are two ways of specifying which tables to use:
+
+* The simplest is if there is just one set of tables in the device tree,
+  and they will always be used (based on which frequency is used).
+  This is the preferred method, especially when firmware can fill in
+  this information based on the specific system information and just
+  pass it on to the kernel.
+
+* The slightly more complex one is when more than one memory configuration
+  might exist on the system.  The Tegra20 platform handles this during
+  early boot by selecting one out of possible 4 memory settings based
+  on a 2-pin "ram code" bootstrap setting on the board. The values of
+  these strappings can be read through a register in the SoC, and thus
+  used to select which tables to use.
+
+Properties:
+- name : Should be emc-table
+- compatible : Should contain "nvidia,tegra20-emc-table".
+- reg : either an opaque enumerator to tell different tables apart, or
+  the valid frequency for which the table should be used (in kHz).
+- clock-frequency : the clock frequency for the EMC at which this
+  table should be used (in kHz).
+- nvidia,emc-registers : a 46 word array of EMC registers to be programmed
+  for operation at the 'clock-frequency' setting.
+  The order and contents of the registers are:
+    RC, RFC, RAS, RP, R2W, W2R, R2P, W2P, RD_RCD, WR_RCD, RRD, REXT,
+    WDV, QUSE, QRST, QSAFE, RDV, REFRESH, BURST_REFRESH_NUM, PDEX2WR,
+    PDEX2RD, PCHG2PDEN, ACT2PDEN, AR2PDEN, RW2PDEN, TXSR, TCKE, TFAW,
+    TRPAB, TCLKSTABLE, TCLKSTOP, TREFBW, QUSE_EXTRA, FBIO_CFG6, ODT_WRITE,
+    ODT_READ, FBIO_CFG5, CFG_DIG_DLL, DLL_XFORM_DQS, DLL_XFORM_QUSE,
+    ZCAL_REF_CNT, ZCAL_WAIT_CNT, AUTO_CAL_INTERVAL, CFG_CLKTRIM_0,
+    CFG_CLKTRIM_1, CFG_CLKTRIM_2
+
+		emc-table@166000 {
+			reg = <166000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 166000 >;
+			nvidia,emc-registers = < 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+						 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+						 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+						 0 0 0 0 >;
+		};
+
+		emc-table@333000 {
+			reg = <333000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 333000 >;
+			nvidia,emc-registers = < 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+						 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+						 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+						 0 0 0 0 >;
+		};

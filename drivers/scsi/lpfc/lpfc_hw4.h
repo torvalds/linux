@@ -874,6 +874,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_MQ_CREATE			0x15
 #define LPFC_MBOX_OPCODE_GET_CNTL_ATTRIBUTES		0x20
 #define LPFC_MBOX_OPCODE_NOP				0x21
+#define LPFC_MBOX_OPCODE_MODIFY_EQ_DELAY		0x29
 #define LPFC_MBOX_OPCODE_MQ_DESTROY			0x35
 #define LPFC_MBOX_OPCODE_CQ_DESTROY			0x36
 #define LPFC_MBOX_OPCODE_EQ_DESTROY			0x37
@@ -940,6 +941,13 @@ struct eq_context {
 	uint32_t reserved3;
 };
 
+struct eq_delay_info {
+	uint32_t eq_id;
+	uint32_t phase;
+	uint32_t delay_multi;
+};
+#define	LPFC_MAX_EQ_DELAY	8
+
 struct sgl_page_pairs {
 	uint32_t sgl_pg0_addr_lo;
 	uint32_t sgl_pg0_addr_hi;
@@ -998,6 +1006,19 @@ struct lpfc_mbx_eq_create {
 #define lpfc_mbx_eq_create_q_id_SHIFT	0
 #define lpfc_mbx_eq_create_q_id_MASK	0x0000FFFF
 #define lpfc_mbx_eq_create_q_id_WORD	word0
+		} response;
+	} u;
+};
+
+struct lpfc_mbx_modify_eq_delay {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t num_eq;
+			struct eq_delay_info eq[LPFC_MAX_EQ_DELAY];
+		} request;
+		struct {
+			uint32_t word0;
 		} response;
 	} u;
 };
@@ -2875,6 +2896,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_mq_create mq_create;
 		struct lpfc_mbx_mq_create_ext mq_create_ext;
 		struct lpfc_mbx_eq_create eq_create;
+		struct lpfc_mbx_modify_eq_delay eq_delay;
 		struct lpfc_mbx_cq_create cq_create;
 		struct lpfc_mbx_wq_create wq_create;
 		struct lpfc_mbx_rq_create rq_create;
@@ -3084,6 +3106,28 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_EVENT_TYPE_SHARED_LINK	0x2
 };
 
+struct lpfc_acqe_misconfigured_event {
+	struct {
+	uint32_t word0;
+#define lpfc_sli_misconfigured_port0_SHIFT	0
+#define lpfc_sli_misconfigured_port0_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port0_WORD	word0
+#define lpfc_sli_misconfigured_port1_SHIFT	8
+#define lpfc_sli_misconfigured_port1_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port1_WORD	word0
+#define lpfc_sli_misconfigured_port2_SHIFT	16
+#define lpfc_sli_misconfigured_port2_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port2_WORD	word0
+#define lpfc_sli_misconfigured_port3_SHIFT	24
+#define lpfc_sli_misconfigured_port3_MASK	0x000000FF
+#define lpfc_sli_misconfigured_port3_WORD	word0
+	} theEvent;
+#define LPFC_SLI_EVENT_STATUS_VALID			0x00
+#define LPFC_SLI_EVENT_STATUS_NOT_PRESENT	0x01
+#define LPFC_SLI_EVENT_STATUS_WRONG_TYPE	0x02
+#define LPFC_SLI_EVENT_STATUS_UNSUPPORTED	0x03
+};
+
 struct lpfc_acqe_sli {
 	uint32_t event_data1;
 	uint32_t event_data2;
@@ -3094,6 +3138,7 @@ struct lpfc_acqe_sli {
 #define LPFC_SLI_EVENT_TYPE_NORM_TEMP		0x3
 #define LPFC_SLI_EVENT_TYPE_NVLOG_POST		0x4
 #define LPFC_SLI_EVENT_TYPE_DIAG_DUMP		0x5
+#define LPFC_SLI_EVENT_TYPE_MISCONFIGURED	0x9
 };
 
 /*

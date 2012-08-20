@@ -305,8 +305,8 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 
 	/* Refuse subscription if global limit exceeded */
 	if (atomic_read(&topsrv.subscription_count) >= tipc_max_subscriptions) {
-		warn("Subscription rejected, subscription limit reached (%u)\n",
-		     tipc_max_subscriptions);
+		pr_warn("Subscription rejected, limit reached (%u)\n",
+			tipc_max_subscriptions);
 		subscr_terminate(subscriber);
 		return NULL;
 	}
@@ -314,7 +314,7 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 	/* Allocate subscription object */
 	sub = kmalloc(sizeof(*sub), GFP_ATOMIC);
 	if (!sub) {
-		warn("Subscription rejected, no memory\n");
+		pr_warn("Subscription rejected, no memory\n");
 		subscr_terminate(subscriber);
 		return NULL;
 	}
@@ -328,7 +328,7 @@ static struct tipc_subscription *subscr_subscribe(struct tipc_subscr *s,
 	if ((!(sub->filter & TIPC_SUB_PORTS) ==
 	     !(sub->filter & TIPC_SUB_SERVICE)) ||
 	    (sub->seq.lower > sub->seq.upper)) {
-		warn("Subscription rejected, illegal request\n");
+		pr_warn("Subscription rejected, illegal request\n");
 		kfree(sub);
 		subscr_terminate(subscriber);
 		return NULL;
@@ -440,7 +440,7 @@ static void subscr_named_msg_event(void *usr_handle,
 	/* Create subscriber object */
 	subscriber = kzalloc(sizeof(struct tipc_subscriber), GFP_ATOMIC);
 	if (subscriber == NULL) {
-		warn("Subscriber rejected, no memory\n");
+		pr_warn("Subscriber rejected, no memory\n");
 		return;
 	}
 	INIT_LIST_HEAD(&subscriber->subscription_list);
@@ -458,7 +458,7 @@ static void subscr_named_msg_event(void *usr_handle,
 			NULL,
 			&subscriber->port_ref);
 	if (subscriber->port_ref == 0) {
-		warn("Subscriber rejected, unable to create port\n");
+		pr_warn("Subscriber rejected, unable to create port\n");
 		kfree(subscriber);
 		return;
 	}
@@ -517,7 +517,7 @@ int tipc_subscr_start(void)
 	return 0;
 
 failed:
-	err("Failed to create subscription service\n");
+	pr_err("Failed to create subscription service\n");
 	return res;
 }
 

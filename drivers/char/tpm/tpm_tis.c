@@ -750,7 +750,7 @@ static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 
 static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 {
-	return tpm_pm_suspend(&dev->dev, msg);
+	return tpm_pm_suspend(&dev->dev);
 }
 
 static int tpm_tis_pnp_resume(struct pnp_dev *dev)
@@ -806,27 +806,25 @@ module_param_string(hid, tpm_pnp_tbl[TIS_HID_USR_IDX].id,
 		    sizeof(tpm_pnp_tbl[TIS_HID_USR_IDX].id), 0444);
 MODULE_PARM_DESC(hid, "Set additional specific HID for this driver to probe");
 #endif
-static int tpm_tis_suspend(struct platform_device *dev, pm_message_t msg)
-{
-	return tpm_pm_suspend(&dev->dev, msg);
-}
 
-static int tpm_tis_resume(struct platform_device *dev)
+static int tpm_tis_resume(struct device *dev)
 {
-	struct tpm_chip *chip = dev_get_drvdata(&dev->dev);
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	if (chip->vendor.irq)
 		tpm_tis_reenable_interrupts(chip);
 
-	return tpm_pm_resume(&dev->dev);
+	return tpm_pm_resume(dev);
 }
+
+static SIMPLE_DEV_PM_OPS(tpm_tis_pm, tpm_pm_suspend, tpm_tis_resume);
+
 static struct platform_driver tis_drv = {
 	.driver = {
 		.name = "tpm_tis",
 		.owner		= THIS_MODULE,
+		.pm		= &tpm_tis_pm,
 	},
-	.suspend = tpm_tis_suspend,
-	.resume = tpm_tis_resume,
 };
 
 static struct platform_device *pdev;

@@ -42,7 +42,7 @@ MODULE_DESCRIPTION("HighPoint RocketRAID 3xxx/4xxx Controller Driver");
 
 static char driver_name[] = "hptiop";
 static const char driver_name_long[] = "RocketRAID 3xxx/4xxx Controller driver";
-static const char driver_ver[] = "v1.6 (090910)";
+static const char driver_ver[] = "v1.6 (091225)";
 
 static int iop_send_sync_msg(struct hptiop_hba *hba, u32 msg, u32 millisec);
 static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
@@ -958,6 +958,7 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 {
 	struct Scsi_Host *host = NULL;
 	struct hptiop_hba *hba;
+	struct hptiop_adapter_ops *iop_ops;
 	struct hpt_iop_request_get_config iop_config;
 	struct hpt_iop_request_set_config set_config;
 	dma_addr_t start_phy;
@@ -978,7 +979,8 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	pci_set_master(pcidev);
 
 	/* Enable 64bit DMA if possible */
-	if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(64))) {
+	iop_ops = (struct hptiop_adapter_ops *)id->driver_data;
+	if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(iop_ops->hw_dma_bit_mask))) {
 		if (pci_set_dma_mask(pcidev, DMA_BIT_MASK(32))) {
 			printk(KERN_ERR "hptiop: fail to set dma_mask\n");
 			goto disable_pci_device;
@@ -998,7 +1000,7 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 
 	hba = (struct hptiop_hba *)host->hostdata;
 
-	hba->ops = (struct hptiop_adapter_ops *)id->driver_data;
+	hba->ops = iop_ops;
 	hba->pcidev = pcidev;
 	hba->host = host;
 	hba->initialized = 0;
@@ -1239,6 +1241,7 @@ static struct hptiop_adapter_ops hptiop_itl_ops = {
 	.iop_intr          = iop_intr_itl,
 	.post_msg          = hptiop_post_msg_itl,
 	.post_req          = hptiop_post_req_itl,
+	.hw_dma_bit_mask   = 64,
 };
 
 static struct hptiop_adapter_ops hptiop_mv_ops = {
@@ -1254,6 +1257,7 @@ static struct hptiop_adapter_ops hptiop_mv_ops = {
 	.iop_intr          = iop_intr_mv,
 	.post_msg          = hptiop_post_msg_mv,
 	.post_req          = hptiop_post_req_mv,
+	.hw_dma_bit_mask   = 33,
 };
 
 static struct pci_device_id hptiop_id_table[] = {

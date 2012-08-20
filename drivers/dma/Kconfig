@@ -53,6 +53,7 @@ config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
 	depends on ARM_AMBA && EXPERIMENTAL
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Platform has a PL08x DMAC device
 	  which can provide DMA engine support
@@ -148,6 +149,20 @@ config TXX9_DMAC
 	  Support the TXx9 SoC internal DMA controller.  This can be
 	  integrated in chips such as the Toshiba TX4927/38/39.
 
+config TEGRA20_APB_DMA
+	bool "NVIDIA Tegra20 APB DMA support"
+	depends on ARCH_TEGRA
+	select DMA_ENGINE
+	help
+	  Support for the NVIDIA Tegra20 APB DMA controller driver. The
+	  DMA controller is having multiple DMA channel which can be
+	  configured for different peripherals like audio, UART, SPI,
+	  I2C etc which is in APB bus.
+	  This DMA controller transfers data from memory to peripheral fifo
+	  or vice versa. It does not support memory to memory data transfer.
+
+
+
 config SH_DMAE
 	tristate "Renesas SuperH DMAC support"
 	depends on (SUPERH && SH_DMA) || (ARM && ARCH_SHMOBILE)
@@ -237,7 +252,7 @@ config IMX_DMA
 
 config MXS_DMA
 	bool "MXS DMA support"
-	depends on SOC_IMX23 || SOC_IMX28
+	depends on SOC_IMX23 || SOC_IMX28 || SOC_IMX6Q
 	select STMP_DEVICE
 	select DMA_ENGINE
 	help
@@ -255,13 +270,33 @@ config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
 	depends on ARCH_SA1100
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the DMA engine found on Intel StrongARM SA-1100 and
 	  SA-1110 SoCs.  This DMA engine can only be used with on-chip
 	  devices.
 
+config MMP_TDMA
+	bool "MMP Two-Channel DMA support"
+	depends on ARCH_MMP
+	select DMA_ENGINE
+	help
+	  Support the MMP Two-Channel DMA engine.
+	  This engine used for MMP Audio DMA and pxa910 SQU.
+
+	  Say Y here if you enabled MMP ADMA, otherwise say N.
+
+config DMA_OMAP
+	tristate "OMAP DMA support"
+	depends on ARCH_OMAP
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+
 config DMA_ENGINE
 	bool
+
+config DMA_VIRTUAL_CHANNELS
+	tristate
 
 comment "DMA Clients"
 	depends on DMA_ENGINE

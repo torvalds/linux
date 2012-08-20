@@ -106,7 +106,7 @@ static struct clk_lookup lcdif_lookups[] = {
 
 static struct clk_lookup gpmi_lookups[] = {
 	{ .dev_id = "imx23-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi", },
+	{ .dev_id = "8000c000.gpmi-nand", },
 };
 
 static const char *sel_pll[]  __initconst = { "pll", "ref_xtal", };
@@ -189,6 +189,7 @@ int __init mx23_clocks_init(void)
 		}
 
 	clk_register_clkdev(clks[clk32k], NULL, "timrot");
+	clk_register_clkdev(clks[pwm], NULL, "80064000.pwm");
 	clk_register_clkdevs(clks[hbus], hbus_lookups, ARRAY_SIZE(hbus_lookups));
 	clk_register_clkdevs(clks[xbus], xbus_lookups, ARRAY_SIZE(xbus_lookups));
 	clk_register_clkdevs(clks[uart], uart_lookups, ARRAY_SIZE(uart_lookups));

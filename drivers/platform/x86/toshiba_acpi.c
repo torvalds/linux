@@ -1296,10 +1296,9 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 	}
 }
 
-static int toshiba_acpi_suspend(struct acpi_device *acpi_dev,
-				pm_message_t state)
+static int toshiba_acpi_suspend(struct device *device)
 {
-	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
+	struct toshiba_acpi_dev *dev = acpi_driver_data(to_acpi_device(device));
 	u32 result;
 
 	if (dev->hotkey_dev)
@@ -1308,9 +1307,9 @@ static int toshiba_acpi_suspend(struct acpi_device *acpi_dev,
 	return 0;
 }
 
-static int toshiba_acpi_resume(struct acpi_device *acpi_dev)
+static int toshiba_acpi_resume(struct device *device)
 {
-	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
+	struct toshiba_acpi_dev *dev = acpi_driver_data(to_acpi_device(device));
 	u32 result;
 
 	if (dev->hotkey_dev)
@@ -1318,6 +1317,9 @@ static int toshiba_acpi_resume(struct acpi_device *acpi_dev)
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(toshiba_acpi_pm,
+			 toshiba_acpi_suspend, toshiba_acpi_resume);
 
 static struct acpi_driver toshiba_acpi_driver = {
 	.name	= "Toshiba ACPI driver",
@@ -1328,9 +1330,8 @@ static struct acpi_driver toshiba_acpi_driver = {
 		.add		= toshiba_acpi_add,
 		.remove		= toshiba_acpi_remove,
 		.notify		= toshiba_acpi_notify,
-		.suspend	= toshiba_acpi_suspend,
-		.resume		= toshiba_acpi_resume,
 	},
+	.drv.pm	= &toshiba_acpi_pm,
 };
 
 static int __init toshiba_acpi_init(void)

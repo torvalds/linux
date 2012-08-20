@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <linux/uio_driver.h>
@@ -512,7 +513,6 @@ static struct platform_device tmu2_device = {
 };
 
 static struct siu_platform siu_platform_data = {
-	.dma_dev	= &dma_device.dev,
 	.dma_slave_tx_a	= SHDMA_SLAVE_SIUA_TX,
 	.dma_slave_rx_a	= SHDMA_SLAVE_SIUA_RX,
 	.dma_slave_tx_b	= SHDMA_SLAVE_SIUB_TX,

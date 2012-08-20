@@ -300,8 +300,8 @@ int core_free_device_list_for_node(
 		lun = deve->se_lun;
 
 		spin_unlock_irq(&nacl->device_list_lock);
-		core_update_device_list_for_node(lun, NULL, deve->mapped_lun,
-			TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg, 0);
+		core_disable_device_list_for_node(lun, NULL, deve->mapped_lun,
+			TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg);
 		spin_lock_irq(&nacl->device_list_lock);
 	}
 	spin_unlock_irq(&nacl->device_list_lock);
@@ -342,72 +342,46 @@ void core_update_device_list_access(
 	spin_unlock_irq(&nacl->device_list_lock);
 }
 
-/*      core_update_device_list_for_node():
+/*      core_enable_device_list_for_node():
  *
  *
  */
-int core_update_device_list_for_node(
+int core_enable_device_list_for_node(
 	struct se_lun *lun,
 	struct se_lun_acl *lun_acl,
 	u32 mapped_lun,
 	u32 lun_access,
 	struct se_node_acl *nacl,
-	struct se_portal_group *tpg,
-	int enable)
+	struct se_portal_group *tpg)
 {
 	struct se_port *port = lun->lun_sep;
-	struct se_dev_entry *deve = nacl->device_list[mapped_lun];
-	int trans = 0;
-	/*
-	 * If the MappedLUN entry is being disabled, the entry in
-	 * port->sep_alua_list must be removed now before clearing the
-	 * struct se_dev_entry pointers below as logic in
-	 * core_alua_do_transition_tg_pt() depends on these being present.
-	 */
-	if (!enable) {
-		/*
-		 * deve->se_lun_acl will be NULL for demo-mode created LUNs
-		 * that have not been explicitly concerted to MappedLUNs ->
-		 * struct se_lun_acl, but we remove deve->alua_port_list from
-		 * port->sep_alua_list. This also means that active UAs and
-		 * NodeACL context specific PR metadata for demo-mode
-		 * MappedLUN *deve will be released below..
-		 */
-		spin_lock_bh(&port->sep_alua_lock);
-		list_del(&deve->alua_port_list);
-		spin_unlock_bh(&port->sep_alua_lock);
-	}
+	struct se_dev_entry *deve;
 
 	spin_lock_irq(&nacl->device_list_lock);
-	if (enable) {
-		/*
-		 * Check if the call is handling demo mode -> explict LUN ACL
-		 * transition.  This transition must be for the same struct se_lun
-		 * + mapped_lun that was setup in demo mode..
-		 */
-		if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
-			if (deve->se_lun_acl != NULL) {
-				pr_err("struct se_dev_entry->se_lun_acl"
-					" already set for demo mode -> explict"
-					" LUN ACL transition\n");
-				spin_unlock_irq(&nacl->device_list_lock);
-				return -EINVAL;
-			}
-			if (deve->se_lun != lun) {
-				pr_err("struct se_dev_entry->se_lun does"
-					" match passed struct se_lun for demo mode"
-					" -> explict LUN ACL transition\n");
-				spin_unlock_irq(&nacl->device_list_lock);
-				return -EINVAL;
-			}
-			deve->se_lun_acl = lun_acl;
-			trans = 1;
-		} else {
-			deve->se_lun = lun;
-			deve->se_lun_acl = lun_acl;
-			deve->mapped_lun = mapped_lun;
-			deve->lun_flags |= TRANSPORT_LUNFLAGS_INITIATOR_ACCESS;
+
+	deve = nacl->device_list[mapped_lun];
+
+	/*
+	 * Check if the call is handling demo mode -> explict LUN ACL
+	 * transition.  This transition must be for the same struct se_lun
+	 * + mapped_lun that was setup in demo mode..
+	 */
+	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
+		if (deve->se_lun_acl != NULL) {
+			pr_err("struct se_dev_entry->se_lun_acl"
+			       " already set for demo mode -> explict"
+			       " LUN ACL transition\n");
+			spin_unlock_irq(&nacl->device_list_lock);
+			return -EINVAL;
 		}
+		if (deve->se_lun != lun) {
+			pr_err("struct se_dev_entry->se_lun does"
+			       " match passed struct se_lun for demo mode"
+			       " -> explict LUN ACL transition\n");
+			spin_unlock_irq(&nacl->device_list_lock);
+			return -EINVAL;
+		}
+		deve->se_lun_acl = lun_acl;
 
 		if (lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) {
 			deve->lun_flags &= ~TRANSPORT_LUNFLAGS_READ_ONLY;
@@ -417,27 +391,72 @@ int core_update_device_list_for_node(
 			deve->lun_flags |= TRANSPORT_LUNFLAGS_READ_ONLY;
 		}
 
-		if (trans) {
-			spin_unlock_irq(&nacl->device_list_lock);
-			return 0;
-		}
-		deve->creation_time = get_jiffies_64();
-		deve->attach_count++;
 		spin_unlock_irq(&nacl->device_list_lock);
-
-		spin_lock_bh(&port->sep_alua_lock);
-		list_add_tail(&deve->alua_port_list, &port->sep_alua_list);
-		spin_unlock_bh(&port->sep_alua_lock);
-
 		return 0;
 	}
+
+	deve->se_lun = lun;
+	deve->se_lun_acl = lun_acl;
+	deve->mapped_lun = mapped_lun;
+	deve->lun_flags |= TRANSPORT_LUNFLAGS_INITIATOR_ACCESS;
+
+	if (lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) {
+		deve->lun_flags &= ~TRANSPORT_LUNFLAGS_READ_ONLY;
+		deve->lun_flags |= TRANSPORT_LUNFLAGS_READ_WRITE;
+	} else {
+		deve->lun_flags &= ~TRANSPORT_LUNFLAGS_READ_WRITE;
+		deve->lun_flags |= TRANSPORT_LUNFLAGS_READ_ONLY;
+	}
+
+	deve->creation_time = get_jiffies_64();
+	deve->attach_count++;
+	spin_unlock_irq(&nacl->device_list_lock);
+
+	spin_lock_bh(&port->sep_alua_lock);
+	list_add_tail(&deve->alua_port_list, &port->sep_alua_list);
+	spin_unlock_bh(&port->sep_alua_lock);
+
+	return 0;
+}
+
+/*      core_disable_device_list_for_node():
+ *
+ *
+ */
+int core_disable_device_list_for_node(
+	struct se_lun *lun,
+	struct se_lun_acl *lun_acl,
+	u32 mapped_lun,
+	u32 lun_access,
+	struct se_node_acl *nacl,
+	struct se_portal_group *tpg)
+{
+	struct se_port *port = lun->lun_sep;
+	struct se_dev_entry *deve = nacl->device_list[mapped_lun];
+
+	/*
+	 * If the MappedLUN entry is being disabled, the entry in
+	 * port->sep_alua_list must be removed now before clearing the
+	 * struct se_dev_entry pointers below as logic in
+	 * core_alua_do_transition_tg_pt() depends on these being present.
+	 *
+	 * deve->se_lun_acl will be NULL for demo-mode created LUNs
+	 * that have not been explicitly converted to MappedLUNs ->
+	 * struct se_lun_acl, but we remove deve->alua_port_list from
+	 * port->sep_alua_list. This also means that active UAs and
+	 * NodeACL context specific PR metadata for demo-mode
+	 * MappedLUN *deve will be released below..
+	 */
+	spin_lock_bh(&port->sep_alua_lock);
+	list_del(&deve->alua_port_list);
+	spin_unlock_bh(&port->sep_alua_lock);
 	/*
 	 * Wait for any in process SPEC_I_PT=1 or REGISTER_AND_MOVE
 	 * PR operation to complete.
 	 */
-	spin_unlock_irq(&nacl->device_list_lock);
 	while (atomic_read(&deve->pr_ref_count) != 0)
 		cpu_relax();
+
 	spin_lock_irq(&nacl->device_list_lock);
 	/*
 	 * Disable struct se_dev_entry LUN ACL mapping
@@ -475,9 +494,9 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 				continue;
 			spin_unlock_irq(&nacl->device_list_lock);
 
-			core_update_device_list_for_node(lun, NULL,
+			core_disable_device_list_for_node(lun, NULL,
 				deve->mapped_lun, TRANSPORT_LUNFLAGS_NO_ACCESS,
-				nacl, tpg, 0);
+				nacl, tpg);
 
 			spin_lock_irq(&nacl->device_list_lock);
 		}
@@ -715,7 +734,7 @@ void se_release_device_for_hba(struct se_device *dev)
 		se_dev_stop(dev);
 
 	if (dev->dev_ptr) {
-		kthread_stop(dev->process_thread);
+		destroy_workqueue(dev->tmr_wq);
 		if (dev->transport->free_device)
 			dev->transport->free_device(dev->dev_ptr);
 	}
@@ -822,7 +841,7 @@ int se_dev_check_shutdown(struct se_device *dev)
 	return ret;
 }
 
-u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
+static u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
 {
 	u32 tmp, aligned_max_sectors;
 	/*
@@ -1273,7 +1292,6 @@ int se_dev_set_block_size(struct se_device *dev, u32 block_size)
 
 struct se_lun *core_dev_add_lun(
 	struct se_portal_group *tpg,
-	struct se_hba *hba,
 	struct se_device *dev,
 	u32 lun)
 {
@@ -1298,7 +1316,7 @@ struct se_lun *core_dev_add_lun(
 	pr_debug("%s_TPG[%u]_LUN[%u] - Activated %s Logical Unit from"
 		" CORE HBA: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
 		tpg->se_tpg_tfo->tpg_get_tag(tpg), lun_p->unpacked_lun,
-		tpg->se_tpg_tfo->get_fabric_name(), hba->hba_id);
+		tpg->se_tpg_tfo->get_fabric_name(), dev->se_hba->hba_id);
 	/*
 	 * Update LUN maps for dynamically added initiators when
 	 * generate_node_acl is enabled.
@@ -1470,8 +1488,8 @@ int core_dev_add_initiator_node_lun_acl(
 
 	lacl->se_lun = lun;
 
-	if (core_update_device_list_for_node(lun, lacl, lacl->mapped_lun,
-			lun_access, nacl, tpg, 1) < 0)
+	if (core_enable_device_list_for_node(lun, lacl, lacl->mapped_lun,
+			lun_access, nacl, tpg) < 0)
 		return -EINVAL;
 
 	spin_lock(&lun->lun_acl_lock);
@@ -1514,8 +1532,8 @@ int core_dev_del_initiator_node_lun_acl(
 	smp_mb__after_atomic_dec();
 	spin_unlock(&lun->lun_acl_lock);
 
-	core_update_device_list_for_node(lun, NULL, lacl->mapped_lun,
-		TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg, 0);
+	core_disable_device_list_for_node(lun, NULL, lacl->mapped_lun,
+		TRANSPORT_LUNFLAGS_NO_ACCESS, nacl, tpg);
 
 	lacl->se_lun = NULL;
 

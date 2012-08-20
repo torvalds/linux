@@ -29,6 +29,9 @@
 #include "smberr.h"
 #include "nterr.h"
 #include "cifs_unicode.h"
+#ifdef CONFIG_CIFS_SMB2
+#include "smb2pdu.h"
+#endif
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -40,7 +43,7 @@ extern mempool_t *cifs_req_poolp;
    since the cifs fs was mounted */
 
 unsigned int
-_GetXid(void)
+_get_xid(void)
 {
 	unsigned int xid;
 
@@ -58,7 +61,7 @@ _GetXid(void)
 }
 
 void
-_FreeXid(unsigned int xid)
+_free_xid(unsigned int xid)
 {
 	spin_lock(&GlobalMid_Lock);
 	/* if (GlobalTotalActiveXid == 0)
@@ -143,17 +146,27 @@ struct smb_hdr *
 cifs_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
+	size_t buf_size = sizeof(struct smb_hdr);
 
-/* We could use negotiated size instead of max_msgsize -
-   but it may be more efficient to always alloc same size
-   albeit slightly larger than necessary and maxbuffersize
-   defaults to this and can not be bigger */
+#ifdef CONFIG_CIFS_SMB2
+	/*
+	 * SMB2 header is bigger than CIFS one - no problems to clean some
+	 * more bytes for CIFS.
+	 */
+	buf_size = sizeof(struct smb2_hdr);
+#endif
+	/*
+	 * We could use negotiated size instead of max_msgsize -
+	 * but it may be more efficient to always alloc same size
+	 * albeit slightly larger than necessary and maxbuffersize
+	 * defaults to this and can not be bigger.
+	 */
 	ret_buf = mempool_alloc(cifs_req_poolp, GFP_NOFS);
 
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
 	if (ret_buf) {
-		memset(ret_buf, 0, sizeof(struct smb_hdr) + 3);
+		memset(ret_buf, 0, buf_size + 3);
 		atomic_inc(&bufAllocCount);
 #ifdef CONFIG_CIFS_STATS2
 		atomic_inc(&totBufAllocCount);
@@ -448,7 +461,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			if (tcon->tid != buf->Tid)
 				continue;
 
-			cifs_stats_inc(&tcon->num_oplock_brks);
+			cifs_stats_inc(&tcon->stats.cifs_stats.num_oplock_brks);
 			spin_lock(&cifs_file_list_lock);
 			list_for_each(tmp2, &tcon->openFileList) {
 				netfile = list_entry(tmp2, struct cifsFileInfo,

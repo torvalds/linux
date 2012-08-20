@@ -26,9 +26,9 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include <mach/at91_adc.h>
 
@@ -318,58 +318,15 @@ static void at91_adc_trigger_remove(struct iio_dev *idev)
 	}
 }
 
-static const struct iio_buffer_setup_ops at91_adc_buffer_ops = {
-	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 static int at91_adc_buffer_init(struct iio_dev *idev)
 {
-	int ret;
-
-	idev->buffer = iio_kfifo_allocate(idev);
-	if (!idev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	idev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-					    &at91_adc_trigger_handler,
-					    IRQF_ONESHOT,
-					    idev,
-					    "%s-consumer%d",
-					    idev->name,
-					    idev->id);
-	if (idev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_pollfunc;
-	}
-
-	idev->setup_ops = &at91_adc_buffer_ops;
-	idev->modes |= INDIO_BUFFER_TRIGGERED;
-
-	ret = iio_buffer_register(idev,
-				  idev->channels,
-				  idev->num_channels);
-	if (ret)
-		goto error_register;
-
-	return 0;
-
-error_register:
-	iio_dealloc_pollfunc(idev->pollfunc);
-error_pollfunc:
-	iio_kfifo_free(idev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(idev, &iio_pollfunc_store_time,
+		&at91_adc_trigger_handler, NULL);
 }
 
 static void at91_adc_buffer_remove(struct iio_dev *idev)
 {
-	iio_buffer_unregister(idev);
-	iio_dealloc_pollfunc(idev->pollfunc);
-	iio_kfifo_free(idev->buffer);
+	iio_triggered_buffer_cleanup(idev);
 }
 
 static int at91_adc_read_raw(struct iio_dev *idev,
@@ -392,9 +349,11 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 						       st->done,
 						       msecs_to_jiffies(1000));
 		if (ret == 0)
-			return -ETIMEDOUT;
-		else if (ret < 0)
+			ret = -ETIMEDOUT;
+		if (ret < 0) {
+			mutex_unlock(&st->lock);
 			return ret;
+		}
 
 		*val = st->last_value;
 

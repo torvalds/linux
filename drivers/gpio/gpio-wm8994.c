@@ -19,6 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/regmap.h>
 
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/pdata.h>
@@ -89,8 +90,11 @@ static int wm8994_gpio_direction_out(struct gpio_chip *chip,
 	struct wm8994_gpio *wm8994_gpio = to_wm8994_gpio(chip);
 	struct wm8994 *wm8994 = wm8994_gpio->wm8994;
 
+	if (value)
+		value = WM8994_GPN_LVL;
+
 	return wm8994_set_bits(wm8994, WM8994_GPIO_1 + offset,
-			       WM8994_GPN_DIR, 0);
+			       WM8994_GPN_DIR | WM8994_GPN_LVL, value);
 }
 
 static void wm8994_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -109,10 +113,7 @@ static int wm8994_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct wm8994_gpio *wm8994_gpio = to_wm8994_gpio(chip);
 	struct wm8994 *wm8994 = wm8994_gpio->wm8994;
 
-	if (!wm8994->irq_base)
-		return -EINVAL;
-
-	return wm8994->irq_base + offset;
+	return regmap_irq_get_virq(wm8994->irq_data, offset);
 }
 
 
@@ -251,7 +252,8 @@ static int __devinit wm8994_gpio_probe(struct platform_device *pdev)
 	struct wm8994_gpio *wm8994_gpio;
 	int ret;
 
-	wm8994_gpio = kzalloc(sizeof(*wm8994_gpio), GFP_KERNEL);
+	wm8994_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8994_gpio),
+				   GFP_KERNEL);
 	if (wm8994_gpio == NULL)
 		return -ENOMEM;
 
@@ -276,20 +278,14 @@ static int __devinit wm8994_gpio_probe(struct platform_device *pdev)
 	return ret;
 
 err:
-	kfree(wm8994_gpio);
 	return ret;
 }
 
 static int __devexit wm8994_gpio_remove(struct platform_device *pdev)
 {
 	struct wm8994_gpio *wm8994_gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&wm8994_gpio->gpio_chip);
-	if (ret == 0)
-		kfree(wm8994_gpio);
-
-	return ret;
+	return gpiochip_remove(&wm8994_gpio->gpio_chip);
 }
 
 static struct platform_driver wm8994_gpio_driver = {

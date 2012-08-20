@@ -1,5 +1,5 @@
 /*
- * Copyright  IBM Corp. 2002, 2009
+ * Copyright IBM Corp. 2002, 2009
  *
  * Author(s): Arnd Bergmann <arndb@de.ibm.com>
  *

@@ -139,12 +139,12 @@ static void sas_ata_task_done(struct sas_task *task)
 	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD ||
 	    ((stat->stat == SAM_STAT_CHECK_CONDITION &&
 	      dev->sata_dev.command_set == ATAPI_COMMAND_SET))) {
-		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
+		memcpy(dev->sata_dev.fis, resp->ending_fis, ATA_RESP_FIS_SIZE);
 
 		if (!link->sactive) {
-			qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 		} else {
-			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask))
 				qc->flags |= ATA_QCFLAG_FAILED;
 		}
@@ -161,8 +161,8 @@ static void sas_ata_task_done(struct sas_task *task)
 				qc->flags |= ATA_QCFLAG_FAILED;
 			}
 
-			dev->sata_dev.tf.feature = 0x04; /* status err */
-			dev->sata_dev.tf.command = ATA_ERR;
+			dev->sata_dev.fis[3] = 0x04; /* status err */
+			dev->sata_dev.fis[2] = ATA_ERR;
 		}
 	}
 
@@ -269,7 +269,7 @@ static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
 
-	memcpy(&qc->result_tf, &dev->sata_dev.tf, sizeof(qc->result_tf));
+	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
 	return true;
 }
 
@@ -523,6 +523,31 @@ static void sas_ata_set_dmamode(struct ata_port *ap, struct ata_device *ata_dev)
 		i->dft->lldd_ata_set_dmamode(dev);
 }
 
+static void sas_ata_sched_eh(struct ata_port *ap)
+{
+	struct domain_device *dev = ap->private_data;
+	struct sas_ha_struct *ha = dev->port->ha;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->lock, flags);
+	if (!test_and_set_bit(SAS_DEV_EH_PENDING, &dev->state))
+		ha->eh_active++;
+	ata_std_sched_eh(ap);
+	spin_unlock_irqrestore(&ha->lock, flags);
+}
+
+void sas_ata_end_eh(struct ata_port *ap)
+{
+	struct domain_device *dev = ap->private_data;
+	struct sas_ha_struct *ha = dev->port->ha;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ha->lock, flags);
+	if (test_and_clear_bit(SAS_DEV_EH_PENDING, &dev->state))
+		ha->eh_active--;
+	spin_unlock_irqrestore(&ha->lock, flags);
+}
+
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= ata_std_prereset,
 	.hardreset		= sas_ata_hard_reset,
@@ -536,6 +561,8 @@ static struct ata_port_operations sas_sata_ops = {
 	.port_start		= ata_sas_port_start,
 	.port_stop		= ata_sas_port_stop,
 	.set_dmamode		= sas_ata_set_dmamode,
+	.sched_eh		= sas_ata_sched_eh,
+	.end_eh			= sas_ata_end_eh,
 };
 
 static struct ata_port_info sata_port_info = {
@@ -591,7 +618,6 @@ void sas_ata_task_abort(struct sas_task *task)
 		spin_lock_irqsave(q->queue_lock, flags);
 		blk_abort_request(qc->scsicmd->request);
 		spin_unlock_irqrestore(q->queue_lock, flags);
-		scsi_schedule_eh(qc->scsicmd->device->host);
 		return;
 	}
 
@@ -708,10 +734,6 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	/* hold a reference over eh since we may be racing with final
-	 * remove once all commands are completed
-	 */
-	kref_get(&dev->kref);
 	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
@@ -720,7 +742,7 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 void sas_ata_strategy_handler(struct Scsi_Host *shost)
 {
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
-	LIST_HEAD(async);
+	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
 
 	/* it's ok to defer revalidation events during ata eh, these
@@ -742,6 +764,13 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 			if (!dev_is_sata(dev))
 				continue;
+
+			/* hold a reference over eh since we may be
+			 * racing with final remove once all commands
+			 * are completed
+			 */
+			kref_get(&dev->kref);
+
 			async_schedule_domain(async_sas_ata_eh, dev, &async);
 		}
 		spin_unlock(&port->dev_list_lock);

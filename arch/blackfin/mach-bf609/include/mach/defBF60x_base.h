@@ -2665,7 +2665,6 @@
 #define DEVSZ_1G                0x400         /* DMC External Bank Size = 1Gbit */
 #define DEVSZ_2G                0x500         /* DMC External Bank Size = 2Gbit */
 
-
 /* =========================
         L2CTL Registers
    ========================= */

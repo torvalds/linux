@@ -31,16 +31,16 @@
 #include <linux/device.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
-#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/regulator/consumer.h>
 #include <linux/v4l2-mediabus.h>
 #include <media/v4l2-device.h>
 
 #include "smiapp.h"
 
-#define SMIAPP_ALIGN_DIM(dim, flags)		\
-	((flags) & V4L2_SUBDEV_SEL_FLAG_SIZE_GE	\
-	 ? ALIGN((dim), 2)			\
+#define SMIAPP_ALIGN_DIM(dim, flags)	\
+	((flags) & V4L2_SEL_FLAG_GE	\
+	 ? ALIGN((dim), 2)		\
 	 : (dim) & ~1)
 
 /*
@@ -1630,7 +1630,7 @@ static void smiapp_propagate(struct v4l2_subdev *subdev,
 	smiapp_get_crop_compose(subdev, fh, crops, &comp, which);
 
 	switch (target) {
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		comp->width = crops[SMIAPP_PAD_SINK]->width;
 		comp->height = crops[SMIAPP_PAD_SINK]->height;
 		if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
@@ -1646,7 +1646,7 @@ static void smiapp_propagate(struct v4l2_subdev *subdev,
 			}
 		}
 		/* Fall through */
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		*crops[SMIAPP_PAD_SRC] = *comp;
 		break;
 	default:
@@ -1722,7 +1722,7 @@ static int smiapp_set_format(struct v4l2_subdev *subdev,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		ssd->sink_fmt = *crops[ssd->sink_pad];
 	smiapp_propagate(subdev, fh, fmt->which,
-			 V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL);
+			 V4L2_SEL_TGT_CROP);
 
 	mutex_unlock(&sensor->mutex);
 
@@ -1747,14 +1747,14 @@ static int scaling_goodness(struct v4l2_subdev *subdev, int w, int ask_w,
 	h &= ~1;
 	ask_h &= ~1;
 
-	if (flags & V4L2_SUBDEV_SEL_FLAG_SIZE_GE) {
+	if (flags & V4L2_SEL_FLAG_GE) {
 		if (w < ask_w)
 			val -= SCALING_GOODNESS;
 		if (h < ask_h)
 			val -= SCALING_GOODNESS;
 	}
 
-	if (flags & V4L2_SUBDEV_SEL_FLAG_SIZE_LE) {
+	if (flags & V4L2_SEL_FLAG_LE) {
 		if (w > ask_w)
 			val -= SCALING_GOODNESS;
 		if (h > ask_h)
@@ -1957,7 +1957,7 @@ static int smiapp_set_compose(struct v4l2_subdev *subdev,
 
 	*comp = sel->r;
 	smiapp_propagate(subdev, fh, sel->which,
-			 V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL);
+			 V4L2_SEL_TGT_COMPOSE);
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return smiapp_update_mode(sensor);
@@ -1973,8 +1973,8 @@ static int __smiapp_sel_supported(struct v4l2_subdev *subdev,
 
 	/* We only implement crop in three places. */
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (ssd == sensor->pixel_array
 		    && sel->pad == SMIAPP_PA_PAD_SRC)
 			return 0;
@@ -1987,8 +1987,8 @@ static int __smiapp_sel_supported(struct v4l2_subdev *subdev,
 		    == SMIAPP_DIGITAL_CROP_CAPABILITY_INPUT_CROP)
 			return 0;
 		return -EINVAL;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		if (sel->pad == ssd->source_pad)
 			return -EINVAL;
 		if (ssd == sensor->binner)
@@ -2050,7 +2050,7 @@ static int smiapp_set_crop(struct v4l2_subdev *subdev,
 
 	if (ssd != sensor->pixel_array && sel->pad == SMIAPP_PAD_SINK)
 		smiapp_propagate(subdev, fh, sel->which,
-				 V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL);
+				 V4L2_SEL_TGT_CROP);
 
 	return 0;
 }
@@ -2084,7 +2084,7 @@ static int __smiapp_get_selection(struct v4l2_subdev *subdev,
 	}
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (ssd == sensor->pixel_array) {
 			sel->r.width =
 				sensor->limits[SMIAPP_LIMIT_X_ADDR_MAX] + 1;
@@ -2096,11 +2096,11 @@ static int __smiapp_get_selection(struct v4l2_subdev *subdev,
 			sel->r = *comp;
 		}
 		break;
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		sel->r = *crops[sel->pad];
 		break;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		sel->r = *comp;
 		break;
 	}
@@ -2147,10 +2147,10 @@ static int smiapp_set_selection(struct v4l2_subdev *subdev,
 			      sel->r.height);
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		ret = smiapp_set_crop(subdev, fh, sel);
 		break;
-	case V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL:
+	case V4L2_SEL_TGT_COMPOSE:
 		ret = smiapp_set_compose(subdev, fh, sel);
 		break;
 	default:

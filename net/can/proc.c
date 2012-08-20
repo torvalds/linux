@@ -83,9 +83,6 @@ static const char rx_list_name[][8] = {
 	[RX_EFF] = "rx_eff",
 };
 
-/* receive filters subscribed for 'all' CAN devices */
-extern struct dev_rcv_lists can_rx_alldev_list;
-
 /*
  * af_can statistics stuff
  */

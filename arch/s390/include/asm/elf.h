@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/elf.h
- *
  *  S390 version
  *
  *  Derived from "include/asm-i386/elf.h"

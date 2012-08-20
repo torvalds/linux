@@ -1,0 +1,25 @@
+* Designware APB timer
+
+Required properties:
+- compatible: "snps,dw-apb-timer-sp" or "snps,dw-apb-timer-osc"
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: IRQ line for the timer.
+- clock-frequency: The frequency in HZ of the timer.
+- clock-freq: For backwards compatibility with picoxcell
+
+Example:
+
+		timer1: timer@ffc09000 {
+				compatible = "snps,dw-apb-timer-sp";
+				interrupts = <0 168 4>;
+				clock-frequency = <200000000>;
+				reg = <0xffc09000 0x1000>;
+			};
+
+		timer2: timer@ffd00000 {
+				compatible = "snps,dw-apb-timer-osc";
+				interrupts = <0 169 4>;
+				clock-frequency = <200000000>;
+				reg = <0xffd00000 0x1000>;
+			};

@@ -77,8 +77,10 @@ static void s3c2410_pm_prepare(void)
 		__raw_writel(calc, phys_to_virt(H1940_SUSPEND_CHECKSUM));
 	}
 
-	if ( machine_is_aml_m5900() )
-		s3c2410_gpio_setpin(S3C2410_GPF(2), 1);
+	if (machine_is_aml_m5900()) {
+		gpio_request_one(S3C2410_GPF(2), GPIOF_OUT_INIT_HIGH, NULL);
+		gpio_free(S3C2410_GPF(2));
+	}
 
 	if (machine_is_rx1950()) {
 		/* According to S3C2442 user's manual, page 7-17,
@@ -103,8 +105,10 @@ static void s3c2410_pm_resume(void)
 	tmp &= S3C2410_GSTATUS2_OFFRESET;
 	__raw_writel(tmp, S3C2410_GSTATUS2);
 
-	if ( machine_is_aml_m5900() )
-		s3c2410_gpio_setpin(S3C2410_GPF(2), 0);
+	if (machine_is_aml_m5900()) {
+		gpio_request_one(S3C2410_GPF(2), GPIOF_OUT_INIT_LOW, NULL);
+		gpio_free(S3C2410_GPF(2));
+	}
 }
 
 struct syscore_ops s3c2410_pm_syscore_ops = {

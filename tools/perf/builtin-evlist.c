@@ -60,7 +60,7 @@ static int __cmd_evlist(const char *input_name, struct perf_attr_details *detail
 	list_for_each_entry(pos, &session->evlist->entries, node) {
 		bool first = true;
 
-		printf("%s", event_name(pos));
+		printf("%s", perf_evsel__name(pos));
 
 		if (details->verbose || details->freq) {
 			comma_printf(&first, " sample_freq=%" PRIu64,

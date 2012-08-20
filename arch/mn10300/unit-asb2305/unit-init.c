@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/processor.h>
 #include <asm/intctl-regs.h>

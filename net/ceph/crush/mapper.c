@@ -306,7 +306,6 @@ static int crush_choose(const struct crush_map *map,
 	int item = 0;
 	int itemtype;
 	int collide, reject;
-	const unsigned int orig_tries = 5; /* attempts before we fall back to search */
 
 	dprintk("CHOOSE%s bucket %d x %d outpos %d numrep %d\n", recurse_to_leaf ? "_LEAF" : "",
 		bucket->id, x, outpos, numrep);
@@ -351,8 +350,9 @@ static int crush_choose(const struct crush_map *map,
 					reject = 1;
 					goto reject;
 				}
-				if (flocal >= (in->size>>1) &&
-				    flocal > orig_tries)
+				if (map->choose_local_fallback_tries > 0 &&
+				    flocal >= (in->size>>1) &&
+				    flocal > map->choose_local_fallback_tries)
 					item = bucket_perm_choose(in, x, r);
 				else
 					item = crush_bucket_choose(in, x, r);
@@ -422,13 +422,14 @@ reject:
 					ftotal++;
 					flocal++;
 
-					if (collide && flocal < 3)
+					if (collide && flocal <= map->choose_local_tries)
 						/* retry locally a few times */
 						retry_bucket = 1;
-					else if (flocal <= in->size + orig_tries)
+					else if (map->choose_local_fallback_tries > 0 &&
+						 flocal <= in->size + map->choose_local_fallback_tries)
 						/* exhaustive bucket search */
 						retry_bucket = 1;
-					else if (ftotal < 20)
+					else if (ftotal <= map->choose_total_tries)
 						/* then retry descent */
 						retry_descent = 1;
 					else

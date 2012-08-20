@@ -431,7 +431,7 @@ struct bdb_driver_features {
 	u8 custom_vbt_version;
 } __attribute__((packed));
 
-extern bool psb_intel_init_bios(struct drm_device *dev);
+extern int psb_intel_init_bios(struct drm_device *dev);
 extern void psb_intel_destroy_bios(struct drm_device *dev);
 
 /*

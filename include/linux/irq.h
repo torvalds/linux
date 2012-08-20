@@ -150,9 +150,7 @@ struct irq_data {
 	void			*handler_data;
 	void			*chip_data;
 	struct msi_desc		*msi_desc;
-#ifdef CONFIG_SMP
 	cpumask_var_t		affinity;
-#endif
 };
 
 /*

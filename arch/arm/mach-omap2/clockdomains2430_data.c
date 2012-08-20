@@ -157,8 +157,6 @@ static struct clockdomain dss_2430_clkdm = {
 
 static struct clockdomain *clockdomains_omap243x[] __initdata = {
 	&wkup_common_clkdm,
-	&cm_common_clkdm,
-	&prm_common_clkdm,
 	&mpu_2430_clkdm,
 	&mdm_clkdm,
 	&dsp_2430_clkdm,

@@ -186,9 +186,9 @@ static void bt3c_write_wakeup(bt3c_info_t *info)
 		return;
 
 	do {
-		register unsigned int iobase = info->p_dev->resource[0]->start;
+		unsigned int iobase = info->p_dev->resource[0]->start;
 		register struct sk_buff *skb;
-		register int len;
+		int len;
 
 		if (!pcmcia_dev_present(info->p_dev))
 			break;
@@ -664,7 +664,7 @@ static int bt3c_check_config(struct pcmcia_device *p_dev, void *priv_data)
 {
 	int *try = priv_data;
 
-	if (try == 0)
+	if (!try)
 		p_dev->io_lines = 16;
 
 	if ((p_dev->resource[0]->end != 8) || (p_dev->resource[0]->start == 0))
