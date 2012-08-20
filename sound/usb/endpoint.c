@@ -821,10 +821,6 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (++ep->use_count != 1)
 		return 0;
 
-	/* just to be sure */
-	deactivate_urbs(ep, 0, 1);
-	wait_clear_urbs(ep);
-
 	ep->active_mask = 0;
 	ep->unlink_mask = 0;
 	ep->phase = 0;

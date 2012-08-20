@@ -413,7 +413,14 @@ EXPORT_SYMBOL(sport_create);
 
 void sport_delete(struct sport_device *sport)
 {
+	if (sport->tx_desc)
+		dma_free_coherent(NULL, sport->tx_desc_size,
+				sport->tx_desc, 0);
+	if (sport->rx_desc)
+		dma_free_coherent(NULL, sport->rx_desc_size,
+				sport->rx_desc, 0);
 	sport_free_resource(sport);
+	kfree(sport);
 }
 EXPORT_SYMBOL(sport_delete);
 
