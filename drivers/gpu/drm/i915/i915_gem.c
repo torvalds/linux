@@ -1378,6 +1378,8 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	int page_count = obj->base.size / PAGE_SIZE;
 	int ret, i;
 
+	BUG_ON(obj->gtt_space);
+
 	if (obj->pages == NULL)
 		return 0;
 
@@ -2292,6 +2294,8 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 
 	if (obj->pin_count)
 		return -EBUSY;
+
+	BUG_ON(obj->pages == NULL);
 
 	ret = i915_gem_object_finish_gpu(obj);
 	if (ret)
