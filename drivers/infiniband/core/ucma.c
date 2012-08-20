@@ -267,6 +267,7 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 	if (!uevent)
 		return event->event == RDMA_CM_EVENT_CONNECT_REQUEST;
 
+	mutex_lock(&ctx->file->mut);
 	uevent->cm_id = cm_id;
 	ucma_set_event_context(ctx, event, uevent);
 	uevent->resp.event = event->event;
@@ -277,7 +278,6 @@ static int ucma_event_handler(struct rdma_cm_id *cm_id,
 		ucma_copy_conn_event(&uevent->resp.param.conn,
 				     &event->param.conn);
 
-	mutex_lock(&ctx->file->mut);
 	if (event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
 		if (!ctx->backlog) {
 			ret = -ENOMEM;

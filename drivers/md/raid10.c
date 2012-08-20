@@ -659,7 +659,11 @@ static int raid10_mergeable_bvec(struct request_queue *q,
 		max = biovec->bv_len;
 
 	if (mddev->merge_check_needed) {
-		struct r10bio r10_bio;
+		struct {
+			struct r10bio r10_bio;
+			struct r10dev devs[conf->copies];
+		} on_stack;
+		struct r10bio *r10_bio = &on_stack.r10_bio;
 		int s;
 		if (conf->reshape_progress != MaxSector) {
 			/* Cannot give any guidance during reshape */
@@ -667,18 +671,18 @@ static int raid10_mergeable_bvec(struct request_queue *q,
 				return biovec->bv_len;
 			return 0;
 		}
-		r10_bio.sector = sector;
-		raid10_find_phys(conf, &r10_bio);
+		r10_bio->sector = sector;
+		raid10_find_phys(conf, r10_bio);
 		rcu_read_lock();
 		for (s = 0; s < conf->copies; s++) {
-			int disk = r10_bio.devs[s].devnum;
+			int disk = r10_bio->devs[s].devnum;
 			struct md_rdev *rdev = rcu_dereference(
 				conf->mirrors[disk].rdev);
 			if (rdev && !test_bit(Faulty, &rdev->flags)) {
 				struct request_queue *q =
 					bdev_get_queue(rdev->bdev);
 				if (q->merge_bvec_fn) {
-					bvm->bi_sector = r10_bio.devs[s].addr
+					bvm->bi_sector = r10_bio->devs[s].addr
 						+ rdev->data_offset;
 					bvm->bi_bdev = rdev->bdev;
 					max = min(max, q->merge_bvec_fn(
@@ -690,7 +694,7 @@ static int raid10_mergeable_bvec(struct request_queue *q,
 				struct request_queue *q =
 					bdev_get_queue(rdev->bdev);
 				if (q->merge_bvec_fn) {
-					bvm->bi_sector = r10_bio.devs[s].addr
+					bvm->bi_sector = r10_bio->devs[s].addr
 						+ rdev->data_offset;
 					bvm->bi_bdev = rdev->bdev;
 					max = min(max, q->merge_bvec_fn(
@@ -4414,14 +4418,18 @@ static int handle_reshape_read_error(struct mddev *mddev,
 {
 	/* Use sync reads to get the blocks from somewhere else */
 	int sectors = r10_bio->sectors;
-	struct r10bio r10b;
 	struct r10conf *conf = mddev->private;
+	struct {
+		struct r10bio r10_bio;
+		struct r10dev devs[conf->copies];
+	} on_stack;
+	struct r10bio *r10b = &on_stack.r10_bio;
 	int slot = 0;
 	int idx = 0;
 	struct bio_vec *bvec = r10_bio->master_bio->bi_io_vec;
 
-	r10b.sector = r10_bio->sector;
-	__raid10_find_phys(&conf->prev, &r10b);
+	r10b->sector = r10_bio->sector;
+	__raid10_find_phys(&conf->prev, r10b);
 
 	while (sectors) {
 		int s = sectors;
@@ -4432,7 +4440,7 @@ static int handle_reshape_read_error(struct mddev *mddev,
 			s = PAGE_SIZE >> 9;
 
 		while (!success) {
-			int d = r10b.devs[slot].devnum;
+			int d = r10b->devs[slot].devnum;
 			struct md_rdev *rdev = conf->mirrors[d].rdev;
 			sector_t addr;
 			if (rdev == NULL ||
@@ -4440,7 +4448,7 @@ static int handle_reshape_read_error(struct mddev *mddev,
 			    !test_bit(In_sync, &rdev->flags))
 				goto failed;
 
-			addr = r10b.devs[slot].addr + idx * PAGE_SIZE;
+			addr = r10b->devs[slot].addr + idx * PAGE_SIZE;
 			success = sync_page_io(rdev,
 					       addr,
 					       s << 9,

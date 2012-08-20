@@ -367,7 +367,7 @@ static void __leaf_free_rcu(struct rcu_head *head)
 
 static inline void free_leaf(struct leaf *l)
 {
-	call_rcu_bh(&l->rcu, __leaf_free_rcu);
+	call_rcu(&l->rcu, __leaf_free_rcu);
 }
 
 static inline void free_leaf_info(struct leaf_info *leaf)

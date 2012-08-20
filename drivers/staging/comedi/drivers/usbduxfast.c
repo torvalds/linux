@@ -57,6 +57,7 @@
 /*
  * constants for "firmware" upload and download
  */
+#define FIRMWARE		"usbduxfast_firmware.bin"
 #define USBDUXFASTSUB_FIRMWARE	0xA0
 #define VENDOR_DIR_IN		0xC0
 #define VENDOR_DIR_OUT		0x40
@@ -1706,7 +1707,7 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	ret = request_firmware_nowait(THIS_MODULE,
 				      FW_ACTION_HOTPLUG,
-				      "usbduxfast_firmware.bin",
+				      FIRMWARE,
 				      &udev->dev,
 				      GFP_KERNEL,
 				      usbduxfastsub + index,
@@ -1774,3 +1775,4 @@ module_comedi_usb_driver(usbduxfast_driver, usbduxfast_usb_driver);
 MODULE_AUTHOR("Bernd Porr, BerndPorr@f2s.com");
 MODULE_DESCRIPTION("USB-DUXfast, BerndPorr@f2s.com");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE(FIRMWARE);

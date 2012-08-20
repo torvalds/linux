@@ -358,13 +358,14 @@ void mlx4_table_put_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 }
 
 int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
-			u64 virt, int obj_size,	int nobj, int reserved,
+			u64 virt, int obj_size,	u32 nobj, int reserved,
 			int use_lowmem, int use_coherent)
 {
 	int obj_per_chunk;
 	int num_icm;
 	unsigned chunk_size;
 	int i;
+	u64 size;
 
 	obj_per_chunk = MLX4_TABLE_CHUNK_SIZE / obj_size;
 	num_icm = (nobj + obj_per_chunk - 1) / obj_per_chunk;
@@ -380,10 +381,12 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	table->coherent = use_coherent;
 	mutex_init(&table->mutex);
 
+	size = (u64) nobj * obj_size;
 	for (i = 0; i * MLX4_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
 		chunk_size = MLX4_TABLE_CHUNK_SIZE;
-		if ((i + 1) * MLX4_TABLE_CHUNK_SIZE > nobj * obj_size)
-			chunk_size = PAGE_ALIGN(nobj * obj_size - i * MLX4_TABLE_CHUNK_SIZE);
+		if ((i + 1) * MLX4_TABLE_CHUNK_SIZE > size)
+			chunk_size = PAGE_ALIGN(size -
+					i * MLX4_TABLE_CHUNK_SIZE);
 
 		table->icm[i] = mlx4_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 					       (use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |

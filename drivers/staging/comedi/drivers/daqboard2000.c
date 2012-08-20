@@ -718,7 +718,8 @@ static struct pci_dev *daqboard2000_find_pci_dev(struct comedi_device *dev,
 				continue;
 		}
 		if (pcidev->vendor != PCI_VENDOR_ID_IOTECH ||
-		    pcidev->device != 0x0409)
+		    pcidev->device != 0x0409 ||
+		    pcidev->subsystem_device != PCI_VENDOR_ID_IOTECH)
 			continue;
 
 		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
@@ -739,6 +740,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
+	resource_size_t pci_base;
 	void *aux_data;
 	unsigned int aux_len;
 	int result;
@@ -758,11 +760,12 @@ static int daqboard2000_attach(struct comedi_device *dev,
 			"failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
-	dev->iobase = pci_resource_start(pcidev, 2);
+	dev->iobase = 1;	/* the "detach" needs this */
 
-	devpriv->plx =
-	    ioremap(pci_resource_start(pcidev, 0), DAQBOARD2000_PLX_SIZE);
-	devpriv->daq = ioremap(dev->iobase, DAQBOARD2000_DAQ_SIZE);
+	pci_base = pci_resource_start(pcidev, 0);
+	devpriv->plx = ioremap(pci_base, DAQBOARD2000_PLX_SIZE);
+	pci_base = pci_resource_start(pcidev, 2);
+	devpriv->daq = ioremap(pci_base, DAQBOARD2000_DAQ_SIZE);
 	if (!devpriv->plx || !devpriv->daq)
 		return -ENOMEM;
 
@@ -799,8 +802,6 @@ static int daqboard2000_attach(struct comedi_device *dev,
 	   printk("Interrupt after is: %x\n", interrupt);
 	 */
 
-	dev->iobase = (unsigned long)devpriv->daq;
-
 	dev->board_name = this_board->name;
 
 	s = dev->subdevices + 0;
@@ -824,7 +825,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 
 	s = dev->subdevices + 2;
 	result = subdev_8255_init(dev, s, daqboard2000_8255_cb,
-				  (unsigned long)(dev->iobase + 0x40));
+				  (unsigned long)(devpriv->daq + 0x40));
 
 out:
 	return result;
