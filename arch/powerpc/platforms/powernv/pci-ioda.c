@@ -547,7 +547,7 @@ static void __devinit pnv_ioda_free_pe(struct pnv_phb *phb, int pe)
  * but in the meantime, we need to protect them to avoid warnings
  */
 #ifdef CONFIG_PCI_MSI
-static struct pnv_ioda_pe * __devinit __pnv_ioda_get_one_pe(struct pci_dev *dev)
+static struct pnv_ioda_pe * __devinit pnv_ioda_get_pe(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
 	struct pnv_phb *phb = hose->private_data;
@@ -558,19 +558,6 @@ static struct pnv_ioda_pe * __devinit __pnv_ioda_get_one_pe(struct pci_dev *dev)
 	if (pdn->pe_number == IODA_INVALID_PE)
 		return NULL;
 	return &phb->ioda.pe_array[pdn->pe_number];
-}
-
-static struct pnv_ioda_pe * __devinit pnv_ioda_get_pe(struct pci_dev *dev)
-{
-	struct pnv_ioda_pe *pe = __pnv_ioda_get_one_pe(dev);
-
-	while (!pe && dev->bus->self) {
-		dev = dev->bus->self;
-		pe = __pnv_ioda_get_one_pe(dev);
-		if (pe)
-			pe = pe->bus_pe;
-	}
-	return pe;
 }
 #endif /* CONFIG_PCI_MSI */
 
@@ -588,7 +575,11 @@ static int __devinit pnv_ioda_configure_pe(struct pnv_phb *phb,
 		dcomp = OPAL_IGNORE_RID_DEVICE_NUMBER;
 		fcomp = OPAL_IGNORE_RID_FUNCTION_NUMBER;
 		parent = pe->pbus->self;
-		count = pe->pbus->busn_res.end - pe->pbus->busn_res.start + 1;
+		if (pe->flags & PNV_IODA_PE_BUS_ALL)
+			count = pe->pbus->busn_res.end - pe->pbus->busn_res.start + 1;
+		else
+			count = 1;
+
 		switch(count) {
 		case  1: bcomp = OpalPciBusAll;		break;
 		case  2: bcomp = OpalPciBus7Bits;	break;
@@ -698,6 +689,7 @@ static unsigned int pnv_ioda_dma_weight(struct pci_dev *dev)
 	return 10;
 }
 
+#if 0
 static struct pnv_ioda_pe * __devinit pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
@@ -766,6 +758,7 @@ static struct pnv_ioda_pe * __devinit pnv_ioda_setup_dev_PE(struct pci_dev *dev)
 
 	return pe;
 }
+#endif /* Useful for SRIOV case */
 
 static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 {
@@ -783,34 +776,33 @@ static void pnv_ioda_setup_same_PE(struct pci_bus *bus, struct pnv_ioda_pe *pe)
 		pdn->pcidev = dev;
 		pdn->pe_number = pe->pe_number;
 		pe->dma_weight += pnv_ioda_dma_weight(dev);
-		if (dev->subordinate)
+		if ((pe->flags & PNV_IODA_PE_BUS_ALL) && dev->subordinate)
 			pnv_ioda_setup_same_PE(dev->subordinate, pe);
 	}
 }
 
-static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
-					    struct pnv_ioda_pe *ppe)
+/*
+ * There're 2 types of PCI bus sensitive PEs: One that is compromised of
+ * single PCI bus. Another one that contains the primary PCI bus and its
+ * subordinate PCI devices and buses. The second type of PE is normally
+ * orgiriated by PCIe-to-PCI bridge or PLX switch downstream ports.
+ */
+static void __devinit pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 {
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pnv_phb *phb = hose->private_data;
-	struct pci_bus *bus = dev->subordinate;
 	struct pnv_ioda_pe *pe;
 	int pe_num;
 
-	if (!bus) {
-		pr_warning("%s: Bridge without a subordinate bus !\n",
-			   pci_name(dev));
-		return;
-	}
 	pe_num = pnv_ioda_alloc_pe(phb);
 	if (pe_num == IODA_INVALID_PE) {
-		pr_warning("%s: Not enough PE# available, disabling bus\n",
-			   pci_name(dev));
+		pr_warning("%s: Not enough PE# available for PCI bus %04x:%02x\n",
+			__func__, pci_domain_nr(bus), bus->number);
 		return;
 	}
 
 	pe = &phb->ioda.pe_array[pe_num];
-	ppe->bus_pe = pe;
+	pe->flags = (all ? PNV_IODA_PE_BUS_ALL : PNV_IODA_PE_BUS);
 	pe->pbus = bus;
 	pe->pdev = NULL;
 	pe->tce32_seg = -1;
@@ -818,8 +810,12 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
 	pe->rid = bus->busn_res.start << 8;
 	pe->dma_weight = 0;
 
-	pe_info(pe, "Secondary busses %pR associated with PE\n",
-		&bus->busn_res);
+	if (all)
+		pe_info(pe, "Secondary bus %d..%d associated with PE#%d\n",
+			bus->busn_res.start, bus->busn_res.end, pe_num);
+	else
+		pe_info(pe, "Secondary bus %d associated with PE#%d\n",
+			bus->busn_res.start, pe_num);
 
 	if (pnv_ioda_configure_pe(phb, pe)) {
 		/* XXX What do we do here ? */
@@ -847,17 +843,33 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_dev *dev,
 static void __devinit pnv_ioda_setup_PEs(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
-	struct pnv_ioda_pe *pe;
+
+	pnv_ioda_setup_bus_PE(bus, 0);
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		pe = pnv_ioda_setup_dev_PE(dev);
-		if (pe == NULL)
-			continue;
-		/* Leaving the PCIe domain ... single PE# */
-		if (pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE)
-			pnv_ioda_setup_bus_PE(dev, pe);
-		else if (dev->subordinate)
-			pnv_ioda_setup_PEs(dev->subordinate);
+		if (dev->subordinate) {
+			if (pci_pcie_type(dev) == PCI_EXP_TYPE_PCI_BRIDGE)
+				pnv_ioda_setup_bus_PE(dev->subordinate, 1);
+			else
+				pnv_ioda_setup_PEs(dev->subordinate);
+		}
+	}
+}
+
+/*
+ * Configure PEs so that the downstream PCI buses and devices
+ * could have their associated PE#. Unfortunately, we didn't
+ * figure out the way to identify the PLX bridge yet. So we
+ * simply put the PCI bus and the subordinate behind the root
+ * port to PE# here. The game rule here is expected to be changed
+ * as soon as we can detected PLX bridge correctly.
+ */
+static void __devinit pnv_pci_ioda_setup_PEs(void)
+{
+	struct pci_controller *hose, *tmp;
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pnv_ioda_setup_PEs(hose->bus);
 	}
 }
 
@@ -1138,6 +1150,11 @@ static void __devinit pnv_pci_ioda_fixup_phb(struct pci_controller *hose)
 	}
 }
 
+static void __devinit pnv_pci_ioda_fixup(void)
+{
+	pnv_pci_ioda_setup_PEs();
+}
+
 /*
  * Returns the alignment for I/O or memory windows for P2P
  * bridges. That actually depends on how PEs are segmented.
@@ -1342,6 +1359,7 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	 * ourselves here
 	 */
 	ppc_md.pcibios_fixup_phb = pnv_pci_ioda_fixup_phb;
+	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
 	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
 	ppc_md.pcibios_window_alignment = pnv_pci_window_alignment;
 	pci_add_flags(PCI_PROBE_ONLY | PCI_REASSIGN_ALL_RSRC);
