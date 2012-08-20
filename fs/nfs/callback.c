@@ -23,6 +23,7 @@
 #include "nfs4_fs.h"
 #include "callback.h"
 #include "internal.h"
+#include "netns.h"
 
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
 
@@ -42,14 +43,15 @@ unsigned short nfs_callback_tcpport6;
 static int nfs4_callback_up_net(struct svc_serv *serv, struct net *net)
 {
 	int ret;
+	struct nfs_net *nn = net_generic(net, nfs_net_id);
 
 	ret = svc_create_xprt(serv, "tcp", net, PF_INET,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret <= 0)
 		goto out_err;
-	nfs_callback_tcpport = ret;
+	nn->nfs_callback_tcpport = ret;
 	dprintk("NFS: Callback listener port = %u (af %u, net %p)\n",
-			nfs_callback_tcpport, PF_INET, net);
+			nn->nfs_callback_tcpport, PF_INET, net);
 
 	ret = svc_create_xprt(serv, "tcp", net, PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
