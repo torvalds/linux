@@ -57,14 +57,6 @@ zero volts).
 #include "comedi_fc.h"
 #include <linux/timer.h>
 
-/* Board descriptions */
-struct waveform_board {
-	const char *name;
-	int ai_chans;
-	int ai_bits;
-	int have_dio;
-};
-
 #define N_CHANS 8
 
 /* Data unique to this driver */
@@ -434,7 +426,6 @@ static int waveform_ao_insn_write(struct comedi_device *dev,
 static int waveform_attach(struct comedi_device *dev,
 			   struct comedi_devconfig *it)
 {
-	const struct waveform_board *board = comedi_board(dev);
 	struct waveform_private *devpriv;
 	struct comedi_subdevice *s;
 	int amplitude = it->options[0];
@@ -442,7 +433,7 @@ static int waveform_attach(struct comedi_device *dev,
 	int i;
 	int ret;
 
-	dev->board_name = board->name;
+	dev->board_name = dev->driver->driver_name;
 
 	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
@@ -467,8 +458,8 @@ static int waveform_attach(struct comedi_device *dev,
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan = board->ai_chans;
-	s->maxdata = (1 << board->ai_bits) - 1;
+	s->n_chan = N_CHANS;
+	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
 	s->insn_read = waveform_ai_insn_read;
@@ -481,8 +472,8 @@ static int waveform_attach(struct comedi_device *dev,
 	/* analog output subdevice (loopback) */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = board->ai_chans;
-	s->maxdata = (1 << board->ai_bits) - 1;
+	s->n_chan = N_CHANS;
+	s->maxdata = 0xffff;
 	s->range_table = &waveform_ai_ranges;
 	s->len_chanlist = s->n_chan * 2;
 	s->insn_write = waveform_ao_insn_write;
@@ -512,23 +503,11 @@ static void waveform_detach(struct comedi_device *dev)
 		waveform_ai_cancel(dev, dev->read_subdev);
 }
 
-static const struct waveform_board waveform_boards[] = {
-	{
-		.name		= "comedi_test",
-		.ai_chans	= N_CHANS,
-		.ai_bits	= 16,
-		.have_dio	= 0,
-	},
-};
-
 static struct comedi_driver waveform_driver = {
 	.driver_name	= "comedi_test",
 	.module		= THIS_MODULE,
 	.attach		= waveform_attach,
 	.detach		= waveform_detach,
-	.board_name	= &waveform_boards[0].name,
-	.offset		= sizeof(struct waveform_board),
-	.num_names	= ARRAY_SIZE(waveform_boards),
 };
 module_comedi_driver(waveform_driver);
 
