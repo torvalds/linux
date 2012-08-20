@@ -42,7 +42,10 @@ unsigned int mgmt_reopen_session(struct beiscsi_hba *phba,
 	struct be_cmd_reopen_session_req *req;
 	unsigned int tag = 0;
 
-	SE_DEBUG(DBG_LVL_8, "In bescsi_get_boot_target\n");
+	beiscsi_log(phba, KERN_INFO,
+		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BG_%d : In bescsi_get_boot_target\n");
+
 	spin_lock(&ctrl->mbox_lock);
 	tag = alloc_mcc_tag(phba);
 	if (!tag) {
@@ -74,7 +77,10 @@ unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba)
 	struct be_cmd_get_boot_target_req *req;
 	unsigned int tag = 0;
 
-	SE_DEBUG(DBG_LVL_8, "In bescsi_get_boot_target\n");
+	beiscsi_log(phba, KERN_INFO,
+		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BG_%d : In bescsi_get_boot_target\n");
+
 	spin_lock(&ctrl->mbox_lock);
 	tag = alloc_mcc_tag(phba);
 	if (!tag) {
@@ -106,7 +112,10 @@ unsigned int mgmt_get_session_info(struct beiscsi_hba *phba,
 	struct be_cmd_get_session_resp *resp;
 	struct be_sge *sge;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_session_info\n");
+	beiscsi_log(phba, KERN_INFO,
+		    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+		    "BG_%d : In beiscsi_get_session_info\n");
+
 	spin_lock(&ctrl->mbox_lock);
 	tag = alloc_mcc_tag(phba);
 	if (!tag) {
@@ -165,16 +174,16 @@ int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 		phba->fw_config.iscsi_cid_count =
 					pfw_cfg->ulp[0].sq_count;
 		if (phba->fw_config.iscsi_cid_count > (BE2_MAX_SESSIONS / 2)) {
-			SE_DEBUG(DBG_LVL_8,
-				"FW reported MAX CXNS as %d\t"
-				"Max Supported = %d.\n",
-				phba->fw_config.iscsi_cid_count,
-				BE2_MAX_SESSIONS);
+			beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+				    "BG_%d : FW reported MAX CXNS as %d\t"
+				    "Max Supported = %d.\n",
+				    phba->fw_config.iscsi_cid_count,
+				    BE2_MAX_SESSIONS);
 			phba->fw_config.iscsi_cid_count = BE2_MAX_SESSIONS / 2;
 		}
 	} else {
-		shost_printk(KERN_WARNING, phba->shost,
-			     "Failed in mgmt_get_fw_config\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
+			    "BG_%d : Failed in mgmt_get_fw_config\n");
 	}
 
 	spin_unlock(&ctrl->mbox_lock);
@@ -194,9 +203,9 @@ int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				sizeof(struct be_mgmt_controller_attributes),
 				&nonemb_cmd.dma);
 	if (nonemb_cmd.va == NULL) {
-		SE_DEBUG(DBG_LVL_1,
-			 "Failed to allocate memory for mgmt_check_supported_fw"
-			 "\n");
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d : Failed to allocate memory for "
+			    "mgmt_check_supported_fw\n");
 		return -ENOMEM;
 	}
 	nonemb_cmd.size = sizeof(struct be_mgmt_controller_attributes);
@@ -213,18 +222,23 @@ int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 	status = be_mbox_notify(ctrl);
 	if (!status) {
 		struct be_mgmt_controller_attributes_resp *resp = nonemb_cmd.va;
-		SE_DEBUG(DBG_LVL_8, "Firmware version of CMD: %s\n",
-			resp->params.hba_attribs.flashrom_version_string);
-		SE_DEBUG(DBG_LVL_8, "Firmware version is : %s\n",
-			resp->params.hba_attribs.firmware_version_string);
-		SE_DEBUG(DBG_LVL_8,
-			"Developer Build, not performing version check...\n");
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : Firmware Version of CMD : %s\n"
+			    "Firmware Version is : %s\n"
+			    "Developer Build, not performing version check...\n",
+			    resp->params.hba_attribs
+			    .flashrom_version_string,
+			    resp->params.hba_attribs.
+			    firmware_version_string);
+
 		phba->fw_config.iscsi_features =
 				resp->params.hba_attribs.iscsi_features;
-		SE_DEBUG(DBG_LVL_8, " phba->fw_config.iscsi_features = %d\n",
-				      phba->fw_config.iscsi_features);
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BM_%d : phba->fw_config.iscsi_features = %d\n",
+			    phba->fw_config.iscsi_features);
 	} else
-		SE_DEBUG(DBG_LVL_1, " Failed in mgmt_check_supported_fw\n");
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d :  Failed in mgmt_check_supported_fw\n");
 	spin_unlock(&ctrl->mbox_lock);
 	if (nonemb_cmd.va)
 		pci_free_consistent(ctrl->pdev, nonemb_cmd.size,
@@ -273,9 +287,10 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 			   OPCODE_COMMON_READ_FLASH, sizeof(*req));
 		break;
 	default:
-		shost_printk(KERN_WARNING, phba->shost,
-			     "Unsupported cmd = 0x%x\n\n", bsg_req->rqst_data.
-			     h_vendor.vendor_cmd[0]);
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Unsupported cmd = 0x%x\n\n",
+			    bsg_req->rqst_data.h_vendor.vendor_cmd[0]);
+
 		spin_unlock(&ctrl->mbox_lock);
 		return -ENOSYS;
 	}
@@ -319,8 +334,8 @@ int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
 
 	status =  be_mcc_notify_wait(phba);
 	if (status)
-		shost_printk(KERN_WARNING, phba->shost,
-			     " mgmt_epfw_cleanup , FAILED\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
+			    "BG_%d : mgmt_epfw_cleanup , FAILED\n");
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
 }
@@ -503,8 +518,9 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		       &daddr_in6->sin6_addr.in6_u.u6_addr8, 16);
 		beiscsi_ep->ip_type = BE2_IPV6;
 	} else{
-		shost_printk(KERN_ERR, phba->shost, "unknown addr family %d\n",
-			     dst_addr->sa_family);
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+			    "BG_%d : unknown addr family %d\n",
+			    dst_addr->sa_family);
 		spin_unlock(&ctrl->mbox_lock);
 		free_mcc_tag(&phba->ctrl, tag);
 		return -EINVAL;
@@ -515,7 +531,8 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	if (phba->nxt_cqid == phba->num_cpus)
 		phba->nxt_cqid = 0;
 	req->cq_id = phwi_context->be_cq[i].id;
-	SE_DEBUG(DBG_LVL_8, "i=%d cq_id=%d\n", i, req->cq_id);
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
+		    "BG_%d : i=%d cq_id=%d\n", i, req->cq_id);
 	req->defq_id = def_hdr_id;
 	req->hdr_ring_id = def_hdr_id;
 	req->data_ring_id = def_data_id;
@@ -550,8 +567,8 @@ unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba)
 	if (!status)
 		phba->interface_handle = pbe_allid->if_hndl_list[0];
 	else {
-		shost_printk(KERN_WARNING, phba->shost,
-			     "Failed in mgmt_get_all_if_id\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed in mgmt_get_all_if_id\n");
 	}
 	spin_unlock(&ctrl->mbox_lock);
 
@@ -594,9 +611,10 @@ static int mgmt_exec_nonemb_cmd(struct beiscsi_hba *phba,
 	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
 	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
 	if (status || extd_status) {
-		SE_DEBUG(DBG_LVL_1,
-			 "mgmt_exec_nonemb_cmd Failed status = %d"
-			 "extd_status = %d\n", status, extd_status);
+		beiscsi_log(phba, KERN_ERR,
+			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
+			    "BG_%d : mgmt_exec_nonemb_cmd Failed status = %d"
+			    "extd_status = %d\n", status, extd_status);
 		rc = -EIO;
 		goto free_tag;
 	}
@@ -617,7 +635,8 @@ static int mgmt_alloc_cmd_data(struct beiscsi_hba *phba, struct be_dma_mem *cmd,
 {
 	cmd->va = pci_alloc_consistent(phba->ctrl.pdev, size, &cmd->dma);
 	if (!cmd->va) {
-		SE_DEBUG(DBG_LVL_1, "Failed to allocate memory for if info\n");
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to allocate memory for if info\n");
 		return -ENOMEM;
 	}
 	memset(cmd->va, 0, size);
@@ -673,8 +692,8 @@ mgmt_static_ip_modify(struct beiscsi_hba *phba,
 
 	rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 	if (rc < 0)
-		shost_printk(KERN_WARNING, phba->shost,
-			     "Failed to Modify existing IP Address\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to Modify existing IP Address\n");
 	return rc;
 }
 
@@ -728,8 +747,8 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 
 	if (boot_proto == ISCSI_BOOTPROTO_DHCP) {
 		if (if_info.dhcp_state) {
-			shost_printk(KERN_WARNING, phba->shost,
-				     "DHCP Already Enabled\n");
+			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				    "BG_%d : DHCP Already Enabled\n");
 			return 0;
 		}
 		/* The ip_param->len is 1 in DHCP case. Setting
@@ -756,8 +775,9 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 
 			rc = mgmt_exec_nonemb_cmd(phba, &nonemb_cmd, NULL, 0);
 			if (rc < 0) {
-				shost_printk(KERN_WARNING, phba->shost,
-					     "Failed to Delete existing dhcp\n");
+				beiscsi_log(phba, KERN_WARNING,
+					    BEISCSI_LOG_CONFIG,
+					    "BG_%d : Failed to Delete existing dhcp\n");
 				return rc;
 			}
 		}
@@ -776,8 +796,8 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 		memset(&gtway_addr_set, 0, sizeof(gtway_addr_set));
 		rc = mgmt_get_gateway(phba, BE2_IPV4, &gtway_addr_set);
 		if (rc) {
-			shost_printk(KERN_WARNING, phba->shost,
-				     "Failed to Get Gateway Addr\n");
+			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				    "BG_%d : Failed to Get Gateway Addr\n");
 			return rc;
 		}
 
@@ -787,8 +807,9 @@ int mgmt_set_ip(struct beiscsi_hba *phba,
 						 IP_ACTION_DEL, IP_V4_LEN);
 
 			if (rc) {
-				shost_printk(KERN_WARNING, phba->shost,
-					     "Failed to clear Gateway Addr Set\n");
+				beiscsi_log(phba, KERN_WARNING,
+					    BEISCSI_LOG_CONFIG,
+					    "BG_%d : Failed to clear Gateway Addr Set\n");
 				return rc;
 			}
 		}
@@ -827,8 +848,8 @@ int mgmt_set_gateway(struct beiscsi_hba *phba,
 	memset(&gtway_addr_set, 0, sizeof(gtway_addr_set));
 	rt_val = mgmt_get_gateway(phba, BE2_IPV4, &gtway_addr_set);
 	if (rt_val) {
-		shost_printk(KERN_WARNING, phba->shost,
-			     "Failed to Get Gateway Addr\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to Get Gateway Addr\n");
 		return rt_val;
 	}
 
@@ -837,8 +858,8 @@ int mgmt_set_gateway(struct beiscsi_hba *phba,
 		rt_val = mgmt_modify_gateway(phba, gtway_addr, IP_ACTION_DEL,
 					     gateway_param->len);
 		if (rt_val) {
-			shost_printk(KERN_WARNING, phba->shost,
-				     "Failed to clear Gateway Addr Set\n");
+			beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+				    "BG_%d : Failed to clear Gateway Addr Set\n");
 			return rt_val;
 		}
 	}
@@ -848,8 +869,8 @@ int mgmt_set_gateway(struct beiscsi_hba *phba,
 				     gateway_param->len);
 
 	if (rt_val)
-		shost_printk(KERN_WARNING, phba->shost,
-			     "Failed to Set Gateway Addr\n");
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BG_%d : Failed to Set Gateway Addr\n");
 
 	return rt_val;
 }
@@ -997,7 +1018,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 		/* Get the Boot Target Session Handle and Count*/
 		tag = mgmt_get_boot_target(phba);
 		if (!tag) {
-			SE_DEBUG(DBG_LVL_1, "mgmt_get_boot_target Failed\n");
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_INIT,
+				    "BG_%d : Getting Boot Target Info Failed\n");
 			return -EAGAIN;
 		} else
 			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
@@ -1007,9 +1030,11 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
 		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
 		if (status || extd_status) {
-			SE_DEBUG(DBG_LVL_1, "mgmt_get_boot_target Failed"
-					    " status = %d extd_status = %d\n",
-					    status, extd_status);
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+				    "BG_%d : mgmt_get_boot_target Failed"
+				    " status = %d extd_status = %d\n",
+				    status, extd_status);
 			free_mcc_tag(&phba->ctrl, tag);
 			return -EBUSY;
 		}
@@ -1019,7 +1044,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 
 		/* Check if the there are any Boot targets configured */
 		if (!boot_resp->boot_session_count) {
-			SE_DEBUG(DBG_LVL_8, "No boot targets configured\n");
+			beiscsi_log(phba, KERN_INFO,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+				    "BG_%d  ;No boot targets configured\n");
 			return -ENXIO;
 		}
 
@@ -1033,7 +1060,9 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 		tag = mgmt_reopen_session(phba, BE_REOPEN_BOOT_SESSIONS,
 					  INVALID_SESS_HANDLE);
 		if (!tag) {
-			SE_DEBUG(DBG_LVL_1, "mgmt_reopen_session Failed\n");
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+				    "BG_%d : mgmt_reopen_session Failed\n");
 			return -EAGAIN;
 		} else
 			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
@@ -1043,9 +1072,11 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
 		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
 		if (status || extd_status) {
-			SE_DEBUG(DBG_LVL_1, "mgmt_reopen_session Failed"
-					    " status = %d extd_status = %d\n",
-					    status, extd_status);
+			beiscsi_log(phba, KERN_ERR,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+				    "BG_%d : mgmt_reopen_session Failed"
+				    " status = %d extd_status = %d\n",
+				    status, extd_status);
 			free_mcc_tag(&phba->ctrl, tag);
 			return -EBUSY;
 		}
@@ -1054,6 +1085,8 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 	} while (--boot_retry);
 
 	/* Couldn't log into the boot target */
-	SE_DEBUG(DBG_LVL_1, "Login to Boot Target Failed\n");
+	beiscsi_log(phba, KERN_ERR,
+		    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
+		    "BG_%d : Login to Boot Target Failed\n");
 	return -ENXIO;
 }
