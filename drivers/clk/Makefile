@@ -11,6 +11,9 @@ obj-$(CONFIG_PLAT_SPEAR)	+= spear/
 obj-$(CONFIG_ARCH_U300)		+= clk-u300.o
 obj-$(CONFIG_COMMON_CLK_VERSATILE) += versatile/
 obj-$(CONFIG_ARCH_PRIMA2)	+= clk-prima2.o
+ifeq ($(CONFIG_COMMON_CLK), y)
+obj-$(CONFIG_ARCH_MMP)		+= mmp/
+endif
 
 # Chip specific
 obj-$(CONFIG_COMMON_CLK_WM831X) += clk-wm831x.o
