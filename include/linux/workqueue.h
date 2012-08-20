@@ -412,11 +412,9 @@ extern int keventd_up(void);
 int execute_in_process_context(work_func_t fn, struct execute_work *);
 
 extern bool flush_work(struct work_struct *work);
-extern bool flush_work_sync(struct work_struct *work);
 extern bool cancel_work_sync(struct work_struct *work);
 
 extern bool flush_delayed_work(struct delayed_work *dwork);
-extern bool flush_delayed_work_sync(struct delayed_work *work);
 extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
 
 extern void workqueue_set_max_active(struct workqueue_struct *wq,
@@ -454,6 +452,18 @@ static inline bool __cancel_delayed_work(struct delayed_work *work)
 	if (ret)
 		work_clear_pending(&work->work);
 	return ret;
+}
+
+/* used to be different but now identical to flush_work(), deprecated */
+static inline bool flush_work_sync(struct work_struct *work)
+{
+	return flush_work(work);
+}
+
+/* used to be different but now identical to flush_delayed_work(), deprecated */
+static inline bool flush_delayed_work_sync(struct delayed_work *dwork)
+{
+	return flush_delayed_work(dwork);
 }
 
 #ifndef CONFIG_SMP

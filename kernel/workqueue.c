@@ -2801,8 +2801,7 @@ reflush:
 }
 EXPORT_SYMBOL_GPL(drain_workqueue);
 
-static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
-			     bool wait_executing)
+static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr)
 {
 	struct worker *worker = NULL;
 	struct global_cwq *gcwq;
@@ -2824,13 +2823,12 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
 		cwq = get_work_cwq(work);
 		if (unlikely(!cwq || gcwq != cwq->pool->gcwq))
 			goto already_gone;
-	} else if (wait_executing) {
+	} else {
 		worker = find_worker_executing_work(gcwq, work);
 		if (!worker)
 			goto already_gone;
 		cwq = worker->current_cwq;
-	} else
-		goto already_gone;
+	}
 
 	insert_wq_barrier(cwq, barr, work, worker);
 	spin_unlock_irq(&gcwq->lock);
@@ -2857,15 +2855,8 @@ already_gone:
  * flush_work - wait for a work to finish executing the last queueing instance
  * @work: the work to flush
  *
- * Wait until @work has finished execution.  This function considers
- * only the last queueing instance of @work.  If @work has been
- * enqueued across different CPUs on a non-reentrant workqueue or on
- * multiple workqueues, @work might still be executing on return on
- * some of the CPUs from earlier queueing.
- *
- * If @work was queued only on a non-reentrant, ordered or unbound
- * workqueue, @work is guaranteed to be idle on return if it hasn't
- * been requeued since flush started.
+ * Wait until @work has finished execution.  @work is guaranteed to be idle
+ * on return if it hasn't been requeued since flush started.
  *
  * RETURNS:
  * %true if flush_work() waited for the work to finish execution,
@@ -2878,85 +2869,15 @@ bool flush_work(struct work_struct *work)
 	lock_map_acquire(&work->lockdep_map);
 	lock_map_release(&work->lockdep_map);
 
-	if (start_flush_work(work, &barr, true)) {
+	if (start_flush_work(work, &barr)) {
 		wait_for_completion(&barr.done);
 		destroy_work_on_stack(&barr.work);
 		return true;
-	} else
+	} else {
 		return false;
+	}
 }
 EXPORT_SYMBOL_GPL(flush_work);
-
-static bool wait_on_cpu_work(struct global_cwq *gcwq, struct work_struct *work)
-{
-	struct wq_barrier barr;
-	struct worker *worker;
-
-	spin_lock_irq(&gcwq->lock);
-
-	worker = find_worker_executing_work(gcwq, work);
-	if (unlikely(worker))
-		insert_wq_barrier(worker->current_cwq, &barr, work, worker);
-
-	spin_unlock_irq(&gcwq->lock);
-
-	if (unlikely(worker)) {
-		wait_for_completion(&barr.done);
-		destroy_work_on_stack(&barr.work);
-		return true;
-	} else
-		return false;
-}
-
-static bool wait_on_work(struct work_struct *work)
-{
-	bool ret = false;
-	int cpu;
-
-	might_sleep();
-
-	lock_map_acquire(&work->lockdep_map);
-	lock_map_release(&work->lockdep_map);
-
-	for_each_gcwq_cpu(cpu)
-		ret |= wait_on_cpu_work(get_gcwq(cpu), work);
-	return ret;
-}
-
-/**
- * flush_work_sync - wait until a work has finished execution
- * @work: the work to flush
- *
- * Wait until @work has finished execution.  On return, it's
- * guaranteed that all queueing instances of @work which happened
- * before this function is called are finished.  In other words, if
- * @work hasn't been requeued since this function was called, @work is
- * guaranteed to be idle on return.
- *
- * RETURNS:
- * %true if flush_work_sync() waited for the work to finish execution,
- * %false if it was already idle.
- */
-bool flush_work_sync(struct work_struct *work)
-{
-	struct wq_barrier barr;
-	bool pending, waited;
-
-	/* we'll wait for executions separately, queue barr only if pending */
-	pending = start_flush_work(work, &barr, false);
-
-	/* wait for executions to finish */
-	waited = wait_on_work(work);
-
-	/* wait for the pending one */
-	if (pending) {
-		wait_for_completion(&barr.done);
-		destroy_work_on_stack(&barr.work);
-	}
-
-	return pending || waited;
-}
-EXPORT_SYMBOL_GPL(flush_work_sync);
 
 static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
 {
@@ -2970,14 +2891,14 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
 		 * would be waiting for before retrying.
 		 */
 		if (unlikely(ret == -ENOENT))
-			wait_on_work(work);
+			flush_work(work);
 	} while (unlikely(ret < 0));
 
 	/* tell other tasks trying to grab @work to back off */
 	mark_work_canceling(work);
 	local_irq_restore(flags);
 
-	wait_on_work(work);
+	flush_work(work);
 	clear_work_data(work);
 	return ret;
 }
@@ -3028,29 +2949,6 @@ bool flush_delayed_work(struct delayed_work *dwork)
 	return flush_work(&dwork->work);
 }
 EXPORT_SYMBOL(flush_delayed_work);
-
-/**
- * flush_delayed_work_sync - wait for a dwork to finish
- * @dwork: the delayed work to flush
- *
- * Delayed timer is cancelled and the pending work is queued for
- * execution immediately.  Other than timer handling, its behavior
- * is identical to flush_work_sync().
- *
- * RETURNS:
- * %true if flush_work_sync() waited for the work to finish execution,
- * %false if it was already idle.
- */
-bool flush_delayed_work_sync(struct delayed_work *dwork)
-{
-	local_irq_disable();
-	if (del_timer_sync(&dwork->timer))
-		__queue_work(dwork->cpu,
-			     get_work_cwq(&dwork->work)->wq, &dwork->work);
-	local_irq_enable();
-	return flush_work_sync(&dwork->work);
-}
-EXPORT_SYMBOL(flush_delayed_work_sync);
 
 /**
  * cancel_delayed_work_sync - cancel a delayed work and wait for it to finish
