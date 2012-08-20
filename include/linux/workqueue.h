@@ -460,13 +460,13 @@ static inline bool __cancel_delayed_work(struct delayed_work *work)
 }
 
 /* used to be different but now identical to flush_work(), deprecated */
-static inline bool flush_work_sync(struct work_struct *work)
+static inline bool __deprecated flush_work_sync(struct work_struct *work)
 {
 	return flush_work(work);
 }
 
 /* used to be different but now identical to flush_delayed_work(), deprecated */
-static inline bool flush_delayed_work_sync(struct delayed_work *dwork)
+static inline bool __deprecated flush_delayed_work_sync(struct delayed_work *dwork)
 {
 	return flush_delayed_work(dwork);
 }

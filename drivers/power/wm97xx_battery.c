@@ -146,7 +146,7 @@ static irqreturn_t wm97xx_chrg_irq(int irq, void *data)
 #ifdef CONFIG_PM
 static int wm97xx_bat_suspend(struct device *dev)
 {
-	flush_work_sync(&bat_work);
+	flush_work(&bat_work);
 	return 0;
 }
 

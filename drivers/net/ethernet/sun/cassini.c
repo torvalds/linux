@@ -3890,7 +3890,7 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 	schedule_work(&cp->reset_task);
 #endif
 
-	flush_work_sync(&cp->reset_task);
+	flush_work(&cp->reset_task);
 	return 0;
 }
 

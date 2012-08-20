@@ -475,7 +475,7 @@ xfs_flush_inodes(
 	struct xfs_mount	*mp = ip->i_mount;
 
 	queue_work(xfs_syncd_wq, &mp->m_flush_work);
-	flush_work_sync(&mp->m_flush_work);
+	flush_work(&mp->m_flush_work);
 }
 
 STATIC void

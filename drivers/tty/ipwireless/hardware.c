@@ -1729,7 +1729,7 @@ void ipwireless_hardware_free(struct ipw_hardware *hw)
 
 	ipwireless_stop_interrupts(hw);
 
-	flush_work_sync(&hw->work_rx);
+	flush_work(&hw->work_rx);
 
 	for (i = 0; i < NL_NUM_OF_ADDRESSES; i++)
 		if (hw->packet_assembler[i] != NULL)

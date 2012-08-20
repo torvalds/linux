@@ -2737,7 +2737,7 @@ static void __exit picolcd_exit(void)
 {
 	hid_unregister_driver(&picolcd_driver);
 #ifdef CONFIG_HID_PICOLCD_FB
-	flush_work_sync(&picolcd_fb_cleanup);
+	flush_work(&picolcd_fb_cleanup);
 	WARN_ON(fb_pending);
 #endif
 }

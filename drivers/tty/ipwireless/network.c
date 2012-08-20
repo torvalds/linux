@@ -430,8 +430,8 @@ void ipwireless_network_free(struct ipw_network *network)
 	network->shutting_down = 1;
 
 	ipwireless_ppp_close(network);
-	flush_work_sync(&network->work_go_online);
-	flush_work_sync(&network->work_go_offline);
+	flush_work(&network->work_go_online);
+	flush_work(&network->work_go_offline);
 
 	ipwireless_stop_interrupts(network->hardware);
 	ipwireless_associate_network(network->hardware, NULL);

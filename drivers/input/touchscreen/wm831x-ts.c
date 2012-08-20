@@ -221,7 +221,7 @@ static void wm831x_ts_input_close(struct input_dev *idev)
 	synchronize_irq(wm831x_ts->pd_irq);
 
 	/* Make sure the IRQ completion work is quiesced */
-	flush_work_sync(&wm831x_ts->pd_data_work);
+	flush_work(&wm831x_ts->pd_data_work);
 
 	/* If we ended up with the pen down then make sure we revert back
 	 * to pen detection state for the next time we start up.

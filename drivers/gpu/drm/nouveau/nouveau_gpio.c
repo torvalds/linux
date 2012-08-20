@@ -302,7 +302,7 @@ nouveau_gpio_isr_del(struct drm_device *dev, int idx, u8 tag, u8 line,
 		spin_unlock_irqrestore(&pgpio->lock, flags);
 
 		list_for_each_entry_safe(isr, tmp, &tofree, head) {
-			flush_work_sync(&isr->work);
+			flush_work(&isr->work);
 			kfree(isr);
 		}
 	}

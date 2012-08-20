@@ -277,7 +277,7 @@ void radeon_irq_kms_fini(struct radeon_device *rdev)
 		if (rdev->msi_enabled)
 			pci_disable_msi(rdev->pdev);
 	}
-	flush_work_sync(&rdev->hotplug_work);
+	flush_work(&rdev->hotplug_work);
 }
 
 /**
