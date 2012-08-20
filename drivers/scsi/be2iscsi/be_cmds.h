@@ -449,6 +449,12 @@ struct be_cmd_get_def_gateway_resp {
 	struct ip_addr_format ip_addr;
 } __packed;
 
+#define BEISCSI_VLAN_DISABLE	0xFFFF
+struct be_cmd_set_vlan_req {
+	struct be_cmd_req_hdr hdr;
+	u32 interface_hndl;
+	u32 vlan_priority;
+} __packed;
 /******************** Create CQ ***************************/
 /**
  * Pseudo amap definition in which each bit of the actual structure is defined
@@ -687,6 +693,9 @@ int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 		       struct be_queue_info *wrbq);
 
 bool is_link_state_evt(u32 trailer);
+
+/* Configuration Functions */
+int be_cmd_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 
 struct be_default_pdu_context {
 	u32 dw[4];

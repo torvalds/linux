@@ -296,4 +296,8 @@ int mgmt_set_gateway(struct beiscsi_hba *phba,
 
 int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 			      unsigned int *s_handle);
+
+unsigned int mgmt_get_all_if_id(struct beiscsi_hba *phba);
+
+int mgmt_set_vlan(struct beiscsi_hba *phba, uint16_t vlan_tag);
 #endif

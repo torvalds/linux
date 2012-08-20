@@ -332,6 +332,51 @@ beiscsi_set_static_ip(struct Scsi_Host *shost,
 	return ret;
 }
 
+/**
+ * beiscsi_set_vlan_tag()- Set the VLAN TAG
+ * @shost: Scsi Host for the driver instance
+ * @iface_param: Interface paramters
+ *
+ * Set the VLAN TAG for the adapter or disable
+ * the VLAN config
+ *
+ * returns
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ **/
+static int
+beiscsi_set_vlan_tag(struct Scsi_Host *shost,
+		      struct iscsi_iface_param_info *iface_param)
+{
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	int ret = 0;
+
+	/* Get the Interface Handle */
+	if (mgmt_get_all_if_id(phba)) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
+			    "BS_%d : Getting Interface Handle Failed\n");
+		return -EIO;
+	}
+
+	switch (iface_param->param) {
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+		if (iface_param->value[0] != ISCSI_VLAN_ENABLE)
+			ret = mgmt_set_vlan(phba, BEISCSI_VLAN_DISABLE);
+		break;
+	case ISCSI_NET_PARAM_VLAN_TAG:
+		ret = mgmt_set_vlan(phba,
+				    *((uint16_t *)iface_param->value));
+		break;
+	default:
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
+			    "BS_%d : Unkown Param Type : %d\n",
+			    iface_param->param);
+		return -ENOSYS;
+	}
+	return ret;
+}
+
+
 static int
 beiscsi_set_ipv4(struct Scsi_Host *shost,
 		struct iscsi_iface_param_info *iface_param,
@@ -367,6 +412,10 @@ beiscsi_set_ipv4(struct Scsi_Host *shost,
 	case ISCSI_NET_PARAM_IPV4_ADDR:
 		ret = beiscsi_set_static_ip(shost, iface_param,
 					    data, dt_len);
+		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+	case ISCSI_NET_PARAM_VLAN_TAG:
+		ret = beiscsi_set_vlan_tag(shost, iface_param);
 		break;
 	default:
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
@@ -489,6 +538,27 @@ static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
 		len = sprintf(buf, "%pI4\n", &if_info.ip_addr.subnet_mask);
 		break;
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+		len = sprintf(buf, "%s\n",
+			     (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
+			     ? "Disabled" : "Enabled");
+		break;
+	case ISCSI_NET_PARAM_VLAN_ID:
+		if (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
+			return -EINVAL;
+		else
+			len = sprintf(buf, "%d\n",
+				     (if_info.vlan_priority &
+				     ISCSI_MAX_VLAN_ID));
+		break;
+	case ISCSI_NET_PARAM_VLAN_PRIORITY:
+		if (if_info.vlan_priority == BEISCSI_VLAN_DISABLE)
+			return -EINVAL;
+		else
+			len = sprintf(buf, "%d\n",
+				     ((if_info.vlan_priority >> 13) &
+				     ISCSI_MAX_VLAN_PRIORITY));
+		break;
 	default:
 		WARN_ON(1);
 	}
@@ -510,6 +580,9 @@ int be2iscsi_iface_get_param(struct iscsi_iface *iface,
 	case ISCSI_NET_PARAM_IPV4_SUBNET:
 	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
 	case ISCSI_NET_PARAM_IPV6_ADDR:
+	case ISCSI_NET_PARAM_VLAN_ENABLED:
+	case ISCSI_NET_PARAM_VLAN_ID:
+	case ISCSI_NET_PARAM_VLAN_PRIORITY:
 		len = be2iscsi_get_if_param(phba, iface, param, buf);
 		break;
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
@@ -1233,6 +1306,9 @@ umode_t be2iscsi_attr_is_visible(int param_type, int param)
 		case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
 		case ISCSI_NET_PARAM_IPV4_GW:
 		case ISCSI_NET_PARAM_IPV6_ADDR:
+		case ISCSI_NET_PARAM_VLAN_ID:
+		case ISCSI_NET_PARAM_VLAN_PRIORITY:
+		case ISCSI_NET_PARAM_VLAN_ENABLED:
 			return S_IRUGO;
 		default:
 			return 0;

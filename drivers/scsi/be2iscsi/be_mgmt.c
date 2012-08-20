@@ -1090,3 +1090,49 @@ int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
 		    "BG_%d : Login to Boot Target Failed\n");
 	return -ENXIO;
 }
+
+/**
+ * mgmt_set_vlan()- Issue and wait for CMD completion
+ * @phba: device private structure instance
+ * @vlan_tag: VLAN tag
+ *
+ * Issue the MBX Cmd and wait for the completion of the
+ * command.
+ *
+ * returns
+ *	Success: 0
+ *	Failure: Non-Xero Value
+ **/
+int mgmt_set_vlan(struct beiscsi_hba *phba,
+		   uint16_t vlan_tag)
+{
+	unsigned int tag, wrb_num;
+	unsigned short status, extd_status;
+
+	tag = be_cmd_set_vlan(phba, vlan_tag);
+	if (!tag) {
+		beiscsi_log(phba, KERN_ERR,
+			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
+			    "BG_%d : VLAN Setting Failed\n");
+		return -EBUSY;
+	} else
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+					 phba->ctrl.mcc_numtag[tag]);
+
+	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+
+	if (status || extd_status) {
+		beiscsi_log(phba, KERN_ERR,
+			    (BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX),
+			    "BS_%d : status : %d extd_status : %d\n",
+			    status, extd_status);
+
+		free_mcc_tag(&phba->ctrl, tag);
+		return -EAGAIN;
+	}
+
+	free_mcc_tag(&phba->ctrl, tag);
+	return 0;
+}
