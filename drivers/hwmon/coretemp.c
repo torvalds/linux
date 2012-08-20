@@ -196,7 +196,7 @@ struct tjmax {
 	int tjmax;
 };
 
-static struct tjmax __cpuinitconst tjmax_table[] = {
+static const struct tjmax __cpuinitconst tjmax_table[] = {
 	{ "CPU D410", 100000 },
 	{ "CPU D425", 100000 },
 	{ "CPU D510", 100000 },
