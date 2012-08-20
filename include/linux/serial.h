@@ -86,12 +86,6 @@ struct serial_struct {
 #define SERIAL_IO_HUB6	1
 #define SERIAL_IO_MEM	2
 
-struct serial_uart_config {
-	char	*name;
-	int	dfl_xmit_fifo_size;
-	int	flags;
-};
-
 #define UART_CLEAR_FIFO		0x01
 #define UART_USE_FIFO		0x02
 #define UART_STARTECH		0x04

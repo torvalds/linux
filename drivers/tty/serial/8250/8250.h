@@ -26,9 +26,6 @@ struct old_serial_port {
 	unsigned long irqflags;
 };
 
-/*
- * This replaces serial_uart_config in include/linux/serial.h
- */
 struct serial8250_config {
 	const char	*name;
 	unsigned short	fifo_size;
