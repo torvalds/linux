@@ -318,12 +318,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct stk1160 *dev = video_drvdata(file);
 
-	if (f->fmt.pix.pixelformat != format[0].fourcc) {
-		stk1160_err("fourcc format 0x%08x invalid\n",
-			f->fmt.pix.pixelformat);
-		return -EINVAL;
-	}
-
 	/*
 	 * User can't choose size at his own will,
 	 * so we just return him the current size chosen
@@ -331,6 +325,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	 * TODO: Implement frame scaling?
 	 */
 
+	f->fmt.pix.pixelformat = dev->fmt->fourcc;
 	f->fmt.pix.width = dev->width;
 	f->fmt.pix.height = dev->height;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
@@ -346,14 +341,11 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct stk1160 *dev = video_drvdata(file);
 	struct vb2_queue *q = &dev->vb_vidq;
-	int rc;
 
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
-	rc = vidioc_try_fmt_vid_cap(file, priv, f);
-	if (rc < 0)
-		return rc;
+	vidioc_try_fmt_vid_cap(file, priv, f);
 
 	/* We don't support any format changes */
 
