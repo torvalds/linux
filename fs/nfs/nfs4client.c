@@ -84,7 +84,7 @@ error:
 static void nfs4_destroy_callback(struct nfs_client *clp)
 {
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down(clp->cl_mvops->minor_version, &init_net);
+		nfs_callback_down(clp->cl_mvops->minor_version, clp->cl_net);
 }
 
 static void nfs4_shutdown_client(struct nfs_client *clp)
