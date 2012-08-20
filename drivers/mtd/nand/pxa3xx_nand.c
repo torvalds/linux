@@ -1034,7 +1034,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	struct pxa3xx_nand_platform_data *pdata;
 	struct pxa3xx_nand_info *info;
 	struct pxa3xx_nand_host *host;
-	struct nand_chip *chip;
+	struct nand_chip *chip = NULL;
 	struct mtd_info *mtd;
 	struct resource *r;
 	int ret, irq, cs;
@@ -1244,7 +1244,7 @@ static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 	return 0;
 }
 #else
-static inline int pxa3xx_nand_probe_dt(struct platform_device *)
+static inline int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 {
 	return 0;
 }
