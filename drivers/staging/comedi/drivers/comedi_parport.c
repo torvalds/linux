@@ -96,11 +96,12 @@ struct parport_private {
 	unsigned int c_data;
 	int enable_irq;
 };
-#define devpriv ((struct parport_private *)(dev->private))
 
 static int parport_insn_a(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct parport_private *devpriv = dev->private;
+
 	if (data[0]) {
 		devpriv->a_data &= ~data[0];
 		devpriv->a_data |= (data[0] & data[1]);
@@ -117,6 +118,8 @@ static int parport_insn_config_a(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct parport_private *devpriv = dev->private;
+
 	if (data[0]) {
 		s->io_bits = 0xff;
 		devpriv->c_data &= ~(1 << 5);
@@ -145,6 +148,8 @@ static int parport_insn_b(struct comedi_device *dev, struct comedi_subdevice *s,
 static int parport_insn_c(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct parport_private *devpriv = dev->private;
+
 	data[0] &= 0x0f;
 	if (data[0]) {
 		devpriv->c_data &= ~data[0];
@@ -245,6 +250,8 @@ static int parport_intr_cmdtest(struct comedi_device *dev,
 static int parport_intr_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct parport_private *devpriv = dev->private;
+
 	devpriv->c_data |= 0x10;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
@@ -256,6 +263,8 @@ static int parport_intr_cmd(struct comedi_device *dev,
 static int parport_intr_cancel(struct comedi_device *dev,
 			       struct comedi_subdevice *s)
 {
+	struct parport_private *devpriv = dev->private;
+
 	printk(KERN_DEBUG "parport_intr_cancel()\n");
 
 	devpriv->c_data &= ~0x10;
@@ -269,6 +278,7 @@ static int parport_intr_cancel(struct comedi_device *dev,
 static irqreturn_t parport_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct parport_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->subdevices + 3;
 
 	if (!devpriv->enable_irq) {
@@ -286,6 +296,7 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 static int parport_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct parport_private *devpriv;
 	int ret;
 	unsigned int irq;
 	unsigned long iobase;
@@ -316,9 +327,10 @@ static int parport_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	ret = alloc_private(dev, sizeof(struct parport_private));
+	ret = alloc_private(dev, sizeof(*devpriv));
 	if (ret < 0)
 		return ret;
+	devpriv = dev->private;
 
 	s = dev->subdevices + 0;
 	s->type = COMEDI_SUBD_DIO;
