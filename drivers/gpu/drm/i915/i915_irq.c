@@ -1210,6 +1210,9 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->done_reg = I915_READ(DONE_REG);
 	}
 
+	if (INTEL_INFO(dev)->gen == 7)
+		error->err_int = I915_READ(GEN7_ERR_INT);
+
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
 

@@ -719,6 +719,9 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		seq_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
+	if (INTEL_INFO(dev)->gen == 7)
+		seq_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
+
 	for_each_ring(ring, dev_priv, i)
 		i915_ring_error_state(m, dev, error, i);
 

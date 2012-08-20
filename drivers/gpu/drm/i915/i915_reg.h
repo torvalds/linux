@@ -500,6 +500,7 @@
 #define DMA_FADD_I8XX	0x020d0
 
 #define ERROR_GEN6	0x040a0
+#define GEN7_ERR_INT	0x44040
 
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
