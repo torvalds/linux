@@ -792,7 +792,7 @@ int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
 	int rc;
 
 	if (strlen(phba->mac_address))
-		return strlcpy(buf, phba->mac_address, PAGE_SIZE);
+		return sysfs_format_mac(buf, phba->mac_address, ETH_ALEN);
 
 	memset(&resp, 0, sizeof(resp));
 	rc = mgmt_get_nic_conf(phba, &resp);
