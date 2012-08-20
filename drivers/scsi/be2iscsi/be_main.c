@@ -3981,15 +3981,6 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 	io_task->bhs_len = sizeof(struct be_cmd_bhs);
 
 	if (writedir) {
-		memset(&io_task->cmd_bhs->iscsi_data_pdu, 0, 48);
-		AMAP_SET_BITS(struct amap_pdu_data_out, itt,
-			      &io_task->cmd_bhs->iscsi_data_pdu,
-			      (unsigned int)io_task->cmd_bhs->iscsi_hdr.itt);
-		AMAP_SET_BITS(struct amap_pdu_data_out, opcode,
-			      &io_task->cmd_bhs->iscsi_data_pdu,
-			      ISCSI_OPCODE_SCSI_DATA_OUT);
-		AMAP_SET_BITS(struct amap_pdu_data_out, final_bit,
-			      &io_task->cmd_bhs->iscsi_data_pdu, 1);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, type, pwrb,
 			      INI_WR_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 1);
@@ -3998,9 +3989,6 @@ static int beiscsi_iotask(struct iscsi_task *task, struct scatterlist *sg,
 			      INI_RD_CMD);
 		AMAP_SET_BITS(struct amap_iscsi_wrb, dsp, pwrb, 0);
 	}
-	memcpy(&io_task->cmd_bhs->iscsi_data_pdu.
-	       dw[offsetof(struct amap_pdu_data_out, lun) / 32],
-	       &io_task->cmd_bhs->iscsi_hdr.lun, sizeof(struct scsi_lun));
 
 	AMAP_SET_BITS(struct amap_iscsi_wrb, lun, pwrb,
 		      cpu_to_be16(*(unsigned short *)
