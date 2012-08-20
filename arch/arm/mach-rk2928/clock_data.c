@@ -2486,7 +2486,7 @@ void rk2928_clock_common_i2s_init(void)
 static void __init rk2928_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate)
 {
 
-	clk_set_rate_nolock(&clk_core_pre, 816 * MHZ);//816
+	clk_set_rate_nolock(&clk_core_pre, 600 * MHZ);//816?
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
