@@ -1162,14 +1162,9 @@ static int bnx2x_send_final_clnup(struct bnx2x *bp, u8 clnup_func,
 
 static u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
 {
-	int pos;
 	u16 status;
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return false;
-
-	pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
+	pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
 	return status & PCI_EXP_DEVSTA_TRPND;
 }
 
@@ -6149,8 +6144,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	u16 devctl;
 	int r_order, w_order;
 
-	pci_read_config_word(bp->pdev,
-			     pci_pcie_cap(bp->pdev) + PCI_EXP_DEVCTL, &devctl);
+	pcie_capability_read_word(bp->pdev, PCI_EXP_DEVCTL, &devctl);
 	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (bp->mrrs == -1)
@@ -9386,15 +9380,10 @@ static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
 
 static bool __devinit bnx2x_can_flr(struct bnx2x *bp)
 {
-	int pos;
 	u32 cap;
 	struct pci_dev *dev = bp->pdev;
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return false;
-
-	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP, &cap);
+	pcie_capability_read_dword(dev, PCI_EXP_DEVCAP, &cap);
 	if (!(cap & PCI_EXP_DEVCAP_FLR))
 		return false;
 
@@ -9403,7 +9392,7 @@ static bool __devinit bnx2x_can_flr(struct bnx2x *bp)
 
 static int __devinit bnx2x_do_flr(struct bnx2x *bp)
 {
-	int i, pos;
+	int i;
 	u16 status;
 	struct pci_dev *dev = bp->pdev;
 
@@ -9411,16 +9400,12 @@ static int __devinit bnx2x_do_flr(struct bnx2x *bp)
 	if (bnx2x_can_flr(bp))
 		return -ENOTTY;
 
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return -ENOTTY;
-
 	/* Wait for Transaction Pending bit clean */
 	for (i = 0; i < 4; i++) {
 		if (i)
 			msleep((1 << (i - 1)) * 100);
 
-		pci_read_config_word(dev, pos + PCI_EXP_DEVSTA, &status);
+		pcie_capability_read_word(dev, PCI_EXP_DEVSTA, &status);
 		if (!(status & PCI_EXP_DEVSTA_TRPND))
 			goto clear;
 	}
