@@ -410,7 +410,9 @@ void nfs_callback_down(int minorversion, struct net *net)
 	cb_info->users--;
 	if (cb_info->users == 0 && cb_info->task != NULL) {
 		kthread_stop(cb_info->task);
+		dprintk("nfs_callback_down: service stopped\n");
 		svc_exit_thread(cb_info->rqst);
+		dprintk("nfs_callback_down: service destroyed\n");
 		cb_info->serv = NULL;
 		cb_info->rqst = NULL;
 		cb_info->task = NULL;
