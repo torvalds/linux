@@ -112,6 +112,8 @@ void hists__filter_by_symbol(struct hists *hists);
 u16 hists__col_len(struct hists *self, enum hist_column col);
 void hists__set_col_len(struct hists *self, enum hist_column col, u16 len);
 bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
+void hists__reset_col_len(struct hists *hists);
+void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
 struct perf_evlist;
 

@@ -404,11 +404,10 @@ LIB_OBJS += $(OUTPUT)util/target.o
 LIB_OBJS += $(OUTPUT)util/rblist.o
 LIB_OBJS += $(OUTPUT)util/intlist.o
 LIB_OBJS += $(OUTPUT)ui/helpline.o
+LIB_OBJS += $(OUTPUT)ui/stdio/hist.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
-
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o
-
 # Benchmark modules
 BUILTIN_OBJS += $(OUTPUT)bench/sched-messaging.o
 BUILTIN_OBJS += $(OUTPUT)bench/sched-pipe.o
