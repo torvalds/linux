@@ -2226,10 +2226,6 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_pclk_pwm01);
 	clk_enable_nolock(&clk_hclk_otg0);
 	clk_enable_nolock(&clk_hclk_otg1);
-	clk_enable_nolock(&clk_gpio0);
-	clk_enable_nolock(&clk_gpio1);
-	clk_enable_nolock(&clk_gpio2);
-	clk_enable_nolock(&clk_gpio3);
 
 #if CONFIG_RK_DEBUG_UART == 0
 	clk_enable_nolock(&clk_uart0);
