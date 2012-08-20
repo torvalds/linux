@@ -44,8 +44,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#define PORT_M32R_BASE	PORT_M32R_SIO
-#define PORT_INDEX(x)	(x - PORT_M32R_BASE + 1)
 #define BAUD_RATE	115200
 
 #include <linux/serial_core.h>
@@ -131,22 +129,6 @@ struct irq_info {
 };
 
 static struct irq_info irq_lists[NR_IRQS];
-
-/*
- * Here we define the default xmit fifo size used for each type of UART.
- */
-static const struct serial_uart_config uart_config[] = {
-	[PORT_UNKNOWN] = {
-		.name			= "unknown",
-		.dfl_xmit_fifo_size	= 1,
-		.flags			= 0,
-	},
-	[PORT_INDEX(PORT_M32R_SIO)] = {
-		.name			= "M32RSIO",
-		.dfl_xmit_fifo_size	= 1,
-		.flags			= 0,
-	},
-};
 
 #ifdef CONFIG_SERIAL_M32R_PLDSIO
 
@@ -907,8 +889,7 @@ static void m32r_sio_config_port(struct uart_port *port, int unused)
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	up->port.type = (PORT_M32R_SIO - PORT_M32R_BASE + 1);
-	up->port.fifosize = uart_config[up->port.type].dfl_xmit_fifo_size;
+	up->port.fifosize = 1;
 
 	spin_unlock_irqrestore(&up->port.lock, flags);
 }
@@ -916,21 +897,9 @@ static void m32r_sio_config_port(struct uart_port *port, int unused)
 static int
 m32r_sio_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	if (ser->irq >= nr_irqs || ser->irq < 0 ||
-	    ser->baud_base < 9600 || ser->type < PORT_UNKNOWN ||
-	    ser->type >= ARRAY_SIZE(uart_config))
+	if (ser->irq >= nr_irqs || ser->irq < 0 || ser->baud_base < 9600)
 		return -EINVAL;
 	return 0;
-}
-
-static const char *
-m32r_sio_type(struct uart_port *port)
-{
-	int type = port->type;
-
-	if (type >= ARRAY_SIZE(uart_config))
-		type = 0;
-	return uart_config[type].name;
 }
 
 static struct uart_ops m32r_sio_pops = {
@@ -946,7 +915,6 @@ static struct uart_ops m32r_sio_pops = {
 	.shutdown	= m32r_sio_shutdown,
 	.set_termios	= m32r_sio_set_termios,
 	.pm		= m32r_sio_pm,
-	.type		= m32r_sio_type,
 	.release_port	= m32r_sio_release_port,
 	.request_port	= m32r_sio_request_port,
 	.config_port	= m32r_sio_config_port,
