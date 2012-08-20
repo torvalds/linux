@@ -55,12 +55,12 @@ static void rk2928_hdmi_set_pwr_mode(int mode)
 	case LOWER_PWR:
 		rk2928_hdmi_av_mute(0);
 	   	rk2928_hdmi_sys_power_down();
-		HDMIWrReg(0xe0, 0x0a);
-	    HDMIWrReg(0xe1, 0x03);
-	    HDMIWrReg(0xe2, 0x99);
-	    HDMIWrReg(0xe3, 0x0f);
-		HDMIWrReg(0xe4, 0x00);
-		HDMIWrReg(0xec, 0x02);
+		HDMIWrReg(0xe0, 0x3a);
+	    HDMIWrReg(0xe1, 0x00);
+	    HDMIWrReg(0xe2, 0x00);
+	    HDMIWrReg(0xe3, 0x00);
+		HDMIWrReg(0xe4, 0x03);
+		HDMIWrReg(0xec, 0x03);
 		break;
 	default:
 	    hdmi_dbg(hdmi->dev,"unkown rk2928 hdmi pwr mode %d\n",mode);
