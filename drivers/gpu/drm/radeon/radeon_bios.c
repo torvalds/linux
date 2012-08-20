@@ -482,13 +482,12 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 {
 	bool ret = false;
 	struct acpi_table_header *hdr;
-	/* acpi_get_table_with_size is not exported :( */
-	acpi_size tbl_size = 0x7fffffff;
+	acpi_size tbl_size;
 	UEFI_ACPI_VFCT *vfct;
 	GOP_VBIOS_CONTENT *vbios;
 	VFCT_IMAGE_HEADER *vhdr;
 
-	if (!ACPI_SUCCESS(acpi_get_table("VFCT", 1, &hdr)))
+	if (!ACPI_SUCCESS(acpi_get_table_with_size("VFCT", 1, &hdr, &tbl_size)))
 		return false;
 	if (tbl_size < sizeof(UEFI_ACPI_VFCT)) {
 		DRM_ERROR("ACPI VFCT table present but broken (too short #1)\n");
@@ -525,7 +524,6 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 	ret = !!rdev->bios;
 
 out_unmap:
-	/* uh, no idea what to do here... */
 	return ret;
 }
 #else
