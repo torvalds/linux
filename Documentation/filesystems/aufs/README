@@ -103,7 +103,7 @@ or aufs3-standalone.
 The aufs3-linux tree includes the whole linux mainline GIT tree,
 git://git.kernel.org/.../torvalds/linux.git.
 And you cannot select CONFIG_AUFS_FS=m for this version, eg. you cannot
-build aufs3 as an externel kernel module.
+build aufs3 as an external kernel module.
 
 On the other hand, the aufs3-standalone tree has only aufs source files
 and necessary patches, and you can select CONFIG_AUFS_FS=m.
@@ -174,13 +174,14 @@ There are several ways to build.
 - apply ./aufs3-standalone.patch too, if you have a plan to set
   CONFIG_AUFS_FS=m. otherwise you don't need ./aufs3-standalone.patch.
 - copy ./{Documentation,fs,include/linux/aufs_type.h} files to your
-  kernel source tree. Never copy ./include/linux/Kbuild.
+  kernel source tree. Never copy $PWD/include/linux/Kbuild.
 - enable CONFIG_EXPERIMENTAL and CONFIG_AUFS_FS, you can select either
   =m or =y.
 - and build your kernel as usual.
 - install the built kernel.
 - install the header files too by "make headers_install" to the
   directory where you specify. By default, it is $PWD/usr.
+  "make help" shows a brief note for headers_install.
 - and reboot your system.
 
 2.
@@ -192,22 +193,23 @@ There are several ways to build.
 - apply ./aufs3-standalone.patch too.
 - build your kernel, don't forget "make headers_install", and reboot.
 - edit ./config.mk and set other aufs configurations if necessary.
-  Note: You should read ./fs/aufs/Kconfig carefully which describes
+  Note: You should read $PWD/fs/aufs/Kconfig carefully which describes
   every aufs configurations.
 - build the module by simple "make".
 - you can specify ${KDIR} make variable which points to your kernel
   source tree.
 - install the files
   + run "make install" to install the aufs module, or copy the built
-    ./aufs.ko to /lib/modules/... and run depmod -a (or reboot simply).
-  + run "make headers_install" to install the aufs header file (you can
-    specify DESTDIR), or copty ./usr/include/linux/aufs_type.h to
-    /usr/include/linux or wherever you like. By default, the target
-    directory is $PWD/usr.
+    $PWD/aufs.ko to /lib/modules/... and run depmod -a (or reboot simply).
+  + run "make install_headers" (instead of headers_install) to install
+    the modified aufs header file (you can specify DESTDIR which is
+    available in aufs standalone version's Makefile only), or copy
+    $PWD/usr/include/linux/aufs_type.h to /usr/include/linux or wherever
+    you like manually. By default, the target directory is $PWD/usr.
 - no need to apply aufs3-kbuild.patch, nor copying source files to your
   kernel source tree.
 
-Note: The haeder file aufs_type.h is necessary to build aufs-util
+Note: The header file aufs_type.h is necessary to build aufs-util
       as well as "make headers_install" in the kernel source tree.
       headers_install is subject to be forgotten, but it is essentially
       necessary, not only for building aufs-util.
@@ -291,7 +293,7 @@ Tomas Matejicek(slax.org) made a donation (much more than once).
 	Since Apr 2010, Tomas M (the author of Slax and Linux Live
 	scripts) is making "doubling" donations.
 	Unfortunately I cannot list all of the donators, but I really
-	appriciate.
+	appreciate.
 	It ends Aug 2010, but the ordinary donation URL is still available.
 	<http://sourceforge.net/donate/index.php?group_id=167503>
 Dai Itasaka made a donation (2007/8).
