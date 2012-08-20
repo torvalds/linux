@@ -1340,6 +1340,64 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return i915_gem_mmap_gtt(file, dev, args->handle, &args->offset);
 }
 
+/* Immediately discard the backing storage */
+static void
+i915_gem_object_truncate(struct drm_i915_gem_object *obj)
+{
+	struct inode *inode;
+
+	/* Our goal here is to return as much of the memory as
+	 * is possible back to the system as we are called from OOM.
+	 * To do this we must instruct the shmfs to drop all of its
+	 * backing pages, *now*.
+	 */
+	inode = obj->base.filp->f_path.dentry->d_inode;
+	shmem_truncate_range(inode, 0, (loff_t)-1);
+
+	if (obj->base.map_list.map)
+		drm_gem_free_mmap_offset(&obj->base);
+
+	obj->madv = __I915_MADV_PURGED;
+}
+
+static inline int
+i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
+{
+	return obj->madv == I915_MADV_DONTNEED;
+}
+
+static void
+i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
+{
+	int page_count = obj->base.size / PAGE_SIZE;
+	int i;
+
+	if (!obj->pages)
+		return;
+
+	BUG_ON(obj->madv == __I915_MADV_PURGED);
+
+	if (i915_gem_object_needs_bit17_swizzle(obj))
+		i915_gem_object_save_bit_17_swizzle(obj);
+
+	if (obj->madv == I915_MADV_DONTNEED)
+		obj->dirty = 0;
+
+	for (i = 0; i < page_count; i++) {
+		if (obj->dirty)
+			set_page_dirty(obj->pages[i]);
+
+		if (obj->madv == I915_MADV_WILLNEED)
+			mark_page_accessed(obj->pages[i]);
+
+		page_cache_release(obj->pages[i]);
+	}
+	obj->dirty = 0;
+
+	drm_free_large(obj->pages);
+	obj->pages = NULL;
+}
+
 int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 			      gfp_t gfpmask)
@@ -1385,38 +1443,6 @@ err_pages:
 	drm_free_large(obj->pages);
 	obj->pages = NULL;
 	return PTR_ERR(page);
-}
-
-static void
-i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
-{
-	int page_count = obj->base.size / PAGE_SIZE;
-	int i;
-
-	if (!obj->pages)
-		return;
-
-	BUG_ON(obj->madv == __I915_MADV_PURGED);
-
-	if (i915_gem_object_needs_bit17_swizzle(obj))
-		i915_gem_object_save_bit_17_swizzle(obj);
-
-	if (obj->madv == I915_MADV_DONTNEED)
-		obj->dirty = 0;
-
-	for (i = 0; i < page_count; i++) {
-		if (obj->dirty)
-			set_page_dirty(obj->pages[i]);
-
-		if (obj->madv == I915_MADV_WILLNEED)
-			mark_page_accessed(obj->pages[i]);
-
-		page_cache_release(obj->pages[i]);
-	}
-	obj->dirty = 0;
-
-	drm_free_large(obj->pages);
-	obj->pages = NULL;
 }
 
 void
@@ -1484,32 +1510,6 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	drm_gem_object_unreference(&obj->base);
 
 	WARN_ON(i915_verify_lists(dev));
-}
-
-/* Immediately discard the backing storage */
-static void
-i915_gem_object_truncate(struct drm_i915_gem_object *obj)
-{
-	struct inode *inode;
-
-	/* Our goal here is to return as much of the memory as
-	 * is possible back to the system as we are called from OOM.
-	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*.
-	 */
-	inode = obj->base.filp->f_path.dentry->d_inode;
-	shmem_truncate_range(inode, 0, (loff_t)-1);
-
-	if (obj->base.map_list.map)
-		drm_gem_free_mmap_offset(&obj->base);
-
-	obj->madv = __I915_MADV_PURGED;
-}
-
-static inline int
-i915_gem_object_is_purgeable(struct drm_i915_gem_object *obj)
-{
-	return obj->madv == I915_MADV_DONTNEED;
 }
 
 static u32
