@@ -549,25 +549,18 @@ batadv_find_ifalter_router(struct batadv_orig_node *primary_orig,
 		if (tmp_neigh_node->if_incoming == recv_if)
 			continue;
 
+		if (router && tmp_neigh_node->tq_avg <= router->tq_avg)
+			continue;
+
 		if (!atomic_inc_not_zero(&tmp_neigh_node->refcount))
 			continue;
 
-		/* if we don't have a router yet
-		 * or this one is better, choose it.
-		 */
-		if ((!router) ||
-		    (tmp_neigh_node->tq_avg > router->tq_avg)) {
-			/* decrement refcount of
-			 * previously selected router
-			 */
-			if (router)
-				batadv_neigh_node_free_ref(router);
+		/* decrement refcount of previously selected router */
+		if (router)
+			batadv_neigh_node_free_ref(router);
 
-			router = tmp_neigh_node;
-			atomic_inc_not_zero(&router->refcount);
-		}
-
-		batadv_neigh_node_free_ref(tmp_neigh_node);
+		/* we found a better router (or at least one valid router) */
+		router = tmp_neigh_node;
 	}
 
 	/* use the first candidate if nothing was found. */
