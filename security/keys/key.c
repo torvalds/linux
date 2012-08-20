@@ -598,7 +598,7 @@ void key_put(struct key *key)
 		key_check(key);
 
 		if (atomic_dec_and_test(&key->usage))
-			queue_work(system_nrt_wq, &key_gc_work);
+			schedule_work(&key_gc_work);
 	}
 }
 EXPORT_SYMBOL(key_put);

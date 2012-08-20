@@ -310,12 +310,12 @@ extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
 extern struct workqueue_struct *system_freezable_wq;
 
-static inline struct workqueue_struct *__system_nrt_wq(void)
+static inline struct workqueue_struct * __deprecated __system_nrt_wq(void)
 {
 	return system_wq;
 }
 
-static inline struct workqueue_struct *__system_nrt_freezable_wq(void)
+static inline struct workqueue_struct * __deprecated __system_nrt_freezable_wq(void)
 {
 	return system_freezable_wq;
 }

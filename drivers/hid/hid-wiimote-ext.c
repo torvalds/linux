@@ -204,7 +204,7 @@ static void wiiext_worker(struct work_struct *work)
 /* schedule work only once, otherwise mark for reschedule */
 static void wiiext_schedule(struct wiimote_ext *ext)
 {
-	queue_work(system_nrt_wq, &ext->worker);
+	schedule_work(&ext->worker);
 }
 
 /*
