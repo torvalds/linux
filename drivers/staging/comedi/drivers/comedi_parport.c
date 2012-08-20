@@ -305,20 +305,18 @@ static int parport_attach(struct comedi_device *dev,
 	dev->board_name = dev->driver->driver_name;
 
 	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: parport: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PARPORT_SIZE, dev->board_name)) {
-		printk(KERN_ERR "I/O port conflict\n");
+		dev_err(dev->class_dev, "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 	irq = it->options[1];
 	if (irq) {
-		printk(KERN_INFO " irq=%u", irq);
 		ret = request_irq(irq, parport_interrupt, 0, dev->board_name,
 				  dev);
 		if (ret < 0) {
-			printk(KERN_ERR " irq not available\n");
+			dev_err(dev->class_dev, "irq not available\n");
 			return -EINVAL;
 		}
 		dev->irq = irq;
@@ -379,8 +377,10 @@ static int parport_attach(struct comedi_device *dev,
 	devpriv->c_data = 0;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
-	printk(KERN_INFO "\n");
-	return 1;
+	dev_info(dev->class_dev, "%s: iobase=0x%04lx, irq %sabled",
+		dev->board_name, dev->iobase, dev->irq ? "en" : "dis");
+
+	return 0;
 }
 
 static void parport_detach(struct comedi_device *dev)
