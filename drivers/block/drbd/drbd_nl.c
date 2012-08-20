@@ -1210,11 +1210,13 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
+	drbd_suspend_io(mdev);
 	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
 	drbd_al_shrink(mdev);
 	err = drbd_check_al_size(mdev, new_disk_conf);
 	lc_unlock(mdev->act_log);
 	wake_up(&mdev->al_wait);
+	drbd_resume_io(mdev);
 
 	if (err) {
 		retcode = ERR_NOMEM;
