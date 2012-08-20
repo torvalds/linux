@@ -1244,9 +1244,14 @@ static void __devinit pnv_pci_ioda_setup_seg(void)
 static void __devinit pnv_pci_ioda_setup_DMA(void)
 {
 	struct pci_controller *hose, *tmp;
+	struct pnv_phb *phb;
 
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		pnv_ioda_setup_dma(hose->private_data);
+
+		/* Mark the PHB initialization done */
+		phb = hose->private_data;
+		phb->initialized = 1;
 	}
 }
 
@@ -1300,10 +1305,22 @@ static resource_size_t pnv_pci_window_alignment(struct pci_bus *bus,
  */
 static int __devinit pnv_pci_enable_device_hook(struct pci_dev *dev)
 {
-	struct pci_dn *pdn = pnv_ioda_get_pdn(dev);
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	struct pnv_phb *phb = hose->private_data;
+	struct pci_dn *pdn;
 
+	/* The function is probably called while the PEs have
+	 * not be created yet. For example, resource reassignment
+	 * during PCI probe period. We just skip the check if
+	 * PEs isn't ready.
+	 */
+	if (!phb->initialized)
+		return 0;
+
+	pdn = pnv_ioda_get_pdn(dev);
 	if (!pdn || pdn->pe_number == IODA_INVALID_PE)
 		return -EINVAL;
+
 	return 0;
 }
 

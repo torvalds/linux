@@ -69,6 +69,7 @@ struct pnv_phb {
 	enum pnv_phb_model	model;
 	u64			opal_id;
 	void __iomem		*regs;
+	int			initialized;
 	spinlock_t		lock;
 
 #ifdef CONFIG_PCI_MSI
