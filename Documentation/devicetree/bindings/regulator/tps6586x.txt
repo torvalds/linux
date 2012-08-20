@@ -9,9 +9,9 @@ Required properties:
 - regulators: list of regulators provided by this controller, must have
   property "regulator-compatible" to match their hardware counterparts:
   sm[0-2], ldo[0-9] and ldo_rtc
-- sm0-supply: The input supply for the SM0.
-- sm1-supply: The input supply for the SM1.
-- sm2-supply: The input supply for the SM2.
+- vin-sm0-supply: The input supply for the SM0.
+- vin-sm1-supply: The input supply for the SM1.
+- vin-sm2-supply: The input supply for the SM2.
 - vinldo01-supply: The input supply for the LDO1 and LDO2
 - vinldo23-supply: The input supply for the LDO2 and LDO3
 - vinldo4-supply: The input supply for the LDO4
@@ -30,9 +30,9 @@ Example:
 		#gpio-cells = <2>;
 		gpio-controller;
 
-		sm0-supply = <&some_reg>;
-		sm1-supply = <&some_reg>;
-		sm2-supply = <&some_reg>;
+		vin-sm0-supply = <&some_reg>;
+		vin-sm1-supply = <&some_reg>;
+		vin-sm2-supply = <&some_reg>;
 		vinldo01-supply = <...>;
 		vinldo23-supply = <...>;
 		vinldo4-supply = <...>;

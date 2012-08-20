@@ -240,14 +240,16 @@ static struct tps6586x_regulator tps6586x_regulator[] = {
 	TPS6586X_LDO(LDO_9, "vinldo9", ldo, SUPPLYV6, 3, 3, ENE, 7, ENE, 7),
 	TPS6586X_LDO(LDO_RTC, NULL, ldo, SUPPLYV4, 3, 3, V4, 7, V4, 7),
 	TPS6586X_LDO(LDO_1, "vinldo01", dvm, SUPPLYV1, 0, 5, ENC, 1, END, 1),
-	TPS6586X_LDO(SM_2, "sm2", sm2, SUPPLYV2, 0, 5, ENC, 7, END, 7),
+	TPS6586X_LDO(SM_2, "vin-sm2", sm2, SUPPLYV2, 0, 5, ENC, 7, END, 7),
 
 	TPS6586X_DVM(LDO_2, "vinldo23", dvm, LDO2BV1, 0, 5, ENA, 3,
 					ENB, 3, VCC2, 6),
 	TPS6586X_DVM(LDO_4, "vinldo4", ldo4, LDO4V1, 0, 5, ENC, 3,
 					END, 3, VCC1, 6),
-	TPS6586X_DVM(SM_0, "sm0", dvm, SM0V1, 0, 5, ENA, 1, ENB, 1, VCC1, 2),
-	TPS6586X_DVM(SM_1, "sm1", dvm, SM1V1, 0, 5, ENA, 0, ENB, 0, VCC1, 0),
+	TPS6586X_DVM(SM_0, "vin-sm0", dvm, SM0V1, 0, 5, ENA, 1,
+					ENB, 1, VCC1, 2),
+	TPS6586X_DVM(SM_1, "vin-sm1", dvm, SM1V1, 0, 5, ENA, 0,
+					ENB, 0, VCC1, 0),
 };
 
 /*
