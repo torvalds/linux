@@ -280,14 +280,18 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 	return desc;
 }
 
-static int ext4_valid_block_bitmap(struct super_block *sb,
-				   struct ext4_group_desc *desc,
-				   unsigned int block_group,
-				   struct buffer_head *bh)
+/*
+ * Return the block number which was discovered to be invalid, or 0 if
+ * the block bitmap is valid.
+ */
+static ext4_fsblk_t ext4_valid_block_bitmap(struct super_block *sb,
+					    struct ext4_group_desc *desc,
+					    unsigned int block_group,
+					    struct buffer_head *bh)
 {
 	ext4_grpblk_t offset;
 	ext4_grpblk_t next_zero_bit;
-	ext4_fsblk_t bitmap_blk;
+	ext4_fsblk_t blk;
 	ext4_fsblk_t group_first_block;
 
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG)) {
@@ -297,37 +301,33 @@ static int ext4_valid_block_bitmap(struct super_block *sb,
 		 * or it has to also read the block group where the bitmaps
 		 * are located to verify they are set.
 		 */
-		return 1;
+		return 0;
 	}
 	group_first_block = ext4_group_first_block_no(sb, block_group);
 
 	/* check whether block bitmap block number is set */
-	bitmap_blk = ext4_block_bitmap(sb, desc);
-	offset = bitmap_blk - group_first_block;
+	blk = ext4_block_bitmap(sb, desc);
+	offset = blk - group_first_block;
 	if (!ext4_test_bit(offset, bh->b_data))
 		/* bad block bitmap */
-		goto err_out;
+		return blk;
 
 	/* check whether the inode bitmap block number is set */
-	bitmap_blk = ext4_inode_bitmap(sb, desc);
-	offset = bitmap_blk - group_first_block;
+	blk = ext4_inode_bitmap(sb, desc);
+	offset = blk - group_first_block;
 	if (!ext4_test_bit(offset, bh->b_data))
 		/* bad block bitmap */
-		goto err_out;
+		return blk;
 
 	/* check whether the inode table block number is set */
-	bitmap_blk = ext4_inode_table(sb, desc);
-	offset = bitmap_blk - group_first_block;
+	blk = ext4_inode_table(sb, desc);
+	offset = blk - group_first_block;
 	next_zero_bit = ext4_find_next_zero_bit(bh->b_data,
 				offset + EXT4_SB(sb)->s_itb_per_group,
 				offset);
-	if (next_zero_bit >= offset + EXT4_SB(sb)->s_itb_per_group)
-		/* good bitmap for inode tables */
-		return 1;
-
-err_out:
-	ext4_error(sb, "Invalid block bitmap - block_group = %d, block = %llu",
-			block_group, bitmap_blk);
+	if (next_zero_bit < offset + EXT4_SB(sb)->s_itb_per_group)
+		/* bad bitmap for inode tables */
+		return blk;
 	return 0;
 }
 
@@ -336,14 +336,26 @@ void ext4_validate_block_bitmap(struct super_block *sb,
 			       unsigned int block_group,
 			       struct buffer_head *bh)
 {
+	ext4_fsblk_t	blk;
+
 	if (buffer_verified(bh))
 		return;
 
 	ext4_lock_group(sb, block_group);
-	if (ext4_valid_block_bitmap(sb, desc, block_group, bh) &&
-	    ext4_block_bitmap_csum_verify(sb, block_group, desc, bh,
-					  EXT4_BLOCKS_PER_GROUP(sb) / 8))
-		set_buffer_verified(bh);
+	blk = ext4_valid_block_bitmap(sb, desc, block_group, bh);
+	if (unlikely(blk != 0)) {
+		ext4_unlock_group(sb, block_group);
+		ext4_error(sb, "bg %u: block %llu: invalid block bitmap",
+			   block_group, blk);
+		return;
+	}
+	if (unlikely(!ext4_block_bitmap_csum_verify(sb, block_group,
+			desc, bh, EXT4_BLOCKS_PER_GROUP(sb) / 8))) {
+		ext4_unlock_group(sb, block_group);
+		ext4_error(sb, "bg %u: bad block bitmap checksum", block_group);
+		return;
+	}
+	set_buffer_verified(bh);
 	ext4_unlock_group(sb, block_group);
 }
 

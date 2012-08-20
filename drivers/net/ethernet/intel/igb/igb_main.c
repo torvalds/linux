@@ -462,10 +462,10 @@ static void igb_dump(struct igb_adapter *adapter)
 				(u64)buffer_info->time_stamp,
 				buffer_info->skb, next_desc);
 
-			if (netif_msg_pktdata(adapter) && buffer_info->dma != 0)
+			if (netif_msg_pktdata(adapter) && buffer_info->skb)
 				print_hex_dump(KERN_INFO, "",
 					DUMP_PREFIX_ADDRESS,
-					16, 1, phys_to_virt(buffer_info->dma),
+					16, 1, buffer_info->skb->data,
 					buffer_info->length, true);
 		}
 	}
@@ -547,18 +547,17 @@ rx_ring_summary:
 					(u64)buffer_info->dma,
 					buffer_info->skb, next_desc);
 
-				if (netif_msg_pktdata(adapter)) {
+				if (netif_msg_pktdata(adapter) &&
+				    buffer_info->dma && buffer_info->skb) {
 					print_hex_dump(KERN_INFO, "",
-						DUMP_PREFIX_ADDRESS,
-						16, 1,
-						phys_to_virt(buffer_info->dma),
-						IGB_RX_HDR_LEN, true);
+						  DUMP_PREFIX_ADDRESS,
+						  16, 1, buffer_info->skb->data,
+						  IGB_RX_HDR_LEN, true);
 					print_hex_dump(KERN_INFO, "",
 					  DUMP_PREFIX_ADDRESS,
 					  16, 1,
-					  phys_to_virt(
-					    buffer_info->page_dma +
-					    buffer_info->page_offset),
+					  page_address(buffer_info->page) +
+						      buffer_info->page_offset,
 					  PAGE_SIZE/2, true);
 				}
 			}

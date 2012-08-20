@@ -232,6 +232,7 @@ static int usbpn_open(struct net_device *dev)
 		struct urb *req = usb_alloc_urb(0, GFP_KERNEL);
 
 		if (!req || rx_submit(pnd, req, GFP_KERNEL | __GFP_COLD)) {
+			usb_free_urb(req);
 			usbpn_close(dev);
 			return -ENOMEM;
 		}
