@@ -184,7 +184,7 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 	if (!dev->isoc_ctl.num_bufs || new_pkt_size) {
 		rc = stk1160_alloc_isoc(dev);
 		if (rc < 0)
-			goto out_unlock;
+			goto out_stop_hw;
 	}
 
 	/* submit urbs and enables IRQ */
@@ -192,8 +192,7 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 		rc = usb_submit_urb(dev->isoc_ctl.urb[i], GFP_KERNEL);
 		if (rc) {
 			stk1160_err("cannot submit urb[%d] (%d)\n", i, rc);
-			stk1160_uninit_isoc(dev);
-			goto out_unlock;
+			goto out_uninit;
 		}
 	}
 
@@ -206,7 +205,16 @@ static int stk1160_start_streaming(struct stk1160 *dev)
 
 	stk1160_dbg("streaming started\n");
 
-out_unlock:
+	mutex_unlock(&dev->v4l_lock);
+
+	return 0;
+
+out_uninit:
+	stk1160_uninit_isoc(dev);
+out_stop_hw:
+	usb_set_interface(dev->udev, 0, 0);
+	stk1160_clear_queue(dev);
+
 	mutex_unlock(&dev->v4l_lock);
 
 	return rc;
