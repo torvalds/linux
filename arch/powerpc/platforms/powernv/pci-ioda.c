@@ -656,13 +656,13 @@ static void __devinit pnv_ioda_link_pe_by_weight(struct pnv_phb *phb,
 {
 	struct pnv_ioda_pe *lpe;
 
-	list_for_each_entry(lpe, &phb->ioda.pe_list, link) {
+	list_for_each_entry(lpe, &phb->ioda.pe_dma_list, dma_link) {
 		if (lpe->dma_weight < pe->dma_weight) {
-			list_add_tail(&pe->link, &lpe->link);
+			list_add_tail(&pe->dma_link, &lpe->dma_link);
 			return;
 		}
 	}
-	list_add_tail(&pe->link, &phb->ioda.pe_list);
+	list_add_tail(&pe->dma_link, &phb->ioda.pe_dma_list);
 }
 
 static unsigned int pnv_ioda_dma_weight(struct pci_dev *dev)
@@ -827,6 +827,9 @@ static void __devinit pnv_ioda_setup_bus_PE(struct pci_bus *bus, int all)
 
 	/* Associate it with all child devices */
 	pnv_ioda_setup_same_PE(bus, pe);
+
+	/* Put PE to the list */
+	list_add_tail(&pe->list, &phb->ioda.pe_list);
 
 	/* Account for one DMA PE if at least one DMA capable device exist
 	 * below the bridge
@@ -1011,7 +1014,7 @@ static void __devinit pnv_ioda_setup_dma(struct pnv_phb *phb)
 	remaining = phb->ioda.tce32_count;
 	tw = phb->ioda.dma_weight;
 	base = 0;
-	list_for_each_entry(pe, &phb->ioda.pe_list, link) {
+	list_for_each_entry(pe, &phb->ioda.pe_dma_list, dma_link) {
 		if (!pe->dma_weight)
 			continue;
 		if (!remaining) {
@@ -1305,6 +1308,7 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	phb->ioda.pe_array = aux + pemap_off;
 	set_bit(0, phb->ioda.pe_alloc);
 
+	INIT_LIST_HEAD(&phb->ioda.pe_dma_list);
 	INIT_LIST_HEAD(&phb->ioda.pe_list);
 
 	/* Calculate how many 32-bit TCE segments we have */
