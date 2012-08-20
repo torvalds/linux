@@ -59,8 +59,6 @@ Configuration Options:
 /* The maxiumum number of channels per subdevice. */
 #define MAX_CHANS 256
 
-#define MODULE_NAME "comedi_bond"
-
 struct BondedDevice {
 	struct comedi_device *dev;
 	unsigned minor;
@@ -374,7 +372,7 @@ static struct comedi_driver bonding_driver = {
 module_comedi_driver(bonding_driver);
 
 MODULE_AUTHOR("Calin A. Culianu");
-MODULE_DESCRIPTION(MODULE_NAME "A driver for COMEDI to bond multiple COMEDI "
+MODULE_DESCRIPTION("comedi_bond: A driver for COMEDI to bond multiple COMEDI "
 		   "devices together as one.  In the words of John Lennon: "
 		   "'And the world will live as one...'");
 MODULE_LICENSE("GPL");
