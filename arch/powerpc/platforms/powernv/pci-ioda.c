@@ -1241,10 +1241,20 @@ static void __devinit pnv_pci_ioda_setup_seg(void)
 	}
 }
 
+static void __devinit pnv_pci_ioda_setup_DMA(void)
+{
+	struct pci_controller *hose, *tmp;
+
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+		pnv_ioda_setup_dma(hose->private_data);
+	}
+}
+
 static void __devinit pnv_pci_ioda_fixup(void)
 {
 	pnv_pci_ioda_setup_PEs();
 	pnv_pci_ioda_setup_seg();
+	pnv_pci_ioda_setup_DMA();
 }
 
 /*
