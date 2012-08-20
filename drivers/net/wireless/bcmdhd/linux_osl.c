@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c 347629 2012-07-27 10:57:10Z $
+ * $Id: linux_osl.c 350283 2012-08-12 07:47:25Z $
  */
 
 #define LINUX_PORT
@@ -252,8 +252,9 @@ osl_attach(void *pdev, uint bustype, bool pkttag)
 		bcm_static_skb = (bcm_static_pkt_t *)((char *)bcm_static_buf + 2048);
 		skb_buff_ptr = dhd_os_prealloc(osh, 4, 0);
 
-		bcopy(skb_buff_ptr, bcm_static_skb, sizeof(struct sk_buff *)*16);
-		for (i = 0; i < STATIC_PKT_MAX_NUM * 2; i++)
+		bcopy(skb_buff_ptr, bcm_static_skb, sizeof(struct sk_buff *)*
+			(STATIC_PKT_MAX_NUM * 2 + STATIC_PKT_4PAGE_NUM));
+		for (i = 0; i < (STATIC_PKT_MAX_NUM * 2 + STATIC_PKT_4PAGE_NUM); i++)
 			bcm_static_skb->pkt_use[i] = 0;
 
 		sema_init(&bcm_static_skb->osl_pkt_sem, 1);

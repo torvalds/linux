@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_android.c 347544 2012-07-27 05:02:38Z $
+ * $Id: wl_android.c 350488 2012-08-14 04:36:26Z $
  */
 
 #include <linux/module.h>
@@ -137,6 +137,9 @@ extern bool ap_fw_loaded;
 extern char iface_name[IFNAMSIZ];
 #endif
 
+#ifndef WIFI_TURNOFF_DELAY
+#define WIFI_TURNOFF_DELAY	0
+#endif
 /**
  * Local (static) functions and variables
  */
@@ -647,7 +650,7 @@ int wl_android_init(void)
 {
 	int ret = 0;
 
-	dhd_msg_level |= DHD_ERROR_VAL;
+	dhd_msg_level |= DHD_ERROR_VAL | DHD_TRACE2_VAL;
 #ifdef ENABLE_INSMOD_NO_FW_LOAD
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
@@ -656,7 +659,7 @@ int wl_android_init(void)
 		memset(iface_name, 0, IFNAMSIZ);
 		bcm_strncpy_s(iface_name, IFNAMSIZ, "wlan", IFNAMSIZ);
 	}
-#endif /* CUSTOMER_HW2 */
+#endif
 	return ret;
 }
 
@@ -819,7 +822,7 @@ static int wifi_remove(struct platform_device *pdev)
 	DHD_ERROR(("## %s\n", __FUNCTION__));
 	wifi_control_data = wifi_ctrl;
 
-	wifi_set_power(0, 0);	/* Power Off */
+	wifi_set_power(0, WIFI_TURNOFF_DELAY);	/* Power Off */
 	wifi_set_carddetect(0);	/* CardDetect (1->0) */
 
 	up(&wifi_control_sem);

@@ -547,15 +547,14 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 	strncpy((char *)&powermode_val, command + strlen("BTCOEXMODE") +1, 1);
 
 	if (strnicmp((char *)&powermode_val, "1", strlen("1")) == 0) {
-
-		WL_TRACE(("%s: DHCP session starts\n", __FUNCTION__));
+		WL_TRACE2(("%s: DHCP session starts\n", __FUNCTION__));
 
 #ifdef PKT_FILTER_SUPPORT
 		dhd->dhcp_in_progress = 1;
 
 		/* Disable packet filtering */
 		if (dhd_pkt_filter_enable && dhd->early_suspended) {
-			WL_TRACE(("DHCP in progressing , disable packet filter!!!\n"));
+			WL_TRACE2(("DHCP in progressing , disable packet filter!!!\n"));
 			for (i = 0; i < dhd->pktfilter_count; i++) {
 				dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
 				 0, dhd_master_mode);
@@ -609,10 +608,11 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 
 #ifdef PKT_FILTER_SUPPORT
 		dhd->dhcp_in_progress = 0;
+		WL_TRACE2(("%s: DHCP is complete \n", __FUNCTION__));
 
 		/* Enable packet filtering */
 		if (dhd_pkt_filter_enable && dhd->early_suspended) {
-			WL_TRACE(("DHCP is complete , enable packet filter!!!\n"));
+			WL_TRACE2(("DHCP is complete , enable packet filter!!!\n"));
 			for (i = 0; i < dhd->pktfilter_count; i++) {
 				dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
 				 1, dhd_master_mode);

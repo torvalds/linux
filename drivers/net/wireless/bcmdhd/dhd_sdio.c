@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 347641 2012-07-27 11:55:19Z $
+ * $Id: dhd_sdio.c 350866 2012-08-16 00:29:10Z $
  */
 
 #include <typedefs.h>
@@ -743,18 +743,55 @@ dhdsdio_clk_kso_init(dhd_bus_t *bus)
 	return 0;
 }
 
+#define KSO_DBG(x)
+#define MAX_KSO_ATTEMPTS 64
 static int
 dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 {
-	uint8 val = 0;
+	uint8 wr_val = 0, rd_val, cmp_val, bmask;
 	int err = 0;
+	int try_cnt = 0;
 
-	/* Don't read here since sdio could be off so just write only */
-	val |= (on << SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT);
-	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, val, &err);
+	KSO_DBG(("%s> op:%s\n", __FUNCTION__, (on ? "KSO_SET" : "KSO_CLR")));
 
-	if (err)
-		DHD_TRACE(("%s: KSO toggle %d failed: %d\n", __FUNCTION__, on, err));
+	wr_val |= (on << SBSDIO_FUNC1_SLEEPCSR_KSO_SHIFT);
+
+	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, wr_val, &err);
+
+	if (on) {
+		cmp_val = SBSDIO_FUNC1_SLEEPCSR_KSO_MASK |  SBSDIO_FUNC1_SLEEPCSR_DEVON_MASK;
+		bmask = cmp_val;
+
+		msleep(3);
+
+	} else {
+		/*  Put device to sleep, turn off  KSO  */
+		cmp_val = 0;
+		bmask = SBSDIO_FUNC1_SLEEPCSR_KSO_MASK;
+	}
+
+	do {
+		rd_val = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, &err);
+		if (((rd_val & bmask) == cmp_val) && !err)
+			break;
+
+		KSO_DBG(("%s> KSO wr/rd retry:%d, ERR:%x \n", __FUNCTION__, try_cnt, err));
+		OSL_DELAY(50);
+
+		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_SLEEPCSR, wr_val, &err);
+
+	} while (try_cnt++ < MAX_KSO_ATTEMPTS);
+
+
+	if (try_cnt > 1) {
+		KSO_DBG(("%s> op:%s, try_cnt:%d, rd_val:%x, ERR:%x \n",
+			__FUNCTION__, (on ? "KSO_SET" : "KSO_CLR"), try_cnt, rd_val, err));
+	}
+
+	if (try_cnt > MAX_KSO_ATTEMPTS)  {
+		DHD_ERROR(("%s> op:%s, ERROR: try_cnt:%d, rd_val:%x, ERR:%x \n",
+			__FUNCTION__, (on ? "KSO_SET" : "KSO_CLR"), try_cnt, rd_val, err));
+	}
 	return err;
 }
 

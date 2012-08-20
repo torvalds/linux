@@ -21,17 +21,20 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_dbg.h 343390 2012-07-06 22:34:19Z $
+ * $Id: dhd_dbg.h 350488 2012-08-14 04:36:26Z $
  */
 
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
+#define USE_NET_RATELIMIT		net_ratelimit()
+
 #if defined(DHD_DEBUG)
 
-#define DHD_ERROR(args)	       do {if ((dhd_msg_level & DHD_ERROR_VAL) && (net_ratelimit())) \
+#define DHD_ERROR(args)		do {if ((dhd_msg_level & DHD_ERROR_VAL) && USE_NET_RATELIMIT) \
 								printf args;} while (0)
 #define DHD_TRACE(args)		do {if (dhd_msg_level & DHD_TRACE_VAL) printf args;} while (0)
+#define DHD_TRACE2(args)	do {if (dhd_msg_level & DHD_TRACE2_VAL) printf args;} while (0)
 #define DHD_INFO(args)		do {if (dhd_msg_level & DHD_INFO_VAL) printf args;} while (0)
 #define DHD_DATA(args)		do {if (dhd_msg_level & DHD_DATA_VAL) printf args;} while (0)
 #define DHD_CTL(args)		do {if (dhd_msg_level & DHD_CTL_VAL) printf args;} while (0)
@@ -48,6 +51,7 @@
 
 #define DHD_ERROR_ON()		(dhd_msg_level & DHD_ERROR_VAL)
 #define DHD_TRACE_ON()		(dhd_msg_level & DHD_TRACE_VAL)
+#define DHD_TRACE2_ON()		(dhd_msg_level & DHD_TRACE2_VAL)
 #define DHD_INFO_ON()		(dhd_msg_level & DHD_INFO_VAL)
 #define DHD_DATA_ON()		(dhd_msg_level & DHD_DATA_VAL)
 #define DHD_CTL_ON()		(dhd_msg_level & DHD_CTL_VAL)
@@ -64,8 +68,9 @@
 
 #else /* defined(BCMDBG) || defined(DHD_DEBUG) */
 
-#define DHD_ERROR(args)    	do {if (net_ratelimit()) printf args;} while (0)
+#define DHD_ERROR(args)		do {if (USE_NET_RATELIMIT) printf args;} while (0)
 #define DHD_TRACE(args)
+#define DHD_TRACE2(args)
 #define DHD_INFO(args)
 #define DHD_DATA(args)
 #define DHD_CTL(args)
@@ -82,6 +87,7 @@
 
 #define DHD_ERROR_ON()		0
 #define DHD_TRACE_ON()		0
+#define DHD_TRACE2_ON()		0
 #define DHD_INFO_ON()		0
 #define DHD_DATA_ON()		0
 #define DHD_CTL_ON()		0

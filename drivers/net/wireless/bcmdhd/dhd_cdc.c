@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 347640 2012-07-27 11:53:21Z $
+ * $Id: dhd_cdc.c 349167 2012-08-07 06:58:11Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -2377,10 +2377,15 @@ dhd_wlfc_cleanup(dhd_pub_t *dhd)
 		dhd->wlfc_state;
 	wlfc_mac_descriptor_t* table;
 	wlfc_hanger_t* h;
-
+	int prec;
+	void *pkt = NULL;
+	struct pktq *txq = NULL;
 	if (dhd->wlfc_state == NULL)
 		return;
-
+	/* flush bus->txq */
+	txq = dhd_bus_txq(dhd->bus);
+	/* any in the hanger? */
+	h = (wlfc_hanger_t*)wlfc->hanger;
 	total_entries = sizeof(wlfc->destination_entries)/sizeof(wlfc_mac_descriptor_t);
 	/* search all entries, include nodes as well as interfaces */
 	table = (wlfc_mac_descriptor_t*)&wlfc->destination_entries;
@@ -2399,8 +2404,26 @@ dhd_wlfc_cleanup(dhd_pub_t *dhd)
 	/* release packets held in SENDQ */
 	if (wlfc->SENDQ.len)
 		pktq_flush(wlfc->osh, &wlfc->SENDQ, TRUE, NULL, 0);
-	/* any in the hanger? */
-	h = (wlfc_hanger_t*)wlfc->hanger;
+	for (prec = 0; prec < txq->num_prec; prec++) {
+		pkt = pktq_pdeq(txq, prec);
+		while (pkt) {
+			for (i = 0; i < h->max_items; i++) {
+				if (pkt == h->items[i].pkt) {
+					if (h->items[i].state == WLFC_HANGER_ITEM_STATE_INUSE) {
+						PKTFREE(wlfc->osh, h->items[i].pkt, TRUE);
+						h->items[i].state = WLFC_HANGER_ITEM_STATE_FREE;
+					} else if (h->items[i].state ==
+						WLFC_HANGER_ITEM_STATE_INUSE_SUPPRESSED) {
+						/* These are already freed from the psq */
+						h->items[i].state = WLFC_HANGER_ITEM_STATE_FREE;
+					}
+					break;
+				}
+			}
+			pkt = pktq_pdeq(txq, prec);
+		}
+	}
+	/* flush remained pkt in hanger queue, not in bus->txq */
 	for (i = 0; i < h->max_items; i++) {
 		if (h->items[i].state == WLFC_HANGER_ITEM_STATE_INUSE) {
 			PKTFREE(wlfc->osh, h->items[i].pkt, TRUE);

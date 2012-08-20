@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 347624 2012-07-27 10:49:56Z $
+ * $Id: dhd_common.c 350938 2012-08-16 07:16:25Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -94,7 +94,7 @@ void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
 extern int dhd_change_mtu(dhd_pub_t *dhd, int new_mtu, int ifidx);
 #if !defined(AP) && defined(WLP2P)
-extern bool dhd_concurrent_fw(dhd_pub_t *dhd);
+extern int dhd_get_concurrent_capabilites(dhd_pub_t *dhd);
 #endif
 bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
@@ -277,11 +277,12 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 	dhd_os_proto_block(dhd_pub);
 
 	ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);
+	if ((ret) && (dhd_pub->up))
 		/* Send hang event only if dhd_open() was success */
-		if (ret && dhd_pub->up)
-			dhd_os_check_hang(dhd_pub, ifindex, ret);
+		dhd_os_check_hang(dhd_pub, ifindex, ret);
 
 	dhd_os_proto_unblock(dhd_pub);
+
 	return ret;
 }
 

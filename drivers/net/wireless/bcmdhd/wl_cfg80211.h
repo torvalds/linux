@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 347625 2012-07-27 10:52:40Z $
+ * $Id: wl_cfg80211.h 351262 2012-08-17 12:15:01Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -52,6 +52,7 @@ struct wl_ibss;
 #define dtohchanspec(i) i
 
 #define WL_DBG_NONE	0
+#define WL_DBG_TRACE2	(1 << 5)
 #define WL_DBG_TRACE	(1 << 4)
 #define WL_DBG_SCAN 	(1 << 3)
 #define WL_DBG_DBG 	(1 << 2)
@@ -109,6 +110,16 @@ do {									\
 		printk args;							\
 	}									\
 } while (0)
+#ifdef WL_TRACE2
+#undef WL_TRACE2
+#endif
+#define	WL_TRACE2(args)								\
+do {									\
+	if (wl_dbg_level & WL_DBG_TRACE || wl_dbg_level & WL_DBG_TRACE2) {			\
+		printk(KERN_INFO "CFG80211-TRACE2) %s :", __func__);	\
+		printk args;							\
+	}									\
+} while (0)
 #if (WL_DBG_LEVEL > 0)
 #define	WL_DBG(args)								\
 do {									\
@@ -141,7 +152,8 @@ do {									\
 #define WL_MIN_DWELL_TIME	100
 #define WL_LONG_DWELL_TIME 	1000
 #define IFACE_MAX_CNT 		2
-#define WL_SCAN_CONNECT_DWELL_TIME_MS 100
+#define WL_SCAN_CONNECT_DWELL_TIME_MS 150
+#define WL_AF_TX_MAX_RETRY 	5
 
 #define WL_SCAN_TIMER_INTERVAL_MS	8000 /* Scan timeout */
 #define WL_CHANNEL_SYNC_RETRY 	5
@@ -384,7 +396,7 @@ struct escan_info {
 	u8 *escan_buf;
 #else
 	u8 escan_buf[ESCAN_BUF_SIZE];
-#endif 
+#endif /* STATIC_WL_PRIV_STRUCT */
 	struct wiphy *wiphy;
 	struct net_device *ndev;
 };
@@ -795,4 +807,5 @@ extern s32 wl_update_wiphybands(struct wl_priv *wl);
 extern s32 wl_cfg80211_if_is_group_owner(void);
 extern chanspec_t wl_ch_host_to_driver(u16 channel);
 extern s32 wl_add_remove_eventmsg(struct net_device *ndev, u16 event, bool add);
+extern void wl_stop_wait_next_action_frame(struct wl_priv *wl, struct net_device *ndev);
 #endif				/* _wl_cfg80211_h_ */
