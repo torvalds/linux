@@ -86,7 +86,7 @@ static ssize_t backlight_read(struct device *dev,
 {
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
 
-	printk("rk29_bl_info->min_brightness=%d\n",rk29_bl_info->min_brightness);
+	DBG("rk29_bl_info->min_brightness=%d\n",rk29_bl_info->min_brightness);
 }
 static DEVICE_ATTR(rk29backlight, 0660, backlight_read, backlight_write);
 
