@@ -41,6 +41,9 @@
 /* Adjust the return address of a call insn */
 #define UPROBE_FIX_CALL	0x2
 
+/* Instruction will modify TF, don't change it */
+#define UPROBE_FIX_SETF	0x4
+
 #define UPROBE_FIX_RIP_AX	0x8000
 #define UPROBE_FIX_RIP_CX	0x4000
 
@@ -239,6 +242,10 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
 	insn_get_opcode(insn);	/* should be a nop */
 
 	switch (OPCODE1(insn)) {
+	case 0x9d:
+		/* popf */
+		auprobe->fixups |= UPROBE_FIX_SETF;
+		break;
 	case 0xc3:		/* ret/lret */
 	case 0xcb:
 	case 0xc2:
@@ -672,4 +679,30 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		break;
 	}
 	return false;
+}
+
+void arch_uprobe_enable_step(struct arch_uprobe *auprobe)
+{
+	struct uprobe_task	*utask		= current->utask;
+	struct arch_uprobe_task	*autask		= &utask->autask;
+
+	autask->restore_flags = 0;
+	if (!test_tsk_thread_flag(current, TIF_SINGLESTEP) &&
+			!(auprobe->fixups & UPROBE_FIX_SETF))
+		autask->restore_flags |= UPROBE_CLEAR_TF;
+	/*
+	 * The state of TIF_BLOCKSTEP is not saved. With the TF flag set we
+	 * would to examine the opcode and the flags to make it right. Without
+	 * TF block stepping makes no sense.
+	 */
+	user_enable_single_step(current);
+}
+
+void arch_uprobe_disable_step(struct arch_uprobe *auprobe)
+{
+	struct uprobe_task *utask		= current->utask;
+	struct arch_uprobe_task	*autask		= &utask->autask;
+
+	if (autask->restore_flags & UPROBE_CLEAR_TF)
+		user_disable_single_step(current);
 }
