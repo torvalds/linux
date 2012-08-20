@@ -1035,66 +1035,6 @@ static void phy_write_mmd_indirect(struct mii_bus *bus, int prtad, int devad,
 	bus->write(bus, addr, MII_MMD_DATA, data);
 }
 
-static u32 phy_eee_to_adv(u16 eee_adv)
-{
-	u32 adv = 0;
-
-	if (eee_adv & MDIO_EEE_100TX)
-		adv |= ADVERTISED_100baseT_Full;
-	if (eee_adv & MDIO_EEE_1000T)
-		adv |= ADVERTISED_1000baseT_Full;
-	if (eee_adv & MDIO_EEE_10GT)
-		adv |= ADVERTISED_10000baseT_Full;
-	if (eee_adv & MDIO_EEE_1000KX)
-		adv |= ADVERTISED_1000baseKX_Full;
-	if (eee_adv & MDIO_EEE_10GKX4)
-		adv |= ADVERTISED_10000baseKX4_Full;
-	if (eee_adv & MDIO_EEE_10GKR)
-		adv |= ADVERTISED_10000baseKR_Full;
-
-	return adv;
-}
-
-static u32 phy_eee_to_supported(u16 eee_caported)
-{
-	u32 supported = 0;
-
-	if (eee_caported & MDIO_EEE_100TX)
-		supported |= SUPPORTED_100baseT_Full;
-	if (eee_caported & MDIO_EEE_1000T)
-		supported |= SUPPORTED_1000baseT_Full;
-	if (eee_caported & MDIO_EEE_10GT)
-		supported |= SUPPORTED_10000baseT_Full;
-	if (eee_caported & MDIO_EEE_1000KX)
-		supported |= SUPPORTED_1000baseKX_Full;
-	if (eee_caported & MDIO_EEE_10GKX4)
-		supported |= SUPPORTED_10000baseKX4_Full;
-	if (eee_caported & MDIO_EEE_10GKR)
-		supported |= SUPPORTED_10000baseKR_Full;
-
-	return supported;
-}
-
-static u16 phy_adv_to_eee(u32 adv)
-{
-	u16 reg = 0;
-
-	if (adv & ADVERTISED_100baseT_Full)
-		reg |= MDIO_EEE_100TX;
-	if (adv & ADVERTISED_1000baseT_Full)
-		reg |= MDIO_EEE_1000T;
-	if (adv & ADVERTISED_10000baseT_Full)
-		reg |= MDIO_EEE_10GT;
-	if (adv & ADVERTISED_1000baseKX_Full)
-		reg |= MDIO_EEE_1000KX;
-	if (adv & ADVERTISED_10000baseKX4_Full)
-		reg |= MDIO_EEE_10GKX4;
-	if (adv & ADVERTISED_10000baseKR_Full)
-		reg |= MDIO_EEE_10GKR;
-
-	return reg;
-}
-
 /**
  * phy_init_eee - init and check the EEE feature
  * @phydev: target phy_device struct
@@ -1132,7 +1072,7 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		if (eee_cap < 0)
 			return eee_cap;
 
-		cap = phy_eee_to_supported(eee_cap);
+		cap = mmd_eee_cap_to_ethtool_sup_t(eee_cap);
 		if (!cap)
 			goto eee_exit;
 
@@ -1149,8 +1089,8 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 		if (eee_adv < 0)
 			return eee_adv;
 
-		adv = phy_eee_to_adv(eee_adv);
-		lp = phy_eee_to_adv(eee_lp);
+		adv = mmd_eee_adv_to_ethtool_adv_t(eee_adv);
+		lp = mmd_eee_adv_to_ethtool_adv_t(eee_lp);
 		idx = phy_find_setting(phydev->speed, phydev->duplex);
 		if ((lp & adv & settings[idx].setting))
 			goto eee_exit;
@@ -1210,21 +1150,21 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
 				    MDIO_MMD_PCS, phydev->addr);
 	if (val < 0)
 		return val;
-	data->supported = phy_eee_to_supported(val);
+	data->supported = mmd_eee_cap_to_ethtool_sup_t(val);
 
 	/* Get advertisement EEE */
 	val = phy_read_mmd_indirect(phydev->bus, MDIO_AN_EEE_ADV,
 				    MDIO_MMD_AN, phydev->addr);
 	if (val < 0)
 		return val;
-	data->advertised = phy_eee_to_adv(val);
+	data->advertised = mmd_eee_adv_to_ethtool_adv_t(val);
 
 	/* Get LP advertisement EEE */
 	val = phy_read_mmd_indirect(phydev->bus, MDIO_AN_EEE_LPABLE,
 				    MDIO_MMD_AN, phydev->addr);
 	if (val < 0)
 		return val;
-	data->lp_advertised = phy_eee_to_adv(val);
+	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(val);
 
 	return 0;
 }
@@ -1241,7 +1181,7 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
 	int val;
 
-	val = phy_adv_to_eee(data->advertised);
+	val = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
 	phy_write_mmd_indirect(phydev->bus, MDIO_AN_EEE_ADV, MDIO_MMD_AN,
 			       phydev->addr, val);
 
