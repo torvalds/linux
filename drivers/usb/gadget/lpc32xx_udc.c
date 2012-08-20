@@ -141,8 +141,6 @@ struct lpc32xx_ep {
 	u32                     totalints;
 
 	bool			wedge;
-
-	const struct usb_endpoint_descriptor *desc;
 };
 
 /*
@@ -556,10 +554,8 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 
 	if (udc->enabled && udc->vbus) {
 		proc_ep_show(s, &udc->ep[0]);
-		list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-			if (ep->desc)
-				proc_ep_show(s, ep);
-		}
+		list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list)
+			proc_ep_show(s, ep);
 	}
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1453,7 +1449,6 @@ static void udc_reinit(struct lpc32xx_udc *udc)
 
 		if (i != 0)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		ep->desc = NULL;
 		ep->ep.maxpacket = ep->maxpacket;
 		INIT_LIST_HEAD(&ep->queue);
 		ep->req_pending = 0;
@@ -1515,7 +1510,7 @@ static void nuke(struct lpc32xx_ep *ep, int status)
 		done(ep, req, status);
 	}
 
-	if (ep->desc && status == -ESHUTDOWN) {
+	if (status == -ESHUTDOWN) {
 		uda_disable_hwepint(ep->udc, ep->hwep_num);
 		udc_disable_hwep(ep->udc, ep->hwep_num);
 	}
@@ -1658,9 +1653,6 @@ static int lpc32xx_ep_disable(struct usb_ep *_ep)
 
 	nuke(ep, -ESHUTDOWN);
 
-	/* restore the endpoint's pristine config */
-	ep->desc = NULL;
-
 	/* Clear all DMA statuses for this EP */
 	udc_ep_dma_disable(udc, ep->hwep_num);
 	writel(1 << ep->hwep_num, USBD_EOTINTCLR(udc->udp_baseaddr));
@@ -1696,7 +1688,7 @@ static int lpc32xx_ep_enable(struct usb_ep *_ep,
 	unsigned long flags;
 
 	/* Verify EP data */
-	if ((!_ep) || (!ep) || (!desc) || (ep->desc) ||
+	if ((!_ep) || (!ep) || (!desc) ||
 	    (desc->bDescriptorType != USB_DT_ENDPOINT)) {
 		dev_dbg(udc->dev, "bad ep or descriptor\n");
 		return -EINVAL;
@@ -1754,7 +1746,6 @@ static int lpc32xx_ep_enable(struct usb_ep *_ep,
 
 	/* Initialize endpoint to match the selected descriptor */
 	ep->is_in = (desc->bEndpointAddress & USB_DIR_IN) != 0;
-	ep->desc = desc;
 	ep->ep.maxpacket = maxpacket;
 
 	/* Map hardware endpoint from base and direction */
@@ -1837,7 +1828,7 @@ static int lpc32xx_ep_queue(struct usb_ep *_ep,
 
 	udc = ep->udc;
 
-	if (!_ep || (!ep->desc && ep->hwep_num_base != 0)) {
+	if (!_ep) {
 		dev_dbg(udc->dev, "invalid ep\n");
 		return -EINVAL;
 	}
@@ -1976,7 +1967,7 @@ static int lpc32xx_ep_set_halt(struct usb_ep *_ep, int value)
 	struct lpc32xx_udc *udc = ep->udc;
 	unsigned long flags;
 
-	if ((!ep) || (ep->desc == NULL) || (ep->hwep_num <= 1))
+	if ((!ep) || (ep->hwep_num <= 1))
 		return -EINVAL;
 
 	/* Don't halt an IN EP */
@@ -2262,7 +2253,7 @@ static int udc_get_status(struct lpc32xx_udc *udc, u16 reqtype, u16 wIndex)
 	case USB_RECIP_ENDPOINT:
 		tmp = wIndex & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if ((tmp == 0) || (tmp >= NUM_ENDPOINTS) || (tmp && !ep->desc))
+		if ((tmp == 0) || (tmp >= NUM_ENDPOINTS))
 			return -EOPNOTSUPP;
 
 		if (wIndex & USB_DIR_IN) {
