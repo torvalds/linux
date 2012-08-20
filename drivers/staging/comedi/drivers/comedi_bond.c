@@ -79,20 +79,6 @@ MODULE_PARM_DESC(debug, "If true, print extra cryptic debugging output useful"
 #define WARNING(x...)  printk(KERN_WARNING MODULE_NAME ": WARNING: "x)
 #define ERROR(x...)  printk(KERN_ERR MODULE_NAME ": INTERNAL ERROR: "x)
 
-/*
- * Board descriptions for two imaginary boards.  Describing the
- * boards in this way is optional, and completely driver-dependent.
- * Some drivers use arrays such as this, other do not.
- */
-struct BondingBoard {
-	const char *name;
-};
-
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct BondingBoard *)dev->board_ptr)
-
 struct BondedDevice {
 	struct comedi_device *dev;
 	unsigned minor;
@@ -351,10 +337,6 @@ static int bonding_attach(struct comedi_device *dev,
 	if (!doDevConfig(dev, it))
 		return -EINVAL;
 
-	/*
-	 * Initialize dev->board_name.  Note that we can use the "thisboard"
-	 * macro now, since we just initialized it in the last line.
-	 */
 	dev->board_name = devpriv->name;
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -402,20 +384,11 @@ static void bonding_detach(struct comedi_device *dev)
 	}
 }
 
-static const struct BondingBoard bondingBoards[] = {
-	{
-		.name		= "comedi_bond",
-	},
-};
-
 static struct comedi_driver bonding_driver = {
 	.driver_name	= "comedi_bond",
 	.module		= THIS_MODULE,
 	.attach		= bonding_attach,
 	.detach		= bonding_detach,
-	.board_name	= &bondingBoards[0].name,
-	.offset		= sizeof(struct BondingBoard),
-	.num_names	= ARRAY_SIZE(bondingBoards),
 };
 module_comedi_driver(bonding_driver);
 
