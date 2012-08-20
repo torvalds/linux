@@ -341,6 +341,4 @@ static inline int is_ab8500_2p0(struct ab8500 *ab)
 	return (is_ab8500(ab) && (ab->chip_id == AB8500_CUT2P0));
 }
 
-int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq);
-
 #endif /* MFD_AB8500_H */
