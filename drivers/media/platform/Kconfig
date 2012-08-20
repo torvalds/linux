@@ -1,5 +1,3 @@
-if MEDIA_CAMERA_SUPPORT
-
 #
 # Platform drivers
 #	All drivers here are currently for webcam support
@@ -37,6 +35,7 @@ source "drivers/media/platform/blackfin/Kconfig"
 
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
+	depends on MEDIA_CAMERA_SUPPORT
 	depends on VIDEO_DEV && ARCH_SHMOBILE
 	select VIDEOBUF_DMA_CONTIG
 	help
@@ -119,6 +118,7 @@ endif # V4L_PLATFORM_DRIVERS
 menuconfig V4L_MEM2MEM_DRIVERS
 	bool "Memory-to-memory multimedia devices"
 	depends on VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
 	default n
 	---help---
 	  Say Y here to enable selecting drivers for V4L devices that
@@ -212,5 +212,3 @@ config VIDEO_MEM2MEM_TESTDEV
 	  This is a virtual test device for the memory-to-memory driver
 	  framework.
 endif #V4L_TEST_DRIVERS
-
-endif # MEDIA_CAMERA_SUPPORT

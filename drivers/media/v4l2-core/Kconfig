@@ -2,6 +2,12 @@
 # Generic video config states
 #
 
+# Enable the V4L2 core and API
+config VIDEO_V4L2
+	tristate
+	depends on (I2C || I2C=n) && VIDEO_DEV
+	default (I2C || I2C=n) && VIDEO_DEV
+
 config VIDEO_ADV_DEBUG
 	bool "Enable advanced debug functionality on V4L2 drivers"
 	default n
@@ -19,11 +25,17 @@ config VIDEO_FIXED_MINOR_RANGES
 
 	  When in doubt, say N.
 
-config VIDEO_V4L2
+# Used by drivers that need tuner.ko
+config VIDEO_TUNER
 	tristate
-	depends on VIDEO_V4L2_COMMON
-	default y
+	depends on MEDIA_TUNER
 
+# Used by drivers that need v4l2-mem2mem.ko
+config V4L2_MEM2MEM_DEV
+        tristate
+        depends on VIDEOBUF2_CORE
+
+# Used by drivers that need Videobuf modules
 config VIDEOBUF_GEN
 	tristate
 
@@ -45,14 +57,7 @@ config VIDEOBUF_DVB
 	tristate
 	select VIDEOBUF_GEN
 
-config VIDEO_TUNER
-	tristate
-	depends on MEDIA_TUNER
-
-config V4L2_MEM2MEM_DEV
-        tristate
-        depends on VIDEOBUF2_CORE
-
+# Used by drivers that need Videobuf2 modules
 config VIDEOBUF2_CORE
 	tristate
 

@@ -11,7 +11,7 @@ ifeq ($(CONFIG_COMPAT),y)
 endif
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-int-device.o
-obj-$(CONFIG_VIDEO_V4L2_COMMON) += v4l2-common.o
+obj-$(CONFIG_VIDEO_V4L2) += v4l2-common.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 
