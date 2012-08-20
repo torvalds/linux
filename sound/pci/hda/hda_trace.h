@@ -58,6 +58,7 @@ TRACE_EVENT(hda_bus_reset,
 	TP_printk("[%d]", __entry->card)
 );
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
 DECLARE_EVENT_CLASS(hda_power,
 
 	TP_PROTO(struct hda_codec *codec),
@@ -110,6 +111,7 @@ TRACE_EVENT(hda_power_count,
 		  __entry->card, __entry->addr, __entry->power_count,
 		  __entry->power_on, __entry->power_transition)
 );
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
 
 TRACE_EVENT(hda_unsol_event,
 
