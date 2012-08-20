@@ -275,6 +275,10 @@ static int _add_switch(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_MUTE_MONO(namestr, nid, chan, 0, type);
+	if ((query_amp_caps(codec, nid, type) & AC_AMPCAP_MUTE) == 0) {
+		snd_printdd("Skipping '%s %s Switch' (no mute on node 0x%x)\n", pfx, dirstr[dir], nid);
+		return 0;
+	}
 	sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
@@ -286,6 +290,10 @@ static int _add_volume(struct hda_codec *codec, hda_nid_t nid, const char *pfx,
 	int type = dir ? HDA_INPUT : HDA_OUTPUT;
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_MONO(namestr, nid, chan, 0, type);
+	if ((query_amp_caps(codec, nid, type) & AC_AMPCAP_NUM_STEPS) == 0) {
+		snd_printdd("Skipping '%s %s Volume' (no amp on node 0x%x)\n", pfx, dirstr[dir], nid);
+		return 0;
+	}
 	sprintf(namestr, "%s %s Volume", pfx, dirstr[dir]);
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
