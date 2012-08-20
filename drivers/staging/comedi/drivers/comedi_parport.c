@@ -302,9 +302,11 @@ static int parport_attach(struct comedi_device *dev,
 	unsigned long iobase;
 	struct comedi_subdevice *s;
 
+	dev->board_name = dev->driver->driver_name;
+
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: parport: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, PARPORT_SIZE, "parport (comedi)")) {
+	if (!request_region(iobase, PARPORT_SIZE, dev->board_name)) {
 		printk(KERN_ERR "I/O port conflict\n");
 		return -EIO;
 	}
@@ -313,7 +315,7 @@ static int parport_attach(struct comedi_device *dev,
 	irq = it->options[1];
 	if (irq) {
 		printk(KERN_INFO " irq=%u", irq);
-		ret = request_irq(irq, parport_interrupt, 0, "comedi_parport",
+		ret = request_irq(irq, parport_interrupt, 0, dev->board_name,
 				  dev);
 		if (ret < 0) {
 			printk(KERN_ERR " irq not available\n");
@@ -321,7 +323,6 @@ static int parport_attach(struct comedi_device *dev,
 		}
 		dev->irq = irq;
 	}
-	dev->board_name = "parport";
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
