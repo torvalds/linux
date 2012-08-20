@@ -113,6 +113,8 @@ static char convert_kthread_status(unsigned int kthread_status)
 
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
+	long ql, qll;
+
 	if (!rdp->beenonline)
 		return;
 	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d qp=%d",
@@ -126,8 +128,11 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks->dynticks_nmi_nesting,
 		   rdp->dynticks_fqs);
 	seq_printf(m, " of=%lu", rdp->offline_fqs);
+	rcu_nocb_q_lengths(rdp, &ql, &qll);
+	qll += rdp->qlen_lazy;
+	ql += rdp->qlen;
 	seq_printf(m, " ql=%ld/%ld qs=%c%c%c%c",
-		   rdp->qlen_lazy, rdp->qlen,
+		   qll, ql,
 		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
 			rdp->nxttail[RCU_NEXT_TAIL]],
 		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=

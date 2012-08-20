@@ -303,7 +303,8 @@ EXPORT_SYMBOL_GPL(rcu_sched_force_quiescent_state);
 static int
 cpu_has_callbacks_ready_to_invoke(struct rcu_data *rdp)
 {
-	return &rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL];
+	return &rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL] &&
+	       rdp->nxttail[RCU_DONE_TAIL] != NULL;
 }
 
 /*
@@ -312,8 +313,11 @@ cpu_has_callbacks_ready_to_invoke(struct rcu_data *rdp)
 static int
 cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 {
-	return *rdp->nxttail[RCU_DONE_TAIL +
-			     (ACCESS_ONCE(rsp->completed) != rdp->completed)] &&
+	struct rcu_head **ntp;
+
+	ntp = rdp->nxttail[RCU_DONE_TAIL +
+			   (ACCESS_ONCE(rsp->completed) != rdp->completed)];
+	return rdp->nxttail[RCU_DONE_TAIL] && ntp && *ntp &&
 	       !rcu_gp_in_progress(rsp);
 }
 
@@ -1123,6 +1127,7 @@ static void init_callback_list(struct rcu_data *rdp)
 	rdp->nxtlist = NULL;
 	for (i = 0; i < RCU_NEXT_SIZE; i++)
 		rdp->nxttail[i] = &rdp->nxtlist;
+	init_nocb_callback_list(rdp);
 }
 
 /*
@@ -1633,6 +1638,10 @@ static void
 rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 			  struct rcu_node *rnp, struct rcu_data *rdp)
 {
+	/* No-CBs CPUs do not have orphanable callbacks. */
+	if (is_nocb_cpu(rdp->cpu))
+		return;
+
 	/*
 	 * Orphan the callbacks.  First adjust the counts.  This is safe
 	 * because _rcu_barrier() excludes CPU-hotplug operations, so it
@@ -1683,6 +1692,10 @@ static void rcu_adopt_orphan_cbs(struct rcu_state *rsp)
 {
 	int i;
 	struct rcu_data *rdp = __this_cpu_ptr(rsp->rda);
+
+	/* No-CBs CPUs are handled specially. */
+	if (rcu_nocb_adopt_orphan_cbs(rsp, rdp))
+		return;
 
 	/* Do the accounting first. */
 	rdp->qlen_lazy += rsp->qlen_lazy;
@@ -2162,9 +2175,15 @@ static void __call_rcu_core(struct rcu_state *rsp, struct rcu_data *rdp,
 	}
 }
 
+/*
+ * Helper function for call_rcu() and friends.  The cpu argument will
+ * normally be -1, indicating "currently running CPU".  It may specify
+ * a CPU only if that CPU is a no-CBs CPU.  Currently, only _rcu_barrier()
+ * is expected to specify a CPU.
+ */
 static void
 __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
-	   struct rcu_state *rsp, bool lazy)
+	   struct rcu_state *rsp, int cpu, bool lazy)
 {
 	unsigned long flags;
 	struct rcu_data *rdp;
@@ -2184,9 +2203,14 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	rdp = this_cpu_ptr(rsp->rda);
 
 	/* Add the callback to our list. */
-	if (unlikely(rdp->nxttail[RCU_NEXT_TAIL] == NULL)) {
+	if (unlikely(rdp->nxttail[RCU_NEXT_TAIL] == NULL) || cpu != -1) {
+		int offline;
+
+		if (cpu != -1)
+			rdp = per_cpu_ptr(rsp->rda, cpu);
+		offline = !__call_rcu_nocb(rdp, head, lazy);
+		WARN_ON_ONCE(offline);
 		/* _call_rcu() is illegal on offline CPU; leak the callback. */
-		WARN_ON_ONCE(1);
 		local_irq_restore(flags);
 		return;
 	}
@@ -2215,7 +2239,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
  */
 void call_rcu_sched(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_sched_state, 0);
+	__call_rcu(head, func, &rcu_sched_state, -1, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu_sched);
 
@@ -2224,7 +2248,7 @@ EXPORT_SYMBOL_GPL(call_rcu_sched);
  */
 void call_rcu_bh(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_bh_state, 0);
+	__call_rcu(head, func, &rcu_bh_state, -1, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu_bh);
 
@@ -2676,9 +2700,17 @@ static void _rcu_barrier(struct rcu_state *rsp)
 	 * When that callback is invoked, we will know that all of the
 	 * corresponding CPU's preceding callbacks have been invoked.
 	 */
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
+		if (!cpu_online(cpu) && !is_nocb_cpu(cpu))
+			continue;
 		rdp = per_cpu_ptr(rsp->rda, cpu);
-		if (ACCESS_ONCE(rdp->qlen)) {
+		if (is_nocb_cpu(cpu)) {
+			_rcu_barrier_trace(rsp, "OnlineNoCB", cpu,
+					   rsp->n_barrier_done);
+			atomic_inc(&rsp->barrier_cpu_count);
+			__call_rcu(&rdp->barrier_head, rcu_barrier_callback,
+				   rsp, cpu, 0);
+		} else if (ACCESS_ONCE(rdp->qlen)) {
 			_rcu_barrier_trace(rsp, "OnlineQ", cpu,
 					   rsp->n_barrier_done);
 			smp_call_function_single(cpu, rcu_barrier_func, rsp, 1);
@@ -2752,6 +2784,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 #endif
 	rdp->cpu = cpu;
 	rdp->rsp = rsp;
+	rcu_boot_init_nocb_percpu_data(rdp);
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
@@ -2833,6 +2866,7 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 	struct rcu_data *rdp = per_cpu_ptr(rcu_state->rda, cpu);
 	struct rcu_node *rnp = rdp->mynode;
 	struct rcu_state *rsp;
+	int ret = NOTIFY_OK;
 
 	trace_rcu_utilization("Start CPU hotplug");
 	switch (action) {
@@ -2846,7 +2880,10 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 		rcu_boost_kthread_setaffinity(rnp, -1);
 		break;
 	case CPU_DOWN_PREPARE:
-		rcu_boost_kthread_setaffinity(rnp, cpu);
+		if (nocb_cpu_expendable(cpu))
+			rcu_boost_kthread_setaffinity(rnp, cpu);
+		else
+			ret = NOTIFY_BAD;
 		break;
 	case CPU_DYING:
 	case CPU_DYING_FROZEN:
@@ -2870,7 +2907,7 @@ static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 		break;
 	}
 	trace_rcu_utilization("End CPU hotplug");
-	return NOTIFY_OK;
+	return ret;
 }
 
 /*
@@ -2890,6 +2927,7 @@ static int __init rcu_spawn_gp_kthread(void)
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		rsp->gp_kthread = t;
 		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+		rcu_spawn_nocb_kthreads(rsp);
 	}
 	return 0;
 }
@@ -3085,6 +3123,7 @@ void __init rcu_init(void)
 	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
 	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
 	__rcu_init_preempt();
+	rcu_init_nocb();
 	 open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
 
 	/*
