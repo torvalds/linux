@@ -206,7 +206,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 	dev->board_name = board->name;
 
 	iobase = it->options[0];
-	if (!request_region(iobase, 24, dev->board_name)) {
+	if (!request_region(iobase, 32, dev->board_name)) {
 		printk(KERN_ERR "I/O port conflict");
 		return -EIO;
 	}
