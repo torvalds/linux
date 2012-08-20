@@ -1897,10 +1897,10 @@ GATE_CLK(pclk_i2c2, pclk_periph_pre, PCLK_I2C2);
 GATE_CLK(pclk_i2c3, pclk_periph_pre, PCLK_I2C3);
 GATE_CLK(pclk_timer0, pclk_periph_pre, PCLK_TIMER0);
 GATE_CLK(pclk_timer1, pclk_periph_pre, PCLK_TIMER1);
-GATE_CLK(pclk_gpio0, pclk_periph_pre, PCLK_GPIO0);
-GATE_CLK(pclk_gpio1, pclk_periph_pre, PCLK_GPIO1);
-GATE_CLK(pclk_gpio2, pclk_periph_pre, PCLK_GPIO2);
-GATE_CLK(pclk_gpio3, pclk_periph_pre, PCLK_GPIO3);
+GATE_CLK(gpio0, pclk_periph_pre, PCLK_GPIO0);
+GATE_CLK(gpio1, pclk_periph_pre, PCLK_GPIO1);
+GATE_CLK(gpio2, pclk_periph_pre, PCLK_GPIO2);
+GATE_CLK(gpio3, pclk_periph_pre, PCLK_GPIO3);
 GATE_CLK(pclk_saradc, pclk_periph_pre, PCLK_SARADC);
 GATE_CLK(pclk_efuse, pclk_periph_pre, PCLK_EFUSE);
 
@@ -2164,10 +2164,10 @@ static struct clk_lookup clks[] = {
 	CLK("rk30_i2c.3", "i2c", &clk_pclk_i2c3),
 	CLK_GATE_NODEV(pclk_timer0),
 	CLK_GATE_NODEV(pclk_timer1),
-	CLK_GATE_NODEV(pclk_gpio0),
-	CLK_GATE_NODEV(pclk_gpio1),
-	CLK_GATE_NODEV(pclk_gpio2),
-	CLK_GATE_NODEV(pclk_gpio3),
+	CLK_GATE_NODEV(gpio0),
+	CLK_GATE_NODEV(gpio1),
+	CLK_GATE_NODEV(gpio2),
+	CLK_GATE_NODEV(gpio3),
 	CLK_GATE_NODEV(pclk_saradc),
 	CLK_GATE_NODEV(pclk_efuse),
 
@@ -2226,10 +2226,10 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_pclk_pwm01);
 	clk_enable_nolock(&clk_hclk_otg0);
 	clk_enable_nolock(&clk_hclk_otg1);
-	clk_enable_nolock(&clk_pclk_gpio0);
-	clk_enable_nolock(&clk_pclk_gpio1);
-	clk_enable_nolock(&clk_pclk_gpio2);
-	clk_enable_nolock(&clk_pclk_gpio3);
+	clk_enable_nolock(&clk_gpio0);
+	clk_enable_nolock(&clk_gpio1);
+	clk_enable_nolock(&clk_gpio2);
+	clk_enable_nolock(&clk_gpio3);
 
 #if CONFIG_RK_DEBUG_UART == 0
 	clk_enable_nolock(&clk_uart0);
