@@ -34,6 +34,7 @@
 #include <linux/if_ether.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/can.h>
 #include <linux/can/dev.h>
@@ -200,6 +201,30 @@ static const struct can_bittiming_const c_can_bittiming_const = {
 	.brp_max = 1024,	/* 6-bit BRP field + 4-bit BRPE field*/
 	.brp_inc = 1,
 };
+
+static inline void c_can_pm_runtime_enable(const struct c_can_priv *priv)
+{
+	if (priv->device)
+		pm_runtime_enable(priv->device);
+}
+
+static inline void c_can_pm_runtime_disable(const struct c_can_priv *priv)
+{
+	if (priv->device)
+		pm_runtime_disable(priv->device);
+}
+
+static inline void c_can_pm_runtime_get_sync(const struct c_can_priv *priv)
+{
+	if (priv->device)
+		pm_runtime_get_sync(priv->device);
+}
+
+static inline void c_can_pm_runtime_put_sync(const struct c_can_priv *priv)
+{
+	if (priv->device)
+		pm_runtime_put_sync(priv->device);
+}
 
 static inline int get_tx_next_msg_obj(const struct c_can_priv *priv)
 {
@@ -673,10 +698,14 @@ static int c_can_get_berr_counter(const struct net_device *dev,
 	unsigned int reg_err_counter;
 	struct c_can_priv *priv = netdev_priv(dev);
 
+	c_can_pm_runtime_get_sync(priv);
+
 	reg_err_counter = priv->read_reg(priv, C_CAN_ERR_CNT_REG);
 	bec->rxerr = (reg_err_counter & ERR_CNT_REC_MASK) >>
 				ERR_CNT_REC_SHIFT;
 	bec->txerr = reg_err_counter & ERR_CNT_TEC_MASK;
+
+	c_can_pm_runtime_put_sync(priv);
 
 	return 0;
 }
@@ -1053,11 +1082,13 @@ static int c_can_open(struct net_device *dev)
 	int err;
 	struct c_can_priv *priv = netdev_priv(dev);
 
+	c_can_pm_runtime_get_sync(priv);
+
 	/* open the can device */
 	err = open_candev(dev);
 	if (err) {
 		netdev_err(dev, "failed to open can device\n");
-		return err;
+		goto exit_open_fail;
 	}
 
 	/* register interrupt handler */
@@ -1079,6 +1110,8 @@ static int c_can_open(struct net_device *dev)
 
 exit_irq_fail:
 	close_candev(dev);
+exit_open_fail:
+	c_can_pm_runtime_put_sync(priv);
 	return err;
 }
 
@@ -1091,6 +1124,7 @@ static int c_can_close(struct net_device *dev)
 	c_can_stop(dev);
 	free_irq(dev->irq, dev);
 	close_candev(dev);
+	c_can_pm_runtime_put_sync(priv);
 
 	return 0;
 }
@@ -1133,10 +1167,19 @@ static const struct net_device_ops c_can_netdev_ops = {
 
 int register_c_can_dev(struct net_device *dev)
 {
+	struct c_can_priv *priv = netdev_priv(dev);
+	int err;
+
+	c_can_pm_runtime_enable(priv);
+
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 	dev->netdev_ops = &c_can_netdev_ops;
 
-	return register_candev(dev);
+	err = register_candev(dev);
+	if (err)
+		c_can_pm_runtime_disable(priv);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(register_c_can_dev);
 
@@ -1148,6 +1191,8 @@ void unregister_c_can_dev(struct net_device *dev)
 	c_can_enable_all_interrupts(priv, DISABLE_ALL_INTERRUPTS);
 
 	unregister_candev(dev);
+
+	c_can_pm_runtime_disable(priv);
 }
 EXPORT_SYMBOL_GPL(unregister_c_can_dev);
 

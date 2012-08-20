@@ -153,6 +153,7 @@ struct c_can_priv {
 	struct can_priv can;	/* must be the first member */
 	struct napi_struct napi;
 	struct net_device *dev;
+	struct device *device;
 	int tx_object;
 	int current_status;
 	int last_status;
