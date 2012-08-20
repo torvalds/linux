@@ -366,6 +366,8 @@
 
 
 /*Register DEVCTRL  (0x80) register.RegisterDescription */
+#define DEVCTRL_PWR_OFF_MASK				0x80
+#define DEVCTRL_PWR_OFF_SHIFT				7
 #define DEVCTRL_RTC_PWDN_MASK				0x40
 #define DEVCTRL_RTC_PWDN_SHIFT				6
 #define DEVCTRL_CK32K_CTRL_MASK				0x20
@@ -809,6 +811,7 @@ struct tps65910_board {
 	int vmbch2_threshold;
 	bool en_ck32k_xtal;
 	bool en_dev_slp;
+	bool pm_off;
 	struct tps65910_sleep_keepon_data *slp_keepon;
 	bool en_gpio_sleep[TPS6591X_MAX_NUM_GPIO];
 	unsigned long regulator_ext_sleep_control[TPS65910_NUM_REGS];

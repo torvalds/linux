@@ -59,6 +59,8 @@ Optional properties:
   in TPS6591X datasheet)
 - ti,en-gpio-sleep: enable sleep control for gpios
   There should be 9 entries here, one for each gpio.
+- ti,system-power-controller: Telling whether or not this pmic is controlling
+  the system power.
 
 Regulator Optional properties:
 - ti,regulator-ext-sleep-control: enable external sleep
@@ -78,6 +80,8 @@ Example:
 
 		#interrupt-cells = <2>;
 		interrupt-controller;
+
+		ti,system-power-controller;
 
 		ti,vmbch-threshold = 0;
 		ti,vmbch2-threshold = 0;
