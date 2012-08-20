@@ -51,7 +51,8 @@ config MTD_UBI_BEB_LIMIT
 	  MTD partitions of the same size, UBI will reserve 40 eraseblocks when
 	  attaching a partition.
 
-	  This option can be overridden by the "mtd=" UBI module parameter.
+	  This option can be overridden by the "mtd=" UBI module parameter or
+	  by the "attach" ioctl.
 
 	  Leave the default value if unsure.
 
