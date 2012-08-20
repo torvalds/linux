@@ -570,10 +570,22 @@ static void fimd_win_disable(struct device *dev, int zpos)
 	win_data->enabled = false;
 }
 
+static void fimd_wait_for_vblank(struct device *dev)
+{
+	struct fimd_context *ctx = get_fimd_context(dev);
+	int ret;
+
+	ret = wait_for((__raw_readl(ctx->regs + VIDCON1) &
+					VIDCON1_VSTATUS_VSYNC), 50);
+	if (ret < 0)
+		DRM_DEBUG_KMS("vblank wait timed out.\n");
+}
+
 static struct exynos_drm_overlay_ops fimd_overlay_ops = {
 	.mode_set = fimd_win_mode_set,
 	.commit = fimd_win_commit,
 	.disable = fimd_win_disable,
+	.wait_for_vblank = fimd_wait_for_vblank,
 };
 
 static struct exynos_drm_manager fimd_manager = {
