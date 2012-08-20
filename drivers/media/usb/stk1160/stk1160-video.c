@@ -462,8 +462,7 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
 			stk1160_err("cannot alloc urb[%d]\n", i);
-			stk1160_uninit_isoc(dev);
-			return -ENOMEM;
+			goto free_i_bufs;
 		}
 		dev->isoc_ctl.urb[i] = urb;
 
@@ -474,10 +473,9 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		dev->isoc_ctl.transfer_buffer[i] = kmalloc(sb_size, GFP_KERNEL);
 #endif
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
-			stk1160_err("cannot alloc %d bytes for tx buffer\n",
-				sb_size);
-			stk1160_uninit_isoc(dev);
-			return -ENOMEM;
+			stk1160_err("cannot alloc %d bytes for tx[%d] buffer\n",
+				sb_size, i);
+			goto free_i_bufs;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
 
@@ -514,5 +512,11 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 	dev->isoc_ctl.num_bufs = num_bufs;
 
 	return 0;
+
+free_i_bufs:
+	/* Save the allocated buffers so far, so we can properly free them */
+	dev->isoc_ctl.num_bufs = i+1;
+	stk1160_free_isoc(dev);
+	return -ENOMEM;
 }
 
