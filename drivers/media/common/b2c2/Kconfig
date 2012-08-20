@@ -23,9 +23,6 @@ config DVB_B2C2_FLEXCOP
 
 	  Say Y if you own such a device and want to use it.
 
+# Selected via the PCI or USB flexcop drivers
 config DVB_B2C2_FLEXCOP_DEBUG
-	bool "Enable debug for the B2C2 FlexCop drivers"
-	depends on DVB_B2C2_FLEXCOP
-	help
-	  Say Y if you want to enable the module option to control debug messages
-	  of all B2C2 FlexCop drivers.
+	bool
