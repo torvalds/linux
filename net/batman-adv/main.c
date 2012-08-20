@@ -160,16 +160,6 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_INACTIVE);
 }
 
-void batadv_inc_module_count(void)
-{
-	try_module_get(THIS_MODULE);
-}
-
-void batadv_dec_module_count(void)
-{
-	module_put(THIS_MODULE);
-}
-
 int batadv_is_my_mac(const uint8_t *addr)
 {
 	const struct batadv_hard_iface *hard_iface;
