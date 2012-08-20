@@ -267,6 +267,8 @@ static void __dma_free_remap(void *cpu_addr, size_t size)
 	vunmap(cpu_addr);
 }
 
+#define DEFAULT_DMA_COHERENT_POOL_SIZE	SZ_256K
+
 struct dma_pool {
 	size_t size;
 	spinlock_t lock;
@@ -277,7 +279,7 @@ struct dma_pool {
 };
 
 static struct dma_pool atomic_pool = {
-	.size = SZ_256K,
+	.size = DEFAULT_DMA_COHERENT_POOL_SIZE,
 };
 
 static int __init early_coherent_pool(char *p)
@@ -286,6 +288,21 @@ static int __init early_coherent_pool(char *p)
 	return 0;
 }
 early_param("coherent_pool", early_coherent_pool);
+
+void __init init_dma_coherent_pool_size(unsigned long size)
+{
+	/*
+	 * Catch any attempt to set the pool size too late.
+	 */
+	BUG_ON(atomic_pool.vaddr);
+
+	/*
+	 * Set architecture specific coherent pool size only if
+	 * it has not been changed by kernel command line parameter.
+	 */
+	if (atomic_pool.size == DEFAULT_DMA_COHERENT_POOL_SIZE)
+		atomic_pool.size = size;
+}
 
 /*
  * Initialise the coherent pool for atomic allocations.
