@@ -73,12 +73,12 @@
 
 #define BBvClearFOE(dwIoBase)                               \
 {                                                           \
-    BBbWriteEmbeded(dwIoBase, 0xB1, 0);                     \
+    BBbWriteEmbedded(dwIoBase, 0xB1, 0);                     \
 }
 
 #define BBvSetFOE(dwIoBase)                                 \
 {                                                           \
-    BBbWriteEmbeded(dwIoBase, 0xB1, 0x0C);                  \
+    BBbWriteEmbedded(dwIoBase, 0xB1, 0x0C);                  \
 }
 
 
@@ -107,8 +107,8 @@ BBvCaculateParameter (
     unsigned char *pbyPhySgn
     );
 
-bool BBbReadEmbeded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
-bool BBbWriteEmbeded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData);
+bool BBbReadEmbedded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char *pbyData);
+bool BBbWriteEmbedded(unsigned long dwIoBase, unsigned char byBBAddr, unsigned char byData);
 
 void BBvReadAllRegs(unsigned long dwIoBase, unsigned char *pbyBBRegs);
 void BBvLoopbackOn(PSDevice pDevice);

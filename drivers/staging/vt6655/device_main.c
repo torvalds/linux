@@ -2660,7 +2660,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
         (pDevice->byLocalID != REV_ID_VT3253_B0) &&
         (pDevice->bBSSIDFilter == true)) {
         // update RSSI
-        //BBbReadEmbeded(pDevice->PortOffset, 0x3E, &byRSSI);
+        //BBbReadEmbedded(pDevice->PortOffset, 0x3E, &byRSSI);
         //pDevice->uCurrRSSI = byRSSI;
     }
     */
