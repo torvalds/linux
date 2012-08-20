@@ -1,6 +1,8 @@
-menu "V4L ISA and parallel port devices"
-	visible if (ISA || PARPORT) && MEDIA_CAMERA_SUPPORT
+menuconfig MEDIA_PARPORT_SUPPORT
+	bool "V4L ISA and parallel port devices"
+	depends on (ISA || PARPORT) && MEDIA_CAMERA_SUPPORT
 
+if MEDIA_PARPORT_SUPPORT
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
 	depends on PARPORT && VIDEO_V4L2
@@ -44,4 +46,4 @@ config VIDEO_W9966
 
 	  Check out <file:Documentation/video4linux/w9966.txt> for more
 	  information.
-endmenu
+endif

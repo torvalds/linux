@@ -1,9 +1,8 @@
-#
-# USB media device configuration
-#
+menuconfig MEDIA_USB_SUPPORT
+	bool "Media USB Adapters"
+	depends on USB && MEDIA_SUPPORT
 
-menu "Media USB Adapters"
-	visible if USB && MEDIA_SUPPORT
+if MEDIA_USB_SUPPORT
 
 if MEDIA_CAMERA_SUPPORT
 	comment "Webcam devices"
@@ -25,7 +24,6 @@ source "drivers/media/usb/hdpvr/Kconfig"
 source "drivers/media/usb/tlg2300/Kconfig"
 source "drivers/media/usb/usbvision/Kconfig"
 source "drivers/media/usb/stk1160/Kconfig"
-
 endif
 
 if (MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
@@ -50,4 +48,4 @@ if (MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT)
 source "drivers/media/usb/em28xx/Kconfig"
 endif
 
-endmenu
+endif #MEDIA_USB_SUPPORT

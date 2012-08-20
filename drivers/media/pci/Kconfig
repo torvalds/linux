@@ -1,9 +1,8 @@
-#
-# DVB device configuration
-#
+menuconfig MEDIA_PCI_SUPPORT
+	bool "Media PCI Adapters"
+	depends on PCI && MEDIA_SUPPORT
 
-menu "Media PCI Adapters"
-	visible if PCI && MEDIA_SUPPORT
+if MEDIA_PCI_SUPPORT
 
 if MEDIA_CAMERA_SUPPORT
 	comment "Media capture support"
@@ -42,4 +41,4 @@ source "drivers/media/pci/ngene/Kconfig"
 source "drivers/media/pci/ddbridge/Kconfig"
 endif
 
-endmenu
+endif #MEDIA_PCI_SUPPORT
