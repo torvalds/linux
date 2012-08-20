@@ -113,20 +113,8 @@ static int __init mxs_icoll_add_irq_domain(struct device_node *np,
 	return 0;
 }
 
-static int __init mxs_gpio_add_irq_domain(struct device_node *np,
-				struct device_node *interrupt_parent)
-{
-	static int gpio_irq_base = MXS_GPIO_IRQ_START;
-
-	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
-	gpio_irq_base += 32;
-
-	return 0;
-}
-
 static const struct of_device_id mxs_irq_match[] __initconst = {
 	{ .compatible = "fsl,mxs-icoll", .data = mxs_icoll_add_irq_domain, },
-	{ .compatible = "fsl,mxs-gpio", .data = mxs_gpio_add_irq_domain, },
 	{ /* sentinel */ }
 };
 
