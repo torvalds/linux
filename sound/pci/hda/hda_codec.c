@@ -4417,6 +4417,7 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 
 	spin_lock(&codec->power_lock);
 	codec->power_count++;
+	trace_hda_power_count(codec);
 	/* Return if power_on or transitioning to power_on, unless currently
 	 * powering down. */
 	if ((codec->power_on || codec->power_transition > 0) &&
@@ -4496,6 +4497,7 @@ void snd_hda_power_down(struct hda_codec *codec)
 {
 	spin_lock(&codec->power_lock);
 	--codec->power_count;
+	trace_hda_power_count(codec);
 	if (!codec->power_on || codec->power_count || codec->power_transition) {
 		spin_unlock(&codec->power_lock);
 		return;
