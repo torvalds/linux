@@ -2599,9 +2599,8 @@ static int lpc32xx_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-static int lpc32xx_start(struct usb_gadget_driver *driver,
-			 int (*bind)(struct usb_gadget *));
-static int lpc32xx_stop(struct usb_gadget_driver *driver);
+static int lpc32xx_start(struct usb_gadget *, struct usb_gadget_driver *);
+static int lpc32xx_stop(struct usb_gadget *, struct usb_gadget_driver *);
 
 static const struct usb_gadget_ops lpc32xx_udc_ops = {
 	.get_frame		= lpc32xx_get_frame,
@@ -2609,8 +2608,8 @@ static const struct usb_gadget_ops lpc32xx_udc_ops = {
 	.set_selfpowered	= lpc32xx_set_selfpowered,
 	.vbus_session		= lpc32xx_vbus_session,
 	.pullup			= lpc32xx_pullup,
-	.start			= lpc32xx_start,
-	.stop			= lpc32xx_stop,
+	.udc_start		= lpc32xx_start,
+	.udc_stop		= lpc32xx_stop,
 };
 
 static void nop_release(struct device *dev)
@@ -2987,14 +2986,13 @@ static irqreturn_t lpc32xx_usb_vbus_irq(int irq, void *_udc)
 	return IRQ_HANDLED;
 }
 
-static int lpc32xx_start(struct usb_gadget_driver *driver,
-			 int (*bind)(struct usb_gadget *))
+static int lpc32xx_start(struct usb_gadget *gadget,
+			 struct usb_gadget_driver *driver)
 {
-	struct lpc32xx_udc *udc = &controller;
-	int retval, i;
+	struct lpc32xx_udc *udc = to_udc(gadget);
+	int i;
 
-	if (!driver || driver->max_speed < USB_SPEED_FULL ||
-	    !bind || !driver->setup) {
+	if (!driver || driver->max_speed < USB_SPEED_FULL || !driver->setup) {
 		dev_err(udc->dev, "bad parameter.\n");
 		return -EINVAL;
 	}
@@ -3011,18 +3009,6 @@ static int lpc32xx_start(struct usb_gadget_driver *driver,
 	udc->selfpowered = 1;
 	udc->vbus = 0;
 
-	retval = bind(&udc->gadget);
-	if (retval) {
-		dev_err(udc->dev, "bind() returned %d\n", retval);
-		udc->enabled = 0;
-		udc->selfpowered = 0;
-		udc->driver = NULL;
-		udc->gadget.dev.driver = NULL;
-		return retval;
-	}
-
-	dev_dbg(udc->dev, "bound to %s\n", driver->driver.name);
-
 	/* Force VBUS process once to check for cable insertion */
 	udc->last_vbus = udc->vbus = 0;
 	schedule_work(&udc->vbus_job);
@@ -3034,22 +3020,19 @@ static int lpc32xx_start(struct usb_gadget_driver *driver,
 	return 0;
 }
 
-static int lpc32xx_stop(struct usb_gadget_driver *driver)
+static int lpc32xx_stop(struct usb_gadget *gadget,
+			struct usb_gadget_driver *driver)
 {
 	int i;
-	struct lpc32xx_udc *udc = &controller;
+	struct lpc32xx_udc *udc = to_udc(gadget);
 
-	if (!driver || driver != udc->driver || !driver->unbind)
+	if (!driver || driver != udc->driver)
 		return -EINVAL;
-
-	/* Disable USB pullup */
-	isp1301_pullup_enable(udc, 0, 1);
 
 	for (i = IRQ_USB_LP; i <= IRQ_USB_ATX; i++)
 		disable_irq(udc->udp_irq[i]);
 
 	if (udc->clocked) {
-
 		spin_lock(&udc->lock);
 		stop_activity(udc);
 		spin_unlock(&udc->lock);
@@ -3069,20 +3052,16 @@ static int lpc32xx_stop(struct usb_gadget_driver *driver)
 	}
 
 	udc->enabled = 0;
-	pullup(udc, 0);
-
-	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
-	dev_dbg(udc->dev, "unbound from %s\n", driver->driver.name);
 	return 0;
 }
 
 static void lpc32xx_udc_shutdown(struct platform_device *dev)
 {
 	/* Force disconnect on reboot */
-	struct lpc32xx_udc *udc = &controller;
+	struct lpc32xx_udc *udc = platform_get_drvdata(dev);
 
 	pullup(udc, 0);
 }
