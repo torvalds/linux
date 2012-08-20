@@ -84,8 +84,6 @@ struct aio12_8_private {
 	unsigned int ao_readback[4];
 };
 
-#define devpriv	((struct aio12_8_private *) dev->private)
-
 static int aio_aio12_8_ai_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
@@ -125,6 +123,7 @@ static int aio_aio12_8_ao_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct aio12_8_private *devpriv = dev->private;
 	int i;
 	int val = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 
@@ -137,6 +136,7 @@ static int aio_aio12_8_ao_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct aio12_8_private *devpriv = dev->private;
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 	unsigned long port = dev->iobase + AIO12_8_DAC_0 + (2 * chan);
@@ -166,6 +166,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
 	const struct aio12_8_boardtype *board = comedi_board(dev);
+	struct aio12_8_private *devpriv;
 	int iobase;
 	struct comedi_subdevice *s;
 	int ret;
@@ -180,8 +181,10 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 	dev->iobase = iobase;
 
-	if (alloc_private(dev, sizeof(struct aio12_8_private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
