@@ -718,6 +718,7 @@ _request_firmware_prepare(const struct firmware **firmware_p, const char *name,
 	mutex_lock(&fw_lock);
 	if (test_bit(FW_STATUS_ABORT, &buf->status)) {
 		fw_priv = ERR_PTR(-ENOENT);
+		firmware->priv = buf;
 		_request_firmware_cleanup(firmware_p);
 		goto exit;
 	} else if (test_bit(FW_STATUS_DONE, &buf->status)) {
