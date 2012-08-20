@@ -87,6 +87,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("buffalo,lsxl"))
 		lsxl_init();
 
+	if (of_machine_is_compatible("iom,ix2-200"))
+		iomega_ix2_200_init();
+
 	of_platform_populate(NULL, kirkwood_dt_match_table,
 			     kirkwood_auxdata_lookup, NULL);
 }
@@ -100,6 +103,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"qnap,ts219",
 	"seagate,goflexnet",
 	"buffalo,lsxl",
+	"iom,ix2-200",
 	NULL
 };
 

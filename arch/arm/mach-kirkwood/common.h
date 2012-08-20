@@ -94,6 +94,12 @@ void lsxl_init(void);
 static inline void lsxl_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_IOMEGA_IX2_200_DT
+void iomega_ix2_200_init(void);
+#else
+static inline void iomega_ix2_200_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);
