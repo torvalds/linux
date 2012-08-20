@@ -1174,6 +1174,10 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
+	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
+		DRM_ERROR("Unclaimed write to %x\n", reg); \
+		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
+	} \
 }
 __i915_write(8, b)
 __i915_write(16, w)
