@@ -148,7 +148,7 @@ found:
 }
 
 int
-i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
+i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
@@ -160,7 +160,7 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 	if (lists_empty)
 		return -ENOSPC;
 
-	trace_i915_gem_evict_everything(dev, purgeable_only);
+	trace_i915_gem_evict_everything(dev);
 
 	/* The gpu_idle will flush everything in the write domain to the
 	 * active list. Then we must move everything off the active list
@@ -174,12 +174,9 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 
 	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry_safe(obj, next,
-				 &dev_priv->mm.inactive_list, mm_list) {
-		if (!purgeable_only || obj->madv != I915_MADV_WILLNEED) {
-			if (obj->pin_count == 0)
-				WARN_ON(i915_gem_object_unbind(obj));
-		}
-	}
+				 &dev_priv->mm.inactive_list, mm_list)
+		if (obj->pin_count == 0)
+			WARN_ON(i915_gem_object_unbind(obj));
 
 	return 0;
 }

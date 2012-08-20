@@ -502,17 +502,12 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			}
 		}
 
-		if (ret != -ENOSPC || retry > 1)
+		if (ret != -ENOSPC || retry++)
 			return ret;
 
-		/* First attempt, just clear anything that is purgeable.
-		 * Second attempt, clear the entire GTT.
-		 */
-		ret = i915_gem_evict_everything(ring->dev, retry == 0);
+		ret = i915_gem_evict_everything(ring->dev);
 		if (ret)
 			return ret;
-
-		retry++;
 	} while (1);
 
 err:

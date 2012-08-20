@@ -214,22 +214,18 @@ TRACE_EVENT(i915_gem_evict,
 );
 
 TRACE_EVENT(i915_gem_evict_everything,
-	    TP_PROTO(struct drm_device *dev, bool purgeable),
-	    TP_ARGS(dev, purgeable),
+	    TP_PROTO(struct drm_device *dev),
+	    TP_ARGS(dev),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
-			     __field(bool, purgeable)
 			    ),
 
 	    TP_fast_assign(
 			   __entry->dev = dev->primary->index;
-			   __entry->purgeable = purgeable;
 			  ),
 
-	    TP_printk("dev=%d%s",
-		      __entry->dev,
-		      __entry->purgeable ? ", purgeable only" : "")
+	    TP_printk("dev=%d", __entry->dev)
 );
 
 TRACE_EVENT(i915_gem_ring_dispatch,

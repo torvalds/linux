@@ -1221,7 +1221,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
 		if (obj->pin_count)
 			i++;
 	error->pinned_bo_count = i - error->active_bo_count;
@@ -1246,7 +1246,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->pinned_bo_count =
 			capture_pinned_bo(error->pinned_bo,
 					  error->pinned_bo_count,
-					  &dev_priv->mm.gtt_list);
+					  &dev_priv->mm.bound_list);
 
 	do_gettimeofday(&error->time);
 

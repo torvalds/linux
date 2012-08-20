@@ -685,7 +685,13 @@ typedef struct drm_i915_private {
 		struct drm_mm gtt_space;
 		/** List of all objects in gtt_space. Used to restore gtt
 		 * mappings on resume */
-		struct list_head gtt_list;
+		struct list_head bound_list;
+		/**
+		 * List of objects which are not bound to the GTT (thus
+		 * are idle and not used by the GPU) but still have
+		 * (presumably uncached) pages still attached.
+		 */
+		struct list_head unbound_list;
 
 		/** Usable portion of the GTT for GEM */
 		unsigned long gtt_start;
@@ -1306,8 +1312,7 @@ int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
-int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
-				  gfp_t gfpmask);
+int __must_check i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj);
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct intel_ring_buffer *to);
@@ -1449,7 +1454,7 @@ int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,
 					  unsigned alignment,
 					  unsigned cache_level,
 					  bool mappable);
-int i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only);
+int i915_gem_evict_everything(struct drm_device *dev);
 
 /* i915_gem_stolen.c */
 int i915_gem_init_stolen(struct drm_device *dev);

@@ -211,7 +211,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->mm.object_memory);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.gtt_list, gtt_list);
+	count_objects(&dev_priv->mm.bound_list, gtt_list);
 	seq_printf(m, "%u [%u] objects, %zu [%zu] bytes in gtt\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -225,8 +225,13 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
+	size = count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
+		size += obj->base.size, ++count;
+	seq_printf(m, "%u unbound objects, %zu bytes\n", count, size);
+
 	size = count = mappable_size = mappable_count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		if (obj->fault_mappable) {
 			size += obj->gtt_space->size;
 			++count;
@@ -264,7 +269,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void* data)
 		return ret;
 
 	total_obj_size = total_gtt_size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		if (list == PINNED_LIST && obj->pin_count == 0)
 			continue;
 
@@ -526,7 +531,8 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_gem_object *obj = dev_priv->fence_regs[i].obj;
 
-		seq_printf(m, "Fenced object[%2d] = ", i);
+		seq_printf(m, "Fence %d, pin count = %d, object = ",
+			   i, dev_priv->fence_regs[i].pin_count);
 		if (obj == NULL)
 			seq_printf(m, "unused");
 		else
