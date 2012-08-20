@@ -1123,36 +1123,6 @@ static void pnv_pci_init_ioda_msis(struct pnv_phb *phb)
 static void pnv_pci_init_ioda_msis(struct pnv_phb *phb) { }
 #endif /* CONFIG_PCI_MSI */
 
-/* This is the starting point of our IODA specific resource
- * allocation process
- */
-static void __devinit pnv_pci_ioda_fixup_phb(struct pci_controller *hose)
-{
-	resource_size_t size, align;
-	struct pci_bus *child;
-
-	/* Associate PEs per functions */
-	pnv_ioda_setup_PEs(hose->bus);
-
-	/* Calculate all resources */
-	pnv_ioda_calc_bus(hose->bus, IORESOURCE_IO, &size, &align);
-	pnv_ioda_calc_bus(hose->bus, IORESOURCE_MEM, &size, &align);
-
-	/* Apply then to HW */
-	pnv_ioda_update_resources(hose->bus);
-
-	/* Setup DMA */
-	pnv_ioda_setup_dma(hose->private_data);
-
-	/* Configure PCI Express settings */
-	list_for_each_entry(child, &hose->bus->children, node) {
-		struct pci_dev *self = child->self;
-		if (!self)
-			continue;
-		pcie_bus_configure_settings(child, self->pcie_mpss);
-	}
-}
-
 /*
  * This function is supposed to be called on basis of PE from top
  * to bottom style. So the the I/O or MMIO segment assigned to
@@ -1473,16 +1443,17 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);
 
-	/* We set both PCI_PROBE_ONLY and PCI_REASSIGN_ALL_RSRC. This is an
-	 * odd combination which essentially means that we skip all resource
-	 * fixups and assignments in the generic code, and do it all
-	 * ourselves here
+	/*
+	 * We pass the PCI probe flag PCI_REASSIGN_ALL_RSRC here
+	 * to let the PCI core do resource assignment. It's supposed
+	 * that the PCI core will do correct I/O and MMIO alignment
+	 * for the P2P bridge bars so that each PCI bus (excluding
+	 * the child P2P bridges) can form individual PE.
 	 */
-	ppc_md.pcibios_fixup_phb = pnv_pci_ioda_fixup_phb;
 	ppc_md.pcibios_fixup = pnv_pci_ioda_fixup;
 	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
 	ppc_md.pcibios_window_alignment = pnv_pci_window_alignment;
-	pci_add_flags(PCI_PROBE_ONLY | PCI_REASSIGN_ALL_RSRC);
+	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 
 	/* Reset IODA tables to a clean state */
 	rc = opal_pci_reset(phb_id, OPAL_PCI_IODA_TABLE_RESET, OPAL_ASSERT_RESET);
