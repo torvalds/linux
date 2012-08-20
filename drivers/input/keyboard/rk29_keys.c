@@ -114,12 +114,12 @@ static ssize_t rk29key_set(struct device *dev,
    	}
 
 	for(i=0;i<7;i++)
-		printk("desc=%s, code=%d\n",pdata->buttons[i].desc,pdata->buttons[i].code);
+		key_dbg("desc=%s, code=%d\n",pdata->buttons[i].desc,pdata->buttons[i].code);
 	return 0; 
 
 }
 
-static DEVICE_ATTR(rk29key,0777, NULL, rk29key_set);
+static DEVICE_ATTR(rk29key,0660, NULL, rk29key_set);
 
 void rk29_send_power_key(int state)
 {
