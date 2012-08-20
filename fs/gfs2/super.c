@@ -1366,6 +1366,8 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	val = sdp->sd_tune.gt_statfs_quantum;
 	if (val != 30)
 		seq_printf(s, ",statfs_quantum=%d", val);
+	else if (sdp->sd_tune.gt_statfs_slow)
+		seq_puts(s, ",statfs_quantum=0");
 	val = sdp->sd_tune.gt_quota_quantum;
 	if (val != 60)
 		seq_printf(s, ",quota_quantum=%d", val);
