@@ -66,7 +66,7 @@ int debug_level = 5;
 #if defined(CONFIG_ARCH_RK29)
 #define SDMMC_USE_INT_UNBUSY     0
 #else
-#define SDMMC_USE_INT_UNBUSY     1
+#define SDMMC_USE_INT_UNBUSY     0///1 
 #endif
 
 #if defined(CONFIG_ARCH_RK29)
@@ -1950,7 +1950,7 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 	
 	if(STATE_SENDING_CMD == host->state)
 	{
-	    if((0==host->cmd->retries)&&(12 != host->cmd->opcode)/*&&(55 != host->cmd->opcode)*/)
+	    if((0==host->cmd->retries)&&(12 != host->cmd->opcode))
 	    {
     	    printk(KERN_WARNING "%d... cmd=%d, INT_CMD_DONE timeout, errorStep=0x%x, host->state=%x [%s]\n",\
                  __LINE__,host->cmd->opcode, host->errorstep,host->state,host->dma_name);
@@ -3465,11 +3465,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 #else
     if(RK29_CTRL_SDMMC_ID== host->pdev->id)
     {
-#ifdef CONFIG_ARCH_RK2928
-	mmc->f_max = SD_FPP_FREQ;
-#else
         mmc->f_max = SDHC_FPP_FREQ;
-#endif
     }
     else
     {
