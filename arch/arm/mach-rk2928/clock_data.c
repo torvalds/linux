@@ -2200,15 +2200,36 @@ static struct clk_lookup clks[] = {
 static void __init rk30_init_enable_clocks(void)
 {
 	CLKDATA_DBG("ENTER %s\n", __func__);
-	clk_enable_nolock(&clk_core_pre);	//cpu
+	// core
+	clk_enable_nolock(&clk_core_pre);
 	clk_enable_nolock(&clk_core_periph);
+	clk_enable_nolock(&clken_core_periph);
+	clk_enable_nolock(&clk_l2c);
+	clk_enable_nolock(&aclk_core_pre);
+
+	// logic
 	clk_enable_nolock(&aclk_cpu_pre);
 	clk_enable_nolock(&hclk_cpu_pre);
 	clk_enable_nolock(&pclk_cpu_pre);
 
+	// ddr
+	clk_enable_nolock(&clk_ddrc);
+	clk_enable_nolock(&clk_ddrphy);
+	clk_enable_nolock(&clk_ddrphy2x);
+
 	clk_enable_nolock(&aclk_periph_pre);
 	clk_enable_nolock(&pclk_periph_pre);
 	clk_enable_nolock(&hclk_periph_pre);
+
+	// others 
+	clk_enable_nolock(&clk_aclk_vio0);
+	clk_enable_nolock(&clk_pclk_pwm01);
+	clk_enable_nolock(&clk_hclk_otg0);
+	clk_enable_nolock(&clk_hclk_otg1);
+	clk_enable_nolock(&clk_pclk_gpio0);
+	clk_enable_nolock(&clk_pclk_gpio1);
+	clk_enable_nolock(&clk_pclk_gpio2);
+	clk_enable_nolock(&clk_pclk_gpio3);
 
 #if CONFIG_RK_DEBUG_UART == 0
 	clk_enable_nolock(&clk_uart0);
@@ -2580,11 +2601,11 @@ void __init _rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,int fl
 	 * enable other clocks as necessary
 	 */
 	rk30_init_enable_clocks();
-
 	/*
 	 * Disable any unused clocks left on by the bootloader
 	 */
-	//clk_disable_unused();
+	clk_disable_unused();
+
 	CLKDATA_DBG("rk2928_clock_common_init, gpll=%lu, cpll=%lu\n", gpll, cpll);
 	rk2928_clock_common_init(gpll, cpll);
 	preset_lpj = loops_per_jiffy;
