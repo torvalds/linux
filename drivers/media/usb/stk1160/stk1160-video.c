@@ -342,18 +342,18 @@ static void stk1160_isoc_irq(struct urb *urb)
  */
 void stk1160_cancel_isoc(struct stk1160 *dev)
 {
-	int i;
+	int i, num_bufs = dev->isoc_ctl.num_bufs;
 
 	/*
 	 * This check is not necessary, but we add it
 	 * to avoid a spurious debug message
 	 */
-	if (!dev->isoc_ctl.num_bufs)
+	if (!num_bufs)
 		return;
 
-	stk1160_dbg("killing urbs...\n");
+	stk1160_dbg("killing %d urbs...\n", num_bufs);
 
-	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+	for (i = 0; i < num_bufs; i++) {
 
 		/*
 		 * To kill urbs we can't be in atomic context.
@@ -373,11 +373,11 @@ void stk1160_cancel_isoc(struct stk1160 *dev)
 void stk1160_free_isoc(struct stk1160 *dev)
 {
 	struct urb *urb;
-	int i;
+	int i, num_bufs = dev->isoc_ctl.num_bufs;
 
-	stk1160_dbg("freeing urb buffers...\n");
+	stk1160_dbg("freeing %d urb buffers...\n", num_bufs);
 
-	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+	for (i = 0; i < num_bufs; i++) {
 
 		urb = dev->isoc_ctl.urb[i];
 		if (urb) {
