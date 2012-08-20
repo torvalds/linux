@@ -47,7 +47,7 @@
 #define MTD_PARAM_LEN_MAX 64
 
 /* Maximum number of comma-separated items in the 'mtd=' parameter */
-#define MTD_PARAM_MAX_COUNT 2
+#define MTD_PARAM_MAX_COUNT 3
 
 /* Maximum value for the number of bad PEBs per 1024 PEBs */
 #define MAX_MTD_UBI_BEB_LIMIT 768
@@ -63,10 +63,12 @@
  * @name: MTD character device node path, MTD device name, or MTD device number
  *        string
  * @vid_hdr_offs: VID header offset
+ * @max_beb_per1024: maximum expected number of bad PEBs per 1024 PEBs
  */
 struct mtd_dev_param {
 	char name[MTD_PARAM_LEN_MAX];
 	int vid_hdr_offs;
+	int max_beb_per1024;
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
@@ -838,7 +840,7 @@ static int autoresize(struct ubi_device *ubi, int vol_id)
  * @mtd: MTD device description object
  * @ubi_num: number to assign to the new UBI device
  * @vid_hdr_offset: VID header offset
- * @max_beb_per1024: maximum number of expected bad blocks per 1024 PEBs
+ * @max_beb_per1024: maximum expected number of bad PEB per 1024 PEBs
  *
  * This function attaches MTD device @mtd_dev to UBI and assign @ubi_num number
  * to the newly created UBI device, unless @ubi_num is %UBI_DEV_NUM_AUTO, in
@@ -1218,8 +1220,7 @@ static int __init ubi_init(void)
 
 		mutex_lock(&ubi_devices_mutex);
 		err = ubi_attach_mtd_dev(mtd, UBI_DEV_NUM_AUTO,
-					 p->vid_hdr_offs,
-					 CONFIG_MTD_UBI_BEB_LIMIT);
+					 p->vid_hdr_offs, p->max_beb_per1024);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
 			ubi_err("cannot attach mtd%d", mtd->index);
@@ -1386,23 +1387,32 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	if (p->vid_hdr_offs < 0)
 		return p->vid_hdr_offs;
 
+	if (tokens[2]) {
+		int err = kstrtoint(tokens[2], 10, &p->max_beb_per1024);
+
+		if (err) {
+			printk(KERN_ERR "UBI error: bad value for "
+			       "max_beb_per1024 parameter: %s", tokens[2]);
+			return -EINVAL;
+		}
+	}
+
 	mtd_devs += 1;
 	return 0;
 }
 
 module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 000);
-MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: "
-		      "mtd=<name|num|path>[,<vid_hdr_offs>].\n"
+MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024]].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
-		      "MTD devices may be specified by their number, name, or "
-		      "path to the MTD character device node.\n"
-		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID "
-		      "header position to be used by UBI.\n"
-		      "Example 1: mtd=/dev/mtd0 - attach MTD device "
-		      "/dev/mtd0.\n"
-		      "Example 2: mtd=content,1984 mtd=4 - attach MTD device "
-		      "with name \"content\" using VID header offset 1984, and "
-		      "MTD device number 4 with default VID header offset.");
+		      "MTD devices may be specified by their number, name, or path to the MTD character device node.\n"
+		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID header position to be used by UBI. (default value if 0)\n"
+		      "Optional \"max_beb_per1024\" parameter specifies the maximum expected bad eraseblock per 1024 eraseblocks. (default value ("
+		      __stringify(CONFIG_MTD_UBI_BEB_LIMIT) ") if 0)\n"
+		      "\n"
+		      "Example 1: mtd=/dev/mtd0 - attach MTD device /dev/mtd0.\n"
+		      "Example 2: mtd=content,1984 mtd=4 - attach MTD device with name \"content\" using VID header offset 1984, and MTD device number 4 with default VID header offset.\n"
+		      "Example 3: mtd=/dev/mtd1,0,25 - attach MTD device /dev/mtd1 using default VID header offset and reserve 25*nand_size_in_blocks/1024 erase blocks for bad block handling.\n"
+		      "\t(e.g. if the NAND *chipset* has 4096 PEB, 100 will be reserved for this UBI device).");
 
 MODULE_VERSION(__stringify(UBI_VERSION));
 MODULE_DESCRIPTION("UBI - Unsorted Block Images");
