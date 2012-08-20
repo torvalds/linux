@@ -298,11 +298,15 @@ static void enable_dc_servo(struct snd_soc_codec *codec)
 
 		/* HPOUT1R */
 		offset = (s8)reg_r;
+		dev_dbg(codec->dev, "DCS right %d->%d\n", offset,
+			offset + hubs->dcs_codes_r);
 		offset += hubs->dcs_codes_r;
 		dcs_cfg = (u8)offset << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1L */
 		offset = (s8)reg_l;
+		dev_dbg(codec->dev, "DCS left %d->%d\n", offset,
+			offset + hubs->dcs_codes_l);
 		offset += hubs->dcs_codes_l;
 		dcs_cfg |= (u8)offset;
 
