@@ -348,6 +348,23 @@ struct be_cmd_get_boot_target_resp {
 	int  boot_session_handle;
 };
 
+struct be_cmd_reopen_session_req {
+	struct be_cmd_req_hdr hdr;
+#define BE_REOPEN_ALL_SESSIONS  0x00
+#define BE_REOPEN_BOOT_SESSIONS 0x01
+#define BE_REOPEN_A_SESSION     0x02
+	u16 reopen_type;
+	u16 rsvd;
+	u32 session_handle;
+} __packed;
+
+struct be_cmd_reopen_session_resp {
+	struct be_cmd_resp_hdr hdr;
+	u32 rsvd;
+	u32 session_handle;
+} __packed;
+
+
 struct be_cmd_mac_query_req {
 	struct be_cmd_req_hdr hdr;
 	u8 type;
@@ -911,6 +928,7 @@ struct be_cmd_get_all_if_id_req {
 #define OPCODE_ISCSI_INI_CFG_GET_HBA_NAME	6
 #define OPCODE_ISCSI_INI_CFG_SET_HBA_NAME	7
 #define OPCODE_ISCSI_INI_SESSION_GET_A_SESSION  14
+#define OPCODE_ISCSI_INI_DRIVER_REOPEN_ALL_SESSIONS 36
 #define OPCODE_ISCSI_INI_DRIVER_OFFLOAD_SESSION 41
 #define OPCODE_ISCSI_INI_DRIVER_INVALIDATE_CONNECTION 42
 #define OPCODE_ISCSI_INI_BOOT_GET_BOOT_TARGET	52

@@ -3466,44 +3466,33 @@ static void hwi_disable_intr(struct beiscsi_hba *phba)
 			     "In hwi_disable_intr, Already Disabled\n");
 }
 
+/**
+ * beiscsi_get_boot_info()- Get the boot session info
+ * @phba: The device priv structure instance
+ *
+ * Get the boot target info and store in driver priv structure
+ *
+ * return values
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ **/
 static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 {
-	struct be_cmd_get_boot_target_resp *boot_resp;
 	struct be_cmd_get_session_resp *session_resp;
 	struct be_mcc_wrb *wrb;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int tag, wrb_num;
 	unsigned short status, extd_status;
+	unsigned int s_handle;
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	int ret = -ENOMEM;
 
-	tag = mgmt_get_boot_target(phba);
-	if (!tag) {
-		SE_DEBUG(DBG_LVL_1, "beiscsi_get_boot_info Failed\n");
-		return -EAGAIN;
-	} else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
-
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
-		SE_DEBUG(DBG_LVL_1, "beiscsi_get_boot_info Failed"
-				    " status = %d extd_status = %d\n",
-				    status, extd_status);
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EBUSY;
+	/* Get the session handle of the boot target */
+	ret = be_mgmt_get_boot_shandle(phba, &s_handle);
+	if (ret) {
+		SE_DEBUG(DBG_LVL_1, "No boot session\n");
+		return ret;
 	}
-	wrb = queue_get_wrb(mccq, wrb_num);
-	free_mcc_tag(&phba->ctrl, tag);
-	boot_resp = embedded_payload(wrb);
-
-	if (boot_resp->boot_session_handle < 0) {
-		shost_printk(KERN_INFO, phba->shost, "No Boot Session.\n");
-		return -ENXIO;
-	}
-
 	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
 				sizeof(*session_resp),
 				&nonemb_cmd.dma);
@@ -3515,7 +3504,7 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 	}
 
 	memset(nonemb_cmd.va, 0, sizeof(*session_resp));
-	tag = mgmt_get_session_info(phba, boot_resp->boot_session_handle,
+	tag = mgmt_get_session_info(phba, s_handle,
 				    &nonemb_cmd);
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_1, "beiscsi_get_session_info"

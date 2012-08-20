@@ -84,6 +84,7 @@
 #define MAX_CMD_SZ			65536
 #define IIOC_SCSI_DATA                  0x05	/* Write Operation */
 
+#define INVALID_SESS_HANDLE	0xFFFFFFFF
 #define DBG_LVL				0x00000001
 #define DBG_LVL_1			0x00000001
 #define DBG_LVL_2			0x00000002

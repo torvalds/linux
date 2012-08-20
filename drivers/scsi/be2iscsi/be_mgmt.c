@@ -23,6 +23,50 @@
 #include "be_mgmt.h"
 #include "be_iscsi.h"
 
+/**
+ * mgmt_reopen_session()- Reopen a session based on reopen_type
+ * @phba: Device priv structure instance
+ * @reopen_type: Type of reopen_session FW should do.
+ * @sess_handle: Session Handle of the session to be re-opened
+ *
+ * return
+ *	the TAG used for MBOX Command
+ *
+ **/
+unsigned int mgmt_reopen_session(struct beiscsi_hba *phba,
+				  unsigned int reopen_type,
+				  unsigned int sess_handle)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_reopen_session_req *req;
+	unsigned int tag = 0;
+
+	SE_DEBUG(DBG_LVL_8, "In bescsi_get_boot_target\n");
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
+			   OPCODE_ISCSI_INI_DRIVER_REOPEN_ALL_SESSIONS,
+			   sizeof(struct be_cmd_reopen_session_resp));
+
+	/* set the reopen_type,sess_handle */
+	req->reopen_type = reopen_type;
+	req->session_handle = sess_handle;
+
+	be_mcc_notify(phba);
+	spin_unlock(&ctrl->mbox_lock);
+	return tag;
+}
+
 unsigned int mgmt_get_boot_target(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
@@ -923,4 +967,93 @@ unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba)
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 	return tag;
+}
+
+/**
+ * be_mgmt_get_boot_shandle()- Get the session handle
+ * @phba: device priv structure instance
+ * @s_handle: session handle returned for boot session.
+ *
+ * Get the boot target session handle. In case of
+ * crashdump mode driver has to issue and MBX Cmd
+ * for FW to login to boot target
+ *
+ * return
+ *	Success: 0
+ *	Failure: Non-Zero value
+ *
+ **/
+int be_mgmt_get_boot_shandle(struct beiscsi_hba *phba,
+			      unsigned int *s_handle)
+{
+	struct be_cmd_get_boot_target_resp *boot_resp;
+	struct be_mcc_wrb *wrb;
+	unsigned int tag, wrb_num;
+	uint8_t boot_retry = 3;
+	unsigned short status, extd_status;
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+
+	do {
+		/* Get the Boot Target Session Handle and Count*/
+		tag = mgmt_get_boot_target(phba);
+		if (!tag) {
+			SE_DEBUG(DBG_LVL_1, "mgmt_get_boot_target Failed\n");
+			return -EAGAIN;
+		} else
+			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+						 phba->ctrl.mcc_numtag[tag]);
+
+		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+		if (status || extd_status) {
+			SE_DEBUG(DBG_LVL_1, "mgmt_get_boot_target Failed"
+					    " status = %d extd_status = %d\n",
+					    status, extd_status);
+			free_mcc_tag(&phba->ctrl, tag);
+			return -EBUSY;
+		}
+		wrb = queue_get_wrb(mccq, wrb_num);
+		free_mcc_tag(&phba->ctrl, tag);
+		boot_resp = embedded_payload(wrb);
+
+		/* Check if the there are any Boot targets configured */
+		if (!boot_resp->boot_session_count) {
+			SE_DEBUG(DBG_LVL_8, "No boot targets configured\n");
+			return -ENXIO;
+		}
+
+		/* FW returns the session handle of the boot session */
+		if (boot_resp->boot_session_handle != INVALID_SESS_HANDLE) {
+			*s_handle = boot_resp->boot_session_handle;
+			return 0;
+		}
+
+		/* Issue MBX Cmd to FW to login to the boot target */
+		tag = mgmt_reopen_session(phba, BE_REOPEN_BOOT_SESSIONS,
+					  INVALID_SESS_HANDLE);
+		if (!tag) {
+			SE_DEBUG(DBG_LVL_1, "mgmt_reopen_session Failed\n");
+			return -EAGAIN;
+		} else
+			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+						 phba->ctrl.mcc_numtag[tag]);
+
+		wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+		if (status || extd_status) {
+			SE_DEBUG(DBG_LVL_1, "mgmt_reopen_session Failed"
+					    " status = %d extd_status = %d\n",
+					    status, extd_status);
+			free_mcc_tag(&phba->ctrl, tag);
+			return -EBUSY;
+		}
+		free_mcc_tag(&phba->ctrl, tag);
+
+	} while (--boot_retry);
+
+	/* Couldn't log into the boot target */
+	SE_DEBUG(DBG_LVL_1, "Login to Boot Target Failed\n");
+	return -ENXIO;
 }
