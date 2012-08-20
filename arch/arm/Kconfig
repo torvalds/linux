@@ -491,6 +491,7 @@ config ARCH_MXS
 	select HAVE_CLK_PREPARE
 	select MULTI_IRQ_HANDLER
 	select PINCTRL
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  Support for Freescale MXS-based family of processors
