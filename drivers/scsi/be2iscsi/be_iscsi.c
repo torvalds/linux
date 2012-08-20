@@ -1254,6 +1254,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct beiscsi_hba *phba;
 	unsigned int tag;
+	uint8_t mgmt_invalidate_flag, tcp_upload_flag;
 	unsigned short savecfg_flag = CMD_ISCSI_SESSION_SAVE_CFG_ON_FLASH;
 
 	beiscsi_ep = ep->dd_data;
@@ -1262,26 +1263,23 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 		    "BS_%d : In beiscsi_ep_disconnect for ep_cid = %d\n",
 		    beiscsi_ep->ep_cid);
 
-	if (!beiscsi_ep->conn) {
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : In beiscsi_ep_disconnect, no "
-			    "beiscsi_ep\n");
-		return;
+	if (beiscsi_ep->conn) {
+		beiscsi_conn = beiscsi_ep->conn;
+		iscsi_suspend_queue(beiscsi_conn->conn);
+		mgmt_invalidate_flag = ~BEISCSI_NO_RST_ISSUE;
+		tcp_upload_flag = CONNECTION_UPLOAD_GRACEFUL;
+	} else {
+		mgmt_invalidate_flag = BEISCSI_NO_RST_ISSUE;
+		tcp_upload_flag = CONNECTION_UPLOAD_ABORT;
 	}
-	beiscsi_conn = beiscsi_ep->conn;
-	iscsi_suspend_queue(beiscsi_conn->conn);
-
-	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-		    "BS_%d : In beiscsi_ep_disconnect ep_cid = %d\n",
-		    beiscsi_ep->ep_cid);
 
 	tag = mgmt_invalidate_connection(phba, beiscsi_ep,
-					    beiscsi_ep->ep_cid, 1,
-					    savecfg_flag);
+					  beiscsi_ep->ep_cid,
+					  mgmt_invalidate_flag,
+					  savecfg_flag);
 	if (!tag) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : mgmt_invalidate_connection"
-			    " Failed for cid=%d\n",
+			    "BS_%d : mgmt_invalidate_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
@@ -1289,7 +1287,7 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 		free_mcc_tag(&phba->ctrl, tag);
 	}
 
-	beiscsi_close_conn(beiscsi_ep, CONNECTION_UPLOAD_GRACEFUL);
+	beiscsi_close_conn(beiscsi_ep, tcp_upload_flag);
 	beiscsi_free_ep(beiscsi_ep);
 	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);

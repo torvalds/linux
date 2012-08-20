@@ -108,6 +108,7 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct bsg_job *job,
 					 struct be_dma_mem *nonemb_cmd);
 
+#define BEISCSI_NO_RST_ISSUE	0
 struct iscsi_invalidate_connection_params_in {
 	struct be_cmd_req_hdr hdr;
 	unsigned int session_handle;

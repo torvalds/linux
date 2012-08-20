@@ -42,6 +42,7 @@
 #include "be_main.h"
 #include "be_iscsi.h"
 #include "be_mgmt.h"
+#include "be_cmds.h"
 
 static unsigned int be_iopoll_budget = 10;
 static unsigned int be_max_phys_size = 64;
@@ -1920,6 +1921,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 	struct dmsg_cqe *dmsg;
 	unsigned int num_processed = 0;
 	unsigned int tot_nump = 0;
+	unsigned short code = 0, cid = 0;
 	struct beiscsi_conn *beiscsi_conn;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_endpoint *ep;
@@ -1933,10 +1935,11 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 	       CQE_VALID_MASK) {
 		be_dws_le_to_cpu(sol, sizeof(struct sol_cqe));
 
-		ep = phba->ep_array[(u32) ((sol->
-				   dw[offsetof(struct amap_sol_cqe, cid) / 32] &
-				   SOL_CID_MASK) >> 6) -
-				   phba->fw_config.iscsi_cid_start];
+		cid = ((sol->dw[offsetof(struct amap_sol_cqe, cid)/32] &
+		      CQE_CID_MASK) >> 6);
+		code = (sol->dw[offsetof(struct amap_sol_cqe, code)/32] &
+		       CQE_CODE_MASK);
+		ep = phba->ep_array[cid - phba->fw_config.iscsi_cid_start];
 
 		beiscsi_ep = ep->dd_data;
 		beiscsi_conn = beiscsi_ep->conn;
@@ -1948,8 +1951,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			num_processed = 0;
 		}
 
-		switch ((u32) sol->dw[offsetof(struct amap_sol_cqe, code) /
-			32] & CQE_CODE_MASK) {
+		switch (code) {
 		case SOL_CMD_COMPLETE:
 			hwi_complete_cmd(beiscsi_conn, phba, sol);
 			break;
@@ -1996,11 +1998,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_CONFIG | BEISCSI_LOG_IO,
 				    "BM_%d : CQ Error notification for cmd.. "
-				    "code %d cid 0x%x\n",
-				    sol->dw[offsetof(struct amap_sol_cqe,
-				    code) / 32] & CQE_CODE_MASK,
-				    sol->dw[offsetof(struct amap_sol_cqe,
-				    cid) / 32] & SOL_CID_MASK);
+				    "code %d cid 0x%x\n", code, cid);
 			break;
 		case UNSOL_DATA_DIGEST_ERROR_NOTIFY:
 			beiscsi_log(phba, KERN_ERR,
@@ -2027,12 +2025,10 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
 				    "BM_%d : CQ Error %d, reset CID 0x%x...\n",
-				    sol->dw[offsetof(struct amap_sol_cqe,
-				    code) / 32] & CQE_CODE_MASK,
-				    sol->dw[offsetof(struct amap_sol_cqe,
-				    cid) / 32] & CQE_CID_MASK);
-			iscsi_conn_failure(beiscsi_conn->conn,
-					   ISCSI_ERR_CONN_FAILED);
+				    code, cid);
+			if (beiscsi_conn)
+				iscsi_conn_failure(beiscsi_conn->conn,
+						   ISCSI_ERR_CONN_FAILED);
 			break;
 		case CXN_KILLED_RST_SENT:
 		case CXN_KILLED_RST_RCVD:
@@ -2040,22 +2036,17 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
 				    "BM_%d : CQ Error %d, reset"
 				    "received/sent on CID 0x%x...\n",
-				    sol->dw[offsetof(struct amap_sol_cqe,
-					code) / 32] & CQE_CODE_MASK,
-				    sol->dw[offsetof(struct amap_sol_cqe,
-					cid) / 32] & CQE_CID_MASK);
-			iscsi_conn_failure(beiscsi_conn->conn,
-					   ISCSI_ERR_CONN_FAILED);
+				    code, cid);
+			if (beiscsi_conn)
+				iscsi_conn_failure(beiscsi_conn->conn,
+						   ISCSI_ERR_CONN_FAILED);
 			break;
 		default:
 			beiscsi_log(phba, KERN_ERR,
 				    BEISCSI_LOG_IO | BEISCSI_LOG_CONFIG,
 				    "BM_%d : CQ Error Invalid code= %d "
 				    "received on CID 0x%x...\n",
-				    sol->dw[offsetof(struct amap_sol_cqe,
-				    code) / 32] & CQE_CODE_MASK,
-				    sol->dw[offsetof(struct amap_sol_cqe,
-				    cid) / 32] & CQE_CID_MASK);
+				    code, cid);
 			break;
 		}
 
