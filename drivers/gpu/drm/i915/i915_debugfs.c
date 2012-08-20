@@ -197,8 +197,8 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 count, mappable_count;
-	size_t size, mappable_size;
+	u32 count, mappable_count, purgeable_count;
+	size_t size, mappable_size, purgeable_size;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -225,9 +225,12 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
-	size = count = 0;
-	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list)
+	size = count = purgeable_size = purgeable_count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.unbound_list, gtt_list) {
 		size += obj->base.size, ++count;
+		if (obj->madv == I915_MADV_DONTNEED)
+			purgeable_size += obj->base.size, ++purgeable_count;
+	}
 	seq_printf(m, "%u unbound objects, %zu bytes\n", count, size);
 
 	size = count = mappable_size = mappable_count = 0;
@@ -240,7 +243,13 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 			mappable_size += obj->gtt_space->size;
 			++mappable_count;
 		}
+		if (obj->madv == I915_MADV_DONTNEED) {
+			purgeable_size += obj->base.size;
+			++purgeable_count;
+		}
 	}
+	seq_printf(m, "%u purgeable objects, %zu bytes\n",
+		   purgeable_count, purgeable_size);
 	seq_printf(m, "%u pinned mappable objects, %zu bytes\n",
 		   mappable_count, mappable_size);
 	seq_printf(m, "%u fault mappable objects, %zu bytes\n",
