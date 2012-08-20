@@ -402,11 +402,13 @@ void __init pxa3xx_init_irq(void)
 	pxa_init_irq(56, pxa3xx_set_wake);
 }
 
+#ifdef CONFIG_OF
 void __init pxa3xx_dt_init_irq(void)
 {
 	__pxa3xx_init_irq();
 	pxa_dt_irq_init(pxa3xx_set_wake);
 }
+#endif	/* CONFIG_OF */
 
 static struct map_desc pxa3xx_io_desc[] __initdata = {
 	{	/* Mem Ctl */
