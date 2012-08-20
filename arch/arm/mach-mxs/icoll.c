@@ -19,7 +19,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 #include <asm/exception.h>
 #include <mach/mxs.h>
 #include <mach/common.h>
@@ -33,7 +36,10 @@
 #define BM_ICOLL_INTERRUPTn_ENABLE		0x00000004
 #define BV_ICOLL_LEVELACK_IRQLEVELACK__LEVEL0	0x1
 
+#define ICOLL_NUM_IRQS		128
+
 static void __iomem *icoll_base = MXS_IO_ADDRESS(MXS_ICOLL_BASE_ADDR);
+static struct irq_domain *icoll_domain;
 
 static void icoll_ack_irq(struct irq_data *d)
 {
@@ -49,13 +55,13 @@ static void icoll_ack_irq(struct irq_data *d)
 static void icoll_mask_irq(struct irq_data *d)
 {
 	__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
-			icoll_base + HW_ICOLL_INTERRUPTn_CLR(d->irq));
+			icoll_base + HW_ICOLL_INTERRUPTn_CLR(d->hwirq));
 }
 
 static void icoll_unmask_irq(struct irq_data *d)
 {
 	__raw_writel(BM_ICOLL_INTERRUPTn_ENABLE,
-			icoll_base + HW_ICOLL_INTERRUPTn_SET(d->irq));
+			icoll_base + HW_ICOLL_INTERRUPTn_SET(d->hwirq));
 }
 
 static struct irq_chip mxs_icoll_chip = {
@@ -72,6 +78,7 @@ asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
 		irqnr = __raw_readl(icoll_base + HW_ICOLL_STAT_OFFSET);
 		if (irqnr != 0x7f) {
 			__raw_writel(irqnr, icoll_base + HW_ICOLL_VECTOR);
+			irqnr = irq_find_mapping(icoll_domain, irqnr);
 			handle_IRQ(irqnr, regs);
 			continue;
 		}
@@ -79,18 +86,40 @@ asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-void __init icoll_init_irq(void)
+static int icoll_irq_domain_map(struct irq_domain *d, unsigned int virq,
+				irq_hw_number_t hw)
 {
-	int i;
+	irq_set_chip_and_handler(virq, &mxs_icoll_chip, handle_level_irq);
+	set_irq_flags(virq, IRQF_VALID);
 
+	return 0;
+}
+
+static struct irq_domain_ops icoll_irq_domain_ops = {
+	.map = icoll_irq_domain_map,
+	.xlate = irq_domain_xlate_onecell,
+};
+
+void __init icoll_of_init(struct device_node *np,
+			  struct device_node *interrupt_parent)
+{
 	/*
 	 * Interrupt Collector reset, which initializes the priority
 	 * for each irq to level 0.
 	 */
 	mxs_reset_block(icoll_base + HW_ICOLL_CTRL);
 
-	for (i = 0; i < MXS_INTERNAL_IRQS; i++) {
-		irq_set_chip_and_handler(i, &mxs_icoll_chip, handle_level_irq);
-		set_irq_flags(i, IRQF_VALID);
-	}
+	icoll_domain = irq_domain_add_linear(np, ICOLL_NUM_IRQS,
+					     &icoll_irq_domain_ops, NULL);
+	WARN_ON(!icoll_domain);
+}
+
+static const struct of_device_id icoll_of_match[] __initconst = {
+	{.compatible = "fsl,icoll", .data = icoll_of_init},
+	{ /* sentinel */ }
+};
+
+void __init icoll_init_irq(void)
+{
+	of_irq_init(icoll_of_match);
 }

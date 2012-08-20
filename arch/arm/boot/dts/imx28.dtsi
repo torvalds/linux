@@ -50,7 +50,7 @@
 			ranges;
 
 			icoll: interrupt-controller@80000000 {
-				compatible = "fsl,imx28-icoll", "fsl,mxs-icoll";
+				compatible = "fsl,imx28-icoll", "fsl,icoll";
 				interrupt-controller;
 				#interrupt-cells = <1>;
 				reg = <0x80000000 0x2000>;
