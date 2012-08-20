@@ -77,6 +77,7 @@ struct tps6586x_platform_data {
 
 	int gpio_base;
 	int irq_base;
+	bool pm_off;
 };
 
 /*

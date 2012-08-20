@@ -29,6 +29,10 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
 
+#define TPS6586X_SUPPLYENE	0x14
+#define EXITSLREQ_BIT		BIT(1)
+#define SLEEP_MODE_BIT		BIT(3)
+
 /* interrupt control registers */
 #define TPS6586X_INT_ACK1	0xb5
 #define TPS6586X_INT_ACK2	0xb6
@@ -409,6 +413,7 @@ static struct tps6586x_platform_data *tps6586x_parse_dt(struct i2c_client *clien
 	pdata->subdevs = devs;
 	pdata->gpio_base = -1;
 	pdata->irq_base = -1;
+	pdata->pm_off = of_property_read_bool(np, "ti,system-power-controller");
 
 	return pdata;
 }
@@ -440,6 +445,15 @@ static const struct regmap_config tps6586x_regmap_config = {
 	.volatile_reg = is_volatile_reg,
 	.cache_type = REGCACHE_RBTREE,
 };
+
+static struct device *tps6586x_dev;
+static void tps6586x_power_off(void)
+{
+	if (tps6586x_clr_bits(tps6586x_dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT))
+		return;
+
+	tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
+}
 
 static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
@@ -504,6 +518,11 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 	if (ret) {
 		dev_err(&client->dev, "add devices failed: %d\n", ret);
 		goto err_add_devs;
+	}
+
+	if (pdata->pm_off && !pm_power_off) {
+		tps6586x_dev = &client->dev;
+		pm_power_off = tps6586x_power_off;
 	}
 
 	return 0;
