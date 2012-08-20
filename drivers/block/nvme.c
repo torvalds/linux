@@ -909,6 +909,10 @@ static void nvme_free_queue(struct nvme_dev *dev, int qid)
 
 	spin_lock_irq(&nvmeq->q_lock);
 	nvme_cancel_ios(nvmeq, false);
+	while (bio_list_peek(&nvmeq->sq_cong)) {
+		struct bio *bio = bio_list_pop(&nvmeq->sq_cong);
+		bio_endio(bio, -EIO);
+	}
 	spin_unlock_irq(&nvmeq->q_lock);
 
 	irq_set_affinity_hint(vector, NULL);
