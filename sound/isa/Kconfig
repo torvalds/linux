@@ -117,6 +117,18 @@ config SND_AZT2320
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-azt2320.
 
+config SND_CMI8328
+	tristate "C-Media CMI8328"
+	select SND_WSS_LIB
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	help
+	  Say Y here to include support for soundcards based on the
+	  C-Media CMI8328 chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cmi8328.
+
 config SND_CMI8330
 	tristate "C-Media CMI8330"
 	select SND_WSS_LIB
