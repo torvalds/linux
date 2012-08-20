@@ -1265,6 +1265,27 @@ int w_send_write_hint(struct drbd_work *w, int cancel)
 	return drbd_send_command(mdev, sock, P_UNPLUG_REMOTE, 0, NULL, 0);
 }
 
+static void re_init_if_first_write(struct drbd_tconn *tconn, unsigned int epoch)
+{
+	if (!tconn->send.seen_any_write_yet) {
+		tconn->send.seen_any_write_yet = true;
+		tconn->send.current_epoch_nr = epoch;
+		tconn->send.current_epoch_writes = 0;
+	}
+}
+
+static void maybe_send_barrier(struct drbd_tconn *tconn, unsigned int epoch)
+{
+	/* re-init if first write on this connection */
+	if (!tconn->send.seen_any_write_yet)
+		return;
+	if (tconn->send.current_epoch_nr != epoch) {
+		if (tconn->send.current_epoch_writes)
+			drbd_send_barrier(tconn);
+		tconn->send.current_epoch_nr = epoch;
+	}
+}
+
 int w_send_out_of_sync(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
@@ -1277,19 +1298,11 @@ int w_send_out_of_sync(struct drbd_work *w, int cancel)
 		return 0;
 	}
 
-	if (!tconn->send.seen_any_write_yet) {
-		tconn->send.seen_any_write_yet = true;
-		tconn->send.current_epoch_nr = req->epoch;
-	}
-	if (tconn->send.current_epoch_nr != req->epoch) {
-		if (tconn->send.current_epoch_writes)
-			drbd_send_barrier(tconn);
-		tconn->send.current_epoch_nr = req->epoch;
-	}
 	/* this time, no tconn->send.current_epoch_writes++;
 	 * If it was sent, it was the closing barrier for the last
 	 * replicated epoch, before we went into AHEAD mode.
 	 * No more barriers will be sent, until we leave AHEAD mode again. */
+	maybe_send_barrier(tconn, req->epoch);
 
 	err = drbd_send_out_of_sync(mdev, req);
 	req_mod(req, OOS_HANDED_TO_NETWORK);
@@ -1315,15 +1328,8 @@ int w_send_dblock(struct drbd_work *w, int cancel)
 		return 0;
 	}
 
-	if (!tconn->send.seen_any_write_yet) {
-		tconn->send.seen_any_write_yet = true;
-		tconn->send.current_epoch_nr = req->epoch;
-	}
-	if (tconn->send.current_epoch_nr != req->epoch) {
-		if (tconn->send.current_epoch_writes)
-			drbd_send_barrier(tconn);
-		tconn->send.current_epoch_nr = req->epoch;
-	}
+	re_init_if_first_write(tconn, req->epoch);
+	maybe_send_barrier(tconn, req->epoch);
 	tconn->send.current_epoch_writes++;
 
 	err = drbd_send_dblock(mdev, req);
@@ -1352,12 +1358,7 @@ int w_send_read_req(struct drbd_work *w, int cancel)
 
 	/* Even read requests may close a write epoch,
 	 * if there was any yet. */
-	if (tconn->send.seen_any_write_yet &&
-	    tconn->send.current_epoch_nr != req->epoch) {
-		if (tconn->send.current_epoch_writes)
-			drbd_send_barrier(tconn);
-		tconn->send.current_epoch_nr = req->epoch;
-	}
+	maybe_send_barrier(tconn, req->epoch);
 
 	err = drbd_send_drequest(mdev, P_DATA_REQUEST, req->i.sector, req->i.size,
 				 (unsigned long)req);
