@@ -93,7 +93,7 @@ struct BondedDevice {
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.  */
-struct Private {
+struct comedi_bond_private {
 # define MAX_BOARD_NAME 256
 	char name[MAX_BOARD_NAME];
 	struct BondedDevice **devs;
@@ -101,12 +101,6 @@ struct Private {
 	struct BondedDevice *chanIdDevMap[MAX_CHANS];
 	unsigned nchans;
 };
-
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct Private *)dev->private)
 
 /* DIO devices are slightly special.  Although it is possible to
  * implement the insn_read/insn_write interface, it is much more
@@ -117,6 +111,7 @@ static int bonding_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 #define LSAMPL_BITS (sizeof(unsigned int)*8)
 	unsigned nchans = LSAMPL_BITS, num_done = 0, i;
 
@@ -163,6 +158,7 @@ static int bonding_dio_insn_config(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec), ret, io_bits = s->io_bits;
 	unsigned int io;
 	struct BondedDevice *bdev;
@@ -216,6 +212,7 @@ static void *Realloc(const void *oldmem, size_t newlen, size_t oldlen)
 
 static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	int i;
 	struct comedi_device *devs_opened[COMEDI_NUM_BOARD_MINORS];
 
@@ -319,20 +316,19 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 static int bonding_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
+	struct comedi_bond_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	LOG_MSG("comedi%d\n", dev->minor);
 
-	/*
-	 * Allocate the private structure area.  alloc_private() is a
-	 * convenient macro defined in comedidev.h.
-	 */
-	if (alloc_private(dev, sizeof(struct Private)) < 0)
-		return -ENOMEM;
+	ret = alloc_private(dev, sizeof(*devpriv));
+	if (ret)
+		return ret;
+	devpriv = dev->private;
 
 	/*
-	 * Setup our bonding from config params.. sets up our Private struct..
+	 * Setup our bonding from config params.. sets up our private struct..
 	 */
 	if (!doDevConfig(dev, it))
 		return -EINVAL;
@@ -362,6 +358,7 @@ static int bonding_attach(struct comedi_device *dev,
 
 static void bonding_detach(struct comedi_device *dev)
 {
+	struct comedi_bond_private *devpriv = dev->private;
 	unsigned long devs_closed = 0;
 
 	if (devpriv) {
