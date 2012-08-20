@@ -31,6 +31,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
+#include "exynos_drm_connector.h"
 
 #define to_exynos_encoder(x)	container_of(x, struct exynos_drm_encoder,\
 				drm_encoder)
@@ -49,21 +50,17 @@ struct exynos_drm_encoder {
 	int dpms;
 };
 
-static void exynos_drm_display_power(struct drm_encoder *encoder, int mode)
+static void exynos_drm_connector_power(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
-	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
-			struct exynos_drm_display_ops *display_ops =
-							manager->display_ops;
-
 			DRM_DEBUG_KMS("connector[%d] dpms[%d]\n",
 					connector->base.id, mode);
-			if (display_ops && display_ops->power_on)
-				display_ops->power_on(manager->dev, mode);
+
+			exynos_drm_display_power(connector, mode);
 		}
 	}
 }
@@ -88,13 +85,13 @@ static void exynos_drm_encoder_dpms(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_ON:
 		if (manager_ops && manager_ops->apply)
 			manager_ops->apply(manager->dev);
-		exynos_drm_display_power(encoder, mode);
+		exynos_drm_connector_power(encoder, mode);
 		exynos_encoder->dpms = mode;
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		exynos_drm_display_power(encoder, mode);
+		exynos_drm_connector_power(encoder, mode);
 		exynos_encoder->dpms = mode;
 		break;
 	default:
@@ -137,8 +134,6 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 	struct exynos_drm_manager_ops *manager_ops = manager->ops;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	exynos_drm_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder)
@@ -336,6 +331,19 @@ void exynos_drm_encoder_crtc_dpms(struct drm_encoder *encoder, void *data)
 
 	if (manager_ops && manager_ops->dpms)
 		manager_ops->dpms(manager->dev, mode);
+
+	/*
+	 * set current mode to new one so that data aren't updated into
+	 * registers by drm_helper_connector_dpms two times.
+	 *
+	 * in case that drm_crtc_helper_set_mode() is called,
+	 * overlay_ops->commit() and manager_ops->commit() callbacks
+	 * can be called two times, first at drm_crtc_helper_set_mode()
+	 * and second at drm_helper_connector_dpms().
+	 * so with this setting, when drm_helper_connector_dpms() is called
+	 * encoder->funcs->dpms() will be ignored.
+	 */
+	exynos_encoder->dpms = mode;
 
 	/*
 	 * if this condition is ok then it means that the crtc is already

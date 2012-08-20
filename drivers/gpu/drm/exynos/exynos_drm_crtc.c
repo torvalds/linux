@@ -97,6 +97,7 @@ static void exynos_drm_crtc_commit(struct drm_crtc *crtc)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 	exynos_plane_commit(exynos_crtc->plane);
 	exynos_plane_dpms(exynos_crtc->plane, DRM_MODE_DPMS_ON);
 }
@@ -125,8 +126,6 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	exynos_drm_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 
 	/*
 	 * copy the mode data adjusted by mode_fixup() into crtc->mode

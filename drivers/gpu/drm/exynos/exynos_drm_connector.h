@@ -31,4 +31,6 @@
 struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 						   struct drm_encoder *encoder);
 
+void exynos_drm_display_power(struct drm_connector *connector, int mode);
+
 #endif
