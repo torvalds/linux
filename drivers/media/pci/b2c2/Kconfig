@@ -1,5 +1,6 @@
 config DVB_B2C2_FLEXCOP_PCI
 	tristate "Technisat/B2C2 Air/Sky/Cable2PC PCI"
+	depends on DVB_CORE && I2C
 	help
 	  Support for the Air/Sky/CableStar2 PCI card (DVB/ATSC) by Technisat/B2C2.
 
