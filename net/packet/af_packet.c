@@ -855,7 +855,8 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *pkc,
 		ppd->hv1.tp_vlan_tci = vlan_tx_tag_get(pkc->skb);
 		ppd->tp_status = TP_STATUS_VLAN_VALID;
 	} else {
-		ppd->hv1.tp_vlan_tci = ppd->tp_status = 0;
+		ppd->hv1.tp_vlan_tci = 0;
+		ppd->tp_status = TP_STATUS_AVAILABLE;
 	}
 }
 
@@ -1951,7 +1952,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	int tp_len, size_max;
 	unsigned char *addr;
 	int len_sum = 0;
-	int status = 0;
+	int status = TP_STATUS_AVAILABLE;
 	int hlen, tlen;
 
 	mutex_lock(&po->pg_vec_lock);
