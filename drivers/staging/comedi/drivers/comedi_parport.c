@@ -265,8 +265,6 @@ static int parport_intr_cancel(struct comedi_device *dev,
 {
 	struct parport_private *devpriv = dev->private;
 
-	printk(KERN_DEBUG "parport_intr_cancel()\n");
-
 	devpriv->c_data &= ~0x10;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
@@ -281,10 +279,8 @@ static irqreturn_t parport_interrupt(int irq, void *d)
 	struct parport_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->subdevices + 3;
 
-	if (!devpriv->enable_irq) {
-		printk(KERN_ERR "comedi_parport: bogus irq, ignored\n");
+	if (!devpriv->enable_irq)
 		return IRQ_NONE;
-	}
 
 	comedi_buf_put(s->async, 0);
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
