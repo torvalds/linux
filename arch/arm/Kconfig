@@ -489,6 +489,7 @@ config ARCH_MXS
 	select CLKSRC_MMIO
 	select COMMON_CLK
 	select HAVE_CLK_PREPARE
+	select MULTI_IRQ_HANDLER
 	select PINCTRL
 	select USE_OF
 	help

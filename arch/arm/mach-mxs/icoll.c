@@ -20,13 +20,14 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
-
+#include <asm/exception.h>
 #include <mach/mxs.h>
 #include <mach/common.h>
 
 #define HW_ICOLL_VECTOR				0x0000
 #define HW_ICOLL_LEVELACK			0x0010
 #define HW_ICOLL_CTRL				0x0020
+#define HW_ICOLL_STAT_OFFSET			0x0070
 #define HW_ICOLL_INTERRUPTn_SET(n)		(0x0124 + (n) * 0x10)
 #define HW_ICOLL_INTERRUPTn_CLR(n)		(0x0128 + (n) * 0x10)
 #define BM_ICOLL_INTERRUPTn_ENABLE		0x00000004
@@ -62,6 +63,21 @@ static struct irq_chip mxs_icoll_chip = {
 	.irq_mask = icoll_mask_irq,
 	.irq_unmask = icoll_unmask_irq,
 };
+
+asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
+{
+	u32 irqnr;
+
+	do {
+		irqnr = __raw_readl(icoll_base + HW_ICOLL_STAT_OFFSET);
+		if (irqnr != 0x7f) {
+			__raw_writel(irqnr, icoll_base + HW_ICOLL_VECTOR);
+			handle_IRQ(irqnr, regs);
+			continue;
+		}
+		break;
+	} while (1);
+}
 
 void __init icoll_init_irq(void)
 {

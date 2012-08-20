@@ -294,6 +294,7 @@ static const char *imx28_dt_compat[] __initdata = {
 DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
 	.map_io		= mx23_map_io,
 	.init_irq	= mxs_dt_init_irq,
+	.handle_irq	= icoll_handle_irq,
 	.timer		= &imx23_timer,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx23_dt_compat,
@@ -303,6 +304,7 @@ MACHINE_END
 DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
 	.map_io		= mx28_map_io,
 	.init_irq	= mxs_dt_init_irq,
+	.handle_irq	= icoll_handle_irq,
 	.timer		= &imx28_timer,
 	.init_machine	= mxs_machine_init,
 	.dt_compat	= imx28_dt_compat,
