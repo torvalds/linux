@@ -61,7 +61,7 @@ static char *su_typev[] = { "su(???)", "su(mouse)", "su(kbd)", "su(serial)" };
 /*
  * Here we define the default xmit fifo size used for each type of UART.
  */
-static const struct serial_uart_config uart_config[PORT_MAX_8250+1] = {
+static const struct serial_uart_config uart_config[] = {
 	{ "unknown",	1,	0 },
 	{ "8250",	1,	0 },
 	{ "16450",	1,	0 },
