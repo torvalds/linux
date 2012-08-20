@@ -1870,7 +1870,7 @@ static int ath6kl_wow_usr(struct ath6kl *ar, struct ath6kl_vif *vif,
 			  struct cfg80211_wowlan *wow, u32 *filter)
 {
 	int ret, pos;
-	u8 mask[WOW_MASK_SIZE];
+	u8 mask[WOW_PATTERN_SIZE];
 	u16 i;
 
 	/* Configure the patterns that we received from the user. */

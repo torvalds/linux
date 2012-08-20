@@ -2062,7 +2062,6 @@ struct wmi_set_ie_cmd {
 
 #define WOW_MAX_FILTERS_PER_LIST 4
 #define WOW_PATTERN_SIZE	 64
-#define WOW_MASK_SIZE		 64
 
 #define MAC_MAX_FILTERS_PER_LIST 4
 
@@ -2071,7 +2070,7 @@ struct wow_filter {
 	u8 wow_filter_id;
 	u8 wow_filter_size;
 	u8 wow_filter_offset;
-	u8 wow_filter_mask[WOW_MASK_SIZE];
+	u8 wow_filter_mask[WOW_PATTERN_SIZE];
 	u8 wow_filter_pattern[WOW_PATTERN_SIZE];
 } __packed;
 
