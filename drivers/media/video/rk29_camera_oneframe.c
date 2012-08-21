@@ -38,7 +38,7 @@
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 #include <mach/rk29-ipp.h>
-
+#include <asm/cacheflush.h>
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
@@ -160,8 +160,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *v0.x.c : fix work queue havn't been finished after close device;
 *v0.x.d : fix error when calculate crop left-top point coordinate;
 *v0.x.f : fix struct rk29_camera_work may be reentrant.
+*v0.x.11: add support zoom by arm;
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xf)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x11)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -238,6 +239,14 @@ struct rk29_camera_zoominfo
     struct v4l2_crop a;
     int zoom_rate;
 };
+#if CAMERA_VIDEOBUF_ARM_ACCESS
+struct rk29_camera_vbinfo
+{
+    unsigned int phy_addr;
+    void __iomem *vir_addr;
+    unsigned int size;
+};
+#endif
 struct rk29_camera_dev
 {
     struct soc_camera_host	soc_host;
@@ -270,8 +279,13 @@ struct rk29_camera_dev
     unsigned long frame_interval;
 	unsigned int pixfmt;
 	unsigned int vipmem_phybase;
+    void __iomem *vipmem_virbase;
 	unsigned int vipmem_size;
 	unsigned int vipmem_bsize;
+#if CAMERA_VIDEOBUF_ARM_ACCESS    
+    struct rk29_camera_vbinfo *vbinfo;
+    unsigned int vbinfo_count;
+#endif    
 	int host_width;
 	int host_height;
     int icd_width;
@@ -378,6 +392,22 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
             }
 			pcdev->camera_work_count = (*count);
 		}
+#if CAMERA_VIDEOBUF_ARM_ACCESS
+        if (pcdev->vbinfo && (pcdev->vbinfo_count != *count)) {
+            kfree(pcdev->vbinfo);
+            pcdev->vbinfo = NULL;
+            pcdev->vbinfo_count = 0x00;
+        }
+
+        if (pcdev->vbinfo == NULL) {
+            pcdev->vbinfo = kzalloc(sizeof(struct rk29_camera_vbinfo)*(*count), GFP_KERNEL);
+            if (pcdev->vbinfo == NULL) {
+				RK29CAMERA_TR("\n %s vbinfo kmalloc fail\n", __FUNCTION__);
+				BUG();
+			}
+			pcdev->vbinfo_count = *count;
+        }
+#endif        
 	}
 
     RK29CAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d, count:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_size, *count);
@@ -498,7 +528,8 @@ static void rk29_videobuf_queue(struct videobuf_queue *vq,
     struct soc_camera_device *icd = vq->priv_data;
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
-
+    struct rk29_camera_vbinfo *vb_info;
+        
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %zd\n", __func__,
             vb, vb->baddr, vb->bsize);
 
@@ -512,6 +543,31 @@ static void rk29_videobuf_queue(struct videobuf_queue *vq,
 		else
 			BUG();    /* ddl@rock-chips.com : The same videobuffer queue again */
 	}
+#if CAMERA_VIDEOBUF_ARM_ACCESS
+    if (pcdev->vbinfo) {
+        vb_info = pcdev->vbinfo+vb->i;
+        if ((vb_info->phy_addr != vb->boff) || (vb_info->size != vb->bsize)) {
+            if (vb_info->vir_addr) {
+                iounmap(vb_info->vir_addr);
+                release_mem_region(vb_info->phy_addr, vb_info->size);
+                vb_info->vir_addr = NULL;
+                vb_info->phy_addr = 0x00;
+                vb_info->size = 0x00;
+            }
+
+            if (request_mem_region(vb->boff,vb->bsize,"rk29_camera_vb")) {
+                vb_info->vir_addr = ioremap_cached(vb->boff,vb->bsize); 
+            }
+            
+            if (vb_info->vir_addr) {
+                vb_info->size = vb->bsize;
+                vb_info->phy_addr = vb->boff;
+            } else {
+                RK29CAMERA_TR("%s..%d:ioremap videobuf %d failed\n",__FUNCTION__,__LINE__, vb->i);
+            }
+        }
+    }
+#endif    
     if (!pcdev->active) {
         pcdev->active = vb;
         rk29_videobuf_capture(vb);
@@ -541,7 +597,8 @@ static int rk29_pixfmt2ippfmt(unsigned int pixfmt, int *ippfmt)
 rk29_pixfmt2ippfmt_err:
 	return -1;
 }
-static void rk29_camera_capture_process(struct work_struct *work)
+#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+static int rk29_camera_scale_crop_ipp(struct work_struct *work)
 {
 	struct rk29_camera_work *camera_work = container_of(work, struct rk29_camera_work, work);
 	struct videobuf_buffer *vb = camera_work->vb;
@@ -550,7 +607,8 @@ static void rk29_camera_capture_process(struct work_struct *work)
 	unsigned long int flags;
     int src_y_offset,src_uv_offset,dst_y_offset,dst_uv_offset,src_y_size,dst_y_size;
     int scale_times,w,h,vipdata_base;
-	
+    int ret = 0;
+    
     /*
     *ddl@rock-chips.com: 
     * IPP Dest image resolution is 2047x1088, so scale operation break up some times
@@ -563,8 +621,6 @@ static void rk29_camera_capture_process(struct work_struct *work)
     }
     
     memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
-    
-    down(&pcdev->zoominfo.sem);
     
     ipp_req.timeout = 100;
     ipp_req.flag = IPP_ROT_0;    
@@ -614,21 +670,170 @@ static void rk29_camera_capture_process(struct work_struct *work)
             	RK29CAMERA_TR("ipp_req.src_vir_w:0x%x ipp_req.dst_vir_w :0x%x\n",ipp_req.src_vir_w ,ipp_req.dst_vir_w);
             	RK29CAMERA_TR("ipp_req.timeout:0x%x ipp_req.flag :0x%x\n",ipp_req.timeout,ipp_req.flag);
                 
-    			goto do_ipp_err;
+    			goto rk29_camera_scale_crop_ipp_end;
     		}
         }
     }
+    
+rk29_camera_scale_crop_ipp_end:        
+	return ret;    
+}
+#endif
+#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
+static int rk29_camera_scale_crop_arm(struct work_struct *work)
+{
+    struct rk29_camera_work *camera_work = container_of(work, struct rk29_camera_work, work);	
+    struct videobuf_buffer *vb = camera_work->vb;	
+    struct rk29_camera_dev *pcdev = camera_work->pcdev;	
+    struct rk29_camera_vbinfo *vb_info;        
+    unsigned char *psY,*pdY,*psUV,*pdUV; 
+    unsigned char *src,*dst;
+    unsigned long src_phy,dst_phy;
+    int srcW,srcH,cropW,cropH,dstW,dstH;
+    long zoomindstxIntInv,zoomindstyIntInv;
+    long x,y;
+    long yCoeff00,yCoeff01,xCoeff00,xCoeff01;
+    long sX,sY;
+    long r0,r1,a,b,c,d;
+    int ret = 0;
+    
 
-    if (pcdev->icd_cb.sensor_cb)
-        (pcdev->icd_cb.sensor_cb)(vb);
-	
-do_ipp_err:
-    up(&pcdev->zoominfo.sem);
-    wake_up(&(camera_work->vb->done)); 
-    spin_lock_irqsave(&pcdev->camera_work_lock, flags);
-    list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);
-    spin_unlock_irqrestore(&pcdev->camera_work_lock, flags);
-	return;
+    src_phy = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;    
+    src = psY = (unsigned char*)(pcdev->vipmem_virbase + vb->i*pcdev->vipmem_bsize);
+    psUV = psY + pcdev->host_width*pcdev->host_height;
+    srcW = pcdev->host_width;
+    srcH = pcdev->host_height;
+    cropW = pcdev->zoominfo.a.c.width;
+    cropH = pcdev->zoominfo.a.c.height;
+    psY = psY + pcdev->host_width - pcdev->zoominfo.a.c.width;
+    psUV = psUV + pcdev->host_width - pcdev->zoominfo.a.c.width; 
+    
+    vb_info = pcdev->vbinfo+vb->i; 
+    dst_phy = vb_info->phy_addr;
+    dst = pdY = (unsigned char*)vb_info->vir_addr; 
+    pdUV = pdY + pcdev->icd->user_width*pcdev->icd->user_height;
+    dstW = pcdev->icd->user_width;
+    dstH = pcdev->icd->user_height;
+
+    zoomindstxIntInv = ((unsigned long)cropW<<16)/dstW + 1;
+    zoomindstyIntInv = ((unsigned long)cropH<<16)/dstH + 1;
+ 
+    //y
+    //for(y = 0; y<dstH - 1 ; y++ ) {   
+    for(y = 0; y<dstH; y++ ) {   
+        yCoeff00 = (y*zoomindstyIntInv)&0xffff;
+        yCoeff01 = 0xffff - yCoeff00; 
+        sY = (y*zoomindstyIntInv >> 16);
+
+        for(x = 0; x<dstW; x++ ) {
+            xCoeff00 = (x*zoomindstxIntInv)&0xffff;
+            xCoeff01 = 0xffff - xCoeff00; 	
+            sX = (x*zoomindstxIntInv >> 16);
+
+            a = psY[sY*srcW + sX];
+            b = psY[sY*srcW + sX + 1];
+            c = psY[(sY+1)*srcW + sX];
+            d = psY[(sY+1)*srcW + sX + 1];
+
+            r0 = (a * xCoeff01 + b * xCoeff00)>>16 ;
+            r1 = (c * xCoeff01 + d * xCoeff00)>>16 ;
+            r0 = (r0 * yCoeff01 + r1 * yCoeff00)>>16;
+
+            pdY[x] = r0;
+        }
+        pdY += dstW;
+    }
+
+    dstW /= 2;
+    dstH /= 2;
+    srcW /= 2;
+    srcH /= 2;
+
+    //UV
+    //for(y = 0; y<dstH - 1 ; y++ ) {
+    for(y = 0; y<dstH; y++ ) {
+        yCoeff00 = (y*zoomindstyIntInv)&0xffff;
+        yCoeff01 = 0xffff - yCoeff00; 
+        sY = (y*zoomindstyIntInv >> 16);
+
+        for(x = 0; x<dstW; x++ ) {
+            xCoeff00 = (x*zoomindstxIntInv)&0xffff;
+            xCoeff01 = 0xffff - xCoeff00; 	
+            sX = (x*zoomindstxIntInv >> 16);
+
+            //U
+            a = psUV[(sY*srcW + sX)*2];
+            b = psUV[(sY*srcW + sX + 1)*2];
+            c = psUV[((sY+1)*srcW + sX)*2];
+            d = psUV[((sY+1)*srcW + sX + 1)*2];
+
+            r0 = (a * xCoeff01 + b * xCoeff00)>>16 ;
+            r1 = (c * xCoeff01 + d * xCoeff00)>>16 ;
+            r0 = (r0 * yCoeff01 + r1 * yCoeff00)>>16;
+
+            pdUV[x*2] = r0;
+
+            //V
+            a = psUV[(sY*srcW + sX)*2 + 1];
+            b = psUV[(sY*srcW + sX + 1)*2 + 1];
+            c = psUV[((sY+1)*srcW + sX)*2 + 1];
+            d = psUV[((sY+1)*srcW + sX + 1)*2 + 1];
+
+            r0 = (a * xCoeff01 + b * xCoeff00)>>16 ;
+            r1 = (c * xCoeff01 + d * xCoeff00)>>16 ;
+            r0 = (r0 * yCoeff01 + r1 * yCoeff00)>>16;
+
+            pdUV[x*2 + 1] = r0;
+        }
+        pdUV += dstW*2;
+    }
+
+rk29_camera_scale_crop_arm_end:
+
+    dmac_flush_range((void*)src,(void*)(src+pcdev->vipmem_bsize));
+    outer_flush_range((phys_addr_t)src_phy,(phys_addr_t)(src_phy+pcdev->vipmem_bsize));
+    
+    dmac_flush_range((void*)dst,(void*)(dst+vb_info->size));
+    outer_flush_range((phys_addr_t)dst_phy,(phys_addr_t)(dst_phy+vb_info->size));
+
+	return ret;    
+}
+#endif
+
+static void rk29_camera_capture_process(struct work_struct *work)
+{
+    struct rk29_camera_work *camera_work = container_of(work, struct rk29_camera_work, work);    
+    struct videobuf_buffer *vb = camera_work->vb;    
+    struct rk29_camera_dev *pcdev = camera_work->pcdev;    
+    //enum v4l2_mbus_pixelcode icd_code = pcdev->icd->current_fmt->code;    
+    unsigned long flags = 0;    
+    int err = 0;    
+
+    if (!CAM_WORKQUEUE_IS_EN())        
+        goto rk29_camera_capture_process_end; 
+    
+    down(&pcdev->zoominfo.sem);
+    if (pcdev->icd_cb.scale_crop_cb)
+        err = (pcdev->icd_cb.scale_crop_cb)(work);
+    up(&pcdev->zoominfo.sem); 
+    
+    if (pcdev->icd_cb.sensor_cb)        
+        (pcdev->icd_cb.sensor_cb)(vb);    
+
+rk29_camera_capture_process_end:    
+    if (err) {        
+        vb->state = VIDEOBUF_ERROR;    
+    } else {
+        if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
+	        vb->state = VIDEOBUF_DONE;
+	        vb->field_count++;
+		}
+    }    
+    wake_up(&(camera_work->vb->done));     
+    spin_lock_irqsave(&pcdev->camera_work_lock, flags);    
+    list_add_tail(&camera_work->queue, &pcdev->camera_work_queue);    
+    spin_unlock_irqrestore(&pcdev->camera_work_lock, flags);    
+    return;
 }
 static irqreturn_t rk29_camera_irq(int irq, void *data)
 {
@@ -680,13 +885,8 @@ static irqreturn_t rk29_camera_irq(int irq, void *data)
         if (pcdev->active == NULL) {
 			RK29CAMERA_DG("%s video_buf queue is empty!\n",__FUNCTION__);
         }
-
-		if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
-	        vb->state = VIDEOBUF_DONE;
-	        do_gettimeofday(&vb->ts);
-	        vb->field_count++;
-		}
-
+        
+        do_gettimeofday(&vb->ts);
 		if (CAM_WORKQUEUE_IS_EN()) {
             if (!list_empty(&pcdev->camera_work_queue)) {
                 wk = list_entry(pcdev->camera_work_queue.next, struct rk29_camera_work, queue);
@@ -697,6 +897,10 @@ static irqreturn_t rk29_camera_irq(int irq, void *data)
 		        queue_work(pcdev->camera_wq, &(wk->work));
             }             			
 		} else {		    
+		    if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
+    	        vb->state = VIDEOBUF_DONE;    	        
+    	        vb->field_count++;
+    		}
 			wake_up(&vb->done);
 		}
     }
@@ -713,6 +917,8 @@ static void rk29_videobuf_release(struct videobuf_queue *vq,
     struct soc_camera_device *icd = vq->priv_data;
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
+    struct rk29_camera_vbinfo *vb_info =NULL;
+    
 #ifdef DEBUG
     dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
             vb, vb->baddr, vb->bsize);
@@ -732,17 +938,26 @@ static void rk29_videobuf_release(struct videobuf_queue *vq,
             dev_dbg(&icd->dev, "%s (unknown)\n", __func__);
             break;
     }
-#endif	
-    if(vb->i == 0){
-        flush_workqueue(pcdev->camera_wq);
-    }
-
+#endif
 	if (vb == pcdev->active) {
 		RK29CAMERA_DG("%s Wait for this video buf(0x%x) write finished!\n ",__FUNCTION__,(unsigned int)vb);
 		interruptible_sleep_on_timeout(&vb->done, msecs_to_jiffies(500));
-        flush_workqueue(pcdev->camera_wq);
 		RK29CAMERA_DG("%s This video buf(0x%x) write finished, release now!!\n",__FUNCTION__,(unsigned int)vb);
 	}
+
+    flush_workqueue(pcdev->camera_wq); 
+#if CAMERA_VIDEOBUF_ARM_ACCESS
+    if (pcdev->vbinfo) {
+        vb_info = pcdev->vbinfo + vb->i;
+        
+        if (vb_info->vir_addr) {
+            iounmap(vb_info->vir_addr);
+            release_mem_region(vb_info->phy_addr, vb_info->size);
+            memset(vb_info, 0x00, sizeof(struct rk29_camera_vbinfo));
+        }       
+		
+	}
+#endif    
     rk29_videobuf_free(vq, buf);
 }
 
@@ -961,7 +1176,9 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
+    struct rk29_camera_vbinfo *vb_info;
+    unsigned int i;
+    
 	mutex_lock(&camera_lock);
     BUG_ON(icd != pcdev->icd);
 
@@ -982,7 +1199,22 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 		pcdev->camera_work_count = 0;
         INIT_LIST_HEAD(&pcdev->camera_work_queue);
 	}
-
+#if CAMERA_VIDEOBUF_ARM_ACCESS
+    if (pcdev->vbinfo) {
+        vb_info = pcdev->vbinfo;
+        for (i=0; i<pcdev->vbinfo_count; i++) {
+            if (vb_info->vir_addr) {
+                iounmap(vb_info->vir_addr);
+                release_mem_region(vb_info->phy_addr, vb_info->size);
+                memset(vb_info, 0x00, sizeof(struct rk29_camera_vbinfo));
+            }
+            vb_info++;
+        }
+		kfree(pcdev->vbinfo);
+		pcdev->vbinfo = NULL;
+		pcdev->vbinfo_count = 0;
+	}
+#endif
 	pcdev->active = NULL;
     pcdev->icd = NULL;
     pcdev->icd_cb.sensor_cb = NULL;
@@ -2053,8 +2285,8 @@ static int rk29_camera_probe(struct platform_device *pdev)
     int irq,i;
     int err = 0;
 
-    RK29CAMERA_TR("RK29 Camera driver version: v%d.%d.%d\n",(RK29_CAM_VERSION_CODE&0xff0000)>>16,
-        (RK29_CAM_VERSION_CODE&0xff00)>>8,RK29_CAM_VERSION_CODE&0xff);
+    RK29CAMERA_TR("RK29 Camera driver version: v%d.%d.%d  Zoom by %s\n",(RK29_CAM_VERSION_CODE&0xff0000)>>16,
+        (RK29_CAM_VERSION_CODE&0xff00)>>8,RK29_CAM_VERSION_CODE&0xff,CAMERA_SCALE_CROP_MACHINE);
     
     res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
     irq = platform_get_irq(pdev, 0);
@@ -2117,11 +2349,24 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	if (pcdev->pdata && (strcmp(pcdev->pdata->meminfo.name,"camera_ipp_mem")==0)) {
 		pcdev->vipmem_phybase = pcdev->pdata->meminfo.start;
 		pcdev->vipmem_size = pcdev->pdata->meminfo.size;
+
+        if (!request_mem_region(pcdev->vipmem_phybase,pcdev->vipmem_size,"rk29_vipmem")) {
+            err = -EBUSY;
+            goto exit_ioremap_vipmem;
+        }
+        pcdev->vipmem_virbase = ioremap_cached(pcdev->vipmem_phybase,pcdev->vipmem_size);
+        if (pcdev->vipmem_virbase == NULL) {
+            dev_err(pcdev->dev, "ioremap() of vip internal memory(Ex:IPP process/raw process) failed\n");
+            err = -ENXIO;
+            goto exit_ioremap_vipmem;
+        } 
+		
 		RK29CAMERA_DG("\n%s Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
 	} else {
 		RK29CAMERA_TR("\n%s Memory for IPP have not obtain! IPP Function is fail\n",__FUNCTION__);
 		pcdev->vipmem_phybase = 0;
 		pcdev->vipmem_size = 0;
+        pcdev->vipmem_virbase = 0;
 	}
 	#endif
     INIT_LIST_HEAD(&pcdev->capture);
@@ -2183,6 +2428,11 @@ static int rk29_camera_probe(struct platform_device *pdev)
 	pcdev->fps_timer.function = rk29_camera_fps_func;
     pcdev->icd_cb.sensor_cb = NULL;
 
+#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
+    pcdev->icd_cb.scale_crop_cb = rk29_camera_scale_crop_ipp;
+#elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
+    pcdev->icd_cb.scale_crop_cb = rk29_camera_scale_crop_arm;
+#endif
     RK29CAMERA_DG("%s..%s..%d  \n",__FUNCTION__,__FILE__,__LINE__);
     return 0;
 
@@ -2207,6 +2457,10 @@ exit_reqirq:
     iounmap(pcdev->base);
 exit_ioremap:
     release_mem_region(res->start, res->end - res->start + 1);
+exit_ioremap_vipmem:
+    if (pcdev->vipmem_virbase)
+        iounmap(pcdev->vipmem_virbase);
+    release_mem_region(pcdev->vipmem_phybase,pcdev->vipmem_size);
 exit_reqmem:
     if (pcdev->aclk_ddr_lcdc) {
 		clk_put(pcdev->aclk_ddr_lcdc);
@@ -2276,6 +2530,9 @@ static int __devexit rk29_camera_remove(struct platform_device *pdev)
     }
 
     soc_camera_host_unregister(&pcdev->soc_host);
+
+    iounmap((void __iomem*)pcdev->vipmem_phybase);
+    release_mem_region(pcdev->vipmem_phybase, pcdev->vipmem_size);
 
     res = pcdev->res;
     release_mem_region(res->start, res->end - res->start + 1);

@@ -323,15 +323,21 @@ config BATTERY_RK30_ADC
         help
           Say Y to enable support for the battery on the RK30.
 
+config BATTERY_RK30_ADC_FAC
+        tristate "RK30 ADC Battery Factory"
+        depends on ADC_RK30
+        help
+          Say Y to enable support for the battery on the RK30.
+
 config BATTERY_RK30_AC_CHARGE
         tristate "RK30 AC CHARGE"
-        depends on BATTERY_RK30_ADC
+        depends on BATTERY_RK30_ADC||BATTERY_RK30_ADC_FAC
         help
           say Y to enable suspport for the AC battery charge
 
 config BATTERY_RK30_VOL3V8
        tristate "the battery voltage is 3.8V"
-        depends on BATTERY_RK30_ADC
+        depends on BATTERY_RK30_ADC||BATTERY_RK30_ADC_FAC
         help
           say Y to enable suspport for the battery voltage 3.8V	
 

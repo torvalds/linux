@@ -743,14 +743,16 @@ static struct twl4030_power_data tps80032_scripts_data __initdata = {
 void twl60xx_pmu_early_suspend(struct regulator_dev *rdev)
 {
 	printk("%s\n", __func__);
-	
-	twl_reg_write(REG_INT_MSK_STS_A,TWL_MODULE_PIH, 0x00); //open vlow interrupt
+	int ret;
+	ret = twl_reg_read(REG_INT_MSK_STS_A,TWL_MODULE_PIH);
+	twl_reg_write(REG_INT_MSK_STS_A,TWL_MODULE_PIH, ret & (~(1 << 2))); //open vlow interrupt
 }
 void twl60xx_pmu_early_resume(struct regulator_dev *rdev)
 {
 	printk("%s\n", __func__);
-
-	twl_reg_write(REG_INT_MSK_STS_A,TWL_MODULE_PIH, 0x04); //close vlow interrupt
+	int ret;
+	ret = twl_reg_read(REG_INT_MSK_STS_A,TWL_MODULE_PIH);
+	twl_reg_write(REG_INT_MSK_STS_A,TWL_MODULE_PIH, ret |(1 << 2)); //close vlow interrupt
 }
 #else
 void twl60xx_pmu_early_suspend(struct regulator_dev *rdev)

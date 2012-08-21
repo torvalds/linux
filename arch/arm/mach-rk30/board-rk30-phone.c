@@ -876,14 +876,36 @@ static int lis3dh_init_platform_hw(void)
 	return 0;
 }
 
-static struct gsensor_platform_data lis3dh_info = {
-	.model = lis3dh,
-	.swap_xy = 0,
-	.swap_xyz = 1,
+static struct sensor_platform_data lis3dh_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
 	.init_platform_hw = lis3dh_init_platform_hw,
-	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+	.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
 };
+
 #endif
+
+#if defined (CONFIG_GS_KXTIK)
+#define KXTIK_INT_PIN   RK30_PIN4_PC0
+
+static int kxtik_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	return 0;
+}
+
+static struct sensor_platform_data kxtik_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+	.init_platform_hw = kxtik_init_platform_hw,
+	.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
+};
+
+#endif
+
 
 
 #if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
@@ -980,62 +1002,50 @@ static struct sensor_platform_data l3g4200d_info = {
 
 #endif
 
+
 #ifdef CONFIG_LS_CM3217
-
-#define CM3217_POWER_PIN 	INVALID_GPIO
-#define CM3217_IRQ_PIN		INVALID_GPIO
-static int cm3217_init_hw(void)
-{
-#if 0
-	if (gpio_request(CM3217_POWER_PIN, NULL) != 0) {
-		gpio_free(CM3217_POWER_PIN);
-		printk("%s: request cm3217 power pin error\n", __func__);
-		return -EIO;
-	}
-	gpio_pull_updown(CM3217_POWER_PIN, PullDisable);
-
-	if (gpio_request(CM3217_IRQ_PIN, NULL) != 0) {
-		gpio_free(CM3217_IRQ_PIN);
-		printk("%s: request cm3217 int pin error\n", __func__);
-		return -EIO;
-	}
-	gpio_pull_updown(CM3217_IRQ_PIN, PullDisable);
-#endif
-	return 0;
-}
-
-static void cm3217_exit_hw(void)
-{
-#if 0
-	gpio_free(CM3217_POWER_PIN);
-	gpio_free(CM3217_IRQ_PIN);
-#endif
-	return;
-}
-
-static struct cm3217_platform_data cm3217_info = {
-	.irq_pin = CM3217_IRQ_PIN,
-	.power_pin = CM3217_POWER_PIN,
-	.init_platform_hw = cm3217_init_hw,
-	.exit_platform_hw = cm3217_exit_hw,
+static struct sensor_platform_data cm3217_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 0,
+	.poll_delay_ms = 500,
 };
+
 #endif
+
 
 #if defined(CONFIG_PS_AL3006)
-static struct sensor_platform_data proximity_info = {
+static struct sensor_platform_data proximity_al3006_info = {
 	.type = SENSOR_TYPE_PROXIMITY,
 	.irq_enable = 1,
 	.poll_delay_ms = 200,
 };
 #endif
 
+#if defined(CONFIG_PS_STK3171)
+static struct sensor_platform_data proximity_stk3171_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+
 #if defined(CONFIG_LS_AL3006)
-static struct sensor_platform_data light_info = {
+static struct sensor_platform_data light_al3006_info = {
 	.type = SENSOR_TYPE_LIGHT,
 	.irq_enable = 1,
 	.poll_delay_ms = 200,
 };
 #endif
+
+#if defined(CONFIG_LS_STK3171)
+static struct sensor_platform_data light_stk3171_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
 
 
 #ifdef CONFIG_FB_ROCKCHIP
@@ -1685,13 +1695,24 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 #if defined (CONFIG_GS_LIS3DH)
 	{
-		.type	        = "lis3dh",
+		.type	        = "gs_lis3dh",
 		.addr	        = 0x19,
 		.flags	        = 0,
 		.irq	        = LIS3DH_INT_PIN,
 		.platform_data = &lis3dh_info,
 	},
 #endif
+
+#if defined (CONFIG_GS_KXTIK)
+	{
+		.type	        = "gs_kxtik",
+		.addr	        = 0x0F,
+		.flags	        = 0,
+		.irq	        = KXTIK_INT_PIN,
+		.platform_data = &kxtik_info,
+	},
+#endif
+
 
 #if defined (CONFIG_COMPASS_AK8975)
 	{
@@ -1726,9 +1747,19 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
 		.flags          = 0,
 		.irq            = RK30_PIN6_PA2,	
-		.platform_data = &light_info,
+		.platform_data = &light_al3006_info,
 	},
 #endif
+#if defined (CONFIG_LS_STK3171)
+	{
+		.type           = "ls_stk3171",
+		.addr           = 0x48,            
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &light_stk3171_info,
+	},
+#endif
+
 
 #if defined (CONFIG_PS_AL3006)
 	{
@@ -1736,9 +1767,20 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
 		.flags          = 0,
 		.irq            = RK30_PIN6_PA2,	
-		.platform_data = &proximity_info,
+		.platform_data = &proximity_al3006_info,
 	},
 #endif
+
+#if defined (CONFIG_PS_STK3171)
+	{
+		.type           = "ps_stk3171",
+		.addr           = 0x48,            
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &proximity_stk3171_info,
+	},
+#endif
+
 
 #if defined (CONFIG_SND_SOC_RK1000)
 	{
@@ -1848,10 +1890,9 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 
 #if defined (CONFIG_LS_CM3217)
 	{
-		.type          = "lightsensor",
+		.type          = "light_cm3217",
 		.addr          = 0x10,
 		.flags         = 0,
-		.irq           = CM3217_IRQ_PIN,
 		.platform_data = &cm3217_info,
 	},
 #endif

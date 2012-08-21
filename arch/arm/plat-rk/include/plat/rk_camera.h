@@ -60,10 +60,16 @@
 #define RK29_CAM_SENSOR_GC0309  gc0309
 #define RK29_CAM_SENSOR_GC2015  gc2015
 #define RK29_CAM_SENSOR_SIV120B  siv120b
+#define RK29_CAM_SENSOR_SIV121D  siv121d
 #define RK29_CAM_SENSOR_SID130B  sid130B
 #define RK29_CAM_SENSOR_HI253  hi253
 #define RK29_CAM_SENSOR_HI704  hi704
 #define RK29_CAM_SENSOR_NT99250 nt99250
+#define RK29_CAM_SENSOR_SP0838  sp0838
+#define RK29_CAM_SENSOR_SP2518  sp2518
+#define RK29_CAM_SENSOR_GC0329  gc0329
+#define RK29_CAM_SENSOR_S5K5CA  s5k5ca
+
 
 #define RK29_CAM_SENSOR_NAME_OV7675 "ov7675"
 #define RK29_CAM_SENSOR_NAME_OV9650 "ov9650"
@@ -86,10 +92,15 @@
 #define RK29_CAM_SENSOR_NAME_GC0309  "gc0309"
 #define RK29_CAM_SENSOR_NAME_GC2015  "gc2015"
 #define RK29_CAM_SENSOR_NAME_SIV120B "siv120b"
+#define RK29_CAM_SENSOR_NAME_SIV121D "siv121d"
 #define RK29_CAM_SENSOR_NAME_SID130B "sid130B"
 #define RK29_CAM_SENSOR_NAME_HI253  "hi253"
 #define RK29_CAM_SENSOR_NAME_HI704  "hi704"
 #define RK29_CAM_SENSOR_NAME_NT99250 "nt99250"
+#define RK29_CAM_SENSOR_NAME_SP0838  "sp0838"
+#define RK29_CAM_SENSOR_NAME_SP2518  "sp2518"
+#define RK29_CAM_SENSOR_NAME_GC0329  "gc0329"
+#define RK29_CAM_SENSOR_NAME_S5K5CA  "s5k5ca"
 
 #define ov7675_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define ov9650_FULL_RESOLUTION     0x130000           // 1.3 megapixel   
@@ -111,10 +122,15 @@
 #define gc0309_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define gc2015_FULL_RESOLUTION     0x200000           // 2 megapixel
 #define siv120b_FULL_RESOLUTION     0x30000            // 0.3 megapixel
+#define siv121d_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define sid130B_FULL_RESOLUTION     0x200000           // 2 megapixel    
 #define hi253_FULL_RESOLUTION       0x200000           // 2 megapixel
 #define hi704_FULL_RESOLUTION       0x30000            // 0.3 megapixel
 #define nt99250_FULL_RESOLUTION     0x200000           // 2 megapixel
+#define sp0838_FULL_RESOLUTION      0x30000            // 0.3 megapixel
+#define sp2518_FULL_RESOLUTION      0x200000            // 2 megapixel
+#define gc0329_FULL_RESOLUTION      0x30000            // 0.3 megapixel
+#define s5k5ca_FULL_RESOLUTION      0x300000            // 3 megapixel
 /*---------------- Camera Sensor Must Define Macro End  ------------------------*/
 
 
@@ -137,6 +153,12 @@
 #define RK29_CAM_FLASHACTIVE_MASK	(1<<RK29_CAM_FLASHACTIVE_BITPOS)
 #define RK29_CAM_FLASHACTIVE_H	(0x01<<RK29_CAM_FLASHACTIVE_BITPOS)
 #define RK29_CAM_FLASHACTIVE_L  (0x00<<RK29_CAM_FLASHACTIVE_BITPOS)
+
+
+#define RK_CAM_SCALE_CROP_ARM      0
+#define RK_CAM_SCALE_CROP_IPP      1
+#define RK_CAM_SCALE_CROP_RGA      2
+#define RK_CAM_SCALE_CROP_PP       3
 
 /* v4l2_subdev_core_ops.ioctl  ioctl_cmd macro */
 #define RK29_CAM_SUBDEV_ACTIVATE            0x00
@@ -233,6 +255,7 @@ struct rk29camera_platform_ioctl_cb {
 
 typedef struct rk29_camera_sensor_cb {
     int (*sensor_cb)(void *arg); 
+    int (*scale_crop_cb)(struct work_struct *work);
 }rk29_camera_sensor_cb_s;
 #endif /* __ASM_ARCH_CAMERA_H_ */
 

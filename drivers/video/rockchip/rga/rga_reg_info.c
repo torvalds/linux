@@ -1,6 +1,36 @@
 
 //#include <linux/kernel.h>
 #include <linux/memory.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/sched.h>
+#include <linux/mutex.h>
+#include <linux/err.h>
+#include <linux/clk.h>
+#include <asm/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/delay.h>
+#include <asm/io.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
+#include <mach/io.h>
+#include <mach/irqs.h>
+#include <linux/fs.h>
+#include <asm/uaccess.h>
+#include <linux/miscdevice.h>
+#include <linux/poll.h>
+#include <linux/delay.h>
+#include <linux/wait.h>
+#include <linux/syscalls.h>
+#include <linux/timer.h>
+#include <linux/time.h>
+#include <asm/cacheflush.h>
+#include <linux/slab.h>
+#include <linux/fb.h>
+#include <linux/wakelock.h>
+
 #include "rga_reg_info.h"
 #include "rga_rop.h"
 #include "rga.h"
@@ -704,7 +734,11 @@ s32 RGA_set_dst(u8 *base, const struct rga_req *msg)
     rop_mask_stride = (((msg->src.vir_w + 7)>>3) + 3) & (~3);//not dst_vir.w,hxx,2011.7.21
     
     reg = (stride >> 2) & 0xffff;
-    reg = reg | ((rop_mask_stride>>2) << 16);    
+    reg = reg | ((rop_mask_stride>>2) << 16);
+
+    #if defined(CONFIG_ARCH_RK2928)
+    reg = reg | ((msg->alpha_rop_mode & 3) << 28);
+    #endif
 
     if (msg->render_mode == line_point_drawing_mode)
     {
@@ -1057,6 +1091,8 @@ RGA_set_bitblt_reg_info(u8 *base, const struct rga_req * msg, TILE_INFO *tile)
     stride = (msg->dst.vir_w * pixel_width + 3) & (~3);
     *bRGA_DST_MST = (u32)msg->dst.yrgb_addr + (tile->dst_ctrl.y_off * stride) + (tile->dst_ctrl.x_off * pixel_width);
     *bRGA_DST_CTR_INFO = (tile->dst_ctrl.w) | ((tile->dst_ctrl.h) << 16);
+
+    *bRGA_DST_CTR_INFO |= (1<<29);
 }
 
 

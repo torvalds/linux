@@ -29,6 +29,11 @@
 #include <linux/mfd/wm831x/pmu.h>
 
 #include <mach/board.h>
+#include <linux/earlysuspend.h>
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend wm831x_early_suspend;
+#endif
 
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
  * exported since they are used by multiple drivers.
@@ -1465,6 +1470,10 @@ static struct mfd_cell backlight_devs[] = {
 /*
  * Instantiate the generic non-control parts of the device.
  */
+
+__weak void  wm831x_pmu_early_suspend(struct regulator_dev *rdev) {}
+__weak void  wm831x_pmu_early_resume(struct regulator_dev *rdev) {}
+
 int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 {
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -1729,7 +1738,13 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 			goto err_irq;
 		}
 	}
-	
+	#ifdef CONFIG_HAS_EARLYSUSPEND
+	wm831x_early_suspend.level = 0xffff;
+    wm831x_early_suspend.suspend = wm831x_pmu_early_suspend;
+    wm831x_early_suspend.resume = wm831x_pmu_early_resume;
+    register_early_suspend(&wm831x_early_suspend);
+	#endif
+
 	return 0;
 
 err_irq:

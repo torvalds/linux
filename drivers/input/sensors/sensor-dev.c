@@ -35,8 +35,6 @@
 #include <linux/l3g4200d.h>
 #include <linux/sensor-dev.h>
 
-#define SENSOR_ON		1
-#define SENSOR_OFF		0
 
 #if 0
 #define SENSOR_DEBUG_TYPE SENSOR_TYPE_ACCEL
@@ -46,7 +44,9 @@
 #endif
 
 struct sensor_private_data *g_sensor[SENSOR_NUM_TYPES];
-static struct sensor_operate *sensor_ops[SENSOR_NUM_TYPES]; 
+static struct sensor_operate *sensor_ops[SENSOR_NUM_ID]; 
+static struct class *g_sensor_class[SENSOR_NUM_TYPES];
+
 
 static int sensor_get_id(struct i2c_client *client, int *value)
 {
@@ -106,7 +106,7 @@ static int sensor_chip_init(struct i2c_client *client)
 {
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	struct sensor_operate *ops = sensor_ops[sensor->type];
+	struct sensor_operate *ops = sensor_ops[(int)sensor->i2c_id->driver_data];
 	int result = 0;
 	
 	if(ops)
@@ -120,9 +120,9 @@ static int sensor_chip_init(struct i2c_client *client)
 		goto error;
 	}
 
-	if(sensor->type != ops->type)
+	if((sensor->type != ops->type) || ((int)sensor->i2c_id->driver_data != ops->id_i2c))
 	{
-		printk("%s:type is different:%d,%d\n",__func__,sensor->type, sensor->type);
+		printk("%s:type or id is different:type=%d,%d,id=%d,%d\n",__func__,sensor->type, ops->type, (int)sensor->i2c_id->driver_data, ops->id_i2c);
 		result = -1;
 		goto error;
 	}
@@ -137,11 +137,11 @@ static int sensor_chip_init(struct i2c_client *client)
 	result = sensor_get_id(sensor->client, &sensor->devid);//get id
 	if(result < 0)
 	{	
-		printk("%s:fail to read devid:0x%x\n",__func__,sensor->devid);	
+		printk("%s:fail to read %s devid:0x%x\n",__func__, sensor->i2c_id->name, sensor->devid);	
 		goto error;
 	}
 	
-	printk("%s:sensor->devid=0x%x,ops=0x%p\n",__func__,sensor->devid,sensor->ops);
+	printk("%s:%s:devid=0x%x,ops=0x%p\n",__func__, sensor->i2c_id->name, sensor->devid,sensor->ops);
 
 	result = sensor_initial(sensor->client);	//init sensor
 	if(result < 0)
@@ -300,7 +300,7 @@ static int sensor_irq_init(struct i2c_client *client)
 			goto error;	       
 		}
 		client->irq = irq;
-		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE))
+		if((sensor->pdata->type == SENSOR_TYPE_GYROSCOPE) || (sensor->pdata->type == SENSOR_TYPE_ACCEL))
 		disable_irq_nosync(client->irq);//disable irq
 		printk("%s:use irq=%d\n",__func__,irq);
 	}
@@ -399,8 +399,8 @@ static long gsensor_dev_ioctl(struct file *file,
 		    		}			
 				if(sensor->pdata->irq_enable)
 				{
-					//printk("%s:enable irq,irq=%d\n",__func__,client->irq);
-					//enable_irq(client->irq);	//enable irq
+					DBG("%s:enable irq,irq=%d\n",__func__,client->irq);
+					enable_irq(client->irq);	//enable irq
 				}	
 				else
 				{
@@ -429,8 +429,8 @@ static long gsensor_dev_ioctl(struct file *file,
 				
 				if(sensor->pdata->irq_enable)
 				{				
-					//printk("%s:disable irq,irq=%d\n",__func__,client->irq);
-					//disable_irq_nosync(client->irq);//disable irq
+					DBG("%s:disable irq,irq=%d\n",__func__,client->irq);
+					disable_irq_nosync(client->irq);//disable irq
 				}
 				else
 				cancel_delayed_work_sync(&sensor->delaywork);		
@@ -451,20 +451,8 @@ static long gsensor_dev_ioctl(struct file *file,
 			mutex_unlock(&sensor->operation_mutex);
 			goto error;
 		}
-		if(sensor->status_cur == SENSOR_OFF)
-		{		
-			if(sensor->pdata->irq_enable)
-			{
-				//printk("%s:enable irq,irq=%d\n",__func__,client->irq);
-				//enable_irq(client->irq);	//enable irq
-			}	
-			else
-			{
-				PREPARE_DELAYED_WORK(&sensor->delaywork, sensor_delaywork_func);
-				schedule_delayed_work(&sensor->delaywork, msecs_to_jiffies(sensor->pdata->poll_delay_ms));
-			}
-			sensor->status_cur = SENSOR_ON;
-		}			
+
+		sensor->status_cur = SENSOR_ON;
 	        mutex_unlock(&sensor->operation_mutex);	
 	        DBG("%s:GSENSOR_IOCTL_APP_SET_RATE OK\n", __func__);
 		break;
@@ -495,6 +483,72 @@ static long gsensor_dev_ioctl(struct file *file,
 error:
 	return result;
 }
+
+static ssize_t gsensor_set_orientation_online(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int i=0;
+	char orientation[20];
+	
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
+	struct sensor_platform_data *pdata = sensor->pdata;
+
+	
+  	char *p = strstr(buf,"gsensor_class");
+	int start = strcspn(p,"{");
+	int end = strcspn(p,"}");
+	
+	strncpy(orientation,p+start,end-start+1);
+	char *tmp = orientation;
+	
+
+    	while(strncmp(tmp,"}",1)!=0)
+   	 {
+    		if((strncmp(tmp,",",1)==0)||(strncmp(tmp,"{",1)==0))
+		{
+			
+			 tmp++;		
+			 continue;
+		}	
+		else if(strncmp(tmp,"-",1)==0)
+		{
+			pdata->orientation[i++]=-1;
+			DBG("i=%d,data=%d\n",i,pdata->orientation[i]);
+			 tmp++;
+		}		
+		else
+		{
+			pdata->orientation[i++]=tmp[0]-48;		
+			DBG("----i=%d,data=%d\n",i,pdata->orientation[i]);	
+		}	
+		tmp++;
+	
+						
+   	 }
+
+	for(i=0;i<9;i++)
+		DBG("i=%d gsensor_info=%d\n",i,pdata->orientation[i]);
+	return 0;
+
+}
+
+static CLASS_ATTR(orientation, 0660, NULL,gsensor_set_orientation_online);
+
+static int  gsensor_class_init(void)
+{
+	int ret ;
+	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];	
+	g_sensor_class[SENSOR_TYPE_ACCEL] = class_create(THIS_MODULE, "gsensor_class");
+	ret =  class_create_file(g_sensor_class[SENSOR_TYPE_ACCEL], &class_attr_orientation);
+	if (ret)
+	{
+		printk("%s:Fail to creat class\n",__func__);
+		return ret;
+	}
+	printk("%s:%s\n",__func__,sensor->i2c_id->name);
+	return 0;
+}
+
 
 
 static int compass_dev_open(struct inode *inode, struct file *file)
@@ -1027,8 +1081,14 @@ int sensor_register_slave(int type,struct i2c_client *client,
 			struct sensor_operate *(*get_sensor_ops)(void))
 {
 	int result = 0;
-	sensor_ops[type] = get_sensor_ops();
-	printk("%s:%s\n",__func__,sensor_ops[type]->name);
+	struct sensor_operate *ops = get_sensor_ops();
+	if((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID))
+	{	
+		printk("%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+		return -1;	
+	}
+	sensor_ops[ops->id_i2c] = ops;
+	printk("%s:%s,id=%d\n",__func__,sensor_ops[ops->id_i2c]->name, ops->id_i2c);
 	return result;
 }
 
@@ -1038,8 +1098,14 @@ int sensor_unregister_slave(int type,struct i2c_client *client,
 			struct sensor_operate *(*get_sensor_ops)(void))
 {
 	int result = 0;
-	printk("%s:%s\n",__func__,sensor_ops[type]->name);
-	sensor_ops[type] = NULL;	
+	struct sensor_operate *ops = get_sensor_ops();
+	if((ops->id_i2c >= SENSOR_NUM_ID) || (ops->id_i2c <= ID_INVALID))
+	{	
+		printk("%s:%s id is error %d\n", __func__, ops->name, ops->id_i2c);
+		return -1;	
+	}
+	printk("%s:%s,id=%d\n",__func__,sensor_ops[ops->id_i2c]->name, ops->id_i2c);
+	sensor_ops[ops->id_i2c] = NULL;	
 	return result;
 }
 
@@ -1077,6 +1143,13 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	if((type >= SENSOR_NUM_TYPES) || (type <= SENSOR_TYPE_NULL))
 	{	
 		dev_err(&client->adapter->dev, "sensor type is error %d\n", pdata->type);
+		result = -EFAULT;
+		goto out_no_free;	
+	}
+
+	if(((int)devid->driver_data >= SENSOR_NUM_ID) || ((int)devid->driver_data <= ID_INVALID))
+	{	
+		dev_err(&client->adapter->dev, "sensor id is error %d\n", (int)devid->driver_data);
 		result = -EFAULT;
 		goto out_no_free;	
 	}
@@ -1173,6 +1246,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 			sensor->input_dev->name = "lightsensor-level";
 			set_bit(EV_ABS, sensor->input_dev->evbit);
 			input_set_abs_params(sensor->input_dev, ABS_MISC, sensor->ops->range[0], sensor->ops->range[1], 0, 0);			
+			input_set_abs_params(sensor->input_dev, ABS_TOOL_WIDTH ,  sensor->ops->brightness[0],sensor->ops->brightness[1], 0, 0);
 			break;
 		case SENSOR_TYPE_PROXIMITY:
 			sensor->input_dev->name = "proximity";	
@@ -1216,6 +1290,16 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	
 	g_sensor[type] = sensor;
 
+	if((type == SENSOR_TYPE_ACCEL) && (sensor->pdata->factory))	//only support  setting gsensor orientation online now	
+	{
+		result = gsensor_class_init();
+		if (result) {
+			dev_err(&client->dev,
+				"fail to register misc device %s\n", sensor->i2c_id->name);
+			goto out_misc_device_register_device_failed;
+		}
+	}
+	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if((sensor->ops->suspend) && (sensor->ops->resume))
 	{
@@ -1226,7 +1310,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	}
 #endif
 
-	printk("%s:initialized ok,sensor name:%s,type:%d\n",__func__,sensor->ops->name,type);
+	printk("%s:initialized ok,sensor name:%s,type:%d,id=%d\n\n",__func__,sensor->ops->name,type,(int)sensor->i2c_id->driver_data);
 
 	return result;
 	
@@ -1275,6 +1359,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_mma8452", ACCEL_ID_MMA845X},	
 	{"gs_kxtik", ACCEL_ID_KXTIK},
 	{"gs_lis3dh", ACCEL_ID_LIS3DH},
+	{"gs_mma7660", ACCEL_ID_MMA7660},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},
@@ -1285,6 +1370,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"k3g", GYRO_ID_K3G},
 	/*light sensor*/
 	{"lightsensor", LIGHT_ID_ALL},	
+	{"light_cm3217", LIGHT_ID_CM3217},
 	{"light_al3006", LIGHT_ID_AL3006},
 	{"ls_stk3171", LIGHT_ID_STK3171},
 	/*proximity sensor*/

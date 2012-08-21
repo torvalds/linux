@@ -56,7 +56,7 @@ static ssize_t show_disp_info(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_device_driver * dev_drv = 
 		(struct rk_lcdc_device_driver * )fbi->par;
-	int layer_id = get_fb_layer_id(&fbi->fix);
+	int layer_id = dev_drv->fb_get_layer(dev_drv,fbi->fix.id);
 	if(dev_drv->get_disp_info)
 		dev_drv->get_disp_info(dev_drv,layer_id);
 
@@ -86,7 +86,7 @@ static ssize_t show_fb_state(struct device *dev,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_device_driver * dev_drv = 
 		(struct rk_lcdc_device_driver * )fbi->par;
-	int layer_id = get_fb_layer_id(&fbi->fix);
+	int layer_id = dev_drv->fb_get_layer(dev_drv,fbi->fix.id);
 	int state = dev_drv->get_layer_state(dev_drv,layer_id);
 	return snprintf(buf, PAGE_SIZE, "%s\n",state?"enabled":"disabled");
 	
@@ -97,7 +97,7 @@ static ssize_t set_fb_state(struct device *dev,struct device_attribute *attr,
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct rk_lcdc_device_driver * dev_drv = 
 		(struct rk_lcdc_device_driver * )fbi->par;
-	int layer_id = get_fb_layer_id(&fbi->fix);
+	int layer_id = dev_drv->fb_get_layer(dev_drv,fbi->fix.id);
 	int state;
 	int ret;
 	ret = kstrtoint(buf, 0, &state);
@@ -188,6 +188,55 @@ static ssize_t set_fps(struct device *dev,struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_fb_win_map(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int ret;
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+
+	mutex_lock(&dev_drv->fb_win_id_mutex);
+	ret = snprintf(buf, PAGE_SIZE,"fb0:win%d\nfb1:win%d\nfb2:win%d\n",dev_drv->fb0_win_id,dev_drv->fb1_win_id,
+		dev_drv->fb2_win_id);
+	mutex_unlock(&dev_drv->fb_win_id_mutex);
+
+	return ret;
+	
+}
+
+static ssize_t set_fb_win_map(struct device *dev,struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	int order;
+	int ret;
+	ret = kstrtoint(buf, 0, &order);
+	if((order != FB0_WIN2_FB1_WIN1_FB2_WIN0) && (order != FB0_WIN1_FB1_WIN2_FB2_WIN0 ) &&
+	   (order != FB0_WIN2_FB1_WIN0_FB2_WIN1) && (order != FB0_WIN0_FB1_WIN2_FB2_WIN1 ) &&
+	   (order != FB0_WIN0_FB1_WIN1_FB2_WIN2) && (order != FB0_WIN1_FB1_WIN0_FB2_WIN2 ))
+	{
+		printk(KERN_ERR "un support map\nyou can use the following order: \
+			\n201:\nfb0-win1\nfb1-win0\nfb2-win2\n			   \
+			\n210:\nfb0-win0\nfb1-win1\nfb2-win2\n			  \
+			\n120:\nfb0-win0\nfb1-win2\nfb2-win1\n			  \
+			\n102:\nfb0-win2\nfb1-win0\nfb2-win1\n			   \
+			\n021:\nfb0-win1\nfb1-win2\nfb2-win0\n			   \
+			\n012:\nfb0-win2\nfb1-win1\nfb2-win0\n");
+		return count;
+	}
+	else
+	{
+		dev_drv->fb_layer_remap(dev_drv,order);
+	}
+
+	return count;
+	
+	
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
@@ -196,6 +245,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
 	__ATTR(overlay, S_IRUGO | S_IWUSR, show_overlay, set_overlay),
 	__ATTR(fps, S_IRUGO | S_IWUSR, show_fps, set_fps),
+	__ATTR(map, S_IRUGO | S_IWUSR, show_fb_win_map, set_fb_win_map),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

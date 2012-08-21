@@ -57,7 +57,7 @@ struct rk_pwm_dcdc {
         struct regulator_desc desc;
         int pwm_id;
         struct regulator_dev *regulator;
-		struct pwm_platform_data *pdata;
+	struct pwm_platform_data *pdata;
 };
 
 
@@ -67,32 +67,38 @@ struct rk_pwm_dcdc {
 #elif defined(CONFIG_ARCH_RK29)
 #define pwm_write_reg(id, addr, val)        __raw_writel(val, addr+(RK29_PWM_BASE+id*0x10))
 #define pwm_read_reg(id, addr)              __raw_readl(addr+(RK29_PWM_BASE+id*0x10))    
+#elif defined(CONFIG_ARCH_RK2928)
+#define pwm_write_reg(id, addr, val)        __raw_writel(val, addr+(RK2928_PWM_BASE+id*0x10))
+#define pwm_read_reg(id, addr)              __raw_readl(addr+(RK2928_PWM_BASE+id*0x10))
 #endif
 
 const static int pwm_voltage_map[] = {
-	850000,875000,900000,925000,950000, 975000, 1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
 };
 
 static struct clk *pwm_clk[2];
+static struct rk_pwm_dcdc *g_dcdc;
 
 static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 {
 	u32 divh,divTotal;
 	int id = pdata->pwm_id;
 	unsigned long clkrate;
-	
-	if ( id >3 || id <0 )
-	{
+
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
+	clkrate = clk_get_rate(pwm_clk[0]);
+#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+	if (id == 0 || id == 1) {
+		clkrate = clk_get_rate(pwm_clk[0]);
+	} else if (id== 2 || id == 3) {
+		clkrate = clk_get_rate(pwm_clk[1]);
+	} else {
 		printk("%s:pwm id error,id=%d\n",__func__,id);
 		return -1;
 	}
-
-	if((id==0) || (id == 1))
-	clkrate = clk_get_rate(pwm_clk[0]);
-	else	
-	clkrate = clk_get_rate(pwm_clk[1]);
+#endif
 	
-	DBG("%s:id=%d,rate=%d,clkrate=%d\n",__func__,id,rate,clkrate);
+	DBG("%s:id=%d,rate=%d,clkrate=%d\n",__func__,id,rate,clkrate); 
 
 	if(rate == 0)
 	{
@@ -101,9 +107,9 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 		//disable pull up or down
 		gpio_pull_updown(pdata->pwm_gpio,PullDisable);
 		// set gpio to low level
-		gpio_set_value(pdata->pwm_gpio,GPIO_LOW);
+		gpio_direction_output(pdata->pwm_gpio,GPIO_LOW);
 	}
-	else if (rate <= 100)
+	else if (rate < 100)
 	{
 		// iomux pwm
 		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_pwm);
@@ -119,6 +125,16 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 		pwm_write_reg(id,PWM_REG_CNTR,0);
 		pwm_write_reg(id, PWM_REG_CTRL,pwm_read_reg(id,PWM_REG_CTRL)|PWM_DIV|PWM_ENABLE|PWM_TimeEN);
 	}
+	else if (rate == 100)
+	{
+		// iomux pwm to gpio
+		rk29_mux_api_set(pdata->pwm_iomux_name, pdata->pwm_iomux_gpio);
+		//disable pull up or down
+		gpio_pull_updown(pdata->pwm_gpio,PullDisable);
+		// set gpio to low level
+		gpio_direction_output(pdata->pwm_gpio,GPIO_HIGH);
+
+	}
 	else
 	{
 		printk("%s:rate error\n",__func__);
@@ -132,8 +148,9 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 
 static int pwm_regulator_list_voltage(struct regulator_dev *dev,unsigned int index)
 {
-	if (index < sizeof(pwm_voltage_map)/sizeof(int))
-		return pwm_voltage_map[index];
+	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
+	if (index < dcdc->desc.n_voltages)
+	return dcdc->pdata->pwm_voltage_map[index];
 	else
 		return -1;
 }
@@ -176,15 +193,14 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 #endif
 {	   
 	struct rk_pwm_dcdc *dcdc = rdev_get_drvdata(dev);
-	const int *voltage_map = pwm_voltage_map;
-
-	int min_mV = min_uV, max_mA = max_uV;
-
-	u32 size = sizeof(pwm_voltage_map)/sizeof(int), i, vol,pwm_value;
+	const int *voltage_map = dcdc->pdata->pwm_voltage_map;
+	int max = dcdc->pdata->max_uV;
+	int coefficient = dcdc->pdata->coefficient;
+	u32 size = dcdc->desc.n_voltages, i, vol,pwm_value;
 
 	DBG("%s:  min_uV = %d, max_uV = %d\n",__FUNCTION__, min_uV,max_uV);
 
-	if (min_mV < voltage_map[0] ||max_mA > voltage_map[size-1])
+	if (min_uV < voltage_map[0] ||max_uV > voltage_map[size-1])
 	{
 		printk("%s:voltage is out of table\n",__func__);
 		return -EINVAL;
@@ -192,7 +208,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 
 	for (i = 0; i < size; i++)
 	{
-		if (voltage_map[i] >= min_mV)
+		if (voltage_map[i] >= min_uV)
 			break;
 	}
 
@@ -201,9 +217,8 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 
 	dcdc->pdata->pwm_voltage = vol;
 
-	// VDD12 = 1.42 - 0.56*D , 其中D为PWM占空比, 
-	pwm_value = (1325000-vol)/5800;  // pwm_value %
-
+	// VDD12 = 1.40 - 0.455*D , 其中D为PWM占空比, 
+	pwm_value = (max-vol)/coefficient/10;  // pwm_value %, coefficient *1000
 
 	if (pwm_set_rate(dcdc->pdata,1000*1000,pwm_value)!=0)
 	{
@@ -242,17 +257,31 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
 	struct rk_pwm_dcdc *dcdc;
 	int pwm_id  =  pdata->pwm_id;
-	struct regulator_dev *rdev;
 	int id = pdev->id;
 	int ret ;
-    char gpio_name[20];
-
+    	char gpio_name[20];
+	
 	if (!pdata)
 		return -ENODEV;
 
 	if (!pdata->pwm_voltage)
-		pdata->pwm_voltage = 1200000;	// default 1.2v
+		pdata->pwm_voltage = 1100000;	// default 1.1v
 
+	if(!pdata->pwm_voltage_map)
+		pdata->pwm_voltage_map = pwm_voltage_map;
+
+	if(!pdata->max_uV)
+		pdata->max_uV = 1400000;
+
+	if(!pdata->min_uV)
+		pdata->min_uV = 1000000;
+	
+	if(pdata->suspend_voltage < pdata->min_uV)
+		pdata->suspend_voltage = pdata->min_uV;
+	
+	if(pdata->suspend_voltage > pdata->max_uV)	
+		pdata->suspend_voltage = pdata->max_uV;
+	
 	dcdc = kzalloc(sizeof(struct rk_pwm_dcdc), GFP_KERNEL);
 	if (dcdc == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
@@ -263,11 +292,11 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	dcdc->desc.name = dcdc->name;
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
-	dcdc->desc.n_voltages = 50;
+	dcdc->desc.n_voltages = ARRAY_SIZE(pwm_voltage_map);
 	dcdc->desc.ops = &pwm_voltage_ops;
 	dcdc->desc.owner = THIS_MODULE;
 	dcdc->pdata = pdata;
-
+	printk("%s:n_voltages=%d\n",__func__,dcdc->desc.n_voltages);
 	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
 					     pdata->init_data, dcdc);
 	if (IS_ERR(dcdc->regulator)) {
@@ -297,10 +326,17 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 			pwm_clk[1] = clk_get(NULL, "pwm23");		
 			clk_enable(pwm_clk[1]);
 		}
+#elif defined(CONFIG_ARCH_RK2928)
+		pwm_clk[0] = clk_get(NULL, "pwm01");
+		if (IS_ERR(pwm_clk[0])) {
+			printk("pwm_clk get error %p\n", pwm_clk[0]);
+			return -EINVAL;
+		}
+		clk_enable(pwm_clk[0]);
 #endif
-
-
-	platform_set_drvdata(pdev, dcdc);
+	
+	g_dcdc	= dcdc;
+	platform_set_drvdata(pdev, dcdc);	
 	printk(KERN_INFO "pwm_regulator.%d: driver initialized\n",id);
 
 	return 0;
@@ -314,10 +350,73 @@ err:
 
 }
 
+static int  __sramdata g_PWM_REG_LRC = 0;
+static int  __sramdata g_PWM_REG_HRC = 0;
+void pwm_suspend_voltage(void)
+{
+	struct rk_pwm_dcdc *dcdc = g_dcdc;
+	int suspend_voltage = 0;
+	int pwm_id = 0;
+	
+	if(!dcdc)
+		return;
+	pwm_id = dcdc->pdata->pwm_id;
+	suspend_voltage = dcdc->pdata->suspend_voltage;
+	
+	g_PWM_REG_LRC = pwm_read_reg(pwm_id, PWM_REG_LRC);
+	g_PWM_REG_HRC = pwm_read_reg(pwm_id,PWM_REG_HRC);
+
+	switch(suspend_voltage)
+	{
+		case 1000000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x20); // 1 .00
+		break;
+		
+		case 1050000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x1c); // 1 .05
+		break;
+		
+		case 1100000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x18); // 1 .1
+		break;
+
+		case 1150000:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x13); // 1 .15
+		break;
+
+		default:
+		pwm_write_reg(pwm_id, PWM_REG_LRC, 0x25);
+		pwm_write_reg(pwm_id,PWM_REG_HRC,0x20); // 1 .00
+		break;
+
+	}
+		
+}
+
+void pwm_resume_voltage(void)
+	{
+	struct rk_pwm_dcdc *dcdc = g_dcdc;	
+	int pwm_id = 0;
+	
+	if(!dcdc)
+		return;
+	pwm_id = dcdc->pdata->pwm_id;
+	pwm_write_reg(pwm_id, PWM_REG_LRC, g_PWM_REG_LRC);
+	pwm_write_reg(pwm_id,PWM_REG_HRC, g_PWM_REG_HRC);
+			
+}
+
+
 static int pwm_regulator_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
-	pwm_set_rate(pdata,1000*1000,0);//pwm clk will change to 24M after suspend
+	//struct rk_pwm_dcdc *dcdc = platform_get_drvdata(pdev);
+	//unsigned selector = 0;
+	//pwm_regulator_set_voltage(dcdc->regulator, 1100000, 1100000, &selector);
 	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
 	return 0;
 }
@@ -325,6 +424,9 @@ static int pwm_regulator_suspend(struct platform_device *pdev, pm_message_t stat
 static int pwm_regulator_resume(struct platform_device *pdev)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
+	//struct rk_pwm_dcdc *dcdc = platform_get_drvdata(pdev);
+	//unsigned selector = 0;
+	//pwm_regulator_set_voltage(dcdc->regulator, 1150000, 1150000, &selector);
 	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
 	return 0;
 }
@@ -361,7 +463,7 @@ static void __exit pwm_regulator_module_exit(void)
 }
 
 
-subsys_initcall(pwm_regulator_module_init);
+fs_initcall(pwm_regulator_module_init);
 
 module_exit(pwm_regulator_module_exit);
 

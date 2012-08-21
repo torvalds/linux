@@ -1526,9 +1526,13 @@ config UART0_CTS_RTS_RK29
 	depends on UART0_RK29
 
 config UART0_DMA_RK29
-	bool "Serial port 0 DMA support (EXPERIMENTAL)"
+	int "Serial port 0 DMA support (EXPERIMENTAL)"
 	depends on UART0_RK29
-
+	default 0
+	help 
+		 1:enable dma tx
+		 2:enable dma rx
+		 3:both enable dma tx and rx 
 config UART1_RK29
 	bool "Serial port 1 support"
 	depends on SERIAL_RK29
@@ -1538,9 +1542,13 @@ config UART1_CTS_RTS_RK29
 	depends on UART1_RK29 && !ARCH_RK29
 
 config UART1_DMA_RK29
-	bool "Serial port 1 DMA support (EXPERIMENTAL)"
+	int "Serial port 1 DMA support (EXPERIMENTAL)"
 	depends on UART1_RK29
-
+	default 0
+	help 
+		 1:enable dma tx
+	 	 2:enable dma rx
+	 	 3:both enable dma tx and rx 
 config UART2_RK29
 	bool "Serial port 2 support"
 	depends on SERIAL_RK29
@@ -1550,21 +1558,29 @@ config UART2_CTS_RTS_RK29
 	depends on UART2_RK29 && !ARCH_RK30
 
 config UART2_DMA_RK29
-	bool "Serial port 2 DMA support (EXPERIMENTAL)"
+	int "Serial port 2 DMA support (EXPERIMENTAL)"
 	depends on UART2_RK29
-
+	default 0
+	help 
+		 1:enable dma tx
+	 	 2:enable dma rx
+	 	 3:both enable dma tx and rx 
 config UART3_RK29
 	bool "Serial port 3 support"
-	depends on SERIAL_RK29
+	depends on SERIAL_RK29 && !ARCH_RK2928
 
 config UART3_CTS_RTS_RK29
 	bool "Serial port 3 CTS/RTS support"
 	depends on UART3_RK29
 
 config UART3_DMA_RK29
-	bool "Serial port 3 DMA support (EXPERIMENTAL)"
+	int "Serial port 3 DMA support (EXPERIMENTAL)"
 	depends on UART3_RK29
-
+	default 0
+	help 
+		 1:enable dma tx
+	 	 2:enable dma rx
+	 	 3:both enable dma tx and rx 
 config SERIAL_RK29_CONSOLE
 	bool "Serial console support"
 	depends on SERIAL_RK29=y

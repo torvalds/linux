@@ -95,6 +95,7 @@ struct rk29_sdmmc_platform_data {
 	int detect_irq;
 	int enable_sd_wakeup;
 	int write_prt;
+	unsigned int sdio_INT_gpio; //add gpio INT for sdio interrupt.Modifed by xbw at 2012-08-09
 };
 
 struct gsensor_platform_data {
@@ -126,6 +127,7 @@ struct sensor_platform_data {
 	int x_min;              //filter
 	int y_min;
 	int z_min;
+	int factory;
 	unsigned char address;
 	signed char orientation[9];
 	short m_layout[4][3][3];
@@ -188,7 +190,7 @@ int board_boot_mode(void);
 
 /* for USB detection */
 #ifdef CONFIG_USB_GADGET
-int board_usb_detect_init(unsigned gpio);
+int __init board_usb_detect_init(unsigned gpio);
 #else
 static int inline board_usb_detect_init(unsigned gpio) { return 0; }
 #endif

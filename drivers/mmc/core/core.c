@@ -236,7 +236,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
         //calculate the timeout value for SDMMC; added by xbw at 2011-09-27
         if(mrq->data)
         {
-            unit = 3*(1<<20);// unit=3MB
+            unit = 2*(1<<20);// unit=2MB
             datasize = mrq->data->blksz*mrq->data->blocks;
             multi = datasize/unit;
             multi += (datasize%unit)?1:0;
@@ -260,8 +260,12 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
     {
         host->doneflag = 0;
         mrq->cmd->error = -EIO;
-        printk(KERN_WARNING "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
-            __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
+
+        if(0 == mrq->cmd->retries)
+        {
+            printk(KERN_WARNING "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
+                __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
+        }
     }
 #else
 	wait_for_completion(&complete);
@@ -2008,6 +2012,10 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (host->bus_ops && !host->bus_dead) {
 		if (host->bus_ops->suspend)
 			err = host->bus_ops->suspend(host);
+
+#if defined(CONFIG_SDMMC_RK29) && defined(CONFIG_SDMMC_RK29_OLD)
+               //deleted all detail code. //fix the crash bug when error occur during suspend. Modiefyed by xbw at 2012-08-09
+#else
 		if (err == -ENOSYS || !host->bus_ops->resume) {
 			/*
 			 * We simply "remove" the card in this case.
@@ -2022,6 +2030,7 @@ int mmc_suspend_host(struct mmc_host *host)
 			host->pm_flags = 0;
 			err = 0;
 		}
+#endif
 	}
 	mmc_bus_put(host);
 

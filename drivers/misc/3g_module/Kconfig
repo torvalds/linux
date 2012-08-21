@@ -23,6 +23,9 @@ choice
     config SEW868
 	bool "SEW868"	
 
+    config MI700
+	bool "MI700"	
+
 
 endchoice
 

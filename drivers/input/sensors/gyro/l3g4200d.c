@@ -213,7 +213,7 @@ static int sensor_report_value(struct i2c_client *client)
 }
 
 
-struct sensor_operate gyro_ops = {
+struct sensor_operate gyro_l3g4200d_ops = {
 	.name				= "l3g4200d",
 	.type				= SENSOR_TYPE_GYROSCOPE,//sensor type and it should be correct
 	.id_i2c				= GYRO_ID_L3G4200D,		//i2c id number
@@ -234,24 +234,23 @@ struct sensor_operate gyro_ops = {
 /****************operate according to sensor chip:end************/
 
 //function name should not be changed
-struct sensor_operate *gyro_get_ops(void)
+static struct sensor_operate *gyro_get_ops(void)
 {
-	return &gyro_ops;
+	return &gyro_l3g4200d_ops;
 }
 
-EXPORT_SYMBOL(gyro_get_ops);
 
-static int __init gyro_init(void)
+static int __init gyro_l3g4200d_init(void)
 {
 	struct sensor_operate *ops = gyro_get_ops();
 	int result = 0;
 	int type = ops->type;
 	result = sensor_register_slave(type, NULL, NULL, gyro_get_ops);
-	printk("%s\n",__func__);
+	DBG("%s\n",__func__);
 	return result;
 }
 
-static void __exit gyro_exit(void)
+static void __exit gyro_l3g4200d_exit(void)
 {
 	struct sensor_operate *ops = gyro_get_ops();
 	int type = ops->type;
@@ -259,7 +258,7 @@ static void __exit gyro_exit(void)
 }
 
 
-module_init(gyro_init);
-module_exit(gyro_exit);
+module_init(gyro_l3g4200d_init);
+module_exit(gyro_l3g4200d_exit);
 
 

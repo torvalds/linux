@@ -969,6 +969,7 @@ config LAIBAO_TS
 config TOUCHSCREEN_GT801_IIC
 	tristate "GT801_IIC based touchscreens"
 	depends on I2C2_RK29
+	
 config TOUCHSCREEN_GT82X_IIC
 	tristate "GT82x_IIC based touchscreens"
 	depends on I2C2_RK30
@@ -1001,6 +1002,10 @@ config TOUCHSCREEN_GT819
 config TOUCHSCREEN_FT5306
 	tristate "FT5306 based touchscreens: FT5306 Interface"
 	depends on I2C2_RK29 || I2C2_RK30
+
+config TOUCHSCREEN_SITRONIX_A720
+	tristate "SITRONIX based touchscreens: SITRONIX Interface for a720"
+	depends on I2C2_RK29 || I2C2_RK30 
 
 config TOUCHSCREEN_FT5306_WPX2
         tristate "FT5306 based touchscreens: FT5306 Interface,only used for umeox wpx2 board"

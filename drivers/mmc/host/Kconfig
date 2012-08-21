@@ -54,6 +54,16 @@ if SDMMC_RK29
 			 You will add the feature of write-protect for sdio-card if you say Yes.
 			 Please note that this feature requires hardware support.
 			
+       config  RK29_SDIO_IRQ_FROM_GPIO
+         bool "sdio-irq from gpio"
+         default n
+         depends on SDMMC1_RK29
+         help
+            You will generate sdio interrupt from gpio if you say Yes.
+            Please note that this feature requires hardware support.
+
+
+
 #	config USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD
 #	  depends on SDMMC1_RK29
 #		bool "Switch the driver SDMMC1 for the debug of wifi_develop_board."

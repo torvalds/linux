@@ -72,7 +72,7 @@ static int global_minor = 0;
 #define	EGALAX_IOCWAKEUP	_IO(EGALAX_IOC_MAGIC, 1)
 #define EGALAX_IOC_MAXNR	1
 
-#define EETI_EARLYSUSPEND_LEVEL	151
+#define EETI_EARLYSUSPEND_LEVEL	(EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1)
 
 struct point_data {
 	short Status;
@@ -544,7 +544,7 @@ void egalax_i2c_set_standby(struct i2c_client *client, int enable)
 
 	int display_on_pol = mach_info->disp_on_value;
 	int lcd_standby_pol = mach_info->standby_value;
-
+#ifndef CONFIG_ARCH_RK2928
         printk("%s : %s, enable = %d", __FILE__, __FUNCTION__,enable);
     if(display_on != INVALID_GPIO)
     {
@@ -556,6 +556,7 @@ void egalax_i2c_set_standby(struct i2c_client *client, int enable)
         gpio_direction_output(lcd_standby, 0);
 	gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);			  
     }
+#endif
 }
 
 #ifdef CONFIG_PM

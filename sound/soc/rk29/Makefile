@@ -6,6 +6,12 @@ endif
 ifdef CONFIG_ARCH_RK30
 snd-soc-rockchip-i2s-objs := rk30_i2s.o
 endif
+ifdef CONFIG_ARCH_RK2928
+snd-soc-rockchip-i2s-objs := rk30_i2s.o
+endif
+ifdef CONFIG_ARCH_RK31
+snd-soc-rockchip-i2s-objs := rk30_i2s.o
+endif
 snd-soc-rockchip-spdif-objs := rk29_spdif.o
 
 obj-$(CONFIG_SND_RK29_SOC) += snd-soc-rockchip.o
@@ -26,6 +32,7 @@ snd-soc-wm8994-objs := rk29_wm8994.o
 snd-soc-hdmi-objs := rk29_hdmi.o
 snd-soc-rk610-objs := rk29_jetta_codec.o
 snd-soc-aic3262-objs := rk29_aic3262.o
+snd-soc-rk2928-objs := rk2928-card.o
 
 obj-$(CONFIG_SND_RK29_SOC_WM8994) += snd-soc-wm8994.o
 obj-$(CONFIG_SND_RK29_SOC_WM8988) += snd-soc-wm8988.o
@@ -40,3 +47,4 @@ obj-$(CONFIG_SND_RK29_SOC_AIC3111) += snd-soc-aic3111.o
 obj-$(CONFIG_SND_RK29_SOC_AIC3262) += snd-soc-aic3262.o
 obj-$(CONFIG_SND_RK29_SOC_HDMI) += snd-soc-hdmi.o
 obj-$(CONFIG_SND_RK29_SOC_RK610) += snd-soc-rk610.o
+obj-$(CONFIG_SND_RK_SOC_RK2928) += snd-soc-rk2928.o

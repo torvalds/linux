@@ -44,6 +44,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -67,460 +68,18 @@
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
 
+#if defined(CONFIG_MT6620)
+#include <linux/gps.h>
+#endif
+
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
 #else
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 #endif
 
-#ifdef CONFIG_VIDEO_RK29
-/*---------------- Camera Sensor Macro Define Begin  ------------------------*/
-/*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
-#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642						/* back camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_0		0x78
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  4
-#define CONFIG_SENSOR_CIF_INDEX_0                    1
-#define CONFIG_SENSOR_ORIENTATION_0 	  90
-#define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PD6
-#define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
-#define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
-#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
-
-#define CONFIG_SENSOR_QCIF_FPS_FIXED_0		15000
-#define CONFIG_SENSOR_240X160_FPS_FIXED_0   15000
-#define CONFIG_SENSOR_QVGA_FPS_FIXED_0		15000
-#define CONFIG_SENSOR_CIF_FPS_FIXED_0		15000
-#define CONFIG_SENSOR_VGA_FPS_FIXED_0		15000
-#define CONFIG_SENSOR_480P_FPS_FIXED_0		15000
-#define CONFIG_SENSOR_SVGA_FPS_FIXED_0		15000
-#define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
-
-#define CONFIG_SENSOR_01  RK29_CAM_SENSOR_OV5642                   /* back camera sensor 1 */
-#define CONFIG_SENSOR_IIC_ADDR_01 	    0x00
-#define CONFIG_SENSOR_CIF_INDEX_01                    1
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_01    4
-#define CONFIG_SENSOR_ORIENTATION_01       90
-#define CONFIG_SENSOR_POWER_PIN_01         INVALID_GPIO
-#define CONFIG_SENSOR_RESET_PIN_01         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_01       RK30_PIN1_PD6
-#define CONFIG_SENSOR_FALSH_PIN_01         INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_01 RK29_CAM_POWERACTIVE_L
-#define CONFIG_SENSOR_RESETACTIVE_LEVEL_01 RK29_CAM_RESETACTIVE_L
-#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_01 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_01 RK29_CAM_FLASHACTIVE_L
-
-#define CONFIG_SENSOR_QCIF_FPS_FIXED_01      15000
-#define CONFIG_SENSOR_240X160_FPS_FIXED_01   15000
-#define CONFIG_SENSOR_QVGA_FPS_FIXED_01      15000
-#define CONFIG_SENSOR_CIF_FPS_FIXED_01       15000
-#define CONFIG_SENSOR_VGA_FPS_FIXED_01       15000
-#define CONFIG_SENSOR_480P_FPS_FIXED_01      15000
-#define CONFIG_SENSOR_SVGA_FPS_FIXED_01      15000
-#define CONFIG_SENSOR_720P_FPS_FIXED_01     30000
-
-#define CONFIG_SENSOR_02 RK29_CAM_SENSOR_OV5640                      /* back camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_02 	    0x00
-#define CONFIG_SENSOR_CIF_INDEX_02                    1
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_02    4
-#define CONFIG_SENSOR_ORIENTATION_02       90
-#define CONFIG_SENSOR_POWER_PIN_02         INVALID_GPIO
-#define CONFIG_SENSOR_RESET_PIN_02         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_02       RK30_PIN1_PD6
-#define CONFIG_SENSOR_FALSH_PIN_02         INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_02 RK29_CAM_POWERACTIVE_L
-#define CONFIG_SENSOR_RESETACTIVE_LEVEL_02 RK29_CAM_RESETACTIVE_L
-#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_02 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_02 RK29_CAM_FLASHACTIVE_L
-
-#define CONFIG_SENSOR_QCIF_FPS_FIXED_02      15000
-#define CONFIG_SENSOR_240X160_FPS_FIXED_02   15000
-#define CONFIG_SENSOR_QVGA_FPS_FIXED_02      15000
-#define CONFIG_SENSOR_CIF_FPS_FIXED_02       15000
-#define CONFIG_SENSOR_VGA_FPS_FIXED_02       15000
-#define CONFIG_SENSOR_480P_FPS_FIXED_02      15000
-#define CONFIG_SENSOR_SVGA_FPS_FIXED_02      15000
-#define CONFIG_SENSOR_720P_FPS_FIXED_02      30000
-
-#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 0 */
-#define CONFIG_SENSOR_IIC_ADDR_1 	    0x60
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
-#define CONFIG_SENSOR_CIF_INDEX_1				  0
-#define CONFIG_SENSOR_ORIENTATION_1       270
-#define CONFIG_SENSOR_POWER_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_RESET_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB7
-#define CONFIG_SENSOR_FALSH_PIN_1         INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
-#define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
-#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
-
-#define CONFIG_SENSOR_QCIF_FPS_FIXED_1		15000
-#define CONFIG_SENSOR_240X160_FPS_FIXED_1   15000
-#define CONFIG_SENSOR_QVGA_FPS_FIXED_1		15000
-#define CONFIG_SENSOR_CIF_FPS_FIXED_1		15000
-#define CONFIG_SENSOR_VGA_FPS_FIXED_1		15000
-#define CONFIG_SENSOR_480P_FPS_FIXED_1		15000
-#define CONFIG_SENSOR_SVGA_FPS_FIXED_1		15000
-#define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
-
-#define CONFIG_SENSOR_11 RK29_CAM_SENSOR_OV2659                      /* front camera sensor 1 */
-#define CONFIG_SENSOR_IIC_ADDR_11 	    0x00
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_11    3
-#define CONFIG_SENSOR_CIF_INDEX_11				  0
-#define CONFIG_SENSOR_ORIENTATION_11       270
-#define CONFIG_SENSOR_POWER_PIN_11         INVALID_GPIO
-#define CONFIG_SENSOR_RESET_PIN_11         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_11       INVALID_GPIO//RK30_PIN1_PB7
-#define CONFIG_SENSOR_FALSH_PIN_11         INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_11 RK29_CAM_POWERACTIVE_L
-#define CONFIG_SENSOR_RESETACTIVE_LEVEL_11 RK29_CAM_RESETACTIVE_L
-#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_11 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_11 RK29_CAM_FLASHACTIVE_L
-
-#define CONFIG_SENSOR_QCIF_FPS_FIXED_11      15000
-#define CONFIG_SENSOR_240X160_FPS_FIXED_11   15000
-#define CONFIG_SENSOR_QVGA_FPS_FIXED_11      15000
-#define CONFIG_SENSOR_CIF_FPS_FIXED_11       15000
-#define CONFIG_SENSOR_VGA_FPS_FIXED_11       15000
-#define CONFIG_SENSOR_480P_FPS_FIXED_11      15000
-#define CONFIG_SENSOR_SVGA_FPS_FIXED_11      15000
-#define CONFIG_SENSOR_720P_FPS_FIXED_11      30000
-
-#define CONFIG_SENSOR_12 RK29_CAM_SENSOR_OV2659//RK29_CAM_SENSOR_OV2655                      /* front camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_12 	   0x00
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_12    3
-#define CONFIG_SENSOR_CIF_INDEX_12				  0
-#define CONFIG_SENSOR_ORIENTATION_12       270
-#define CONFIG_SENSOR_POWER_PIN_12         INVALID_GPIO
-#define CONFIG_SENSOR_RESET_PIN_12         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_12       INVALID_GPIO//RK30_PIN1_PB7
-#define CONFIG_SENSOR_FALSH_PIN_12         INVALID_GPIO
-#define CONFIG_SENSOR_POWERACTIVE_LEVEL_12 RK29_CAM_POWERACTIVE_L
-#define CONFIG_SENSOR_RESETACTIVE_LEVEL_12 RK29_CAM_RESETACTIVE_L
-#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_12 RK29_CAM_POWERDNACTIVE_H
-#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_12 RK29_CAM_FLASHACTIVE_L
-
-#define CONFIG_SENSOR_QCIF_FPS_FIXED_12      15000
-#define CONFIG_SENSOR_240X160_FPS_FIXED_12   15000
-#define CONFIG_SENSOR_QVGA_FPS_FIXED_12      15000
-#define CONFIG_SENSOR_CIF_FPS_FIXED_12       15000
-#define CONFIG_SENSOR_VGA_FPS_FIXED_12       15000
-#define CONFIG_SENSOR_480P_FPS_FIXED_12      15000
-#define CONFIG_SENSOR_SVGA_FPS_FIXED_12      15000
-#define CONFIG_SENSOR_720P_FPS_FIXED_12      30000
-
-
-#endif  //#ifdef CONFIG_VIDEO_RK29
-/*---------------- Camera Sensor Configuration Macro End------------------------*/
-#include "../../../drivers/media/video/rk30_camera.c"
-/*---------------- Camera Sensor Macro Define End  ---------*/
-
-#define PMEM_CAM_SIZE PMEM_CAM_NECESSARY
-/*****************************************************************************************
- * camera  devices
- * author: ddl@rock-chips.com
- *****************************************************************************************/
-#ifdef CONFIG_VIDEO_RK29
-#define CONFIG_SENSOR_POWER_IOCTL_USR	   1 //define this refer to your board layout
-#define CONFIG_SENSOR_RESET_IOCTL_USR	   0
-#define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
-#define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
-
-static void rk_cif_power(int on)
-{
-    struct regulator *ldo_18,*ldo_28;
-	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
-	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
-	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
-        printk("get cif ldo failed!\n");
-		return;
-	    }
-    if(on == 0){	
-    	regulator_disable(ldo_28);
-    	regulator_put(ldo_28);
-    	regulator_disable(ldo_18);
-    	regulator_put(ldo_18);
-    	mdelay(500);
-        }
-    else{
-    	regulator_set_voltage(ldo_28, 2800000, 2800000);
-    	regulator_enable(ldo_28);
-   // 	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
-    	regulator_put(ldo_28);
-
-    	regulator_set_voltage(ldo_18, 1800000, 1800000);
-    //	regulator_set_suspend_voltage(ldo, 1800000);
-    	regulator_enable(ldo_18);
-    //	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_18));
-    	regulator_put(ldo_18);
-        }
-}
-
-#if CONFIG_SENSOR_POWER_IOCTL_USR
-static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
-{
-	//#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
-    rk_cif_power(on);
-}
-#endif
-
-#if CONFIG_SENSOR_RESET_IOCTL_USR
-static int sensor_reset_usr_cb (struct rk29camera_gpio_res *res,int on)
-{
-	#error "CONFIG_SENSOR_RESET_IOCTL_USR is 1, sensor_reset_usr_cb function must be writed!!";
-}
-#endif
-
-#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
-static int sensor_powerdown_usr_cb (struct rk29camera_gpio_res *res,int on)
-{
-	#error "CONFIG_SENSOR_POWERDOWN_IOCTL_USR is 1, sensor_powerdown_usr_cb function must be writed!!";
-}
-#endif
-
-#if CONFIG_SENSOR_FLASH_IOCTL_USR
-static int sensor_flash_usr_cb (struct rk29camera_gpio_res *res,int on)
-{
-	#error "CONFIG_SENSOR_FLASH_IOCTL_USR is 1, sensor_flash_usr_cb function must be writed!!";
-}
-#endif
-
-static struct rk29camera_platform_ioctl_cb	sensor_ioctl_cb = {
-	#if CONFIG_SENSOR_POWER_IOCTL_USR
-	.sensor_power_cb = sensor_power_usr_cb,
-	#else
-	.sensor_power_cb = NULL,
-	#endif
-
-	#if CONFIG_SENSOR_RESET_IOCTL_USR
-	.sensor_reset_cb = sensor_reset_usr_cb,
-	#else
-	.sensor_reset_cb = NULL,
-	#endif
-
-	#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
-	.sensor_powerdown_cb = sensor_powerdown_usr_cb,
-	#else
-	.sensor_powerdown_cb = NULL,
-	#endif
-
-	#if CONFIG_SENSOR_FLASH_IOCTL_USR
-	.sensor_flash_cb = sensor_flash_usr_cb,
-	#else
-	.sensor_flash_cb = NULL,
-	#endif
-};
-
-#if CONFIG_SENSOR_IIC_ADDR_0
-static struct reginfo_t rk_init_data_sensor_reg_0[] =
-{
-		{0x0000, 0x00,0,0}
-	};
-static struct reginfo_t rk_init_data_sensor_winseqreg_0[] ={
-	{0x0000, 0x00,0,0}
-	};
-#endif
-
-#if CONFIG_SENSOR_IIC_ADDR_1
-static struct reginfo_t rk_init_data_sensor_reg_1[] =
-{
-    {0x0000, 0x00,0,0}
-};
-static struct reginfo_t rk_init_data_sensor_winseqreg_1[] =
-{
-       {0x0000, 0x00,0,0}
-};
-#endif
-#if CONFIG_SENSOR_IIC_ADDR_01
-static struct reginfo_t rk_init_data_sensor_reg_01[] =
-{
-    {0x0000, 0x00,0,0}
-};
-static struct reginfo_t rk_init_data_sensor_winseqreg_01[] =
-{
-       {0x0000, 0x00,0,0}
-};
-#endif
-#if CONFIG_SENSOR_IIC_ADDR_02
-static struct reginfo_t rk_init_data_sensor_reg_02[] =
-{
-    {0x0000, 0x00,0,0}
-};
-static struct reginfo_t rk_init_data_sensor_winseqreg_02[] =
-{
-       {0x0000, 0x00,0,0}
-};
-#endif
-#if CONFIG_SENSOR_IIC_ADDR_11
-static struct reginfo_t rk_init_data_sensor_reg_11[] =
-{
-    {0x0000, 0x00,0,0}
-};
-static struct reginfo_t rk_init_data_sensor_winseqreg_11[] =
-{
-       {0x0000, 0x00,0,0}
-};
-#endif
-#if CONFIG_SENSOR_IIC_ADDR_12
-static struct reginfo_t rk_init_data_sensor_reg_12[] =
-{
-    {0x0000, 0x00,0,0}
-};
-static struct reginfo_t rk_init_data_sensor_winseqreg_12[] =
-{
-       {0x0000, 0x00,0,0}
-};
-#endif
-static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] = 
-{
-    #if CONFIG_SENSOR_IIC_ADDR_0
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = rk_init_data_sensor_reg_0,
-       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_0,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
-       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_0) / sizeof(struct reginfo_t),
-    },
-    #else
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,
-       .rk_sensor_init_winseq = NULL,
-       .rk_sensor_winseq_size = 0,
-       .rk_sensor_init_data_size = 0,
-    },
-    #endif
-    #if CONFIG_SENSOR_IIC_ADDR_1
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = rk_init_data_sensor_reg_1,
-       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
-       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_1) / sizeof(struct reginfo_t),
-    },
-    #else
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,
-       .rk_sensor_init_winseq = NULL,
-       .rk_sensor_winseq_size = 0,
-       .rk_sensor_init_data_size = 0,
-    },
-    #endif
-    #if CONFIG_SENSOR_IIC_ADDR_01
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = rk_init_data_sensor_reg_01,
-       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_01,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_01) / sizeof(struct reginfo_t),
-       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_01) / sizeof(struct reginfo_t),
-    },
-    #else
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,
-       .rk_sensor_init_winseq = NULL,
-       .rk_sensor_winseq_size = 0,
-       .rk_sensor_init_data_size = 0,
-    },
-    #endif
-    #if CONFIG_SENSOR_IIC_ADDR_02
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = rk_init_data_sensor_reg_02,
-       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_02,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_02) / sizeof(struct reginfo_t),
-       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_02) / sizeof(struct reginfo_t),
-    },
-    #else
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,
-       .rk_sensor_init_winseq = NULL,
-       .rk_sensor_winseq_size = 0,
-       .rk_sensor_init_data_size = 0,
-    },
-    #endif
-    #if CONFIG_SENSOR_IIC_ADDR_11
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = rk_init_data_sensor_reg_11,
-       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_11,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_11) / sizeof(struct reginfo_t),
-       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_11) / sizeof(struct reginfo_t),
-    },
-    #else
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,
-       .rk_sensor_init_winseq = NULL,
-       .rk_sensor_winseq_size = 0,
-       .rk_sensor_init_data_size = 0,
-    },
-    #endif
-    #if CONFIG_SENSOR_IIC_ADDR_12
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = rk_init_data_sensor_reg_12,
-       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_12,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_12) / sizeof(struct reginfo_t),
-       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_12) / sizeof(struct reginfo_t),
-    },
-    #else
-    {
-       .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,
-       .rk_sensor_init_winseq = NULL,
-       .rk_sensor_winseq_size = 0,
-       .rk_sensor_init_data_size = 0,
-    },
-    #endif
-
- };
-#include "../../../drivers/media/video/rk30_camera.c"
-
-#endif /* CONFIG_VIDEO_RK29 */
+#include "board-rk30-sdk-camera.c"
+#include "board-rk30-sdk-key.c"
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN4_PD0
@@ -866,6 +425,25 @@ static struct sensor_platform_data lis3dh_info = {
 	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
 #endif
+#if defined (CONFIG_GS_KXTIK)
+#define KXTIK_INT_PIN   RK30_PIN4_PC0
+
+static int kxtik_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	return 0;
+}
+
+static struct sensor_platform_data kxtik_info = {
+	.type = SENSOR_TYPE_ACCEL,
+	.irq_enable = 1,
+	.poll_delay_ms = 30,
+	.init_platform_hw = kxtik_init_platform_hw,
+	.orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
+};
+
+#endif
 #if defined (CONFIG_COMPASS_AK8975)
 static struct sensor_platform_data akm8975_info =
 {
@@ -936,6 +514,38 @@ static struct sensor_platform_data cm3217_info = {
 
 #endif
 
+#if defined(CONFIG_PS_AL3006)
+static struct sensor_platform_data proximity_al3006_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+#if defined(CONFIG_PS_STK3171)
+static struct sensor_platform_data proximity_stk3171_info = {
+	.type = SENSOR_TYPE_PROXIMITY,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+
+#if defined(CONFIG_LS_AL3006)
+static struct sensor_platform_data light_al3006_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
+
+#if defined(CONFIG_LS_STK3171)
+static struct sensor_platform_data light_stk3171_info = {
+	.type = SENSOR_TYPE_LIGHT,
+	.irq_enable = 1,
+	.poll_delay_ms = 200,
+};
+#endif
 #ifdef CONFIG_FB_ROCKCHIP
 
 #define LCD_CS_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
@@ -1163,14 +773,15 @@ static struct platform_device device_ion = {
 #include "board-rk30-sdk-sdmmc.c"
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
-#define SDMMC0_WRITE_PROTECT_PIN	RK30_PIN3_PB7	//According to your own project to set the value of write-protect-pin.
+#define SDMMC0_WRITE_PROTECT_PIN	RK30_PIN3_PB2	//According to your own project to set the value of write-protect-pin.
 #endif
 
 #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
-#define SDMMC1_WRITE_PROTECT_PIN	RK30_PIN3_PC7	//According to your own project to set the value of write-protect-pin.
+#define SDMMC1_WRITE_PROTECT_PIN	RK30_PIN3_PB3	//According to your own project to set the value of write-protect-pin.
 #endif
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK30_PIN6_PB2
+#define RK29SDK_WIFI_SDIO_CARD_INT         RK30_PIN3_PD2
 
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
@@ -1226,6 +837,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
+
+#if defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
+    .status = rk29sdk_wifi_mmc0_status,
+    .register_status_notify = rk29sdk_wifi_mmc0_status_register,
+#endif
+
 	.detect_irq = RK30_PIN3_PB6,	// INVALID_GPIO
 	.enable_sd_wakeup = 0,
 
@@ -1290,7 +907,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #endif
 
 #if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC) || defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	.status = rk29sdk_wifi_status,
 	.register_status_notify = rk29sdk_wifi_status_register,
 #endif
@@ -1302,6 +919,10 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.write_prt = SDMMC1_WRITE_PROTECT_PIN,
 #else
 	.write_prt = INVALID_GPIO,
+#endif
+
+#if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
+    .sdio_INT_gpio = RK29SDK_WIFI_SDIO_CARD_INT,
 #endif
 
 #else
@@ -1316,7 +937,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN6_PA5,
         .batt_low_pin    = RK30_PIN6_PA0,
@@ -1332,6 +953,60 @@ static struct platform_device rk30_device_adc_battery = {
         .dev = {
                 .platform_data = &rk30_adc_battery_platdata,
         },
+};
+#endif
+
+#ifdef CONFIG_RK30_PWM_REGULATOR
+const static int pwm_voltage_map[] = {
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+};
+
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[1] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[1] = {
+	{
+		.pwm_id = 3,
+		.pwm_gpio = RK30_PIN0_PD7,
+		.pwm_iomux_name = GPIO0D7_PWM3_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM3,
+		.pwm_iomux_gpio = GPIO0D_GPIO0D6,
+		.pwm_voltage = 1100000,
+		.suspend_voltage = 1050000,
+		.min_uV = 1000000,
+		.max_uV	= 1400000,
+		.coefficient = 455,	//45.5%
+		.pwm_voltage_map = pwm_voltage_map,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+};
+
+struct platform_device pwm_regulator_device[1] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
 };
 #endif
 
@@ -1421,9 +1096,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK_IRDA
 	&irda_device,
 #endif
-#ifdef CONFIG_WIFI_CONTROL_FUNC
+#if defined(CONFIG_WIFI_CONTROL_FUNC)||defined(CONFIG_WIFI_COMBO_MODULE_CONTROL_FUNC)
 	&rk29sdk_wifi_device,
 #endif
+
+#if defined(CONFIG_MT6620)
+    &mt3326_device_gps,
+#endif   
+
 #ifdef CONFIG_RK29_SUPPORT_MODEM
 	&rk30_device_modem,
 #endif
@@ -1439,7 +1119,7 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SEW868)
 	&rk30_device_sew868,
 #endif
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC)
  	&rk30_device_adc_battery,
 #endif
 #ifdef CONFIG_RFKILL_RK
@@ -1468,6 +1148,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &lis3dh_info,
 	},
 #endif
+#if defined (CONFIG_GS_KXTIK)
+	{
+		.type	        = "gs_kxtik",
+		.addr	        = 0x0F,
+		.flags	        = 0,
+		.irq	        = KXTIK_INT_PIN,
+		.platform_data = &kxtik_info,
+	},
+#endif
 #if defined (CONFIG_COMPASS_AK8975)
 	{
 		.type          = "ak8975",
@@ -1484,6 +1173,45 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 		.irq           = L3G4200D_INT_PIN,
 		.platform_data = &l3g4200d_info,
+	},
+#endif
+#if defined (CONFIG_LS_AL3006)
+	{
+		.type           = "light_al3006",
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &light_al3006_info,
+	},
+#endif
+#if defined (CONFIG_LS_STK3171)
+	{
+		.type           = "ls_stk3171",
+		.addr           = 0x48,            
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &light_stk3171_info,
+	},
+#endif
+
+
+#if defined (CONFIG_PS_AL3006)
+	{
+		.type           = "proximity_al3006",
+		.addr           = 0x1c,             //sel = 0; if sel =1, then addr = 0x1D
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &proximity_al3006_info,
+	},
+#endif
+
+#if defined (CONFIG_PS_STK3171)
+	{
+		.type           = "ps_stk3171",
+		.addr           = 0x48,            
+		.flags          = 0,
+		.irq            = RK30_PIN6_PA2,	
+		.platform_data = &proximity_stk3171_info,
 	},
 #endif
 #if defined (CONFIG_SND_SOC_RK1000)
@@ -1538,9 +1266,17 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 
 };
 #endif
-
+#define PMIC_TYPE_WM8326	1
+#define PMIC_TYPE_TPS65910	2
+int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
+#ifdef CONFIG_MFD_WM831X_I2C
 #include "board-rk30-sdk-wm8326.c"
+#endif
+#ifdef CONFIG_MFD_TPS65910
+#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
+#include "board-rk30-sdk-tps65910.c"
+#endif
 
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
@@ -1552,8 +1288,41 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.platform_data = &wm831x_platdata,
 	},
 #endif
+#if defined (CONFIG_MFD_TPS65910)
+	{
+        .type           = "tps65910",
+        .addr           = TPS65910_I2C_ID0,
+        .flags          = 0,
+        .irq            = TPS65910_HOST_IRQ,
+    	.platform_data = &tps65910_data,
+	},
+#endif
 };
 #endif
+
+void __sramfunc board_pmu_suspend(void)
+{      
+	#if defined (CONFIG_MFD_WM831X_I2C)
+       if(g_pmic_type == PMIC_TYPE_WM8326)
+       board_pmu_wm8326_suspend();
+	#endif
+	#if defined (CONFIG_MFD_TPS65910)
+       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_suspend(); 
+    #endif   
+}
+
+void __sramfunc board_pmu_resume(void)
+{      
+	#if defined (CONFIG_MFD_WM831X_I2C)
+       if(g_pmic_type == PMIC_TYPE_WM8326)
+       board_pmu_wm8326_resume();
+	#endif
+	#if defined (CONFIG_MFD_TPS65910)
+       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_resume(); 
+	#endif
+}
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
@@ -1568,7 +1337,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #endif
 #if defined (CONFIG_LS_CM3217)
 	{
-		.type          = "lightsensor",
+		.type          = "light_cm3217",
 		.addr          = 0x10,
 		.flags         = 0,
 		.platform_data = &cm3217_info,
@@ -1638,10 +1407,20 @@ static void rk30_pm_power_off(void)
 {
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
 	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
-	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
-#endif
+	#if defined(CONFIG_MFD_WM831X)	
+	if(g_pmic_type == PMIC_TYPE_WM8326)
+	{
+		wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
+		wm831x_device_shutdown(Wm831x);//wm8326 shutdown
+	}
+	#endif
+	#if defined(CONFIG_MFD_TPS65910)
+	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	{
+		tps65910_device_shutdown();//tps65910 shutdown
+	}
+	#endif
+
 	while (1);
 }
 
@@ -1660,6 +1439,10 @@ static void __init machine_rk30_board_init(void)
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	rk29sdk_wifi_bt_gpio_control_init();
+#endif
+
+#if defined(CONFIG_MT6620)
+    clk_set_rate(clk_get_sys("rk_serial.0", "uart"), 16*1000000);
 #endif
 }
 

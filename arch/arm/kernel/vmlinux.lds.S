@@ -271,12 +271,6 @@ SECTIONS
 		__sram_code_start = .;
 	}
 
-	/*
-	 * Link these to the ITCM RAM
-	 * Put VMA to the TCM address and LMA to the common RAM
-	 * and we'll upload the contents from RAM to TCM and free
-	 * the used RAM after that.
-	 */
 	.text_sram_code SRAM_CODE_OFFSET : AT(__sram_code_start)
 	{
 		__ssram_code_text = .;
@@ -288,7 +282,7 @@ SECTIONS
 
 	/*
 	 * Reset the dot pointer, this is needed to create the
-	 * relative __dtcm_start below (to be used as extern in code).
+	 * relative __sram_data_start below (to be used as extern in code).
 	 */
 	. = ADDR(.sram_start) + SIZEOF(.sram_start) + SIZEOF(.text_sram_code);
 
@@ -297,7 +291,7 @@ SECTIONS
 	}
 
 	/* TODO: add remainder of ITCM as well, that can be used for data! */
-	.data_sram SRAM_DATA_OFFSET : AT(__sram_data_start)
+	.data_sram SRAM_CODE_OFFSET + SIZEOF(.text_sram_code) : AT(__sram_data_start)
 	{
 		. = ALIGN(4);
 		__ssram_data = .;
@@ -311,9 +305,10 @@ SECTIONS
 
 	/* End marker for freeing TCM copy in linked object */
 	.sram_end : AT(ADDR(.sram_data_start) + SIZEOF(.data_sram)){
-		. = ALIGN(PAGE_SIZE);
 		__sram_end = .;
 	}
+
+	. = ALIGN(PAGE_SIZE);
 #endif
 
 	NOTES

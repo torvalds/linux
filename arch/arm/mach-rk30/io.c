@@ -46,8 +46,10 @@ static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(GPIO1),
 	RK30_DEVICE(GPIO2),
 	RK30_DEVICE(GPIO3),
+#ifdef CONFIG_ARCH_RK30
 	RK30_DEVICE(GPIO4),
 	RK30_DEVICE(GPIO6),
+#endif
 	RK30_DEVICE(TIMER0),
 	RK30_DEVICE(TIMER1),
 	RK30_DEVICE(TIMER2),
@@ -55,6 +57,8 @@ static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(PWM23),
 	RK30_DEVICE(DDR_PCTL),
 	RK30_DEVICE(DDR_PUBL),
+	RK30_DEVICE(I2C1),
+
 #ifdef CONFIG_RK_SRAM_DMA
 	{
 		.virtual = (unsigned long) RK30_IMEM_NONCACHED,

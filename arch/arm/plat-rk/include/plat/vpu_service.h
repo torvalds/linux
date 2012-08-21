@@ -39,7 +39,7 @@
 #define VPU_REG_NUM_PP                      (41)
 // client type: decoder plus post-process£º101 registers, size 404B
 #define VPU_REG_NUM_DEC_PP                  (VPU_REG_NUM_DEC+VPU_REG_NUM_PP)
-#if defined(CONFIG_ARCH_RK29)
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 // client type: encoder only:  96 registers, size 384B for rk29
 #define VPU_REG_NUM_ENC                     (96)
 #elif defined(CONFIG_ARCH_RK30)

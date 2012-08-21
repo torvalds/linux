@@ -851,6 +851,10 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		brq.mrq.cmd = &brq.cmd;
 		brq.mrq.data = &brq.data;
 
+            #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+                brq.cmd.retries = 2; //suppot retry read-write; added by xbw@2012-07-14
+            #endif
+
 		brq.cmd.arg = blk_rq_pos(req);
 		if (!mmc_card_blockaddr(card))
 			brq.cmd.arg <<= 9;

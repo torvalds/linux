@@ -184,7 +184,7 @@ int FtlPageRead(int Index, int nSec, void *buf);
 入口参数:pbuf
 出口参数:
 调用函数:
-注意信息：需要在FTLInit后才能调用，pbuf大小需要大于等于512 bytes，返回信息为512
+注意信息：需要在flash 驱动加载后才能调用，pbuf大小需要大于等于512 bytes，返回信息为512
           bytes。
 ***************************************************************************/
 char GetSNSectorInfo(char * pbuf);

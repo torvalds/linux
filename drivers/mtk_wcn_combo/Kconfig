@@ -1,0 +1,141 @@
+menu "MediaTek Connectivity Combo Chip Config"
+
+config MTK_COMBO
+	bool "MediaTek Connectivity Combo Chip Support"
+	help
+	  MTK connectivity combo chip driver for MT6620
+
+#
+# MTK Combo Chip Selection
+#
+choice
+	prompt "Select Chip"
+	depends on MTK_COMBO
+
+config MTK_COMBO_CHIP_MT6620
+	bool "MT6620"
+
+#config MTK_COMBO_CHIP_MT6628
+#	bool "MT6628"
+endchoice
+
+#
+# Target Platform Selection
+#
+config MTK_COMBO_PLAT_PATH
+	string "Platform folder name"
+	depends on MTK_COMBO
+	default "sample" if MTK_COMBO_PLAT_SAMPLE
+	help
+	  Specify platform folder under common driver platform folder: 
+	  mtk_wcn_combo/common/platform/*
+
+#
+# MTK COMBO Chip Configuration
+#
+config MTK_COMBO_COMM
+	depends on MTK_COMBO
+	tristate "MediaTek Combo Chip Common part driver"
+	help
+	  MediaTek combo chip common part driver
+
+#config MTK_COMBO_COMM_PS
+#	depends on MTK_COMBO_COMM
+#	bool "Enable PS support"
+#	default n
+#	help
+#	  Enable PS support of common UART interface
+
+config MTK_COMBO_COMM_UART
+	depends on MTK_COMBO_COMM
+	tristate "Common interface UART"
+	help
+	  Use UART for common part interface type
+
+#config MTK_COMBO_COMM_SDIO
+#	depends on MTK_COMBO_COMM
+#	tristate "Common interface SDIO"
+#	help
+#	  Use SDIO for common part interface type
+
+config MTK_COMBO_BT_HW_TEST
+	tristate "MediaTek Combo Chip BT Hardware Test driver"
+	depends on MTK_COMBO
+	help
+	  MTK BT /dev/stpbt driver for autobt hardware test tool (mtk_stp_bt.ko)
+        
+config MTK_COMBO_BT_HCI
+	tristate "MediaTek Combo Chip BlueZ driver"
+	depends on BT && MTK_COMBO
+	help
+	  MTK BT driver for BlueZ (hci_stp.ko)
+
+config MTK_COMBO_FM
+	tristate "MediaTek Combo Chip FM driver"
+	depends on MTK_COMBO
+	help
+	  MTK FM /dev/fm driver (mt6620_fm_drv.ko, mtk_fm_priv.ko)
+
+config MTK_COMBO_WIFI
+	tristate "MediaTek Combo Chip Wi-Fi support"
+	depends on MTK_COMBO
+	depends on MMC
+	depends on IPV6
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  This module adds support for wireless adapters based on
+	  MTK MT6620 chipset.
+
+	  This driver uses the kernel's wireless extensions subsystem.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+
+#config MTK_COMBO_WIFI_FW_PATH
+#	depends on MTK_COMBO_WIFI
+#	string "Firmware path"
+#	default "/system/etc/firmware/WIFI_RAM_CODE"
+#	help
+#	  Path to the firmware file
+
+config MTK_COMBO_WIFI_DEBUG
+	depends on MTK_COMBO_WIFI
+	bool "Enable debug output from MT6620 driver"
+	help
+	  Enable debug messages output from MT6620 driver
+
+config MTK_COMBO_WIFI_PROC
+	depends on MTK_COMBO_WIFI
+	bool "Enable procfs support"
+	help
+	  Enable procfs support.
+
+#config MTK_WAPI_SUPPORT
+#	depends on MTK_COMBO_WIFI
+#	bool "Enable WAPI support in MT6620 driver"
+#	help
+#	  Enable WAPI support for devices using MT6620
+
+choice
+	prompt "Host Interface"
+	depends on MTK_COMBO_WIFI
+
+config MTK_COMBO_WIFI_HIF_SDIO1
+	bool "SDIO #1"
+	depends on MTK_COMBO_WIFI
+endchoice
+
+
+config MTK_GPS
+	tristate "MediaTek GPS Support"
+	help
+	  MTK GPS /dev/gps driver (mtk_gps.ko)
+
+config MTK_COMBO_GPS
+	tristate "MediaTek Combo Chip GPS driver"
+	depends on MTK_COMBO && MTK_GPS
+	help
+	  MTK GPS /dev/stpgps driver (mtk_stp_gps.ko)
+
+endmenu

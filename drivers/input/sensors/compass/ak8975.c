@@ -693,7 +693,7 @@ static struct miscdevice compass_dev_device =
 	.fops = &compass_dev_fops,
 };
 
-struct sensor_operate akm8975_ops = {
+struct sensor_operate akm8975_akm8975_ops = {
 	.name				= "akm8975",
 	.type				= SENSOR_TYPE_COMPASS,	//it is important
 	.id_i2c				= COMPASS_ID_AK8975,
@@ -715,15 +715,13 @@ struct sensor_operate akm8975_ops = {
 /****************operate according to sensor chip:end************/
 
 //function name should not be changed
-struct sensor_operate *compass_get_ops(void)
+static struct sensor_operate *compass_get_ops(void)
 {
-	return &akm8975_ops;
+	return &akm8975_akm8975_ops;
 }
 
-EXPORT_SYMBOL(compass_get_ops);
 
-
-static int __init compass_init(void)
+static int __init compass_akm8975_init(void)
 {
 	struct sensor_operate *ops = compass_get_ops();
 	int result = 0;
@@ -743,12 +741,12 @@ static int __init compass_init(void)
 	atomic_set(&open_flag, 0);		
 	init_waitqueue_head(&open_wq);
 			
-	printk("%s\n",__func__);
+	DBG("%s\n",__func__);
 error:
 	return result;
 }
 
-static void __exit compass_exit(void)
+static void __exit compass_akm8975_exit(void)
 {
 	struct sensor_operate *ops = compass_get_ops();
 	int type = ops->type;
@@ -756,7 +754,7 @@ static void __exit compass_exit(void)
 }
 
 
-module_init(compass_init);
-module_exit(compass_exit);
+module_init(compass_akm8975_init);
+module_exit(compass_akm8975_exit);
 
 

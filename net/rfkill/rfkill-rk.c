@@ -103,7 +103,13 @@ struct rfkill_rk_data {
 static struct rfkill_rk_data *g_rfkill = NULL;
 
 static const char bt_name[] = 
-#if defined(CONFIG_RKWIFI)
+#if defined (CONFIG_BCM4330)
+    #if defined (CONFIG_BT_MODULE_NH660)
+        "nh660"
+    #else
+        "bcm4330"
+    #endif
+#elif defined (CONFIG_RK903)
     #if defined(CONFIG_RKWIFI_26M)
         "rk903_26M"
     #else

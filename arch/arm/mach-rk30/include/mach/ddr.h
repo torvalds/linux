@@ -22,7 +22,7 @@
 #ifdef CONFIG_DDR_SDRAM_FREQ
 #define DDR_FREQ          (CONFIG_DDR_SDRAM_FREQ)
 #else
-#define DDR_FREQ 400
+#define DDR_FREQ 360
 #endif
 
 #define DDR3_800D   (0)     // 5-5-5
@@ -149,5 +149,7 @@ void __sramfunc ddr_resume(void);
 uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
 int ddr_init(uint32_t dram_type, uint32_t freq);
 void ddr_set_auto_self_refresh(bool en);
+uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set);
+
 
 #endif

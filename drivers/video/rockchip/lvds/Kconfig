@@ -1,0 +1,2 @@
+config RK_LVDS
+       bool "RK_LVDS support"

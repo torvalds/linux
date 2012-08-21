@@ -3,6 +3,7 @@
 #
 conmakehash
 kallsyms
+bmptologo
 pnmtologo
 bin2c
 unifdef

@@ -22,6 +22,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/mfd/tps65910.h>
+#include <linux/wakelock.h>
+#include <linux/kthread.h>
 
 static inline int irq_to_tps65910_irq(struct tps65910 *tps65910,
 							int irq)
@@ -46,6 +48,7 @@ static irqreturn_t tps65910_irq(int irq, void *irq_data)
 	u8 reg;
 	int i;
 	
+	wake_lock(&tps65910->irq_wake);	
 	tps65910->read(tps65910, TPS65910_INT_STS, 1, &reg);
 	irq_sts = reg;
 	tps65910->read(tps65910, TPS65910_INT_STS2, 1, &reg);
@@ -69,7 +72,10 @@ static irqreturn_t tps65910_irq(int irq, void *irq_data)
 	irq_sts &= ~irq_mask;
 
 	if (!irq_sts)
+	{
+		wake_unlock(&tps65910->irq_wake);
 		return IRQ_NONE;
+	}
 
 	for (i = 0; i < tps65910->irq_num; i++) {
 
@@ -90,7 +96,7 @@ static irqreturn_t tps65910_irq(int irq, void *irq_data)
 		reg = irq_sts >> 8;
 		tps65910->write(tps65910, TPS65910_INT_STS3, 1, &reg);
 	}
-
+	wake_unlock(&tps65910->irq_wake);
 	return IRQ_HANDLED;
 }
 
@@ -188,14 +194,17 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 	tps65910->write(tps65910, TPS65910_INT_STS2, 1, &reg);
 	tps65910->read(tps65910, TPS65910_INT_STS3, 1, &reg);
 	tps65910->write(tps65910, TPS65910_INT_STS3, 1, &reg);
+	tps65910->read(tps65910, TPS65910_RTC_STATUS, 1, &reg);	
+	tps65910->write(tps65910, TPS65910_RTC_STATUS, 1, &reg);//clear alarm and timer interrupt
 
 	/* Mask top level interrupts */
 	tps65910->irq_mask = 0xFFFFFF;
 
-	mutex_init(&tps65910->irq_lock);
+	mutex_init(&tps65910->irq_lock);	
+	wake_lock_init(&tps65910->irq_wake, WAKE_LOCK_SUSPEND, "tps65910_irq_wake");
 	tps65910->chip_irq = irq;
 	tps65910->irq_base = pdata->irq_base;
-
+	
 	switch (tps65910_chip_id(tps65910)) {
 	case TPS65910:
 		tps65910->irq_num = TPS65910_NUM_IRQ;

@@ -108,10 +108,15 @@ obj-$(CONFIG_SOC_CAMERA_GC0309)		+= gc0309.o
 obj-$(CONFIG_SOC_CAMERA_GC0309_FOR_TD8801)		+= gc0309_for_td8801.o
 obj-$(CONFIG_SOC_CAMERA_GC2015)		+= gc2015.o
 obj-$(CONFIG_SOC_CAMERA_SIV120B)	+= siv120b.o
+obj-$(CONFIG_SOC_CAMERA_SIV121D)	+= siv121d.o
 obj-$(CONFIG_SOC_CAMERA_SID130B)	+= sid130B.o
 obj-$(CONFIG_SOC_CAMERA_HI253)	+= hi253.o
 obj-$(CONFIG_SOC_CAMERA_HI704)	+= hi704.o
 obj-$(CONFIG_SOC_CAMERA_NT99250)	+= nt99250.o
+obj-$(CONFIG_SOC_CAMERA_GC0329)	+= gc0329.o
+obj-$(CONFIG_SOC_CAMERA_SP0838)	+= sp0838.o
+obj-$(CONFIG_SOC_CAMERA_SP2518)	+= sp2518.o
+obj-$(CONFIG_SOC_CAMERA_S5K5CA)	+= s5k5ca.o
 # And now the v4l2 drivers:
 
 obj-$(CONFIG_VIDEO_BT848) += bt8xx/
@@ -193,6 +198,14 @@ obj-$(CONFIG_VIDEO_PXA27x)		+= pxa_camera.o
 ifeq ($(CONFIG_ARCH_RK30),y)
 obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)	+= rk30_camera_oneframe.o
 obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)	+= rk30_camera_pingpong.o
+endif
+ifeq ($(CONFIG_ARCH_RK31),y)
+obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)  += rk30_camera_oneframe.o
+obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)  += rk30_camera_pingpong.o
+endif
+ifeq ($(CONFIG_ARCH_RK2928),y)
+obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)  += rk30_camera_oneframe.o
+obj-$(CONFIG_VIDEO_RK29_WORK_PINGPONG)  += rk30_camera_pingpong.o
 endif
 ifeq ($(CONFIG_ARCH_RK29),y)
 obj-$(CONFIG_VIDEO_RK29_WORK_ONEFRAME)    += rk29_camera_oneframe.o

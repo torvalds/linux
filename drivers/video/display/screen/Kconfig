@@ -90,6 +90,11 @@ config LCD_HDMI_800x480
 	if support RK610, this setting can support dual screen output
 config LCD_HV070WSA100
 	bool "HV070WSA-100 1024X600"
+config LCD_COMMON
+	bool "LCD COMMON"
+config LCD_RK2928_A720
+        bool "RK2928 A720 panel 800x480"
+
 endchoice
 
 
