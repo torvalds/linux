@@ -227,6 +227,58 @@ static bool is_charging(struct charger_manager *cm)
 }
 
 /**
+ * is_full_charged - Returns true if the battery is fully charged.
+ * @cm: the Charger Manager representing the battery.
+ */
+static bool is_full_charged(struct charger_manager *cm)
+{
+	struct charger_desc *desc = cm->desc;
+	union power_supply_propval val;
+	int ret = 0;
+	int uV;
+
+	/* If there is no battery, it cannot be charged */
+	if (!is_batt_present(cm)) {
+		val.intval = 0;
+		goto out;
+	}
+
+	if (cm->fuel_gauge && desc->fullbatt_full_capacity > 0) {
+		/* Not full if capacity of fuel gauge isn't full */
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_CHARGE_FULL, &val);
+		if (!ret && val.intval > desc->fullbatt_full_capacity) {
+			val.intval = 1;
+			goto out;
+		}
+	}
+
+	/* Full, if it's over the fullbatt voltage */
+	if (desc->fullbatt_uV > 0) {
+		ret = get_batt_uV(cm, &uV);
+		if (!ret && uV >= desc->fullbatt_uV) {
+			val.intval = 1;
+			goto out;
+		}
+	}
+
+	/* Full, if the capacity is more than fullbatt_soc */
+	if (cm->fuel_gauge && desc->fullbatt_soc > 0) {
+		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
+				POWER_SUPPLY_PROP_CAPACITY, &val);
+		if (!ret && val.intval >= desc->fullbatt_soc) {
+			val.intval = 1;
+			goto out;
+		}
+	}
+
+	val.intval = 0;
+
+out:
+	return val.intval ? true : false;
+}
+
+/**
  * is_polling_required - Return true if need to continue polling for this CM.
  * @cm: the Charger Manager representing the battery.
  */
@@ -418,7 +470,7 @@ static void fullbatt_vchk(struct work_struct *work)
 	diff = desc->fullbatt_uV;
 	diff -= batt_uV;
 
-	dev_dbg(cm->dev, "VBATT dropped %duV after full-batt.\n", diff);
+	dev_info(cm->dev, "VBATT dropped %duV after full-batt.\n", diff);
 
 	if (diff > desc->fullbatt_vchkdrop_uV) {
 		try_charger_restart(cm);
@@ -441,10 +493,14 @@ static bool _cm_monitor(struct charger_manager *cm)
 	dev_dbg(cm->dev, "monitoring (%2.2d.%3.3dC)\n",
 		cm->last_temp_mC / 1000, cm->last_temp_mC % 1000);
 
-	/* It has been stopped or charging already */
-	if (!!temp == !!cm->emergency_stop)
+	/* It has been stopped already */
+	if (temp && cm->emergency_stop)
 		return false;
 
+	/*
+	 * Check temperature whether overheat or cold.
+	 * If temperature is out of range normal state, stop charging.
+	 */
 	if (temp) {
 		cm->emergency_stop = temp;
 		if (!try_charger_enable(cm, false)) {
@@ -453,10 +509,34 @@ static bool _cm_monitor(struct charger_manager *cm)
 			else
 				uevent_notify(cm, "COLD");
 		}
+
+	/*
+	 * Check dropped voltage of battery. If battery voltage is more
+	 * dropped than fullbatt_vchkdrop_uV after fully charged state,
+	 * charger-manager have to recharge battery.
+	 */
+	} else if (!cm->emergency_stop && is_ext_pwr_online(cm) &&
+			!cm->charger_enabled) {
+		fullbatt_vchk(&cm->fullbatt_vchk_work.work);
+
+	/*
+	 * Check whether fully charged state to protect overcharge
+	 * if charger-manager is charging for battery.
+	 */
+	} else if (!cm->emergency_stop && is_full_charged(cm) &&
+			cm->charger_enabled) {
+		dev_info(cm->dev, "EVENT_HANDLE: Battery Fully Charged.\n");
+		uevent_notify(cm, default_event_names[CM_EVENT_BATT_FULL]);
+
+		try_charger_enable(cm, false);
+
+		fullbatt_vchk(&cm->fullbatt_vchk_work.work);
 	} else {
 		cm->emergency_stop = 0;
-		if (!try_charger_enable(cm, true))
-			uevent_notify(cm, "CHARGING");
+		if (is_ext_pwr_online(cm)) {
+			if (!try_charger_enable(cm, true))
+				uevent_notify(cm, "CHARGING");
+		}
 	}
 
 	return true;
@@ -719,47 +799,10 @@ static int charger_get_property(struct power_supply *psy,
 			val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		if (cm->fuel_gauge) {
-			if (cm->fuel_gauge->get_property(cm->fuel_gauge,
-			    POWER_SUPPLY_PROP_CHARGE_FULL, val) == 0)
-				break;
-		}
-
-		if (is_ext_pwr_online(cm)) {
-			/* Not full if it's charging. */
-			if (is_charging(cm)) {
-				val->intval = 0;
-				break;
-			}
-			/*
-			 * Full if it's powered but not charging andi
-			 * not forced stop by emergency
-			 */
-			if (!cm->emergency_stop) {
-				val->intval = 1;
-				break;
-			}
-		}
-
-		/* Full if it's over the fullbatt voltage */
-		ret = get_batt_uV(cm, &uV);
-		if (!ret && desc->fullbatt_uV > 0 && uV >= desc->fullbatt_uV &&
-		    !is_charging(cm)) {
+		if (is_full_charged(cm))
 			val->intval = 1;
-			break;
-		}
-
-		/* Full if the cap is 100 */
-		if (cm->fuel_gauge) {
-			ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
-					POWER_SUPPLY_PROP_CAPACITY, val);
-			if (!ret && val->intval >= 100 && !is_charging(cm)) {
-				val->intval = 1;
-				break;
-			}
-		}
-
-		val->intval = 0;
+		else
+			val->intval = 0;
 		ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
@@ -1049,7 +1092,26 @@ static int charger_extcon_notifier(struct notifier_block *self,
 	struct charger_cable *cable =
 		container_of(self, struct charger_cable, nb);
 
+	/*
+	 * The newly state of charger cable.
+	 * If cable is attached, cable->attached is true.
+	 */
 	cable->attached = event;
+
+	/*
+	 * Setup monitoring to check battery state
+	 * when charger cable is attached.
+	 */
+	if (cable->attached && is_polling_required(cable->cm)) {
+		if (work_pending(&setup_polling))
+			cancel_work_sync(&setup_polling);
+		schedule_work(&setup_polling);
+	}
+
+	/*
+	 * Setup work for controlling charger(regulator)
+	 * according to charger cable.
+	 */
 	schedule_work(&cable->wq);
 
 	return NOTIFY_DONE;
@@ -1142,6 +1204,15 @@ static int charger_manager_probe(struct platform_device *pdev)
 				"checking mechanism as it is not supplied.");
 		desc->fullbatt_vchkdrop_ms = 0;
 		desc->fullbatt_vchkdrop_uV = 0;
+	}
+	if (desc->fullbatt_soc == 0) {
+		dev_info(&pdev->dev, "Ignoring full-battery soc(state of"
+					" charge) threshold as it is not"
+					" supplied.");
+	}
+	if (desc->fullbatt_full_capacity == 0) {
+		dev_info(&pdev->dev, "Ignoring full-battery full capacity"
+					" threshold as it is not supplied.");
 	}
 
 	if (!desc->charger_regulators || desc->num_charger_regulators < 1) {
