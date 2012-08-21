@@ -38,7 +38,7 @@
  */
 
 struct ad5446_state {
-	struct spi_device		*spi;
+	struct device		*dev;
 	const struct ad5446_chip_info	*chip_info;
 	struct regulator		*reg;
 	unsigned short			vref_mv;
@@ -60,32 +60,5 @@ struct ad5446_chip_info {
 	int			(*write)(struct ad5446_state *st, unsigned val);
 };
 
-/**
- * ad5446_supported_device_ids:
- * The AD5620/40/60 parts are available in different fixed internal reference
- * voltage options. The actual part numbers may look differently
- * (and a bit cryptic), however this style is used to make clear which
- * parts are supported here.
- */
-
-enum ad5446_supported_device_ids {
-	ID_AD5444,
-	ID_AD5446,
-	ID_AD5450,
-	ID_AD5451,
-	ID_AD5541A,
-	ID_AD5512A,
-	ID_AD5553,
-	ID_AD5601,
-	ID_AD5611,
-	ID_AD5621,
-	ID_AD5620_2500,
-	ID_AD5620_1250,
-	ID_AD5640_2500,
-	ID_AD5640_1250,
-	ID_AD5660_2500,
-	ID_AD5660_1250,
-	ID_AD5662,
-};
 
 #endif /* IIO_DAC_AD5446_H_ */
