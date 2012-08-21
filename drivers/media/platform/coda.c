@@ -501,7 +501,7 @@ static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	ret = vidioc_s_fmt(fh_to_ctx(priv), f);
+	ret = vidioc_s_fmt(ctx, f);
 	if (ret)
 		ctx->colorspace = f->fmt.pix.colorspace;
 
