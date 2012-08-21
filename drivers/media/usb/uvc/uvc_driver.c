@@ -11,18 +11,6 @@
  *
  */
 
-/*
- * This driver aims to support video input and ouput devices compliant with the
- * 'USB Video Class' specification.
- *
- * The driver doesn't support the deprecated v4l1 interface. It implements the
- * mmap capture method only, and doesn't do any image format conversion in
- * software. If your user-space application doesn't support YUYV or MJPEG, fix
- * it :-). Please note that the MJPEG data have been stripped from their
- * Huffman tables (DHT marker), you will need to add it back if your JPEG
- * codec can't handle MJPEG data.
- */
-
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
