@@ -177,8 +177,8 @@ static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	net = sock_net(skb->sk);
 	req = nlmsg_data(cb->nlh);
 
-	rcu_read_lock();
-	sk_for_each_rcu(sk, node, &net->packet.sklist) {
+	mutex_lock(&net->packet.sklist_lock);
+	sk_for_each(sk, node, &net->packet.sklist) {
 		if (!net_eq(sock_net(sk), net))
 			continue;
 		if (num < s_num)
@@ -192,7 +192,7 @@ next:
 		num++;
 	}
 done:
-	rcu_read_unlock();
+	mutex_unlock(&net->packet.sklist_lock);
 	cb->args[0] = num;
 
 	return skb->len;

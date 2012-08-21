@@ -8,7 +8,7 @@
 #include <linux/spinlock.h>
 
 struct netns_packet {
-	spinlock_t		sklist_lock;
+	struct mutex		sklist_lock;
 	struct hlist_head	sklist;
 };
 
