@@ -2949,6 +2949,36 @@ bool flush_delayed_work(struct delayed_work *dwork)
 EXPORT_SYMBOL(flush_delayed_work);
 
 /**
+ * cancel_delayed_work - cancel a delayed work
+ * @dwork: delayed_work to cancel
+ *
+ * Kill off a pending delayed_work.  Returns %true if @dwork was pending
+ * and canceled; %false if wasn't pending.  Note that the work callback
+ * function may still be running on return, unless it returns %true and the
+ * work doesn't re-arm itself.  Explicitly flush or use
+ * cancel_delayed_work_sync() to wait on it.
+ *
+ * This function is safe to call from any context including IRQ handler.
+ */
+bool cancel_delayed_work(struct delayed_work *dwork)
+{
+	unsigned long flags;
+	int ret;
+
+	do {
+		ret = try_to_grab_pending(&dwork->work, true, &flags);
+	} while (unlikely(ret == -EAGAIN));
+
+	if (unlikely(ret < 0))
+		return false;
+
+	set_work_cpu_and_clear_pending(&dwork->work, work_cpu(&dwork->work));
+	local_irq_restore(flags);
+	return true;
+}
+EXPORT_SYMBOL(cancel_delayed_work);
+
+/**
  * cancel_delayed_work_sync - cancel a delayed work and wait for it to finish
  * @dwork: the delayed work cancel
  *

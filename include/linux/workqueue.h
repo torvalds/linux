@@ -420,6 +420,7 @@ extern bool flush_work(struct work_struct *work);
 extern bool cancel_work_sync(struct work_struct *work);
 
 extern bool flush_delayed_work(struct delayed_work *dwork);
+extern bool cancel_delayed_work(struct delayed_work *dwork);
 extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
 
 extern void workqueue_set_max_active(struct workqueue_struct *wq,
@@ -427,22 +428,6 @@ extern void workqueue_set_max_active(struct workqueue_struct *wq,
 extern bool workqueue_congested(unsigned int cpu, struct workqueue_struct *wq);
 extern unsigned int work_cpu(struct work_struct *work);
 extern unsigned int work_busy(struct work_struct *work);
-
-/*
- * Kill off a pending schedule_delayed_work().  Note that the work callback
- * function may still be running on return from cancel_delayed_work(), unless
- * it returns 1 and the work doesn't re-arm itself. Run flush_workqueue() or
- * cancel_work_sync() to wait on it.
- */
-static inline bool cancel_delayed_work(struct delayed_work *work)
-{
-	bool ret;
-
-	ret = del_timer_sync(&work->timer);
-	if (ret)
-		work_clear_pending(&work->work);
-	return ret;
-}
 
 /*
  * Like above, but uses del_timer() instead of del_timer_sync(). This means,
