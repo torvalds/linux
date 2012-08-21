@@ -946,17 +946,6 @@ static int rtl2832u_power_ctrl(struct dvb_usb_device *d, int onoff)
 		if (ret)
 			goto err;
 
-		/* demod HW reset */
-		ret = rtl28xx_rd_reg(d, SYS_DEMOD_CTL, &val);
-		if (ret)
-			goto err;
-		/* bit 5 to 0 */
-		val &= 0xdf;
-
-		ret = rtl28xx_wr_reg(d, SYS_DEMOD_CTL, val);
-		if (ret)
-			goto err;
-
 		ret = rtl28xx_rd_reg(d, SYS_DEMOD_CTL, &val);
 		if (ret)
 			goto err;
