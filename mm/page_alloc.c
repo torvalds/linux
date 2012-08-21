@@ -2102,7 +2102,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
 	int migratetype, bool sync_migration,
-	bool *deferred_compaction,
+	bool *contended_compaction, bool *deferred_compaction,
 	unsigned long *did_some_progress)
 {
 	struct page *page;
@@ -2117,7 +2117,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 
 	current->flags |= PF_MEMALLOC;
 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
-						nodemask, sync_migration);
+						nodemask, sync_migration,
+						contended_compaction);
 	current->flags &= ~PF_MEMALLOC;
 	if (*did_some_progress != COMPACT_SKIPPED) {
 
@@ -2163,7 +2164,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	struct zonelist *zonelist, enum zone_type high_zoneidx,
 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
 	int migratetype, bool sync_migration,
-	bool *deferred_compaction,
+	bool *contended_compaction, bool *deferred_compaction,
 	unsigned long *did_some_progress)
 {
 	return NULL;
@@ -2336,6 +2337,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	unsigned long did_some_progress;
 	bool sync_migration = false;
 	bool deferred_compaction = false;
+	bool contended_compaction = false;
 
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
@@ -2425,6 +2427,7 @@ rebalance:
 					nodemask,
 					alloc_flags, preferred_zone,
 					migratetype, sync_migration,
+					&contended_compaction,
 					&deferred_compaction,
 					&did_some_progress);
 	if (page)
@@ -2434,10 +2437,11 @@ rebalance:
 	/*
 	 * If compaction is deferred for high-order allocations, it is because
 	 * sync compaction recently failed. In this is the case and the caller
-	 * has requested the system not be heavily disrupted, fail the
-	 * allocation now instead of entering direct reclaim
+	 * requested a movable allocation that does not heavily disrupt the
+	 * system then fail the allocation instead of entering direct reclaim.
 	 */
-	if (deferred_compaction && (gfp_mask & __GFP_NO_KSWAPD))
+	if ((deferred_compaction || contended_compaction) &&
+						(gfp_mask & __GFP_NO_KSWAPD))
 		goto nopage;
 
 	/* Try direct reclaim and then allocating */
@@ -2508,6 +2512,7 @@ rebalance:
 					nodemask,
 					alloc_flags, preferred_zone,
 					migratetype, sync_migration,
+					&contended_compaction,
 					&deferred_compaction,
 					&did_some_progress);
 		if (page)
