@@ -4473,6 +4473,7 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	gpa_t gpa;
+	pfn_t pfn;
 
 	if (tdp_enabled)
 		return false;
@@ -4490,8 +4491,17 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
 	if (gpa == UNMAPPED_GVA)
 		return true; /* let cpu generate fault */
 
-	if (!kvm_is_error_hva(gfn_to_hva(vcpu->kvm, gpa >> PAGE_SHIFT)))
+	/*
+	 * Do not retry the unhandleable instruction if it faults on the
+	 * readonly host memory, otherwise it will goto a infinite loop:
+	 * retry instruction -> write #PF -> emulation fail -> retry
+	 * instruction -> ...
+	 */
+	pfn = gfn_to_pfn(vcpu->kvm, gpa_to_gfn(gpa));
+	if (!is_error_pfn(pfn)) {
+		kvm_release_pfn_clean(pfn);
 		return true;
+	}
 
 	return false;
 }
