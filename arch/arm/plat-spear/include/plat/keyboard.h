@@ -149,6 +149,7 @@ int _name[] = { \
  * keymap: pointer to keymap data (table and size)
  * rep: enables key autorepeat
  * mode: choose keyboard support(9x9, 6x6, 2x2)
+ * suspended_rate: rate at which keyboard would operate in suspended mode
  *
  * This structure is supposed to be used by platform code to supply
  * keymaps to drivers that implement keyboards.
@@ -157,6 +158,7 @@ struct kbd_platform_data {
 	const struct matrix_keymap_data *keymap;
 	bool rep;
 	unsigned int mode;
+	unsigned int suspended_rate;
 };
 
 #endif /* __PLAT_KEYBOARD_H */

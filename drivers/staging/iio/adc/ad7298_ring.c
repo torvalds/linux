@@ -13,37 +13,29 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7298.h"
 
 /**
- * ad7298_ring_preenable() setup the parameters of the ring before enabling
- *
- * The complex nature of the setting of the number of bytes per datum is due
- * to this driver currently ensuring that the timestamp is stored at an 8
- * byte boundary.
+ * ad7298_update_scan_mode() setup the spi transfer buffer for the new scan mask
  **/
-static int ad7298_ring_preenable(struct iio_dev *indio_dev)
+int ad7298_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *active_scan_mask)
 {
 	struct ad7298_state *st = iio_priv(indio_dev);
 	int i, m;
 	unsigned short command;
-	int scan_count, ret;
-
-	ret = iio_sw_buffer_preenable(indio_dev);
-	if (ret < 0)
-		return ret;
+	int scan_count;
 
 	/* Now compute overall size */
-	scan_count = bitmap_weight(indio_dev->active_scan_mask,
-				   indio_dev->masklength);
+	scan_count = bitmap_weight(active_scan_mask, indio_dev->masklength);
 
 	command = AD7298_WRITE | st->ext_ref;
 
 	for (i = 0, m = AD7298_CH(0); i < AD7298_MAX_CHAN; i++, m >>= 1)
-		if (test_bit(i, indio_dev->active_scan_mask))
+		if (test_bit(i, active_scan_mask))
 			command |= m;
 
 	st->tx_buf[0] = cpu_to_be16(command);
@@ -90,7 +82,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 
 	b_sent = spi_sync(st->spi, &st->ring_msg);
 	if (b_sent)
-		return b_sent;
+		goto done;
 
 	if (indio_dev->scan_timestamp) {
 		time_ns = iio_get_time_ns();
@@ -103,54 +95,20 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
 	indio_dev->buffer->access->store_to(ring, (u8 *)buf, time_ns);
+
+done:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
 
-static const struct iio_buffer_setup_ops ad7298_ring_setup_ops = {
-	.preenable = &ad7298_ring_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	int ret;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
-						 &ad7298_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "ad7298_consumer%d",
-						 indio_dev->id);
-
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_kfifo;
-	}
-
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad7298_ring_setup_ops;
-	indio_dev->buffer->scan_timestamp = true;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_kfifo:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, NULL,
+			&ad7298_trigger_handler, NULL);
 }
 
 void ad7298_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }

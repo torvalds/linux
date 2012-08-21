@@ -3,6 +3,7 @@
 #include "../evsel.h"
 #include "../sort.h"
 #include "../hist.h"
+#include "../helpline.h"
 #include "gtk.h"
 
 #include <signal.h>
@@ -166,7 +167,7 @@ static GtkWidget *perf_gtk__setup_statusbar(void)
 }
 
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
-				  const char *help __used,
+				  const char *help,
 				  void (*timer) (void *arg)__used,
 				  void *arg __used, int delay_secs __used)
 {
@@ -232,6 +233,8 @@ int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist,
 	perf_gtk__resize_window(window);
 
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+
+	ui_helpline__push(help);
 
 	gtk_main();
 

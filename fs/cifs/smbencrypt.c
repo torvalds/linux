@@ -78,7 +78,7 @@ smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
 	tfm_des = crypto_alloc_blkcipher("ecb(des)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm_des)) {
 		rc = PTR_ERR(tfm_des);
-		cERROR(1, "could not allocate des crypto API\n");
+		cERROR(1, "could not allocate des crypto API");
 		goto smbhash_err;
 	}
 
@@ -91,7 +91,7 @@ smbhash(unsigned char *out, const unsigned char *in, unsigned char *key)
 
 	rc = crypto_blkcipher_encrypt(&desc, &sgout, &sgin, 8);
 	if (rc)
-		cERROR(1, "could not encrypt crypt key rc: %d\n", rc);
+		cERROR(1, "could not encrypt crypt key rc: %d", rc);
 
 	crypto_free_blkcipher(tfm_des);
 smbhash_err:
@@ -139,14 +139,14 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 	md4 = crypto_alloc_shash("md4", 0, 0);
 	if (IS_ERR(md4)) {
 		rc = PTR_ERR(md4);
-		cERROR(1, "%s: Crypto md4 allocation error %d\n", __func__, rc);
+		cERROR(1, "%s: Crypto md4 allocation error %d", __func__, rc);
 		return rc;
 	}
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(md4);
 	sdescmd4 = kmalloc(size, GFP_KERNEL);
 	if (!sdescmd4) {
 		rc = -ENOMEM;
-		cERROR(1, "%s: Memory allocation failure\n", __func__);
+		cERROR(1, "%s: Memory allocation failure", __func__);
 		goto mdfour_err;
 	}
 	sdescmd4->shash.tfm = md4;
@@ -154,17 +154,17 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
 
 	rc = crypto_shash_init(&sdescmd4->shash);
 	if (rc) {
-		cERROR(1, "%s: Could not init md4 shash\n", __func__);
+		cERROR(1, "%s: Could not init md4 shash", __func__);
 		goto mdfour_err;
 	}
 	rc = crypto_shash_update(&sdescmd4->shash, link_str, link_len);
 	if (rc) {
-		cERROR(1, "%s: Could not update with link_str\n", __func__);
+		cERROR(1, "%s: Could not update with link_str", __func__);
 		goto mdfour_err;
 	}
 	rc = crypto_shash_final(&sdescmd4->shash, md4_hash);
 	if (rc)
-		cERROR(1, "%s: Could not genereate md4 hash\n", __func__);
+		cERROR(1, "%s: Could not genereate md4 hash", __func__);
 
 mdfour_err:
 	crypto_free_shash(md4);

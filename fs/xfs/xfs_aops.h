@@ -24,17 +24,17 @@ extern mempool_t *xfs_ioend_pool;
  * Types of I/O for bmap clustering and I/O completion tracking.
  */
 enum {
-	IO_DIRECT = 0,	/* special case for direct I/O ioends */
-	IO_DELALLOC,	/* mapping covers delalloc region */
-	IO_UNWRITTEN,	/* mapping covers allocated but uninitialized data */
-	IO_OVERWRITE,	/* mapping covers already allocated extent */
+	XFS_IO_DIRECT = 0,	/* special case for direct I/O ioends */
+	XFS_IO_DELALLOC,	/* covers delalloc region */
+	XFS_IO_UNWRITTEN,	/* covers allocated but uninitialized data */
+	XFS_IO_OVERWRITE,	/* covers already allocated extent */
 };
 
 #define XFS_IO_TYPES \
 	{ 0,			"" }, \
-	{ IO_DELALLOC,		"delalloc" }, \
-	{ IO_UNWRITTEN,		"unwritten" }, \
-	{ IO_OVERWRITE,		"overwrite" }
+	{ XFS_IO_DELALLOC,		"delalloc" }, \
+	{ XFS_IO_UNWRITTEN,		"unwritten" }, \
+	{ XFS_IO_OVERWRITE,		"overwrite" }
 
 /*
  * xfs_ioend struct manages large extent writes for XFS.

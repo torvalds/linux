@@ -18,6 +18,9 @@ struct omap_dsp_platform_data {
 	u32 (*dsp_cm_read)(s16 , u16);
 	u32 (*dsp_cm_rmw_bits)(u32, u32, s16, s16);
 
+	void (*set_bootaddr)(u32);
+	void (*set_bootmode)(u8);
+
 	phys_addr_t phys_mempool_base;
 	phys_addr_t phys_mempool_size;
 };

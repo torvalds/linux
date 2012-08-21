@@ -85,7 +85,7 @@ typedef struct _S_INTERFACE_ADAPTER
 	atomic_t		uNumRcbUsed;
 	atomic_t		uCurrRcb;
 
-	PMINI_ADAPTER	psAdapter;
+	struct bcm_mini_adapter *psAdapter;
 	BOOLEAN                 bFlashBoot;
 	BOOLEAN 		bHighSpeedDevice ;
 

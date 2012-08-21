@@ -294,7 +294,7 @@ static int test__open_syscall_event(void)
 		goto out_thread_map_delete;
 	}
 
-	if (perf_evsel__open_per_thread(evsel, threads, false, NULL) < 0) {
+	if (perf_evsel__open_per_thread(evsel, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 strerror(errno));
@@ -369,7 +369,7 @@ static int test__open_syscall_event_on_all_cpus(void)
 		goto out_thread_map_delete;
 	}
 
-	if (perf_evsel__open(evsel, cpus, threads, false, NULL) < 0) {
+	if (perf_evsel__open(evsel, cpus, threads) < 0) {
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 strerror(errno));
@@ -478,7 +478,6 @@ static int test__basic_mmap(void)
 	unsigned int nr_events[nsyscalls],
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
-	int sample_size = __perf_evsel__sample_size(attr.sample_type);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];
@@ -534,7 +533,7 @@ static int test__basic_mmap(void)
 
 		perf_evlist__add(evlist, evsels[i]);
 
-		if (perf_evsel__open(evsels[i], cpus, threads, false, NULL) < 0) {
+		if (perf_evsel__open(evsels[i], cpus, threads) < 0) {
 			pr_debug("failed to open counter: %s, "
 				 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 				 strerror(errno));
@@ -563,8 +562,7 @@ static int test__basic_mmap(void)
 			goto out_munmap;
 		}
 
-		err = perf_event__parse_sample(event, attr.sample_type, sample_size,
-					       false, &sample, false);
+		err = perf_evlist__parse_sample(evlist, event, &sample, false);
 		if (err) {
 			pr_err("Can't parse sample, err = %d\n", err);
 			goto out_munmap;
@@ -661,12 +659,12 @@ static int test__PERF_RECORD(void)
 	const char *cmd = "sleep";
 	const char *argv[] = { cmd, "1", NULL, };
 	char *bname;
-	u64 sample_type, prev_time = 0;
+	u64 prev_time = 0;
 	bool found_cmd_mmap = false,
 	     found_libc_mmap = false,
 	     found_vdso_mmap = false,
 	     found_ld_mmap = false;
-	int err = -1, errs = 0, i, wakeups = 0, sample_size;
+	int err = -1, errs = 0, i, wakeups = 0;
 	u32 cpu;
 	int total_events = 0, nr_events[PERF_RECORD_MAX] = { 0, };
 
@@ -712,7 +710,7 @@ static int test__PERF_RECORD(void)
 	/*
 	 * Config the evsels, setting attr->comm on the first one, etc.
 	 */
-	evsel = list_entry(evlist->entries.next, struct perf_evsel, node);
+	evsel = perf_evlist__first(evlist);
 	evsel->attr.sample_type |= PERF_SAMPLE_CPU;
 	evsel->attr.sample_type |= PERF_SAMPLE_TID;
 	evsel->attr.sample_type |= PERF_SAMPLE_TIME;
@@ -739,7 +737,7 @@ static int test__PERF_RECORD(void)
 	 * Call sys_perf_event_open on all the fds on all the evsels,
 	 * grouping them if asked to.
 	 */
-	err = perf_evlist__open(evlist, opts.group);
+	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n", strerror(errno));
 		goto out_delete_evlist;
@@ -755,13 +753,6 @@ static int test__PERF_RECORD(void)
 		pr_debug("perf_evlist__mmap: %s\n", strerror(errno));
 		goto out_delete_evlist;
 	}
-
-	/*
-	 * We'll need these two to parse the PERF_SAMPLE_* fields in each
-	 * event.
-	 */
-	sample_type = perf_evlist__sample_type(evlist);
-	sample_size = __perf_evsel__sample_size(sample_type);
 
 	/*
 	 * Now that all is properly set up, enable the events, they will
@@ -788,9 +779,7 @@ static int test__PERF_RECORD(void)
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				err = perf_event__parse_sample(event, sample_type,
-							       sample_size, true,
-							       &sample, false);
+				err = perf_evlist__parse_sample(evlist, event, &sample, false);
 				if (err < 0) {
 					if (verbose)
 						perf_event__fprintf(event, stderr);

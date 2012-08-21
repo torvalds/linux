@@ -2962,7 +2962,7 @@ static int dfx_rcv_init(DFX_board_t *bp, int get_buffers)
 			bp->descr_block_virt->rcv_data[i+j].long_0 = (u32) (PI_RCV_DESCR_M_SOP |
 				((PI_RCV_DATA_K_SIZE_MAX / PI_ALIGN_K_RCV_DATA_BUFF) << PI_RCV_DESCR_V_SEG_LEN));
 			bp->descr_block_virt->rcv_data[i+j].long_1 = (u32) (bp->rcv_block_phys + (i * PI_RCV_DATA_K_SIZE_MAX));
-			bp->p_rcv_buff_va[i+j] = (char *) (bp->rcv_block_virt + (i * PI_RCV_DATA_K_SIZE_MAX));
+			bp->p_rcv_buff_va[i+j] = (bp->rcv_block_virt + (i * PI_RCV_DATA_K_SIZE_MAX));
 			}
 #endif
 	}
@@ -3030,7 +3030,7 @@ static void dfx_rcv_queue_process(
 #ifdef DYNAMIC_BUFFERS
 		p_buff = (char *) (((struct sk_buff *)bp->p_rcv_buff_va[entry])->data);
 #else
-		p_buff = (char *) bp->p_rcv_buff_va[entry];
+		p_buff = bp->p_rcv_buff_va[entry];
 #endif
 		memcpy(&descr, p_buff + RCV_BUFF_K_DESCR, sizeof(u32));
 

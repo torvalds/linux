@@ -118,7 +118,8 @@
 #ifdef __bfin__
 static inline void lms_adapt_bg(struct oslec_state *ec, int clean, int shift)
 {
-	int i, j;
+	int i;
+	int j;
 	int offset1;
 	int offset2;
 	int factor;
@@ -335,7 +336,8 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 {
 	int32_t echo_value;
 	int clean_bg;
-	int tmp, tmp1;
+	int tmp;
+	int tmp1;
 
 	/*
 	 * Input scaling was found be required to prevent problems when tx
@@ -624,7 +626,8 @@ EXPORT_SYMBOL_GPL(oslec_update);
 
 int16_t oslec_hpf_tx(struct oslec_state *ec, int16_t tx)
 {
-	int tmp, tmp1;
+	int tmp;
+	int tmp1;
 
 	if (ec->adaption_mode & ECHO_CAN_USE_TX_HPF) {
 		tmp = tx << 15;

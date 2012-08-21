@@ -50,7 +50,7 @@ ACPI_MODULE_NAME("hwxfsleep")
 
 /* Local prototypes */
 static acpi_status
-acpi_hw_sleep_dispatch(u8 sleep_state, u8 flags, u32 function_id);
+acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id);
 
 /*
  * Dispatch table used to efficiently branch to the various sleep
@@ -205,7 +205,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 	ACPI_FLUSH_CPU_CACHE();
 
 	status = acpi_hw_write_port(acpi_gbl_FADT.smi_command,
-				    (u32)acpi_gbl_FADT.S4bios_request, 8);
+				    (u32)acpi_gbl_FADT.s4_bios_request, 8);
 
 	do {
 		acpi_os_stall(1000);
@@ -235,7 +235,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios)
  *
  ******************************************************************************/
 static acpi_status
-acpi_hw_sleep_dispatch(u8 sleep_state, u8 flags, u32 function_id)
+acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id)
 {
 	acpi_status status;
 	struct acpi_sleep_functions *sleep_functions =
@@ -248,11 +248,11 @@ acpi_hw_sleep_dispatch(u8 sleep_state, u8 flags, u32 function_id)
 	 * use the extended sleep registers
 	 */
 	if (acpi_gbl_reduced_hardware || acpi_gbl_FADT.sleep_control.address) {
-		status = sleep_functions->extended_function(sleep_state, flags);
+		status = sleep_functions->extended_function(sleep_state);
 	} else {
 		/* Legacy sleep */
 
-		status = sleep_functions->legacy_function(sleep_state, flags);
+		status = sleep_functions->legacy_function(sleep_state);
 	}
 
 	return (status);
@@ -262,7 +262,7 @@ acpi_hw_sleep_dispatch(u8 sleep_state, u8 flags, u32 function_id)
 	 * For the case where reduced-hardware-only code is being generated,
 	 * we know that only the extended sleep registers are available
 	 */
-	status = sleep_functions->extended_function(sleep_state, flags);
+	status = sleep_functions->extended_function(sleep_state);
 	return (status);
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
@@ -349,7 +349,6 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
  * FUNCTION:    acpi_enter_sleep_state
  *
  * PARAMETERS:  sleep_state         - Which sleep state to enter
- *              Flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -357,7 +356,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
-acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state, u8 flags)
+acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 {
 	acpi_status status;
 
@@ -371,7 +370,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state, u8 flags)
 	}
 
 	status =
-	    acpi_hw_sleep_dispatch(sleep_state, flags, ACPI_SLEEP_FUNCTION_ID);
+	    acpi_hw_sleep_dispatch(sleep_state, ACPI_SLEEP_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 
@@ -382,7 +381,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  * FUNCTION:    acpi_leave_sleep_state_prep
  *
  * PARAMETERS:  sleep_state         - Which sleep state we are exiting
- *              Flags               - ACPI_EXECUTE_BFS to run optional method
+ *              flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -391,14 +390,14 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  *              Called with interrupts DISABLED.
  *
  ******************************************************************************/
-acpi_status acpi_leave_sleep_state_prep(u8 sleep_state, u8 flags)
+acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
 {
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state_prep);
 
 	status =
-	    acpi_hw_sleep_dispatch(sleep_state, flags,
+	    acpi_hw_sleep_dispatch(sleep_state,
 				   ACPI_WAKE_PREP_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
@@ -423,8 +422,7 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state);
 
-
-	status = acpi_hw_sleep_dispatch(sleep_state, 0, ACPI_WAKE_FUNCTION_ID);
+	status = acpi_hw_sleep_dispatch(sleep_state, ACPI_WAKE_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 

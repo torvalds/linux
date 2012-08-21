@@ -30,12 +30,12 @@
  *
  * SAP and connection resource manager, one per adapter.
  *
- * @state - state of station
- * @xid_r_count - XID response PDU counter
- * @mac_sa - MAC source address
- * @sap_list - list of related SAPs
- * @ev_q - events entering state mach.
- * @mac_pdu_q - PDUs ready to send to MAC
+ * @state: state of station
+ * @xid_r_count: XID response PDU counter
+ * @mac_sa: MAC source address
+ * @sap_list: list of related SAPs
+ * @ev_q: events entering state mach.
+ * @mac_pdu_q: PDUs ready to send to MAC
  */
 struct llc_station {
 	u8			    state;
@@ -646,7 +646,7 @@ static void llc_station_service_events(void)
 }
 
 /**
- *	llc_station_state_process: queue event and try to process queue.
+ *	llc_station_state_process - queue event and try to process queue.
  *	@skb: Address of the event
  *
  *	Queues an event (on the station event queue) for handling by the
@@ -672,7 +672,7 @@ static void llc_station_ack_tmr_cb(unsigned long timeout_data)
 	}
 }
 
-/*
+/**
  *	llc_station_rcv - send received pdu to the station state machine
  *	@skb: received frame.
  *

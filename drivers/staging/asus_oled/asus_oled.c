@@ -782,20 +782,20 @@ static int __init asus_oled_init(void)
 	oled_class = class_create(THIS_MODULE, ASUS_OLED_UNDERSCORE_NAME);
 
 	if (IS_ERR(oled_class)) {
-		printk(KERN_ERR "Error creating " ASUS_OLED_UNDERSCORE_NAME " class\n");
+		pr_err("Error creating " ASUS_OLED_UNDERSCORE_NAME " class\n");
 		return PTR_ERR(oled_class);
 	}
 
 	retval = class_create_file(oled_class, &class_attr_version.attr);
 	if (retval) {
-		printk(KERN_ERR "Error creating class version file\n");
+		pr_err("Error creating class version file\n");
 		goto error;
 	}
 
 	retval = usb_register(&oled_driver);
 
 	if (retval) {
-		printk(KERN_ERR "usb_register failed. Error number %d\n", retval);
+		pr_err("usb_register failed. Error number %d\n", retval);
 		goto error;
 	}
 

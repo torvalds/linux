@@ -251,7 +251,4 @@
 #define PCI_DEVICE_ID_INTEL_HASWELL_SDV		0x0c16 /* SDV */
 #define PCI_DEVICE_ID_INTEL_HASWELL_E_HB			0x0c04
 
-int intel_gmch_probe(struct pci_dev *pdev,
-			       struct agp_bridge_data *bridge);
-void intel_gmch_remove(struct pci_dev *pdev);
 #endif

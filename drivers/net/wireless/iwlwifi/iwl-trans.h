@@ -154,6 +154,9 @@ struct iwl_cmd_header {
 	__le16 sequence;
 } __packed;
 
+/* iwl_cmd_header flags value */
+#define IWL_CMD_FAILED_MSK 0x40
+
 
 #define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
 #define FH_RSCSR_FRAME_INVALID		0x55550000
@@ -280,21 +283,24 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 
 #define MAX_NO_RECLAIM_CMDS	6
 
+#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
+
 /*
  * Maximum number of HW queues the transport layer
  * currently supports
  */
 #define IWL_MAX_HW_QUEUES		32
+#define IWL_INVALID_STATION	255
+#define IWL_MAX_TID_COUNT	8
+#define IWL_FRAME_LIMIT	64
 
 /**
  * struct iwl_trans_config - transport configuration
  *
  * @op_mode: pointer to the upper layer.
- * @queue_to_fifo: queue to FIFO mapping to set up by
- *	default
- * @n_queue_to_fifo: number of queues to set up
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
+ * @cmd_fifo: the fifo for host commands
  * @no_reclaim_cmds: Some devices erroneously don't set the
  *	SEQ_RX_FRAME bit on some notifications, this is the
  *	list of such notifications to filter. Max length is
@@ -309,10 +315,9 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
-	const u8 *queue_to_fifo;
-	u8 n_queue_to_fifo;
 
 	u8 cmd_queue;
+	u8 cmd_fifo;
 	const u8 *no_reclaim_cmds;
 	int n_no_reclaim_cmds;
 
@@ -350,10 +355,10 @@ struct iwl_trans;
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  *	Must be atomic
- * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
- *	ready and a successful ADDBA response has been received.
- *	May sleep
- * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
+ * @txq_enable: setup a queue. To setup an AC queue, use the
+ *	iwl_trans_ac_txq_enable wrapper. fw_alive must have been called before
+ *	this one. The op_mode must not configure the HCMD queue. May sleep.
+ * @txq_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
  * @wait_tx_queue_empty: wait until all tx queues are empty
  *	May sleep
@@ -386,9 +391,9 @@ struct iwl_trans_ops {
 	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
 			struct sk_buff_head *skbs);
 
-	void (*tx_agg_setup)(struct iwl_trans *trans, int queue, int fifo,
-			     int sta_id, int tid, int frame_limit, u16 ssn);
-	void (*tx_agg_disable)(struct iwl_trans *trans, int queue);
+	void (*txq_enable)(struct iwl_trans *trans, int queue, int fifo,
+			   int sta_id, int tid, int frame_limit, u16 ssn);
+	void (*txq_disable)(struct iwl_trans *trans, int queue);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
@@ -428,6 +433,11 @@ enum iwl_trans_state {
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @pm_support: set to true in start_hw if link pm is supported
  * @wait_command_queue: the wait_queue for SYNC host commands
+ * @dev_cmd_pool: pool for Tx cmd allocation - for internal use only.
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
+ * @dev_cmd_headroom: room needed for the transport's private use before the
+ *	device_cmd for Tx - for internal use only
+ *	The user should use iwl_trans_{alloc,free}_tx_cmd.
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -444,6 +454,11 @@ struct iwl_trans {
 	bool pm_support;
 
 	wait_queue_head_t wait_command_queue;
+
+	/* The following fields are internal only */
+	struct kmem_cache *dev_cmd_pool;
+	size_t dev_cmd_headroom;
+	char dev_cmd_pool_name[50];
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -483,9 +498,9 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 {
 	might_sleep();
 
-	trans->ops->fw_alive(trans);
-
 	trans->state = IWL_TRANS_FW_ALIVE;
+
+	trans->ops->fw_alive(trans);
 }
 
 static inline int iwl_trans_start_fw(struct iwl_trans *trans,
@@ -520,6 +535,26 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 	return trans->ops->send_cmd(trans, cmd);
 }
 
+static inline struct iwl_device_cmd *
+iwl_trans_alloc_tx_cmd(struct iwl_trans *trans)
+{
+	u8 *dev_cmd_ptr = kmem_cache_alloc(trans->dev_cmd_pool, GFP_ATOMIC);
+
+	if (unlikely(dev_cmd_ptr == NULL))
+		return NULL;
+
+	return (struct iwl_device_cmd *)
+			(dev_cmd_ptr + trans->dev_cmd_headroom);
+}
+
+static inline void iwl_trans_free_tx_cmd(struct iwl_trans *trans,
+					 struct iwl_device_cmd *dev_cmd)
+{
+	u8 *dev_cmd_ptr = (u8 *)dev_cmd - trans->dev_cmd_headroom;
+
+	kmem_cache_free(trans->dev_cmd_pool, dev_cmd_ptr);
+}
+
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			       struct iwl_device_cmd *dev_cmd, int queue)
 {
@@ -538,25 +573,32 @@ static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
 	trans->ops->reclaim(trans, queue, ssn, skbs);
 }
 
-static inline void iwl_trans_tx_agg_disable(struct iwl_trans *trans, int queue)
+static inline void iwl_trans_txq_disable(struct iwl_trans *trans, int queue)
 {
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	trans->ops->tx_agg_disable(trans, queue);
+	trans->ops->txq_disable(trans, queue);
 }
 
-static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans, int queue,
-					  int fifo, int sta_id, int tid,
-					  int frame_limit, u16 ssn)
+static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
+					int fifo, int sta_id, int tid,
+					int frame_limit, u16 ssn)
 {
 	might_sleep();
 
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	trans->ops->tx_agg_setup(trans, queue, fifo, sta_id, tid,
+	trans->ops->txq_enable(trans, queue, fifo, sta_id, tid,
 				 frame_limit, ssn);
+}
+
+static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
+					   int fifo)
+{
+	iwl_trans_txq_enable(trans, queue, fifo, IWL_INVALID_STATION,
+			     IWL_MAX_TID_COUNT, IWL_FRAME_LIMIT, 0);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)

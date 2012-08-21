@@ -282,7 +282,7 @@ struct bfin_uart_regs {
 #define UART_GET_GCTL(p)      UART_GET_CTL(p)
 #define UART_GET_LCR(p)       UART_GET_CTL(p)
 #define UART_GET_MCR(p)       UART_GET_CTL(p)
-#if ANOMALY_05001001
+#if ANOMALY_16000030
 #define UART_GET_STAT(p) \
 ({ \
 	u32 __ret; \

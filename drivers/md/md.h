@@ -266,9 +266,6 @@ struct mddev {
 	int				new_chunk_sectors;
 	int				reshape_backwards;
 
-	atomic_t			plug_cnt;	/* If device is expecting
-							 * more bios soon.
-							 */
 	struct md_thread		*thread;	/* management thread */
 	struct md_thread		*sync_thread;	/* doing resync or reconstruct */
 	sector_t			curr_resync;	/* last block scheduled */
@@ -630,6 +627,12 @@ extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
 				   struct mddev *mddev);
 extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
 				   struct mddev *mddev);
-extern int mddev_check_plugged(struct mddev *mddev);
 extern void md_trim_bio(struct bio *bio, int offset, int size);
+
+extern void md_unplug(struct blk_plug_cb *cb, bool from_schedule);
+static inline int mddev_check_plugged(struct mddev *mddev)
+{
+	return !!blk_check_plugged(md_unplug, mddev,
+				   sizeof(struct blk_plug_cb));
+}
 #endif /* _MD_MD_H */

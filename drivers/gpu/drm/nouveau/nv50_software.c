@@ -36,9 +36,6 @@ struct nv50_software_priv {
 
 struct nv50_software_chan {
 	struct nouveau_software_chan base;
-	struct {
-		struct nouveau_gpuobj *object;
-	} vblank;
 };
 
 static int
@@ -51,11 +48,7 @@ mthd_dma_vblsem(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 	if (!gpuobj)
 		return -ENOENT;
 
-	if (nouveau_notifier_offset(gpuobj, NULL))
-		return -EINVAL;
-
-	pch->vblank.object = gpuobj;
-	pch->base.vblank.offset = ~0;
+	pch->base.vblank.ctxdma = gpuobj->cinst >> 4;
 	return 0;
 }
 
@@ -63,11 +56,7 @@ static int
 mthd_vblsem_offset(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 {
 	struct nv50_software_chan *pch = chan->engctx[NVOBJ_ENGINE_SW];
-
-	if (nouveau_notifier_offset(pch->vblank.object, &data))
-		return -ERANGE;
-
-	pch->base.vblank.offset = data >> 2;
+	pch->base.vblank.offset = data;
 	return 0;
 }
 
@@ -86,7 +75,7 @@ mthd_vblsem_release(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 	struct nv50_software_chan *pch = chan->engctx[NVOBJ_ENGINE_SW];
 	struct drm_device *dev = chan->dev;
 
-	if (!pch->vblank.object || pch->base.vblank.offset == ~0 || data > 1)
+	if (data > 1)
 		return -EINVAL;
 
 	drm_vblank_get(dev, data);
@@ -116,7 +105,7 @@ nv50_software_context_new(struct nouveau_channel *chan, int engine)
 		return -ENOMEM;
 
 	nouveau_software_context_new(&pch->base);
-	pch->base.vblank.bo = chan->notifier_bo;
+	pch->base.vblank.channel = chan->ramin->vinst >> 12;
 	chan->engctx[engine] = pch;
 
 	/* dma objects for display sync channel semaphore blocks */

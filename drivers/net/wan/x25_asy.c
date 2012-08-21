@@ -231,7 +231,7 @@ static void x25_asy_encaps(struct x25_asy *sl, unsigned char *icp, int len)
 	}
 
 	p = icp;
-	count = x25_asy_esc(p, (unsigned char *) sl->xbuff, len);
+	count = x25_asy_esc(p, sl->xbuff, len);
 
 	/* Order of next two lines is *very* important.
 	 * When we are sending a little amount of data,

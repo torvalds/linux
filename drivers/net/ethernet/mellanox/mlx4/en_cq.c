@@ -77,6 +77,12 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
 	char name[25];
+	struct cpu_rmap *rmap =
+#ifdef CONFIG_RFS_ACCEL
+		priv->dev->rx_cpu_rmap;
+#else
+		NULL;
+#endif
 
 	cq->dev = mdev->pndev[priv->port];
 	cq->mcq.set_ci_db  = cq->wqres.db.db;
@@ -91,7 +97,8 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 				sprintf(name, "%s-%d", priv->dev->name,
 					cq->ring);
 				/* Set IRQ for specific name (per ring) */
-				if (mlx4_assign_eq(mdev->dev, name, &cq->vector)) {
+				if (mlx4_assign_eq(mdev->dev, name, rmap,
+						   &cq->vector)) {
 					cq->vector = (cq->ring + 1 + priv->port)
 					    % mdev->dev->caps.num_comp_vectors;
 					mlx4_warn(mdev, "Failed Assigning an EQ to "

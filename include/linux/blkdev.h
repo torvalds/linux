@@ -46,16 +46,23 @@ struct blkcg_gq;
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
 
+#define BLK_RL_SYNCFULL		(1U << 0)
+#define BLK_RL_ASYNCFULL	(1U << 1)
+
 struct request_list {
+	struct request_queue	*q;	/* the queue this rl belongs to */
+#ifdef CONFIG_BLK_CGROUP
+	struct blkcg_gq		*blkg;	/* blkg this request pool belongs to */
+#endif
 	/*
 	 * count[], starved[], and wait[] are indexed by
 	 * BLK_RW_SYNC/BLK_RW_ASYNC
 	 */
-	int count[2];
-	int starved[2];
-	int elvpriv;
-	mempool_t *rq_pool;
-	wait_queue_head_t wait[2];
+	int			count[2];
+	int			starved[2];
+	mempool_t		*rq_pool;
+	wait_queue_head_t	wait[2];
+	unsigned int		flags;
 };
 
 /*
@@ -138,6 +145,7 @@ struct request {
 	struct hd_struct *part;
 	unsigned long start_time;
 #ifdef CONFIG_BLK_CGROUP
+	struct request_list *rl;		/* rl this rq is alloced from */
 	unsigned long long start_time_ns;
 	unsigned long long io_start_time_ns;    /* when passed to hardware */
 #endif
@@ -282,11 +290,16 @@ struct request_queue {
 	struct list_head	queue_head;
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
+	int			nr_rqs[2];	/* # allocated [a]sync rqs */
+	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
 
 	/*
-	 * the queue request freelist, one for reads and one for writes
+	 * If blkcg is not used, @q->root_rl serves all requests.  If blkcg
+	 * is used, root blkg allocates from @q->root_rl and all other
+	 * blkgs from their own blkg->rl.  Which one to use should be
+	 * determined using bio_request_list().
 	 */
-	struct request_list	rq;
+	struct request_list	root_rl;
 
 	request_fn_proc		*request_fn;
 	make_request_fn		*make_request_fn;
@@ -561,27 +574,25 @@ static inline bool rq_is_sync(struct request *rq)
 	return rw_is_sync(rq->cmd_flags);
 }
 
-static inline int blk_queue_full(struct request_queue *q, int sync)
+static inline bool blk_rl_full(struct request_list *rl, bool sync)
 {
-	if (sync)
-		return test_bit(QUEUE_FLAG_SYNCFULL, &q->queue_flags);
-	return test_bit(QUEUE_FLAG_ASYNCFULL, &q->queue_flags);
+	unsigned int flag = sync ? BLK_RL_SYNCFULL : BLK_RL_ASYNCFULL;
+
+	return rl->flags & flag;
 }
 
-static inline void blk_set_queue_full(struct request_queue *q, int sync)
+static inline void blk_set_rl_full(struct request_list *rl, bool sync)
 {
-	if (sync)
-		queue_flag_set(QUEUE_FLAG_SYNCFULL, q);
-	else
-		queue_flag_set(QUEUE_FLAG_ASYNCFULL, q);
+	unsigned int flag = sync ? BLK_RL_SYNCFULL : BLK_RL_ASYNCFULL;
+
+	rl->flags |= flag;
 }
 
-static inline void blk_clear_queue_full(struct request_queue *q, int sync)
+static inline void blk_clear_rl_full(struct request_list *rl, bool sync)
 {
-	if (sync)
-		queue_flag_clear(QUEUE_FLAG_SYNCFULL, q);
-	else
-		queue_flag_clear(QUEUE_FLAG_ASYNCFULL, q);
+	unsigned int flag = sync ? BLK_RL_SYNCFULL : BLK_RL_ASYNCFULL;
+
+	rl->flags &= ~flag;
 }
 
 
@@ -911,11 +922,15 @@ struct blk_plug {
 };
 #define BLK_MAX_REQUEST_COUNT 16
 
+struct blk_plug_cb;
+typedef void (*blk_plug_cb_fn)(struct blk_plug_cb *, bool);
 struct blk_plug_cb {
 	struct list_head list;
-	void (*callback)(struct blk_plug_cb *);
+	blk_plug_cb_fn callback;
+	void *data;
 };
-
+extern struct blk_plug_cb *blk_check_plugged(blk_plug_cb_fn unplug,
+					     void *data, int size);
 extern void blk_start_plug(struct blk_plug *);
 extern void blk_finish_plug(struct blk_plug *);
 extern void blk_flush_plug_list(struct blk_plug *, bool);

@@ -158,6 +158,9 @@ static struct fc_fcp_pkt *fc_fcp_pkt_alloc(struct fc_lport *lport, gfp_t gfp)
 		fsp->timer.data = (unsigned long)fsp;
 		INIT_LIST_HEAD(&fsp->list);
 		spin_lock_init(&fsp->scsi_pkt_lock);
+	} else {
+		per_cpu_ptr(lport->stats, get_cpu())->FcpPktAllocFails++;
+		put_cpu();
 	}
 	return fsp;
 }
@@ -263,6 +266,9 @@ static int fc_fcp_send_abort(struct fc_fcp_pkt *fsp)
 {
 	if (!fsp->seq_ptr)
 		return -EINVAL;
+
+	per_cpu_ptr(fsp->lp->stats, get_cpu())->FcpPktAborts++;
+	put_cpu();
 
 	fsp->state |= FC_SRB_ABORT_PENDING;
 	return fsp->lp->tt.seq_exch_abort(fsp->seq_ptr, 0);
@@ -420,6 +426,8 @@ static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
 	if (likely(fp))
 		return fp;
 
+	per_cpu_ptr(lport->stats, get_cpu())->FcpFrameAllocFails++;
+	put_cpu();
 	/* error case */
 	fc_fcp_can_queue_ramp_down(lport);
 	return NULL;
@@ -434,7 +442,7 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 {
 	struct scsi_cmnd *sc = fsp->cmd;
 	struct fc_lport *lport = fsp->lp;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 	struct fc_frame_header *fh;
 	size_t start_offset;
 	size_t offset;
@@ -496,7 +504,7 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 
 		if (~crc != le32_to_cpu(fr_crc(fp))) {
 crc_err:
-			stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+			stats = per_cpu_ptr(lport->stats, get_cpu());
 			stats->ErrorFrames++;
 			/* per cpu count, not total count, but OK for limit */
 			if (stats->InvalidCRCCount++ < FC_MAX_ERROR_CNT)
@@ -1372,10 +1380,10 @@ static void fc_fcp_timeout(unsigned long data)
 
 	fsp->state |= FC_SRB_FCP_PROCESSING_TMO;
 
-	if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
-		fc_fcp_rec(fsp);
-	else if (fsp->state & FC_SRB_RCV_STATUS)
+	if (fsp->state & FC_SRB_RCV_STATUS)
 		fc_fcp_complete_locked(fsp);
+	else if (rpriv->flags & FC_RP_FLAGS_REC_SUPPORTED)
+		fc_fcp_rec(fsp);
 	else
 		fc_fcp_recovery(fsp, FC_TIMED_OUT);
 	fsp->state &= ~FC_SRB_FCP_PROCESSING_TMO;
@@ -1786,7 +1794,7 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 	struct fc_rport_libfc_priv *rpriv;
 	int rval;
 	int rc = 0;
-	struct fcoe_dev_stats *stats;
+	struct fc_stats *stats;
 
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
@@ -1835,7 +1843,7 @@ int fc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *sc_cmd)
 	/*
 	 * setup the data direction
 	 */
-	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
+	stats = per_cpu_ptr(lport->stats, get_cpu());
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		fsp->req_flags = FC_SRB_READ;
 		stats->InputRequests++;

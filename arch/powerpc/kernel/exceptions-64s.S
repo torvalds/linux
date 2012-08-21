@@ -239,6 +239,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	 * out of line to handle them
 	 */
 	. = 0xe00
+hv_exception_trampoline:
 	b	h_data_storage_hv
 	. = 0xe20
 	b	h_instr_storage_hv
@@ -851,7 +852,7 @@ BEGIN_FTR_SECTION
 	bne-	do_ste_alloc		/* If so handle it */
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 
-	clrrdi	r11,r1,THREAD_SHIFT
+	CURRENT_THREAD_INFO(r11, r1)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
 	bne	77f			/* then don't call hash_page now */

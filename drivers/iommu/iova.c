@@ -198,10 +198,10 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova)
 
 /**
  * alloc_iova - allocates an iova
- * @iovad - iova domain in question
- * @size - size of page frames to allocate
- * @limit_pfn - max limit address
- * @size_aligned - set if size_aligned address range is required
+ * @iovad: - iova domain in question
+ * @size: - size of page frames to allocate
+ * @limit_pfn: - max limit address
+ * @size_aligned: - set if size_aligned address range is required
  * This function allocates an iova in the range limit_pfn to IOVA_START_PFN
  * looking from limit_pfn instead from IOVA_START_PFN. If the size_aligned
  * flag is set then the allocated address iova->pfn_lo will be naturally
@@ -238,8 +238,8 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 
 /**
  * find_iova - find's an iova for a given pfn
- * @iovad - iova domain in question.
- * pfn - page frame number
+ * @iovad: - iova domain in question.
+ * @pfn: - page frame number
  * This function finds and returns an iova belonging to the
  * given doamin which matches the given pfn.
  */
@@ -260,7 +260,7 @@ struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn)
 			/* We are not holding the lock while this iova
 			 * is referenced by the caller as the same thread
 			 * which called this function also calls __free_iova()
-			 * and it is by desing that only one thread can possibly
+			 * and it is by design that only one thread can possibly
 			 * reference a particular iova and hence no conflict.
 			 */
 			return iova;

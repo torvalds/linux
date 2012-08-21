@@ -15,24 +15,43 @@ DESCRIPTION
 This command displays the symbolic event types which can be selected in the
 various perf commands with the -e option.
 
+[[EVENT_MODIFIERS]]
 EVENT MODIFIERS
 ---------------
 
 Events can optionally have a modifer by appending a colon and one or
-more modifiers.  Modifiers allow the user to restrict when events are
-counted with 'u' for user-space, 'k' for kernel, 'h' for hypervisor.
-Additional modifiers are 'G' for guest counting (in KVM guests) and 'H'
-for host counting (not in KVM guests).
+more modifiers. Modifiers allow the user to restrict the events to be
+counted. The following modifiers exist:
+
+ u - user-space counting
+ k - kernel counting
+ h - hypervisor counting
+ G - guest counting (in KVM guests)
+ H - host counting (not in KVM guests)
+ p - precise level
 
 The 'p' modifier can be used for specifying how precise the instruction
-address should be. The 'p' modifier is currently only implemented for
-Intel PEBS and can be specified multiple times:
-  0 - SAMPLE_IP can have arbitrary skid
-  1 - SAMPLE_IP must have constant skid
-  2 - SAMPLE_IP requested to have 0 skid
-  3 - SAMPLE_IP must have 0 skid
+address should be. The 'p' modifier can be specified multiple times:
 
-The PEBS implementation now supports up to 2.
+ 0 - SAMPLE_IP can have arbitrary skid
+ 1 - SAMPLE_IP must have constant skid
+ 2 - SAMPLE_IP requested to have 0 skid
+ 3 - SAMPLE_IP must have 0 skid
+
+For Intel systems precise event sampling is implemented with PEBS
+which supports up to precise-level 2.
+
+On AMD systems it is implemented using IBS (up to precise-level 2).
+The precise modifier works with event types 0x76 (cpu-cycles, CPU
+clocks not halted) and 0xC1 (micro-ops retired). Both events map to
+IBS execution sampling (IBS op) with the IBS Op Counter Control bit
+(IbsOpCntCtl) set respectively (see AMD64 Architecture Programmer’s
+Manual Volume 2: System Programming, 13.3 Instruction-Based
+Sampling). Examples to use IBS:
+
+ perf record -a -e cpu-cycles:p ...    # use ibs op counting cycles
+ perf record -a -e r076:p ...          # same as -e cpu-cycles:p
+ perf record -a -e r0C1:p ...          # use ibs op counting micro-ops
 
 RAW HARDWARE EVENT DESCRIPTOR
 -----------------------------
@@ -43,6 +62,11 @@ For instance For x86 CPUs NNN represents the raw register encoding with the
 layout of IA32_PERFEVTSELx MSRs (see [Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide] Figure 30-1 Layout
 of IA32_PERFEVTSELx MSRs) or AMD's PerfEvtSeln (see [AMD64 Architecture Programmer’s Manual Volume 2: System Programming], Page 344,
 Figure 13-7 Performance Event-Select Register (PerfEvtSeln)).
+
+Note: Only the following bit fields can be set in x86 counter
+registers: event, umask, edge, inv, cmask. Esp. guest/host only and
+OS/user mode flags must be setup using <<EVENT_MODIFIERS, EVENT
+MODIFIERS>>.
 
 Example:
 
@@ -91,4 +115,4 @@ SEE ALSO
 linkperf:perf-stat[1], linkperf:perf-top[1],
 linkperf:perf-record[1],
 http://www.intel.com/Assets/PDF/manual/253669.pdf[Intel® 64 and IA-32 Architectures Software Developer's Manual Volume 3B: System Programming Guide],
-http://support.amd.com/us/Processor_TechDocs/24593.pdf[AMD64 Architecture Programmer’s Manual Volume 2: System Programming]
+http://support.amd.com/us/Processor_TechDocs/24593_APM_v2.pdf[AMD64 Architecture Programmer’s Manual Volume 2: System Programming]

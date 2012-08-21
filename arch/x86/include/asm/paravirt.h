@@ -360,9 +360,10 @@ static inline void __flush_tlb_single(unsigned long addr)
 
 static inline void flush_tlb_others(const struct cpumask *cpumask,
 				    struct mm_struct *mm,
-				    unsigned long va)
+				    unsigned long start,
+				    unsigned long end)
 {
-	PVOP_VCALL3(pv_mmu_ops.flush_tlb_others, cpumask, mm, va);
+	PVOP_VCALL4(pv_mmu_ops.flush_tlb_others, cpumask, mm, start, end);
 }
 
 static inline int paravirt_pgd_alloc(struct mm_struct *mm)

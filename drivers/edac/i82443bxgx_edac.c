@@ -124,7 +124,7 @@ static void i82443bxgx_edacmc_get_error_info(struct mem_ctl_info *mci,
 				*info)
 {
 	struct pci_dev *pdev;
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 	pci_read_config_dword(pdev, I82443BXGX_EAP, &info->eap);
 	if (info->eap & I82443BXGX_EAP_OFFSET_SBE)
 		/* Clear error to allow next error to be reported [p.61] */
@@ -156,19 +156,19 @@ static int i82443bxgx_edacmc_process_error_info(struct mem_ctl_info *mci,
 	if (info->eap & I82443BXGX_EAP_OFFSET_SBE) {
 		error_found = 1;
 		if (handle_errors)
-			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
 					     page, pageoffset, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
-					     0, -1, mci->ctl_name, "", NULL);
+					     0, -1, mci->ctl_name, "");
 	}
 
 	if (info->eap & I82443BXGX_EAP_OFFSET_MBE) {
 		error_found = 1;
 		if (handle_errors)
-			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
 					     page, pageoffset, 0,
 					     edac_mc_find_csrow_by_page(mci, page),
-					     0, -1, mci->ctl_name, "", NULL);
+					     0, -1, mci->ctl_name, "");
 	}
 
 	return error_found;
@@ -178,7 +178,7 @@ static void i82443bxgx_edacmc_check(struct mem_ctl_info *mci)
 {
 	struct i82443bxgx_edacmc_error_info info;
 
-	debugf1("MC%d: %s: %s()\n", mci->mc_idx, __FILE__, __func__);
+	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i82443bxgx_edacmc_get_error_info(mci, &info);
 	i82443bxgx_edacmc_process_error_info(mci, &info, 1);
 }
@@ -197,18 +197,17 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 	pci_read_config_byte(pdev, I82443BXGX_DRAMC, &dramc);
 	row_high_limit_last = 0;
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
-		dimm = csrow->channels[0].dimm;
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		pci_read_config_byte(pdev, I82443BXGX_DRB + index, &drbar);
-		debugf1("MC%d: %s: %s() Row=%d DRB = %#0x\n",
-			mci->mc_idx, __FILE__, __func__, index, drbar);
+		edac_dbg(1, "MC%d: Row=%d DRB = %#0x\n",
+			 mci->mc_idx, index, drbar);
 		row_high_limit = ((u32) drbar << 23);
 		/* find the DRAM Chip Select Base address and mask */
-		debugf1("MC%d: %s: %s() Row=%d, "
-			"Boundary Address=%#0x, Last = %#0x\n",
-			mci->mc_idx, __FILE__, __func__, index, row_high_limit,
-			row_high_limit_last);
+		edac_dbg(1, "MC%d: Row=%d, Boundary Address=%#0x, Last = %#0x\n",
+			 mci->mc_idx, index, row_high_limit,
+			 row_high_limit_last);
 
 		/* 440GX goes to 2GB, represented with a DRB of 0. */
 		if (row_high_limit_last && !row_high_limit)
@@ -241,7 +240,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	enum mem_type mtype;
 	enum edac_type edac_mode;
 
-	debugf0("MC: %s: %s()\n", __FILE__, __func__);
+	edac_dbg(0, "MC:\n");
 
 	/* Something is really hosed if PCI config space reads from
 	 * the MC aren't working.
@@ -259,8 +258,8 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf0("MC: %s: %s(): mci = %p\n", __FILE__, __func__, mci);
-	mci->dev = &pdev->dev;
+	edac_dbg(0, "MC: mci = %p\n", mci);
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_EDO | MEM_FLAG_SDR | MEM_FLAG_RDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	pci_read_config_byte(pdev, I82443BXGX_DRAMC, &dramc);
@@ -275,8 +274,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		mtype = MEM_RDR;
 		break;
 	default:
-		debugf0("Unknown/reserved DRAM type value "
-			"in DRAMC register!\n");
+		edac_dbg(0, "Unknown/reserved DRAM type value in DRAMC register!\n");
 		mtype = -MEM_UNKNOWN;
 	}
 
@@ -305,8 +303,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		edac_mode = EDAC_SECDED;
 		break;
 	default:
-		debugf0("%s(): Unknown/reserved ECC state "
-			"in NBXCFG register!\n", __func__);
+		edac_dbg(0, "Unknown/reserved ECC state in NBXCFG register!\n");
 		edac_mode = EDAC_UNKNOWN;
 		break;
 	}
@@ -330,7 +327,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->ctl_page_to_phys = NULL;
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -345,7 +342,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 			__func__);
 	}
 
-	debugf3("MC: %s: %s(): success\n", __FILE__, __func__);
+	edac_dbg(3, "MC: success\n");
 	return 0;
 
 fail:
@@ -361,7 +358,7 @@ static int __devinit i82443bxgx_edacmc_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: %s: %s()\n", __FILE__, __func__);
+	edac_dbg(0, "MC:\n");
 
 	/* don't need to call pci_enable_device() */
 	rc = i82443bxgx_edacmc_probe1(pdev, ent->driver_data);
@@ -376,7 +373,7 @@ static void __devexit i82443bxgx_edacmc_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s: %s()\n", __FILE__, __func__);
+	edac_dbg(0, "\n");
 
 	if (i82443bxgx_pci)
 		edac_pci_release_generic_ctl(i82443bxgx_pci);
@@ -428,7 +425,7 @@ static int __init i82443bxgx_edacmc_init(void)
 			id = &i82443bxgx_pci_tbl[i];
 		}
 		if (!mci_pdev) {
-			debugf0("i82443bxgx pci_get_device fail\n");
+			edac_dbg(0, "i82443bxgx pci_get_device fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -436,7 +433,7 @@ static int __init i82443bxgx_edacmc_init(void)
 		pci_rc = i82443bxgx_edacmc_init_one(mci_pdev, i82443bxgx_pci_tbl);
 
 		if (pci_rc < 0) {
-			debugf0("i82443bxgx init fail\n");
+			edac_dbg(0, "i82443bxgx init fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}

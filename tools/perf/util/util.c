@@ -1,6 +1,9 @@
 #include "../perf.h"
 #include "util.h"
 #include <sys/mman.h>
+#include <execinfo.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /*
  * XXX We need to find a better place for these things...
@@ -157,4 +160,20 @@ size_t hex_width(u64 v)
 		++n;
 
 	return n;
+}
+
+/* Obtain a backtrace and print it to stdout. */
+void dump_stack(void)
+{
+	void *array[16];
+	size_t size = backtrace(array, ARRAY_SIZE(array));
+	char **strings = backtrace_symbols(array, size);
+	size_t i;
+
+	printf("Obtained %zd stack frames.\n", size);
+
+	for (i = 0; i < size; i++)
+		printf("%s\n", strings[i]);
+
+	free(strings);
 }

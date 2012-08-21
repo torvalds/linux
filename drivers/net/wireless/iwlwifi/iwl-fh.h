@@ -421,6 +421,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 		(FH_SRVC_LOWER_BOUND + ((_chnl) - 9) * 0x4)
 
 #define FH_TX_CHICKEN_BITS_REG	(FH_MEM_LOWER_BOUND + 0xE98)
+#define FH_TX_TRB_REG(_chan)	(FH_MEM_LOWER_BOUND + 0x958 + (_chan) * 4)
+
 /* Instruct FH to increment the retry count of a packet when
  * it is brought from the memory to TX-FIFO
  */

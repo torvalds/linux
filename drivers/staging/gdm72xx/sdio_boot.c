@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -67,9 +66,8 @@ static int download_image(struct sdio_func *func, char *img_name)
 		return -ENOENT;
 	}
 
-	if (filp->f_dentry)
-		inode = filp->f_dentry->d_inode;
-	if (!inode || !S_ISREG(inode->i_mode)) {
+	inode = filp->f_dentry->d_inode;
+	if (!S_ISREG(inode->i_mode)) {
 		printk(KERN_ERR "Invalid file type: %s\n", img_name);
 		ret = -EINVAL;
 		goto out;
@@ -124,7 +122,7 @@ static int download_image(struct sdio_func *func, char *img_name)
 		pno++;
 	}
 out:
-	filp_close(filp, current->files);
+	filp_close(filp, NULL);
 	return ret;
 }
 

@@ -115,16 +115,17 @@ struct dm_block_manager *dm_tm_get_bm(struct dm_transaction_manager *tm);
  *
  * Returns a tm that has an open transaction to write the new disk sm.
  * Caller should store the new sm root and commit.
+ *
+ * The superblock location is passed so the metadata space map knows it
+ * shouldn't be used.
  */
 int dm_tm_create_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,
-			 struct dm_block_validator *sb_validator,
 			 struct dm_transaction_manager **tm,
-			 struct dm_space_map **sm, struct dm_block **sblock);
+			 struct dm_space_map **sm);
 
 int dm_tm_open_with_sm(struct dm_block_manager *bm, dm_block_t sb_location,
-		       struct dm_block_validator *sb_validator,
-		       size_t root_offset, size_t root_max_len,
+		       void *sm_root, size_t root_len,
 		       struct dm_transaction_manager **tm,
-		       struct dm_space_map **sm, struct dm_block **sblock);
+		       struct dm_space_map **sm);
 
 #endif	/* _LINUX_DM_TRANSACTION_MANAGER_H */

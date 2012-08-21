@@ -128,6 +128,11 @@ static __initdata struct cpm_pin km82xx_pins[] = {
 	{3, 23, CPM_PIN_OUTPUT | CPM_PIN_PRIMARY}, /* TXP */
 	{3, 24, CPM_PIN_OUTPUT | CPM_PIN_PRIMARY}, /* TXN */
 	{3, 25, CPM_PIN_INPUT  | CPM_PIN_PRIMARY}, /* RXD */
+
+	/* SPI */
+	{3, 16, CPM_PIN_INPUT | CPM_PIN_SECONDARY},/* SPI_MISO PD16 */
+	{3, 17, CPM_PIN_INPUT | CPM_PIN_SECONDARY},/* SPI_MOSI PD17 */
+	{3, 18, CPM_PIN_INPUT | CPM_PIN_SECONDARY},/* SPI_CLK PD18 */
 };
 
 static void __init init_ioports(void)

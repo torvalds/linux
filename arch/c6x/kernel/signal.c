@@ -249,8 +249,6 @@ static void handle_signal(int sig,
 			 siginfo_t *info, struct k_sigaction *ka,
 			 struct pt_regs *regs, int syscall)
 {
-	int ret;
-
 	/* Are we from a system call? */
 	if (syscall) {
 		/* If so, check system call restarting.. */

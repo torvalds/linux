@@ -95,8 +95,7 @@ static int __devinit imx_sgtl5000_probe(struct platform_device *pdev)
 		return ret;
 	}
 	imx_audmux_v2_configure_port(ext_port,
-			IMX_AUDMUX_V2_PTCR_SYN |
-			IMX_AUDMUX_V2_PTCR_TCSEL(int_port),
+			IMX_AUDMUX_V2_PTCR_SYN,
 			IMX_AUDMUX_V2_PDCR_RXDSEL(int_port));
 	if (ret) {
 		dev_err(&pdev->dev, "audmux external port setup failed\n");

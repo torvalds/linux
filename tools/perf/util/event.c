@@ -412,7 +412,7 @@ struct process_symbol_args {
 };
 
 static int find_symbol_cb(void *arg, const char *name, char type,
-			  u64 start, u64 end __used)
+			  u64 start)
 {
 	struct process_symbol_args *args = arg;
 

@@ -395,8 +395,8 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
 	skb->dev = slave_dev;
 
 	BUILD_BUG_ON(sizeof(skb->queue_mapping) !=
-		     sizeof(qdisc_skb_cb(skb)->bond_queue_mapping));
-	skb->queue_mapping = qdisc_skb_cb(skb)->bond_queue_mapping;
+		     sizeof(qdisc_skb_cb(skb)->slave_dev_queue_mapping));
+	skb->queue_mapping = qdisc_skb_cb(skb)->slave_dev_queue_mapping;
 
 	if (unlikely(netpoll_tx_running(slave_dev)))
 		bond_netpoll_send_skb(bond_get_slave_by_dev(bond, slave_dev), skb);
@@ -1240,9 +1240,7 @@ static inline int slave_enable_netpoll(struct slave *slave)
 	if (!np)
 		goto out;
 
-	np->dev = slave->dev;
-	strlcpy(np->dev_name, slave->dev->name, IFNAMSIZ);
-	err = __netpoll_setup(np);
+	err = __netpoll_setup(np, slave->dev);
 	if (err) {
 		kfree(np);
 		goto out;
@@ -1384,6 +1382,7 @@ static void bond_compute_features(struct bonding *bond)
 	netdev_features_t vlan_features = BOND_VLAN_FEATURES;
 	unsigned short max_hard_header_len = ETH_HLEN;
 	int i;
+	unsigned int flags, dst_release_flag = IFF_XMIT_DST_RELEASE;
 
 	read_lock(&bond->lock);
 
@@ -1394,6 +1393,7 @@ static void bond_compute_features(struct bonding *bond)
 		vlan_features = netdev_increment_features(vlan_features,
 			slave->dev->vlan_features, BOND_VLAN_FEATURES);
 
+		dst_release_flag &= slave->dev->priv_flags;
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
@@ -1401,6 +1401,9 @@ static void bond_compute_features(struct bonding *bond)
 done:
 	bond_dev->vlan_features = vlan_features;
 	bond_dev->hard_header_len = max_hard_header_len;
+
+	flags = bond_dev->priv_flags & ~IFF_XMIT_DST_RELEASE;
+	bond_dev->priv_flags = flags | dst_release_flag;
 
 	read_unlock(&bond->lock);
 
@@ -1445,8 +1448,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
-	int (*recv_probe)(struct sk_buff *, struct bonding *,
-				struct slave *);
+	int (*recv_probe)(const struct sk_buff *, struct bonding *,
+			  struct slave *);
 	int ret = RX_HANDLER_ANOTHER;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
@@ -1463,15 +1466,10 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 
 	recv_probe = ACCESS_ONCE(bond->recv_probe);
 	if (recv_probe) {
-		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
-
-		if (likely(nskb)) {
-			ret = recv_probe(nskb, bond, slave);
-			dev_kfree_skb(nskb);
-			if (ret == RX_HANDLER_CONSUMED) {
-				consume_skb(skb);
-				return ret;
-			}
+		ret = recv_probe(skb, bond, slave);
+		if (ret == RX_HANDLER_CONSUMED) {
+			consume_skb(skb);
+			return ret;
 		}
 	}
 
@@ -2738,25 +2736,31 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	}
 }
 
-static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
-			 struct slave *slave)
+static int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond,
+			struct slave *slave)
 {
-	struct arphdr *arp;
+	struct arphdr *arp = (struct arphdr *)skb->data;
 	unsigned char *arp_ptr;
 	__be32 sip, tip;
+	int alen;
 
 	if (skb->protocol != __cpu_to_be16(ETH_P_ARP))
 		return RX_HANDLER_ANOTHER;
 
 	read_lock(&bond->lock);
+	alen = arp_hdr_len(bond->dev);
 
 	pr_debug("bond_arp_rcv: bond %s skb->dev %s\n",
 		 bond->dev->name, skb->dev->name);
 
-	if (!pskb_may_pull(skb, arp_hdr_len(bond->dev)))
-		goto out_unlock;
+	if (alen > skb_headlen(skb)) {
+		arp = kmalloc(alen, GFP_ATOMIC);
+		if (!arp)
+			goto out_unlock;
+		if (skb_copy_bits(skb, 0, arp, alen) < 0)
+			goto out_unlock;
+	}
 
-	arp = arp_hdr(skb);
 	if (arp->ar_hln != bond->dev->addr_len ||
 	    skb->pkt_type == PACKET_OTHERHOST ||
 	    skb->pkt_type == PACKET_LOOPBACK ||
@@ -2791,6 +2795,8 @@ static int bond_arp_rcv(struct sk_buff *skb, struct bonding *bond,
 
 out_unlock:
 	read_unlock(&bond->lock);
+	if (arp != (struct arphdr *)skb->data)
+		kfree(arp);
 	return RX_HANDLER_ANOTHER;
 }
 
@@ -3993,7 +3999,7 @@ static int bond_xmit_roundrobin(struct sk_buff *skb, struct net_device *bond_dev
 out:
 	if (res) {
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	return NETDEV_TX_OK;
@@ -4015,11 +4021,11 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 		res = bond_dev_queue_xmit(bond, skb,
 			bond->curr_active_slave->dev);
 
+	read_unlock(&bond->curr_slave_lock);
+
 	if (res)
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
-
-	read_unlock(&bond->curr_slave_lock);
+		kfree_skb(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -4058,7 +4064,7 @@ static int bond_xmit_xor(struct sk_buff *skb, struct net_device *bond_dev)
 
 	if (res) {
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 	}
 
 	return NETDEV_TX_OK;
@@ -4096,7 +4102,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 
 				res = bond_dev_queue_xmit(bond, skb2, tx_dev);
 				if (res) {
-					dev_kfree_skb(skb2);
+					kfree_skb(skb2);
 					continue;
 				}
 			}
@@ -4110,7 +4116,7 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 out:
 	if (res)
 		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 
 	/* frame sent to all suitable interfaces */
 	return NETDEV_TX_OK;
@@ -4178,7 +4184,7 @@ static u16 bond_select_queue(struct net_device *dev, struct sk_buff *skb)
 	/*
 	 * Save the original txq to restore before passing to the driver
 	 */
-	qdisc_skb_cb(skb)->bond_queue_mapping = skb->queue_mapping;
+	qdisc_skb_cb(skb)->slave_dev_queue_mapping = skb->queue_mapping;
 
 	if (unlikely(txq >= dev->real_num_tx_queues)) {
 		do {
@@ -4216,7 +4222,7 @@ static netdev_tx_t __bond_start_xmit(struct sk_buff *skb, struct net_device *dev
 		pr_err("%s: Error: Unknown bonding mode %d\n",
 		       dev->name, bond->params.mode);
 		WARN_ON_ONCE(1);
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
 }
@@ -4238,7 +4244,7 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bond->slave_cnt)
 		ret = __bond_start_xmit(skb, dev);
 	else
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 
 	read_unlock(&bond->lock);
 
@@ -4839,17 +4845,19 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int bond_get_tx_queues(struct net *net, struct nlattr *tb[])
+static unsigned int bond_get_num_tx_queues(void)
 {
 	return tx_queues;
 }
 
 static struct rtnl_link_ops bond_link_ops __read_mostly = {
-	.kind		= "bond",
-	.priv_size	= sizeof(struct bonding),
-	.setup		= bond_setup,
-	.validate	= bond_validate,
-	.get_tx_queues	= bond_get_tx_queues,
+	.kind			= "bond",
+	.priv_size		= sizeof(struct bonding),
+	.setup			= bond_setup,
+	.validate		= bond_validate,
+	.get_num_tx_queues	= bond_get_num_tx_queues,
+	.get_num_rx_queues	= bond_get_num_tx_queues, /* Use the same number
+							     as for TX queues */
 };
 
 /* Create a new bond based on the specified name and bonding parameters.

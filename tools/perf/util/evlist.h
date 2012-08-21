@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "../perf.h"
 #include "event.h"
+#include "evsel.h"
 #include "util.h"
 #include <unistd.h>
 
@@ -40,8 +41,6 @@ struct perf_evsel_str_handler {
 	const char *name;
 	void	   *handler;
 };
-
-struct perf_evsel;
 
 struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
 				     struct thread_map *threads);
@@ -85,7 +84,7 @@ struct perf_evsel *perf_evlist__id2evsel(struct perf_evlist *evlist, u64 id);
 
 union perf_event *perf_evlist__mmap_read(struct perf_evlist *self, int idx);
 
-int perf_evlist__open(struct perf_evlist *evlist, bool group);
+int perf_evlist__open(struct perf_evlist *evlist);
 
 void perf_evlist__config_attrs(struct perf_evlist *evlist,
 			       struct perf_record_opts *opts);
@@ -118,15 +117,30 @@ int perf_evlist__create_maps(struct perf_evlist *evlist,
 void perf_evlist__delete_maps(struct perf_evlist *evlist);
 int perf_evlist__set_filters(struct perf_evlist *evlist);
 
-u64 perf_evlist__sample_type(const struct perf_evlist *evlist);
-bool perf_evlist__sample_id_all(const const struct perf_evlist *evlist);
-u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist);
+void __perf_evlist__set_leader(struct list_head *list);
+void perf_evlist__set_leader(struct perf_evlist *evlist);
 
-bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist);
-bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist);
+u64 perf_evlist__sample_type(struct perf_evlist *evlist);
+bool perf_evlist__sample_id_all(struct perf_evlist *evlist);
+u16 perf_evlist__id_hdr_size(struct perf_evlist *evlist);
+
+int perf_evlist__parse_sample(struct perf_evlist *evlist, union perf_event *event,
+			      struct perf_sample *sample, bool swapped);
+
+bool perf_evlist__valid_sample_type(struct perf_evlist *evlist);
+bool perf_evlist__valid_sample_id_all(struct perf_evlist *evlist);
 
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list,
 				   int nr_entries);
 
+static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
+{
+	return list_entry(evlist->entries.next, struct perf_evsel, node);
+}
+
+static inline struct perf_evsel *perf_evlist__last(struct perf_evlist *evlist)
+{
+	return list_entry(evlist->entries.prev, struct perf_evsel, node);
+}
 #endif /* __PERF_EVLIST_H */

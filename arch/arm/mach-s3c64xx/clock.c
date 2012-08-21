@@ -178,13 +178,13 @@ static struct clk init_clocks_off[] = {
 		.ctrlbit	= S3C_CLKCON_PCLK_KEYPAD,
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "s3c6410-spi.0",
 		.parent		= &clk_p,
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_SPI0,
 	}, {
 		.name		= "spi",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "s3c6410-spi.1",
 		.parent		= &clk_p,
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_SPI1,
@@ -331,7 +331,7 @@ static struct clk init_clocks_off[] = {
 
 static struct clk clk_48m_spi0 = {
 	.name		= "spi_48m",
-	.devname	= "s3c64xx-spi.0",
+	.devname	= "s3c6410-spi.0",
 	.parent		= &clk_48m,
 	.enable		= s3c64xx_sclk_ctrl,
 	.ctrlbit	= S3C_CLKCON_SCLK_SPI0_48,
@@ -339,7 +339,7 @@ static struct clk clk_48m_spi0 = {
 
 static struct clk clk_48m_spi1 = {
 	.name		= "spi_48m",
-	.devname	= "s3c64xx-spi.1",
+	.devname	= "s3c6410-spi.1",
 	.parent		= &clk_48m,
 	.enable		= s3c64xx_sclk_ctrl,
 	.ctrlbit	= S3C_CLKCON_SCLK_SPI1_48,
@@ -802,7 +802,7 @@ static struct clksrc_clk clk_sclk_mmc2 = {
 static struct clksrc_clk clk_sclk_spi0 = {
 	.clk	= {
 		.name		= "spi-bus",
-		.devname	= "s3c64xx-spi.0",
+		.devname	= "s3c6410-spi.0",
 		.ctrlbit	= S3C_CLKCON_SCLK_SPI0,
 		.enable		= s3c64xx_sclk_ctrl,
 	},
@@ -814,7 +814,7 @@ static struct clksrc_clk clk_sclk_spi0 = {
 static struct clksrc_clk clk_sclk_spi1 = {
 	.clk	= {
 		.name		= "spi-bus",
-		.devname	= "s3c64xx-spi.1",
+		.devname	= "s3c6410-spi.1",
 		.ctrlbit	= S3C_CLKCON_SCLK_SPI1,
 		.enable		= s3c64xx_sclk_ctrl,
 	},
@@ -858,10 +858,10 @@ static struct clk_lookup s3c64xx_clk_lookup[] = {
 	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.2", &clk_sclk_mmc1.clk),
 	CLKDEV_INIT("s3c-sdhci.2", "mmc_busclk.2", &clk_sclk_mmc2.clk),
 	CLKDEV_INIT(NULL, "spi_busclk0", &clk_p),
-	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk1", &clk_sclk_spi0.clk),
-	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk2", &clk_48m_spi0),
-	CLKDEV_INIT("s3c64xx-spi.1", "spi_busclk1", &clk_sclk_spi1.clk),
-	CLKDEV_INIT("s3c64xx-spi.1", "spi_busclk2", &clk_48m_spi1),
+	CLKDEV_INIT("s3c6410-spi.0", "spi_busclk1", &clk_sclk_spi0.clk),
+	CLKDEV_INIT("s3c6410-spi.0", "spi_busclk2", &clk_48m_spi0),
+	CLKDEV_INIT("s3c6410-spi.1", "spi_busclk1", &clk_sclk_spi1.clk),
+	CLKDEV_INIT("s3c6410-spi.1", "spi_busclk2", &clk_48m_spi1),
 };
 
 #define GET_DIV(clk, field) ((((clk) & field##_MASK) >> field##_SHIFT) + 1)

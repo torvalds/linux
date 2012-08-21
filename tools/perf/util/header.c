@@ -23,8 +23,8 @@
 
 static bool no_buildid_cache = false;
 
-static int event_count;
-static struct perf_trace_event_type *events;
+static int trace_event_count;
+static struct perf_trace_event_type *trace_events;
 
 static u32 header_argc;
 static const char **header_argv;
@@ -36,24 +36,24 @@ int perf_header__push_event(u64 id, const char *name)
 	if (strlen(name) > MAX_EVENT_NAME)
 		pr_warning("Event %s will be truncated\n", name);
 
-	nevents = realloc(events, (event_count + 1) * sizeof(*events));
+	nevents = realloc(trace_events, (trace_event_count + 1) * sizeof(*trace_events));
 	if (nevents == NULL)
 		return -ENOMEM;
-	events = nevents;
+	trace_events = nevents;
 
-	memset(&events[event_count], 0, sizeof(struct perf_trace_event_type));
-	events[event_count].event_id = id;
-	strncpy(events[event_count].name, name, MAX_EVENT_NAME - 1);
-	event_count++;
+	memset(&trace_events[trace_event_count], 0, sizeof(struct perf_trace_event_type));
+	trace_events[trace_event_count].event_id = id;
+	strncpy(trace_events[trace_event_count].name, name, MAX_EVENT_NAME - 1);
+	trace_event_count++;
 	return 0;
 }
 
 char *perf_header__find_event(u64 id)
 {
 	int i;
-	for (i = 0 ; i < event_count; i++) {
-		if (events[i].event_id == id)
-			return events[i].name;
+	for (i = 0 ; i < trace_event_count; i++) {
+		if (trace_events[i].event_id == id)
+			return trace_events[i].name;
 	}
 	return NULL;
 }
@@ -173,6 +173,15 @@ int
 perf_header__set_cmdline(int argc, const char **argv)
 {
 	int i;
+
+	/*
+	 * If header_argv has already been set, do not override it.
+	 * This allows a command to set the cmdline, parse args and
+	 * then call another builtin function that implements a
+	 * command -- e.g, cmd_kvm calling cmd_record.
+	 */
+	if (header_argv)
+		return 0;
 
 	header_argc = (u32)argc;
 
@@ -599,11 +608,11 @@ static int write_nrcpus(int fd, struct perf_header *h __used,
 static int write_event_desc(int fd, struct perf_header *h __used,
 			    struct perf_evlist *evlist)
 {
-	struct perf_evsel *attr;
+	struct perf_evsel *evsel;
 	u32 nre = 0, nri, sz;
 	int ret;
 
-	list_for_each_entry(attr, &evlist->entries, node)
+	list_for_each_entry(evsel, &evlist->entries, node)
 		nre++;
 
 	/*
@@ -616,14 +625,14 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 	/*
 	 * size of perf_event_attr struct
 	 */
-	sz = (u32)sizeof(attr->attr);
+	sz = (u32)sizeof(evsel->attr);
 	ret = do_write(fd, &sz, sizeof(sz));
 	if (ret < 0)
 		return ret;
 
-	list_for_each_entry(attr, &evlist->entries, node) {
+	list_for_each_entry(evsel, &evlist->entries, node) {
 
-		ret = do_write(fd, &attr->attr, sz);
+		ret = do_write(fd, &evsel->attr, sz);
 		if (ret < 0)
 			return ret;
 		/*
@@ -633,7 +642,7 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		 * copy into an nri to be independent of the
 		 * type of ids,
 		 */
-		nri = attr->ids;
+		nri = evsel->ids;
 		ret = do_write(fd, &nri, sizeof(nri));
 		if (ret < 0)
 			return ret;
@@ -641,13 +650,13 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		/*
 		 * write event string as passed on cmdline
 		 */
-		ret = do_write_string(fd, perf_evsel__name(attr));
+		ret = do_write_string(fd, perf_evsel__name(evsel));
 		if (ret < 0)
 			return ret;
 		/*
 		 * write unique ids for this event
 		 */
-		ret = do_write(fd, attr->id, attr->ids * sizeof(u64));
+		ret = do_write(fd, evsel->id, evsel->ids * sizeof(u64));
 		if (ret < 0)
 			return ret;
 	}
@@ -1674,17 +1683,17 @@ int perf_session__write_header(struct perf_session *session,
 	struct perf_file_header f_header;
 	struct perf_file_attr   f_attr;
 	struct perf_header *header = &session->header;
-	struct perf_evsel *attr, *pair = NULL;
+	struct perf_evsel *evsel, *pair = NULL;
 	int err;
 
 	lseek(fd, sizeof(f_header), SEEK_SET);
 
 	if (session->evlist != evlist)
-		pair = list_entry(session->evlist->entries.next, struct perf_evsel, node);
+		pair = perf_evlist__first(session->evlist);
 
-	list_for_each_entry(attr, &evlist->entries, node) {
-		attr->id_offset = lseek(fd, 0, SEEK_CUR);
-		err = do_write(fd, attr->id, attr->ids * sizeof(u64));
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		evsel->id_offset = lseek(fd, 0, SEEK_CUR);
+		err = do_write(fd, evsel->id, evsel->ids * sizeof(u64));
 		if (err < 0) {
 out_err_write:
 			pr_debug("failed to write perf header\n");
@@ -1694,19 +1703,19 @@ out_err_write:
 			err = do_write(fd, pair->id, pair->ids * sizeof(u64));
 			if (err < 0)
 				goto out_err_write;
-			attr->ids += pair->ids;
-			pair = list_entry(pair->node.next, struct perf_evsel, node);
+			evsel->ids += pair->ids;
+			pair = perf_evsel__next(pair);
 		}
 	}
 
 	header->attr_offset = lseek(fd, 0, SEEK_CUR);
 
-	list_for_each_entry(attr, &evlist->entries, node) {
+	list_for_each_entry(evsel, &evlist->entries, node) {
 		f_attr = (struct perf_file_attr){
-			.attr = attr->attr,
+			.attr = evsel->attr,
 			.ids  = {
-				.offset = attr->id_offset,
-				.size   = attr->ids * sizeof(u64),
+				.offset = evsel->id_offset,
+				.size   = evsel->ids * sizeof(u64),
 			}
 		};
 		err = do_write(fd, &f_attr, sizeof(f_attr));
@@ -1717,9 +1726,9 @@ out_err_write:
 	}
 
 	header->event_offset = lseek(fd, 0, SEEK_CUR);
-	header->event_size = event_count * sizeof(struct perf_trace_event_type);
-	if (events) {
-		err = do_write(fd, events, header->event_size);
+	header->event_size = trace_event_count * sizeof(struct perf_trace_event_type);
+	if (trace_events) {
+		err = do_write(fd, trace_events, header->event_size);
 		if (err < 0) {
 			pr_debug("failed to write perf header events\n");
 			return err;
@@ -1820,6 +1829,9 @@ out_free:
 static const int attr_file_abi_sizes[] = {
 	[0] = PERF_ATTR_SIZE_VER0,
 	[1] = PERF_ATTR_SIZE_VER1,
+	[2] = PERF_ATTR_SIZE_VER2,
+	[3] = PERF_ATTR_SIZE_VER3,
+	[4] = PERF_ATTR_SIZE_VER4,
 	0,
 };
 
@@ -2114,6 +2126,7 @@ static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
 	if (event->name == NULL)
 		return -1;
 
+	evsel->tp_format = event;
 	return 0;
 }
 
@@ -2198,13 +2211,13 @@ int perf_session__read_header(struct perf_session *session, int fd)
 
 	if (f_header.event_types.size) {
 		lseek(fd, f_header.event_types.offset, SEEK_SET);
-		events = malloc(f_header.event_types.size);
-		if (events == NULL)
+		trace_events = malloc(f_header.event_types.size);
+		if (trace_events == NULL)
 			return -ENOMEM;
-		if (perf_header__getbuffer64(header, fd, events,
+		if (perf_header__getbuffer64(header, fd, trace_events,
 					     f_header.event_types.size))
 			goto out_errno;
-		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
+		trace_event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
 
 	perf_header__process_sections(header, fd, &session->pevent,
@@ -2227,7 +2240,7 @@ out_delete_evlist:
 }
 
 int perf_event__synthesize_attr(struct perf_tool *tool,
-				struct perf_event_attr *attr, u16 ids, u64 *id,
+				struct perf_event_attr *attr, u32 ids, u64 *id,
 				perf_event__handler_t process)
 {
 	union perf_event *ev;
@@ -2248,9 +2261,12 @@ int perf_event__synthesize_attr(struct perf_tool *tool,
 	memcpy(ev->attr.id, id, ids * sizeof(u64));
 
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
-	ev->attr.header.size = size;
+	ev->attr.header.size = (u16)size;
 
-	err = process(tool, ev, NULL, NULL);
+	if (ev->attr.header.size == size)
+		err = process(tool, ev, NULL, NULL);
+	else
+		err = -E2BIG;
 
 	free(ev);
 
@@ -2261,12 +2277,12 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 				   struct perf_session *session,
 				   perf_event__handler_t process)
 {
-	struct perf_evsel *attr;
+	struct perf_evsel *evsel;
 	int err = 0;
 
-	list_for_each_entry(attr, &session->evlist->entries, node) {
-		err = perf_event__synthesize_attr(tool, &attr->attr, attr->ids,
-						  attr->id, process);
+	list_for_each_entry(evsel, &session->evlist->entries, node) {
+		err = perf_event__synthesize_attr(tool, &evsel->attr, evsel->ids,
+						  evsel->id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
 			return err;
@@ -2279,7 +2295,7 @@ int perf_event__synthesize_attrs(struct perf_tool *tool,
 int perf_event__process_attr(union perf_event *event,
 			     struct perf_evlist **pevlist)
 {
-	unsigned int i, ids, n_ids;
+	u32 i, ids, n_ids;
 	struct perf_evsel *evsel;
 	struct perf_evlist *evlist = *pevlist;
 
@@ -2346,8 +2362,8 @@ int perf_event__synthesize_event_types(struct perf_tool *tool,
 	struct perf_trace_event_type *type;
 	int i, err = 0;
 
-	for (i = 0; i < event_count; i++) {
-		type = &events[i];
+	for (i = 0; i < trace_event_count; i++) {
+		type = &trace_events[i];
 
 		err = perf_event__synthesize_event_type(tool, type->event_id,
 							type->name, process,
@@ -2442,6 +2458,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 
 	if (size_read + padding != size)
 		die("tracing data size mismatch");
+
+	perf_evlist__set_tracepoint_names(session->evlist, session->pevent);
 
 	return size_read + padding;
 }

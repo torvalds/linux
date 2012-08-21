@@ -60,8 +60,6 @@ static DEFINE_MUTEX(mce_chrdev_read_mutex);
 
 int mce_disabled __read_mostly;
 
-#define MISC_MCELOG_MINOR	227
-
 #define SPINUNIT 100	/* 100ns */
 
 atomic_t mce_entry;
@@ -104,6 +102,8 @@ DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
 };
 
 static DEFINE_PER_CPU(struct work_struct, mce_work);
+
+static void (*quirk_no_way_out)(int bank, struct mce *m, struct pt_regs *regs);
 
 /*
  * CPU/chipset specific EDAC code can register a notifier call here to print
@@ -652,14 +652,18 @@ EXPORT_SYMBOL_GPL(machine_check_poll);
  * Do a quick check if any of the events requires a panic.
  * This decides if we keep the events around or clear them.
  */
-static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp)
+static int mce_no_way_out(struct mce *m, char **msg, unsigned long *validp,
+			  struct pt_regs *regs)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < banks; i++) {
 		m->status = mce_rdmsrl(MSR_IA32_MCx_STATUS(i));
-		if (m->status & MCI_STATUS_VAL)
+		if (m->status & MCI_STATUS_VAL) {
 			__set_bit(i, validp);
+			if (quirk_no_way_out)
+				quirk_no_way_out(i, m, regs);
+		}
 		if (mce_severity(m, tolerant, msg) >= MCE_PANIC_SEVERITY)
 			ret = 1;
 	}
@@ -1042,7 +1046,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	*final = m;
 
 	memset(valid_banks, 0, sizeof(valid_banks));
-	no_way_out = mce_no_way_out(&m, &msg, valid_banks);
+	no_way_out = mce_no_way_out(&m, &msg, valid_banks, regs);
 
 	barrier();
 
@@ -1190,6 +1194,7 @@ void mce_notify_process(void)
 {
 	unsigned long pfn;
 	struct mce_info *mi = mce_find_info();
+	int flags = MF_ACTION_REQUIRED;
 
 	if (!mi)
 		mce_panic("Lost physical address for unconsumed uncorrectable error", NULL, NULL);
@@ -1204,8 +1209,9 @@ void mce_notify_process(void)
 	 * doomed. We still need to mark the page as poisoned and alert any
 	 * other users of the page.
 	 */
-	if (memory_failure(pfn, MCE_VECTOR, MF_ACTION_REQUIRED) < 0 ||
-			   mi->restartable == 0) {
+	if (!mi->restartable)
+		flags |= MF_MUST_KILL;
+	if (memory_failure(pfn, MCE_VECTOR, flags) < 0) {
 		pr_err("Memory error not recovered");
 		force_sig(SIGBUS, current);
 	}
@@ -1418,6 +1424,34 @@ static void __mcheck_cpu_init_generic(void)
 	}
 }
 
+/*
+ * During IFU recovery Sandy Bridge -EP4S processors set the RIPV and
+ * EIPV bits in MCG_STATUS to zero on the affected logical processor (SDM
+ * Vol 3B Table 15-20). But this confuses both the code that determines
+ * whether the machine check occurred in kernel or user mode, and also
+ * the severity assessment code. Pretend that EIPV was set, and take the
+ * ip/cs values from the pt_regs that mce_gather_info() ignored earlier.
+ */
+static void quirk_sandybridge_ifu(int bank, struct mce *m, struct pt_regs *regs)
+{
+	if (bank != 0)
+		return;
+	if ((m->mcgstatus & (MCG_STATUS_EIPV|MCG_STATUS_RIPV)) != 0)
+		return;
+	if ((m->status & (MCI_STATUS_OVER|MCI_STATUS_UC|
+		          MCI_STATUS_EN|MCI_STATUS_MISCV|MCI_STATUS_ADDRV|
+			  MCI_STATUS_PCC|MCI_STATUS_S|MCI_STATUS_AR|
+			  MCACOD)) !=
+			 (MCI_STATUS_UC|MCI_STATUS_EN|
+			  MCI_STATUS_MISCV|MCI_STATUS_ADDRV|MCI_STATUS_S|
+			  MCI_STATUS_AR|MCACOD_INSTR))
+		return;
+
+	m->mcgstatus |= MCG_STATUS_EIPV;
+	m->ip = regs->ip;
+	m->cs = regs->cs;
+}
+
 /* Add per CPU specific workarounds here */
 static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 {
@@ -1515,6 +1549,9 @@ static int __cpuinit __mcheck_cpu_apply_quirks(struct cpuinfo_x86 *c)
 		 */
 		if (c->x86 == 6 && c->x86_model <= 13 && mce_bootlog < 0)
 			mce_bootlog = 0;
+
+		if (c->x86 == 6 && c->x86_model == 45)
+			quirk_no_way_out = quirk_sandybridge_ifu;
 	}
 	if (monarch_timeout < 0)
 		monarch_timeout = 0;
@@ -2344,7 +2381,7 @@ static __init int mcheck_init_device(void)
 
 	return err;
 }
-device_initcall(mcheck_init_device);
+device_initcall_sync(mcheck_init_device);
 
 /*
  * Old style boot options parsing. Only for compatibility.

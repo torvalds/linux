@@ -53,7 +53,7 @@ void __init board_setup(void)
 	alchemy_gpio_direction_input(201);
 	alchemy_gpio_direction_input(203);
 
-#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+#if IS_ENABLED(CONFIG_USB_OHCI_HCD)
 
 	/* Zero and disable FREQ2 */
 	sys_freqctrl = au_readl(SYS_FREQCTRL0);
@@ -87,7 +87,7 @@ void __init board_setup(void)
 	/* 2nd USB port is USB host */
 	pin_func |= SYS_PF_USB;
 	au_writel(pin_func, SYS_PINFUNC);
-#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
+#endif /* IS_ENABLED(CONFIG_USB_OHCI_HCD) */
 
 #ifdef CONFIG_PCI
 	{

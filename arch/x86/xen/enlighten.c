@@ -31,6 +31,7 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/syscore_ops.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -38,6 +39,7 @@
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
 #include <xen/interface/memory.h>
+#include <xen/interface/xen-mca.h>
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/hvm.h>
@@ -107,7 +109,7 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
  * Point at some empty memory to start with. We map the real shared_info
  * page as soon as fixmap is up and running.
  */
-struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
+struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
 
 /*
  * Flag to determine whether vcpu info placement is available on all
@@ -123,6 +125,19 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
  * 0: not available, 1: available
  */
 static int have_vcpu_info_placement = 1;
+
+struct tls_descs {
+	struct desc_struct desc[3];
+};
+
+/*
+ * Updating the 3 TLS descriptors in the GDT on every task switch is
+ * surprisingly expensive so we avoid updating them if they haven't
+ * changed.  Since Xen writes different descriptors than the one
+ * passed in the update_descriptor hypercall we keep shadow copies to
+ * compare against.
+ */
+static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
 static void clamp_max_cpus(void)
 {
@@ -341,9 +356,7 @@ static void __init xen_init_cpuid_mask(void)
 	unsigned int xsave_mask;
 
 	cpuid_leaf1_edx_mask =
-		~((1 << X86_FEATURE_MCE)  |  /* disable MCE */
-		  (1 << X86_FEATURE_MCA)  |  /* disable MCA */
-		  (1 << X86_FEATURE_MTRR) |  /* disable MTRR */
+		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
 		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
 	if (!xen_initial_domain())
@@ -540,12 +553,28 @@ static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 		BUG();
 }
 
+static inline bool desc_equal(const struct desc_struct *d1,
+			      const struct desc_struct *d2)
+{
+	return d1->a == d2->a && d1->b == d2->b;
+}
+
 static void load_TLS_descriptor(struct thread_struct *t,
 				unsigned int cpu, unsigned int i)
 {
-	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
-	xmaddr_t maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
-	struct multicall_space mc = __xen_mc_entry(0);
+	struct desc_struct *shadow = &per_cpu(shadow_tls_desc, cpu).desc[i];
+	struct desc_struct *gdt;
+	xmaddr_t maddr;
+	struct multicall_space mc;
+
+	if (desc_equal(shadow, &t->tls_array[i]))
+		return;
+
+	*shadow = t->tls_array[i];
+
+	gdt = get_cpu_gdt_table(cpu);
+	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
+	mc = __xen_mc_entry(0);
 
 	MULTI_update_descriptor(mc.mc, maddr.maddr, t->tls_array[i]);
 }
@@ -627,8 +656,8 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 	/*
 	 * Look for known traps using IST, and substitute them
 	 * appropriately.  The debugger ones are the only ones we care
-	 * about.  Xen will handle faults like double_fault and
-	 * machine_check, so we should never see them.  Warn if
+	 * about.  Xen will handle faults like double_fault,
+	 * so we should never see them.  Warn if
 	 * there's an unexpected IST-using fault handler.
 	 */
 	if (addr == (unsigned long)debug)
@@ -643,7 +672,11 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 		return 0;
 #ifdef CONFIG_X86_MCE
 	} else if (addr == (unsigned long)machine_check) {
-		return 0;
+		/*
+		 * when xen hypervisor inject vMCE to guest,
+		 * use native mce handler to handle it
+		 */
+		;
 #endif
 	} else {
 		/* Some other trap using IST? */
@@ -1437,17 +1470,142 @@ asmlinkage void __init xen_start_kernel(void)
 #endif
 }
 
-static int init_hvm_pv_info(int *major, int *minor)
+#ifdef CONFIG_XEN_PVHVM
+/*
+ * The pfn containing the shared_info is located somewhere in RAM. This
+ * will cause trouble if the current kernel is doing a kexec boot into a
+ * new kernel. The new kernel (and its startup code) can not know where
+ * the pfn is, so it can not reserve the page. The hypervisor will
+ * continue to update the pfn, and as a result memory corruption occours
+ * in the new kernel.
+ *
+ * One way to work around this issue is to allocate a page in the
+ * xen-platform pci device's BAR memory range. But pci init is done very
+ * late and the shared_info page is already in use very early to read
+ * the pvclock. So moving the pfn from RAM to MMIO is racy because some
+ * code paths on other vcpus could access the pfn during the small
+ * window when the old pfn is moved to the new pfn. There is even a
+ * small window were the old pfn is not backed by a mfn, and during that
+ * time all reads return -1.
+ *
+ * Because it is not known upfront where the MMIO region is located it
+ * can not be used right from the start in xen_hvm_init_shared_info.
+ *
+ * To minimise trouble the move of the pfn is done shortly before kexec.
+ * This does not eliminate the race because all vcpus are still online
+ * when the syscore_ops will be called. But hopefully there is no work
+ * pending at this point in time. Also the syscore_op is run last which
+ * reduces the risk further.
+ */
+
+static struct shared_info *xen_hvm_shared_info;
+
+static void xen_hvm_connect_shared_info(unsigned long pfn)
 {
+	struct xen_add_to_physmap xatp;
+
+	xatp.domid = DOMID_SELF;
+	xatp.idx = 0;
+	xatp.space = XENMAPSPACE_shared_info;
+	xatp.gpfn = pfn;
+	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
+		BUG();
+
+}
+static void xen_hvm_set_shared_info(struct shared_info *sip)
+{
+	int cpu;
+
+	HYPERVISOR_shared_info = sip;
+
+	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
+	 * page, we use it in the event channel upcall and in some pvclock
+	 * related functions. We don't need the vcpu_info placement
+	 * optimizations because we don't use any pv_mmu or pv_irq op on
+	 * HVM.
+	 * When xen_hvm_set_shared_info is run at boot time only vcpu 0 is
+	 * online but xen_hvm_set_shared_info is run at resume time too and
+	 * in that case multiple vcpus might be online. */
+	for_each_online_cpu(cpu) {
+		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
+	}
+}
+
+/* Reconnect the shared_info pfn to a mfn */
+void xen_hvm_resume_shared_info(void)
+{
+	xen_hvm_connect_shared_info(__pa(xen_hvm_shared_info) >> PAGE_SHIFT);
+}
+
+#ifdef CONFIG_KEXEC
+static struct shared_info *xen_hvm_shared_info_kexec;
+static unsigned long xen_hvm_shared_info_pfn_kexec;
+
+/* Remember a pfn in MMIO space for kexec reboot */
+void __devinit xen_hvm_prepare_kexec(struct shared_info *sip, unsigned long pfn)
+{
+	xen_hvm_shared_info_kexec = sip;
+	xen_hvm_shared_info_pfn_kexec = pfn;
+}
+
+static void xen_hvm_syscore_shutdown(void)
+{
+	struct xen_memory_reservation reservation = {
+		.domid = DOMID_SELF,
+		.nr_extents = 1,
+	};
+	unsigned long prev_pfn;
+	int rc;
+
+	if (!xen_hvm_shared_info_kexec)
+		return;
+
+	prev_pfn = __pa(xen_hvm_shared_info) >> PAGE_SHIFT;
+	set_xen_guest_handle(reservation.extent_start, &prev_pfn);
+
+	/* Move pfn to MMIO, disconnects previous pfn from mfn */
+	xen_hvm_connect_shared_info(xen_hvm_shared_info_pfn_kexec);
+
+	/* Update pointers, following hypercall is also a memory barrier */
+	xen_hvm_set_shared_info(xen_hvm_shared_info_kexec);
+
+	/* Allocate new mfn for previous pfn */
+	do {
+		rc = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
+		if (rc == 0)
+			msleep(123);
+	} while (rc == 0);
+
+	/* Make sure the previous pfn is really connected to a (new) mfn */
+	BUG_ON(rc != 1);
+}
+
+static struct syscore_ops xen_hvm_syscore_ops = {
+	.shutdown = xen_hvm_syscore_shutdown,
+};
+#endif
+
+/* Use a pfn in RAM, may move to MMIO before kexec. */
+static void __init xen_hvm_init_shared_info(void)
+{
+	/* Remember pointer for resume */
+	xen_hvm_shared_info = extend_brk(PAGE_SIZE, PAGE_SIZE);
+	xen_hvm_connect_shared_info(__pa(xen_hvm_shared_info) >> PAGE_SHIFT);
+	xen_hvm_set_shared_info(xen_hvm_shared_info);
+}
+
+static void __init init_hvm_pv_info(void)
+{
+	int major, minor;
 	uint32_t eax, ebx, ecx, edx, pages, msr, base;
 	u64 pfn;
 
 	base = xen_cpuid_base();
 	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
 
-	*major = eax >> 16;
-	*minor = eax & 0xffff;
-	printk(KERN_INFO "Xen version %d.%d.\n", *major, *minor);
+	major = eax >> 16;
+	minor = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
 
 	cpuid(base + 2, &pages, &msr, &ecx, &edx);
 
@@ -1459,42 +1617,8 @@ static int init_hvm_pv_info(int *major, int *minor)
 	pv_info.name = "Xen HVM";
 
 	xen_domain_type = XEN_HVM_DOMAIN;
-
-	return 0;
 }
 
-void __ref xen_hvm_init_shared_info(void)
-{
-	int cpu;
-	struct xen_add_to_physmap xatp;
-	static struct shared_info *shared_info_page = 0;
-
-	if (!shared_info_page)
-		shared_info_page = (struct shared_info *)
-			extend_brk(PAGE_SIZE, PAGE_SIZE);
-	xatp.domid = DOMID_SELF;
-	xatp.idx = 0;
-	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
-	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
-		BUG();
-
-	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
-
-	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
-	 * page, we use it in the event channel upcall and in some pvclock
-	 * related functions. We don't need the vcpu_info placement
-	 * optimizations because we don't use any pv_mmu or pv_irq op on
-	 * HVM.
-	 * When xen_hvm_init_shared_info is run at boot time only vcpu 0 is
-	 * online but xen_hvm_init_shared_info is run at resume time too and
-	 * in that case multiple vcpus might be online. */
-	for_each_online_cpu(cpu) {
-		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
-	}
-}
-
-#ifdef CONFIG_XEN_PVHVM
 static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
@@ -1517,14 +1641,12 @@ static struct notifier_block xen_hvm_cpu_notifier __cpuinitdata = {
 
 static void __init xen_hvm_guest_init(void)
 {
-	int r;
-	int major, minor;
-
-	r = init_hvm_pv_info(&major, &minor);
-	if (r < 0)
-		return;
+	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
+#ifdef CONFIG_KEXEC
+	register_syscore_ops(&xen_hvm_syscore_ops);
+#endif
 
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;

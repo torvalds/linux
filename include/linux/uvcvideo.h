@@ -58,7 +58,8 @@ struct uvc_xu_control_mapping {
 struct uvc_xu_control_query {
 	__u8 unit;
 	__u8 selector;
-	__u8 query;
+	__u8 query;		/* Video Class-Specific Request Code, */
+				/* defined in linux/usb/video.h A.8.  */
 	__u16 size;
 	__u8 __user *data;
 };

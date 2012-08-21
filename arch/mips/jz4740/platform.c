@@ -157,9 +157,27 @@ static struct resource jz4740_nand_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.name	= "bank",
+		.name	= "bank1",
 		.start	= 0x18000000,
 		.end	= 0x180C0000 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name	= "bank2",
+		.start	= 0x14000000,
+		.end	= 0x140C0000 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name	= "bank3",
+		.start	= 0x0C000000,
+		.end	= 0x0C0C0000 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name	= "bank4",
+		.start	= 0x08000000,
+		.end	= 0x080C0000 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };

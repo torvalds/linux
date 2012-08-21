@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
+#include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
@@ -96,6 +97,7 @@ static struct se_device *iblock_create_virtdevice(
 	struct request_queue *q;
 	struct queue_limits *limits;
 	u32 dev_flags = 0;
+	fmode_t mode;
 	int ret = -EINVAL;
 
 	if (!ib_dev) {
@@ -117,8 +119,11 @@ static struct se_device *iblock_create_virtdevice(
 	pr_debug( "IBLOCK: Claiming struct block_device: %s\n",
 			ib_dev->ibd_udev_path);
 
-	bd = blkdev_get_by_path(ib_dev->ibd_udev_path,
-				FMODE_WRITE|FMODE_READ|FMODE_EXCL, ib_dev);
+	mode = FMODE_READ|FMODE_EXCL;
+	if (!ib_dev->ibd_readonly)
+		mode |= FMODE_WRITE;
+
+	bd = blkdev_get_by_path(ib_dev->ibd_udev_path, mode, ib_dev);
 	if (IS_ERR(bd)) {
 		ret = PTR_ERR(bd);
 		goto failed;
@@ -292,7 +297,7 @@ static void iblock_end_io_flush(struct bio *bio, int err)
  * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
  * always flush the whole cache.
  */
-static void iblock_emulate_sync_cache(struct se_cmd *cmd)
+static int iblock_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);
@@ -311,23 +316,98 @@ static void iblock_emulate_sync_cache(struct se_cmd *cmd)
 	if (!immed)
 		bio->bi_private = cmd;
 	submit_bio(WRITE_FLUSH, bio);
+	return 0;
 }
 
-static int iblock_do_discard(struct se_device *dev, sector_t lba, u32 range)
+static int iblock_execute_unmap(struct se_cmd *cmd)
 {
+	struct se_device *dev = cmd->se_dev;
 	struct iblock_dev *ibd = dev->dev_ptr;
-	struct block_device *bd = ibd->ibd_bd;
-	int barrier = 0;
+	unsigned char *buf, *ptr = NULL;
+	sector_t lba;
+	int size = cmd->data_length;
+	u32 range;
+	int ret = 0;
+	int dl, bd_dl;
 
-	return blkdev_issue_discard(bd, lba, range, GFP_KERNEL, barrier);
+	buf = transport_kmap_data_sg(cmd);
+
+	dl = get_unaligned_be16(&buf[0]);
+	bd_dl = get_unaligned_be16(&buf[2]);
+
+	size = min(size - 8, bd_dl);
+	if (size / 16 > dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count) {
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* First UNMAP block descriptor starts at 8 byte offset */
+	ptr = &buf[8];
+	pr_debug("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
+		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
+
+	while (size >= 16) {
+		lba = get_unaligned_be64(&ptr[0]);
+		range = get_unaligned_be32(&ptr[8]);
+		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
+				 (unsigned long long)lba, range);
+
+		if (range > dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count) {
+			cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+			ret = -EINVAL;
+			goto err;
+		}
+
+		if (lba + range > dev->transport->get_blocks(dev) + 1) {
+			cmd->scsi_sense_reason = TCM_ADDRESS_OUT_OF_RANGE;
+			ret = -EINVAL;
+			goto err;
+		}
+
+		ret = blkdev_issue_discard(ibd->ibd_bd, lba, range,
+					   GFP_KERNEL, 0);
+		if (ret < 0) {
+			pr_err("blkdev_issue_discard() failed: %d\n",
+					ret);
+			goto err;
+		}
+
+		ptr += 16;
+		size -= 16;
+	}
+
+err:
+	transport_kunmap_data_sg(cmd);
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
+	return ret;
+}
+
+static int iblock_execute_write_same(struct se_cmd *cmd)
+{
+	struct iblock_dev *ibd = cmd->se_dev->dev_ptr;
+	int ret;
+
+	ret = blkdev_issue_discard(ibd->ibd_bd, cmd->t_task_lba,
+				   spc_get_write_same_sectors(cmd), GFP_KERNEL,
+				   0);
+	if (ret < 0) {
+		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
+		return ret;
+	}
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
 }
 
 enum {
-	Opt_udev_path, Opt_force, Opt_err
+	Opt_udev_path, Opt_readonly, Opt_force, Opt_err
 };
 
 static match_table_t tokens = {
 	{Opt_udev_path, "udev_path=%s"},
+	{Opt_readonly, "readonly=%d"},
 	{Opt_force, "force=%d"},
 	{Opt_err, NULL}
 };
@@ -340,6 +420,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
+	unsigned long tmp_readonly;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -371,6 +452,22 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 			pr_debug("IBLOCK: Referencing UDEV path: %s\n",
 					ib_dev->ibd_udev_path);
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;
+			break;
+		case Opt_readonly:
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
+			ret = strict_strtoul(arg_p, 0, &tmp_readonly);
+			kfree(arg_p);
+			if (ret < 0) {
+				pr_err("strict_strtoul() failed for"
+						" readonly=\n");
+				goto out;
+			}
+			ib_dev->ibd_readonly = tmp_readonly;
+			pr_debug("IBLOCK: readonly: %d\n", ib_dev->ibd_readonly);
 			break;
 		case Opt_force:
 			break;
@@ -411,11 +508,10 @@ static ssize_t iblock_show_configfs_dev_params(
 	if (bd)
 		bl += sprintf(b + bl, "iBlock device: %s",
 				bdevname(bd, buf));
-	if (ibd->ibd_flags & IBDF_HAS_UDEV_PATH) {
-		bl += sprintf(b + bl, "  UDEV PATH: %s\n",
+	if (ibd->ibd_flags & IBDF_HAS_UDEV_PATH)
+		bl += sprintf(b + bl, "  UDEV PATH: %s",
 				ibd->ibd_udev_path);
-	} else
-		bl += sprintf(b + bl, "\n");
+	bl += sprintf(b + bl, "  readonly: %d\n", ibd->ibd_readonly);
 
 	bl += sprintf(b + bl, "        ");
 	if (bd) {
@@ -493,9 +589,11 @@ static void iblock_submit_bios(struct bio_list *list, int rw)
 	blk_finish_plug(&plug);
 }
 
-static int iblock_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+static int iblock_execute_rw(struct se_cmd *cmd)
 {
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_req *ibr;
 	struct bio *bio;
@@ -642,6 +740,18 @@ static void iblock_bio_done(struct bio *bio, int err)
 	iblock_complete_cmd(cmd);
 }
 
+static struct spc_ops iblock_spc_ops = {
+	.execute_rw		= iblock_execute_rw,
+	.execute_sync_cache	= iblock_execute_sync_cache,
+	.execute_write_same	= iblock_execute_write_same,
+	.execute_unmap		= iblock_execute_unmap,
+};
+
+static int iblock_parse_cdb(struct se_cmd *cmd)
+{
+	return sbc_parse_cdb(cmd, &iblock_spc_ops);
+}
+
 static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.owner			= THIS_MODULE,
@@ -653,9 +763,7 @@ static struct se_subsystem_api iblock_template = {
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
 	.create_virtdevice	= iblock_create_virtdevice,
 	.free_device		= iblock_free_device,
-	.execute_cmd		= iblock_execute_cmd,
-	.do_discard		= iblock_do_discard,
-	.do_sync_cache		= iblock_emulate_sync_cache,
+	.parse_cdb		= iblock_parse_cdb,
 	.check_configfs_dev_params = iblock_check_configfs_dev_params,
 	.set_configfs_dev_params = iblock_set_configfs_dev_params,
 	.show_configfs_dev_params = iblock_show_configfs_dev_params,

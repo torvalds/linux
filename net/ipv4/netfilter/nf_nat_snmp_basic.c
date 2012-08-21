@@ -405,7 +405,7 @@ static unsigned char asn1_octets_decode(struct asn1_ctx *ctx,
 
 	ptr = *octets;
 	while (ctx->pointer < eoc) {
-		if (!asn1_octet_decode(ctx, (unsigned char *)ptr++)) {
+		if (!asn1_octet_decode(ctx, ptr++)) {
 			kfree(*octets);
 			*octets = NULL;
 			return 0;
@@ -759,7 +759,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 		}
 		break;
 	case SNMP_OBJECTID:
-		if (!asn1_oid_decode(ctx, end, (unsigned long **)&lp, &len)) {
+		if (!asn1_oid_decode(ctx, end, &lp, &len)) {
 			kfree(id);
 			return 0;
 		}

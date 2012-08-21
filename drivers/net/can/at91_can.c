@@ -170,7 +170,7 @@ static const struct at91_devtype_data at91_devtype_data[] __devinitconst = {
 	},
 };
 
-static struct can_bittiming_const at91_bittiming_const = {
+static const struct can_bittiming_const at91_bittiming_const = {
 	.name		= KBUILD_MODNAME,
 	.tseg1_min	= 4,
 	.tseg1_max	= 16,

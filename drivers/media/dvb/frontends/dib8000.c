@@ -2680,11 +2680,13 @@ static int dib8000_tune(struct dvb_frontend *fe)
 {
 	struct dib8000_state *state = fe->demodulator_priv;
 	int ret = 0;
-	u16 lock, value, mode = fft_to_mode(state);
+	u16 lock, value, mode;
 
 	// we are already tuned - just resuming from suspend
 	if (state == NULL)
 		return -EINVAL;
+
+	mode = fft_to_mode(state);
 
 	dib8000_set_bandwidth(fe, state->fe[0]->dtv_property_cache.bandwidth_hz / 1000);
 	dib8000_set_channel(state, 0, 0);

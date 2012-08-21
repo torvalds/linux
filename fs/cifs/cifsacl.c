@@ -525,7 +525,7 @@ init_cifs_idmap(void)
 	struct key *keyring;
 	int ret;
 
-	cFYI(1, "Registering the %s key type\n", cifs_idmap_key_type.name);
+	cFYI(1, "Registering the %s key type", cifs_idmap_key_type.name);
 
 	/* create an override credential set with a special thread keyring in
 	 * which requests are cached
@@ -572,7 +572,7 @@ init_cifs_idmap(void)
 	sidgidtree = RB_ROOT;
 	register_shrinker(&cifs_shrinker);
 
-	cFYI(1, "cifs idmap keyring: %d\n", key_serial(keyring));
+	cFYI(1, "cifs idmap keyring: %d", key_serial(keyring));
 	return 0;
 
 failed_put_key:
@@ -589,7 +589,7 @@ exit_cifs_idmap(void)
 	unregister_key_type(&cifs_idmap_key_type);
 	put_cred(root_cred);
 	unregister_shrinker(&cifs_shrinker);
-	cFYI(1, "Unregistered %s key type\n", cifs_idmap_key_type.name);
+	cFYI(1, "Unregistered %s key type", cifs_idmap_key_type.name);
 }
 
 void
@@ -1153,15 +1153,16 @@ static struct cifs_ntsd *get_cifs_acl_by_fid(struct cifs_sb_info *cifs_sb,
 		__u16 fid, u32 *pacllen)
 {
 	struct cifs_ntsd *pntsd = NULL;
-	int xid, rc;
+	unsigned int xid;
+	int rc;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 
 	if (IS_ERR(tlink))
 		return ERR_CAST(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 	rc = CIFSSMBGetCIFSACL(xid, tlink_tcon(tlink), fid, &pntsd, pacllen);
-	FreeXid(xid);
+	free_xid(xid);
 
 	cifs_put_tlink(tlink);
 
@@ -1176,7 +1177,8 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 {
 	struct cifs_ntsd *pntsd = NULL;
 	int oplock = 0;
-	int xid, rc, create_options = 0;
+	unsigned int xid;
+	int rc, create_options = 0;
 	__u16 fid;
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
@@ -1185,7 +1187,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 		return ERR_CAST(tlink);
 
 	tcon = tlink_tcon(tlink);
-	xid = GetXid();
+	xid = get_xid();
 
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
@@ -1199,7 +1201,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 	}
 
 	cifs_put_tlink(tlink);
-	FreeXid(xid);
+	free_xid(xid);
 
 	cFYI(1, "%s: rc = %d ACL len %d", __func__, rc, *pacllen);
 	if (rc)
@@ -1230,7 +1232,8 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 			struct inode *inode, const char *path, int aclflag)
 {
 	int oplock = 0;
-	int xid, rc, access_flags, create_options = 0;
+	unsigned int xid;
+	int rc, access_flags, create_options = 0;
 	__u16 fid;
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -1240,7 +1243,7 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 		return PTR_ERR(tlink);
 
 	tcon = tlink_tcon(tlink);
-	xid = GetXid();
+	xid = get_xid();
 
 	if (backup_cred(cifs_sb))
 		create_options |= CREATE_OPEN_BACKUP_INTENT;
@@ -1263,7 +1266,7 @@ int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
 
 	CIFSSMBClose(xid, tcon, fid);
 out:
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
 }

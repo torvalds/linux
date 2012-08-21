@@ -653,7 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 
 alloc_small_pages:
 	while (n--) {
-		page = alloc_page(gfp | __GFP_NOWARN | __GFP_COLD);
+		page = __skb_alloc_page(gfp | __GFP_NOWARN, NULL);
 		if (unlikely(!page)) {
 			fl->alloc_failed++;
 			break;
@@ -934,7 +934,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 		end = (void *)tq->desc + part1;
 	}
 	if ((uintptr_t)end & 8)           /* 0-pad to multiple of 16 */
-		*(u64 *)end = 0;
+		*end = 0;
 }
 
 /**
@@ -1323,8 +1323,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (unlikely((void *)sgl == (void *)tq->stat)) {
 			sgl = (void *)tq->desc;
-			end = (void *)((void *)tq->desc +
-				       ((void *)end - (void *)tq->stat));
+			end = ((void *)tq->desc + ((void *)end - (void *)tq->stat));
 		}
 
 		write_sgl(skb, tq, sgl, end, 0, addr);

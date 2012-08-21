@@ -156,9 +156,7 @@ static int dev_mkdir(const char *name, umode_t mode)
 	if (!err)
 		/* mark as kernel-created inode */
 		dentry->d_inode->i_private = &thread;
-	dput(dentry);
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 	return err;
 }
 
@@ -218,42 +216,30 @@ static int handle_create(const char *nodename, umode_t mode, struct device *dev)
 		/* mark as kernel-created inode */
 		dentry->d_inode->i_private = &thread;
 	}
-	dput(dentry);
-
-	mutex_unlock(&path.dentry->d_inode->i_mutex);
-	path_put(&path);
+	done_path_create(&path, dentry);
 	return err;
 }
 
 static int dev_rmdir(const char *name)
 {
-	struct nameidata nd;
+	struct path parent;
 	struct dentry *dentry;
 	int err;
 
-	err = kern_path_parent(name, &nd);
-	if (err)
-		return err;
-
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_one_len(nd.last.name, nd.path.dentry, nd.last.len);
-	if (!IS_ERR(dentry)) {
-		if (dentry->d_inode) {
-			if (dentry->d_inode->i_private == &thread)
-				err = vfs_rmdir(nd.path.dentry->d_inode,
-						dentry);
-			else
-				err = -EPERM;
-		} else {
-			err = -ENOENT;
-		}
-		dput(dentry);
+	dentry = kern_path_locked(name, &parent);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	if (dentry->d_inode) {
+		if (dentry->d_inode->i_private == &thread)
+			err = vfs_rmdir(parent.dentry->d_inode, dentry);
+		else
+			err = -EPERM;
 	} else {
-		err = PTR_ERR(dentry);
+		err = -ENOENT;
 	}
-
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	path_put(&nd.path);
+	dput(dentry);
+	mutex_unlock(&parent.dentry->d_inode->i_mutex);
+	path_put(&parent);
 	return err;
 }
 
@@ -305,50 +291,43 @@ static int dev_mynode(struct device *dev, struct inode *inode, struct kstat *sta
 
 static int handle_remove(const char *nodename, struct device *dev)
 {
-	struct nameidata nd;
+	struct path parent;
 	struct dentry *dentry;
-	struct kstat stat;
 	int deleted = 1;
 	int err;
 
-	err = kern_path_parent(nodename, &nd);
-	if (err)
-		return err;
+	dentry = kern_path_locked(nodename, &parent);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_one_len(nd.last.name, nd.path.dentry, nd.last.len);
-	if (!IS_ERR(dentry)) {
-		if (dentry->d_inode) {
-			err = vfs_getattr(nd.path.mnt, dentry, &stat);
-			if (!err && dev_mynode(dev, dentry->d_inode, &stat)) {
-				struct iattr newattrs;
-				/*
-				 * before unlinking this node, reset permissions
-				 * of possible references like hardlinks
-				 */
-				newattrs.ia_uid = 0;
-				newattrs.ia_gid = 0;
-				newattrs.ia_mode = stat.mode & ~0777;
-				newattrs.ia_valid =
-					ATTR_UID|ATTR_GID|ATTR_MODE;
-				mutex_lock(&dentry->d_inode->i_mutex);
-				notify_change(dentry, &newattrs);
-				mutex_unlock(&dentry->d_inode->i_mutex);
-				err = vfs_unlink(nd.path.dentry->d_inode,
-						 dentry);
-				if (!err || err == -ENOENT)
-					deleted = 1;
-			}
-		} else {
-			err = -ENOENT;
+	if (dentry->d_inode) {
+		struct kstat stat;
+		err = vfs_getattr(parent.mnt, dentry, &stat);
+		if (!err && dev_mynode(dev, dentry->d_inode, &stat)) {
+			struct iattr newattrs;
+			/*
+			 * before unlinking this node, reset permissions
+			 * of possible references like hardlinks
+			 */
+			newattrs.ia_uid = 0;
+			newattrs.ia_gid = 0;
+			newattrs.ia_mode = stat.mode & ~0777;
+			newattrs.ia_valid =
+				ATTR_UID|ATTR_GID|ATTR_MODE;
+			mutex_lock(&dentry->d_inode->i_mutex);
+			notify_change(dentry, &newattrs);
+			mutex_unlock(&dentry->d_inode->i_mutex);
+			err = vfs_unlink(parent.dentry->d_inode, dentry);
+			if (!err || err == -ENOENT)
+				deleted = 1;
 		}
-		dput(dentry);
 	} else {
-		err = PTR_ERR(dentry);
+		err = -ENOENT;
 	}
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+	dput(dentry);
+	mutex_unlock(&parent.dentry->d_inode->i_mutex);
 
-	path_put(&nd.path);
+	path_put(&parent);
 	if (deleted && strchr(nodename, '/'))
 		delete_path(nodename);
 	return err;

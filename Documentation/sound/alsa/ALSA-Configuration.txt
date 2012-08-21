@@ -875,8 +875,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     		setup before initializing the codecs.  This option is
 		available only when CONFIG_SND_HDA_PATCH_LOADER=y is set.
 		See HD-Audio.txt for details.
-    beep_mode	- Selects the beep registration mode (0=off, 1=on, 2=
-		dynamic registration via mute switch on/off); the default
+    beep_mode	- Selects the beep registration mode (0=off, 1=on); default
 		value is set via CONFIG_SND_HDA_INPUT_BEEP_MODE kconfig.
     
     [Single (global) options]

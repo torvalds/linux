@@ -49,6 +49,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_net.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/regulator/consumer.h>
 
 #include <asm/cacheflush.h>
 
@@ -1388,8 +1389,8 @@ fec_set_mac_address(struct net_device *ndev, void *p)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * fec_poll_controller: FEC Poll controller function
+/**
+ * fec_poll_controller - FEC Poll controller function
  * @dev: The FEC network adapter
  *
  * Polled functionality used by netconsole and others in non interrupt mode
@@ -1506,18 +1507,25 @@ static int __devinit fec_get_phy_mode_dt(struct platform_device *pdev)
 static void __devinit fec_reset_phy(struct platform_device *pdev)
 {
 	int err, phy_reset;
+	int msec = 1;
 	struct device_node *np = pdev->dev.of_node;
 
 	if (!np)
 		return;
 
+	of_property_read_u32(np, "phy-reset-duration", &msec);
+	/* A sane reset duration should not be longer than 1s */
+	if (msec > 1000)
+		msec = 1;
+
 	phy_reset = of_get_named_gpio(np, "phy-reset-gpios", 0);
-	err = gpio_request_one(phy_reset, GPIOF_OUT_INIT_LOW, "phy-reset");
+	err = devm_gpio_request_one(&pdev->dev, phy_reset,
+				    GPIOF_OUT_INIT_LOW, "phy-reset");
 	if (err) {
 		pr_debug("FEC: failed to get gpio phy-reset: %d\n", err);
 		return;
 	}
-	msleep(1);
+	msleep(msec);
 	gpio_set_value(phy_reset, 1);
 }
 #else /* CONFIG_OF */
@@ -1546,6 +1554,7 @@ fec_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	static int dev_id;
 	struct pinctrl *pinctrl;
+	struct regulator *reg_phy;
 
 	of_id = of_match_device(fec_dt_ids, &pdev->dev);
 	if (of_id)
@@ -1593,8 +1602,6 @@ fec_probe(struct platform_device *pdev)
 		fep->phy_interface = ret;
 	}
 
-	fec_reset_phy(pdev);
-
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0) {
@@ -1634,6 +1641,18 @@ fec_probe(struct platform_device *pdev)
 	clk_prepare_enable(fep->clk_ahb);
 	clk_prepare_enable(fep->clk_ipg);
 
+	reg_phy = devm_regulator_get(&pdev->dev, "phy");
+	if (!IS_ERR(reg_phy)) {
+		ret = regulator_enable(reg_phy);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"Failed to enable phy regulator: %d\n", ret);
+			goto failed_regulator;
+		}
+	}
+
+	fec_reset_phy(pdev);
+
 	ret = fec_enet_init(ndev);
 	if (ret)
 		goto failed_init;
@@ -1655,6 +1674,7 @@ failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
 failed_init:
+failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
 failed_pin:

@@ -41,13 +41,12 @@
 #include <linux/slab.h>
 #include <linux/mlx4/cmd.h>
 #include <linux/mlx4/qp.h>
+#include <linux/if_ether.h>
 
 #include "mlx4.h"
 #include "fw.h"
 
 #define MLX4_MAC_VALID		(1ull << 63)
-#define MLX4_MAC_MASK		0x7fffffffffffffffULL
-#define ETH_ALEN		6
 
 struct mac_res {
 	struct list_head list;
@@ -57,7 +56,8 @@ struct mac_res {
 
 struct res_common {
 	struct list_head	list;
-	u32		        res_id;
+	struct rb_node		node;
+	u64		        res_id;
 	int			owner;
 	int			state;
 	int			from_state;
@@ -189,6 +189,58 @@ struct res_xrcdn {
 	int			port;
 };
 
+enum res_fs_rule_states {
+	RES_FS_RULE_BUSY = RES_ANY_BUSY,
+	RES_FS_RULE_ALLOCATED,
+};
+
+struct res_fs_rule {
+	struct res_common	com;
+};
+
+static void *res_tracker_lookup(struct rb_root *root, u64 res_id)
+{
+	struct rb_node *node = root->rb_node;
+
+	while (node) {
+		struct res_common *res = container_of(node, struct res_common,
+						      node);
+
+		if (res_id < res->res_id)
+			node = node->rb_left;
+		else if (res_id > res->res_id)
+			node = node->rb_right;
+		else
+			return res;
+	}
+	return NULL;
+}
+
+static int res_tracker_insert(struct rb_root *root, struct res_common *res)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+
+	/* Figure out where to put new node */
+	while (*new) {
+		struct res_common *this = container_of(*new, struct res_common,
+						       node);
+
+		parent = *new;
+		if (res->res_id < this->res_id)
+			new = &((*new)->rb_left);
+		else if (res->res_id > this->res_id)
+			new = &((*new)->rb_right);
+		else
+			return -EEXIST;
+	}
+
+	/* Add new node and rebalance tree. */
+	rb_link_node(&res->node, parent, new);
+	rb_insert_color(&res->node, root);
+
+	return 0;
+}
+
 /* For Debug uses */
 static const char *ResourceType(enum mlx4_resource rt)
 {
@@ -201,6 +253,7 @@ static const char *ResourceType(enum mlx4_resource rt)
 	case RES_MAC: return  "RES_MAC";
 	case RES_EQ: return "RES_EQ";
 	case RES_COUNTER: return "RES_COUNTER";
+	case RES_FS_RULE: return "RES_FS_RULE";
 	case RES_XRCD: return "RES_XRCD";
 	default: return "Unknown resource type !!!";
 	};
@@ -228,8 +281,7 @@ int mlx4_init_resource_tracker(struct mlx4_dev *dev)
 	mlx4_dbg(dev, "Started init_resource_tracker: %ld slaves\n",
 		 dev->num_slaves);
 	for (i = 0 ; i < MLX4_NUM_OF_RESOURCE_TYPE; i++)
-		INIT_RADIX_TREE(&priv->mfunc.master.res_tracker.res_tree[i],
-				GFP_ATOMIC|__GFP_NOWARN);
+		priv->mfunc.master.res_tracker.res_tree[i] = RB_ROOT;
 
 	spin_lock_init(&priv->mfunc.master.res_tracker.lock);
 	return 0 ;
@@ -277,11 +329,11 @@ static void *find_res(struct mlx4_dev *dev, int res_id,
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	return radix_tree_lookup(&priv->mfunc.master.res_tracker.res_tree[type],
-				 res_id);
+	return res_tracker_lookup(&priv->mfunc.master.res_tracker.res_tree[type],
+				  res_id);
 }
 
-static int get_res(struct mlx4_dev *dev, int slave, int res_id,
+static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 		   enum mlx4_resource type,
 		   void *res)
 {
@@ -307,7 +359,7 @@ static int get_res(struct mlx4_dev *dev, int slave, int res_id,
 
 	r->from_state = r->state;
 	r->state = RES_ANY_BUSY;
-	mlx4_dbg(dev, "res %s id 0x%x to busy\n",
+	mlx4_dbg(dev, "res %s id 0x%llx to busy\n",
 		 ResourceType(type), r->res_id);
 
 	if (res)
@@ -320,7 +372,7 @@ exit:
 
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource type,
-				    int res_id, int *slave)
+				    u64 res_id, int *slave)
 {
 
 	struct res_common *r;
@@ -341,7 +393,7 @@ int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 	return err;
 }
 
-static void put_res(struct mlx4_dev *dev, int slave, int res_id,
+static void put_res(struct mlx4_dev *dev, int slave, u64 res_id,
 		    enum mlx4_resource type)
 {
 	struct res_common *r;
@@ -473,7 +525,21 @@ static struct res_common *alloc_xrcdn_tr(int id)
 	return &ret->com;
 }
 
-static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
+static struct res_common *alloc_fs_rule_tr(u64 id)
+{
+	struct res_fs_rule *ret;
+
+	ret = kzalloc(sizeof *ret, GFP_KERNEL);
+	if (!ret)
+		return NULL;
+
+	ret->com.res_id = id;
+	ret->com.state = RES_FS_RULE_ALLOCATED;
+
+	return &ret->com;
+}
+
+static struct res_common *alloc_tr(u64 id, enum mlx4_resource type, int slave,
 				   int extra)
 {
 	struct res_common *ret;
@@ -506,6 +572,9 @@ static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
 	case RES_XRCD:
 		ret = alloc_xrcdn_tr(id);
 		break;
+	case RES_FS_RULE:
+		ret = alloc_fs_rule_tr(id);
+		break;
 	default:
 		return NULL;
 	}
@@ -515,7 +584,7 @@ static struct res_common *alloc_tr(int id, enum mlx4_resource type, int slave,
 	return ret;
 }
 
-static int add_res_range(struct mlx4_dev *dev, int slave, int base, int count,
+static int add_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 			 enum mlx4_resource type, int extra)
 {
 	int i;
@@ -523,7 +592,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, int base, int count,
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct res_common **res_arr;
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
-	struct radix_tree_root *root = &tracker->res_tree[type];
+	struct rb_root *root = &tracker->res_tree[type];
 
 	res_arr = kzalloc(count * sizeof *res_arr, GFP_KERNEL);
 	if (!res_arr)
@@ -546,7 +615,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, int base, int count,
 			err = -EEXIST;
 			goto undo;
 		}
-		err = radix_tree_insert(root, base + i, res_arr[i]);
+		err = res_tracker_insert(root, res_arr[i]);
 		if (err)
 			goto undo;
 		list_add_tail(&res_arr[i]->list,
@@ -559,7 +628,7 @@ static int add_res_range(struct mlx4_dev *dev, int slave, int base, int count,
 
 undo:
 	for (--i; i >= base; --i)
-		radix_tree_delete(&tracker->res_tree[type], i);
+		rb_erase(&res_arr[i]->node, root);
 
 	spin_unlock_irq(mlx4_tlock(dev));
 
@@ -638,6 +707,16 @@ static int remove_xrcdn_ok(struct res_xrcdn *res)
 	return 0;
 }
 
+static int remove_fs_rule_ok(struct res_fs_rule *res)
+{
+	if (res->com.state == RES_FS_RULE_BUSY)
+		return -EBUSY;
+	else if (res->com.state != RES_FS_RULE_ALLOCATED)
+		return -EPERM;
+
+	return 0;
+}
+
 static int remove_cq_ok(struct res_cq *res)
 {
 	if (res->com.state == RES_CQ_BUSY)
@@ -679,15 +758,17 @@ static int remove_ok(struct res_common *res, enum mlx4_resource type, int extra)
 		return remove_counter_ok((struct res_counter *)res);
 	case RES_XRCD:
 		return remove_xrcdn_ok((struct res_xrcdn *)res);
+	case RES_FS_RULE:
+		return remove_fs_rule_ok((struct res_fs_rule *)res);
 	default:
 		return -EINVAL;
 	}
 }
 
-static int rem_res_range(struct mlx4_dev *dev, int slave, int base, int count,
+static int rem_res_range(struct mlx4_dev *dev, int slave, u64 base, int count,
 			 enum mlx4_resource type, int extra)
 {
-	int i;
+	u64 i;
 	int err;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_resource_tracker *tracker = &priv->mfunc.master.res_tracker;
@@ -695,7 +776,7 @@ static int rem_res_range(struct mlx4_dev *dev, int slave, int base, int count,
 
 	spin_lock_irq(mlx4_tlock(dev));
 	for (i = base; i < base + count; ++i) {
-		r = radix_tree_lookup(&tracker->res_tree[type], i);
+		r = res_tracker_lookup(&tracker->res_tree[type], i);
 		if (!r) {
 			err = -ENOENT;
 			goto out;
@@ -710,8 +791,8 @@ static int rem_res_range(struct mlx4_dev *dev, int slave, int base, int count,
 	}
 
 	for (i = base; i < base + count; ++i) {
-		r = radix_tree_lookup(&tracker->res_tree[type], i);
-		radix_tree_delete(&tracker->res_tree[type], i);
+		r = res_tracker_lookup(&tracker->res_tree[type], i);
+		rb_erase(&r->node, &tracker->res_tree[type]);
 		list_del(&r->list);
 		kfree(r);
 	}
@@ -733,7 +814,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 	int err = 0;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[RES_QP], qpn);
+	r = res_tracker_lookup(&tracker->res_tree[RES_QP], qpn);
 	if (!r)
 		err = -ENOENT;
 	else if (r->com.owner != slave)
@@ -741,7 +822,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 	else {
 		switch (state) {
 		case RES_QP_BUSY:
-			mlx4_dbg(dev, "%s: failed RES_QP, 0x%x\n",
+			mlx4_dbg(dev, "%s: failed RES_QP, 0x%llx\n",
 				 __func__, r->com.res_id);
 			err = -EBUSY;
 			break;
@@ -750,7 +831,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			if (r->com.state == RES_QP_MAPPED && !alloc)
 				break;
 
-			mlx4_dbg(dev, "failed RES_QP, 0x%x\n", r->com.res_id);
+			mlx4_dbg(dev, "failed RES_QP, 0x%llx\n", r->com.res_id);
 			err = -EINVAL;
 			break;
 
@@ -759,7 +840,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			    r->com.state == RES_QP_HW)
 				break;
 			else {
-				mlx4_dbg(dev, "failed RES_QP, 0x%x\n",
+				mlx4_dbg(dev, "failed RES_QP, 0x%llx\n",
 					  r->com.res_id);
 				err = -EINVAL;
 			}
@@ -779,7 +860,7 @@ static int qp_res_start_move_to(struct mlx4_dev *dev, int slave, int qpn,
 			r->com.to_state = state;
 			r->com.state = RES_QP_BUSY;
 			if (qp)
-				*qp = (struct res_qp *)r;
+				*qp = r;
 		}
 	}
 
@@ -797,7 +878,7 @@ static int mr_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 	int err = 0;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[RES_MPT], index);
+	r = res_tracker_lookup(&tracker->res_tree[RES_MPT], index);
 	if (!r)
 		err = -ENOENT;
 	else if (r->com.owner != slave)
@@ -832,7 +913,7 @@ static int mr_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 			r->com.to_state = state;
 			r->com.state = RES_MPT_BUSY;
 			if (mpt)
-				*mpt = (struct res_mpt *)r;
+				*mpt = r;
 		}
 	}
 
@@ -850,7 +931,7 @@ static int eq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 	int err = 0;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[RES_EQ], index);
+	r = res_tracker_lookup(&tracker->res_tree[RES_EQ], index);
 	if (!r)
 		err = -ENOENT;
 	else if (r->com.owner != slave)
@@ -898,7 +979,7 @@ static int cq_res_start_move_to(struct mlx4_dev *dev, int slave, int cqn,
 	int err;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[RES_CQ], cqn);
+	r = res_tracker_lookup(&tracker->res_tree[RES_CQ], cqn);
 	if (!r)
 		err = -ENOENT;
 	else if (r->com.owner != slave)
@@ -952,7 +1033,7 @@ static int srq_res_start_move_to(struct mlx4_dev *dev, int slave, int index,
 	int err = 0;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[RES_SRQ], index);
+	r = res_tracker_lookup(&tracker->res_tree[RES_SRQ], index);
 	if (!r)
 		err = -ENOENT;
 	else if (r->com.owner != slave)
@@ -1001,7 +1082,7 @@ static void res_abort_move(struct mlx4_dev *dev, int slave,
 	struct res_common *r;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[type], id);
+	r = res_tracker_lookup(&tracker->res_tree[type], id);
 	if (r && (r->owner == slave))
 		r->state = r->from_state;
 	spin_unlock_irq(mlx4_tlock(dev));
@@ -1015,7 +1096,7 @@ static void res_end_move(struct mlx4_dev *dev, int slave,
 	struct res_common *r;
 
 	spin_lock_irq(mlx4_tlock(dev));
-	r = radix_tree_lookup(&tracker->res_tree[type], id);
+	r = res_tracker_lookup(&tracker->res_tree[type], id);
 	if (r && (r->owner == slave))
 		r->state = r->to_state;
 	spin_unlock_irq(mlx4_tlock(dev));
@@ -2695,6 +2776,60 @@ ex_put:
 	return err;
 }
 
+int mlx4_QP_FLOW_STEERING_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
+					 struct mlx4_vhcr *vhcr,
+					 struct mlx4_cmd_mailbox *inbox,
+					 struct mlx4_cmd_mailbox *outbox,
+					 struct mlx4_cmd_info *cmd)
+{
+	int err;
+
+	if (dev->caps.steering_mode !=
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return -EOPNOTSUPP;
+
+	err = mlx4_cmd_imm(dev, inbox->dma, &vhcr->out_param,
+			   vhcr->in_modifier, 0,
+			   MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
+			   MLX4_CMD_NATIVE);
+	if (err)
+		return err;
+
+	err = add_res_range(dev, slave, vhcr->out_param, 1, RES_FS_RULE, 0);
+	if (err) {
+		mlx4_err(dev, "Fail to add flow steering resources.\n ");
+		/* detach rule*/
+		mlx4_cmd(dev, vhcr->out_param, 0, 0,
+			 MLX4_QP_FLOW_STEERING_ATTACH, MLX4_CMD_TIME_CLASS_A,
+			 MLX4_CMD_NATIVE);
+	}
+	return err;
+}
+
+int mlx4_QP_FLOW_STEERING_DETACH_wrapper(struct mlx4_dev *dev, int slave,
+					 struct mlx4_vhcr *vhcr,
+					 struct mlx4_cmd_mailbox *inbox,
+					 struct mlx4_cmd_mailbox *outbox,
+					 struct mlx4_cmd_info *cmd)
+{
+	int err;
+
+	if (dev->caps.steering_mode !=
+	    MLX4_STEERING_MODE_DEVICE_MANAGED)
+		return -EOPNOTSUPP;
+
+	err = rem_res_range(dev, slave, vhcr->in_param, 1, RES_FS_RULE, 0);
+	if (err) {
+		mlx4_err(dev, "Fail to remove flow steering resources.\n ");
+		return err;
+	}
+
+	err = mlx4_cmd(dev, vhcr->in_param, 0, 0,
+		       MLX4_QP_FLOW_STEERING_DETACH, MLX4_CMD_TIME_CLASS_A,
+		       MLX4_CMD_NATIVE);
+	return err;
+}
+
 enum {
 	BUSY_MAX_RETRIES = 10
 };
@@ -2751,7 +2886,7 @@ static int _move_all_busy(struct mlx4_dev *dev, int slave,
 				if (r->state == RES_ANY_BUSY) {
 					if (print)
 						mlx4_dbg(dev,
-							 "%s id 0x%x is busy\n",
+							 "%s id 0x%llx is busy\n",
 							  ResourceType(type),
 							  r->res_id);
 					++busy;
@@ -2817,8 +2952,8 @@ static void rem_slave_qps(struct mlx4_dev *dev, int slave)
 				switch (state) {
 				case RES_QP_RESERVED:
 					spin_lock_irq(mlx4_tlock(dev));
-					radix_tree_delete(&tracker->res_tree[RES_QP],
-							  qp->com.res_id);
+					rb_erase(&qp->com.node,
+						 &tracker->res_tree[RES_QP]);
 					list_del(&qp->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
 					kfree(qp);
@@ -2888,8 +3023,8 @@ static void rem_slave_srqs(struct mlx4_dev *dev, int slave)
 				case RES_SRQ_ALLOCATED:
 					__mlx4_srq_free_icm(dev, srqn);
 					spin_lock_irq(mlx4_tlock(dev));
-					radix_tree_delete(&tracker->res_tree[RES_SRQ],
-							  srqn);
+					rb_erase(&srq->com.node,
+						 &tracker->res_tree[RES_SRQ]);
 					list_del(&srq->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
 					kfree(srq);
@@ -2954,8 +3089,8 @@ static void rem_slave_cqs(struct mlx4_dev *dev, int slave)
 				case RES_CQ_ALLOCATED:
 					__mlx4_cq_free_icm(dev, cqn);
 					spin_lock_irq(mlx4_tlock(dev));
-					radix_tree_delete(&tracker->res_tree[RES_CQ],
-							  cqn);
+					rb_erase(&cq->com.node,
+						 &tracker->res_tree[RES_CQ]);
 					list_del(&cq->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
 					kfree(cq);
@@ -3017,8 +3152,8 @@ static void rem_slave_mrs(struct mlx4_dev *dev, int slave)
 				case RES_MPT_RESERVED:
 					__mlx4_mr_release(dev, mpt->key);
 					spin_lock_irq(mlx4_tlock(dev));
-					radix_tree_delete(&tracker->res_tree[RES_MPT],
-							  mptn);
+					rb_erase(&mpt->com.node,
+						 &tracker->res_tree[RES_MPT]);
 					list_del(&mpt->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
 					kfree(mpt);
@@ -3086,11 +3221,63 @@ static void rem_slave_mtts(struct mlx4_dev *dev, int slave)
 					__mlx4_free_mtt_range(dev, base,
 							      mtt->order);
 					spin_lock_irq(mlx4_tlock(dev));
-					radix_tree_delete(&tracker->res_tree[RES_MTT],
-							  base);
+					rb_erase(&mtt->com.node,
+						 &tracker->res_tree[RES_MTT]);
 					list_del(&mtt->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
 					kfree(mtt);
+					state = 0;
+					break;
+
+				default:
+					state = 0;
+				}
+			}
+		}
+		spin_lock_irq(mlx4_tlock(dev));
+	}
+	spin_unlock_irq(mlx4_tlock(dev));
+}
+
+static void rem_slave_fs_rule(struct mlx4_dev *dev, int slave)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	struct mlx4_resource_tracker *tracker =
+		&priv->mfunc.master.res_tracker;
+	struct list_head *fs_rule_list =
+		&tracker->slave_list[slave].res_list[RES_FS_RULE];
+	struct res_fs_rule *fs_rule;
+	struct res_fs_rule *tmp;
+	int state;
+	u64 base;
+	int err;
+
+	err = move_all_busy(dev, slave, RES_FS_RULE);
+	if (err)
+		mlx4_warn(dev, "rem_slave_fs_rule: Could not move all mtts to busy for slave %d\n",
+			  slave);
+
+	spin_lock_irq(mlx4_tlock(dev));
+	list_for_each_entry_safe(fs_rule, tmp, fs_rule_list, com.list) {
+		spin_unlock_irq(mlx4_tlock(dev));
+		if (fs_rule->com.owner == slave) {
+			base = fs_rule->com.res_id;
+			state = fs_rule->com.from_state;
+			while (state != 0) {
+				switch (state) {
+				case RES_FS_RULE_ALLOCATED:
+					/* detach rule */
+					err = mlx4_cmd(dev, base, 0, 0,
+						       MLX4_QP_FLOW_STEERING_DETACH,
+						       MLX4_CMD_TIME_CLASS_A,
+						       MLX4_CMD_NATIVE);
+
+					spin_lock_irq(mlx4_tlock(dev));
+					rb_erase(&fs_rule->com.node,
+						 &tracker->res_tree[RES_FS_RULE]);
+					list_del(&fs_rule->com.list);
+					spin_unlock_irq(mlx4_tlock(dev));
+					kfree(fs_rule);
 					state = 0;
 					break;
 
@@ -3133,8 +3320,8 @@ static void rem_slave_eqs(struct mlx4_dev *dev, int slave)
 				switch (state) {
 				case RES_EQ_RESERVED:
 					spin_lock_irq(mlx4_tlock(dev));
-					radix_tree_delete(&tracker->res_tree[RES_EQ],
-							  eqn);
+					rb_erase(&eq->com.node,
+						 &tracker->res_tree[RES_EQ]);
 					list_del(&eq->com.list);
 					spin_unlock_irq(mlx4_tlock(dev));
 					kfree(eq);
@@ -3191,7 +3378,8 @@ static void rem_slave_counters(struct mlx4_dev *dev, int slave)
 	list_for_each_entry_safe(counter, tmp, counter_list, com.list) {
 		if (counter->com.owner == slave) {
 			index = counter->com.res_id;
-			radix_tree_delete(&tracker->res_tree[RES_COUNTER], index);
+			rb_erase(&counter->com.node,
+				 &tracker->res_tree[RES_COUNTER]);
 			list_del(&counter->com.list);
 			kfree(counter);
 			__mlx4_counter_free(dev, index);
@@ -3220,7 +3408,7 @@ static void rem_slave_xrcdns(struct mlx4_dev *dev, int slave)
 	list_for_each_entry_safe(xrcd, tmp, xrcdn_list, com.list) {
 		if (xrcd->com.owner == slave) {
 			xrcdn = xrcd->com.res_id;
-			radix_tree_delete(&tracker->res_tree[RES_XRCD], xrcdn);
+			rb_erase(&xrcd->com.node, &tracker->res_tree[RES_XRCD]);
 			list_del(&xrcd->com.list);
 			kfree(xrcd);
 			__mlx4_xrcd_free(dev, xrcdn);
@@ -3244,5 +3432,6 @@ void mlx4_delete_all_resources_for_slave(struct mlx4_dev *dev, int slave)
 	rem_slave_mtts(dev, slave);
 	rem_slave_counters(dev, slave);
 	rem_slave_xrcdns(dev, slave);
+	rem_slave_fs_rule(dev, slave);
 	mutex_unlock(&priv->mfunc.master.res_tracker.slave_list[slave].mutex);
 }

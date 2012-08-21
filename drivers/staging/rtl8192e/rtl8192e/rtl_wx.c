@@ -919,10 +919,10 @@ static int r8192_wx_get_retry(struct net_device *dev,
 		return -EINVAL;
 
 	if (wrqu->retry.flags & IW_RETRY_MAX) {
-		wrqu->retry.flags = IW_RETRY_LIMIT & IW_RETRY_MAX;
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
 		wrqu->retry.value = priv->retry_rts;
 	} else {
-		wrqu->retry.flags = IW_RETRY_LIMIT & IW_RETRY_MIN;
+		wrqu->retry.flags = IW_RETRY_LIMIT | IW_RETRY_MIN;
 		wrqu->retry.value = priv->retry_data;
 	}
 	return 0;

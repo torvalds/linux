@@ -13,11 +13,16 @@
  */
 #define CARDBUS_PCI_IDSEL	0x8
 
+
+#define PCIE_BUS_BRIDGE		0
+#define PCIE_BUS_DEVICE		1
+
 /*
  * defined in ops-bcm63xx.c
  */
 extern struct pci_ops bcm63xx_pci_ops;
 extern struct pci_ops bcm63xx_cb_ops;
+extern struct pci_ops bcm63xx_pcie_ops;
 
 /*
  * defined in pci-bcm63xx.c

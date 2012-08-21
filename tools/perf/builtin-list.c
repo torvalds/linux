@@ -19,15 +19,15 @@ int cmd_list(int argc, const char **argv, const char *prefix __used)
 	setup_pager();
 
 	if (argc == 1)
-		print_events(NULL);
+		print_events(NULL, false);
 	else {
 		int i;
 
 		for (i = 1; i < argc; ++i) {
-			if (i > 1)
+			if (i > 2)
 				putchar('\n');
 			if (strncmp(argv[i], "tracepoint", 10) == 0)
-				print_tracepoint_events(NULL, NULL);
+				print_tracepoint_events(NULL, NULL, false);
 			else if (strcmp(argv[i], "hw") == 0 ||
 				 strcmp(argv[i], "hardware") == 0)
 				print_events_type(PERF_TYPE_HARDWARE);
@@ -36,13 +36,15 @@ int cmd_list(int argc, const char **argv, const char *prefix __used)
 				print_events_type(PERF_TYPE_SOFTWARE);
 			else if (strcmp(argv[i], "cache") == 0 ||
 				 strcmp(argv[i], "hwcache") == 0)
-				print_hwcache_events(NULL);
+				print_hwcache_events(NULL, false);
+			else if (strcmp(argv[i], "--raw-dump") == 0)
+				print_events(NULL, true);
 			else {
 				char *sep = strchr(argv[i], ':'), *s;
 				int sep_idx;
 
 				if (sep == NULL) {
-					print_events(argv[i]);
+					print_events(argv[i], false);
 					continue;
 				}
 				sep_idx = sep - argv[i];
@@ -51,7 +53,7 @@ int cmd_list(int argc, const char **argv, const char *prefix __used)
 					return -1;
 
 				s[sep_idx] = '\0';
-				print_tracepoint_events(s, s + sep_idx + 1);
+				print_tracepoint_events(s, s + sep_idx + 1, false);
 				free(s);
 			}
 		}

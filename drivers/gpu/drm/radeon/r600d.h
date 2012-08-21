@@ -153,6 +153,9 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 #define CONFIG_CNTL					0x5424
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
 #define	CP_STAT						0x8680
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC

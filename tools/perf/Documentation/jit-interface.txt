@@ -1,0 +1,15 @@
+perf supports a simple JIT interface to resolve symbols for dynamic code generated
+by a JIT.
+
+The JIT has to write a /tmp/perf-%d.map  (%d = pid of process) file
+
+This is a text file.
+
+Each line has the following format, fields separated with spaces:
+
+START SIZE symbolname
+
+START and SIZE are hex numbers without 0x.
+symbolname is the rest of the line, so it could contain special characters.
+
+The ownership of the file has to match the process.

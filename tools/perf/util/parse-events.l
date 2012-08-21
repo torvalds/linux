@@ -15,10 +15,10 @@ YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
 
 static int __value(YYSTYPE *yylval, char *str, int base, int token)
 {
-	long num;
+	u64 num;
 
 	errno = 0;
-	num = strtoul(str, NULL, base);
+	num = strtoull(str, NULL, base);
 	if (errno)
 		return PE_ERROR;
 
@@ -151,6 +151,8 @@ r{num_raw_hex}		{ return raw(yyscanner); }
 -			{ return '-'; }
 ,			{ return ','; }
 :			{ return ':'; }
+"{"			{ return '{'; }
+"}"			{ return '}'; }
 =			{ return '='; }
 \n			{ }
 

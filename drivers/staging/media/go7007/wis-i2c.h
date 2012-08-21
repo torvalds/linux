@@ -25,11 +25,6 @@
 #define	I2C_DRIVERID_WIS_TW2804		0xf0f6
 #define	I2C_DRIVERID_S2250		0xf0f7
 
-/* Flag to indicate that the client needs to be accessed with SCCB semantics */
-/* We re-use the I2C_M_TEN value so the flag passes through the masks in the
- * core I2C code.  Major kludge, but the I2C layer ain't exactly flexible. */
-#define	I2C_CLIENT_SCCB			0x10
-
 /* Definitions for new video decoder commands */
 
 struct video_decoder_resolution {

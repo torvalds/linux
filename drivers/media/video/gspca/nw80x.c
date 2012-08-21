@@ -32,21 +32,9 @@ MODULE_LICENSE("GPL");
 
 static int webcam;
 
-/* controls */
-enum e_ctrl {
-	GAIN,
-	EXPOSURE,
-	AUTOGAIN,
-	NCTRLS		/* number of controls */
-};
-
-#define AUTOGAIN_DEF 1
-
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-
-	struct gspca_ctrl ctrls[NCTRLS];
 
 	u32 ae_res;
 	s8 ag_cnt;
@@ -1667,17 +1655,13 @@ static int swap_bits(int v)
 	return r;
 }
 
-static void setgain(struct gspca_dev *gspca_dev)
+static void setgain(struct gspca_dev *gspca_dev, u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 val, v[2];
+	u8 v[2];
 
-	val = sd->ctrls[GAIN].val;
 	switch (sd->webcam) {
 	case P35u:
-		/* Note the control goes from 0-255 not 0-127, but anything
-		   above 127 just means amplifying noise */
-		val >>= 1;			/* 0 - 255 -> 0 - 127 */
 		reg_w(gspca_dev, 0x1026, &val, 1);
 		break;
 	case Kr651us:
@@ -1690,13 +1674,11 @@ static void setgain(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void setexposure(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	s16 val;
 	u8 v[2];
 
-	val = sd->ctrls[EXPOSURE].val;
 	switch (sd->webcam) {
 	case P35u:
 		v[0] = ((9 - val) << 3) | 0x01;
@@ -1713,14 +1695,12 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int w, h;
 
-	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN))
-		return;
-	if (!sd->ctrls[AUTOGAIN].val) {
+	if (!val) {
 		sd->ag_cnt = -1;
 		return;
 	}
@@ -1763,7 +1743,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if ((unsigned) webcam >= NWEBCAMS)
 		webcam = 0;
 	sd->webcam = webcam;
-	gspca_dev->cam.ctrls = sd->ctrls;
 	gspca_dev->cam.needs_full_bandwidth = 1;
 	sd->ag_cnt = -1;
 
@@ -1834,33 +1813,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			break;
 		}
 	}
-	switch (sd->webcam) {
-	case P35u:
-/*		sd->ctrls[EXPOSURE].max = 9;
- *		sd->ctrls[EXPOSURE].def = 9; */
-		/* coarse expo auto gain function gain minimum, to avoid
-		 * a large settings jump the first auto adjustment */
-		sd->ctrls[GAIN].def = 255 / 5 * 2;
-		break;
-	case Cvideopro:
-	case DvcV6:
-	case Kritter:
-		gspca_dev->ctrl_dis = (1 << GAIN) | (1 << AUTOGAIN);
-		/* fall thru */
-	case Kr651us:
-		sd->ctrls[EXPOSURE].max = 315;
-		sd->ctrls[EXPOSURE].def = 150;
-		break;
-	default:
-		gspca_dev->ctrl_dis = (1 << GAIN) | (1 << EXPOSURE)
-					 | (1 << AUTOGAIN);
-		break;
-	}
 
-#if AUTOGAIN_DEF
-	if (!(gspca_dev->ctrl_dis & (1 << AUTOGAIN)))
-		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
-#endif
 	return gspca_dev->usb_err;
 }
 
@@ -1925,9 +1878,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	setgain(gspca_dev);
-	setexposure(gspca_dev);
-	setautogain(gspca_dev);
 	sd->exp_too_high_cnt = 0;
 	sd->exp_too_low_cnt = 0;
 	return gspca_dev->usb_err;
@@ -1987,24 +1937,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 }
 
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->ctrls[AUTOGAIN].val = val;
-	if (val)
-		gspca_dev->ctrl_inac = (1 << GAIN) | (1 << EXPOSURE);
-	else
-		gspca_dev->ctrl_inac = 0;
-	if (gspca_dev->streaming)
-		setautogain(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-#define WANT_REGULAR_AUTOGAIN
-#define WANT_COARSE_EXPO_AUTOGAIN
-#include "autogain_functions.h"
-
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -2024,62 +1956,100 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 
 	switch (sd->webcam) {
 	case P35u:
-		coarse_grained_expo_autogain(gspca_dev, luma, 100, 5);
+		gspca_coarse_grained_expo_autogain(gspca_dev, luma, 100, 5);
 		break;
 	default:
-		auto_gain_n_exposure(gspca_dev, luma, 100, 5, 230, 0);
+		gspca_expo_autogain(gspca_dev, luma, 100, 5, 230, 0);
 		break;
 	}
 }
 
-/* V4L2 controls supported by the driver */
-static const struct ctrl sd_ctrls[NCTRLS] = {
-[GAIN] = {
-	    {
-		.id      = V4L2_CID_GAIN,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gain",
-		.minimum = 0,
-		.maximum = 253,
-		.step    = 1,
-		.default_value = 128
-	    },
-	    .set_control = setgain
-	},
-[EXPOSURE] = {
-	    {
-		.id      = V4L2_CID_EXPOSURE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Exposure",
-		.minimum = 0,
-		.maximum = 9,
-		.step    = 1,
-		.default_value = 9
-	    },
-	    .set_control = setexposure
-	},
-[AUTOGAIN] = {
-	    {
-		.id      = V4L2_CID_AUTOGAIN,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Gain",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = AUTOGAIN_DEF,
-		.flags   = V4L2_CTRL_FLAG_UPDATE
-	    },
-	    .set = sd_setautogain
-	},
+
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+
+	gspca_dev->usb_err = 0;
+
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	/* autogain/gain/exposure control cluster */
+	case V4L2_CID_AUTOGAIN:
+		if (ctrl->is_new)
+			setautogain(gspca_dev, ctrl->val);
+		if (!ctrl->val) {
+			if (gspca_dev->gain->is_new)
+				setgain(gspca_dev, gspca_dev->gain->val);
+			if (gspca_dev->exposure->is_new)
+				setexposure(gspca_dev,
+					    gspca_dev->exposure->val);
+		}
+		break;
+	/* Some webcams only have exposure, so handle that separately from the
+	   autogain/gain/exposure cluster in the previous case. */
+	case V4L2_CID_EXPOSURE:
+		setexposure(gspca_dev, gspca_dev->exposure->val);
+		break;
+	}
+	return gspca_dev->usb_err;
+}
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
 };
+
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *)gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 3);
+	switch (sd->webcam) {
+	case P35u:
+		gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+		/* For P35u choose coarse expo auto gain function gain minimum,
+		 * to avoid a large settings jump the first auto adjustment */
+		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 127, 1, 127 / 5 * 2);
+		gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 9, 1, 9);
+		break;
+	case Kr651us:
+		gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 0, 253, 1, 128);
+		/* fall through */
+	case Cvideopro:
+	case DvcV6:
+	case Kritter:
+		gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 315, 1, 150);
+		break;
+	default:
+		break;
+	}
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+	if (gspca_dev->autogain)
+		v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
+	return 0;
+}
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
@@ -2117,6 +2087,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

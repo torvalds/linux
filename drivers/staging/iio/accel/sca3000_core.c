@@ -1189,7 +1189,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 		ret = request_threaded_irq(spi->irq,
 					   NULL,
 					   &sca3000_event_handler,
-					   IRQF_TRIGGER_FALLING,
+					   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					   "sca3000",
 					   indio_dev);
 		if (ret)

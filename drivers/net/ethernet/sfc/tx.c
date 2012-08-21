@@ -36,15 +36,15 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			       unsigned int *bytes_compl)
 {
 	if (buffer->unmap_len) {
-		struct pci_dev *pci_dev = tx_queue->efx->pci_dev;
+		struct device *dma_dev = &tx_queue->efx->pci_dev->dev;
 		dma_addr_t unmap_addr = (buffer->dma_addr + buffer->len -
 					 buffer->unmap_len);
 		if (buffer->unmap_single)
-			pci_unmap_single(pci_dev, unmap_addr, buffer->unmap_len,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(dma_dev, unmap_addr, buffer->unmap_len,
+					 DMA_TO_DEVICE);
 		else
-			pci_unmap_page(pci_dev, unmap_addr, buffer->unmap_len,
-				       PCI_DMA_TODEVICE);
+			dma_unmap_page(dma_dev, unmap_addr, buffer->unmap_len,
+				       DMA_TO_DEVICE);
 		buffer->unmap_len = 0;
 		buffer->unmap_single = false;
 	}
@@ -138,7 +138,7 @@ efx_max_tx_len(struct efx_nic *efx, dma_addr_t dma_addr)
 netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
-	struct pci_dev *pci_dev = efx->pci_dev;
+	struct device *dma_dev = &efx->pci_dev->dev;
 	struct efx_tx_buffer *buffer;
 	skb_frag_t *fragment;
 	unsigned int len, unmap_len = 0, fill_level, insert_ptr;
@@ -167,17 +167,17 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	fill_level = tx_queue->insert_count - tx_queue->old_read_count;
 	q_space = efx->txq_entries - 1 - fill_level;
 
-	/* Map for DMA.  Use pci_map_single rather than pci_map_page
+	/* Map for DMA.  Use dma_map_single rather than dma_map_page
 	 * since this is more efficient on machines with sparse
 	 * memory.
 	 */
 	unmap_single = true;
-	dma_addr = pci_map_single(pci_dev, skb->data, len, PCI_DMA_TODEVICE);
+	dma_addr = dma_map_single(dma_dev, skb->data, len, PCI_DMA_TODEVICE);
 
 	/* Process all fragments */
 	while (1) {
-		if (unlikely(pci_dma_mapping_error(pci_dev, dma_addr)))
-			goto pci_err;
+		if (unlikely(dma_mapping_error(dma_dev, dma_addr)))
+			goto dma_err;
 
 		/* Store fields for marking in the per-fragment final
 		 * descriptor */
@@ -246,7 +246,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 		i++;
 		/* Map for DMA */
 		unmap_single = false;
-		dma_addr = skb_frag_dma_map(&pci_dev->dev, fragment, 0, len,
+		dma_addr = skb_frag_dma_map(dma_dev, fragment, 0, len,
 					    DMA_TO_DEVICE);
 	}
 
@@ -261,7 +261,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 	return NETDEV_TX_OK;
 
- pci_err:
+ dma_err:
 	netif_err(efx, tx_err, efx->net_dev,
 		  " TX queue %d could not map skb with %d bytes %d "
 		  "fragments for DMA\n", tx_queue->queue, skb->len,
@@ -284,11 +284,11 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	/* Free the fragment we were mid-way through pushing */
 	if (unmap_len) {
 		if (unmap_single)
-			pci_unmap_single(pci_dev, unmap_addr, unmap_len,
-					 PCI_DMA_TODEVICE);
+			dma_unmap_single(dma_dev, unmap_addr, unmap_len,
+					 DMA_TO_DEVICE);
 		else
-			pci_unmap_page(pci_dev, unmap_addr, unmap_len,
-				       PCI_DMA_TODEVICE);
+			dma_unmap_page(dma_dev, unmap_addr, unmap_len,
+				       DMA_TO_DEVICE);
 	}
 
 	return rc;
@@ -651,17 +651,8 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
 	EFX_BUG_ON_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
 			    protocol);
 	if (protocol == htons(ETH_P_8021Q)) {
-		/* Find the encapsulated protocol; reset network header
-		 * and transport header based on that. */
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
 		protocol = veh->h_vlan_encapsulated_proto;
-		skb_set_network_header(skb, sizeof(*veh));
-		if (protocol == htons(ETH_P_IP))
-			skb_set_transport_header(skb, sizeof(*veh) +
-						 4 * ip_hdr(skb)->ihl);
-		else if (protocol == htons(ETH_P_IPV6))
-			skb_set_transport_header(skb, sizeof(*veh) +
-						 sizeof(struct ipv6hdr));
 	}
 
 	if (protocol == htons(ETH_P_IP)) {
@@ -684,20 +675,19 @@ static __be16 efx_tso_check_protocol(struct sk_buff *skb)
  */
 static int efx_tsoh_block_alloc(struct efx_tx_queue *tx_queue)
 {
-
-	struct pci_dev *pci_dev = tx_queue->efx->pci_dev;
+	struct device *dma_dev = &tx_queue->efx->pci_dev->dev;
 	struct efx_tso_header *tsoh;
 	dma_addr_t dma_addr;
 	u8 *base_kva, *kva;
 
-	base_kva = pci_alloc_consistent(pci_dev, PAGE_SIZE, &dma_addr);
+	base_kva = dma_alloc_coherent(dma_dev, PAGE_SIZE, &dma_addr, GFP_ATOMIC);
 	if (base_kva == NULL) {
 		netif_err(tx_queue->efx, tx_err, tx_queue->efx->net_dev,
 			  "Unable to allocate page for TSO headers\n");
 		return -ENOMEM;
 	}
 
-	/* pci_alloc_consistent() allocates pages. */
+	/* dma_alloc_coherent() allocates pages. */
 	EFX_BUG_ON_PARANOID(dma_addr & (PAGE_SIZE - 1u));
 
 	for (kva = base_kva; kva < base_kva + PAGE_SIZE; kva += TSOH_STD_SIZE) {
@@ -714,7 +704,7 @@ static int efx_tsoh_block_alloc(struct efx_tx_queue *tx_queue)
 /* Free up a TSO header, and all others in the same page. */
 static void efx_tsoh_block_free(struct efx_tx_queue *tx_queue,
 				struct efx_tso_header *tsoh,
-				struct pci_dev *pci_dev)
+				struct device *dma_dev)
 {
 	struct efx_tso_header **p;
 	unsigned long base_kva;
@@ -731,7 +721,7 @@ static void efx_tsoh_block_free(struct efx_tx_queue *tx_queue,
 			p = &(*p)->next;
 	}
 
-	pci_free_consistent(pci_dev, PAGE_SIZE, (void *)base_kva, base_dma);
+	dma_free_coherent(dma_dev, PAGE_SIZE, (void *)base_kva, base_dma);
 }
 
 static struct efx_tso_header *
@@ -743,11 +733,11 @@ efx_tsoh_heap_alloc(struct efx_tx_queue *tx_queue, size_t header_len)
 	if (unlikely(!tsoh))
 		return NULL;
 
-	tsoh->dma_addr = pci_map_single(tx_queue->efx->pci_dev,
+	tsoh->dma_addr = dma_map_single(&tx_queue->efx->pci_dev->dev,
 					TSOH_BUFFER(tsoh), header_len,
-					PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(tx_queue->efx->pci_dev,
-					   tsoh->dma_addr))) {
+					DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(&tx_queue->efx->pci_dev->dev,
+				       tsoh->dma_addr))) {
 		kfree(tsoh);
 		return NULL;
 	}
@@ -759,9 +749,9 @@ efx_tsoh_heap_alloc(struct efx_tx_queue *tx_queue, size_t header_len)
 static void
 efx_tsoh_heap_free(struct efx_tx_queue *tx_queue, struct efx_tso_header *tsoh)
 {
-	pci_unmap_single(tx_queue->efx->pci_dev,
+	dma_unmap_single(&tx_queue->efx->pci_dev->dev,
 			 tsoh->dma_addr, tsoh->unmap_len,
-			 PCI_DMA_TODEVICE);
+			 DMA_TO_DEVICE);
 	kfree(tsoh);
 }
 
@@ -892,13 +882,13 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 			unmap_addr = (buffer->dma_addr + buffer->len -
 				      buffer->unmap_len);
 			if (buffer->unmap_single)
-				pci_unmap_single(tx_queue->efx->pci_dev,
+				dma_unmap_single(&tx_queue->efx->pci_dev->dev,
 						 unmap_addr, buffer->unmap_len,
-						 PCI_DMA_TODEVICE);
+						 DMA_TO_DEVICE);
 			else
-				pci_unmap_page(tx_queue->efx->pci_dev,
+				dma_unmap_page(&tx_queue->efx->pci_dev->dev,
 					       unmap_addr, buffer->unmap_len,
-					       PCI_DMA_TODEVICE);
+					       DMA_TO_DEVICE);
 			buffer->unmap_len = 0;
 		}
 		buffer->len = 0;
@@ -927,7 +917,6 @@ static void tso_start(struct tso_state *st, const struct sk_buff *skb)
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->syn);
 	EFX_BUG_ON_PARANOID(tcp_hdr(skb)->rst);
 
-	st->packet_space = st->full_packet_size;
 	st->out_len = skb->len - st->header_len;
 	st->unmap_len = 0;
 	st->unmap_single = false;
@@ -954,9 +943,9 @@ static int tso_get_head_fragment(struct tso_state *st, struct efx_nic *efx,
 	int hl = st->header_len;
 	int len = skb_headlen(skb) - hl;
 
-	st->unmap_addr = pci_map_single(efx->pci_dev, skb->data + hl,
-					len, PCI_DMA_TODEVICE);
-	if (likely(!pci_dma_mapping_error(efx->pci_dev, st->unmap_addr))) {
+	st->unmap_addr = dma_map_single(&efx->pci_dev->dev, skb->data + hl,
+					len, DMA_TO_DEVICE);
+	if (likely(!dma_mapping_error(&efx->pci_dev->dev, st->unmap_addr))) {
 		st->unmap_single = true;
 		st->unmap_len = len;
 		st->in_len = len;
@@ -1008,7 +997,7 @@ static int tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
 		buffer->continuation = !end_of_packet;
 
 		if (st->in_len == 0) {
-			/* Transfer ownership of the pci mapping */
+			/* Transfer ownership of the DMA mapping */
 			buffer->unmap_len = st->unmap_len;
 			buffer->unmap_single = st->unmap_single;
 			st->unmap_len = 0;
@@ -1181,18 +1170,18 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
  mem_err:
 	netif_err(efx, tx_err, efx->net_dev,
-		  "Out of memory for TSO headers, or PCI mapping error\n");
+		  "Out of memory for TSO headers, or DMA mapping error\n");
 	dev_kfree_skb_any(skb);
 
  unwind:
 	/* Free the DMA mapping we were in the process of writing out */
 	if (state.unmap_len) {
 		if (state.unmap_single)
-			pci_unmap_single(efx->pci_dev, state.unmap_addr,
-					 state.unmap_len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&efx->pci_dev->dev, state.unmap_addr,
+					 state.unmap_len, DMA_TO_DEVICE);
 		else
-			pci_unmap_page(efx->pci_dev, state.unmap_addr,
-				       state.unmap_len, PCI_DMA_TODEVICE);
+			dma_unmap_page(&efx->pci_dev->dev, state.unmap_addr,
+				       state.unmap_len, DMA_TO_DEVICE);
 	}
 
 	efx_enqueue_unwind(tx_queue);
@@ -1216,5 +1205,5 @@ static void efx_fini_tso(struct efx_tx_queue *tx_queue)
 
 	while (tx_queue->tso_headers_free != NULL)
 		efx_tsoh_block_free(tx_queue, tx_queue->tso_headers_free,
-				    tx_queue->efx->pci_dev);
+				    &tx_queue->efx->pci_dev->dev);
 }

@@ -10,40 +10,9 @@
  */
 
 /*
- * Device tree configuration:
- *
- * Required properties:
- * - compatible      : "opencores,i2c-ocores"
- * - reg             : bus address start and address range size of device
- * - interrupts      : interrupt number
- * - regstep         : size of device registers in bytes
- * - clock-frequency : frequency of bus clock in Hz
- * 
- * Example:
- *
- *  i2c0: ocores@a0000000 {
- *              compatible = "opencores,i2c-ocores";
- *              reg = <0xa0000000 0x8>;
- *              interrupts = <10>;
- *
- *              regstep = <1>;
- *              clock-frequency = <20000000>;
- *
- * -- Devices connected on this I2C bus get
- * -- defined here; address- and size-cells
- * -- apply to these child devices
- *
- *              #address-cells = <1>;
- *              #size-cells = <0>;
- *
- *              dummy@60 {
- *                     compatible = "dummy";
- *                     reg = <60>;
- *              };
- *  };
- *
+ * This driver can be used from the device tree, see
+ *     Documentation/devicetree/bindings/i2c/ocore-i2c.txt
  */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -56,10 +25,12 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/of_i2c.h>
+#include <linux/log2.h>
 
 struct ocores_i2c {
 	void __iomem *base;
-	int regstep;
+	u32 reg_shift;
+	u32 reg_io_width;
 	wait_queue_head_t wait;
 	struct i2c_adapter adap;
 	struct i2c_msg *msg;
@@ -102,12 +73,22 @@ struct ocores_i2c {
 
 static inline void oc_setreg(struct ocores_i2c *i2c, int reg, u8 value)
 {
-	iowrite8(value, i2c->base + reg * i2c->regstep);
+	if (i2c->reg_io_width == 4)
+		iowrite32(value, i2c->base + (reg << i2c->reg_shift));
+	else if (i2c->reg_io_width == 2)
+		iowrite16(value, i2c->base + (reg << i2c->reg_shift));
+	else
+		iowrite8(value, i2c->base + (reg << i2c->reg_shift));
 }
 
 static inline u8 oc_getreg(struct ocores_i2c *i2c, int reg)
 {
-	return ioread8(i2c->base + reg * i2c->regstep);
+	if (i2c->reg_io_width == 4)
+		return ioread32(i2c->base + (reg << i2c->reg_shift));
+	else if (i2c->reg_io_width == 2)
+		return ioread16(i2c->base + (reg << i2c->reg_shift));
+	else
+		return ioread8(i2c->base + (reg << i2c->reg_shift));
 }
 
 static void ocores_process(struct ocores_i2c *i2c)
@@ -247,26 +228,35 @@ static struct i2c_adapter ocores_adapter = {
 };
 
 #ifdef CONFIG_OF
-static int ocores_i2c_of_probe(struct platform_device* pdev,
-				struct ocores_i2c* i2c)
+static int ocores_i2c_of_probe(struct platform_device *pdev,
+				struct ocores_i2c *i2c)
 {
-	const __be32* val;
+	struct device_node *np = pdev->dev.of_node;
+	u32 val;
 
-	val = of_get_property(pdev->dev.of_node, "regstep", NULL);
-	if (!val) {
-		dev_err(&pdev->dev, "Missing required parameter 'regstep'");
-		return -ENODEV;
+	if (of_property_read_u32(np, "reg-shift", &i2c->reg_shift)) {
+		/* no 'reg-shift', check for deprecated 'regstep' */
+		if (!of_property_read_u32(np, "regstep", &val)) {
+			if (!is_power_of_2(val)) {
+				dev_err(&pdev->dev, "invalid regstep %d\n",
+					val);
+				return -EINVAL;
+			}
+			i2c->reg_shift = ilog2(val);
+			dev_warn(&pdev->dev,
+				"regstep property deprecated, use reg-shift\n");
+		}
 	}
-	i2c->regstep = be32_to_cpup(val);
 
-	val = of_get_property(pdev->dev.of_node, "clock-frequency", NULL);
-	if (!val) {
+	if (of_property_read_u32(np, "clock-frequency", &val)) {
 		dev_err(&pdev->dev,
-			"Missing required parameter 'clock-frequency'");
+			"Missing required parameter 'clock-frequency'\n");
 		return -ENODEV;
 	}
-	i2c->clock_khz = be32_to_cpup(val) / 1000;
+	i2c->clock_khz = val / 1000;
 
+	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
+				&i2c->reg_io_width);
 	return 0;
 }
 #else
@@ -308,13 +298,17 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (pdata) {
-		i2c->regstep = pdata->regstep;
+		i2c->reg_shift = pdata->reg_shift;
+		i2c->reg_io_width = pdata->reg_io_width;
 		i2c->clock_khz = pdata->clock_khz;
 	} else {
 		ret = ocores_i2c_of_probe(pdev, i2c);
 		if (ret)
 			return ret;
 	}
+
+	if (i2c->reg_io_width == 0)
+		i2c->reg_io_width = 1; /* Set to default value */
 
 	ocores_init(i2c);
 
@@ -351,7 +345,7 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ocores_i2c_remove(struct platform_device* pdev)
+static int __devexit ocores_i2c_remove(struct platform_device *pdev)
 {
 	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -367,9 +361,9 @@ static int __devexit ocores_i2c_remove(struct platform_device* pdev)
 }
 
 #ifdef CONFIG_PM
-static int ocores_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+static int ocores_i2c_suspend(struct device *dev)
 {
-	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
+	struct ocores_i2c *i2c = dev_get_drvdata(dev);
 	u8 ctrl = oc_getreg(i2c, OCI2C_CONTROL);
 
 	/* make sure the device is disabled */
@@ -378,17 +372,19 @@ static int ocores_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int ocores_i2c_resume(struct platform_device *pdev)
+static int ocores_i2c_resume(struct device *dev)
 {
-	struct ocores_i2c *i2c = platform_get_drvdata(pdev);
+	struct ocores_i2c *i2c = dev_get_drvdata(dev);
 
 	ocores_init(i2c);
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(ocores_i2c_pm, ocores_i2c_suspend, ocores_i2c_resume);
+#define OCORES_I2C_PM	(&ocores_i2c_pm)
 #else
-#define ocores_i2c_suspend	NULL
-#define ocores_i2c_resume	NULL
+#define OCORES_I2C_PM	NULL
 #endif
 
 static struct of_device_id ocores_i2c_match[] = {
@@ -400,12 +396,11 @@ MODULE_DEVICE_TABLE(of, ocores_i2c_match);
 static struct platform_driver ocores_i2c_driver = {
 	.probe   = ocores_i2c_probe,
 	.remove  = __devexit_p(ocores_i2c_remove),
-	.suspend = ocores_i2c_suspend,
-	.resume  = ocores_i2c_resume,
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = "ocores-i2c",
 		.of_match_table = ocores_i2c_match,
+		.pm = OCORES_I2C_PM,
 	},
 };
 

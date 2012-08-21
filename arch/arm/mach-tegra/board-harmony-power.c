@@ -19,7 +19,12 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 #include <linux/mfd/tps6586x.h>
+#include <linux/of.h>
+#include <linux/of_i2c.h>
+
+#include <asm/mach-types.h>
 
 #include <mach/irqs.h>
 
@@ -30,7 +35,9 @@ static struct regulator_consumer_supply tps658621_ldo0_supply[] = {
 };
 
 static struct regulator_init_data ldo0_data = {
+	.supply_regulator = "vdd_sm2",
 	.constraints = {
+		.name = "vdd_ldo0",
 		.min_uV = 3300 * 1000,
 		.max_uV = 3300 * 1000,
 		.valid_modes_mask = (REGULATOR_MODE_NORMAL |
@@ -44,9 +51,11 @@ static struct regulator_init_data ldo0_data = {
 	.consumer_supplies = tps658621_ldo0_supply,
 };
 
-#define HARMONY_REGULATOR_INIT(_id, _minmv, _maxmv)			\
+#define HARMONY_REGULATOR_INIT(_id, _name, _supply, _minmv, _maxmv)	\
 	static struct regulator_init_data _id##_data = {		\
+		.supply_regulator = _supply,				\
 		.constraints = {					\
+			.name = _name,					\
 			.min_uV = (_minmv)*1000,			\
 			.max_uV = (_maxmv)*1000,			\
 			.valid_modes_mask = (REGULATOR_MODE_NORMAL |	\
@@ -57,18 +66,18 @@ static struct regulator_init_data ldo0_data = {
 		},							\
 	}
 
-HARMONY_REGULATOR_INIT(sm0, 725, 1500);
-HARMONY_REGULATOR_INIT(sm1, 725, 1500);
-HARMONY_REGULATOR_INIT(sm2, 3000, 4550);
-HARMONY_REGULATOR_INIT(ldo1, 725, 1500);
-HARMONY_REGULATOR_INIT(ldo2, 725, 1500);
-HARMONY_REGULATOR_INIT(ldo3, 1250, 3300);
-HARMONY_REGULATOR_INIT(ldo4, 1700, 2475);
-HARMONY_REGULATOR_INIT(ldo5, 1250, 3300);
-HARMONY_REGULATOR_INIT(ldo6, 1250, 3300);
-HARMONY_REGULATOR_INIT(ldo7, 1250, 3300);
-HARMONY_REGULATOR_INIT(ldo8, 1250, 3300);
-HARMONY_REGULATOR_INIT(ldo9, 1250, 3300);
+HARMONY_REGULATOR_INIT(sm0,  "vdd_sm0",  "vdd_sys", 725, 1500);
+HARMONY_REGULATOR_INIT(sm1,  "vdd_sm1",  "vdd_sys", 725, 1500);
+HARMONY_REGULATOR_INIT(sm2,  "vdd_sm2",  "vdd_sys", 3000, 4550);
+HARMONY_REGULATOR_INIT(ldo1, "vdd_ldo1", "vdd_sm2", 725, 1500);
+HARMONY_REGULATOR_INIT(ldo2, "vdd_ldo2", "vdd_sm2", 725, 1500);
+HARMONY_REGULATOR_INIT(ldo3, "vdd_ldo3", "vdd_sm2", 1250, 3300);
+HARMONY_REGULATOR_INIT(ldo4, "vdd_ldo4", "vdd_sm2", 1700, 2475);
+HARMONY_REGULATOR_INIT(ldo5, "vdd_ldo5", NULL,	    1250, 3300);
+HARMONY_REGULATOR_INIT(ldo6, "vdd_ldo6", "vdd_sm2", 1250, 3300);
+HARMONY_REGULATOR_INIT(ldo7, "vdd_ldo7", "vdd_sm2", 1250, 3300);
+HARMONY_REGULATOR_INIT(ldo8, "vdd_ldo8", "vdd_sm2", 1250, 3300);
+HARMONY_REGULATOR_INIT(ldo9, "vdd_ldo9", "vdd_sm2", 1250, 3300);
 
 #define TPS_REG(_id, _data)			\
 	{					\
@@ -110,7 +119,28 @@ static struct i2c_board_info __initdata harmony_regulators[] = {
 
 int __init harmony_regulator_init(void)
 {
-	i2c_register_board_info(3, harmony_regulators, 1);
+	if (machine_is_harmony()) {
+		regulator_register_always_on(0, "vdd_sys",
+			NULL, 0, 5000000);
+		i2c_register_board_info(3, harmony_regulators, 1);
+	} else { /* Harmony, booted using device tree */
+		struct device_node *np;
+		struct i2c_adapter *adapter;
+
+		np = of_find_node_by_path("/i2c@7000d000");
+		if (np == NULL) {
+			pr_err("Could not find device_node for DVC I2C\n");
+			return -ENODEV;
+		}
+
+		adapter = of_find_i2c_adapter_by_node(np);
+		if (!adapter) {
+			pr_err("Could not find i2c_adapter for DVC I2C\n");
+			return -ENODEV;
+		}
+
+		i2c_new_device(adapter, harmony_regulators);
+	}
 
 	return 0;
 }

@@ -975,12 +975,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Cinergy HTC Stick",
 		.has_dvb      = 1,
 		.ir_codes     = RC_MAP_NEC_TERRATEC_CINERGY_XS,
-#if 0
-		.tuner_type   = TUNER_PHILIPS_TDA8290,
-		.tuner_addr   = 0x41,
-		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
-		.tuner_gpio   = terratec_h5_gpio,
-#endif
+		.tuner_type   = TUNER_ABSENT,
 		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
 				EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,

@@ -52,7 +52,7 @@ ACPI_MODULE_NAME("tbfind")
  *
  * FUNCTION:    acpi_tb_find_table
  *
- * PARAMETERS:  Signature           - String with ACPI table signature
+ * PARAMETERS:  signature           - String with ACPI table signature
  *              oem_id              - String with the table OEM ID
  *              oem_table_id        - String with the OEM Table ID
  *              table_index         - Where the table index is returned

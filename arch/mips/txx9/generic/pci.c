@@ -256,7 +256,7 @@ static irqreturn_t i8259_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __init
+static int __devinit
 txx9_i8259_irq_setup(int irq)
 {
 	int err;
@@ -304,7 +304,7 @@ static void __devinit quirk_slc90e66_bridge(struct pci_dev *dev)
 	smsc_fdc37m81x_config_end();
 }
 
-static void quirk_slc90e66_ide(struct pci_dev *dev)
+static void __devinit quirk_slc90e66_ide(struct pci_dev *dev)
 {
 	unsigned char dat;
 	int regs[2] = {0x41, 0x43};
@@ -339,7 +339,7 @@ static void quirk_slc90e66_ide(struct pci_dev *dev)
 }
 #endif /* CONFIG_TOSHIBA_FPCIB0 */
 
-static void tc35815_fixup(struct pci_dev *dev)
+static void __devinit tc35815_fixup(struct pci_dev *dev)
 {
 	/* This device may have PM registers but not they are not suported. */
 	if (dev->pm_cap) {
@@ -348,7 +348,7 @@ static void tc35815_fixup(struct pci_dev *dev)
 	}
 }
 
-static void final_fixup(struct pci_dev *dev)
+static void __devinit final_fixup(struct pci_dev *dev)
 {
 	unsigned char bist;
 
@@ -398,9 +398,9 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return txx9_board_vec->pci_map_irq(dev, slot, pin);
 }
 
-char * (*txx9_board_pcibios_setup)(char *str) __devinitdata;
+char * (*txx9_board_pcibios_setup)(char *str) __initdata;
 
-char *__devinit txx9_pcibios_setup(char *str)
+char *__init txx9_pcibios_setup(char *str)
 {
 	if (txx9_board_pcibios_setup && !txx9_board_pcibios_setup(str))
 		return NULL;

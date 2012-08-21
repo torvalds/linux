@@ -24,8 +24,9 @@
 
 #include <linux/platform_device.h>
 
-#include "wl12xx.h"
+#include "wlcore_i.h"
 #include "event.h"
+#include "boot.h"
 
 /* The maximum number of Tx descriptors in all chip families */
 #define WLCORE_MAX_TX_DESCRIPTORS 32
@@ -33,14 +34,16 @@
 /* forward declaration */
 struct wl1271_tx_hw_descr;
 enum wl_rx_buf_align;
+struct wl1271_rx_descriptor;
 
 struct wlcore_ops {
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*identify_fw)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
-	void (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
-			    void *buf, size_t len);
-	void (*ack_event)(struct wl1271 *wl);
+	int (*plt_init)(struct wl1271 *wl);
+	int (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
+			   void *buf, size_t len);
+	int (*ack_event)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
 				   struct wl1271_tx_hw_descr *desc,
@@ -50,17 +53,34 @@ struct wlcore_ops {
 				     struct sk_buff *skb);
 	enum wl_rx_buf_align (*get_rx_buf_align)(struct wl1271 *wl,
 						 u32 rx_desc);
-	void (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
+	int (*prepare_read)(struct wl1271 *wl, u32 rx_desc, u32 len);
 	u32 (*get_rx_packet_len)(struct wl1271 *wl, void *rx_data,
 				 u32 data_len);
-	void (*tx_delayed_compl)(struct wl1271 *wl);
+	int (*tx_delayed_compl)(struct wl1271 *wl);
 	void (*tx_immediate_compl)(struct wl1271 *wl);
 	int (*hw_init)(struct wl1271 *wl);
 	int (*init_vif)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	u32 (*sta_get_ap_rate_mask)(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif);
-	s8 (*get_pg_ver)(struct wl1271 *wl);
-	void (*get_mac)(struct wl1271 *wl);
+	int (*get_pg_ver)(struct wl1271 *wl, s8 *ver);
+	int (*get_mac)(struct wl1271 *wl);
+	void (*set_tx_desc_csum)(struct wl1271 *wl,
+				 struct wl1271_tx_hw_descr *desc,
+				 struct sk_buff *skb);
+	void (*set_rx_csum)(struct wl1271 *wl,
+			    struct wl1271_rx_descriptor *desc,
+			    struct sk_buff *skb);
+	u32 (*ap_get_mimo_wide_rate_mask)(struct wl1271 *wl,
+					  struct wl12xx_vif *wlvif);
+	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
+	int (*handle_static_data)(struct wl1271 *wl,
+				  struct wl1271_static_data *static_data);
+	int (*get_spare_blocks)(struct wl1271 *wl, bool is_gem);
+	int (*set_key)(struct wl1271 *wl, enum set_key_cmd cmd,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key_conf);
+	u32 (*pre_pkt_send)(struct wl1271 *wl, u32 buf_offset, u32 last_len);
 };
 
 enum wlcore_partitions {
@@ -109,6 +129,15 @@ enum wlcore_registers {
 	REG_TABLE_LEN,
 };
 
+struct wl1271_stats {
+	void *fw_stats;
+	unsigned long fw_stats_update;
+	size_t fw_stats_len;
+
+	unsigned int retry_count;
+	unsigned int excessive_retries;
+};
+
 struct wl1271 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
@@ -121,13 +150,14 @@ struct wl1271 {
 
 	void (*set_power)(bool enable);
 	int irq;
-	int ref_clock;
 
 	spinlock_t wl_lock;
 
 	enum wl1271_state state;
 	enum wl12xx_fw_type fw_type;
 	bool plt;
+	enum plt_mode plt_mode;
+	u8 fem_manuf;
 	u8 last_vif_count;
 	struct mutex mutex;
 
@@ -186,7 +216,7 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	int tx_queue_count[NUM_TX_QUEUES];
-	long stopped_queues_map;
+	unsigned long queue_stop_reasons[NUM_TX_QUEUES];
 
 	/* Frames received, not handled yet by mac80211 */
 	struct sk_buff_head deferred_rx_queue;
@@ -204,9 +234,6 @@ struct wl1271 {
 
 	/* FW Rx counter */
 	u32 rx_counter;
-
-	/* Rx memory pool address */
-	struct wl1271_rx_mem_pool_addr rx_mem_pool_addr;
 
 	/* Intermediate buffer, used for packet aggregation */
 	u8 *aggr_buf;
@@ -228,6 +255,7 @@ struct wl1271 {
 
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
+	bool watchdog_recovery;
 
 	/* Pointer that holds DMA-friendly block for the mailbox */
 	struct event_mailbox *mbox;
@@ -263,7 +291,8 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl_fw_status *fw_status;
+	struct wl_fw_status_1 *fw_status_1;
+	struct wl_fw_status_2 *fw_status_2;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	/* Current chipset configuration */
@@ -277,9 +306,7 @@ struct wl1271 {
 	s8 noise;
 
 	/* bands supported by this instance of wl12xx */
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
-
-	int tcxo_clock;
+	struct ieee80211_supported_band bands[WLCORE_NUM_BANDS];
 
 	/*
 	 * wowlan trigger was configured during suspend.
@@ -333,10 +360,8 @@ struct wl1271 {
 
 	/* number of TX descriptors the HW supports. */
 	u32 num_tx_desc;
-
-	/* spare Tx blocks for normal/GEM operating modes */
-	u32 normal_tx_spare;
-	u32 gem_tx_spare;
+	/* number of RX descriptors the HW supports. */
+	u32 num_rx_desc;
 
 	/* translate HW Tx rates to standard rate-indices */
 	const u8 **band_rate_to_idx;
@@ -348,19 +373,57 @@ struct wl1271 {
 	u8 hw_min_ht_rate;
 
 	/* HW HT (11n) capabilities */
-	struct ieee80211_sta_ht_cap ht_cap;
+	struct ieee80211_sta_ht_cap ht_cap[WLCORE_NUM_BANDS];
 
 	/* size of the private FW status data */
 	size_t fw_status_priv_len;
 
 	/* RX Data filter rule state - enabled/disabled */
 	bool rx_filter_enabled[WL1271_MAX_RX_FILTERS];
+
+	/* size of the private static data */
+	size_t static_data_priv_len;
+
+	/* the current channel type */
+	enum nl80211_channel_type channel_type;
+
+	/* mutex for protecting the tx_flush function */
+	struct mutex flush_mutex;
+
+	/* sleep auth value currently configured to FW */
+	int sleep_auth;
+
+	/* the minimum FW version required for the driver to work */
+	unsigned int min_fw_ver[NUM_FW_VER];
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
 struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size);
 int wlcore_free_hw(struct wl1271 *wl);
+int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
+		   struct ieee80211_vif *vif,
+		   struct ieee80211_sta *sta,
+		   struct ieee80211_key_conf *key_conf);
+
+static inline void
+wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
+		  struct ieee80211_sta_ht_cap *ht_cap)
+{
+	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
+}
+
+static inline void
+wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
+		      unsigned int iftype, unsigned int major,
+		      unsigned int subtype, unsigned int minor)
+{
+	wl->min_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_fw_ver[FW_VER_IF_TYPE] = iftype;
+	wl->min_fw_ver[FW_VER_MAJOR] = major;
+	wl->min_fw_ver[FW_VER_SUBTYPE] = subtype;
+	wl->min_fw_ver[FW_VER_MINOR] = minor;
+}
 
 /* Firmware image load chunk size */
 #define CHUNK_SIZE	16384
@@ -384,6 +447,18 @@ int wlcore_free_hw(struct wl1271 *wl);
 
 /* Some firmwares may not support ELP */
 #define WLCORE_QUIRK_NO_ELP			BIT(6)
+
+/* pad only the last frame in the aggregate buffer */
+#define WLCORE_QUIRK_TX_PAD_LAST_FRAME		BIT(7)
+
+/* extra header space is required for TKIP */
+#define WLCORE_QUIRK_TKIP_HEADER_SPACE		BIT(8)
+
+/* Some firmwares not support sched scans while connected */
+#define WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN	BIT(9)
+
+/* separate probe response templates for one-shot and sched scans */
+#define WLCORE_QUIRK_DUAL_PROBE_TMPL		BIT(10)
 
 /* TODO: move to the lower drivers when all usages are abstracted */
 #define CHIP_ID_1271_PG10              (0x4030101)

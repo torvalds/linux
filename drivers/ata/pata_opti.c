@@ -191,22 +191,10 @@ static struct pci_driver opti_pci_driver = {
 #endif
 };
 
-static int __init opti_init(void)
-{
-	return pci_register_driver(&opti_pci_driver);
-}
-
-static void __exit opti_exit(void)
-{
-	pci_unregister_driver(&opti_pci_driver);
-}
-
+module_pci_driver(opti_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Opti 621/621X");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, opti);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(opti_init);
-module_exit(opti_exit);

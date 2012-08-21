@@ -1,9 +1,7 @@
 /*
- * linux/drivers/s390/cio/qdio_main.c
- *
  * Linux for s390 qdio support, buffer handling, qdio API and module support.
  *
- * Copyright 2000,2008 IBM Corp.
+ * Copyright IBM Corp. 2000, 2008
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  * 2.6 cio integration by Cornelia Huck <cornelia.huck@de.ibm.com>

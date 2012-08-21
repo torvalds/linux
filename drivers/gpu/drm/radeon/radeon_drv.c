@@ -133,7 +133,7 @@ int radeon_tv = 1;
 int radeon_audio = 0;
 int radeon_disp_priority = 0;
 int radeon_hw_i2c = 0;
-int radeon_pcie_gen2 = 0;
+int radeon_pcie_gen2 = -1;
 int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
 
@@ -179,7 +179,7 @@ module_param_named(disp_priority, radeon_disp_priority, int, 0444);
 MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
 module_param_named(hw_i2c, radeon_hw_i2c, int, 0444);
 
-MODULE_PARM_DESC(pcie_gen2, "PCIE Gen2 mode (1 = enable)");
+MODULE_PARM_DESC(pcie_gen2, "PCIE Gen2 mode (-1 = auto, 0 = disable, 1 = enable)");
 module_param_named(pcie_gen2, radeon_pcie_gen2, int, 0444);
 
 MODULE_PARM_DESC(msi, "MSI support (1 = enable, 0 = disable, -1 = auto)");
@@ -262,7 +262,6 @@ static struct drm_driver driver_old = {
 	.irq_postinstall = radeon_driver_irq_postinstall,
 	.irq_uninstall = radeon_driver_irq_uninstall,
 	.irq_handler = radeon_driver_irq_handler,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = radeon_ioctls,
 	.dma_ioctl = radeon_cp_buffers,
 	.fops = &radeon_driver_old_fops,
@@ -365,7 +364,6 @@ static struct drm_driver kms_driver = {
 	.irq_postinstall = radeon_driver_irq_postinstall_kms,
 	.irq_uninstall = radeon_driver_irq_uninstall_kms,
 	.irq_handler = radeon_driver_irq_handler_kms,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = radeon_ioctls_kms,
 	.gem_init_object = radeon_gem_object_init,
 	.gem_free_object = radeon_gem_object_free,

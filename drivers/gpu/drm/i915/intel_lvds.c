@@ -71,6 +71,7 @@ static struct intel_lvds *intel_attached_lvds(struct drm_connector *connector)
 static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 {
 	struct drm_device *dev = intel_lvds->base.base.dev;
+	struct intel_crtc *intel_crtc = to_intel_crtc(intel_lvds->base.base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 ctl_reg, lvds_reg, stat_reg;
 
@@ -107,7 +108,7 @@ static void intel_lvds_enable(struct intel_lvds *intel_lvds)
 	if (wait_for((I915_READ(stat_reg) & PP_ON) != 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
-	intel_panel_enable_backlight(dev);
+	intel_panel_enable_backlight(dev, intel_crtc->pipe);
 }
 
 static void intel_lvds_disable(struct intel_lvds *intel_lvds)
@@ -228,14 +229,14 @@ static inline u32 panel_fitter_scaling(u32 source, u32 target)
 }
 
 static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
-	struct drm_encoder *tmp_encoder;
+	struct intel_encoder *tmp_encoder;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
 	int pipe;
 
@@ -246,8 +247,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	}
 
 	/* Should never happen!! */
-	list_for_each_entry(tmp_encoder, &dev->mode_config.encoder_list, head) {
-		if (tmp_encoder != encoder && tmp_encoder->crtc == encoder->crtc) {
+	for_each_encoder_on_crtc(dev, encoder->crtc, tmp_encoder) {
+		if (&tmp_encoder->base != encoder) {
 			DRM_ERROR("Can't enable LVDS and another "
 			       "encoder on the same pipe\n");
 			return false;
@@ -408,13 +409,7 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct intel_lvds *intel_lvds = to_intel_lvds(encoder);
 
-	/*
-	 * Prior to Ironlake, we must disable the pipe if we want to adjust
-	 * the panel fitter. However at all other times we can just reset
-	 * the registers regardless.
-	 */
-	if (!HAS_PCH_SPLIT(encoder->dev) && intel_lvds->pfit_dirty)
-		intel_lvds_disable(intel_lvds);
+	intel_lvds_disable(intel_lvds);
 }
 
 static void intel_lvds_commit(struct drm_encoder *encoder)
@@ -777,6 +772,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "MS-7469"),
 		},
 	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "ZOTAC ZBOXSD-ID12/ID13",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ZOTAC"),
+			DMI_MATCH(DMI_BOARD_NAME, "ZBOXSD-ID12/ID13"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
@@ -967,6 +970,8 @@ bool intel_lvds_init(struct drm_device *dev)
 	intel_encoder->clone_mask = (1 << INTEL_LVDS_CLONE_BIT);
 	if (HAS_PCH_SPLIT(dev))
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+	else if (IS_GEN4(dev))
+		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	else
 		intel_encoder->crtc_mask = (1 << 1);
 
@@ -1074,35 +1079,14 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
+	/*
+	 * Unlock registers and just
+	 * leave them unlocked
+	 */
 	if (HAS_PCH_SPLIT(dev)) {
-		u32 pwm;
-
-		pipe = (I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT) ? 1 : 0;
-
-		/* make sure PWM is enabled and locked to the LVDS pipe */
-		pwm = I915_READ(BLC_PWM_CPU_CTL2);
-		if (pipe == 0 && (pwm & PWM_PIPE_B))
-			I915_WRITE(BLC_PWM_CPU_CTL2, pwm & ~PWM_ENABLE);
-		if (pipe)
-			pwm |= PWM_PIPE_B;
-		else
-			pwm &= ~PWM_PIPE_B;
-		I915_WRITE(BLC_PWM_CPU_CTL2, pwm | PWM_ENABLE);
-
-		pwm = I915_READ(BLC_PWM_PCH_CTL1);
-		pwm |= PWM_PCH_ENABLE;
-		I915_WRITE(BLC_PWM_PCH_CTL1, pwm);
-		/*
-		 * Unlock registers and just
-		 * leave them unlocked
-		 */
 		I915_WRITE(PCH_PP_CONTROL,
 			   I915_READ(PCH_PP_CONTROL) | PANEL_UNLOCK_REGS);
 	} else {
-		/*
-		 * Unlock registers and just
-		 * leave them unlocked
-		 */
 		I915_WRITE(PP_CONTROL,
 			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
 	}

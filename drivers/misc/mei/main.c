@@ -714,13 +714,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	if (rets && dev->mei_host_buffer_is_empty) {
 		rets = 0;
 		dev->mei_host_buffer_is_empty = false;
-		if (length > ((((dev->host_hw_state & H_CBD) >> 24) *
-			sizeof(u32)) - sizeof(struct mei_msg_hdr))) {
-
-			mei_hdr.length =
-				(((dev->host_hw_state & H_CBD) >> 24) *
-				sizeof(u32)) -
-				sizeof(struct mei_msg_hdr);
+		if (length >  mei_hbuf_max_data(dev)) {
+			mei_hdr.length = mei_hbuf_max_data(dev);
 			mei_hdr.msg_complete = 0;
 		} else {
 			mei_hdr.length = length;
@@ -1187,44 +1182,7 @@ static struct pci_driver mei_driver = {
 	.driver.pm = MEI_PM_OPS,
 };
 
-/**
- * mei_init_module - Driver Registration Routine
- *
- * mei_init_module is the first routine called when the driver is
- * loaded. All it does is to register with the PCI subsystem.
- *
- * returns 0 on success, <0 on failure.
- */
-static int __init mei_init_module(void)
-{
-	int ret;
-
-	pr_debug("loading.\n");
-	/* init pci module */
-	ret = pci_register_driver(&mei_driver);
-	if (ret < 0)
-		pr_err("error registering driver.\n");
-
-	return ret;
-}
-
-module_init(mei_init_module);
-
-/**
- * mei_exit_module - Driver Exit Cleanup Routine
- *
- * mei_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit mei_exit_module(void)
-{
-	pci_unregister_driver(&mei_driver);
-
-	pr_debug("unloaded successfully.\n");
-}
-
-module_exit(mei_exit_module);
-
+module_pci_driver(mei_driver);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel(R) Management Engine Interface");

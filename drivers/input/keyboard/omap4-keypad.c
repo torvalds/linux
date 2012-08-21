@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -84,8 +85,9 @@ struct omap4_keypad {
 	u32 reg_offset;
 	u32 irqreg_offset;
 	unsigned int row_shift;
+	bool no_autorepeat;
 	unsigned char key_state[8];
-	unsigned short keymap[];
+	unsigned short *keymap;
 };
 
 static int kbd_readl(struct omap4_keypad *keypad_data, u32 offset)
@@ -208,24 +210,50 @@ static void omap4_keypad_close(struct input_dev *input)
 	pm_runtime_put_sync(input->dev.parent);
 }
 
+#ifdef CONFIG_OF
+static int __devinit omap4_keypad_parse_dt(struct device *dev,
+					   struct omap4_keypad *keypad_data)
+{
+	struct device_node *np = dev->of_node;
+
+	if (!np) {
+		dev_err(dev, "missing DT data");
+		return -EINVAL;
+	}
+
+	of_property_read_u32(np, "keypad,num-rows", &keypad_data->rows);
+	of_property_read_u32(np, "keypad,num-columns", &keypad_data->cols);
+	if (!keypad_data->rows || !keypad_data->cols) {
+		dev_err(dev, "number of keypad rows/columns not specified\n");
+		return -EINVAL;
+	}
+
+	if (of_get_property(np, "linux,input-no-autorepeat", NULL))
+		keypad_data->no_autorepeat = true;
+
+	return 0;
+}
+#else
+static inline int omap4_keypad_parse_dt(struct device *dev,
+					struct omap4_keypad *keypad_data)
+{
+	return -ENOSYS;
+}
+#endif
+
 static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 {
-	const struct omap4_keypad_platform_data *pdata;
+	const struct omap4_keypad_platform_data *pdata =
+				dev_get_platdata(&pdev->dev);
+	const struct matrix_keymap_data *keymap_data =
+				pdata ? pdata->keymap_data : NULL;
 	struct omap4_keypad *keypad_data;
 	struct input_dev *input_dev;
 	struct resource *res;
-	resource_size_t size;
-	unsigned int row_shift, max_keys;
+	unsigned int max_keys;
 	int rev;
 	int irq;
 	int error;
-
-	/* platform data */
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data defined\n");
-		return -EINVAL;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -239,25 +267,24 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (!pdata->keymap_data) {
-		dev_err(&pdev->dev, "no keymap data defined\n");
-		return -EINVAL;
-	}
-
-	row_shift = get_count_order(pdata->cols);
-	max_keys = pdata->rows << row_shift;
-
-	keypad_data = kzalloc(sizeof(struct omap4_keypad) +
-				max_keys * sizeof(keypad_data->keymap[0]),
-			      GFP_KERNEL);
+	keypad_data = kzalloc(sizeof(struct omap4_keypad), GFP_KERNEL);
 	if (!keypad_data) {
 		dev_err(&pdev->dev, "keypad_data memory allocation failed\n");
 		return -ENOMEM;
 	}
 
-	size = resource_size(res);
+	keypad_data->irq = irq;
 
-	res = request_mem_region(res->start, size, pdev->name);
+	if (pdata) {
+		keypad_data->rows = pdata->rows;
+		keypad_data->cols = pdata->cols;
+	} else {
+		error = omap4_keypad_parse_dt(&pdev->dev, keypad_data);
+		if (error)
+			return error;
+	}
+
+	res = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!res) {
 		dev_err(&pdev->dev, "can't request mem region\n");
 		error = -EBUSY;
@@ -271,15 +298,11 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 		goto err_release_mem;
 	}
 
-	keypad_data->irq = irq;
-	keypad_data->row_shift = row_shift;
-	keypad_data->rows = pdata->rows;
-	keypad_data->cols = pdata->cols;
 
 	/*
-	* Enable clocks for the keypad module so that we can read
-	* revision register.
-	*/
+	 * Enable clocks for the keypad module so that we can read
+	 * revision register.
+	 */
 	pm_runtime_enable(&pdev->dev);
 	error = pm_runtime_get_sync(&pdev->dev);
 	if (error) {
@@ -322,18 +345,29 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	input_dev->open = omap4_keypad_open;
 	input_dev->close = omap4_keypad_close;
 
-	error = matrix_keypad_build_keymap(pdata->keymap_data, NULL,
-					   pdata->rows, pdata->cols,
-					   keypad_data->keymap, input_dev);
-	if (error) {
-		dev_err(&pdev->dev, "failed to build keymap\n");
+	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
+	if (!keypad_data->no_autorepeat)
+		__set_bit(EV_REP, input_dev->evbit);
+
+	input_set_drvdata(input_dev, keypad_data);
+
+	keypad_data->row_shift = get_count_order(keypad_data->cols);
+	max_keys = keypad_data->rows << keypad_data->row_shift;
+	keypad_data->keymap = kzalloc(max_keys * sizeof(keypad_data->keymap[0]),
+				      GFP_KERNEL);
+	if (!keypad_data->keymap) {
+		dev_err(&pdev->dev, "Not enough memory for keymap\n");
+		error = -ENOMEM;
 		goto err_free_input;
 	}
 
-	__set_bit(EV_REP, input_dev->evbit);
-	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
-
-	input_set_drvdata(input_dev, keypad_data);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   keypad_data->rows, keypad_data->cols,
+					   keypad_data->keymap, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto err_free_keymap;
+	}
 
 	error = request_irq(keypad_data->irq, omap4_keypad_interrupt,
 			     IRQF_TRIGGER_RISING,
@@ -357,6 +391,8 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 	free_irq(keypad_data->irq, keypad_data);
+err_free_keymap:
+	kfree(keypad_data->keymap);
 err_free_input:
 	input_free_device(input_dev);
 err_pm_put_sync:
@@ -364,7 +400,7 @@ err_pm_put_sync:
 err_unmap:
 	iounmap(keypad_data->base);
 err_release_mem:
-	release_mem_region(res->start, size);
+	release_mem_region(res->start, resource_size(res));
 err_free_keypad:
 	kfree(keypad_data);
 	return error;
@@ -386,11 +422,21 @@ static int __devexit omap4_keypad_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
 
+	kfree(keypad_data->keymap);
 	kfree(keypad_data);
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id omap_keypad_dt_match[] = {
+	{ .compatible = "ti,omap4-keypad" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, omap_keypad_dt_match);
+#endif
 
 static struct platform_driver omap4_keypad_driver = {
 	.probe		= omap4_keypad_probe,
@@ -398,6 +444,7 @@ static struct platform_driver omap4_keypad_driver = {
 	.driver		= {
 		.name	= "omap4-keypad",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(omap_keypad_dt_match),
 	},
 };
 module_platform_driver(omap4_keypad_driver);

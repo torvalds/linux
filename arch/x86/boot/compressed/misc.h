@@ -24,9 +24,21 @@
 
 /* misc.c */
 extern struct boot_params *real_mode;		/* Pointer to real-mode data */
-void __putstr(int error, const char *s);
-#define putstr(__x)  __putstr(0, __x)
-#define puts(__x)  __putstr(0, __x)
+void __putstr(const char *s);
+#define error_putstr(__x)  __putstr(__x)
+
+#ifdef CONFIG_X86_VERBOSE_BOOTUP
+
+#define debug_putstr(__x)  __putstr(__x)
+
+#else
+
+static inline void debug_putstr(const char *s)
+{ }
+
+#endif
+
+#ifdef CONFIG_EARLY_PRINTK
 
 /* cmdline.c */
 int cmdline_find_option(const char *option, char *buffer, int bufsize);
@@ -35,5 +47,14 @@ int cmdline_find_option_bool(const char *option);
 /* early_serial_console.c */
 extern int early_serial_base;
 void console_init(void);
+
+#else
+
+/* early_serial_console.c */
+static const int early_serial_base;
+static inline void console_init(void)
+{ }
+
+#endif
 
 #endif

@@ -1,0 +1,31 @@
+* TI's Keypad Controller device tree bindings
+
+TI's Keypad controller is used to interface a SoC with a matrix-type
+keypad device. The keypad controller supports multiple row and column lines.
+A key can be placed at each intersection of a unique row and a unique column.
+The keypad controller can sense a key-press and key-release and report the
+event using a interrupt to the cpu.
+
+Required SoC Specific Properties:
+- compatible: should be one of the following
+   - "ti,omap4-keypad": For controllers compatible with omap4 keypad
+      controller.
+
+Required Board Specific Properties, in addition to those specified by
+the shared matrix-keyboard bindings:
+- keypad,num-rows: Number of row lines connected to the keypad
+  controller.
+
+- keypad,num-columns: Number of column lines connected to the
+  keypad controller.
+
+Optional Properties specific to linux:
+- linux,keypad-no-autorepeat: do no enable autorepeat feature.
+
+Example:
+	keypad@4ae1c000{
+		compatible = "ti,omap4-keypad";
+		keypad,num-rows = <2>;
+		keypad,num-columns = <8>;
+		linux,keypad-no-autorepeat;
+	};

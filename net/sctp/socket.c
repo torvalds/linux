@@ -1859,7 +1859,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 
 	if (asoc->pmtu_pending)
-		sctp_assoc_pending_pmtu(asoc);
+		sctp_assoc_pending_pmtu(sk, asoc);
 
 	/* If fragmentation is disabled and the message length exceeds the
 	 * association fragmentation point, return EMSGSIZE.  The I-D
@@ -2373,7 +2373,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 	if ((params->spp_flags & SPP_PMTUD_DISABLE) && params->spp_pathmtu) {
 		if (trans) {
 			trans->pathmtu = params->spp_pathmtu;
-			sctp_assoc_sync_pmtu(asoc);
+			sctp_assoc_sync_pmtu(sctp_opt2sk(sp), asoc);
 		} else if (asoc) {
 			asoc->pathmtu = params->spp_pathmtu;
 			sctp_frag_point(asoc, params->spp_pathmtu);
@@ -2390,7 +2390,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 				(trans->param_flags & ~SPP_PMTUD) | pmtud_change;
 			if (update) {
 				sctp_transport_pmtu(trans, sctp_opt2sk(sp));
-				sctp_assoc_sync_pmtu(asoc);
+				sctp_assoc_sync_pmtu(sctp_opt2sk(sp), asoc);
 			}
 		} else if (asoc) {
 			asoc->param_flags =
@@ -3478,6 +3478,56 @@ static int sctp_setsockopt_auto_asconf(struct sock *sk, char __user *optval,
 }
 
 
+/*
+ * SCTP_PEER_ADDR_THLDS
+ *
+ * This option allows us to alter the partially failed threshold for one or all
+ * transports in an association.  See Section 6.1 of:
+ * http://www.ietf.org/id/draft-nishida-tsvwg-sctp-failover-05.txt
+ */
+static int sctp_setsockopt_paddr_thresholds(struct sock *sk,
+					    char __user *optval,
+					    unsigned int optlen)
+{
+	struct sctp_paddrthlds val;
+	struct sctp_transport *trans;
+	struct sctp_association *asoc;
+
+	if (optlen < sizeof(struct sctp_paddrthlds))
+		return -EINVAL;
+	if (copy_from_user(&val, (struct sctp_paddrthlds __user *)optval,
+			   sizeof(struct sctp_paddrthlds)))
+		return -EFAULT;
+
+
+	if (sctp_is_any(sk, (const union sctp_addr *)&val.spt_address)) {
+		asoc = sctp_id2assoc(sk, val.spt_assoc_id);
+		if (!asoc)
+			return -ENOENT;
+		list_for_each_entry(trans, &asoc->peer.transport_addr_list,
+				    transports) {
+			if (val.spt_pathmaxrxt)
+				trans->pathmaxrxt = val.spt_pathmaxrxt;
+			trans->pf_retrans = val.spt_pathpfthld;
+		}
+
+		if (val.spt_pathmaxrxt)
+			asoc->pathmaxrxt = val.spt_pathmaxrxt;
+		asoc->pf_retrans = val.spt_pathpfthld;
+	} else {
+		trans = sctp_addr_id2transport(sk, &val.spt_address,
+					       val.spt_assoc_id);
+		if (!trans)
+			return -ENOENT;
+
+		if (val.spt_pathmaxrxt)
+			trans->pathmaxrxt = val.spt_pathmaxrxt;
+		trans->pf_retrans = val.spt_pathpfthld;
+	}
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -3626,6 +3676,9 @@ SCTP_STATIC int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_AUTO_ASCONF:
 		retval = sctp_setsockopt_auto_asconf(sk, optval, optlen);
+		break;
+	case SCTP_PEER_ADDR_THLDS:
+		retval = sctp_setsockopt_paddr_thresholds(sk, optval, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;
@@ -5498,6 +5551,51 @@ static int sctp_getsockopt_assoc_ids(struct sock *sk, int len,
 	return 0;
 }
 
+/*
+ * SCTP_PEER_ADDR_THLDS
+ *
+ * This option allows us to fetch the partially failed threshold for one or all
+ * transports in an association.  See Section 6.1 of:
+ * http://www.ietf.org/id/draft-nishida-tsvwg-sctp-failover-05.txt
+ */
+static int sctp_getsockopt_paddr_thresholds(struct sock *sk,
+					    char __user *optval,
+					    int len,
+					    int __user *optlen)
+{
+	struct sctp_paddrthlds val;
+	struct sctp_transport *trans;
+	struct sctp_association *asoc;
+
+	if (len < sizeof(struct sctp_paddrthlds))
+		return -EINVAL;
+	len = sizeof(struct sctp_paddrthlds);
+	if (copy_from_user(&val, (struct sctp_paddrthlds __user *)optval, len))
+		return -EFAULT;
+
+	if (sctp_is_any(sk, (const union sctp_addr *)&val.spt_address)) {
+		asoc = sctp_id2assoc(sk, val.spt_assoc_id);
+		if (!asoc)
+			return -ENOENT;
+
+		val.spt_pathpfthld = asoc->pf_retrans;
+		val.spt_pathmaxrxt = asoc->pathmaxrxt;
+	} else {
+		trans = sctp_addr_id2transport(sk, &val.spt_address,
+					       val.spt_assoc_id);
+		if (!trans)
+			return -ENOENT;
+
+		val.spt_pathmaxrxt = trans->pathmaxrxt;
+		val.spt_pathpfthld = trans->pf_retrans;
+	}
+
+	if (put_user(len, optlen) || copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 				char __user *optval, int __user *optlen)
 {
@@ -5635,6 +5733,9 @@ SCTP_STATIC int sctp_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_AUTO_ASCONF:
 		retval = sctp_getsockopt_auto_asconf(sk, len, optval, optlen);
+		break;
+	case SCTP_PEER_ADDR_THLDS:
+		retval = sctp_getsockopt_paddr_thresholds(sk, optval, len, optlen);
 		break;
 	default:
 		retval = -ENOPROTOOPT;

@@ -1,9 +1,7 @@
 TODO
-. check error handling/cleanup paths
-. add drm_plane / overlay support
 . add video decode/encode support (via syslink3 + codec-engine)
-. still some rough edges with flipping.. event back to userspace should
-  really come after VSYNC interrupt
+  . NOTE: with dmabuf this probably could be split into different driver
+    so perhaps this TODO doesn't belong here
 . where should we do eviction (detatch_pages())?  We aren't necessarily
   accessing the pages via a GART, so maybe we need some other threshold
   to put a cap on the # of pages that can be pin'd.  (It is mostly only
@@ -27,7 +25,6 @@ TODO
   CRTC's should be disabled, and on resume the LUT should be reprogrammed
   before CRTC's are re-enabled, to prevent DSS from trying to DMA from a
   buffer mapped in DMM/TILER before LUT is reloaded.
-. Add debugfs information for DMM/TILER
 
 Userspace:
 . git://github.com/robclark/xf86-video-omap.git

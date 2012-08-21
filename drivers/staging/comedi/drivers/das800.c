@@ -296,46 +296,47 @@ static int das800_probe(struct comedi_device *dev)
 	switch (id_bits) {
 	case 0x0:
 		if (board == das800) {
-			dev_dbg(dev->hw_dev, "Board model: DAS-800\n");
+			dev_dbg(dev->class_dev, "Board model: DAS-800\n");
 			return board;
 		}
 		if (board == ciodas800) {
-			dev_dbg(dev->hw_dev, "Board model: CIO-DAS800\n");
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS800\n");
 			return board;
 		}
-		dev_dbg(dev->hw_dev, "Board model (probed): DAS-800\n");
+		dev_dbg(dev->class_dev, "Board model (probed): DAS-800\n");
 		return das800;
 		break;
 	case 0x2:
 		if (board == das801) {
-			dev_dbg(dev->hw_dev, "Board model: DAS-801\n");
+			dev_dbg(dev->class_dev, "Board model: DAS-801\n");
 			return board;
 		}
 		if (board == ciodas801) {
-			dev_dbg(dev->hw_dev, "Board model: CIO-DAS801\n");
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS801\n");
 			return board;
 		}
-		dev_dbg(dev->hw_dev, "Board model (probed): DAS-801\n");
+		dev_dbg(dev->class_dev, "Board model (probed): DAS-801\n");
 		return das801;
 		break;
 	case 0x3:
 		if (board == das802) {
-			dev_dbg(dev->hw_dev, "Board model: DAS-802\n");
+			dev_dbg(dev->class_dev, "Board model: DAS-802\n");
 			return board;
 		}
 		if (board == ciodas802) {
-			dev_dbg(dev->hw_dev, "Board model: CIO-DAS802\n");
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS802\n");
 			return board;
 		}
 		if (board == ciodas80216) {
-			dev_dbg(dev->hw_dev, "Board model: CIO-DAS802/16\n");
+			dev_dbg(dev->class_dev, "Board model: CIO-DAS802/16\n");
 			return board;
 		}
-		dev_dbg(dev->hw_dev, "Board model (probed): DAS-802\n");
+		dev_dbg(dev->class_dev, "Board model (probed): DAS-802\n");
 		return das802;
 		break;
 	default:
-		dev_dbg(dev->hw_dev, "Board model: probe returned 0x%x (unknown)\n",
+		dev_dbg(dev->class_dev,
+			"Board model: probe returned 0x%x (unknown)\n",
 			id_bits);
 		return board;
 		break;
@@ -450,7 +451,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		/* otherwise, stop taking data */
 	} else {
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
-		disable_das800(dev);	/* diable hardware triggered conversions */
+		disable_das800(dev);	/* disable hardware triggered conversions */
 		async->events |= COMEDI_CB_EOA;
 	}
 	comedi_event(dev, s);
@@ -465,43 +466,44 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq = it->options[1];
 	unsigned long irq_flags;
 	int board;
+	int ret;
 
-	dev_info(dev->hw_dev, "comedi%d: das800: io 0x%lx\n", dev->minor,
-		 iobase);
+	dev_info(dev->class_dev, "das800: io 0x%lx\n", iobase);
 	if (irq)
-		dev_dbg(dev->hw_dev, "irq %u\n", irq);
+		dev_dbg(dev->class_dev, "irq %u\n", irq);
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(struct das800_private)) < 0)
 		return -ENOMEM;
 
 	if (iobase == 0) {
-		dev_err(dev->hw_dev, "io base address required for das800\n");
+		dev_err(dev->class_dev,
+			"io base address required for das800\n");
 		return -EINVAL;
 	}
 
 	/* check if io addresses are available */
 	if (!request_region(iobase, DAS800_SIZE, "das800")) {
-		dev_err(dev->hw_dev, "I/O port conflict\n");
+		dev_err(dev->class_dev, "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 	board = das800_probe(dev);
 	if (board < 0) {
-		dev_dbg(dev->hw_dev, "unable to determine board type\n");
+		dev_dbg(dev->class_dev, "unable to determine board type\n");
 		return -ENODEV;
 	}
 	dev->board_ptr = das800_boards + board;
 
 	/* grab our IRQ */
 	if (irq == 1 || irq > 7) {
-		dev_err(dev->hw_dev, "irq out of range\n");
+		dev_err(dev->class_dev, "irq out of range\n");
 		return -EINVAL;
 	}
 	if (irq) {
 		if (request_irq(irq, das800_interrupt, 0, "das800", dev)) {
-			dev_err(dev->hw_dev, "unable to allocate irq %u\n",
+			dev_err(dev->class_dev, "unable to allocate irq %u\n",
 				irq);
 			return -EINVAL;
 		}
@@ -510,8 +512,9 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	/* analog input subdevice */
 	s = dev->subdevices + 0;
@@ -872,7 +875,7 @@ static int das800_di_rbits(struct comedi_device *dev,
 	data[1] = bits;
 	data[0] = 0;
 
-	return 2;
+	return insn->n;
 }
 
 static int das800_do_wbits(struct comedi_device *dev,
@@ -896,7 +899,7 @@ static int das800_do_wbits(struct comedi_device *dev,
 
 	data[1] = wbits;
 
-	return 2;
+	return insn->n;
 }
 
 /* loads counters with divisor1, divisor2 from private structure */

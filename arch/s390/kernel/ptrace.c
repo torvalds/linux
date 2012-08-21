@@ -1,7 +1,7 @@
 /*
  *  Ptrace user space interface.
  *
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999, 2010
  *    Author(s): Denis Joseph Barrow
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  */

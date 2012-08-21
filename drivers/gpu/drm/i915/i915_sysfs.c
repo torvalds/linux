@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/stat.h>
 #include <linux/sysfs.h>
+#include "intel_drv.h"
 #include "i915_drv.h"
 
 static u32 calc_residency(struct drm_device *dev, const u32 reg)
@@ -92,20 +93,134 @@ static struct attribute_group rc6_attr_group = {
 	.attrs =  rc6_attrs
 };
 
+static int l3_access_valid(struct drm_device *dev, loff_t offset)
+{
+	if (!IS_IVYBRIDGE(dev))
+		return -EPERM;
+
+	if (offset % 4 != 0)
+		return -EINVAL;
+
+	if (offset >= GEN7_L3LOG_SIZE)
+		return -ENXIO;
+
+	return 0;
+}
+
+static ssize_t
+i915_l3_read(struct file *filp, struct kobject *kobj,
+	     struct bin_attribute *attr, char *buf,
+	     loff_t offset, size_t count)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_device *drm_dev = dminor->dev;
+	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	uint32_t misccpctl;
+	int i, ret;
+
+	ret = l3_access_valid(drm_dev, offset);
+	if (ret)
+		return ret;
+
+	ret = i915_mutex_lock_interruptible(drm_dev);
+	if (ret)
+		return ret;
+
+	misccpctl = I915_READ(GEN7_MISCCPCTL);
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+
+	for (i = offset; count >= 4 && i < GEN7_L3LOG_SIZE; i += 4, count -= 4)
+		*((uint32_t *)(&buf[i])) = I915_READ(GEN7_L3LOG_BASE + i);
+
+	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
+
+	mutex_unlock(&drm_dev->struct_mutex);
+
+	return i - offset;
+}
+
+static ssize_t
+i915_l3_write(struct file *filp, struct kobject *kobj,
+	      struct bin_attribute *attr, char *buf,
+	      loff_t offset, size_t count)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct drm_minor *dminor = container_of(dev, struct drm_minor, kdev);
+	struct drm_device *drm_dev = dminor->dev;
+	struct drm_i915_private *dev_priv = drm_dev->dev_private;
+	u32 *temp = NULL; /* Just here to make handling failures easy */
+	int ret;
+
+	ret = l3_access_valid(drm_dev, offset);
+	if (ret)
+		return ret;
+
+	ret = i915_mutex_lock_interruptible(drm_dev);
+	if (ret)
+		return ret;
+
+	if (!dev_priv->mm.l3_remap_info) {
+		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
+		if (!temp) {
+			mutex_unlock(&drm_dev->struct_mutex);
+			return -ENOMEM;
+		}
+	}
+
+	ret = i915_gpu_idle(drm_dev);
+	if (ret) {
+		kfree(temp);
+		mutex_unlock(&drm_dev->struct_mutex);
+		return ret;
+	}
+
+	/* TODO: Ideally we really want a GPU reset here to make sure errors
+	 * aren't propagated. Since I cannot find a stable way to reset the GPU
+	 * at this point it is left as a TODO.
+	*/
+	if (temp)
+		dev_priv->mm.l3_remap_info = temp;
+
+	memcpy(dev_priv->mm.l3_remap_info + (offset/4),
+	       buf + (offset/4),
+	       count);
+
+	i915_gem_l3_remap(drm_dev);
+
+	mutex_unlock(&drm_dev->struct_mutex);
+
+	return count;
+}
+
+static struct bin_attribute dpf_attrs = {
+	.attr = {.name = "l3_parity", .mode = (S_IRUSR | S_IWUSR)},
+	.size = GEN7_L3LOG_SIZE,
+	.read = i915_l3_read,
+	.write = i915_l3_write,
+	.mmap = NULL
+};
+
 void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
 
-	/* ILK doesn't have any residency information */
-	if (INTEL_INFO(dev)->gen < 6)
-		return;
+	if (INTEL_INFO(dev)->gen >= 6) {
+		ret = sysfs_merge_group(&dev->primary->kdev.kobj,
+					&rc6_attr_group);
+		if (ret)
+			DRM_ERROR("RC6 residency sysfs setup failed\n");
+	}
 
-	ret = sysfs_merge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
-	if (ret)
-		DRM_ERROR("sysfs setup failed\n");
+	if (IS_IVYBRIDGE(dev)) {
+		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
+		if (ret)
+			DRM_ERROR("l3 parity sysfs setup failed\n");
+	}
 }
 
 void i915_teardown_sysfs(struct drm_device *dev)
 {
+	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
 }

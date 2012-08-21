@@ -37,6 +37,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include "radio-isa.h"
+#include "lm7000.h"
 
 MODULE_AUTHOR("M. Kirkwood");
 MODULE_DESCRIPTION("A driver for the RadioTrack/RadioReveal radio card.");
@@ -72,55 +73,38 @@ static struct radio_isa_card *rtrack_alloc(void)
 	return rt ? &rt->isa : NULL;
 }
 
-/* The 128+64 on these outb's is to keep the volume stable while tuning.
- * Without them, the volume _will_ creep up with each frequency change
- * and bit 4 (+16) is to keep the signal strength meter enabled.
- */
+#define AIMS_BIT_TUN_CE		(1 << 0)
+#define AIMS_BIT_TUN_CLK	(1 << 1)
+#define AIMS_BIT_TUN_DATA	(1 << 2)
+#define AIMS_BIT_VOL_CE		(1 << 3)
+#define AIMS_BIT_TUN_STRQ	(1 << 4)
+/* bit 5 is not connected */
+#define AIMS_BIT_VOL_UP		(1 << 6)	/* active low */
+#define AIMS_BIT_VOL_DN		(1 << 7)	/* active low */
 
-static void send_0_byte(struct radio_isa_card *isa, int on)
+void rtrack_set_pins(void *handle, u8 pins)
 {
-	outb_p(128+64+16+on+1, isa->io);	/* wr-enable + data low */
-	outb_p(128+64+16+on+2+1, isa->io);	/* clock */
-	msleep(1);
-}
+	struct radio_isa_card *isa = handle;
+	struct rtrack *rt = container_of(isa, struct rtrack, isa);
+	u8 bits = AIMS_BIT_VOL_DN | AIMS_BIT_VOL_UP | AIMS_BIT_TUN_STRQ;
 
-static void send_1_byte(struct radio_isa_card *isa, int on)
-{
-	outb_p(128+64+16+on+4+1, isa->io);	/* wr-enable+data high */
-	outb_p(128+64+16+on+4+2+1, isa->io);	/* clock */
-	msleep(1);
+	if (!v4l2_ctrl_g_ctrl(rt->isa.mute))
+		bits |= AIMS_BIT_VOL_CE;
+
+	if (pins & LM7000_DATA)
+		bits |= AIMS_BIT_TUN_DATA;
+	if (pins & LM7000_CLK)
+		bits |= AIMS_BIT_TUN_CLK;
+	if (pins & LM7000_CE)
+		bits |= AIMS_BIT_TUN_CE;
+
+	outb_p(bits, rt->isa.io);
 }
 
 static int rtrack_s_frequency(struct radio_isa_card *isa, u32 freq)
 {
-	int on = v4l2_ctrl_g_ctrl(isa->mute) ? 0 : 8;
-	int i;
+	lm7000_set_freq(freq, isa, rtrack_set_pins);
 
-	freq += 171200;			/* Add 10.7 MHz IF 		*/
-	freq /= 800;			/* Convert to 50 kHz units	*/
-
-	send_0_byte(isa, on);		/*  0: LSB of frequency		*/
-
-	for (i = 0; i < 13; i++)	/*   : frequency bits (1-13)	*/
-		if (freq & (1 << i))
-			send_1_byte(isa, on);
-		else
-			send_0_byte(isa, on);
-
-	send_0_byte(isa, on);		/* 14: test bit - always 0    */
-	send_0_byte(isa, on);		/* 15: test bit - always 0    */
-
-	send_0_byte(isa, on);		/* 16: band data 0 - always 0 */
-	send_0_byte(isa, on);		/* 17: band data 1 - always 0 */
-	send_0_byte(isa, on);		/* 18: band data 2 - always 0 */
-	send_0_byte(isa, on);		/* 19: time base - always 0   */
-
-	send_0_byte(isa, on);		/* 20: spacing (0 = 25 kHz)   */
-	send_1_byte(isa, on);		/* 21: spacing (1 = 25 kHz)   */
-	send_0_byte(isa, on);		/* 22: spacing (0 = 25 kHz)   */
-	send_1_byte(isa, on);		/* 23: AM/FM (FM = 1, always) */
-
-	outb(0xd0 + on, isa->io);	/* volume steady + sigstr */
 	return 0;
 }
 

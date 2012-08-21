@@ -1,8 +1,7 @@
 /*
-*  arch/s390/kernel/compat_wrapper.S
 *    wrapper for 31 bit compatible system calls.
 *
-*    Copyright (C) IBM Corp. 2000,2006
+*    Copyright IBM Corp. 2000, 2006
 *    Author(s): Gerhard Tonn (ton@de.ibm.com),
 *		Thomas Spatzier (tspat@de.ibm.com)
 */

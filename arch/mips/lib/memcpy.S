@@ -183,6 +183,14 @@
 #endif
 
 /*
+ * t6 is used as a flag to note inatomic mode.
+ */
+LEAF(__copy_user_inatomic)
+	b	__copy_user_common
+	 li	t6, 1
+	END(__copy_user_inatomic)
+
+/*
  * A combined memcpy/__copy_user
  * __copy_user sets len to 0 for success; else to an upper bound of
  * the number of uncopied bytes.
@@ -193,6 +201,8 @@ LEAF(memcpy)					/* a0=dst a1=src a2=len */
 	move	v0, dst				/* return value */
 .L__memcpy:
 FEXPORT(__copy_user)
+	li	t6, 0	/* not inatomic */
+__copy_user_common:
 	/*
 	 * Note: dst & src may be unaligned, len may be 0
 	 * Temps
@@ -458,6 +468,7 @@ EXC(	lb	t1, 0(src),	.Ll_exc)
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address
 	 nop
 	SUB	len, AT, t0		# len number of uncopied bytes
+	bnez	t6, .Ldone	/* Skip the zeroing part if inatomic */
 	/*
 	 * Here's where we rely on src and dst being incremented in tandem,
 	 *   See (3) above.

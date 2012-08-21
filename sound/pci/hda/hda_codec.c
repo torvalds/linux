@@ -2676,25 +2676,6 @@ int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put);
 
-#ifdef CONFIG_SND_HDA_INPUT_BEEP
-/**
- * snd_hda_mixer_amp_switch_put_beep - Put callback for a beep AMP switch
- *
- * This function calls snd_hda_enable_beep_device(), which behaves differently
- * depending on beep_mode option.
- */
-int snd_hda_mixer_amp_switch_put_beep(struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-
-	snd_hda_enable_beep_device(codec, *valp);
-	return snd_hda_mixer_amp_switch_put(kcontrol, ucontrol);
-}
-EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_switch_put_beep);
-#endif /* CONFIG_SND_HDA_INPUT_BEEP */
-
 /*
  * bound volume controls
  *
@@ -3509,22 +3490,52 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 EXPORT_SYMBOL_HDA(snd_hda_codec_set_power_to_all);
 
 /*
+ *  supported power states check
+ */
+static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec, hda_nid_t fg,
+				unsigned int power_state)
+{
+	int sup = snd_hda_param_read(codec, fg, AC_PAR_POWER_STATE);
+
+	if (sup < 0)
+		return false;
+	if (sup & power_state)
+		return true;
+	else
+		return false;
+}
+
+/*
  * set power state of the codec
  */
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state)
 {
+	int count;
+	unsigned int state;
+
 	if (codec->patch_ops.set_power_state) {
 		codec->patch_ops.set_power_state(codec, fg, power_state);
 		return;
 	}
 
 	/* this delay seems necessary to avoid click noise at power-down */
-	if (power_state == AC_PWRST_D3)
-		msleep(100);
-	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
-			    power_state);
-	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+	if (power_state == AC_PWRST_D3) {
+		/* transition time less than 10ms for power down */
+		bool epss = snd_hda_codec_get_supported_ps(codec, fg, AC_PWRST_EPSS);
+		msleep(epss ? 10 : 100);
+	}
+
+	/* repeat power states setting at most 10 times*/
+	for (count = 0; count < 10; count++) {
+		snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
+				    power_state);
+		snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
+		state = snd_hda_codec_read(codec, fg, 0,
+					   AC_VERB_GET_POWER_STATE, 0);
+		if (!(state & AC_PWRST_ERROR))
+			break;
+	}
 }
 
 #ifdef CONFIG_SND_HDA_HWDEP
@@ -3545,7 +3556,7 @@ static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
 static void hda_call_codec_suspend(struct hda_codec *codec)
 {
 	if (codec->patch_ops.suspend)
-		codec->patch_ops.suspend(codec, PMSG_SUSPEND);
+		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
@@ -4418,6 +4429,13 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 	cancel_delayed_work_sync(&codec->power_work);
 
 	spin_lock(&codec->power_lock);
+	/* If the power down delayed work was cancelled above before starting,
+	 * then there is no need to go through power up here.
+	 */
+	if (codec->power_on) {
+		spin_unlock(&codec->power_lock);
+		return;
+	}
 	trace_hda_power_up(codec);
 	snd_hda_update_power_acct(codec);
 	codec->power_on = 1;

@@ -280,7 +280,13 @@ static void rt2800pci_stop_queue(struct data_queue *queue)
  */
 static char *rt2800pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 {
-	return FIRMWARE_RT2860;
+	/*
+	 * Chip rt3290 use specific 4KB firmware named rt3290.bin.
+	 */
+	if (rt2x00_rt(rt2x00dev, RT3290))
+		return FIRMWARE_RT3290;
+	else
+		return FIRMWARE_RT2860;
 }
 
 static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
@@ -974,6 +980,66 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	return rt2800_validate_eeprom(rt2x00dev);
 }
 
+static int rt2800_enable_wlan_rt3290(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+	int i, count;
+
+	rt2800_register_read(rt2x00dev, WLAN_FUN_CTRL, &reg);
+	if (rt2x00_get_field32(reg, WLAN_EN))
+		return 0;
+
+	rt2x00_set_field32(&reg, WLAN_GPIO_OUT_OE_BIT_ALL, 0xff);
+	rt2x00_set_field32(&reg, FRC_WL_ANT_SET, 1);
+	rt2x00_set_field32(&reg, WLAN_CLK_EN, 0);
+	rt2x00_set_field32(&reg, WLAN_EN, 1);
+	rt2800_register_write(rt2x00dev, WLAN_FUN_CTRL, reg);
+
+	udelay(REGISTER_BUSY_DELAY);
+
+	count = 0;
+	do {
+		/*
+		 * Check PLL_LD & XTAL_RDY.
+		 */
+		for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+			rt2800_register_read(rt2x00dev, CMB_CTRL, &reg);
+			if (rt2x00_get_field32(reg, PLL_LD) &&
+			    rt2x00_get_field32(reg, XTAL_RDY))
+				break;
+			udelay(REGISTER_BUSY_DELAY);
+		}
+
+		if (i >= REGISTER_BUSY_COUNT) {
+
+			if (count >= 10)
+				return -EIO;
+
+			rt2800_register_write(rt2x00dev, 0x58, 0x018);
+			udelay(REGISTER_BUSY_DELAY);
+			rt2800_register_write(rt2x00dev, 0x58, 0x418);
+			udelay(REGISTER_BUSY_DELAY);
+			rt2800_register_write(rt2x00dev, 0x58, 0x618);
+			udelay(REGISTER_BUSY_DELAY);
+			count++;
+		} else {
+			count = 0;
+		}
+
+		rt2800_register_read(rt2x00dev, WLAN_FUN_CTRL, &reg);
+		rt2x00_set_field32(&reg, PCIE_APP0_CLK_REQ, 0);
+		rt2x00_set_field32(&reg, WLAN_CLK_EN, 1);
+		rt2x00_set_field32(&reg, WLAN_RESET, 1);
+		rt2800_register_write(rt2x00dev, WLAN_FUN_CTRL, reg);
+		udelay(10);
+		rt2x00_set_field32(&reg, WLAN_RESET, 0);
+		rt2800_register_write(rt2x00dev, WLAN_FUN_CTRL, reg);
+		udelay(10);
+		rt2800_register_write(rt2x00dev, INT_SOURCE_CSR, 0x7fffffff);
+	} while (count != 0);
+
+	return 0;
+}
 static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
@@ -995,6 +1061,17 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	retval = rt2800_probe_hw_mode(rt2x00dev);
 	if (retval)
 		return retval;
+
+	/*
+	 * In probe phase call rt2800_enable_wlan_rt3290 to enable wlan
+	 * clk for rt3290. That avoid the MCU fail in start phase.
+	 */
+	if (rt2x00_rt(rt2x00dev, RT3290)) {
+		retval = rt2800_enable_wlan_rt3290(rt2x00dev);
+
+		if (retval)
+			return retval;
+	}
 
 	/*
 	 * This device has multiple filters for control frames
@@ -1175,6 +1252,9 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1432, 0x7768) },
 	{ PCI_DEVICE(0x1462, 0x891a) },
 	{ PCI_DEVICE(0x1a3b, 0x1059) },
+#ifdef CONFIG_RT2800PCI_RT3290
+	{ PCI_DEVICE(0x1814, 0x3290) },
+#endif
 #ifdef CONFIG_RT2800PCI_RT33XX
 	{ PCI_DEVICE(0x1814, 0x3390) },
 #endif
@@ -1188,6 +1268,7 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x3593) },
 #endif
 #ifdef CONFIG_RT2800PCI_RT53XX
+	{ PCI_DEVICE(0x1814, 0x5360) },
 	{ PCI_DEVICE(0x1814, 0x5362) },
 	{ PCI_DEVICE(0x1814, 0x5390) },
 	{ PCI_DEVICE(0x1814, 0x5392) },

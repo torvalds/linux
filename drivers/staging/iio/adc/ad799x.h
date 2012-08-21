@@ -120,8 +120,6 @@ struct ad799x_platform_data {
 	u16				vref_mv;
 };
 
-int ad7997_8_set_scan_mode(struct ad799x_state *st, unsigned mask);
-
 #ifdef CONFIG_AD799X_RING_BUFFER
 int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad799x_ring_cleanup(struct iio_dev *indio_dev);

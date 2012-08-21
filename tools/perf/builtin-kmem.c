@@ -1,6 +1,7 @@
 #include "builtin.h"
 #include "perf.h"
 
+#include "util/evsel.h"
 #include "util/util.h"
 #include "util/cache.h"
 #include "util/symbol.h"
@@ -56,11 +57,6 @@ static unsigned long total_requested, total_allocated;
 static unsigned long nr_allocs, nr_cross_allocs;
 
 #define PATH_SYS_NODE	"/sys/devices/system/node"
-
-struct perf_kmem {
-	struct perf_tool    tool;
-	struct perf_session *session;
-};
 
 static void init_cpunode_map(void)
 {
@@ -196,16 +192,15 @@ static void insert_caller_stat(unsigned long call_site,
 	}
 }
 
-static void process_alloc_event(void *data,
-				struct event_format *event,
-				int cpu,
-				u64 timestamp __used,
-				struct thread *thread __used,
-				int node)
+static void perf_evsel__process_alloc_event(struct perf_evsel *evsel,
+					    struct perf_sample *sample,
+					    int node)
 {
+	struct event_format *event = evsel->tp_format;
+	void *data = sample->raw_data;
 	unsigned long call_site;
 	unsigned long ptr;
-	int bytes_req;
+	int bytes_req, cpu = sample->cpu;
 	int bytes_alloc;
 	int node1, node2;
 
@@ -257,22 +252,18 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static void process_free_event(void *data,
-			       struct event_format *event,
-			       int cpu,
-			       u64 timestamp __used,
-			       struct thread *thread __used)
+static void perf_evsel__process_free_event(struct perf_evsel *evsel,
+					   struct perf_sample *sample)
 {
-	unsigned long ptr;
+	unsigned long ptr = raw_field_value(evsel->tp_format, "ptr",
+					    sample->raw_data);
 	struct alloc_stat *s_alloc, *s_caller;
-
-	ptr = raw_field_value(event, "ptr", data);
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
 	if (!s_alloc)
 		return;
 
-	if (cpu != s_alloc->alloc_cpu) {
+	if ((short)sample->cpu != s_alloc->alloc_cpu) {
 		s_alloc->pingpong++;
 
 		s_caller = search_alloc_stat(0, s_alloc->call_site,
@@ -283,40 +274,34 @@ static void process_free_event(void *data,
 	s_alloc->alloc_cpu = -1;
 }
 
-static void process_raw_event(struct perf_tool *tool,
-			      union perf_event *raw_event __used, void *data,
-			      int cpu, u64 timestamp, struct thread *thread)
+static void perf_evsel__process_kmem_event(struct perf_evsel *evsel,
+					   struct perf_sample *sample)
 {
-	struct perf_kmem *kmem = container_of(tool, struct perf_kmem, tool);
-	struct event_format *event;
-	int type;
-
-	type = trace_parse_common_type(kmem->session->pevent, data);
-	event = pevent_find_event(kmem->session->pevent, type);
+	struct event_format *event = evsel->tp_format;
 
 	if (!strcmp(event->name, "kmalloc") ||
 	    !strcmp(event->name, "kmem_cache_alloc")) {
-		process_alloc_event(data, event, cpu, timestamp, thread, 0);
+		perf_evsel__process_alloc_event(evsel, sample, 0);
 		return;
 	}
 
 	if (!strcmp(event->name, "kmalloc_node") ||
 	    !strcmp(event->name, "kmem_cache_alloc_node")) {
-		process_alloc_event(data, event, cpu, timestamp, thread, 1);
+		perf_evsel__process_alloc_event(evsel, sample, 1);
 		return;
 	}
 
 	if (!strcmp(event->name, "kfree") ||
 	    !strcmp(event->name, "kmem_cache_free")) {
-		process_free_event(data, event, cpu, timestamp, thread);
+		perf_evsel__process_free_event(evsel, sample);
 		return;
 	}
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(struct perf_tool *tool __used,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel __used,
+				struct perf_evsel *evsel,
 				struct machine *machine)
 {
 	struct thread *thread = machine__findnew_thread(machine, event->ip.pid);
@@ -329,18 +314,14 @@ static int process_sample_event(struct perf_tool *tool,
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	process_raw_event(tool, event, sample->raw_data, sample->cpu,
-			  sample->time, thread);
-
+	perf_evsel__process_kmem_event(evsel, sample);
 	return 0;
 }
 
-static struct perf_kmem perf_kmem = {
-	.tool = {
-		.sample			= process_sample_event,
-		.comm			= perf_event__process_comm,
-		.ordered_samples	= true,
-	},
+static struct perf_tool perf_kmem = {
+	.sample		 = process_sample_event,
+	.comm		 = perf_event__process_comm,
+	.ordered_samples = true,
 };
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
@@ -497,12 +478,9 @@ static int __cmd_kmem(void)
 	int err = -EINVAL;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, 0, false,
-				    &perf_kmem.tool);
+	session = perf_session__new(input_name, O_RDONLY, 0, false, &perf_kmem);
 	if (session == NULL)
 		return -ENOMEM;
-
-	perf_kmem.session = session;
 
 	if (perf_session__create_kernel_maps(session) < 0)
 		goto out_delete;
@@ -511,7 +489,7 @@ static int __cmd_kmem(void)
 		goto out_delete;
 
 	setup_pager();
-	err = perf_session__process_events(session, &perf_kmem.tool);
+	err = perf_session__process_events(session, &perf_kmem);
 	if (err != 0)
 		goto out_delete;
 	sort_result();

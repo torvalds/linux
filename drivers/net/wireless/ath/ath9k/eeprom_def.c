@@ -211,11 +211,11 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 	if (!dump_base_hdr) {
 		len += snprintf(buf + len, size - len,
 				"%20s :\n", "2GHz modal Header");
-		len += ath9k_def_dump_modal_eeprom(buf, len, size,
+		len = ath9k_def_dump_modal_eeprom(buf, len, size,
 						   &eep->modalHeader[0]);
 		len += snprintf(buf + len, size - len,
 				"%20s :\n", "5GHz modal Header");
-		len += ath9k_def_dump_modal_eeprom(buf, len, size,
+		len = ath9k_def_dump_modal_eeprom(buf, len, size,
 						   &eep->modalHeader[1]);
 		goto out;
 	}
@@ -264,8 +264,7 @@ static u32 ath9k_hw_def_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 
 static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 {
-	struct ar5416_eeprom_def *eep =
-		(struct ar5416_eeprom_def *) &ah->eeprom.def;
+	struct ar5416_eeprom_def *eep = &ah->eeprom.def;
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 *eepdata, temp, magic, magic2;
 	u32 sum = 0, el;

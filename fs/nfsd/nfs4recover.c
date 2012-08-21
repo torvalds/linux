@@ -154,6 +154,10 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	if (status < 0)
 		return;
 
+	status = mnt_want_write_file(rec_file);
+	if (status)
+		return;
+
 	dir = rec_file->f_path.dentry;
 	/* lock the parent */
 	mutex_lock(&dir->d_inode->i_mutex);
@@ -173,11 +177,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		 * as well be forgiving and just succeed silently.
 		 */
 		goto out_put;
-	status = mnt_want_write_file(rec_file);
-	if (status)
-		goto out_put;
 	status = vfs_mkdir(dir->d_inode, dentry, S_IRWXU);
-	mnt_drop_write_file(rec_file);
 out_put:
 	dput(dentry);
 out_unlock:
@@ -189,6 +189,7 @@ out_unlock:
 				" (err %d); please check that %s exists"
 				" and is writeable", status,
 				user_recovery_dirname);
+	mnt_drop_write_file(rec_file);
 	nfs4_reset_creds(original_cred);
 }
 

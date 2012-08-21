@@ -200,6 +200,13 @@ config LEDS_LP5523
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
 
+config LEDS_LP8788
+	tristate "LED support for the TI LP8788 PMIC"
+	depends on LEDS_CLASS
+	depends on MFD_LP8788
+	help
+	  This option enables support for the Keyboard LEDs on the LP8788 PMIC.
+
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
 	depends on LEDS_CLASS
@@ -415,12 +422,28 @@ config LEDS_MAX8997
 	  This option enables support for on-chip LED drivers on
 	  MAXIM MAX8997 PMIC.
 
+config LEDS_LM3556
+	tristate "LED support for LM3556 Chip"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to LM3556.
+	  LM3556 includes Torch, Flash and Indicator functions.
+
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
 	depends on LEDS_CLASS && HAS_IOMEM
 	help
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
+
+config LEDS_BLINKM
+	tristate "LED support for the BlinkM I2C RGB LED"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the BlinkM RGB LED connected
+	  through I2C. Say Y to enable support for the BlinkM LED.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
@@ -440,6 +463,20 @@ config LEDS_TRIGGER_TIMER
 	  via sysfs. Some LED hardware can be programmed to start
 	  blinking the LED without any further software interaction.
 	  For more details read Documentation/leds/leds-class.txt.
+
+	  If unsure, say Y.
+
+config LEDS_TRIGGER_ONESHOT
+	tristate "LED One-shot Trigger"
+	depends on LEDS_TRIGGERS
+	help
+	  This allows LEDs to blink in one-shot pulses with parameters
+	  controlled via sysfs.  It's useful to notify the user on
+	  sporadic events, when there are no clear begin and end trap points,
+	  or on dense events, where this blinks the LED at constant rate if
+	  rearmed continuously.
+
+	  It also shows how to use the led_blink_set_oneshot() function.
 
 	  If unsure, say Y.
 
@@ -497,7 +534,7 @@ config LEDS_TRIGGER_TRANSIENT
 	depends on LEDS_TRIGGERS
 	help
 	  This allows one time activation of a transient state on
-	  GPIO/PWM based hadrware.
+	  GPIO/PWM based hardware.
 	  If unsure, say Y.
 
 endif # NEW_LEDS

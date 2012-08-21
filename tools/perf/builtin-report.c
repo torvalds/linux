@@ -69,8 +69,8 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
-		err = machine__resolve_callchain(machine, al->thread,
-						 sample->callchain, &parent);
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample, &parent);
 		if (err)
 			return err;
 	}
@@ -140,8 +140,8 @@ static int perf_evsel__add_hist_entry(struct perf_evsel *evsel,
 	struct hist_entry *he;
 
 	if ((sort__has_parent || symbol_conf.use_callchain) && sample->callchain) {
-		err = machine__resolve_callchain(machine, al->thread,
-						 sample->callchain, &parent);
+		err = machine__resolve_callchain(machine, evsel, al->thread,
+						 sample, &parent);
 		if (err)
 			return err;
 	}
@@ -249,8 +249,9 @@ static int process_read_event(struct perf_tool *tool,
 static int perf_report__setup_sample_type(struct perf_report *rep)
 {
 	struct perf_session *self = rep->session;
+	u64 sample_type = perf_evlist__sample_type(self->evlist);
 
-	if (!self->fd_pipe && !(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	if (!self->fd_pipe && !(sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			ui__error("Selected --sort parent, but no "
 				    "callchain data. Did you call "
@@ -274,7 +275,7 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 
 	if (sort__branch_mode == 1) {
 		if (!self->fd_pipe &&
-		    !(self->sample_type & PERF_SAMPLE_BRANCH_STACK)) {
+		    !(sample_type & PERF_SAMPLE_BRANCH_STACK)) {
 			ui__error("Selected -b but no branch data. "
 				  "Did you call perf record without -b?\n");
 			return -1;
@@ -396,16 +397,16 @@ static int __cmd_report(struct perf_report *rep)
 		desc);
 	}
 
-	if (dump_trace) {
-		perf_session__fprintf_nr_events(session, stdout);
-		goto out_delete;
-	}
-
 	if (verbose > 3)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
 		perf_session__fprintf_dsos(session, stdout);
+
+	if (dump_trace) {
+		perf_session__fprintf_nr_events(session, stdout);
+		goto out_delete;
+	}
 
 	nr_samples = 0;
 	list_for_each_entry(pos, &session->evlist->entries, node) {

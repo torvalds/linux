@@ -1,8 +1,6 @@
-/**
- * arch/s390/oprofile/init.c
- *
+/*
  * S390 Version
- *   Copyright (C) 2002-2011 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *   Copyright IBM Corp. 2002, 2011
  *   Author(s): Thomas Spatzier (tspat@de.ibm.com)
  *   Author(s): Mahesh Salgaonkar (mahesh@linux.vnet.ibm.com)
  *   Author(s): Heinz Graalfs (graalfs@linux.vnet.ibm.com)

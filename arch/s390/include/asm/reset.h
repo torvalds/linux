@@ -1,6 +1,4 @@
 /*
- *  include/asm-s390/reset.h
- *
  *    Copyright IBM Corp. 2006
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */

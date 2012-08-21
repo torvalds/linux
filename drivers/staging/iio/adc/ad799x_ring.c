@@ -18,31 +18,10 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad799x.h"
-
-/**
- * ad799x_ring_preenable() setup the parameters of the ring before enabling
- *
- * The complex nature of the setting of the number of bytes per datum is due
- * to this driver currently ensuring that the timestamp is stored at an 8
- * byte boundary.
- **/
-static int ad799x_ring_preenable(struct iio_dev *indio_dev)
-{
-	struct ad799x_state *st = iio_priv(indio_dev);
-	/*
-	 * Need to figure out the current mode based upon the requested
-	 * scan mask in iio_dev
-	 */
-
-	if (st->id == ad7997 || st->id == ad7998)
-		ad7997_8_set_scan_mode(st, *indio_dev->active_scan_mask);
-
-	return iio_sw_buffer_preenable(indio_dev);
-}
 
 /**
  * ad799x_trigger_handler() bh of trigger launched polling to ring buffer
@@ -102,57 +81,19 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	ring->access->store_to(indio_dev->buffer, rxbuf, time_ns);
 done:
 	kfree(rxbuf);
-	if (b_sent < 0)
-		return b_sent;
 out:
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
 
-static const struct iio_buffer_setup_ops ad799x_buf_setup_ops = {
-	.preenable = &ad799x_ring_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	int ret = 0;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
-						 &ad799x_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 indio_dev->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_kfifo;
-	}
-
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad799x_buf_setup_ops;
-	indio_dev->buffer->scan_timestamp = true;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_kfifo:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, NULL,
+		&ad799x_trigger_handler, NULL);
 }
 
 void ad799x_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }
