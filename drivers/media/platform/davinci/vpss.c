@@ -51,7 +51,18 @@ MODULE_AUTHOR("Texas Instruments");
 /* VENCINT - vpss_int8 */
 #define DM355_VPSSBL_EVTSEL_DEFAULT	0x4
 
-#define DM365_ISP5_PCCR 		0x04
+#define DM365_ISP5_PCCR				0x04
+#define DM365_ISP5_PCCR_BL_CLK_ENABLE		BIT(0)
+#define DM365_ISP5_PCCR_ISIF_CLK_ENABLE		BIT(1)
+#define DM365_ISP5_PCCR_H3A_CLK_ENABLE		BIT(2)
+#define DM365_ISP5_PCCR_RSZ_CLK_ENABLE		BIT(3)
+#define DM365_ISP5_PCCR_IPIPE_CLK_ENABLE	BIT(4)
+#define DM365_ISP5_PCCR_IPIPEIF_CLK_ENABLE	BIT(5)
+#define DM365_ISP5_PCCR_RSV			BIT(6)
+
+#define DM365_ISP5_BCR			0x08
+#define DM365_ISP5_BCR_ISIF_OUT_ENABLE	BIT(1)
+
 #define DM365_ISP5_INTSEL1		0x10
 #define DM365_ISP5_INTSEL2		0x14
 #define DM365_ISP5_INTSEL3		0x18
@@ -426,6 +437,16 @@ static int __devinit vpss_probe(struct platform_device *pdev)
 		oper_cfg.hw_ops.enable_clock = dm365_enable_clock;
 		oper_cfg.hw_ops.select_ccdc_source = dm365_select_ccdc_source;
 		/* Setup vpss interrupts */
+		isp5_write((isp5_read(DM365_ISP5_PCCR) |
+				      DM365_ISP5_PCCR_BL_CLK_ENABLE |
+				      DM365_ISP5_PCCR_ISIF_CLK_ENABLE |
+				      DM365_ISP5_PCCR_H3A_CLK_ENABLE |
+				      DM365_ISP5_PCCR_RSZ_CLK_ENABLE |
+				      DM365_ISP5_PCCR_IPIPE_CLK_ENABLE |
+				      DM365_ISP5_PCCR_IPIPEIF_CLK_ENABLE |
+				      DM365_ISP5_PCCR_RSV), DM365_ISP5_PCCR);
+		isp5_write((isp5_read(DM365_ISP5_BCR) |
+			    DM365_ISP5_BCR_ISIF_OUT_ENABLE), DM365_ISP5_BCR);
 		isp5_write(DM365_ISP5_INTSEL1_DEFAULT, DM365_ISP5_INTSEL1);
 		isp5_write(DM365_ISP5_INTSEL2_DEFAULT, DM365_ISP5_INTSEL2);
 		isp5_write(DM365_ISP5_INTSEL3_DEFAULT, DM365_ISP5_INTSEL3);
