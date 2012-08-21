@@ -8,6 +8,7 @@
 #include <xen/xen.h>
 #include <asm/iommu_table.h>
 
+#include <asm/xen/swiotlb-xen.h>
 int xen_swiotlb __read_mostly;
 
 static struct dma_map_ops xen_swiotlb_dma_ops = {

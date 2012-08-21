@@ -236,7 +236,7 @@ static int pcifront_bus_write(struct pci_bus *bus, unsigned int devfn,
 	return errno_to_pcibios_err(do_pci_op(pdev, &op));
 }
 
-struct pci_ops pcifront_bus_ops = {
+static struct pci_ops pcifront_bus_ops = {
 	.read = pcifront_bus_read,
 	.write = pcifront_bus_write,
 };

@@ -324,8 +324,8 @@ static int cmp_dev(struct device *dev, void *data)
 	return 0;
 }
 
-struct xenbus_device *xenbus_device_find(const char *nodename,
-					 struct bus_type *bus)
+static struct xenbus_device *xenbus_device_find(const char *nodename,
+						struct bus_type *bus)
 {
 	struct xb_find_info info = { .dev = NULL, .nodename = nodename };
 

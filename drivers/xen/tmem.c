@@ -21,6 +21,7 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
 #include <asm/xen/hypervisor.h>
+#include <xen/tmem.h>
 
 #define TMEM_CONTROL               0
 #define TMEM_NEW_POOL              1
