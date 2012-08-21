@@ -987,7 +987,7 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err = 0;
 
-	data = kzalloc(sizeof(struct busfreq_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct busfreq_data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(dev, "Cannot allocate memory.\n");
 		return -ENOMEM;
@@ -1012,22 +1012,18 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 		err = -EINVAL;
 	}
 	if (err)
-		goto err_regulator;
+		return err;
 
-	data->vdd_int = regulator_get(dev, "vdd_int");
+	data->vdd_int = devm_regulator_get(dev, "vdd_int");
 	if (IS_ERR(data->vdd_int)) {
 		dev_err(dev, "Cannot get the regulator \"vdd_int\"\n");
-		err = PTR_ERR(data->vdd_int);
-		goto err_regulator;
+		return PTR_ERR(data->vdd_int);
 	}
 	if (data->type == TYPE_BUSF_EXYNOS4x12) {
-		data->vdd_mif = regulator_get(dev, "vdd_mif");
+		data->vdd_mif = devm_regulator_get(dev, "vdd_mif");
 		if (IS_ERR(data->vdd_mif)) {
 			dev_err(dev, "Cannot get the regulator \"vdd_mif\"\n");
-			err = PTR_ERR(data->vdd_mif);
-			regulator_put(data->vdd_int);
-			goto err_regulator;
-
+			return PTR_ERR(data->vdd_mif);
 		}
 	}
 
@@ -1035,8 +1031,7 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 	if (IS_ERR(opp)) {
 		dev_err(dev, "Invalid initial frequency %lu kHz.\n",
 		       exynos4_devfreq_profile.initial_freq);
-		err = PTR_ERR(opp);
-		goto err_opp_add;
+		return PTR_ERR(opp);
 	}
 	data->curr_opp = opp;
 
@@ -1046,29 +1041,19 @@ static __devinit int exynos4_busfreq_probe(struct platform_device *pdev)
 
 	data->devfreq = devfreq_add_device(dev, &exynos4_devfreq_profile,
 					   &devfreq_simple_ondemand, NULL);
-	if (IS_ERR(data->devfreq)) {
-		err = PTR_ERR(data->devfreq);
-		goto err_opp_add;
-	}
+	if (IS_ERR(data->devfreq))
+		return PTR_ERR(data->devfreq);
 
 	devfreq_register_opp_notifier(dev, data->devfreq);
 
 	err = register_pm_notifier(&data->pm_notifier);
 	if (err) {
 		dev_err(dev, "Failed to setup pm notifier\n");
-		goto err_devfreq_add;
+		devfreq_remove_device(data->devfreq);
+		return err;
 	}
 
 	return 0;
-err_devfreq_add:
-	devfreq_remove_device(data->devfreq);
-err_opp_add:
-	if (data->vdd_mif)
-		regulator_put(data->vdd_mif);
-	regulator_put(data->vdd_int);
-err_regulator:
-	kfree(data);
-	return err;
 }
 
 static __devexit int exynos4_busfreq_remove(struct platform_device *pdev)
@@ -1077,10 +1062,6 @@ static __devexit int exynos4_busfreq_remove(struct platform_device *pdev)
 
 	unregister_pm_notifier(&data->pm_notifier);
 	devfreq_remove_device(data->devfreq);
-	regulator_put(data->vdd_int);
-	if (data->vdd_mif)
-		regulator_put(data->vdd_mif);
-	kfree(data);
 
 	return 0;
 }
