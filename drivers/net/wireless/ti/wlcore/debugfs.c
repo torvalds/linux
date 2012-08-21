@@ -1064,14 +1064,16 @@ static ssize_t dev_mem_read(struct file *file,
 
 	mutex_lock(&wl->mutex);
 
-	if (unlikely(wl->state != WLCORE_STATE_ON)) {
+	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		ret = -EFAULT;
 		goto skip_read;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto skip_read;
+	/*
+	 * Don't fail if elp_wakeup returns an error, so the device's memory
+	 * could be read even if the FW crashed
+	 */
+	wl1271_ps_elp_wakeup(wl);
 
 	/* store current partition and switch partition */
 	memcpy(&old_part, &wl->curr_part, sizeof(old_part));
@@ -1149,14 +1151,16 @@ static ssize_t dev_mem_write(struct file *file, const char __user *user_buf,
 
 	mutex_lock(&wl->mutex);
 
-	if (unlikely(wl->state != WLCORE_STATE_ON)) {
+	if (unlikely(wl->state == WLCORE_STATE_OFF)) {
 		ret = -EFAULT;
 		goto skip_write;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto skip_write;
+	/*
+	 * Don't fail if elp_wakeup returns an error, so the device's memory
+	 * could be read even if the FW crashed
+	 */
+	wl1271_ps_elp_wakeup(wl);
 
 	/* store current partition and switch partition */
 	memcpy(&old_part, &wl->curr_part, sizeof(old_part));
