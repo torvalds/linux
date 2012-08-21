@@ -1849,9 +1849,9 @@ static void musb_free(struct musb *musb)
 /*
  * Perform generic per-controller initialization.
  *
- * @pDevice: the controller (already clocked, etc)
- * @nIrq: irq
- * @mregs: virtual address of controller registers,
+ * @dev: the controller (already clocked, etc)
+ * @nIrq: IRQ number
+ * @ctrl: virtual address of controller registers,
  *	not yet corrected for platform-specific offsets
  */
 static int __devinit
