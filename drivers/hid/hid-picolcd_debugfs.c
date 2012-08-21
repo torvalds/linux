@@ -27,6 +27,7 @@
 #include <linux/debugfs.h>
 
 #include <linux/module.h>
+#include <linux/uaccess.h>
 
 #include "hid-picolcd.h"
 
