@@ -1181,7 +1181,9 @@ out:
 	return ret;
 }
 
-static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void wl1271_op_tx(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_control *control,
+			 struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1197,7 +1199,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	mapping = skb_get_queue_mapping(skb);
 	q = wl1271_tx_get_queue(mapping);
 
-	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb);
+	hlid = wl12xx_tx_get_hlid(wl, wlvif, skb, control->sta);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 

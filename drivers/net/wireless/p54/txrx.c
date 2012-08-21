@@ -676,8 +676,9 @@ int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb)
 EXPORT_SYMBOL_GPL(p54_rx);
 
 static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
-				struct ieee80211_tx_info *info, u8 *queue,
-				u32 *extra_len, u16 *flags, u16 *aid,
+				struct ieee80211_tx_info *info,
+				struct ieee80211_sta *sta,
+				u8 *queue, u32 *extra_len, u16 *flags, u16 *aid,
 				bool *burst_possible)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -746,8 +747,8 @@ static void p54_tx_80211_header(struct p54_common *priv, struct sk_buff *skb,
 			}
 		}
 
-		if (info->control.sta)
-			*aid = info->control.sta->aid;
+		if (sta)
+			*aid = sta->aid;
 		break;
 	}
 }
@@ -767,7 +768,9 @@ static u8 p54_convert_algo(u32 cipher)
 	}
 }
 
-void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
+void p54_tx_80211(struct ieee80211_hw *dev,
+		  struct ieee80211_tx_control *control,
+		  struct sk_buff *skb)
 {
 	struct p54_common *priv = dev->priv;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -784,7 +787,7 @@ void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u8 nrates = 0, nremaining = 8;
 	bool burst_allowed = false;
 
-	p54_tx_80211_header(priv, skb, info, &queue, &extra_len,
+	p54_tx_80211_header(priv, skb, info, control->sta, &queue, &extra_len,
 			    &hdr_flags, &aid, &burst_allowed);
 
 	if (p54_tx_qos_accounting_alloc(priv, skb, queue)) {

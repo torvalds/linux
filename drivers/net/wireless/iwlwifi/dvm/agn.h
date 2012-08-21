@@ -201,7 +201,9 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
 
 /* tx */
-int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
+int iwlagn_tx_skb(struct iwl_priv *priv,
+		  struct ieee80211_sta *sta,
+		  struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
