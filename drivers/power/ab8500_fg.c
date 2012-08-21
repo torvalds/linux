@@ -2516,19 +2516,19 @@ static int __devinit ab8500_fg_probe(struct platform_device *pdev)
 	INIT_WORK(&di->fg_acc_cur_work, ab8500_fg_acc_cur_work);
 
 	/* Init work for reinitialising the fg algorithm */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->fg_reinit_work,
+	INIT_DEFERRABLE_WORK(&di->fg_reinit_work,
 		ab8500_fg_reinit_work);
 
 	/* Work delayed Queue to run the state machine */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->fg_periodic_work,
+	INIT_DEFERRABLE_WORK(&di->fg_periodic_work,
 		ab8500_fg_periodic_work);
 
 	/* Work to check low battery condition */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->fg_low_bat_work,
+	INIT_DEFERRABLE_WORK(&di->fg_low_bat_work,
 		ab8500_fg_low_bat_work);
 
 	/* Init work for HW failure check */
-	INIT_DELAYED_WORK_DEFERRABLE(&di->fg_check_hw_failure_work,
+	INIT_DEFERRABLE_WORK(&di->fg_check_hw_failure_work,
 		ab8500_fg_check_hw_failure_work);
 
 	/* Initialize OVV, and other registers */

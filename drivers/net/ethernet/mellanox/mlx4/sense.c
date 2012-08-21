@@ -153,5 +153,5 @@ void  mlx4_sense_init(struct mlx4_dev *dev)
 	for (port = 1; port <= dev->caps.num_ports; port++)
 		sense->do_sense_port[port] = 1;
 
-	INIT_DELAYED_WORK_DEFERRABLE(&sense->sense_poll, mlx4_sense_port);
+	INIT_DEFERRABLE_WORK(&sense->sense_poll, mlx4_sense_port);
 }

@@ -4863,8 +4863,8 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 	mutex_init(&dsi->lock);
 	sema_init(&dsi->bus_lock, 1);
 
-	INIT_DELAYED_WORK_DEFERRABLE(&dsi->framedone_timeout_work,
-			dsi_framedone_timeout_work_callback);
+	INIT_DEFERRABLE_WORK(&dsi->framedone_timeout_work,
+			     dsi_framedone_timeout_work_callback);
 
 #ifdef DSI_CATCH_MISSING_TE
 	init_timer(&dsi->te_timer);
