@@ -94,6 +94,7 @@ static irqreturn_t arizona_ctrlif_err(int irq, void *data)
 static irqreturn_t arizona_irq_thread(int irq, void *data)
 {
 	struct arizona *arizona = data;
+	unsigned int val;
 	int i, ret;
 
 	ret = pm_runtime_get_sync(arizona->dev);
@@ -102,9 +103,20 @@ static irqreturn_t arizona_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	/* Check both domains */
-	for (i = 0; i < 2; i++)
-		handle_nested_irq(irq_find_mapping(arizona->virq, i));
+	/* Always handle the AoD domain */
+	handle_nested_irq(irq_find_mapping(arizona->virq, 0));
+
+	/*
+	 * Check if one of the main interrupts is asserted and only
+	 * check that domain if it is.
+	 */
+	ret = regmap_read(arizona->regmap, ARIZONA_IRQ_PIN_STATUS, &val);
+	if (ret == 0 && val & ARIZONA_IRQ1_STS) {
+		handle_nested_irq(irq_find_mapping(arizona->virq, 1));
+	} else if (ret != 0) {
+		dev_err(arizona->dev, "Failed to read main IRQ status: %d\n",
+			ret);
+	}
 
 	pm_runtime_mark_last_busy(arizona->dev);
 	pm_runtime_put_autosuspend(arizona->dev);
