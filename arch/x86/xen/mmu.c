@@ -1174,7 +1174,7 @@ static void xen_exit_mmap(struct mm_struct *mm)
 	spin_unlock(&mm->page_table_lock);
 }
 
-static void __init xen_pagetable_setup_start(void)
+static void __init xen_pagetable_init(void)
 {
 }
 
@@ -2068,7 +2068,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 void __init xen_init_mmu_ops(void)
 {
 	x86_init.mapping.pagetable_reserve = xen_mapping_pagetable_reserve;
-	x86_init.paging.pagetable_setup_start = xen_pagetable_setup_start;
+	x86_init.paging.pagetable_init = xen_pagetable_init;
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;
 

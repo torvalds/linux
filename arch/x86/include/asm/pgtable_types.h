@@ -303,10 +303,10 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pte);
 
 extern void native_pagetable_reserve(u64 start, u64 end);
 #ifdef CONFIG_X86_32
-extern void native_pagetable_setup_start(void);
+extern void native_pagetable_init(void);
 extern void native_pagetable_setup_done(pgd_t *base);
 #else
-#define native_pagetable_setup_start x86_init_pgd_start_noop
+#define native_pagetable_init        x86_init_pgd_init_noop
 #define native_pagetable_setup_done  x86_init_pgd_done_noop
 #endif
 

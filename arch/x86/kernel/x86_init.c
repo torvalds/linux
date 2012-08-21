@@ -26,7 +26,7 @@
 
 void __cpuinit x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
-void __init x86_init_pgd_start_noop(void) { }
+void __init x86_init_pgd_init_noop(void) { }
 void __init x86_init_pgd_done_noop(pgd_t *unused) { }
 int __init iommu_init_noop(void) { return 0; }
 void iommu_shutdown_noop(void) { }
@@ -69,7 +69,7 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.paging = {
-		.pagetable_setup_start	= native_pagetable_setup_start,
+		.pagetable_init		= native_pagetable_init,
 		.pagetable_setup_done	= native_pagetable_setup_done,
 	},
 
