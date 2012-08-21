@@ -62,7 +62,7 @@
 
 int init_bootmem_done;
 int mem_init_done;
-phys_addr_t memory_limit;
+unsigned long long memory_limit;
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
