@@ -1176,6 +1176,7 @@ static void xen_exit_mmap(struct mm_struct *mm)
 
 static void __init xen_pagetable_init(void)
 {
+	paging_init();
 }
 
 static __init void xen_mapping_pagetable_reserve(u64 start, u64 end)

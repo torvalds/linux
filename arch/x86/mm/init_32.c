@@ -475,6 +475,7 @@ void __init native_pagetable_init(void)
 		pte_clear(NULL, va, pte);
 	}
 	paravirt_alloc_pmd(&init_mm, __pa(base) >> PAGE_SHIFT);
+	paging_init();
 }
 
 void __init native_pagetable_setup_done(pgd_t *base)
