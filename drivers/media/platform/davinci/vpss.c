@@ -69,6 +69,11 @@ MODULE_AUTHOR("Texas Instruments");
 #define DM365_ISP5_CCDCMUX 		0x20
 #define DM365_ISP5_PG_FRAME_SIZE 	0x28
 #define DM365_VPBE_CLK_CTRL 		0x00
+
+#define VPSS_CLK_CTRL			0x01c40044
+#define VPSS_CLK_CTRL_VENCCLKEN		BIT(3)
+#define VPSS_CLK_CTRL_DACCLKEN		BIT(4)
+
 /*
  * vpss interrupts. VDINT0 - vpss_int0, VDINT1 - vpss_int1,
  * AF - vpss_int3
@@ -112,6 +117,7 @@ struct vpss_hw_ops {
 struct vpss_oper_config {
 	__iomem void *vpss_regs_base0;
 	__iomem void *vpss_regs_base1;
+	resource_size_t *vpss_regs_base2;
 	enum vpss_platform_type platform;
 	spinlock_t vpss_lock;
 	struct vpss_hw_ops hw_ops;
@@ -492,11 +498,20 @@ static struct platform_driver vpss_driver = {
 
 static void vpss_exit(void)
 {
+	iounmap(oper_cfg.vpss_regs_base2);
+	release_mem_region(VPSS_CLK_CTRL, 4);
 	platform_driver_unregister(&vpss_driver);
 }
 
 static int __init vpss_init(void)
 {
+	if (!request_mem_region(VPSS_CLK_CTRL, 4, "vpss_clock_control"))
+		return -EBUSY;
+
+	oper_cfg.vpss_regs_base2 = ioremap(VPSS_CLK_CTRL, 4);
+	writel(VPSS_CLK_CTRL_VENCCLKEN |
+		     VPSS_CLK_CTRL_DACCLKEN, oper_cfg.vpss_regs_base2);
+
 	return platform_driver_register(&vpss_driver);
 }
 subsys_initcall(vpss_init);
