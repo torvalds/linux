@@ -426,15 +426,15 @@ __setup("trace_buf_size=", set_buf_size);
 
 static int __init set_tracing_thresh(char *str)
 {
-	unsigned long threshhold;
+	unsigned long threshold;
 	int ret;
 
 	if (!str)
 		return 0;
-	ret = strict_strtoul(str, 0, &threshhold);
+	ret = strict_strtoul(str, 0, &threshold);
 	if (ret < 0)
 		return 0;
-	tracing_thresh = threshhold * 1000;
+	tracing_thresh = threshold * 1000;
 	return 1;
 }
 __setup("tracing_thresh=", set_tracing_thresh);
