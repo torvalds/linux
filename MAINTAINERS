@@ -7288,6 +7288,12 @@ W:	http://www.connecttech.com
 S:	Supported
 F:	drivers/usb/serial/whiteheat*
 
+USB SMSC75XX ETHERNET DRIVER
+M:	Steve Glendinning <steve.glendinning@shawell.net>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/usb/smsc75xx.*
+
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
