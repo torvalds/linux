@@ -85,7 +85,7 @@ struct x86_init_mapping {
  * @pagetable_setup_done:	platform specific post paging_init() call
  */
 struct x86_init_paging {
-	void (*pagetable_setup_start)(pgd_t *base);
+	void (*pagetable_setup_start)(void);
 	void (*pagetable_setup_done)(pgd_t *base);
 };
 

@@ -961,7 +961,7 @@ void __init setup_arch(char **cmdline_p)
 	kvmclock_init();
 #endif
 
-	x86_init.paging.pagetable_setup_start(swapper_pg_dir);
+	x86_init.paging.pagetable_setup_start();
 	paging_init();
 	x86_init.paging.pagetable_setup_done(swapper_pg_dir);
 
