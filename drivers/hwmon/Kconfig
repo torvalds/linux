@@ -770,10 +770,11 @@ config SENSORS_LM95245
 	  will be called lm95245.
 
 config SENSORS_MAX1111
-	tristate "Maxim MAX1111 Multichannel, Serial 8-bit ADC chip"
+	tristate "Maxim MAX1111 Serial 8-bit ADC chip and compatibles"
 	depends on SPI_MASTER
 	help
-	  Say y here to support Maxim's MAX1111 ADC chips.
+	  Say y here to support Maxim's MAX1110, MAX1111, MAX1112, and MAX1113
+	  ADC chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max1111.
