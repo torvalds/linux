@@ -167,8 +167,7 @@ static inline size_t svc_addr_len(const struct sockaddr *sa)
 	case AF_INET6:
 		return sizeof(struct sockaddr_in6);
 	}
-
-	return 0;
+	BUG();
 }
 
 static inline unsigned short svc_xprt_local_port(const struct svc_xprt *xprt)

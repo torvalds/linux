@@ -601,8 +601,6 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		return -EAGAIN;
 	}
 	len = svc_addr_len(svc_addr(rqstp));
-	if (len == 0)
-		return -EAFNOSUPPORT;
 	rqstp->rq_addrlen = len;
 	if (skb->tstamp.tv64 == 0) {
 		skb->tstamp = ktime_get_real();
