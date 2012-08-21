@@ -82,11 +82,12 @@ static inline bool is_invalid_pfn(pfn_t pfn)
 	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
 }
 
-#define KVM_HVA_ERR_BAD	(PAGE_OFFSET)
+#define KVM_HVA_ERR_BAD		(PAGE_OFFSET)
+#define KVM_HVA_ERR_RO_BAD	(PAGE_OFFSET + PAGE_SIZE)
 
 static inline bool kvm_is_error_hva(unsigned long addr)
 {
-	return addr == PAGE_OFFSET;
+	return addr >= PAGE_OFFSET;
 }
 
 #define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
