@@ -396,7 +396,7 @@ static ssize_t vme_user_write(struct file *file, const char __user *buf,
 	default:
 		retval = -EINVAL;
 	}
-	
+
 	mutex_unlock(&image[minor].mutex);
 
 	if (retval > 0)
