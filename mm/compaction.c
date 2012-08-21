@@ -384,6 +384,20 @@ static bool suitable_migration_target(struct page *page)
 }
 
 /*
+ * Returns the start pfn of the last page block in a zone.  This is the starting
+ * point for full compaction of a zone.  Compaction searches for free pages from
+ * the end of each zone, while isolate_freepages_block scans forward inside each
+ * page block.
+ */
+static unsigned long start_free_pfn(struct zone *zone)
+{
+	unsigned long free_pfn;
+	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
+	free_pfn &= ~(pageblock_nr_pages-1);
+	return free_pfn;
+}
+
+/*
  * Based on information in the current compact_control, find blocks
  * suitable for isolating free pages from and then isolate them.
  */
@@ -421,17 +435,6 @@ static void isolate_freepages(struct zone *zone,
 	for (; pfn > low_pfn && cc->nr_migratepages > nr_freepages;
 					pfn -= pageblock_nr_pages) {
 		unsigned long isolated;
-
-		/*
-		 * Skip ahead if another thread is compacting in the area
-		 * simultaneously. If we wrapped around, we can only skip
-		 * ahead if zone->compact_cached_free_pfn also wrapped to
-		 * above our starting point.
-		 */
-		if (cc->order > 0 && (!cc->wrapped ||
-				      zone->compact_cached_free_pfn >
-				      cc->start_free_pfn))
-			pfn = min(pfn, zone->compact_cached_free_pfn);
 
 		if (!pfn_valid(pfn))
 			continue;
@@ -474,7 +477,15 @@ static void isolate_freepages(struct zone *zone,
 		 */
 		if (isolated) {
 			high_pfn = max(high_pfn, pfn);
-			if (cc->order > 0)
+
+			/*
+			 * If the free scanner has wrapped, update
+			 * compact_cached_free_pfn to point to the highest
+			 * pageblock with free pages. This reduces excessive
+			 * scanning of full pageblocks near the end of the
+			 * zone
+			 */
+			if (cc->order > 0 && cc->wrapped)
 				zone->compact_cached_free_pfn = high_pfn;
 		}
 	}
@@ -484,6 +495,11 @@ static void isolate_freepages(struct zone *zone,
 
 	cc->free_pfn = high_pfn;
 	cc->nr_freepages = nr_freepages;
+
+	/* If compact_cached_free_pfn is reset then set it now */
+	if (cc->order > 0 && !cc->wrapped &&
+			zone->compact_cached_free_pfn == start_free_pfn(zone))
+		zone->compact_cached_free_pfn = high_pfn;
 }
 
 /*
@@ -568,20 +584,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 	cc->migrate_pfn = low_pfn;
 
 	return ISOLATE_SUCCESS;
-}
-
-/*
- * Returns the start pfn of the last page block in a zone.  This is the starting
- * point for full compaction of a zone.  Compaction searches for free pages from
- * the end of each zone, while isolate_freepages_block scans forward inside each
- * page block.
- */
-static unsigned long start_free_pfn(struct zone *zone)
-{
-	unsigned long free_pfn;
-	free_pfn = zone->zone_start_pfn + zone->spanned_pages;
-	free_pfn &= ~(pageblock_nr_pages-1);
-	return free_pfn;
 }
 
 static int compact_finished(struct zone *zone,
