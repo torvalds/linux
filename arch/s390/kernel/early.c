@@ -267,12 +267,10 @@ static noinline __init void setup_facility_list(void)
 
 static noinline __init void setup_hpage(void)
 {
-#ifndef CONFIG_DEBUG_PAGEALLOC
 	if (!test_facility(2) || !test_facility(8))
 		return;
 	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;
 	__ctl_set_bit(0, 23);
-#endif
 }
 
 static __init void detect_mvpg(void)
