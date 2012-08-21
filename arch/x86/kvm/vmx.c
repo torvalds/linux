@@ -2768,7 +2768,7 @@ static gva_t rmode_tss_base(struct kvm *kvm)
 	return kvm->arch.tss_addr;
 }
 
-static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
+static void save_rmode_seg(int seg, struct kvm_save_segment *save)
 {
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 
@@ -2776,6 +2776,12 @@ static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
 	save->base = vmcs_readl(sf->base);
 	save->limit = vmcs_read32(sf->limit);
 	save->ar = vmcs_read32(sf->ar_bytes);
+}
+
+static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
+{
+	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+
 	vmcs_write16(sf->selector, save->base >> 4);
 	vmcs_write32(sf->base, save->base & 0xffff0);
 	vmcs_write32(sf->limit, 0xffff);
@@ -2798,6 +2804,12 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 1;
 
+	save_rmode_seg(VCPU_SREG_TR, &vmx->rmode.tr);
+	save_rmode_seg(VCPU_SREG_ES, &vmx->rmode.es);
+	save_rmode_seg(VCPU_SREG_DS, &vmx->rmode.ds);
+	save_rmode_seg(VCPU_SREG_FS, &vmx->rmode.fs);
+	save_rmode_seg(VCPU_SREG_GS, &vmx->rmode.gs);
+
 	/*
 	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
 	 * vcpu. Call it here with phys address pointing 16M below 4G.
@@ -2812,14 +2824,8 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 
 	vmx_segment_cache_clear(vmx);
 
-	vmx->rmode.tr.selector = vmcs_read16(GUEST_TR_SELECTOR);
-	vmx->rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
 	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
-
-	vmx->rmode.tr.limit = vmcs_read32(GUEST_TR_LIMIT);
 	vmcs_write32(GUEST_TR_LIMIT, RMODE_TSS_SIZE - 1);
-
-	vmx->rmode.tr.ar = vmcs_read32(GUEST_TR_AR_BYTES);
 	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
