@@ -678,6 +678,14 @@ void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
 	slots->generation++;
 }
 
+static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
+{
+	if (mem->flags & ~KVM_MEM_LOG_DIRTY_PAGES)
+		return -EINVAL;
+
+	return 0;
+}
+
 /*
  * Allocate some memory and give it an address in the guest physical address
  * space.
@@ -697,6 +705,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
 	struct kvm_memslots *slots, *old_memslots;
+
+	r = check_memory_region_flags(mem);
+	if (r)
+		goto out;
 
 	r = -EINVAL;
 	/* General sanity checks */
