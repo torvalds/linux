@@ -349,16 +349,32 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 			       bool vlan_on)
 {
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
+	s32 err;
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
 	msgbuf[1] = vlan;
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+	err = mbx->ops.write_posted(hw, msgbuf, 2);
+	if (err)
+		goto mbx_err;
 
-	return 0;
+	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	if (err)
+		goto mbx_err;
+
+	/* remove extra bits from the message */
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+	msgbuf[0] &= ~(0xFF << IXGBE_VT_MSGINFO_SHIFT);
+
+	if (msgbuf[0] != (IXGBE_VF_SET_VLAN | IXGBE_VT_MSGTYPE_ACK))
+		err = IXGBE_ERR_INVALID_ARGUMENT;
+
+mbx_err:
+	return err;
 }
 
 /**

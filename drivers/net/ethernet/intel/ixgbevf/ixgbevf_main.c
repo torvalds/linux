@@ -1126,36 +1126,47 @@ static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	int err;
+
+	if (!hw->mac.ops.set_vfta)
+		return -EOPNOTSUPP;
 
 	spin_lock(&adapter->mbx_lock);
 
 	/* add VID to filter table */
-	if (hw->mac.ops.set_vfta)
-		hw->mac.ops.set_vfta(hw, vid, 0, true);
+	err = hw->mac.ops.set_vfta(hw, vid, 0, true);
 
 	spin_unlock(&adapter->mbx_lock);
 
+	/* translate error return types so error makes sense */
+	if (err == IXGBE_ERR_MBX)
+		return -EIO;
+
+	if (err == IXGBE_ERR_INVALID_ARGUMENT)
+		return -EACCES;
+
 	set_bit(vid, adapter->active_vlans);
 
-	return 0;
+	return err;
 }
 
 static int ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	int err = -EOPNOTSUPP;
 
 	spin_lock(&adapter->mbx_lock);
 
 	/* remove VID from filter table */
 	if (hw->mac.ops.set_vfta)
-		hw->mac.ops.set_vfta(hw, vid, 0, false);
+		err = hw->mac.ops.set_vfta(hw, vid, 0, false);
 
 	spin_unlock(&adapter->mbx_lock);
 
 	clear_bit(vid, adapter->active_vlans);
 
-	return 0;
+	return err;
 }
 
 static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
