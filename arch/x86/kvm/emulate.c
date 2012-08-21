@@ -668,8 +668,6 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 
 	la = seg_base(ctxt, addr.seg) + addr.ea;
 	switch (ctxt->mode) {
-	case X86EMUL_MODE_REAL:
-		break;
 	case X86EMUL_MODE_PROT64:
 		if (((signed long)la << 16) >> 16 != la)
 			return emulate_gp(ctxt, 0);
@@ -699,7 +697,10 @@ static int __linearize(struct x86_emulate_ctxt *ctxt,
 				goto bad;
 		}
 		cpl = ctxt->ops->cpl(ctxt);
-		rpl = sel & 3;
+		if (ctxt->mode == X86EMUL_MODE_REAL)
+			rpl = 0;
+		else
+			rpl = sel & 3;
 		cpl = max(cpl, rpl);
 		if (!(desc.type & 8)) {
 			/* data segment */
