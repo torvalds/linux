@@ -2696,14 +2696,14 @@ static __exit void hardware_unsetup(void)
 static void fix_pmode_dataseg(struct kvm_vcpu *vcpu, int seg, struct kvm_segment *save)
 {
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
+	struct kvm_segment tmp = *save;
 
-	if (vmcs_readl(sf->base) == save->base && save->s) {
-		vmx_set_segment(vcpu, save, seg);
-	} else {
-		u32 dpl = (vmcs_read16(sf->selector) & SELECTOR_RPL_MASK)
-			<< AR_DPL_SHIFT;
-		vmcs_write32(sf->ar_bytes, 0x93 | dpl);
+	if (!(vmcs_readl(sf->base) == tmp.base && tmp.s)) {
+		tmp.base = vmcs_readl(sf->base);
+		tmp.selector = vmcs_read16(sf->selector);
+		tmp.s = 1;
 	}
+	vmx_set_segment(vcpu, &tmp, seg);
 }
 
 static void enter_pmode(struct kvm_vcpu *vcpu)
