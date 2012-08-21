@@ -206,6 +206,21 @@ static int
 ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 		   unsigned const char *new_code);
 
+/*
+ * Should never be called:
+ *  As it is only called by __ftrace_replace_code() which is called by
+ *  ftrace_replace_code() that x86 overrides, and by ftrace_update_code()
+ *  which is called to turn mcount into nops or nops into function calls
+ *  but not to convert a function from not using regs to one that uses
+ *  regs, which ftrace_modify_call() is for.
+ */
+int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
+				 unsigned long addr)
+{
+	WARN_ON(1);
+	return -EINVAL;
+}
+
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
@@ -219,6 +234,14 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	atomic_inc(&modifying_ftrace_code);
 
 	ret = ftrace_modify_code(ip, old, new);
+
+	/* Also update the regs callback function */
+	if (!ret) {
+		ip = (unsigned long)(&ftrace_regs_call);
+		memcpy(old, &ftrace_regs_call, MCOUNT_INSN_SIZE);
+		new = ftrace_call_replace(ip, (unsigned long)func);
+		ret = ftrace_modify_code(ip, old, new);
+	}
 
 	atomic_dec(&modifying_ftrace_code);
 
@@ -299,6 +322,32 @@ static int add_brk_on_nop(struct dyn_ftrace *rec)
 	return add_break(rec->ip, old);
 }
 
+/*
+ * If the record has the FTRACE_FL_REGS set, that means that it
+ * wants to convert to a callback that saves all regs. If FTRACE_FL_REGS
+ * is not not set, then it wants to convert to the normal callback.
+ */
+static unsigned long get_ftrace_addr(struct dyn_ftrace *rec)
+{
+	if (rec->flags & FTRACE_FL_REGS)
+		return (unsigned long)FTRACE_REGS_ADDR;
+	else
+		return (unsigned long)FTRACE_ADDR;
+}
+
+/*
+ * The FTRACE_FL_REGS_EN is set when the record already points to
+ * a function that saves all the regs. Basically the '_EN' version
+ * represents the current state of the function.
+ */
+static unsigned long get_ftrace_old_addr(struct dyn_ftrace *rec)
+{
+	if (rec->flags & FTRACE_FL_REGS_EN)
+		return (unsigned long)FTRACE_REGS_ADDR;
+	else
+		return (unsigned long)FTRACE_ADDR;
+}
+
 static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 {
 	unsigned long ftrace_addr;
@@ -306,7 +355,7 @@ static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_test_record(rec, enable);
 
-	ftrace_addr = (unsigned long)FTRACE_ADDR;
+	ftrace_addr = get_ftrace_addr(rec);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
@@ -316,6 +365,10 @@ static int add_breakpoints(struct dyn_ftrace *rec, int enable)
 		/* converting nop to call */
 		return add_brk_on_nop(rec);
 
+	case FTRACE_UPDATE_MODIFY_CALL_REGS:
+	case FTRACE_UPDATE_MODIFY_CALL:
+		ftrace_addr = get_ftrace_old_addr(rec);
+		/* fall through */
 	case FTRACE_UPDATE_MAKE_NOP:
 		/* converting a call to a nop */
 		return add_brk_on_call(rec, ftrace_addr);
@@ -360,13 +413,21 @@ static int remove_breakpoint(struct dyn_ftrace *rec)
 		 * If not, don't touch the breakpoint, we make just create
 		 * a disaster.
 		 */
-		ftrace_addr = (unsigned long)FTRACE_ADDR;
+		ftrace_addr = get_ftrace_addr(rec);
+		nop = ftrace_call_replace(ip, ftrace_addr);
+
+		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) == 0)
+			goto update;
+
+		/* Check both ftrace_addr and ftrace_old_addr */
+		ftrace_addr = get_ftrace_old_addr(rec);
 		nop = ftrace_call_replace(ip, ftrace_addr);
 
 		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) != 0)
 			return -EINVAL;
 	}
 
+ update:
 	return probe_kernel_write((void *)ip, &nop[0], 1);
 }
 
@@ -405,12 +466,14 @@ static int add_update(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_test_record(rec, enable);
 
-	ftrace_addr = (unsigned long)FTRACE_ADDR;
+	ftrace_addr  = get_ftrace_addr(rec);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
+	case FTRACE_UPDATE_MODIFY_CALL_REGS:
+	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
 		/* converting nop to call */
 		return add_update_call(rec, ftrace_addr);
@@ -455,12 +518,14 @@ static int finish_update(struct dyn_ftrace *rec, int enable)
 
 	ret = ftrace_update_record(rec, enable);
 
-	ftrace_addr = (unsigned long)FTRACE_ADDR;
+	ftrace_addr = get_ftrace_addr(rec);
 
 	switch (ret) {
 	case FTRACE_UPDATE_IGNORE:
 		return 0;
 
+	case FTRACE_UPDATE_MODIFY_CALL_REGS:
+	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
 		/* converting nop to call */
 		return finish_update_call(rec, ftrace_addr);

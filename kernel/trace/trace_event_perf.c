@@ -258,7 +258,8 @@ EXPORT_SYMBOL_GPL(perf_trace_buf_prepare);
 
 #ifdef CONFIG_FUNCTION_TRACER
 static void
-perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip)
+perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
+			  struct ftrace_ops *ops, struct pt_regs *pt_regs)
 {
 	struct ftrace_entry *entry;
 	struct hlist_head *head;
