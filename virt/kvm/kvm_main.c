@@ -1041,83 +1041,118 @@ static inline int check_user_page_hwpoison(unsigned long addr)
 	return rc == -EHWPOISON;
 }
 
-static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
-			bool write_fault, bool *writable)
+/*
+ * The atomic path to get the writable pfn which will be stored in @pfn,
+ * true indicates success, otherwise false is returned.
+ */
+static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
+			    bool write_fault, bool *writable, pfn_t *pfn)
+{
+	struct page *page[1];
+	int npages;
+
+	if (!(async || atomic))
+		return false;
+
+	npages = __get_user_pages_fast(addr, 1, 1, page);
+	if (npages == 1) {
+		*pfn = page_to_pfn(page[0]);
+
+		if (writable)
+			*writable = true;
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * The slow path to get the pfn of the specified host virtual address,
+ * 1 indicates success, -errno is returned if error is detected.
+ */
+static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+			   bool *writable, pfn_t *pfn)
 {
 	struct page *page[1];
 	int npages = 0;
-	pfn_t pfn;
+
+	might_sleep();
+
+	if (writable)
+		*writable = write_fault;
+
+	if (async) {
+		down_read(&current->mm->mmap_sem);
+		npages = get_user_page_nowait(current, current->mm,
+					      addr, write_fault, page);
+		up_read(&current->mm->mmap_sem);
+	} else
+		npages = get_user_pages_fast(addr, 1, write_fault,
+					     page);
+	if (npages != 1)
+		return npages;
+
+	/* map read fault as writable if possible */
+	if (unlikely(!write_fault)) {
+		struct page *wpage[1];
+
+		npages = __get_user_pages_fast(addr, 1, 1, wpage);
+		if (npages == 1) {
+			*writable = true;
+			put_page(page[0]);
+			page[0] = wpage[0];
+		}
+
+		npages = 1;
+	}
+	*pfn = page_to_pfn(page[0]);
+	return npages;
+}
+
+static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
+			bool write_fault, bool *writable)
+{
+	struct vm_area_struct *vma;
+	pfn_t pfn = 0;
+	int npages;
 
 	/* we can do it either atomically or asynchronously, not both */
 	BUG_ON(atomic && async);
 
 	BUG_ON(!write_fault && !writable);
 
-	if (writable)
-		*writable = true;
+	if (hva_to_pfn_fast(addr, atomic, async, write_fault, writable, &pfn))
+		return pfn;
 
-	if (atomic || async)
-		npages = __get_user_pages_fast(addr, 1, 1, page);
+	if (atomic)
+		return KVM_PFN_ERR_FAULT;
 
-	if (unlikely(npages != 1) && !atomic) {
-		might_sleep();
+	npages = hva_to_pfn_slow(addr, async, write_fault, writable, &pfn);
+	if (npages == 1)
+		return pfn;
 
-		if (writable)
-			*writable = write_fault;
-
-		if (async) {
-			down_read(&current->mm->mmap_sem);
-			npages = get_user_page_nowait(current, current->mm,
-						     addr, write_fault, page);
-			up_read(&current->mm->mmap_sem);
-		} else
-			npages = get_user_pages_fast(addr, 1, write_fault,
-						     page);
-
-		/* map read fault as writable if possible */
-		if (unlikely(!write_fault) && npages == 1) {
-			struct page *wpage[1];
-
-			npages = __get_user_pages_fast(addr, 1, 1, wpage);
-			if (npages == 1) {
-				*writable = true;
-				put_page(page[0]);
-				page[0] = wpage[0];
-			}
-			npages = 1;
-		}
+	down_read(&current->mm->mmap_sem);
+	if (npages == -EHWPOISON ||
+	      (!async && check_user_page_hwpoison(addr))) {
+		pfn = KVM_PFN_ERR_HWPOISON;
+		goto exit;
 	}
 
-	if (unlikely(npages != 1)) {
-		struct vm_area_struct *vma;
+	vma = find_vma_intersection(current->mm, addr, addr + 1);
 
-		if (atomic)
-			return KVM_PFN_ERR_FAULT;
-
-		down_read(&current->mm->mmap_sem);
-		if (npages == -EHWPOISON ||
-			(!async && check_user_page_hwpoison(addr))) {
-			up_read(&current->mm->mmap_sem);
-			return KVM_PFN_ERR_HWPOISON;
-		}
-
-		vma = find_vma_intersection(current->mm, addr, addr+1);
-
-		if (vma == NULL)
-			pfn = KVM_PFN_ERR_FAULT;
-		else if ((vma->vm_flags & VM_PFNMAP)) {
-			pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-				vma->vm_pgoff;
-			BUG_ON(!kvm_is_mmio_pfn(pfn));
-		} else {
-			if (async && (vma->vm_flags & VM_WRITE))
-				*async = true;
-			pfn = KVM_PFN_ERR_FAULT;
-		}
-		up_read(&current->mm->mmap_sem);
-	} else
-		pfn = page_to_pfn(page[0]);
-
+	if (vma == NULL)
+		pfn = KVM_PFN_ERR_FAULT;
+	else if ((vma->vm_flags & VM_PFNMAP)) {
+		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) +
+			vma->vm_pgoff;
+		BUG_ON(!kvm_is_mmio_pfn(pfn));
+	} else {
+		if (async && (vma->vm_flags & VM_WRITE))
+			*async = true;
+		pfn = KVM_PFN_ERR_FAULT;
+	}
+exit:
+	up_read(&current->mm->mmap_sem);
 	return pfn;
 }
 
