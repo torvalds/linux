@@ -1,6 +1,9 @@
 menuconfig MEDIA_PARPORT_SUPPORT
-	bool "V4L ISA and parallel port devices"
+	bool "ISA and parallel port devices"
 	depends on (ISA || PARPORT) && MEDIA_CAMERA_SUPPORT
+	help
+	  Enables drivers for ISA and parallel port bus. If you
+	  need media drivers using those legacy buses, say Y.
 
 if MEDIA_PARPORT_SUPPORT
 config VIDEO_BWQCAM

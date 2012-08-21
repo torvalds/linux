@@ -549,7 +549,7 @@ config VIDEO_M52790
 	 To compile this driver as a module, choose M here: the
 	 module will be called m52790.
 endmenu
-	 
+
 menu "Sensors used on soc_camera driver"
 
 if SOC_CAMERA
