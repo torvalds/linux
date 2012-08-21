@@ -106,7 +106,8 @@ struct kvm_userspace_memory_region {
  * other bits are reserved for kvm internal use which are defined in
  * include/linux/kvm_host.h.
  */
-#define KVM_MEM_LOG_DIRTY_PAGES  1UL
+#define KVM_MEM_LOG_DIRTY_PAGES	(1UL << 0)
+#define KVM_MEM_READONLY	(1UL << 1)
 
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
@@ -621,6 +622,9 @@ struct kvm_ppc_smmu_info {
 #define KVM_CAP_PPC_GET_SMMU_INFO 78
 #define KVM_CAP_S390_COW 79
 #define KVM_CAP_PPC_ALLOC_HTAB 80
+#ifdef __KVM_HAVE_READONLY_MEM
+#define KVM_CAP_READONLY_MEM 81
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

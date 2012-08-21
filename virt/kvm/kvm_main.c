@@ -680,7 +680,13 @@ void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
 
 static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
 {
-	if (mem->flags & ~KVM_MEM_LOG_DIRTY_PAGES)
+	u32 valid_flags = KVM_MEM_LOG_DIRTY_PAGES;
+
+#ifdef KVM_CAP_READONLY_MEM
+	valid_flags |= KVM_MEM_READONLY;
+#endif
+
+	if (mem->flags & ~valid_flags)
 		return -EINVAL;
 
 	return 0;
@@ -973,17 +979,44 @@ out:
 	return size;
 }
 
-static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
-				     gfn_t *nr_pages)
+static bool memslot_is_readonly(struct kvm_memory_slot *slot)
+{
+	return slot->flags & KVM_MEM_READONLY;
+}
+
+static unsigned long __gfn_to_hva_memslot(struct kvm_memory_slot *slot,
+					  gfn_t gfn)
+{
+	return slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE;
+}
+
+static unsigned long __gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
+				       gfn_t *nr_pages, bool write)
 {
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
 		return KVM_HVA_ERR_BAD;
 
+	if (memslot_is_readonly(slot) && write)
+		return KVM_HVA_ERR_RO_BAD;
+
 	if (nr_pages)
 		*nr_pages = slot->npages - (gfn - slot->base_gfn);
 
-	return gfn_to_hva_memslot(slot, gfn);
+	return __gfn_to_hva_memslot(slot, gfn);
 }
+
+static unsigned long gfn_to_hva_many(struct kvm_memory_slot *slot, gfn_t gfn,
+				     gfn_t *nr_pages)
+{
+	return __gfn_to_hva_many(slot, gfn, nr_pages, true);
+}
+
+unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,
+				 gfn_t gfn)
+{
+	return gfn_to_hva_many(slot, gfn, NULL);
+}
+EXPORT_SYMBOL_GPL(gfn_to_hva_memslot);
 
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 {
@@ -997,7 +1030,7 @@ EXPORT_SYMBOL_GPL(gfn_to_hva);
  */
 static unsigned long gfn_to_hva_read(struct kvm *kvm, gfn_t gfn)
 {
-	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
+	return __gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL, false);
 }
 
 static int kvm_read_hva(void *data, void __user *hva, int len)
@@ -1106,6 +1139,17 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 	return npages;
 }
 
+static bool vma_is_valid(struct vm_area_struct *vma, bool write_fault)
+{
+	if (unlikely(!(vma->vm_flags & VM_READ)))
+		return false;
+
+	if (write_fault && (unlikely(!(vma->vm_flags & VM_WRITE))))
+		return false;
+
+	return true;
+}
+
 /*
  * Pin guest page in memory and return its pfn.
  * @addr: host virtual address which maps memory to the guest
@@ -1129,8 +1173,6 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 
 	/* we can do it either atomically or asynchronously, not both */
 	BUG_ON(atomic && async);
-
-	BUG_ON(!write_fault && !writable);
 
 	if (hva_to_pfn_fast(addr, atomic, async, write_fault, writable, &pfn))
 		return pfn;
@@ -1158,7 +1200,7 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 			vma->vm_pgoff;
 		BUG_ON(!kvm_is_mmio_pfn(pfn));
 	} else {
-		if (async && (vma->vm_flags & VM_WRITE))
+		if (async && vma_is_valid(vma, write_fault))
 			*async = true;
 		pfn = KVM_PFN_ERR_FAULT;
 	}
@@ -1167,19 +1209,40 @@ exit:
 	return pfn;
 }
 
+static pfn_t
+__gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
+		     bool *async, bool write_fault, bool *writable)
+{
+	unsigned long addr = __gfn_to_hva_many(slot, gfn, NULL, write_fault);
+
+	if (addr == KVM_HVA_ERR_RO_BAD)
+		return KVM_PFN_ERR_RO_FAULT;
+
+	if (kvm_is_error_hva(addr))
+		return KVM_PFN_ERR_BAD;
+
+	/* Do not map writable pfn in the readonly memslot. */
+	if (writable && memslot_is_readonly(slot)) {
+		*writable = false;
+		writable = NULL;
+	}
+
+	return hva_to_pfn(addr, atomic, async, write_fault,
+			  writable);
+}
+
 static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async,
 			  bool write_fault, bool *writable)
 {
-	unsigned long addr;
+	struct kvm_memory_slot *slot;
 
 	if (async)
 		*async = false;
 
-	addr = gfn_to_hva(kvm, gfn);
-	if (kvm_is_error_hva(addr))
-		return KVM_PFN_ERR_BAD;
+	slot = gfn_to_memslot(kvm, gfn);
 
-	return hva_to_pfn(addr, atomic, async, write_fault, writable);
+	return __gfn_to_pfn_memslot(slot, gfn, atomic, async, write_fault,
+				    writable);
 }
 
 pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
@@ -1210,15 +1273,12 @@ EXPORT_SYMBOL_GPL(gfn_to_pfn_prot);
 
 pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
 {
-	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
-	return hva_to_pfn(addr, false, NULL, true, NULL);
+	return __gfn_to_pfn_memslot(slot, gfn, false, NULL, true, NULL);
 }
 
 pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn)
 {
-	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
-
-	return hva_to_pfn(addr, true, NULL, true, NULL);
+	return __gfn_to_pfn_memslot(slot, gfn, true, NULL, true, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot_atomic);
 

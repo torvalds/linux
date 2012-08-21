@@ -857,7 +857,8 @@ struct kvm_userspace_memory_region {
 };
 
 /* for kvm_memory_region::flags */
-#define KVM_MEM_LOG_DIRTY_PAGES  1UL
+#define KVM_MEM_LOG_DIRTY_PAGES	(1UL << 0)
+#define KVM_MEM_READONLY	(1UL << 1)
 
 This ioctl allows the user to create or modify a guest physical memory
 slot.  When changing an existing slot, it may be moved in the guest
@@ -873,9 +874,12 @@ It is recommended that the lower 21 bits of guest_phys_addr and userspace_addr
 be identical.  This allows large pages in the guest to be backed by large
 pages in the host.
 
-The flags field supports just one flag, KVM_MEM_LOG_DIRTY_PAGES, which
+The flags field supports two flag, KVM_MEM_LOG_DIRTY_PAGES, which
 instructs kvm to keep track of writes to memory within the slot.  See
-the KVM_GET_DIRTY_LOG ioctl.
+the KVM_GET_DIRTY_LOG ioctl. Another flag is KVM_MEM_READONLY when the
+KVM_CAP_READONLY_MEM capability, it indicates the guest memory is read-only,
+that means, guest is only allowed to read it. Writes will be posted to
+userspace as KVM_EXIT_MMIO exits.
 
 When the KVM_CAP_SYNC_MMU capability, changes in the backing of the memory
 region are automatically reflected into the guest.  For example, an mmap()

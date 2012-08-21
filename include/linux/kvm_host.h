@@ -465,6 +465,7 @@ int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
+unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot, gfn_t gfn);
 void kvm_release_page_clean(struct page *page);
 void kvm_release_page_dirty(struct page *page);
 void kvm_set_page_dirty(struct page *page);
@@ -790,12 +791,6 @@ hva_to_gfn_memslot(unsigned long hva, struct kvm_memory_slot *slot)
 	gfn_t gfn_offset = (hva - slot->userspace_addr) >> PAGE_SHIFT;
 
 	return slot->base_gfn + gfn_offset;
-}
-
-static inline unsigned long gfn_to_hva_memslot(struct kvm_memory_slot *slot,
-					       gfn_t gfn)
-{
-	return slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE;
 }
 
 static inline gpa_t gfn_to_gpa(gfn_t gfn)
