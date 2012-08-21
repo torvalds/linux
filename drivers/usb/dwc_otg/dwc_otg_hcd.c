@@ -624,21 +624,15 @@ static int32_t dwc_otg_phy_suspend_cb( void *_p, int suspend)
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
-#if 0//def CONFIG_ARCH_RK2928                
+#ifdef CONFIG_ARCH_RK2928                
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
-    if(exitsuspend && (pcd->phy_suspend == 1)) {
-        clk_enable(pcd->otg_dev->ahbclk);
-        clk_enable(pcd->otg_dev->phyclk);
-        pcd->phy_suspend = 0;
+    if(suspend) {
         *otg_phy_con1 = (0x01<<16);    // exit suspend.
         DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
     }
-    if( !exitsuspend && (pcd->phy_suspend == 0)) {
-        pcd->phy_suspend = 1;
-        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
+    else{
+        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.   enable dm,dp Pull-Down Resistor  wlf @2012.8.10
         udelay(3);
-        clk_disable(pcd->otg_dev->phyclk);
-        clk_disable(pcd->otg_dev->ahbclk);
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
@@ -761,9 +755,9 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
     }
     if(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled){
 #ifdef CONFIG_ARCH_RK30	
-    DWC_PRINT("%s schedule delaywork 0x%x, 0x%x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
+    DWC_PRINT("%s schedule delaywork, hprt 0x%08x, grfstatus 0x%08x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
 #else //CONFIG_ARCH_RK2928
-    DWC_PRINT("%s schedule delaywork \n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<12));
+    DWC_PRINT("%s schedule delaywork, hprt 0x%08x, grfstatus 0x%08x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<12));
 #endif
     schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 8);
     }
@@ -1149,21 +1143,15 @@ static int32_t host20_phy_suspend_cb( void *_p, int suspend)
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
-#if 0//def CONFIG_ARCH_RK2928                
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
-    if(exitsuspend && (pcd->phy_suspend == 1)) {
-        clk_enable(pcd->otg_dev->ahbclk);
-        clk_enable(pcd->otg_dev->phyclk);
-        pcd->phy_suspend = 0;
+#ifdef CONFIG_ARCH_RK2928                
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON5);
+     if(suspend) {
         *otg_phy_con1 = (0x01<<16);    // exit suspend.
         DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
     }
-    if( !exitsuspend && (pcd->phy_suspend == 0)) {
-        pcd->phy_suspend = 1;
-        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
+    else{
+        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.  enable dm,dp Pull-Down Resistor  wlf @2012.8.10
         udelay(3);
-        clk_disable(pcd->otg_dev->phyclk);
-        clk_disable(pcd->otg_dev->ahbclk);
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif

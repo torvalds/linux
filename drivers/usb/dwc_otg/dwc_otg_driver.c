@@ -1295,7 +1295,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     clk_disable(ahbclk);
 #endif
 #endif
-//need to be checked @wlf
 #ifdef CONFIG_ARCH_RK2928                
 #ifndef CONFIG_USB20_HOST
     otg_phy_con = (unsigned int*)(USBGRF_UOC1_CON5);
@@ -1417,8 +1416,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device->phyclk = phyclk;
 	dwc_otg_device->ahbclk = ahbclk;
 #endif
-//need to be checked @wlf
-#if 0//def CONFIG_ARCH_RK2928    
+#ifdef CONFIG_ARCH_RK2928      
     otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON5);
         cru_set_soft_reset(SOFT_RST_USBPHY0, true);
 	cru_set_soft_reset(SOFT_RST_OTGC0, true);
@@ -2206,7 +2204,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     ahbclk = clk_get(NULL, "hclk_otg1");
 #endif    
 #ifdef CONFIG_ARCH_RK2928
-    ahbclk = clk_get(NULL, "hclk_otg1");    //need to be checked @wlf
+    ahbclk = clk_get(NULL, "hclk_otg1");   
 #endif 
     if (IS_ERR(ahbclk)) {
             retval = PTR_ERR(ahbclk);

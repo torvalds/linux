@@ -1682,10 +1682,10 @@ int dwc_otg20phy_suspend( int exitsuspend )
     }
     if( !exitsuspend && (pcd->phy_suspend == 0)) {
         pcd->phy_suspend = 1;
-        *otg_phy_con1 = 0x55 |(0x7f<<16);   // enter suspend.
-      //  *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.   enable dm,dp  debug_wlf @2012.8.10
+        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.   enable dm,dp Pull-Down Resistor  wlf @2012.8.10
         udelay(3);
-        clk_disable(pcd->otg_dev->phyclk);
+//  otg/host20 use the same phyclk, so can't disable phyclk in case host20 is used.    wlf @2012.8.16     
+//      clk_disable(pcd->otg_dev->phyclk); 
         clk_disable(pcd->otg_dev->ahbclk);
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
@@ -1918,7 +1918,6 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
         /* if usb not connect before ,then start connect */
          if( _pcd->vbus_status == 0 ) {
             DWC_PRINT("********vbus detect*********************************************\n");
-            dwc_otg_msc_lock(_pcd);
     	    _pcd->vbus_status = 1;
             if(_pcd->conn_en)
                 goto connect;
@@ -1935,16 +1934,16 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
             _pcd->conn_status++;
             if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
                 _pcd->vbus_status = 2;
+            dwc_otg20phy_suspend(0);
         }
 	}else {
         _pcd->vbus_status = 0;
-        if(_pcd->conn_status)
-        {
+        if(_pcd->conn_status){
              _pcd->conn_status = 0;
              dwc_otg_msc_unlock(_pcd);
         }
         /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        if( _pcd->phy_suspend == 0 ) 
+        else if( _pcd->phy_suspend == 0 ) 
                 /* no vbus detect here , close usb phy  */
              dwc_otg20phy_suspend( 0 );
     }
@@ -1953,6 +1952,8 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     return;
 
 connect:
+    if(_pcd->conn_status==0)
+        dwc_otg_msc_lock(_pcd);
     if( _pcd->phy_suspend  == 1 )
          dwc_otg20phy_suspend( 1 );
     schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
