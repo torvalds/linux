@@ -405,16 +405,16 @@ struct vcpu_vmx {
 	struct {
 		int vm86_active;
 		ulong save_rflags;
+		struct kvm_segment segs[8];
+	} rmode;
+	struct {
+		u32 bitmask; /* 4 bits per segment (1 bit per field) */
 		struct kvm_save_segment {
 			u16 selector;
 			unsigned long base;
 			u32 limit;
 			u32 ar;
-		} tr, es, ds, fs, gs;
-	} rmode;
-	struct {
-		u32 bitmask; /* 4 bits per segment (1 bit per field) */
-		struct kvm_save_segment seg[8];
+		} seg[8];
 	} segment_cache;
 	int vpid;
 	bool emulation_required;
@@ -2693,15 +2693,12 @@ static __exit void hardware_unsetup(void)
 	free_kvm_area();
 }
 
-static void fix_pmode_dataseg(int seg, struct kvm_segment *save)
+static void fix_pmode_dataseg(struct kvm_vcpu *vcpu, int seg, struct kvm_segment *save)
 {
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 
-	if (vmcs_readl(sf->base) == save->base && (save->ar_bytes & AR_S_MASK)) {
-		vmcs_write16(sf->selector, save->selector);
-		vmcs_writel(sf->base, save->base);
-		vmcs_write32(sf->limit, save->limit);
-		vmcs_write32(sf->ar_bytes, save->ar);
+	if (vmcs_readl(sf->base) == save->base && save->s) {
+		vmx_set_segment(vcpu, save, seg);
 	} else {
 		u32 dpl = (vmcs_read16(sf->selector) & SELECTOR_RPL_MASK)
 			<< AR_DPL_SHIFT;
@@ -2719,10 +2716,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 	vmx_segment_cache_clear(vmx);
 
-	vmcs_write16(GUEST_TR_SELECTOR, vmx->rmode.tr.selector);
-	vmcs_writel(GUEST_TR_BASE, vmx->rmode.tr.base);
-	vmcs_write32(GUEST_TR_LIMIT, vmx->rmode.tr.limit);
-	vmcs_write32(GUEST_TR_AR_BYTES, vmx->rmode.tr.ar);
+	vmx_set_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
 	flags &= RMODE_GUEST_OWNED_EFLAGS_BITS;
@@ -2737,10 +2731,10 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	if (emulate_invalid_guest_state)
 		return;
 
-	fix_pmode_dataseg(VCPU_SREG_ES, &vmx->rmode.es);
-	fix_pmode_dataseg(VCPU_SREG_DS, &vmx->rmode.ds);
-	fix_pmode_dataseg(VCPU_SREG_GS, &vmx->rmode.gs);
-	fix_pmode_dataseg(VCPU_SREG_FS, &vmx->rmode.fs);
+	fix_pmode_dataseg(vcpu, VCPU_SREG_ES, &vmx->rmode.segs[VCPU_SREG_ES]);
+	fix_pmode_dataseg(vcpu, VCPU_SREG_DS, &vmx->rmode.segs[VCPU_SREG_DS]);
+	fix_pmode_dataseg(vcpu, VCPU_SREG_FS, &vmx->rmode.segs[VCPU_SREG_FS]);
+	fix_pmode_dataseg(vcpu, VCPU_SREG_GS, &vmx->rmode.segs[VCPU_SREG_GS]);
 
 	vmx_segment_cache_clear(vmx);
 
@@ -2768,17 +2762,7 @@ static gva_t rmode_tss_base(struct kvm *kvm)
 	return kvm->arch.tss_addr;
 }
 
-static void save_rmode_seg(int seg, struct kvm_save_segment *save)
-{
-	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
-
-	save->selector = vmcs_read16(sf->selector);
-	save->base = vmcs_readl(sf->base);
-	save->limit = vmcs_read32(sf->limit);
-	save->ar = vmcs_read32(sf->ar_bytes);
-}
-
-static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
+static void fix_rmode_seg(int seg, struct kvm_segment *save)
 {
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 
@@ -2801,14 +2785,15 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	if (enable_unrestricted_guest)
 		return;
 
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_DS], VCPU_SREG_DS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_FS], VCPU_SREG_FS);
+	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_GS], VCPU_SREG_GS);
+
 	vmx->emulation_required = 1;
 	vmx->rmode.vm86_active = 1;
 
-	save_rmode_seg(VCPU_SREG_TR, &vmx->rmode.tr);
-	save_rmode_seg(VCPU_SREG_ES, &vmx->rmode.es);
-	save_rmode_seg(VCPU_SREG_DS, &vmx->rmode.ds);
-	save_rmode_seg(VCPU_SREG_FS, &vmx->rmode.fs);
-	save_rmode_seg(VCPU_SREG_GS, &vmx->rmode.gs);
 
 	/*
 	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
@@ -3118,7 +3103,6 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct kvm_save_segment *save;
 	u32 ar;
 
 	if (vmx->rmode.vm86_active
@@ -3126,27 +3110,15 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 		|| seg == VCPU_SREG_DS || seg == VCPU_SREG_FS
 		|| seg == VCPU_SREG_GS)
 	    && !emulate_invalid_guest_state) {
-		switch (seg) {
-		case VCPU_SREG_TR: save = &vmx->rmode.tr; break;
-		case VCPU_SREG_ES: save = &vmx->rmode.es; break;
-		case VCPU_SREG_DS: save = &vmx->rmode.ds; break;
-		case VCPU_SREG_FS: save = &vmx->rmode.fs; break;
-		case VCPU_SREG_GS: save = &vmx->rmode.gs; break;
-		default: BUG();
-		}
-		var->selector = save->selector;
-		var->base = save->base;
-		var->limit = save->limit;
-		ar = save->ar;
+		*var = vmx->rmode.segs[seg];
 		if (seg == VCPU_SREG_TR
 		    || var->selector == vmx_read_guest_seg_selector(vmx, seg))
-			goto use_saved_rmode_seg;
+			return;
 	}
 	var->base = vmx_read_guest_seg_base(vmx, seg);
 	var->limit = vmx_read_guest_seg_limit(vmx, seg);
 	var->selector = vmx_read_guest_seg_selector(vmx, seg);
 	ar = vmx_read_guest_seg_ar(vmx, seg);
-use_saved_rmode_seg:
 	if ((ar & AR_UNUSABLE_MASK) && !emulate_invalid_guest_state)
 		ar = 0;
 	var->type = ar & 15;
@@ -3235,10 +3207,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 
 	if (vmx->rmode.vm86_active && seg == VCPU_SREG_TR) {
 		vmcs_write16(sf->selector, var->selector);
-		vmx->rmode.tr.selector = var->selector;
-		vmx->rmode.tr.base = var->base;
-		vmx->rmode.tr.limit = var->limit;
-		vmx->rmode.tr.ar = vmx_segment_access_rights(var);
+		vmx->rmode.segs[VCPU_SREG_TR] = *var;
 		return;
 	}
 	vmcs_writel(sf->base, var->base);
@@ -3289,16 +3258,10 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 				     vmcs_readl(GUEST_CS_BASE) >> 4);
 			break;
 		case VCPU_SREG_ES:
-			fix_rmode_seg(VCPU_SREG_ES, &vmx->rmode.es);
-			break;
 		case VCPU_SREG_DS:
-			fix_rmode_seg(VCPU_SREG_DS, &vmx->rmode.ds);
-			break;
 		case VCPU_SREG_GS:
-			fix_rmode_seg(VCPU_SREG_GS, &vmx->rmode.gs);
-			break;
 		case VCPU_SREG_FS:
-			fix_rmode_seg(VCPU_SREG_FS, &vmx->rmode.fs);
+			fix_rmode_seg(seg, &vmx->rmode.segs[seg]);
 			break;
 		case VCPU_SREG_SS:
 			vmcs_write16(GUEST_SS_SELECTOR,
