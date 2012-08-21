@@ -54,37 +54,8 @@ acpi_status
 acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 			u32 status_code, struct acpi_buffer *status_buf);
 
-struct acpi_pld {
-	unsigned int revision:7; /* 0 */
-	unsigned int ignore_colour:1; /* 7 */
-	unsigned int colour:24; /* 8 */
-	unsigned int width:16; /* 32 */
-	unsigned int height:16; /* 48 */
-	unsigned int user_visible:1; /* 64 */
-	unsigned int dock:1; /* 65 */
-	unsigned int lid:1; /* 66 */
-	unsigned int panel:3; /* 67 */
-	unsigned int vertical_pos:2; /* 70 */
-	unsigned int horizontal_pos:2; /* 72 */
-	unsigned int shape:4; /* 74 */
-	unsigned int group_orientation:1; /* 78 */
-	unsigned int group_token:8; /* 79 */
-	unsigned int group_position:8; /* 87 */
-	unsigned int bay:1; /* 95 */
-	unsigned int ejectable:1; /* 96 */
-	unsigned int ospm_eject_required:1; /* 97 */
-	unsigned int cabinet_number:8; /* 98 */
-	unsigned int card_cage_number:8; /* 106 */
-	unsigned int reference:1; /* 114 */
-	unsigned int rotation:4; /* 115 */
-	unsigned int order:5; /* 119 */
-	unsigned int reserved:4; /* 124 */
-	unsigned int vertical_offset:16; /* 128 */
-	unsigned int horizontal_offset:16; /* 144 */
-} __attribute__((__packed__));
-
 acpi_status
-acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld *pld);
+acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld);
 #ifdef CONFIG_ACPI
 
 #include <linux/proc_fs.h>
