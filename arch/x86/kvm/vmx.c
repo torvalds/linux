@@ -3108,8 +3108,7 @@ static void vmx_get_segment(struct kvm_vcpu *vcpu,
 	if (vmx->rmode.vm86_active
 	    && (seg == VCPU_SREG_TR || seg == VCPU_SREG_ES
 		|| seg == VCPU_SREG_DS || seg == VCPU_SREG_FS
-		|| seg == VCPU_SREG_GS)
-	    && !emulate_invalid_guest_state) {
+		|| seg == VCPU_SREG_GS)) {
 		*var = vmx->rmode.segs[seg];
 		if (seg == VCPU_SREG_TR
 		    || var->selector == vmx_read_guest_seg_selector(vmx, seg))
