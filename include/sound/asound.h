@@ -474,20 +474,22 @@ enum {
 
 /* channel positions */
 enum {
+	/* this follows the alsa-lib mixer channel value + 1 */
 	SNDRV_CHMAP_UNKNOWN = 0,
 	SNDRV_CHMAP_FL,		/* front left */
-	SNDRV_CHMAP_FC,		/* front center */
 	SNDRV_CHMAP_FR,		/* front right */
-	SNDRV_CHMAP_FLC,	/* front left center */
-	SNDRV_CHMAP_FRC,	/* front right center */
 	SNDRV_CHMAP_RL,		/* rear left */
-	SNDRV_CHMAP_RC,		/* rear center */
 	SNDRV_CHMAP_RR,		/* rear right */
-	SNDRV_CHMAP_RLC,	/* rear left center */
-	SNDRV_CHMAP_RRC,	/* rear right center */
+	SNDRV_CHMAP_FC,		/* front center */
+	SNDRV_CHMAP_LFE,	/* LFE */
 	SNDRV_CHMAP_SL,		/* side left */
 	SNDRV_CHMAP_SR,		/* side right */
-	SNDRV_CHMAP_LFE,	/* LFE */
+	SNDRV_CHMAP_RC,		/* rear center */
+	/* new definitions */
+	SNDRV_CHMAP_FLC,	/* front left center */
+	SNDRV_CHMAP_FRC,	/* front right center */
+	SNDRV_CHMAP_RLC,	/* rear left center */
+	SNDRV_CHMAP_RRC,	/* rear right center */
 	SNDRV_CHMAP_FLW,	/* front left wide */
 	SNDRV_CHMAP_FRW,	/* front right wide */
 	SNDRV_CHMAP_FLH,	/* front left high */
