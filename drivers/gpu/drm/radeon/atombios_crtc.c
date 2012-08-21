@@ -452,7 +452,7 @@ static void atombios_crtc_program_ss(struct radeon_device *rdev,
 	union atom_enable_ss args;
 
 	if (!enable) {
-		for (i = 0; i < 6; i++) {
+		for (i = 0; i < rdev->num_crtc; i++) {
 			if (rdev->mode_info.crtcs[i] &&
 			    rdev->mode_info.crtcs[i]->enabled &&
 			    i != crtc_id &&
