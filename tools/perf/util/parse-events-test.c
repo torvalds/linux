@@ -948,19 +948,19 @@ static int test_event(struct test__event_st *e)
 
 static int test_events(struct test__event_st *events, unsigned cnt)
 {
-	int ret = 0;
+	int ret1, ret2 = 0;
 	unsigned i;
 
 	for (i = 0; i < cnt; i++) {
 		struct test__event_st *e = &events[i];
 
 		pr_debug("running test %d '%s'\n", i, e->name);
-		ret = test_event(e);
-		if (ret)
-			break;
+		ret1 = test_event(e);
+		if (ret1)
+			ret2 = ret1;
 	}
 
-	return ret;
+	return ret2;
 }
 
 static int test_term(struct test__term *t)
@@ -1021,13 +1021,13 @@ static int test_pmu(void)
 
 int parse_events__test(void)
 {
-	int ret;
+	int ret1, ret2 = 0;
 
 #define TEST_EVENTS(tests)				\
 do {							\
-	ret = test_events(tests, ARRAY_SIZE(tests));	\
-	if (ret)					\
-		return ret;				\
+	ret1 = test_events(tests, ARRAY_SIZE(tests));	\
+	if (!ret2)					\
+		ret2 = ret1;				\
 } while (0)
 
 	TEST_EVENTS(test__events);
@@ -1035,5 +1035,9 @@ do {							\
 	if (test_pmu())
 		TEST_EVENTS(test__events_pmu);
 
-	return test_terms(test__terms, ARRAY_SIZE(test__terms));
+	ret1 = test_terms(test__terms, ARRAY_SIZE(test__terms));
+	if (!ret2)
+		ret2 = ret1;
+
+	return ret2;
 }
