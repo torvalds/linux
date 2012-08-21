@@ -281,7 +281,7 @@ static void send_deferred_urbs(unsigned long _mos_parport)
 	int ret_val;
 	unsigned long flags;
 	struct mos7715_parport *mos_parport = (void *)_mos_parport;
-	struct urbtracker *urbtrack;
+	struct urbtracker *urbtrack, *tmp;
 	struct list_head *cursor, *next;
 
 	/* if release function ran, game over */
@@ -312,7 +312,7 @@ static void send_deferred_urbs(unsigned long _mos_parport)
 	/* move contents of deferred_urbs list to active_urbs list and submit */
 	list_for_each_safe(cursor, next, &mos_parport->deferred_urbs)
 		list_move_tail(cursor, &mos_parport->active_urbs);
-	list_for_each_entry(urbtrack, &mos_parport->active_urbs,
+	list_for_each_entry_safe(urbtrack, tmp, &mos_parport->active_urbs,
 			    urblist_entry) {
 		ret_val = usb_submit_urb(urbtrack->urb, GFP_ATOMIC);
 		dbg("%s: urb submitted", __func__);
