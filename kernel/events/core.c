@@ -6264,7 +6264,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	if ((flags & PERF_FLAG_PID_CGROUP) && (pid == -1 || cpu == -1))
 		return -EINVAL;
 
-	event_fd = get_unused_fd_flags(O_RDWR);
+	event_fd = get_unused_fd();
 	if (event_fd < 0)
 		return event_fd;
 
