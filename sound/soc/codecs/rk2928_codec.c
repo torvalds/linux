@@ -41,8 +41,6 @@
 
 #include "rk2928_codec.h"
 
-#define SPK_CTL	RK2928_PIN1_PA0
-
 static struct rk2928_codec_data {
 	struct device	*dev;
 	int 			regbase;
@@ -50,6 +48,7 @@ static struct rk2928_codec_data {
 	int				regsize_phy;
 	int				mute;
 	int				hdmi_enable;
+	int				spkctl;
 } rk2928_data;
 
 static const struct snd_soc_dapm_widget rk2928_dapm_widgets[] = {
@@ -149,8 +148,8 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 				if(!rk2928_data.hdmi_enable)
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
 				rk2928_data.mute = 0;
-				if(SPK_CTL != INVALID_GPIO) {
-					gpio_direction_output(SPK_CTL, GPIO_HIGH);
+				if(rk2928_data.spkctl != INVALID_GPIO) {
+					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
 				}
 			}
 			else {
@@ -163,8 +162,8 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-				if(SPK_CTL != INVALID_GPIO) {
-					gpio_direction_output(SPK_CTL, GPIO_LOW);
+				if(rk2928_data.spkctl != INVALID_GPIO) {
+					gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
 				}
 				rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
 				rk2928_data.mute = 1;
@@ -246,17 +245,27 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 		ret = -ENXIO;
 		goto err1;
 	}
+	
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if(!res) {
+		rk2928_data.spkctl = INVALID_GPIO;
+	}
+	else {
+		rk2928_data.spkctl = res->start;
+	}
+	
+	if(rk2928_data.spkctl != INVALID_GPIO) {
+		ret = gpio_request(rk2928_data.spkctl, NULL);
+		if (ret != 0) {
+			gpio_free(rk2928_data.spkctl);
+		}
+		else
+			gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
+	}
+	
 	// Select SDI input from internal audio codec
 	writel(0x04000400, RK2928_GRF_BASE + GRF_SOC_CON0);
 	
-	if(SPK_CTL != INVALID_GPIO) {
-		ret = gpio_request(SPK_CTL, NULL);
-		if (ret != 0) {
-			gpio_free(SPK_CTL);
-		}
-		else
-			gpio_direction_output(SPK_CTL, GPIO_LOW);
-	}
 	// Mute and Power off codec
 	rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
 	rk2928_set_bias_level(codec, SND_SOC_BIAS_OFF);
