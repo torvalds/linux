@@ -1223,10 +1223,26 @@ static bool groups_equal(struct group_info *g1, struct group_info *g2)
 	return true;
 }
 
+/*
+ * RFC 3530 language requires clid_inuse be returned when the
+ * "principal" associated with a requests differs from that previously
+ * used.  We use uid, gid's, and gss principal string as our best
+ * approximation.  We also don't want to allow non-gss use of a client
+ * established using gss: in theory cr_principal should catch that
+ * change, but in practice cr_principal can be null even in the gss case
+ * since gssd doesn't always pass down a principal string.
+ */
+static bool is_gss_cred(struct svc_cred *cr)
+{
+	/* Is cr_flavor one of the gss "pseudoflavors"?: */
+	return (cr->cr_flavor > RPC_AUTH_MAXFLAVOR);
+}
+
+
 static bool
 same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 {
-	if ((cr1->cr_flavor != cr2->cr_flavor)
+	if ((is_gss_cred(cr1) != is_gss_cred(cr2))
 		|| (cr1->cr_uid != cr2->cr_uid)
 		|| (cr1->cr_gid != cr2->cr_gid)
 		|| !groups_equal(cr1->cr_group_info, cr2->cr_group_info))
