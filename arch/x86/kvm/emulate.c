@@ -1388,19 +1388,15 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
 	ulong desc_addr;
 	int ret;
+	u16 dummy;
 
 	memset(&seg_desc, 0, sizeof seg_desc);
 
 	if ((seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86)
 	    || ctxt->mode == X86EMUL_MODE_REAL) {
 		/* set real mode segment descriptor */
+		ctxt->ops->get_segment(ctxt, &dummy, &seg_desc, NULL, seg);
 		set_desc_base(&seg_desc, selector << 4);
-		set_desc_limit(&seg_desc, 0xffff);
-		seg_desc.type = 3;
-		seg_desc.p = 1;
-		seg_desc.s = 1;
-		if (ctxt->mode == X86EMUL_MODE_VM86)
-			seg_desc.dpl = 3;
 		goto load;
 	}
 
