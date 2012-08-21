@@ -177,7 +177,7 @@ static int lp5523_detect(struct i2c_client *client)
 	int ret;
 	u8 buf;
 
-	ret = lp5523_write(client, LP5523_REG_ENABLE, 0x40);
+	ret = lp5523_write(client, LP5523_REG_ENABLE, LP5523_ENABLE);
 	if (ret)
 		return ret;
 	ret = lp5523_read(client, LP5523_REG_ENABLE, &buf);
@@ -338,7 +338,8 @@ static int lp5523_mux_parse(const char *buf, u16 *mux, size_t len)
 {
 	int i;
 	u16 tmp_mux = 0;
-	len = len < LP5523_LEDS ? len : LP5523_LEDS;
+
+	len = min_t(int, len, LP5523_LEDS);
 	for (i = 0; i < len; i++) {
 		switch (buf[i]) {
 		case '1':
@@ -546,6 +547,9 @@ static int lp5523_do_store_load(struct lp5523_engine *engine,
 	unsigned cmd;
 	u8 pattern[LP5523_PROGRAM_LENGTH] = {0};
 
+	if (engine->mode != LP5523_CMD_LOAD)
+		return -EINVAL;
+
 	while ((offset < len - 1) && (i < LP5523_PROGRAM_LENGTH)) {
 		/* separate sscanfs because length is working only for %s */
 		ret = sscanf(buf + offset, "%2s%n ", c, &nrchars);
@@ -563,12 +567,7 @@ static int lp5523_do_store_load(struct lp5523_engine *engine,
 		goto fail;
 
 	mutex_lock(&chip->lock);
-
-	if (engine->mode == LP5523_CMD_LOAD)
-		ret = lp5523_load_program(engine, pattern);
-	else
-		ret = -EINVAL;
-
+	ret = lp5523_load_program(engine, pattern);
 	mutex_unlock(&chip->lock);
 
 	if (ret) {
