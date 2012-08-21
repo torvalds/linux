@@ -3352,56 +3352,93 @@ static struct notifier_block bond_netdev_notifier = {
 /*---------------------------- Hashing Policies -----------------------------*/
 
 /*
- * Hash for the output device based upon layer 2 and layer 3 data. If
- * the packet is not IP mimic bond_xmit_hash_policy_l2()
- */
-static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
-{
-	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = ip_hdr(skb);
-
-	if (skb->protocol == htons(ETH_P_IP)) {
-		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
-			(data->h_dest[5] ^ data->h_source[5])) % count;
-	}
-
-	return (data->h_dest[5] ^ data->h_source[5]) % count;
-}
-
-/*
- * Hash for the output device based upon layer 3 and layer 4 data. If
- * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
- * altogether not IP, mimic bond_xmit_hash_policy_l2()
- */
-static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
-{
-	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph = ip_hdr(skb);
-	__be16 *layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
-	int layer4_xor = 0;
-
-	if (skb->protocol == htons(ETH_P_IP)) {
-		if (!ip_is_fragment(iph) &&
-		    (iph->protocol == IPPROTO_TCP ||
-		     iph->protocol == IPPROTO_UDP)) {
-			layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
-		}
-		return (layer4_xor ^
-			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
-
-	}
-
-	return (data->h_dest[5] ^ data->h_source[5]) % count;
-}
-
-/*
  * Hash for the output device based upon layer 2 data
  */
 static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 
-	return (data->h_dest[5] ^ data->h_source[5]) % count;
+	if (skb_headlen(skb) >= offsetof(struct ethhdr, h_proto))
+		return (data->h_dest[5] ^ data->h_source[5]) % count;
+
+	return 0;
+}
+
+/*
+ * Hash for the output device based upon layer 2 and layer 3 data. If
+ * the packet is not IP, fall back on bond_xmit_hash_policy_l2()
+ */
+static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
+{
+	struct ethhdr *data = (struct ethhdr *)skb->data;
+	struct iphdr *iph;
+	struct ipv6hdr *ipv6h;
+	u32 v6hash;
+	__be32 *s, *d;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    skb_network_header_len(skb) >= sizeof(*iph)) {
+		iph = ip_hdr(skb);
+		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
+			(data->h_dest[5] ^ data->h_source[5])) % count;
+	} else if (skb->protocol == htons(ETH_P_IPV6) &&
+		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		ipv6h = ipv6_hdr(skb);
+		s = &ipv6h->saddr.s6_addr32[0];
+		d = &ipv6h->daddr.s6_addr32[0];
+		v6hash = (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
+		v6hash ^= (v6hash >> 24) ^ (v6hash >> 16) ^ (v6hash >> 8);
+		return (v6hash ^ data->h_dest[5] ^ data->h_source[5]) % count;
+	}
+
+	return bond_xmit_hash_policy_l2(skb, count);
+}
+
+/*
+ * Hash for the output device based upon layer 3 and layer 4 data. If
+ * the packet is a frag or not TCP or UDP, just use layer 3 data.  If it is
+ * altogether not IP, fall back on bond_xmit_hash_policy_l2()
+ */
+static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
+{
+	u32 layer4_xor = 0;
+	struct iphdr *iph;
+	struct ipv6hdr *ipv6h;
+	__be32 *s, *d;
+	__be16 *layer4hdr;
+
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    skb_network_header_len(skb) >= sizeof(*iph)) {
+		iph = ip_hdr(skb);
+		if (!ip_is_fragment(iph) &&
+		    (iph->protocol == IPPROTO_TCP ||
+		     iph->protocol == IPPROTO_UDP) &&
+		    (skb_headlen(skb) - skb_network_offset(skb) >=
+		     iph->ihl * sizeof(u32) + sizeof(*layer4hdr) * 2)) {
+			layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
+			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		}
+		return (layer4_xor ^
+			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
+	} else if (skb->protocol == htons(ETH_P_IPV6) &&
+		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		ipv6h = ipv6_hdr(skb);
+		if ((ipv6h->nexthdr == IPPROTO_TCP ||
+		     ipv6h->nexthdr == IPPROTO_UDP) &&
+		    (skb_headlen(skb) - skb_network_offset(skb) >=
+		     sizeof(*ipv6h) + sizeof(*layer4hdr) * 2)) {
+			layer4hdr = (__be16 *)(ipv6h + 1);
+			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		}
+		s = &ipv6h->saddr.s6_addr32[0];
+		d = &ipv6h->daddr.s6_addr32[0];
+		layer4_xor ^= (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
+		layer4_xor ^= (layer4_xor >> 24) ^ (layer4_xor >> 16) ^
+			       (layer4_xor >> 8);
+		return layer4_xor % count;
+	}
+
+	return bond_xmit_hash_policy_l2(skb, count);
 }
 
 /*-------------------------- Device entry points ----------------------------*/
