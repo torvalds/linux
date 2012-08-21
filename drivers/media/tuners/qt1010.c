@@ -395,7 +395,8 @@ static int qt1010_init(struct dvb_frontend *fe)
 		if ((err = qt1010_init_meas2(priv, i, &tmpval)))
 			return err;
 
-	c->frequency = 545000000; /* Sigmatek DVB-110 545000000 */
+	if (!c->frequency)
+		c->frequency = 545000000; /* Sigmatek DVB-110 545000000 */
 				      /* MSI Megasky 580 GL861 533000000 */
 	return qt1010_set_params(fe);
 }
