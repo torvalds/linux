@@ -1002,6 +1002,25 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
+/*
+ * The hva returned by this function is only allowed to be read.
+ * It should pair with kvm_read_hva() or kvm_read_hva_atomic().
+ */
+static unsigned long gfn_to_hva_read(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, NULL);
+}
+
+static int kvm_read_hva(void *data, void __user *hva, int len)
+{
+	return __copy_from_user(data, hva, len);
+}
+
+static int kvm_read_hva_atomic(void *data, void __user *hva, int len)
+{
+	return __copy_from_user_inatomic(data, hva, len);
+}
+
 int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
 	unsigned long start, int write, struct page **page)
 {
@@ -1274,10 +1293,10 @@ int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 	int r;
 	unsigned long addr;
 
-	addr = gfn_to_hva(kvm, gfn);
+	addr = gfn_to_hva_read(kvm, gfn);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
-	r = __copy_from_user(data, (void __user *)addr + offset, len);
+	r = kvm_read_hva(data, (void __user *)addr + offset, len);
 	if (r)
 		return -EFAULT;
 	return 0;
@@ -1312,11 +1331,11 @@ int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
 	gfn_t gfn = gpa >> PAGE_SHIFT;
 	int offset = offset_in_page(gpa);
 
-	addr = gfn_to_hva(kvm, gfn);
+	addr = gfn_to_hva_read(kvm, gfn);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
 	pagefault_disable();
-	r = __copy_from_user_inatomic(data, (void __user *)addr + offset, len);
+	r = kvm_read_hva_atomic(data, (void __user *)addr + offset, len);
 	pagefault_enable();
 	if (r)
 		return -EFAULT;
