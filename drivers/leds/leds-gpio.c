@@ -170,11 +170,10 @@ static struct gpio_leds_priv * __devinit gpio_leds_create_of(struct platform_dev
 {
 	struct device_node *np = pdev->dev.of_node, *child;
 	struct gpio_leds_priv *priv;
-	int count = 0, ret;
+	int count, ret;
 
 	/* count LEDs in this device, so we know how much to allocate */
-	for_each_child_of_node(np, child)
-		count++;
+	count = of_get_child_count(np);
 	if (!count)
 		return NULL;
 
