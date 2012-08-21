@@ -387,9 +387,6 @@ static void __sramfunc rk30_sram_suspend(void)
 				  | (1 << CLK_GATE_PERIPH_SRC % 16)
 				  | (1 << CLK_GATE_PCLK_PERIPH % 16)
 				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
-			sram_printch('8');
-
-
 	}
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
