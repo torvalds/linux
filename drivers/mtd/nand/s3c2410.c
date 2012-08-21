@@ -442,6 +442,7 @@ static int s3c2412_nand_devready(struct mtd_info *mtd)
 
 /* ECC handling functions */
 
+#ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int s3c2410_nand_correct_data(struct mtd_info *mtd, u_char *dat,
 				     u_char *read_ecc, u_char *calc_ecc)
 {
@@ -592,6 +593,7 @@ static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
 
 	return 0;
 }
+#endif
 
 /* over-ride the standard functions for a little more speed. We can
  * use read/write block to move the data buffers to/from the controller
