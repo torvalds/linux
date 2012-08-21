@@ -18,12 +18,7 @@
  *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "tda18218.h"
 #include "tda18218_priv.h"
-
-static int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
 /* write multiple registers */
 static int tda18218_wr_regs(struct tda18218_priv *priv, u8 reg, u8 *val, u8 len)
@@ -56,7 +51,8 @@ static int tda18218_wr_regs(struct tda18218_priv *priv, u8 reg, u8 *val, u8 len)
 	if (ret == 1) {
 		ret = 0;
 	} else {
-		warn("i2c wr failed ret:%d reg:%02x len:%d", ret, reg, len);
+		dev_warn(&priv->i2c->dev, "%s: i2c wr failed=%d reg=%02x " \
+				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 
@@ -87,7 +83,8 @@ static int tda18218_rd_regs(struct tda18218_priv *priv, u8 reg, u8 *val, u8 len)
 		memcpy(val, &buf[reg], len);
 		ret = 0;
 	} else {
-		warn("i2c rd failed ret:%d reg:%02x len:%d", ret, reg, len);
+		dev_warn(&priv->i2c->dev, "%s: i2c rd failed=%d reg=%02x " \
+				"len=%d\n", KBUILD_MODNAME, ret, reg, len);
 		ret = -EREMOTEIO;
 	}
 
@@ -197,7 +194,7 @@ error:
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 
 	if (ret)
-		dbg("%s: failed ret:%d", __func__, ret);
+		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -206,7 +203,7 @@ static int tda18218_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tda18218_priv *priv = fe->tuner_priv;
 	*frequency = priv->if_frequency;
-	dbg("%s: if=%d", __func__, *frequency);
+	dev_dbg(&priv->i2c->dev, "%s: if_frequency=%d\n", __func__, *frequency);
 	return 0;
 }
 
@@ -225,7 +222,7 @@ static int tda18218_sleep(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 
 	if (ret)
-		dbg("%s: failed ret:%d", __func__, ret);
+		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -246,7 +243,7 @@ static int tda18218_init(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 
 	if (ret)
-		dbg("%s: failed ret:%d", __func__, ret);
+		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -305,13 +302,16 @@ struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
 
 	/* check if the tuner is there */
 	ret = tda18218_rd_reg(priv, R00_ID, &val);
-	dbg("%s: ret:%d chip ID:%02x", __func__, ret, val);
+	dev_dbg(&priv->i2c->dev, "%s: ret=%d chip id=%02x\n", __func__, ret,
+			val);
 	if (ret || val != def_regs[R00_ID]) {
 		kfree(priv);
 		return NULL;
 	}
 
-	info("NXP TDA18218HN successfully identified.");
+	dev_info(&priv->i2c->dev,
+			"%s: NXP TDA18218HN successfully identified\n",
+			KBUILD_MODNAME);
 
 	memcpy(&fe->ops.tuner_ops, &tda18218_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
@@ -326,7 +326,7 @@ struct dvb_frontend *tda18218_attach(struct dvb_frontend *fe,
 	/* standby */
 	ret = tda18218_wr_reg(priv, R17_PD1, priv->regs[R17_PD1] | (1 << 0));
 	if (ret)
-		dbg("%s: failed ret:%d", __func__, ret);
+		dev_dbg(&priv->i2c->dev, "%s: failed=%d\n", __func__, ret);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */

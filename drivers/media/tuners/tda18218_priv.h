@@ -21,18 +21,7 @@
 #ifndef TDA18218_PRIV_H
 #define TDA18218_PRIV_H
 
-#define LOG_PREFIX "tda18218"
-
-#undef dbg
-#define dbg(f, arg...) \
-	if (debug) \
-		printk(KERN_DEBUG   LOG_PREFIX": " f "\n" , ## arg)
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
+#include "tda18218.h"
 
 #define R00_ID         0x00	/* ID byte */
 #define R01_R1         0x01	/* Read byte 1 */
