@@ -1710,7 +1710,6 @@ _conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state 
 	if (test_and_clear_bit(CONN_WD_ST_CHG_FAIL, &tconn->flags))
 		return SS_CW_FAILED_BY_PEER;
 
-	spin_lock_irq(&tconn->req_lock);
 	rv = tconn->cstate != C_WF_REPORT_PARAMS ? SS_CW_NO_NEED : SS_UNKNOWN_ERROR;
 
 	if (rv == SS_UNKNOWN_ERROR)
@@ -1718,8 +1717,6 @@ _conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state 
 
 	if (rv == SS_SUCCESS)
 		rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
-
-	spin_unlock_irq(&tconn->req_lock);
 
 	return rv;
 }
@@ -1736,21 +1733,22 @@ conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state v
 	set_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 	if (conn_send_state_req(tconn, mask, val)) {
 		clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
-		rv = SS_CW_FAILED_BY_PEER;
 		/* if (f & CS_VERBOSE)
 		   print_st_err(mdev, os, ns, rv); */
-		goto abort;
+		mutex_unlock(&tconn->cstate_mutex);
+		spin_lock_irq(&tconn->req_lock);
+		return SS_CW_FAILED_BY_PEER;
 	}
 
 	if (val.conn == C_DISCONNECTING)
 		set_bit(DISCONNECT_SENT, &tconn->flags);
 
-	wait_event(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)));
+	spin_lock_irq(&tconn->req_lock);
+
+	wait_event_lock_irq(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)), tconn->req_lock,);
 	clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 
-abort:
 	mutex_unlock(&tconn->cstate_mutex);
-	spin_lock_irq(&tconn->req_lock);
 
 	return rv;
 }
