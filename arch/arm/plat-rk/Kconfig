@@ -159,9 +159,14 @@ config RK_EARLY_PRINTK
 config RK_DEBUG_UART
 	int "Debug UART"
 	default 1 if ARCH_RK29
-	default 2 if ARCH_RK30
+	default 2 if ARCH_RK30 || ARCH_RK2928
 	help
 	  Select a UART for debugging. -1 disable.
+
+config RK_USB_UART
+	bool "Support USB UART Bypass Function"
+	depends on ARCH_RK2928 && (RK_DEBUG_UART = 2)
+	default y
 
 config RK_CONSOLE_THREAD
 	bool "Console write by thread"
