@@ -1897,10 +1897,10 @@ GATE_CLK(pclk_i2c2, pclk_periph_pre, PCLK_I2C2);
 GATE_CLK(pclk_i2c3, pclk_periph_pre, PCLK_I2C3);
 GATE_CLK(pclk_timer0, pclk_periph_pre, PCLK_TIMER0);
 GATE_CLK(pclk_timer1, pclk_periph_pre, PCLK_TIMER1);
-GATE_CLK(pclk_gpio0, pclk_periph_pre, PCLK_GPIO0);
-GATE_CLK(pclk_gpio1, pclk_periph_pre, PCLK_GPIO1);
-GATE_CLK(pclk_gpio2, pclk_periph_pre, PCLK_GPIO2);
-GATE_CLK(pclk_gpio3, pclk_periph_pre, PCLK_GPIO3);
+GATE_CLK(gpio0, pclk_periph_pre, PCLK_GPIO0);
+GATE_CLK(gpio1, pclk_periph_pre, PCLK_GPIO1);
+GATE_CLK(gpio2, pclk_periph_pre, PCLK_GPIO2);
+GATE_CLK(gpio3, pclk_periph_pre, PCLK_GPIO3);
 GATE_CLK(pclk_saradc, pclk_periph_pre, PCLK_SARADC);
 GATE_CLK(pclk_efuse, pclk_periph_pre, PCLK_EFUSE);
 
@@ -2164,10 +2164,10 @@ static struct clk_lookup clks[] = {
 	CLK("rk30_i2c.3", "i2c", &clk_pclk_i2c3),
 	CLK_GATE_NODEV(pclk_timer0),
 	CLK_GATE_NODEV(pclk_timer1),
-	CLK_GATE_NODEV(pclk_gpio0),
-	CLK_GATE_NODEV(pclk_gpio1),
-	CLK_GATE_NODEV(pclk_gpio2),
-	CLK_GATE_NODEV(pclk_gpio3),
+	CLK_GATE_NODEV(gpio0),
+	CLK_GATE_NODEV(gpio1),
+	CLK_GATE_NODEV(gpio2),
+	CLK_GATE_NODEV(gpio3),
 	CLK_GATE_NODEV(pclk_saradc),
 	CLK_GATE_NODEV(pclk_efuse),
 
@@ -2200,15 +2200,32 @@ static struct clk_lookup clks[] = {
 static void __init rk30_init_enable_clocks(void)
 {
 	CLKDATA_DBG("ENTER %s\n", __func__);
-	clk_enable_nolock(&clk_core_pre);	//cpu
+	// core
+	clk_enable_nolock(&clk_core_pre);
 	clk_enable_nolock(&clk_core_periph);
+	clk_enable_nolock(&clken_core_periph);
+	clk_enable_nolock(&clk_l2c);
+	clk_enable_nolock(&aclk_core_pre);
+
+	// logic
 	clk_enable_nolock(&aclk_cpu_pre);
 	clk_enable_nolock(&hclk_cpu_pre);
 	clk_enable_nolock(&pclk_cpu_pre);
 
+	// ddr
+	clk_enable_nolock(&clk_ddrc);
+	clk_enable_nolock(&clk_ddrphy);
+	clk_enable_nolock(&clk_ddrphy2x);
+
 	clk_enable_nolock(&aclk_periph_pre);
 	clk_enable_nolock(&pclk_periph_pre);
 	clk_enable_nolock(&hclk_periph_pre);
+
+	// others 
+	clk_enable_nolock(&clk_aclk_vio0);
+	clk_enable_nolock(&clk_pclk_pwm01);
+	clk_enable_nolock(&clk_hclk_otg0);
+	clk_enable_nolock(&clk_hclk_otg1);
 
 #if CONFIG_RK_DEBUG_UART == 0
 	clk_enable_nolock(&clk_uart0);
@@ -2486,7 +2503,7 @@ void rk2928_clock_common_i2s_init(void)
 static void __init rk2928_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate)
 {
 
-	clk_set_rate_nolock(&clk_core_pre, 816 * MHZ);//816
+	clk_set_rate_nolock(&clk_core_pre, 600 * MHZ);//816?
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
@@ -2580,11 +2597,11 @@ void __init _rk2928_clock_data_init(unsigned long gpll,unsigned long cpll,int fl
 	 * enable other clocks as necessary
 	 */
 	rk30_init_enable_clocks();
-
 	/*
 	 * Disable any unused clocks left on by the bootloader
 	 */
-	//clk_disable_unused();
+	clk_disable_unused();
+
 	CLKDATA_DBG("rk2928_clock_common_init, gpll=%lu, cpll=%lu\n", gpll, cpll);
 	rk2928_clock_common_init(gpll, cpll);
 	preset_lpj = loops_per_jiffy;

@@ -377,15 +377,16 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_PCLK_CPU)
 			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
-	if(clkgt_regs[8]&((1<<12)|(1<13))){
+	//if(clkgt_regs[8]&((1<<CLK_GATE_PCLK_GPIO3% 16)|(1<CLK_GATE_PCLK_GPIO4% 16)) == (0x03 << CLK_GATE_PCLK_GPIO3% 16)){
+	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x03) == 0x03){
+		gate_save_soc_clk(0
+				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
+
+	}else{
 		gate_save_soc_clk(0
 				  | (1 << CLK_GATE_PERIPH_SRC % 16)
 				  | (1 << CLK_GATE_PCLK_PERIPH % 16)
 				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
-	}else{
-		gate_save_soc_clk(0
-				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
-
 	}
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)

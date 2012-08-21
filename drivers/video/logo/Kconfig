@@ -29,7 +29,6 @@ config LOGO_LINUX_CLUT224
 
 config LOGO_LINUX_BMP
        bool "bmp logo"
-       default y
 
 config LOGO_BLACKFIN_VGA16
 	bool "16-colour Blackfin Processor Linux logo"

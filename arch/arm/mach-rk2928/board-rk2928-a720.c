@@ -436,6 +436,28 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 };
 #endif // CONFIG_SDMMC0_RK29
 
+#ifdef CONFIG_SND_SOC_RK2928
+static struct resource resources_acodec[] = {
+	{
+		.start 	= RK2928_ACODEC_PHYS,
+		.end 	= RK2928_ACODEC_PHYS + RK2928_ACODEC_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	},
+	{
+		.start	= RK2928_PIN1_PA0,
+		.end	= RK2928_PIN1_PA0,
+		.flags	= IORESOURCE_IO,
+	},
+};
+
+static struct platform_device device_acodec = {
+	.name	= "rk2928-codec",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_acodec),
+	.resource	= resources_acodec,
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -445,6 +467,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_ION
 	&device_ion,
+#endif
+#ifdef CONFIG_SND_SOC_RK2928
+	&device_acodec,
 #endif
 };
 //i2c

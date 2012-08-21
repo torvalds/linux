@@ -821,10 +821,13 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_DOUBLE_EXT_TLV("Speaker Playback Volume", RT3261_SPK_VOL,
 		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_VOL_RSCL_RANGE, 0,
 		rt3261_vol_rescale_get, rt3261_vol_rescale_put, out_vol_tlv),
+	SOC_DOUBLE_EXT_TLV("Earpiece Playback Volume", RT3261_SPK_VOL,
+		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_VOL_RSCL_RANGE, 0,
+		rt3261_vol_rescale_get, rt3261_vol_rescale_put, out_vol_tlv),
 	/* Headphone Output Volume */
 	SOC_DOUBLE("HP Playback Switch", RT3261_HP_VOL,
 		RT3261_L_MUTE_SFT, RT3261_R_MUTE_SFT, 1, 1),
-	SOC_DOUBLE_EXT_TLV("HP Playback Volume", RT3261_HP_VOL,
+	SOC_DOUBLE_EXT_TLV("Headphone Playback Volume", RT3261_HP_VOL,
 		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_VOL_RSCL_RANGE, 0,
 		rt3261_vol_rescale_get, rt3261_vol_rescale_put, out_vol_tlv),
 	/* OUTPUT Control */
