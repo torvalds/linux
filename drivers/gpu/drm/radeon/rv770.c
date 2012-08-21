@@ -47,6 +47,7 @@ u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 {
 	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc_id];
 	u32 tmp = RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset);
+	int i;
 
 	/* Lock the graphics update lock */
 	tmp |= AVIVO_D1GRPH_UPDATE_LOCK;
@@ -66,7 +67,11 @@ u32 rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	       (u32)crtc_base);
 
 	/* Wait for update_pending to go high. */
-	while (!(RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset) & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING));
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		if (RREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset) & AVIVO_D1GRPH_SURFACE_UPDATE_PENDING)
+			break;
+		udelay(1);
+	}
 	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
@@ -146,6 +151,8 @@ int rv770_pcie_gart_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MD_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MD_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MD_L1_TLB2_CNTL, tmp);
+	if (rdev->family == CHIP_RV740)
+		WREG32(MC_VM_MD_L1_TLB3_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB0_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);

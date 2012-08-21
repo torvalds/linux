@@ -348,6 +348,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
+	data->period = 1;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!sample_id_all)

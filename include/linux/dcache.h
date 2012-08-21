@@ -207,6 +207,7 @@ struct dentry_operations {
 
 #define DCACHE_CANT_MOUNT	0x0100
 #define DCACHE_GENOCIDE		0x0200
+#define DCACHE_SHRINK_LIST	0x0400
 
 #define DCACHE_OP_HASH		0x1000
 #define DCACHE_OP_COMPARE	0x2000
@@ -340,7 +341,8 @@ extern int d_validate(struct dentry *, struct dentry *);
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 
-extern char *__d_path(const struct path *path, struct path *root, char *, int);
+extern char *__d_path(const struct path *, const struct path *, char *, int);
+extern char *d_absolute_path(const struct path *, char *, int);
 extern char *d_path(const struct path *, char *, int);
 extern char *d_path_with_unreachable(const struct path *, char *, int);
 extern char *dentry_path_raw(struct dentry *, char *, int);

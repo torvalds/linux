@@ -468,7 +468,14 @@ err:
 static inline unsigned int ns_to_clocks(struct atmel_mci *host,
 					unsigned int ns)
 {
-	return (ns * (host->bus_hz / 1000000) + 999) / 1000;
+	/*
+	 * It is easier here to use us instead of ns for the timeout,
+	 * it prevents from overflows during calculation.
+	 */
+	unsigned int us = DIV_ROUND_UP(ns, 1000);
+
+	/* Maximum clock frequency is host->bus_hz/2 */
+	return us * (DIV_ROUND_UP(host->bus_hz, 2000000));
 }
 
 static void atmci_set_timeout(struct atmel_mci *host,

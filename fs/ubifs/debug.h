@@ -121,20 +121,21 @@ const char *dbg_key_str1(const struct ubifs_info *c,
 			 const union ubifs_key *key);
 
 /*
- * DBGKEY macros require @dbg_lock to be held, which it is in the dbg message
- * macros.
+ * TODO: these macros are now broken because there is no locking around them
+ * and we use a global buffer for the key string. This means that in case of
+ * concurrent execution we will end up with incorrect and messy key strings.
  */
 #define DBGKEY(key) dbg_key_str0(c, (key))
 #define DBGKEY1(key) dbg_key_str1(c, (key))
 
-#define ubifs_dbg_msg(type, fmt, ...) do {                        \
-	spin_lock(&dbg_lock);                                     \
-	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__); \
-	spin_unlock(&dbg_lock);                                   \
-} while (0)
+#define ubifs_dbg_msg(type, fmt, ...) \
+	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__)
 
 /* Just a debugging messages not related to any specific UBIFS subsystem */
-#define dbg_msg(fmt, ...)   ubifs_dbg_msg("msg", fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)                                                     \
+	printk(KERN_DEBUG "UBIFS DBG (pid %d): %s: " fmt "\n", current->pid,  \
+	       __func__, ##__VA_ARGS__)
+
 /* General messages */
 #define dbg_gen(fmt, ...)   ubifs_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Additional journal messages */

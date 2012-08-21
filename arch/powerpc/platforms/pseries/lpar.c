@@ -745,6 +745,7 @@ void __trace_hcall_entry(unsigned long opcode, unsigned long *args)
 		goto out;
 
 	(*depth)++;
+	preempt_disable();
 	trace_hcall_entry(opcode, args);
 	(*depth)--;
 
@@ -767,6 +768,7 @@ void __trace_hcall_exit(long opcode, unsigned long retval,
 
 	(*depth)++;
 	trace_hcall_exit(opcode, retval, retbuf);
+	preempt_enable();
 	(*depth)--;
 
 out:

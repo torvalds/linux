@@ -26,20 +26,14 @@
 #include "../w1_family.h"
 #include "w1_ds2780.h"
 
-int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
-			int io)
+static int w1_ds2780_do_io(struct device *dev, char *buf, int addr,
+			size_t count, int io)
 {
 	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
 
-	if (!dev)
-		return -ENODEV;
+	if (addr > DS2780_DATA_SIZE || addr < 0)
+		return 0;
 
-	mutex_lock(&sl->master->mutex);
-
-	if (addr > DS2780_DATA_SIZE || addr < 0) {
-		count = 0;
-		goto out;
-	}
 	count = min_t(int, count, DS2780_DATA_SIZE - addr);
 
 	if (w1_reset_select_slave(sl) == 0) {
@@ -47,7 +41,6 @@ int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
 			w1_write_8(sl->master, W1_DS2780_WRITE_DATA);
 			w1_write_8(sl->master, addr);
 			w1_write_block(sl->master, buf, count);
-			/* XXX w1_write_block returns void, not n_written */
 		} else {
 			w1_write_8(sl->master, W1_DS2780_READ_DATA);
 			w1_write_8(sl->master, addr);
@@ -55,12 +48,41 @@ int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
 		}
 	}
 
-out:
-	mutex_unlock(&sl->master->mutex);
-
 	return count;
 }
+
+int w1_ds2780_io(struct device *dev, char *buf, int addr, size_t count,
+			int io)
+{
+	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&sl->master->mutex);
+
+	ret = w1_ds2780_do_io(dev, buf, addr, count, io);
+
+	mutex_unlock(&sl->master->mutex);
+
+	return ret;
+}
 EXPORT_SYMBOL(w1_ds2780_io);
+
+int w1_ds2780_io_nolock(struct device *dev, char *buf, int addr, size_t count,
+			int io)
+{
+	int ret;
+
+	if (!dev)
+		return -ENODEV;
+
+	ret = w1_ds2780_do_io(dev, buf, addr, count, io);
+
+	return ret;
+}
+EXPORT_SYMBOL(w1_ds2780_io_nolock);
 
 int w1_ds2780_eeprom_cmd(struct device *dev, int addr, int cmd)
 {

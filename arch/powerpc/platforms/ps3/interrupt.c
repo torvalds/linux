@@ -88,6 +88,7 @@ struct ps3_private {
 	struct ps3_bmp bmp __attribute__ ((aligned (PS3_BMP_MINALIGN)));
 	u64 ppe_id;
 	u64 thread_id;
+	unsigned long ipi_mask;
 };
 
 static DEFINE_PER_CPU(struct ps3_private, ps3_private);
@@ -144,7 +145,11 @@ static void ps3_chip_unmask(struct irq_data *d)
 static void ps3_chip_eoi(struct irq_data *d)
 {
 	const struct ps3_private *pd = irq_data_get_irq_chip_data(d);
-	lv1_end_of_interrupt_ext(pd->ppe_id, pd->thread_id, d->irq);
+
+	/* non-IPIs are EOIed here. */
+
+	if (!test_bit(63 - d->irq, &pd->ipi_mask))
+		lv1_end_of_interrupt_ext(pd->ppe_id, pd->thread_id, d->irq);
 }
 
 /**
@@ -691,6 +696,16 @@ void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq)
 		cpu, virq, pd->bmp.ipi_debug_brk_mask);
 }
 
+void __init ps3_register_ipi_irq(unsigned int cpu, unsigned int virq)
+{
+	struct ps3_private *pd = &per_cpu(ps3_private, cpu);
+
+	set_bit(63 - virq, &pd->ipi_mask);
+
+	DBG("%s:%d: cpu %u, virq %u, ipi_mask %lxh\n", __func__, __LINE__,
+		cpu, virq, pd->ipi_mask);
+}
+
 static unsigned int ps3_get_irq(void)
 {
 	struct ps3_private *pd = &__get_cpu_var(ps3_private);
@@ -720,6 +735,12 @@ static unsigned int ps3_get_irq(void)
 		BUG();
 	}
 #endif
+
+	/* IPIs are EOIed here. */
+
+	if (test_bit(63 - plug, &pd->ipi_mask))
+		lv1_end_of_interrupt_ext(pd->ppe_id, pd->thread_id, plug);
+
 	return plug;
 }
 

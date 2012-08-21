@@ -426,6 +426,7 @@ struct station_parameters {
  * @STATION_INFO_RX_BITRATE: @rxrate fields are filled
  * @STATION_INFO_BSS_PARAM: @bss_param filled
  * @STATION_INFO_CONNECTED_TIME: @connected_time filled
+ * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -444,7 +445,8 @@ enum station_info_flags {
 	STATION_INFO_SIGNAL_AVG		= 1<<13,
 	STATION_INFO_RX_BITRATE		= 1<<14,
 	STATION_INFO_BSS_PARAM          = 1<<15,
-	STATION_INFO_CONNECTED_TIME	= 1<<16
+	STATION_INFO_CONNECTED_TIME	= 1<<16,
+	STATION_INFO_ASSOC_REQ_IES	= 1<<17
 };
 
 /**
@@ -536,6 +538,11 @@ struct sta_bss_parameters {
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
+ * @assoc_req_ies: IEs from (Re)Association Request.
+ *	This is used only when in AP mode with drivers that do not use
+ *	user space MLME/SME implementation. The information is provided for
+ *	the cfg80211_new_sta() calls to notify user space of the IEs.
+ * @assoc_req_ies_len: Length of assoc_req_ies buffer in octets.
  */
 struct station_info {
 	u32 filled;
@@ -559,10 +566,13 @@ struct station_info {
 
 	int generation;
 
-#if defined(CONFIG_MT6620)	
 	const u8 *assoc_req_ies;
-    size_t assoc_req_ies_len;
-#endif    
+	size_t assoc_req_ies_len;
+
+	/*
+	 * Note: Add a new enum station_info_flags value for each new field and
+	 * use it to check which fields are initialized.
+	 */
 };
 
 /**
@@ -803,6 +813,15 @@ struct cfg80211_scan_request {
 };
 
 /**
+ * struct cfg80211_match_set - sets of attributes to match
+ *
+ * @ssid: SSID to be matched
+ */
+struct cfg80211_match_set {
+	struct cfg80211_ssid ssid;
+};
+
+/**
  * struct cfg80211_sched_scan_request - scheduled scan request description
  *
  * @ssids: SSIDs to scan for (passed in the probe_reqs in active scans)
@@ -811,6 +830,11 @@ struct cfg80211_scan_request {
  * @interval: interval between each scheduled scan cycle
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @match_sets: sets of parameters to be matched for a scan result
+ * 	entry to be considered valid and to be passed to the host
+ * 	(others are filtered out).
+ *	If ommited, all results are passed.
+ * @n_match_sets: number of match sets
  * @wiphy: the wiphy this was for
  * @dev: the interface
  * @channels: channels to scan
@@ -822,6 +846,8 @@ struct cfg80211_sched_scan_request {
 	u32 interval;
 	const u8 *ie;
 	size_t ie_len;
+	struct cfg80211_match_set *match_sets;
+	int n_match_sets;
 
 	/* internal */
 	struct wiphy *wiphy;
@@ -1721,9 +1747,16 @@ struct wiphy_wowlan_support {
  *	this variable determines its size
  * @max_scan_ssids: maximum number of SSIDs the device can scan for in
  *	any given scan
+ * @max_sched_scan_ssids: maximum number of SSIDs the device can scan
+ *	for in any given scheduled scan
+ * @max_match_sets: maximum number of match sets the device can handle
+ *	when performing a scheduled scan, 0 if filtering is not
+ *	supported.
  * @max_scan_ie_len: maximum length of user-controlled IEs device can
  *	add to probe request frames transmitted during a scan, must not
  *	include fixed IEs like supported rates
+ * @max_sched_scan_ie_len: same as max_scan_ie_len, but for scheduled
+ *	scans
  * @coverage_class: current coverage class
  * @fw_version: firmware version for ethtool reporting
  * @hw_version: hardware version for ethtool reporting
@@ -1775,7 +1808,10 @@ struct wiphy {
 
 	int bss_priv_size;
 	u8 max_scan_ssids;
+	u8 max_sched_scan_ssids;
+	u8 max_match_sets;
 	u16 max_scan_ie_len;
+	u16 max_sched_scan_ie_len;
 
 	int n_cipher_suites;
 	const u32 *cipher_suites;

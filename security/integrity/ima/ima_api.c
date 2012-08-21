@@ -177,8 +177,8 @@ void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
 	strncpy(entry->template.file_name, filename, IMA_EVENT_NAME_LEN_MAX);
 
 	result = ima_store_template(entry, violation, inode);
-	if (!result)
+	if (!result || result == -EEXIST)
 		iint->flags |= IMA_MEASURED;
-	else
+	if (result < 0)
 		kfree(entry);
 }

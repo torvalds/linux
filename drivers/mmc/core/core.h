@@ -43,6 +43,7 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage,
 			   bool cmd11);
 void mmc_set_timing(struct mmc_host *host, unsigned int timing);
 void mmc_set_driver_type(struct mmc_host *host, unsigned int drv_type);
+void mmc_power_off(struct mmc_host *host);
 
 static inline void mmc_delay(unsigned int ms)
 {

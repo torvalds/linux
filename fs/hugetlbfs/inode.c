@@ -238,17 +238,10 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 	loff_t isize;
 	ssize_t retval = 0;
 
-	mutex_lock(&inode->i_mutex);
-
 	/* validate length */
 	if (len == 0)
 		goto out;
 
-	isize = i_size_read(inode);
-	if (!isize)
-		goto out;
-
-	end_index = (isize - 1) >> huge_page_shift(h);
 	for (;;) {
 		struct page *page;
 		unsigned long nr, ret;
@@ -256,18 +249,21 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 
 		/* nr is the maximum number of bytes to copy from this page */
 		nr = huge_page_size(h);
+		isize = i_size_read(inode);
+		if (!isize)
+			goto out;
+		end_index = (isize - 1) >> huge_page_shift(h);
 		if (index >= end_index) {
 			if (index > end_index)
 				goto out;
 			nr = ((isize - 1) & ~huge_page_mask(h)) + 1;
-			if (nr <= offset) {
+			if (nr <= offset)
 				goto out;
-			}
 		}
 		nr = nr - offset;
 
 		/* Find the page */
-		page = find_get_page(mapping, index);
+		page = find_lock_page(mapping, index);
 		if (unlikely(page == NULL)) {
 			/*
 			 * We have a HOLE, zero out the user-buffer for the
@@ -279,17 +275,18 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 			else
 				ra = 0;
 		} else {
+			unlock_page(page);
+
 			/*
 			 * We have the page, copy it to user space buffer.
 			 */
 			ra = hugetlbfs_read_actor(page, offset, buf, len, nr);
 			ret = ra;
+			page_cache_release(page);
 		}
 		if (ra < 0) {
 			if (retval == 0)
 				retval = ra;
-			if (page)
-				page_cache_release(page);
 			goto out;
 		}
 
@@ -299,16 +296,12 @@ static ssize_t hugetlbfs_read(struct file *filp, char __user *buf,
 		index += offset >> huge_page_shift(h);
 		offset &= ~huge_page_mask(h);
 
-		if (page)
-			page_cache_release(page);
-
 		/* short read or no more work */
 		if ((ret != nr) || (len == 0))
 			break;
 	}
 out:
 	*ppos = ((loff_t)index << huge_page_shift(h)) + offset;
-	mutex_unlock(&inode->i_mutex);
 	return retval;
 }
 
@@ -575,7 +568,8 @@ static int hugetlbfs_set_page_dirty(struct page *page)
 }
 
 static int hugetlbfs_migrate_page(struct address_space *mapping,
-				struct page *newpage, struct page *page)
+				struct page *newpage, struct page *page,
+				enum migrate_mode mode)
 {
 	int rc;
 

@@ -42,6 +42,8 @@ void xfs_quiesce_attr(struct xfs_mount *mp);
 
 void xfs_flush_inodes(struct xfs_inode *ip);
 
+int xfs_log_dirty_inode(struct xfs_inode *ip, struct xfs_perag *pag, int flags);
+
 int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
 
 void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);

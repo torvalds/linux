@@ -143,7 +143,6 @@ static bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw);
 static char *wlc_get_macaddr(struct wlc_hw_info *wlc_hw);
 static void wlc_mhfdef(struct wlc_info *wlc, u16 *mhfs, u16 mhf2_init);
 static void wlc_mctrl_write(struct wlc_hw_info *wlc_hw);
-static void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool want, mbool flags);
 static void wlc_ucode_mute_override_set(struct wlc_hw_info *wlc_hw);
 static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw);
 static u32 wlc_wlintrsoff(struct wlc_info *wlc);
@@ -2725,7 +2724,7 @@ void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask)
 	W_REG(&wlc_hw->regs->macintmask, wlc->macintmask);
 }
 
-static void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
+void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 {
 	u8 null_ether_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 

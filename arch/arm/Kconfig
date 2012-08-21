@@ -1242,7 +1242,7 @@ config ARM_ERRATA_743622
 	depends on CPU_V7
 	help
 	  This option enables the workaround for the 743622 Cortex-A9
-	  (r2p0..r2p2) erratum. Under very rare conditions, a faulty
+	  (r2p*) erratum. Under very rare conditions, a faulty
 	  optimisation in the Cortex-A9 Store Buffer may lead to data
 	  corruption. This workaround sets a specific bit in the diagnostic
 	  register of the Cortex-A9 which disables the Store Buffer
@@ -1374,6 +1374,18 @@ config ARM_ERRATA_764369
 	  system. This workaround adds a DSB instruction before the
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
+
+config PL310_ERRATA_769419
+	bool "PL310 errata: no automatic Store Buffer drain"
+	depends on CACHE_L2X0
+	help
+	  On revisions of the PL310 prior to r3p2, the Store Buffer does
+	  not automatically drain. This can cause normal, non-cacheable
+	  writes to be retained when the memory system is idle, leading
+	  to suboptimal I/O performance for drivers using coherent DMA.
+	  This option adds a write barrier to the cpu_idle loop so that,
+	  on systems with an outer cache, the store buffer is drained
+	  explicitly.
 
 endmenu
 

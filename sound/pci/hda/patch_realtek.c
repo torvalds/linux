@@ -509,6 +509,8 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 	imux = &spec->input_mux[mux_idx];
 	if (!imux->num_items && mux_idx > 0)
 		imux = &spec->input_mux[0];
+	if (!imux->num_items)
+		return 0;
 
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
@@ -2088,25 +2090,27 @@ static void alc_auto_init_digital(struct hda_codec *codec)
 static void alc_auto_parse_digital(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int i, err;
+	int i, err, nums;
 	hda_nid_t dig_nid;
 
 	/* support multiple SPDIFs; the secondary is set up as a slave */
+	nums = 0;
 	for (i = 0; i < spec->autocfg.dig_outs; i++) {
 		err = snd_hda_get_connections(codec,
 					      spec->autocfg.dig_out_pins[i],
 					      &dig_nid, 1);
-		if (err < 0)
+		if (err <= 0)
 			continue;
-		if (!i) {
+		if (!nums) {
 			spec->multiout.dig_out_nid = dig_nid;
 			spec->dig_out_type = spec->autocfg.dig_out_type[0];
 		} else {
 			spec->multiout.slave_dig_outs = spec->slave_dig_outs;
-			if (i >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
+			if (nums >= ARRAY_SIZE(spec->slave_dig_outs) - 1)
 				break;
-			spec->slave_dig_outs[i - 1] = dig_nid;
+			spec->slave_dig_outs[nums - 1] = dig_nid;
 		}
+		nums++;
 	}
 
 	if (spec->autocfg.dig_in_pin) {
@@ -16415,6 +16419,7 @@ static const struct alc_config_preset alc861_presets[] = {
 /* Pin config fixes */
 enum {
 	PINFIX_FSC_AMILO_PI1505,
+	PINFIX_ASUS_A6RP,
 };
 
 static const struct alc_fixup alc861_fixups[] = {
@@ -16426,9 +16431,19 @@ static const struct alc_fixup alc861_fixups[] = {
 			{ }
 		}
 	},
+	[PINFIX_ASUS_A6RP] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			/* node 0x0f VREF seems controlling the master output */
+			{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{ }
+		},
+	},
 };
 
 static const struct snd_pci_quirk alc861_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS A6Rp", PINFIX_ASUS_A6RP),
+	SND_PCI_QUIRK(0x1584, 0x2b01, "Haier W18", PINFIX_ASUS_A6RP),
 	SND_PCI_QUIRK(0x1734, 0x10c7, "FSC Amilo Pi1505", PINFIX_FSC_AMILO_PI1505),
 	{}
 };
@@ -20117,6 +20132,8 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0272, .name = "ALC272", .patch = patch_alc662 },
 	{ .id = 0x10ec0275, .name = "ALC275", .patch = patch_alc269 },
 	{ .id = 0x10ec0276, .name = "ALC276", .patch = patch_alc269 },
+	{ .id = 0x10ec0280, .name = "ALC280", .patch = patch_alc269 },
+	{ .id = 0x10ec0282, .name = "ALC282", .patch = patch_alc269 },
 	{ .id = 0x10ec0861, .rev = 0x100340, .name = "ALC660",
 	  .patch = patch_alc861 },
 	{ .id = 0x10ec0660, .name = "ALC660-VD", .patch = patch_alc861vd },
@@ -20125,6 +20142,8 @@ static const struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0662, .rev = 0x100002, .name = "ALC662 rev2",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0662, .rev = 0x100101, .name = "ALC662 rev1",
+	  .patch = patch_alc662 },
+	{ .id = 0x10ec0662, .rev = 0x100300, .name = "ALC662 rev3",
 	  .patch = patch_alc662 },
 	{ .id = 0x10ec0663, .name = "ALC663", .patch = patch_alc662 },
 	{ .id = 0x10ec0665, .name = "ALC665", .patch = patch_alc662 },

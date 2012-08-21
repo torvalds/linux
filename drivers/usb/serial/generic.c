@@ -215,8 +215,10 @@ retry:
 	clear_bit(i, &port->write_urbs_free);
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev, "%s - error submitting urb: %d\n",
+		if (!port->port.console) {
+			dev_err(&port->dev, "%s - error submitting urb: %d\n",
 						__func__, result);
+		}
 		set_bit(i, &port->write_urbs_free);
 		spin_lock_irqsave(&port->lock, flags);
 		port->tx_bytes -= count;

@@ -29,6 +29,20 @@ EXPORT_SYMBOL(init_net);
 
 #define INITIAL_NET_GEN_PTRS	13 /* +1 for len +2 for rcu_head */
 
+static unsigned int max_gen_ptrs = INITIAL_NET_GEN_PTRS;
+
+static struct net_generic *net_alloc_generic(void)
+{
+	struct net_generic *ng;
+	size_t generic_size = offsetof(struct net_generic, ptr[max_gen_ptrs]);
+
+	ng = kzalloc(generic_size, GFP_KERNEL);
+	if (ng)
+		ng->len = max_gen_ptrs;
+
+	return ng;
+}
+
 static int net_assign_generic(struct net *net, int id, void *data)
 {
 	struct net_generic *ng, *old_ng;
@@ -42,8 +56,7 @@ static int net_assign_generic(struct net *net, int id, void *data)
 	if (old_ng->len >= id)
 		goto assign;
 
-	ng = kzalloc(sizeof(struct net_generic) +
-			id * sizeof(void *), GFP_KERNEL);
+	ng = net_alloc_generic();
 	if (ng == NULL)
 		return -ENOMEM;
 
@@ -58,7 +71,6 @@ static int net_assign_generic(struct net *net, int id, void *data)
 	 * the old copy for kfree after a grace period.
 	 */
 
-	ng->len = id;
 	memcpy(&ng->ptr, &old_ng->ptr, old_ng->len * sizeof(void*));
 
 	rcu_assign_pointer(net->gen, ng);
@@ -70,21 +82,29 @@ assign:
 
 static int ops_init(const struct pernet_operations *ops, struct net *net)
 {
-	int err;
+	int err = -ENOMEM;
+	void *data = NULL;
+
 	if (ops->id && ops->size) {
-		void *data = kzalloc(ops->size, GFP_KERNEL);
+		data = kzalloc(ops->size, GFP_KERNEL);
 		if (!data)
-			return -ENOMEM;
+			goto out;
 
 		err = net_assign_generic(net, *ops->id, data);
-		if (err) {
-			kfree(data);
-			return err;
-		}
+		if (err)
+			goto cleanup;
 	}
+	err = 0;
 	if (ops->init)
-		return ops->init(net);
-	return 0;
+		err = ops->init(net);
+	if (!err)
+		return 0;
+
+cleanup:
+	kfree(data);
+
+out:
+	return err;
 }
 
 static void ops_free(const struct pernet_operations *ops, struct net *net)
@@ -159,18 +179,6 @@ out_undo:
 	goto out;
 }
 
-static struct net_generic *net_alloc_generic(void)
-{
-	struct net_generic *ng;
-	size_t generic_size = sizeof(struct net_generic) +
-		INITIAL_NET_GEN_PTRS * sizeof(void *);
-
-	ng = kzalloc(generic_size, GFP_KERNEL);
-	if (ng)
-		ng->len = INITIAL_NET_GEN_PTRS;
-
-	return ng;
-}
 
 #ifdef CONFIG_NET_NS
 static struct kmem_cache *net_cachep;
@@ -446,12 +454,7 @@ static void __unregister_pernet_operations(struct pernet_operations *ops)
 static int __register_pernet_operations(struct list_head *list,
 					struct pernet_operations *ops)
 {
-	int err = 0;
-	err = ops_init(ops, &init_net);
-	if (err)
-		ops_free(ops, &init_net);
-	return err;
-	
+	return ops_init(ops, &init_net);
 }
 
 static void __unregister_pernet_operations(struct pernet_operations *ops)
@@ -481,6 +484,7 @@ again:
 			}
 			return error;
 		}
+		max_gen_ptrs = max_t(unsigned int, max_gen_ptrs, *ops->id);
 	}
 	error = __register_pernet_operations(list, ops);
 	if (error) {

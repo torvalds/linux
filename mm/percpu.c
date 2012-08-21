@@ -116,9 +116,9 @@ static int pcpu_atom_size __read_mostly;
 static int pcpu_nr_slots __read_mostly;
 static size_t pcpu_chunk_struct_size __read_mostly;
 
-/* cpus with the lowest and highest unit numbers */
-static unsigned int pcpu_first_unit_cpu __read_mostly;
-static unsigned int pcpu_last_unit_cpu __read_mostly;
+/* cpus with the lowest and highest unit addresses */
+static unsigned int pcpu_low_unit_cpu __read_mostly;
+static unsigned int pcpu_high_unit_cpu __read_mostly;
 
 /* the address of the first chunk which starts with the kernel static area */
 void *pcpu_base_addr __read_mostly;
@@ -984,19 +984,19 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
 {
 	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
 	bool in_first_chunk = false;
-	unsigned long first_start, first_end;
+	unsigned long first_low, first_high;
 	unsigned int cpu;
 
 	/*
-	 * The following test on first_start/end isn't strictly
+	 * The following test on unit_low/high isn't strictly
 	 * necessary but will speed up lookups of addresses which
 	 * aren't in the first chunk.
 	 */
-	first_start = pcpu_chunk_addr(pcpu_first_chunk, pcpu_first_unit_cpu, 0);
-	first_end = pcpu_chunk_addr(pcpu_first_chunk, pcpu_last_unit_cpu,
-				    pcpu_unit_pages);
-	if ((unsigned long)addr >= first_start &&
-	    (unsigned long)addr < first_end) {
+	first_low = pcpu_chunk_addr(pcpu_first_chunk, pcpu_low_unit_cpu, 0);
+	first_high = pcpu_chunk_addr(pcpu_first_chunk, pcpu_high_unit_cpu,
+				     pcpu_unit_pages);
+	if ((unsigned long)addr >= first_low &&
+	    (unsigned long)addr < first_high) {
 		for_each_possible_cpu(cpu) {
 			void *start = per_cpu_ptr(base, cpu);
 
@@ -1011,9 +1011,11 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
 		if (!is_vmalloc_addr(addr))
 			return __pa(addr);
 		else
-			return page_to_phys(vmalloc_to_page(addr));
+			return page_to_phys(vmalloc_to_page(addr)) +
+			       offset_in_page(addr);
 	} else
-		return page_to_phys(pcpu_addr_to_page(addr));
+		return page_to_phys(pcpu_addr_to_page(addr)) +
+		       offset_in_page(addr);
 }
 
 /**
@@ -1233,7 +1235,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
 		unit_map[cpu] = UINT_MAX;
-	pcpu_first_unit_cpu = NR_CPUS;
+
+	pcpu_low_unit_cpu = NR_CPUS;
+	pcpu_high_unit_cpu = NR_CPUS;
 
 	for (group = 0, unit = 0; group < ai->nr_groups; group++, unit += i) {
 		const struct pcpu_group_info *gi = &ai->groups[group];
@@ -1253,9 +1257,13 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 			unit_map[cpu] = unit + i;
 			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
 
-			if (pcpu_first_unit_cpu == NR_CPUS)
-				pcpu_first_unit_cpu = cpu;
-			pcpu_last_unit_cpu = cpu;
+			/* determine low/high unit_cpu */
+			if (pcpu_low_unit_cpu == NR_CPUS ||
+			    unit_off[cpu] < unit_off[pcpu_low_unit_cpu])
+				pcpu_low_unit_cpu = cpu;
+			if (pcpu_high_unit_cpu == NR_CPUS ||
+			    unit_off[cpu] > unit_off[pcpu_high_unit_cpu])
+				pcpu_high_unit_cpu = cpu;
 		}
 	}
 	pcpu_nr_units = unit;
@@ -1622,6 +1630,16 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 		areas[group] = ptr;
 
 		base = min(ptr, base);
+	}
+
+	/*
+	 * Copy data and free unused parts.  This should happen after all
+	 * allocations are complete; otherwise, we may end up with
+	 * overlapping groups.
+	 */
+	for (group = 0; group < ai->nr_groups; group++) {
+		struct pcpu_group_info *gi = &ai->groups[group];
+		void *ptr = areas[group];
 
 		for (i = 0; i < gi->nr_units; i++, ptr += ai->unit_size) {
 			if (gi->cpu_map[i] == NR_CPUS) {

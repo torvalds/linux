@@ -417,17 +417,6 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
-	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Encrypting extent "
-				"with iv:\n");
-		ecryptfs_dump_hex(extent_iv, crypt_stat->iv_bytes);
-		ecryptfs_printk(KERN_DEBUG, "First 8 bytes before "
-				"encryption:\n");
-		ecryptfs_dump_hex((char *)
-				  (page_address(page)
-				   + (extent_offset * crypt_stat->extent_size)),
-				  8);
-	}
 	rc = ecryptfs_encrypt_page_offset(crypt_stat, enc_extent_page, 0,
 					  page, (extent_offset
 						 * crypt_stat->extent_size),
@@ -440,14 +429,6 @@ static int ecryptfs_encrypt_extent(struct page *enc_extent_page,
 		goto out;
 	}
 	rc = 0;
-	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Encrypt extent [0x%.16llx]; "
-			"rc = [%d]\n",
-			(unsigned long long)(extent_base + extent_offset), rc);
-		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
-				"encryption:\n");
-		ecryptfs_dump_hex((char *)(page_address(enc_extent_page)), 8);
-	}
 out:
 	return rc;
 }
@@ -543,17 +524,6 @@ static int ecryptfs_decrypt_extent(struct page *page,
 			(unsigned long long)(extent_base + extent_offset), rc);
 		goto out;
 	}
-	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Decrypting extent "
-				"with iv:\n");
-		ecryptfs_dump_hex(extent_iv, crypt_stat->iv_bytes);
-		ecryptfs_printk(KERN_DEBUG, "First 8 bytes before "
-				"decryption:\n");
-		ecryptfs_dump_hex((char *)
-				  (page_address(enc_extent_page)
-				   + (extent_offset * crypt_stat->extent_size)),
-				  8);
-	}
 	rc = ecryptfs_decrypt_page_offset(crypt_stat, page,
 					  (extent_offset
 					   * crypt_stat->extent_size),
@@ -567,16 +537,6 @@ static int ecryptfs_decrypt_extent(struct page *page,
 		goto out;
 	}
 	rc = 0;
-	if (unlikely(ecryptfs_verbosity > 0)) {
-		ecryptfs_printk(KERN_DEBUG, "Decrypt extent [0x%.16llx]; "
-			"rc = [%d]\n",
-			(unsigned long long)(extent_base + extent_offset), rc);
-		ecryptfs_printk(KERN_DEBUG, "First 8 bytes after "
-				"decryption:\n");
-		ecryptfs_dump_hex((char *)(page_address(page)
-					   + (extent_offset
-					      * crypt_stat->extent_size)), 8);
-	}
 out:
 	return rc;
 }
@@ -1618,7 +1578,8 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 		rc = ecryptfs_read_xattr_region(page_virt, ecryptfs_inode);
 		if (rc) {
 			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
-			       "file header region or xattr region\n");
+			       "file header region or xattr region, inode %lu\n",
+				ecryptfs_inode->i_ino);
 			rc = -EINVAL;
 			goto out;
 		}
@@ -1627,7 +1588,8 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 						ECRYPTFS_DONT_VALIDATE_HEADER_SIZE);
 		if (rc) {
 			printk(KERN_DEBUG "Valid eCryptfs headers not found in "
-			       "file xattr region either\n");
+			       "file xattr region either, inode %lu\n",
+				ecryptfs_inode->i_ino);
 			rc = -EINVAL;
 		}
 		if (crypt_stat->mount_crypt_stat->flags
@@ -1638,7 +1600,8 @@ int ecryptfs_read_metadata(struct dentry *ecryptfs_dentry)
 			       "crypto metadata only in the extended attribute "
 			       "region, but eCryptfs was mounted without "
 			       "xattr support enabled. eCryptfs will not treat "
-			       "this like an encrypted file.\n");
+			       "this like an encrypted file, inode %lu\n",
+				ecryptfs_inode->i_ino);
 			rc = -EINVAL;
 		}
 	}
@@ -1943,7 +1906,7 @@ static unsigned char *portable_filename_chars = ("-.0123456789ABCD"
 
 /* We could either offset on every reverse map or just pad some 0x00's
  * at the front here */
-static const unsigned char filename_rev_map[] = {
+static const unsigned char filename_rev_map[256] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 7 */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 15 */
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 23 */
@@ -1959,7 +1922,7 @@ static const unsigned char filename_rev_map[] = {
 	0x00, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, /* 103 */
 	0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, /* 111 */
 	0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, /* 119 */
-	0x3D, 0x3E, 0x3F
+	0x3D, 0x3E, 0x3F /* 123 - 255 initialized to 0x00 */
 };
 
 /**

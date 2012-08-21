@@ -44,9 +44,6 @@
 #include "xfs_trace.h"
 
 
-STATIC void	xfs_unmountfs_wait(xfs_mount_t *);
-
-
 #ifdef HAVE_PERCPU_SB
 STATIC void	xfs_icsb_balance_counter(xfs_mount_t *, xfs_sb_field_t,
 						int);
@@ -1507,11 +1504,6 @@ xfs_unmountfs(
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-	xfs_binval(mp->m_ddev_targp);
-	if (mp->m_rtdev_targp) {
-		xfs_binval(mp->m_rtdev_targp);
-	}
-
 	/*
 	 * Unreserve any blocks we have so that when we unmount we don't account
 	 * the reserved free space as used. This is really only necessary for
@@ -1537,7 +1529,16 @@ xfs_unmountfs(
 		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
 	xfs_unmountfs_writesb(mp);
-	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
+
+	/*
+	 * Make sure all buffers have been flushed and completed before
+	 * unmounting the log.
+	 */
+	error = xfs_flush_buftarg(mp->m_ddev_targp, 1);
+	if (error)
+		xfs_warn(mp, "%d busy buffers during unmount.", error);
+	xfs_wait_buftarg(mp->m_ddev_targp);
+
 	xfs_log_unmount_write(mp);
 	xfs_log_unmount(mp);
 	xfs_uuid_unmount(mp);
@@ -1546,16 +1547,6 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_free_perag(mp);
-}
-
-STATIC void
-xfs_unmountfs_wait(xfs_mount_t *mp)
-{
-	if (mp->m_logdev_targp != mp->m_ddev_targp)
-		xfs_wait_buftarg(mp->m_logdev_targp);
-	if (mp->m_rtdev_targp)
-		xfs_wait_buftarg(mp->m_rtdev_targp);
-	xfs_wait_buftarg(mp->m_ddev_targp);
 }
 
 int

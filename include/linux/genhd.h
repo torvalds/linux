@@ -221,12 +221,6 @@ static inline void part_pack_uuid(const u8 *uuid_str, u8 *to)
 	}
 }
 
-static inline char *part_unpack_uuid(const u8 *uuid, char *out)
-{
-	sprintf(out, "%pU", uuid);
-	return out;
-}
-
 static inline int disk_max_parts(struct gendisk *disk)
 {
 	if (disk->flags & GENHD_FL_EXT_DEVT)
@@ -594,6 +588,7 @@ extern char *disk_name (struct gendisk *hd, int partno, char *buf);
 
 extern int disk_expand_part_tbl(struct gendisk *disk, int target);
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
+extern int invalidate_partitions(struct gendisk *disk, struct block_device *bdev);
 extern struct hd_struct * __must_check add_partition(struct gendisk *disk,
 						     int partno, sector_t start,
 						     sector_t len, int flags,

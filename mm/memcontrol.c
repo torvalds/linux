@@ -1251,7 +1251,8 @@ mem_cgroup_get_reclaim_stat_from_page(struct page *page)
 unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 					struct list_head *dst,
 					unsigned long *scanned, int order,
-					int mode, struct zone *z,
+					isolate_mode_t mode,
+					struct zone *z,
 					struct mem_cgroup *mem_cont,
 					int active, int file)
 {
@@ -3422,6 +3423,50 @@ int mem_cgroup_shmem_charge_fallback(struct page *page,
 	return ret;
 }
 
+/*
+ * At replace page cache, newpage is not under any memcg but it's on
+ * LRU. So, this function doesn't touch res_counter but handles LRU
+ * in correct way. Both pages are locked so we cannot race with uncharge.
+ */
+void mem_cgroup_replace_page_cache(struct page *oldpage,
+				  struct page *newpage)
+{
+	struct mem_cgroup *memcg;
+	struct page_cgroup *pc;
+	struct zone *zone;
+	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
+	unsigned long flags;
+
+	if (mem_cgroup_disabled())
+		return;
+
+	pc = lookup_page_cgroup(oldpage);
+	/* fix accounting on old pages */
+	lock_page_cgroup(pc);
+	memcg = pc->mem_cgroup;
+	mem_cgroup_charge_statistics(memcg, PageCgroupCache(pc), -1);
+	ClearPageCgroupUsed(pc);
+	unlock_page_cgroup(pc);
+
+	if (PageSwapBacked(oldpage))
+		type = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+
+	zone = page_zone(newpage);
+	pc = lookup_page_cgroup(newpage);
+	/*
+	 * Even if newpage->mapping was NULL before starting replacement,
+	 * the newpage may be on LRU(or pagevec for LRU) already. We lock
+	 * LRU while we overwrite pc->mem_cgroup.
+	 */
+	spin_lock_irqsave(&zone->lru_lock, flags);
+	if (PageLRU(newpage))
+		del_page_from_lru_list(zone, newpage, page_lru(newpage));
+	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, type);
+	if (PageLRU(newpage))
+		add_page_to_lru_list(zone, newpage, page_lru(newpage));
+	spin_unlock_irqrestore(&zone->lru_lock, flags);
+}
+
 #ifdef CONFIG_DEBUG_VM
 static struct page_cgroup *lookup_page_cgroup_used(struct page *page)
 {
@@ -4514,6 +4559,9 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 	 */
 	BUG_ON(!thresholds);
 
+	if (!thresholds->primary)
+		goto unlock;
+
 	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
 
 	/* Check if a threshold crossed before removing */
@@ -4558,11 +4606,17 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 swap_buffers:
 	/* Swap primary and spare array */
 	thresholds->spare = thresholds->primary;
+	/* If all events are unregistered, free the spare array */
+	if (!new) {
+		kfree(thresholds->spare);
+		thresholds->spare = NULL;
+	}
+
 	rcu_assign_pointer(thresholds->primary, new);
 
 	/* To be sure that nobody uses thresholds */
 	synchronize_rcu();
-
+unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
 
@@ -4963,9 +5017,9 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 		int cpu;
 		enable_swap_cgroup();
 		parent = NULL;
-		root_mem_cgroup = mem;
 		if (mem_cgroup_soft_limit_tree_init())
 			goto free_out;
+		root_mem_cgroup = mem;
 		for_each_possible_cpu(cpu) {
 			struct memcg_stock_pcp *stock =
 						&per_cpu(memcg_stock, cpu);
@@ -5004,7 +5058,6 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	return &mem->css;
 free_out:
 	__mem_cgroup_free(mem);
-	root_mem_cgroup = NULL;
 	return ERR_PTR(error);
 }
 
@@ -5244,6 +5297,8 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
 	spinlock_t *ptl;
 
 	split_huge_page_pmd(walk->mm, pmd);
+	if (pmd_trans_unstable(pmd))
+		return 0;
 
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; pte++, addr += PAGE_SIZE)
@@ -5405,6 +5460,8 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 	spinlock_t *ptl;
 
 	split_huge_page_pmd(walk->mm, pmd);
+	if (pmd_trans_unstable(pmd))
+		return 0;
 retry:
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; addr += PAGE_SIZE) {

@@ -94,6 +94,8 @@ static int nfs4_map_errors(int err)
 	case -NFS4ERR_BADOWNER:
 	case -NFS4ERR_BADNAME:
 		return -EINVAL;
+	case -NFS4ERR_SHARE_DENIED:
+		return -EACCES;
 	default:
 		dprintk("%s could not handle NFSv4 error %d\n",
 				__func__, -err);
@@ -254,15 +256,28 @@ static int nfs4_handle_exception(struct nfs_server *server, int errorcode, struc
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_state *state = exception->state;
+	struct inode *inode = exception->inode;
 	int ret = errorcode;
 
 	exception->retry = 0;
 	switch(errorcode) {
 		case 0:
 			return 0;
+		case -NFS4ERR_OPENMODE:
+			if (nfs_have_delegation(inode, FMODE_READ)) {
+				nfs_inode_return_delegation(inode);
+				exception->retry = 1;
+				return 0;
+			}
+			if (state == NULL)
+				break;
+			nfs4_schedule_stateid_recovery(server, state);
+			goto wait_on_recovery;
+		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_BAD_STATEID:
-		case -NFS4ERR_OPENMODE:
+			if (state != NULL)
+				nfs_remove_bad_delegation(state->inode);
 			if (state == NULL)
 				break;
 			nfs4_schedule_stateid_recovery(server, state);
@@ -1305,8 +1320,11 @@ int nfs4_open_delegation_recall(struct nfs_open_context *ctx, struct nfs4_state 
 				 * The show must go on: exit, but mark the
 				 * stateid as needing recovery.
 				 */
+			case -NFS4ERR_DELEG_REVOKED:
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
+				nfs_inode_find_state_and_recover(state->inode,
+						stateid);
 				nfs4_schedule_stateid_recovery(server, state);
 			case -EKEYEXPIRED:
 				/*
@@ -1755,6 +1773,7 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 			nfs_setattr_update_inode(state->inode, sattr);
 		nfs_post_op_update_inode(state->inode, opendata->o_res.f_attr);
 	}
+	nfs_revalidate_inode(server, state->inode);
 	nfs4_opendata_put(opendata);
 	nfs4_put_state_owner(sp);
 	*res = state;
@@ -1862,7 +1881,10 @@ static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 			   struct nfs4_state *state)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.state = state,
+		.inode = inode,
+	};
 	int err;
 	do {
 		err = nfs4_handle_exception(server,
@@ -3678,8 +3700,11 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 	if (task->tk_status >= 0)
 		return 0;
 	switch(task->tk_status) {
+		case -NFS4ERR_DELEG_REVOKED:
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_BAD_STATEID:
+			if (state != NULL)
+				nfs_remove_bad_delegation(state->inode);
 		case -NFS4ERR_OPENMODE:
 			if (state == NULL)
 				break;
@@ -4402,7 +4427,9 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.inode = state->inode,
+	};
 	int err;
 
 	do {
@@ -4420,7 +4447,9 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.inode = state->inode,
+	};
 	int err;
 
 	err = nfs4_set_lock_state(state, request);
@@ -4484,7 +4513,10 @@ out:
 
 static int nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
-	struct nfs4_exception exception = { };
+	struct nfs4_exception exception = {
+		.state = state,
+		.inode = state->inode,
+	};
 	int err;
 
 	do {
@@ -4529,6 +4561,20 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 
 	if (state == NULL)
 		return -ENOLCK;
+	/*
+	 * Don't rely on the VFS having checked the file open mode,
+	 * since it won't do this for flock() locks.
+	 */
+	switch (request->fl_type & (F_RDLCK|F_WRLCK|F_UNLCK)) {
+	case F_RDLCK:
+		if (!(filp->f_mode & FMODE_READ))
+			return -EBADF;
+		break;
+	case F_WRLCK:
+		if (!(filp->f_mode & FMODE_WRITE))
+			return -EBADF;
+	}
+
 	do {
 		status = nfs4_proc_setlk(state, cmd, request);
 		if ((status != -EAGAIN) || IS_SETLK(cmd))
@@ -4577,6 +4623,7 @@ int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
 				 * The show must go on: exit, but mark the
 				 * stateid as needing recovery.
 				 */
+			case -NFS4ERR_DELEG_REVOKED:
 			case -NFS4ERR_ADMIN_REVOKED:
 			case -NFS4ERR_BAD_STATEID:
 			case -NFS4ERR_OPENMODE:
@@ -6008,6 +6055,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.dentry_ops	= &nfs4_dentry_operations,
 	.dir_inode_ops	= &nfs4_dir_inode_operations,
 	.file_inode_ops	= &nfs4_file_inode_operations,
+	.file_ops	= &nfs4_file_operations,
 	.getroot	= nfs4_proc_get_root,
 	.getattr	= nfs4_proc_getattr,
 	.setattr	= nfs4_proc_setattr,

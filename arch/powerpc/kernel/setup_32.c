@@ -107,6 +107,8 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
 			 PTRRELOC(&__start___lwsync_fixup),
 			 PTRRELOC(&__stop___lwsync_fixup));
 
+	do_final_fixups();
+
 	return KERNELBASE + offset;
 }
 

@@ -217,6 +217,8 @@ static int vhost_worker(void *data)
 		if (work) {
 			__set_current_state(TASK_RUNNING);
 			work->fn(work);
+			if (need_resched())
+				schedule();
 		} else
 			schedule();
 

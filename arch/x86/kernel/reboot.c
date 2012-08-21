@@ -124,7 +124,7 @@ __setup("reboot=", reboot_setup);
  */
 
 /*
- * Some machines require the "reboot=b"  commandline option,
+ * Some machines require the "reboot=b" or "reboot=k"  commandline options,
  * this quirk makes that automatic.
  */
 static int __init set_bios_reboot(const struct dmi_system_id *d)
@@ -132,6 +132,15 @@ static int __init set_bios_reboot(const struct dmi_system_id *d)
 	if (reboot_type != BOOT_BIOS) {
 		reboot_type = BOOT_BIOS;
 		printk(KERN_INFO "%s series board detected. Selecting BIOS-method for reboots.\n", d->ident);
+	}
+	return 0;
+}
+
+static int __init set_kbd_reboot(const struct dmi_system_id *d)
+{
+	if (reboot_type != BOOT_KBD) {
+		reboot_type = BOOT_KBD;
+		printk(KERN_INFO "%s series board detected. Selecting KBD-method for reboot.\n", d->ident);
 	}
 	return 0;
 }
@@ -295,7 +304,7 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 		},
 	},
 	{ /* Handle reboot issue on Acer Aspire one */
-		.callback = set_bios_reboot,
+		.callback = set_kbd_reboot,
 		.ident = "Acer Aspire One A110",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
@@ -441,6 +450,14 @@ static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E6420"),
+		},
+	},
+	{	/* Handle problems with rebooting on the Precision M6600. */
+		.callback = set_pci_reboot,
+		.ident = "Dell OptiPlex 990",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Precision M6600"),
 		},
 	},
 	{ }

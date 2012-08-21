@@ -1583,7 +1583,7 @@ int usb_autopm_get_interface_async(struct usb_interface *intf)
 	dev_vdbg(&intf->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&intf->dev.power.usage_count),
 			status);
-	if (status > 0)
+	if (status > 0 || status == -EINPROGRESS)
 		status = 0;
 	return status;
 }
@@ -1668,6 +1668,11 @@ int usb_runtime_suspend(struct device *dev)
 		return -EAGAIN;
 
 	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
+
+	/* Allow a retry if autosuspend failed temporarily */
+	if (status == -EAGAIN || status == -EBUSY)
+		usb_mark_last_busy(udev);
+
 	/* The PM core reacts badly unless the return code is 0,
 	 * -EAGAIN, or -EBUSY, so always return -EBUSY on an error.
 	 */

@@ -568,11 +568,12 @@ void ip_forward_options(struct sk_buff *skb)
 		     ) {
 			if (srrptr + 3 > srrspace)
 				break;
-			if (memcmp(&ip_hdr(skb)->daddr, &optptr[srrptr-1], 4) == 0)
+			if (memcmp(&opt->nexthop, &optptr[srrptr-1], 4) == 0)
 				break;
 		}
 		if (srrptr + 3 <= srrspace) {
 			opt->is_changed = 1;
+			ip_hdr(skb)->daddr = opt->nexthop;
 			ip_rt_get_source(&optptr[srrptr-1], skb, rt);
 			optptr[2] = srrptr+4;
 		} else if (net_ratelimit())
@@ -640,6 +641,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 	}
 	if (srrptr <= srrspace) {
 		opt->srr_is_hit = 1;
+		opt->nexthop = nexthop;
 		opt->is_changed = 1;
 	}
 	return 0;

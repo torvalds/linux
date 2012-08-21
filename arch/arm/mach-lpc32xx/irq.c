@@ -118,6 +118,10 @@ static const struct lpc32xx_event_info lpc32xx_events[NR_IRQS] = {
 		.event_group = &lpc32xx_event_pin_regs,
 		.mask = LPC32XX_CLKPWR_EXTSRC_GPI_06_BIT,
 	},
+	[IRQ_LPC32XX_GPI_28] = {
+		.event_group = &lpc32xx_event_pin_regs,
+		.mask = LPC32XX_CLKPWR_EXTSRC_GPI_28_BIT,
+	},
 	[IRQ_LPC32XX_GPIO_00] = {
 		.event_group = &lpc32xx_event_int_regs,
 		.mask = LPC32XX_CLKPWR_INTSRC_GPIO_00_BIT,
@@ -305,8 +309,17 @@ static int lpc32xx_irq_wake(struct irq_data *d, unsigned int state)
 
 		if (state)
 			eventreg |= lpc32xx_events[d->irq].mask;
-		else
+		else {
 			eventreg &= ~lpc32xx_events[d->irq].mask;
+
+			/*
+			 * When disabling the wakeup, clear the latched
+			 * event
+			 */
+			__raw_writel(lpc32xx_events[d->irq].mask,
+				lpc32xx_events[d->irq].
+				event_group->rawstat_reg);
+		}
 
 		__raw_writel(eventreg,
 			lpc32xx_events[d->irq].event_group->enab_reg);
@@ -380,13 +393,15 @@ void __init lpc32xx_init_irq(void)
 
 	/* Setup SIC1 */
 	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC1_BASE));
-	__raw_writel(MIC_APR_DEFAULT, LPC32XX_INTC_POLAR(LPC32XX_SIC1_BASE));
-	__raw_writel(MIC_ATR_DEFAULT, LPC32XX_INTC_ACT_TYPE(LPC32XX_SIC1_BASE));
+	__raw_writel(SIC1_APR_DEFAULT, LPC32XX_INTC_POLAR(LPC32XX_SIC1_BASE));
+	__raw_writel(SIC1_ATR_DEFAULT,
+				LPC32XX_INTC_ACT_TYPE(LPC32XX_SIC1_BASE));
 
 	/* Setup SIC2 */
 	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC2_BASE));
-	__raw_writel(MIC_APR_DEFAULT, LPC32XX_INTC_POLAR(LPC32XX_SIC2_BASE));
-	__raw_writel(MIC_ATR_DEFAULT, LPC32XX_INTC_ACT_TYPE(LPC32XX_SIC2_BASE));
+	__raw_writel(SIC2_APR_DEFAULT, LPC32XX_INTC_POLAR(LPC32XX_SIC2_BASE));
+	__raw_writel(SIC2_ATR_DEFAULT,
+				LPC32XX_INTC_ACT_TYPE(LPC32XX_SIC2_BASE));
 
 	/* Configure supported IRQ's */
 	for (i = 0; i < NR_IRQS; i++) {

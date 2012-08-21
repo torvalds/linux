@@ -511,7 +511,7 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 	do {
 		next = pmd_addr_end(addr, end);
 		split_huge_page_pmd(vma->vm_mm, pmd);
-		if (pmd_none_or_clear_bad(pmd))
+		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
 			continue;
 		if (check_pte_range(vma, pmd, addr, next, nodes,
 				    flags, private))
@@ -606,27 +606,6 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 	return first;
 }
 
-/* Apply policy to a single VMA */
-static int policy_vma(struct vm_area_struct *vma, struct mempolicy *new)
-{
-	int err = 0;
-	struct mempolicy *old = vma->vm_policy;
-
-	pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
-		 vma->vm_start, vma->vm_end, vma->vm_pgoff,
-		 vma->vm_ops, vma->vm_file,
-		 vma->vm_ops ? vma->vm_ops->set_policy : NULL);
-
-	if (vma->vm_ops && vma->vm_ops->set_policy)
-		err = vma->vm_ops->set_policy(vma, new);
-	if (!err) {
-		mpol_get(new);
-		vma->vm_policy = new;
-		mpol_put(old);
-	}
-	return err;
-}
-
 /* Step 2: apply policy to a range and do splits. */
 static int mbind_range(struct mm_struct *mm, unsigned long start,
 		       unsigned long end, struct mempolicy *new_pol)
@@ -666,9 +645,23 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
 			if (err)
 				goto out;
 		}
-		err = policy_vma(vma, new_pol);
-		if (err)
-			goto out;
+
+		/*
+		 * Apply policy to a single VMA. The reference counting of
+		 * policy for vma_policy linkages has already been handled by
+		 * vma_merge and split_vma as necessary. If this is a shared
+		 * policy then ->set_policy will increment the reference count
+		 * for an sp node.
+		 */
+		pr_debug("vma %lx-%lx/%lx vm_ops %p vm_file %p set_policy %p\n",
+			vma->vm_start, vma->vm_end, vma->vm_pgoff,
+			vma->vm_ops, vma->vm_file,
+			vma->vm_ops ? vma->vm_ops->set_policy : NULL);
+		if (vma->vm_ops && vma->vm_ops->set_policy) {
+			err = vma->vm_ops->set_policy(vma, new_pol);
+			if (err)
+				goto out;
+		}
 	}
 
  out:
@@ -933,7 +926,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 
 	if (!list_empty(&pagelist)) {
 		err = migrate_pages(&pagelist, new_node_page, dest,
-								false, true);
+							false, MIGRATE_SYNC);
 		if (err)
 			putback_lru_pages(&pagelist);
 	}
@@ -1817,18 +1810,24 @@ struct page *
 alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 		unsigned long addr, int node)
 {
-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
+	struct mempolicy *pol;
 	struct zonelist *zl;
 	struct page *page;
+	unsigned int cpuset_mems_cookie;
 
-	get_mems_allowed();
+retry_cpuset:
+	pol = get_vma_policy(current, vma, addr);
+	cpuset_mems_cookie = get_mems_allowed();
+
 	if (unlikely(pol->mode == MPOL_INTERLEAVE)) {
 		unsigned nid;
 
 		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT + order);
 		mpol_cond_put(pol);
 		page = alloc_page_interleave(gfp, order, nid);
-		put_mems_allowed();
+		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+			goto retry_cpuset;
+
 		return page;
 	}
 	zl = policy_zonelist(gfp, pol, node);
@@ -1839,7 +1838,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 		struct page *page =  __alloc_pages_nodemask(gfp, order,
 						zl, policy_nodemask(gfp, pol));
 		__mpol_put(pol);
-		put_mems_allowed();
+		if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+			goto retry_cpuset;
 		return page;
 	}
 	/*
@@ -1847,7 +1847,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
 	 */
 	page = __alloc_pages_nodemask(gfp, order, zl,
 				      policy_nodemask(gfp, pol));
-	put_mems_allowed();
+	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+		goto retry_cpuset;
 	return page;
 }
 
@@ -1874,11 +1875,14 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 {
 	struct mempolicy *pol = current->mempolicy;
 	struct page *page;
+	unsigned int cpuset_mems_cookie;
 
 	if (!pol || in_interrupt() || (gfp & __GFP_THISNODE))
 		pol = &default_policy;
 
-	get_mems_allowed();
+retry_cpuset:
+	cpuset_mems_cookie = get_mems_allowed();
+
 	/*
 	 * No reference counting needed for current->mempolicy
 	 * nor system default_policy
@@ -1889,7 +1893,10 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 		page = __alloc_pages_nodemask(gfp, order,
 				policy_zonelist(gfp, pol, numa_node_id()),
 				policy_nodemask(gfp, pol));
-	put_mems_allowed();
+
+	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+		goto retry_cpuset;
+
 	return page;
 }
 EXPORT_SYMBOL(alloc_pages_current);

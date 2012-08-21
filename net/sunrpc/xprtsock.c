@@ -485,7 +485,7 @@ static int xs_nospace(struct rpc_task *task)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
-	int ret = 0;
+	int ret = -EAGAIN;
 
 	dprintk("RPC: %5u xmit incomplete (%u left of %u)\n",
 			task->tk_pid, req->rq_slen - req->rq_bytes_sent,
@@ -497,7 +497,6 @@ static int xs_nospace(struct rpc_task *task)
 	/* Don't race with disconnect */
 	if (xprt_connected(xprt)) {
 		if (test_bit(SOCK_ASYNC_NOSPACE, &transport->sock->flags)) {
-			ret = -EAGAIN;
 			/*
 			 * Notify TCP that we're limited by the application
 			 * window size
@@ -1883,6 +1882,8 @@ static void xs_local_setup_socket(struct work_struct *work)
 	if (xprt->shutdown)
 		goto out;
 
+	current->flags |= PF_FSTRANS;
+
 	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
 	status = __sock_create(xprt->xprt_net, AF_LOCAL,
 					SOCK_STREAM, 0, &sock, 1);
@@ -1916,6 +1917,7 @@ static void xs_local_setup_socket(struct work_struct *work)
 out:
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
+	current->flags &= ~PF_FSTRANS;
 }
 
 static void xs_udp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
@@ -1958,6 +1960,8 @@ static void xs_udp_setup_socket(struct work_struct *work)
 	if (xprt->shutdown)
 		goto out;
 
+	current->flags |= PF_FSTRANS;
+
 	/* Start by resetting any existing state */
 	xs_reset_transport(transport);
 	sock = xs_create_sock(xprt, transport,
@@ -1976,6 +1980,7 @@ static void xs_udp_setup_socket(struct work_struct *work)
 out:
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
+	current->flags &= ~PF_FSTRANS;
 }
 
 /*
@@ -2101,6 +2106,8 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	if (xprt->shutdown)
 		goto out;
 
+	current->flags |= PF_FSTRANS;
+
 	if (!sock) {
 		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
 		sock = xs_create_sock(xprt, transport,
@@ -2150,6 +2157,7 @@ static void xs_tcp_setup_socket(struct work_struct *work)
 	case -EINPROGRESS:
 	case -EALREADY:
 		xprt_clear_connecting(xprt);
+		current->flags &= ~PF_FSTRANS;
 		return;
 	case -EINVAL:
 		/* Happens, for instance, if the user specified a link
@@ -2162,6 +2170,7 @@ out_eagain:
 out:
 	xprt_clear_connecting(xprt);
 	xprt_wake_pending_tasks(xprt, status);
+	current->flags &= ~PF_FSTRANS;
 }
 
 /**

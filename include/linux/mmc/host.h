@@ -279,6 +279,7 @@ struct mmc_host {
 
 	unsigned int		sdio_irqs;
 	struct task_struct	*sdio_irq_thread;
+	bool			sdio_irq_pending;
 	atomic_t		sdio_irq_thread_abort;
 
 	mmc_pm_flag_t		pm_flags;	/* requested pm features */
@@ -353,6 +354,7 @@ extern void mmc_request_done(struct mmc_host *, struct mmc_request *);
 static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 {
 	host->ops->enable_sdio_irq(host, 0);
+	host->sdio_irq_pending = true;
 	wake_up_process(host->sdio_irq_thread);
 }
 

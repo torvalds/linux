@@ -168,13 +168,13 @@ EXPORT_SYMBOL_GPL(ppc_tb_freq);
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 /*
  * Factors for converting from cputime_t (timebase ticks) to
- * jiffies, milliseconds, seconds, and clock_t (1/USER_HZ seconds).
+ * jiffies, microseconds, seconds, and clock_t (1/USER_HZ seconds).
  * These are all stored as 0.64 fixed-point binary fractions.
  */
 u64 __cputime_jiffies_factor;
 EXPORT_SYMBOL(__cputime_jiffies_factor);
-u64 __cputime_msec_factor;
-EXPORT_SYMBOL(__cputime_msec_factor);
+u64 __cputime_usec_factor;
+EXPORT_SYMBOL(__cputime_usec_factor);
 u64 __cputime_sec_factor;
 EXPORT_SYMBOL(__cputime_sec_factor);
 u64 __cputime_clockt_factor;
@@ -192,8 +192,8 @@ static void calc_cputime_factors(void)
 
 	div128_by_32(HZ, 0, tb_ticks_per_sec, &res);
 	__cputime_jiffies_factor = res.result_low;
-	div128_by_32(1000, 0, tb_ticks_per_sec, &res);
-	__cputime_msec_factor = res.result_low;
+	div128_by_32(1000000, 0, tb_ticks_per_sec, &res);
+	__cputime_usec_factor = res.result_low;
 	div128_by_32(1, 0, tb_ticks_per_sec, &res);
 	__cputime_sec_factor = res.result_low;
 	div128_by_32(USER_HZ, 0, tb_ticks_per_sec, &res);
@@ -887,6 +887,15 @@ static void __init clocksource_init(void)
 
 	printk(KERN_INFO "clocksource: %s mult[%x] shift[%d] registered\n",
 	       clock->name, clock->mult, clock->shift);
+}
+
+void decrementer_check_overflow(void)
+{
+	u64 now = get_tb_or_rtc();
+	struct decrementer_clock *decrementer = &__get_cpu_var(decrementers);
+
+	if (now >= decrementer->next_tb)
+		set_dec(1);
 }
 
 static int decrementer_set_next_event(unsigned long evt,

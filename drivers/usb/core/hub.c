@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
+#include <linux/random.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -705,10 +706,26 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	if (type == HUB_INIT3)
 		goto init3;
 
-	/* After a resume, port power should still be on.
+	/* The superspeed hub except for root hub has to use Hub Depth
+	 * value as an offset into the route string to locate the bits
+	 * it uses to determine the downstream port number. So hub driver
+	 * should send a set hub depth request to superspeed hub after
+	 * the superspeed hub is set configuration in initialization or
+	 * reset procedure.
+	 *
+	 * After a resume, port power should still be on.
 	 * For any other type of activation, turn it on.
 	 */
 	if (type != HUB_RESUME) {
+		if (hdev->parent && hub_is_superspeed(hdev)) {
+			ret = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
+					HUB_SET_DEPTH, USB_RT_HUB,
+					hdev->level - 1, 0, NULL, 0,
+					USB_CTRL_SET_TIMEOUT);
+			if (ret < 0)
+				dev_err(hub->intfdev,
+						"set hub depth failed\n");
+		}
 
 		/* Speed up system boot by using a delayed_work for the
 		 * hub's initial power-up delays.  This is pretty awkward
@@ -813,6 +830,12 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 					USB_PORT_FEAT_C_PORT_LINK_STATE);
 		}
 
+		if ((portchange & USB_PORT_STAT_C_BH_RESET) &&
+				hub_is_superspeed(hub->hdev)) {
+			need_debounce_delay = true;
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_C_BH_PORT_RESET);
+		}
 		/* We can forget about a "removed" device when there's a
 		 * physical disconnect or the connect status changes.
 		 */
@@ -979,18 +1002,6 @@ static int hub_configure(struct usb_hub *hub,
 	if (!hub->descriptor) {
 		ret = -ENOMEM;
 		goto fail;
-	}
-
-	if (hub_is_superspeed(hdev) && (hdev->parent != NULL)) {
-		ret = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
-				HUB_SET_DEPTH, USB_RT_HUB,
-				hdev->level - 1, 0, NULL, 0,
-				USB_CTRL_SET_TIMEOUT);
-
-		if (ret < 0) {
-			message = "can't set hub depth";
-			goto fail;
-		}
 	}
 
 	/* Request the entire hub descriptor.
@@ -1637,7 +1648,6 @@ void usb_disconnect(struct usb_device **pdev)
 {
 	struct usb_device	*udev = *pdev;
 	int			i;
-	struct usb_hcd		*hcd = bus_to_hcd(udev->bus);
 
 	if (!udev) {
 		pr_debug ("%s nodev\n", __func__);
@@ -1665,9 +1675,7 @@ void usb_disconnect(struct usb_device **pdev)
 	 * so that the hardware is now fully quiesced.
 	 */
 	dev_dbg (&udev->dev, "unregistering device\n");
-	mutex_lock(hcd->bandwidth_mutex);
 	usb_disable_device(udev, 0);
-	mutex_unlock(hcd->bandwidth_mutex);
 	usb_hcd_synchronize_unlinks(udev);
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -1897,6 +1905,14 @@ int usb_new_device(struct usb_device *udev)
 
 	/* Tell the world! */
 	announce_device(udev);
+
+	if (udev->serial)
+		add_device_randomness(udev->serial, strlen(udev->serial));
+	if (udev->product)
+		add_device_randomness(udev->product, strlen(udev->product));
+	if (udev->manufacturer)
+		add_device_randomness(udev->manufacturer,
+				      strlen(udev->manufacturer));
 
 	/* kever@rk 20111205
 	 * We don't use async suspend in rk29 usb

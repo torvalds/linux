@@ -26,6 +26,7 @@
 #include <linux/radix-tree.h>
 #include <linux/hwspinlock.h>
 #include <linux/pm_runtime.h>
+#include <linux/mutex.h>
 
 #include "hwspinlock_internal.h"
 
@@ -52,10 +53,12 @@
 static RADIX_TREE(hwspinlock_tree, GFP_KERNEL);
 
 /*
- * Synchronization of access to the tree is achieved using this spinlock,
+ * Synchronization of access to the tree is achieved using this mutex,
  * as the radix-tree API requires that users provide all synchronisation.
+ * A mutex is needed because we're using non-atomic radix tree allocations.
  */
-static DEFINE_SPINLOCK(hwspinlock_tree_lock);
+static DEFINE_MUTEX(hwspinlock_tree_lock);
+
 
 /**
  * __hwspin_trylock() - attempt to lock a specific hwspinlock
@@ -261,8 +264,7 @@ EXPORT_SYMBOL_GPL(__hwspin_unlock);
  * This function should be called from the underlying platform-specific
  * implementation, to register a new hwspinlock instance.
  *
- * Can be called from an atomic context (will not sleep) but not from
- * within interrupt context.
+ * Should be called from a process context (might sleep)
  *
  * Returns 0 on success, or an appropriate error code on failure
  */
@@ -279,7 +281,7 @@ int hwspin_lock_register(struct hwspinlock *hwlock)
 
 	spin_lock_init(&hwlock->lock);
 
-	spin_lock(&hwspinlock_tree_lock);
+	mutex_lock(&hwspinlock_tree_lock);
 
 	ret = radix_tree_insert(&hwspinlock_tree, hwlock->id, hwlock);
 	if (ret)
@@ -293,7 +295,7 @@ int hwspin_lock_register(struct hwspinlock *hwlock)
 	WARN_ON(tmp != hwlock);
 
 out:
-	spin_unlock(&hwspinlock_tree_lock);
+	mutex_unlock(&hwspinlock_tree_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_register);
@@ -305,8 +307,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_register);
  * This function should be called from the underlying platform-specific
  * implementation, to unregister an existing (and unused) hwspinlock.
  *
- * Can be called from an atomic context (will not sleep) but not from
- * within interrupt context.
+ * Should be called from a process context (might sleep)
  *
  * Returns the address of hwspinlock @id on success, or NULL on failure
  */
@@ -315,7 +316,7 @@ struct hwspinlock *hwspin_lock_unregister(unsigned int id)
 	struct hwspinlock *hwlock = NULL;
 	int ret;
 
-	spin_lock(&hwspinlock_tree_lock);
+	mutex_lock(&hwspinlock_tree_lock);
 
 	/* make sure the hwspinlock is not in use (tag is set) */
 	ret = radix_tree_tag_get(&hwspinlock_tree, id, HWSPINLOCK_UNUSED);
@@ -331,7 +332,7 @@ struct hwspinlock *hwspin_lock_unregister(unsigned int id)
 	}
 
 out:
-	spin_unlock(&hwspinlock_tree_lock);
+	mutex_unlock(&hwspinlock_tree_lock);
 	return hwlock;
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_unregister);
@@ -400,9 +401,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_get_id);
  * to the remote core before it can be used for synchronization (to get the
  * id of a given hwlock, use hwspin_lock_get_id()).
  *
- * Can be called from an atomic context (will not sleep) but not from
- * within interrupt context (simply because there is no use case for
- * that yet).
+ * Should be called from a process context (might sleep)
  *
  * Returns the address of the assigned hwspinlock, or NULL on error
  */
@@ -411,7 +410,7 @@ struct hwspinlock *hwspin_lock_request(void)
 	struct hwspinlock *hwlock;
 	int ret;
 
-	spin_lock(&hwspinlock_tree_lock);
+	mutex_lock(&hwspinlock_tree_lock);
 
 	/* look for an unused lock */
 	ret = radix_tree_gang_lookup_tag(&hwspinlock_tree, (void **)&hwlock,
@@ -431,7 +430,7 @@ struct hwspinlock *hwspin_lock_request(void)
 		hwlock = NULL;
 
 out:
-	spin_unlock(&hwspinlock_tree_lock);
+	mutex_unlock(&hwspinlock_tree_lock);
 	return hwlock;
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_request);
@@ -445,9 +444,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_request);
  * Usually early board code will be calling this function in order to
  * reserve specific hwspinlock ids for predefined purposes.
  *
- * Can be called from an atomic context (will not sleep) but not from
- * within interrupt context (simply because there is no use case for
- * that yet).
+ * Should be called from a process context (might sleep)
  *
  * Returns the address of the assigned hwspinlock, or NULL on error
  */
@@ -456,7 +453,7 @@ struct hwspinlock *hwspin_lock_request_specific(unsigned int id)
 	struct hwspinlock *hwlock;
 	int ret;
 
-	spin_lock(&hwspinlock_tree_lock);
+	mutex_lock(&hwspinlock_tree_lock);
 
 	/* make sure this hwspinlock exists */
 	hwlock = radix_tree_lookup(&hwspinlock_tree, id);
@@ -482,7 +479,7 @@ struct hwspinlock *hwspin_lock_request_specific(unsigned int id)
 		hwlock = NULL;
 
 out:
-	spin_unlock(&hwspinlock_tree_lock);
+	mutex_unlock(&hwspinlock_tree_lock);
 	return hwlock;
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_request_specific);
@@ -495,9 +492,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_request_specific);
  * Should only be called with an @hwlock that was retrieved from
  * an earlier call to omap_hwspin_lock_request{_specific}.
  *
- * Can be called from an atomic context (will not sleep) but not from
- * within interrupt context (simply because there is no use case for
- * that yet).
+ * Should be called from a process context (might sleep)
  *
  * Returns 0 on success, or an appropriate error code on failure
  */
@@ -511,7 +506,7 @@ int hwspin_lock_free(struct hwspinlock *hwlock)
 		return -EINVAL;
 	}
 
-	spin_lock(&hwspinlock_tree_lock);
+	mutex_lock(&hwspinlock_tree_lock);
 
 	/* make sure the hwspinlock is used */
 	ret = radix_tree_tag_get(&hwspinlock_tree, hwlock->id,
@@ -538,7 +533,7 @@ int hwspin_lock_free(struct hwspinlock *hwlock)
 	module_put(hwlock->owner);
 
 out:
-	spin_unlock(&hwspinlock_tree_lock);
+	mutex_unlock(&hwspinlock_tree_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(hwspin_lock_free);

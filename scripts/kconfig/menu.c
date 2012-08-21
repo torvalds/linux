@@ -596,11 +596,10 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 	struct symbol *sym = menu->sym;
 
 	if (menu_has_help(menu)) {
-		if (sym->name) {
+		if (sym->name)
 			str_printf(help, "%s%s:\n\n", CONFIG_, sym->name);
-			str_append(help, _(menu_get_help(menu)));
-			str_append(help, "\n");
-		}
+		str_append(help, _(menu_get_help(menu)));
+		str_append(help, "\n");
 	} else {
 		str_append(help, nohelp_text);
 	}

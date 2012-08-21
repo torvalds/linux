@@ -224,6 +224,11 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			pci_dev_put(p_smbus);
 		}
 		break;
+	case PCI_VENDOR_ID_NETMOS:
+		/* MosChip frame-index-register bug */
+		ehci_info(ehci, "applying MosChip frame-index workaround\n");
+		ehci->frame_index_bug = 1;
+		break;
 	}
 
 	/* optional debug port, normally in the first BAR */
@@ -352,7 +357,9 @@ static bool usb_is_intel_switchable_ehci(struct pci_dev *pdev)
 {
 	return pdev->class == PCI_CLASS_SERIAL_USB_EHCI &&
 		pdev->vendor == PCI_VENDOR_ID_INTEL &&
-		pdev->device == 0x1E26;
+		(pdev->device == 0x1E26 ||
+		 pdev->device == 0x8C2D ||
+		 pdev->device == 0x8C26);
 }
 
 static void ehci_enable_xhci_companion(void)

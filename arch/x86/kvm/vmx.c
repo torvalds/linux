@@ -948,7 +948,7 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 #endif
-	if (current_thread_info()->status & TS_USEDFPU)
+	if (__thread_has_fpu(current))
 		clts();
 	load_gdt(&__get_cpu_var(host_gdt));
 }

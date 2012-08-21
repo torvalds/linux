@@ -1301,7 +1301,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	int is_eth;
 	int is_vlan = 0;
 	int is_grh;
-	u16 vlan;
+	u16 vlan = 0;
 
 	send_size = 0;
 	for (i = 0; i < wr->num_sge; ++i)

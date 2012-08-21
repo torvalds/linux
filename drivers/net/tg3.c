@@ -740,8 +740,13 @@ static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
 		if (sblk->status & SD_STATUS_LINK_CHG)
 			work_exists = 1;
 	}
-	/* check for RX/TX work to do */
-	if (sblk->idx[0].tx_consumer != tnapi->tx_cons ||
+
+	/* check for TX work to do */
+	if (sblk->idx[0].tx_consumer != tnapi->tx_cons)
+		work_exists = 1;
+
+	/* check for RX work to do */
+	if (tnapi->rx_rcb_prod_idx &&
 	    *(tnapi->rx_rcb_prod_idx) != tnapi->rx_rcb_ptr)
 		work_exists = 1;
 
@@ -5216,6 +5221,9 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 			return work_done;
 	}
 
+	if (!tnapi->rx_rcb_prod_idx)
+		return work_done;
+
 	/* run RX thread, within the bounds set by NAPI.
 	 * All RX "locking" is done by ensuring outside
 	 * code synchronizes with tg3->napi.poll()
@@ -6626,6 +6634,12 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		 */
 		switch (i) {
 		default:
+			if (tg3_flag(tp, ENABLE_RSS)) {
+				tnapi->rx_rcb_prod_idx = NULL;
+				break;
+			}
+			/* Fall through */
+		case 1:
 			tnapi->rx_rcb_prod_idx = &sblk->idx[0].rx_producer;
 			break;
 		case 2:
@@ -15278,7 +15292,7 @@ static void __devexit tg3_remove_one(struct pci_dev *pdev)
 
 		cancel_work_sync(&tp->reset_task);
 
-		if (!tg3_flag(tp, USE_PHYLIB)) {
+		if (tg3_flag(tp, USE_PHYLIB)) {
 			tg3_phy_fini(tp);
 			tg3_mdio_fini(tp);
 		}

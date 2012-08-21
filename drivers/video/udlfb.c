@@ -1666,7 +1666,7 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
 		device_remove_file(info->dev, &fb_device_attrs[i]);
 	device_remove_bin_file(info->dev, &edid_attr);
-
+	unlink_framebuffer(info);
 	usb_set_intfdata(interface, NULL);
 
 	/* if clients still have us open, will be freed on last close */

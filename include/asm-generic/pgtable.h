@@ -425,6 +425,8 @@ extern void untrack_pfn_vma(struct vm_area_struct *vma, unsigned long pfn,
 				unsigned long size);
 #endif
 
+#ifdef CONFIG_MMU
+
 #ifndef CONFIG_TRANSPARENT_HUGEPAGE
 static inline int pmd_trans_huge(pmd_t pmd)
 {
@@ -441,7 +443,84 @@ static inline int pmd_write(pmd_t pmd)
 	return 0;
 }
 #endif /* __HAVE_ARCH_PMD_WRITE */
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+#ifndef pmd_read_atomic
+static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
+{
+	/*
+	 * Depend on compiler for an atomic pmd read. NOTE: this is
+	 * only going to work, if the pmdval_t isn't larger than
+	 * an unsigned long.
+	 */
+	return *pmdp;
+}
 #endif
+
+/*
+ * This function is meant to be used by sites walking pagetables with
+ * the mmap_sem hold in read mode to protect against MADV_DONTNEED and
+ * transhuge page faults. MADV_DONTNEED can convert a transhuge pmd
+ * into a null pmd and the transhuge page fault can convert a null pmd
+ * into an hugepmd or into a regular pmd (if the hugepage allocation
+ * fails). While holding the mmap_sem in read mode the pmd becomes
+ * stable and stops changing under us only if it's not null and not a
+ * transhuge pmd. When those races occurs and this function makes a
+ * difference vs the standard pmd_none_or_clear_bad, the result is
+ * undefined so behaving like if the pmd was none is safe (because it
+ * can return none anyway). The compiler level barrier() is critically
+ * important to compute the two checks atomically on the same pmdval.
+ *
+ * For 32bit kernels with a 64bit large pmd_t this automatically takes
+ * care of reading the pmd atomically to avoid SMP race conditions
+ * against pmd_populate() when the mmap_sem is hold for reading by the
+ * caller (a special atomic read not done by "gcc" as in the generic
+ * version above, is also needed when THP is disabled because the page
+ * fault can populate the pmd from under us).
+ */
+static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
+{
+	pmd_t pmdval = pmd_read_atomic(pmd);
+	/*
+	 * The barrier will stabilize the pmdval in a register or on
+	 * the stack so that it will stop changing under the code.
+	 */
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	barrier();
+#endif
+	if (pmd_none(pmdval))
+		return 1;
+	if (unlikely(pmd_bad(pmdval))) {
+		if (!pmd_trans_huge(pmdval))
+			pmd_clear_bad(pmd);
+		return 1;
+	}
+	return 0;
+}
+
+/*
+ * This is a noop if Transparent Hugepage Support is not built into
+ * the kernel. Otherwise it is equivalent to
+ * pmd_none_or_trans_huge_or_clear_bad(), and shall only be called in
+ * places that already verified the pmd is not none and they want to
+ * walk ptes while holding the mmap sem in read mode (write mode don't
+ * need this). If THP is not enabled, the pmd can't go away under the
+ * code even if MADV_DONTNEED runs, but if THP is enabled we need to
+ * run a pmd_trans_unstable before walking the ptes after
+ * split_huge_page_pmd returns (because it may have run when the pmd
+ * become null, but then a page fault can map in a THP and not a
+ * regular page).
+ */
+static inline int pmd_trans_unstable(pmd_t *pmd)
+{
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	return pmd_none_or_trans_huge_or_clear_bad(pmd);
+#else
+	return 0;
+#endif
+}
+
+#endif /* CONFIG_MMU */
 
 #endif /* !__ASSEMBLY__ */
 

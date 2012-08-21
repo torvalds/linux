@@ -252,11 +252,13 @@ struct workqueue_struct *system_long_wq __read_mostly;
 struct workqueue_struct *system_nrt_wq __read_mostly;
 struct workqueue_struct *system_unbound_wq __read_mostly;
 struct workqueue_struct *system_freezable_wq __read_mostly;
+struct workqueue_struct *system_nrt_freezable_wq __read_mostly;
 EXPORT_SYMBOL_GPL(system_wq);
 EXPORT_SYMBOL_GPL(system_long_wq);
 EXPORT_SYMBOL_GPL(system_nrt_wq);
 EXPORT_SYMBOL_GPL(system_unbound_wq);
 EXPORT_SYMBOL_GPL(system_freezable_wq);
+EXPORT_SYMBOL_GPL(system_nrt_freezable_wq);
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/workqueue.h>
@@ -1212,8 +1214,13 @@ static void worker_enter_idle(struct worker *worker)
 	} else
 		wake_up_all(&gcwq->trustee_wait);
 
-	/* sanity check nr_running */
-	WARN_ON_ONCE(gcwq->nr_workers == gcwq->nr_idle &&
+	/*
+	 * Sanity check nr_running.  Because trustee releases gcwq->lock
+	 * between setting %WORKER_ROGUE and zapping nr_running, the
+	 * warning may trigger spuriously.  Check iff trustee is idle.
+	 */
+	WARN_ON_ONCE(gcwq->trustee_state == TRUSTEE_DONE &&
+		     gcwq->nr_workers == gcwq->nr_idle &&
 		     atomic_read(get_gcwq_nr_running(gcwq->cpu)));
 }
 
@@ -3554,6 +3561,41 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	return notifier_from_errno(0);
 }
 
+/*
+ * Workqueues should be brought up before normal priority CPU notifiers.
+ * This will be registered high priority CPU notifier.
+ */
+static int __devinit workqueue_cpu_up_callback(struct notifier_block *nfb,
+					       unsigned long action,
+					       void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_UP_PREPARE:
+	case CPU_UP_CANCELED:
+	case CPU_DOWN_FAILED:
+	case CPU_ONLINE:
+		return workqueue_cpu_callback(nfb, action, hcpu);
+	}
+	return NOTIFY_OK;
+}
+
+/*
+ * Workqueues should be brought down after normal priority CPU notifiers.
+ * This will be registered as low priority CPU notifier.
+ */
+static int __devinit workqueue_cpu_down_callback(struct notifier_block *nfb,
+						 unsigned long action,
+						 void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+	case CPU_DYING:
+	case CPU_POST_DEAD:
+		return workqueue_cpu_callback(nfb, action, hcpu);
+	}
+	return NOTIFY_OK;
+}
+
 #ifdef CONFIG_SMP
 
 struct work_for_cpu {
@@ -3747,7 +3789,8 @@ static int __init init_workqueues(void)
 	unsigned int cpu;
 	int i;
 
-	cpu_notifier(workqueue_cpu_callback, CPU_PRI_WORKQUEUE);
+	cpu_notifier(workqueue_cpu_up_callback, CPU_PRI_WORKQUEUE_UP);
+	cpu_notifier(workqueue_cpu_down_callback, CPU_PRI_WORKQUEUE_DOWN);
 
 	/* initialize gcwqs */
 	for_each_gcwq_cpu(cpu) {
@@ -3796,8 +3839,11 @@ static int __init init_workqueues(void)
 					    WQ_UNBOUND_MAX_ACTIVE);
 	system_freezable_wq = alloc_workqueue("events_freezable",
 					      WQ_FREEZABLE, 0);
+	system_nrt_freezable_wq = alloc_workqueue("events_nrt_freezable",
+			WQ_NON_REENTRANT | WQ_FREEZABLE, 0);
 	BUG_ON(!system_wq || !system_long_wq || !system_nrt_wq ||
-	       !system_unbound_wq || !system_freezable_wq);
+	       !system_unbound_wq || !system_freezable_wq ||
+		!system_nrt_freezable_wq);
 	return 0;
 }
 early_initcall(init_workqueues);

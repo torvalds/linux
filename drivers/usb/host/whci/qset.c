@@ -124,7 +124,7 @@ void qset_clear(struct whc *whc, struct whc_qset *qset)
 {
 	qset->td_start = qset->td_end = qset->ntds = 0;
 
-	qset->qh.link = cpu_to_le32(QH_LINK_NTDS(8) | QH_LINK_T);
+	qset->qh.link = cpu_to_le64(QH_LINK_NTDS(8) | QH_LINK_T);
 	qset->qh.status = qset->qh.status & QH_STATUS_SEQ_MASK;
 	qset->qh.err_count = 0;
 	qset->qh.scratch[0] = 0;
@@ -443,7 +443,7 @@ static int qset_add_urb_sg(struct whc *whc, struct whc_qset *qset, struct urb *u
 
 	remaining = urb->transfer_buffer_length;
 
-	for_each_sg(urb->sg, sg, urb->num_sgs, i) {
+	for_each_sg(urb->sg, sg, urb->num_mapped_sgs, i) {
 		dma_addr_t dma_addr;
 		size_t dma_remaining;
 		dma_addr_t sp, ep;
@@ -561,7 +561,7 @@ static int qset_add_urb_sg_linearize(struct whc *whc, struct whc_qset *qset,
 
 	remaining = urb->transfer_buffer_length;
 
-	for_each_sg(urb->sg, sg, urb->num_sgs, i) {
+	for_each_sg(urb->sg, sg, urb->num_mapped_sgs, i) {
 		size_t len;
 		size_t sg_remaining;
 		void *orig;

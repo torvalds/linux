@@ -76,7 +76,7 @@ static void __iomem *__acpi_ioremap_fast(phys_addr_t paddr,
 {
 	struct acpi_iomap *map;
 
-	map = __acpi_find_iomap(paddr, size);
+	map = __acpi_find_iomap(paddr, size/8);
 	if (map)
 		return map->vaddr + (paddr - map->paddr);
 	else

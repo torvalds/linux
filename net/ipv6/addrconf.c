@@ -433,6 +433,10 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	/* Join all-node multicast group */
 	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
 
+	/* Join all-router multicast group if forwarding is set */
+	if (ndev->cnf.forwarding && dev && (dev->flags & IFF_MULTICAST))
+		ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
+
 	return ndev;
 }
 
@@ -656,7 +660,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	 * layer address of our nexhop router
 	 */
 
-	if (rt->rt6i_nexthop == NULL)
+	if (dst_get_neighbour_raw(&rt->dst) == NULL)
 		ifa->flags &= ~IFA_F_OPTIMISTIC;
 
 	ifa->idev = idev;

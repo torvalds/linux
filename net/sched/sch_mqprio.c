@@ -106,7 +106,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!netif_is_multiqueue(dev))
 		return -EOPNOTSUPP;
 
-	if (nla_len(opt) < sizeof(*qopt))
+	if (!opt || nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 
 	qopt = nla_data(opt);

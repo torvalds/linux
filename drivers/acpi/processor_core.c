@@ -172,8 +172,30 @@ int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 	apic_id = map_mat_entry(handle, type, acpi_id);
 	if (apic_id == -1)
 		apic_id = map_madt_entry(type, acpi_id);
-	if (apic_id == -1)
-		return apic_id;
+	if (apic_id == -1) {
+		/*
+		 * On UP processor, there is no _MAT or MADT table.
+		 * So above apic_id is always set to -1.
+		 *
+		 * BIOS may define multiple CPU handles even for UP processor.
+		 * For example,
+		 *
+		 * Scope (_PR)
+                 * {
+		 *     Processor (CPU0, 0x00, 0x00000410, 0x06) {}
+		 *     Processor (CPU1, 0x01, 0x00000410, 0x06) {}
+		 *     Processor (CPU2, 0x02, 0x00000410, 0x06) {}
+		 *     Processor (CPU3, 0x03, 0x00000410, 0x06) {}
+		 * }
+		 *
+		 * Ignores apic_id and always return 0 for CPU0's handle.
+		 * Return -1 for other CPU's handle.
+		 */
+		if (acpi_id == 0)
+			return acpi_id;
+		else
+			return apic_id;
+	}
 
 #ifdef CONFIG_SMP
 	for_each_possible_cpu(i) {

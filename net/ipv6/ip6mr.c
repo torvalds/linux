@@ -696,8 +696,10 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb,
 	int err;
 
 	err = ip6mr_fib_lookup(net, &fl6, &mrt);
-	if (err < 0)
+	if (err < 0) {
+		kfree_skb(skb);
 		return err;
+	}
 
 	read_lock(&mrt_lock);
 	dev->stats.tx_bytes += skb->len;
@@ -2051,8 +2053,10 @@ int ip6_mr_input(struct sk_buff *skb)
 	int err;
 
 	err = ip6mr_fib_lookup(net, &fl6, &mrt);
-	if (err < 0)
+	if (err < 0) {
+		kfree_skb(skb);
 		return err;
+	}
 
 	read_lock(&mrt_lock);
 	cache = ip6mr_cache_find(mrt,

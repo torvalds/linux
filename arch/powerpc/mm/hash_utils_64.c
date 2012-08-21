@@ -534,11 +534,11 @@ static unsigned long __init htab_get_table_size(void)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-void create_section_mapping(unsigned long start, unsigned long end)
+int create_section_mapping(unsigned long start, unsigned long end)
 {
-	BUG_ON(htab_bolt_mapping(start, end, __pa(start),
+	return htab_bolt_mapping(start, end, __pa(start),
 				 pgprot_val(PAGE_KERNEL), mmu_linear_psize,
-				 mmu_kernel_ssize));
+				 mmu_kernel_ssize);
 }
 
 int remove_section_mapping(unsigned long start, unsigned long end)

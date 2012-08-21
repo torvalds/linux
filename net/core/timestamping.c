@@ -57,9 +57,13 @@ void skb_clone_tx_timestamp(struct sk_buff *skb)
 	case PTP_CLASS_V2_VLAN:
 		phydev = skb->dev->phydev;
 		if (likely(phydev->drv->txtstamp)) {
-			clone = skb_clone(skb, GFP_ATOMIC);
-			if (!clone)
+			if (!atomic_inc_not_zero(&sk->sk_refcnt))
 				return;
+			clone = skb_clone(skb, GFP_ATOMIC);
+			if (!clone) {
+				sock_put(sk);
+				return;
+			}
 			clone->sk = sk;
 			phydev->drv->txtstamp(phydev, clone, type);
 		}
@@ -76,8 +80,11 @@ void skb_complete_tx_timestamp(struct sk_buff *skb,
 	struct sock_exterr_skb *serr;
 	int err;
 
-	if (!hwtstamps)
+	if (!hwtstamps) {
+		sock_put(sk);
+		kfree_skb(skb);
 		return;
+	}
 
 	*skb_hwtstamps(skb) = *hwtstamps;
 	serr = SKB_EXT_ERR(skb);
@@ -86,6 +93,7 @@ void skb_complete_tx_timestamp(struct sk_buff *skb,
 	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
 	skb->sk = NULL;
 	err = sock_queue_err_skb(sk, skb);
+	sock_put(sk);
 	if (err)
 		kfree_skb(skb);
 }

@@ -88,7 +88,7 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 	struct xdr_netobj cksum;
 	struct hash_desc desc;
 	struct scatterlist sg;
-	__be32 status = nfserr_resource;
+	__be32 status = nfserr_jukebox;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
 			clname->len, clname->data);

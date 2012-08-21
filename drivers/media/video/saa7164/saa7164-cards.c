@@ -203,6 +203,66 @@ struct saa7164_board saa7164_boards[] = {
 			.i2c_reg_len	= REGLEN_8bit,
 		} },
 	},
+	[SAA7164_BOARD_HAUPPAUGE_HVR2200_4] = {
+		.name		= "Hauppauge WinTV-HVR2200",
+		.porta		= SAA7164_MPEG_DVB,
+		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
+		.chiprev	= SAA7164_CHIP_REV3,
+		.unit		= {{
+			.id		= 0x1d,
+			.type		= SAA7164_UNIT_EEPROM,
+			.name		= "4K EEPROM",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_0,
+			.i2c_bus_addr	= 0xa0 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x04,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "TDA18271-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_1,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x05,
+			.type		= SAA7164_UNIT_ANALOG_DEMODULATOR,
+			.name		= "TDA8290-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_1,
+			.i2c_bus_addr	= 0x84 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x1b,
+			.type		= SAA7164_UNIT_TUNER,
+			.name		= "TDA18271-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0xc0 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x1c,
+			.type		= SAA7164_UNIT_ANALOG_DEMODULATOR,
+			.name		= "TDA8290-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0x84 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x1e,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "TDA10048-1",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_1,
+			.i2c_bus_addr	= 0x10 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		}, {
+			.id		= 0x1f,
+			.type		= SAA7164_UNIT_DIGITAL_DEMODULATOR,
+			.name		= "TDA10048-2",
+			.i2c_bus_nr	= SAA7164_I2C_BUS_2,
+			.i2c_bus_addr	= 0x12 >> 1,
+			.i2c_reg_len	= REGLEN_8bit,
+		} },
+	},
 	[SAA7164_BOARD_HAUPPAUGE_HVR2250] = {
 		.name		= "Hauppauge WinTV-HVR2250",
 		.porta		= SAA7164_MPEG_DVB,
@@ -426,6 +486,10 @@ struct saa7164_subid saa7164_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x8851,
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2250_2,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x8940,
+		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2200_4,
 	},
 };
 const unsigned int saa7164_idcount = ARRAY_SIZE(saa7164_subids);
@@ -469,6 +533,7 @@ void saa7164_gpio_setup(struct saa7164_dev *dev)
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_3:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2200_4:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_3:
@@ -549,6 +614,7 @@ void saa7164_card_setup(struct saa7164_dev *dev)
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_3:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2200_4:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_3:

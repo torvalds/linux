@@ -603,6 +603,9 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_3M,
 		HID_USB_DEVICE(USB_VENDOR_ID_3M,
 			USB_DEVICE_ID_3M2256) },
+	{ .driver_data = MT_CLS_3M,
+		HID_USB_DEVICE(USB_VENDOR_ID_3M,
+			USB_DEVICE_ID_3M3266) },
 
 	/* ActionStar panels */
 	{ .driver_data = MT_CLS_DEFAULT,
@@ -639,23 +642,32 @@ static const struct hid_device_id mt_devices[] = {
 			USB_DEVICE_ID_CYPRESS_TRUETOUCH) },
 
 	/* eGalax devices (resistive) */
-	{  .driver_data = MT_CLS_EGALAX,
+	{ .driver_data = MT_CLS_EGALAX,
 		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH) },
-	{  .driver_data = MT_CLS_EGALAX,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_480D) },
+	{ .driver_data = MT_CLS_EGALAX,
 		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH3) },
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_480E) },
 
 	/* eGalax devices (capacitive) */
-	{  .driver_data = MT_CLS_EGALAX,
+	{ .driver_data = MT_CLS_EGALAX,
 		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH1) },
-	{  .driver_data = MT_CLS_EGALAX,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_720C) },
+	{ .driver_data = MT_CLS_EGALAX,
 		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH2) },
-	{  .driver_data = MT_CLS_EGALAX,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_726B) },
+	{ .driver_data = MT_CLS_EGALAX,
 		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
-			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH4) },
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_72A1) },
+	{ .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_72FA) },
+	{ .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_7302) },
+	{ .driver_data = MT_CLS_EGALAX,
+		HID_USB_DEVICE(USB_VENDOR_ID_DWAV,
+			USB_DEVICE_ID_DWAV_EGALAX_MULTITOUCH_A001) },
 
 	/* Elo TouchSystems IntelliTouch Plus panel */
 	{ .driver_data = MT_CLS_DUAL_NSMU_CONTACTID,
@@ -681,6 +693,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_DUAL_INRANGE_CONTACTID,
 		HID_USB_DEVICE(USB_VENDOR_ID_IRTOUCHSYSTEMS,
 			USB_DEVICE_ID_IRTOUCH_INFRARED_USB) },
+
+	/* LG Display panels */
+	{ .driver_data = MT_CLS_DEFAULT,
+		HID_USB_DEVICE(USB_VENDOR_ID_LG,
+			USB_DEVICE_ID_LG_MULTITOUCH) },
 
 	/* Lumio panels */
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,

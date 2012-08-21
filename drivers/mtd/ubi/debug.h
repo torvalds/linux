@@ -51,7 +51,10 @@ struct ubi_mkvol_req;
 	pr_debug("UBI DBG " type ": " fmt "\n", ##__VA_ARGS__)
 
 /* Just a debugging messages not related to any specific UBI subsystem */
-#define dbg_msg(fmt, ...) ubi_dbg_msg("msg", fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)                                    \
+	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
+	       current->pid, __func__, ##__VA_ARGS__)
+
 /* General debugging messages */
 #define dbg_gen(fmt, ...) ubi_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Messages from the eraseblock association sub-system */

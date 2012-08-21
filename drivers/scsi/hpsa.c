@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -1653,30 +1654,26 @@ static void figure_bus_target_lun(struct ctlr_info *h,
 
 	if (is_logical_dev_addr_mode(lunaddrbytes)) {
 		/* logical device */
-		if (unlikely(is_scsi_rev_5(h))) {
-			/* p1210m, logical drives lun assignments
-			 * match SCSI REPORT LUNS data.
+		lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
+		if (is_msa2xxx(h, device)) {
+			/* msa2xxx way, put logicals on bus 1
+			 * and match target/lun numbers box
+			 * reports.
 			 */
-			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
-			*bus = 0;
-			*target = 0;
-			*lun = (lunid & 0x3fff) + 1;
+			*bus = 1;
+			*target = (lunid >> 16) & 0x3fff;
+			*lun = lunid & 0x00ff;
 		} else {
-			/* not p1210m... */
-			lunid = le32_to_cpu(*((__le32 *) lunaddrbytes));
-			if (is_msa2xxx(h, device)) {
-				/* msa2xxx way, put logicals on bus 1
-				 * and match target/lun numbers box
-				 * reports.
-				 */
-				*bus = 1;
-				*target = (lunid >> 16) & 0x3fff;
-				*lun = lunid & 0x00ff;
-			} else {
-				/* Traditional smart array way. */
+			if (likely(is_scsi_rev_5(h))) {
+				/* All current smart arrays (circa 2011) */
 				*bus = 0;
-				*lun = 0;
+				*target = 0;
+				*lun = (lunid & 0x3fff) + 1;
+			} else {
+				/* Traditional old smart array way. */
+				*bus = 0;
 				*target = lunid & 0x3fff;
+				*lun = 0;
 			}
 		}
 	} else {
@@ -3300,6 +3297,13 @@ static int hpsa_controller_hard_reset(struct pci_dev *pdev,
 		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
 		pmcsr |= PCI_D0;
 		pci_write_config_word(pdev, pos + PCI_PM_CTRL, pmcsr);
+
+		/*
+		 * The P600 requires a small delay when changing states.
+		 * Otherwise we may think the board did not reset and we bail.
+		 * This for kdump only and is particular to the P600.
+		 */
+		msleep(500);
 	}
 	return 0;
 }
@@ -3880,6 +3884,10 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
 		return -ENODEV;
 	}
+
+	pci_disable_link_state(h->pdev, PCIE_LINK_STATE_L0S |
+			       PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
+
 	err = pci_enable_device(h->pdev);
 	if (err) {
 		dev_warn(&h->pdev->dev, "unable to enable PCI device\n");
@@ -4025,10 +4033,10 @@ static int hpsa_request_irq(struct ctlr_info *h,
 
 	if (h->msix_vector || h->msi_vector)
 		rc = request_irq(h->intr[h->intr_mode], msixhandler,
-				IRQF_DISABLED, h->devname, h);
+				0, h->devname, h);
 	else
 		rc = request_irq(h->intr[h->intr_mode], intxhandler,
-				IRQF_DISABLED, h->devname, h);
+				IRQF_SHARED, h->devname, h);
 	if (rc) {
 		dev_err(&h->pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[h->intr_mode], h->devname);

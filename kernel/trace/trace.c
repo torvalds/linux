@@ -2432,10 +2432,12 @@ tracing_cpumask_write(struct file *filp, const char __user *ubuf,
 		if (cpumask_test_cpu(cpu, tracing_cpumask) &&
 				!cpumask_test_cpu(cpu, tracing_cpumask_new)) {
 			atomic_inc(&global_trace.data[cpu]->disabled);
+			ring_buffer_record_disable_cpu(global_trace.buffer, cpu);
 		}
 		if (!cpumask_test_cpu(cpu, tracing_cpumask) &&
 				cpumask_test_cpu(cpu, tracing_cpumask_new)) {
 			atomic_dec(&global_trace.data[cpu]->disabled);
+			ring_buffer_record_enable_cpu(global_trace.buffer, cpu);
 		}
 	}
 	arch_spin_unlock(&ftrace_max_lock);
@@ -3704,8 +3706,6 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	if (info->read < PAGE_SIZE)
 		goto read;
 
-	info->read = 0;
-
 	trace_access_lock(info->cpu);
 	ret = ring_buffer_read_page(info->tr->buffer,
 				    &info->spare,
@@ -3714,6 +3714,8 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	trace_access_unlock(info->cpu);
 	if (ret < 0)
 		return 0;
+
+	info->read = 0;
 
 read:
 	size = PAGE_SIZE - info->read;

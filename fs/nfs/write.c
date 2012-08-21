@@ -428,7 +428,6 @@ static void
 nfs_mark_request_dirty(struct nfs_page *req)
 {
 	__set_page_dirty_nobuffers(req->wb_page);
-	__mark_inode_dirty(req->wb_page->mapping->host, I_DIRTY_DATASYNC);
 }
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
@@ -762,6 +761,8 @@ int nfs_updatepage(struct file *file, struct page *page,
 	status = nfs_writepage_setup(ctx, page, offset, count);
 	if (status < 0)
 		nfs_set_pageerror(page);
+	else
+		__set_page_dirty_nobuffers(page);
 
 	dprintk("NFS:       nfs_updatepage returns %d (isize %lld)\n",
 			status, (long long)i_size_read(inode));
@@ -1525,6 +1526,10 @@ static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_contr
 	int flags = FLUSH_SYNC;
 	int ret = 0;
 
+	/* no commits means nothing needs to be done */
+	if (!nfsi->ncommit)
+		return ret;
+
 	if (wbc->sync_mode == WB_SYNC_NONE) {
 		/* Don't commit yet if this is a non-blocking flush and there
 		 * are a lot of outstanding writes for this mapping.
@@ -1657,36 +1662,22 @@ out_error:
 
 #ifdef CONFIG_MIGRATION
 int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
-		struct page *page)
+		struct page *page, enum migrate_mode mode)
 {
-	struct nfs_page *req;
-	int ret;
+	/*
+	 * If PagePrivate is set, then the page is currently associated with
+	 * an in-progress read or write request. Don't try to migrate it.
+	 *
+	 * FIXME: we could do this in principle, but we'll need a way to ensure
+	 *        that we can safely release the inode reference while holding
+	 *        the page lock.
+	 */
+	if (PagePrivate(page))
+		return -EBUSY;
 
 	nfs_fscache_release_page(page, GFP_KERNEL);
 
-	req = nfs_find_and_lock_request(page, false);
-	ret = PTR_ERR(req);
-	if (IS_ERR(req))
-		goto out;
-
-	ret = migrate_page(mapping, newpage, page);
-	if (!req)
-		goto out;
-	if (ret)
-		goto out_unlock;
-	page_cache_get(newpage);
-	spin_lock(&mapping->host->i_lock);
-	req->wb_page = newpage;
-	SetPagePrivate(newpage);
-	set_page_private(newpage, (unsigned long)req);
-	ClearPagePrivate(page);
-	set_page_private(page, 0);
-	spin_unlock(&mapping->host->i_lock);
-	page_cache_release(page);
-out_unlock:
-	nfs_clear_page_tag_locked(req);
-out:
-	return ret;
+	return migrate_page(mapping, newpage, page, mode);
 }
 #endif
 

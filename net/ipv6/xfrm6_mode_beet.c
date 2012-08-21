@@ -80,7 +80,6 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *ip6h;
-	const unsigned char *old_mac;
 	int size = sizeof(struct ipv6hdr);
 	int err;
 
@@ -90,10 +89,7 @@ static int xfrm6_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	__skb_push(skb, size);
 	skb_reset_network_header(skb);
-
-	old_mac = skb_mac_header(skb);
-	skb_set_mac_header(skb, -skb->mac_len);
-	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
+	skb_mac_header_rebuild(skb);
 
 	xfrm6_beet_make_header(skb);
 

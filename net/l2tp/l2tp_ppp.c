@@ -908,7 +908,7 @@ static int pppol2tp_getname(struct socket *sock, struct sockaddr *uaddr,
 		goto end_put_sess;
 	}
 
-	inet = inet_sk(sk);
+	inet = inet_sk(tunnel->sock);
 	if (tunnel->version == 2) {
 		struct sockaddr_pppol2tp sp;
 		len = sizeof(sp);

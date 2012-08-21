@@ -2742,9 +2742,14 @@ static int qeth_l3_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 {
 	int cast_type = RTN_UNSPEC;
+	struct neighbour *n = NULL;
+	struct dst_entry *dst;
 
-	if (skb_dst(skb) && skb_dst(skb)->neighbour) {
-		cast_type = skb_dst(skb)->neighbour->type;
+	dst = skb_dst(skb);
+	if (dst)
+		n = dst_get_neighbour(dst);
+	if (n) {
+		cast_type = n->type;
 		if ((cast_type == RTN_BROADCAST) ||
 		    (cast_type == RTN_MULTICAST) ||
 		    (cast_type == RTN_ANYCAST))
@@ -2787,6 +2792,9 @@ int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		struct sk_buff *skb, int ipv, int cast_type)
 {
+	struct neighbour *n = NULL;
+	struct dst_entry *dst;
+
 	memset(hdr, 0, sizeof(struct qeth_hdr));
 	hdr->hdr.l3.id = QETH_HEADER_TYPE_LAYER3;
 	hdr->hdr.l3.ext_flags = 0;
@@ -2804,13 +2812,16 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	}
 
 	hdr->hdr.l3.length = skb->len - sizeof(struct qeth_hdr);
+	dst = skb_dst(skb);
+	if (dst)
+		n = dst_get_neighbour(dst);
 	if (ipv == 4) {
 		/* IPv4 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags4(cast_type);
 		memset(hdr->hdr.l3.dest_addr, 0, 12);
-		if ((skb_dst(skb)) && (skb_dst(skb)->neighbour)) {
+		if (n) {
 			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
-			    *((u32 *) skb_dst(skb)->neighbour->primary_key);
+			    *((u32 *) n->primary_key);
 		} else {
 			/* fill in destination address used in ip header */
 			*((u32 *) (&hdr->hdr.l3.dest_addr[12])) =
@@ -2821,9 +2832,9 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags6(cast_type);
 		if (card->info.type == QETH_CARD_TYPE_IQD)
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
-		if ((skb_dst(skb)) && (skb_dst(skb)->neighbour)) {
+		if (n) {
 			memcpy(hdr->hdr.l3.dest_addr,
-			       skb_dst(skb)->neighbour->primary_key, 16);
+			       n->primary_key, 16);
 		} else {
 			/* fill in destination address used in ip header */
 			memcpy(hdr->hdr.l3.dest_addr,

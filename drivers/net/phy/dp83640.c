@@ -875,12 +875,19 @@ static void dp83640_remove(struct phy_device *phydev)
 	struct dp83640_clock *clock;
 	struct list_head *this, *next;
 	struct dp83640_private *tmp, *dp83640 = phydev->priv;
+	struct sk_buff *skb;
 
 	if (phydev->addr == BROADCAST_ADDR)
 		return;
 
 	enable_status_frames(phydev, false);
 	cancel_work_sync(&dp83640->ts_work);
+
+	while ((skb = skb_dequeue(&dp83640->rx_queue)) != NULL)
+		kfree_skb(skb);
+
+	while ((skb = skb_dequeue(&dp83640->tx_queue)) != NULL)
+		skb_complete_tx_timestamp(skb, NULL);
 
 	clock = dp83640_clock_get(dp83640->clock);
 
@@ -1060,7 +1067,7 @@ static void dp83640_txtstamp(struct phy_device *phydev,
 	struct dp83640_private *dp83640 = phydev->priv;
 
 	if (!dp83640->hwts_tx_en) {
-		kfree_skb(skb);
+		skb_complete_tx_timestamp(skb, NULL);
 		return;
 	}
 	skb_queue_tail(&dp83640->tx_queue, skb);

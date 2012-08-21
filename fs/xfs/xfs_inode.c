@@ -1528,15 +1528,7 @@ xfs_itruncate_finish(
 				xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
 			}
 		}
-	} else if (sync) {
-		ASSERT(!(mp->m_flags & XFS_MOUNT_WSYNC));
-		if (ip->i_d.di_anextents > 0)
-			xfs_trans_set_sync(ntp);
 	}
-	ASSERT(fork == XFS_DATA_FORK ||
-		(fork == XFS_ATTR_FORK &&
-			((sync && !(mp->m_flags & XFS_MOUNT_WSYNC)) ||
-			 (sync == 0 && (mp->m_flags & XFS_MOUNT_WSYNC)))));
 
 	/*
 	 * Since it is possible for space to become allocated beyond
@@ -3097,6 +3089,27 @@ xfs_iflush_int(
 
 corrupt_out:
 	return XFS_ERROR(EFSCORRUPTED);
+}
+
+void
+xfs_promote_inode(
+	struct xfs_inode	*ip)
+{
+	struct xfs_buf		*bp;
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
+
+	bp = xfs_incore(ip->i_mount->m_ddev_targp, ip->i_imap.im_blkno,
+			ip->i_imap.im_len, XBF_TRYLOCK);
+	if (!bp)
+		return;
+
+	if (XFS_BUF_ISDELAYWRITE(bp)) {
+		xfs_buf_delwri_promote(bp);
+		wake_up_process(ip->i_mount->m_ddev_targp->bt_task);
+	}
+
+	xfs_buf_relse(bp);
 }
 
 /*
