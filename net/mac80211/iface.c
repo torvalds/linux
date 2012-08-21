@@ -278,13 +278,15 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
 	int n_queues = sdata->local->hw.queues;
 	int i;
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		if (WARN_ON_ONCE(sdata->vif.hw_queue[i] ==
-				 IEEE80211_INVAL_HW_QUEUE))
-			return -EINVAL;
-		if (WARN_ON_ONCE(sdata->vif.hw_queue[i] >=
-				 n_queues))
-			return -EINVAL;
+	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE) {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+			if (WARN_ON_ONCE(sdata->vif.hw_queue[i] ==
+					 IEEE80211_INVAL_HW_QUEUE))
+				return -EINVAL;
+			if (WARN_ON_ONCE(sdata->vif.hw_queue[i] >=
+					 n_queues))
+				return -EINVAL;
+		}
 	}
 
 	if ((sdata->vif.type != NL80211_IFTYPE_AP) ||
