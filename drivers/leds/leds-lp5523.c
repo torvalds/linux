@@ -150,7 +150,7 @@ static inline struct lp5523_chip *led_to_lp5523(struct lp5523_led *led)
 			    leds[led->id]);
 }
 
-static int lp5523_set_mode(struct lp5523_engine *engine, u8 mode);
+static void lp5523_set_mode(struct lp5523_engine *engine, u8 mode);
 static int lp5523_set_engine_mode(struct lp5523_engine *engine, u8 mode);
 static int lp5523_load_program(struct lp5523_engine *engine, const u8 *pattern);
 
@@ -789,26 +789,28 @@ static void lp5523_unregister_sysfs(struct i2c_client *client)
 /*--------------------------------------------------------------*/
 /*			Set chip operating mode			*/
 /*--------------------------------------------------------------*/
-static int lp5523_set_mode(struct lp5523_engine *engine, u8 mode)
+static void lp5523_set_mode(struct lp5523_engine *engine, u8 mode)
 {
-	int ret = 0;
-
 	/* if in that mode already do nothing, except for run */
 	if (mode == engine->mode && mode != LP5523_CMD_RUN)
-		return 0;
+		return;
 
-	if (mode == LP5523_CMD_RUN) {
-		ret = lp5523_run_program(engine);
-	} else if (mode == LP5523_CMD_LOAD) {
+	switch (mode) {
+	case LP5523_CMD_RUN:
+		lp5523_run_program(engine);
+		break;
+	case LP5523_CMD_LOAD:
 		lp5523_set_engine_mode(engine, LP5523_CMD_DISABLED);
 		lp5523_set_engine_mode(engine, LP5523_CMD_LOAD);
-	} else if (mode == LP5523_CMD_DISABLED) {
+		break;
+	case LP5523_CMD_DISABLED:
 		lp5523_set_engine_mode(engine, LP5523_CMD_DISABLED);
+		break;
+	default:
+		return;
 	}
 
 	engine->mode = mode;
-
-	return ret;
 }
 
 /*--------------------------------------------------------------*/
