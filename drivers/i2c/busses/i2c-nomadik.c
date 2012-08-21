@@ -22,7 +22,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_data/i2c-nomadik.h>
 
@@ -146,7 +145,6 @@ struct i2c_nmk_client {
  * @stop: stop condition.
  * @xfer_complete: acknowledge completion for a I2C message.
  * @result: controller propogated result.
- * @regulator: pointer to i2c regulator.
  * @busy: Busy doing transfer.
  */
 struct nmk_i2c_dev {
@@ -160,7 +158,6 @@ struct nmk_i2c_dev {
 	int				stop;
 	struct completion		xfer_complete;
 	int				result;
-	struct regulator		*regulator;
 	bool				busy;
 };
 
@@ -643,8 +640,6 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	dev->busy = true;
 
-	if (dev->regulator)
-		regulator_enable(dev->regulator);
 	pm_runtime_get_sync(&dev->adev->dev);
 
 	clk_enable(dev->clk);
@@ -676,8 +671,6 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
 out:
 	clk_disable(dev->clk);
 	pm_runtime_put_sync(&dev->adev->dev);
-	if (dev->regulator)
-		regulator_disable(dev->regulator);
 
 	dev->busy = false;
 
@@ -957,12 +950,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_irq;
 	}
 
-	dev->regulator = regulator_get(&adev->dev, "v-i2c");
-	if (IS_ERR(dev->regulator)) {
-		dev_warn(&adev->dev, "could not get i2c regulator\n");
-		dev->regulator = NULL;
-	}
-
 	pm_suspend_ignore_children(&adev->dev, true);
 
 	dev->clk = clk_get(&adev->dev, NULL);
@@ -1009,8 +996,6 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
  err_add_adap:
 	clk_put(dev->clk);
  err_no_clk:
-	if (dev->regulator)
-		regulator_put(dev->regulator);
 	free_irq(dev->irq, dev);
  err_irq:
 	iounmap(dev->virtbase);
@@ -1038,8 +1023,6 @@ static int nmk_i2c_remove(struct amba_device *adev)
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 	clk_put(dev->clk);
-	if (dev->regulator)
-		regulator_put(dev->regulator);
 	pm_runtime_disable(&adev->dev);
 	amba_set_drvdata(adev, NULL);
 	kfree(dev);
