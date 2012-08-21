@@ -672,7 +672,6 @@ static void __reschedule_timeout(int drive, const char *message)
 
 	if (drive == current_reqD)
 		drive = current_drive;
-	__cancel_delayed_work(&fd_timeout);
 
 	if (drive < 0 || drive >= N_DRIVE) {
 		delay = 20UL * HZ;
@@ -680,7 +679,7 @@ static void __reschedule_timeout(int drive, const char *message)
 	} else
 		delay = UDP->timeout;
 
-	queue_delayed_work(floppy_wq, &fd_timeout, delay);
+	mod_delayed_work(floppy_wq, &fd_timeout, delay);
 	if (UDP->flags & FD_DEBUG)
 		DPRINT("reschedule timeout %s\n", message);
 	timeout_message = message;
