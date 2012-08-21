@@ -1054,6 +1054,14 @@ static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
 	if (!(async || atomic))
 		return false;
 
+	/*
+	 * Fast pin a writable pfn only if it is a write fault request
+	 * or the caller allows to map a writable pfn for a read fault
+	 * request.
+	 */
+	if (!(write_fault || writable))
+		return false;
+
 	npages = __get_user_pages_fast(addr, 1, 1, page);
 	if (npages == 1) {
 		*pfn = page_to_pfn(page[0]);
@@ -1093,7 +1101,7 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 		return npages;
 
 	/* map read fault as writable if possible */
-	if (unlikely(!write_fault)) {
+	if (unlikely(!write_fault) && writable) {
 		struct page *wpage[1];
 
 		npages = __get_user_pages_fast(addr, 1, 1, wpage);
@@ -1109,6 +1117,20 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 	return npages;
 }
 
+/*
+ * Pin guest page in memory and return its pfn.
+ * @addr: host virtual address which maps memory to the guest
+ * @atomic: whether this function can sleep
+ * @async: whether this function need to wait IO complete if the
+ *         host page is not in the memory
+ * @write_fault: whether we should get a writable host page
+ * @writable: whether it allows to map a writable host page for !@write_fault
+ *
+ * The function will map a writable host page for these two cases:
+ * 1): @write_fault = true
+ * 2): @write_fault = false && @writable, @writable will tell the caller
+ *     whether the mapping is writable.
+ */
 static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 			bool write_fault, bool *writable)
 {
