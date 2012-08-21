@@ -121,6 +121,7 @@
 			compatible = "calxeda,hb-ahci";
 			reg = <0xffe08000 0x10000>;
 			interrupts = <0 83 4>;
+			dma-coherent;
 		};
 
 		sdhci@ffe0e000 {

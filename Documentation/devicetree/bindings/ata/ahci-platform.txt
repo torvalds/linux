@@ -8,6 +8,9 @@ Required properties:
 - interrupts        : <interrupt mapping for SATA IRQ>
 - reg               : <registers mapping>
 
+Optional properties:
+- dma-coherent      : Present if dma operations are coherent
+
 Example:
         sata@ffe08000 {
 		compatible = "calxeda,hb-ahci";
