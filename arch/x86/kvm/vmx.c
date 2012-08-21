@@ -3317,7 +3317,7 @@ static bool rmode_segment_valid(struct kvm_vcpu *vcpu, int seg)
 		return false;
 	if (var.limit != 0xffff)
 		return false;
-	if (ar != 0xf3)
+	if ((ar | (3 << AR_DPL_SHIFT)) != 0xf3)
 		return false;
 
 	return true;
