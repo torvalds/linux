@@ -478,10 +478,6 @@ void __init native_pagetable_init(void)
 	paging_init();
 }
 
-void __init native_pagetable_setup_done(pgd_t *base)
-{
-}
-
 /*
  * Build a proper pagetable for the kernel mappings.  Up until this
  * point, we've been running on some set of pagetables constructed by
