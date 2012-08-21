@@ -648,12 +648,10 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 
 static int octeon_mgmt_set_mac_address(struct net_device *netdev, void *addr)
 {
-	struct sockaddr *sa = addr;
+	int r = eth_mac_addr(netdev, addr);
 
-	if (!is_valid_ether_addr(sa->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(netdev->dev_addr, sa->sa_data, ETH_ALEN);
+	if (r)
+		return r;
 
 	octeon_mgmt_set_rx_filtering(netdev);
 
@@ -1545,8 +1543,12 @@ static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
 
 	mac = of_get_mac_address(pdev->dev.of_node);
 
-	if (mac)
-		memcpy(netdev->dev_addr, mac, 6);
+	if (mac && is_valid_ether_addr(mac)) {
+		memcpy(netdev->dev_addr, mac, ETH_ALEN);
+		netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
+	} else {
+		eth_hw_addr_random(netdev);
+	}
 
 	p->phy_np = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
 
