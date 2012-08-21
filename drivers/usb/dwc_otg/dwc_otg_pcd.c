@@ -87,6 +87,7 @@
 #ifdef CONFIG_ARCH_RK29
 #include <mach/cru.h>
 #endif
+#include <mach/board.h>
 /**
  * Static PCD pointer for use in usb_gadget_register_driver and
  * usb_gadget_unregister_driver.  Initialized in dwc_otg_pcd_init.
@@ -1941,6 +1942,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
         if(_pcd->conn_status){
              _pcd->conn_status = 0;
              dwc_otg_msc_unlock(_pcd);
+	    rk28_send_wakeup_key();
         }
         /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
         else if( _pcd->phy_suspend == 0 ) 
