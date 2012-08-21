@@ -91,7 +91,7 @@ static irqreturn_t bvalid_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int bvalid_init(void)
+static int __init bvalid_init(void)
 {
 	int ret;
 	int irq = IRQ_OTG_BVALID;
@@ -112,9 +112,9 @@ static int bvalid_init(void)
 		return ret;
 	}
 
-	/* enable bvalid irq */
+	/* clear & enable bvalid irq */
 #ifdef CONFIG_ARCH_RK2928
-	writel_relaxed((1 << 30) | (1 << 14), RK2928_GRF_BASE + GRF_UOC0_CON5);
+	writel_relaxed((3 << 30) | (3 << 14), RK2928_GRF_BASE + GRF_UOC0_CON5);
 #endif
 
 	enable_irq_wake(irq);
