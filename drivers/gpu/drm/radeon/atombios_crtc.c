@@ -1682,8 +1682,21 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_atom_ss ss;
+	int i;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->mode_info.crtcs[i] &&
+		    rdev->mode_info.crtcs[i]->enabled &&
+		    i != radeon_crtc->crtc_id &&
+		    radeon_crtc->pll_id == rdev->mode_info.crtcs[i]->pll_id) {
+			/* one other crtc is using this pll don't turn
+			 * off the pll
+			 */
+			goto done;
+		}
+	}
 
 	switch (radeon_crtc->pll_id) {
 	case ATOM_PPLL1:
@@ -1701,6 +1714,7 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 	default:
 		break;
 	}
+done:
 	radeon_crtc->pll_id = -1;
 }
 
