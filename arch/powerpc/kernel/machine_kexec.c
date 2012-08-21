@@ -204,6 +204,12 @@ static struct property crashk_size_prop = {
 	.value = &crashk_size,
 };
 
+static struct property memory_limit_prop = {
+	.name = "linux,memory-limit",
+	.length = sizeof(unsigned long long),
+	.value = &memory_limit,
+};
+
 static void __init export_crashk_values(struct device_node *node)
 {
 	struct property *prop;
@@ -223,6 +229,12 @@ static void __init export_crashk_values(struct device_node *node)
 		crashk_size = resource_size(&crashk_res);
 		prom_add_property(node, &crashk_size_prop);
 	}
+
+	/*
+	 * memory_limit is required by the kexec-tools to limit the
+	 * crash regions to the actual memory used.
+	 */
+	prom_update_property(node, &memory_limit_prop);
 }
 
 static int __init kexec_setup(void)
