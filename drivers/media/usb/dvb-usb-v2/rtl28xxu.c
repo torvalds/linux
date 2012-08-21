@@ -834,6 +834,7 @@ static int rtl28xxu_streaming_ctrl(struct dvb_frontend *fe , int onoff)
 	if (onoff) {
 		buf[0] = 0x00;
 		buf[1] = 0x00;
+		usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x81));
 	} else {
 		buf[0] = 0x10; /* stall EPA */
 		buf[1] = 0x02; /* reset EPA */
