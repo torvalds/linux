@@ -2693,11 +2693,11 @@ static __exit void hardware_unsetup(void)
 	free_kvm_area();
 }
 
-static void fix_pmode_dataseg(int seg, struct kvm_save_segment *save)
+static void fix_pmode_dataseg(int seg, struct kvm_segment *save)
 {
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 
-	if (vmcs_readl(sf->base) == save->base && (save->base & AR_S_MASK)) {
+	if (vmcs_readl(sf->base) == save->base && (save->ar_bytes & AR_S_MASK)) {
 		vmcs_write16(sf->selector, save->selector);
 		vmcs_writel(sf->base, save->base);
 		vmcs_write32(sf->limit, save->limit);
