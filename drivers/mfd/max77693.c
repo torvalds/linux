@@ -152,6 +152,20 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	max77693->haptic = i2c_new_dummy(i2c->adapter, I2C_ADDR_HAPTIC);
 	i2c_set_clientdata(max77693->haptic, max77693);
 
+	/*
+	 * Initialize register map for MUIC device because use regmap-muic
+	 * instance of MUIC device when irq of max77693 is initialized
+	 * before call max77693-muic probe() function.
+	 */
+	max77693->regmap_muic = devm_regmap_init_i2c(max77693->muic,
+					 &max77693_regmap_config);
+	if (IS_ERR(max77693->regmap_muic)) {
+		ret = PTR_ERR(max77693->regmap_muic);
+		dev_err(max77693->dev,
+			"failed to allocate register map: %d\n", ret);
+		goto err_regmap;
+	}
+
 	ret = max77693_irq_init(max77693);
 	if (ret < 0)
 		goto err_irq;
