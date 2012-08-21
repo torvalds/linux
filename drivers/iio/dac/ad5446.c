@@ -22,7 +22,40 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#include "ad5446.h"
+#define MODE_PWRDWN_1k		0x1
+#define MODE_PWRDWN_100k	0x2
+#define MODE_PWRDWN_TRISTATE	0x3
+
+/**
+ * struct ad5446_state - driver instance specific data
+ * @spi:		spi_device
+ * @chip_info:		chip model specific constants, available modes etc
+ * @reg:		supply regulator
+ * @vref_mv:		actual reference voltage used
+ */
+
+struct ad5446_state {
+	struct device		*dev;
+	const struct ad5446_chip_info	*chip_info;
+	struct regulator		*reg;
+	unsigned short			vref_mv;
+	unsigned			cached_val;
+	unsigned			pwr_down_mode;
+	unsigned			pwr_down;
+};
+
+/**
+ * struct ad5446_chip_info - chip specific information
+ * @channel:		channel spec for the DAC
+ * @int_vref_mv:	AD5620/40/60: the internal reference voltage
+ * @write:		chip specific helper function to write to the register
+ */
+
+struct ad5446_chip_info {
+	struct iio_chan_spec	channel;
+	u16			int_vref_mv;
+	int			(*write)(struct ad5446_state *st, unsigned val);
+};
 
 static const char * const ad5446_powerdown_modes[] = {
 	"1kohm_to_gnd", "100kohm_to_gnd", "three_state"
