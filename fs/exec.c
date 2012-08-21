@@ -2041,23 +2041,14 @@ static void wait_for_dump_helpers(struct file *file)
 static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 {
 	struct file *files[2];
-	struct fdtable *fdt;
 	struct coredump_params *cp = (struct coredump_params *)info->data;
-	struct files_struct *cf = current->files;
 	int err = create_pipe_files(files, 0);
 	if (err)
 		return err;
 
 	cp->file = files[1];
 
-	sys_close(0);
-	fd_install(0, files[0]);
-	spin_lock(&cf->file_lock);
-	fdt = files_fdtable(cf);
-	__set_open_fd(0, fdt);
-	__clear_close_on_exec(0, fdt);
-	spin_unlock(&cf->file_lock);
-
+	replace_fd(0, files[0], 0);
 	/* and disallow core files too */
 	current->signal->rlim[RLIMIT_CORE] = (struct rlimit){1, 1};
 
