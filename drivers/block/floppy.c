@@ -890,7 +890,7 @@ static void unlock_fdc(void)
 
 	raw_cmd = NULL;
 	command_status = FD_COMMAND_NONE;
-	__cancel_delayed_work(&fd_timeout);
+	cancel_delayed_work(&fd_timeout);
 	do_floppy = NULL;
 	cont = NULL;
 	clear_bit(0, &fdc_busy);
