@@ -32,6 +32,10 @@ struct wm8993_platform_data {
 	unsigned int lineout1fb:1;
 	unsigned int lineout2fb:1;
 
+	/* Delay to add for microphones to stabalise after power up */
+	int micbias1_delay;
+	int micbias2_delay;
+
 	/* Microphone biases: 0=0.9*AVDD1 1=0.65*AVVD1 */
 	unsigned int micbias1_lvl:1;
 	unsigned int micbias2_lvl:1;

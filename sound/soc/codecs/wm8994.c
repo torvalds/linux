@@ -3145,6 +3145,8 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 				      pdata->lineout2fb,
 				      pdata->jd_scthr,
 				      pdata->jd_thr,
+				      pdata->micb1_delay,
+				      pdata->micb2_delay,
 				      pdata->micbias1_lvl,
 				      pdata->micbias2_lvl);
 

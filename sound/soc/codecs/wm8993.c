@@ -1520,6 +1520,8 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 				      wm8993->pdata.lineout2fb,
 				      wm8993->pdata.jd_scthr,
 				      wm8993->pdata.jd_thr,
+				      wm8993->pdata.micbias1_delay,
+				      wm8993->pdata.micbias2_delay,
 				      wm8993->pdata.micbias1_lvl,
 				      wm8993->pdata.micbias2_lvl);
 
