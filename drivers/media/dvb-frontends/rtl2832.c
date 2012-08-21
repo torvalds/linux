@@ -824,6 +824,24 @@ err:
 	return ret;
 }
 
+static int rtl2832_read_ber(struct dvb_frontend *fe, u32 *ber)
+{
+	struct rtl2832_priv *priv = fe->demodulator_priv;
+	int ret;
+	u8 buf[2];
+
+	ret = rtl2832_rd_regs(priv, 0x4e, 3, buf, 2);
+	if (ret)
+		goto err;
+
+	*ber = buf[0] << 8 | buf[1];
+
+	return 0;
+err:
+	dbg("%s: failed=%d", __func__, ret);
+	return ret;
+}
+
 static struct dvb_frontend_ops rtl2832_ops;
 
 static void rtl2832_release(struct dvb_frontend *fe)
@@ -909,6 +927,7 @@ static struct dvb_frontend_ops rtl2832_ops = {
 
 	.read_status = rtl2832_read_status,
 	.read_snr = rtl2832_read_snr,
+	.read_ber = rtl2832_read_ber,
 
 	.i2c_gate_ctrl = rtl2832_i2c_gate_ctrl,
 };
