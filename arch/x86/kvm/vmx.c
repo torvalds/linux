@@ -3216,6 +3216,7 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
 	if (vmx->rmode.vm86_active && var->s) {
+		vmx->rmode.segs[seg] = *var;
 		/*
 		 * Hack real-mode segments into vm86 compatibility.
 		 */
