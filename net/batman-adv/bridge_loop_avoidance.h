@@ -41,8 +41,7 @@ void batadv_bla_free(struct batadv_priv *bat_priv);
 #else /* ifdef CONFIG_BATMAN_ADV_BLA */
 
 static inline int batadv_bla_rx(struct batadv_priv *bat_priv,
-				struct sk_buff *skb, short vid,
-				bool is_bcast)
+				struct sk_buff *skb, short vid, bool is_bcast)
 {
 	return 0;
 }
