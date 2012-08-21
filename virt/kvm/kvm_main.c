@@ -1102,12 +1102,6 @@ static pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 	return pfn;
 }
 
-pfn_t hva_to_pfn_atomic(unsigned long addr)
-{
-	return hva_to_pfn(addr, true, NULL, true, NULL);
-}
-EXPORT_SYMBOL_GPL(hva_to_pfn_atomic);
-
 static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic, bool *async,
 			  bool write_fault, bool *writable)
 {
@@ -1154,6 +1148,14 @@ pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
 	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
 	return hva_to_pfn(addr, false, NULL, true, NULL);
 }
+
+pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn)
+{
+	unsigned long addr = gfn_to_hva_memslot(slot, gfn);
+
+	return hva_to_pfn(addr, true, NULL, true, NULL);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot_atomic);
 
 int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
 								  int nr_pages)
