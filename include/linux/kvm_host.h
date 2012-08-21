@@ -65,6 +65,7 @@
 #define KVM_PFN_ERR_FAULT	(KVM_PFN_ERR_MASK)
 #define KVM_PFN_ERR_HWPOISON	(KVM_PFN_ERR_MASK + 1)
 #define KVM_PFN_ERR_BAD		(KVM_PFN_ERR_MASK + 2)
+#define KVM_PFN_ERR_RO_FAULT	(KVM_PFN_ERR_MASK + 3)
 
 static inline bool is_error_pfn(pfn_t pfn)
 {
