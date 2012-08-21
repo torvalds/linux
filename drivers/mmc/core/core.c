@@ -2031,6 +2031,7 @@ int mmc_suspend_host(struct mmc_host *host)
 			err = 0;
 		}
 #endif
+		flush_delayed_work(&host->disable);
 	}
 	mmc_bus_put(host);
 
