@@ -1,6 +1,7 @@
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/gpio.h>
 #include <mach/board.h>
 
@@ -13,14 +14,13 @@ static void usb_detect_do_wakeup(struct work_struct *work)
 {
 	int ret;
 	int irq = gpio_to_irq(detect_gpio);
-	unsigned long flags;
+	unsigned int type;
 
 	rk28_send_wakeup_key();
-	free_irq(irq, NULL);
-	flags = gpio_get_value(detect_gpio) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
-	ret = request_irq(irq, usb_detect_irq_handler, flags, "usb_detect", NULL);
+	type = gpio_get_value(detect_gpio) ? IRQ_TYPE_EDGE_FALLING : IRQ_TYPE_EDGE_RISING;
+	ret = irq_set_irq_type(irq, type);
 	if (ret < 0) {
-		pr_err("%s: request_irq(%d) failed\n", __func__, irq);
+		pr_err("%s: irq_set_irq_type(%d, %d) failed\n", __func__, irq, type);
 	}
 }
 
@@ -35,7 +35,7 @@ static irqreturn_t usb_detect_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int board_usb_detect_init(unsigned gpio)
+int __init board_usb_detect_init(unsigned gpio)
 {
 	int ret;
 	int irq = gpio_to_irq(gpio);

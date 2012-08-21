@@ -190,7 +190,7 @@ int board_boot_mode(void);
 
 /* for USB detection */
 #ifdef CONFIG_USB_GADGET
-int board_usb_detect_init(unsigned gpio);
+int __init board_usb_detect_init(unsigned gpio);
 #else
 static int inline board_usb_detect_init(unsigned gpio) { return 0; }
 #endif
