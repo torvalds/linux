@@ -979,18 +979,6 @@ config FB_PVR2
 	  (<file:drivers/video/pvr2fb.c>). Please see the file
 	  <file:Documentation/fb/pvr2fb.txt>.
 
-config FB_EPSON1355
-	bool "Epson 1355 framebuffer support"
-	depends on (FB = y) && ARCH_CEIVA
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	help
-	  Build in support for the SED1355 Epson Research Embedded RAMDAC
-	  LCD/CRT Controller (since redesignated as the S1D13505) as a
-	  framebuffer.  Product specs at
-	  <http://vdc.epson.com/>.
-
 config FB_S1D13XXX
 	tristate "Epson S1D13XXX framebuffer support"
 	depends on FB
