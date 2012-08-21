@@ -1446,6 +1446,8 @@ static int __devinit octeon_mgmt_probe(struct platform_device *pdev)
 	if (netdev == NULL)
 		return -ENOMEM;
 
+	SET_NETDEV_DEV(netdev, &pdev->dev);
+
 	dev_set_drvdata(&pdev->dev, netdev);
 	p = netdev_priv(netdev);
 	netif_napi_add(netdev, &p->napi, octeon_mgmt_napi_poll,
