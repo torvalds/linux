@@ -28,8 +28,8 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 /* write multiple registers */
 static int tda18218_wr_regs(struct tda18218_priv *priv, u8 reg, u8 *val, u8 len)
 {
-	int ret = 0;
-	u8 buf[1+len], quotient, remainder, i, msg_len, msg_len_max;
+	int ret = 0, len2, remaining;
+	u8 buf[1 + len];
 	struct i2c_msg msg[1] = {
 		{
 			.addr = priv->cfg->i2c_address,
@@ -38,17 +38,15 @@ static int tda18218_wr_regs(struct tda18218_priv *priv, u8 reg, u8 *val, u8 len)
 		}
 	};
 
-	msg_len_max = priv->cfg->i2c_wr_max - 1;
-	quotient = len / msg_len_max;
-	remainder = len % msg_len_max;
-	msg_len = msg_len_max;
-	for (i = 0; (i <= quotient && remainder); i++) {
-		if (i == quotient)  /* set len of the last msg */
-			msg_len = remainder;
+	for (remaining = len; remaining > 0;
+			remaining -= (priv->cfg->i2c_wr_max - 1)) {
+		len2 = remaining;
+		if (len2 > (priv->cfg->i2c_wr_max - 1))
+			len2 = (priv->cfg->i2c_wr_max - 1);
 
-		msg[0].len = msg_len + 1;
-		buf[0] = reg + i * msg_len_max;
-		memcpy(&buf[1], &val[i * msg_len_max], msg_len);
+		msg[0].len = 1 + len2;
+		buf[0] = reg + len - remaining;
+		memcpy(&buf[1], &val[len - remaining], len2);
 
 		ret = i2c_transfer(priv->i2c, msg, 1);
 		if (ret != 1)
