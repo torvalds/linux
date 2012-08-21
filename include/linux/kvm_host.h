@@ -82,6 +82,13 @@ static inline bool is_invalid_pfn(pfn_t pfn)
 	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
 }
 
+#define KVM_HVA_ERR_BAD	(PAGE_OFFSET)
+
+static inline bool kvm_is_error_hva(unsigned long addr)
+{
+	return addr == PAGE_OFFSET;
+}
+
 #define KVM_ERR_PTR_BAD_PAGE	(ERR_PTR(-ENOENT))
 
 static inline bool is_error_page(struct page *page)
@@ -430,7 +437,6 @@ id_to_memslot(struct kvm_memslots *slots, int id)
 	return slot;
 }
 
-int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
 			  int user_alloc);
