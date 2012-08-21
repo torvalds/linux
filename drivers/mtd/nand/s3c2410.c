@@ -540,7 +540,8 @@ static void s3c2412_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	unsigned long ctrl;
 
 	ctrl = readl(info->regs + S3C2440_NFCONT);
-	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC, info->regs + S3C2440_NFCONT);
+	writel(ctrl | S3C2412_NFCONT_INIT_MAIN_ECC,
+	       info->regs + S3C2440_NFCONT);
 }
 
 static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
@@ -552,7 +553,8 @@ static void s3c2440_nand_enable_hwecc(struct mtd_info *mtd, int mode)
 	writel(ctrl | S3C2440_NFCONT_INITECC, info->regs + S3C2440_NFCONT);
 }
 
-static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+				      u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
@@ -566,7 +568,8 @@ static int s3c2410_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	return 0;
 }
 
-static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+				      u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2412_NFMECC0);
@@ -575,12 +578,14 @@ static int s3c2412_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u
 	ecc_code[1] = ecc >> 8;
 	ecc_code[2] = ecc >> 16;
 
-	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n", ecc_code[0], ecc_code[1], ecc_code[2]);
+	pr_debug("calculate_ecc: returning ecc %02x,%02x,%02x\n",
+		 ecc_code[0], ecc_code[1], ecc_code[2]);
 
 	return 0;
 }
 
-static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code)
+static int s3c2440_nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat,
+				      u_char *ecc_code)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 	unsigned long ecc = readl(info->regs + S3C2440_NFMECC0);
@@ -619,13 +624,15 @@ static void s3c2440_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	}
 }
 
-static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void s3c2410_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
+				   int len)
 {
 	struct nand_chip *this = mtd->priv;
 	writesb(this->IO_ADDR_W, buf, len);
 }
 
-static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
+static void s3c2440_nand_write_buf(struct mtd_info *mtd, const u_char *buf,
+				   int len)
 {
 	struct s3c2410_nand_info *info = s3c2410_nand_mtd_toinfo(mtd);
 
@@ -669,7 +676,8 @@ static inline int s3c2410_nand_cpufreq_register(struct s3c2410_nand_info *info)
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
-static inline void s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
+static inline void
+s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
 {
 	cpufreq_unregister_notifier(&info->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
@@ -681,7 +689,8 @@ static inline int s3c2410_nand_cpufreq_register(struct s3c2410_nand_info *info)
 	return 0;
 }
 
-static inline void s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
+static inline void
+s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
 {
 }
 #endif
@@ -1004,7 +1013,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	nmtd = info->mtds;
 
 	for (setno = 0; setno < nr_sets; setno++, nmtd++) {
-		pr_debug("initialising set %d (%p, info %p)\n", setno, nmtd, info);
+		pr_debug("initialising set %d (%p, info %p)\n",
+			 setno, nmtd, info);
 
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
