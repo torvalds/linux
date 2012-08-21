@@ -956,7 +956,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, struct sock *sk,
 		dst->obsolete = DST_OBSOLETE_KILL;
 	} else {
 		rt->rt_pmtu = mtu;
-		dst_set_expires(&rt->dst, ip_rt_mtu_expires);
+		rt->dst.expires = max(1UL, jiffies + ip_rt_mtu_expires);
 	}
 }
 
