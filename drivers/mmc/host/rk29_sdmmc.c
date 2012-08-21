@@ -98,7 +98,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.4.02 The last modify date is 2012-08-12"
+#define RK29_SDMMC_VERSION "Ver.4.03 The last modify date is 2012-08-21"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -832,8 +832,11 @@ static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command 
     }
 			
 	rk29_sdmmc_write(host->regs, SDMMC_CMDARG, cmd->arg); // write to SDMMC_CMDARG register
+#if defined(CONFIG_ARCH_RK29)	
 	rk29_sdmmc_write(host->regs, SDMMC_CMD, cmd_flags | SDMMC_CMD_START); // write to SDMMC_CMD register
-
+#else
+    rk29_sdmmc_write(host->regs, SDMMC_CMD, cmd_flags | SDMMC_CMD_USE_HOLD_REG |SDMMC_CMD_START); // write to SDMMC_CMD register
+#endif
 
     xbwprintk(1,"\n%s..%d..************.start cmd=%d, arg=0x%x ********  [%s]\n", \
 			__FUNCTION__, __LINE__, cmd->opcode, cmd->arg, host->dma_name);
@@ -1449,8 +1452,12 @@ static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *dat
 static int sdmmc_send_cmd_start(struct rk29_sdmmc *host, unsigned int cmd)
 {
 	int tmo = RK29_SDMMC_SEND_START_TIMEOUT*10;//wait 60ms cycle.
-	
-	rk29_sdmmc_write(host->regs, SDMMC_CMD, SDMMC_CMD_START | cmd);		
+
+#if defined(CONFIG_ARCH_RK29)		
+	rk29_sdmmc_write(host->regs, SDMMC_CMD, SDMMC_CMD_START | cmd);	
+#else	
+    rk29_sdmmc_write(host->regs, SDMMC_CMD, SDMMC_CMD_USE_HOLD_REG |SDMMC_CMD_START | cmd);
+#endif    
 	while (--tmo && (rk29_sdmmc_read(host->regs, SDMMC_CMD) & SDMMC_CMD_START))
 	{
 	    udelay(2);

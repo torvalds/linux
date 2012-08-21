@@ -48,7 +48,7 @@
 
 #if defined(CONFIG_ARCH_RK29)
 #define SDMMC_DATA            (0x100)
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31) || defined(CONFIG_ARCH_RK2928)
+#else
 #define SDMMC_VERID           (0x06c)   //Version ID register
 #define SDMMC_UHS_REG         (0x074)   //UHS-I register
 #define SDMMC_RST_n           (0x078)   //Hardware reset register
@@ -102,7 +102,7 @@
 /* Interrupt status & mask register defines(base+0x24) */
 #if defined(CONFIG_ARCH_RK29)
 #define SDMMC_INT_SDIO          RK2818_BIT(16)      //SDIO interrupt
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)  || defined(CONFIG_ARCH_RK2928)
+#else
 #define SDMMC_INT_SDIO          RK2818_BIT(24)      //SDIO interrupt
 #define SDMMC_INT_UNBUSY        RK2818_BIT(16)      //data no busy interrupt
 #endif
@@ -126,6 +126,14 @@
 
 /* Command register defines(base+0x2C) */
 #define SDMMC_CMD_START         RK2818_BIT(31)      //start command
+#if !defined(CONFIG_ARCH_RK29)
+#define SDMMC_CMD_USE_HOLD_REG      RK2818_BIT(29)      //Use hold register.
+#define SDMMC_CMD_VOLT_SWITCH       RK2818_BIT(28)      //Voltage switch bit
+#define SDMMC_CMD_BOOT_MODE         RK2818_BIT(27)      //set boot mode.
+#define SDMMC_CMD_DISABLE_BOOT      RK2818_BIT(26)      //disable boot.
+#define SDMMC_CMD_EXPECT_BOOT_ACK   RK2818_BIT(25)      //Expect Boot Acknowledge.
+#define SDMMC_CMD_ENABLE_BOOT       RK2818_BIT(24)      //be set only for mandatory boot mode.
+#endif
 #define SDMMC_CMD_UPD_CLK       RK2818_BIT(21)      //update clock register only
 #define SDMMC_CMD_INIT          RK2818_BIT(15)      //send initialization sequence
 #define SDMMC_CMD_STOP          RK2818_BIT(14)      //stop abort command
@@ -181,7 +189,7 @@
 #define RX_WMARK          (0xF)        //RX watermark level set to 15
 #define TX_WMARK          (0x10)       //TX watermark level set to 16
 
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)  || defined(CONFIG_ARCH_RK2928)
+#else
 #define FIFO_DEPTH        (0x100)       //FIFO depth = 256 word
 #define RX_WMARK_SHIFT    (16)
 #define TX_WMARK_SHIFT    (0)
