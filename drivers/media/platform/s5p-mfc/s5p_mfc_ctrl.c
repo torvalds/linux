@@ -98,7 +98,11 @@ int s5p_mfc_alloc_and_load_firmware(struct s5p_mfc_dev *dev)
 		release_firmware(fw_blob);
 		return -EIO;
 	}
-	dev->bank2 = bank2_base_phys;
+	/* Valid buffers passed to MFC encoder with LAST_FRAME command
+	 * should not have address of bank2 - MFC will treat it as a null frame.
+	 * To avoid such situation we set bank2 address below the pool address.
+	 */
+	dev->bank2 = bank2_base_phys - (1 << MFC_BASE_ALIGN_ORDER);
 	memcpy(s5p_mfc_bitproc_virt, fw_blob->data, fw_blob->size);
 	wmb();
 	release_firmware(fw_blob);

@@ -146,6 +146,9 @@ enum s5p_mfc_decode_arg {
 	MFC_DEC_RES_CHANGE,
 };
 
+#define MFC_BUF_FLAG_USED	(1 << 0)
+#define MFC_BUF_FLAG_EOS	(1 << 1)
+
 struct s5p_mfc_ctx;
 
 /**
@@ -161,7 +164,7 @@ struct s5p_mfc_buf {
 		} raw;
 		size_t stream;
 	} cookie;
-	int used;
+	int flags;
 };
 
 /**

@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-event.h>
 #include <linux/workqueue.h>
 #include <media/videobuf2-core.h>
 #include "regs-mfc.h"
@@ -539,6 +540,40 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 	}
 }
 
+static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx,
+				 unsigned int reason, unsigned int err)
+{
+	struct s5p_mfc_dev *dev = ctx->dev;
+	struct s5p_mfc_buf *mb_entry;
+
+	mfc_debug(2, "Stream completed");
+
+	s5p_mfc_clear_int_flags(dev);
+	ctx->int_type = reason;
+	ctx->int_err = err;
+	ctx->state = MFCINST_FINISHED;
+
+	spin_lock(&dev->irqlock);
+	if (!list_empty(&ctx->dst_queue)) {
+		mb_entry = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf,
+									list);
+		list_del(&mb_entry->list);
+		ctx->dst_queue_cnt--;
+		vb2_set_plane_payload(mb_entry->b, 0, 0);
+		vb2_buffer_done(mb_entry->b, VB2_BUF_STATE_DONE);
+	}
+	spin_unlock(&dev->irqlock);
+
+	clear_work_bit(ctx);
+
+	if (test_and_clear_bit(0, &dev->hw_lock) == 0)
+		WARN_ON(1);
+
+	s5p_mfc_clock_off();
+	wake_up(&ctx->queue);
+	s5p_mfc_try_run(dev);
+}
+
 /* Interrupt processing */
 static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 {
@@ -614,6 +649,11 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_FIMV_R2H_CMD_INIT_BUFFERS_RET:
 		s5p_mfc_handle_init_buffers(ctx, reason, err);
 		break;
+
+	case S5P_FIMV_R2H_CMD_ENC_COMPLETE_RET:
+		s5p_mfc_handle_stream_complete(ctx, reason, err);
+		break;
+
 	default:
 		mfc_debug(2, "Unknown int reason\n");
 		s5p_mfc_clear_int_flags(dev);
@@ -889,9 +929,12 @@ static unsigned int s5p_mfc_poll(struct file *file,
 		goto end;
 	}
 	mutex_unlock(&dev->mfc_mutex);
+	poll_wait(file, &ctx->fh.wait, wait);
 	poll_wait(file, &src_q->done_wq, wait);
 	poll_wait(file, &dst_q->done_wq, wait);
 	mutex_lock(&dev->mfc_mutex);
+	if (v4l2_event_pending(&ctx->fh))
+		rc |= POLLPRI;
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
 		src_vb = list_first_entry(&src_q->done_list, struct vb2_buffer,
