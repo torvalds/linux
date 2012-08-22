@@ -571,8 +571,7 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
-	priv->wq = alloc_workqueue("omapdrm",
-			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
+	priv->wq = alloc_ordered_workqueue("omapdrm", 0);
 
 	INIT_LIST_HEAD(&priv->obj_list);
 
