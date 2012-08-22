@@ -2566,14 +2566,10 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			   void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
-	struct inet6_dev *idev;
+	struct inet6_dev *idev = __in6_dev_get(dev);
 	int run_pending = 0;
 	int err;
 
-	if (event == NETDEV_UNREGISTER_FINAL)
-		return NOTIFY_DONE;
-
-	idev = __in6_dev_get(dev);
 	switch (event) {
 	case NETDEV_REGISTER:
 		if (!idev && dev->mtu >= IPV6_MIN_MTU) {

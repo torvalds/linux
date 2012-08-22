@@ -1147,12 +1147,8 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			 void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct in_device *in_dev;
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
-	if (event == NETDEV_UNREGISTER_FINAL)
-		goto out;
-
-	in_dev = __in_dev_get_rtnl(dev);
 	ASSERT_RTNL();
 
 	if (!in_dev) {
