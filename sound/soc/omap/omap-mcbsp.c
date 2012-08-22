@@ -26,6 +26,8 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -398,12 +400,14 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	/* Generic McBSP register settings */
 	regs->spcr2	|= XINTM(3) | FREE;
 	regs->spcr1	|= RINTM(3);
-	/* RFIG and XFIG are not defined in 34xx */
-	if (!cpu_is_omap34xx() && !cpu_is_omap44xx()) {
+	/* RFIG and XFIG are not defined in 2430 and on OMAP3+ */
+	if (!mcbsp->pdata->has_ccr) {
 		regs->rcr2	|= RFIG;
 		regs->xcr2	|= XFIG;
 	}
-	if (cpu_is_omap2430() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
+
+	/* Configure XCCR/RCCR only for revisions which have ccr registers */
+	if (mcbsp->pdata->has_ccr) {
 		regs->xccr = DXENDLY(1) | XDMAEN | XDISABLE;
 		regs->rccr = RFULL_CYCLE | RDMAEN | RDISABLE;
 	}
@@ -516,21 +520,9 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 			return -EBUSY;
 	}
 
-	if (clk_id == OMAP_MCBSP_SYSCLK_CLK ||
-	    clk_id == OMAP_MCBSP_SYSCLK_CLKS_FCLK ||
-	    clk_id == OMAP_MCBSP_SYSCLK_CLKS_EXT ||
-	    clk_id == OMAP_MCBSP_SYSCLK_CLKX_EXT ||
-	    clk_id == OMAP_MCBSP_SYSCLK_CLKR_EXT) {
-		mcbsp->in_freq = freq;
-		regs->srgr2	&= ~CLKSM;
-		regs->pcr0	&= ~SCLKME;
-	} else if (cpu_class_is_omap1()) {
-		/*
-		 * McBSP CLKR/FSR signal muxing functions are only available on
-		 * OMAP2 or newer versions
-		 */
-		return -EINVAL;
-	}
+	mcbsp->in_freq = freq;
+	regs->srgr2 &= ~CLKSM;
+	regs->pcr0 &= ~SCLKME;
 
 	switch (clk_id) {
 	case OMAP_MCBSP_SYSCLK_CLK:
@@ -557,20 +549,6 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 		regs->srgr2	|= CLKSM;
 	case OMAP_MCBSP_SYSCLK_CLKR_EXT:
 		regs->pcr0	|= SCLKME;
-		break;
-
-
-	case OMAP_MCBSP_CLKR_SRC_CLKR:
-		err = omap_mcbsp_6pin_src_mux(mcbsp, CLKR_SRC_CLKR);
-		break;
-	case OMAP_MCBSP_CLKR_SRC_CLKX:
-		err = omap_mcbsp_6pin_src_mux(mcbsp, CLKR_SRC_CLKX);
-		break;
-	case OMAP_MCBSP_FSR_SRC_FSR:
-		err = omap_mcbsp_6pin_src_mux(mcbsp, FSR_SRC_FSR);
-		break;
-	case OMAP_MCBSP_FSR_SRC_FSX:
-		err = omap_mcbsp_6pin_src_mux(mcbsp, FSR_SRC_FSX);
 		break;
 	default:
 		err = -ENODEV;
@@ -761,13 +739,74 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_GPL(omap_mcbsp_st_add_controls);
 
+static struct omap_mcbsp_platform_data omap2420_pdata = {
+	.reg_step = 4,
+	.reg_size = 2,
+};
+
+static struct omap_mcbsp_platform_data omap2430_pdata = {
+	.reg_step = 4,
+	.reg_size = 4,
+	.has_ccr = true,
+};
+
+static struct omap_mcbsp_platform_data omap3_pdata = {
+	.reg_step = 4,
+	.reg_size = 4,
+	.has_ccr = true,
+	.has_wakeup = true,
+};
+
+static struct omap_mcbsp_platform_data omap4_pdata = {
+	.reg_step = 4,
+	.reg_size = 4,
+	.has_ccr = true,
+	.has_wakeup = true,
+};
+
+static const struct of_device_id omap_mcbsp_of_match[] = {
+	{
+		.compatible = "ti,omap2420-mcbsp",
+		.data = &omap2420_pdata,
+	},
+	{
+		.compatible = "ti,omap2430-mcbsp",
+		.data = &omap2430_pdata,
+	},
+	{
+		.compatible = "ti,omap3-mcbsp",
+		.data = &omap3_pdata,
+	},
+	{
+		.compatible = "ti,omap4-mcbsp",
+		.data = &omap4_pdata,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, omap_mcbsp_of_match);
+
 static __devinit int asoc_mcbsp_probe(struct platform_device *pdev)
 {
 	struct omap_mcbsp_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct omap_mcbsp *mcbsp;
+	const struct of_device_id *match;
 	int ret;
 
-	if (!pdata) {
+	match = of_match_device(omap_mcbsp_of_match, &pdev->dev);
+	if (match) {
+		struct device_node *node = pdev->dev.of_node;
+		int buffer_size;
+
+		pdata = devm_kzalloc(&pdev->dev,
+				     sizeof(struct omap_mcbsp_platform_data),
+				     GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		memcpy(pdata, match->data, sizeof(*pdata));
+		if (!of_property_read_u32(node, "ti,buffer-size", &buffer_size))
+			pdata->buffer_size = buffer_size;
+	} else if (!pdata) {
 		dev_err(&pdev->dev, "missing platform data.\n");
 		return -EINVAL;
 	}
@@ -809,6 +848,7 @@ static struct platform_driver asoc_mcbsp_driver = {
 	.driver = {
 			.name = "omap-mcbsp",
 			.owner = THIS_MODULE,
+			.of_match_table = omap_mcbsp_of_match,
 	},
 
 	.probe = asoc_mcbsp_probe,

@@ -334,9 +334,6 @@ void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx);
 /* McBSP functional clock source changing function */
 int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
 
-/* McBSP signal muxing API */
-int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux);
-
 /* Sidetone specific API */
 int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain);
 int omap_st_get_chgain(struct omap_mcbsp *mcbsp, int channel, s16 *chgain);
