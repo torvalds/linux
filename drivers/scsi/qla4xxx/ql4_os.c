@@ -160,7 +160,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
-static umode_t ql4_attr_is_visible(int param_type, int param);
+static umode_t qla4_attr_is_visible(int param_type, int param);
 static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type);
 static int qla4xxx_change_queue_depth(struct scsi_device *sdev, int qdepth,
 				      int reason);
@@ -203,7 +203,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 				  CAP_DATA_PATH_OFFLOAD | CAP_HDRDGST |
 				  CAP_DATADGST | CAP_LOGIN_OFFLOAD |
 				  CAP_MULTI_R2T,
-	.attr_is_visible	= ql4_attr_is_visible,
+	.attr_is_visible	= qla4_attr_is_visible,
 	.create_session         = qla4xxx_session_create,
 	.destroy_session        = qla4xxx_session_destroy,
 	.start_conn             = qla4xxx_conn_start,
@@ -315,7 +315,7 @@ exit_send_ping:
 	return rval;
 }
 
-static umode_t ql4_attr_is_visible(int param_type, int param)
+static umode_t qla4_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_HOST_PARAM:
