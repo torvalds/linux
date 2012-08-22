@@ -1721,38 +1721,6 @@ _conn_rq_cond(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state 
 	return rv;
 }
 
-static enum drbd_state_rv
-conn_cl_wide(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
-	     enum chg_state_flags f)
-{
-	enum drbd_state_rv rv;
-
-	spin_unlock_irq(&tconn->req_lock);
-	mutex_lock(&tconn->cstate_mutex);
-
-	set_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
-	if (conn_send_state_req(tconn, mask, val)) {
-		clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
-		/* if (f & CS_VERBOSE)
-		   print_st_err(mdev, os, ns, rv); */
-		mutex_unlock(&tconn->cstate_mutex);
-		spin_lock_irq(&tconn->req_lock);
-		return SS_CW_FAILED_BY_PEER;
-	}
-
-	if (val.conn == C_DISCONNECTING)
-		set_bit(DISCONNECT_SENT, &tconn->flags);
-
-	spin_lock_irq(&tconn->req_lock);
-
-	wait_event_lock_irq(tconn->ping_wait, (rv = _conn_rq_cond(tconn, mask, val)), tconn->req_lock,);
-	clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
-
-	mutex_unlock(&tconn->cstate_mutex);
-
-	return rv;
-}
-
 enum drbd_state_rv
 _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
 		    enum chg_state_flags flags)
@@ -1761,6 +1729,7 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	struct after_conn_state_chg_work *acscw;
 	enum drbd_conns oc = tconn->cstate;
 	union drbd_state ns_max, ns_min, os;
+	bool have_mutex = false;
 
 	rv = is_valid_conn_transition(oc, val.conn);
 	if (rv < SS_SUCCESS)
@@ -1772,7 +1741,35 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 
 	if (oc == C_WF_REPORT_PARAMS && val.conn == C_DISCONNECTING &&
 	    !(flags & (CS_LOCAL_ONLY | CS_HARD))) {
-		rv = conn_cl_wide(tconn, mask, val, flags);
+
+		/* This will be a cluster-wide state change.
+		 * Need to give up the spinlock, grab the mutex,
+		 * then send the state change request, ... */
+		spin_unlock_irq(&tconn->req_lock);
+		mutex_lock(&tconn->cstate_mutex);
+		have_mutex = true;
+
+		set_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
+		if (conn_send_state_req(tconn, mask, val)) {
+			/* sending failed. */
+			clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
+			rv = SS_CW_FAILED_BY_PEER;
+			/* need to re-aquire the spin lock, though */
+			goto abort_unlocked;
+		}
+
+		if (val.conn == C_DISCONNECTING)
+			set_bit(DISCONNECT_SENT, &tconn->flags);
+
+		/* ... and re-aquire the spinlock.
+		 * If _conn_rq_cond() returned >= SS_SUCCESS, we must call
+		 * conn_set_state() within the same spinlock. */
+		spin_lock_irq(&tconn->req_lock);
+		wait_event_lock_irq(tconn->ping_wait,
+				(rv = _conn_rq_cond(tconn, mask, val)),
+				tconn->req_lock,
+				);
+		clear_bit(CONN_WD_ST_CHG_REQ, &tconn->flags);
 		if (rv < SS_SUCCESS)
 			goto abort;
 	}
@@ -1796,9 +1793,16 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 		conn_err(tconn, "Could not kmalloc an acscw\n");
 	}
 
-	return rv;
  abort:
-	if (flags & CS_VERBOSE) {
+	if (have_mutex) {
+		/* mutex_unlock() "... must not be used in interrupt context.",
+		 * so give up the spinlock, then re-aquire it */
+		spin_unlock_irq(&tconn->req_lock);
+ abort_unlocked:
+		mutex_unlock(&tconn->cstate_mutex);
+		spin_lock_irq(&tconn->req_lock);
+	}
+	if (rv < SS_SUCCESS && flags & CS_VERBOSE) {
 		conn_err(tconn, "State change failed: %s\n", drbd_set_st_err_str(rv));
 		conn_err(tconn, " state = { cs:%s }\n", drbd_conn_str(oc));
 		conn_err(tconn, "wanted = { cs:%s }\n", drbd_conn_str(val.conn));
