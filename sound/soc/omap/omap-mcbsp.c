@@ -719,8 +719,10 @@ int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 
-	if (!mcbsp->st_data)
-		return -ENODEV;
+	if (!mcbsp->st_data) {
+		dev_warn(mcbsp->dev, "No sidetone data for port\n");
+		return 0;
+	}
 
 	switch (mcbsp->id) {
 	case 2: /* McBSP 2 */
