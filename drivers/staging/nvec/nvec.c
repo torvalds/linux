@@ -264,7 +264,7 @@ int nvec_write_async(struct nvec_chip *nvec, const unsigned char *data,
 	list_add_tail(&msg->node, &nvec->tx_data);
 	spin_unlock_irqrestore(&nvec->tx_lock, flags);
 
-	queue_work(nvec->wq, &nvec->tx_work);
+	queue_work(system_nrt_wq, &nvec->tx_work);
 
 	return 0;
 }
@@ -471,7 +471,7 @@ static void nvec_rx_completed(struct nvec_chip *nvec)
 	if (!nvec_msg_is_event(nvec->rx))
 		complete(&nvec->ec_transfer);
 
-	queue_work(nvec->wq, &nvec->rx_work);
+	queue_work(system_nrt_wq, &nvec->rx_work);
 }
 
 /**
@@ -794,13 +794,11 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&nvec->tx_data);
 	INIT_WORK(&nvec->rx_work, nvec_dispatch);
 	INIT_WORK(&nvec->tx_work, nvec_request_master);
-	nvec->wq = alloc_workqueue("nvec", WQ_NON_REENTRANT, 2);
 
 	err = devm_gpio_request_one(&pdev->dev, nvec->gpio, GPIOF_OUT_INIT_HIGH,
 					"nvec gpio");
 	if (err < 0) {
 		dev_err(nvec->dev, "couldn't request gpio\n");
-		destroy_workqueue(nvec->wq);
 		return -ENODEV;
 	}
 
@@ -808,7 +806,6 @@ static int __devinit tegra_nvec_probe(struct platform_device *pdev)
 				"nvec", nvec);
 	if (err) {
 		dev_err(nvec->dev, "couldn't request irq\n");
-		destroy_workqueue(nvec->wq);
 		return -ENODEV;
 	}
 	disable_irq(nvec->irq);
@@ -862,7 +859,8 @@ static int __devexit tegra_nvec_remove(struct platform_device *pdev)
 
 	nvec_write_async(nvec, EC_DISABLE_EVENT_REPORTING, 3);
 	mfd_remove_devices(nvec->dev);
-	destroy_workqueue(nvec->wq);
+	cancel_work_sync(&nvec->rx_work);
+	cancel_work_sync(&nvec->tx_work);
 
 	return 0;
 }
