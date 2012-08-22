@@ -2255,7 +2255,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 	return 0;
 }
 
-int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
+int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool replication, const struct omap_video_timings *mgr_timings)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
@@ -2273,6 +2273,7 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	enum omap_channel channel;
 	int x_predecim = 1, y_predecim = 1;
 	bool ilace = mgr_timings->interlace;
+	u16 pos_y = oi->pos_y;
 
 	channel = dispc_ovl_get_channel_out(plane);
 
@@ -2295,12 +2296,12 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	if (ilace) {
 		if (fieldmode)
 			in_height /= 2;
-		oi->pos_y /= 2;
+		pos_y /= 2;
 		out_height /= 2;
 
 		DSSDBG("adjusting for ilace: height %d, pos_y %d, "
 				"out_height %d\n",
-				in_height, oi->pos_y, out_height);
+				in_height, pos_y, out_height);
 	}
 
 	if (!dss_feat_color_mode_supported(plane, oi->color_mode))
@@ -2384,7 +2385,7 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	DSSDBG("%d,%d %dx%d -> %dx%d\n", oi->pos_x, oi->pos_y, in_width,
 			in_height, out_width, out_height);
 
-	dispc_ovl_set_pos(plane, oi->pos_x, oi->pos_y);
+	dispc_ovl_set_pos(plane, oi->pos_x, pos_y);
 
 	dispc_ovl_set_pic_size(plane, in_width, in_height);
 
