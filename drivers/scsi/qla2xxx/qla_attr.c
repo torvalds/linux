@@ -564,6 +564,7 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	int type;
+	uint32_t idc_control;
 
 	if (off != 0)
 		return -EINVAL;
@@ -587,22 +588,36 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		scsi_unblock_requests(vha->host);
 		break;
 	case 0x2025d:
-		if (!IS_QLA81XX(ha) || !IS_QLA8031(ha))
+		if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 			return -EPERM;
 
 		ql_log(ql_log_info, vha, 0x706f,
 		    "Issuing MPI reset.\n");
 
-		/* Make sure FC side is not in reset */
-		qla2x00_wait_for_hba_online(vha);
+		if (IS_QLA83XX(ha)) {
+			uint32_t idc_control;
 
-		/* Issue MPI reset */
-		scsi_block_requests(vha->host);
-		if (qla81xx_restart_mpi_firmware(vha) != QLA_SUCCESS)
-			ql_log(ql_log_warn, vha, 0x7070,
-			    "MPI reset failed.\n");
-		scsi_unblock_requests(vha->host);
-		break;
+			qla83xx_idc_lock(vha, 0);
+			__qla83xx_get_idc_control(vha, &idc_control);
+			idc_control |= QLA83XX_IDC_GRACEFUL_RESET;
+			__qla83xx_set_idc_control(vha, idc_control);
+			qla83xx_wr_reg(vha, QLA83XX_IDC_DEV_STATE,
+			    QLA8XXX_DEV_NEED_RESET);
+			qla83xx_idc_audit(vha, IDC_AUDIT_TIMESTAMP);
+			qla83xx_idc_unlock(vha, 0);
+			break;
+		} else {
+			/* Make sure FC side is not in reset */
+			qla2x00_wait_for_hba_online(vha);
+
+			/* Issue MPI reset */
+			scsi_block_requests(vha->host);
+			if (qla81xx_restart_mpi_firmware(vha) != QLA_SUCCESS)
+				ql_log(ql_log_warn, vha, 0x7070,
+				    "MPI reset failed.\n");
+			scsi_unblock_requests(vha->host);
+			break;
+		}
 	case 0x2025e:
 		if (!IS_QLA82XX(ha) || vha != base_vha) {
 			ql_log(ql_log_info, vha, 0x7071,
@@ -616,6 +631,29 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 		qla2xxx_wake_dpc(vha);
 		qla2x00_wait_for_fcoe_ctx_reset(vha);
 		break;
+	case 0x2025f:
+		if (!IS_QLA8031(ha))
+			return -EPERM;
+		ql_log(ql_log_info, vha, 0x70bc,
+		    "Disabling Reset by IDC control\n");
+		qla83xx_idc_lock(vha, 0);
+		__qla83xx_get_idc_control(vha, &idc_control);
+		idc_control |= QLA83XX_IDC_RESET_DISABLED;
+		__qla83xx_set_idc_control(vha, idc_control);
+		qla83xx_idc_unlock(vha, 0);
+		break;
+	case 0x20260:
+		if (!IS_QLA8031(ha))
+			return -EPERM;
+		ql_log(ql_log_info, vha, 0x70bd,
+		    "Enabling Reset by IDC control\n");
+		qla83xx_idc_lock(vha, 0);
+		__qla83xx_get_idc_control(vha, &idc_control);
+		idc_control &= ~QLA83XX_IDC_RESET_DISABLED;
+		__qla83xx_set_idc_control(vha, idc_control);
+		qla83xx_idc_unlock(vha, 0);
+		break;
+
 	}
 	return count;
 }

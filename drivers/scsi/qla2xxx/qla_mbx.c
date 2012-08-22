@@ -75,7 +75,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
-	if (ha->flags.isp82xx_fw_hung) {
+	if (IS_QLA82XX(ha) && ha->flags.isp82xx_fw_hung) {
 		/* Setting Link-Down error */
 		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
 		ql_log(ql_log_warn, vha, 0x1004,
@@ -232,7 +232,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		ha->flags.mbox_int = 0;
 		clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-		if (ha->flags.isp82xx_fw_hung) {
+		if ((IS_QLA82XX(ha) && ha->flags.isp82xx_fw_hung)) {
 			ha->flags.mbox_busy = 0;
 			/* Setting Link-Down error */
 			mcp->mb[0] = MBS_LINK_DOWN_ERROR;
@@ -4741,7 +4741,7 @@ qla82xx_mbx_beacon_ctl(scsi_qla_host_t *vha, int enable)
 }
 
 int
-qla83xx_write_remote_reg(scsi_qla_host_t *vha, uint32_t reg, uint32_t data)
+qla83xx_wr_reg(scsi_qla_host_t *vha, uint32_t reg, uint32_t data)
 {
 	int rval;
 	struct qla_hw_data *ha = vha->hw;
@@ -4814,3 +4814,139 @@ qla2x00_port_logout(scsi_qla_host_t *vha, struct fc_port *fcport)
 	return rval;
 }
 
+int
+qla83xx_rd_reg(scsi_qla_host_t *vha, uint32_t reg, uint32_t *data)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long retry_max_time = jiffies + (2 * HZ);
+
+	if (!IS_QLA83XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x114b, "Entered %s.\n", __func__);
+
+retry_rd_reg:
+	mcp->mb[0] = MBC_READ_REMOTE_REG;
+	mcp->mb[1] = LSW(reg);
+	mcp->mb[2] = MSW(reg);
+	mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_4|MBX_3|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x114c,
+		    "Failed=%x mb[0]=%x mb[1]=%x.\n",
+		    rval, mcp->mb[0], mcp->mb[1]);
+	} else {
+		*data = (mcp->mb[3] | (mcp->mb[4] << 16));
+		if (*data == QLA8XXX_BAD_VALUE) {
+			/*
+			 * During soft-reset CAMRAM register reads might
+			 * return 0xbad0bad0. So retry for MAX of 2 sec
+			 * while reading camram registers.
+			 */
+			if (time_after(jiffies, retry_max_time)) {
+				ql_dbg(ql_dbg_mbx, vha, 0x1141,
+				    "Failure to read CAMRAM register. "
+				    "data=0x%x.\n", *data);
+				return QLA_FUNCTION_FAILED;
+			}
+			msleep(100);
+			goto retry_rd_reg;
+		}
+		ql_dbg(ql_dbg_mbx, vha, 0x1142, "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+int
+qla83xx_restart_nic_firmware(scsi_qla_host_t *vha)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA83XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1143, "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_RESTART_NIC_FIRMWARE;
+	mcp->out_mb = MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1144,
+		    "Failed=%x mb[0]=%x mb[1]=%x.\n",
+		    rval, mcp->mb[0], mcp->mb[1]);
+		ha->isp_ops->fw_dump(vha, 0);
+	} else {
+		ql_dbg(ql_dbg_mbx, vha, 0x1145, "Done %s.\n", __func__);
+	}
+
+	return rval;
+}
+
+int
+qla83xx_access_control(scsi_qla_host_t *vha, uint16_t options,
+	uint32_t start_addr, uint32_t end_addr, uint16_t *sector_size)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	uint8_t subcode = (uint8_t)options;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA8031(ha))
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1146, "Entered %s.\n", __func__);
+
+	mcp->mb[0] = MBC_SET_ACCESS_CONTROL;
+	mcp->mb[1] = options;
+	mcp->out_mb = MBX_1|MBX_0;
+	if (subcode & BIT_2) {
+		mcp->mb[2] = LSW(start_addr);
+		mcp->mb[3] = MSW(start_addr);
+		mcp->mb[4] = LSW(end_addr);
+		mcp->mb[5] = MSW(end_addr);
+		mcp->out_mb |= MBX_5|MBX_4|MBX_3|MBX_2;
+	}
+	mcp->in_mb = MBX_2|MBX_1|MBX_0;
+	if (!(subcode & (BIT_2 | BIT_5)))
+		mcp->in_mb |= MBX_4|MBX_3;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x1147,
+		    "Failed=%x mb[0]=%x mb[1]=%x mb[2]=%x mb[3]=%x mb[4]=%x.\n",
+		    rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3],
+		    mcp->mb[4]);
+		ha->isp_ops->fw_dump(vha, 0);
+	} else {
+		if (subcode & BIT_5)
+			*sector_size = mcp->mb[1];
+		else if (subcode & (BIT_6 | BIT_7)) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1148,
+			    "Driver-lock id=%x%x", mcp->mb[4], mcp->mb[3]);
+		} else if (subcode & (BIT_3 | BIT_4)) {
+			ql_dbg(ql_dbg_mbx, vha, 0x1149,
+			    "Flash-lock id=%x%x", mcp->mb[4], mcp->mb[3]);
+		}
+		ql_dbg(ql_dbg_mbx, vha, 0x114a, "Done %s.\n", __func__);
+	}
+
+	return rval;
+}

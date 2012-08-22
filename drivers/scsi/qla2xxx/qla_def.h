@@ -115,6 +115,82 @@
 #define WRT_REG_DWORD(addr, data)	writel(data,addr)
 
 /*
+ * ISP83XX specific remote register addresses
+ */
+#define QLA83XX_LED_PORT0			0x00201320
+#define QLA83XX_LED_PORT1			0x00201328
+#define QLA83XX_IDC_DEV_STATE		0x22102384
+#define QLA83XX_IDC_MAJOR_VERSION	0x22102380
+#define QLA83XX_IDC_MINOR_VERSION	0x22102398
+#define QLA83XX_IDC_DRV_PRESENCE	0x22102388
+#define QLA83XX_IDC_DRIVER_ACK		0x2210238c
+#define QLA83XX_IDC_CONTROL			0x22102390
+#define QLA83XX_IDC_AUDIT			0x22102394
+#define QLA83XX_IDC_LOCK_RECOVERY	0x2210239c
+#define QLA83XX_DRIVER_LOCKID		0x22102104
+#define QLA83XX_DRIVER_LOCK			0x8111c028
+#define QLA83XX_DRIVER_UNLOCK		0x8111c02c
+#define QLA83XX_FLASH_LOCKID		0x22102100
+#define QLA83XX_FLASH_LOCK			0x8111c010
+#define QLA83XX_FLASH_UNLOCK		0x8111c014
+#define QLA83XX_DEV_PARTINFO1		0x221023e0
+#define QLA83XX_DEV_PARTINFO2		0x221023e4
+#define QLA83XX_FW_HEARTBEAT		0x221020b0
+#define QLA83XX_PEG_HALT_STATUS1	0x221020a8
+#define QLA83XX_PEG_HALT_STATUS2	0x221020ac
+
+/* 83XX: Macros defining 8200 AEN Reason codes */
+#define IDC_DEVICE_STATE_CHANGE BIT_0
+#define IDC_PEG_HALT_STATUS_CHANGE BIT_1
+#define IDC_NIC_FW_REPORTED_FAILURE BIT_2
+#define IDC_HEARTBEAT_FAILURE BIT_3
+
+/* 83XX: Macros defining 8200 AEN Error-levels */
+#define ERR_LEVEL_NON_FATAL 0x1
+#define ERR_LEVEL_RECOVERABLE_FATAL 0x2
+#define ERR_LEVEL_UNRECOVERABLE_FATAL 0x4
+
+/* 83XX: Macros for IDC Version */
+#define QLA83XX_SUPP_IDC_MAJOR_VERSION 0x01
+#define QLA83XX_SUPP_IDC_MINOR_VERSION 0x0
+
+/* 83XX: Macros for scheduling dpc tasks */
+#define QLA83XX_NIC_CORE_RESET 0x1
+#define QLA83XX_IDC_STATE_HANDLER 0x2
+#define QLA83XX_NIC_CORE_UNRECOVERABLE 0x3
+
+/* 83XX: Macros for defining IDC-Control bits */
+#define QLA83XX_IDC_RESET_DISABLED BIT_0
+#define QLA83XX_IDC_GRACEFUL_RESET BIT_1
+
+/* 83XX: Macros for different timeouts */
+#define QLA83XX_IDC_INITIALIZATION_TIMEOUT 30
+#define QLA83XX_IDC_RESET_ACK_TIMEOUT 10
+#define QLA83XX_MAX_LOCK_RECOVERY_WAIT (2 * HZ)
+
+/* 83XX: Macros for defining class in DEV-Partition Info register */
+#define QLA83XX_CLASS_TYPE_NONE		0x0
+#define QLA83XX_CLASS_TYPE_NIC		0x1
+#define QLA83XX_CLASS_TYPE_FCOE		0x2
+#define QLA83XX_CLASS_TYPE_ISCSI	0x3
+
+/* 83XX: Macros for IDC Lock-Recovery stages */
+#define IDC_LOCK_RECOVERY_STAGE1	0x1 /* Stage1: Intent for
+					     * lock-recovery
+					     */
+#define IDC_LOCK_RECOVERY_STAGE2	0x2 /* Stage2: Perform lock-recovery */
+
+/* 83XX: Macros for IDC Audit type */
+#define IDC_AUDIT_TIMESTAMP		0x0 /* IDC-AUDIT: Record timestamp of
+					     * dev-state change to NEED-RESET
+					     * or NEED-QUIESCENT
+					     */
+#define IDC_AUDIT_COMPLETION		0x1 /* IDC-AUDIT: Record duration of
+					     * reset-recovery completion is
+					     * second
+					     */
+
+/*
  * The ISP2312 v2 chip cannot access the FLASH/GPIO registers via MMIO in an
  * 133Mhz slot.
  */
@@ -595,6 +671,9 @@ typedef struct {
 #define MBA_BYPASS_NOTIFICATION	0x8043	/* Auto bypass notification. */
 #define MBA_DISCARD_RND_FRAME	0x8048	/* discard RND frame due to error. */
 #define MBA_REJECTED_FCP_CMD	0x8049	/* rejected FCP_CMD. */
+
+/* 83XX FCoE specific */
+#define MBA_IDC_AEN		0x8200  /* FCoE: NIC Core state change AEN */
 
 /* ISP mailbox loopback echo diagnostic error code */
 #define MBS_LB_RESET	0x17
@@ -2523,11 +2602,12 @@ struct qla_hw_data {
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
 		uint32_t	isp82xx_fw_hung:1;
+		uint32_t	nic_core_hung:1;
 
 		uint32_t	quiesce_owner:1;
 		uint32_t	thermal_supported:1;
-		uint32_t	isp82xx_reset_hdlr_active:1;
-		uint32_t	isp82xx_reset_owner:1;
+		uint32_t	nic_core_reset_hdlr_active:1;
+		uint32_t	nic_core_reset_owner:1;
 		uint32_t	isp82xx_no_md_cap:1;
 		uint32_t	host_shutting_down:1;
 		/* 30 bits */
@@ -2912,8 +2992,8 @@ struct qla_hw_data {
 	unsigned long	mn_win_crb;
 	unsigned long	ms_win_crb;
 	int		qdr_sn_window;
-	uint32_t	nx_dev_init_timeout;
-	uint32_t	nx_reset_timeout;
+	uint32_t	fcoe_dev_init_timeout;
+	uint32_t	fcoe_reset_timeout;
 	rwlock_t	hw_lock;
 	uint16_t	portnum;		/* port number */
 	int		link_width;
@@ -2935,6 +3015,19 @@ struct qla_hw_data {
 	uint32_t	md_dump_size;
 
 	void		*loop_id_map;
+
+	/* QLA83XX IDC specific fields */
+	uint32_t	idc_audit_ts;
+
+	/* DPC low-priority workqueue */
+	struct workqueue_struct *dpc_lp_wq;
+	struct work_struct idc_aen;
+	/* DPC high-priority workqueue */
+	struct workqueue_struct *dpc_hp_wq;
+	struct work_struct nic_core_reset;
+	struct work_struct idc_state_handler;
+	struct work_struct nic_core_unrecoverable;
+
 	struct qlt_hw_data tgt;
 };
 

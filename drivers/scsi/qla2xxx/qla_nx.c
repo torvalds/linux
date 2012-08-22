@@ -2355,7 +2355,7 @@ qla82xx_need_reset(struct qla_hw_data *ha)
 	uint32_t drv_state;
 	int rval;
 
-	if (ha->flags.isp82xx_reset_owner)
+	if (ha->flags.nic_core_reset_owner)
 		return 1;
 	else {
 		drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
@@ -2864,7 +2864,7 @@ qla82xx_device_bootstrap(scsi_qla_host_t *vha)
 		timeout = msleep_interruptible(200);
 		if (timeout) {
 			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-				QLA82XX_DEV_FAILED);
+				QLA8XXX_DEV_FAILED);
 			return QLA_FUNCTION_FAILED;
 		}
 
@@ -2895,7 +2895,7 @@ dev_initialize:
 	/* set to DEV_INITIALIZING */
 	ql_log(ql_log_info, vha, 0x009e,
 	    "HW State: INITIALIZING.\n");
-	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_INITIALIZING);
+	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA8XXX_DEV_INITIALIZING);
 
 	/* Driver that sets device state to initializating sets IDC version */
 	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_IDC_VERSION, QLA82XX_IDC_VERSION);
@@ -2908,14 +2908,14 @@ dev_initialize:
 		ql_log(ql_log_fatal, vha, 0x00ad,
 		    "HW State: FAILED.\n");
 		qla82xx_clear_drv_active(ha);
-		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_FAILED);
+		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA8XXX_DEV_FAILED);
 		return rval;
 	}
 
 dev_ready:
 	ql_log(ql_log_info, vha, 0x00ae,
 	    "HW State: READY.\n");
-	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_READY);
+	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA8XXX_DEV_READY);
 
 	return QLA_SUCCESS;
 }
@@ -2964,7 +2964,7 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 			    "DRV_STATE:%d.\n", QLA2XXX_DRIVER_NAME,
 			    drv_active, drv_state);
 			qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA82XX_DEV_READY);
+			    QLA8XXX_DEV_READY);
 			ql_log(ql_log_info, vha, 0xb025,
 			    "HW State: DEV_READY.\n");
 			qla82xx_idc_unlock(ha);
@@ -2985,10 +2985,10 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 	}
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 	/* everyone acked so set the state to DEV_QUIESCENCE */
-	if (dev_state == QLA82XX_DEV_NEED_QUIESCENT) {
+	if (dev_state == QLA8XXX_DEV_NEED_QUIESCENT) {
 		ql_log(ql_log_info, vha, 0xb026,
 		    "HW State: DEV_QUIESCENT.\n");
-		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_QUIESCENT);
+		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA8XXX_DEV_QUIESCENT);
 	}
 }
 
@@ -3018,8 +3018,8 @@ qla82xx_wait_for_state_change(scsi_qla_host_t *vha, uint32_t curr_state)
 	return dev_state;
 }
 
-static void
-qla82xx_dev_failed_handler(scsi_qla_host_t *vha)
+void
+qla8xxx_dev_failed_handler(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 
@@ -3067,7 +3067,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	}
 
 	drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
-	if (!ha->flags.isp82xx_reset_owner) {
+	if (!ha->flags.nic_core_reset_owner) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb028,
 		    "reset_acknowledged by 0x%x\n", ha->portnum);
 		qla82xx_set_rst_ready(ha);
@@ -3079,7 +3079,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	}
 
 	/* wait for 10 seconds for reset ack from all functions */
-	reset_timeout = jiffies + (ha->nx_reset_timeout * HZ);
+	reset_timeout = jiffies + (ha->fcoe_reset_timeout * HZ);
 
 	drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
 	drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
@@ -3091,7 +3091,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	    drv_state, drv_active, dev_state, active_mask);
 
 	while (drv_state != drv_active &&
-	    dev_state != QLA82XX_DEV_INITIALIZING) {
+	    dev_state != QLA8XXX_DEV_INITIALIZING) {
 		if (time_after_eq(jiffies, reset_timeout)) {
 			ql_log(ql_log_warn, vha, 0x00b5,
 			    "Reset timeout.\n");
@@ -3102,7 +3102,7 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 		qla82xx_idc_lock(ha);
 		drv_state = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_STATE);
 		drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
-		if (ha->flags.isp82xx_reset_owner)
+		if (ha->flags.nic_core_reset_owner)
 			drv_active &= active_mask;
 		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 	}
@@ -3118,11 +3118,11 @@ qla82xx_need_reset_handler(scsi_qla_host_t *vha)
 	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
 
 	/* Force to DEV_COLD unless someone else is starting a reset */
-	if (dev_state != QLA82XX_DEV_INITIALIZING &&
-	    dev_state != QLA82XX_DEV_COLD) {
+	if (dev_state != QLA8XXX_DEV_INITIALIZING &&
+	    dev_state != QLA8XXX_DEV_COLD) {
 		ql_log(ql_log_info, vha, 0x00b7,
 		    "HW State: COLD/RE-INIT.\n");
-		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA82XX_DEV_COLD);
+		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA8XXX_DEV_COLD);
 		qla82xx_set_rst_ready(ha);
 		if (ql2xmdenable) {
 			if (qla82xx_md_collect(vha))
@@ -3240,7 +3240,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 	    dev_state < MAX_STATES ? qdev_state(dev_state) : "Unknown");
 
 	/* wait for 30 seconds for device to go ready */
-	dev_init_timeout = jiffies + (ha->nx_dev_init_timeout * HZ);
+	dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout * HZ);
 
 	while (1) {
 
@@ -3264,18 +3264,18 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 		}
 
 		switch (dev_state) {
-		case QLA82XX_DEV_READY:
-			ha->flags.isp82xx_reset_owner = 0;
+		case QLA8XXX_DEV_READY:
+			ha->flags.nic_core_reset_owner = 0;
 			goto rel_lock;
-		case QLA82XX_DEV_COLD:
+		case QLA8XXX_DEV_COLD:
 			rval = qla82xx_device_bootstrap(vha);
 			break;
-		case QLA82XX_DEV_INITIALIZING:
+		case QLA8XXX_DEV_INITIALIZING:
 			qla82xx_idc_unlock(ha);
 			msleep(1000);
 			qla82xx_idc_lock(ha);
 			break;
-		case QLA82XX_DEV_NEED_RESET:
+		case QLA8XXX_DEV_NEED_RESET:
 			if (!ql2xdontresethba)
 				qla82xx_need_reset_handler(vha);
 			else {
@@ -3284,15 +3284,15 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 				qla82xx_idc_lock(ha);
 			}
 			dev_init_timeout = jiffies +
-			    (ha->nx_dev_init_timeout * HZ);
+			    (ha->fcoe_dev_init_timeout * HZ);
 			break;
-		case QLA82XX_DEV_NEED_QUIESCENT:
+		case QLA8XXX_DEV_NEED_QUIESCENT:
 			qla82xx_need_qsnt_handler(vha);
 			/* Reset timeout value after quiescence handler */
-			dev_init_timeout = jiffies + (ha->nx_dev_init_timeout\
+			dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout\
 							 * HZ);
 			break;
-		case QLA82XX_DEV_QUIESCENT:
+		case QLA8XXX_DEV_QUIESCENT:
 			/* Owner will exit and other will wait for the state
 			 * to get changed
 			 */
@@ -3304,11 +3304,11 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			qla82xx_idc_lock(ha);
 
 			/* Reset timeout value after quiescence handler */
-			dev_init_timeout = jiffies + (ha->nx_dev_init_timeout\
+			dev_init_timeout = jiffies + (ha->fcoe_dev_init_timeout\
 							 * HZ);
 			break;
-		case QLA82XX_DEV_FAILED:
-			qla82xx_dev_failed_handler(vha);
+		case QLA8XXX_DEV_FAILED:
+			qla8xxx_dev_failed_handler(vha);
 			rval = QLA_FUNCTION_FAILED;
 			goto exit;
 		default:
@@ -3368,23 +3368,23 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	/* don't poll if reset is going on */
-	if (!ha->flags.isp82xx_reset_hdlr_active) {
+	if (!ha->flags.nic_core_reset_hdlr_active) {
 		dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 		if (qla82xx_check_temp(vha)) {
 			set_bit(ISP_UNRECOVERABLE, &vha->dpc_flags);
 			ha->flags.isp82xx_fw_hung = 1;
 			qla82xx_clear_pending_mbx(vha);
-		} else if (dev_state == QLA82XX_DEV_NEED_RESET &&
+		} else if (dev_state == QLA8XXX_DEV_NEED_RESET &&
 		    !test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags)) {
 			ql_log(ql_log_warn, vha, 0x6001,
 			    "Adapter reset needed.\n");
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
+		} else if (dev_state == QLA8XXX_DEV_NEED_QUIESCENT &&
 			!test_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags)) {
 			ql_log(ql_log_warn, vha, 0x6002,
 			    "Quiescent needed.\n");
 			set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
-		} else if (dev_state == QLA82XX_DEV_FAILED &&
+		} else if (dev_state == QLA8XXX_DEV_FAILED &&
 			!test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags) &&
 			vha->flags.online == 1) {
 			ql_log(ql_log_warn, vha, 0xb055,
@@ -3453,12 +3453,12 @@ qla82xx_set_reset_owner(scsi_qla_host_t *vha)
 	uint32_t dev_state;
 
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-	if (dev_state == QLA82XX_DEV_READY) {
+	if (dev_state == QLA8XXX_DEV_READY) {
 		ql_log(ql_log_info, vha, 0xb02f,
 		    "HW State: NEED RESET\n");
 		qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			QLA82XX_DEV_NEED_RESET);
-		ha->flags.isp82xx_reset_owner = 1;
+			QLA8XXX_DEV_NEED_RESET);
+		ha->flags.nic_core_reset_owner = 1;
 		ql_dbg(ql_dbg_p3p, vha, 0xb030,
 		    "reset_owner is 0x%x\n", ha->portnum);
 	} else
@@ -3489,7 +3489,7 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 		    "Device in failed state, exiting.\n");
 		return QLA_SUCCESS;
 	}
-	ha->flags.isp82xx_reset_hdlr_active = 1;
+	ha->flags.nic_core_reset_hdlr_active = 1;
 
 	qla82xx_idc_lock(ha);
 	qla82xx_set_reset_owner(vha);
@@ -3503,7 +3503,7 @@ qla82xx_abort_isp(scsi_qla_host_t *vha)
 
 	if (rval == QLA_SUCCESS) {
 		ha->flags.isp82xx_fw_hung = 0;
-		ha->flags.isp82xx_reset_hdlr_active = 0;
+		ha->flags.nic_core_reset_hdlr_active = 0;
 		qla82xx_restart_isp(vha);
 	}
 

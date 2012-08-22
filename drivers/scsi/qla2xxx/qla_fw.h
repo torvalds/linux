@@ -1540,7 +1540,10 @@ struct access_chip_rsp_84xx {
 /*
  * ISP83xx mailbox commands
  */
-#define MBC_WRITE_REMOTE_REG 0x0001 /* Write remote register */
+#define MBC_WRITE_REMOTE_REG		0x0001 /* Write remote register */
+#define MBC_READ_REMOTE_REG		0x0009 /* Read remote register */
+#define MBC_RESTART_NIC_FIRMWARE	0x003d /* Restart NIC firmware */
+#define MBC_SET_ACCESS_CONTROL		0x003e /* Access control command */
 
 /* Flash access control option field bit definitions */
 #define FAC_OPT_FORCE_SEMAPHORE		BIT_15

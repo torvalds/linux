@@ -76,6 +76,13 @@ extern int qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *, fc_port_t *);
 
 extern fc_port_t *
 qla2x00_alloc_fcport(scsi_qla_host_t *, gfp_t );
+
+extern int __qla83xx_set_idc_control(scsi_qla_host_t *, uint32_t);
+extern int __qla83xx_get_idc_control(scsi_qla_host_t *, uint32_t *);
+extern void qla83xx_idc_audit(scsi_qla_host_t *, int);
+extern int qla83xx_nic_core_reset(scsi_qla_host_t *);
+extern void qla83xx_reset_ownership(scsi_qla_host_t *);
+
 /*
  * Global Data in qla_os.c source file.
  */
@@ -132,6 +139,20 @@ extern void qla2x00_free_host(struct scsi_qla_host *);
 extern void qla2x00_relogin(struct scsi_qla_host *);
 extern void qla2x00_do_work(struct scsi_qla_host *);
 extern void qla2x00_free_fcports(struct scsi_qla_host *);
+
+extern void qla83xx_schedule_work(scsi_qla_host_t *, int);
+extern void qla83xx_service_idc_aen(struct work_struct *);
+extern void qla83xx_nic_core_unrecoverable_work(struct work_struct *);
+extern void qla83xx_idc_state_handler_work(struct work_struct *);
+extern void qla83xx_nic_core_reset_work(struct work_struct *);
+
+extern void qla83xx_idc_lock(scsi_qla_host_t *, uint16_t);
+extern void qla83xx_idc_unlock(scsi_qla_host_t *, uint16_t);
+extern int qla83xx_idc_state_handler(scsi_qla_host_t *);
+extern int qla83xx_set_drv_presence(scsi_qla_host_t *vha);
+extern int __qla83xx_set_drv_presence(scsi_qla_host_t *vha);
+extern int qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
+extern int __qla83xx_clear_drv_presence(scsi_qla_host_t *vha);
 
 /*
  * Global Functions in qla_mid.c source file.
@@ -421,7 +442,11 @@ extern void qla24xx_beacon_blink(struct scsi_qla_host *);
 extern void qla83xx_beacon_blink(struct scsi_qla_host *);
 extern int qla82xx_beacon_on(struct scsi_qla_host *);
 extern int qla82xx_beacon_off(struct scsi_qla_host *);
-extern int qla83xx_write_remote_reg(struct scsi_qla_host *, uint32_t, uint32_t);
+extern int qla83xx_wr_reg(scsi_qla_host_t *, uint32_t, uint32_t);
+extern int qla83xx_rd_reg(scsi_qla_host_t *, uint32_t, uint32_t *);
+extern int qla83xx_restart_nic_firmware(scsi_qla_host_t *);
+extern int qla83xx_access_control(scsi_qla_host_t *, uint16_t, uint32_t,
+    uint32_t, uint16_t *);
 
 extern uint8_t *qla2x00_read_optrom_data(struct scsi_qla_host *, uint8_t *,
     uint32_t, uint32_t);
@@ -582,6 +607,7 @@ extern uint32_t  qla82xx_wait_for_state_change(scsi_qla_host_t *, uint32_t);
 extern int qla82xx_idc_lock(struct qla_hw_data *);
 extern void qla82xx_idc_unlock(struct qla_hw_data *);
 extern int qla82xx_device_state_handler(scsi_qla_host_t *);
+extern void qla8xxx_dev_failed_handler(scsi_qla_host_t *);
 extern void qla82xx_clear_qsnt_ready(scsi_qla_host_t *);
 
 extern void qla2x00_set_model_info(scsi_qla_host_t *, uint8_t *,

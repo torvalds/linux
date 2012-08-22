@@ -966,16 +966,16 @@ qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 		QLA82XX_IDC_PARAM_ADDR , 8);
 
 	if (*wptr == __constant_cpu_to_le32(0xffffffff)) {
-		ha->nx_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
-		ha->nx_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
+		ha->fcoe_dev_init_timeout = QLA82XX_ROM_DEV_INIT_TIMEOUT;
+		ha->fcoe_reset_timeout = QLA82XX_ROM_DRV_RESET_ACK_TIMEOUT;
 	} else {
-		ha->nx_dev_init_timeout = le32_to_cpu(*wptr++);
-		ha->nx_reset_timeout = le32_to_cpu(*wptr);
+		ha->fcoe_dev_init_timeout = le32_to_cpu(*wptr++);
+		ha->fcoe_reset_timeout = le32_to_cpu(*wptr);
 	}
 	ql_dbg(ql_dbg_init, vha, 0x004e,
-	    "nx_dev_init_timeout=%d "
-	    "nx_reset_timeout=%d.\n", ha->nx_dev_init_timeout,
-	    ha->nx_reset_timeout);
+	    "fcoe_dev_init_timeout=%d "
+	    "fcoe_reset_timeout=%d.\n", ha->fcoe_dev_init_timeout,
+	    ha->fcoe_reset_timeout);
 	return;
 }
 
@@ -1017,7 +1017,7 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha))
 		return;
 
-	if (ha->flags.isp82xx_reset_hdlr_active)
+	if (ha->flags.nic_core_reset_hdlr_active)
 		return;
 
 	ha->isp_ops->read_optrom(vha, (uint8_t *)&hdr,
@@ -1675,15 +1675,15 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 
 	if (IS_QLA2031(ha) && ha->beacon_blink_led) {
 		if (ha->flags.port0)
-			led_select_value = 0x00201320;
+			led_select_value = QLA83XX_LED_PORT0;
 		else
-			led_select_value = 0x00201328;
+			led_select_value = QLA83XX_LED_PORT1;
 
-		qla83xx_write_remote_reg(vha, led_select_value, 0x40002000);
-		qla83xx_write_remote_reg(vha, led_select_value + 4, 0x40002000);
+		qla83xx_wr_reg(vha, led_select_value, 0x40002000);
+		qla83xx_wr_reg(vha, led_select_value + 4, 0x40002000);
 		msleep(1000);
-		qla83xx_write_remote_reg(vha, led_select_value, 0x40004000);
-		qla83xx_write_remote_reg(vha, led_select_value + 4, 0x40004000);
+		qla83xx_wr_reg(vha, led_select_value, 0x40004000);
+		qla83xx_wr_reg(vha, led_select_value + 4, 0x40004000);
 	} else if ((IS_QLA8031(ha) || IS_QLA81XX(ha)) && ha->beacon_blink_led) {
 		int rval;
 

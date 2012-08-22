@@ -429,6 +429,71 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 /*                QLogic ISP2x00 Hardware Support Functions.                */
 /****************************************************************************/
 
+int
+qla83xx_nic_core_fw_load(scsi_qla_host_t *vha)
+{
+	int rval = QLA_SUCCESS;
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t idc_major_ver, idc_minor_ver;
+
+	qla83xx_idc_lock(vha, 0);
+
+	/* SV: TODO: Assign initialization timeout from
+	 * flash-info / other param
+	 */
+	ha->fcoe_dev_init_timeout = QLA83XX_IDC_INITIALIZATION_TIMEOUT;
+	ha->fcoe_reset_timeout = QLA83XX_IDC_RESET_ACK_TIMEOUT;
+
+	/* Set our fcoe function presence */
+	if (__qla83xx_set_drv_presence(vha) != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_p3p, vha, 0xb077,
+		    "Error while setting DRV-Presence.\n");
+		rval = QLA_FUNCTION_FAILED;
+		goto exit;
+	}
+
+	/* Decide the reset ownership */
+	qla83xx_reset_ownership(vha);
+
+	/*
+	 * On first protocol driver load:
+	 * Init-Owner: Set IDC-Major-Version and Clear IDC-Lock-Recovery
+	 * register.
+	 * Others: Check compatibility with current IDC Major version.
+	 */
+	qla83xx_rd_reg(vha, QLA83XX_IDC_MAJOR_VERSION, &idc_major_ver);
+	if (ha->flags.nic_core_reset_owner) {
+		/* Set IDC Major version */
+		idc_major_ver = QLA83XX_SUPP_IDC_MAJOR_VERSION;
+		qla83xx_wr_reg(vha, QLA83XX_IDC_MAJOR_VERSION, idc_major_ver);
+
+		/* Clearing IDC-Lock-Recovery register */
+		qla83xx_wr_reg(vha, QLA83XX_IDC_LOCK_RECOVERY, 0);
+	} else if (idc_major_ver != QLA83XX_SUPP_IDC_MAJOR_VERSION) {
+		/*
+		 * Clear further IDC participation if we are not compatible with
+		 * the current IDC Major Version.
+		 */
+		ql_log(ql_log_warn, vha, 0xb07d,
+		    "Failing load, idc_major_ver=%d, expected_major_ver=%d.\n",
+		    idc_major_ver, QLA83XX_SUPP_IDC_MAJOR_VERSION);
+		__qla83xx_clear_drv_presence(vha);
+		rval = QLA_FUNCTION_FAILED;
+		goto exit;
+	}
+	/* Each function sets its supported Minor version. */
+	qla83xx_rd_reg(vha, QLA83XX_IDC_MINOR_VERSION, &idc_minor_ver);
+	idc_minor_ver |= (QLA83XX_SUPP_IDC_MINOR_VERSION << (ha->portnum * 2));
+	qla83xx_wr_reg(vha, QLA83XX_IDC_MINOR_VERSION, idc_minor_ver);
+
+	rval = qla83xx_idc_state_handler(vha);
+
+exit:
+	qla83xx_idc_unlock(vha, 0);
+
+	return rval;
+}
+
 /*
 * qla2x00_initialize_adapter
 *      Initialize board.
@@ -535,6 +600,14 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 			    "Unable to initialize ISP84XX.\n");
 		qla84xx_put_chip(vha);
 		}
+	}
+
+	/* Load the NIC Core f/w if we are the first protocol driver. */
+	if (IS_QLA8031(ha)) {
+		rval = qla83xx_nic_core_fw_load(vha);
+		if (rval)
+			ql_log(ql_log_warn, vha, 0x0124,
+			    "Error in initializing NIC Core f/w.\n");
 	}
 
 	if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))
@@ -3736,6 +3809,307 @@ qla2x00_update_fcports(scsi_qla_host_t *base_vha)
 	spin_unlock_irqrestore(&ha->vport_slock, flags);
 }
 
+/* Assumes idc_lock always held on entry */
+void
+qla83xx_reset_ownership(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t drv_presence, drv_presence_mask;
+	uint32_t dev_part_info1, dev_part_info2, class_type;
+	uint32_t class_type_mask = 0x3;
+	uint16_t fcoe_other_function = 0xffff, i;
+
+	qla83xx_rd_reg(vha, QLA83XX_IDC_DRV_PRESENCE, &drv_presence);
+
+	qla83xx_rd_reg(vha, QLA83XX_DEV_PARTINFO1, &dev_part_info1);
+	qla83xx_rd_reg(vha, QLA83XX_DEV_PARTINFO2, &dev_part_info2);
+	for (i = 0; i < 8; i++) {
+		class_type = ((dev_part_info1 >> (i * 4)) & class_type_mask);
+		if ((class_type == QLA83XX_CLASS_TYPE_FCOE) &&
+		    (i != ha->portnum)) {
+			fcoe_other_function = i;
+			break;
+		}
+	}
+	if (fcoe_other_function == 0xffff) {
+		for (i = 0; i < 8; i++) {
+			class_type = ((dev_part_info2 >> (i * 4)) &
+			    class_type_mask);
+			if ((class_type == QLA83XX_CLASS_TYPE_FCOE) &&
+			    ((i + 8) != ha->portnum)) {
+				fcoe_other_function = i + 8;
+				break;
+			}
+		}
+	}
+	/*
+	 * Prepare drv-presence mask based on fcoe functions present.
+	 * However consider only valid physical fcoe function numbers (0-15).
+	 */
+	drv_presence_mask = ~((1 << (ha->portnum)) |
+			((fcoe_other_function == 0xffff) ?
+			 0 : (1 << (fcoe_other_function))));
+
+	/* We are the reset owner iff:
+	 *    - No other protocol drivers present.
+	 *    - This is the lowest among fcoe functions. */
+	if (!(drv_presence & drv_presence_mask) &&
+			(ha->portnum < fcoe_other_function)) {
+		ql_dbg(ql_dbg_p3p, vha, 0xb07f,
+		    "This host is Reset owner.\n");
+		ha->flags.nic_core_reset_owner = 1;
+	}
+}
+
+int
+__qla83xx_set_drv_ack(scsi_qla_host_t *vha)
+{
+	int rval = QLA_SUCCESS;
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t drv_ack;
+
+	rval = qla83xx_rd_reg(vha, QLA83XX_IDC_DRIVER_ACK, &drv_ack);
+	if (rval == QLA_SUCCESS) {
+		drv_ack |= (1 << ha->portnum);
+		rval = qla83xx_wr_reg(vha, QLA83XX_IDC_DRIVER_ACK, drv_ack);
+	}
+
+	return rval;
+}
+
+int
+qla83xx_set_drv_ack(scsi_qla_host_t *vha)
+{
+	int rval = QLA_SUCCESS;
+
+	qla83xx_idc_lock(vha, 0);
+	rval = __qla83xx_set_drv_ack(vha);
+	qla83xx_idc_unlock(vha, 0);
+
+	return rval;
+}
+
+int
+__qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
+{
+	int rval = QLA_SUCCESS;
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t drv_ack;
+
+	rval = qla83xx_rd_reg(vha, QLA83XX_IDC_DRIVER_ACK, &drv_ack);
+	if (rval == QLA_SUCCESS) {
+		drv_ack &= ~(1 << ha->portnum);
+		rval = qla83xx_wr_reg(vha, QLA83XX_IDC_DRIVER_ACK, drv_ack);
+	}
+
+	return rval;
+}
+
+int
+qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
+{
+	int rval = QLA_SUCCESS;
+
+	qla83xx_idc_lock(vha, 0);
+	rval = __qla83xx_clear_drv_ack(vha);
+	qla83xx_idc_unlock(vha, 0);
+
+	return rval;
+}
+
+const char *
+qla83xx_dev_state_to_string(uint32_t dev_state)
+{
+	switch (dev_state) {
+	case QLA8XXX_DEV_COLD:
+		return "COLD/RE-INIT";
+	case QLA8XXX_DEV_INITIALIZING:
+		return "INITIALIZING";
+	case QLA8XXX_DEV_READY:
+		return "READY";
+	case QLA8XXX_DEV_NEED_RESET:
+		return "NEED RESET";
+	case QLA8XXX_DEV_NEED_QUIESCENT:
+		return "NEED QUIESCENT";
+	case QLA8XXX_DEV_FAILED:
+		return "FAILED";
+	case QLA8XXX_DEV_QUIESCENT:
+		return "QUIESCENT";
+	default:
+		return "Unknown";
+	}
+}
+
+/* Assumes idc-lock always held on entry */
+void
+qla83xx_idc_audit(scsi_qla_host_t *vha, int audit_type)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t idc_audit_reg = 0, duration_secs = 0;
+
+	switch (audit_type) {
+	case IDC_AUDIT_TIMESTAMP:
+		ha->idc_audit_ts = (jiffies_to_msecs(jiffies) / 1000);
+		idc_audit_reg = (ha->portnum) |
+		    (IDC_AUDIT_TIMESTAMP << 7) | (ha->idc_audit_ts << 8);
+		qla83xx_wr_reg(vha, QLA83XX_IDC_AUDIT, idc_audit_reg);
+		break;
+
+	case IDC_AUDIT_COMPLETION:
+		duration_secs = ((jiffies_to_msecs(jiffies) -
+		    jiffies_to_msecs(ha->idc_audit_ts)) / 1000);
+		idc_audit_reg = (ha->portnum) |
+		    (IDC_AUDIT_COMPLETION << 7) | (duration_secs << 8);
+		qla83xx_wr_reg(vha, QLA83XX_IDC_AUDIT, idc_audit_reg);
+		break;
+
+	default:
+		ql_log(ql_log_warn, vha, 0xb078,
+		    "Invalid audit type specified.\n");
+		break;
+	}
+}
+
+/* Assumes idc_lock always held on entry */
+int
+qla83xx_initiating_reset(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t  idc_control, dev_state;
+
+	__qla83xx_get_idc_control(vha, &idc_control);
+	if ((idc_control & QLA83XX_IDC_RESET_DISABLED)) {
+		ql_log(ql_log_info, vha, 0xb080,
+		    "NIC Core reset has been disabled. idc-control=0x%x\n",
+		    idc_control);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	/* Set NEED-RESET iff in READY state and we are the reset-owner */
+	qla83xx_rd_reg(vha, QLA83XX_IDC_DEV_STATE, &dev_state);
+	if (ha->flags.nic_core_reset_owner && dev_state == QLA8XXX_DEV_READY) {
+		qla83xx_wr_reg(vha, QLA83XX_IDC_DEV_STATE,
+		    QLA8XXX_DEV_NEED_RESET);
+		ql_log(ql_log_info, vha, 0xb056, "HW State: NEED RESET.\n");
+		qla83xx_idc_audit(vha, IDC_AUDIT_TIMESTAMP);
+	} else {
+		const char *state = qla83xx_dev_state_to_string(dev_state);
+		ql_log(ql_log_info, vha, 0xb057, "HW State: %s.\n", state);
+
+		/* SV: XXX: Is timeout required here? */
+		/* Wait for IDC state change READY -> NEED_RESET */
+		while (dev_state == QLA8XXX_DEV_READY) {
+			qla83xx_idc_unlock(vha, 0);
+			msleep(200);
+			qla83xx_idc_lock(vha, 0);
+			qla83xx_rd_reg(vha, QLA83XX_IDC_DEV_STATE, &dev_state);
+		}
+	}
+
+	/* Send IDC ack by writing to drv-ack register */
+	__qla83xx_set_drv_ack(vha);
+
+	return QLA_SUCCESS;
+}
+
+int
+__qla83xx_set_idc_control(scsi_qla_host_t *vha, uint32_t idc_control)
+{
+	return qla83xx_wr_reg(vha, QLA83XX_IDC_CONTROL, idc_control);
+}
+
+int
+qla83xx_set_idc_control(scsi_qla_host_t *vha, uint32_t idc_control)
+{
+	int rval = QLA_SUCCESS;
+
+	qla83xx_idc_lock(vha, 0);
+	rval = __qla83xx_set_idc_control(vha, idc_control);
+	qla83xx_idc_unlock(vha, 0);
+
+	return rval;
+}
+
+int
+__qla83xx_get_idc_control(scsi_qla_host_t *vha, uint32_t *idc_control)
+{
+	return qla83xx_rd_reg(vha, QLA83XX_IDC_CONTROL, idc_control);
+}
+
+int
+qla83xx_get_idc_control(scsi_qla_host_t *vha, uint32_t *idc_control)
+{
+	int rval = QLA_SUCCESS;
+
+	qla83xx_idc_lock(vha, 0);
+	rval = __qla83xx_get_idc_control(vha, idc_control);
+	qla83xx_idc_unlock(vha, 0);
+
+	return rval;
+}
+
+int
+qla83xx_check_driver_presence(scsi_qla_host_t *vha)
+{
+	uint32_t drv_presence = 0;
+	struct qla_hw_data *ha = vha->hw;
+
+	qla83xx_rd_reg(vha, QLA83XX_IDC_DRV_PRESENCE, &drv_presence);
+	if (drv_presence & (1 << ha->portnum))
+		return QLA_SUCCESS;
+	else
+		return QLA_TEST_FAILED;
+}
+
+int
+qla83xx_nic_core_reset(scsi_qla_host_t *vha)
+{
+	int rval = QLA_SUCCESS;
+	struct qla_hw_data *ha = vha->hw;
+
+	ql_dbg(ql_dbg_p3p, vha, 0xb058,
+	    "Entered  %s().\n", __func__);
+
+	if (vha->device_flags & DFLG_DEV_FAILED) {
+		ql_log(ql_log_warn, vha, 0xb059,
+		    "Device in unrecoverable FAILED state.\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	qla83xx_idc_lock(vha, 0);
+
+	if (qla83xx_check_driver_presence(vha) != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0xb05a,
+		    "Function=0x%x has been removed from IDC participation.\n",
+		    ha->portnum);
+		rval = QLA_FUNCTION_FAILED;
+		goto exit;
+	}
+
+	qla83xx_reset_ownership(vha);
+
+	rval = qla83xx_initiating_reset(vha);
+
+	/*
+	 * Perform reset if we are the reset-owner,
+	 * else wait till IDC state changes to READY/FAILED.
+	 */
+	if (rval == QLA_SUCCESS) {
+		rval = qla83xx_idc_state_handler(vha);
+
+		if (rval == QLA_SUCCESS)
+			ha->flags.nic_core_hung = 0;
+		__qla83xx_clear_drv_ack(vha);
+	}
+
+exit:
+	qla83xx_idc_unlock(vha, 0);
+
+	ql_dbg(ql_dbg_p3p, vha, 0xb05b, "Exiting %s.\n", __func__);
+
+	return rval;
+}
+
 /*
 * qla82xx_quiescent_state_cleanup
 * Description: This function will block the new I/Os
@@ -3871,6 +4245,14 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 	unsigned long flags;
 
+	if (IS_QLA8031(ha)) {
+		ql_dbg(ql_dbg_p3p, vha, 0xb05c,
+		    "Clearing fcoe driver presence.\n");
+		if (qla83xx_clear_drv_presence(vha) != QLA_SUCCESS)
+			ql_dbg(ql_dbg_p3p, vha, 0xb073,
+			    "Erro while clearing DRV-Presence.\n");
+	}
+
 	if (vha->flags.online) {
 		qla2x00_abort_isp_cleanup(vha);
 
@@ -3982,6 +4364,13 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 		}
 		spin_unlock_irqrestore(&ha->vport_slock, flags);
 
+		if (IS_QLA8031(ha)) {
+			ql_dbg(ql_dbg_p3p, vha, 0xb05d,
+			    "Setting back fcoe driver presence.\n");
+			if (qla83xx_set_drv_presence(vha) != QLA_SUCCESS)
+				ql_dbg(ql_dbg_p3p, vha, 0xb074,
+				    "Error while setting DRV-Presence.\n");
+		}
 	} else {
 		ql_log(ql_log_warn, vha, 0x8023, "%s **** FAILED ****.\n",
 		       __func__);
