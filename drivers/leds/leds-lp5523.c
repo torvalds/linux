@@ -846,10 +846,14 @@ static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			return -EINVAL;
 		}
 
-		snprintf(name, sizeof(name), "%s:channel%d",
-			pdata->label ?: "lp5523", chan);
+		if (pdata->led_config[chan].name) {
+			led->cdev.name = pdata->led_config[chan].name;
+		} else {
+			snprintf(name, sizeof(name), "%s:channel%d",
+				pdata->label ?: "lp5523", chan);
+			led->cdev.name = name;
+		}
 
-		led->cdev.name = name;
 		led->cdev.brightness_set = lp5523_set_brightness;
 		res = led_classdev_register(dev, &led->cdev);
 		if (res < 0) {
