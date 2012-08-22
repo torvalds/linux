@@ -550,24 +550,11 @@ static long do_cache_op_restart(struct restart_block *unused)
 static inline int
 do_cache_op(unsigned long start, unsigned long end, int flags)
 {
-	struct mm_struct *mm = current->active_mm;
-	struct vm_area_struct *vma;
-
 	if (end < start || flags)
 		return -EINVAL;
 
-	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, start);
-	if (!vma || vma->vm_start >= end) {
-		up_read(&mm->mmap_sem);
-		return -EINVAL;
-	}
-
-	if (start < vma->vm_start)
-		start = vma->vm_start;
-	if (end > vma->vm_end)
-		end = vma->vm_end;
-	up_read(&mm->mmap_sem);
+	if (!access_ok(VERIFY_READ, start, end - start))
+		return -EFAULT;
 
 	return __do_cache_op(start, end);
 }
