@@ -194,6 +194,7 @@ static struct usb_driver au6610_driver = {
 	.disconnect = dvb_usbv2_disconnect,
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
+	.reset_resume = dvb_usbv2_reset_resume,
 	.no_dynamic_id = 1,
 	.soft_unbind = 1,
 };
