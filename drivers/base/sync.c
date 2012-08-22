@@ -567,7 +567,7 @@ int sync_fence_wait(struct sync_fence *fence, long timeout)
 		err = wait_event_interruptible_timeout(fence->wq,
 						       fence->status != 0,
 						       timeout);
-	} else if (timeout < 0{
+	} else if (timeout < 0) {
 		err = wait_event_interruptible(fence->wq, fence->status != 0);
 	}
 
