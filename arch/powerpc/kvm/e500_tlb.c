@@ -1385,7 +1385,7 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	if (!vcpu_e500->gtlb_priv[1])
 		goto err;
 
-	vcpu_e500->g2h_tlb1_map = kzalloc(sizeof(unsigned int) *
+	vcpu_e500->g2h_tlb1_map = kzalloc(sizeof(u64) *
 					  vcpu_e500->gtlb_params[1].entries,
 					  GFP_KERNEL);
 	if (!vcpu_e500->g2h_tlb1_map)
