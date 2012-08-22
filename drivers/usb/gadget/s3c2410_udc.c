@@ -1696,7 +1696,8 @@ static int s3c2410_udc_start(struct usb_gadget_driver *driver,
 	udc->gadget.dev.driver = &driver->driver;
 
 	/* Bind the driver */
-	if ((retval = device_add(&udc->gadget.dev)) != 0) {
+	retval = device_add(&udc->gadget.dev);
+	if (retval) {
 		dev_err(&udc->gadget.dev, "Error in device_add() : %d\n", retval);
 		goto register_error;
 	}
@@ -1704,7 +1705,8 @@ static int s3c2410_udc_start(struct usb_gadget_driver *driver,
 	dprintk(DEBUG_NORMAL, "binding gadget driver '%s'\n",
 		driver->driver.name);
 
-	if ((retval = bind(&udc->gadget)) != 0) {
+	retval = bind(&udc->gadget);
+	if (retval) {
 		device_del(&udc->gadget.dev);
 		goto register_error;
 	}
