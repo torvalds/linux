@@ -1276,6 +1276,24 @@ qla2x00_diag_megabytes_show(struct device *dev,
 	    vha->bidi_stats.transfer_bytes >> 20);
 }
 
+static ssize_t
+qla2x00_fw_dump_size_show(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t size;
+
+	if (!ha->fw_dumped)
+		size = 0;
+	else if (IS_QLA82XX(ha))
+		size = ha->md_template_size + ha->md_dump_size;
+	else
+		size = ha->fw_dump_len;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", size);
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -1316,6 +1334,7 @@ static DEVICE_ATTR(fw_state, S_IRUGO, qla2x00_fw_state_show, NULL);
 static DEVICE_ATTR(thermal_temp, S_IRUGO, qla2x00_thermal_temp_show, NULL);
 static DEVICE_ATTR(diag_requests, S_IRUGO, qla2x00_diag_requests_show, NULL);
 static DEVICE_ATTR(diag_megabytes, S_IRUGO, qla2x00_diag_megabytes_show, NULL);
+static DEVICE_ATTR(fw_dump_size, S_IRUGO, qla2x00_fw_dump_size_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -1347,6 +1366,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_thermal_temp,
 	&dev_attr_diag_requests,
 	&dev_attr_diag_megabytes,
+	&dev_attr_fw_dump_size,
 	NULL,
 };
 
