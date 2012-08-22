@@ -1792,7 +1792,10 @@ void wait_for_work(struct drbd_tconn *connection, struct list_head *work_list)
 		prepare_to_wait(&connection->sender_work.q_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_lock_irq(&connection->req_lock);
 		spin_lock(&connection->sender_work.q_lock);	/* FIXME get rid of this one? */
-		list_splice_init(&connection->sender_work.q, work_list);
+		/* dequeue single item only,
+		 * we still use drbd_queue_work_front() in some places */
+		if (!list_empty(&connection->sender_work.q))
+			list_move(connection->sender_work.q.next, work_list);
 		spin_unlock(&connection->sender_work.q_lock);	/* FIXME get rid of this one? */
 		if (!list_empty(work_list) || signal_pending(current)) {
 			spin_unlock_irq(&connection->req_lock);
