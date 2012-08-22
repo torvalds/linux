@@ -113,7 +113,8 @@ MODULE_PARM_DESC(ql2xfdmienable,
 static int ql2xmaxqdepth = MAX_Q_DEPTH;
 module_param(ql2xmaxqdepth, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xmaxqdepth,
-		"Maximum queue depth to report for target devices.");
+		"Maximum queue depth to set for each LUN. "
+		"Default is 32.");
 
 /* Do not change the value of this after module load */
 int ql2xenabledif = 0;
