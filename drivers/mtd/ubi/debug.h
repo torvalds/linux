@@ -39,7 +39,8 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 		print_hex_dump(l, ps, pt, r, g, b, len, a)
 
 #define ubi_dbg_msg(type, fmt, ...) \
-	pr_debug("UBI DBG " type ": " fmt "\n", ##__VA_ARGS__)
+	pr_debug("UBI DBG " type " (pid %d): " fmt "\n", current->pid,       \
+		 ##__VA_ARGS__)
 
 /* Just a debugging messages not related to any specific UBI subsystem */
 #define dbg_msg(fmt, ...)                                    \
