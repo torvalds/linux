@@ -1134,6 +1134,8 @@ static void free_gtlb(struct kvmppc_vcpu_e500 *vcpu_e500)
 		}
 
 		vcpu_e500->num_shared_tlb_pages = 0;
+
+		kfree(vcpu_e500->shared_tlb_pages);
 		vcpu_e500->shared_tlb_pages = NULL;
 	} else {
 		kfree(vcpu_e500->gtlb_arch);
