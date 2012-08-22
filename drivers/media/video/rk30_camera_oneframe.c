@@ -50,7 +50,7 @@
 #include <mach/rk2928_camera.h>
 #endif
 #include <asm/cacheflush.h>
-static int debug ;
+static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
@@ -2708,7 +2708,7 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
 	write_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS,  0x00000002);//frame1 has been ready to receive data,frame 2 is not used
 	if(pcdev->active)
 		rk_videobuf_capture(pcdev->active,pcdev);
-	if((tmp_cifctrl & ENABLE_CAPTURE) == 0)
+	if(tmp_cifctrl & ENABLE_CAPTURE)
 		write_cif_reg(pcdev->base,CIF_CIF_CTRL, (tmp_cifctrl | ENABLE_CAPTURE));
 	up(&pcdev->zoominfo.sem);
 	pcdev->stop_cif = false;
