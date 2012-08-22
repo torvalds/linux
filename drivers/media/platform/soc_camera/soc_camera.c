@@ -950,11 +950,11 @@ static int soc_camera_s_selection(struct file *file, void *fh,
 
 	/* In all these cases cropping emulation will not help */
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-	    (s->target != V4L2_SEL_TGT_COMPOSE_ACTIVE &&
-	     s->target != V4L2_SEL_TGT_CROP_ACTIVE))
+	    (s->target != V4L2_SEL_TGT_COMPOSE &&
+	     s->target != V4L2_SEL_TGT_CROP))
 		return -EINVAL;
 
-	if (s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	if (s->target == V4L2_SEL_TGT_COMPOSE) {
 		/* No output size change during a running capture! */
 		if (is_streaming(ici, icd) &&
 		    (icd->user_width != s->r.width ||
@@ -974,7 +974,7 @@ static int soc_camera_s_selection(struct file *file, void *fh,
 
 	ret = ici->ops->set_selection(icd, s);
 	if (!ret &&
-	    s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	    s->target == V4L2_SEL_TGT_COMPOSE) {
 		icd->user_width = s->r.width;
 		icd->user_height = s->r.height;
 		if (!icd->streamer)
