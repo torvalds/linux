@@ -305,9 +305,6 @@ void ubifs_dump_node(const struct ubifs_info *c, const void *node)
 	const struct ubifs_ch *ch = node;
 	char key_buf[DBG_KEY_BUF_LEN];
 
-	if (dbg_is_tst_rcvry(c))
-		return;
-
 	/* If the magic is incorrect, just hexdump the first bytes */
 	if (le32_to_cpu(ch->magic) != UBIFS_NODE_MAGIC) {
 		printk(KERN_ERR "Not a node, first %zu bytes:", UBIFS_CH_SZ);
@@ -881,9 +878,6 @@ void ubifs_dump_leb(const struct ubifs_info *c, int lnum)
 	struct ubifs_scan_leb *sleb;
 	struct ubifs_scan_node *snod;
 	void *buf;
-
-	if (dbg_is_tst_rcvry(c))
-		return;
 
 	printk(KERN_ERR "(pid %d) start dumping LEB %d\n",
 	       current->pid, lnum);
