@@ -78,7 +78,16 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			break;
 		}
 
+		vcpu->mode = IN_GUEST_MODE;
+
+		/*
+		 * Reading vcpu->requests must happen after setting vcpu->mode,
+		 * so we don't miss a request because the requester sees
+		 * OUTSIDE_GUEST_MODE and assumes we'll be checking requests
+		 * before next entering the guest (and thus doesn't IPI).
+		 */
 		smp_mb();
+
 		if (vcpu->requests) {
 			/* Make sure we process requests preemptable */
 			local_irq_enable();
@@ -111,11 +120,6 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 #endif
 
 		kvm_guest_enter();
-
-		/* Going into guest context! Yay! */
-		vcpu->mode = IN_GUEST_MODE;
-		smp_wmb();
-
 		break;
 	}
 

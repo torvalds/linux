@@ -674,7 +674,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 out:
 	vcpu->mode = OUTSIDE_GUEST_MODE;
-	smp_wmb();
 	return ret;
 }
 
