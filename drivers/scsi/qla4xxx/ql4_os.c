@@ -3487,6 +3487,15 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 		ha->isp_ops->disable_intrs(ha);
 	}
 
+	if (is_qla40XX(ha)) {
+		writel(set_rmask(CSR_SCSI_PROCESSOR_INTR),
+		       &ha->reg->ctrl_status);
+		readl(&ha->reg->ctrl_status);
+	} else if (is_qla8022(ha)) {
+		writel(0, &ha->qla4_8xxx_reg->host_int);
+		readl(&ha->qla4_8xxx_reg->host_int);
+	}
+
 	/* Remove timer thread, if present */
 	if (ha->timer_active)
 		qla4xxx_stop_timer(ha);
