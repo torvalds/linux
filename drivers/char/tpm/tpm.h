@@ -327,3 +327,12 @@ extern int tpm_pm_suspend(struct device *);
 extern int tpm_pm_resume(struct device *);
 extern int wait_for_tpm_stat(struct tpm_chip *, u8, unsigned long,
 			     wait_queue_head_t *);
+
+#ifdef CONFIG_ACPI
+extern ssize_t sys_add_ppi(struct kobject *parent);
+#else
+static inline ssize_t sys_add_ppi(struct kobject *parent)
+{
+	return 0;
+}
+#endif

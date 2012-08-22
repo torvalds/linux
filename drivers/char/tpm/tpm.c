@@ -1476,6 +1476,11 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 		goto put_device;
 	}
 
+	if (sys_add_ppi(&dev->kobj)) {
+		misc_deregister(&chip->vendor.miscdev);
+		goto put_device;
+	}
+
 	chip->bios_dir = tpm_bios_log_setup(devname);
 
 	/* Make chip available */
