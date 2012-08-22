@@ -2066,6 +2066,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	int retval = 0;
 	int flag = 0;
 	int ispipe;
+	struct files_struct *displaced;
 	bool need_nonrelative = false;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
@@ -2219,6 +2220,12 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			goto close_fail;
 	}
 
+	/* get us an unshared descriptor table; almost always a no-op */
+	retval = unshare_files(&displaced);
+	if (retval)
+		goto close_fail;
+	if (displaced)
+		put_files_struct(displaced);
 	retval = binfmt->core_dump(&cprm);
 	if (retval)
 		current->signal->group_exit_code |= 0x80;
