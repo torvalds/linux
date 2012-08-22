@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 
 #include <mach/msm_smd.h>
-#include <mach/system.h>
 
 #include "smd_private.h"
 #include "proc_comm.h"
@@ -38,8 +37,6 @@
 #if defined(CONFIG_ARCH_QSD8X50)
 #define CONFIG_QDSP6 1
 #endif
-
-void (*msm_hw_reset_hook)(void);
 
 #define MODULE_NAME "msm_smd"
 
@@ -100,10 +97,6 @@ static void handle_modem_crash(void)
 {
 	pr_err("ARM9 has CRASHED\n");
 	smd_diag();
-
-	/* hard reboot if possible */
-	if (msm_hw_reset_hook)
-		msm_hw_reset_hook();
 
 	/* in this case the modem or watchdog should reboot us */
 	for (;;)
