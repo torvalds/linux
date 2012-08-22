@@ -1152,6 +1152,10 @@ static void update_wall_time(void)
 	offset = (clock->read(clock) - clock->cycle_last) & clock->mask;
 #endif
 
+	/* Check if there's really nothing to do */
+	if (offset < tk->cycle_interval)
+		goto out;
+
 	/*
 	 * With NO_HZ we may have to accumulate many cycle_intervals
 	 * (think "ticks") worth of time at once. To do this efficiently,
