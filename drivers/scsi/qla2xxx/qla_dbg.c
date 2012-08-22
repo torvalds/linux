@@ -15,7 +15,8 @@
  * | Mailbox commands             |       0x114f       | 0x111a-0x111b  |
  * |                              |                    | 0x112c-0x112e  |
  * |                              |                    | 0x113a         |
- * | Device Discovery             |       0x2087       | 0x2020-0x2022  |
+ * | Device Discovery             |       0x2087       | 0x2020-0x2022, |
+ * |                              |                    | 0x2016         |
  * | Queue Command and IO tracing |       0x3030       | 0x3006,0x3008  |
  * |                              |                    | 0x302d-0x302e  |
  * | DPC Thread                   |       0x401d       | 0x4002,0x4013  |

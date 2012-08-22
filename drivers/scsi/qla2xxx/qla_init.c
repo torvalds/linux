@@ -2764,11 +2764,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	new_fcport = NULL;
 	entries = MAX_FIBRE_DEVICES_LOOP;
 
-	ql_dbg(ql_dbg_disc, vha, 0x2016,
-	    "Getting FCAL position map.\n");
-	if (ql2xextended_error_logging & ql_dbg_disc)
-		qla2x00_get_fcal_position_map(vha, NULL);
-
 	/* Get list of logged in devices. */
 	memset(ha->gid_list, 0, qla2x00_gid_list_size(ha));
 	rval = qla2x00_get_id_list(vha, ha->gid_list, ha->gid_list_dma,
