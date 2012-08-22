@@ -562,10 +562,6 @@ qla4_82xx_pci_get_crb_addr_2M(struct scsi_qla_host *ha, ulong *off)
 	return 1;
 }
 
-/*  PCI Windowing for DDR regions.  */
-#define QLA8XXX_ADDR_IN_RANGE(addr, low, high)            \
-	(((addr) <= (high)) && ((addr) >= (low)))
-
 /*
 * check memory access boundary.
 * used by test agent. support ddr access only for now
@@ -1276,7 +1272,7 @@ qla4_82xx_pci_mem_read_2M(struct scsi_qla_host *ha,
 		qla4_82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_ADDR_HI, temp);
 		temp = MIU_TA_CTL_ENABLE;
 		qla4_82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_CTRL, temp);
-		temp = MIU_TA_CTL_START | MIU_TA_CTL_ENABLE;
+		temp = MIU_TA_CTL_START_ENABLE;
 		qla4_82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_CTRL, temp);
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {
@@ -1410,9 +1406,9 @@ qla4_82xx_pci_mem_write_2M(struct scsi_qla_host *ha,
 		qla4_82xx_wr_32(ha, mem_crb + MIU_TEST_AGT_WRDATA_UPPER_HI,
 		    temp);
 
-		temp = MIU_TA_CTL_ENABLE | MIU_TA_CTL_WRITE;
+		temp = MIU_TA_CTL_WRITE_ENABLE;
 		qla4_82xx_wr_32(ha, mem_crb+MIU_TEST_AGT_CTRL, temp);
-		temp = MIU_TA_CTL_START | MIU_TA_CTL_ENABLE | MIU_TA_CTL_WRITE;
+		temp = MIU_TA_CTL_WRITE_START;
 		qla4_82xx_wr_32(ha, mem_crb+MIU_TEST_AGT_CTRL, temp);
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {
@@ -2041,7 +2037,7 @@ static int qla4_8xxx_minidump_process_rdmem(struct scsi_qla_host *ha,
 		qla4_8xxx_md_rw_32(ha, MD_MIU_TEST_AGT_ADDR_HI, r_value, 1);
 		r_value = MIU_TA_CTL_ENABLE;
 		qla4_8xxx_md_rw_32(ha, MD_MIU_TEST_AGT_CTRL, r_value, 1);
-		r_value = MIU_TA_CTL_START | MIU_TA_CTL_ENABLE;
+		r_value = MIU_TA_CTL_START_ENABLE;
 		qla4_8xxx_md_rw_32(ha, MD_MIU_TEST_AGT_CTRL, r_value, 1);
 
 		for (j = 0; j < MAX_CTL_CHECK; j++) {

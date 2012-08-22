@@ -517,6 +517,10 @@ enum {
 #define QLA82XX_PCI_QDR_NET		(unsigned long)0x04000000
 #define QLA82XX_PCI_QDR_NET_MAX		(unsigned long)0x043fffff
 
+/*  PCI Windowing for DDR regions.  */
+#define QLA8XXX_ADDR_IN_RANGE(addr, low, high)            \
+	(((addr) <= (high)) && ((addr) >= (low)))
+
 /*
  *   Register offsets for MN
  */
@@ -539,6 +543,11 @@ enum {
 #define MIU_TA_CTL_ENABLE	2
 #define MIU_TA_CTL_WRITE	4
 #define MIU_TA_CTL_BUSY		8
+
+#define MIU_TA_CTL_WRITE_ENABLE		(MIU_TA_CTL_WRITE | MIU_TA_CTL_ENABLE)
+#define MIU_TA_CTL_WRITE_START		(MIU_TA_CTL_WRITE | MIU_TA_CTL_ENABLE |\
+					 MIU_TA_CTL_START)
+#define MIU_TA_CTL_START_ENABLE		(MIU_TA_CTL_START | MIU_TA_CTL_ENABLE)
 
 /*CAM RAM */
 # define QLA82XX_CAM_RAM_BASE	(QLA82XX_CRB_CAM + 0x02000)
@@ -565,11 +574,10 @@ enum {
 /* Driver Coexistence Defines */
 #define QLA82XX_CRB_DRV_ACTIVE		(QLA82XX_CAM_RAM(0x138))
 #define QLA82XX_CRB_DEV_STATE		(QLA82XX_CAM_RAM(0x140))
-#define QLA82XX_CRB_DEV_PART_INFO	(QLA82XX_CAM_RAM(0x14c))
-#define QLA82XX_CRB_DRV_IDC_VERSION	(QLA82XX_CAM_RAM(0x174))
 #define QLA82XX_CRB_DRV_STATE		(QLA82XX_CAM_RAM(0x144))
 #define QLA82XX_CRB_DRV_SCRATCH		(QLA82XX_CAM_RAM(0x148))
 #define QLA82XX_CRB_DEV_PART_INFO	(QLA82XX_CAM_RAM(0x14c))
+#define QLA82XX_CRB_DRV_IDC_VERSION	(QLA82XX_CAM_RAM(0x174))
 
 /* Every driver should use these Device State */
 #define QLA8XXX_DEV_COLD		1
@@ -954,23 +962,6 @@ struct qla8xxx_minidump_entry_queue {
 		uint8_t read_addr_cnt;
 		uint16_t rsvd_3;
 	} rd_strd;
-};
-
-#define QLA82XX_MINIDUMP_OCM0_SIZE		(256 * 1024)
-#define QLA82XX_MINIDUMP_L1C_SIZE		(256 * 1024)
-#define QLA82XX_MINIDUMP_L2C_SIZE		1572864
-#define QLA82XX_MINIDUMP_COMMON_STR_SIZE	0
-#define QLA82XX_MINIDUMP_FCOE_STR_SIZE		0
-#define QLA82XX_MINIDUMP_MEM_SIZE		0
-#define QLA82XX_MAX_ENTRY_HDR			4
-
-struct qla82xx_minidump {
-	uint32_t md_ocm0_data[QLA82XX_MINIDUMP_OCM0_SIZE];
-	uint32_t md_l1c_data[QLA82XX_MINIDUMP_L1C_SIZE];
-	uint32_t md_l2c_data[QLA82XX_MINIDUMP_L2C_SIZE];
-	uint32_t md_cs_data[QLA82XX_MINIDUMP_COMMON_STR_SIZE];
-	uint32_t md_fcoes_data[QLA82XX_MINIDUMP_FCOE_STR_SIZE];
-	uint32_t md_mem_data[QLA82XX_MINIDUMP_MEM_SIZE];
 };
 
 #define MBC_DIAGNOSTIC_MINIDUMP_TEMPLATE	0x129
