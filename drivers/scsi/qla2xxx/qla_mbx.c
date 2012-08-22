@@ -4425,7 +4425,8 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp, uint16_t *frac)
 	    "Entered %s.\n", __func__);
 
 	/* Integer part */
-	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x01, 1, BIT_13|BIT_0);
+	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x01, 1,
+		BIT_13|BIT_12|BIT_0);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x10c9, "Failed=%x.\n", rval);
 		ha->flags.thermal_supported = 0;
@@ -4434,7 +4435,8 @@ qla2x00_get_thermal_temp(scsi_qla_host_t *vha, uint16_t *temp, uint16_t *frac)
 	*temp = byte;
 
 	/* Fraction part */
-	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x10, 1, BIT_13|BIT_0);
+	rval = qla2x00_read_sfp(vha, 0, &byte, 0x98, 0x10, 1,
+		BIT_13|BIT_12|BIT_0);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1019, "Failed=%x.\n", rval);
 		ha->flags.thermal_supported = 0;
