@@ -41,24 +41,24 @@ config LCDC1_RK30
            Support rk30 lcdc1 if you say y here
 
 config LCDC_RK31
-	tristate "rk31 lcdc support"
-        depends on FB_ROCKCHIP && ARCH_RK31
+	tristate "rk3066b/rk31 lcdc support"
+        depends on FB_ROCKCHIP && ARCH_RK3066B
         help
-          Driver for rk31 lcdc .There are two lcdc controllers on RK31
+          Driver for rk3066b/rk31 lcdc.
 
 config LCDC0_RK31
         bool "lcdc0 support"
         depends on LCDC_RK31
         default y
         help
-           Support rk31 lcdc0 if you say y here
+           Support lcdc0 if you say y here
 
 config LCDC1_RK31
         bool "lcdc1 support"
         depends on LCDC_RK31
         default y if HDMI_RK31
         help
-           Support rk31 lcdc1 if you say y here
+           Support lcdc1 if you say y here
 
 config DUAL_DISP_IN_KERNEL
 	bool "implement dual display in kernel"

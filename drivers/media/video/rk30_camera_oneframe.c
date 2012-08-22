@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#if defined(CONFIG_ARCH_RK2928) || defined(CONFIG_ARCH_RK30)
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -40,7 +40,7 @@
 #include <plat/ipp.h>
 #include <plat/vpu_service.h>
 #include "../../video/rockchip/rga/rga.h"
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#if defined(CONFIG_ARCH_RK30)
 #include <mach/rk30_camera.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
@@ -148,7 +148,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define ENABLE_32BIT_BYPASS                (0x01<<6)
 #define DISABLE_32BIT_BYPASS               (0x00<<6)
 
-#if (defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31))
+#if defined(CONFIG_ARCH_RK30)
 //CRU,PIXCLOCK
 #define CRU_PCLK_REG30                     0xbc
 #define ENANABLE_INVERT_PCLK_CIF0          ((0x1<<24)|(0x1<<8))
@@ -172,7 +172,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define read_cif_reg(base,addr) __raw_readl(addr+(base))
 #define mask_cif_reg(addr, msk, val)    write_cif_reg(addr, (val)|((~(msk))&read_cif_reg(addr)))
 
-#if (defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31))
+#if defined(CONFIG_ARCH_RK30)
 #define write_cru_reg(addr, val)  __raw_writel(val, addr+RK30_CRU_BASE)
 #define read_cru_reg(addr) __raw_readl(addr+RK30_CRU_BASE)
 #define mask_cru_reg(addr, msk, val)	write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
@@ -2818,7 +2818,8 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
 };
 static void rk_camera_cif_iomux(int cif_index)
 {
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
     switch(cif_index){
         case 0:
             rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);

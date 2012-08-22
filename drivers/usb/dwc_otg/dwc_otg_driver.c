@@ -1583,7 +1583,8 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK29
     USB_IOMUX_INIT(GPIO4A5_OTG0DRVVBUS_NAME, GPIO4L_OTG0_DRV_VBUS);
 #endif
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
     USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);    
 #endif
 #ifdef CONFIG_ARCH_RK2928
@@ -2278,7 +2279,8 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK29
     USB_IOMUX_INIT(GPIO4A6_OTG1DRVVBUS_NAME, GPIO4L_OTG1_DRV_VBUS);
 #endif    
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
     USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
 #endif
 	/*

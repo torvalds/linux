@@ -1,7 +1,7 @@
 #ifndef __MACH_CLOCK_H__
 #define __MACH_CLOCK_H__
 
-#if (!defined(CONFIG_ARCH_RK30) && !defined(CONFIG_ARCH_RK31))
+#ifndef CONFIG_ARCH_RK30
 #define RK30_CLK_OFFBOARD_TEST
 #endif
 

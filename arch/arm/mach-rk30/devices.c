@@ -373,6 +373,12 @@ static void __init rk30_init_uart(void)
 static int i2c0_check_idle(void)
 {
         int sda_level, scl_level;
+
+#if defined(CONFIG_ARCH_RK3066B)
+#warning fix i2c0_check_idle
+	scl_level = 1;
+	sda_level = 1;
+#else
         rk30_mux_api_set(GPIO2D5_I2C0SCL_NAME, GPIO2D_GPIO2D5);	
 	rk30_mux_api_set(GPIO2D4_I2C0SDA_NAME, GPIO2D_GPIO2D4);
 
@@ -390,6 +396,7 @@ static int i2c0_check_idle(void)
 
         rk30_mux_api_set(GPIO2D5_I2C0SCL_NAME, GPIO2D_I2C0_SCL);	
 	rk30_mux_api_set(GPIO2D4_I2C0SDA_NAME, GPIO2D_I2C0_SDA);
+#endif
 
         if(sda_level == 1 && scl_level == 1)
                 return I2C_IDLE;
@@ -436,6 +443,12 @@ static struct platform_device device_i2c0 = {
 static int i2c1_check_idle(void)
 {
         int sda_level, scl_level;
+
+#if defined(CONFIG_ARCH_RK3066B)
+#warning fix i2c1_check_idle
+	scl_level = 1;
+	sda_level = 1;
+#else
         rk30_mux_api_set(GPIO2D7_I2C1SCL_NAME, GPIO2D_GPIO2D7);	
 	rk30_mux_api_set(GPIO2D6_I2C1SDA_NAME, GPIO2D_GPIO2D6);
 
@@ -453,6 +466,7 @@ static int i2c1_check_idle(void)
 
         rk30_mux_api_set(GPIO2D7_I2C1SCL_NAME, GPIO2D_I2C1_SCL);	
 	rk30_mux_api_set(GPIO2D6_I2C1SDA_NAME, GPIO2D_I2C1_SDA);
+#endif
 
         if(sda_level == 1 && scl_level == 1)
                 return I2C_IDLE;
@@ -499,6 +513,12 @@ static struct platform_device device_i2c1 = {
 static int i2c2_check_idle(void)
 {
         int sda_level, scl_level;
+
+#if defined(CONFIG_ARCH_RK3066B)
+#warning fix i2c2_check_idle
+	scl_level = 1;
+	sda_level = 1;
+#else
         rk30_mux_api_set(GPIO3A1_I2C2SCL_NAME, GPIO3A_GPIO3A1);	
 	rk30_mux_api_set(GPIO3A0_I2C2SDA_NAME, GPIO3A_GPIO3A0);
 
@@ -516,6 +536,7 @@ static int i2c2_check_idle(void)
 
         rk30_mux_api_set(GPIO3A1_I2C2SCL_NAME, GPIO3A_I2C2_SCL);	
 	rk30_mux_api_set(GPIO3A0_I2C2SDA_NAME, GPIO3A_I2C2_SDA);
+#endif
 
         if(sda_level == 1 && scl_level == 1)
                 return I2C_IDLE;
@@ -563,6 +584,12 @@ static struct platform_device device_i2c2 = {
 static int i2c3_check_idle(void)
 {
         int sda_level, scl_level;
+
+#if defined(CONFIG_ARCH_RK3066B)
+#warning fix i2c3_check_idle
+	scl_level = 1;
+	sda_level = 1;
+#else
         rk30_mux_api_set(GPIO3A3_I2C3SCL_NAME, GPIO3A_GPIO3A3);	
 	rk30_mux_api_set(GPIO3A2_I2C3SDA_NAME, GPIO3A_GPIO3A2);
 
@@ -580,6 +607,7 @@ static int i2c3_check_idle(void)
 
         rk30_mux_api_set(GPIO3A3_I2C3SCL_NAME, GPIO3A_I2C3_SCL);	
 	rk30_mux_api_set(GPIO3A2_I2C3SDA_NAME, GPIO3A_I2C3_SDA);
+#endif
 
         if(sda_level == 1 && scl_level == 1)
                 return I2C_IDLE;
@@ -627,6 +655,12 @@ static struct platform_device device_i2c3 = {
 static int i2c4_check_idle(void)
 {
         int sda_level, scl_level;
+
+#if defined(CONFIG_ARCH_RK3066B)
+#warning fix i2c4_check_idle
+	scl_level = 1;
+	sda_level = 1;
+#else
         rk30_mux_api_set(GPIO3A5_I2C4SCL_NAME, GPIO3A_GPIO3A5);	
 	rk30_mux_api_set(GPIO3A4_I2C4SDA_NAME, GPIO3A_GPIO3A4);
 
@@ -644,6 +678,7 @@ static int i2c4_check_idle(void)
 
         rk30_mux_api_set(GPIO3A5_I2C4SCL_NAME, GPIO3A_I2C4_SCL);	
 	rk30_mux_api_set(GPIO3A4_I2C4SDA_NAME, GPIO3A_I2C4_SDA);
+#endif
 
         if(sda_level == 1 && scl_level == 1)
                 return I2C_IDLE;

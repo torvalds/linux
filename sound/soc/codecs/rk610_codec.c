@@ -42,10 +42,10 @@
 //you can look soc-core.c the resume source.s
 #define RESUME_PROBLEM 0
 
-#ifdef CONFIG_ARCH_RK30
-#define RK610_SPK_CTRL_PIN  RK30_PIN4_PC6
-#elif defined(CONFIG_ARCH_RK31)
+#if defined(CONFIG_ARCH_RK3066B)
 #define RK610_SPK_CTRL_PIN  RK30_PIN2_PA0
+#elif defined(CONFIG_ARCH_RK30)
+#define RK610_SPK_CTRL_PIN  RK30_PIN4_PC6
 #else
 #define RK610_SPK_CTRL_PIN  RK29_PIN6_PB6
 #endif

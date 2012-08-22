@@ -32,10 +32,10 @@
 #include <asm/gpio.h>
 #include <asm/mach/irq.h>
 
-#ifdef CONFIG_ARCH_RK30
-#define MAX_PIN	RK30_PIN6_PB7
-#elif defined(CONFIG_ARCH_RK31)
+#if defined(CONFIG_ARCH_RK3066B)
 #define MAX_PIN	RK30_PIN3_PD7
+#elif defined(CONFIG_ARCH_RK30)
+#define MAX_PIN	RK30_PIN6_PB7
 #elif defined(CONFIG_ARCH_RK2928)
 #define MAX_PIN	RK2928_PIN3_PD7
 #define RK30_GPIO0_PHYS	RK2928_GPIO0_PHYS
@@ -320,7 +320,7 @@ static void rk30_gpiolib_set(struct gpio_chip *chip, unsigned offset, int val)
 
 static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, unsigned enable)
 {
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)
+#if !defined(CONFIG_ARCH_RK3066B)
 	struct rk30_gpio_bank *bank = to_rk30_gpio_bank(chip);
 	unsigned long flags;
 

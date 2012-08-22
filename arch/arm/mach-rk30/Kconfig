@@ -1,4 +1,10 @@
-if ARCH_RK30
+config ARCH_RK3066B
+	bool "Rockchip RK3066B"
+	depends on ARCH_RK30
+	help
+	  Support for Rockchip's RK3066B SoCs.
+
+if ARCH_RK30 && !ARCH_RK3066B
 
 choice
 	prompt "RK30xx Board Type"
@@ -29,16 +35,17 @@ endchoice
 
 endif
 
-if ARCH_RK31
+if ARCH_RK3066B
 
 choice
-	prompt "RK31xx Board Type"
+	prompt "RK3066B Board Type"
 
-config MACH_RK31_FPGA
-	bool "RK31 FPGA board"
+config MACH_RK3066B_FPGA
+	bool "RK3066B FPGA board"
+	select RK_FPGA
 
 config MACH_RK3066B_SDK
-	bool "RK3066B(RK31) SDK board"
+	bool "RK3066B SDK board"
 
 endchoice
 

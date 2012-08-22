@@ -87,7 +87,7 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 
 #if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 	clkrate = clk_get_rate(pwm_clk[0]);
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK31)
+#elif defined(CONFIG_ARCH_RK30)
 	if (id == 0 || id == 1) {
 		clkrate = clk_get_rate(pwm_clk[0]);
 	} else if (id== 2 || id == 3) {

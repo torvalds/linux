@@ -189,4 +189,7 @@ config RK_PL330_DMA_TEST
 	bool "pl330 DMA memcpy test"
 	depends on RK_PL330_DMA	  
 
+config RK_FPGA
+	bool
+
 endif

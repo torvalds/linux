@@ -490,7 +490,8 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 {	
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
 	switch(dai->id) {
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
         case 0:
 			rk30_mux_api_set(GPIO0A7_I2S8CHSDI_NAME, GPIO0A_I2S_8CH_SDI);		
 			rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);                
