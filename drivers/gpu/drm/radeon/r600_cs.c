@@ -315,7 +315,14 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 		track->cb_color_bo[i] = NULL;
 		track->cb_color_bo_offset[i] = 0xFFFFFFFF;
 		track->cb_color_bo_mc[i] = 0xFFFFFFFF;
+		track->cb_color_frag_bo[i] = NULL;
+		track->cb_color_frag_offset[i] = 0xFFFFFFFF;
+		track->cb_color_tile_bo[i] = NULL;
+		track->cb_color_tile_offset[i] = 0xFFFFFFFF;
+		track->cb_color_mask[i] = 0xFFFFFFFF;
 	}
+	track->nsamples = 16;
+	track->log_nsamples = 4;
 	track->cb_target_mask = 0xFFFFFFFF;
 	track->cb_shader_mask = 0xFFFFFFFF;
 	track->cb_dirty = true;
