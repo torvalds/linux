@@ -63,6 +63,17 @@
 #define fe_to_priv(fe) (fe_to_d(fe)->priv)
 #define d_to_priv(d) (d->priv)
 
+#define dvb_usb_dbg_usb_control_msg(udev, r, t, v, i, b, l) { \
+	char *direction; \
+	if (t == (USB_TYPE_VENDOR | USB_DIR_OUT)) \
+		direction = ">>>"; \
+	else \
+		direction = "<<<"; \
+	dev_dbg(&udev->dev, "%s: %02x %02x %02x %02x %02x %02x %02x %02x " \
+			"%s %*ph\n",  __func__, t, r, v & 0xff, v >> 8, \
+			i & 0xff, i >> 8, l & 0xff, l >> 8, direction, l, b); \
+}
+
 #define DVB_USB_STREAM_BULK(endpoint_, count_, size_) { \
 	.type = USB_BULK, \
 	.count = count_, \
