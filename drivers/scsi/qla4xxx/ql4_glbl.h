@@ -117,7 +117,7 @@ int qla4_82xx_crb_win_lock(struct scsi_qla_host *);
 void qla4_82xx_crb_win_unlock(struct scsi_qla_host *);
 int qla4_82xx_pci_get_crb_addr_2M(struct scsi_qla_host *, ulong *);
 void qla4_82xx_wr_32(struct scsi_qla_host *, ulong, u32);
-int qla4_82xx_rd_32(struct scsi_qla_host *, ulong);
+uint32_t qla4_82xx_rd_32(struct scsi_qla_host *, ulong);
 int qla4_82xx_pci_mem_read_2M(struct scsi_qla_host *, u64, void *, int);
 int qla4_82xx_pci_mem_write_2M(struct scsi_qla_host *ha, u64, void *, int);
 int qla4_82xx_isp_reset(struct scsi_qla_host *ha);
@@ -203,6 +203,17 @@ int qla4xxx_req_template_size(struct scsi_qla_host *ha);
 void qla4_8xxx_alloc_sysfs_attr(struct scsi_qla_host *ha);
 void qla4_8xxx_free_sysfs_attr(struct scsi_qla_host *ha);
 void qla4xxx_alloc_fw_dump(struct scsi_qla_host *ha);
+int qla4_82xx_try_start_fw(struct scsi_qla_host *ha);
+int qla4_8xxx_need_reset(struct scsi_qla_host *ha);
+int qla4_82xx_md_rd_32(struct scsi_qla_host *ha, uint32_t off, uint32_t *data);
+int qla4_82xx_md_wr_32(struct scsi_qla_host *ha, uint32_t off, uint32_t data);
+void qla4_82xx_rom_lock_recovery(struct scsi_qla_host *ha);
+void qla4_82xx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
+			      int incount);
+void qla4_82xx_process_mbox_intr(struct scsi_qla_host *ha, int outcount);
+void qla4xxx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
+			    int incount);
+void qla4xxx_process_mbox_intr(struct scsi_qla_host *ha, int outcount);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;

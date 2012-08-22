@@ -388,8 +388,10 @@ struct isp_operations {
 	void (*disable_intrs) (struct scsi_qla_host *);
 	void (*enable_intrs) (struct scsi_qla_host *);
 	int (*start_firmware) (struct scsi_qla_host *);
+	int (*restart_firmware) (struct scsi_qla_host *);
 	irqreturn_t (*intr_handler) (int , void *);
 	void (*interrupt_service_routine) (struct scsi_qla_host *, uint32_t);
+	int (*need_reset) (struct scsi_qla_host *);
 	int (*reset_chip) (struct scsi_qla_host *);
 	int (*reset_firmware) (struct scsi_qla_host *);
 	void (*queue_iocb) (struct scsi_qla_host *);
@@ -397,6 +399,15 @@ struct isp_operations {
 	uint16_t (*rd_shdw_req_q_out) (struct scsi_qla_host *);
 	uint16_t (*rd_shdw_rsp_q_in) (struct scsi_qla_host *);
 	int (*get_sys_info) (struct scsi_qla_host *);
+	uint32_t (*rd_reg_direct) (struct scsi_qla_host *, ulong);
+	void (*wr_reg_direct) (struct scsi_qla_host *, ulong, uint32_t);
+	int (*rd_reg_indirect) (struct scsi_qla_host *, uint32_t, uint32_t *);
+	int (*wr_reg_indirect) (struct scsi_qla_host *, uint32_t, uint32_t);
+	int (*idc_lock) (struct scsi_qla_host *);
+	void (*idc_unlock) (struct scsi_qla_host *);
+	void (*rom_lock_recovery) (struct scsi_qla_host *);
+	void (*queue_mailbox_command) (struct scsi_qla_host *, uint32_t *, int);
+	void (*process_mailbox_interrupt) (struct scsi_qla_host *, int);
 };
 
 struct ql4_mdump_size_table {
@@ -733,6 +744,8 @@ struct scsi_qla_host {
 #define MAX_MRB		128
 	struct mrb *active_mrb_array[MAX_MRB];
 	uint32_t mrb_index;
+
+	uint32_t *reg_tbl;
 };
 
 struct ql4_task_data {
@@ -942,6 +955,20 @@ static inline int ql4xxx_reset_active(struct scsi_qla_host *ha)
 	       test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags);
 
 }
+
+static inline int qla4_8xxx_rd_direct(struct scsi_qla_host *ha,
+				      const uint32_t crb_reg)
+{
+	return ha->isp_ops->rd_reg_direct(ha, ha->reg_tbl[crb_reg]);
+}
+
+static inline void qla4_8xxx_wr_direct(struct scsi_qla_host *ha,
+				       const uint32_t crb_reg,
+				       const uint32_t value)
+{
+	ha->isp_ops->wr_reg_direct(ha, ha->reg_tbl[crb_reg], value);
+}
+
 /*---------------------------------------------------------------------------*/
 
 /* Defines for qla4xxx_initialize_adapter() and qla4xxx_recover_adapter() */

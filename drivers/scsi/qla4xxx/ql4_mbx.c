@@ -10,6 +10,37 @@
 #include "ql4_dbg.h"
 #include "ql4_inline.h"
 
+void qla4xxx_queue_mbox_cmd(struct scsi_qla_host *ha, uint32_t *mbx_cmd,
+			    int in_count)
+{
+	int i;
+
+	/* Load all mailbox registers, except mailbox 0. */
+	for (i = 1; i < in_count; i++)
+		writel(mbx_cmd[i], &ha->reg->mailbox[i]);
+
+	/* Wakeup firmware  */
+	writel(mbx_cmd[0], &ha->reg->mailbox[0]);
+	readl(&ha->reg->mailbox[0]);
+	writel(set_rmask(CSR_INTR_RISC), &ha->reg->ctrl_status);
+	readl(&ha->reg->ctrl_status);
+}
+
+void qla4xxx_process_mbox_intr(struct scsi_qla_host *ha, int out_count)
+{
+	int intr_status;
+
+	intr_status = readl(&ha->reg->ctrl_status);
+	if (intr_status & INTR_PENDING) {
+		/*
+		 * Service the interrupt.
+		 * The ISR will save the mailbox status registers
+		 * to a temporary storage location in the adapter structure.
+		 */
+		ha->mbox_status_count = out_count;
+		ha->isp_ops->interrupt_service_routine(ha, intr_status);
+	}
+}
 
 /**
  * qla4xxx_mailbox_command - issues mailbox commands
@@ -30,7 +61,6 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	int status = QLA_ERROR;
 	uint8_t i;
 	u_long wait_count;
-	uint32_t intr_status;
 	unsigned long flags = 0;
 	uint32_t dev_state;
 
@@ -85,9 +115,9 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			goto mbox_exit;
 		}
 		/* Do not send any mbx cmd if h/w is in failed state*/
-		qla4_82xx_idc_lock(ha);
-		dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		qla4_82xx_idc_unlock(ha);
+		ha->isp_ops->idc_lock(ha);
+		dev_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DEV_STATE);
+		ha->isp_ops->idc_unlock(ha);
 		if (dev_state == QLA8XXX_DEV_FAILED) {
 			ql4_printk(KERN_WARNING, ha,
 				   "scsi%ld: %s: H/W is in failed state, do not send any mailbox commands\n",
@@ -102,30 +132,8 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 	for (i = 0; i < outCount; i++)
 		ha->mbox_status[i] = 0;
 
-	if (is_qla8022(ha)) {
-		/* Load all mailbox registers, except mailbox 0. */
-		DEBUG5(
-		    printk("scsi%ld: %s: Cmd ", ha->host_no, __func__);
-		    for (i = 0; i < inCount; i++)
-			printk("mb%d=%04x ", i, mbx_cmd[i]);
-		    printk("\n"));
-
-		for (i = 1; i < inCount; i++)
-			writel(mbx_cmd[i], &ha->qla4_82xx_reg->mailbox_in[i]);
-		writel(mbx_cmd[0], &ha->qla4_82xx_reg->mailbox_in[0]);
-		readl(&ha->qla4_82xx_reg->mailbox_in[0]);
-		writel(HINT_MBX_INT_PENDING, &ha->qla4_82xx_reg->hint);
-	} else {
-		/* Load all mailbox registers, except mailbox 0. */
-		for (i = 1; i < inCount; i++)
-			writel(mbx_cmd[i], &ha->reg->mailbox[i]);
-
-		/* Wakeup firmware  */
-		writel(mbx_cmd[0], &ha->reg->mailbox[0]);
-		readl(&ha->reg->mailbox[0]);
-		writel(set_rmask(CSR_INTR_RISC), &ha->reg->ctrl_status);
-		readl(&ha->reg->ctrl_status);
-	}
+	/* Queue the mailbox command to the firmware */
+	ha->isp_ops->queue_mailbox_command(ha, mbx_cmd, inCount);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -167,37 +175,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			 */
 
 			spin_lock_irqsave(&ha->hardware_lock, flags);
-			if (is_qla8022(ha)) {
-				intr_status =
-				    readl(&ha->qla4_82xx_reg->host_int);
-				if (intr_status & ISRX_82XX_RISC_INT) {
-					ha->mbox_status_count = outCount;
-					intr_status =
-					 readl(&ha->qla4_82xx_reg->host_status);
-					ha->isp_ops->interrupt_service_routine(
-					    ha, intr_status);
-					if (test_bit(AF_INTERRUPTS_ON,
-					    &ha->flags) &&
-					    test_bit(AF_INTx_ENABLED,
-					    &ha->flags))
-						qla4_82xx_wr_32(ha,
-						ha->nx_legacy_intr.tgt_mask_reg,
-						0xfbff);
-				}
-			} else {
-				intr_status = readl(&ha->reg->ctrl_status);
-				if (intr_status & INTR_PENDING) {
-					/*
-					 * Service the interrupt.
-					 * The ISR will save the mailbox status
-					 * registers to a temporary storage
-					 * location in the adapter structure.
-					 */
-					ha->mbox_status_count = outCount;
-					ha->isp_ops->interrupt_service_routine(
-					    ha, intr_status);
-				}
-			}
+			ha->isp_ops->process_mailbox_interrupt(ha, outCount);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 			msleep(10);
 		}

@@ -2420,7 +2420,7 @@ static int qla4_8xxx_check_temp(struct scsi_qla_host *ha)
 	uint32_t temp, temp_state, temp_val;
 	int status = QLA_SUCCESS;
 
-	temp = qla4_82xx_rd_32(ha, CRB_TEMP_STATE);
+	temp = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_TEMP_STATE);
 
 	temp_state = qla82xx_get_temp_state(temp);
 	temp_val = qla82xx_get_temp_val(temp);
@@ -2454,9 +2454,11 @@ static int qla4_8xxx_check_temp(struct scsi_qla_host *ha)
 static int qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 {
 	uint32_t fw_heartbeat_counter;
+	uint32_t halt_status1, halt_status2;
 	int status = QLA_SUCCESS;
 
-	fw_heartbeat_counter = qla4_82xx_rd_32(ha, QLA82XX_PEG_ALIVE_COUNTER);
+	fw_heartbeat_counter = qla4_8xxx_rd_direct(ha,
+						   QLA8XXX_PEG_ALIVE_COUNTER);
 	/* If PEG_ALIVE_COUNTER is 0xffffffff, AER/EEH is in progress, ignore */
 	if (fw_heartbeat_counter == 0xffffffff) {
 		DEBUG2(printk(KERN_WARNING "scsi%ld: %s: Device in frozen "
@@ -2470,18 +2472,18 @@ static int qla4_8xxx_check_fw_alive(struct scsi_qla_host *ha)
 		/* FW not alive after 2 seconds */
 		if (ha->seconds_since_last_heartbeat == 2) {
 			ha->seconds_since_last_heartbeat = 0;
+			halt_status1 = qla4_8xxx_rd_direct(ha,
+						QLA8XXX_PEG_HALT_STATUS1);
+			halt_status2 = qla4_8xxx_rd_direct(ha,
+						QLA8XXX_PEG_HALT_STATUS2);
 
 			ql4_printk(KERN_INFO, ha,
 				   "scsi(%ld): %s, Dumping hw/fw registers:\n "
 				   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2:"
 				   " 0x%x,\n PEG_NET_0_PC: 0x%x, PEG_NET_1_PC:"
 				   " 0x%x,\n PEG_NET_2_PC: 0x%x, PEG_NET_3_PC:"
-				   " 0x%x,\n PEG_NET_4_PC: 0x%x\n",
-				   ha->host_no, __func__,
-				   qla4_82xx_rd_32(ha,
-						   QLA82XX_PEG_HALT_STATUS1),
-				   qla4_82xx_rd_32(ha,
-						   QLA82XX_PEG_HALT_STATUS2),
+				   " 0x%x,\n PEG_NET_4_PC: 0x%x\n", ha->host_no,
+				   __func__, halt_status1, halt_status2,
 				   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_0 +
 						   0x3c),
 				   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_1 +
@@ -2515,7 +2517,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 	if (!(test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags) ||
 	    test_bit(DPC_RESET_HA, &ha->dpc_flags) ||
 	    test_bit(DPC_RETRY_RESET_HA, &ha->dpc_flags))) {
-		dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		dev_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DEV_STATE);
 
 		if (qla4_8xxx_check_temp(ha)) {
 			ql4_printk(KERN_INFO, ha, "disabling pause"
@@ -2547,8 +2549,8 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 				qla4_82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
 						CRB_NIU_XG_PAUSE_CTL_P0 |
 						CRB_NIU_XG_PAUSE_CTL_P1);
-				halt_status = qla4_82xx_rd_32(ha,
-						QLA82XX_PEG_HALT_STATUS1);
+				halt_status = qla4_8xxx_rd_direct(ha,
+						   QLA8XXX_PEG_HALT_STATUS1);
 
 				if (QLA82XX_FWERROR_CODE(halt_status) == 0x67)
 					ql4_printk(KERN_ERR, ha, "%s:"
@@ -3040,9 +3042,10 @@ recover_ha_init_adapter:
 		 * with multiple resets in the same thread,
 		 * utilize DPC to retry */
 		if (is_qla8022(ha)) {
-			qla4_82xx_idc_lock(ha);
-			dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-			qla4_82xx_idc_unlock(ha);
+			ha->isp_ops->idc_lock(ha);
+			dev_state = qla4_8xxx_rd_direct(ha,
+							QLA8XXX_CRB_DEV_STATE);
+			ha->isp_ops->idc_unlock(ha);
 			if (dev_state == QLA8XXX_DEV_FAILED) {
 				ql4_printk(KERN_INFO, ha, "%s: don't retry "
 					   "recover adapter. H/W is in Failed "
@@ -3385,10 +3388,10 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 
 	if (is_qla8022(ha)) {
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
-			qla4_82xx_idc_lock(ha);
-			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA8XXX_DEV_FAILED);
-			qla4_82xx_idc_unlock(ha);
+			ha->isp_ops->idc_lock(ha);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+					    QLA8XXX_DEV_FAILED);
+			ha->isp_ops->idc_unlock(ha);
 			ql4_printk(KERN_INFO, ha, "HW State: FAILED\n");
 			qla4_8xxx_device_state_handler(ha);
 		}
@@ -3512,9 +3515,9 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 	ha->isp_ops->reset_firmware(ha);
 
 	if (is_qla8022(ha)) {
-		qla4_82xx_idc_lock(ha);
+		ha->isp_ops->idc_lock(ha);
 		qla4_8xxx_clear_drv_active(ha);
-		qla4_82xx_idc_unlock(ha);
+		ha->isp_ops->idc_unlock(ha);
 	}
 
 	/* Detach interrupts */
@@ -3658,6 +3661,8 @@ static struct isp_operations qla4xxx_isp_ops = {
 	.rd_shdw_req_q_out      = qla4xxx_rd_shdw_req_q_out,
 	.rd_shdw_rsp_q_in       = qla4xxx_rd_shdw_rsp_q_in,
 	.get_sys_info           = qla4xxx_get_sys_info,
+	.queue_mailbox_command	= qla4xxx_queue_mbox_cmd,
+	.process_mailbox_interrupt = qla4xxx_process_mbox_intr,
 };
 
 static struct isp_operations qla4_82xx_isp_ops = {
@@ -3666,8 +3671,10 @@ static struct isp_operations qla4_82xx_isp_ops = {
 	.disable_intrs          = qla4_82xx_disable_intrs,
 	.enable_intrs           = qla4_82xx_enable_intrs,
 	.start_firmware         = qla4_8xxx_load_risc,
+	.restart_firmware	= qla4_82xx_try_start_fw,
 	.intr_handler           = qla4_82xx_intr_handler,
 	.interrupt_service_routine = qla4_82xx_interrupt_service_routine,
+	.need_reset		= qla4_8xxx_need_reset,
 	.reset_chip             = qla4_82xx_isp_reset,
 	.reset_firmware         = qla4_8xxx_stop_firmware,
 	.queue_iocb             = qla4_82xx_queue_iocb,
@@ -3675,6 +3682,15 @@ static struct isp_operations qla4_82xx_isp_ops = {
 	.rd_shdw_req_q_out      = qla4_82xx_rd_shdw_req_q_out,
 	.rd_shdw_rsp_q_in       = qla4_82xx_rd_shdw_rsp_q_in,
 	.get_sys_info           = qla4_8xxx_get_sys_info,
+	.rd_reg_direct		= qla4_82xx_rd_32,
+	.wr_reg_direct		= qla4_82xx_wr_32,
+	.rd_reg_indirect	= qla4_82xx_md_rd_32,
+	.wr_reg_indirect	= qla4_82xx_md_wr_32,
+	.idc_lock		= qla4_82xx_idc_lock,
+	.idc_unlock		= qla4_82xx_idc_unlock,
+	.rom_lock_recovery	= qla4_82xx_rom_lock_recovery,
+	.queue_mailbox_command	= qla4_82xx_queue_mbox_cmd,
+	.process_mailbox_interrupt = qla4_82xx_process_mbox_intr,
 };
 
 uint16_t qla4xxx_rd_shdw_req_q_out(struct scsi_qla_host *ha)
@@ -5075,6 +5091,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	/* Setup Runtime configurable options */
 	if (is_qla8022(ha)) {
 		ha->isp_ops = &qla4_82xx_isp_ops;
+		ha->reg_tbl = (uint32_t *) qla4_82xx_reg_tbl;
 		rwlock_init(&ha->hw_lock);
 		ha->qdr_sn_window = -1;
 		ha->ddr_mn_window = -1;
@@ -5161,9 +5178,10 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	    init_retry_count++ < MAX_INIT_RETRIES) {
 
 		if (is_qla8022(ha)) {
-			qla4_82xx_idc_lock(ha);
-			dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-			qla4_82xx_idc_unlock(ha);
+			ha->isp_ops->idc_lock(ha);
+			dev_state = qla4_8xxx_rd_direct(ha,
+							QLA82XX_CRB_DEV_STATE);
+			ha->isp_ops->idc_unlock(ha);
 			if (dev_state == QLA8XXX_DEV_FAILED) {
 				ql4_printk(KERN_WARNING, ha, "%s: don't retry "
 				    "initialize adapter. H/W is in failed state\n",
@@ -5186,10 +5204,10 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 		if (is_qla8022(ha) && ql4xdontresethba) {
 			/* Put the device in failed state. */
 			DEBUG2(printk(KERN_ERR "HW STATE: FAILED\n"));
-			qla4_82xx_idc_lock(ha);
-			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA8XXX_DEV_FAILED);
-			qla4_82xx_idc_unlock(ha);
+			ha->isp_ops->idc_lock(ha);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+					    QLA8XXX_DEV_FAILED);
+			ha->isp_ops->idc_unlock(ha);
 		}
 		ret = -ENODEV;
 		goto remove_host;
@@ -6033,31 +6051,29 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		    "0x%x is the owner\n", ha->host_no, __func__,
 		    ha->pdev->devfn);
 
-		qla4_82xx_idc_lock(ha);
-		qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-		    QLA8XXX_DEV_COLD);
-
-		qla4_82xx_wr_32(ha, QLA82XX_CRB_DRV_IDC_VERSION,
-		    QLA82XX_IDC_VERSION);
-
-		qla4_82xx_idc_unlock(ha);
+		ha->isp_ops->idc_lock(ha);
+		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+				    QLA8XXX_DEV_COLD);
+		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION,
+				    QLA82XX_IDC_VERSION);
+		ha->isp_ops->idc_unlock(ha);
 		clear_bit(AF_FW_RECOVERY, &ha->flags);
 		rval = qla4xxx_initialize_adapter(ha, RESET_ADAPTER);
-		qla4_82xx_idc_lock(ha);
+		ha->isp_ops->idc_lock(ha);
 
 		if (rval != QLA_SUCCESS) {
 			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: HW State: "
 			    "FAILED\n", ha->host_no, __func__);
 			qla4_8xxx_clear_drv_active(ha);
-			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA8XXX_DEV_FAILED);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+					    QLA8XXX_DEV_FAILED);
 		} else {
 			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: HW State: "
 			    "READY\n", ha->host_no, __func__);
-			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA8XXX_DEV_READY);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+					    QLA8XXX_DEV_READY);
 			/* Clear driver state register */
-			qla4_82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, 0);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_STATE, 0);
 			qla4_8xxx_set_drv_active(ha);
 			ret = qla4xxx_request_irqs(ha);
 			if (ret) {
@@ -6070,13 +6086,13 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 				rval = QLA_SUCCESS;
 			}
 		}
-		qla4_82xx_idc_unlock(ha);
+		ha->isp_ops->idc_unlock(ha);
 	} else {
 		ql4_printk(KERN_INFO, ha, "scsi%ld: %s: devfn 0x%x is not "
 		    "the reset owner\n", ha->host_no, __func__,
 		    ha->pdev->devfn);
-		if ((qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE) ==
-		    QLA8XXX_DEV_READY)) {
+		if ((qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DEV_STATE) ==
+		     QLA8XXX_DEV_READY)) {
 			clear_bit(AF_FW_RECOVERY, &ha->flags);
 			rval = qla4xxx_initialize_adapter(ha, RESET_ADAPTER);
 			if (rval == QLA_SUCCESS) {
@@ -6091,9 +6107,9 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 					rval = QLA_SUCCESS;
 				}
 			}
-			qla4_82xx_idc_lock(ha);
+			ha->isp_ops->idc_lock(ha);
 			qla4_8xxx_set_drv_active(ha);
-			qla4_82xx_idc_unlock(ha);
+			ha->isp_ops->idc_unlock(ha);
 		}
 	}
 	clear_bit(DPC_RESET_ACTIVE, &ha->dpc_flags);
