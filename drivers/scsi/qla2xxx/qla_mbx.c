@@ -533,7 +533,7 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 	mcp->in_mb = MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (IS_QLA81XX(vha->hw) || IS_QLA8031(ha))
 		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10|MBX_9|MBX_8;
-	if (IS_QLA83XX(vha->hw))
+	if (IS_FWI2_CAPABLE(ha))
 		mcp->in_mb |= MBX_17|MBX_16|MBX_15;
 	mcp->flags = 0;
 	mcp->tov = MBX_TOV_SECONDS;
