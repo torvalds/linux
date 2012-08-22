@@ -118,7 +118,7 @@ static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
  * through nf_reinject().
  */
 static int __nf_queue(struct sk_buff *skb,
-		      struct list_head *elem,
+		      struct nf_hook_ops *elem,
 		      u_int8_t pf, unsigned int hook,
 		      struct net_device *indev,
 		      struct net_device *outdev,
@@ -155,7 +155,7 @@ static int __nf_queue(struct sk_buff *skb,
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
-		.elem	= list_entry(elem, struct nf_hook_ops, list),
+		.elem	= elem,
 		.pf	= pf,
 		.hook	= hook,
 		.indev	= indev,
@@ -225,7 +225,7 @@ static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
 #endif
 
 int nf_queue(struct sk_buff *skb,
-	     struct list_head *elem,
+	     struct nf_hook_ops *elem,
 	     u_int8_t pf, unsigned int hook,
 	     struct net_device *indev,
 	     struct net_device *outdev,
@@ -323,7 +323,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 		local_bh_enable();
 		break;
 	case NF_QUEUE:
-		err = __nf_queue(skb, &elem->list, entry->pf, entry->hook,
+		err = __nf_queue(skb, elem, entry->pf, entry->hook,
 				 entry->indev, entry->outdev, entry->okfn,
 				 verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
