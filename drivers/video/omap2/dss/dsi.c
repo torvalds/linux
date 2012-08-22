@@ -1690,6 +1690,8 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	l = FLD_MOD(l, 1, 13, 13);		/* DSI_PLL_REFEN */
 	l = FLD_MOD(l, 0, 14, 14);		/* DSIPHY_CLKINEN */
 	l = FLD_MOD(l, 1, 20, 20);		/* DSI_HSDIVBYPASS */
+	if (dss_has_feature(FEAT_DSI_PLL_REFSEL))
+		l = FLD_MOD(l, 3, 22, 21);	/* REF_SYSCLK = sysclk */
 	dsi_write_reg(dsidev, DSI_PLL_CONFIGURATION2, l);
 
 	REG_FLD_MOD(dsidev, DSI_PLL_GO, 1, 0, 0);	/* DSI_PLL_GO */
