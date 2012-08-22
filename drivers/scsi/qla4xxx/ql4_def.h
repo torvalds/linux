@@ -42,6 +42,7 @@
 #include "ql4_nx.h"
 #include "ql4_fw.h"
 #include "ql4_nvram.h"
+#include "ql4_83xx.h"
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP4010
 #define PCI_DEVICE_ID_QLOGIC_ISP4010	0x4010
@@ -57,6 +58,10 @@
 
 #ifndef PCI_DEVICE_ID_QLOGIC_ISP8022
 #define PCI_DEVICE_ID_QLOGIC_ISP8022	0x8022
+#endif
+
+#ifndef PCI_DEVICE_ID_QLOGIC_ISP8324
+#define PCI_DEVICE_ID_QLOGIC_ISP8324	0x8032
 #endif
 
 #define ISP4XXX_PCI_FN_1	0x1
@@ -510,6 +515,7 @@ struct scsi_qla_host {
 #define AF_82XX_FW_DUMPED		24 /* 0x01000000 */
 #define AF_8XXX_RST_OWNER		25 /* 0x02000000 */
 #define AF_82XX_DUMP_READING		26 /* 0x04000000 */
+#define AF_83XX_NO_FW_DUMP		27 /* 0x08000000 */
 
 	unsigned long dpc_flags;
 
@@ -746,6 +752,10 @@ struct scsi_qla_host {
 	uint32_t mrb_index;
 
 	uint32_t *reg_tbl;
+	struct qla4_83xx_reset_template reset_tmplt;
+	struct device_reg_83xx  __iomem *qla4_83xx_reg; /* Base I/O address
+							   for ISP8324 */
+	uint32_t pf_bit;
 };
 
 struct ql4_task_data {
@@ -808,13 +818,20 @@ static inline int is_qla8022(struct scsi_qla_host *ha)
 	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
 }
 
-/* Note: Currently AER/EEH is now supported only for 8022 cards
- * This function needs to be updated when AER/EEH is enabled
- * for other cards.
- */
+static inline int is_qla8032(struct scsi_qla_host *ha)
+{
+	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324;
+}
+
+static inline int is_qla80XX(struct scsi_qla_host *ha)
+{
+	return is_qla8022(ha) || is_qla8032(ha);
+}
+
 static inline int is_aer_supported(struct scsi_qla_host *ha)
 {
-	return ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022;
+	return ((ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8022) ||
+		(ha->pdev->device == PCI_DEVICE_ID_QLOGIC_ISP8324));
 }
 
 static inline int adapter_up(struct scsi_qla_host *ha)

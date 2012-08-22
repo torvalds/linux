@@ -65,6 +65,40 @@ struct device_reg_82xx {
 #define ISRX_82XX_RISC_INT	BIT_0 /* RISC interrupt. */
 };
 
+/* ISP 83xx I/O Register Set structure */
+struct device_reg_83xx {
+	__le32 mailbox_in[16];	/* 0x0000 */
+	__le32 reserve1[496];	/* 0x0040 */
+	__le32 mailbox_out[16];	/* 0x0800 */
+	__le32 reserve2[496];
+	__le32 mbox_int;	/* 0x1000 */
+	__le32 reserve3[63];
+	__le32 req_q_out;	/* 0x1100 */
+	__le32 reserve4[63];
+
+	__le32 rsp_q_in;	/* 0x1200 */
+	__le32 reserve5[1919];
+
+	__le32 req_q_in;	/* 0x3000 */
+	__le32 reserve6[3];
+	__le32 iocb_int_mask;	/* 0x3010 */
+	__le32 reserve7[3];
+	__le32 rsp_q_out;	/* 0x3020 */
+	__le32 reserve8[3];
+	__le32 anonymousbuff;	/* 0x3030 */
+	__le32 mb_int_mask;	/* 0x3034 */
+
+	__le32 host_intr;	/* 0x3038 - Host Interrupt Register */
+	__le32 risc_intr;	/* 0x303C - RISC Interrupt Register */
+	__le32 reserve9[544];
+	__le32 leg_int_ptr;	/* 0x38C0 - Legacy Interrupt Pointer Register */
+	__le32 leg_int_trig;	/* 0x38C4 - Legacy Interrupt Trigger Control */
+	__le32 leg_int_mask;	/* 0x38C8 - Legacy Interrupt Mask Register */
+};
+
+#define INT_ENABLE_FW_MB	(1 << 2)
+#define INT_MASK_FW_MB		(1 << 2)
+
 /*  remote register set (access via PCI memory read/write) */
 struct isp_reg {
 #define MBOX_REG_COUNT 8
@@ -1198,6 +1232,9 @@ struct ql_iscsi_stats {
 #define QLA8XXX_DBG_STATE_ARRAY_LEN		16
 #define QLA8XXX_DBG_CAP_SIZE_ARRAY_LEN		8
 #define QLA8XXX_DBG_RSVD_ARRAY_LEN		8
+#define QLA83XX_DBG_OCM_WNDREG_ARRAY_LEN	16
+#define QLA83XX_SS_OCM_WNDREG_INDEX		3
+#define QLA83XX_SS_PCI_INDEX			0
 
 struct qla4_8xxx_minidump_template_hdr {
 	uint32_t entry_type;
@@ -1216,6 +1253,7 @@ struct qla4_8xxx_minidump_template_hdr {
 
 	uint32_t saved_state_array[QLA8XXX_DBG_STATE_ARRAY_LEN];
 	uint32_t capture_size_array[QLA8XXX_DBG_CAP_SIZE_ARRAY_LEN];
+	uint32_t ocm_window_reg[QLA83XX_DBG_OCM_WNDREG_ARRAY_LEN];
 };
 
 #endif /*  _QLA4X_FW_H */

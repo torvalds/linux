@@ -192,6 +192,18 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 	}
 }
 
+void qla4_83xx_queue_iocb(struct scsi_qla_host *ha)
+{
+	writel(ha->request_in, &ha->qla4_83xx_reg->req_q_in);
+	readl(&ha->qla4_83xx_reg->req_q_in);
+}
+
+void qla4_83xx_complete_iocb(struct scsi_qla_host *ha)
+{
+	writel(ha->response_out, &ha->qla4_83xx_reg->rsp_q_out);
+	readl(&ha->qla4_83xx_reg->rsp_q_out);
+}
+
 /**
  * qla4_82xx_queue_iocb - Tell ISP it's got new request(s)
  * @ha: pointer to host adapter structure.

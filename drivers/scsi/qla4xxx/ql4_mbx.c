@@ -107,7 +107,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		msleep(10);
 	}
 
-	if (is_qla8022(ha)) {
+	if (is_qla80XX(ha)) {
 		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
 			DEBUG2(ql4_printk(KERN_WARNING, ha,
 					  "scsi%ld: %s: prematurely completing mbx cmd as firmware recovery detected\n",
@@ -183,7 +183,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 
 	/* Check for mailbox timeout. */
 	if (!test_bit(AF_MBOX_COMMAND_DONE, &ha->flags)) {
-		if (is_qla8022(ha) &&
+		if (is_qla80XX(ha) &&
 		    test_bit(AF_FW_RECOVERY, &ha->flags)) {
 			DEBUG2(ql4_printk(KERN_INFO, ha,
 			    "scsi%ld: %s: prematurely completing mbx cmd as "
@@ -544,7 +544,7 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 		__constant_cpu_to_le16(FWOPT_SESSION_MODE |
 				       FWOPT_INITIATOR_MODE);
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		init_fw_cb->fw_options |=
 		    __constant_cpu_to_le16(FWOPT_ENABLE_CRBDB);
 

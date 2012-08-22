@@ -150,7 +150,7 @@ qla4xxx_fw_version_show(struct device *dev,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",
 				ha->firmware_version[0],
 				ha->firmware_version[1],

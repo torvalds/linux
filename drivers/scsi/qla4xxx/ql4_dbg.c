@@ -131,3 +131,31 @@ void qla4xxx_dump_registers(struct scsi_qla_host *ha)
 		    &ha->reg->ctrl_status);
 	}
 }
+
+void qla4_8xxx_dump_peg_reg(struct scsi_qla_host *ha)
+{
+	uint32_t halt_status1, halt_status2;
+
+	halt_status1 = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_HALT_STATUS1);
+	halt_status2 = qla4_8xxx_rd_direct(ha, QLA8XXX_PEG_HALT_STATUS2);
+
+	if (is_qla8022(ha)) {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi(%ld): %s, ISP8022 Dumping hw/fw registers:\n"
+			   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n"
+			   " PEG_NET_0_PC: 0x%x, PEG_NET_1_PC: 0x%x,\n"
+			   " PEG_NET_2_PC: 0x%x, PEG_NET_3_PC: 0x%x,\n"
+			   " PEG_NET_4_PC: 0x%x\n", ha->host_no,
+			   __func__, halt_status1, halt_status2,
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_1 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_2 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_3 + 0x3c),
+			   qla4_82xx_rd_32(ha, QLA82XX_CRB_PEG_NET_4 + 0x3c));
+	} else if (is_qla8032(ha)) {
+		ql4_printk(KERN_INFO, ha,
+			   "scsi(%ld): %s, ISP8324 Dumping hw/fw registers:\n"
+			   " PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n",
+			   ha->host_no, __func__, halt_status1, halt_status2);
+	}
+}
