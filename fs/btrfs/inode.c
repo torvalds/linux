@@ -1882,8 +1882,11 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 				trans = btrfs_join_transaction_nolock(root);
 			else
 				trans = btrfs_join_transaction(root);
-			if (IS_ERR(trans))
-				return PTR_ERR(trans);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				trans = NULL;
+				goto out;
+			}
 			trans->block_rsv = &root->fs_info->delalloc_block_rsv;
 			ret = btrfs_update_inode_fallback(trans, root, inode);
 			if (ret) /* -ENOMEM or corruption */
