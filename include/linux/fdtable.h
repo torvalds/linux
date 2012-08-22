@@ -30,29 +30,9 @@ struct fdtable {
 	struct fdtable *next;
 };
 
-static inline void __set_close_on_exec(int fd, struct fdtable *fdt)
-{
-	__set_bit(fd, fdt->close_on_exec);
-}
-
-static inline void __clear_close_on_exec(int fd, struct fdtable *fdt)
-{
-	__clear_bit(fd, fdt->close_on_exec);
-}
-
 static inline bool close_on_exec(int fd, const struct fdtable *fdt)
 {
 	return test_bit(fd, fdt->close_on_exec);
-}
-
-static inline void __set_open_fd(int fd, struct fdtable *fdt)
-{
-	__set_bit(fd, fdt->open_fds);
-}
-
-static inline void __clear_open_fd(int fd, struct fdtable *fdt)
-{
-	__clear_bit(fd, fdt->open_fds);
 }
 
 static inline bool fd_is_open(int fd, const struct fdtable *fdt)

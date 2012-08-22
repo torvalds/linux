@@ -256,6 +256,26 @@ int expand_files(struct files_struct *files, int nr)
 	return expand_fdtable(files, nr);
 }
 
+static inline void __set_close_on_exec(int fd, struct fdtable *fdt)
+{
+	__set_bit(fd, fdt->close_on_exec);
+}
+
+static inline void __clear_close_on_exec(int fd, struct fdtable *fdt)
+{
+	__clear_bit(fd, fdt->close_on_exec);
+}
+
+static inline void __set_open_fd(int fd, struct fdtable *fdt)
+{
+	__set_bit(fd, fdt->open_fds);
+}
+
+static inline void __clear_open_fd(int fd, struct fdtable *fdt)
+{
+	__clear_bit(fd, fdt->open_fds);
+}
+
 static int count_open_files(struct fdtable *fdt)
 {
 	int size = fdt->max_fds;
