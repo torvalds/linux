@@ -3028,8 +3028,10 @@ qla8xxx_dev_failed_handler(scsi_qla_host_t *vha)
 	ql_log(ql_log_fatal, vha, 0x00b8,
 	    "Disabling the board.\n");
 
-	qla82xx_clear_drv_active(ha);
-	qla82xx_idc_unlock(ha);
+	if (IS_QLA82XX(ha)) {
+		qla82xx_clear_drv_active(ha);
+		qla82xx_idc_unlock(ha);
+	}
 
 	/* Set DEV_FAILED flag to disable timer */
 	vha->device_flags |= DFLG_DEV_FAILED;
