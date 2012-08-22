@@ -461,6 +461,10 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 		bitmap_set(pool->bitmap, pageno, count);
 		ptr = pool->vaddr + PAGE_SIZE * pageno;
 		*ret_page = pool->page + pageno;
+	} else {
+		pr_err_once("ERROR: %u KiB atomic DMA coherent pool is too small!\n"
+			    "Please increase it with coherent_pool= kernel parameter!\n",
+			    (unsigned)pool->size / 1024);
 	}
 	spin_unlock_irqrestore(&pool->lock, flags);
 
