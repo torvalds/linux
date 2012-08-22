@@ -1907,7 +1907,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_init, vha, 0x00d1, "Issue init firmware.\n");
 
 	if (ha->flags.npiv_supported) {
-		if (ha->operating_mode == LOOP)
+		if (ha->operating_mode == LOOP && !IS_CNA_CAPABLE(ha))
 			ha->max_npiv_vports = MIN_MULTI_ID_FABRIC - 1;
 		mid_init_cb->count = cpu_to_le16(ha->max_npiv_vports);
 	}
