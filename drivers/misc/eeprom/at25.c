@@ -302,6 +302,61 @@ static ssize_t at25_mem_write(struct memory_accessor *mem, const char *buf,
 
 /*-------------------------------------------------------------------------*/
 
+static int at25_np_to_chip(struct device *dev,
+			   struct device_node *np,
+			   struct spi_eeprom *chip)
+{
+	u32 val;
+
+	memset(chip, 0, sizeof(*chip));
+	strncpy(chip->name, np->name, sizeof(chip->name));
+
+	if (of_property_read_u32(np, "size", &val) == 0 ||
+	    of_property_read_u32(np, "at25,byte-len", &val) == 0) {
+		chip->byte_len = val;
+	} else {
+		dev_err(dev, "Error: missing \"size\" property\n");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(np, "pagesize", &val) == 0 ||
+	    of_property_read_u32(np, "at25,page-size", &val) == 0) {
+		chip->page_size = (u16)val;
+	} else {
+		dev_err(dev, "Error: missing \"pagesize\" property\n");
+		return -ENODEV;
+	}
+
+	if (of_property_read_u32(np, "at25,addr-mode", &val) == 0) {
+		chip->flags = (u16)val;
+	} else {
+		if (of_property_read_u32(np, "address-width", &val)) {
+			dev_err(dev,
+				"Error: missing \"address-width\" property\n");
+			return -ENODEV;
+		}
+		switch (val) {
+		case 8:
+			chip->flags |= EE_ADDR1;
+			break;
+		case 16:
+			chip->flags |= EE_ADDR2;
+			break;
+		case 24:
+			chip->flags |= EE_ADDR3;
+			break;
+		default:
+			dev_err(dev,
+				"Error: bad \"address-width\" property: %u\n",
+				val);
+			return -ENODEV;
+		}
+		if (of_find_property(np, "read-only", NULL))
+			chip->flags |= EE_READONLY;
+	}
+	return 0;
+}
+
 static int at25_probe(struct spi_device *spi)
 {
 	struct at25_data	*at25 = NULL;
@@ -314,33 +369,11 @@ static int at25_probe(struct spi_device *spi)
 	/* Chip description */
 	if (!spi->dev.platform_data) {
 		if (np) {
-			u32 val;
-
-			memset(&chip, 0, sizeof(chip));
-			strncpy(chip.name, np->name, 10);
-
-			err = of_property_read_u32(np, "at25,byte-len", &val);
-			if (err) {
-				dev_dbg(&spi->dev, "invalid chip dt description\n");
+			err = at25_np_to_chip(&spi->dev, np, &chip);
+			if (err)
 				goto fail;
-			}
-			chip.byte_len = val;
-
-			err = of_property_read_u32(np, "at25,addr-mode", &val);
-			if (err) {
-				dev_dbg(&spi->dev, "invalid chip dt description\n");
-				goto fail;
-			}
-			chip.flags = (u16)val;
-
-			err = of_property_read_u32(np, "at25,page-size", &val);
-			if (err) {
-				dev_dbg(&spi->dev, "invalid chip dt description\n");
-				goto fail;
-			}
-			chip.page_size = (u16)val;
 		} else {
-			dev_dbg(&spi->dev, "no chip description\n");
+			dev_err(&spi->dev, "Error: no chip description\n");
 			err = -ENODEV;
 			goto fail;
 		}
