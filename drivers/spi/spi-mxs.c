@@ -520,9 +520,16 @@ static int __devinit mxs_spi_probe(struct platform_device *pdev)
 	struct pinctrl *pinctrl;
 	struct clk *clk;
 	void __iomem *base;
-	int devid, dma_channel;
+	int devid, dma_channel, clk_freq;
 	int ret = 0, irq_err, irq_dma;
 	dma_cap_mask_t mask;
+
+	/*
+	 * Default clock speed for the SPI core. 160MHz seems to
+	 * work reasonably well with most SPI flashes, so use this
+	 * as a default. Override with "clock-frequency" DT prop.
+	 */
+	const int clk_freq_default = 160000000;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
@@ -555,12 +562,18 @@ static int __devinit mxs_spi_probe(struct platform_device *pdev)
 				"Failed to get DMA channel\n");
 			return -EINVAL;
 		}
+
+		ret = of_property_read_u32(np, "clock-frequency",
+					   &clk_freq);
+		if (ret)
+			clk_freq = clk_freq_default;
 	} else {
 		dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 		if (!dmares)
 			return -EINVAL;
 		devid = pdev->id_entry->driver_data;
 		dma_channel = dmares->start;
+		clk_freq = clk_freq_default;
 	}
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
@@ -598,12 +611,8 @@ static int __devinit mxs_spi_probe(struct platform_device *pdev)
 		goto out_master_free;
 	}
 
-	/*
-	 * Crank up the clock to 120MHz, this will be further divided onto a
-	 * proper speed.
-	 */
 	clk_prepare_enable(ssp->clk);
-	clk_set_rate(ssp->clk, 120 * 1000 * 1000);
+	clk_set_rate(ssp->clk, clk_freq);
 	ssp->clk_rate = clk_get_rate(ssp->clk) / 1000;
 
 	stmp_reset_block(ssp->base);

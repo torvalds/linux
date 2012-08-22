@@ -6,6 +6,10 @@ Required properties:
 - interrupts: Should contain SSP interrupts (error irq first, dma irq second)
 - fsl,ssp-dma-channel: APBX DMA channel for the SSP
 
+Optional properties:
+- clock-frequency : Input clock frequency to the SPI block in Hz.
+		    Default is 160000000 Hz.
+
 Example:
 
 ssp0: ssp@80010000 {
