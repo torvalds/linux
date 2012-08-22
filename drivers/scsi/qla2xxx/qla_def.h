@@ -129,6 +129,7 @@
 #define MAX_FIBRE_DEVICES_2400	2048
 #define MAX_FIBRE_DEVICES_LOOP	128
 #define MAX_FIBRE_DEVICES_MAX	MAX_FIBRE_DEVICES_2400
+#define LOOPID_MAP_SIZE		(ha->max_fibre_devices)
 #define MAX_FIBRE_LUNS  	0xFFFF
 #define	MAX_HOST_COUNT		16
 
@@ -2918,6 +2919,7 @@ struct qla_hw_data {
 	void            *md_dump;
 	uint32_t	md_dump_size;
 
+	void		*loop_id_map;
 	struct qlt_hw_data tgt;
 };
 

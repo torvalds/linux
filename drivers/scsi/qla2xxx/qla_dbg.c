@@ -11,7 +11,7 @@
  * ----------------------------------------------------------------------
  * |             Level            |   Last Value Used  |     Holes	|
  * ----------------------------------------------------------------------
- * | Module Init and Probe        |       0x0122       | 0x4b,0xba,0xfa |
+ * | Module Init and Probe        |       0x0123       | 0x4b,0xba,0xfa |
  * | Mailbox commands             |       0x1140       | 0x111a-0x111b  |
  * |                              |                    | 0x112c-0x112e  |
  * |                              |                    | 0x113a         |

@@ -3285,7 +3285,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			 */
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
 				fcport->d_id.b24 = new_fcport->d_id.b24;
-				fcport->loop_id = FC_NO_LOOP_ID;
+				qla2x00_clear_loop_id(fcport);
 				fcport->flags |= (FCF_FABRIC_DEVICE |
 				    FCF_LOGIN_NEEDED);
 				break;
@@ -3306,7 +3306,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 				ha->isp_ops->fabric_logout(vha, fcport->loop_id,
 				    fcport->d_id.b.domain, fcport->d_id.b.area,
 				    fcport->d_id.b.al_pa);
-				fcport->loop_id = FC_NO_LOOP_ID;
+				qla2x00_clear_loop_id(fcport);
 			}
 
 			break;
@@ -3352,71 +3352,32 @@ int
 qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 {
 	int	rval;
-	int	found;
-	fc_port_t *fcport;
-	uint16_t first_loop_id;
 	struct qla_hw_data *ha = vha->hw;
-	struct scsi_qla_host *vp;
-	struct scsi_qla_host *tvp;
 	unsigned long flags = 0;
 
 	rval = QLA_SUCCESS;
 
-	/* Save starting loop ID. */
-	first_loop_id = dev->loop_id;
+	spin_lock_irqsave(&ha->vport_slock, flags);
 
-	for (;;) {
-		/* Skip loop ID if already used by adapter. */
-		if (dev->loop_id == vha->loop_id)
-			dev->loop_id++;
+	dev->loop_id = find_first_zero_bit(ha->loop_id_map,
+	    LOOPID_MAP_SIZE);
+	if (dev->loop_id >= LOOPID_MAP_SIZE ||
+	    qla2x00_is_reserved_id(vha, dev->loop_id)) {
+		dev->loop_id = FC_NO_LOOP_ID;
+		rval = QLA_FUNCTION_FAILED;
+	} else
+		set_bit(dev->loop_id, ha->loop_id_map);
 
-		/* Skip reserved loop IDs. */
-		while (qla2x00_is_reserved_id(vha, dev->loop_id))
-			dev->loop_id++;
+	spin_unlock_irqrestore(&ha->vport_slock, flags);
 
-		/* Reset loop ID if passed the end. */
-		if (dev->loop_id > ha->max_loop_id) {
-			/* first loop ID. */
-			dev->loop_id = ha->min_external_loopid;
-		}
-
-		/* Check for loop ID being already in use. */
-		found = 0;
-		fcport = NULL;
-
-		spin_lock_irqsave(&ha->vport_slock, flags);
-		list_for_each_entry_safe(vp, tvp, &ha->vp_list, list) {
-			list_for_each_entry(fcport, &vp->vp_fcports, list) {
-				if (fcport->loop_id == dev->loop_id &&
-								fcport != dev) {
-					/* ID possibly in use */
-					found++;
-					break;
-				}
-			}
-			if (found)
-				break;
-		}
-		spin_unlock_irqrestore(&ha->vport_slock, flags);
-
-		/* If not in use then it is free to use. */
-		if (!found) {
-			ql_dbg(ql_dbg_disc, dev->vha, 0x2086,
-			    "Assigning new loopid=%x, portid=%x.\n",
-			    dev->loop_id, dev->d_id.b24);
-			break;
-		}
-
-		/* ID in use. Try next value. */
-		dev->loop_id++;
-
-		/* If wrap around. No free ID to use. */
-		if (dev->loop_id == first_loop_id) {
-			dev->loop_id = FC_NO_LOOP_ID;
-			rval = QLA_FUNCTION_FAILED;
-			break;
-		}
-	}
+	if (rval == QLA_SUCCESS)
+		ql_dbg(ql_dbg_disc, dev->vha, 0x2086,
+		    "Assigning new loopid=%x, portid=%x.\n",
+		    dev->loop_id, dev->d_id.b24);
+	else
+		ql_log(ql_log_warn, dev->vha, 0x2087,
+		    "No loop_id's available, portid=%x.\n",
+		    dev->d_id.b24);
 
 	return (rval);
 }
@@ -3616,7 +3577,7 @@ qla2x00_fabric_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 			ha->isp_ops->fabric_logout(vha, fcport->loop_id,
 			    fcport->d_id.b.domain, fcport->d_id.b.area,
 			    fcport->d_id.b.al_pa);
-			fcport->loop_id = FC_NO_LOOP_ID;
+			qla2x00_clear_loop_id(fcport);
 			fcport->login_retry = 0;
 
 			rval = 3;
