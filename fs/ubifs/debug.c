@@ -2646,20 +2646,18 @@ static int power_cut_emulated(struct ubifs_info *c, int lnum, int write)
 	return 1;
 }
 
-static void cut_data(const void *buf, unsigned int len)
+static int corrupt_data(const struct ubifs_info *c, const void *buf,
+			unsigned int len)
 {
 	unsigned int from, to, i, ffs = chance(1, 2);
 	unsigned char *p = (void *)buf;
 
 	from = random32() % (len + 1);
-	if (chance(1, 2))
-		to = random32() % (len - from + 1);
-	else
-		to = len;
+	/* Corruption may only span one max. write unit */
+	to = min(len, ALIGN(from, c->max_write_size));
 
-	if (from < to)
-		ubifs_warn("filled bytes %u-%u with %s", from, to - 1,
-			   ffs ? "0xFFs" : "random data");
+	ubifs_warn("filled bytes %u-%u with %s", from, to - 1,
+		   ffs ? "0xFFs" : "random data");
 
 	if (ffs)
 		for (i = from; i < to; i++)
@@ -2667,6 +2665,8 @@ static void cut_data(const void *buf, unsigned int len)
 	else
 		for (i = from; i < to; i++)
 			p[i] = random32() % 0x100;
+
+	return to;
 }
 
 int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf,
@@ -2679,7 +2679,9 @@ int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf,
 
 	failing = power_cut_emulated(c, lnum, 1);
 	if (failing)
-		cut_data(buf, len);
+		len = corrupt_data(c, buf, len);
+	ubifs_warn("actually write %d bytes to LEB %d:%d (the buffer was corrupted)",
+		   len, lnum, offs);
 	err = ubi_leb_write(c->ubi, lnum, buf, offs, len);
 	if (err)
 		return err;
