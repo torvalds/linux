@@ -97,18 +97,23 @@
 		dma-apbh@00110000 {
 			compatible = "fsl,imx6q-dma-apbh", "fsl,imx28-dma-apbh";
 			reg = <0x00110000 0x2000>;
+			clocks = <&clks 106>;
 		};
 
 		gpmi-nand@00112000 {
-		       compatible = "fsl,imx6q-gpmi-nand";
-		       #address-cells = <1>;
-		       #size-cells = <1>;
-		       reg = <0x00112000 0x2000>, <0x00114000 0x2000>;
-		       reg-names = "gpmi-nand", "bch";
-		       interrupts = <0 13 0x04>, <0 15 0x04>;
-		       interrupt-names = "gpmi-dma", "bch";
-		       fsl,gpmi-dma-channel = <0>;
-		       status = "disabled";
+			compatible = "fsl,imx6q-gpmi-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x00112000 0x2000>, <0x00114000 0x2000>;
+			reg-names = "gpmi-nand", "bch";
+			interrupts = <0 13 0x04>, <0 15 0x04>;
+			interrupt-names = "gpmi-dma", "bch";
+			clocks = <&clks 152>, <&clks 153>, <&clks 151>,
+				 <&clks 150>, <&clks 149>;
+			clock-names = "gpmi_io", "gpmi_apb", "gpmi_bch",
+				      "gpmi_bch_apb", "per1_bch";
+			fsl,gpmi-dma-channel = <0>;
+			status = "disabled";
 		};
 
 		timer@00a00600 {
@@ -150,6 +155,8 @@
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02008000 0x4000>;
 					interrupts = <0 31 0x04>;
+					clocks = <&clks 112>, <&clks 112>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -159,6 +166,8 @@
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x0200c000 0x4000>;
 					interrupts = <0 32 0x04>;
+					clocks = <&clks 113>, <&clks 113>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -168,6 +177,8 @@
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02010000 0x4000>;
 					interrupts = <0 33 0x04>;
+					clocks = <&clks 114>, <&clks 114>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -177,6 +188,8 @@
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02014000 0x4000>;
 					interrupts = <0 34 0x04>;
+					clocks = <&clks 115>, <&clks 115>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -186,6 +199,8 @@
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";
 					reg = <0x02018000 0x4000>;
 					interrupts = <0 35 0x04>;
+					clocks = <&clks 116>, <&clks 116>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -193,6 +208,8 @@
 					compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 					reg = <0x02020000 0x4000>;
 					interrupts = <0 26 0x04>;
+					clocks = <&clks 160>, <&clks 161>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -205,6 +222,7 @@
 					compatible = "fsl,imx6q-ssi","fsl,imx21-ssi";
 					reg = <0x02028000 0x4000>;
 					interrupts = <0 46 0x04>;
+					clocks = <&clks 178>;
 					fsl,fifo-depth = <15>;
 					fsl,ssi-dma-events = <38 37>;
 					status = "disabled";
@@ -214,6 +232,7 @@
 					compatible = "fsl,imx6q-ssi","fsl,imx21-ssi";
 					reg = <0x0202c000 0x4000>;
 					interrupts = <0 47 0x04>;
+					clocks = <&clks 179>;
 					fsl,fifo-depth = <15>;
 					fsl,ssi-dma-events = <42 41>;
 					status = "disabled";
@@ -223,6 +242,7 @@
 					compatible = "fsl,imx6q-ssi","fsl,imx21-ssi";
 					reg = <0x02030000 0x4000>;
 					interrupts = <0 48 0x04>;
+					clocks = <&clks 180>;
 					fsl,fifo-depth = <15>;
 					fsl,ssi-dma-events = <46 45>;
 					status = "disabled";
@@ -362,6 +382,7 @@
 				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
 				reg = <0x020bc000 0x4000>;
 				interrupts = <0 80 0x04>;
+				clocks = <&clks 0>;
 				status = "disabled";
 			};
 
@@ -369,13 +390,15 @@
 				compatible = "fsl,imx6q-wdt", "fsl,imx21-wdt";
 				reg = <0x020c0000 0x4000>;
 				interrupts = <0 81 0x04>;
+				clocks = <&clks 0>;
 				status = "disabled";
 			};
 
-			ccm@020c4000 {
+			clks: ccm@020c4000 {
 				compatible = "fsl,imx6q-ccm";
 				reg = <0x020c4000 0x4000>;
 				interrupts = <0 87 0x04 0 88 0x04>;
+				#clock-cells = <1>;
 			};
 
 			anatop@020c8000 {
@@ -472,12 +495,14 @@
 				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020c9000 0x1000>;
 				interrupts = <0 44 0x04>;
+				clocks = <&clks 182>;
 			};
 
 			usbphy2: usbphy@020ca000 {
 				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
 				reg = <0x020ca000 0x1000>;
 				interrupts = <0 45 0x04>;
+				clocks = <&clks 183>;
 			};
 
 			snvs@020cc000 {
@@ -612,6 +637,9 @@
 				compatible = "fsl,imx6q-sdma", "fsl,imx35-sdma";
 				reg = <0x020ec000 0x4000>;
 				interrupts = <0 2 0x04>;
+				clocks = <&clks 155>, <&clks 155>;
+				clock-names = "ipg", "ahb";
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx6q-to1.bin";
 			};
 		};
 
@@ -635,6 +663,7 @@
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184000 0x200>;
 				interrupts = <0 43 0x04>;
+				clocks = <&clks 162>;
 				fsl,usbphy = <&usbphy1>;
 				status = "disabled";
 			};
@@ -643,6 +672,7 @@
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184200 0x200>;
 				interrupts = <0 40 0x04>;
+				clocks = <&clks 162>;
 				fsl,usbphy = <&usbphy2>;
 				status = "disabled";
 			};
@@ -651,6 +681,7 @@
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184400 0x200>;
 				interrupts = <0 41 0x04>;
+				clocks = <&clks 162>;
 				status = "disabled";
 			};
 
@@ -658,6 +689,7 @@
 				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
 				reg = <0x02184600 0x200>;
 				interrupts = <0 42 0x04>;
+				clocks = <&clks 162>;
 				status = "disabled";
 			};
 
@@ -665,6 +697,8 @@
 				compatible = "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
 				interrupts = <0 118 0x04 0 119 0x04>;
+				clocks = <&clks 117>, <&clks 117>;
+				clock-names = "ipg", "ahb";
 				status = "disabled";
 			};
 
@@ -677,6 +711,8 @@
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02190000 0x4000>;
 				interrupts = <0 22 0x04>;
+				clocks = <&clks 163>, <&clks 163>, <&clks 163>;
+				clock-names = "ipg", "ahb", "per";
 				status = "disabled";
 			};
 
@@ -684,6 +720,8 @@
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02194000 0x4000>;
 				interrupts = <0 23 0x04>;
+				clocks = <&clks 164>, <&clks 164>, <&clks 164>;
+				clock-names = "ipg", "ahb", "per";
 				status = "disabled";
 			};
 
@@ -691,6 +729,8 @@
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x02198000 0x4000>;
 				interrupts = <0 24 0x04>;
+				clocks = <&clks 165>, <&clks 165>, <&clks 165>;
+				clock-names = "ipg", "ahb", "per";
 				status = "disabled";
 			};
 
@@ -698,6 +738,8 @@
 				compatible = "fsl,imx6q-usdhc";
 				reg = <0x0219c000 0x4000>;
 				interrupts = <0 25 0x04>;
+				clocks = <&clks 166>, <&clks 166>, <&clks 166>;
+				clock-names = "ipg", "ahb", "per";
 				status = "disabled";
 			};
 
@@ -707,6 +749,7 @@
 				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
 				reg = <0x021a0000 0x4000>;
 				interrupts = <0 36 0x04>;
+				clocks = <&clks 125>;
 				status = "disabled";
 			};
 
@@ -716,6 +759,7 @@
 				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
 				reg = <0x021a4000 0x4000>;
 				interrupts = <0 37 0x04>;
+				clocks = <&clks 126>;
 				status = "disabled";
 			};
 
@@ -725,6 +769,7 @@
 				compatible = "fsl,imx6q-i2c", "fsl,imx1-i2c";
 				reg = <0x021a8000 0x4000>;
 				interrupts = <0 38 0x04>;
+				clocks = <&clks 127>;
 				status = "disabled";
 			};
 
@@ -788,6 +833,8 @@
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021e8000 0x4000>;
 				interrupts = <0 27 0x04>;
+				clocks = <&clks 160>, <&clks 161>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -795,6 +842,8 @@
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021ec000 0x4000>;
 				interrupts = <0 28 0x04>;
+				clocks = <&clks 160>, <&clks 161>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -802,6 +851,8 @@
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f0000 0x4000>;
 				interrupts = <0 29 0x04>;
+				clocks = <&clks 160>, <&clks 161>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -809,6 +860,8 @@
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f4000 0x4000>;
 				interrupts = <0 30 0x04>;
+				clocks = <&clks 160>, <&clks 161>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 		};
