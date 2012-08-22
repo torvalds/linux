@@ -609,7 +609,6 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 		struct ab8500_btemp, btemp_periodic_work.work);
 
 	if (!di->initialized) {
-		di->initialized = true;
 		/* Identify the battery */
 		if (ab8500_btemp_id(di) < 0)
 			dev_warn(di->dev, "failed to identify the battery\n");
@@ -622,8 +621,9 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 	 * same temperature. Else only allow 1 degree change from previous
 	 * reported value in the direction of the new measurement.
 	 */
-	if (bat_temp == di->prev_bat_temp || !di->initialized) {
-		if (di->bat_temp != di->prev_bat_temp || !di->initialized) {
+	if ((bat_temp == di->prev_bat_temp) || !di->initialized) {
+		if ((di->bat_temp != di->prev_bat_temp) || !di->initialized) {
+			di->initialized = true;
 			di->bat_temp = bat_temp;
 			power_supply_changed(&di->btemp_psy);
 		}
