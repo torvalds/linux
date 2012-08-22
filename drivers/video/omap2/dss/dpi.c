@@ -34,6 +34,7 @@
 #include <plat/cpu.h>
 
 #include "dss.h"
+#include "dss_features.h"
 
 static struct {
 	struct regulator *vdds_dsi_reg;
@@ -175,7 +176,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dpi.lock);
 
-	if (cpu_is_omap34xx() && !dpi.vdds_dsi_reg) {
+	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI) && !dpi.vdds_dsi_reg) {
 		DSSERR("no VDSS_DSI regulator\n");
 		r = -ENODEV;
 		goto err_no_reg;
@@ -193,7 +194,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err_start_dev;
 	}
 
-	if (cpu_is_omap34xx()) {
+	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI)) {
 		r = regulator_enable(dpi.vdds_dsi_reg);
 		if (r)
 			goto err_reg_enable;
@@ -239,7 +240,7 @@ err_dsi_pll_init:
 err_get_dsi:
 	dispc_runtime_put();
 err_get_dispc:
-	if (cpu_is_omap34xx())
+	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
 		regulator_disable(dpi.vdds_dsi_reg);
 err_reg_enable:
 	omap_dss_stop_device(dssdev);
@@ -265,7 +266,7 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dispc_runtime_put();
 
-	if (cpu_is_omap34xx())
+	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
 		regulator_disable(dpi.vdds_dsi_reg);
 
 	omap_dss_stop_device(dssdev);
@@ -362,7 +363,8 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
-	if (cpu_is_omap34xx() && dpi.vdds_dsi_reg == NULL) {
+	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI) &&
+					dpi.vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
 		vdds_dsi = dss_get_vdds_dsi();
