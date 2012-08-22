@@ -435,6 +435,7 @@ qla83xx_nic_core_fw_load(scsi_qla_host_t *vha)
 	int rval = QLA_SUCCESS;
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t idc_major_ver, idc_minor_ver;
+	uint16_t config[4];
 
 	qla83xx_idc_lock(vha, 0);
 
@@ -485,6 +486,13 @@ qla83xx_nic_core_fw_load(scsi_qla_host_t *vha)
 	qla83xx_rd_reg(vha, QLA83XX_IDC_MINOR_VERSION, &idc_minor_ver);
 	idc_minor_ver |= (QLA83XX_SUPP_IDC_MINOR_VERSION << (ha->portnum * 2));
 	qla83xx_wr_reg(vha, QLA83XX_IDC_MINOR_VERSION, idc_minor_ver);
+
+	if (ha->flags.nic_core_reset_owner) {
+		memset(config, 0, sizeof(config));
+		if (!qla81xx_get_port_config(vha, config))
+			qla83xx_wr_reg(vha, QLA83XX_IDC_DEV_STATE,
+			    QLA8XXX_DEV_READY);
+	}
 
 	rval = qla83xx_idc_state_handler(vha);
 
