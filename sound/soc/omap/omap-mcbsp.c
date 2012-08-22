@@ -619,9 +619,9 @@ static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(channel)			\
+#define OMAP_MCBSP_ST_CHANNEL_VOLUME(channel)				\
 static int								\
-omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
+omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,		\
 					struct snd_ctl_elem_value *uc)	\
 {									\
 	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kc);		\
@@ -637,11 +637,10 @@ omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
 									\
 	/* OMAP McBSP implementation uses index values 0..4 */		\
 	return omap_st_set_chgain(mcbsp, channel, val);			\
-}
-
-#define OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(channel)			\
+}									\
+									\
 static int								\
-omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
+omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,		\
 					struct snd_ctl_elem_value *uc)	\
 {									\
 	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kc);		\
@@ -655,10 +654,8 @@ omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
 	return 0;							\
 }
 
-OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(0)
-OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(1)
-OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(0)
-OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(1)
+OMAP_MCBSP_ST_CHANNEL_VOLUME(0)
+OMAP_MCBSP_ST_CHANNEL_VOLUME(1)
 
 static int omap_mcbsp_st_put_mode(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
