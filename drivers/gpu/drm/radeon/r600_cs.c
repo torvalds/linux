@@ -1416,7 +1416,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_028118_CB_COLOR6_MASK:
 	case R_02811C_CB_COLOR7_MASK:
 		tmp = (reg - R_028100_CB_COLOR0_MASK) / 4;
-		track->cb_color_mask[tmp] = ib[idx];
+		track->cb_color_mask[tmp] = radeon_get_ib_value(p, idx);
 		if (G_0280A0_TILE_MODE(track->cb_color_info[tmp])) {
 			track->cb_dirty = true;
 		}
