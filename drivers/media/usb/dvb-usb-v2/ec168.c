@@ -86,8 +86,8 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 	ret = usb_control_msg(d->udev, pipe, request, requesttype, req->value,
 		req->index, buf, req->size, EC168_USB_TIMEOUT);
 
-	ec168_debug_dump(request, requesttype, req->value, req->index, buf,
-		req->size);
+	dvb_usb_dbg_usb_control_msg(d->udev, request, requesttype, req->value,
+			req->index, buf, req->size);
 
 	if (ret < 0)
 		goto err_dealloc;

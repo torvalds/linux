@@ -74,8 +74,8 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 	ret = usb_control_msg(d->udev, pipe, request, requesttype, value, index,
 			buf, req->data_len, CE6230_USB_TIMEOUT);
 
-	ce6230_debug_dump(request, requesttype, value, index, buf,
-			req->data_len);
+	dvb_usb_dbg_usb_control_msg(d->udev, request, requesttype, value, index,
+			buf, req->data_len);
 
 	if (ret < 0)
 		pr_err("%s: usb_control_msg() failed=%d\n", KBUILD_MODNAME,

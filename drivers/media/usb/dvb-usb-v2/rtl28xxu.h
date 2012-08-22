@@ -24,17 +24,6 @@
 
 #include "dvb_usb.h"
 
-#define deb_dump(r, t, v, i, b, l) { \
-	char *direction; \
-	if (t == (USB_TYPE_VENDOR | USB_DIR_OUT)) \
-		direction = ">>>"; \
-	else \
-		direction = "<<<"; \
-	dev_dbg(&d->udev->dev, "%s: %02x %02x %02x %02x %02x %02x %02x %02x " \
-			"%s [%d bytes]\n",  __func__, t, r, v & 0xff, v >> 8, \
-			i & 0xff, i >> 8, l & 0xff, l >> 8, direction, l); \
-}
-
 /*
  * USB commands
  * (usb_control_msg() index parameter)

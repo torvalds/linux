@@ -59,10 +59,12 @@ static int rtl28xxu_ctrl_msg(struct dvb_usb_device *d, struct rtl28xxu_req *req)
 
 	ret = usb_control_msg(d->udev, pipe, 0, requesttype, req->value,
 			req->index, buf, req->size, 1000);
+
+	dvb_usb_dbg_usb_control_msg(d->udev, 0, requesttype, req->value,
+			req->index, buf, req->size);
+
 	if (ret > 0)
 		ret = 0;
-
-	deb_dump(0, requesttype, req->value, req->index, buf, req->size);
 
 	/* read request, copy returned data to return buf */
 	if (!ret && requesttype == (USB_TYPE_VENDOR | USB_DIR_IN))

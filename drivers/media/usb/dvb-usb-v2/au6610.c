@@ -56,6 +56,11 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	ret = usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), operation,
 			      USB_TYPE_VENDOR|USB_DIR_IN, addr << 1, index,
 			      usb_buf, 6, AU6610_USB_TIMEOUT);
+
+	dvb_usb_dbg_usb_control_msg(d->udev, operation,
+			(USB_TYPE_VENDOR|USB_DIR_IN), addr << 1, index,
+			usb_buf, 6);
+
 	if (ret < 0)
 		goto error;
 
