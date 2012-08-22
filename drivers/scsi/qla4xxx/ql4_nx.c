@@ -2283,6 +2283,20 @@ static void qla4_8xxx_uevent_emit(struct scsi_qla_host *ha, u32 code)
 	kobject_uevent_env(&(&ha->pdev->dev)->kobj, KOBJ_CHANGE, envp);
 }
 
+static void qla4_8xxx_get_minidump(struct scsi_qla_host *ha)
+{
+	if (ql4xenablemd && test_bit(AF_FW_RECOVERY, &ha->flags) &&
+	    !test_bit(AF_82XX_FW_DUMPED, &ha->flags)) {
+		if (!qla4_8xxx_collect_md_data(ha)) {
+			qla4_8xxx_uevent_emit(ha, QL4_UEVENT_CODE_FW_DUMP);
+			set_bit(AF_82XX_FW_DUMPED, &ha->flags);
+		} else {
+			ql4_printk(KERN_INFO, ha, "%s: Unable to collect minidump\n",
+				   __func__);
+		}
+	}
+}
+
 /**
  * qla4_8xxx_device_bootstrap - Initialize device, set DEV_READY, start fw
  * @ha: pointer to adapter structure
@@ -2338,15 +2352,7 @@ dev_initialize:
 			    QLA8XXX_DEV_INITIALIZING);
 
 	ha->isp_ops->idc_unlock(ha);
-	if (ql4xenablemd && test_bit(AF_FW_RECOVERY, &ha->flags) &&
-	    !test_and_set_bit(AF_82XX_FW_DUMPED, &ha->flags)) {
-		if (!qla4_8xxx_collect_md_data(ha)) {
-			qla4_8xxx_uevent_emit(ha, QL4_UEVENT_CODE_FW_DUMP);
-		} else {
-			ql4_printk(KERN_INFO, ha, "Unable to collect minidump\n");
-			clear_bit(AF_82XX_FW_DUMPED, &ha->flags);
-		}
-	}
+	qla4_8xxx_get_minidump(ha);
 	rval = ha->isp_ops->restart_firmware(ha);
 	ha->isp_ops->idc_lock(ha);
 
