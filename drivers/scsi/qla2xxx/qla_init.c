@@ -767,7 +767,7 @@ qla24xx_pci_config(scsi_qla_host_t *vha)
 
 	/* PCIe -- adjust Maximum Read Request Size (2048). */
 	if (pci_is_pcie(ha->pdev))
-		pcie_set_readrq(ha->pdev, 2048);
+		pcie_set_readrq(ha->pdev, 4096);
 
 	pci_disable_rom(ha->pdev);
 
@@ -803,7 +803,7 @@ qla25xx_pci_config(scsi_qla_host_t *vha)
 
 	/* PCIe -- adjust Maximum Read Request Size (2048). */
 	if (pci_is_pcie(ha->pdev))
-		pcie_set_readrq(ha->pdev, 2048);
+		pcie_set_readrq(ha->pdev, 4096);
 
 	pci_disable_rom(ha->pdev);
 
