@@ -2918,7 +2918,7 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 skip_msix:
 
 	if (!IS_QLA24XX(ha) && !IS_QLA2532(ha) && !IS_QLA8432(ha) &&
-	    !IS_QLA8001(ha))
+	    !IS_QLA8001(ha) && !IS_QLA82XX(ha))
 		goto skip_msi;
 
 	ret = pci_enable_msi(ha->pdev);
