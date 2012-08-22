@@ -662,8 +662,6 @@ static const struct of_device_id samsung_keypad_dt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_keypad_dt_match);
-#else
-#define samsung_keypad_dt_match NULL
 #endif
 
 static struct platform_device_id samsung_keypad_driver_ids[] = {
@@ -684,7 +682,7 @@ static struct platform_driver samsung_keypad_driver = {
 	.driver		= {
 		.name	= "samsung-keypad",
 		.owner	= THIS_MODULE,
-		.of_match_table = samsung_keypad_dt_match,
+		.of_match_table = of_match_ptr(samsung_keypad_dt_match),
 		.pm	= &samsung_keypad_pm_ops,
 	},
 	.id_table	= samsung_keypad_driver_ids,
