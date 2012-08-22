@@ -740,7 +740,7 @@ static int ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	struct probe_resp *new, *old;
 
 	if (!resp || !resp_len)
-		return -EINVAL;
+		return 1;
 
 	old = rtnl_dereference(sdata->u.ap.probe_resp);
 
