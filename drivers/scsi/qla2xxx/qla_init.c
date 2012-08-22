@@ -4301,16 +4301,16 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 	unsigned long flags;
 
-	if (IS_QLA8031(ha)) {
-		ql_dbg(ql_dbg_p3p, vha, 0xb05c,
-		    "Clearing fcoe driver presence.\n");
-		if (qla83xx_clear_drv_presence(vha) != QLA_SUCCESS)
-			ql_dbg(ql_dbg_p3p, vha, 0xb073,
-			    "Erro while clearing DRV-Presence.\n");
-	}
-
 	if (vha->flags.online) {
 		qla2x00_abort_isp_cleanup(vha);
+
+		if (IS_QLA8031(ha)) {
+			ql_dbg(ql_dbg_p3p, vha, 0xb05c,
+			    "Clearing fcoe driver presence.\n");
+			if (qla83xx_clear_drv_presence(vha) != QLA_SUCCESS)
+				ql_dbg(ql_dbg_p3p, vha, 0xb073,
+				    "Error while clearing DRV-Presence.\n");
+		}
 
 		if (unlikely(pci_channel_offline(ha->pdev) &&
 		    ha->flags.pci_channel_io_perm_failure)) {
