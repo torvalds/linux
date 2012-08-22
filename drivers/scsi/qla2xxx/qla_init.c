@@ -2826,6 +2826,8 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		if (loop_id > LAST_LOCAL_LOOP_ID)
 			continue;
 
+		memset(new_fcport, 0, sizeof(fc_port_t));
+
 		/* Fill in member data. */
 		new_fcport->d_id.b.domain = domain;
 		new_fcport->d_id.b.area = area;
