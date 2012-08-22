@@ -1,6 +1,5 @@
 menuconfig PWM
 	bool "Pulse-Width Modulation (PWM) Support"
-	depends on !MACH_JZ4740
 	help
 	  Generic Pulse-Width Modulation (PWM) support.
 
@@ -55,6 +54,16 @@ config PWM_IMX
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-imx.
+
+config PWM_JZ4740
+	tristate "Ingenic JZ4740 PWM support"
+	depends on MACH_JZ4740
+	help
+	  Generic PWM framework driver for Ingenic JZ4740 based
+	  machines.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-jz4740.
 
 config PWM_LPC32XX
 	tristate "LPC32XX PWM support"
