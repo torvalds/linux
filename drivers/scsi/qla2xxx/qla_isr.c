@@ -2556,6 +2556,8 @@ qla24xx_intr_handler(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 		RD_REG_DWORD_RELAXED(&reg->hccr);
+		if (unlikely(IS_QLA83XX(ha) && (ha->pdev->revision == 1)))
+			ndelay(3500);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
