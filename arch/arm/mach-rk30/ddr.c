@@ -2757,7 +2757,7 @@ void __sramlocalfunc ddr_update_odt(void)
     cs = ((pPHY_Reg->PGCR>>18) & 0xF);
     if(cs > 1)
     {
-        pPHY_Reg->ZQ1CR[1] = tmp;
+        pPHY_Reg->ZQ1CR[0] = tmp;
         dsb();
     }
     pPHY_Reg->ZQ0CR[0] = tmp;
@@ -3225,7 +3225,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20120820 \n");
+    ddr_print("version 1.00 20120822 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
