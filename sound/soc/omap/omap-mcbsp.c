@@ -688,31 +688,22 @@ static int omap_mcbsp_st_get_mode(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct snd_kcontrol_new omap_mcbsp2_st_controls[] = {
-	SOC_SINGLE_EXT("McBSP2 Sidetone Switch", 1, 0, 1, 0,
-			omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP2 Sidetone Channel 0 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch0_volume,
-				      omap_mcbsp_set_st_ch0_volume),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP2 Sidetone Channel 1 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch1_volume,
-				      omap_mcbsp_set_st_ch1_volume),
-};
+#define OMAP_MCBSP_ST_CONTROLS(port)					  \
+static const struct snd_kcontrol_new omap_mcbsp##port##_st_controls[] = { \
+SOC_SINGLE_EXT("McBSP" #port " Sidetone Switch", 1, 0, 1, 0,		  \
+	       omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),		  \
+OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 0 Volume", \
+			      -32768, 32767,				  \
+			      omap_mcbsp_get_st_ch0_volume,		  \
+			      omap_mcbsp_set_st_ch0_volume),		  \
+OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 1 Volume", \
+			      -32768, 32767,				  \
+			      omap_mcbsp_get_st_ch1_volume,		  \
+			      omap_mcbsp_set_st_ch1_volume),		  \
+}
 
-static const struct snd_kcontrol_new omap_mcbsp3_st_controls[] = {
-	SOC_SINGLE_EXT("McBSP3 Sidetone Switch", 2, 0, 1, 0,
-			omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP3 Sidetone Channel 0 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch0_volume,
-				      omap_mcbsp_set_st_ch0_volume),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP3 Sidetone Channel 1 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch1_volume,
-				      omap_mcbsp_set_st_ch1_volume),
-};
+OMAP_MCBSP_ST_CONTROLS(2);
+OMAP_MCBSP_ST_CONTROLS(3);
 
 int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 {
