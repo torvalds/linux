@@ -74,7 +74,6 @@ struct nfc_hci_dev {
 
 	struct list_head msg_tx_queue;
 
-	struct workqueue_struct *msg_tx_wq;
 	struct work_struct msg_tx_work;
 
 	struct timer_list cmd_timer;
@@ -82,7 +81,6 @@ struct nfc_hci_dev {
 
 	struct sk_buff_head rx_hcp_frags;
 
-	struct workqueue_struct *msg_rx_wq;
 	struct work_struct msg_rx_work;
 
 	struct sk_buff_head msg_rx_queue;

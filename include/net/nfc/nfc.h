@@ -113,7 +113,6 @@ struct nfc_dev {
 	int tx_tailroom;
 
 	struct timer_list check_pres_timer;
-	struct workqueue_struct *check_pres_wq;
 	struct work_struct check_pres_work;
 
 	struct nfc_ops *ops;

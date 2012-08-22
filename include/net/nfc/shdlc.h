@@ -79,7 +79,6 @@ struct nfc_shdlc {
 
 	struct sk_buff_head ack_pending_q;
 
-	struct workqueue_struct *sm_wq;
 	struct work_struct sm_work;
 
 	struct nfc_shdlc_ops *ops;

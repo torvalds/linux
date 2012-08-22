@@ -540,7 +540,7 @@ static void nfc_shdlc_connect_timeout(unsigned long data)
 
 	pr_debug("\n");
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
 static void nfc_shdlc_t1_timeout(unsigned long data)
@@ -549,7 +549,7 @@ static void nfc_shdlc_t1_timeout(unsigned long data)
 
 	pr_debug("SoftIRQ: need to send ack\n");
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
 static void nfc_shdlc_t2_timeout(unsigned long data)
@@ -558,7 +558,7 @@ static void nfc_shdlc_t2_timeout(unsigned long data)
 
 	pr_debug("SoftIRQ: need to retransmit\n");
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
 static void nfc_shdlc_sm_work(struct work_struct *work)
@@ -598,7 +598,7 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
 	case SHDLC_NEGOCIATING:
 		if (timer_pending(&shdlc->connect_timer) == 0) {
 			shdlc->state = SHDLC_CONNECTING;
-			queue_work(shdlc->sm_wq, &shdlc->sm_work);
+			queue_work(system_nrt_wq, &shdlc->sm_work);
 		}
 
 		nfc_shdlc_handle_rcv_queue(shdlc);
@@ -662,7 +662,7 @@ static int nfc_shdlc_connect(struct nfc_shdlc *shdlc)
 
 	mutex_unlock(&shdlc->state_mutex);
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 
 	wait_event(connect_wq, shdlc->connect_result != 1);
 
@@ -679,7 +679,7 @@ static void nfc_shdlc_disconnect(struct nfc_shdlc *shdlc)
 
 	mutex_unlock(&shdlc->state_mutex);
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 
 /*
@@ -697,7 +697,7 @@ void nfc_shdlc_recv_frame(struct nfc_shdlc *shdlc, struct sk_buff *skb)
 		skb_queue_tail(&shdlc->rcv_q, skb);
 	}
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 }
 EXPORT_SYMBOL(nfc_shdlc_recv_frame);
 
@@ -754,7 +754,7 @@ static int nfc_shdlc_xmit(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 
 	skb_queue_tail(&shdlc->send_q, skb);
 
-	queue_work(shdlc->sm_wq, &shdlc->sm_work);
+	queue_work(system_nrt_wq, &shdlc->sm_work);
 
 	return 0;
 }
@@ -843,7 +843,6 @@ struct nfc_shdlc *nfc_shdlc_allocate(struct nfc_shdlc_ops *ops,
 {
 	struct nfc_shdlc *shdlc;
 	int r;
-	char name[32];
 
 	if (ops->xmit == NULL)
 		return NULL;
@@ -876,11 +875,6 @@ struct nfc_shdlc *nfc_shdlc_allocate(struct nfc_shdlc_ops *ops,
 	skb_queue_head_init(&shdlc->ack_pending_q);
 
 	INIT_WORK(&shdlc->sm_work, nfc_shdlc_sm_work);
-	snprintf(name, sizeof(name), "%s_shdlc_sm_wq", devname);
-	shdlc->sm_wq = alloc_workqueue(name, WQ_NON_REENTRANT | WQ_UNBOUND |
-				       WQ_MEM_RECLAIM, 1);
-	if (shdlc->sm_wq == NULL)
-		goto err_allocwq;
 
 	shdlc->client_headroom = tx_headroom;
 	shdlc->client_tailroom = tx_tailroom;
@@ -904,9 +898,6 @@ err_regdev:
 	nfc_hci_free_device(shdlc->hdev);
 
 err_allocdev:
-	destroy_workqueue(shdlc->sm_wq);
-
-err_allocwq:
 	kfree(shdlc);
 
 	return NULL;
@@ -920,7 +911,7 @@ void nfc_shdlc_free(struct nfc_shdlc *shdlc)
 	nfc_hci_unregister_device(shdlc->hdev);
 	nfc_hci_free_device(shdlc->hdev);
 
-	destroy_workqueue(shdlc->sm_wq);
+	cancel_work_sync(&shdlc->sm_work);
 
 	skb_queue_purge(&shdlc->rcv_q);
 	skb_queue_purge(&shdlc->send_q);

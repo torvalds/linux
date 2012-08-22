@@ -56,12 +56,9 @@ struct nfc_llcp_local {
 
 	struct timer_list link_timer;
 	struct sk_buff_head tx_queue;
-	struct workqueue_struct	*tx_wq;
 	struct work_struct	 tx_work;
-	struct workqueue_struct	*rx_wq;
 	struct work_struct	 rx_work;
 	struct sk_buff *rx_pending;
-	struct workqueue_struct	*timeout_wq;
 	struct work_struct	 timeout_work;
 
 	u32 target_idx;

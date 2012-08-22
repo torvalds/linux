@@ -108,7 +108,7 @@ int nfc_hci_hcp_message_tx(struct nfc_hci_dev *hdev, u8 pipe,
 	list_add_tail(&cmd->msg_l, &hdev->msg_tx_queue);
 	mutex_unlock(&hdev->msg_tx_mutex);
 
-	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+	queue_work(system_nrt_wq, &hdev->msg_tx_work);
 
 	return 0;
 

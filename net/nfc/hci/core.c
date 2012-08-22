@@ -141,7 +141,7 @@ static void __nfc_hci_cmd_completion(struct nfc_hci_dev *hdev, int err,
 	kfree(hdev->cmd_pending_msg);
 	hdev->cmd_pending_msg = NULL;
 
-	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+	queue_work(system_nrt_wq, &hdev->msg_tx_work);
 }
 
 void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
@@ -326,7 +326,7 @@ static void nfc_hci_cmd_timeout(unsigned long data)
 {
 	struct nfc_hci_dev *hdev = (struct nfc_hci_dev *)data;
 
-	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+	queue_work(system_nrt_wq, &hdev->msg_tx_work);
 }
 
 static int hci_dev_connect_gates(struct nfc_hci_dev *hdev, u8 gate_count,
@@ -659,23 +659,11 @@ EXPORT_SYMBOL(nfc_hci_free_device);
 
 int nfc_hci_register_device(struct nfc_hci_dev *hdev)
 {
-	struct device *dev = &hdev->ndev->dev;
-	const char *devname = dev_name(dev);
-	char name[32];
-	int r = 0;
-
 	mutex_init(&hdev->msg_tx_mutex);
 
 	INIT_LIST_HEAD(&hdev->msg_tx_queue);
 
 	INIT_WORK(&hdev->msg_tx_work, nfc_hci_msg_tx_work);
-	snprintf(name, sizeof(name), "%s_hci_msg_tx_wq", devname);
-	hdev->msg_tx_wq = alloc_workqueue(name, WQ_NON_REENTRANT | WQ_UNBOUND |
-					  WQ_MEM_RECLAIM, 1);
-	if (hdev->msg_tx_wq == NULL) {
-		r = -ENOMEM;
-		goto exit;
-	}
 
 	init_timer(&hdev->cmd_timer);
 	hdev->cmd_timer.data = (unsigned long)hdev;
@@ -684,27 +672,10 @@ int nfc_hci_register_device(struct nfc_hci_dev *hdev)
 	skb_queue_head_init(&hdev->rx_hcp_frags);
 
 	INIT_WORK(&hdev->msg_rx_work, nfc_hci_msg_rx_work);
-	snprintf(name, sizeof(name), "%s_hci_msg_rx_wq", devname);
-	hdev->msg_rx_wq = alloc_workqueue(name, WQ_NON_REENTRANT | WQ_UNBOUND |
-					  WQ_MEM_RECLAIM, 1);
-	if (hdev->msg_rx_wq == NULL) {
-		r = -ENOMEM;
-		goto exit;
-	}
 
 	skb_queue_head_init(&hdev->msg_rx_queue);
 
-	r = nfc_register_device(hdev->ndev);
-
-exit:
-	if (r < 0) {
-		if (hdev->msg_tx_wq)
-			destroy_workqueue(hdev->msg_tx_wq);
-		if (hdev->msg_rx_wq)
-			destroy_workqueue(hdev->msg_rx_wq);
-	}
-
-	return r;
+	return nfc_register_device(hdev->ndev);
 }
 EXPORT_SYMBOL(nfc_hci_register_device);
 
@@ -725,9 +696,8 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 
 	nfc_unregister_device(hdev->ndev);
 
-	destroy_workqueue(hdev->msg_tx_wq);
-
-	destroy_workqueue(hdev->msg_rx_wq);
+	cancel_work_sync(&hdev->msg_tx_work);
+	cancel_work_sync(&hdev->msg_rx_work);
 }
 EXPORT_SYMBOL(nfc_hci_unregister_device);
 
@@ -827,7 +797,7 @@ void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 		nfc_hci_hcp_message_rx(hdev, pipe, type, instruction, hcp_skb);
 	} else {
 		skb_queue_tail(&hdev->msg_rx_queue, hcp_skb);
-		queue_work(hdev->msg_rx_wq, &hdev->msg_rx_work);
+		queue_work(system_nrt_wq, &hdev->msg_rx_work);
 	}
 }
 EXPORT_SYMBOL(nfc_hci_recv_frame);
