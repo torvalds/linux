@@ -2303,6 +2303,29 @@ void qla82xx_init_flags(struct qla_hw_data *ha)
 }
 
 inline void
+qla82xx_set_idc_version(scsi_qla_host_t *vha)
+{
+	int idc_ver;
+	uint32_t drv_active;
+	struct qla_hw_data *ha = vha->hw;
+
+	drv_active = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_ACTIVE);
+	if (drv_active == (QLA82XX_DRV_ACTIVE << (ha->portnum * 4))) {
+		qla82xx_wr_32(ha, QLA82XX_CRB_DRV_IDC_VERSION,
+		    QLA82XX_IDC_VERSION);
+		ql_log(ql_log_info, vha, 0xb082,
+		    "IDC version updated to %d\n", QLA82XX_IDC_VERSION);
+	} else {
+		idc_ver = qla82xx_rd_32(ha, QLA82XX_CRB_DRV_IDC_VERSION);
+		if (idc_ver != QLA82XX_IDC_VERSION)
+			ql_log(ql_log_info, vha, 0xb083,
+			    "qla2xxx driver IDC version %d is not compatible "
+			    "with IDC version %d of the other drivers\n",
+			    QLA82XX_IDC_VERSION, idc_ver);
+	}
+}
+
+inline void
 qla82xx_set_drv_active(scsi_qla_host_t *vha)
 {
 	uint32_t drv_active;
@@ -2878,9 +2901,6 @@ dev_initialize:
 	    "HW State: INITIALIZING.\n");
 	qla82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE, QLA8XXX_DEV_INITIALIZING);
 
-	/* Driver that sets device state to initializating sets IDC version */
-	qla82xx_wr_32(ha, QLA82XX_CRB_DRV_IDC_VERSION, QLA82XX_IDC_VERSION);
-
 	qla82xx_idc_unlock(ha);
 	rval = qla82xx_start_firmware(vha);
 	qla82xx_idc_lock(ha);
@@ -3210,8 +3230,10 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 	int loopcount = 0;
 
 	qla82xx_idc_lock(ha);
-	if (!vha->flags.init_done)
+	if (!vha->flags.init_done) {
 		qla82xx_set_drv_active(vha);
+		qla82xx_set_idc_version(vha);
+	}
 
 	dev_state = qla82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 	old_dev_state = dev_state;
