@@ -12,6 +12,8 @@
  * (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "s3c2410_udc: " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -115,7 +117,7 @@ static int dprintk(int level, const char *fmt, ...)
 			sizeof(printk_buf)-len, fmt, args);
 	va_end(args);
 
-	return printk(KERN_DEBUG "%s", printk_buf);
+	return pr_debug("%s", printk_buf);
 }
 #else
 static int dprintk(int level, const char *fmt, ...)
@@ -1683,13 +1685,13 @@ static int s3c2410_udc_start(struct usb_gadget_driver *driver,
 		return -EBUSY;
 
 	if (!bind || !driver->setup || driver->max_speed < USB_SPEED_FULL) {
-		printk(KERN_ERR "Invalid driver: bind %p setup %p speed %d\n",
+		dev_err(&udc->gadget.dev, "Invalid driver: bind %p setup %p speed %d\n",
 			bind, driver->setup, driver->max_speed);
 		return -EINVAL;
 	}
 #if defined(MODULE)
 	if (!driver->unbind) {
-		printk(KERN_ERR "Invalid driver: no unbind method\n");
+		dev_err(&udc->gadget.dev, "Invalid driver: no unbind method\n");
 		return -EINVAL;
 	}
 #endif
@@ -1700,7 +1702,7 @@ static int s3c2410_udc_start(struct usb_gadget_driver *driver,
 
 	/* Bind the driver */
 	if ((retval = device_add(&udc->gadget.dev)) != 0) {
-		printk(KERN_ERR "Error in device_add() : %d\n",retval);
+		dev_err(&udc->gadget.dev, "Error in device_add() : %d\n", retval);
 		goto register_error;
 	}
 
@@ -2073,7 +2075,7 @@ static int __init udc_init(void)
 
 	s3c2410_udc_debugfs_root = debugfs_create_dir(gadget_name, NULL);
 	if (IS_ERR(s3c2410_udc_debugfs_root)) {
-		printk(KERN_ERR "%s: debugfs dir creation failed %ld\n",
+		pr_err("%s: debugfs dir creation failed %ld\n",
 			gadget_name, PTR_ERR(s3c2410_udc_debugfs_root));
 		s3c2410_udc_debugfs_root = NULL;
 	}
