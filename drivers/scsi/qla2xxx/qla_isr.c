@@ -1546,6 +1546,149 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	return 1;
 }
 
+static void
+qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
+				  struct req_que *req, uint32_t index)
+{
+	struct qla_hw_data *ha = vha->hw;
+	srb_t *sp;
+	uint16_t	comp_status;
+	uint16_t	scsi_status;
+	uint16_t thread_id;
+	uint32_t rval = EXT_STATUS_OK;
+	struct fc_bsg_job *bsg_job = NULL;
+	sts_entry_t *sts;
+	struct sts_entry_24xx *sts24;
+	sts = (sts_entry_t *) pkt;
+	sts24 = (struct sts_entry_24xx *) pkt;
+
+	/* Validate handle. */
+	if (index >= MAX_OUTSTANDING_COMMANDS) {
+		ql_log(ql_log_warn, vha, 0x70af,
+		    "Invalid SCSI completion handle 0x%x.\n", index);
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		return;
+	}
+
+	sp = req->outstanding_cmds[index];
+	if (sp) {
+		/* Free outstanding command slot. */
+		req->outstanding_cmds[index] = NULL;
+		bsg_job = sp->u.bsg_job;
+	} else {
+		ql_log(ql_log_warn, vha, 0x70b0,
+		    "Req:%d: Invalid ISP SCSI completion handle(0x%x)\n",
+		    req->id, index);
+
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		return;
+	}
+
+	if (IS_FWI2_CAPABLE(ha)) {
+		comp_status = le16_to_cpu(sts24->comp_status);
+		scsi_status = le16_to_cpu(sts24->scsi_status) & SS_MASK;
+	} else {
+		comp_status = le16_to_cpu(sts->comp_status);
+		scsi_status = le16_to_cpu(sts->scsi_status) & SS_MASK;
+	}
+
+	thread_id = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
+	switch (comp_status) {
+	case CS_COMPLETE:
+		if (scsi_status == 0) {
+			bsg_job->reply->reply_payload_rcv_len =
+					bsg_job->reply_payload.payload_len;
+			rval = EXT_STATUS_OK;
+		}
+		goto done;
+
+	case CS_DATA_OVERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b1,
+		    "Command completed with date overrun thread_id=%d\n",
+		    thread_id);
+		rval = EXT_STATUS_DATA_OVERRUN;
+		break;
+
+	case CS_DATA_UNDERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b2,
+		    "Command completed with date underrun thread_id=%d\n",
+		    thread_id);
+		rval = EXT_STATUS_DATA_UNDERRUN;
+		break;
+	case CS_BIDIR_RD_OVERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b3,
+		    "Command completed with read data overrun thread_id=%d\n",
+		    thread_id);
+		rval = EXT_STATUS_DATA_OVERRUN;
+		break;
+
+	case CS_BIDIR_RD_WR_OVERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b4,
+		    "Command completed with read and write data overrun "
+		    "thread_id=%d\n", thread_id);
+		rval = EXT_STATUS_DATA_OVERRUN;
+		break;
+
+	case CS_BIDIR_RD_OVERRUN_WR_UNDERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b5,
+		    "Command completed with read data over and write data "
+		    "underrun thread_id=%d\n", thread_id);
+		rval = EXT_STATUS_DATA_OVERRUN;
+		break;
+
+	case CS_BIDIR_RD_UNDERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b6,
+		    "Command completed with read data data underrun "
+		    "thread_id=%d\n", thread_id);
+		rval = EXT_STATUS_DATA_UNDERRUN;
+		break;
+
+	case CS_BIDIR_RD_UNDERRUN_WR_OVERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b7,
+		    "Command completed with read data under and write data "
+		    "overrun thread_id=%d\n", thread_id);
+		rval = EXT_STATUS_DATA_UNDERRUN;
+		break;
+
+	case CS_BIDIR_RD_WR_UNDERRUN:
+		ql_dbg(ql_dbg_user, vha, 0x70b8,
+		    "Command completed with read and write data underrun "
+		    "thread_id=%d\n", thread_id);
+		rval = EXT_STATUS_DATA_UNDERRUN;
+		break;
+
+	case CS_BIDIR_DMA:
+		ql_dbg(ql_dbg_user, vha, 0x70b9,
+		    "Command completed with data DMA error thread_id=%d\n",
+		    thread_id);
+		rval = EXT_STATUS_DMA_ERR;
+		break;
+
+	case CS_TIMEOUT:
+		ql_dbg(ql_dbg_user, vha, 0x70ba,
+		    "Command completed with timeout thread_id=%d\n",
+		    thread_id);
+		rval = EXT_STATUS_TIMEOUT;
+		break;
+	default:
+		ql_dbg(ql_dbg_user, vha, 0x70bb,
+		    "Command completed with completion status=0x%x "
+		    "thread_id=%d\n", comp_status, thread_id);
+		rval = EXT_STATUS_ERR;
+		break;
+	}
+		bsg_job->reply->reply_payload_rcv_len = 0;
+
+done:
+	/* Return the vendor specific reply to API */
+	bsg_job->reply->reply_data.vendor_reply.vendor_rsp[0] = rval;
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+	/* Always return DID_OK, bsg will send the vendor specific response
+	 * in this case only */
+	sp->done(vha, sp, (DID_OK << 6));
+
+}
+
 /**
  * qla2x00_status_entry() - Process a Status IOCB entry.
  * @ha: SCSI driver HA context
@@ -1573,12 +1716,14 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	struct req_que *req;
 	int logit = 1;
 	int res = 0;
+	uint16_t state_flags = 0;
 
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
 	if (IS_FWI2_CAPABLE(ha)) {
 		comp_status = le16_to_cpu(sts24->comp_status);
 		scsi_status = le16_to_cpu(sts24->scsi_status) & SS_MASK;
+		state_flags = le16_to_cpu(sts24->state_flags);
 	} else {
 		comp_status = le16_to_cpu(sts->comp_status);
 		scsi_status = le16_to_cpu(sts->scsi_status) & SS_MASK;
@@ -1587,17 +1732,9 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	que = MSW(sts->handle);
 	req = ha->req_q_map[que];
 
-	/* Fast path completion. */
-	if (comp_status == CS_COMPLETE && scsi_status == 0) {
-		qla2x00_process_completed_request(vha, req, handle);
-
-		return;
-	}
-
 	/* Validate handle. */
 	if (handle < MAX_OUTSTANDING_COMMANDS) {
 		sp = req->outstanding_cmds[handle];
-		req->outstanding_cmds[handle] = NULL;
 	} else
 		sp = NULL;
 
@@ -1612,6 +1749,20 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		qla2xxx_wake_dpc(vha);
 		return;
 	}
+
+	if (unlikely((state_flags & BIT_1) && (sp->type == SRB_BIDI_CMD))) {
+		qla25xx_process_bidir_status_iocb(vha, pkt, req, handle);
+		return;
+	}
+
+	/* Fast path completion. */
+	if (comp_status == CS_COMPLETE && scsi_status == 0) {
+		qla2x00_process_completed_request(vha, req, handle);
+
+		return;
+	}
+
+	req->outstanding_cmds[handle] = NULL;
 	cp = GET_CMD_SP(sp);
 	if (cp == NULL) {
 		ql_dbg(ql_dbg_io, vha, 0x3018,

@@ -19,15 +19,31 @@
 #define QL_VND_SET_FRU_VERSION	0x0B
 #define QL_VND_READ_FRU_STATUS	0x0C
 #define QL_VND_WRITE_FRU_STATUS	0x0D
+#define QL_VND_DIAG_IO_CMD	0x0A
 #define QL_VND_WRITE_I2C	0x10
 #define QL_VND_READ_I2C		0x11
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
 #define EXT_STATUS_ERR			1
+#define EXT_STATUS_BUSY			2
 #define EXT_STATUS_INVALID_PARAM	6
+#define EXT_STATUS_DATA_OVERRUN		7
+#define EXT_STATUS_DATA_UNDERRUN	8
 #define EXT_STATUS_MAILBOX		11
 #define EXT_STATUS_NO_MEMORY		17
+#define EXT_STATUS_DEVICE_OFFLINE	22
+
+/*
+ * To support bidirectional iocb
+ * BSG Vendor specific returns
+ */
+#define EXT_STATUS_NOT_SUPPORTED	27
+#define EXT_STATUS_INVALID_CFG		28
+#define EXT_STATUS_DMA_ERR		29
+#define EXT_STATUS_TIMEOUT		30
+#define EXT_STATUS_THREAD_FAILED	31
+#define EXT_STATUS_DATA_CMP_FAILED	32
 
 /* BSG definations for interpreting CommandSent field */
 #define INT_DEF_LB_LOOPBACK_CMD         0

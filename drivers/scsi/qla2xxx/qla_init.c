@@ -77,7 +77,7 @@ qla2x00_sp_free(void *data, void *ptr)
 
 /* Asynchronous Login/Logout Routines -------------------------------------- */
 
-static inline unsigned long
+unsigned long
 qla2x00_get_async_timeout(struct scsi_qla_host *vha)
 {
 	unsigned long tmo;

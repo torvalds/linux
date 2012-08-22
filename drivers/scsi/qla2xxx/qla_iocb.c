@@ -2665,3 +2665,201 @@ done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return rval;
 }
+
+static void
+qla25xx_build_bidir_iocb(srb_t *sp, struct scsi_qla_host *vha,
+				struct cmd_bidir *cmd_pkt, uint32_t tot_dsds)
+{
+	uint16_t avail_dsds;
+	uint32_t *cur_dsd;
+	uint32_t req_data_len = 0;
+	uint32_t rsp_data_len = 0;
+	struct scatterlist *sg;
+	int index;
+	int entry_count = 1;
+	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
+
+	/*Update entry type to indicate bidir command */
+	*((uint32_t *)(&cmd_pkt->entry_type)) =
+		__constant_cpu_to_le32(COMMAND_BIDIRECTIONAL);
+
+	/* Set the transfer direction, in this set both flags
+	 * Also set the BD_WRAP_BACK flag, firmware will take care
+	 * assigning DID=SID for outgoing pkts.
+	 */
+	cmd_pkt->wr_dseg_count = cpu_to_le16(bsg_job->request_payload.sg_cnt);
+	cmd_pkt->rd_dseg_count = cpu_to_le16(bsg_job->reply_payload.sg_cnt);
+	cmd_pkt->control_flags =
+			__constant_cpu_to_le16(BD_WRITE_DATA | BD_READ_DATA |
+							BD_WRAP_BACK);
+
+	req_data_len = rsp_data_len = bsg_job->request_payload.payload_len;
+	cmd_pkt->wr_byte_count = cpu_to_le32(req_data_len);
+	cmd_pkt->rd_byte_count = cpu_to_le32(rsp_data_len);
+	cmd_pkt->timeout = cpu_to_le16(qla2x00_get_async_timeout(vha) + 2);
+
+	vha->bidi_stats.transfer_bytes += req_data_len;
+	vha->bidi_stats.io_count++;
+
+	/* Only one dsd is available for bidirectional IOCB, remaining dsds
+	 * are bundled in continuation iocb
+	 */
+	avail_dsds = 1;
+	cur_dsd = (uint32_t *)&cmd_pkt->fcp_data_dseg_address;
+
+	index = 0;
+
+	for_each_sg(bsg_job->request_payload.sg_list, sg,
+				bsg_job->request_payload.sg_cnt, index) {
+		dma_addr_t sle_dma;
+		cont_a64_entry_t *cont_pkt;
+
+		/* Allocate additional continuation packets */
+		if (avail_dsds == 0) {
+			/* Continuation type 1 IOCB can accomodate
+			 * 5 DSDS
+			 */
+			cont_pkt = qla2x00_prep_cont_type1_iocb(vha, vha->req);
+			cur_dsd = (uint32_t *) cont_pkt->dseg_0_address;
+			avail_dsds = 5;
+			entry_count++;
+		}
+		sle_dma = sg_dma_address(sg);
+		*cur_dsd++   = cpu_to_le32(LSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(MSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(sg_dma_len(sg));
+		avail_dsds--;
+	}
+	/* For read request DSD will always goes to continuation IOCB
+	 * and follow the write DSD. If there is room on the current IOCB
+	 * then it is added to that IOCB else new continuation IOCB is
+	 * allocated.
+	 */
+	for_each_sg(bsg_job->reply_payload.sg_list, sg,
+				bsg_job->reply_payload.sg_cnt, index) {
+		dma_addr_t sle_dma;
+		cont_a64_entry_t *cont_pkt;
+
+		/* Allocate additional continuation packets */
+		if (avail_dsds == 0) {
+			/* Continuation type 1 IOCB can accomodate
+			 * 5 DSDS
+			 */
+			cont_pkt = qla2x00_prep_cont_type1_iocb(vha, vha->req);
+			cur_dsd = (uint32_t *) cont_pkt->dseg_0_address;
+			avail_dsds = 5;
+			entry_count++;
+		}
+		sle_dma = sg_dma_address(sg);
+		*cur_dsd++   = cpu_to_le32(LSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(MSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(sg_dma_len(sg));
+		avail_dsds--;
+	}
+	/* This value should be same as number of IOCB required for this cmd */
+	cmd_pkt->entry_count = entry_count;
+}
+
+int
+qla2x00_start_bidir(srb_t *sp, struct scsi_qla_host *vha, uint32_t tot_dsds)
+{
+
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+	uint32_t handle;
+	uint32_t index;
+	uint16_t req_cnt;
+	uint16_t cnt;
+	uint32_t *clr_ptr;
+	struct cmd_bidir *cmd_pkt = NULL;
+	struct rsp_que *rsp;
+	struct req_que *req;
+	int rval = EXT_STATUS_OK;
+	device_reg_t __iomem *reg = ISP_QUE_REG(ha, vha->req->id);
+
+	rval = QLA_SUCCESS;
+
+	rsp = ha->rsp_q_map[0];
+	req = vha->req;
+
+	/* Send marker if required */
+	if (vha->marker_needed != 0) {
+		if (qla2x00_marker(vha, req,
+			rsp, 0, 0, MK_SYNC_ALL) != QLA_SUCCESS)
+			return EXT_STATUS_MAILBOX;
+		vha->marker_needed = 0;
+	}
+
+	/* Acquire ring specific lock */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+
+	/* Check for room in outstanding command list. */
+	handle = req->current_outstanding_cmd;
+	for (index = 1; index < MAX_OUTSTANDING_COMMANDS; index++) {
+		handle++;
+	if (handle == MAX_OUTSTANDING_COMMANDS)
+		handle = 1;
+	if (!req->outstanding_cmds[handle])
+		break;
+	}
+
+	if (index == MAX_OUTSTANDING_COMMANDS) {
+		rval = EXT_STATUS_BUSY;
+		goto queuing_error;
+	}
+
+	/* Calculate number of IOCB required */
+	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
+
+	/* Check for room on request queue. */
+	if (req->cnt < req_cnt + 2) {
+		if (ha->mqenable)
+			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
+		else if (IS_QLA82XX(ha))
+			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
+		else if (IS_FWI2_CAPABLE(ha))
+			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
+		else
+			cnt = qla2x00_debounce_register(
+					ISP_REQ_Q_OUT(ha, &reg->isp));
+
+		if  (req->ring_index < cnt)
+			req->cnt = cnt - req->ring_index;
+		else
+			req->cnt = req->length -
+				(req->ring_index - cnt);
+	}
+	if (req->cnt < req_cnt + 2) {
+		rval = EXT_STATUS_BUSY;
+		goto queuing_error;
+	}
+
+	cmd_pkt = (struct cmd_bidir *)req->ring_ptr;
+	cmd_pkt->handle = MAKE_HANDLE(req->id, handle);
+
+	/* Zero out remaining portion of packet. */
+	/* tagged queuing modifier -- default is TSK_SIMPLE (0).*/
+	clr_ptr = (uint32_t *)cmd_pkt + 2;
+	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
+
+	/* Set NPORT-ID  (of vha)*/
+	cmd_pkt->nport_handle = cpu_to_le16(vha->self_login_loop_id);
+	cmd_pkt->port_id[0] = vha->d_id.b.al_pa;
+	cmd_pkt->port_id[1] = vha->d_id.b.area;
+	cmd_pkt->port_id[2] = vha->d_id.b.domain;
+
+	qla25xx_build_bidir_iocb(sp, vha, cmd_pkt, tot_dsds);
+	cmd_pkt->entry_status = (uint8_t) rsp->id;
+	/* Build command packet. */
+	req->current_outstanding_cmd = handle;
+	req->outstanding_cmds[handle] = sp;
+	sp->handle = handle;
+	req->cnt -= req_cnt;
+
+	/* Send the command to the firmware */
+	wmb();
+	qla2x00_start_iocbs(vha, req);
+queuing_error:
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	return rval;
+}

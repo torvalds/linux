@@ -260,6 +260,7 @@ struct srb_iocb {
 #define SRB_ADISC_CMD	6
 #define SRB_TM_CMD	7
 #define SRB_SCSI_CMD	8
+#define SRB_BIDI_CMD	9
 
 typedef struct srb {
 	atomic_t ref_count;
@@ -1510,6 +1511,13 @@ typedef struct {
 #define CS_RETRY		0x82	/* Driver defined */
 #define CS_LOOP_DOWN_ABORT	0x83	/* Driver defined */
 
+#define CS_BIDIR_RD_OVERRUN			0x700
+#define CS_BIDIR_RD_WR_OVERRUN			0x707
+#define CS_BIDIR_RD_OVERRUN_WR_UNDERRUN		0x715
+#define CS_BIDIR_RD_UNDERRUN			0x1500
+#define CS_BIDIR_RD_UNDERRUN_WR_OVERRUN		0x1507
+#define CS_BIDIR_RD_WR_UNDERRUN			0x1515
+#define CS_BIDIR_DMA				0x200
 /*
  * Status entry status flags
  */
@@ -2374,6 +2382,11 @@ struct qla_statistics {
 	uint64_t output_bytes;
 };
 
+struct bidi_statistics {
+	unsigned long long io_count;
+	unsigned long long transfer_bytes;
+};
+
 /* Multi queue support */
 #define MBC_INITIALIZE_MULTIQ 0x1f
 #define QLA_QUE_PAGE 0X1000
@@ -2671,6 +2684,7 @@ struct qla_hw_data {
 #define HAS_EXTENDED_IDS(ha)    ((ha)->device_type & DT_EXTENDED_IDS)
 #define IS_CT6_SUPPORTED(ha)	((ha)->device_type & DT_CT6_SUPPORTED)
 #define IS_MQUE_CAPABLE(ha)	((ha)->mqenable || IS_QLA83XX(ha))
+#define IS_BIDI_CAPABLE(ha)	((IS_QLA25XX(ha) || IS_QLA2031(ha)))
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -2754,6 +2768,7 @@ struct qla_hw_data {
 	struct completion mbx_intr_comp;  /* Used for completion notification */
 	struct completion dcbx_comp;	/* For set port config notification */
 	int notify_dcbx_comp;
+	struct mutex selflogin_lock;
 
 	/* Basic firmware related information. */
 	uint16_t	fw_major_version;
@@ -2987,6 +3002,13 @@ typedef struct scsi_qla_host {
 
 	/* ISP configuration data. */
 	uint16_t	loop_id;		/* Host adapter loop id */
+	uint16_t        self_login_loop_id;     /* host adapter loop id
+						 * get it on self login
+						 */
+	fc_port_t       bidir_fcport;		/* fcport used for bidir cmnds
+						 * no need of allocating it for
+						 * each command
+						 */
 
 	port_id_t	d_id;			/* Host adapter port id */
 	uint8_t		marker_needed;
@@ -3040,6 +3062,7 @@ typedef struct scsi_qla_host {
 	int		seconds_since_last_heartbeat;
 	struct fc_host_statistics fc_host_stat;
 	struct qla_statistics qla_stats;
+	struct bidi_statistics bidi_stats;
 
 	atomic_t	vref_count;
 } scsi_qla_host_t;
