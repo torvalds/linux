@@ -451,14 +451,9 @@ static void wq_sync_buffer(struct work_struct *work)
 {
 	struct oprofile_cpu_buffer *b =
 		container_of(work, struct oprofile_cpu_buffer, work.work);
-	if (b->cpu != smp_processor_id()) {
-		printk(KERN_DEBUG "WQ on CPU%d, prefer CPU%d\n",
-		       smp_processor_id(), b->cpu);
-
-		if (!cpu_online(b->cpu)) {
-			cancel_delayed_work(&b->work);
-			return;
-		}
+	if (b->cpu != smp_processor_id() && !cpu_online(b->cpu)) {
+		cancel_delayed_work(&b->work);
+		return;
 	}
 	sync_buffer(b->cpu);
 
