@@ -3000,10 +3000,10 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			schedule_timeout(HZ);
 		}
-
+chip_reset:
 		if (!test_bit(AF_FW_RECOVERY, &ha->flags))
 			qla4xxx_cmd_wait(ha);
-chip_reset:
+
 		qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
 		qla4xxx_abort_active_cmds(ha, DID_RESET << 16);
 		DEBUG2(ql4_printk(KERN_INFO, ha,
