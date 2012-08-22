@@ -410,7 +410,6 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 #else
 			linux_regs->msr |= MSR_SE;
 #endif
-			kgdb_single_step = 1;
 			atomic_set(&kgdb_cpu_doing_single_step,
 				   raw_smp_processor_id());
 		}
