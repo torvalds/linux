@@ -188,7 +188,7 @@ struct mmuext_op {
 	unsigned int cmd;
 	union {
 		/* [UN]PIN_TABLE, NEW_BASEPTR, NEW_USER_BASEPTR */
-		unsigned long mfn;
+		xen_pfn_t mfn;
 		/* INVLPG_LOCAL, INVLPG_ALL, SET_LDT */
 		unsigned long linear_addr;
 	} arg1;
@@ -428,11 +428,11 @@ struct start_info {
 	unsigned long nr_pages;     /* Total pages allocated to this domain.  */
 	unsigned long shared_info;  /* MACHINE address of shared info struct. */
 	uint32_t flags;             /* SIF_xxx flags.                         */
-	unsigned long store_mfn;    /* MACHINE page number of shared page.    */
+	xen_pfn_t store_mfn;        /* MACHINE page number of shared page.    */
 	uint32_t store_evtchn;      /* Event channel for store communication. */
 	union {
 		struct {
-			unsigned long mfn;  /* MACHINE page number of console page.   */
+			xen_pfn_t mfn;      /* MACHINE page number of console page.   */
 			uint32_t  evtchn;   /* Event channel for console page.        */
 		} domU;
 		struct {

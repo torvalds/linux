@@ -338,7 +338,7 @@ DEFINE_GUEST_HANDLE_STRUCT(gnttab_dump_table);
 #define GNTTABOP_transfer                4
 struct gnttab_transfer {
     /* IN parameters. */
-    unsigned long mfn;
+    xen_pfn_t mfn;
     domid_t       domid;
     grant_ref_t   ref;
     /* OUT parameters. */
@@ -375,7 +375,7 @@ struct gnttab_copy {
 	struct {
 		union {
 			grant_ref_t ref;
-			unsigned long   gmfn;
+			xen_pfn_t   gmfn;
 		} u;
 		domid_t  domid;
 		uint16_t offset;

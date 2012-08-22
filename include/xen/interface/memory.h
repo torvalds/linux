@@ -31,7 +31,7 @@ struct xen_memory_reservation {
      *   OUT: GMFN bases of extents that were allocated
      *   (NB. This command also updates the mach_to_phys translation table)
      */
-    GUEST_HANDLE(ulong) extent_start;
+    GUEST_HANDLE(xen_pfn_t) extent_start;
 
     /* Number of extents, and size/alignment of each (2^extent_order pages). */
     unsigned long  nr_extents;
@@ -130,7 +130,7 @@ struct xen_machphys_mfn_list {
      * any large discontiguities in the machine address space, 2MB gaps in
      * the machphys table will be represented by an MFN base of zero.
      */
-    GUEST_HANDLE(ulong) extent_start;
+    GUEST_HANDLE(xen_pfn_t) extent_start;
 
     /*
      * Number of extents written to the above array. This will be smaller
@@ -175,7 +175,7 @@ struct xen_add_to_physmap {
     unsigned long idx;
 
     /* GPFN where the source mapping page should appear. */
-    unsigned long gpfn;
+    xen_pfn_t gpfn;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_add_to_physmap);
 

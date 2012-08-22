@@ -47,6 +47,10 @@
 #endif
 
 #ifndef __ASSEMBLY__
+/* Explicitly size integers that represent pfns in the public interface
+ * with Xen so that on ARM we can have one ABI that works for 32 and 64
+ * bit guests. */
+typedef unsigned long xen_pfn_t;
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint,  unsigned int);
@@ -57,6 +61,7 @@ DEFINE_GUEST_HANDLE(long);
 DEFINE_GUEST_HANDLE(void);
 DEFINE_GUEST_HANDLE(uint64_t);
 DEFINE_GUEST_HANDLE(uint32_t);
+DEFINE_GUEST_HANDLE(xen_pfn_t);
 #endif
 
 #ifndef HYPERVISOR_VIRT_START

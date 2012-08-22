@@ -37,8 +37,6 @@
 #include <linux/compiler.h>
 #include <xen/interface/xen.h>
 
-typedef unsigned long xen_pfn_t;
-
 struct privcmd_hypercall {
 	__u64 op;
 	__u64 arg[5];
