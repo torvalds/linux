@@ -80,6 +80,14 @@
 #define LIS3_SENSITIVITY_12B		((LIS3_ACCURACY * 1000) / 1024)
 #define LIS3_SENSITIVITY_8B		(18 * LIS3_ACCURACY)
 
+/*
+ * LIS3331DLH spec says 1LSBs corresponds 4G/1024 -> 1LSB is 1000/1024 mG.
+ * Sensitivity values for +/-2G, outdata in 12 bits for +/-2G scale. so 4
+ * bits adjustment is required
+ */
+#define LIS3DLH_SENSITIVITY_2G		((LIS3_ACCURACY * 1000) / 1024)
+#define SHIFT_ADJ_2G			4
+
 #define LIS3_DEFAULT_FUZZ_12B		3
 #define LIS3_DEFAULT_FLAT_12B		3
 #define LIS3_DEFAULT_FUZZ_8B		1
@@ -133,6 +141,19 @@ static s16 lis3lv02d_read_12(struct lis3lv02d *lis3, int reg)
 	lis3->read(lis3, reg, &hi);
 	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
 	return (s16)((hi << 8) | lo);
+}
+
+/* 12bits for 2G range, 13 bits for 4G range and 14 bits for 8G range */
+static s16 lis3lv02d_read_16(struct lis3lv02d *lis3, int reg)
+{
+	u8 lo, hi;
+	int v;
+
+	lis3->read(lis3, reg - 1, &lo);
+	lis3->read(lis3, reg, &hi);
+	v = (int) ((hi << 8) | lo);
+
+	return (s16) v >> lis3->shift_adj;
 }
 
 /**
@@ -195,6 +216,7 @@ static void lis3lv02d_get_xyz(struct lis3lv02d *lis3, int *x, int *y, int *z)
 static int lis3_12_rates[4] = {40, 160, 640, 2560};
 static int lis3_8_rates[2] = {100, 400};
 static int lis3_3dc_rates[16] = {0, 1, 10, 25, 50, 100, 200, 400, 1600, 5000};
+static int lis3_3dlh_rates[4] = {50, 100, 400, 1000};
 
 /* ODR is Output Data Rate */
 static int lis3lv02d_get_odr(struct lis3lv02d *lis3)
@@ -267,7 +289,7 @@ static int lis3lv02d_selftest(struct lis3lv02d *lis3, s16 results[3])
 				(LIS3_IRQ1_DATA_READY | LIS3_IRQ2_DATA_READY));
 	}
 
-	if (lis3->whoami == WAI_3DC) {
+	if ((lis3->whoami == WAI_3DC) || (lis3->whoami == WAI_3DLH)) {
 		ctlreg = CTRL_REG4;
 		selftest = CTRL4_ST0;
 	} else {
@@ -398,9 +420,17 @@ int lis3lv02d_poweron(struct lis3lv02d *lis3)
 		lis3->read(lis3, CTRL_REG2, &reg);
 		if (lis3->whoami ==  WAI_12B)
 			reg |= CTRL2_BDU | CTRL2_BOOT;
+		else if (lis3->whoami ==  WAI_3DLH)
+			reg |= CTRL2_BOOT_3DLH;
 		else
 			reg |= CTRL2_BOOT_8B;
 		lis3->write(lis3, CTRL_REG2, reg);
+
+		if (lis3->whoami ==  WAI_3DLH) {
+			lis3->read(lis3, CTRL_REG4, &reg);
+			reg |= CTRL4_BDU;
+			lis3->write(lis3, CTRL_REG4, reg);
+		}
 	}
 
 	err = lis3lv02d_get_pwron_wait(lis3);
@@ -955,6 +985,16 @@ int lis3lv02d_init_device(struct lis3lv02d *lis3)
 		lis3->odrs = lis3_3dc_rates;
 		lis3->odr_mask = CTRL1_ODR0|CTRL1_ODR1|CTRL1_ODR2|CTRL1_ODR3;
 		lis3->scale = LIS3_SENSITIVITY_8B;
+		break;
+	case WAI_3DLH:
+		pr_info("16 bits 3DLH sensor found\n");
+		lis3->read_data = lis3lv02d_read_16;
+		lis3->mdps_max_val = 2048; /* 12 bits for 2G */
+		lis3->shift_adj = SHIFT_ADJ_2G;
+		lis3->pwron_delay = LIS3_PWRON_DELAY_WAI_8B;
+		lis3->odrs = lis3_3dlh_rates;
+		lis3->odr_mask = CTRL1_DR0 | CTRL1_DR1;
+		lis3->scale = LIS3DLH_SENSITIVITY_2G;
 		break;
 	default:
 		pr_err("unknown sensor type 0x%X\n", lis3->whoami);

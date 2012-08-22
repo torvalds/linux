@@ -90,7 +90,11 @@ static int lis3_i2c_init(struct lis3lv02d *lis3)
 	if (ret < 0)
 		return ret;
 
-	reg |= CTRL1_PD0 | CTRL1_Xen | CTRL1_Yen | CTRL1_Zen;
+	if (lis3->whoami == WAI_3DLH)
+		reg |= CTRL1_PM0 | CTRL1_Xen | CTRL1_Yen | CTRL1_Zen;
+	else
+		reg |= CTRL1_PD0 | CTRL1_Xen | CTRL1_Yen | CTRL1_Zen;
+
 	return lis3->write(lis3, CTRL_REG1, reg);
 }
 
@@ -232,6 +236,7 @@ static int lis3_i2c_runtime_resume(struct device *dev)
 
 static const struct i2c_device_id lis3lv02d_id[] = {
 	{"lis3lv02d", 0 },
+	{"lis331dlh", LIS331DLH},
 	{}
 };
 
