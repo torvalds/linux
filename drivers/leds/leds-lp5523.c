@@ -974,7 +974,7 @@ static int __devinit lp5523_probe(struct i2c_client *client,
 fail2:
 	for (i = 0; i < chip->num_leds; i++) {
 		led_classdev_unregister(&chip->leds[i].cdev);
-		cancel_work_sync(&chip->leds[i].brightness_work);
+		flush_work(&chip->leds[i].brightness_work);
 	}
 fail1:
 	if (pdata->enable)
@@ -993,7 +993,7 @@ static int lp5523_remove(struct i2c_client *client)
 
 	for (i = 0; i < chip->num_leds; i++) {
 		led_classdev_unregister(&chip->leds[i].cdev);
-		cancel_work_sync(&chip->leds[i].brightness_work);
+		flush_work(&chip->leds[i].brightness_work);
 	}
 
 	if (chip->pdata->enable)
