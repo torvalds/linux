@@ -19,6 +19,8 @@
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
+#ifndef __DWMAC1000_H__
+#define __DWMAC1000_H__
 
 #include <linux/phy.h>
 #include "common.h"
@@ -232,3 +234,4 @@ enum rtc_control {
 #define	DWMAC_CORE_3_40	0x34
 
 extern const struct stmmac_dma_ops dwmac1000_dma_ops;
+#endif /* __DWMAC1000_H__ */
