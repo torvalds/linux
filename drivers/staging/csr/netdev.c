@@ -55,7 +55,7 @@
 #include <net/pkt_sched.h>
 
 
-/* Wext handler is suported only if CSR_SUPPORT_WEXT is defined */
+/* Wext handler is supported only if CSR_SUPPORT_WEXT is defined */
 #ifdef CSR_SUPPORT_WEXT
 extern struct iw_handler_def unifi_iw_handler_def;
 #endif /* CSR_SUPPORT_WEXT */

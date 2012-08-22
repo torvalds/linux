@@ -4318,7 +4318,7 @@ static int bnx2x_queue_comp_cmd(struct bnx2x *bp,
 
 	if (o->next_tx_only >= o->max_cos)
 		/* >= becuase tx only must always be smaller than cos since the
-		 * primary connection suports COS 0
+		 * primary connection supports COS 0
 		 */
 		BNX2X_ERR("illegal value for next tx_only: %d. max cos was %d",
 			   o->next_tx_only, o->max_cos);

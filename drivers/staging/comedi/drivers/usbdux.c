@@ -73,7 +73,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
  *       And loads of cleaning up, in particular streamlining the
  *       bulk transfers.
  * 1.1:  moved EP4 transfers to EP1 to make space for a PWM output on EP4
- * 1.2:  added PWM suport via EP4
+ * 1.2:  added PWM support via EP4
  * 2.0:  PWM seems to be stable and is not interfering with the other functions
  * 2.1:  changed PWM API
  * 2.2:  added firmware kernel request to fix an udev problem

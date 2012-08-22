@@ -3994,7 +3994,7 @@ static sctp_ierror_t sctp_sf_authenticate(struct net *net,
 	chunk->subh.auth_hdr = auth_hdr;
 	skb_pull(chunk->skb, sizeof(struct sctp_authhdr));
 
-	/* Make sure that we suport the HMAC algorithm from the auth
+	/* Make sure that we support the HMAC algorithm from the auth
 	 * chunk.
 	 */
 	if (!sctp_auth_asoc_verify_hmac_id(asoc, auth_hdr->hmac_id))

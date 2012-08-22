@@ -138,7 +138,7 @@ Sysfs entries
 
 When probing the chip, the driver identifies which PMBus registers are
 supported, and determines available sensors from this information.
-Attribute files only exist if respective sensors are suported by the chip.
+Attribute files only exist if respective sensors are supported by the chip.
 Labels are provided to inform the user about the sensor associated with
 a given sysfs entry.
 

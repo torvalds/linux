@@ -244,7 +244,7 @@ struct bonding {
 	struct   delayed_work ad_work;
 	struct   delayed_work mcast_work;
 #ifdef CONFIG_DEBUG_FS
-	/* debugging suport via debugfs */
+	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
 };

@@ -773,7 +773,7 @@ static __devinit int palmas_probe(struct platform_device *pdev)
 		/*
 		 * read and store the RANGE bit for later use
 		 * This must be done before regulator is probed otherwise
-		 * we error in probe with unsuportable ranges.
+		 * we error in probe with unsupportable ranges.
 		 */
 		if (id != PALMAS_REG_SMPS10) {
 			addr = palmas_regs_info[id].vsel_addr;

@@ -163,7 +163,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	list_add(&null_key->key_list, &ep->endpoint_shared_keys);
 
-	/* Allocate and initialize transorms arrays for suported HMACs. */
+	/* Allocate and initialize transorms arrays for supported HMACs. */
 	err = sctp_auth_init_hmacs(ep, gfp);
 	if (err)
 		goto nomem_hmacs;

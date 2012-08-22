@@ -6767,7 +6767,7 @@ static int stp;
 /*
  * This enables fast aging in the KSZ8842 switch.  Not sure what situation
  * needs that.  However, fast aging is used to flush the dynamic MAC table when
- * STP suport is enabled.
+ * STP support is enabled.
  */
 static int fast_aging;
 

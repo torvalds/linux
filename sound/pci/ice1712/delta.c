@@ -617,7 +617,7 @@ static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 		ice->num_total_dacs = 4;	/* two AK4324 codecs */
 		break;
 	case ICE1712_SUBDEVICE_VX442:
-	case ICE1712_SUBDEVICE_DELTA66E:	/* omni not suported yet */
+	case ICE1712_SUBDEVICE_DELTA66E:	/* omni not supported yet */
 		ice->num_total_dacs = 4;
 		ice->num_total_adcs = 4;
 		break;
