@@ -165,12 +165,14 @@ struct ubifs_global_debug_info {
 } while (0)
 
 #define ubifs_dbg_msg(type, fmt, ...) \
-	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__)
+	pr_debug("UBIFS DBG " type " (pid %d): " fmt "\n", current->pid,       \
+		 ##__VA_ARGS__)
 
 #define DBG_KEY_BUF_LEN 48
 #define ubifs_dbg_msg_key(type, key, fmt, ...) do {                            \
 	char __tmp_key_buf[DBG_KEY_BUF_LEN];                                   \
-	pr_debug("UBIFS DBG " type ": " fmt "%s\n", ##__VA_ARGS__,             \
+	pr_debug("UBIFS DBG " type " (pid %d): " fmt "%s\n", current->pid,     \
+		 ##__VA_ARGS__,                                                \
 		 dbg_snprintf_key(c, key, __tmp_key_buf, DBG_KEY_BUF_LEN));    \
 } while (0)
 
