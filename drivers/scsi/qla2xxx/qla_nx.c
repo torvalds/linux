@@ -3027,7 +3027,6 @@ qla82xx_dev_failed_handler(scsi_qla_host_t *vha)
 	ql_log(ql_log_fatal, vha, 0x00b8,
 	    "Disabling the board.\n");
 
-	qla82xx_idc_lock(ha);
 	qla82xx_clear_drv_active(ha);
 	qla82xx_idc_unlock(ha);
 
@@ -3267,7 +3266,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 		switch (dev_state) {
 		case QLA82XX_DEV_READY:
 			ha->flags.isp82xx_reset_owner = 0;
-			goto exit;
+			goto rel_lock;
 		case QLA82XX_DEV_COLD:
 			rval = qla82xx_device_bootstrap(vha);
 			break;
@@ -3298,7 +3297,7 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 			 * to get changed
 			 */
 			if (ha->flags.quiesce_owner)
-				goto exit;
+				goto rel_lock;
 
 			qla82xx_idc_unlock(ha);
 			msleep(1000);
@@ -3319,8 +3318,9 @@ qla82xx_device_state_handler(scsi_qla_host_t *vha)
 		}
 		loopcount++;
 	}
-exit:
+rel_lock:
 	qla82xx_idc_unlock(ha);
+exit:
 	return rval;
 }
 
@@ -3384,6 +3384,14 @@ void qla82xx_watchdog(scsi_qla_host_t *vha)
 			ql_log(ql_log_warn, vha, 0x6002,
 			    "Quiescent needed.\n");
 			set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
+		} else if (dev_state == QLA82XX_DEV_FAILED &&
+			!test_bit(ISP_UNRECOVERABLE, &vha->dpc_flags) &&
+			vha->flags.online == 1) {
+			ql_log(ql_log_warn, vha, 0xb055,
+			    "Adapter state is failed. Offlining.\n");
+			set_bit(ISP_UNRECOVERABLE, &vha->dpc_flags);
+			ha->flags.isp82xx_fw_hung = 1;
+			qla82xx_clear_pending_mbx(vha);
 		} else {
 			if (qla82xx_check_fw_alive(vha)) {
 				ql_dbg(ql_dbg_timer, vha, 0x6011,
