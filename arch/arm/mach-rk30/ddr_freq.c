@@ -101,7 +101,7 @@ static void ddr_early_suspend(struct early_suspend *h)
     //Enable auto self refresh  0x01*32 DDR clk cycle
     ddr_set_auto_self_refresh(true);
 
-    value = _ddr_change_freq(100);
+    value = _ddr_change_freq(120);
 
     ddr_print("init success!!! freq=%dMHz\n", value);
 
