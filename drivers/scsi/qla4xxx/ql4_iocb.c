@@ -193,31 +193,31 @@ static void qla4xxx_build_scsi_iocbs(struct srb *srb,
 }
 
 /**
- * qla4_8xxx_queue_iocb - Tell ISP it's got new request(s)
+ * qla4_82xx_queue_iocb - Tell ISP it's got new request(s)
  * @ha: pointer to host adapter structure.
  *
  * This routine notifies the ISP that one or more new request
  * queue entries have been placed on the request queue.
  **/
-void qla4_8xxx_queue_iocb(struct scsi_qla_host *ha)
+void qla4_82xx_queue_iocb(struct scsi_qla_host *ha)
 {
 	uint32_t dbval = 0;
 
 	dbval = 0x14 | (ha->func_num << 5);
 	dbval = dbval | (0 << 8) | (ha->request_in << 16);
 
-	qla4_8xxx_wr_32(ha, ha->nx_db_wr_ptr, ha->request_in);
+	qla4_82xx_wr_32(ha, ha->nx_db_wr_ptr, ha->request_in);
 }
 
 /**
- * qla4_8xxx_complete_iocb - Tell ISP we're done with response(s)
+ * qla4_82xx_complete_iocb - Tell ISP we're done with response(s)
  * @ha: pointer to host adapter structure.
  *
  * This routine notifies the ISP that one or more response/completion
  * queue entries have been processed by the driver.
  * This also clears the interrupt.
  **/
-void qla4_8xxx_complete_iocb(struct scsi_qla_host *ha)
+void qla4_82xx_complete_iocb(struct scsi_qla_host *ha)
 {
 	writel(ha->response_out, &ha->qla4_8xxx_reg->rsp_q_out);
 	readl(&ha->qla4_8xxx_reg->rsp_q_out);

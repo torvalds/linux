@@ -816,13 +816,13 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 }
 
 /**
- * qla4_8xxx_interrupt_service_routine - isr
+ * qla4_82xx_interrupt_service_routine - isr
  * @ha: pointer to host adapter structure.
  *
  * This is the main interrupt service routine.
  * hardware_lock locked upon entry. runs in interrupt context.
  **/
-void qla4_8xxx_interrupt_service_routine(struct scsi_qla_host *ha,
+void qla4_82xx_interrupt_service_routine(struct scsi_qla_host *ha,
     uint32_t intr_status)
 {
 	/* Process response queue interrupt. */
@@ -866,12 +866,12 @@ void qla4xxx_interrupt_service_routine(struct scsi_qla_host * ha,
 }
 
 /**
- * qla4_8xxx_spurious_interrupt - processes spurious interrupt
+ * qla4_82xx_spurious_interrupt - processes spurious interrupt
  * @ha: pointer to host adapter structure.
  * @reqs_count: .
  *
  **/
-static void qla4_8xxx_spurious_interrupt(struct scsi_qla_host *ha,
+static void qla4_82xx_spurious_interrupt(struct scsi_qla_host *ha,
     uint8_t reqs_count)
 {
 	if (reqs_count)
@@ -881,7 +881,7 @@ static void qla4_8xxx_spurious_interrupt(struct scsi_qla_host *ha,
 	if (is_qla8022(ha)) {
 		writel(0, &ha->qla4_8xxx_reg->host_int);
 		if (test_bit(AF_INTx_ENABLED, &ha->flags))
-			qla4_8xxx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg,
+			qla4_82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg,
 			    0xfbff);
 	}
 	ha->spurious_int_count++;
@@ -984,11 +984,11 @@ irqreturn_t qla4xxx_intr_handler(int irq, void *dev_id)
 }
 
 /**
- * qla4_8xxx_intr_handler - hardware interrupt handler.
+ * qla4_82xx_intr_handler - hardware interrupt handler.
  * @irq: Unused
  * @dev_id: Pointer to host adapter structure
  **/
-irqreturn_t qla4_8xxx_intr_handler(int irq, void *dev_id)
+irqreturn_t qla4_82xx_intr_handler(int irq, void *dev_id)
 {
 	struct scsi_qla_host *ha = dev_id;
 	uint32_t intr_status;
@@ -1000,11 +1000,11 @@ irqreturn_t qla4_8xxx_intr_handler(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	ha->isr_count++;
-	status = qla4_8xxx_rd_32(ha, ISR_INT_VECTOR);
+	status = qla4_82xx_rd_32(ha, ISR_INT_VECTOR);
 	if (!(status & ha->nx_legacy_intr.int_vec_bit))
 		return IRQ_NONE;
 
-	status = qla4_8xxx_rd_32(ha, ISR_INT_STATE_REG);
+	status = qla4_82xx_rd_32(ha, ISR_INT_STATE_REG);
 	if (!ISR_IS_LEGACY_INTR_TRIGGERED(status)) {
 		DEBUG2(ql4_printk(KERN_INFO, ha,
 		    "%s legacy Int not triggered\n", __func__));
@@ -1012,30 +1012,30 @@ irqreturn_t qla4_8xxx_intr_handler(int irq, void *dev_id)
 	}
 
 	/* clear the interrupt */
-	qla4_8xxx_wr_32(ha, ha->nx_legacy_intr.tgt_status_reg, 0xffffffff);
+	qla4_82xx_wr_32(ha, ha->nx_legacy_intr.tgt_status_reg, 0xffffffff);
 
 	/* read twice to ensure write is flushed */
-	qla4_8xxx_rd_32(ha, ISR_INT_VECTOR);
-	qla4_8xxx_rd_32(ha, ISR_INT_VECTOR);
+	qla4_82xx_rd_32(ha, ISR_INT_VECTOR);
+	qla4_82xx_rd_32(ha, ISR_INT_VECTOR);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	while (1) {
 		if (!(readl(&ha->qla4_8xxx_reg->host_int) &
 		    ISRX_82XX_RISC_INT)) {
-			qla4_8xxx_spurious_interrupt(ha, reqs_count);
+			qla4_82xx_spurious_interrupt(ha, reqs_count);
 			break;
 		}
 		intr_status =  readl(&ha->qla4_8xxx_reg->host_status);
 		if ((intr_status &
 		    (HSRX_RISC_MB_INT | HSRX_RISC_IOCB_INT)) == 0)  {
-			qla4_8xxx_spurious_interrupt(ha, reqs_count);
+			qla4_82xx_spurious_interrupt(ha, reqs_count);
 			break;
 		}
 
 		ha->isp_ops->interrupt_service_routine(ha, intr_status);
 
 		/* Enable Interrupt */
-		qla4_8xxx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0xfbff);
+		qla4_82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg, 0xfbff);
 
 		if (++reqs_count == MAX_REQS_SERVICED_PER_INTR)
 			break;
@@ -1059,11 +1059,11 @@ qla4_8xxx_msi_handler(int irq, void *dev_id)
 
 	ha->isr_count++;
 	/* clear the interrupt */
-	qla4_8xxx_wr_32(ha, ha->nx_legacy_intr.tgt_status_reg, 0xffffffff);
+	qla4_82xx_wr_32(ha, ha->nx_legacy_intr.tgt_status_reg, 0xffffffff);
 
 	/* read twice to ensure write is flushed */
-	qla4_8xxx_rd_32(ha, ISR_INT_VECTOR);
-	qla4_8xxx_rd_32(ha, ISR_INT_VECTOR);
+	qla4_82xx_rd_32(ha, ISR_INT_VECTOR);
+	qla4_82xx_rd_32(ha, ISR_INT_VECTOR);
 
 	return qla4_8xxx_default_intr_handler(irq, dev_id);
 }
@@ -1088,14 +1088,14 @@ qla4_8xxx_default_intr_handler(int irq, void *dev_id)
 	while (1) {
 		if (!(readl(&ha->qla4_8xxx_reg->host_int) &
 		    ISRX_82XX_RISC_INT)) {
-			qla4_8xxx_spurious_interrupt(ha, reqs_count);
+			qla4_82xx_spurious_interrupt(ha, reqs_count);
 			break;
 		}
 
 		intr_status =  readl(&ha->qla4_8xxx_reg->host_status);
 		if ((intr_status &
 		    (HSRX_RISC_MB_INT | HSRX_RISC_IOCB_INT)) == 0) {
-			qla4_8xxx_spurious_interrupt(ha, reqs_count);
+			qla4_82xx_spurious_interrupt(ha, reqs_count);
 			break;
 		}
 

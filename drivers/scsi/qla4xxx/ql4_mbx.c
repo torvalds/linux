@@ -85,9 +85,9 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			goto mbox_exit;
 		}
 		/* Do not send any mbx cmd if h/w is in failed state*/
-		qla4_8xxx_idc_lock(ha);
-		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		qla4_8xxx_idc_unlock(ha);
+		qla4_82xx_idc_lock(ha);
+		dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla4_82xx_idc_unlock(ha);
 		if (dev_state == QLA82XX_DEV_FAILED) {
 			ql4_printk(KERN_WARNING, ha,
 				   "scsi%ld: %s: H/W is in failed state, do not send any mailbox commands\n",
@@ -180,7 +180,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 					    &ha->flags) &&
 					    test_bit(AF_INTx_ENABLED,
 					    &ha->flags))
-						qla4_8xxx_wr_32(ha,
+						qla4_82xx_wr_32(ha,
 						ha->nx_legacy_intr.tgt_mask_reg,
 						0xfbff);
 				}
@@ -222,7 +222,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		if (is_qla8022(ha)) {
 			ql4_printk(KERN_INFO, ha,
 				   "disabling pause transmit on port 0 & 1.\n");
-			qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
+			qla4_82xx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
 					CRB_NIU_XG_PAUSE_CTL_P0 |
 					CRB_NIU_XG_PAUSE_CTL_P1);
 		}
@@ -373,7 +373,7 @@ qla4xxx_set_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 	memset(mbox_sts, 0, sizeof(mbox_sts[0]) * MBOX_REG_COUNT);
 
 	if (is_qla8022(ha))
-		qla4_8xxx_wr_32(ha, ha->nx_db_wr_ptr, 0);
+		qla4_82xx_wr_32(ha, ha->nx_db_wr_ptr, 0);
 
 	mbox_cmd[0] = MBOX_CMD_INITIALIZE_FIRMWARE;
 	mbox_cmd[1] = 0;
