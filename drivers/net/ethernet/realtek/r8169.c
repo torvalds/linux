@@ -5385,8 +5385,8 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16)
-		pcie_capability_write_word(pdev, PCI_EXP_DEVCTL,
-					   PCI_EXP_DEVCTL_NOSNOOP_EN);
+		pcie_capability_set_word(pdev, PCI_EXP_DEVCTL,
+					 PCI_EXP_DEVCTL_NOSNOOP_EN);
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
 
