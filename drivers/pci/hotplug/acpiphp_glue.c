@@ -115,6 +115,35 @@ static const struct acpi_dock_ops acpiphp_dock_ops = {
 	.handler = handle_hotplug_event_func,
 };
 
+/* Check whether the PCI device is managed by native PCIe hotplug driver */
+static bool device_is_managed_by_native_pciehp(struct pci_dev *pdev)
+{
+	u32 reg32;
+	acpi_handle tmp;
+	struct acpi_pci_root *root;
+
+	/* Check whether the PCIe port supports native PCIe hotplug */
+	if (pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &reg32))
+		return false;
+	if (!(reg32 & PCI_EXP_SLTCAP_HPC))
+		return false;
+
+	/*
+	 * Check whether native PCIe hotplug has been enabled for
+	 * this PCIe hierarchy.
+	 */
+	tmp = acpi_find_root_bridge_handle(pdev);
+	if (!tmp)
+		return false;
+	root = acpi_pci_find_root(tmp);
+	if (!root)
+		return false;
+	if (!(root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
+		return false;
+
+	return true;
+}
+
 /* callback routine to register each ACPI PCI slot object */
 static acpi_status
 register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -142,16 +171,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	function = adr & 0xffff;
 
 	pdev = pbus->self;
-	if (pdev && pci_is_pcie(pdev)) {
-		tmp = acpi_find_root_bridge_handle(pdev);
-		if (tmp) {
-			struct acpi_pci_root *root = acpi_pci_find_root(tmp);
-
-			if (root && (root->osc_control_set &
-					OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
-				return AE_OK;
-		}
-	}
+	if (pdev && device_is_managed_by_native_pciehp(pdev))
+		return AE_OK;
 
 	newfunc = kzalloc(sizeof(struct acpiphp_func), GFP_KERNEL);
 	if (!newfunc)
