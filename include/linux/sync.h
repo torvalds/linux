@@ -329,8 +329,8 @@ int sync_fence_cancel_async(struct sync_fence *fence,
  * @fence:	fence to wait on
  * @tiemout:	timeout in ms
  *
- * Wait for @fence to be signaled or have an error.  Waits indefintly
- * if @timeout = 0
+ * Wait for @fence to be signaled or have an error.  Waits indefinitely
+ * if @timeout < 0
  */
 int sync_fence_wait(struct sync_fence *fence, long timeout);
 
@@ -389,9 +389,9 @@ struct sync_fence_info_data {
 /**
  * DOC: SYNC_IOC_WAIT - wait for a fence to signal
  *
- * pass timeout in milliseconds.
+ * pass timeout in milliseconds.  Waits indefinitely timeout < 0.
  */
-#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __u32)
+#define SYNC_IOC_WAIT		_IOW(SYNC_IOC_MAGIC, 0, __s32)
 
 /**
  * DOC: SYNC_IOC_MERGE - merge two fences
