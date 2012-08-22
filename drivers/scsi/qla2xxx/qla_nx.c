@@ -1612,25 +1612,6 @@ qla82xx_get_fw_offs(struct qla_hw_data *ha)
 }
 
 /* PCI related functions */
-char *
-qla82xx_pci_info_str(struct scsi_qla_host *vha, char *str)
-{
-	int pcie_reg;
-	struct qla_hw_data *ha = vha->hw;
-	char lwstr[6];
-	uint16_t lnk;
-
-	pcie_reg = pci_pcie_cap(ha->pdev);
-	pci_read_config_word(ha->pdev, pcie_reg + PCI_EXP_LNKSTA, &lnk);
-	ha->link_width = (lnk >> 4) & 0x3f;
-
-	strcpy(str, "PCIe (");
-	strcat(str, "2.5Gb/s ");
-	snprintf(lwstr, sizeof(lwstr), "x%d)", ha->link_width);
-	strcat(str, lwstr);
-	return str;
-}
-
 int qla82xx_pci_region_offset(struct pci_dev *pdev, int region)
 {
 	unsigned long val = 0;
