@@ -1041,7 +1041,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct in_device *in_dev = __in_dev_get_rtnl(dev);
+	struct in_device *in_dev;
 	struct net *net = dev_net(dev);
 
 	if (event == NETDEV_UNREGISTER) {
@@ -1050,8 +1050,10 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		return NOTIFY_DONE;
 	}
 
-	if (!in_dev)
+	if (event == NETDEV_UNREGISTER_FINAL)
 		return NOTIFY_DONE;
+
+	in_dev = __in_dev_get_rtnl(dev);
 
 	switch (event) {
 	case NETDEV_UP:
@@ -1070,8 +1072,6 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
 		rt_cache_flush(dev_net(dev), 0);
-		break;
-	case NETDEV_UNREGISTER_BATCH:
 		break;
 	}
 	return NOTIFY_DONE;

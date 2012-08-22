@@ -374,7 +374,7 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event,
 	struct dst_entry *dst, *last = NULL;
 
 	switch (event) {
-	case NETDEV_UNREGISTER:
+	case NETDEV_UNREGISTER_FINAL:
 	case NETDEV_DOWN:
 		mutex_lock(&dst_gc_mutex);
 		for (dst = dst_busy_list; dst; dst = dst->next) {
