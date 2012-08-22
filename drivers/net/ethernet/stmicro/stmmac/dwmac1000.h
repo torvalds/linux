@@ -229,6 +229,6 @@ enum rtc_control {
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
 
 /* Synopsys Core versions */
-#define	DWMAC_CORE_3_40	34
+#define	DWMAC_CORE_3_40	0x34
 
 extern const struct stmmac_dma_ops dwmac1000_dma_ops;
