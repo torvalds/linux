@@ -147,13 +147,6 @@ qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	uint8_t	guard = scsi_host_get_guard(cmd->device->host);
 
-	/* We only support T10 DIF right now */
-	if (guard != SHOST_DIX_GUARD_CRC) {
-		ql_dbg(ql_dbg_io, sp->fcport->vha, 0x3007,
-		    "Unsupported guard: %d for cmd=%p.\n", guard, cmd);
-		return 0;
-	}
-
 	/* We always use DIFF Bundling for best performance */
 	*fw_prot_opts = 0;
 
@@ -172,10 +165,11 @@ qla24xx_configure_prot_mode(srb_t *sp, uint16_t *fw_prot_opts)
 		*fw_prot_opts |= PO_MODE_DIF_REMOVE;
 		break;
 	case SCSI_PROT_READ_PASS:
-		*fw_prot_opts |= PO_MODE_DIF_PASS;
-		break;
 	case SCSI_PROT_WRITE_PASS:
-		*fw_prot_opts |= PO_MODE_DIF_PASS;
+		if (guard & SHOST_DIX_GUARD_IP)
+			*fw_prot_opts |= PO_MODE_DIF_TCP_CKSUM;
+		else
+			*fw_prot_opts |= PO_MODE_DIF_PASS;
 		break;
 	default:	/* Normal Request */
 		*fw_prot_opts |= PO_MODE_DIF_PASS;
@@ -821,7 +815,6 @@ qla24xx_set_t10dif_tags(srb_t *sp, struct fw_dif_context *pkt,
     unsigned int protcnt)
 {
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 
 	switch (scsi_get_prot_type(cmd)) {
 	case SCSI_PROT_DIF_TYPE0:
@@ -891,12 +884,6 @@ qla24xx_set_t10dif_tags(srb_t *sp, struct fw_dif_context *pkt,
 		pkt->ref_tag_mask[3] = 0xff;
 		break;
 	}
-
-	ql_dbg(ql_dbg_io, vha, 0x3009,
-	    "Setting protection Tags: (BIG) ref tag = 0x%x, app tag = 0x%x, "
-	    "prot SG count %d, cmd lba 0x%x, prot_type=%u cmd=%p.\n",
-	    pkt->ref_tag, pkt->app_tag, protcnt, (int)scsi_get_lba(cmd),
-	    scsi_get_prot_type(cmd), cmd);
 }
 
 struct qla2_sgx {
@@ -1068,9 +1055,6 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 	int	i;
 	uint16_t	used_dsds = tot_dsds;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
-
-	uint8_t		*cp;
 
 	scsi_for_each_sg(cmd, sg, tot_dsds, i) {
 		dma_addr_t	sle_dma;
@@ -1113,19 +1097,12 @@ qla24xx_walk_and_build_sglist(struct qla_hw_data *ha, srb_t *sp, uint32_t *dsd,
 			cur_dsd = (uint32_t *)next_dsd;
 		}
 		sle_dma = sg_dma_address(sg);
-		ql_dbg(ql_dbg_io, vha, 0x300a,
-		    "sg entry %d - addr=0x%x 0x%x, " "len=%d for cmd=%p.\n",
-		    i, LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg), cmd);
+
 		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(sg_dma_len(sg));
 		avail_dsds--;
 
-		if (scsi_get_prot_op(cmd) == SCSI_PROT_WRITE_PASS) {
-			cp = page_address(sg_page(sg)) + sg->offset;
-			ql_dbg(ql_dbg_io, vha, 0x300b,
-			    "User data buffer=%p for cmd=%p.\n", cp, cmd);
-		}
 	}
 	/* Null termination */
 	*cur_dsd++ = 0;
@@ -1148,8 +1125,6 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 	struct scsi_cmnd *cmd;
 	uint32_t *cur_dsd = dsd;
 	uint16_t	used_dsds = tot_dsds;
-	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
-	uint8_t		*cp;
 
 	cmd = GET_CMD_SP(sp);
 	scsi_for_each_prot_sg(cmd, sg, tot_dsds, i) {
@@ -1193,23 +1168,11 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
 			cur_dsd = (uint32_t *)next_dsd;
 		}
 		sle_dma = sg_dma_address(sg);
-		if (scsi_get_prot_op(cmd) == SCSI_PROT_WRITE_PASS) {
-			ql_dbg(ql_dbg_io, vha, 0x3027,
-			    "%s(): %p, sg_entry %d - "
-			    "addr=0x%x0x%x, len=%d.\n",
-			    __func__, cur_dsd, i,
-			    LSD(sle_dma), MSD(sle_dma), sg_dma_len(sg));
-		}
+
 		*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
 		*cur_dsd++ = cpu_to_le32(sg_dma_len(sg));
 
-		if (scsi_get_prot_op(cmd) == SCSI_PROT_WRITE_PASS) {
-			cp = page_address(sg_page(sg)) + sg->offset;
-			ql_dbg(ql_dbg_io, vha, 0x3028,
-			    "%s(): Protection Data buffer = %p.\n", __func__,
-			    cp);
-		}
 		avail_dsds--;
 	}
 	/* Null termination */
@@ -1386,6 +1349,16 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	if (!qla2x00_hba_err_chk_enabled(sp))
 		fw_prot_opts |= 0x10; /* Disable Guard tag checking */
+	/* HBA error checking enabled */
+	else if (IS_PI_UNINIT_CAPABLE(ha)) {
+		if ((scsi_get_prot_type(GET_CMD_SP(sp)) == SCSI_PROT_DIF_TYPE1)
+		    || (scsi_get_prot_type(GET_CMD_SP(sp)) ==
+			SCSI_PROT_DIF_TYPE2))
+			fw_prot_opts |= BIT_10;
+		else if (scsi_get_prot_type(GET_CMD_SP(sp)) ==
+		    SCSI_PROT_DIF_TYPE3)
+			fw_prot_opts |= BIT_11;
+	}
 
 	if (!bundling) {
 		cur_dsd = (uint32_t *) &crc_ctx_pkt->u.nobundling.data_address;

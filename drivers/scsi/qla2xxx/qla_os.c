@@ -116,9 +116,8 @@ MODULE_PARM_DESC(ql2xmaxqdepth,
 		"Maximum queue depth to set for each LUN. "
 		"Default is 32.");
 
-/* Do not change the value of this after module load */
-int ql2xenabledif = 0;
-module_param(ql2xenabledif, int, S_IRUGO|S_IWUSR);
+int ql2xenabledif = 2;
+module_param(ql2xenabledif, int, S_IRUGO);
 MODULE_PARM_DESC(ql2xenabledif,
 		" Enable T10-CRC-DIF "
 		" Default is 0 - No DIF Support. 1 - Enable it"
@@ -1358,6 +1357,9 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 	scsi_qla_host_t *vha = shost_priv(sdev->host);
 	struct req_que *req = vha->req;
 
+	if (IS_T10_PI_CAPABLE(vha->hw))
+		blk_queue_update_dma_alignment(sdev->request_queue, 0x7);
+
 	if (sdev->tagged_supported)
 		scsi_activate_tcq(sdev, req->max_q_depth);
 	else
@@ -2574,7 +2576,7 @@ skip_dpc:
 
 	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
-			int prot = 0;
+			int prot = 0, guard;
 			base_vha->flags.difdix_supported = 1;
 			ql_dbg(ql_dbg_init, base_vha, 0x00f1,
 			    "Registering for DIF/DIX type 1 and 3 protection.\n");
@@ -2587,7 +2589,14 @@ skip_dpc:
 			    | SHOST_DIX_TYPE1_PROTECTION
 			    | SHOST_DIX_TYPE2_PROTECTION
 			    | SHOST_DIX_TYPE3_PROTECTION);
-			scsi_host_set_guard(host, SHOST_DIX_GUARD_CRC);
+
+			guard = SHOST_DIX_GUARD_CRC;
+
+			if (IS_PI_IPGUARD_CAPABLE(ha) &&
+			    (ql2xenabledif > 1 || IS_PI_DIFB_DIX0_CAPABLE(ha)))
+				guard |= SHOST_DIX_GUARD_IP;
+
+			scsi_host_set_guard(host, guard);
 		} else
 			base_vha->flags.difdix_supported = 0;
 	}

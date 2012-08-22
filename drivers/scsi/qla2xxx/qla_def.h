@@ -1468,9 +1468,10 @@ typedef struct {
 } cont_a64_entry_t;
 
 #define PO_MODE_DIF_INSERT	0
-#define PO_MODE_DIF_REMOVE	BIT_0
-#define PO_MODE_DIF_PASS	BIT_1
-#define PO_MODE_DIF_REPLACE	(BIT_0 + BIT_1)
+#define PO_MODE_DIF_REMOVE	1
+#define PO_MODE_DIF_PASS	2
+#define PO_MODE_DIF_REPLACE	3
+#define PO_MODE_DIF_TCP_CKSUM	6
 #define PO_ENABLE_DIF_BUNDLING	BIT_8
 #define PO_ENABLE_INCR_GUARD_SEED	BIT_3
 #define PO_DISABLE_INCR_REF_TAG	BIT_5
@@ -2781,6 +2782,12 @@ struct qla_hw_data {
 /* Bit 21 of fw_attributes decides the MCTP capabilities */
 #define IS_MCTP_CAPABLE(ha)	(IS_QLA2031(ha) && \
 				((ha)->fw_attributes_ext[0] & BIT_0))
+#define IS_PI_UNINIT_CAPABLE(ha)	(IS_QLA83XX(ha))
+#define IS_PI_IPGUARD_CAPABLE(ha)	(IS_QLA83XX(ha))
+#define IS_PI_DIFB_DIX0_CAPABLE(ha)	(0)
+#define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha))
+#define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
+    (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
 
 	/* HBA serial number */
 	uint8_t		serial0;

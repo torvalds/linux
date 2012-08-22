@@ -2163,6 +2163,19 @@ check_scsi_status:
 	case CS_DIF_ERROR:
 		logit = qla2x00_handle_dif_error(sp, sts24);
 		break;
+
+	case CS_TRANSPORT:
+		res = DID_ERROR << 16;
+
+		if (!IS_PI_SPLIT_DET_CAPABLE(ha))
+			break;
+
+		if (state_flags & BIT_4)
+			scmd_printk(KERN_WARNING, cp,
+			    "Unsupported device '%s' found.\n",
+			    cp->device->vendor);
+		break;
+
 	default:
 		res = DID_ERROR << 16;
 		break;

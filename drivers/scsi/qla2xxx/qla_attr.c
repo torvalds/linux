@@ -1812,7 +1812,7 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 
 	if (IS_T10_PI_CAPABLE(ha) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
-			int prot = 0;
+			int prot = 0, guard;
 			vha->flags.difdix_supported = 1;
 			ql_dbg(ql_dbg_user, vha, 0x7082,
 			    "Registered for DIF/DIX type 1 and 3 protection.\n");
@@ -1825,7 +1825,14 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			    | SHOST_DIX_TYPE1_PROTECTION
 			    | SHOST_DIX_TYPE2_PROTECTION
 			    | SHOST_DIX_TYPE3_PROTECTION);
-			scsi_host_set_guard(vha->host, SHOST_DIX_GUARD_CRC);
+
+			guard = SHOST_DIX_GUARD_CRC;
+
+			if (IS_PI_IPGUARD_CAPABLE(ha) &&
+			    (ql2xenabledif > 1 || IS_PI_DIFB_DIX0_CAPABLE(ha)))
+				guard |= SHOST_DIX_GUARD_IP;
+
+			scsi_host_set_guard(vha->host, guard);
 		} else
 			vha->flags.difdix_supported = 0;
 	}
