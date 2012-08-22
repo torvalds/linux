@@ -607,7 +607,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 			 */
 			for (i = 0; i < ha->mbox_status_count; i++)
 				ha->mbox_status[i] = is_qla8022(ha)
-				    ? readl(&ha->qla4_8xxx_reg->mailbox_out[i])
+				    ? readl(&ha->qla4_82xx_reg->mailbox_out[i])
 				    : readl(&ha->reg->mailbox[i]);
 
 			set_bit(AF_MBOX_COMMAND_DONE, &ha->flags);
@@ -618,7 +618,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 	} else if (mbox_status >> 12 == MBOX_ASYNC_EVENT_STATUS) {
 		for (i = 0; i < MBOX_AEN_REG_COUNT; i++)
 			mbox_sts[i] = is_qla8022(ha)
-			    ? readl(&ha->qla4_8xxx_reg->mailbox_out[i])
+			    ? readl(&ha->qla4_82xx_reg->mailbox_out[i])
 			    : readl(&ha->reg->mailbox[i]);
 
 		/* Immediately process the AENs that don't require much work.
@@ -832,11 +832,11 @@ void qla4_82xx_interrupt_service_routine(struct scsi_qla_host *ha,
 	/* Process mailbox/asynch event interrupt.*/
 	if (intr_status & HSRX_RISC_MB_INT)
 		qla4xxx_isr_decode_mailbox(ha,
-		    readl(&ha->qla4_8xxx_reg->mailbox_out[0]));
+		    readl(&ha->qla4_82xx_reg->mailbox_out[0]));
 
 	/* clear the interrupt */
-	writel(0, &ha->qla4_8xxx_reg->host_int);
-	readl(&ha->qla4_8xxx_reg->host_int);
+	writel(0, &ha->qla4_82xx_reg->host_int);
+	readl(&ha->qla4_82xx_reg->host_int);
 }
 
 /**
@@ -879,7 +879,7 @@ static void qla4_82xx_spurious_interrupt(struct scsi_qla_host *ha,
 
 	DEBUG2(ql4_printk(KERN_INFO, ha, "Spurious Interrupt\n"));
 	if (is_qla8022(ha)) {
-		writel(0, &ha->qla4_8xxx_reg->host_int);
+		writel(0, &ha->qla4_82xx_reg->host_int);
 		if (test_bit(AF_INTx_ENABLED, &ha->flags))
 			qla4_82xx_wr_32(ha, ha->nx_legacy_intr.tgt_mask_reg,
 			    0xfbff);
@@ -1020,12 +1020,12 @@ irqreturn_t qla4_82xx_intr_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	while (1) {
-		if (!(readl(&ha->qla4_8xxx_reg->host_int) &
+		if (!(readl(&ha->qla4_82xx_reg->host_int) &
 		    ISRX_82XX_RISC_INT)) {
 			qla4_82xx_spurious_interrupt(ha, reqs_count);
 			break;
 		}
-		intr_status =  readl(&ha->qla4_8xxx_reg->host_status);
+		intr_status =  readl(&ha->qla4_82xx_reg->host_status);
 		if ((intr_status &
 		    (HSRX_RISC_MB_INT | HSRX_RISC_IOCB_INT)) == 0)  {
 			qla4_82xx_spurious_interrupt(ha, reqs_count);
@@ -1086,13 +1086,13 @@ qla4_8xxx_default_intr_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	while (1) {
-		if (!(readl(&ha->qla4_8xxx_reg->host_int) &
+		if (!(readl(&ha->qla4_82xx_reg->host_int) &
 		    ISRX_82XX_RISC_INT)) {
 			qla4_82xx_spurious_interrupt(ha, reqs_count);
 			break;
 		}
 
-		intr_status =  readl(&ha->qla4_8xxx_reg->host_status);
+		intr_status =  readl(&ha->qla4_82xx_reg->host_status);
 		if ((intr_status &
 		    (HSRX_RISC_MB_INT | HSRX_RISC_IOCB_INT)) == 0) {
 			qla4_82xx_spurious_interrupt(ha, reqs_count);
@@ -1118,7 +1118,7 @@ qla4_8xxx_msix_rsp_q(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla4xxx_process_response_queue(ha);
-	writel(0, &ha->qla4_8xxx_reg->host_int);
+	writel(0, &ha->qla4_82xx_reg->host_int);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	ha->isr_count++;

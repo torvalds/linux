@@ -835,7 +835,7 @@ struct crb_addr_pair {
 /* Driver_code is for driver to write some info about the entry
  * currently not used.
  */
-struct qla82xx_minidump_entry_hdr {
+struct qla8xxx_minidump_entry_hdr {
 	uint32_t entry_type;
 	uint32_t entry_size;
 	uint32_t entry_capture_size;
@@ -848,8 +848,8 @@ struct qla82xx_minidump_entry_hdr {
 };
 
 /*  Read CRB entry header */
-struct qla82xx_minidump_entry_crb {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_crb {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t addr;
 	struct {
 		uint8_t addr_stride;
@@ -871,8 +871,8 @@ struct qla82xx_minidump_entry_crb {
 	uint32_t value_3;
 };
 
-struct qla82xx_minidump_entry_cache {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_cache {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t tag_reg_addr;
 	struct {
 		uint16_t tag_value_stride;
@@ -895,8 +895,8 @@ struct qla82xx_minidump_entry_cache {
 };
 
 /* Read OCM */
-struct qla82xx_minidump_entry_rdocm {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_rdocm {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t rsvd_0;
 	uint32_t rsvd_1;
 	uint32_t data_size;
@@ -908,24 +908,24 @@ struct qla82xx_minidump_entry_rdocm {
 };
 
 /* Read Memory */
-struct qla82xx_minidump_entry_rdmem {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_rdmem {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t rsvd[6];
 	uint32_t read_addr;
 	uint32_t read_data_size;
 };
 
 /* Read ROM */
-struct qla82xx_minidump_entry_rdrom {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_rdrom {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t rsvd[6];
 	uint32_t read_addr;
 	uint32_t read_data_size;
 };
 
 /* Mux entry */
-struct qla82xx_minidump_entry_mux {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_mux {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t select_addr;
 	uint32_t rsvd_0;
 	uint32_t data_size;
@@ -937,8 +937,8 @@ struct qla82xx_minidump_entry_mux {
 };
 
 /* Queue entry */
-struct qla82xx_minidump_entry_queue {
-	struct qla82xx_minidump_entry_hdr h;
+struct qla8xxx_minidump_entry_queue {
+	struct qla8xxx_minidump_entry_hdr h;
 	uint32_t select_addr;
 	struct {
 		uint16_t queue_id_stride;

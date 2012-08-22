@@ -111,10 +111,10 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		    printk("\n"));
 
 		for (i = 1; i < inCount; i++)
-			writel(mbx_cmd[i], &ha->qla4_8xxx_reg->mailbox_in[i]);
-		writel(mbx_cmd[0], &ha->qla4_8xxx_reg->mailbox_in[0]);
-		readl(&ha->qla4_8xxx_reg->mailbox_in[0]);
-		writel(HINT_MBX_INT_PENDING, &ha->qla4_8xxx_reg->hint);
+			writel(mbx_cmd[i], &ha->qla4_82xx_reg->mailbox_in[i]);
+		writel(mbx_cmd[0], &ha->qla4_82xx_reg->mailbox_in[0]);
+		readl(&ha->qla4_82xx_reg->mailbox_in[0]);
+		writel(HINT_MBX_INT_PENDING, &ha->qla4_82xx_reg->hint);
 	} else {
 		/* Load all mailbox registers, except mailbox 0. */
 		for (i = 1; i < inCount; i++)
@@ -169,11 +169,11 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			spin_lock_irqsave(&ha->hardware_lock, flags);
 			if (is_qla8022(ha)) {
 				intr_status =
-				    readl(&ha->qla4_8xxx_reg->host_int);
+				    readl(&ha->qla4_82xx_reg->host_int);
 				if (intr_status & ISRX_82XX_RISC_INT) {
 					ha->mbox_status_count = outCount;
 					intr_status =
-					 readl(&ha->qla4_8xxx_reg->host_status);
+					 readl(&ha->qla4_82xx_reg->host_status);
 					ha->isp_ops->interrupt_service_routine(
 					    ha, intr_status);
 					if (test_bit(AF_INTERRUPTS_ON,

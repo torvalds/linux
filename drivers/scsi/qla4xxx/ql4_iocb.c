@@ -219,8 +219,8 @@ void qla4_82xx_queue_iocb(struct scsi_qla_host *ha)
  **/
 void qla4_82xx_complete_iocb(struct scsi_qla_host *ha)
 {
-	writel(ha->response_out, &ha->qla4_8xxx_reg->rsp_q_out);
-	readl(&ha->qla4_8xxx_reg->rsp_q_out);
+	writel(ha->response_out, &ha->qla4_82xx_reg->rsp_q_out);
+	readl(&ha->qla4_82xx_reg->rsp_q_out);
 }
 
 /**

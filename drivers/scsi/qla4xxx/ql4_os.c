@@ -3492,8 +3492,8 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 		       &ha->reg->ctrl_status);
 		readl(&ha->reg->ctrl_status);
 	} else if (is_qla8022(ha)) {
-		writel(0, &ha->qla4_8xxx_reg->host_int);
-		readl(&ha->qla4_8xxx_reg->host_int);
+		writel(0, &ha->qla4_82xx_reg->host_int);
+		readl(&ha->qla4_82xx_reg->host_int);
 	}
 
 	/* Remove timer thread, if present */
@@ -3561,7 +3561,7 @@ int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 	/* Mapping of IO base pointer, door bell read and write pointer */
 
 	/* mapping of IO base pointer */
-	ha->qla4_8xxx_reg =
+	ha->qla4_82xx_reg =
 	    (struct device_reg_82xx  __iomem *)((uint8_t *)ha->nx_pcibase +
 	    0xbc000 + (ha->pdev->devfn << 11));
 
@@ -3660,7 +3660,7 @@ static struct isp_operations qla4xxx_isp_ops = {
 	.get_sys_info           = qla4xxx_get_sys_info,
 };
 
-static struct isp_operations qla4_8xxx_isp_ops = {
+static struct isp_operations qla4_82xx_isp_ops = {
 	.iospace_config         = qla4_8xxx_iospace_config,
 	.pci_config             = qla4_8xxx_pci_config,
 	.disable_intrs          = qla4_82xx_disable_intrs,
@@ -3684,7 +3684,7 @@ uint16_t qla4xxx_rd_shdw_req_q_out(struct scsi_qla_host *ha)
 
 uint16_t qla4_82xx_rd_shdw_req_q_out(struct scsi_qla_host *ha)
 {
-	return (uint16_t)le32_to_cpu(readl(&ha->qla4_8xxx_reg->req_q_out));
+	return (uint16_t)le32_to_cpu(readl(&ha->qla4_82xx_reg->req_q_out));
 }
 
 uint16_t qla4xxx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
@@ -3694,7 +3694,7 @@ uint16_t qla4xxx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
 
 uint16_t qla4_82xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha)
 {
-	return (uint16_t)le32_to_cpu(readl(&ha->qla4_8xxx_reg->rsp_q_in));
+	return (uint16_t)le32_to_cpu(readl(&ha->qla4_82xx_reg->rsp_q_in));
 }
 
 static ssize_t qla4xxx_show_boot_eth_info(void *data, int type, char *buf)
@@ -5074,7 +5074,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
 	/* Setup Runtime configurable options */
 	if (is_qla8022(ha)) {
-		ha->isp_ops = &qla4_8xxx_isp_ops;
+		ha->isp_ops = &qla4_82xx_isp_ops;
 		rwlock_init(&ha->hw_lock);
 		ha->qdr_sn_window = -1;
 		ha->ddr_mn_window = -1;

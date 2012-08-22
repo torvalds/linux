@@ -647,7 +647,7 @@ struct scsi_qla_host {
 	uint8_t acb_version;
 
 	/* qla82xx specific fields */
-	struct device_reg_82xx  __iomem *qla4_8xxx_reg; /* Base I/O address */
+	struct device_reg_82xx  __iomem *qla4_82xx_reg; /* Base I/O address */
 	unsigned long nx_pcibase;	/* Base I/O address */
 	uint8_t *nx_db_rd_ptr;		/* Doorbell read pointer */
 	unsigned long nx_db_wr_ptr;	/* Door bell write pointer */

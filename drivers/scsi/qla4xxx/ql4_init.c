@@ -102,11 +102,11 @@ int qla4xxx_init_rings(struct scsi_qla_host *ha)
 
 	if (is_qla8022(ha)) {
 		writel(0,
-		    (unsigned long  __iomem *)&ha->qla4_8xxx_reg->req_q_out);
+		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->req_q_out);
 		writel(0,
-		    (unsigned long  __iomem *)&ha->qla4_8xxx_reg->rsp_q_in);
+		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_in);
 		writel(0,
-		    (unsigned long  __iomem *)&ha->qla4_8xxx_reg->rsp_q_out);
+		    (unsigned long  __iomem *)&ha->qla4_82xx_reg->rsp_q_out);
 	} else {
 		/*
 		 * Initialize DMA Shadow registers.  The firmware is really
