@@ -40,6 +40,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/pm_runtime.h>
+#include <linux/gpio.h>
 
 /*
  * This macro is used to define some register default values.
@@ -356,6 +357,8 @@ struct vendor_data {
  * @sgt_rx: scattertable for the RX transfer
  * @sgt_tx: scattertable for the TX transfer
  * @dummypage: a dummy page used for driving data on the bus with DMA
+ * @cur_cs: current chip select (gpio)
+ * @chipselects: list of chipselects (gpios)
  */
 struct pl022 {
 	struct amba_device		*adev;
@@ -389,6 +392,8 @@ struct pl022 {
 	char				*dummypage;
 	bool				dma_running;
 #endif
+	int cur_cs;
+	int *chipselects;
 };
 
 /**
@@ -431,6 +436,14 @@ struct chip_data {
 static void null_cs_control(u32 command)
 {
 	pr_debug("pl022: dummy chip select control, CS=0x%x\n", command);
+}
+
+static void pl022_cs_control(struct pl022 *pl022, u32 command)
+{
+	if (gpio_is_valid(pl022->cur_cs))
+		gpio_set_value(pl022->cur_cs, command);
+	else
+		pl022->cur_chip->cs_control(command);
 }
 
 /**
@@ -479,7 +492,7 @@ static void giveback(struct pl022 *pl022)
 		if (next_msg && next_msg->spi != pl022->cur_msg->spi)
 			next_msg = NULL;
 		if (!next_msg || pl022->cur_msg->state == STATE_ERROR)
-			pl022->cur_chip->cs_control(SSP_CHIP_DESELECT);
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		else
 			pl022->next_msg_cs_active = true;
 
@@ -818,8 +831,7 @@ static void dma_callback(void *data)
 	/* Update total bytes transferred */
 	msg->actual_length += pl022->cur_transfer->len;
 	if (pl022->cur_transfer->cs_change)
-		pl022->cur_chip->
-			cs_control(SSP_CHIP_DESELECT);
+		pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 
 	/* Move to next transfer */
 	msg->state = next_transfer(pl022);
@@ -1252,8 +1264,7 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 		/* Update total bytes transferred */
 		msg->actual_length += pl022->cur_transfer->len;
 		if (pl022->cur_transfer->cs_change)
-			pl022->cur_chip->
-				cs_control(SSP_CHIP_DESELECT);
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		msg->state = next_transfer(pl022);
 		tasklet_schedule(&pl022->pump_transfers);
@@ -1338,7 +1349,7 @@ static void pump_transfers(unsigned long data)
 
 		/* Reselect chip select only if cs_change was requested */
 		if (previous->cs_change)
-			pl022->cur_chip->cs_control(SSP_CHIP_SELECT);
+			pl022_cs_control(pl022, SSP_CHIP_SELECT);
 	} else {
 		/* STATE_START */
 		message->state = STATE_RUNNING;
@@ -1377,7 +1388,7 @@ static void do_interrupt_dma_transfer(struct pl022 *pl022)
 
 	/* Enable target chip, if not already active */
 	if (!pl022->next_msg_cs_active)
-		pl022->cur_chip->cs_control(SSP_CHIP_SELECT);
+		pl022_cs_control(pl022, SSP_CHIP_SELECT);
 
 	if (set_up_next_transfer(pl022, pl022->cur_transfer)) {
 		/* Error path */
@@ -1429,12 +1440,12 @@ static void do_polling_transfer(struct pl022 *pl022)
 			if (previous->delay_usecs)
 				udelay(previous->delay_usecs);
 			if (previous->cs_change)
-				pl022->cur_chip->cs_control(SSP_CHIP_SELECT);
+				pl022_cs_control(pl022, SSP_CHIP_SELECT);
 		} else {
 			/* STATE_START */
 			message->state = STATE_RUNNING;
 			if (!pl022->next_msg_cs_active)
-				pl022->cur_chip->cs_control(SSP_CHIP_SELECT);
+				pl022_cs_control(pl022, SSP_CHIP_SELECT);
 		}
 
 		/* Configuration Changing Per Transfer */
@@ -1466,7 +1477,7 @@ static void do_polling_transfer(struct pl022 *pl022)
 		/* Update total byte transferred */
 		message->actual_length += pl022->cur_transfer->len;
 		if (pl022->cur_transfer->cs_change)
-			pl022->cur_chip->cs_control(SSP_CHIP_DESELECT);
+			pl022_cs_control(pl022, SSP_CHIP_DESELECT);
 		/* Move to next transfer */
 		message->state = next_transfer(pl022);
 	}
@@ -1495,6 +1506,7 @@ static int pl022_transfer_one_message(struct spi_master *master,
 
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(msg->spi);
+	pl022->cur_cs = pl022->chipselects[msg->spi->chip_select];
 
 	restore_state(pl022);
 	flush(pl022);
@@ -1840,8 +1852,9 @@ static int pl022_setup(struct spi_device *spi)
 	chip->xfer_type = chip_info->com_mode;
 	if (!chip_info->cs_control) {
 		chip->cs_control = null_cs_control;
-		dev_warn(&spi->dev,
-			 "chip select function is NULL for this chip\n");
+		if (!gpio_is_valid(pl022->chipselects[spi->chip_select]))
+			dev_warn(&spi->dev,
+				 "invalid chip select\n");
 	} else
 		chip->cs_control = chip_info->cs_control;
 
@@ -1993,7 +2006,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
-	int status = 0;
+	int status = 0, i;
 
 	dev_info(&adev->dev,
 		 "ARM PL022 driver, device ID: 0x%08x\n", adev->periphid);
@@ -2004,7 +2017,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Allocate master with space for data */
-	master = spi_alloc_master(dev, sizeof(struct pl022));
+	master = spi_alloc_master(dev, sizeof(struct pl022) + sizeof(int) *
+				  platform_info->num_chipselect);
 	if (master == NULL) {
 		dev_err(&adev->dev, "probe - cannot alloc SPI master\n");
 		status = -ENOMEM;
@@ -2016,6 +2030,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->master_info = platform_info;
 	pl022->adev = adev;
 	pl022->vendor = id->data;
+	/* Point chipselects to allocated memory beyond the main struct */
+	pl022->chipselects = (int *) pl022 + sizeof(struct pl022);
 
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
@@ -2029,6 +2045,10 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->transfer_one_message = pl022_transfer_one_message;
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
+
+	if (platform_info->num_chipselect && platform_info->chipselects)
+		for (i = 0; i < platform_info->num_chipselect; i++)
+			pl022->chipselects[i] = platform_info->chipselects[i];
 
 	/*
 	 * Supports mode 0-3, loopback, and active low CS. Transfers are
