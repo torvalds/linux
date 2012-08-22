@@ -1671,18 +1671,22 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 
 	BUG_ON(cinfo->fint < dsi->fint_min || cinfo->fint > dsi->fint_max);
 
+	l = dsi_read_reg(dsidev, DSI_PLL_CONFIGURATION2);
+
 	if (dss_has_feature(FEAT_DSI_PLL_FREQSEL)) {
 		f = cinfo->fint < 1000000 ? 0x3 :
 			cinfo->fint < 1250000 ? 0x4 :
 			cinfo->fint < 1500000 ? 0x5 :
 			cinfo->fint < 1750000 ? 0x6 :
 			0x7;
+
+		l = FLD_MOD(l, f, 4, 1);	/* DSI_PLL_FREQSEL */
+	} else if (dss_has_feature(FEAT_DSI_PLL_SELFREQDCO)) {
+		f = cinfo->clkin4ddr < 1000000000 ? 0x2 : 0x4;
+
+		l = FLD_MOD(l, f, 4, 1);	/* PLL_SELFREQDCO */
 	}
 
-	l = dsi_read_reg(dsidev, DSI_PLL_CONFIGURATION2);
-
-	if (dss_has_feature(FEAT_DSI_PLL_FREQSEL))
-		l = FLD_MOD(l, f, 4, 1);	/* DSI_PLL_FREQSEL */
 	l = FLD_MOD(l, 1, 13, 13);		/* DSI_PLL_REFEN */
 	l = FLD_MOD(l, 0, 14, 14);		/* DSIPHY_CLKINEN */
 	l = FLD_MOD(l, 1, 20, 20);		/* DSI_HSDIVBYPASS */
