@@ -2522,29 +2522,29 @@ qla24xx_intr_handler(int irq, void *dev_id)
 			break;
 
 		switch (stat & 0xff) {
-		case 0x1:
-		case 0x2:
-		case 0x10:
-		case 0x11:
+		case INTR_ROM_MB_SUCCESS:
+		case INTR_ROM_MB_FAILED:
+		case INTR_MB_SUCCESS:
+		case INTR_MB_FAILED:
 			qla24xx_mbx_completion(vha, MSW(stat));
 			status |= MBX_INTERRUPT;
 
 			break;
-		case 0x12:
+		case INTR_ASYNC_EVENT:
 			mb[0] = MSW(stat);
 			mb[1] = RD_REG_WORD(&reg->mailbox1);
 			mb[2] = RD_REG_WORD(&reg->mailbox2);
 			mb[3] = RD_REG_WORD(&reg->mailbox3);
 			qla2x00_async_event(vha, rsp, mb);
 			break;
-		case 0x13:
-		case 0x14:
+		case INTR_RSP_QUE_UPDATE:
+		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
-		case 0x1C: /* ATIO queue updated */
+		case INTR_ATIO_QUE_UPDATE:
 			qlt_24xx_process_atio_queue(vha);
 			break;
-		case 0x1D: /* ATIO and response queues updated */
+		case INTR_ATIO_RSP_QUE_UPDATE:
 			qlt_24xx_process_atio_queue(vha);
 			qla24xx_process_response_queue(vha, rsp);
 			break;
@@ -2673,29 +2673,29 @@ qla24xx_msix_default(int irq, void *dev_id)
 			break;
 
 		switch (stat & 0xff) {
-		case 0x1:
-		case 0x2:
-		case 0x10:
-		case 0x11:
+		case INTR_ROM_MB_SUCCESS:
+		case INTR_ROM_MB_FAILED:
+		case INTR_MB_SUCCESS:
+		case INTR_MB_FAILED:
 			qla24xx_mbx_completion(vha, MSW(stat));
 			status |= MBX_INTERRUPT;
 
 			break;
-		case 0x12:
+		case INTR_ASYNC_EVENT:
 			mb[0] = MSW(stat);
 			mb[1] = RD_REG_WORD(&reg->mailbox1);
 			mb[2] = RD_REG_WORD(&reg->mailbox2);
 			mb[3] = RD_REG_WORD(&reg->mailbox3);
 			qla2x00_async_event(vha, rsp, mb);
 			break;
-		case 0x13:
-		case 0x14:
+		case INTR_RSP_QUE_UPDATE:
+		case INTR_RSP_QUE_UPDATE_83XX:
 			qla24xx_process_response_queue(vha, rsp);
 			break;
-		case 0x1C: /* ATIO queue updated */
+		case INTR_ATIO_QUE_UPDATE:
 			qlt_24xx_process_atio_queue(vha);
 			break;
-		case 0x1D: /* ATIO and response queues updated */
+		case INTR_ATIO_RSP_QUE_UPDATE:
 			qlt_24xx_process_atio_queue(vha);
 			qla24xx_process_response_queue(vha, rsp);
 			break;

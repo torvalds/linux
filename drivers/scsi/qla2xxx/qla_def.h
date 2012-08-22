@@ -675,6 +675,17 @@ typedef struct {
 /* 83XX FCoE specific */
 #define MBA_IDC_AEN		0x8200  /* FCoE: NIC Core state change AEN */
 
+/* Interrupt type codes */
+#define INTR_ROM_MB_SUCCESS		0x1
+#define INTR_ROM_MB_FAILED		0x2
+#define INTR_MB_SUCCESS			0x10
+#define INTR_MB_FAILED			0x11
+#define INTR_ASYNC_EVENT		0x12
+#define INTR_RSP_QUE_UPDATE		0x13
+#define INTR_RSP_QUE_UPDATE_83XX	0x14
+#define INTR_ATIO_QUE_UPDATE		0x1C
+#define INTR_ATIO_RSP_QUE_UPDATE	0x1D
+
 /* ISP mailbox loopback echo diagnostic error code */
 #define MBS_LB_RESET	0x17
 /*
