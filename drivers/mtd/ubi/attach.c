@@ -975,7 +975,7 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			return err;
 		goto adjust_mean_ec;
 	case UBI_IO_FF:
-		if (ec_err)
+		if (ec_err || bitflips)
 			err = add_to_list(ai, pnum, UBI_UNKNOWN,
 					  UBI_UNKNOWN, ec, 1, &ai->erase);
 		else
