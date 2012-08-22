@@ -530,13 +530,13 @@ done_unmap_sg:
 done:
 	return rval;
 }
-
-/* Set the port configuration to enable the
- * internal loopback on ISP81XX
+/*
+ * Set the port configuration to enable the internal or external loopback
+ * depending on the loopback mode.
  */
 static inline int
-qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
-    uint16_t *new_config)
+qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
+	uint16_t *new_config, uint16_t mode)
 {
 	int ret = 0;
 	int rval = 0;
@@ -545,8 +545,14 @@ qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	if (!IS_QLA81XX(ha) && !IS_QLA8031(ha))
 		goto done_set_internal;
 
-	new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
-	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3) ;
+	if (mode == INTERNAL_LOOPBACK)
+		new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
+	else if (mode == EXTERNAL_LOOPBACK)
+		new_config[0] = config[0] | (ENABLE_EXTERNAL_LOOPBACK << 1);
+	ql_dbg(ql_dbg_user, vha, 0x70be,
+	     "new_config[0]=%02x\n", (new_config[0] & INTERNAL_LOOPBACK_MASK));
+
+	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3);
 
 	ha->notify_dcbx_comp = 1;
 	ret = qla81xx_set_port_config(vha, new_config);
@@ -572,11 +578,9 @@ done_set_internal:
 	return rval;
 }
 
-/* Set the port configuration to disable the
- * internal loopback on ISP81XX
- */
+/* Disable loopback mode */
 static inline int
-qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
+qla81xx_reset_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
     int wait)
 {
 	int ret = 0;
@@ -589,8 +593,12 @@ qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 
 	memset(new_config, 0 , sizeof(new_config));
 	if ((config[0] & INTERNAL_LOOPBACK_MASK) >> 1 ==
-			ENABLE_INTERNAL_LOOPBACK) {
+	    ENABLE_INTERNAL_LOOPBACK ||
+	    (config[0] & INTERNAL_LOOPBACK_MASK) >> 1 ==
+	    ENABLE_EXTERNAL_LOOPBACK) {
 		new_config[0] = config[0] & ~INTERNAL_LOOPBACK_MASK;
+		ql_dbg(ql_dbg_user, vha, 0x70bf, "new_config[0]=%02x\n",
+		    (new_config[0] & INTERNAL_LOOPBACK_MASK));
 		memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3) ;
 
 		ha->notify_dcbx_comp = wait;
@@ -707,7 +715,8 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
 
-	if ((ha->current_topology == ISP_CFG_F ||
+	if (atomic_read(&vha->loop_state) == LOOP_READY &&
+	    (ha->current_topology == ISP_CFG_F ||
 	    ((IS_QLA81XX(ha) || IS_QLA8031(ha)) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
@@ -729,30 +738,24 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 				goto done_free_dma_req;
 			}
 
-			if (elreq.options != EXTERNAL_LOOPBACK) {
-				ql_dbg(ql_dbg_user, vha, 0x7020,
-				    "Internal: current port config = %x\n",
-				    config[0]);
-				if (qla81xx_set_internal_loopback(vha, config,
-					new_config)) {
-					ql_log(ql_log_warn, vha, 0x7024,
-					    "Internal loopback failed.\n");
-					bsg_job->reply->result =
-						(DID_ERROR << 16);
-					rval = -EPERM;
-					goto done_free_dma_req;
-				}
-			} else {
-				/* For external loopback to work
-				 * ensure internal loopback is disabled
-				 */
-				if (qla81xx_reset_internal_loopback(vha,
-					config, 1)) {
-					bsg_job->reply->result =
-						(DID_ERROR << 16);
-					rval = -EPERM;
-					goto done_free_dma_req;
-				}
+			ql_dbg(ql_dbg_user, vha, 0x70c0,
+			    "elreq.options=%04x\n", elreq.options);
+
+			if (elreq.options == EXTERNAL_LOOPBACK)
+				if (IS_QLA8031(ha))
+					rval = qla81xx_set_loopback_mode(vha,
+					    config, new_config, elreq.options);
+				else
+					rval = qla81xx_reset_loopback_mode(vha,
+					    config, 1);
+			else
+				rval = qla81xx_set_loopback_mode(vha, config,
+				    new_config, elreq.options);
+
+			if (rval) {
+				bsg_job->reply->result = (DID_ERROR << 16);
+				rval = -EPERM;
+				goto done_free_dma_req;
 			}
 
 			type = "FC_BSG_HST_VENDOR_LOOPBACK";
@@ -766,7 +769,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 				/* Revert back to original port config
 				 * Also clear internal loopback
 				 */
-				qla81xx_reset_internal_loopback(vha,
+				qla81xx_reset_loopback_mode(vha,
 				    new_config, 0);
 			}
 

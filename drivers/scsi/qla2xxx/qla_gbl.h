@@ -48,7 +48,7 @@ extern void qla2x00_update_fcports(scsi_qla_host_t *);
 
 extern int qla2x00_abort_isp(scsi_qla_host_t *);
 extern void qla2x00_abort_isp_cleanup(scsi_qla_host_t *);
-extern void qla82xx_quiescent_state_cleanup(scsi_qla_host_t *);
+extern void qla2x00_quiesce_io(scsi_qla_host_t *);
 
 extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 

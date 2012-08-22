@@ -4513,14 +4513,21 @@ qla2x00_do_dpc(void *data)
 		if (test_bit(ISP_QUIESCE_NEEDED, &base_vha->dpc_flags)) {
 			ql_dbg(ql_dbg_dpc, base_vha, 0x4009,
 			    "Quiescence mode scheduled.\n");
-			qla82xx_device_state_handler(base_vha);
-			clear_bit(ISP_QUIESCE_NEEDED, &base_vha->dpc_flags);
-			if (!ha->flags.quiesce_owner) {
-				qla2x00_perform_loop_resync(base_vha);
+			if (IS_QLA82XX(ha)) {
+				qla82xx_device_state_handler(base_vha);
+				clear_bit(ISP_QUIESCE_NEEDED,
+				    &base_vha->dpc_flags);
+				if (!ha->flags.quiesce_owner) {
+					qla2x00_perform_loop_resync(base_vha);
 
-				qla82xx_idc_lock(ha);
-				qla82xx_clear_qsnt_ready(base_vha);
-				qla82xx_idc_unlock(ha);
+					qla82xx_idc_lock(ha);
+					qla82xx_clear_qsnt_ready(base_vha);
+					qla82xx_idc_unlock(ha);
+				}
+			} else {
+				clear_bit(ISP_QUIESCE_NEEDED,
+				    &base_vha->dpc_flags);
+				qla2x00_quiesce_io(base_vha);
 			}
 			ql_dbg(ql_dbg_dpc, base_vha, 0x400a,
 			    "Quiescence mode end.\n");

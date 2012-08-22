@@ -2939,7 +2939,7 @@ qla82xx_need_qsnt_handler(scsi_qla_host_t *vha)
 
 	if (vha->flags.online) {
 		/*Block any further I/O and wait for pending cmnds to complete*/
-		qla82xx_quiescent_state_cleanup(vha);
+		qla2x00_quiesce_io(vha);
 	}
 
 	/* Set the quiescence ready bit */

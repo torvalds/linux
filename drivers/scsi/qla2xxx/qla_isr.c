@@ -295,14 +295,16 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 	    event[aen & 0xff], mb[0], mb[1], mb[2], mb[3],
 	    mb[4], mb[5], mb[6]);
 
-	/* Acknowledgement needed? [Notify && non-zero timeout]. */
-	timeout = (descr >> 8) & 0xf;
-	if (aen != MBA_IDC_NOTIFY || !timeout)
-		return;
+	if (IS_QLA81XX(vha->hw)) {
+		/* Acknowledgement needed? [Notify && non-zero timeout]. */
+		timeout = (descr >> 8) & 0xf;
+		if (aen != MBA_IDC_NOTIFY || !timeout)
+			return;
 
-	ql_dbg(ql_dbg_async, vha, 0x5022,
-	    "%lu Inter-Driver Communication %s -- ACK timeout=%d.\n",
-	    vha->host_no, event[aen & 0xff], timeout);
+		ql_dbg(ql_dbg_async, vha, 0x5022,
+		    "%lu Inter-Driver Communication %s -- ACK timeout=%d.\n",
+		    vha->host_no, event[aen & 0xff], timeout);
+	}
 
 	rval = qla2x00_post_idc_ack_work(vha, mb);
 	if (rval != QLA_SUCCESS)
@@ -982,8 +984,17 @@ skip_rio:
 		    "FCF Configuration Error -- %04x %04x %04x.\n",
 		    mb[1], mb[2], mb[3]);
 		break;
-	case MBA_IDC_COMPLETE:
 	case MBA_IDC_NOTIFY:
+		/* See if we need to quiesce any I/O */
+		if (IS_QLA8031(vha->hw))
+			if ((mb[2] & 0x7fff) == MBC_PORT_RESET ||
+			    (mb[2] & 0x7fff) == MBC_SET_PORT_CONFIG) {
+				set_bit(ISP_QUIESCE_NEEDED, &vha->dpc_flags);
+				/* Ack that we have quiesced I/O */
+				qla81xx_idc_event(vha, mb[0], mb[1]);
+				qla2xxx_wake_dpc(vha);
+			}
+	case MBA_IDC_COMPLETE:
 	case MBA_IDC_TIME_EXT:
 		if (IS_QLA81XX(vha->hw))
 			qla81xx_idc_event(vha, mb[0], mb[1]);
