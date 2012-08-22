@@ -339,6 +339,21 @@ static void sh7372_enter_a3sm_common(int pllc0_on)
 	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
 	sh7372_enter_sysc(pllc0_on, 1 << 12);
 }
+
+static void sh7372_enter_a4s_common(int pllc0_on)
+{
+	sh7372_intca_suspend();
+	sh7372_set_reset_vector(SMFRAM);
+	sh7372_enter_sysc(pllc0_on, 1 << 10);
+	sh7372_intca_resume();
+}
+
+static void sh7372_pm_setup_smfram(void)
+{
+	memcpy((void *)SMFRAM, sh7372_resume_core_standby_sysc, 0x100);
+}
+#else
+static inline void sh7372_pm_setup_smfram(void) {}
 #endif /* CONFIG_SUSPEND || CONFIG_CPU_IDLE */
 
 #ifdef CONFIG_CPU_IDLE
@@ -378,11 +393,24 @@ static int sh7372_enter_a3sm_pll_off(struct cpuidle_device *dev,
 	return 3;
 }
 
+static int sh7372_enter_a4s(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv, int index)
+{
+	unsigned long msk, msk2;
+
+	if (!sh7372_sysc_valid(&msk, &msk2))
+		return sh7372_enter_a3sm_pll_off(dev, drv, index);
+
+	sh7372_setup_sysc(msk, msk2);
+	sh7372_enter_a4s_common(0);
+	return 4;
+}
+
 static struct cpuidle_driver sh7372_cpuidle_driver = {
 	.name			= "sh7372_cpuidle",
 	.owner			= THIS_MODULE,
 	.en_core_tk_irqen	= 1,
-	.state_count		= 4,
+	.state_count		= 5,
 	.safe_state_index	= 0, /* C1 */
 	.states[0] = ARM_CPUIDLE_WFI_STATE,
 	.states[0].enter = shmobile_enter_wfi,
@@ -410,6 +438,15 @@ static struct cpuidle_driver sh7372_cpuidle_driver = {
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.enter = sh7372_enter_a3sm_pll_off,
 	},
+	.states[4] = {
+		.name = "C5",
+		.desc = "A4S PLL OFF",
+		.exit_latency = 240,
+		.target_residency = 30 + 240,
+		.flags = CPUIDLE_FLAG_TIME_VALID,
+		.enter = sh7372_enter_a4s,
+		.disabled = true,
+	},
 };
 
 static void sh7372_cpuidle_init(void)
@@ -421,15 +458,6 @@ static void sh7372_cpuidle_init(void) {}
 #endif
 
 #ifdef CONFIG_SUSPEND
-static void sh7372_enter_a4s_common(int pllc0_on)
-{
-	sh7372_intca_suspend();
-	memcpy((void *)SMFRAM, sh7372_resume_core_standby_sysc, 0x100);
-	sh7372_set_reset_vector(SMFRAM);
-	sh7372_enter_sysc(pllc0_on, 1 << 10);
-	sh7372_intca_resume();
-}
-
 static int sh7372_enter_suspend(suspend_state_t suspend_state)
 {
 	unsigned long msk, msk2;
@@ -497,6 +525,14 @@ void __init sh7372_pm_init(void)
 	/* do not convert A3SM, A3SP, A3SG, A4R power down into A4S */
 	__raw_writel(0, PDNSEL);
 
+	sh7372_pm_setup_smfram();
+
 	sh7372_suspend_init();
 	sh7372_cpuidle_init();
+}
+
+void __init sh7372_pm_init_late(void)
+{
+	shmobile_init_late();
+	pm_genpd_name_attach_cpuidle("A4S", 4);
 }

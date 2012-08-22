@@ -489,4 +489,6 @@ extern void __init sh7372_init_pm_domains(void);
 static inline void sh7372_init_pm_domains(void) {}
 #endif
 
+extern void __init sh7372_pm_init_late(void);
+
 #endif /* __ASM_SH7372_H__ */
