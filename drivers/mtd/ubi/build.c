@@ -940,7 +940,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("number of PEBs reserved for bad PEB handling: %d",
 		ubi->beb_rsvd_pebs);
 	ubi_msg("max/mean erase counter: %d/%d", ubi->max_ec, ubi->mean_ec);
-	ubi_msg("image sequence number:  %d", ubi->image_seq);
+	ubi_msg("image sequence number:  %u", ubi->image_seq);
 
 	/*
 	 * The below lock makes sure we do not race with 'ubi_thread()' which
