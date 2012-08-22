@@ -14,6 +14,14 @@
 
 #define TRKID_SGN	((TRKID_MAX + 1) >> 1)
 
+static void copy_abs(struct input_dev *dev, unsigned int dst, unsigned int src)
+{
+	if (dev->absinfo && test_bit(src, dev->absbit)) {
+		dev->absinfo[dst] = dev->absinfo[src];
+		dev->absbit[BIT_WORD(dst)] |= BIT_MASK(dst);
+	}
+}
+
 /**
  * input_mt_init_slots() - initialize MT input slots
  * @dev: input device supporting MT events and finger tracking
@@ -44,6 +52,28 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 	mt->flags = flags;
 	input_set_abs_params(dev, ABS_MT_SLOT, 0, num_slots - 1, 0, 0);
 	input_set_abs_params(dev, ABS_MT_TRACKING_ID, 0, TRKID_MAX, 0, 0);
+
+	if (flags & (INPUT_MT_POINTER | INPUT_MT_DIRECT)) {
+		__set_bit(EV_KEY, dev->evbit);
+		__set_bit(BTN_TOUCH, dev->keybit);
+
+		copy_abs(dev, ABS_X, ABS_MT_POSITION_X);
+		copy_abs(dev, ABS_Y, ABS_MT_POSITION_Y);
+		copy_abs(dev, ABS_PRESSURE, ABS_MT_PRESSURE);
+	}
+	if (flags & INPUT_MT_POINTER) {
+		__set_bit(BTN_TOOL_FINGER, dev->keybit);
+		__set_bit(BTN_TOOL_DOUBLETAP, dev->keybit);
+		if (num_slots >= 3)
+			__set_bit(BTN_TOOL_TRIPLETAP, dev->keybit);
+		if (num_slots >= 4)
+			__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
+		if (num_slots >= 5)
+			__set_bit(BTN_TOOL_QUINTTAP, dev->keybit);
+		__set_bit(INPUT_PROP_POINTER, dev->propbit);
+	}
+	if (flags & INPUT_MT_DIRECT)
+		__set_bit(INPUT_PROP_DIRECT, dev->propbit);
 
 	/* Mark slots as 'unused' */
 	for (i = 0; i < num_slots; i++)
@@ -87,12 +117,17 @@ void input_mt_report_slot_state(struct input_dev *dev,
 	struct input_mt_slot *slot;
 	int id;
 
-	if (!mt || !active) {
+	if (!mt)
+		return;
+
+	slot = &mt->slots[mt->slot];
+	slot->frame = mt->frame;
+
+	if (!active) {
 		input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
 		return;
 	}
 
-	slot = &mt->slots[mt->slot];
 	id = input_mt_get_value(slot, ABS_MT_TRACKING_ID);
 	if (id < 0 || input_mt_get_value(slot, ABS_MT_TOOL_TYPE) != tool_type)
 		id = input_mt_new_trkid(mt);
@@ -177,3 +212,34 @@ void input_mt_report_pointer_emulation(struct input_dev *dev, bool use_count)
 	}
 }
 EXPORT_SYMBOL(input_mt_report_pointer_emulation);
+
+/**
+ * input_mt_sync_frame() - synchronize mt frame
+ * @dev: input device with allocated MT slots
+ *
+ * Close the frame and prepare the internal state for a new one.
+ * Depending on the flags, marks unused slots as inactive and performs
+ * pointer emulation.
+ */
+void input_mt_sync_frame(struct input_dev *dev)
+{
+	struct input_mt *mt = dev->mt;
+	struct input_mt_slot *s;
+
+	if (!mt)
+		return;
+
+	if (mt->flags & INPUT_MT_DROP_UNUSED) {
+		for (s = mt->slots; s != mt->slots + mt->num_slots; s++) {
+			if (s->frame == mt->frame)
+				continue;
+			input_mt_slot(dev, s - mt->slots);
+			input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
+		}
+	}
+
+	input_mt_report_pointer_emulation(dev, (mt->flags & INPUT_MT_POINTER));
+
+	mt->frame++;
+}
+EXPORT_SYMBOL(input_mt_sync_frame);
