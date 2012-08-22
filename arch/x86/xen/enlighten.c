@@ -998,66 +998,7 @@ static int xen_write_msr_safe(unsigned int msr, unsigned low, unsigned high)
 
 	return ret;
 }
-/*
- * If the MFN is not in the m2p (provided to us by the hypervisor) this
- * function won't do anything. In practice this means that the XenBus
- * MFN won't be available for the initial domain. */
-static unsigned long __init xen_reserve_mfn(unsigned long mfn)
-{
-	unsigned long pfn, end_pfn = 0;
 
-	if (!mfn)
-		return end_pfn;
-
-	pfn = mfn_to_pfn(mfn);
-	if (phys_to_machine_mapping_valid(pfn)) {
-		end_pfn = PFN_PHYS(pfn) + PAGE_SIZE;
-		memblock_reserve(PFN_PHYS(pfn), end_pfn);
-	}
-	return end_pfn;
-}
-static void __init xen_reserve_internals(void)
-{
-	unsigned long size;
-	unsigned long last_phys = 0;
-
-	if (!xen_pv_domain())
-		return;
-
-	/* xen_start_info does not exist in the M2P, hence can't use
-	 * xen_reserve_mfn. */
-	memblock_reserve(__pa(xen_start_info), PAGE_SIZE);
-	last_phys = __pa(xen_start_info) + PAGE_SIZE;
-
-	last_phys = max(xen_reserve_mfn(PFN_DOWN(xen_start_info->shared_info)), last_phys);
-	last_phys = max(xen_reserve_mfn(xen_start_info->store_mfn), last_phys);
-
-	if (!xen_initial_domain())
-		last_phys = max(xen_reserve_mfn(xen_start_info->console.domU.mfn), last_phys);
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
-	/*
-	 * ALIGN up to compensate for the p2m_page pointing to an array that
-	 * can partially filled (look in xen_build_dynamic_phys_to_machine).
-	 */
-
-	size = PAGE_ALIGN(xen_start_info->nr_pages * sizeof(unsigned long));
-
-	/* We could use xen_reserve_mfn here, but would end up looping quite
-	 * a lot (and call memblock_reserve for each PAGE), so lets just use
-	 * the easy way and reserve it wholesale. */
-	memblock_reserve(__pa(xen_start_info->mfn_list), size);
-	last_phys = max(__pa(xen_start_info->mfn_list) + size, last_phys);
-	/* The pagetables are reserved in mmu.c */
-
-	/* Under 64-bit hypervisor with a 32-bit domain, the hypervisor
-	 * offsets the pt_base by two pages. Hence the reservation that is done
-	 * in mmu.c misses two pages. We correct it here if we detect this. */
-	if (last_phys < __pa(xen_start_info->pt_base))
-		memblock_reserve(last_phys, __pa(xen_start_info->pt_base) - last_phys);
-}
 void xen_setup_shared_info(void)
 {
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
@@ -1421,7 +1362,6 @@ asmlinkage void __init xen_start_kernel(void)
 	xen_raw_console_write("mapping kernel into physical memory\n");
 	pgd = xen_setup_kernel_pagetable(pgd, xen_start_info->nr_pages);
 
-	xen_reserve_internals();
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
 
