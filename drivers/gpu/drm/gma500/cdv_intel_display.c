@@ -1127,8 +1127,8 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 /*		dpll |= PLL_REF_INPUT_DREFCLK; */
 
-	if (is_dp) {
-/*FIXME		cdv_intel_dp_set_m_n(crtc, mode, adjusted_mode); */
+	if (is_dp || is_edp) {
+		cdv_intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	} else {
 		REG_WRITE(PIPE_GMCH_DATA_M(pipe), 0);
 		REG_WRITE(PIPE_GMCH_DATA_N(pipe), 0);
