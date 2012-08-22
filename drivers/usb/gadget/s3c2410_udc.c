@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/prefetch.h>
+#include <linux/io.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -35,7 +36,6 @@
 #include <linux/usb/gadget.h>
 
 #include <asm/byteorder.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/unaligned.h>
 #include <mach/irqs.h>
