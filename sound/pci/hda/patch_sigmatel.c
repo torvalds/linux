@@ -4418,8 +4418,6 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac_toggle_power_map(codec, nid, 0);
 	}
 
-	snd_hda_jack_report_sync(codec);
-
 	/* sync mute LED */
 	if (spec->gpio_led) {
 		if (spec->vmaster_mute.hook)

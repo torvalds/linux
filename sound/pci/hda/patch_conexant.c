@@ -4061,7 +4061,6 @@ static int cx_auto_init(struct hda_codec *codec)
 	cx_auto_init_output(codec);
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);
-	snd_hda_jack_report_sync(codec);
 	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 	return 0;
 }

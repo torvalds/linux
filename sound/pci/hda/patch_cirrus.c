@@ -1193,7 +1193,6 @@ static int cs_init(struct hda_codec *codec)
 	init_output(codec);
 	init_input(codec);
 	init_digital(codec);
-	snd_hda_jack_report_sync(codec);
 
 	return 0;
 }
@@ -1643,7 +1642,6 @@ static int cs421x_init(struct hda_codec *codec)
 	init_output(codec);
 	init_input(codec);
 	init_cs421x_digital(codec);
-	snd_hda_jack_report_sync(codec);
 
 	return 0;
 }

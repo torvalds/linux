@@ -2053,8 +2053,6 @@ static int alc_init(struct hda_codec *codec)
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_INIT);
 
-	snd_hda_jack_report_sync(codec);
-
 	hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
