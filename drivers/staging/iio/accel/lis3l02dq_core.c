@@ -392,7 +392,7 @@ static int lis3l02dq_initial_setup(struct iio_dev *indio_dev)
 		dev_err(&st->us->dev, "problem with setup control register 1");
 		goto err_ret;
 	}
-	/* Repeat as sometimes doesn't work first time?*/
+	/* Repeat as sometimes doesn't work first time? */
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					val);
@@ -686,7 +686,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	/* this is only used tor removal purposes */
+	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 
 	st->us = spi;

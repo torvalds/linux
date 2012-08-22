@@ -28,7 +28,7 @@
 /* Control Register (1 of 2) */
 #define LIS3L02DQ_REG_CTRL_1_ADDR		0x20
 /* Power ctrl - either bit set corresponds to on*/
-#define LIS3L02DQ_REG_CTRL_1_PD_ON	0xC0
+#define LIS3L02DQ_REG_CTRL_1_PD_ON		0xC0
 
 /* Decimation Factor  */
 #define LIS3L02DQ_DEC_MASK			0x30
@@ -73,14 +73,14 @@
 /* Interrupt related stuff */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_ADDR			0x23
 
-/* Switch from or combination fo conditions to and */
+/* Switch from or combination of conditions to and */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_BOOLEAN_AND		0x80
 
 /* Latch interrupt request,
  * if on ack must be given by reading the ack register */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_LATCH_SRC		0x40
 
-/* Z Interrupt on High (above threshold)*/
+/* Z Interrupt on High (above threshold) */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH	0x20
 /* Z Interrupt on Low */
 #define LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_LOW	0x10
@@ -117,13 +117,13 @@
 #define LIS3L02DQ_REG_STATUS_Y_OVERRUN			0x20
 #define LIS3L02DQ_REG_STATUS_X_OVERRUN			0x10
 /* XYZ new data available - first is all 3 available? */
-#define LIS3L02DQ_REG_STATUS_XYZ_NEW_DATA 0x08
+#define LIS3L02DQ_REG_STATUS_XYZ_NEW_DATA		0x08
 #define LIS3L02DQ_REG_STATUS_Z_NEW_DATA			0x04
 #define LIS3L02DQ_REG_STATUS_Y_NEW_DATA			0x02
 #define LIS3L02DQ_REG_STATUS_X_NEW_DATA			0x01
 
 /* The accelerometer readings - low and high bytes.
-Form of high byte dependent on justification set in ctrl reg */
+ * Form of high byte dependent on justification set in ctrl reg */
 #define LIS3L02DQ_REG_OUT_X_L_ADDR			0x28
 #define LIS3L02DQ_REG_OUT_X_H_ADDR			0x29
 #define LIS3L02DQ_REG_OUT_Y_L_ADDR			0x2A
@@ -150,9 +150,9 @@ Form of high byte dependent on justification set in ctrl reg */
  * struct lis3l02dq_state - device instance specific data
  * @us:			actual spi_device
  * @trig:		data ready trigger registered with iio
+ * @buf_lock:		mutex to protect tx and rx
  * @tx:			transmit buffer
  * @rx:			receive buffer
- * @buf_lock:		mutex to protect tx and rx
  **/
 struct lis3l02dq_state {
 	struct spi_device		*us;
