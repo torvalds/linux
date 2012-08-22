@@ -5104,6 +5104,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	init_completion(&ha->disable_acb_comp);
 
 	spin_lock_init(&ha->hardware_lock);
+	spin_lock_init(&ha->work_lock);
 
 	/* Initialize work list */
 	INIT_LIST_HEAD(&ha->work_list);
