@@ -373,11 +373,22 @@ static void unmask_evtchn(int port)
 {
 	struct shared_info *s = HYPERVISOR_shared_info;
 	unsigned int cpu = get_cpu();
+	int do_hypercall = 0, evtchn_pending = 0;
 
 	BUG_ON(!irqs_disabled());
 
-	/* Slow path (hypercall) if this is a non-local port. */
-	if (unlikely(cpu != cpu_from_evtchn(port))) {
+	if (unlikely((cpu != cpu_from_evtchn(port))))
+		do_hypercall = 1;
+	else
+		evtchn_pending = sync_test_bit(port, &s->evtchn_pending[0]);
+
+	if (unlikely(evtchn_pending && xen_hvm_domain()))
+		do_hypercall = 1;
+
+	/* Slow path (hypercall) if this is a non-local port or if this is
+	 * an hvm domain and an event is pending (hvm domains don't have
+	 * their own implementation of irq_enable). */
+	if (do_hypercall) {
 		struct evtchn_unmask unmask = { .port = port };
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
 	} else {
@@ -390,7 +401,7 @@ static void unmask_evtchn(int port)
 		 * 'hw_resend_irq'. Just like a real IO-APIC we 'lose
 		 * the interrupt edge' if the channel is masked.
 		 */
-		if (sync_test_bit(port, &s->evtchn_pending[0]) &&
+		if (evtchn_pending &&
 		    !sync_test_and_set_bit(port / BITS_PER_LONG,
 					   &vcpu_info->evtchn_pending_sel))
 			vcpu_info->evtchn_upcall_pending = 1;
