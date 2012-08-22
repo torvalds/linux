@@ -19,6 +19,8 @@
 #define QL_VND_SET_FRU_VERSION	0x0B
 #define QL_VND_READ_FRU_STATUS	0x0C
 #define QL_VND_WRITE_FRU_STATUS	0x0D
+#define QL_VND_WRITE_I2C	0x10
+#define QL_VND_READ_I2C		0x11
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -181,6 +183,14 @@ struct qla_status_reg {
 	struct qla_field_address field_address;
 	uint8_t status_reg;
 	uint8_t reserved[7];
+} __packed;
+
+struct qla_i2c_access {
+	uint16_t device;
+	uint16_t offset;
+	uint16_t option;
+	uint16_t length;
+	uint8_t  buffer[0x40];
 } __packed;
 
 #endif
