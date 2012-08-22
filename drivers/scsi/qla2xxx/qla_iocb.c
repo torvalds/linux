@@ -1858,7 +1858,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 	}
 	if (index == MAX_OUTSTANDING_COMMANDS) {
 		ql_log(ql_log_warn, vha, 0x700b,
-		    "No room on oustanding cmd array.\n");
+		    "No room on outstanding cmd array.\n");
 		goto queuing_error;
 	}
 

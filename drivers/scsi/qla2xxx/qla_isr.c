@@ -1414,7 +1414,7 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
 
 struct scsi_dif_tuple {
 	__be16 guard;       /* Checksum */
-	__be16 app_tag;         /* APPL identifer */
+	__be16 app_tag;         /* APPL identifier */
 	__be32 ref_tag;         /* Target LBA or indirect LBA */
 };
 

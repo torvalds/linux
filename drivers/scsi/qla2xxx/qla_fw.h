@@ -1130,7 +1130,7 @@ struct mid_db_entry_24xx {
 /*
  * Virtual Port Control IOCB
  */
-#define VP_CTRL_IOCB_TYPE	0x30	/* Vitual Port Control entry. */
+#define VP_CTRL_IOCB_TYPE	0x30	/* Virtual Port Control entry. */
 struct vp_ctrl_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -1166,7 +1166,7 @@ struct vp_ctrl_entry_24xx {
 /*
  * Modify Virtual Port Configuration IOCB
  */
-#define VP_CONFIG_IOCB_TYPE	0x31	/* Vitual Port Config entry. */
+#define VP_CONFIG_IOCB_TYPE	0x31	/* Virtual Port Config entry. */
 struct vp_config_entry_24xx {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */

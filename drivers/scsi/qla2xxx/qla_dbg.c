@@ -2357,7 +2357,7 @@ ql_dbg(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
 
 /*
  * This function is for formatting and logging debug information.
- * It is to be used when vha is not available and pci is availble,
+ * It is to be used when vha is not available and pci is available,
  * i.e., before host allocation. It formats the message and logs it
  * to the messages file.
  * parameters:
@@ -2452,7 +2452,7 @@ ql_log(uint32_t level, scsi_qla_host_t *vha, int32_t id, const char *fmt, ...)
 
 /*
  * This function is for formatting and logging log messages.
- * It is to be used when vha is not available and pci is availble,
+ * It is to be used when vha is not available and pci is available,
  * i.e., before host allocation. It formats the message and logs
  * it to the messages file. All the messages are logged irrespective
  * of the value of ql2xextended_error_logging.
