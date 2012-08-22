@@ -843,8 +843,7 @@ skip_rio:
 		 * it.  Otherwise ignore it and Wait for RSCN to come in.
 		 */
 		atomic_set(&vha->loop_down_timer, 0);
-		if (atomic_read(&vha->loop_state) != LOOP_DOWN &&
-		    atomic_read(&vha->loop_state) != LOOP_DEAD) {
+		if (mb[1] != 0xffff || (mb[2] != 0x6 && mb[2] != 0x4)) {
 			ql_dbg(ql_dbg_async, vha, 0x5011,
 			    "Asynchronous PORT UPDATE ignored %04x/%04x/%04x.\n",
 			    mb[1], mb[2], mb[3]);
