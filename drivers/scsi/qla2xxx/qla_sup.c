@@ -1662,6 +1662,23 @@ qla24xx_beacon_blink(struct scsi_qla_host *vha)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
+static uint32_t
+qla83xx_select_led_port(struct qla_hw_data *ha)
+{
+	uint32_t led_select_value = 0;
+
+	if (!IS_QLA83XX(ha))
+		goto out;
+
+	if (ha->flags.port0)
+		led_select_value = QLA83XX_LED_PORT0;
+	else
+		led_select_value = QLA83XX_LED_PORT1;
+
+out:
+	return led_select_value;
+}
+
 void
 qla83xx_beacon_blink(struct scsi_qla_host *vha)
 {
@@ -1669,22 +1686,34 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 	struct qla_hw_data *ha = vha->hw;
 	uint16_t led_cfg[6];
 	uint16_t orig_led_cfg[6];
+	uint32_t led_10_value, led_43_value;
 
 	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha))
 		return;
 
-	if (IS_QLA2031(ha) && ha->beacon_blink_led) {
-		if (ha->flags.port0)
-			led_select_value = QLA83XX_LED_PORT0;
-		else
-			led_select_value = QLA83XX_LED_PORT1;
+	if (!ha->beacon_blink_led)
+		return;
+
+	if (IS_QLA2031(ha)) {
+		led_select_value = qla83xx_select_led_port(ha);
 
 		qla83xx_wr_reg(vha, led_select_value, 0x40002000);
 		qla83xx_wr_reg(vha, led_select_value + 4, 0x40002000);
 		msleep(1000);
 		qla83xx_wr_reg(vha, led_select_value, 0x40004000);
 		qla83xx_wr_reg(vha, led_select_value + 4, 0x40004000);
-	} else if ((IS_QLA8031(ha) || IS_QLA81XX(ha)) && ha->beacon_blink_led) {
+	} else if (IS_QLA8031(ha)) {
+		led_select_value = qla83xx_select_led_port(ha);
+
+		qla83xx_rd_reg(vha, led_select_value, &led_10_value);
+		qla83xx_rd_reg(vha, led_select_value + 0x10, &led_43_value);
+		qla83xx_wr_reg(vha, led_select_value, 0x01f44000);
+		msleep(500);
+		qla83xx_wr_reg(vha, led_select_value, 0x400001f4);
+		msleep(1000);
+		qla83xx_wr_reg(vha, led_select_value, led_10_value);
+		qla83xx_wr_reg(vha, led_select_value + 0x10, led_43_value);
+	} else if (IS_QLA81XX(ha)) {
 		int rval;
 
 		/* Save Current */
