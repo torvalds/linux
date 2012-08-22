@@ -4939,6 +4939,10 @@ int e1000_set_spd_dplx(struct e1000_adapter *adapter, u32 spd, u8 dplx)
 	default:
 		goto err_inval;
 	}
+
+	/* clear MDI, MDI(-X) override is only allowed when autoneg enabled */
+	hw->mdix = AUTO_ALL_MODES;
+
 	return 0;
 
 err_inval:
