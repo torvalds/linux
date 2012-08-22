@@ -129,7 +129,7 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 {
 	struct adf4350_platform_data *pdata = st->pdata;
 	u64 tmp;
-	u32 div_gcd, prescaler;
+	u32 div_gcd, prescaler, chspc;
 	u16 mdiv, r_cnt = 0;
 	u8 band_sel_div;
 
@@ -158,14 +158,20 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 	if (pdata->ref_div_factor)
 		r_cnt = pdata->ref_div_factor - 1;
 
-	do  {
-		r_cnt = adf4350_tune_r_cnt(st, r_cnt);
+	chspc = st->chspc;
 
-		st->r1_mod = st->fpfd / st->chspc;
-		while (st->r1_mod > ADF4350_MAX_MODULUS) {
-			r_cnt = adf4350_tune_r_cnt(st, r_cnt);
-			st->r1_mod = st->fpfd / st->chspc;
-		}
+	do  {
+		do {
+			do {
+				r_cnt = adf4350_tune_r_cnt(st, r_cnt);
+				st->r1_mod = st->fpfd / chspc;
+				if (r_cnt > ADF4350_MAX_R_CNT) {
+					/* try higher spacing values */
+					chspc++;
+					r_cnt = 0;
+				}
+			} while ((st->r1_mod > ADF4350_MAX_MODULUS) && r_cnt);
+		} while (r_cnt == 0);
 
 		tmp = freq * (u64)st->r1_mod + (st->fpfd > 1);
 		do_div(tmp, st->fpfd); /* Div round closest (n + d/2)/d */
@@ -194,7 +200,7 @@ static int adf4350_set_freq(struct adf4350_state *st, unsigned long long freq)
 	st->regs[ADF4350_REG0] = ADF4350_REG0_INT(st->r0_int) |
 				 ADF4350_REG0_FRACT(st->r0_fract);
 
-	st->regs[ADF4350_REG1] = ADF4350_REG1_PHASE(0) |
+	st->regs[ADF4350_REG1] = ADF4350_REG1_PHASE(1) |
 				 ADF4350_REG1_MOD(st->r1_mod) |
 				 prescaler;
 

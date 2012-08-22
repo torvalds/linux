@@ -23,6 +23,7 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
+#include <mach/irqs.h>
 
 #include "irq-common.h"
 

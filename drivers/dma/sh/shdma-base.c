@@ -483,6 +483,7 @@ static struct shdma_desc *shdma_add_desc(struct shdma_chan *schan,
 	new->mark = DESC_PREPARED;
 	new->async_tx.flags = flags;
 	new->direction = direction;
+	new->partial = 0;
 
 	*len -= copy_size;
 	if (direction == DMA_MEM_TO_MEM || direction == DMA_MEM_TO_DEV)
@@ -644,6 +645,14 @@ static int shdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	case DMA_TERMINATE_ALL:
 		spin_lock_irqsave(&schan->chan_lock, flags);
 		ops->halt_channel(schan);
+
+		if (ops->get_partial && !list_empty(&schan->ld_queue)) {
+			/* Record partial transfer */
+			struct shdma_desc *desc = list_first_entry(&schan->ld_queue,
+						struct shdma_desc, node);
+			desc->partial = ops->get_partial(schan, desc);
+		}
+
 		spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 		shdma_chan_ld_cleanup(schan, true);

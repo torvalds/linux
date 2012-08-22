@@ -28,6 +28,7 @@ config COLDFIRE
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
 	select GENERIC_CSUM
+	select HAVE_CLK
 
 endchoice
 
@@ -37,6 +38,7 @@ config M68000
 	bool
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_MULDIV64
+	select CPU_HAS_NO_UNALIGNED
 	select GENERIC_CSUM
 	help
 	  The Freescale (was Motorola) 68000 CPU is the first generation of
@@ -48,6 +50,7 @@ config M68000
 config MCPU32
 	bool
 	select CPU_HAS_NO_BITFIELDS
+	select CPU_HAS_NO_UNALIGNED
 	help
 	  The Freescale (was then Motorola) CPU32 is a CPU core that is
 	  based on the 68020 processor. For the most part it is used in
@@ -56,7 +59,6 @@ config MCPU32
 config M68020
 	bool "68020 support"
 	depends on MMU
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68020
@@ -67,7 +69,6 @@ config M68020
 config M68030
 	bool "68030 support"
 	depends on MMU && !MMU_SUN3
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
@@ -77,7 +78,6 @@ config M68030
 config M68040
 	bool "68040 support"
 	depends on MMU && !MMU_SUN3
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
@@ -88,7 +88,6 @@ config M68040
 config M68060
 	bool "68060 support"
 	depends on MMU && !MMU_SUN3
-	select GENERIC_ATOMIC64
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68060
@@ -375,6 +374,18 @@ config NODES_SHIFT
 	int
 	default "3"
 	depends on !SINGLE_MEMORY_CHUNK
+
+config CPU_HAS_NO_BITFIELDS
+	bool
+
+config CPU_HAS_NO_MULDIV64
+	bool
+
+config CPU_HAS_NO_UNALIGNED
+	bool
+
+config CPU_HAS_ADDRESS_SPACES
+	bool
 
 config FPU
 	bool

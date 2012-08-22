@@ -17,6 +17,7 @@
 #include <linux/power_supply.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
+#include <linux/olpc-ec.h>
 #include <asm/olpc.h>
 
 

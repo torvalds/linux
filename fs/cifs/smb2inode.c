@@ -122,3 +122,42 @@ out:
 	kfree(smb2_data);
 	return rc;
 }
+
+int
+smb2_mkdir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	   struct cifs_sb_info *cifs_sb)
+{
+	return smb2_open_op_close(xid, tcon, cifs_sb, name,
+				  FILE_WRITE_ATTRIBUTES, FILE_CREATE, 0,
+				  CREATE_NOT_FILE, NULL, SMB2_OP_MKDIR);
+}
+
+void
+smb2_mkdir_setinfo(struct inode *inode, const char *name,
+		   struct cifs_sb_info *cifs_sb, struct cifs_tcon *tcon,
+		   const unsigned int xid)
+{
+	FILE_BASIC_INFO data;
+	struct cifsInodeInfo *cifs_i;
+	u32 dosattrs;
+	int tmprc;
+
+	memset(&data, 0, sizeof(data));
+	cifs_i = CIFS_I(inode);
+	dosattrs = cifs_i->cifsAttrs | ATTR_READONLY;
+	data.Attributes = cpu_to_le32(dosattrs);
+	tmprc = smb2_open_op_close(xid, tcon, cifs_sb, name,
+				   FILE_WRITE_ATTRIBUTES, FILE_CREATE, 0,
+				   CREATE_NOT_FILE, &data, SMB2_OP_SET_INFO);
+	if (tmprc == 0)
+		cifs_i->cifsAttrs = dosattrs;
+}
+
+int
+smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	   struct cifs_sb_info *cifs_sb)
+{
+	return smb2_open_op_close(xid, tcon, cifs_sb, name, DELETE, FILE_OPEN,
+				  0, CREATE_NOT_FILE | CREATE_DELETE_ON_CLOSE,
+				  NULL, SMB2_OP_DELETE);
+}

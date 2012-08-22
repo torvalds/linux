@@ -46,15 +46,16 @@
 })
 
 #define wait_for_atomic_us(COND, US) ({ \
-	int i, ret__ = -ETIMEDOUT;	\
-	for (i = 0; i < (US); i++) {	\
-		if ((COND)) {		\
-			ret__ = 0;	\
-			break;		\
-		}			\
-		udelay(1);		\
-	}				\
-	ret__;				\
+	unsigned long timeout__ = jiffies + usecs_to_jiffies(US);	\
+	int ret__ = 0;							\
+	while (!(COND)) {						\
+		if (time_after(jiffies, timeout__)) {			\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		cpu_relax();						\
+	}								\
+	ret__;								\
 })
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
@@ -380,7 +381,6 @@ extern void intel_pch_panel_fitting(struct drm_device *dev,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode);
 extern u32 intel_panel_get_max_backlight(struct drm_device *dev);
-extern u32 intel_panel_get_backlight(struct drm_device *dev);
 extern void intel_panel_set_backlight(struct drm_device *dev, u32 level);
 extern int intel_panel_setup_backlight(struct drm_device *dev);
 extern void intel_panel_enable_backlight(struct drm_device *dev,

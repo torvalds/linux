@@ -115,7 +115,7 @@ static __init int exynos_pm_dt_parse_domains(void)
 }
 #endif /* CONFIG_OF */
 
-static __init void exynos_pm_add_dev_to_genpd(struct platform_device *pdev,
+static __init __maybe_unused void exynos_pm_add_dev_to_genpd(struct platform_device *pdev,
 						struct exynos_pm_domain *pd)
 {
 	if (pdev->dev.bus) {

@@ -12,7 +12,7 @@
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  *
- * Contains definitions specific to the Armada 370 SoC that are not
+ * Contains definitions specific to the Armada XP SoC that are not
  * common to all Armada SoCs.
  */
 

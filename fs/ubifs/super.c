@@ -303,7 +303,7 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	mutex_lock(&ui->ui_mutex);
 	/*
 	 * Due to races between write-back forced by budgeting
-	 * (see 'sync_some_inodes()') and pdflush write-back, the inode may
+	 * (see 'sync_some_inodes()') and background write-back, the inode may
 	 * have already been synchronized, do not do this again. This might
 	 * also happen if it was synchronized in an VFS operation, e.g.
 	 * 'ubifs_link()'.

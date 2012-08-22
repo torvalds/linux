@@ -25,6 +25,7 @@
 
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/sh_dma.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
@@ -1410,8 +1411,8 @@ static void work_fn_rx(struct work_struct *work)
 		/* Handle incomplete DMA receive */
 		struct tty_struct *tty = port->state->port.tty;
 		struct dma_chan *chan = s->chan_rx;
-		struct sh_desc *sh_desc = container_of(desc, struct sh_desc,
-						       async_tx);
+		struct shdma_desc *sh_desc = container_of(desc,
+					struct shdma_desc, async_tx);
 		unsigned long flags;
 		int count;
 

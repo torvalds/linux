@@ -76,8 +76,8 @@ huge pages although processes will also directly compact memory as required.
 
 dirty_background_bytes
 
-Contains the amount of dirty memory at which the pdflush background writeback
-daemon will start writeback.
+Contains the amount of dirty memory at which the background kernel
+flusher threads will start writeback.
 
 Note: dirty_background_bytes is the counterpart of dirty_background_ratio. Only
 one of them may be specified at a time. When one sysctl is written it is
@@ -89,7 +89,7 @@ other appears as 0 when read.
 dirty_background_ratio
 
 Contains, as a percentage of total system memory, the number of pages at which
-the pdflush background writeback daemon will start writing out dirty data.
+the background kernel flusher threads will start writing out dirty data.
 
 ==============================================================
 
@@ -112,9 +112,9 @@ retained.
 dirty_expire_centisecs
 
 This tunable is used to define when dirty data is old enough to be eligible
-for writeout by the pdflush daemons.  It is expressed in 100'ths of a second.
-Data which has been dirty in-memory for longer than this interval will be
-written out next time a pdflush daemon wakes up.
+for writeout by the kernel flusher threads.  It is expressed in 100'ths
+of a second.  Data which has been dirty in-memory for longer than this
+interval will be written out next time a flusher thread wakes up.
 
 ==============================================================
 
@@ -128,7 +128,7 @@ data.
 
 dirty_writeback_centisecs
 
-The pdflush writeback daemons will periodically wake up and write `old' data
+The kernel flusher threads will periodically wake up and write `old' data
 out to disk.  This tunable expresses the interval between those wakeups, in
 100'ths of a second.
 

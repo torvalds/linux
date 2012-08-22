@@ -1219,16 +1219,153 @@ unlink_out:
 	return rc;
 }
 
+static int
+cifs_mkdir_qinfo(struct inode *inode, struct dentry *dentry, umode_t mode,
+		 const char *full_path, struct cifs_sb_info *cifs_sb,
+		 struct cifs_tcon *tcon, const unsigned int xid)
+{
+	int rc = 0;
+	struct inode *newinode = NULL;
+
+	if (tcon->unix_ext)
+		rc = cifs_get_inode_info_unix(&newinode, full_path, inode->i_sb,
+					      xid);
+	else
+		rc = cifs_get_inode_info(&newinode, full_path, NULL,
+					 inode->i_sb, xid, NULL);
+	if (rc)
+		return rc;
+
+	d_instantiate(dentry, newinode);
+	/*
+	 * setting nlink not necessary except in cases where we failed to get it
+	 * from the server or was set bogus
+	 */
+	if ((dentry->d_inode) && (dentry->d_inode->i_nlink < 2))
+		set_nlink(dentry->d_inode, 2);
+
+	mode &= ~current_umask();
+	/* must turn on setgid bit if parent dir has it */
+	if (inode->i_mode & S_ISGID)
+		mode |= S_ISGID;
+
+	if (tcon->unix_ext) {
+		struct cifs_unix_set_info_args args = {
+			.mode	= mode,
+			.ctime	= NO_CHANGE_64,
+			.atime	= NO_CHANGE_64,
+			.mtime	= NO_CHANGE_64,
+			.device	= 0,
+		};
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
+			args.uid = (__u64)current_fsuid();
+			if (inode->i_mode & S_ISGID)
+				args.gid = (__u64)inode->i_gid;
+			else
+				args.gid = (__u64)current_fsgid();
+		} else {
+			args.uid = NO_CHANGE_64;
+			args.gid = NO_CHANGE_64;
+		}
+		CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
+				       cifs_sb->local_nls,
+				       cifs_sb->mnt_cifs_flags &
+				       CIFS_MOUNT_MAP_SPECIAL_CHR);
+	} else {
+		struct TCP_Server_Info *server = tcon->ses->server;
+		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
+		    (mode & S_IWUGO) == 0 && server->ops->mkdir_setinfo)
+			server->ops->mkdir_setinfo(newinode, full_path, cifs_sb,
+						   tcon, xid);
+		if (dentry->d_inode) {
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
+				dentry->d_inode->i_mode = (mode | S_IFDIR);
+
+			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
+				dentry->d_inode->i_uid = current_fsuid();
+				if (inode->i_mode & S_ISGID)
+					dentry->d_inode->i_gid = inode->i_gid;
+				else
+					dentry->d_inode->i_gid =
+								current_fsgid();
+			}
+		}
+	}
+	return rc;
+}
+
+static int
+cifs_posix_mkdir(struct inode *inode, struct dentry *dentry, umode_t mode,
+		 const char *full_path, struct cifs_sb_info *cifs_sb,
+		 struct cifs_tcon *tcon, const unsigned int xid)
+{
+	int rc = 0;
+	u32 oplock = 0;
+	FILE_UNIX_BASIC_INFO *info = NULL;
+	struct inode *newinode = NULL;
+	struct cifs_fattr fattr;
+
+	info = kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
+	if (info == NULL) {
+		rc = -ENOMEM;
+		goto posix_mkdir_out;
+	}
+
+	mode &= ~current_umask();
+	rc = CIFSPOSIXCreate(xid, tcon, SMB_O_DIRECTORY | SMB_O_CREAT, mode,
+			     NULL /* netfid */, info, &oplock, full_path,
+			     cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+			     CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc == -EOPNOTSUPP)
+		goto posix_mkdir_out;
+	else if (rc) {
+		cFYI(1, "posix mkdir returned 0x%x", rc);
+		d_drop(dentry);
+		goto posix_mkdir_out;
+	}
+
+	if (info->Type == cpu_to_le32(-1))
+		/* no return info, go query for it */
+		goto posix_mkdir_get_info;
+	/*
+	 * BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if
+	 * need to set uid/gid.
+	 */
+
+	cifs_unix_basic_to_fattr(&fattr, info, cifs_sb);
+	cifs_fill_uniqueid(inode->i_sb, &fattr);
+	newinode = cifs_iget(inode->i_sb, &fattr);
+	if (!newinode)
+		goto posix_mkdir_get_info;
+
+	d_instantiate(dentry, newinode);
+
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1, "instantiated dentry %p %s to inode %p", dentry,
+	     dentry->d_name.name, newinode);
+
+	if (newinode->i_nlink != 2)
+		cFYI(1, "unexpected number of links %d", newinode->i_nlink);
+#endif
+
+posix_mkdir_out:
+	kfree(info);
+	return rc;
+posix_mkdir_get_info:
+	rc = cifs_mkdir_qinfo(inode, dentry, mode, full_path, cifs_sb, tcon,
+			      xid);
+	goto posix_mkdir_out;
+}
+
 int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 {
-	int rc = 0, tmprc;
+	int rc = 0;
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
-	char *full_path = NULL;
-	struct inode *newinode = NULL;
-	struct cifs_fattr fattr;
+	struct TCP_Server_Info *server;
+	char *full_path;
 
 	cFYI(1, "In cifs_mkdir, mode = 0x%hx inode = 0x%p", mode, inode);
 
@@ -1248,145 +1385,29 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 
 	if (cap_unix(tcon->ses) && (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 				le64_to_cpu(tcon->fsUnixInfo.Capability))) {
-		u32 oplock = 0;
-		FILE_UNIX_BASIC_INFO *pInfo =
-			kzalloc(sizeof(FILE_UNIX_BASIC_INFO), GFP_KERNEL);
-		if (pInfo == NULL) {
-			rc = -ENOMEM;
+		rc = cifs_posix_mkdir(inode, direntry, mode, full_path, cifs_sb,
+				      tcon, xid);
+		if (rc != -EOPNOTSUPP)
 			goto mkdir_out;
-		}
+	}
 
-		mode &= ~current_umask();
-		rc = CIFSPOSIXCreate(xid, tcon, SMB_O_DIRECTORY | SMB_O_CREAT,
-				mode, NULL /* netfid */, pInfo, &oplock,
-				full_path, cifs_sb->local_nls,
-				cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == -EOPNOTSUPP) {
-			kfree(pInfo);
-			goto mkdir_retry_old;
-		} else if (rc) {
-			cFYI(1, "posix mkdir returned 0x%x", rc);
-			d_drop(direntry);
-		} else {
-			if (pInfo->Type == cpu_to_le32(-1)) {
-				/* no return info, go query for it */
-				kfree(pInfo);
-				goto mkdir_get_info;
-			}
-/*BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if need
-	to set uid/gid */
+	server = tcon->ses->server;
 
-			cifs_unix_basic_to_fattr(&fattr, pInfo, cifs_sb);
-			cifs_fill_uniqueid(inode->i_sb, &fattr);
-			newinode = cifs_iget(inode->i_sb, &fattr);
-			if (!newinode) {
-				kfree(pInfo);
-				goto mkdir_get_info;
-			}
-
-			d_instantiate(direntry, newinode);
-
-#ifdef CONFIG_CIFS_DEBUG2
-			cFYI(1, "instantiated dentry %p %s to inode %p",
-				direntry, direntry->d_name.name, newinode);
-
-			if (newinode->i_nlink != 2)
-				cFYI(1, "unexpected number of links %d",
-					newinode->i_nlink);
-#endif
-		}
-		kfree(pInfo);
+	if (!server->ops->mkdir) {
+		rc = -ENOSYS;
 		goto mkdir_out;
 	}
-mkdir_retry_old:
+
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
-	rc = CIFSSMBMkDir(xid, tcon, full_path, cifs_sb->local_nls,
-			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	rc = server->ops->mkdir(xid, tcon, full_path, cifs_sb);
 	if (rc) {
 		cFYI(1, "cifs_mkdir returned 0x%x", rc);
 		d_drop(direntry);
-	} else {
-mkdir_get_info:
-		if (tcon->unix_ext)
-			rc = cifs_get_inode_info_unix(&newinode, full_path,
-						      inode->i_sb, xid);
-		else
-			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb, xid, NULL);
-
-		d_instantiate(direntry, newinode);
-		 /* setting nlink not necessary except in cases where we
-		  * failed to get it from the server or was set bogus */
-		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
-			set_nlink(direntry->d_inode, 2);
-
-		mode &= ~current_umask();
-		/* must turn on setgid bit if parent dir has it */
-		if (inode->i_mode & S_ISGID)
-			mode |= S_ISGID;
-
-		if (tcon->unix_ext) {
-			struct cifs_unix_set_info_args args = {
-				.mode	= mode,
-				.ctime	= NO_CHANGE_64,
-				.atime	= NO_CHANGE_64,
-				.mtime	= NO_CHANGE_64,
-				.device	= 0,
-			};
-			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
-				args.uid = (__u64)current_fsuid();
-				if (inode->i_mode & S_ISGID)
-					args.gid = (__u64)inode->i_gid;
-				else
-					args.gid = (__u64)current_fsgid();
-			} else {
-				args.uid = NO_CHANGE_64;
-				args.gid = NO_CHANGE_64;
-			}
-			CIFSSMBUnixSetPathInfo(xid, tcon, full_path, &args,
-					       cifs_sb->local_nls,
-					       cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		} else {
-			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
-			    (mode & S_IWUGO) == 0) {
-				FILE_BASIC_INFO pInfo;
-				struct cifsInodeInfo *cifsInode;
-				u32 dosattrs;
-
-				memset(&pInfo, 0, sizeof(pInfo));
-				cifsInode = CIFS_I(newinode);
-				dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
-				pInfo.Attributes = cpu_to_le32(dosattrs);
-				tmprc = CIFSSMBSetPathInfo(xid, tcon,
-						full_path, &pInfo,
-						cifs_sb->local_nls,
-						cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if (tmprc == 0)
-					cifsInode->cifsAttrs = dosattrs;
-			}
-			if (direntry->d_inode) {
-				if (cifs_sb->mnt_cifs_flags &
-				     CIFS_MOUNT_DYNPERM)
-					direntry->d_inode->i_mode =
-						(mode | S_IFDIR);
-
-				if (cifs_sb->mnt_cifs_flags &
-				     CIFS_MOUNT_SET_UID) {
-					direntry->d_inode->i_uid =
-						current_fsuid();
-					if (inode->i_mode & S_ISGID)
-						direntry->d_inode->i_gid =
-							inode->i_gid;
-					else
-						direntry->d_inode->i_gid =
-							current_fsgid();
-				}
-			}
-		}
+		goto mkdir_out;
 	}
+
+	rc = cifs_mkdir_qinfo(inode, direntry, mode, full_path, cifs_sb, tcon,
+			      xid);
 mkdir_out:
 	/*
 	 * Force revalidate to get parent dir info when needed since cached
@@ -1405,7 +1426,8 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifs_tcon *pTcon;
+	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	char *full_path = NULL;
 	struct cifsInodeInfo *cifsInode;
 
@@ -1425,10 +1447,16 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 		rc = PTR_ERR(tlink);
 		goto rmdir_exit;
 	}
-	pTcon = tlink_tcon(tlink);
+	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
-	rc = CIFSSMBRmDir(xid, pTcon, full_path, cifs_sb->local_nls,
-			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (!server->ops->rmdir) {
+		rc = -ENOSYS;
+		cifs_put_tlink(tlink);
+		goto rmdir_exit;
+	}
+
+	rc = server->ops->rmdir(xid, tcon, full_path, cifs_sb);
 	cifs_put_tlink(tlink);
 
 	if (!rc) {

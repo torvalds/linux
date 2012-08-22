@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/reboot.h>
+#include <linux/olpc-ec.h>
 #include <asm/tsc.h>
 #include <asm/olpc.h>
 
