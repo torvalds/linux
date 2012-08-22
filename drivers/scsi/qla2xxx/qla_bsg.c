@@ -568,9 +568,17 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 	if (!wait_for_completion_timeout(&ha->dcbx_comp, (20 * HZ))) {
 		ql_dbg(ql_dbg_user, vha, 0x7022,
 		    "State change notification not received.\n");
-	} else
-		ql_dbg(ql_dbg_user, vha, 0x7023,
-		    "State change received.\n");
+		rval = -EINVAL;
+	} else {
+		if (ha->flags.idc_compl_status) {
+			ql_dbg(ql_dbg_user, vha, 0x70c3,
+			    "Bad status in IDC Completion AEN\n");
+			rval = -EINVAL;
+			ha->flags.idc_compl_status = 0;
+		} else
+			ql_dbg(ql_dbg_user, vha, 0x7023,
+			    "State change received.\n");
+	}
 
 	ha->notify_dcbx_comp = 0;
 

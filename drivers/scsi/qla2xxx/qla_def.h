@@ -2622,7 +2622,8 @@ struct qla_hw_data {
 		uint32_t	nic_core_reset_owner:1;
 		uint32_t	isp82xx_no_md_cap:1;
 		uint32_t	host_shutting_down:1;
-		/* 30 bits */
+		uint32_t	idc_compl_status:1;
+		/* 32 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
