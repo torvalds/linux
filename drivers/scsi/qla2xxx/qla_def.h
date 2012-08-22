@@ -2765,6 +2765,9 @@ struct qla_hw_data {
 #define IS_CT6_SUPPORTED(ha)	((ha)->device_type & DT_CT6_SUPPORTED)
 #define IS_MQUE_CAPABLE(ha)	((ha)->mqenable || IS_QLA83XX(ha))
 #define IS_BIDI_CAPABLE(ha)	((IS_QLA25XX(ha) || IS_QLA2031(ha)))
+/* Bit 21 of fw_attributes decides the MCTP capabilities */
+#define IS_MCTP_CAPABLE(ha)	(IS_QLA2031(ha) && \
+				((ha)->fw_attributes_ext[0] & BIT_0))
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -2880,7 +2883,12 @@ struct qla_hw_data {
 	int		fw_dump_reading;
 	dma_addr_t	eft_dma;
 	void		*eft;
-
+/* Current size of mctp dump is 0x086064 bytes */
+#define MCTP_DUMP_SIZE  0x086064
+	dma_addr_t	mctp_dump_dma;
+	void		*mctp_dump;
+	int		mctp_dumped;
+	int		mctp_dump_reading;
 	uint32_t	chain_offset;
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;

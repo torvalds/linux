@@ -2404,20 +2404,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		base_vha->mgmt_svr_loop_id = MANAGEMENT_SERVER +
 						base_vha->vp_idx;
 
-	if (IS_QLA8031(ha)) {
-		sprintf(wq_name, "qla2xxx_%lu_dpc_lp_wq", base_vha->host_no);
-		ha->dpc_lp_wq = create_singlethread_workqueue(wq_name);
-		INIT_WORK(&ha->idc_aen, qla83xx_service_idc_aen);
-
-		sprintf(wq_name, "qla2xxx_%lu_dpc_hp_wq", base_vha->host_no);
-		ha->dpc_hp_wq = create_singlethread_workqueue(wq_name);
-		INIT_WORK(&ha->nic_core_reset, qla83xx_nic_core_reset_work);
-		INIT_WORK(&ha->idc_state_handler,
-		    qla83xx_idc_state_handler_work);
-		INIT_WORK(&ha->nic_core_unrecoverable,
-		    qla83xx_nic_core_unrecoverable_work);
-	}
-
 	/* Set the SG table size based on ISP type */
 	if (!IS_FWI2_CAPABLE(ha)) {
 		if (IS_QLA2100(ha))
@@ -2557,6 +2543,20 @@ que_init:
 	 * let the kthread start (and go back to sleep in qla2x00_do_dpc).
 	 */
 	qla2xxx_wake_dpc(base_vha);
+
+	if (IS_QLA8031(ha) || IS_MCTP_CAPABLE(ha)) {
+		sprintf(wq_name, "qla2xxx_%lu_dpc_lp_wq", base_vha->host_no);
+		ha->dpc_lp_wq = create_singlethread_workqueue(wq_name);
+		INIT_WORK(&ha->idc_aen, qla83xx_service_idc_aen);
+
+		sprintf(wq_name, "qla2xxx_%lu_dpc_hp_wq", base_vha->host_no);
+		ha->dpc_hp_wq = create_singlethread_workqueue(wq_name);
+		INIT_WORK(&ha->nic_core_reset, qla83xx_nic_core_reset_work);
+		INIT_WORK(&ha->idc_state_handler,
+		    qla83xx_idc_state_handler_work);
+		INIT_WORK(&ha->nic_core_unrecoverable,
+		    qla83xx_nic_core_unrecoverable_work);
+	}
 
 skip_dpc:
 	list_add_tail(&base_vha->list, &ha->vp_list);
@@ -3331,6 +3331,10 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 {
 	qla2x00_free_fw_dump(ha);
 
+	if (ha->mctp_dump)
+		dma_free_coherent(&ha->pdev->dev, MCTP_DUMP_SIZE, ha->mctp_dump,
+		    ha->mctp_dump_dma);
+
 	if (ha->srb_mempool)
 		mempool_destroy(ha->srb_mempool);
 
@@ -3859,6 +3863,13 @@ qla83xx_nic_core_reset_work(struct work_struct *work)
 		container_of(work, struct qla_hw_data, nic_core_reset);
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 	uint32_t dev_state = 0;
+
+	if (IS_QLA2031(ha)) {
+		if (qla2xxx_mctp_dump(base_vha) != QLA_SUCCESS)
+			ql_log(ql_log_warn, base_vha, 0xb081,
+			    "Failed to dump mctp\n");
+		return;
+	}
 
 	if (!ha->flags.nic_core_reset_hdlr_active) {
 		if (qla83xx_check_nic_core_fw_alive(base_vha) == QLA_SUCCESS) {

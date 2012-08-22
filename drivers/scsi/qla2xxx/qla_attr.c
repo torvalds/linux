@@ -26,7 +26,7 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 	struct qla_hw_data *ha = vha->hw;
 	int rval = 0;
 
-	if (ha->fw_dump_reading == 0)
+	if (!(ha->fw_dump_reading || ha->mctp_dump_reading))
 		return 0;
 
 	if (IS_QLA82XX(ha)) {
@@ -39,9 +39,14 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 		rval = memory_read_from_buffer(buf, count,
 		    &off, ha->md_dump, ha->md_dump_size);
 		return rval;
-	} else
+	} else if (ha->mctp_dumped && ha->mctp_dump_reading)
+		return memory_read_from_buffer(buf, count, &off, ha->mctp_dump,
+		    MCTP_DUMP_SIZE);
+	else if (ha->fw_dump_reading)
 		return memory_read_from_buffer(buf, count, &off, ha->fw_dump,
 					ha->fw_dump_len);
+	else
+		return 0;
 }
 
 static ssize_t
@@ -106,6 +111,22 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	case 5:
 		if (IS_QLA82XX(ha))
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+		break;
+	case 6:
+		if (!ha->mctp_dump_reading)
+			break;
+		ql_log(ql_log_info, vha, 0x70c1,
+		    "MCTP dump cleared on (%ld).\n", vha->host_no);
+		ha->mctp_dump_reading = 0;
+		ha->mctp_dumped = 0;
+		break;
+	case 7:
+		if (ha->mctp_dumped && !ha->mctp_dump_reading) {
+			ha->mctp_dump_reading = 1;
+			ql_log(ql_log_info, vha, 0x70c2,
+			    "Raw mctp dump ready for read on (%ld).\n",
+			    vha->host_no);
+		}
 		break;
 	}
 	return count;
