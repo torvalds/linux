@@ -11,6 +11,7 @@ config IMA
 	select CRYPTO_SHA1
 	select TCG_TPM if HAS_IOMEM && !UML
 	select TCG_TIS if TCG_TPM && X86
+	select TCG_IBMVTPM if TCG_TPM && PPC64
 	help
 	  The Trusted Computing Group(TCG) runtime Integrity
 	  Measurement Architecture(IMA) maintains a list of hash
