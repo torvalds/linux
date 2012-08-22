@@ -252,33 +252,6 @@ min_sample_time, after which speeds are allowed to drop below
 hispeed_freq according to load as usual.
 
 
-2.7 Hotplug
------------
-
-The CPUfreq governor "hotplug" operates similary to "ondemand" and
-"conservative".  It's decisions are based primarily on CPU load.  Like
-"ondemand" the "hotplug" governor will ramp up to the highest frequency
-once the run-time tunable "up_threshold" parameter is crossed.  Like
-"conservative", the "hotplug" governor exports a "down_threshold"
-parameter that is also tunable at run-time.  When the "down_threshold"
-is crossed the CPU transitions to the next lowest frequency in the
-CPUfreq frequency table instead of decrementing the frequency based on a
-percentage of maximum load.
-
-The main reason "hotplug" governor exists is for architectures requiring
-that only the master CPU be online in order to hit low-power states
-(C-states).  OMAP4 is one such example of this.  The "hotplug" governor
-is also helpful in reducing thermal output in devices with tight thermal
-constraints.
-
-Auxillary CPUs are onlined/offline based on CPU load, but the decision
-to do so is made after averaging several sampling windows.  This is to
-reduce CPU hotplug "thrashing", which can be caused by normal system
-entropy and leads to lots of spurious plug-in and plug-out transitions.
-The number of sampling periods averaged together is tunable via the
-"hotplug_in_sampling_periods" and "hotplug_out_sampling_periods"
-run-time tunable parameters.
-
 3. The Governor Interface in the CPUfreq Core
 =============================================
 
