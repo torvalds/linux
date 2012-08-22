@@ -1184,9 +1184,9 @@ static void update_wall_time(void)
 	* the vsyscall implementations are converted to use xtime_nsec
 	* (shifted nanoseconds), this can be killed.
 	*/
-	remainder = tk->xtime_nsec & ((1 << tk->shift) - 1);
+	remainder = tk->xtime_nsec & ((1ULL << tk->shift) - 1);
 	tk->xtime_nsec -= remainder;
-	tk->xtime_nsec += 1 << tk->shift;
+	tk->xtime_nsec += 1ULL << tk->shift;
 	tk->ntp_error += remainder << tk->ntp_error_shift;
 
 	/*
