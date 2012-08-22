@@ -884,9 +884,9 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	
 	return 0;
 }
-
+ 
 #ifdef CONFIG_LOGO_LINUX_BMP
-static const struct linux_logo *bmp_logo;
+static struct linux_logo *bmp_logo;
 static int fb_prepare_bmp_logo(struct fb_info *info, int rotate)
 {
 	bmp_logo = fb_find_logo(24);
@@ -899,7 +899,19 @@ static int fb_prepare_bmp_logo(struct fb_info *info, int rotate)
 
 static void fb_show_bmp_logo(struct fb_info *info, int rotate)
 {
-	memcpy(info->screen_base, bmp_logo->data, bmp_logo->width * bmp_logo->height * 4);
+	unsigned char *src=bmp_logo->data;
+	unsigned char *dst=info->screen_base;
+	int i;
+
+	if(bmp_logo->width>info->var.xres)
+		bmp_logo->width=info->var.xres;
+
+	if(bmp_logo->height>info->var.yres)
+		bmp_logo->height=info->var.yres;
+
+	for(i=0;i<bmp_logo->height;i++)
+		memcpy(dst+info->var.xres*i*4, src+bmp_logo->width*i*4, bmp_logo->width*4);
+	
 }
 #endif
 
