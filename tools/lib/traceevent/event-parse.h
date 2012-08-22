@@ -345,6 +345,28 @@ enum pevent_flag {
 	PEVENT_NSEC_OUTPUT		= 1,	/* output in NSECS */
 };
 
+enum pevent_errno {
+	PEVENT_ERRNO__SUCCESS			= 0,
+
+	/*
+	 * Choose an arbitrary negative big number not to clash with standard
+	 * errno since SUS requires the errno has distinct positive values.
+	 * See 'Issue 6' in the link below.
+	 *
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 */
+	__PEVENT_ERRNO__START			= -100000,
+
+	PEVENT_ERRNO__MEM_ALLOC_FAILED		= __PEVENT_ERRNO__START,
+	PEVENT_ERRNO__PARSE_EVENT_FAILED,
+	PEVENT_ERRNO__READ_ID_FAILED,
+	PEVENT_ERRNO__READ_FORMAT_FAILED,
+	PEVENT_ERRNO__READ_PRINT_FAILED,
+	PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED,
+
+	__PEVENT_ERRNO__END,
+};
+
 struct cmdline;
 struct cmdline_list;
 struct func_map;
@@ -509,8 +531,8 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
 			     int long_size);
 
-int pevent_parse_event(struct pevent *pevent, const char *buf,
-		       unsigned long size, const char *sys);
+enum pevent_errno pevent_parse_event(struct pevent *pevent, const char *buf,
+				     unsigned long size, const char *sys);
 
 void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
 			   const char *name, struct pevent_record *record,
