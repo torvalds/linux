@@ -345,6 +345,16 @@ enum pevent_flag {
 	PEVENT_NSEC_OUTPUT		= 1,	/* output in NSECS */
 };
 
+#define PEVENT_ERRORS 							      \
+	_PE(MEM_ALLOC_FAILED,	"failed to allocate memory"),		      \
+	_PE(PARSE_EVENT_FAILED,	"failed to parse event"),		      \
+	_PE(READ_ID_FAILED,	"failed to read event id"),		      \
+	_PE(READ_FORMAT_FAILED,	"failed to read event format"),		      \
+	_PE(READ_PRINT_FAILED,	"failed to read event print fmt"), 	      \
+	_PE(OLD_FTRACE_ARG_FAILED,"failed to allocate field name for ftrace")
+
+#undef _PE
+#define _PE(__code, __str) PEVENT_ERRNO__ ## __code
 enum pevent_errno {
 	PEVENT_ERRNO__SUCCESS			= 0,
 
@@ -357,15 +367,11 @@ enum pevent_errno {
 	 */
 	__PEVENT_ERRNO__START			= -100000,
 
-	PEVENT_ERRNO__MEM_ALLOC_FAILED		= __PEVENT_ERRNO__START,
-	PEVENT_ERRNO__PARSE_EVENT_FAILED,
-	PEVENT_ERRNO__READ_ID_FAILED,
-	PEVENT_ERRNO__READ_FORMAT_FAILED,
-	PEVENT_ERRNO__READ_PRINT_FAILED,
-	PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED,
+	PEVENT_ERRORS,
 
 	__PEVENT_ERRNO__END,
 };
+#undef _PE
 
 struct cmdline;
 struct cmdline_list;
@@ -583,6 +589,8 @@ int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct pevent_record *record);
+int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
+		    char *buf, size_t buflen);
 
 struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type);
 struct format_field **pevent_event_common_fields(struct event_format *event);
