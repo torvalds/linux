@@ -1876,8 +1876,8 @@ GATE_CLK(hclk_peri_axi_matrix,	hclk_periph_pre, HCLK_PERI_AXI_MATRIX);
 GATE_CLK(hclk_peri_ahb_arbi,	hclk_periph_pre, HCLK_PERI_ARBI);
 GATE_CLK(hclk_nandc, hclk_periph_pre, HCLK_NANDC);
 GATE_CLK(hclk_usb_peri, hclk_periph_pre, HCLK_USB_PERI);
-GATE_CLK(hclk_otg0, hclk_periph_pre, HCLK_OTG0);
-GATE_CLK(hclk_otg1, hclk_periph_pre, HCLK_OTG1);
+GATE_CLK(hclk_otg0, clk_hclk_usb_peri, HCLK_OTG0);	// is not parent in clk tree, but when hclk_otg0/1 open,
+GATE_CLK(hclk_otg1, clk_hclk_usb_peri, HCLK_OTG1);	// must open hclk_usb_peri
 GATE_CLK(hclk_i2s, hclk_periph_pre, HCLK_I2S);
 GATE_CLK(hclk_sdmmc0, hclk_periph_pre, HCLK_SDMMC0);
 GATE_CLK(hclk_sdio, hclk_periph_pre, HCLK_SDIO);
