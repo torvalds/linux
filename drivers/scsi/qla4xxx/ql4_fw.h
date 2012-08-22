@@ -1195,9 +1195,9 @@ struct ql_iscsi_stats {
 	uint8_t reserved2[264]; /* 0x0308 - 0x040F */
 };
 
-#define QLA82XX_DBG_STATE_ARRAY_LEN		16
-#define QLA82XX_DBG_CAP_SIZE_ARRAY_LEN		8
-#define QLA82XX_DBG_RSVD_ARRAY_LEN		8
+#define QLA8XXX_DBG_STATE_ARRAY_LEN		16
+#define QLA8XXX_DBG_CAP_SIZE_ARRAY_LEN		8
+#define QLA8XXX_DBG_RSVD_ARRAY_LEN		8
 
 struct qla4_8xxx_minidump_template_hdr {
 	uint32_t entry_type;
@@ -1214,8 +1214,8 @@ struct qla4_8xxx_minidump_template_hdr {
 	uint32_t driver_info_word3;
 	uint32_t driver_info_word4;
 
-	uint32_t saved_state_array[QLA82XX_DBG_STATE_ARRAY_LEN];
-	uint32_t capture_size_array[QLA82XX_DBG_CAP_SIZE_ARRAY_LEN];
+	uint32_t saved_state_array[QLA8XXX_DBG_STATE_ARRAY_LEN];
+	uint32_t capture_size_array[QLA8XXX_DBG_CAP_SIZE_ARRAY_LEN];
 };
 
 #endif /*  _QLA4X_FW_H */

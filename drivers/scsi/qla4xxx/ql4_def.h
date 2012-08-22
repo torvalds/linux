@@ -497,7 +497,7 @@ struct scsi_qla_host {
 #define AF_PCI_CHANNEL_IO_PERM_FAILURE	21 /* 0x00200000 */
 #define AF_BUILD_DDB_LIST		22 /* 0x00400000 */
 #define AF_82XX_FW_DUMPED		24 /* 0x01000000 */
-#define AF_82XX_RST_OWNER		25 /* 0x02000000 */
+#define AF_8XXX_RST_OWNER		25 /* 0x02000000 */
 #define AF_82XX_DUMP_READING		26 /* 0x04000000 */
 
 	unsigned long dpc_flags;

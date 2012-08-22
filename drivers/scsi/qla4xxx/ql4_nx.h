@@ -490,8 +490,8 @@ enum {
  * Base addresses of major components on-chip.
  * ====================== BASE ADDRESSES ON-CHIP ======================
  */
-#define QLA82XX_ADDR_DDR_NET		(0x0000000000000000ULL)
-#define QLA82XX_ADDR_DDR_NET_MAX	(0x000000000fffffffULL)
+#define QLA8XXX_ADDR_DDR_NET		(0x0000000000000000ULL)
+#define QLA8XXX_ADDR_DDR_NET_MAX	(0x000000000fffffffULL)
 
 /* Imbus address bit used to indicate a host address. This bit is
  * eliminated by the pcie bar and bar select before presentation
@@ -500,11 +500,11 @@ enum {
 #define QLA82XX_P2_ADDR_PCIE	(0x0000000800000000ULL)
 #define QLA82XX_P3_ADDR_PCIE	(0x0000008000000000ULL)
 #define QLA82XX_ADDR_PCIE_MAX	(0x0000000FFFFFFFFFULL)
-#define QLA82XX_ADDR_OCM0	(0x0000000200000000ULL)
-#define QLA82XX_ADDR_OCM0_MAX	(0x00000002000fffffULL)
-#define QLA82XX_ADDR_OCM1	(0x0000000200400000ULL)
-#define QLA82XX_ADDR_OCM1_MAX	(0x00000002004fffffULL)
-#define QLA82XX_ADDR_QDR_NET	(0x0000000300000000ULL)
+#define QLA8XXX_ADDR_OCM0	(0x0000000200000000ULL)
+#define QLA8XXX_ADDR_OCM0_MAX	(0x00000002000fffffULL)
+#define QLA8XXX_ADDR_OCM1	(0x0000000200400000ULL)
+#define QLA8XXX_ADDR_OCM1_MAX	(0x00000002004fffffULL)
+#define QLA8XXX_ADDR_QDR_NET	(0x0000000300000000ULL)
 
 #define QLA82XX_P2_ADDR_QDR_NET_MAX	(0x00000003001fffffULL)
 #define QLA82XX_P3_ADDR_QDR_NET_MAX	(0x0000000303ffffffULL)
@@ -572,13 +572,13 @@ enum {
 #define QLA82XX_CRB_DEV_PART_INFO	(QLA82XX_CAM_RAM(0x14c))
 
 /* Every driver should use these Device State */
-#define QLA82XX_DEV_COLD		1
-#define QLA82XX_DEV_INITIALIZING	2
-#define QLA82XX_DEV_READY		3
-#define QLA82XX_DEV_NEED_RESET		4
-#define QLA82XX_DEV_NEED_QUIESCENT	5
-#define QLA82XX_DEV_FAILED		6
-#define QLA82XX_DEV_QUIESCENT		7
+#define QLA8XXX_DEV_COLD		1
+#define QLA8XXX_DEV_INITIALIZING	2
+#define QLA8XXX_DEV_READY		3
+#define QLA8XXX_DEV_NEED_RESET		4
+#define QLA8XXX_DEV_NEED_QUIESCENT	5
+#define QLA8XXX_DEV_FAILED		6
+#define QLA8XXX_DEV_QUIESCENT		7
 #define MAX_STATES			8 /* Increment if new state added */
 
 #define QLA82XX_IDC_VERSION		0x1
@@ -795,41 +795,41 @@ struct crb_addr_pair {
 /* Minidump related */
 
 /* Entry Type Defines */
-#define QLA82XX_RDNOP	0
-#define QLA82XX_RDCRB	1
-#define QLA82XX_RDMUX	2
-#define QLA82XX_QUEUE	3
-#define QLA82XX_BOARD	4
-#define QLA82XX_RDOCM	6
-#define QLA82XX_PREGS	7
-#define QLA82XX_L1DTG	8
-#define QLA82XX_L1ITG	9
-#define QLA82XX_L1DAT	11
-#define QLA82XX_L1INS	12
-#define QLA82XX_L2DTG	21
-#define QLA82XX_L2ITG	22
-#define QLA82XX_L2DAT	23
-#define QLA82XX_L2INS	24
-#define QLA82XX_RDROM	71
-#define QLA82XX_RDMEM	72
-#define QLA82XX_CNTRL	98
-#define QLA82XX_RDEND	255
+#define QLA8XXX_RDNOP	0
+#define QLA8XXX_RDCRB	1
+#define QLA8XXX_RDMUX	2
+#define QLA8XXX_QUEUE	3
+#define QLA8XXX_BOARD	4
+#define QLA8XXX_RDOCM	6
+#define QLA8XXX_PREGS	7
+#define QLA8XXX_L1DTG	8
+#define QLA8XXX_L1ITG	9
+#define QLA8XXX_L1DAT	11
+#define QLA8XXX_L1INS	12
+#define QLA8XXX_L2DTG	21
+#define QLA8XXX_L2ITG	22
+#define QLA8XXX_L2DAT	23
+#define QLA8XXX_L2INS	24
+#define QLA8XXX_RDROM	71
+#define QLA8XXX_RDMEM	72
+#define QLA8XXX_CNTRL	98
+#define QLA8XXX_RDEND	255
 
 /* Opcodes for Control Entries.
  * These Flags are bit fields.
  */
-#define QLA82XX_DBG_OPCODE_WR		0x01
-#define QLA82XX_DBG_OPCODE_RW		0x02
-#define QLA82XX_DBG_OPCODE_AND		0x04
-#define QLA82XX_DBG_OPCODE_OR		0x08
-#define QLA82XX_DBG_OPCODE_POLL		0x10
-#define QLA82XX_DBG_OPCODE_RDSTATE	0x20
-#define QLA82XX_DBG_OPCODE_WRSTATE	0x40
-#define QLA82XX_DBG_OPCODE_MDSTATE	0x80
+#define QLA8XXX_DBG_OPCODE_WR		0x01
+#define QLA8XXX_DBG_OPCODE_RW		0x02
+#define QLA8XXX_DBG_OPCODE_AND		0x04
+#define QLA8XXX_DBG_OPCODE_OR		0x08
+#define QLA8XXX_DBG_OPCODE_POLL		0x10
+#define QLA8XXX_DBG_OPCODE_RDSTATE	0x20
+#define QLA8XXX_DBG_OPCODE_WRSTATE	0x40
+#define QLA8XXX_DBG_OPCODE_MDSTATE	0x80
 
 /* Driver Flags */
-#define QLA82XX_DBG_SKIPPED_FLAG	0x80 /* driver skipped this entry  */
-#define QLA82XX_DBG_SIZE_ERR_FLAG	0x40 /* Entry vs Capture size
+#define QLA8XXX_DBG_SKIPPED_FLAG	0x80 /* driver skipped this entry  */
+#define QLA8XXX_DBG_SIZE_ERR_FLAG	0x40 /* Entry vs Capture size
 					      * mismatch */
 
 /* Driver_code is for driver to write some info about the entry

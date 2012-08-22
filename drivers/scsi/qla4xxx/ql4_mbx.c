@@ -88,7 +88,7 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		qla4_82xx_idc_lock(ha);
 		dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 		qla4_82xx_idc_unlock(ha);
-		if (dev_state == QLA82XX_DEV_FAILED) {
+		if (dev_state == QLA8XXX_DEV_FAILED) {
 			ql4_printk(KERN_WARNING, ha,
 				   "scsi%ld: %s: H/W is in failed state, do not send any mailbox commands\n",
 				   ha->host_no, __func__);

@@ -2525,7 +2525,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 					CRB_NIU_XG_PAUSE_CTL_P1);
 			set_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags);
 			qla4xxx_wake_dpc(ha);
-		} else if (dev_state == QLA82XX_DEV_NEED_RESET &&
+		} else if (dev_state == QLA8XXX_DEV_NEED_RESET &&
 		    !test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
 			if (!ql4xdontresethba) {
 				ql4_printk(KERN_INFO, ha, "%s: HW State: "
@@ -2533,7 +2533,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 				set_bit(DPC_RESET_HA, &ha->dpc_flags);
 				qla4xxx_wake_dpc(ha);
 			}
-		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
+		} else if (dev_state == QLA8XXX_DEV_NEED_QUIESCENT &&
 		    !test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
 			ql4_printk(KERN_INFO, ha, "%s: HW State: NEED QUIES!\n",
 			    __func__);
@@ -3043,7 +3043,7 @@ recover_ha_init_adapter:
 			qla4_82xx_idc_lock(ha);
 			dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 			qla4_82xx_idc_unlock(ha);
-			if (dev_state == QLA82XX_DEV_FAILED) {
+			if (dev_state == QLA8XXX_DEV_FAILED) {
 				ql4_printk(KERN_INFO, ha, "%s: don't retry "
 					   "recover adapter. H/W is in Failed "
 					   "state\n", __func__);
@@ -3387,7 +3387,7 @@ static void qla4xxx_do_dpc(struct work_struct *work)
 		if (test_bit(DPC_HA_UNRECOVERABLE, &ha->dpc_flags)) {
 			qla4_82xx_idc_lock(ha);
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA82XX_DEV_FAILED);
+			    QLA8XXX_DEV_FAILED);
 			qla4_82xx_idc_unlock(ha);
 			ql4_printk(KERN_INFO, ha, "HW State: FAILED\n");
 			qla4_8xxx_device_state_handler(ha);
@@ -5164,7 +5164,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 			qla4_82xx_idc_lock(ha);
 			dev_state = qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 			qla4_82xx_idc_unlock(ha);
-			if (dev_state == QLA82XX_DEV_FAILED) {
+			if (dev_state == QLA8XXX_DEV_FAILED) {
 				ql4_printk(KERN_WARNING, ha, "%s: don't retry "
 				    "initialize adapter. H/W is in failed state\n",
 				    __func__);
@@ -5188,7 +5188,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 			DEBUG2(printk(KERN_ERR "HW STATE: FAILED\n"));
 			qla4_82xx_idc_lock(ha);
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA82XX_DEV_FAILED);
+			    QLA8XXX_DEV_FAILED);
 			qla4_82xx_idc_unlock(ha);
 		}
 		ret = -ENODEV;
@@ -6035,7 +6035,7 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 
 		qla4_82xx_idc_lock(ha);
 		qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-		    QLA82XX_DEV_COLD);
+		    QLA8XXX_DEV_COLD);
 
 		qla4_82xx_wr_32(ha, QLA82XX_CRB_DRV_IDC_VERSION,
 		    QLA82XX_IDC_VERSION);
@@ -6050,12 +6050,12 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 			    "FAILED\n", ha->host_no, __func__);
 			qla4_8xxx_clear_drv_active(ha);
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA82XX_DEV_FAILED);
+			    QLA8XXX_DEV_FAILED);
 		} else {
 			ql4_printk(KERN_INFO, ha, "scsi%ld: %s: HW State: "
 			    "READY\n", ha->host_no, __func__);
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-			    QLA82XX_DEV_READY);
+			    QLA8XXX_DEV_READY);
 			/* Clear driver state register */
 			qla4_82xx_wr_32(ha, QLA82XX_CRB_DRV_STATE, 0);
 			qla4_8xxx_set_drv_active(ha);
@@ -6076,7 +6076,7 @@ static uint32_t qla4_8xxx_error_recovery(struct scsi_qla_host *ha)
 		    "the reset owner\n", ha->host_no, __func__,
 		    ha->pdev->devfn);
 		if ((qla4_82xx_rd_32(ha, QLA82XX_CRB_DEV_STATE) ==
-		    QLA82XX_DEV_READY)) {
+		    QLA8XXX_DEV_READY)) {
 			clear_bit(AF_FW_RECOVERY, &ha->flags);
 			rval = qla4xxx_initialize_adapter(ha, RESET_ADAPTER);
 			if (rval == QLA_SUCCESS) {
