@@ -369,7 +369,7 @@ premature_exit:
 
 mbx_done:
 	if (rval) {
-		ql_dbg(ql_dbg_mbx, base_vha, 0x1020,
+		ql_log(ql_log_warn, base_vha, 0x1020,
 		    "**** Failed mbx[0]=%x, mb[1]=%x, mb[2]=%x, mb[3]=%x, cmd=%x ****.\n",
 		    mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3], command);
 	} else {
