@@ -126,42 +126,38 @@ unsigned int nf_iterate(struct list_head *head,
 			unsigned int hook,
 			const struct net_device *indev,
 			const struct net_device *outdev,
-			struct list_head **i,
+			struct nf_hook_ops **elemp,
 			int (*okfn)(struct sk_buff *),
 			int hook_thresh)
 {
 	unsigned int verdict;
-	struct nf_hook_ops *elem = list_entry_rcu(*i, struct nf_hook_ops, list);
 
 	/*
 	 * The caller must not block between calls to this
 	 * function because of risk of continuing from deleted element.
 	 */
-	list_for_each_entry_continue_rcu(elem, head, list) {
-		if (hook_thresh > elem->priority)
+	list_for_each_entry_continue_rcu((*elemp), head, list) {
+		if (hook_thresh > (*elemp)->priority)
 			continue;
 
 		/* Optimization: we don't need to hold module
 		   reference here, since function can't sleep. --RR */
 repeat:
-		verdict = elem->hook(hook, skb, indev, outdev, okfn);
+		verdict = (*elemp)->hook(hook, skb, indev, outdev, okfn);
 		if (verdict != NF_ACCEPT) {
 #ifdef CONFIG_NETFILTER_DEBUG
 			if (unlikely((verdict & NF_VERDICT_MASK)
 							> NF_MAX_VERDICT)) {
 				NFDEBUG("Evil return from %p(%u).\n",
-					elem->hook, hook);
+					(*elemp)->hook, hook);
 				continue;
 			}
 #endif
-			if (verdict != NF_REPEAT) {
-				*i = &elem->list;
+			if (verdict != NF_REPEAT)
 				return verdict;
-			}
 			goto repeat;
 		}
 	}
-	*i = &elem->list;
 	return NF_ACCEPT;
 }
 
@@ -174,14 +170,14 @@ int nf_hook_slow(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 		 int (*okfn)(struct sk_buff *),
 		 int hook_thresh)
 {
-	struct list_head *elem;
+	struct nf_hook_ops *elem;
 	unsigned int verdict;
 	int ret = 0;
 
 	/* We may already have this, but read-locks nest anyway */
 	rcu_read_lock();
 
-	elem = &nf_hooks[pf][hook];
+	elem = list_entry_rcu(&nf_hooks[pf][hook], struct nf_hook_ops, list);
 next_hook:
 	verdict = nf_iterate(&nf_hooks[pf][hook], skb, hook, indev,
 			     outdev, &elem, okfn, hook_thresh);
@@ -193,8 +189,8 @@ next_hook:
 		if (ret == 0)
 			ret = -EPERM;
 	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
-		int err = nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
-						verdict >> NF_VERDICT_QBITS);
+		int err = nf_queue(skb, &elem->list, pf, hook, indev, outdev,
+					okfn, verdict >> NF_VERDICT_QBITS);
 		if (err < 0) {
 			if (err == -ECANCELED)
 				goto next_hook;
