@@ -100,6 +100,7 @@ struct tpm_vendor_specific {
 	bool timeout_adjusted;
 	unsigned long duration[3]; /* jiffies */
 	bool duration_adjusted;
+	void *data;
 
 	wait_queue_head_t read_queue;
 	wait_queue_head_t int_queue;

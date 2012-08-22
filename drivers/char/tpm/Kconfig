@@ -73,4 +73,12 @@ config TCG_INFINEON
 	  Further information on this driver and the supported hardware
 	  can be found at http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
 
+config TCG_IBMVTPM
+	tristate "IBM VTPM Interface"
+	depends on PPC64
+	---help---
+	  If you have IBM virtual TPM (VTPM) support say Yes and it
+	  will be accessible from within Linux.  To compile this driver
+	  as a module, choose M here; the module will be called tpm_ibmvtpm.
+
 endif # TCG_TPM
