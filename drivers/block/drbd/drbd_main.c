@@ -3314,7 +3314,9 @@ static void md_sync_timer_fn(unsigned long data)
 {
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 
-	drbd_queue_work_front(&mdev->tconn->sender_work, &mdev->md_sync_work);
+	/* must not double-queue! */
+	if (list_empty(&mdev->md_sync_work.list))
+		drbd_queue_work_front(&mdev->tconn->sender_work, &mdev->md_sync_work);
 }
 
 static int w_md_sync(struct drbd_work *w, int unused)
