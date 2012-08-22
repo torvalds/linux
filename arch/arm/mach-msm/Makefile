@@ -1,4 +1,4 @@
-obj-y += io.o idle.o timer.o
+obj-y += io.o timer.o
 obj-y += clock.o
 obj-$(CONFIG_DEBUG_FS) += clock-debug.o
 
