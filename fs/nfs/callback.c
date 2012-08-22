@@ -17,7 +17,6 @@
 #include <linux/kthread.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/bc_xprt.h>
-#include <linux/nsproxy.h>
 
 #include <net/inet_sock.h>
 
@@ -38,31 +37,7 @@ static struct nfs_callback_data nfs_callback_info[NFS4_MAX_MINOR_VERSION + 1];
 static DEFINE_MUTEX(nfs_callback_mutex);
 static struct svc_program nfs4_callback_program;
 
-unsigned int nfs_callback_set_tcpport;
-unsigned short nfs_callback_tcpport;
 unsigned short nfs_callback_tcpport6;
-#define NFS_CALLBACK_MAXPORTNR (65535U)
-
-static int param_set_portnr(const char *val, const struct kernel_param *kp)
-{
-	unsigned long num;
-	int ret;
-
-	if (!val)
-		return -EINVAL;
-	ret = strict_strtoul(val, 0, &num);
-	if (ret == -EINVAL || num > NFS_CALLBACK_MAXPORTNR)
-		return -EINVAL;
-	*((unsigned int *)kp->arg) = num;
-	return 0;
-}
-static struct kernel_param_ops param_ops_portnr = {
-	.set = param_set_portnr,
-	.get = param_get_uint,
-};
-#define param_check_portnr(name, p) __param_check(name, p, unsigned int);
-
-module_param_named(callback_tcpport, nfs_callback_set_tcpport, portnr, 0644);
 
 /*
  * This is the NFSv4 callback kernel thread.
@@ -107,7 +82,7 @@ nfs4_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
 	int ret;
 
-	ret = svc_create_xprt(serv, "tcp", xprt->xprt_net, PF_INET,
+	ret = svc_create_xprt(serv, "tcp", &init_net, PF_INET,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret <= 0)
 		goto out_err;
@@ -115,7 +90,7 @@ nfs4_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 	dprintk("NFS: Callback listener port = %u (af %u)\n",
 			nfs_callback_tcpport, PF_INET);
 
-	ret = svc_create_xprt(serv, "tcp", xprt->xprt_net, PF_INET6,
+	ret = svc_create_xprt(serv, "tcp", &init_net, PF_INET6,
 				nfs_callback_set_tcpport, SVC_SOCK_ANONYMOUS);
 	if (ret > 0) {
 		nfs_callback_tcpport6 = ret;
@@ -184,7 +159,7 @@ nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 	 * fore channel connection.
 	 * Returns the input port (0) and sets the svc_serv bc_xprt on success
 	 */
-	ret = svc_create_xprt(serv, "tcp-bc", xprt->xprt_net, PF_INET, 0,
+	ret = svc_create_xprt(serv, "tcp-bc", &init_net, PF_INET, 0,
 			      SVC_SOCK_ANONYMOUS);
 	if (ret < 0) {
 		rqstp = ERR_PTR(ret);
@@ -254,7 +229,7 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 	char svc_name[12];
 	int ret = 0;
 	int minorversion_setup;
-	struct net *net = current->nsproxy->net_ns;
+	struct net *net = &init_net;
 
 	mutex_lock(&nfs_callback_mutex);
 	if (cb_info->users++ || cb_info->task != NULL) {
@@ -266,6 +241,10 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 		ret = -ENOMEM;
 		goto out_err;
 	}
+	/* As there is only one thread we need to over-ride the
+	 * default maximum of 80 connections
+	 */
+	serv->sv_maxconn = 1024;
 
 	ret = svc_bind(serv, net);
 	if (ret < 0) {
@@ -330,7 +309,7 @@ void nfs_callback_down(int minorversion)
 	cb_info->users--;
 	if (cb_info->users == 0 && cb_info->task != NULL) {
 		kthread_stop(cb_info->task);
-		svc_shutdown_net(cb_info->serv, current->nsproxy->net_ns);
+		svc_shutdown_net(cb_info->serv, &init_net);
 		svc_exit_thread(cb_info->rqst);
 		cb_info->serv = NULL;
 		cb_info->rqst = NULL;

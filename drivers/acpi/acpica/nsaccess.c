@@ -157,7 +157,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 #if defined (ACPI_ASL_COMPILER)
 
-				/* Save the parameter count for the i_aSL compiler */
+				/* Save the parameter count for the iASL compiler */
 
 				new_node->value = obj_desc->method.param_count;
 #else
@@ -258,11 +258,11 @@ acpi_status acpi_ns_root_initialize(void)
  * FUNCTION:    acpi_ns_lookup
  *
  * PARAMETERS:  scope_info      - Current scope info block
- *              Pathname        - Search pathname, in internal format
+ *              pathname        - Search pathname, in internal format
  *                                (as represented in the AML stream)
- *              Type            - Type associated with name
+ *              type            - Type associated with name
  *              interpreter_mode - IMODE_LOAD_PASS2 => add name if not found
- *              Flags           - Flags describing the search restrictions
+ *              flags           - Flags describing the search restrictions
  *              walk_state      - Current state of the walk
  *              return_node     - Where the Node is placed (if found
  *                                or created successfully)

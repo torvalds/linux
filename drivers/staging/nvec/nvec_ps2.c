@@ -96,7 +96,11 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
-	struct serio *ser_dev = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	struct serio *ser_dev;
+
+	ser_dev = devm_kzalloc(&pdev->dev, sizeof(struct serio), GFP_KERNEL);
+	if (ser_dev == NULL)
+		return -ENOMEM;
 
 	ser_dev->id.type = SERIO_PS_PSTHRU;
 	ser_dev->write = ps2_sendcommand;
@@ -119,8 +123,17 @@ static int __devinit nvec_mouse_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nvec_mouse_suspend(struct platform_device *pdev, pm_message_t state)
+static int __devexit nvec_mouse_remove(struct platform_device *pdev)
 {
+	serio_unregister_port(ps2_dev.ser_dev);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int nvec_mouse_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 
 	/* disable mouse */
@@ -132,8 +145,9 @@ static int nvec_mouse_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int nvec_mouse_resume(struct platform_device *pdev)
+static int nvec_mouse_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 
 	ps2_startstreaming(ps2_dev.ser_dev);
@@ -143,23 +157,22 @@ static int nvec_mouse_resume(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
+
+static const SIMPLE_DEV_PM_OPS(nvec_mouse_pm_ops, nvec_mouse_suspend,
+				nvec_mouse_resume);
 
 static struct platform_driver nvec_mouse_driver = {
 	.probe  = nvec_mouse_probe,
-	.suspend = nvec_mouse_suspend,
-	.resume = nvec_mouse_resume,
+	.remove = __devexit_p(nvec_mouse_remove),
 	.driver = {
 		.name = "nvec-mouse",
 		.owner = THIS_MODULE,
+		.pm = &nvec_mouse_pm_ops,
 	},
 };
 
-static int __init nvec_mouse_init(void)
-{
-	return platform_driver_register(&nvec_mouse_driver);
-}
-
-module_init(nvec_mouse_init);
+module_platform_driver(nvec_mouse_driver);
 
 MODULE_DESCRIPTION("NVEC mouse driver");
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");

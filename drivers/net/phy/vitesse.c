@@ -138,21 +138,6 @@ static int vsc82xx_config_intr(struct phy_device *phydev)
 	return err;
 }
 
-/* Vitesse 824x */
-static struct phy_driver vsc8244_driver = {
-	.phy_id		= PHY_ID_VSC8244,
-	.name		= "Vitesse VSC8244",
-	.phy_id_mask	= 0x000fffc0,
-	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_INTERRUPT,
-	.config_init	= &vsc824x_config_init,
-	.config_aneg	= &genphy_config_aneg,
-	.read_status	= &genphy_read_status,
-	.ack_interrupt	= &vsc824x_ack_interrupt,
-	.config_intr	= &vsc82xx_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
-
 static int vsc8221_config_init(struct phy_device *phydev)
 {
 	int err;
@@ -165,8 +150,22 @@ static int vsc8221_config_init(struct phy_device *phydev)
 	   Options are 802.3Z SerDes or SGMII */
 }
 
-/* Vitesse 8221 */
-static struct phy_driver vsc8221_driver = {
+/* Vitesse 824x */
+static struct phy_driver vsc82xx_driver[] = {
+{
+	.phy_id		= PHY_ID_VSC8244,
+	.name		= "Vitesse VSC8244",
+	.phy_id_mask	= 0x000fffc0,
+	.features	= PHY_GBIT_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
+	.config_init	= &vsc824x_config_init,
+	.config_aneg	= &genphy_config_aneg,
+	.read_status	= &genphy_read_status,
+	.ack_interrupt	= &vsc824x_ack_interrupt,
+	.config_intr	= &vsc82xx_config_intr,
+	.driver		= { .owner = THIS_MODULE,},
+}, {
+	/* Vitesse 8221 */
 	.phy_id		= PHY_ID_VSC8221,
 	.phy_id_mask	= 0x000ffff0,
 	.name		= "Vitesse VSC8221",
@@ -177,26 +176,19 @@ static struct phy_driver vsc8221_driver = {
 	.read_status	= &genphy_read_status,
 	.ack_interrupt	= &vsc824x_ack_interrupt,
 	.config_intr	= &vsc82xx_config_intr,
-	.driver 	= { .owner = THIS_MODULE,},
-};
+	.driver		= { .owner = THIS_MODULE,},
+} };
 
 static int __init vsc82xx_init(void)
 {
-	int err;
-
-	err = phy_driver_register(&vsc8244_driver);
-	if (err < 0)
-		return err;
-	err = phy_driver_register(&vsc8221_driver);
-	if (err < 0)
-		phy_driver_unregister(&vsc8244_driver);
-	return err;
+	return phy_drivers_register(vsc82xx_driver,
+		ARRAY_SIZE(vsc82xx_driver));
 }
 
 static void __exit vsc82xx_exit(void)
 {
-	phy_driver_unregister(&vsc8244_driver);
-	phy_driver_unregister(&vsc8221_driver);
+	return phy_drivers_unregister(vsc82xx_driver,
+		ARRAY_SIZE(vsc82xx_driver));
 }
 
 module_init(vsc82xx_init);

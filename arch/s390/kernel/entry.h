@@ -5,7 +5,6 @@
 #include <linux/signal.h>
 #include <asm/ptrace.h>
 #include <asm/cputime.h>
-#include <asm/timer.h>
 
 extern void (*pgm_check_table[128])(struct pt_regs *);
 extern void *restart_stack;
@@ -17,8 +16,7 @@ void io_int_handler(void);
 void mcck_int_handler(void);
 void restart_int_handler(void);
 void restart_call_handler(void);
-void psw_idle(struct s390_idle_data *, struct vtimer_queue *,
-	      unsigned long, int);
+void psw_idle(struct s390_idle_data *, unsigned long);
 
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);

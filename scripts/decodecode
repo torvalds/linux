@@ -89,7 +89,7 @@ echo $code >> $T.s
 disas $T
 cat $T.dis >> $T.aa
 
-faultline=`cat $T.dis | head -1 | cut -d":" -f2`
+faultline=`cat $T.dis | head -1 | cut -d":" -f2-`
 faultline=`echo "$faultline" | sed -e 's/\[/\\\[/g; s/\]/\\\]/g'`
 
 cat $T.oo | sed -e "s/\($faultline\)/\*\1     <-- trapping instruction/g"

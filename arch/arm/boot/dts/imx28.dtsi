@@ -22,6 +22,11 @@
 		gpio4 = &gpio4;
 		saif0 = &saif0;
 		saif1 = &saif1;
+		serial0 = &auart0;
+		serial1 = &auart1;
+		serial2 = &auart2;
+		serial3 = &auart3;
+		serial4 = &auart4;
 	};
 
 	cpus {
@@ -52,57 +57,57 @@
 			};
 
 			hsadc@80002000 {
-				reg = <0x80002000 2000>;
+				reg = <0x80002000 0x2000>;
 				interrupts = <13 87>;
 				status = "disabled";
 			};
 
 			dma-apbh@80004000 {
 				compatible = "fsl,imx28-dma-apbh";
-				reg = <0x80004000 2000>;
+				reg = <0x80004000 0x2000>;
 			};
 
 			perfmon@80006000 {
-				reg = <0x80006000 800>;
+				reg = <0x80006000 0x800>;
 				interrupts = <27>;
 				status = "disabled";
 			};
 
-			bch@8000a000 {
-				reg = <0x8000a000 2000>;
-				interrupts = <41>;
-				status = "disabled";
-			};
-
-			gpmi@8000c000 {
-				reg = <0x8000c000 2000>;
-				interrupts = <42 88>;
+			gpmi-nand@8000c000 {
+				compatible = "fsl,imx28-gpmi-nand";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x8000c000 0x2000>, <0x8000a000 0x2000>;
+				reg-names = "gpmi-nand", "bch";
+				interrupts = <88>, <41>;
+				interrupt-names = "gpmi-dma", "bch";
+				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
 
 			ssp0: ssp@80010000 {
-				reg = <0x80010000 2000>;
+				reg = <0x80010000 0x2000>;
 				interrupts = <96 82>;
 				fsl,ssp-dma-channel = <0>;
 				status = "disabled";
 			};
 
 			ssp1: ssp@80012000 {
-				reg = <0x80012000 2000>;
+				reg = <0x80012000 0x2000>;
 				interrupts = <97 83>;
 				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
 
 			ssp2: ssp@80014000 {
-				reg = <0x80014000 2000>;
+				reg = <0x80014000 0x2000>;
 				interrupts = <98 84>;
 				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
 
 			ssp3: ssp@80016000 {
-				reg = <0x80016000 2000>;
+				reg = <0x80016000 0x2000>;
 				interrupts = <99 85>;
 				fsl,ssp-dma-channel = <3>;
 				status = "disabled";
@@ -112,7 +117,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx28-pinctrl", "simple-bus";
-				reg = <0x80018000 2000>;
+				reg = <0x80018000 0x2000>;
 
 				gpio0: gpio@0 {
 					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
@@ -161,7 +166,150 @@
 
 				duart_pins_a: duart@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x3102 0x3112>;
+					fsl,pinmux-ids = <
+						0x3102 /* MX28_PAD_PWM0__DUART_RX */
+						0x3112 /* MX28_PAD_PWM1__DUART_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				duart_pins_b: duart@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3022 /* MX28_PAD_AUART0_CTS__DUART_RX */
+						0x3032 /* MX28_PAD_AUART0_RTS__DUART_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				duart_4pins_a: duart-4pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3022 /* MX28_PAD_AUART0_CTS__DUART_RX */
+						0x3032 /* MX28_PAD_AUART0_RTS__DUART_TX */
+						0x3002 /* MX28_PAD_AUART0_RX__DUART_CTS */
+						0x3012 /* MX28_PAD_AUART0_TX__DUART_RTS */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				gpmi_pins_a: gpmi-nand@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0000 /* MX28_PAD_GPMI_D00__GPMI_D0 */
+						0x0010 /* MX28_PAD_GPMI_D01__GPMI_D1 */
+						0x0020 /* MX28_PAD_GPMI_D02__GPMI_D2 */
+						0x0030 /* MX28_PAD_GPMI_D03__GPMI_D3 */
+						0x0040 /* MX28_PAD_GPMI_D04__GPMI_D4 */
+						0x0050 /* MX28_PAD_GPMI_D05__GPMI_D5 */
+						0x0060 /* MX28_PAD_GPMI_D06__GPMI_D6 */
+						0x0070 /* MX28_PAD_GPMI_D07__GPMI_D7 */
+						0x0100 /* MX28_PAD_GPMI_CE0N__GPMI_CE0N */
+						0x0140 /* MX28_PAD_GPMI_RDY0__GPMI_READY0 */
+						0x0180 /* MX28_PAD_GPMI_RDN__GPMI_RDN */
+						0x0190 /* MX28_PAD_GPMI_WRN__GPMI_WRN */
+						0x01a0 /* MX28_PAD_GPMI_ALE__GPMI_ALE */
+						0x01b0 /* MX28_PAD_GPMI_CLE__GPMI_CLE */
+						0x01c0 /* MX28_PAD_GPMI_RESETN__GPMI_RESETN */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				gpmi_status_cfg: gpmi-status-cfg {
+					fsl,pinmux-ids = <
+						0x0180 /* MX28_PAD_GPMI_RDN__GPMI_RDN */
+						0x0190 /* MX28_PAD_GPMI_WRN__GPMI_WRN */
+						0x01c0 /* MX28_PAD_GPMI_RESETN__GPMI_RESETN */
+					>;
+					fsl,drive-strength = <2>;
+				};
+
+				auart0_pins_a: auart0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3000 /* MX28_PAD_AUART0_RX__AUART0_RX */
+						0x3010 /* MX28_PAD_AUART0_TX__AUART0_TX */
+						0x3020 /* MX28_PAD_AUART0_CTS__AUART0_CTS */
+						0x3030 /* MX28_PAD_AUART0_RTS__AUART0_RTS */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart0_2pins_a: auart0-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3000 /* MX28_PAD_AUART0_RX__AUART0_RX */
+						0x3010 /* MX28_PAD_AUART0_TX__AUART0_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart1_pins_a: auart1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3040 /* MX28_PAD_AUART1_RX__AUART1_RX */
+						0x3050 /* MX28_PAD_AUART1_TX__AUART1_TX */
+						0x3060 /* MX28_PAD_AUART1_CTS__AUART1_CTS */
+						0x3070 /* MX28_PAD_AUART1_RTS__AUART1_RTS */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart1_2pins_a: auart1-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3040 /* MX28_PAD_AUART1_RX__AUART1_RX */
+						0x3050 /* MX28_PAD_AUART1_TX__AUART1_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart2_2pins_a: auart2-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2101 /* MX28_PAD_SSP2_SCK__AUART2_RX */
+						0x2111 /* MX28_PAD_SSP2_MOSI__AUART2_TX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart3_pins_a: auart3@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x30c0 /* MX28_PAD_AUART3_RX__AUART3_RX */
+						0x30d0 /* MX28_PAD_AUART3_TX__AUART3_TX */
+						0x30e0 /* MX28_PAD_AUART3_CTS__AUART3_CTS */
+						0x30f0 /* MX28_PAD_AUART3_RTS__AUART3_RTS */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				auart3_2pins_a: auart3-2pins@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2121 /* MX28_PAD_SSP2_MISO__AUART3_RX */
+						0x2131 /* MX28_PAD_SSP2_SS0__AUART3_TX */
+					>;
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
@@ -169,9 +317,17 @@
 
 				mac0_pins_a: mac0@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x4000 0x4010 0x4020
-						0x4030 0x4040 0x4060 0x4070
-						0x4080 0x4100>;
+					fsl,pinmux-ids = <
+						0x4000 /* MX28_PAD_ENET0_MDC__ENET0_MDC */
+						0x4010 /* MX28_PAD_ENET0_MDIO__ENET0_MDIO */
+						0x4020 /* MX28_PAD_ENET0_RX_EN__ENET0_RX_EN */
+						0x4030 /* MX28_PAD_ENET0_RXD0__ENET0_RXD0 */
+						0x4040 /* MX28_PAD_ENET0_RXD1__ENET0_RXD1 */
+						0x4060 /* MX28_PAD_ENET0_TX_EN__ENET0_TX_EN */
+						0x4070 /* MX28_PAD_ENET0_TXD0__ENET0_TXD0 */
+						0x4080 /* MX28_PAD_ENET0_TXD1__ENET0_TXD1 */
+						0x4100 /* MX28_PAD_ENET_CLK__CLKCTRL_ENET */
+					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
@@ -179,8 +335,14 @@
 
 				mac1_pins_a: mac1@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x40f1 0x4091 0x40a1
-						0x40e1 0x40b1 0x40c1>;
+					fsl,pinmux-ids = <
+						0x40f1 /* MX28_PAD_ENET0_CRS__ENET1_RX_EN */
+						0x4091 /* MX28_PAD_ENET0_RXD2__ENET1_RXD0 */
+						0x40a1 /* MX28_PAD_ENET0_RXD3__ENET1_RXD1 */
+						0x40e1 /* MX28_PAD_ENET0_COL__ENET1_TX_EN */
+						0x40b1 /* MX28_PAD_ENET0_TXD2__ENET1_TXD0 */
+						0x40c1 /* MX28_PAD_ENET0_TXD3__ENET1_TXD1 */
+					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
@@ -188,28 +350,61 @@
 
 				mmc0_8bit_pins_a: mmc0-8bit@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x2000 0x2010 0x2020
-						0x2030 0x2040 0x2050 0x2060
-						0x2070 0x2080 0x2090 0x20a0>;
+					fsl,pinmux-ids = <
+						0x2000 /* MX28_PAD_SSP0_DATA0__SSP0_D0 */
+						0x2010 /* MX28_PAD_SSP0_DATA1__SSP0_D1 */
+						0x2020 /* MX28_PAD_SSP0_DATA2__SSP0_D2 */
+						0x2030 /* MX28_PAD_SSP0_DATA3__SSP0_D3 */
+						0x2040 /* MX28_PAD_SSP0_DATA4__SSP0_D4 */
+						0x2050 /* MX28_PAD_SSP0_DATA5__SSP0_D5 */
+						0x2060 /* MX28_PAD_SSP0_DATA6__SSP0_D6 */
+						0x2070 /* MX28_PAD_SSP0_DATA7__SSP0_D7 */
+						0x2080 /* MX28_PAD_SSP0_CMD__SSP0_CMD */
+						0x2090 /* MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT */
+						0x20a0 /* MX28_PAD_SSP0_SCK__SSP0_SCK */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				mmc0_4bit_pins_a: mmc0-4bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2000 /* MX28_PAD_SSP0_DATA0__SSP0_D0 */
+						0x2010 /* MX28_PAD_SSP0_DATA1__SSP0_D1 */
+						0x2020 /* MX28_PAD_SSP0_DATA2__SSP0_D2 */
+						0x2030 /* MX28_PAD_SSP0_DATA3__SSP0_D3 */
+						0x2080 /* MX28_PAD_SSP0_CMD__SSP0_CMD */
+						0x2090 /* MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT */
+						0x20a0 /* MX28_PAD_SSP0_SCK__SSP0_SCK */
+					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
 
 				mmc0_cd_cfg: mmc0-cd-cfg {
-					fsl,pinmux-ids = <0x2090>;
+					fsl,pinmux-ids = <
+						0x2090 /* MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT */
+					>;
 					fsl,pull-up = <0>;
 				};
 
 				mmc0_sck_cfg: mmc0-sck-cfg {
-					fsl,pinmux-ids = <0x20a0>;
+					fsl,pinmux-ids = <
+						0x20a0 /* MX28_PAD_SSP0_SCK__SSP0_SCK */
+					>;
 					fsl,drive-strength = <2>;
 					fsl,pull-up = <0>;
 				};
 
 				i2c0_pins_a: i2c0@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x3180 0x3190>;
+					fsl,pinmux-ids = <
+						0x3180 /* MX28_PAD_I2C0_SCL__I2C0_SCL */
+						0x3190 /* MX28_PAD_I2C0_SDA__I2C0_SDA */
+					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
@@ -217,8 +412,12 @@
 
 				saif0_pins_a: saif0@0 {
 					reg = <0>;
-					fsl,pinmux-ids =
-						<0x3140 0x3150 0x3160 0x3170>;
+					fsl,pinmux-ids = <
+						0x3140 /* MX28_PAD_SAIF0_MCLK__SAIF0_MCLK */
+						0x3150 /* MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK */
+						0x3160 /* MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK */
+						0x3170 /* MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0 */
+					>;
 					fsl,drive-strength = <2>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
@@ -226,101 +425,181 @@
 
 				saif1_pins_a: saif1@0 {
 					reg = <0>;
-					fsl,pinmux-ids = <0x31a0>;
+					fsl,pinmux-ids = <
+						0x31a0 /* MX28_PAD_SAIF1_SDATA0__SAIF1_SDATA0 */
+					>;
 					fsl,drive-strength = <2>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
+
+				pwm0_pins_a: pwm0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3100 /* MX28_PAD_PWM0__PWM_0 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				pwm2_pins_a: pwm2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3120 /* MX28_PAD_PWM2__PWM_2 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				lcdif_24bit_pins_a: lcdif-24bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1000 /* MX28_PAD_LCD_D00__LCD_D0 */
+						0x1010 /* MX28_PAD_LCD_D01__LCD_D1 */
+						0x1020 /* MX28_PAD_LCD_D02__LCD_D2 */
+						0x1030 /* MX28_PAD_LCD_D03__LCD_D3 */
+						0x1040 /* MX28_PAD_LCD_D04__LCD_D4 */
+						0x1050 /* MX28_PAD_LCD_D05__LCD_D5 */
+						0x1060 /* MX28_PAD_LCD_D06__LCD_D6 */
+						0x1070 /* MX28_PAD_LCD_D07__LCD_D7 */
+						0x1080 /* MX28_PAD_LCD_D08__LCD_D8 */
+						0x1090 /* MX28_PAD_LCD_D09__LCD_D9 */
+						0x10a0 /* MX28_PAD_LCD_D10__LCD_D10 */
+						0x10b0 /* MX28_PAD_LCD_D11__LCD_D11 */
+						0x10c0 /* MX28_PAD_LCD_D12__LCD_D12 */
+						0x10d0 /* MX28_PAD_LCD_D13__LCD_D13 */
+						0x10e0 /* MX28_PAD_LCD_D14__LCD_D14 */
+						0x10f0 /* MX28_PAD_LCD_D15__LCD_D15 */
+						0x1100 /* MX28_PAD_LCD_D16__LCD_D16 */
+						0x1110 /* MX28_PAD_LCD_D17__LCD_D17 */
+						0x1120 /* MX28_PAD_LCD_D18__LCD_D18 */
+						0x1130 /* MX28_PAD_LCD_D19__LCD_D19 */
+						0x1140 /* MX28_PAD_LCD_D20__LCD_D20 */
+						0x1150 /* MX28_PAD_LCD_D21__LCD_D21 */
+						0x1160 /* MX28_PAD_LCD_D22__LCD_D22 */
+						0x1170 /* MX28_PAD_LCD_D23__LCD_D23 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				can0_pins_a: can0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0161 /* MX28_PAD_GPMI_RDY2__CAN0_TX */
+						0x0171 /* MX28_PAD_GPMI_RDY3__CAN0_RX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				can1_pins_a: can1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0121 /* MX28_PAD_GPMI_CE2N__CAN1_TX */
+						0x0131 /* MX28_PAD_GPMI_CE3N__CAN1_RX */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
-				reg = <0x8001c000 2000>;
+				reg = <0x8001c000 0x2000>;
 				interrupts = <89>;
 				status = "disabled";
 			};
 
 			etm@80022000 {
-				reg = <0x80022000 2000>;
+				reg = <0x80022000 0x2000>;
 				status = "disabled";
 			};
 
 			dma-apbx@80024000 {
 				compatible = "fsl,imx28-dma-apbx";
-				reg = <0x80024000 2000>;
+				reg = <0x80024000 0x2000>;
 			};
 
 			dcp@80028000 {
-				reg = <0x80028000 2000>;
+				reg = <0x80028000 0x2000>;
 				interrupts = <52 53 54>;
 				status = "disabled";
 			};
 
 			pxp@8002a000 {
-				reg = <0x8002a000 2000>;
+				reg = <0x8002a000 0x2000>;
 				interrupts = <39>;
 				status = "disabled";
 			};
 
 			ocotp@8002c000 {
-				reg = <0x8002c000 2000>;
+				reg = <0x8002c000 0x2000>;
 				status = "disabled";
 			};
 
 			axi-ahb@8002e000 {
-				reg = <0x8002e000 2000>;
+				reg = <0x8002e000 0x2000>;
 				status = "disabled";
 			};
 
 			lcdif@80030000 {
-				reg = <0x80030000 2000>;
+				compatible = "fsl,imx28-lcdif";
+				reg = <0x80030000 0x2000>;
 				interrupts = <38 86>;
 				status = "disabled";
 			};
 
 			can0: can@80032000 {
-				reg = <0x80032000 2000>;
+				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
+				reg = <0x80032000 0x2000>;
 				interrupts = <8>;
 				status = "disabled";
 			};
 
 			can1: can@80034000 {
-				reg = <0x80034000 2000>;
+				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
+				reg = <0x80034000 0x2000>;
 				interrupts = <9>;
 				status = "disabled";
 			};
 
 			simdbg@8003c000 {
-				reg = <0x8003c000 200>;
+				reg = <0x8003c000 0x200>;
 				status = "disabled";
 			};
 
 			simgpmisel@8003c200 {
-				reg = <0x8003c200 100>;
+				reg = <0x8003c200 0x100>;
 				status = "disabled";
 			};
 
 			simsspsel@8003c300 {
-				reg = <0x8003c300 100>;
+				reg = <0x8003c300 0x100>;
 				status = "disabled";
 			};
 
 			simmemsel@8003c400 {
-				reg = <0x8003c400 100>;
+				reg = <0x8003c400 0x100>;
 				status = "disabled";
 			};
 
 			gpiomon@8003c500 {
-				reg = <0x8003c500 100>;
+				reg = <0x8003c500 0x100>;
 				status = "disabled";
 			};
 
 			simenet@8003c700 {
-				reg = <0x8003c700 100>;
+				reg = <0x8003c700 0x100>;
 				status = "disabled";
 			};
 
 			armjtag@8003c800 {
-				reg = <0x8003c800 100>;
+				reg = <0x8003c800 0x100>;
 				status = "disabled";
 			};
                 };
@@ -333,54 +612,55 @@
 			ranges;
 
 			clkctl@80040000 {
-				reg = <0x80040000 2000>;
+				reg = <0x80040000 0x2000>;
 				status = "disabled";
 			};
 
 			saif0: saif@80042000 {
 				compatible = "fsl,imx28-saif";
-				reg = <0x80042000 2000>;
+				reg = <0x80042000 0x2000>;
 				interrupts = <59 80>;
 				fsl,saif-dma-channel = <4>;
 				status = "disabled";
 			};
 
 			power@80044000 {
-				reg = <0x80044000 2000>;
+				reg = <0x80044000 0x2000>;
 				status = "disabled";
 			};
 
 			saif1: saif@80046000 {
 				compatible = "fsl,imx28-saif";
-				reg = <0x80046000 2000>;
+				reg = <0x80046000 0x2000>;
 				interrupts = <58 81>;
 				fsl,saif-dma-channel = <5>;
 				status = "disabled";
 			};
 
 			lradc@80050000 {
-				reg = <0x80050000 2000>;
+				reg = <0x80050000 0x2000>;
 				status = "disabled";
 			};
 
 			spdif@80054000 {
-				reg = <0x80054000 2000>;
+				reg = <0x80054000 0x2000>;
 				interrupts = <45 66>;
 				status = "disabled";
 			};
 
 			rtc@80056000 {
-				reg = <0x80056000 2000>;
-				interrupts = <28 29>;
-				status = "disabled";
+				compatible = "fsl,imx28-rtc", "fsl,stmp3xxx-rtc";
+				reg = <0x80056000 0x2000>;
+				interrupts = <29>;
 			};
 
 			i2c0: i2c@80058000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx28-i2c";
-				reg = <0x80058000 2000>;
+				reg = <0x80058000 0x2000>;
 				interrupts = <111 68>;
+				clock-frequency = <100000>;
 				status = "disabled";
 			};
 
@@ -388,46 +668,55 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx28-i2c";
-				reg = <0x8005a000 2000>;
+				reg = <0x8005a000 0x2000>;
 				interrupts = <110 69>;
+				clock-frequency = <100000>;
 				status = "disabled";
 			};
 
-			pwm@80064000 {
-				reg = <0x80064000 2000>;
+			pwm: pwm@80064000 {
+				compatible = "fsl,imx28-pwm", "fsl,imx23-pwm";
+				reg = <0x80064000 0x2000>;
+				#pwm-cells = <2>;
+				fsl,pwm-number = <8>;
 				status = "disabled";
 			};
 
 			timrot@80068000 {
-				reg = <0x80068000 2000>;
+				reg = <0x80068000 0x2000>;
 				status = "disabled";
 			};
 
 			auart0: serial@8006a000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006a000 0x2000>;
 				interrupts = <112 70 71>;
 				status = "disabled";
 			};
 
 			auart1: serial@8006c000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006c000 0x2000>;
 				interrupts = <113 72 73>;
 				status = "disabled";
 			};
 
 			auart2: serial@8006e000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x8006e000 0x2000>;
 				interrupts = <114 74 75>;
 				status = "disabled";
 			};
 
 			auart3: serial@80070000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80070000 0x2000>;
 				interrupts = <115 76 77>;
 				status = "disabled";
 			};
 
 			auart4: serial@80072000 {
+				compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 				reg = <0x80072000 0x2000>;
 				interrupts = <116 78 79>;
 				status = "disabled";
@@ -441,11 +730,13 @@
 			};
 
 			usbphy0: usbphy@8007c000 {
+				compatible = "fsl,imx28-usbphy", "fsl,imx23-usbphy";
 				reg = <0x8007c000 0x2000>;
 				status = "disabled";
 			};
 
 			usbphy1: usbphy@8007e000 {
+				compatible = "fsl,imx28-usbphy", "fsl,imx23-usbphy";
 				reg = <0x8007e000 0x2000>;
 				status = "disabled";
 			};
@@ -459,13 +750,19 @@
 		reg = <0x80080000 0x80000>;
 		ranges;
 
-		usbctrl0: usbctrl@80080000 {
+		usb0: usb@80080000 {
+			compatible = "fsl,imx28-usb", "fsl,imx27-usb";
 			reg = <0x80080000 0x10000>;
+			interrupts = <93>;
+			fsl,usbphy = <&usbphy0>;
 			status = "disabled";
 		};
 
-		usbctrl1: usbctrl@80090000 {
+		usb1: usb@80090000 {
+			compatible = "fsl,imx28-usb", "fsl,imx27-usb";
 			reg = <0x80090000 0x10000>;
+			interrupts = <92>;
+			fsl,usbphy = <&usbphy1>;
 			status = "disabled";
 		};
 

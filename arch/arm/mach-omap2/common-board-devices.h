@@ -4,6 +4,7 @@
 #include "twl-common.h"
 
 #define NAND_BLOCK_SIZE	SZ_128K
+#define OMAP3_EVM_TS_GPIO	175
 
 struct mtd_partition;
 struct ads7846_platform_data;

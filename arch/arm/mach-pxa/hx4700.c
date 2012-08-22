@@ -127,7 +127,11 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO19_SSP2_SCLK,
 	GPIO86_SSP2_RXD,
 	GPIO87_SSP2_TXD,
-	GPIO88_GPIO,
+	GPIO88_GPIO | MFP_LPM_DRIVE_HIGH,	/* TSC2046_CS */
+
+	/* BQ24022 Regulator */
+	GPIO72_GPIO | MFP_LPM_KEEP_OUTPUT,	/* BQ24022_nCHARGE_EN */
+	GPIO96_GPIO | MFP_LPM_KEEP_OUTPUT,	/* BQ24022_ISET2 */
 
 	/* HX4700 specific input GPIOs */
 	GPIO12_GPIO | WAKEUP_ON_EDGE_RISE,	/* ASIC3_IRQ */
@@ -135,6 +139,10 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO14_GPIO,	/* nWLAN_IRQ */
 
 	/* HX4700 specific output GPIOs */
+	GPIO61_GPIO | MFP_LPM_DRIVE_HIGH,	/* W3220_nRESET */
+	GPIO71_GPIO | MFP_LPM_DRIVE_HIGH,	/* ASIC3_nRESET */
+	GPIO81_GPIO | MFP_LPM_DRIVE_HIGH,	/* CPU_GP_nRESET */
+	GPIO116_GPIO | MFP_LPM_DRIVE_HIGH,	/* CPU_HW_nRESET */
 	GPIO102_GPIO | MFP_LPM_DRIVE_LOW,	/* SYNAPTICS_POWER_ON */
 
 	GPIO10_GPIO,	/* GSM_IRQ */
@@ -288,27 +296,11 @@ static struct asic3_led asic3_leds[ASIC3_NUM_LEDS] = {
 
 static struct resource asic3_resources[] = {
 	/* GPIO part */
-	[0] = {
-		.start	= ASIC3_PHYS,
-		.end	= ASIC3_PHYS + ASIC3_MAP_SIZE_16BIT - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= PXA_GPIO_TO_IRQ(GPIO12_HX4700_ASIC3_IRQ),
-		.end	= PXA_GPIO_TO_IRQ(GPIO12_HX4700_ASIC3_IRQ),
-		.flags	= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(ASIC3_PHYS, ASIC3_MAP_SIZE_16BIT),
+	[1] = DEFINE_RES_IRQ(PXA_GPIO_TO_IRQ(GPIO12_HX4700_ASIC3_IRQ)),
 	/* SD part */
-	[2] = {
-		.start	= ASIC3_SD_PHYS,
-		.end	= ASIC3_SD_PHYS + ASIC3_MAP_SIZE_16BIT - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[3] = {
-		.start	= PXA_GPIO_TO_IRQ(GPIO66_HX4700_ASIC3_nSDIO_IRQ),
-		.end	= PXA_GPIO_TO_IRQ(GPIO66_HX4700_ASIC3_nSDIO_IRQ),
-		.flags	= IORESOURCE_IRQ,
-	},
+	[2] = DEFINE_RES_MEM(ASIC3_SD_PHYS, ASIC3_MAP_SIZE_16BIT),
+	[3] = DEFINE_RES_IRQ(PXA_GPIO_TO_IRQ(GPIO66_HX4700_ASIC3_nSDIO_IRQ)),
 };
 
 static struct asic3_platform_data asic3_platform_data = {
@@ -335,11 +327,7 @@ static struct platform_device asic3 = {
  */
 
 static struct resource egpio_resources[] = {
-	[0] = {
-		.start = PXA_CS5_PHYS,
-		.end   = PXA_CS5_PHYS + 0x4 - 1,
-		.flags = IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(PXA_CS5_PHYS, 0x4),
 };
 
 static struct htc_egpio_chip egpio_chips[] = {
@@ -529,11 +517,7 @@ static struct w100fb_mach_info w3220_info = {
 };
 
 static struct resource w3220_resources[] = {
-	[0] = {
-		.start	= ATI_W3220_PHYS,
-		.end	= ATI_W3220_PHYS + 0x00ffffff,
-		.flags	= IORESOURCE_MEM,
-	},
+	[0] = DEFINE_RES_MEM(ATI_W3220_PHYS, SZ_16M),
 };
 
 static struct platform_device w3220 = {
@@ -675,20 +659,12 @@ static struct pda_power_pdata power_supply_info = {
 };
 
 static struct resource power_supply_resources[] = {
-	[0] = {
-		.name  = "ac",
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
-		         IORESOURCE_IRQ_LOWEDGE,
-		.start = PXA_GPIO_TO_IRQ(GPIOD9_nAC_IN),
-		.end   = PXA_GPIO_TO_IRQ(GPIOD9_nAC_IN),
-	},
-	[1] = {
-		.name  = "usb",
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
-		         IORESOURCE_IRQ_LOWEDGE,
-		.start = PXA_GPIO_TO_IRQ(GPIOD14_nUSBC_DETECT),
-		.end   = PXA_GPIO_TO_IRQ(GPIOD14_nUSBC_DETECT),
-	},
+	[0] = DEFINE_RES_NAMED(PXA_GPIO_TO_IRQ(GPIOD9_nAC_IN), 1, "ac",
+		IORESOURCE_IRQ |
+		IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_LOWEDGE),
+	[1] = DEFINE_RES_NAMED(PXA_GPIO_TO_IRQ(GPIOD14_nUSBC_DETECT), 1, "usb",
+		IORESOURCE_IRQ |
+		IORESOURCE_IRQ_HIGHEDGE | IORESOURCE_IRQ_LOWEDGE),
 };
 
 static struct platform_device power_supply = {
@@ -872,13 +848,18 @@ static struct gpio global_gpios[] = {
 	{ GPIO110_HX4700_LCD_LVDD_3V3_ON, GPIOF_OUT_INIT_HIGH, "LCD_LVDD" },
 	{ GPIO111_HX4700_LCD_AVDD_3V3_ON, GPIOF_OUT_INIT_HIGH, "LCD_AVDD" },
 	{ GPIO32_HX4700_RS232_ON,         GPIOF_OUT_INIT_HIGH, "RS232_ON" },
+	{ GPIO61_HX4700_W3220_nRESET,     GPIOF_OUT_INIT_HIGH, "W3220_nRESET" },
 	{ GPIO71_HX4700_ASIC3_nRESET,     GPIOF_OUT_INIT_HIGH, "ASIC3_nRESET" },
+	{ GPIO81_HX4700_CPU_GP_nRESET,    GPIOF_OUT_INIT_HIGH, "CPU_GP_nRESET" },
 	{ GPIO82_HX4700_EUART_RESET,      GPIOF_OUT_INIT_HIGH, "EUART_RESET" },
+	{ GPIO116_HX4700_CPU_HW_nRESET,   GPIOF_OUT_INIT_HIGH, "CPU_HW_nRESET" },
 };
 
 static void __init hx4700_init(void)
 {
 	int ret;
+
+	PCFR = PCFR_GPR_EN | PCFR_OPDE;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(hx4700_pin_config));
 	gpio_set_wake(GPIO12_HX4700_ASIC3_IRQ, 1);

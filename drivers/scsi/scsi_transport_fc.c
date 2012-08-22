@@ -1744,6 +1744,15 @@ fc_host_statistic(fcp_output_requests);
 fc_host_statistic(fcp_control_requests);
 fc_host_statistic(fcp_input_megabytes);
 fc_host_statistic(fcp_output_megabytes);
+fc_host_statistic(fcp_packet_alloc_failures);
+fc_host_statistic(fcp_packet_aborts);
+fc_host_statistic(fcp_frame_alloc_failures);
+fc_host_statistic(fc_no_free_exch);
+fc_host_statistic(fc_no_free_exch_xid);
+fc_host_statistic(fc_xid_not_found);
+fc_host_statistic(fc_xid_busy);
+fc_host_statistic(fc_seq_not_found);
+fc_host_statistic(fc_non_bls_resp);
 
 static ssize_t
 fc_reset_statistics(struct device *dev, struct device_attribute *attr,
@@ -1784,6 +1793,15 @@ static struct attribute *fc_statistics_attrs[] = {
 	&device_attr_host_fcp_control_requests.attr,
 	&device_attr_host_fcp_input_megabytes.attr,
 	&device_attr_host_fcp_output_megabytes.attr,
+	&device_attr_host_fcp_packet_alloc_failures.attr,
+	&device_attr_host_fcp_packet_aborts.attr,
+	&device_attr_host_fcp_frame_alloc_failures.attr,
+	&device_attr_host_fc_no_free_exch.attr,
+	&device_attr_host_fc_no_free_exch_xid.attr,
+	&device_attr_host_fc_xid_not_found.attr,
+	&device_attr_host_fc_xid_busy.attr,
+	&device_attr_host_fc_seq_not_found.attr,
+	&device_attr_host_fc_non_bls_resp.attr,
 	&device_attr_host_reset_statistics.attr,
 	NULL
 };
@@ -2477,11 +2495,9 @@ static void fc_terminate_rport_io(struct fc_rport *rport)
 		i->f->terminate_rport_io(rport);
 
 	/*
-	 * must unblock to flush queued IO. The caller will have set
-	 * the port_state or flags, so that fc_remote_port_chkready will
-	 * fail IO.
+	 * Must unblock to flush queued IO. scsi-ml will fail incoming reqs.
 	 */
-	scsi_target_unblock(&rport->dev);
+	scsi_target_unblock(&rport->dev, SDEV_TRANSPORT_OFFLINE);
 }
 
 /**
@@ -2812,8 +2828,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 
 				/* if target, initiate a scan */
 				if (rport->scsi_target_id != -1) {
-					scsi_target_unblock(&rport->dev);
-
+					scsi_target_unblock(&rport->dev,
+							    SDEV_RUNNING);
 					spin_lock_irqsave(shost->host_lock,
 							  flags);
 					rport->flags |= FC_RPORT_SCAN_PENDING;
@@ -2882,7 +2898,7 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 			spin_unlock_irqrestore(shost->host_lock, flags);
 
 			if (ids->roles & FC_PORT_ROLE_FCP_TARGET) {
-				scsi_target_unblock(&rport->dev);
+				scsi_target_unblock(&rport->dev, SDEV_RUNNING);
 
 				/* initiate a scan of the target */
 				spin_lock_irqsave(shost->host_lock, flags);
@@ -3087,7 +3103,7 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 		/* ensure any stgt delete functions are done */
 		fc_flush_work(shost);
 
-		scsi_target_unblock(&rport->dev);
+		scsi_target_unblock(&rport->dev, SDEV_RUNNING);
 		/* initiate a scan of the target */
 		spin_lock_irqsave(shost->host_lock, flags);
 		rport->flags |= FC_RPORT_SCAN_PENDING;
@@ -3131,7 +3147,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 			"blocked FC remote port time out: no longer"
 			" a FCP target, removing starget\n");
 		spin_unlock_irqrestore(shost->host_lock, flags);
-		scsi_target_unblock(&rport->dev);
+		scsi_target_unblock(&rport->dev, SDEV_TRANSPORT_OFFLINE);
 		fc_queue_work(shost, &rport->stgt_delete_work);
 		return;
 	}
@@ -4130,45 +4146,7 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 static void
 fc_bsg_remove(struct request_queue *q)
 {
-	struct request *req; /* block request */
-	int counts; /* totals for request_list count and starved */
-
 	if (q) {
-		/* Stop taking in new requests */
-		spin_lock_irq(q->queue_lock);
-		blk_stop_queue(q);
-
-		/* drain all requests in the queue */
-		while (1) {
-			/* need the lock to fetch a request
-			 * this may fetch the same reqeust as the previous pass
-			 */
-			req = blk_fetch_request(q);
-			/* save requests in use and starved */
-			counts = q->rq.count[0] + q->rq.count[1] +
-				q->rq.starved[0] + q->rq.starved[1];
-			spin_unlock_irq(q->queue_lock);
-			/* any requests still outstanding? */
-			if (counts == 0)
-				break;
-
-			/* This may be the same req as the previous iteration,
-			 * always send the blk_end_request_all after a prefetch.
-			 * It is not okay to not end the request because the
-			 * prefetch started the request.
-			 */
-			if (req) {
-				/* return -ENXIO to indicate that this queue is
-				 * going away
-				 */
-				req->errors = -ENXIO;
-				blk_end_request_all(req, -ENXIO);
-			}
-
-			msleep(200); /* allow bsg to possibly finish */
-			spin_lock_irq(q->queue_lock);
-		}
-
 		bsg_unregister_queue(q);
 		blk_cleanup_queue(q);
 	}

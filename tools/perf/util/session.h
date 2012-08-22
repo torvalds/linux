@@ -33,6 +33,7 @@ struct perf_session {
 	struct machine		host_machine;
 	struct rb_root		machines;
 	struct perf_evlist	*evlist;
+	struct pevent		*pevent;
 	/*
 	 * FIXME: Need to split this up further, we need global
 	 *	  stats + per event stats. 'perf diff' also needs
@@ -40,13 +41,9 @@ struct perf_session {
 	 *	  perf.data file.
 	 */
 	struct hists		hists;
-	u64			sample_type;
-	int			sample_size;
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
-	bool			sample_id_all;
-	u16			id_hdr_size;
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
@@ -80,11 +77,12 @@ struct branch_info *machine__resolve_bstack(struct machine *self,
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
 
 void mem_bswap_64(void *src, int byte_size);
+void mem_bswap_32(void *src, int byte_size);
 void perf_event__attr_swap(struct perf_event_attr *attr);
 
 int perf_session__create_kernel_maps(struct perf_session *self);
 
-void perf_session__update_sample_type(struct perf_session *self);
+void perf_session__set_id_hdr_size(struct perf_session *session);
 void perf_session__remove_thread(struct perf_session *self, struct thread *th);
 
 static inline
@@ -128,33 +126,24 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
 
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp);
 
-static inline int perf_session__parse_sample(struct perf_session *session,
-					     const union perf_event *event,
-					     struct perf_sample *sample)
-{
-	return perf_event__parse_sample(event, session->sample_type,
-					session->sample_size,
-					session->sample_id_all, sample,
-					session->header.needs_swap);
-}
-
-static inline int perf_session__synthesize_sample(struct perf_session *session,
-						  union perf_event *event,
-						  const struct perf_sample *sample)
-{
-	return perf_event__synthesize_sample(event, session->sample_type,
-					     sample, session->header.needs_swap);
-}
-
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
-			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso, int print_symoffset);
+			  struct machine *machine, int print_sym,
+			  int print_dso, int print_symoffset);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);
 
 void perf_session__fprintf_info(struct perf_session *s, FILE *fp, bool full);
+
+struct perf_evsel_str_handler;
+
+int __perf_session__set_tracepoints_handlers(struct perf_session *session,
+					     const struct perf_evsel_str_handler *assocs,
+					     size_t nr_assocs);
+
+#define perf_session__set_tracepoints_handlers(session, array) \
+	__perf_session__set_tracepoints_handlers(session, array, ARRAY_SIZE(array))
 #endif /* __PERF_SESSION_H */

@@ -25,6 +25,7 @@ struct nfs41_impl_id;
  */
 struct nfs_client {
 	atomic_t		cl_count;
+	atomic_t		cl_mds_count;
 	int			cl_cons_state;	/* current construction state (-ve: init error) */
 #define NFS_CS_READY		0		/* ready to be used */
 #define NFS_CS_INITING		1		/* busy initialising */
@@ -47,11 +48,12 @@ struct nfs_client {
 	struct rpc_clnt *	cl_rpcclient;
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
 	int			cl_proto;	/* Network transport protocol */
+	struct nfs_subversion *	cl_nfs_mod;	/* pointer to nfs version module */
 
 	u32			cl_minorversion;/* NFSv4 minorversion */
 	struct rpc_cred		*cl_machine_cred;
 
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 	u64			cl_clientid;	/* constant */
 	nfs4_verifier		cl_confirm;	/* Clientid verifier */
 	unsigned long		cl_state;
@@ -68,10 +70,9 @@ struct nfs_client {
 	struct idmap *		cl_idmap;
 
 	/* Our own IP address, as a null-terminated string.
-	 * This is used to generate the clientid, and the callback address.
+	 * This is used to generate the mv0 callback address.
 	 */
 	char			cl_ipaddr[48];
-	unsigned char		cl_id_uniquifier;
 	u32			cl_cb_ident;	/* v4.0 callback identifier */
 	const struct nfs4_minor_version_ops *cl_mvops;
 
@@ -137,7 +138,7 @@ struct nfs_server {
 #endif
 
 	u32			pnfs_blksize;	/* layout_blksize attr */
-#ifdef CONFIG_NFS_V4
+#if IS_ENABLED(CONFIG_NFS_V4)
 	u32			attr_bitmask[3];/* V4 bitmask representing the set
 						   of attributes supported on this
 						   filesystem */
@@ -200,7 +201,7 @@ struct nfs_server {
 #define NFS4_MAX_SLOT_TABLE (256U)
 #define NFS4_NO_SLOT ((u32)-1)
 
-#if defined(CONFIG_NFS_V4)
+#if IS_ENABLED(CONFIG_NFS_V4)
 
 /* Sessions */
 #define SLOT_TABLE_SZ DIV_ROUND_UP(NFS4_MAX_SLOT_TABLE, 8*sizeof(long))

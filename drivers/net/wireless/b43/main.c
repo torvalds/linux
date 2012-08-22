@@ -2359,6 +2359,8 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	if (err)
 		goto err_load;
 
+	fw->opensource = (ctx->req_type == B43_FWTYPE_OPENSOURCE);
+
 	return 0;
 
 err_no_ucode:
@@ -2434,9 +2436,14 @@ static void b43_request_firmware(struct work_struct *work)
 	goto out;
 
 start_ieee80211:
+	wl->hw->queues = B43_QOS_QUEUE_NUM;
+	if (!modparam_qos || dev->fw.opensource)
+		wl->hw->queues = 1;
+
 	err = ieee80211_register_hw(wl->hw);
 	if (err)
 		goto err_one_core_detach;
+	wl->hw_registred = true;
 	b43_leds_register(wl->current_dev);
 	goto out;
 
@@ -2536,11 +2543,9 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		dev->fw.hdr_format = B43_FW_HDR_410;
 	else
 		dev->fw.hdr_format = B43_FW_HDR_351;
-	dev->fw.opensource = (fwdate == 0xFFFF);
+	WARN_ON(dev->fw.opensource != (fwdate == 0xFFFF));
 
-	/* Default to use-all-queues. */
-	dev->wl->hw->queues = dev->wl->mac80211_initially_registered_queues;
-	dev->qos_enabled = !!modparam_qos;
+	dev->qos_enabled = dev->wl->hw->queues > 1;
 	/* Default to firmware/hardware crypto acceleration. */
 	dev->hwcrypto_enabled = true;
 
@@ -2558,14 +2563,8 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 			/* Disable hardware crypto and fall back to software crypto. */
 			dev->hwcrypto_enabled = false;
 		}
-		if (!(fwcapa & B43_FWCAPA_QOS)) {
-			b43info(dev->wl, "QoS not supported by firmware\n");
-			/* Disable QoS. Tweak hw->queues to 1. It will be restored before
-			 * ieee80211_unregister to make sure the networking core can
-			 * properly free possible resources. */
-			dev->wl->hw->queues = 1;
-			dev->qos_enabled = false;
-		}
+		/* adding QoS support should use an offline discovery mechanism */
+		WARN(fwcapa & B43_FWCAPA_QOS, "QoS in OpenFW not supported\n");
 	} else {
 		b43info(dev->wl, "Loading firmware version %u.%u "
 			"(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
@@ -2720,32 +2719,37 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	if (dev->dev->chip_id == 0x4301) {
 		mask |= 0x0060;
 		set |= 0x0060;
+	} else if (dev->dev->chip_id == 0x5354) {
+		/* Don't allow overtaking buttons GPIOs */
+		set &= 0x2; /* 0x2 is LED GPIO on BCM5354 */
 	}
-	if (dev->dev->chip_id == 0x5354)
-		set &= 0xff02;
+
 	if (0 /* FIXME: conditional unknown */ ) {
 		b43_write16(dev, B43_MMIO_GPIO_MASK,
 			    b43_read16(dev, B43_MMIO_GPIO_MASK)
 			    | 0x0100);
-		mask |= 0x0180;
-		set |= 0x0180;
+		/* BT Coexistance Input */
+		mask |= 0x0080;
+		set |= 0x0080;
+		/* BT Coexistance Out */
+		mask |= 0x0100;
+		set |= 0x0100;
 	}
 	if (dev->dev->bus_sprom->boardflags_lo & B43_BFL_PACTRL) {
+		/* PA is controlled by gpio 9, let ucode handle it */
 		b43_write16(dev, B43_MMIO_GPIO_MASK,
 			    b43_read16(dev, B43_MMIO_GPIO_MASK)
 			    | 0x0200);
 		mask |= 0x0200;
 		set |= 0x0200;
 	}
-	if (dev->dev->core_rev >= 2)
-		mask |= 0x0010;	/* FIXME: This is redundant. */
 
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
 		bcma_cc_write32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_GPIOCTL,
 				(bcma_cc_read32(&dev->dev->bdev->bus->drv_cc,
-					BCMA_CC_GPIOCTL) & mask) | set);
+					BCMA_CC_GPIOCTL) & ~mask) | set);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -2754,7 +2758,7 @@ static int b43_gpio_init(struct b43_wldev *dev)
 		if (gpiodev)
 			ssb_write32(gpiodev, B43_GPIO_CONTROL,
 				    (ssb_read32(gpiodev, B43_GPIO_CONTROL)
-				    & mask) | set);
+				    & ~mask) | set);
 		break;
 #endif
 	}
@@ -3766,7 +3770,7 @@ static int b43_switch_band(struct b43_wl *wl, struct ieee80211_channel *chan)
 	if (prev_status >= B43_STAT_STARTED) {
 		err = b43_wireless_core_start(up_dev);
 		if (err) {
-			b43err(wl, "Fatal: Coult not start device for "
+			b43err(wl, "Fatal: Could not start device for "
 			       "selected %s-GHz band\n",
 			       band_to_string(chan->band));
 			b43_wireless_core_exit(up_dev);
@@ -5297,8 +5301,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
-	hw->queues = modparam_qos ? B43_QOS_QUEUE_NUM : 1;
-	wl->mac80211_initially_registered_queues = hw->queues;
+	wl->hw_registred = false;
 	hw->max_rates = 2;
 	SET_IEEE80211_DEV(hw, dev->dev);
 	if (is_valid_ether_addr(sprom->et1mac))
@@ -5370,12 +5373,11 @@ static void b43_bcma_remove(struct bcma_device *core)
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
 
-	/* Restore the queues count before unregistering, because firmware detect
-	 * might have modified it. Restoring is important, so the networking
-	 * stack can properly free resources. */
-	wl->hw->queues = wl->mac80211_initially_registered_queues;
-	b43_leds_stop(wldev);
-	ieee80211_unregister_hw(wl->hw);
+	B43_WARN_ON(!wl);
+	if (wl->current_dev == wldev && wl->hw_registred) {
+		b43_leds_stop(wldev);
+		ieee80211_unregister_hw(wl->hw);
+	}
 
 	b43_one_core_detach(wldev->dev);
 
@@ -5446,11 +5448,7 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 	cancel_work_sync(&wldev->restart_work);
 
 	B43_WARN_ON(!wl);
-	if (wl->current_dev == wldev) {
-		/* Restore the queues count before unregistering, because firmware detect
-		 * might have modified it. Restoring is important, so the networking
-		 * stack can properly free resources. */
-		wl->hw->queues = wl->mac80211_initially_registered_queues;
+	if (wl->current_dev == wldev && wl->hw_registred) {
 		b43_leds_stop(wldev);
 		ieee80211_unregister_hw(wl->hw);
 	}

@@ -963,7 +963,7 @@ static int viacam_do_try_fmt(struct via_camera *cam,
 
 	upix->pixelformat = f->pixelformat;
 	viacam_fmt_pre(upix, spix);
-	v4l2_fill_mbus_format(&mbus_fmt, upix, f->mbus_code);
+	v4l2_fill_mbus_format(&mbus_fmt, spix, f->mbus_code);
 	ret = sensor_call(cam, video, try_mbus_fmt, &mbus_fmt);
 	v4l2_fill_pix_format(spix, &mbus_fmt);
 	viacam_fmt_post(upix, spix);

@@ -175,7 +175,7 @@ int solo_i2c_isr(struct solo_dev *solo_dev)
 
 	solo_reg_write(solo_dev, SOLO_IRQ_STAT, SOLO_IRQ_IIC);
 
-	if (status & (SOLO_IIC_STATE_TRNS & SOLO_IIC_STATE_SIG_ERR) ||
+	if (status & (SOLO_IIC_STATE_TRNS | SOLO_IIC_STATE_SIG_ERR) ||
 	    solo_dev->i2c_id < 0) {
 		solo_i2c_stop(solo_dev);
 		return -ENXIO;

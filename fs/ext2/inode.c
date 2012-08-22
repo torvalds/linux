@@ -79,6 +79,7 @@ void ext2_evict_inode(struct inode * inode)
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (want_delete) {
+		sb_start_intwrite(inode->i_sb);
 		/* set dtime */
 		EXT2_I(inode)->i_dtime	= get_seconds();
 		mark_inode_dirty(inode);
@@ -98,8 +99,10 @@ void ext2_evict_inode(struct inode * inode)
 	if (unlikely(rsv))
 		kfree(rsv);
 
-	if (want_delete)
+	if (want_delete) {
 		ext2_free_inode(inode);
+		sb_end_intwrite(inode->i_sb);
+	}
 }
 
 typedef struct {

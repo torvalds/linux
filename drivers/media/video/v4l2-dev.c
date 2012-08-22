@@ -46,6 +46,29 @@ static ssize_t show_index(struct device *cd,
 	return sprintf(buf, "%i\n", vdev->index);
 }
 
+static ssize_t show_debug(struct device *cd,
+			 struct device_attribute *attr, char *buf)
+{
+	struct video_device *vdev = to_video_device(cd);
+
+	return sprintf(buf, "%i\n", vdev->debug);
+}
+
+static ssize_t set_debug(struct device *cd, struct device_attribute *attr,
+		   const char *buf, size_t len)
+{
+	struct video_device *vdev = to_video_device(cd);
+	int res = 0;
+	u16 value;
+
+	res = kstrtou16(buf, 0, &value);
+	if (res)
+		return res;
+
+	vdev->debug = value;
+	return len;
+}
+
 static ssize_t show_name(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
@@ -56,6 +79,7 @@ static ssize_t show_name(struct device *cd,
 
 static struct device_attribute video_device_attrs[] = {
 	__ATTR(name, S_IRUGO, show_name, NULL),
+	__ATTR(debug, 0644, show_debug, set_debug),
 	__ATTR(index, S_IRUGO, show_index, NULL),
 	__ATTR_NULL
 };
@@ -281,6 +305,9 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		ret = vdev->fops->read(filp, buf, sz, off);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: read: %zd (%d)\n",
+			video_device_node_name(vdev), sz, ret);
 	return ret;
 }
 
@@ -299,6 +326,9 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		ret = vdev->fops->write(filp, buf, sz, off);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: write: %zd (%d)\n",
+			video_device_node_name(vdev), sz, ret);
 	return ret;
 }
 
@@ -315,6 +345,9 @@ static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 		ret = vdev->fops->poll(filp, poll);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: poll: %08x\n",
+			video_device_node_name(vdev), ret);
 	return ret;
 }
 
@@ -324,20 +357,14 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret = -ENODEV;
 
 	if (vdev->fops->unlocked_ioctl) {
-		bool locked = false;
+		struct mutex *lock = v4l2_ioctl_get_lock(vdev, cmd);
 
-		if (vdev->lock) {
-			/* always lock unless the cmd is marked as "don't use lock" */
-			locked = !v4l2_is_known_ioctl(cmd) ||
-				 !test_bit(_IOC_NR(cmd), vdev->disable_locking);
-
-			if (locked && mutex_lock_interruptible(vdev->lock))
-				return -ERESTARTSYS;
-		}
+		if (lock && mutex_lock_interruptible(lock))
+			return -ERESTARTSYS;
 		if (video_is_registered(vdev))
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
-		if (locked)
-			mutex_unlock(vdev->lock);
+		if (lock)
+			mutex_unlock(lock);
 	} else if (vdev->fops->ioctl) {
 		/* This code path is a replacement for the BKL. It is a major
 		 * hack but it will have to do for those drivers that are not
@@ -385,12 +412,17 @@ static unsigned long v4l2_get_unmapped_area(struct file *filp,
 		unsigned long flags)
 {
 	struct video_device *vdev = video_devdata(filp);
+	int ret;
 
 	if (!vdev->fops->get_unmapped_area)
 		return -ENOSYS;
 	if (!video_is_registered(vdev))
 		return -ENODEV;
-	return vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
+	ret = vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: get_unmapped_area (%d)\n",
+			video_device_node_name(vdev), ret);
+	return ret;
 }
 #endif
 
@@ -408,6 +440,9 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 		ret = vdev->fops->mmap(filp, vm);
 	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: mmap (%d)\n",
+			video_device_node_name(vdev), ret);
 	return ret;
 }
 
@@ -443,6 +478,9 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	}
 
 err:
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: open (%d)\n",
+			video_device_node_name(vdev), ret);
 	/* decrease the refcount in case of an error */
 	if (ret)
 		video_put(vdev);
@@ -462,6 +500,9 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 			mutex_unlock(vdev->lock);
 	}
+	if (vdev->debug)
+		printk(KERN_DEBUG "%s: release\n",
+			video_device_node_name(vdev));
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */
 	video_put(vdev);
@@ -656,7 +697,8 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_TRY_ENCODER_CMD, vidioc_try_encoder_cmd);
 	SET_VALID_IOCTL(ops, VIDIOC_DECODER_CMD, vidioc_decoder_cmd);
 	SET_VALID_IOCTL(ops, VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd);
-	if (ops->vidioc_g_parm || vdev->current_norm)
+	if (ops->vidioc_g_parm || (vdev->vfl_type == VFL_TYPE_GRABBER &&
+					(ops->vidioc_g_std || vdev->tvnorms)))
 		set_bit(_IOC_NR(VIDIOC_G_PARM), valid_ioctls);
 	SET_VALID_IOCTL(ops, VIDIOC_S_PARM, vidioc_s_parm);
 	SET_VALID_IOCTL(ops, VIDIOC_G_TUNER, vidioc_g_tuner);
@@ -679,12 +721,17 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	SET_VALID_IOCTL(ops, VIDIOC_QUERY_DV_PRESET, vidioc_query_dv_preset);
 	SET_VALID_IOCTL(ops, VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings);
 	SET_VALID_IOCTL(ops, VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings);
+	SET_VALID_IOCTL(ops, VIDIOC_ENUM_DV_TIMINGS, vidioc_enum_dv_timings);
+	SET_VALID_IOCTL(ops, VIDIOC_QUERY_DV_TIMINGS, vidioc_query_dv_timings);
+	SET_VALID_IOCTL(ops, VIDIOC_DV_TIMINGS_CAP, vidioc_dv_timings_cap);
 	/* yes, really vidioc_subscribe_event */
 	SET_VALID_IOCTL(ops, VIDIOC_DQEVENT, vidioc_subscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_SUBSCRIBE_EVENT, vidioc_subscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_UNSUBSCRIBE_EVENT, vidioc_unsubscribe_event);
 	SET_VALID_IOCTL(ops, VIDIOC_CREATE_BUFS, vidioc_create_bufs);
 	SET_VALID_IOCTL(ops, VIDIOC_PREPARE_BUF, vidioc_prepare_buf);
+	if (ops->vidioc_enum_freq_bands || ops->vidioc_g_tuner || ops->vidioc_g_modulator)
+		set_bit(_IOC_NR(VIDIOC_ENUM_FREQ_BANDS), valid_ioctls);
 	bitmap_andnot(vdev->valid_ioctls, valid_ioctls, vdev->valid_ioctls,
 			BASE_VIDIOC_PRIVATE);
 }

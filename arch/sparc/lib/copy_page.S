@@ -34,10 +34,10 @@
 #endif
 
 #define TOUCH(reg0, reg1, reg2, reg3, reg4, reg5, reg6, reg7)	\
-	fmovd	%reg0, %f48; 	fmovd	%reg1, %f50;		\
-	fmovd	%reg2, %f52; 	fmovd	%reg3, %f54;		\
-	fmovd	%reg4, %f56; 	fmovd	%reg5, %f58;		\
-	fmovd	%reg6, %f60; 	fmovd	%reg7, %f62;
+	fsrc2	%reg0, %f48; 	fsrc2	%reg1, %f50;		\
+	fsrc2	%reg2, %f52; 	fsrc2	%reg3, %f54;		\
+	fsrc2	%reg4, %f56; 	fsrc2	%reg5, %f58;		\
+	fsrc2	%reg6, %f60; 	fsrc2	%reg7, %f62;
 
 	.text
 
@@ -104,60 +104,60 @@ cheetah_copy_page_insn:
 	prefetch	[%o1 + 0x140], #one_read
 	ldd		[%o1 + 0x010], %f4
 	prefetch	[%o1 + 0x180], #one_read
-	fmovd		%f0, %f16
+	fsrc2		%f0, %f16
 	ldd		[%o1 + 0x018], %f6
-	fmovd		%f2, %f18
+	fsrc2		%f2, %f18
 	ldd		[%o1 + 0x020], %f8
-	fmovd		%f4, %f20
+	fsrc2		%f4, %f20
 	ldd		[%o1 + 0x028], %f10
-	fmovd		%f6, %f22
+	fsrc2		%f6, %f22
 	ldd		[%o1 + 0x030], %f12
-	fmovd		%f8, %f24
+	fsrc2		%f8, %f24
 	ldd		[%o1 + 0x038], %f14
-	fmovd		%f10, %f26
+	fsrc2		%f10, %f26
 	ldd		[%o1 + 0x040], %f0
 1:	ldd		[%o1 + 0x048], %f2
-	fmovd		%f12, %f28
+	fsrc2		%f12, %f28
 	ldd		[%o1 + 0x050], %f4
-	fmovd		%f14, %f30
+	fsrc2		%f14, %f30
 	stda		%f16, [%o0] ASI_BLK_P
 	ldd		[%o1 + 0x058], %f6
-	fmovd		%f0, %f16
+	fsrc2		%f0, %f16
 	ldd		[%o1 + 0x060], %f8
-	fmovd		%f2, %f18
+	fsrc2		%f2, %f18
 	ldd		[%o1 + 0x068], %f10
-	fmovd		%f4, %f20
+	fsrc2		%f4, %f20
 	ldd		[%o1 + 0x070], %f12
-	fmovd		%f6, %f22
+	fsrc2		%f6, %f22
 	ldd		[%o1 + 0x078], %f14
-	fmovd		%f8, %f24
+	fsrc2		%f8, %f24
 	ldd		[%o1 + 0x080], %f0
 	prefetch	[%o1 + 0x180], #one_read
-	fmovd		%f10, %f26
+	fsrc2		%f10, %f26
 	subcc		%o2, 1, %o2
 	add		%o0, 0x40, %o0
 	bne,pt		%xcc, 1b
 	 add		%o1, 0x40, %o1
 
 	ldd		[%o1 + 0x048], %f2
-	fmovd		%f12, %f28
+	fsrc2		%f12, %f28
 	ldd		[%o1 + 0x050], %f4
-	fmovd		%f14, %f30
+	fsrc2		%f14, %f30
 	stda		%f16, [%o0] ASI_BLK_P
 	ldd		[%o1 + 0x058], %f6
-	fmovd		%f0, %f16
+	fsrc2		%f0, %f16
 	ldd		[%o1 + 0x060], %f8
-	fmovd		%f2, %f18
+	fsrc2		%f2, %f18
 	ldd		[%o1 + 0x068], %f10
-	fmovd		%f4, %f20
+	fsrc2		%f4, %f20
 	ldd		[%o1 + 0x070], %f12
-	fmovd		%f6, %f22
+	fsrc2		%f6, %f22
 	add		%o0, 0x40, %o0
 	ldd		[%o1 + 0x078], %f14
-	fmovd		%f8, %f24
-	fmovd		%f10, %f26
-	fmovd		%f12, %f28
-	fmovd		%f14, %f30
+	fsrc2		%f8, %f24
+	fsrc2		%f10, %f26
+	fsrc2		%f12, %f28
+	fsrc2		%f14, %f30
 	stda		%f16, [%o0] ASI_BLK_P
 	membar		#Sync
 	VISExitHalf

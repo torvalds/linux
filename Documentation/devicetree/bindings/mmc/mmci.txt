@@ -1,19 +1,15 @@
 * ARM PrimeCell MultiMedia Card Interface (MMCI) PL180/1
 
-The ARM PrimeCell MMCI PL180 and PL181 provides and interface for
+The ARM PrimeCell MMCI PL180 and PL181 provides an interface for
 reading and writing to MultiMedia and SD cards alike.
+
+This file documents differences between the core properties described
+by mmc.txt and the properties used by the mmci driver.
 
 Required properties:
 - compatible             : contains "arm,pl18x", "arm,primecell".
-- reg                    : contains pl18x registers and length.
-- interrupts             : contains the device IRQ(s).
 - arm,primecell-periphid : contains the PrimeCell Peripheral ID.
 
 Optional properties:
-- wp-gpios               : contains any write protect (ro) gpios
-- cd-gpios               : contains any card detection gpios
-- cd-inverted            : indicates whether the cd gpio is inverted
-- max-frequency          : contains the maximum operating frequency
-- bus-width              : number of data lines, can be <1>, <4>, or <8>
 - mmc-cap-mmc-highspeed  : indicates whether MMC is high speed capable
 - mmc-cap-sd-highspeed   : indicates whether SD is high speed capable

@@ -1,5 +1,4 @@
 /*
- * File...........: linux/drivers/s390/block/dasd.c
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  *		    Carsten Otte <Cotte@de.ibm.com>
@@ -52,7 +51,7 @@ void dasd_int_handler(struct ccw_device *, unsigned long, struct irb *);
 
 MODULE_AUTHOR("Holger Smolinski <Holger.Smolinski@de.ibm.com>");
 MODULE_DESCRIPTION("Linux on S/390 DASD device driver,"
-		   " Copyright 2000 IBM Corporation");
+		   " Copyright IBM Corp. 2000");
 MODULE_SUPPORTED_DEVICE("dasd");
 MODULE_LICENSE("GPL");
 
@@ -82,6 +81,7 @@ static void dasd_profile_exit(struct dasd_profile *);
 static wait_queue_head_t dasd_init_waitq;
 static wait_queue_head_t dasd_flush_wq;
 static wait_queue_head_t generic_waitq;
+static wait_queue_head_t shutdown_waitq;
 
 /*
  * Allocate memory for a new device structure.
@@ -1994,6 +1994,8 @@ static void dasd_device_tasklet(struct dasd_device *device)
 	/* Now check if the head of the ccw queue needs to be started. */
 	__dasd_device_start_head(device);
 	spin_unlock_irq(get_ccwdev_lock(device->cdev));
+	if (waitqueue_active(&shutdown_waitq))
+		wake_up(&shutdown_waitq);
 	dasd_put_device(device);
 }
 
@@ -2632,6 +2634,8 @@ static void dasd_block_tasklet(struct dasd_block *block)
 	__dasd_block_start_head(block);
 	spin_unlock(&block->queue_lock);
 	spin_unlock_irq(&block->request_queue_lock);
+	if (waitqueue_active(&shutdown_waitq))
+		wake_up(&shutdown_waitq);
 	dasd_put_device(block->base);
 }
 
@@ -3474,6 +3478,32 @@ char *dasd_get_sense(struct irb *irb)
 }
 EXPORT_SYMBOL_GPL(dasd_get_sense);
 
+static inline int _wait_for_empty_queues(struct dasd_device *device)
+{
+	if (device->block)
+		return list_empty(&device->ccw_queue) &&
+			list_empty(&device->block->ccw_queue);
+	else
+		return list_empty(&device->ccw_queue);
+}
+
+void dasd_generic_shutdown(struct ccw_device *cdev)
+{
+	struct dasd_device *device;
+
+	device = dasd_device_from_cdev(cdev);
+	if (IS_ERR(device))
+		return;
+
+	if (device->block)
+		dasd_schedule_block_bh(device->block);
+
+	dasd_schedule_device_bh(device);
+
+	wait_event(shutdown_waitq, _wait_for_empty_queues(device));
+}
+EXPORT_SYMBOL_GPL(dasd_generic_shutdown);
+
 static int __init dasd_init(void)
 {
 	int rc;
@@ -3481,6 +3511,7 @@ static int __init dasd_init(void)
 	init_waitqueue_head(&dasd_init_waitq);
 	init_waitqueue_head(&dasd_flush_wq);
 	init_waitqueue_head(&generic_waitq);
+	init_waitqueue_head(&shutdown_waitq);
 
 	/* register 'common' DASD debug area, used for all DBF_XXX calls */
 	dasd_debug_area = debug_register("dasd", 1, 1, 8 * sizeof(long));

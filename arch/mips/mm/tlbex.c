@@ -9,6 +9,7 @@
  * Copyright (C) 2005, 2007, 2008, 2009  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2008, 2009 Cavium Networks, Inc.
+ * Copyright (C) 2011  MIPS Technologies, Inc.
  *
  * ... and the days got worse and worse and now you see
  * I've gone completly out of my mind.
@@ -494,6 +495,7 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_R14000:
 	case CPU_4KC:
 	case CPU_4KEC:
+	case CPU_M14KC:
 	case CPU_SB1:
 	case CPU_SB1A:
 	case CPU_4KSC:

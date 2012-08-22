@@ -2485,6 +2485,7 @@ static int bnx2x_mcast_enqueue_cmd(struct bnx2x *bp,
 		break;
 
 	default:
+		kfree(new_cmd);
 		BNX2X_ERR("Unknown command: %d\n", cmd);
 		return -EINVAL;
 	}
@@ -4107,6 +4108,10 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 		data->capabilities |=
 			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_TCP_CAPABILITY;
 
+	if (test_bit(BNX2X_RSS_IPV4_UDP, &p->rss_flags))
+		data->capabilities |=
+			ETH_RSS_UPDATE_RAMROD_DATA_IPV4_UDP_CAPABILITY;
+
 	if (test_bit(BNX2X_RSS_IPV6, &p->rss_flags))
 		data->capabilities |=
 			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_CAPABILITY;
@@ -4114,6 +4119,10 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 	if (test_bit(BNX2X_RSS_IPV6_TCP, &p->rss_flags))
 		data->capabilities |=
 			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_TCP_CAPABILITY;
+
+	if (test_bit(BNX2X_RSS_IPV6_UDP, &p->rss_flags))
+		data->capabilities |=
+			ETH_RSS_UPDATE_RAMROD_DATA_IPV6_UDP_CAPABILITY;
 
 	/* Hashing mask */
 	data->rss_result_mask = p->rss_result_mask;

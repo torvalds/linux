@@ -46,10 +46,6 @@ struct sd {
 	u8 current_mode;
 };
 
-/* V4L2 controls supported by the driver */
-static const struct ctrl sd_ctrls[] = {
-};
-
 static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 		       int size)
 {
@@ -318,8 +314,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
@@ -352,6 +346,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

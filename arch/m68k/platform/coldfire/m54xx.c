@@ -21,16 +21,9 @@
 #include <asm/m54xxsim.h>
 #include <asm/mcfuart.h>
 #include <asm/m54xxgpt.h>
-#include <asm/mcfgpio.h>
 #ifdef CONFIG_MMU
 #include <asm/mmu_context.h>
 #endif
-
-/***************************************************************************/
-
-struct mcf_gpio_chip mcf_gpio_chips[] = { };
-
-unsigned int mcf_gpio_chips_size = ARRAY_SIZE(mcf_gpio_chips);
 
 /***************************************************************************/
 

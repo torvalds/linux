@@ -71,12 +71,9 @@ initialize the <structfield>bytesused</structfield>,
 <structfield>field</structfield> and
 <structfield>timestamp</structfield> fields, see <xref
 linkend="buffer" /> for details.
-Applications must also set <structfield>flags</structfield> to 0. If a driver
-supports capturing from specific video inputs and you want to specify a video
-input, then <structfield>flags</structfield> should be set to
-<constant>V4L2_BUF_FLAG_INPUT</constant> and the field
-<structfield>input</structfield> must be initialized to the desired input.
-The <structfield>reserved</structfield> field must be set to 0. When using
+Applications must also set <structfield>flags</structfield> to 0.
+The <structfield>reserved2</structfield> and
+<structfield>reserved</structfield> fields must be set to 0. When using
 the <link linkend="planar-apis">multi-planar API</link>, the
 <structfield>m.planes</structfield> field must contain a userspace pointer
 to a filled-in array of &v4l2-plane; and the <structfield>length</structfield>

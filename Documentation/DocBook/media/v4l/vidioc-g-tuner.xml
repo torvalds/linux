@@ -119,10 +119,14 @@ field is not quite clear.--></para></entry>
 <xref linkend="tuner-capability" />. Audio flags indicate the ability
 to decode audio subprograms. They will <emphasis>not</emphasis>
 change, for example with the current video standard.</para><para>When
-the structure refers to a radio tuner only the
-<constant>V4L2_TUNER_CAP_LOW</constant>,
-<constant>V4L2_TUNER_CAP_STEREO</constant> and
-<constant>V4L2_TUNER_CAP_RDS</constant> flags can be set.</para></entry>
+the structure refers to a radio tuner the
+<constant>V4L2_TUNER_CAP_LANG1</constant>,
+<constant>V4L2_TUNER_CAP_LANG2</constant> and
+<constant>V4L2_TUNER_CAP_NORM</constant> flags can't be used.</para>
+<para>If multiple frequency bands are supported, then
+<structfield>capability</structfield> is the union of all
+<structfield>capability></structfield> fields of each &v4l2-frequency-band;.
+</para></entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -130,7 +134,9 @@ the structure refers to a radio tuner only the
 	    <entry spanname="hspan">The lowest tunable frequency in
 units of 62.5 kHz, or if the <structfield>capability</structfield>
 flag <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz.</entry>
+Hz. If multiple frequency bands are supported, then
+<structfield>rangelow</structfield> is the lowest frequency
+of all the frequency bands.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -138,7 +144,9 @@ Hz.</entry>
 	    <entry spanname="hspan">The highest tunable frequency in
 units of 62.5 kHz, or if the <structfield>capability</structfield>
 flag <constant>V4L2_TUNER_CAP_LOW</constant> is set, in units of 62.5
-Hz.</entry>
+Hz. If multiple frequency bands are supported, then
+<structfield>rangehigh</structfield> is the highest frequency
+of all the frequency bands.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -276,6 +284,18 @@ can or must be switched. (B/G PAL tuners for example are typically not
       <constant>V4L2_TUNER_ANALOG_TV</constant> tuners can have this capability.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_TUNER_CAP_HWSEEK_BOUNDED</constant></entry>
+	    <entry>0x0004</entry>
+	    <entry>If set, then this tuner supports the hardware seek functionality
+	    where the seek stops when it reaches the end of the frequency range.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_TUNER_CAP_HWSEEK_WRAP</constant></entry>
+	    <entry>0x0008</entry>
+	    <entry>If set, then this tuner supports the hardware seek functionality
+	    where the seek wraps around when it reaches the end of the frequency range.</entry>
+	  </row>
+	  <row>
 	<entry><constant>V4L2_TUNER_CAP_STEREO</constant></entry>
 	<entry>0x0010</entry>
 	<entry>Stereo audio reception is supported.</entry>
@@ -327,6 +347,12 @@ radio tuners.</entry>
 	<entry><constant>V4L2_TUNER_CAP_RDS_CONTROLS</constant></entry>
 	<entry>0x0200</entry>
 	<entry>The RDS data is parsed by the hardware and set via controls.</entry>
+	  </row>
+	  <row>
+	<entry><constant>V4L2_TUNER_CAP_FREQ_BANDS</constant></entry>
+	<entry>0x0400</entry>
+	<entry>The &VIDIOC-ENUM-FREQ-BANDS; ioctl can be used to enumerate
+	the available frequency bands.</entry>
 	  </row>
 	</tbody>
       </tgroup>

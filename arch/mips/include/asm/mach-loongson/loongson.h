@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/irq.h>
+#include <linux/kconfig.h>
 
 /* loongson internal northbridge initialization */
 extern void bonito_irq_init(void);
@@ -66,7 +67,7 @@ extern int mach_i8259_irq(void);
 #include <linux/interrupt.h>
 static inline void do_perfcnt_IRQ(void)
 {
-#if defined(CONFIG_OPROFILE) || defined(CONFIG_OPROFILE_MODULE)
+#if IS_ENABLED(CONFIG_OPROFILE)
 	do_IRQ(LOONGSON2_PERFCNT_IRQ);
 #endif
 }
@@ -244,7 +245,6 @@ static inline void do_perfcnt_IRQ(void)
 
 #ifdef CONFIG_CPU_SUPPORTS_CPUFREQ
 #include <linux/cpufreq.h>
-extern void loongson2_cpu_wait(void);
 extern struct cpufreq_frequency_table loongson2_clockmod_table[];
 
 /* Chip Config */

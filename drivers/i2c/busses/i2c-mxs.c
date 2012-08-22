@@ -46,6 +46,10 @@
 #define MXS_I2C_CTRL0_DIRECTION			0x00010000
 #define MXS_I2C_CTRL0_XFER_COUNT(v)		((v) & 0x0000FFFF)
 
+#define MXS_I2C_TIMING0		(0x10)
+#define MXS_I2C_TIMING1		(0x20)
+#define MXS_I2C_TIMING2		(0x30)
+
 #define MXS_I2C_CTRL1		(0x40)
 #define MXS_I2C_CTRL1_SET	(0x44)
 #define MXS_I2C_CTRL1_CLR	(0x48)
@@ -97,6 +101,35 @@
 #define MXS_CMD_I2C_READ	(MXS_I2C_CTRL0_SEND_NAK_ON_LAST | \
 				 MXS_I2C_CTRL0_MASTER_MODE)
 
+struct mxs_i2c_speed_config {
+	uint32_t	timing0;
+	uint32_t	timing1;
+	uint32_t	timing2;
+};
+
+/*
+ * Timing values for the default 24MHz clock supplied into the i2c block.
+ *
+ * The bus can operate at 95kHz or at 400kHz with the following timing
+ * register configurations. The 100kHz mode isn't present because it's
+ * values are not stated in the i.MX233/i.MX28 datasheet. The 95kHz mode
+ * shall be close enough replacement. Therefore when the bus is configured
+ * for 100kHz operation, 95kHz timing settings are actually loaded.
+ *
+ * For details, see i.MX233 [25.4.2 - 25.4.4] and i.MX28 [27.5.2 - 27.5.4].
+ */
+static const struct mxs_i2c_speed_config mxs_i2c_95kHz_config = {
+	.timing0	= 0x00780030,
+	.timing1	= 0x00800030,
+	.timing2	= 0x00300030,
+};
+
+static const struct mxs_i2c_speed_config mxs_i2c_400kHz_config = {
+	.timing0	= 0x000f0007,
+	.timing1	= 0x001f000f,
+	.timing2	= 0x00300030,
+};
+
 /**
  * struct mxs_i2c_dev - per device, private MXS-I2C data
  *
@@ -112,11 +145,17 @@ struct mxs_i2c_dev {
 	struct completion cmd_complete;
 	u32 cmd_err;
 	struct i2c_adapter adapter;
+	const struct mxs_i2c_speed_config *speed;
 };
 
 static void mxs_i2c_reset(struct mxs_i2c_dev *i2c)
 {
 	stmp_reset_block(i2c->regs);
+
+	writel(i2c->speed->timing0, i2c->regs + MXS_I2C_TIMING0);
+	writel(i2c->speed->timing1, i2c->regs + MXS_I2C_TIMING1);
+	writel(i2c->speed->timing2, i2c->regs + MXS_I2C_TIMING2);
+
 	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
 	writel(MXS_I2C_QUEUECTRL_PIO_QUEUE_MODE,
 			i2c->regs + MXS_I2C_QUEUECTRL_SET);
@@ -193,7 +232,7 @@ static int mxs_i2c_wait_for_data(struct mxs_i2c_dev *i2c)
 
 static int mxs_i2c_finish_read(struct mxs_i2c_dev *i2c, u8 *buf, int len)
 {
-	u32 data;
+	u32 uninitialized_var(data);
 	int i;
 
 	for (i = 0; i < len; i++) {
@@ -319,6 +358,28 @@ static const struct i2c_algorithm mxs_i2c_algo = {
 	.functionality = mxs_i2c_func,
 };
 
+static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
+{
+	uint32_t speed;
+	struct device *dev = i2c->dev;
+	struct device_node *node = dev->of_node;
+	int ret;
+
+	if (!node)
+		return -EINVAL;
+
+	i2c->speed = &mxs_i2c_95kHz_config;
+	ret = of_property_read_u32(node, "clock-frequency", &speed);
+	if (ret)
+		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
+	else if (speed == 400000)
+		i2c->speed = &mxs_i2c_400kHz_config;
+	else if (speed != 100000)
+		dev_warn(dev, "Unsupported I2C speed selected, using 100kHz\n");
+
+	return 0;
+}
+
 static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -358,6 +419,11 @@ static int __devinit mxs_i2c_probe(struct platform_device *pdev)
 		return err;
 
 	i2c->dev = dev;
+
+	err = mxs_i2c_get_ofdata(i2c);
+	if (err)
+		return err;
+
 	platform_set_drvdata(pdev, i2c);
 
 	/* Do reset to enforce correct startup after pinmuxing */

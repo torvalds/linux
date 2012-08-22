@@ -41,6 +41,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/sh_flctl.h>
 #include <linux/pm_clock.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
 #include <linux/sh_intc.h>
 #include <linux/tca6416_keypad.h>
@@ -203,31 +205,32 @@
  * amixer set "HPOUTR Mixer DACH" on
  */
 
-/*
- * FIXME !!
- *
- * gpio_no_direction
- * gpio_pull_down
- * are quick_hack.
- *
- * current gpio frame work doesn't have
- * the method to control only pull up/down/free.
- * this function should be replaced by correct gpio function
- */
-static void __init gpio_no_direction(u32 addr)
+/* Fixed 3.3V and 1.8V regulators to be used by multiple devices */
+static struct regulator_consumer_supply fixed1v8_power_consumers[] =
 {
-	__raw_writeb(0x00, addr);
-}
+	/*
+	 * J22 on mackerel switches mmcif.0 and sdhi.1 between 1.8V and 3.3V
+	 * Since we cannot support both voltages, we support the default 1.8V
+	 */
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.1"),
+	REGULATOR_SUPPLY("vmmc", "sh_mmcif.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mmcif.0"),
+};
 
-static void __init gpio_pull_down(u32 addr)
+static struct regulator_consumer_supply fixed3v3_power_consumers[] =
 {
-	u8 data = __raw_readb(addr);
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.0"),
+	REGULATOR_SUPPLY("vmmc", "sh_mobile_sdhi.2"),
+	REGULATOR_SUPPLY("vqmmc", "sh_mobile_sdhi.2"),
+};
 
-	data &= 0x0F;
-	data |= 0xA0;
-
-	__raw_writeb(data, addr);
-}
+/* Dummy supplies, where voltage doesn't matter */
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+};
 
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
@@ -1409,6 +1412,12 @@ static void __init mackerel_init(void)
 	u32 srcr4;
 	struct clk *clk;
 
+	regulator_register_always_on(0, "fixed-1.8V", fixed1v8_power_consumers,
+				     ARRAY_SIZE(fixed1v8_power_consumers), 1800000);
+	regulator_register_always_on(1, "fixed-3.3V", fixed3v3_power_consumers,
+				     ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
+	regulator_register_fixed(2, dummy_supplies, ARRAY_SIZE(dummy_supplies));
+
 	/* External clock source */
 	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 
@@ -1458,11 +1467,11 @@ static void __init mackerel_init(void)
 
 	/* USBHS0 */
 	gpio_request(GPIO_FN_VBUS0_0, NULL);
-	gpio_pull_down(GPIO_PORT168CR); /* VBUS0_0 pull down */
+	gpio_request_pulldown(GPIO_PORT168CR); /* VBUS0_0 pull down */
 
 	/* USBHS1 */
 	gpio_request(GPIO_FN_VBUS0_1, NULL);
-	gpio_pull_down(GPIO_PORT167CR); /* VBUS0_1 pull down */
+	gpio_request_pulldown(GPIO_PORT167CR); /* VBUS0_1 pull down */
 	gpio_request(GPIO_FN_IDIN_1_113, NULL);
 
 	/* enable FSI2 port A (ak4643) */
@@ -1475,8 +1484,8 @@ static void __init mackerel_init(void)
 
 	gpio_request(GPIO_PORT9,  NULL);
 	gpio_request(GPIO_PORT10, NULL);
-	gpio_no_direction(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
-	gpio_no_direction(GPIO_PORT10CR); /* FSIAOLR needs no direction */
+	gpio_direction_none(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
+	gpio_direction_none(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
 	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
 
@@ -1511,6 +1520,9 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_SDHID0_2, NULL);
 	gpio_request(GPIO_FN_SDHID0_1, NULL);
 	gpio_request(GPIO_FN_SDHID0_0, NULL);
+
+	/* SDHI0 PORT172 card-detect IRQ26 */
+	gpio_request(GPIO_FN_IRQ26_172, NULL);
 
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 	/* enable SDHI1 */
@@ -1611,20 +1623,20 @@ static void __init mackerel_init(void)
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
-	sh7372_add_device_to_domain(&sh7372_a4lc, &lcdc_device);
-	sh7372_add_device_to_domain(&sh7372_a4lc, &hdmi_lcdc_device);
-	sh7372_add_device_to_domain(&sh7372_a4lc, &meram_device);
-	sh7372_add_device_to_domain(&sh7372_a4mp, &fsi_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &usbhs0_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &usbhs1_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &nand_flash_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sh_mmcif_device);
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi0_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &hdmi_lcdc_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &meram_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs0_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs1_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &nand_flash_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi1_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
 #endif
-	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi2_device);
-	sh7372_add_device_to_domain(&sh7372_a4r, &ceu_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi2_device);
+	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
 
 	hdmi_init_pm_clock();
 	sh7372_pm_init();

@@ -4,7 +4,7 @@
  * DMAC pl080 definitions for SPEAr platform
  *
  * Copyright (C) 2012 ST Microelectronics
- * Viresh Kumar <viresh.kumar@st.com>
+ * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -27,9 +27,8 @@ struct {
 	unsigned char val;
 } signals[16] = {{0, 0}, };
 
-int pl080_get_signal(struct pl08x_dma_chan *ch)
+int pl080_get_signal(const struct pl08x_channel_data *cd)
 {
-	const struct pl08x_channel_data *cd = ch->cd;
 	unsigned int signal = cd->min_signal, val;
 	unsigned long flags;
 
@@ -63,18 +62,17 @@ int pl080_get_signal(struct pl08x_dma_chan *ch)
 	return signal;
 }
 
-void pl080_put_signal(struct pl08x_dma_chan *ch)
+void pl080_put_signal(const struct pl08x_channel_data *cd, int signal)
 {
-	const struct pl08x_channel_data *cd = ch->cd;
 	unsigned long flags;
 
 	spin_lock_irqsave(&lock, flags);
 
 	/* if signal is not used */
-	if (!signals[cd->min_signal].busy)
+	if (!signals[signal].busy)
 		BUG();
 
-	signals[cd->min_signal].busy--;
+	signals[signal].busy--;
 
 	spin_unlock_irqrestore(&lock, flags);
 }

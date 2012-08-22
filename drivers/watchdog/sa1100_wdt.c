@@ -54,10 +54,10 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 
 	/* Activate SA1100 Watchdog timer */
-	OSMR3 = OSCR + pre_margin;
-	OSSR = OSSR_M3;
-	OWER = OWER_WME;
-	OIER |= OIER_E3;
+	writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
+	writel_relaxed(OSSR_M3, OSSR);
+	writel_relaxed(OWER_WME, OWER);
+	writel_relaxed(readl_relaxed(OIER) | OIER_E3, OIER);
 	return nonseekable_open(inode, file);
 }
 
@@ -80,7 +80,7 @@ static ssize_t sa1100dog_write(struct file *file, const char __user *data,
 {
 	if (len)
 		/* Refresh OSMR3 timer. */
-		OSMR3 = OSCR + pre_margin;
+		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
 	return len;
 }
 
@@ -114,7 +114,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case WDIOC_KEEPALIVE:
-		OSMR3 = OSCR + pre_margin;
+		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
 		ret = 0;
 		break;
 
@@ -129,7 +129,7 @@ static long sa1100dog_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		pre_margin = oscr_freq * time;
-		OSMR3 = OSCR + pre_margin;
+		writel_relaxed(readl_relaxed(OSCR) + pre_margin, OSMR3);
 		/*fall through*/
 
 	case WDIOC_GETTIMEOUT:

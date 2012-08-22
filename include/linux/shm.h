@@ -107,12 +107,14 @@ struct shmid_kernel /* private to the kernel */
 #define SHM_NORESERVE   010000  /* don't check for reservations */
 
 #ifdef CONFIG_SYSVIPC
-long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr);
+long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr,
+	      unsigned long shmlba);
 extern int is_file_shm_hugepages(struct file *file);
 extern void exit_shm(struct task_struct *task);
 #else
 static inline long do_shmat(int shmid, char __user *shmaddr,
-				int shmflg, unsigned long *addr)
+			    int shmflg, unsigned long *addr,
+			    unsigned long shmlba)
 {
 	return -ENOSYS;
 }

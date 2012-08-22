@@ -535,8 +535,6 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 	if (s == dev->subdevices + 4)
 		which = 1;
 
-	if (insn->n != 2)
-		return -EINVAL;
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
@@ -548,7 +546,7 @@ static int dt2801_dio_insn_bits(struct comedi_device *dev,
 	dt2801_writedata(dev, which);
 	dt2801_readdata(dev, data + 1);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt2801_dio_insn_config(struct comedi_device *dev,
@@ -626,15 +624,15 @@ havetype:
 	printk("dt2801: %s at port 0x%lx", boardtype.name, iobase);
 
 	n_ai_chans = probe_number_of_ai_chans(dev);
-	printk(" (ai channels = %d)", n_ai_chans);
+	printk(" (ai channels = %d)\n", n_ai_chans);
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		goto out;
 
 	ret = alloc_private(dev, sizeof(struct dt2801_private));
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	dev->board_name = boardtype.name;
 
@@ -688,8 +686,6 @@ havetype:
 
 	ret = 0;
 out:
-	printk("\n");
-
 	return ret;
 }
 

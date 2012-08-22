@@ -1014,7 +1014,7 @@ static int greth_set_mac_add(struct net_device *dev, void *p)
 	struct greth_regs *regs;
 
 	greth = netdev_priv(dev);
-	regs = (struct greth_regs *) greth->regs;
+	regs = greth->regs;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
@@ -1036,7 +1036,7 @@ static void greth_set_hash_filter(struct net_device *dev)
 {
 	struct netdev_hw_addr *ha;
 	struct greth_private *greth = netdev_priv(dev);
-	struct greth_regs *regs = (struct greth_regs *) greth->regs;
+	struct greth_regs *regs = greth->regs;
 	u32 mc_filter[2];
 	unsigned int bitnr;
 
@@ -1055,7 +1055,7 @@ static void greth_set_multicast_list(struct net_device *dev)
 {
 	int cfg;
 	struct greth_private *greth = netdev_priv(dev);
-	struct greth_regs *regs = (struct greth_regs *) greth->regs;
+	struct greth_regs *regs = greth->regs;
 
 	cfg = GRETH_REGLOAD(regs->control);
 	if (dev->flags & IFF_PROMISC)
@@ -1414,7 +1414,7 @@ static int __devinit greth_of_probe(struct platform_device *ofdev)
 		goto error1;
 	}
 
-	regs = (struct greth_regs *) greth->regs;
+	regs = greth->regs;
 	greth->irq = ofdev->archdata.irqs[0];
 
 	dev_set_drvdata(greth->dev, dev);

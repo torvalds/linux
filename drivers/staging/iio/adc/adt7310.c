@@ -397,7 +397,7 @@ static irqreturn_t adt7310_event_handler(int irq, void *private)
 
 	ret = adt7310_spi_read_byte(chip, ADT7310_STATUS, &status);
 	if (ret)
-		return ret;
+		goto done;
 
 	if (status & ADT7310_STAT_T_HIGH)
 		iio_push_event(indio_dev,
@@ -417,6 +417,8 @@ static irqreturn_t adt7310_event_handler(int irq, void *private)
 						    IIO_EV_TYPE_THRESH,
 						    IIO_EV_DIR_RISING),
 			timestamp);
+
+done:
 	return IRQ_HANDLED;
 }
 
@@ -778,7 +780,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 		ret = request_threaded_irq(spi_dev->irq,
 					   NULL,
 					   &adt7310_event_handler,
-					   irq_flags,
+					   irq_flags | IRQF_ONESHOT,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)
@@ -790,7 +792,8 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 		ret = request_threaded_irq(adt7310_platform_data[0],
 					   NULL,
 					   &adt7310_event_handler,
-					   adt7310_platform_data[1],
+					   adt7310_platform_data[1] |
+					   IRQF_ONESHOT,
 					   indio_dev->name,
 					   indio_dev);
 		if (ret)

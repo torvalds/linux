@@ -105,31 +105,27 @@ static struct ata_port_operations ahci_p5wdh_ops = {
 
 static const struct ata_port_info ahci_port_info[] = {
 	/* by features */
-	[board_ahci] =
-	{
+	[board_ahci] = {
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_ign_iferr] =
-	{
+	[board_ahci_ign_iferr] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_IRQ_IF_ERR),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_nosntf] =
-	{
+	[board_ahci_nosntf] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_SNTF),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_yes_fbs] =
-	{
+	[board_ahci_yes_fbs] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_YES_FBS),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
@@ -137,8 +133,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.port_ops	= &ahci_ops,
 	},
 	/* by chipsets */
-	[board_ahci_mcp65] =
-	{
+	[board_ahci_mcp65] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP |
 				 AHCI_HFLAG_YES_NCQ),
 		.flags		= AHCI_FLAG_COMMON | ATA_FLAG_NO_DIPM,
@@ -146,24 +141,21 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_mcp77] =
-	{
+	[board_ahci_mcp77] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA | AHCI_HFLAG_NO_PMP),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_mcp89] =
-	{
+	[board_ahci_mcp89] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_FPDMA_AA),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_mv] =
-	{
+	[board_ahci_mv] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ | AHCI_HFLAG_NO_MSI |
 				 AHCI_HFLAG_MV_PATA | AHCI_HFLAG_NO_PMP),
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_PIO_DMA,
@@ -171,8 +163,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_sb600] =
-	{
+	[board_ahci_sb600] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_SERR_INTERNAL |
 				 AHCI_HFLAG_NO_MSI | AHCI_HFLAG_SECT255 |
 				 AHCI_HFLAG_32BIT_ONLY),
@@ -181,16 +172,14 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_pmp_retry_srst_ops,
 	},
-	[board_ahci_sb700] =	/* for SB700 and SB800 */
-	{
+	[board_ahci_sb700] = {	/* for SB700 and SB800 */
 		AHCI_HFLAGS	(AHCI_HFLAG_IGN_SERR_INTERNAL),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_pmp_retry_srst_ops,
 	},
-	[board_ahci_vt8251] =
-	{
+	[board_ahci_vt8251] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ | AHCI_HFLAG_NO_PMP),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
@@ -777,6 +766,22 @@ static bool ahci_sb600_enable_64bit(struct pci_dev *pdev)
 			},
 		},
 		/*
+		 * All BIOS versions for the MSI K9AGM2 (MS-7327) support
+		 * 64bit DMA.
+		 *
+		 * This board also had the typo mentioned above in the
+		 * Manufacturer DMI field (fixed in BIOS version 1.5), so
+		 * match on DMI_BOARD_VENDOR of "MICRO-STAR INTER" again.
+		 */
+		{
+			.ident = "MSI K9AGM2",
+			.matches = {
+				DMI_MATCH(DMI_BOARD_VENDOR,
+					  "MICRO-STAR INTER"),
+				DMI_MATCH(DMI_BOARD_NAME, "MS-7327"),
+			},
+		},
+		/*
 		 * All BIOS versions for the Asus M3A support 64bit DMA.
 		 * (all release versions from 0301 to 1206 were tested)
 		 */
@@ -1233,22 +1238,10 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 &ahci_sht);
 }
 
-static int __init ahci_init(void)
-{
-	return pci_register_driver(&ahci_pci_driver);
-}
-
-static void __exit ahci_exit(void)
-{
-	pci_unregister_driver(&ahci_pci_driver);
-}
-
+module_pci_driver(ahci_pci_driver);
 
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("AHCI SATA low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, ahci_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ahci_init);
-module_exit(ahci_exit);

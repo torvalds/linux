@@ -94,25 +94,21 @@ static struct dentry *get_next_positive_subdir(struct dentry *prev,
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(root->d_sb);
 	struct list_head *next;
-	struct dentry *p, *q;
+	struct dentry *q;
 
 	spin_lock(&sbi->lookup_lock);
+	spin_lock(&root->d_lock);
 
-	if (prev == NULL) {
-		spin_lock(&root->d_lock);
+	if (prev)
+		next = prev->d_u.d_child.next;
+	else {
 		prev = dget_dlock(root);
 		next = prev->d_subdirs.next;
-		p = prev;
-		goto start;
 	}
 
-	p = prev;
-	spin_lock(&p->d_lock);
-again:
-	next = p->d_u.d_child.next;
-start:
+cont:
 	if (next == &root->d_subdirs) {
-		spin_unlock(&p->d_lock);
+		spin_unlock(&root->d_lock);
 		spin_unlock(&sbi->lookup_lock);
 		dput(prev);
 		return NULL;
@@ -121,16 +117,15 @@ start:
 	q = list_entry(next, struct dentry, d_u.d_child);
 
 	spin_lock_nested(&q->d_lock, DENTRY_D_LOCK_NESTED);
-	/* Negative dentry - try next */
-	if (!simple_positive(q)) {
-		spin_unlock(&p->d_lock);
-		lock_set_subclass(&q->d_lock.dep_map, 0, _RET_IP_);
-		p = q;
-		goto again;
+	/* Already gone or negative dentry (under construction) - try next */
+	if (q->d_count == 0 || !simple_positive(q)) {
+		spin_unlock(&q->d_lock);
+		next = q->d_u.d_child.next;
+		goto cont;
 	}
 	dget_dlock(q);
 	spin_unlock(&q->d_lock);
-	spin_unlock(&p->d_lock);
+	spin_unlock(&root->d_lock);
 	spin_unlock(&sbi->lookup_lock);
 
 	dput(prev);

@@ -1256,7 +1256,6 @@ static void __devexit r6040_remove_one(struct pci_dev *pdev)
 	kfree(lp->mii_bus->irq);
 	mdiobus_free(lp->mii_bus);
 	netif_napi_del(&lp->napi);
-	pci_set_drvdata(pdev, NULL);
 	pci_iounmap(pdev, lp->base);
 	pci_release_regions(pdev);
 	free_netdev(dev);
@@ -1278,17 +1277,4 @@ static struct pci_driver r6040_driver = {
 	.remove		= __devexit_p(r6040_remove_one),
 };
 
-
-static int __init r6040_init(void)
-{
-	return pci_register_driver(&r6040_driver);
-}
-
-
-static void __exit r6040_cleanup(void)
-{
-	pci_unregister_driver(&r6040_driver);
-}
-
-module_init(r6040_init);
-module_exit(r6040_cleanup);
+module_pci_driver(r6040_driver);

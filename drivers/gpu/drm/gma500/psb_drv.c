@@ -374,6 +374,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (ret)
 		return ret;
+	psb_intel_opregion_enable_asle(dev);
 #if 0
 	/*enable runtime pm at last*/
 	pm_runtime_enable(&dev->pdev->dev);
@@ -632,7 +633,6 @@ static struct drm_driver driver = {
 	.open = psb_driver_open,
 	.preclose = psb_driver_preclose,
 	.postclose = psb_driver_close,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 
 	.gem_init_object = psb_gem_init_object,
 	.gem_free_object = psb_gem_free_object,

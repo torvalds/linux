@@ -3693,7 +3693,22 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 		return NULL;
 	}
 
+	if (v4l2_ctrl_handler_init(&core->video_hdl, 13)) {
+		v4l2_device_unregister(&core->v4l2_dev);
+		kfree(core);
+		return NULL;
+	}
+
+	if (v4l2_ctrl_handler_init(&core->audio_hdl, 13)) {
+		v4l2_ctrl_handler_free(&core->video_hdl);
+		v4l2_device_unregister(&core->v4l2_dev);
+		kfree(core);
+		return NULL;
+	}
+
 	if (0 != cx88_get_resources(core, pci)) {
+		v4l2_ctrl_handler_free(&core->video_hdl);
+		v4l2_ctrl_handler_free(&core->audio_hdl);
 		v4l2_device_unregister(&core->v4l2_dev);
 		kfree(core);
 		return NULL;
@@ -3706,6 +3721,11 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	core->bmmio = (u8 __iomem *)core->lmmio;
 
 	if (core->lmmio == NULL) {
+		release_mem_region(pci_resource_start(pci, 0),
+			   pci_resource_len(pci, 0));
+		v4l2_ctrl_handler_free(&core->video_hdl);
+		v4l2_ctrl_handler_free(&core->audio_hdl);
+		v4l2_device_unregister(&core->v4l2_dev);
 		kfree(core);
 		return NULL;
 	}

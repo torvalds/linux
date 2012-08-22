@@ -143,6 +143,10 @@ static void __init get_cpuinfo(void)
 		p->cpu_name = "C64x+";
 		p->cpu_voltage = "1.2";
 		break;
+	case 21:
+		p->cpu_name = "C66X";
+		p->cpu_voltage = "1.2";
+		break;
 	default:
 		p->cpu_name = "unknown";
 		break;

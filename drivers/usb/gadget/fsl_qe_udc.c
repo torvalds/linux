@@ -1596,7 +1596,7 @@ static int qe_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct qe_ep, ep);
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->ep.desc || _ep->name == ep_name[0] ||
+	if (!_ep || !desc || _ep->name == ep_name[0] ||
 			(desc->bDescriptorType != USB_DT_ENDPOINT))
 		return -EINVAL;
 

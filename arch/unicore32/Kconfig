@@ -238,7 +238,6 @@ config I2C_BATTERY_BQ27200
 config I2C_EEPROM_AT24
 	tristate "I2C EEPROMs AT24 support"
 	select I2C_PUV3
-	select MISC_DEVICES
 	select EEPROM_AT24
 
 config LCD_BACKLIGHT

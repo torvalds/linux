@@ -27,9 +27,6 @@
 #include <media/v4l2-mediabus.h>
 #include <media/s5p_fimc.h>
 
-#define err(fmt, args...) \
-	printk(KERN_ERR "%s:%d: " fmt "\n", __func__, __LINE__, ##args)
-
 #define dbg(fmt, args...) \
 	pr_debug("%s:%d: " fmt "\n", __func__, __LINE__, ##args)
 

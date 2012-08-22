@@ -213,7 +213,8 @@ static int __devinit dm355evm_keys_probe(struct platform_device *pdev)
 	/* REVISIT:  flush the event queue? */
 
 	status = request_threaded_irq(keys->irq, NULL, dm355evm_keys_irq,
-			IRQF_TRIGGER_FALLING, dev_name(&pdev->dev), keys);
+				      IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				      dev_name(&pdev->dev), keys);
 	if (status < 0)
 		goto fail2;
 

@@ -52,7 +52,7 @@
 #define	MCF_IRQ_FECENTC0	(MCFINT_VECBASE + MCFINT_FECENTC0)
 
 #define	MCF_IRQ_QSPI		(MCFINT_VECBASE + MCFINT_QSPI)
-
+#define MCF_IRQ_PIT1		(MCFINT_VECBASE + MCFINT_PIT1)
 /*
  *	SDRAM configuration registers.
  */
@@ -86,7 +86,7 @@
 /*
  *	QSPI module.
  */
-#define	MCFQSPI_IOBASE		(MCF_IPSBAR + 0x340)
+#define	MCFQSPI_BASE		(MCF_IPSBAR + 0x340)
 #define	MCFQSPI_SIZE		0x40
 
 #define	MCFQSPI_CS0		147

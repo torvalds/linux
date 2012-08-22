@@ -1046,10 +1046,9 @@ struct net_device {
 	 */
 	char			name[IFNAMSIZ];
 
-	struct pm_qos_request	pm_qos_req;
-
-	/* device name hash chain */
+	/* device name hash chain, please keep it close to name[] */
 	struct hlist_node	name_hlist;
+
 	/* snmp alias */
 	char 			*ifalias;
 
@@ -1301,6 +1300,8 @@ struct net_device {
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;
+#define GSO_MAX_SEGS		65535
+	u16			gso_max_segs;
 
 #ifdef CONFIG_DCB
 	/* Data Center Bridging netlink ops */
@@ -1322,6 +1323,8 @@ struct net_device {
 
 	/* group the device belongs to */
 	int group;
+
+	struct pm_qos_request	pm_qos_req;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -1626,6 +1629,7 @@ extern int		dev_alloc_name(struct net_device *dev, const char *name);
 extern int		dev_open(struct net_device *dev);
 extern int		dev_close(struct net_device *dev);
 extern void		dev_disable_lro(struct net_device *dev);
+extern int		dev_loopback_xmit(struct sk_buff *newskb);
 extern int		dev_queue_xmit(struct sk_buff *skb);
 extern int		register_netdevice(struct net_device *dev);
 extern void		unregister_netdevice_queue(struct net_device *dev,
@@ -2108,7 +2112,12 @@ static inline int netif_set_real_num_rx_queues(struct net_device *dev,
 static inline int netif_copy_real_num_queues(struct net_device *to_dev,
 					     const struct net_device *from_dev)
 {
-	netif_set_real_num_tx_queues(to_dev, from_dev->real_num_tx_queues);
+	int err;
+
+	err = netif_set_real_num_tx_queues(to_dev,
+					   from_dev->real_num_tx_queues);
+	if (err)
+		return err;
 #ifdef CONFIG_RPS
 	return netif_set_real_num_rx_queues(to_dev,
 					    from_dev->real_num_rx_queues);
@@ -2116,6 +2125,9 @@ static inline int netif_copy_real_num_queues(struct net_device *to_dev,
 	return 0;
 #endif
 }
+
+#define DEFAULT_MAX_NUM_RSS_QUEUES	(8)
+extern int netif_get_num_default_rss_queues(void);
 
 /* Use this variant when it is known for sure that it
  * is executing from hardware interrupt context or with hardware interrupts

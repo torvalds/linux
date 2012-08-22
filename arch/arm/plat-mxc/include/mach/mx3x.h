@@ -143,44 +143,45 @@
 /*
  * Interrupt numbers
  */
-#define MX3x_INT_I2C3		3
-#define MX3x_INT_I2C2		4
-#define MX3x_INT_RTIC		6
-#define MX3x_INT_I2C		10
-#define MX3x_INT_CSPI2		13
-#define MX3x_INT_CSPI1		14
-#define MX3x_INT_ATA		15
-#define MX3x_INT_UART3		18
-#define MX3x_INT_IIM		19
-#define MX3x_INT_RNGA		22
-#define MX3x_INT_EVTMON		23
-#define MX3x_INT_KPP		24
-#define MX3x_INT_RTC		25
-#define MX3x_INT_PWM		26
-#define MX3x_INT_EPIT2		27
-#define MX3x_INT_EPIT1		28
-#define MX3x_INT_GPT		29
-#define MX3x_INT_POWER_FAIL	30
-#define MX3x_INT_UART2		32
-#define MX3x_INT_NANDFC		33
-#define MX3x_INT_SDMA		34
-#define MX3x_INT_MSHC1		39
-#define MX3x_INT_IPU_ERR	41
-#define MX3x_INT_IPU_SYN	42
-#define MX3x_INT_UART1		45
-#define MX3x_INT_ECT		48
-#define MX3x_INT_SCC_SCM	49
-#define MX3x_INT_SCC_SMN	50
-#define MX3x_INT_GPIO2		51
-#define MX3x_INT_GPIO1		52
-#define MX3x_INT_WDOG		55
-#define MX3x_INT_GPIO3		56
-#define MX3x_INT_EXT_POWER	58
-#define MX3x_INT_EXT_TEMPER	59
-#define MX3x_INT_EXT_SENSOR60	60
-#define MX3x_INT_EXT_SENSOR61	61
-#define MX3x_INT_EXT_WDOG	62
-#define MX3x_INT_EXT_TV		63
+#include <asm/irq.h>
+#define MX3x_INT_I2C3		(NR_IRQS_LEGACY + 3)
+#define MX3x_INT_I2C2		(NR_IRQS_LEGACY + 4)
+#define MX3x_INT_RTIC		(NR_IRQS_LEGACY + 6)
+#define MX3x_INT_I2C		(NR_IRQS_LEGACY + 10)
+#define MX3x_INT_CSPI2		(NR_IRQS_LEGACY + 13)
+#define MX3x_INT_CSPI1		(NR_IRQS_LEGACY + 14)
+#define MX3x_INT_ATA		(NR_IRQS_LEGACY + 15)
+#define MX3x_INT_UART3		(NR_IRQS_LEGACY + 18)
+#define MX3x_INT_IIM		(NR_IRQS_LEGACY + 19)
+#define MX3x_INT_RNGA		(NR_IRQS_LEGACY + 22)
+#define MX3x_INT_EVTMON		(NR_IRQS_LEGACY + 23)
+#define MX3x_INT_KPP		(NR_IRQS_LEGACY + 24)
+#define MX3x_INT_RTC		(NR_IRQS_LEGACY + 25)
+#define MX3x_INT_PWM		(NR_IRQS_LEGACY + 26)
+#define MX3x_INT_EPIT2		(NR_IRQS_LEGACY + 27)
+#define MX3x_INT_EPIT1		(NR_IRQS_LEGACY + 28)
+#define MX3x_INT_GPT		(NR_IRQS_LEGACY + 29)
+#define MX3x_INT_POWER_FAIL	(NR_IRQS_LEGACY + 30)
+#define MX3x_INT_UART2		(NR_IRQS_LEGACY + 32)
+#define MX3x_INT_NANDFC		(NR_IRQS_LEGACY + 33)
+#define MX3x_INT_SDMA		(NR_IRQS_LEGACY + 34)
+#define MX3x_INT_MSHC1		(NR_IRQS_LEGACY + 39)
+#define MX3x_INT_IPU_ERR	(NR_IRQS_LEGACY + 41)
+#define MX3x_INT_IPU_SYN	(NR_IRQS_LEGACY + 42)
+#define MX3x_INT_UART1		(NR_IRQS_LEGACY + 45)
+#define MX3x_INT_ECT		(NR_IRQS_LEGACY + 48)
+#define MX3x_INT_SCC_SCM	(NR_IRQS_LEGACY + 49)
+#define MX3x_INT_SCC_SMN	(NR_IRQS_LEGACY + 50)
+#define MX3x_INT_GPIO2		(NR_IRQS_LEGACY + 51)
+#define MX3x_INT_GPIO1		(NR_IRQS_LEGACY + 52)
+#define MX3x_INT_WDOG		(NR_IRQS_LEGACY + 55)
+#define MX3x_INT_GPIO3		(NR_IRQS_LEGACY + 56)
+#define MX3x_INT_EXT_POWER	(NR_IRQS_LEGACY + 58)
+#define MX3x_INT_EXT_TEMPER	(NR_IRQS_LEGACY + 59)
+#define MX3x_INT_EXT_SENSOR60	(NR_IRQS_LEGACY + 60)
+#define MX3x_INT_EXT_SENSOR61	(NR_IRQS_LEGACY + 61)
+#define MX3x_INT_EXT_WDOG	(NR_IRQS_LEGACY + 62)
+#define MX3x_INT_EXT_TV		(NR_IRQS_LEGACY + 63)
 
 #define MX3x_PROD_SIGNATURE		0x1	/* For MX31 */
 

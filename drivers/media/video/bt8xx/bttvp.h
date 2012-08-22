@@ -440,6 +440,7 @@ struct bttv {
 	/* radio data/state */
 	int has_radio;
 	int radio_user;
+	int radio_uses_msp_demodulator;
 
 	/* miro/pinnacle + Aimslab VHX
 	   philips matchbox (tea5757 radio tuner) support */

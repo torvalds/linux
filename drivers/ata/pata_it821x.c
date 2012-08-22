@@ -972,15 +972,7 @@ static struct pci_driver it821x_pci_driver = {
 #endif
 };
 
-static int __init it821x_init(void)
-{
-	return pci_register_driver(&it821x_pci_driver);
-}
-
-static void __exit it821x_exit(void)
-{
-	pci_unregister_driver(&it821x_pci_driver);
-}
+module_pci_driver(it821x_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for the IT8211/IT8212 IDE RAID controller");
@@ -988,9 +980,5 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, it821x);
 MODULE_VERSION(DRV_VERSION);
 
-
 module_param_named(noraid, it8212_noraid, int, S_IRUGO);
 MODULE_PARM_DESC(noraid, "Force card into bypass mode");
-
-module_init(it821x_init);
-module_exit(it821x_exit);

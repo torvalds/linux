@@ -611,6 +611,7 @@ static inline u32 tfrc_binsearch(u32 fval, u8 small)
  * @s: packet size          in bytes
  * @R: RTT                  scaled by 1000000   (i.e., microseconds)
  * @p: loss ratio estimate  scaled by 1000000
+ *
  * Returns X_calc           in bytes per second (not scaled).
  */
 u32 tfrc_calc_x(u16 s, u32 R, u32 p)
@@ -659,6 +660,7 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 /**
  *  tfrc_calc_x_reverse_lookup  -  try to find p given f(p)
  *  @fvalue: function value to match, scaled by 1000000
+ *
  *  Returns closest match for p, also scaled by 1000000
  */
 u32 tfrc_calc_x_reverse_lookup(u32 fvalue)

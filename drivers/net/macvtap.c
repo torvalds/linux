@@ -94,7 +94,8 @@ static int get_slot(struct macvlan_dev *vlan, struct macvtap_queue *q)
 	int i;
 
 	for (i = 0; i < MAX_MACVTAP_QUEUES; i++) {
-		if (rcu_dereference(vlan->taps[i]) == q)
+		if (rcu_dereference_protected(vlan->taps[i],
+					      lockdep_is_held(&macvtap_lock)) == q)
 			return i;
 	}
 
@@ -847,13 +848,12 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q, struct kiocb *iocb,
 			       const struct iovec *iv, unsigned long len,
 			       int noblock)
 {
-	DECLARE_WAITQUEUE(wait, current);
+	DEFINE_WAIT(wait);
 	struct sk_buff *skb;
 	ssize_t ret = 0;
 
-	add_wait_queue(sk_sleep(&q->sk), &wait);
 	while (len) {
-		current->state = TASK_INTERRUPTIBLE;
+		prepare_to_wait(sk_sleep(&q->sk), &wait, TASK_INTERRUPTIBLE);
 
 		/* Read frames from the queue */
 		skb = skb_dequeue(&q->sk.sk_receive_queue);
@@ -875,8 +875,7 @@ static ssize_t macvtap_do_read(struct macvtap_queue *q, struct kiocb *iocb,
 		break;
 	}
 
-	current->state = TASK_RUNNING;
-	remove_wait_queue(sk_sleep(&q->sk), &wait);
+	finish_wait(sk_sleep(&q->sk), &wait);
 	return ret;
 }
 

@@ -312,7 +312,7 @@ device tree for the NVIDIA Tegra board.
 	};
 };
 
-At .machine_init() time, Tegra board support code will need to look at
+At .init_machine() time, Tegra board support code will need to look at
 this DT and decide which nodes to create platform_devices for.
 However, looking at the tree, it is not immediately obvious what kind
 of device each node represents, or even if a node represents a device

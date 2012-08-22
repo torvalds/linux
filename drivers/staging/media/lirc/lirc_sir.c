@@ -52,6 +52,7 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/fcntl.h>
+#include <linux/platform_device.h>
 #ifdef LIRC_ON_SA1100
 #include <asm/hardware.h>
 #ifdef CONFIG_SA1100_COLLIE
@@ -487,9 +488,11 @@ static struct lirc_driver driver = {
 	.owner		= THIS_MODULE,
 };
 
+static struct platform_device *lirc_sir_dev;
 
 static int init_chrdev(void)
 {
+	driver.dev = &lirc_sir_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
 	if (driver.minor < 0) {
 		printk(KERN_ERR LIRC_DRIVER_NAME ": init_chrdev() failed.\n");
@@ -1215,20 +1218,71 @@ static int init_lirc_sir(void)
 	return 0;
 }
 
+static int __devinit lirc_sir_probe(struct platform_device *dev)
+{
+	return 0;
+}
+
+static int __devexit lirc_sir_remove(struct platform_device *dev)
+{
+	return 0;
+}
+
+static struct platform_driver lirc_sir_driver = {
+	.probe		= lirc_sir_probe,
+	.remove		= __devexit_p(lirc_sir_remove),
+	.driver		= {
+		.name	= "lirc_sir",
+		.owner	= THIS_MODULE,
+	},
+};
 
 static int __init lirc_sir_init(void)
 {
 	int retval;
 
+	retval = platform_driver_register(&lirc_sir_driver);
+	if (retval) {
+		printk(KERN_ERR LIRC_DRIVER_NAME ": Platform driver register "
+		       "failed!\n");
+		return -ENODEV;
+	}
+
+	lirc_sir_dev = platform_device_alloc("lirc_dev", 0);
+	if (!lirc_sir_dev) {
+		printk(KERN_ERR LIRC_DRIVER_NAME ": Platform device alloc "
+		       "failed!\n");
+		retval = -ENOMEM;
+		goto pdev_alloc_fail;
+	}
+
+	retval = platform_device_add(lirc_sir_dev);
+	if (retval) {
+		printk(KERN_ERR LIRC_DRIVER_NAME ": Platform device add "
+		       "failed!\n");
+		retval = -ENODEV;
+		goto pdev_add_fail;
+	}
+
 	retval = init_chrdev();
 	if (retval < 0)
-		return retval;
+		goto fail;
+
 	retval = init_lirc_sir();
 	if (retval) {
 		drop_chrdev();
-		return retval;
+		goto fail;
 	}
+
 	return 0;
+
+fail:
+	platform_device_del(lirc_sir_dev);
+pdev_add_fail:
+	platform_device_put(lirc_sir_dev);
+pdev_alloc_fail:
+	platform_driver_unregister(&lirc_sir_driver);
+	return retval;
 }
 
 static void __exit lirc_sir_exit(void)
@@ -1236,6 +1290,8 @@ static void __exit lirc_sir_exit(void)
 	drop_hardware();
 	drop_chrdev();
 	drop_port();
+	platform_device_unregister(lirc_sir_dev);
+	platform_driver_unregister(&lirc_sir_driver);
 	printk(KERN_INFO LIRC_DRIVER_NAME ": Uninstalled.\n");
 }
 

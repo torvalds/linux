@@ -418,7 +418,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	gspca_dev->vdev.ctrl_handler = hdl;
-	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_handler_init(hdl, 5);
 
 	sd->contrast = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 					V4L2_CID_CONTRAST, 0, 15, 1, 7);
@@ -694,6 +694,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

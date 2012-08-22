@@ -328,6 +328,13 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 	musb_ep = req->ep;
 
+	/* Check if EP is disabled */
+	if (!musb_ep->desc) {
+		dev_dbg(musb->controller, "ep:%s disabled - ignore request\n",
+						musb_ep->end_point.name);
+		return;
+	}
+
 	/* we shouldn't get here while DMA is active ... but we do ... */
 	if (dma_channel_status(musb_ep->dma) == MUSB_DMA_STATUS_BUSY) {
 		dev_dbg(musb->controller, "dma pending...\n");
@@ -649,6 +656,13 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 		musb_ep = &hw_ep->ep_out;
 
 	len = musb_ep->packet_sz;
+
+	/* Check if EP is disabled */
+	if (!musb_ep->desc) {
+		dev_dbg(musb->controller, "ep:%s disabled - ignore request\n",
+						musb_ep->end_point.name);
+		return;
+	}
 
 	/* We shouldn't get here while DMA is active, but we do... */
 	if (dma_channel_status(musb_ep->dma) == MUSB_DMA_STATUS_BUSY) {
@@ -1232,6 +1246,7 @@ static int musb_gadget_disable(struct usb_ep *ep)
 	}
 
 	musb_ep->desc = NULL;
+	musb_ep->end_point.desc = NULL;
 
 	/* abort all pending DMA and requests */
 	nuke(musb_ep, -ESHUTDOWN);

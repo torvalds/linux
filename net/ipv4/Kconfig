@@ -310,6 +310,17 @@ config SYN_COOKIES
 
 	  If unsure, say N.
 
+config NET_IPVTI
+	tristate "Virtual (secure) IP: tunneling"
+	select INET_TUNNEL
+	depends on INET_XFRM_MODE_TUNNEL
+	---help---
+	  Tunneling means encapsulating data of one protocol type within
+	  another protocol and sending it over a channel that understands the
+	  encapsulating protocol. This can be used with xfrm mode tunnel to give
+	  the notion of a secure tunnel for IPSEC and then use routing protocol
+	  on top.
+
 config INET_AH
 	tristate "IP: AH transformation"
 	select XFRM_ALGO

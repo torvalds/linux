@@ -2416,6 +2416,8 @@ Your cooperation is appreciated.
 		  1 = /dev/raw/raw1	First raw I/O device
 		  2 = /dev/raw/raw2	Second raw I/O device
 		    ...
+                 max minor number of raw device is set by kernel config
+                 MAX_RAW_DEVS or raw module parameter 'max_raw_devs'
 
 163 char
 

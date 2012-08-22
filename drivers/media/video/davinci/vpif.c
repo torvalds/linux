@@ -1,5 +1,5 @@
 /*
- * vpif - DM646x Video Port Interface driver
+ * vpif - Video Port Interface driver
  * VPIF is a receiver and transmitter for video data. It has two channels(0, 1)
  * that receiveing video byte stream and two channels(2, 3) for video output.
  * The hardware supports SDTV, HDTV formats, raw data capture.
@@ -23,6 +23,8 @@
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <mach/hardware.h>
 
 #include "vpif.h"
@@ -40,6 +42,7 @@ static struct resource	*res;
 spinlock_t vpif_lock;
 
 void __iomem *vpif_base;
+struct clk *vpif_clk;
 
 /**
  * ch_params: video standard configuration parameters for vpif
@@ -346,7 +349,7 @@ static void config_vpif_params(struct vpif_params *vpifparams,
 
 			value = regr(reg);
 			/* Set data width */
-			value &= ((~(unsigned int)(0x3)) <<
+			value &= ~(0x3u <<
 					VPIF_CH_DATA_WIDTH_BIT);
 			value |= ((vpifparams->params.data_sz) <<
 						     VPIF_CH_DATA_WIDTH_BIT);
@@ -434,10 +437,19 @@ static int __init vpif_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
+	vpif_clk = clk_get(&pdev->dev, "vpif");
+	if (IS_ERR(vpif_clk)) {
+		status = PTR_ERR(vpif_clk);
+		goto clk_fail;
+	}
+	clk_enable(vpif_clk);
+
 	spin_lock_init(&vpif_lock);
 	dev_info(&pdev->dev, "vpif probe success\n");
 	return 0;
 
+clk_fail:
+	iounmap(vpif_base);
 fail:
 	release_mem_region(res->start, res_len);
 	return status;
@@ -445,15 +457,44 @@ fail:
 
 static int __devexit vpif_remove(struct platform_device *pdev)
 {
+	if (vpif_clk) {
+		clk_disable(vpif_clk);
+		clk_put(vpif_clk);
+	}
+
 	iounmap(vpif_base);
 	release_mem_region(res->start, res_len);
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int vpif_suspend(struct device *dev)
+{
+	clk_disable(vpif_clk);
+	return 0;
+}
+
+static int vpif_resume(struct device *dev)
+{
+	clk_enable(vpif_clk);
+	return 0;
+}
+
+static const struct dev_pm_ops vpif_pm = {
+	.suspend        = vpif_suspend,
+	.resume         = vpif_resume,
+};
+
+#define vpif_pm_ops (&vpif_pm)
+#else
+#define vpif_pm_ops NULL
+#endif
+
 static struct platform_driver vpif_driver = {
 	.driver = {
 		.name	= "vpif",
 		.owner = THIS_MODULE,
+		.pm	= vpif_pm_ops,
 	},
 	.remove = __devexit_p(vpif_remove),
 	.probe = vpif_probe,

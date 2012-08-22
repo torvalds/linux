@@ -503,21 +503,10 @@ static int acard_ahci_init_one(struct pci_dev *pdev, const struct pci_device_id 
 				 &acard_ahci_sht);
 }
 
-static int __init acard_ahci_init(void)
-{
-	return pci_register_driver(&acard_ahci_pci_driver);
-}
-
-static void __exit acard_ahci_exit(void)
-{
-	pci_unregister_driver(&acard_ahci_pci_driver);
-}
+module_pci_driver(acard_ahci_pci_driver);
 
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("ACard AHCI SATA low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, acard_ahci_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(acard_ahci_init);
-module_exit(acard_ahci_exit);

@@ -28,6 +28,7 @@
 #define __IWLWIFI_DEVICE_TRACE
 
 #include <linux/tracepoint.h>
+#include <linux/device.h>
 
 
 #if !defined(CONFIG_IWLWIFI_DEVICE_TRACING) || defined(__CHECKER__)
@@ -175,7 +176,7 @@ TRACE_EVENT(iwlwifi_dev_ucode_wrap_event,
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM iwlwifi_msg
 
-#define MAX_MSG_LEN	100
+#define MAX_MSG_LEN	110
 
 DECLARE_EVENT_CLASS(iwlwifi_msg_event,
 	TP_PROTO(struct va_format *vaf),
@@ -188,7 +189,7 @@ DECLARE_EVENT_CLASS(iwlwifi_msg_event,
 				       MAX_MSG_LEN, vaf->fmt,
 				       *vaf->va) >= MAX_MSG_LEN);
 	),
-	TP_printk("%s", (char *)__get_dynamic_array(msg))
+	TP_printk("%s", __get_str(msg))
 );
 
 DEFINE_EVENT(iwlwifi_msg_event, iwlwifi_err,

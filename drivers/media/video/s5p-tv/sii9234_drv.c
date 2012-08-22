@@ -419,14 +419,4 @@ static struct i2c_driver sii9234_driver = {
 	.id_table = sii9234_id,
 };
 
-static int __init sii9234_init(void)
-{
-	return i2c_add_driver(&sii9234_driver);
-}
-module_init(sii9234_init);
-
-static void __exit sii9234_exit(void)
-{
-	i2c_del_driver(&sii9234_driver);
-}
-module_exit(sii9234_exit);
+module_i2c_driver(sii9234_driver);

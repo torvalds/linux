@@ -622,7 +622,7 @@ struct cx18 {
 				   unique ID. Starts at 1, so 0 can be used as
 				   uninitialized value in the stream->id. */
 
-	u32 base_addr;
+	resource_size_t base_addr;
 
 	u8 card_rev;
 	void __iomem *enc_mem, *reg_mem;

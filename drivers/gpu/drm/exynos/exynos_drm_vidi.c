@@ -85,8 +85,6 @@ static const char fake_edid_info[] = {
 	0x00, 0x00, 0x00, 0x06
 };
 
-static void vidi_fake_vblank_handler(struct work_struct *work);
-
 static bool vidi_display_is_connected(struct device *dev)
 {
 	struct vidi_context *ctx = get_vidi_context(dev);
@@ -531,6 +529,16 @@ static int vidi_store_connection(struct device *dev,
 	if (ctx->connected > 1)
 		return -EINVAL;
 
+	/* use fake edid data for test. */
+	if (!ctx->raw_edid)
+		ctx->raw_edid = (struct edid *)fake_edid_info;
+
+	/* if raw_edid isn't same as fake data then it can't be tested. */
+	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
+		DRM_DEBUG_KMS("edid data is not fake data.\n");
+		return -EINVAL;
+	}
+
 	DRM_DEBUG_KMS("requested connection.\n");
 
 	drm_helper_hpd_irq_event(ctx->subdrv.drm_dev);
@@ -549,16 +557,13 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 	struct exynos_drm_manager *manager;
 	struct exynos_drm_display_ops *display_ops;
 	struct drm_exynos_vidi_connection *vidi = data;
+	struct edid *raw_edid;
+	int edid_len;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	if (!vidi) {
 		DRM_DEBUG_KMS("user data for vidi is null.\n");
-		return -EINVAL;
-	}
-
-	if (!vidi->edid) {
-		DRM_DEBUG_KMS("edid data is null.\n");
 		return -EINVAL;
 	}
 
@@ -588,8 +593,30 @@ int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 		return -EINVAL;
 	}
 
-	if (vidi->connection)
-		ctx->raw_edid = (struct edid *)vidi->edid;
+	if (vidi->connection) {
+		if (!vidi->edid) {
+			DRM_DEBUG_KMS("edid data is null.\n");
+			return -EINVAL;
+		}
+		raw_edid = (struct edid *)(uint32_t)vidi->edid;
+		edid_len = (1 + raw_edid->extensions) * EDID_LENGTH;
+		ctx->raw_edid = kzalloc(edid_len, GFP_KERNEL);
+		if (!ctx->raw_edid) {
+			DRM_DEBUG_KMS("failed to allocate raw_edid.\n");
+			return -ENOMEM;
+		}
+		memcpy(ctx->raw_edid, raw_edid, edid_len);
+	} else {
+		/*
+		 * with connection = 0, free raw_edid
+		 * only if raw edid data isn't same as fake data.
+		 */
+		if (ctx->raw_edid && ctx->raw_edid !=
+				(struct edid *)fake_edid_info) {
+			kfree(ctx->raw_edid);
+			ctx->raw_edid = NULL;
+		}
+	}
 
 	ctx->connected = vidi->connection;
 	drm_helper_hpd_irq_event(ctx->subdrv.drm_dev);
@@ -613,9 +640,6 @@ static int __devinit vidi_probe(struct platform_device *pdev)
 	ctx->default_win = 0;
 
 	INIT_WORK(&ctx->work, vidi_fake_vblank_handler);
-
-	/* for test */
-	ctx->raw_edid = (struct edid *)fake_edid_info;
 
 	subdrv = &ctx->subdrv;
 	subdrv->dev = dev;
@@ -643,6 +667,11 @@ static int __devexit vidi_remove(struct platform_device *pdev)
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	exynos_drm_subdrv_unregister(&ctx->subdrv);
+
+	if (ctx->raw_edid != (struct edid *)fake_edid_info) {
+		kfree(ctx->raw_edid);
+		ctx->raw_edid = NULL;
+	}
 
 	kfree(ctx);
 

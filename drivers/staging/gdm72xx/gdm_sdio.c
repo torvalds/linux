@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
@@ -665,19 +664,16 @@ static int sdio_wimax_probe(struct sdio_func *func,
 	if (ret)
 		return ret;
 
-	phy_dev = kmalloc(sizeof(*phy_dev), GFP_KERNEL);
+	phy_dev = kzalloc(sizeof(*phy_dev), GFP_KERNEL);
 	if (phy_dev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	sdev = kmalloc(sizeof(*sdev), GFP_KERNEL);
+	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
 	if (sdev == NULL) {
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	memset(phy_dev, 0, sizeof(*phy_dev));
-	memset(sdev, 0, sizeof(*sdev));
 
 	phy_dev->priv_dev = (void *)sdev;
 	phy_dev->send_func = gdm_sdio_send;

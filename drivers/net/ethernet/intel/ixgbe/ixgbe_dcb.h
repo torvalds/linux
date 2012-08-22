@@ -146,6 +146,7 @@ void ixgbe_dcb_unpack_max(struct ixgbe_dcb_config *, u16 *);
 void ixgbe_dcb_unpack_bwgid(struct ixgbe_dcb_config *, int, u8 *);
 void ixgbe_dcb_unpack_prio(struct ixgbe_dcb_config *, int, u8 *);
 void ixgbe_dcb_unpack_map(struct ixgbe_dcb_config *, int, u8 *);
+u8 ixgbe_dcb_get_tc_from_up(struct ixgbe_dcb_config *, int, u8);
 
 /* DCB credits calculation */
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_hw *,

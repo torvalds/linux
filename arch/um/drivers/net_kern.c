@@ -339,7 +339,7 @@ static int setup_etheraddr(char *str, unsigned char *addr, char *name)
 random:
 	printk(KERN_INFO
 	       "Choosing a random ethernet address for device %s\n", name);
-	random_ether_addr(addr);
+	eth_random_addr(addr);
 	return 1;
 }
 

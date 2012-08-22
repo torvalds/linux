@@ -747,20 +747,18 @@ static int wb35_probe(struct usb_interface *intf,
 	struct usb_host_interface *interface;
 	struct ieee80211_hw *dev;
 	struct wbsoft_priv *priv;
-	int nr, err;
+	int err;
 	u32 ltmp;
 
 	usb_get_dev(udev);
 
 	/* Check the device if it already be opened */
-	nr = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+	err = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			     0x01,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			     0x0, 0x400, &ltmp, 4, HZ * 100);
-	if (nr < 0) {
-		err = nr;
+	if (err < 0)
 		goto error;
-	}
 
 	/* Is already initialized? */
 	ltmp = cpu_to_le32(ltmp);

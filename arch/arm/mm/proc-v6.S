@@ -107,6 +107,12 @@ ENTRY(cpu_v6_switch_mm)
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
+#ifdef CONFIG_PID_IN_CONTEXTIDR
+	mrc	p15, 0, r2, c13, c0, 1		@ read current context ID
+	bic	r2, r2, #0xff			@ extract the PID
+	and	r1, r1, #0xff
+	orr	r1, r1, r2			@ insert into new context ID
+#endif
 	mcr	p15, 0, r1, c13, c0, 1		@ set context ID
 #endif
 	mov	pc, lr

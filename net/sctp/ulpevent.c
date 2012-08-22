@@ -702,7 +702,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
 
 		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
-		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb->truesize)))
+		    (!sk_rmem_schedule(asoc->base.sk, chunk->skb,
+				       chunk->skb->truesize)))
 			goto fail;
 	}
 
@@ -715,7 +716,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	 * can mark it as received so the tsn_map is updated correctly.
 	 */
 	if (sctp_tsnmap_mark(&asoc->peer.tsn_map,
-			     ntohl(chunk->subh.data_hdr->tsn)))
+			     ntohl(chunk->subh.data_hdr->tsn),
+			     chunk->transport))
 		goto fail_mark;
 
 	/* First calculate the padding, so we don't inadvertently

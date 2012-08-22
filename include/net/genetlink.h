@@ -5,6 +5,8 @@
 #include <net/netlink.h>
 #include <net/net_namespace.h>
 
+#define GENLMSG_DEFAULT_SIZE (NLMSG_DEFAULT_SIZE - GENL_HDRLEN)
+
 /**
  * struct genl_multicast_group - generic netlink multicast group
  * @name: name of the multicast group, names are per-family

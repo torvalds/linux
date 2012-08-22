@@ -378,20 +378,24 @@ static void imx_keypad_close(struct input_dev *dev)
 	imx_keypad_inhibit(keypad);
 
 	/* Disable clock unit */
-	clk_disable(keypad->clk);
+	clk_disable_unprepare(keypad->clk);
 }
 
 static int imx_keypad_open(struct input_dev *dev)
 {
 	struct imx_keypad *keypad = input_get_drvdata(dev);
+	int error;
 
 	dev_dbg(&dev->dev, ">%s\n", __func__);
+
+	/* Enable the kpp clock */
+	error = clk_prepare_enable(keypad->clk);
+	if (error)
+		return error;
 
 	/* We became active from now */
 	keypad->enabled = true;
 
-	/* Enable the kpp clock */
-	clk_enable(keypad->clk);
 	imx_keypad_config(keypad);
 
 	/* Sanity control, not all the rows must be actived now. */
@@ -467,7 +471,7 @@ static int __devinit imx_keypad_probe(struct platform_device *pdev)
 		goto failed_free_priv;
 	}
 
-	keypad->clk = clk_get(&pdev->dev, "kpp");
+	keypad->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {
 		dev_err(&pdev->dev, "failed to get keypad clock\n");
 		error = PTR_ERR(keypad->clk);
@@ -581,7 +585,7 @@ static int imx_kbd_suspend(struct device *dev)
 	mutex_lock(&input_dev->mutex);
 
 	if (input_dev->users)
-		clk_disable(kbd->clk);
+		clk_disable_unprepare(kbd->clk);
 
 	mutex_unlock(&input_dev->mutex);
 
@@ -596,18 +600,23 @@ static int imx_kbd_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct imx_keypad *kbd = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = kbd->input_dev;
+	int ret = 0;
 
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(kbd->irq);
 
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users)
-		clk_enable(kbd->clk);
+	if (input_dev->users) {
+		ret = clk_prepare_enable(kbd->clk);
+		if (ret)
+			goto err_clk;
+	}
 
+err_clk:
 	mutex_unlock(&input_dev->mutex);
 
-	return 0;
+	return ret;
 }
 #endif
 

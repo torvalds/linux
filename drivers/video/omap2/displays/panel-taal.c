@@ -526,7 +526,7 @@ static ssize_t taal_num_errors_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
-	u8 errors;
+	u8 errors = 0;
 	int r;
 
 	mutex_lock(&td->lock);
@@ -882,7 +882,6 @@ static int taal_probe(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	dssdev->panel.config = OMAP_DSS_LCD_TFT;
 	dssdev->panel.timings = panel_config->timings;
 	dssdev->panel.dsi_pix_fmt = OMAP_DSS_DSI_FMT_RGB888;
 

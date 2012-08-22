@@ -9,25 +9,15 @@
  * Software Foundation; version 2 of the License.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 #include "ipack.h"
 
 #define to_ipack_dev(device) container_of(device, struct ipack_device, dev)
 #define to_ipack_driver(drv) container_of(drv, struct ipack_driver, driver)
 
-/* used when allocating bus numbers */
-#define IPACK_MAXBUS              64
-
-static DEFINE_MUTEX(ipack_mutex);
-
-struct ipack_busmap {
-	unsigned long busmap[IPACK_MAXBUS / (8*sizeof(unsigned long))];
-};
-static struct ipack_busmap busmap;
+static DEFINE_IDA(ipack_ida);
 
 static void ipack_device_release(struct device *dev)
 {
@@ -48,7 +38,7 @@ static int ipack_bus_match(struct device *device, struct device_driver *driver)
 	if (ret)
 		dev->driver = drv;
 
-	return 0;
+	return ret;
 }
 
 static int ipack_bus_probe(struct device *device)
@@ -79,26 +69,6 @@ static struct bus_type ipack_bus_type = {
 	.remove = ipack_bus_remove,
 };
 
-static int ipack_assign_bus_number(void)
-{
-	int busnum;
-
-	mutex_lock(&ipack_mutex);
-	busnum = find_next_zero_bit(busmap.busmap, IPACK_MAXBUS, 1);
-
-	if (busnum >= IPACK_MAXBUS) {
-		pr_err("too many buses\n");
-		busnum = -1;
-		goto error_find_busnum;
-	}
-
-	set_bit(busnum, busmap.busmap);
-
-error_find_busnum:
-	mutex_unlock(&ipack_mutex);
-	return busnum;
-}
-
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 					    struct ipack_bus_ops *ops)
 {
@@ -109,7 +79,7 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 	if (!bus)
 		return NULL;
 
-	bus_nr = ipack_assign_bus_number();
+	bus_nr = ida_simple_get(&ipack_ida, 0, 0, GFP_KERNEL);
 	if (bus_nr < 0) {
 		kfree(bus);
 		return NULL;
@@ -125,9 +95,7 @@ EXPORT_SYMBOL_GPL(ipack_bus_register);
 
 int ipack_bus_unregister(struct ipack_bus_device *bus)
 {
-	mutex_lock(&ipack_mutex);
-	clear_bit(bus->bus_nr, busmap.busmap);
-	mutex_unlock(&ipack_mutex);
+	ida_simple_remove(&ipack_ida, bus->bus_nr);
 	kfree(bus);
 	return 0;
 }
@@ -171,8 +139,6 @@ struct ipack_device *ipack_device_register(struct ipack_bus_device *bus,
 
 	ret = device_register(&dev->dev);
 	if (ret < 0) {
-		pr_err("error registering the device.\n");
-		dev->driver->ops->remove(dev);
 		kfree(dev);
 		return NULL;
 	}
@@ -189,12 +155,14 @@ EXPORT_SYMBOL_GPL(ipack_device_unregister);
 
 static int __init ipack_init(void)
 {
+	ida_init(&ipack_ida);
 	return bus_register(&ipack_bus_type);
 }
 
 static void __exit ipack_exit(void)
 {
 	bus_unregister(&ipack_bus_type);
+	ida_destroy(&ipack_ida);
 }
 
 module_init(ipack_init);

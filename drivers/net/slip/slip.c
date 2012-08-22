@@ -390,10 +390,10 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 #endif
 #ifdef CONFIG_SLIP_MODE_SLIP6
 	if (sl->mode & SL_MODE_SLIP6)
-		count = slip_esc6(p, (unsigned char *) sl->xbuff, len);
+		count = slip_esc6(p, sl->xbuff, len);
 	else
 #endif
-		count = slip_esc(p, (unsigned char *) sl->xbuff, len);
+		count = slip_esc(p, sl->xbuff, len);
 
 	/* Order of next two lines is *very* important.
 	 * When we are sending a little amount of data,

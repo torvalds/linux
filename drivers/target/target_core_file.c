@@ -109,44 +109,27 @@ static struct se_device *fd_create_virtdevice(
 	struct se_subsystem_dev *se_dev,
 	void *p)
 {
-	char *dev_p = NULL;
 	struct se_device *dev;
 	struct se_dev_limits dev_limits;
 	struct queue_limits *limits;
 	struct fd_dev *fd_dev = p;
 	struct fd_host *fd_host = hba->hba_ptr;
-	mm_segment_t old_fs;
 	struct file *file;
 	struct inode *inode = NULL;
 	int dev_flags = 0, flags, ret = -EINVAL;
 
 	memset(&dev_limits, 0, sizeof(struct se_dev_limits));
 
-	old_fs = get_fs();
-	set_fs(get_ds());
-	dev_p = getname(fd_dev->fd_dev_name);
-	set_fs(old_fs);
-
-	if (IS_ERR(dev_p)) {
-		pr_err("getname(%s) failed: %lu\n",
-			fd_dev->fd_dev_name, IS_ERR(dev_p));
-		ret = PTR_ERR(dev_p);
-		goto fail;
-	}
 	/*
 	 * Use O_DSYNC by default instead of O_SYNC to forgo syncing
 	 * of pure timestamp updates.
 	 */
 	flags = O_RDWR | O_CREAT | O_LARGEFILE | O_DSYNC;
 
-	file = filp_open(dev_p, flags, 0600);
+	file = filp_open(fd_dev->fd_dev_name, flags, 0600);
 	if (IS_ERR(file)) {
-		pr_err("filp_open(%s) failed\n", dev_p);
+		pr_err("filp_open(%s) failed\n", fd_dev->fd_dev_name);
 		ret = PTR_ERR(file);
-		goto fail;
-	}
-	if (!file || !file->f_dentry) {
-		pr_err("filp_open(%s) failed\n", dev_p);
 		goto fail;
 	}
 	fd_dev->fd_file = file;
@@ -212,14 +195,12 @@ static struct se_device *fd_create_virtdevice(
 		" %llu total bytes\n", fd_host->fd_host_id, fd_dev->fd_dev_id,
 			fd_dev->fd_dev_name, fd_dev->fd_dev_size);
 
-	putname(dev_p);
 	return dev;
 fail:
 	if (fd_dev->fd_file) {
 		filp_close(fd_dev->fd_file, NULL);
 		fd_dev->fd_file = NULL;
 	}
-	putname(dev_p);
 	return ERR_PTR(ret);
 }
 
@@ -331,7 +312,7 @@ static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
 	return 1;
 }
 
-static void fd_emulate_sync_cache(struct se_cmd *cmd)
+static int fd_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
@@ -365,7 +346,7 @@ static void fd_emulate_sync_cache(struct se_cmd *cmd)
 		pr_err("FILEIO: vfs_fsync_range() failed: %d\n", ret);
 
 	if (immed)
-		return;
+		return 0;
 
 	if (ret) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
@@ -373,11 +354,15 @@ static void fd_emulate_sync_cache(struct se_cmd *cmd)
 	} else {
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	}
+
+	return 0;
 }
 
-static int fd_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction)
+static int fd_execute_rw(struct se_cmd *cmd)
 {
+	struct scatterlist *sgl = cmd->t_data_sg;
+	u32 sgl_nents = cmd->t_data_nents;
+	enum dma_data_direction data_direction = cmd->data_direction;
 	struct se_device *dev = cmd->se_dev;
 	int ret = 0;
 
@@ -448,14 +433,11 @@ static ssize_t fd_set_configfs_dev_params(
 		token = match_token(ptr, tokens, args);
 		switch (token) {
 		case Opt_fd_dev_name:
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
+			if (match_strlcpy(fd_dev->fd_dev_name, &args[0],
+				FD_MAX_DEV_NAME) == 0) {
+				ret = -EINVAL;
 				break;
 			}
-			snprintf(fd_dev->fd_dev_name, FD_MAX_DEV_NAME,
-					"%s", arg_p);
-			kfree(arg_p);
 			pr_debug("FILEIO: Referencing Path: %s\n",
 					fd_dev->fd_dev_name);
 			fd_dev->fbd_flags |= FBDF_HAS_PATH;
@@ -550,6 +532,16 @@ static sector_t fd_get_blocks(struct se_device *dev)
 	return div_u64(dev_size, dev->se_sub_dev->se_dev_attrib.block_size);
 }
 
+static struct spc_ops fd_spc_ops = {
+	.execute_rw		= fd_execute_rw,
+	.execute_sync_cache	= fd_execute_sync_cache,
+};
+
+static int fd_parse_cdb(struct se_cmd *cmd)
+{
+	return sbc_parse_cdb(cmd, &fd_spc_ops);
+}
+
 static struct se_subsystem_api fileio_template = {
 	.name			= "fileio",
 	.owner			= THIS_MODULE,
@@ -561,8 +553,7 @@ static struct se_subsystem_api fileio_template = {
 	.allocate_virtdevice	= fd_allocate_virtdevice,
 	.create_virtdevice	= fd_create_virtdevice,
 	.free_device		= fd_free_device,
-	.execute_cmd		= fd_execute_cmd,
-	.do_sync_cache		= fd_emulate_sync_cache,
+	.parse_cdb		= fd_parse_cdb,
 	.check_configfs_dev_params = fd_check_configfs_dev_params,
 	.set_configfs_dev_params = fd_set_configfs_dev_params,
 	.show_configfs_dev_params = fd_show_configfs_dev_params,

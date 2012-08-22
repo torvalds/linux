@@ -32,6 +32,18 @@
 /* Largest headroom needed for outgoing HCI commands */
 #define HCI_CMDS_HEADROOM 1
 
+static int nfc_hci_result_to_errno(u8 result)
+{
+	switch (result) {
+	case NFC_HCI_ANY_OK:
+		return 0;
+	case NFC_HCI_ANY_E_TIMEOUT:
+		return -ETIME;
+	default:
+		return -1;
+	}
+}
+
 static void nfc_hci_msg_tx_work(struct work_struct *work)
 {
 	struct nfc_hci_dev *hdev = container_of(work, struct nfc_hci_dev,
@@ -46,7 +58,7 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 		if (timer_pending(&hdev->cmd_timer) == 0) {
 			if (hdev->cmd_pending_msg->cb)
 				hdev->cmd_pending_msg->cb(hdev,
-							  NFC_HCI_ANY_E_TIMEOUT,
+							  -ETIME,
 							  NULL,
 							  hdev->
 							  cmd_pending_msg->
@@ -71,8 +83,7 @@ next_msg:
 			kfree_skb(skb);
 			skb_queue_purge(&msg->msg_frags);
 			if (msg->cb)
-				msg->cb(hdev, NFC_HCI_ANY_E_NOK, NULL,
-					msg->cb_context);
+				msg->cb(hdev, r, NULL, msg->cb_context);
 			kfree(msg);
 			break;
 		}
@@ -116,6 +127,23 @@ static void nfc_hci_msg_rx_work(struct work_struct *work)
 	}
 }
 
+static void __nfc_hci_cmd_completion(struct nfc_hci_dev *hdev, int err,
+				     struct sk_buff *skb)
+{
+	del_timer_sync(&hdev->cmd_timer);
+
+	if (hdev->cmd_pending_msg->cb)
+		hdev->cmd_pending_msg->cb(hdev, err, skb,
+					  hdev->cmd_pending_msg->cb_context);
+	else
+		kfree_skb(skb);
+
+	kfree(hdev->cmd_pending_msg);
+	hdev->cmd_pending_msg = NULL;
+
+	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+}
+
 void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
 			   struct sk_buff *skb)
 {
@@ -126,18 +154,7 @@ void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
 		goto exit;
 	}
 
-	del_timer_sync(&hdev->cmd_timer);
-
-	if (hdev->cmd_pending_msg->cb)
-		hdev->cmd_pending_msg->cb(hdev, result, skb,
-					  hdev->cmd_pending_msg->cb_context);
-	else
-		kfree_skb(skb);
-
-	kfree(hdev->cmd_pending_msg);
-	hdev->cmd_pending_msg = NULL;
-
-	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+	__nfc_hci_cmd_completion(hdev, nfc_hci_result_to_errno(result), skb);
 
 exit:
 	mutex_unlock(&hdev->msg_tx_mutex);
@@ -170,6 +187,7 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 	struct nfc_target *targets;
 	struct sk_buff *atqa_skb = NULL;
 	struct sk_buff *sak_skb = NULL;
+	struct sk_buff *uid_skb = NULL;
 	int r;
 
 	pr_debug("from gate %d\n", gate);
@@ -205,6 +223,19 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 		targets->sens_res = be16_to_cpu(*(u16 *)atqa_skb->data);
 		targets->sel_res = sak_skb->data[0];
 
+		r = nfc_hci_get_param(hdev, NFC_HCI_RF_READER_A_GATE,
+				      NFC_HCI_RF_READER_A_UID, &uid_skb);
+		if (r < 0)
+			goto exit;
+
+		if (uid_skb->len == 0 || uid_skb->len > NFC_NFCID1_MAXSIZE) {
+			r = -EPROTO;
+			goto exit;
+		}
+
+		memcpy(targets->nfcid1, uid_skb->data, uid_skb->len);
+		targets->nfcid1_len = uid_skb->len;
+
 		if (hdev->ops->complete_target_discovered) {
 			r = hdev->ops->complete_target_discovered(hdev, gate,
 								  targets);
@@ -213,7 +244,7 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 		}
 		break;
 	case NFC_HCI_RF_READER_B_GATE:
-		targets->supported_protocols = NFC_PROTO_ISO14443_MASK;
+		targets->supported_protocols = NFC_PROTO_ISO14443_B_MASK;
 		break;
 	default:
 		if (hdev->ops->target_from_gate)
@@ -240,6 +271,7 @@ exit:
 	kfree(targets);
 	kfree_skb(atqa_skb);
 	kfree_skb(sak_skb);
+	kfree_skb(uid_skb);
 
 	return r;
 }
@@ -298,15 +330,15 @@ static void nfc_hci_cmd_timeout(unsigned long data)
 }
 
 static int hci_dev_connect_gates(struct nfc_hci_dev *hdev, u8 gate_count,
-				 u8 gates[])
+				 struct nfc_hci_gate *gates)
 {
 	int r;
-	u8 *p = gates;
 	while (gate_count--) {
-		r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID, *p);
+		r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
+					 gates->gate, gates->pipe);
 		if (r < 0)
 			return r;
-		p++;
+		gates++;
 	}
 
 	return 0;
@@ -316,14 +348,13 @@ static int hci_dev_session_init(struct nfc_hci_dev *hdev)
 {
 	struct sk_buff *skb = NULL;
 	int r;
-	u8 hci_gates[] = {	/* NFC_HCI_ADMIN_GATE MUST be first */
-		NFC_HCI_ADMIN_GATE, NFC_HCI_LOOPBACK_GATE,
-		NFC_HCI_ID_MGMT_GATE, NFC_HCI_LINK_MGMT_GATE,
-		NFC_HCI_RF_READER_B_GATE, NFC_HCI_RF_READER_A_GATE
-	};
+
+	if (hdev->init_data.gates[0].gate != NFC_HCI_ADMIN_GATE)
+		return -EPROTO;
 
 	r = nfc_hci_connect_gate(hdev, NFC_HCI_HOST_CONTROLLER_ID,
-				 NFC_HCI_ADMIN_GATE);
+				 hdev->init_data.gates[0].gate,
+				 hdev->init_data.gates[0].pipe);
 	if (r < 0)
 		goto exit;
 
@@ -350,10 +381,6 @@ static int hci_dev_session_init(struct nfc_hci_dev *hdev)
 	r = nfc_hci_disconnect_all_gates(hdev);
 	if (r < 0)
 		goto exit;
-
-	r = hci_dev_connect_gates(hdev, sizeof(hci_gates), hci_gates);
-	if (r < 0)
-		goto disconnect_all;
 
 	r = hci_dev_connect_gates(hdev, hdev->init_data.gate_count,
 				  hdev->init_data.gates);
@@ -481,12 +508,13 @@ static int hci_dev_down(struct nfc_dev *nfc_dev)
 	return 0;
 }
 
-static int hci_start_poll(struct nfc_dev *nfc_dev, u32 protocols)
+static int hci_start_poll(struct nfc_dev *nfc_dev,
+			  u32 im_protocols, u32 tm_protocols)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
 	if (hdev->ops->start_poll)
-		return hdev->ops->start_poll(hdev, protocols);
+		return hdev->ops->start_poll(hdev, im_protocols, tm_protocols);
 	else
 		return nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 				       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
@@ -511,9 +539,9 @@ static void hci_deactivate_target(struct nfc_dev *nfc_dev,
 {
 }
 
-static int hci_data_exchange(struct nfc_dev *nfc_dev, struct nfc_target *target,
-			     struct sk_buff *skb, data_exchange_cb_t cb,
-			     void *cb_context)
+static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
+			  struct sk_buff *skb, data_exchange_cb_t cb,
+			  void *cb_context)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 	int r;
@@ -579,7 +607,7 @@ static struct nfc_ops hci_nfc_ops = {
 	.stop_poll = hci_stop_poll,
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
-	.data_exchange = hci_data_exchange,
+	.im_transceive = hci_transceive,
 	.check_presence = hci_check_presence,
 };
 
@@ -682,13 +710,12 @@ EXPORT_SYMBOL(nfc_hci_register_device);
 
 void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 {
-	struct hci_msg *msg;
+	struct hci_msg *msg, *n;
 
 	skb_queue_purge(&hdev->rx_hcp_frags);
 	skb_queue_purge(&hdev->msg_rx_queue);
 
-	while ((msg = list_first_entry(&hdev->msg_tx_queue, struct hci_msg,
-				       msg_l)) != NULL) {
+	list_for_each_entry_safe(msg, n, &hdev->msg_tx_queue, msg_l) {
 		list_del(&msg->msg_l);
 		skb_queue_purge(&msg->msg_frags);
 		kfree(msg);
@@ -716,6 +743,27 @@ void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev)
 }
 EXPORT_SYMBOL(nfc_hci_get_clientdata);
 
+static void nfc_hci_failure(struct nfc_hci_dev *hdev, int err)
+{
+	mutex_lock(&hdev->msg_tx_mutex);
+
+	if (hdev->cmd_pending_msg == NULL) {
+		nfc_driver_failure(hdev->ndev, err);
+		goto exit;
+	}
+
+	__nfc_hci_cmd_completion(hdev, err, NULL);
+
+exit:
+	mutex_unlock(&hdev->msg_tx_mutex);
+}
+
+void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err)
+{
+	nfc_hci_failure(hdev, err);
+}
+EXPORT_SYMBOL(nfc_hci_driver_failure);
+
 void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hcp_packet *packet;
@@ -725,16 +773,6 @@ void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	u8 pipe;
 	struct sk_buff *frag_skb;
 	int msg_len;
-
-	if (skb == NULL) {
-		/* TODO ELa: lower layer had permanent failure, need to
-		 * propagate that up
-		 */
-
-		skb_queue_purge(&hdev->rx_hcp_frags);
-
-		return;
-	}
 
 	packet = (struct hcp_packet *)skb->data;
 	if ((packet->header & ~NFC_HCI_FRAGMENT) == 0) {
@@ -756,9 +794,8 @@ void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 		hcp_skb = nfc_alloc_recv_skb(NFC_HCI_HCP_PACKET_HEADER_LEN +
 					     msg_len, GFP_KERNEL);
 		if (hcp_skb == NULL) {
-			/* TODO ELa: cannot deliver HCP message. How to
-			 * propagate error up?
-			 */
+			nfc_hci_failure(hdev, -ENOMEM);
+			return;
 		}
 
 		*skb_put(hcp_skb, NFC_HCI_HCP_PACKET_HEADER_LEN) = pipe;

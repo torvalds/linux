@@ -247,6 +247,7 @@ do_file(char const *const fname)
 	case EM_X86_64:
 		custom_sort = sort_x86_table;
 		break;
+	case EM_S390:
 	case EM_MIPS:
 		break;
 	}  /* end switch */

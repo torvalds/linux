@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 
 #include "common.h"
 #include <plat/cpu.h>
@@ -301,10 +302,65 @@ void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 }
 
+/**
+ * omap3xxx_prm_reconfigure_io_chain - clear latches and reconfigure I/O chain
+ *
+ * Clear any previously-latched I/O wakeup events and ensure that the
+ * I/O wakeup gates are aligned with the current mux settings.  Works
+ * by asserting WUCLKIN, waiting for WUCLKOUT to be asserted, and then
+ * deasserting WUCLKIN and clearing the ST_IO_CHAIN WKST bit.  No
+ * return value.
+ */
+void omap3xxx_prm_reconfigure_io_chain(void)
+{
+	int i = 0;
+
+	omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				   PM_WKEN);
+
+	omap_test_timeout(omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST) &
+			  OMAP3430_ST_IO_CHAIN_MASK,
+			  MAX_IOPAD_LATCH_TIME, i);
+	if (i == MAX_IOPAD_LATCH_TIME)
+		pr_warn("PRM: I/O chain clock line assertion timed out\n");
+
+	omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				     PM_WKEN);
+
+	omap2_prm_set_mod_reg_bits(OMAP3430_ST_IO_CHAIN_MASK, WKUP_MOD,
+				   PM_WKST);
+
+	omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST);
+}
+
+/**
+ * omap3xxx_prm_enable_io_wakeup - enable wakeup events from I/O wakeup latches
+ *
+ * Activates the I/O wakeup event latches and allows events logged by
+ * those latches to signal a wakeup event to the PRCM.  For I/O
+ * wakeups to occur, WAKEUPENABLE bits must be set in the pad mux
+ * registers, and omap3xxx_prm_reconfigure_io_chain() must be called.
+ * No return value.
+ */
+static void __init omap3xxx_prm_enable_io_wakeup(void)
+{
+	if (omap3_has_io_wakeup())
+		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD,
+					   PM_WKEN);
+}
+
 static int __init omap3xxx_prcm_init(void)
 {
-	if (cpu_is_omap34xx())
-		return omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
-	return 0;
+	int ret = 0;
+
+	if (cpu_is_omap34xx()) {
+		omap3xxx_prm_enable_io_wakeup();
+		ret = omap_prcm_register_chain_handler(&omap3_prcm_irq_setup);
+		if (!ret)
+			irq_set_status_flags(omap_prcm_event_to_irq("io"),
+					     IRQ_NOAUTOEN);
+	}
+
+	return ret;
 }
 subsys_initcall(omap3xxx_prcm_init);

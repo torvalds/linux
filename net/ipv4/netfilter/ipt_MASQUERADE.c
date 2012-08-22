@@ -52,7 +52,7 @@ masquerade_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct nf_nat_ipv4_range newrange;
 	const struct nf_nat_ipv4_multi_range_compat *mr;
 	const struct rtable *rt;
-	__be32 newsrc;
+	__be32 newsrc, nh;
 
 	NF_CT_ASSERT(par->hooknum == NF_INET_POST_ROUTING);
 
@@ -70,7 +70,8 @@ masquerade_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	mr = par->targinfo;
 	rt = skb_rtable(skb);
-	newsrc = inet_select_addr(par->out, rt->rt_gateway, RT_SCOPE_UNIVERSE);
+	nh = rt_nexthop(rt, ip_hdr(skb)->daddr);
+	newsrc = inet_select_addr(par->out, nh, RT_SCOPE_UNIVERSE);
 	if (!newsrc) {
 		pr_info("%s ate my IP address\n", par->out->name);
 		return NF_DROP;

@@ -57,10 +57,12 @@ void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq);
 					S5P_FIMV_SI_DISPLAY_Y_ADR) << \
 					MFC_OFFSET_SHIFT)
 #define s5p_mfc_get_dec_y_adr()		(readl(dev->regs_base + \
-					S5P_FIMV_SI_DISPLAY_Y_ADR) << \
+					S5P_FIMV_SI_DECODE_Y_ADR) << \
 					MFC_OFFSET_SHIFT)
 #define s5p_mfc_get_dspl_status()	readl(dev->regs_base + \
 						S5P_FIMV_SI_DISPLAY_STATUS)
+#define s5p_mfc_get_dec_status()	readl(dev->regs_base + \
+						S5P_FIMV_SI_DECODE_STATUS)
 #define s5p_mfc_get_frame_type()	(readl(dev->regs_base + \
 						S5P_FIMV_DECODE_FRAME_TYPE) \
 					& S5P_FIMV_DECODE_FRAME_MASK)

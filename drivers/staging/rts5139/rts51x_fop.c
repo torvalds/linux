@@ -36,7 +36,6 @@
 #include "rts51x_card.h"
 #include "rts51x_fop.h"
 #include "sd_cprm.h"
-#include "rts51x.h"
 
 #define RTS5139_IOC_MAGIC		0x39
 

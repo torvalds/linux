@@ -170,9 +170,9 @@ mn10300_cpupic_setaffinity(struct irq_data *d, const struct cpumask *mask,
 	case SC1TXIRQ:
 #ifdef CONFIG_MN10300_TTYSM1_TIMER12
 	case TM12IRQ:
-#elif CONFIG_MN10300_TTYSM1_TIMER9
+#elif defined(CONFIG_MN10300_TTYSM1_TIMER9)
 	case TM9IRQ:
-#elif CONFIG_MN10300_TTYSM1_TIMER3
+#elif defined(CONFIG_MN10300_TTYSM1_TIMER3)
 	case TM3IRQ:
 #endif /* CONFIG_MN10300_TTYSM1_TIMER12 */
 #endif /* CONFIG_MN10300_TTYSM1 */

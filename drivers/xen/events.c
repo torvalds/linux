@@ -827,6 +827,9 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 					      handle_edge_irq, "event");
 
 		xen_irq_info_evtchn_init(irq, evtchn);
+	} else {
+		struct irq_info *info = info_for_irq(irq);
+		WARN_ON(info == NULL || info->type != IRQT_EVTCHN);
 	}
 
 out:
@@ -862,6 +865,9 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		xen_irq_info_ipi_init(cpu, irq, evtchn, ipi);
 
 		bind_evtchn_to_cpu(evtchn, cpu);
+	} else {
+		struct irq_info *info = info_for_irq(irq);
+		WARN_ON(info == NULL || info->type != IRQT_IPI);
 	}
 
  out:
@@ -939,6 +945,9 @@ int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		xen_irq_info_virq_init(cpu, irq, evtchn, virq);
 
 		bind_evtchn_to_cpu(evtchn, cpu);
+	} else {
+		struct irq_info *info = info_for_irq(irq);
+		WARN_ON(info == NULL || info->type != IRQT_VIRQ);
 	}
 
 out:

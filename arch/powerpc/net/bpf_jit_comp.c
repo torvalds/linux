@@ -39,7 +39,7 @@ static void bpf_jit_build_prologue(struct sk_filter *fp, u32 *image,
 		/* Make stackframe */
 		if (ctx->seen & SEEN_DATAREF) {
 			/* If we call any helpers (for loads), save LR */
-			EMIT(PPC_INST_MFLR | __PPC_RT(0));
+			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
 			PPC_STD(0, 1, 16);
 
 			/* Back up non-volatile regs. */
@@ -56,7 +56,7 @@ static void bpf_jit_build_prologue(struct sk_filter *fp, u32 *image,
 					PPC_STD(i, 1, -(8*(32-i)));
 			}
 		}
-		EMIT(PPC_INST_STDU | __PPC_RS(1) | __PPC_RA(1) |
+		EMIT(PPC_INST_STDU | __PPC_RS(R1) | __PPC_RA(R1) |
 		     (-BPF_PPC_STACKFRAME & 0xfffc));
 	}
 

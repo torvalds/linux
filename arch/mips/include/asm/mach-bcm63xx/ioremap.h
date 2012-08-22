@@ -18,6 +18,7 @@ static inline int is_bcm63xx_internal_registers(phys_t offset)
 		if (offset >= 0xfff00000)
 			return 1;
 		break;
+	case BCM6328_CPU_ID:
 	case BCM6368_CPU_ID:
 		if (offset >= 0xb0000000 && offset < 0xb1000000)
 			return 1;

@@ -153,6 +153,9 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 #define CONFIG_CNTL					0x5424
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
 #define	CP_STAT						0x8680
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC
@@ -485,6 +488,7 @@
 #define		TC_L2_SIZE(x)					((x)<<5)
 #define		L2_DISABLE_LATE_HIT				(1<<9)
 
+#define	VC_ENHANCE					0x9714
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)
@@ -598,6 +602,9 @@
 #define RLC_HB_WPTR                                       0x3f1c
 #define RLC_HB_WPTR_LSB_ADDR                              0x3f14
 #define RLC_HB_WPTR_MSB_ADDR                              0x3f18
+#define RLC_GPU_CLOCK_COUNT_LSB				  0x3f38
+#define RLC_GPU_CLOCK_COUNT_MSB				  0x3f3c
+#define RLC_CAPTURE_GPU_CLOCK_COUNT			  0x3f40
 #define RLC_MC_CNTL                                       0x3f44
 #define RLC_UCODE_CNTL                                    0x3f48
 #define RLC_UCODE_ADDR                                    0x3f2c
@@ -1163,6 +1170,7 @@
 #define	PACKET3_SET_CTL_CONST				0x6F
 #define		PACKET3_SET_CTL_CONST_OFFSET			0x0003cff0
 #define		PACKET3_SET_CTL_CONST_END			0x0003e200
+#define	PACKET3_STRMOUT_BASE_UPDATE			0x72 /* r7xx */
 #define	PACKET3_SURFACE_BASE_UPDATE			0x73
 
 

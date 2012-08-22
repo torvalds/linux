@@ -32,7 +32,7 @@ static const char *nand_ecc_modes[] = {
  * The function gets ecc mode string from property 'nand-ecc-mode',
  * and return its index in nand_ecc_modes table, or errno in error case.
  */
-const int of_get_nand_ecc_mode(struct device_node *np)
+int of_get_nand_ecc_mode(struct device_node *np)
 {
 	const char *pm;
 	int err, i;

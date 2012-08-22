@@ -143,11 +143,11 @@ static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	return NF_ACCEPT;
 }
 
-static unsigned int ipv6_confirm(unsigned int hooknum,
-				 struct sk_buff *skb,
-				 const struct net_device *in,
-				 const struct net_device *out,
-				 int (*okfn)(struct sk_buff *))
+static unsigned int ipv6_helper(unsigned int hooknum,
+				struct sk_buff *skb,
+				const struct net_device *in,
+				const struct net_device *out,
+				int (*okfn)(struct sk_buff *))
 {
 	struct nf_conn *ct;
 	const struct nf_conn_help *help;
@@ -161,15 +161,15 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
 	if (!ct || ctinfo == IP_CT_RELATED_REPLY)
-		goto out;
+		return NF_ACCEPT;
 
 	help = nfct_help(ct);
 	if (!help)
-		goto out;
+		return NF_ACCEPT;
 	/* rcu_read_lock()ed by nf_hook_slow */
 	helper = rcu_dereference(help->helper);
 	if (!helper)
-		goto out;
+		return NF_ACCEPT;
 
 	protoff = nf_ct_ipv6_skip_exthdr(skb, extoff, &pnum,
 					 skb->len - extoff);
@@ -179,12 +179,19 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 	}
 
 	ret = helper->help(skb, protoff, ct, ctinfo);
-	if (ret != NF_ACCEPT) {
+	if (ret != NF_ACCEPT && (ret & NF_VERDICT_MASK) != NF_QUEUE) {
 		nf_log_packet(NFPROTO_IPV6, hooknum, skb, in, out, NULL,
 			      "nf_ct_%s: dropping packet", helper->name);
-		return ret;
 	}
-out:
+	return ret;
+}
+
+static unsigned int ipv6_confirm(unsigned int hooknum,
+				 struct sk_buff *skb,
+				 const struct net_device *in,
+				 const struct net_device *out,
+				 int (*okfn)(struct sk_buff *))
+{
 	/* We've seen it coming out the other side: confirm it */
 	return nf_conntrack_confirm(skb);
 }
@@ -254,11 +261,25 @@ static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 		.priority	= NF_IP6_PRI_CONNTRACK,
 	},
 	{
+		.hook		= ipv6_helper,
+		.owner		= THIS_MODULE,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_POST_ROUTING,
+		.priority	= NF_IP6_PRI_CONNTRACK_HELPER,
+	},
+	{
 		.hook		= ipv6_confirm,
 		.owner		= THIS_MODULE,
 		.pf		= NFPROTO_IPV6,
 		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_LAST,
+	},
+	{
+		.hook		= ipv6_helper,
+		.owner		= THIS_MODULE,
+		.pf		= NFPROTO_IPV6,
+		.hooknum	= NF_INET_LOCAL_IN,
+		.priority	= NF_IP6_PRI_CONNTRACK_HELPER,
 	},
 	{
 		.hook		= ipv6_confirm,
@@ -333,6 +354,65 @@ MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
 
+static int ipv6_net_init(struct net *net)
+{
+	int ret = 0;
+
+	ret = nf_conntrack_l4proto_register(net,
+					    &nf_conntrack_l4proto_tcp6);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_conntrack_l4proto_tcp6: protocol register failed\n");
+		goto out;
+	}
+	ret = nf_conntrack_l4proto_register(net,
+					    &nf_conntrack_l4proto_udp6);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_conntrack_l4proto_udp6: protocol register failed\n");
+		goto cleanup_tcp6;
+	}
+	ret = nf_conntrack_l4proto_register(net,
+					    &nf_conntrack_l4proto_icmpv6);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_conntrack_l4proto_icmp6: protocol register failed\n");
+		goto cleanup_udp6;
+	}
+	ret = nf_conntrack_l3proto_register(net,
+					    &nf_conntrack_l3proto_ipv6);
+	if (ret < 0) {
+		printk(KERN_ERR "nf_conntrack_l3proto_ipv6: protocol register failed\n");
+		goto cleanup_icmpv6;
+	}
+	return 0;
+ cleanup_icmpv6:
+	nf_conntrack_l4proto_unregister(net,
+					&nf_conntrack_l4proto_icmpv6);
+ cleanup_udp6:
+	nf_conntrack_l4proto_unregister(net,
+					&nf_conntrack_l4proto_udp6);
+ cleanup_tcp6:
+	nf_conntrack_l4proto_unregister(net,
+					&nf_conntrack_l4proto_tcp6);
+ out:
+	return ret;
+}
+
+static void ipv6_net_exit(struct net *net)
+{
+	nf_conntrack_l3proto_unregister(net,
+					&nf_conntrack_l3proto_ipv6);
+	nf_conntrack_l4proto_unregister(net,
+					&nf_conntrack_l4proto_icmpv6);
+	nf_conntrack_l4proto_unregister(net,
+					&nf_conntrack_l4proto_udp6);
+	nf_conntrack_l4proto_unregister(net,
+					&nf_conntrack_l4proto_tcp6);
+}
+
+static struct pernet_operations ipv6_net_ops = {
+	.init = ipv6_net_init,
+	.exit = ipv6_net_exit,
+};
+
 static int __init nf_conntrack_l3proto_ipv6_init(void)
 {
 	int ret = 0;
@@ -340,30 +420,9 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	need_conntrack();
 	nf_defrag_ipv6_enable();
 
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_ipv6: can't register tcp.\n");
-		return ret;
-	}
-
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_ipv6: can't register udp.\n");
-		goto cleanup_tcp;
-	}
-
-	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_icmpv6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_ipv6: can't register icmpv6.\n");
-		goto cleanup_udp;
-	}
-
-	ret = nf_conntrack_l3proto_register(&nf_conntrack_l3proto_ipv6);
-	if (ret < 0) {
-		pr_err("nf_conntrack_ipv6: can't register ipv6\n");
-		goto cleanup_icmpv6;
-	}
-
+	ret = register_pernet_subsys(&ipv6_net_ops);
+	if (ret < 0)
+		goto cleanup_pernet;
 	ret = nf_register_hooks(ipv6_conntrack_ops,
 				ARRAY_SIZE(ipv6_conntrack_ops));
 	if (ret < 0) {
@@ -374,13 +433,8 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	return ret;
 
  cleanup_ipv6:
-	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
- cleanup_icmpv6:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmpv6);
- cleanup_udp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp6);
- cleanup_tcp:
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp6);
+	unregister_pernet_subsys(&ipv6_net_ops);
+ cleanup_pernet:
 	return ret;
 }
 
@@ -388,10 +442,7 @@ static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 {
 	synchronize_net();
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
-	nf_conntrack_l3proto_unregister(&nf_conntrack_l3proto_ipv6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_icmpv6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_udp6);
-	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_tcp6);
+	unregister_pernet_subsys(&ipv6_net_ops);
 }
 
 module_init(nf_conntrack_l3proto_ipv6_init);

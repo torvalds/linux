@@ -167,23 +167,6 @@ u32 mwifiex_index_to_data_rate(struct mwifiex_private *priv, u8 index,
 }
 
 /*
- * This function maps a data rate value into corresponding index in supported
- * rates table.
- */
-u8 mwifiex_data_rate_to_index(u32 rate)
-{
-	u16 *ptr;
-
-	if (rate) {
-		ptr = memchr(mwifiex_data_rates, rate,
-				sizeof(mwifiex_data_rates));
-		if (ptr)
-			return (u8) (ptr - mwifiex_data_rates);
-	}
-	return 0;
-}
-
-/*
  * This function returns the current active data rates.
  *
  * The result may vary depending upon connection status.
@@ -274,20 +257,6 @@ mwifiex_is_rate_auto(struct mwifiex_private *priv)
 		return true;
 	else
 		return false;
-}
-
-/*
- * This function converts rate bitmap into rate index.
- */
-int mwifiex_get_rate_index(u16 *rate_bitmap, int size)
-{
-	int i;
-
-	for (i = 0; i < size * 8; i++)
-		if (rate_bitmap[i / 16] & (1 << (i % 16)))
-			return i;
-
-	return 0;
 }
 
 /*

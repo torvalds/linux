@@ -25,11 +25,7 @@
 
 extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 
-/**
- *
- *  Macros and constants
- *
- */
+/*  Macros and constants  */
 
 #define BNA_IOC_TIMER_FREQ		200
 
@@ -356,11 +352,7 @@ do {									\
 	}								\
 } while (0)
 
-/**
- *
- *  Inline functions
- *
- */
+/*  Inline functions  */
 
 static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
 {
@@ -377,15 +369,9 @@ static inline struct bna_mac *bna_mac_find(struct list_head *q, u8 *addr)
 
 #define bna_attr(_bna) (&(_bna)->ioceth.attr)
 
-/**
- *
- * Function prototypes
- *
- */
+/* Function prototypes */
 
-/**
- * BNA
- */
+/* BNA */
 
 /* FW response handlers */
 void bna_bfi_stats_clr_rsp(struct bna *bna, struct bfi_msgq_mhdr *msghdr);
@@ -413,24 +399,19 @@ struct bna_mcam_handle *bna_mcam_mod_handle_get(struct bna_mcam_mod *mod);
 void bna_mcam_mod_handle_put(struct bna_mcam_mod *mcam_mod,
 			  struct bna_mcam_handle *handle);
 
-/**
- * MBOX
- */
+/* MBOX */
 
 /* API for BNAD */
 void bna_mbox_handler(struct bna *bna, u32 intr_status);
 
-/**
- * ETHPORT
- */
+/* ETHPORT */
 
 /* Callbacks for RX */
 void bna_ethport_cb_rx_started(struct bna_ethport *ethport);
 void bna_ethport_cb_rx_stopped(struct bna_ethport *ethport);
 
-/**
- * TX MODULE AND TX
- */
+/* TX MODULE AND TX */
+
 /* FW response handelrs */
 void bna_bfi_tx_enet_start_rsp(struct bna_tx *tx,
 			       struct bfi_msgq_mhdr *msghdr);
@@ -462,9 +443,7 @@ void bna_tx_disable(struct bna_tx *tx, enum bna_cleanup_type type,
 void bna_tx_cleanup_complete(struct bna_tx *tx);
 void bna_tx_coalescing_timeo_set(struct bna_tx *tx, int coalescing_timeo);
 
-/**
- * RX MODULE, RX, RXF
- */
+/* RX MODULE, RX, RXF */
 
 /* FW response handlers */
 void bna_bfi_rx_enet_start_rsp(struct bna_rx *rx,
@@ -522,9 +501,7 @@ bna_rx_mode_set(struct bna_rx *rx, enum bna_rxmode rxmode,
 void bna_rx_vlan_add(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlan_del(struct bna_rx *rx, int vlan_id);
 void bna_rx_vlanfilter_enable(struct bna_rx *rx);
-/**
- * ENET
- */
+/* ENET */
 
 /* API for RX */
 int bna_enet_mtu_get(struct bna_enet *enet);
@@ -544,18 +521,14 @@ void bna_enet_mtu_set(struct bna_enet *enet, int mtu,
 		      void (*cbfn)(struct bnad *));
 void bna_enet_perm_mac_get(struct bna_enet *enet, mac_t *mac);
 
-/**
- * IOCETH
- */
+/* IOCETH */
 
 /* APIs for BNAD */
 void bna_ioceth_enable(struct bna_ioceth *ioceth);
 void bna_ioceth_disable(struct bna_ioceth *ioceth,
 			enum bna_cleanup_type type);
 
-/**
- * BNAD
- */
+/* BNAD */
 
 /* Callbacks for ENET */
 void bnad_cb_ethport_link_status(struct bnad *bnad,

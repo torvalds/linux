@@ -265,7 +265,7 @@ try_again:
 
 			if (err == ENOENT) {
 				ui__error("The %s event is not supported.\n",
-					    event_name(pos));
+					  perf_evsel__name(pos));
 				exit(EXIT_FAILURE);
 			}
 
@@ -313,7 +313,7 @@ try_again:
 		}
  	}
 
-	perf_session__update_sample_type(session);
+	perf_session__set_id_hdr_size(session);
 }
 
 static int process_buildids(struct perf_record *rec)
@@ -844,8 +844,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	struct perf_record *rec = &record;
 	char errbuf[BUFSIZ];
 
-	perf_header__set_cmdline(argc, argv);
-
 	evsel_list = perf_evlist__new(NULL, NULL);
 	if (evsel_list == NULL)
 		return -ENOMEM;
@@ -916,7 +914,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
-		if (perf_header__push_event(pos->attr.config, event_name(pos)))
+		if (perf_header__push_event(pos->attr.config, perf_evsel__name(pos)))
 			goto out_free_fd;
 	}
 

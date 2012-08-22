@@ -186,10 +186,13 @@ static void spufs_prune_dir(struct dentry *dir)
 static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 {
 	/* remove all entries */
+	int res;
 	spufs_prune_dir(dir);
 	d_drop(dir);
-
-	return simple_rmdir(parent, dir);
+	res = simple_rmdir(parent, dir);
+	/* We have to give up the mm_struct */
+	spu_forget(SPUFS_I(dir->d_inode)->i_ctx);
+	return res;
 }
 
 static int spufs_fill_dir(struct dentry *dir,
@@ -244,9 +247,6 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 	ret = spufs_rmdir(parent, dir);
 	mutex_unlock(&parent->i_mutex);
 	WARN_ON(ret);
-
-	/* We have to give up the mm_struct */
-	spu_forget(ctx);
 
 	return dcache_dir_close(inode, file);
 }
@@ -317,28 +317,23 @@ out:
 	return ret;
 }
 
-static int spufs_context_open(struct dentry *dentry, struct vfsmount *mnt)
+static int spufs_context_open(struct path *path)
 {
 	int ret;
 	struct file *filp;
 
 	ret = get_unused_fd();
-	if (ret < 0) {
-		dput(dentry);
-		mntput(mnt);
-		goto out;
-	}
+	if (ret < 0)
+		return ret;
 
-	filp = dentry_open(dentry, mnt, O_RDONLY, current_cred());
+	filp = dentry_open(path, O_RDONLY, current_cred());
 	if (IS_ERR(filp)) {
 		put_unused_fd(ret);
-		ret = PTR_ERR(filp);
-		goto out;
+		return PTR_ERR(filp);
 	}
 
 	filp->f_op = &spufs_context_fops;
 	fd_install(ret, filp);
-out:
 	return ret;
 }
 
@@ -453,29 +448,26 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 	int affinity;
 	struct spu_gang *gang;
 	struct spu_context *neighbor;
+	struct path path = {.mnt = mnt, .dentry = dentry};
 
-	ret = -EPERM;
 	if ((flags & SPU_CREATE_NOSCHED) &&
 	    !capable(CAP_SYS_NICE))
-		goto out_unlock;
+		return -EPERM;
 
-	ret = -EINVAL;
 	if ((flags & (SPU_CREATE_NOSCHED | SPU_CREATE_ISOLATE))
 	    == SPU_CREATE_ISOLATE)
-		goto out_unlock;
+		return -EINVAL;
 
-	ret = -ENODEV;
 	if ((flags & SPU_CREATE_ISOLATE) && !isolated_loader)
-		goto out_unlock;
+		return -ENODEV;
 
 	gang = NULL;
 	neighbor = NULL;
 	affinity = flags & (SPU_CREATE_AFFINITY_MEM | SPU_CREATE_AFFINITY_SPU);
 	if (affinity) {
 		gang = SPUFS_I(inode)->i_gang;
-		ret = -EINVAL;
 		if (!gang)
-			goto out_unlock;
+			return -EINVAL;
 		mutex_lock(&gang->aff_mutex);
 		neighbor = spufs_assert_affinity(flags, gang, aff_filp);
 		if (IS_ERR(neighbor)) {
@@ -495,27 +487,13 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 			put_spu_context(neighbor);
 	}
 
-	/*
-	 * get references for dget and mntget, will be released
-	 * in error path of *_open().
-	 */
-	ret = spufs_context_open(dget(dentry), mntget(mnt));
-	if (ret < 0) {
+	ret = spufs_context_open(&path);
+	if (ret < 0)
 		WARN_ON(spufs_rmdir(inode, dentry));
-		if (affinity)
-			mutex_unlock(&gang->aff_mutex);
-		mutex_unlock(&inode->i_mutex);
-		spu_forget(SPUFS_I(dentry->d_inode)->i_ctx);
-		goto out;
-	}
 
 out_aff_unlock:
 	if (affinity)
 		mutex_unlock(&gang->aff_mutex);
-out_unlock:
-	mutex_unlock(&inode->i_mutex);
-out:
-	dput(dentry);
 	return ret;
 }
 
@@ -556,28 +534,27 @@ out:
 	return ret;
 }
 
-static int spufs_gang_open(struct dentry *dentry, struct vfsmount *mnt)
+static int spufs_gang_open(struct path *path)
 {
 	int ret;
 	struct file *filp;
 
 	ret = get_unused_fd();
-	if (ret < 0) {
-		dput(dentry);
-		mntput(mnt);
-		goto out;
-	}
+	if (ret < 0)
+		return ret;
 
-	filp = dentry_open(dentry, mnt, O_RDONLY, current_cred());
+	/*
+	 * get references for dget and mntget, will be released
+	 * in error path of *_open().
+	 */
+	filp = dentry_open(path, O_RDONLY, current_cred());
 	if (IS_ERR(filp)) {
 		put_unused_fd(ret);
-		ret = PTR_ERR(filp);
-		goto out;
+		return PTR_ERR(filp);
 	}
 
 	filp->f_op = &simple_dir_operations;
 	fd_install(ret, filp);
-out:
 	return ret;
 }
 
@@ -585,25 +562,17 @@ static int spufs_create_gang(struct inode *inode,
 			struct dentry *dentry,
 			struct vfsmount *mnt, umode_t mode)
 {
+	struct path path = {.mnt = mnt, .dentry = dentry};
 	int ret;
 
 	ret = spufs_mkgang(inode, dentry, mode & S_IRWXUGO);
-	if (ret)
-		goto out;
-
-	/*
-	 * get references for dget and mntget, will be released
-	 * in error path of *_open().
-	 */
-	ret = spufs_gang_open(dget(dentry), mntget(mnt));
-	if (ret < 0) {
-		int err = simple_rmdir(inode, dentry);
-		WARN_ON(err);
+	if (!ret) {
+		ret = spufs_gang_open(&path);
+		if (ret < 0) {
+			int err = simple_rmdir(inode, dentry);
+			WARN_ON(err);
+		}
 	}
-
-out:
-	mutex_unlock(&inode->i_mutex);
-	dput(dentry);
 	return ret;
 }
 
@@ -613,40 +582,32 @@ static struct file_system_type spufs_type;
 long spufs_create(struct path *path, struct dentry *dentry,
 		unsigned int flags, umode_t mode, struct file *filp)
 {
+	struct inode *dir = path->dentry->d_inode;
 	int ret;
 
-	ret = -EINVAL;
 	/* check if we are on spufs */
 	if (path->dentry->d_sb->s_type != &spufs_type)
-		goto out;
+		return -EINVAL;
 
 	/* don't accept undefined flags */
 	if (flags & (~SPU_CREATE_FLAG_ALL))
-		goto out;
+		return -EINVAL;
 
 	/* only threads can be underneath a gang */
-	if (path->dentry != path->dentry->d_sb->s_root) {
-		if ((flags & SPU_CREATE_GANG) ||
-		    !SPUFS_I(path->dentry->d_inode)->i_gang)
-			goto out;
-	}
+	if (path->dentry != path->dentry->d_sb->s_root)
+		if ((flags & SPU_CREATE_GANG) || !SPUFS_I(dir)->i_gang)
+			return -EINVAL;
 
 	mode &= ~current_umask();
 
 	if (flags & SPU_CREATE_GANG)
-		ret = spufs_create_gang(path->dentry->d_inode,
-					 dentry, path->mnt, mode);
+		ret = spufs_create_gang(dir, dentry, path->mnt, mode);
 	else
-		ret = spufs_create_context(path->dentry->d_inode,
-					    dentry, path->mnt, flags, mode,
+		ret = spufs_create_context(dir, dentry, path->mnt, flags, mode,
 					    filp);
 	if (ret >= 0)
-		fsnotify_mkdir(path->dentry->d_inode, dentry);
-	return ret;
+		fsnotify_mkdir(dir, dentry);
 
-out:
-	mutex_unlock(&path->dentry->d_inode->i_mutex);
-	dput(dentry);
 	return ret;
 }
 

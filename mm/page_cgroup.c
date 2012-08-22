@@ -317,7 +317,7 @@ void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
 #endif
 
 
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+#ifdef CONFIG_MEMCG_SWAP
 
 static DEFINE_MUTEX(swap_cgroup_mutex);
 struct swap_cgroup_ctrl {
@@ -392,7 +392,7 @@ static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
 
 /**
  * swap_cgroup_cmpxchg - cmpxchg mem_cgroup's id for this swp_entry.
- * @end: swap entry to be cmpxchged
+ * @ent: swap entry to be cmpxchged
  * @old: old id
  * @new: new id
  *
@@ -422,7 +422,7 @@ unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
 /**
  * swap_cgroup_record - record mem_cgroup for this swp_entry.
  * @ent: swap entry to be recorded into
- * @mem: mem_cgroup to be recorded
+ * @id: mem_cgroup to be recorded
  *
  * Returns old value at success, 0 at failure.
  * (Of course, old value can be 0.)

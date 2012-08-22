@@ -78,7 +78,6 @@ struct fimd_context {
 	struct drm_crtc			*crtc;
 	struct clk			*bus_clk;
 	struct clk			*lcd_clk;
-	struct resource			*regs_res;
 	void __iomem			*regs;
 	struct fimd_win_data		win_data[WINDOWS_NR];
 	unsigned int			clkdiv;
@@ -813,7 +812,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -838,33 +837,26 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ctx->regs_res = request_mem_region(res->start, resource_size(res),
-					   dev_name(dev));
-	if (!ctx->regs_res) {
-		dev_err(dev, "failed to claim register region\n");
-		ret = -ENOENT;
-		goto err_clk;
-	}
-
-	ctx->regs = ioremap(res->start, resource_size(res));
+	ctx->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!ctx->regs) {
 		dev_err(dev, "failed to map registers\n");
 		ret = -ENXIO;
-		goto err_req_region_io;
+		goto err_clk;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_req_region_irq;
+		goto err_clk;
 	}
 
 	ctx->irq = res->start;
 
-	ret = request_irq(ctx->irq, fimd_irq_handler, 0, "drm_fimd", ctx);
-	if (ret < 0) {
+	ret = devm_request_irq(&pdev->dev, ctx->irq, fimd_irq_handler,
+							0, "drm_fimd", ctx);
+	if (ret) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_req_irq;
+		goto err_clk;
 	}
 
 	ctx->vidcon0 = pdata->vidcon0;
@@ -899,14 +891,6 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_req_irq:
-err_req_region_irq:
-	iounmap(ctx->regs);
-
-err_req_region_io:
-	release_resource(ctx->regs_res);
-	kfree(ctx->regs_res);
-
 err_clk:
 	clk_disable(ctx->lcd_clk);
 	clk_put(ctx->lcd_clk);
@@ -916,7 +900,6 @@ err_bus_clk:
 	clk_put(ctx->bus_clk);
 
 err_clk_get:
-	kfree(ctx);
 	return ret;
 }
 
@@ -943,13 +926,6 @@ out:
 
 	clk_put(ctx->lcd_clk);
 	clk_put(ctx->bus_clk);
-
-	iounmap(ctx->regs);
-	release_resource(ctx->regs_res);
-	kfree(ctx->regs_res);
-	free_irq(ctx->irq, ctx);
-
-	kfree(ctx);
 
 	return 0;
 }

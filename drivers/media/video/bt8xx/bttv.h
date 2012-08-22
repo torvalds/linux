@@ -184,7 +184,7 @@
 #define BTTV_BOARD_GEOVISION_GV800S_SL	   0x9e
 #define BTTV_BOARD_PV183                   0x9f
 #define BTTV_BOARD_TVT_TD3116		   0xa0
-
+#define BTTV_BOARD_APOSONIC_WDVR           0xa1
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10
@@ -236,7 +236,6 @@ struct tvcard {
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
 	unsigned int no_tda7432:1;
-	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;
 	/* Note: currently no card definition needs to mark the presence
 	   of a RDS saa6588 chip. If this is ever needed, then add a new

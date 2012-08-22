@@ -293,8 +293,12 @@
 
 #define NR_MACH_IRQS		(IRQ_PG15 + 1)
 
+#define SEC_SCTL_PRIO_OFFSET	8
+
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
+
+extern u8 sec_int_priority[];
 
 /*
  * bfin pint registers layout

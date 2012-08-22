@@ -322,7 +322,7 @@ static __le16 *dn_mk_ack_header(struct sock *sk, struct sk_buff *skb, unsigned c
 	/* Set "cross subchannel" bit in ackcrs */
 	ackcrs |= 0x2000;
 
-	ptr = (__le16 *)dn_mk_common_header(scp, skb, msgflag, hlen);
+	ptr = dn_mk_common_header(scp, skb, msgflag, hlen);
 
 	*ptr++ = cpu_to_le16(acknum);
 	*ptr++ = cpu_to_le16(ackcrs);
