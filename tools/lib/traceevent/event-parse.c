@@ -4754,20 +4754,20 @@ int pevent_parse_event(struct pevent *pevent,
 		struct print_arg *arg, **list;
 
 		/* old ftrace had no args */
-
 		list = &event->print_fmt.args;
 		for (field = event->format.fields; field; field = field->next) {
 			arg = alloc_arg();
-			*list = arg;
-			list = &arg->next;
 			arg->type = PRINT_FIELD;
 			arg->field.name = strdup(field->name);
 			if (!arg->field.name) {
 				do_warning("failed to allocate field name");
 				event->flags |= EVENT_FL_FAILED;
+				free_arg(arg);
 				return -1;
 			}
 			arg->field.field = field;
+			*list = arg;
+			list = &arg->next;
 		}
 		return 0;
 	}
