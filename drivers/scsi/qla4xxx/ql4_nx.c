@@ -2337,10 +2337,6 @@ dev_initialize:
 	qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
 			    QLA8XXX_DEV_INITIALIZING);
 
-	/* Driver that sets device state to initializating sets IDC version */
-	qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION,
-			    QLA82XX_IDC_VERSION);
-
 	ha->isp_ops->idc_unlock(ha);
 	if (ql4xenablemd && test_bit(AF_FW_RECOVERY, &ha->flags) &&
 	    !test_and_set_bit(AF_82XX_FW_DUMPED, &ha->flags)) {
@@ -2463,6 +2459,38 @@ qla4_8xxx_need_qsnt_handler(struct scsi_qla_host *ha)
 	ha->isp_ops->idc_unlock(ha);
 }
 
+static void qla4_82xx_set_idc_ver(struct scsi_qla_host *ha)
+{
+	int idc_ver;
+	uint32_t drv_active;
+
+	drv_active = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_ACTIVE);
+	if (drv_active == (1 << (ha->func_num * 4))) {
+		qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION,
+				    QLA82XX_IDC_VERSION);
+		ql4_printk(KERN_INFO, ha,
+			   "%s: IDC version updated to %d\n", __func__,
+			   QLA82XX_IDC_VERSION);
+	} else {
+		idc_ver = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DRV_IDC_VERSION);
+		if (QLA82XX_IDC_VERSION != idc_ver) {
+			ql4_printk(KERN_INFO, ha,
+				   "%s: qla4xxx driver IDC version %d is not compatible with IDC version %d of other drivers!\n",
+				   __func__, QLA82XX_IDC_VERSION, idc_ver);
+		}
+	}
+}
+
+static void qla4_8xxx_update_idc_reg(struct scsi_qla_host *ha)
+{
+	if (!test_bit(AF_INIT_DONE, &ha->flags)) {
+		ha->isp_ops->idc_lock(ha);
+		qla4_8xxx_set_drv_active(ha);
+		qla4_82xx_set_idc_ver(ha);
+		ha->isp_ops->idc_unlock(ha);
+	}
+}
+
 /**
  * qla4_8xxx_device_state_handler - Adapter state machine
  * @ha: pointer to host adapter structure.
@@ -2475,11 +2503,7 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 	int rval = QLA_SUCCESS;
 	unsigned long dev_init_timeout;
 
-	if (!test_bit(AF_INIT_DONE, &ha->flags)) {
-		ha->isp_ops->idc_lock(ha);
-		qla4_8xxx_set_drv_active(ha);
-		ha->isp_ops->idc_unlock(ha);
-	}
+	qla4_8xxx_update_idc_reg(ha);
 
 	dev_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DEV_STATE);
 	DEBUG2(ql4_printk(KERN_INFO, ha, "Device state is 0x%x = %s\n",
