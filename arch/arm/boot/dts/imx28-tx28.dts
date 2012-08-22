@@ -25,7 +25,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x40a3 /* MX28_PAD_ENET0_RXD3__GPIO_4_10 */

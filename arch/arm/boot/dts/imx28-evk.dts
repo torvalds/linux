@@ -50,7 +50,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x20d3 /* MX28_PAD_SSP1_CMD__GPIO_2_13 */
