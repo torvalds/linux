@@ -1155,7 +1155,7 @@ int zd_chip_init_hw(struct zd_chip *chip)
 	if (r)
 		goto out;
 	/* Currently we support IEEE 802.11g for full and high speed USB.
-	 * It might be discussed, whether we should suppport pure b mode for
+	 * It might be discussed, whether we should support pure b mode for
 	 * full speed USB.
 	 */
 	r = set_mandatory_rates(chip, 1);

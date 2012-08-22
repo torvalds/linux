@@ -1,5 +1,5 @@
 /*
- * kvm_ia64.c: Basic KVM suppport On Itanium series processors
+ * kvm_ia64.c: Basic KVM support On Itanium series processors
  *
  *
  * 	Copyright (C) 2007, Intel Corporation.
