@@ -4543,6 +4543,9 @@ static void stac92xx_line_out_detect(struct hda_codec *codec,
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 
+	if (cfg->speaker_outs == 0)
+		return;
+
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (presence)
 			break;
