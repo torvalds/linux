@@ -939,16 +939,10 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 				    WM8994_BIAS_SRC |
 				    WM8994_VMID_DISCH);
 
-		switch (wm8994->vmid_mode) {
-		case WM8994_VMID_FORCE:
-			msleep(350);
-			break;
-		default:
-			break;
-		}
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+				    WM8994_VMID_SEL_MASK, 0);
 
-		snd_soc_update_bits(codec, WM8994_ADDITIONAL_CONTROL,
-				    WM8994_VROI, WM8994_VROI);
+		msleep(400);
 
 		/* Active discharge */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
@@ -957,16 +951,11 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 				    WM8994_LINEOUT1_DISCH |
 				    WM8994_LINEOUT2_DISCH);
 
-		msleep(150);
-
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_3,
 				    WM8994_LINEOUT1N_ENA |
 				    WM8994_LINEOUT1P_ENA |
 				    WM8994_LINEOUT2N_ENA |
 				    WM8994_LINEOUT2P_ENA, 0);
-
-		snd_soc_update_bits(codec, WM8994_ADDITIONAL_CONTROL,
-				    WM8994_VROI, 0);
 
 		/* Switch off startup biases */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
@@ -976,10 +965,7 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 				    WM8994_VMID_RAMP_MASK, 0);
 
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-				    WM8994_BIAS_ENA | WM8994_VMID_SEL_MASK, 0);
-
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM8994_VMID_RAMP_MASK, 0);
+				    WM8994_VMID_SEL_MASK, 0);
 	}
 
 	pm_runtime_put(codec->dev);
