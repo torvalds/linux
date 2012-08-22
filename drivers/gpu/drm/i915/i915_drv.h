@@ -199,7 +199,7 @@ struct drm_i915_error_state {
 	u32 err_int; /* gen7 */
 	u32 instpm[I915_NUM_RINGS];
 	u32 instps[I915_NUM_RINGS];
-	u32 instdone1;
+	u32 extra_instdone[I915_NUM_INSTDONE_REG];
 	u32 seqno[I915_NUM_RINGS];
 	u64 bbaddr;
 	u32 fault_reg[I915_NUM_RINGS];
@@ -454,8 +454,7 @@ typedef struct drm_i915_private {
 	struct timer_list hangcheck_timer;
 	int hangcheck_count;
 	uint32_t last_acthd[I915_NUM_RINGS];
-	uint32_t last_instdone;
-	uint32_t last_instdone1;
+	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
 
 	unsigned int stop_rings;
 

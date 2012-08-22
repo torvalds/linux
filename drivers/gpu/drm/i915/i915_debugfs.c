@@ -662,10 +662,9 @@ static void i915_ring_error_state(struct seq_file *m,
 	seq_printf(m, "  IPEIR: 0x%08x\n", error->ipeir[ring]);
 	seq_printf(m, "  IPEHR: 0x%08x\n", error->ipehr[ring]);
 	seq_printf(m, "  INSTDONE: 0x%08x\n", error->instdone[ring]);
-	if (ring == RCS && INTEL_INFO(dev)->gen >= 4) {
-		seq_printf(m, "  INSTDONE1: 0x%08x\n", error->instdone1);
+	if (ring == RCS && INTEL_INFO(dev)->gen >= 4)
 		seq_printf(m, "  BBADDR: 0x%08llx\n", error->bbaddr);
-	}
+
 	if (INTEL_INFO(dev)->gen >= 4)
 		seq_printf(m, "  INSTPS: 0x%08x\n", error->instps[ring]);
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm[ring]);
@@ -713,6 +712,9 @@ static int i915_error_state(struct seq_file *m, void *unused)
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)
 		seq_printf(m, "  fence[%d] = %08llx\n", i, error->fence[i]);
+
+	for (i = 0; i < ARRAY_SIZE(error->extra_instdone); i++)
+		seq_printf(m, "  INSTDONE_%d: 0x%08x\n", i, error->extra_instdone[i]);
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "ERROR: 0x%08x\n", error->error);
