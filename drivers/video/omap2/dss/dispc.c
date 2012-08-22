@@ -95,6 +95,9 @@ struct dispc_features {
 	unsigned long (*calc_core_clk) (enum omap_channel channel,
 		u16 width, u16 height, u16 out_width, u16 out_height);
 	u8 num_fifos;
+
+	/* swap GFX & WB fifos */
+	bool gfx_fifo_workaround:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -1087,6 +1090,29 @@ static void dispc_init_fifos(void)
 		 * ovl 0, fifo 1 to ovl 1, etc.
 		 */
 		dispc.fifo_assignment[fifo] = fifo;
+	}
+
+	/*
+	 * The GFX fifo on OMAP4 is smaller than the other fifos. The small fifo
+	 * causes problems with certain use cases, like using the tiler in 2D
+	 * mode. The below hack swaps the fifos of GFX and WB planes, thus
+	 * giving GFX plane a larger fifo. WB but should work fine with a
+	 * smaller fifo.
+	 */
+	if (dispc.feat->gfx_fifo_workaround) {
+		u32 v;
+
+		v = dispc_read_reg(DISPC_GLOBAL_BUFFER);
+
+		v = FLD_MOD(v, 4, 2, 0); /* GFX BUF top to WB */
+		v = FLD_MOD(v, 4, 5, 3); /* GFX BUF bottom to WB */
+		v = FLD_MOD(v, 0, 26, 24); /* WB BUF top to GFX */
+		v = FLD_MOD(v, 0, 29, 27); /* WB BUF bottom to GFX */
+
+		dispc_write_reg(DISPC_GLOBAL_BUFFER, v);
+
+		dispc.fifo_assignment[OMAP_DSS_GFX] = OMAP_DSS_WB;
+		dispc.fifo_assignment[OMAP_DSS_WB] = OMAP_DSS_GFX;
 	}
 }
 
@@ -3780,6 +3806,7 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.gfx_fifo_workaround	=	true,
 };
 
 static int __init dispc_init_features(struct device *dev)
