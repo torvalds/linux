@@ -1296,7 +1296,7 @@ static int s3c2410_udc_queue(struct usb_ep *_ep, struct usb_request *_req,
 	}
 
 	/* pio or dma irq handler advances the queue. */
-	if (likely(req != 0))
+	if (likely(req))
 		list_add_tail(&req->queue, &ep->queue);
 
 	local_irq_restore(flags);
