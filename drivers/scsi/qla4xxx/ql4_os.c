@@ -2658,7 +2658,7 @@ static void qla4xxx_timer(struct scsi_qla_host *ha)
 		qla4_8xxx_watchdog(ha);
 	}
 
-	if (!is_qla8022(ha)) {
+	if (is_qla40XX(ha)) {
 		/* Check for heartbeat interval. */
 		if (ha->firmware_options & FWOPT_HEARTBEAT_ENABLE &&
 		    ha->heartbeat_interval != 0) {
@@ -2982,8 +2982,8 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 	/* Issue full chip reset if recovering from a catastrophic error,
 	 * or if stop_firmware fails for ISP-82xx.
 	 * This is the default case for ISP-4xxx */
-	if (!is_qla8022(ha) || reset_chip) {
-		if (!is_qla8022(ha))
+	if (is_qla40XX(ha) || reset_chip) {
+		if (is_qla40XX(ha))
 			goto chip_reset;
 
 		/* Check if 82XX firmware is alive or not
@@ -3023,7 +3023,7 @@ recover_ha_init_adapter:
 		/* For ISP-4xxx, force function 1 to always initialize
 		 * before function 3 to prevent both funcions from
 		 * stepping on top of the other */
-		if (!is_qla8022(ha) && (ha->mac_index == 3))
+		if (is_qla40XX(ha) && (ha->mac_index == 3))
 			ssleep(6);
 
 		/* NOTE: AF_ONLINE flag set upon successful completion of
@@ -5238,7 +5238,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	 * so that irqs will be registered after crbinit but before
 	 * mbx_intr_enable.
 	 */
-	if (!is_qla8022(ha)) {
+	if (is_qla40XX(ha)) {
 		ret = qla4xxx_request_irqs(ha);
 		if (ret) {
 			ql4_printk(KERN_WARNING, ha, "Failed to reserve "
@@ -5373,7 +5373,7 @@ static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)
 
 	ha = pci_get_drvdata(pdev);
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		qla4xxx_prevent_other_port_reinit(ha);
 
 	/* destroy iface from sysfs */

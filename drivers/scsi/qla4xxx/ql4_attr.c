@@ -17,7 +17,7 @@ qla4_8xxx_sysfs_read_fw_dump(struct file *filep, struct kobject *kobj,
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 					       struct device, kobj)));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -EINVAL;
 
 	if (!test_bit(AF_82XX_DUMP_READING, &ha->flags))
@@ -38,7 +38,7 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 	long reading;
 	int ret = 0;
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -EINVAL;
 
 	if (off != 0)
@@ -214,7 +214,7 @@ qla4xxx_phy_port_cnt_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -ENOSYS;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04X\n", ha->phy_port_cnt);
@@ -226,7 +226,7 @@ qla4xxx_phy_port_num_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -ENOSYS;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04X\n", ha->phy_port_num);
@@ -238,7 +238,7 @@ qla4xxx_iscsi_func_cnt_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -ENOSYS;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04X\n", ha->iscsi_pci_func_cnt);

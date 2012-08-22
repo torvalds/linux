@@ -1193,7 +1193,7 @@ int qla4xxx_request_irqs(struct scsi_qla_host *ha)
 {
 	int ret;
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		goto try_intx;
 
 	if (ql4xenablemsix == 2)
