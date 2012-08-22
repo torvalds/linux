@@ -478,7 +478,11 @@
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
 #define INSTDONE_I965	0x0206c
-#define I915_NUM_INSTDONE_REG	2
+#define GEN7_INSTDONE_1		0x0206c
+#define GEN7_SC_INSTDONE	0x07100
+#define GEN7_SAMPLER_INSTDONE	0x0e160
+#define GEN7_ROW_INSTDONE	0x0e164
+#define I915_NUM_INSTDONE_REG	4
 #define RING_IPEIR(base)	((base)+0x64)
 #define RING_IPEHR(base)	((base)+0x68)
 #define RING_INSTDONE(base)	((base)+0x6c)
