@@ -82,7 +82,7 @@ int __cpuinit emev2_boot_secondary(unsigned int cpu)
 	/* Tell ROM loader about our vector (in headsmp.S) */
 	emev2_set_boot_vector(__pa(shmobile_secondary_vector));
 
-	gic_raise_softirq(cpumask_of(cpu), 1);
+	gic_raise_softirq(cpumask_of(cpu), 0);
 	return 0;
 }
 
