@@ -443,7 +443,7 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
 
 /**
  * extcon_register_interest() - Register a notifier for a state change of a
- *			      specific cable, not a entier set of cables of a
+ *			      specific cable, not an entier set of cables of a
  *			      extcon device.
  * @obj:	an empty extcon_specific_cable_nb object to be returned.
  * @extcon_name:	the name of extcon device.
@@ -499,7 +499,7 @@ int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 }
 
 /**
- * extcon_register_notifier() - Register a notifee to get notified by
+ * extcon_register_notifier() - Register a notifiee to get notified by
  *			      any attach status changes from the extcon.
  * @edev:	the extcon device.
  * @nb:		a notifier block to be registered.
@@ -516,7 +516,7 @@ int extcon_register_notifier(struct extcon_dev *edev,
 EXPORT_SYMBOL_GPL(extcon_register_notifier);
 
 /**
- * extcon_unregister_notifier() - Unregister a notifee from the extcon device.
+ * extcon_unregister_notifier() - Unregister a notifiee from the extcon device.
  * @edev:	the extcon device.
  * @nb:		a registered notifier block to be unregistered.
  */
@@ -806,7 +806,7 @@ EXPORT_SYMBOL_GPL(extcon_dev_register);
 
 /**
  * extcon_dev_unregister() - Unregister the extcon device.
- * @edev:	the extcon device instance to be unregitered.
+ * @edev:	the extcon device instance to be unregistered.
  *
  * Note that this does not call kfree(edev) because edev was not allocated
  * by this class.
