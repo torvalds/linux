@@ -464,6 +464,16 @@
 					fsl,pull-up = <0>;
 				};
 
+				pwm4_pins_a: pwm4@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x31d0 /* MX28_PAD_PWM4__PWM_4 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
 				lcdif_24bit_pins_a: lcdif-24bit@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
