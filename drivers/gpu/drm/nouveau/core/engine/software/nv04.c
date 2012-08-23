@@ -110,6 +110,12 @@ nv04_software_cclass = {
  * software engine/subdev functions
  ******************************************************************************/
 
+void
+nv04_software_intr(struct nouveau_subdev *subdev)
+{
+	nv_mask(subdev, 0x000100, 0x80000000, 0x00000000);
+}
+
 static int
 nv04_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	      struct nouveau_oclass *oclass, void *data, u32 size,
@@ -125,6 +131,7 @@ nv04_software_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	nv_engine(priv)->cclass = &nv04_software_cclass;
 	nv_engine(priv)->sclass = nv04_software_sclass;
+	nv_subdev(priv)->intr = nv04_software_intr;
 	return 0;
 }
 
