@@ -534,7 +534,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	}
 
 	ret = request_threaded_irq(bci->irq_chg, NULL,
-			twl4030_charger_interrupt, 0, pdev->name, bci);
+			twl4030_charger_interrupt, IRQF_ONESHOT, pdev->name,
+			bci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
 			bci->irq_chg, ret);
@@ -542,7 +543,7 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	}
 
 	ret = request_threaded_irq(bci->irq_bci, NULL,
-			twl4030_bci_interrupt, 0, pdev->name, bci);
+			twl4030_bci_interrupt, IRQF_ONESHOT, pdev->name, bci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not request irq %d, status %d\n",
 			bci->irq_bci, ret);
