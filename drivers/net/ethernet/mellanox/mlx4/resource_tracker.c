@@ -360,8 +360,6 @@ static int get_res(struct mlx4_dev *dev, int slave, u64 res_id,
 
 	r->from_state = r->state;
 	r->state = RES_ANY_BUSY;
-	mlx4_dbg(dev, "res %s id 0x%llx to busy\n",
-		 ResourceType(type), r->res_id);
 
 	if (res)
 		*((struct res_common **)res) = r;
