@@ -120,6 +120,7 @@ typedef struct rk29fb_screen {
 	u16 lower_margin;
 	u16 vsync_len;
 	u8  ft;	//the time need to display one frame,in ms
+	int *dsp_lut; //display lut 
 #ifdef CONFIG_HDMI_DUAL_DISP
     /* Scaler mode Timing */
 	u32 s_pixclock;
