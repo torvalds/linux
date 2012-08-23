@@ -17,6 +17,7 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/kallsyms.h>
+#include <linux/kmsg_dump.h>
 #include <linux/cpumask.h>
 #include <linux/export.h>
 #include <linux/sysrq.h>
@@ -2148,40 +2149,23 @@ print_address(unsigned long addr)
 void
 dump_log_buf(void)
 {
-        const unsigned long size = 128;
-        unsigned long end, addr;
-        unsigned char buf[size + 1];
-
-        addr = 0;
-        buf[size] = '\0';
+	struct kmsg_dumper dumper = { .active = 1 };
+	unsigned char buf[128];
+	size_t len;
 
         if (setjmp(bus_error_jmp) != 0) {
-                printf("Unable to lookup symbol __log_buf!\n");
+		printf("Error dumping printk buffer!\n");
                 return;
         }
 
         catch_memory_errors = 1;
         sync();
-        addr = kallsyms_lookup_name("__log_buf");
 
-        if (! addr)
-                printf("Symbol __log_buf not found!\n");
-        else {
-                end = addr + (1 << CONFIG_LOG_BUF_SHIFT);
-                while (addr < end) {
-                        if (! mread(addr, buf, size)) {
-                                printf("Can't read memory at address 0x%lx\n", addr);
-                                break;
-                        }
-
-                        printf("%s", buf);
-
-                        if (strlen(buf) < size)
-                                break;
-
-                        addr += size;
-                }
-        }
+	kmsg_dump_rewind_nolock(&dumper);
+	while (kmsg_dump_get_line_nolock(&dumper, false, buf, sizeof(buf), &len)) {
+		buf[len] = '\0';
+		printf("%s", buf);
+	}
 
         sync();
         /* wait a little while to see if we get a machine check */
