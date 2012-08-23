@@ -62,6 +62,9 @@ static struct snd_soc_codec *rt3261_codec;
 
 #define VERSION "RT3261_V1.0.0"
 
+extern void rt5623_on(void);
+extern void rt5623_off(void);
+
 struct rt3261_init_reg {
 	u8 reg;
 	u16 val;
@@ -709,7 +712,6 @@ static int rt3261_hp_mute_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int i,j,k;
 
 	if(ucontrol->value.integer.value[0]) {
 		/* headphone unmute sequence */
@@ -759,6 +761,33 @@ static int rt3261_hp_mute_put(struct snd_kcontrol *kcontrol,
 			RT3261_L_MUTE | RT3261_R_MUTE, RT3261_L_MUTE | RT3261_R_MUTE);
 		msleep(30);
 		} 
+
+	return 0;
+}
+
+static int rt3261_modem_input_switch_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = rt3261->modem_is_open;
+	return 0;
+}
+
+static int rt3261_modem_input_switch_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt3261_priv *rt3261 = snd_soc_codec_get_drvdata(codec);
+
+	if(ucontrol->value.integer.value[0]) {
+		rt5623_on( );
+		rt3261->modem_is_open = 1;	
+	}else {
+		rt5623_off( );
+		rt3261->modem_is_open = 0;
+	} 
 
 	return 0;
 }
@@ -821,6 +850,10 @@ static const SOC_ENUM_SINGLE_DECL(rt3261_mic_enum, 0, 0, rt3261_mic_mode);
 static const char *rt3261_hp_mute_mode[] = {"off", "on",};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_hp_mute_enum, 0, 0, rt3261_hp_mute_mode);
+
+static const char *rt3261_modem_input_switch_mode[] = {"off", "on",};
+
+static const SOC_ENUM_SINGLE_DECL(rt3261_modem_input_switch_enum, 0, 0, rt3261_modem_input_switch_mode);
 
 #ifdef RT3261_REG_RW
 #define REGVAL_MAX 0xffff
@@ -976,6 +1009,9 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 
 	SOC_ENUM_EXT("HP mute Switch", rt3261_hp_mute_enum,
 		rt3261_hp_mute_get, rt3261_hp_mute_put),
+
+	SOC_ENUM_EXT("Modem Input Switch", rt3261_modem_input_switch_enum,
+		rt3261_modem_input_switch_get, rt3261_modem_input_switch_put),
 };
 
 /**
@@ -3078,6 +3114,8 @@ static int __devinit rt3261_i2c_probe(struct i2c_client *i2c,
 
 	if(rt3261->io_init)
 		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);
+
+	rt3261->modem_is_open = 0;
 
 	i2c_set_clientdata(i2c, rt3261);
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);

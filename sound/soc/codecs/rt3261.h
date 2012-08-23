@@ -2143,6 +2143,8 @@ struct rt3261_priv {
 
 	unsigned int codec_en_gpio;
 	int (*io_init)(int gpio, char *iomux_name, int iomux_mode);
+
+	unsigned int modem_is_open;
 };
 
 int rt3261_conn_mux_path(struct snd_soc_codec *codec,
