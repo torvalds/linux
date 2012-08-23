@@ -275,7 +275,7 @@ static int sc18is602_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C |
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
-		return -ENODEV;
+		return -EINVAL;
 
 	master = spi_alloc_master(dev, sizeof(struct sc18is602));
 	if (!master)
