@@ -67,7 +67,7 @@ static const struct of_device_id omap_ocp2scp_id_table[] = {
 	{ .compatible = "ti,omap-ocp2scp" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, omap_usb2_id_table);
+MODULE_DEVICE_TABLE(of, omap_ocp2scp_id_table);
 #endif
 
 static struct platform_driver omap_ocp2scp_driver = {
