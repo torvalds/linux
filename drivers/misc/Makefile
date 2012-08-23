@@ -56,6 +56,5 @@ obj-$(CONFIG_RK29_SUPPORT_MODEM)	+= rk29_modem/
 obj-$(CONFIG_3G_MODULE)		+= 3g_module/
 obj-$(CONFIG_GPS_GNS7560)	+= gps/
 obj-y += inv_mpu/
-obj-$(CONFIG_RK29_NEWTON)	+= newton.o
 obj-$(CONFIG_TDSC8800) += tdsc8800.o
 obj-$(CONFIG_RK29_SC8800)	+=	sc8800.o

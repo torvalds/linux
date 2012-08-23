@@ -56,12 +56,6 @@ config MACH_RK29_PHONEPADSDK
         help
 	  Support for the ROCKCHIP Board For Rk29 Phone Pad Sdk.
 	  
-config MACH_RK29_newton
-		depends on ARCH_RK29
-		bool "ROCKCHIP Board Rk29 For project newton"
-		help
-		  Support for the ROCKCHIP Board For project newton.
-
 config MACH_RK29_PHONE_Z5
 	depends on ARCH_RK29
 	bool "ROCKCHIP Board Rk29 For Z5"
@@ -69,12 +63,6 @@ config MACH_RK29_PHONE_Z5
 	  Support for the ROCKCHIP Board For Z5.
 		  
 endchoice
-
-config RK29_NEWTON_CLOCK
-	depends on MACH_RK29_newton
-	bool "enable newton 1.2G cpu clock support"
-	help
-	  support for newton 1.2G cpu clock.
 
 config RK29_MEM_SIZE_M
 	int "DDR Memory size (in MB)"

@@ -532,10 +532,6 @@ config MTK23D
 config FM580X
 	bool "FM rda580x driver"
 
-
-config RK29_NEWTON
-	bool "RK29_NEWTON misc driver"
-
 config RK29_SC8800
 	bool "SC8800 misc driver"
 	default n

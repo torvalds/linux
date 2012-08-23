@@ -19,12 +19,6 @@ config KEYS_RK29
 	help
 	  rk29 keyboard drivers(gpio and adc)
 
-config KEYS_RK29_NEWTON
-	tristate "rk29 newton keyboard"
-	depends on ARCH_RK29
-	help
-		rk29 newton keyboard drivers(gpio and adc)
-
 config SYNAPTICS_SO340010
 	tristate "Synaptics So340010 TouchPad KEY"
 	depends on I2C
