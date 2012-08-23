@@ -511,12 +511,13 @@ struct bfa_fcs_itnim_s {
 	struct bfa_fcxp_s	*fcxp;		/*  FCXP in use	*/
 	struct bfa_itnim_stats_s	stats;	/*  itn statistics	*/
 };
-#define bfa_fcs_fcxp_alloc(__fcs)	\
-	bfa_fcxp_alloc(NULL, (__fcs)->bfa, 0, 0, NULL, NULL, NULL, NULL)
-
-#define bfa_fcs_fcxp_alloc_wait(__bfa, __wqe, __alloc_cbfn, __alloc_cbarg) \
-	bfa_fcxp_alloc_wait(__bfa, __wqe, __alloc_cbfn, __alloc_cbarg, \
-					NULL, 0, 0, NULL, NULL, NULL, NULL)
+#define bfa_fcs_fcxp_alloc(__fcs, __req)				\
+	bfa_fcxp_req_rsp_alloc(NULL, (__fcs)->bfa, 0, 0,		\
+			       NULL, NULL, NULL, NULL, __req)
+#define bfa_fcs_fcxp_alloc_wait(__bfa, __wqe, __alloc_cbfn,		\
+				__alloc_cbarg, __req)			\
+	bfa_fcxp_req_rsp_alloc_wait(__bfa, __wqe, __alloc_cbfn,		\
+		__alloc_cbarg, NULL, 0, 0, NULL, NULL, NULL, NULL, __req)
 
 static inline struct bfad_port_s *
 bfa_fcs_itnim_get_drvport(struct bfa_fcs_itnim_s *itnim)

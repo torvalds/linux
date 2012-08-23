@@ -426,11 +426,12 @@ bfa_fcs_itnim_send_prli(void *itnim_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(itnim->fcs, itnim->rport->pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		itnim->stats.fcxp_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &itnim->fcxp_wqe,
-				    bfa_fcs_itnim_send_prli, itnim);
+				bfa_fcs_itnim_send_prli, itnim, BFA_TRUE);
 		return;
 	}
 	itnim->fcxp = fcxp;

@@ -1294,7 +1294,7 @@ bfa_fcs_fabric_send_flogi_acc(struct bfa_fcs_fabric_s *fabric)
 	u16	reqlen;
 	struct fchs_s	fchs;
 
-	fcxp = bfa_fcs_fcxp_alloc(fabric->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(fabric->fcs, BFA_FALSE);
 	/*
 	 * Do not expect this failure -- expect remote node to retry
 	 */

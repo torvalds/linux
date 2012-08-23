@@ -1372,10 +1372,11 @@ bfa_fcs_rport_send_plogi(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(rport->fcs, rport->pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &rport->fcxp_wqe,
-					bfa_fcs_rport_send_plogi, rport);
+				bfa_fcs_rport_send_plogi, rport, BFA_TRUE);
 		return;
 	}
 	rport->fcxp = fcxp;
@@ -1492,10 +1493,11 @@ bfa_fcs_rport_send_plogiacc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_trc(rport->fcs, rport->pwwn);
 	bfa_trc(rport->fcs, rport->reply_oxid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &rport->fcxp_wqe,
-					bfa_fcs_rport_send_plogiacc, rport);
+				bfa_fcs_rport_send_plogiacc, rport, BFA_FALSE);
 		return;
 	}
 	rport->fcxp = fcxp;
@@ -1524,10 +1526,11 @@ bfa_fcs_rport_send_adisc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(rport->fcs, rport->pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &rport->fcxp_wqe,
-					bfa_fcs_rport_send_adisc, rport);
+				bfa_fcs_rport_send_adisc, rport, BFA_TRUE);
 		return;
 	}
 	rport->fcxp = fcxp;
@@ -1587,10 +1590,11 @@ bfa_fcs_rport_send_nsdisc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(rport->fcs, rport->pid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &rport->fcxp_wqe,
-					bfa_fcs_rport_send_nsdisc, rport);
+				bfa_fcs_rport_send_nsdisc, rport, BFA_TRUE);
 		return;
 	}
 	rport->fcxp = fcxp;
@@ -1743,10 +1747,11 @@ bfa_fcs_rport_send_logo(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	port = rport->port;
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &rport->fcxp_wqe,
-					bfa_fcs_rport_send_logo, rport);
+				bfa_fcs_rport_send_logo, rport, BFA_FALSE);
 		return;
 	}
 	rport->fcxp = fcxp;
@@ -1780,7 +1785,7 @@ bfa_fcs_rport_send_logo_acc(void *rport_cbarg)
 
 	port = rport->port;
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -1851,7 +1856,7 @@ bfa_fcs_rport_process_prli(struct bfa_fcs_rport_s *rport,
 		bfa_fcs_itnim_is_initiator(rport->itnim);
 	}
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -1888,7 +1893,7 @@ bfa_fcs_rport_process_rpsc(struct bfa_fcs_rport_s *rport,
 
 	speeds.port_op_speed = fc_bfa_speed_to_rpsc_operspeed(pport_attr.speed);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -1922,7 +1927,7 @@ bfa_fcs_rport_process_adisc(struct bfa_fcs_rport_s *rport,
 	 */
 	if (bfa_fcs_itnim_get_online_state(rport->itnim) == BFA_STATUS_OK) {
 
-		fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+		fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 		if (!fcxp)
 			return;
 
@@ -2511,7 +2516,7 @@ bfa_fcs_rport_send_prlo_acc(struct bfa_fcs_rport_s *rport)
 
 	bfa_trc(rport->fcs, rport->pid);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 	len = fc_prlo_acc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
@@ -2537,7 +2542,7 @@ bfa_fcs_rport_send_ls_rjt(struct bfa_fcs_rport_s *rport, struct fchs_s *rx_fchs,
 
 	bfa_trc(rport->fcs, rx_fchs->s_id);
 
-	fcxp = bfa_fcs_fcxp_alloc(rport->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(rport->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -2943,10 +2948,11 @@ bfa_fcs_rpf_send_rpsc2(void *rpf_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(rport->fcs, rport->pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &rpf->fcxp_wqe,
-					bfa_fcs_rpf_send_rpsc2, rpf);
+				bfa_fcs_rpf_send_rpsc2, rpf, BFA_TRUE);
 		return;
 	}
 	rpf->fcxp = fcxp;

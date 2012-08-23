@@ -2955,13 +2955,13 @@ bfad_fcxp_bsg_send(struct fc_bsg_job *job, struct bfad_fcxp *drv_fcxp,
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 
 	/* Allocate bfa_fcxp structure */
-	hal_fcxp = bfa_fcxp_alloc(drv_fcxp, &bfad->bfa,
+	hal_fcxp = bfa_fcxp_req_rsp_alloc(drv_fcxp, &bfad->bfa,
 				  drv_fcxp->num_req_sgles,
 				  drv_fcxp->num_rsp_sgles,
 				  bfad_fcxp_get_req_sgaddr_cb,
 				  bfad_fcxp_get_req_sglen_cb,
 				  bfad_fcxp_get_rsp_sgaddr_cb,
-				  bfad_fcxp_get_rsp_sglen_cb);
+				  bfad_fcxp_get_rsp_sglen_cb, BFA_TRUE);
 	if (!hal_fcxp) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);

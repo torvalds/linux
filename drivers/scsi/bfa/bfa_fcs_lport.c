@@ -340,7 +340,7 @@ bfa_fcs_lport_send_ls_rjt(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs,
 	bfa_trc(port->fcs, rx_fchs->d_id);
 	bfa_trc(port->fcs, rx_fchs->s_id);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -370,7 +370,7 @@ bfa_fcs_lport_send_fcgs_rjt(struct bfa_fcs_lport_s *port,
 	bfa_trc(port->fcs, rx_fchs->d_id);
 	bfa_trc(port->fcs, rx_fchs->s_id);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -507,7 +507,7 @@ bfa_fcs_lport_echo(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs,
 	bfa_trc(port->fcs, rx_fchs->s_id);
 	bfa_trc(port->fcs, rx_fchs->d_id);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -552,7 +552,7 @@ bfa_fcs_lport_rnid(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs,
 	bfa_trc(port->fcs, rx_fchs->d_id);
 	bfa_trc(port->fcs, rx_len);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -684,7 +684,7 @@ bfa_fcs_lport_abts_acc(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs)
 	bfa_trc(port->fcs, rx_fchs->d_id);
 	bfa_trc(port->fcs, rx_fchs->s_id);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
@@ -1696,10 +1696,11 @@ bfa_fcs_lport_fdmi_send_rhba(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &fdmi->fcxp_wqe,
-					bfa_fcs_lport_fdmi_send_rhba, fdmi);
+				bfa_fcs_lport_fdmi_send_rhba, fdmi, BFA_TRUE);
 		return;
 	}
 	fdmi->fcxp = fcxp;
@@ -1970,10 +1971,11 @@ bfa_fcs_lport_fdmi_send_rprt(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &fdmi->fcxp_wqe,
-					bfa_fcs_lport_fdmi_send_rprt, fdmi);
+				bfa_fcs_lport_fdmi_send_rprt, fdmi, BFA_TRUE);
 		return;
 	}
 	fdmi->fcxp = fcxp;
@@ -2185,10 +2187,11 @@ bfa_fcs_lport_fdmi_send_rpa(void *fdmi_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &fdmi->fcxp_wqe,
-					bfa_fcs_lport_fdmi_send_rpa, fdmi);
+				bfa_fcs_lport_fdmi_send_rpa, fdmi, BFA_TRUE);
 		return;
 	}
 	fdmi->fcxp = fcxp;
@@ -2775,10 +2778,11 @@ bfa_fcs_lport_ms_send_gmal(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->pid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ms->fcxp_wqe,
-					bfa_fcs_lport_ms_send_gmal, ms);
+				bfa_fcs_lport_ms_send_gmal, ms, BFA_TRUE);
 		return;
 	}
 	ms->fcxp = fcxp;
@@ -2975,10 +2979,11 @@ bfa_fcs_lport_ms_send_gfn(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->pid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ms->fcxp_wqe,
-					bfa_fcs_lport_ms_send_gfn, ms);
+				bfa_fcs_lport_ms_send_gfn, ms, BFA_TRUE);
 		return;
 	}
 	ms->fcxp = fcxp;
@@ -3051,11 +3056,12 @@ bfa_fcs_lport_ms_send_plogi(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->pid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		port->stats.ms_plogi_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ms->fcxp_wqe,
-					bfa_fcs_lport_ms_send_plogi, ms);
+				bfa_fcs_lport_ms_send_plogi, ms, BFA_TRUE);
 		return;
 	}
 	ms->fcxp = fcxp;
@@ -3809,11 +3815,12 @@ bfa_fcs_lport_ns_send_plogi(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->pid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		port->stats.ns_plogi_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
-					bfa_fcs_lport_ns_send_plogi, ns);
+				bfa_fcs_lport_ns_send_plogi, ns, BFA_TRUE);
 		return;
 	}
 	ns->fcxp = fcxp;
@@ -3909,11 +3916,12 @@ bfa_fcs_lport_ns_send_rspn_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		port->stats.ns_rspnid_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
-					bfa_fcs_lport_ns_send_rspn_id, ns);
+				bfa_fcs_lport_ns_send_rspn_id, ns, BFA_TRUE);
 		return;
 	}
 	ns->fcxp = fcxp;
@@ -4010,11 +4018,12 @@ bfa_fcs_lport_ns_send_rft_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		port->stats.ns_rftid_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
-					bfa_fcs_lport_ns_send_rft_id, ns);
+				bfa_fcs_lport_ns_send_rft_id, ns, BFA_TRUE);
 		return;
 	}
 	ns->fcxp = fcxp;
@@ -4083,11 +4092,12 @@ bfa_fcs_lport_ns_send_rff_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		port->stats.ns_rffid_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
-					bfa_fcs_lport_ns_send_rff_id, ns);
+				bfa_fcs_lport_ns_send_rff_id, ns, BFA_TRUE);
 		return;
 	}
 	ns->fcxp = fcxp;
@@ -4166,11 +4176,12 @@ bfa_fcs_lport_ns_send_gid_ft(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_trc(port->fcs, port->pid);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		port->stats.ns_gidft_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
-					bfa_fcs_lport_ns_send_gid_ft, ns);
+				bfa_fcs_lport_ns_send_gid_ft, ns, BFA_TRUE);
 		return;
 	}
 	ns->fcxp = fcxp;
@@ -4419,11 +4430,12 @@ bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	memset(symbl, 0, sizeof(symbl));
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp) {
 		port->stats.ns_rspnid_alloc_wait++;
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
-				bfa_fcs_lport_ns_util_send_rspn_id, ns);
+			bfa_fcs_lport_ns_util_send_rspn_id, ns, BFA_FALSE);
 		return;
 	}
 
@@ -4631,10 +4643,11 @@ bfa_fcs_lport_scn_send_scr(void *scn_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_trc(port->fcs, port->pid);
 	bfa_trc(port->fcs, port->port_cfg.pwwn);
 
-	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = fcxp_alloced ? fcxp_alloced :
+	       bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
 	if (!fcxp) {
 		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &scn->fcxp_wqe,
-					bfa_fcs_lport_scn_send_scr, scn);
+				bfa_fcs_lport_scn_send_scr, scn, BFA_TRUE);
 		return;
 	}
 	scn->fcxp = fcxp;
@@ -4716,7 +4729,7 @@ bfa_fcs_lport_scn_send_ls_acc(struct bfa_fcs_lport_s *port,
 
 	bfa_trc(port->fcs, rx_fchs->s_id);
 
-	fcxp = bfa_fcs_fcxp_alloc(port->fcs);
+	fcxp = bfa_fcs_fcxp_alloc(port->fcs, BFA_FALSE);
 	if (!fcxp)
 		return;
 
