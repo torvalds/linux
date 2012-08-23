@@ -390,7 +390,7 @@ static const __devinitdata struct reg_default wm8958_reva_patch[] = {
 
 static const __devinitdata struct reg_default wm1811_reva_patch[] = {
 	{ 0x102, 0x3 },
-	{ 0x56, 0x7 },
+	{ 0x56, 0xc07 },
 	{ 0x5d, 0x7e },
 	{ 0x5e, 0x0 },
 	{ 0x102, 0x0 },
