@@ -293,8 +293,9 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 								  level);
 		else
 			dapm->bias_level = level;
-	} else
+	} else if (!card || dapm != &card->dapm) {
 		dapm->bias_level = level;
+	}
 
 	if (ret != 0)
 		goto out;
