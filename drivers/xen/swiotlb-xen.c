@@ -154,11 +154,33 @@ static unsigned long xen_set_nslabs(unsigned long nr_tbl)
 
 	return xen_io_tlb_nslabs << IO_TLB_SHIFT;
 }
+
+enum xen_swiotlb_err {
+	XEN_SWIOTLB_UNKNOWN = 0,
+	XEN_SWIOTLB_ENOMEM,
+	XEN_SWIOTLB_EFIXUP
+};
+
+static const char *xen_swiotlb_error(enum xen_swiotlb_err err)
+{
+	switch (err) {
+	case XEN_SWIOTLB_ENOMEM:
+		return "Cannot allocate Xen-SWIOTLB buffer\n";
+	case XEN_SWIOTLB_EFIXUP:
+		return "Failed to get contiguous memory for DMA from Xen!\n"\
+		    "You either: don't have the permissions, do not have"\
+		    " enough free memory under 4GB, or the hypervisor memory"\
+		    " is too fragmented!";
+	default:
+		break;
+	}
+	return "";
+}
 void __init xen_swiotlb_init(int verbose)
 {
 	unsigned long bytes;
 	int rc = -ENOMEM;
-	char *m = NULL;
+	enum xen_swiotlb_err m_ret = XEN_SWIOTLB_UNKNOWN;
 	unsigned int repeat = 3;
 
 	xen_io_tlb_nslabs = swiotlb_nr_tbl();
@@ -169,7 +191,7 @@ retry:
 	 */
 	xen_io_tlb_start = alloc_bootmem_pages(PAGE_ALIGN(bytes));
 	if (!xen_io_tlb_start) {
-		m = "Cannot allocate Xen-SWIOTLB buffer!\n";
+		m_ret = XEN_SWIOTLB_ENOMEM;
 		goto error;
 	}
 	xen_io_tlb_end = xen_io_tlb_start + bytes;
@@ -181,10 +203,7 @@ retry:
 			       xen_io_tlb_nslabs);
 	if (rc) {
 		free_bootmem(__pa(xen_io_tlb_start), PAGE_ALIGN(bytes));
-		m = "Failed to get contiguous memory for DMA from Xen!\n"\
-		    "You either: don't have the permissions, do not have"\
-		    " enough free memory under 4GB, or the hypervisor memory"\
-		    "is too fragmented!";
+		m_ret = XEN_SWIOTLB_EFIXUP;
 		goto error;
 	}
 	start_dma_addr = xen_virt_to_bus(xen_io_tlb_start);
@@ -199,8 +218,8 @@ error:
 		      (xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
 		goto retry;
 	}
-	xen_raw_printk("%s (rc:%d)", m, rc);
-	panic("%s (rc:%d)", m, rc);
+	xen_raw_printk("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
+	panic("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
 }
 
 void *
