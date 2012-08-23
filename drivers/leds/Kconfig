@@ -199,14 +199,6 @@ config LEDS_GPIO_OF
 	  of_platform devices.  For instance, LEDs which are listed in a "dts"
 	  file.
 
-config LEDS_NEWTON_PWM
-	bool "LED Support for newton pwm"
-	depends on LEDS_CLASS&&ARCH_RK29
-	default n
-	help
-	  Let the leds-gpio driver drive LEDs which have been defined as
-	  platform devices.  If you don't know what this means, say yes.
-	  
 config LEDS_LP3944
 	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
 	depends on LEDS_CLASS

@@ -304,12 +304,6 @@ config BACKLIGHT_RK29_BL
 	help
 	  rk29 backlight support.	  
 
-config BACKLIGHT_RK29_NEWTON_BL
-        bool "rk29 newton backlight driver"
-	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
-	help
-	  rk29 newton backlight support.	
-
 config FIH_TOUCHKEY_LED
         bool "fih touch key led driver"
 	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
