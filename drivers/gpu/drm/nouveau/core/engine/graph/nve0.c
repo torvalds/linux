@@ -213,7 +213,7 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->cclass = &nve0_graph_cclass;
 	nv_engine(priv)->sclass = nve0_graph_sclass;
 
-	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", true)) {
+	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", false)) {
 		nv_info(priv, "using external firmware\n");
 		if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
 		    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
