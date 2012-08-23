@@ -255,7 +255,7 @@ static irqreturn_t rc5t583_irq(int irq, void *data)
 {
 	struct rc5t583 *rc5t583 = data;
 	uint8_t int_sts[RC5T583_MAX_INTERRUPT_MASK_REGS];
-	uint8_t master_int;
+	uint8_t master_int = 0;
 	int i;
 	int ret;
 	unsigned int rtc_int_sts = 0;
