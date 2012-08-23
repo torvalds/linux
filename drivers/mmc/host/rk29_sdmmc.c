@@ -116,8 +116,11 @@ int debug_level = 5;
 //#define RK29_SDMMC_LIST_QUEUE            /* use list-queue for multi-card*/
 
 #define RK29_SDMMC_DEFAULT_SDIO_FREQ   0 // 1--run in default frequency(50Mhz); 0---run in 25Mhz, 
+#ifdef CONFIG_ARCH_RK2928
+#define RK29_MAX_SDIO_FREQ   25000000    //set max-sdio-frequency 25Mhz at the present time
+#else
 #define RK29_MAX_SDIO_FREQ   45000000    //set max-sdio-frequency 25Mhz at the present time
-
+#endif
 enum {
 	EVENT_CMD_COMPLETE = 0,
 	EVENT_DATA_COMPLETE,
