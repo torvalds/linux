@@ -284,6 +284,7 @@
 				#interrupt-cells = <2>;
 				compatible = "sirf,prima2-gpio-pinmux";
 				reg = <0xb0120000 0x10000>;
+				interrupts = <43 44 45 46 47>;
 				gpio-controller;
 				interrupt-controller;
 			};
