@@ -148,9 +148,6 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 	writel(0x2, dp->reg_base + EXYNOS_DP_M_AUD_GEN_FILTER_TH);
 
 	writel(0x00000101, dp->reg_base + EXYNOS_DP_SOC_GENERAL_CTL);
-
-	exynos_dp_init_analog_param(dp);
-	exynos_dp_init_interrupt(dp);
 }
 
 void exynos_dp_swreset(struct exynos_dp_device *dp)
