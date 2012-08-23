@@ -775,7 +775,8 @@ bfa_intx(struct bfa_s *bfa)
 	if (!intr)
 		return BFA_TRUE;
 
-	bfa_msix_lpu_err(bfa, intr);
+	if (bfa->intr_enabled)
+		bfa_msix_lpu_err(bfa, intr);
 
 	return BFA_TRUE;
 }
@@ -803,11 +804,17 @@ bfa_isr_enable(struct bfa_s *bfa)
 	writel(~umsk, bfa->iocfc.bfa_regs.intr_mask);
 	bfa->iocfc.intr_mask = ~umsk;
 	bfa_isr_mode_set(bfa, bfa->msix.nvecs != 0);
+
+	/*
+	 * Set the flag indicating successful enabling of interrupts
+	 */
+	bfa->intr_enabled = BFA_TRUE;
 }
 
 void
 bfa_isr_disable(struct bfa_s *bfa)
 {
+	bfa->intr_enabled = BFA_FALSE;
 	bfa_isr_mode_set(bfa, BFA_FALSE);
 	writel(-1L, bfa->iocfc.bfa_regs.intr_mask);
 	bfa_msix_uninstall(bfa);
