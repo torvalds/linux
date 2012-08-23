@@ -46,6 +46,7 @@
 #include <linux/mutex.h>
 #include <linux/reboot.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
 #ifdef CONFIG_X86
 /* for snoop control */
 #include <asm/pgtable.h>
@@ -1032,7 +1033,7 @@ static unsigned int azx_get_response(struct hda_bus *bus,
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static void azx_power_notify(struct hda_bus *bus);
+static void azx_power_notify(struct hda_bus *bus, struct hda_codec *codec);
 #endif
 
 /* reset codec link */
@@ -1287,6 +1288,11 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	u32 status;
 	u8 sd_status;
 	int i, ok;
+
+#ifdef CONFIG_PM_RUNTIME
+	if (chip->pci->dev.power.runtime_status != RPM_ACTIVE)
+		return IRQ_NONE;
+#endif
 
 	spin_lock(&chip->reg_lock);
 
@@ -2400,23 +2406,17 @@ static void azx_stop_chip(struct azx *chip)
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 /* power-up/down the controller */
-static void azx_power_notify(struct hda_bus *bus)
+static void azx_power_notify(struct hda_bus *bus, struct hda_codec *codec)
 {
 	struct azx *chip = bus->private_data;
-	struct hda_codec *c;
-	int power_on = 0;
 
-	list_for_each_entry(c, &bus->codec_list, list) {
-		if (c->power_on) {
-			power_on = 1;
-			break;
-		}
-	}
-	if (power_on)
-		azx_init_chip(chip, 1);
-	else if (chip->running && power_save_controller &&
-		 !bus->power_keep_link_on)
-		azx_stop_chip(chip);
+	if (bus->power_keep_link_on || !codec->d3_stop_clk_ok)
+		return;
+
+	if (codec->power_on)
+		pm_runtime_get_sync(&chip->pci->dev);
+	else
+		pm_runtime_put_sync(&chip->pci->dev);
 }
 
 static DEFINE_MUTEX(card_list_lock);
@@ -2520,11 +2520,43 @@ static int azx_resume(struct device *dev)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-static SIMPLE_DEV_PM_OPS(azx_pm, azx_suspend, azx_resume);
+#endif /* CONFIG_PM_SLEEP || SUPPORT_VGA_SWITCHEROO */
+
+#ifdef CONFIG_PM_RUNTIME
+static int azx_runtime_suspend(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
+
+	if (!power_save_controller)
+		return -EAGAIN;
+
+	azx_stop_chip(chip);
+	azx_clear_irq_pending(chip);
+	return 0;
+}
+
+static int azx_runtime_resume(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip = card->private_data;
+
+	azx_init_pci(chip);
+	azx_init_chip(chip, 1);
+	return 0;
+}
+#endif /* CONFIG_PM_RUNTIME */
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops azx_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(azx_suspend, azx_resume)
+	SET_RUNTIME_PM_OPS(azx_runtime_suspend, azx_runtime_resume, NULL)
+};
+
 #define AZX_PM_OPS	&azx_pm
 #else
 #define AZX_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP || SUPPORT_VGA_SWITCHEROO */
+#endif /* CONFIG_PM */
 
 
 /*
@@ -3239,6 +3271,15 @@ static void azx_firmware_cb(const struct firmware *fw, void *context)
 }
 #endif
 
+static void rpm_get_all_codecs(struct azx *chip)
+{
+	struct hda_codec *codec;
+
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+		pm_runtime_get_noresume(&chip->pci->dev);
+	}
+}
+
 static int __devinit azx_probe(struct pci_dev *pci,
 			       const struct pci_device_id *pci_id)
 {
@@ -3289,6 +3330,9 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	}
 
 	pci_set_drvdata(pci, card);
+
+	if (pci_dev_run_wake(pci))
+		pm_runtime_put_noidle(&pci->dev);
 
 	dev++;
 	return 0;
@@ -3342,6 +3386,7 @@ static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip)
 		goto out_free;
 
 	chip->running = 1;
+	rpm_get_all_codecs(chip); /* all codecs are active */
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 	azx_add_card_list(chip);
@@ -3356,6 +3401,10 @@ out_free:
 static void __devexit azx_remove(struct pci_dev *pci)
 {
 	struct snd_card *card = pci_get_drvdata(pci);
+
+	if (pci_dev_run_wake(pci))
+		pm_runtime_get_noresume(&pci->dev);
+
 	if (card)
 		snd_card_free(card);
 	pci_set_drvdata(pci, NULL);

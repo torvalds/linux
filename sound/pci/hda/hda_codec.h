@@ -616,7 +616,7 @@ struct hda_bus_ops {
 	void (*bus_reset)(struct hda_bus *bus);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* notify power-up/down from codec to controller */
-	void (*pm_notify)(struct hda_bus *bus);
+	void (*pm_notify)(struct hda_bus *bus, struct hda_codec *codec);
 #endif
 };
 
@@ -875,6 +875,9 @@ struct hda_codec {
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
 	spinlock_t power_lock;
+
+	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
+	unsigned int d3_stop_clk_ok:1; /* BCLK can stop */
 #endif
 
 	/* codec-specific additional proc output */
