@@ -53,11 +53,14 @@
 *
 *v0.0 : this driver is 2.6.32 kernel driver;
 *v0.1 : this driver is 3.0.8 kernel driver;
-*v1.0 : 1.modify dma dirver;
+*v1.0 : 2012-08-09
+*		1.modify dma dirver;
 *		2.enable Programmable THRE Interrupt Mode, so we can just judge ((up->iir & 0x0f) == 0x02) when transmit
 *		3.reset uart and set it to loopback state to ensure setting baud rate sucessfully 
+*v1.1 : 2012-08-23
+*		1. dma driver:make "when tx dma is only enable" work functionally       
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.0 2012-08-09"
+#define VERSION_AND_TIME  "rk_serial.c v1.1 2012-08-23"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -970,6 +973,12 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 			}
 		}
 
+		if(!(up->dma->use_dma & RX_DMA)) {
+			if (status & (UART_LSR_DR | UART_LSR_BI)) {
+				receive_chars(up, &status);
+			}
+		}
+
 		if ((up->iir & 0x0f) == 0x02) {
 			transmit_chars(up);
 		}
@@ -1515,7 +1524,10 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (up->dma->use_dma) {
 			up->ier |= UART_IER_RLSI;
 			up->ier |= UART_IER_PTIME;   //Programmable THRE Interrupt Mode Enable
-			serial_rk_start_rx_dma(&up->port);
+			if (up->dma->use_dma & RX_DMA)
+				serial_rk_start_rx_dma(&up->port);
+			else
+				up->ier |= UART_IER_RDI;
 		} else
 #endif
 		{
@@ -1824,6 +1836,7 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 
 #if USE_DMA
 	/* set dma config */
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	if(up->dma->use_dma & RX_DMA) {
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 		//timer
@@ -1844,8 +1857,8 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 			dev_info(up->port.dev, "dmam_alloc_coherent dma_rx_buffer fail\n");
 		}
 		else {
-			dev_info(up->port.dev, "dma_rx_buffer 0x%08x\n", (unsigned) up->dma->rx_buffer);
-			dev_info(up->port.dev, "up 0x%08x\n", (unsigned)up->dma);
+			dev_info(up->port.dev, "dma_rx_buffer 0x%08x, phy:0x%08x\n", (unsigned) up->dma->rx_buffer, (unsigned)up->dma->rx_phy_addr);
+			//dev_info(up->port.dev, "up 0x%08x\n", (unsigned)up->dma);
 		}
 
 		// work queue
