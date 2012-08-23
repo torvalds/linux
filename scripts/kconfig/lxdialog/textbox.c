@@ -51,7 +51,7 @@ static void refresh_text_box(WINDOW *dialog, WINDOW *box, int boxh, int boxw,
  * keys is a null-terminated array
  */
 int dialog_textbox(const char *title, const char *tbuf, int initial_height,
-		   int initial_width, int *keys)
+		   int initial_width, int *keys, int *_vscroll, int *_hscroll)
 {
 	int i, x, y, cur_x, cur_y, key = 0;
 	int height, width, boxh, boxw;
@@ -64,6 +64,15 @@ int dialog_textbox(const char *title, const char *tbuf, int initial_height,
 	hscroll = 0;
 	buf = tbuf;
 	page = buf;	/* page is pointer to start of page to be displayed */
+
+	if (_vscroll && *_vscroll) {
+		begin_reached = 0;
+
+		for (i = 0; i < *_vscroll; i++)
+			get_line();
+	}
+	if (_hscroll)
+		hscroll = *_hscroll;
 
 do_resize:
 	getmaxyx(stdscr, height, width);
@@ -275,6 +284,19 @@ do_resize:
 	}
 	delwin(box);
 	delwin(dialog);
+	if (_vscroll) {
+		const char *s;
+
+		s = buf;
+		*_vscroll = 0;
+		back_lines(page_length);
+		while (s < page && (s = strchr(s, '\n'))) {
+			(*_vscroll)++;
+			s++;
+		}
+	}
+	if (_hscroll)
+		*_hscroll = hscroll;
 	return key;
 }
 

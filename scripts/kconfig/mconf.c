@@ -280,7 +280,7 @@ static void conf_string(struct menu *menu);
 static void conf_load(void);
 static void conf_save(void);
 static int show_textbox_ext(const char *title, const char *text, int r, int c,
-			    int *keys);
+			    int *keys, int *vscroll, int *hscroll);
 static void show_textbox(const char *title, const char *text, int r, int c);
 static void show_helptext(const char *title, const char *text);
 static void show_help(struct menu *menu);
@@ -621,15 +621,15 @@ static void conf(struct menu *menu)
 }
 
 static int show_textbox_ext(const char *title, const char *text, int r, int c,
-			    int *keys)
+			    int *keys, int *vscroll, int *hscroll)
 {
 	dialog_clear();
-	return dialog_textbox(title, text, r, c, keys);
+	return dialog_textbox(title, text, r, c, keys, vscroll, hscroll);
 }
 
 static void show_textbox(const char *title, const char *text, int r, int c)
 {
-	show_textbox_ext(title, text, r, c, (int []) {0});
+	show_textbox_ext(title, text, r, c, (int []) {0}, NULL, NULL);
 }
 
 static void show_helptext(const char *title, const char *text)
