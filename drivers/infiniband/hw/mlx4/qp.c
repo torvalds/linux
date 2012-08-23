@@ -2225,6 +2225,10 @@ done:
 	if (qp->flags & MLX4_IB_QP_LSO)
 		qp_init_attr->create_flags |= IB_QP_CREATE_IPOIB_UD_LSO;
 
+	qp_init_attr->sq_sig_type =
+		qp->sq_signal_bits == cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE) ?
+		IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;
+
 out:
 	mutex_unlock(&qp->mutex);
 	return err;
