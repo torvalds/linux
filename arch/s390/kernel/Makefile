@@ -49,6 +49,7 @@ obj-$(CONFIG_FUNCTION_GRAPH_TRACER) += ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)  += ftrace.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
+obj-$(CONFIG_64BIT)		+= cache.o
 
 # Kexec part
 S390_KEXEC_OBJS := machine_kexec.o crash.o
