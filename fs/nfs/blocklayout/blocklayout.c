@@ -685,7 +685,7 @@ bl_write_pagelist(struct nfs_write_data *wdata, int sync)
 	struct bio *bio = NULL;
 	struct pnfs_block_extent *be = NULL, *cow_read = NULL;
 	sector_t isect, last_isect = 0, extent_length = 0;
-	struct parallel_io *par;
+	struct parallel_io *par = NULL;
 	loff_t offset = wdata->args.offset;
 	size_t count = wdata->args.count;
 	unsigned int pg_offset, pg_len, saved_len;
@@ -697,6 +697,13 @@ bl_write_pagelist(struct nfs_write_data *wdata, int sync)
 	    NFS_SERVER(header->inode)->pnfs_blksize >> PAGE_CACHE_SHIFT;
 
 	dprintk("%s enter, %Zu@%lld\n", __func__, count, offset);
+
+	if (header->dreq != NULL &&
+	    (!IS_ALIGNED(offset, NFS_SERVER(header->inode)->pnfs_blksize) ||
+	     !IS_ALIGNED(count, NFS_SERVER(header->inode)->pnfs_blksize))) {
+		dprintk("pnfsblock nonblock aligned DIO writes. Resend MDS\n");
+		goto out_mds;
+	}
 	/* At this point, wdata->pages is a (sequential) list of nfs_pages.
 	 * We want to write each, and if there is an error set pnfs_error
 	 * to have it redone using nfs.
@@ -1197,6 +1204,27 @@ bl_pg_test_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	return pnfs_generic_pg_test(pgio, prev, req);
 }
 
+void
+bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
+{
+	if (pgio->pg_dreq != NULL &&
+	    !is_aligned_req(req, PAGE_CACHE_SIZE))
+		nfs_pageio_reset_write_mds(pgio);
+	else
+		pnfs_generic_pg_init_write(pgio, req);
+}
+
+static bool
+bl_pg_test_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
+		 struct nfs_page *req)
+{
+	if (pgio->pg_dreq != NULL &&
+	    !is_aligned_req(req, PAGE_CACHE_SIZE))
+		return false;
+
+	return pnfs_generic_pg_test(pgio, prev, req);
+}
+
 static const struct nfs_pageio_ops bl_pg_read_ops = {
 	.pg_init = bl_pg_init_read,
 	.pg_test = bl_pg_test_read,
@@ -1204,8 +1232,8 @@ static const struct nfs_pageio_ops bl_pg_read_ops = {
 };
 
 static const struct nfs_pageio_ops bl_pg_write_ops = {
-	.pg_init = pnfs_generic_pg_init_write,
-	.pg_test = pnfs_generic_pg_test,
+	.pg_init = bl_pg_init_write,
+	.pg_test = bl_pg_test_write,
 	.pg_doio = pnfs_generic_pg_writepages,
 };
 
