@@ -1009,7 +1009,7 @@ void exynos_dp_reset_macro(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_PHY_TEST);
 }
 
-int exynos_dp_init_video(struct exynos_dp_device *dp)
+void exynos_dp_init_video(struct exynos_dp_device *dp)
 {
 	u32 reg;
 
@@ -1027,8 +1027,6 @@ int exynos_dp_init_video(struct exynos_dp_device *dp)
 
 	reg = VID_HRES_TH(2) | VID_VRES_TH(0);
 	writel(reg, dp->reg_base + EXYNOS_DP_VIDEO_CTL_8);
-
-	return 0;
 }
 
 void exynos_dp_set_video_color_format(struct exynos_dp_device *dp,

@@ -105,7 +105,7 @@ u32 exynos_dp_get_lane1_link_training(struct exynos_dp_device *dp);
 u32 exynos_dp_get_lane2_link_training(struct exynos_dp_device *dp);
 u32 exynos_dp_get_lane3_link_training(struct exynos_dp_device *dp);
 void exynos_dp_reset_macro(struct exynos_dp_device *dp);
-int exynos_dp_init_video(struct exynos_dp_device *dp);
+void exynos_dp_init_video(struct exynos_dp_device *dp);
 
 void exynos_dp_set_video_color_format(struct exynos_dp_device *dp,
 				u32 color_depth,
