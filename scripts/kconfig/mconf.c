@@ -279,6 +279,8 @@ static void conf_choice(struct menu *menu);
 static void conf_string(struct menu *menu);
 static void conf_load(void);
 static void conf_save(void);
+static int show_textbox_ext(const char *title, const char *text, int r, int c,
+			    int *keys);
 static void show_textbox(const char *title, const char *text, int r, int c);
 static void show_helptext(const char *title, const char *text);
 static void show_help(struct menu *menu);
@@ -618,10 +620,16 @@ static void conf(struct menu *menu)
 	}
 }
 
-static void show_textbox(const char *title, const char *text, int r, int c)
+static int show_textbox_ext(const char *title, const char *text, int r, int c,
+			    int *keys)
 {
 	dialog_clear();
-	dialog_textbox(title, text, r, c);
+	return dialog_textbox(title, text, r, c, keys);
+}
+
+static void show_textbox(const char *title, const char *text, int r, int c)
+{
+	show_textbox_ext(title, text, r, c, (int []) {0});
 }
 
 static void show_helptext(const char *title, const char *text)

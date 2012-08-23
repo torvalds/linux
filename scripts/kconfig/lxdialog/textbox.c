@@ -47,14 +47,16 @@ static void refresh_text_box(WINDOW *dialog, WINDOW *box, int boxh, int boxw,
 
 /*
  * Display text from a file in a dialog box.
+ *
+ * keys is a null-terminated array
  */
-int dialog_textbox(const char *title, const char *tbuf,
-		   int initial_height, int initial_width)
+int dialog_textbox(const char *title, const char *tbuf, int initial_height,
+		   int initial_width, int *keys)
 {
 	int i, x, y, cur_x, cur_y, key = 0;
 	int height, width, boxh, boxw;
-	int passed_end;
 	WINDOW *dialog, *box;
+	bool done = false;
 
 	begin_reached = 1;
 	end_reached = 0;
@@ -122,7 +124,7 @@ do_resize:
 	attr_clear(box, boxh, boxw, dlg.dialog.atr);
 	refresh_text_box(dialog, box, boxh, boxw, cur_y, cur_x);
 
-	while ((key != KEY_ESC) && (key != '\n')) {
+	while (!done) {
 		key = wgetch(dialog);
 		switch (key) {
 		case 'E':	/* Exit */
@@ -130,9 +132,9 @@ do_resize:
 		case 'X':
 		case 'x':
 		case 'q':
-			delwin(box);
-			delwin(dialog);
-			return 0;
+		case '\n':
+			done = true;
+			break;
 		case 'g':	/* First page */
 		case KEY_HOME:
 			if (!begin_reached) {
@@ -156,6 +158,8 @@ do_resize:
 		case 'k':
 		case KEY_UP:
 			if (!begin_reached) {
+				int passed_end = 0;
+
 				back_lines(page_length + 1);
 
 				/* We don't call print_page() here but use
@@ -169,7 +173,6 @@ do_resize:
 				wscrl(box, -1);	/* Scroll box region down one line */
 				scrollok(box, FALSE);
 				page_length = 0;
-				passed_end = 0;
 				for (i = 0; i < boxh; i++) {
 					if (!i) {
 						/* print first line of page */
@@ -252,7 +255,8 @@ do_resize:
 					 cur_y, cur_x);
 			break;
 		case KEY_ESC:
-			key = on_key_esc(dialog);
+			if (on_key_esc(dialog) == KEY_ESC)
+				done = true;
 			break;
 		case KEY_RESIZE:
 			back_lines(height);
@@ -260,11 +264,18 @@ do_resize:
 			delwin(dialog);
 			on_key_resize();
 			goto do_resize;
+		default:
+			for (i = 0; keys[i]; i++) {
+				if (key == keys[i]) {
+					done = true;
+					break;
+				}
+			}
 		}
 	}
 	delwin(box);
 	delwin(dialog);
-	return key;		/* ESC pressed */
+	return key;
 }
 
 /*
