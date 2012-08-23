@@ -676,7 +676,6 @@ int stk1160_vb2_setup(struct stk1160 *dev)
 	struct vb2_queue *q;
 
 	q = &dev->vb_vidq;
-	memset(q, 0, sizeof(dev->vb_vidq));
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = dev;
