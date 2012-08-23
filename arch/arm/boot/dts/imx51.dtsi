@@ -130,6 +130,34 @@
 				};
 			};
 
+			usb@73f80000 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80000 0x0200>;
+				interrupts = <18>;
+				status = "disabled";
+			};
+
+			usb@73f80200 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80200 0x0200>;
+				interrupts = <14>;
+				status = "disabled";
+			};
+
+			usb@73f80400 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80400 0x0200>;
+				interrupts = <16>;
+				status = "disabled";
+			};
+
+			usb@73f80600 {
+				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
+				reg = <0x73f80600 0x0200>;
+				interrupts = <17>;
+				status = "disabled";
+			};
+
 			gpio1: gpio@73f84000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx35-gpio";
 				reg = <0x73f84000 0x4000>;
