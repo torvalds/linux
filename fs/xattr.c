@@ -791,3 +791,169 @@ EXPORT_SYMBOL(generic_getxattr);
 EXPORT_SYMBOL(generic_listxattr);
 EXPORT_SYMBOL(generic_setxattr);
 EXPORT_SYMBOL(generic_removexattr);
+
+/*
+ * Allocate new xattr and copy in the value; but leave the name to callers.
+ */
+struct simple_xattr *simple_xattr_alloc(const void *value, size_t size)
+{
+	struct simple_xattr *new_xattr;
+	size_t len;
+
+	/* wrap around? */
+	len = sizeof(*new_xattr) + size;
+	if (len <= sizeof(*new_xattr))
+		return NULL;
+
+	new_xattr = kmalloc(len, GFP_KERNEL);
+	if (!new_xattr)
+		return NULL;
+
+	new_xattr->size = size;
+	memcpy(new_xattr->value, value, size);
+	return new_xattr;
+}
+
+/*
+ * xattr GET operation for in-memory/pseudo filesystems
+ */
+int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
+		     void *buffer, size_t size)
+{
+	struct simple_xattr *xattr;
+	int ret = -ENODATA;
+
+	spin_lock(&xattrs->lock);
+	list_for_each_entry(xattr, &xattrs->head, list) {
+		if (strcmp(name, xattr->name))
+			continue;
+
+		ret = xattr->size;
+		if (buffer) {
+			if (size < xattr->size)
+				ret = -ERANGE;
+			else
+				memcpy(buffer, xattr->value, xattr->size);
+		}
+		break;
+	}
+	spin_unlock(&xattrs->lock);
+	return ret;
+}
+
+static int __simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+			      const void *value, size_t size, int flags)
+{
+	struct simple_xattr *xattr;
+	struct simple_xattr *new_xattr = NULL;
+	int err = 0;
+
+	/* value == NULL means remove */
+	if (value) {
+		new_xattr = simple_xattr_alloc(value, size);
+		if (!new_xattr)
+			return -ENOMEM;
+
+		new_xattr->name = kstrdup(name, GFP_KERNEL);
+		if (!new_xattr->name) {
+			kfree(new_xattr);
+			return -ENOMEM;
+		}
+	}
+
+	spin_lock(&xattrs->lock);
+	list_for_each_entry(xattr, &xattrs->head, list) {
+		if (!strcmp(name, xattr->name)) {
+			if (flags & XATTR_CREATE) {
+				xattr = new_xattr;
+				err = -EEXIST;
+			} else if (new_xattr) {
+				list_replace(&xattr->list, &new_xattr->list);
+			} else {
+				list_del(&xattr->list);
+			}
+			goto out;
+		}
+	}
+	if (flags & XATTR_REPLACE) {
+		xattr = new_xattr;
+		err = -ENODATA;
+	} else {
+		list_add(&new_xattr->list, &xattrs->head);
+		xattr = NULL;
+	}
+out:
+	spin_unlock(&xattrs->lock);
+	if (xattr) {
+		kfree(xattr->name);
+		kfree(xattr);
+	}
+	return err;
+
+}
+
+/*
+ * xattr SET operation for in-memory/pseudo filesystems
+ */
+int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
+		     const void *value, size_t size, int flags)
+{
+	if (size == 0)
+		value = ""; /* empty EA, do not remove */
+	return __simple_xattr_set(xattrs, name, value, size, flags);
+}
+
+/*
+ * xattr REMOVE operation for in-memory/pseudo filesystems
+ */
+int simple_xattr_remove(struct simple_xattrs *xattrs, const char *name)
+{
+	return __simple_xattr_set(xattrs, name, NULL, 0, XATTR_REPLACE);
+}
+
+static bool xattr_is_trusted(const char *name)
+{
+	return !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN);
+}
+
+/*
+ * xattr LIST operation for in-memory/pseudo filesystems
+ */
+ssize_t simple_xattr_list(struct simple_xattrs *xattrs, char *buffer,
+			  size_t size)
+{
+	bool trusted = capable(CAP_SYS_ADMIN);
+	struct simple_xattr *xattr;
+	size_t used = 0;
+
+	spin_lock(&xattrs->lock);
+	list_for_each_entry(xattr, &xattrs->head, list) {
+		size_t len;
+
+		/* skip "trusted." attributes for unprivileged callers */
+		if (!trusted && xattr_is_trusted(xattr->name))
+			continue;
+
+		len = strlen(xattr->name) + 1;
+		used += len;
+		if (buffer) {
+			if (size < used) {
+				used = -ERANGE;
+				break;
+			}
+			memcpy(buffer, xattr->name, len);
+			buffer += len;
+		}
+	}
+	spin_unlock(&xattrs->lock);
+
+	return used;
+}
+
+void simple_xattr_list_add(struct simple_xattrs *xattrs,
+			   struct simple_xattr *new_xattr)
+{
+	spin_lock(&xattrs->lock);
+	list_add(&new_xattr->list, &xattrs->head);
+	spin_unlock(&xattrs->lock);
+}
