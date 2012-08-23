@@ -205,6 +205,7 @@ struct bfa_fcs_fabric_s {
 	struct bfa_lps_s	*lps;	/*  lport login services	*/
 	u8	fabric_ip_addr[BFA_FCS_FABRIC_IPADDR_SZ];
 					/*  attached fabric's ip addr  */
+	struct bfa_wc_s stop_wc;	/*  wait counter for stop */
 };
 
 #define bfa_fcs_fabric_npiv_capable(__f)    ((__f)->is_npiv)
@@ -323,6 +324,7 @@ void bfa_fcs_lport_init(struct bfa_fcs_lport_s *lport,
 void            bfa_fcs_lport_online(struct bfa_fcs_lport_s *port);
 void            bfa_fcs_lport_offline(struct bfa_fcs_lport_s *port);
 void            bfa_fcs_lport_delete(struct bfa_fcs_lport_s *port);
+void		bfa_fcs_lport_stop(struct bfa_fcs_lport_s *port);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_pid(
 		struct bfa_fcs_lport_s *port, u32 pid);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_old_pid(
@@ -387,6 +389,7 @@ void bfa_fcs_vport_online(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_offline(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_delete_comp(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_fcs_delete(struct bfa_fcs_vport_s *vport);
+void bfa_fcs_vport_fcs_stop(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_stop_comp(struct bfa_fcs_vport_s *vport);
 
 #define BFA_FCS_RPORT_DEF_DEL_TIMEOUT	90	/* in secs */
@@ -709,6 +712,9 @@ enum bfa_fcs_fabric_event {
 	BFA_FCS_FABRIC_SM_DELCOMP       = 14,   /*  all vports deleted event */
 	BFA_FCS_FABRIC_SM_LOOPBACK      = 15,   /*  Received our own FLOGI   */
 	BFA_FCS_FABRIC_SM_START         = 16,   /*  from driver       */
+	BFA_FCS_FABRIC_SM_STOP		= 17,	/*  Stop from driver	*/
+	BFA_FCS_FABRIC_SM_STOPCOMP	= 18,	/*  Stop completion	*/
+	BFA_FCS_FABRIC_SM_LOGOCOMP	= 19,	/*  FLOGO completion	*/
 };
 
 /*
@@ -748,6 +754,7 @@ void bfa_fcs_update_cfg(struct bfa_fcs_s *fcs);
 void bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 			      struct bfa_fcs_driver_info_s *driver_info);
 void bfa_fcs_exit(struct bfa_fcs_s *fcs);
+void bfa_fcs_stop(struct bfa_fcs_s *fcs);
 
 /*
  * bfa fcs vf public functions
@@ -778,6 +785,7 @@ void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_uf_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_port_attach(struct bfa_fcs_s *fcs);
+void bfa_fcs_fabric_modstop(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
 			enum bfa_fcs_fabric_event event);
 void bfa_fcs_fabric_sm_loopback(struct bfa_fcs_fabric_s *fabric,

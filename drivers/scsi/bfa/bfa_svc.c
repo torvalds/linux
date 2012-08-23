@@ -1440,11 +1440,11 @@ bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event)
 
 	switch (event) {
 	case BFA_LPS_SM_FWRSP:
+	case BFA_LPS_SM_OFFLINE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		bfa_lps_logout_comp(lps);
 		break;
 
-	case BFA_LPS_SM_OFFLINE:
 	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		break;
@@ -1822,6 +1822,8 @@ bfa_lps_logout_comp_cb(void *arg, bfa_boolean_t complete)
 
 	if (lps->fdisc)
 		bfa_cb_lps_fdisclogo_comp(lps->bfa->bfad, lps->uarg);
+	else
+		bfa_cb_lps_flogo_comp(lps->bfa->bfad, lps->uarg);
 }
 
 /*

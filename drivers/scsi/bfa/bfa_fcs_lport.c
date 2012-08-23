@@ -131,6 +131,8 @@ bfa_fcs_lport_sm_init(struct bfa_fcs_lport_s *port,
 		/* If vport - send completion call back */
 		if (port->vport)
 			bfa_fcs_vport_stop_comp(port->vport);
+		else
+			bfa_wc_down(&(port->fabric->stop_wc));
 		break;
 
 	case BFA_FCS_PORT_SM_OFFLINE:
@@ -166,6 +168,8 @@ bfa_fcs_lport_sm_online(
 			/* If vport - send completion call back */
 			if (port->vport)
 				bfa_fcs_vport_stop_comp(port->vport);
+			else
+				bfa_wc_down(&(port->fabric->stop_wc));
 		} else {
 			bfa_sm_set_state(port, bfa_fcs_lport_sm_stopping);
 			list_for_each_safe(qe, qen, &port->rport_q) {
@@ -222,6 +226,8 @@ bfa_fcs_lport_sm_offline(
 			/* If vport - send completion call back */
 			if (port->vport)
 				bfa_fcs_vport_stop_comp(port->vport);
+			else
+				bfa_wc_down(&(port->fabric->stop_wc));
 		} else {
 			bfa_sm_set_state(port, bfa_fcs_lport_sm_stopping);
 			list_for_each_safe(qe, qen, &port->rport_q) {
@@ -267,6 +273,8 @@ bfa_fcs_lport_sm_stopping(struct bfa_fcs_lport_s *port,
 			/* If vport - send completion call back */
 			if (port->vport)
 				bfa_fcs_vport_stop_comp(port->vport);
+			else
+				bfa_wc_down(&(port->fabric->stop_wc));
 		}
 		break;
 
@@ -975,6 +983,16 @@ void
 bfa_fcs_lport_offline(struct bfa_fcs_lport_s *port)
 {
 	bfa_sm_send_event(port, BFA_FCS_PORT_SM_OFFLINE);
+}
+
+/*
+ * Called by fabric for base port and by vport for virtual ports
+ * when target mode driver is unloaded.
+ */
+void
+bfa_fcs_lport_stop(struct bfa_fcs_lport_s *port)
+{
+	bfa_sm_send_event(port, BFA_FCS_PORT_SM_STOP);
 }
 
 /*
@@ -5884,6 +5902,16 @@ bfa_fcs_vport_cleanup(struct bfa_fcs_vport_s *vport)
 {
 	vport->vport_stats.fab_cleanup++;
 }
+
+/*
+ * Stop notification from fabric SM. To be invoked from within FCS.
+ */
+void
+bfa_fcs_vport_fcs_stop(struct bfa_fcs_vport_s *vport)
+{
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_STOP);
+}
+
 /*
  * delete notification from fabric SM. To be invoked from within FCS.
  */
