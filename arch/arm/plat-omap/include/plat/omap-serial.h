@@ -144,4 +144,6 @@ struct uart_omap_port {
 	struct work_struct	qos_work;
 };
 
+#define to_uart_omap_port(p)	((container_of((p), struct uart_omap_port, port)))
+
 #endif /* __OMAP_SERIAL_H__ */
