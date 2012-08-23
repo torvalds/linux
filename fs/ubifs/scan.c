@@ -75,7 +75,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 	magic = le32_to_cpu(ch->magic);
 
 	if (magic == 0xFFFFFFFF) {
-		dbg_scan("hit empty space");
+		dbg_scan("hit empty space at LEB %d:%d", lnum, offs);
 		return SCANNED_EMPTY_SPACE;
 	}
 
@@ -85,7 +85,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 	if (len < UBIFS_CH_SZ)
 		return SCANNED_GARBAGE;
 
-	dbg_scan("scanning %s", dbg_ntype(ch->node_type));
+	dbg_scan("scanning %s at LEB %d:%d", dbg_ntype(ch->node_type), lnum, offs);
 
 	if (ubifs_check_node(c, buf, lnum, offs, quiet, 1))
 		return SCANNED_A_CORRUPT_NODE;
@@ -114,8 +114,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 			return SCANNED_A_BAD_PAD_NODE;
 		}
 
-		dbg_scan("%d bytes padded, offset now %d",
-			 pad_len, ALIGN(offs + node_len + pad_len, 8));
+		dbg_scan("%d bytes padded at LEB %d:%d, offset now %d", pad_len,
+			 lnum, offs, ALIGN(offs + node_len + pad_len, 8));
 
 		return node_len + pad_len;
 	}
