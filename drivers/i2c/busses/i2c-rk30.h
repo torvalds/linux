@@ -31,6 +31,8 @@
 #define i2c_dbg(dev, format, arg...)
 #endif
 
+#define I2C_CHECK_IDLE
+
 #define i2c_writel                 writel_relaxed
 #define i2c_readl                  readl_relaxed
 
@@ -105,7 +107,7 @@ struct rk30_i2c {
 
         void (*i2c_init_hw)(struct rk30_i2c *, unsigned long scl_rate);
         void (*i2c_set_clk)(struct rk30_i2c *, unsigned long);
-        int (*check_idle)(void);
+        int (*check_idle)(int);
         irqreturn_t (*i2c_irq)(int, void *);
 };
 void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type);

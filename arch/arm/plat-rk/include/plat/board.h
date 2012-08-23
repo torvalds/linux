@@ -22,7 +22,7 @@ struct rk30_i2c_platform_data {
 	u32 flags;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
-        int (*check_idle)(void);
+        int (*check_idle)(int);
 };
 
 struct spi_cs_gpio {

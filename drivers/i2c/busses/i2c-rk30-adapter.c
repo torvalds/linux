@@ -536,13 +536,15 @@ static int rk30_i2c_xfer(struct i2c_adapter *adap,
 	struct rk30_i2c *i2c = (struct rk30_i2c *)adap->algo_data;
 
         clk_enable(i2c->clk);
-        while(retry-- && ((state = i2c->check_idle()) != I2C_IDLE)){
+#ifdef I2C_CHECK_IDLE
+        while(retry-- && ((state = i2c->check_idle(i2c->adap.nr)) != I2C_IDLE)){
                 msleep(10);
         }
         if(retry == 0){
                 dev_err(i2c->dev, "i2c is not in idle(state = %d)\n", state);
                 return -EIO;
         }
+#endif
 
         if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
 		scl_rate = msgs[0].scl_rate;
