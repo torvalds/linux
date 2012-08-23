@@ -180,22 +180,38 @@ register_ip_vs_app_inc(struct net *net, struct ip_vs_app *app, __u16 proto,
 }
 
 
-/*
- *	ip_vs_app registration routine
- */
-int register_ip_vs_app(struct net *net, struct ip_vs_app *app)
+/* Register application for netns */
+struct ip_vs_app *register_ip_vs_app(struct net *net, struct ip_vs_app *app)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
-	/* increase the module use count */
-	ip_vs_use_count_inc();
+	struct ip_vs_app *a;
+	int err = 0;
+
+	if (!ipvs)
+		return ERR_PTR(-ENOENT);
 
 	mutex_lock(&__ip_vs_app_mutex);
 
-	list_add(&app->a_list, &ipvs->app_list);
+	list_for_each_entry(a, &ipvs->app_list, a_list) {
+		if (!strcmp(app->name, a->name)) {
+			err = -EEXIST;
+			goto out_unlock;
+		}
+	}
+	a = kmemdup(app, sizeof(*app), GFP_KERNEL);
+	if (!a) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+	INIT_LIST_HEAD(&a->incs_list);
+	list_add(&a->a_list, &ipvs->app_list);
+	/* increase the module use count */
+	ip_vs_use_count_inc();
 
+out_unlock:
 	mutex_unlock(&__ip_vs_app_mutex);
 
-	return 0;
+	return err ? ERR_PTR(err) : a;
 }
 
 
@@ -205,20 +221,29 @@ int register_ip_vs_app(struct net *net, struct ip_vs_app *app)
  */
 void unregister_ip_vs_app(struct net *net, struct ip_vs_app *app)
 {
-	struct ip_vs_app *inc, *nxt;
+	struct netns_ipvs *ipvs = net_ipvs(net);
+	struct ip_vs_app *a, *anxt, *inc, *nxt;
+
+	if (!ipvs)
+		return;
 
 	mutex_lock(&__ip_vs_app_mutex);
 
-	list_for_each_entry_safe(inc, nxt, &app->incs_list, a_list) {
-		ip_vs_app_inc_release(net, inc);
+	list_for_each_entry_safe(a, anxt, &ipvs->app_list, a_list) {
+		if (app && strcmp(app->name, a->name))
+			continue;
+		list_for_each_entry_safe(inc, nxt, &a->incs_list, a_list) {
+			ip_vs_app_inc_release(net, inc);
+		}
+
+		list_del(&a->a_list);
+		kfree(a);
+
+		/* decrease the module use count */
+		ip_vs_use_count_dec();
 	}
 
-	list_del(&app->a_list);
-
 	mutex_unlock(&__ip_vs_app_mutex);
-
-	/* decrease the module use count */
-	ip_vs_use_count_dec();
 }
 
 
@@ -586,5 +611,6 @@ int __net_init ip_vs_app_net_init(struct net *net)
 
 void __net_exit ip_vs_app_net_cleanup(struct net *net)
 {
+	unregister_ip_vs_app(net, NULL /* all */);
 	proc_net_remove(net, "ip_vs_app");
 }

@@ -79,11 +79,11 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 
 	if (tb[NFACCT_BYTES]) {
 		atomic64_set(&nfacct->bytes,
-			     be64_to_cpu(nla_get_u64(tb[NFACCT_BYTES])));
+			     be64_to_cpu(nla_get_be64(tb[NFACCT_BYTES])));
 	}
 	if (tb[NFACCT_PKTS]) {
 		atomic64_set(&nfacct->pkts,
-			     be64_to_cpu(nla_get_u64(tb[NFACCT_PKTS])));
+			     be64_to_cpu(nla_get_be64(tb[NFACCT_PKTS])));
 	}
 	atomic_set(&nfacct->refcnt, 1);
 	list_add_tail_rcu(&nfacct->head, &nfnl_acct_list);

@@ -269,7 +269,7 @@ xt_osf_match_packet(const struct sk_buff *skb, struct xt_action_param *p)
 						mss <<= 8;
 						mss |= optp[2];
 
-						mss = ntohs(mss);
+						mss = ntohs((__force __be16)mss);
 						break;
 					case OSFOPT_TS:
 						loop_cont = 1;
