@@ -824,7 +824,8 @@ EXPORT_SYMBOL_GPL(cgroup_unlock);
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode);
 static struct dentry *cgroup_lookup(struct inode *, struct dentry *, unsigned int);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
-static int cgroup_populate_dir(struct cgroup *cgrp);
+static int cgroup_populate_dir(struct cgroup *cgrp, bool base_files,
+			       unsigned long subsys_mask);
 static const struct inode_operations cgroup_dir_inode_operations;
 static const struct file_operations proc_cgroupstats_operations;
 
@@ -963,12 +964,29 @@ static int cgroup_rm_file(struct cgroup *cgrp, const struct cftype *cft)
 	return -ENOENT;
 }
 
-static void cgroup_clear_directory(struct dentry *dir)
+/**
+ * cgroup_clear_directory - selective removal of base and subsystem files
+ * @dir: directory containing the files
+ * @base_files: true if the base files should be removed
+ * @subsys_mask: mask of the subsystem ids whose files should be removed
+ */
+static void cgroup_clear_directory(struct dentry *dir, bool base_files,
+				   unsigned long subsys_mask)
 {
 	struct cgroup *cgrp = __d_cgrp(dir);
+	struct cgroup_subsys *ss;
 
-	while (!list_empty(&cgrp->files))
-		cgroup_rm_file(cgrp, NULL);
+	for_each_subsys(cgrp->root, ss) {
+		struct cftype_set *set;
+		if (!test_bit(ss->subsys_id, &subsys_mask))
+			continue;
+		list_for_each_entry(set, &ss->cftsets, node)
+			cgroup_rm_file(cgrp, set->cfts);
+	}
+	if (base_files) {
+		while (!list_empty(&cgrp->files))
+			cgroup_rm_file(cgrp, NULL);
+	}
 }
 
 /*
@@ -977,8 +995,9 @@ static void cgroup_clear_directory(struct dentry *dir)
 static void cgroup_d_remove_dir(struct dentry *dentry)
 {
 	struct dentry *parent;
+	struct cgroupfs_root *root = dentry->d_sb->s_fs_info;
 
-	cgroup_clear_directory(dentry);
+	cgroup_clear_directory(dentry, true, root->subsys_bits);
 
 	parent = dentry->d_parent;
 	spin_lock(&parent->d_lock);
@@ -1339,6 +1358,7 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	struct cgroupfs_root *root = sb->s_fs_info;
 	struct cgroup *cgrp = &root->top_cgroup;
 	struct cgroup_sb_opts opts;
+	unsigned long added_bits, removed_bits;
 
 	mutex_lock(&cgrp->dentry->d_inode->i_mutex);
 	mutex_lock(&cgroup_mutex);
@@ -1353,6 +1373,9 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	if (opts.subsys_bits != root->actual_subsys_bits || opts.release_agent)
 		pr_warning("cgroup: option changes via remount are deprecated (pid=%d comm=%s)\n",
 			   task_tgid_nr(current), current->comm);
+
+	added_bits = opts.subsys_bits & ~root->subsys_bits;
+	removed_bits = root->subsys_bits & ~opts.subsys_bits;
 
 	/* Don't allow flags or name to change at remount */
 	if (opts.flags != root->flags ||
@@ -1369,8 +1392,9 @@ static int cgroup_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	/* clear out any existing files and repopulate subsystem files */
-	cgroup_clear_directory(cgrp->dentry);
-	cgroup_populate_dir(cgrp);
+	cgroup_clear_directory(cgrp->dentry, false, removed_bits);
+	/* re-populate subsystem files */
+	cgroup_populate_dir(cgrp, false, added_bits);
 
 	if (opts.release_agent)
 		strcpy(root->release_agent_path, opts.release_agent);
@@ -1669,7 +1693,7 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 		BUG_ON(root->number_of_cgroups != 1);
 
 		cred = override_creds(&init_cred);
-		cgroup_populate_dir(root_cgrp);
+		cgroup_populate_dir(root_cgrp, true, root->subsys_bits);
 		revert_creds(cred);
 		mutex_unlock(&cgroup_root_mutex);
 		mutex_unlock(&cgroup_mutex);
@@ -3843,18 +3867,29 @@ static struct cftype files[] = {
 	{ }	/* terminate */
 };
 
-static int cgroup_populate_dir(struct cgroup *cgrp)
+/**
+ * cgroup_populate_dir - selectively creation of files in a directory
+ * @cgrp: target cgroup
+ * @base_files: true if the base files should be added
+ * @subsys_mask: mask of the subsystem ids whose files should be added
+ */
+static int cgroup_populate_dir(struct cgroup *cgrp, bool base_files,
+			       unsigned long subsys_mask)
 {
 	int err;
 	struct cgroup_subsys *ss;
 
-	err = cgroup_addrm_files(cgrp, NULL, files, true);
-	if (err < 0)
-		return err;
+	if (base_files) {
+		err = cgroup_addrm_files(cgrp, NULL, files, true);
+		if (err < 0)
+			return err;
+	}
 
 	/* process cftsets of each subsystem */
 	for_each_subsys(cgrp->root, ss) {
 		struct cftype_set *set;
+		if (!test_bit(ss->subsys_id, &subsys_mask))
+			continue;
 
 		list_for_each_entry(set, &ss->cftsets, node)
 			cgroup_addrm_files(cgrp, ss, set->cfts, true);
@@ -3988,7 +4023,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
 
-	err = cgroup_populate_dir(cgrp);
+	err = cgroup_populate_dir(cgrp, true, root->subsys_bits);
 	/* If err < 0, we have a half-filled directory - oh well ;) */
 
 	mutex_unlock(&cgroup_mutex);
