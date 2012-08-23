@@ -282,7 +282,33 @@ static struct platform_device device_lcdc = {
 #ifdef CONFIG_I2C0_RK30
 static int i2c0_check_idle(void)
 {
-	return I2C_IDLE;
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO0A0_I2C0_SCL_NAME, GPIO0A_GPIO0A0);	
+        rk30_mux_api_set(GPIO0A1_I2C0_SDA_NAME, GPIO0A_GPIO0A1);	
+
+        gpio_request(RK2928_PIN0_PA0, "i2c.0");
+        gpio_request(RK2928_PIN0_PA1, "i2c.0");
+        
+        gpio_direction_input(RK2928_PIN0_PA0);
+        gpio_direction_input(RK2928_PIN0_PA1);
+
+        scl_level = gpio_get_value(RK2928_PIN0_PA0);
+        sda_level = gpio_get_value(RK2928_PIN0_PA1);
+
+        gpio_free(RK2928_PIN0_PA0);
+        gpio_free(RK2928_PIN0_PA1);
+
+        rk30_mux_api_set(GPIO0A0_I2C0_SCL_NAME, GPIO0A_I2C0_SCL);	
+	rk30_mux_api_set(GPIO0A1_I2C0_SDA_NAME, GPIO0A_I2C0_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
 }
 
 static struct rk30_i2c_platform_data default_i2c0_data = {
@@ -319,7 +345,33 @@ static struct platform_device device_i2c0 = {
 #ifdef CONFIG_I2C1_RK30
 static int i2c1_check_idle(void)
 {
-	return I2C_IDLE;
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO0A2_I2C1_SCL_NAME, GPIO0A_GPIO0A2);	
+	rk30_mux_api_set(GPIO0A3_I2C1_SDA_NAME, GPIO0A_GPIO0A3);
+
+        gpio_request(RK2928_PIN0_PA2, "i2c.1");
+        gpio_request(RK2928_PIN0_PA3, "i2c.1");
+        
+        gpio_direction_input(RK2928_PIN0_PA2);
+        gpio_direction_input(RK2928_PIN0_PA3);
+
+        scl_level = gpio_get_value(RK2928_PIN0_PA2);
+        sda_level = gpio_get_value(RK2928_PIN0_PA3);
+
+        gpio_free(RK2928_PIN0_PA2);
+        gpio_free(RK2928_PIN0_PA3);
+
+        rk30_mux_api_set(GPIO0A2_I2C1_SCL_NAME, GPIO0A_I2C1_SCL);	
+	rk30_mux_api_set(GPIO0A3_I2C1_SDA_NAME, GPIO0A_I2C1_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
 }
 
 static struct rk30_i2c_platform_data default_i2c1_data = {
@@ -356,7 +408,33 @@ static struct platform_device device_i2c1 = {
 #ifdef CONFIG_I2C2_RK30
 static int i2c2_check_idle(void)
 {
-	return I2C_IDLE;
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO2C4_LCDC0_D18_LCDC1_D18_I2C2_SDA_NAME, GPIO2C_GPIO2C4);	
+	rk30_mux_api_set(GPIO2C5_LCDC0_D19_LCDC1_D19_I2C2_SCL_NAME, GPIO2C_GPIO2C5);
+
+        gpio_request(RK2928_PIN2_PC4, "i2c.2");
+        gpio_request(RK2928_PIN2_PC5, "i2c.2");
+        
+        gpio_direction_input(RK2928_PIN2_PC4);
+        gpio_direction_input(RK2928_PIN2_PC5);
+
+        scl_level = gpio_get_value(RK2928_PIN2_PC4);
+        sda_level = gpio_get_value(RK2928_PIN2_PC5);
+
+        gpio_free(RK2928_PIN2_PC4);
+        gpio_free(RK2928_PIN2_PC5);
+
+        rk30_mux_api_set(GPIO2C4_LCDC0_D18_LCDC1_D18_I2C2_SDA_NAME, GPIO2C_I2C2_SDA);	
+	rk30_mux_api_set(GPIO2C5_LCDC0_D19_LCDC1_D19_I2C2_SCL_NAME, GPIO2C_I2C2_SCL);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
 }
 
 static struct rk30_i2c_platform_data default_i2c2_data = {
@@ -393,7 +471,33 @@ static struct platform_device device_i2c2 = {
 #ifdef CONFIG_I2C3_RK30
 static int i2c3_check_idle(void)
 {
-	return I2C_IDLE;
+        int sda_level, scl_level;
+        rk30_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_GPIO0A6);	
+	rk30_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_GPIO0A7);
+
+        gpio_request(RK2928_PIN0_PA6, "i2c.3");
+        gpio_request(RK2928_PIN0_PA7, "i2c.3");
+        
+        gpio_direction_input(RK2928_PIN0_PA6);
+        gpio_direction_input(RK2928_PIN0_PA7);
+
+        scl_level = gpio_get_value(RK2928_PIN0_PA6);
+        sda_level = gpio_get_value(RK2928_PIN0_PA7);
+
+        gpio_free(RK2928_PIN0_PA6);
+        gpio_free(RK2928_PIN0_PA7);
+
+        rk30_mux_api_set(GPIO0A6_I2C3_SCL_HDMI_DDCSCL_NAME, GPIO0A_I2C3_SCL);	
+	rk30_mux_api_set(GPIO0A7_I2C3_SDA_HDMI_DDCSDA_NAME, GPIO0A_I2C3_SDA);
+
+        if(sda_level == 1 && scl_level == 1)
+                return I2C_IDLE;
+        else if(sda_level == 0 && scl_level == 1)
+                return I2C_SDA_LOW;
+        else if(sda_level == 1 && scl_level == 0)
+                return I2C_SCL_LOW;
+        else
+                return BOTH_LOW;
 }
 
 static struct rk30_i2c_platform_data default_i2c3_data = {

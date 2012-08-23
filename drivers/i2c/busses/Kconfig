@@ -893,6 +893,7 @@ if I2C_RK30
 		endif
 	config I2C3_RK30
 		bool "I2C3 Channel Support"
+                depends on !HDMI_RK2928
 		default y
 		help
 			This supports the use of the I2C3 channel on RK Soc.
