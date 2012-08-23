@@ -252,15 +252,6 @@ struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
 		.subdevice = ss_device,
 	};
 
-	/*
-	 * pci_find_subsys() can be called on the ide_setup() path,
-	 * super-early in boot.  But the down_read() will enable local
-	 * interrupts, which can cause some machines to crash.  So here we
-	 * detect and flag that situation and bail out early.
-	 */
-	if (unlikely(no_pci_devices()))
-		return NULL;
-
 	return pci_get_dev_by_id(&id, from);
 }
 
