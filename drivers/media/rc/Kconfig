@@ -277,6 +277,7 @@ config IR_IGUANA
 
 config IR_TTUSBIR
 	tristate "TechnoTrend USB IR Receiver"
+	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
 	select USB
 	select NEW_LEDS
