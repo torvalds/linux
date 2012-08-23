@@ -468,28 +468,6 @@ ih:
 	bclr $flags $p0
 	iret
 
-// Not real sure, but, MEM_CMD 7 will hang forever if this isn't done
-ctx_4160s:
-	mov $r14 0x4160
-	sethi $r14 0x400000
-	mov $r15 1
-	call #nv_wr32
-	ctx_4160s_wait:
-		call #nv_rd32
-		xbit $r15 $r15 4
-		bra e #ctx_4160s_wait
-	ret
-
-// Without clearing again at end of xfer, some things cause PGRAPH
-// to hang with STATUS=0x00000007 until it's cleared.. fbcon can
-// still function with it set however...
-ctx_4160c:
-	mov $r14 0x4160
-	sethi $r14 0x400000
-	clear b32 $r15
-	call #nv_wr32
-	ret
-
 // Again, not real sure
 //
 // In: $r15 value to set 0x404170 to
@@ -630,7 +608,6 @@ ctx_load:
 // In: $r2 channel address
 //
 ctx_chan:
-	call #ctx_4160s
 	call #ctx_load
 	mov $r10 12			// DONE_UNK12
 	call #wait_donez
@@ -642,7 +619,6 @@ ctx_chan:
 		iord $r2 I[$r1 + 0x000]
 		or $r2 $r2
 		bra ne #ctx_chan_wait
-	call #ctx_4160c
 	ret
 
 // Execute per-context state overrides list
@@ -709,7 +685,6 @@ ctx_xfer:
 	ctx_xfer_pre:
 		mov $r15 0x10
 		call #ctx_86c
-		call #ctx_4160s
 		bra not $p1 #ctx_xfer_exec
 
 	ctx_xfer_pre_load:
@@ -798,7 +773,6 @@ ctx_xfer:
 			call #ctx_mmio_exec
 
 		ctx_xfer_no_post_mmio:
-		call #ctx_4160c
 
 	ctx_xfer_done:
 	ret
