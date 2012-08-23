@@ -117,6 +117,7 @@
 #define STAT_B					0x3c
 #define STAT_C					0x3d
 #define STAT_C_CHG_ENABLED			BIT(0)
+#define STAT_C_CHG_STATUS			BIT(5)
 #define STAT_C_CHG_MASK				0x06
 #define STAT_C_CHG_SHIFT			1
 #define STAT_C_CHARGER_ERROR			BIT(6)
@@ -147,6 +148,7 @@ struct smb347_charger {
 	unsigned int		mains_current_limit;
 	bool			usb_hc_mode;
 	bool			usb_otg_enabled;
+	bool			is_fully_charged;
 	int			en_gpio;
 	struct dentry		*dentry;
 	const struct smb347_charger_platform_data *pdata;
@@ -818,14 +820,12 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 		power_supply_changed(&smb->battery);
 
 		ret = IRQ_HANDLED;
-	}
-
-	/*
-	 * If we reached the termination current the battery is charged.
-	 * Disable charging to ACK the interrupt and update status.
-	 */
-	if (irqstat[2] & (IRQSTAT_C_TERMINATION_IRQ |
-			  IRQSTAT_C_TERMINATION_STAT)) {
+	} else if (((stat_c & STAT_C_CHG_STATUS) ||
+		    (irqstat[2] & (IRQSTAT_C_TERMINATION_IRQ |
+				   IRQSTAT_C_TERMINATION_STAT))) &&
+		   !smb->is_fully_charged) {
+		dev_info(&smb->client->dev, "charge terminated");
+		smb->is_fully_charged = true;
 		smb347_charging_disable(smb);
 		power_supply_changed(&smb->battery);
 		ret = IRQ_HANDLED;
@@ -1178,13 +1178,16 @@ static int smb347_battery_get_property(struct power_supply *psy,
 	switch (prop) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (!smb347_is_online(smb)) {
+			smb->is_fully_charged = false;
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 			break;
 		}
 		if (smb347_charging_status(smb))
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else
-			val->intval = POWER_SUPPLY_STATUS_FULL;
+			val->intval = smb->is_fully_charged ?
+					POWER_SUPPLY_STATUS_FULL :
+					POWER_SUPPLY_STATUS_NOT_CHARGING;
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
