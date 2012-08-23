@@ -41,7 +41,9 @@ static const struct acpi_device_id bt_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, bt_device_ids);
 
+#ifdef CONFIG_PM_SLEEP
 static int toshiba_bt_resume(struct device *dev);
+#endif
 static SIMPLE_DEV_PM_OPS(toshiba_bt_pm, NULL, toshiba_bt_resume);
 
 static struct acpi_driver toshiba_bt_rfkill_driver = {
@@ -90,10 +92,12 @@ static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event)
 	toshiba_bluetooth_enable(device->handle);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int toshiba_bt_resume(struct device *dev)
 {
 	return toshiba_bluetooth_enable(to_acpi_device(dev)->handle);
 }
+#endif
 
 static int toshiba_bt_rfkill_add(struct acpi_device *device)
 {

@@ -1096,7 +1096,7 @@ static int soc_probe_codec(struct snd_soc_card *card,
 	}
 
 	/* If the driver didn't set I/O up try regmap */
-	if (!codec->control_data)
+	if (!codec->write && dev_get_regmap(codec->dev, NULL))
 		snd_soc_codec_set_cache_io(codec, 0, 0, SND_SOC_REGMAP);
 
 	if (driver->controls)

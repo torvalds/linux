@@ -216,7 +216,6 @@ struct super_operations {
         void (*drop_inode) (struct inode *);
         void (*delete_inode) (struct inode *);
         void (*put_super) (struct super_block *);
-        void (*write_super) (struct super_block *);
         int (*sync_fs)(struct super_block *sb, int wait);
         int (*freeze_fs) (struct super_block *);
         int (*unfreeze_fs) (struct super_block *);
@@ -272,9 +271,6 @@ or bottom half).
 
   put_super: called when the VFS wishes to free the superblock
 	(i.e. unmount). This is called with the superblock lock held
-
-  write_super: called when the VFS superblock needs to be written to
-	disc. This method is optional
 
   sync_fs: called when VFS is writing out all dirty data associated with
   	a superblock. The second parameter indicates whether the method
