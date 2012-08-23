@@ -125,7 +125,7 @@ struct ccnt {
  * State of Charge.
  * The first number is mAh(=3.6C), and the second number is percent point.
  */
-int array_soc[][2] = {
+static int array_soc[][2] = {
 	{4170, 100}, {4154, 99}, {4136, 98}, {4122, 97}, {4107, 96},
 	{4102, 95}, {4088, 94}, {4081, 93}, {4070, 92}, {4060, 91},
 	{4053, 90}, {4044, 89}, {4035, 88}, {4028, 87}, {4019, 86},

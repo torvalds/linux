@@ -157,8 +157,8 @@ static struct regulator_init_data preg_init_data = {
 	.consumer_supplies	= &preg_supply[0],
 };
 
-static struct regulator_bulk_data chg_desc_regulator_data[] = {
-	{ .supply = "preg", },
+static struct charger_regulator chg_desc_regulator_data[] = {
+	{ .regulator_name = "preg", },
 };
 
 static struct mfd_cell power_devs[] = {

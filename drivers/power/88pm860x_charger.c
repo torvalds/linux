@@ -632,7 +632,7 @@ static int pm860x_init_charger(struct pm860x_charger_info *info)
 	return 0;
 }
 
-struct pm860x_irq_desc {
+static struct pm860x_irq_desc {
 	const char *name;
 	irqreturn_t (*handler)(int irq, void *data);
 } pm860x_irq_descs[] = {
