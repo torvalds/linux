@@ -454,14 +454,11 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 				ret = -EEXIST;
 				goto out;
 			}
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
+			if (match_strlcpy(ib_dev->ibd_udev_path, &args[0],
+				SE_UDEV_PATH_LEN) == 0) {
+				ret = -EINVAL;
 				break;
 			}
-			snprintf(ib_dev->ibd_udev_path, SE_UDEV_PATH_LEN,
-					"%s", arg_p);
-			kfree(arg_p);
 			pr_debug("IBLOCK: Referencing UDEV path: %s\n",
 					ib_dev->ibd_udev_path);
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;
