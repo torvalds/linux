@@ -96,22 +96,32 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(bl);
 	u32 id = rk29_bl_info->pwm_id;
 	u32 ref = rk29_bl_info->bl_ref;
-
+	int brightness = bl->props.brightness;
+	
 	if (suspend_flag)
-		return 0;
+		return 0;	
+
+	if (bl->props.power != FB_BLANK_UNBLANK)
+		brightness = 0;
+
+	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
+		brightness = 0;	
+
+	if (bl->props.state & BL_CORE_SUSPENDED)
+		brightness = 0;
 
 	if (bl->props.brightness < rk29_bl_info->min_brightness)	/*avoid can't view screen when close backlight*/
-		bl->props.brightness = rk29_bl_info->min_brightness;
+		brightness = rk29_bl_info->min_brightness;
 
 	div_total = read_pwm_reg(id, PWM_REG_LRC);
 	if (ref) {
-		divh = div_total*(bl->props.brightness)/BL_STEP;
+		divh = div_total*brightness/BL_STEP;
 	} else {
-		divh = div_total*(BL_STEP-bl->props.brightness)/BL_STEP;
+		divh = div_total*(BL_STEP-brightness)/BL_STEP;
 	}
 	write_pwm_reg(id, PWM_REG_HRC, divh);
 
-	DBG(">>>%s-->%d brightness = %d, div_total = %d, divh = %d\n",__FUNCTION__,__LINE__,bl->props.brightness, div_total, divh);
+	DBG("%s:line=%d,brightness = %d, div_total = %d, divh = %d\n",__FUNCTION__,__LINE__,brightness, div_total, divh);
 	return 0;
 }
 
