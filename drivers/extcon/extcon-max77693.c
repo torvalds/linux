@@ -356,7 +356,7 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info,
 		extcon_set_cable_state(info->edev, "MHL", attached);
 		break;
 	default:
-		dev_err(info->dev, "faild to detect %s accessory\n",
+		dev_err(info->dev, "failed to detect %s accessory\n",
 			attached ? "attached" : "detached");
 		dev_err(info->dev, "- adc:0x%x, adclow:0x%x, adc1k:0x%x\n",
 			adc, adclow, adc1k);
@@ -548,7 +548,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		curr_adc = info->status[0] & STATUS1_ADC_MASK;
 		curr_adc >>= STATUS1_ADC_SHIFT;
 
-		/* Check accossory state which is either detached or attached */
+		/* Check accessory state which is either detached or attached */
 		if (curr_adc == MAX77693_MUIC_ADC_OPEN)
 			attached = false;
 
@@ -564,7 +564,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 		curr_chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
 		curr_chg_type >>= STATUS2_CHGTYP_SHIFT;
 
-		/* Check charger accossory state which
+		/* Check charger accessory state which
 		   is either detached or attached */
 		if (curr_chg_type == MAX77693_CHARGER_TYPE_NONE)
 			attached = false;
