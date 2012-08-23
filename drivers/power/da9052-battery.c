@@ -327,7 +327,7 @@ static int da9052_bat_interpolate(int vbat_lower, int  vbat_upper,
 	return tmp;
 }
 
-unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
+static unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
 {
 	int i;
 
@@ -345,6 +345,13 @@ unsigned char da9052_determine_vc_tbl_index(unsigned char adc_temp)
 		     && (adc_temp <= vc_tbl_ref[i]))
 				return i + 1;
 	}
+	/*
+	 * For some reason authors of the driver didn't presume that we can
+	 * end up here. It might be OK, but might be not, no one knows for
+	 * sure. Go check your battery, is it on fire?
+	 */
+	WARN_ON(1);
+	return 0;
 }
 
 static int da9052_bat_read_capacity(struct da9052_battery *bat, int *capacity)
