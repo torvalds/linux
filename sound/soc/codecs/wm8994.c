@@ -3823,12 +3823,15 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		wm8994->hubs.no_cache_dac_hp_direct = true;
 		wm8994->fll_byp = true;
 
-		switch (wm8994->revision) {
+		switch (control->cust_id) {
 		case 0:
-		case 1:
 		case 2:
-		case 3:
 			wm8994->hubs.dcs_codes_l = -9;
+			wm8994->hubs.dcs_codes_r = -7;
+			break;
+		case 1:
+		case 3:
+			wm8994->hubs.dcs_codes_l = -8;
 			wm8994->hubs.dcs_codes_r = -7;
 			break;
 		default:
@@ -3919,7 +3922,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	switch (control->type) {
 	case WM1811:
-		if (wm8994->revision > 1) {
+		if (control->cust_id > 1 || wm8994->revision > 1) {
 			ret = wm8994_request_irq(wm8994->wm8994,
 						 WM8994_IRQ_GPIO(6),
 						 wm1811_jackdet_irq, "JACKDET",
