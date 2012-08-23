@@ -4355,6 +4355,69 @@ bfa_fcs_lport_ns_boot_target_disc(bfa_fcs_lport_t *port)
 	}
 }
 
+void
+bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg, struct bfa_fcxp_s *fcxp_alloced)
+{
+	struct bfa_fcs_lport_ns_s *ns = cbarg;
+	struct bfa_fcs_lport_s *port = ns->port;
+	struct fchs_s fchs;
+	struct bfa_fcxp_s *fcxp;
+	u8 symbl[256];
+	u8 *psymbl = &symbl[0];
+	int len;
+
+	if (!bfa_sm_cmp_state(port, bfa_fcs_lport_sm_online))
+		return;
+
+	/* Avoid sending RSPN in the following states. */
+	if (bfa_sm_cmp_state(ns, bfa_fcs_lport_ns_sm_offline) ||
+	    bfa_sm_cmp_state(ns, bfa_fcs_lport_ns_sm_plogi_sending) ||
+	    bfa_sm_cmp_state(ns, bfa_fcs_lport_ns_sm_plogi) ||
+	    bfa_sm_cmp_state(ns, bfa_fcs_lport_ns_sm_plogi_retry) ||
+	    bfa_sm_cmp_state(ns, bfa_fcs_lport_ns_sm_rspn_id_retry))
+		return;
+
+	memset(symbl, 0, sizeof(symbl));
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+
+	fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
+	if (!fcxp) {
+		port->stats.ns_rspnid_alloc_wait++;
+		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
+				bfa_fcs_lport_ns_util_send_rspn_id, ns);
+		return;
+	}
+
+	ns->fcxp = fcxp;
+
+	if (port->vport) {
+		/*
+		 * For Vports, we append the vport's port symbolic name
+		 * to that of the base port.
+		 */
+		strncpy((char *)psymbl, (char *)&(bfa_fcs_lport_get_psym_name
+			(bfa_fcs_get_base_port(port->fcs))),
+			strlen((char *)&bfa_fcs_lport_get_psym_name(
+			bfa_fcs_get_base_port(port->fcs))));
+
+		/* Ensure we have a null terminating string. */
+		((char *)psymbl)[strlen((char *)&bfa_fcs_lport_get_psym_name(
+		 bfa_fcs_get_base_port(port->fcs)))] = 0;
+
+		strncat((char *)psymbl,
+			(char *)&(bfa_fcs_lport_get_psym_name(port)),
+			strlen((char *)&bfa_fcs_lport_get_psym_name(port)));
+	}
+
+	len = fc_rspnid_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
+			      bfa_fcs_lport_get_fcid(port), 0, psymbl);
+
+	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
+		      FC_CLASS_3, len, &fchs, NULL, NULL, FC_MAX_PDUSZ, 0);
+
+	port->stats.ns_rspnid_sent++;
+}
+
 /*
  * FCS SCN
  */

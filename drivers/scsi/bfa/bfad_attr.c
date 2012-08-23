@@ -587,6 +587,37 @@ bfad_im_vport_disable(struct fc_vport *fc_vport, bool disable)
 	return 0;
 }
 
+void
+bfad_im_vport_set_symbolic_name(struct fc_vport *fc_vport)
+{
+	struct bfad_vport_s *vport = (struct bfad_vport_s *)fc_vport->dd_data;
+	struct bfad_im_port_s *im_port =
+			(struct bfad_im_port_s *)vport->drv_port.im_port;
+	struct bfad_s *bfad = im_port->bfad;
+	struct Scsi_Host *vshost = vport->drv_port.im_port->shost;
+	char *sym_name = fc_vport->symbolic_name;
+	struct bfa_fcs_vport_s *fcs_vport;
+	wwn_t	pwwn;
+	unsigned long flags;
+
+	u64_to_wwn(fc_host_port_name(vshost), (u8 *)&pwwn);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0, pwwn);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (fcs_vport == NULL)
+		return;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (strlen(sym_name) > 0) {
+		strcpy(fcs_vport->lport.port_cfg.sym_name.symname, sym_name);
+		bfa_fcs_lport_ns_util_send_rspn_id(
+			BFA_FCS_GET_NS_FROM_PORT((&fcs_vport->lport)), NULL);
+	}
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+}
+
 struct fc_function_template bfad_im_fc_function_template = {
 
 	/* Target dynamic attributes */
@@ -640,6 +671,7 @@ struct fc_function_template bfad_im_fc_function_template = {
 	.vport_create = bfad_im_vport_create,
 	.vport_delete = bfad_im_vport_delete,
 	.vport_disable = bfad_im_vport_disable,
+	.set_vport_symbolic_name = bfad_im_vport_set_symbolic_name,
 	.bsg_request = bfad_im_bsg_request,
 	.bsg_timeout = bfad_im_bsg_timeout,
 };

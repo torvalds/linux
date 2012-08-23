@@ -338,6 +338,8 @@ void            bfa_fcs_lport_ns_init(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_offline(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_online(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_query(struct bfa_fcs_lport_s *port);
+void		bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg,
+				struct bfa_fcxp_s *fcxp_alloced);
 void            bfa_fcs_lport_scn_init(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_scn_offline(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_scn_online(struct bfa_fcs_lport_s *vport);
