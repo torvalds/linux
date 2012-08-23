@@ -1136,7 +1136,7 @@ static bool wm1811_volatile_register(struct device *dev, unsigned int reg)
 
 	switch (reg) {
 	case WM8994_GPIO_6:
-		if (wm8994->revision > 1)
+		if (wm8994->cust_id > 1 || wm8994->revision > 1)
 			return true;
 		else
 			return false;
