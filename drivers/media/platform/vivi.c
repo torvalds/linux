@@ -1306,7 +1306,6 @@ static int __init vivi_create_instance(int inst)
 
 	/* initialize queue */
 	q = &dev->vb_vidq;
-	memset(q, 0, sizeof(dev->vb_vidq));
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_READ;
 	q->drv_priv = dev;
