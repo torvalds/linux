@@ -255,7 +255,7 @@ static int lp8727_intr_config(struct lp8727_chg *pchg)
 	return request_threaded_irq(pchg->client->irq,
 				NULL,
 				lp8727_isr_func,
-				IRQF_TRIGGER_FALLING,
+				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				"lp8727_irq",
 				pchg);
 }
