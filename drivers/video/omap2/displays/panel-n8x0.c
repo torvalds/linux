@@ -489,6 +489,7 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->panel.timings.y_res = 480;
 	dssdev->ctrl.pixel_size = 16;
 	dssdev->ctrl.rfbi_timings = n8x0_panel_timings;
+	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 
 	memset(&props, 0, sizeof(props));
 	props.max_brightness = 127;

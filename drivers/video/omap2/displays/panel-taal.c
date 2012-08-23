@@ -884,6 +884,8 @@ static int taal_probe(struct omap_dss_device *dssdev)
 
 	dssdev->panel.timings = panel_config->timings;
 	dssdev->panel.dsi_pix_fmt = OMAP_DSS_DSI_FMT_RGB888;
+	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
+		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
 
 	td = kzalloc(sizeof(*td), GFP_KERNEL);
 	if (!td) {

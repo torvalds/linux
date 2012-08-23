@@ -4866,11 +4866,6 @@ static int __init dsi_init_display(struct omap_dss_device *dssdev)
 
 	DSSDBG("DSI init\n");
 
-	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
-		dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
-			OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
-	}
-
 	if (dsi->vdds_dsi_reg == NULL) {
 		struct regulator *vdds_dsi;
 
