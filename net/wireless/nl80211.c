@@ -2234,9 +2234,20 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	}
 	nla_nest_end(msg, sinfoattr);
 
+#if defined(CONFIG_MT6620)
+    /*
+    **patch the cfg80211 for support AP mode need STA carry the assoc request ie. 
+    **Added by xbw, Rockchip Inc.
+    */
+    if (sinfo->assoc_req_ies) {
+        NLA_PUT(msg, NL80211_ATTR_IE, sinfo->assoc_req_ies_len,
+                sinfo->assoc_req_ies);
+    }
+#else
 	if (sinfo->filled & STATION_INFO_ASSOC_REQ_IES)
 		NLA_PUT(msg, NL80211_ATTR_IE, sinfo->assoc_req_ies_len,
 			sinfo->assoc_req_ies);
+#endif
 
 	return genlmsg_end(msg, hdr);
 
