@@ -73,6 +73,8 @@ struct devfreq_dev_status {
  *			from devfreq_remove_device() call. If the user
  *			has registered devfreq->nb at a notifier-head,
  *			this is the time to unregister it.
+ * @freq_table:	Optional list of frequencies to support statistics.
+ * @max_state:	The size of freq_table.
  */
 struct devfreq_dev_profile {
 	unsigned long initial_freq;
@@ -83,6 +85,9 @@ struct devfreq_dev_profile {
 			      struct devfreq_dev_status *stat);
 	int (*get_cur_freq)(struct device *dev, unsigned long *freq);
 	void (*exit)(struct device *dev);
+
+	unsigned int *freq_table;
+	unsigned int max_state;
 };
 
 /**
@@ -127,6 +132,10 @@ struct devfreq_governor {
  * @min_freq:	Limit minimum frequency requested by user (0: none)
  * @max_freq:	Limit maximum frequency requested by user (0: none)
  * @stop_polling:	 devfreq polling status of a device.
+ * @total_trans:	Number of devfreq transitions
+ * @trans_table:	Statistics of devfreq transitions
+ * @time_in_state:	Statistics of devfreq states
+ * @last_stat_updated:	The last time stat updated
  *
  * This structure stores the devfreq information for a give device.
  *
@@ -153,6 +162,12 @@ struct devfreq {
 	unsigned long min_freq;
 	unsigned long max_freq;
 	bool stop_polling;
+
+	/* information for device freqeuncy transition */
+	unsigned int total_trans;
+	unsigned int *trans_table;
+	unsigned long *time_in_state;
+	unsigned long last_stat_updated;
 };
 
 #if defined(CONFIG_PM_DEVFREQ)
