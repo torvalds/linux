@@ -29,20 +29,15 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <asm/probes.h>
 
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
 
 struct pt_regs;
 struct kprobe;
 
-typedef unsigned int kprobe_opcode_t;
-#define BREAKPOINT_INSTRUCTION	0x7fe00008	/* trap */
+typedef opcode_t kprobe_opcode_t;
 #define MAX_INSN_SIZE 1
-
-#define IS_TW(instr)		(((instr) & 0xfc0007fe) == 0x7c000008)
-#define IS_TD(instr)		(((instr) & 0xfc0007fe) == 0x7c000088)
-#define IS_TDI(instr)		(((instr) & 0xfc000000) == 0x08000000)
-#define IS_TWI(instr)		(((instr) & 0xfc000000) == 0x0c000000)
 
 #ifdef CONFIG_PPC64
 /*
@@ -72,12 +67,6 @@ typedef unsigned int kprobe_opcode_t;
 		addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name); \
 	}								\
 }
-
-#define is_trap(instr)	(IS_TW(instr) || IS_TD(instr) || \
-			IS_TWI(instr) || IS_TDI(instr))
-#else
-/* Use stock kprobe_lookup_name since ppc32 doesn't use function descriptors */
-#define is_trap(instr)	(IS_TW(instr) || IS_TWI(instr))
 #endif
 
 #define flush_insn_slot(p)	do { } while (0)
