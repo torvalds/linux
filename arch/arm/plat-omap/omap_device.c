@@ -370,6 +370,14 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 		goto odbfd_exit1;
 	}
 
+	/* Fix up missing resource names */
+	for (i = 0; i < pdev->num_resources; i++) {
+		struct resource *r = &pdev->resource[i];
+
+		if (r->name == NULL)
+			r->name = dev_name(&pdev->dev);
+	}
+
 	if (of_get_property(node, "ti,no_idle_on_suspend", NULL))
 		omap_device_disable_idle_on_suspend(pdev);
 
