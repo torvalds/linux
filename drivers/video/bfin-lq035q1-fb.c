@@ -853,17 +853,7 @@ static struct platform_driver bfin_lq035q1_driver = {
 	},
 };
 
-static int __init bfin_lq035q1_driver_init(void)
-{
-	return platform_driver_register(&bfin_lq035q1_driver);
-}
-module_init(bfin_lq035q1_driver_init);
-
-static void __exit bfin_lq035q1_driver_cleanup(void)
-{
-	platform_driver_unregister(&bfin_lq035q1_driver);
-}
-module_exit(bfin_lq035q1_driver_cleanup);
+module_platform_driver(bfin_lq035q1_driver);
 
 MODULE_DESCRIPTION("Blackfin TFT LCD Driver");
 MODULE_LICENSE("GPL");
