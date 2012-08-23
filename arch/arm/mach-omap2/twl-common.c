@@ -559,7 +559,7 @@ void __init omap_twl4030_audio_init(char *card_name)
 }
 
 #else /* SOC_OMAP_TWL4030 */
-void __init omap_twl4030_audio_init(char *card_name, int codec_sysclk)
+void __init omap_twl4030_audio_init(char *card_name)
 {
 	return;
 }
