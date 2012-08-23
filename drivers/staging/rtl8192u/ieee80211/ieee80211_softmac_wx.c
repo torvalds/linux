@@ -14,6 +14,8 @@
  */
 
 
+#include <linux/etherdevice.h>
+
 #include "ieee80211.h"
 #include "dot11d.h"
 /* FIXME: add A freqs */
@@ -136,7 +138,6 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 {
 
 	int ret = 0;
-	u8 zero[] = {0,0,0,0,0,0};
 	unsigned long flags;
 
 	short ifup = ieee->proto_started;//dev->flags & IFF_UP;
@@ -165,7 +166,7 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
-	ieee->wap_set = memcmp(temp->sa_data, zero,ETH_ALEN)!=0;
+	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
