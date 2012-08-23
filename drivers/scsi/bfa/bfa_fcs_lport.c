@@ -3229,6 +3229,10 @@ static void     bfa_fcs_lport_ns_send_rff_id(void *ns_cbarg,
 					    struct bfa_fcxp_s *fcxp_alloced);
 static void     bfa_fcs_lport_ns_send_gid_ft(void *ns_cbarg,
 					    struct bfa_fcxp_s *fcxp_alloced);
+static void	bfa_fcs_lport_ns_send_rnn_id(void *ns_cbarg,
+					struct bfa_fcxp_s *fcxp_alloced);
+static void	bfa_fcs_lport_ns_send_rsnn_nn(void *ns_cbarg,
+					struct bfa_fcxp_s *fcxp_alloced);
 static void     bfa_fcs_lport_ns_timeout(void *arg);
 static void     bfa_fcs_lport_ns_plogi_response(void *fcsarg,
 					       struct bfa_fcxp_s *fcxp,
@@ -3265,6 +3269,20 @@ static void     bfa_fcs_lport_ns_gid_ft_response(void *fcsarg,
 						u32 rsp_len,
 						u32 resid_len,
 						struct fchs_s *rsp_fchs);
+static void     bfa_fcs_lport_ns_rnn_id_response(void *fcsarg,
+						struct bfa_fcxp_s *fcxp,
+						void *cbarg,
+						bfa_status_t req_status,
+						u32 rsp_len,
+						u32 resid_len,
+						struct fchs_s *rsp_fchs);
+static void     bfa_fcs_lport_ns_rsnn_nn_response(void *fcsarg,
+						struct bfa_fcxp_s *fcxp,
+						void *cbarg,
+						bfa_status_t req_status,
+						u32 rsp_len,
+						u32 resid_len,
+						struct fchs_s *rsp_fchs);
 static void     bfa_fcs_lport_ns_process_gidft_pids(
 				struct bfa_fcs_lport_s *port,
 				u32 *pid_buf, u32 n_pids);
@@ -3289,6 +3307,8 @@ enum vport_ns_event {
 	NSSM_EVENT_RFTID_SENT = 9,
 	NSSM_EVENT_RFFID_SENT = 10,
 	NSSM_EVENT_GIDFT_SENT = 11,
+	NSSM_EVENT_RNNID_SENT = 12,
+	NSSM_EVENT_RSNN_NN_SENT = 13,
 };
 
 static void     bfa_fcs_lport_ns_sm_offline(struct bfa_fcs_lport_ns_s *ns,
@@ -3329,6 +3349,21 @@ static void     bfa_fcs_lport_ns_sm_gid_ft_retry(struct bfa_fcs_lport_ns_s *ns,
 						enum vport_ns_event event);
 static void     bfa_fcs_lport_ns_sm_online(struct bfa_fcs_lport_ns_s *ns,
 					  enum vport_ns_event event);
+static void     bfa_fcs_lport_ns_sm_sending_rnn_id(
+					struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event);
+static void     bfa_fcs_lport_ns_sm_rnn_id(struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event);
+static void     bfa_fcs_lport_ns_sm_rnn_id_retry(struct bfa_fcs_lport_ns_s *ns,
+						enum vport_ns_event event);
+static void     bfa_fcs_lport_ns_sm_sending_rsnn_nn(
+					struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event);
+static void     bfa_fcs_lport_ns_sm_rsnn_nn(struct bfa_fcs_lport_ns_s *ns,
+						enum vport_ns_event event);
+static void     bfa_fcs_lport_ns_sm_rsnn_nn_retry(
+					struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event);
 /*
  *	Start in offline state - awaiting linkup
  */
@@ -3396,8 +3431,9 @@ bfa_fcs_lport_ns_sm_plogi(struct bfa_fcs_lport_ns_s *ns,
 		break;
 
 	case NSSM_EVENT_RSP_OK:
-		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_sending_rspn_id);
-		bfa_fcs_lport_ns_send_rspn_id(ns, NULL);
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_sending_rnn_id);
+		ns->num_rnnid_retries = 0;
+		bfa_fcs_lport_ns_send_rnn_id(ns, NULL);
 		break;
 
 	case NSSM_EVENT_PORT_OFFLINE:
@@ -3424,6 +3460,176 @@ bfa_fcs_lport_ns_sm_plogi_retry(struct bfa_fcs_lport_ns_s *ns,
 		 */
 		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_plogi_sending);
 		bfa_fcs_lport_ns_send_plogi(ns, NULL);
+		break;
+
+	case NSSM_EVENT_PORT_OFFLINE:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_offline);
+		bfa_timer_stop(&ns->timer);
+		break;
+
+	default:
+		bfa_sm_fault(ns->port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_ns_sm_sending_rnn_id(struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event)
+{
+	bfa_trc(ns->port->fcs, ns->port->port_cfg.pwwn);
+	bfa_trc(ns->port->fcs, event);
+
+	switch (event) {
+	case NSSM_EVENT_RNNID_SENT:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_rnn_id);
+		break;
+
+	case NSSM_EVENT_PORT_OFFLINE:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_offline);
+		bfa_fcxp_walloc_cancel(BFA_FCS_GET_HAL_FROM_PORT(ns->port),
+						&ns->fcxp_wqe);
+		break;
+	default:
+		bfa_sm_fault(ns->port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_ns_sm_rnn_id(struct bfa_fcs_lport_ns_s *ns,
+				enum vport_ns_event event)
+{
+	bfa_trc(ns->port->fcs, ns->port->port_cfg.pwwn);
+	bfa_trc(ns->port->fcs, event);
+
+	switch (event) {
+	case NSSM_EVENT_RSP_OK:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_sending_rsnn_nn);
+		ns->num_rnnid_retries = 0;
+		ns->num_rsnn_nn_retries = 0;
+		bfa_fcs_lport_ns_send_rsnn_nn(ns, NULL);
+		break;
+
+	case NSSM_EVENT_RSP_ERROR:
+		if (ns->num_rnnid_retries < BFA_FCS_MAX_NS_RETRIES) {
+			bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_rnn_id_retry);
+			ns->port->stats.ns_retries++;
+			ns->num_rnnid_retries++;
+			bfa_timer_start(BFA_FCS_GET_HAL_FROM_PORT(ns->port),
+				&ns->timer, bfa_fcs_lport_ns_timeout, ns,
+				BFA_FCS_RETRY_TIMEOUT);
+		} else {
+			bfa_sm_set_state(ns,
+				bfa_fcs_lport_ns_sm_sending_rspn_id);
+			bfa_fcs_lport_ns_send_rspn_id(ns, NULL);
+		}
+		break;
+
+	case NSSM_EVENT_PORT_OFFLINE:
+		bfa_fcxp_discard(ns->fcxp);
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_offline);
+		break;
+
+	default:
+		bfa_sm_fault(ns->port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_ns_sm_rnn_id_retry(struct bfa_fcs_lport_ns_s *ns,
+				enum vport_ns_event event)
+{
+	bfa_trc(ns->port->fcs, ns->port->port_cfg.pwwn);
+	bfa_trc(ns->port->fcs, event);
+
+	switch (event) {
+	case NSSM_EVENT_TIMEOUT:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_sending_rnn_id);
+		bfa_fcs_lport_ns_send_rnn_id(ns, NULL);
+		break;
+
+	case NSSM_EVENT_PORT_OFFLINE:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_offline);
+		bfa_timer_stop(&ns->timer);
+		break;
+
+	default:
+		bfa_sm_fault(ns->port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_ns_sm_sending_rsnn_nn(struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event)
+{
+	bfa_trc(ns->port->fcs, ns->port->port_cfg.pwwn);
+	bfa_trc(ns->port->fcs, event);
+
+	switch (event) {
+	case NSSM_EVENT_RSNN_NN_SENT:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_rsnn_nn);
+		break;
+
+	case NSSM_EVENT_PORT_OFFLINE:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_offline);
+		bfa_fcxp_walloc_cancel(BFA_FCS_GET_HAL_FROM_PORT(ns->port),
+			&ns->fcxp_wqe);
+		break;
+
+	default:
+		bfa_sm_fault(ns->port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_ns_sm_rsnn_nn(struct bfa_fcs_lport_ns_s *ns,
+				enum vport_ns_event event)
+{
+	bfa_trc(ns->port->fcs, ns->port->port_cfg.pwwn);
+	bfa_trc(ns->port->fcs, event);
+
+	switch (event) {
+	case NSSM_EVENT_RSP_OK:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_sending_rspn_id);
+		ns->num_rsnn_nn_retries = 0;
+		bfa_fcs_lport_ns_send_rspn_id(ns, NULL);
+		break;
+
+	case NSSM_EVENT_RSP_ERROR:
+		if (ns->num_rsnn_nn_retries < BFA_FCS_MAX_NS_RETRIES) {
+			bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_rsnn_nn_retry);
+			ns->port->stats.ns_retries++;
+			ns->num_rsnn_nn_retries++;
+			bfa_timer_start(BFA_FCS_GET_HAL_FROM_PORT(ns->port),
+					&ns->timer, bfa_fcs_lport_ns_timeout,
+					ns, BFA_FCS_RETRY_TIMEOUT);
+		} else {
+			bfa_sm_set_state(ns,
+				bfa_fcs_lport_ns_sm_sending_rspn_id);
+			bfa_fcs_lport_ns_send_rspn_id(ns, NULL);
+		}
+		break;
+
+	case NSSM_EVENT_PORT_OFFLINE:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_offline);
+		bfa_fcxp_discard(ns->fcxp);
+		break;
+
+	default:
+		bfa_sm_fault(ns->port->fcs, event);
+	}
+}
+
+static void
+bfa_fcs_lport_ns_sm_rsnn_nn_retry(struct bfa_fcs_lport_ns_s *ns,
+					enum vport_ns_event event)
+{
+	bfa_trc(ns->port->fcs, ns->port->port_cfg.pwwn);
+	bfa_trc(ns->port->fcs, event);
+
+	switch (event) {
+	case NSSM_EVENT_TIMEOUT:
+		bfa_sm_set_state(ns, bfa_fcs_lport_ns_sm_sending_rsnn_nn);
+		bfa_fcs_lport_ns_send_rsnn_nn(ns, NULL);
 		break;
 
 	case NSSM_EVENT_PORT_OFFLINE:
@@ -3914,6 +4120,162 @@ bfa_fcs_lport_ns_plogi_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
 		bfa_trc(port->fcs, els_cmd->els_code);
 		bfa_sm_send_event(ns, NSSM_EVENT_RSP_ERROR);
 	}
+}
+
+/*
+ * Register node name for port_id
+ */
+static void
+bfa_fcs_lport_ns_send_rnn_id(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
+{
+	struct bfa_fcs_lport_ns_s *ns = ns_cbarg;
+	struct bfa_fcs_lport_s *port = ns->port;
+	struct fchs_s  fchs;
+	int	len;
+	struct bfa_fcxp_s *fcxp;
+
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+
+	fcxp = fcxp_alloced ? fcxp_alloced :
+			bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
+	if (!fcxp) {
+		port->stats.ns_rnnid_alloc_wait++;
+		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
+				bfa_fcs_lport_ns_send_rnn_id, ns, BFA_TRUE);
+		return;
+	}
+
+	ns->fcxp = fcxp;
+
+	len = fc_rnnid_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
+				bfa_fcs_lport_get_fcid(port),
+				bfa_fcs_lport_get_fcid(port),
+				bfa_fcs_lport_get_nwwn(port));
+
+	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
+			  FC_CLASS_3, len, &fchs,
+			  bfa_fcs_lport_ns_rnn_id_response, (void *)ns,
+			  FC_MAX_PDUSZ, FC_FCCT_TOV);
+
+	port->stats.ns_rnnid_sent++;
+	bfa_sm_send_event(ns, NSSM_EVENT_RNNID_SENT);
+}
+
+static void
+bfa_fcs_lport_ns_rnn_id_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
+				void *cbarg, bfa_status_t req_status,
+				u32 rsp_len, u32 resid_len,
+				struct fchs_s *rsp_fchs)
+
+{
+	struct bfa_fcs_lport_ns_s *ns = (struct bfa_fcs_lport_ns_s *) cbarg;
+	struct bfa_fcs_lport_s *port = ns->port;
+	struct ct_hdr_s	*cthdr = NULL;
+
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+
+	/*
+	 * Sanity Checks
+	 */
+	if (req_status != BFA_STATUS_OK) {
+		bfa_trc(port->fcs, req_status);
+		port->stats.ns_rnnid_rsp_err++;
+		bfa_sm_send_event(ns, NSSM_EVENT_RSP_ERROR);
+		return;
+	}
+
+	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
+
+	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
+		port->stats.ns_rnnid_accepts++;
+		bfa_sm_send_event(ns, NSSM_EVENT_RSP_OK);
+		return;
+	}
+
+	port->stats.ns_rnnid_rejects++;
+	bfa_trc(port->fcs, cthdr->reason_code);
+	bfa_trc(port->fcs, cthdr->exp_code);
+	bfa_sm_send_event(ns, NSSM_EVENT_RSP_ERROR);
+}
+
+/*
+ * Register the symbolic node name for a given node name.
+ */
+static void
+bfa_fcs_lport_ns_send_rsnn_nn(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
+{
+	struct bfa_fcs_lport_ns_s *ns = ns_cbarg;
+	struct bfa_fcs_lport_s *port = ns->port;
+	struct fchs_s  fchs;
+	int     len;
+	struct bfa_fcxp_s *fcxp;
+	u8 *nsymbl;
+
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+
+	fcxp = fcxp_alloced ? fcxp_alloced :
+			bfa_fcs_fcxp_alloc(port->fcs, BFA_TRUE);
+	if (!fcxp) {
+		port->stats.ns_rsnn_nn_alloc_wait++;
+		bfa_fcs_fcxp_alloc_wait(port->fcs->bfa, &ns->fcxp_wqe,
+				bfa_fcs_lport_ns_send_rsnn_nn, ns, BFA_TRUE);
+		return;
+	}
+	ns->fcxp = fcxp;
+
+	nsymbl = (u8 *) &(bfa_fcs_lport_get_nsym_name(
+					bfa_fcs_get_base_port(port->fcs)));
+
+	len = fc_rsnn_nn_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
+				bfa_fcs_lport_get_fcid(port),
+				bfa_fcs_lport_get_nwwn(port), nsymbl);
+
+	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
+			  FC_CLASS_3, len, &fchs,
+			  bfa_fcs_lport_ns_rsnn_nn_response, (void *)ns,
+			  FC_MAX_PDUSZ, FC_FCCT_TOV);
+
+	port->stats.ns_rsnn_nn_sent++;
+
+	bfa_sm_send_event(ns, NSSM_EVENT_RSNN_NN_SENT);
+}
+
+static void
+bfa_fcs_lport_ns_rsnn_nn_response(void *fcsarg, struct bfa_fcxp_s *fcxp,
+				void *cbarg, bfa_status_t req_status,
+				u32 rsp_len, u32 resid_len,
+				struct fchs_s *rsp_fchs)
+{
+	struct bfa_fcs_lport_ns_s *ns = (struct bfa_fcs_lport_ns_s *) cbarg;
+	struct bfa_fcs_lport_s *port = ns->port;
+	struct ct_hdr_s	*cthdr = NULL;
+
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+
+	/*
+	 * Sanity Checks
+	 */
+	if (req_status != BFA_STATUS_OK) {
+		bfa_trc(port->fcs, req_status);
+		port->stats.ns_rsnn_nn_rsp_err++;
+		bfa_sm_send_event(ns, NSSM_EVENT_RSP_ERROR);
+		return;
+	}
+
+	cthdr = (struct ct_hdr_s *) BFA_FCXP_RSP_PLD(fcxp);
+	cthdr->cmd_rsp_code = be16_to_cpu(cthdr->cmd_rsp_code);
+
+	if (cthdr->cmd_rsp_code == CT_RSP_ACCEPT) {
+		port->stats.ns_rsnn_nn_accepts++;
+		bfa_sm_send_event(ns, NSSM_EVENT_RSP_OK);
+		return;
+	}
+
+	port->stats.ns_rsnn_nn_rejects++;
+	bfa_trc(port->fcs, cthdr->reason_code);
+	bfa_trc(port->fcs, cthdr->exp_code);
+	bfa_sm_send_event(ns, NSSM_EVENT_RSP_ERROR);
 }
 
 /*

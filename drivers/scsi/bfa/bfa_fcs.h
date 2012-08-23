@@ -62,6 +62,7 @@ struct bfa_fcs_s;
 #define N2N_LOCAL_PID	    0x010000
 #define N2N_REMOTE_PID		0x020000
 #define	BFA_FCS_RETRY_TIMEOUT 2000
+#define BFA_FCS_MAX_NS_RETRIES 5
 #define BFA_FCS_PID_IS_WKA(pid)  ((bfa_ntoh3b(pid) > 0xFFF000) ?  1 : 0)
 
 
@@ -72,6 +73,8 @@ struct bfa_fcs_lport_ns_s {
 	struct bfa_fcs_lport_s *port;	/*  parent port */
 	struct bfa_fcxp_s *fcxp;
 	struct bfa_fcxp_wqe_s fcxp_wqe;
+	u8	num_rnnid_retries;
+	u8	num_rsnn_nn_retries;
 };
 
 
@@ -265,6 +268,7 @@ struct bfa_fcs_fabric_s;
 #define bfa_fcs_lport_get_pwwn(_lport)	((_lport)->port_cfg.pwwn)
 #define bfa_fcs_lport_get_nwwn(_lport)	((_lport)->port_cfg.nwwn)
 #define bfa_fcs_lport_get_psym_name(_lport)	((_lport)->port_cfg.sym_name)
+#define bfa_fcs_lport_get_nsym_name(_lport) ((_lport)->port_cfg.node_sym_name)
 #define bfa_fcs_lport_is_initiator(_lport)			\
 	((_lport)->port_cfg.roles & BFA_LPORT_ROLE_FCP_IM)
 #define bfa_fcs_lport_get_nrports(_lport)	\
@@ -780,6 +784,7 @@ void bfa_fcs_fabric_modstart(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric,
 		struct fchs_s *fchs, u16 len);
 void	bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric);
+void	bfa_fcs_fabric_nsymb_init(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 	       wwn_t fabric_name);
 u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);

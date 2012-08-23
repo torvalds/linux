@@ -165,6 +165,7 @@ bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 	fcs->driver_info = *driver_info;
 
 	bfa_fcs_fabric_psymb_init(&fcs->fabric);
+	bfa_fcs_fabric_nsymb_init(&fcs->fabric);
 }
 
 /*
@@ -840,6 +841,44 @@ bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric)
 
 	/* null terminate */
 	port_cfg->sym_name.symname[BFA_SYMNAME_MAXLEN - 1] = 0;
+}
+
+/*
+ * Node Symbolic Name Creation for base port and all vports
+ */
+void
+bfa_fcs_fabric_nsymb_init(struct bfa_fcs_fabric_s *fabric)
+{
+	struct bfa_lport_cfg_s *port_cfg = &fabric->bport.port_cfg;
+	char model[BFA_ADAPTER_MODEL_NAME_LEN] = {0};
+	struct bfa_fcs_driver_info_s *driver_info = &fabric->fcs->driver_info;
+
+	bfa_ioc_get_adapter_model(&fabric->fcs->bfa->ioc, model);
+
+	/* Model name/number */
+	strncpy((char *)&port_cfg->node_sym_name, model,
+		BFA_FCS_PORT_SYMBNAME_MODEL_SZ);
+	strncat((char *)&port_cfg->node_sym_name,
+			BFA_FCS_PORT_SYMBNAME_SEPARATOR,
+			sizeof(BFA_FCS_PORT_SYMBNAME_SEPARATOR));
+
+	/* Driver Version */
+	strncat((char *)&port_cfg->node_sym_name, (char *)driver_info->version,
+		BFA_FCS_PORT_SYMBNAME_VERSION_SZ);
+	strncat((char *)&port_cfg->node_sym_name,
+			BFA_FCS_PORT_SYMBNAME_SEPARATOR,
+			sizeof(BFA_FCS_PORT_SYMBNAME_SEPARATOR));
+
+	/* Host machine name */
+	strncat((char *)&port_cfg->node_sym_name,
+		(char *)driver_info->host_machine_name,
+		BFA_FCS_PORT_SYMBNAME_MACHINENAME_SZ);
+	strncat((char *)&port_cfg->node_sym_name,
+			BFA_FCS_PORT_SYMBNAME_SEPARATOR,
+			sizeof(BFA_FCS_PORT_SYMBNAME_SEPARATOR));
+
+	/* null terminate */
+	port_cfg->node_sym_name.symname[BFA_SYMNAME_MAXLEN - 1] = 0;
 }
 
 /*
