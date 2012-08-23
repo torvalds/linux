@@ -68,13 +68,35 @@ static ssize_t rk29key_set(struct device *dev,
  	struct rk29_keys_platform_data *pdata = dev->platform_data;
 	int i,j,start,end;
 	char rk29keyArrary[400];
-	struct rk29_keys_Arrary Arrary[]={"menu","home","esc","sensor","play","vol+","vol-"}; 
+	struct rk29_keys_Arrary Arrary[]={
+                {
+                        .keyArrary = {"menu"},
+                },
+                {
+                        .keyArrary = {"home"},
+                },
+                {
+                        .keyArrary = {"esc"},
+                },
+                {
+                        .keyArrary = {"sensor"},
+                },
+                {
+                        .keyArrary = {"play"},
+                },
+                {
+                        .keyArrary = {"vol+"},
+                },
+                {
+                        .keyArrary = {"vol-"},
+                },
+        }; 
 	char *p;
 	  
 	for(i=0;i<7;i++)
 	{
 		
-		p = strstr(buf,&Arrary[i]);
+		p = strstr(buf,Arrary[i].keyArrary);
 		
 		start = strcspn(p,":");
 		
@@ -89,7 +111,7 @@ static ssize_t rk29key_set(struct device *dev,
 							 		
 		for(j=0;j<7;j++)
 		{		
-			if(strcmp(pdata->buttons[j].desc,&Arrary[i])==0)
+			if(strcmp(pdata->buttons[j].desc,Arrary[i].keyArrary)==0)
 			{
 				if(strcmp(rk29keyArrary,"MENU")==0)
 					pdata->buttons[j].code = EV_MENU;
@@ -114,7 +136,7 @@ static ssize_t rk29key_set(struct device *dev,
    	}
 
 	for(i=0;i<7;i++)
-		key_dbg("desc=%s, code=%d\n",pdata->buttons[i].desc,pdata->buttons[i].code);
+		dev_dbg(dev, "desc=%s, code=%d\n",pdata->buttons[i].desc,pdata->buttons[i].code);
 	return 0; 
 
 }
