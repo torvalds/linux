@@ -4822,7 +4822,7 @@ int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
 	    errnum >= __PEVENT_ERRNO__END)
 		return -1;
 
-	idx = errnum - __PEVENT_ERRNO__START;
+	idx = errnum - __PEVENT_ERRNO__START - 1;
 	msg = pevent_error_str[idx];
 
 	switch (errnum) {
