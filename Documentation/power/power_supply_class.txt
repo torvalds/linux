@@ -81,6 +81,9 @@ This defines trickle and fast charges.  For batteries that
 are already charged or discharging, 'n/a' can be displayed (or
 'unknown', if the status is not known).
 
+AUTHENTIC - indicates the power supply (battery or charger) connected
+to the platform is authentic(1) or non authentic(0).
+
 HEALTH - represents health of the battery, values corresponds to
 POWER_SUPPLY_HEALTH_*, defined in battery.h.
 
