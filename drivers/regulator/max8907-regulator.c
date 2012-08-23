@@ -323,7 +323,10 @@ static __devinit int max8907_regulator_probe(struct platform_device *pdev)
 
 		switch (pmic->desc[i].id) {
 		case MAX8907_MBATT:
-			mbatt_rail_name = idata->constraints.name;
+			if (idata && idata->constraints.name)
+				mbatt_rail_name = idata->constraints.name;
+			else
+				mbatt_rail_name = pmic->desc[i].name;
 			break;
 		case MAX8907_BBAT:
 		case MAX8907_SDBY:
