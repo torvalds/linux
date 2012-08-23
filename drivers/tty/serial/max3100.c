@@ -910,17 +910,7 @@ static struct spi_driver max3100_driver = {
 	.resume		= max3100_resume,
 };
 
-static int __init max3100_init(void)
-{
-	return spi_register_driver(&max3100_driver);
-}
-module_init(max3100_init);
-
-static void __exit max3100_exit(void)
-{
-	spi_unregister_driver(&max3100_driver);
-}
-module_exit(max3100_exit);
+module_spi_driver(max3100_driver);
 
 MODULE_DESCRIPTION("MAX3100 driver");
 MODULE_AUTHOR("Christian Pellegrin <chripell@evolware.org>");
