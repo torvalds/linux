@@ -148,7 +148,7 @@ struct charger_regulator {
  *	Specify where information for existance of battery can be obtained
  * @psy_charger_stat: the names of power-supply for chargers
  * @num_charger_regulator: the number of entries in charger_regulators
- * @charger_regulators: array of regulator_bulk_data for chargers
+ * @charger_regulators: array of charger regulators
  * @psy_fuel_gauge: the name of power-supply for fuel gauge
  * @temperature_out_of_range:
  *	Determine whether the status is overheat or cold or normal.
