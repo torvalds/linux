@@ -166,40 +166,12 @@ do_resize:
 		case 'K':	/* Previous line */
 		case 'k':
 		case KEY_UP:
-			if (!begin_reached) {
-				int passed_end = 0;
+			if (begin_reached)
+				break;
 
-				back_lines(page_length + 1);
-
-				/* We don't call print_page() here but use
-				 * scrolling to ensure faster screen update.
-				 * However, 'end_reached' and 'page_length'
-				 * should still be updated, and 'page' should
-				 * point to start of next page. This is done
-				 * by calling get_line() in the following
-				 * 'for' loop. */
-				scrollok(box, TRUE);
-				wscrl(box, -1);	/* Scroll box region down one line */
-				scrollok(box, FALSE);
-				page_length = 0;
-				for (i = 0; i < boxh; i++) {
-					if (!i) {
-						/* print first line of page */
-						print_line(box, 0, boxw);
-						wnoutrefresh(box);
-					} else
-						/* Called to update 'end_reached' and 'page' */
-						get_line();
-					if (!passed_end)
-						page_length++;
-					if (end_reached && !passed_end)
-						passed_end = 1;
-				}
-
-				print_position(dialog);
-				wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
-				wrefresh(dialog);
-			}
+			back_lines(page_length + 1);
+			refresh_text_box(dialog, box, boxh, boxw, cur_y,
+					 cur_x);
 			break;
 		case 'B':	/* Previous page */
 		case 'b':
@@ -214,17 +186,12 @@ do_resize:
 		case 'J':	/* Next line */
 		case 'j':
 		case KEY_DOWN:
-			if (!end_reached) {
-				begin_reached = 0;
-				scrollok(box, TRUE);
-				scroll(box);	/* Scroll box region up one line */
-				scrollok(box, FALSE);
-				print_line(box, boxh - 1, boxw);
-				wnoutrefresh(box);
-				print_position(dialog);
-				wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
-				wrefresh(dialog);
-			}
+			if (end_reached)
+				break;
+
+			back_lines(page_length - 1);
+			refresh_text_box(dialog, box, boxh, boxw, cur_y,
+					 cur_x);
 			break;
 		case KEY_NPAGE:	/* Next page */
 		case ' ':
