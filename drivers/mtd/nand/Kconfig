@@ -580,4 +580,12 @@ config MTD_NAND_FSMC
 	  Enables support for NAND Flash chips on the ST Microelectronics
 	  Flexible Static Memory Controller (FSMC)
 
+config MTD_NAND_XWAY
+	tristate "Support for NAND on Lantiq XWAY SoC"
+	depends on LANTIQ && SOC_TYPE_XWAY
+	select MTD_NAND_PLATFORM
+	help
+	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached
+	  to the External Bus Unit (EBU).
+
 endif # MTD_NAND
