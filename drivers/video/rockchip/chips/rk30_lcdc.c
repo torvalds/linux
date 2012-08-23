@@ -44,6 +44,9 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 
 static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
 {
+	int i = 0;
+	int __iomem *c;
+	int v;
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	if(lcdc_dev->id == 0) //lcdc0
 	{
@@ -82,6 +85,20 @@ static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	LcdMskReg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR | m_BUS_ERR_INT_CLEAR | m_LINE_FLAG_INT_EN |
               m_FRM_START_INT_EN | m_HOR_START_INT_EN,v_FRM_START_INT_CLEAR(1) | v_BUS_ERR_INT_CLEAR(0) |
               v_LINE_FLAG_INT_EN(0) | v_FRM_START_INT_EN(0) | v_HOR_START_INT_EN(0));  //enable frame start interrupt for sync
+        if(dev_drv->screen->dsp_lut)
+        {
+        	LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(0));
+		LCDC_REG_CFG_DONE();
+		msleep(25);
+		for(i=0;i<256;i++)
+		{
+			v = dev_drv->screen->dsp_lut[i];
+			c = lcdc_dev->dsp_lut_addr_base+i;
+			writel_relaxed(v,c);
+			
+		}
+		LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(1));
+        }
 	LCDC_REG_CFG_DONE();  // write any value to  REG_CFG_DONE let config become effective
 	return 0;
 }
@@ -908,7 +925,7 @@ static int rk30_set_dsp_lut(struct rk_lcdc_device_driver *dev_drv,int *lut)
 	msleep(25);
 	for(i=0;i<256;i++)
 	{
-		v = lut[i];
+		v = dev_drv->screen->dsp_lut[i] = lut[i];
 		c = lcdc_dev->dsp_lut_addr_base+i;
 		writel_relaxed(v,c);
 		
@@ -951,7 +968,9 @@ int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 int rk30_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 {  
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
-	
+	int i=0;
+	int __iomem *c;
+	int v;
 	if(!lcdc_dev->clk_on)
 	{
 		clk_enable(lcdc_dev->pd);
@@ -962,6 +981,20 @@ int rk30_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0xc4);  //resume reg
 
 	spin_lock(&lcdc_dev->reg_lock);
+	if(dev_drv->screen->dsp_lut)			//resume dsp lut
+	{
+		LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(0));
+		LCDC_REG_CFG_DONE();
+		mdelay(25);
+		for(i=0;i<256;i++)
+		{
+			v = dev_drv->screen->dsp_lut[i];
+			c = lcdc_dev->dsp_lut_addr_base+i;
+			writel_relaxed(v,c);
+			
+		}
+		LcdMskReg(lcdc_dev,SYS_CTRL1,m_DSP_LUT_RAM_EN,v_DSP_LUT_RAM_EN(1));
+	}
 	if(lcdc_dev->atv_layer_cnt)
 	{
 		LcdMskReg(lcdc_dev, SYS_CTRL0,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
