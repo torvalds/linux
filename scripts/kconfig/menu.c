@@ -507,10 +507,12 @@ const char *menu_get_help(struct menu *menu)
 		return "";
 }
 
-static void get_prompt_str(struct gstr *r, struct property *prop)
+static int get_prompt_str(struct gstr *r, struct property *prop, struct menu
+			  **jumps, int jump_nb)
 {
 	int i, j;
-	struct menu *submenu[8], *menu;
+	char header[4];
+	struct menu *submenu[8], *menu, *location = NULL;
 
 	str_printf(r, _("Prompt: %s\n"), _(prop->text));
 	str_printf(r, _("  Defined at %s:%d\n"), prop->menu->file->name,
@@ -521,13 +523,34 @@ static void get_prompt_str(struct gstr *r, struct property *prop)
 		str_append(r, "\n");
 	}
 	menu = prop->menu->parent;
-	for (i = 0; menu != &rootmenu && i < 8; menu = menu->parent)
+	for (i = 0; menu != &rootmenu && i < 8; menu = menu->parent) {
+		bool accessible = menu_is_visible(menu);
+
 		submenu[i++] = menu;
+		if (location == NULL && accessible)
+			location = menu;
+	}
+	if (jumps && jump_nb < JUMP_NB && location) {
+		if (menu_is_visible(prop->menu)) {
+			/*
+			 * There is not enough room to put the hint at the
+			 * beginning of the "Prompt" line. Put the hint on the
+			 * last "Location" line even when it would belong on
+			 * the former.
+			 */
+			jumps[jump_nb] = prop->menu;
+		} else
+			jumps[jump_nb] = location;
+		snprintf(header, 4, "(%d)", jump_nb + 1);
+	} else
+		location = NULL;
+
 	if (i > 0) {
 		str_printf(r, _("  Location:\n"));
-		for (j = 4; --i >= 0; j += 2) {
+		for (j = 1; --i >= 0; j += 2) {
 			menu = submenu[i];
-			str_printf(r, "%*c-> %s", j, ' ', _(menu_get_prompt(menu)));
+			str_printf(r, "%s%*c-> %s", menu == location ? header
+				   : "   ", j, ' ', _(menu_get_prompt(menu)));
 			if (menu->sym) {
 				str_printf(r, " (%s [=%s])", menu->sym->name ?
 					menu->sym->name : _("<choice>"),
@@ -536,12 +559,20 @@ static void get_prompt_str(struct gstr *r, struct property *prop)
 			str_append(r, "\n");
 		}
 	}
+
+	return location ? 1 : 0;
 }
 
-void get_symbol_str(struct gstr *r, struct symbol *sym)
+/*
+ * jumps is optional and may be NULL
+ * returns the number of jumps inserted
+ */
+int get_symbol_str(struct gstr *r, struct symbol *sym, struct menu **jumps,
+		   int jump_nb)
 {
 	bool hit;
 	struct property *prop;
+	int i = 0;
 
 	if (sym && sym->name) {
 		str_printf(r, "Symbol: %s [=%s]\n", sym->name,
@@ -557,7 +588,7 @@ void get_symbol_str(struct gstr *r, struct symbol *sym)
 		}
 	}
 	for_all_prompts(sym, prop)
-		get_prompt_str(r, prop);
+		i += get_prompt_str(r, prop, jumps, jump_nb + i);
 	hit = false;
 	for_all_properties(sym, prop, P_SELECT) {
 		if (!hit) {
@@ -575,16 +606,18 @@ void get_symbol_str(struct gstr *r, struct symbol *sym)
 		str_append(r, "\n");
 	}
 	str_append(r, "\n\n");
+
+	return i;
 }
 
-struct gstr get_relations_str(struct symbol **sym_arr)
+struct gstr get_relations_str(struct symbol **sym_arr, struct menu **jumps)
 {
 	struct symbol *sym;
 	struct gstr res = str_new();
-	int i;
+	int i, jump_nb = 0;
 
 	for (i = 0; sym_arr && (sym = sym_arr[i]); i++)
-		get_symbol_str(&res, sym);
+		jump_nb += get_symbol_str(&res, sym, jumps, jump_nb);
 	if (!i)
 		str_append(&res, _("No matches found.\n"));
 	return res;
@@ -603,5 +636,5 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 	}
 	str_printf(help, "%s\n", _(help_text));
 	if (sym)
-		get_symbol_str(help, sym);
+		get_symbol_str(help, sym, NULL, 0);
 }

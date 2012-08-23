@@ -173,6 +173,8 @@ struct menu {
 #define MENU_CHANGED		0x0001
 #define MENU_ROOT		0x0002
 
+#define JUMP_NB			9
+
 extern struct file *file_list;
 extern struct file *current_file;
 struct file *lookup_file(const char *name);
