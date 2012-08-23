@@ -144,25 +144,26 @@ xen_swiotlb_fixup(void *buf, size_t size, unsigned long nslabs)
 	} while (i < nslabs);
 	return 0;
 }
+static unsigned long xen_set_nslabs(unsigned long nr_tbl)
+{
+	if (!nr_tbl) {
+		xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
+		xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
+	} else
+		xen_io_tlb_nslabs = nr_tbl;
 
+	return xen_io_tlb_nslabs << IO_TLB_SHIFT;
+}
 void __init xen_swiotlb_init(int verbose)
 {
 	unsigned long bytes;
 	int rc = -ENOMEM;
-	unsigned long nr_tbl;
 	char *m = NULL;
 	unsigned int repeat = 3;
 
-	nr_tbl = swiotlb_nr_tbl();
-	if (nr_tbl)
-		xen_io_tlb_nslabs = nr_tbl;
-	else {
-		xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
-		xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
-	}
+	xen_io_tlb_nslabs = swiotlb_nr_tbl();
 retry:
-	bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
-
+	bytes = xen_set_nslabs(xen_io_tlb_nslabs);
 	/*
 	 * Get IO TLB memory from any location.
 	 */
