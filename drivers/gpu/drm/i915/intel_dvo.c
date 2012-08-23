@@ -37,6 +37,7 @@
 #define SIL164_ADDR	0x38
 #define CH7xxx_ADDR	0x76
 #define TFP410_ADDR	0x38
+#define NS2501_ADDR     0x38
 
 static const struct intel_dvo_device intel_dvo_devices[] = {
 	{
@@ -74,7 +75,14 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.slave_addr = 0x75,
 		.gpio = GMBUS_PORT_DPB,
 		.dev_ops = &ch7017_ops,
-	}
+	},
+	{
+	        .type = INTEL_DVO_CHIP_TMDS,
+		.name = "ns2501",
+		.dvo_reg = DVOC,
+		.slave_addr = NS2501_ADDR,
+		.dev_ops = &ns2501_ops,
+       }
 };
 
 struct intel_dvo {
@@ -396,17 +404,14 @@ void intel_dvo_init(struct drm_device *dev)
 		intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 		switch (dvo->type) {
 		case INTEL_DVO_CHIP_TMDS:
-			intel_encoder->clone_mask =
-				(1 << INTEL_DVO_TMDS_CLONE_BIT) |
-				(1 << INTEL_ANALOG_CLONE_BIT);
+			intel_encoder->cloneable = true;
 			drm_connector_init(dev, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
 			encoder_type = DRM_MODE_ENCODER_TMDS;
 			break;
 		case INTEL_DVO_CHIP_LVDS:
-			intel_encoder->clone_mask =
-				(1 << INTEL_DVO_LVDS_CLONE_BIT);
+			intel_encoder->cloneable = false;
 			drm_connector_init(dev, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_LVDS);

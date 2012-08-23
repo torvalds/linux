@@ -296,11 +296,21 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	drm_helper_hpd_irq_event(dev);
 }
 
-static void i915_handle_rps_change(struct drm_device *dev)
+/* defined intel_pm.c */
+extern spinlock_t mchdev_lock;
+
+static void ironlake_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 busy_up, busy_down, max_avg, min_avg;
-	u8 new_delay = dev_priv->cur_delay;
+	u8 new_delay;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mchdev_lock, flags);
+
+	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
+
+	new_delay = dev_priv->cur_delay;
 
 	I915_WRITE16(MEMINTRSTS, MEMINT_EVAL_CHG);
 	busy_up = I915_READ(RCPREVBSYTUPAVG);
@@ -324,6 +334,8 @@ static void i915_handle_rps_change(struct drm_device *dev)
 	if (ironlake_set_drps(dev, new_delay))
 		dev_priv->cur_delay = new_delay;
 
+	spin_unlock_irqrestore(&mchdev_lock, flags);
+
 	return;
 }
 
@@ -335,7 +347,7 @@ static void notify_ring(struct drm_device *dev,
 	if (ring->obj == NULL)
 		return;
 
-	trace_i915_gem_request_complete(ring, ring->get_seqno(ring));
+	trace_i915_gem_request_complete(ring, ring->get_seqno(ring, false));
 
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
@@ -349,16 +361,16 @@ static void notify_ring(struct drm_device *dev,
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    rps_work);
+						    rps.work);
 	u32 pm_iir, pm_imr;
 	u8 new_delay;
 
-	spin_lock_irq(&dev_priv->rps_lock);
-	pm_iir = dev_priv->pm_iir;
-	dev_priv->pm_iir = 0;
+	spin_lock_irq(&dev_priv->rps.lock);
+	pm_iir = dev_priv->rps.pm_iir;
+	dev_priv->rps.pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
 	I915_WRITE(GEN6_PMIMR, 0);
-	spin_unlock_irq(&dev_priv->rps_lock);
+	spin_unlock_irq(&dev_priv->rps.lock);
 
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
@@ -366,9 +378,9 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_lock(&dev_priv->dev->struct_mutex);
 
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
-		new_delay = dev_priv->cur_delay + 1;
+		new_delay = dev_priv->rps.cur_delay + 1;
 	else
-		new_delay = dev_priv->cur_delay - 1;
+		new_delay = dev_priv->rps.cur_delay - 1;
 
 	gen6_set_rps(dev_priv->dev, new_delay);
 
@@ -444,7 +456,7 @@ static void ivybridge_handle_parity_error(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long flags;
 
-	if (!IS_IVYBRIDGE(dev))
+	if (!HAS_L3_GPU_CACHE(dev))
 		return;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
@@ -488,19 +500,19 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	 * IIR bits should never already be set because IMR should
 	 * prevent an interrupt from being shown in IIR. The warning
 	 * displays a case where we've unsafely cleared
-	 * dev_priv->pm_iir. Although missing an interrupt of the same
+	 * dev_priv->rps.pm_iir. Although missing an interrupt of the same
 	 * type is not a problem, it displays a problem in the logic.
 	 *
-	 * The mask bit in IMR is cleared by rps_work.
+	 * The mask bit in IMR is cleared by dev_priv->rps.work.
 	 */
 
-	spin_lock_irqsave(&dev_priv->rps_lock, flags);
-	dev_priv->pm_iir |= pm_iir;
-	I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+	spin_lock_irqsave(&dev_priv->rps.lock, flags);
+	dev_priv->rps.pm_iir |= pm_iir;
+	I915_WRITE(GEN6_PMIMR, dev_priv->rps.pm_iir);
 	POSTING_READ(GEN6_PMIMR);
-	spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+	spin_unlock_irqrestore(&dev_priv->rps.lock, flags);
 
-	queue_work(dev_priv->wq, &dev_priv->rps_work);
+	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
 static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
@@ -793,10 +805,8 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 			ibx_irq_handler(dev, pch_iir);
 	}
 
-	if (de_iir & DE_PCU_EVENT) {
-		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
-		i915_handle_rps_change(dev);
-	}
+	if (IS_GEN5(dev) &&  de_iir & DE_PCU_EVENT)
+		ironlake_handle_rps_change(dev);
 
 	if (IS_GEN6(dev) && pm_iir & GEN6_PM_DEFERRED_EVENTS)
 		gen6_queue_rps_work(dev_priv, pm_iir);
@@ -949,7 +959,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 {
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-	err->seqno = obj->last_rendering_seqno;
+	err->rseqno = obj->last_read_seqno;
+	err->wseqno = obj->last_write_seqno;
 	err->gtt_offset = obj->gtt_offset;
 	err->read_domains = obj->base.read_domains;
 	err->write_domain = obj->base.write_domain;
@@ -1039,12 +1050,12 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	if (!ring->get_seqno)
 		return NULL;
 
-	seqno = ring->get_seqno(ring);
+	seqno = ring->get_seqno(ring, false);
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		if (obj->ring != ring)
 			continue;
 
-		if (i915_seqno_passed(seqno, obj->last_rendering_seqno))
+		if (i915_seqno_passed(seqno, obj->last_read_seqno))
 			continue;
 
 		if ((obj->base.read_domains & I915_GEM_DOMAIN_COMMAND) == 0)
@@ -1093,7 +1104,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 
 	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
 	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
-	error->seqno[ring->id] = ring->get_seqno(ring);
+	error->seqno[ring->id] = ring->get_seqno(ring, false);
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
 	error->head[ring->id] = I915_READ_HEAD(ring);
 	error->tail[ring->id] = I915_READ_TAIL(ring);
@@ -1590,7 +1601,8 @@ ring_last_seqno(struct intel_ring_buffer *ring)
 static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 {
 	if (list_empty(&ring->request_list) ||
-	    i915_seqno_passed(ring->get_seqno(ring), ring_last_seqno(ring))) {
+	    i915_seqno_passed(ring->get_seqno(ring, false),
+			      ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
 		if (waitqueue_active(&ring->irq_queue)) {
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
@@ -2647,7 +2659,7 @@ void intel_irq_init(struct drm_device *dev)
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
-	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
+	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;

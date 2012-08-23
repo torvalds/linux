@@ -44,7 +44,6 @@
 
 enum {
 	ACTIVE_LIST,
-	FLUSHING_LIST,
 	INACTIVE_LIST,
 	PINNED_LIST,
 };
@@ -62,28 +61,11 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	seq_printf(m, "gen: %d\n", info->gen);
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(dev));
-#define B(x) seq_printf(m, #x ": %s\n", yesno(info->x))
-	B(is_mobile);
-	B(is_i85x);
-	B(is_i915g);
-	B(is_i945gm);
-	B(is_g33);
-	B(need_gfx_hws);
-	B(is_g4x);
-	B(is_pineview);
-	B(is_broadwater);
-	B(is_crestline);
-	B(has_fbc);
-	B(has_pipe_cxsr);
-	B(has_hotplug);
-	B(cursor_needs_physical);
-	B(has_overlay);
-	B(overlay_needs_physical);
-	B(supports_tv);
-	B(has_bsd_ring);
-	B(has_blt_ring);
-	B(has_llc);
-#undef B
+#define DEV_INFO_FLAG(x) seq_printf(m, #x ": %s\n", yesno(info->x))
+#define DEV_INFO_SEP ;
+	DEV_INFO_FLAGS;
+#undef DEV_INFO_FLAG
+#undef DEV_INFO_SEP
 
 	return 0;
 }
@@ -121,14 +103,15 @@ static const char *cache_level_str(int type)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%p: %s%s %8zdKiB %04x %04x %d %d%s%s%s",
+	seq_printf(m, "%p: %s%s %8zdKiB %04x %04x %d %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain,
-		   obj->last_rendering_seqno,
+		   obj->last_read_seqno,
+		   obj->last_write_seqno,
 		   obj->last_fenced_seqno,
 		   cache_level_str(obj->cache_level),
 		   obj->dirty ? " dirty" : "",
@@ -176,10 +159,6 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case INACTIVE_LIST:
 		seq_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
-		break;
-	case FLUSHING_LIST:
-		seq_printf(m, "Flushing:\n");
-		head = &dev_priv->mm.flushing_list;
 		break;
 	default:
 		mutex_unlock(&dev->struct_mutex);
@@ -238,7 +217,6 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	size = count = mappable_size = mappable_count = 0;
 	count_objects(&dev_priv->mm.active_list, mm_list);
-	count_objects(&dev_priv->mm.flushing_list, mm_list);
 	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
 
@@ -413,7 +391,7 @@ static void i915_ring_seqno_info(struct seq_file *m,
 {
 	if (ring->get_seqno) {
 		seq_printf(m, "Current sequence (%s): %d\n",
-			   ring->name, ring->get_seqno(ring));
+			   ring->name, ring->get_seqno(ring, false));
 	}
 }
 
@@ -630,12 +608,12 @@ static void print_error_buffers(struct seq_file *m,
 	seq_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
-		seq_printf(m, "  %08x %8u %04x %04x %08x%s%s%s%s%s%s%s",
+		seq_printf(m, "  %08x %8u %04x %04x %x %x%s%s%s%s%s%s%s",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
 			   err->write_domain,
-			   err->seqno,
+			   err->rseqno, err->wseqno,
 			   pin_flag(err->pinned),
 			   tiling_flag(err->tiling),
 			   dirty_flag(err->dirty),
@@ -799,10 +777,14 @@ i915_error_state_write(struct file *filp,
 	struct seq_file *m = filp->private_data;
 	struct i915_error_state_file_priv *error_priv = m->private;
 	struct drm_device *dev = error_priv->dev;
+	int ret;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	i915_destroy_error_state(dev);
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1292,7 +1274,8 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 
 	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
 
-	for (gpu_freq = dev_priv->min_delay; gpu_freq <= dev_priv->max_delay;
+	for (gpu_freq = dev_priv->rps.min_delay;
+	     gpu_freq <= dev_priv->rps.max_delay;
 	     gpu_freq++) {
 		I915_WRITE(GEN6_PCODE_DATA, gpu_freq);
 		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
@@ -1472,8 +1455,12 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
 		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
@@ -1674,7 +1661,7 @@ i915_ring_stop_write(struct file *filp,
 	struct drm_device *dev = filp->private_data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	char buf[20];
-	int val = 0;
+	int val = 0, ret;
 
 	if (cnt > 0) {
 		if (cnt > sizeof(buf) - 1)
@@ -1689,7 +1676,10 @@ i915_ring_stop_write(struct file *filp,
 
 	DRM_DEBUG_DRIVER("Stopping rings 0x%08x\n", val);
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	dev_priv->stop_rings = val;
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1713,10 +1703,18 @@ i915_max_freq_read(struct file *filp,
 	struct drm_device *dev = filp->private_data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	char buf[80];
-	int len;
+	int len, ret;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	len = snprintf(buf, sizeof(buf),
-		       "max freq: %d\n", dev_priv->max_delay * 50);
+		       "max freq: %d\n", dev_priv->rps.max_delay * 50);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1733,7 +1731,10 @@ i915_max_freq_write(struct file *filp,
 	struct drm_device *dev = filp->private_data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	char buf[20];
-	int val = 1;
+	int val = 1, ret;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
 
 	if (cnt > 0) {
 		if (cnt > sizeof(buf) - 1)
@@ -1748,12 +1749,17 @@ i915_max_freq_write(struct file *filp,
 
 	DRM_DEBUG_DRIVER("Manually setting max freq to %d\n", val);
 
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	/*
 	 * Turbo will still be enabled, but won't go above the set value.
 	 */
-	dev_priv->max_delay = val / 50;
+	dev_priv->rps.max_delay = val / 50;
 
 	gen6_set_rps(dev, val / 50);
+	mutex_unlock(&dev->struct_mutex);
 
 	return cnt;
 }
@@ -1773,10 +1779,18 @@ i915_min_freq_read(struct file *filp, char __user *ubuf, size_t max,
 	struct drm_device *dev = filp->private_data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	char buf[80];
-	int len;
+	int len, ret;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	len = snprintf(buf, sizeof(buf),
-		       "min freq: %d\n", dev_priv->min_delay * 50);
+		       "min freq: %d\n", dev_priv->rps.min_delay * 50);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1791,7 +1805,10 @@ i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	struct drm_device *dev = filp->private_data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	char buf[20];
-	int val = 1;
+	int val = 1, ret;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
 
 	if (cnt > 0) {
 		if (cnt > sizeof(buf) - 1)
@@ -1806,12 +1823,17 @@ i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	DRM_DEBUG_DRIVER("Manually setting min freq to %d\n", val);
 
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	/*
 	 * Turbo will still be enabled, but won't go below the set value.
 	 */
-	dev_priv->min_delay = val / 50;
+	dev_priv->rps.min_delay = val / 50;
 
 	gen6_set_rps(dev, val / 50);
+	mutex_unlock(&dev->struct_mutex);
 
 	return cnt;
 }
@@ -1834,9 +1856,15 @@ i915_cache_sharing_read(struct file *filp,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	char buf[80];
 	u32 snpcr;
-	int len;
+	int len, ret;
 
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
 	snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 
@@ -1861,6 +1889,9 @@ i915_cache_sharing_write(struct file *filp,
 	char buf[20];
 	u32 snpcr;
 	int val = 1;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
 
 	if (cnt > 0) {
 		if (cnt > sizeof(buf) - 1)
@@ -1925,16 +1956,11 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
 
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 	gen6_gt_force_wake_get(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -1947,16 +1973,7 @@ static int i915_forcewake_release(struct inode *inode, struct file *file)
 	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
-	/*
-	 * It's bad that we can potentially hang userspace if struct_mutex gets
-	 * forever stuck.  However, if we cannot acquire this lock it means that
-	 * almost certainly the driver has hung, is not unload-able. Therefore
-	 * hanging here is probably a minor inconvenience not to be seen my
-	 * almost every user.
-	 */
-	mutex_lock(&dev->struct_mutex);
 	gen6_gt_force_wake_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -2006,7 +2023,6 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
-	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
@@ -2067,6 +2083,7 @@ int i915_debugfs_init(struct drm_minor *minor)
 				  &i915_cache_sharing_fops);
 	if (ret)
 		return ret;
+
 	ret = i915_debugfs_create(minor->debugfs_root, minor,
 				  "i915_ring_stop",
 				  &i915_ring_stop_fops);

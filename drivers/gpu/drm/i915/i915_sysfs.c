@@ -213,7 +213,7 @@ void i915_setup_sysfs(struct drm_device *dev)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
 
-	if (IS_IVYBRIDGE(dev)) {
+	if (HAS_L3_GPU_CACHE(dev)) {
 		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
 		if (ret)
 			DRM_ERROR("l3 parity sysfs setup failed\n");

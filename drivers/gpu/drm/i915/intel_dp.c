@@ -36,41 +36,9 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
-#include "drm_dp_helper.h"
 
-#define DP_RECEIVER_CAP_SIZE	0xf
 #define DP_LINK_STATUS_SIZE	6
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
-
-#define DP_LINK_CONFIGURATION_SIZE	9
-
-struct intel_dp {
-	struct intel_encoder base;
-	uint32_t output_reg;
-	uint32_t DP;
-	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
-	bool has_audio;
-	enum hdmi_force_audio force_audio;
-	uint32_t color_range;
-	int dpms_mode;
-	uint8_t link_bw;
-	uint8_t lane_count;
-	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
-	struct i2c_adapter adapter;
-	struct i2c_algo_dp_aux_data algo;
-	bool is_pch_edp;
-	uint8_t	train_set[4];
-	int panel_power_up_delay;
-	int panel_power_down_delay;
-	int panel_power_cycle_delay;
-	int backlight_on_delay;
-	int backlight_off_delay;
-	struct drm_display_mode *panel_fixed_mode;  /* for eDP */
-	struct delayed_work panel_vdd_work;
-	bool want_panel_vdd;
-	struct edid *edid; /* cached EDID for eDP */
-	int edid_mode_count;
-};
 
 /**
  * is_edp - is the given port attached to an eDP panel (either CPU or PCH)
@@ -1668,6 +1636,45 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
+	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
+		dp_reg_value &= ~DP_LINK_TRAIN_MASK_CPT;
+
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			dp_reg_value |= DP_LINK_TRAIN_OFF_CPT;
+			break;
+		case DP_TRAINING_PATTERN_1:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_1_CPT;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2_CPT;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			DRM_ERROR("DP training pattern 3 not supported\n");
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2_CPT;
+			break;
+		}
+
+	} else {
+		dp_reg_value &= ~DP_LINK_TRAIN_MASK;
+
+		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
+		case DP_TRAINING_PATTERN_DISABLE:
+			dp_reg_value |= DP_LINK_TRAIN_OFF;
+			break;
+		case DP_TRAINING_PATTERN_1:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_1;
+			break;
+		case DP_TRAINING_PATTERN_2:
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2;
+			break;
+		case DP_TRAINING_PATTERN_3:
+			DRM_ERROR("DP training pattern 3 not supported\n");
+			dp_reg_value |= DP_LINK_TRAIN_PAT_2;
+			break;
+		}
+	}
+
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
 	POSTING_READ(intel_dp->output_reg);
 
@@ -1675,12 +1682,15 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 				    DP_TRAINING_PATTERN_SET,
 				    dp_train_pat);
 
-	ret = intel_dp_aux_native_write(intel_dp,
-					DP_TRAINING_LANE0_SET,
-					intel_dp->train_set,
-					intel_dp->lane_count);
-	if (ret != intel_dp->lane_count)
-		return false;
+	if ((dp_train_pat & DP_TRAINING_PATTERN_MASK) !=
+	    DP_TRAINING_PATTERN_DISABLE) {
+		ret = intel_dp_aux_native_write(intel_dp,
+						DP_TRAINING_LANE0_SET,
+						intel_dp->train_set,
+						intel_dp->lane_count);
+		if (ret != intel_dp->lane_count)
+			return false;
+	}
 
 	return true;
 }
@@ -1696,7 +1706,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	uint8_t voltage;
 	bool clock_recovery = false;
 	int voltage_tries, loop_tries;
-	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
 	/*
@@ -1717,10 +1726,6 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 
 	DP |= DP_PORT_EN;
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-		DP &= ~DP_LINK_TRAIN_MASK_CPT;
-	else
-		DP &= ~DP_LINK_TRAIN_MASK;
 	memset(intel_dp->train_set, 0, 4);
 	voltage = 0xff;
 	voltage_tries = 0;
@@ -1744,12 +1749,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
-		if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-			reg = DP | DP_LINK_TRAIN_PAT_1_CPT;
-		else
-			reg = DP | DP_LINK_TRAIN_PAT_1;
-
-		if (!intel_dp_set_link_train(intel_dp, reg,
+		if (!intel_dp_set_link_train(intel_dp, DP,
 					     DP_TRAINING_PATTERN_1 |
 					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
@@ -1804,10 +1804,8 @@ static void
 intel_dp_complete_link_train(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool channel_eq = false;
 	int tries, cr_tries;
-	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
 	/* channel equalization */
@@ -1836,13 +1834,8 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
-		if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-			reg = DP | DP_LINK_TRAIN_PAT_2_CPT;
-		else
-			reg = DP | DP_LINK_TRAIN_PAT_2;
-
 		/* channel eq pattern */
-		if (!intel_dp_set_link_train(intel_dp, reg,
+		if (!intel_dp_set_link_train(intel_dp, DP,
 					     DP_TRAINING_PATTERN_2 |
 					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
@@ -1877,15 +1870,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		++tries;
 	}
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp)))
-		reg = DP | DP_LINK_TRAIN_OFF_CPT;
-	else
-		reg = DP | DP_LINK_TRAIN_OFF;
-
-	I915_WRITE(intel_dp->output_reg, reg);
-	POSTING_READ(intel_dp->output_reg);
-	intel_dp_aux_native_write_1(intel_dp,
-				    DP_TRAINING_PATTERN_SET, DP_TRAINING_PATTERN_DISABLE);
+	intel_dp_set_link_train(intel_dp, DP, DP_TRAINING_PATTERN_DISABLE);
 }
 
 static void
@@ -2441,7 +2426,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 }
 
 void
-intel_dp_init(struct drm_device *dev, int output_reg)
+intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
@@ -2456,6 +2441,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		return;
 
 	intel_dp->output_reg = output_reg;
+	intel_dp->port = port;
 	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
@@ -2483,18 +2469,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	if (output_reg == DP_B || output_reg == PCH_DP_B)
-		intel_encoder->clone_mask = (1 << INTEL_DP_B_CLONE_BIT);
-	else if (output_reg == DP_C || output_reg == PCH_DP_C)
-		intel_encoder->clone_mask = (1 << INTEL_DP_C_CLONE_BIT);
-	else if (output_reg == DP_D || output_reg == PCH_DP_D)
-		intel_encoder->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
+	intel_encoder->cloneable = false;
 
-	if (is_edp(intel_dp)) {
-		intel_encoder->clone_mask = (1 << INTEL_EDP_CLONE_BIT);
-		INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
-				  ironlake_panel_vdd_work);
-	}
+	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
+			  ironlake_panel_vdd_work);
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
@@ -2509,28 +2487,25 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	drm_sysfs_connector_add(connector);
 
 	/* Set up the DDC bus. */
-	switch (output_reg) {
-		case DP_A:
-			name = "DPDDC-A";
-			break;
-		case DP_B:
-		case PCH_DP_B:
-			dev_priv->hotplug_supported_mask |=
-				DPB_HOTPLUG_INT_STATUS;
-			name = "DPDDC-B";
-			break;
-		case DP_C:
-		case PCH_DP_C:
-			dev_priv->hotplug_supported_mask |=
-				DPC_HOTPLUG_INT_STATUS;
-			name = "DPDDC-C";
-			break;
-		case DP_D:
-		case PCH_DP_D:
-			dev_priv->hotplug_supported_mask |=
-				DPD_HOTPLUG_INT_STATUS;
-			name = "DPDDC-D";
-			break;
+	switch (port) {
+	case PORT_A:
+		name = "DPDDC-A";
+		break;
+	case PORT_B:
+		dev_priv->hotplug_supported_mask |= DPB_HOTPLUG_INT_STATUS;
+		name = "DPDDC-B";
+		break;
+	case PORT_C:
+		dev_priv->hotplug_supported_mask |= DPC_HOTPLUG_INT_STATUS;
+		name = "DPDDC-C";
+		break;
+	case PORT_D:
+		dev_priv->hotplug_supported_mask |= DPD_HOTPLUG_INT_STATUS;
+		name = "DPDDC-D";
+		break;
+	default:
+		WARN(1, "Invalid port %c\n", port_name(port));
+		break;
 	}
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);

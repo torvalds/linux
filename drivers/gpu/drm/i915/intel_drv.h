@@ -31,6 +31,7 @@
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
+#include "drm_dp_helper.h"
 
 #define _wait_for(COND, MS, W) ({ \
 	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
@@ -90,25 +91,6 @@
 #define INTEL_OUTPUT_DISPLAYPORT 7
 #define INTEL_OUTPUT_EDP 8
 
-/* Intel Pipe Clone Bit */
-#define INTEL_HDMIB_CLONE_BIT 1
-#define INTEL_HDMIC_CLONE_BIT 2
-#define INTEL_HDMID_CLONE_BIT 3
-#define INTEL_HDMIE_CLONE_BIT 4
-#define INTEL_HDMIF_CLONE_BIT 5
-#define INTEL_SDVO_NON_TV_CLONE_BIT 6
-#define INTEL_SDVO_TV_CLONE_BIT 7
-#define INTEL_SDVO_LVDS_CLONE_BIT 8
-#define INTEL_ANALOG_CLONE_BIT 9
-#define INTEL_TV_CLONE_BIT 10
-#define INTEL_DP_B_CLONE_BIT 11
-#define INTEL_DP_C_CLONE_BIT 12
-#define INTEL_DP_D_CLONE_BIT 13
-#define INTEL_LVDS_CLONE_BIT 14
-#define INTEL_DVO_TMDS_CLONE_BIT 15
-#define INTEL_DVO_LVDS_CLONE_BIT 16
-#define INTEL_EDP_CLONE_BIT 17
-
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
 #define INTEL_DVO_CHIP_TMDS 2
@@ -153,9 +135,13 @@ struct intel_encoder {
 	struct drm_encoder base;
 	int type;
 	bool needs_tv_clock;
+	/*
+	 * Intel hw has only one MUX where encoders could be clone, hence a
+	 * simple flag is enough to compute the possible_clones mask.
+	 */
+	bool cloneable;
 	void (*hot_plug)(struct intel_encoder *);
 	int crtc_mask;
-	int clone_mask;
 };
 
 struct intel_connector {
@@ -171,8 +157,6 @@ struct intel_crtc {
 	int dpms_mode;
 	bool active; /* is the crtc on? independent of the dpms mode */
 	bool primary_disabled; /* is the crtc obscured by a plane? */
-	bool busy; /* is scanout buffer being updated frequently? */
-	struct timer_list idle_timer;
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
 	struct intel_unpin_work *unpin_work;
@@ -311,6 +295,38 @@ struct intel_hdmi {
 			       struct drm_display_mode *adjusted_mode);
 };
 
+#define DP_RECEIVER_CAP_SIZE		0xf
+#define DP_LINK_CONFIGURATION_SIZE	9
+
+struct intel_dp {
+	struct intel_encoder base;
+	uint32_t output_reg;
+	uint32_t DP;
+	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
+	bool has_audio;
+	enum hdmi_force_audio force_audio;
+	enum port port;
+	uint32_t color_range;
+	int dpms_mode;
+	uint8_t link_bw;
+	uint8_t lane_count;
+	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
+	struct i2c_adapter adapter;
+	struct i2c_algo_dp_aux_data algo;
+	bool is_pch_edp;
+	uint8_t train_set[4];
+	int panel_power_up_delay;
+	int panel_power_down_delay;
+	int panel_power_cycle_delay;
+	int backlight_on_delay;
+	int backlight_off_delay;
+	struct drm_display_mode *panel_fixed_mode;  /* for eDP */
+	struct delayed_work panel_vdd_work;
+	bool want_panel_vdd;
+	struct edid *edid; /* cached EDID for eDP */
+	int edid_mode_count;
+};
+
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
@@ -348,17 +364,21 @@ extern void intel_attach_force_audio_property(struct drm_connector *connector);
 extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 
 extern void intel_crt_init(struct drm_device *dev);
-extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
+extern void intel_hdmi_init(struct drm_device *dev,
+			    int sdvox_reg, enum port port);
 extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 			    bool is_sdvob);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
-extern void intel_mark_busy(struct drm_device *dev,
-			    struct drm_i915_gem_object *obj);
+extern void intel_mark_busy(struct drm_device *dev);
+extern void intel_mark_idle(struct drm_device *dev);
+extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj);
+extern void intel_mark_fb_idle(struct drm_i915_gem_object *obj);
 extern bool intel_lvds_init(struct drm_device *dev);
-extern void intel_dp_init(struct drm_device *dev, int dp_reg);
+extern void intel_dp_init(struct drm_device *dev, int output_reg,
+			  enum port port);
 void
 intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode);
@@ -370,8 +390,6 @@ extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
 extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
-
-void intel_sanitize_pm(struct drm_device *dev);
 
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,

@@ -72,7 +72,14 @@ struct  intel_ring_buffer {
 				  u32	flush_domains);
 	int		(*add_request)(struct intel_ring_buffer *ring,
 				       u32 *seqno);
-	u32		(*get_seqno)(struct intel_ring_buffer *ring);
+	/* Some chipsets are not quite as coherent as advertised and need
+	 * an expensive kick to force a true read of the up-to-date seqno.
+	 * However, the up-to-date seqno is not always required and the last
+	 * seen value is good enough. Note that the seqno will always be
+	 * monotonic, even if not coherent.
+	 */
+	u32		(*get_seqno)(struct intel_ring_buffer *ring,
+				     bool lazy_coherency);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
 					       u32 offset, u32 length);
 	void		(*cleanup)(struct intel_ring_buffer *ring);
@@ -99,15 +106,6 @@ struct  intel_ring_buffer {
 	 * outstanding.
 	 */
 	struct list_head request_list;
-
-	/**
-	 * List of objects currently pending a GPU write flush.
-	 *
-	 * All elements on this list will belong to either the
-	 * active_list or flushing_list, last_rendering_seqno can
-	 * be used to differentiate between the two elements.
-	 */
-	struct list_head gpu_write_list;
 
 	/**
 	 * Do we have some not yet emitted requests outstanding?
@@ -204,6 +202,8 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 void intel_ring_advance(struct intel_ring_buffer *ring);
 
 u32 intel_ring_get_seqno(struct intel_ring_buffer *ring);
+int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
+int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);

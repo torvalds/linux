@@ -1060,7 +1060,7 @@ static bool IS_DISPLAYREG(u32 reg)
 	 * This should make it easier to transition modules over to the
 	 * new register block scheme, since we can do it incrementally.
 	 */
-	if (reg >= 0x180000)
+	if (reg >= VLV_DISPLAY_BASE)
 		return false;
 
 	if (reg >= RENDER_RING_BASE &&
@@ -1180,3 +1180,49 @@ __i915_write(16, w)
 __i915_write(32, l)
 __i915_write(64, q)
 #undef __i915_write
+
+static const struct register_whitelist {
+	uint64_t offset;
+	uint32_t size;
+	uint32_t gen_bitmask; /* support gens, 0x10 for 4, 0x30 for 4 and 5, etc. */
+} whitelist[] = {
+	{ RING_TIMESTAMP(RENDER_RING_BASE), 8, 0xF0 },
+};
+
+int i915_reg_read_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_reg_read *reg = data;
+	struct register_whitelist const *entry = whitelist;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(whitelist); i++, entry++) {
+		if (entry->offset == reg->offset &&
+		    (1 << INTEL_INFO(dev)->gen & entry->gen_bitmask))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(whitelist))
+		return -EINVAL;
+
+	switch (entry->size) {
+	case 8:
+		reg->val = I915_READ64(reg->offset);
+		break;
+	case 4:
+		reg->val = I915_READ(reg->offset);
+		break;
+	case 2:
+		reg->val = I915_READ16(reg->offset);
+		break;
+	case 1:
+		reg->val = I915_READ8(reg->offset);
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return 0;
+}

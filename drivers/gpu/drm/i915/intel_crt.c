@@ -47,12 +47,18 @@
 struct intel_crt {
 	struct intel_encoder base;
 	bool force_hotplug_required;
+	u32 adpa_reg;
 };
 
 static struct intel_crt *intel_attached_crt(struct drm_connector *connector)
 {
 	return container_of(intel_attached_encoder(connector),
 			    struct intel_crt, base);
+}
+
+static struct intel_crt *intel_encoder_to_crt(struct intel_encoder *encoder)
+{
+	return container_of(encoder, struct intel_crt, base);
 }
 
 static void pch_crt_dpms(struct drm_encoder *encoder, int mode)
@@ -145,18 +151,14 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crt *crt =
+		intel_encoder_to_crt(to_intel_encoder(encoder));
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int dpll_md_reg;
 	u32 adpa, dpll_md;
-	u32 adpa_reg;
 
 	dpll_md_reg = DPLL_MD(intel_crtc->pipe);
-
-	if (HAS_PCH_SPLIT(dev))
-		adpa_reg = PCH_ADPA;
-	else
-		adpa_reg = ADPA;
 
 	/*
 	 * Disable separate mode multiplier used when cloning SDVO to CRT
@@ -185,7 +187,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	if (!HAS_PCH_SPLIT(dev))
 		I915_WRITE(BCLRPAT(intel_crtc->pipe), 0);
 
-	I915_WRITE(adpa_reg, adpa);
+	I915_WRITE(crt->adpa_reg, adpa);
 }
 
 static bool intel_ironlake_crt_detect_hotplug(struct drm_connector *connector)
@@ -658,9 +660,7 @@ void intel_crt_init(struct drm_device *dev)
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
-	crt->base.clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT |
-				1 << INTEL_ANALOG_CLONE_BIT |
-				1 << INTEL_SDVO_LVDS_CLONE_BIT);
+	crt->base.cloneable = true;
 	if (IS_HASWELL(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
@@ -676,6 +676,13 @@ void intel_crt_init(struct drm_device *dev)
 		encoder_helper_funcs = &pch_encoder_funcs;
 	else
 		encoder_helper_funcs = &gmch_encoder_funcs;
+
+	if (HAS_PCH_SPLIT(dev))
+		crt->adpa_reg = PCH_ADPA;
+	else if (IS_VALLEYVIEW(dev))
+		crt->adpa_reg = VLV_ADPA;
+	else
+		crt->adpa_reg = ADPA;
 
 	drm_encoder_helper_add(&crt->base.base, encoder_helper_funcs);
 	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);

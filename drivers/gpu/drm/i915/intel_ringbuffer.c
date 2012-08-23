@@ -218,11 +218,6 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	u32 scratch_addr = pc->gtt_offset + 128;
 	int ret;
 
-	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	ret = intel_emit_post_sync_nonzero_flush(ring);
-	if (ret)
-		return ret;
-
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
 	 * impact.
@@ -260,6 +255,20 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 	intel_ring_advance(ring);
 
 	return 0;
+}
+
+static int
+gen6_render_ring_flush__wa(struct intel_ring_buffer *ring,
+			   u32 invalidate_domains, u32 flush_domains)
+{
+	int ret;
+
+	/* Force SNB workarounds for PIPE_CONTROL flushes */
+	ret = intel_emit_post_sync_nonzero_flush(ring);
+	if (ret)
+		return ret;
+
+	return gen6_render_ring_flush(ring, invalidate_domains, flush_domains);
 }
 
 static void ring_write_tail(struct intel_ring_buffer *ring,
@@ -462,7 +471,7 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	if (INTEL_INFO(dev)->gen >= 6)
 		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
-	if (IS_IVYBRIDGE(dev))
+	if (HAS_L3_GPU_CACHE(dev))
 		I915_WRITE_IMR(ring, ~GEN6_RENDER_L3_PARITY_ERROR);
 
 	return ret;
@@ -628,26 +637,24 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 }
 
 static u32
-gen6_ring_get_seqno(struct intel_ring_buffer *ring)
+gen6_ring_get_seqno(struct intel_ring_buffer *ring, bool lazy_coherency)
 {
-	struct drm_device *dev = ring->dev;
-
 	/* Workaround to force correct ordering between irq and seqno writes on
 	 * ivb (and maybe also on snb) by reading from a CS register (like
 	 * ACTHD) before reading the status page. */
-	if (IS_GEN6(dev) || IS_GEN7(dev))
+	if (!lazy_coherency)
 		intel_ring_get_active_head(ring);
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
 static u32
-ring_get_seqno(struct intel_ring_buffer *ring)
+ring_get_seqno(struct intel_ring_buffer *ring, bool lazy_coherency)
 {
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
 static u32
-pc_render_get_seqno(struct intel_ring_buffer *ring)
+pc_render_get_seqno(struct intel_ring_buffer *ring, bool lazy_coherency)
 {
 	struct pipe_control *pc = ring->private;
 	return pc->cpu_page[0];
@@ -852,7 +859,7 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (ring->irq_refcount++ == 0) {
-		if (IS_IVYBRIDGE(dev) && ring->id == RCS)
+		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
 			I915_WRITE_IMR(ring, ~(ring->irq_enable_mask |
 						GEN6_RENDER_L3_PARITY_ERROR));
 		else
@@ -875,7 +882,7 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 
 	spin_lock_irqsave(&dev_priv->irq_lock, flags);
 	if (--ring->irq_refcount == 0) {
-		if (IS_IVYBRIDGE(dev) && ring->id == RCS)
+		if (HAS_L3_GPU_CACHE(dev) && ring->id == RCS)
 			I915_WRITE_IMR(ring, ~GEN6_RENDER_L3_PARITY_ERROR);
 		else
 			I915_WRITE_IMR(ring, ~0);
@@ -1010,7 +1017,6 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
-	INIT_LIST_HEAD(&ring->gpu_write_list);
 	ring->size = 32 * PAGE_SIZE;
 
 	init_waitqueue_head(&ring->irq_queue);
@@ -1380,6 +1386,8 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
 		ring->flush = gen6_render_ring_flush;
+		if (INTEL_INFO(dev)->gen == 6)
+			ring->flush = gen6_render_ring_flush__wa;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT;
@@ -1481,7 +1489,6 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
-	INIT_LIST_HEAD(&ring->gpu_write_list);
 
 	ring->size = size;
 	ring->effective_size = ring->size;
@@ -1573,4 +1580,42 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);
+}
+
+int
+intel_ring_flush_all_caches(struct intel_ring_buffer *ring)
+{
+	int ret;
+
+	if (!ring->gpu_caches_dirty)
+		return 0;
+
+	ret = ring->flush(ring, 0, I915_GEM_GPU_DOMAINS);
+	if (ret)
+		return ret;
+
+	trace_i915_gem_ring_flush(ring, 0, I915_GEM_GPU_DOMAINS);
+
+	ring->gpu_caches_dirty = false;
+	return 0;
+}
+
+int
+intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring)
+{
+	uint32_t flush_domains;
+	int ret;
+
+	flush_domains = 0;
+	if (ring->gpu_caches_dirty)
+		flush_domains = I915_GEM_GPU_DOMAINS;
+
+	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
+	if (ret)
+		return ret;
+
+	trace_i915_gem_ring_flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
+
+	ring->gpu_caches_dirty = false;
+	return 0;
 }

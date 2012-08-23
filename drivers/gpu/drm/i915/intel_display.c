@@ -1429,8 +1429,10 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
  * protect mechanism may be enabled.
  *
  * Note!  This is for pre-ILK only.
+ *
+ * Unfortunately needed by dvo_ns2501 since the dvo depends on it running.
  */
-static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	int reg;
 	u32 val;
@@ -2836,13 +2838,13 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct intel_encoder *encoder;
+	struct intel_encoder *intel_encoder;
 
 	/*
 	 * If there's a non-PCH eDP on this crtc, it must be DP_A, and that
 	 * must be driven by its own crtc; no sharing is possible.
 	 */
-	for_each_encoder_on_crtc(dev, crtc, encoder) {
+	for_each_encoder_on_crtc(dev, crtc, intel_encoder) {
 
 		/* On Haswell, LPT PCH handles the VGA connection via FDI, and Haswell
 		 * CPU handles all others */
@@ -2850,19 +2852,19 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 			/* It is still unclear how this will work on PPT, so throw up a warning */
 			WARN_ON(!HAS_PCH_LPT(dev));
 
-			if (encoder->type == DRM_MODE_ENCODER_DAC) {
+			if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
 				DRM_DEBUG_KMS("Haswell detected DAC encoder, assuming is PCH\n");
 				return true;
 			} else {
 				DRM_DEBUG_KMS("Haswell detected encoder %d, assuming is CPU\n",
-						encoder->type);
+					      intel_encoder->type);
 				return false;
 			}
 		}
 
-		switch (encoder->type) {
+		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_EDP:
-			if (!intel_encoder_is_pch_edp(&encoder->base))
+			if (!intel_encoder_is_pch_edp(&intel_encoder->base))
 				return false;
 			continue;
 		}
@@ -5848,46 +5850,6 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-#define GPU_IDLE_TIMEOUT 500 /* ms */
-
-/* When this timer fires, we've been idle for awhile */
-static void intel_gpu_idle_timer(unsigned long arg)
-{
-	struct drm_device *dev = (struct drm_device *)arg;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (!list_empty(&dev_priv->mm.active_list)) {
-		/* Still processing requests, so just re-arm the timer. */
-		mod_timer(&dev_priv->idle_timer, jiffies +
-			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
-		return;
-	}
-
-	dev_priv->busy = false;
-	queue_work(dev_priv->wq, &dev_priv->idle_work);
-}
-
-#define CRTC_IDLE_TIMEOUT 1000 /* ms */
-
-static void intel_crtc_idle_timer(unsigned long arg)
-{
-	struct intel_crtc *intel_crtc = (struct intel_crtc *)arg;
-	struct drm_crtc *crtc = &intel_crtc->base;
-	drm_i915_private_t *dev_priv = crtc->dev->dev_private;
-	struct intel_framebuffer *intel_fb;
-
-	intel_fb = to_intel_framebuffer(crtc->fb);
-	if (intel_fb && intel_fb->obj->active) {
-		/* The framebuffer is still being accessed by the GPU. */
-		mod_timer(&intel_crtc->idle_timer, jiffies +
-			  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
-		return;
-	}
-
-	intel_crtc->busy = false;
-	queue_work(dev_priv->wq, &dev_priv->idle_work);
-}
-
 static void intel_increase_pllclock(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -5917,10 +5879,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 		if (dpll & DISPLAY_RATE_SELECT_FPA1)
 			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
 	}
-
-	/* Schedule downclock */
-	mod_timer(&intel_crtc->idle_timer, jiffies +
-		  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
 }
 
 static void intel_decrease_pllclock(struct drm_crtc *crtc)
@@ -5959,89 +5917,46 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 
 }
 
-/**
- * intel_idle_update - adjust clocks for idleness
- * @work: work struct
- *
- * Either the GPU or display (or both) went idle.  Check the busy status
- * here and adjust the CRTC and GPU clocks as necessary.
- */
-static void intel_idle_update(struct work_struct *work)
+void intel_mark_busy(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    idle_work);
-	struct drm_device *dev = dev_priv->dev;
+	i915_update_gfx_val(dev->dev_private);
+}
+
+void intel_mark_idle(struct drm_device *dev)
+{
+}
+
+void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
+{
+	struct drm_device *dev = obj->base.dev;
 	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
 
 	if (!i915_powersave)
 		return;
 
-	mutex_lock(&dev->struct_mutex);
-
-	i915_update_gfx_val(dev_priv);
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		/* Skip inactive CRTCs */
 		if (!crtc->fb)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
-		if (!intel_crtc->busy)
-			intel_decrease_pllclock(crtc);
+		if (to_intel_framebuffer(crtc->fb)->obj == obj)
+			intel_increase_pllclock(crtc);
 	}
-
-
-	mutex_unlock(&dev->struct_mutex);
 }
 
-/**
- * intel_mark_busy - mark the GPU and possibly the display busy
- * @dev: drm device
- * @obj: object we're operating on
- *
- * Callers can use this function to indicate that the GPU is busy processing
- * commands.  If @obj matches one of the CRTC objects (i.e. it's a scanout
- * buffer), we'll also mark the display as busy, so we know to increase its
- * clock frequency.
- */
-void intel_mark_busy(struct drm_device *dev, struct drm_i915_gem_object *obj)
+void intel_mark_fb_idle(struct drm_i915_gem_object *obj)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = NULL;
-	struct intel_framebuffer *intel_fb;
-	struct intel_crtc *intel_crtc;
+	struct drm_device *dev = obj->base.dev;
+	struct drm_crtc *crtc;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
-	if (!dev_priv->busy) {
-		intel_sanitize_pm(dev);
-		dev_priv->busy = true;
-	} else
-		mod_timer(&dev_priv->idle_timer, jiffies +
-			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
-
-	if (obj == NULL)
+	if (!i915_powersave)
 		return;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
 			continue;
 
-		intel_crtc = to_intel_crtc(crtc);
-		intel_fb = to_intel_framebuffer(crtc->fb);
-		if (intel_fb->obj == obj) {
-			if (!intel_crtc->busy) {
-				/* Non-busy -> busy, upclock */
-				intel_increase_pllclock(crtc);
-				intel_crtc->busy = true;
-			} else {
-				/* Busy -> busy, put off timer */
-				mod_timer(&intel_crtc->idle_timer, jiffies +
-					  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
-			}
-		}
+		if (to_intel_framebuffer(crtc->fb)->obj == obj)
+			intel_decrease_pllclock(crtc);
 	}
 }
 
@@ -6392,7 +6307,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	default:
 		WARN_ONCE(1, "unknown plane in flip command\n");
 		ret = -ENODEV;
-		goto err;
+		goto err_unpin;
 	}
 
 	ret = intel_ring_begin(ring, 4);
@@ -6500,7 +6415,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		goto cleanup_pending;
 
 	intel_disable_fbc(dev);
-	intel_mark_busy(dev, obj);
+	intel_mark_fb_busy(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
@@ -6666,11 +6581,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	}
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
-
-	intel_crtc->busy = false;
-
-	setup_timer(&intel_crtc->idle_timer, intel_crtc_idle_timer,
-		    (unsigned long)intel_crtc);
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
@@ -6697,15 +6607,23 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static int intel_encoder_clones(struct drm_device *dev, int type_mask)
+static int intel_encoder_clones(struct intel_encoder *encoder)
 {
-	struct intel_encoder *encoder;
+	struct drm_device *dev = encoder->base.dev;
+	struct intel_encoder *source_encoder;
 	int index_mask = 0;
 	int entry = 0;
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
-		if (type_mask & encoder->clone_mask)
+	list_for_each_entry(source_encoder,
+			    &dev->mode_config.encoder_list, base.head) {
+
+		if (encoder == source_encoder)
 			index_mask |= (1 << entry);
+
+		/* Intel hw has only one MUX where enocoders could be cloned. */
+		if (encoder->cloneable && source_encoder->cloneable)
+			index_mask |= (1 << entry);
+
 		entry++;
 	}
 
@@ -6746,10 +6664,10 @@ static void intel_setup_outputs(struct drm_device *dev)
 		dpd_is_edp = intel_dpd_is_edp(dev);
 
 		if (has_edp_a(dev))
-			intel_dp_init(dev, DP_A);
+			intel_dp_init(dev, DP_A, PORT_A);
 
 		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
-			intel_dp_init(dev, PCH_DP_D);
+			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	}
 
 	intel_crt_init(dev);
@@ -6780,22 +6698,22 @@ static void intel_setup_outputs(struct drm_device *dev)
 			/* PCH SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, PCH_SDVOB, true);
 			if (!found)
-				intel_hdmi_init(dev, HDMIB);
+				intel_hdmi_init(dev, HDMIB, PORT_B);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
-				intel_dp_init(dev, PCH_DP_B);
+				intel_dp_init(dev, PCH_DP_B, PORT_B);
 		}
 
 		if (I915_READ(HDMIC) & PORT_DETECTED)
-			intel_hdmi_init(dev, HDMIC);
+			intel_hdmi_init(dev, HDMIC, PORT_C);
 
 		if (!dpd_is_edp && I915_READ(HDMID) & PORT_DETECTED)
-			intel_hdmi_init(dev, HDMID);
+			intel_hdmi_init(dev, HDMID, PORT_D);
 
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
-			intel_dp_init(dev, PCH_DP_C);
+			intel_dp_init(dev, PCH_DP_C, PORT_C);
 
 		if (!dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
-			intel_dp_init(dev, PCH_DP_D);
+			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
 		int found;
 
@@ -6803,17 +6721,17 @@ static void intel_setup_outputs(struct drm_device *dev)
 			/* SDVOB multiplex with HDMIB */
 			found = intel_sdvo_init(dev, SDVOB, true);
 			if (!found)
-				intel_hdmi_init(dev, SDVOB);
+				intel_hdmi_init(dev, SDVOB, PORT_B);
 			if (!found && (I915_READ(DP_B) & DP_DETECTED))
-				intel_dp_init(dev, DP_B);
+				intel_dp_init(dev, DP_B, PORT_B);
 		}
 
 		if (I915_READ(SDVOC) & PORT_DETECTED)
-			intel_hdmi_init(dev, SDVOC);
+			intel_hdmi_init(dev, SDVOC, PORT_C);
 
 		/* Shares lanes with HDMI on SDVOC */
 		if (I915_READ(DP_C) & DP_DETECTED)
-			intel_dp_init(dev, DP_C);
+			intel_dp_init(dev, DP_C, PORT_C);
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
 		bool found = false;
 
@@ -6822,12 +6740,12 @@ static void intel_setup_outputs(struct drm_device *dev)
 			found = intel_sdvo_init(dev, SDVOB, true);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
-				intel_hdmi_init(dev, SDVOB);
+				intel_hdmi_init(dev, SDVOB, PORT_B);
 			}
 
 			if (!found && SUPPORTS_INTEGRATED_DP(dev)) {
 				DRM_DEBUG_KMS("probing DP_B\n");
-				intel_dp_init(dev, DP_B);
+				intel_dp_init(dev, DP_B, PORT_B);
 			}
 		}
 
@@ -6842,18 +6760,18 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 			if (SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
-				intel_hdmi_init(dev, SDVOC);
+				intel_hdmi_init(dev, SDVOC, PORT_C);
 			}
 			if (SUPPORTS_INTEGRATED_DP(dev)) {
 				DRM_DEBUG_KMS("probing DP_C\n");
-				intel_dp_init(dev, DP_C);
+				intel_dp_init(dev, DP_C, PORT_C);
 			}
 		}
 
 		if (SUPPORTS_INTEGRATED_DP(dev) &&
 		    (I915_READ(DP_D) & DP_DETECTED)) {
 			DRM_DEBUG_KMS("probing DP_D\n");
-			intel_dp_init(dev, DP_D);
+			intel_dp_init(dev, DP_D, PORT_D);
 		}
 	} else if (IS_GEN2(dev))
 		intel_dvo_init(dev);
@@ -6864,7 +6782,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, base.head) {
 		encoder->base.possible_crtcs = encoder->crtc_mask;
 		encoder->base.possible_clones =
-			intel_encoder_clones(dev, encoder->clone_mask);
+			intel_encoder_clones(encoder);
 	}
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
@@ -7229,10 +7147,6 @@ void intel_modeset_init(struct drm_device *dev)
 	/* Just disable it once at startup */
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
-
-	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
-	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,
-		    (unsigned long)dev);
 }
 
 void intel_modeset_gem_init(struct drm_device *dev)
@@ -7278,18 +7192,10 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 * enqueue unpin/hotplug work. */
 	drm_irq_uninstall(dev);
 	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_work_sync(&dev_priv->rps_work);
+	cancel_work_sync(&dev_priv->rps.work);
 
 	/* flush any delayed tasks or pending work */
 	flush_scheduled_work();
-
-	/* Shut off idle work before the crtcs get freed. */
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		intel_crtc = to_intel_crtc(crtc);
-		del_timer_sync(&intel_crtc->idle_timer);
-	}
-	del_timer_sync(&dev_priv->idle_timer);
-	cancel_work_sync(&dev_priv->idle_work);
 
 	drm_mode_config_cleanup(dev);
 }
