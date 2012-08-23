@@ -6,6 +6,7 @@ obj-y += devices.o
 obj-y += iomux.o
 obj-y += clock.o
 obj-y += clock_data.o
+obj-y += ddr.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
 obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_PM) += pm.o
