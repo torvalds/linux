@@ -70,6 +70,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
+	select SND_SOC_WM0010 if SPI_MASTER
 	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM2200 if I2C
@@ -324,6 +325,9 @@ config SND_SOC_UDA1380
         tristate
 
 config SND_SOC_WL1273
+	tristate
+
+config SND_SOC_WM0010
 	tristate
 
 config SND_SOC_WM1250_EV1
