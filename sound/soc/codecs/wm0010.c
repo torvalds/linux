@@ -119,7 +119,8 @@ struct wm0010_spi_msg {
 };
 
 static const struct snd_soc_dapm_route wm0010_dapm_routes[] = {
-	{ "SDI2 Playback", NULL, "SDI1 Playback" },
+	{ "SDI2 Capture", NULL, "SDI1 Playback" },
+	{ "SDI1 Capture", NULL, "SDI2 Playback" },
 };
 
 static const char *wm0010_state_to_str(enum wm0010_state state)
