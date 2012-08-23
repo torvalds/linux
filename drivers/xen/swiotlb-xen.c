@@ -176,9 +176,9 @@ static const char *xen_swiotlb_error(enum xen_swiotlb_err err)
 	}
 	return "";
 }
-void __init xen_swiotlb_init(int verbose)
+int __ref xen_swiotlb_init(int verbose, bool early)
 {
-	unsigned long bytes;
+	unsigned long bytes, order;
 	int rc = -ENOMEM;
 	enum xen_swiotlb_err m_ret = XEN_SWIOTLB_UNKNOWN;
 	unsigned int repeat = 3;
@@ -186,10 +186,28 @@ void __init xen_swiotlb_init(int verbose)
 	xen_io_tlb_nslabs = swiotlb_nr_tbl();
 retry:
 	bytes = xen_set_nslabs(xen_io_tlb_nslabs);
+	order = get_order(xen_io_tlb_nslabs << IO_TLB_SHIFT);
 	/*
 	 * Get IO TLB memory from any location.
 	 */
-	xen_io_tlb_start = alloc_bootmem_pages(PAGE_ALIGN(bytes));
+	if (early)
+		xen_io_tlb_start = alloc_bootmem_pages(PAGE_ALIGN(bytes));
+	else {
+#define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
+#define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
+		while ((SLABS_PER_PAGE << order) > IO_TLB_MIN_SLABS) {
+			xen_io_tlb_start = (void *)__get_free_pages(__GFP_NOWARN, order);
+			if (xen_io_tlb_start)
+				break;
+			order--;
+		}
+		if (order != get_order(bytes)) {
+			pr_warn("Warning: only able to allocate %ld MB "
+				"for software IO TLB\n", (PAGE_SIZE << order) >> 20);
+			xen_io_tlb_nslabs = SLABS_PER_PAGE << order;
+			bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
+		}
+	}
 	if (!xen_io_tlb_start) {
 		m_ret = XEN_SWIOTLB_ENOMEM;
 		goto error;
@@ -202,14 +220,21 @@ retry:
 			       bytes,
 			       xen_io_tlb_nslabs);
 	if (rc) {
-		free_bootmem(__pa(xen_io_tlb_start), PAGE_ALIGN(bytes));
+		if (early)
+			free_bootmem(__pa(xen_io_tlb_start), PAGE_ALIGN(bytes));
+		else {
+			free_pages((unsigned long)xen_io_tlb_start, order);
+			xen_io_tlb_start = NULL;
+		}
 		m_ret = XEN_SWIOTLB_EFIXUP;
 		goto error;
 	}
 	start_dma_addr = xen_virt_to_bus(xen_io_tlb_start);
-	swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs, verbose);
-
-	return;
+	if (early)
+		swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs, verbose);
+	else
+		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
+	return rc;
 error:
 	if (repeat--) {
 		xen_io_tlb_nslabs = max(1024UL, /* Min is 2MB */
@@ -218,10 +243,13 @@ error:
 		      (xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
 		goto retry;
 	}
-	xen_raw_printk("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
-	panic("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
+	pr_err("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
+	if (early)
+		panic("%s (rc:%d)", xen_swiotlb_error(m_ret), rc);
+	else
+		free_pages((unsigned long)xen_io_tlb_start, order);
+	return rc;
 }
-
 void *
 xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flags,

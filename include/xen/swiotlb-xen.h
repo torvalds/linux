@@ -3,7 +3,7 @@
 
 #include <linux/swiotlb.h>
 
-extern void xen_swiotlb_init(int verbose);
+extern int xen_swiotlb_init(int verbose, bool early);
 
 extern void
 *xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,

@@ -12,7 +12,7 @@
 #include <asm/iommu.h>
 #include <asm/dma.h>
 #endif
-
+#include <linux/export.h>
 int xen_swiotlb __read_mostly;
 
 static struct dma_map_ops xen_swiotlb_dma_ops = {
@@ -69,13 +69,33 @@ int __init pci_xen_swiotlb_detect(void)
 void __init pci_xen_swiotlb_init(void)
 {
 	if (xen_swiotlb) {
-		xen_swiotlb_init(1);
+		xen_swiotlb_init(1, true /* early */);
 		dma_ops = &xen_swiotlb_dma_ops;
 
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
 }
+
+int pci_xen_swiotlb_init_late(void)
+{
+	int rc;
+
+	if (xen_swiotlb)
+		return 0;
+
+	rc = xen_swiotlb_init(1, false /* late */);
+	if (rc)
+		return rc;
+
+	dma_ops = &xen_swiotlb_dma_ops;
+	/* Make sure ACS will be enabled */
+	pci_request_acs();
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_xen_swiotlb_init_late);
+
 IOMMU_INIT_FINISH(pci_xen_swiotlb_detect,
 		  0,
 		  pci_xen_swiotlb_init,
