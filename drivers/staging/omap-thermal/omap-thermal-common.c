@@ -120,7 +120,9 @@ static int omap_thermal_bind(struct thermal_zone_device *thermal,
 
 	/* TODO: bind with min and max states */
 	/* Simple thing, two trips, one passive another critical */
-	return thermal_zone_bind_cooling_device(thermal, 0, cdev);
+	return thermal_zone_bind_cooling_device(thermal, 0, cdev,
+						THERMAL_NO_LIMIT,
+						THERMAL_NO_LIMIT);
 }
 
 /* Unbind callback functions for thermal zone */
