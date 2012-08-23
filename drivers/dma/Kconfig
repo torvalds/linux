@@ -208,6 +208,16 @@ config SIRF_DMA
 	help
 	  Enable support for the CSR SiRFprimaII DMA engine.
 
+config TI_EDMA
+	tristate "TI EDMA support"
+	depends on ARCH_DAVINCI
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	default n
+	help
+	  Enable support for the TI EDMA controller. This DMA
+	  engine is found on TI DaVinci and AM33xx parts.
+
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
 
