@@ -56,19 +56,21 @@ extern const uuid_le mei_wd_guid;
 extern const u8 mei_wd_state_independence_msg[3][4];
 
 /*
+ * Number of Maximum MEI Clients
+ */
+#define MEI_CLIENTS_MAX 256
+
+/*
  * Number of File descriptors/handles
  * that can be opened to the driver.
  *
- * Limit to 253: 255 Total Clients
+ * Limit to 253: 256 Total Clients
+ * minus internal client for MEI Bus Messags
  * minus internal client for AMTHI
  * minus internal client for Watchdog
  */
-#define  MEI_MAX_OPEN_HANDLE_COUNT	253
+#define  MEI_MAX_OPEN_HANDLE_COUNT (MEI_CLIENTS_MAX - 3)
 
-/*
- * Number of Maximum MEI Clients
- */
-#define MEI_CLIENTS_MAX 255
 
 /* File state */
 enum file_state {
