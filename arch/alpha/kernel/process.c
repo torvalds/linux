@@ -56,7 +56,8 @@ cpu_idle(void)
 
 		while (!need_resched())
 			cpu_relax();
-		schedule();
+
+		schedule_preempt_disabled();
 	}
 }
 
