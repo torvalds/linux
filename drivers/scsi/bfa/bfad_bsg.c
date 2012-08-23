@@ -677,9 +677,11 @@ bfad_iocmd_rport_get_stats(struct bfad_s *bfad, void *cmd)
 
 	memcpy((void *)&iocmd->stats, (void *)&fcs_rport->stats,
 		sizeof(struct bfa_rport_stats_s));
-	memcpy((void *)&iocmd->stats.hal_stats,
-	       (void *)&(bfa_fcs_rport_get_halrport(fcs_rport)->stats),
-	       sizeof(struct bfa_rport_hal_stats_s));
+	if (bfa_fcs_rport_get_halrport(fcs_rport)) {
+		memcpy((void *)&iocmd->stats.hal_stats,
+		       (void *)&(bfa_fcs_rport_get_halrport(fcs_rport)->stats),
+			sizeof(struct bfa_rport_hal_stats_s));
+	}
 
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	iocmd->status = BFA_STATUS_OK;
@@ -715,7 +717,8 @@ bfad_iocmd_rport_clr_stats(struct bfad_s *bfad, void *cmd)
 
 	memset((char *)&fcs_rport->stats, 0, sizeof(struct bfa_rport_stats_s));
 	rport = bfa_fcs_rport_get_halrport(fcs_rport);
-	memset(&rport->stats, 0, sizeof(rport->stats));
+	if (rport)
+		memset(&rport->stats, 0, sizeof(rport->stats));
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	iocmd->status = BFA_STATUS_OK;
 out:
@@ -750,7 +753,8 @@ bfad_iocmd_rport_set_speed(struct bfad_s *bfad, void *cmd)
 	fcs_rport->rpf.assigned_speed  = iocmd->speed;
 	/* Set this speed in f/w only if the RPSC speed is not available */
 	if (fcs_rport->rpf.rpsc_speed == BFA_PORT_SPEED_UNKNOWN)
-		bfa_rport_speed(fcs_rport->bfa_rport, iocmd->speed);
+		if (fcs_rport->bfa_rport)
+			bfa_rport_speed(fcs_rport->bfa_rport, iocmd->speed);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	iocmd->status = BFA_STATUS_OK;
 out:
@@ -1036,9 +1040,10 @@ bfad_iocmd_itnim_get_iostats(struct bfad_s *bfad, void *cmd)
 			iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
 		else {
 			iocmd->status = BFA_STATUS_OK;
-			memcpy((void *)&iocmd->iostats, (void *)
-			       &(bfa_fcs_itnim_get_halitn(itnim)->stats),
-			       sizeof(struct bfa_itnim_iostats_s));
+			if (bfa_fcs_itnim_get_halitn(itnim))
+				memcpy((void *)&iocmd->iostats, (void *)
+				&(bfa_fcs_itnim_get_halitn(itnim)->stats),
+				       sizeof(struct bfa_itnim_iostats_s));
 		}
 	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);

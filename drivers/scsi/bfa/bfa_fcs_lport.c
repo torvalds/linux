@@ -4691,12 +4691,39 @@ bfa_fcs_lport_ns_process_gidft_pids(struct bfa_fcs_lport_s *port, u32 *pid_buf,
 	struct fcgs_gidft_resp_s *gidft_entry;
 	struct bfa_fcs_rport_s *rport;
 	u32        ii;
+	struct bfa_fcs_fabric_s *fabric = port->fabric;
+	struct bfa_fcs_vport_s *vport;
+	struct list_head *qe;
+	u8 found = 0;
 
 	for (ii = 0; ii < n_pids; ii++) {
 		gidft_entry = (struct fcgs_gidft_resp_s *) &pid_buf[ii];
 
 		if (gidft_entry->pid == port->pid)
 			continue;
+
+		/*
+		 * Ignore PID if it is of base port
+		 * (Avoid vports discovering base port as remote port)
+		 */
+		if (gidft_entry->pid == fabric->bport.pid)
+			continue;
+
+		/*
+		 * Ignore PID if it is of vport created on the same base port
+		 * (Avoid vport discovering every other vport created on the
+		 * same port as remote port)
+		 */
+		list_for_each(qe, &fabric->vport_q) {
+			vport = (struct bfa_fcs_vport_s *) qe;
+			if (vport->lport.pid == gidft_entry->pid)
+				found = 1;
+		}
+
+		if (found) {
+			found = 0;
+			continue;
+		}
 
 		/*
 		 * Check if this rport already exists
@@ -4765,7 +4792,8 @@ bfa_fcs_lport_ns_query(struct bfa_fcs_lport_s *port)
 	struct bfa_fcs_lport_ns_s *ns = BFA_FCS_GET_NS_FROM_PORT(port);
 
 	bfa_trc(port->fcs, port->pid);
-	bfa_sm_send_event(ns, NSSM_EVENT_NS_QUERY);
+	if (bfa_sm_cmp_state(ns, bfa_fcs_lport_ns_sm_online))
+		bfa_sm_send_event(ns, NSSM_EVENT_NS_QUERY);
 }
 
 static void
@@ -5183,9 +5211,25 @@ static void
 bfa_fcs_lport_scn_portid_rscn(struct bfa_fcs_lport_s *port, u32 rpid)
 {
 	struct bfa_fcs_rport_s *rport;
+	struct bfa_fcs_fabric_s *fabric = port->fabric;
+	struct bfa_fcs_vport_s *vport;
+	struct list_head *qe;
 
 	bfa_trc(port->fcs, rpid);
 
+	/*
+	 * Ignore PID if it is of base port or of vports created on the
+	 * same base port. It is to avoid vports discovering base port or
+	 * other vports created on same base port as remote port
+	 */
+	if (rpid == fabric->bport.pid)
+		return;
+
+	list_for_each(qe, &fabric->vport_q) {
+		vport = (struct bfa_fcs_vport_s *) qe;
+		if (vport->lport.pid == rpid)
+			return;
+	}
 	/*
 	 * If this is an unknown device, then it just came online.
 	 * Otherwise let rport handle the RSCN event.

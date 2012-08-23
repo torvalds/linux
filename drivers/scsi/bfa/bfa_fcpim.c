@@ -1466,7 +1466,13 @@ bfa_status_t
 bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
 			struct bfa_itnim_ioprofile_s *ioprofile)
 {
-	struct bfa_fcpim_s *fcpim = BFA_FCPIM(itnim->bfa);
+	struct bfa_fcpim_s *fcpim;
+
+	if (!itnim)
+		return BFA_STATUS_NO_FCPIM_NEXUS;
+
+	fcpim = BFA_FCPIM(itnim->bfa);
+
 	if (!fcpim->io_profile)
 		return BFA_STATUS_IOPROFILE_OFF;
 
@@ -1484,6 +1490,10 @@ void
 bfa_itnim_clear_stats(struct bfa_itnim_s *itnim)
 {
 	int j;
+
+	if (!itnim)
+		return;
+
 	memset(&itnim->stats, 0, sizeof(itnim->stats));
 	memset(&itnim->ioprofile, 0, sizeof(itnim->ioprofile));
 	for (j = 0; j < BFA_IOBUCKET_MAX; j++)

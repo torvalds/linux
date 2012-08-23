@@ -57,6 +57,7 @@ int		pcie_max_read_reqsz;
 int		bfa_debugfs_enable = 1;
 int		msix_disable_cb = 0, msix_disable_ct = 0;
 int		max_xfer_size = BFAD_MAX_SECTORS >> 1;
+int		max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
 
 /* Firmware releated */
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
@@ -148,6 +149,8 @@ MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
 module_param(max_xfer_size, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(max_xfer_size, "default=32MB,"
 		" Range[64k|128k|256k|512k|1024k|2048k]");
+module_param(max_rport_logins, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(max_rport_logins, "Max number of logins to initiator and target rports on a port (physical/logical), default=1024");
 
 static void
 bfad_sm_uninit(struct bfad_s *bfad, enum bfad_sm_event event);
@@ -1766,6 +1769,7 @@ bfad_init(void)
 
 	bfa_auto_recover = ioc_auto_recover;
 	bfa_fcs_rport_set_del_timeout(rport_del_timeout);
+	bfa_fcs_rport_set_max_logins(max_rport_logins);
 
 	error = pci_register_driver(&bfad_pci_driver);
 	if (error) {

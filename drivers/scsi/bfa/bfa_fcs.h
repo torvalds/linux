@@ -64,8 +64,7 @@ struct bfa_fcs_s;
 #define	BFA_FCS_RETRY_TIMEOUT 2000
 #define BFA_FCS_MAX_NS_RETRIES 5
 #define BFA_FCS_PID_IS_WKA(pid)  ((bfa_ntoh3b(pid) > 0xFFF000) ?  1 : 0)
-
-
+#define BFA_FCS_MAX_RPORT_LOGINS 1024
 
 struct bfa_fcs_lport_ns_s {
 	bfa_sm_t        sm;		/*  state machine */
@@ -472,7 +471,7 @@ struct bfa_fcs_rport_s *bfa_fcs_rport_lookup(struct bfa_fcs_lport_s *port,
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup_by_nwwn(
 	struct bfa_fcs_lport_s *port, wwn_t rnwwn);
 void bfa_fcs_rport_set_del_timeout(u8 rport_tmo);
-
+void bfa_fcs_rport_set_max_logins(u32 max_logins);
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport,
 	 struct fchs_s *fchs, u16 len);
 void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);
@@ -606,7 +605,7 @@ bfa_status_t bfa_fcs_itnim_stats_clear(struct bfa_fcs_lport_s *port,
 struct bfa_fcs_itnim_s *bfa_fcs_itnim_create(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_itnim_delete(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_itnim_rport_offline(struct bfa_fcs_itnim_s *itnim);
-void bfa_fcs_itnim_rport_online(struct bfa_fcs_itnim_s *itnim);
+void bfa_fcs_itnim_brp_online(struct bfa_fcs_itnim_s *itnim);
 bfa_status_t bfa_fcs_itnim_get_online_state(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_itnim_is_initiator(struct bfa_fcs_itnim_s *itnim);
 void bfa_fcs_fcpim_uf_recv(struct bfa_fcs_itnim_s *itnim,
@@ -690,6 +689,7 @@ struct bfa_fcs_s {
 	struct bfa_fcs_stats_s	stats;	/*  FCS statistics */
 	struct bfa_wc_s		wc;	/*  waiting counter */
 	int			fcs_aen_seq;
+	u32		num_rport_logins;
 };
 
 /*
@@ -744,6 +744,26 @@ enum rport_event {
 	RPSM_EVENT_ADDRESS_DISC = 16,   /*  Need to Discover rport's PID */
 	RPSM_EVENT_PRLO_RCVD   = 17,    /*  PRLO from remote device     */
 	RPSM_EVENT_PLOGI_RETRY = 18,    /*  Retry PLOGI continuously */
+	RPSM_EVENT_FC4_FCS_ONLINE = 19, /*!< FC-4 FCS online complete */
+};
+
+/*
+ * fcs_itnim_sm FCS itnim state machine events
+ */
+enum bfa_fcs_itnim_event {
+	BFA_FCS_ITNIM_SM_FCS_ONLINE = 1,        /*  rport online event */
+	BFA_FCS_ITNIM_SM_OFFLINE = 2,   /*  rport offline */
+	BFA_FCS_ITNIM_SM_FRMSENT = 3,   /*  prli frame is sent */
+	BFA_FCS_ITNIM_SM_RSP_OK = 4,    /*  good response */
+	BFA_FCS_ITNIM_SM_RSP_ERROR = 5, /*  error response */
+	BFA_FCS_ITNIM_SM_TIMEOUT = 6,   /*  delay timeout */
+	BFA_FCS_ITNIM_SM_HCB_OFFLINE = 7, /*  BFA online callback */
+	BFA_FCS_ITNIM_SM_HCB_ONLINE = 8, /*  BFA offline callback */
+	BFA_FCS_ITNIM_SM_INITIATOR = 9, /*  rport is initiator */
+	BFA_FCS_ITNIM_SM_DELETE = 10,   /*  delete event from rport */
+	BFA_FCS_ITNIM_SM_PRLO = 11,     /*  delete event from rport */
+	BFA_FCS_ITNIM_SM_RSP_NOT_SUPP = 12, /* cmd not supported rsp */
+	BFA_FCS_ITNIM_SM_HAL_ONLINE = 13, /*!< bfa rport online event */
 };
 
 /*

@@ -4275,6 +4275,10 @@ bfa_rport_sm_offline(struct bfa_rport_s *rp, enum bfa_rport_event event)
 		bfa_sm_set_state(rp, bfa_rport_sm_iocdisable);
 		break;
 
+	case BFA_RPORT_SM_OFFLINE:
+		bfa_rport_offline_cb(rp);
+		break;
+
 	default:
 		bfa_stats(rp, sm_off_unexp);
 		bfa_sm_fault(rp->bfa, event);
@@ -4391,6 +4395,7 @@ bfa_rport_sm_offline_pending(struct bfa_rport_s *rp,
 	case BFA_RPORT_SM_HWFAIL:
 		bfa_stats(rp, sm_offp_hwf);
 		bfa_sm_set_state(rp, bfa_rport_sm_iocdisable);
+		bfa_rport_offline_cb(rp);
 		break;
 
 	default:
@@ -4769,8 +4774,10 @@ bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed)
 	WARN_ON(speed == 0);
 	WARN_ON(speed == BFA_PORT_SPEED_AUTO);
 
-	rport->rport_info.speed = speed;
-	bfa_sm_send_event(rport, BFA_RPORT_SM_SET_SPEED);
+	if (rport) {
+		rport->rport_info.speed = speed;
+		bfa_sm_send_event(rport, BFA_RPORT_SM_SET_SPEED);
+	}
 }
 
 /* Set Rport LUN Mask */

@@ -76,6 +76,7 @@ bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 	fcs->bfa = bfa;
 	fcs->bfad = bfad;
 	fcs->min_cfg = min_cfg;
+	fcs->num_rport_logins = 0;
 
 	bfa->fcs = BFA_TRUE;
 	fcbuild_init();
@@ -1384,8 +1385,11 @@ bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric, struct fchs_s *fchs,
 			return;
 		}
 	}
-	bfa_trc(fabric->fcs, els_cmd->els_code);
-	bfa_fcs_lport_uf_recv(&fabric->bport, fchs, len);
+
+	if (!bfa_fcs_fabric_is_switched(fabric))
+		bfa_fcs_lport_uf_recv(&fabric->bport, fchs, len);
+
+	bfa_trc(fabric->fcs, fchs->type);
 }
 
 /*
