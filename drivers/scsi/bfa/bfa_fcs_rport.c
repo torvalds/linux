@@ -397,6 +397,7 @@ bfa_fcs_rport_sm_plogi(struct bfa_fcs_rport_s *rport, enum rport_event event)
 					BFA_FCS_RETRY_TIMEOUT);
 		} else {
 			bfa_stats(rport->port, rport_del_max_plogi_retry);
+			rport->old_pid = rport->pid;
 			rport->pid = 0;
 			bfa_sm_set_state(rport, bfa_fcs_rport_sm_offline);
 			bfa_timer_start(rport->fcs->bfa, &rport->timer,
@@ -1296,6 +1297,7 @@ bfa_fcs_rport_sm_nsdisc_sent(struct bfa_fcs_rport_s *rport,
 				 bfa_fcs_rport_sm_nsdisc_sending);
 			bfa_fcs_rport_send_nsdisc(rport, NULL);
 		} else {
+			rport->old_pid = rport->pid;
 			rport->pid = 0;
 			bfa_sm_set_state(rport, bfa_fcs_rport_sm_offline);
 			bfa_timer_start(rport->fcs->bfa, &rport->timer,
@@ -1981,6 +1983,7 @@ bfa_fcs_rport_alloc(struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 rpid)
 	rport->rp_drv = rport_drv;
 	rport->pid = rpid;
 	rport->pwwn = pwwn;
+	rport->old_pid = 0;
 
 	/*
 	 * allocate BFA rport

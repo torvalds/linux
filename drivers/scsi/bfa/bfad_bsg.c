@@ -535,7 +535,8 @@ bfad_iocmd_lport_get_rports(struct bfad_s *bfad, void *cmd,
 
 	if (bfad_chk_iocmd_sz(payload_len,
 			sizeof(struct bfa_bsg_lport_get_rports_s),
-			sizeof(wwn_t) * iocmd->nrports) != BFA_STATUS_OK) {
+			sizeof(struct bfa_rport_qualifier_s) * iocmd->nrports)
+			!= BFA_STATUS_OK) {
 		iocmd->status = BFA_STATUS_VERSION_FAIL;
 		return 0;
 	}
@@ -552,8 +553,9 @@ bfad_iocmd_lport_get_rports(struct bfad_s *bfad, void *cmd,
 		goto out;
 	}
 
-	bfa_fcs_lport_get_rports(fcs_port, (wwn_t *)iocmd_bufptr,
-				&iocmd->nrports);
+	bfa_fcs_lport_get_rport_quals(fcs_port,
+			(struct bfa_rport_qualifier_s *)iocmd_bufptr,
+			&iocmd->nrports);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	iocmd->status = BFA_STATUS_OK;
 out:
@@ -578,7 +580,11 @@ bfad_iocmd_rport_get_attr(struct bfad_s *bfad, void *cmd)
 		goto out;
 	}
 
-	fcs_rport = bfa_fcs_rport_lookup(fcs_port, iocmd->rpwwn);
+	if (iocmd->pid)
+		fcs_rport = bfa_fcs_lport_get_rport_by_qualifier(fcs_port,
+						iocmd->rpwwn, iocmd->pid);
+	else
+		fcs_rport = bfa_fcs_rport_lookup(fcs_port, iocmd->rpwwn);
 	if (fcs_rport == NULL) {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);

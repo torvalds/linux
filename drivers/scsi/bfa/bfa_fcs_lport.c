@@ -854,6 +854,25 @@ bfa_fcs_lport_get_rport_by_pid(struct bfa_fcs_lport_s *port, u32 pid)
 }
 
 /*
+ * OLD_PID based Lookup for a R-Port in the Port R-Port Queue
+ */
+struct bfa_fcs_rport_s *
+bfa_fcs_lport_get_rport_by_old_pid(struct bfa_fcs_lport_s *port, u32 pid)
+{
+	struct bfa_fcs_rport_s *rport;
+	struct list_head	*qe;
+
+	list_for_each(qe, &port->rport_q) {
+		rport = (struct bfa_fcs_rport_s *) qe;
+		if (rport->old_pid == pid)
+			return rport;
+	}
+
+	bfa_trc(port->fcs, pid);
+	return NULL;
+}
+
+/*
  *   PWWN based Lookup for a R-Port in the Port R-Port Queue
  */
 struct bfa_fcs_rport_s *
@@ -888,6 +907,26 @@ bfa_fcs_lport_get_rport_by_nwwn(struct bfa_fcs_lport_s *port, wwn_t nwwn)
 	}
 
 	bfa_trc(port->fcs, nwwn);
+	return NULL;
+}
+
+/*
+ * PWWN & PID based Lookup for a R-Port in the Port R-Port Queue
+ */
+struct bfa_fcs_rport_s *
+bfa_fcs_lport_get_rport_by_qualifier(struct bfa_fcs_lport_s *port,
+				     wwn_t pwwn, u32 pid)
+{
+	struct bfa_fcs_rport_s *rport;
+	struct list_head	*qe;
+
+	list_for_each(qe, &port->rport_q) {
+		rport = (struct bfa_fcs_rport_s *) qe;
+		if (wwn_is_equal(rport->pwwn, pwwn) && rport->pid == pid)
+			return rport;
+	}
+
+	bfa_trc(port->fcs, pwwn);
 	return NULL;
 }
 
@@ -4759,6 +4798,9 @@ bfa_fcs_lport_scn_portid_rscn(struct bfa_fcs_lport_s *port, u32 rpid)
 	 * Otherwise let rport handle the RSCN event.
 	 */
 	rport = bfa_fcs_lport_get_rport_by_pid(port, rpid);
+	if (!rport)
+		rport = bfa_fcs_lport_get_rport_by_old_pid(port, rpid);
+
 	if (rport == NULL) {
 		/*
 		 * If min cfg mode is enabled, we donot need to
@@ -4951,15 +4993,15 @@ bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn, int index,
 }
 
 void
-bfa_fcs_lport_get_rports(struct bfa_fcs_lport_s *port,
-	 wwn_t rport_wwns[], int *nrports)
+bfa_fcs_lport_get_rport_quals(struct bfa_fcs_lport_s *port,
+		struct bfa_rport_qualifier_s rports[], int *nrports)
 {
 	struct list_head	*qh, *qe;
 	struct bfa_fcs_rport_s *rport = NULL;
 	int	i;
 	struct bfa_fcs_s	*fcs;
 
-	if (port == NULL || rport_wwns == NULL || *nrports == 0)
+	if (port == NULL || rports == NULL || *nrports == 0)
 		return;
 
 	fcs = port->fcs;
@@ -4979,7 +5021,13 @@ bfa_fcs_lport_get_rports(struct bfa_fcs_lport_s *port,
 			continue;
 		}
 
-		rport_wwns[i] = rport->pwwn;
+		if (!rport->pwwn && !rport->pid) {
+			qe = bfa_q_next(qe);
+			continue;
+		}
+
+		rports[i].pwwn = rport->pwwn;
+		rports[i].pid = rport->pid;
 
 		i++;
 		qe = bfa_q_next(qe);

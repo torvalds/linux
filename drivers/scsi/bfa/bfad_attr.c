@@ -941,15 +941,16 @@ bfad_im_num_of_discovered_ports_show(struct device *dev,
 	struct bfad_port_s    *port = im_port->port;
 	struct bfad_s         *bfad = im_port->bfad;
 	int        nrports = 2048;
-	wwn_t          *rports = NULL;
+	struct bfa_rport_qualifier_s *rports = NULL;
 	unsigned long   flags;
 
-	rports = kzalloc(sizeof(wwn_t) * nrports , GFP_ATOMIC);
+	rports = kzalloc(sizeof(struct bfa_rport_qualifier_s) * nrports,
+			 GFP_ATOMIC);
 	if (rports == NULL)
 		return snprintf(buf, PAGE_SIZE, "Failed\n");
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	bfa_fcs_lport_get_rports(port->fcs_port, rports, &nrports);
+	bfa_fcs_lport_get_rport_quals(port->fcs_port, rports, &nrports);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	kfree(rports);
 

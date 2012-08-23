@@ -286,9 +286,8 @@ bfa_fcs_lport_get_drvport(struct bfa_fcs_lport_s *port)
 
 bfa_boolean_t   bfa_fcs_lport_is_online(struct bfa_fcs_lport_s *port);
 struct bfa_fcs_lport_s *bfa_fcs_get_base_port(struct bfa_fcs_s *fcs);
-void bfa_fcs_lport_get_rports(struct bfa_fcs_lport_s *port,
-			      wwn_t rport_wwns[], int *nrports);
-
+void bfa_fcs_lport_get_rport_quals(struct bfa_fcs_lport_s *port,
+			struct bfa_rport_qualifier_s rport[], int *nrports);
 wwn_t bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn,
 			      int index, int nrports, bfa_boolean_t bwwn);
 
@@ -326,10 +325,14 @@ void            bfa_fcs_lport_offline(struct bfa_fcs_lport_s *port);
 void            bfa_fcs_lport_delete(struct bfa_fcs_lport_s *port);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_pid(
 		struct bfa_fcs_lport_s *port, u32 pid);
+struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_old_pid(
+		struct bfa_fcs_lport_s *port, u32 pid);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_pwwn(
 		struct bfa_fcs_lport_s *port, wwn_t pwwn);
 struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_nwwn(
 		struct bfa_fcs_lport_s *port, wwn_t nwwn);
+struct bfa_fcs_rport_s *bfa_fcs_lport_get_rport_by_qualifier(
+		struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 pid);
 void            bfa_fcs_lport_add_rport(struct bfa_fcs_lport_s *port,
 				       struct bfa_fcs_rport_s *rport);
 void            bfa_fcs_lport_del_rport(struct bfa_fcs_lport_s *port,
@@ -421,6 +424,7 @@ struct bfa_fcs_rport_s {
 	struct bfa_fcs_s	*fcs;	/*  fcs instance */
 	struct bfad_rport_s	*rp_drv;	/*  driver peer instance */
 	u32	pid;	/*  port ID of rport */
+	u32	old_pid;	/* PID before rport goes offline */
 	u16	maxfrsize;	/*  maximum frame size */
 	__be16	reply_oxid;	/*  OX_ID of inbound requests */
 	enum fc_cos	fc_cos;	/*  FC classes of service supp */

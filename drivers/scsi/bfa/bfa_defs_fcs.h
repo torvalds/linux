@@ -410,6 +410,11 @@ struct bfa_rport_remote_link_stats_s {
 	u32 icc; /*  Invalid CRC Count */
 };
 
+struct bfa_rport_qualifier_s {
+	wwn_t	pwwn;	/* Port WWN */
+	u32	pid;	/* port ID */
+	u32	rsvd;
+};
 
 #define BFA_MAX_IO_INDEX 7
 #define BFA_NO_IO_INDEX 9
