@@ -5992,11 +5992,27 @@ unlock:
 	 * in the case of read we need to unlock only the end area that we
 	 * aren't using if there is any left over space.
 	 */
-	if (lockstart < lockend)
-		clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				 unlock_bits, 1, 0, &cached_state, GFP_NOFS);
-	else
+	if (lockstart < lockend) {
+		if (create && len < lockend - lockstart) {
+			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
+					 lockstart + len - 1, unlock_bits, 1, 0,
+					 &cached_state, GFP_NOFS);
+			/*
+			 * Beside unlock, we also need to cleanup reserved space
+			 * for the left range by attaching EXTENT_DO_ACCOUNTING.
+			 */
+			clear_extent_bit(&BTRFS_I(inode)->io_tree,
+					 lockstart + len, lockend,
+					 unlock_bits | EXTENT_DO_ACCOUNTING,
+					 1, 0, NULL, GFP_NOFS);
+		} else {
+			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
+					 lockend, unlock_bits, 1, 0,
+					 &cached_state, GFP_NOFS);
+		}
+	} else {
 		free_extent_state(cached_state);
+	}
 
 	free_extent_map(em);
 
