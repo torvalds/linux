@@ -286,8 +286,9 @@ static void conf_choice(struct menu *menu);
 static void conf_string(struct menu *menu);
 static void conf_load(void);
 static void conf_save(void);
-static int show_textbox_ext(const char *title, const char *text, int r, int c,
-			    int *keys, int *vscroll, int *hscroll);
+static int show_textbox_ext(const char *title, char *text, int r, int c,
+			    int *keys, int *vscroll, int *hscroll,
+			    update_text_fn update_text, void *data);
 static void show_textbox(const char *title, const char *text, int r, int c);
 static void show_helptext(const char *title, const char *text);
 static void show_help(struct menu *menu);
@@ -309,6 +310,39 @@ static void set_config_filename(const char *config_filename)
 		filename[sizeof(filename)-1] = '\0';
 }
 
+
+struct search_data {
+	struct jk_head *head;
+	struct menu **targets;
+	int *keys;
+};
+
+static void update_text(char *buf, size_t start, size_t end, void *_data)
+{
+	struct search_data *data = _data;
+	struct jump_key *pos;
+	int k = 0;
+
+	CIRCLEQ_FOREACH(pos, data->head, entries) {
+		if (pos->offset >= start && pos->offset < end) {
+			char header[4];
+
+			if (k < JUMP_NB) {
+				int key = '0' + (pos->index % JUMP_NB) + 1;
+
+				sprintf(header, "(%c)", key);
+				data->keys[k] = key;
+				data->targets[k] = pos->target;
+				k++;
+			} else {
+				sprintf(header, "   ");
+			}
+
+			memcpy(buf + pos->offset, header, sizeof(header) - 1);
+		}
+	}
+	data->keys[k] = 0;
+}
 
 static void search_conf(void)
 {
@@ -341,18 +375,24 @@ again:
 
 	sym_arr = sym_re_search(dialog_input);
 	do {
-		struct menu *jumps[JUMP_NB] = {0};
-		int keys[JUMP_NB + 1] = {0}, i;
+		struct jk_head head = CIRCLEQ_HEAD_INITIALIZER(head);
+		struct menu *targets[JUMP_NB];
+		int keys[JUMP_NB + 1], i;
+		struct search_data data = {
+			.head = &head,
+			.targets = targets,
+			.keys = keys,
+		};
 
-		res = get_relations_str(sym_arr, jumps);
-		for (i = 0; i < JUMP_NB && jumps[i]; i++)
-			keys[i] = '1' + i;
-		dres = show_textbox_ext(_("Search Results"), str_get(&res), 0,
-					0, keys, &vscroll, &hscroll);
+		res = get_relations_str(sym_arr, &head);
+		dres = show_textbox_ext(_("Search Results"), (char *)
+					str_get(&res), 0, 0, keys, &vscroll,
+					&hscroll, &update_text, (void *)
+					&data);
 		again = false;
-		for (i = 0; i < JUMP_NB && jumps[i]; i++)
+		for (i = 0; i < JUMP_NB && keys[i]; i++)
 			if (dres == keys[i]) {
-				conf(jumps[i]->parent, jumps[i]);
+				conf(targets[i]->parent, targets[i]);
 				again = true;
 			}
 		str_free(&res);
@@ -642,16 +682,19 @@ static void conf(struct menu *menu, struct menu *active_menu)
 	}
 }
 
-static int show_textbox_ext(const char *title, const char *text, int r, int c,
-			    int *keys, int *vscroll, int *hscroll)
+static int show_textbox_ext(const char *title, char *text, int r, int c, int
+			    *keys, int *vscroll, int *hscroll, update_text_fn
+			    update_text, void *data)
 {
 	dialog_clear();
-	return dialog_textbox(title, text, r, c, keys, vscroll, hscroll);
+	return dialog_textbox(title, text, r, c, keys, vscroll, hscroll,
+			      update_text, data);
 }
 
 static void show_textbox(const char *title, const char *text, int r, int c)
 {
-	show_textbox_ext(title, text, r, c, (int []) {0}, NULL, NULL);
+	show_textbox_ext(title, (char *) text, r, c, (int []) {0}, NULL, NULL,
+			 NULL, NULL);
 }
 
 static void show_helptext(const char *title, const char *text)
