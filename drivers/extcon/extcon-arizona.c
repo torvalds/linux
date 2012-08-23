@@ -348,7 +348,7 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+		dev_err(&pdev->dev, "Failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -385,7 +385,7 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 
 	ret = extcon_dev_register(&info->edev, arizona->dev);
 	if (ret < 0) {
-		dev_err(arizona->dev, "extcon_dev_regster() failed: %d\n",
+		dev_err(arizona->dev, "extcon_dev_register() failed: %d\n",
 			ret);
 		goto err;
 	}
