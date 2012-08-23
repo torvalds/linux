@@ -5976,13 +5976,11 @@ static int airo_set_wap(struct net_device *dev,
 	Cmd cmd;
 	Resp rsp;
 	APListRid APList_rid;
-	static const u8 any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-	static const u8 off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
-	else if (!memcmp(any, awrq->sa_data, ETH_ALEN) ||
-	         !memcmp(off, awrq->sa_data, ETH_ALEN)) {
+	else if (is_broadcast_ether_addr(awrq->sa_data) ||
+		 is_zero_ether_addr(awrq->sa_data)) {
 		memset(&cmd, 0, sizeof(cmd));
 		cmd.cmd=CMD_LOSE_SYNC;
 		if (down_interruptible(&local->sem))
