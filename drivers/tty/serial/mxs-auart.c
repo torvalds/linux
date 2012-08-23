@@ -262,7 +262,7 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 
 	ctrl &= ~AUART_CTRL2_RTSEN;
 	if (mctrl & TIOCM_RTS) {
-		if (u->state->port.flags & ASYNC_CTS_FLOW)
+		if (tty_port_cts_enabled(&u->state->port))
 			ctrl |= AUART_CTRL2_RTSEN;
 	}
 

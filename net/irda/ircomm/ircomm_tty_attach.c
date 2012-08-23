@@ -578,7 +578,7 @@ void ircomm_tty_link_established(struct ircomm_tty_cb *self)
 	 * will have to wait for the peer device (DCE) to raise the CTS
 	 * line.
 	 */
-	if ((self->port.flags & ASYNC_CTS_FLOW) &&
+	if (tty_port_cts_enabled(&self->port) &&
 			((self->settings.dce & IRCOMM_CTS) == 0)) {
 		IRDA_DEBUG(0, "%s(), waiting for CTS ...\n", __func__ );
 		goto put;

@@ -727,7 +727,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		else
 			tty_hangup(tty);
 	}
-	if ((mdm_change & CyCTS) && (info->port.flags & ASYNC_CTS_FLOW)) {
+	if ((mdm_change & CyCTS) && tty_port_cts_enabled(&info->port)) {
 		if (tty->hw_stopped) {
 			if (mdm_status & CyCTS) {
 				/* cy_start isn't used

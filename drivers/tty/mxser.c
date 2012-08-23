@@ -830,7 +830,7 @@ static void mxser_check_modem_status(struct tty_struct *tty,
 			wake_up_interruptible(&port->port.open_wait);
 	}
 
-	if (port->port.flags & ASYNC_CTS_FLOW) {
+	if (tty_port_cts_enabled(&port->port)) {
 		if (tty->hw_stopped) {
 			if (status & UART_MSR_CTS) {
 				tty->hw_stopped = 0;

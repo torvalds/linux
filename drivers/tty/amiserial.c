@@ -420,7 +420,7 @@ static void check_modem_status(struct serial_state *info)
 				tty_hangup(port->tty);
 		}
 	}
-	if (port->flags & ASYNC_CTS_FLOW) {
+	if (tty_port_cts_enabled(port)) {
 		if (port->tty->hw_stopped) {
 			if (!(status & SER_CTS)) {
 #if (defined(SERIAL_DEBUG_INTR) || defined(SERIAL_DEBUG_FLOW))

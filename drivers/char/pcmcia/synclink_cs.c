@@ -1050,7 +1050,7 @@ static void cts_change(MGSLPC_INFO *info, struct tty_struct *tty)
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
 
-	if (info->port.flags & ASYNC_CTS_FLOW) {
+	if (tty_port_cts_enabled(&info->port)) {
 		if (tty->hw_stopped) {
 			if (info->serial_signals & SerialSignal_CTS) {
 				if (debug_level >= DEBUG_LEVEL_ISR)

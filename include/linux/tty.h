@@ -514,6 +514,12 @@ static inline struct tty_port *tty_port_get(struct tty_port *port)
 	return port;
 }
 
+/* If the cts flow control is enabled, return true. */
+static inline bool tty_port_cts_enabled(struct tty_port *port)
+{
+	return port->flags & ASYNC_CTS_FLOW;
+}
+
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
 extern void tty_port_tty_set(struct tty_port *port, struct tty_struct *tty);
 extern int tty_port_carrier_raised(struct tty_port *port);

@@ -176,7 +176,7 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 				uart_set_mctrl(uport, TIOCM_RTS | TIOCM_DTR);
 		}
 
-		if (port->flags & ASYNC_CTS_FLOW) {
+		if (tty_port_cts_enabled(port)) {
 			spin_lock_irq(&uport->lock);
 			if (!(uport->ops->get_mctrl(uport) & TIOCM_CTS))
 				tty->hw_stopped = 1;
@@ -2509,7 +2509,7 @@ void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 
 	uport->icount.cts++;
 
-	if (port->flags & ASYNC_CTS_FLOW) {
+	if (tty_port_cts_enabled(port)) {
 		if (tty->hw_stopped) {
 			if (status) {
 				tty->hw_stopped = 0;

@@ -1070,7 +1070,7 @@ void ircomm_tty_check_modem_status(struct ircomm_tty_cb *self)
 			goto put;
 		}
 	}
-	if (tty && self->port.flags & ASYNC_CTS_FLOW) {
+	if (tty && tty_port_cts_enabled(&self->port)) {
 		if (tty->hw_stopped) {
 			if (status & IRCOMM_CTS) {
 				IRDA_DEBUG(2,
@@ -1313,7 +1313,7 @@ static void ircomm_tty_line_info(struct ircomm_tty_cb *self, struct seq_file *m)
 
 	seq_puts(m, "Flags:");
 	sep = ' ';
-	if (self->port.flags & ASYNC_CTS_FLOW) {
+	if (tty_port_cts_enabled(&self->port)) {
 		seq_printf(m, "%cASYNC_CTS_FLOW", sep);
 		sep = '|';
 	}

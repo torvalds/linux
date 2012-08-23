@@ -1359,7 +1359,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 			}
 		}
 	
-		if ( (info->port.flags & ASYNC_CTS_FLOW) && 
+		if (tty_port_cts_enabled(&info->port) &&
 		     (status & MISCSTATUS_CTS_LATCHED) ) {
 			if (info->port.tty->hw_stopped) {
 				if (status & MISCSTATUS_CTS) {

@@ -2053,7 +2053,7 @@ static void cts_change(struct slgt_info *info, unsigned short status)
 	wake_up_interruptible(&info->event_wait_q);
 	info->pending_bh |= BH_STATUS;
 
-	if (info->port.flags & ASYNC_CTS_FLOW) {
+	if (tty_port_cts_enabled(&info->port)) {
 		if (info->port.tty) {
 			if (info->port.tty->hw_stopped) {
 				if (info->signals & SerialSignal_CTS) {
