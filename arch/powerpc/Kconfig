@@ -239,6 +239,9 @@ config PPC_OF_PLATFORM_PCI
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
+
 config PPC_ADV_DEBUG_REGS
 	bool
 	depends on 40x || BOOKE
