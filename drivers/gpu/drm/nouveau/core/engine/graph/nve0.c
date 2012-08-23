@@ -23,6 +23,8 @@
  */
 
 #include "nvc0.h"
+#include "fuc/hubnve0.fuc.h"
+#include "fuc/gpcnve0.fuc.h"
 
 /*******************************************************************************
  * Graphics object classes
@@ -197,6 +199,7 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
 {
+	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
 	int ret, i;
 
@@ -210,13 +213,15 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->cclass = &nve0_graph_cclass;
 	nv_engine(priv)->sclass = nve0_graph_sclass;
 
-	nv_info(priv, "using external firmware\n");
-	if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
-	    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
-	    nvc0_graph_ctor_fw(priv, "fuc41ac", &priv->fuc41ac) ||
-	    nvc0_graph_ctor_fw(priv, "fuc41ad", &priv->fuc41ad))
-		return -EINVAL;
-	priv->firmware = true;
+	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", true)) {
+		nv_info(priv, "using external firmware\n");
+		if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
+		    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
+		    nvc0_graph_ctor_fw(priv, "fuc41ac", &priv->fuc41ac) ||
+		    nvc0_graph_ctor_fw(priv, "fuc41ad", &priv->fuc41ad))
+			return -EINVAL;
+		priv->firmware = true;
+	}
 
 	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b4);
 	if (ret)
@@ -386,81 +391,131 @@ static int
 nve0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 {
 	u32 r000260;
+	int i;
 
-	/* load fuc microcode */
+	if (priv->firmware) {
+		/* load fuc microcode */
+		r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+		nvc0_graph_init_fw(priv, 0x409000, &priv->fuc409c, &priv->fuc409d);
+		nvc0_graph_init_fw(priv, 0x41a000, &priv->fuc41ac, &priv->fuc41ad);
+		nv_wr32(priv, 0x000260, r000260);
+
+		/* start both of them running */
+		nv_wr32(priv, 0x409840, 0xffffffff);
+		nv_wr32(priv, 0x41a10c, 0x00000000);
+		nv_wr32(priv, 0x40910c, 0x00000000);
+		nv_wr32(priv, 0x41a100, 0x00000002);
+		nv_wr32(priv, 0x409100, 0x00000002);
+		if (!nv_wait(priv, 0x409800, 0x00000001, 0x00000001))
+			nv_error(priv, "0x409800 wait failed\n");
+
+		nv_wr32(priv, 0x409840, 0xffffffff);
+		nv_wr32(priv, 0x409500, 0x7fffffff);
+		nv_wr32(priv, 0x409504, 0x00000021);
+
+		nv_wr32(priv, 0x409840, 0xffffffff);
+		nv_wr32(priv, 0x409500, 0x00000000);
+		nv_wr32(priv, 0x409504, 0x00000010);
+		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(priv, "fuc09 req 0x10 timeout\n");
+			return -EBUSY;
+		}
+		priv->size = nv_rd32(priv, 0x409800);
+
+		nv_wr32(priv, 0x409840, 0xffffffff);
+		nv_wr32(priv, 0x409500, 0x00000000);
+		nv_wr32(priv, 0x409504, 0x00000016);
+		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(priv, "fuc09 req 0x16 timeout\n");
+			return -EBUSY;
+		}
+
+		nv_wr32(priv, 0x409840, 0xffffffff);
+		nv_wr32(priv, 0x409500, 0x00000000);
+		nv_wr32(priv, 0x409504, 0x00000025);
+		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(priv, "fuc09 req 0x25 timeout\n");
+			return -EBUSY;
+		}
+
+		nv_wr32(priv, 0x409800, 0x00000000);
+		nv_wr32(priv, 0x409500, 0x00000001);
+		nv_wr32(priv, 0x409504, 0x00000030);
+		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(priv, "fuc09 req 0x30 timeout\n");
+			return -EBUSY;
+		}
+
+		nv_wr32(priv, 0x409810, 0xb00095c8);
+		nv_wr32(priv, 0x409800, 0x00000000);
+		nv_wr32(priv, 0x409500, 0x00000001);
+		nv_wr32(priv, 0x409504, 0x00000031);
+		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(priv, "fuc09 req 0x31 timeout\n");
+			return -EBUSY;
+		}
+
+		nv_wr32(priv, 0x409810, 0x00080420);
+		nv_wr32(priv, 0x409800, 0x00000000);
+		nv_wr32(priv, 0x409500, 0x00000001);
+		nv_wr32(priv, 0x409504, 0x00000032);
+		if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
+			nv_error(priv, "fuc09 req 0x32 timeout\n");
+			return -EBUSY;
+		}
+
+		nv_wr32(priv, 0x409614, 0x00000070);
+		nv_wr32(priv, 0x409614, 0x00000770);
+		nv_wr32(priv, 0x40802c, 0x00000001);
+
+		if (priv->data == NULL) {
+			int ret = nve0_grctx_generate(priv);
+			if (ret) {
+				nv_error(priv, "failed to construct context\n");
+				return ret;
+			}
+		}
+
+		return 0;
+	}
+
+	/* load HUB microcode */
 	r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
-	nvc0_graph_init_fw(priv, 0x409000, &priv->fuc409c, &priv->fuc409d);
-	nvc0_graph_init_fw(priv, 0x41a000, &priv->fuc41ac, &priv->fuc41ad);
+	nv_wr32(priv, 0x4091c0, 0x01000000);
+	for (i = 0; i < sizeof(nve0_grhub_data) / 4; i++)
+		nv_wr32(priv, 0x4091c4, nve0_grhub_data[i]);
+
+	nv_wr32(priv, 0x409180, 0x01000000);
+	for (i = 0; i < sizeof(nve0_grhub_code) / 4; i++) {
+		if ((i & 0x3f) == 0)
+			nv_wr32(priv, 0x409188, i >> 6);
+		nv_wr32(priv, 0x409184, nve0_grhub_code[i]);
+	}
+
+	/* load GPC microcode */
+	nv_wr32(priv, 0x41a1c0, 0x01000000);
+	for (i = 0; i < sizeof(nve0_grgpc_data) / 4; i++)
+		nv_wr32(priv, 0x41a1c4, nve0_grgpc_data[i]);
+
+	nv_wr32(priv, 0x41a180, 0x01000000);
+	for (i = 0; i < sizeof(nve0_grgpc_code) / 4; i++) {
+		if ((i & 0x3f) == 0)
+			nv_wr32(priv, 0x41a188, i >> 6);
+		nv_wr32(priv, 0x41a184, nve0_grgpc_code[i]);
+	}
 	nv_wr32(priv, 0x000260, r000260);
 
-	/* start both of them running */
-	nv_wr32(priv, 0x409840, 0xffffffff);
-	nv_wr32(priv, 0x41a10c, 0x00000000);
+	/* start HUB ucode running, it'll init the GPCs */
+	nv_wr32(priv, 0x409800, nv_device(priv)->chipset);
 	nv_wr32(priv, 0x40910c, 0x00000000);
-	nv_wr32(priv, 0x41a100, 0x00000002);
 	nv_wr32(priv, 0x409100, 0x00000002);
-	if (!nv_wait(priv, 0x409800, 0x00000001, 0x00000001))
-		nv_error(priv, "0x409800 wait failed\n");
-
-	nv_wr32(priv, 0x409840, 0xffffffff);
-	nv_wr32(priv, 0x409500, 0x7fffffff);
-	nv_wr32(priv, 0x409504, 0x00000021);
-
-	nv_wr32(priv, 0x409840, 0xffffffff);
-	nv_wr32(priv, 0x409500, 0x00000000);
-	nv_wr32(priv, 0x409504, 0x00000010);
-	if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-		nv_error(priv, "fuc09 req 0x10 timeout\n");
-		return -EBUSY;
-	}
-	priv->size = nv_rd32(priv, 0x409800);
-
-	nv_wr32(priv, 0x409840, 0xffffffff);
-	nv_wr32(priv, 0x409500, 0x00000000);
-	nv_wr32(priv, 0x409504, 0x00000016);
-	if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-		nv_error(priv, "fuc09 req 0x16 timeout\n");
+	if (!nv_wait(priv, 0x409800, 0x80000000, 0x80000000)) {
+		nv_error(priv, "HUB_INIT timed out\n");
+		nvc0_graph_ctxctl_debug(priv);
 		return -EBUSY;
 	}
 
-	nv_wr32(priv, 0x409840, 0xffffffff);
-	nv_wr32(priv, 0x409500, 0x00000000);
-	nv_wr32(priv, 0x409504, 0x00000025);
-	if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-		nv_error(priv, "fuc09 req 0x25 timeout\n");
-		return -EBUSY;
-	}
-
-	nv_wr32(priv, 0x409800, 0x00000000);
-	nv_wr32(priv, 0x409500, 0x00000001);
-	nv_wr32(priv, 0x409504, 0x00000030);
-	if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-		nv_error(priv, "fuc09 req 0x30 timeout\n");
-		return -EBUSY;
-	}
-
-	nv_wr32(priv, 0x409810, 0xb00095c8);
-	nv_wr32(priv, 0x409800, 0x00000000);
-	nv_wr32(priv, 0x409500, 0x00000001);
-	nv_wr32(priv, 0x409504, 0x00000031);
-	if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-		nv_error(priv, "fuc09 req 0x31 timeout\n");
-		return -EBUSY;
-	}
-
-	nv_wr32(priv, 0x409810, 0x00080420);
-	nv_wr32(priv, 0x409800, 0x00000000);
-	nv_wr32(priv, 0x409500, 0x00000001);
-	nv_wr32(priv, 0x409504, 0x00000032);
-	if (!nv_wait_ne(priv, 0x409800, 0xffffffff, 0x00000000)) {
-		nv_error(priv, "fuc09 req 0x32 timeout\n");
-		return -EBUSY;
-	}
-
-	nv_wr32(priv, 0x409614, 0x00000070);
-	nv_wr32(priv, 0x409614, 0x00000770);
-	nv_wr32(priv, 0x40802c, 0x00000001);
-
+	priv->size = nv_rd32(priv, 0x409804);
 	if (priv->data == NULL) {
 		int ret = nve0_grctx_generate(priv);
 		if (ret) {
