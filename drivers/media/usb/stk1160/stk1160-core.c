@@ -256,14 +256,12 @@ static int stk1160_scan_usb(struct usb_interface *intf, struct usb_device *udev,
 static int stk1160_probe(struct usb_interface *interface,
 		const struct usb_device_id *id)
 {
-	int ifnum;
 	int rc = 0;
 
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	struct usb_device *udev;
 	struct stk1160 *dev;
 
-	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	udev = interface_to_usbdev(interface);
 
 	/*
