@@ -1,19 +1,17 @@
-/dts-v1/;
+/*
+ * DTS file for CSR SiRFprimaII SoC
+ *
+ * Copyright (c) 2012 Cambridge Silicon Radio Limited, a CSR plc group company.
+ *
+ * Licensed under GPLv2 or later.
+ */
+
+/include/ "skeleton.dtsi"
 / {
-	model = "SiRF Prima2 eVB";
-	compatible = "sirf,prima2-cb", "sirf,prima2";
+	compatible = "sirf,prima2";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&intc>;
-
-	memory {
-		reg = <0x00000000 0x20000000>;
-	};
-
-	chosen {
-		bootargs = "mem=512M real_root=/dev/mmcblk0p2 console=ttyS0 panel=1 bootsplash=true bpp=16 androidboot.console=ttyS1";
-		linux,stdout-path = &uart1;
-	};
 
 	cpus {
 		#address-cells = <1>;
