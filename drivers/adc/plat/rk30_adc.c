@@ -45,7 +45,6 @@ static void rk30_adc_stop(struct adc_host *adc)
 	struct rk30_adc_device *dev  = adc_priv(adc);
 	
 	adc_writel(0, dev->regs + ADC_CTRL);
-        udelay(SAMPLE_RATE);
 }
 static int rk30_adc_read(struct adc_host *adc)
 {
@@ -122,7 +121,6 @@ static int rk30_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-        printk("%s: start\n", __func__);
 	adc = adc_alloc_host(&pdev->dev, sizeof(struct rk30_adc_device), SARADC_CHN_MASK);
 	if (!adc)
 		return -ENOMEM;
@@ -261,7 +259,6 @@ static struct platform_driver rk30_adc_driver = {
 
 static int __init rk30_adc_init(void)
 {
-        printk("%s: start\n", __func__);
 	return platform_driver_register(&rk30_adc_driver);
 }
 subsys_initcall(rk30_adc_init);

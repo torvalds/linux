@@ -18,10 +18,20 @@
 #include <linux/time.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <mach/board.h>
+#ifdef CONFIG_ADC_RK28
+#include "plat/rk28_adc.h"
+#endif
+#ifdef CONFIG_ADC_RK29
+#include "plat/rk29_adc.h"
+#endif
+#ifdef CONFIG_ADC_RK30
+#include "plat/rk30_adc.h"
+#endif
 
 #define ADC_READ_TMO    100 // ms
 
@@ -53,14 +63,15 @@ struct adc_ops {
 struct adc_host {
         struct list_head entry;
         struct list_head req_head;
+        struct list_head callback_head;
         unsigned int is_suspended;
         enum host_chn_mask mask;
         struct device *dev;
         unsigned int chn;
         spinlock_t lock;
+        struct mutex m_lock;
         unsigned int client_count;
 	const struct adc_ops *ops;
-        struct work_struct work;
         unsigned long priv[0];
 };
 
