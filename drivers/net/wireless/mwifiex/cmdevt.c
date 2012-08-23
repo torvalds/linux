@@ -170,7 +170,20 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	cmd_code = le16_to_cpu(host_cmd->command);
 	cmd_size = le16_to_cpu(host_cmd->size);
 
-	skb_trim(cmd_node->cmd_skb, cmd_size);
+	/* Adjust skb length */
+	if (cmd_node->cmd_skb->len > cmd_size)
+		/*
+		 * cmd_size is less than sizeof(struct host_cmd_ds_command).
+		 * Trim off the unused portion.
+		 */
+		skb_trim(cmd_node->cmd_skb, cmd_size);
+	else if (cmd_node->cmd_skb->len < cmd_size)
+		/*
+		 * cmd_size is larger than sizeof(struct host_cmd_ds_command)
+		 * because we have appended custom IE TLV. Increase skb length
+		 * accordingly.
+		 */
+		skb_put(cmd_node->cmd_skb, cmd_size - cmd_node->cmd_skb->len);
 
 	do_gettimeofday(&tstamp);
 	dev_dbg(adapter->dev, "cmd: DNLD_CMD: (%lu.%lu): %#x, act %#x, len %d,"
