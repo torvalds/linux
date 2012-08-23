@@ -2012,6 +2012,11 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	gfs2_rbm_from_block(&rbm, goal);
 	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, ip, false);
 
+	if (error == -ENOSPC) {
+		gfs2_rbm_from_block(&rbm, goal);
+		error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, NULL, false);
+	}
+
 	/* Since all blocks are reserved in advance, this shouldn't happen */
 	if (error) {
 		fs_warn(sdp, "error=%d, nblocks=%u, full=%d\n", error, *nblocks,
