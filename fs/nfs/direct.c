@@ -467,10 +467,10 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
+	NFS_I(inode)->read_io += iov_length(iov, nr_segs);
 	result = nfs_direct_read_schedule_iovec(dreq, iov, nr_segs, pos, uio);
 	if (!result)
 		result = nfs_direct_wait(dreq);
-	NFS_I(inode)->read_io += result;
 out_release:
 	nfs_direct_req_release(dreq);
 out:
@@ -818,6 +818,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 	get_dreq(dreq);
 	atomic_inc(&inode->i_dio_count);
 
+	NFS_I(dreq->inode)->write_io += iov_length(iov, nr_segs);
 	for (seg = 0; seg < nr_segs; seg++) {
 		const struct iovec *vec = &iov[seg];
 		result = nfs_direct_write_schedule_segment(&desc, vec, pos, uio);
@@ -829,7 +830,6 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 		pos += vec->iov_len;
 	}
 	nfs_pageio_complete(&desc);
-	NFS_I(dreq->inode)->write_io += desc.pg_bytes_written;
 
 	/*
 	 * If no bytes were started, return the error, and let the
