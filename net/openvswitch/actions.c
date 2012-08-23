@@ -266,7 +266,7 @@ static int do_output(struct datapath *dp, struct sk_buff *skb, int out_port)
 	if (unlikely(!skb))
 		return -ENOMEM;
 
-	vport = rcu_dereference(dp->ports[out_port]);
+	vport = ovs_vport_rcu(dp, out_port);
 	if (unlikely(!vport)) {
 		kfree_skb(skb);
 		return -ENODEV;
