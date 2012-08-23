@@ -2856,6 +2856,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     struct rk_camera_dev *pcdev;
     struct resource *res;
     struct rk_camera_frmivalenum *fival_list,*fival_nxt;
+    struct rk29camera_mem_res *meminfo_ptr,*meminfo_ptrr;
     int irq,i;
     int err = 0;
     static int ipp_mem = 0;
@@ -2919,49 +2920,34 @@ static int rk_camera_probe(struct platform_device *pdev)
         pcdev->pdata->io_init();
     }
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-	if (pcdev->pdata && IS_CIF0()) {
-		pcdev->vipmem_phybase = pcdev->pdata->meminfo.start;
-		pcdev->vipmem_size = pcdev->pdata->meminfo.size;
-        if(ipp_mem > 0 && (pcdev->pdata->meminfo.start == pcdev->pdata->meminfo_cif1.start)){
-    		RKCAMERA_TR("%s(%d): IPP Mem has been obtained \n",__FUNCTION__,__LINE__);
-            
+    meminfo_ptr = IS_CIF0()? (&pcdev->pdata->meminfo):(&pcdev->pdata->meminfo_cif1);
+    meminfo_ptrr = IS_CIF0()? (&pcdev->pdata->meminfo_cif1):(&pcdev->pdata->meminfo);
+    
+    if (meminfo_ptr->vbase == NULL) {
+
+        if ((meminfo_ptr->start == meminfo_ptrr->start)
+            && (meminfo_ptr->size == meminfo_ptrr->size) && meminfo_ptrr->vbase) {
+
+            meminfo_ptr->vbase = meminfo_ptrr->vbase;
+        } else {        
+        
+            if (!request_mem_region(meminfo_ptr->start,meminfo_ptr->size,"rk29_vipmem")) {
+                err = -EBUSY;
+                RKCAMERA_TR("%s(%d): request_mem_region(start:0x%x size:0x%x) failed \n",__FUNCTION__,__LINE__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
+                goto exit_ioremap_vipmem;
             }
-        else if (!request_mem_region(pcdev->vipmem_phybase,pcdev->vipmem_size,"rk29_vipmem")) {
-            err = -EBUSY;
-            goto exit_ioremap_vipmem;
-        }
-        pcdev->vipmem_virbase = ioremap_cached(pcdev->vipmem_phybase,pcdev->vipmem_size);
-        if (pcdev->vipmem_virbase == NULL) {
-            dev_err(pcdev->dev, "ioremap() of vip internal memory(Ex:IPP process/raw process) failed\n");
-            err = -ENXIO;
-            goto exit_ioremap_vipmem;
-        } 
-        ipp_mem++;
-		RKCAMERA_TR("%s(%d): Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__,__LINE__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
-	} else if (pcdev->pdata) {
-		pcdev->vipmem_phybase = pcdev->pdata->meminfo_cif1.start;
-		pcdev->vipmem_size = pcdev->pdata->meminfo_cif1.size;
-        if(ipp_mem > 0 && (pcdev->pdata->meminfo.start == pcdev->pdata->meminfo_cif1.start)){
-    		RKCAMERA_TR("%s(%d): IPP Mem has been obtained \n",__FUNCTION__,__LINE__);
+            meminfo_ptr->vbase = pcdev->vipmem_virbase = ioremap_cached(meminfo_ptr->start,meminfo_ptr->size);
+            if (pcdev->vipmem_virbase == NULL) {
+                dev_err(pcdev->dev, "ioremap() of vip internal memory(Ex:IPP process/raw process) failed\n");
+                err = -ENXIO;
+                goto exit_ioremap_vipmem;
             }
-        else if (!request_mem_region(pcdev->vipmem_phybase,pcdev->vipmem_size,"rk29_vipmem")) {
-            err = -EBUSY;
-            goto exit_ioremap_vipmem;
         }
-        pcdev->vipmem_virbase = ioremap_cached(pcdev->vipmem_phybase,pcdev->vipmem_size);
-        if (pcdev->vipmem_virbase == NULL) {
-            dev_err(pcdev->dev, "ioremap() of vip internal memory(Ex:IPP process/raw process) failed\n");
-            err = -ENXIO;
-            goto exit_ioremap_vipmem;
-        } 
-        ipp_mem++;
-		RKCAMERA_TR("%s(%d): Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__,__LINE__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
-	} else {
-		RKCAMERA_TR("\n%s Memory for IPP have not obtain! IPP Function is fail\n",__FUNCTION__);
-		pcdev->vipmem_phybase = 0;
-		pcdev->vipmem_size = 0;
-        pcdev->vipmem_virbase = 0;
-	}
+    }
+    
+    pcdev->vipmem_phybase = meminfo_ptr->start;
+	pcdev->vipmem_size = meminfo_ptr->size;
+    pcdev->pdata->meminfo.vbase = meminfo_ptr->vbase;
 	#endif
     INIT_LIST_HEAD(&pcdev->capture);
     INIT_LIST_HEAD(&pcdev->camera_work_queue);
@@ -3091,6 +3077,7 @@ static int __devexit rk_camera_remove(struct platform_device *pdev)
     struct rk_camera_dev *pcdev = platform_get_drvdata(pdev);
     struct resource *res;
     struct rk_camera_frmivalenum *fival_list,*fival_nxt;
+    struct rk29camera_mem_res *meminfo_ptr,*meminfo_ptrr;
     int i;
     
     free_irq(pcdev->irq, pcdev);
@@ -3112,7 +3099,20 @@ static int __devexit rk_camera_remove(struct platform_device *pdev)
 
     soc_camera_host_unregister(&pcdev->soc_host);
 
+    meminfo_ptr = IS_CIF0()? (&pcdev->pdata->meminfo):(&pcdev->pdata->meminfo_cif1);
+    meminfo_ptrr = IS_CIF0()? (&pcdev->pdata->meminfo_cif1):(&pcdev->pdata->meminfo);
+    if (meminfo_ptr->vbase) {
+        if (meminfo_ptr->vbase == meminfo_ptrr->vbase) {
+            meminfo_ptr->vbase = NULL;
+        } else {
+            iounmap((void __iomem*)pcdev->vipmem_phybase);
+            release_mem_region(pcdev->vipmem_phybase, pcdev->vipmem_size);
+            meminfo_ptr->vbase = NULL;
+        }
+    }
+
     res = pcdev->res;
+    iounmap((void __iomem*)pcdev->base);
     release_mem_region(res->start, res->end - res->start + 1);
     if (pcdev->pdata && pcdev->pdata->io_deinit) {         /* ddl@rock-chips.com : Free IO in deinit function */
         pcdev->pdata->io_deinit(0);

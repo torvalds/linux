@@ -202,6 +202,7 @@ struct rk29camera_mem_res {
 	const char *name;
 	unsigned int start;
 	unsigned int size;
+    void __iomem *vbase;
 };
 struct rk29camera_info {
     const char *dev_name;
