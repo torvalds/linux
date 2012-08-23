@@ -242,7 +242,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.11: fix struct rk_camera_work may be reentrant
 *v0.x.13: 1.add scale by arm,rga and pp.
           2.CIF do the crop when digital zoom.
-		  3.fix bug in prob func:request mem twice.   
+		  3.fix bug in prob func:request mem twice. 
+		  4.video_vq may be null when reinit work,fix it
+		  5.arm scale algorithm has something wrong(may exceed the bound of width or height) ,fix it.
 
 */
 #define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x13)
@@ -997,7 +999,7 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
 
     src_phy = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;    
     src = psY = (unsigned char*)(pcdev->vipmem_virbase + vb->i*pcdev->vipmem_bsize);
-    psUV = psY + pcdev->zoominfo.vir_width*pcdev->zoominfo.vir_height;;
+    psUV = psY + pcdev->zoominfo.vir_width*pcdev->zoominfo.vir_height;
 	
     srcW = pcdev->zoominfo.vir_width;
     srcH = pcdev->zoominfo.vir_height;
@@ -1023,12 +1025,12 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
         yCoeff00 = (y*zoomindstyIntInv)&0xffff;
         yCoeff01 = 0xffff - yCoeff00; 
         sY = (y*zoomindstyIntInv >> 16);
-
+        sY = (sY >= srcH - 1)? (srcH - 2) : sY;      
         for(x = 0; x<dstW; x++ ) {
             xCoeff00 = (x*zoomindstxIntInv)&0xffff;
             xCoeff01 = 0xffff - xCoeff00; 	
             sX = (x*zoomindstxIntInv >> 16);
-
+            sX = (sX >= srcW -1)?(srcW- 2) : sX;
             a = psY[sY*srcW + sX];
             b = psY[sY*srcW + sX + 1];
             c = psY[(sY+1)*srcW + sX];
@@ -1054,12 +1056,12 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
         yCoeff00 = (y*zoomindstyIntInv)&0xffff;
         yCoeff01 = 0xffff - yCoeff00; 
         sY = (y*zoomindstyIntInv >> 16);
-
+        sY = (sY >= srcH -1)? (srcH - 2) : sY;      
         for(x = 0; x<dstW; x++ ) {
             xCoeff00 = (x*zoomindstxIntInv)&0xffff;
             xCoeff01 = 0xffff - xCoeff00; 	
             sX = (x*zoomindstxIntInv >> 16);
-
+            sX = (sX >= srcW -1)?(srcW- 2) : sX;
             //U
             a = psUV[(sY*srcW + sX)*2];
             b = psUV[(sY*srcW + sX + 1)*2];
@@ -2039,8 +2041,8 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 	//recalculate the CIF width & height
 	rect.width = pcdev->zoominfo.a.c.width ;
 	rect.height = pcdev->zoominfo.a.c.height;
-	rect.left = (((pcdev->host_width - pcdev->zoominfo.a.c.width)>>1)&(~0x01))+pcdev->host_left;
-	rect.top = (((pcdev->host_height - pcdev->zoominfo.a.c.height)>>1)&(~0x01))+pcdev->host_top;
+	rect.left = ((((pcdev->host_width - pcdev->zoominfo.a.c.width)>>1))+pcdev->host_left)&(~0x01);
+	rect.top = ((((pcdev->host_height - pcdev->zoominfo.a.c.height)>>1))+pcdev->host_top)&(~0x01);
 	#else
 	pcdev->zoominfo.a.c.width = pcdev->host_width*100/pcdev->zoominfo.zoom_rate;
 	pcdev->zoominfo.a.c.width &= ~CROP_ALIGN_BYTES;
@@ -2426,7 +2428,7 @@ static void rk_camera_reinit_work(struct work_struct *work)
     pcdev->stop_cif = true;
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
 	RKCAMERA_DG("the reinit times = %d\n",pcdev->reinit_times);
-    
+   if(pcdev->video_vq && pcdev->video_vq->irqlock){
    	spin_lock_irqsave(pcdev->video_vq->irqlock, flags);
     	for (index = 0; index < VIDEO_MAX_FRAME; index++) {
     		if (NULL == pcdev->video_vq->bufs[index])
@@ -2440,7 +2442,10 @@ static void rk_camera_reinit_work(struct work_struct *work)
                 printk("wake up video buffer index = %d  !!!\n",index);
     		}
     	}
-    	spin_unlock_irqrestore(pcdev->video_vq->irqlock, flags);           
+    	spin_unlock_irqrestore(pcdev->video_vq->irqlock, flags); 
+    }else{
+    RKCAMERA_TR("video queue has somthing wrong !!\n");
+    }
 
 	RKCAMERA_TR("the %d reinit times ,wake up video buffers!\n ",pcdev->reinit_times);
 }
@@ -2687,8 +2692,8 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
 	a.c.width &= ~CROP_ALIGN_BYTES;    
 	a.c.height = pcdev->host_height*100/zoom_rate;
 	a.c.height &= ~CROP_ALIGN_BYTES;
-	a.c.left = ((pcdev->host_width - a.c.width)>>1)+pcdev->host_left;
-	a.c.top = ((pcdev->host_height - a.c.height)>>1)+pcdev->host_top;
+	a.c.left = (((pcdev->host_width - a.c.width)>>1)+pcdev->host_left)&(~0x01);
+	a.c.top = (((pcdev->host_height - a.c.height)>>1)+pcdev->host_top)&(~0x01);
 	pcdev->stop_cif = true;
 	tmp_cifctrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (tmp_cifctrl & ~ENABLE_CAPTURE));
