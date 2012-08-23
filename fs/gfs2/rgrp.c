@@ -448,10 +448,11 @@ int gfs2_rs_alloc(struct gfs2_inode *ip)
 	return error;
 }
 
-static void dump_rs(struct seq_file *seq, struct gfs2_blkreserv *rs)
+static void dump_rs(struct seq_file *seq, const struct gfs2_blkreserv *rs)
 {
-	gfs2_print_dbg(seq, "  r: %llu s:%llu b:%u f:%u\n",
-		       rs->rs_rbm.rgd->rd_addr, gfs2_rbm_to_block(&rs->rs_rbm),
+	gfs2_print_dbg(seq, "  B: n:%llu s:%llu b:%u f:%u\n",
+		       (unsigned long long)rs->rs_inum,
+		       (unsigned long long)gfs2_rbm_to_block(&rs->rs_rbm),
 		       rs->rs_rbm.offset, rs->rs_free);
 }
 
@@ -468,7 +469,7 @@ static void __rs_deltree(struct gfs2_inode *ip, struct gfs2_blkreserv *rs)
 		return;
 
 	rgd = rs->rs_rbm.rgd;
-	trace_gfs2_rs(ip, rs, TRACE_RS_TREEDEL);
+	trace_gfs2_rs(rs, TRACE_RS_TREEDEL);
 	rb_erase(&rs->rs_node, &rgd->rd_rstree);
 	RB_CLEAR_NODE(&rs->rs_node);
 	BUG_ON(!rgd->rd_rs_cnt);
@@ -511,7 +512,6 @@ void gfs2_rs_delete(struct gfs2_inode *ip)
 	down_write(&ip->i_rw_mutex);
 	if (ip->i_res) {
 		gfs2_rs_deltree(ip, ip->i_res);
-		trace_gfs2_rs(ip, ip->i_res, TRACE_RS_DELETE);
 		BUG_ON(ip->i_res->rs_free);
 		kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
 		ip->i_res = NULL;
@@ -1253,6 +1253,7 @@ static struct gfs2_blkreserv *rs_insert(struct gfs2_bitmap *bi,
 	rs->rs_free = amount;
 	rs->rs_rbm.offset = biblk;
 	rs->rs_rbm.bi = bi;
+	rs->rs_inum = ip->i_no_addr;
 	rb_link_node(&rs->rs_node, parent, newn);
 	rb_insert_color(&rs->rs_node, &rgd->rd_rstree);
 
@@ -1260,7 +1261,7 @@ static struct gfs2_blkreserv *rs_insert(struct gfs2_bitmap *bi,
 	rgd->rd_reserved += amount; /* blocks reserved */
 	rgd->rd_rs_cnt++; /* number of in-tree reservations */
 	spin_unlock(&rgd->rd_rsspin);
-	trace_gfs2_rs(ip, rs, TRACE_RS_INSERT);
+	trace_gfs2_rs(rs, TRACE_RS_INSERT);
 	return rs;
 }
 
@@ -1966,7 +1967,7 @@ static void gfs2_adjust_reservation(struct gfs2_inode *ip,
 			rlen = min(rs->rs_free, len);
 			rs->rs_free -= rlen;
 			rgd->rd_reserved -= rlen;
-			trace_gfs2_rs(ip, rs, TRACE_RS_CLAIM);
+			trace_gfs2_rs(rs, TRACE_RS_CLAIM);
 			if (rs->rs_free && !ret)
 				goto out;
 		}
@@ -2005,10 +2006,6 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	else
 		goal = rbm.rgd->rd_last_alloc + rbm.rgd->rd_data0;
 
-	if ((goal < rbm.rgd->rd_data0) ||
-	    (goal >= rbm.rgd->rd_data0 + rbm.rgd->rd_data))
-		rbm.rgd = gfs2_blk2rgrpd(sdp, goal, 1);
-
 	gfs2_rbm_from_block(&rbm, goal);
 	error = gfs2_rbm_find(&rbm, GFS2_BLKST_FREE, ip, false);
 
@@ -2019,7 +2016,8 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 
 	/* Since all blocks are reserved in advance, this shouldn't happen */
 	if (error) {
-		fs_warn(sdp, "error=%d, nblocks=%u, full=%d\n", error, *nblocks,
+		fs_warn(sdp, "inum=%llu error=%d, nblocks=%u, full=%d\n",
+			(unsigned long long)ip->i_no_addr, error, *nblocks,
 			test_bit(GBF_FULL, &rbm.rgd->rd_bits->bi_flags));
 		goto rgrp_error;
 	}

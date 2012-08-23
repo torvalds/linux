@@ -268,13 +268,11 @@ struct gfs2_blkreserv {
 	/* components used during write (step 1): */
 	atomic_t rs_sizehint;         /* hint of the write size */
 
-	/* components used during get_local_rgrp (step 3): */
-	struct gfs2_rbm rs_rbm;
 	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */
 	struct rb_node rs_node;       /* link to other block reservations */
-
-	/* components used during block searches and assignments (step 4): */
+	struct gfs2_rbm rs_rbm;       /* Start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
+	u64 rs_inum;                  /* Inode number for reservation */
 
 	/* ancillary quota stuff */
 	struct gfs2_quota_data *rs_qa_qd[2 * MAXQUOTAS];
