@@ -824,6 +824,13 @@ bfad_im_model_desc_show(struct device *dev, struct device_attribute *attr,
 		else if (nports == 2 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
 			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
 				"Brocade 16Gbps PCIe dual port FC HBA");
+	} else if (!strcmp(model, "Brocade-1867")) {
+		if (nports == 1 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
+			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
+				"Brocade 16Gbps PCIe single port FC HBA for IBM");
+		else if (nports == 2 && !bfa_ioc_is_cna(&bfad->bfa.ioc))
+			snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
+				"Brocade 16Gbps PCIe dual port FC HBA for IBM");
 	} else
 		snprintf(model_descr, BFA_ADAPTER_MODEL_DESCR_LEN,
 			"Invalid Model");
