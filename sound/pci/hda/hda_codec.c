@@ -808,7 +808,7 @@ find_codec_preset(struct hda_codec *codec)
 {
 	struct hda_codec_preset_list *tbl;
 	const struct hda_codec_preset *preset;
-	int mod_requested = 0;
+	unsigned int mod_requested = 0;
 
 	if (is_generic_config(codec))
 		return NULL; /* use the generic parser */
