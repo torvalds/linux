@@ -94,8 +94,6 @@
 #include "audit.h"
 #include "avc_ss.h"
 
-#define NUM_SEL_MNT_OPTS 5
-
 extern struct security_operations *security_ops;
 
 /* SECMARK reference count */
@@ -307,7 +305,10 @@ enum {
 	Opt_defcontext = 3,
 	Opt_rootcontext = 4,
 	Opt_labelsupport = 5,
+	Opt_nextmntopt = 6,
 };
+
+#define NUM_SEL_MNT_OPTS	(Opt_nextmntopt - 1)
 
 static const match_table_t tokens = {
 	{Opt_context, CONTEXT_STR "%s"},
