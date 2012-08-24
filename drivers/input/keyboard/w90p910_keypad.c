@@ -21,7 +21,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <mach/w90p910_keypad.h>
+#include <linux/platform_data/keypad-w90p910.h>
 
 /* Keypad Interface Control Registers */
 #define KPI_CONF		0x00

@@ -34,11 +34,11 @@
 #include <asm/mach-types.h>
 
 #include <mach/regs-serial.h>
-#include <mach/nuc900_spi.h>
+#include <linux/platform_data/spi-nuc900.h>
 #include <mach/map.h>
-#include <mach/fb.h>
+#include <linux/platform_data/video-nuc900fb.h>
 #include <mach/regs-ldm.h>
-#include <mach/w90p910_keypad.h>
+#include <linux/platform_data/keypad-w90p910.h>
 
 #include "cpu.h"
 
