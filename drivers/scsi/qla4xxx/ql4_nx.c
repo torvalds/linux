@@ -1566,7 +1566,6 @@ qla4_8xxx_set_qsnt_ready(struct scsi_qla_host *ha)
 static int
 qla4_8xxx_start_firmware(struct scsi_qla_host *ha, uint32_t image_start)
 {
-	int pcie_cap;
 	uint16_t lnk;
 
 	/* scrub dma mask expansion register */
@@ -1590,8 +1589,7 @@ qla4_8xxx_start_firmware(struct scsi_qla_host *ha, uint32_t image_start)
 	}
 
 	/* Negotiated Link width */
-	pcie_cap = pci_pcie_cap(ha->pdev);
-	pci_read_config_word(ha->pdev, pcie_cap + PCI_EXP_LNKSTA, &lnk);
+	pcie_capability_read_word(ha->pdev, PCI_EXP_LNKSTA, &lnk);
 	ha->link_width = (lnk >> 4) & 0x3f;
 
 	/* Synchronize with Receive peg */

@@ -367,17 +367,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf1, tegra_pcie_fixup_class);
 /* Tegra PCIE requires relaxed ordering */
 static void __devinit tegra_pcie_relax_enable(struct pci_dev *dev)
 {
-	u16 val16;
-	int pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
-
-	if (pos <= 0) {
-		dev_err(&dev->dev, "skipping relaxed ordering fixup\n");
-		return;
-	}
-
-	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &val16);
-	val16 |= PCI_EXP_DEVCTL_RELAX_EN;
-	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, val16);
+	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_RELAX_EN);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, tegra_pcie_relax_enable);
 

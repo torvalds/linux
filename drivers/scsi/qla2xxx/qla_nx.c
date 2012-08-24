@@ -1615,13 +1615,11 @@ qla82xx_get_fw_offs(struct qla_hw_data *ha)
 char *
 qla82xx_pci_info_str(struct scsi_qla_host *vha, char *str)
 {
-	int pcie_reg;
 	struct qla_hw_data *ha = vha->hw;
 	char lwstr[6];
 	uint16_t lnk;
 
-	pcie_reg = pci_pcie_cap(ha->pdev);
-	pci_read_config_word(ha->pdev, pcie_reg + PCI_EXP_LNKSTA, &lnk);
+	pcie_capability_read_word(ha->pdev, PCI_EXP_LNKSTA, &lnk);
 	ha->link_width = (lnk >> 4) & 0x3f;
 
 	strcpy(str, "PCIe (");
@@ -2497,7 +2495,6 @@ fw_load_failed:
 int
 qla82xx_start_firmware(scsi_qla_host_t *vha)
 {
-	int           pcie_cap;
 	uint16_t      lnk;
 	struct qla_hw_data *ha = vha->hw;
 
@@ -2528,8 +2525,7 @@ qla82xx_start_firmware(scsi_qla_host_t *vha)
 	}
 
 	/* Negotiated Link width */
-	pcie_cap = pci_pcie_cap(ha->pdev);
-	pci_read_config_word(ha->pdev, pcie_cap + PCI_EXP_LNKSTA, &lnk);
+	pcie_capability_read_word(ha->pdev, PCI_EXP_LNKSTA, &lnk);
 	ha->link_width = (lnk >> 4) & 0x3f;
 
 	/* Synchronize with Receive peg */
