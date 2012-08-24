@@ -70,7 +70,7 @@ MODULE_VERSION("0.1.1");
 	v4l2_dbg(1, 1, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 
-void m2mtest_dev_release(struct device *dev)
+static void m2mtest_dev_release(struct device *dev)
 {}
 
 static struct platform_device m2mtest_pdev = {
