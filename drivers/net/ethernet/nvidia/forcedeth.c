@@ -3409,7 +3409,7 @@ set_speed:
 
 	pause_flags = 0;
 	/* setup pause frame */
-	if (np->duplex != 0) {
+	if (netif_running(dev) && (np->duplex != 0)) {
 		if (np->autoneg && np->pause_flags & NV_PAUSEFRAME_AUTONEG) {
 			adv_pause = adv & (ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
 			lpa_pause = lpa & (LPA_PAUSE_CAP | LPA_PAUSE_ASYM);
@@ -5455,6 +5455,7 @@ static int nv_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	spin_lock_irq(&np->lock);
+	nv_update_pause(dev, 0); /* otherwise stop_tx bricks NIC */
 	nv_stop_rxtx(dev);
 	nv_txrx_reset(dev);
 
