@@ -439,8 +439,10 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 		}
 
 		m->actual_length += t->len;
-		if (status)
+		if (status) {
+			stmp_reset_block(ssp->base);
 			break;
+		}
 
 		first = last = 0;
 	}
