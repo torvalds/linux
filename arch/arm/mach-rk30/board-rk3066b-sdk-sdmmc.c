@@ -303,8 +303,7 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
     rk29sdk_init_wifi_mem();
     
-#ifndef CONFIG_ARCH_RK3066B
-    rk29_mux_api_set(GPIO3D0_SDMMC1PWREN_NAME, GPIO3D_GPIO3D0);
+    rk29_mux_api_set(GPIO3D0_SDMMC1PWREN_MIIMD_NAME, GPIO3D_GPIO3D0);
     
     if (gpio_request(RK30SDK_WIFI_GPIO_POWER_N, "wifi_power")) {
            pr_info("%s: request wifi power gpio failed\n", __func__);
@@ -329,20 +328,19 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 
     #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     
-    rk29_mux_api_set(GPIO3C2_SDMMC1DATA1_NAME, GPIO3C_GPIO3C2);
+    rk29_mux_api_set(GPIO3C2_SDMMC1DATA1_RMIITXD0_NAME, GPIO3C_GPIO3C2);
     gpio_request(RK30_PIN3_PC2, "mmc1-data1");
     gpio_direction_output(RK30_PIN3_PC2,GPIO_LOW);//set mmc1-data1 to low.
 
-    rk29_mux_api_set(GPIO3C3_SDMMC1DATA2_NAME, GPIO3C_GPIO3C3);
+    rk29_mux_api_set(GPIO3C3_SDMMC1DATA2_RMIIRXD0_NAME, GPIO3C_GPIO3C3);
     gpio_request(RK30_PIN3_PC3, "mmc1-data2");
     gpio_direction_output(RK30_PIN3_PC3,GPIO_LOW);//set mmc1-data2 to low.
 
-    rk29_mux_api_set(GPIO3C4_SDMMC1DATA3_NAME, GPIO3C_GPIO3C4);
+    rk29_mux_api_set(GPIO3C4_SDMMC1DATA3_RMIIRXD1_NAME, GPIO3C_GPIO3C4);
     gpio_request(RK30_PIN3_PC4, "mmc1-data3");
     gpio_direction_output(RK30_PIN3_PC4,GPIO_LOW);//set mmc1-data3 to low.
     
     rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
-    #endif    
 #endif
     pr_info("%s: init finished\n",__func__);
 

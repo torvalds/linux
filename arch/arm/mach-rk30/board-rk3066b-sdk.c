@@ -44,6 +44,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/rfkill-rk.h>
 #include <linux/sensor-dev.h>
+#include <linux/mfd/tps65910.h>
+#include <linux/regulator/rk29-pwm-regulator.h>
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
@@ -80,11 +82,9 @@ static int goodix_init_platform_hw(void)
 {
 	int ret;
 	
-#ifndef CONFIG_ARCH_RK3066B
-	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, GPIO4D_GPIO4D0);
-	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, GPIO4C_GPIO4C2);
-	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO4D0_SMCDATA8_TRACEDATA8_NAME),rk30_mux_api_get(GPIO4C2_SMCDATA2_TRACEDATA2_NAME));
-#endif
+	rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME, GPIO2C_GPIO2C0);
+	rk30_mux_api_set(GPIO0D4_SPI1RXD_NAME, GPIO0D_GPIO0D4);
+	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO0D4_SPI1RXD_NAME));
 
 	if (TOUCH_PWR_PIN != INVALID_GPIO) {
 		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
@@ -353,10 +353,6 @@ struct platform_device rk29_device_mt6229 = {
 
 static int mma8452_init_platform_hw(void)
 {
-#ifndef CONFIG_ARCH_RK3066B
-	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
-#endif
-
 	return 0;
 }
 
@@ -373,9 +369,6 @@ static struct sensor_platform_data mma8452_info = {
 
 static int lis3dh_init_platform_hw(void)
 {
-#ifndef CONFIG_ARCH_RK3066B
-        rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
-#endif
 
         return 0;
 }
@@ -431,10 +424,6 @@ static struct sensor_platform_data akm8975_info =
 
 static int l3g4200d_init_platform_hw(void)
 {
-#ifndef CONFIG_ARCH_RK3066B
-	rk30_mux_api_set(GPIO4C3_SMCDATA3_TRACEDATA3_NAME, GPIO4C_GPIO4C3);
-#endif
-	
 	return 0;
 }
 
@@ -855,6 +844,59 @@ static struct platform_device rk30_device_adc_battery = {
         },
 };
 #endif
+#ifdef CONFIG_RK30_PWM_REGULATOR
+const static int pwm_voltage_map[] = {
+	1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1400000
+};
+
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[1] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[1] = {
+	{
+		.pwm_id = 3,
+		.pwm_gpio = RK30_PIN3_PD6,
+		.pwm_iomux_name = GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME,
+		.pwm_iomux_pwm = GPIO3D_PWM3,
+		.pwm_iomux_gpio = GPIO3D_GPIO3D6,
+		.pwm_voltage = 1100000,
+		.suspend_voltage = 1050000,
+		.min_uV = 1000000,
+		.max_uV	= 1400000,
+		.coefficient = 455,	//45.5%
+		.pwm_voltage_map = pwm_voltage_map,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+};
+
+struct platform_device pwm_regulator_device[1] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
+};
+#endif
 
 #ifdef CONFIG_RK29_VMAC
 #define PHY_PWR_EN_GPIO	RK30_PIN1_PD6
@@ -1057,8 +1099,17 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 };
 #endif
 
+#define PMIC_TYPE_WM8326	1
+#define PMIC_TYPE_TPS65910	2
+int __sramdata g_pmic_type =  0;
 #ifdef CONFIG_I2C1_RK30
+#ifdef CONFIG_MFD_WM831X_I2C
 #include "board-rk3066b-sdk-wm8326.c"
+#endif
+#ifdef CONFIG_MFD_TPS65910
+#define TPS65910_HOST_IRQ        RK30_PIN6_PA4
+#include "board-rk3066b-sdk-tps65910.c"
+#endif
 
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
@@ -1070,8 +1121,88 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 		.platform_data = &wm831x_platdata,
 	},
 #endif
+#if defined (CONFIG_MFD_TPS65910)
+	{
+        .type           = "tps65910",
+        .addr           = TPS65910_I2C_ID0,
+        .flags          = 0,
+        .irq            = TPS65910_HOST_IRQ,
+    	.platform_data = &tps65910_data,
+	},
+#endif
 };
 #endif
+
+void __sramfunc board_pmu_suspend(void)
+{      
+	#if defined (CONFIG_MFD_WM831X_I2C)
+       if(g_pmic_type == PMIC_TYPE_WM8326)
+       board_pmu_wm8326_suspend();
+	#endif
+	#if defined (CONFIG_MFD_TPS65910)
+       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_suspend(); 
+    #endif   
+}
+
+void __sramfunc board_pmu_resume(void)
+{      
+	#if defined (CONFIG_MFD_WM831X_I2C)
+       if(g_pmic_type == PMIC_TYPE_WM8326)
+       board_pmu_wm8326_resume();
+	#endif
+	#if defined (CONFIG_MFD_TPS65910)
+       if(g_pmic_type == PMIC_TYPE_TPS65910)
+       board_pmu_tps65910_resume(); 
+	#endif
+}
+
+ int __sramdata gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
+
+void __sramfunc rk30_pwm_logic_suspend_voltage(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+
+//	int gpio0d7_iomux,gpio0d7_do,gpio0d7_dir,gpio0d7_en;
+	sram_udelay(10000);
+	gpio0d7_iomux = readl_relaxed(GRF_GPIO0D_IOMUX);
+	gpio0d7_do = grf_readl(GRF_GPIO0H_DO);
+	gpio0d7_dir = grf_readl(GRF_GPIO0H_DIR);
+	gpio0d7_en = grf_readl(GRF_GPIO0H_EN);
+
+	writel_relaxed((1<<30), GRF_GPIO0D_IOMUX);
+	grf_writel((1<<31)|(1<<15), GRF_GPIO0H_DIR);
+	grf_writel((1<<31)|(1<<15), GRF_GPIO0H_DO);
+	grf_writel((1<<31)|(1<<15), GRF_GPIO0H_EN);
+#endif 
+}
+void __sramfunc rk30_pwm_logic_resume_voltage(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	writel_relaxed((1<<30)|gpio0d7_iomux, GRF_GPIO0D_IOMUX);
+	grf_writel((1<<31)|gpio0d7_en, GRF_GPIO0H_EN);
+	grf_writel((1<<31)|gpio0d7_dir, GRF_GPIO0H_DIR);
+	grf_writel((1<<31)|gpio0d7_do, GRF_GPIO0H_DO);
+	sram_udelay(10000);
+
+#endif
+
+}
+extern void pwm_suspend_voltage(void);
+extern void pwm_resume_voltage(void);
+void  rk30_pwm_suspend_voltage_set(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	pwm_suspend_voltage();
+#endif
+}
+void  rk30_pwm_resume_voltage_set(void)
+{
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	pwm_resume_voltage();
+#endif
+}
+
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {

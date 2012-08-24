@@ -2824,6 +2824,17 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
 static void rk_camera_cif_iomux(int cif_index)
 {
 #if defined(CONFIG_ARCH_RK3066B)
+    switch(cif_index){
+        case 0:
+            rk30_mux_api_set(GPIO3B3_CIFCLKOUT_NAME, GPIO3B_CIFCLKOUT);
+	    rk30_mux_api_set(GPIO3B4_CIFDATA0_HSADCDATA8_NAME, GPIO3B_CIFDATA0);
+	    rk30_mux_api_set(GPIO3B5_CIFDATA1_HSADCDATA9_NAME, GPIO3B_CIFDATA1);
+	    rk30_mux_api_set(GPIO3B6_CIFDATA10_I2C3SDA_NAME, GPIO3B_CIFDATA10);
+	    rk30_mux_api_set(GPIO3B7_CIFDATA11_I2C3SCL_NAME, GPIO3B_CIFDATA11);
+            break;
+        default:
+            printk("cif index is erro!!!\n");
+        }
 #elif defined(CONFIG_ARCH_RK30)
     switch(cif_index){
         case 0:

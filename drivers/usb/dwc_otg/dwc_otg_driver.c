@@ -1584,6 +1584,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     USB_IOMUX_INIT(GPIO4A5_OTG0DRVVBUS_NAME, GPIO4L_OTG0_DRV_VBUS);
 #endif
 #if defined(CONFIG_ARCH_RK3066B)
+    USB_IOMUX_INIT(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME, GPIO3D_OTGDRVVBUS);
 #elif defined(CONFIG_ARCH_RK30)
     USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);    
 #endif
@@ -2170,7 +2171,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK29  
     ahbclk = clk_get(NULL, "usbotg1");
 #endif
-#ifdef CONFIG_ARCH_RK30  
+#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3066B)  
     ahbclk = clk_get(NULL, "hclk_otg1");
 #endif    
 #ifdef CONFIG_ARCH_RK2928
@@ -2280,6 +2281,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     USB_IOMUX_INIT(GPIO4A6_OTG1DRVVBUS_NAME, GPIO4L_OTG1_DRV_VBUS);
 #endif    
 #if defined(CONFIG_ARCH_RK3066B)
+    USB_IOMUX_INIT(GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME, GPIO3D_HOSTDRVVBUS);
 #elif defined(CONFIG_ARCH_RK30)
     USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
 #endif

@@ -491,6 +491,14 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
 	switch(dai->id) {
 #if defined(CONFIG_ARCH_RK3066B)
+        case 1:
+                        rk30_mux_api_set(GPIO1C0_I2SCLK_NAME, GPIO1C_I2SCLK);
+                        rk30_mux_api_set(GPIO1C1_I2SSCLK_NAME, GPIO1C_I2SSCLK);
+                        rk30_mux_api_set(GPIO1C2_I2SLRCLKRX_NAME, GPIO1C_I2SLRCLKRX);
+                        rk30_mux_api_set(GPIO1C3_I2SLRCLKTX_NAME, GPIO1C_I2SLRCLKTX);
+                        rk30_mux_api_set(GPIO1C4_I2SSDI_NAME, GPIO1C_I2SSDI);
+                        rk30_mux_api_set(GPIO1C5_I2SSDO_NAME, GPIO1C_I2SSDO);
+                        break;
 #elif defined(CONFIG_ARCH_RK30)
         case 0:
 			rk30_mux_api_set(GPIO0A7_I2S8CHSDI_NAME, GPIO0A_I2S_8CH_SDI);		
@@ -516,9 +524,9 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
 			rk30_mux_api_set(GPIO0D1_I2S22CHSCLK_SMCWEN_NAME, GPIO0D_I2S2_2CH_SCLK);
 			rk30_mux_api_set(GPIO0D2_I2S22CHLRCKRX_SMCOEN_NAME, GPIO0D_I2S2_2CH_LRCK_RX);
 			rk30_mux_api_set(GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_I2S2_2CH_LRCK_TX);				
-            rk30_mux_api_set(GPIO0D4_I2S22CHSDI_SMCADDR0_NAME, GPIO0D_I2S2_2CH_SDI);
-            rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_I2S2_2CH_SDO);
-            break;				
+            		rk30_mux_api_set(GPIO0D4_I2S22CHSDI_SMCADDR0_NAME, GPIO0D_I2S2_2CH_SDI);
+            		rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_I2S2_2CH_SDO);
+           		break;				
 #endif
 #ifdef CONFIG_ARCH_RK2928
         case 0:
