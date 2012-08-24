@@ -1554,7 +1554,6 @@ cdv_intel_dp_detect(struct drm_connector *connector, bool force)
 		edid = drm_get_edid(connector, &intel_dp->adapter);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
-			connector->display_info.raw_edid = NULL;
 			kfree(edid);
 		}
 	}
@@ -1634,8 +1633,6 @@ cdv_intel_dp_detect_audio(struct drm_connector *connector)
 	edid = drm_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
-
-		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
 	if (edp)
