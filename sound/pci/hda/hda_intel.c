@@ -2528,8 +2528,10 @@ static int azx_runtime_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!power_save_controller)
 		return -EAGAIN;
+#endif
 
 	azx_stop_chip(chip);
 	azx_clear_irq_pending(chip);
