@@ -736,7 +736,6 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_ibss_status *ibss_coal_resp =
 					&(resp->params.ibss_coalescing);
-	u8 zero_mac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 
 	if (le16_to_cpu(ibss_coal_resp->action) == HostCmd_ACT_GEN_SET)
 		return 0;
@@ -745,7 +744,7 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
 		"info: new BSSID %pM\n", ibss_coal_resp->bssid);
 
 	/* If rsp has NULL BSSID, Just return..... No Action */
-	if (!memcmp(ibss_coal_resp->bssid, zero_mac, ETH_ALEN)) {
+	if (is_zero_ether_addr(ibss_coal_resp->bssid)) {
 		dev_warn(priv->adapter->dev, "new BSSID is NULL\n");
 		return 0;
 	}
