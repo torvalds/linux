@@ -2120,6 +2120,9 @@ static int efx_register_netdev(struct efx_nic *efx)
 		goto fail_locked;
 	efx_update_name(efx);
 
+	/* Always start with carrier off; PHY events will detect the link */
+	netif_carrier_off(net_dev);
+
 	rc = register_netdevice(net_dev);
 	if (rc)
 		goto fail_locked;
@@ -2129,9 +2132,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_init_tx_queue_core_txq(tx_queue);
 	}
-
-	/* Always start with carrier off; PHY events will detect the link */
-	netif_carrier_off(net_dev);
 
 	rtnl_unlock();
 
