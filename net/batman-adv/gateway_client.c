@@ -48,7 +48,7 @@ batadv_gw_get_selected_gw_node(struct batadv_priv *bat_priv)
 	struct batadv_gw_node *gw_node;
 
 	rcu_read_lock();
-	gw_node = rcu_dereference(bat_priv->curr_gw);
+	gw_node = rcu_dereference(bat_priv->gw.curr_gw);
 	if (!gw_node)
 		goto out;
 
@@ -91,23 +91,23 @@ static void batadv_gw_select(struct batadv_priv *bat_priv,
 {
 	struct batadv_gw_node *curr_gw_node;
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
+	spin_lock_bh(&bat_priv->gw.list_lock);
 
 	if (new_gw_node && !atomic_inc_not_zero(&new_gw_node->refcount))
 		new_gw_node = NULL;
 
-	curr_gw_node = rcu_dereference_protected(bat_priv->curr_gw, 1);
-	rcu_assign_pointer(bat_priv->curr_gw, new_gw_node);
+	curr_gw_node = rcu_dereference_protected(bat_priv->gw.curr_gw, 1);
+	rcu_assign_pointer(bat_priv->gw.curr_gw, new_gw_node);
 
 	if (curr_gw_node)
 		batadv_gw_node_free_ref(curr_gw_node);
 
-	spin_unlock_bh(&bat_priv->gw_list_lock);
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 }
 
 void batadv_gw_deselect(struct batadv_priv *bat_priv)
 {
-	atomic_set(&bat_priv->gw_reselect, 1);
+	atomic_set(&bat_priv->gw.reselect, 1);
 }
 
 static struct batadv_gw_node *
@@ -117,12 +117,17 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 	struct hlist_node *node;
 	struct batadv_gw_node *gw_node, *curr_gw = NULL;
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
+	uint32_t gw_divisor;
 	uint8_t max_tq = 0;
 	int down, up;
+	uint8_t tq_avg;
 	struct batadv_orig_node *orig_node;
 
+	gw_divisor = BATADV_TQ_LOCAL_WINDOW_SIZE * BATADV_TQ_LOCAL_WINDOW_SIZE;
+	gw_divisor *= 64;
+
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
+	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
 		if (gw_node->deleted)
 			continue;
 
@@ -134,19 +139,19 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 		if (!atomic_inc_not_zero(&gw_node->refcount))
 			goto next;
 
+		tq_avg = router->tq_avg;
+
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
 		case 1: /* fast connection */
 			batadv_gw_bandwidth_to_kbit(orig_node->gw_flags,
 						    &down, &up);
 
-			tmp_gw_factor = (router->tq_avg * router->tq_avg *
-					 down * 100 * 100) /
-					 (BATADV_TQ_LOCAL_WINDOW_SIZE *
-					  BATADV_TQ_LOCAL_WINDOW_SIZE * 64);
+			tmp_gw_factor = tq_avg * tq_avg * down * 100 * 100;
+			tmp_gw_factor /= gw_divisor;
 
 			if ((tmp_gw_factor > max_gw_factor) ||
 			    ((tmp_gw_factor == max_gw_factor) &&
-			     (router->tq_avg > max_tq))) {
+			     (tq_avg > max_tq))) {
 				if (curr_gw)
 					batadv_gw_node_free_ref(curr_gw);
 				curr_gw = gw_node;
@@ -161,7 +166,7 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			  *     soon as a better gateway appears which has
 			  *     $routing_class more tq points)
 			  */
-			if (router->tq_avg > max_tq) {
+			if (tq_avg > max_tq) {
 				if (curr_gw)
 					batadv_gw_node_free_ref(curr_gw);
 				curr_gw = gw_node;
@@ -170,8 +175,8 @@ batadv_gw_get_best_gw_node(struct batadv_priv *bat_priv)
 			break;
 		}
 
-		if (router->tq_avg > max_tq)
-			max_tq = router->tq_avg;
+		if (tq_avg > max_tq)
+			max_tq = tq_avg;
 
 		if (tmp_gw_factor > max_gw_factor)
 			max_gw_factor = tmp_gw_factor;
@@ -202,7 +207,7 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	if (!batadv_atomic_dec_not_zero(&bat_priv->gw_reselect) && curr_gw)
+	if (!batadv_atomic_dec_not_zero(&bat_priv->gw.reselect) && curr_gw)
 		goto out;
 
 	next_gw = batadv_gw_get_best_gw_node(bat_priv);
@@ -321,9 +326,9 @@ static void batadv_gw_node_add(struct batadv_priv *bat_priv,
 	gw_node->orig_node = orig_node;
 	atomic_set(&gw_node->refcount, 1);
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
-	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw_list);
-	spin_unlock_bh(&bat_priv->gw_list_lock);
+	spin_lock_bh(&bat_priv->gw.list_lock);
+	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw.list);
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	batadv_gw_bandwidth_to_kbit(new_gwflags, &down, &up);
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
@@ -350,7 +355,7 @@ void batadv_gw_node_update(struct batadv_priv *bat_priv,
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
+	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
 		if (gw_node->orig_node != orig_node)
 			continue;
 
@@ -404,10 +409,10 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
 
-	spin_lock_bh(&bat_priv->gw_list_lock);
+	spin_lock_bh(&bat_priv->gw.list_lock);
 
 	hlist_for_each_entry_safe(gw_node, node, node_tmp,
-				  &bat_priv->gw_list, list) {
+				  &bat_priv->gw.list, list) {
 		if (((!gw_node->deleted) ||
 		     (time_before(jiffies, gw_node->deleted + timeout))) &&
 		    atomic_read(&bat_priv->mesh_state) == BATADV_MESH_ACTIVE)
@@ -420,7 +425,7 @@ void batadv_gw_node_purge(struct batadv_priv *bat_priv)
 		batadv_gw_node_free_ref(gw_node);
 	}
 
-	spin_unlock_bh(&bat_priv->gw_list_lock);
+	spin_unlock_bh(&bat_priv->gw.list_lock);
 
 	/* gw_deselect() needs to acquire the gw_list_lock */
 	if (do_deselect)
@@ -496,7 +501,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
+	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw.list, list) {
 		if (gw_node->deleted)
 			continue;
 
