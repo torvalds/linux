@@ -50,6 +50,7 @@ struct rk29_bl_info {
 	int (*pwm_resume)(void);
 	int min_brightness;	/* 0 ~ 255 */
 	unsigned int delay_ms;	/* in milliseconds */
+	int pre_div;
 };
 
 struct rk29_io_t {

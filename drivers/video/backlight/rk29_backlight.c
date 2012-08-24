@@ -219,6 +219,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	u32 divh, div_total;
 	unsigned long pwm_clk_rate;
 	struct backlight_properties props;
+	int pre_div = PWM_APB_PRE_DIV;
 
 	if (rk29_bl) {
 		printk(KERN_CRIT "%s: backlight device register has existed \n",
@@ -235,6 +236,9 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	if (rk29_bl_info && rk29_bl_info->io_init) {
 		rk29_bl_info->io_init();
 	}
+
+	if(rk29_bl_info->pre_div > 0)
+		pre_div = rk29_bl_info->pre_div;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_RAW;
@@ -259,7 +263,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	pwm_clk_rate = clk_get_rate(pwm_clk);
-	div_total = pwm_clk_rate / PWM_APB_PRE_DIV;
+	div_total = pwm_clk_rate / pre_div;
 
 	div_total >>= (1 + (PWM_DIV >> 9));
 	div_total = (div_total) ? div_total : 1;
