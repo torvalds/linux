@@ -81,7 +81,6 @@ struct rbd_image_header {
 	__u8 crypt_type;
 	__u8 comp_type;
 	struct ceph_snap_context *snapc;
-	u64 snap_names_len;
 	u32 total_snaps;
 
 	char *snap_names;
@@ -534,12 +533,21 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->object_prefix[len] = '\0';
 
 	if (snap_count) {
-		header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
-		BUG_ON(header->snap_names_len > (u64) SIZE_MAX);
-		header->snap_names = kmalloc(header->snap_names_len,
-					     GFP_KERNEL);
+		u64 snap_names_len = le64_to_cpu(ondisk->snap_names_len);
+
+		if (snap_names_len > (u64) SIZE_MAX)
+			return -EIO;
+		header->snap_names = kmalloc(snap_names_len, GFP_KERNEL);
 		if (!header->snap_names)
 			goto out_err;
+		/*
+		 * Note that rbd_dev_v1_header_read() guarantees
+		 * the ondisk buffer we're working with has
+		 * snap_names_len bytes beyond the end of the
+		 * snapshot id array, this memcpy() is safe.
+		 */
+		memcpy(header->snap_names, &ondisk->snaps[snap_count],
+			snap_names_len);
 
 		size = snap_count * sizeof (*header->snap_sizes);
 		header->snap_sizes = kmalloc(size, GFP_KERNEL);
@@ -547,7 +555,6 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 			goto out_err;
 	} else {
 		WARN_ON(ondisk->snap_names_len);
-		header->snap_names_len = 0;
 		header->snap_names = NULL;
 		header->snap_sizes = NULL;
 	}
@@ -579,10 +586,6 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 			header->snap_sizes[i] =
 				le64_to_cpu(ondisk->snaps[i].image_size);
 		}
-
-		/* copy snapshot names */
-		memcpy(header->snap_names, &ondisk->snaps[snap_count],
-			header->snap_names_len);
 	}
 
 	return 0;
@@ -592,7 +595,6 @@ out_err:
 	header->snap_sizes = NULL;
 	kfree(header->snap_names);
 	header->snap_names = NULL;
-	header->snap_names_len = 0;
 	kfree(header->object_prefix);
 	header->object_prefix = NULL;
 
@@ -660,7 +662,6 @@ static void rbd_header_free(struct rbd_image_header *header)
 	header->snap_sizes = NULL;
 	kfree(header->snap_names);
 	header->snap_names = NULL;
-	header->snap_names_len = 0;
 	ceph_put_snap_context(header->snapc);
 	header->snapc = NULL;
 }
@@ -1800,7 +1801,6 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
 	rbd_dev->header.total_snaps = h.total_snaps;
 	rbd_dev->header.snapc = h.snapc;
 	rbd_dev->header.snap_names = h.snap_names;
-	rbd_dev->header.snap_names_len = h.snap_names_len;
 	rbd_dev->header.snap_sizes = h.snap_sizes;
 	/* Free the extra copy of the object prefix */
 	WARN_ON(strcmp(rbd_dev->header.object_prefix, h.object_prefix));
