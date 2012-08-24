@@ -38,7 +38,7 @@
 #include <sound/tlv.h>
 
 #include <mach/iomux.h>
-
+#include <linux/clk.h>
 #include "rk2928_codec.h"
 
 static struct rk2928_codec_data {
@@ -46,6 +46,7 @@ static struct rk2928_codec_data {
 	int 			regbase;
 	int				regbase_phy;
 	int				regsize_phy;
+	struct clk		*pclk;
 	int				mute;
 	int				hdmi_enable;
 	int				spkctl;
@@ -246,6 +247,15 @@ static int rk2928_probe(struct snd_soc_codec *codec)
 		goto err1;
 	}
 	
+	rk2928_data.pclk = clk_get(NULL,"pclk_acodec");
+	if(IS_ERR(rk2928_data.pclk))
+	{
+		dev_err(rk2928_data.dev, "Unable to get acodec hclk\n");
+		ret = -ENXIO;
+		goto err1;
+	}
+	clk_enable(rk2928_data.pclk);
+
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if(!res) {
 		rk2928_data.spkctl = INVALID_GPIO;
@@ -293,12 +303,14 @@ static int rk2928_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	DBG("%s", __FUNCTION__);
 	rk2928_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	clk_disable(rk2928_data.pclk);
 	return 0;
 }
 
 static int rk2928_resume(struct snd_soc_codec *codec)
 {
 	DBG("%s", __FUNCTION__);
+	clk_enable(rk2928_data.pclk);
 	rk2928_write(codec, CODEC_REG_POWER, v_PD_ADC(1) | v_PD_DAC(1) | v_PD_MIC_BIAS(1));
 	return 0;
 }
