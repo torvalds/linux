@@ -382,16 +382,14 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
 		struct user_i387_ia32_struct env;
 
-		stop_fpu_preload(tsk);
-		unlazy_fpu(tsk);
+		drop_fpu(tsk);
 
 		if (__copy_from_user(xsave, buf_fx, state_size) ||
-		    __copy_from_user(&env, buf, sizeof(env))) {
-			drop_fpu(tsk);
+		    __copy_from_user(&env, buf, sizeof(env)))
 			return -1;
-		}
 
 		sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
+		set_used_math();
 	} else {
 		/*
 		 * For 64-bit frames and 32-bit fsave frames, restore the user
