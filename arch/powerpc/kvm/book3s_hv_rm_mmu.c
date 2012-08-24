@@ -197,7 +197,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		pa &= PAGE_MASK;
 	} else {
 		/* Translate to host virtual address */
-		hva = gfn_to_hva_memslot(memslot, gfn);
+		hva = __gfn_to_hva_memslot(memslot, gfn);
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;
