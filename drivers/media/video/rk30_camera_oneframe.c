@@ -2952,7 +2952,7 @@ static int rk_camera_probe(struct platform_device *pdev)
     
     pcdev->vipmem_phybase = meminfo_ptr->start;
 	pcdev->vipmem_size = meminfo_ptr->size;
-    pcdev->pdata->meminfo.vbase = meminfo_ptr->vbase;
+    pcdev->vipmem_virbase = meminfo_ptr->vbase;
 	#endif
     INIT_LIST_HEAD(&pcdev->capture);
     INIT_LIST_HEAD(&pcdev->camera_work_queue);

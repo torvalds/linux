@@ -1504,7 +1504,8 @@ static void rk_init_camera_plateform_data(void)
 
 static void rk30_camera_request_reserve_mem(void)
 {
-#ifdef CONFIG_VIDEO_RK29_WORK_IPP    
+#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+        rk_camera_platform_data.meminfo.vbase = rk_camera_platform_data.meminfo_cif1.vbase = NULL;
     #if defined(CONFIG_VIDEO_RKCIF_WORK_SIMUL_OFF) || ((RK_SUPPORT_CIF0 && RK_SUPPORT_CIF1) == false)
         rk_camera_platform_data.meminfo.name = "camera_ipp_mem";
         rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem",PMEM_CAMIPP_NECESSARY);
