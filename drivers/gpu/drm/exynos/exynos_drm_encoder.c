@@ -214,12 +214,27 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 		manager_ops->commit(manager->dev);
 }
 
+static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
+{
+	struct drm_plane *plane;
+	struct drm_device *dev = encoder->dev;
+
+	exynos_drm_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+
+	/* all planes connected to this encoder should be also disabled. */
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		if (plane->crtc == encoder->crtc)
+			plane->funcs->disable_plane(plane);
+	}
+}
+
 static struct drm_encoder_helper_funcs exynos_encoder_helper_funcs = {
 	.dpms		= exynos_drm_encoder_dpms,
 	.mode_fixup	= exynos_drm_encoder_mode_fixup,
 	.mode_set	= exynos_drm_encoder_mode_set,
 	.prepare	= exynos_drm_encoder_prepare,
 	.commit		= exynos_drm_encoder_commit,
+	.disable	= exynos_drm_encoder_disable,
 };
 
 static void exynos_drm_encoder_destroy(struct drm_encoder *encoder)
