@@ -28,7 +28,7 @@
 
 #include <mach/hardware.h>
 #include <mach/ep93xx-regs.h>
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 
 #include "ep93xx-pcm.h"
 

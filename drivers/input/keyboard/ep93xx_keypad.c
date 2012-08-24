@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 
 #include <mach/hardware.h>
-#include <mach/ep93xx_keypad.h>
+#include <linux/platform_data/keypad-ep93xx.h>
 
 /*
  * Keypad Interface Register offsets

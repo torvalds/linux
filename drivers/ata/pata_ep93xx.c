@@ -43,7 +43,7 @@
 #include <linux/dmaengine.h>
 #include <linux/ktime.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-ep93xx.h>
 #include <mach/platform.h>
 
 #define DRV_NAME	"ep93xx-ide"

@@ -31,8 +31,8 @@
 #include <linux/scatterlist.h>
 #include <linux/spi/spi.h>
 
-#include <mach/dma.h>
-#include <mach/ep93xx_spi.h>
+#include <linux/platform_data/dma-ep93xx.h>
+#include <linux/platform_data/spi-ep93xx.h>
 
 #define SSPCR0			0x0000
 #define SSPCR0_MODE_SHIFT	6

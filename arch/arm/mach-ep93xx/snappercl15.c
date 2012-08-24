@@ -28,7 +28,7 @@
 #include <linux/mtd/nand.h>
 
 #include <mach/hardware.h>
-#include <mach/fb.h>
+#include <linux/platform_data/video-ep93xx.h>
 #include <mach/gpio-ep93xx.h>
 
 #include <asm/hardware/vic.h>
