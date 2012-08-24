@@ -9,7 +9,7 @@ static inline void check_sdata_in_driver(struct ieee80211_sub_if_data *sdata)
 {
 	WARN(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER),
 	     "%s:  Failed check-sdata-in-driver check, flags: 0x%x\n",
-	     sdata->dev->name, sdata->flags);
+	     sdata->dev ? sdata->dev->name : sdata->name, sdata->flags);
 }
 
 static inline struct ieee80211_sub_if_data *
@@ -22,9 +22,11 @@ get_bss_sdata(struct ieee80211_sub_if_data *sdata)
 	return sdata;
 }
 
-static inline void drv_tx(struct ieee80211_local *local, struct sk_buff *skb)
+static inline void drv_tx(struct ieee80211_local *local,
+			  struct ieee80211_tx_control *control,
+			  struct sk_buff *skb)
 {
-	local->ops->tx(&local->hw, skb);
+	local->ops->tx(&local->hw, control, skb);
 }
 
 static inline void drv_get_et_strings(struct ieee80211_sub_if_data *sdata,
@@ -525,6 +527,9 @@ static inline void drv_sta_rc_update(struct ieee80211_local *local,
 {
 	sdata = get_bss_sdata(sdata);
 	check_sdata_in_driver(sdata);
+
+	WARN_ON(changed & IEEE80211_RC_SUPP_RATES_CHANGED &&
+		sdata->vif.type != NL80211_IFTYPE_ADHOC);
 
 	trace_drv_sta_rc_update(local, sdata, sta, changed);
 	if (local->ops->sta_rc_update)

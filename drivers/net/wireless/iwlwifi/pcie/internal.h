@@ -184,6 +184,7 @@ struct iwl_queue {
 
 struct iwl_pcie_tx_queue_entry {
 	struct iwl_device_cmd *cmd;
+	struct iwl_device_cmd *copy_cmd;
 	struct sk_buff *skb;
 	struct iwl_cmd_meta meta;
 };

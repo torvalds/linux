@@ -38,13 +38,9 @@ static void gf_mulx(u8 *pad)
 static void aes_128_cmac_vector(struct crypto_cipher *tfm, size_t num_elem,
 				const u8 *addr[], const size_t *len, u8 *mac)
 {
-	u8 scratch[2 * AES_BLOCK_SIZE];
-	u8 *cbc, *pad;
+	u8 cbc[AES_BLOCK_SIZE], pad[AES_BLOCK_SIZE];
 	const u8 *pos, *end;
 	size_t i, e, left, total_len;
-
-	cbc = scratch;
-	pad = scratch + AES_BLOCK_SIZE;
 
 	memset(cbc, 0, AES_BLOCK_SIZE);
 
