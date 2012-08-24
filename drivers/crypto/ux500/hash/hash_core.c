@@ -1991,7 +1991,6 @@ static int __init ux500_hash_mod_init(void)
 static void __exit ux500_hash_mod_fini(void)
 {
 	platform_driver_unregister(&hash_driver);
-	return;
 }
 
 module_init(ux500_hash_mod_init);
