@@ -458,7 +458,11 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				int user_alloc);
 bool kvm_largepages_enabled(void);
 void kvm_disable_largepages(void);
-void kvm_arch_flush_shadow(struct kvm *kvm);
+/* flush all memory translations */
+void kvm_arch_flush_shadow_all(struct kvm *kvm);
+/* flush memory translations pointing to 'slot' */
+void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+				   struct kvm_memory_slot *slot);
 
 int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
 			    int nr_pages);

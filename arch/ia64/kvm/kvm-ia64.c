@@ -1613,9 +1613,15 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	return;
 }
 
-void kvm_arch_flush_shadow(struct kvm *kvm)
+void kvm_arch_flush_shadow_all(struct kvm *kvm)
 {
 	kvm_flush_remote_tlbs(kvm);
+}
+
+void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
+				   struct kvm_memory_slot *slot)
+{
+	kvm_arch_flush_shadow_all();
 }
 
 long kvm_arch_dev_ioctl(struct file *filp,
