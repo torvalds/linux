@@ -520,6 +520,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	u32 snap_count;
 	size_t len;
 	size_t size;
+	u32 i;
 
 	memset(header, 0, sizeof (*header));
 
@@ -535,6 +536,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	if (snap_count) {
 		u64 snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 
+		/* Save a copy of the snapshot names */
+
 		if (snap_names_len > (u64) SIZE_MAX)
 			return -EIO;
 		header->snap_names = kmalloc(snap_names_len, GFP_KERNEL);
@@ -549,10 +552,15 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		memcpy(header->snap_names, &ondisk->snaps[snap_count],
 			snap_names_len);
 
+		/* Record each snapshot's size */
+
 		size = snap_count * sizeof (*header->snap_sizes);
 		header->snap_sizes = kmalloc(size, GFP_KERNEL);
 		if (!header->snap_sizes)
 			goto out_err;
+		for (i = 0; i < snap_count; i++)
+			header->snap_sizes[i] =
+				le64_to_cpu(ondisk->snaps[i].image_size);
 	} else {
 		WARN_ON(ondisk->snap_names_len);
 		header->snap_names = NULL;
@@ -565,6 +573,8 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->comp_type = ondisk->options.comp_type;
 	header->total_snaps = snap_count;
 
+	/* Allocate and fill in the snapshot context */
+
 	size = sizeof (struct ceph_snap_context);
 	size += snap_count * sizeof (header->snapc->snaps[0]);
 	header->snapc = kzalloc(size, GFP_KERNEL);
@@ -574,19 +584,9 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	atomic_set(&header->snapc->nref, 1);
 	header->snapc->seq = le64_to_cpu(ondisk->snap_seq);
 	header->snapc->num_snaps = snap_count;
-
-	/* Fill in the snapshot information */
-
-	if (snap_count) {
-		u32 i;
-
-		for (i = 0; i < snap_count; i++) {
-			header->snapc->snaps[i] =
-				le64_to_cpu(ondisk->snaps[i].id);
-			header->snap_sizes[i] =
-				le64_to_cpu(ondisk->snaps[i].image_size);
-		}
-	}
+	for (i = 0; i < snap_count; i++)
+		header->snapc->snaps[i] =
+			le64_to_cpu(ondisk->snaps[i].id);
 
 	return 0;
 
