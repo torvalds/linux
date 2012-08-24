@@ -1201,12 +1201,6 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type)
 
 		ar9003_mci_2g5g_switch(ah, false);
 		break;
-	case MCI_STATE_SET_BT_CAL_START:
-		mci->bt_state = MCI_BT_CAL_START;
-		break;
-	case MCI_STATE_SET_BT_CAL:
-		mci->bt_state = MCI_BT_CAL;
-		break;
 	case MCI_STATE_RESET_REQ_WAKE:
 		ar9003_mci_reset_req_wakeup(ah);
 		mci->update_2g5g = true;
