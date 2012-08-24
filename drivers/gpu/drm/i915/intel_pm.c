@@ -3963,13 +3963,13 @@ static void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 		forcewake_ack = FORCEWAKE_ACK;
 
 	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1) == 0, 500))
-		DRM_ERROR("Force wake wait timed out\n");
+		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE, 1);
 	POSTING_READ(FORCEWAKE);
 
 	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1), 500))
-		DRM_ERROR("Force wake wait timed out\n");
+		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
 	__gen6_gt_wait_for_thread_c0(dev_priv);
 }
@@ -3984,13 +3984,13 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 		forcewake_ack = FORCEWAKE_MT_ACK;
 
 	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1) == 0, 500))
-		DRM_ERROR("Force wake wait timed out\n");
+		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(1));
 	POSTING_READ(FORCEWAKE_MT);
 
 	if (wait_for_atomic_us((I915_READ_NOTRACE(forcewake_ack) & 1), 500))
-		DRM_ERROR("Force wake wait timed out\n");
+		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
 	__gen6_gt_wait_for_thread_c0(dev_priv);
 }
@@ -4070,12 +4070,12 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	if (wait_for_atomic_us((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1) == 0, 500))
-		DRM_ERROR("Force wake wait timed out\n");
+		DRM_ERROR("Timed out waiting for forcewake old ack to clear.\n");
 
 	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_ENABLE(1));
 
 	if (wait_for_atomic_us((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1), 500))
-		DRM_ERROR("Force wake wait timed out\n");
+		DRM_ERROR("Timed out waiting for forcewake to ack request.\n");
 
 	__gen6_gt_wait_for_thread_c0(dev_priv);
 }
