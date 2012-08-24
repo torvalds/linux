@@ -586,7 +586,6 @@ static int __devinit mxs_spi_probe(struct platform_device *pdev)
 	return 0;
 
 out_free_dma:
-	platform_set_drvdata(pdev, NULL);
 	dma_release_channel(ssp->dmach);
 	clk_disable_unprepare(ssp->clk);
 out_master_free:
@@ -600,13 +599,11 @@ static int __devexit mxs_spi_remove(struct platform_device *pdev)
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
 
-	master = platform_get_drvdata(pdev);
+	master = spi_master_get(platform_get_drvdata(pdev));
 	spi = spi_master_get_devdata(master);
 	ssp = &spi->ssp;
 
 	spi_unregister_master(master);
-
-	platform_set_drvdata(pdev, NULL);
 
 	dma_release_channel(ssp->dmach);
 
