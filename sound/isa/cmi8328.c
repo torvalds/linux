@@ -404,8 +404,9 @@ error:
 static int __devexit snd_cmi8328_remove(struct device *pdev, unsigned int dev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
-#ifdef SUPPORT_JOYSTICK
 	struct snd_cmi8328 *cmi = card->private_data;
+
+#ifdef SUPPORT_JOYSTICK
 	if (cmi->gameport) {
 		struct resource *res = gameport_get_port_data(cmi->gameport);
 		gameport_unregister_port(cmi->gameport);
