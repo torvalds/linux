@@ -588,7 +588,9 @@ static int serial_2002_open(struct comedi_device *dev)
 				kfree(s->range_table_list);
 				s->range_table = NULL;
 				s->range_table_list = NULL;
-				if (range) {
+				if (kind == 1 || kind == 2) {
+					s->range_table = &range_digital;
+				} else if (range) {
 					s->range_table_list = range_table_list =
 					    kmalloc(sizeof
 						    (struct
