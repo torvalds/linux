@@ -8,17 +8,17 @@
 
 #include <asm/pmu.h>
 #include <mach/udc.h>
-#include <mach/pxa3xx-u2d.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/irda.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/irda-pxaficp.h>
 #include <mach/irqs.h>
-#include <mach/ohci.h>
-#include <plat/pxa27x_keypad.h>
-#include <mach/camera.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/keypad-pxa27x.h>
+#include <linux/platform_data/camera-pxa.h>
 #include <mach/audio.h>
 #include <mach/hardware.h>
-#include <plat/pxa3xx_nand.h>
+#include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #include "devices.h"
 #include "generic.h"

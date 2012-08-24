@@ -27,7 +27,7 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-u2d.h>
-#include <mach/pxa3xx-u2d.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 struct pxa3xx_u2d_ulpi {
 	struct clk		*clk;

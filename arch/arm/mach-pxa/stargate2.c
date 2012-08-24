@@ -44,7 +44,7 @@
 #include <asm/mach/flash.h>
 
 #include <mach/pxa27x.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/udc.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/smemc.h>

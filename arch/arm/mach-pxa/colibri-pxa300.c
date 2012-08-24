@@ -24,8 +24,8 @@
 
 #include <mach/pxa300.h>
 #include <mach/colibri.h>
-#include <mach/ohci.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/audio.h>
 
 #include "generic.h"

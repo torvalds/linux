@@ -27,7 +27,7 @@
 #include <mach/hardware.h>
 #include <mach/pxa3xx-regs.h>
 #include <mach/reset.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
 #include <mach/smemc.h>

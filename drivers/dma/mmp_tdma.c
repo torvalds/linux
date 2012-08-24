@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <mach/regs-icu.h>
-#include <mach/sram.h>
+#include <linux/platform_data/dma-mmp_tdma.h>
 
 #include "dmaengine.h"
 

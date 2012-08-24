@@ -48,12 +48,12 @@
 
 #include <mach/pxa300.h>
 #include <mach/pxa27x-udc.h>
-#include <mach/pxafb.h>
-#include <mach/mmc.h>
-#include <mach/ohci.h>
-#include <plat/pxa3xx_nand.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/mtd-nand-pxa3xx.h>
 #include <mach/audio.h>
-#include <mach/pxa3xx-u2d.h>
+#include <linux/platform_data/usb-pxa3xx-ulpi.h>
 
 #include <asm/mach/map.h>
 

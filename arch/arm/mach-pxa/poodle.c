@@ -40,11 +40,11 @@
 #include <asm/mach/irq.h>
 
 #include <mach/pxa25x.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 #include <mach/udc.h>
-#include <mach/irda.h>
+#include <linux/platform_data/irda-pxaficp.h>
 #include <mach/poodle.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>

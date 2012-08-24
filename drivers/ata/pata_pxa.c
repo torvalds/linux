@@ -32,7 +32,7 @@
 #include <scsi/scsi_host.h>
 
 #include <mach/pxa2xx-regs.h>
-#include <mach/pata_pxa.h>
+#include <linux/platform_data/ata-pxa.h>
 #include <mach/dma.h>
 
 #define DRV_NAME	"pata_pxa"

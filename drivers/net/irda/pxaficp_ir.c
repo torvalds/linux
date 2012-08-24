@@ -28,7 +28,7 @@
 #include <net/irda/irda_device.h>
 
 #include <mach/dma.h>
-#include <mach/irda.h>
+#include <linux/platform_data/irda-pxaficp.h>
 #include <mach/regs-uart.h>
 #include <mach/regs-ost.h>
 
