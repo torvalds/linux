@@ -289,7 +289,7 @@ extern void gma_intel_teardown_gmbus(struct drm_device *dev);
 
 /* DP support */
 extern void cdv_intel_dp_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int output_reg);
-extern void psb_intel_dp_set_m_n(struct drm_crtc *crtc,
+extern void cdv_intel_dp_set_m_n(struct drm_crtc *crtc,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode);
 
