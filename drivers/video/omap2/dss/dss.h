@@ -488,7 +488,7 @@ void dispc_mgr_setup(enum omap_channel channel,
 
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		const struct omap_video_timings *timings);
+		bool mem_to_mem, const struct omap_video_timings *timings);
 
 /* VENC */
 #ifdef CONFIG_OMAP2_DSS_VENC

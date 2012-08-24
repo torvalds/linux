@@ -2482,13 +2482,15 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 }
 
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
-		const struct omap_video_timings *mgr_timings)
+		bool mem_to_mem, const struct omap_video_timings *mgr_timings)
 {
 	int r;
+	u32 l;
 	enum omap_plane plane = OMAP_DSS_WB;
 	const int pos_x = 0, pos_y = 0;
 	const u8 zorder = 0, global_alpha = 0;
 	const bool replication = false;
+	bool truncation;
 	int in_width = mgr_timings->x_res;
 	int in_height = mgr_timings->y_res;
 	enum omap_overlay_caps caps =
@@ -2503,7 +2505,29 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		wi->buf_width, pos_x, pos_y, in_width, in_height, wi->width,
 		wi->height, wi->color_mode, wi->rotation, wi->mirror, zorder,
 		wi->pre_mult_alpha, global_alpha, wi->rotation_type,
-		replication, mgr_timings, false);
+		replication, mgr_timings, mem_to_mem);
+
+	switch (wi->color_mode) {
+	case OMAP_DSS_COLOR_RGB16:
+	case OMAP_DSS_COLOR_RGB24P:
+	case OMAP_DSS_COLOR_ARGB16:
+	case OMAP_DSS_COLOR_RGBA16:
+	case OMAP_DSS_COLOR_RGB12U:
+	case OMAP_DSS_COLOR_ARGB16_1555:
+	case OMAP_DSS_COLOR_XRGB16_1555:
+	case OMAP_DSS_COLOR_RGBX16:
+		truncation = true;
+		break;
+	default:
+		truncation = false;
+		break;
+	}
+
+	/* setup extra DISPC_WB_ATTRIBUTES */
+	l = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
+	l = FLD_MOD(l, truncation, 10, 10);	/* TRUNCATIONENABLE */
+	l = FLD_MOD(l, mem_to_mem, 19, 19);	/* WRITEBACKMODE */
+	dispc_write_reg(DISPC_OVL_ATTRIBUTES(plane), l);
 
 	return r;
 }
