@@ -255,7 +255,6 @@ int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		/* Update the thread's fxstate to save the fsave header. */
 		if (ia32_fxstate)
 			fpu_fxsave(&tsk->thread.fpu);
-		user_fpu_end();
 	} else {
 		sanitize_i387_state(tsk);
 		if (__copy_to_user(buf_fx, xsave, xstate_size))

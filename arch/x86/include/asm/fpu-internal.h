@@ -412,22 +412,11 @@ static inline void __drop_fpu(struct task_struct *tsk)
 }
 
 /*
- * The actual user_fpu_begin/end() functions
- * need to be preemption-safe.
+ * Need to be preemption-safe.
  *
- * NOTE! user_fpu_end() must be used only after you
- * have saved the FP state, and user_fpu_begin() must
- * be used only immediately before restoring it.
- * These functions do not do any save/restore on
- * their own.
+ * NOTE! user_fpu_begin() must be used only immediately before restoring
+ * it. This function does not do any save/restore on their own.
  */
-static inline void user_fpu_end(void)
-{
-	preempt_disable();
-	__thread_fpu_end(current);
-	preempt_enable();
-}
-
 static inline void user_fpu_begin(void)
 {
 	preempt_disable();
