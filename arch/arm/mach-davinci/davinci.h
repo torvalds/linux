@@ -24,7 +24,7 @@
 #include <linux/spi/spi.h>
 
 #include <mach/asp.h>
-#include <mach/keyscan.h>
+#include <linux/platform_data/keyscan-davinci.h>
 #include <mach/hardware.h>
 
 #include <media/davinci/vpfe_capture.h>

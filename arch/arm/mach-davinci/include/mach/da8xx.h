@@ -19,12 +19,12 @@
 
 #include <mach/serial.h>
 #include <mach/edma.h>
-#include <mach/i2c.h>
 #include <mach/asp.h>
-#include <mach/mmc.h>
-#include <mach/usb.h>
 #include <mach/pm.h>
-#include <mach/spi.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/usb-davinci.h>
+#include <linux/platform_data/spi-davinci.h>
 
 extern void __iomem *da8xx_syscfg0_base;
 extern void __iomem *da8xx_syscfg1_base;

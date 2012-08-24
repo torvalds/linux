@@ -36,7 +36,7 @@
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/keyscan.h>
+#include <linux/platform_data/keyscan-davinci.h>
 
 /* Key scan registers */
 #define DAVINCI_KEYSCAN_KEYCTRL		0x0000

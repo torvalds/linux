@@ -38,11 +38,11 @@
 
 #include <mach/common.h>
 #include <mach/serial.h>
-#include <mach/i2c.h>
-#include <mach/nand.h>
+#include <linux/platform_data/i2c-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/clock.h>
 #include <mach/cdce949.h>
-#include <mach/aemif.h>
+#include <linux/platform_data/mtd-davinci-aemif.h>
 
 #include "davinci.h"
 #include "clock.h"

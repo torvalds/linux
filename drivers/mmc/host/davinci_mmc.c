@@ -33,7 +33,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mmc/mmc.h>
 
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-davinci.h>
 #include <mach/edma.h>
 
 /*

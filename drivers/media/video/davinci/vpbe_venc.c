@@ -27,7 +27,7 @@
 
 #include <mach/hardware.h>
 #include <mach/mux.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-davinci.h>
 
 #include <linux/io.h>
 

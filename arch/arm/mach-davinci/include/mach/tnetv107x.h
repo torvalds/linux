@@ -36,8 +36,8 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/mfd/ti_ssp.h>
 
-#include <mach/mmc.h>
-#include <mach/nand.h>
+#include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_data/mtd-davinci.h>
 #include <mach/serial.h>
 
 struct tnetv107x_device_info {
