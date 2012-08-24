@@ -236,6 +236,7 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK2928_GRF_BASE);
 	readl_relaxed(RK2928_DDR_PCTL_BASE);
 	readl_relaxed(RK2928_DDR_PHY_BASE);
+	readl_relaxed(RK2928_GPIO3_BASE);
 //	readl_relaxed(RK2928_I2C1_BASE);
 }
 
@@ -263,7 +264,9 @@ static void __sramfunc rk2928_sram_suspend(void)
 	sram_printch('6');
 	rk30_suspend_voltage_set(1000000);
 	rk30_pwm_logic_suspend_voltage();
+	board_pmu_suspend();
 	sram_printch('7');
+
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
@@ -297,7 +300,7 @@ static void __sramfunc rk2928_sram_suspend(void)
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0xffff);
 
-	board_pmu_suspend();
+//	board_pmu_suspend();
 	cru_clksel0_con = cru_readl(CRU_CLKSELS_CON(0));
 	cru_writel((0x1f << 16) | 0x1f, CRU_CLKSELS_CON(0));
 
@@ -305,13 +308,14 @@ static void __sramfunc rk2928_sram_suspend(void)
 	wfi();
 
 	cru_writel((0x1f << 16) | cru_clksel0_con, CRU_CLKSELS_CON(0));
-	board_pmu_resume();
+//	board_pmu_resume();
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}
 
 	sram_printch('7');
+	board_pmu_resume();
 	rk30_pwm_logic_resume_voltage();
 	rk30_suspend_voltage_resume(1100000);
 
