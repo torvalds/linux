@@ -541,6 +541,36 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
+
+				usbphy0_pins_a: usbphy0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2152 /* MX28_PAD_SSP2_SS2__USB0_OVERCURRENT */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				usbphy0_pins_b: usbphy0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						0x3061 /* MX28_PAD_AUART1_CTS__USB0_OVERCURRENT */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				usbphy1_pins_a: usbphy1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2142 /* MX28_PAD_SSP2_SS1__USB1_OVERCURRENT */
+					>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
