@@ -94,7 +94,7 @@ int snd_hda_delete_codec_preset(struct hda_codec_preset_list *preset)
 }
 EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
 #define hda_codec_is_power_on(codec)	((codec)->power_on)
@@ -1192,7 +1192,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		return;
 	snd_hda_jack_tbl_clear(codec);
 	restore_init_pincfgs(codec);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	cancel_delayed_work(&codec->power_work);
 	flush_workqueue(codec->bus->workq);
 #endif
@@ -1205,7 +1205,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	if (codec->power_on)
 		hda_call_pm_notify(codec->bus, false);
 #endif
@@ -1273,7 +1273,7 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	snd_array_init(&codec->conn_lists, sizeof(hda_nid_t), 64);
 	snd_array_init(&codec->spdif_out, sizeof(struct hda_spdif_out), 16);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	spin_lock_init(&codec->power_lock);
 	INIT_DELAYED_WORK(&codec->power_work, hda_power_work);
 	/* snd_hda_codec_new() marks the codec as power-up, and leave it as is.
@@ -1331,7 +1331,7 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 					   AC_VERB_GET_SUBSYSTEM_ID, 0);
 	}
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	codec->d3_stop_clk = snd_hda_codec_get_supported_ps(codec,
 					codec->afg ? codec->afg : codec->mfg,
 					AC_PWRST_CLKSTOP);
@@ -2353,7 +2353,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 
 	/* OK, let it free */
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	cancel_delayed_work_sync(&codec->power_work);
 	codec->power_on = 0;
 	codec->power_transition = 0;
@@ -3572,7 +3572,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	int count;
 	unsigned int state;
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	codec->d3_stop_clk_ok = 0;
 #endif
 
@@ -3599,7 +3599,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 			break;
 	}
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	if (!codec->bus->power_keep_link_on && power_state == AC_PWRST_D3
 		&& codec->d3_stop_clk && (state & AC_PWRST_CLK_STOP_OK))
 		codec->d3_stop_clk_ok = 1;
@@ -3629,7 +3629,6 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D3);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
 	spin_lock(&codec->power_lock);
 	snd_hda_update_power_acct(codec);
@@ -3638,7 +3637,6 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 	codec->power_transition = 0;
 	codec->power_jiffies = jiffies;
 	spin_unlock(&codec->power_lock);
-#endif
 }
 
 /*
@@ -4434,7 +4432,7 @@ int snd_hda_add_new_ctls(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_add_new_ctls);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 static void hda_power_work(struct work_struct *work)
 {
 	struct hda_codec *codec =
@@ -5107,9 +5105,6 @@ EXPORT_SYMBOL_HDA(snd_hda_suspend);
  * @bus: the HDA bus
  *
  * Returns 0 if successful.
- *
- * This function is defined only when POWER_SAVE isn't set.
- * In the power-save mode, the codec is resumed dynamically.
  */
 int snd_hda_resume(struct hda_bus *bus)
 {

@@ -228,17 +228,9 @@ config SND_HDA_GENERIC
 	  Say Y here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
 
-config SND_HDA_POWER_SAVE
-	bool "Aggressive power-saving on HD-audio"
-	depends on PM
-	help
-	  Say Y here to enable more aggressive power-saving mode on
-	  HD-audio driver.  The power-saving timeout can be configured
-	  via power_save option or over sysfs on-the-fly.
-
 config SND_HDA_POWER_SAVE_DEFAULT
 	int "Default time-out for HD-audio power-save mode"
-	depends on SND_HDA_POWER_SAVE
+	depends on PM
 	default 0
 	help
 	  The default time-out value in seconds for HD-audio automatic

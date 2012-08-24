@@ -1764,7 +1764,7 @@ static int via_suspend(struct hda_codec *codec)
 }
 #endif
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 static int via_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
 	struct via_spec *spec = codec->spec;
@@ -1785,8 +1785,6 @@ static const struct hda_codec_ops via_patch_ops = {
 	.unsol_event = via_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = via_suspend,
-#endif
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	.check_power_status = via_check_power_status,
 #endif
 };

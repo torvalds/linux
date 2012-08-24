@@ -155,7 +155,7 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 static ssize_t power_on_acct_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf)
@@ -191,7 +191,7 @@ int snd_hda_hwdep_add_power_sysfs(struct hda_codec *codec)
 					  hwdep->device, &power_attrs[i]);
 	return 0;
 }
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_SND_HDA_RECONFIG
 

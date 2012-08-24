@@ -614,7 +614,7 @@ struct hda_bus_ops {
 			  struct hda_pcm *pcm);
 	/* reset bus for retry verb */
 	void (*bus_reset)(struct hda_bus *bus);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	/* notify power-up/down from codec to controller */
 	void (*pm_notify)(struct hda_bus *bus, bool power_up);
 #endif
@@ -712,8 +712,6 @@ struct hda_codec_ops {
 #ifdef CONFIG_PM
 	int (*suspend)(struct hda_codec *codec);
 	int (*resume)(struct hda_codec *codec);
-#endif
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
 	void (*reboot_notify)(struct hda_codec *codec);
@@ -867,7 +865,7 @@ struct hda_codec {
 	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
 	unsigned int epss:1;		/* supporting EPSS? */
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	unsigned int power_on :1;	/* current (global) power-state */
 	int power_transition;	/* power-state in transition */
 	int power_count;	/* current (global) power refcount */
@@ -1049,7 +1047,7 @@ int snd_hda_resume(struct hda_bus *bus);
 static inline
 int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	if (codec->patch_ops.check_power_status)
 		return codec->patch_ops.check_power_status(codec, nid);
 #endif
@@ -1066,7 +1064,7 @@ const char *snd_hda_get_jack_location(u32 cfg);
 /*
  * power saving
  */
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 void snd_hda_power_save(struct hda_codec *codec, int delta, bool d3wait);
 void snd_hda_update_power_acct(struct hda_codec *codec);
 #else

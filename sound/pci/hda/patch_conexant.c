@@ -553,7 +553,7 @@ static int conexant_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 static int conexant_suspend(struct hda_codec *codec)
 {
 	snd_hda_shutup_pins(codec);
@@ -567,7 +567,7 @@ static const struct hda_codec_ops conexant_patch_ops = {
 	.init = conexant_init,
 	.free = conexant_free,
 	.set_power_state = conexant_set_power,
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	.suspend = conexant_suspend,
 #endif
 	.reboot_notify = snd_hda_shutup_pins,
@@ -4395,7 +4395,7 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 	.init = cx_auto_init,
 	.free = conexant_free,
 	.unsol_event = cx_auto_unsol_event,
-#ifdef CONFIG_SND_HDA_POWER_SAVE
+#ifdef CONFIG_PM
 	.suspend = conexant_suspend,
 #endif
 	.reboot_notify = snd_hda_shutup_pins,
