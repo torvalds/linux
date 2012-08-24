@@ -130,16 +130,14 @@ pci_find_next_bus(const struct pci_bus *from)
  * decrement the reference count by calling pci_dev_put().
  * If no device is found, %NULL is returned.
  */
-struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
+struct pci_dev *pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 {
-	struct list_head *tmp;
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
 	down_read(&pci_bus_sem);
 
-	list_for_each(tmp, &bus->devices) {
-		dev = pci_dev_b(tmp);
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->devfn == devfn)
 			goto out;
 	}

@@ -869,17 +869,6 @@ static int __ref enable_device(struct acpiphp_slot *slot)
 	return retval;
 }
 
-static void disable_bridges(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		if (dev->subordinate) {
-			disable_bridges(dev->subordinate);
-			pci_disable_device(dev);
-		}
-	}
-}
-
 /* return first device in slot, acquiring a reference on it */
 static struct pci_dev *dev_in_slot(struct acpiphp_slot *slot)
 {
@@ -931,12 +920,7 @@ static int disable_device(struct acpiphp_slot *slot)
 	 * here.
 	 */
 	while ((pdev = dev_in_slot(slot))) {
-		pci_stop_bus_device(pdev);
-		if (pdev->subordinate) {
-			disable_bridges(pdev->subordinate);
-			pci_disable_device(pdev);
-		}
-		__pci_remove_bus_device(pdev);
+		pci_stop_and_remove_bus_device(pdev);
 		pci_dev_put(pdev);
 	}
 
@@ -1475,34 +1459,6 @@ int __init acpiphp_get_num_slots(void)
 	dbg("Total %d slots\n", num_slots);
 	return num_slots;
 }
-
-
-#if 0
-/**
- * acpiphp_for_each_slot - call function for each slot
- * @fn: callback function
- * @data: context to be passed to callback function
- */
-static int acpiphp_for_each_slot(acpiphp_callback fn, void *data)
-{
-	struct list_head *node;
-	struct acpiphp_bridge *bridge;
-	struct acpiphp_slot *slot;
-	int retval = 0;
-
-	list_for_each (node, &bridge_list) {
-		bridge = (struct acpiphp_bridge *)node;
-		for (slot = bridge->slots; slot; slot = slot->next) {
-			retval = fn(slot, data);
-			if (!retval)
-				goto err_exit;
-		}
-	}
-
- err_exit:
-	return retval;
-}
-#endif
 
 
 /**
