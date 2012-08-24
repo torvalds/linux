@@ -751,6 +751,18 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 	return 0;
 }
 
+int parse_events_name(struct list_head *list, char *name)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, list, node) {
+		if (!evsel->name)
+			evsel->name = strdup(name);
+	}
+
+	return 0;
+}
+
 static int parse_events__scanner(const char *str, void *data, int start_token)
 {
 	YY_BUFFER_STATE buffer;

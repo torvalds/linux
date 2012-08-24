@@ -205,8 +205,8 @@ enum perf_event_read_format {
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
 #define PERF_ATTR_SIZE_VER1	72	/* add: config2 */
 #define PERF_ATTR_SIZE_VER2	80	/* add: branch_sample_type */
-#define PERF_ATTR_SIZE_VER3	88	/* add: sample_regs_user */
-#define PERF_ATTR_SIZE_VER4	96	/* add: sample_stack_user */
+#define PERF_ATTR_SIZE_VER3	96	/* add: sample_regs_user */
+					/* add: sample_stack_user */
 
 /*
  * Hardware event_id to monitor via a performance monitoring event:

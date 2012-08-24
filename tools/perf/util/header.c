@@ -20,6 +20,7 @@
 #include "symbol.h"
 #include "debug.h"
 #include "cpumap.h"
+#include "pmu.h"
 
 static bool no_buildid_cache = false;
 
@@ -1004,6 +1005,45 @@ done:
 }
 
 /*
+ * File format:
+ *
+ * struct pmu_mappings {
+ *	u32	pmu_num;
+ *	struct pmu_map {
+ *		u32	type;
+ *		char	name[];
+ *	}[pmu_num];
+ * };
+ */
+
+static int write_pmu_mappings(int fd, struct perf_header *h __used,
+			      struct perf_evlist *evlist __used)
+{
+	struct perf_pmu *pmu = NULL;
+	off_t offset = lseek(fd, 0, SEEK_CUR);
+	__u32 pmu_num = 0;
+
+	/* write real pmu_num later */
+	do_write(fd, &pmu_num, sizeof(pmu_num));
+
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name)
+			continue;
+		pmu_num++;
+		do_write(fd, &pmu->type, sizeof(pmu->type));
+		do_write_string(fd, pmu->name);
+	}
+
+	if (pwrite(fd, &pmu_num, sizeof(pmu_num), offset) != sizeof(pmu_num)) {
+		/* discard all */
+		lseek(fd, offset, SEEK_SET);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
  * default get_cpuid(): nothing gets recorded
  * actual implementation must be in arch/$(ARCH)/util/header.c
  */
@@ -1148,12 +1188,29 @@ static void print_cpu_topology(struct perf_header *ph, int fd, FILE *fp)
 	}
 }
 
-static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
+static void free_event_desc(struct perf_evsel *events)
 {
-	struct perf_event_attr attr;
-	uint64_t id;
+	struct perf_evsel *evsel;
+
+	if (!events)
+		return;
+
+	for (evsel = events; evsel->attr.size; evsel++) {
+		if (evsel->name)
+			free(evsel->name);
+		if (evsel->id)
+			free(evsel->id);
+	}
+
+	free(events);
+}
+
+static struct perf_evsel *
+read_event_desc(struct perf_header *ph, int fd)
+{
+	struct perf_evsel *evsel, *events = NULL;
+	u64 *id;
 	void *buf = NULL;
-	char *str;
 	u32 nre, sz, nr, i, j;
 	ssize_t ret;
 	size_t msz;
@@ -1173,18 +1230,22 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	if (ph->needs_swap)
 		sz = bswap_32(sz);
 
-	memset(&attr, 0, sizeof(attr));
-
 	/* buffer to hold on file attr struct */
 	buf = malloc(sz);
 	if (!buf)
 		goto error;
 
-	msz = sizeof(attr);
+	/* the last event terminates with evsel->attr.size == 0: */
+	events = calloc(nre + 1, sizeof(*events));
+	if (!events)
+		goto error;
+
+	msz = sizeof(evsel->attr);
 	if (sz < msz)
 		msz = sz;
 
-	for (i = 0 ; i < nre; i++) {
+	for (i = 0, evsel = events; i < nre; evsel++, i++) {
+		evsel->idx = i;
 
 		/*
 		 * must read entire on-file attr struct to
@@ -1197,7 +1258,7 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 		if (ph->needs_swap)
 			perf_event__attr_swap(buf);
 
-		memcpy(&attr, buf, msz);
+		memcpy(&evsel->attr, buf, msz);
 
 		ret = read(fd, &nr, sizeof(nr));
 		if (ret != (ssize_t)sizeof(nr))
@@ -1206,51 +1267,82 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 		if (ph->needs_swap)
 			nr = bswap_32(nr);
 
-		str = do_read_string(fd, ph);
-		fprintf(fp, "# event : name = %s, ", str);
-		free(str);
+		evsel->name = do_read_string(fd, ph);
+
+		if (!nr)
+			continue;
+
+		id = calloc(nr, sizeof(*id));
+		if (!id)
+			goto error;
+		evsel->ids = nr;
+		evsel->id = id;
+
+		for (j = 0 ; j < nr; j++) {
+			ret = read(fd, id, sizeof(*id));
+			if (ret != (ssize_t)sizeof(*id))
+				goto error;
+			if (ph->needs_swap)
+				*id = bswap_64(*id);
+			id++;
+		}
+	}
+out:
+	if (buf)
+		free(buf);
+	return events;
+error:
+	if (events)
+		free_event_desc(events);
+	events = NULL;
+	goto out;
+}
+
+static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
+{
+	struct perf_evsel *evsel, *events = read_event_desc(ph, fd);
+	u32 j;
+	u64 *id;
+
+	if (!events) {
+		fprintf(fp, "# event desc: not available or unable to read\n");
+		return;
+	}
+
+	for (evsel = events; evsel->attr.size; evsel++) {
+		fprintf(fp, "# event : name = %s, ", evsel->name);
 
 		fprintf(fp, "type = %d, config = 0x%"PRIx64
 			    ", config1 = 0x%"PRIx64", config2 = 0x%"PRIx64,
-				attr.type,
-				(u64)attr.config,
-				(u64)attr.config1,
-				(u64)attr.config2);
+				evsel->attr.type,
+				(u64)evsel->attr.config,
+				(u64)evsel->attr.config1,
+				(u64)evsel->attr.config2);
 
 		fprintf(fp, ", excl_usr = %d, excl_kern = %d",
-				attr.exclude_user,
-				attr.exclude_kernel);
+				evsel->attr.exclude_user,
+				evsel->attr.exclude_kernel);
 
 		fprintf(fp, ", excl_host = %d, excl_guest = %d",
-				attr.exclude_host,
-				attr.exclude_guest);
+				evsel->attr.exclude_host,
+				evsel->attr.exclude_guest);
 
-		fprintf(fp, ", precise_ip = %d", attr.precise_ip);
+		fprintf(fp, ", precise_ip = %d", evsel->attr.precise_ip);
 
-		if (nr)
+		if (evsel->ids) {
 			fprintf(fp, ", id = {");
-
-		for (j = 0 ; j < nr; j++) {
-			ret = read(fd, &id, sizeof(id));
-			if (ret != (ssize_t)sizeof(id))
-				goto error;
-
-			if (ph->needs_swap)
-				id = bswap_64(id);
-
-			if (j)
-				fputc(',', fp);
-
-			fprintf(fp, " %"PRIu64, id);
-		}
-		if (nr && j == nr)
+			for (j = 0, id = evsel->id; j < evsel->ids; j++, id++) {
+				if (j)
+					fputc(',', fp);
+				fprintf(fp, " %"PRIu64, *id);
+			}
 			fprintf(fp, " }");
+		}
+
 		fputc('\n', fp);
 	}
-	free(buf);
-	return;
-error:
-	fprintf(fp, "# event desc: not available or unable to read\n");
+
+	free_event_desc(events);
 }
 
 static void print_total_mem(struct perf_header *h __used, int fd, FILE *fp)
@@ -1335,6 +1427,43 @@ static void print_branch_stack(struct perf_header *ph __used, int fd __used,
 			       FILE *fp)
 {
 	fprintf(fp, "# contains samples with branch stack\n");
+}
+
+static void print_pmu_mappings(struct perf_header *ph, int fd, FILE *fp)
+{
+	const char *delimiter = "# pmu mappings: ";
+	char *name;
+	int ret;
+	u32 pmu_num;
+	u32 type;
+
+	ret = read(fd, &pmu_num, sizeof(pmu_num));
+	if (ret != sizeof(pmu_num))
+		goto error;
+
+	if (!pmu_num) {
+		fprintf(fp, "# pmu mappings: not available\n");
+		return;
+	}
+
+	while (pmu_num) {
+		if (read(fd, &type, sizeof(type)) != sizeof(type))
+			break;
+		name = do_read_string(fd, ph);
+		if (!name)
+			break;
+		pmu_num--;
+		fprintf(fp, "%s%s = %" PRIu32, delimiter, name, type);
+		free(name);
+		delimiter = ", ";
+	}
+
+	fprintf(fp, "\n");
+
+	if (!pmu_num)
+		return;
+error:
+	fprintf(fp, "# pmu mappings: unable to read\n");
 }
 
 static int __event_process_build_id(struct build_id_event *bev,
@@ -1504,6 +1633,56 @@ static int process_build_id(struct perf_file_section *section,
 	return 0;
 }
 
+static struct perf_evsel *
+perf_evlist__find_by_index(struct perf_evlist *evlist, int idx)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (evsel->idx == idx)
+			return evsel;
+	}
+
+	return NULL;
+}
+
+static void
+perf_evlist__set_event_name(struct perf_evlist *evlist, struct perf_evsel *event)
+{
+	struct perf_evsel *evsel;
+
+	if (!event->name)
+		return;
+
+	evsel = perf_evlist__find_by_index(evlist, event->idx);
+	if (!evsel)
+		return;
+
+	if (evsel->name)
+		return;
+
+	evsel->name = strdup(event->name);
+}
+
+static int
+process_event_desc(struct perf_file_section *section __unused,
+		   struct perf_header *header, int feat __unused, int fd,
+		   void *data __used)
+{
+	struct perf_session *session = container_of(header, struct perf_session, header);
+	struct perf_evsel *evsel, *events = read_event_desc(header, fd);
+
+	if (!events)
+		return 0;
+
+	for (evsel = events; evsel->attr.size; evsel++)
+		perf_evlist__set_event_name(session->evlist, evsel);
+
+	free_event_desc(events);
+
+	return 0;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
@@ -1537,11 +1716,12 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_CPUDESC,	cpudesc),
 	FEAT_OPA(HEADER_CPUID,		cpuid),
 	FEAT_OPA(HEADER_TOTAL_MEM,	total_mem),
-	FEAT_OPA(HEADER_EVENT_DESC,	event_desc),
+	FEAT_OPP(HEADER_EVENT_DESC,	event_desc),
 	FEAT_OPA(HEADER_CMDLINE,	cmdline),
 	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
 	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
 	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
+	FEAT_OPA(HEADER_PMU_MAPPINGS,	pmu_mappings),
 };
 
 struct header_print_data {
@@ -1831,7 +2011,6 @@ static const int attr_file_abi_sizes[] = {
 	[1] = PERF_ATTR_SIZE_VER1,
 	[2] = PERF_ATTR_SIZE_VER2,
 	[3] = PERF_ATTR_SIZE_VER3,
-	[4] = PERF_ATTR_SIZE_VER4,
 	0,
 };
 
