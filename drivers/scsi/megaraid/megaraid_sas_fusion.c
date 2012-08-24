@@ -462,17 +462,14 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	fusion->cmd_list = kmalloc(sizeof(struct megasas_cmd_fusion *)
-				   *max_cmd, GFP_KERNEL);
+	fusion->cmd_list = kzalloc(sizeof(struct megasas_cmd_fusion *)
+				   * max_cmd, GFP_KERNEL);
 
 	if (!fusion->cmd_list) {
 		printk(KERN_DEBUG "megasas: out of memory. Could not alloc "
 		       "memory for cmd_list_fusion\n");
 		goto fail_cmd_list;
 	}
-
-	memset(fusion->cmd_list, 0, sizeof(struct megasas_cmd_fusion *)
-	       *max_cmd);
 
 	max_cmd = instance->max_fw_cmds;
 	for (i = 0; i < max_cmd; i++) {
