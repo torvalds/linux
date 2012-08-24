@@ -30,7 +30,7 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-#include <mach/dma.h>
+#include <linux/platform_data/dma-imx.h>
 
 #include "imx-pcm.h"
 

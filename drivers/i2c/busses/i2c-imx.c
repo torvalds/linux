@@ -54,7 +54,7 @@
 #include <linux/pinctrl/consumer.h>
 
 #include <mach/hardware.h>
-#include <mach/i2c.h>
+#include <linux/platform_data/i2c-imx.h>
 
 /** Defines ********************************************************************
 *******************************************************************************/
