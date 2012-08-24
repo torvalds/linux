@@ -46,10 +46,10 @@
 
 			iomuxc@020e0000 {
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_gpio_hog>;
+				pinctrl-0 = <&pinctrl_hog>;
 
-				gpios {
-					pinctrl_gpio_hog: gpiohog {
+				hog {
+					pinctrl_hog: hoggrp {
 						fsl,pins = <
 							1450 0x80000000	/* MX6Q_PAD_NANDF_D6__GPIO_2_6 */
 							1458 0x80000000	/* MX6Q_PAD_NANDF_D7__GPIO_2_7 */
