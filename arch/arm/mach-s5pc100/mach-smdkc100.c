@@ -44,12 +44,12 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
-#include <plat/iic.h>
-#include <plat/ata.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/ata-samsung_cf.h>
 #include <plat/adc.h>
 #include <plat/keypad.h>
-#include <plat/ts.h>
-#include <plat/audio.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/asoc-s3c.h>
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
 

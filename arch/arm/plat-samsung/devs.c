@@ -46,24 +46,24 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/adc.h>
-#include <plat/ata.h>
-#include <plat/ehci.h>
+#include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/fb.h>
 #include <plat/fb-s3c2410.h>
-#include <plat/hwmon.h>
-#include <plat/iic.h>
+#include <linux/platform_data/hwmon-s3c.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
-#include <plat/mci.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mmc-s3cmci.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <plat/sdhci.h>
-#include <plat/ts.h>
-#include <plat/udc.h>
-#include <plat/usb-control.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
+#include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-iic.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
 

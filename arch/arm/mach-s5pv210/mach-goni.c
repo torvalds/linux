@@ -43,7 +43,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/sdhci.h>
 #include <plat/clock.h>
