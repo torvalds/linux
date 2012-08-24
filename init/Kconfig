@@ -942,28 +942,12 @@ config UIDGID_CONVERTED
 	depends on PROC_EVENTS = n
 
 	# Networking
-	depends on NET = n
 	depends on NET_9P = n
-	depends on IPX = n
-	depends on PHONET = n
-	depends on NET_CLS_FLOW = n
-	depends on NETFILTER_XT_MATCH_OWNER = n
-	depends on NETFILTER_XT_MATCH_RECENT = n
-	depends on NETFILTER_XT_TARGET_LOG = n
-	depends on NETFILTER_NETLINK_LOG = n
-	depends on INET = n
-	depends on IPV6 = n
-	depends on IP_SCTP = n
 	depends on AF_RXRPC = n
-	depends on LLC2 = n
 	depends on NET_KEY = n
-	depends on INET_DIAG = n
 	depends on DNS_RESOLVER = n
-	depends on AX25 = n
-	depends on ATALK = n
 
 	# Filesystems
-	depends on USB_DEVICEFS = n
 	depends on USB_GADGETFS = n
 	depends on USB_FUNCTIONFS = n
 	depends on DEVTMPFS = n
@@ -1019,9 +1003,6 @@ config UIDGID_CONVERTED
 	depends on !UML || HOSTFS = n
 
 	# The rare drivers that won't build
-	depends on AIRO = n
-	depends on AIRO_CS = n
-	depends on TUN = n
 	depends on INFINIBAND_QIB = n
 	depends on BLK_DEV_LOOP = n
 	depends on ANDROID_BINDER_IPC = n

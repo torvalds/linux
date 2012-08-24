@@ -416,7 +416,8 @@ static const struct nla_policy rsvp_policy[TCA_RSVP_MAX + 1] = {
 	[TCA_RSVP_PINFO]	= { .len = sizeof(struct tc_rsvp_pinfo) },
 };
 
-static int rsvp_change(struct tcf_proto *tp, unsigned long base,
+static int rsvp_change(struct sk_buff *in_skb,
+		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
 		       struct nlattr **tca,
 		       unsigned long *arg)

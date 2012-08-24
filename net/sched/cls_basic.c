@@ -162,7 +162,8 @@ errout:
 	return err;
 }
 
-static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
+static int basic_change(struct sk_buff *in_skb,
+			struct tcf_proto *tp, unsigned long base, u32 handle,
 			struct nlattr **tca, unsigned long *arg)
 {
 	int err;

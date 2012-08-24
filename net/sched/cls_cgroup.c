@@ -151,7 +151,8 @@ static const struct nla_policy cgroup_policy[TCA_CGROUP_MAX + 1] = {
 	[TCA_CGROUP_EMATCHES]	= { .type = NLA_NESTED },
 };
 
-static int cls_cgroup_change(struct tcf_proto *tp, unsigned long base,
+static int cls_cgroup_change(struct sk_buff *in_skb,
+			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
 			     unsigned long *arg)
 {
