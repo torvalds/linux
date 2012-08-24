@@ -92,7 +92,7 @@ static const u16 rk610_codec_reg[] = {
 	0x0000, 0x00ff, 0x00ff, 0x00ff,  /* 28 */
 };
 
-static struct snd_soc_codec *rk610_codec_codec;
+static struct snd_soc_codec *rk610_codec_codec=NULL;
 /* codec private data */
 struct rk610_codec_priv {
 	enum snd_soc_control_type control_type;
@@ -207,8 +207,13 @@ void rk610_codec_reg_read(void)
 
 static void spk_ctrl_fun(int status)
 {
-	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(rk610_codec_codec);
-
+	struct rk610_codec_priv *rk610_codec = NULL;
+	if(rk610_codec_codec == NULL)
+		return;
+	rk610_codec = snd_soc_codec_get_drvdata(rk610_codec_codec);
+	if(rk610_codec == NULL)
+		return;
+		
 	if(rk610_codec->spk_ctrl_io)
 	{
 		DBG("--------%s----------status = %d\n",__FUNCTION__,status);
