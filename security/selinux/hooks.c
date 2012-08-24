@@ -466,9 +466,12 @@ static int selinux_get_mnt_opts(const struct super_block *sb,
 	if (!ss_initialized)
 		return -EINVAL;
 
+	/* make sure we always check enough bits to cover the mask */
+	BUILD_BUG_ON(SE_MNTMASK >= (1 << NUM_SEL_MNT_OPTS));
+
 	tmp = sbsec->flags & SE_MNTMASK;
 	/* count the number of mount options for this sb */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < NUM_SEL_MNT_OPTS; i++) {
 		if (tmp & 0x01)
 			opts->num_mnt_opts++;
 		tmp >>= 1;
