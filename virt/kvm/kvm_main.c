@@ -774,7 +774,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		/* destroy any largepage mappings for dirty tracking */
 	}
 
-	if (!npages) {
+	if (!npages || base_gfn != old.base_gfn) {
 		struct kvm_memory_slot *slot;
 
 		r = -ENOMEM;
@@ -790,8 +790,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		old_memslots = kvm->memslots;
 		rcu_assign_pointer(kvm->memslots, slots);
 		synchronize_srcu_expedited(&kvm->srcu);
-		/* From this point no new shadow pages pointing to a deleted
-		 * memslot will be created.
+		/* From this point no new shadow pages pointing to a deleted,
+		 * or moved, memslot will be created.
 		 *
 		 * validation of sp->gfn happens in:
 		 * 	- gfn_to_hva (kvm_read_guest, gfn_to_pfn)
