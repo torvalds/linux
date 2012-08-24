@@ -274,6 +274,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 			if (copy_from_user(&num_buf, argp, sizeof(num_buf)))
 				return -EFAULT;
 			dev_drv->num_buf = num_buf;
+			printk("rk fb use %d buffers\n",num_buf);
 			break;
 		case FBIOGET_SCREEN_STATE:
 		case FBIOPUT_SET_CURSOR_EN:
@@ -992,9 +993,9 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         //fbi->var.bits_per_pixel = 16;
         #ifdef  CONFIG_LOGO_LINUX_BMP
     		fbi->var.bits_per_pixel = 32; 
-		#else
+	#else
 			fbi->var.bits_per_pixel = 16; 
-		#endif
+	#endif
         fbi->var.xres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
         fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
         fbi->var.width = fb_inf->lcdc_dev_drv[lcdc_id]->screen->width;
@@ -1025,15 +1026,15 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 
     if(id == 0)
     {
-	    fb_inf->fb[fb_inf->num_fb-3]->fbops->fb_open(fb_inf->fb[fb_inf->num_fb-3],1);
-	    fb_inf->fb[fb_inf->num_fb-3]->fbops->fb_set_par(fb_inf->fb[fb_inf->num_fb-3]);
-	    if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-3], FB_ROTATE_UR)) {
+	    fb_inf->fb[0]->fbops->fb_open(fb_inf->fb[0],1);
+	    fb_inf->fb[0]->fbops->fb_set_par(fb_inf->fb[0]);
+	    if(fb_prepare_logo(fb_inf->fb[0], FB_ROTATE_UR)) {
 	        /* Start display and show logo on boot */
-	        fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-3]->cmap, fb_inf->fb[fb_inf->num_fb-3]);
-	        fb_show_logo(fb_inf->fb[fb_inf->num_fb-3], FB_ROTATE_UR);
-		fb_inf->fb[fb_inf->num_fb-3]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-3]->var), fb_inf->fb[fb_inf->num_fb-3]);
+	        fb_set_cmap(&fb_inf->fb[0]->cmap, fb_inf->fb[0]);
+	        fb_show_logo(fb_inf->fb[0], FB_ROTATE_UR);
+		fb_inf->fb[0]->fbops->fb_pan_display(&(fb_inf->fb[0]->var), fb_inf->fb[0]);
 	    }
-		#endif
+		
     }
 #endif
 	return 0;
