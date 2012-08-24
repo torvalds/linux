@@ -41,7 +41,7 @@
 #include <plat/dma.h>
 #include <plat/tc.h>
 #include <plat/irda.h>
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <plat/flash.h>
 
 #include <mach/hardware.h>

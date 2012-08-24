@@ -35,16 +35,16 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/regulator/fixed.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/mcspi.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

@@ -384,7 +384,7 @@ static inline void omap_init_hdmi_audio(void) {}
 
 #if defined(CONFIG_SPI_OMAP24XX) || defined(CONFIG_SPI_OMAP24XX_MODULE)
 
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 static int __init omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 {

@@ -40,13 +40,13 @@
 
 #include "common.h"
 #include <plat/gpmc.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
 #include <linux/dm9000.h>

@@ -304,7 +304,7 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 
 static struct at24_platform_data at24c04 = {
 	.byte_len	= SZ_4K / 8,

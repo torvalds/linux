@@ -37,7 +37,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #undef NEW_BOARD_LEARNING_MODE
 

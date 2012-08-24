@@ -37,6 +37,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mmc/host.h>
 
+#include <linux/platform_data/mtd-nand-omap2.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -47,8 +50,6 @@
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
-#include <plat/nand.h>
-#include <plat/mcspi.h>
 #include <plat/usb.h>
 
 #include "mux.h"

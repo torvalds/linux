@@ -39,7 +39,7 @@
 
 #include <asm/mach/flash.h>
 #include <plat/gpmc.h>
-#include <plat/onenand.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 #include <asm/gpio.h>
 
 #include <plat/dma.h>

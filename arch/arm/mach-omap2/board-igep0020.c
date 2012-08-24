@@ -35,7 +35,7 @@
 
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/onenand.h>
+#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include "mux.h"
 #include "hsmmc.h"

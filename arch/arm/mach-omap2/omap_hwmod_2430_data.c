@@ -12,12 +12,13 @@
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+#include <linux/platform_data/asoc-ti-mcbsp.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
+
 #include <plat/omap_hwmod.h>
 #include <plat/dma.h>
 #include <plat/serial.h>
 #include <plat/i2c.h>
-#include <plat/mcbsp.h>
-#include <plat/mcspi.h>
 #include <plat/dmtimer.h>
 #include <plat/mmc.h>
 #include <plat/l3_2xxx.h>

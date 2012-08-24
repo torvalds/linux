@@ -35,7 +35,7 @@
 #include <plat/flash.h>
 #include <plat/fpga.h>
 #include <plat/tc.h>
-#include <plat/keypad.h>
+#include <linux/platform_data/keypad-omap.h>
 #include <plat/mmc.h>
 
 #include <mach/hardware.h>

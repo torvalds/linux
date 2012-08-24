@@ -40,7 +40,7 @@
 
 #include "common.h"
 #include <plat/usb.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/gpmc.h>
 
 #include <mach/am35xx.h>

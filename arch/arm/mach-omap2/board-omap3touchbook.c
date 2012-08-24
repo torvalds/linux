@@ -29,7 +29,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
 
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/spi/spi.h>
 
 #include <linux/spi/ads7846.h>
@@ -45,7 +45,7 @@
 
 #include "common.h"
 #include <plat/gpmc.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/usb.h>
 
 #include "mux.h"

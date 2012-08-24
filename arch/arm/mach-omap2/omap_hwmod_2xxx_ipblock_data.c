@@ -13,7 +13,7 @@
 #include <linux/platform_data/gpio-omap.h>
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "omap_hwmod_common_data.h"
 #include "cm-regbits-24xx.h"

@@ -18,7 +18,7 @@
 
 #include <plat/common.h>
 #include <plat/vram.h>
-#include <plat/dsp.h>
+#include <linux/platform_data/dsp-omap.h>
 #include <plat/dma.h>
 
 #include <plat/omap-secure.h>

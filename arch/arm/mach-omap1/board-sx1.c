@@ -28,6 +28,7 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/keypad-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -38,7 +39,6 @@
 #include <plat/dma.h>
 #include <plat/irda.h>
 #include <plat/tc.h>
-#include <plat/keypad.h>
 #include <plat/board-sx1.h>
 
 #include <mach/hardware.h>

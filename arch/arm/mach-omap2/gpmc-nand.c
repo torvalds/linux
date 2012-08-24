@@ -13,10 +13,10 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mtd/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 
 #include <asm/mach/flash.h>
 
-#include <plat/nand.h>
 #include <plat/gpmc.h>
 
 #include "soc.h"
