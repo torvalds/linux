@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 
 struct panel_info {
 	struct platform_device pdev;

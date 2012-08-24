@@ -14,7 +14,7 @@
 #include <asm/mach-types.h>
 #include <asm/system_info.h>
 
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 #include <mach/vreg.h>
 
 #include "board-trout.h"
