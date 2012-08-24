@@ -291,13 +291,46 @@ static inline void __thread_set_has_fpu(struct task_struct *tsk)
 static inline void __thread_fpu_end(struct task_struct *tsk)
 {
 	__thread_clear_has_fpu(tsk);
-	stts();
+	if (!use_xsave())
+		stts();
 }
 
 static inline void __thread_fpu_begin(struct task_struct *tsk)
 {
-	clts();
+	if (!use_xsave())
+		clts();
 	__thread_set_has_fpu(tsk);
+}
+
+static inline void __drop_fpu(struct task_struct *tsk)
+{
+	if (__thread_has_fpu(tsk)) {
+		/* Ignore delayed exceptions from user space */
+		asm volatile("1: fwait\n"
+			     "2:\n"
+			     _ASM_EXTABLE(1b, 2b));
+		__thread_fpu_end(tsk);
+	}
+}
+
+static inline void drop_fpu(struct task_struct *tsk)
+{
+	/*
+	 * Forget coprocessor state..
+	 */
+	preempt_disable();
+	tsk->fpu_counter = 0;
+	__drop_fpu(tsk);
+	clear_used_math();
+	preempt_enable();
+}
+
+static inline void drop_init_fpu(struct task_struct *tsk)
+{
+	if (!use_xsave())
+		drop_fpu(tsk);
+	else
+		xrstor_state(init_xstate_buf, -1);
 }
 
 /*
@@ -333,7 +366,12 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 {
 	fpu_switch_t fpu;
 
-	fpu.preload = tsk_used_math(new) && new->fpu_counter > 5;
+	/*
+	 * If the task has used the math, pre-load the FPU on xsave processors
+	 * or if the past 5 consecutive context-switches used math.
+	 */
+	fpu.preload = tsk_used_math(new) && (use_xsave() ||
+					     new->fpu_counter > 5);
 	if (__thread_has_fpu(old)) {
 		if (!__save_init_fpu(old))
 			cpu = ~0;
@@ -345,14 +383,14 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 			new->fpu_counter++;
 			__thread_set_has_fpu(new);
 			prefetch(new->thread.fpu.state);
-		} else
+		} else if (!use_xsave())
 			stts();
 	} else {
 		old->fpu_counter = 0;
 		old->thread.fpu.last_cpu = ~0;
 		if (fpu.preload) {
 			new->fpu_counter++;
-			if (fpu_lazy_restore(new, cpu))
+			if (!use_xsave() && fpu_lazy_restore(new, cpu))
 				fpu.preload = 0;
 			else
 				prefetch(new->thread.fpu.state);
@@ -372,7 +410,7 @@ static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
 {
 	if (fpu.preload) {
 		if (unlikely(restore_fpu_checking(new)))
-			__thread_fpu_end(new);
+			drop_init_fpu(new);
 	}
 }
 
@@ -400,17 +438,6 @@ static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
 	return __restore_xstate_sig(buf, buf_fx, size);
 }
 
-static inline void __drop_fpu(struct task_struct *tsk)
-{
-	if (__thread_has_fpu(tsk)) {
-		/* Ignore delayed exceptions from user space */
-		asm volatile("1: fwait\n"
-			     "2:\n"
-			     _ASM_EXTABLE(1b, 2b));
-		__thread_fpu_end(tsk);
-	}
-}
-
 /*
  * Need to be preemption-safe.
  *
@@ -431,22 +458,16 @@ static inline void user_fpu_begin(void)
 static inline void save_init_fpu(struct task_struct *tsk)
 {
 	WARN_ON_ONCE(!__thread_has_fpu(tsk));
+
+	if (use_xsave()) {
+		xsave_state(&tsk->thread.fpu.state->xsave, -1);
+		return;
+	}
+
 	preempt_disable();
 	__save_init_fpu(tsk);
 	__thread_fpu_end(tsk);
 	preempt_enable();
-}
-
-static inline void drop_fpu(struct task_struct *tsk)
-{
-	/*
-	 * Forget coprocessor state..
-	 */
-	tsk->fpu_counter = 0;
-	preempt_disable();
-	__drop_fpu(tsk);
-	preempt_enable();
-	clear_used_math();
 }
 
 /*
@@ -503,12 +524,21 @@ static inline void fpu_free(struct fpu *fpu)
 	}
 }
 
-static inline void fpu_copy(struct fpu *dst, struct fpu *src)
+static inline void fpu_copy(struct task_struct *dst, struct task_struct *src)
 {
-	memcpy(dst->state, src->state, xstate_size);
-}
+	if (use_xsave()) {
+		struct xsave_struct *xsave = &dst->thread.fpu.state->xsave;
 
-extern void fpu_finit(struct fpu *fpu);
+		memset(&xsave->xsave_hdr, 0, sizeof(struct xsave_hdr_struct));
+		xsave_state(xsave, -1);
+	} else {
+		struct fpu *dfpu = &dst->thread.fpu;
+		struct fpu *sfpu = &src->thread.fpu;
+
+		unlazy_fpu(src);
+		memcpy(dfpu->state, sfpu->state, xstate_size);
+	}
+}
 
 static inline unsigned long
 alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,

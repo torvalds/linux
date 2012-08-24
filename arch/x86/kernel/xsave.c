@@ -21,7 +21,7 @@ u64 pcntxt_mask;
 /*
  * Represents init state for the supported extended state.
  */
-static struct xsave_struct *init_xstate_buf;
+struct xsave_struct *init_xstate_buf;
 
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
 static unsigned int *xstate_offsets, *xstate_sizes, xstate_features;
@@ -268,7 +268,7 @@ int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	if (use_fxsr() && save_xstate_epilog(buf_fx, ia32_fxstate))
 		return -1;
 
-	drop_fpu(tsk);	/* trigger finit */
+	drop_init_fpu(tsk);	/* trigger finit */
 
 	return 0;
 }
@@ -340,7 +340,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			 config_enabled(CONFIG_IA32_EMULATION));
 
 	if (!buf) {
-		drop_fpu(tsk);
+		drop_init_fpu(tsk);
 		return 0;
 	}
 
@@ -380,15 +380,30 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
 		struct user_i387_ia32_struct env;
+		int err = 0;
 
+		/*
+		 * Drop the current fpu which clears used_math(). This ensures
+		 * that any context-switch during the copy of the new state,
+		 * avoids the intermediate state from getting restored/saved.
+		 * Thus avoiding the new restored state from getting corrupted.
+		 * We will be ready to restore/save the state only after
+		 * set_used_math() is again set.
+		 */
 		drop_fpu(tsk);
 
 		if (__copy_from_user(xsave, buf_fx, state_size) ||
-		    __copy_from_user(&env, buf, sizeof(env)))
-			return -1;
+		    __copy_from_user(&env, buf, sizeof(env))) {
+			err = -1;
+		} else {
+			sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
+			set_used_math();
+		}
 
-		sanitize_restored_xstate(tsk, &env, xstate_bv, fx_only);
-		set_used_math();
+		if (use_xsave())
+			math_state_restore();
+
+		return err;
 	} else {
 		/*
 		 * For 64-bit frames and 32-bit fsave frames, restore the user
@@ -396,7 +411,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		user_fpu_begin();
 		if (restore_user_xstate(buf_fx, xstate_bv, fx_only)) {
-			drop_fpu(tsk);
+			drop_init_fpu(tsk);
 			return -1;
 		}
 	}
@@ -435,8 +450,26 @@ static void prepare_fx_sw_frame(void)
  */
 static inline void xstate_enable(void)
 {
+	clts();
 	set_in_cr4(X86_CR4_OSXSAVE);
 	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
+}
+
+/*
+ * This is same as math_state_restore(). But use_xsave() is not yet
+ * patched to use math_state_restore().
+ */
+static inline void init_restore_xstate(void)
+{
+	init_fpu(current);
+	__thread_fpu_begin(current);
+	xrstor_state(init_xstate_buf, -1);
+}
+
+static inline void xstate_enable_ap(void)
+{
+	xstate_enable();
+	init_restore_xstate();
 }
 
 /*
@@ -479,7 +512,6 @@ static void __init setup_xstate_init(void)
 					      __alignof__(struct xsave_struct));
 	init_xstate_buf->i387.mxcsr = MXCSR_DEFAULT;
 
-	clts();
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
@@ -489,7 +521,6 @@ static void __init setup_xstate_init(void)
 	 * of any feature which is not represented by all zero's.
 	 */
 	xsave_state(init_xstate_buf, -1);
-	stts();
 }
 
 /*
@@ -533,6 +564,10 @@ static void __init xstate_enable_boot_cpu(void)
 
 	pr_info("enabled xstate_bv 0x%llx, cntxt size 0x%x\n",
 		pcntxt_mask, xstate_size);
+
+	current->thread.fpu.state =
+	     alloc_bootmem_align(xstate_size, __alignof__(struct xsave_struct));
+	init_restore_xstate();
 }
 
 /*
@@ -551,6 +586,6 @@ void __cpuinit xsave_init(void)
 		return;
 
 	this_func = next_func;
-	next_func = xstate_enable;
+	next_func = xstate_enable_ap;
 	this_func();
 }
