@@ -4069,12 +4069,10 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 
 static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 {
-	/* Already awake? */
-	if ((I915_READ(0x130094) & 0xa1) == 0xa1)
-		return;
+	if (wait_for_atomic_us((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1) == 0, 500))
+		DRM_ERROR("Force wake wait timed out\n");
 
-	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffffffff);
-	POSTING_READ(FORCEWAKE_VLV);
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_ENABLE(1));
 
 	if (wait_for_atomic_us((I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1), 500))
 		DRM_ERROR("Force wake wait timed out\n");
@@ -4084,9 +4082,9 @@ static void vlv_force_wake_get(struct drm_i915_private *dev_priv)
 
 static void vlv_force_wake_put(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffff0000);
-	/* FIXME: confirm VLV behavior with Punit folks */
-	POSTING_READ(FORCEWAKE_VLV);
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, _MASKED_BIT_DISABLE(1));
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
 }
 
 void intel_gt_init(struct drm_device *dev)
