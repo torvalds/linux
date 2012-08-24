@@ -528,6 +528,19 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				spi2_pins_a: spi2@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2100 /* MX28_PAD_SSP2_SCK__SSP2_SCK */
+						0x2110 /* MX28_PAD_SSP2_MOSI__SSP2_CMD */
+						0x2120 /* MX28_PAD_SSP2_MISO__SSP2_D0 */
+						0x2130 /* MX28_PAD_SSP2_SS0__SSP2_D3 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
 			};
 
 			digctl@8001c000 {
