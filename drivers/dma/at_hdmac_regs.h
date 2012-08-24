@@ -11,7 +11,7 @@
 #ifndef AT_HDMAC_REGS_H
 #define	AT_HDMAC_REGS_H
 
-#include <mach/at_hdmac.h>
+#include <linux/platform_data/dma-atmel.h>
 
 #define	AT_DMA_MAX_NR_CHANNELS	8
 
