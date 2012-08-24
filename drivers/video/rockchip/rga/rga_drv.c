@@ -210,11 +210,22 @@ static void rga_dump(void)
 	}
 }
 
+static inline void rga_queue_power_off_work(void)
+{
+	queue_delayed_work(system_nrt_wq, &drvdata->power_off_work, RGA_POWER_OFF_DELAY);
+}
+
 /* Caller must hold rga_service.lock */
 static void rga_power_on(void)
 {
-	cancel_delayed_work_sync(&drvdata->power_off_work);
-	queue_delayed_work(system_nrt_wq, &drvdata->power_off_work, RGA_POWER_OFF_DELAY);
+	static ktime_t last;
+	ktime_t now = ktime_get();
+
+	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
+		cancel_delayed_work_sync(&drvdata->power_off_work);
+		rga_queue_power_off_work();
+		last = now;
+	}
 	if (rga_service.enable)
 		return;
 
@@ -251,9 +262,13 @@ static void rga_power_off(void)
 
 static void rga_power_off_work(struct work_struct *work)
 {
-	mutex_lock(&rga_service.lock);
-	rga_power_off();
-	mutex_unlock(&rga_service.lock);
+	if (mutex_trylock(&rga_service.lock)) {
+		rga_power_off();
+		mutex_unlock(&rga_service.lock);
+	} else {
+		/* Come back later if the device is busy... */
+		rga_queue_power_off_work();
+	}
 }
 
 static int rga_flush(rga_session *session, unsigned long arg)
