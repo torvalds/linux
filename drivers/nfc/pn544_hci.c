@@ -848,8 +848,8 @@ static int __devinit pn544_hci_probe(struct i2c_client *client,
 	pn544_hci_platform_init(info);
 
 	r = request_threaded_irq(client->irq, NULL, pn544_hci_irq_thread_fn,
-				 IRQF_TRIGGER_RISING, PN544_HCI_DRIVER_NAME,
-				 info);
+				 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				 PN544_HCI_DRIVER_NAME, info);
 	if (r < 0) {
 		dev_err(&client->dev, "Unable to register IRQ handler\n");
 		goto err_rti;
