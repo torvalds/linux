@@ -647,8 +647,6 @@ static int rbd_header_set_snap(struct rbd_device *rbd_dev, char *snap_name)
 {
 	int ret;
 
-	down_write(&rbd_dev->header_rwsem);
-
 	if (!memcmp(snap_name, RBD_SNAP_HEAD_NAME,
 		    sizeof (RBD_SNAP_HEAD_NAME))) {
 		rbd_dev->mapping.snap_id = CEPH_NOSNAP;
@@ -666,7 +664,6 @@ static int rbd_header_set_snap(struct rbd_device *rbd_dev, char *snap_name)
 
 	ret = 0;
 done:
-	up_write(&rbd_dev->header_rwsem);
 	return ret;
 }
 
@@ -2608,7 +2605,9 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (rc)
 		goto err_out_bus;
 
+	down_write(&rbd_dev->header_rwsem);
 	rc = rbd_header_set_snap(rbd_dev, snap_name);
+	up_write(&rbd_dev->header_rwsem);
 	if (rc)
 		goto err_out_bus;
 
