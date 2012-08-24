@@ -201,7 +201,7 @@ static DEFINE_SPINLOCK(rbd_dev_list_lock);
 static LIST_HEAD(rbd_client_list);		/* clients */
 static DEFINE_SPINLOCK(rbd_client_list_lock);
 
-static int __rbd_init_snaps_header(struct rbd_device *rbd_dev);
+static int rbd_dev_snap_devs_update(struct rbd_device *rbd_dev);
 static void rbd_dev_release(struct device *dev);
 static ssize_t rbd_snap_add(struct device *dev,
 			    struct device_attribute *attr,
@@ -1848,7 +1848,7 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
 	WARN_ON(strcmp(rbd_dev->header.object_prefix, h.object_prefix));
 	kfree(h.object_prefix);
 
-	ret = __rbd_init_snaps_header(rbd_dev);
+	ret = rbd_dev_snap_devs_update(rbd_dev);
 
 	up_write(&rbd_dev->header_rwsem);
 
@@ -1880,7 +1880,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 		return rc;
 
 	/* no need to lock here, as rbd_dev is not registered yet */
-	rc = __rbd_init_snaps_header(rbd_dev);
+	rc = rbd_dev_snap_devs_update(rbd_dev);
 	if (rc)
 		return rc;
 
@@ -2184,7 +2184,7 @@ err:
  * snapshot id, highest id first.  (Snapshots in the rbd_dev's list
  * are also maintained in that order.)
  */
-static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
+static int rbd_dev_snap_devs_update(struct rbd_device *rbd_dev)
 {
 	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
 	const u32 snap_count = snapc->num_snaps;
@@ -2193,6 +2193,7 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 	struct list_head *links = head->next;
 	u32 index = 0;
 
+	dout("%s: snap count is %u\n", __func__, (unsigned int) snap_count);
 	while (index < snap_count || links != head) {
 		u64 snap_id;
 		struct rbd_snap *snap;
@@ -2211,6 +2212,9 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 			if (rbd_dev->snap_id == snap->id)
 				rbd_dev->snap_exists = false;
 			__rbd_remove_snap_dev(snap);
+			dout("%ssnap id %llu has been removed\n",
+				rbd_dev->snap_id == snap->id ? "mapped " : "",
+				(unsigned long long) snap->id);
 
 			/* Done with this list entry; advance */
 
@@ -2218,6 +2222,8 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 			continue;
 		}
 
+		dout("entry %u: snap_id = %llu\n", (unsigned int) snap_count,
+			(unsigned long long) snap_id);
 		if (!snap || (snap_id != CEPH_NOSNAP && snap->id < snap_id)) {
 			struct rbd_snap *new_snap;
 
@@ -2225,17 +2231,25 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 
 			new_snap = __rbd_add_snap_dev(rbd_dev, index,
 							snap_name);
-			if (IS_ERR(new_snap))
-				return PTR_ERR(new_snap);
+			if (IS_ERR(new_snap)) {
+				int err = PTR_ERR(new_snap);
+
+				dout("  failed to add dev, error %d\n", err);
+
+				return err;
+			}
 
 			/* New goes before existing, or at end of list */
 
+			dout("  added dev%s\n", snap ? "" : " at end\n");
 			if (snap)
 				list_add_tail(&new_snap->node, &snap->node);
 			else
 				list_add_tail(&new_snap->node, head);
 		} else {
 			/* Already have this one */
+
+			dout("  already present\n");
 
 			rbd_assert(snap->size ==
 					rbd_dev->header.snap_sizes[index]);
@@ -2251,6 +2265,7 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 		index++;
 		snap_name += strlen(snap_name) + 1;
 	}
+	dout("%s: done\n", __func__);
 
 	return 0;
 }
