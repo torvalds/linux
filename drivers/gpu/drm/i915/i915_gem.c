@@ -1133,6 +1133,52 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+/* A nonblocking variant of the above wait. This is a highly dangerous routine
+ * as the object state may change during this call.
+ */
+static __must_check int
+i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
+					    bool readonly)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = obj->ring;
+	u32 seqno;
+	int ret;
+
+	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!dev_priv->mm.interruptible);
+
+	seqno = readonly ? obj->last_write_seqno : obj->last_read_seqno;
+	if (seqno == 0)
+		return 0;
+
+	ret = i915_gem_check_wedge(dev_priv, true);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_check_olr(ring, seqno);
+	if (ret)
+		return ret;
+
+	mutex_unlock(&dev->struct_mutex);
+	ret = __wait_seqno(ring, seqno, true, NULL);
+	mutex_lock(&dev->struct_mutex);
+
+	i915_gem_retire_requests_ring(ring);
+
+	/* Manually manage the write flush as we may have not yet
+	 * retired the buffer.
+	 */
+	if (obj->last_write_seqno &&
+	    i915_seqno_passed(seqno, obj->last_write_seqno)) {
+		obj->last_write_seqno = 0;
+		obj->base.write_domain &= ~I915_GEM_GPU_DOMAINS;
+	}
+
+	return ret;
+}
+
 /**
  * Called when user space prepares to use an object with the CPU, either
  * through the mmap ioctl's mapping or a GTT mapping.
@@ -1170,6 +1216,14 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		goto unlock;
 	}
 
+	/* Try to flush the object off the GPU without holding the lock.
+	 * We will repeat the flush holding the lock in the normal manner
+	 * to catch cases where we are gazumped.
+	 */
+	ret = i915_gem_object_wait_rendering__nonblocking(obj, !write_domain);
+	if (ret)
+		goto unref;
+
 	if (read_domains & I915_GEM_DOMAIN_GTT) {
 		ret = i915_gem_object_set_to_gtt_domain(obj, write_domain != 0);
 
@@ -1183,6 +1237,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		ret = i915_gem_object_set_to_cpu_domain(obj, write_domain != 0);
 	}
 
+unref:
 	drm_gem_object_unreference(&obj->base);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
