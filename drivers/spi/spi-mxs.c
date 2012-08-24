@@ -230,7 +230,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 		return -EINVAL;
 	}
 
-	init_completion(&spi->c);
+	INIT_COMPLETION(spi->c);
 
 	if (*first)
 		pio |= BM_SSP_CTRL0_LOCK_CS;
@@ -548,6 +548,8 @@ static int __devinit mxs_spi_probe(struct platform_device *pdev)
 	ssp->base = base;
 	ssp->devid = devid;
 	ssp->dma_channel = dma_channel;
+
+	init_completion(&spi->c);
 
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_ssp_irq_handler, 0,
 			       DRIVER_NAME, ssp);
