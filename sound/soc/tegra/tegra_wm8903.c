@@ -284,27 +284,27 @@ static __devinit int tegra_wm8903_driver_probe(struct platform_device *pdev)
 	} else if (np) {
 		pdata->gpio_spkr_en = of_get_named_gpio(np,
 						"nvidia,spkr-en-gpios", 0);
-		if (pdata->gpio_spkr_en == -ENODEV)
+		if (pdata->gpio_spkr_en == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
 		pdata->gpio_hp_mute = of_get_named_gpio(np,
 						"nvidia,hp-mute-gpios", 0);
-		if (pdata->gpio_hp_mute == -ENODEV)
+		if (pdata->gpio_hp_mute == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
 		pdata->gpio_hp_det = of_get_named_gpio(np,
 						"nvidia,hp-det-gpios", 0);
-		if (pdata->gpio_hp_det == -ENODEV)
+		if (pdata->gpio_hp_det == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
 		pdata->gpio_int_mic_en = of_get_named_gpio(np,
 						"nvidia,int-mic-en-gpios", 0);
-		if (pdata->gpio_int_mic_en == -ENODEV)
+		if (pdata->gpio_int_mic_en == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
 		pdata->gpio_ext_mic_en = of_get_named_gpio(np,
 						"nvidia,ext-mic-en-gpios", 0);
-		if (pdata->gpio_ext_mic_en == -ENODEV)
+		if (pdata->gpio_ext_mic_en == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 	}
 
