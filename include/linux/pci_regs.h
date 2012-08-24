@@ -678,6 +678,12 @@
 #define  PCI_PWR_CAP_BUDGET(x)	((x) & 1)	/* Included in system budget */
 #define PCI_EXT_CAP_PWR_SIZEOF	16
 
+/* Vendor-Specific (VSEC, PCI_EXT_CAP_ID_VNDR) */
+#define PCI_VNDR_HEADER		4	/* Vendor-Specific Header */
+#define  PCI_VNDR_HEADER_ID(x)	((x) & 0xffff)
+#define  PCI_VNDR_HEADER_REV(x)	(((x) >> 16) & 0xf)
+#define  PCI_VNDR_HEADER_LEN(x)	(((x) >> 20) & 0xfff)
+
 /*
  * Hypertransport sub capability types
  *
