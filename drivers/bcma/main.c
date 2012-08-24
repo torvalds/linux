@@ -7,6 +7,7 @@
 
 #include "bcma_private.h"
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 #include <linux/slab.h>
 
@@ -135,6 +136,22 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		core->dev_registered = true;
 		dev_id++;
 	}
+
+#ifdef CONFIG_BCMA_SFLASH
+	if (bus->drv_cc.sflash.present) {
+		err = platform_device_register(&bcma_sflash_dev);
+		if (err)
+			bcma_err(bus, "Error registering serial flash\n");
+	}
+#endif
+
+#ifdef CONFIG_BCMA_NFLASH
+	if (bus->drv_cc.nflash.present) {
+		err = platform_device_register(&bcma_nflash_dev);
+		if (err)
+			bcma_err(bus, "Error registering NAND flash\n");
+	}
+#endif
 
 	return 0;
 }

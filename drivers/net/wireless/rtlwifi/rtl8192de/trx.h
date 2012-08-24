@@ -730,6 +730,7 @@ struct rx_desc_92d {
 void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct ieee80211_hdr *hdr,
 			  u8 *pdesc, struct ieee80211_tx_info *info,
+			  struct ieee80211_sta *sta,
 			  struct sk_buff *skb, u8 hw_queue,
 			  struct rtl_tcb_desc *ptcb_desc);
 bool rtl92de_rx_query_desc(struct ieee80211_hw *hw,

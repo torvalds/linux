@@ -848,8 +848,10 @@ static void _rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	_rtl_submit_tx_urb(hw, _urb);
 }
 
-static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
-			    u16 hw_queue)
+static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw,
+				   struct ieee80211_sta *sta,
+				   struct sk_buff *skb,
+				   u16 hw_queue)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -891,7 +893,7 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
 		seq_number += 1;
 		seq_number <<= 4;
 	}
-	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *)pdesc, info, skb,
+	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *)pdesc, info, sta, skb,
 					hw_queue, &tcb_desc);
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		if (qc)
@@ -901,7 +903,9 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw, struct sk_buff *skb,
 		rtlpriv->cfg->ops->led_control(hw, LED_CTL_TX);
 }
 
-static int rtl_usb_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
+static int rtl_usb_tx(struct ieee80211_hw *hw,
+		      struct ieee80211_sta *sta,
+		      struct sk_buff *skb,
 		      struct rtl_tcb_desc *dummy)
 {
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
@@ -913,7 +917,7 @@ static int rtl_usb_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (unlikely(is_hal_stop(rtlhal)))
 		goto err_free;
 	hw_queue = rtlusb->usb_mq_to_hwq(fc, skb_get_queue_mapping(skb));
-	_rtl_usb_tx_preprocess(hw, skb, hw_queue);
+	_rtl_usb_tx_preprocess(hw, sta, skb, hw_queue);
 	_rtl_usb_transmit(hw, skb, hw_queue);
 	return NETDEV_TX_OK;
 
@@ -923,6 +927,7 @@ err_free:
 }
 
 static bool rtl_usb_tx_chk_waitq_insert(struct ieee80211_hw *hw,
+					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
 {
 	return false;

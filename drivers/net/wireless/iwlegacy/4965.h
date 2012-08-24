@@ -78,7 +78,9 @@ int il4965_hw_txq_attach_buf_to_tfd(struct il_priv *il, struct il_tx_queue *txq,
 int il4965_hw_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq);
 void il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
 				 struct ieee80211_tx_info *info);
-int il4965_tx_skb(struct il_priv *il, struct sk_buff *skb);
+int il4965_tx_skb(struct il_priv *il,
+		  struct ieee80211_sta *sta,
+		  struct sk_buff *skb);
 int il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 * ssn);
 int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
@@ -163,7 +165,9 @@ void il4965_eeprom_release_semaphore(struct il_priv *il);
 int il4965_eeprom_check_version(struct il_priv *il);
 
 /* mac80211 handlers (for 4965) */
-void il4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void il4965_mac_tx(struct ieee80211_hw *hw,
+		   struct ieee80211_tx_control *control,
+		   struct sk_buff *skb);
 int il4965_mac_start(struct ieee80211_hw *hw);
 void il4965_mac_stop(struct ieee80211_hw *hw);
 void il4965_configure_filter(struct ieee80211_hw *hw,

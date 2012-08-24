@@ -124,7 +124,9 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
-static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void rtl_op_tx(struct ieee80211_hw *hw,
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -138,8 +140,8 @@ static void rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		goto err_free;
 
-	if (!rtlpriv->intf_ops->waitq_insert(hw, skb))
-		rtlpriv->intf_ops->adapter_tx(hw, skb, &tcb_desc);
+	if (!rtlpriv->intf_ops->waitq_insert(hw, control->sta, skb))
+		rtlpriv->intf_ops->adapter_tx(hw, control->sta, skb, &tcb_desc);
 
 	return;
 

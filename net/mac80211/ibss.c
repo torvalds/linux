@@ -109,7 +109,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memset(mgmt, 0, 24 + sizeof(mgmt->u.beacon));
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_PROBE_RESP);
-	memset(mgmt->da, 0xff, ETH_ALEN);
+	eth_broadcast_addr(mgmt->da);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
 	mgmt->u.beacon.beacon_int = cpu_to_le16(beacon_int);
@@ -205,7 +205,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	mod_timer(&ifibss->timer,
 		  round_jiffies(jiffies + IEEE80211_IBSS_MERGE_INTERVAL));
 
-	bss = cfg80211_inform_bss_frame(local->hw.wiphy, local->hw.conf.channel,
+	bss = cfg80211_inform_bss_frame(local->hw.wiphy, chan,
 					mgmt, skb->len, 0, GFP_KERNEL);
 	cfg80211_put_bss(bss);
 	netif_carrier_on(sdata->dev);
@@ -294,7 +294,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	int band = local->hw.conf.channel->band;
+	int band = local->oper_channel->band;
 
 	/*
 	 * XXX: Consider removing the least recently used entry and
@@ -459,8 +459,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			}
 		}
 
-		if (sta && rates_updated)
+		if (sta && rates_updated) {
+			drv_sta_rc_update(local, sdata, &sta->sta,
+					  IEEE80211_RC_SUPP_RATES_CHANGED);
 			rate_control_rate_init(sta);
+		}
 
 		rcu_read_unlock();
 	}
@@ -561,7 +564,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	int band = local->hw.conf.channel->band;
+	int band = local->oper_channel->band;
 
 	/*
 	 * XXX: Consider removing the least recently used entry and
@@ -759,7 +762,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 				return;
 			}
 			sdata_info(sdata, "IBSS not allowed on %d MHz\n",
-				   local->hw.conf.channel->center_freq);
+				   local->oper_channel->center_freq);
 
 			/* No IBSS found - decrease scan interval and continue
 			 * scanning. */
