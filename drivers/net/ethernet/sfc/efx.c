@@ -202,10 +202,20 @@ static void efx_stop_all(struct efx_nic *efx);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
-		if ((efx->state == STATE_RUNNING) ||	\
+		if ((efx->state == STATE_READY) ||	\
 		    (efx->state == STATE_DISABLED))	\
 			ASSERT_RTNL();			\
 	} while (0)
+
+static int efx_check_disabled(struct efx_nic *efx)
+{
+	if (efx->state == STATE_DISABLED) {
+		netif_err(efx, drv, efx->net_dev,
+			  "device is disabled due to earlier errors\n");
+		return -EIO;
+	}
+	return 0;
+}
 
 /**************************************************************************
  *
@@ -630,6 +640,16 @@ static void efx_start_datapath(struct efx_nic *efx)
 	efx->rx_buffer_order = get_order(efx->rx_buffer_len +
 					 sizeof(struct efx_rx_page_state));
 
+	/* We must keep at least one descriptor in a TX ring empty.
+	 * We could avoid this when the queue size does not exactly
+	 * match the hardware ring size, but it's not that important.
+	 * Therefore we stop the queue when one more skb might fill
+	 * the ring completely.  We wake it when half way back to
+	 * empty.
+	 */
+	efx->txq_stop_thresh = efx->txq_entries - efx_tx_max_skb_descs(efx);
+	efx->txq_wake_thresh = efx->txq_stop_thresh / 2;
+
 	/* Initialise the channels */
 	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_tx_queue(tx_queue, channel)
@@ -730,7 +750,11 @@ efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 	struct efx_channel *other_channel[EFX_MAX_CHANNELS], *channel;
 	u32 old_rxq_entries, old_txq_entries;
 	unsigned i, next_buffer_table = 0;
-	int rc = 0;
+	int rc;
+
+	rc = efx_check_disabled(efx);
+	if (rc)
+		return rc;
 
 	/* Not all channels should be reallocated. We must avoid
 	 * reallocating their buffer table entries.
@@ -1365,6 +1389,8 @@ static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 {
 	struct efx_channel *channel;
 
+	BUG_ON(efx->state == STATE_DISABLED);
+
 	if (efx->legacy_irq)
 		efx->legacy_irq_enabled = true;
 	efx_nic_enable_interrupts(efx);
@@ -1381,6 +1407,9 @@ static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 static void efx_stop_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 {
 	struct efx_channel *channel;
+
+	if (efx->state == STATE_DISABLED)
+		return;
 
 	efx_mcdi_mode_poll(efx);
 
@@ -1533,22 +1562,21 @@ static int efx_probe_all(struct efx_nic *efx)
 	return rc;
 }
 
-/* Called after previous invocation(s) of efx_stop_all, restarts the port,
- * kernel transmit queues and NAPI processing, and ensures that the port is
- * scheduled to be reconfigured. This function is safe to call multiple
- * times when the NIC is in any state.
+/* If the interface is supposed to be running but is not, start
+ * the hardware and software data path, regular activity for the port
+ * (MAC statistics, link polling, etc.) and schedule the port to be
+ * reconfigured.  Interrupts must already be enabled.  This function
+ * is safe to call multiple times, so long as the NIC is not disabled.
+ * Requires the RTNL lock.
  */
 static void efx_start_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
+	BUG_ON(efx->state == STATE_DISABLED);
 
 	/* Check that it is appropriate to restart the interface. All
 	 * of these flags are safe to read under just the rtnl lock */
-	if (efx->port_enabled)
-		return;
-	if ((efx->state != STATE_RUNNING) && (efx->state != STATE_INIT))
-		return;
-	if (!netif_running(efx->net_dev))
+	if (efx->port_enabled || !netif_running(efx->net_dev))
 		return;
 
 	efx_start_port(efx);
@@ -1582,11 +1610,11 @@ static void efx_flush_all(struct efx_nic *efx)
 	cancel_work_sync(&efx->mac_work);
 }
 
-/* Quiesce hardware and software without bringing the link down.
- * Safe to call multiple times, when the nic and interface is in any
- * state. The caller is guaranteed to subsequently be in a position
- * to modify any hardware and software state they see fit without
- * taking locks. */
+/* Quiesce the hardware and software data path, and regular activity
+ * for the port without bringing the link down.  Safe to call multiple
+ * times with the NIC in almost any state, but interrupts should be
+ * enabled.  Requires the RTNL lock.
+ */
 static void efx_stop_all(struct efx_nic *efx)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
@@ -1739,8 +1767,6 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
 
-	EFX_ASSERT_RESET_SERIALISED(efx);
-
 	/* Convert phy_id from older PRTAD/DEVAD format */
 	if ((cmd == SIOCGMIIREG || cmd == SIOCSMIIREG) &&
 	    (data->phy_id & 0xfc00) == 0x0400)
@@ -1820,13 +1846,14 @@ static void efx_netpoll(struct net_device *net_dev)
 static int efx_net_open(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	EFX_ASSERT_RESET_SERIALISED(efx);
+	int rc;
 
 	netif_dbg(efx, ifup, efx->net_dev, "opening device on CPU %d\n",
 		  raw_smp_processor_id());
 
-	if (efx->state == STATE_DISABLED)
-		return -EIO;
+	rc = efx_check_disabled(efx);
+	if (rc)
+		return rc;
 	if (efx->phy_mode & PHY_MODE_SPECIAL)
 		return -EBUSY;
 	if (efx_mcdi_poll_reboot(efx) && efx_reset(efx, RESET_TYPE_ALL))
@@ -1852,10 +1879,8 @@ static int efx_net_stop(struct net_device *net_dev)
 	netif_dbg(efx, ifdown, efx->net_dev, "closing on CPU %d\n",
 		  raw_smp_processor_id());
 
-	if (efx->state != STATE_DISABLED) {
-		/* Stop the device and flush all the channels */
-		efx_stop_all(efx);
-	}
+	/* Stop the device and flush all the channels */
+	efx_stop_all(efx);
 
 	return 0;
 }
@@ -1915,9 +1940,11 @@ static void efx_watchdog(struct net_device *net_dev)
 static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
 
-	EFX_ASSERT_RESET_SERIALISED(efx);
-
+	rc = efx_check_disabled(efx);
+	if (rc)
+		return rc;
 	if (new_mtu > EFX_MAX_MTU)
 		return -EINVAL;
 
@@ -1926,8 +1953,6 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
 	mutex_lock(&efx->mac_lock);
-	/* Reconfigure the MAC before enabling the dma queues so that
-	 * the RX buffers don't overflow */
 	net_dev->mtu = new_mtu;
 	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
@@ -1941,8 +1966,6 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
 	char *new_addr = addr->sa_data;
-
-	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	if (!is_valid_ether_addr(new_addr)) {
 		netif_err(efx, drv, efx->net_dev,
@@ -2079,10 +2102,26 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	rtnl_lock();
 
+	/* Enable resets to be scheduled and check whether any were
+	 * already requested.  If so, the NIC is probably hosed so we
+	 * abort.
+	 */
+	efx->state = STATE_READY;
+	smp_mb(); /* ensure we change state before checking reset_pending */
+	if (efx->reset_pending) {
+		netif_err(efx, probe, efx->net_dev,
+			  "aborting probe due to scheduled reset\n");
+		rc = -EIO;
+		goto fail_locked;
+	}
+
 	rc = dev_alloc_name(net_dev, net_dev->name);
 	if (rc < 0)
 		goto fail_locked;
 	efx_update_name(efx);
+
+	/* Always start with carrier off; PHY events will detect the link */
+	netif_carrier_off(net_dev);
 
 	rc = register_netdevice(net_dev);
 	if (rc)
@@ -2093,9 +2132,6 @@ static int efx_register_netdev(struct efx_nic *efx)
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_init_tx_queue_core_txq(tx_queue);
 	}
-
-	/* Always start with carrier off; PHY events will detect the link */
-	netif_carrier_off(net_dev);
 
 	rtnl_unlock();
 
@@ -2108,13 +2144,13 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	return 0;
 
+fail_registered:
+	rtnl_lock();
+	unregister_netdevice(net_dev);
 fail_locked:
+	efx->state = STATE_UNINIT;
 	rtnl_unlock();
 	netif_err(efx, drv, efx->net_dev, "could not register net dev\n");
-	return rc;
-
-fail_registered:
-	unregister_netdev(net_dev);
 	return rc;
 }
 
@@ -2138,7 +2174,11 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 	strlcpy(efx->name, pci_name(efx->pci_dev), sizeof(efx->name));
 	device_remove_file(&efx->pci_dev->dev, &dev_attr_phy_type);
-	unregister_netdev(efx->net_dev);
+
+	rtnl_lock();
+	unregister_netdevice(efx->net_dev);
+	efx->state = STATE_UNINIT;
+	rtnl_unlock();
 }
 
 /**************************************************************************
@@ -2154,9 +2194,9 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	efx_stop_all(efx);
-	mutex_lock(&efx->mac_lock);
-
 	efx_stop_interrupts(efx, false);
+
+	mutex_lock(&efx->mac_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
 		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
@@ -2276,16 +2316,15 @@ static void efx_reset_work(struct work_struct *data)
 	if (!pending)
 		return;
 
-	/* If we're not RUNNING then don't reset. Leave the reset_pending
-	 * flags set so that efx_pci_probe_main will be retried */
-	if (efx->state != STATE_RUNNING) {
-		netif_info(efx, drv, efx->net_dev,
-			   "scheduled reset quenched. NIC not RUNNING\n");
-		return;
-	}
-
 	rtnl_lock();
-	(void)efx_reset(efx, fls(pending) - 1);
+
+	/* We checked the state in efx_schedule_reset() but it may
+	 * have changed by now.  Now that we have the RTNL lock,
+	 * it cannot change again.
+	 */
+	if (efx->state == STATE_READY)
+		(void)efx_reset(efx, fls(pending) - 1);
+
 	rtnl_unlock();
 }
 
@@ -2311,6 +2350,13 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	}
 
 	set_bit(method, &efx->reset_pending);
+	smp_mb(); /* ensure we change reset_pending before checking state */
+
+	/* If we're not READY then just leave the flags set as the cue
+	 * to abort probing or reschedule the reset later.
+	 */
+	if (ACCESS_ONCE(efx->state) != STATE_READY)
+		return;
 
 	/* efx_process_channel() will no longer read events once a
 	 * reset is scheduled. So switch back to poll'd MCDI completions. */
@@ -2376,13 +2422,12 @@ static const struct efx_phy_operations efx_dummy_phy_operations = {
 /* This zeroes out and then fills in the invariants in a struct
  * efx_nic (including all sub-structures).
  */
-static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
+static int efx_init_struct(struct efx_nic *efx,
 			   struct pci_dev *pci_dev, struct net_device *net_dev)
 {
 	int i;
 
 	/* Initialise common structures */
-	memset(efx, 0, sizeof(*efx));
 	spin_lock_init(&efx->biu_lock);
 #ifdef CONFIG_SFC_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
@@ -2392,7 +2437,7 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
-	efx->state = STATE_INIT;
+	efx->state = STATE_UNINIT;
 	strlcpy(efx->name, pci_name(pci_dev), sizeof(efx->name));
 
 	efx->net_dev = net_dev;
@@ -2408,8 +2453,6 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 		if (!efx->channel[i])
 			goto fail;
 	}
-
-	efx->type = type;
 
 	EFX_BUG_ON_PARANOID(efx->type->phys_addr_channels > EFX_MAX_CHANNELS);
 
@@ -2455,6 +2498,12 @@ static void efx_fini_struct(struct efx_nic *efx)
  */
 static void efx_pci_remove_main(struct efx_nic *efx)
 {
+	/* Flush reset_work. It can no longer be scheduled since we
+	 * are not READY.
+	 */
+	BUG_ON(efx->state == STATE_READY);
+	cancel_work_sync(&efx->reset_work);
+
 #ifdef CONFIG_RFS_ACCEL
 	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
 	efx->net_dev->rx_cpu_rmap = NULL;
@@ -2480,23 +2529,14 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 
 	/* Mark the NIC as fini, then stop the interface */
 	rtnl_lock();
-	efx->state = STATE_FINI;
 	dev_close(efx->net_dev);
-
-	/* Allow any queued efx_resets() to complete */
+	efx_stop_interrupts(efx, false);
 	rtnl_unlock();
 
-	efx_stop_interrupts(efx, false);
 	efx_sriov_fini(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
-
-	/* Wait for any scheduled resets to complete. No more will be
-	 * scheduled from this point because efx_stop_all() has been
-	 * called, we are no longer registered with driverlink, and
-	 * the net_device's have been removed. */
-	cancel_work_sync(&efx->reset_work);
 
 	efx_pci_remove_main(efx);
 
@@ -2617,7 +2657,6 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 				   const struct pci_device_id *entry)
 {
-	const struct efx_nic_type *type = (const struct efx_nic_type *) entry->driver_data;
 	struct net_device *net_dev;
 	struct efx_nic *efx;
 	int rc;
@@ -2627,10 +2666,12 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 				     EFX_MAX_RX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
-	net_dev->features |= (type->offload_features | NETIF_F_SG |
+	efx = netdev_priv(net_dev);
+	efx->type = (const struct efx_nic_type *) entry->driver_data;
+	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
 			      NETIF_F_HIGHDMA | NETIF_F_TSO |
 			      NETIF_F_RXCSUM);
-	if (type->offload_features & NETIF_F_V6_CSUM)
+	if (efx->type->offload_features & NETIF_F_V6_CSUM)
 		net_dev->features |= NETIF_F_TSO6;
 	/* Mask for features that also apply to VLAN devices */
 	net_dev->vlan_features |= (NETIF_F_ALL_CSUM | NETIF_F_SG |
@@ -2638,10 +2679,9 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 				   NETIF_F_RXCSUM);
 	/* All offloads can be toggled */
 	net_dev->hw_features = net_dev->features & ~NETIF_F_HIGHDMA;
-	efx = netdev_priv(net_dev);
 	pci_set_drvdata(pci_dev, efx);
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);
-	rc = efx_init_struct(efx, type, pci_dev, net_dev);
+	rc = efx_init_struct(efx, pci_dev, net_dev);
 	if (rc)
 		goto fail1;
 
@@ -2656,27 +2696,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		goto fail2;
 
 	rc = efx_pci_probe_main(efx);
-
-	/* Serialise against efx_reset(). No more resets will be
-	 * scheduled since efx_stop_all() has been called, and we have
-	 * not and never have been registered.
-	 */
-	cancel_work_sync(&efx->reset_work);
-
 	if (rc)
 		goto fail3;
-
-	/* If there was a scheduled reset during probe, the NIC is
-	 * probably hosed anyway.
-	 */
-	if (efx->reset_pending) {
-		rc = -EIO;
-		goto fail4;
-	}
-
-	/* Switch to the running state before we expose the device to the OS,
-	 * so that dev_open()|efx_start_all() will actually start the device */
-	efx->state = STATE_RUNNING;
 
 	rc = efx_register_netdev(efx);
 	if (rc)
@@ -2717,12 +2738,18 @@ static int efx_pm_freeze(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 
-	efx->state = STATE_FINI;
+	rtnl_lock();
 
-	netif_device_detach(efx->net_dev);
+	if (efx->state != STATE_DISABLED) {
+		efx->state = STATE_UNINIT;
 
-	efx_stop_all(efx);
-	efx_stop_interrupts(efx, false);
+		netif_device_detach(efx->net_dev);
+
+		efx_stop_all(efx);
+		efx_stop_interrupts(efx, false);
+	}
+
+	rtnl_unlock();
 
 	return 0;
 }
@@ -2731,21 +2758,25 @@ static int efx_pm_thaw(struct device *dev)
 {
 	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
 
-	efx->state = STATE_INIT;
+	rtnl_lock();
 
-	efx_start_interrupts(efx, false);
+	if (efx->state != STATE_DISABLED) {
+		efx_start_interrupts(efx, false);
 
-	mutex_lock(&efx->mac_lock);
-	efx->phy_op->reconfigure(efx);
-	mutex_unlock(&efx->mac_lock);
+		mutex_lock(&efx->mac_lock);
+		efx->phy_op->reconfigure(efx);
+		mutex_unlock(&efx->mac_lock);
 
-	efx_start_all(efx);
+		efx_start_all(efx);
 
-	netif_device_attach(efx->net_dev);
+		netif_device_attach(efx->net_dev);
 
-	efx->state = STATE_RUNNING;
+		efx->state = STATE_READY;
 
-	efx->type->resume_wol(efx);
+		efx->type->resume_wol(efx);
+	}
+
+	rtnl_unlock();
 
 	/* Reschedule any quenched resets scheduled during efx_pm_freeze() */
 	queue_work(reset_workqueue, &efx->reset_work);

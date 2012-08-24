@@ -91,29 +91,31 @@ struct efx_special_buffer {
 };
 
 /**
- * struct efx_tx_buffer - An Efx TX buffer
- * @skb: The associated socket buffer.
- *	Set only on the final fragment of a packet; %NULL for all other
- *	fragments.  When this fragment completes, then we can free this
- *	skb.
- * @tsoh: The associated TSO header structure, or %NULL if this
- *	buffer is not a TSO header.
+ * struct efx_tx_buffer - buffer state for a TX descriptor
+ * @skb: When @flags & %EFX_TX_BUF_SKB, the associated socket buffer to be
+ *	freed when descriptor completes
+ * @heap_buf: When @flags & %EFX_TX_BUF_HEAP, the associated heap buffer to be
+ *	freed when descriptor completes.
  * @dma_addr: DMA address of the fragment.
+ * @flags: Flags for allocation and DMA mapping type
  * @len: Length of this fragment.
  *	This field is zero when the queue slot is empty.
- * @continuation: True if this fragment is not the end of a packet.
- * @unmap_single: True if dma_unmap_single should be used.
  * @unmap_len: Length of this fragment to unmap
  */
 struct efx_tx_buffer {
-	const struct sk_buff *skb;
-	struct efx_tso_header *tsoh;
+	union {
+		const struct sk_buff *skb;
+		void *heap_buf;
+	};
 	dma_addr_t dma_addr;
+	unsigned short flags;
 	unsigned short len;
-	bool continuation;
-	bool unmap_single;
 	unsigned short unmap_len;
 };
+#define EFX_TX_BUF_CONT		1	/* not last descriptor of packet */
+#define EFX_TX_BUF_SKB		2	/* buffer is last part of skb */
+#define EFX_TX_BUF_HEAP		4	/* buffer was allocated with kmalloc() */
+#define EFX_TX_BUF_MAP_SINGLE	8	/* buffer was mapped with dma_map_single() */
 
 /**
  * struct efx_tx_queue - An Efx TX queue
@@ -133,6 +135,7 @@ struct efx_tx_buffer {
  * @channel: The associated channel
  * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
+ * @tsoh_page: Array of pages of TSO header buffers
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @initialised: Has hardware queue been initialised?
@@ -156,9 +159,6 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is full.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
- * @tso_headers_free: A list of TSO headers allocated for this TX queue
- *	that are not in use, and so available for new TSO sends. The list
- *	is protected by the TX queue lock.
  * @tso_bursts: Number of times TSO xmit invoked by kernel
  * @tso_long_headers: Number of packets with headers too long for standard
  *	blocks
@@ -175,6 +175,7 @@ struct efx_tx_queue {
 	struct efx_channel *channel;
 	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
+	struct efx_buffer *tsoh_page;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
 	bool initialised;
@@ -187,7 +188,6 @@ struct efx_tx_queue {
 	unsigned int insert_count ____cacheline_aligned_in_smp;
 	unsigned int write_count;
 	unsigned int old_read_count;
-	struct efx_tso_header *tso_headers_free;
 	unsigned int tso_bursts;
 	unsigned int tso_long_headers;
 	unsigned int tso_packets;
@@ -430,11 +430,9 @@ enum efx_int_mode {
 #define EFX_INT_MODE_USE_MSI(x) (((x)->interrupt_mode) <= EFX_INT_MODE_MSI)
 
 enum nic_state {
-	STATE_INIT = 0,
-	STATE_RUNNING = 1,
-	STATE_FINI = 2,
-	STATE_DISABLED = 3,
-	STATE_MAX,
+	STATE_UNINIT = 0,	/* device being probed/removed or is frozen */
+	STATE_READY = 1,	/* hardware ready and netdev registered */
+	STATE_DISABLED = 2,	/* device disabled due to hardware errors */
 };
 
 /*
@@ -654,7 +652,7 @@ struct vfdi_status;
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
  * @msg_enable: Log message enable flags
- * @state: Device state flag. Serialised by the rtnl_lock.
+ * @state: Device state number (%STATE_*). Serialised by the rtnl_lock.
  * @reset_pending: Bitmask for pending resets
  * @tx_queue: TX DMA queues
  * @rx_queue: RX DMA queues
@@ -664,6 +662,8 @@ struct vfdi_status;
  *	should be allocated for this NIC
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
+ * @txq_stop_thresh: TX queue fill level at or above which we stop it.
+ * @txq_wake_thresh: TX queue fill level at or below which we wake it.
  * @tx_dc_base: Base qword address in SRAM of TX queue descriptor caches
  * @rx_dc_base: Base qword address in SRAM of RX queue descriptor caches
  * @sram_lim_qw: Qword address limit of SRAM
@@ -774,6 +774,9 @@ struct efx_nic {
 
 	unsigned rxq_entries;
 	unsigned txq_entries;
+	unsigned int txq_stop_thresh;
+	unsigned int txq_wake_thresh;
+
 	unsigned tx_dc_base;
 	unsigned rx_dc_base;
 	unsigned sram_lim_qw;
