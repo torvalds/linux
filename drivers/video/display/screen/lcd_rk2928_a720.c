@@ -26,7 +26,7 @@
 #define V_FP			13 //18
 
 /* Other */
-#define DCLK_POL		0
+#define DCLK_POL		1
 #define SWAP_RB			0
 
 #define LCD_WIDTH       154    //need modify
