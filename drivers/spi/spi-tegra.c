@@ -652,7 +652,7 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 	struct spi_tegra_data	*tspi;
 	struct resource		*r;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = spi_master_get(dev_get_drvdata(&pdev->dev));
 	tspi = spi_master_get_devdata(master);
 
 	spi_unregister_master(master);
@@ -667,6 +667,8 @@ static int __devexit spi_tegra_remove(struct platform_device *pdev)
 
 	clk_put(tspi->clk);
 	iounmap(tspi->base);
+
+	spi_master_put(master);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, resource_size(r));
