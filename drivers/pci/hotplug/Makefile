@@ -23,9 +23,6 @@ obj-$(CONFIG_HOTPLUG_PCI_ACPI)		+= acpiphp.o
 
 obj-$(CONFIG_HOTPLUG_PCI_ACPI_IBM)	+= acpiphp_ibm.o
 
-# Link this last so it doesn't claim devices that have a real hotplug driver
-obj-$(CONFIG_HOTPLUG_PCI_FAKE)		+= fakephp.o
-
 pci_hotplug-objs	:=	pci_hotplug_core.o pcihp_slot.o
 
 ifdef CONFIG_HOTPLUG_PCI_CPCI
