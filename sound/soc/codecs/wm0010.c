@@ -722,7 +722,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm0010 = {
 	.num_dapm_routes = ARRAY_SIZE(wm0010_dapm_routes),
 };
 
-#define WM0010_RATES (SNDRV_PCM_RATE_48000)
+#define WM0010_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 #define WM0010_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |\
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)
