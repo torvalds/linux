@@ -906,9 +906,8 @@ static int emmaprp_probe(struct platform_device *pdev)
 	}
 
 	pcdev->clk_emma_ahb = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(pcdev->clk_emma_ipg)) {
+	if (IS_ERR(pcdev->clk_emma_ahb))
 		return PTR_ERR(pcdev->clk_emma_ahb);
-	}
 
 	irq_emma = platform_get_irq(pdev, 0);
 	res_emma = platform_get_resource(pdev, IORESOURCE_MEM, 0);
