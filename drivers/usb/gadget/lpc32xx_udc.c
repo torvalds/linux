@@ -3176,7 +3176,7 @@ static int __init lpc32xx_udc_probe(struct platform_device *pdev)
 	udc->usb_otg_clk = clk_get(&pdev->dev, "ck_usb_otg");
 	if (IS_ERR(udc->usb_otg_clk)) {
 		dev_err(udc->dev, "failed to acquire USB otg clock\n");
-		retval = PTR_ERR(udc->usb_slv_clk);
+		retval = PTR_ERR(udc->usb_otg_clk);
 		goto usb_otg_clk_get_fail;
 	}
 
