@@ -22,6 +22,9 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#warning "Please try migrate to use new driver SCCNXP and report the status" \
+	 "in the linux-serial mailing list."
+
 #if defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
