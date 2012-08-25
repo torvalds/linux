@@ -137,7 +137,7 @@ static const char *wm0010_state_to_str(enum wm0010_state state)
 	const char *state_to_str[] = {
 		"Power off",
 		"Out of reset",
-		"Bootrom",
+		"Boot ROM",
 		"Stage2",
 		"Firmware"
 	};
