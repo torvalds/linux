@@ -1191,8 +1191,6 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
     int err = 0;
-    const unsigned char zero_bssid[ETH_ALEN] = {0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00};
 
     func_enter();
 
@@ -1213,7 +1211,7 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
 	unifi_trace(priv, UDBG1, "unifi_siwap: asked for %pM\n",
 		wrqu->ap_addr.sa_data);
 
-    if (!memcmp(wrqu->ap_addr.sa_data, zero_bssid, ETH_ALEN)) {
+    if (is_zero_ether_addr(wrqu->ap_addr.sa_data)) {
         priv->ignore_bssid_join = FALSE;
         err = sme_mgt_disconnect(priv);
         if (err) {
