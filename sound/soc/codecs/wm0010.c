@@ -917,7 +917,6 @@ static int __devexit wm0010_spi_remove(struct spi_device *spi)
 	if (wm0010->gpio_reset) {
 		/* Remember to put chip back into reset */
 		gpio_set_value(wm0010->gpio_reset, wm0010->gpio_reset_value);
-		gpio_free(wm0010->gpio_reset);
 	}
 
 	if (wm0010->irq)
