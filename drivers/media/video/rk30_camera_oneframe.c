@@ -59,7 +59,6 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define RKCAMERA_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
 #define RKCAMERA_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
-#define CIF_DO_CROP 1
 // CIF Reg Offset
 #define  CIF_CIF_CTRL                       0x00
 #define  CIF_CIF_INTEN                      0x04
@@ -203,12 +202,16 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define IS_CIF0()		(pcdev->hostid == RK_CAM_PLATFORM_DEV_ID_0)
 #if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_IPP)
 #define CROP_ALIGN_BYTES (0x03)
+#define CIF_DO_CROP 0
 #elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_ARM)
 #define CROP_ALIGN_BYTES (0x03)
+#define CIF_DO_CROP 0
 #elif (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_RGA)
 #define CROP_ALIGN_BYTES (0x03)
+#define CIF_DO_CROP 0
 #elif(CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_PP)
 #define CROP_ALIGN_BYTES (0x0F)
+#define CIF_DO_CROP 1
 #endif
 //Configure Macro
 /*
