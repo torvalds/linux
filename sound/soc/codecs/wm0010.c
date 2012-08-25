@@ -118,9 +118,18 @@ struct wm0010_spi_msg {
 	size_t len;
 };
 
+static const struct snd_soc_dapm_widget wm0010_dapm_widgets[] = {
+SND_SOC_DAPM_SUPPLY("CLKIN",  SND_SOC_NOPM, 0, 0, NULL, 0),
+};
+
 static const struct snd_soc_dapm_route wm0010_dapm_routes[] = {
 	{ "SDI2 Capture", NULL, "SDI1 Playback" },
 	{ "SDI1 Capture", NULL, "SDI2 Playback" },
+
+	{ "SDI1 Capture", NULL, "CLKIN" },
+	{ "SDI2 Capture", NULL, "CLKIN" },
+	{ "SDI1 Playback", NULL, "CLKIN" },
+	{ "SDI2 Playback", NULL, "CLKIN" },
 };
 
 static const char *wm0010_state_to_str(enum wm0010_state state)
@@ -718,6 +727,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm0010 = {
 	.set_bias_level = wm0010_set_bias_level,
 	.set_sysclk = wm0010_set_sysclk,
 
+	.dapm_widgets = wm0010_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm0010_dapm_widgets),
 	.dapm_routes = wm0010_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(wm0010_dapm_routes),
 };
