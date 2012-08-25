@@ -780,6 +780,7 @@ static struct rk29_bl_info rk29_bl_info = {
 	.io_deinit = rk29_backlight_io_deinit,
 	.pwm_suspend = rk29_backlight_pwm_suspend,
 	.pwm_resume = rk29_backlight_pwm_resume,
+	.pre_div = 20000,
 };
 
 static struct platform_device rk29_device_backlight = {
@@ -1224,9 +1225,9 @@ static int rk_fb_io_disable(void)
 }
 static int rk_fb_io_enable(void)
 {
+	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);	
 	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
-	msleep(30);
+	msleep(150);	//wait for power stable
 	return 0;
 }
 
