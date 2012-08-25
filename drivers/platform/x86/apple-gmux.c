@@ -461,18 +461,22 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
 	if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
 		if (gmux_is_indexed(gmux_data)) {
+			u32 version;
 			mutex_init(&gmux_data->index_lock);
 			gmux_data->indexed = true;
+			version = gmux_read32(gmux_data,
+				GMUX_PORT_VERSION_MAJOR);
+			ver_major = (version >> 24) & 0xff;
+			ver_minor = (version >> 16) & 0xff;
+			ver_release = (version >> 8) & 0xff;
 		} else {
 			pr_info("gmux device not present\n");
 			ret = -ENODEV;
 			goto err_release;
 		}
-		pr_info("Found indexed gmux\n");
-	} else {
-		pr_info("Found gmux version %d.%d.%d\n", ver_major, ver_minor,
-			ver_release);
 	}
+	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
+		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
