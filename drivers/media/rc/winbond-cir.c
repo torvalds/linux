@@ -358,7 +358,7 @@ wbcir_irq_rx(struct wbcir_data *data, struct pnp_dev *device)
 		if (data->rxstate == WBCIR_RXSTATE_ERROR)
 			continue;
 		rawir.pulse = irdata & 0x80 ? false : true;
-		rawir.duration = US_TO_NS((irdata & 0x7F) * 10);
+		rawir.duration = US_TO_NS(((irdata & 0x7F) + 1) * 10);
 		ir_raw_event_store_with_filter(data->dev, &rawir);
 	}
 
