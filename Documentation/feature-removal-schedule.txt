@@ -353,14 +353,6 @@ Why:	Internal alias support has been present in module-init-tools for some
 
 Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 
----------------------------
-
-What:	xt_NOTRACK
-Files:	net/netfilter/xt_NOTRACK.c
-When:	April 2011
-Why:	Superseded by xt_CT
-Who:	Netfilter developer team <netfilter-devel@vger.kernel.org>
-
 ----------------------------
 
 What:	IRQF_DISABLED
