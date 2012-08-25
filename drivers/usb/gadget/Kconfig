@@ -159,6 +159,17 @@ config USB_ATMEL_USBA
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
 
+config USB_BCM63XX_UDC
+	tristate "Broadcom BCM63xx Peripheral Controller"
+	depends on BCM63XX
+	help
+	   Many Broadcom BCM63xx chipsets (such as the BCM6328) have a
+	   high speed USB Device Port with support for four fixed endpoints
+	   (plus endpoint zero).
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "bcm63xx_udc".
+
 config USB_FSL_USB2
 	tristate "Freescale Highspeed USB DR Peripheral Controller"
 	depends on FSL_SOC || ARCH_MXC
