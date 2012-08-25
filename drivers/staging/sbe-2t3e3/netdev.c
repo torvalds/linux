@@ -27,7 +27,7 @@ int t3e3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int cmd_2t3e3, len, rlen;
 	t3e3_param_t param;
 	t3e3_resp_t  resp;
-	void *data = ifr->ifr_data + sizeof(cmd_2t3e3) + sizeof(len);
+	void __user *data = ifr->ifr_data + sizeof(cmd_2t3e3) + sizeof(len);
 
 	if (cmd == SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
