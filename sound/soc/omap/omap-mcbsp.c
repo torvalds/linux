@@ -619,9 +619,9 @@ static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(channel)			\
+#define OMAP_MCBSP_ST_CHANNEL_VOLUME(channel)				\
 static int								\
-omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
+omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,		\
 					struct snd_ctl_elem_value *uc)	\
 {									\
 	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kc);		\
@@ -637,11 +637,10 @@ omap_mcbsp_set_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
 									\
 	/* OMAP McBSP implementation uses index values 0..4 */		\
 	return omap_st_set_chgain(mcbsp, channel, val);			\
-}
-
-#define OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(channel)			\
+}									\
+									\
 static int								\
-omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
+omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,		\
 					struct snd_ctl_elem_value *uc)	\
 {									\
 	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kc);		\
@@ -655,10 +654,8 @@ omap_mcbsp_get_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
 	return 0;							\
 }
 
-OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(0)
-OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(1)
-OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(0)
-OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(1)
+OMAP_MCBSP_ST_CHANNEL_VOLUME(0)
+OMAP_MCBSP_ST_CHANNEL_VOLUME(1)
 
 static int omap_mcbsp_st_put_mode(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -688,41 +685,34 @@ static int omap_mcbsp_st_get_mode(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct snd_kcontrol_new omap_mcbsp2_st_controls[] = {
-	SOC_SINGLE_EXT("McBSP2 Sidetone Switch", 1, 0, 1, 0,
-			omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP2 Sidetone Channel 0 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch0_volume,
-				      omap_mcbsp_set_st_ch0_volume),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP2 Sidetone Channel 1 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch1_volume,
-				      omap_mcbsp_set_st_ch1_volume),
-};
+#define OMAP_MCBSP_ST_CONTROLS(port)					  \
+static const struct snd_kcontrol_new omap_mcbsp##port##_st_controls[] = { \
+SOC_SINGLE_EXT("McBSP" #port " Sidetone Switch", 1, 0, 1, 0,		  \
+	       omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),		  \
+OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 0 Volume", \
+			      -32768, 32767,				  \
+			      omap_mcbsp_get_st_ch0_volume,		  \
+			      omap_mcbsp_set_st_ch0_volume),		  \
+OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP" #port " Sidetone Channel 1 Volume", \
+			      -32768, 32767,				  \
+			      omap_mcbsp_get_st_ch1_volume,		  \
+			      omap_mcbsp_set_st_ch1_volume),		  \
+}
 
-static const struct snd_kcontrol_new omap_mcbsp3_st_controls[] = {
-	SOC_SINGLE_EXT("McBSP3 Sidetone Switch", 2, 0, 1, 0,
-			omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP3 Sidetone Channel 0 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch0_volume,
-				      omap_mcbsp_set_st_ch0_volume),
-	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP3 Sidetone Channel 1 Volume",
-				      -32768, 32767,
-				      omap_mcbsp_get_st_ch1_volume,
-				      omap_mcbsp_set_st_ch1_volume),
-};
+OMAP_MCBSP_ST_CONTROLS(2);
+OMAP_MCBSP_ST_CONTROLS(3);
 
 int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 
-	if (!mcbsp->st_data)
-		return -ENODEV;
+	if (!mcbsp->st_data) {
+		dev_warn(mcbsp->dev, "No sidetone data for port\n");
+		return 0;
+	}
 
-	switch (cpu_dai->id) {
+	switch (mcbsp->id) {
 	case 2: /* McBSP 2 */
 		return snd_soc_add_dai_controls(cpu_dai,
 					omap_mcbsp2_st_controls,
