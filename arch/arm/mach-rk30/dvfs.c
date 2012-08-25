@@ -106,12 +106,18 @@ struct regulator* dvfs_get_regulator(char *regulator_name)
 int dvfs_clk_enable_limit(struct clk *clk, unsigned int min_rate, unsigned max_rate)
 {
 	struct clk_node* dvfs_clk;
+	u32 rate = 0;
 	dvfs_clk = clk->dvfs_info;
 
 	dvfs_clk->freq_limit_en = 1;
 	dvfs_clk->min_rate = min_rate;
 	dvfs_clk->max_rate = max_rate;
 	
+	rate = clk_get_rate(clk);
+	if (rate < min_rate) 
+		dvfs_clk_set_rate(clk, min_rate);
+	else if (rate > max_rate)
+		dvfs_clk_set_rate(clk, max_rate);
 	return 0;
 }
 
