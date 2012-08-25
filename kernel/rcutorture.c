@@ -2029,14 +2029,15 @@ rcu_torture_init(void)
 	/* Start up the kthreads. */
 
 	VERBOSE_PRINTK_STRING("Creating rcu_torture_writer task");
-	writer_task = kthread_run(rcu_torture_writer, NULL,
-				  "rcu_torture_writer");
+	writer_task = kthread_create(rcu_torture_writer, NULL,
+				     "rcu_torture_writer");
 	if (IS_ERR(writer_task)) {
 		firsterr = PTR_ERR(writer_task);
 		VERBOSE_PRINTK_ERRSTRING("Failed to create writer");
 		writer_task = NULL;
 		goto unwind;
 	}
+	wake_up_process(writer_task);
 	fakewriter_tasks = kzalloc(nfakewriters * sizeof(fakewriter_tasks[0]),
 				   GFP_KERNEL);
 	if (fakewriter_tasks == NULL) {
@@ -2151,14 +2152,15 @@ rcu_torture_init(void)
 	}
 	if (shutdown_secs > 0) {
 		shutdown_time = jiffies + shutdown_secs * HZ;
-		shutdown_task = kthread_run(rcu_torture_shutdown, NULL,
-					    "rcu_torture_shutdown");
+		shutdown_task = kthread_create(rcu_torture_shutdown, NULL,
+					       "rcu_torture_shutdown");
 		if (IS_ERR(shutdown_task)) {
 			firsterr = PTR_ERR(shutdown_task);
 			VERBOSE_PRINTK_ERRSTRING("Failed to create shutdown");
 			shutdown_task = NULL;
 			goto unwind;
 		}
+		wake_up_process(shutdown_task);
 	}
 	i = rcu_torture_onoff_init();
 	if (i != 0) {
