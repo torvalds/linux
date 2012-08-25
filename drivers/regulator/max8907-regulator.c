@@ -405,3 +405,4 @@ module_exit(max8907_reg_exit);
 MODULE_DESCRIPTION("MAX8907 regulator driver");
 MODULE_AUTHOR("Gyungoh Yoo <jack.yoo@maxim-ic.com>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:max8907-regulator");
