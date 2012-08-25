@@ -355,7 +355,7 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	usb_otg_clk = clk_get(&pdev->dev, "ck_usb_otg");
 	if (IS_ERR(usb_otg_clk)) {
 		dev_err(&pdev->dev, "failed to acquire USB DEV Clock\n");
-		ret = PTR_ERR(usb_dev_clk);
+		ret = PTR_ERR(usb_otg_clk);
 		goto out6;
 	}
 
