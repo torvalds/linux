@@ -799,14 +799,35 @@ static irqreturn_t wm0010_irq(int irq, void *data)
 static int wm0010_probe(struct snd_soc_codec *codec)
 {
 	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
-	struct spi_device *spi = to_spi_device(wm0010->dev);
+
+	wm0010->codec = codec;
+
+	return 0;
+}
+
+static int __devinit wm0010_spi_probe(struct spi_device *spi)
+{
 	unsigned long flags;
 	unsigned long gpio_flags;
 	int ret;
 	int trigger;
 	int irq;
+	struct wm0010_priv *wm0010;
 
-	wm0010->codec = codec;
+	wm0010 = devm_kzalloc(&spi->dev, sizeof(*wm0010),
+			      GFP_KERNEL);
+	if (!wm0010)
+		return -ENOMEM;
+
+	mutex_init(&wm0010->lock);
+	spin_lock_init(&wm0010->irq_lock);
+
+	spi_set_drvdata(spi, wm0010);
+	wm0010->dev = &spi->dev;
+
+	if (dev_get_platdata(&spi->dev))
+		memcpy(&wm0010->pdata, dev_get_platdata(&spi->dev),
+		       sizeof(wm0010->pdata));
 
 	init_completion(&wm0010->boot_completion);
 
@@ -850,7 +871,7 @@ static int wm0010_probe(struct snd_soc_codec *codec)
 		}
 	} else {
 		dev_err(wm0010->dev, "No reset GPIO configured\n");
-		return ret;
+		return -EINVAL;
 	}
 
 	irq = spi->irq;
@@ -862,9 +883,11 @@ static int wm0010_probe(struct snd_soc_codec *codec)
 
 	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger,
 				   "wm0010", wm0010);
-	if (ret)
+	if (ret) {
 		dev_err(wm0010->dev, "Failed to request IRQ %d: %d\n",
 			irq, ret);
+		return ret;
+	}
 	wm0010->irq = irq;
 
 	if (spi->max_speed_hz)
@@ -875,29 +898,6 @@ static int wm0010_probe(struct snd_soc_codec *codec)
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
 	wm0010->state = WM0010_POWER_OFF;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
-
-	return 0;
-}
-
-static int __devinit wm0010_spi_probe(struct spi_device *spi)
-{
-	struct wm0010_priv *wm0010;
-	int ret;
-
-	wm0010 = devm_kzalloc(&spi->dev, sizeof(*wm0010),
-			      GFP_KERNEL);
-	if (!wm0010)
-		return -ENOMEM;
-
-	mutex_init(&wm0010->lock);
-	spin_lock_init(&wm0010->irq_lock);
-
-	spi_set_drvdata(spi, wm0010);
-	wm0010->dev = &spi->dev;
-
-	if (dev_get_platdata(&spi->dev))
-		memcpy(&wm0010->pdata, dev_get_platdata(&spi->dev),
-		       sizeof(wm0010->pdata));
 
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm0010, wm0010_dai,
