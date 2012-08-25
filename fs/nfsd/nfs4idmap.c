@@ -478,7 +478,7 @@ nfsd_idmap_init(struct net *net)
 		goto destroy_idtoname_cache;
 	nn->nametoid_cache = cache_create_net(&nametoid_cache_template, net);
 	if (IS_ERR(nn->nametoid_cache)) {
-		rv = PTR_ERR(nn->idtoname_cache);
+		rv = PTR_ERR(nn->nametoid_cache);
 		goto unregister_idtoname_cache;
 	}
 	rv = cache_register_net(nn->nametoid_cache, net);
