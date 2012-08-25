@@ -204,6 +204,54 @@ static unsigned int *rt_profiles[] = {
 static unsigned int nr_run_hysteresis = 2;	/* 0.5 thread */
 static unsigned int nr_run_last;
 
+struct runnables_avg_sample {
+	u64 previous_integral;
+	unsigned int avg;
+	bool integral_sampled;
+	u64 prev_timestamp;
+};
+
+static DEFINE_PER_CPU(struct runnables_avg_sample, avg_nr_sample);
+
+static unsigned int get_avg_nr_runnables(void)
+{
+	unsigned int i, sum = 0;
+	struct runnables_avg_sample *sample;
+	u64 integral, old_integral, delta_integral, delta_time, cur_time;
+
+	for_each_online_cpu(i) {
+		sample = &per_cpu(avg_nr_sample, i);
+		integral = nr_running_integral(i);
+		old_integral = sample->previous_integral;
+		sample->previous_integral = integral;
+		cur_time = ktime_to_ns(ktime_get());
+		delta_time = cur_time - sample->prev_timestamp;
+		sample->prev_timestamp = cur_time;
+
+		if (!sample->integral_sampled) {
+			sample->integral_sampled = true;
+			/* First sample to initialize prev_integral, skip
+			 * avg calculation
+			 */
+			continue;
+		}
+
+		if (integral < old_integral) {
+			/* Overflow */
+			delta_integral = (ULLONG_MAX - old_integral) + integral;
+		} else {
+			delta_integral = integral - old_integral;
+		}
+
+		/* Calculate average for the previous sample window */
+		do_div(delta_integral, delta_time);
+		sample->avg = delta_integral;
+		sum += sample->avg;
+	}
+
+	return sum;
+}
+
 static CPU_SPEED_BALANCE balanced_speed_balance(void)
 {
 	unsigned long highest_speed = cpu_highest_speed();
@@ -211,7 +259,7 @@ static CPU_SPEED_BALANCE balanced_speed_balance(void)
 	unsigned long skewed_speed = balanced_speed / 2;
 	unsigned int nr_cpus = num_online_cpus();
 	unsigned int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS) ? : 4;
-	unsigned int avg_nr_run = avg_nr_running();
+	unsigned int avg_nr_run = get_avg_nr_runnables();
 	unsigned int nr_run;
 	unsigned int *current_profile = rt_profiles[rt_profile_sel];
 
