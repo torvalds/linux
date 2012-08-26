@@ -466,6 +466,86 @@ static __u8 twhl850_rdesc_fixed2[] = {
 	0xC0                /*  End Collection                      */
 };
 
+/*
+ * See TWHA60 description, device and HID report descriptors at
+ * http://sf.net/apps/mediawiki/digimend/?title=UC-Logic_Tablet_TWHA60
+ */
+
+/* Size of the original descriptors of TWHA60 tablet */
+#define TWHA60_RDESC_ORIG_SIZE0 254
+#define TWHA60_RDESC_ORIG_SIZE1 139
+
+/* Fixed TWHA60 report descriptor, interface 0 (stylus) */
+static __u8 twha60_rdesc_fixed0[] = {
+	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
+	0x09, 0x02,         /*  Usage (Pen),                        */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, 0x09,         /*      Report ID (9),                  */
+	0x09, 0x20,         /*      Usage (Stylus),                 */
+	0xA0,               /*      Collection (Physical),          */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x09, 0x42,         /*          Usage (Tip Switch),         */
+	0x09, 0x44,         /*          Usage (Barrel Switch),      */
+	0x09, 0x46,         /*          Usage (Tablet Pick),        */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x95, 0x03,         /*          Report Count (3),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x04,         /*          Report Count (4),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x09, 0x32,         /*          Usage (In Range),           */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x75, 0x10,         /*          Report Size (16),           */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x14,               /*          Logical Minimum (0),        */
+	0xA4,               /*          Push,                       */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x55, 0xFD,         /*          Unit Exponent (-3),         */
+	0x65, 0x13,         /*          Unit (Inch),                */
+	0x34,               /*          Physical Minimum (0),       */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x46, 0x10, 0x27,   /*          Physical Maximum (10000),   */
+	0x27, 0x3F, 0x9C,
+		0x00, 0x00, /*          Logical Maximum (39999),    */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x46, 0x6A, 0x18,   /*          Physical Maximum (6250),    */
+	0x26, 0xA7, 0x61,   /*          Logical Maximum (24999),    */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xB4,               /*          Pop,                        */
+	0x09, 0x30,         /*          Usage (Tip Pressure),       */
+	0x26, 0xFF, 0x03,   /*          Logical Maximum (1023),     */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
+};
+
+/* Fixed TWHA60 report descriptor, interface 1 (frame buttons) */
+static __u8 twha60_rdesc_fixed1[] = {
+	0x05, 0x01, /*  Usage Page (Desktop),       */
+	0x09, 0x06, /*  Usage (Keyboard),           */
+	0xA1, 0x01, /*  Collection (Application),   */
+	0x85, 0x05, /*      Report ID (5),          */
+	0x05, 0x07, /*      Usage Page (Keyboard),  */
+	0x14,       /*      Logical Minimum (0),    */
+	0x25, 0x01, /*      Logical Maximum (1),    */
+	0x75, 0x01, /*      Report Size (1),        */
+	0x95, 0x08, /*      Report Count (8),       */
+	0x81, 0x01, /*      Input (Constant),       */
+	0x95, 0x0C, /*      Report Count (12),      */
+	0x19, 0x3A, /*      Usage Minimum (KB F1),  */
+	0x29, 0x45, /*      Usage Maximum (KB F12), */
+	0x81, 0x02, /*      Input (Variable),       */
+	0x95, 0x0C, /*      Report Count (12),      */
+	0x19, 0x68, /*      Usage Minimum (KB F13), */
+	0x29, 0x73, /*      Usage Maximum (KB F24), */
+	0x81, 0x02, /*      Input (Variable),       */
+	0x95, 0x08, /*      Report Count (8),       */
+	0x81, 0x01, /*      Input (Constant),       */
+	0xC0        /*  End Collection              */
+};
+
 static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 					unsigned int *rsize)
 {
@@ -525,6 +605,22 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 			break;
 		}
 		break;
+	case USB_DEVICE_ID_UCLOGIC_TABLET_TWHA60:
+		switch (iface_num) {
+		case 0:
+			if (*rsize == TWHA60_RDESC_ORIG_SIZE0) {
+				rdesc = twha60_rdesc_fixed0;
+				*rsize = sizeof(twha60_rdesc_fixed0);
+			}
+			break;
+		case 1:
+			if (*rsize == TWHA60_RDESC_ORIG_SIZE1) {
+				rdesc = twha60_rdesc_fixed1;
+				*rsize = sizeof(twha60_rdesc_fixed1);
+			}
+			break;
+		}
+		break;
 	}
 
 	return rdesc;
@@ -543,6 +639,8 @@ static const struct hid_device_id uclogic_devices[] = {
 				USB_DEVICE_ID_UCLOGIC_TABLET_WP1062) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,
 				USB_DEVICE_ID_UCLOGIC_WIRELESS_TABLET_TWHL850) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UCLOGIC,
+				USB_DEVICE_ID_UCLOGIC_TABLET_TWHA60) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, uclogic_devices);
