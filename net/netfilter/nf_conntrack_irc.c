@@ -33,6 +33,7 @@ static DEFINE_SPINLOCK(irc_buffer_lock);
 
 unsigned int (*nf_nat_irc_hook)(struct sk_buff *skb,
 				enum ip_conntrack_info ctinfo,
+				unsigned int protoff,
 				unsigned int matchoff,
 				unsigned int matchlen,
 				struct nf_conntrack_expect *exp) __read_mostly;
@@ -206,7 +207,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
 			if (nf_nat_irc && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 			    ct->status & IPS_NAT_MASK)
-				ret = nf_nat_irc(skb, ctinfo,
+				ret = nf_nat_irc(skb, ctinfo, protoff,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);

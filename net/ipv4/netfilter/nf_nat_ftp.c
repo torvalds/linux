@@ -55,6 +55,7 @@ static int nf_nat_ftp_fmt_cmd(enum nf_ct_ftp_type type,
 static unsigned int nf_nat_ftp(struct sk_buff *skb,
 			       enum ip_conntrack_info ctinfo,
 			       enum nf_ct_ftp_type type,
+			       unsigned int protoff,
 			       unsigned int matchoff,
 			       unsigned int matchlen,
 			       struct nf_conntrack_expect *exp)
@@ -100,7 +101,7 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 
 	pr_debug("calling nf_nat_mangle_tcp_packet\n");
 
-	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, matchoff,
+	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff, matchoff,
 				      matchlen, buffer, buflen))
 		goto out;
 

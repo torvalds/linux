@@ -49,12 +49,12 @@ MODULE_PARM_DESC(callforward_filter, "only create call forwarding expectations "
 				     "(determined by routing information)");
 
 /* Hooks for NAT */
-int (*set_h245_addr_hook) (struct sk_buff *skb,
+int (*set_h245_addr_hook) (struct sk_buff *skb, unsigned int protoff,
 			   unsigned char **data, int dataoff,
 			   H245_TransportAddress *taddr,
 			   union nf_inet_addr *addr, __be16 port)
 			   __read_mostly;
-int (*set_h225_addr_hook) (struct sk_buff *skb,
+int (*set_h225_addr_hook) (struct sk_buff *skb, unsigned int protoff,
 			   unsigned char **data, int dataoff,
 			   TransportAddress *taddr,
 			   union nf_inet_addr *addr, __be16 port)
@@ -62,16 +62,17 @@ int (*set_h225_addr_hook) (struct sk_buff *skb,
 int (*set_sig_addr_hook) (struct sk_buff *skb,
 			  struct nf_conn *ct,
 			  enum ip_conntrack_info ctinfo,
-			  unsigned char **data,
+			  unsigned int protoff, unsigned char **data,
 			  TransportAddress *taddr, int count) __read_mostly;
 int (*set_ras_addr_hook) (struct sk_buff *skb,
 			  struct nf_conn *ct,
 			  enum ip_conntrack_info ctinfo,
-			  unsigned char **data,
+			  unsigned int protoff, unsigned char **data,
 			  TransportAddress *taddr, int count) __read_mostly;
 int (*nat_rtp_rtcp_hook) (struct sk_buff *skb,
 			  struct nf_conn *ct,
 			  enum ip_conntrack_info ctinfo,
+			  unsigned int protoff,
 			  unsigned char **data, int dataoff,
 			  H245_TransportAddress *taddr,
 			  __be16 port, __be16 rtp_port,
@@ -80,24 +81,28 @@ int (*nat_rtp_rtcp_hook) (struct sk_buff *skb,
 int (*nat_t120_hook) (struct sk_buff *skb,
 		      struct nf_conn *ct,
 		      enum ip_conntrack_info ctinfo,
+		      unsigned int protoff,
 		      unsigned char **data, int dataoff,
 		      H245_TransportAddress *taddr, __be16 port,
 		      struct nf_conntrack_expect *exp) __read_mostly;
 int (*nat_h245_hook) (struct sk_buff *skb,
 		      struct nf_conn *ct,
 		      enum ip_conntrack_info ctinfo,
+		      unsigned int protoff,
 		      unsigned char **data, int dataoff,
 		      TransportAddress *taddr, __be16 port,
 		      struct nf_conntrack_expect *exp) __read_mostly;
 int (*nat_callforwarding_hook) (struct sk_buff *skb,
 				struct nf_conn *ct,
 				enum ip_conntrack_info ctinfo,
+				unsigned int protoff,
 				unsigned char **data, int dataoff,
 				TransportAddress *taddr, __be16 port,
 				struct nf_conntrack_expect *exp) __read_mostly;
 int (*nat_q931_hook) (struct sk_buff *skb,
 		      struct nf_conn *ct,
 		      enum ip_conntrack_info ctinfo,
+		      unsigned int protoff,
 		      unsigned char **data, TransportAddress *taddr, int idx,
 		      __be16 port, struct nf_conntrack_expect *exp)
 		      __read_mostly;
@@ -251,6 +256,7 @@ static int get_h245_addr(struct nf_conn *ct, const unsigned char *data,
 /****************************************************************************/
 static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
+			   unsigned int protoff,
 			   unsigned char **data, int dataoff,
 			   H245_TransportAddress *taddr)
 {
@@ -298,7 +304,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 		   nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 		   ct->status & IPS_NAT_MASK) {
 		/* NAT needed */
-		ret = nat_rtp_rtcp(skb, ct, ctinfo, data, dataoff,
+		ret = nat_rtp_rtcp(skb, ct, ctinfo, protoff, data, dataoff,
 				   taddr, port, rtp_port, rtp_exp, rtcp_exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(rtp_exp) == 0) {
@@ -325,6 +331,7 @@ static int expect_rtp_rtcp(struct sk_buff *skb, struct nf_conn *ct,
 static int expect_t120(struct sk_buff *skb,
 		       struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, int dataoff,
 		       H245_TransportAddress *taddr)
 {
@@ -357,7 +364,7 @@ static int expect_t120(struct sk_buff *skb,
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* NAT needed */
-		ret = nat_t120(skb, ct, ctinfo, data, dataoff, taddr,
+		ret = nat_t120(skb, ct, ctinfo, protoff, data, dataoff, taddr,
 			       port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
@@ -376,6 +383,7 @@ static int expect_t120(struct sk_buff *skb,
 static int process_h245_channel(struct sk_buff *skb,
 				struct nf_conn *ct,
 				enum ip_conntrack_info ctinfo,
+				unsigned int protoff,
 				unsigned char **data, int dataoff,
 				H2250LogicalChannelParameters *channel)
 {
@@ -383,7 +391,7 @@ static int process_h245_channel(struct sk_buff *skb,
 
 	if (channel->options & eH2250LogicalChannelParameters_mediaChannel) {
 		/* RTP */
-		ret = expect_rtp_rtcp(skb, ct, ctinfo, data, dataoff,
+		ret = expect_rtp_rtcp(skb, ct, ctinfo, protoff, data, dataoff,
 				      &channel->mediaChannel);
 		if (ret < 0)
 			return -1;
@@ -392,7 +400,7 @@ static int process_h245_channel(struct sk_buff *skb,
 	if (channel->
 	    options & eH2250LogicalChannelParameters_mediaControlChannel) {
 		/* RTCP */
-		ret = expect_rtp_rtcp(skb, ct, ctinfo, data, dataoff,
+		ret = expect_rtp_rtcp(skb, ct, ctinfo, protoff, data, dataoff,
 				      &channel->mediaControlChannel);
 		if (ret < 0)
 			return -1;
@@ -404,6 +412,7 @@ static int process_h245_channel(struct sk_buff *skb,
 /****************************************************************************/
 static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, int dataoff,
 		       OpenLogicalChannel *olc)
 {
@@ -414,7 +423,8 @@ static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 	if (olc->forwardLogicalChannelParameters.multiplexParameters.choice ==
 	    eOpenLogicalChannel_forwardLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters)
 	{
-		ret = process_h245_channel(skb, ct, ctinfo, data, dataoff,
+		ret = process_h245_channel(skb, ct, ctinfo,
+					   protoff, data, dataoff,
 					   &olc->
 					   forwardLogicalChannelParameters.
 					   multiplexParameters.
@@ -432,7 +442,8 @@ static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 		eOpenLogicalChannel_reverseLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters))
 	{
 		ret =
-		    process_h245_channel(skb, ct, ctinfo, data, dataoff,
+		    process_h245_channel(skb, ct, ctinfo,
+					 protoff, data, dataoff,
 					 &olc->
 					 reverseLogicalChannelParameters.
 					 multiplexParameters.
@@ -450,7 +461,7 @@ static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 	    t120.choice == eDataProtocolCapability_separateLANStack &&
 	    olc->separateStack.networkAddress.choice ==
 	    eNetworkAccessParameters_networkAddress_localAreaAddress) {
-		ret = expect_t120(skb, ct, ctinfo, data, dataoff,
+		ret = expect_t120(skb, ct, ctinfo, protoff, data, dataoff,
 				  &olc->separateStack.networkAddress.
 				  localAreaAddress);
 		if (ret < 0)
@@ -463,7 +474,7 @@ static int process_olc(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 			enum ip_conntrack_info ctinfo,
-			unsigned char **data, int dataoff,
+			unsigned int protoff, unsigned char **data, int dataoff,
 			OpenLogicalChannelAck *olca)
 {
 	H2250LogicalChannelAckParameters *ack;
@@ -479,7 +490,8 @@ static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 		choice ==
 		eOpenLogicalChannelAck_reverseLogicalChannelParameters_multiplexParameters_h2250LogicalChannelParameters))
 	{
-		ret = process_h245_channel(skb, ct, ctinfo, data, dataoff,
+		ret = process_h245_channel(skb, ct, ctinfo,
+					   protoff, data, dataoff,
 					   &olca->
 					   reverseLogicalChannelParameters.
 					   multiplexParameters.
@@ -498,7 +510,8 @@ static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 		if (ack->options &
 		    eH2250LogicalChannelAckParameters_mediaChannel) {
 			/* RTP */
-			ret = expect_rtp_rtcp(skb, ct, ctinfo, data, dataoff,
+			ret = expect_rtp_rtcp(skb, ct, ctinfo,
+					      protoff, data, dataoff,
 					      &ack->mediaChannel);
 			if (ret < 0)
 				return -1;
@@ -507,7 +520,8 @@ static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 		if (ack->options &
 		    eH2250LogicalChannelAckParameters_mediaControlChannel) {
 			/* RTCP */
-			ret = expect_rtp_rtcp(skb, ct, ctinfo, data, dataoff,
+			ret = expect_rtp_rtcp(skb, ct, ctinfo,
+					      protoff, data, dataoff,
 					      &ack->mediaControlChannel);
 			if (ret < 0)
 				return -1;
@@ -517,7 +531,7 @@ static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 	if ((olca->options & eOpenLogicalChannelAck_separateStack) &&
 		olca->separateStack.networkAddress.choice ==
 		eNetworkAccessParameters_networkAddress_localAreaAddress) {
-		ret = expect_t120(skb, ct, ctinfo, data, dataoff,
+		ret = expect_t120(skb, ct, ctinfo, protoff, data, dataoff,
 				  &olca->separateStack.networkAddress.
 				  localAreaAddress);
 		if (ret < 0)
@@ -530,14 +544,15 @@ static int process_olca(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_h245(struct sk_buff *skb, struct nf_conn *ct,
 			enum ip_conntrack_info ctinfo,
-			unsigned char **data, int dataoff,
+			unsigned int protoff, unsigned char **data, int dataoff,
 			MultimediaSystemControlMessage *mscm)
 {
 	switch (mscm->choice) {
 	case eMultimediaSystemControlMessage_request:
 		if (mscm->request.choice ==
 		    eRequestMessage_openLogicalChannel) {
-			return process_olc(skb, ct, ctinfo, data, dataoff,
+			return process_olc(skb, ct, ctinfo,
+					   protoff, data, dataoff,
 					   &mscm->request.openLogicalChannel);
 		}
 		pr_debug("nf_ct_h323: H.245 Request %d\n",
@@ -546,7 +561,8 @@ static int process_h245(struct sk_buff *skb, struct nf_conn *ct,
 	case eMultimediaSystemControlMessage_response:
 		if (mscm->response.choice ==
 		    eResponseMessage_openLogicalChannelAck) {
-			return process_olca(skb, ct, ctinfo, data, dataoff,
+			return process_olca(skb, ct, ctinfo,
+					    protoff, data, dataoff,
 					    &mscm->response.
 					    openLogicalChannelAck);
 		}
@@ -597,7 +613,8 @@ static int h245_help(struct sk_buff *skb, unsigned int protoff,
 		}
 
 		/* Process H.245 signal */
-		if (process_h245(skb, ct, ctinfo, &data, dataoff, &mscm) < 0)
+		if (process_h245(skb, ct, ctinfo, protoff,
+				 &data, dataoff, &mscm) < 0)
 			goto drop;
 	}
 
@@ -661,7 +678,7 @@ int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 /****************************************************************************/
 static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
-		       unsigned char **data, int dataoff,
+		       unsigned int protoff, unsigned char **data, int dataoff,
 		       TransportAddress *taddr)
 {
 	int dir = CTINFO2DIR(ctinfo);
@@ -693,7 +710,7 @@ static int expect_h245(struct sk_buff *skb, struct nf_conn *ct,
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* NAT needed */
-		ret = nat_h245(skb, ct, ctinfo, data, dataoff, taddr,
+		ret = nat_h245(skb, ct, ctinfo, protoff, data, dataoff, taddr,
 			       port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
@@ -779,6 +796,7 @@ static int callforward_do_filter(const union nf_inet_addr *src,
 static int expect_callforwarding(struct sk_buff *skb,
 				 struct nf_conn *ct,
 				 enum ip_conntrack_info ctinfo,
+				 unsigned int protoff,
 				 unsigned char **data, int dataoff,
 				 TransportAddress *taddr)
 {
@@ -817,7 +835,8 @@ static int expect_callforwarding(struct sk_buff *skb,
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* Need NAT */
-		ret = nat_callforwarding(skb, ct, ctinfo, data, dataoff,
+		ret = nat_callforwarding(skb, ct, ctinfo,
+					 protoff, data, dataoff,
 					 taddr, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
@@ -835,6 +854,7 @@ static int expect_callforwarding(struct sk_buff *skb,
 /****************************************************************************/
 static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 			 enum ip_conntrack_info ctinfo,
+			 unsigned int protoff,
 			 unsigned char **data, int dataoff,
 			 Setup_UUIE *setup)
 {
@@ -848,7 +868,7 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 	pr_debug("nf_ct_q931: Setup\n");
 
 	if (setup->options & eSetup_UUIE_h245Address) {
-		ret = expect_h245(skb, ct, ctinfo, data, dataoff,
+		ret = expect_h245(skb, ct, ctinfo, protoff, data, dataoff,
 				  &setup->h245Address);
 		if (ret < 0)
 			return -1;
@@ -864,7 +884,7 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 		pr_debug("nf_ct_q931: set destCallSignalAddress %pI6:%hu->%pI6:%hu\n",
 			 &addr, ntohs(port), &ct->tuplehash[!dir].tuple.src.u3,
 			 ntohs(ct->tuplehash[!dir].tuple.src.u.tcp.port));
-		ret = set_h225_addr(skb, data, dataoff,
+		ret = set_h225_addr(skb, protoff, data, dataoff,
 				    &setup->destCallSignalAddress,
 				    &ct->tuplehash[!dir].tuple.src.u3,
 				    ct->tuplehash[!dir].tuple.src.u.tcp.port);
@@ -881,7 +901,7 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 		pr_debug("nf_ct_q931: set sourceCallSignalAddress %pI6:%hu->%pI6:%hu\n",
 			 &addr, ntohs(port), &ct->tuplehash[!dir].tuple.dst.u3,
 			 ntohs(ct->tuplehash[!dir].tuple.dst.u.tcp.port));
-		ret = set_h225_addr(skb, data, dataoff,
+		ret = set_h225_addr(skb, protoff, data, dataoff,
 				    &setup->sourceCallSignalAddress,
 				    &ct->tuplehash[!dir].tuple.dst.u3,
 				    ct->tuplehash[!dir].tuple.dst.u.tcp.port);
@@ -891,7 +911,8 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (setup->options & eSetup_UUIE_fastStart) {
 		for (i = 0; i < setup->fastStart.count; i++) {
-			ret = process_olc(skb, ct, ctinfo, data, dataoff,
+			ret = process_olc(skb, ct, ctinfo,
+					  protoff, data, dataoff,
 					  &setup->fastStart.item[i]);
 			if (ret < 0)
 				return -1;
@@ -905,6 +926,7 @@ static int process_setup(struct sk_buff *skb, struct nf_conn *ct,
 static int process_callproceeding(struct sk_buff *skb,
 				  struct nf_conn *ct,
 				  enum ip_conntrack_info ctinfo,
+				  unsigned int protoff,
 				  unsigned char **data, int dataoff,
 				  CallProceeding_UUIE *callproc)
 {
@@ -914,7 +936,7 @@ static int process_callproceeding(struct sk_buff *skb,
 	pr_debug("nf_ct_q931: CallProceeding\n");
 
 	if (callproc->options & eCallProceeding_UUIE_h245Address) {
-		ret = expect_h245(skb, ct, ctinfo, data, dataoff,
+		ret = expect_h245(skb, ct, ctinfo, protoff, data, dataoff,
 				  &callproc->h245Address);
 		if (ret < 0)
 			return -1;
@@ -922,7 +944,8 @@ static int process_callproceeding(struct sk_buff *skb,
 
 	if (callproc->options & eCallProceeding_UUIE_fastStart) {
 		for (i = 0; i < callproc->fastStart.count; i++) {
-			ret = process_olc(skb, ct, ctinfo, data, dataoff,
+			ret = process_olc(skb, ct, ctinfo,
+					  protoff, data, dataoff,
 					  &callproc->fastStart.item[i]);
 			if (ret < 0)
 				return -1;
@@ -935,6 +958,7 @@ static int process_callproceeding(struct sk_buff *skb,
 /****************************************************************************/
 static int process_connect(struct sk_buff *skb, struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
+			   unsigned int protoff,
 			   unsigned char **data, int dataoff,
 			   Connect_UUIE *connect)
 {
@@ -944,7 +968,7 @@ static int process_connect(struct sk_buff *skb, struct nf_conn *ct,
 	pr_debug("nf_ct_q931: Connect\n");
 
 	if (connect->options & eConnect_UUIE_h245Address) {
-		ret = expect_h245(skb, ct, ctinfo, data, dataoff,
+		ret = expect_h245(skb, ct, ctinfo, protoff, data, dataoff,
 				  &connect->h245Address);
 		if (ret < 0)
 			return -1;
@@ -952,7 +976,8 @@ static int process_connect(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (connect->options & eConnect_UUIE_fastStart) {
 		for (i = 0; i < connect->fastStart.count; i++) {
-			ret = process_olc(skb, ct, ctinfo, data, dataoff,
+			ret = process_olc(skb, ct, ctinfo,
+					  protoff, data, dataoff,
 					  &connect->fastStart.item[i]);
 			if (ret < 0)
 				return -1;
@@ -965,6 +990,7 @@ static int process_connect(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_alerting(struct sk_buff *skb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
+			    unsigned int protoff,
 			    unsigned char **data, int dataoff,
 			    Alerting_UUIE *alert)
 {
@@ -974,7 +1000,7 @@ static int process_alerting(struct sk_buff *skb, struct nf_conn *ct,
 	pr_debug("nf_ct_q931: Alerting\n");
 
 	if (alert->options & eAlerting_UUIE_h245Address) {
-		ret = expect_h245(skb, ct, ctinfo, data, dataoff,
+		ret = expect_h245(skb, ct, ctinfo, protoff, data, dataoff,
 				  &alert->h245Address);
 		if (ret < 0)
 			return -1;
@@ -982,7 +1008,8 @@ static int process_alerting(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (alert->options & eAlerting_UUIE_fastStart) {
 		for (i = 0; i < alert->fastStart.count; i++) {
-			ret = process_olc(skb, ct, ctinfo, data, dataoff,
+			ret = process_olc(skb, ct, ctinfo,
+					  protoff, data, dataoff,
 					  &alert->fastStart.item[i]);
 			if (ret < 0)
 				return -1;
@@ -995,6 +1022,7 @@ static int process_alerting(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_facility(struct sk_buff *skb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
+			    unsigned int protoff,
 			    unsigned char **data, int dataoff,
 			    Facility_UUIE *facility)
 {
@@ -1005,15 +1033,15 @@ static int process_facility(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (facility->reason.choice == eFacilityReason_callForwarded) {
 		if (facility->options & eFacility_UUIE_alternativeAddress)
-			return expect_callforwarding(skb, ct, ctinfo, data,
-						     dataoff,
+			return expect_callforwarding(skb, ct, ctinfo,
+						     protoff, data, dataoff,
 						     &facility->
 						     alternativeAddress);
 		return 0;
 	}
 
 	if (facility->options & eFacility_UUIE_h245Address) {
-		ret = expect_h245(skb, ct, ctinfo, data, dataoff,
+		ret = expect_h245(skb, ct, ctinfo, protoff, data, dataoff,
 				  &facility->h245Address);
 		if (ret < 0)
 			return -1;
@@ -1021,7 +1049,8 @@ static int process_facility(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (facility->options & eFacility_UUIE_fastStart) {
 		for (i = 0; i < facility->fastStart.count; i++) {
-			ret = process_olc(skb, ct, ctinfo, data, dataoff,
+			ret = process_olc(skb, ct, ctinfo,
+					  protoff, data, dataoff,
 					  &facility->fastStart.item[i]);
 			if (ret < 0)
 				return -1;
@@ -1034,6 +1063,7 @@ static int process_facility(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_progress(struct sk_buff *skb, struct nf_conn *ct,
 			    enum ip_conntrack_info ctinfo,
+			    unsigned int protoff,
 			    unsigned char **data, int dataoff,
 			    Progress_UUIE *progress)
 {
@@ -1043,7 +1073,7 @@ static int process_progress(struct sk_buff *skb, struct nf_conn *ct,
 	pr_debug("nf_ct_q931: Progress\n");
 
 	if (progress->options & eProgress_UUIE_h245Address) {
-		ret = expect_h245(skb, ct, ctinfo, data, dataoff,
+		ret = expect_h245(skb, ct, ctinfo, protoff, data, dataoff,
 				  &progress->h245Address);
 		if (ret < 0)
 			return -1;
@@ -1051,7 +1081,8 @@ static int process_progress(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (progress->options & eProgress_UUIE_fastStart) {
 		for (i = 0; i < progress->fastStart.count; i++) {
-			ret = process_olc(skb, ct, ctinfo, data, dataoff,
+			ret = process_olc(skb, ct, ctinfo,
+					  protoff, data, dataoff,
 					  &progress->fastStart.item[i]);
 			if (ret < 0)
 				return -1;
@@ -1064,7 +1095,8 @@ static int process_progress(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_q931(struct sk_buff *skb, struct nf_conn *ct,
 			enum ip_conntrack_info ctinfo,
-			unsigned char **data, int dataoff, Q931 *q931)
+			unsigned int protoff, unsigned char **data, int dataoff,
+			Q931 *q931)
 {
 	H323_UU_PDU *pdu = &q931->UUIE.h323_uu_pdu;
 	int i;
@@ -1072,28 +1104,29 @@ static int process_q931(struct sk_buff *skb, struct nf_conn *ct,
 
 	switch (pdu->h323_message_body.choice) {
 	case eH323_UU_PDU_h323_message_body_setup:
-		ret = process_setup(skb, ct, ctinfo, data, dataoff,
+		ret = process_setup(skb, ct, ctinfo, protoff, data, dataoff,
 				    &pdu->h323_message_body.setup);
 		break;
 	case eH323_UU_PDU_h323_message_body_callProceeding:
-		ret = process_callproceeding(skb, ct, ctinfo, data, dataoff,
+		ret = process_callproceeding(skb, ct, ctinfo,
+					     protoff, data, dataoff,
 					     &pdu->h323_message_body.
 					     callProceeding);
 		break;
 	case eH323_UU_PDU_h323_message_body_connect:
-		ret = process_connect(skb, ct, ctinfo, data, dataoff,
+		ret = process_connect(skb, ct, ctinfo, protoff, data, dataoff,
 				      &pdu->h323_message_body.connect);
 		break;
 	case eH323_UU_PDU_h323_message_body_alerting:
-		ret = process_alerting(skb, ct, ctinfo, data, dataoff,
+		ret = process_alerting(skb, ct, ctinfo, protoff, data, dataoff,
 				       &pdu->h323_message_body.alerting);
 		break;
 	case eH323_UU_PDU_h323_message_body_facility:
-		ret = process_facility(skb, ct, ctinfo, data, dataoff,
+		ret = process_facility(skb, ct, ctinfo, protoff, data, dataoff,
 				       &pdu->h323_message_body.facility);
 		break;
 	case eH323_UU_PDU_h323_message_body_progress:
-		ret = process_progress(skb, ct, ctinfo, data, dataoff,
+		ret = process_progress(skb, ct, ctinfo, protoff, data, dataoff,
 				       &pdu->h323_message_body.progress);
 		break;
 	default:
@@ -1107,7 +1140,8 @@ static int process_q931(struct sk_buff *skb, struct nf_conn *ct,
 
 	if (pdu->options & eH323_UU_PDU_h245Control) {
 		for (i = 0; i < pdu->h245Control.count; i++) {
-			ret = process_h245(skb, ct, ctinfo, data, dataoff,
+			ret = process_h245(skb, ct, ctinfo,
+					   protoff, data, dataoff,
 					   &pdu->h245Control.item[i]);
 			if (ret < 0)
 				return -1;
@@ -1152,7 +1186,8 @@ static int q931_help(struct sk_buff *skb, unsigned int protoff,
 		}
 
 		/* Process Q.931 signal */
-		if (process_q931(skb, ct, ctinfo, &data, dataoff, &q931) < 0)
+		if (process_q931(skb, ct, ctinfo, protoff,
+				 &data, dataoff, &q931) < 0)
 			goto drop;
 	}
 
@@ -1249,7 +1284,7 @@ static int set_expect_timeout(struct nf_conntrack_expect *exp,
 /****************************************************************************/
 static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
-		       unsigned char **data,
+		       unsigned int protoff, unsigned char **data,
 		       TransportAddress *taddr, int count)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
@@ -1286,7 +1321,8 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 	nat_q931 = rcu_dereference(nat_q931_hook);
 	if (nat_q931 && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {	/* Need NAT */
-		ret = nat_q931(skb, ct, ctinfo, data, taddr, i, port, exp);
+		ret = nat_q931(skb, ct, ctinfo, protoff, data,
+			       taddr, i, port, exp);
 	} else {		/* Conntrack only */
 		if (nf_ct_expect_related(exp) == 0) {
 			pr_debug("nf_ct_ras: expect Q.931 ");
@@ -1306,6 +1342,7 @@ static int expect_q931(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_grq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, GatekeeperRequest *grq)
 {
 	typeof(set_ras_addr_hook) set_ras_addr;
@@ -1315,7 +1352,7 @@ static int process_grq(struct sk_buff *skb, struct nf_conn *ct,
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK)	/* NATed */
-		return set_ras_addr(skb, ct, ctinfo, data,
+		return set_ras_addr(skb, ct, ctinfo, protoff, data,
 				    &grq->rasAddress, 1);
 	return 0;
 }
@@ -1323,6 +1360,7 @@ static int process_grq(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, GatekeeperConfirm *gcf)
 {
 	int dir = CTINFO2DIR(ctinfo);
@@ -1367,6 +1405,7 @@ static int process_gcf(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, RegistrationRequest *rrq)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
@@ -1375,7 +1414,7 @@ static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 
 	pr_debug("nf_ct_ras: RRQ\n");
 
-	ret = expect_q931(skb, ct, ctinfo, data,
+	ret = expect_q931(skb, ct, ctinfo, protoff, data,
 			  rrq->callSignalAddress.item,
 			  rrq->callSignalAddress.count);
 	if (ret < 0)
@@ -1384,7 +1423,7 @@ static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_ras_addr(skb, ct, ctinfo, data,
+		ret = set_ras_addr(skb, ct, ctinfo, protoff, data,
 				   rrq->rasAddress.item,
 				   rrq->rasAddress.count);
 		if (ret < 0)
@@ -1403,6 +1442,7 @@ static int process_rrq(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, RegistrationConfirm *rcf)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
@@ -1416,7 +1456,7 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 	set_sig_addr = rcu_dereference(set_sig_addr_hook);
 	if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_sig_addr(skb, ct, ctinfo, data,
+		ret = set_sig_addr(skb, ct, ctinfo, protoff, data,
 					rcf->callSignalAddress.item,
 					rcf->callSignalAddress.count);
 		if (ret < 0)
@@ -1453,6 +1493,7 @@ static int process_rcf(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_urq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, UnregistrationRequest *urq)
 {
 	struct nf_ct_h323_master *info = nfct_help_data(ct);
@@ -1465,7 +1506,7 @@ static int process_urq(struct sk_buff *skb, struct nf_conn *ct,
 	set_sig_addr = rcu_dereference(set_sig_addr_hook);
 	if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_sig_addr(skb, ct, ctinfo, data,
+		ret = set_sig_addr(skb, ct, ctinfo, protoff, data,
 				   urq->callSignalAddress.item,
 				   urq->callSignalAddress.count);
 		if (ret < 0)
@@ -1486,6 +1527,7 @@ static int process_urq(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, AdmissionRequest *arq)
 {
 	const struct nf_ct_h323_master *info = nfct_help_data(ct);
@@ -1505,7 +1547,7 @@ static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 	    nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    set_h225_addr && ct->status & IPS_NAT_MASK) {
 		/* Answering ARQ */
-		return set_h225_addr(skb, data, 0,
+		return set_h225_addr(skb, protoff, data, 0,
 				     &arq->destCallSignalAddress,
 				     &ct->tuplehash[!dir].tuple.dst.u3,
 				     info->sig_port[!dir]);
@@ -1518,7 +1560,7 @@ static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 	    set_h225_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
 		/* Calling ARQ */
-		return set_h225_addr(skb, data, 0,
+		return set_h225_addr(skb, protoff, data, 0,
 				     &arq->srcCallSignalAddress,
 				     &ct->tuplehash[!dir].tuple.dst.u3,
 				     port);
@@ -1530,6 +1572,7 @@ static int process_arq(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, AdmissionConfirm *acf)
 {
 	int dir = CTINFO2DIR(ctinfo);
@@ -1550,7 +1593,7 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 		set_sig_addr = rcu_dereference(set_sig_addr_hook);
 		if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 		    ct->status & IPS_NAT_MASK)
-			return set_sig_addr(skb, ct, ctinfo, data,
+			return set_sig_addr(skb, ct, ctinfo, protoff, data,
 					    &acf->destCallSignalAddress, 1);
 		return 0;
 	}
@@ -1578,6 +1621,7 @@ static int process_acf(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_lrq(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, LocationRequest *lrq)
 {
 	typeof(set_ras_addr_hook) set_ras_addr;
@@ -1587,7 +1631,7 @@ static int process_lrq(struct sk_buff *skb, struct nf_conn *ct,
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK)
-		return set_ras_addr(skb, ct, ctinfo, data,
+		return set_ras_addr(skb, ct, ctinfo, protoff, data,
 				    &lrq->replyAddress, 1);
 	return 0;
 }
@@ -1595,6 +1639,7 @@ static int process_lrq(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, LocationConfirm *lcf)
 {
 	int dir = CTINFO2DIR(ctinfo);
@@ -1634,6 +1679,7 @@ static int process_lcf(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, InfoRequestResponse *irr)
 {
 	int ret;
@@ -1645,7 +1691,7 @@ static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 	set_ras_addr = rcu_dereference(set_ras_addr_hook);
 	if (set_ras_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_ras_addr(skb, ct, ctinfo, data,
+		ret = set_ras_addr(skb, ct, ctinfo, protoff, data,
 				   &irr->rasAddress, 1);
 		if (ret < 0)
 			return -1;
@@ -1654,7 +1700,7 @@ static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 	set_sig_addr = rcu_dereference(set_sig_addr_hook);
 	if (set_sig_addr && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
 	    ct->status & IPS_NAT_MASK) {
-		ret = set_sig_addr(skb, ct, ctinfo, data,
+		ret = set_sig_addr(skb, ct, ctinfo, protoff, data,
 					irr->callSignalAddress.item,
 					irr->callSignalAddress.count);
 		if (ret < 0)
@@ -1667,38 +1713,39 @@ static int process_irr(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int process_ras(struct sk_buff *skb, struct nf_conn *ct,
 		       enum ip_conntrack_info ctinfo,
+		       unsigned int protoff,
 		       unsigned char **data, RasMessage *ras)
 {
 	switch (ras->choice) {
 	case eRasMessage_gatekeeperRequest:
-		return process_grq(skb, ct, ctinfo, data,
+		return process_grq(skb, ct, ctinfo, protoff, data,
 				   &ras->gatekeeperRequest);
 	case eRasMessage_gatekeeperConfirm:
-		return process_gcf(skb, ct, ctinfo, data,
+		return process_gcf(skb, ct, ctinfo, protoff, data,
 				   &ras->gatekeeperConfirm);
 	case eRasMessage_registrationRequest:
-		return process_rrq(skb, ct, ctinfo, data,
+		return process_rrq(skb, ct, ctinfo, protoff, data,
 				   &ras->registrationRequest);
 	case eRasMessage_registrationConfirm:
-		return process_rcf(skb, ct, ctinfo, data,
+		return process_rcf(skb, ct, ctinfo, protoff, data,
 				   &ras->registrationConfirm);
 	case eRasMessage_unregistrationRequest:
-		return process_urq(skb, ct, ctinfo, data,
+		return process_urq(skb, ct, ctinfo, protoff, data,
 				   &ras->unregistrationRequest);
 	case eRasMessage_admissionRequest:
-		return process_arq(skb, ct, ctinfo, data,
+		return process_arq(skb, ct, ctinfo, protoff, data,
 				   &ras->admissionRequest);
 	case eRasMessage_admissionConfirm:
-		return process_acf(skb, ct, ctinfo, data,
+		return process_acf(skb, ct, ctinfo, protoff, data,
 				   &ras->admissionConfirm);
 	case eRasMessage_locationRequest:
-		return process_lrq(skb, ct, ctinfo, data,
+		return process_lrq(skb, ct, ctinfo, protoff, data,
 				   &ras->locationRequest);
 	case eRasMessage_locationConfirm:
-		return process_lcf(skb, ct, ctinfo, data,
+		return process_lcf(skb, ct, ctinfo, protoff, data,
 				   &ras->locationConfirm);
 	case eRasMessage_infoRequestResponse:
-		return process_irr(skb, ct, ctinfo, data,
+		return process_irr(skb, ct, ctinfo, protoff, data,
 				   &ras->infoRequestResponse);
 	default:
 		pr_debug("nf_ct_ras: RAS message %d\n", ras->choice);
@@ -1738,7 +1785,7 @@ static int ras_help(struct sk_buff *skb, unsigned int protoff,
 	}
 
 	/* Process RAS message */
-	if (process_ras(skb, ct, ctinfo, &data, &ras) < 0)
+	if (process_ras(skb, ct, ctinfo, protoff, &data, &ras) < 0)
 		goto drop;
 
       accept:

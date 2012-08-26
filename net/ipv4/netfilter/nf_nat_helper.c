@@ -206,6 +206,7 @@ static void nf_nat_csum(struct sk_buff *skb, const struct iphdr *iph, void *data
 int __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 			       struct nf_conn *ct,
 			       enum ip_conntrack_info ctinfo,
+			       unsigned int protoff,
 			       unsigned int match_offset,
 			       unsigned int match_len,
 			       const char *rep_buffer,
@@ -257,6 +258,7 @@ int
 nf_nat_mangle_udp_packet(struct sk_buff *skb,
 			 struct nf_conn *ct,
 			 enum ip_conntrack_info ctinfo,
+			 unsigned int protoff,
 			 unsigned int match_offset,
 			 unsigned int match_len,
 			 const char *rep_buffer,
@@ -387,7 +389,8 @@ nf_nat_sack_adjust(struct sk_buff *skb,
 int
 nf_nat_seq_adjust(struct sk_buff *skb,
 		  struct nf_conn *ct,
-		  enum ip_conntrack_info ctinfo)
+		  enum ip_conntrack_info ctinfo,
+		  unsigned int protoff)
 {
 	struct tcphdr *tcph;
 	int dir;
@@ -401,10 +404,10 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	this_way = &nat->seq[dir];
 	other_way = &nat->seq[!dir];
 
-	if (!skb_make_writable(skb, ip_hdrlen(skb) + sizeof(*tcph)))
+	if (!skb_make_writable(skb, protoff + sizeof(*tcph)))
 		return 0;
 
-	tcph = (void *)skb->data + ip_hdrlen(skb);
+	tcph = (void *)skb->data + protoff;
 	if (after(ntohl(tcph->seq), this_way->correction_pos))
 		seqoff = this_way->offset_after;
 	else

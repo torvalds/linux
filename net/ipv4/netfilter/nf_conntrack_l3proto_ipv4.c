@@ -31,7 +31,8 @@
 
 int (*nf_nat_seq_adjust_hook)(struct sk_buff *skb,
 			      struct nf_conn *ct,
-			      enum ip_conntrack_info ctinfo);
+			      enum ip_conntrack_info ctinfo,
+			      unsigned int protoff);
 EXPORT_SYMBOL_GPL(nf_nat_seq_adjust_hook);
 
 static bool ipv4_pkt_to_tuple(const struct sk_buff *skb, unsigned int nhoff,
@@ -149,7 +150,8 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 		typeof(nf_nat_seq_adjust_hook) seq_adjust;
 
 		seq_adjust = rcu_dereference(nf_nat_seq_adjust_hook);
-		if (!seq_adjust || !seq_adjust(skb, ct, ctinfo)) {
+		if (!seq_adjust ||
+		    !seq_adjust(skb, ct, ctinfo, ip_hdrlen(skb))) {
 			NF_CT_STAT_INC_ATOMIC(nf_ct_net(ct), drop);
 			return NF_DROP;
 		}
