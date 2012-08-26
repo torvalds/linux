@@ -798,6 +798,8 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
+	sprintf(name, "sm%Xfb", ent->device);
+
 	sfb = smtc_alloc_fb_info(pdev, name);
 
 	if (!sfb) {
@@ -806,7 +808,6 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	}
 
 	sfb->chip_id = ent->device;
-	sprintf(name, "sm%Xfb", sfb->chip_id);
 
 	pci_set_drvdata(pdev, sfb);
 
