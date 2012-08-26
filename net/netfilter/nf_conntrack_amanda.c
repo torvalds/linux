@@ -154,7 +154,8 @@ static int amanda_help(struct sk_buff *skb,
 				  IPPROTO_TCP, NULL, &port);
 
 		nf_nat_amanda = rcu_dereference(nf_nat_amanda_hook);
-		if (nf_nat_amanda && ct->status & IPS_NAT_MASK)
+		if (nf_nat_amanda && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+		    ct->status & IPS_NAT_MASK)
 			ret = nf_nat_amanda(skb, ctinfo, off - dataoff,
 					    len, exp);
 		else if (nf_ct_expect_related(exp) != 0)

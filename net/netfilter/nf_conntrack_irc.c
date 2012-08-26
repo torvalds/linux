@@ -204,7 +204,8 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 					  IPPROTO_TCP, NULL, &port);
 
 			nf_nat_irc = rcu_dereference(nf_nat_irc_hook);
-			if (nf_nat_irc && ct->status & IPS_NAT_MASK)
+			if (nf_nat_irc && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+			    ct->status & IPS_NAT_MASK)
 				ret = nf_nat_irc(skb, ctinfo,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,

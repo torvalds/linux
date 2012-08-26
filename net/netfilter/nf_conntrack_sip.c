@@ -981,7 +981,8 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int dataoff,
 			  IPPROTO_UDP, NULL, &rtcp_port);
 
 	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
-	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK && !direct_rtp)
+	if (nf_nat_sdp_media && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    ct->status & IPS_NAT_MASK && !direct_rtp)
 		ret = nf_nat_sdp_media(skb, dataoff, dptr, datalen,
 				       rtp_exp, rtcp_exp,
 				       mediaoff, medialen, daddr);
@@ -1104,7 +1105,8 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 			return ret;
 
 		/* Update media connection address if present */
-		if (maddr_len && nf_nat_sdp_addr && ct->status & IPS_NAT_MASK) {
+		if (maddr_len && nf_nat_sdp_addr &&
+		    nf_ct_l3num(ct) == NFPROTO_IPV4 && ct->status & IPS_NAT_MASK) {
 			ret = nf_nat_sdp_addr(skb, dataoff, dptr, datalen,
 					      mediaoff, c_hdr, SDP_HDR_MEDIA,
 					      &rtp_addr);
@@ -1116,7 +1118,8 @@ static int process_sdp(struct sk_buff *skb, unsigned int dataoff,
 
 	/* Update session connection and owner addresses */
 	nf_nat_sdp_session = rcu_dereference(nf_nat_sdp_session_hook);
-	if (nf_nat_sdp_session && ct->status & IPS_NAT_MASK)
+	if (nf_nat_sdp_session && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    ct->status & IPS_NAT_MASK)
 		ret = nf_nat_sdp_session(skb, dataoff, dptr, datalen, sdpoff,
 					 &rtp_addr);
 
@@ -1275,7 +1278,8 @@ static int process_register_request(struct sk_buff *skb, unsigned int dataoff,
 	exp->flags = NF_CT_EXPECT_PERMANENT | NF_CT_EXPECT_INACTIVE;
 
 	nf_nat_sip_expect = rcu_dereference(nf_nat_sip_expect_hook);
-	if (nf_nat_sip_expect && ct->status & IPS_NAT_MASK)
+	if (nf_nat_sip_expect && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    ct->status & IPS_NAT_MASK)
 		ret = nf_nat_sip_expect(skb, dataoff, dptr, datalen, exp,
 					matchoff, matchlen);
 	else {
@@ -1453,7 +1457,8 @@ static int process_sip_msg(struct sk_buff *skb, struct nf_conn *ct,
 	else
 		ret = process_sip_response(skb, dataoff, dptr, datalen);
 
-	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
+	if (ret == NF_ACCEPT && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    ct->status & IPS_NAT_MASK) {
 		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
 		if (nf_nat_sip && !nf_nat_sip(skb, dataoff, dptr, datalen))
 			ret = NF_DROP;
@@ -1534,7 +1539,8 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 		datalen  = datalen + diff - msglen;
 	}
 
-	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
+	if (ret == NF_ACCEPT && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
+	    ct->status & IPS_NAT_MASK) {
 		nf_nat_sip_seq_adjust = rcu_dereference(nf_nat_sip_seq_adjust_hook);
 		if (nf_nat_sip_seq_adjust)
 			nf_nat_sip_seq_adjust(skb, tdiff);
