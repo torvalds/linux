@@ -4089,6 +4089,7 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
 		msleep(1);
 		rt2800_register_read(rt2x00dev, LDO_CFG0, &reg);
+		rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 0);
 		rt2x00_set_field32(&reg, LDO_CFG0_BGSEL, 1);
 		rt2800_register_write(rt2x00dev, LDO_CFG0, reg);
 	}
