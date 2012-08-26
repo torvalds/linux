@@ -342,7 +342,7 @@ extern int nf_register_afinfo(const struct nf_afinfo *afinfo);
 extern void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
 
 #include <net/flow.h>
-extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
+extern void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 
 static inline void
 nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
@@ -350,13 +350,11 @@ nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, u_int8_t family)
 #ifdef CONFIG_NF_NAT_NEEDED
 	void (*decodefn)(struct sk_buff *, struct flowi *);
 
-	if (family == AF_INET) {
-		rcu_read_lock();
-		decodefn = rcu_dereference(ip_nat_decode_session);
-		if (decodefn)
-			decodefn(skb, fl);
-		rcu_read_unlock();
-	}
+	rcu_read_lock();
+	decodefn = rcu_dereference(nf_nat_decode_session_hook);
+	if (decodefn)
+		decodefn(skb, fl);
+	rcu_read_unlock();
 #endif
 }
 

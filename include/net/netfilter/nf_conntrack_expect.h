@@ -43,7 +43,7 @@ struct nf_conntrack_expect {
 	unsigned int class;
 
 #ifdef CONFIG_NF_NAT_NEEDED
-	__be32 saved_ip;
+	union nf_inet_addr saved_addr;
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
 	union nf_conntrack_man_proto saved_proto;

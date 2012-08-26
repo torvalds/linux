@@ -275,6 +275,11 @@ EXPORT_SYMBOL_GPL(nfq_ct_nat_hook);
 
 #endif /* CONFIG_NF_CONNTRACK */
 
+#ifdef CONFIG_NF_NAT_NEEDED
+void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
+EXPORT_SYMBOL(nf_nat_decode_session_hook);
+#endif
+
 #ifdef CONFIG_PROC_FS
 struct proc_dir_entry *proc_net_netfilter;
 EXPORT_SYMBOL(proc_net_netfilter);

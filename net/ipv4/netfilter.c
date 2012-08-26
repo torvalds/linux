@@ -72,43 +72,6 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned int addr_type)
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
-#ifdef CONFIG_XFRM
-int ip_xfrm_me_harder(struct sk_buff *skb)
-{
-	struct flowi fl;
-	unsigned int hh_len;
-	struct dst_entry *dst;
-
-	if (IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED)
-		return 0;
-	if (xfrm_decode_session(skb, &fl, AF_INET) < 0)
-		return -1;
-
-	dst = skb_dst(skb);
-	if (dst->xfrm)
-		dst = ((struct xfrm_dst *)dst)->route;
-	dst_hold(dst);
-
-	dst = xfrm_lookup(dev_net(dst->dev), dst, &fl, skb->sk, 0);
-	if (IS_ERR(dst))
-		return -1;
-
-	skb_dst_drop(skb);
-	skb_dst_set(skb, dst);
-
-	/* Change in oif may mean change in hh_len. */
-	hh_len = skb_dst(skb)->dev->hard_header_len;
-	if (skb_headroom(skb) < hh_len &&
-	    pskb_expand_head(skb, hh_len - skb_headroom(skb), 0, GFP_ATOMIC))
-		return -1;
-	return 0;
-}
-EXPORT_SYMBOL(ip_xfrm_me_harder);
-#endif
-
-void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
-EXPORT_SYMBOL(ip_nat_decode_session);
-
 /*
  * Extra routing may needed on local out, as the QUEUE target never
  * returns control to the table.

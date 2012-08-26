@@ -45,7 +45,7 @@
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_l4proto.h>
 #include <net/netfilter/nf_nat_helper.h>
 #endif
 
@@ -1096,13 +1096,14 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 			  const struct nlattr *attr)
 {
 	typeof(nfnetlink_parse_nat_setup_hook) parse_nat_setup;
+	int err;
 
 	parse_nat_setup = rcu_dereference(nfnetlink_parse_nat_setup_hook);
 	if (!parse_nat_setup) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
 		nfnl_unlock();
-		if (request_module("nf-nat-ipv4") < 0) {
+		if (request_module("nf-nat") < 0) {
 			nfnl_lock();
 			rcu_read_lock();
 			return -EOPNOTSUPP;
@@ -1115,7 +1116,26 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 		return -EOPNOTSUPP;
 	}
 
-	return parse_nat_setup(ct, manip, attr);
+	err = parse_nat_setup(ct, manip, attr);
+	if (err == -EAGAIN) {
+#ifdef CONFIG_MODULES
+		rcu_read_unlock();
+		spin_unlock_bh(&nf_conntrack_lock);
+		nfnl_unlock();
+		if (request_module("nf-nat-%u", nf_ct_l3num(ct)) < 0) {
+			nfnl_lock();
+			spin_lock_bh(&nf_conntrack_lock);
+			rcu_read_lock();
+			return -EOPNOTSUPP;
+		}
+		nfnl_lock();
+		spin_lock_bh(&nf_conntrack_lock);
+		rcu_read_lock();
+#else
+		err = -EOPNOTSUPP;
+#endif
+	}
+	return err;
 }
 #endif
 
@@ -1979,6 +1999,8 @@ nla_put_failure:
 	return -1;
 }
 
+static const union nf_inet_addr any_addr;
+
 static int
 ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
@@ -2005,7 +2027,8 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 		goto nla_put_failure;
 
 #ifdef CONFIG_NF_NAT_NEEDED
-	if (exp->saved_ip || exp->saved_proto.all) {
+	if (!nf_inet_addr_cmp(&exp->saved_addr, &any_addr) ||
+	    exp->saved_proto.all) {
 		nest_parms = nla_nest_start(skb, CTA_EXPECT_NAT | NLA_F_NESTED);
 		if (!nest_parms)
 			goto nla_put_failure;
@@ -2014,7 +2037,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			goto nla_put_failure;
 
 		nat_tuple.src.l3num = nf_ct_l3num(master);
-		nat_tuple.src.u3.ip = exp->saved_ip;
+		nat_tuple.src.u3 = exp->saved_addr;
 		nat_tuple.dst.protonum = nf_ct_protonum(master);
 		nat_tuple.src.u = exp->saved_proto;
 
@@ -2410,7 +2433,7 @@ ctnetlink_parse_expect_nat(const struct nlattr *attr,
 	if (err < 0)
 		return err;
 
-	exp->saved_ip = nat_tuple.src.u3.ip;
+	exp->saved_addr = nat_tuple.src.u3;
 	exp->saved_proto = nat_tuple.src.u;
 	exp->dir = ntohl(nla_get_be32(tb[CTA_EXPECT_NAT_DIR]));
 

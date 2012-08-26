@@ -51,8 +51,6 @@ struct netns_ipv4 {
 	struct xt_table		*iptable_security;
 #endif
 	struct xt_table		*nat_table;
-	struct hlist_head	*nat_bysource;
-	unsigned int		nat_htable_size;
 #endif
 
 	int sysctl_icmp_echo_ignore_all;

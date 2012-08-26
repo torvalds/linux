@@ -19,7 +19,6 @@
 
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
-#include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_sip.h>
@@ -255,15 +254,15 @@ static void ip_nat_sip_seq_adjust(struct sk_buff *skb, s16 off)
 static void ip_nat_sip_expected(struct nf_conn *ct,
 				struct nf_conntrack_expect *exp)
 {
-	struct nf_nat_ipv4_range range;
+	struct nf_nat_range range;
 
 	/* This must be a fresh one. */
 	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
-	range.min = range.max = exp->saved_proto;
-	range.min_ip = range.max_ip = exp->saved_ip;
+	range.min_proto = range.max_proto = exp->saved_proto;
+	range.min_addr = range.max_addr = exp->saved_addr;
 	nf_nat_setup_info(ct, &range, NF_NAT_MANIP_DST);
 
 	/* Change src to where master sends to, but only if the connection
@@ -271,8 +270,8 @@ static void ip_nat_sip_expected(struct nf_conn *ct,
 	if (ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u3.ip ==
 	    ct->master->tuplehash[exp->dir].tuple.src.u3.ip) {
 		range.flags = NF_NAT_RANGE_MAP_IPS;
-		range.min_ip = range.max_ip
-			= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
+		range.min_addr = range.max_addr
+			= ct->master->tuplehash[!exp->dir].tuple.dst.u3;
 		nf_nat_setup_info(ct, &range, NF_NAT_MANIP_SRC);
 	}
 }
@@ -307,7 +306,7 @@ static unsigned int ip_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
 	else
 		port = ntohs(exp->tuple.dst.u.udp.port);
 
-	exp->saved_ip = exp->tuple.dst.u3.ip;
+	exp->saved_addr = exp->tuple.dst.u3;
 	exp->tuple.dst.u3.ip = newip;
 	exp->saved_proto.udp.port = exp->tuple.dst.u.udp.port;
 	exp->dir = !dir;
@@ -329,7 +328,7 @@ static unsigned int ip_nat_sip_expect(struct sk_buff *skb, unsigned int protoff,
 	if (port == 0)
 		return NF_DROP;
 
-	if (exp->tuple.dst.u3.ip != exp->saved_ip ||
+	if (exp->tuple.dst.u3.ip != exp->saved_addr.ip ||
 	    exp->tuple.dst.u.udp.port != exp->saved_proto.udp.port) {
 		buflen = sprintf(buffer, "%pI4:%u", &newip, port);
 		if (!mangle_packet(skb, protoff, dataoff, dptr, datalen,
@@ -485,13 +484,13 @@ static unsigned int ip_nat_sdp_media(struct sk_buff *skb, unsigned int protoff,
 	else
 		rtp_addr->ip = ct->tuplehash[!dir].tuple.dst.u3.ip;
 
-	rtp_exp->saved_ip = rtp_exp->tuple.dst.u3.ip;
+	rtp_exp->saved_addr = rtp_exp->tuple.dst.u3;
 	rtp_exp->tuple.dst.u3.ip = rtp_addr->ip;
 	rtp_exp->saved_proto.udp.port = rtp_exp->tuple.dst.u.udp.port;
 	rtp_exp->dir = !dir;
 	rtp_exp->expectfn = ip_nat_sip_expected;
 
-	rtcp_exp->saved_ip = rtcp_exp->tuple.dst.u3.ip;
+	rtcp_exp->saved_addr = rtcp_exp->tuple.dst.u3;
 	rtcp_exp->tuple.dst.u3.ip = rtp_addr->ip;
 	rtcp_exp->saved_proto.udp.port = rtcp_exp->tuple.dst.u.udp.port;
 	rtcp_exp->dir = !dir;

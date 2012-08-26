@@ -28,8 +28,7 @@
 #include <linux/ip.h>
 
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_rule.h>
-#include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_l4proto.h>
 #include <linux/netfilter/nf_conntrack_proto_gre.h>
 
 MODULE_LICENSE("GPL");
@@ -38,8 +37,9 @@ MODULE_DESCRIPTION("Netfilter NAT protocol helper module for GRE");
 
 /* generate unique tuple ... */
 static void
-gre_unique_tuple(struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_ipv4_range *range,
+gre_unique_tuple(const struct nf_nat_l3proto *l3proto,
+		 struct nf_conntrack_tuple *tuple,
+		 const struct nf_nat_range *range,
 		 enum nf_nat_manip_type maniptype,
 		 const struct nf_conn *ct)
 {
@@ -62,8 +62,8 @@ gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 		min = 1;
 		range_size = 0xffff;
 	} else {
-		min = ntohs(range->min.gre.key);
-		range_size = ntohs(range->max.gre.key) - min + 1;
+		min = ntohs(range->min_proto.gre.key);
+		range_size = ntohs(range->max_proto.gre.key) - min + 1;
 	}
 
 	pr_debug("min = %u, range_size = %u\n", min, range_size);
@@ -80,14 +80,14 @@ gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 /* manipulate a GRE packet according to maniptype */
 static bool
-gre_manip_pkt(struct sk_buff *skb, unsigned int iphdroff,
+gre_manip_pkt(struct sk_buff *skb,
+	      const struct nf_nat_l3proto *l3proto,
+	      unsigned int iphdroff, unsigned int hdroff,
 	      const struct nf_conntrack_tuple *tuple,
 	      enum nf_nat_manip_type maniptype)
 {
 	const struct gre_hdr *greh;
 	struct gre_hdr_pptp *pgreh;
-	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
-	unsigned int hdroff = iphdroff + iph->ihl * 4;
 
 	/* pgreh includes two optional 32bit fields which are not required
 	 * to be there.  That's where the magic '8' comes from */
@@ -117,24 +117,24 @@ gre_manip_pkt(struct sk_buff *skb, unsigned int iphdroff,
 	return true;
 }
 
-static const struct nf_nat_protocol gre = {
-	.protonum		= IPPROTO_GRE,
+static const struct nf_nat_l4proto gre = {
+	.l4proto		= IPPROTO_GRE,
 	.manip_pkt		= gre_manip_pkt,
-	.in_range		= nf_nat_proto_in_range,
+	.in_range		= nf_nat_l4proto_in_range,
 	.unique_tuple		= gre_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.nlattr_to_range	= nf_nat_proto_nlattr_to_range,
+	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };
 
 static int __init nf_nat_proto_gre_init(void)
 {
-	return nf_nat_protocol_register(&gre);
+	return nf_nat_l4proto_register(NFPROTO_IPV4, &gre);
 }
 
 static void __exit nf_nat_proto_gre_fini(void)
 {
-	nf_nat_protocol_unregister(&gre);
+	nf_nat_l4proto_unregister(NFPROTO_IPV4, &gre);
 }
 
 module_init(nf_nat_proto_gre_init);

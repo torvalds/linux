@@ -12,10 +12,7 @@ extern unsigned int nf_nat_packet(struct nf_conn *ct,
 				  unsigned int hooknum,
 				  struct sk_buff *skb);
 
-extern int nf_nat_icmp_reply_translation(struct nf_conn *ct,
-					 enum ip_conntrack_info ctinfo,
-					 unsigned int hooknum,
-					 struct sk_buff *skb);
+extern int nf_xfrm_me_harder(struct sk_buff *skb, unsigned int family);
 
 static inline int nf_nat_initialized(struct nf_conn *ct,
 				     enum nf_nat_manip_type manip)

@@ -9,37 +9,36 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/ip.h>
 #include <linux/tcp.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_rule.h>
-#include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_l3proto.h>
+#include <net/netfilter/nf_nat_l4proto.h>
 #include <net/netfilter/nf_nat_core.h>
 
-static u_int16_t tcp_port_rover;
+static u16 tcp_port_rover;
 
 static void
-tcp_unique_tuple(struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_ipv4_range *range,
+tcp_unique_tuple(const struct nf_nat_l3proto *l3proto,
+		 struct nf_conntrack_tuple *tuple,
+		 const struct nf_nat_range *range,
 		 enum nf_nat_manip_type maniptype,
 		 const struct nf_conn *ct)
 {
-	nf_nat_proto_unique_tuple(tuple, range, maniptype, ct, &tcp_port_rover);
+	nf_nat_l4proto_unique_tuple(l3proto, tuple, range, maniptype, ct,
+				    &tcp_port_rover);
 }
 
 static bool
 tcp_manip_pkt(struct sk_buff *skb,
-	      unsigned int iphdroff,
+	      const struct nf_nat_l3proto *l3proto,
+	      unsigned int iphdroff, unsigned int hdroff,
 	      const struct nf_conntrack_tuple *tuple,
 	      enum nf_nat_manip_type maniptype)
 {
-	const struct iphdr *iph = (struct iphdr *)(skb->data + iphdroff);
 	struct tcphdr *hdr;
-	unsigned int hdroff = iphdroff + iph->ihl*4;
-	__be32 oldip, newip;
 	__be16 *portptr, newport, oldport;
 	int hdrsize = 8; /* TCP connection tracking guarantees this much */
 
@@ -52,19 +51,14 @@ tcp_manip_pkt(struct sk_buff *skb,
 	if (!skb_make_writable(skb, hdroff + hdrsize))
 		return false;
 
-	iph = (struct iphdr *)(skb->data + iphdroff);
 	hdr = (struct tcphdr *)(skb->data + hdroff);
 
 	if (maniptype == NF_NAT_MANIP_SRC) {
-		/* Get rid of src ip and src pt */
-		oldip = iph->saddr;
-		newip = tuple->src.u3.ip;
+		/* Get rid of src port */
 		newport = tuple->src.u.tcp.port;
 		portptr = &hdr->source;
 	} else {
-		/* Get rid of dst ip and dst pt */
-		oldip = iph->daddr;
-		newip = tuple->dst.u3.ip;
+		/* Get rid of dst port */
 		newport = tuple->dst.u.tcp.port;
 		portptr = &hdr->dest;
 	}
@@ -75,17 +69,17 @@ tcp_manip_pkt(struct sk_buff *skb,
 	if (hdrsize < sizeof(*hdr))
 		return true;
 
-	inet_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
+	l3proto->csum_update(skb, iphdroff, &hdr->check, tuple, maniptype);
 	inet_proto_csum_replace2(&hdr->check, skb, oldport, newport, 0);
 	return true;
 }
 
-const struct nf_nat_protocol nf_nat_protocol_tcp = {
-	.protonum		= IPPROTO_TCP,
+const struct nf_nat_l4proto nf_nat_l4proto_tcp = {
+	.l4proto		= IPPROTO_TCP,
 	.manip_pkt		= tcp_manip_pkt,
-	.in_range		= nf_nat_proto_in_range,
+	.in_range		= nf_nat_l4proto_in_range,
 	.unique_tuple		= tcp_unique_tuple,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.nlattr_to_range	= nf_nat_proto_nlattr_to_range,
+	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };

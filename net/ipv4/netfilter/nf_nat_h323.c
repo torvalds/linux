@@ -15,7 +15,6 @@
 
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
-#include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <linux/netfilter/nf_conntrack_h323.h>
@@ -392,7 +391,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 static void ip_nat_q931_expect(struct nf_conn *new,
 			       struct nf_conntrack_expect *this)
 {
-	struct nf_nat_ipv4_range range;
+	struct nf_nat_range range;
 
 	if (this->tuple.src.u3.ip != 0) {	/* Only accept calls from GK */
 		nf_nat_follow_master(new, this);
@@ -404,14 +403,15 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
-	range.min_ip = range.max_ip = new->tuplehash[!this->dir].tuple.src.u3.ip;
+	range.min_addr = range.max_addr =
+	    new->tuplehash[!this->dir].tuple.src.u3;
 	nf_nat_setup_info(new, &range, NF_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
-	range.min = range.max = this->saved_proto;
-	range.min_ip = range.max_ip =
-	    new->master->tuplehash[!this->dir].tuple.src.u3.ip;
+	range.min_proto = range.max_proto = this->saved_proto;
+	range.min_addr = range.max_addr =
+	    new->master->tuplehash[!this->dir].tuple.src.u3;
 	nf_nat_setup_info(new, &range, NF_NAT_MANIP_DST);
 }
 
@@ -490,20 +490,21 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 static void ip_nat_callforwarding_expect(struct nf_conn *new,
 					 struct nf_conntrack_expect *this)
 {
-	struct nf_nat_ipv4_range range;
+	struct nf_nat_range range;
 
 	/* This must be a fresh one. */
 	BUG_ON(new->status & IPS_NAT_DONE_MASK);
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
-	range.min_ip = range.max_ip = new->tuplehash[!this->dir].tuple.src.u3.ip;
+	range.min_addr = range.max_addr =
+	    new->tuplehash[!this->dir].tuple.src.u3;
 	nf_nat_setup_info(new, &range, NF_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (NF_NAT_RANGE_MAP_IPS | NF_NAT_RANGE_PROTO_SPECIFIED);
-	range.min = range.max = this->saved_proto;
-	range.min_ip = range.max_ip = this->saved_ip;
+	range.min_proto = range.max_proto = this->saved_proto;
+	range.min_addr = range.max_addr = this->saved_addr;
 	nf_nat_setup_info(new, &range, NF_NAT_MANIP_DST);
 }
 
@@ -519,7 +520,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	u_int16_t nated_port;
 
 	/* Set expectations for NAT */
-	exp->saved_ip = exp->tuple.dst.u3.ip;
+	exp->saved_addr = exp->tuple.dst.u3;
 	exp->tuple.dst.u3.ip = ct->tuplehash[!dir].tuple.dst.u3.ip;
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
 	exp->expectfn = ip_nat_callforwarding_expect;
