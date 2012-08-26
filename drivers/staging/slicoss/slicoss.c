@@ -528,12 +528,16 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 	index += 4;
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-		if (rcvucodelen != OasisRcvUCodeLen)
+		if (rcvucodelen != OasisRcvUCodeLen) {
+			release_firmware(fw);
 			return -EINVAL;
+		}
 		break;
 	case SLIC_1GB_DEVICE_ID:
-		if (rcvucodelen != GBRcvUCodeLen)
+		if (rcvucodelen != GBRcvUCodeLen) {
+			release_firmware(fw);
 			return -EINVAL;
+		}
 		break;
 	default:
 		ASSERT(0);
