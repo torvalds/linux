@@ -5072,18 +5072,14 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 		 * are stored with the acl data to handle the problem of
 		 * variable length bitmaps.*/
 		res->acl_data_offset = xdr_stream_pos(xdr) - pg_offset;
-
-		/* We ignore &savep and don't do consistency checks on
-		 * the attr length.  Let userspace figure it out.... */
 		res->acl_len = attrlen;
-		if (attrlen > (xdr->nwords << 2)) {
-			if (res->acl_flags & NFS4_ACL_LEN_REQUEST) {
-				/* getxattr interface called with a NULL buf */
-				goto out;
-			}
+
+		/* Check for receive buffer overflow */
+		if (res->acl_len > (xdr->nwords << 2) ||
+		    res->acl_len + res->acl_data_offset > xdr->buf->page_len) {
+			res->acl_flags |= NFS4_ACL_TRUNC;
 			dprintk("NFS: acl reply: attrlen %u > page_len %u\n",
 					attrlen, xdr->nwords << 2);
-			return -EINVAL;
 		}
 	} else
 		status = -EOPNOTSUPP;

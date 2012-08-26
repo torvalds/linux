@@ -3739,7 +3739,7 @@ static void nfs4_write_cached_acl(struct inode *inode, struct page **pages, size
 	struct nfs4_cached_acl *acl;
 	size_t buflen = sizeof(*acl) + acl_len;
 
-	if (pages && buflen <= PAGE_SIZE) {
+	if (buflen <= PAGE_SIZE) {
 		acl = kmalloc(buflen, GFP_KERNEL);
 		if (acl == NULL)
 			goto out;
@@ -3784,7 +3784,6 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	};
 	unsigned int npages = DIV_ROUND_UP(buflen, PAGE_SIZE);
 	int ret = -ENOMEM, i;
-	size_t acl_len = 0;
 
 	/* As long as we're doing a round trip to the server anyway,
 	 * let's be prepared for a page of acl data. */
@@ -3807,11 +3806,6 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	args.acl_len = npages * PAGE_SIZE;
 	args.acl_pgbase = 0;
 
-	/* Let decode_getfacl know not to fail if the ACL data is larger than
-	 * the page we send as a guess */
-	if (buf == NULL)
-		res.acl_flags |= NFS4_ACL_LEN_REQUEST;
-
 	dprintk("%s  buf %p buflen %zu npages %d args.acl_len %zu\n",
 		__func__, buf, buflen, npages, args.acl_len);
 	ret = nfs4_call_sync(NFS_SERVER(inode)->client, NFS_SERVER(inode),
@@ -3819,20 +3813,19 @@ static ssize_t __nfs4_get_acl_uncached(struct inode *inode, void *buf, size_t bu
 	if (ret)
 		goto out_free;
 
-	acl_len = res.acl_len;
-	if (acl_len > args.acl_len)
-		nfs4_write_cached_acl(inode, NULL, 0, acl_len);
-	else
-		nfs4_write_cached_acl(inode, pages, res.acl_data_offset,
-				      acl_len);
-	if (buf) {
+	/* Handle the case where the passed-in buffer is too short */
+	if (res.acl_flags & NFS4_ACL_TRUNC) {
+		/* Did the user only issue a request for the acl length? */
+		if (buf == NULL)
+			goto out_ok;
 		ret = -ERANGE;
-		if (acl_len > buflen)
-			goto out_free;
-		_copy_from_pages(buf, pages, res.acl_data_offset,
-				acl_len);
+		goto out_free;
 	}
-	ret = acl_len;
+	nfs4_write_cached_acl(inode, pages, res.acl_data_offset, res.acl_len);
+	if (buf)
+		_copy_from_pages(buf, pages, res.acl_data_offset, res.acl_len);
+out_ok:
+	ret = res.acl_len;
 out_free:
 	for (i = 0; i < npages; i++)
 		if (pages[i])
