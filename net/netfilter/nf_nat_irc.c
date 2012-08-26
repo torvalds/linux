@@ -34,7 +34,6 @@ static unsigned int help(struct sk_buff *skb,
 			 struct nf_conntrack_expect *exp)
 {
 	char buffer[sizeof("4294967296 65635")];
-	u_int32_t ip;
 	u_int16_t port;
 	unsigned int ret;
 
@@ -59,11 +58,6 @@ static unsigned int help(struct sk_buff *skb,
 
 	if (port == 0)
 		return NF_DROP;
-
-	ip = ntohl(exp->master->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3.ip);
-	sprintf(buffer, "%u %u", ip, port);
-	pr_debug("nf_nat_irc: inserting '%s' == %pI4, port %u\n",
-		 buffer, &ip, port);
 
 	ret = nf_nat_mangle_tcp_packet(skb, exp->master, ctinfo,
 				       protoff, matchoff, matchlen, buffer,
