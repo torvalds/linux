@@ -2372,6 +2372,11 @@ int intel_enable_rc6(const struct drm_device *dev)
 		return i915_enable_rc6;
 
 	if (INTEL_INFO(dev)->gen == 5) {
+#ifdef CONFIG_INTEL_IOMMU
+		/* Disable rc6 on ilk if VT-d is on. */
+		if (intel_iommu_gfx_mapped)
+			return false;
+#endif
 		DRM_DEBUG_DRIVER("Ironlake: only RC6 available\n");
 		return INTEL_RC6_ENABLE;
 	}
