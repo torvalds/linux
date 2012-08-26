@@ -1324,16 +1324,12 @@ static int pl011_startup(struct uart_port *port)
 				"could not set default pins\n");
 	}
 
-	retval = clk_prepare(uap->clk);
-	if (retval)
-		goto out;
-
 	/*
 	 * Try to enable the clock producer.
 	 */
-	retval = clk_enable(uap->clk);
+	retval = clk_prepare_enable(uap->clk);
 	if (retval)
-		goto clk_unprep;
+		goto out;
 
 	uap->port.uartclk = clk_get_rate(uap->clk);
 
@@ -1411,9 +1407,7 @@ static int pl011_startup(struct uart_port *port)
 	return 0;
 
  clk_dis:
-	clk_disable(uap->clk);
- clk_unprep:
-	clk_unprepare(uap->clk);
+	clk_disable_unprepare(uap->clk);
  out:
 	return retval;
 }
@@ -1473,8 +1467,7 @@ static void pl011_shutdown(struct uart_port *port)
 	/*
 	 * Shut down the clock producer
 	 */
-	clk_disable(uap->clk);
-	clk_unprepare(uap->clk);
+	clk_disable_unprepare(uap->clk);
 	/* Optionally let pins go into sleep states */
 	if (!IS_ERR(uap->pins_sleep)) {
 		retval = pinctrl_select_state(uap->pinctrl, uap->pins_sleep);
