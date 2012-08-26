@@ -1778,8 +1778,7 @@ s32 ixgbe_validate_mac_addr(u8 *mac_addr)
 	else if (IXGBE_IS_BROADCAST(mac_addr))
 		status = IXGBE_ERR_INVALID_MAC_ADDR;
 	/* Reject the zero address */
-	else if (mac_addr[0] == 0 && mac_addr[1] == 0 && mac_addr[2] == 0 &&
-	         mac_addr[3] == 0 && mac_addr[4] == 0 && mac_addr[5] == 0)
+	else if (is_zero_ether_addr(mac_addr))
 		status = IXGBE_ERR_INVALID_MAC_ADDR;
 
 	return status;
