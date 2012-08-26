@@ -66,8 +66,6 @@ static int nand_ecc_test(const size_t size)
 
 static int __init ecc_test_init(void)
 {
-	srandom32(jiffies);
-
 	nand_ecc_test(256);
 	nand_ecc_test(512);
 
