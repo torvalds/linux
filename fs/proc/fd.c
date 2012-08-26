@@ -36,7 +36,7 @@ static int seq_show(struct seq_file *m, void *v)
 		if (file) {
 			struct fdtable *fdt = files_fdtable(files);
 
-			f_flags = file->f_flags & ~O_CLOEXEC;
+			f_flags = file->f_flags;
 			if (close_on_exec(fd, fdt))
 				f_flags |= O_CLOEXEC;
 
