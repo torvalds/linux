@@ -704,7 +704,7 @@ static int qt_startup(struct usb_serial *serial)
 		port = serial->port[i];
 		qt_port = kzalloc(sizeof(*qt_port), GFP_KERNEL);
 		if (!qt_port) {
-			dbg("%s: kmalloc for quatech_port (%d) failed!.",
+			dbg("%s: kzalloc for quatech_port (%d) failed!.",
 			    __func__, i);
 			for (--i; i >= 0; i--) {
 				port = serial->port[i];
