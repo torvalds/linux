@@ -29,7 +29,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 
-/* IDA to assign each registered device a unique id*/
+/* IDA to assign each registered device a unique id */
 static DEFINE_IDA(iio_ida);
 
 static dev_t iio_devt;

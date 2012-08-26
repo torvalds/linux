@@ -371,10 +371,10 @@ struct iio_info {
  *			scan mask is valid for the device.
  */
 struct iio_buffer_setup_ops {
-	int				(*preenable)(struct iio_dev *);
-	int				(*postenable)(struct iio_dev *);
-	int				(*predisable)(struct iio_dev *);
-	int				(*postdisable)(struct iio_dev *);
+	int (*preenable)(struct iio_dev *);
+	int (*postenable)(struct iio_dev *);
+	int (*predisable)(struct iio_dev *);
+	int (*postdisable)(struct iio_dev *);
 	bool (*validate_scan_mask)(struct iio_dev *indio_dev,
 				   const unsigned long *scan_mask);
 };
