@@ -400,6 +400,11 @@ config NF_NAT_SIP
 	depends on NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_SIP
 
+config NF_NAT_TFTP
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_TFTP
+
 endif # NF_CONNTRACK
 
 # transparent proxy support
