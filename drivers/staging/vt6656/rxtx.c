@@ -1827,7 +1827,7 @@ s_bPacketToWirelessUsb(
  *
  * Parameters:
  *  In:
- *      pDevice         - Pointer to adpater
+ *      pDevice         - Pointer to adapter
  *      dwTxBufferAddr  - Transmit Buffer
  *      pPacket         - Packet from upper layer
  *      cbPacketSize    - Transmit Data Length
@@ -2198,7 +2198,7 @@ CMD_STATUS csMgmt_xmit(
 
     if (bIsPSPOLL) {
         // The MAC will automatically replace the Duration-field of MAC header by Duration-field
-        // of  FIFO control header.
+        // of FIFO control header.
         // This will cause AID-field of PS-POLL packet be incorrect (Because PS-POLL's AID field is
         // in the same place of other packet's Duration-field).
         // And it will cause Cisco-AP to issue Disassociation-packet
@@ -2473,7 +2473,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
         cbMacHdLen = WLAN_HDR_ADDR3_LEN;
     }
 
-    // hostapd deamon ext support rate patch
+    // hostapd daemon ext support rate patch
     if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
 
         if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0) {
@@ -2591,7 +2591,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
     pMACHeader->wFrameCtl &= cpu_to_le16(0xfffc);
     memcpy(pbyPayloadHead, (skb->data + cbMacHdLen), cbFrameBodySize);
 
-    // replace support rate, patch for hostapd deamon( only support 11M)
+    // replace support rate, patch for hostapd daemon( only support 11M)
     if (WLAN_GET_FC_FSTYPE(p80211Header->sA4.wFrameCtl) == WLAN_FSTYPE_ASSOCRESP) {
         if (cbExtSuppRate != 0) {
             if (((PWLAN_IE_SUPP_RATES)pMgmt->abyCurrSuppRates)->len != 0)
@@ -2855,7 +2855,7 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
 			  }
 			  PRINT_K("Authentication completed!!\n");
                         }
-		    else if((Key_info & BIT3) && (Descriptor_type==2) &&  //RSN pairse-key challenge
+		    else if((Key_info & BIT3) && (Descriptor_type==2) &&  //RSN pairwise-key challenge
 			       (Key_info & BIT8) && (Key_info & BIT9)) {
 			  pDevice->fWPA_Authened = TRUE;
                             PRINT_K("WPA2 Authentication completed!!\n");

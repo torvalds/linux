@@ -1048,7 +1048,7 @@ BYTE    abyArray[256];
                     wLength1,
                     abyArray
                     );
-    //Channle Table 0
+    //Channel Table 0
     wValue = 0;
     while ( wLength2 > 0 ) {
 
@@ -1106,7 +1106,7 @@ BYTE    abyArray[256];
                     wLength1,
                     abyArray);
 
-        //Channle Table 0
+        //Channel Table 0
         wValue = 0;
         while ( wLength2 > 0 ) {
 

@@ -263,7 +263,7 @@ s_vProbeChannel(
  *
  *
  * Return Value:
- *    A ptr to Tx frame or NULL on allocation failue
+ *    A ptr to Tx frame or NULL on allocation failure
  *
 -*/
 
@@ -794,7 +794,7 @@ void vRunCommand(void *hDeviceContext)
 			DBG_PRT(MSG_LEVEL_DEBUG,
 				KERN_INFO "vMgrCreateOwnIBSS fail!\n");
                 }
-                // alway turn off unicast bit
+                // always turn off unicast bit
                 MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_UNICAST);
                 pDevice->byRxMode &= ~RCR_UNICAST;
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode );
@@ -946,7 +946,7 @@ void vRunCommand(void *hDeviceContext)
                   pItemSSID = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
                   pItemSSID->len = 0;
                   memset(pItemSSID->abySSID, 0, WLAN_SSID_MAXLEN);
-                //clear dessire SSID
+                //clear desired SSID
                 pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
                 pItemSSID->len = 0;
                 memset(pItemSSID->abySSID, 0, WLAN_SSID_MAXLEN);

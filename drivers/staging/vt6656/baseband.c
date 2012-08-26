@@ -27,7 +27,7 @@
  *
  * Functions:
  *      BBuGetFrameTime        - Calculate data frame transmitting time
- *      BBvCaculateParameter   - Caculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
+ *      BBvCaculateParameter   - Calculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
  *      BBbVT3184Init          - VIA VT3184 baseband chip init code
  *      BBvLoopbackOn          - Turn on BaseBand Loopback mode
  *      BBvLoopbackOff         - Turn off BaseBand Loopback mode
@@ -741,7 +741,7 @@ BBuGetFrameTime (
 }
 
 /*
- * Description: Caculate Length, Service, and Signal fields of Phy for Tx
+ * Description: Calculate Length, Service, and Signal fields of Phy for Tx
  *
  * Parameters:
  *  In:

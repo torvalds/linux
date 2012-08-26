@@ -478,7 +478,7 @@ typedef struct __device_info {
     unsigned int                        cbTD;
 
     //
-    //  Variables to track resources for the Interript In Pipe
+    //  Variables to track resources for the Interrupt In Pipe
     //
     INT_BUFFER                  intBuf;
     BOOL                        fKillEventPollingThread;

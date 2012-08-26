@@ -674,7 +674,7 @@ int iwctl_giwaplist(struct net_device *dev, struct iw_request_info *info,
 			jj++;
 		}
 
-		wrq->flags = 1; // Should be define'd
+		wrq->flags = 1; // Should be defined
 		wrq->length = jj;
 		memcpy(extra, sock, sizeof(struct sockaddr) * jj);
 		memcpy(extra + sizeof(struct sockaddr) * jj, qual, sizeof(struct iw_quality) * jj);

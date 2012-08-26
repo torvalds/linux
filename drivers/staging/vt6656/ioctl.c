@@ -617,7 +617,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -EFAULT;
 			break;
 		}
-		/* for some AP maybe good authenticate */
+		/* for some AP's maybe a good authentication */
 		if (wpa_Result.key_mgmt == 0x20)
 			pMgmt->Cisco_cckm = 1;
 		else
@@ -641,7 +641,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 		break;
 
 	default:
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not support..\n");
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not supported..\n");
 	}
 
 	return result;

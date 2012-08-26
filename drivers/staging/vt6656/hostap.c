@@ -18,7 +18,7 @@
  *
  * File: hostap.c
  *
- * Purpose: handle hostap deamon ioctl input/out functions
+ * Purpose: handle hostap daemon ioctl input/out functions
  *
  * Author: Lyndon Chen
  *
@@ -48,7 +48,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*
  * Description:
- *      register net_device (AP) for hostap deamon
+ *      register net_device (AP) for hostap daemon
  *
  * Parameters:
  *  In:
@@ -176,7 +176,7 @@ int vt6656_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
 
 /*
  * Description:
- *      remove station function supported for hostap deamon
+ *      remove station function supported for hostap daemon
  *
  * Parameters:
  *  In:
@@ -204,7 +204,7 @@ static int hostap_remove_sta(PSDevice pDevice,
 
 /*
  * Description:
- *      add a station from hostap deamon
+ *      add a station from hostap daemon
  *
  * Parameters:
  *  In:
@@ -686,7 +686,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 
 /*
  * Description:
- *      vt6656_hostap_ioctl main function supported for hostap deamon.
+ *      vt6656_hostap_ioctl main function supported for hostap daemon.
  *
  * Parameters:
  *  In:
