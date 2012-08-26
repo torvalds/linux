@@ -214,7 +214,7 @@ static WORD swGetOFDMControlRate(void *pDeviceHandler, WORD wRateIdx)
  *
  */
 void
-CARDvCaculateOFDMRParameter (
+CARDvCalculateOFDMRParameter (
       WORD wRate,
       BYTE byBBType,
      PBYTE pbyTxRate,
@@ -337,7 +337,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     int     i;
 
     //RSPINF_b_1
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_1M),
                          PK_TYPE_11B,
@@ -347,7 +347,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     ///RSPINF_b_2
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_2M),
                          PK_TYPE_11B,
@@ -357,7 +357,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     //RSPINF_b_5
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_5M),
                          PK_TYPE_11B,
@@ -367,7 +367,7 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     //RSPINF_b_11
-    BBvCaculateParameter(pDevice,
+    BBvCalculateParameter(pDevice,
                          14,
                          swGetCCKControlRate(pDevice, RATE_11M),
                          PK_TYPE_11B,
@@ -377,55 +377,55 @@ void CARDvSetRSPINF(void *pDeviceHandler, BYTE byBBType)
     );
 
     //RSPINF_a_6
-    CARDvCaculateOFDMRParameter (RATE_6M,
+    CARDvCalculateOFDMRParameter (RATE_6M,
                                  byBBType,
                                  &abyTxRate[0],
                                  &abyRsvTime[0]);
 
     //RSPINF_a_9
-    CARDvCaculateOFDMRParameter (RATE_9M,
+    CARDvCalculateOFDMRParameter (RATE_9M,
                                  byBBType,
                                  &abyTxRate[1],
                                  &abyRsvTime[1]);
 
     //RSPINF_a_12
-    CARDvCaculateOFDMRParameter (RATE_12M,
+    CARDvCalculateOFDMRParameter (RATE_12M,
                                  byBBType,
                                  &abyTxRate[2],
                                  &abyRsvTime[2]);
 
     //RSPINF_a_18
-    CARDvCaculateOFDMRParameter (RATE_18M,
+    CARDvCalculateOFDMRParameter (RATE_18M,
                                  byBBType,
                                  &abyTxRate[3],
                                  &abyRsvTime[3]);
 
     //RSPINF_a_24
-    CARDvCaculateOFDMRParameter (RATE_24M,
+    CARDvCalculateOFDMRParameter (RATE_24M,
                                  byBBType,
                                  &abyTxRate[4],
                                  &abyRsvTime[4]);
 
     //RSPINF_a_36
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_36M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_36M),
                                  byBBType,
                                  &abyTxRate[5],
                                  &abyRsvTime[5]);
 
     //RSPINF_a_48
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_48M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_48M),
                                  byBBType,
                                  &abyTxRate[6],
                                  &abyRsvTime[6]);
 
     //RSPINF_a_54
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
                                  byBBType,
                                  &abyTxRate[7],
                                  &abyRsvTime[7]);
 
     //RSPINF_a_72
-    CARDvCaculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
+    CARDvCalculateOFDMRParameter (swGetOFDMControlRate(pDevice, RATE_54M),
                                  byBBType,
                                  &abyTxRate[8],
                                  &abyRsvTime[8]);

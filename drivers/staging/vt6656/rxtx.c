@@ -841,7 +841,7 @@ s_uFillDataHead (
 	if ((uDMAIdx == TYPE_ATIMDMA) || (uDMAIdx == TYPE_BEACONDMA)) {
 		PSTxDataHead_ab pBuf = (PSTxDataHead_ab) pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -858,10 +858,10 @@ s_uFillDataHead (
             if (byFBOption == AUTO_FB_NONE) {
                 PSTxDataHead_g pBuf = (PSTxDataHead_g)pTxDataHead;
                 //Get SignalField,ServiceField,Length
-                BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+                BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                     (PWORD)&(pBuf->wTransmitLength_a), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
                 );
-                BBvCaculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+                BBvCalculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                     (PWORD)&(pBuf->wTransmitLength_b), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
                 );
                 //Get Duration and TimeStamp
@@ -881,10 +881,10 @@ s_uFillDataHead (
                 // Auto Fallback
                 PSTxDataHead_g_FB pBuf = (PSTxDataHead_g_FB)pTxDataHead;
                 //Get SignalField,ServiceField,Length
-                BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+                BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                     (PWORD)&(pBuf->wTransmitLength_a), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
                 );
-                BBvCaculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+                BBvCalculateParameter(pDevice, cbFrameLength, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                     (PWORD)&(pBuf->wTransmitLength_b), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
                 );
                 //Get Duration and TimeStamp
@@ -907,7 +907,7 @@ s_uFillDataHead (
             // Auto Fallback
             PSTxDataHead_a_FB pBuf = (PSTxDataHead_a_FB)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -924,7 +924,7 @@ s_uFillDataHead (
         } else {
             PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -942,7 +942,7 @@ s_uFillDataHead (
     else if (byPktType == PK_TYPE_11B) {
             PSTxDataHead_ab pBuf = (PSTxDataHead_ab)pTxDataHead;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
+            BBvCalculateParameter(pDevice, cbFrameLength, wCurrentRate, byPktType,
                 (PWORD)&(pBuf->wTransmitLength), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             //Get Duration and TimeStampOff
@@ -993,11 +993,11 @@ s_vFillRTSHead (
         if (byFBOption == AUTO_FB_NONE) {
             PSRTS_g pBuf = (PSRTS_g)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
             );
             pBuf->wTransmitLength_a = cpu_to_le16(wLen);
@@ -1035,11 +1035,11 @@ s_vFillRTSHead (
         else {
            PSRTS_g_FB pBuf = (PSRTS_g_FB)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_a), (PBYTE)&(pBuf->bySignalField_a)
             );
             pBuf->wTransmitLength_a = cpu_to_le16(wLen);
@@ -1084,7 +1084,7 @@ s_vFillRTSHead (
         if (byFBOption == AUTO_FB_NONE) {
             PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             pBuf->wTransmitLength = cpu_to_le16(wLen);
@@ -1119,7 +1119,7 @@ s_vFillRTSHead (
         else {
             PSRTS_a_FB pBuf = (PSRTS_a_FB)pvRTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
+            BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopOFDMBasicRate, byPktType,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
             );
             pBuf->wTransmitLength = cpu_to_le16(wLen);
@@ -1155,7 +1155,7 @@ s_vFillRTSHead (
     else if (byPktType == PK_TYPE_11B) {
         PSRTS_ab pBuf = (PSRTS_ab)pvRTS;
         //Get SignalField,ServiceField,Length
-        BBvCaculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+        BBvCalculateParameter(pDevice, uRTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
             (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField), (PBYTE)&(pBuf->bySignalField)
         );
         pBuf->wTransmitLength = cpu_to_le16(wLen);
@@ -1221,7 +1221,7 @@ s_vFillCTSHead (
             // Auto Fall back
             PSCTS_FB pBuf = (PSCTS_FB)pvCTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
@@ -1246,7 +1246,7 @@ s_vFillCTSHead (
         } else { //if (byFBOption != AUTO_FB_NONE && uDMAIdx != TYPE_ATIMDMA && uDMAIdx != TYPE_BEACONDMA)
             PSCTS pBuf = (PSCTS)pvCTS;
             //Get SignalField,ServiceField,Length
-            BBvCaculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
+            BBvCalculateParameter(pDevice, uCTSFrameLen, pDevice->byTopCCKBasicRate, PK_TYPE_11B,
                 (PWORD)&(wLen), (PBYTE)&(pBuf->byServiceField_b), (PBYTE)&(pBuf->bySignalField_b)
             );
             pBuf->wTransmitLength_b = cpu_to_le16(wLen);
@@ -2272,7 +2272,7 @@ csBeacon_xmit(
         wCurrentRate = RATE_6M;
         pTxDataHead = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize);
         //Get SignalField,ServiceField,Length
-        BBvCaculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11A,
+        BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11A,
             (PWORD)&(pTxDataHead->wTransmitLength), (PBYTE)&(pTxDataHead->byServiceField), (PBYTE)&(pTxDataHead->bySignalField)
         );
         //Get Duration and TimeStampOff
@@ -2285,7 +2285,7 @@ csBeacon_xmit(
         pTxBufHead->wFIFOCtl |= FIFOCTL_11B;
         pTxDataHead = (PSTxDataHead_ab) (pbyTxBufferAddr + wTxBufSize);
         //Get SignalField,ServiceField,Length
-        BBvCaculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11B,
+        BBvCalculateParameter(pDevice, cbFrameSize, wCurrentRate, PK_TYPE_11B,
             (PWORD)&(pTxDataHead->wTransmitLength), (PBYTE)&(pTxDataHead->byServiceField), (PBYTE)&(pTxDataHead->bySignalField)
         );
         //Get Duration and TimeStampOff
