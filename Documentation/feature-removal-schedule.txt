@@ -495,17 +495,6 @@ Who:	Bjorn Helgaas <bhelgaas@google.com>
 
 ----------------------------
 
-What:	Low Performance USB Block driver ("CONFIG_BLK_DEV_UB")
-When:	3.6
-Why:	This driver provides support for USB storage devices like "USB
-	sticks". As of now, it is deactivated in Debian, Fedora and
-        Ubuntu. All current users can switch over to usb-storage
-        (CONFIG_USB_STORAGE) which only drawback is the additional SCSI
-        stack.
-Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
-
-----------------------------
-
 What:	get_robust_list syscall
 When:	2013
 Why:	There appear to be no production users of the get_robust_list syscall,
