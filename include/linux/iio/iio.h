@@ -229,6 +229,7 @@ ssize_t iio_enum_write(struct iio_dev *indio_dev,
  * @indexed:		Specify the channel has a numerical index. If not,
  *			the channel index number will be suppressed for sysfs
  *			attributes but not for event codes.
+ * @output:		Channel is output.
  * @differential:	Channel is differential.
  */
 struct iio_chan_spec {
@@ -312,6 +313,9 @@ struct iio_dev;
  *			Meaning is event dependent.
  * @validate_trigger:	function to validate the trigger when the
  *			current trigger gets changed.
+ * @update_scan_mode:	function to configure device and scan buffer when
+ *			channels have changed
+ * @debugfs_reg_access:	function to read or write register value of device
  **/
 struct iio_info {
 	struct module			*driver_module;

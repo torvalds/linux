@@ -39,7 +39,7 @@ struct iio_trigger_ops {
 
 /**
  * struct iio_trigger - industrial I/O trigger device
- *
+ * @ops:		[DRIVER] operations structure
  * @id:			[INTERN] unique id number
  * @name:		[DRIVER] unique name
  * @dev:		[DRIVER] associated device (if relevant)
@@ -104,7 +104,8 @@ void iio_trigger_unregister(struct iio_trigger *trig_info);
 
 /**
  * iio_trigger_poll() - called on a trigger occurring
- * @trig: trigger which occurred
+ * @trig:	trigger which occurred
+ * @time:	timestamp when trigger occurred
  *
  * Typically called in relevant hardware interrupt handler.
  **/
