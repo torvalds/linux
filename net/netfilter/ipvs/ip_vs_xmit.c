@@ -88,7 +88,14 @@ __ip_vs_dst_check(struct ip_vs_dest *dest, u32 rtos)
 static inline bool
 __mtu_check_toobig_v6(const struct sk_buff *skb, u32 mtu)
 {
-	if (skb->len > mtu && !skb_is_gso(skb)) {
+	if (IP6CB(skb)->frag_max_size) {
+		/* frag_max_size tell us that, this packet have been
+		 * defragmented by netfilter IPv6 conntrack module.
+		 */
+		if (IP6CB(skb)->frag_max_size > mtu)
+			return true; /* largest fragment violate MTU */
+	}
+	else if (skb->len > mtu && !skb_is_gso(skb)) {
 		return true; /* Packet size violate MTU size */
 	}
 	return false;

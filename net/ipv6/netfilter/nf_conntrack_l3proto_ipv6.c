@@ -153,10 +153,10 @@ static unsigned int ipv6_helper(unsigned int hooknum,
 	const struct nf_conn_help *help;
 	const struct nf_conntrack_helper *helper;
 	enum ip_conntrack_info ctinfo;
-	unsigned int ret, protoff;
-	unsigned int extoff = (u8 *)(ipv6_hdr(skb) + 1) - skb->data;
-	unsigned char pnum = ipv6_hdr(skb)->nexthdr;
-
+	unsigned int ret;
+	__be16 frag_off;
+	int protoff;
+	u8 nexthdr;
 
 	/* This is where we call the helper: as the packet goes out. */
 	ct = nf_ct_get(skb, &ctinfo);
@@ -171,9 +171,10 @@ static unsigned int ipv6_helper(unsigned int hooknum,
 	if (!helper)
 		return NF_ACCEPT;
 
-	protoff = nf_ct_ipv6_skip_exthdr(skb, extoff, &pnum,
-					 skb->len - extoff);
-	if (protoff > skb->len || pnum == NEXTHDR_FRAGMENT) {
+	nexthdr = ipv6_hdr(skb)->nexthdr;
+	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
+				   &frag_off);
+	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
 		pr_debug("proto header not found\n");
 		return NF_ACCEPT;
 	}
@@ -199,9 +200,14 @@ static unsigned int ipv6_confirm(unsigned int hooknum,
 static unsigned int __ipv6_conntrack_in(struct net *net,
 					unsigned int hooknum,
 					struct sk_buff *skb,
+					const struct net_device *in,
+					const struct net_device *out,
 					int (*okfn)(struct sk_buff *))
 {
 	struct sk_buff *reasm = skb->nfct_reasm;
+	const struct nf_conn_help *help;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
 
 	/* This packet is fragmented and has reassembled packet. */
 	if (reasm) {
@@ -213,6 +219,23 @@ static unsigned int __ipv6_conntrack_in(struct net *net,
 			if (ret != NF_ACCEPT)
 				return ret;
 		}
+
+		/* Conntrack helpers need the entire reassembled packet in the
+		 * POST_ROUTING hook.
+		 */
+		ct = nf_ct_get(reasm, &ctinfo);
+		if (ct != NULL && !nf_ct_is_untracked(ct)) {
+			help = nfct_help(ct);
+			if (help && help->helper) {
+				nf_conntrack_get_reasm(skb);
+				NF_HOOK_THRESH(NFPROTO_IPV6, hooknum, reasm,
+					       (struct net_device *)in,
+					       (struct net_device *)out,
+					       okfn, NF_IP6_PRI_CONNTRACK + 1);
+				return NF_DROP_ERR(-ECANCELED);
+			}
+		}
+
 		nf_conntrack_get(reasm->nfct);
 		skb->nfct = reasm->nfct;
 		skb->nfctinfo = reasm->nfctinfo;
@@ -228,7 +251,7 @@ static unsigned int ipv6_conntrack_in(unsigned int hooknum,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
-	return __ipv6_conntrack_in(dev_net(in), hooknum, skb, okfn);
+	return __ipv6_conntrack_in(dev_net(in), hooknum, skb, in, out, okfn);
 }
 
 static unsigned int ipv6_conntrack_local(unsigned int hooknum,
@@ -242,7 +265,7 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 		net_notice_ratelimited("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
-	return __ipv6_conntrack_in(dev_net(out), hooknum, skb, okfn);
+	return __ipv6_conntrack_in(dev_net(out), hooknum, skb, in, out, okfn);
 }
 
 static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
