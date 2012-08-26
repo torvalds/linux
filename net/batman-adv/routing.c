@@ -908,8 +908,12 @@ static int batadv_check_unicast_ttvn(struct batadv_priv *bat_priv,
 	bool tt_poss_change;
 	int is_old_ttvn;
 
-	/* I could need to modify it */
-	if (skb_cow(skb, sizeof(struct batadv_unicast_packet)) < 0)
+	/* check if there is enough data before accessing it */
+	if (pskb_may_pull(skb, sizeof(*unicast_packet) + ETH_HLEN) < 0)
+		return 0;
+
+	/* create a copy of the skb (in case of for re-routing) to modify it. */
+	if (skb_cow(skb, sizeof(*unicast_packet)) < 0)
 		return 0;
 
 	unicast_packet = (struct batadv_unicast_packet *)skb->data;
