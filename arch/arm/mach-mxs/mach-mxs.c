@@ -288,7 +288,6 @@ static void __init imx28_evk_post_init(void)
 
 static void __init m28evk_init(void)
 {
-	enable_clk_enet_out();
 	update_fec_mac_prop(OUI_DENX);
 
 	mxsfb_pdata.mode_list = m28evk_video_modes;
