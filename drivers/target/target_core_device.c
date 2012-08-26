@@ -988,8 +988,9 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	if (flag && dev->transport->fua_write_emulated == 0) {
-		pr_err("fua_write_emulated not supported\n");
+	if (flag &&
+	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+		pr_err("emulate_fua_write not supported for pSCSI\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_fua_write = flag;
@@ -1019,8 +1020,9 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (flag && dev->transport->write_cache_emulated == 0) {
-		pr_err("write_cache_emulated not supported\n");
+	if (flag &&
+	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+		pr_err("emulate_write_cache not supported for pSCSI\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_write_cache = flag;
