@@ -29,6 +29,8 @@ struct inet_frag_queue {
 #define INET_FRAG_COMPLETE	4
 #define INET_FRAG_FIRST_IN	2
 #define INET_FRAG_LAST_IN	1
+
+	u16			max_size;
 };
 
 #define INETFRAGS_HASHSZ		64
