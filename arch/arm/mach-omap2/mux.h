@@ -127,7 +127,6 @@ struct omap_mux_partition {
  * @gpio:	GPIO number
  * @muxnames:	available signal modes for a ball
  * @balls:	available balls on the package
- * @partition:	mux partition
  */
 struct omap_mux {
 	u16	reg_offset;
