@@ -77,10 +77,12 @@ static void ebook_switch_notify(struct acpi_device *device, u32 event)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ebook_switch_resume(struct device *dev)
 {
 	return ebook_send_state(to_acpi_device(dev));
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(ebook_switch_pm, NULL, ebook_switch_resume);
 

@@ -948,6 +948,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_reserved_meta_blocks = 0;
 	ei->i_allocated_meta_blocks = 0;
 	ei->i_da_metadata_calc_len = 0;
+	ei->i_da_metadata_calc_last_lblock = 0;
 	spin_lock_init(&(ei->i_block_reservation_lock));
 #ifdef CONFIG_QUOTA
 	ei->i_reserved_quota = 0;
@@ -3108,6 +3109,10 @@ static int count_overhead(struct super_block *sb, ext4_group_t grp,
 	ext4_group_t		i, ngroups = ext4_get_groups_count(sb);
 	int			s, j, count = 0;
 
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_BIGALLOC))
+		return (ext4_bg_has_super(sb, grp) + ext4_bg_num_gdb(sb, grp) +
+			sbi->s_itb_per_group + 2);
+
 	first_block = le32_to_cpu(sbi->s_es->s_first_data_block) +
 		(grp * EXT4_BLOCKS_PER_GROUP(sb));
 	last_block = first_block + EXT4_BLOCKS_PER_GROUP(sb) - 1;
@@ -4419,6 +4424,7 @@ static void ext4_clear_journal_err(struct super_block *sb,
 		ext4_commit_super(sb, 1);
 
 		jbd2_journal_clear_err(journal);
+		jbd2_journal_update_sb_errno(journal);
 	}
 }
 

@@ -33,6 +33,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/processor.h>
 #include <asm/page.h>
+#include <asm/cacheflush.h>
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS

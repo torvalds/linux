@@ -475,13 +475,26 @@ register_address(struct x86_emulate_ctxt *ctxt, unsigned long reg)
 	return address_mask(ctxt, reg);
 }
 
+static void masked_increment(ulong *reg, ulong mask, int inc)
+{
+	assign_masked(reg, *reg + inc, mask);
+}
+
 static inline void
 register_address_increment(struct x86_emulate_ctxt *ctxt, unsigned long *reg, int inc)
 {
+	ulong mask;
+
 	if (ctxt->ad_bytes == sizeof(unsigned long))
-		*reg += inc;
+		mask = ~0UL;
 	else
-		*reg = (*reg & ~ad_mask(ctxt)) | ((*reg + inc) & ad_mask(ctxt));
+		mask = ad_mask(ctxt);
+	masked_increment(reg, mask, inc);
+}
+
+static void rsp_increment(struct x86_emulate_ctxt *ctxt, int inc)
+{
+	masked_increment(&ctxt->regs[VCPU_REGS_RSP], stack_mask(ctxt), inc);
 }
 
 static inline void jmp_rel(struct x86_emulate_ctxt *ctxt, int rel)
@@ -1519,8 +1532,8 @@ static int push(struct x86_emulate_ctxt *ctxt, void *data, int bytes)
 {
 	struct segmented_address addr;
 
-	register_address_increment(ctxt, &ctxt->regs[VCPU_REGS_RSP], -bytes);
-	addr.ea = register_address(ctxt, ctxt->regs[VCPU_REGS_RSP]);
+	rsp_increment(ctxt, -bytes);
+	addr.ea = ctxt->regs[VCPU_REGS_RSP] & stack_mask(ctxt);
 	addr.seg = VCPU_SREG_SS;
 
 	return segmented_write(ctxt, addr, data, bytes);
@@ -1539,13 +1552,13 @@ static int emulate_pop(struct x86_emulate_ctxt *ctxt,
 	int rc;
 	struct segmented_address addr;
 
-	addr.ea = register_address(ctxt, ctxt->regs[VCPU_REGS_RSP]);
+	addr.ea = ctxt->regs[VCPU_REGS_RSP] & stack_mask(ctxt);
 	addr.seg = VCPU_SREG_SS;
 	rc = segmented_read(ctxt, addr, dest, len);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	register_address_increment(ctxt, &ctxt->regs[VCPU_REGS_RSP], len);
+	rsp_increment(ctxt, len);
 	return rc;
 }
 
@@ -1685,8 +1698,7 @@ static int em_popa(struct x86_emulate_ctxt *ctxt)
 
 	while (reg >= VCPU_REGS_RAX) {
 		if (reg == VCPU_REGS_RSP) {
-			register_address_increment(ctxt, &ctxt->regs[VCPU_REGS_RSP],
-							ctxt->op_bytes);
+			rsp_increment(ctxt, ctxt->op_bytes);
 			--reg;
 		}
 
@@ -2819,7 +2831,7 @@ static int em_ret_near_imm(struct x86_emulate_ctxt *ctxt)
 	rc = emulate_pop(ctxt, &ctxt->dst.val, ctxt->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	register_address_increment(ctxt, &ctxt->regs[VCPU_REGS_RSP], ctxt->src.val);
+	rsp_increment(ctxt, ctxt->src.val);
 	return X86EMUL_CONTINUE;
 }
 

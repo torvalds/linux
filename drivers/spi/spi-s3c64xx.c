@@ -826,7 +826,7 @@ static struct s3c64xx_spi_csinfo *s3c64xx_get_slave_ctrldata(
 				struct spi_device *spi)
 {
 	struct s3c64xx_spi_csinfo *cs;
-	struct device_node *slave_np, *data_np;
+	struct device_node *slave_np, *data_np = NULL;
 	u32 fb_delay = 0;
 
 	slave_np = spi->dev.of_node;
@@ -1479,40 +1479,40 @@ static const struct dev_pm_ops s3c64xx_spi_pm = {
 			   s3c64xx_spi_runtime_resume, NULL)
 };
 
-struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
+static struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 	.high_speed	= true,
 };
 
-struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
+static struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f, 0x7F },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 };
 
-struct s3c64xx_spi_port_config s5p64x0_spi_port_config = {
+static struct s3c64xx_spi_port_config s5p64x0_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
 };
 
-struct s3c64xx_spi_port_config s5pc100_spi_port_config = {
+static struct s3c64xx_spi_port_config s5pc100_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f, 0x7F },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
 	.high_speed	= true,
 };
 
-struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
+static struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
 	.high_speed	= true,
 };
 
-struct s3c64xx_spi_port_config exynos4_spi_port_config = {
+static struct s3c64xx_spi_port_config exynos4_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,

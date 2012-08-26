@@ -622,6 +622,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
+	del_timer_sync(&sdata->u.mesh.mesh_path_timer);
 	/*
 	 * If the timer fired while we waited for it, it will have
 	 * requeued the work. Now the work will be running again
@@ -634,6 +635,8 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	local->fif_other_bss--;
 	atomic_dec(&local->iff_allmultis);
 	ieee80211_configure_filter(local);
+
+	sdata->u.mesh.timers_running = 0;
 }
 
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
