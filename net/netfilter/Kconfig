@@ -390,6 +390,11 @@ config NF_NAT_FTP
 	depends on NF_CONNTRACK && NF_NAT
 	default NF_NAT && NF_CONNTRACK_FTP
 
+config NF_NAT_SIP
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_SIP
+
 endif # NF_CONNTRACK
 
 # transparent proxy support

@@ -57,7 +57,8 @@ unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb, unsigned int protoff,
 				unsigned int *datalen) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_hook);
 
-void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb, s16 off) __read_mostly;
+void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb, unsigned int protoff,
+				   s16 off) __read_mostly;
 EXPORT_SYMBOL_GPL(nf_nat_sip_seq_adjust_hook);
 
 unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
@@ -742,13 +743,18 @@ static int sdp_addr_len(const struct nf_conn *ct, const char *dptr,
  * be tolerant and also accept records terminated with a single newline
  * character". We handle both cases.
  */
-static const struct sip_header ct_sdp_hdrs[] = {
-	[SDP_HDR_VERSION]		= SDP_HDR("v=", NULL, digits_len),
-	[SDP_HDR_OWNER_IP4]		= SDP_HDR("o=", "IN IP4 ", sdp_addr_len),
-	[SDP_HDR_CONNECTION_IP4]	= SDP_HDR("c=", "IN IP4 ", sdp_addr_len),
-	[SDP_HDR_OWNER_IP6]		= SDP_HDR("o=", "IN IP6 ", sdp_addr_len),
-	[SDP_HDR_CONNECTION_IP6]	= SDP_HDR("c=", "IN IP6 ", sdp_addr_len),
-	[SDP_HDR_MEDIA]			= SDP_HDR("m=", NULL, media_len),
+static const struct sip_header ct_sdp_hdrs_v4[] = {
+	[SDP_HDR_VERSION]	= SDP_HDR("v=", NULL, digits_len),
+	[SDP_HDR_OWNER]		= SDP_HDR("o=", "IN IP4 ", sdp_addr_len),
+	[SDP_HDR_CONNECTION]	= SDP_HDR("c=", "IN IP4 ", sdp_addr_len),
+	[SDP_HDR_MEDIA]		= SDP_HDR("m=", NULL, media_len),
+};
+
+static const struct sip_header ct_sdp_hdrs_v6[] = {
+	[SDP_HDR_VERSION]	= SDP_HDR("v=", NULL, digits_len),
+	[SDP_HDR_OWNER]		= SDP_HDR("o=", "IN IP6 ", sdp_addr_len),
+	[SDP_HDR_CONNECTION]	= SDP_HDR("c=", "IN IP6 ", sdp_addr_len),
+	[SDP_HDR_MEDIA]		= SDP_HDR("m=", NULL, media_len),
 };
 
 /* Linear string search within SDP header values */
@@ -774,10 +780,13 @@ int ct_sip_get_sdp_header(const struct nf_conn *ct, const char *dptr,
 			  enum sdp_header_types term,
 			  unsigned int *matchoff, unsigned int *matchlen)
 {
-	const struct sip_header *hdr = &ct_sdp_hdrs[type];
-	const struct sip_header *thdr = &ct_sdp_hdrs[term];
+	const struct sip_header *hdrs, *hdr, *thdr;
 	const char *start = dptr, *limit = dptr + datalen;
 	int shift = 0;
+
+	hdrs = nf_ct_l3num(ct) == NFPROTO_IPV4 ? ct_sdp_hdrs_v4 : ct_sdp_hdrs_v6;
+	hdr = &hdrs[type];
+	thdr = &hdrs[term];
 
 	for (dptr += dataoff; dptr < limit; dptr++) {
 		/* Find beginning of line */
@@ -945,12 +954,12 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 		    exp->class != class)
 			break;
 #ifdef CONFIG_NF_NAT_NEEDED
-		if (exp->tuple.src.l3num == AF_INET && !direct_rtp &&
-		    (exp->saved_addr.ip != exp->tuple.dst.u3.ip ||
+		if (!direct_rtp &&
+		    (!nf_inet_addr_cmp(&exp->saved_addr, &exp->tuple.dst.u3) ||
 		     exp->saved_proto.udp.port != exp->tuple.dst.u.udp.port) &&
 		    ct->status & IPS_NAT_MASK) {
-			daddr->ip		= exp->saved_addr.ip;
-			tuple.dst.u3.ip		= exp->saved_addr.ip;
+			*daddr			= exp->saved_addr;
+			tuple.dst.u3		= exp->saved_addr;
 			tuple.dst.u.udp.port	= exp->saved_proto.udp.port;
 			direct_rtp = 1;
 		} else
@@ -987,8 +996,7 @@ static int set_expected_rtp_rtcp(struct sk_buff *skb, unsigned int protoff,
 			  IPPROTO_UDP, NULL, &rtcp_port);
 
 	nf_nat_sdp_media = rcu_dereference(nf_nat_sdp_media_hook);
-	if (nf_nat_sdp_media && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    ct->status & IPS_NAT_MASK && !direct_rtp)
+	if (nf_nat_sdp_media && ct->status & IPS_NAT_MASK && !direct_rtp)
 		ret = nf_nat_sdp_media(skb, protoff, dataoff, dptr, datalen,
 				       rtp_exp, rtcp_exp,
 				       mediaoff, medialen, daddr);
@@ -1044,15 +1052,12 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 	unsigned int i;
 	union nf_inet_addr caddr, maddr, rtp_addr;
 	unsigned int port;
-	enum sdp_header_types c_hdr;
 	const struct sdp_media_type *t;
 	int ret = NF_ACCEPT;
 	typeof(nf_nat_sdp_addr_hook) nf_nat_sdp_addr;
 	typeof(nf_nat_sdp_session_hook) nf_nat_sdp_session;
 
 	nf_nat_sdp_addr = rcu_dereference(nf_nat_sdp_addr_hook);
-	c_hdr = nf_ct_l3num(ct) == AF_INET ? SDP_HDR_CONNECTION_IP4 :
-					     SDP_HDR_CONNECTION_IP6;
 
 	/* Find beginning of session description */
 	if (ct_sip_get_sdp_header(ct, *dptr, 0, *datalen,
@@ -1066,7 +1071,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 	 * the end of the session description. */
 	caddr_len = 0;
 	if (ct_sip_parse_sdp_addr(ct, *dptr, sdpoff, *datalen,
-				  c_hdr, SDP_HDR_MEDIA,
+				  SDP_HDR_CONNECTION, SDP_HDR_MEDIA,
 				  &matchoff, &matchlen, &caddr) > 0)
 		caddr_len = matchlen;
 
@@ -1096,7 +1101,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 		/* The media description overrides the session description. */
 		maddr_len = 0;
 		if (ct_sip_parse_sdp_addr(ct, *dptr, mediaoff, *datalen,
-					  c_hdr, SDP_HDR_MEDIA,
+					  SDP_HDR_CONNECTION, SDP_HDR_MEDIA,
 					  &matchoff, &matchlen, &maddr) > 0) {
 			maddr_len = matchlen;
 			memcpy(&rtp_addr, &maddr, sizeof(rtp_addr));
@@ -1113,11 +1118,10 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 			return ret;
 
 		/* Update media connection address if present */
-		if (maddr_len && nf_nat_sdp_addr &&
-		    nf_ct_l3num(ct) == NFPROTO_IPV4 && ct->status & IPS_NAT_MASK) {
+		if (maddr_len && nf_nat_sdp_addr && ct->status & IPS_NAT_MASK) {
 			ret = nf_nat_sdp_addr(skb, protoff, dataoff,
-					      dptr, datalen,
-					      mediaoff, c_hdr, SDP_HDR_MEDIA,
+					      dptr, datalen, mediaoff,
+					      SDP_HDR_CONNECTION, SDP_HDR_MEDIA,
 					      &rtp_addr);
 			if (ret != NF_ACCEPT)
 				return ret;
@@ -1127,8 +1131,7 @@ static int process_sdp(struct sk_buff *skb, unsigned int protoff,
 
 	/* Update session connection and owner addresses */
 	nf_nat_sdp_session = rcu_dereference(nf_nat_sdp_session_hook);
-	if (nf_nat_sdp_session && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    ct->status & IPS_NAT_MASK)
+	if (nf_nat_sdp_session && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_sdp_session(skb, protoff, dataoff,
 					 dptr, datalen, sdpoff, &rtp_addr);
 
@@ -1293,8 +1296,7 @@ static int process_register_request(struct sk_buff *skb, unsigned int protoff,
 	exp->flags = NF_CT_EXPECT_PERMANENT | NF_CT_EXPECT_INACTIVE;
 
 	nf_nat_sip_expect = rcu_dereference(nf_nat_sip_expect_hook);
-	if (nf_nat_sip_expect && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    ct->status & IPS_NAT_MASK)
+	if (nf_nat_sip_expect && ct->status & IPS_NAT_MASK)
 		ret = nf_nat_sip_expect(skb, protoff, dataoff, dptr, datalen,
 					exp, matchoff, matchlen);
 	else {
@@ -1476,8 +1478,7 @@ static int process_sip_msg(struct sk_buff *skb, struct nf_conn *ct,
 	else
 		ret = process_sip_response(skb, protoff, dataoff, dptr, datalen);
 
-	if (ret == NF_ACCEPT && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    ct->status & IPS_NAT_MASK) {
+	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
 		nf_nat_sip = rcu_dereference(nf_nat_sip_hook);
 		if (nf_nat_sip && !nf_nat_sip(skb, protoff, dataoff,
 					      dptr, datalen))
@@ -1560,11 +1561,10 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 		datalen  = datalen + diff - msglen;
 	}
 
-	if (ret == NF_ACCEPT && nf_ct_l3num(ct) == NFPROTO_IPV4 &&
-	    ct->status & IPS_NAT_MASK) {
+	if (ret == NF_ACCEPT && ct->status & IPS_NAT_MASK) {
 		nf_nat_sip_seq_adjust = rcu_dereference(nf_nat_sip_seq_adjust_hook);
 		if (nf_nat_sip_seq_adjust)
-			nf_nat_sip_seq_adjust(skb, tdiff);
+			nf_nat_sip_seq_adjust(skb, protoff, tdiff);
 	}
 
 	return ret;

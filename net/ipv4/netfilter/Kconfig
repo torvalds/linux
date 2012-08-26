@@ -242,11 +242,6 @@ config NF_NAT_H323
 	depends on NF_CONNTRACK && NF_NAT_IPV4
 	default NF_NAT_IPV4 && NF_CONNTRACK_H323
 
-config NF_NAT_SIP
-	tristate
-	depends on NF_CONNTRACK && NF_NAT_IPV4
-	default NF_NAT_IPV4 && NF_CONNTRACK_SIP
-
 # mangle + specific targets
 config IP_NF_MANGLE
 	tristate "Packet mangling"

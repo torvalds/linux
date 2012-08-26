@@ -99,10 +99,8 @@ enum sip_header_types {
 enum sdp_header_types {
 	SDP_HDR_UNSPEC,
 	SDP_HDR_VERSION,
-	SDP_HDR_OWNER_IP4,
-	SDP_HDR_CONNECTION_IP4,
-	SDP_HDR_OWNER_IP6,
-	SDP_HDR_CONNECTION_IP6,
+	SDP_HDR_OWNER,
+	SDP_HDR_CONNECTION,
 	SDP_HDR_MEDIA,
 };
 
@@ -111,7 +109,8 @@ extern unsigned int (*nf_nat_sip_hook)(struct sk_buff *skb,
 				       unsigned int dataoff,
 				       const char **dptr,
 				       unsigned int *datalen);
-extern void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb, s16 off);
+extern void (*nf_nat_sip_seq_adjust_hook)(struct sk_buff *skb,
+					  unsigned int protoff, s16 off);
 extern unsigned int (*nf_nat_sip_expect_hook)(struct sk_buff *skb,
 					      unsigned int protoff,
 					      unsigned int dataoff,
