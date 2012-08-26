@@ -3971,7 +3971,7 @@ EXPORT_SYMBOL(user_path_at);
 EXPORT_SYMBOL(follow_down_one);
 EXPORT_SYMBOL(follow_down);
 EXPORT_SYMBOL(follow_up);
-EXPORT_SYMBOL(get_write_access); /* binfmt_aout */
+EXPORT_SYMBOL(get_write_access); /* nfsd */
 EXPORT_SYMBOL(getname);
 EXPORT_SYMBOL(lock_rename);
 EXPORT_SYMBOL(lookup_one_len);
