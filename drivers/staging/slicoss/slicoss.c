@@ -514,8 +514,7 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 		file = "slicoss/gbrcvucode.sys";
 		break;
 	default:
-		ASSERT(0);
-		break;
+		return -ENOENT;
 	}
 
 	ret = request_firmware(&fw, file, &adapter->pcidev->dev);
