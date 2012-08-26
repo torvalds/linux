@@ -589,16 +589,11 @@ static int __devinit at91_adc_probe(struct platform_device *pdev)
 		goto error_free_irq;
 	}
 
-	ret = clk_prepare(st->clk);
+	ret = clk_prepare_enable(st->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not prepare the clock.\n");
+		dev_err(&pdev->dev,
+			"Could not prepare or enable the clock.\n");
 		goto error_free_irq;
-	}
-
-	ret = clk_enable(st->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not enable the clock.\n");
-		goto error_unprepare_clk;
 	}
 
 	st->adc_clk = devm_clk_get(&pdev->dev, "adc_op_clk");
@@ -608,16 +603,11 @@ static int __devinit at91_adc_probe(struct platform_device *pdev)
 		goto error_disable_clk;
 	}
 
-	ret = clk_prepare(st->adc_clk);
+	ret = clk_prepare_enable(st->adc_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not prepare the ADC clock.\n");
+		dev_err(&pdev->dev,
+			"Could not prepare or enable the ADC clock.\n");
 		goto error_disable_clk;
-	}
-
-	ret = clk_enable(st->adc_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not enable the ADC clock.\n");
-		goto error_unprepare_adc_clk;
 	}
 
 	/*
@@ -681,13 +671,9 @@ error_remove_triggers:
 error_unregister_buffer:
 	at91_adc_buffer_remove(idev);
 error_disable_adc_clk:
-	clk_disable(st->adc_clk);
-error_unprepare_adc_clk:
-	clk_unprepare(st->adc_clk);
+	clk_disable_unprepare(st->adc_clk);
 error_disable_clk:
-	clk_disable(st->clk);
-error_unprepare_clk:
-	clk_unprepare(st->clk);
+	clk_disable_unprepare(st->clk);
 error_free_irq:
 	free_irq(st->irq, idev);
 error_free_device:
@@ -705,8 +691,7 @@ static int __devexit at91_adc_remove(struct platform_device *pdev)
 	at91_adc_trigger_remove(idev);
 	at91_adc_buffer_remove(idev);
 	clk_disable_unprepare(st->adc_clk);
-	clk_disable(st->clk);
-	clk_unprepare(st->clk);
+	clk_disable_unprepare(st->clk);
 	free_irq(st->irq, idev);
 	iio_device_free(idev);
 
