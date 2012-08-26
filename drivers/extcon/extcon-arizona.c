@@ -488,11 +488,13 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 	ret = input_register_device(info->input);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't register input device: %d\n", ret);
-		goto err_fall_wake;
+		goto err_micdet;
 	}
 
 	return 0;
 
+err_micdet:
+	arizona_free_irq(arizona, ARIZONA_IRQ_MICDET, info);
 err_fall_wake:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_FALL, 0);
 err_fall:
