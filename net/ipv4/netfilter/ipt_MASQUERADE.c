@@ -99,7 +99,8 @@ device_cmp(struct nf_conn *i, void *ifindex)
 
 	if (!nat)
 		return 0;
-
+	if (nf_ct_l3num(i) != NFPROTO_IPV4)
+		return 0;
 	return nat->masq_index == (int)(long)ifindex;
 }
 
