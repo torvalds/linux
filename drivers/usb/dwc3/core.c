@@ -99,6 +99,7 @@ void dwc3_put_device_id(int id)
 
 	ret = test_bit(id, dwc3_devs);
 	WARN(!ret, "dwc3: ID %d not in use\n", id);
+	smp_mb__before_clear_bit();
 	clear_bit(id, dwc3_devs);
 }
 EXPORT_SYMBOL_GPL(dwc3_put_device_id);
