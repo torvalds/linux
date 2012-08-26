@@ -64,82 +64,31 @@ static int ipv6_print_tuple(struct seq_file *s,
 			  tuple->src.u3.ip6, tuple->dst.u3.ip6);
 }
 
-/*
- * Based on ipv6_skip_exthdr() in net/ipv6/exthdr.c
- *
- * This function parses (probably truncated) exthdr set "hdr"
- * of length "len". "nexthdrp" initially points to some place,
- * where type of the first header can be found.
- *
- * It skips all well-known exthdrs, and returns pointer to the start
- * of unparsable area i.e. the first header with unknown type.
- * if success, *nexthdr is updated by type/protocol of this header.
- *
- * NOTES: - it may return pointer pointing beyond end of packet,
- *          if the last recognized header is truncated in the middle.
- *        - if packet is truncated, so that all parsed headers are skipped,
- *          it returns -1.
- *        - if packet is fragmented, return pointer of the fragment header.
- *        - ESP is unparsable for now and considered like
- *          normal payload protocol.
- *        - Note also special handling of AUTH header. Thanks to IPsec wizards.
- */
-
-static int nf_ct_ipv6_skip_exthdr(const struct sk_buff *skb, int start,
-				  u8 *nexthdrp, int len)
-{
-	u8 nexthdr = *nexthdrp;
-
-	while (ipv6_ext_hdr(nexthdr)) {
-		struct ipv6_opt_hdr hdr;
-		int hdrlen;
-
-		if (len < (int)sizeof(struct ipv6_opt_hdr))
-			return -1;
-		if (nexthdr == NEXTHDR_NONE)
-			break;
-		if (nexthdr == NEXTHDR_FRAGMENT)
-			break;
-		if (skb_copy_bits(skb, start, &hdr, sizeof(hdr)))
-			BUG();
-		if (nexthdr == NEXTHDR_AUTH)
-			hdrlen = (hdr.hdrlen+2)<<2;
-		else
-			hdrlen = ipv6_optlen(&hdr);
-
-		nexthdr = hdr.nexthdr;
-		len -= hdrlen;
-		start += hdrlen;
-	}
-
-	*nexthdrp = nexthdr;
-	return start;
-}
-
 static int ipv6_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			    unsigned int *dataoff, u_int8_t *protonum)
 {
 	unsigned int extoff = nhoff + sizeof(struct ipv6hdr);
-	unsigned char pnum;
+	__be16 frag_off;
 	int protoff;
+	u8 nexthdr;
 
 	if (skb_copy_bits(skb, nhoff + offsetof(struct ipv6hdr, nexthdr),
-			  &pnum, sizeof(pnum)) != 0) {
+			  &nexthdr, sizeof(nexthdr)) != 0) {
 		pr_debug("ip6_conntrack_core: can't get nexthdr\n");
 		return -NF_ACCEPT;
 	}
-	protoff = nf_ct_ipv6_skip_exthdr(skb, extoff, &pnum, skb->len - extoff);
+	protoff = ipv6_skip_exthdr(skb, extoff, &nexthdr, &frag_off);
 	/*
 	 * (protoff == skb->len) mean that the packet doesn't have no data
 	 * except of IPv6 & ext headers. but it's tracked anyway. - YK
 	 */
-	if ((protoff < 0) || (protoff > skb->len)) {
+	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
 		pr_debug("ip6_conntrack_core: can't find proto in pkt\n");
 		return -NF_ACCEPT;
 	}
 
 	*dataoff = protoff;
-	*protonum = pnum;
+	*protonum = nexthdr;
 	return NF_ACCEPT;
 }
 
