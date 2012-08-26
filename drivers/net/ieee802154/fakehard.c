@@ -446,4 +446,3 @@ static __exit void fake_exit(void)
 module_init(fake_init);
 module_exit(fake_exit);
 MODULE_LICENSE("GPL");
-
