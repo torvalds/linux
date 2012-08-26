@@ -33,7 +33,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
