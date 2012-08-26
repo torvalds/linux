@@ -2808,9 +2808,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		(priv->EarlyRxThreshold == 7 ? RCR_ONLYERLPKT:0);
 
 	priv->AcmControl = 0;
-	priv->pFirmware = kmalloc(sizeof(rt_firmware), GFP_KERNEL);
-	if (priv->pFirmware)
-	memset(priv->pFirmware, 0, sizeof(rt_firmware));
+	priv->pFirmware = kzalloc(sizeof(rt_firmware), GFP_KERNEL);
 
 	/* rx related queue */
 	skb_queue_head_init(&priv->rx_queue);
