@@ -156,6 +156,16 @@ config IP6_NF_TARGET_MASQUERADE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP6_NF_TARGET_NETMAP
+	tristate "NETMAP target support"
+	depends on NF_NAT_IPV6
+	help
+	  NETMAP is an implementation of static 1:1 NAT mapping of network
+	  addresses. It maps the network address part, while keeping the host
+	  address part intact.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP6_NF_TARGET_REDIRECT
 	tristate "REDIRECT target support"
 	depends on NF_NAT_IPV6
