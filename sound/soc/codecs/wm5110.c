@@ -313,6 +313,26 @@ ARIZONA_MIXER_ENUMS(ASRC1R, ARIZONA_ASRC1RMIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(ASRC2L, ARIZONA_ASRC2LMIX_INPUT_1_SOURCE);
 ARIZONA_MIXER_ENUMS(ASRC2R, ARIZONA_ASRC2RMIX_INPUT_1_SOURCE);
 
+static const char *wm5110_aec_loopback_texts[] = {
+	"HPOUT1L", "HPOUT1R", "HPOUT2L", "HPOUT2R", "HPOUT3L", "HPOUT3R",
+	"SPKOUTL", "SPKOUTR", "SPKDAT1L", "SPKDAT1R", "SPKDAT2L", "SPKDAT2R",
+};
+
+static const unsigned int wm5110_aec_loopback_values[] = {
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+};
+
+static const struct soc_enum wm5110_aec_loopback =
+	SOC_VALUE_ENUM_SINGLE(ARIZONA_DAC_AEC_CONTROL_1,
+			      ARIZONA_AEC_LOOPBACK_SRC_SHIFT,
+			      ARIZONA_AEC_LOOPBACK_SRC_MASK,
+			      ARRAY_SIZE(wm5110_aec_loopback_texts),
+			      wm5110_aec_loopback_texts,
+			      wm5110_aec_loopback_values);
+
+static const struct snd_kcontrol_new wm5110_aec_loopback_mux =
+	SOC_DAPM_VALUE_ENUM("AEC Loopback", wm5110_aec_loopback);
+
 static const struct snd_soc_dapm_widget wm5110_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
 		    0, NULL, 0),
@@ -421,6 +441,9 @@ SND_SOC_DAPM_PGA("ASRC2L", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2L_ENA_SHIFT, 0,
 		 NULL, 0),
 SND_SOC_DAPM_PGA("ASRC2R", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2R_ENA_SHIFT, 0,
 		 NULL, 0),
+
+SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
+		       ARIZONA_AEC_LOOPBACK_ENA, 0, &wm5110_aec_loopback_mux),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -584,6 +607,7 @@ SND_SOC_DAPM_OUTPUT("SPKDAT2R"),
 	{ name, "Noise Generator", "Noise Generator" }, \
 	{ name, "Tone Generator 1", "Tone Generator 1" }, \
 	{ name, "Tone Generator 2", "Tone Generator 2" }, \
+	{ name, "AEC", "AEC Loopback" }, \
 	{ name, "IN1L", "IN1L PGA" }, \
 	{ name, "IN1R", "IN1R PGA" }, \
 	{ name, "IN2L", "IN2L PGA" }, \
