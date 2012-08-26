@@ -120,7 +120,9 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 	if (!full) {
 		event->comm.tid = pid;
 
-		process(tool, event, &synth_sample, machine);
+		if (process(tool, event, &synth_sample, machine) != 0)
+			return -1;
+
 		goto out;
 	}
 
@@ -151,7 +153,10 @@ static pid_t perf_event__synthesize_comm(struct perf_tool *tool,
 
 		event->comm.tid = pid;
 
-		process(tool, event, &synth_sample, machine);
+		if (process(tool, event, &synth_sample, machine) != 0) {
+			tgid = -1;
+			break;
+		}
 	}
 
 	closedir(tasks);
@@ -167,6 +172,7 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 {
 	char filename[PATH_MAX];
 	FILE *fp;
+	int rc = 0;
 
 	snprintf(filename, sizeof(filename), "/proc/%d/maps", pid);
 
@@ -231,18 +237,22 @@ static int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 			event->mmap.pid = tgid;
 			event->mmap.tid = pid;
 
-			process(tool, event, &synth_sample, machine);
+			if (process(tool, event, &synth_sample, machine) != 0) {
+				rc = -1;
+				break;
+			}
 		}
 	}
 
 	fclose(fp);
-	return 0;
+	return rc;
 }
 
 int perf_event__synthesize_modules(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine)
 {
+	int rc = 0;
 	struct rb_node *nd;
 	struct map_groups *kmaps = &machine->kmaps;
 	union perf_event *event = zalloc((sizeof(event->mmap) +
@@ -284,11 +294,14 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 
 		memcpy(event->mmap.filename, pos->dso->long_name,
 		       pos->dso->long_name_len + 1);
-		process(tool, event, &synth_sample, machine);
+		if (process(tool, event, &synth_sample, machine) != 0) {
+			rc = -1;
+			break;
+		}
 	}
 
 	free(event);
-	return 0;
+	return rc;
 }
 
 static int __event__synthesize_thread(union perf_event *comm_event,
@@ -392,12 +405,16 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
 
-		__event__synthesize_thread(comm_event, mmap_event, pid, 1,
-					   process, tool, machine);
+		if (__event__synthesize_thread(comm_event, mmap_event, pid, 1,
+					   process, tool, machine) != 0) {
+			err = -1;
+			goto out_closedir;
+		}
 	}
 
-	closedir(proc);
 	err = 0;
+out_closedir:
+	closedir(proc);
 out_free_mmap:
 	free(mmap_event);
 out_free_comm:
