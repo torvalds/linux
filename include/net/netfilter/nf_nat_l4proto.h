@@ -51,6 +51,7 @@ extern const struct nf_nat_l4proto *__nf_nat_l4proto_find(u8 l3proto, u8 l4proto
 extern const struct nf_nat_l4proto nf_nat_l4proto_tcp;
 extern const struct nf_nat_l4proto nf_nat_l4proto_udp;
 extern const struct nf_nat_l4proto nf_nat_l4proto_icmp;
+extern const struct nf_nat_l4proto nf_nat_l4proto_icmpv6;
 extern const struct nf_nat_l4proto nf_nat_l4proto_unknown;
 
 extern bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,

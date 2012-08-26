@@ -696,6 +696,8 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 	[CTA_NAT_V4_MINIP]	= { .type = NLA_U32 },
 	[CTA_NAT_V4_MAXIP]	= { .type = NLA_U32 },
+	[CTA_NAT_V6_MINIP]	= { .len = sizeof(struct in6_addr) },
+	[CTA_NAT_V6_MAXIP]	= { .len = sizeof(struct in6_addr) },
 	[CTA_NAT_PROTO]		= { .type = NLA_NESTED },
 };
 

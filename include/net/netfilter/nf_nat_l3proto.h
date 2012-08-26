@@ -43,5 +43,10 @@ extern int nf_nat_icmp_reply_translation(struct sk_buff *skb,
 					 struct nf_conn *ct,
 					 enum ip_conntrack_info ctinfo,
 					 unsigned int hooknum);
+extern int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
+					   struct nf_conn *ct,
+					   enum ip_conntrack_info ctinfo,
+					   unsigned int hooknum,
+					   unsigned int hdrlen);
 
 #endif /* _NF_NAT_L3PROTO_H */
