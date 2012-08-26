@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/ip.h>
+#include <linux/inet.h>
 #include <linux/tcp.h>
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/nf_nat.h>
@@ -26,22 +26,27 @@ MODULE_ALIAS("ip_nat_ftp");
 
 /* FIXME: Time out? --RR */
 
-static int nf_nat_ftp_fmt_cmd(enum nf_ct_ftp_type type,
+static int nf_nat_ftp_fmt_cmd(struct nf_conn *ct, enum nf_ct_ftp_type type,
 			      char *buffer, size_t buflen,
-			      __be32 addr, u16 port)
+			      union nf_inet_addr *addr, u16 port)
 {
 	switch (type) {
 	case NF_CT_FTP_PORT:
 	case NF_CT_FTP_PASV:
 		return snprintf(buffer, buflen, "%u,%u,%u,%u,%u,%u",
-				((unsigned char *)&addr)[0],
-				((unsigned char *)&addr)[1],
-				((unsigned char *)&addr)[2],
-				((unsigned char *)&addr)[3],
+				((unsigned char *)&addr->ip)[0],
+				((unsigned char *)&addr->ip)[1],
+				((unsigned char *)&addr->ip)[2],
+				((unsigned char *)&addr->ip)[3],
 				port >> 8,
 				port & 0xFF);
 	case NF_CT_FTP_EPRT:
-		return snprintf(buffer, buflen, "|1|%pI4|%u|", &addr, port);
+		if (nf_ct_l3num(ct) == NFPROTO_IPV4)
+			return snprintf(buffer, buflen, "|1|%pI4|%u|",
+					&addr->ip, port);
+		else
+			return snprintf(buffer, buflen, "|2|%pI6|%u|",
+					&addr->ip6, port);
 	case NF_CT_FTP_EPSV:
 		return snprintf(buffer, buflen, "|||%u|", port);
 	}
@@ -59,17 +64,17 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 			       unsigned int matchlen,
 			       struct nf_conntrack_expect *exp)
 {
-	__be32 newip;
+	union nf_inet_addr newaddr;
 	u_int16_t port;
 	int dir = CTINFO2DIR(ctinfo);
 	struct nf_conn *ct = exp->master;
-	char buffer[sizeof("|1|255.255.255.255|65535|")];
+	char buffer[sizeof("|1||65535|") + INET6_ADDRSTRLEN];
 	unsigned int buflen;
 
 	pr_debug("FTP_NAT: type %i, off %u len %u\n", type, matchoff, matchlen);
 
 	/* Connection will come from wherever this packet goes, hence !dir */
-	newip = ct->tuplehash[!dir].tuple.dst.u3.ip;
+	newaddr = ct->tuplehash[!dir].tuple.dst.u3;
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;
 	exp->dir = !dir;
 
@@ -94,7 +99,8 @@ static unsigned int nf_nat_ftp(struct sk_buff *skb,
 	if (port == 0)
 		return NF_DROP;
 
-	buflen = nf_nat_ftp_fmt_cmd(type, buffer, sizeof(buffer), newip, port);
+	buflen = nf_nat_ftp_fmt_cmd(ct, type, buffer, sizeof(buffer),
+				    &newaddr, port);
 	if (!buflen)
 		goto out;
 
