@@ -620,15 +620,8 @@ static int __devinit pxa_gpio_probe(struct platform_device *pdev)
 		iounmap(gpio_reg_base);
 		return PTR_ERR(clk);
 	}
-	ret = clk_prepare(clk);
+	ret = clk_prepare_enable(clk);
 	if (ret) {
-		clk_put(clk);
-		iounmap(gpio_reg_base);
-		return ret;
-	}
-	ret = clk_enable(clk);
-	if (ret) {
-		clk_unprepare(clk);
 		clk_put(clk);
 		iounmap(gpio_reg_base);
 		return ret;
