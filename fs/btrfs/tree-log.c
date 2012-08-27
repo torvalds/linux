@@ -3167,6 +3167,12 @@ next_slot:
 			err = ret;
 			goto out_unlock;
 		}
+	} else {
+		struct extent_map_tree *tree = &BTRFS_I(inode)->extent_tree;
+		struct extent_map *em, *n;
+
+		list_for_each_entry_safe(em, n, &tree->modified_extents, list)
+			list_del_init(&em->list);
 	}
 
 	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode)) {
