@@ -17,7 +17,6 @@
 #include <asm/mach/time.h>
 #include <mach/addr-map.h>
 #include <mach/regs-apbc.h>
-#include <mach/regs-apmu.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
 #include <mach/dma.h>
@@ -25,7 +24,6 @@
 #include <mach/devices.h>
 
 #include "common.h"
-#include "clock.h"
 
 #define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
 
@@ -82,44 +80,13 @@ void __init pxa910_init_irq(void)
 	icu_init_irq();
 }
 
-/* APB peripheral clocks */
-static APBC_CLK(uart1, PXA910_UART0, 1, 14745600);
-static APBC_CLK(uart2, PXA910_UART1, 1, 14745600);
-static APBC_CLK(twsi0, PXA168_TWSI0, 1, 33000000);
-static APBC_CLK(twsi1, PXA168_TWSI1, 1, 33000000);
-static APBC_CLK(pwm1, PXA910_PWM1, 1, 13000000);
-static APBC_CLK(pwm2, PXA910_PWM2, 1, 13000000);
-static APBC_CLK(pwm3, PXA910_PWM3, 1, 13000000);
-static APBC_CLK(pwm4, PXA910_PWM4, 1, 13000000);
-static APBC_CLK(gpio, PXA910_GPIO, 0, 13000000);
-static APBC_CLK(rtc, PXA910_RTC, 8, 32768);
-
-static APMU_CLK(nand, NAND, 0x19b, 156000000);
-static APMU_CLK(u2o, USB, 0x1b, 480000000);
-
-/* device and clock bindings */
-static struct clk_lookup pxa910_clkregs[] = {
-	INIT_CLKREG(&clk_uart1, "pxa2xx-uart.0", NULL),
-	INIT_CLKREG(&clk_uart2, "pxa2xx-uart.1", NULL),
-	INIT_CLKREG(&clk_twsi0, "pxa2xx-i2c.0", NULL),
-	INIT_CLKREG(&clk_twsi1, "pxa2xx-i2c.1", NULL),
-	INIT_CLKREG(&clk_pwm1, "pxa910-pwm.0", NULL),
-	INIT_CLKREG(&clk_pwm2, "pxa910-pwm.1", NULL),
-	INIT_CLKREG(&clk_pwm3, "pxa910-pwm.2", NULL),
-	INIT_CLKREG(&clk_pwm4, "pxa910-pwm.3", NULL),
-	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
-	INIT_CLKREG(&clk_gpio, "pxa-gpio", NULL),
-	INIT_CLKREG(&clk_u2o, NULL, "U2OCLK"),
-	INIT_CLKREG(&clk_rtc, "sa1100-rtc", NULL),
-};
-
 static int __init pxa910_init(void)
 {
 	if (cpu_is_pxa910()) {
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa910_mfp_addr_map);
 		pxa_init_dma(IRQ_PXA910_DMA_INT0, 32);
-		clkdev_add_table(ARRAY_AND_SIZE(pxa910_clkregs));
+		pxa910_clk_init();
 	}
 
 	return 0;
@@ -128,12 +95,13 @@ postcore_initcall(pxa910_init);
 
 /* system timer - clock enabled, 3.25MHz */
 #define TIMER_CLK_RST	(APBC_APBCLK | APBC_FNCLK | APBC_FNCLKSEL(3))
+#define APBC_TIMERS	APBC_REG(0x34)
 
 static void __init pxa910_timer_init(void)
 {
 	/* reset and configure */
-	__raw_writel(APBC_APBCLK | APBC_RST, APBC_PXA910_TIMERS);
-	__raw_writel(TIMER_CLK_RST, APBC_PXA910_TIMERS);
+	__raw_writel(APBC_APBCLK | APBC_RST, APBC_TIMERS);
+	__raw_writel(TIMER_CLK_RST, APBC_TIMERS);
 
 	timer_init(IRQ_PXA910_AP1_TIMER1);
 }
