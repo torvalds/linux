@@ -4791,6 +4791,7 @@ sys_perfmonctl (int fd, int cmd, void __user *arg, int count)
 	int narg, completed_args = 0, call_made = 0, cmd_flags;
 	int (*func)(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs);
 	int (*getsize)(void *arg, size_t *sz);
+	int fput_needed;
 #define PFM_MAX_ARGSIZE	4096
 
 	/*
@@ -4879,7 +4880,7 @@ restart_args:
 
 	ret = -EBADF;
 
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (unlikely(file == NULL)) {
 		DPRINT(("invalid fd %d\n", fd));
 		goto error_args;
@@ -4920,7 +4921,7 @@ abort_locked:
 
 error_args:
 	if (file)
-		fput(file);
+		fput_light(file, fput_needed);
 
 	kfree(args_k);
 
