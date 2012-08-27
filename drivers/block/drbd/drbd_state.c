@@ -1187,21 +1187,25 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	   state change. This function might sleep */
 
 	if (ns.susp_nod) {
+		struct drbd_tconn *tconn = mdev->tconn;
 		enum drbd_req_event what = NOTHING;
 
-		if (os.conn < C_CONNECTED && conn_lowest_conn(mdev->tconn) >= C_CONNECTED)
+		spin_lock_irq(&tconn->req_lock);
+		if (os.conn < C_CONNECTED && conn_lowest_conn(tconn) >= C_CONNECTED)
 			what = RESEND;
 
 		if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
-		    conn_lowest_disk(mdev->tconn) > D_NEGOTIATING)
+		    conn_lowest_disk(tconn) > D_NEGOTIATING)
 			what = RESTART_FROZEN_DISK_IO;
 
-		if (what != NOTHING) {
-			spin_lock_irq(&mdev->tconn->req_lock);
-			_tl_restart(mdev->tconn, what);
-			_drbd_set_state(_NS(mdev, susp_nod, 0), CS_VERBOSE, NULL);
-			spin_unlock_irq(&mdev->tconn->req_lock);
+		if (tconn->susp_nod && what != NOTHING) {
+			_tl_restart(tconn, what);
+			_conn_request_state(tconn,
+					    (union drbd_state) { { .susp_nod = 1 } },
+					    (union drbd_state) { { .susp_nod = 0 } },
+					    CS_VERBOSE);
 		}
+		spin_unlock_irq(&tconn->req_lock);
 	}
 
 	if (ns.susp_fen) {
