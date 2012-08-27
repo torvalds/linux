@@ -33,8 +33,8 @@ enum rk_plls_id {
 #define CRU_GLB_CNT_TH		(0x140)
 
 /*PLL_CON 0,1,2*/
-#define PLL_PWR_ON			(1)
-#define PLL_PWR_DN			(0)
+#define PLL_PWR_ON			(0)
+#define PLL_PWR_DN			(1)
 #define PLL_BYPASS			(1 << 15)
 #define PLL_NO_BYPASS			(0 << 15)
 //con0

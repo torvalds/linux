@@ -545,6 +545,7 @@ static void pll_wait_lock(int pll_idx)
 		while(1);
 	}
 }
+
 static int pll_clk_mode(struct clk *clk, int on)
 {
 	u8 pll_id = clk->pll->id;
@@ -554,13 +555,13 @@ static int pll_clk_mode(struct clk *clk, int on)
 	CLKDATA_DBG("pll_mode %s(%d)\n", clk->name, on);
 	//FIXME
 	if (on) {
-		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_ON, PLL_LOCK_SHIFT), PLL_CONS(pll_id, 1));
+		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_ON, PLL_BYPASS_SHIFT), PLL_CONS(pll_id, 0));
 		rk_clock_udelay(dly);
 		pll_wait_lock(pll_id);
 		cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
 	} else {
 		cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
-		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_DN, PLL_LOCK_SHIFT), PLL_CONS(pll_id, 1));
+		cru_writel(CRU_W_MSK_SETBIT(PLL_PWR_DN, PLL_BYPASS_SHIFT), PLL_CONS(pll_id, 0));
 	}
 	return 0;
 }
