@@ -2120,6 +2120,8 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 #ifdef CONFIG_ARCH_RK2928
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON5);
     *otg_phy_con1 = (0x01<<16);    // exit suspend.
+    // inno phy config
+    *(unsigned int *)(USBGRF_UOC0_CON5+4) = 0x07e00350;
 #endif
     #if 0
     *otg_phy_con1 |= (0x01<<2);
