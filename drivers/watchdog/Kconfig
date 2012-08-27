@@ -75,7 +75,6 @@ config WM8350_WATCHDOG
 
 config RK29_WATCHDOG
 	tristate "RK29 watchdog"
-	depends on ARCH_RK29
 	help
 	  Watchdog timer embedded into RK29xx chips. This will reboot your
 	  system when the timeout is reached.
