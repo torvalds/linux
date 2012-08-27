@@ -270,8 +270,8 @@ static int vtbl_check(const struct ubi_device *ubi,
 
 			if (len1 > 0 && len1 == len2 &&
 			    !strncmp(vtbl[i].name, vtbl[n].name, len1)) {
-				ubi_err("volumes %d and %d have the same name"
-					" \"%s\"", i, n, vtbl[i].name);
+				ubi_err("volumes %d and %d have the same name \"%s\"",
+					i, n, vtbl[i].name);
 				ubi_dump_vtbl_record(&vtbl[i], i);
 				ubi_dump_vtbl_record(&vtbl[n], n);
 				return -EINVAL;
@@ -562,8 +562,8 @@ static int init_volumes(struct ubi_device *ubi,
 		if (vtbl[i].flags & UBI_VTBL_AUTORESIZE_FLG) {
 			/* Auto re-size flag may be set only for one volume */
 			if (ubi->autoresize_vol_id != -1) {
-				ubi_err("more than one auto-resize volume (%d "
-					"and %d)", ubi->autoresize_vol_id, i);
+				ubi_err("more than one auto-resize volume (%d and %d)",
+					ubi->autoresize_vol_id, i);
 				kfree(vol);
 				return -EINVAL;
 			}

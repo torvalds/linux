@@ -378,8 +378,8 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 			if (err == UBI_IO_BITFLIPS)
 				bitflips = 1;
 			else {
-				ubi_err("VID of PEB %d header is bad, but it "
-					"was OK earlier, err %d", pnum, err);
+				ubi_err("VID of PEB %d header is bad, but it was OK earlier, err %d",
+					pnum, err);
 				if (err > 0)
 					err = -EIO;
 
@@ -790,9 +790,9 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	if (ubi_check_pattern(ubi->peb_buf, 0xFF, ubi->leb_size))
 		goto out_unlock;
 
-	ubi_err("PEB %d contains corrupted VID header, and the data does not "
-		"contain all 0xFF, this may be a non-UBI PEB or a severe VID "
-		"header corruption which requires manual inspection", pnum);
+	ubi_err("PEB %d contains corrupted VID header, and the data does not contain all 0xFF",
+		pnum);
+	ubi_err("this may be a non-UBI PEB or a severe VID header corruption which requires manual inspection");
 	ubi_dump_vid_hdr(vid_hdr);
 	dbg_msg("hexdump of PEB %d offset %d, length %d",
 		pnum, ubi->leb_start, ubi->leb_size);
@@ -907,8 +907,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			ubi->image_seq = image_seq;
 		if (ubi->image_seq && image_seq &&
 		    ubi->image_seq != image_seq) {
-			ubi_err("bad image sequence number %d in PEB %d, "
-				"expected %d", image_seq, pnum, ubi->image_seq);
+			ubi_err("bad image sequence number %d in PEB %d, expected %d",
+				image_seq, pnum, ubi->image_seq);
 			ubi_dump_ec_hdr(ech);
 			return -EINVAL;
 		}
@@ -997,8 +997,8 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		/* Unsupported internal volume */
 		switch (vidh->compat) {
 		case UBI_COMPAT_DELETE:
-			ubi_msg("\"delete\" compatible internal volume %d:%d"
-				" found, will remove it", vol_id, lnum);
+			ubi_msg("\"delete\" compatible internal volume %d:%d found, will remove it",
+				vol_id, lnum);
 			err = add_to_list(ai, pnum, vol_id, lnum,
 					  ec, 1, &ai->erase);
 			if (err)
@@ -1006,15 +1006,14 @@ static int scan_peb(struct ubi_device *ubi, struct ubi_attach_info *ai,
 			return 0;
 
 		case UBI_COMPAT_RO:
-			ubi_msg("read-only compatible internal volume %d:%d"
-				" found, switch to read-only mode",
+			ubi_msg("read-only compatible internal volume %d:%d found, switch to read-only mode",
 				vol_id, lnum);
 			ubi->ro_mode = 1;
 			break;
 
 		case UBI_COMPAT_PRESERVE:
-			ubi_msg("\"preserve\" compatible internal volume %d:%d"
-				" found", vol_id, lnum);
+			ubi_msg("\"preserve\" compatible internal volume %d:%d found",
+				vol_id, lnum);
 			err = add_to_list(ai, pnum, vol_id, lnum,
 					  ec, 0, &ai->alien);
 			if (err)
@@ -1112,8 +1111,7 @@ static int late_analysis(struct ubi_device *ubi, struct ubi_attach_info *ai)
 			get_random_bytes(&ubi->image_seq,
 					 sizeof(ubi->image_seq));
 		} else {
-			ubi_err("MTD device is not UBI-formatted and possibly "
-				"contains non-UBI data - refusing it");
+			ubi_err("MTD device is not UBI-formatted and possibly contains non-UBI data - refusing it");
 			return -EINVAL;
 		}
 

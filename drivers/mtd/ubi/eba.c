@@ -420,9 +420,8 @@ retry:
 				 */
 				if (err == UBI_IO_BAD_HDR_EBADMSG ||
 				    err == UBI_IO_BAD_HDR) {
-					ubi_warn("corrupted VID header at PEB "
-						 "%d, LEB %d:%d", pnum, vol_id,
-						 lnum);
+					ubi_warn("corrupted VID header at PEB %d, LEB %d:%d",
+						 pnum, vol_id, lnum);
 					err = -EBADMSG;
 				} else
 					ubi_ro_mode(ubi);
@@ -660,9 +659,8 @@ retry:
 	if (len) {
 		err = ubi_io_write_data(ubi, buf, pnum, offset, len);
 		if (err) {
-			ubi_warn("failed to write %d bytes at offset %d of "
-				 "LEB %d:%d, PEB %d", len, offset, vol_id,
-				 lnum, pnum);
+			ubi_warn("failed to write %d bytes at offset %d of LEB %d:%d, PEB %d",
+				 len, offset, vol_id, lnum, pnum);
 			goto write_error;
 		}
 	}
@@ -1040,9 +1038,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * cancel it.
 	 */
 	if (vol->eba_tbl[lnum] != from) {
-		dbg_wl("LEB %d:%d is no longer mapped to PEB %d, mapped to "
-		       "PEB %d, cancel", vol_id, lnum, from,
-		       vol->eba_tbl[lnum]);
+		dbg_wl("LEB %d:%d is no longer mapped to PEB %d, mapped to PEB %d, cancel",
+		       vol_id, lnum, from, vol->eba_tbl[lnum]);
 		err = MOVE_CANCEL_RACE;
 		goto out_unlock_leb;
 	}
@@ -1107,8 +1104,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	err = ubi_io_read_vid_hdr(ubi, to, vid_hdr, 1);
 	if (err) {
 		if (err != UBI_IO_BITFLIPS) {
-			ubi_warn("error %d while reading VID header back from "
-				  "PEB %d", err, to);
+			ubi_warn("error %d while reading VID header back from PEB %d",
+				 err, to);
 			if (is_error_sane(err))
 				err = MOVE_TARGET_RD_ERR;
 		} else
@@ -1134,8 +1131,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		err = ubi_io_read_data(ubi, ubi->peb_buf, to, 0, aldata_size);
 		if (err) {
 			if (err != UBI_IO_BITFLIPS) {
-				ubi_warn("error %d while reading data back "
-					 "from PEB %d", err, to);
+				ubi_warn("error %d while reading data back from PEB %d",
+					 err, to);
 				if (is_error_sane(err))
 					err = MOVE_TARGET_RD_ERR;
 			} else
@@ -1146,8 +1143,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		cond_resched();
 
 		if (crc != crc32(UBI_CRC32_INIT, ubi->peb_buf, data_size)) {
-			ubi_warn("read data back from PEB %d and it is "
-				 "different", to);
+			ubi_warn("read data back from PEB %d and it is different",
+				 to);
 			err = -EINVAL;
 			goto out_unlock_buf;
 		}
@@ -1197,11 +1194,11 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 			return;
 	}
 
-	ubi_warn("cannot reserve enough PEBs for bad PEB handling, reserved %d,"
-		 " need %d", ubi->beb_rsvd_pebs, ubi->beb_rsvd_level);
+	ubi_warn("cannot reserve enough PEBs for bad PEB handling, reserved %d, need %d",
+		 ubi->beb_rsvd_pebs, ubi->beb_rsvd_level);
 	if (ubi->corr_peb_count)
 		ubi_warn("%d PEBs are corrupted and not used",
-			ubi->corr_peb_count);
+			 ubi->corr_peb_count);
 }
 
 /**

@@ -140,9 +140,9 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		vol->updating = 0;
 		vfree(vol->upd_buf);
 	} else if (vol->changing_leb) {
-		dbg_gen("only %lld of %lld bytes received for atomic LEB change"
-			" for volume %d:%d, cancel", vol->upd_received,
-			vol->upd_bytes, vol->ubi->ubi_num, vol->vol_id);
+		dbg_gen("only %lld of %lld bytes received for atomic LEB change for volume %d:%d, cancel",
+			vol->upd_received, vol->upd_bytes, vol->ubi->ubi_num,
+			vol->vol_id);
 		vol->changing_leb = 0;
 		vfree(vol->upd_buf);
 	}
@@ -189,7 +189,8 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 	return new_offset;
 }
 
-static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end, int datasync)
+static int vol_cdev_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_device *ubi = desc->vol->ubi;
