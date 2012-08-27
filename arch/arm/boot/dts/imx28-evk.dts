@@ -145,6 +145,10 @@
 				status = "okay";
 			};
 
+			lradc@80050000 {
+				status = "okay";
+			};
+
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
