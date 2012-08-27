@@ -20,6 +20,8 @@ struct extent_map {
 	/* all of these are in bytes */
 	u64 start;
 	u64 len;
+	u64 mod_start;
+	u64 mod_len;
 	u64 orig_start;
 	u64 block_start;
 	u64 block_len;

@@ -2833,8 +2833,8 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
-	u64 start = em->start;
-	u64 len = em->len;
+	u64 start = em->mod_start;
+	u64 len = em->mod_len;
 	u64 num_bytes;
 	int nritems;
 	int ret;
@@ -2970,7 +2970,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
 		 * sequential then we need to copy the items we have and redo
 		 * our search
 		 */
-		if (args.nr && em->start != args.next_offset) {
+		if (args.nr && em->mod_start != args.next_offset) {
 			ret = copy_items(trans, log, dst_path, args.src,
 					 args.start_slot, args.nr,
 					 LOG_INODE_ALL);
