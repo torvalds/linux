@@ -15,6 +15,7 @@ ifeq ($(CONFIG_COMMON_CLK), y)
 obj-$(CONFIG_ARCH_MMP)		+= mmp/
 endif
 obj-$(CONFIG_MACH_LOONGSON1)	+= clk-ls1x.o
+obj-$(CONFIG_ARCH_U8500)	+= ux500/
 
 # Chip specific
 obj-$(CONFIG_COMMON_CLK_WM831X) += clk-wm831x.o
