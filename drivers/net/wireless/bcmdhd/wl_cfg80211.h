@@ -153,6 +153,8 @@ do {									\
 #define WL_SCB_TIMEOUT 20
 #endif
 
+#define WLAN_REASON_DRIVER_ERROR 	WLAN_REASON_UNSPECIFIED
+
 /* driver status */
 enum wl_status {
 	WL_STATUS_READY = 0,

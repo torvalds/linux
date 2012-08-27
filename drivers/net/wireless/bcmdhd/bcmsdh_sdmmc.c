@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.c 344243 2012-07-12 00:06:23Z $
+ * $Id: bcmsdh_sdmmc.c 351910 2012-08-21 22:39:46Z $
  */
 #include <typedefs.h>
 
@@ -1020,7 +1020,13 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 				pkt_len -= xfred_len;
 				xfred_len = 0;
 			}
-			pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
+
+			/* Align Patch */
+			if (!write || pkt_len < 32)
+				pkt_len = (pkt_len + 3) & 0xFFFFFFFC;
+			else if (pkt_len % DHD_SDALIGN)
+				pkt_len += DHD_SDALIGN - (pkt_len % DHD_SDALIGN);
+
 #ifdef CONFIG_MMC_MSM7X00A
 			if ((pkt_len % 64) == 32) {
 				sd_trace(("%s: Rounding up TX packet +=32\n", __FUNCTION__));
