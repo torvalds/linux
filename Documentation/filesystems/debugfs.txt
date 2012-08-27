@@ -15,8 +15,8 @@ Debugfs is typically mounted with a command like:
     mount -t debugfs none /sys/kernel/debug
 
 (Or an equivalent /etc/fstab line).
-The debugfs root directory is accessible by anyone by default. To
-restrict access to the tree the "uid", "gid" and "mode" mount
+The debugfs root directory is accessible only to the root user by
+default. To change access to the tree the "uid", "gid" and "mode" mount
 options can be used.
 
 Note that the debugfs API is exported GPL-only to modules.
