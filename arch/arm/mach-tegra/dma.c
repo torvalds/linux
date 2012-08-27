@@ -31,7 +31,6 @@
 #include <mach/dma.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
-#include <mach/suspend.h>
 
 #include "apbio.h"
 
