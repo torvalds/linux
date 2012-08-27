@@ -242,6 +242,7 @@ void cfg80211_notify_new_peer_candidate(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
+	trace_cfg80211_notify_new_peer_candidate(dev, macaddr);
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_MESH_POINT))
 		return;
 

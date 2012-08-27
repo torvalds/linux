@@ -1741,6 +1741,542 @@ TRACE_EVENT(rdev_return_channel,
 		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->type)
 );
 
+/*************************************************************
+ *	     cfg80211 exported functions traces		     *
+ *************************************************************/
+
+TRACE_EVENT(cfg80211_return_bool,
+	TP_PROTO(bool ret),
+	TP_ARGS(ret),
+	TP_STRUCT__entry(
+		__field(bool, ret)
+	),
+	TP_fast_assign(
+		__entry->ret = ret;
+	),
+	TP_printk("returned %s", BOOL_TO_STR(__entry->ret))
+);
+
+DECLARE_EVENT_CLASS(cfg80211_netdev_mac_evt,
+	TP_PROTO(struct net_device *netdev, const u8 *macaddr),
+	TP_ARGS(netdev, macaddr),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(macaddr)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(macaddr, macaddr);
+	),
+	TP_printk(NETDEV_PR_FMT ", mac: " MAC_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(macaddr))
+);
+
+DEFINE_EVENT(cfg80211_netdev_mac_evt, cfg80211_notify_new_peer_candidate,
+	TP_PROTO(struct net_device *netdev, const u8 *macaddr),
+	TP_ARGS(netdev, macaddr)
+);
+
+DECLARE_EVENT_CLASS(netdev_evt_only,
+	TP_PROTO(struct net_device *netdev),
+	TP_ARGS(netdev),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+	),
+	TP_printk(NETDEV_PR_FMT , NETDEV_PR_ARG)
+);
+
+DEFINE_EVENT(netdev_evt_only, cfg80211_send_rx_auth,
+	TP_PROTO(struct net_device *netdev),
+	TP_ARGS(netdev)
+);
+
+TRACE_EVENT(cfg80211_send_rx_assoc,
+	TP_PROTO(struct net_device *netdev, struct cfg80211_bss *bss),
+	TP_ARGS(netdev, bss),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(bssid)
+		CHAN_ENTRY
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(bssid, bss->bssid);
+		CHAN_ASSIGN(bss->channel);
+	),
+	TP_printk(NETDEV_PR_FMT MAC_PR_FMT CHAN_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(bssid), CHAN_PR_ARG)
+);
+
+DEFINE_EVENT(netdev_evt_only, __cfg80211_send_deauth,
+	TP_PROTO(struct net_device *netdev),
+	TP_ARGS(netdev)
+);
+
+DEFINE_EVENT(netdev_evt_only, __cfg80211_send_disassoc,
+	TP_PROTO(struct net_device *netdev),
+	TP_ARGS(netdev)
+);
+
+DEFINE_EVENT(netdev_evt_only, cfg80211_send_unprot_deauth,
+	TP_PROTO(struct net_device *netdev),
+	TP_ARGS(netdev)
+);
+
+DEFINE_EVENT(netdev_evt_only, cfg80211_send_unprot_disassoc,
+	TP_PROTO(struct net_device *netdev),
+	TP_ARGS(netdev)
+);
+
+DECLARE_EVENT_CLASS(netdev_mac_evt,
+	TP_PROTO(struct net_device *netdev, const u8 *mac),
+	TP_ARGS(netdev, mac),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(mac)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(mac, mac)
+	),
+	TP_printk(NETDEV_PR_FMT ", mac: " MAC_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(mac))
+);
+
+DEFINE_EVENT(netdev_mac_evt, cfg80211_send_auth_timeout,
+	TP_PROTO(struct net_device *netdev, const u8 *mac),
+	TP_ARGS(netdev, mac)
+);
+
+DEFINE_EVENT(netdev_mac_evt, cfg80211_send_assoc_timeout,
+	TP_PROTO(struct net_device *netdev, const u8 *mac),
+	TP_ARGS(netdev, mac)
+);
+
+TRACE_EVENT(cfg80211_michael_mic_failure,
+	TP_PROTO(struct net_device *netdev, const u8 *addr,
+		 enum nl80211_key_type key_type, int key_id, const u8 *tsc),
+	TP_ARGS(netdev, addr, key_type, key_id, tsc),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+		__field(enum nl80211_key_type, key_type)
+		__field(int, key_id)
+		__array(u8, tsc, 6)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+		__entry->key_type = key_type;
+		__entry->key_id = key_id;
+		memcpy(__entry->tsc, tsc, 6);
+	),
+	TP_printk(NETDEV_PR_FMT MAC_PR_FMT ", key type: %d, key id: %d, tsc: %pm",
+		  NETDEV_PR_ARG, MAC_PR_ARG(addr), __entry->key_type,
+		  __entry->key_id, __entry->tsc)
+);
+
+TRACE_EVENT(cfg80211_ready_on_channel,
+	TP_PROTO(struct wireless_dev *wdev, u64 cookie,
+		 struct ieee80211_channel *chan,
+		 enum nl80211_channel_type channel_type, unsigned int duration),
+	TP_ARGS(wdev, cookie, chan, channel_type, duration),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u64, cookie)
+		CHAN_ENTRY
+		__field(enum nl80211_channel_type, channel_type)
+		__field(unsigned int, duration)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->cookie = cookie;
+		CHAN_ASSIGN(chan);
+		__entry->channel_type = channel_type;
+		__entry->duration = duration;
+	),
+	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT ", channel type: %d, duration: %u",
+		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG,
+		  __entry->channel_type, __entry->duration)
+);
+
+TRACE_EVENT(cfg80211_ready_on_channel_expired,
+	TP_PROTO(struct wireless_dev *wdev, u64 cookie,
+		 struct ieee80211_channel *chan,
+		 enum nl80211_channel_type channel_type),
+	TP_ARGS(wdev, cookie, chan, channel_type),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u64, cookie)
+		CHAN_ENTRY
+		__field(enum nl80211_channel_type, channel_type)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->cookie = cookie;
+		CHAN_ASSIGN(chan);
+		__entry->channel_type = channel_type;
+	),
+	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT ", channel type: %d",
+		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG,
+		  __entry->channel_type)
+);
+
+TRACE_EVENT(cfg80211_new_sta,
+	TP_PROTO(struct net_device *netdev, const u8 *mac_addr,
+		 struct station_info *sinfo),
+	TP_ARGS(netdev, mac_addr, sinfo),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(mac_addr)
+		SINFO_ENTRY
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(mac_addr, mac_addr);
+		SINFO_ASSIGN;
+	),
+	TP_printk(NETDEV_PR_FMT MAC_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(mac_addr))
+);
+
+DEFINE_EVENT(cfg80211_netdev_mac_evt, cfg80211_del_sta,
+	TP_PROTO(struct net_device *netdev, const u8 *macaddr),
+	TP_ARGS(netdev, macaddr)
+);
+
+TRACE_EVENT(cfg80211_rx_mgmt,
+	TP_PROTO(struct wireless_dev *wdev, int freq, int sig_mbm),
+	TP_ARGS(wdev, freq, sig_mbm),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(int, freq)
+		__field(int, sig_mbm)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->freq = freq;
+		__entry->sig_mbm = sig_mbm;
+	),
+	TP_printk(WDEV_PR_FMT ", freq: %d, sig mbm: %d",
+		  WDEV_PR_ARG, __entry->freq, __entry->sig_mbm)
+);
+
+TRACE_EVENT(cfg80211_mgmt_tx_status,
+	TP_PROTO(struct wireless_dev *wdev, u64 cookie, bool ack),
+	TP_ARGS(wdev, cookie, ack),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u64, cookie)
+		__field(bool, ack)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->cookie = cookie;
+		__entry->ack = ack;
+	),
+	TP_printk(WDEV_PR_FMT", cookie: %llu, ack: %s",
+		  WDEV_PR_ARG, __entry->cookie, BOOL_TO_STR(__entry->ack))
+);
+
+TRACE_EVENT(cfg80211_cqm_rssi_notify,
+	TP_PROTO(struct net_device *netdev,
+		 enum nl80211_cqm_rssi_threshold_event rssi_event),
+	TP_ARGS(netdev, rssi_event),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		__field(enum nl80211_cqm_rssi_threshold_event, rssi_event)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		__entry->rssi_event = rssi_event;
+	),
+	TP_printk(NETDEV_PR_FMT ", rssi event: %d",
+		  NETDEV_PR_ARG, __entry->rssi_event)
+);
+
+TRACE_EVENT(cfg80211_can_beacon_sec_chan,
+	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *channel,
+		 enum nl80211_channel_type channel_type),
+	TP_ARGS(wiphy, channel, channel_type),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_ENTRY
+		__field(enum nl80211_channel_type, channel_type)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_ASSIGN(channel);
+		__entry->channel_type = channel_type;
+	),
+	TP_printk(WIPHY_PR_FMT CHAN_PR_FMT ", channel_type: %d",
+		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->channel_type)
+);
+
+TRACE_EVENT(cfg80211_ch_switch_notify,
+	TP_PROTO(struct net_device *netdev, int freq,
+		 enum nl80211_channel_type type),
+	TP_ARGS(netdev, freq, type),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		__field(int, freq)
+		__field(enum nl80211_channel_type, type)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		__entry->freq = freq;
+		__entry->type = type;
+	),
+	TP_printk(NETDEV_PR_FMT ", freq: %d, type: %d", NETDEV_PR_ARG,
+		  __entry->freq, __entry->type)
+);
+
+DECLARE_EVENT_CLASS(cfg80211_rx_evt,
+	TP_PROTO(struct net_device *netdev, const u8 *addr),
+	TP_ARGS(netdev, addr),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+	),
+	TP_printk(NETDEV_PR_FMT MAC_PR_FMT, NETDEV_PR_ARG, MAC_PR_ARG(addr))
+);
+
+DEFINE_EVENT(cfg80211_rx_evt, cfg80211_ibss_joined,
+	TP_PROTO(struct net_device *netdev, const u8 *addr),
+	TP_ARGS(netdev, addr)
+);
+
+DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_spurious_frame,
+	TP_PROTO(struct net_device *netdev, const u8 *addr),
+	TP_ARGS(netdev, addr)
+);
+
+DEFINE_EVENT(cfg80211_rx_evt, cfg80211_rx_unexpected_4addr_frame,
+	TP_PROTO(struct net_device *netdev, const u8 *addr),
+	TP_ARGS(netdev, addr)
+);
+
+TRACE_EVENT(cfg80211_probe_status,
+	TP_PROTO(struct net_device *netdev, const u8 *addr, u64 cookie,
+		 bool acked),
+	TP_ARGS(netdev, addr, cookie, acked),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+		__field(u64, cookie)
+		__field(bool, acked)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+		__entry->cookie = cookie;
+		__entry->acked = acked;
+	),
+	TP_printk(NETDEV_PR_FMT MAC_PR_FMT ", cookie: %llu, acked: %s",
+		  NETDEV_PR_ARG, MAC_PR_ARG(addr), __entry->cookie,
+		  BOOL_TO_STR(__entry->acked))
+);
+
+TRACE_EVENT(cfg80211_cqm_pktloss_notify,
+	TP_PROTO(struct net_device *netdev, const u8 *peer, u32 num_packets),
+	TP_ARGS(netdev, peer, num_packets),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(peer)
+		__field(u32, num_packets)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(peer, peer);
+		__entry->num_packets = num_packets;
+	),
+	TP_printk(NETDEV_PR_FMT ", peer: " MAC_PR_FMT ", num of lost packets: %u",
+		  NETDEV_PR_ARG, MAC_PR_ARG(peer), __entry->num_packets)
+);
+
+DEFINE_EVENT(cfg80211_netdev_mac_evt, cfg80211_gtk_rekey_notify,
+	TP_PROTO(struct net_device *netdev, const u8 *macaddr),
+	TP_ARGS(netdev, macaddr)
+);
+
+TRACE_EVENT(cfg80211_pmksa_candidate_notify,
+	TP_PROTO(struct net_device *netdev, int index, const u8 *bssid,
+		 bool preauth),
+	TP_ARGS(netdev, index, bssid, preauth),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		__field(int, index)
+		MAC_ENTRY(bssid)
+		__field(bool, preauth)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		__entry->index = index;
+		MAC_ASSIGN(bssid, bssid);
+		__entry->preauth = preauth;
+	),
+	TP_printk(NETDEV_PR_FMT ", index:%d, bssid: " MAC_PR_FMT ", pre auth: %s",
+		  NETDEV_PR_ARG, __entry->index, MAC_PR_ARG(bssid),
+		  BOOL_TO_STR(__entry->preauth))
+);
+
+TRACE_EVENT(cfg80211_report_obss_beacon,
+	TP_PROTO(struct wiphy *wiphy, const u8 *frame, size_t len,
+		 int freq, int sig_dbm),
+	TP_ARGS(wiphy, frame, len, freq, sig_dbm),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(int, freq)
+		__field(int, sig_dbm)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->freq = freq;
+		__entry->sig_dbm = sig_dbm;
+	),
+	TP_printk(WIPHY_PR_FMT ", freq: %d, sig_dbm: %d",
+		  WIPHY_PR_ARG, __entry->freq, __entry->sig_dbm)
+);
+
+TRACE_EVENT(cfg80211_scan_done,
+	TP_PROTO(struct cfg80211_scan_request *request, bool aborted),
+	TP_ARGS(request, aborted),
+	TP_STRUCT__entry(
+		__field(u32, n_channels)
+		__dynamic_array(u8, ie, request ? request->ie_len : 0)
+		__array(u32, rates, IEEE80211_NUM_BANDS)
+		__field(u32, wdev_id)
+		MAC_ENTRY(wiphy_mac)
+		__field(bool, no_cck)
+		__field(bool, aborted)
+	),
+	TP_fast_assign(
+		if (request) {
+			memcpy(__get_dynamic_array(ie), request->ie,
+			       request->ie_len);
+			memcpy(__entry->rates, request->rates,
+			       IEEE80211_NUM_BANDS);
+			__entry->wdev_id = request->wdev ?
+					request->wdev->identifier : 0;
+			if (request->wiphy)
+				MAC_ASSIGN(wiphy_mac,
+					   request->wiphy->perm_addr);
+			__entry->no_cck = request->no_cck;
+		}
+		__entry->aborted = aborted;
+	),
+	TP_printk("aborted: %s", BOOL_TO_STR(__entry->aborted))
+);
+
+DEFINE_EVENT(wiphy_only_evt, cfg80211_sched_scan_results,
+	TP_PROTO(struct wiphy *wiphy),
+	TP_ARGS(wiphy)
+);
+
+DEFINE_EVENT(wiphy_only_evt, cfg80211_sched_scan_stopped,
+	TP_PROTO(struct wiphy *wiphy),
+	TP_ARGS(wiphy)
+);
+
+TRACE_EVENT(cfg80211_get_bss,
+	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *channel,
+		 const u8 *bssid, const u8 *ssid, size_t ssid_len,
+		 u16 capa_mask, u16 capa_val),
+	TP_ARGS(wiphy, channel, bssid, ssid, ssid_len, capa_mask, capa_val),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_ENTRY
+		MAC_ENTRY(bssid)
+		__dynamic_array(u8, ssid, ssid_len)
+		__field(u16, capa_mask)
+		__field(u16, capa_val)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_ASSIGN(channel);
+		MAC_ASSIGN(bssid, bssid);
+		memcpy(__get_dynamic_array(ssid), ssid, ssid_len);
+		__entry->capa_mask = capa_mask;
+		__entry->capa_val = capa_val;
+	),
+	TP_printk(WIPHY_PR_FMT CHAN_PR_FMT MAC_PR_FMT ", buf: %#.2x, "
+		  "capa_mask: %d, capa_val: %u", WIPHY_PR_ARG, CHAN_PR_ARG,
+		  MAC_PR_ARG(bssid), ((u8 *)__get_dynamic_array(ssid))[0],
+		  __entry->capa_mask, __entry->capa_val)
+);
+
+TRACE_EVENT(cfg80211_inform_bss_frame,
+	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *channel,
+		 struct ieee80211_mgmt *mgmt, size_t len,
+		 s32 signal),
+	TP_ARGS(wiphy, channel, mgmt, len, signal),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_ENTRY
+		__dynamic_array(u8, mgmt, len)
+		__field(s32, signal)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_ASSIGN(channel);
+		if (mgmt)
+			memcpy(__get_dynamic_array(mgmt), mgmt, len);
+		__entry->signal = signal;
+	),
+	TP_printk(WIPHY_PR_FMT CHAN_PR_FMT "signal: %d",
+		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->signal)
+);
+
+DECLARE_EVENT_CLASS(cfg80211_bss_evt,
+	TP_PROTO(struct cfg80211_bss *pub),
+	TP_ARGS(pub),
+	TP_STRUCT__entry(
+		MAC_ENTRY(bssid)
+		CHAN_ENTRY
+	),
+	TP_fast_assign(
+		MAC_ASSIGN(bssid, pub->bssid);
+		CHAN_ASSIGN(pub->channel);
+	),
+	TP_printk(MAC_PR_FMT CHAN_PR_FMT, MAC_PR_ARG(bssid), CHAN_PR_ARG)
+);
+
+DEFINE_EVENT(cfg80211_bss_evt, cfg80211_return_bss,
+	TP_PROTO(struct cfg80211_bss *pub),
+	TP_ARGS(pub)
+);
+
+TRACE_EVENT(cfg80211_return_uint,
+	TP_PROTO(unsigned int ret),
+	TP_ARGS(ret),
+	TP_STRUCT__entry(
+		__field(unsigned int, ret)
+	),
+	TP_fast_assign(
+		__entry->ret = ret;
+	),
+	TP_printk("ret: %d", __entry->ret)
+);
+
+TRACE_EVENT(cfg80211_return_u32,
+	TP_PROTO(u32 ret),
+	TP_ARGS(ret),
+	TP_STRUCT__entry(
+		__field(u32, ret)
+	),
+	TP_fast_assign(
+		__entry->ret = ret;
+	),
+	TP_printk("ret: %u", __entry->ret)
+);
+
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

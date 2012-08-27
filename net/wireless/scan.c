@@ -145,6 +145,7 @@ void __cfg80211_scan_done(struct work_struct *wk)
 
 void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 {
+	trace_cfg80211_scan_done(request, aborted);
 	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
 
 	request->aborted = aborted;
@@ -182,6 +183,7 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 
 void cfg80211_sched_scan_results(struct wiphy *wiphy)
 {
+	trace_cfg80211_sched_scan_results(wiphy);
 	/* ignore if we're not scanning */
 	if (wiphy_to_dev(wiphy)->sched_scan_req)
 		queue_work(cfg80211_wq,
@@ -192,6 +194,8 @@ EXPORT_SYMBOL(cfg80211_sched_scan_results);
 void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	trace_cfg80211_sched_scan_stopped(wiphy);
 
 	mutex_lock(&rdev->sched_scan_mtx);
 	__cfg80211_stop_sched_scan(rdev, true);
@@ -485,6 +489,9 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 	struct cfg80211_internal_bss *bss, *res = NULL;
 	unsigned long now = jiffies;
 
+	trace_cfg80211_get_bss(wiphy, channel, bssid, ssid, ssid_len, capa_mask,
+			       capa_val);
+
 	spin_lock_bh(&dev->bss_lock);
 
 	list_for_each_entry(bss, &dev->bss_list, list) {
@@ -506,6 +513,7 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 	spin_unlock_bh(&dev->bss_lock);
 	if (!res)
 		return NULL;
+	trace_cfg80211_return_bss(&res->pub);
 	return &res->pub;
 }
 EXPORT_SYMBOL(cfg80211_get_bss);
@@ -818,6 +826,7 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 	if (res->pub.capability & WLAN_CAPABILITY_ESS)
 		regulatory_hint_found_beacon(wiphy, channel, gfp);
 
+	trace_cfg80211_return_bss(&res->pub);
 	/* cfg80211_bss_update gives us a referenced result */
 	return &res->pub;
 }
@@ -830,9 +839,12 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  s32 signal, gfp_t gfp)
 {
 	struct cfg80211_internal_bss *res;
+
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
 	size_t privsz;
+
+	trace_cfg80211_inform_bss_frame(wiphy, channel, mgmt, len, signal);
 
 	if (WARN_ON(!mgmt))
 		return NULL;
@@ -887,6 +899,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	if (res->pub.capability & WLAN_CAPABILITY_ESS)
 		regulatory_hint_found_beacon(wiphy, channel, gfp);
 
+	trace_cfg80211_return_bss(&res->pub);
 	/* cfg80211_bss_update gives us a referenced result */
 	return &res->pub;
 }

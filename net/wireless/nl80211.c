@@ -8876,7 +8876,10 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
 	void *hdr;
 	int err;
 
+	trace_cfg80211_probe_status(dev, addr, cookie, acked);
+
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, gfp);
+
 	if (!msg)
 		return;
 
@@ -8917,6 +8920,8 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 	struct sk_buff *msg;
 	void *hdr;
 	u32 nlportid = ACCESS_ONCE(rdev->ap_beacons_nlportid);
+
+	trace_cfg80211_report_obss_beacon(wiphy, frame, len, freq, sig_dbm);
 
 	if (!nlportid)
 		return;

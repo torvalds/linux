@@ -62,6 +62,8 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid, gfp_t gfp)
 	struct cfg80211_event *ev;
 	unsigned long flags;
 
+	trace_cfg80211_ibss_joined(dev, bssid);
+
 	CFG80211_DEV_WARN_ON(wdev->sme_state != CFG80211_SME_CONNECTING);
 
 	ev = kzalloc(sizeof(*ev), gfp);
