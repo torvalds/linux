@@ -4610,28 +4610,6 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	return ret;
 }
 
-struct btrfs_device *btrfs_find_device_for_logical(struct btrfs_root *root,
-						   u64 logical, int mirror_num)
-{
-	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
-	int ret;
-	u64 map_length = 0;
-	struct btrfs_bio *bbio = NULL;
-	struct btrfs_device *device;
-
-	BUG_ON(mirror_num == 0);
-	ret = btrfs_map_block(map_tree, WRITE, logical, &map_length, &bbio,
-			      mirror_num);
-	if (ret) {
-		BUG_ON(bbio != NULL);
-		return NULL;
-	}
-	BUG_ON(mirror_num != bbio->mirror_num);
-	device = bbio->stripes[mirror_num - 1].dev;
-	kfree(bbio);
-	return device;
-}
-
 int btrfs_read_chunk_tree(struct btrfs_root *root)
 {
 	struct btrfs_path *path;
