@@ -585,21 +585,8 @@ static struct pci_driver geode_aes_driver = {
 	.remove = __devexit_p(geode_aes_remove)
 };
 
-static int __init
-geode_aes_init(void)
-{
-	return pci_register_driver(&geode_aes_driver);
-}
-
-static void __exit
-geode_aes_exit(void)
-{
-	pci_unregister_driver(&geode_aes_driver);
-}
+module_pci_driver(geode_aes_driver);
 
 MODULE_AUTHOR("Advanced Micro Devices, Inc.");
 MODULE_DESCRIPTION("Geode LX Hardware AES driver");
 MODULE_LICENSE("GPL");
-
-module_init(geode_aes_init);
-module_exit(geode_aes_exit);
