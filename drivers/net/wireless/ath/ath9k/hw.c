@@ -463,9 +463,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.spurchans[i][1] = AR_NO_SPUR;
 	}
 
-	/* PAPRD needs some more work to be enabled */
-	ah->config.paprd_disable = 1;
-
 	ah->config.rx_intr_mitigation = true;
 	ah->config.pcieSerDesWrite = true;
 
