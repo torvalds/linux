@@ -420,7 +420,7 @@ int dvb_usercopy(struct file *file,
 	/* call driver */
 	mutex_lock(&dvbdev_mutex);
 	if ((err = func(file, cmd, parg)) == -ENOIOCTLCMD)
-		err = -EINVAL;
+		err = -ENOTTY;
 	mutex_unlock(&dvbdev_mutex);
 
 	if (err < 0)
