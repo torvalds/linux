@@ -1662,19 +1662,19 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 				continue;
 			}
 			if (!dbg_is_all_ff(p, len)) {
-				dbg_msg("invalid empty space in LEB %d at %d",
-					lnum, c->leb_size - len);
+				ubifs_err("invalid empty space in LEB %d at %d",
+					  lnum, c->leb_size - len);
 				err = -EINVAL;
 			}
 			i = lnum - c->lpt_first;
 			if (len != c->ltab[i].free) {
-				dbg_msg("invalid free space in LEB %d (free %d, expected %d)",
-					lnum, len, c->ltab[i].free);
+				ubifs_err("invalid free space in LEB %d (free %d, expected %d)",
+					  lnum, len, c->ltab[i].free);
 				err = -EINVAL;
 			}
 			if (dirty != c->ltab[i].dirty) {
-				dbg_msg("invalid dirty space in LEB %d (dirty %d, expected %d)",
-					lnum, dirty, c->ltab[i].dirty);
+				ubifs_err("invalid dirty space in LEB %d (dirty %d, expected %d)",
+					  lnum, dirty, c->ltab[i].dirty);
 				err = -EINVAL;
 			}
 			goto out;

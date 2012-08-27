@@ -1311,7 +1311,7 @@ out:
 	ubifs_err("error %d reading pnode at %d:%d", err, lnum, offs);
 	ubifs_dump_pnode(c, pnode, parent, iip);
 	dump_stack();
-	dbg_msg("calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
+	ubifs_err("calc num: %d", calc_pnode_num_from_parent(c, parent, iip));
 	kfree(pnode);
 	return err;
 }

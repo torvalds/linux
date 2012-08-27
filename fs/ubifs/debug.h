@@ -176,11 +176,6 @@ struct ubifs_global_debug_info {
 		 dbg_snprintf_key(c, key, __tmp_key_buf, DBG_KEY_BUF_LEN));    \
 } while (0)
 
-/* Just a debugging messages not related to any specific UBIFS subsystem */
-#define dbg_msg(fmt, ...)                                                      \
-	pr_err("UBIFS DBG (pid %d): %s: " fmt "\n", current->pid,              \
-	       __func__, ##__VA_ARGS__)
-
 /* General messages */
 #define dbg_gen(fmt, ...)   ubifs_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Additional journal messages */

@@ -141,7 +141,7 @@ static int set_bud_lprops(struct ubifs_info *c, struct bud_entry *b)
 		 * during the replay.
 		 */
 		if (dirty != 0)
-			dbg_msg("LEB %d lp: %d free %d dirty replay: %d free %d dirty",
+			dbg_mnt("LEB %d lp: %d free %d dirty replay: %d free %d dirty",
 				b->bud->lnum, lp->free, lp->dirty, b->free,
 				b->dirty);
 	}

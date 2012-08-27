@@ -1160,7 +1160,7 @@ static int check_free_space(struct ubifs_info *c)
 static int mount_ubifs(struct ubifs_info *c)
 {
 	int err;
-	long long x;
+	long long x, y;
 	size_t sz;
 
 	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
@@ -1410,74 +1410,69 @@ static int mount_ubifs(struct ubifs_info *c)
 
 	c->mounting = 0;
 
-	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
-		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
-	if (c->ro_mount)
-		ubifs_msg("mounted read-only");
+	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"%s",
+		  c->vi.ubi_num, c->vi.vol_id, c->vi.name,
+		  c->ro_mount ? ", R/O mode" : NULL);
 	x = (long long)c->main_lebs * c->leb_size;
-	ubifs_msg("file system size:   %lld bytes (%lld KiB, %lld MiB, %d LEBs)",
-		  x, x >> 10, x >> 20, c->main_lebs);
-	x = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
-	ubifs_msg("journal size:       %lld bytes (%lld KiB, %lld MiB, %d LEBs)",
-		  x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
-	ubifs_msg("media format:       w%d/r%d (latest is w%d/r%d)",
+	y = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
+	ubifs_msg("LEB size: %d bytes (%d KiB), min./max. I/O unit sizes: %d bytes/%d bytes",
+		  c->leb_size, c->leb_size >> 10, c->min_io_size,
+		  c->max_write_size);
+	ubifs_msg("FS size: %lld bytes (%lld MiB, %d LEBs), journal size %lld bytes (%lld MiB, %d LEBs)",
+		  x, x >> 20, c->main_lebs,
+		  y, y >> 20, c->log_lebs + c->max_bud_cnt);
+	ubifs_msg("reserved for root: %llu bytes (%llu KiB)",
+		  c->report_rp_size, c->report_rp_size >> 10);
+	ubifs_msg("media format: w%d/r%d (latest is w%d/r%d), UUID %pUB%s",
 		  c->fmt_version, c->ro_compat_version,
-		  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION);
-	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
-	ubifs_msg("reserved for root:  %llu bytes (%llu KiB)",
-		c->report_rp_size, c->report_rp_size >> 10);
+		  UBIFS_FORMAT_VERSION, UBIFS_RO_COMPAT_VERSION, c->uuid,
+		  c->big_lpt ? ", big LPT model" : ", small LPT model");
 
-	dbg_msg("min. I/O unit size:  %d bytes", c->min_io_size);
-	dbg_msg("max. write size:     %d bytes", c->max_write_size);
-	dbg_msg("LEB size:            %d bytes (%d KiB)",
-		c->leb_size, c->leb_size >> 10);
-	dbg_msg("data journal heads:  %d",
+	dbg_gen("default compressor:  %s", ubifs_compr_name(c->default_compr));
+	dbg_gen("data journal heads:  %d",
 		c->jhead_cnt - NONDATA_JHEADS_CNT);
-	dbg_msg("UUID:                %pUB", c->uuid);
-	dbg_msg("big_lpt              %d", c->big_lpt);
-	dbg_msg("log LEBs:            %d (%d - %d)",
+	dbg_gen("log LEBs:            %d (%d - %d)",
 		c->log_lebs, UBIFS_LOG_LNUM, c->log_last);
-	dbg_msg("LPT area LEBs:       %d (%d - %d)",
+	dbg_gen("LPT area LEBs:       %d (%d - %d)",
 		c->lpt_lebs, c->lpt_first, c->lpt_last);
-	dbg_msg("orphan area LEBs:    %d (%d - %d)",
+	dbg_gen("orphan area LEBs:    %d (%d - %d)",
 		c->orph_lebs, c->orph_first, c->orph_last);
-	dbg_msg("main area LEBs:      %d (%d - %d)",
+	dbg_gen("main area LEBs:      %d (%d - %d)",
 		c->main_lebs, c->main_first, c->leb_cnt - 1);
-	dbg_msg("index LEBs:          %d", c->lst.idx_lebs);
-	dbg_msg("total index bytes:   %lld (%lld KiB, %lld MiB)",
+	dbg_gen("index LEBs:          %d", c->lst.idx_lebs);
+	dbg_gen("total index bytes:   %lld (%lld KiB, %lld MiB)",
 		c->bi.old_idx_sz, c->bi.old_idx_sz >> 10,
 		c->bi.old_idx_sz >> 20);
-	dbg_msg("key hash type:       %d", c->key_hash_type);
-	dbg_msg("tree fanout:         %d", c->fanout);
-	dbg_msg("reserved GC LEB:     %d", c->gc_lnum);
-	dbg_msg("first main LEB:      %d", c->main_first);
-	dbg_msg("max. znode size      %d", c->max_znode_sz);
-	dbg_msg("max. index node size %d", c->max_idx_node_sz);
-	dbg_msg("node sizes:          data %zu, inode %zu, dentry %zu",
+	dbg_gen("key hash type:       %d", c->key_hash_type);
+	dbg_gen("tree fanout:         %d", c->fanout);
+	dbg_gen("reserved GC LEB:     %d", c->gc_lnum);
+	dbg_gen("max. znode size      %d", c->max_znode_sz);
+	dbg_gen("max. index node size %d", c->max_idx_node_sz);
+	dbg_gen("node sizes:          data %zu, inode %zu, dentry %zu",
 		UBIFS_DATA_NODE_SZ, UBIFS_INO_NODE_SZ, UBIFS_DENT_NODE_SZ);
-	dbg_msg("node sizes:          trun %zu, sb %zu, master %zu",
+	dbg_gen("node sizes:          trun %zu, sb %zu, master %zu",
 		UBIFS_TRUN_NODE_SZ, UBIFS_SB_NODE_SZ, UBIFS_MST_NODE_SZ);
-	dbg_msg("node sizes:          ref %zu, cmt. start %zu, orph %zu",
+	dbg_gen("node sizes:          ref %zu, cmt. start %zu, orph %zu",
 		UBIFS_REF_NODE_SZ, UBIFS_CS_NODE_SZ, UBIFS_ORPH_NODE_SZ);
-	dbg_msg("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
+	dbg_gen("max. node sizes:     data %zu, inode %zu dentry %zu, idx %d",
 		UBIFS_MAX_DATA_NODE_SZ, UBIFS_MAX_INO_NODE_SZ,
 		UBIFS_MAX_DENT_NODE_SZ, ubifs_idx_node_sz(c, c->fanout));
-	dbg_msg("dead watermark:      %d", c->dead_wm);
-	dbg_msg("dark watermark:      %d", c->dark_wm);
-	dbg_msg("LEB overhead:        %d", c->leb_overhead);
+	dbg_gen("dead watermark:      %d", c->dead_wm);
+	dbg_gen("dark watermark:      %d", c->dark_wm);
+	dbg_gen("LEB overhead:        %d", c->leb_overhead);
 	x = (long long)c->main_lebs * c->dark_wm;
-	dbg_msg("max. dark space:     %lld (%lld KiB, %lld MiB)",
+	dbg_gen("max. dark space:     %lld (%lld KiB, %lld MiB)",
 		x, x >> 10, x >> 20);
-	dbg_msg("maximum bud bytes:   %lld (%lld KiB, %lld MiB)",
+	dbg_gen("maximum bud bytes:   %lld (%lld KiB, %lld MiB)",
 		c->max_bud_bytes, c->max_bud_bytes >> 10,
 		c->max_bud_bytes >> 20);
-	dbg_msg("BG commit bud bytes: %lld (%lld KiB, %lld MiB)",
+	dbg_gen("BG commit bud bytes: %lld (%lld KiB, %lld MiB)",
 		c->bg_bud_bytes, c->bg_bud_bytes >> 10,
 		c->bg_bud_bytes >> 20);
-	dbg_msg("current bud bytes    %lld (%lld KiB, %lld MiB)",
+	dbg_gen("current bud bytes    %lld (%lld KiB, %lld MiB)",
 		c->bud_bytes, c->bud_bytes >> 10, c->bud_bytes >> 20);
-	dbg_msg("max. seq. number:    %llu", c->max_sqnum);
-	dbg_msg("commit number:       %llu", c->cmt_no);
+	dbg_gen("max. seq. number:    %llu", c->max_sqnum);
+	dbg_gen("commit number:       %llu", c->cmt_no);
 
 	return 0;
 

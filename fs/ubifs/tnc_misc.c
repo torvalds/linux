@@ -328,8 +328,8 @@ static int read_znode(struct ubifs_info *c, int lnum, int offs, int len,
 		case UBIFS_XENT_KEY:
 			break;
 		default:
-			dbg_msg("bad key type at slot %d: %d",
-				i, key_type(c, &zbr->key));
+			ubifs_err("bad key type at slot %d: %d",
+				  i, key_type(c, &zbr->key));
 			err = 3;
 			goto out_dump;
 		}
