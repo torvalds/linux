@@ -24,6 +24,7 @@
 #include <mach/cpuidle.h>
 
 #include "clock.h"
+#include "asp.h"
 
 #define DA8XX_TPCC_BASE			0x01c00000
 #define DA8XX_TPTC0_BASE		0x01c08000

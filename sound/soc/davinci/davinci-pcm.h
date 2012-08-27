@@ -12,9 +12,8 @@
 #ifndef _DAVINCI_PCM_H
 #define _DAVINCI_PCM_H
 
+#include <linux/platform_data/davinci_asp.h>
 #include <mach/edma.h>
-#include <mach/asp.h>
-
 
 struct davinci_pcm_dma_params {
 	int channel;			/* sync dma channel ID */

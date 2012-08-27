@@ -23,7 +23,6 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
-#include <mach/edma.h>
 #include <mach/sram.h>
 
 #include "davinci-pcm.h"

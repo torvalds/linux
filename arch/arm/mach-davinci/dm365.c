@@ -29,7 +29,6 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
-#include <mach/asp.h>
 #include <mach/keyscan.h>
 #include <mach/spi.h>
 #include <mach/gpio-davinci.h>
@@ -37,6 +36,7 @@
 #include "davinci.h"
 #include "clock.h"
 #include "mux.h"
+#include "asp.h"
 
 #define DM365_REF_FREQ		24000000	/* 24 MHz on the DM365 EVM */
 

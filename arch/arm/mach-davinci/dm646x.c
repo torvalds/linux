@@ -24,12 +24,12 @@
 #include <mach/time.h>
 #include <mach/serial.h>
 #include <mach/common.h>
-#include <mach/asp.h>
 #include <mach/gpio-davinci.h>
 
 #include "davinci.h"
 #include "clock.h"
 #include "mux.h"
+#include "asp.h"
 
 #define DAVINCI_VPIF_BASE       (0x01C12000)
 

@@ -16,11 +16,11 @@
 #include <linux/platform_device.h>
 #include <linux/davinci_emac.h>
 #include <linux/spi/spi.h>
+#include <linux/platform_data/davinci_asp.h>
 
 #include <mach/serial.h>
 #include <mach/edma.h>
 #include <mach/i2c.h>
-#include <mach/asp.h>
 #include <mach/mmc.h>
 #include <mach/usb.h>
 #include <mach/pm.h>
