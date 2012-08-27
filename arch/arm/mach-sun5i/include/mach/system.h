@@ -36,7 +36,6 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
-#if 0
 enum sw_ic_ver {
 	MAGIC_VER_A = 0,
 	MAGIC_VER_B,
@@ -44,7 +43,6 @@ enum sw_ic_ver {
 };
 
 enum sw_ic_ver sw_get_ic_ver(void);
-#endif
 
 struct sw_chip_id
 {
