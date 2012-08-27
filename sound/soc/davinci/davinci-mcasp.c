@@ -22,6 +22,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -856,6 +859,114 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 
 };
 
+static const struct of_device_id mcasp_dt_ids[] = {
+	{
+		.compatible = "ti,dm646x-mcasp-audio",
+		.data = (void *)MCASP_VERSION_1,
+	},
+	{
+		.compatible = "ti,da830-mcasp-audio",
+		.data = (void *)MCASP_VERSION_2,
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mcasp_dt_ids);
+
+static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
+						struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct snd_platform_data *pdata = NULL;
+	const struct of_device_id *match =
+			of_match_device(of_match_ptr(mcasp_dt_ids), &pdev->dev);
+
+	const u32 *of_serial_dir32;
+	u8 *of_serial_dir;
+	u32 val;
+	int i, ret = 0;
+
+	if (pdev->dev.platform_data) {
+		pdata = pdev->dev.platform_data;
+		return pdata;
+	} else if (match) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			ret = -ENOMEM;
+			goto nodata;
+		}
+	} else {
+		/* control shouldn't reach here. something is wrong */
+		ret = -EINVAL;
+		goto nodata;
+	}
+
+	if (match->data)
+		pdata->version = (u8)((int)match->data);
+
+	ret = of_property_read_u32(np, "op-mode", &val);
+	if (ret >= 0)
+		pdata->op_mode = val;
+
+	ret = of_property_read_u32(np, "tdm-slots", &val);
+	if (ret >= 0)
+		pdata->tdm_slots = val;
+
+	ret = of_property_read_u32(np, "num-serializer", &val);
+	if (ret >= 0)
+		pdata->num_serializer = val;
+
+	of_serial_dir32 = of_get_property(np, "serial-dir", &val);
+	val /= sizeof(u32);
+	if (val != pdata->num_serializer) {
+		dev_err(&pdev->dev,
+				"num-serializer(%d) != serial-dir size(%d)\n",
+				pdata->num_serializer, val);
+		ret = -EINVAL;
+		goto nodata;
+	}
+
+	if (of_serial_dir32) {
+		of_serial_dir = devm_kzalloc(&pdev->dev,
+						(sizeof(*of_serial_dir) * val),
+						GFP_KERNEL);
+		if (!of_serial_dir) {
+			ret = -ENOMEM;
+			goto nodata;
+		}
+
+		for (i = 0; i < pdata->num_serializer; i++)
+			of_serial_dir[i] = be32_to_cpup(&of_serial_dir32[i]);
+
+		pdata->serial_dir = of_serial_dir;
+	}
+
+	ret = of_property_read_u32(np, "tx-num-evt", &val);
+	if (ret >= 0)
+		pdata->txnumevt = val;
+
+	ret = of_property_read_u32(np, "rx-num-evt", &val);
+	if (ret >= 0)
+		pdata->rxnumevt = val;
+
+	ret = of_property_read_u32(np, "sram-size-playback", &val);
+	if (ret >= 0)
+		pdata->sram_size_playback = val;
+
+	ret = of_property_read_u32(np, "sram-size-capture", &val);
+	if (ret >= 0)
+		pdata->sram_size_capture = val;
+
+	return  pdata;
+
+nodata:
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Error populating platform data, err %d\n",
+			ret);
+		pdata = NULL;
+	}
+	return  pdata;
+}
+
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct davinci_pcm_dma_params *dma_data;
@@ -864,10 +975,21 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	struct davinci_audio_dev *dev;
 	int ret;
 
+	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
+		dev_err(&pdev->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
+
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_audio_dev),
 			   GFP_KERNEL);
 	if (!dev)
 		return	-ENOMEM;
+
+	pdata = davinci_mcasp_set_pdata_from_of(pdev);
+	if (!pdata) {
+		dev_err(&pdev->dev, "no platform data\n");
+		return -EINVAL;
+	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
@@ -882,7 +1004,6 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 
-	pdata = pdev->dev.platform_data;
 	pm_runtime_enable(&pdev->dev);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
@@ -980,6 +1101,7 @@ static struct platform_driver davinci_mcasp_driver = {
 	.driver		= {
 		.name	= "davinci-mcasp",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(mcasp_dt_ids),
 	},
 };
 
