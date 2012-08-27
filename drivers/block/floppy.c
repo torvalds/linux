@@ -4109,12 +4109,19 @@ static struct platform_driver floppy_driver = {
 
 static struct platform_device floppy_device[N_DRIVE];
 
+static bool floppy_available(int drive)
+{
+	if (!(allowed_drive_mask & (1 << drive)))
+		return false;
+	if (fdc_state[FDC(drive)].version == FDC_NONE)
+		return false;
+	return true;
+}
+
 static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 {
 	int drive = (*part & 3) | ((*part & 0x80) >> 5);
-	if (drive >= N_DRIVE ||
-	    !(allowed_drive_mask & (1 << drive)) ||
-	    fdc_state[FDC(drive)].version == FDC_NONE)
+	if (drive >= N_DRIVE || !floppy_available(drive))
 		return NULL;
 	if (((*part >> 2) & 0x1f) >= ARRAY_SIZE(floppy_type))
 		return NULL;
@@ -4281,9 +4288,7 @@ static int __init do_floppy_init(void)
 	}
 
 	for (drive = 0; drive < N_DRIVE; drive++) {
-		if (!(allowed_drive_mask & (1 << drive)))
-			continue;
-		if (fdc_state[FDC(drive)].version == FDC_NONE)
+		if (!floppy_available(drive))
 			continue;
 
 		floppy_device[drive].name = floppy_device_name;
@@ -4312,8 +4317,7 @@ out_unreg_platform_dev:
 	platform_device_unregister(&floppy_device[drive]);
 out_remove_drives:
 	while (drive--) {
-		if ((allowed_drive_mask & (1 << drive)) &&
-		    fdc_state[FDC(drive)].version != FDC_NONE) {
+		if (floppy_available(drive)) {
 			del_gendisk(disks[drive]);
 			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
 			platform_device_unregister(&floppy_device[drive]);
@@ -4558,8 +4562,7 @@ static void __exit floppy_module_exit(void)
 	for (drive = 0; drive < N_DRIVE; drive++) {
 		del_timer_sync(&motor_off_timer[drive]);
 
-		if ((allowed_drive_mask & (1 << drive)) &&
-		    fdc_state[FDC(drive)].version != FDC_NONE) {
+		if (floppy_available(drive)) {
 			del_gendisk(disks[drive]);
 			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
 			platform_device_unregister(&floppy_device[drive]);
