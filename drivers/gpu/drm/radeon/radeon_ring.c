@@ -706,6 +706,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	if (radeon_debugfs_ring_init(rdev, ring)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
+	radeon_ring_lockup_update(ring);
 	return 0;
 }
 

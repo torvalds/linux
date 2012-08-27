@@ -26,6 +26,7 @@ static int sync_request(struct page *page, struct block_device *bdev, int rw)
 	struct completion complete;
 
 	bio_init(&bio);
+	bio.bi_max_vecs = 1;
 	bio.bi_io_vec = &bio_vec;
 	bio_vec.bv_page = page;
 	bio_vec.bv_len = PAGE_SIZE;
@@ -95,12 +96,11 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 	struct address_space *mapping = super->s_mapping_inode->i_mapping;
 	struct bio *bio;
 	struct page *page;
-	struct request_queue *q = bdev_get_queue(sb->s_bdev);
-	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
+	unsigned int max_pages;
 	int i;
 
-	if (max_pages > BIO_MAX_PAGES)
-		max_pages = BIO_MAX_PAGES;
+	max_pages = min(nr_pages, (size_t) bio_get_nr_vecs(super->s_bdev));
+
 	bio = bio_alloc(GFP_NOFS, max_pages);
 	BUG_ON(!bio);
 
@@ -190,12 +190,11 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct bio *bio;
-	struct request_queue *q = bdev_get_queue(sb->s_bdev);
-	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
+	unsigned int max_pages;
 	int i;
 
-	if (max_pages > BIO_MAX_PAGES)
-		max_pages = BIO_MAX_PAGES;
+	max_pages = min(nr_pages, (size_t) bio_get_nr_vecs(super->s_bdev));
+
 	bio = bio_alloc(GFP_NOFS, max_pages);
 	BUG_ON(!bio);
 

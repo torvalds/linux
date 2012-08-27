@@ -261,7 +261,10 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 		pte_flags |= GEN6_PTE_CACHE_LLC;
 		break;
 	case I915_CACHE_NONE:
-		pte_flags |= GEN6_PTE_UNCACHED;
+		if (IS_HASWELL(dev))
+			pte_flags |= HSW_PTE_UNCACHED;
+		else
+			pte_flags |= GEN6_PTE_UNCACHED;
 		break;
 	default:
 		BUG();
