@@ -2100,6 +2100,8 @@ static int kdb_dmesg(int argc, const char **argv)
 		}
 		if (!lines--)
 			break;
+		if (KDB_FLAG(CMD_INTERRUPT))
+			return 0;
 
 		kdb_printf("%.*s\n", (int)len - 1, buf);
 	}
