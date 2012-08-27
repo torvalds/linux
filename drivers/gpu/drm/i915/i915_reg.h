@@ -115,6 +115,7 @@
 
 #define GEN6_PTE_VALID			(1 << 0)
 #define GEN6_PTE_UNCACHED		(1 << 1)
+#define HSW_PTE_UNCACHED		(0)
 #define GEN6_PTE_CACHE_LLC		(2 << 1)
 #define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
 #define GEN6_PTE_CACHE_BITS		(3 << 1)

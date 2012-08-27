@@ -1,12 +1,31 @@
 menuconfig PWM
-	bool "PWM Support"
+	bool "Pulse-Width Modulation (PWM) Support"
 	depends on !MACH_JZ4740 && !PUV3_PWM
 	help
-	  This enables PWM support through the generic PWM framework.
-	  You only need to enable this, if you also want to enable
-	  one or more of the PWM drivers below.
+	  Generic Pulse-Width Modulation (PWM) support.
 
-	  If unsure, say N.
+	  In Pulse-Width Modulation, a variation of the width of pulses
+	  in a rectangular pulse signal is used as a means to alter the
+	  average power of the signal. Applications include efficient
+	  power delivery and voltage regulation. In computer systems,
+	  PWMs are commonly used to control fans or the brightness of
+	  display backlights.
+
+	  This framework provides a generic interface to PWM devices
+	  within the Linux kernel. On the driver side it provides an API
+	  to register and unregister a PWM chip, an abstraction of a PWM
+	  controller, that supports one or more PWM devices. Client
+	  drivers can request PWM devices and use the generic framework
+	  to configure as well as enable and disable them.
+
+	  This generic framework replaces the legacy PWM framework which
+	  allows only a single driver implementing the required API. Not
+	  all legacy implementations have been ported to the framework
+	  yet. The framework provides an API that is backward compatible
+	  with the legacy framework so that existing client drivers
+	  continue to work as expected.
+
+	  If unsure, say no.
 
 if PWM
 
