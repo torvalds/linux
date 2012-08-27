@@ -666,7 +666,7 @@ void iscsit_release_cmd(struct iscsi_cmd *cmd)
 void iscsit_free_cmd(struct iscsi_cmd *cmd)
 {
 	/*
-	 * Determine if a struct se_cmd is assoicated with
+	 * Determine if a struct se_cmd is associated with
 	 * this struct iscsi_cmd.
 	 */
 	switch (cmd->iscsi_opcode) {

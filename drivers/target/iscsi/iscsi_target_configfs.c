@@ -235,7 +235,7 @@ static struct se_tpg_np *lio_target_call_addnptotpg(
 	 * iSER/SCTP (TODO, software emulation with osc-iwarp)
 	 * iSER/IB (TODO, hardware available)
 	 *
-	 * can be enabled with atributes under
+	 * can be enabled with attributes under
 	 * sys/kernel/config/iscsi/$IQN/$TPG/np/$IP:$PORT/
 	 *
 	 */
