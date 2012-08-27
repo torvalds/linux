@@ -51,12 +51,12 @@
 #define UBI_NAME_STR "ubi"
 
 /* Normal UBI messages */
-#define ubi_msg(fmt, ...) printk(KERN_NOTICE "UBI: " fmt "\n", ##__VA_ARGS__)
+#define ubi_msg(fmt, ...) pr_notice("UBI: " fmt "\n", ##__VA_ARGS__)
 /* UBI warning messages */
-#define ubi_warn(fmt, ...) printk(KERN_WARNING "UBI warning: %s: " fmt "\n", \
-				  __func__, ##__VA_ARGS__)
+#define ubi_warn(fmt, ...) pr_warn("UBI warning: %s: " fmt "\n",  \
+				   __func__, ##__VA_ARGS__)
 /* UBI error messages */
-#define ubi_err(fmt, ...) printk(KERN_ERR "UBI error: %s: " fmt "\n", \
+#define ubi_err(fmt, ...) pr_err("UBI error: %s: " fmt "\n",      \
 				 __func__, ##__VA_ARGS__)
 
 /* Background thread name pattern */

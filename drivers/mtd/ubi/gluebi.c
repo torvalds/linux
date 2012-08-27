@@ -41,7 +41,7 @@
 #include "ubi-media.h"
 
 #define err_msg(fmt, ...)                                   \
-	printk(KERN_DEBUG "gluebi (pid %d): %s: " fmt "\n", \
+	pr_err("gluebi (pid %d): %s: " fmt "\n",            \
 	       current->pid, __func__, ##__VA_ARGS__)
 
 /**
