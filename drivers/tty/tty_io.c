@@ -2774,7 +2774,7 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if (ld->ops->ioctl) {
 		retval = ld->ops->ioctl(tty, file, cmd, arg);
 		if (retval == -ENOIOCTLCMD)
-			retval = -EINVAL;
+			retval = -ENOTTY;
 	}
 	tty_ldisc_deref(ld);
 	return retval;
