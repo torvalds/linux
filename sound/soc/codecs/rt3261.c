@@ -1256,10 +1256,15 @@ static const struct snd_kcontrol_new rt3261_out_r_mix[] = {
 };
 
 static const struct snd_kcontrol_new rt3261_spo_l_mix[] = {
+#if 0 //org
 	SOC_DAPM_SINGLE("DAC R1 Switch", RT3261_SPO_L_MIXER,
 			RT3261_M_DAC_R1_SPM_L_SFT, 1, 1),
 	SOC_DAPM_SINGLE("DAC L1 Switch", RT3261_SPO_L_MIXER,
 			RT3261_M_DAC_L1_SPM_L_SFT, 1, 1),
+#else //bard 8-27
+	SOC_DAPM_SINGLE("DAC Switch", RT3261_DUMMY_SPKMIXER,
+			RT3261_M_DAC_R1_SPM_L_SFT, 1, 1),
+#endif
 	SOC_DAPM_SINGLE("SPKVOL R Switch", RT3261_SPO_L_MIXER,
 			RT3261_M_SV_R_SPM_L_SFT, 1, 1),
 	SOC_DAPM_SINGLE("SPKVOL L Switch", RT3261_SPO_L_MIXER,
@@ -1267,7 +1272,15 @@ static const struct snd_kcontrol_new rt3261_spo_l_mix[] = {
 	SOC_DAPM_SINGLE("BST1 Switch", RT3261_SPO_L_MIXER,
 			RT3261_M_BST1_SPM_L_SFT, 1, 1),
 };
+//bard 8-27 s
+static const struct snd_kcontrol_new rt3261_spo_dac_mix[] = {
+	SOC_DAPM_SINGLE("DAC R1 Switch", RT3261_SPO_L_MIXER,
+			RT3261_M_DAC_R1_SPM_L_SFT, 1, 1),
+	SOC_DAPM_SINGLE("DAC L1 Switch", RT3261_SPO_L_MIXER,
+			RT3261_M_DAC_L1_SPM_L_SFT, 1, 1),
 
+};
+//bard 8-27 e
 static const struct snd_kcontrol_new rt3261_spo_r_mix[] = {
 	SOC_DAPM_SINGLE("DAC R1 Switch", RT3261_SPO_R_MIXER,
 			RT3261_M_DAC_R1_SPM_R_SFT, 1, 1),
@@ -1487,9 +1500,18 @@ static int rt3261_spk_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
+	unsigned int val;
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
+//bard 8-26 s
+		val = snd_soc_read(codec, RT3261_PWR_DIG1);
+		if(val & (RT3261_PWR_DAC_L1 | RT3261_PWR_DAC_R1)) {
+			snd_soc_update_bits(codec, RT3261_PWR_DIG1,
+				RT3261_PWR_DAC_L1 | RT3261_PWR_DAC_R1,
+				RT3261_PWR_DAC_L1 | RT3261_PWR_DAC_R1);
+		}
+//bard 8-26 e
 		snd_soc_update_bits(codec, RT3261_PWR_DIG1,
 			RT3261_PWR_CLS_D, RT3261_PWR_CLS_D);
 		rt3261_index_update_bits(codec,
@@ -2066,6 +2088,8 @@ static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
 		0, rt3261_spo_l_mix, ARRAY_SIZE(rt3261_spo_l_mix)),
 	SND_SOC_DAPM_MIXER("SPOR MIX", SND_SOC_NOPM, 0,
 		0, rt3261_spo_r_mix, ARRAY_SIZE(rt3261_spo_r_mix)),
+	SND_SOC_DAPM_MIXER("DAC SPK", SND_SOC_NOPM, 0,
+		0, rt3261_spo_dac_mix, ARRAY_SIZE(rt3261_spo_dac_mix)), //bard 8-27
 	SND_SOC_DAPM_MIXER("HPO MIX", SND_SOC_NOPM, 0, 0,
 		rt3261_hpo_mix, ARRAY_SIZE(rt3261_hpo_mix)),
 	SND_SOC_DAPM_MIXER("LOUT MIX", SND_SOC_NOPM, 0, 0,
@@ -2375,9 +2399,14 @@ static const struct snd_soc_dapm_route rt3261_dapm_routes[] = {
 	{"HPOVOL R", NULL, "OUT MIXR"},
 	{"OUTVOL L", NULL, "OUT MIXL"},
 	{"OUTVOL R", NULL, "OUT MIXR"},
-
+#if 0//org
 	{"SPOL MIX", "DAC R1 Switch", "DAC R1"},
 	{"SPOL MIX", "DAC L1 Switch", "DAC L1"},
+#else //bard 8-27
+	{"SPOL MIX", "DAC Switch", "DAC SPK"},
+	{"DAC SPK", "DAC L1 Switch", "DAC L1"},
+	{"DAC SPK", "DAC R1 Switch", "DAC R1"},
+#endif
 	{"SPOL MIX", "SPKVOL R Switch", "SPKVOL R"},
 	{"SPOL MIX", "SPKVOL L Switch", "SPKVOL L"},
 	{"SPOL MIX", "BST1 Switch", "BST1"},

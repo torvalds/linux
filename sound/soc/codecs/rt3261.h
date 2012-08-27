@@ -24,6 +24,7 @@
 #define RT3261_MONO_OUT			0x04
 /* Dummy */
 #define RT3261_DUMMY_PR3F				0x05
+#define RT3261_DUMMY_SPKMIXER			0x06
 /* I/O - Input */
 #define RT3261_IN1_IN2				0x0d
 #define RT3261_IN3_IN4				0x0e

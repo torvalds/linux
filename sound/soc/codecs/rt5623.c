@@ -34,7 +34,11 @@
 #include <linux/vmalloc.h>
 #endif
 
+#define MODEM_ON 1
+#define MODEM_OFF 0
+
 static struct i2c_client *i2c_client;
+static int status;
 
 static int codec_write(struct i2c_client *client, unsigned int reg,
 			      unsigned int value)
@@ -92,20 +96,20 @@ struct rt5623_reg {
 static struct rt5623_reg init_data[] = {
 	{RT5623_PWR_MANAG_ADD3			, 0x8000},
 	{RT5623_PWR_MANAG_ADD2			, 0x2000},
-	{RT5623_LINE_IN_VOL				, 0xe808},
+	{RT5623_LINE_IN_VOL			, 0xe808},
 	{RT5623_STEREO_DAC_VOL			, 0x6808},
 	{RT5623_OUTPUT_MIXER_CTRL		, 0x1400},
 	{RT5623_ADC_REC_GAIN			, 0xf58b},
 	{RT5623_ADC_REC_MIXER			, 0x6f6f},
 	{RT5623_AUDIO_INTERFACE			, 0x8083},
-	{RT5623_STEREO_AD_DA_CLK_CTRL	, 0x0a2d},
+	{RT5623_STEREO_AD_DA_CLK_CTRL		, 0x0a2d},
 	{RT5623_PWR_MANAG_ADD1			, 0x8000},
 	{RT5623_PWR_MANAG_ADD2			, 0xb7f3},
 	{RT5623_PWR_MANAG_ADD3			, 0x90c0},
-	{RT5623_SPK_OUT_VOL				, 0x0000},
-	{RT5623_PLL_CTRL				, 0x481f},
+	{RT5623_SPK_OUT_VOL			, 0x0000},
+	{RT5623_PLL_CTRL			, 0x481f},
 	{RT5623_GLOBAL_CLK_CTRL_REG		, 0x8000},
-	{RT5623_STEREO_AD_DA_CLK_CTRL	, 0x3a2d},
+	{RT5623_STEREO_AD_DA_CLK_CTRL		, 0x3a2d},
 };
 #define RT5623_INIT_REG_NUM ARRAY_SIZE(init_data)
 
@@ -127,20 +131,28 @@ static int rt5623_reset(struct i2c_client *client)
 
 void rt5623_on(void)
 {
-	printk("enter %s\n",__func__);
-	rt5623_reset(i2c_client);
-	rt5623_reg_init(i2c_client);
+	if(status == MODEM_OFF)	
+	{
+		printk("enter %s\n",__func__);
+		rt5623_reset(i2c_client);
+		rt5623_reg_init(i2c_client);
+		status = MODEM_ON;
+	}
 }
 EXPORT_SYMBOL(rt5623_on);
 
 void rt5623_off(void)
 {
-	printk("enter %s\n",__func__);
-	codec_write(i2c_client, RT5623_SPK_OUT_VOL, 0x8080);
-	rt5623_reset(i2c_client);
-	codec_write(i2c_client, RT5623_PWR_MANAG_ADD3, 0x0000);
-	codec_write(i2c_client, RT5623_PWR_MANAG_ADD2, 0x0000);
-	codec_write(i2c_client, RT5623_PWR_MANAG_ADD1, 0x0000);
+	if(status == MODEM_ON)	
+	{
+		printk("enter %s\n",__func__);
+		codec_write(i2c_client, RT5623_SPK_OUT_VOL, 0x8080);
+		rt5623_reset(i2c_client);
+		codec_write(i2c_client, RT5623_PWR_MANAG_ADD3, 0x0000);
+		codec_write(i2c_client, RT5623_PWR_MANAG_ADD2, 0x0000);
+		codec_write(i2c_client, RT5623_PWR_MANAG_ADD1, 0x0000);
+		status = MODEM_OFF;
+	}
 }
 EXPORT_SYMBOL(rt5623_off);
 
@@ -163,9 +175,8 @@ static int __devinit rt5623_i2c_probe(struct i2c_client *i2c,
 
 	i2c_client = i2c;
 	rt5623_reset(i2c);
-
-	rt5623_on( );
-
+	status = MODEM_ON;
+	rt5623_off( );
 	return 0;
 }
 
