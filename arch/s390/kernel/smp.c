@@ -972,10 +972,6 @@ static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 	return notifier_from_errno(err);
 }
 
-static struct notifier_block __cpuinitdata smp_cpu_nb = {
-	.notifier_call = smp_cpu_notify,
-};
-
 static int __devinit smp_add_present_cpu(int cpu)
 {
 	struct cpu *c = &pcpu_devices[cpu].cpu;
@@ -1050,7 +1046,7 @@ static int __init s390_smp_init(void)
 {
 	int cpu, rc;
 
-	register_cpu_notifier(&smp_cpu_nb);
+	hotcpu_notifier(smp_cpu_notify, 0);
 #ifdef CONFIG_HOTPLUG_CPU
 	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
 	if (rc)
