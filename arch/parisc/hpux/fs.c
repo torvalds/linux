@@ -112,9 +112,9 @@ int hpux_getdents(unsigned int fd, struct hpux_dirent __user *dirent, unsigned i
 	struct file * file;
 	struct hpux_dirent __user * lastdirent;
 	struct getdents_callback buf;
-	int error = -EBADF;
+	int error = -EBADF, fput_needed;
 
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto out;
 
@@ -134,7 +134,7 @@ int hpux_getdents(unsigned int fd, struct hpux_dirent __user *dirent, unsigned i
 			error = count - buf.count;
 	}
 
-	fput(file);
+	fput_light(file, fput_needed);
 out:
 	return error;
 }
