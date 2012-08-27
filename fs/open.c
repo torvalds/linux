@@ -277,12 +277,12 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 SYSCALL_DEFINE(fallocate)(int fd, int mode, loff_t offset, loff_t len)
 {
 	struct file *file;
-	int error = -EBADF;
+	int error = -EBADF, fput_needed;
 
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (file) {
 		error = do_fallocate(file, mode, offset, len);
-		fput(file);
+		fput_light(file, fput_needed);
 	}
 
 	return error;
