@@ -1750,6 +1750,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	struct inode *inode = NULL;
 	ssize_t ret = -EINVAL;
 	int live_threshold;
+	int fput_needed;
 
 	if (reg->hr_bdev)
 		goto out;
@@ -1766,7 +1767,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	if (fd < 0 || fd >= INT_MAX)
 		goto out;
 
-	filp = fget(fd);
+	filp = fget_light(fd, &fput_needed);
 	if (filp == NULL)
 		goto out;
 
@@ -1884,7 +1885,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 
 out:
 	if (filp)
-		fput(filp);
+		fput_light(filp, fput_needed);
 	if (inode)
 		iput(inode);
 	if (ret < 0) {
