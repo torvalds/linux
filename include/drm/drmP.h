@@ -348,7 +348,6 @@ struct drm_buf {
 	struct drm_buf *next;	       /**< Kernel-only: used for free list */
 	__volatile__ int waiting;      /**< On kernel DMA queue */
 	__volatile__ int pending;      /**< On hardware DMA queue */
-	wait_queue_head_t dma_wait;    /**< Processes waiting */
 	struct drm_file *file_priv;    /**< Private of holding file descr */
 	int context;		       /**< Kernel queue for this buffer */
 	int while_locked;	       /**< Dispatch this buffer while locked */
@@ -876,12 +875,6 @@ struct drm_driver {
 	void (*irq_preinstall) (struct drm_device *dev);
 	int (*irq_postinstall) (struct drm_device *dev);
 	void (*irq_uninstall) (struct drm_device *dev);
-	void (*reclaim_buffers) (struct drm_device *dev,
-				 struct drm_file * file_priv);
-	void (*reclaim_buffers_locked) (struct drm_device *dev,
-					struct drm_file *file_priv);
-	void (*reclaim_buffers_idlelocked) (struct drm_device *dev,
-					    struct drm_file *file_priv);
 	void (*set_version) (struct drm_device *dev,
 			     struct drm_set_version *sv);
 
@@ -1108,12 +1101,8 @@ struct drm_device {
 
 	/*@} */
 
-	/** \name DMA queues (contexts) */
+	/** \name DMA support */
 	/*@{ */
-	int queue_count;		/**< Number of active DMA queues */
-	int queue_reserved;		  /**< Number of reserved DMA queues */
-	int queue_slots;		/**< Actual length of queuelist */
-	struct drm_queue **queuelist;	/**< Vector of pointers to DMA queues */
 	struct drm_device_dma *dma;		/**< Optional pointer for DMA support */
 	/*@} */
 
@@ -1540,7 +1529,6 @@ extern int drm_debugfs_cleanup(struct drm_minor *minor);
 				/* Info file support */
 extern int drm_name_info(struct seq_file *m, void *data);
 extern int drm_vm_info(struct seq_file *m, void *data);
-extern int drm_queues_info(struct seq_file *m, void *data);
 extern int drm_bufs_info(struct seq_file *m, void *data);
 extern int drm_vblank_info(struct seq_file *m, void *data);
 extern int drm_clients_info(struct seq_file *m, void* data);
@@ -1761,6 +1749,11 @@ extern int drm_get_pci_dev(struct pci_dev *pdev,
 			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
 
+#define DRM_PCIE_SPEED_25 1
+#define DRM_PCIE_SPEED_50 2
+#define DRM_PCIE_SPEED_80 4
+
+extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
 
 /* platform section */
 extern int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device);

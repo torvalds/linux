@@ -15,8 +15,8 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7476.h"
 
@@ -31,7 +31,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 
 	rxbuf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (rxbuf == NULL)
-		return -ENOMEM;
+		goto done;
 
 	b_sent = spi_read(st->spi, rxbuf,
 			  st->chip_info->channel[0].scan_type.storagebits / 8);
@@ -52,51 +52,13 @@ done:
 	return IRQ_HANDLED;
 }
 
-static const struct iio_buffer_setup_ops ad7476_ring_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
 int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	struct ad7476_state *st = iio_priv(indio_dev);
-	int ret = 0;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc
-		= iio_alloc_pollfunc(NULL,
-				     &ad7476_trigger_handler,
-				     IRQF_ONESHOT,
-				     indio_dev,
-				     "%s_consumer%d",
-				     spi_get_device_id(st->spi)->name,
-				     indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_kfifo;
-	}
-
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad7476_ring_setup_ops;
-	indio_dev->buffer->scan_timestamp = true;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_kfifo:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, NULL,
+			&ad7476_trigger_handler, NULL);
 }
 
 void ad7476_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }

@@ -1117,9 +1117,10 @@ static int __devinit snd_atiixp_mixer_new(struct atiixp_modem *chip, int clock)
 /*
  * power management
  */
-static int snd_atiixp_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_atiixp_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct atiixp_modem *chip = card->private_data;
 	int i;
 
@@ -1133,13 +1134,14 @@ static int snd_atiixp_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_atiixp_resume(struct pci_dev *pci)
+static int snd_atiixp_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct atiixp_modem *chip = card->private_data;
 	int i;
 
@@ -1162,8 +1164,12 @@ static int snd_atiixp_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
-#endif /* CONFIG_PM */
 
+static SIMPLE_DEV_PM_OPS(snd_atiixp_pm, snd_atiixp_suspend, snd_atiixp_resume);
+#define SND_ATIIXP_PM_OPS	&snd_atiixp_pm
+#else
+#define SND_ATIIXP_PM_OPS	NULL
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PROC_FS
 /*
@@ -1336,10 +1342,9 @@ static struct pci_driver atiixp_modem_driver = {
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
 	.remove = __devexit_p(snd_atiixp_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_atiixp_suspend,
-	.resume = snd_atiixp_resume,
-#endif
+	.driver = {
+		.pm = SND_ATIIXP_PM_OPS,
+	},
 };
 
 module_pci_driver(atiixp_modem_driver);

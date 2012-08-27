@@ -1,0 +1,127 @@
+menuconfig PWM
+	bool "Pulse-Width Modulation (PWM) Support"
+	depends on !MACH_JZ4740 && !PUV3_PWM
+	help
+	  Generic Pulse-Width Modulation (PWM) support.
+
+	  In Pulse-Width Modulation, a variation of the width of pulses
+	  in a rectangular pulse signal is used as a means to alter the
+	  average power of the signal. Applications include efficient
+	  power delivery and voltage regulation. In computer systems,
+	  PWMs are commonly used to control fans or the brightness of
+	  display backlights.
+
+	  This framework provides a generic interface to PWM devices
+	  within the Linux kernel. On the driver side it provides an API
+	  to register and unregister a PWM chip, an abstraction of a PWM
+	  controller, that supports one or more PWM devices. Client
+	  drivers can request PWM devices and use the generic framework
+	  to configure as well as enable and disable them.
+
+	  This generic framework replaces the legacy PWM framework which
+	  allows only a single driver implementing the required API. Not
+	  all legacy implementations have been ported to the framework
+	  yet. The framework provides an API that is backward compatible
+	  with the legacy framework so that existing client drivers
+	  continue to work as expected.
+
+	  If unsure, say no.
+
+if PWM
+
+config PWM_BFIN
+	tristate "Blackfin PWM support"
+	depends on BFIN_GPTIMERS
+	help
+	  Generic PWM framework driver for Blackfin.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-bfin.
+
+config PWM_IMX
+	tristate "i.MX pwm support"
+	depends on ARCH_MXC
+	help
+	  Generic PWM framework driver for i.MX.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-imx.
+
+config PWM_LPC32XX
+	tristate "LPC32XX PWM support"
+	depends on ARCH_LPC32XX
+	help
+	  Generic PWM framework driver for LPC32XX. The LPC32XX SOC has two
+	  PWM controllers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-lpc32xx.
+
+config PWM_MXS
+	tristate "Freescale MXS PWM support"
+	depends on ARCH_MXS && OF
+	select STMP_DEVICE
+	help
+	  Generic PWM framework driver for Freescale MXS.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-mxs.
+
+config PWM_PXA
+	tristate "PXA PWM support"
+	depends on ARCH_PXA
+	help
+	  Generic PWM framework driver for PXA.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-pxa.
+
+config PWM_SAMSUNG
+	tristate "Samsung pwm support"
+	depends on PLAT_SAMSUNG
+	help
+	  Generic PWM framework driver for Samsung.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-samsung.
+
+config PWM_TEGRA
+	tristate "NVIDIA Tegra PWM support"
+	depends on ARCH_TEGRA
+	help
+	  Generic PWM framework driver for the PWFM controller found on NVIDIA
+	  Tegra SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-tegra.
+
+config  PWM_TIECAP
+	tristate "ECAP PWM support"
+	depends on SOC_AM33XX
+	help
+	  PWM driver support for the ECAP APWM controller found on AM33XX
+	  TI SOC
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-tiecap.
+
+config  PWM_TIEHRPWM
+	tristate "EHRPWM PWM support"
+	depends on SOC_AM33XX
+	help
+	  PWM driver support for the EHRPWM controller found on AM33XX
+	  TI SOC
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-tiehrpwm.
+
+config PWM_VT8500
+	tristate "vt8500 pwm support"
+	depends on ARCH_VT8500
+	help
+	  Generic PWM framework driver for vt8500.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-vt8500.
+
+endif

@@ -47,7 +47,7 @@ struct net_device_context {
 	struct work_struct work;
 };
 
-
+#define RING_SIZE_MIN 64
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
@@ -518,6 +518,11 @@ static void __exit netvsc_drv_exit(void)
 
 static int __init netvsc_drv_init(void)
 {
+	if (ring_size < RING_SIZE_MIN) {
+		ring_size = RING_SIZE_MIN;
+		pr_info("Increased ring_size to %d (min allowed)\n",
+			ring_size);
+	}
 	return vmbus_driver_register(&netvsc_drv);
 }
 

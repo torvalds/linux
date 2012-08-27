@@ -19,6 +19,13 @@
 		serial2 = &uart3;
 		serial3 = &uart4;
 		serial4 = &uart5;
+		gpio0 = &gpio1;
+		gpio1 = &gpio2;
+		gpio2 = &gpio3;
+		gpio3 = &gpio4;
+		gpio4 = &gpio5;
+		gpio5 = &gpio6;
+		gpio6 = &gpio7;
 	};
 
 	tzic: tz-interrupt-controller@0fffc000 {
@@ -129,7 +136,7 @@
 			};
 
 			gpio1: gpio@53f84000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53f84000 0x4000>;
 				interrupts = <50 51>;
 				gpio-controller;
@@ -139,7 +146,7 @@
 			};
 
 			gpio2: gpio@53f88000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53f88000 0x4000>;
 				interrupts = <52 53>;
 				gpio-controller;
@@ -149,7 +156,7 @@
 			};
 
 			gpio3: gpio@53f8c000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53f8c000 0x4000>;
 				interrupts = <54 55>;
 				gpio-controller;
@@ -159,7 +166,7 @@
 			};
 
 			gpio4: gpio@53f90000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53f90000 0x4000>;
 				interrupts = <56 57>;
 				gpio-controller;
@@ -197,7 +204,7 @@
 			};
 
 			gpio5: gpio@53fdc000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53fdc000 0x4000>;
 				interrupts = <103 104>;
 				gpio-controller;
@@ -207,7 +214,7 @@
 			};
 
 			gpio6: gpio@53fe0000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53fe0000 0x4000>;
 				interrupts = <105 106>;
 				gpio-controller;
@@ -217,7 +224,7 @@
 			};
 
 			gpio7: gpio@53fe4000 {
-				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
+				compatible = "fsl,imx53-gpio", "fsl,imx35-gpio";
 				reg = <0x53fe4000 0x4000>;
 				interrupts = <107 108>;
 				gpio-controller;

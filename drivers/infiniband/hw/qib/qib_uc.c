@@ -281,11 +281,7 @@ inv:
 			set_bit(QIB_R_REWIND_SGE, &qp->r_aflags);
 			qp->r_sge.num_sge = 0;
 		} else
-			while (qp->r_sge.num_sge) {
-				atomic_dec(&qp->r_sge.sge.mr->refcount);
-				if (--qp->r_sge.num_sge)
-					qp->r_sge.sge = *qp->r_sge.sg_list++;
-			}
+			qib_put_ss(&qp->r_sge);
 		qp->r_state = OP(SEND_LAST);
 		switch (opcode) {
 		case OP(SEND_FIRST):
@@ -403,14 +399,9 @@ send_last:
 		if (unlikely(wc.byte_len > qp->r_len))
 			goto rewind;
 		wc.opcode = IB_WC_RECV;
-last_imm:
 		qib_copy_sge(&qp->r_sge, data, tlen, 0);
-		while (qp->s_rdma_read_sge.num_sge) {
-			atomic_dec(&qp->s_rdma_read_sge.sge.mr->refcount);
-			if (--qp->s_rdma_read_sge.num_sge)
-				qp->s_rdma_read_sge.sge =
-					*qp->s_rdma_read_sge.sg_list++;
-		}
+		qib_put_ss(&qp->s_rdma_read_sge);
+last_imm:
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
 		wc.qp = &qp->ibqp;
@@ -493,13 +484,7 @@ rdma_last_imm:
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
 		if (test_and_clear_bit(QIB_R_REWIND_SGE, &qp->r_aflags))
-			while (qp->s_rdma_read_sge.num_sge) {
-				atomic_dec(&qp->s_rdma_read_sge.sge.mr->
-					   refcount);
-				if (--qp->s_rdma_read_sge.num_sge)
-					qp->s_rdma_read_sge.sge =
-						*qp->s_rdma_read_sge.sg_list++;
-			}
+			qib_put_ss(&qp->s_rdma_read_sge);
 		else {
 			ret = qib_get_rwqe(qp, 1);
 			if (ret < 0)
@@ -509,6 +494,8 @@ rdma_last_imm:
 		}
 		wc.byte_len = qp->r_len;
 		wc.opcode = IB_WC_RECV_RDMA_WITH_IMM;
+		qib_copy_sge(&qp->r_sge, data, tlen, 1);
+		qib_put_ss(&qp->r_sge);
 		goto last_imm;
 
 	case OP(RDMA_WRITE_LAST):
@@ -524,11 +511,7 @@ rdma_last:
 		if (unlikely(tlen + qp->r_rcv_len != qp->r_len))
 			goto drop;
 		qib_copy_sge(&qp->r_sge, data, tlen, 1);
-		while (qp->r_sge.num_sge) {
-			atomic_dec(&qp->r_sge.sge.mr->refcount);
-			if (--qp->r_sge.num_sge)
-				qp->r_sge.sge = *qp->r_sge.sg_list++;
-		}
+		qib_put_ss(&qp->r_sge);
 		break;
 
 	default:

@@ -355,11 +355,14 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 	if (journal_current_handle())
 		return jbd2_journal_start(journal, max_buffs);
 
+	sb_start_intwrite(osb->sb);
+
 	down_read(&osb->journal->j_trans_barrier);
 
 	handle = jbd2_journal_start(journal, max_buffs);
 	if (IS_ERR(handle)) {
 		up_read(&osb->journal->j_trans_barrier);
+		sb_end_intwrite(osb->sb);
 
 		mlog_errno(PTR_ERR(handle));
 
@@ -388,8 +391,10 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 	if (ret < 0)
 		mlog_errno(ret);
 
-	if (!nested)
+	if (!nested) {
 		up_read(&journal->j_trans_barrier);
+		sb_end_intwrite(osb->sb);
+	}
 
 	return ret;
 }

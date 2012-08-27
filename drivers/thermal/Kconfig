@@ -23,6 +23,7 @@ config SPEAR_THERMAL
 	bool "SPEAr thermal sensor driver"
 	depends on THERMAL
 	depends on PLAT_SPEAR
+	depends on OF
 	help
 	  Enable this to plug the SPEAr thermal sensor driver into the Linux
 	  thermal framework

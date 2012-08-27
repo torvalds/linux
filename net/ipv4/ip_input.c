@@ -314,6 +314,7 @@ drop:
 }
 
 int sysctl_ip_early_demux __read_mostly = 1;
+EXPORT_SYMBOL(sysctl_ip_early_demux);
 
 static int ip_rcv_finish(struct sk_buff *skb)
 {
@@ -324,11 +325,12 @@ static int ip_rcv_finish(struct sk_buff *skb)
 		const struct net_protocol *ipprot;
 		int protocol = iph->protocol;
 
-		rcu_read_lock();
 		ipprot = rcu_dereference(inet_protos[protocol]);
-		if (ipprot && ipprot->early_demux)
+		if (ipprot && ipprot->early_demux) {
 			ipprot->early_demux(skb);
-		rcu_read_unlock();
+			/* must reload iph, skb->head might have changed */
+			iph = ip_hdr(skb);
+		}
 	}
 
 	/*
@@ -336,8 +338,8 @@ static int ip_rcv_finish(struct sk_buff *skb)
 	 *	how the packet travels inside Linux networking.
 	 */
 	if (!skb_dst(skb)) {
-		int err = ip_route_input(skb, iph->daddr, iph->saddr,
-					 iph->tos, skb->dev);
+		int err = ip_route_input_noref(skb, iph->daddr, iph->saddr,
+					       iph->tos, skb->dev);
 		if (unlikely(err)) {
 			if (err == -EXDEV)
 				NET_INC_STATS_BH(dev_net(skb->dev),

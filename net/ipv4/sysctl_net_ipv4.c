@@ -184,7 +184,7 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
 	int ret;
 	unsigned long vec[3];
 	struct net *net = current->nsproxy->net_ns;
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+#ifdef CONFIG_MEMCG_KMEM
 	struct mem_cgroup *memcg;
 #endif
 
@@ -203,7 +203,7 @@ static int ipv4_tcp_mem(ctl_table *ctl, int write,
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+#ifdef CONFIG_MEMCG_KMEM
 	rcu_read_lock();
 	memcg = mem_cgroup_from_task(current);
 
@@ -784,13 +784,6 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "rt_cache_rebuild_count",
-		.data		= &init_net.ipv4.sysctl_rt_cache_rebuild_count,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "ping_group_range",
 		.data		= &init_net.ipv4.sysctl_ping_group_range,
 		.maxlen		= sizeof(init_net.ipv4.sysctl_ping_group_range),
@@ -829,8 +822,6 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 		table[5].data =
 			&net->ipv4.sysctl_icmp_ratemask;
 		table[6].data =
-			&net->ipv4.sysctl_rt_cache_rebuild_count;
-		table[7].data =
 			&net->ipv4.sysctl_ping_group_range;
 
 	}
@@ -841,8 +832,6 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 	 */
 	net->ipv4.sysctl_ping_group_range[0] = 1;
 	net->ipv4.sysctl_ping_group_range[1] = 0;
-
-	net->ipv4.sysctl_rt_cache_rebuild_count = 4;
 
 	tcp_init_mem(net);
 

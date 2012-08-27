@@ -71,7 +71,6 @@ static struct drm_driver driver = {
 	.irq_postinstall = r128_driver_irq_postinstall,
 	.irq_uninstall = r128_driver_irq_uninstall,
 	.irq_handler = r128_driver_irq_handler,
-	.reclaim_buffers = drm_core_reclaim_buffers,
 	.ioctls = r128_ioctls,
 	.dma_ioctl = r128_cce_buffers,
 	.fops = &r128_driver_fops,

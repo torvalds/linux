@@ -15,11 +15,11 @@
 
 #include "ci.h"
 
-#define MSM_USB_BASE	(udc->hw_bank.abs)
+#define MSM_USB_BASE	(ci->hw_bank.abs)
 
-static void ci13xxx_msm_notify_event(struct ci13xxx *udc, unsigned event)
+static void ci13xxx_msm_notify_event(struct ci13xxx *ci, unsigned event)
 {
-	struct device *dev = udc->gadget.dev.parent;
+	struct device *dev = ci->gadget.dev.parent;
 	int val;
 
 	switch (event) {
@@ -34,18 +34,18 @@ static void ci13xxx_msm_notify_event(struct ci13xxx *udc, unsigned event)
 		 * Put the transceiver in non-driving mode. Otherwise host
 		 * may not detect soft-disconnection.
 		 */
-		val = usb_phy_io_read(udc->transceiver, ULPI_FUNC_CTRL);
+		val = usb_phy_io_read(ci->transceiver, ULPI_FUNC_CTRL);
 		val &= ~ULPI_FUNC_CTRL_OPMODE_MASK;
 		val |= ULPI_FUNC_CTRL_OPMODE_NONDRIVING;
-		usb_phy_io_write(udc->transceiver, val, ULPI_FUNC_CTRL);
+		usb_phy_io_write(ci->transceiver, val, ULPI_FUNC_CTRL);
 		break;
 	default:
-		dev_dbg(dev, "unknown ci13xxx_udc event\n");
+		dev_dbg(dev, "unknown ci13xxx event\n");
 		break;
 	}
 }
 
-static struct ci13xxx_udc_driver ci13xxx_msm_udc_driver = {
+static struct ci13xxx_platform_data ci13xxx_msm_platdata = {
 	.name			= "ci13xxx_msm",
 	.flags			= CI13XXX_REGS_SHARED |
 				  CI13XXX_REQUIRE_TRANSCEIVER |
@@ -55,56 +55,45 @@ static struct ci13xxx_udc_driver ci13xxx_msm_udc_driver = {
 	.notify_event		= ci13xxx_msm_notify_event,
 };
 
-static int ci13xxx_msm_probe(struct platform_device *pdev)
+static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci;
-	int ret;
 
 	dev_dbg(&pdev->dev, "ci13xxx_msm_probe\n");
 
-	plat_ci = platform_device_alloc("ci_hdrc", -1);
-	if (!plat_ci) {
-		dev_err(&pdev->dev, "can't allocate ci_hdrc platform device\n");
-		return -ENOMEM;
+	plat_ci = ci13xxx_add_device(&pdev->dev,
+				pdev->resource, pdev->num_resources,
+				&ci13xxx_msm_platdata);
+	if (IS_ERR(plat_ci)) {
+		dev_err(&pdev->dev, "ci13xxx_add_device failed!\n");
+		return PTR_ERR(plat_ci);
 	}
 
-	ret = platform_device_add_resources(plat_ci, pdev->resource,
-					    pdev->num_resources);
-	if (ret) {
-		dev_err(&pdev->dev, "can't add resources to platform device\n");
-		goto put_platform;
-	}
-
-	ret = platform_device_add_data(plat_ci, &ci13xxx_msm_udc_driver,
-				       sizeof(ci13xxx_msm_udc_driver));
-	if (ret)
-		goto put_platform;
-
-	ret = platform_device_add(plat_ci);
-	if (ret)
-		goto put_platform;
+	platform_set_drvdata(pdev, plat_ci);
 
 	pm_runtime_no_callbacks(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
+}
 
-put_platform:
-	platform_device_put(plat_ci);
+static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
+{
+	struct platform_device *plat_ci = platform_get_drvdata(pdev);
 
-	return ret;
+	pm_runtime_disable(&pdev->dev);
+	ci13xxx_remove_device(plat_ci);
+
+	return 0;
 }
 
 static struct platform_driver ci13xxx_msm_driver = {
 	.probe = ci13xxx_msm_probe,
+	.remove = __devexit_p(ci13xxx_msm_remove),
 	.driver = { .name = "msm_hsusb", },
 };
+
+module_platform_driver(ci13xxx_msm_driver);
+
 MODULE_ALIAS("platform:msm_hsusb");
-
-static int __init ci13xxx_msm_init(void)
-{
-	return platform_driver_register(&ci13xxx_msm_driver);
-}
-module_init(ci13xxx_msm_init);
-
 MODULE_LICENSE("GPL v2");

@@ -61,8 +61,6 @@ typedef union {
 	} s;
 } cvmx_helper_link_info_t;
 
-#include "cvmx-helper-fpa.h"
-
 #include <asm/octeon/cvmx-helper-errata.h>
 #include "cvmx-helper-loop.h"
 #include "cvmx-helper-npi.h"

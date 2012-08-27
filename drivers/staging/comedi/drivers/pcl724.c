@@ -67,8 +67,6 @@ struct pcl724_board {
 	char is_pet48;
 };
 
-#define this_board ((const struct pcl724_board *)dev->board_ptr)
-
 static int subdev_8255_cb(int dir, int port, int data, unsigned long arg)
 {
 	unsigned long iobase = arg;
@@ -100,6 +98,7 @@ static int subdev_8255mapped_cb(int dir, int port, int data,
 
 static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct pcl724_board *board = comedi_board(dev);
 	unsigned long iobase;
 	unsigned int iorange;
 	int ret, i, n_subdevices;
@@ -108,12 +107,12 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 
 	iobase = it->options[0];
-	iorange = this_board->io_range;
-	if ((this_board->can_have96) && ((it->options[1] == 1)
+	iorange = board->io_range;
+	if ((board->can_have96) && ((it->options[1] == 1)
 					 || (it->options[1] == 96)))
 		iorange = PCL722_96_SIZE; /* PCL-724 in 96 DIO configuration */
 	printk(KERN_INFO "comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
-	       this_board->name, iobase);
+	       board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl724")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -121,14 +120,14 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->iobase = iobase;
 
-	dev->board_name = this_board->name;
+	dev->board_name = board->name;
 
 #ifdef PCL724_IRQ
 	irq = 0;
-	if (this_board->IRQbits != 0) {	/* board support IRQ */
+	if (board->IRQbits != 0) {	/* board support IRQ */
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
-			if (((1 << irq) & this_board->IRQbits) == 0) {
+			if (((1 << irq) & board->IRQbits) == 0) {
 				printk(KERN_WARNING
 				       ", IRQ %u is out of allowed range, "
 				       "DISABLING IT", irq);
@@ -152,17 +151,17 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk("\n");
 
-	n_subdevices = this_board->numofports;
-	if ((this_board->can_have96) && ((it->options[1] == 1)
+	n_subdevices = board->numofports;
+	if ((board->can_have96) && ((it->options[1] == 1)
 					 || (it->options[1] == 96)))
 		n_subdevices = 4;	/*  PCL-724 in 96 DIO configuration */
 
-	ret = alloc_subdevices(dev, n_subdevices);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {
-		if (this_board->is_pet48) {
+		if (board->is_pet48) {
 			subdev_8255_init(dev, dev->subdevices + i,
 					 subdev_8255mapped_cb,
 					 (unsigned long)(dev->iobase +
@@ -179,6 +178,7 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void pcl724_detach(struct comedi_device *dev)
 {
+	const struct pcl724_board *board = comedi_board(dev);
 	int i;
 
 	for (i = 0; i < dev->n_subdevices; i++)
@@ -187,7 +187,7 @@ static void pcl724_detach(struct comedi_device *dev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 #endif
-	release_region(dev->iobase, this_board->io_range);
+	release_region(dev->iobase, board->io_range);
 }
 
 static const struct pcl724_board boardtypes[] = {

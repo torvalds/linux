@@ -26,6 +26,7 @@
 #include <asm/suspend.h>
 #include <mach/common.h>
 #include <mach/sh7372.h>
+#include <mach/pm-rmobile.h>
 
 /* DBG */
 #define DBGREG1 0xe6100020
@@ -41,13 +42,10 @@
 #define PLLC01STPCR 0xe61500c8
 
 /* SYSC */
-#define SPDCR 0xe6180008
-#define SWUCR 0xe6180014
 #define SBAR 0xe6180020
 #define WUPRMSK 0xe6180028
 #define WUPSMSK 0xe618002c
 #define WUPSMSK2 0xe6180048
-#define PSTR 0xe6180080
 #define WUPSFAC 0xe6180098
 #define IRQCR 0xe618022c
 #define IRQCR2 0xe6180238
@@ -71,188 +69,48 @@
 /* AP-System Core */
 #define APARMBAREA 0xe6f10020
 
-#define PSTR_RETRIES 100
-#define PSTR_DELAY_US 10
-
 #ifdef CONFIG_PM
 
-static int pd_power_down(struct generic_pm_domain *genpd)
-{
-	struct sh7372_pm_domain *sh7372_pd = to_sh7372_pd(genpd);
-	unsigned int mask = 1 << sh7372_pd->bit_shift;
+struct rmobile_pm_domain sh7372_pd_a4lc = {
+	.genpd.name = "A4LC",
+	.bit_shift = 1,
+};
 
-	if (sh7372_pd->suspend) {
-		int ret = sh7372_pd->suspend();
+struct rmobile_pm_domain sh7372_pd_a4mp = {
+	.genpd.name = "A4MP",
+	.bit_shift = 2,
+};
 
-		if (ret)
-			return ret;
-	}
+struct rmobile_pm_domain sh7372_pd_d4 = {
+	.genpd.name = "D4",
+	.bit_shift = 3,
+};
 
-	if (__raw_readl(PSTR) & mask) {
-		unsigned int retry_count;
-
-		__raw_writel(mask, SPDCR);
-
-		for (retry_count = PSTR_RETRIES; retry_count; retry_count--) {
-			if (!(__raw_readl(SPDCR) & mask))
-				break;
-			cpu_relax();
-		}
-	}
-
-	if (!sh7372_pd->no_debug)
-		pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n",
-			 genpd->name, mask, __raw_readl(PSTR));
-
-	return 0;
-}
-
-static int __pd_power_up(struct sh7372_pm_domain *sh7372_pd, bool do_resume)
-{
-	unsigned int mask = 1 << sh7372_pd->bit_shift;
-	unsigned int retry_count;
-	int ret = 0;
-
-	if (__raw_readl(PSTR) & mask)
-		goto out;
-
-	__raw_writel(mask, SWUCR);
-
-	for (retry_count = 2 * PSTR_RETRIES; retry_count; retry_count--) {
-		if (!(__raw_readl(SWUCR) & mask))
-			break;
-		if (retry_count > PSTR_RETRIES)
-			udelay(PSTR_DELAY_US);
-		else
-			cpu_relax();
-	}
-	if (!retry_count)
-		ret = -EIO;
-
-	if (!sh7372_pd->no_debug)
-		pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
-			 sh7372_pd->genpd.name, mask, __raw_readl(PSTR));
-
- out:
-	if (ret == 0 && sh7372_pd->resume && do_resume)
-		sh7372_pd->resume();
-
-	return ret;
-}
-
-static int pd_power_up(struct generic_pm_domain *genpd)
-{
-	 return __pd_power_up(to_sh7372_pd(genpd), true);
-}
-
-static int sh7372_a4r_suspend(void)
+static int sh7372_a4r_pd_suspend(void)
 {
 	sh7372_intcs_suspend();
 	__raw_writel(0x300fffff, WUPRMSK); /* avoid wakeup */
 	return 0;
 }
 
-static bool pd_active_wakeup(struct device *dev)
-{
-	bool (*active_wakeup)(struct device *dev);
-
-	active_wakeup = dev_gpd_data(dev)->ops.active_wakeup;
-	return active_wakeup ? active_wakeup(dev) : true;
-}
-
-static int sh7372_stop_dev(struct device *dev)
-{
-	int (*stop)(struct device *dev);
-
-	stop = dev_gpd_data(dev)->ops.stop;
-	if (stop) {
-		int ret = stop(dev);
-		if (ret)
-			return ret;
-	}
-	return pm_clk_suspend(dev);
-}
-
-static int sh7372_start_dev(struct device *dev)
-{
-	int (*start)(struct device *dev);
-	int ret;
-
-	ret = pm_clk_resume(dev);
-	if (ret)
-		return ret;
-
-	start = dev_gpd_data(dev)->ops.start;
-	if (start)
-		ret = start(dev);
-
-	return ret;
-}
-
-void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
-{
-	struct generic_pm_domain *genpd = &sh7372_pd->genpd;
-	struct dev_power_governor *gov = sh7372_pd->gov;
-
-	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
-	genpd->dev_ops.stop = sh7372_stop_dev;
-	genpd->dev_ops.start = sh7372_start_dev;
-	genpd->dev_ops.active_wakeup = pd_active_wakeup;
-	genpd->dev_irq_safe = true;
-	genpd->power_off = pd_power_down;
-	genpd->power_on = pd_power_up;
-	__pd_power_up(sh7372_pd, false);
-}
-
-void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
-				 struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-
-	pm_genpd_add_device(&sh7372_pd->genpd, dev);
-	if (pm_clk_no_clocks(dev))
-		pm_clk_add(dev, NULL);
-}
-
-void sh7372_pm_add_subdomain(struct sh7372_pm_domain *sh7372_pd,
-			     struct sh7372_pm_domain *sh7372_sd)
-{
-	pm_genpd_add_subdomain(&sh7372_pd->genpd, &sh7372_sd->genpd);
-}
-
-struct sh7372_pm_domain sh7372_a4lc = {
-	.genpd.name = "A4LC",
-	.bit_shift = 1,
-};
-
-struct sh7372_pm_domain sh7372_a4mp = {
-	.genpd.name = "A4MP",
-	.bit_shift = 2,
-};
-
-struct sh7372_pm_domain sh7372_d4 = {
-	.genpd.name = "D4",
-	.bit_shift = 3,
-};
-
-struct sh7372_pm_domain sh7372_a4r = {
+struct rmobile_pm_domain sh7372_pd_a4r = {
 	.genpd.name = "A4R",
 	.bit_shift = 5,
-	.suspend = sh7372_a4r_suspend,
+	.suspend = sh7372_a4r_pd_suspend,
 	.resume = sh7372_intcs_resume,
 };
 
-struct sh7372_pm_domain sh7372_a3rv = {
+struct rmobile_pm_domain sh7372_pd_a3rv = {
 	.genpd.name = "A3RV",
 	.bit_shift = 6,
 };
 
-struct sh7372_pm_domain sh7372_a3ri = {
+struct rmobile_pm_domain sh7372_pd_a3ri = {
 	.genpd.name = "A3RI",
 	.bit_shift = 8,
 };
 
-static int sh7372_a4s_suspend(void)
+static int sh7372_pd_a4s_suspend(void)
 {
 	/*
 	 * The A4S domain contains the CPU core and therefore it should
@@ -261,15 +119,15 @@ static int sh7372_a4s_suspend(void)
 	return -EBUSY;
 }
 
-struct sh7372_pm_domain sh7372_a4s = {
+struct rmobile_pm_domain sh7372_pd_a4s = {
 	.genpd.name = "A4S",
 	.bit_shift = 10,
 	.gov = &pm_domain_always_on_gov,
 	.no_debug = true,
-	.suspend = sh7372_a4s_suspend,
+	.suspend = sh7372_pd_a4s_suspend,
 };
 
-static int sh7372_a3sp_suspend(void)
+static int sh7372_a3sp_pd_suspend(void)
 {
 	/*
 	 * Serial consoles make use of SCIF hardware located in A3SP,
@@ -278,32 +136,22 @@ static int sh7372_a3sp_suspend(void)
 	return console_suspend_enabled ? 0 : -EBUSY;
 }
 
-struct sh7372_pm_domain sh7372_a3sp = {
+struct rmobile_pm_domain sh7372_pd_a3sp = {
 	.genpd.name = "A3SP",
 	.bit_shift = 11,
 	.gov = &pm_domain_always_on_gov,
 	.no_debug = true,
-	.suspend = sh7372_a3sp_suspend,
+	.suspend = sh7372_a3sp_pd_suspend,
 };
 
-struct sh7372_pm_domain sh7372_a3sg = {
+struct rmobile_pm_domain sh7372_pd_a3sg = {
 	.genpd.name = "A3SG",
 	.bit_shift = 13,
 };
 
-#else /* !CONFIG_PM */
-
-static inline void sh7372_a3sp_init(void) {}
-
-#endif /* !CONFIG_PM */
+#endif /* CONFIG_PM */
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
-static int sh7372_do_idle_core_standby(unsigned long unused)
-{
-	cpu_do_idle(); /* WFI when SYSTBCR == 0x10 -> Core Standby */
-	return 0;
-}
-
 static void sh7372_set_reset_vector(unsigned long address)
 {
 	/* set reset vector, translate 4k */
@@ -311,21 +159,6 @@ static void sh7372_set_reset_vector(unsigned long address)
 	__raw_writel(0, APARMBAREA);
 }
 
-static void sh7372_enter_core_standby(void)
-{
-	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
-
-	/* enter sleep mode with SYSTBCR to 0x10 */
-	__raw_writel(0x10, SYSTBCR);
-	cpu_suspend(0, sh7372_do_idle_core_standby);
-	__raw_writel(0, SYSTBCR);
-
-	 /* disable reset vector translation */
-	__raw_writel(0, SBAR);
-}
-#endif
-
-#ifdef CONFIG_SUSPEND
 static void sh7372_enter_sysc(int pllc0_on, unsigned long sleep_mode)
 {
 	if (pllc0_on)
@@ -465,22 +298,42 @@ static void sh7372_setup_sysc(unsigned long msk, unsigned long msk2)
 
 static void sh7372_enter_a3sm_common(int pllc0_on)
 {
+	/* use INTCA together with SYSC for wakeup */
+	sh7372_setup_sysc(1 << 0, 0);
 	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
 	sh7372_enter_sysc(pllc0_on, 1 << 12);
 }
-
-static void sh7372_enter_a4s_common(int pllc0_on)
-{
-	sh7372_intca_suspend();
-	memcpy((void *)SMFRAM, sh7372_resume_core_standby_sysc, 0x100);
-	sh7372_set_reset_vector(SMFRAM);
-	sh7372_enter_sysc(pllc0_on, 1 << 10);
-	sh7372_intca_resume();
-}
-
-#endif
+#endif /* CONFIG_SUSPEND || CONFIG_CPU_IDLE */
 
 #ifdef CONFIG_CPU_IDLE
+static int sh7372_do_idle_core_standby(unsigned long unused)
+{
+	cpu_do_idle(); /* WFI when SYSTBCR == 0x10 -> Core Standby */
+	return 0;
+}
+
+static void sh7372_enter_core_standby(void)
+{
+	sh7372_set_reset_vector(__pa(sh7372_resume_core_standby_sysc));
+
+	/* enter sleep mode with SYSTBCR to 0x10 */
+	__raw_writel(0x10, SYSTBCR);
+	cpu_suspend(0, sh7372_do_idle_core_standby);
+	__raw_writel(0, SYSTBCR);
+
+	 /* disable reset vector translation */
+	__raw_writel(0, SBAR);
+}
+
+static void sh7372_enter_a3sm_pll_on(void)
+{
+	sh7372_enter_a3sm_common(1);
+}
+
+static void sh7372_enter_a3sm_pll_off(void)
+{
+	sh7372_enter_a3sm_common(0);
+}
 
 static void sh7372_cpuidle_setup(struct cpuidle_driver *drv)
 {
@@ -492,7 +345,24 @@ static void sh7372_cpuidle_setup(struct cpuidle_driver *drv)
 	state->target_residency = 20 + 10;
 	state->flags = CPUIDLE_FLAG_TIME_VALID;
 	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_core_standby;
+	drv->state_count++;
 
+	state = &drv->states[drv->state_count];
+	snprintf(state->name, CPUIDLE_NAME_LEN, "C3");
+	strncpy(state->desc, "A3SM PLL ON", CPUIDLE_DESC_LEN);
+	state->exit_latency = 20;
+	state->target_residency = 30 + 20;
+	state->flags = CPUIDLE_FLAG_TIME_VALID;
+	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_a3sm_pll_on;
+	drv->state_count++;
+
+	state = &drv->states[drv->state_count];
+	snprintf(state->name, CPUIDLE_NAME_LEN, "C4");
+	strncpy(state->desc, "A3SM PLL OFF", CPUIDLE_DESC_LEN);
+	state->exit_latency = 120;
+	state->target_residency = 30 + 120;
+	state->flags = CPUIDLE_FLAG_TIME_VALID;
+	shmobile_cpuidle_modes[drv->state_count] = sh7372_enter_a3sm_pll_off;
 	drv->state_count++;
 }
 
@@ -505,6 +375,14 @@ static void sh7372_cpuidle_init(void) {}
 #endif
 
 #ifdef CONFIG_SUSPEND
+static void sh7372_enter_a4s_common(int pllc0_on)
+{
+	sh7372_intca_suspend();
+	memcpy((void *)SMFRAM, sh7372_resume_core_standby_sysc, 0x100);
+	sh7372_set_reset_vector(SMFRAM);
+	sh7372_enter_sysc(pllc0_on, 1 << 10);
+	sh7372_intca_resume();
+}
 
 static int sh7372_enter_suspend(suspend_state_t suspend_state)
 {
@@ -512,24 +390,21 @@ static int sh7372_enter_suspend(suspend_state_t suspend_state)
 
 	/* check active clocks to determine potential wakeup sources */
 	if (sh7372_sysc_valid(&msk, &msk2)) {
-		/* convert INTC mask and sense to SYSC mask and sense */
-		sh7372_setup_sysc(msk, msk2);
-
 		if (!console_suspend_enabled &&
-		    sh7372_a4s.genpd.status == GPD_STATE_POWER_OFF) {
+		    sh7372_pd_a4s.genpd.status == GPD_STATE_POWER_OFF) {
+			/* convert INTC mask/sense to SYSC mask/sense */
+			sh7372_setup_sysc(msk, msk2);
+
 			/* enter A4S sleep with PLLC0 off */
 			pr_debug("entering A4S\n");
 			sh7372_enter_a4s_common(0);
-		} else {
-			/* enter A3SM sleep with PLLC0 off */
-			pr_debug("entering A3SM\n");
-			sh7372_enter_a3sm_common(0);
+			return 0;
 		}
-	} else {
-		/* default to Core Standby that supports all wakeup sources */
-		pr_debug("entering Core Standby\n");
-		sh7372_enter_core_standby();
 	}
+
+	/* default to enter A3SM sleep with PLLC0 off */
+	pr_debug("entering A3SM\n");
+	sh7372_enter_a3sm_common(0);
 	return 0;
 }
 
@@ -550,7 +425,7 @@ static int sh7372_pm_notifier_fn(struct notifier_block *notifier,
 		 * executed during system suspend and resume, respectively, so
 		 * that those functions don't crash while accessing the INTCS.
 		 */
-		pm_genpd_poweron(&sh7372_a4r.genpd);
+		pm_genpd_poweron(&sh7372_pd_a4r.genpd);
 		break;
 	case PM_POST_SUSPEND:
 		pm_genpd_poweroff_unused();

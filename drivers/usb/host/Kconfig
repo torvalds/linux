@@ -652,7 +652,7 @@ config USB_HCD_BCMA
 	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
 	help
-	  Enbale support for the EHCI and OCHI host controller on an bcma bus.
+	  Enable support for the EHCI and OCHI host controller on an bcma bus.
 	  It converts the bcma driver into two platform device drivers
 	  for ehci and ohci.
 
@@ -664,7 +664,7 @@ config USB_HCD_SSB
 	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
 	help
-	  Enbale support for the EHCI and OCHI host controller on an bcma bus.
+	  Enable support for the EHCI and OCHI host controller on an bcma bus.
 	  It converts the bcma driver into two platform device drivers
 	  for ehci and ohci.
 

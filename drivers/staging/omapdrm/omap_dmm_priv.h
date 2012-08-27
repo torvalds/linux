@@ -181,7 +181,6 @@ struct dmm {
 
 	/* allocation list and lock */
 	struct list_head alloc_head;
-	spinlock_t list_lock;
 };
 
 #endif

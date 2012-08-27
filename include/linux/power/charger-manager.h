@@ -16,6 +16,7 @@
 #define _CHARGER_MANAGER_H
 
 #include <linux/power_supply.h>
+#include <linux/extcon.h>
 
 enum data_source {
 	CM_BATTERY_PRESENT,
@@ -65,6 +66,70 @@ struct charger_global_desc {
 };
 
 /**
+ * struct charger_cable
+ * @extcon_name: the name of extcon device.
+ * @name: the name of charger cable(external connector).
+ * @extcon_dev: the extcon device.
+ * @wq: the workqueue to control charger according to the state of
+ *	charger cable. If charger cable is attached, enable charger.
+ *	But if charger cable is detached, disable charger.
+ * @nb: the notifier block to receive changed state from EXTCON
+ *	(External Connector) when charger cable is attached/detached.
+ * @attached: the state of charger cable.
+ *	true: the charger cable is attached
+ *	false: the charger cable is detached
+ * @charger: the instance of struct charger_regulator.
+ * @cm: the Charger Manager representing the battery.
+ */
+struct charger_cable {
+	const char *extcon_name;
+	const char *name;
+
+	/* The charger-manager use Exton framework*/
+	struct extcon_specific_cable_nb extcon_dev;
+	struct work_struct wq;
+	struct notifier_block nb;
+
+	/* The state of charger cable */
+	bool attached;
+
+	struct charger_regulator *charger;
+
+	/*
+	 * Set min/max current of regulator to protect over-current issue
+	 * according to a kind of charger cable when cable is attached.
+	 */
+	int min_uA;
+	int max_uA;
+
+	struct charger_manager *cm;
+};
+
+/**
+ * struct charger_regulator
+ * @regulator_name: the name of regulator for using charger.
+ * @consumer: the regulator consumer for the charger.
+ * @cables:
+ *	the array of charger cables to enable/disable charger
+ *	and set current limit according to constratint data of
+ *	struct charger_cable if only charger cable included
+ *	in the array of charger cables is attached/detached.
+ * @num_cables: the number of charger cables.
+ */
+struct charger_regulator {
+	/* The name of regulator for charging */
+	const char *regulator_name;
+	struct regulator *consumer;
+
+	/*
+	 * Store constraint information related to current limit,
+	 * each cable have different condition for charging.
+	 */
+	struct charger_cable *cables;
+	int num_cables;
+};
+
+/**
  * struct charger_desc
  * @psy_name: the name of power-supply-class for charger manager
  * @polling_mode:
@@ -109,7 +174,7 @@ struct charger_desc {
 	char **psy_charger_stat;
 
 	int num_charger_regulators;
-	struct regulator_bulk_data *charger_regulators;
+	struct charger_regulator *charger_regulators;
 
 	char *psy_fuel_gauge;
 

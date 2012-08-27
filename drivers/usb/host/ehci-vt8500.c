@@ -48,7 +48,7 @@ static const struct hc_driver vt8500_ehci_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_init,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
@@ -121,18 +121,6 @@ static int vt8500_ehci_drv_probe(struct platform_device *pdev)
 
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = hcd->regs;
-	ehci->regs = hcd->regs +
-		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
-
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
-
-	ehci_port_power(ehci, 1);
-
-	ehci_reset(ehci);
 
 	ret = usb_add_hcd(hcd, pdev->resource[1].start,
 			  IRQF_SHARED);

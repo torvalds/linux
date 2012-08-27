@@ -374,7 +374,7 @@ struct x86_pmu {
 	/*
 	 * Intel DebugStore bits
 	 */
-	int		bts		:1,
+	unsigned int	bts		:1,
 			bts_active	:1,
 			pebs		:1,
 			pebs_active	:1,
@@ -514,6 +514,26 @@ static inline bool kernel_ip(unsigned long ip)
 #else
 	return (long)ip < 0;
 #endif
+}
+
+/*
+ * Not all PMUs provide the right context information to place the reported IP
+ * into full context. Specifically segment registers are typically not
+ * supplied.
+ *
+ * Assuming the address is a linear address (it is for IBS), we fake the CS and
+ * vm86 mode using the known zero-based code segment and 'fix up' the registers
+ * to reflect this.
+ *
+ * Intel PEBS/LBR appear to typically provide the effective address, nothing
+ * much we can do about that but pray and treat it like a linear address.
+ */
+static inline void set_linear_ip(struct pt_regs *regs, unsigned long ip)
+{
+	regs->cs = kernel_ip(ip) ? __KERNEL_CS : __USER_CS;
+	if (regs->flags & X86_VM_MASK)
+		regs->flags ^= (PERF_EFLAGS_VM | X86_VM_MASK);
+	regs->ip = ip;
 }
 
 #ifdef CONFIG_CPU_SUP_AMD

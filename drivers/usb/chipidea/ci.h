@@ -36,7 +36,7 @@
  * @name: string description of the endpoint
  * @qh: queue head for this endpoint
  * @wedge: is the endpoint wedged
- * @udc: pointer to the controller
+ * @ci: pointer to the controller
  * @lock: pointer to controller's spinlock
  * @td_pool: pointer to controller's TD pool
  */
@@ -54,7 +54,7 @@ struct ci13xxx_ep {
 	int					wedge;
 
 	/* global resources */
-	struct ci13xxx				*udc;
+	struct ci13xxx				*ci;
 	spinlock_t				*lock;
 	struct dma_pool				*td_pool;
 };
@@ -125,7 +125,7 @@ struct hw_bank {
  * @remote_wakeup: host-enabled remote wakeup
  * @suspended: suspended by host
  * @test_mode: the selected test mode
- * @udc_driver: platform specific information supplied by parent device
+ * @platdata: platform specific information supplied by parent device
  * @vbus_active: is VBUS active
  * @transceiver: pointer to USB PHY, if any
  * @hcd: pointer to usb_hcd for ehci host driver
@@ -158,8 +158,10 @@ struct ci13xxx {
 	u8				suspended;
 	u8				test_mode;
 
-	struct ci13xxx_udc_driver	*udc_driver;
+	struct ci13xxx_platform_data	*platdata;
 	int				vbus_active;
+	/* FIXME: some day, we'll not use global phy */
+	bool				global_phy;
 	struct usb_phy			*transceiver;
 	struct usb_hcd			*hcd;
 };
@@ -250,9 +252,9 @@ static inline int ffs_nr(u32 x)
  *
  * This function returns register contents
  */
-static inline u32 hw_read(struct ci13xxx *udc, enum ci13xxx_regs reg, u32 mask)
+static inline u32 hw_read(struct ci13xxx *ci, enum ci13xxx_regs reg, u32 mask)
 {
-	return ioread32(udc->hw_bank.regmap[reg]) & mask;
+	return ioread32(ci->hw_bank.regmap[reg]) & mask;
 }
 
 /**
@@ -261,14 +263,14 @@ static inline u32 hw_read(struct ci13xxx *udc, enum ci13xxx_regs reg, u32 mask)
  * @mask: bitfield mask
  * @data: new value
  */
-static inline void hw_write(struct ci13xxx *udc, enum ci13xxx_regs reg,
+static inline void hw_write(struct ci13xxx *ci, enum ci13xxx_regs reg,
 			    u32 mask, u32 data)
 {
 	if (~mask)
-		data = (ioread32(udc->hw_bank.regmap[reg]) & ~mask)
+		data = (ioread32(ci->hw_bank.regmap[reg]) & ~mask)
 			| (data & mask);
 
-	iowrite32(data, udc->hw_bank.regmap[reg]);
+	iowrite32(data, ci->hw_bank.regmap[reg]);
 }
 
 /**
@@ -278,12 +280,12 @@ static inline void hw_write(struct ci13xxx *udc, enum ci13xxx_regs reg,
  *
  * This function returns register contents
  */
-static inline u32 hw_test_and_clear(struct ci13xxx *udc, enum ci13xxx_regs reg,
+static inline u32 hw_test_and_clear(struct ci13xxx *ci, enum ci13xxx_regs reg,
 				    u32 mask)
 {
-	u32 val = ioread32(udc->hw_bank.regmap[reg]) & mask;
+	u32 val = ioread32(ci->hw_bank.regmap[reg]) & mask;
 
-	iowrite32(val, udc->hw_bank.regmap[reg]);
+	iowrite32(val, ci->hw_bank.regmap[reg]);
 	return val;
 }
 
@@ -295,12 +297,12 @@ static inline u32 hw_test_and_clear(struct ci13xxx *udc, enum ci13xxx_regs reg,
  *
  * This function returns register contents
  */
-static inline u32 hw_test_and_write(struct ci13xxx *udc, enum ci13xxx_regs reg,
+static inline u32 hw_test_and_write(struct ci13xxx *ci, enum ci13xxx_regs reg,
 				    u32 mask, u32 data)
 {
-	u32 val = hw_read(udc, reg, ~0);
+	u32 val = hw_read(ci, reg, ~0);
 
-	hw_write(udc, reg, mask, data);
+	hw_write(ci, reg, mask, data);
 	return (val & mask) >> ffs_nr(mask);
 }
 

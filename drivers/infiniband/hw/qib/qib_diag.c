@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2010 QLogic Corporation. All rights reserved.
- * Copyright (c) 2006, 2007, 2008, 2009 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -52,6 +52,9 @@
 
 #include "qib.h"
 #include "qib_common.h"
+
+#undef pr_fmt
+#define pr_fmt(fmt) QIB_DRV_NAME ": " fmt
 
 /*
  * Each client that opens the diag device must read then write
@@ -598,8 +601,8 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 	}
 	tmpbuf = vmalloc(plen);
 	if (!tmpbuf) {
-		qib_devinfo(dd->pcidev, "Unable to allocate tmp buffer, "
-			 "failing\n");
+		qib_devinfo(dd->pcidev,
+			"Unable to allocate tmp buffer, failing\n");
 		ret = -ENOMEM;
 		goto bail;
 	}
@@ -693,7 +696,7 @@ int qib_register_observer(struct qib_devdata *dd,
 	ret = -ENOMEM;
 	olp = vmalloc(sizeof *olp);
 	if (!olp) {
-		printk(KERN_ERR QIB_DRV_NAME ": vmalloc for observer failed\n");
+		pr_err("vmalloc for observer failed\n");
 		goto bail;
 	}
 	if (olp) {

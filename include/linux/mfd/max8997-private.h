@@ -23,6 +23,8 @@
 #define __LINUX_MFD_MAX8997_PRIV_H
 
 #include <linux/i2c.h>
+#include <linux/export.h>
+#include <linux/irqdomain.h>
 
 #define MAX8997_REG_INVALID	(0xff)
 
@@ -325,7 +327,7 @@ struct max8997_dev {
 
 	int irq;
 	int ono;
-	int irq_base;
+	struct irq_domain *irq_domain;
 	struct mutex irqlock;
 	int irq_masks_cur[MAX8997_IRQ_GROUP_NR];
 	int irq_masks_cache[MAX8997_IRQ_GROUP_NR];

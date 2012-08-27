@@ -92,7 +92,7 @@ static inline void _tg3_flag_clear(enum TG3_FLAGS flag, unsigned long *bits)
 
 #define DRV_MODULE_NAME		"tg3"
 #define TG3_MAJ_NUM			3
-#define TG3_MIN_NUM			123
+#define TG3_MIN_NUM			124
 #define DRV_MODULE_VERSION	\
 	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
 #define DRV_MODULE_RELDATE	"March 21, 2012"
@@ -672,6 +672,12 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 		else
 			bit = 1 << tp->pci_fn;
 		break;
+	case TG3_APE_LOCK_PHY0:
+	case TG3_APE_LOCK_PHY1:
+	case TG3_APE_LOCK_PHY2:
+	case TG3_APE_LOCK_PHY3:
+		bit = APE_LOCK_REQ_DRIVER;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -722,6 +728,12 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 			bit = APE_LOCK_GRANT_DRIVER;
 		else
 			bit = 1 << tp->pci_fn;
+		break;
+	case TG3_APE_LOCK_PHY0:
+	case TG3_APE_LOCK_PHY1:
+	case TG3_APE_LOCK_PHY2:
+	case TG3_APE_LOCK_PHY3:
+		bit = APE_LOCK_GRANT_DRIVER;
 		break;
 	default:
 		return;
@@ -1052,6 +1064,8 @@ static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
 		udelay(80);
 	}
 
+	tg3_ape_lock(tp, tp->phy_ape_lock);
+
 	*val = 0x0;
 
 	frame_val  = ((tp->phy_addr << MI_COM_PHY_ADDR_SHIFT) &
@@ -1086,6 +1100,8 @@ static int tg3_readphy(struct tg3 *tp, int reg, u32 *val)
 		udelay(80);
 	}
 
+	tg3_ape_unlock(tp, tp->phy_ape_lock);
+
 	return ret;
 }
 
@@ -1104,6 +1120,8 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 		     (tp->mi_mode & ~MAC_MI_MODE_AUTO_POLL));
 		udelay(80);
 	}
+
+	tg3_ape_lock(tp, tp->phy_ape_lock);
 
 	frame_val  = ((tp->phy_addr << MI_COM_PHY_ADDR_SHIFT) &
 		      MI_COM_PHY_ADDR_MASK);
@@ -1134,6 +1152,8 @@ static int tg3_writephy(struct tg3 *tp, int reg, u32 val)
 		tw32_f(MAC_MI_MODE, tp->mi_mode);
 		udelay(80);
 	}
+
+	tg3_ape_unlock(tp, tp->phy_ape_lock);
 
 	return ret;
 }
@@ -9066,8 +9086,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
 	    tg3_flag(tp, 57765_PLUS)) {
 		val = tr32(TG3_RDMA_RSRVCTRL_REG);
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0) {
 			val &= ~(TG3_RDMA_RSRVCTRL_TXMRGN_MASK |
 				 TG3_RDMA_RSRVCTRL_FIFO_LWM_MASK |
 				 TG3_RDMA_RSRVCTRL_FIFO_HWM_MASK);
@@ -9256,6 +9275,19 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 	tw32_f(RDMAC_MODE, rdmac_mode);
 	udelay(40);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719) {
+		for (i = 0; i < TG3_NUM_RDMA_CHANNELS; i++) {
+			if (tr32(TG3_RDMA_LENGTH + (i << 2)) > TG3_MAX_MTU(tp))
+				break;
+		}
+		if (i < TG3_NUM_RDMA_CHANNELS) {
+			val = tr32(TG3_LSO_RD_DMA_CRPTEN_CTRL);
+			val |= TG3_LSO_RD_DMA_TX_LENGTH_WA;
+			tw32(TG3_LSO_RD_DMA_CRPTEN_CTRL, val);
+			tg3_flag_set(tp, 5719_RDMA_BUG);
+		}
+	}
 
 	tw32(RCVDCC_MODE, RCVDCC_MODE_ENABLE | RCVDCC_MODE_ATTN_ENABLE);
 	if (!tg3_flag(tp, 5705_PLUS))
@@ -9616,6 +9648,16 @@ static void tg3_periodic_fetch_stats(struct tg3 *tp)
 	TG3_STAT_ADD32(&sp->tx_ucast_packets, MAC_TX_STATS_UCAST);
 	TG3_STAT_ADD32(&sp->tx_mcast_packets, MAC_TX_STATS_MCAST);
 	TG3_STAT_ADD32(&sp->tx_bcast_packets, MAC_TX_STATS_BCAST);
+	if (unlikely(tg3_flag(tp, 5719_RDMA_BUG) &&
+		     (sp->tx_ucast_packets.low + sp->tx_mcast_packets.low +
+		      sp->tx_bcast_packets.low) > TG3_NUM_RDMA_CHANNELS)) {
+		u32 val;
+
+		val = tr32(TG3_LSO_RD_DMA_CRPTEN_CTRL);
+		val &= ~TG3_LSO_RD_DMA_TX_LENGTH_WA;
+		tw32(TG3_LSO_RD_DMA_CRPTEN_CTRL, val);
+		tg3_flag_clear(tp, 5719_RDMA_BUG);
+	}
 
 	TG3_STAT_ADD32(&sp->rx_octets, MAC_RX_STATS_OCTETS);
 	TG3_STAT_ADD32(&sp->rx_fragments, MAC_RX_STATS_FRAGMENTS);
@@ -12482,10 +12524,12 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (!tp->hw_stats)
-		return &tp->net_stats_prev;
-
 	spin_lock_bh(&tp->lock);
+	if (!tp->hw_stats) {
+		spin_unlock_bh(&tp->lock);
+		return &tp->net_stats_prev;
+	}
+
 	tg3_get_nstats(tp, stats);
 	spin_unlock_bh(&tp->lock);
 
@@ -13648,6 +13692,23 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 	tg3_flag_set(tp, PAUSE_AUTONEG);
 	tp->link_config.flowctrl = FLOW_CTRL_TX | FLOW_CTRL_RX;
 
+	if (tg3_flag(tp, ENABLE_APE)) {
+		switch (tp->pci_fn) {
+		case 0:
+			tp->phy_ape_lock = TG3_APE_LOCK_PHY0;
+			break;
+		case 1:
+			tp->phy_ape_lock = TG3_APE_LOCK_PHY1;
+			break;
+		case 2:
+			tp->phy_ape_lock = TG3_APE_LOCK_PHY2;
+			break;
+		case 3:
+			tp->phy_ape_lock = TG3_APE_LOCK_PHY3;
+			break;
+		}
+	}
+
 	if (tg3_flag(tp, USE_PHYLIB))
 		return tg3_phy_init(tp);
 
@@ -14368,7 +14429,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			if (bridge->subordinate &&
 			    (bridge->subordinate->number <=
 			     tp->pdev->bus->number) &&
-			    (bridge->subordinate->subordinate >=
+			    (bridge->subordinate->busn_res.end >=
 			     tp->pdev->bus->number)) {
 				tg3_flag_set(tp, 5701_DMA_BUG);
 				pci_dev_put(bridge);
@@ -14396,7 +14457,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			if (bridge && bridge->subordinate &&
 			    (bridge->subordinate->number <=
 			     tp->pdev->bus->number) &&
-			    (bridge->subordinate->subordinate >=
+			    (bridge->subordinate->busn_res.end >=
 			     tp->pdev->bus->number)) {
 				tg3_flag_set(tp, 40BIT_DMA_BUG);
 				pci_dev_put(bridge);

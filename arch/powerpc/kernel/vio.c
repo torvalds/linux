@@ -611,6 +611,7 @@ static u64 vio_dma_get_required_mask(struct device *dev)
 struct dma_map_ops vio_dma_mapping_ops = {
 	.alloc             = vio_dma_iommu_alloc_coherent,
 	.free              = vio_dma_iommu_free_coherent,
+	.mmap		   = dma_direct_mmap_coherent,
 	.map_sg            = vio_dma_iommu_map_sg,
 	.unmap_sg          = vio_dma_iommu_unmap_sg,
 	.map_page          = vio_dma_iommu_map_page,
@@ -1294,8 +1295,7 @@ static void __devinit vio_dev_release(struct device *dev)
 	struct iommu_table *tbl = get_iommu_table_base(dev);
 
 	if (tbl)
-		iommu_free_table(tbl, dev->of_node ?
-			dev->of_node->full_name : dev_name(dev));
+		iommu_free_table(tbl, of_node_full_name(dev->of_node));
 	of_node_put(dev->of_node);
 	kfree(to_vio_dev(dev));
 }
@@ -1519,7 +1519,7 @@ static ssize_t devspec_show(struct device *dev,
 {
 	struct device_node *of_node = dev->of_node;
 
-	return sprintf(buf, "%s\n", of_node ? of_node->full_name : "none");
+	return sprintf(buf, "%s\n", of_node_full_name(of_node));
 }
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,

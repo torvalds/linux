@@ -325,9 +325,6 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 		}
 	}
 
-	if (!acts_list)
-		return 0;
-
 	return do_execute_actions(dp, skb, nla_data(acts_list),
 						 nla_len(acts_list), true);
 }

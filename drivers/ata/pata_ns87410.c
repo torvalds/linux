@@ -168,21 +168,10 @@ static struct pci_driver ns87410_pci_driver = {
 #endif
 };
 
-static int __init ns87410_init(void)
-{
-	return pci_register_driver(&ns87410_pci_driver);
-}
-
-static void __exit ns87410_exit(void)
-{
-	pci_unregister_driver(&ns87410_pci_driver);
-}
+module_pci_driver(ns87410_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for Nat Semi 87410");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, ns87410);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ns87410_init);
-module_exit(ns87410_exit);

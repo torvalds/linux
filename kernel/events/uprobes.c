@@ -32,6 +32,7 @@
 #include <linux/swap.h>		/* try_to_free_swap */
 #include <linux/ptrace.h>	/* user_enable_single_step */
 #include <linux/kdebug.h>	/* notifier mechanism */
+#include "../../mm/internal.h"	/* munlock_vma_page */
 
 #include <linux/uprobes.h>
 
@@ -112,14 +113,14 @@ static bool valid_vma(struct vm_area_struct *vma, bool is_register)
 	return false;
 }
 
-static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
+static unsigned long offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
 {
-	loff_t vaddr;
+	return vma->vm_start + offset - ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
+}
 
-	vaddr = vma->vm_start + offset;
-	vaddr -= vma->vm_pgoff << PAGE_SHIFT;
-
-	return vaddr;
+static loff_t vaddr_to_offset(struct vm_area_struct *vma, unsigned long vaddr)
+{
+	return ((loff_t)vma->vm_pgoff << PAGE_SHIFT) + (vaddr - vma->vm_start);
 }
 
 /**
@@ -127,25 +128,27 @@ static loff_t vma_address(struct vm_area_struct *vma, loff_t offset)
  * based on replace_page in mm/ksm.c
  *
  * @vma:      vma that holds the pte pointing to page
+ * @addr:     address the old @page is mapped at
  * @page:     the cowed page we are replacing by kpage
  * @kpage:    the modified page we replace page by
  *
  * Returns 0 on success, -EFAULT on failure.
  */
-static int __replace_page(struct vm_area_struct *vma, struct page *page, struct page *kpage)
+static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+				struct page *page, struct page *kpage)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	unsigned long addr;
 	spinlock_t *ptl;
 	pte_t *ptep;
+	int err;
 
-	addr = page_address_in_vma(page, vma);
-	if (addr == -EFAULT)
-		return -EFAULT;
+	/* For try_to_free_swap() and munlock_vma_page() below */
+	lock_page(page);
 
+	err = -EAGAIN;
 	ptep = page_check_address(page, mm, addr, &ptl, 0);
 	if (!ptep)
-		return -EAGAIN;
+		goto unlock;
 
 	get_page(kpage);
 	page_add_new_anon_rmap(kpage, vma, addr);
@@ -162,10 +165,16 @@ static int __replace_page(struct vm_area_struct *vma, struct page *page, struct 
 	page_remove_rmap(page);
 	if (!page_mapped(page))
 		try_to_free_swap(page);
-	put_page(page);
 	pte_unmap_unlock(ptep, ptl);
 
-	return 0;
+	if (vma->vm_flags & VM_LOCKED)
+		munlock_vma_page(page);
+	put_page(page);
+
+	err = 0;
+ unlock:
+	unlock_page(page);
+	return err;
 }
 
 /**
@@ -206,45 +215,23 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 			unsigned long vaddr, uprobe_opcode_t opcode)
 {
 	struct page *old_page, *new_page;
-	struct address_space *mapping;
 	void *vaddr_old, *vaddr_new;
 	struct vm_area_struct *vma;
-	struct uprobe *uprobe;
 	int ret;
+
 retry:
 	/* Read the page with vaddr into memory */
 	ret = get_user_pages(NULL, mm, vaddr, 1, 0, 0, &old_page, &vma);
 	if (ret <= 0)
 		return ret;
 
-	ret = -EINVAL;
-
-	/*
-	 * We are interested in text pages only. Our pages of interest
-	 * should be mapped for read and execute only. We desist from
-	 * adding probes in write mapped pages since the breakpoints
-	 * might end up in the file copy.
-	 */
-	if (!valid_vma(vma, is_swbp_insn(&opcode)))
-		goto put_out;
-
-	uprobe = container_of(auprobe, struct uprobe, arch);
-	mapping = uprobe->inode->i_mapping;
-	if (mapping != vma->vm_file->f_mapping)
-		goto put_out;
-
 	ret = -ENOMEM;
 	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, vaddr);
 	if (!new_page)
-		goto put_out;
+		goto put_old;
 
 	__SetPageUptodate(new_page);
 
-	/*
-	 * lock page will serialize against do_wp_page()'s
-	 * PageAnon() handling
-	 */
-	lock_page(old_page);
 	/* copy the page now that we've got it stable */
 	vaddr_old = kmap_atomic(old_page);
 	vaddr_new = kmap_atomic(new_page);
@@ -257,17 +244,13 @@ retry:
 
 	ret = anon_vma_prepare(vma);
 	if (ret)
-		goto unlock_out;
+		goto put_new;
 
-	lock_page(new_page);
-	ret = __replace_page(vma, old_page, new_page);
-	unlock_page(new_page);
+	ret = __replace_page(vma, vaddr, old_page, new_page);
 
-unlock_out:
-	unlock_page(old_page);
+put_new:
 	page_cache_release(new_page);
-
-put_out:
+put_old:
 	put_page(old_page);
 
 	if (unlikely(ret == -EAGAIN))
@@ -791,7 +774,7 @@ build_map_info(struct address_space *mapping, loff_t offset, bool is_register)
 		curr = info;
 
 		info->mm = vma->vm_mm;
-		info->vaddr = vma_address(vma, offset);
+		info->vaddr = offset_to_vaddr(vma, offset);
 	}
 	mutex_unlock(&mapping->i_mmap_mutex);
 
@@ -839,12 +822,13 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 			goto free;
 
 		down_write(&mm->mmap_sem);
-		vma = find_vma(mm, (unsigned long)info->vaddr);
-		if (!vma || !valid_vma(vma, is_register))
+		vma = find_vma(mm, info->vaddr);
+		if (!vma || !valid_vma(vma, is_register) ||
+		    vma->vm_file->f_mapping->host != uprobe->inode)
 			goto unlock;
 
-		if (vma->vm_file->f_mapping->host != uprobe->inode ||
-		    vma_address(vma, uprobe->offset) != info->vaddr)
+		if (vma->vm_start > info->vaddr ||
+		    vaddr_to_offset(vma, info->vaddr) != uprobe->offset)
 			goto unlock;
 
 		if (is_register) {
@@ -960,59 +944,66 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 		put_uprobe(uprobe);
 }
 
-/*
- * Of all the nodes that correspond to the given inode, return the node
- * with the least offset.
- */
-static struct rb_node *find_least_offset_node(struct inode *inode)
+static struct rb_node *
+find_node_in_range(struct inode *inode, loff_t min, loff_t max)
 {
-	struct uprobe u = { .inode = inode, .offset = 0};
 	struct rb_node *n = uprobes_tree.rb_node;
-	struct rb_node *close_node = NULL;
-	struct uprobe *uprobe;
-	int match;
 
 	while (n) {
-		uprobe = rb_entry(n, struct uprobe, rb_node);
-		match = match_uprobe(&u, uprobe);
+		struct uprobe *u = rb_entry(n, struct uprobe, rb_node);
 
-		if (uprobe->inode == inode)
-			close_node = n;
-
-		if (!match)
-			return close_node;
-
-		if (match < 0)
+		if (inode < u->inode) {
 			n = n->rb_left;
-		else
+		} else if (inode > u->inode) {
 			n = n->rb_right;
+		} else {
+			if (max < u->offset)
+				n = n->rb_left;
+			else if (min > u->offset)
+				n = n->rb_right;
+			else
+				break;
+		}
 	}
 
-	return close_node;
+	return n;
 }
 
 /*
- * For a given inode, build a list of probes that need to be inserted.
+ * For a given range in vma, build a list of probes that need to be inserted.
  */
-static void build_probe_list(struct inode *inode, struct list_head *head)
+static void build_probe_list(struct inode *inode,
+				struct vm_area_struct *vma,
+				unsigned long start, unsigned long end,
+				struct list_head *head)
 {
-	struct uprobe *uprobe;
+	loff_t min, max;
 	unsigned long flags;
-	struct rb_node *n;
+	struct rb_node *n, *t;
+	struct uprobe *u;
+
+	INIT_LIST_HEAD(head);
+	min = vaddr_to_offset(vma, start);
+	max = min + (end - start) - 1;
 
 	spin_lock_irqsave(&uprobes_treelock, flags);
-
-	n = find_least_offset_node(inode);
-
-	for (; n; n = rb_next(n)) {
-		uprobe = rb_entry(n, struct uprobe, rb_node);
-		if (uprobe->inode != inode)
-			break;
-
-		list_add(&uprobe->pending_list, head);
-		atomic_inc(&uprobe->ref);
+	n = find_node_in_range(inode, min, max);
+	if (n) {
+		for (t = n; t; t = rb_prev(t)) {
+			u = rb_entry(t, struct uprobe, rb_node);
+			if (u->inode != inode || u->offset < min)
+				break;
+			list_add(&u->pending_list, head);
+			atomic_inc(&u->ref);
+		}
+		for (t = n; (t = rb_next(t)); ) {
+			u = rb_entry(t, struct uprobe, rb_node);
+			if (u->inode != inode || u->offset > max)
+				break;
+			list_add(&u->pending_list, head);
+			atomic_inc(&u->ref);
+		}
 	}
-
 	spin_unlock_irqrestore(&uprobes_treelock, flags);
 }
 
@@ -1031,7 +1022,7 @@ static void build_probe_list(struct inode *inode, struct list_head *head)
 int uprobe_mmap(struct vm_area_struct *vma)
 {
 	struct list_head tmp_list;
-	struct uprobe *uprobe;
+	struct uprobe *uprobe, *u;
 	struct inode *inode;
 	int ret, count;
 
@@ -1042,21 +1033,15 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	if (!inode)
 		return 0;
 
-	INIT_LIST_HEAD(&tmp_list);
 	mutex_lock(uprobes_mmap_hash(inode));
-	build_probe_list(inode, &tmp_list);
+	build_probe_list(inode, vma, vma->vm_start, vma->vm_end, &tmp_list);
 
 	ret = 0;
 	count = 0;
 
-	list_for_each_entry(uprobe, &tmp_list, pending_list) {
+	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
 		if (!ret) {
-			loff_t vaddr = vma_address(vma, uprobe->offset);
-
-			if (vaddr < vma->vm_start || vaddr >= vma->vm_end) {
-				put_uprobe(uprobe);
-				continue;
-			}
+			unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
 
 			ret = install_breakpoint(uprobe, vma->vm_mm, vma, vaddr);
 			/*
@@ -1097,10 +1082,13 @@ int uprobe_mmap(struct vm_area_struct *vma)
 void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 	struct list_head tmp_list;
-	struct uprobe *uprobe;
+	struct uprobe *uprobe, *u;
 	struct inode *inode;
 
 	if (!atomic_read(&uprobe_events) || !valid_vma(vma, false))
+		return;
+
+	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
 		return;
 
 	if (!atomic_read(&vma->vm_mm->uprobes_state.count))
@@ -1110,21 +1098,17 @@ void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned lon
 	if (!inode)
 		return;
 
-	INIT_LIST_HEAD(&tmp_list);
 	mutex_lock(uprobes_mmap_hash(inode));
-	build_probe_list(inode, &tmp_list);
+	build_probe_list(inode, vma, start, end, &tmp_list);
 
-	list_for_each_entry(uprobe, &tmp_list, pending_list) {
-		loff_t vaddr = vma_address(vma, uprobe->offset);
-
-		if (vaddr >= start && vaddr < end) {
-			/*
-			 * An unregister could have removed the probe before
-			 * unmap. So check before we decrement the count.
-			 */
-			if (is_swbp_at_addr(vma->vm_mm, vaddr) == 1)
-				atomic_dec(&vma->vm_mm->uprobes_state.count);
-		}
+	list_for_each_entry_safe(uprobe, u, &tmp_list, pending_list) {
+		unsigned long vaddr = offset_to_vaddr(vma, uprobe->offset);
+		/*
+		 * An unregister could have removed the probe before
+		 * unmap. So check before we decrement the count.
+		 */
+		if (is_swbp_at_addr(vma->vm_mm, vaddr) == 1)
+			atomic_dec(&vma->vm_mm->uprobes_state.count);
 		put_uprobe(uprobe);
 	}
 	mutex_unlock(uprobes_mmap_hash(inode));
@@ -1463,12 +1447,9 @@ static struct uprobe *find_active_uprobe(unsigned long bp_vaddr, int *is_swbp)
 	vma = find_vma(mm, bp_vaddr);
 	if (vma && vma->vm_start <= bp_vaddr) {
 		if (valid_vma(vma, false)) {
-			struct inode *inode;
-			loff_t offset;
+			struct inode *inode = vma->vm_file->f_mapping->host;
+			loff_t offset = vaddr_to_offset(vma, bp_vaddr);
 
-			inode = vma->vm_file->f_mapping->host;
-			offset = bp_vaddr - vma->vm_start;
-			offset += (vma->vm_pgoff << PAGE_SHIFT);
 			uprobe = find_uprobe(inode, offset);
 		}
 

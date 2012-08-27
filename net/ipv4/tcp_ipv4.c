@@ -417,10 +417,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 
 		if (code == ICMP_FRAG_NEEDED) { /* PMTU discovery (RFC1191) */
 			tp->mtu_info = info;
-			if (!sock_owned_by_user(sk))
+			if (!sock_owned_by_user(sk)) {
 				tcp_v4_mtu_reduced(sk);
-			else
-				set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags);
+			} else {
+				if (!test_and_set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags))
+					sock_hold(sk);
+			}
 			goto out;
 		}
 
@@ -1462,6 +1464,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		goto exit_nonewsk;
 
 	newsk->sk_gso_type = SKB_GSO_TCPV4;
+	inet_sk_rx_dst_set(newsk, skb);
 
 	newtp		      = tcp_sk(newsk);
 	newinet		      = inet_sk(newsk);
@@ -1617,20 +1620,15 @@ int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 #endif
 
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
+		struct dst_entry *dst = sk->sk_rx_dst;
+
 		sock_rps_save_rxhash(sk, skb);
-		if (sk->sk_rx_dst) {
-			struct dst_entry *dst = sk->sk_rx_dst;
-			if (dst->ops->check(dst, 0) == NULL) {
+		if (dst) {
+			if (inet_sk(sk)->rx_dst_ifindex != skb->skb_iif ||
+			    dst->ops->check(dst, 0) == NULL) {
 				dst_release(dst);
 				sk->sk_rx_dst = NULL;
 			}
-		}
-		if (unlikely(sk->sk_rx_dst == NULL)) {
-			struct inet_sock *icsk = inet_sk(sk);
-			struct rtable *rt = skb_rtable(skb);
-
-			sk->sk_rx_dst = dst_clone(&rt->dst);
-			icsk->rx_dst_ifindex = inet_iif(skb);
 		}
 		if (tcp_rcv_established(sk, skb, tcp_hdr(skb), skb->len)) {
 			rsk = sk;
@@ -1686,7 +1684,6 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph;
 	const struct tcphdr *th;
-	struct net_device *dev;
 	struct sock *sk;
 
 	if (skb->pkt_type != PACKET_HOST)
@@ -1701,24 +1698,20 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 	if (th->doff < sizeof(struct tcphdr) / 4)
 		return;
 
-	if (!pskb_may_pull(skb, ip_hdrlen(skb) + th->doff * 4))
-		return;
-
-	dev = skb->dev;
 	sk = __inet_lookup_established(net, &tcp_hashinfo,
 				       iph->saddr, th->source,
 				       iph->daddr, ntohs(th->dest),
-				       dev->ifindex);
+				       skb->skb_iif);
 	if (sk) {
 		skb->sk = sk;
 		skb->destructor = sock_edemux;
 		if (sk->sk_state != TCP_TIME_WAIT) {
 			struct dst_entry *dst = sk->sk_rx_dst;
-			struct inet_sock *icsk = inet_sk(sk);
+
 			if (dst)
 				dst = dst_check(dst, 0);
 			if (dst &&
-			    icsk->rx_dst_ifindex == dev->ifindex)
+			    inet_sk(sk)->rx_dst_ifindex == skb->skb_iif)
 				skb_dst_set_noref(skb, dst);
 		}
 	}
@@ -1879,10 +1872,21 @@ static struct timewait_sock_ops tcp_timewait_sock_ops = {
 	.twsk_destructor= tcp_twsk_destructor,
 };
 
+void inet_sk_rx_dst_set(struct sock *sk, const struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+
+	dst_hold(dst);
+	sk->sk_rx_dst = dst;
+	inet_sk(sk)->rx_dst_ifindex = skb->skb_iif;
+}
+EXPORT_SYMBOL(inet_sk_rx_dst_set);
+
 const struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	   = ip_queue_xmit,
 	.send_check	   = tcp_v4_send_check,
 	.rebuild_header	   = inet_sk_rebuild_header,
+	.sk_rx_dst_set	   = inet_sk_rx_dst_set,
 	.conn_request	   = tcp_v4_conn_request,
 	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
 	.net_header_len	   = sizeof(struct iphdr),
@@ -2640,7 +2644,7 @@ struct proto tcp_prot = {
 	.compat_setsockopt	= compat_tcp_setsockopt,
 	.compat_getsockopt	= compat_tcp_getsockopt,
 #endif
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+#ifdef CONFIG_MEMCG_KMEM
 	.init_cgroup		= tcp_init_cgroup,
 	.destroy_cgroup		= tcp_destroy_cgroup,
 	.proto_cgroup		= tcp_proto_cgroup,

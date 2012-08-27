@@ -2983,6 +2983,12 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	return 0;
 
 out:
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(mp->clk)) {
+		clk_disable_unprepare(mp->clk);
+		clk_put(mp->clk);
+	}
+#endif
 	free_netdev(dev);
 
 	return err;

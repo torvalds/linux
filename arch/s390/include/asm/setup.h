@@ -60,7 +60,7 @@ void create_mem_hole(struct mem_chunk memory_chunk[], unsigned long addr,
 #define SECONDARY_SPACE_MODE	2
 #define HOME_SPACE_MODE		3
 
-extern unsigned int user_mode;
+extern unsigned int addressing_mode;
 
 /*
  * Machine features detected in head.S

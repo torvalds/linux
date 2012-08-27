@@ -78,7 +78,7 @@
 #include <linux/quotaops.h>
 #include "../internal.h" /* ugh */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * There are three quota SMP locks. dq_list_lock protects all lists with quotas

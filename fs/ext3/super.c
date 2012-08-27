@@ -64,11 +64,6 @@ static int ext3_freeze(struct super_block *sb);
 
 /*
  * Wrappers for journal_start/end.
- *
- * The only special thing we need to do here is to make sure that all
- * journal_end calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
  */
 handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 {
@@ -90,12 +85,6 @@ handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks)
 	return journal_start(journal, nblocks);
 }
 
-/*
- * The only special thing we need to do here is to make sure that all
- * journal_stop calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
- */
 int __ext3_journal_stop(const char *where, handle_t *handle)
 {
 	struct super_block *sb;
@@ -2058,7 +2047,8 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		goto failed_mount3;
 	}
 
-	ext3_setup_super (sb, es, sb->s_flags & MS_RDONLY);
+	if (ext3_setup_super(sb, es, sb->s_flags & MS_RDONLY))
+		sb->s_flags |= MS_RDONLY;
 
 	EXT3_SB(sb)->s_mount_state |= EXT3_ORPHAN_FS;
 	ext3_orphan_cleanup(sb, es);

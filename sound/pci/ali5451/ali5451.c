@@ -1884,9 +1884,10 @@ static int __devinit snd_ali_mixer(struct snd_ali * codec)
 }
 
 #ifdef CONFIG_PM
-static int ali_suspend(struct pci_dev *pci, pm_message_t state)
+static int ali_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ali *chip = card->private_data;
 	struct snd_ali_image *im;
 	int i, j;
@@ -1929,13 +1930,14 @@ static int ali_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int ali_resume(struct pci_dev *pci)
+static int ali_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ali *chip = card->private_data;
 	struct snd_ali_image *im;
 	int i, j;
@@ -1982,6 +1984,11 @@ static int ali_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(ali_pm, ali_suspend, ali_resume);
+#define ALI_PM_OPS	&ali_pm
+#else
+#define ALI_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 static int snd_ali_free(struct snd_ali * codec)
@@ -2299,10 +2306,9 @@ static struct pci_driver ali5451_driver = {
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),
-#ifdef CONFIG_PM
-	.suspend = ali_suspend,
-	.resume = ali_resume,
-#endif
+	.driver = {
+		.pm = ALI_PM_OPS,
+	},
 };                                
 
 module_pci_driver(ali5451_driver);

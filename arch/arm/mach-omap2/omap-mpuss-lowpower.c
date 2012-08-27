@@ -313,7 +313,7 @@ int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 	scu_pwrst_prepare(cpu, power_state);
 
 	/*
-	 * CPU never retuns back if targetted power state is OFF mode.
+	 * CPU never retuns back if targeted power state is OFF mode.
 	 * CPU ONLINE follows normal CPU ONLINE ptah via
 	 * omap_secondary_startup().
 	 */

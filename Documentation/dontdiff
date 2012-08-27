@@ -150,7 +150,6 @@ keywords.c
 ksym.c*
 ksym.h*
 kxgettext
-lkc_defs.h
 lex.c
 lex.*.c
 linux

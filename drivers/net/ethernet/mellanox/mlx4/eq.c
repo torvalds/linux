@@ -83,6 +83,15 @@ enum {
 			       (1ull << MLX4_EVENT_TYPE_FLR_EVENT)	    | \
 			       (1ull << MLX4_EVENT_TYPE_FATAL_WARNING))
 
+static u64 get_async_ev_mask(struct mlx4_dev *dev)
+{
+	u64 async_ev_mask = MLX4_ASYNC_EVENT_MASK;
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV)
+		async_ev_mask |= (1ull << MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT);
+
+	return async_ev_mask;
+}
+
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {
 	__raw_writel((__force u32) cpu_to_be32((eq->cons_index & 0xffffff) |
@@ -472,6 +481,11 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 					  !!(eqe->owner & 0x80) ^
 					  !!(eq->cons_index & eq->nent) ? "HW" : "SW");
 
+			break;
+
+		case MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT:
+			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_PORT_MGMT_CHANGE,
+					    (unsigned long) eqe);
 			break;
 
 		case MLX4_EVENT_TYPE_EEC_CATAS_ERROR:
@@ -957,7 +971,7 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 		priv->eq_table.have_irq = 1;
 	}
 
-	err = mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+	err = mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
 			  priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
 	if (err)
 		mlx4_warn(dev, "MAP_EQ for async EQ %d failed (%d)\n",
@@ -997,7 +1011,7 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int i;
 
-	mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 1,
+	mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 1,
 		    priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
 
 	mlx4_free_irqs(dev);
@@ -1041,7 +1055,7 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 		mlx4_cmd_use_polling(dev);
 
 		/* Map the new eq to handle all asyncronous events */
-		err = mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+		err = mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
 				  priv->eq_table.eq[i].eqn);
 		if (err) {
 			mlx4_warn(dev, "Failed mapping eq for interrupt test\n");
@@ -1055,7 +1069,7 @@ int mlx4_test_interrupts(struct mlx4_dev *dev)
 	}
 
 	/* Return to default */
-	mlx4_MAP_EQ(dev, MLX4_ASYNC_EVENT_MASK, 0,
+	mlx4_MAP_EQ(dev, get_async_ev_mask(dev), 0,
 		    priv->eq_table.eq[dev->caps.num_comp_vectors].eqn);
 	return err;
 }

@@ -1397,7 +1397,7 @@ static void be_parse_rx_compl_v1(struct be_eth_rx_compl *compl,
 	rxcp->pkt_type =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, cast_enc, compl);
 	rxcp->rss_hash =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, rsshash, rxcp);
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v1, rsshash, compl);
 	if (rxcp->vlanf) {
 		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v1, vtm,
 					  compl);
@@ -1429,7 +1429,7 @@ static void be_parse_rx_compl_v0(struct be_eth_rx_compl *compl,
 	rxcp->pkt_type =
 		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, cast_enc, compl);
 	rxcp->rss_hash =
-		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, rsshash, rxcp);
+		AMAP_GET_BITS(struct amap_eth_rx_compl_v0, rsshash, compl);
 	if (rxcp->vlanf) {
 		rxcp->vtm = AMAP_GET_BITS(struct amap_eth_rx_compl_v0, vtm,
 					  compl);
@@ -1948,7 +1948,7 @@ static int be_rx_cqs_create(struct be_adapter *adapter)
 
 	if (adapter->num_rx_qs != MAX_RX_QS)
 		dev_info(&adapter->pdev->dev,
-			"Created only %d receive queues", adapter->num_rx_qs);
+			"Created only %d receive queues\n", adapter->num_rx_qs);
 
 	return 0;
 }
@@ -3579,7 +3579,7 @@ u32 be_get_fw_log_level(struct be_adapter *adapter)
 	if (!status) {
 		cfgs = (struct be_fat_conf_params *)(extfat_cmd.va +
 						sizeof(struct be_cmd_resp_hdr));
-		for (j = 0; j < cfgs->module[0].num_modes; j++) {
+		for (j = 0; j < le32_to_cpu(cfgs->module[0].num_modes); j++) {
 			if (cfgs->module[0].trace_lvl[j].mode == MODE_UART)
 				level = cfgs->module[0].trace_lvl[j].dbg_lvl;
 		}

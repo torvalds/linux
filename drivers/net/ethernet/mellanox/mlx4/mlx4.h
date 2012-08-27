@@ -249,7 +249,7 @@ struct mlx4_bitmap {
 struct mlx4_buddy {
 	unsigned long	      **bits;
 	unsigned int	       *num_free;
-	int			max_order;
+	u32			max_order;
 	spinlock_t		lock;
 };
 
@@ -258,7 +258,7 @@ struct mlx4_icm;
 struct mlx4_icm_table {
 	u64			virt;
 	int			num_icm;
-	int			num_obj;
+	u32			num_obj;
 	int			obj_size;
 	int			lowmem;
 	int			coherent;
@@ -350,66 +350,6 @@ struct mlx4_srq_context {
 	u32			reserved5;
 	__be64			db_rec_addr;
 };
-
-struct mlx4_eqe {
-	u8			reserved1;
-	u8			type;
-	u8			reserved2;
-	u8			subtype;
-	union {
-		u32		raw[6];
-		struct {
-			__be32	cqn;
-		} __packed comp;
-		struct {
-			u16	reserved1;
-			__be16	token;
-			u32	reserved2;
-			u8	reserved3[3];
-			u8	status;
-			__be64	out_param;
-		} __packed cmd;
-		struct {
-			__be32	qpn;
-		} __packed qp;
-		struct {
-			__be32	srqn;
-		} __packed srq;
-		struct {
-			__be32	cqn;
-			u32	reserved1;
-			u8	reserved2[3];
-			u8	syndrome;
-		} __packed cq_err;
-		struct {
-			u32	reserved1[2];
-			__be32	port;
-		} __packed port_change;
-		struct {
-			#define COMM_CHANNEL_BIT_ARRAY_SIZE	4
-			u32 reserved;
-			u32 bit_vec[COMM_CHANNEL_BIT_ARRAY_SIZE];
-		} __packed comm_channel_arm;
-		struct {
-			u8	port;
-			u8	reserved[3];
-			__be64	mac;
-		} __packed mac_update;
-		struct {
-			u8	port;
-		} __packed sw_event;
-		struct {
-			__be32	slave_id;
-		} __packed flr_event;
-		struct {
-			__be16  current_temperature;
-			__be16  warning_threshold;
-		} __packed warming;
-	}			event;
-	u8			slave_id;
-	u8			reserved3[2];
-	u8			owner;
-} __packed;
 
 struct mlx4_eq {
 	struct mlx4_dev	       *dev;
@@ -902,7 +842,8 @@ void mlx4_catas_init(void);
 int mlx4_restart_one(struct pci_dev *pdev);
 int mlx4_register_device(struct mlx4_dev *dev);
 void mlx4_unregister_device(struct mlx4_dev *dev);
-void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type, int port);
+void mlx4_dispatch_event(struct mlx4_dev *dev, enum mlx4_dev_event type,
+			 unsigned long param);
 
 struct mlx4_dev_cap;
 struct mlx4_init_hca_param;
@@ -1043,7 +984,7 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table);
 void mlx4_init_vlan_table(struct mlx4_dev *dev, struct mlx4_vlan_table *table);
 
-int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port);
+int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz);
 /* resource tracker functions*/
 int mlx4_get_slave_from_resource_id(struct mlx4_dev *dev,
 				    enum mlx4_resource resource_type,
@@ -1086,6 +1027,8 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_info *cmd);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
 
+int mlx4_get_slave_pkey_gid_tbl_len(struct mlx4_dev *dev, u8 port,
+				    int *gid_tbl_len, int *pkey_tbl_len);
 
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 			   struct mlx4_vhcr *vhcr,

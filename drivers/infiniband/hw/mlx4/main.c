@@ -50,7 +50,7 @@
 #include "mlx4_ib.h"
 #include "user.h"
 
-#define DRV_NAME	"mlx4_ib"
+#define DRV_NAME	MLX4_IB_DRV_NAME
 #define DRV_VERSION	"1.0"
 #define DRV_RELDATE	"April 4, 2008"
 
@@ -157,7 +157,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
 		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
-	props->masked_atomic_cap   = IB_ATOMIC_HCA;
+	props->masked_atomic_cap   = props->atomic_cap;
 	props->max_pkeys	   = dev->dev->caps.pkey_table_len[1];
 	props->max_mcast_grp	   = dev->dev->caps.num_mgms + dev->dev->caps.num_amgms;
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
@@ -423,6 +423,7 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 				 struct ib_device_modify *props)
 {
 	struct mlx4_cmd_mailbox *mailbox;
+	unsigned long flags;
 
 	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
 		return -EOPNOTSUPP;
@@ -430,9 +431,9 @@ static int mlx4_ib_modify_device(struct ib_device *ibdev, int mask,
 	if (!(mask & IB_DEVICE_MODIFY_NODE_DESC))
 		return 0;
 
-	spin_lock(&to_mdev(ibdev)->sm_lock);
+	spin_lock_irqsave(&to_mdev(ibdev)->sm_lock, flags);
 	memcpy(ibdev->node_desc, props->node_desc, 64);
-	spin_unlock(&to_mdev(ibdev)->sm_lock);
+	spin_unlock_irqrestore(&to_mdev(ibdev)->sm_lock, flags);
 
 	/*
 	 * If possible, pass node desc to FW, so it can generate
@@ -946,7 +947,6 @@ static void update_gids_task(struct work_struct *work)
 	union ib_gid *gids;
 	int err;
 	struct mlx4_dev	*dev = gw->dev->dev;
-	struct ib_event event;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
@@ -964,10 +964,7 @@ static void update_gids_task(struct work_struct *work)
 		pr_warn("set port command failed\n");
 	else {
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
-		event.device = &gw->dev->ib_dev;
-		event.element.port_num = gw->port;
-		event.event    = IB_EVENT_GID_CHANGE;
-		ib_dispatch_event(&event);
+		mlx4_ib_dispatch_event(gw->dev, gw->port, IB_EVENT_GID_CHANGE);
 	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -1432,10 +1429,18 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 }
 
 static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
-			  enum mlx4_dev_event event, int port)
+			  enum mlx4_dev_event event, unsigned long param)
 {
 	struct ib_event ibev;
 	struct mlx4_ib_dev *ibdev = to_mdev((struct ib_device *) ibdev_ptr);
+	struct mlx4_eqe *eqe = NULL;
+	struct ib_event_work *ew;
+	int port = 0;
+
+	if (event == MLX4_DEV_EVENT_PORT_MGMT_CHANGE)
+		eqe = (struct mlx4_eqe *)param;
+	else
+		port = (u8)param;
 
 	if (port > ibdev->num_ports)
 		return;
@@ -1453,6 +1458,19 @@ static void mlx4_ib_event(struct mlx4_dev *dev, void *ibdev_ptr,
 		ibdev->ib_active = false;
 		ibev.event = IB_EVENT_DEVICE_FATAL;
 		break;
+
+	case MLX4_DEV_EVENT_PORT_MGMT_CHANGE:
+		ew = kmalloc(sizeof *ew, GFP_ATOMIC);
+		if (!ew) {
+			pr_err("failed to allocate memory for events work\n");
+			break;
+		}
+
+		INIT_WORK(&ew->work, handle_port_mgmt_change_event);
+		memcpy(&ew->ib_eqe, eqe, sizeof *eqe);
+		ew->ib_dev = ibdev;
+		handle_port_mgmt_change_event(&ew->work);
+		return;
 
 	default:
 		return;

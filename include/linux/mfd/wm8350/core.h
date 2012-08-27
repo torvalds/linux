@@ -17,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
 #include <linux/completion.h>
+#include <linux/regmap.h>
 
 #include <linux/mfd/wm8350/audio.h>
 #include <linux/mfd/wm8350/gpio.h>
@@ -65,6 +66,9 @@
 #define WM8350_STATE_MACHINE_STATUS		0xE9
 
 #define WM8350_MAX_REGISTER                     0xFF
+
+#define WM8350_UNLOCK_KEY		0x0013
+#define WM8350_LOCK_KEY			0x0000
 
 /*
  * Field Definitions.
@@ -582,27 +586,9 @@
 
 #define WM8350_NUM_IRQ_REGS 7
 
-struct wm8350_reg_access {
-	u16 readable;		/* Mask of readable bits */
-	u16 writable;		/* Mask of writable bits */
-	u16 vol;		/* Mask of volatile bits */
-};
-extern const struct wm8350_reg_access wm8350_reg_io_map[];
-extern const u16 wm8350_mode0_defaults[];
-extern const u16 wm8350_mode1_defaults[];
-extern const u16 wm8350_mode2_defaults[];
-extern const u16 wm8350_mode3_defaults[];
-extern const u16 wm8351_mode0_defaults[];
-extern const u16 wm8351_mode1_defaults[];
-extern const u16 wm8351_mode2_defaults[];
-extern const u16 wm8351_mode3_defaults[];
-extern const u16 wm8352_mode0_defaults[];
-extern const u16 wm8352_mode1_defaults[];
-extern const u16 wm8352_mode2_defaults[];
-extern const u16 wm8352_mode3_defaults[];
+extern const struct regmap_config wm8350_regmap;
 
 struct wm8350;
-struct regmap;
 
 struct wm8350_hwmon {
 	struct platform_device *pdev;
@@ -614,7 +600,7 @@ struct wm8350 {
 
 	/* device IO */
 	struct regmap *regmap;
-	u16 *reg_cache;
+	bool unlocked;
 
 	struct mutex auxadc_mutex;
 	struct completion auxadc_done;

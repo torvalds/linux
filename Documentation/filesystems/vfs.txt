@@ -216,7 +216,6 @@ struct super_operations {
         void (*drop_inode) (struct inode *);
         void (*delete_inode) (struct inode *);
         void (*put_super) (struct super_block *);
-        void (*write_super) (struct super_block *);
         int (*sync_fs)(struct super_block *sb, int wait);
         int (*freeze_fs) (struct super_block *);
         int (*unfreeze_fs) (struct super_block *);
@@ -272,9 +271,6 @@ or bottom half).
 
   put_super: called when the VFS wishes to free the superblock
 	(i.e. unmount). This is called with the superblock lock held
-
-  write_super: called when the VFS superblock needs to be written to
-	disc. This method is optional
 
   sync_fs: called when VFS is writing out all dirty data associated with
   	a superblock. The second parameter indicates whether the method
@@ -592,6 +588,8 @@ struct address_space_operations {
 	int (*migratepage) (struct page *, struct page *);
 	int (*launder_page) (struct page *);
 	int (*error_remove_page) (struct mapping *mapping, struct page *page);
+	int (*swap_activate)(struct file *);
+	int (*swap_deactivate)(struct file *);
 };
 
   writepage: called by the VM to write a dirty page to backing store.
@@ -759,6 +757,16 @@ struct address_space_operations {
 	is ok for this address space. Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.
+
+  swap_activate: Called when swapon is used on a file to allocate
+	space if necessary and pin the block lookup information in
+	memory. A return value of zero indicates success,
+	in which case this file can be used to back swapspace. The
+	swapspace operations will be proxied to this address space's
+	->swap_{out,in} methods.
+
+  swap_deactivate: Called during swapoff on files where swap_activate
+	was successful.
 
 
 The File Object

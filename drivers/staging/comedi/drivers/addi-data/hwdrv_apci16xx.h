@@ -41,21 +41,6 @@
 
 #ifdef __KERNEL__
 
-static const struct comedi_lrange range_apci16xx_ttl = { 12,
-	{BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1),
-	 BIP_RANGE(1)}
-};
-
 /*
 +----------------------------------------------------------------------------+
 |                       TTL INISIALISATION FUNCTION                          |

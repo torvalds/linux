@@ -144,5 +144,8 @@ static inline bool strstarts(const char *str, const char *prefix)
 {
 	return strncmp(str, prefix, strlen(prefix)) == 0;
 }
-#endif
+
+extern size_t memweight(const void *ptr, size_t bytes);
+
+#endif /* __KERNEL__ */
 #endif /* _LINUX_STRING_H_ */

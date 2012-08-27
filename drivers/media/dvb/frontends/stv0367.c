@@ -1584,7 +1584,7 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 	struct stv0367ter_state *ter_state = state->ter_state;
 	int offset = 0, tempo = 0;
 	u8 u_var;
-	u8 /*constell,*/ counter, tps_rcvd[2];
+	u8 /*constell,*/ counter;
 	s8 step;
 	s32 timing_offset = 0;
 	u32 trl_nomrate = 0, InternalFreq = 0, temp = 0;
@@ -1709,9 +1709,6 @@ static int stv0367ter_algo(struct dvb_frontend *fe)
 		return 0;
 
 	ter_state->state = FE_TER_LOCKOK;
-	/* update results */
-	tps_rcvd[0] = stv0367_readreg(state, R367TER_TPS_RCVD2);
-	tps_rcvd[1] = stv0367_readreg(state, R367TER_TPS_RCVD3);
 
 	ter_state->mode = stv0367_readbits(state, F367TER_SYR_MODE);
 	ter_state->guard = stv0367_readbits(state, F367TER_SYR_GUARD);

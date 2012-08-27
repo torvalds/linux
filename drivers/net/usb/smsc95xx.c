@@ -1335,6 +1335,6 @@ static struct usb_driver smsc95xx_driver = {
 module_usb_driver(smsc95xx_driver);
 
 MODULE_AUTHOR("Nancy Lin");
-MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@shawell.net>");
 MODULE_DESCRIPTION("SMSC95XX USB 2.0 Ethernet Devices");
 MODULE_LICENSE("GPL");

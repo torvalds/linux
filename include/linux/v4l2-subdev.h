@@ -25,6 +25,7 @@
 
 #include <linux/ioctl.h>
 #include <linux/types.h>
+#include <linux/v4l2-common.h>
 #include <linux/v4l2-mediabus.h>
 
 /**
@@ -123,27 +124,14 @@ struct v4l2_subdev_frame_interval_enum {
 	__u32 reserved[9];
 };
 
-#define V4L2_SUBDEV_SEL_FLAG_SIZE_GE			(1 << 0)
-#define V4L2_SUBDEV_SEL_FLAG_SIZE_LE			(1 << 1)
-#define V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG		(1 << 2)
-
-/* active cropping area */
-#define V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL			0x0000
-/* cropping bounds */
-#define V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS			0x0002
-/* current composing area */
-#define V4L2_SUBDEV_SEL_TGT_COMPOSE_ACTUAL		0x0100
-/* composing bounds */
-#define V4L2_SUBDEV_SEL_TGT_COMPOSE_BOUNDS		0x0102
-
-
 /**
  * struct v4l2_subdev_selection - selection info
  *
  * @which: either V4L2_SUBDEV_FORMAT_ACTIVE or V4L2_SUBDEV_FORMAT_TRY
  * @pad: pad number, as reported by the media API
- * @target: selection target, used to choose one of possible rectangles
- * @flags: constraint flags
+ * @target: Selection target, used to choose one of possible rectangles,
+ *	    defined in v4l2-common.h; V4L2_SEL_TGT_* .
+ * @flags: constraint flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
  * @r: coordinates of the selection window
  * @reserved: for future use, set to zero for now
  *

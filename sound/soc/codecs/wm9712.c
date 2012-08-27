@@ -1,7 +1,7 @@
 /*
  * wm9712.c  --  ALSA Soc WM9712 codec support
  *
- * Copyright 2006 Wolfson Microelectronics PLC.
+ * Copyright 2006-12 Wolfson Microelectronics PLC.
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -148,7 +148,7 @@ SOC_SINGLE("Treble Volume", AC97_MASTER_TONE, 0, 15, 1),
 
 SOC_SINGLE("Capture ADC Switch", AC97_REC_GAIN, 15, 1, 1),
 SOC_ENUM("Capture Volume Steps", wm9712_enum[6]),
-SOC_DOUBLE("Capture Volume", AC97_REC_GAIN, 8, 0, 63, 1),
+SOC_DOUBLE("Capture Volume", AC97_REC_GAIN, 8, 0, 63, 0),
 SOC_SINGLE("Capture ZC Switch", AC97_REC_GAIN, 7, 1, 0),
 
 SOC_SINGLE_TLV("Mic 1 Volume", AC97_MIC, 8, 31, 1, main_tlv),
@@ -272,7 +272,7 @@ SOC_DAPM_ENUM("Route", wm9712_enum[9]);
 
 /* Mic select */
 static const struct snd_kcontrol_new wm9712_mic_src_controls =
-SOC_DAPM_ENUM("Route", wm9712_enum[7]);
+SOC_DAPM_ENUM("Mic Source Select", wm9712_enum[7]);
 
 /* diff select */
 static const struct snd_kcontrol_new wm9712_diff_sel_controls =
@@ -291,7 +291,9 @@ SND_SOC_DAPM_MUX("Left Capture Select", SND_SOC_NOPM, 0, 0,
 	&wm9712_capture_selectl_controls),
 SND_SOC_DAPM_MUX("Right Capture Select", SND_SOC_NOPM, 0, 0,
 	&wm9712_capture_selectr_controls),
-SND_SOC_DAPM_MUX("Mic Select Source", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("Left Mic Select Source", SND_SOC_NOPM, 0, 0,
+	&wm9712_mic_src_controls),
+SND_SOC_DAPM_MUX("Right Mic Select Source", SND_SOC_NOPM, 0, 0,
 	&wm9712_mic_src_controls),
 SND_SOC_DAPM_MUX("Differential Source", SND_SOC_NOPM, 0, 0,
 	&wm9712_diff_sel_controls),
@@ -319,6 +321,7 @@ SND_SOC_DAPM_PGA("Out 3 PGA", AC97_INT_PAGING, 5, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Line PGA", AC97_INT_PAGING, 2, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Phone PGA", AC97_INT_PAGING, 1, 1, NULL, 0),
 SND_SOC_DAPM_PGA("Mic PGA", AC97_INT_PAGING, 0, 1, NULL, 0),
+SND_SOC_DAPM_PGA("Differential Mic", SND_SOC_NOPM, 0, 0, NULL, 0),
 SND_SOC_DAPM_MICBIAS("Mic Bias", AC97_INT_PAGING, 10, 1),
 SND_SOC_DAPM_OUTPUT("MONOOUT"),
 SND_SOC_DAPM_OUTPUT("HPOUTL"),
@@ -378,6 +381,18 @@ static const struct snd_soc_dapm_route wm9712_audio_map[] = {
 	{"Phone PGA", NULL, "PHONE"},
 	{"Mic PGA", NULL, "MIC1"},
 	{"Mic PGA", NULL, "MIC2"},
+
+	/* microphones */
+	{"Differential Mic", NULL, "MIC1"},
+	{"Differential Mic", NULL, "MIC2"},
+	{"Left Mic Select Source", "Mic 1", "MIC1"},
+	{"Left Mic Select Source", "Mic 2", "MIC2"},
+	{"Left Mic Select Source", "Stereo", "MIC1"},
+	{"Left Mic Select Source", "Differential", "Differential Mic"},
+	{"Right Mic Select Source", "Mic 1", "MIC1"},
+	{"Right Mic Select Source", "Mic 2", "MIC2"},
+	{"Right Mic Select Source", "Stereo", "MIC2"},
+	{"Right Mic Select Source", "Differential", "Differential Mic"},
 
 	/* left capture selector */
 	{"Left Capture Select", "Mic", "MIC1"},
@@ -619,6 +634,7 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
 
+	codec->control_data = codec;	/* we don't use regmap! */
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0) {
 		printk(KERN_ERR "wm9712: failed to register AC97 codec\n");

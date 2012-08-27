@@ -201,7 +201,7 @@ mlx4_en_filter_alloc(struct mlx4_en_priv *priv, int rxq_index, __be32 src_ip,
 
 	filter->flow_id = flow_id;
 
-	filter->id = priv->last_filter_id++;
+	filter->id = priv->last_filter_id++ % RPS_NO_FILTER;
 
 	list_add_tail(&filter->next, &priv->filters);
 	hlist_add_head(&filter->filter_chain,

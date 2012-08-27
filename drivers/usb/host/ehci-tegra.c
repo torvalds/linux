@@ -17,6 +17,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/tegra_usb.h>
 #include <linux/irq.h>
@@ -280,29 +281,13 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 
 	/* EHCI registers start at offset 0x100 */
 	ehci->caps = hcd->regs + 0x100;
-	ehci->regs = hcd->regs + 0x100 +
-		HC_LENGTH(ehci, readl(&ehci->caps->hc_capbase));
-
-	dbg_hcs_params(ehci, "reset");
-	dbg_hcc_params(ehci, "reset");
-
-	/* cache this readonly data; minimize chip reads */
-	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
 	/* switch to host mode */
 	hcd->has_tt = 1;
-	ehci_reset(ehci);
 
-	retval = ehci_halt(ehci);
+	retval = ehci_setup(hcd);
 	if (retval)
 		return retval;
-
-	/* data structure init */
-	retval = ehci_init(hcd);
-	if (retval)
-		return retval;
-
-	ehci->sbrn = 0x20;
 
 	ehci_port_power(ehci, 1);
 	return retval;
@@ -460,12 +445,11 @@ static int controller_suspend(struct device *dev)
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(10);
 
-	spin_lock_irqsave(&ehci->lock, flags);
-
-	tegra->port_speed = (readl(&hw->port_status[0]) >> 26) & 0x3;
 	ehci_halt(ehci);
-	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
+	spin_lock_irqsave(&ehci->lock, flags);
+	tegra->port_speed = (readl(&hw->port_status[0]) >> 26) & 0x3;
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	spin_unlock_irqrestore(&ehci->lock, flags);
 
 	tegra_ehci_power_down(hcd);
@@ -749,8 +733,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
-		tegra->transceiver = usb_get_transceiver();
-		if (tegra->transceiver)
+		tegra->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+		if (!IS_ERR_OR_NULL(tegra->transceiver))
 			otg_set_host(tegra->transceiver->otg, &hcd->self);
 	}
 #endif
@@ -773,9 +757,9 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 fail:
 #ifdef CONFIG_USB_OTG_UTILS
-	if (tegra->transceiver) {
+	if (!IS_ERR_OR_NULL(tegra->transceiver)) {
 		otg_set_host(tegra->transceiver->otg, NULL);
-		usb_put_transceiver(tegra->transceiver);
+		usb_put_phy(tegra->transceiver);
 	}
 #endif
 	tegra_usb_phy_close(tegra->phy);
@@ -808,17 +792,18 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(&pdev->dev);
 
 #ifdef CONFIG_USB_OTG_UTILS
-	if (tegra->transceiver) {
+	if (!IS_ERR_OR_NULL(tegra->transceiver)) {
 		otg_set_host(tegra->transceiver->otg, NULL);
-		usb_put_transceiver(tegra->transceiver);
+		usb_put_phy(tegra->transceiver);
 	}
 #endif
 
 	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
 
 	tegra_usb_phy_close(tegra->phy);
 	iounmap(hcd->regs);
+
+	usb_put_hcd(hcd);
 
 	clk_disable_unprepare(tegra->clk);
 	clk_put(tegra->clk);

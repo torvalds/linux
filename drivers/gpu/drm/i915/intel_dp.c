@@ -155,6 +155,18 @@ intel_edp_link_config(struct intel_encoder *intel_encoder,
 		*link_bw = 270000;
 }
 
+int
+intel_edp_target_clock(struct intel_encoder *intel_encoder,
+		       struct drm_display_mode *mode)
+{
+	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);
+
+	if (intel_dp->panel_fixed_mode)
+		return intel_dp->panel_fixed_mode->clock;
+	else
+		return mode->clock;
+}
+
 static int
 intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
@@ -225,7 +237,7 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 static bool
 intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 			  struct drm_display_mode *mode,
-			  struct drm_display_mode *adjusted_mode)
+			  bool adjust_mode)
 {
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
 	int max_lanes = intel_dp_max_lane_count(intel_dp);
@@ -239,8 +251,8 @@ intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 		if (mode_rate > max_rate)
 			return false;
 
-		if (adjusted_mode)
-			adjusted_mode->private_flags
+		if (adjust_mode)
+			mode->private_flags
 				|= INTEL_MODE_DP_FORCE_6BPC;
 
 		return true;
@@ -263,7 +275,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	if (!intel_dp_adjust_dithering(intel_dp, mode, NULL))
+	if (!intel_dp_adjust_dithering(intel_dp, mode, false))
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -691,7 +703,8 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 }
 
 static bool
-intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+intel_dp_mode_fixup(struct drm_encoder *encoder,
+		    const struct drm_display_mode *mode,
 		    struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -706,28 +719,23 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_fixed_panel_mode(intel_dp->panel_fixed_mode, adjusted_mode);
 		intel_pch_panel_fitting(dev, DRM_MODE_SCALE_FULLSCREEN,
 					mode, adjusted_mode);
-		/*
-		 * the mode->clock is used to calculate the Data&Link M/N
-		 * of the pipe. For the eDP the fixed clock should be used.
-		 */
-		mode->clock = intel_dp->panel_fixed_mode->clock;
 	}
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
 
 	DRM_DEBUG_KMS("DP link computation with max lane count %i "
 		      "max bw %02x pixel clock %iKHz\n",
-		      max_lane_count, bws[max_clock], mode->clock);
+		      max_lane_count, bws[max_clock], adjusted_mode->clock);
 
-	if (!intel_dp_adjust_dithering(intel_dp, mode, adjusted_mode))
+	if (!intel_dp_adjust_dithering(intel_dp, adjusted_mode, true))
 		return false;
 
 	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
-	mode_rate = intel_dp_link_required(mode->clock, bpp);
+	mode_rate = intel_dp_link_required(adjusted_mode->clock, bpp);
 
-	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
-		for (clock = 0; clock <= max_clock; clock++) {
+	for (clock = 0; clock <= max_clock; clock++) {
+		for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
 
 			if (mode_rate <= link_avail) {
@@ -786,8 +794,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		 struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4;
@@ -797,13 +804,9 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	/*
 	 * Find the lane count in the intel_encoder private
 	 */
-	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct intel_dp *intel_dp;
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-		if (encoder->crtc != crtc)
-			continue;
-
-		intel_dp = enc_to_intel_dp(encoder);
 		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT ||
 		    intel_dp->base.type == INTEL_OUTPUT_EDP)
 		{
@@ -1171,9 +1174,13 @@ static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	WARN(!intel_dp->want_panel_vdd, "Need VDD to turn off panel\n");
 
 	pp = ironlake_get_pp_control(dev_priv);
-	pp &= ~(POWER_TARGET_ON | PANEL_POWER_RESET | EDP_BLC_ENABLE);
+	/* We need to switch off panel power _and_ force vdd, for otherwise some
+	 * panels get very unhappy and cease to work. */
+	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
+
+	intel_dp->want_panel_vdd = false;
 
 	ironlake_wait_panel_off(intel_dp);
 }
@@ -1284,11 +1291,9 @@ static void intel_dp_prepare(struct drm_encoder *encoder)
 	 * ensure that we have vdd while we switch off the panel. */
 	ironlake_edp_panel_vdd_on(intel_dp);
 	ironlake_edp_backlight_off(intel_dp);
-	ironlake_edp_panel_off(intel_dp);
-
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	ironlake_edp_panel_off(intel_dp);
 	intel_dp_link_down(intel_dp);
-	ironlake_edp_panel_vdd_off(intel_dp, false);
 }
 
 static void intel_dp_commit(struct drm_encoder *encoder)
@@ -1323,11 +1328,9 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		/* Switching the panel off requires vdd. */
 		ironlake_edp_panel_vdd_on(intel_dp);
 		ironlake_edp_backlight_off(intel_dp);
-		ironlake_edp_panel_off(intel_dp);
-
 		intel_dp_sink_dpms(intel_dp, mode);
+		ironlake_edp_panel_off(intel_dp);
 		intel_dp_link_down(intel_dp);
-		ironlake_edp_panel_vdd_off(intel_dp, false);
 
 		if (is_cpu_edp(intel_dp))
 			ironlake_edp_pll_off(encoder);
@@ -1768,7 +1771,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		for (i = 0; i < intel_dp->lane_count; i++)
 			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
 				break;
-		if (i == intel_dp->lane_count) {
+		if (i == intel_dp->lane_count && voltage_tries == 5) {
 			++loop_tries;
 			if (loop_tries == 5) {
 				DRM_DEBUG_KMS("too many full retries, give up\n");
@@ -1922,7 +1925,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 			DP |= DP_LINK_TRAIN_OFF;
 	}
 
-	if (!HAS_PCH_CPT(dev) &&
+	if (HAS_PCH_IBX(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
 		struct drm_crtc *crtc = intel_dp->base.base.crtc;
 
@@ -2099,25 +2102,23 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t temp, bit;
+	uint32_t bit;
 
 	switch (intel_dp->output_reg) {
 	case DP_B:
-		bit = DPB_HOTPLUG_INT_STATUS;
+		bit = DPB_HOTPLUG_LIVE_STATUS;
 		break;
 	case DP_C:
-		bit = DPC_HOTPLUG_INT_STATUS;
+		bit = DPC_HOTPLUG_LIVE_STATUS;
 		break;
 	case DP_D:
-		bit = DPD_HOTPLUG_INT_STATUS;
+		bit = DPD_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
 		return connector_status_unknown;
 	}
 
-	temp = I915_READ(PORT_HOTPLUG_STAT);
-
-	if ((temp & bit) == 0)
+	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) == 0)
 		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);
@@ -2399,16 +2400,11 @@ int
 intel_trans_dp_port_sel(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_encoder *encoder;
+	struct intel_encoder *encoder;
 
-	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		struct intel_dp *intel_dp;
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-		if (encoder->crtc != crtc)
-			continue;
-
-		intel_dp = enc_to_intel_dp(encoder);
 		if (intel_dp->base.type == INTEL_OUTPUT_DISPLAYPORT ||
 		    intel_dp->base.type == INTEL_OUTPUT_EDP)
 			return intel_dp->output_reg;
@@ -2520,19 +2516,19 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		case DP_B:
 		case PCH_DP_B:
 			dev_priv->hotplug_supported_mask |=
-				HDMIB_HOTPLUG_INT_STATUS;
+				DPB_HOTPLUG_INT_STATUS;
 			name = "DPDDC-B";
 			break;
 		case DP_C:
 		case PCH_DP_C:
 			dev_priv->hotplug_supported_mask |=
-				HDMIC_HOTPLUG_INT_STATUS;
+				DPC_HOTPLUG_INT_STATUS;
 			name = "DPDDC-C";
 			break;
 		case DP_D:
 		case PCH_DP_D:
 			dev_priv->hotplug_supported_mask |=
-				HDMID_HOTPLUG_INT_STATUS;
+				DPD_HOTPLUG_INT_STATUS;
 			name = "DPDDC-D";
 			break;
 	}

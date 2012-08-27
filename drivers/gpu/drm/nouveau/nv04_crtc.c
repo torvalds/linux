@@ -215,7 +215,7 @@ nv_crtc_dpms(struct drm_crtc *crtc, int mode)
 }
 
 static bool
-nv_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
+nv_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		   struct drm_display_mode *adjusted_mode)
 {
 	return true;

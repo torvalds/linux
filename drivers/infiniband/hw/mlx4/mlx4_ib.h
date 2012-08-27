@@ -44,6 +44,16 @@
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 
+#define MLX4_IB_DRV_NAME	"mlx4_ib"
+
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt)	"<" MLX4_IB_DRV_NAME "> %s: " fmt, __func__
+
+#define mlx4_ib_warn(ibdev, format, arg...) \
+	dev_warn((ibdev)->dma_device, MLX4_IB_DRV_NAME ": " format, ## arg)
+
 enum {
 	MLX4_IB_SQ_MIN_WQE_SHIFT = 6,
 	MLX4_IB_MAX_HEADROOM	 = 2048
@@ -215,6 +225,12 @@ struct mlx4_ib_dev {
 	int			eq_added;
 };
 
+struct ib_event_work {
+	struct work_struct	work;
+	struct mlx4_ib_dev	*ib_dev;
+	struct mlx4_eqe		ib_eqe;
+};
+
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct mlx4_ib_dev, ib_dev);
@@ -371,5 +387,8 @@ static inline int mlx4_ib_ah_grh_present(struct mlx4_ib_ah *ah)
 
 int mlx4_ib_add_mc(struct mlx4_ib_dev *mdev, struct mlx4_ib_qp *mqp,
 		   union ib_gid *gid);
+
+void mlx4_ib_dispatch_event(struct mlx4_ib_dev *dev, u8 port_num,
+			    enum ib_event_type type);
 
 #endif /* MLX4_IB_H */

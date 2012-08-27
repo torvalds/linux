@@ -1,10 +1,11 @@
 TODO:
-	- review user mode interface and determine if ioctls can be replaced
-	  with something better. correctly export data structures to user mode
-	  if ioctls are still required and allocate ioctl numbers from
-	  ioctl-number.txt.
+	- Convert event tracing code to in-kernel tracing infrastructure
+	- Check for remaining ioctl & check if that can be converted into
+	  sysfs entries
+	- Convert debug prints to appropriate dev_debug or something better
+	- Modify Kconfig to add CONFIG option for enabling/disabling event
+	  tracing.
 	- check USB HCD implementation is complete and correct.
-	- remove any debug and trace code.
 	- code review by USB developer community.
 	- testing with as many devices as possible.
 

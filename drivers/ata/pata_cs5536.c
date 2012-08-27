@@ -274,21 +274,10 @@ static struct pci_driver cs5536_pci_driver = {
 #endif
 };
 
-static int __init cs5536_init(void)
-{
-	return pci_register_driver(&cs5536_pci_driver);
-}
-
-static void __exit cs5536_exit(void)
-{
-	pci_unregister_driver(&cs5536_pci_driver);
-}
+module_pci_driver(cs5536_pci_driver);
 
 MODULE_AUTHOR("Martin K. Petersen");
 MODULE_DESCRIPTION("low-level driver for the CS5536 IDE controller");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cs5536);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(cs5536_init);
-module_exit(cs5536_exit);

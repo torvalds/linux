@@ -718,6 +718,9 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 {
 	struct rndis_request *request;
 	struct rndis_halt_request *halt;
+	struct netvsc_device *nvdev = dev->net_dev;
+	struct hv_device *hdev = nvdev->dev;
+	ulong flags;
 
 	/* Attempt to do a rndis device halt */
 	request = get_rndis_request(dev, RNDIS_MSG_HALT,
@@ -735,6 +738,14 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 	dev->state = RNDIS_DEV_UNINITIALIZED;
 
 cleanup:
+	spin_lock_irqsave(&hdev->channel->inbound_lock, flags);
+	nvdev->destroy = true;
+	spin_unlock_irqrestore(&hdev->channel->inbound_lock, flags);
+
+	/* Wait for all send completions */
+	wait_event(nvdev->wait_drain,
+		atomic_read(&nvdev->num_outstanding_sends) == 0);
+
 	if (request)
 		put_rndis_request(dev, request);
 	return;
@@ -804,18 +815,15 @@ int rndis_filter_device_add(struct hv_device *dev,
 	/* Send the rndis initialization message */
 	ret = rndis_filter_init_device(rndis_device);
 	if (ret != 0) {
-		/*
-		 * TODO: If rndis init failed, we will need to shut down the
-		 * channel
-		 */
+		rndis_filter_device_remove(dev);
+		return ret;
 	}
 
 	/* Get the mac address */
 	ret = rndis_filter_query_device_mac(rndis_device);
 	if (ret != 0) {
-		/*
-		 * TODO: shutdown rndis device and the channel
-		 */
+		rndis_filter_device_remove(dev);
+		return ret;
 	}
 
 	memcpy(device_info->mac_adr, rndis_device->hw_mac_adr, ETH_ALEN);

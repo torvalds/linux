@@ -43,7 +43,7 @@ static struct kmem_cache *filp_cachep __read_mostly;
 
 static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
-static inline void file_free_rcu(struct rcu_head *head)
+static void file_free_rcu(struct rcu_head *head)
 {
 	struct file *f = container_of(head, struct file, f_u.fu_rcuhead);
 
@@ -217,7 +217,7 @@ static void drop_file_write_access(struct file *file)
 		return;
 	if (file_check_writeable(file) != 0)
 		return;
-	mnt_drop_write(mnt);
+	__mnt_drop_write(mnt);
 	file_release_write(file);
 }
 

@@ -546,7 +546,7 @@ static inline const struct cpumask *online_target_cpus(void)
 	return cpu_online_mask;
 }
 
-DECLARE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid);
+DECLARE_EARLY_PER_CPU_READ_MOSTLY(u16, x86_bios_cpu_apicid);
 
 
 static inline unsigned int read_apic_id(void)

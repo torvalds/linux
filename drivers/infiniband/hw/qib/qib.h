@@ -1,8 +1,8 @@
 #ifndef _QIB_KERNEL_H
 #define _QIB_KERNEL_H
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -519,6 +519,7 @@ struct qib_pportdata {
 	struct qib_devdata *dd;
 	struct qib_chippport_specific *cpspec; /* chip-specific per-port */
 	struct kobject pport_kobj;
+	struct kobject pport_cc_kobj;
 	struct kobject sl2vl_kobj;
 	struct kobject diagc_kobj;
 
@@ -544,6 +545,7 @@ struct qib_pportdata {
 
 	/* read mostly */
 	struct qib_sdma_desc *sdma_descq;
+	struct workqueue_struct *qib_wq;
 	struct qib_sdma_state sdma_state;
 	dma_addr_t       sdma_descq_phys;
 	volatile __le64 *sdma_head_dma; /* DMA'ed by chip */
@@ -637,6 +639,39 @@ struct qib_pportdata {
 	struct timer_list led_override_timer;
 	struct xmit_wait cong_stats;
 	struct timer_list symerr_clear_timer;
+
+	/* Synchronize access between driver writes and sysfs reads */
+	spinlock_t cc_shadow_lock
+		____cacheline_aligned_in_smp;
+
+	/* Shadow copy of the congestion control table */
+	struct cc_table_shadow *ccti_entries_shadow;
+
+	/* Shadow copy of the congestion control entries */
+	struct ib_cc_congestion_setting_attr_shadow *congestion_entries_shadow;
+
+	/* List of congestion control table entries */
+	struct ib_cc_table_entry_shadow *ccti_entries;
+
+	/* 16 congestion entries with each entry corresponding to a SL */
+	struct ib_cc_congestion_entry_shadow *congestion_entries;
+
+	/* Maximum number of congestion control entries that the agent expects
+	 * the manager to send.
+	 */
+	u16 cc_supported_table_entries;
+
+	/* Total number of congestion control table entries */
+	u16 total_cct_entry;
+
+	/* Bit map identifying service level */
+	u16 cc_sl_control_map;
+
+	/* maximum congestion control table index */
+	u16 ccti_limit;
+
+	/* CA's max number of 64 entry units in the congestion control table */
+	u8 cc_max_table_entries;
 };
 
 /* Observers. Not to be taken lightly, possibly not to ship. */
@@ -1077,6 +1112,7 @@ extern u32 qib_cpulist_count;
 extern unsigned long *qib_cpulist;
 
 extern unsigned qib_wc_pat;
+extern unsigned qib_cc_table_size;
 int qib_init(struct qib_devdata *, int);
 int init_chip_wc_pat(struct qib_devdata *dd, u32);
 int qib_enable_wc(struct qib_devdata *dd);
@@ -1266,6 +1302,11 @@ int qib_sdma_verbs_send(struct qib_pportdata *, struct qib_sge_state *,
 			u32, struct qib_verbs_txreq *);
 /* ppd->sdma_lock should be locked before calling this. */
 int qib_sdma_make_progress(struct qib_pportdata *dd);
+
+static inline int qib_sdma_empty(const struct qib_pportdata *ppd)
+{
+	return ppd->sdma_descq_added == ppd->sdma_descq_removed;
+}
 
 /* must be called under qib_sdma_lock */
 static inline u16 qib_sdma_descq_freecnt(const struct qib_pportdata *ppd)

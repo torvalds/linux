@@ -81,7 +81,7 @@ Example:
 
 		ti,vmbch-threshold = 0;
 		ti,vmbch2-threshold = 0;
-
+		ti,en-ck32k-xtal;
 		ti,en-gpio-sleep = <0 0 1 0 0 0 0 0 0>;
 
 		vcc1-supply = <&reg_parent>;

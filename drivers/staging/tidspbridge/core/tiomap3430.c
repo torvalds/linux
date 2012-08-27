@@ -1547,20 +1547,27 @@ EXIT_LOOP:
 static u32 user_va2_pa(struct mm_struct *mm, u32 address)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
 
 	pgd = pgd_offset(mm, address);
-	if (!(pgd_none(*pgd) || pgd_bad(*pgd))) {
-		pmd = pmd_offset(pgd, address);
-		if (!(pmd_none(*pmd) || pmd_bad(*pmd))) {
-			ptep = pte_offset_map(pmd, address);
-			if (ptep) {
-				pte = *ptep;
-				if (pte_present(pte))
-					return pte & PAGE_MASK;
-			}
-		}
+	if (pgd_none(*pgd) || pgd_bad(*pgd))
+		return 0;
+
+	pud = pud_offset(pgd, address);
+	if (pud_none(*pud) || pud_bad(*pud))
+		return 0;
+
+	pmd = pmd_offset(pud, address);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return 0;
+
+	ptep = pte_offset_map(pmd, address);
+	if (ptep) {
+		pte = *ptep;
+		if (pte_present(pte))
+			return pte & PAGE_MASK;
 	}
 
 	return 0;

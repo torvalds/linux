@@ -134,6 +134,7 @@ void drm_sysfs_destroy(void)
 		return;
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
+	drm_class = NULL;
 }
 
 /**
@@ -554,6 +555,9 @@ void drm_sysfs_device_remove(struct drm_minor *minor)
 
 int drm_class_device_register(struct device *dev)
 {
+	if (!drm_class || IS_ERR(drm_class))
+		return -ENOENT;
+
 	dev->class = drm_class;
 	return device_register(dev);
 }

@@ -1336,11 +1336,21 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	cur_state = attr_mask & IB_QP_CUR_STATE ? attr->cur_qp_state : qp->state;
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask))
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask)) {
+		pr_debug("qpn 0x%x: invalid attribute mask specified "
+			 "for transition %d to %d. qp_type %d,"
+			 " attr_mask 0x%x\n",
+			 ibqp->qp_num, cur_state, new_state,
+			 ibqp->qp_type, attr_mask);
 		goto out;
+	}
 
 	if ((attr_mask & IB_QP_PORT) &&
 	    (attr->port_num == 0 || attr->port_num > dev->dev->caps.num_ports)) {
+		pr_debug("qpn 0x%x: invalid port number (%d) specified "
+			 "for transition %d to %d. qp_type %d\n",
+			 ibqp->qp_num, attr->port_num, cur_state,
+			 new_state, ibqp->qp_type);
 		goto out;
 	}
 
@@ -1351,17 +1361,30 @@ int mlx4_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
 		int p = attr_mask & IB_QP_PORT ? attr->port_num : qp->port;
-		if (attr->pkey_index >= dev->dev->caps.pkey_table_len[p])
+		if (attr->pkey_index >= dev->dev->caps.pkey_table_len[p]) {
+			pr_debug("qpn 0x%x: invalid pkey index (%d) specified "
+				 "for transition %d to %d. qp_type %d\n",
+				 ibqp->qp_num, attr->pkey_index, cur_state,
+				 new_state, ibqp->qp_type);
 			goto out;
+		}
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
 	    attr->max_rd_atomic > dev->dev->caps.max_qp_init_rdma) {
+		pr_debug("qpn 0x%x: max_rd_atomic (%d) too large. "
+			 "Transition %d to %d. qp_type %d\n",
+			 ibqp->qp_num, attr->max_rd_atomic, cur_state,
+			 new_state, ibqp->qp_type);
 		goto out;
 	}
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
 	    attr->max_dest_rd_atomic > dev->dev->caps.max_qp_dest_rdma) {
+		pr_debug("qpn 0x%x: max_dest_rd_atomic (%d) too large. "
+			 "Transition %d to %d. qp_type %d\n",
+			 ibqp->qp_num, attr->max_dest_rd_atomic, cur_state,
+			 new_state, ibqp->qp_type);
 		goto out;
 	}
 
@@ -1384,6 +1407,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
 	struct mlx4_wqe_inline_seg *inl = wqe + sizeof *mlx;
 	struct mlx4_ib_ah *ah = to_mah(wr->wr.ud.ah);
+	struct net_device *ndev;
 	union ib_gid sgid;
 	u16 pkey;
 	int send_size;
@@ -1460,7 +1484,10 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 
 		memcpy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac, 6);
 		/* FIXME: cache smac value? */
-		smac = to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1]->dev_addr;
+		ndev = to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1];
+		if (!ndev)
+			return -ENODEV;
+		smac = ndev->dev_addr;
 		memcpy(sqp->ud_header.eth.smac_h, smac, 6);
 		if (!memcmp(sqp->ud_header.eth.smac_h, sqp->ud_header.eth.dmac_h, 6))
 			mlx->flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);

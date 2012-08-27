@@ -620,10 +620,6 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 27),
 	}, {
-		.name		= "fimg2d",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 0),
-	}, {
 		.name		= "mfc",
 		.devname	= "s5p-mfc",
 		.enable		= exynos4_clk_ip_mfc_ctrl,
@@ -819,17 +815,9 @@ static struct clk *exynos4_clkset_mout_g2d0_list[] = {
 	[1] = &exynos4_clk_sclk_apll.clk,
 };
 
-static struct clksrc_sources exynos4_clkset_mout_g2d0 = {
+struct clksrc_sources exynos4_clkset_mout_g2d0 = {
 	.sources	= exynos4_clkset_mout_g2d0_list,
 	.nr_sources	= ARRAY_SIZE(exynos4_clkset_mout_g2d0_list),
-};
-
-static struct clksrc_clk exynos4_clk_mout_g2d0 = {
-	.clk	= {
-		.name		= "mout_g2d0",
-	},
-	.sources = &exynos4_clkset_mout_g2d0,
-	.reg_src = { .reg = EXYNOS4_CLKSRC_IMAGE, .shift = 0, .size = 1 },
 };
 
 static struct clk *exynos4_clkset_mout_g2d1_list[] = {
@@ -837,27 +825,9 @@ static struct clk *exynos4_clkset_mout_g2d1_list[] = {
 	[1] = &exynos4_clk_sclk_vpll.clk,
 };
 
-static struct clksrc_sources exynos4_clkset_mout_g2d1 = {
+struct clksrc_sources exynos4_clkset_mout_g2d1 = {
 	.sources	= exynos4_clkset_mout_g2d1_list,
 	.nr_sources	= ARRAY_SIZE(exynos4_clkset_mout_g2d1_list),
-};
-
-static struct clksrc_clk exynos4_clk_mout_g2d1 = {
-	.clk	= {
-		.name		= "mout_g2d1",
-	},
-	.sources = &exynos4_clkset_mout_g2d1,
-	.reg_src = { .reg = EXYNOS4_CLKSRC_IMAGE, .shift = 4, .size = 1 },
-};
-
-static struct clk *exynos4_clkset_mout_g2d_list[] = {
-	[0] = &exynos4_clk_mout_g2d0.clk,
-	[1] = &exynos4_clk_mout_g2d1.clk,
-};
-
-static struct clksrc_sources exynos4_clkset_mout_g2d = {
-	.sources	= exynos4_clkset_mout_g2d_list,
-	.nr_sources	= ARRAY_SIZE(exynos4_clkset_mout_g2d_list),
 };
 
 static struct clk *exynos4_clkset_mout_mfc0_list[] = {
@@ -1124,13 +1094,6 @@ static struct clksrc_clk exynos4_clksrcs[] = {
 		.sources = &exynos4_clkset_group,
 		.reg_src = { .reg = EXYNOS4_CLKSRC_LCD0, .shift = 0, .size = 4 },
 		.reg_div = { .reg = EXYNOS4_CLKDIV_LCD0, .shift = 0, .size = 4 },
-	}, {
-		.clk	= {
-			.name		= "sclk_fimg2d",
-		},
-		.sources = &exynos4_clkset_mout_g2d,
-		.reg_src = { .reg = EXYNOS4_CLKSRC_IMAGE, .shift = 8, .size = 1 },
-		.reg_div = { .reg = EXYNOS4_CLKDIV_IMAGE, .shift = 0, .size = 4 },
 	}, {
 		.clk	= {
 			.name		= "sclk_mfc",

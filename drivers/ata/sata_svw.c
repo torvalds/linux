@@ -525,21 +525,10 @@ static struct pci_driver k2_sata_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static int __init k2_sata_init(void)
-{
-	return pci_register_driver(&k2_sata_pci_driver);
-}
-
-static void __exit k2_sata_exit(void)
-{
-	pci_unregister_driver(&k2_sata_pci_driver);
-}
+module_pci_driver(k2_sata_pci_driver);
 
 MODULE_AUTHOR("Benjamin Herrenschmidt");
 MODULE_DESCRIPTION("low-level driver for K2 SATA controller");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, k2_sata_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(k2_sata_init);
-module_exit(k2_sata_exit);

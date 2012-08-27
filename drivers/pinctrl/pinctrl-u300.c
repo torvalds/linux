@@ -1113,8 +1113,6 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	pr_err("U300 PMX PROBE\n");
-
 	/* Create state holders etc for this driver */
 	upmx = devm_kzalloc(&pdev->dev, sizeof(*upmx), GFP_KERNEL);
 	if (!upmx)
@@ -1123,10 +1121,8 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	upmx->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENOENT;
-		goto out_no_resource;
-	}
+	if (!res)
+		return -ENOENT;
 	upmx->phybase = res->start;
 	upmx->physize = resource_size(res);
 
@@ -1167,23 +1163,17 @@ out_no_remap:
 	platform_set_drvdata(pdev, NULL);
 out_no_memregion:
 	release_mem_region(upmx->phybase, upmx->physize);
-out_no_resource:
-	devm_kfree(&pdev->dev, upmx);
 	return ret;
 }
 
 static int __devexit u300_pmx_remove(struct platform_device *pdev)
 {
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(u300_gpio_ranges); i++)
-		pinctrl_remove_gpio_range(upmx->pctl, &u300_gpio_ranges[i]);
 	pinctrl_unregister(upmx->pctl);
 	iounmap(upmx->virtbase);
 	release_mem_region(upmx->phybase, upmx->physize);
 	platform_set_drvdata(pdev, NULL);
-	devm_kfree(&pdev->dev, upmx);
 
 	return 0;
 }

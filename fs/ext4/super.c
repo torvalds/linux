@@ -74,7 +74,6 @@ static const char *ext4_decode_error(struct super_block *sb, int errno,
 static int ext4_remount(struct super_block *sb, int *flags, char *data);
 static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int ext4_unfreeze(struct super_block *sb);
-static void ext4_write_super(struct super_block *sb);
 static int ext4_freeze(struct super_block *sb);
 static struct dentry *ext4_mount(struct file_system_type *fs_type, int flags,
 		       const char *dev_name, void *data);
@@ -327,38 +326,17 @@ static void ext4_put_nojournal(handle_t *handle)
 
 /*
  * Wrappers for jbd2_journal_start/end.
- *
- * The only special thing we need to do here is to make sure that all
- * journal_end calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
- *
- * To avoid j_barrier hold in userspace when a user calls freeze(),
- * ext4 prevents a new handle from being started by s_frozen, which
- * is in an upper layer.
  */
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 {
 	journal_t *journal;
-	handle_t  *handle;
 
 	trace_ext4_journal_start(sb, nblocks, _RET_IP_);
 	if (sb->s_flags & MS_RDONLY)
 		return ERR_PTR(-EROFS);
 
+	WARN_ON(sb->s_writers.frozen == SB_FREEZE_COMPLETE);
 	journal = EXT4_SB(sb)->s_journal;
-	handle = ext4_journal_current_handle();
-
-	/*
-	 * If a handle has been started, it should be allowed to
-	 * finish, otherwise deadlock could happen between freeze
-	 * and others(e.g. truncate) due to the restart of the
-	 * journal handle if the filesystem is forzen and active
-	 * handles are not stopped.
-	 */
-	if (!handle)
-		vfs_check_frozen(sb, SB_FREEZE_TRANS);
-
 	if (!journal)
 		return ext4_get_nojournal();
 	/*
@@ -373,12 +351,6 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	return jbd2_journal_start(journal, nblocks);
 }
 
-/*
- * The only special thing we need to do here is to make sure that all
- * jbd2_journal_stop calls result in the superblock being marked dirty, so
- * that sync() will call the filesystem's write_super callback if
- * appropriate.
- */
 int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 {
 	struct super_block *sb;
@@ -896,7 +868,7 @@ static void ext4_put_super(struct super_block *sb)
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 	}
-	if (sb->s_dirt || !(sb->s_flags & MS_RDONLY))
+	if (!(sb->s_flags & MS_RDONLY))
 		ext4_commit_super(sb, 1);
 
 	if (sbi->s_proc) {
@@ -976,6 +948,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_reserved_meta_blocks = 0;
 	ei->i_allocated_meta_blocks = 0;
 	ei->i_da_metadata_calc_len = 0;
+	ei->i_da_metadata_calc_last_lblock = 0;
 	spin_lock_init(&(ei->i_block_reservation_lock));
 #ifdef CONFIG_QUOTA
 	ei->i_reserved_quota = 0;
@@ -1137,12 +1110,18 @@ static int ext4_mark_dquot_dirty(struct dquot *dquot);
 static int ext4_write_info(struct super_block *sb, int type);
 static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 			 struct path *path);
+static int ext4_quota_on_sysfile(struct super_block *sb, int type,
+				 int format_id);
 static int ext4_quota_off(struct super_block *sb, int type);
+static int ext4_quota_off_sysfile(struct super_block *sb, int type);
 static int ext4_quota_on_mount(struct super_block *sb, int type);
 static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
 static ssize_t ext4_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off);
+static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
+			     unsigned int flags);
+static int ext4_enable_quotas(struct super_block *sb);
 
 static const struct dquot_operations ext4_quota_operations = {
 	.get_reserved_space = ext4_get_reserved_space,
@@ -1158,6 +1137,16 @@ static const struct dquot_operations ext4_quota_operations = {
 static const struct quotactl_ops ext4_qctl_operations = {
 	.quota_on	= ext4_quota_on,
 	.quota_off	= ext4_quota_off,
+	.quota_sync	= dquot_quota_sync,
+	.get_info	= dquot_get_dqinfo,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk
+};
+
+static const struct quotactl_ops ext4_qctl_sysfile_operations = {
+	.quota_on_meta	= ext4_quota_on_sysfile,
+	.quota_off	= ext4_quota_off_sysfile,
 	.quota_sync	= dquot_quota_sync,
 	.get_info	= dquot_get_dqinfo,
 	.set_info	= dquot_set_dqinfo,
@@ -1194,7 +1183,6 @@ static const struct super_operations ext4_nojournal_sops = {
 	.dirty_inode	= ext4_dirty_inode,
 	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,
-	.write_super	= ext4_write_super,
 	.put_super	= ext4_put_super,
 	.statfs		= ext4_statfs,
 	.remount_fs	= ext4_remount,
@@ -2661,6 +2649,16 @@ static int ext4_feature_set_ok(struct super_block *sb, int readonly)
 			 "extents feature\n");
 		return 0;
 	}
+
+#ifndef CONFIG_QUOTA
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA) &&
+	    !readonly) {
+		ext4_msg(sb, KERN_ERR,
+			 "Filesystem with quota feature cannot be mounted RDWR "
+			 "without CONFIG_QUOTA");
+		return 0;
+	}
+#endif  /* CONFIG_QUOTA */
 	return 1;
 }
 
@@ -2723,6 +2721,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 	sb = elr->lr_super;
 	ngroups = EXT4_SB(sb)->s_groups_count;
 
+	sb_start_write(sb);
 	for (group = elr->lr_next_group; group < ngroups; group++) {
 		gdp = ext4_get_group_desc(sb, group, NULL);
 		if (!gdp) {
@@ -2749,6 +2748,7 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
 		elr->lr_next_group = group + 1;
 	}
+	sb_end_write(sb);
 
 	return ret;
 }
@@ -3083,6 +3083,118 @@ static int set_journal_csum_feature_set(struct super_block *sb)
 	}
 
 	return ret;
+}
+
+/*
+ * Note: calculating the overhead so we can be compatible with
+ * historical BSD practice is quite difficult in the face of
+ * clusters/bigalloc.  This is because multiple metadata blocks from
+ * different block group can end up in the same allocation cluster.
+ * Calculating the exact overhead in the face of clustered allocation
+ * requires either O(all block bitmaps) in memory or O(number of block
+ * groups**2) in time.  We will still calculate the superblock for
+ * older file systems --- and if we come across with a bigalloc file
+ * system with zero in s_overhead_clusters the estimate will be close to
+ * correct especially for very large cluster sizes --- but for newer
+ * file systems, it's better to calculate this figure once at mkfs
+ * time, and store it in the superblock.  If the superblock value is
+ * present (even for non-bigalloc file systems), we will use it.
+ */
+static int count_overhead(struct super_block *sb, ext4_group_t grp,
+			  char *buf)
+{
+	struct ext4_sb_info	*sbi = EXT4_SB(sb);
+	struct ext4_group_desc	*gdp;
+	ext4_fsblk_t		first_block, last_block, b;
+	ext4_group_t		i, ngroups = ext4_get_groups_count(sb);
+	int			s, j, count = 0;
+
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_BIGALLOC))
+		return (ext4_bg_has_super(sb, grp) + ext4_bg_num_gdb(sb, grp) +
+			sbi->s_itb_per_group + 2);
+
+	first_block = le32_to_cpu(sbi->s_es->s_first_data_block) +
+		(grp * EXT4_BLOCKS_PER_GROUP(sb));
+	last_block = first_block + EXT4_BLOCKS_PER_GROUP(sb) - 1;
+	for (i = 0; i < ngroups; i++) {
+		gdp = ext4_get_group_desc(sb, i, NULL);
+		b = ext4_block_bitmap(sb, gdp);
+		if (b >= first_block && b <= last_block) {
+			ext4_set_bit(EXT4_B2C(sbi, b - first_block), buf);
+			count++;
+		}
+		b = ext4_inode_bitmap(sb, gdp);
+		if (b >= first_block && b <= last_block) {
+			ext4_set_bit(EXT4_B2C(sbi, b - first_block), buf);
+			count++;
+		}
+		b = ext4_inode_table(sb, gdp);
+		if (b >= first_block && b + sbi->s_itb_per_group <= last_block)
+			for (j = 0; j < sbi->s_itb_per_group; j++, b++) {
+				int c = EXT4_B2C(sbi, b - first_block);
+				ext4_set_bit(c, buf);
+				count++;
+			}
+		if (i != grp)
+			continue;
+		s = 0;
+		if (ext4_bg_has_super(sb, grp)) {
+			ext4_set_bit(s++, buf);
+			count++;
+		}
+		for (j = ext4_bg_num_gdb(sb, grp); j > 0; j--) {
+			ext4_set_bit(EXT4_B2C(sbi, s++), buf);
+			count++;
+		}
+	}
+	if (!count)
+		return 0;
+	return EXT4_CLUSTERS_PER_GROUP(sb) -
+		ext4_count_free(buf, EXT4_CLUSTERS_PER_GROUP(sb) / 8);
+}
+
+/*
+ * Compute the overhead and stash it in sbi->s_overhead
+ */
+int ext4_calculate_overhead(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct ext4_super_block *es = sbi->s_es;
+	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
+	ext4_fsblk_t overhead = 0;
+	char *buf = (char *) get_zeroed_page(GFP_KERNEL);
+
+	memset(buf, 0, PAGE_SIZE);
+	if (!buf)
+		return -ENOMEM;
+
+	/*
+	 * Compute the overhead (FS structures).  This is constant
+	 * for a given filesystem unless the number of block groups
+	 * changes so we cache the previous value until it does.
+	 */
+
+	/*
+	 * All of the blocks before first_data_block are overhead
+	 */
+	overhead = EXT4_B2C(sbi, le32_to_cpu(es->s_first_data_block));
+
+	/*
+	 * Add the overhead found in each block group
+	 */
+	for (i = 0; i < ngroups; i++) {
+		int blks;
+
+		blks = count_overhead(sb, i, buf);
+		overhead += blks;
+		if (blks)
+			memset(buf, 0, PAGE_SIZE);
+		cond_resched();
+	}
+	sbi->s_overhead = overhead;
+	smp_wmb();
+	free_page((unsigned long) buf);
+	return 0;
 }
 
 static int ext4_fill_super(struct super_block *sb, void *data, int silent)
@@ -3640,6 +3752,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_QUOTA
 	sb->s_qcop = &ext4_qctl_operations;
 	sb->dq_op = &ext4_quota_operations;
+
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA)) {
+		/* Use qctl operations for hidden quota files. */
+		sb->s_qcop = &ext4_qctl_sysfile_operations;
+	}
 #endif
 	memcpy(sb->s_uuid, es->s_uuid, sizeof(es->s_uuid));
 
@@ -3734,6 +3851,18 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	percpu_counter_set(&sbi->s_dirtyclusters_counter, 0);
 
 no_journal:
+	/*
+	 * Get the # of file system overhead blocks from the
+	 * superblock if present.
+	 */
+	if (es->s_overhead_clusters)
+		sbi->s_overhead = le32_to_cpu(es->s_overhead_clusters);
+	else {
+		ret = ext4_calculate_overhead(sb);
+		if (ret)
+			goto failed_mount_wq;
+	}
+
 	/*
 	 * The maximum number of concurrent works can be high and
 	 * concurrency isn't really necessary.  Limit it to 1.
@@ -3839,6 +3968,16 @@ no_journal:
 			descr = " writeback data mode";
 	} else
 		descr = "out journal";
+
+#ifdef CONFIG_QUOTA
+	/* Enable quota usage during mount. */
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA) &&
+	    !(sb->s_flags & MS_RDONLY)) {
+		ret = ext4_enable_quotas(sb);
+		if (ret)
+			goto failed_mount7;
+	}
+#endif  /* CONFIG_QUOTA */
 
 	ext4_msg(sb, KERN_INFO, "mounted filesystem with%s. "
 		 "Opts: %s%s%s", descr, sbi->s_es->s_mount_opts,
@@ -4203,7 +4342,6 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	es->s_free_inodes_count =
 		cpu_to_le32(percpu_counter_sum_positive(
 				&EXT4_SB(sb)->s_freeinodes_counter));
-	sb->s_dirt = 0;
 	BUFFER_TRACE(sbh, "marking dirty");
 	ext4_superblock_csum_set(sb, es);
 	mark_buffer_dirty(sbh);
@@ -4286,6 +4424,7 @@ static void ext4_clear_journal_err(struct super_block *sb,
 		ext4_commit_super(sb, 1);
 
 		jbd2_journal_clear_err(journal);
+		jbd2_journal_update_sb_errno(journal);
 	}
 }
 
@@ -4302,19 +4441,10 @@ int ext4_force_commit(struct super_block *sb)
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
-	if (journal) {
-		vfs_check_frozen(sb, SB_FREEZE_TRANS);
+	if (journal)
 		ret = ext4_journal_force_commit(journal);
-	}
 
 	return ret;
-}
-
-static void ext4_write_super(struct super_block *sb)
-{
-	lock_super(sb);
-	ext4_commit_super(sb, 1);
-	unlock_super(sb);
 }
 
 static int ext4_sync_fs(struct super_block *sb, int wait)
@@ -4342,9 +4472,8 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
  * gives us a chance to flush the journal completely and mark the fs clean.
  *
  * Note that only this function cannot bring a filesystem to be in a clean
- * state independently, because ext4 prevents a new handle from being started
- * by @sb->s_frozen, which stays in an upper layer.  It thus needs help from
- * the upper layer.
+ * state independently. It relies on upper layer to stop all data & metadata
+ * modifications.
  */
 static int ext4_freeze(struct super_block *sb)
 {
@@ -4371,7 +4500,7 @@ static int ext4_freeze(struct super_block *sb)
 	EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 	error = ext4_commit_super(sb, 1);
 out:
-	/* we rely on s_frozen to stop further updates */
+	/* we rely on upper layer to stop further updates */
 	jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	return error;
 }
@@ -4567,16 +4696,26 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	if (sbi->s_journal == NULL)
 		ext4_commit_super(sb, 1);
 
+	unlock_super(sb);
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
 	for (i = 0; i < MAXQUOTAS; i++)
 		if (old_opts.s_qf_names[i] &&
 		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
 			kfree(old_opts.s_qf_names[i]);
+	if (enable_quota) {
+		if (sb_any_quota_suspended(sb))
+			dquot_resume(sb, -1);
+		else if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+					EXT4_FEATURE_RO_COMPAT_QUOTA)) {
+			err = ext4_enable_quotas(sb);
+			if (err) {
+				lock_super(sb);
+				goto restore_opts;
+			}
+		}
+	}
 #endif
-	unlock_super(sb);
-	if (enable_quota)
-		dquot_resume(sb, -1);
 
 	ext4_msg(sb, KERN_INFO, "re-mounted. Opts: %s", orig_data);
 	kfree(orig_data);
@@ -4605,67 +4744,21 @@ restore_opts:
 	return err;
 }
 
-/*
- * Note: calculating the overhead so we can be compatible with
- * historical BSD practice is quite difficult in the face of
- * clusters/bigalloc.  This is because multiple metadata blocks from
- * different block group can end up in the same allocation cluster.
- * Calculating the exact overhead in the face of clustered allocation
- * requires either O(all block bitmaps) in memory or O(number of block
- * groups**2) in time.  We will still calculate the superblock for
- * older file systems --- and if we come across with a bigalloc file
- * system with zero in s_overhead_clusters the estimate will be close to
- * correct especially for very large cluster sizes --- but for newer
- * file systems, it's better to calculate this figure once at mkfs
- * time, and store it in the superblock.  If the superblock value is
- * present (even for non-bigalloc file systems), we will use it.
- */
 static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	struct ext4_group_desc *gdp;
+	ext4_fsblk_t overhead = 0;
 	u64 fsid;
 	s64 bfree;
 
-	if (test_opt(sb, MINIX_DF)) {
-		sbi->s_overhead_last = 0;
-	} else if (es->s_overhead_clusters) {
-		sbi->s_overhead_last = le32_to_cpu(es->s_overhead_clusters);
-	} else if (sbi->s_blocks_last != ext4_blocks_count(es)) {
-		ext4_group_t i, ngroups = ext4_get_groups_count(sb);
-		ext4_fsblk_t overhead = 0;
-
-		/*
-		 * Compute the overhead (FS structures).  This is constant
-		 * for a given filesystem unless the number of block groups
-		 * changes so we cache the previous value until it does.
-		 */
-
-		/*
-		 * All of the blocks before first_data_block are
-		 * overhead
-		 */
-		overhead = EXT4_B2C(sbi, le32_to_cpu(es->s_first_data_block));
-
-		/*
-		 * Add the overhead found in each block group
-		 */
-		for (i = 0; i < ngroups; i++) {
-			gdp = ext4_get_group_desc(sb, i, NULL);
-			overhead += ext4_num_overhead_clusters(sb, i, gdp);
-			cond_resched();
-		}
-		sbi->s_overhead_last = overhead;
-		smp_wmb();
-		sbi->s_blocks_last = ext4_blocks_count(es);
-	}
+	if (!test_opt(sb, MINIX_DF))
+		overhead = sbi->s_overhead;
 
 	buf->f_type = EXT4_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
-	buf->f_blocks = (ext4_blocks_count(es) -
-			 EXT4_C2B(sbi, sbi->s_overhead_last));
+	buf->f_blocks = ext4_blocks_count(es) - EXT4_C2B(sbi, sbi->s_overhead);
 	bfree = percpu_counter_sum_positive(&sbi->s_freeclusters_counter) -
 		percpu_counter_sum_positive(&sbi->s_dirtyclusters_counter);
 	/* prevent underflow in case that few free space is available */
@@ -4835,6 +4928,74 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 	return dquot_quota_on(sb, type, format_id, path);
 }
 
+static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
+			     unsigned int flags)
+{
+	int err;
+	struct inode *qf_inode;
+	unsigned long qf_inums[MAXQUOTAS] = {
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_usr_quota_inum),
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum)
+	};
+
+	BUG_ON(!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA));
+
+	if (!qf_inums[type])
+		return -EPERM;
+
+	qf_inode = ext4_iget(sb, qf_inums[type]);
+	if (IS_ERR(qf_inode)) {
+		ext4_error(sb, "Bad quota inode # %lu", qf_inums[type]);
+		return PTR_ERR(qf_inode);
+	}
+
+	err = dquot_enable(qf_inode, type, format_id, flags);
+	iput(qf_inode);
+
+	return err;
+}
+
+/* Enable usage tracking for all quota types. */
+static int ext4_enable_quotas(struct super_block *sb)
+{
+	int type, err = 0;
+	unsigned long qf_inums[MAXQUOTAS] = {
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_usr_quota_inum),
+		le32_to_cpu(EXT4_SB(sb)->s_es->s_grp_quota_inum)
+	};
+
+	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
+	for (type = 0; type < MAXQUOTAS; type++) {
+		if (qf_inums[type]) {
+			err = ext4_quota_enable(sb, type, QFMT_VFS_V1,
+						DQUOT_USAGE_ENABLED);
+			if (err) {
+				ext4_warning(sb,
+					"Failed to enable quota (type=%d) "
+					"tracking. Please run e2fsck to fix.",
+					type);
+				return err;
+			}
+		}
+	}
+	return 0;
+}
+
+/*
+ * quota_on function that is used when QUOTA feature is set.
+ */
+static int ext4_quota_on_sysfile(struct super_block *sb, int type,
+				 int format_id)
+{
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA))
+		return -EINVAL;
+
+	/*
+	 * USAGE was enabled at mount time. Only need to enable LIMITS now.
+	 */
+	return ext4_quota_enable(sb, type, format_id, DQUOT_LIMITS_ENABLED);
+}
+
 static int ext4_quota_off(struct super_block *sb, int type)
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
@@ -4859,6 +5020,18 @@ static int ext4_quota_off(struct super_block *sb, int type)
 
 out:
 	return dquot_quota_off(sb, type);
+}
+
+/*
+ * quota_off function that is used when QUOTA feature is set.
+ */
+static int ext4_quota_off_sysfile(struct super_block *sb, int type)
+{
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA))
+		return -EINVAL;
+
+	/* Disable only the limits. */
+	return dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 }
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford

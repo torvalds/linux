@@ -853,7 +853,7 @@ int __init pcibios_init(void)
 		bus = pci_scan_root_bus(NULL, next_busno, controller->ops,
 					controller, &resources);
 		controller->root_bus = bus;
-		next_busno = bus->subordinate + 1;
+		next_busno = bus->busn_res.end + 1;
 
 	}
 

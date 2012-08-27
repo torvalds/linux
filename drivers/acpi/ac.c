@@ -69,7 +69,9 @@ static const struct acpi_device_id ac_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, ac_device_ids);
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_ac_resume(struct device *dev);
+#endif
 static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
 
 static struct acpi_driver acpi_ac_driver = {
@@ -294,7 +296,9 @@ static int acpi_ac_add(struct acpi_device *device)
 	ac->charger.properties = ac_props;
 	ac->charger.num_properties = ARRAY_SIZE(ac_props);
 	ac->charger.get_property = get_ac_property;
-	power_supply_register(&ac->device->dev, &ac->charger);
+	result = power_supply_register(&ac->device->dev, &ac->charger);
+	if (result)
+		goto end;
 
 	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
 	       acpi_device_name(device), acpi_device_bid(device),
@@ -311,6 +315,7 @@ static int acpi_ac_add(struct acpi_device *device)
 	return result;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_ac_resume(struct device *dev)
 {
 	struct acpi_ac *ac;
@@ -330,6 +335,7 @@ static int acpi_ac_resume(struct device *dev)
 		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
 	return 0;
 }
+#endif
 
 static int acpi_ac_remove(struct acpi_device *device, int type)
 {

@@ -278,6 +278,8 @@ struct svc_rqst {
 	struct task_struct	*rq_task;	/* service thread */
 };
 
+#define SVC_NET(svc_rqst)	(svc_rqst->rq_xprt->xpt_net)
+
 /*
  * Rigorous type checking on sockaddr type conversions
  */

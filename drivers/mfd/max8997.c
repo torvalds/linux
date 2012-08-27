@@ -143,7 +143,6 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	if (!pdata)
 		goto err;
 
-	max8997->irq_base = pdata->irq_base;
 	max8997->ono = pdata->ono;
 
 	mutex_init(&max8997->iolock);
@@ -206,7 +205,7 @@ static const struct i2c_device_id max8997_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max8998_i2c_id);
 
-u8 max8997_dumpaddr_pmic[] = {
+static u8 max8997_dumpaddr_pmic[] = {
 	MAX8997_REG_INT1MSK,
 	MAX8997_REG_INT2MSK,
 	MAX8997_REG_INT3MSK,
@@ -331,7 +330,7 @@ u8 max8997_dumpaddr_pmic[] = {
 	MAX8997_REG_DVSOKTIMER5,
 };
 
-u8 max8997_dumpaddr_muic[] = {
+static u8 max8997_dumpaddr_muic[] = {
 	MAX8997_MUIC_REG_INTMASK1,
 	MAX8997_MUIC_REG_INTMASK2,
 	MAX8997_MUIC_REG_INTMASK3,
@@ -341,7 +340,7 @@ u8 max8997_dumpaddr_muic[] = {
 	MAX8997_MUIC_REG_CONTROL3,
 };
 
-u8 max8997_dumpaddr_haptic[] = {
+static u8 max8997_dumpaddr_haptic[] = {
 	MAX8997_HAPTIC_REG_CONF1,
 	MAX8997_HAPTIC_REG_CONF2,
 	MAX8997_HAPTIC_REG_DRVCONF,
@@ -423,7 +422,7 @@ static int max8997_resume(struct device *dev)
 	return max8997_irq_resume(max8997);
 }
 
-const struct dev_pm_ops max8997_pm = {
+static const struct dev_pm_ops max8997_pm = {
 	.suspend = max8997_suspend,
 	.resume = max8997_resume,
 	.freeze = max8997_freeze,

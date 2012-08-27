@@ -612,9 +612,9 @@ struct ceph_snap_realm {
 	u64 parent_since;   /* snapid when our current parent became so */
 
 	u64 *prior_parent_snaps;      /* snaps inherited from any parents we */
-	int num_prior_parent_snaps;   /*  had prior to parent_since */
+	u32 num_prior_parent_snaps;   /*  had prior to parent_since */
 	u64 *snaps;                   /* snaps specific to this realm */
-	int num_snaps;
+	u32 num_snaps;
 
 	struct ceph_snap_realm *parent;
 	struct list_head children;       /* list of child realms */
@@ -806,9 +806,9 @@ extern int ceph_copy_from_page_vector(struct page **pages,
 				    loff_t off, size_t len);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);
 extern int ceph_open(struct inode *inode, struct file *file);
-extern int ceph_lookup_open(struct inode *dir, struct dentry *dentry,
-			     struct file *od, unsigned flags,
-			     umode_t mode, int *opened);
+extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
+			    struct file *file, unsigned flags, umode_t mode,
+			    int *opened);
 extern int ceph_release(struct inode *inode, struct file *filp);
 
 /* dir.c */

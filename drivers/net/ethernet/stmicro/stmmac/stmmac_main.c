@@ -28,6 +28,7 @@
 	https://bugzilla.stlinux.com/
 *******************************************************************************/
 
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/ip.h>
@@ -173,11 +174,7 @@ static void stmmac_verify_args(void)
 
 static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 {
-#ifdef CONFIG_HAVE_CLK
 	u32 clk_rate;
-
-	if (IS_ERR(priv->stmmac_clk))
-		return;
 
 	clk_rate = clk_get_rate(priv->stmmac_clk);
 
@@ -200,7 +197,6 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 	   * we can not estimate the proper divider as it is not known
 	   * the frequency of clk_csr_i. So we do not change the default
 	   * divider. */
-#endif
 }
 
 #if defined(STMMAC_XMIT_DEBUG) || defined(STMMAC_RX_DEBUG)
@@ -1070,7 +1066,7 @@ static int stmmac_open(struct net_device *dev)
 	} else
 		priv->tm->enable = 1;
 #endif
-	stmmac_clk_enable(priv);
+	clk_enable(priv->stmmac_clk);
 
 	stmmac_check_ether_addr(priv);
 
@@ -1192,7 +1188,7 @@ open_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
-	stmmac_clk_disable(priv);
+	clk_disable(priv->stmmac_clk);
 
 	return ret;
 }
@@ -1250,7 +1246,7 @@ static int stmmac_release(struct net_device *dev)
 #ifdef CONFIG_STMMAC_DEBUG_FS
 	stmmac_exit_fs();
 #endif
-	stmmac_clk_disable(priv);
+	clk_disable(priv->stmmac_clk);
 
 	return 0;
 }
@@ -2078,11 +2074,14 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	ret = register_netdev(ndev);
 	if (ret) {
 		pr_err("%s: ERROR %i registering the device\n", __func__, ret);
-		goto error;
+		goto error_netdev_register;
 	}
 
-	if (stmmac_clk_get(priv))
+	priv->stmmac_clk = clk_get(priv->device, STMMAC_RESOURCE_NAME);
+	if (IS_ERR(priv->stmmac_clk)) {
 		pr_warning("%s: warning: cannot get CSR clock\n", __func__);
+		goto error_clk_get;
+	}
 
 	/* If a specific clk_csr value is passed from the platform
 	 * this means that the CSR Clock Range selection cannot be
@@ -2100,15 +2099,17 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	if (ret < 0) {
 		pr_debug("%s: MDIO bus (id: %d) registration failed",
 			 __func__, priv->plat->bus_id);
-		goto error;
+		goto error_mdio_register;
 	}
 
 	return priv;
 
-error:
-	netif_napi_del(&priv->napi);
-
+error_mdio_register:
+	clk_put(priv->stmmac_clk);
+error_clk_get:
 	unregister_netdev(ndev);
+error_netdev_register:
+	netif_napi_del(&priv->napi);
 	free_netdev(ndev);
 
 	return NULL;
@@ -2177,7 +2178,7 @@ int stmmac_suspend(struct net_device *ndev)
 	else {
 		stmmac_set_mac(priv->ioaddr, false);
 		/* Disable clock in case of PWM is off */
-		stmmac_clk_disable(priv);
+		clk_disable(priv->stmmac_clk);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
@@ -2202,7 +2203,7 @@ int stmmac_resume(struct net_device *ndev)
 		priv->hw->mac->pmt(priv->ioaddr, 0);
 	else
 		/* enable the clk prevously disabled */
-		stmmac_clk_enable(priv);
+		clk_enable(priv->stmmac_clk);
 
 	netif_device_attach(ndev);
 

@@ -359,11 +359,6 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		break;
 	}
 
-	if (vb->input != UNSET) {
-		b->flags |= V4L2_BUF_FLAG_INPUT;
-		b->input  = vb->input;
-	}
-
 	b->field     = vb->field;
 	b->timestamp = vb->ts;
 	b->bytesused = vb->size;
@@ -402,7 +397,6 @@ int __videobuf_mmap_setup(struct videobuf_queue *q,
 			break;
 
 		q->bufs[i]->i      = i;
-		q->bufs[i]->input  = UNSET;
 		q->bufs[i]->memory = memory;
 		q->bufs[i]->bsize  = bsize;
 		switch (memory) {
@@ -564,16 +558,6 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 	if (buf->state != VIDEOBUF_NEEDS_INIT && buf->state != VIDEOBUF_IDLE) {
 		dprintk(1, "qbuf: buffer is already queued or active.\n");
 		goto done;
-	}
-
-	if (b->flags & V4L2_BUF_FLAG_INPUT) {
-		if (b->input >= q->inputs) {
-			dprintk(1, "qbuf: wrong input.\n");
-			goto done;
-		}
-		buf->input = b->input;
-	} else {
-		buf->input = UNSET;
 	}
 
 	switch (b->memory) {

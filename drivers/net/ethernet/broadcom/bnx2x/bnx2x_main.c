@@ -4041,20 +4041,6 @@ static bool bnx2x_get_load_status(struct bnx2x *bp, int engine)
 	return val != 0;
 }
 
-/*
- * Reset the load status for the current engine.
- */
-static void bnx2x_clear_load_status(struct bnx2x *bp)
-{
-	u32 val;
-	u32 mask = (BP_PATH(bp) ? BNX2X_PATH1_LOAD_CNT_MASK :
-		    BNX2X_PATH0_LOAD_CNT_MASK);
-	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
-	val = REG_RD(bp, BNX2X_RECOVERY_GLOB_REG);
-	REG_WR(bp, BNX2X_RECOVERY_GLOB_REG, val & (~mask));
-	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_RECOVERY_REG);
-}
-
 static void _print_next_block(int idx, const char *blk)
 {
 	pr_cont("%s%s", idx ? ", " : "", blk);
@@ -9360,8 +9346,7 @@ static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
 	struct bnx2x_prev_path_list *tmp_list;
 	int rc;
 
-	tmp_list = (struct bnx2x_prev_path_list *)
-		    kmalloc(sizeof(struct bnx2x_prev_path_list), GFP_KERNEL);
+	tmp_list = kmalloc(sizeof(struct bnx2x_prev_path_list), GFP_KERNEL);
 	if (!tmp_list) {
 		BNX2X_ERR("Failed to allocate 'bnx2x_prev_path_list'\n");
 		return -ENOMEM;
@@ -9385,32 +9370,24 @@ static int __devinit bnx2x_prev_mark_path(struct bnx2x *bp)
 	return rc;
 }
 
-static bool __devinit bnx2x_can_flr(struct bnx2x *bp)
-{
-	int pos;
-	u32 cap;
-	struct pci_dev *dev = bp->pdev;
-
-	pos = pci_pcie_cap(dev);
-	if (!pos)
-		return false;
-
-	pci_read_config_dword(dev, pos + PCI_EXP_DEVCAP, &cap);
-	if (!(cap & PCI_EXP_DEVCAP_FLR))
-		return false;
-
-	return true;
-}
-
 static int __devinit bnx2x_do_flr(struct bnx2x *bp)
 {
 	int i, pos;
 	u16 status;
 	struct pci_dev *dev = bp->pdev;
 
-	/* probe the capability first */
-	if (bnx2x_can_flr(bp))
-		return -ENOTTY;
+
+	if (CHIP_IS_E1x(bp)) {
+		BNX2X_DEV_INFO("FLR not supported in E1/E1H\n");
+		return -EINVAL;
+	}
+
+	/* only bootcode REQ_BC_VER_4_INITIATE_FLR and onwards support flr */
+	if (bp->common.bc_ver < REQ_BC_VER_4_INITIATE_FLR) {
+		BNX2X_ERR("FLR not supported by BC_VER: 0x%x\n",
+			  bp->common.bc_ver);
+		return -EINVAL;
+	}
 
 	pos = pci_pcie_cap(dev);
 	if (!pos)
@@ -9430,12 +9407,8 @@ static int __devinit bnx2x_do_flr(struct bnx2x *bp)
 		"transaction is not cleared; proceeding with reset anyway\n");
 
 clear:
-	if (bp->common.bc_ver < REQ_BC_VER_4_INITIATE_FLR) {
-		BNX2X_ERR("FLR not supported by BC_VER: 0x%x\n",
-			  bp->common.bc_ver);
-		return -EINVAL;
-	}
 
+	BNX2X_DEV_INFO("Initiating FLR\n");
 	bnx2x_fw_command(bp, DRV_MSG_CODE_INITIATE_FLR, 0);
 
 	return 0;
@@ -9455,8 +9428,21 @@ static int __devinit bnx2x_prev_unload_uncommon(struct bnx2x *bp)
 	 * the one required, then FLR will be sufficient to clean any residue
 	 * left by previous driver
 	 */
-	if (bnx2x_test_firmware_version(bp, false) && bnx2x_can_flr(bp))
-		return bnx2x_do_flr(bp);
+	rc = bnx2x_test_firmware_version(bp, false);
+
+	if (!rc) {
+		/* fw version is good */
+		BNX2X_DEV_INFO("FW version matches our own. Attempting FLR\n");
+		rc = bnx2x_do_flr(bp);
+	}
+
+	if (!rc) {
+		/* FLR was performed */
+		BNX2X_DEV_INFO("FLR successful\n");
+		return 0;
+	}
+
+	BNX2X_DEV_INFO("Could not FLR\n");
 
 	/* Close the MCP request, return failure*/
 	rc = bnx2x_prev_mcp_done(bp);
@@ -11427,9 +11413,6 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	 */
 	if (!chip_is_e1x)
 		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
-
-	/* Reset the load counter */
-	bnx2x_clear_load_status(bp);
 
 	dev->watchdog_timeo = TX_TIMEOUT;
 

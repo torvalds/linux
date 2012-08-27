@@ -97,7 +97,7 @@ struct iio_const_attr {
 #define IIO_DEV_ATTR_SAMP_FREQ_AVAIL(_show)				\
 	IIO_DEVICE_ATTR(sampling_frequency_available, S_IRUGO, _show, NULL, 0)
 /**
- * IIO_CONST_ATTR_AVAIL_SAMP_FREQ - list available sampling frequencies
+ * IIO_CONST_ATTR_SAMP_FREQ_AVAIL - list available sampling frequencies
  * @_string: frequency string for the attribute
  *
  * Constant version

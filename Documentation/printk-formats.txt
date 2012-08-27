@@ -53,9 +53,20 @@ Struct Resources:
 	For printing struct resources. The 'R' and 'r' specifiers result in a
 	printed resource with ('R') or without ('r') a decoded flags member.
 
+Raw buffer as a hex string:
+	%*ph	00 01 02  ...  3f
+	%*phC	00:01:02: ... :3f
+	%*phD	00-01-02- ... -3f
+	%*phN	000102 ... 3f
+
+	For printing a small buffers (up to 64 bytes long) as a hex string with
+	certain separator. For the larger buffers consider to use
+	print_hex_dump().
+
 MAC/FDDI addresses:
 
 	%pM	00:01:02:03:04:05
+	%pMR	05:04:03:02:01:00
 	%pMF	00-01-02-03-04-05
 	%pm	000102030405
 
@@ -66,6 +77,10 @@ MAC/FDDI addresses:
 	Where FDDI addresses are concerned the 'F' specifier can be used after
 	the 'M' specifier to use dash ('-') separators instead of the default
 	separator.
+
+	For Bluetooth addresses the 'R' specifier shall be used after the 'M'
+	specifier to use reversed byte order suitable for visual interpretation
+	of Bluetooth addresses which are in the little endian order.
 
 IPv4 addresses:
 

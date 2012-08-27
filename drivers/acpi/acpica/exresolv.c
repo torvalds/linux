@@ -147,7 +147,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 	stack_desc = *stack_ptr;
 
-	/* This is a union acpi_operand_object    */
+	/* This is an object of type union acpi_operand_object */
 
 	switch (stack_desc->common.type) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
@@ -321,7 +321,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
  * FUNCTION:    acpi_ex_resolve_multiple
  *
  * PARAMETERS:  walk_state          - Current state (contains AML opcode)
- *              Operand             - Starting point for resolution
+ *              operand             - Starting point for resolution
  *              return_type         - Where the object type is returned
  *              return_desc         - Where the resolved object is returned
  *

@@ -131,7 +131,7 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	omap_voltage_get_volttable(sr_data->voltdm, &volt_data);
 	if (!volt_data) {
-		pr_warning("%s: No Voltage table registerd fo VDD%d."
+		pr_warning("%s: No Voltage table registered fo VDD%d."
 			"Something really wrong\n\n", __func__, i + 1);
 		goto exit;
 	}

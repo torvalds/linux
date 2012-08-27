@@ -316,19 +316,13 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 	dprintk(1, "%s(bus = %d)\n", __func__, bus->nr);
 
-	memcpy(&bus->i2c_adap, &cx23885_i2c_adap_template,
-	       sizeof(bus->i2c_adap));
-	memcpy(&bus->i2c_algo, &cx23885_i2c_algo_template,
-	       sizeof(bus->i2c_algo));
-	memcpy(&bus->i2c_client, &cx23885_i2c_client_template,
-	       sizeof(bus->i2c_client));
-
+	bus->i2c_adap = cx23885_i2c_adap_template;
+	bus->i2c_client = cx23885_i2c_client_template;
 	bus->i2c_adap.dev.parent = &dev->pci->dev;
 
 	strlcpy(bus->i2c_adap.name, bus->dev->name,
 		sizeof(bus->i2c_adap.name));
 
-	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&bus->i2c_adap);

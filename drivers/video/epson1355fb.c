@@ -477,11 +477,11 @@ static __init unsigned int get_fb_size(struct fb_info *info)
 	return size;
 }
 
-static int epson1355_width_tab[2][4] __initdata =
+static int epson1355_width_tab[2][4] __devinitdata =
     { {4, 8, 16, -1}, {9, 12, 16, -1} };
-static int epson1355_bpp_tab[8] __initdata = { 1, 2, 4, 8, 15, 16 };
+static int epson1355_bpp_tab[8] __devinitdata = { 1, 2, 4, 8, 15, 16 };
 
-static void __init fetch_hw_state(struct fb_info *info, struct epson1355_par *par)
+static void __devinit fetch_hw_state(struct fb_info *info, struct epson1355_par *par)
 {
 	struct fb_var_screeninfo *var = &info->var;
 	struct fb_fix_screeninfo *fix = &info->fix;
@@ -601,7 +601,7 @@ static int epson1355fb_remove(struct platform_device *dev)
 	return 0;
 }
 
-int __devinit epson1355fb_probe(struct platform_device *dev)
+static int __devinit epson1355fb_probe(struct platform_device *dev)
 {
 	struct epson1355_par *default_par;
 	struct fb_info *info;

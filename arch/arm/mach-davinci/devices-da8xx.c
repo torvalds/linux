@@ -546,6 +546,7 @@ static struct lcd_ctrl_config lcd_cfg = {
 	.sync_edge		= 0,
 	.sync_ctrl		= 1,
 	.raster_order		= 0,
+	.fifo_th		= 6,
 };
 
 struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {

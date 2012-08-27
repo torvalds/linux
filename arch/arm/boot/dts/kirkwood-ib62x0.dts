@@ -4,7 +4,7 @@
 
 / {
 	model = "RaidSonic ICY BOX IB-NAS62x0 (Rev B)";
-	compatible = "raidsonic,ib-nas6210-b", "raidsonic,ib-nas6220-b", "raidsonic,ib-nas6210", "raidsonic,ib-nas6220", "raidsonic,ib-nas62x0",  "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+	compatible = "raidsonic,ib-nas6210-b", "raidsonic,ib-nas6220-b", "raidsonic,ib-nas6210", "raidsonic,ib-nas6220", "raidsonic,ib-nas62x0",  "marvell,kirkwood-88f6281", "marvell,kirkwood";
 
 	memory {
 		device_type = "memory";
@@ -19,6 +19,11 @@
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";
+		};
+
+		sata@80000 {
+			status = "okay";
+			nr-ports = <2>;
 		};
 
 		nand@3000000 {
@@ -39,6 +44,39 @@
 				reg = <0x0700000 0xf900000>;
 			};
 
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "USB Copy";
+			linux,code = <133>;
+			gpios = <&gpio0 29 1>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 28 1>;
+		};
+	};
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		green-os {
+			label = "ib62x0:green:os";
+			gpios = <&gpio0 25 0>;
+			linux,default-trigger = "default-on";
+		};
+		red-os {
+			label = "ib62x0:red:os";
+			gpios = <&gpio0 22 0>;
+		};
+		usb-copy {
+			label = "ib62x0:red:usb_copy";
+			gpios = <&gpio0 27 0>;
 		};
 	};
 };

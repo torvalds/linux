@@ -29,6 +29,7 @@
 #define NT_GNU_BUILD_ID 3
 #endif
 
+static void dso_cache__free(struct rb_root *root);
 static bool dso__build_id_equal(const struct dso *dso, u8 *build_id);
 static int elf_read_build_id(Elf *elf, void *bf, size_t size);
 static void dsos__add(struct list_head *head, struct dso *dso);
@@ -47,6 +48,31 @@ struct symbol_conf symbol_conf = {
 	.annotate_src	  = true,
 	.symfs            = "",
 };
+
+static enum dso_binary_type binary_type_symtab[] = {
+	DSO_BINARY_TYPE__KALLSYMS,
+	DSO_BINARY_TYPE__GUEST_KALLSYMS,
+	DSO_BINARY_TYPE__JAVA_JIT,
+	DSO_BINARY_TYPE__DEBUGLINK,
+	DSO_BINARY_TYPE__BUILD_ID_CACHE,
+	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
+	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
+	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
+	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
+	DSO_BINARY_TYPE__GUEST_KMODULE,
+	DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE,
+	DSO_BINARY_TYPE__NOT_FOUND,
+};
+
+#define DSO_BINARY_TYPE__SYMTAB_CNT ARRAY_SIZE(binary_type_symtab)
+
+static enum dso_binary_type binary_type_data[] = {
+	DSO_BINARY_TYPE__BUILD_ID_CACHE,
+	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
+	DSO_BINARY_TYPE__NOT_FOUND,
+};
+
+#define DSO_BINARY_TYPE__DATA_CNT ARRAY_SIZE(binary_type_data)
 
 int dso__name_len(const struct dso *dso)
 {
@@ -318,7 +344,9 @@ struct dso *dso__new(const char *name)
 		dso__set_short_name(dso, dso->name);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			dso->symbols[i] = dso->symbol_names[i] = RB_ROOT;
-		dso->symtab_type = SYMTAB__NOT_FOUND;
+		dso->cache = RB_ROOT;
+		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
+		dso->data_type   = DSO_BINARY_TYPE__NOT_FOUND;
 		dso->loaded = 0;
 		dso->sorted_by_name = 0;
 		dso->has_build_id = 0;
@@ -352,6 +380,7 @@ void dso__delete(struct dso *dso)
 		free((char *)dso->short_name);
 	if (dso->lname_alloc)
 		free(dso->long_name);
+	dso_cache__free(&dso->cache);
 	free(dso);
 }
 
@@ -806,9 +835,9 @@ int dso__load_kallsyms(struct dso *dso, const char *filename,
 	symbols__fixup_end(&dso->symbols[map->type]);
 
 	if (dso->kernel == DSO_TYPE_GUEST_KERNEL)
-		dso->symtab_type = SYMTAB__GUEST_KALLSYMS;
+		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KALLSYMS;
 	else
-		dso->symtab_type = SYMTAB__KALLSYMS;
+		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
 
 	return dso__split_kallsyms(dso, map, filter);
 }
@@ -1660,32 +1689,110 @@ out:
 char dso__symtab_origin(const struct dso *dso)
 {
 	static const char origin[] = {
-		[SYMTAB__KALLSYMS]	      = 'k',
-		[SYMTAB__JAVA_JIT]	      = 'j',
-		[SYMTAB__DEBUGLINK]           = 'l',
-		[SYMTAB__BUILD_ID_CACHE]      = 'B',
-		[SYMTAB__FEDORA_DEBUGINFO]    = 'f',
-		[SYMTAB__UBUNTU_DEBUGINFO]    = 'u',
-		[SYMTAB__BUILDID_DEBUGINFO]   = 'b',
-		[SYMTAB__SYSTEM_PATH_DSO]     = 'd',
-		[SYMTAB__SYSTEM_PATH_KMODULE] = 'K',
-		[SYMTAB__GUEST_KALLSYMS]      =  'g',
-		[SYMTAB__GUEST_KMODULE]	      =  'G',
+		[DSO_BINARY_TYPE__KALLSYMS]		= 'k',
+		[DSO_BINARY_TYPE__JAVA_JIT]		= 'j',
+		[DSO_BINARY_TYPE__DEBUGLINK]		= 'l',
+		[DSO_BINARY_TYPE__BUILD_ID_CACHE]	= 'B',
+		[DSO_BINARY_TYPE__FEDORA_DEBUGINFO]	= 'f',
+		[DSO_BINARY_TYPE__UBUNTU_DEBUGINFO]	= 'u',
+		[DSO_BINARY_TYPE__BUILDID_DEBUGINFO]	= 'b',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_DSO]	= 'd',
+		[DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE]	= 'K',
+		[DSO_BINARY_TYPE__GUEST_KALLSYMS]	= 'g',
+		[DSO_BINARY_TYPE__GUEST_KMODULE]	= 'G',
 	};
 
-	if (dso == NULL || dso->symtab_type == SYMTAB__NOT_FOUND)
+	if (dso == NULL || dso->symtab_type == DSO_BINARY_TYPE__NOT_FOUND)
 		return '!';
 	return origin[dso->symtab_type];
 }
 
+int dso__binary_type_file(struct dso *dso, enum dso_binary_type type,
+			  char *root_dir, char *file, size_t size)
+{
+	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	int ret = 0;
+
+	switch (type) {
+	case DSO_BINARY_TYPE__DEBUGLINK: {
+		char *debuglink;
+
+		strncpy(file, dso->long_name, size);
+		debuglink = file + dso->long_name_len;
+		while (debuglink != file && *debuglink != '/')
+			debuglink--;
+		if (*debuglink == '/')
+			debuglink++;
+		filename__read_debuglink(dso->long_name, debuglink,
+					 size - (debuglink - file));
+		}
+		break;
+	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
+		/* skip the locally configured cache if a symfs is given */
+		if (symbol_conf.symfs[0] ||
+		    (dso__build_id_filename(dso, file, size) == NULL))
+			ret = -1;
+		break;
+
+	case DSO_BINARY_TYPE__FEDORA_DEBUGINFO:
+		snprintf(file, size, "%s/usr/lib/debug%s.debug",
+			 symbol_conf.symfs, dso->long_name);
+		break;
+
+	case DSO_BINARY_TYPE__UBUNTU_DEBUGINFO:
+		snprintf(file, size, "%s/usr/lib/debug%s",
+			 symbol_conf.symfs, dso->long_name);
+		break;
+
+	case DSO_BINARY_TYPE__BUILDID_DEBUGINFO:
+		if (!dso->has_build_id) {
+			ret = -1;
+			break;
+		}
+
+		build_id__sprintf(dso->build_id,
+				  sizeof(dso->build_id),
+				  build_id_hex);
+		snprintf(file, size,
+			 "%s/usr/lib/debug/.build-id/%.2s/%s.debug",
+			 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
+		break;
+
+	case DSO_BINARY_TYPE__SYSTEM_PATH_DSO:
+		snprintf(file, size, "%s%s",
+			 symbol_conf.symfs, dso->long_name);
+		break;
+
+	case DSO_BINARY_TYPE__GUEST_KMODULE:
+		snprintf(file, size, "%s%s%s", symbol_conf.symfs,
+			 root_dir, dso->long_name);
+		break;
+
+	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
+		snprintf(file, size, "%s%s", symbol_conf.symfs,
+			 dso->long_name);
+		break;
+
+	default:
+	case DSO_BINARY_TYPE__KALLSYMS:
+	case DSO_BINARY_TYPE__GUEST_KALLSYMS:
+	case DSO_BINARY_TYPE__JAVA_JIT:
+	case DSO_BINARY_TYPE__NOT_FOUND:
+		ret = -1;
+		break;
+	}
+
+	return ret;
+}
+
 int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 {
-	int size = PATH_MAX;
 	char *name;
 	int ret = -1;
 	int fd;
+	u_int i;
 	struct machine *machine;
-	const char *root_dir;
+	char *root_dir = (char *) "";
 	int want_symtab;
 
 	dso__set_loaded(dso, map->type);
@@ -1700,7 +1807,7 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	else
 		machine = NULL;
 
-	name = malloc(size);
+	name = malloc(PATH_MAX);
 	if (!name)
 		return -1;
 
@@ -1719,10 +1826,13 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 		}
 
 		ret = dso__load_perf_map(dso, map, filter);
-		dso->symtab_type = ret > 0 ? SYMTAB__JAVA_JIT :
-					      SYMTAB__NOT_FOUND;
+		dso->symtab_type = ret > 0 ? DSO_BINARY_TYPE__JAVA_JIT :
+					     DSO_BINARY_TYPE__NOT_FOUND;
 		return ret;
 	}
+
+	if (machine)
+		root_dir = machine->root_dir;
 
 	/* Iterate over candidate debug images.
 	 * On the first pass, only load images if they have a full symtab.
@@ -1730,70 +1840,13 @@ int dso__load(struct dso *dso, struct map *map, symbol_filter_t filter)
 	 */
 	want_symtab = 1;
 restart:
-	for (dso->symtab_type = SYMTAB__DEBUGLINK;
-	     dso->symtab_type != SYMTAB__NOT_FOUND;
-	     dso->symtab_type++) {
-		switch (dso->symtab_type) {
-		case SYMTAB__DEBUGLINK: {
-			char *debuglink;
-			strncpy(name, dso->long_name, size);
-			debuglink = name + dso->long_name_len;
-			while (debuglink != name && *debuglink != '/')
-				debuglink--;
-			if (*debuglink == '/')
-				debuglink++;
-			filename__read_debuglink(dso->long_name, debuglink,
-						 size - (debuglink - name));
-			}
-			break;
-		case SYMTAB__BUILD_ID_CACHE:
-			/* skip the locally configured cache if a symfs is given */
-			if (symbol_conf.symfs[0] ||
-			    (dso__build_id_filename(dso, name, size) == NULL)) {
-				continue;
-			}
-			break;
-		case SYMTAB__FEDORA_DEBUGINFO:
-			snprintf(name, size, "%s/usr/lib/debug%s.debug",
-				 symbol_conf.symfs, dso->long_name);
-			break;
-		case SYMTAB__UBUNTU_DEBUGINFO:
-			snprintf(name, size, "%s/usr/lib/debug%s",
-				 symbol_conf.symfs, dso->long_name);
-			break;
-		case SYMTAB__BUILDID_DEBUGINFO: {
-			char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	for (i = 0; i < DSO_BINARY_TYPE__SYMTAB_CNT; i++) {
 
-			if (!dso->has_build_id)
-				continue;
+		dso->symtab_type = binary_type_symtab[i];
 
-			build_id__sprintf(dso->build_id,
-					  sizeof(dso->build_id),
-					  build_id_hex);
-			snprintf(name, size,
-				 "%s/usr/lib/debug/.build-id/%.2s/%s.debug",
-				 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
-			}
-			break;
-		case SYMTAB__SYSTEM_PATH_DSO:
-			snprintf(name, size, "%s%s",
-			     symbol_conf.symfs, dso->long_name);
-			break;
-		case SYMTAB__GUEST_KMODULE:
-			if (map->groups && machine)
-				root_dir = machine->root_dir;
-			else
-				root_dir = "";
-			snprintf(name, size, "%s%s%s", symbol_conf.symfs,
-				 root_dir, dso->long_name);
-			break;
-
-		case SYMTAB__SYSTEM_PATH_KMODULE:
-			snprintf(name, size, "%s%s", symbol_conf.symfs,
-				 dso->long_name);
-			break;
-		default:;
-		}
+		if (dso__binary_type_file(dso, dso->symtab_type,
+					  root_dir, name, PATH_MAX))
+			continue;
 
 		/* Name is now the name of the next image to try */
 		fd = open(name, O_RDONLY);
@@ -2010,9 +2063,9 @@ struct map *machine__new_module(struct machine *machine, u64 start,
 		return NULL;
 
 	if (machine__is_host(machine))
-		dso->symtab_type = SYMTAB__SYSTEM_PATH_KMODULE;
+		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
 	else
-		dso->symtab_type = SYMTAB__GUEST_KMODULE;
+		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
 	map_groups__insert(&machine->kmaps, map);
 	return map;
 }
@@ -2564,8 +2617,15 @@ int machine__create_kernel_maps(struct machine *machine)
 	    __machine__create_kernel_maps(machine, kernel) < 0)
 		return -1;
 
-	if (symbol_conf.use_modules && machine__create_modules(machine) < 0)
-		pr_debug("Problems creating module maps, continuing anyway...\n");
+	if (symbol_conf.use_modules && machine__create_modules(machine) < 0) {
+		if (machine__is_host(machine))
+			pr_debug("Problems creating module maps, "
+				 "continuing anyway...\n");
+		else
+			pr_debug("Problems creating module maps for guest %d, "
+				 "continuing anyway...\n", machine->pid);
+	}
+
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */
@@ -2815,6 +2875,7 @@ int machines__create_guest_kernel_maps(struct rb_root *machines)
 	int i, items = 0;
 	char path[PATH_MAX];
 	pid_t pid;
+	char *endp;
 
 	if (symbol_conf.default_guest_vmlinux_name ||
 	    symbol_conf.default_guest_modules ||
@@ -2831,7 +2892,14 @@ int machines__create_guest_kernel_maps(struct rb_root *machines)
 				/* Filter out . and .. */
 				continue;
 			}
-			pid = atoi(namelist[i]->d_name);
+			pid = (pid_t)strtol(namelist[i]->d_name, &endp, 10);
+			if ((*endp != '\0') ||
+			    (endp == namelist[i]->d_name) ||
+			    (errno == ERANGE)) {
+				pr_debug("invalid directory (%s). Skipping.\n",
+					 namelist[i]->d_name);
+				continue;
+			}
 			sprintf(path, "%s/%s/proc/kallsyms",
 				symbol_conf.guestmount,
 				namelist[i]->d_name);
@@ -2904,4 +2972,219 @@ struct map *dso__new_map(const char *name)
 		map = map__new2(0, dso, MAP__FUNCTION);
 
 	return map;
+}
+
+static int open_dso(struct dso *dso, struct machine *machine)
+{
+	char *root_dir = (char *) "";
+	char *name;
+	int fd;
+
+	name = malloc(PATH_MAX);
+	if (!name)
+		return -ENOMEM;
+
+	if (machine)
+		root_dir = machine->root_dir;
+
+	if (dso__binary_type_file(dso, dso->data_type,
+				  root_dir, name, PATH_MAX)) {
+		free(name);
+		return -EINVAL;
+	}
+
+	fd = open(name, O_RDONLY);
+	free(name);
+	return fd;
+}
+
+int dso__data_fd(struct dso *dso, struct machine *machine)
+{
+	int i = 0;
+
+	if (dso->data_type != DSO_BINARY_TYPE__NOT_FOUND)
+		return open_dso(dso, machine);
+
+	do {
+		int fd;
+
+		dso->data_type = binary_type_data[i++];
+
+		fd = open_dso(dso, machine);
+		if (fd >= 0)
+			return fd;
+
+	} while (dso->data_type != DSO_BINARY_TYPE__NOT_FOUND);
+
+	return -EINVAL;
+}
+
+static void
+dso_cache__free(struct rb_root *root)
+{
+	struct rb_node *next = rb_first(root);
+
+	while (next) {
+		struct dso_cache *cache;
+
+		cache = rb_entry(next, struct dso_cache, rb_node);
+		next = rb_next(&cache->rb_node);
+		rb_erase(&cache->rb_node, root);
+		free(cache);
+	}
+}
+
+static struct dso_cache*
+dso_cache__find(struct rb_root *root, u64 offset)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct dso_cache *cache;
+
+	while (*p != NULL) {
+		u64 end;
+
+		parent = *p;
+		cache = rb_entry(parent, struct dso_cache, rb_node);
+		end = cache->offset + DSO__DATA_CACHE_SIZE;
+
+		if (offset < cache->offset)
+			p = &(*p)->rb_left;
+		else if (offset >= end)
+			p = &(*p)->rb_right;
+		else
+			return cache;
+	}
+	return NULL;
+}
+
+static void
+dso_cache__insert(struct rb_root *root, struct dso_cache *new)
+{
+	struct rb_node **p = &root->rb_node;
+	struct rb_node *parent = NULL;
+	struct dso_cache *cache;
+	u64 offset = new->offset;
+
+	while (*p != NULL) {
+		u64 end;
+
+		parent = *p;
+		cache = rb_entry(parent, struct dso_cache, rb_node);
+		end = cache->offset + DSO__DATA_CACHE_SIZE;
+
+		if (offset < cache->offset)
+			p = &(*p)->rb_left;
+		else if (offset >= end)
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&new->rb_node, parent, p);
+	rb_insert_color(&new->rb_node, root);
+}
+
+static ssize_t
+dso_cache__memcpy(struct dso_cache *cache, u64 offset,
+		  u8 *data, u64 size)
+{
+	u64 cache_offset = offset - cache->offset;
+	u64 cache_size   = min(cache->size - cache_offset, size);
+
+	memcpy(data, cache->data + cache_offset, cache_size);
+	return cache_size;
+}
+
+static ssize_t
+dso_cache__read(struct dso *dso, struct machine *machine,
+		 u64 offset, u8 *data, ssize_t size)
+{
+	struct dso_cache *cache;
+	ssize_t ret;
+	int fd;
+
+	fd = dso__data_fd(dso, machine);
+	if (fd < 0)
+		return -1;
+
+	do {
+		u64 cache_offset;
+
+		ret = -ENOMEM;
+
+		cache = zalloc(sizeof(*cache) + DSO__DATA_CACHE_SIZE);
+		if (!cache)
+			break;
+
+		cache_offset = offset & DSO__DATA_CACHE_MASK;
+		ret = -EINVAL;
+
+		if (-1 == lseek(fd, cache_offset, SEEK_SET))
+			break;
+
+		ret = read(fd, cache->data, DSO__DATA_CACHE_SIZE);
+		if (ret <= 0)
+			break;
+
+		cache->offset = cache_offset;
+		cache->size   = ret;
+		dso_cache__insert(&dso->cache, cache);
+
+		ret = dso_cache__memcpy(cache, offset, data, size);
+
+	} while (0);
+
+	if (ret <= 0)
+		free(cache);
+
+	close(fd);
+	return ret;
+}
+
+static ssize_t dso_cache_read(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size)
+{
+	struct dso_cache *cache;
+
+	cache = dso_cache__find(&dso->cache, offset);
+	if (cache)
+		return dso_cache__memcpy(cache, offset, data, size);
+	else
+		return dso_cache__read(dso, machine, offset, data, size);
+}
+
+ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size)
+{
+	ssize_t r = 0;
+	u8 *p = data;
+
+	do {
+		ssize_t ret;
+
+		ret = dso_cache_read(dso, machine, offset, p, size);
+		if (ret < 0)
+			return ret;
+
+		/* Reached EOF, return what we have. */
+		if (!ret)
+			break;
+
+		BUG_ON(ret > size);
+
+		r      += ret;
+		p      += ret;
+		offset += ret;
+		size   -= ret;
+
+	} while (size);
+
+	return r;
+}
+
+ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
+			    struct machine *machine, u64 addr,
+			    u8 *data, ssize_t size)
+{
+	u64 offset = map->map_ip(map, addr);
+	return dso__data_read_offset(dso, machine, offset, data, size);
 }
