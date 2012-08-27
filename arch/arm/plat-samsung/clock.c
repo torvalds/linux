@@ -173,17 +173,18 @@ struct clk *clk_get_parent(struct clk *clk)
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
+	unsigned long flags;
 	int ret = 0;
 
 	if (IS_ERR(clk))
 		return -EINVAL;
 
-	spin_lock(&clocks_lock);
+	spin_lock_irqsave(&clocks_lock, flags);
 
 	if (clk->ops && clk->ops->set_parent)
 		ret = (clk->ops->set_parent)(clk, parent);
 
-	spin_unlock(&clocks_lock);
+	spin_unlock_irqrestore(&clocks_lock, flags);
 
 	return ret;
 }
