@@ -1204,6 +1204,28 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		}
 	}
 
+	if (ns.susp_fen) {
+		struct drbd_tconn *tconn = mdev->tconn;
+
+		spin_lock_irq(&tconn->req_lock);
+		if (tconn->susp_fen && conn_lowest_conn(tconn) >= C_CONNECTED) {
+			/* case2: The connection was established again: */
+			struct drbd_conf *odev;
+			int vnr;
+
+			rcu_read_lock();
+			idr_for_each_entry(&tconn->volumes, odev, vnr)
+				clear_bit(NEW_CUR_UUID, &odev->flags);
+			rcu_read_unlock();
+			_tl_restart(tconn, RESEND);
+			_conn_request_state(tconn,
+					    (union drbd_state) { { .susp_fen = 1 } },
+					    (union drbd_state) { { .susp_fen = 0 } },
+					    CS_VERBOSE);
+		}
+		spin_unlock_irq(&tconn->req_lock);
+	}
+
 	/* Became sync source.  With protocol >= 96, we still need to send out
 	 * the sync uuid now. Need to do that before any drbd_send_state, or
 	 * the other side may go "paused sync" before receiving the sync uuids,
@@ -1475,7 +1497,6 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	struct drbd_tconn *tconn = w->tconn;
 	enum drbd_conns oc = acscw->oc;
 	union drbd_state ns_max = acscw->ns_max;
-	union drbd_state ns_min = acscw->ns_min;
 	struct drbd_conf *mdev;
 	int vnr;
 
@@ -1513,20 +1534,6 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 			rcu_read_unlock();
 			spin_lock_irq(&tconn->req_lock);
 			_tl_restart(tconn, CONNECTION_LOST_WHILE_PENDING);
-			_conn_request_state(tconn,
-					    (union drbd_state) { { .susp_fen = 1 } },
-					    (union drbd_state) { { .susp_fen = 0 } },
-					    CS_VERBOSE);
-			spin_unlock_irq(&tconn->req_lock);
-		}
-		/* case2: The connection was established again: */
-		if (ns_min.conn >= C_CONNECTED) {
-			rcu_read_lock();
-			idr_for_each_entry(&tconn->volumes, mdev, vnr)
-				clear_bit(NEW_CUR_UUID, &mdev->flags);
-			rcu_read_unlock();
-			spin_lock_irq(&tconn->req_lock);
-			_tl_restart(tconn, RESEND);
 			_conn_request_state(tconn,
 					    (union drbd_state) { { .susp_fen = 1 } },
 					    (union drbd_state) { { .susp_fen = 0 } },
