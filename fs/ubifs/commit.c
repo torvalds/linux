@@ -514,7 +514,7 @@ struct idx_node {
 	struct list_head list;
 	int iip;
 	union ubifs_key upper_key;
-	struct ubifs_idx_node idx __attribute__((aligned(8)));
+	struct ubifs_idx_node idx __aligned(8);
 };
 
 /**
