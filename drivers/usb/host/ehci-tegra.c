@@ -789,9 +789,10 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 #endif
 
 	usb_remove_hcd(hcd);
-	usb_put_hcd(hcd);
 
 	tegra_usb_phy_close(tegra->phy);
+
+	usb_put_hcd(hcd);
 
 	clk_disable_unprepare(tegra->clk);
 

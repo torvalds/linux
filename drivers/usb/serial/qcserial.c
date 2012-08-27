@@ -268,8 +268,7 @@ static void qc_release(struct usb_serial *serial)
 {
 	struct usb_wwan_intf_private *priv = usb_get_serial_data(serial);
 
-	/* Call usb_wwan release & free the private data allocated in qcprobe */
-	usb_wwan_release(serial);
+	/* Free the private data allocated in qcprobe */
 	usb_set_serial_data(serial, NULL);
 	kfree(priv);
 }
@@ -289,8 +288,8 @@ static struct usb_serial_driver qcdevice = {
 	.write_room	     = usb_wwan_write_room,
 	.chars_in_buffer     = usb_wwan_chars_in_buffer,
 	.attach		     = usb_wwan_startup,
-	.disconnect	     = usb_wwan_disconnect,
 	.release	     = qc_release,
+	.port_remove	     = usb_wwan_port_remove,
 #ifdef CONFIG_PM
 	.suspend	     = usb_wwan_suspend,
 	.resume		     = usb_wwan_resume,

@@ -326,7 +326,10 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	for (page = blk->first_page; page <= blk->last_page; page++, idx++) {
 		unsigned long ofs = idx << PAGE_SHIFT;
 		dma_addr_t addr;
-		addr = snd_pcm_sgbuf_get_addr(substream, ofs);
+		if (ofs >= runtime->dma_bytes)
+			addr = emu->silent_page.addr;
+		else
+			addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 		if (! is_valid_page(emu, addr)) {
 			printk(KERN_ERR "emu: failure page = %d\n", idx);
 			mutex_unlock(&hdr->block_mutex);

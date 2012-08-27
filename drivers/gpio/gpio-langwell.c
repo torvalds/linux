@@ -339,7 +339,7 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 	resource_size_t start, len;
 	struct lnw_gpio *lnw;
 	u32 gpio_base;
-	int retval = 0;
+	int retval;
 	int ngpio = id->driver_data;
 
 	retval = pci_enable_device(pdev);
@@ -357,6 +357,7 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 	base = ioremap_nocache(start, len);
 	if (!base) {
 		dev_err(&pdev->dev, "error mapping bar1\n");
+		retval = -EFAULT;
 		goto err3;
 	}
 	gpio_base = *((u32 *)base + 1);
@@ -381,8 +382,10 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 
 	lnw->domain = irq_domain_add_linear(pdev->dev.of_node, ngpio,
 					    &lnw_gpio_irq_ops, lnw);
-	if (!lnw->domain)
+	if (!lnw->domain) {
+		retval = -ENOMEM;
 		goto err3;
+	}
 
 	lnw->reg_base = base;
 	lnw->chip.label = dev_name(&pdev->dev);
