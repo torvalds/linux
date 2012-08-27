@@ -489,24 +489,39 @@ batadv_tt_local_set_pending(struct batadv_priv *bat_priv,
 		   tt_local_entry->common.addr, message);
 }
 
-void batadv_tt_local_remove(struct batadv_priv *bat_priv, const uint8_t *addr,
-			    const char *message, bool roaming)
+/**
+ * batadv_tt_local_remove - logically remove an entry from the local table
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the MAC address of the client to remove
+ * @message: message to append to the log on deletion
+ * @roaming: true if the deletion is due to a roaming event
+ *
+ * Returns the flags assigned to the local entry before being deleted
+ */
+uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
+				const uint8_t *addr, const char *message,
+				bool roaming)
 {
 	struct batadv_tt_local_entry *tt_local_entry = NULL;
-	uint16_t flags;
+	uint16_t flags, curr_flags = BATADV_NO_FLAGS;
 
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
 	if (!tt_local_entry)
 		goto out;
+
+	curr_flags = tt_local_entry->common.flags;
 
 	flags = BATADV_TT_CLIENT_DEL;
 	if (roaming)
 		flags |= BATADV_TT_CLIENT_ROAM;
 
 	batadv_tt_local_set_pending(bat_priv, tt_local_entry, flags, message);
+
 out:
 	if (tt_local_entry)
 		batadv_tt_local_entry_free_ref(tt_local_entry);
+
+	return curr_flags;
 }
 
 static void batadv_tt_local_purge_list(struct batadv_priv *bat_priv,
@@ -713,6 +728,7 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 	int ret = 0;
 	int hash_added;
 	struct batadv_tt_common_entry *common;
+	uint16_t local_flags;
 
 	tt_global_entry = batadv_tt_global_hash_find(bat_priv, tt_addr);
 
@@ -785,10 +801,13 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 	ret = 1;
 
 out_remove:
+
 	/* remove address from local hash if present */
-	batadv_tt_local_remove(bat_priv, tt_global_entry->common.addr,
-			       "global tt received",
-			       flags & BATADV_TT_CLIENT_ROAM);
+	local_flags = batadv_tt_local_remove(bat_priv, tt_addr,
+					     "global tt received",
+					     flags & BATADV_TT_CLIENT_ROAM);
+	tt_global_entry->common.flags |= local_flags & BATADV_TT_CLIENT_WIFI;
+
 out:
 	if (tt_global_entry)
 		batadv_tt_global_entry_free_ref(tt_global_entry);
