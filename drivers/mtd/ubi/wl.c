@@ -1201,7 +1201,7 @@ int ubi_wl_scrub_peb(struct ubi_device *ubi, int pnum)
 {
 	struct ubi_wl_entry *e;
 
-	dbg_msg("schedule PEB %d for scrubbing", pnum);
+	ubi_msg("schedule PEB %d for scrubbing", pnum);
 
 retry:
 	spin_lock(&ubi->wl_lock);

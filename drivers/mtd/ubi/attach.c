@@ -794,8 +794,8 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 		pnum);
 	ubi_err("this may be a non-UBI PEB or a severe VID header corruption which requires manual inspection");
 	ubi_dump_vid_hdr(vid_hdr);
-	dbg_msg("hexdump of PEB %d offset %d, length %d",
-		pnum, ubi->leb_start, ubi->leb_size);
+	pr_err("hexdump of PEB %d offset %d, length %d",
+	       pnum, ubi->leb_start, ubi->leb_size);
 	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       ubi->peb_buf, ubi->leb_size, 1);
 	err = 1;
@@ -1170,7 +1170,7 @@ static struct ubi_attach_info *scan_all(struct ubi_device *ubi)
 			goto out_vidh;
 	}
 
-	dbg_msg("scanning is finished");
+	ubi_msg("scanning is finished");
 
 	/* Calculate mean erase counter */
 	if (ai->ec_count)
@@ -1242,7 +1242,7 @@ int ubi_attach(struct ubi_device *ubi)
 	ubi->corr_peb_count = ai->corr_peb_count;
 	ubi->max_ec = ai->max_ec;
 	ubi->mean_ec = ai->mean_ec;
-	ubi_msg("max. sequence number:       %llu", ai->max_sqnum);
+	dbg_gen("max. sequence number:       %llu", ai->max_sqnum);
 
 	err = ubi_read_volume_table(ubi, ai);
 	if (err)

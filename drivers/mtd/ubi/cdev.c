@@ -754,7 +754,7 @@ static int rename_volumes(struct ubi_device *ubi,
 		re->new_name_len = name_len;
 		memcpy(re->new_name, name, name_len);
 		list_add_tail(&re->list, &rename_list);
-		dbg_msg("will rename volume %d from \"%s\" to \"%s\"",
+		dbg_gen("will rename volume %d from \"%s\" to \"%s\"",
 			vol_id, re->desc->vol->name, name);
 	}
 
@@ -812,7 +812,7 @@ static int rename_volumes(struct ubi_device *ubi,
 		re1->remove = 1;
 		re1->desc = desc;
 		list_add(&re1->list, &rename_list);
-		dbg_msg("will remove volume %d, name \"%s\"",
+		dbg_gen("will remove volume %d, name \"%s\"",
 			re1->desc->vol->vol_id, re1->desc->vol->name);
 	}
 
@@ -943,7 +943,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 	{
 		struct ubi_rnvol_req *req;
 
-		dbg_msg("re-name volumes");
+		dbg_gen("re-name volumes");
 		req = kmalloc(sizeof(struct ubi_rnvol_req), GFP_KERNEL);
 		if (!req) {
 			err = -ENOMEM;

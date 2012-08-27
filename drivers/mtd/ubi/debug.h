@@ -42,11 +42,6 @@ void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 	pr_debug("UBI DBG " type " (pid %d): " fmt "\n", current->pid,       \
 		 ##__VA_ARGS__)
 
-/* Just a debugging messages not related to any specific UBI subsystem */
-#define dbg_msg(fmt, ...)                                                    \
-	pr_err("UBI DBG (pid %d): %s: " fmt "\n",                            \
-	       current->pid, __func__, ##__VA_ARGS__)
-
 /* General debugging messages */
 #define dbg_gen(fmt, ...) ubi_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Messages from the eraseblock association sub-system */
