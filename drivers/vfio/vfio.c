@@ -1017,18 +1017,18 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	struct file *filep;
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
-	int ret = 0;
+	int ret = 0, fput_needed;
 
 	if (atomic_read(&group->container_users))
 		return -EINVAL;
 
-	filep = fget(container_fd);
+	filep = fget_light(container_fd, &fput_needed);
 	if (!filep)
 		return -EBADF;
 
 	/* Sanity check, is this really our fd? */
 	if (filep->f_op != &vfio_fops) {
-		fput(filep);
+		fput_light(filep, fput_needed);
 		return -EINVAL;
 	}
 
@@ -1054,7 +1054,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 
 unlock_out:
 	mutex_unlock(&container->group_lock);
-	fput(filep);
+	fput_light(filep, fput_needed);
 
 	return ret;
 }
