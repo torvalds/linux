@@ -1304,12 +1304,7 @@ static struct platform_device device_vmac = {
 };
 #endif
 
-/*
- * rk29 wdt device  ADDED BY HHB@ROCK-CHIPS.COM
- */
-
 #ifdef CONFIG_RK29_WATCHDOG
-
 static struct resource resources_wdt[] = {
 	{
 		.start	= IRQ_WDT,
@@ -1323,13 +1318,12 @@ static struct resource resources_wdt[] = {
 	},
 };
 
-struct platform_device rk29_device_wdt = {
+static struct platform_device device_wdt = {
 	.name	= "rk29-wdt",
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_wdt),
 	.resource	= resources_wdt,
 };
-
 #endif
 
 static int __init rk30_init_devices(void)
@@ -1378,7 +1372,7 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_vmac);
 #endif
 #ifdef CONFIG_RK29_WATCHDOG
-	platform_device_register(&rk29_device_wdt);
+	platform_device_register(&device_wdt);
 #endif
 	return 0;
 }
