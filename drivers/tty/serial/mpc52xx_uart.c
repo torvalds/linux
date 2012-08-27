@@ -775,11 +775,15 @@ mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	}
 
 	if (new->c_cflag & PARENB) {
+		if (new->c_cflag & CMSPAR)
+			mr1 |= MPC52xx_PSC_MODE_PARFORCE;
+
+		/* With CMSPAR, PARODD also means high parity (same as termios) */
 		mr1 |= (new->c_cflag & PARODD) ?
 			MPC52xx_PSC_MODE_PARODD : MPC52xx_PSC_MODE_PAREVEN;
-	} else
+	} else {
 		mr1 |= MPC52xx_PSC_MODE_PARNONE;
-
+	}
 
 	mr2 = 0;
 
