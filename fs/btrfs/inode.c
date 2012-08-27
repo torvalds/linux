@@ -3448,12 +3448,6 @@ delete:
 
 		if (path->slots[0] == 0 ||
 		    path->slots[0] != pending_del_slot) {
-			if (root->ref_cows &&
-			    BTRFS_I(inode)->location.objectid !=
-						BTRFS_FREE_INO_OBJECTID) {
-				err = -EAGAIN;
-				goto out;
-			}
 			if (pending_del_nr) {
 				ret = btrfs_del_items(trans, root, path,
 						pending_del_slot,
@@ -3826,6 +3820,7 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 	}
 	rsv->size = min_size;
+	rsv->failfast = 1;
 	global_rsv = &root->fs_info->global_block_rsv;
 
 	btrfs_i_size_write(inode, 0);
@@ -3870,7 +3865,7 @@ void btrfs_evict_inode(struct inode *inode)
 		trans->block_rsv = rsv;
 
 		ret = btrfs_truncate_inode_items(trans, root, inode, 0, 0);
-		if (ret != -EAGAIN)
+		if (ret != -ENOSPC)
 			break;
 
 		nr = trans->blocks_used;
@@ -6852,6 +6847,7 @@ static int btrfs_truncate(struct inode *inode)
 	if (!rsv)
 		return -ENOMEM;
 	rsv->size = min_size;
+	rsv->failfast = 1;
 
 	/*
 	 * 1 for the truncate slack space
@@ -6905,37 +6901,13 @@ static int btrfs_truncate(struct inode *inode)
 	 * safe.
 	 */
 	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
+	trans->block_rsv = rsv;
 
 	while (1) {
-		ret = btrfs_block_rsv_refill(root, rsv, min_size);
-		if (ret) {
-			/*
-			 * This can only happen with the original transaction we
-			 * started above, every other time we shouldn't have a
-			 * transaction started yet.
-			 */
-			if (ret == -EAGAIN)
-				goto end_trans;
-			err = ret;
-			break;
-		}
-
-		if (!trans) {
-			/* Just need the 1 for updating the inode */
-			trans = btrfs_start_transaction(root, 1);
-			if (IS_ERR(trans)) {
-				ret = err = PTR_ERR(trans);
-				trans = NULL;
-				break;
-			}
-		}
-
-		trans->block_rsv = rsv;
-
 		ret = btrfs_truncate_inode_items(trans, root, inode,
 						 inode->i_size,
 						 BTRFS_EXTENT_DATA_KEY);
-		if (ret != -EAGAIN) {
+		if (ret != -ENOSPC) {
 			err = ret;
 			break;
 		}
@@ -6946,11 +6918,22 @@ static int btrfs_truncate(struct inode *inode)
 			err = ret;
 			break;
 		}
-end_trans:
+
 		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
-		trans = NULL;
 		btrfs_btree_balance_dirty(root, nr);
+
+		trans = btrfs_start_transaction(root, 2);
+		if (IS_ERR(trans)) {
+			ret = err = PTR_ERR(trans);
+			trans = NULL;
+			break;
+		}
+
+		ret = btrfs_block_rsv_migrate(&root->fs_info->trans_block_rsv,
+					      rsv, min_size);
+		BUG_ON(ret);	/* shouldn't happen */
+		trans->block_rsv = rsv;
 	}
 
 	if (ret == 0 && inode->i_nlink > 0) {

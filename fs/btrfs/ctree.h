@@ -1034,6 +1034,7 @@ struct btrfs_block_rsv {
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
 	unsigned int full;
+	unsigned int failfast;
 };
 
 /*
