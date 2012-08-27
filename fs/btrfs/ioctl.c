@@ -1422,7 +1422,8 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 				     NULL, transid, readonly, inherit);
 	} else {
 		struct inode *src_inode;
-		src_file = fget(fd);
+		int fput_needed;
+		src_file = fget_light(fd, &fput_needed);
 		if (!src_file) {
 			ret = -EINVAL;
 			goto out_drop_write;
@@ -1433,13 +1434,12 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 			printk(KERN_INFO "btrfs: Snapshot src from "
 			       "another FS\n");
 			ret = -EINVAL;
-			fput(src_file);
-			goto out_drop_write;
+		} else {
+			ret = btrfs_mksubvol(&file->f_path, name, namelen,
+					     BTRFS_I(src_inode)->root,
+					     transid, readonly, inherit);
 		}
-		ret = btrfs_mksubvol(&file->f_path, name, namelen,
-				     BTRFS_I(src_inode)->root,
-				     transid, readonly, inherit);
-		fput(src_file);
+		fput_light(src_file, fput_needed);
 	}
 out_drop_write:
 	mnt_drop_write_file(file);
