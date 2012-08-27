@@ -86,6 +86,19 @@ struct x86_instruction_info {
 
 struct x86_emulate_ops {
 	/*
+	 * read_gpr: read a general purpose register (rax - r15)
+	 *
+	 * @reg: gpr number.
+	 */
+	ulong (*read_gpr)(struct x86_emulate_ctxt *ctxt, unsigned reg);
+	/*
+	 * write_gpr: write a general purpose register (rax - r15)
+	 *
+	 * @reg: gpr number.
+	 * @val: value to write.
+	 */
+	void (*write_gpr)(struct x86_emulate_ctxt *ctxt, unsigned reg, ulong val);
+	/*
 	 * read_std: Read bytes of standard (non-emulated/special) memory.
 	 *           Used for descriptor reading.
 	 *  @addr:  [IN ] Linear address from which to read.
@@ -281,8 +294,10 @@ struct x86_emulate_ctxt {
 	bool rip_relative;
 	unsigned long _eip;
 	struct operand memop;
+	u32 regs_valid;  /* bitmaps of registers in _regs[] that can be read */
+	u32 regs_dirty;  /* bitmaps of registers in _regs[] that have been written */
 	/* Fields above regs are cleared together. */
-	unsigned long regs[NR_VCPU_REGS];
+	unsigned long _regs[NR_VCPU_REGS];
 	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;
@@ -394,4 +409,7 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 			 u16 tss_selector, int idt_index, int reason,
 			 bool has_error_code, u32 error_code);
 int emulate_int_real(struct x86_emulate_ctxt *ctxt, int irq);
+void emulator_invalidate_register_cache(struct x86_emulate_ctxt *ctxt);
+void emulator_writeback_register_cache(struct x86_emulate_ctxt *ctxt);
+
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

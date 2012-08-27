@@ -4313,7 +4313,19 @@ static void emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
 	kvm_cpuid(emul_to_vcpu(ctxt), eax, ebx, ecx, edx);
 }
 
+static ulong emulator_read_gpr(struct x86_emulate_ctxt *ctxt, unsigned reg)
+{
+	return kvm_register_read(emul_to_vcpu(ctxt), reg);
+}
+
+static void emulator_write_gpr(struct x86_emulate_ctxt *ctxt, unsigned reg, ulong val)
+{
+	kvm_register_write(emul_to_vcpu(ctxt), reg, val);
+}
+
 static struct x86_emulate_ops emulate_ops = {
+	.read_gpr            = emulator_read_gpr,
+	.write_gpr           = emulator_write_gpr,
 	.read_std            = kvm_read_guest_virt_system,
 	.write_std           = kvm_write_guest_virt_system,
 	.fetch               = kvm_fetch_guest_virt,
@@ -4348,14 +4360,6 @@ static struct x86_emulate_ops emulate_ops = {
 	.get_cpuid           = emulator_get_cpuid,
 };
 
-static void cache_all_regs(struct kvm_vcpu *vcpu)
-{
-	kvm_register_read(vcpu, VCPU_REGS_RAX);
-	kvm_register_read(vcpu, VCPU_REGS_RSP);
-	kvm_register_read(vcpu, VCPU_REGS_RIP);
-	vcpu->arch.regs_dirty = ~0;
-}
-
 static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
 {
 	u32 int_shadow = kvm_x86_ops->get_interrupt_shadow(vcpu, mask);
@@ -4382,12 +4386,10 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 		kvm_queue_exception(vcpu, ctxt->exception.vector);
 }
 
-static void init_decode_cache(struct x86_emulate_ctxt *ctxt,
-			      const unsigned long *regs)
+static void init_decode_cache(struct x86_emulate_ctxt *ctxt)
 {
 	memset(&ctxt->twobyte, 0,
-	       (void *)&ctxt->regs - (void *)&ctxt->twobyte);
-	memcpy(ctxt->regs, regs, sizeof(ctxt->regs));
+	       (void *)&ctxt->_regs - (void *)&ctxt->twobyte);
 
 	ctxt->fetch.start = 0;
 	ctxt->fetch.end = 0;
@@ -4402,14 +4404,6 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	int cs_db, cs_l;
 
-	/*
-	 * TODO: fix emulate.c to use guest_read/write_register
-	 * instead of direct ->regs accesses, can save hundred cycles
-	 * on Intel for instructions that don't read/change RSP, for
-	 * for example.
-	 */
-	cache_all_regs(vcpu);
-
 	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 
 	ctxt->eflags = kvm_get_rflags(vcpu);
@@ -4421,7 +4415,7 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 							  X86EMUL_MODE_PROT16;
 	ctxt->guest_mode = is_guest_mode(vcpu);
 
-	init_decode_cache(ctxt, vcpu->arch.regs);
+	init_decode_cache(ctxt);
 	vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
 }
 
@@ -4441,7 +4435,6 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 		return EMULATE_FAIL;
 
 	ctxt->eip = ctxt->_eip;
-	memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 
@@ -4599,7 +4592,7 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 	   changes registers values  during IO operation */
 	if (vcpu->arch.emulate_regs_need_sync_from_vcpu) {
 		vcpu->arch.emulate_regs_need_sync_from_vcpu = false;
-		memcpy(ctxt->regs, vcpu->arch.regs, sizeof ctxt->regs);
+		emulator_invalidate_register_cache(ctxt);
 	}
 
 restart:
@@ -4637,7 +4630,6 @@ restart:
 		toggle_interruptibility(vcpu, ctxt->interruptibility);
 		kvm_set_rflags(vcpu, ctxt->eflags);
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
-		memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
 		kvm_rip_write(vcpu, ctxt->eip);
 	} else
@@ -5591,8 +5583,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 		 * that usually, but some bad designed PV devices (vmware
 		 * backdoor interface) need this to work
 		 */
-		struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-		memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
+		emulator_writeback_register_cache(&vcpu->arch.emulate_ctxt);
 		vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
 	}
 	regs->rax = kvm_register_read(vcpu, VCPU_REGS_RAX);
@@ -5723,6 +5714,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	int ret;
+	unsigned reg;
 
 	init_emulate_ctxt(vcpu);
 
@@ -5732,7 +5724,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 	if (ret)
 		return EMULATE_FAIL;
 
-	memcpy(vcpu->arch.regs, ctxt->regs, sizeof ctxt->regs);
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
