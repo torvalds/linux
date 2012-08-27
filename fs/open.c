@@ -132,16 +132,16 @@ SYSCALL_DEFINE2(truncate, const char __user *, path, long, length)
 
 static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
-	struct inode * inode;
+	struct inode *inode;
 	struct dentry *dentry;
-	struct file * file;
-	int error;
+	struct file *file;
+	int error, fput_needed;
 
 	error = -EINVAL;
 	if (length < 0)
 		goto out;
 	error = -EBADF;
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto out;
 
@@ -172,7 +172,7 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, file);
 	sb_end_write(inode->i_sb);
 out_putf:
-	fput(file);
+	fput_light(file, fput_needed);
 out:
 	return error;
 }
