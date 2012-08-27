@@ -51,7 +51,7 @@ struct platform_device device_adc = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_RK30
+#if !defined(CONFIG_ARCH_RK3066B)
 static struct resource rk30_tsadc_resource[] = {
 	{
 		.start	= IRQ_TSADC,
@@ -1360,7 +1360,7 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_ADC_RK30
 	platform_device_register(&device_adc);
 #endif
-#ifdef CONFIG_ARCH_RK30
+#if !defined(CONFIG_ARCH_RK3066B)
 	platform_device_register(&device_tsadc);
 #endif
 	rk30_init_sdmmc();
