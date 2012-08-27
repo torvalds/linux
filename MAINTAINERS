@@ -7288,6 +7288,12 @@ W:	http://www.connecttech.com
 S:	Supported
 F:	drivers/usb/serial/whiteheat*
 
+USB SMSC75XX ETHERNET DRIVER
+M:	Steve Glendinning <steve.glendinning@shawell.net>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/usb/smsc75xx.*
+
 USB SMSC95XX ETHERNET DRIVER
 M:	Steve Glendinning <steve.glendinning@shawell.net>
 L:	netdev@vger.kernel.org
@@ -7670,23 +7676,28 @@ S:	Supported
 F:	Documentation/hwmon/wm83??
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c
+F:	drivers/extcon/extcon-arizona.c
 F:	drivers/leds/leds-wm83*.c
 F:	drivers/gpio/gpio-*wm*.c
+F:	drivers/gpio/gpio-arizona.c
 F:	drivers/hwmon/wm83??-hwmon.c
 F:	drivers/input/misc/wm831x-on.c
 F:	drivers/input/touchscreen/wm831x-ts.c
 F:	drivers/input/touchscreen/wm97*.c
-F:	drivers/mfd/wm8*.c
+F:	drivers/mfd/arizona*
+F:	drivers/mfd/wm*.c
 F:	drivers/power/wm83*.c
 F:	drivers/rtc/rtc-wm83*.c
 F:	drivers/regulator/wm8*.c
 F:	drivers/video/backlight/wm83*_bl.c
 F:	drivers/watchdog/wm83*_wdt.c
+F:	include/linux/mfd/arizona/
 F:	include/linux/mfd/wm831x/
 F:	include/linux/mfd/wm8350/
 F:	include/linux/mfd/wm8400*
 F:	include/linux/wm97xx.h
 F:	include/sound/wm????.h
+F:	sound/soc/codecs/arizona.?
 F:	sound/soc/codecs/wm*
 
 WORKQUEUE

@@ -695,6 +695,12 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case resend:
+		/* Simply complete (local only) READs. */
+		if (!(req->rq_state & RQ_WRITE) && !req->w.cb) {
+			_req_may_be_done(req, m);
+			break;
+		}
+
 		/* If RQ_NET_OK is already set, we got a P_WRITE_ACK or P_RECV_ACK
 		   before the connection loss (B&C only); only P_BARRIER_ACK was missing.
 		   Trowing them out of the TL here by pretending we got a BARRIER_ACK
@@ -834,7 +840,15 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 		req->private_bio = NULL;
 	}
 	if (rw == WRITE) {
-		remote = 1;
+		/* Need to replicate writes.  Unless it is an empty flush,
+		 * which is better mapped to a DRBD P_BARRIER packet,
+		 * also for drbd wire protocol compatibility reasons. */
+		if (unlikely(size == 0)) {
+			/* The only size==0 bios we expect are empty flushes. */
+			D_ASSERT(bio->bi_rw & REQ_FLUSH);
+			remote = 0;
+		} else
+			remote = 1;
 	} else {
 		/* READ || READA */
 		if (local) {
@@ -870,8 +884,11 @@ static int drbd_make_request_common(struct drbd_conf *mdev, struct bio *bio, uns
 	 * extent.  This waits for any resync activity in the corresponding
 	 * resync extent to finish, and, if necessary, pulls in the target
 	 * extent into the activity log, which involves further disk io because
-	 * of transactional on-disk meta data updates. */
-	if (rw == WRITE && local && !test_bit(AL_SUSPENDED, &mdev->flags)) {
+	 * of transactional on-disk meta data updates.
+	 * Empty flushes don't need to go into the activity log, they can only
+	 * flush data for pending writes which are already in there. */
+	if (rw == WRITE && local && size
+	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
 		req->rq_state |= RQ_IN_ACT_LOG;
 		drbd_al_begin_io(mdev, sector);
 	}
@@ -994,7 +1011,10 @@ allocate_barrier:
 	if (rw == WRITE && _req_conflicts(req))
 		goto fail_conflicting;
 
-	list_add_tail(&req->tl_requests, &mdev->newest_tle->requests);
+	/* no point in adding empty flushes to the transfer log,
+	 * they are mapped to drbd barriers already. */
+	if (likely(size!=0))
+		list_add_tail(&req->tl_requests, &mdev->newest_tle->requests);
 
 	/* NOTE remote first: to get the concurrent write detection right,
 	 * we must register the request before start of local IO.  */
@@ -1013,6 +1033,14 @@ allocate_barrier:
 	if (remote &&
 	    mdev->net_conf->on_congestion != OC_BLOCK && mdev->agreed_pro_version >= 96)
 		maybe_pull_ahead(mdev);
+
+	/* If this was a flush, queue a drbd barrier/start a new epoch.
+	 * Unless the current epoch was empty anyways, or we are not currently
+	 * replicating, in which case there is no point. */
+	if (unlikely(bio->bi_rw & REQ_FLUSH)
+		&& mdev->newest_tle->n_writes
+		&& drbd_should_do_remote(mdev->state))
+		queue_barrier(mdev);
 
 	spin_unlock_irq(&mdev->req_lock);
 	kfree(b); /* if someone else has beaten us to it... */
