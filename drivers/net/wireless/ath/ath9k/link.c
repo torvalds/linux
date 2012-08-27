@@ -254,6 +254,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int chain_ok = 0;
 	int chain;
 	int len = 1800;
+	int ret;
 
 	if (!caldata)
 		return;
@@ -302,7 +303,13 @@ void ath_paprd_calibrate(struct work_struct *work)
 			break;
 		}
 
-		if (ar9003_paprd_create_curve(ah, caldata, chain)) {
+		ret = ar9003_paprd_create_curve(ah, caldata, chain);
+		if (ret == -EINPROGRESS) {
+			ath_dbg(common, CALIBRATE,
+				"PAPRD curve on chain %d needs to be re-trained\n",
+				chain);
+			break;
+		} else if (ret) {
 			ath_dbg(common, CALIBRATE,
 				"PAPRD create curve failed on chain %d\n",
 				chain);

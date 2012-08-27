@@ -786,6 +786,102 @@ int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain)
 }
 EXPORT_SYMBOL(ar9003_paprd_setup_gain_table);
 
+static bool ar9003_paprd_retrain_pa_in(struct ath_hw *ah,
+				       struct ath9k_hw_cal_data *caldata,
+				       int chain)
+{
+	u32 *pa_in = caldata->pa_table[chain];
+	int capdiv_offset, quick_drop_offset;
+	int capdiv2g, quick_drop;
+	int count = 0;
+	int i;
+
+	if (!AR_SREV_9485(ah) && !AR_SREV_9330(ah))
+		return false;
+
+	capdiv2g = REG_READ_FIELD(ah, AR_PHY_65NM_CH0_TXRF3,
+				  AR_PHY_65NM_CH0_TXRF3_CAPDIV2G);
+
+	quick_drop = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
+				    AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP);
+
+	if (quick_drop)
+		quick_drop -= 0x40;
+
+	for (i = 0; i < NUM_BIN + 1; i++) {
+		if (pa_in[i] == 1400)
+			count++;
+	}
+
+	if (AR_SREV_9485(ah)) {
+		if (pa_in[23] < 800) {
+			capdiv_offset = (int)((1000 - pa_in[23] + 75) / 150);
+			capdiv2g += capdiv_offset;
+			if (capdiv2g > 7) {
+				capdiv2g = 7;
+				if (pa_in[23] < 600) {
+					quick_drop++;
+					if (quick_drop > 0)
+						quick_drop = 0;
+				}
+			}
+		} else if (pa_in[23] == 1400) {
+			quick_drop_offset = min_t(int, count / 3, 2);
+			quick_drop += quick_drop_offset;
+			capdiv2g += quick_drop_offset / 2;
+
+			if (capdiv2g > 7)
+				capdiv2g = 7;
+
+			if (quick_drop > 0) {
+				quick_drop = 0;
+				capdiv2g -= quick_drop_offset;
+				if (capdiv2g < 0)
+					capdiv2g = 0;
+			}
+		} else {
+			return false;
+		}
+	} else if (AR_SREV_9330(ah)) {
+		if (pa_in[23] < 1000) {
+			capdiv_offset = (1000 - pa_in[23]) / 100;
+			capdiv2g += capdiv_offset;
+			if (capdiv_offset > 3) {
+				capdiv_offset = 1;
+				quick_drop--;
+			}
+
+			capdiv2g += capdiv_offset;
+			if (capdiv2g > 6)
+				capdiv2g = 6;
+			if (quick_drop < -4)
+				quick_drop = -4;
+		} else if (pa_in[23] == 1400) {
+			if (count > 3) {
+				quick_drop++;
+				capdiv2g -= count / 4;
+				if (quick_drop > -2)
+					quick_drop = -2;
+			} else {
+				capdiv2g--;
+			}
+
+			if (capdiv2g < 0)
+				capdiv2g = 0;
+		} else {
+			return false;
+		}
+	}
+
+	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_TXRF3,
+		      AR_PHY_65NM_CH0_TXRF3_CAPDIV2G, capdiv2g);
+	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
+		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
+		      quick_drop);
+
+	return true;
+}
+
 int ar9003_paprd_create_curve(struct ath_hw *ah,
 			      struct ath9k_hw_cal_data *caldata, int chain)
 {
@@ -820,6 +916,9 @@ int ar9003_paprd_create_curve(struct ath_hw *ah,
 
 	if (!create_pa_curve(data_L, data_U, pa_table, small_signal_gain))
 		status = -2;
+
+	if (ar9003_paprd_retrain_pa_in(ah, caldata, chain))
+		status = -EINPROGRESS;
 
 	REG_CLR_BIT(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 		    AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_TRAIN_DONE);
