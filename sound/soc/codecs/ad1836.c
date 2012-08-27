@@ -379,17 +379,7 @@ static struct spi_driver ad1836_spi_driver = {
 	.id_table	= ad1836_ids,
 };
 
-static int __init ad1836_init(void)
-{
-	return spi_register_driver(&ad1836_spi_driver);
-}
-module_init(ad1836_init);
-
-static void __exit ad1836_exit(void)
-{
-	spi_unregister_driver(&ad1836_spi_driver);
-}
-module_exit(ad1836_exit);
+module_spi_driver(ad1836_spi_driver);
 
 MODULE_DESCRIPTION("ASoC ad1836 driver");
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
