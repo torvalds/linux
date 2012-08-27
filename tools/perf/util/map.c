@@ -243,15 +243,14 @@ size_t map__fprintf(struct map *self, FILE *fp)
 
 size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 {
-	const char *dsoname;
+	const char *dsoname = "[unknown]";
 
 	if (map && map->dso && (map->dso->name || map->dso->long_name)) {
 		if (symbol_conf.show_kernel_path && map->dso->long_name)
 			dsoname = map->dso->long_name;
 		else if (map->dso->name)
 			dsoname = map->dso->name;
-	} else
-		dsoname = "[unknown]";
+	}
 
 	return fprintf(fp, "%s", dsoname);
 }
