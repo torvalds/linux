@@ -52,7 +52,7 @@ obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_cpum_cf.o
 obj-$(CONFIG_64BIT)		+= cache.o
 
 # Kexec part
-S390_KEXEC_OBJS := machine_kexec.o crash.o
+S390_KEXEC_OBJS := machine_kexec.o
 S390_KEXEC_OBJS += $(if $(CONFIG_64BIT),relocate_kernel64.o,relocate_kernel.o)
 obj-$(CONFIG_KEXEC) += $(S390_KEXEC_OBJS)
 

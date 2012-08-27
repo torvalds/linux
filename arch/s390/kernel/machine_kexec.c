@@ -191,6 +191,10 @@ void machine_shutdown(void)
 {
 }
 
+void machine_crash_shutdown(struct pt_regs *regs)
+{
+}
+
 /*
  * Do normal kexec
  */
