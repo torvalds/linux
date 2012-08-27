@@ -337,7 +337,7 @@ static int rk2928_pm_enter(suspend_state_t state)
 	u32 clkgt_regs[CRU_CLKGATES_CON_CNT];
 	u32 clk_sel0, clk_sel1, clk_sel10;
 	u32 cru_mode_con;
-
+	u32 apll_con1,cpll_con1,gpll_con1;
 	// dump GPIO INTEN for debug
 	rk2928_pm_dump_inten();
 
@@ -407,20 +407,30 @@ static int rk2928_pm_enter(suspend_state_t state)
 	//apll
 	clk_sel0 = cru_readl(CRU_CLKSELS_CON(0));
 	clk_sel1 = cru_readl(CRU_CLKSELS_CON(1));
+	apll_con1 = cru_readl(PLL_CONS(APLL_ID, 1));
+	
 	cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
 	cru_writel(CLK_CORE_DIV(1) | ACLK_CPU_DIV(1) | CPU_SEL_PLL(SEL_APLL), CRU_CLKSELS_CON(0));
 	cru_writel(CLK_CORE_PERI_DIV(1) | ACLK_CORE_DIV(1) | HCLK_CPU_DIV(1) | PCLK_CPU_DIV(1), CRU_CLKSELS_CON(1));
+	//cru_writel((0x01 <<(PLL_PWR_DN_SHIFT + 16))|(1<<PLL_PWR_DN_SHIFT), PLL_CONS(APLL_ID, 1)); 
+ 	cru_writel(CRU_W_MSK_SETBIT(0x01, PLL_PWR_DN_SHIFT) , PLL_CONS(APLL_ID, 1)); //power down apll
 
 	//cpll
+	cpll_con1 =   cru_readl(PLL_CONS(CPLL_ID, 1));
+	
 	cru_writel(PLL_MODE_SLOW(CPLL_ID), CRU_MODE_CON);
+	cru_writel(CRU_W_MSK_SETBIT(0x01, PLL_PWR_DN_SHIFT), PLL_CONS(CPLL_ID, 1));//power down cpll
 
 	//gpll
 	clk_sel10 = cru_readl(CRU_CLKSELS_CON(10));
+	gpll_con1 = cru_readl(PLL_CONS(GPLL_ID, 1));
+	
 	cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
 	cru_writel(PERI_SET_ACLK_DIV(1)
 		   | PERI_SET_A2H_RATIO(RATIO_11)
 		   | PERI_SET_A2P_RATIO(RATIO_11)
 		   , CRU_CLKSELS_CON(10));
+	cru_writel(CRU_W_MSK_SETBIT(0x01, PLL_PWR_DN_SHIFT), PLL_CONS(GPLL_ID, 1));//power down gpll
 
 	sram_printch('3');
 	rk30_pwm_suspend_voltage_set();
@@ -438,14 +448,17 @@ static int rk2928_pm_enter(suspend_state_t state)
 	sram_printch('3');
 
 	//gpll
+	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01)|gpll_con1, PLL_CONS(GPLL_ID, 1));
 	cru_writel(0xffff0000 | clk_sel10, CRU_CLKSELS_CON(10));
 	cru_writel(clk_sel10, CRU_CLKSELS_CON(10));
 	cru_writel((PLL_MODE_MSK(GPLL_ID) << 16) | (PLL_MODE_MSK(GPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//cpll
+	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01)|cpll_con1, PLL_CONS(CPLL_ID, 1));
 	cru_writel((PLL_MODE_MSK(CPLL_ID) << 16) | (PLL_MODE_MSK(CPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//apll
+	cru_writel( CRU_W_MSK(PLL_PWR_DN_SHIFT, 0x01)|apll_con1, PLL_CONS(APLL_ID, 1));
 	cru_writel(0xffff0000 | clk_sel1, CRU_CLKSELS_CON(1));
 	cru_writel(0xffff0000 | clk_sel0, CRU_CLKSELS_CON(0));
 	cru_writel((PLL_MODE_MSK(APLL_ID) << 16) | (PLL_MODE_MSK(APLL_ID) & cru_mode_con), CRU_MODE_CON);
