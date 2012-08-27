@@ -4137,6 +4137,10 @@ static int __init do_floppy_init(void)
 
 	raw_cmd = NULL;
 
+	floppy_wq = alloc_ordered_workqueue("floppy", 0);
+	if (!floppy_wq)
+		return -ENOMEM;
+
 	for (dr = 0; dr < N_DRIVE; dr++) {
 		disks[dr] = alloc_disk(1);
 		if (!disks[dr]) {
@@ -4144,16 +4148,10 @@ static int __init do_floppy_init(void)
 			goto out_put_disk;
 		}
 
-		floppy_wq = alloc_ordered_workqueue("floppy", 0);
-		if (!floppy_wq) {
-			err = -ENOMEM;
-			goto out_put_disk;
-		}
-
 		disks[dr]->queue = blk_init_queue(do_fd_request, &floppy_lock);
 		if (!disks[dr]->queue) {
 			err = -ENOMEM;
-			goto out_destroy_workq;
+			goto out_put_disk;
 		}
 
 		blk_queue_max_hw_sectors(disks[dr]->queue, 64);
@@ -4317,8 +4315,6 @@ out_release_dma:
 out_unreg_region:
 	blk_unregister_region(MKDEV(FLOPPY_MAJOR, 0), 256);
 	platform_driver_unregister(&floppy_driver);
-out_destroy_workq:
-	destroy_workqueue(floppy_wq);
 out_unreg_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 out_put_disk:
@@ -4334,6 +4330,7 @@ out_put_disk:
 		}
 		put_disk(disks[dr]);
 	}
+	destroy_workqueue(floppy_wq);
 	return err;
 }
 
