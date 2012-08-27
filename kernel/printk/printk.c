@@ -1282,7 +1282,7 @@ static void call_console_drivers(int level, const char *text, size_t len)
 		if (!cpu_online(smp_processor_id()) &&
 		    !(con->flags & CON_ANYTIME))
 			continue;
-		con->write(con, text, len);
+		con->write(con, text, len, level);
 	}
 }
 
@@ -1732,7 +1732,7 @@ void early_vprintk(const char *fmt, va_list ap)
 		char buf[512];
 		int n = vscnprintf(buf, sizeof(buf), fmt, ap);
 
-		early_console->write(early_console, buf, n);
+		early_console->write(early_console, buf, n, 0);
 	}
 }
 

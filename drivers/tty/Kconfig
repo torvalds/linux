@@ -75,6 +75,111 @@ config VT_CONSOLE_SLEEP
 	def_bool y
 	depends on VT_CONSOLE && PM_SLEEP
 
+menuconfig VT_CKO
+	bool "Colored kernel message output"
+	depends on VT_CONSOLE
+	---help---
+	  This option enables kernel messages to be emitted in
+	  colors other than the default.
+
+	  The color value you need to enter is composed (OR-ed)
+	  of a foreground and a background color.
+
+	  Foreground:
+	  0x00 = black,   0x08 = dark gray,
+	  0x01 = red,     0x09 = light red,
+	  0x02 = green,   0x0A = light green,
+	  0x03 = brown,   0x0B = yellow,
+	  0x04 = blue,    0x0C = light blue,
+	  0x05 = magenta, 0x0D = light magenta,
+	  0x06 = cyan,    0x0E = light cyan,
+	  0x07 = gray,    0x0F = white,
+
+	  (Foreground colors 0x08 to 0x0F do not work when a VGA
+	  console font with 512 glyphs is used.)
+
+	  Background:
+	  0x00 = black,   0x40 = blue,
+	  0x10 = red,     0x50 = magenta,
+	  0x20 = green,   0x60 = cyan,
+	  0x30 = brown,   0x70 = gray,
+
+	  For example, 0x1F would yield white on red.
+
+	  If unsure, say N.
+
+config VT_PRINTK_EMERG_COLOR
+	hex "Emergency messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel emergency messages will
+	  be printed to the console.
+
+config VT_PRINTK_ALERT_COLOR
+	hex "Alert messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel alert messages will
+	  be printed to the console.
+
+config VT_PRINTK_CRIT_COLOR
+	hex "Critical messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel critical messages will
+	  be printed to the console.
+
+config VT_PRINTK_ERR_COLOR
+	hex "Error messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel error messages will
+	  be printed to the console.
+
+config VT_PRINTK_WARNING_COLOR
+	hex "Warning messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel warning messages will
+	  be printed to the console.
+
+config VT_PRINTK_NOTICE_COLOR
+	hex "Notice messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel notice messages will
+	  be printed to the console.
+
+config VT_PRINTK_INFO_COLOR
+	hex "Information messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel information messages will
+	  be printed to the console.
+
+config VT_PRINTK_DEBUG_COLOR
+	hex "Debug messages color"
+	range 0x00 0xFF
+	depends on VT_CKO
+	default 0x07
+	---help---
+	  This option defines with which color kernel debug messages will
+	  be printed to the console.
+
 config HW_CONSOLE
 	bool
 	depends on VT && !UML
