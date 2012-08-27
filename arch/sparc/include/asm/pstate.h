@@ -92,7 +92,7 @@
 #define CFR_AES		_AC(0x0000000000000001,UL) /* Supports AES opcodes     */
 #define CFR_DES		_AC(0x0000000000000002,UL) /* Supports DES opcodes     */
 #define CFR_KASUMI	_AC(0x0000000000000004,UL) /* Supports KASUMI opcodes  */
-#define CFR_CAMELIA	_AC(0x0000000000000008,UL) /* Supports CAMELIA opcodes */
+#define CFR_CAMELLIA	_AC(0x0000000000000008,UL) /* Supports CAMELLIA opcodes*/
 #define CFR_MD5		_AC(0x0000000000000010,UL) /* Supports MD5 opcodes     */
 #define CFR_SHA1	_AC(0x0000000000000020,UL) /* Supports SHA1 opcodes    */
 #define CFR_SHA256	_AC(0x0000000000000040,UL) /* Supports SHA256 opcodes  */
