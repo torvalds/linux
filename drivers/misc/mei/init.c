@@ -24,6 +24,25 @@
 #include "interface.h"
 #include <linux/mei.h>
 
+const char *mei_dev_state_str(int state)
+{
+#define MEI_DEV_STATE(state) case MEI_DEV_##state: return #state
+	switch (state) {
+	MEI_DEV_STATE(INITIALIZING);
+	MEI_DEV_STATE(INIT_CLIENTS);
+	MEI_DEV_STATE(ENABLED);
+	MEI_DEV_STATE(RESETING);
+	MEI_DEV_STATE(DISABLED);
+	MEI_DEV_STATE(RECOVERING_FROM_RESET);
+	MEI_DEV_STATE(POWER_DOWN);
+	MEI_DEV_STATE(POWER_UP);
+	default:
+		return "unkown";
+	}
+#undef MEI_DEV_STATE
+}
+
+
 const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
 						0xa8, 0x46, 0xe0, 0xff, 0x65,
 						0x81, 0x4c);
@@ -123,7 +142,7 @@ struct mei_device *mei_device_init(struct pci_dev *pdev)
 	mutex_init(&dev->device_lock);
 	init_waitqueue_head(&dev->wait_recvd_msg);
 	init_waitqueue_head(&dev->wait_stop_wd);
-	dev->mei_state = MEI_INITIALIZING;
+	dev->dev_state = MEI_DEV_INITIALIZING;
 	dev->iamthif_state = MEI_IAMTHIF_IDLE;
 	dev->wd_interface_reg = false;
 
@@ -182,7 +201,7 @@ int mei_hw_init(struct mei_device *dev)
 	}
 
 	if (err <= 0 && !dev->recvd_msg) {
-		dev->mei_state = MEI_DISABLED;
+		dev->dev_state = MEI_DEV_DISABLED;
 		dev_dbg(&dev->pdev->dev,
 			"wait_event_interruptible_timeout failed"
 			"on wait for ME to turn on ME_RDY.\n");
@@ -192,7 +211,7 @@ int mei_hw_init(struct mei_device *dev)
 
 	if (!(((dev->host_hw_state & H_RDY) == H_RDY) &&
 	      ((dev->me_hw_state & ME_RDY_HRA) == ME_RDY_HRA))) {
-		dev->mei_state = MEI_DISABLED;
+		dev->dev_state = MEI_DEV_DISABLED;
 		dev_dbg(&dev->pdev->dev,
 			"host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
 			dev->host_hw_state, dev->me_hw_state);
@@ -258,15 +277,15 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	struct mei_cl_cb *cb_next = NULL;
 	bool unexpected;
 
-	if (dev->mei_state == MEI_RECOVERING_FROM_RESET) {
+	if (dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET) {
 		dev->need_reset = true;
 		return;
 	}
 
-	unexpected = (dev->mei_state != MEI_INITIALIZING &&
-			dev->mei_state != MEI_DISABLED &&
-			dev->mei_state != MEI_POWER_DOWN &&
-			dev->mei_state != MEI_POWER_UP);
+	unexpected = (dev->dev_state != MEI_DEV_INITIALIZING &&
+			dev->dev_state != MEI_DEV_DISABLED &&
+			dev->dev_state != MEI_DEV_POWER_DOWN &&
+			dev->dev_state != MEI_DEV_POWER_UP);
 
 	dev->host_hw_state = mei_hcsr_read(dev);
 
@@ -285,10 +304,10 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	dev->need_reset = false;
 
-	if (dev->mei_state != MEI_INITIALIZING) {
-		if (dev->mei_state != MEI_DISABLED &&
-		    dev->mei_state != MEI_POWER_DOWN)
-			dev->mei_state = MEI_RESETING;
+	if (dev->dev_state != MEI_DEV_INITIALIZING) {
+		if (dev->dev_state != MEI_DEV_DISABLED &&
+		    dev->dev_state != MEI_DEV_POWER_DOWN)
+			dev->dev_state = MEI_DEV_RESETING;
 
 		list_for_each_entry_safe(cl_pos,
 				cl_next, &dev->file_list, link) {
@@ -311,7 +330,6 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 
 	dev->me_clients_num = 0;
 	dev->rd_msg_hdr = 0;
-	dev->stop = false;
 	dev->wd_pending = false;
 
 	/* update the state of the registers after reset */
@@ -322,7 +340,8 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 	    dev->host_hw_state, dev->me_hw_state);
 
 	if (unexpected)
-		dev_warn(&dev->pdev->dev, "unexpected reset.\n");
+		dev_warn(&dev->pdev->dev, "unexpected reset: dev_state = %s\n",
+			 mei_dev_state_str(dev->dev_state));
 
 	/* Wake up all readings so they can be interrupted */
 	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
@@ -371,7 +390,7 @@ void mei_host_start_message(struct mei_device *dev)
 	if (mei_write_message(dev, mei_hdr, (unsigned char *)host_start_req,
 				       mei_hdr->length)) {
 		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
-		dev->mei_state = MEI_RESETING;
+		dev->dev_state = MEI_DEV_RESETING;
 		mei_reset(dev, 1);
 	}
 	dev->init_clients_state = MEI_START_MESSAGE;
@@ -403,7 +422,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 	host_enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
 	if (mei_write_message(dev, mei_hdr, (unsigned char *)host_enum_req,
 				mei_hdr->length)) {
-		dev->mei_state = MEI_RESETING;
+		dev->dev_state = MEI_DEV_RESETING;
 		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 		mei_reset(dev, 1);
 	}
@@ -444,7 +463,7 @@ void mei_allocate_me_clients_storage(struct mei_device *dev)
 			sizeof(struct mei_me_client), GFP_KERNEL);
 	if (!clients) {
 		dev_dbg(&dev->pdev->dev, "memory allocation for ME clients failed.\n");
-		dev->mei_state = MEI_RESETING;
+		dev->dev_state = MEI_DEV_RESETING;
 		mei_reset(dev, 1);
 		return ;
 	}
@@ -490,7 +509,7 @@ int mei_host_client_properties(struct mei_device *dev)
 		if (mei_write_message(dev, mei_header,
 				(unsigned char *)host_cli_req,
 				mei_header->length)) {
-			dev->mei_state = MEI_RESETING;
+			dev->dev_state = MEI_DEV_RESETING;
 			dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 			mei_reset(dev, 1);
 			return -EIO;
@@ -522,12 +541,12 @@ void mei_cl_init(struct mei_cl *priv, struct mei_device *dev)
 	priv->dev = dev;
 }
 
-int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid)
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid)
 {
-	int i, res = -1;
+	int i, res = -ENOENT;
 
 	for (i = 0; i < dev->me_clients_num; ++i)
-		if (uuid_le_cmp(cuuid,
+		if (uuid_le_cmp(*cuuid,
 				dev->me_clients[i].props.protocol_name) == 0) {
 			res = i;
 			break;
@@ -538,35 +557,35 @@ int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid)
 
 
 /**
- * mei_find_me_client_update_filext - searches for ME client guid
+ * mei_me_cl_update_filext - searches for ME client guid
  *                       sets client_id in mei_file_private if found
  * @dev: the device structure
- * @priv: private file structure to set client_id in
- * @cguid: searched guid of ME client
+ * @cl: private file structure to set client_id in
+ * @cuuid: searched uuid of ME client
  * @client_id: id of host client to be set in file private structure
  *
  * returns ME client index
  */
-u8 mei_find_me_client_update_filext(struct mei_device *dev, struct mei_cl *priv,
-				const uuid_le *cguid, u8 client_id)
+int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
+				const uuid_le *cuuid, u8 host_cl_id)
 {
 	int i;
 
-	if (!dev || !priv || !cguid)
-		return 0;
+	if (!dev || !cl || !cuuid)
+		return -EINVAL;
 
 	/* check for valid client id */
-	i = mei_find_me_client_index(dev, *cguid);
+	i = mei_me_cl_by_uuid(dev, cuuid);
 	if (i >= 0) {
-		priv->me_client_id = dev->me_clients[i].client_id;
-		priv->state = MEI_FILE_CONNECTING;
-		priv->host_client_id = client_id;
+		cl->me_client_id = dev->me_clients[i].client_id;
+		cl->state = MEI_FILE_CONNECTING;
+		cl->host_client_id = host_cl_id;
 
-		list_add_tail(&priv->link, &dev->file_list);
+		list_add_tail(&cl->link, &dev->file_list);
 		return (u8)i;
 	}
 
-	return 0;
+	return -ENOENT;
 }
 
 /**
@@ -577,16 +596,16 @@ u8 mei_find_me_client_update_filext(struct mei_device *dev, struct mei_cl *priv,
  */
 void mei_host_init_iamthif(struct mei_device *dev)
 {
-	u8 i;
+	int i;
 	unsigned char *msg_buf;
 
 	mei_cl_init(&dev->iamthif_cl, dev);
 	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 
 	/* find ME amthi client */
-	i = mei_find_me_client_update_filext(dev, &dev->iamthif_cl,
+	i = mei_me_cl_update_filext(dev, &dev->iamthif_cl,
 			    &mei_amthi_guid, MEI_IAMTHIF_HOST_CLIENT_ID);
-	if (dev->iamthif_cl.state != MEI_FILE_CONNECTING) {
+	if (i < 0) {
 		dev_dbg(&dev->pdev->dev, "failed to find iamthif client.\n");
 		return;
 	}

@@ -25,9 +25,16 @@
 /*
  * watch dog definition
  */
-#define MEI_WATCHDOG_DATA_SIZE         16
-#define MEI_START_WD_DATA_SIZE         20
-#define MEI_WD_PARAMS_SIZE             4
+#define MEI_WD_HDR_SIZE       4
+#define MEI_WD_STOP_MSG_SIZE  MEI_WD_HDR_SIZE
+#define MEI_WD_START_MSG_SIZE (MEI_WD_HDR_SIZE + 16)
+
+#define MEI_WD_DEFAULT_TIMEOUT   120  /* seconds */
+#define MEI_WD_MIN_TIMEOUT       120  /* seconds */
+#define MEI_WD_MAX_TIMEOUT     65535  /* seconds */
+
+#define MEI_WD_STOP_TIMEOUT      10 /* msecs */
+
 #define MEI_WD_STATE_INDEPENDENCE_MSG_SENT       (1 << 0)
 
 #define MEI_RD_MSG_BUF_SIZE           (128 * sizeof(u32))
@@ -78,16 +85,18 @@ enum file_state {
 };
 
 /* MEI device states */
-enum mei_states {
-	MEI_INITIALIZING = 0,
-	MEI_INIT_CLIENTS,
-	MEI_ENABLED,
-	MEI_RESETING,
-	MEI_DISABLED,
-	MEI_RECOVERING_FROM_RESET,
-	MEI_POWER_DOWN,
-	MEI_POWER_UP
+enum mei_dev_state {
+	MEI_DEV_INITIALIZING = 0,
+	MEI_DEV_INIT_CLIENTS,
+	MEI_DEV_ENABLED,
+	MEI_DEV_RESETING,
+	MEI_DEV_DISABLED,
+	MEI_DEV_RECOVERING_FROM_RESET,
+	MEI_DEV_POWER_DOWN,
+	MEI_DEV_POWER_UP
 };
+
+const char *mei_dev_state_str(int state);
 
 /* init clients states*/
 enum mei_init_clients_states {
@@ -111,6 +120,12 @@ enum mei_file_transaction_states {
 	MEI_FLOW_CONTROL,
 	MEI_READING,
 	MEI_READ_COMPLETE
+};
+
+enum mei_wd_states {
+	MEI_WD_IDLE,
+	MEI_WD_RUNNING,
+	MEI_WD_STOPPING,
 };
 
 /* MEI CB */
@@ -218,10 +233,9 @@ struct mei_device {
 	/*
 	 * mei device  states
 	 */
-	enum mei_states mei_state;
+	enum mei_dev_state dev_state;
 	enum mei_init_clients_states init_clients_state;
 	u16 init_clients_timer;
-	bool stop;
 	bool need_reset;
 
 	u32 extra_write_index;
@@ -241,12 +255,11 @@ struct mei_device {
 	bool mei_host_buffer_is_empty;
 
 	struct mei_cl wd_cl;
+	enum mei_wd_states wd_state;
 	bool wd_interface_reg;
 	bool wd_pending;
-	bool wd_stopped;
-	bool wd_bypass;	/* if false, don't refresh watchdog ME client */
-	u16 wd_timeout;	/* seconds ((wd_data[1] << 8) + wd_data[0]) */
-	unsigned char wd_data[MEI_START_WD_DATA_SIZE];
+	u16 wd_timeout;
+	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
 
 
 	struct file *iamthif_file_object;
@@ -279,9 +292,10 @@ void mei_host_init_iamthif(struct mei_device *dev);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
-u8 mei_find_me_client_update_filext(struct mei_device *dev,
-				struct mei_cl *priv,
-				const uuid_le *cguid, u8 client_id);
+int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
+			const uuid_le *cguid, u8 host_client_id);
+int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid);
+int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 
 /*
  * MEI IO List Functions
@@ -348,7 +362,6 @@ void mei_run_next_iamthif_cmd(struct mei_device *dev);
 
 void mei_free_cb_private(struct mei_cl_cb *priv_cb);
 
-int mei_find_me_client_index(const struct mei_device *dev, uuid_le cuuid);
 
 /*
  * Register Access Function
