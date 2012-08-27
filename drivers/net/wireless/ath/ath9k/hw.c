@@ -978,9 +978,6 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 	else
 		imr_reg |= AR_IMR_TXOK;
 
-	if (opmode == NL80211_IFTYPE_AP)
-		imr_reg |= AR_IMR_MIB;
-
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_IMR, imr_reg);
