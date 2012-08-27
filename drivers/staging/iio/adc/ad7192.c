@@ -754,7 +754,7 @@ static ssize_t ad7192_set(struct device *dev,
 		else
 			st->mode &= ~AD7192_MODE_ACX;
 
-		ad7192_write_reg(st, AD7192_REG_GPOCON, 3, st->mode);
+		ad7192_write_reg(st, AD7192_REG_MODE, 3, st->mode);
 		break;
 	default:
 		ret = -EINVAL;
@@ -798,6 +798,11 @@ static const struct attribute_group ad7195_attribute_group = {
 	.attrs = ad7195_attributes,
 };
 
+static unsigned int ad7192_get_temp_scale(bool unipolar)
+{
+	return unipolar ? 2815 * 2 : 2815;
+}
+
 static int ad7192_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val,
@@ -824,19 +829,6 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 		*val = (smpl >> chan->scan_type.shift) &
 			((1 << (chan->scan_type.realbits)) - 1);
 
-		switch (chan->type) {
-		case IIO_VOLTAGE:
-			if (!unipolar)
-				*val -= (1 << (chan->scan_type.realbits - 1));
-			break;
-		case IIO_TEMP:
-			*val -= 0x800000;
-			*val /= 2815; /* temp Kelvin */
-			*val -= 273; /* temp Celsius */
-			break;
-		default:
-			return -EINVAL;
-		}
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -848,11 +840,21 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 			mutex_unlock(&indio_dev->mlock);
 			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_TEMP:
-			*val =  1000;
-			return IIO_VAL_INT;
+			*val = 0;
+			*val2 = 1000000000 / ad7192_get_temp_scale(unipolar);
+			return IIO_VAL_INT_PLUS_NANO;
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_OFFSET:
+		if (!unipolar)
+			*val = -(1 << (chan->scan_type.realbits - 1));
+		else
+			*val = 0;
+		/* Kelvin to Celsius */
+		if (chan->type == IIO_TEMP)
+			*val -= 273 * ad7192_get_temp_scale(unipolar);
+		return IIO_VAL_INT;
 	}
 
 	return -EINVAL;
@@ -890,7 +892,7 @@ static int ad7192_write_raw(struct iio_dev *indio_dev,
 				}
 				ret = 0;
 			}
-
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -942,20 +944,22 @@ static const struct iio_info ad7195_info = {
 	  .channel = _chan,						\
 	  .channel2 = _chan2,						\
 	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT |				\
+	  IIO_CHAN_INFO_OFFSET_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
-	  .scan_type =  IIO_ST('s', 24, 32, 0)}
+	  .scan_type =  IIO_ST('u', 24, 32, 0)}
 
 #define AD7192_CHAN(_chan, _address, _si)				\
 	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
 	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT |				\
+	  IIO_CHAN_INFO_OFFSET_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
-	  .scan_type =  IIO_ST('s', 24, 32, 0)}
+	  .scan_type =  IIO_ST('u', 24, 32, 0)}
 
 #define AD7192_CHAN_TEMP(_chan, _address, _si)				\
 	{ .type = IIO_TEMP,						\
@@ -965,7 +969,7 @@ static const struct iio_info ad7195_info = {
 	  IIO_CHAN_INFO_SCALE_SEPARATE_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
-	  .scan_type =  IIO_ST('s', 24, 32, 0)}
+	  .scan_type =  IIO_ST('u', 24, 32, 0)}
 
 static const struct iio_chan_spec ad7192_channels[] = {
 	AD7192_CHAN_DIFF(1, 2, NULL, AD7192_CH_AIN1P_AIN2M, 0),

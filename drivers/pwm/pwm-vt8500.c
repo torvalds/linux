@@ -41,7 +41,7 @@ static inline void pwm_busy_wait(void __iomem *reg, u8 bitmask)
 		cpu_relax();
 
 	if (unlikely(!loops))
-		pr_warning("Waiting for status bits 0x%x to clear timed out\n",
+		pr_warn("Waiting for status bits 0x%x to clear timed out\n",
 			   bitmask);
 }
 

@@ -120,7 +120,7 @@ extern struct sk_buff  *__ip_make_skb(struct sock *sk,
 				      struct flowi4 *fl4,
 				      struct sk_buff_head *queue,
 				      struct inet_cork *cork);
-extern int		ip_send_skb(struct sk_buff *skb);
+extern int		ip_send_skb(struct net *net, struct sk_buff *skb);
 extern int		ip_push_pending_frames(struct sock *sk, struct flowi4 *fl4);
 extern void		ip_flush_pending_frames(struct sock *sk);
 extern struct sk_buff  *ip_make_skb(struct sock *sk,

@@ -1064,8 +1064,6 @@ static struct pci_dev *pci_dio_find_pci_dev(struct comedi_device *dev,
 			    slot != PCI_SLOT(pcidev->devfn))
 				continue;
 		}
-		if (pci_is_enabled(pcidev))
-			continue;
 		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;

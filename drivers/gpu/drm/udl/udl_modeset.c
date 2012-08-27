@@ -354,8 +354,7 @@ static int udl_crtc_mode_set(struct drm_crtc *crtc,
 
 static void udl_crtc_disable(struct drm_crtc *crtc)
 {
-
-
+	udl_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 static void udl_crtc_destroy(struct drm_crtc *crtc)

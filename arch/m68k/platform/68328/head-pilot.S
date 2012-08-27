@@ -110,7 +110,7 @@ L0:
 	movel	#CONFIG_VECTORBASE, %d7
 	addl	#16, %d7
 	moveal	%d7, %a0
-	moveal	#_ebss, %a1
+	moveal	#__bss_stop, %a1
 	lea	%a1@(512), %a2
 
 	DBG_PUTC('C')
@@ -138,8 +138,8 @@ LD1:
 
 	DBG_PUTC('E')
 
-	moveal	#_sbss, %a0
-	moveal	#_ebss, %a1
+	moveal	#__bss_start, %a0
+	moveal	#__bss_stop, %a1
 
 	/* Copy 0 to %a0 until %a0 == %a1 */
 L1:
@@ -150,7 +150,7 @@ L1:
 	DBG_PUTC('F')
 
 	/* Copy command line from end of bss to command line */
-	moveal	#_ebss, %a0
+	moveal	#__bss_stop, %a0
 	moveal	#command_line, %a1
 	lea	%a1@(512), %a2
 
@@ -165,7 +165,7 @@ L3:
 
 	movel	#_sdata, %d0	
 	movel	%d0, _rambase	
-	movel	#_ebss,	%d0
+	movel	#__bss_stop, %d0
 	movel	%d0, _ramstart
 
 	movel	%a4, %d0

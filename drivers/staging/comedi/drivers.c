@@ -166,7 +166,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->board_ptr = comedi_recognize(driv, it->board_name);
 			if (dev->board_ptr)
 				break;
-		} else if (strcmp(driv->driver_name, it->board_name))
+		} else if (strcmp(driv->driver_name, it->board_name) == 0)
 			break;
 		module_put(driv->module);
 	}

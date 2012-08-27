@@ -171,7 +171,8 @@ static int soc_camera_try_fmt(struct soc_camera_device *icd,
 	dev_dbg(icd->pdev, "TRY_FMT(%c%c%c%c, %ux%u)\n",
 		pixfmtstr(pix->pixelformat), pix->width, pix->height);
 
-	if (!(ici->capabilities & SOCAM_HOST_CAP_STRIDE)) {
+	if (pix->pixelformat != V4L2_PIX_FMT_JPEG &&
+	    !(ici->capabilities & SOCAM_HOST_CAP_STRIDE)) {
 		pix->bytesperline = 0;
 		pix->sizeimage = 0;
 	}

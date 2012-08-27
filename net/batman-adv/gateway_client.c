@@ -200,10 +200,10 @@ void batadv_gw_election(struct batadv_priv *bat_priv)
 	if (atomic_read(&bat_priv->gw_mode) != BATADV_GW_MODE_CLIENT)
 		goto out;
 
-	if (!batadv_atomic_dec_not_zero(&bat_priv->gw_reselect))
-		goto out;
-
 	curr_gw = batadv_gw_get_selected_gw_node(bat_priv);
+
+	if (!batadv_atomic_dec_not_zero(&bat_priv->gw_reselect) && curr_gw)
+		goto out;
 
 	next_gw = batadv_gw_get_best_gw_node(bat_priv);
 
