@@ -108,10 +108,12 @@ static int iio_read_first_n_kfifo(struct iio_buffer *r,
 	int ret, copied;
 	struct iio_kfifo *kf = iio_to_kfifo(r);
 
-	if (n < r->bytes_per_datum)
+	if (n < r->bytes_per_datum || r->bytes_per_datum == 0)
 		return -EINVAL;
 
 	ret = kfifo_to_user(&kf->kf, buf, n, &copied);
+	if (ret < 0)
+		return ret;
 
 	return copied;
 }
