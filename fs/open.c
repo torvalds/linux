@@ -582,23 +582,21 @@ SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group
 
 SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 {
-	struct file * file;
-	int error = -EBADF;
-	struct dentry * dentry;
+	struct file *file;
+	int error = -EBADF, fput_needed;
 
-	file = fget(fd);
+	file = fget_light(fd, &fput_needed);
 	if (!file)
 		goto out;
 
 	error = mnt_want_write_file(file);
 	if (error)
 		goto out_fput;
-	dentry = file->f_path.dentry;
-	audit_inode(NULL, dentry);
+	audit_inode(NULL, file->f_path.dentry);
 	error = chown_common(&file->f_path, user, group);
 	mnt_drop_write_file(file);
 out_fput:
-	fput(file);
+	fput_light(file, fput_needed);
 out:
 	return error;
 }
