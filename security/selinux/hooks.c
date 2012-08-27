@@ -2135,8 +2135,7 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 	if (!IS_ERR(devnull)) {
 		/* replace all the matching ones with this */
 		do {
-			get_file(devnull);
-			replace_fd(n - 1, devnull, 0);
+			replace_fd(n - 1, get_file(devnull), 0);
 		} while ((n = iterate_fd(files, n, match_file, cred)) != 0);
 		fput(devnull);
 	} else {

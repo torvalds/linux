@@ -566,9 +566,8 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 		 * in particular in the case of mmap'd dmabufs)
 		 */
 		fput(vma->vm_file);
-		get_file(obj->filp);
 		vma->vm_pgoff = 0;
-		vma->vm_file  = obj->filp;
+		vma->vm_file  = get_file(obj->filp);
 
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
 	}

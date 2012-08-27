@@ -1163,10 +1163,8 @@ ssize_t redirected_tty_write(struct file *file, const char __user *buf,
 	struct file *p = NULL;
 
 	spin_lock(&redirect_lock);
-	if (redirect) {
-		get_file(redirect);
-		p = redirect;
-	}
+	if (redirect)
+		p = get_file(redirect);
 	spin_unlock(&redirect_lock);
 
 	if (p) {
@@ -2246,8 +2244,7 @@ static int tioccons(struct file *file)
 		spin_unlock(&redirect_lock);
 		return -EBUSY;
 	}
-	get_file(file);
-	redirect = file;
+	redirect = get_file(file);
 	spin_unlock(&redirect_lock);
 	return 0;
 }

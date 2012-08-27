@@ -281,11 +281,10 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 			break;
 		}
 		/* Bump the usage count and install the file. */
-		get_file(fp[i]);
 		sock = sock_from_file(fp[i], &err);
 		if (sock)
 			sock_update_netprioidx(sock->sk, current);
-		fd_install(new_fd, fp[i]);
+		fd_install(new_fd, get_file(fp[i]));
 	}
 
 	if (i > 0)

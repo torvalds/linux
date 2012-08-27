@@ -220,8 +220,7 @@ static void __pollwait(struct file *filp, wait_queue_head_t *wait_address,
 	struct poll_table_entry *entry = poll_get_entry(pwq);
 	if (!entry)
 		return;
-	get_file(filp);
-	entry->filp = filp;
+	entry->filp = get_file(filp);
 	entry->wait_address = wait_address;
 	entry->key = p->_key;
 	init_waitqueue_func_entry(&entry->wait, pollwake);
