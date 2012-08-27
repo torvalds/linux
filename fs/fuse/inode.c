@@ -197,6 +197,7 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	loff_t oldsize;
+	struct timespec old_mtime;
 
 	spin_lock(&fc->lock);
 	if (attr_version != 0 && fi->attr_version > attr_version) {
@@ -204,15 +205,35 @@ void fuse_change_attributes(struct inode *inode, struct fuse_attr *attr,
 		return;
 	}
 
+	old_mtime = inode->i_mtime;
 	fuse_change_attributes_common(inode, attr, attr_valid);
 
 	oldsize = inode->i_size;
 	i_size_write(inode, attr->size);
 	spin_unlock(&fc->lock);
 
-	if (S_ISREG(inode->i_mode) && oldsize != attr->size) {
-		truncate_pagecache(inode, oldsize, attr->size);
-		invalidate_inode_pages2(inode->i_mapping);
+	if (S_ISREG(inode->i_mode)) {
+		bool inval = false;
+
+		if (oldsize != attr->size) {
+			truncate_pagecache(inode, oldsize, attr->size);
+			inval = true;
+		} else if (fc->auto_inval_data) {
+			struct timespec new_mtime = {
+				.tv_sec = attr->mtime,
+				.tv_nsec = attr->mtimensec,
+			};
+
+			/*
+			 * Auto inval mode also checks and invalidates if mtime
+			 * has changed.
+			 */
+			if (!timespec_equal(&old_mtime, &new_mtime))
+				inval = true;
+		}
+
+		if (inval)
+			invalidate_inode_pages2(inode->i_mapping);
 	}
 }
 
@@ -834,6 +855,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->big_writes = 1;
 			if (arg->flags & FUSE_DONT_MASK)
 				fc->dont_mask = 1;
+			if (arg->flags & FUSE_AUTO_INVAL_DATA)
+				fc->auto_inval_data = 1;
 		} else {
 			ra_pages = fc->max_read / PAGE_CACHE_SIZE;
 			fc->no_lock = 1;
@@ -859,7 +882,8 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
 	arg->flags |= FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
 		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK |
-		FUSE_FLOCK_LOCKS;
+		FUSE_SPLICE_WRITE | FUSE_SPLICE_MOVE | FUSE_SPLICE_READ |
+		FUSE_FLOCK_LOCKS | FUSE_IOCTL_DIR | FUSE_AUTO_INVAL_DATA;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);

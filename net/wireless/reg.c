@@ -680,6 +680,8 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_IBSS;
 	if (rd_flags & NL80211_RRF_DFS)
 		channel_flags |= IEEE80211_CHAN_RADAR;
+	if (rd_flags & NL80211_RRF_NO_OFDM)
+		channel_flags |= IEEE80211_CHAN_NO_OFDM;
 	return channel_flags;
 }
 
@@ -901,7 +903,21 @@ static void handle_channel(struct wiphy *wiphy,
 	chan->max_antenna_gain = min(chan->orig_mag,
 		(int) MBI_TO_DBI(power_rule->max_antenna_gain));
 	chan->max_reg_power = (int) MBM_TO_DBM(power_rule->max_eirp);
-	chan->max_power = min(chan->max_power, chan->max_reg_power);
+	if (chan->orig_mpwr) {
+		/*
+		 * Devices that have their own custom regulatory domain
+		 * but also use WIPHY_FLAG_STRICT_REGULATORY will follow the
+		 * passed country IE power settings.
+		 */
+		if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+		    wiphy->flags & WIPHY_FLAG_CUSTOM_REGULATORY &&
+		    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
+			chan->max_power = chan->max_reg_power;
+		else
+			chan->max_power = min(chan->orig_mpwr,
+					      chan->max_reg_power);
+	} else
+		chan->max_power = chan->max_reg_power;
 }
 
 static void handle_band(struct wiphy *wiphy,
@@ -1885,6 +1901,7 @@ static void restore_custom_reg_settings(struct wiphy *wiphy)
 			chan->flags = chan->orig_flags;
 			chan->max_antenna_gain = chan->orig_mag;
 			chan->max_power = chan->orig_mpwr;
+			chan->beacon_found = false;
 		}
 	}
 }

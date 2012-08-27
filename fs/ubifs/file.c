@@ -37,11 +37,11 @@
  *
  * A thing to keep in mind: inode @i_mutex is locked in most VFS operations we
  * implement. However, this is not true for 'ubifs_writepage()', which may be
- * called with @i_mutex unlocked. For example, when pdflush is doing background
- * write-back, it calls 'ubifs_writepage()' with unlocked @i_mutex. At "normal"
- * work-paths the @i_mutex is locked in 'ubifs_writepage()', e.g. in the
- * "sys_write -> alloc_pages -> direct reclaim path". So, in 'ubifs_writepage()'
- * we are only guaranteed that the page is locked.
+ * called with @i_mutex unlocked. For example, when flusher thread is doing
+ * background write-back, it calls 'ubifs_writepage()' with unlocked @i_mutex.
+ * At "normal" work-paths the @i_mutex is locked in 'ubifs_writepage()', e.g.
+ * in the "sys_write -> alloc_pages -> direct reclaim path". So, in
+ * 'ubifs_writepage()' we are only guaranteed that the page is locked.
  *
  * Similarly, @i_mutex is not always locked in 'ubifs_readpage()', e.g., the
  * read-ahead path does not lock it ("sys_read -> generic_file_aio_read ->

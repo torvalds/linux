@@ -101,7 +101,6 @@ err:
 		n--;
 		gpio_free(s->gpio[n]);
 	}
-	devm_kfree(&pdev->dev, s);
 	return r;
 }
 

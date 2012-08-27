@@ -142,21 +142,6 @@ struct radeon_device;
 /*
  * BIOS.
  */
-#define ATRM_BIOS_PAGE 4096
-
-#if defined(CONFIG_VGA_SWITCHEROO)
-bool radeon_atrm_supported(struct pci_dev *pdev);
-int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len);
-#else
-static inline bool radeon_atrm_supported(struct pci_dev *pdev)
-{
-	return false;
-}
-
-static inline int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len){
-	return -EINVAL;
-}
-#endif
 bool radeon_get_bios(struct radeon_device *rdev);
 
 /*
@@ -300,6 +285,7 @@ struct radeon_bo_va {
 	uint64_t			soffset;
 	uint64_t			eoffset;
 	uint32_t			flags;
+	struct radeon_fence		*fence;
 	bool				valid;
 };
 
@@ -1533,6 +1519,7 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
+	struct mutex			gpu_clock_mutex;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1733,11 +1720,11 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pm_finish(rdev) (rdev)->asic->pm.finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm.init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm.get_dynpm_state((rdev))
-#define radeon_pre_page_flip(rdev, crtc) rdev->asic->pflip.pre_page_flip((rdev), (crtc))
-#define radeon_page_flip(rdev, crtc, base) rdev->asic->pflip.page_flip((rdev), (crtc), (base))
-#define radeon_post_page_flip(rdev, crtc) rdev->asic->pflip.post_page_flip((rdev), (crtc))
-#define radeon_wait_for_vblank(rdev, crtc) rdev->asic->display.wait_for_vblank((rdev), (crtc))
-#define radeon_mc_wait_for_idle(rdev) rdev->asic->mc_wait_for_idle((rdev))
+#define radeon_pre_page_flip(rdev, crtc) (rdev)->asic->pflip.pre_page_flip((rdev), (crtc))
+#define radeon_page_flip(rdev, crtc, base) (rdev)->asic->pflip.page_flip((rdev), (crtc), (base))
+#define radeon_post_page_flip(rdev, crtc) (rdev)->asic->pflip.post_page_flip((rdev), (crtc))
+#define radeon_wait_for_vblank(rdev, crtc) (rdev)->asic->display.wait_for_vblank((rdev), (crtc))
+#define radeon_mc_wait_for_idle(rdev) (rdev)->asic->mc_wait_for_idle((rdev))
 
 /* Common functions */
 /* AGP */

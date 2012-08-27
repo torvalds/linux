@@ -74,7 +74,10 @@ static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 		p = to_pedit(pc);
 		keys = kmalloc(ksize, GFP_KERNEL);
 		if (keys == NULL) {
-			kfree(pc);
+			if (est)
+				gen_kill_estimator(&pc->tcfc_bstats,
+						   &pc->tcfc_rate_est);
+			kfree_rcu(pc, tcfc_rcu);
 			return -ENOMEM;
 		}
 		ret = ACT_P_CREATED;

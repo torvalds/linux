@@ -291,6 +291,16 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	target_i915_obj = to_intel_bo(target_obj);
 	target_offset = target_i915_obj->gtt_offset;
 
+	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
+	 * pipe_control writes because the gpu doesn't properly redirect them
+	 * through the ppgtt for non_secure batchbuffers. */
+	if (unlikely(IS_GEN6(dev) &&
+	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
+	    !target_i915_obj->has_global_gtt_mapping)) {
+		i915_gem_gtt_bind_object(target_i915_obj,
+					 target_i915_obj->cache_level);
+	}
+
 	/* The target buffer should have appeared before us in the
 	 * exec_object list, so it should have a GTT space bound by now.
 	 */
@@ -397,16 +407,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			(reloc_page + (reloc->offset & ~PAGE_MASK));
 		iowrite32(reloc->delta, reloc_entry);
 		io_mapping_unmap_atomic(reloc_page);
-	}
-
-	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
-	 * pipe_control writes because the gpu doesn't properly redirect them
-	 * through the ppgtt for non_secure batchbuffers. */
-	if (unlikely(IS_GEN6(dev) &&
-	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
-	    !target_i915_obj->has_global_gtt_mapping)) {
-		i915_gem_gtt_bind_object(target_i915_obj,
-					 target_i915_obj->cache_level);
 	}
 
 	/* and update the user's relocation entry */
