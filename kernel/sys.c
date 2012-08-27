@@ -1790,9 +1790,9 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
 	struct file *exe_file;
 	struct dentry *dentry;
-	int err;
+	int err, fput_needed;
 
-	exe_file = fget(fd);
+	exe_file = fget_light(fd, &fput_needed);
 	if (!exe_file)
 		return -EBADF;
 
@@ -1839,12 +1839,12 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 		goto exit_unlock;
 
 	err = 0;
-	set_mm_exe_file(mm, exe_file);
+	set_mm_exe_file(mm, exe_file);	/* this grabs a reference to exe_file */
 exit_unlock:
 	up_write(&mm->mmap_sem);
 
 exit:
-	fput(exe_file);
+	fput_light(exe_file, fput_needed);
 	return err;
 }
 
