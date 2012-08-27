@@ -1479,10 +1479,12 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 	}
 
 	if (EXT3_SB(sb)->s_mount_state & EXT3_ERROR_FS) {
-		if (es->s_last_orphan)
+		/* don't clear list on RO mount w/ errors */
+		if (es->s_last_orphan && !(s_flags & MS_RDONLY)) {
 			jbd_debug(1, "Errors on filesystem, "
 				  "clearing orphan list.\n");
-		es->s_last_orphan = 0;
+			es->s_last_orphan = 0;
+		}
 		jbd_debug(1, "Skipping orphan recovery on fs with errors.\n");
 		return;
 	}
