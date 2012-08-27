@@ -628,9 +628,8 @@ static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
 	struct thread_struct *thread, *next;
 	struct task_struct *tsk;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
 		spin_lock_irq(&pfault_lock);
 		list_for_each_entry_safe(thread, next, &pfault_list, list) {
 			thread->pfault_wait = 0;

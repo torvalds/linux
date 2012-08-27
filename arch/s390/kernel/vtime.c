@@ -378,9 +378,8 @@ static int __cpuinit s390_nohz_notify(struct notifier_block *self,
 	long cpu = (long) hcpu;
 
 	idle = &per_cpu(s390_idle, cpu);
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DYING:
-	case CPU_DYING_FROZEN:
 		idle->nohz_delay = 0;
 	default:
 		break;
