@@ -684,7 +684,7 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 
 		/*
 		 * Release iommu->lock because ppr-handling might need to
-		 * re-aquire it
+		 * re-acquire it
 		 */
 		spin_unlock_irqrestore(&iommu->lock, flags);
 
@@ -802,7 +802,7 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 	if (s) /* size bit - we flush more than one 4kb page */
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
-	if (pde) /* PDE bit - we wan't flush everything not only the PTEs */
+	if (pde) /* PDE bit - we want to flush everything, not only the PTEs */
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 }
 
@@ -2153,7 +2153,7 @@ static bool pci_pri_tlp_required(struct pci_dev *pdev)
 }
 
 /*
- * If a device is not yet associated with a domain, this function does
+ * If a device is not yet associated with a domain, this function
  * assigns it visible for the hardware
  */
 static int attach_device(struct device *dev,
@@ -2403,7 +2403,7 @@ static struct protection_domain *get_domain(struct device *dev)
 	if (domain != NULL)
 		return domain;
 
-	/* Device not bount yet - bind it */
+	/* Device not bound yet - bind it */
 	dma_dom = find_protection_domain(devid);
 	if (!dma_dom)
 		dma_dom = amd_iommu_rlookup_table[devid]->default_dom;
@@ -2942,7 +2942,7 @@ static void __init prealloc_protection_domains(void)
 			alloc_passthrough_domain();
 			dev_data->passthrough = true;
 			attach_device(&dev->dev, pt_domain);
-			pr_info("AMD-Vi: Using passthough domain for device %s\n",
+			pr_info("AMD-Vi: Using passthrough domain for device %s\n",
 				dev_name(&dev->dev));
 		}
 

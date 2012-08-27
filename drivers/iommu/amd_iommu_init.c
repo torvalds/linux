@@ -177,7 +177,7 @@ u16 *amd_iommu_alias_table;
 struct amd_iommu **amd_iommu_rlookup_table;
 
 /*
- * AMD IOMMU allows up to 2^16 differend protection domains. This is a bitmap
+ * AMD IOMMU allows up to 2^16 different protection domains. This is a bitmap
  * to know which ones are already in use.
  */
 unsigned long *amd_iommu_pd_alloc_bitmap;
@@ -477,7 +477,7 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table)
 
 /****************************************************************************
  *
- * The following functions belong the the code path which parses the ACPI table
+ * The following functions belong to the code path which parses the ACPI table
  * the second time. In this ACPI parsing iteration we allocate IOMMU specific
  * data structures, initialize the device/alias/rlookup table and also
  * basically initialize the hardware.
@@ -690,7 +690,7 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 }
 
 /*
- * Reads the device exclusion range from ACPI and initialize IOMMU with
+ * Reads the device exclusion range from ACPI and initializes the IOMMU with
  * it
  */
 static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
@@ -1140,7 +1140,7 @@ static int __init amd_iommu_init_pci(void)
 /****************************************************************************
  *
  * The following functions initialize the MSI interrupts for all IOMMUs
- * in the system. Its a bit challenging because there could be multiple
+ * in the system. It's a bit challenging because there could be multiple
  * IOMMUs per PCI BDF but we can call pci_enable_msi(x) only once per
  * pci_dev.
  *
@@ -1198,7 +1198,7 @@ enable_faults:
  *
  * The next functions belong to the third pass of parsing the ACPI
  * table. In this last pass the memory mapping requirements are
- * gathered (like exclusion and unity mapping reanges).
+ * gathered (like exclusion and unity mapping ranges).
  *
  ****************************************************************************/
 

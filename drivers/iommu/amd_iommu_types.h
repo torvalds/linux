@@ -255,7 +255,7 @@
 #define PAGE_SIZE_ALIGN(address, pagesize) \
 		((address) & ~((pagesize) - 1))
 /*
- * Creates an IOMMU PTE for an address an a given pagesize
+ * Creates an IOMMU PTE for an address and a given pagesize
  * The PTE has no permission bits set
  * Pagesize is expected to be a power-of-two larger than 4096
  */
@@ -404,7 +404,7 @@ struct iommu_dev_data {
 	struct list_head dev_data_list;	  /* For global dev_data_list */
 	struct iommu_dev_data *alias_data;/* The alias dev_data */
 	struct protection_domain *domain; /* Domain the device is bound to */
-	atomic_t bind;			  /* Domain attach reverent count */
+	atomic_t bind;			  /* Domain attach reference count */
 	u16 devid;			  /* PCI Device ID */
 	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
 	bool passthrough;		  /* Default for device is pt_domain */
