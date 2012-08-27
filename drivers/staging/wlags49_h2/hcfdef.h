@@ -652,15 +652,15 @@ err: you used an invalid bitmask;
 #if 0 //get compiler going
 #if HCF_EX_INT_TICK != HREG_EV_TICK
 ;? out dated checking
-err: someone redefined these macros while the implemenation assumes they are equal;
+err: someone redefined these macros while the implementation assumes they are equal;
 #endif
 #if HCF_EX_INT_TX_OK != HFS_TX_CNTL_TX_OK || HFS_TX_CNTL_TX_OK != HREG_EV_TX_OK
 ;? out dated checking
-err: someone redefined these macros while the implemenation assumes they are equal;
+err: someone redefined these macros while the implementation assumes they are equal;
 #endif
 #if HCF_EX_INT_TX_EX != HFS_TX_CNTL_TX_EX || HFS_TX_CNTL_TX_EX != HREG_EV_TX_EX
 ;? out dated checking
-err: someone redefined these macros while the implemenation assumes they are equal;
+err: someone redefined these macros while the implementation assumes they are equal;
 #endif
 #endif // 0 get compiler going
 

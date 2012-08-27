@@ -844,13 +844,13 @@ XX1( CFG_SCAN,					SCAN_RS_STRCT, scan_result[32]		 ) /*Scan results											*
 
 
 #define HCF_SUCCESS					0x00	// OK
-#define HCF_ERR_TIME_OUT			0x04	// Expected Hermes event did not occure in expected time
+#define HCF_ERR_TIME_OUT			0x04	// Expected Hermes event did not occur in expected time
 #define HCF_ERR_NO_NIC				0x05	/* card not found (usually yanked away during hcfio_in_string
 										  	 * Also: card is either absent or disabled while it should be neither */
 #define HCF_ERR_LEN					0x08	/* buffer size insufficient
 		 								  	 *		  -	IFB_ConfigTable too small
 		 								  	 *		  -	hcf_get_info buffer has a size of 0 or 1 or less than needed
-		 							  		 *			to accomodate all data
+		 							  		 *			to accommodate all data
 		 							  		 *		  -	hcf_put_info: CFG_DLNV_DATA exceeds intermediate
 											 *		  buffer size */
 #define HCF_ERR_INCOMP_PRI			0x09	// primary functions are not compatible

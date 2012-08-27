@@ -2595,7 +2595,7 @@ static int wireless_set_scan(struct net_device *dev, struct iw_request_info *inf
 	int		    retries = 0;
 	/*------------------------------------------------------------------------*/
 
-	//;? Note: shows results as trace, retruns always 0 unless BUSY
+	//;? Note: shows results as trace, returns always 0 unless BUSY
 
 	DBG_FUNC( "wireless_set_scan" );
 	DBG_ENTER( DbgInfo );

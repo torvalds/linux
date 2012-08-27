@@ -1251,7 +1251,7 @@ struct net_device * wl_device_alloc( void )
 
     netif_stop_queue( dev );
 
-    /* Allocate virutal devices for WDS support if needed */
+    /* Allocate virtual devices for WDS support if needed */
     WL_WDS_DEVICE_ALLOC( lp );
 
     DBG_LEAVE( DbgInfo );

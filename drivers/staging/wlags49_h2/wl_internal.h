@@ -11,7 +11,7 @@
  *
  *------------------------------------------------------------------------------
  *
- *   Header for defintions and macros internal to the drvier.
+ *   Header for definitions and macros internal to the drvier.
  *
  *------------------------------------------------------------------------------
  *

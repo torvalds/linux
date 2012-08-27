@@ -128,7 +128,7 @@
 #include <wl_pci.h>
 #endif  /* BUS_PCI */
 /*******************************************************************************
- *	macro defintions
+ *	macro definitions
  ******************************************************************************/
 #define VALID_PARAM(C) \
 	{ \
@@ -1627,7 +1627,7 @@ int wl_put_ltv( struct wl_private *lp )
 		lp->ltvRecord.u.u16[0]  = CNV_INT_TO_LITTLE( lp->TxRateControl[0] );
 #endif  // WARP
 
-//;?skip temporarily to see whether the RID or something else is the probelm hcf_status = hcf_put_info( &lp->hcfCtx, (LTVP)&( lp->ltvRecord ));
+//;?skip temporarily to see whether the RID or something else is the problem hcf_status = hcf_put_info( &lp->hcfCtx, (LTVP)&( lp->ltvRecord ));
 
 		DBG_TRACE( DbgInfo, "CFG_TX_RATE_CNTL 2.4GHz           : 0x%04x\n",
 				   lp->TxRateControl[0] );

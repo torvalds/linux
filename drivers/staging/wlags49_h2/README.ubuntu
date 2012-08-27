@@ -81,7 +81,7 @@ The linux driver files (wl_xxxx.c) are changed in the following ways:
 - Addaptations of Andrey Borzenkov applied to 7.22 source
 - Alterations to avoid most HCF_ASSERTs
 -- Switching interrupts off and on in the HCF
--- Bugfixes, things that were aparently wrong like reporting link status
+-- Bugfixes, things that were apparently wrong like reporting link status
    change which checked a variable that was not changed in HCF anymore.
 -- Used on WEP but setting keys via SIOCSIWENCODEEXT was not supported
 -- Recovery actions added

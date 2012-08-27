@@ -385,7 +385,7 @@ int wl_adapter_is_open( struct net_device *dev )
  *  DESCRIPTION:
  *
  *      Registered in the pci_driver structure, this function is called when the
- *  PCI subsystem finds a new PCI device which matches the infomation contained
+ *  PCI subsystem finds a new PCI device which matches the information contained
  *  in the pci_device_id table.
  *
  *  PARAMETERS:
@@ -424,7 +424,7 @@ int __devinit wl_pci_probe( struct pci_dev *pdev,
  *  DESCRIPTION:
  *
  *      Registered in the pci_driver structure, this function is called when the
- *  PCI subsystem detects that a PCI device which matches the infomation
+ *  PCI subsystem detects that a PCI device which matches the information
  *  contained in the pci_device_id table has been removed.
  *
  *  PARAMETERS:
