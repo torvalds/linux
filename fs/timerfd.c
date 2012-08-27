@@ -234,15 +234,15 @@ static const struct file_operations timerfd_fops = {
 	.llseek		= noop_llseek,
 };
 
-static struct file *timerfd_fget(int fd)
+static struct file *timerfd_fget(int fd, int *fput_needed)
 {
 	struct file *file;
 
-	file = fget(fd);
+	file = fget_light(fd, fput_needed);
 	if (!file)
 		return ERR_PTR(-EBADF);
 	if (file->f_op != &timerfd_fops) {
-		fput(file);
+		fput_light(file, *fput_needed);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -287,7 +287,7 @@ SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 	struct file *file;
 	struct timerfd_ctx *ctx;
 	struct itimerspec ktmr, kotmr;
-	int ret;
+	int ret, fput_needed;
 
 	if (copy_from_user(&ktmr, utmr, sizeof(ktmr)))
 		return -EFAULT;
@@ -297,7 +297,7 @@ SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 	    !timespec_valid(&ktmr.it_interval))
 		return -EINVAL;
 
-	file = timerfd_fget(ufd);
+	file = timerfd_fget(ufd, &fput_needed);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 	ctx = file->private_data;
@@ -334,7 +334,7 @@ SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
 	ret = timerfd_setup(ctx, flags, &ktmr);
 
 	spin_unlock_irq(&ctx->wqh.lock);
-	fput(file);
+	fput_light(file, fput_needed);
 	if (otmr && copy_to_user(otmr, &kotmr, sizeof(kotmr)))
 		return -EFAULT;
 
@@ -346,8 +346,9 @@ SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
 	struct file *file;
 	struct timerfd_ctx *ctx;
 	struct itimerspec kotmr;
+	int fput_needed;
 
-	file = timerfd_fget(ufd);
+	file = timerfd_fget(ufd, &fput_needed);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 	ctx = file->private_data;
@@ -362,7 +363,7 @@ SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
 	kotmr.it_value = ktime_to_timespec(timerfd_get_remaining(ctx));
 	kotmr.it_interval = ktime_to_timespec(ctx->tintv);
 	spin_unlock_irq(&ctx->wqh.lock);
-	fput(file);
+	fput_light(file, fput_needed);
 
 	return copy_to_user(otmr, &kotmr, sizeof(kotmr)) ? -EFAULT: 0;
 }
