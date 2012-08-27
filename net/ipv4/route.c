@@ -1134,10 +1134,7 @@ static unsigned int ipv4_mtu(const struct dst_entry *dst)
 	const struct rtable *rt = (const struct rtable *) dst;
 	unsigned int mtu = rt->rt_pmtu;
 
-	if (mtu && time_after_eq(jiffies, rt->dst.expires))
-		mtu = 0;
-
-	if (!mtu)
+	if (!mtu || time_after_eq(jiffies, rt->dst.expires))
 		mtu = dst_metric_raw(dst, RTAX_MTU);
 
 	if (mtu && rt_is_output_route(rt))
