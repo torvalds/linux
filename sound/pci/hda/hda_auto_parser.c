@@ -332,13 +332,12 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	if (cfg->dig_outs)
 		snd_printd("   dig-out=0x%x/0x%x\n",
 			   cfg->dig_out_pins[0], cfg->dig_out_pins[1]);
-	snd_printd("   inputs:");
+	snd_printd("   inputs:\n");
 	for (i = 0; i < cfg->num_inputs; i++) {
-		snd_printd(" %s=0x%x",
+		snd_printd("     %s=0x%x\n",
 			    hda_get_autocfg_input_label(codec, cfg, i),
 			    cfg->inputs[i].pin);
 	}
-	snd_printd("\n");
 	if (cfg->dig_in_pin)
 		snd_printd("   dig-in=0x%x\n", cfg->dig_in_pin);
 

@@ -400,8 +400,6 @@ static int exofs_sync_fs(struct super_block *sb, int wait)
 	ret = ore_write(ios);
 	if (unlikely(ret))
 		EXOFS_ERR("%s: ore_write failed.\n", __func__);
-	else
-		sb->s_dirt = 0;
 
 
 	unlock_super(sb);
@@ -410,14 +408,6 @@ out:
 	ore_put_io_state(ios);
 	kfree(fscb);
 	return ret;
-}
-
-static void exofs_write_super(struct super_block *sb)
-{
-	if (!(sb->s_flags & MS_RDONLY))
-		exofs_sync_fs(sb, 1);
-	else
-		sb->s_dirt = 0;
 }
 
 static void _exofs_print_device(const char *msg, const char *dev_path,
@@ -952,7 +942,6 @@ static const struct super_operations exofs_sops = {
 	.write_inode    = exofs_write_inode,
 	.evict_inode    = exofs_evict_inode,
 	.put_super      = exofs_put_super,
-	.write_super    = exofs_write_super,
 	.sync_fs	= exofs_sync_fs,
 	.statfs         = exofs_statfs,
 };

@@ -1869,6 +1869,7 @@ int __dev_printk(const char *level, const struct device *dev,
 		 struct va_format *vaf)
 {
 	char dict[128];
+	const char *level_extra = "";
 	size_t dictlen = 0;
 	const char *subsys;
 
@@ -1915,10 +1916,14 @@ int __dev_printk(const char *level, const struct device *dev,
 				    "DEVICE=+%s:%s", subsys, dev_name(dev));
 	}
 skip:
+	if (level[2])
+		level_extra = &level[2]; /* skip past KERN_SOH "L" */
+
 	return printk_emit(0, level[1] - '0',
 			   dictlen ? dict : NULL, dictlen,
-			   "%s %s: %pV",
-			   dev_driver_string(dev), dev_name(dev), vaf);
+			   "%s %s: %s%pV",
+			   dev_driver_string(dev), dev_name(dev),
+			   level_extra, vaf);
 }
 EXPORT_SYMBOL(__dev_printk);
 

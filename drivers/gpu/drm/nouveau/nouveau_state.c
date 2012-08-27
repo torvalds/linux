@@ -731,7 +731,6 @@ nouveau_card_init(struct drm_device *dev)
 			case 0xa3:
 			case 0xa5:
 			case 0xa8:
-			case 0xaf:
 				nva3_copy_create(dev);
 				break;
 			}

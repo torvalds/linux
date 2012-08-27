@@ -395,7 +395,8 @@ config MFD_TC6387XB
 
 config MFD_TC6393XB
 	bool "Support Toshiba TC6393XB"
-	depends on GPIOLIB && ARM && HAVE_CLK
+	depends on ARM && HAVE_CLK
+	select GPIOLIB
 	select MFD_CORE
 	select MFD_TMIO
 	help

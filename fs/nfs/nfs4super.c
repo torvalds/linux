@@ -23,14 +23,6 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 static struct dentry *nfs4_remote_referral_mount(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *raw_data);
 
-static struct file_system_type nfs4_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "nfs4",
-	.mount		= nfs_fs_mount,
-	.kill_sb	= nfs_kill_super,
-	.fs_flags	= FS_RENAME_DOES_D_MOVE|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
-};
-
 static struct file_system_type nfs4_remote_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "nfs4",
@@ -344,14 +336,8 @@ static int __init init_nfs_v4(void)
 	if (err)
 		goto out1;
 
-	err = register_filesystem(&nfs4_fs_type);
-	if (err < 0)
-		goto out2;
-
 	register_nfs_version(&nfs_v4);
 	return 0;
-out2:
-	nfs4_unregister_sysctl();
 out1:
 	nfs_idmap_quit();
 out:
@@ -361,7 +347,6 @@ out:
 static void __exit exit_nfs_v4(void)
 {
 	unregister_nfs_version(&nfs_v4);
-	unregister_filesystem(&nfs4_fs_type);
 	nfs4_unregister_sysctl();
 	nfs_idmap_quit();
 }

@@ -57,6 +57,9 @@
  *
  * 7.19
  *  - add FUSE_FALLOCATE
+ *
+ * 7.20
+ *  - add FUSE_AUTO_INVAL_DATA
  */
 
 #ifndef _LINUX_FUSE_H
@@ -88,7 +91,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 19
+#define FUSE_KERNEL_MINOR_VERSION 20
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -163,10 +166,19 @@ struct fuse_file_lock {
 /**
  * INIT request/reply flags
  *
+ * FUSE_ASYNC_READ: asynchronous read requests
  * FUSE_POSIX_LOCKS: remote locking for POSIX file locks
+ * FUSE_FILE_OPS: kernel sends file handle for fstat, etc... (not yet supported)
+ * FUSE_ATOMIC_O_TRUNC: handles the O_TRUNC open flag in the filesystem
  * FUSE_EXPORT_SUPPORT: filesystem handles lookups of "." and ".."
+ * FUSE_BIG_WRITES: filesystem can handle write size larger than 4kB
  * FUSE_DONT_MASK: don't apply umask to file mode on create operations
+ * FUSE_SPLICE_WRITE: kernel supports splice write on the device
+ * FUSE_SPLICE_MOVE: kernel supports splice move on the device
+ * FUSE_SPLICE_READ: kernel supports splice read on the device
  * FUSE_FLOCK_LOCKS: remote locking for BSD style file locks
+ * FUSE_HAS_IOCTL_DIR: kernel supports ioctl on directories
+ * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -175,7 +187,12 @@ struct fuse_file_lock {
 #define FUSE_EXPORT_SUPPORT	(1 << 4)
 #define FUSE_BIG_WRITES		(1 << 5)
 #define FUSE_DONT_MASK		(1 << 6)
+#define FUSE_SPLICE_WRITE	(1 << 7)
+#define FUSE_SPLICE_MOVE	(1 << 8)
+#define FUSE_SPLICE_READ	(1 << 9)
 #define FUSE_FLOCK_LOCKS	(1 << 10)
+#define FUSE_HAS_IOCTL_DIR	(1 << 11)
+#define FUSE_AUTO_INVAL_DATA	(1 << 12)
 
 /**
  * CUSE INIT request/reply flags

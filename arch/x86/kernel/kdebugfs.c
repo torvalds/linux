@@ -107,7 +107,7 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 {
 	struct setup_data_node *node;
 	struct setup_data *data;
-	int error = -ENOMEM;
+	int error;
 	struct dentry *d;
 	struct page *pg;
 	u64 pa_data;
@@ -121,8 +121,10 @@ static int __init create_setup_data_nodes(struct dentry *parent)
 
 	while (pa_data) {
 		node = kmalloc(sizeof(*node), GFP_KERNEL);
-		if (!node)
+		if (!node) {
+			error = -ENOMEM;
 			goto err_dir;
+		}
 
 		pg = pfn_to_page((pa_data+sizeof(*data)-1) >> PAGE_SHIFT);
 		if (PageHighMem(pg)) {

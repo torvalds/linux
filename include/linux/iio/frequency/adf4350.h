@@ -87,6 +87,8 @@
 #define ADF4350_MAX_BANDSEL_CLK		125000 /* Hz */
 #define ADF4350_MAX_FREQ_REFIN		250000000 /* Hz */
 #define ADF4350_MAX_MODULUS		4095
+#define ADF4350_MAX_R_CNT		1023
+
 
 /**
  * struct adf4350_platform_data - platform specific information
