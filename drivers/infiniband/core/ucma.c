@@ -1186,13 +1186,13 @@ static ssize_t ucma_migrate_id(struct ucma_file *new_file,
 	struct ucma_context *ctx;
 	struct file *filp;
 	struct ucma_file *cur_file;
-	int ret = 0;
+	int ret = 0, fput_needed;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
 	/* Get current fd to protect against it being closed */
-	filp = fget(cmd.fd);
+	filp = fget_light(cmd.fd, &fput_needed);
 	if (!filp)
 		return -ENOENT;
 
@@ -1231,7 +1231,7 @@ response:
 
 	ucma_put_ctx(ctx);
 file_put:
-	fput(filp);
+	fput_light(filp, fput_needed);
 	return ret;
 }
 
