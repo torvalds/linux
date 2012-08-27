@@ -1,5 +1,5 @@
 #
-# Industrial I/O subsytem configuration
+# Industrial I/O subsystem configuration
 #
 
 menuconfig IIO
