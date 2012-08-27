@@ -3475,6 +3475,19 @@ int con_debug_enter(struct vc_data *vc)
 			kdb_set(2, setargs);
 		}
 	}
+	if (vc->vc_cols < 999) {
+		int colcount;
+		char cols[4];
+		const char *setargs[3] = {
+			"set",
+			"COLUMNS",
+			cols,
+		};
+		if (kdbgetintenv(setargs[0], &colcount)) {
+			snprintf(cols, 4, "%i", vc->vc_cols);
+			kdb_set(2, setargs);
+		}
+	}
 #endif /* CONFIG_KGDB_KDB */
 	return ret;
 }
