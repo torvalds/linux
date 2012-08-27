@@ -28,4 +28,7 @@ struct davinci_pcm_dma_params {
 	unsigned int fifo_level;
 };
 
+int davinci_soc_platform_register(struct device *dev);
+void davinci_soc_platform_unregister(struct device *dev);
+
 #endif
