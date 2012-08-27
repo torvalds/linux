@@ -199,7 +199,7 @@ static void pcsp_stop_beep(struct snd_pcsp *chip)
 	pcspkr_stop_sound();
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int pcsp_suspend(struct device *dev)
 {
 	struct snd_pcsp *chip = dev_get_drvdata(dev);
@@ -212,7 +212,7 @@ static SIMPLE_DEV_PM_OPS(pcsp_pm, pcsp_suspend, NULL);
 #define PCSP_PM_OPS	&pcsp_pm
 #else
 #define PCSP_PM_OPS	NULL
-#endif	/* CONFIG_PM */
+#endif	/* CONFIG_PM_SLEEP */
 
 static void pcsp_shutdown(struct platform_device *dev)
 {

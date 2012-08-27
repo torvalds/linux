@@ -219,4 +219,16 @@ void kvmppc_claim_lpid(long lpid);
 void kvmppc_free_lpid(long lpid);
 void kvmppc_init_lpid(unsigned long nr_lpids);
 
+static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
+{
+	/* Clear i-cache for new pages */
+	struct page *page;
+	page = pfn_to_page(pfn);
+	if (!test_bit(PG_arch_1, &page->flags)) {
+		flush_dcache_icache_page(page);
+		set_bit(PG_arch_1, &page->flags);
+	}
+}
+
+
 #endif /* __POWERPC_KVM_PPC_H__ */

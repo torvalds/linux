@@ -42,6 +42,7 @@
 #include <plat/backlight.h>
 #include <plat/fb.h>
 #include <plat/mfc.h>
+#include <plat/hdmi.h>
 
 #include <mach/ohci.h>
 #include <mach/map.h>
@@ -734,6 +735,11 @@ static void __init origen_bt_setup(void)
 	s3c_gpio_setpull(EXYNOS4_GPX2(2), S3C_GPIO_PULL_NONE);
 }
 
+/* I2C module and id for HDMIPHY */
+static struct i2c_board_info hdmiphy_info = {
+	I2C_BOARD_INFO("hdmiphy-exynos4210", 0x38),
+};
+
 static void s5p_tv_setup(void)
 {
 	/* Direct HPD to HDMI chip */
@@ -781,6 +787,7 @@ static void __init origen_machine_init(void)
 
 	s5p_tv_setup();
 	s5p_i2c_hdmiphy_set_platdata(NULL);
+	s5p_hdmi_set_platdata(&hdmiphy_info, NULL, 0);
 
 #ifdef CONFIG_DRM_EXYNOS
 	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;

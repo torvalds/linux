@@ -133,7 +133,7 @@ extern int llc_build_and_send_ui_pkt(struct llc_sap *sap, struct sk_buff *skb,
 extern void llc_sap_handler(struct llc_sap *sap, struct sk_buff *skb);
 extern void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb);
 
-extern int llc_station_init(void);
+extern void llc_station_init(void);
 extern void llc_station_exit(void);
 
 #ifdef CONFIG_PROC_FS

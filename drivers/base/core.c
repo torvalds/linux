@@ -1912,8 +1912,8 @@ int __dev_printk(const char *level, const struct device *dev,
 				    "DEVICE=+%s:%s", subsys, dev_name(dev));
 	}
 skip:
-	if (level[3])
-		level_extra = &level[3]; /* skip past "<L>" */
+	if (level[2])
+		level_extra = &level[2]; /* skip past KERN_SOH "L" */
 
 	return printk_emit(0, level[1] - '0',
 			   dictlen ? dict : NULL, dictlen,
