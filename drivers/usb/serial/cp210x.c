@@ -865,7 +865,6 @@ static int cp210x_startup(struct usb_serial *serial)
 		if (!port_priv)
 			return -ENOMEM;
 
-		memset(port_priv, 0x00, sizeof(*port_priv));
 		port_priv->bInterfaceNumber =
 		    serial->interface->cur_altsetting->desc.bInterfaceNumber;
 
