@@ -437,7 +437,6 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_ERROR("Failed allocating a device private struct.\n");
 		return -ENOMEM;
 	}
-	memset(dev_priv, 0, sizeof(*dev_priv));
 
 	pci_set_master(dev->pdev);
 
