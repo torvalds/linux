@@ -214,6 +214,8 @@ struct regulator_desc {
 	unsigned int vsel_mask;
 	unsigned int enable_reg;
 	unsigned int enable_mask;
+	unsigned int bypass_reg;
+	unsigned int bypass_mask;
 
 	unsigned int enable_time;
 };
@@ -320,6 +322,8 @@ int regulator_disable_regmap(struct regulator_dev *rdev);
 int regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 				   unsigned int old_selector,
 				   unsigned int new_selector);
+int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable);
+int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable);
 
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 

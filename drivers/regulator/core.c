@@ -2699,6 +2699,47 @@ out:
 EXPORT_SYMBOL_GPL(regulator_set_optimum_mode);
 
 /**
+ * regulator_set_bypass_regmap - Default set_bypass() using regmap
+ *
+ * @rdev: device to operate on.
+ * @enable: state to set.
+ */
+int regulator_set_bypass_regmap(struct regulator_dev *rdev, bool enable)
+{
+	unsigned int val;
+
+	if (enable)
+		val = rdev->desc->bypass_mask;
+	else
+		val = 0;
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->bypass_reg,
+				  rdev->desc->bypass_mask, val);
+}
+EXPORT_SYMBOL_GPL(regulator_set_bypass_regmap);
+
+/**
+ * regulator_get_bypass_regmap - Default get_bypass() using regmap
+ *
+ * @rdev: device to operate on.
+ * @enable: current state.
+ */
+int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, rdev->desc->bypass_reg, &val);
+	if (ret != 0)
+		return ret;
+
+	*enable = val & rdev->desc->bypass_mask;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
+
+/**
  * regulator_allow_bypass - allow the regulator to go into bypass mode
  *
  * @regulator: Regulator to configure
