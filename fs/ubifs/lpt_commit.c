@@ -320,8 +320,8 @@ static int layout_cnodes(struct ubifs_info *c)
 	return 0;
 
 no_space:
-	ubifs_err("LPT out of space at LEB %d:%d needing %d, done_ltab %d, "
-		  "done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
+	ubifs_err("LPT out of space at LEB %d:%d needing %d, done_ltab %d, done_lsave %d",
+		  lnum, offs, len, done_ltab, done_lsave);
 	ubifs_dump_lpt_info(c);
 	ubifs_dump_lpt_lebs(c);
 	dump_stack();
@@ -545,8 +545,8 @@ static int write_cnodes(struct ubifs_info *c)
 	return 0;
 
 no_space:
-	ubifs_err("LPT out of space mismatch at LEB %d:%d needing %d, done_ltab "
-		  "%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
+	ubifs_err("LPT out of space mismatch at LEB %d:%d needing %d, done_ltab %d, done_lsave %d",
+		  lnum, offs, len, done_ltab, done_lsave);
 	ubifs_dump_lpt_info(c);
 	ubifs_dump_lpt_lebs(c);
 	dump_stack();
@@ -1668,14 +1668,12 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 			}
 			i = lnum - c->lpt_first;
 			if (len != c->ltab[i].free) {
-				dbg_msg("invalid free space in LEB %d "
-					"(free %d, expected %d)",
+				dbg_msg("invalid free space in LEB %d (free %d, expected %d)",
 					lnum, len, c->ltab[i].free);
 				err = -EINVAL;
 			}
 			if (dirty != c->ltab[i].dirty) {
-				dbg_msg("invalid dirty space in LEB %d "
-					"(dirty %d, expected %d)",
+				dbg_msg("invalid dirty space in LEB %d (dirty %d, expected %d)",
 					lnum, dirty, c->ltab[i].dirty);
 				err = -EINVAL;
 			}

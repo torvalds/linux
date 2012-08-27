@@ -141,9 +141,9 @@ static int set_bud_lprops(struct ubifs_info *c, struct bud_entry *b)
 		 * during the replay.
 		 */
 		if (dirty != 0)
-			dbg_msg("LEB %d lp: %d free %d dirty "
-				"replay: %d free %d dirty", b->bud->lnum,
-				lp->free, lp->dirty, b->free, b->dirty);
+			dbg_msg("LEB %d lp: %d free %d dirty replay: %d free %d dirty",
+				b->bud->lnum, lp->free, lp->dirty, b->free,
+				b->dirty);
 	}
 	lp = ubifs_change_lp(c, lp, b->free, dirty + b->dirty,
 			     lp->flags | LPROPS_TAKEN, 0);
@@ -677,7 +677,8 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 
 	b->dirty = sleb->endpt - offs - used;
 	b->free = c->leb_size - sleb->endpt;
-	dbg_mnt("bud LEB %d replied: dirty %d, free %d", lnum, b->dirty, b->free);
+	dbg_mnt("bud LEB %d replied: dirty %d, free %d",
+		lnum, b->dirty, b->free);
 
 out:
 	ubifs_scan_destroy(sleb);
@@ -865,8 +866,7 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 			goto out_dump;
 		}
 		if (le64_to_cpu(node->cmt_no) != c->cmt_no) {
-			ubifs_err("first CS node at LEB %d:%d has wrong "
-				  "commit number %llu expected %llu",
+			ubifs_err("first CS node at LEB %d:%d has wrong commit number %llu expected %llu",
 				  lnum, offs,
 				  (unsigned long long)le64_to_cpu(node->cmt_no),
 				  c->cmt_no);
@@ -1058,8 +1058,8 @@ int ubifs_replay_journal(struct ubifs_info *c)
 	c->bi.uncommitted_idx *= c->max_idx_node_sz;
 
 	ubifs_assert(c->bud_bytes <= c->max_bud_bytes || c->need_recovery);
-	dbg_mnt("finished, log head LEB %d:%d, max_sqnum %llu, "
-		"highest_inum %lu", c->lhead_lnum, c->lhead_offs, c->max_sqnum,
+	dbg_mnt("finished, log head LEB %d:%d, max_sqnum %llu, highest_inum %lu",
+		c->lhead_lnum, c->lhead_offs, c->max_sqnum,
 		(unsigned long)c->highest_inum);
 out:
 	destroy_replay_list(c);

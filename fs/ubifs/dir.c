@@ -980,8 +980,8 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 * separately.
 	 */
 
-	dbg_gen("dent '%.*s' ino %lu in dir ino %lu to dent '%.*s' in "
-		"dir ino %lu", old_dentry->d_name.len, old_dentry->d_name.name,
+	dbg_gen("dent '%.*s' ino %lu in dir ino %lu to dent '%.*s' in dir ino %lu",
+		old_dentry->d_name.len, old_dentry->d_name.name,
 		old_inode->i_ino, old_dir->i_ino, new_dentry->d_name.len,
 		new_dentry->d_name.name, new_dir->i_ino);
 	ubifs_assert(mutex_is_locked(&old_dir->i_mutex));

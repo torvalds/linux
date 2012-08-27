@@ -315,17 +315,15 @@ static void remove_buds(struct ubifs_info *c)
 			 * heads (non-closed buds).
 			 */
 			c->cmt_bud_bytes += wbuf->offs - bud->start;
-			dbg_log("preserve %d:%d, jhead %s, bud bytes %d, "
-				"cmt_bud_bytes %lld", bud->lnum, bud->start,
-				dbg_jhead(bud->jhead), wbuf->offs - bud->start,
-				c->cmt_bud_bytes);
+			dbg_log("preserve %d:%d, jhead %s, bud bytes %d, cmt_bud_bytes %lld",
+				bud->lnum, bud->start, dbg_jhead(bud->jhead),
+				wbuf->offs - bud->start, c->cmt_bud_bytes);
 			bud->start = wbuf->offs;
 		} else {
 			c->cmt_bud_bytes += c->leb_size - bud->start;
-			dbg_log("remove %d:%d, jhead %s, bud bytes %d, "
-				"cmt_bud_bytes %lld", bud->lnum, bud->start,
-				dbg_jhead(bud->jhead), c->leb_size - bud->start,
-				c->cmt_bud_bytes);
+			dbg_log("remove %d:%d, jhead %s, bud bytes %d, cmt_bud_bytes %lld",
+				bud->lnum, bud->start, dbg_jhead(bud->jhead),
+				c->leb_size - bud->start, c->cmt_bud_bytes);
 			rb_erase(p1, &c->buds);
 			/*
 			 * If the commit does not finish, the recovery will need

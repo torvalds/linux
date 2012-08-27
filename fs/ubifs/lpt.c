@@ -2237,8 +2237,7 @@ int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
 			/* cnode is a nnode */
 			num = calc_nnode_num(row, col);
 			if (cnode->num != num) {
-				ubifs_err("nnode num %d expected %d "
-					  "parent num %d iip %d",
+				ubifs_err("nnode num %d expected %d parent num %d iip %d",
 					  cnode->num, num,
 					  (nnode ? nnode->num : 0), cnode->iip);
 				return -EINVAL;

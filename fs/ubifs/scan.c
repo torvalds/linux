@@ -85,7 +85,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 	if (len < UBIFS_CH_SZ)
 		return SCANNED_GARBAGE;
 
-	dbg_scan("scanning %s at LEB %d:%d", dbg_ntype(ch->node_type), lnum, offs);
+	dbg_scan("scanning %s at LEB %d:%d",
+		 dbg_ntype(ch->node_type), lnum, offs);
 
 	if (ubifs_check_node(c, buf, lnum, offs, quiet, 1))
 		return SCANNED_A_CORRUPT_NODE;
@@ -150,8 +151,8 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 
 	err = ubifs_leb_read(c, lnum, sbuf + offs, offs, c->leb_size - offs, 0);
 	if (err && err != -EBADMSG) {
-		ubifs_err("cannot read %d bytes from LEB %d:%d,"
-			  " error %d", c->leb_size - offs, lnum, offs, err);
+		ubifs_err("cannot read %d bytes from LEB %d:%d, error %d",
+			  c->leb_size - offs, lnum, offs, err);
 		kfree(sleb);
 		return ERR_PTR(err);
 	}
