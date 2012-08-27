@@ -48,10 +48,10 @@
 #define DISPC_IRQ_FRAMEDONEWB		(1 << 23)
 #define DISPC_IRQ_FRAMEDONETV		(1 << 24)
 #define DISPC_IRQ_WBBUFFEROVERFLOW	(1 << 25)
-#define DISPC_IRQ_FRAMEDONE3		(1 << 26)
-#define DISPC_IRQ_VSYNC3		(1 << 27)
-#define DISPC_IRQ_ACBIAS_COUNT_STAT3	(1 << 28)
-#define DISPC_IRQ_SYNC_LOST3		(1 << 29)
+#define DISPC_IRQ_SYNC_LOST3		(1 << 27)
+#define DISPC_IRQ_VSYNC3		(1 << 28)
+#define DISPC_IRQ_ACBIAS_COUNT_STAT3	(1 << 29)
+#define DISPC_IRQ_FRAMEDONE3		(1 << 30)
 
 struct omap_dss_device;
 struct omap_overlay_manager;
