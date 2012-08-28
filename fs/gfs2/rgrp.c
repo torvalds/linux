@@ -1834,8 +1834,7 @@ static void gfs2_alloc_extent(const struct gfs2_rbm *rbm, bool dinode,
 	block++;
 	while (*n < elen) {
 		ret = gfs2_rbm_from_block(&pos, block);
-		WARN_ON(ret);
-		if (gfs2_testbit(&pos) != GFS2_BLKST_FREE)
+		if (ret || gfs2_testbit(&pos) != GFS2_BLKST_FREE)
 			break;
 		gfs2_trans_add_bh(pos.rgd->rd_gl, pos.bi->bi_bh, 1);
 		gfs2_setbit(&pos, true, GFS2_BLKST_USED);
