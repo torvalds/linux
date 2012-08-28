@@ -24,60 +24,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/palmas.h>
 
-static const struct resource gpadc_resource[] = {
-	{
-		.name = "EOC_SW",
-		.start = PALMAS_GPADC_EOC_SW_IRQ,
-		.end = PALMAS_GPADC_EOC_SW_IRQ,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-static const struct resource usb_resource[] = {
-	{
-		.name = "ID",
-		.start = PALMAS_ID_OTG_IRQ,
-		.end = PALMAS_ID_OTG_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "ID_WAKEUP",
-		.start = PALMAS_ID_IRQ,
-		.end = PALMAS_ID_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "VBUS",
-		.start = PALMAS_VBUS_OTG_IRQ,
-		.end = PALMAS_VBUS_OTG_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "VBUS_WAKEUP",
-		.start = PALMAS_VBUS_IRQ,
-		.end = PALMAS_VBUS_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static const struct resource rtc_resource[] = {
-	{
-		.name = "RTC_ALARM",
-		.start = PALMAS_RTC_ALARM_IRQ,
-		.end = PALMAS_RTC_ALARM_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static const struct resource pwron_resource[] = {
-	{
-		.name = "PWRON_BUTTON",
-		.start = PALMAS_PWRON_IRQ,
-		.end = PALMAS_PWRON_IRQ,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
 enum palmas_ids {
 	PALMAS_PMIC_ID,
 	PALMAS_GPIO_ID,
@@ -111,20 +57,14 @@ static const struct mfd_cell palmas_children[] = {
 	},
 	{
 		.name = "palmas-rtc",
-		.num_resources = ARRAY_SIZE(rtc_resource),
-		.resources = rtc_resource,
 		.id = PALMAS_RTC_ID,
 	},
 	{
 		.name = "palmas-pwrbutton",
-		.num_resources = ARRAY_SIZE(pwron_resource),
-		.resources = pwron_resource,
 		.id = PALMAS_PWRBUTTON_ID,
 	},
 	{
 		.name = "palmas-gpadc",
-		.num_resources = ARRAY_SIZE(gpadc_resource),
-		.resources = gpadc_resource,
 		.id = PALMAS_GPADC_ID,
 	},
 	{
@@ -141,8 +81,6 @@ static const struct mfd_cell palmas_children[] = {
 	},
 	{
 		.name = "palmas-usb",
-		.num_resources = ARRAY_SIZE(usb_resource),
-		.resources = usb_resource,
 		.id = PALMAS_USB_ID,
 	}
 };
@@ -364,7 +302,7 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 	regmap_write(palmas->regmap[slave], addr, reg);
 
 	ret = regmap_add_irq_chip(palmas->regmap[slave], palmas->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, -1, &palmas_irq_chip,
+			IRQF_ONESHOT | IRQF_TRIGGER_LOW, 0, &palmas_irq_chip,
 			&palmas->irq_data);
 	if (ret < 0)
 		goto err;
