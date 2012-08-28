@@ -17,7 +17,6 @@
 #include <linux/io.h>
 #include <linux/pwm.h>
 #include <linux/of_device.h>
-#include <mach/hardware.h>
 
 /* i.MX1 and i.MX21 share the same PWM function block: */
 
@@ -133,15 +132,10 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 
 	cr = MX3_PWMCR_PRESCALER(prescale) |
 		MX3_PWMCR_DOZEEN | MX3_PWMCR_WAITEN |
-		MX3_PWMCR_DBGEN;
+		MX3_PWMCR_DBGEN | MX3_PWMCR_CLKSRC_IPG_HIGH;
 
 	if (imx->enabled)
 		cr |= MX3_PWMCR_EN;
-
-	if (cpu_is_mx25())
-		cr |= MX3_PWMCR_CLKSRC_IPG;
-	else
-		cr |= MX3_PWMCR_CLKSRC_IPG_HIGH;
 
 	writel(cr, imx->mmio_base + MX3_PWMCR);
 
