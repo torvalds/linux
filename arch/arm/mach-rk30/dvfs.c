@@ -1702,7 +1702,10 @@ static ssize_t avs_dyn_show(struct kobject *kobj, struct kobj_attribute *attr,
 {
 	char *s = buf;
 	u32 i;
-
+	
+	if(avs_dyn_data==NULL)
+		return (s - buf);
+		
 	if(avs_dyn_start) {
 		int start_cnt;
 		int end_cnt;
@@ -1774,6 +1777,11 @@ static ssize_t avs_dyn_store(struct kobject *kobj, struct kobj_attribute *attr,
 	const char *pbuf;
 
 	if((strncmp(buf, "start", strlen("start")) == 0)) {
+		if(avs_dyn_data==NULL)	
+			avs_dyn_data = kmalloc(avs_dyn_data_num, GFP_KERNEL);
+		if(avs_dyn_data==NULL)
+			return n;
+		
 		pbuf = &buf[strlen("start")];
 		avs_dyn_data_cnt = 0;
 		show_line_cnt = 0;
@@ -1872,7 +1880,6 @@ static int __init dvfs_init(void)
 	dvfs_hrtimer.function = dvfs_hrtimer_timer_func;
 	//hrtimer_start(&dvfs_hrtimer,ktime_set(0, 5*1000*1000),HRTIMER_MODE_REL);
 #endif
-	avs_dyn_data = kmalloc(avs_dyn_data_num, GFP_KERNEL);
 
 	dvfs_kobj = kobject_create_and_add("dvfs", NULL);
 	if (!dvfs_kobj)
