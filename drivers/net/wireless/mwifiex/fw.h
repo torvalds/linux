@@ -108,6 +108,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define MGMT_MASK_BEACON			0x100
 
 #define TLV_TYPE_UAP_SSID			0x0000
+#define TLV_TYPE_UAP_RATES			0x0001
 
 #define PROPRIETARY_TLV_BASE_ID                 0x0100
 #define TLV_TYPE_KEY_MATERIAL       (PROPRIETARY_TLV_BASE_ID + 0)
@@ -1282,6 +1283,11 @@ struct host_cmd_tlv_encrypt_protocol {
 struct host_cmd_tlv_ssid {
 	struct host_cmd_tlv tlv;
 	u8 ssid[0];
+} __packed;
+
+struct host_cmd_tlv_rates {
+	struct host_cmd_tlv tlv;
+	u8 rates[0];
 } __packed;
 
 struct host_cmd_tlv_bcast_ssid {

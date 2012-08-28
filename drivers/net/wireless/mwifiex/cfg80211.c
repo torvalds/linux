@@ -969,15 +969,18 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	bss_cfg->channel =
 	    (u8)ieee80211_frequency_to_channel(params->channel->center_freq);
-	bss_cfg->band_cfg = BAND_CONFIG_MANUAL;
 
 	/* Set appropriate bands */
 	if (params->channel->band == IEEE80211_BAND_2GHZ) {
+		bss_cfg->band_cfg = BAND_CONFIG_BG;
+
 		if (params->channel_type == NL80211_CHAN_NO_HT)
 			config_bands = BAND_B | BAND_G;
 		else
 			config_bands = BAND_B | BAND_G | BAND_GN;
 	} else {
+		bss_cfg->band_cfg = BAND_CONFIG_A;
+
 		if (params->channel_type == NL80211_CHAN_NO_HT)
 			config_bands = BAND_A;
 		else
@@ -988,6 +991,7 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	      ~priv->adapter->fw_bands))
 		priv->adapter->config_bands = config_bands;
 
+	mwifiex_set_uap_rates(bss_cfg, params);
 	mwifiex_send_domain_info_cmd_fw(wiphy);
 
 	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {

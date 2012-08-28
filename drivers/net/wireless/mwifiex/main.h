@@ -116,6 +116,7 @@ enum {
 #define MAX_BITMAP_RATES_SIZE			10
 
 #define MAX_CHANNEL_BAND_BG     14
+#define MAX_CHANNEL_BAND_A      165
 
 #define MAX_FREQUENCY_BAND_BG   2484
 
@@ -248,10 +249,6 @@ struct ieee_types_header {
 	u8 element_id;
 	u8 len;
 } __packed;
-
-#define MWIFIEX_SUPPORTED_RATES                 14
-
-#define MWIFIEX_SUPPORTED_RATES_EXT             32
 
 struct ieee_types_vendor_specific {
 	struct ieee_types_vendor_header vend_hdr;
@@ -871,6 +868,8 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 			      struct cfg80211_ap_settings *params);
 void mwifiex_set_ht_params(struct mwifiex_private *priv,
 			   struct mwifiex_uap_bss_param *bss_cfg,
+			   struct cfg80211_ap_settings *params);
+void mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 			   struct cfg80211_ap_settings *params);
 
 /*
