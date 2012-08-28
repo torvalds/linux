@@ -64,7 +64,7 @@ struct rk29_pl330_xfer {
  * @req: Two requests to communicate with the PL330 engine.
  * @callback_fn: Callback function to the client.
  * @rqcfg: Channel configuration for the xfers.
- * @xfer_head: Pointer to the xfer to be next excecuted.
+ * @xfer_head: Pointer to the xfer to be next executed.
  * @dmac: Pointer to the DMAC that manages this channel, NULL if the
  * 	channel is available to be acquired.
  * @client: Client of this channel. NULL if the
@@ -498,11 +498,12 @@ static void rk29_pl330_rq(struct rk29_pl330_chan *ch,
 	enum rk29_dma_buffresult res;
 
 	spin_lock_irqsave(&res_lock, flags);
-
 	xl = r->x;
-	r->x = NULL;
+	if (!r->infiniteloop) {		
+		r->x = NULL;
 
-	rk29_pl330_submit(ch, r);
+		rk29_pl330_submit(ch, r);
+	}
 
 	spin_unlock_irqrestore(&res_lock, flags);
 
@@ -515,12 +516,20 @@ static void rk29_pl330_rq(struct rk29_pl330_chan *ch,
 		res = RK29_RES_ERR;
 
 	/* If last request had some xfer */
-	if (xl) {
-		xfer = container_of(xl, struct rk29_pl330_xfer, px);
-		_finish_off(xfer, res, 0);
+	if (!r->infiniteloop) {
+		if (xl) {
+			xfer = container_of(xl, struct rk29_pl330_xfer, px);
+			_finish_off(xfer, res, 0);
+		} else {
+			dev_info(ch->dmac->pi->dev, "%s:%d No Xfer?!\n",
+				__func__, __LINE__);
+		}
 	} else {
-		dev_info(ch->dmac->pi->dev, "%s:%d No Xfer?!\n",
-			__func__, __LINE__);
+		/* Do callback */
+
+		xfer = container_of(xl, struct rk29_pl330_xfer, px);
+		if (ch->callback_fn)
+			ch->callback_fn(xfer->token, xfer->px.bytes, res);
 	}
 }
 
@@ -661,9 +670,9 @@ ctrl_exit:
 	return ret;
 }
 EXPORT_SYMBOL(rk29_dma_ctrl);
-
-int rk29_dma_enqueue(enum dma_ch id, void *token,
-			dma_addr_t addr, int size)
+//hhb@rock-chips.com 2012-06-14
+int rk29_dma_enqueue_ring(enum dma_ch id, void *token,
+			dma_addr_t addr, int size, int numofblock, bool sev)
 {
 	struct rk29_pl330_chan *ch;
 	struct rk29_pl330_xfer *xfer;
@@ -711,11 +720,17 @@ int rk29_dma_enqueue(enum dma_ch id, void *token,
 	/* Try submitting on either request */
 	idx = (ch->lrq == &ch->req[0]) ? 1 : 0;
 
-	if (!ch->req[idx].x)
+	if (!ch->req[idx].x) {
+		ch->req[idx].infiniteloop = numofblock;
+		if(numofblock)
+			ch->req[idx].infiniteloop_sev = sev;
 		rk29_pl330_submit(ch, &ch->req[idx]);
-	else
+	} else {
+		ch->req[1 - idx].infiniteloop = numofblock;
+		if(numofblock)
+			ch->req[1 - idx].infiniteloop_sev = sev;
 		rk29_pl330_submit(ch, &ch->req[1 - idx]);
-
+	}
 	spin_unlock_irqrestore(&res_lock, flags);
 
 	if (ch->options & RK29_DMAF_AUTOSTART)
@@ -727,6 +742,13 @@ enq_exit:
 	spin_unlock_irqrestore(&res_lock, flags);
 
 	return ret;
+}
+EXPORT_SYMBOL(rk29_dma_enqueue_ring);
+
+int rk29_dma_enqueue(enum dma_ch id, void *token,
+			dma_addr_t addr, int size)
+{
+	return rk29_dma_enqueue_ring(id, token, addr, size, 0, false);
 }
 EXPORT_SYMBOL(rk29_dma_enqueue);
 
