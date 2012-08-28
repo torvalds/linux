@@ -38,7 +38,6 @@
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/dma.h>
-#include <plat/board.h>
 
 #include <mach/irqs.h>
 

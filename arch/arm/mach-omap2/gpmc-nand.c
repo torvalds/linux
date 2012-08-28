@@ -18,7 +18,6 @@
 
 #include <plat/cpu.h>
 #include <plat/nand.h>
-#include <plat/board.h>
 #include <plat/gpmc.h>
 
 static struct resource gpmc_nand_resource = {

@@ -34,7 +34,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <plat/usb.h>
 #include <plat/mmc.h>

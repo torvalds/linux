@@ -44,8 +44,6 @@
 
 #include <plat/dma.h>
 
-#include <plat/board.h>
-
 #define DRIVER_NAME "omap2-onenand"
 
 #define ONENAND_IO_SIZE		SZ_128K

@@ -42,7 +42,6 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
