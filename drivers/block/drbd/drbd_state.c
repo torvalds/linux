@@ -1834,8 +1834,8 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	}
 	if (rv < SS_SUCCESS && flags & CS_VERBOSE) {
 		conn_err(tconn, "State change failed: %s\n", drbd_set_st_err_str(rv));
-		conn_err(tconn, " state = { cs:%s }\n", drbd_conn_str(oc));
-		conn_err(tconn, "wanted = { cs:%s }\n", drbd_conn_str(val.conn));
+		conn_err(tconn, " mask = 0x%x val = 0x%x\n", mask.i, val.i);
+		conn_err(tconn, " old_conn:%s wanted_conn:%s\n", drbd_conn_str(oc), drbd_conn_str(val.conn));
 	}
 	return rv;
 }
