@@ -5390,6 +5390,7 @@ int drbd_asender(struct drbd_thread *thi)
 	if (0) {
 reconnect:
 		conn_request_state(tconn, NS(conn, C_NETWORK_FAILURE), CS_HARD);
+		conn_md_sync(tconn);
 	}
 	if (0) {
 disconnect:

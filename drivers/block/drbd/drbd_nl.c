@@ -363,22 +363,6 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	return ret;
 }
 
-static void conn_md_sync(struct drbd_tconn *tconn)
-{
-	struct drbd_conf *mdev;
-	int vnr;
-
-	rcu_read_lock();
-	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-		kref_get(&mdev->kref);
-		rcu_read_unlock();
-		drbd_md_sync(mdev);
-		kref_put(&mdev->kref, &drbd_minor_destroy);
-		rcu_read_lock();
-	}
-	rcu_read_unlock();
-}
-
 int conn_khelper(struct drbd_tconn *tconn, char *cmd)
 {
 	char *envp[] = { "HOME=/",

@@ -2820,6 +2820,22 @@ void drbd_free_sock(struct drbd_tconn *tconn)
 
 /* meta data management */
 
+void conn_md_sync(struct drbd_tconn *tconn)
+{
+	struct drbd_conf *mdev;
+	int vnr;
+
+	rcu_read_lock();
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		kref_get(&mdev->kref);
+		rcu_read_unlock();
+		drbd_md_sync(mdev);
+		kref_put(&mdev->kref, &drbd_minor_destroy);
+		rcu_read_lock();
+	}
+	rcu_read_unlock();
+}
+
 struct meta_data_on_disk {
 	u64 la_size;           /* last agreed size. */
 	u64 uuid[UI_SIZE];   /* UUIDs. */
