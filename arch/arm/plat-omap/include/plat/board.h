@@ -14,18 +14,6 @@
 
 #include <plat/gpio-switch.h>
 
-/*
- * OMAP35x EVM revision
- * Run time detection of EVM revision is done by reading Ethernet
- * PHY ID -
- *	GEN_1	= 0x01150000
- *	GEN_2	= 0x92200000
- */
-enum {
-	OMAP3EVM_BOARD_GEN_1 = 0,	/* EVM Rev between  A - D */
-	OMAP3EVM_BOARD_GEN_2,		/* EVM Rev >= Rev E */
-};
-
 /* Different peripheral ids */
 #define OMAP_TAG_CLOCK		0x4f01
 #define OMAP_TAG_GPIO_SWITCH	0x4f06
@@ -125,10 +113,4 @@ extern int omap_board_config_size;
 /* for TI reference platforms sharing the same debug card */
 extern int debug_card_init(u32 addr, unsigned gpio);
 
-/* OMAP3EVM revision */
-#if defined(CONFIG_MACH_OMAP3EVM)
-u8 get_omap3_evm_rev(void);
-#else
-#define get_omap3_evm_rev() (-EINVAL)
-#endif
 #endif
