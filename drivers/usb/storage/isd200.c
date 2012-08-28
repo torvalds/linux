@@ -74,7 +74,7 @@ static int isd200_Initialization(struct us_data *us);
 		    vendorName, productName, useProtocol, useTransport, \
 		    initFunction, flags) \
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
-  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+  .driver_info = (flags) }
 
 static struct usb_device_id isd200_usb_ids[] = {
 #	include "unusual_isd200.h"
@@ -83,7 +83,6 @@ static struct usb_device_id isd200_usb_ids[] = {
 MODULE_DEVICE_TABLE(usb, isd200_usb_ids);
 
 #undef UNUSUAL_DEV
-#undef USUAL_DEV
 
 /*
  * The flags table
@@ -105,8 +104,6 @@ static struct us_unusual_dev isd200_unusual_dev_list[] = {
 };
 
 #undef UNUSUAL_DEV
-#undef USUAL_DEV
-
 
 /* Timeout defines (in Seconds) */
 
