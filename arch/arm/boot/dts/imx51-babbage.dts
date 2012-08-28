@@ -25,8 +25,8 @@
 		aips@70000000 { /* aips-1 */
 			spba@70000000 {
 				esdhc@70004000 { /* ESDHC1 */
-					fsl,cd-internal;
-					fsl,wp-internal;
+					fsl,cd-controller;
+					fsl,wp-controller;
 					status = "okay";
 				};
 
@@ -53,7 +53,7 @@
 						spi-max-frequency = <6000000>;
 						reg = <0>;
 						interrupt-parent = <&gpio1>;
-						interrupts = <8>;
+						interrupts = <8 0x4>;
 
 						regulators {
 							sw1_reg: sw1 {

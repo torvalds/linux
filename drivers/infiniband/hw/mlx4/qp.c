@@ -1407,6 +1407,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	struct mlx4_wqe_mlx_seg *mlx = wqe;
 	struct mlx4_wqe_inline_seg *inl = wqe + sizeof *mlx;
 	struct mlx4_ib_ah *ah = to_mah(wr->wr.ud.ah);
+	struct net_device *ndev;
 	union ib_gid sgid;
 	u16 pkey;
 	int send_size;
@@ -1483,7 +1484,10 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 
 		memcpy(sqp->ud_header.eth.dmac_h, ah->av.eth.mac, 6);
 		/* FIXME: cache smac value? */
-		smac = to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1]->dev_addr;
+		ndev = to_mdev(sqp->qp.ibqp.device)->iboe.netdevs[sqp->qp.port - 1];
+		if (!ndev)
+			return -ENODEV;
+		smac = ndev->dev_addr;
 		memcpy(sqp->ud_header.eth.smac_h, smac, 6);
 		if (!memcmp(sqp->ud_header.eth.smac_h, sqp->ud_header.eth.dmac_h, 6))
 			mlx->flags |= cpu_to_be32(MLX4_WQE_CTRL_FORCE_LOOPBACK);

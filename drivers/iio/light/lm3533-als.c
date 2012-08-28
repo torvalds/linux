@@ -404,7 +404,7 @@ out:
 	return ret;
 }
 
-static int show_thresh_either_en(struct device *dev,
+static ssize_t show_thresh_either_en(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -424,7 +424,7 @@ static int show_thresh_either_en(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", enable);
 }
 
-static int store_thresh_either_en(struct device *dev,
+static ssize_t store_thresh_either_en(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
