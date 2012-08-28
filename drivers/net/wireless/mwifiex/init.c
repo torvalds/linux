@@ -92,6 +92,11 @@ static void scan_delay_timer_fn(unsigned long data)
 			kfree(priv->user_scan_cfg);
 			priv->user_scan_cfg = NULL;
 		}
+
+		if (priv->scan_pending_on_block) {
+			priv->scan_pending_on_block = false;
+			up(&priv->async_sem);
+		}
 		goto done;
 	}
 
