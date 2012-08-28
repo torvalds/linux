@@ -55,6 +55,12 @@ config PINCTRL_IMX6Q
 	help
 	  Say Y here to enable the imx6q pinctrl driver
 
+config PINCTRL_LANTIQ
+	bool
+	depends on LANTIQ
+	select PINMUX
+	select PINCONF
+
 config PINCTRL_PXA3xx
 	bool
 	select PINMUX
@@ -146,6 +152,11 @@ config PINCTRL_COH901
 	  ports of 8 GPIO pins each.
 
 source "drivers/pinctrl/spear/Kconfig"
+
+config PINCTRL_XWAY
+	bool
+	depends on SOC_TYPE_XWAY
+	depends on PINCTRL_LANTIQ
 
 endmenu
 

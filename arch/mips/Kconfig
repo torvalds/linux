@@ -241,6 +241,8 @@ config LANTIQ
 	select HAVE_MACH_CLKDEV
 	select CLKDEV_LOOKUP
 	select USE_OF
+	select PINCTRL
+	select PINCTRL_LANTIQ
 
 config LASAT
 	bool "LASAT Networks platforms"

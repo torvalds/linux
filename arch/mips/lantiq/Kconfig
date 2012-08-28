@@ -2,6 +2,7 @@ if LANTIQ
 
 config SOC_TYPE_XWAY
 	bool
+	select PINCTRL_XWAY
 	default n
 
 choice

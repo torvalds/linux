@@ -1,1 +1,1 @@
-obj-y := prom.o sysctrl.o clk.o reset.o gpio.o dma.o gptu.o
+obj-y := prom.o sysctrl.o clk.o reset.o dma.o gptu.o
