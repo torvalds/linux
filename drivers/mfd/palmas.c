@@ -377,11 +377,11 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 		reg = pdata->pad1;
 		ret = regmap_write(palmas->regmap[slave], addr, reg);
 		if (ret)
-			goto err;
+			goto err_irq;
 	} else {
 		ret = regmap_read(palmas->regmap[slave], addr, &reg);
 		if (ret)
-			goto err;
+			goto err_irq;
 	}
 
 	if (!(reg & PALMAS_PRIMARY_SECONDARY_PAD1_GPIO_0))
@@ -412,11 +412,11 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 		reg = pdata->pad2;
 		ret = regmap_write(palmas->regmap[slave], addr, reg);
 		if (ret)
-			goto err;
+			goto err_irq;
 	} else {
 		ret = regmap_read(palmas->regmap[slave], addr, &reg);
 		if (ret)
-			goto err;
+			goto err_irq;
 	}
 
 	if (!(reg & PALMAS_PRIMARY_SECONDARY_PAD2_GPIO_4))
@@ -439,13 +439,13 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 
 	ret = regmap_write(palmas->regmap[slave], addr, reg);
 	if (ret)
-		goto err;
+		goto err_irq;
 
 	children = kmemdup(palmas_children, sizeof(palmas_children),
 			   GFP_KERNEL);
 	if (!children) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_irq;
 	}
 
 	children[PALMAS_PMIC_ID].platform_data = pdata->pmic_pdata;
@@ -458,12 +458,15 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 	kfree(children);
 
 	if (ret < 0)
-		goto err;
+		goto err_devices;
 
 	return ret;
 
-err:
+err_devices:
 	mfd_remove_devices(palmas->dev);
+err_irq:
+	regmap_del_irq_chip(palmas->irq, palmas->irq_data);
+err:
 	return ret;
 }
 
