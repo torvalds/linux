@@ -120,7 +120,7 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev,
-				 "opcode %d-%d is not permitted\n",
+				 "VF is not privileged to issue opcode %d-%d\n",
 				 opcode, subsystem);
 		} else {
 			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
