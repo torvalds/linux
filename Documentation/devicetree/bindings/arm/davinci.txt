@@ -1,0 +1,9 @@
+Texas Instruments DaVinci Platforms Device Tree Bindings
+--------------------------------------------------------
+
+Generic DaVinci Boards
+----------------------
+
+DA850/OMAP-L138/AM18x generic board
+Required root node properties:
+    - compatible = "ti,da850";
