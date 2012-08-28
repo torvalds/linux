@@ -971,7 +971,6 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	}
 		
 	dev_drv->init_lcdc(dev_drv);
-	dev_drv->cur_screen = dev_drv->screen0;
 	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
 	dev_drv->fb_index_base = fb_inf->num_fb;
