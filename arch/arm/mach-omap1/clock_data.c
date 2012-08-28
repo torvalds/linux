@@ -25,7 +25,6 @@
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/clkdev_omap.h>
-#include <plat/board.h>
 #include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
 
 #include <mach/hardware.h>
@@ -788,7 +787,6 @@ u32 cpu_mask;
 int __init omap1_clk_init(void)
 {
 	struct omap_clk *c;
-	const struct omap_clock_config *info;
 	int crystal_type = 0; /* Default 12 MHz */
 	u32 reg;
 
@@ -836,12 +834,6 @@ int __init omap1_clk_init(void)
 	api_ck_p = clk_get(NULL, "api_ck");
 	ck_dpll1_p = clk_get(NULL, "ck_dpll1");
 	ck_ref_p = clk_get(NULL, "ck_ref");
-
-	info = omap_get_config(OMAP_TAG_CLOCK, struct omap_clock_config);
-	if (info != NULL) {
-		if (!cpu_is_omap15xx())
-			crystal_type = info->system_clock_type;
-	}
 
 	if (cpu_is_omap7xx())
 		ck_ref.rate = 13000000;
