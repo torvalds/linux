@@ -186,6 +186,24 @@ enum drbd_conns conn_lowest_conn(struct drbd_tconn *tconn)
 	return conn;
 }
 
+static bool no_peer_wf_report_params(struct drbd_tconn *tconn)
+{
+	struct drbd_conf *mdev;
+	int vnr;
+	bool rv = true;
+
+	rcu_read_lock();
+	idr_for_each_entry(&tconn->volumes, mdev, vnr)
+		if (mdev->state.conn == C_WF_REPORT_PARAMS) {
+			rv = false;
+			break;
+		}
+	rcu_read_unlock();
+
+	return rv;
+}
+
+
 /**
  * cl_wide_st_chg() - true if the state change is a cluster wide one
  * @mdev:	DRBD device.
@@ -971,6 +989,11 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (os.disk == D_ATTACHING && ns.disk >= D_NEGOTIATING)
 		drbd_print_uuids(mdev, "attached to UUIDs");
 
+	/* Wake up role changes, that were delayed because of connection establishing */
+	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS &&
+	    no_peer_wf_report_params(mdev->tconn))
+		clear_bit(STATE_SENT, &mdev->tconn->flags);
+
 	wake_up(&mdev->misc_wait);
 	wake_up(&mdev->state_wait);
 	wake_up(&mdev->tconn->ping_wait);
@@ -1456,12 +1479,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.conn == C_VERIFY_S && ns.conn == C_CONNECTED
 	&& verify_can_do_stop_sector(mdev))
 		drbd_send_state(mdev, ns);
-
-	/* Wake up role changes, that were delayed because of connection establishing */
-	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS) {
-		if (test_and_clear_bit(STATE_SENT, &mdev->tconn->flags))
-			wake_up(&mdev->state_wait);
-	}
 
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk
