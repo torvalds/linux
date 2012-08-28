@@ -2295,37 +2295,53 @@ static void igb_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	}
 }
 
-#ifdef CONFIG_IGB_PTP
 static int igb_get_ts_info(struct net_device *dev,
-				   struct ethtool_ts_info *info)
+			   struct ethtool_ts_info *info)
 {
 	struct igb_adapter *adapter = netdev_priv(dev);
 
-	info->so_timestamping =
-		SOF_TIMESTAMPING_TX_HARDWARE |
-		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_RAW_HARDWARE;
+	switch (adapter->hw.mac.type) {
+#ifdef CONFIG_IGB_PTP
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
+		info->so_timestamping =
+			SOF_TIMESTAMPING_TX_HARDWARE |
+			SOF_TIMESTAMPING_RX_HARDWARE |
+			SOF_TIMESTAMPING_RAW_HARDWARE;
 
-	if (adapter->ptp_clock)
-		info->phc_index = ptp_clock_index(adapter->ptp_clock);
-	else
-		info->phc_index = -1;
+		if (adapter->ptp_clock)
+			info->phc_index = ptp_clock_index(adapter->ptp_clock);
+		else
+			info->phc_index = -1;
 
-	info->tx_types =
-		(1 << HWTSTAMP_TX_OFF) |
-		(1 << HWTSTAMP_TX_ON);
+		info->tx_types =
+			(1 << HWTSTAMP_TX_OFF) |
+			(1 << HWTSTAMP_TX_ON);
 
-	info->rx_filters =
-		(1 << HWTSTAMP_FILTER_NONE) |
-		(1 << HWTSTAMP_FILTER_ALL) |
-		(1 << HWTSTAMP_FILTER_SOME) |
-		(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
-		(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
-		(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+		info->rx_filters = 1 << HWTSTAMP_FILTER_NONE;
 
-	return 0;
-}
+		/* 82576 does not support timestamping all packets. */
+		if (adapter->hw.mac.type >= e1000_82580)
+			info->rx_filters |= 1 << HWTSTAMP_FILTER_ALL;
+		else
+			info->rx_filters |=
+				(1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+				(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ) |
+				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
+
+		return 0;
 #endif /* CONFIG_IGB_PTP */
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
 static int igb_ethtool_begin(struct net_device *netdev)
 {
@@ -2366,9 +2382,7 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_ethtool_stats      = igb_get_ethtool_stats,
 	.get_coalesce           = igb_get_coalesce,
 	.set_coalesce           = igb_set_coalesce,
-#ifdef CONFIG_IGB_PTP
 	.get_ts_info            = igb_get_ts_info,
-#endif /* CONFIG_IGB_PTP */
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };
