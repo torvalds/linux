@@ -1742,9 +1742,11 @@ _conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_
 	union drbd_state ns_max, ns_min, os;
 	bool have_mutex = false;
 
-	rv = is_valid_conn_transition(oc, val.conn);
-	if (rv < SS_SUCCESS)
-		goto abort;
+	if (mask.conn) {
+		rv = is_valid_conn_transition(oc, val.conn);
+		if (rv < SS_SUCCESS)
+			goto abort;
+	}
 
 	rv = conn_is_valid_transition(tconn, mask, val, flags);
 	if (rv < SS_SUCCESS)
