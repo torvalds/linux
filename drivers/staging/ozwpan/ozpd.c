@@ -746,8 +746,7 @@ int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
  */
 static void oz_isoc_stream_free(struct oz_isoc_stream *st)
 {
-	if (st->skb)
-		kfree_skb(st->skb);
+	kfree_skb(st->skb);
 	kfree(st);
 }
 /*------------------------------------------------------------------------------
