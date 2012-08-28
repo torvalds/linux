@@ -130,16 +130,44 @@ struct palmas_reg_init {
 
 };
 
+enum palmas_regulators {
+	/* SMPS regulators */
+	PALMAS_REG_SMPS12,
+	PALMAS_REG_SMPS123,
+	PALMAS_REG_SMPS3,
+	PALMAS_REG_SMPS45,
+	PALMAS_REG_SMPS457,
+	PALMAS_REG_SMPS6,
+	PALMAS_REG_SMPS7,
+	PALMAS_REG_SMPS8,
+	PALMAS_REG_SMPS9,
+	PALMAS_REG_SMPS10,
+	/* LDO regulators */
+	PALMAS_REG_LDO1,
+	PALMAS_REG_LDO2,
+	PALMAS_REG_LDO3,
+	PALMAS_REG_LDO4,
+	PALMAS_REG_LDO5,
+	PALMAS_REG_LDO6,
+	PALMAS_REG_LDO7,
+	PALMAS_REG_LDO8,
+	PALMAS_REG_LDO9,
+	PALMAS_REG_LDOLN,
+	PALMAS_REG_LDOUSB,
+	/* Total number of regulators */
+	PALMAS_NUM_REGS,
+};
+
 struct palmas_pmic_platform_data {
 	/* An array of pointers to regulator init data indexed by regulator
 	 * ID
 	 */
-	struct regulator_init_data **reg_data;
+	struct regulator_init_data *reg_data[PALMAS_NUM_REGS];
 
 	/* An array of pointers to structures containing sleep mode and DVS
 	 * configuration for regulators indexed by ID
 	 */
-	struct palmas_reg_init **reg_init;
+	struct palmas_reg_init *reg_init[PALMAS_NUM_REGS];
 
 	/* use LDO6 for vibrator control */
 	int ldo6_vibrator;
@@ -289,34 +317,6 @@ enum palmas_irqs {
 	PALMAS_GPIO_7_IRQ,
 	/* Total Number IRQs */
 	PALMAS_NUM_IRQ,
-};
-
-enum palmas_regulators {
-	/* SMPS regulators */
-	PALMAS_REG_SMPS12,
-	PALMAS_REG_SMPS123,
-	PALMAS_REG_SMPS3,
-	PALMAS_REG_SMPS45,
-	PALMAS_REG_SMPS457,
-	PALMAS_REG_SMPS6,
-	PALMAS_REG_SMPS7,
-	PALMAS_REG_SMPS8,
-	PALMAS_REG_SMPS9,
-	PALMAS_REG_SMPS10,
-	/* LDO regulators */
-	PALMAS_REG_LDO1,
-	PALMAS_REG_LDO2,
-	PALMAS_REG_LDO3,
-	PALMAS_REG_LDO4,
-	PALMAS_REG_LDO5,
-	PALMAS_REG_LDO6,
-	PALMAS_REG_LDO7,
-	PALMAS_REG_LDO8,
-	PALMAS_REG_LDO9,
-	PALMAS_REG_LDOLN,
-	PALMAS_REG_LDOUSB,
-	/* Total number of regulators */
-	PALMAS_NUM_REGS,
 };
 
 struct palmas_pmic {
