@@ -932,7 +932,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_G_CROP:
 	case VIDIOC_S_CROP:
-		return -EINVAL;
+		return -ENOTTY;
 
 	/* Buffers & streaming */
 	case VIDIOC_REQBUFS:
@@ -1038,7 +1038,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_ENUMOUTPUT:
 		uvc_trace(UVC_TRACE_IOCTL, "Unsupported ioctl 0x%08x\n", cmd);
-		return -EINVAL;
+		return -ENOTTY;
 
 	case UVCIOC_CTRL_MAP:
 		return uvc_ioctl_ctrl_map(chain, arg);
