@@ -146,6 +146,10 @@
 				label = "NAND Writable User area";
 				reg = <0x1f000000 0x01000000>;
 			};
+			adt7461@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
 		};
 
 		board-control@3,0 {

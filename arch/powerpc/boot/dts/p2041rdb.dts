@@ -94,6 +94,10 @@
 				compatible = "pericom,pt7c4338";
 				reg = <0x68>;
 			};
+			adt7461@4c {
+				compatible = "adi,adt7461";
+				reg = <0x4c>;
+			};
 		};
 
 		i2c@118100 {
