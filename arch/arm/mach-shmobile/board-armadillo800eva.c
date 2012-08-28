@@ -54,6 +54,8 @@
 #include <sound/sh_fsi.h>
 #include <sound/simple_card.h>
 
+#include "sh-gpio.h"
+
 /*
  * CON1		Camera Module
  * CON2		Extension Bus

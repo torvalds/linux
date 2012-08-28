@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/sh_pfc.h>
 
 struct sh_pfc_chip {
 	struct sh_pfc		*pfc;
