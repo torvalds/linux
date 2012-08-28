@@ -236,6 +236,7 @@ static noinline void interface_ctr_reg_pread(void)
 	readl_relaxed(RK2928_GRF_BASE);
 	readl_relaxed(RK2928_DDR_PCTL_BASE);
 	readl_relaxed(RK2928_DDR_PHY_BASE);
+	readl_relaxed(RK2928_GPIO1_BASE);
 	readl_relaxed(RK2928_GPIO3_BASE);
 //	readl_relaxed(RK2928_I2C1_BASE);
 }
