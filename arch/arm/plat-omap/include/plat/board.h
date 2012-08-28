@@ -10,9 +10,4 @@
 #ifndef _OMAP_BOARD_H
 #define _OMAP_BOARD_H
 
-#include <linux/types.h>
-
-/* for TI reference platforms sharing the same debug card */
-extern int debug_card_init(u32 addr, unsigned gpio);
-
 #endif
