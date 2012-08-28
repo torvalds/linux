@@ -1161,6 +1161,34 @@ static struct page **__iommu_get_pages(void *cpu_addr, struct dma_attrs *attrs)
 	return NULL;
 }
 
+static void *__iommu_alloc_atomic(struct device *dev, size_t size,
+				  dma_addr_t *handle)
+{
+	struct page *page;
+	void *addr;
+
+	addr = __alloc_from_pool(size, &page);
+	if (!addr)
+		return NULL;
+
+	*handle = __iommu_create_mapping(dev, &page, size);
+	if (*handle == DMA_ERROR_CODE)
+		goto err_mapping;
+
+	return addr;
+
+err_mapping:
+	__free_from_pool(addr, size);
+	return NULL;
+}
+
+static void __iommu_free_atomic(struct device *dev, struct page **pages,
+				dma_addr_t handle, size_t size)
+{
+	__iommu_remove_mapping(dev, handle, size);
+	__free_from_pool(page_address(pages[0]), size);
+}
+
 static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 	    dma_addr_t *handle, gfp_t gfp, struct dma_attrs *attrs)
 {
@@ -1170,6 +1198,9 @@ static void *arm_iommu_alloc_attrs(struct device *dev, size_t size,
 
 	*handle = DMA_ERROR_CODE;
 	size = PAGE_ALIGN(size);
+
+	if (gfp & GFP_ATOMIC)
+		return __iommu_alloc_atomic(dev, size, handle);
 
 	pages = __iommu_alloc_buffer(dev, size, gfp);
 	if (!pages)
@@ -1234,6 +1265,11 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 
 	if (!pages) {
 		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
+		return;
+	}
+
+	if (__in_atomic_pool(cpu_addr, size)) {
+		__iommu_free_atomic(dev, pages, handle, size);
 		return;
 	}
 
