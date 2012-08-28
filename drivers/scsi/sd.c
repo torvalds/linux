@@ -804,9 +804,8 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		SCpnt->cmnd[0] = WRITE_6;
 		SCpnt->sc_data_direction = DMA_TO_DEVICE;
 
-		if (blk_integrity_rq(rq) &&
-		    sd_dif_prepare(rq, block, sdp->sector_size) == -EIO)
-			goto out;
+		if (blk_integrity_rq(rq))
+			sd_dif_prepare(rq, block, sdp->sector_size);
 
 	} else if (rq_data_dir(rq) == READ) {
 		SCpnt->cmnd[0] = READ_6;
