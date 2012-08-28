@@ -165,17 +165,18 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 			fcc[0], fcc[1], fcc[2], fcc[3],
 			fmt->fmt.pix.width, fmt->fmt.pix.height);
 
-	/* Check if the hardware supports the requested format. */
+	/* Check if the hardware supports the requested format, use the default
+	 * format otherwise.
+	 */
 	for (i = 0; i < stream->nformats; ++i) {
 		format = &stream->format[i];
 		if (format->fcc == fmt->fmt.pix.pixelformat)
 			break;
 	}
 
-	if (format == NULL || format->fcc != fmt->fmt.pix.pixelformat) {
-		uvc_trace(UVC_TRACE_FORMAT, "Unsupported format 0x%08x.\n",
-				fmt->fmt.pix.pixelformat);
-		return -EINVAL;
+	if (i == stream->nformats) {
+		format = stream->def_format;
+		fmt->fmt.pix.pixelformat = format->fcc;
 	}
 
 	/* Find the closest image size. The distance between image sizes is

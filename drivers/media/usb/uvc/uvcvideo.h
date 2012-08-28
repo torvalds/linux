@@ -436,6 +436,7 @@ struct uvc_streaming {
 	struct uvc_format *format;
 
 	struct uvc_streaming_control ctrl;
+	struct uvc_format *def_format;
 	struct uvc_format *cur_format;
 	struct uvc_frame *cur_frame;
 	/* Protect access to ctrl, cur_format, cur_frame and hardware video
