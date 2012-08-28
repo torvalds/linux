@@ -196,6 +196,47 @@ static void scmdev_setup(struct scm_device *scmdev, struct sale *sale,
 	spin_lock_init(&scmdev->lock);
 }
 
+/*
+ * Check for state-changes, notify the driver and userspace.
+ */
+static void scmdev_update(struct scm_device *scmdev, struct sale *sale)
+{
+	struct scm_driver *scmdrv;
+	bool changed;
+
+	device_lock(&scmdev->dev);
+	changed = scmdev->attrs.rank != sale->rank ||
+		  scmdev->attrs.oper_state != sale->op_state;
+	scmdev->attrs.rank = sale->rank;
+	scmdev->attrs.oper_state = sale->op_state;
+	if (!scmdev->dev.driver)
+		goto out;
+	scmdrv = to_scm_drv(scmdev->dev.driver);
+	if (changed && scmdrv->notify)
+		scmdrv->notify(scmdev);
+out:
+	device_unlock(&scmdev->dev);
+	if (changed)
+		kobject_uevent(&scmdev->dev.kobj, KOBJ_CHANGE);
+}
+
+static int check_address(struct device *dev, void *data)
+{
+	struct scm_device *scmdev = to_scm_dev(dev);
+	struct sale *sale = data;
+
+	return scmdev->address == sale->sa;
+}
+
+static struct scm_device *scmdev_find(struct sale *sale)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&scm_bus_type, NULL, sale, check_address);
+
+	return dev ? to_scm_dev(dev) : NULL;
+}
+
 static int scm_add(struct chsc_scm_info *scm_info, size_t num)
 {
 	struct sale *sale, *scmal = scm_info->scmal;
@@ -203,6 +244,13 @@ static int scm_add(struct chsc_scm_info *scm_info, size_t num)
 	int ret;
 
 	for (sale = scmal; sale < scmal + num; sale++) {
+		scmdev = scmdev_find(sale);
+		if (scmdev) {
+			scmdev_update(scmdev, sale);
+			/* Release reference from scm_find(). */
+			put_device(&scmdev->dev);
+			continue;
+		}
 		scmdev = kzalloc(sizeof(*scmdev), GFP_KERNEL);
 		if (!scmdev)
 			return -ENODEV;
@@ -218,7 +266,7 @@ static int scm_add(struct chsc_scm_info *scm_info, size_t num)
 	return 0;
 }
 
-static int scm_update_information(void)
+int scm_update_information(void)
 {
 	struct chsc_scm_info *scm_info;
 	u64 token = 0;
