@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
+#include <asm/css_chars.h>
 #include <asm/chpid.h>
 #include <asm/chsc.h>
 #include <asm/schid.h>

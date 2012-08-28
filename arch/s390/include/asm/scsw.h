@@ -9,7 +9,7 @@
 #define _ASM_S390_SCSW_H_
 
 #include <linux/types.h>
-#include <asm/chsc.h>
+#include <asm/css_chars.h>
 #include <asm/cio.h>
 
 /**
