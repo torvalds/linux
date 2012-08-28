@@ -1340,22 +1340,8 @@ static void ap_scan_bus(struct work_struct *unused)
 			    (unsigned long) ap_dev);
 		switch (device_type) {
 		case 0:
+			/* device type probing for old cards */
 			if (ap_probe_device_type(ap_dev)) {
-				kfree(ap_dev);
-				continue;
-			}
-			break;
-		case 10:
-			if (ap_query_functions(qid, &device_functions)) {
-				kfree(ap_dev);
-				continue;
-			}
-			ap_dev->functions = device_functions;
-			if (ap_test_bit(&device_functions, 3))
-				ap_dev->device_type = AP_DEVICE_TYPE_CEX3C;
-			else if (ap_test_bit(&device_functions, 4))
-				ap_dev->device_type = AP_DEVICE_TYPE_CEX3A;
-			else {
 				kfree(ap_dev);
 				continue;
 			}
@@ -1363,6 +1349,12 @@ static void ap_scan_bus(struct work_struct *unused)
 		default:
 			ap_dev->device_type = device_type;
 		}
+
+		rc = ap_query_functions(qid, &device_functions);
+		if (!rc)
+			ap_dev->functions = device_functions;
+		else
+			ap_dev->functions = 0u;
 
 		ap_dev->device.bus = &ap_bus_type;
 		ap_dev->device.parent = ap_root_device;
