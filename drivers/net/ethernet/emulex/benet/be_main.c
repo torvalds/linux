@@ -3438,6 +3438,7 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 	if (mem->va)
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
+	kfree(adapter->pmac_id);
 }
 
 static int be_ctrl_init(struct be_adapter *adapter)
@@ -3473,6 +3474,12 @@ static int be_ctrl_init(struct be_adapter *adapter)
 		goto free_mbox;
 	}
 	memset(rx_filter->va, 0, rx_filter->size);
+
+	/* primary mac needs 1 pmac entry */
+	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
+				   sizeof(*adapter->pmac_id), GFP_KERNEL);
+	if (!adapter->pmac_id)
+		return -ENOMEM;
 
 	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
@@ -3609,12 +3616,6 @@ static int be_get_initial_config(struct be_adapter *adapter)
 		adapter->max_pmac_cnt = BE_UC_PMAC_COUNT;
 	else
 		adapter->max_pmac_cnt = BE_VF_UC_PMAC_COUNT;
-
-	/* primary mac needs 1 pmac entry */
-	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
-				  sizeof(u32), GFP_KERNEL);
-	if (!adapter->pmac_id)
-		return -ENOMEM;
 
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
