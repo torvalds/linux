@@ -565,12 +565,14 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		usb_make_path(stream->dev->udev,
 			      cap->bus_info, sizeof(cap->bus_info));
 		cap->version = LINUX_VERSION_CODE;
+		cap->capabilities = V4L2_CAP_DEVICE_CAPS | V4L2_CAP_STREAMING
+				  | chain->caps;
 		if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
-					  | V4L2_CAP_STREAMING;
+			cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
+					 | V4L2_CAP_STREAMING;
 		else
-			cap->capabilities = V4L2_CAP_VIDEO_OUTPUT
-					  | V4L2_CAP_STREAMING;
+			cap->device_caps = V4L2_CAP_VIDEO_OUTPUT
+					 | V4L2_CAP_STREAMING;
 		break;
 	}
 

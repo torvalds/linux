@@ -1741,6 +1741,11 @@ static int uvc_register_video(struct uvc_device *dev,
 		return ret;
 	}
 
+	if (stream->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		stream->chain->caps |= V4L2_CAP_VIDEO_CAPTURE;
+	else
+		stream->chain->caps |= V4L2_CAP_VIDEO_OUTPUT;
+
 	atomic_inc(&dev->nstreams);
 	return 0;
 }

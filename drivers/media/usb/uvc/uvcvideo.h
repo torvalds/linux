@@ -371,6 +371,8 @@ struct uvc_video_chain {
 	struct uvc_entity *selector;		/* Selector unit */
 
 	struct mutex ctrl_mutex;		/* Protects ctrl.info */
+
+	u32 caps;				/* V4L2 chain-wide caps */
 };
 
 struct uvc_stats_frame {
