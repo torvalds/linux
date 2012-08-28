@@ -894,7 +894,7 @@ static int g2d_resume(struct device *dev)
 }
 #endif
 
-SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
+static SIMPLE_DEV_PM_OPS(g2d_pm_ops, g2d_suspend, g2d_resume);
 
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
