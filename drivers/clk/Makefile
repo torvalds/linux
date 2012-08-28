@@ -19,3 +19,4 @@ obj-$(CONFIG_ARCH_U8500)	+= ux500/
 
 # Chip specific
 obj-$(CONFIG_COMMON_CLK_WM831X) += clk-wm831x.o
+obj-$(CONFIG_COMMON_CLK_MAX77686) += clk-max77686.o
