@@ -80,7 +80,7 @@ void hdmi_sys_remove(void)
 	memset(&hdmi->edid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	hdmi->display	= HDMI_DISABLE;
-	rk_fb_switch_screen(hdmi->lcdc->screen, 0, HDMI_SOURCE_DEFAULT);
+	rk_fb_switch_screen(hdmi->lcdc->screen1, 0, HDMI_SOURCE_DEFAULT);
 	kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switch_hdmi), 0);

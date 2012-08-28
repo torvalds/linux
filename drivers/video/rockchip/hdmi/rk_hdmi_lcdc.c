@@ -493,19 +493,21 @@ const char *hdmi_get_video_mode_name(unsigned char vic)
 int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 {
 	int rc = 0;
-
+	rk_screen *screen;
+	
+	
+	screen =  kzalloc(sizeof(struct rk29fb_screen), GFP_KERNEL);
+	if(screen == NULL)
+		return -1;
+	
 	if(hdmi->vic == 0)
 		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
 		
-	if(hdmi->lcdc == NULL || hdmi->lcdc->screen == NULL) {
-		dev_err(hdmi->dev, "lcdc %d not exist\n", HDMI_SOURCE_DEFAULT);
-		return -1;
-	}
 
-	rc = hdmi_set_info(hdmi->lcdc->screen, hdmi->vic);
+	rc = hdmi_set_info(screen, hdmi->vic);
 
 	if(rc == 0) {		
-		rk_fb_switch_screen(hdmi->lcdc->screen, 1, HDMI_SOURCE_DEFAULT);
+		rk_fb_switch_screen(screen, 1, HDMI_SOURCE_DEFAULT);
 		rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, HDMI_SOURCE_DEFAULT);
 	}
 	return rc;
