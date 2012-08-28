@@ -576,6 +576,19 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		break;
 	}
 
+	/* Priority */
+	case VIDIOC_G_PRIORITY:
+		*(u32 *)arg = v4l2_prio_max(vdev->prio);
+		break;
+
+	case VIDIOC_S_PRIORITY:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
+		return v4l2_prio_change(vdev->prio, &handle->vfh.prio,
+					*(u32 *)arg);
+
 	/* Get, Set & Query control */
 	case VIDIOC_QUERYCTRL:
 		return uvc_query_v4l2_ctrl(chain, arg);
@@ -605,6 +618,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_control *ctrl = arg;
 		struct v4l2_ext_control xctrl;
+
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
 
 		memset(&xctrl, 0, sizeof xctrl);
 		xctrl.id = ctrl->id;
@@ -653,6 +670,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_S_EXT_CTRLS:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+		/* Fall through */
 	case VIDIOC_TRY_EXT_CTRLS:
 	{
 		struct v4l2_ext_controls *ctrls = arg;
@@ -747,6 +768,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		u32 input = *(u32 *)arg + 1;
 
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -800,6 +825,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_S_FMT:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -902,6 +931,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return uvc_v4l2_get_streamparm(stream, arg);
 
 	case VIDIOC_S_PARM:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -936,6 +969,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	/* Buffers & streaming */
 	case VIDIOC_REQBUFS:
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if ((ret = uvc_acquire_privileges(handle)) < 0)
 			return ret;
 
@@ -981,6 +1018,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (*type != stream->type)
 			return -EINVAL;
 
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
+
 		if (!uvc_has_privileges(handle))
 			return -EBUSY;
 
@@ -998,6 +1039,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		if (*type != stream->type)
 			return -EINVAL;
+
+		ret = v4l2_prio_check(vdev->prio, handle->vfh.prio);
+		if (ret < 0)
+			return ret;
 
 		if (!uvc_has_privileges(handle))
 			return -EBUSY;
