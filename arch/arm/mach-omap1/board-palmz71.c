@@ -40,7 +40,6 @@
 #include <plat/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
-#include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
 
