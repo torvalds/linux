@@ -2645,8 +2645,8 @@ static int be_vf_setup(struct be_adapter *adapter)
 	}
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
-						  NULL, vf + 1);
+		lnk_speed = 1000;
+		status = be_cmd_set_qos(adapter, lnk_speed, vf + 1);
 		if (status)
 			goto err;
 		vf_cfg->tx_rate = lnk_speed * 10;
