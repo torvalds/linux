@@ -98,9 +98,15 @@ EXPORT_SYMBOL_HDA(snd_hda_delete_codec_preset);
 static void hda_power_work(struct work_struct *work);
 static void hda_keep_power_on(struct hda_codec *codec);
 #define hda_codec_is_power_on(codec)	((codec)->power_on)
+static inline void hda_call_pm_notify(struct hda_bus *bus, bool power_up)
+{
+	if (bus->ops.pm_notify)
+		bus->ops.pm_notify(bus, power_up);
+}
 #else
 static inline void hda_keep_power_on(struct hda_codec *codec) {}
 #define hda_codec_is_power_on(codec)	1
+#define hda_call_pm_notify(bus, state) {}
 #endif
 
 /**
@@ -1199,6 +1205,10 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	if (codec->power_on)
+		hda_call_pm_notify(codec->bus, false);
+#endif
 	module_put(codec->owner);
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
@@ -1271,6 +1281,7 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	 * phase.
 	 */
 	hda_keep_power_on(codec);
+	hda_call_pm_notify(bus, true);
 #endif
 
 	if (codec->bus->modelname) {
@@ -3576,7 +3587,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	if ((power_state == AC_PWRST_D3)
+	if (!codec->bus->power_keep_link_on && power_state == AC_PWRST_D3
 		&& codec->d3_stop_clk && (state & AC_PWRST_CLK_STOP_OK))
 		codec->d3_stop_clk_ok = 1;
 #endif
@@ -4430,8 +4441,8 @@ static void hda_power_work(struct work_struct *work)
 	spin_unlock(&codec->power_lock);
 
 	hda_call_codec_suspend(codec);
-	if (bus->ops.pm_notify)
-		bus->ops.pm_notify(bus, codec);
+	if (codec->d3_stop_clk_ok)
+		hda_call_pm_notify(bus, false);
 }
 
 static void hda_keep_power_on(struct hda_codec *codec)
@@ -4488,8 +4499,8 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 	codec->power_transition = 1; /* avoid reentrance */
 	spin_unlock(&codec->power_lock);
 
-	if (bus->ops.pm_notify)
-		bus->ops.pm_notify(bus, codec);
+	if (codec->d3_stop_clk_ok) /* flag set at suspend */
+		hda_call_pm_notify(bus, true);
 	hda_call_codec_resume(codec);
 
 	spin_lock(&codec->power_lock);

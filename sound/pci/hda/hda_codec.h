@@ -616,7 +616,7 @@ struct hda_bus_ops {
 	void (*bus_reset)(struct hda_bus *bus);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* notify power-up/down from codec to controller */
-	void (*pm_notify)(struct hda_bus *bus, struct hda_codec *codec);
+	void (*pm_notify)(struct hda_bus *bus, bool power_up);
 #endif
 };
 
