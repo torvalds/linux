@@ -2723,6 +2723,8 @@ static int be_get_config(struct be_adapter *adapter)
 	if (pos) {
 		pci_read_config_word(adapter->pdev, pos + PCI_SRIOV_TOTAL_VF,
 				     &dev_num_vfs);
+		if (!lancer_chip(adapter))
+			dev_num_vfs = min_t(u16, dev_num_vfs, MAX_VFS);
 		adapter->dev_num_vfs = dev_num_vfs;
 	}
 	return 0;
