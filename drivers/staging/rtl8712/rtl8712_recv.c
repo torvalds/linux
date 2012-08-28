@@ -374,6 +374,8 @@ static int amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 		a_len -= ETH_HLEN;
 		/* Allocate new skb for releasing to upper layer */
 		sub_skb = dev_alloc_skb(nSubframe_Length + 12);
+		if (!sub_skb)
+			break;
 		skb_reserve(sub_skb, 12);
 		data_ptr = (u8 *)skb_put(sub_skb, nSubframe_Length);
 		memcpy(data_ptr, pdata, nSubframe_Length);
@@ -1094,6 +1096,8 @@ static int recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
 		} else {
 			precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
+			if (!precvframe->u.hdr.pkt)
+				return _FAIL;
 			precvframe->u.hdr.rx_head = pbuf;
 			precvframe->u.hdr.rx_data = pbuf;
 			precvframe->u.hdr.rx_tail = pbuf;
