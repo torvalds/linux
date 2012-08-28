@@ -39,7 +39,7 @@
 
 static int dbg_thresd = 0;
 module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
-#define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
+#define DBG(level,x...) do { if(unlikely(dbg_thresd >= level)) printk(KERN_INFO x); } while (0)
 
 
 static int rk30_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
@@ -1070,7 +1070,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fb_get_layer           = rk30_fb_get_layer,
 	.fb_layer_remap         = rk30_fb_layer_remap,
 	.set_dsp_lut            = rk30_set_dsp_lut,
-	.read_dsp_lut            = rk30_read_dsp_lut,
+	.read_dsp_lut           = rk30_read_dsp_lut,
 };
 #ifdef CONFIG_PM
 static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
