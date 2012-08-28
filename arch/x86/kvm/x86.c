@@ -6445,6 +6445,14 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
 	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
 	spin_unlock(&kvm->mmu_lock);
+	/*
+	 * If memory slot is created, or moved, we need to clear all
+	 * mmio sptes.
+	 */
+	if (npages && old.base_gfn != mem->guest_phys_addr >> PAGE_SHIFT) {
+		kvm_mmu_zap_all(kvm);
+		kvm_reload_remote_mmus(kvm);
+	}
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)

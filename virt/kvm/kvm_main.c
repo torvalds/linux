@@ -849,13 +849,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	kvm_arch_commit_memory_region(kvm, mem, old, user_alloc);
 
-	/*
-	 * If the new memory slot is created, we need to clear all
-	 * mmio sptes.
-	 */
-	if (npages && old.base_gfn != mem->guest_phys_addr >> PAGE_SHIFT)
-		kvm_arch_flush_shadow_all(kvm);
-
 	kvm_free_physmem_slot(&old, &new);
 	kfree(old_memslots);
 
