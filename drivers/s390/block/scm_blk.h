@@ -22,6 +22,9 @@ struct scm_blk_dev {
 	spinlock_t lock;	/* guard the rest of the blockdev */
 	atomic_t queued_reqs;
 	struct list_head finished_requests;
+#ifdef CONFIG_SCM_BLOCK_CLUSTER_WRITE
+	struct list_head cluster_list;
+#endif
 };
 
 struct scm_request {
@@ -32,6 +35,13 @@ struct scm_request {
 	struct list_head list;
 	u8 retries;
 	int error;
+#ifdef CONFIG_SCM_BLOCK_CLUSTER_WRITE
+	struct {
+		enum {CLUSTER_NONE, CLUSTER_READ, CLUSTER_WRITE} state;
+		struct list_head list;
+		void **buf;
+	} cluster;
+#endif
 };
 
 #define to_aobrq(rq) container_of((void *) rq, struct aob_rq_header, data)
@@ -40,9 +50,37 @@ int scm_blk_dev_setup(struct scm_blk_dev *, struct scm_device *);
 void scm_blk_dev_cleanup(struct scm_blk_dev *);
 void scm_blk_irq(struct scm_device *, void *, int);
 
+void scm_request_finish(struct scm_request *);
+void scm_request_requeue(struct scm_request *);
+
 int scm_drv_init(void);
 void scm_drv_cleanup(void);
 
+#ifdef CONFIG_SCM_BLOCK_CLUSTER_WRITE
+void __scm_free_rq_cluster(struct scm_request *);
+int __scm_alloc_rq_cluster(struct scm_request *);
+void scm_request_cluster_init(struct scm_request *);
+bool scm_reserve_cluster(struct scm_request *);
+void scm_release_cluster(struct scm_request *);
+void scm_blk_dev_cluster_setup(struct scm_blk_dev *);
+bool scm_need_cluster_request(struct scm_request *);
+void scm_initiate_cluster_request(struct scm_request *);
+void scm_cluster_request_irq(struct scm_request *);
+bool scm_test_cluster_request(struct scm_request *);
+bool scm_cluster_size_valid(void);
+#else
+#define __scm_free_rq_cluster(scmrq) {}
+#define __scm_alloc_rq_cluster(scmrq) 0
+#define scm_request_cluster_init(scmrq) {}
+#define scm_reserve_cluster(scmrq) true
+#define scm_release_cluster(scmrq) {}
+#define scm_blk_dev_cluster_setup(bdev) {}
+#define scm_need_cluster_request(scmrq) false
+#define scm_initiate_cluster_request(scmrq) {}
+#define scm_cluster_request_irq(scmrq) {}
+#define scm_test_cluster_request(scmrq) false
+#define scm_cluster_size_valid() true
+#endif
 
 extern debug_info_t *scm_debug;
 

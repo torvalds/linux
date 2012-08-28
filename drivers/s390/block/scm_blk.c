@@ -37,6 +37,7 @@ static void __scm_free_rq(struct scm_request *scmrq)
 
 	free_page((unsigned long) scmrq->aob);
 	free_page((unsigned long) scmrq->aidaw);
+	__scm_free_rq_cluster(scmrq);
 	kfree(aobrq);
 }
 
@@ -70,6 +71,12 @@ static int __scm_alloc_rq(void)
 		__scm_free_rq(scmrq);
 		return -ENOMEM;
 	}
+
+	if (__scm_alloc_rq_cluster(scmrq)) {
+		__scm_free_rq(scmrq);
+		return -ENOMEM;
+	}
+
 	INIT_LIST_HEAD(&scmrq->list);
 	spin_lock_irq(&list_lock);
 	list_add(&scmrq->list, &inactive_requests);
@@ -170,6 +177,7 @@ static inline void scm_request_init(struct scm_blk_dev *bdev,
 	scmrq->bdev = bdev;
 	scmrq->retries = 4;
 	scmrq->error = 0;
+	scm_request_cluster_init(scmrq);
 }
 
 static void scm_ensure_queue_restart(struct scm_blk_dev *bdev)
@@ -181,17 +189,19 @@ static void scm_ensure_queue_restart(struct scm_blk_dev *bdev)
 	blk_delay_queue(bdev->rq, SCM_QUEUE_DELAY);
 }
 
-static void scm_request_requeue(struct scm_request *scmrq)
+void scm_request_requeue(struct scm_request *scmrq)
 {
 	struct scm_blk_dev *bdev = scmrq->bdev;
 
+	scm_release_cluster(scmrq);
 	blk_requeue_request(bdev->rq, scmrq->request);
 	scm_request_done(scmrq);
 	scm_ensure_queue_restart(bdev);
 }
 
-static void scm_request_finish(struct scm_request *scmrq)
+void scm_request_finish(struct scm_request *scmrq)
 {
+	scm_release_cluster(scmrq);
 	blk_end_request_all(scmrq->request, scmrq->error);
 	scm_request_done(scmrq);
 }
@@ -215,6 +225,16 @@ static void scm_blk_request(struct request_queue *rq)
 			return;
 		}
 		scm_request_init(bdev, scmrq, req);
+		if (!scm_reserve_cluster(scmrq)) {
+			SCM_LOG(5, "cluster busy");
+			scm_request_done(scmrq);
+			return;
+		}
+		if (scm_need_cluster_request(scmrq)) {
+			blk_start_request(req);
+			scm_initiate_cluster_request(scmrq);
+			return;
+		}
 		scm_request_prepare(scmrq);
 		blk_start_request(req);
 
@@ -282,6 +302,13 @@ static void scm_blk_tasklet(struct scm_blk_dev *bdev)
 			spin_lock_irqsave(&bdev->lock, flags);
 			continue;
 		}
+
+		if (scm_test_cluster_request(scmrq)) {
+			scm_cluster_request_irq(scmrq);
+			spin_lock_irqsave(&bdev->lock, flags);
+			continue;
+		}
+
 		scm_request_finish(scmrq);
 		atomic_dec(&bdev->queued_reqs);
 		spin_lock_irqsave(&bdev->lock, flags);
@@ -325,6 +352,7 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	blk_queue_max_hw_sectors(rq, nr_max_blk << 3); /* 8 * 512 = blk_size */
 	blk_queue_max_segments(rq, nr_max_blk);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, rq);
+	scm_blk_dev_cluster_setup(bdev);
 
 	bdev->gendisk = alloc_disk(SCM_NR_PARTS);
 	if (!bdev->gendisk)
@@ -370,7 +398,10 @@ void scm_blk_dev_cleanup(struct scm_blk_dev *bdev)
 
 static int __init scm_blk_init(void)
 {
-	int ret;
+	int ret = -EINVAL;
+
+	if (!scm_cluster_size_valid())
+		goto out;
 
 	ret = register_blkdev(0, "scm");
 	if (ret < 0)
