@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/palmas.h>
+#include <linux/of_platform.h>
 
 enum palmas_ids {
 	PALMAS_PMIC_ID,
@@ -246,17 +247,56 @@ static struct regmap_irq_chip palmas_irq_chip = {
 			PALMAS_INT1_MASK),
 };
 
+static void __devinit palmas_dt_to_pdata(struct device_node *node,
+		struct palmas_platform_data *pdata)
+{
+	int ret;
+	u32 prop;
+
+	ret = of_property_read_u32(node, "ti,mux_pad1", &prop);
+	if (!ret) {
+		pdata->mux_from_pdata = 1;
+		pdata->pad1 = prop;
+	}
+
+	ret = of_property_read_u32(node, "ti,mux_pad2", &prop);
+	if (!ret) {
+		pdata->mux_from_pdata = 1;
+		pdata->pad2 = prop;
+	}
+
+	/* The default for this register is all masked */
+	ret = of_property_read_u32(node, "ti,power_ctrl", &prop);
+	if (!ret)
+		pdata->power_ctrl = prop;
+	else
+		pdata->power_ctrl = PALMAS_POWER_CTRL_NSLEEP_MASK |
+					PALMAS_POWER_CTRL_ENABLE1_MASK |
+					PALMAS_POWER_CTRL_ENABLE2_MASK;
+}
+
 static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct palmas *palmas;
 	struct palmas_platform_data *pdata;
+	struct device_node *node = i2c->dev.of_node;
 	int ret = 0, i;
 	unsigned int reg, addr;
 	int slave;
 	struct mfd_cell *children;
 
 	pdata = dev_get_platdata(&i2c->dev);
+
+	if (node && !pdata) {
+		pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
+
+		if (!pdata)
+			return -ENOMEM;
+
+		palmas_dt_to_pdata(node, pdata);
+	}
+
 	if (!pdata)
 		return -EINVAL;
 
@@ -378,6 +418,18 @@ static int __devinit palmas_i2c_probe(struct i2c_client *i2c,
 	ret = regmap_write(palmas->regmap[slave], addr, reg);
 	if (ret)
 		goto err_irq;
+
+	/*
+	 * If we are probing with DT do this the DT way and return here
+	 * otherwise continue and add devices using mfd helpers.
+	 */
+	if (node) {
+		ret = of_platform_populate(node, NULL, NULL, &i2c->dev);
+		if (ret < 0)
+			goto err_irq;
+		else
+			return ret;
+	}
 
 	children = kmemdup(palmas_children, sizeof(palmas_children),
 			   GFP_KERNEL);
