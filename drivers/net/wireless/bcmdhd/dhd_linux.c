@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 351203 2012-08-17 06:23:09Z $
+ * $Id: dhd_linux.c 352803 2012-08-24 00:25:26Z $
  */
 
 #include <typedefs.h>
@@ -382,8 +382,8 @@ module_param(dhd_console_ms, uint, 0644);
 uint dhd_slpauto = TRUE;
 module_param(dhd_slpauto, uint, 0);
 
-/* ARP offload agent mode : Enable ARP Host Auto-Reply and ARP Peer Auto-Reply */
-uint dhd_arp_mode = 0xb;
+/* ARP offload agent mode : Enable ARP Peer Auto-Reply */
+uint dhd_arp_mode = ARP_OL_AGENT | ARP_OL_PEER_AUTO_REPLY;
 module_param(dhd_arp_mode, uint, 0);
 
 /* ARP offload enable */
@@ -3531,6 +3531,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(eventmask, WLC_E_SET_SSID);
 	setbit(eventmask, WLC_E_PRUNE);
 	setbit(eventmask, WLC_E_AUTH);
+	setbit(eventmask, WLC_E_ASSOC);
 	setbit(eventmask, WLC_E_REASSOC);
 	setbit(eventmask, WLC_E_REASSOC_IND);
 	setbit(eventmask, WLC_E_DEAUTH);
@@ -4738,6 +4739,13 @@ dhd_dev_reset(struct net_device *dev, uint8 flag)
 	int ret;
 
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+
+	if (flag == TRUE) {
+		/* Issue wl down command before resetting the chip */
+		if (dhd_wl_ioctl_cmd(&dhd->pub, WLC_DOWN, NULL, 0, TRUE, 0) < 0) {
+			DHD_TRACE(("%s: wl down failed\n", __FUNCTION__));
+		}
+	}
 
 	ret = dhd_bus_devreset(&dhd->pub, flag);
 	if (ret) {

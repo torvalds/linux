@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.c 351262 2012-08-17 12:15:01Z $
+ * $Id: wl_cfg80211.c 352999 2012-08-24 13:01:09Z $
  */
 
 #include <typedefs.h>
@@ -72,8 +72,6 @@ u32 wl_dbg_level = WL_DBG_ERR;
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAX_WAIT_TIME 1500
-#define WL_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
-#define WL_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
 
 #ifdef VSDB
 /* sleep time to keep STA's connecting or connection for continuous af tx or finding a peer */
@@ -1233,7 +1231,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 	chanspec_t chspec;
 	struct wl_priv *wl = wiphy_priv(wiphy);
 
-	WL_DBG(("Enter \n"));
+	WL_DBG(("Enter type %d\n", type));
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_WDS:
@@ -1301,7 +1299,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 			return -EINVAL;
 		}
 	} else {
-		WL_ERR(("INVALID:change_virtual_iface for transition from GO/AP to client/STA"));
+		WL_DBG(("Change_virtual_iface for transition from GO/AP to client/STA"));
 	}
 
 	ndev->ieee80211_ptr->iftype = type;
@@ -1505,8 +1503,8 @@ static void wl_scan_prep(struct wl_scan_params *params, struct cfg80211_scan_req
 	params->bss_type = DOT11_BSSTYPE_ANY;
 	params->scan_type = 0;
 	params->nprobes = -1;
-	params->active_time = -1;
-	params->passive_time = -1;
+	params->active_time = DHD_SCAN_ACTIVE_TIME;
+	params->passive_time = DHD_SCAN_PASSIVE_TIME;
 	params->home_time = -1;
 	params->channel_num = 0;
 	memset(&params->ssid, 0, sizeof(wlc_ssid_t));
@@ -2729,12 +2727,12 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	/* increate dwell time to receive probe response or detect Beacon
 	* from target AP at a noisy air only during connect command
 	*/
-	ext_join_params->scan.active_time = WL_SCAN_ACTIVE_TIME*8;
-	ext_join_params->scan.passive_time = WL_SCAN_PASSIVE_TIME*3;
+	ext_join_params->scan.active_time = DHD_SCAN_ACTIVE_TIME*8;
+	ext_join_params->scan.passive_time = DHD_SCAN_PASSIVE_TIME*3;
 	/* Set up join scan parameters */
 	ext_join_params->scan.scan_type = -1;
 	ext_join_params->scan.nprobes
-		= (ext_join_params->scan.active_time/(WL_SCAN_ACTIVE_TIME / 2));
+		= (ext_join_params->scan.active_time/(DHD_SCAN_ACTIVE_TIME / 2));
 	ext_join_params->scan.home_time = -1;
 
 	if (sme->bssid)
@@ -5200,6 +5198,50 @@ exit:
 }
 
 static s32
+wl_cfg80211_del_station(
+	struct wiphy *wiphy,
+	struct net_device *ndev,
+	u8* mac_addr)
+{
+	struct net_device *dev;
+	struct wl_priv *wl = wiphy_priv(wiphy);
+	scb_val_t scb_val;
+	s8 eabuf[ETHER_ADDR_STR_LEN];
+
+	WL_DBG(("Entry\n"));
+	if (mac_addr == NULL) {
+		WL_DBG(("mac_addr is NULL ignore it\n"));
+		return 0;
+	}
+
+	if (ndev == wl->p2p_net) {
+		dev = wl_to_prmry_ndev(wl);
+	} else {
+		dev = ndev;
+	}
+
+	if (p2p_is_on(wl)) {
+		/* Suspend P2P discovery search-listen to prevent it from changing the
+		 * channel.
+		 */
+		if ((wl_cfgp2p_discover_enable_search(wl, false)) < 0) {
+			WL_ERR(("Can not disable discovery mode\n"));
+			return -EFAULT;
+		}
+	}
+
+	memcpy(scb_val.ea.octet, mac_addr, ETHER_ADDR_LEN);
+	scb_val.val = DOT11_RC_DEAUTH_LEAVING;
+	wldev_ioctl(dev, WLC_SCB_DEAUTHENTICATE_FOR_REASON, &scb_val,
+		sizeof(scb_val_t), true);
+	WL_DBG(("Disconnect STA : %s scb_val.val %d\n",
+		bcm_ether_ntoa((const struct ether_addr *)mac_addr, eabuf),
+		scb_val.val));
+	wl_delay(400);
+	return 0;
+}
+
+static s32
 wl_cfg80211_change_beacon(
 	struct wiphy *wiphy,
 	struct net_device *dev,
@@ -5405,6 +5447,7 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.change_beacon = wl_cfg80211_change_beacon,
 	.start_ap = wl_cfg80211_start_ap,
 	.stop_ap = wl_cfg80211_stop_ap,
+	.del_station = wl_cfg80211_del_station,
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0) */
 };
 
@@ -5466,12 +5509,27 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 		WIPHY_FLAG_SUPPORTS_SEPARATE_DEFAULT_KEYS |
 #endif
 		WIPHY_FLAG_4ADDR_STATION;
+	/*  If driver advertises FW_ROAM, the supplicant wouldn't
+	 * send the BSSID & Freq in the connect command allowing the
+	 * the driver to choose the AP to connect to. But unless we
+	 * support ROAM_CACHE in firware this will delay the ASSOC as
+	 * as the FW need to do a full scan before attempting to connect
+	 * So that feature will just increase assoc. The better approach
+	 * to let Supplicant to provide channel info and FW letter may roam
+	 * if needed so DON'T advertise that featur eto Supplicant.
+	 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
 	/* wdev->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM; */
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0)
 	wdev->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 		WIPHY_FLAG_OFFCHAN_TX;
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+	/* From 3.4 kernel ownards AP_SME flag can be advertised
+	 * to remove the patch from supplicant
+	 */
+	wdev->wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME;
 #endif
 	WL_DBG(("Registering custom regulatory)\n"));
 	wdev->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
@@ -5606,11 +5664,8 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 			notif_bss_info->frame_len));
 
 	signal = notif_bss_info->rssi * 100;
-
-
 	if (!mgmt->u.probe_resp.timestamp) {
 		struct timespec ts;
-
 		get_monotonic_boottime(&ts);
 		mgmt->u.probe_resp.timestamp = ((u64)ts.tv_sec * 1000000)
 						+ ts.tv_nsec / 1000;
@@ -6226,7 +6281,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 			conn_info->req_ie_len,
 			conn_info->resp_ie,
 			conn_info->resp_ie_len,
-			completed ? WLAN_STATUS_SUCCESS : WLAN_STATUS_AUTH_TIMEOUT,
+			completed ? WLAN_STATUS_SUCCESS : e->reason,
 			GFP_KERNEL);
 		if (completed)
 			WL_INFO(("Report connect result - connection succeeded\n"));
