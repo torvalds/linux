@@ -418,8 +418,8 @@ config MACH_EXYNOS5_DT
 	select USE_OF
 	select ARM_AMBA
 	help
-	  Machine support for Samsung Exynos4 machine with device tree enabled.
-	  Select this if a fdt blob is available for the EXYNOS4 SoC based board.
+	  Machine support for Samsung EXYNOS5 machine with device tree enabled.
+	  Select this if a fdt blob is available for the EXYNOS5 SoC based board.
 
 if ARCH_EXYNOS4
 
