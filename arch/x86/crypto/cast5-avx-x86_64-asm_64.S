@@ -4,6 +4,8 @@
  * Copyright (C) 2012 Johannes Goetzfried
  *     <Johannes.Goetzfried@informatik.stud.uni-erlangen.de>
  *
+ * Copyright © 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -22,7 +24,6 @@
  */
 
 .file "cast5-avx-x86_64-asm_64.S"
-.text
 
 .extern cast5_s1
 .extern cast5_s2
@@ -57,17 +58,19 @@
 #define RX %xmm8
 
 #define RKM  %xmm9
-#define RKRF %xmm10
-#define RKRR %xmm11
+#define RKR  %xmm10
+#define RKRF %xmm11
+#define RKRR %xmm12
 
-#define RTMP  %xmm12
-#define RMASK %xmm13
-#define R32   %xmm14
+#define R32  %xmm13
+#define R1ST %xmm14
 
-#define RID1  %rax
-#define RID1b %al
-#define RID2  %rbx
-#define RID2b %bl
+#define RTMP %xmm15
+
+#define RID1  %rbp
+#define RID1d %ebp
+#define RID2  %rsi
+#define RID2d %esi
 
 #define RGI1   %rdx
 #define RGI1bl %dl
@@ -75,6 +78,13 @@
 #define RGI2   %rcx
 #define RGI2bl %cl
 #define RGI2bh %ch
+
+#define RGI3   %rax
+#define RGI3bl %al
+#define RGI3bh %ah
+#define RGI4   %rbx
+#define RGI4bl %bl
+#define RGI4bh %bh
 
 #define RFS1  %r8
 #define RFS1d %r8d
@@ -84,60 +94,84 @@
 #define RFS3d %r10d
 
 
-#define lookup_32bit(src, dst, op1, op2, op3) \
-	movb		src ## bl,     RID1b;    \
-	movb		src ## bh,     RID2b;    \
+#define lookup_32bit(src, dst, op1, op2, op3, interleave_op, il_reg) \
+	movzbl		src ## bh,     RID1d;    \
+	movzbl		src ## bl,     RID2d;    \
+	shrq $16,	src;                     \
 	movl		s1(, RID1, 4), dst ## d; \
 	op1		s2(, RID2, 4), dst ## d; \
-	shrq $16,	src;                     \
-	movb		src ## bl,     RID1b;    \
-	movb		src ## bh,     RID2b;    \
+	movzbl		src ## bh,     RID1d;    \
+	movzbl		src ## bl,     RID2d;    \
+	interleave_op(il_reg);			 \
 	op2		s3(, RID1, 4), dst ## d; \
 	op3		s4(, RID2, 4), dst ## d;
 
-#define F(a, x, op0, op1, op2, op3) \
+#define dummy(d) /* do nothing */
+
+#define shr_next(reg) \
+	shrq $16,	reg;
+
+#define F_head(a, x, gi1, gi2, op0) \
 	op0	a,	RKM,  x;                 \
-	vpslld  RKRF,	x,    RTMP;              \
-	vpsrld  RKRR,	x,    x;                 \
+	vpslld	RKRF,	x,    RTMP;              \
+	vpsrld	RKRR,	x,    x;                 \
 	vpor	RTMP,	x,    x;                 \
 	\
-	vpshufb	RMASK,	x,    x;                 \
-	vmovq		x,    RGI1;              \
-	vpsrldq $8,	x,    x;                 \
-	vmovq		x,    RGI2;              \
+	vmovq		x,    gi1;               \
+	vpextrq $1,	x,    gi2;
+
+#define F_tail(a, x, gi1, gi2, op1, op2, op3) \
+	lookup_32bit(##gi1, RFS1, op1, op2, op3, shr_next, ##gi1); \
+	lookup_32bit(##gi2, RFS3, op1, op2, op3, shr_next, ##gi2); \
 	\
-	lookup_32bit(RGI1, RFS1, op1, op2, op3); \
-	shrq $16,	RGI1;                    \
-	lookup_32bit(RGI1, RFS2, op1, op2, op3); \
-	shlq $32,	RFS2;                    \
-	orq		RFS1, RFS2;              \
+	lookup_32bit(##gi1, RFS2, op1, op2, op3, dummy, none);     \
+	shlq $32,	RFS2;                                      \
+	orq		RFS1, RFS2;                                \
+	lookup_32bit(##gi2, RFS1, op1, op2, op3, dummy, none);     \
+	shlq $32,	RFS1;                                      \
+	orq		RFS1, RFS3;                                \
 	\
-	lookup_32bit(RGI2, RFS1, op1, op2, op3); \
-	shrq $16,	RGI2;                    \
-	lookup_32bit(RGI2, RFS3, op1, op2, op3); \
-	shlq $32,	RFS3;                    \
-	orq		RFS1, RFS3;              \
-	\
-	vmovq		RFS2, x;                 \
+	vmovq		RFS2, x;                                   \
 	vpinsrq $1,	RFS3, x, x;
 
-#define F1(b, x) F(b, x, vpaddd, xorl, subl, addl)
-#define F2(b, x) F(b, x, vpxor,  subl, addl, xorl)
-#define F3(b, x) F(b, x, vpsubd, addl, xorl, subl)
+#define F_2(a1, b1, a2, b2, op0, op1, op2, op3) \
+	F_head(b1, RX, RGI1, RGI2, op0);              \
+	F_head(b2, RX, RGI3, RGI4, op0);              \
+	\
+	F_tail(b1, RX, RGI1, RGI2, op1, op2, op3);    \
+	F_tail(b2, RTMP, RGI3, RGI4, op1, op2, op3);  \
+	\
+	vpxor		a1, RX,   a1;                 \
+	vpxor		a2, RTMP, a2;
 
-#define subround(a, b, x, n, f) \
-	F ## f(b, x);  \
-	vpxor a, x, a;
+#define F1_2(a1, b1, a2, b2) \
+	F_2(a1, b1, a2, b2, vpaddd, xorl, subl, addl)
+#define F2_2(a1, b1, a2, b2) \
+	F_2(a1, b1, a2, b2, vpxor, subl, addl, xorl)
+#define F3_2(a1, b1, a2, b2) \
+	F_2(a1, b1, a2, b2, vpsubd, addl, xorl, subl)
+
+#define subround(a1, b1, a2, b2, f) \
+	F ## f ## _2(a1, b1, a2, b2);
 
 #define round(l, r, n, f) \
 	vbroadcastss 	(km+(4*n))(CTX), RKM;        \
-	vpinsrb $0,	(kr+n)(CTX),     RKRF, RKRF; \
+	vpand		R1ST,            RKR,  RKRF; \
 	vpsubq		RKRF,            R32,  RKRR; \
-	subround(l ## 1, r ## 1, RX, n, f);          \
-	subround(l ## 2, r ## 2, RX, n, f);          \
-	subround(l ## 3, r ## 3, RX, n, f);          \
-	subround(l ## 4, r ## 4, RX, n, f);
+	vpsrldq $1,	RKR,             RKR;        \
+	subround(l ## 1, r ## 1, l ## 2, r ## 2, f); \
+	subround(l ## 3, r ## 3, l ## 4, r ## 4, f);
 
+#define enc_preload_rkr() \
+	vbroadcastss	.L16_mask,                RKR;      \
+	/* add 16-bit rotation to key rotations (mod 32) */ \
+	vpxor		kr(CTX),                  RKR, RKR;
+
+#define dec_preload_rkr() \
+	vbroadcastss	.L16_mask,                RKR;      \
+	/* add 16-bit rotation to key rotations (mod 32) */ \
+	vpxor		kr(CTX),                  RKR, RKR; \
+	vpshufb		.Lbswap128_mask,          RKR, RKR;
 
 #define transpose_2x4(x0, x1, t0, t1) \
 	vpunpckldq		x1, x0, t0; \
@@ -146,37 +180,47 @@
 	vpunpcklqdq		t1, t0, x0; \
 	vpunpckhqdq		t1, t0, x1;
 
-#define inpack_blocks(in, x0, x1, t0, t1) \
+#define inpack_blocks(in, x0, x1, t0, t1, rmask) \
 	vmovdqu (0*4*4)(in),	x0; \
 	vmovdqu (1*4*4)(in),	x1; \
-	vpshufb RMASK, x0,	x0; \
-	vpshufb RMASK, x1,	x1; \
+	vpshufb rmask, 	x0,	x0; \
+	vpshufb rmask, 	x1,	x1; \
 	\
 	transpose_2x4(x0, x1, t0, t1)
 
-#define outunpack_blocks(out, x0, x1, t0, t1) \
+#define outunpack_blocks(out, x0, x1, t0, t1, rmask) \
 	transpose_2x4(x0, x1, t0, t1) \
 	\
-	vpshufb RMASK,	x0, x0;           \
-	vpshufb RMASK,	x1, x1;           \
+	vpshufb rmask,	x0, x0;           \
+	vpshufb rmask,	x1, x1;           \
 	vmovdqu 	x0, (0*4*4)(out); \
 	vmovdqu		x1, (1*4*4)(out);
 
-#define outunpack_xor_blocks(out, x0, x1, t0, t1) \
+#define outunpack_xor_blocks(out, x0, x1, t0, t1, rmask) \
 	transpose_2x4(x0, x1, t0, t1) \
 	\
-	vpshufb RMASK,	x0, x0;               \
-	vpshufb RMASK,	x1, x1;               \
+	vpshufb rmask,	x0, x0;               \
+	vpshufb rmask,	x1, x1;               \
 	vpxor		(0*4*4)(out), x0, x0; \
 	vmovdqu 	x0, (0*4*4)(out);     \
 	vpxor		(1*4*4)(out), x1, x1; \
 	vmovdqu	        x1, (1*4*4)(out);
 
+.data
+
 .align 16
 .Lbswap_mask:
 	.byte 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12
+.Lbswap128_mask:
+	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+.L16_mask:
+	.byte 16, 16, 16, 16
 .L32_mask:
-	.byte 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0, 0
+	.byte 32, 0, 0, 0
+.Lfirst_mask:
+	.byte 0x1f, 0, 0, 0
+
+.text
 
 .align 16
 .global __cast5_enc_blk_16way
@@ -190,23 +234,24 @@ __cast5_enc_blk_16way:
 	 *	%rcx: bool, if true: xor output
 	 */
 
+	pushq %rbp;
 	pushq %rbx;
 	pushq %rcx;
 
-	vmovdqu .Lbswap_mask, RMASK;
-	vmovdqu .L32_mask, R32;
-	vpxor RKRF, RKRF, RKRF;
+	vmovdqa .Lbswap_mask, RKM;
+	vmovd .Lfirst_mask, R1ST;
+	vmovd .L32_mask, R32;
+	enc_preload_rkr();
 
-	inpack_blocks(%rdx, RL1, RR1, RTMP, RX);
-	leaq (2*4*4)(%rdx), %rax;
-	inpack_blocks(%rax, RL2, RR2, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	inpack_blocks(%rax, RL3, RR3, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	inpack_blocks(%rax, RL4, RR4, RTMP, RX);
+	leaq 1*(2*4*4)(%rdx), %rax;
+	inpack_blocks(%rdx, RL1, RR1, RTMP, RX, RKM);
+	inpack_blocks(%rax, RL2, RR2, RTMP, RX, RKM);
+	leaq 2*(2*4*4)(%rdx), %rax;
+	inpack_blocks(%rax, RL3, RR3, RTMP, RX, RKM);
+	leaq 3*(2*4*4)(%rdx), %rax;
+	inpack_blocks(%rax, RL4, RR4, RTMP, RX, RKM);
 
-	xorq RID1, RID1;
-	xorq RID2, RID2;
+	movq %rsi, %r11;
 
 	round(RL, RR, 0, 1);
 	round(RR, RL, 1, 2);
@@ -221,8 +266,8 @@ __cast5_enc_blk_16way:
 	round(RL, RR, 10, 2);
 	round(RR, RL, 11, 3);
 
-	movb rr(CTX), %al;
-	testb %al, %al;
+	movzbl rr(CTX), %eax;
+	testl %eax, %eax;
 	jnz __skip_enc;
 
 	round(RL, RR, 12, 1);
@@ -233,28 +278,30 @@ __cast5_enc_blk_16way:
 __skip_enc:
 	popq %rcx;
 	popq %rbx;
+	popq %rbp;
+
+	vmovdqa .Lbswap_mask, RKM;
+	leaq 1*(2*4*4)(%r11), %rax;
 
 	testb %cl, %cl;
 	jnz __enc_xor16;
 
-	outunpack_blocks(%rsi, RR1, RL1, RTMP, RX);
-	leaq (2*4*4)(%rsi), %rax;
-	outunpack_blocks(%rax, RR2, RL2, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	outunpack_blocks(%rax, RR3, RL3, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	outunpack_blocks(%rax, RR4, RL4, RTMP, RX);
+	outunpack_blocks(%r11, RR1, RL1, RTMP, RX, RKM);
+	outunpack_blocks(%rax, RR2, RL2, RTMP, RX, RKM);
+	leaq 2*(2*4*4)(%r11), %rax;
+	outunpack_blocks(%rax, RR3, RL3, RTMP, RX, RKM);
+	leaq 3*(2*4*4)(%r11), %rax;
+	outunpack_blocks(%rax, RR4, RL4, RTMP, RX, RKM);
 
 	ret;
 
 __enc_xor16:
-	outunpack_xor_blocks(%rsi, RR1, RL1, RTMP, RX);
-	leaq (2*4*4)(%rsi), %rax;
-	outunpack_xor_blocks(%rax, RR2, RL2, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	outunpack_xor_blocks(%rax, RR3, RL3, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	outunpack_xor_blocks(%rax, RR4, RL4, RTMP, RX);
+	outunpack_xor_blocks(%r11, RR1, RL1, RTMP, RX, RKM);
+	outunpack_xor_blocks(%rax, RR2, RL2, RTMP, RX, RKM);
+	leaq 2*(2*4*4)(%r11), %rax;
+	outunpack_xor_blocks(%rax, RR3, RL3, RTMP, RX, RKM);
+	leaq 3*(2*4*4)(%r11), %rax;
+	outunpack_xor_blocks(%rax, RR4, RL4, RTMP, RX, RKM);
 
 	ret;
 
@@ -269,25 +316,26 @@ cast5_dec_blk_16way:
 	 *	%rdx: src
 	 */
 
+	pushq %rbp;
 	pushq %rbx;
 
-	vmovdqu .Lbswap_mask, RMASK;
-	vmovdqu .L32_mask, R32;
-	vpxor RKRF, RKRF, RKRF;
+	vmovdqa .Lbswap_mask, RKM;
+	vmovd .Lfirst_mask, R1ST;
+	vmovd .L32_mask, R32;
+	dec_preload_rkr();
 
-	inpack_blocks(%rdx, RL1, RR1, RTMP, RX);
-	leaq (2*4*4)(%rdx), %rax;
-	inpack_blocks(%rax, RL2, RR2, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	inpack_blocks(%rax, RL3, RR3, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	inpack_blocks(%rax, RL4, RR4, RTMP, RX);
+	leaq 1*(2*4*4)(%rdx), %rax;
+	inpack_blocks(%rdx, RL1, RR1, RTMP, RX, RKM);
+	inpack_blocks(%rax, RL2, RR2, RTMP, RX, RKM);
+	leaq 2*(2*4*4)(%rdx), %rax;
+	inpack_blocks(%rax, RL3, RR3, RTMP, RX, RKM);
+	leaq 3*(2*4*4)(%rdx), %rax;
+	inpack_blocks(%rax, RL4, RR4, RTMP, RX, RKM);
 
-	xorq RID1, RID1;
-	xorq RID2, RID2;
+	movq %rsi, %r11;
 
-	movb rr(CTX), %al;
-	testb %al, %al;
+	movzbl rr(CTX), %eax;
+	testl %eax, %eax;
 	jnz __skip_dec;
 
 	round(RL, RR, 15, 1);
@@ -295,7 +343,7 @@ cast5_dec_blk_16way:
 	round(RL, RR, 13, 2);
 	round(RR, RL, 12, 1);
 
-__skip_dec:
+__dec_tail:
 	round(RL, RR, 11, 3);
 	round(RR, RL, 10, 2);
 	round(RL, RR, 9, 1);
@@ -309,14 +357,20 @@ __skip_dec:
 	round(RL, RR, 1, 2);
 	round(RR, RL, 0, 1);
 
+	vmovdqa .Lbswap_mask, RKM;
 	popq %rbx;
+	popq %rbp;
 
-	outunpack_blocks(%rsi, RR1, RL1, RTMP, RX);
-	leaq (2*4*4)(%rsi), %rax;
-	outunpack_blocks(%rax, RR2, RL2, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	outunpack_blocks(%rax, RR3, RL3, RTMP, RX);
-	leaq (2*4*4)(%rax), %rax;
-	outunpack_blocks(%rax, RR4, RL4, RTMP, RX);
+	leaq 1*(2*4*4)(%r11), %rax;
+	outunpack_blocks(%r11, RR1, RL1, RTMP, RX, RKM);
+	outunpack_blocks(%rax, RR2, RL2, RTMP, RX, RKM);
+	leaq 2*(2*4*4)(%r11), %rax;
+	outunpack_blocks(%rax, RR3, RL3, RTMP, RX, RKM);
+	leaq 3*(2*4*4)(%r11), %rax;
+	outunpack_blocks(%rax, RR4, RL4, RTMP, RX, RKM);
 
 	ret;
+
+__skip_dec:
+	vpsrldq $4, RKR, RKR;
+	jmp __dec_tail;
