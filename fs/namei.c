@@ -3650,14 +3650,9 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry, struct inode **delegate
 	else {
 		error = security_inode_unlink(dir, dentry);
 		if (!error) {
-			error = break_deleg(target, O_WRONLY|O_NONBLOCK);
-			if (error) {
-				if (error == -EWOULDBLOCK && delegated_inode) {
-					*delegated_inode = target;
-					ihold(target);
-				}
+			error = try_break_deleg(target, delegated_inode);
+			if (error)
 				goto out;
-			}
 			error = dir->i_op->unlink(dir, dentry);
 			if (!error)
 				dont_mount(dentry);
@@ -3727,9 +3722,7 @@ exit2:
 		iput(inode);	/* truncate the inode here */
 	inode = NULL;
 	if (delegated_inode) {
-		error = break_deleg(delegated_inode, O_WRONLY);
-		iput(delegated_inode);
-		delegated_inode = NULL;
+		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
 	}
