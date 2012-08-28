@@ -123,11 +123,13 @@ void drbd_req_destroy(struct kref *kref)
 		 * (local only or remote failed).
 		 * Other places where we set out-of-sync:
 		 * READ with local io-error */
-		if (!(s & RQ_NET_OK) || !(s & RQ_LOCAL_OK))
-			drbd_set_out_of_sync(mdev, req->i.sector, req->i.size);
+		if (!(s & RQ_POSTPONED)) {
+			if (!(s & RQ_NET_OK) || !(s & RQ_LOCAL_OK))
+				drbd_set_out_of_sync(mdev, req->i.sector, req->i.size);
 
-		if ((s & RQ_NET_OK) && (s & RQ_LOCAL_OK) && (s & RQ_NET_SIS))
-			drbd_set_in_sync(mdev, req->i.sector, req->i.size);
+			if ((s & RQ_NET_OK) && (s & RQ_LOCAL_OK) && (s & RQ_NET_SIS))
+				drbd_set_in_sync(mdev, req->i.sector, req->i.size);
+		}
 
 		/* one might be tempted to move the drbd_al_complete_io
 		 * to the local io completion callback drbd_request_endio.
@@ -1046,6 +1048,7 @@ void __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long 
 		if (req->private_bio) {
 			bio_put(req->private_bio);
 			req->private_bio = NULL;
+			put_ldev(mdev);
 		}
 		goto out;
 	}
