@@ -80,15 +80,12 @@ static void __init mpc85xx_rds_setup_arch(void)
 		}
 	}
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,p1023-pcie")
-		fsl_add_bridge(np, 0);
-#endif
-
 	mpc85xx_smp_init();
+
+	fsl_pci_assign_primary();
 }
 
-machine_device_initcall(p1023_rds, mpc85xx_common_publish_devices);
+machine_arch_initcall(p1023_rds, mpc85xx_common_publish_devices);
 
 static void __init mpc85xx_rds_pic_init(void)
 {

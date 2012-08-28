@@ -98,10 +98,19 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 
 extern struct device_node *fsl_pci_primary;
 
-#ifdef CONFIG_FSL_PCI
-void fsl_pci_init(void);
+#ifdef CONFIG_PCI
+void fsl_pci_assign_primary(void);
 #else
-static inline void fsl_pci_init(void) {}
+static inline void fsl_pci_assign_primary(void) {}
+#endif
+
+#ifdef CONFIG_EDAC_MPC85XX
+int mpc85xx_pci_err_probe(struct platform_device *op);
+#else
+static inline int mpc85xx_pci_err_probe(struct platform_device *op)
+{
+	return -ENOTSUPP;
+}
 #endif
 
 #endif /* __POWERPC_FSL_PCI_H */

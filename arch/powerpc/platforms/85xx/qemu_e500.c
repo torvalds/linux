@@ -41,7 +41,7 @@ static void __init qemu_e500_setup_arch(void)
 {
 	ppc_md.progress("qemu_e500_setup_arch()", 0);
 
-	fsl_pci_init();
+	fsl_pci_assign_primary();
 	swiotlb_detect_4g();
 	mpc85xx_smp_init();
 }
@@ -56,7 +56,7 @@ static int __init qemu_e500_probe(void)
 	return !!of_flat_dt_is_compatible(root, "fsl,qemu-e500");
 }
 
-machine_device_initcall(qemu_e500, mpc85xx_common_publish_devices);
+machine_arch_initcall(qemu_e500, mpc85xx_common_publish_devices);
 
 define_machine(qemu_e500) {
 	.name			= "QEMU e500",

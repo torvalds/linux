@@ -59,10 +59,6 @@ static void __init tqm85xx_pic_init(void)
  */
 static void __init tqm85xx_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("tqm85xx_setup_arch()", 0);
 
@@ -70,20 +66,7 @@ static void __init tqm85xx_setup_arch(void)
 	cpm2_reset();
 #endif
 
-#ifdef CONFIG_PCI
-	for_each_node_by_type(np, "pci") {
-		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
-		    of_device_is_compatible(np, "fsl,mpc8548-pcie")) {
-			struct resource rsrc;
-			if (!of_address_to_resource(np, 0, &rsrc)) {
-				if ((rsrc.start & 0xfffff) == 0x8000)
-					fsl_add_bridge(np, 1);
-				else
-					fsl_add_bridge(np, 0);
-			}
-		}
-	}
-#endif
+	fsl_pci_assign_primary();
 }
 
 static void tqm85xx_show_cpuinfo(struct seq_file *m)
@@ -123,7 +106,7 @@ static void __devinit tqm85xx_ti1520_fixup(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1520,
 		tqm85xx_ti1520_fixup);
 
-machine_device_initcall(tqm85xx, mpc85xx_common_publish_devices);
+machine_arch_initcall(tqm85xx, mpc85xx_common_publish_devices);
 
 static const char *board[] __initdata = {
 	"tqc,tqm8540",

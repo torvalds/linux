@@ -14,7 +14,6 @@
 
 #include <linux/pci.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 #include <asm/div64.h>
 #include <asm/mpic.h>
 #include <asm/swiotlb.h>
@@ -121,31 +120,8 @@ void __init p1022_rdk_pic_init(void)
  */
 static void __init p1022_rdk_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-	dma_addr_t max = 0xffffffff;
-
 	if (ppc_md.progress)
 		ppc_md.progress("p1022_rdk_setup_arch()", 0);
-
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,p1022-pcie") {
-		struct resource rsrc;
-		struct pci_controller *hose;
-
-		of_address_to_resource(np, 0, &rsrc);
-
-		if ((rsrc.start & 0xfffff) == 0x8000)
-			fsl_add_bridge(np, 1);
-		else
-			fsl_add_bridge(np, 0);
-
-		hose = pci_find_hose_for_OF_device(np);
-		max = min(max, hose->dma_window_base_cur +
-			  hose->dma_window_size);
-	}
-#endif
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 	diu_ops.set_monitor_port	= p1022rdk_set_monitor_port;
@@ -155,18 +131,14 @@ static void __init p1022_rdk_setup_arch(void)
 
 	mpc85xx_smp_init();
 
-#ifdef CONFIG_SWIOTLB
-	if ((memblock_end_of_DRAM() - 1) > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	}
-#endif
+	fsl_pci_assign_primary();
+
+	swiotlb_detect_4g();
 
 	pr_info("Freescale / iVeia P1022 RDK reference board\n");
 }
 
-machine_device_initcall(p1022_rdk, mpc85xx_common_publish_devices);
+machine_arch_initcall(p1022_rdk, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(p1022_rdk, swiotlb_setup_bus_notifier);
 
