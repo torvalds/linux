@@ -440,6 +440,17 @@ config SCM_BUS
 	help
 	  Bus driver for Storage Class Memory.
 
+config EADM_SCH
+	def_tristate m
+	prompt "Support for EADM subchannels"
+	depends on SCM_BUS
+	help
+	  This driver allows usage of EADM subchannels. EADM subchannels act
+	  as a communication vehicle for SCM increments.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called eadm_sch.
+
 endmenu
 
 menu "Dump support"
