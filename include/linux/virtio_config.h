@@ -98,6 +98,7 @@
  *	vdev: the virtio_device
  *      This returns a pointer to the bus name a la pci_name from which
  *      the caller can then copy.
+ * @set_vq_affinity: set the affinity for a virtqueue.
  */
 typedef void vq_callback_t(struct virtqueue *);
 struct virtio_config_ops {
@@ -116,6 +117,7 @@ struct virtio_config_ops {
 	u32 (*get_features)(struct virtio_device *vdev);
 	void (*finalize_features)(struct virtio_device *vdev);
 	const char *(*bus_name)(struct virtio_device *vdev);
+	int (*set_vq_affinity)(struct virtqueue *vq, int cpu);
 };
 
 /* If driver didn't advertise the feature, it will never appear. */
@@ -189,6 +191,25 @@ const char *virtio_bus_name(struct virtio_device *vdev)
 		return "virtio";
 	return vdev->config->bus_name(vdev);
 }
+
+/**
+ * virtqueue_set_affinity - setting affinity for a virtqueue
+ * @vq: the virtqueue
+ * @cpu: the cpu no.
+ *
+ * Pay attention the function are best-effort: the affinity hint may not be set
+ * due to config support, irq type and sharing.
+ *
+ */
+static inline
+int virtqueue_set_affinity(struct virtqueue *vq, int cpu)
+{
+	struct virtio_device *vdev = vq->vdev;
+	if (vdev->config->set_vq_affinity)
+		return vdev->config->set_vq_affinity(vq, cpu);
+	return 0;
+}
+
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_VIRTIO_CONFIG_H */

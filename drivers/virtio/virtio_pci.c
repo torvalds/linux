@@ -48,6 +48,7 @@ struct virtio_pci_device
 	int msix_enabled;
 	int intx_enabled;
 	struct msix_entry *msix_entries;
+	cpumask_var_t *msix_affinity_masks;
 	/* Name strings for interrupts. This size should be enough,
 	 * and I'm too lazy to allocate each name separately. */
 	char (*msix_names)[256];
@@ -276,6 +277,10 @@ static void vp_free_vectors(struct virtio_device *vdev)
 	for (i = 0; i < vp_dev->msix_used_vectors; ++i)
 		free_irq(vp_dev->msix_entries[i].vector, vp_dev);
 
+	for (i = 0; i < vp_dev->msix_vectors; i++)
+		if (vp_dev->msix_affinity_masks[i])
+			free_cpumask_var(vp_dev->msix_affinity_masks[i]);
+
 	if (vp_dev->msix_enabled) {
 		/* Disable the vector used for configuration */
 		iowrite16(VIRTIO_MSI_NO_VECTOR,
@@ -293,6 +298,8 @@ static void vp_free_vectors(struct virtio_device *vdev)
 	vp_dev->msix_names = NULL;
 	kfree(vp_dev->msix_entries);
 	vp_dev->msix_entries = NULL;
+	kfree(vp_dev->msix_affinity_masks);
+	vp_dev->msix_affinity_masks = NULL;
 }
 
 static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
@@ -311,6 +318,15 @@ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,
 				     GFP_KERNEL);
 	if (!vp_dev->msix_names)
 		goto error;
+	vp_dev->msix_affinity_masks
+		= kzalloc(nvectors * sizeof *vp_dev->msix_affinity_masks,
+			  GFP_KERNEL);
+	if (!vp_dev->msix_affinity_masks)
+		goto error;
+	for (i = 0; i < nvectors; ++i)
+		if (!alloc_cpumask_var(&vp_dev->msix_affinity_masks[i],
+					GFP_KERNEL))
+			goto error;
 
 	for (i = 0; i < nvectors; ++i)
 		vp_dev->msix_entries[i].entry = i;
@@ -606,6 +622,35 @@ static const char *vp_bus_name(struct virtio_device *vdev)
 	return pci_name(vp_dev->pci_dev);
 }
 
+/* Setup the affinity for a virtqueue:
+ * - force the affinity for per vq vector
+ * - OR over all affinities for shared MSI
+ * - ignore the affinity request if we're using INTX
+ */
+static int vp_set_vq_affinity(struct virtqueue *vq, int cpu)
+{
+	struct virtio_device *vdev = vq->vdev;
+	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
+	struct virtio_pci_vq_info *info = vq->priv;
+	struct cpumask *mask;
+	unsigned int irq;
+
+	if (!vq->callback)
+		return -EINVAL;
+
+	if (vp_dev->msix_enabled) {
+		mask = vp_dev->msix_affinity_masks[info->msix_vector];
+		irq = vp_dev->msix_entries[info->msix_vector].vector;
+		if (cpu == -1)
+			irq_set_affinity_hint(irq, NULL);
+		else {
+			cpumask_set_cpu(cpu, mask);
+			irq_set_affinity_hint(irq, mask);
+		}
+	}
+	return 0;
+}
+
 static struct virtio_config_ops virtio_pci_config_ops = {
 	.get		= vp_get,
 	.set		= vp_set,
@@ -617,6 +662,7 @@ static struct virtio_config_ops virtio_pci_config_ops = {
 	.get_features	= vp_get_features,
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,
+	.set_vq_affinity = vp_set_vq_affinity,
 };
 
 static void virtio_pci_release_dev(struct device *_d)
