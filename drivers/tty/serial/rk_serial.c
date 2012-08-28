@@ -58,9 +58,11 @@
 *		2.enable Programmable THRE Interrupt Mode, so we can just judge ((up->iir & 0x0f) == 0x02) when transmit
 *		3.reset uart and set it to loopback state to ensure setting baud rate sucessfully 
 *v1.1 : 2012-08-23
-*		1. dma driver:make "when tx dma is only enable" work functionally       
+*		1. dma driver:make "when tx dma is only enable" work functionally  
+*v1.2 : 2012-08-28
+*		1. dma driver:serial rx use new dma interface  rk29_dma_enqueue_ring   
 */
-#define VERSION_AND_TIME  "rk_serial.c v1.1 2012-08-23"
+#define VERSION_AND_TIME  "rk_serial.c v1.2 2012-08-28"
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -651,7 +653,7 @@ static int serial_rk_init_dma_rx(struct uart_port *port) {
 		return -1;
 	}
 
-	rk29_dma_setflags(uart_dma->rx_dmach, RK29_DMAF_CIRCULAR);
+	//rk29_dma_setflags(uart_dma->rx_dmach, RK29_DMAF_CIRCULAR);
 
 	uart_dma->rx_dma_inited = 1;
 	dev_info(up->port.dev, "serial_rk_init_dma_rx sucess\n");
@@ -674,19 +676,23 @@ static int serial_rk_start_rx_dma(struct uart_port *port)
 		dev_info(up->port.dev, "*******serial_rk_init_dma_rx*******error*******\n");
 		return -1;
 	}
+	
+#if 0	
+		if (rk29_dma_enqueue(uart_dma->rx_dmach, (void *)up, uart_dma->rx_phy_addr,
+				uart_dma->rb_size/2)) {
+			dev_info(up->port.dev, "*******rk29_dma_enqueue fail*****\n");
+			return -1;
+		}
 
-	if (rk29_dma_enqueue(uart_dma->rx_dmach, (void *)up, uart_dma->rx_phy_addr,
-			uart_dma->rb_size/2)) {
-		dev_info(up->port.dev, "*******rk29_dma_enqueue fail*****\n");
-		return -1;
-	}
+		if (rk29_dma_enqueue(uart_dma->rx_dmach, (void *)up,
+				uart_dma->rx_phy_addr+uart_dma->rb_size/2, uart_dma->rb_size/2)) {
+			dev_info(up->port.dev, "*******rk29_dma_enqueue fail*****\n");
+			return -1;
+		}
 
-	if (rk29_dma_enqueue(uart_dma->rx_dmach, (void *)up,
-			uart_dma->rx_phy_addr+uart_dma->rb_size/2, uart_dma->rb_size/2)) {
-		dev_info(up->port.dev, "*******rk29_dma_enqueue fail*****\n");
-		return -1;
-	}
-
+#else
+	rk29_dma_enqueue_ring(uart_dma->rx_dmach, (void *)up, uart_dma->rx_phy_addr, uart_dma->rb_size/4, 4, false);
+#endif
 	rk29_dma_ctrl(uart_dma->rx_dmach, RK29_DMAOP_START);
 	uart_dma->rx_dma_used = 1;
 	if(uart_dma->use_timer == 1){
@@ -1838,7 +1844,6 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 	/* set dma config */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	if(up->dma->use_dma & RX_DMA) {
-		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 		//timer
 		up->dma->use_timer = USE_TIMER;
 		up->dma->rx_timer.function = serial_rk_report_dma_rx;
@@ -1848,7 +1853,7 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 		init_timer(&up->dma->rx_timer);
 
 		//rx buffer
-		up->dma->rb_size =  UART_XMIT_SIZE*8;
+		up->dma->rb_size =  UART_XMIT_SIZE*2;
 		up->dma->rx_buffer = dmam_alloc_coherent(up->port.dev, up->dma->rb_size,
 				&up->dma->rx_phy_addr, DMA_MEMORY_MAP);
 		up->dma->rb_tail = 0;
@@ -1857,8 +1862,8 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 			dev_info(up->port.dev, "dmam_alloc_coherent dma_rx_buffer fail\n");
 		}
 		else {
-			dev_info(up->port.dev, "dma_rx_buffer 0x%08x, phy:0x%08x\n", (unsigned) up->dma->rx_buffer, (unsigned)up->dma->rx_phy_addr);
-			//dev_info(up->port.dev, "up 0x%08x\n", (unsigned)up->dma);
+			dev_info(up->port.dev, "dma_rx_buffer 0x%08x\n", (unsigned) up->dma->rx_buffer);
+			dev_info(up->port.dev, "dma_rx_phy 0x%08x\n", (unsigned)up->dma->rx_phy_addr);
 		}
 
 		// work queue
