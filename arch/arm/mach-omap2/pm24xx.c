@@ -352,16 +352,6 @@ int __init omap2_pm_init(void)
 
 	prcm_setup_regs();
 
-	/* Hack to prevent MPU retention when STI console is enabled. */
-	{
-		const struct omap_sti_console_config *sti;
-
-		sti = omap_get_config(OMAP_TAG_STI_CONSOLE,
-				      struct omap_sti_console_config);
-		if (sti != NULL && sti->enable)
-			sti_console_enabled = 1;
-	}
-
 	/*
 	 * We copy the assembler sleep/wakeup routines to SRAM.
 	 * These routines need to be in SRAM as that's the only
