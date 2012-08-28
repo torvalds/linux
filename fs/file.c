@@ -797,6 +797,7 @@ struct file *fget_light(unsigned int fd, int *fput_needed)
 
 	return file;
 }
+EXPORT_SYMBOL(fget_light);
 
 struct file *fget_raw_light(unsigned int fd, int *fput_needed)
 {
