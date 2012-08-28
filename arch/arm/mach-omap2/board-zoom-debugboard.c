@@ -19,6 +19,7 @@
 
 #include <plat/gpmc.h>
 #include <plat/gpmc-smsc911x.h>
+#include <plat/serial.h>
 
 #include <mach/board-zoom.h>
 

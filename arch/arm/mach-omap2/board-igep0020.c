@@ -32,6 +32,8 @@
 #include "common.h"
 #include <plat/gpmc.h>
 #include <plat/usb.h>
+#include <plat/serial.h>
+
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 #include <plat/onenand.h>

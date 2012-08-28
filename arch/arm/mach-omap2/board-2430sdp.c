@@ -231,7 +231,7 @@ static int __init omap2430_i2c_init(void)
 	sdp2430_i2c1_boardinfo[0].irq = gpio_to_irq(78);
 	omap_register_i2c_bus(1, 100, sdp2430_i2c1_boardinfo,
 			ARRAY_SIZE(sdp2430_i2c1_boardinfo));
-	omap_pmic_init(2, 100, "twl4030", INT_24XX_SYS_NIRQ,
+	omap_pmic_init(2, 100, "twl4030", 7 + OMAP_INTC_START,
 			&sdp2430_twldata);
 	return 0;
 }

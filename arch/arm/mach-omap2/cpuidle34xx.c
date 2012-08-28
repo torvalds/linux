@@ -28,7 +28,6 @@
 #include <linux/cpu_pm.h>
 
 #include <plat/prcm.h>
-#include <plat/irqs.h>
 #include "powerdomain.h"
 #include "clockdomain.h"
 

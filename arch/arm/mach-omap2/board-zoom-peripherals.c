@@ -27,6 +27,7 @@
 
 #include "common.h"
 #include <plat/usb.h>
+#include <plat/serial.h>
 
 #include <mach/board-zoom.h>
 
@@ -279,7 +280,7 @@ static int __init omap_i2c_init(void)
 		codec_data->hs_extmute = 1;
 		codec_data->set_hs_extmute = zoom2_set_hs_extmute;
 	}
-	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &zoom_twldata);
+	omap_pmic_init(1, 2400, "twl5030", 7 + OMAP_INTC_START, &zoom_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;

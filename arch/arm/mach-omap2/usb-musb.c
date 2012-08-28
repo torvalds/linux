@@ -27,7 +27,6 @@
 #include <linux/usb/musb.h>
 
 #include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <mach/am35xx.h>
 #include <plat/usb.h>
 #include <plat/omap_device.h>

@@ -28,7 +28,12 @@
 #include <asm/mach-types.h>
 #include <plat/gpmc.h>
 
+#include <plat/cpu.h>
 #include <plat/sdrc.h>
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 /* GPMC register offsets */
 #define GPMC_REVISION		0x00
@@ -846,16 +851,16 @@ static int __init gpmc_init(void)
 			l = OMAP2420_GPMC_BASE;
 		else
 			l = OMAP34XX_GPMC_BASE;
-		gpmc_irq = INT_34XX_GPMC_IRQ;
+		gpmc_irq = 20 + OMAP_INTC_START;
 	} else if (cpu_is_omap34xx()) {
 		ck = "gpmc_fck";
 		l = OMAP34XX_GPMC_BASE;
-		gpmc_irq = INT_34XX_GPMC_IRQ;
+		gpmc_irq = 20 + OMAP_INTC_START;
 	} else if (cpu_is_omap44xx() || soc_is_omap54xx()) {
 		/* Base address and irq number are same for OMAP4/5 */
 		ck = "gpmc_ck";
 		l = OMAP44XX_GPMC_BASE;
-		gpmc_irq = OMAP44XX_IRQ_GPMC;
+		gpmc_irq = 20 + OMAP44XX_IRQ_GIC_START;
 	}
 
 	if (WARN_ON(!ck))

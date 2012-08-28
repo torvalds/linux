@@ -27,6 +27,7 @@
 #include <plat/mcspi.h>
 #include <plat/nand.h>
 
+#include "common.h"
 #include "common-board-devices.h"
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \

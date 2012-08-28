@@ -20,7 +20,6 @@
 #include <linux/platform_data/omap4-keypad.h>
 
 #include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
@@ -31,6 +30,8 @@
 #include <plat/omap_device.h>
 #include <plat/omap4-keypad.h>
 
+#include "soc.h"
+#include "common.h"
 #include "mux.h"
 #include "control.h"
 #include "devices.h"
@@ -111,7 +112,7 @@ static struct resource omap2cam_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= INT_24XX_CAM_IRQ,
+		.start		= 24 + OMAP_INTC_START,
 		.flags		= IORESOURCE_IRQ,
 	}
 };
@@ -200,7 +201,7 @@ static struct resource omap3isp_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= INT_34XX_CAM_IRQ,
+		.start		= 24 + OMAP_INTC_START,
 		.flags		= IORESOURCE_IRQ,
 	}
 };
@@ -434,14 +435,12 @@ static inline void omap_init_mcspi(void) {}
 #endif
 
 static struct resource omap2_pmu_resource = {
-	.start	= 3,
-	.end	= 3,
+	.start	= 3 + OMAP_INTC_START,
 	.flags	= IORESOURCE_IRQ,
 };
 
 static struct resource omap3_pmu_resource = {
-	.start	= INT_34XX_BENCH_MPU_EMUL,
-	.end	= INT_34XX_BENCH_MPU_EMUL,
+	.start	= 3 + OMAP_INTC_START,
 	.flags	= IORESOURCE_IRQ,
 };
 
@@ -474,7 +473,7 @@ static struct resource omap2_sham_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_24XX_SHA1MD5,
+		.start	= 51 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -492,7 +491,7 @@ static struct resource omap3_sham_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_34XX_SHA1MD52_IRQ,
+		.start	= 49 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{

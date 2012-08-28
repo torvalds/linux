@@ -15,16 +15,14 @@
 #include <plat/dmtimer.h>
 #include <plat/mcspi.h>
 
-#include <mach/irqs.h>
-
 #include "omap_hwmod_common_data.h"
 #include "cm-regbits-24xx.h"
 #include "prm-regbits-24xx.h"
 #include "wd_timer.h"
 
 struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[] = {
-	{ .irq = 48, },
-	{ .irq = -1 }
+	{ .irq = 48 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {

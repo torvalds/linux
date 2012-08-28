@@ -13,7 +13,6 @@
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 #include <plat/omap_hwmod.h>
-#include <mach/irqs.h>
 #include <plat/cpu.h>
 #include <plat/dma.h>
 #include <plat/serial.h>
@@ -161,9 +160,9 @@ static struct omap_hwmod omap2420_dma_system_hwmod = {
 
 /* mailbox */
 static struct omap_hwmod_irq_info omap2420_mailbox_irqs[] = {
-	{ .name = "dsp", .irq = 26 },
-	{ .name = "iva", .irq = 34 },
-	{ .irq = -1 }
+	{ .name = "dsp", .irq = 26 + OMAP_INTC_START, },
+	{ .name = "iva", .irq = 34 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mailbox_hwmod = {
@@ -198,9 +197,9 @@ static struct omap_hwmod_opt_clk mcbsp_opt_clks[] = {
 
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap2420_mcbsp1_irqs[] = {
-	{ .name = "tx", .irq = 59 },
-	{ .name = "rx", .irq = 60 },
-	{ .irq = -1 }
+	{ .name = "tx", .irq = 59 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 60 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mcbsp1_hwmod = {
@@ -224,9 +223,9 @@ static struct omap_hwmod omap2420_mcbsp1_hwmod = {
 
 /* mcbsp2 */
 static struct omap_hwmod_irq_info omap2420_mcbsp2_irqs[] = {
-	{ .name = "tx", .irq = 62 },
-	{ .name = "rx", .irq = 63 },
-	{ .irq = -1 }
+	{ .name = "tx", .irq = 62 + OMAP_INTC_START, },
+	{ .name = "rx", .irq = 63 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod omap2420_mcbsp2_hwmod = {
@@ -264,8 +263,8 @@ static struct omap_hwmod_class omap2420_msdi_hwmod_class = {
 
 /* msdi1 */
 static struct omap_hwmod_irq_info omap2420_msdi1_irqs[] = {
-	{ .irq = 83 },
-	{ .irq = -1 }
+	{ .irq = 83 + OMAP_INTC_START, },
+	{ .irq = -1 },
 };
 
 static struct omap_hwmod_dma_info omap2420_msdi1_sdma_reqs[] = {

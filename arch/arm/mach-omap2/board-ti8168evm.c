@@ -20,7 +20,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/irqs.h>
 #include "common.h"
 #include <plat/usb.h>
 

@@ -42,6 +42,7 @@
 #include <plat/usb.h>
 #include <plat/nand.h>
 #include <plat/gpmc.h>
+#include <plat/serial.h>
 
 #include <mach/am35xx.h>
 
@@ -89,8 +90,7 @@ static struct resource cm_t3517_hecc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_35XX_HECC0_IRQ,
-		.end	= INT_35XX_HECC0_IRQ,
+		.start	= 24 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

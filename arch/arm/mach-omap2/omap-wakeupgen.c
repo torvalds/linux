@@ -27,6 +27,7 @@
 
 #include <asm/hardware/gic.h>
 
+#include <mach/hardware.h>
 #include <mach/omap-wakeupgen.h>
 #include <mach/omap-secure.h>
 

@@ -40,8 +40,6 @@
 #include <plat/sram.h>
 #include <plat/dma.h>
 
-#include <mach/irqs.h>
-
 #include "common.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"

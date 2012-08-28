@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <plat/cpu.h>
 #include <plat/clock.h>
 
 #include <video/omapdss.h>

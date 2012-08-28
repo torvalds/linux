@@ -296,8 +296,7 @@ static struct resource am3517_hecc_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= INT_35XX_HECC0_IRQ,
-		.end	= INT_35XX_HECC0_IRQ,
+		.start	= 24 + OMAP_INTC_START,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

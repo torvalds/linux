@@ -31,6 +31,8 @@
 #include <plat/common.h>
 #include <asm/proc-fns.h>
 
+#define OMAP_INTC_START		0
+
 #ifdef CONFIG_SOC_OMAP2420
 extern void omap242x_map_common_io(void);
 #else
