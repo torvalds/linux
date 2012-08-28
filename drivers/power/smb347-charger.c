@@ -332,6 +332,9 @@ static int smb347_charging_set(struct smb347_charger *smb, bool enable)
 {
 	int ret = 0;
 
+	if (enable && !smb->charging_enabled)
+		smb->is_fully_charged = false;
+
 	if (smb->pdata->enable_control != SMB347_CHG_ENABLE_SW) {
 		smb->charging_enabled = enable;
 
