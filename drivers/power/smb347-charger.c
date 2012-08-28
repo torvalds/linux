@@ -826,6 +826,8 @@ static int smb347_irq_init(struct smb347_charger *smb)
 		goto fail;
 
 	ret = request_threaded_irq(irq, NULL, smb347_interrupt,
+				   pdata->disable_stat_interrupts ?
+				   IRQF_TRIGGER_RISING | IRQF_ONESHOT :
 				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   smb->client->name, smb);
 	if (ret < 0)
@@ -957,7 +959,8 @@ static int smb347_hw_init(struct smb347_charger *smb)
 
 	ret = smb347_update_online(smb);
 
-	if (smb->pdata->irq_gpio >= 0) {
+	if ((smb->pdata->irq_gpio >= 0) &&
+	    !smb->pdata->disable_stat_interrupts) {
 		/*
 		 * Configure the STAT output to be suitable for interrupts:
 		 * disable all other output (except interrupts) and make it
