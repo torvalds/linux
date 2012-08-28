@@ -398,8 +398,7 @@ disconnect_all:
 	nfc_hci_disconnect_all_gates(hdev);
 
 exit:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	return r;
 }

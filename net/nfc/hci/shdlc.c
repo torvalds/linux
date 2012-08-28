@@ -241,8 +241,7 @@ static void nfc_shdlc_rcv_i_frame(struct nfc_shdlc *shdlc,
 	}
 
 exit:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 }
 
 static void nfc_shdlc_rcv_ack(struct nfc_shdlc *shdlc, int y_nr)
