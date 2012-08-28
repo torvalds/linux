@@ -1327,6 +1327,9 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	if (!codec->d3_stop_clk)
 		bus->power_keep_link_on = 1;
 #endif
+	codec->epss = snd_hda_codec_get_supported_ps(codec,
+					codec->afg ? codec->afg : codec->mfg,
+					AC_PWRST_EPSS);
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec,
@@ -3558,8 +3561,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	/* this delay seems necessary to avoid click noise at power-down */
 	if (power_state == AC_PWRST_D3) {
 		/* transition time less than 10ms for power down */
-		bool epss = snd_hda_codec_get_supported_ps(codec, fg, AC_PWRST_EPSS);
-		msleep(epss ? 10 : 100);
+		msleep(codec->epss ? 10 : 100);
 	}
 
 	/* repeat power states setting at most 10 times*/
