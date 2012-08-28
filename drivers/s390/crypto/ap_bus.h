@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2006
+ * Copyright IBM Corp. 2006, 2012
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -83,13 +83,12 @@ int ap_queue_status_invalid_test(struct ap_queue_status *status)
 	return !(memcmp(status, &invalid, sizeof(struct ap_queue_status)));
 }
 
-#define MAX_AP_FACILITY 31
-
-static inline int test_ap_facility(unsigned int function, unsigned int nr)
+#define AP_MAX_BITS 31
+static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 {
-	if (nr > MAX_AP_FACILITY)
+	if (nr > AP_MAX_BITS)
 		return 0;
-	return function & (unsigned int)(0x80000000 >> nr);
+	return (*ptr & (0x80000000u >> nr)) != 0;
 }
 
 #define AP_RESPONSE_NORMAL		0x00
@@ -182,6 +181,17 @@ struct ap_message {
 	void (*receive)(struct ap_device *, struct ap_message *,
 			struct ap_message *);
 };
+
+struct ap_config_info {
+	unsigned int special_command:1;
+	unsigned int ap_extended:1;
+	unsigned char reserved1:6;
+	unsigned char reserved2[15];
+	unsigned int apm[8];		/* AP ID mask */
+	unsigned int aqm[8];		/* AP queue mask */
+	unsigned int adm[8];		/* AP domain mask */
+	unsigned char reserved4[16];
+} __packed;
 
 #define AP_DEVICE(dt)					\
 	.dev_type=(dt),					\

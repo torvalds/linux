@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 2006
+ * Copyright IBM Corp. 2006, 2012
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
@@ -62,13 +62,14 @@ static void ap_interrupt_handler(void *unused1, void *unused2);
 static void ap_reset(struct ap_device *ap_dev);
 static void ap_config_timeout(unsigned long ptr);
 static int ap_select_domain(void);
+static void ap_query_configuration(void);
 
 /*
  * Module description.
  */
 MODULE_AUTHOR("IBM Corporation");
-MODULE_DESCRIPTION("Adjunct Processor Bus driver, "
-		   "Copyright IBM Corp. 2006");
+MODULE_DESCRIPTION("Adjunct Processor Bus driver, " \
+		   "Copyright IBM Corp. 2006, 2012");
 MODULE_LICENSE("GPL");
 
 /*
@@ -84,6 +85,7 @@ module_param_named(poll_thread, ap_thread_flag, int, 0000);
 MODULE_PARM_DESC(poll_thread, "Turn on/off poll thread, default is 0 (off).");
 
 static struct device *ap_root_device = NULL;
+static struct ap_config_info *ap_configuration;
 static DEFINE_SPINLOCK(ap_device_list_lock);
 static LIST_HEAD(ap_device_list);
 
@@ -155,6 +157,17 @@ static inline int ap_instructions_available(void)
 static int ap_interrupts_available(void)
 {
 	return test_facility(2) && test_facility(65);
+}
+
+/**
+ * ap_configuration_available(): Test if AP configuration
+ * information is available.
+ *
+ * Returns 1 if AP configuration information is available.
+ */
+static int ap_configuration_available(void)
+{
+	return test_facility(2) && test_facility(12);
 }
 
 /**
@@ -242,6 +255,26 @@ __ap_query_functions(ap_qid_t qid, unsigned int *functions)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+static inline int __ap_query_configuration(struct ap_config_info *config)
+{
+	register unsigned long reg0 asm ("0") = 0x04000000UL;
+	register unsigned long reg1 asm ("1") = -EINVAL;
+	register unsigned char *reg2 asm ("2") = (unsigned char *)config;
+
+	asm volatile(
+		".long 0xb2af0000\n"		/* PQAP(QCI) */
+		"0: la    %1,0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (reg0), "+d" (reg1), "+d" (reg2)
+		:
+		: "cc");
+
+	return reg1;
+}
+#endif
+
 /**
  * ap_query_functions(): Query supported functions.
  * @qid: The AP queue number
@@ -305,8 +338,8 @@ int ap_4096_commands_available(ap_qid_t qid)
 	if (ap_query_functions(qid, &functions))
 		return 0;
 
-	return test_ap_facility(functions, 1) &&
-	       test_ap_facility(functions, 2);
+	return ap_test_bit(&functions, 1) &&
+	       ap_test_bit(&functions, 2);
 }
 EXPORT_SYMBOL(ap_4096_commands_available);
 
@@ -772,6 +805,7 @@ static int ap_bus_resume(struct device *dev)
 		ap_suspend_flag = 0;
 		if (!ap_interrupts_available())
 			ap_interrupt_indicator = NULL;
+		ap_query_configuration();
 		if (!user_set_domain) {
 			ap_domain_index = -1;
 			ap_select_domain();
@@ -997,6 +1031,65 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 	NULL,
 };
 
+static inline int ap_test_config(unsigned int *field, unsigned int nr)
+{
+	if (nr > 0xFFu)
+		return 0;
+	return ap_test_bit((field + (nr >> 5)), (nr & 0x1f));
+}
+
+/*
+ * ap_test_config_card_id(): Test, whether an AP card ID is configured.
+ * @id AP card ID
+ *
+ * Returns 0 if the card is not configured
+ *	   1 if the card is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_card_id(unsigned int id)
+{
+	if (!ap_configuration)
+		return 1;
+	return ap_test_config(ap_configuration->apm, id);
+}
+
+/*
+ * ap_test_config_domain(): Test, whether an AP usage domain is configured.
+ * @domain AP usage domain ID
+ *
+ * Returns 0 if the usage domain is not configured
+ *	   1 if the usage domain is configured or
+ *	     if the configuration information is not available
+ */
+static inline int ap_test_config_domain(unsigned int domain)
+{
+	if (!ap_configuration)
+		return 1;
+	return ap_test_config(ap_configuration->aqm, domain);
+}
+
+/**
+ * ap_query_configuration(): Query AP configuration information.
+ *
+ * Query information of installed cards and configured domains from AP.
+ */
+static void ap_query_configuration(void)
+{
+#ifdef CONFIG_64BIT
+	if (ap_configuration_available()) {
+		if (!ap_configuration)
+			ap_configuration =
+				kzalloc(sizeof(struct ap_config_info),
+					GFP_KERNEL);
+		if (ap_configuration)
+			__ap_query_configuration(ap_configuration);
+	} else
+		ap_configuration = NULL;
+#else
+	ap_configuration = NULL;
+#endif
+}
+
 /**
  * ap_select_domain(): Select an AP domain.
  *
@@ -1005,6 +1098,7 @@ static struct bus_attribute *const ap_bus_attrs[] = {
 static int ap_select_domain(void)
 {
 	int queue_depth, device_type, count, max_count, best_domain;
+	ap_qid_t qid;
 	int rc, i, j;
 
 	/*
@@ -1018,9 +1112,13 @@ static int ap_select_domain(void)
 	best_domain = -1;
 	max_count = 0;
 	for (i = 0; i < AP_DOMAINS; i++) {
+		if (!ap_test_config_domain(i))
+			continue;
 		count = 0;
 		for (j = 0; j < AP_DEVICES; j++) {
-			ap_qid_t qid = AP_MKQID(j, i);
+			if (!ap_test_config_card_id(j))
+				continue;
+			qid = AP_MKQID(j, i);
 			rc = ap_query_queue(qid, &queue_depth, &device_type);
 			if (rc)
 				continue;
@@ -1169,6 +1267,7 @@ static void ap_scan_bus(struct work_struct *unused)
 	unsigned int device_functions;
 	int rc, i;
 
+	ap_query_configuration();
 	if (ap_select_domain() != 0)
 		return;
 	for (i = 0; i < AP_DEVICES; i++) {
@@ -1176,7 +1275,10 @@ static void ap_scan_bus(struct work_struct *unused)
 		dev = bus_find_device(&ap_bus_type, NULL,
 				      (void *)(unsigned long)qid,
 				      __ap_scan_bus);
-		rc = ap_query_queue(qid, &queue_depth, &device_type);
+		if (ap_test_config_card_id(i))
+			rc = ap_query_queue(qid, &queue_depth, &device_type);
+		else
+			rc = -ENODEV;
 		if (dev) {
 			if (rc == -EBUSY) {
 				set_current_state(TASK_UNINTERRUPTIBLE);
@@ -1227,9 +1329,9 @@ static void ap_scan_bus(struct work_struct *unused)
 				kfree(ap_dev);
 				continue;
 			}
-			if (test_ap_facility(device_functions, 3))
+			if (ap_test_bit(&device_functions, 3))
 				ap_dev->device_type = AP_DEVICE_TYPE_CEX3C;
-			else if (test_ap_facility(device_functions, 4))
+			else if (ap_test_bit(&device_functions, 4))
 				ap_dev->device_type = AP_DEVICE_TYPE_CEX3A;
 			else {
 				kfree(ap_dev);
@@ -1785,6 +1887,7 @@ int __init ap_module_init(void)
 		goto out_root;
 	}
 
+	ap_query_configuration();
 	if (ap_select_domain() == 0)
 		ap_scan_bus(NULL);
 
