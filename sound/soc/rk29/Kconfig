@@ -26,7 +26,7 @@ config SND_RK29_SOC_I2S_2CH
 config SND_RK_SOC_I2S2_2CH
 	bool "Soc RK29 I2S 2 Channel support(I2S2)"
 	default n
-	depends on SND_RK29_SOC_I2S && ARCH_RK30 && !ARCH_RK2928
+	depends on SND_RK29_SOC_I2S && ARCH_RK30 && !ARCH_RK2928 && !ARCH_RK3066B
 	help
 		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
 
