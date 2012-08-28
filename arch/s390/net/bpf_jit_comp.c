@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
+#include <asm/facility.h>
 
 /*
  * Conventions:
@@ -112,6 +113,12 @@ struct bpf_jit {
 ({							\
 	unsigned int __disp = (disp) & 0xfff;		\
 	EMIT6(op1 | __disp, op2);			\
+})
+
+#define EMIT6_IMM(op, imm)				\
+({							\
+	unsigned int __imm = (imm);			\
+	EMIT6(op | (__imm >> 16), __imm & 0xffff);	\
 })
 
 #define EMIT_CONST(val)					\
@@ -276,6 +283,9 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		if (K <= 16383)
 			/* ahi %r5,<K> */
 			EMIT4_IMM(0xa75a0000, K);
+		else if (test_facility(21))
+			/* alfi %r5,<K> */
+			EMIT6_IMM(0xc25b0000, K);
 		else
 			/* a %r5,<d(K)>(%r13) */
 			EMIT4_DISP(0x5a50d000, EMIT_CONST(K));
@@ -291,6 +301,9 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		if (K <= 16384)
 			/* ahi %r5,-K */
 			EMIT4_IMM(0xa75a0000, -K);
+		else if (test_facility(21))
+			/* alfi %r5,-K */
+			EMIT6_IMM(0xc25b0000, -K);
 		else
 			/* s %r5,<d(K)>(%r13) */
 			EMIT4_DISP(0x5b50d000, EMIT_CONST(K));
@@ -304,6 +317,9 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		if (K <= 16383)
 			/* mhi %r5,K */
 			EMIT4_IMM(0xa75c0000, K);
+		else if (test_facility(34))
+			/* msfi %r5,<K> */
+			EMIT6_IMM(0xc2510000, K);
 		else
 			/* ms %r5,<d(K)>(%r13) */
 			EMIT4_DISP(0x7150d000, EMIT_CONST(K));
@@ -331,8 +347,12 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		EMIT2(0x145c);
 		break;
 	case BPF_S_ALU_AND_K: /* A &= K */
-		/* n %r5,<d(K)>(%r13) */
-		EMIT4_DISP(0x5450d000, EMIT_CONST(K));
+		if (test_facility(21))
+			/* nilf %r5,<K> */
+			EMIT6_IMM(0xc05b0000, K);
+		else
+			/* n %r5,<d(K)>(%r13) */
+			EMIT4_DISP(0x5450d000, EMIT_CONST(K));
 		break;
 	case BPF_S_ALU_OR_X: /* A |= X */
 		jit->seen |= SEEN_XREG;
@@ -340,8 +360,12 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct sock_filter *filter,
 		EMIT2(0x165c);
 		break;
 	case BPF_S_ALU_OR_K: /* A |= K */
-		/* o %r5,<d(K)>(%r13) */
-		EMIT4_DISP(0x5650d000, EMIT_CONST(K));
+		if (test_facility(21))
+			/* oilf %r5,<K> */
+			EMIT6_IMM(0xc05d0000, K);
+		else
+			/* o %r5,<d(K)>(%r13) */
+			EMIT4_DISP(0x5650d000, EMIT_CONST(K));
 		break;
 	case BPF_S_ALU_LSH_X: /* A <<= X; */
 		jit->seen |= SEEN_XREG;
@@ -386,6 +410,9 @@ kbranch:	/* Emit compare if the branch targets are different */
 			if (K <= 16383)
 				/* chi %r5,<K> */
 				EMIT4_IMM(0xa75e0000, K);
+			else if (test_facility(21))
+				/* clfi %r5,<K> */
+				EMIT6_IMM(0xc25f0000, K);
 			else
 				/* c %r5,<d(K)>(%r13) */
 				EMIT4_DISP(0x5950d000, EMIT_CONST(K));
@@ -508,6 +535,9 @@ call_fn:	/* lg %r1,<d(function)>(%r13) */
 		if (K <= 16383)
 			/* lhi %r5,K */
 			EMIT4_IMM(0xa7580000, K);
+		else if (test_facility(21))
+			/* llilf %r5,<K> */
+			EMIT6_IMM(0xc05f0000, K);
 		else
 			/* l %r5,<d(K)>(%r13) */
 			EMIT4_DISP(0x5850d000, EMIT_CONST(K));
@@ -517,6 +547,9 @@ call_fn:	/* lg %r1,<d(function)>(%r13) */
 		if (K <= 16383)
 			/* lhi %r12,<K> */
 			EMIT4_IMM(0xa7c80000, K);
+		else if (test_facility(21))
+			/* llilf %r12,<K> */
+			EMIT6_IMM(0xc0cf0000, K);
 		else
 			/* l %r12,<d(K)>(%r13) */
 			EMIT4_DISP(0x58c0d000, EMIT_CONST(K));
