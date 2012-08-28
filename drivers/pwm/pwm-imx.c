@@ -42,7 +42,7 @@
 struct imx_chip {
 	struct clk	*clk;
 
-	int		clk_enabled;
+	int		enabled;
 	void __iomem	*mmio_base;
 
 	struct pwm_chip	chip;
@@ -139,14 +139,15 @@ static int imx_pwm_config(struct pwm_chip *chip,
 static int imx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct imx_chip *imx = to_imx_chip(chip);
-	int rc = 0;
+	int ret;
 
-	if (!imx->clk_enabled) {
-		rc = clk_prepare_enable(imx->clk);
-		if (!rc)
-			imx->clk_enabled = 1;
-	}
-	return rc;
+	ret = clk_prepare_enable(imx->clk);
+	if (ret)
+		return ret;
+
+	imx->enabled = 1;
+
+	return 0;
 }
 
 static void imx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -155,10 +156,8 @@ static void imx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	writel(0, imx->mmio_base + MX3_PWMCR);
 
-	if (imx->clk_enabled) {
-		clk_disable_unprepare(imx->clk);
-		imx->clk_enabled = 0;
-	}
+	clk_disable_unprepare(imx->clk);
+	imx->enabled = 0;
 }
 
 static struct pwm_ops imx_pwm_ops = {
@@ -189,8 +188,6 @@ static int __devinit imx_pwm_probe(struct platform_device *pdev)
 	imx->chip.dev = &pdev->dev;
 	imx->chip.base = -1;
 	imx->chip.npwm = 1;
-
-	imx->clk_enabled = 0;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
