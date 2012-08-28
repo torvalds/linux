@@ -58,11 +58,6 @@ const void *__init __omap_get_config(u16 tag, size_t len, int nr)
         return get_config(tag, len, nr, NULL);
 }
 
-const void *__init omap_get_var_config(u16 tag, size_t *len)
-{
-        return get_config(tag, NO_LENGTH_CHECK, 0, len);
-}
-
 void __init omap_reserve(void)
 {
 	omap_vram_reserve_sdram_memblock();

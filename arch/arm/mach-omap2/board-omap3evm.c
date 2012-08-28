@@ -45,7 +45,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/board.h>
 #include <plat/usb.h>
 #include <plat/nand.h>
 #include "common.h"
@@ -526,9 +525,6 @@ static int __init omap3_evm_i2c_init(void)
 	return 0;
 }
 
-static struct omap_board_config_kernel omap3_evm_config[] __initdata = {
-};
-
 static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 
 	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
@@ -687,9 +683,6 @@ static void __init omap3_evm_init(void)
 
 	obm = (cpu_is_omap3630()) ? omap36x_board_mux : omap35x_board_mux;
 	omap3_mux_init(obm, OMAP_PACKAGE_CBB);
-
-	omap_board_config = omap3_evm_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
 	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);

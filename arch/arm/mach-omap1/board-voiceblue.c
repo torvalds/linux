@@ -155,9 +155,6 @@ static struct omap_usb_config voiceblue_usb_config __initdata = {
 	.pins[2]	= 6,
 };
 
-static struct omap_board_config_kernel voiceblue_config[] = {
-};
-
 #define MACHINE_PANICED		1
 #define MACHINE_REBOOTING	2
 #define MACHINE_REBOOT		4
@@ -275,8 +272,6 @@ static void __init voiceblue_init(void)
 	voiceblue_smc91x_resources[1].start = gpio_to_irq(8);
 	voiceblue_smc91x_resources[1].end = gpio_to_irq(8);
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
-	omap_board_config = voiceblue_config;
-	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
 	omap_serial_init();
 	omap1_usb_init(&voiceblue_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);

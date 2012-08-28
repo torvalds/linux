@@ -31,7 +31,6 @@
 #include <asm/mach/map.h>
 
 #include <plat/mcspi.h>
-#include <plat/board.h>
 #include <plat/usb.h>
 #include "common.h"
 #include <plat/dma.h>
@@ -189,9 +188,6 @@ static struct omap_dss_board_info sdp3430_dss_data = {
 	.num_devices	= ARRAY_SIZE(sdp3430_dss_devices),
 	.devices	= sdp3430_dss_devices,
 	.default_device	= &sdp3430_lcd_device,
-};
-
-static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -576,8 +572,6 @@ static void __init omap_3430sdp_init(void)
 	int gpio_pendown;
 
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
-	omap_board_config = sdp3430_config;
-	omap_board_config_size = ARRAY_SIZE(sdp3430_config);
 	omap_hsmmc_init(mmc);
 	omap3430_i2c_init();
 	omap_display_init(&sdp3430_dss_data);
