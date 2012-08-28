@@ -2,6 +2,8 @@
 #define _ASM_S390_EADM_H
 
 #include <linux/types.h>
+#include <linux/device.h>
+#include <linux/spinlock.h>
 
 struct arqb {
 	u64 data;
@@ -70,5 +72,54 @@ struct aob {
 	struct arsb response;
 	struct msb msb[AOB_NR_MSB];
 } __packed __aligned(PAGE_SIZE);
+
+struct aob_rq_header {
+	struct scm_device *scmdev;
+	char data[0];
+};
+
+struct scm_device {
+	u64 address;
+	u64 size;
+	unsigned int nr_max_block;
+	struct device dev;
+	spinlock_t lock;
+	struct {
+		unsigned int persistence:4;
+		unsigned int oper_state:4;
+		unsigned int data_state:4;
+		unsigned int rank:4;
+		unsigned int release:1;
+		unsigned int res_id:8;
+	} __packed attrs;
+};
+
+#define OP_STATE_GOOD		1
+#define OP_STATE_TEMP_ERR	2
+#define OP_STATE_PERM_ERR	3
+
+struct scm_driver {
+	struct device_driver drv;
+	int (*probe) (struct scm_device *scmdev);
+	int (*remove) (struct scm_device *scmdev);
+	void (*handler) (struct scm_device *scmdev, void *data, int error);
+};
+
+int scm_driver_register(struct scm_driver *scmdrv);
+void scm_driver_unregister(struct scm_driver *scmdrv);
+
+int scm_start_aob(struct aob *aob);
+void scm_irq_handler(struct aob *aob, int error);
+
+struct eadm_ops {
+	int (*eadm_start) (struct aob *aob);
+	struct module *owner;
+};
+
+int scm_get_ref(void);
+void scm_put_ref(void);
+
+void register_eadm_ops(struct eadm_ops *ops);
+void unregister_eadm_ops(struct eadm_ops *ops);
 
 #endif /* _ASM_S390_EADM_H */

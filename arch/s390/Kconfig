@@ -433,6 +433,13 @@ config CHSC_SCH
 
 	  If unsure, say N.
 
+config SCM_BUS
+	def_bool y
+	depends on 64BIT
+	prompt "SCM bus driver"
+	help
+	  Bus driver for Storage Class Memory.
+
 endmenu
 
 menu "Dump support"
