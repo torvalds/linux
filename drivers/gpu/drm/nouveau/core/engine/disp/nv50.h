@@ -67,4 +67,13 @@ extern struct nouveau_ofuncs nv50_disp_base_ofuncs;
 extern struct nouveau_oclass nv50_disp_cclass;
 void nv50_disp_intr(struct nouveau_subdev *);
 
+extern struct nouveau_ofuncs nvd0_disp_mast_ofuncs;
+extern struct nouveau_ofuncs nvd0_disp_sync_ofuncs;
+extern struct nouveau_ofuncs nvd0_disp_ovly_ofuncs;
+extern struct nouveau_ofuncs nvd0_disp_oimm_ofuncs;
+extern struct nouveau_ofuncs nvd0_disp_curs_ofuncs;
+extern struct nouveau_ofuncs nvd0_disp_base_ofuncs;
+extern struct nouveau_oclass nvd0_disp_cclass;
+void nvd0_disp_intr(struct nouveau_subdev *);
+
 #endif

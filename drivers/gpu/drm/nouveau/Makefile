@@ -135,6 +135,7 @@ nouveau-y += core/engine/disp/nv94.o
 nouveau-y += core/engine/disp/nva0.o
 nouveau-y += core/engine/disp/nva3.o
 nouveau-y += core/engine/disp/nvd0.o
+nouveau-y += core/engine/disp/nve0.o
 nouveau-y += core/engine/disp/vga.o
 nouveau-y += core/engine/fifo/base.o
 nouveau-y += core/engine/fifo/nv04.o

@@ -44,6 +44,12 @@ nvd0_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 
 	if (!nv_iclass(parent, NV_ENGCTX_CLASS)) {
 		switch (nv_mclass(parent->parent)) {
+		case NVD0_DISP_MAST_CLASS:
+		case NVD0_DISP_SYNC_CLASS:
+		case NVD0_DISP_OVLY_CLASS:
+		case NVE0_DISP_MAST_CLASS:
+		case NVE0_DISP_SYNC_CLASS:
+		case NVE0_DISP_OVLY_CLASS:
 			break;
 		default:
 			return -EINVAL;
