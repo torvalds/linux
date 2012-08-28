@@ -25,6 +25,7 @@
 #define MX1_PWMS    0x04   /* PWM Sample Register */
 #define MX1_PWMP    0x08   /* PWM Period Register */
 
+#define MX1_PWMC_EN		(1 << 4)
 
 /* i.MX27, i.MX31, i.MX35 share the same PWM function block: */
 
@@ -49,6 +50,7 @@ struct imx_chip {
 
 	int (*config)(struct pwm_chip *chip,
 		struct pwm_device *pwm, int duty_ns, int period_ns);
+	void (*set_enable)(struct pwm_chip *chip, bool enable);
 };
 
 #define to_imx_chip(chip)	container_of(chip, struct imx_chip, chip)
@@ -80,6 +82,21 @@ static int imx_pwm_config_v1(struct pwm_chip *chip,
 	writel(max - p, imx->mmio_base + MX1_PWMS);
 
 	return 0;
+}
+
+static void imx_pwm_set_enable_v1(struct pwm_chip *chip, bool enable)
+{
+	struct imx_chip *imx = to_imx_chip(chip);
+	u32 val;
+
+	val = readl(imx->mmio_base + MX1_PWMC);
+
+	if (enable)
+		val |= MX1_PWMC_EN;
+	else
+		val &= ~MX1_PWMC_EN;
+
+	writel(val, imx->mmio_base + MX1_PWMC);
 }
 
 static int imx_pwm_config_v2(struct pwm_chip *chip,
@@ -116,7 +133,10 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 
 	cr = MX3_PWMCR_PRESCALER(prescale) |
 		MX3_PWMCR_DOZEEN | MX3_PWMCR_WAITEN |
-		MX3_PWMCR_DBGEN | MX3_PWMCR_EN;
+		MX3_PWMCR_DBGEN;
+
+	if (imx->enabled)
+		cr |= MX3_PWMCR_EN;
 
 	if (cpu_is_mx25())
 		cr |= MX3_PWMCR_CLKSRC_IPG;
@@ -126,6 +146,21 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 	writel(cr, imx->mmio_base + MX3_PWMCR);
 
 	return 0;
+}
+
+static void imx_pwm_set_enable_v2(struct pwm_chip *chip, bool enable)
+{
+	struct imx_chip *imx = to_imx_chip(chip);
+	u32 val;
+
+	val = readl(imx->mmio_base + MX3_PWMCR);
+
+	if (enable)
+		val |= MX3_PWMCR_EN;
+	else
+		val &= ~MX3_PWMCR_EN;
+
+	writel(val, imx->mmio_base + MX3_PWMCR);
 }
 
 static int imx_pwm_config(struct pwm_chip *chip,
@@ -145,6 +180,8 @@ static int imx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	if (ret)
 		return ret;
 
+	imx->set_enable(chip, true);
+
 	imx->enabled = 1;
 
 	return 0;
@@ -154,7 +191,7 @@ static void imx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct imx_chip *imx = to_imx_chip(chip);
 
-	writel(0, imx->mmio_base + MX3_PWMCR);
+	imx->set_enable(chip, false);
 
 	clk_disable_unprepare(imx->clk);
 	imx->enabled = 0;
@@ -199,10 +236,13 @@ static int __devinit imx_pwm_probe(struct platform_device *pdev)
 	if (imx->mmio_base == NULL)
 		return -EADDRNOTAVAIL;
 
-	if (cpu_is_mx1() || cpu_is_mx21())
+	if (cpu_is_mx1() || cpu_is_mx21()) {
 		imx->config = imx_pwm_config_v1;
-	else
+		imx->set_enable = imx_pwm_set_enable_v1;
+	} else {
 		imx->config = imx_pwm_config_v2;
+		imx->set_enable = imx_pwm_set_enable_v2;
+	}
 
 	ret = pwmchip_add(&imx->chip);
 	if (ret < 0)
