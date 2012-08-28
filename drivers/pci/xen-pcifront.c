@@ -982,7 +982,6 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 	int err = 0;
 	int i, num_devs;
 	unsigned int domain, bus, slot, func;
-	struct pci_bus *pci_bus;
 	struct pci_dev *pci_dev;
 	char str[64];
 
@@ -1032,13 +1031,8 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 			goto out;
 		}
 
-		pci_bus = pci_find_bus(domain, bus);
-		if (!pci_bus) {
-			dev_dbg(&pdev->xdev->dev, "Cannot get bus %04x:%02x\n",
-				domain, bus);
-			continue;
-		}
-		pci_dev = pci_get_slot(pci_bus, PCI_DEVFN(slot, func));
+		pci_dev = pci_get_domain_bus_and_slot(domain, bus,
+				PCI_DEVFN(slot, func));
 		if (!pci_dev) {
 			dev_dbg(&pdev->xdev->dev,
 				"Cannot get PCI device %04x:%02x:%02x.%d\n",
