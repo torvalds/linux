@@ -190,7 +190,7 @@ static noinline void rk30_pm_dump_irq(void)
 		printk("wakeup gpio2: %08x\n", readl_relaxed(RK30_GPIO2_BASE + GPIO_INT_STATUS));
 	if (irq_gpio & 8)
 		printk("wakeup gpio3: %08x\n", readl_relaxed(RK30_GPIO3_BASE + GPIO_INT_STATUS));
-#ifdef CONFIG_ARCH_RK30
+#if !defined(CONFIG_ARCH_RK3066B)
 	if (irq_gpio & 0x10)
 		printk("wakeup gpio4: %08x\n", readl_relaxed(RK30_GPIO4_BASE + GPIO_INT_STATUS));
 	if (irq_gpio & 0x40)
@@ -214,7 +214,7 @@ static noinline void rk30_pm_dump_inten(void)
 	DUMP_GPIO_INTEN(1);
 	DUMP_GPIO_INTEN(2);
 	DUMP_GPIO_INTEN(3);
-#ifdef CONFIG_ARCH_RK30
+#if !defined(CONFIG_ARCH_RK3066B)
 	DUMP_GPIO_INTEN(4);
 	DUMP_GPIO_INTEN(6);
 #endif

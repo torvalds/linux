@@ -46,7 +46,7 @@ static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(GPIO1),
 	RK30_DEVICE(GPIO2),
 	RK30_DEVICE(GPIO3),
-#ifdef CONFIG_ARCH_RK30
+#if !defined(CONFIG_ARCH_RK3066B)
 	RK30_DEVICE(GPIO4),
 	RK30_DEVICE(GPIO6),
 #endif
