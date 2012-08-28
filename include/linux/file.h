@@ -47,6 +47,9 @@ static inline struct fd fdget(unsigned int fd)
 	return (struct fd){f,b};
 }
 
+extern struct file *fget_raw(unsigned int fd);
+extern struct file *fget_raw_light(unsigned int fd, int *fput_needed);
+
 static inline struct fd fdget_raw(unsigned int fd)
 {
 	int b;
@@ -54,8 +57,6 @@ static inline struct fd fdget_raw(unsigned int fd)
 	return (struct fd){f,b};
 }
 
-extern struct file *fget_raw(unsigned int fd);
-extern struct file *fget_raw_light(unsigned int fd, int *fput_needed);
 extern int f_dupfd(unsigned int from, struct file *file, unsigned flags);
 extern int replace_fd(unsigned fd, struct file *file, unsigned flags);
 extern void set_close_on_exec(unsigned int fd, int flag);

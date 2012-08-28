@@ -233,8 +233,8 @@ group_extend_out:
 
 	case EXT4_IOC_MOVE_EXT: {
 		struct move_extent me;
-		struct file *donor_filp;
-		int err, fput_needed;
+		struct fd donor;
+		int err;
 
 		if (!(filp->f_mode & FMODE_READ) ||
 		    !(filp->f_mode & FMODE_WRITE))
@@ -245,11 +245,11 @@ group_extend_out:
 			return -EFAULT;
 		me.moved_len = 0;
 
-		donor_filp = fget_light(me.donor_fd, &fput_needed);
-		if (!donor_filp)
+		donor = fdget(me.donor_fd);
+		if (!donor.file)
 			return -EBADF;
 
-		if (!(donor_filp->f_mode & FMODE_WRITE)) {
+		if (!(donor.file->f_mode & FMODE_WRITE)) {
 			err = -EBADF;
 			goto mext_out;
 		}
@@ -266,7 +266,7 @@ group_extend_out:
 		if (err)
 			goto mext_out;
 
-		err = ext4_move_extents(filp, donor_filp, me.orig_start,
+		err = ext4_move_extents(filp, donor.file, me.orig_start,
 					me.donor_start, me.len, &me.moved_len);
 		mnt_drop_write_file(filp);
 
@@ -274,7 +274,7 @@ group_extend_out:
 				 &me, sizeof(me)))
 			err = -EFAULT;
 mext_out:
-		fput_light(donor_filp, fput_needed);
+		fdput(donor);
 		return err;
 	}
 

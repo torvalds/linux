@@ -134,25 +134,25 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
 	struct inode *inode;
 	struct dentry *dentry;
-	struct file *file;
-	int error, fput_needed;
+	struct fd f;
+	int error;
 
 	error = -EINVAL;
 	if (length < 0)
 		goto out;
 	error = -EBADF;
-	file = fget_light(fd, &fput_needed);
-	if (!file)
+	f = fdget(fd);
+	if (!f.file)
 		goto out;
 
 	/* explicitly opened as large or we are on 64-bit box */
-	if (file->f_flags & O_LARGEFILE)
+	if (f.file->f_flags & O_LARGEFILE)
 		small = 0;
 
-	dentry = file->f_path.dentry;
+	dentry = f.file->f_path.dentry;
 	inode = dentry->d_inode;
 	error = -EINVAL;
-	if (!S_ISREG(inode->i_mode) || !(file->f_mode & FMODE_WRITE))
+	if (!S_ISREG(inode->i_mode) || !(f.file->f_mode & FMODE_WRITE))
 		goto out_putf;
 
 	error = -EINVAL;
@@ -165,14 +165,14 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 		goto out_putf;
 
 	sb_start_write(inode->i_sb);
-	error = locks_verify_truncate(inode, file, length);
+	error = locks_verify_truncate(inode, f.file, length);
 	if (!error)
-		error = security_path_truncate(&file->f_path);
+		error = security_path_truncate(&f.file->f_path);
 	if (!error)
-		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, file);
+		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, f.file);
 	sb_end_write(inode->i_sb);
 out_putf:
-	fput_light(file, fput_needed);
+	fdput(f);
 out:
 	return error;
 }
@@ -276,15 +276,13 @@ int do_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 
 SYSCALL_DEFINE(fallocate)(int fd, int mode, loff_t offset, loff_t len)
 {
-	struct file *file;
-	int error = -EBADF, fput_needed;
+	struct fd f = fdget(fd);
+	int error = -EBADF;
 
-	file = fget_light(fd, &fput_needed);
-	if (file) {
-		error = do_fallocate(file, mode, offset, len);
-		fput_light(file, fput_needed);
+	if (f.file) {
+		error = do_fallocate(f.file, mode, offset, len);
+		fdput(f);
 	}
-
 	return error;
 }
 
@@ -400,16 +398,15 @@ out:
 
 SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 {
-	struct file *file;
+	struct fd f = fdget_raw(fd);
 	struct inode *inode;
-	int error, fput_needed;
+	int error = -EBADF;
 
 	error = -EBADF;
-	file = fget_raw_light(fd, &fput_needed);
-	if (!file)
+	if (!f.file)
 		goto out;
 
-	inode = file->f_path.dentry->d_inode;
+	inode = f.file->f_path.dentry->d_inode;
 
 	error = -ENOTDIR;
 	if (!S_ISDIR(inode->i_mode))
@@ -417,9 +414,9 @@ SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 
 	error = inode_permission(inode, MAY_EXEC | MAY_CHDIR);
 	if (!error)
-		set_fs_pwd(current->fs, &file->f_path);
+		set_fs_pwd(current->fs, &f.file->f_path);
 out_putf:
-	fput_light(file, fput_needed);
+	fdput(f);
 out:
 	return error;
 }
@@ -582,21 +579,20 @@ SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group
 
 SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 {
-	struct file *file;
-	int error = -EBADF, fput_needed;
+	struct fd f = fdget(fd);
+	int error = -EBADF;
 
-	file = fget_light(fd, &fput_needed);
-	if (!file)
+	if (!f.file)
 		goto out;
 
-	error = mnt_want_write_file(file);
+	error = mnt_want_write_file(f.file);
 	if (error)
 		goto out_fput;
-	audit_inode(NULL, file->f_path.dentry);
-	error = chown_common(&file->f_path, user, group);
-	mnt_drop_write_file(file);
+	audit_inode(NULL, f.file->f_path.dentry);
+	error = chown_common(&f.file->f_path, user, group);
+	mnt_drop_write_file(f.file);
 out_fput:
-	fput_light(file, fput_needed);
+	fdput(f);
 out:
 	return error;
 }

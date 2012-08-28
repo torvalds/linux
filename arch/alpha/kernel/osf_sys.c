@@ -144,28 +144,25 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 		struct osf_dirent __user *, dirent, unsigned int, count,
 		long __user *, basep)
 {
-	int error, fput_needed;
-	struct file *file;
+	int error;
+	struct fd arg = fdget(fd);
 	struct osf_dirent_callback buf;
 
-	error = -EBADF;
-	file = fget_light(fd, &fput_needed);
-	if (!file)
-		goto out;
+	if (!arg.file)
+		return -EBADF;
 
 	buf.dirent = dirent;
 	buf.basep = basep;
 	buf.count = count;
 	buf.error = 0;
 
-	error = vfs_readdir(file, osf_filldir, &buf);
+	error = vfs_readdir(arg.file, osf_filldir, &buf);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
 		error = count - buf.count;
 
-	fput_light(file, fput_needed);
- out:
+	fdput(arg);
 	return error;
 }
 

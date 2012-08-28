@@ -1797,8 +1797,6 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 		     struct nameidata *nd, struct file **fp)
 {
 	int retval = 0;
-	int fput_needed;
-	struct file *file;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED;
@@ -1850,44 +1848,41 @@ static int path_init(int dfd, const char *name, unsigned int flags,
 			get_fs_pwd(current->fs, &nd->path);
 		}
 	} else {
+		struct fd f = fdget_raw(dfd);
 		struct dentry *dentry;
 
-		file = fget_raw_light(dfd, &fput_needed);
-		retval = -EBADF;
-		if (!file)
-			goto out_fail;
+		if (!f.file)
+			return -EBADF;
 
-		dentry = file->f_path.dentry;
+		dentry = f.file->f_path.dentry;
 
 		if (*name) {
-			retval = -ENOTDIR;
-			if (!S_ISDIR(dentry->d_inode->i_mode))
-				goto fput_fail;
+			if (!S_ISDIR(dentry->d_inode->i_mode)) {
+				fdput(f);
+				return -ENOTDIR;
+			}
 
 			retval = inode_permission(dentry->d_inode, MAY_EXEC);
-			if (retval)
-				goto fput_fail;
+			if (retval) {
+				fdput(f);
+				return retval;
+			}
 		}
 
-		nd->path = file->f_path;
+		nd->path = f.file->f_path;
 		if (flags & LOOKUP_RCU) {
-			if (fput_needed)
-				*fp = file;
+			if (f.need_put)
+				*fp = f.file;
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
 			lock_rcu_walk();
 		} else {
-			path_get(&file->f_path);
-			fput_light(file, fput_needed);
+			path_get(&nd->path);
+			fdput(f);
 		}
 	}
 
 	nd->inode = nd->path.dentry->d_inode;
 	return 0;
-
-fput_fail:
-	fput_light(file, fput_needed);
-out_fail:
-	return retval;
 }
 
 static inline int lookup_last(struct nameidata *nd, struct path *path)

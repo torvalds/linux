@@ -4780,7 +4780,7 @@ recheck:
 asmlinkage long
 sys_perfmonctl (int fd, int cmd, void __user *arg, int count)
 {
-	struct file *file = NULL;
+	struct fd f = {NULL, 0};
 	pfm_context_t *ctx = NULL;
 	unsigned long flags = 0UL;
 	void *args_k = NULL;
@@ -4789,7 +4789,6 @@ sys_perfmonctl (int fd, int cmd, void __user *arg, int count)
 	int narg, completed_args = 0, call_made = 0, cmd_flags;
 	int (*func)(pfm_context_t *ctx, void *arg, int count, struct pt_regs *regs);
 	int (*getsize)(void *arg, size_t *sz);
-	int fput_needed;
 #define PFM_MAX_ARGSIZE	4096
 
 	/*
@@ -4878,17 +4877,17 @@ restart_args:
 
 	ret = -EBADF;
 
-	file = fget_light(fd, &fput_needed);
-	if (unlikely(file == NULL)) {
+	f = fdget(fd);
+	if (unlikely(f.file == NULL)) {
 		DPRINT(("invalid fd %d\n", fd));
 		goto error_args;
 	}
-	if (unlikely(PFM_IS_FILE(file) == 0)) {
+	if (unlikely(PFM_IS_FILE(f.file) == 0)) {
 		DPRINT(("fd %d not related to perfmon\n", fd));
 		goto error_args;
 	}
 
-	ctx = file->private_data;
+	ctx = f.file->private_data;
 	if (unlikely(ctx == NULL)) {
 		DPRINT(("no context for fd %d\n", fd));
 		goto error_args;
@@ -4918,8 +4917,8 @@ abort_locked:
 	if (call_made && PFM_CMD_RW_ARG(cmd) && copy_to_user(arg, args_k, base_sz*count)) ret = -EFAULT;
 
 error_args:
-	if (file)
-		fput_light(file, fput_needed);
+	if (f.file)
+		fdput(f);
 
 	kfree(args_k);
 

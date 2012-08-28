@@ -107,9 +107,9 @@ static const struct super_operations coda_super_operations =
 
 static int get_device_index(struct coda_mount_data *data)
 {
-	struct file *file;
+	struct fd f;
 	struct inode *inode;
-	int idx, fput_needed;
+	int idx;
 
 	if (data == NULL) {
 		printk("coda_read_super: Bad mount data\n");
@@ -121,17 +121,17 @@ static int get_device_index(struct coda_mount_data *data)
 		return -1;
 	}
 
-	file = fget_light(data->fd, &fput_needed);
-	if (!file)
+	f = fdget(data->fd);
+	if (!f.file)
 		goto Ebadf;
-	inode = file->f_path.dentry->d_inode;
+	inode = f.file->f_path.dentry->d_inode;
 	if (!S_ISCHR(inode->i_mode) || imajor(inode) != CODA_PSDEV_MAJOR) {
-		fput_light(file, fput_needed);
+		fdput(f);
 		goto Ebadf;
 	}
 
 	idx = iminor(inode);
-	fput_light(file, fput_needed);
+	fdput(f);
 
 	if (idx < 0 || idx >= MAX_CODADEVS) {
 		printk("coda_read_super: Bad minor number\n");

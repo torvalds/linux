@@ -1788,15 +1788,15 @@ SYSCALL_DEFINE1(umask, int, mask)
 #ifdef CONFIG_CHECKPOINT_RESTORE
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
-	struct file *exe_file;
+	struct fd exe;
 	struct dentry *dentry;
-	int err, fput_needed;
+	int err;
 
-	exe_file = fget_light(fd, &fput_needed);
-	if (!exe_file)
+	exe = fdget(fd);
+	if (!exe.file)
 		return -EBADF;
 
-	dentry = exe_file->f_path.dentry;
+	dentry = exe.file->f_path.dentry;
 
 	/*
 	 * Because the original mm->exe_file points to executable file, make
@@ -1805,7 +1805,7 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 	 */
 	err = -EACCES;
 	if (!S_ISREG(dentry->d_inode->i_mode)	||
-	    exe_file->f_path.mnt->mnt_flags & MNT_NOEXEC)
+	    exe.file->f_path.mnt->mnt_flags & MNT_NOEXEC)
 		goto exit;
 
 	err = inode_permission(dentry->d_inode, MAY_EXEC);
@@ -1839,12 +1839,12 @@ static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 		goto exit_unlock;
 
 	err = 0;
-	set_mm_exe_file(mm, exe_file);	/* this grabs a reference to exe_file */
+	set_mm_exe_file(mm, exe.file);	/* this grabs a reference to exe.file */
 exit_unlock:
 	up_write(&mm->mmap_sem);
 
 exit:
-	fput_light(exe_file, fput_needed);
+	fdput(exe);
 	return err;
 }
 
