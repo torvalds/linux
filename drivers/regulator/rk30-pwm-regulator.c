@@ -260,6 +260,7 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	int id = pdev->id;
 	int ret ;
     	char gpio_name[20];
+	unsigned selector = 0;
 	
 	if (!pdata)
 		return -ENODEV;
@@ -338,6 +339,7 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	g_dcdc	= dcdc;
 	platform_set_drvdata(pdev, dcdc);	
 	printk(KERN_INFO "pwm_regulator.%d: driver initialized\n",id);
+	pwm_regulator_set_voltage(dcdc->regulator,pdata->pwm_voltage,pdata->pwm_voltage,&selector);
 
 	return 0;
 
