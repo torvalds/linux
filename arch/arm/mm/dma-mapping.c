@@ -275,7 +275,7 @@ struct dma_pool {
 	unsigned long *bitmap;
 	unsigned long nr_pages;
 	void *vaddr;
-	struct page *page;
+	struct page **pages;
 };
 
 static struct dma_pool atomic_pool = {
@@ -314,6 +314,7 @@ static int __init atomic_pool_init(void)
 	unsigned long nr_pages = pool->size >> PAGE_SHIFT;
 	unsigned long *bitmap;
 	struct page *page;
+	struct page **pages;
 	void *ptr;
 	int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
 
@@ -321,21 +322,31 @@ static int __init atomic_pool_init(void)
 	if (!bitmap)
 		goto no_bitmap;
 
+	pages = kzalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		goto no_pages;
+
 	if (IS_ENABLED(CONFIG_CMA))
 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page);
 	else
 		ptr = __alloc_remap_buffer(NULL, pool->size, GFP_KERNEL, prot,
 					   &page, NULL);
 	if (ptr) {
+		int i;
+
+		for (i = 0; i < nr_pages; i++)
+			pages[i] = page + i;
+
 		spin_lock_init(&pool->lock);
 		pool->vaddr = ptr;
-		pool->page = page;
+		pool->pages = pages;
 		pool->bitmap = bitmap;
 		pool->nr_pages = nr_pages;
 		pr_info("DMA: preallocated %u KiB pool for atomic coherent allocations\n",
 		       (unsigned)pool->size / 1024);
 		return 0;
 	}
+no_pages:
 	kfree(bitmap);
 no_bitmap:
 	pr_err("DMA: failed to allocate %u KiB pool for atomic coherent allocation\n",
@@ -460,7 +471,7 @@ static void *__alloc_from_pool(size_t size, struct page **ret_page)
 	if (pageno < pool->nr_pages) {
 		bitmap_set(pool->bitmap, pageno, count);
 		ptr = pool->vaddr + PAGE_SIZE * pageno;
-		*ret_page = pool->page + pageno;
+		*ret_page = pool->pages[pageno];
 	} else {
 		pr_err_once("ERROR: %u KiB atomic DMA coherent pool is too small!\n"
 			    "Please increase it with coherent_pool= kernel parameter!\n",
