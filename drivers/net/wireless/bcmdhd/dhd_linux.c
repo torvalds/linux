@@ -3215,6 +3215,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(eventmask, WLC_E_SET_SSID);
 	setbit(eventmask, WLC_E_PRUNE);
 	setbit(eventmask, WLC_E_AUTH);
+	setbit(eventmask, WLC_E_ASSOC);
 	setbit(eventmask, WLC_E_REASSOC);
 	setbit(eventmask, WLC_E_REASSOC_IND);
 	setbit(eventmask, WLC_E_DEAUTH);
