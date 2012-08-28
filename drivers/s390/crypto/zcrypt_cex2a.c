@@ -449,7 +449,8 @@ static int zcrypt_cex2a_probe(struct ap_device *ap_dev)
 		zdev->min_mod_size = CEX2A_MIN_MOD_SIZE;
 		zdev->max_mod_size = CEX2A_MAX_MOD_SIZE;
 		zdev->max_exp_bit_length = CEX2A_MAX_MOD_SIZE;
-		if (ap_4096_commands_available(ap_dev->qid)) {
+		if (ap_test_bit(&ap_dev->functions, AP_FUNC_MEX4K) &&
+		    ap_test_bit(&ap_dev->functions, AP_FUNC_CRT4K)) {
 			zdev->max_mod_size = CEX3A_MAX_MOD_SIZE;
 			zdev->max_exp_bit_length = CEX3A_MAX_MOD_SIZE;
 		}

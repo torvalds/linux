@@ -325,25 +325,6 @@ static int ap_query_functions(ap_qid_t qid, unsigned int *functions)
 }
 
 /**
- * ap_4096_commands_availablen(): Check for availability of 4096 bit RSA
- * support.
- * @qid: The AP queue number
- *
- * Returns 1 if 4096 bit RSA keys are support fo the AP, returns 0 if not.
- */
-int ap_4096_commands_available(ap_qid_t qid)
-{
-	unsigned int functions;
-
-	if (ap_query_functions(qid, &functions))
-		return 0;
-
-	return ap_test_bit(&functions, 1) &&
-	       ap_test_bit(&functions, 2);
-}
-EXPORT_SYMBOL(ap_4096_commands_available);
-
-/**
  * ap_queue_enable_interruption(): Enable interruption on an AP.
  * @qid: The AP queue number
  * @ind: the notification indicator byte
@@ -690,6 +671,34 @@ static ssize_t ap_request_count_show(struct device *dev,
 
 static DEVICE_ATTR(request_count, 0444, ap_request_count_show, NULL);
 
+static ssize_t ap_requestq_count_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+	int rc;
+
+	spin_lock_bh(&ap_dev->lock);
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->requestq_count);
+	spin_unlock_bh(&ap_dev->lock);
+	return rc;
+}
+
+static DEVICE_ATTR(requestq_count, 0444, ap_requestq_count_show, NULL);
+
+static ssize_t ap_pendingq_count_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+	int rc;
+
+	spin_lock_bh(&ap_dev->lock);
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", ap_dev->pendingq_count);
+	spin_unlock_bh(&ap_dev->lock);
+	return rc;
+}
+
+static DEVICE_ATTR(pendingq_count, 0444, ap_pendingq_count_show, NULL);
+
 static ssize_t ap_modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -698,11 +707,23 @@ static ssize_t ap_modalias_show(struct device *dev,
 
 static DEVICE_ATTR(modalias, 0444, ap_modalias_show, NULL);
 
+static ssize_t ap_functions_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ap_device *ap_dev = to_ap_dev(dev);
+	return snprintf(buf, PAGE_SIZE, "0x%08X\n", ap_dev->functions);
+}
+
+static DEVICE_ATTR(ap_functions, 0444, ap_functions_show, NULL);
+
 static struct attribute *ap_dev_attrs[] = {
 	&dev_attr_hwtype.attr,
 	&dev_attr_depth.attr,
 	&dev_attr_request_count.attr,
+	&dev_attr_requestq_count.attr,
+	&dev_attr_pendingq_count.attr,
 	&dev_attr_modalias.attr,
+	&dev_attr_ap_functions.attr,
 	NULL
 };
 static struct attribute_group ap_dev_attr_group = {
@@ -1329,6 +1350,7 @@ static void ap_scan_bus(struct work_struct *unused)
 				kfree(ap_dev);
 				continue;
 			}
+			ap_dev->functions = device_functions;
 			if (ap_test_bit(&device_functions, 3))
 				ap_dev->device_type = AP_DEVICE_TYPE_CEX3C;
 			else if (ap_test_bit(&device_functions, 4))

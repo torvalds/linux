@@ -118,6 +118,14 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_DEVICE_TYPE_CEX3C	9
 
 /*
+ * Known function facilities
+ */
+#define AP_FUNC_MEX4K 1
+#define AP_FUNC_CRT4K 2
+#define AP_FUNC_COPRO 3
+#define AP_FUNC_ACCEL 4
+
+/*
  * AP reset flag states
  */
 #define AP_RESET_IGNORE	0	/* request timeout will be ignored */
@@ -150,6 +158,7 @@ struct ap_device {
 	ap_qid_t qid;			/* AP queue id. */
 	int queue_depth;		/* AP queue depth.*/
 	int device_type;		/* AP device type. */
+	unsigned int functions;		/* AP device function bitfield. */
 	int unregistered;		/* marks AP device as unregistered */
 	struct timer_list timeout;	/* Timer for request timeouts. */
 	int reset;			/* Reset required after req. timeout. */
@@ -224,7 +233,5 @@ void ap_flush_queue(struct ap_device *ap_dev);
 
 int ap_module_init(void);
 void ap_module_exit(void);
-
-int ap_4096_commands_available(ap_qid_t qid);
 
 #endif /* _AP_BUS_H_ */
