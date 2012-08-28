@@ -296,7 +296,7 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 	 * to 'true': the host just a(nother) SMP CPU, so we only need inter-cpu
 	 * barriers.
 	 */
-	vq = vring_new_virtqueue(lvq->config.num, LGUEST_VRING_ALIGN, vdev,
+	vq = vring_new_virtqueue(index, lvq->config.num, LGUEST_VRING_ALIGN, vdev,
 				 true, lvq->pages, lg_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
