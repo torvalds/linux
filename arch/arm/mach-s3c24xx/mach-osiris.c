@@ -274,8 +274,8 @@ static int osiris_pm_suspend(void)
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
-	s3c_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
+	gpio_request_one(S3C2410_GPA(21), GPIOF_OUT_INIT_HIGH, NULL);
+	gpio_free(S3C2410_GPA(21));
 
 	return 0;
 }
@@ -396,7 +396,8 @@ static void __init osiris_map_io(void)
 		osiris_nand_sets[0].nr_partitions = ARRAY_SIZE(osiris_default_nand_part_large);
 	} else {
 		/* write-protect line to the NAND */
-		s3c2410_gpio_setpin(S3C2410_GPA(0), 1);
+		gpio_request_one(S3C2410_GPA(0), GPIOF_OUT_INIT_HIGH, NULL);
+		gpio_free(S3C2410_GPA(0));
 	}
 
 	/* fix bus configuration (nBE settings wrong on ABLE pre v2.20) */
