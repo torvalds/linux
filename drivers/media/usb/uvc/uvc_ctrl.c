@@ -1061,7 +1061,7 @@ int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 
 	ctrl = uvc_find_control(chain, v4l2_ctrl->id, &mapping);
 	if (ctrl == NULL) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto done;
 	}
 
@@ -1099,12 +1099,13 @@ int uvc_query_v4l2_menu(struct uvc_video_chain *chain,
 		return -ERESTARTSYS;
 
 	ctrl = uvc_find_control(chain, query_menu->id, &mapping);
-	if (ctrl == NULL || mapping->v4l2_type != V4L2_CTRL_TYPE_MENU) {
-		ret = -EINVAL;
+	if (ctrl == NULL) {
+		ret = -ENOENT;
 		goto done;
 	}
 
-	if (query_menu->index >= mapping->menu_count) {
+	if (mapping->v4l2_type != V4L2_CTRL_TYPE_MENU ||
+	    query_menu->index >= mapping->menu_count) {
 		ret = -EINVAL;
 		goto done;
 	}
@@ -1263,7 +1264,7 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 
 	ctrl = uvc_find_control(handle->chain, sev->id, &mapping);
 	if (ctrl == NULL) {
-		ret = -EINVAL;
+		ret = -ENOENT;
 		goto done;
 	}
 
@@ -1414,7 +1415,7 @@ int uvc_ctrl_get(struct uvc_video_chain *chain,
 
 	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
 	if (ctrl == NULL)
-		return -EINVAL;
+		return -ENOENT;
 
 	return __uvc_ctrl_get(chain, ctrl, mapping, &xctrl->value);
 }
@@ -1431,7 +1432,9 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 	int ret;
 
 	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
-	if (ctrl == NULL || (ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR) == 0)
+	if (ctrl == NULL)
+		return -ENOENT;
+	if (!(ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR))
 		return -EINVAL;
 
 	/* Clamp out of range values. */
