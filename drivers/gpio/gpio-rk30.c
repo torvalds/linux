@@ -100,7 +100,7 @@ static struct rk30_gpio_bank rk30_gpio_banks[] = {
 	RK30_GPIO_BANK(1),
 	RK30_GPIO_BANK(2),
 	RK30_GPIO_BANK(3),
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK30) && !defined(CONFIG_ARCH_RK3066B)
 	RK30_GPIO_BANK(4),
 	RK30_GPIO_BANK(6),
 #endif
