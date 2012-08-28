@@ -52,6 +52,11 @@ int chsc_error_from_response(int response)
 		return -EINVAL;
 	case 0x0004:
 		return -EOPNOTSUPP;
+	case 0x000b:
+		return -EBUSY;
+	case 0x0100:
+	case 0x0102:
+		return -ENOMEM;
 	default:
 		return -EIO;
 	}
@@ -1047,3 +1052,33 @@ out:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(chsc_siosl);
+
+/**
+ * chsc_scm_info() - store SCM information (SSI)
+ * @scm_area: request and response block for SSI
+ * @token: continuation token
+ *
+ * Returns 0 on success.
+ */
+int chsc_scm_info(struct chsc_scm_info *scm_area, u64 token)
+{
+	int ccode, ret;
+
+	memset(scm_area, 0, sizeof(*scm_area));
+	scm_area->request.length = 0x0020;
+	scm_area->request.code = 0x004C;
+	scm_area->reqtok = token;
+
+	ccode = chsc(scm_area);
+	if (ccode > 0) {
+		ret = (ccode == 3) ? -ENODEV : -EBUSY;
+		goto out;
+	}
+	ret = chsc_error_from_response(scm_area->response.code);
+	if (ret != 0)
+		CIO_MSG_EVENT(2, "chsc: scm info failed (rc=%04x)\n",
+			      scm_area->response.code);
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(chsc_scm_info);
