@@ -927,7 +927,7 @@ static int __uvc_ctrl_get(struct uvc_video_chain *chain,
 	int ret;
 
 	if ((ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR) == 0)
-		return -EINVAL;
+		return -EACCES;
 
 	if (!ctrl->loaded) {
 		ret = uvc_query_ctrl(chain->dev, UVC_GET_CUR, ctrl->entity->id,
@@ -1435,7 +1435,7 @@ int uvc_ctrl_set(struct uvc_video_chain *chain,
 	if (ctrl == NULL)
 		return -ENOENT;
 	if (!(ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR))
-		return -EINVAL;
+		return -EACCES;
 
 	/* Clamp out of range values. */
 	switch (mapping->v4l2_type) {
