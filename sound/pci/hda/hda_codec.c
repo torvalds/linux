@@ -3518,20 +3518,6 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_POWER_STATE,
 				    power_state);
 	}
-
-	if (power_state == AC_PWRST_D0) {
-		unsigned long end_time;
-		int state;
-		/* wait until the codec reachs to D0 */
-		end_time = jiffies + msecs_to_jiffies(500);
-		do {
-			state = snd_hda_codec_read(codec, fg, 0,
-						   AC_VERB_GET_POWER_STATE, 0);
-			if (state == power_state)
-				break;
-			msleep(1);
-		} while (time_after_eq(end_time, jiffies));
-	}
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_set_power_to_all);
 
@@ -3552,6 +3538,32 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec, hda_nid_t fg
 }
 
 /*
+ * wait until the state is reached, returns the current state
+ */
+static unsigned int hda_sync_power_state(struct hda_codec *codec,
+					 hda_nid_t fg,
+					 unsigned int power_state)
+{
+	unsigned long end_time = jiffies + msecs_to_jiffies(500);
+	unsigned int state, actual_state;
+
+	for (;;) {
+		state = snd_hda_codec_read(codec, fg, 0,
+					   AC_VERB_GET_POWER_STATE, 0);
+		if (state & AC_PWRST_ERROR)
+			break;
+		actual_state = (state >> 4) & 0x0f;
+		if (actual_state == power_state)
+			break;
+		if (time_after_eq(jiffies, end_time))
+			break;
+		/* wait until the codec reachs to the target state */
+		msleep(1);
+	}
+	return state;
+}
+
+/*
  * set power state of the codec
  */
 static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
@@ -3564,11 +3576,6 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	codec->d3_stop_clk_ok = 0;
 #endif
 
-	if (codec->patch_ops.set_power_state) {
-		codec->patch_ops.set_power_state(codec, fg, power_state);
-		return;
-	}
-
 	/* this delay seems necessary to avoid click noise at power-down */
 	if (power_state == AC_PWRST_D3) {
 		/* transition time less than 10ms for power down */
@@ -3577,11 +3584,17 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 
 	/* repeat power states setting at most 10 times*/
 	for (count = 0; count < 10; count++) {
-		snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
-				    power_state);
-		snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
-		state = snd_hda_codec_read(codec, fg, 0,
-					   AC_VERB_GET_POWER_STATE, 0);
+		if (codec->patch_ops.set_power_state)
+			codec->patch_ops.set_power_state(codec, fg,
+							 power_state);
+		else {
+			snd_hda_codec_read(codec, fg, 0,
+					   AC_VERB_SET_POWER_STATE,
+					   power_state);
+			snd_hda_codec_set_power_to_all(codec, fg, power_state,
+						       true);
+		}
+		state = hda_sync_power_state(codec, fg, power_state);
 		if (!(state & AC_PWRST_ERROR))
 			break;
 	}
