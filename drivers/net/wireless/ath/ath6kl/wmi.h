@@ -1792,6 +1792,9 @@ struct rx_stats {
 	a_sle32 ucast_rate;
 } __packed;
 
+#define RATE_INDEX_WITHOUT_SGI_MASK     0x7f
+#define RATE_INDEX_MSB     0x80
+
 struct tkip_ccmp_stats {
 	__le32 tkip_local_mic_fail;
 	__le32 tkip_cnter_measures_invoked;

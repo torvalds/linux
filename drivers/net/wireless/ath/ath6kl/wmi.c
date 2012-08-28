@@ -3263,10 +3263,21 @@ int ath6kl_wmi_set_regdomain_cmd(struct wmi *wmi, const char *alpha2)
 
 s32 ath6kl_wmi_get_rate(s8 rate_index)
 {
+	u8 sgi = 0;
+
 	if (rate_index == RATE_AUTO)
 		return 0;
 
-	return wmi_rate_tbl[(u32) rate_index][0];
+	/* SGI is stored as the MSB of the rate_index */
+	if (rate_index & RATE_INDEX_MSB) {
+		rate_index &= RATE_INDEX_WITHOUT_SGI_MASK;
+		sgi = 1;
+	}
+
+	if (WARN_ON(rate_index > RATE_MCS_7_40))
+		rate_index = RATE_MCS_7_40;
+
+	return wmi_rate_tbl[(u32) rate_index][sgi];
 }
 
 static int ath6kl_wmi_get_pmkid_list_event_rx(struct wmi *wmi, u8 *datap,
