@@ -2181,10 +2181,12 @@ _ctl_ioctl_main(struct file *file, unsigned int cmd, void __user *arg,
 		return -EAGAIN;
 
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING : BLOCKING;
-	if (state == NON_BLOCKING && !mutex_trylock(&ioc->ctl_cmds.mutex))
-		return -EAGAIN;
-	else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex))
+	if (state == NON_BLOCKING) {
+		if (!mutex_trylock(&ioc->ctl_cmds.mutex))
+			return -EAGAIN;
+	} else if (mutex_lock_interruptible(&ioc->ctl_cmds.mutex)) {
 		return -ERESTARTSYS;
+	}
 
 	switch (cmd) {
 	case MPT2IOCINFO:
