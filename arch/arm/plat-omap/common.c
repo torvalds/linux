@@ -24,40 +24,6 @@
 
 #include <plat/omap-secure.h>
 
-
-#define NO_LENGTH_CHECK 0xffffffff
-
-struct omap_board_config_kernel *omap_board_config __initdata;
-int omap_board_config_size;
-
-static const void *__init get_config(u16 tag, size_t len,
-		int skip, size_t *len_out)
-{
-	struct omap_board_config_kernel *kinfo = NULL;
-	int i;
-
-	/* Try to find the config from the board-specific structures
-	 * in the kernel. */
-	for (i = 0; i < omap_board_config_size; i++) {
-		if (omap_board_config[i].tag == tag) {
-			if (skip == 0) {
-				kinfo = &omap_board_config[i];
-				break;
-			} else {
-				skip--;
-			}
-		}
-	}
-	if (kinfo == NULL)
-		return NULL;
-	return kinfo->data;
-}
-
-const void *__init __omap_get_config(u16 tag, size_t len, int nr)
-{
-        return get_config(tag, len, nr, NULL);
-}
-
 void __init omap_reserve(void)
 {
 	omap_vram_reserve_sdram_memblock();
