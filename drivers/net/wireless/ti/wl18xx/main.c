@@ -1538,18 +1538,7 @@ static struct platform_driver wl18xx_driver = {
 	}
 };
 
-static int __init wl18xx_init(void)
-{
-	return platform_driver_register(&wl18xx_driver);
-}
-module_init(wl18xx_init);
-
-static void __exit wl18xx_exit(void)
-{
-	platform_driver_unregister(&wl18xx_driver);
-}
-module_exit(wl18xx_exit);
-
+module_platform_driver(wl18xx_driver);
 module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
 MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or siso20");
 
