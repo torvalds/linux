@@ -112,7 +112,7 @@ static int rk31_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 {
 	int ret = -EINVAL;
 	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
-	rk_screen *screen = lcdc_dev->screen;
+	rk_screen *screen = dev_drv->cur_screen;
 	u64 ft;
 	int fps;
 	u16 face;
@@ -515,7 +515,7 @@ static int rk31_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
 	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
 	struct layer_par *par = NULL;
-	rk_screen *screen = lcdc_dev->screen;
+	rk_screen *screen = dev_drv->cur_screen;
 	if(!screen)
 	{
 		printk(KERN_ERR "screen is null!\n");
@@ -539,7 +539,7 @@ int rk31_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 {
 	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
 	struct layer_par *par = NULL;
-	rk_screen *screen = lcdc_dev->screen;
+	rk_screen *screen = dev_drv->cur_screen;
 	unsigned long flags;
 	int timeout;
 	if(!screen)
@@ -571,7 +571,7 @@ int rk31_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
 		init_completion(&dev_drv->frame_done);
 		spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-		timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->screen->ft+5));
+		timeout = wait_for_completion_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->cur_screen->ft+5));
 		if(!timeout&&(!dev_drv->frame_done.done))
 		{
 			printk(KERN_ERR "wait for new frame start time out!\n");
@@ -674,7 +674,7 @@ set:0 get
 static int rk31_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool set)
 {
 	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
-	rk_screen * screen = dev_drv->screen;
+	rk_screen * screen = dev_drv->cur_screen;
 	u64 ft = 0;
 	u32 dotclk;
 	int ret;
@@ -925,7 +925,8 @@ static int __devinit rk31_lcdc_probe (struct platform_device *pdev)
     	lcdc_dev->preg = (LCDC_REG*)lcdc_dev->reg_vir_base;
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
 	lcdc_dev->driver.dev=&pdev->dev;
-	lcdc_dev->driver.screen = screen;
+	lcdc_dev->driver.screen0 = screen;
+	lcdc_dev->driver.cur_screen = screen;
 	lcdc_dev->driver.screen_ctr_info = screen_ctr_info;
 	spin_lock_init(&lcdc_dev->reg_lock);
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
