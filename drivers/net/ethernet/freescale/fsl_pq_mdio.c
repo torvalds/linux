@@ -155,8 +155,7 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 	mutex_unlock(&bus->mdio_lock);
 
 	if (!status) {
-		printk(KERN_ERR "%s: The MII Bus is stuck!\n",
-				bus->name);
+		dev_err(&bus->dev, "timeout waiting for MII bus\n");
 		return -EBUSY;
 	}
 
@@ -173,7 +172,7 @@ static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct devi
 	 * Also, we have to cast back to struct gfar because of
 	 * definition weirdness done in gianfar.h.
 	 */
-	if(of_device_is_compatible(np, "fsl,gianfar-mdio") ||
+	if (of_device_is_compatible(np, "fsl,gianfar-mdio") ||
 		of_device_is_compatible(np, "fsl,gianfar-tbi") ||
 		of_device_is_compatible(np, "gianfar")) {
 		enet_regs = (struct gfar __iomem *)regs;
@@ -227,9 +226,9 @@ static int get_ucc_id_for_range(u64 start, u64 end, u32 *ucc_id)
 #endif
 }
 
-static int fsl_pq_mdio_probe(struct platform_device *ofdev)
+static int fsl_pq_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_node *np = pdev->dev.of_node;
 	struct device_node *tbi;
 	struct fsl_pq_mdio_priv *priv;
 	struct fsl_pq_mdio __iomem *regs = NULL;
@@ -252,9 +251,9 @@ static int fsl_pq_mdio_probe(struct platform_device *ofdev)
 	}
 
 	new_bus->name = "Freescale PowerQUICC MII Bus",
-	new_bus->read = &fsl_pq_mdio_read,
-	new_bus->write = &fsl_pq_mdio_write,
-	new_bus->reset = &fsl_pq_mdio_reset,
+	new_bus->read = &fsl_pq_mdio_read;
+	new_bus->write = &fsl_pq_mdio_write;
+	new_bus->reset = &fsl_pq_mdio_reset;
 	new_bus->priv = priv;
 
 	addrp = of_get_address(np, 0, &size, NULL);
@@ -295,8 +294,8 @@ static int fsl_pq_mdio_probe(struct platform_device *ofdev)
 		goto err_unmap_regs;
 	}
 
-	new_bus->parent = &ofdev->dev;
-	dev_set_drvdata(&ofdev->dev, new_bus);
+	new_bus->parent = &pdev->dev;
+	dev_set_drvdata(&pdev->dev, new_bus);
 
 	if (of_device_is_compatible(np, "fsl,gianfar-mdio") ||
 			of_device_is_compatible(np, "fsl,gianfar-tbi") ||
@@ -348,8 +347,8 @@ static int fsl_pq_mdio_probe(struct platform_device *ofdev)
 
 	err = of_mdiobus_register(new_bus, np);
 	if (err) {
-		printk (KERN_ERR "%s: Cannot register as MDIO bus\n",
-				new_bus->name);
+		dev_err(&pdev->dev, "cannot register %s as MDIO bus\n",
+			new_bus->name);
 		goto err_free_irqs;
 	}
 
@@ -367,9 +366,9 @@ err_free_priv:
 }
 
 
-static int fsl_pq_mdio_remove(struct platform_device *ofdev)
+static int fsl_pq_mdio_remove(struct platform_device *pdev)
 {
-	struct device *device = &ofdev->dev;
+	struct device *device = &pdev->dev;
 	struct mii_bus *bus = dev_get_drvdata(device);
 	struct fsl_pq_mdio_priv *priv = bus->priv;
 
