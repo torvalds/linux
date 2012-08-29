@@ -257,14 +257,16 @@ static int rk2928_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initsc
 	{
         	printk(KERN_ERR ">>>>>> set lcdc%d dclk failed\n",lcdc_dev->id);
 	}
+	#if 0
 	ret = clk_set_rate(lcdc_dev->sclk, screen->pixclock);
 	if(ret)
 	{
         	printk(KERN_ERR ">>>>>> set lcdc%d sclk failed\n",lcdc_dev->id);
 	}
+	#endif
     	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	clk_enable(lcdc_dev->dclk);
-	clk_enable(lcdc_dev->sclk);
+	//clk_enable(lcdc_dev->sclk);
 	
 	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
 		(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
