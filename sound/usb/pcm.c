@@ -212,7 +212,7 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 	}
 }
 
-static int start_endpoints(struct snd_usb_substream *subs)
+static int start_endpoints(struct snd_usb_substream *subs, int can_sleep)
 {
 	int err;
 
@@ -225,7 +225,7 @@ static int start_endpoints(struct snd_usb_substream *subs)
 		snd_printdd(KERN_DEBUG "Starting data EP @%p\n", ep);
 
 		ep->data_subs = subs;
-		err = snd_usb_endpoint_start(ep);
+		err = snd_usb_endpoint_start(ep, can_sleep);
 		if (err < 0) {
 			clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags);
 			return err;
@@ -239,7 +239,7 @@ static int start_endpoints(struct snd_usb_substream *subs)
 		snd_printdd(KERN_DEBUG "Starting sync EP @%p\n", ep);
 
 		ep->sync_slave = subs->data_endpoint;
-		err = snd_usb_endpoint_start(ep);
+		err = snd_usb_endpoint_start(ep, can_sleep);
 		if (err < 0) {
 			clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags);
 			return err;
@@ -544,13 +544,10 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	subs->last_frame_number = 0;
 	runtime->delay = 0;
 
-	/* clear the pending deactivation on the target EPs */
-	deactivate_endpoints(subs);
-
 	/* for playback, submit the URBs now; otherwise, the first hwptr_done
 	 * updates for all URBs would happen at the same time when starting */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		return start_endpoints(subs);
+		return start_endpoints(subs, 1);
 
 	return 0;
 }
@@ -1175,7 +1172,7 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		err = start_endpoints(subs);
+		err = start_endpoints(subs, 0);
 		if (err < 0)
 			return err;
 
