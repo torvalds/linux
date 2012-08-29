@@ -1325,7 +1325,7 @@ static int read_interrupt_descriptor(struct x86_emulate_ctxt *ctxt,
 static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 				     u16 selector, struct desc_ptr *dt)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 
 	if (selector & 1 << 2) {
 		struct desc_struct desc;
@@ -1747,7 +1747,7 @@ static int em_popa(struct x86_emulate_ctxt *ctxt)
 
 static int __emulate_int_real(struct x86_emulate_ctxt *ctxt, int irq)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	int rc;
 	struct desc_ptr dt;
 	gva_t cs_addr;
@@ -2129,7 +2129,7 @@ static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
 
 static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	u32 eax, ebx, ecx, edx;
 
 	/*
@@ -2173,7 +2173,7 @@ static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 
 static int em_syscall(struct x86_emulate_ctxt *ctxt)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct desc_struct cs, ss;
 	u64 msr_data;
 	u16 cs_sel, ss_sel;
@@ -2231,7 +2231,7 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 
 static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct desc_struct cs, ss;
 	u64 msr_data;
 	u16 cs_sel, ss_sel;
@@ -2294,7 +2294,7 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 
 static int em_sysexit(struct x86_emulate_ctxt *ctxt)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct desc_struct cs, ss;
 	u64 msr_data;
 	int usermode;
@@ -2357,7 +2357,7 @@ static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt)
 static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 					    u16 port, u16 len)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct desc_struct tr_seg;
 	u32 base3;
 	int r;
@@ -2476,7 +2476,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 			  u16 tss_selector, u16 old_tss_sel,
 			  ulong old_tss_base, struct desc_struct *new_desc)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct tss_segment_16 tss_seg;
 	int ret;
 	u32 new_tss_base = get_desc_base(new_desc);
@@ -2623,7 +2623,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 			  u16 tss_selector, u16 old_tss_sel,
 			  ulong old_tss_base, struct desc_struct *new_desc)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct tss_segment_32 tss_seg;
 	int ret;
 	u32 new_tss_base = get_desc_base(new_desc);
@@ -2667,7 +2667,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 				   u16 tss_selector, int idt_index, int reason,
 				   bool has_error_code, u32 error_code)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	struct desc_struct curr_tss_desc, next_tss_desc;
 	int ret;
 	u16 old_tss_sel = get_segment_selector(ctxt, VCPU_SREG_TR);
@@ -4339,7 +4339,7 @@ static void fetch_possible_mmx_operand(struct x86_emulate_ctxt *ctxt,
 
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 {
-	struct x86_emulate_ops *ops = ctxt->ops;
+	const struct x86_emulate_ops *ops = ctxt->ops;
 	int rc = X86EMUL_CONTINUE;
 	int saved_dst_type = ctxt->dst.type;
 

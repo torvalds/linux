@@ -250,7 +250,7 @@ struct read_cache {
 };
 
 struct x86_emulate_ctxt {
-	struct x86_emulate_ops *ops;
+	const struct x86_emulate_ops *ops;
 
 	/* Register state before/after emulation. */
 	unsigned long eflags;
