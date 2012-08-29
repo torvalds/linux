@@ -44,6 +44,8 @@
 	.word	0x85b02307;
 #define MOVXTOD_O0_F0		\
 	.word	0x81b02308;
+#define MOVXTOD_O5_F0		\
+	.word	0x81b0230d;
 #define MOVXTOD_O5_F2		\
 	.word	0x85b0230d;
 
@@ -1137,3 +1139,96 @@ ENTRY(aes_sparc64_cbc_decrypt_256)
 	retl
 	 nop
 ENDPROC(aes_sparc64_cbc_decrypt_256)
+
+	.align		32
+ENTRY(aes_sparc64_ctr_crypt_128)
+	/* %o0=key, %o1=input, %o2=output, %o3=len, %o4=IV */
+	ldx		[%o4 + 0x00], %g3
+	ldx		[%o4 + 0x08], %g7
+	ldx		[%o0 + 0x00], %g1
+	ldx		[%o0 + 0x08], %g2
+1:	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F0
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F2
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	ENCRYPT_128(8, 0, 2, 4, 6)
+	ldd		[%o1 + 0x00], %f4
+	ldd		[%o1 + 0x08], %f6
+	fxor		%f4, %f0, %f4
+	fxor		%f6, %f2, %f6
+	std		%f4, [%o2 + 0x00]
+	std		%f6, [%o2 + 0x08]
+	subcc		%o3, 0x10, %o3
+	add		%o1, 0x10, %o1
+	bne,pt		%xcc, 1b
+	 add		%o2, 0x10, %o2
+	stx		%g3, [%o4 + 0x00]
+	stx		%g7, [%o4 + 0x08]
+	retl
+	 nop
+ENDPROC(aes_sparc64_ctr_crypt_128)
+
+	.align		32
+ENTRY(aes_sparc64_ctr_crypt_192)
+	/* %o0=key, %o1=input, %o2=output, %o3=len, %o4=IV */
+	ldx		[%o4 + 0x00], %g3
+	ldx		[%o4 + 0x08], %g7
+	ldx		[%o0 + 0x00], %g1
+	ldx		[%o0 + 0x08], %g2
+1:	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F0
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F2
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	ENCRYPT_192(8, 0, 2, 4, 6)
+	ldd		[%o1 + 0x00], %f4
+	ldd		[%o1 + 0x08], %f6
+	fxor		%f4, %f0, %f4
+	fxor		%f6, %f2, %f6
+	std		%f4, [%o2 + 0x00]
+	std		%f6, [%o2 + 0x08]
+	subcc		%o3, 0x10, %o3
+	add		%o1, 0x10, %o1
+	bne,pt		%xcc, 1b
+	 add		%o2, 0x10, %o2
+	stx		%g3, [%o4 + 0x00]
+	stx		%g7, [%o4 + 0x08]
+	retl
+	 nop
+ENDPROC(aes_sparc64_ctr_crypt_192)
+
+	.align		32
+ENTRY(aes_sparc64_ctr_crypt_256)
+	/* %o0=key, %o1=input, %o2=output, %o3=len, %o4=IV */
+	ldx		[%o4 + 0x00], %g3
+	ldx		[%o4 + 0x08], %g7
+	ldx		[%o0 + 0x00], %g1
+	ldx		[%o0 + 0x08], %g2
+1:	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F0
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F2
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	ENCRYPT_256(8, 0, 2, 4, 6)
+	ldd		[%o1 + 0x00], %f4
+	ldd		[%o1 + 0x08], %f6
+	fxor		%f4, %f0, %f4
+	fxor		%f6, %f2, %f6
+	std		%f4, [%o2 + 0x00]
+	std		%f6, [%o2 + 0x08]
+	subcc		%o3, 0x10, %o3
+	add		%o1, 0x10, %o1
+	bne,pt		%xcc, 1b
+	 add		%o2, 0x10, %o2
+	stx		%g3, [%o4 + 0x00]
+	stx		%g7, [%o4 + 0x08]
+	retl
+	 nop
+ENDPROC(aes_sparc64_ctr_crypt_256)

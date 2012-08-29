@@ -39,6 +39,8 @@ struct aes_ops {
 			    unsigned int len, u64 *iv);
 	void (*cbc_decrypt)(const u64 *key, const u64 *input, u64 *output,
 			    unsigned int len, u64 *iv);
+	void (*ctr_crypt)(const u64 *key, const u64 *input, u64 *output,
+			  unsigned int len, u64 *iv);
 };
 
 struct crypto_sparc64_aes_ctx {
@@ -108,6 +110,16 @@ extern void aes_sparc64_cbc_decrypt_256(const u64 *key, const u64 *input,
 					u64 *output, unsigned int len,
 					u64 *iv);
 
+extern void aes_sparc64_ctr_crypt_128(const u64 *key, const u64 *input,
+				      u64 *output, unsigned int len,
+				      u64 *iv);
+extern void aes_sparc64_ctr_crypt_192(const u64 *key, const u64 *input,
+				      u64 *output, unsigned int len,
+				      u64 *iv);
+extern void aes_sparc64_ctr_crypt_256(const u64 *key, const u64 *input,
+				      u64 *output, unsigned int len,
+				      u64 *iv);
+
 struct aes_ops aes128_ops = {
 	.encrypt		= aes_sparc64_encrypt_128,
 	.decrypt		= aes_sparc64_decrypt_128,
@@ -117,6 +129,7 @@ struct aes_ops aes128_ops = {
 	.ecb_decrypt		= aes_sparc64_ecb_decrypt_128,
 	.cbc_encrypt		= aes_sparc64_cbc_encrypt_128,
 	.cbc_decrypt		= aes_sparc64_cbc_decrypt_128,
+	.ctr_crypt		= aes_sparc64_ctr_crypt_128,
 };
 
 struct aes_ops aes192_ops = {
@@ -128,6 +141,7 @@ struct aes_ops aes192_ops = {
 	.ecb_decrypt		= aes_sparc64_ecb_decrypt_192,
 	.cbc_encrypt		= aes_sparc64_cbc_encrypt_192,
 	.cbc_decrypt		= aes_sparc64_cbc_decrypt_192,
+	.ctr_crypt		= aes_sparc64_ctr_crypt_192,
 };
 
 struct aes_ops aes256_ops = {
@@ -139,6 +153,7 @@ struct aes_ops aes256_ops = {
 	.ecb_decrypt		= aes_sparc64_ecb_decrypt_256,
 	.cbc_encrypt		= aes_sparc64_cbc_encrypt_256,
 	.cbc_decrypt		= aes_sparc64_cbc_decrypt_256,
+	.ctr_crypt		= aes_sparc64_ctr_crypt_256,
 };
 
 extern void aes_sparc64_key_expand(const u32 *in_key, u64 *output_key,
@@ -310,6 +325,34 @@ static int cbc_decrypt(struct blkcipher_desc *desc,
 	return err;
 }
 
+static int ctr_crypt(struct blkcipher_desc *desc,
+		     struct scatterlist *dst, struct scatterlist *src,
+		     unsigned int nbytes)
+{
+	struct crypto_sparc64_aes_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
+	struct blkcipher_walk walk;
+	int err;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	err = blkcipher_walk_virt(desc, &walk);
+
+	ctx->ops->load_encrypt_keys(&ctx->key[0]);
+	while ((nbytes = walk.nbytes)) {
+		unsigned int block_len = nbytes & AES_BLOCK_MASK;
+
+		if (likely(block_len)) {
+			ctx->ops->ctr_crypt(&ctx->key[0],
+					    (const u64 *)walk.src.virt.addr,
+					    (u64 *) walk.dst.virt.addr,
+					    block_len, (u64 *) walk.iv);
+		}
+		nbytes &= AES_BLOCK_SIZE - 1;
+		err = blkcipher_walk_done(desc, &walk, nbytes);
+	}
+	fprs_write(0);
+	return err;
+}
+
 static struct crypto_alg algs[] = { {
 	.cra_name		= "aes",
 	.cra_driver_name	= "aes-sparc64",
@@ -364,6 +407,25 @@ static struct crypto_alg algs[] = { {
 			.setkey		= aes_set_key,
 			.encrypt	= cbc_encrypt,
 			.decrypt	= cbc_decrypt,
+		},
+	},
+}, {
+	.cra_name		= "ctr(aes)",
+	.cra_driver_name	= "ctr-aes-sparc64",
+	.cra_priority		= 150,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		= AES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct crypto_sparc64_aes_ctx),
+	.cra_alignmask		= 7,
+	.cra_type		= &crypto_blkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_u = {
+		.blkcipher = {
+			.min_keysize	= AES_MIN_KEY_SIZE,
+			.max_keysize	= AES_MAX_KEY_SIZE,
+			.setkey		= aes_set_key,
+			.encrypt	= ctr_crypt,
+			.decrypt	= ctr_crypt,
 		},
 	},
 } };
