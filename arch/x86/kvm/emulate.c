@@ -909,23 +909,23 @@ static void read_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data, int reg)
 {
 	ctxt->ops->get_fpu(ctxt);
 	switch (reg) {
-	case 0: asm("movdqu %%xmm0, %0" : "=m"(*data)); break;
-	case 1: asm("movdqu %%xmm1, %0" : "=m"(*data)); break;
-	case 2: asm("movdqu %%xmm2, %0" : "=m"(*data)); break;
-	case 3: asm("movdqu %%xmm3, %0" : "=m"(*data)); break;
-	case 4: asm("movdqu %%xmm4, %0" : "=m"(*data)); break;
-	case 5: asm("movdqu %%xmm5, %0" : "=m"(*data)); break;
-	case 6: asm("movdqu %%xmm6, %0" : "=m"(*data)); break;
-	case 7: asm("movdqu %%xmm7, %0" : "=m"(*data)); break;
+	case 0: asm("movdqa %%xmm0, %0" : "=m"(*data)); break;
+	case 1: asm("movdqa %%xmm1, %0" : "=m"(*data)); break;
+	case 2: asm("movdqa %%xmm2, %0" : "=m"(*data)); break;
+	case 3: asm("movdqa %%xmm3, %0" : "=m"(*data)); break;
+	case 4: asm("movdqa %%xmm4, %0" : "=m"(*data)); break;
+	case 5: asm("movdqa %%xmm5, %0" : "=m"(*data)); break;
+	case 6: asm("movdqa %%xmm6, %0" : "=m"(*data)); break;
+	case 7: asm("movdqa %%xmm7, %0" : "=m"(*data)); break;
 #ifdef CONFIG_X86_64
-	case 8: asm("movdqu %%xmm8, %0" : "=m"(*data)); break;
-	case 9: asm("movdqu %%xmm9, %0" : "=m"(*data)); break;
-	case 10: asm("movdqu %%xmm10, %0" : "=m"(*data)); break;
-	case 11: asm("movdqu %%xmm11, %0" : "=m"(*data)); break;
-	case 12: asm("movdqu %%xmm12, %0" : "=m"(*data)); break;
-	case 13: asm("movdqu %%xmm13, %0" : "=m"(*data)); break;
-	case 14: asm("movdqu %%xmm14, %0" : "=m"(*data)); break;
-	case 15: asm("movdqu %%xmm15, %0" : "=m"(*data)); break;
+	case 8: asm("movdqa %%xmm8, %0" : "=m"(*data)); break;
+	case 9: asm("movdqa %%xmm9, %0" : "=m"(*data)); break;
+	case 10: asm("movdqa %%xmm10, %0" : "=m"(*data)); break;
+	case 11: asm("movdqa %%xmm11, %0" : "=m"(*data)); break;
+	case 12: asm("movdqa %%xmm12, %0" : "=m"(*data)); break;
+	case 13: asm("movdqa %%xmm13, %0" : "=m"(*data)); break;
+	case 14: asm("movdqa %%xmm14, %0" : "=m"(*data)); break;
+	case 15: asm("movdqa %%xmm15, %0" : "=m"(*data)); break;
 #endif
 	default: BUG();
 	}
@@ -937,23 +937,23 @@ static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
 {
 	ctxt->ops->get_fpu(ctxt);
 	switch (reg) {
-	case 0: asm("movdqu %0, %%xmm0" : : "m"(*data)); break;
-	case 1: asm("movdqu %0, %%xmm1" : : "m"(*data)); break;
-	case 2: asm("movdqu %0, %%xmm2" : : "m"(*data)); break;
-	case 3: asm("movdqu %0, %%xmm3" : : "m"(*data)); break;
-	case 4: asm("movdqu %0, %%xmm4" : : "m"(*data)); break;
-	case 5: asm("movdqu %0, %%xmm5" : : "m"(*data)); break;
-	case 6: asm("movdqu %0, %%xmm6" : : "m"(*data)); break;
-	case 7: asm("movdqu %0, %%xmm7" : : "m"(*data)); break;
+	case 0: asm("movdqa %0, %%xmm0" : : "m"(*data)); break;
+	case 1: asm("movdqa %0, %%xmm1" : : "m"(*data)); break;
+	case 2: asm("movdqa %0, %%xmm2" : : "m"(*data)); break;
+	case 3: asm("movdqa %0, %%xmm3" : : "m"(*data)); break;
+	case 4: asm("movdqa %0, %%xmm4" : : "m"(*data)); break;
+	case 5: asm("movdqa %0, %%xmm5" : : "m"(*data)); break;
+	case 6: asm("movdqa %0, %%xmm6" : : "m"(*data)); break;
+	case 7: asm("movdqa %0, %%xmm7" : : "m"(*data)); break;
 #ifdef CONFIG_X86_64
-	case 8: asm("movdqu %0, %%xmm8" : : "m"(*data)); break;
-	case 9: asm("movdqu %0, %%xmm9" : : "m"(*data)); break;
-	case 10: asm("movdqu %0, %%xmm10" : : "m"(*data)); break;
-	case 11: asm("movdqu %0, %%xmm11" : : "m"(*data)); break;
-	case 12: asm("movdqu %0, %%xmm12" : : "m"(*data)); break;
-	case 13: asm("movdqu %0, %%xmm13" : : "m"(*data)); break;
-	case 14: asm("movdqu %0, %%xmm14" : : "m"(*data)); break;
-	case 15: asm("movdqu %0, %%xmm15" : : "m"(*data)); break;
+	case 8: asm("movdqa %0, %%xmm8" : : "m"(*data)); break;
+	case 9: asm("movdqa %0, %%xmm9" : : "m"(*data)); break;
+	case 10: asm("movdqa %0, %%xmm10" : : "m"(*data)); break;
+	case 11: asm("movdqa %0, %%xmm11" : : "m"(*data)); break;
+	case 12: asm("movdqa %0, %%xmm12" : : "m"(*data)); break;
+	case 13: asm("movdqa %0, %%xmm13" : : "m"(*data)); break;
+	case 14: asm("movdqa %0, %%xmm14" : : "m"(*data)); break;
+	case 15: asm("movdqa %0, %%xmm15" : : "m"(*data)); break;
 #endif
 	default: BUG();
 	}
