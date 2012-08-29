@@ -2646,15 +2646,16 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (rc)
 		goto err_out_bus;
 
-	/* Everything's ready.  Announce the disk to the world. */
-
-	add_disk(rbd_dev->disk);
-	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
-		(unsigned long long) rbd_dev->mapping.size);
-
 	rc = rbd_init_watch_dev(rbd_dev);
 	if (rc)
 		goto err_out_bus;
+
+	/* Everything's ready.  Announce the disk to the world. */
+
+	add_disk(rbd_dev->disk);
+
+	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
+		(unsigned long long) rbd_dev->mapping.size);
 
 	return count;
 
