@@ -6,6 +6,7 @@
  */
 
 #include <linux/notifier.h>
+#include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -17,8 +18,9 @@ struct cache {
 	unsigned int line_size;
 	unsigned int associativity;
 	unsigned int nr_sets;
-	int level;
-	int type;
+	unsigned int level   : 3;
+	unsigned int type    : 2;
+	unsigned int private : 1;
 	struct list_head list;
 };
 
@@ -83,6 +85,24 @@ static const char * const cache_type_string[] = {
 static struct cache_dir *cache_dir_cpu[NR_CPUS];
 static LIST_HEAD(cache_list);
 
+void show_cacheinfo(struct seq_file *m)
+{
+	struct cache *cache;
+	int index = 0;
+
+	list_for_each_entry(cache, &cache_list, list) {
+		seq_printf(m, "cache%-11d: ", index);
+		seq_printf(m, "level=%d ", cache->level);
+		seq_printf(m, "type=%s ", cache_type_string[cache->type]);
+		seq_printf(m, "scope=%s ", cache->private ? "Private" : "Shared");
+		seq_printf(m, "size=%luK ", cache->size >> 10);
+		seq_printf(m, "line_size=%u ", cache->line_size);
+		seq_printf(m, "associativity=%d", cache->associativity);
+		seq_puts(m, "\n");
+		index++;
+	}
+}
+
 static inline unsigned long ecag(int ai, int li, int ti)
 {
 	unsigned long cmd, val;
@@ -93,7 +113,7 @@ static inline unsigned long ecag(int ai, int li, int ti)
 	return val;
 }
 
-static int __init cache_add(int level, int type)
+static int __init cache_add(int level, int private, int type)
 {
 	struct cache *cache;
 	int ti;
@@ -107,8 +127,9 @@ static int __init cache_add(int level, int type)
 	cache->associativity = ecag(EXTRACT_ASSOCIATIVITY, level, ti);
 	cache->nr_sets = cache->size / cache->associativity;
 	cache->nr_sets /= cache->line_size;
+	cache->private = private;
 	cache->level = level + 1;
-	cache->type = type;
+	cache->type = type - 1;
 	list_add_tail(&cache->list, &cache_list);
 	return 0;
 }
@@ -117,23 +138,26 @@ static void __init cache_build_info(void)
 {
 	struct cache *cache, *next;
 	union cache_topology ct;
-	int level, rc;
+	int level, private, rc;
 
 	ct.raw = ecag(EXTRACT_TOPOLOGY, 0, 0);
 	for (level = 0; level < CACHE_MAX_LEVEL; level++) {
 		switch (ct.ci[level].scope) {
 		case CACHE_SCOPE_NOTEXISTS:
 		case CACHE_SCOPE_RESERVED:
-		case CACHE_SCOPE_SHARED:
 			return;
+		case CACHE_SCOPE_SHARED:
+			private = 0;
+			break;
 		case CACHE_SCOPE_PRIVATE:
+			private = 1;
 			break;
 		}
 		if (ct.ci[level].type == CACHE_TYPE_SEPARATE) {
-			rc  = cache_add(level, CACHE_TYPE_DATA);
-			rc |= cache_add(level, CACHE_TYPE_INSTRUCTION);
+			rc  = cache_add(level, private, CACHE_TYPE_DATA);
+			rc |= cache_add(level, private, CACHE_TYPE_INSTRUCTION);
 		} else {
-			rc = cache_add(level, ct.ci[level].type);
+			rc = cache_add(level, private, ct.ci[level].type);
 		}
 		if (rc)
 			goto error;
@@ -208,7 +232,7 @@ DEFINE_CACHE_ATTR(size, "%luK\n", index->cache->size >> 10);
 DEFINE_CACHE_ATTR(coherency_line_size, "%u\n", index->cache->line_size);
 DEFINE_CACHE_ATTR(number_of_sets, "%u\n", index->cache->nr_sets);
 DEFINE_CACHE_ATTR(ways_of_associativity, "%u\n", index->cache->associativity);
-DEFINE_CACHE_ATTR(type, "%s\n", cache_type_string[index->cache->type - 1]);
+DEFINE_CACHE_ATTR(type, "%s\n", cache_type_string[index->cache->type]);
 DEFINE_CACHE_ATTR(level, "%d\n", index->cache->level);
 
 static ssize_t shared_cpu_map_func(struct kobject *kobj, int type, char *buf)
@@ -298,6 +322,8 @@ static int __cpuinit cache_add_cpu(int cpu)
 	if (!cache_dir)
 		return -ENOMEM;
 	list_for_each_entry(cache, &cache_list, list) {
+		if (!cache->private)
+			break;
 		rc = cache_create_index_dir(cache_dir, cache, index, cpu);
 		if (rc)
 			return rc;

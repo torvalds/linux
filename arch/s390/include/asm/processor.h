@@ -140,6 +140,12 @@ struct task_struct;
 struct mm_struct;
 struct seq_file;
 
+#ifdef CONFIG_64BIT
+extern void show_cacheinfo(struct seq_file *m);
+#else
+static inline void show_cacheinfo(struct seq_file *m) { }
+#endif
+
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);

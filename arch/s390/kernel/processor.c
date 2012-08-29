@@ -58,6 +58,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			if (hwcap_str[i] && (elf_hwcap & (1UL << i)))
 				seq_printf(m, "%s ", hwcap_str[i]);
 		seq_puts(m, "\n");
+		show_cacheinfo(m);
 	}
 	get_online_cpus();
 	if (cpu_online(n)) {
