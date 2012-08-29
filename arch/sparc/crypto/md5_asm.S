@@ -62,7 +62,7 @@ ENTRY(md5_sparc64_transform)
 	.word	0x81b02800
 
 	subcc	%o2, 1, %o2
-	fsrc1	%f26, %f10
+	fsrc2	%f26, %f10
 	bne,pt	%xcc, 1b
 	 add	%o1, 0x40, %o1
 

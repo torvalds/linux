@@ -94,7 +94,7 @@ ENTRY(sha512_sparc64_transform)
 	.word	0x81b02860
 
 	subcc	%o2, 1, %o2
-	fsrc1	%f50, %f18
+	fsrc2	%f50, %f18
 	bne,pt	%xcc, 1b
 	 add	%o1, 0x80, %o1
 
