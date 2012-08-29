@@ -487,7 +487,8 @@ static struct snd_pcm_ops rockchip_pcm_ops = {
 	.mmap		= rockchip_pcm_mmap,
 };
 
-#ifdef CONFIG_ARCH_RK30
+#if defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
 #define SRAM_DMA_PHYS_PLAYBACK	(dma_addr_t)(RK30_IMEM_PHYS + 16*1024)
 #define SRAM_DMA_START_PLAYBACK	(RK30_IMEM_NONCACHED + 16*1024)
 #define SRAM_DMA_PHYS_CAPTURE 	(dma_addr_t)(SRAM_DMA_PHYS_PLAYBACK + 24*1024)
