@@ -2705,11 +2705,6 @@ nfs4_check_open(struct nfs4_file *fp, struct nfsd4_open *open, struct nfs4_ol_st
 	return nfs_ok;
 }
 
-static void nfs4_free_stateid(struct nfs4_ol_stateid *s)
-{
-	kmem_cache_free(stateid_slab, s);
-}
-
 static inline int nfs4_access_to_access(u32 nfs4_access)
 {
 	int flags = 0;
@@ -3088,7 +3083,7 @@ void nfsd4_cleanup_open_state(struct nfsd4_open *open, __be32 status)
 	if (open->op_file)
 		nfsd4_free_file(open->op_file);
 	if (open->op_stp)
-		nfs4_free_stateid(open->op_stp);
+		free_generic_stateid(open->op_stp);
 }
 
 __be32
