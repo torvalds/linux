@@ -18,6 +18,7 @@
 #include <asm/mach/irq.h>
 #include <mach/pm.h>
 #include <mach/bridge-regs.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 
 static void pmu_irq_mask(struct irq_data *d)
