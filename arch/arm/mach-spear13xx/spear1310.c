@@ -34,9 +34,7 @@
 
 /* ssp device registration */
 static struct pl022_ssp_controller ssp1_plat_data = {
-	.bus_id = 0,
 	.enable_dma = 0,
-	.num_chipselect = 3,
 };
 
 /* Add SPEAr1310 auxdata to pass platform data */
