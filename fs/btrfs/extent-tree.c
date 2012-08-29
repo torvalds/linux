@@ -4132,6 +4132,8 @@ struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root)
 void btrfs_free_block_rsv(struct btrfs_root *root,
 			  struct btrfs_block_rsv *rsv)
 {
+	if (!rsv)
+		return;
 	btrfs_block_rsv_release(root, rsv, (u64)-1);
 	kfree(rsv);
 }

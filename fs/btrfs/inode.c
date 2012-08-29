@@ -3475,12 +3475,20 @@ error:
 }
 
 /*
- * taken from block_truncate_page, but does cow as it zeros out
- * any bytes left in the last page in the file.
+ * btrfs_truncate_page - read, zero a chunk and write a page
+ * @inode - inode that we're zeroing
+ * @from - the offset to start zeroing
+ * @len - the length to zero, 0 to zero the entire range respective to the
+ *	offset
+ * @front - zero up to the offset instead of from the offset on
+ *
+ * This will find the page for the "from" offset and cow the page and zero the
+ * part we want to zero.  This is used with truncate and hole punching.
  */
-static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
+int btrfs_truncate_page(struct inode *inode, loff_t from, loff_t len,
+			int front)
 {
-	struct inode *inode = mapping->host;
+	struct address_space *mapping = inode->i_mapping;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_ordered_extent *ordered;
@@ -3495,7 +3503,8 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 	u64 page_start;
 	u64 page_end;
 
-	if ((offset & (blocksize - 1)) == 0)
+	if ((offset & (blocksize - 1)) == 0 &&
+	    (!len || ((len & (blocksize - 1)) == 0)))
 		goto out;
 	ret = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
 	if (ret)
@@ -3555,8 +3564,13 @@ again:
 
 	ret = 0;
 	if (offset != PAGE_CACHE_SIZE) {
+		if (!len)
+			len = PAGE_CACHE_SIZE - offset;
 		kaddr = kmap(page);
-		memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
+		if (front)
+			memset(kaddr, 0, offset);
+		else
+			memset(kaddr + offset, 0, len);
 		flush_dcache_page(page);
 		kunmap(page);
 	}
@@ -6796,7 +6810,7 @@ static int btrfs_truncate(struct inode *inode)
 	u64 mask = root->sectorsize - 1;
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 
-	ret = btrfs_truncate_page(inode->i_mapping, inode->i_size);
+	ret = btrfs_truncate_page(inode, inode->i_size, 0, 0);
 	if (ret)
 		return ret;
 

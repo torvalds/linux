@@ -2842,7 +2842,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 
 	if (BTRFS_I(inode)->logged_trans == trans->transid) {
 		ret = __btrfs_drop_extents(trans, log, inode, dst_path, start,
-					   start + len, 0);
+					   start + len, NULL, 0);
 		if (ret)
 			return ret;
 	}
