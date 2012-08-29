@@ -30,6 +30,8 @@ static void ath6kl_recovery_work(struct work_struct *work)
 	ath6kl_init_hw_restart(ar);
 
 	ar->state = ATH6KL_STATE_ON;
+	clear_bit(WMI_CTRL_EP_FULL, &ar->flag);
+
 	ar->fw_recovery.err_reason = 0;
 
 	if (ar->fw_recovery.enable)

@@ -660,6 +660,7 @@ enum ath6kl_state {
 enum ath6kl_fw_err {
 	ATH6KL_FW_ASSERT,
 	ATH6KL_FW_HB_RESP_FAILURE,
+	ATH6KL_FW_EP_FULL,
 };
 
 struct ath6kl {

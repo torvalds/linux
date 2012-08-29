@@ -594,6 +594,7 @@ enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,
 		 */
 		set_bit(WMI_CTRL_EP_FULL, &ar->flag);
 		ath6kl_err("wmi ctrl ep is full\n");
+		ath6kl_recovery_err_notify(ar, ATH6KL_FW_EP_FULL);
 		return action;
 	}
 
