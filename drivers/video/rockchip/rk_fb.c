@@ -346,7 +346,7 @@ static int rk_fb_set_par(struct fb_info *info)
     	struct fb_fix_screeninfo *fix = &info->fix;
     	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     	struct layer_par *par = NULL;
-   	rk_screen *screen =dev_drv->screen0;
+   	rk_screen *screen =dev_drv->cur_screen;
 	struct fb_info * info2 = NULL;
 	struct rk_lcdc_device_driver * dev_drv1  = NULL;
 	struct layer_par *par2 = NULL;
@@ -388,17 +388,31 @@ static int rk_fb_set_par(struct fb_info *info)
 		}
 	}
 	
-	if(var->grayscale>>8)
+	if(var->grayscale>>8)  //if the application has specific the horizontal and vertical display size
 	{
 		xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel ,for vide0
 		ysize = (var->grayscale>>20) & 0xfff;
 	}
-	else
+	else  //ohterwise  full  screen display
 	{
 		xsize = screen->x_res;
               	ysize = screen->y_res;
 	}
-		
+
+	if(screen->lcdc_id == 0) //this is for device like rk2928 ,whic have one lcdc but two display outputs
+	{
+		dev_drv->screen0->xsize = xsize;
+		dev_drv->screen0->ysize = ysize;
+		dev_drv->screen0->xpos  = xpos;
+		dev_drv->screen0->ypos = ypos;
+	}
+	else
+	{
+		dev_drv->screen1->xsize = xsize;
+		dev_drv->screen1->ysize = ysize;
+		dev_drv->screen1->xpos  = xpos;
+		dev_drv->screen1->ypos = ypos;
+	}
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
 #if 1
 	switch (data_format)
@@ -607,6 +621,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	int ret;
 	int i;
 	int layer_id;
+	
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
@@ -634,8 +649,24 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		info = inf->fb[2];
 	}
 
-	 layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
-	if(!enable)
+	if(dev_drv->screen1) //device like rk2928 ,have only one lcdc but two outputs
+	{
+		if(enable)
+		{
+			memcpy(dev_drv->screen1,screen,sizeof(rk_screen ));
+			dev_drv->screen1->lcdc_id = 1;
+			dev_drv->cur_screen = dev_drv->screen1;
+		}
+		else
+		{
+			dev_drv->cur_screen = dev_drv->screen0;
+		}
+	}
+
+	
+	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
+	
+	if(!enable && !dev_drv->screen1) //only double lcdc device need to close
 	{
 		if(dev_drv->layer_par[layer_id]->state) 
 		{
@@ -665,6 +696,14 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	#endif
 	hdmi_var->grayscale &= 0xff;
 	hdmi_var->grayscale |= (dev_drv->cur_screen->x_res<<8) + (dev_drv->cur_screen->y_res<<20);
+
+	if(dev_drv->screen1)  //device like rk2928,whic have one lcdc but two outputs
+	{
+		info->var.nonstd &= 0xff;
+		info->var.nonstd |= (dev_drv->cur_screen->xpos<<8) + (dev_drv->cur_screen->ypos<<20);
+		info->var.grayscale &= 0xff;
+		info->var.grayscale |= (dev_drv->cur_screen->x_res<<8) + (dev_drv->cur_screen->y_res<<20);
+	}
 	ret = info->fbops->fb_open(info,1);
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_set_par(info);
@@ -696,6 +735,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	
 	char name[6];
 	int i;
+	printk("scale_x:%x>>scale_y:%d\n",scale_x,scale_y);
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
@@ -952,9 +992,9 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	init_lcdc_device_driver(dev_drv, def_drv,id);
 	if(dev_drv->screen_ctr_info->set_screen_info)
 	{
-		dev_drv->screen_ctr_info->set_screen_info(dev_drv->screen0,
+		dev_drv->screen_ctr_info->set_screen_info(dev_drv->cur_screen,
 			dev_drv->screen_ctr_info->lcd_info);
-		if(SCREEN_NULL==dev_drv->screen0->type)
+		if(SCREEN_NULL==dev_drv->cur_screen->type)
 		{
 			printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
 			fb_inf->num_lcdc--;
@@ -987,25 +1027,25 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         fbi->var = def_var;
         fbi->fix = def_fix;
         sprintf(fbi->fix.id,"fb%d",fb_inf->num_fb);
-        fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->x_res;
-        fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->y_res;
+        fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->x_res;
+        fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->y_res;
 	fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
         #ifdef  CONFIG_LOGO_LINUX_BMP
     		fbi->var.bits_per_pixel = 32; 
 	#else
 		fbi->var.bits_per_pixel = 16; 
 	#endif
-        fbi->var.xres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->x_res;
-        fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->y_res;
-        fbi->var.width = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->width;
-        fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->height;
+        fbi->var.xres_virtual = fbi->var.xres;
+        fbi->var.yres_virtual = fbi->var.yres;
+        fbi->var.width =  fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->width;
+        fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->height;
         fbi->var.pixclock = fb_inf->lcdc_dev_drv[lcdc_id]->pixclock;
-        fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->left_margin;
-        fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->right_margin;
-        fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->upper_margin;
-        fbi->var.lower_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->lower_margin;
-        fbi->var.vsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->vsync_len;
-        fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen0->hsync_len;
+        fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->left_margin;
+        fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->right_margin;
+        fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->upper_margin;
+        fbi->var.lower_margin = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->lower_margin;
+        fbi->var.vsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->vsync_len;
+        fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->hsync_len;
         fbi->fbops			 = &fb_ops;
         fbi->flags			 = FBINFO_FLAG_DEFAULT;
         fbi->pseudo_palette  = fb_inf->lcdc_dev_drv[lcdc_id]->layer_par[i]->pseudo_pal;

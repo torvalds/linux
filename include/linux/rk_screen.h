@@ -103,6 +103,7 @@ typedef struct rk29fb_screen {
 	u16 type;
 	u16 hw_format;
 	u16 face;
+	u8 lcdc_id;//which lcdc the screeen connect to
 
 	/* Screen size */
 	u16 x_res;
@@ -157,6 +158,10 @@ typedef struct rk29fb_screen {
 	u8 swap_delta;
 	u8 swap_dumy;
 
+	int xpos;  //horizontal display start position on the sceen ,then can be changed by application
+	int ypos;
+	int xsize; //horizontal and vertical display size on he screen,they can be changed by application
+	int ysize;
 	/* Operation function*/
 	int (*init)(void);
 	int (*standby)(u8 enable);
