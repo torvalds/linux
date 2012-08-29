@@ -568,7 +568,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		if (!an->sleeping) {
 			ath_tx_queue_tid(txq, tid);
 
-			if (ts->ts_status & ATH9K_TXERR_FILT)
+			if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 				tid->ac->clear_ps_filter = true;
 		}
 	}
