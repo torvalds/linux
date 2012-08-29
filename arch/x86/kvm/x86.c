@@ -3773,14 +3773,14 @@ static int write_exit_mmio(struct kvm_vcpu *vcpu, gpa_t gpa,
 	return X86EMUL_CONTINUE;
 }
 
-static struct read_write_emulator_ops read_emultor = {
+static const struct read_write_emulator_ops read_emultor = {
 	.read_write_prepare = read_prepare,
 	.read_write_emulate = read_emulate,
 	.read_write_mmio = vcpu_mmio_read,
 	.read_write_exit_mmio = read_exit_mmio,
 };
 
-static struct read_write_emulator_ops write_emultor = {
+static const struct read_write_emulator_ops write_emultor = {
 	.read_write_emulate = write_emulate,
 	.read_write_mmio = write_mmio,
 	.read_write_exit_mmio = write_exit_mmio,
@@ -3791,7 +3791,7 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
 				       unsigned int bytes,
 				       struct x86_exception *exception,
 				       struct kvm_vcpu *vcpu,
-				       struct read_write_emulator_ops *ops)
+				       const struct read_write_emulator_ops *ops)
 {
 	gpa_t gpa;
 	int handled, ret;
@@ -3840,7 +3840,7 @@ mmio:
 int emulator_read_write(struct x86_emulate_ctxt *ctxt, unsigned long addr,
 			void *val, unsigned int bytes,
 			struct x86_exception *exception,
-			struct read_write_emulator_ops *ops)
+			const struct read_write_emulator_ops *ops)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	gpa_t gpa;
