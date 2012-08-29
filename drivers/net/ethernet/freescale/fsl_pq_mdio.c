@@ -342,6 +342,15 @@ static struct of_device_id fsl_pq_mdio_match[] = {
 		},
 	},
 #endif
+	/* No Kconfig option for Fman support yet */
+	{
+		.compatible = "fsl,fman-mdio",
+		.data = &(struct fsl_pq_mdio_data) {
+			.mii_offset = 0,
+			/* Fman TBI operations are handled elsewhere */
+		},
+	},
+
 	{},
 };
 MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
