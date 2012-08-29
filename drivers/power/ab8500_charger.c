@@ -54,6 +54,7 @@
 #define VBUS_DET_DBNC1			0x01
 #define OTP_ENABLE_WD			0x01
 #define DROP_COUNT_RESET		0x01
+#define USB_CH_DET			0x01
 
 #define MAIN_CH_INPUT_CURR_SHIFT	4
 #define VBUS_IN_CURR_LIM_SHIFT		4
@@ -2348,8 +2349,9 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 					AB8500_CHARGER, AB8500_USBCH_CTRL1_REG,
 					USB_CH_ENA, USB_CH_ENA);
 			/*Enable charger detection*/
-			abx500_mask_and_set_register_interruptible(di->dev, AB8500_USB,
-					AB8500_MCH_IPT_CURLVL_REG, 0x01, 0x01);
+			abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINE_CTRL2_REG,
+					USB_CH_DET, USB_CH_DET);
 			di->invalid_charger_detect_state = 1;
 			/*exit and wait for new link status interrupt.*/
 			return;
@@ -2359,8 +2361,9 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 			dev_dbg(di->dev,
 					"Invalid charger detected, state= 1\n");
 			/*Stop charger detection*/
-			abx500_mask_and_set_register_interruptible(di->dev, AB8500_USB,
-					AB8500_MCH_IPT_CURLVL_REG, 0x01, 0x00);
+			abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINE_CTRL2_REG,
+					USB_CH_DET, 0x00);
 			/*Check link status*/
 			if (is_ab8500(di->parent))
 				ret = abx500_get_register_interruptible(di->dev,

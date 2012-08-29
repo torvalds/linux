@@ -23,6 +23,7 @@
  * Bank : 0x5
  */
 #define AB8500_USB_LINE_STAT_REG	0x80
+#define AB8500_USB_LINE_CTRL2_REG	0x82
 #define AB8500_USB_LINK1_STAT_REG	0x94
 
 /*
