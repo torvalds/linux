@@ -166,7 +166,7 @@ static unsigned int sdhci_s3c_consider_clock(struct sdhci_s3c *ourhost,
 	dev_dbg(&ourhost->pdev->dev, "clk %d: rate %ld, want %d, got %ld\n",
 		src, rate, wanted, rate / div);
 
-	return (wanted - (rate / div));
+	return wanted - (rate / div);
 }
 
 /**
@@ -288,6 +288,7 @@ static unsigned int sdhci_cmu_get_min_clock(struct sdhci_host *host)
 static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_s3c *ourhost = to_s3c(host);
+	struct device *dev = &ourhost->pdev->dev;
 	unsigned long timeout;
 	u16 clk = 0;
 
@@ -309,8 +310,8 @@ static void sdhci_cmu_set_clock(struct sdhci_host *host, unsigned int clock)
 	while (!((clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL))
 		& SDHCI_CLOCK_INT_STABLE)) {
 		if (timeout == 0) {
-			printk(KERN_ERR "%s: Internal clock never "
-				"stabilised.\n", mmc_hostname(host->mmc));
+			dev_err(dev, "%s: Internal clock never stabilised.\n",
+				mmc_hostname(host->mmc));
 			return;
 		}
 		timeout--;
@@ -404,7 +405,9 @@ static void sdhci_s3c_setup_card_detect_gpio(struct sdhci_s3c *sc)
 		if (sc->ext_cd_irq &&
 		    request_threaded_irq(sc->ext_cd_irq, NULL,
 					 sdhci_s3c_gpio_card_detect_thread,
-					 IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					 IRQF_TRIGGER_RISING |
+					 IRQF_TRIGGER_FALLING |
+					 IRQF_ONESHOT,
 					 dev_name(dev), sc) == 0) {
 			int status = gpio_get_value(sc->ext_cd_gpio);
 			if (pdata->ext_cd_gpio_invert)
@@ -486,9 +489,8 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 
 		snprintf(name, 14, "mmc_busclk.%d", ptr);
 		clk = clk_get(dev, name);
-		if (IS_ERR(clk)) {
+		if (IS_ERR(clk))
 			continue;
-		}
 
 		clks++;
 		sc->clk_bus[ptr] = clk;
