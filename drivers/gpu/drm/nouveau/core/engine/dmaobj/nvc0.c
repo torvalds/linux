@@ -22,52 +22,12 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/gpuobj.h>
+#include <core/device.h>
 
-#include <subdev/fb.h>
 #include <engine/dmaobj.h>
 
 struct nvc0_dmaeng_priv {
 	struct nouveau_dmaeng base;
-};
-
-struct nvc0_dmaobj_priv {
-	struct nouveau_dmaobj base;
-};
-
-static int
-nvc0_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
-{
-	struct nvc0_dmaobj_priv *dmaobj;
-	int ret;
-
-	ret = nouveau_dmaobj_create(parent, engine, oclass, data, size, &dmaobj);
-	*pobject = nv_object(dmaobj);
-	if (ret)
-		return ret;
-
-	if (dmaobj->base.target != NV_MEM_TARGET_VM || dmaobj->base.start)
-		return -EINVAL;
-
-	return 0;
-}
-
-static struct nouveau_ofuncs
-nvc0_dmaobj_ofuncs = {
-	.ctor = nvc0_dmaobj_ctor,
-	.dtor = _nouveau_dmaobj_dtor,
-	.init = _nouveau_dmaobj_init,
-	.fini = _nouveau_dmaobj_fini,
-};
-
-static struct nouveau_oclass
-nvc0_dmaobj_sclass[] = {
-	{ 0x0002, &nvc0_dmaobj_ofuncs },
-	{ 0x0003, &nvc0_dmaobj_ofuncs },
-	{ 0x003d, &nvc0_dmaobj_ofuncs },
-	{}
 };
 
 static int
@@ -83,7 +43,7 @@ nvc0_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.base.sclass = nvc0_dmaobj_sclass;
+	nv_engine(priv)->sclass = nouveau_dmaobj_sclass;
 	return 0;
 }
 

@@ -32,10 +32,6 @@ struct nv50_dmaeng_priv {
 	struct nouveau_dmaeng base;
 };
 
-struct nv50_dmaobj_priv {
-	struct nouveau_dmaobj base;
-};
-
 static int
 nv50_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 		 struct nouveau_object *parent,
@@ -94,56 +90,6 @@ nv50_dmaobj_bind(struct nouveau_dmaeng *dmaeng,
 }
 
 static int
-nv50_dmaobj_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-		 struct nouveau_oclass *oclass, void *data, u32 size,
-		 struct nouveau_object **pobject)
-{
-	struct nouveau_dmaeng *dmaeng = (void *)engine;
-	struct nv50_dmaobj_priv *dmaobj;
-	struct nouveau_gpuobj *gpuobj;
-	int ret;
-
-	ret = nouveau_dmaobj_create(parent, engine, oclass,
-				    data, size, &dmaobj);
-	*pobject = nv_object(dmaobj);
-	if (ret)
-		return ret;
-
-	switch (nv_mclass(parent)) {
-	case NV_DEVICE_CLASS:
-		break;
-	case NV50_CHANNEL_DMA_CLASS:
-	case NV84_CHANNEL_DMA_CLASS:
-	case NV50_CHANNEL_IND_CLASS:
-	case NV84_CHANNEL_IND_CLASS:
-		ret = dmaeng->bind(dmaeng, *pobject, &dmaobj->base, &gpuobj);
-		nouveau_object_ref(NULL, pobject);
-		*pobject = nv_object(gpuobj);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
-}
-
-static struct nouveau_ofuncs
-nv50_dmaobj_ofuncs = {
-	.ctor = nv50_dmaobj_ctor,
-	.dtor = _nouveau_dmaobj_dtor,
-	.init = _nouveau_dmaobj_init,
-	.fini = _nouveau_dmaobj_fini,
-};
-
-static struct nouveau_oclass
-nv50_dmaobj_sclass[] = {
-	{ 0x0002, &nv50_dmaobj_ofuncs },
-	{ 0x0003, &nv50_dmaobj_ofuncs },
-	{ 0x003d, &nv50_dmaobj_ofuncs },
-	{}
-};
-
-static int
 nv50_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		 struct nouveau_oclass *oclass, void *data, u32 size,
 		 struct nouveau_object **pobject)
@@ -156,7 +102,7 @@ nv50_dmaeng_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	priv->base.base.sclass = nv50_dmaobj_sclass;
+	nv_engine(priv)->sclass = nouveau_dmaobj_sclass;
 	priv->base.bind = nv50_dmaobj_bind;
 	return 0;
 }
