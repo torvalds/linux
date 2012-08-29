@@ -931,6 +931,9 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 
 	case ATH6KL_STATE_RESUMING:
 		break;
+
+	case ATH6KL_STATE_RECOVERY:
+		break;
 	}
 
 	ath6kl_cfg80211_resume(ar);

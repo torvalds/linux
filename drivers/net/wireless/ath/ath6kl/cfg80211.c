@@ -2503,14 +2503,23 @@ static int __ath6kl_cfg80211_suspend(struct wiphy *wiphy,
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 
+	ath6kl_recovery_suspend(ar);
+
 	return ath6kl_hif_suspend(ar, wow);
 }
 
 static int __ath6kl_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
+	int err;
 
-	return ath6kl_hif_resume(ar);
+	err = ath6kl_hif_resume(ar);
+	if (err)
+		return err;
+
+	ar->fw_recovery.enable = true;
+
+	return 0;
 }
 
 /*
@@ -3434,6 +3443,10 @@ void ath6kl_cfg80211_stop(struct ath6kl_vif *vif)
 	clear_bit(CONNECTED, &vif->flags);
 	clear_bit(CONNECT_PEND, &vif->flags);
 
+	/* Stop netdev queues, needed during recovery */
+	netif_stop_queue(vif->ndev);
+	netif_carrier_off(vif->ndev);
+
 	/* disable scanning */
 	if (ath6kl_wmi_scanparams_cmd(vif->ar->wmi, vif->fw_vif_idx, 0xFFFF,
 				      0, 0, 0, 0, 0, 0, 0, 0, 0) != 0)
@@ -3447,7 +3460,7 @@ void ath6kl_cfg80211_stop_all(struct ath6kl *ar)
 	struct ath6kl_vif *vif;
 
 	vif = ath6kl_vif_first(ar);
-	if (!vif) {
+	if (!vif && ar->state != ATH6KL_STATE_RECOVERY) {
 		/* save the current power mode before enabling power save */
 		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
 

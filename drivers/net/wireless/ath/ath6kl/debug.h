@@ -44,6 +44,7 @@ enum ATH6K_DEBUG_MASK {
 	ATH6KL_DBG_SUSPEND	= BIT(20),
 	ATH6KL_DBG_USB		= BIT(21),
 	ATH6KL_DBG_USB_BULK	= BIT(22),
+	ATH6KL_DBG_RECOVERY	= BIT(23),
 	ATH6KL_DBG_ANY	        = 0xffffffff  /* enable all logs */
 };
 

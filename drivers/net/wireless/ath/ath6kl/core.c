@@ -202,6 +202,8 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
 		   __func__, wdev->netdev->name, wdev->netdev, ar);
 
+	ath6kl_recovery_init(ar);
+
 	return ret;
 
 err_rxbuf_cleanup:
@@ -290,6 +292,8 @@ EXPORT_SYMBOL(ath6kl_core_create);
 void ath6kl_core_cleanup(struct ath6kl *ar)
 {
 	ath6kl_hif_power_off(ar);
+
+	ath6kl_recovery_cleanup(ar);
 
 	destroy_workqueue(ar->ath6kl_wq);
 
