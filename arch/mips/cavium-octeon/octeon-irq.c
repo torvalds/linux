@@ -1244,6 +1244,7 @@ static void __init octeon_irq_init_ciu(void)
 	ciu_node = of_find_compatible_node(NULL, NULL, "cavium,octeon-3860-ciu");
 	if (ciu_node) {
 		ciu_domain = irq_domain_add_tree(ciu_node, &octeon_irq_domain_ciu_ops, NULL);
+		irq_set_default_host(ciu_domain);
 		of_node_put(ciu_node);
 	} else
 		panic("Cannot find device node for cavium,octeon-3860-ciu.");
@@ -1704,6 +1705,7 @@ static void __init octeon_irq_init_ciu2(void)
 	ciu_node = of_find_compatible_node(NULL, NULL, "cavium,octeon-6880-ciu2");
 	if (ciu_node) {
 		ciu_domain = irq_domain_add_tree(ciu_node, &octeon_irq_domain_ciu2_ops, NULL);
+		irq_set_default_host(ciu_domain);
 		of_node_put(ciu_node);
 	} else
 		panic("Cannot find device node for cavium,octeon-6880-ciu2.");
