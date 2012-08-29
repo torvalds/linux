@@ -818,18 +818,11 @@ static int coda_queue_setup(struct vb2_queue *vq,
 				unsigned int sizes[], void *alloc_ctxs[])
 {
 	struct coda_ctx *ctx = vb2_get_drv_priv(vq);
+	struct coda_q_data *q_data;
 	unsigned int size;
 
-	if (vq->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-		if (fmt)
-			size = fmt->fmt.pix.width *
-				fmt->fmt.pix.height * 3 / 2;
-		else
-			size = MAX_W *
-				MAX_H * 3 / 2;
-	} else {
-		size = CODA_MAX_FRAME_SIZE;
-	}
+	q_data = get_q_data(ctx, vq->type);
+	size = q_data->sizeimage;
 
 	*nplanes = 1;
 	sizes[0] = size;
