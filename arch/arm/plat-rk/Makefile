@@ -1,3 +1,4 @@
+EXTRA_CFLAGS += -Os
 obj-$(CONFIG_RK29_LAST_LOG) += last_log.o
 obj-$(CONFIG_USB_GADGET) += usb_detect.o
 obj-$(CONFIG_RK29_VPU) += vpu_service.o
@@ -8,5 +9,5 @@ obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_RK_EARLY_PRINTK) += early_printk.o ../kernel/debug.o
 obj-y += mem_reserve.o
 obj-y += sram.o
-CFLAGS_sram.o += -Os -mthumb
+CFLAGS_sram.o += -mthumb
 obj-$(CONFIG_DDR_TEST) += memtester.o

@@ -1,3 +1,4 @@
+EXTRA_CFLAGS += -Os
 ifneq ($(CONFIG_RK_FPGA),y)
 obj-y += clock.o
 obj-y += clock_data.o
@@ -5,7 +6,7 @@ endif
 obj-y += common.o
 CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
 obj-y += ddr.o
-CFLAGS_ddr.o += -Os
+CFLAGS_ddr.o += -mthumb
 obj-y += devices.o
 obj-y += io.o
 obj-y += iomux.o
@@ -17,11 +18,13 @@ obj-$(CONFIG_SMP) += platsmp.o headsmp.o
 obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
 obj-$(CONFIG_PM) += pm.o
+CFLAGS_pm.o += -mthumb
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o video_state.o
 obj-$(CONFIG_DVFS) += dvfs.o
 obj-$(CONFIG_DDR_FREQ) += ddr_freq.o
 obj-$(CONFIG_RK30_I2C_INSRAM) += i2c_sram.o
+CFLAGS_i2c_sram.o += -mthumb
 
 obj-$(CONFIG_MACH_RK3066_SDK) += board-rk30-sdk.o
 obj-$(CONFIG_MACH_RK30_SDK) += board-rk30-sdk.o
