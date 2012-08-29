@@ -41,7 +41,7 @@
  * every single port-type of the following cable names. Please choose cable
  * names that are actually used in your extcon device.
  */
-const char *extcon_cable_name[] = {
+const char extcon_cable_name[][CABLE_NAME_MAX + 1] = {
 	[EXTCON_USB]		= "USB",
 	[EXTCON_USB_HOST]	= "USB-Host",
 	[EXTCON_TA]		= "TA",
@@ -62,8 +62,6 @@ const char *extcon_cable_name[] = {
 	[EXTCON_VIDEO_IN]	= "Video-in",
 	[EXTCON_VIDEO_OUT]	= "Video-out",
 	[EXTCON_MECHANICAL]	= "Mechanical",
-
-	NULL,
 };
 
 static struct class *extcon_class;
