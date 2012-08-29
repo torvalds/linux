@@ -96,8 +96,6 @@ static void __init rk30_boot_mode_init(void)
 
 	if (boot_flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
 		boot_mode = BOOT_MODE_RECOVERY;
-	} else if (strstr(boot_command_line, "(parameter)")) {
-		boot_mode = BOOT_MODE_RECOVERY;
 	}
 	if (boot_mode || boot_flag)
 		printk("Boot mode: %d flag: 0x%08x\n", boot_mode, boot_flag);
