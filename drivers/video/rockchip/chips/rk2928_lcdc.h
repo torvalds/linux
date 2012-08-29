@@ -452,7 +452,7 @@ typedef volatile struct tagLCDC_REG
 
 
 
-#define CalScale(x, y)	             (((u32)x*0x1000)/y)
+#define CalScale(x, y)	             (((u32)(x)*0x1000)/(y))
 struct rk2928_lcdc_device{
 	int id;
 	struct rk_lcdc_device_driver driver;
