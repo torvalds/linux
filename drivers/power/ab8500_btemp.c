@@ -42,6 +42,9 @@
 #define BTEMP_BATCTRL_CURR_SRC_16UA	16
 #define BTEMP_BATCTRL_CURR_SRC_18UA	18
 
+#define BTEMP_BATCTRL_CURR_SRC_60UA	60
+#define BTEMP_BATCTRL_CURR_SRC_120UA	120
+
 #define to_ab8500_btemp_device_info(x) container_of((x), \
 	struct ab8500_btemp, btemp_psy);
 
@@ -216,7 +219,12 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 	/* Only do this for batteries with internal NTC */
 	if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL && enable) {
 
-		if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
+		if (is_ab8540(di->parent)) {
+			if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_60UA)
+				curr = BAT_CTRL_60U_ENA;
+			else
+				curr = BAT_CTRL_120U_ENA;
+		} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
 			if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_16UA)
 				curr = BAT_CTRL_16U_ENA;
 			else
@@ -257,7 +265,14 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 	} else if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL && !enable) {
 		dev_dbg(di->dev, "Disable BATCTRL curr source\n");
 
-		if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
+		if (is_ab8540(di->parent)) {
+			/* Write 0 to the curr bits */
+			ret = abx500_mask_and_set_register_interruptible(
+				di->dev,
+				AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
+				BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA,
+				~(BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA));
+		} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
 			/* Write 0 to the curr bits */
 			ret = abx500_mask_and_set_register_interruptible(
 				di->dev,
@@ -314,7 +329,13 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 	 * if we got an error above
 	 */
 disable_curr_source:
-	if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
+	if (is_ab8540(di->parent)) {
+		/* Write 0 to the curr bits */
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
+			BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA,
+			~(BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA));
+	} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
 		/* Write 0 to the curr bits */
 		ret = abx500_mask_and_set_register_interruptible(di->dev,
 			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
@@ -541,7 +562,9 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 {
 	int res;
 	u8 i;
-	if (is_ab9540(di->parent) || is_ab8505(di->parent))
+	if (is_ab8540(di->parent))
+		di->curr_source = BTEMP_BATCTRL_CURR_SRC_60UA;
+	else if (is_ab9540(di->parent) || is_ab8505(di->parent))
 		di->curr_source = BTEMP_BATCTRL_CURR_SRC_16UA;
 	else
 		di->curr_source = BTEMP_BATCTRL_CURR_SRC_7UA;
@@ -582,9 +605,14 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 	 * detected type is Type 1, else we use the 7uA source
 	 */
 	if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL &&
-			di->bm->batt_id == 1) {
-		if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
-			dev_dbg(di->dev, "Set BATCTRL current source to 16uA\n");
+	    di->bm->batt_id == 1) {
+		if (is_ab8540(di->parent)) {
+			dev_dbg(di->dev,
+				"Set BATCTRL current source to 60uA\n");
+			di->curr_source = BTEMP_BATCTRL_CURR_SRC_60UA;
+		} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
+			dev_dbg(di->dev,
+				"Set BATCTRL current source to 16uA\n");
 			di->curr_source = BTEMP_BATCTRL_CURR_SRC_16UA;
 		} else {
 			dev_dbg(di->dev, "Set BATCTRL current source to 20uA\n");

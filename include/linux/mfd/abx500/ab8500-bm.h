@@ -33,7 +33,7 @@
 #define AB8500_CH_STATUS2_REG		0x01
 #define AB8500_CH_USBCH_STAT1_REG	0x02
 #define AB8500_CH_USBCH_STAT2_REG	0x03
-#define AB8500_CH_FSM_STAT_REG		0x04
+#define AB8540_CH_USBCH_STAT3_REG	0x04
 #define AB8500_CH_STAT_REG		0x05
 
 /*
@@ -157,6 +157,7 @@
 #define CH_OP_CUR_LVL_1P4		0x0D
 #define CH_OP_CUR_LVL_1P5		0x0E
 #define CH_OP_CUR_LVL_1P6		0x0F
+#define CH_OP_CUR_LVL_2P		0x3F
 
 /* BTEMP High thermal limits */
 #define BTEMP_HIGH_TH_57_0		0x00
@@ -246,6 +247,8 @@ enum bup_vch_sel {
 #define BAT_CTRL_20U_ENA		0x02
 #define BAT_CTRL_18U_ENA		0x01
 #define BAT_CTRL_16U_ENA		0x02
+#define BAT_CTRL_60U_ENA		0x01
+#define BAT_CTRL_120U_ENA		0x02
 #define BAT_CTRL_CMP_ENA		0x04
 #define FORCE_BAT_CTRL_CMP_HIGH		0x08
 #define BAT_CTRL_PULL_UP_ENA		0x10
