@@ -485,7 +485,6 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	int found_type;
 	u64 mask = root->sectorsize - 1;
 	u64 extent_end;
-	u64 alloc_hint;
 	u64 start = key->offset;
 	u64 saved_nbytes;
 	struct btrfs_file_extent_item *item;
@@ -551,8 +550,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
-	ret = btrfs_drop_extents(trans, root, inode, start, extent_end,
-				 &alloc_hint, 1);
+	ret = btrfs_drop_extents(trans, root, inode, start, extent_end, 1);
 	BUG_ON(ret);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
@@ -2843,9 +2841,8 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (BTRFS_I(inode)->logged_trans == trans->transid) {
-		u64 tmp;
 		ret = __btrfs_drop_extents(trans, log, inode, dst_path, start,
-					   start + len, &tmp, 0);
+					   start + len, 0);
 		if (ret)
 			return ret;
 	}

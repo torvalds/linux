@@ -230,7 +230,6 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 	u64 inline_len = actual_end - start;
 	u64 aligned_end = (end + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
-	u64 hint_byte;
 	u64 data_len = inline_len;
 	int ret;
 
@@ -247,8 +246,7 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 		return 1;
 	}
 
-	ret = btrfs_drop_extents(trans, root, inode, start, aligned_end,
-				 &hint_byte, 1);
+	ret = btrfs_drop_extents(trans, root, inode, start, aligned_end, 1);
 	if (ret)
 		return ret;
 
@@ -1786,7 +1784,6 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key ins;
-	u64 hint;
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -1805,8 +1802,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * with the others.
 	 */
 	ret = btrfs_drop_extents(trans, root, inode, file_pos,
-				 file_pos + num_bytes,
-				 &hint, 0);
+				 file_pos + num_bytes, 0);
 	if (ret)
 		goto out;
 
@@ -3629,7 +3625,6 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 		last_byte = (last_byte + mask) & ~mask;
 		if (!test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 			struct extent_map *hole_em;
-			u64 hint_byte = 0;
 			hole_size = last_byte - cur_offset;
 
 			trans = btrfs_start_transaction(root, 3);
@@ -3640,8 +3635,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 
 			err = btrfs_drop_extents(trans, root, inode,
 						 cur_offset,
-						 cur_offset + hole_size,
-						 &hint_byte, 1);
+						 cur_offset + hole_size, 1);
 			if (err) {
 				btrfs_abort_transaction(trans, root, err);
 				btrfs_end_transaction(trans, root);

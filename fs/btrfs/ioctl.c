@@ -2353,7 +2353,6 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	int ret;
 	u64 len = olen;
 	u64 bs = root->fs_info->sb->s_blocksize;
-	u64 hint_byte;
 
 	/*
 	 * TODO:
@@ -2579,7 +2578,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				ret = btrfs_drop_extents(trans, root, inode,
 							 new_key.offset,
 							 new_key.offset + datal,
-							 &hint_byte, 1);
+							 1);
 				if (ret) {
 					btrfs_abort_transaction(trans, root,
 								ret);
@@ -2653,7 +2652,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 				ret = btrfs_drop_extents(trans, root, inode,
 							 new_key.offset,
 							 new_key.offset + datal,
-							 &hint_byte, 1);
+							 1);
 				if (ret) {
 					btrfs_abort_transaction(trans, root,
 								ret);

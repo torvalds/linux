@@ -584,7 +584,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root, struct inode *inode,
 			 struct btrfs_path *path, u64 start, u64 end,
-			 u64 *hint_byte, int drop_cache)
+			 int drop_cache)
 {
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *fi;
@@ -716,7 +716,6 @@ next_slot:
 						new_key.objectid,
 						start - extent_offset, 0);
 				BUG_ON(ret); /* -ENOMEM */
-				*hint_byte = disk_bytenr;
 			}
 			key.offset = start;
 		}
@@ -736,10 +735,8 @@ next_slot:
 			btrfs_set_file_extent_num_bytes(leaf, fi,
 							extent_end - end);
 			btrfs_mark_buffer_dirty(leaf);
-			if (update_refs && disk_bytenr > 0) {
+			if (update_refs && disk_bytenr > 0)
 				inode_sub_bytes(inode, end - key.offset);
-				*hint_byte = disk_bytenr;
-			}
 			break;
 		}
 
@@ -755,10 +752,8 @@ next_slot:
 			btrfs_set_file_extent_num_bytes(leaf, fi,
 							start - key.offset);
 			btrfs_mark_buffer_dirty(leaf);
-			if (update_refs && disk_bytenr > 0) {
+			if (update_refs && disk_bytenr > 0)
 				inode_sub_bytes(inode, extent_end - start);
-				*hint_byte = disk_bytenr;
-			}
 			if (end == extent_end)
 				break;
 
@@ -794,7 +789,6 @@ next_slot:
 				BUG_ON(ret); /* -ENOMEM */
 				inode_sub_bytes(inode,
 						extent_end - key.offset);
-				*hint_byte = disk_bytenr;
 			}
 
 			if (end == extent_end)
@@ -834,7 +828,7 @@ next_slot:
 
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode, u64 start,
-		       u64 end, u64 *hint_byte, int drop_cache)
+		       u64 end, int drop_cache)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -843,7 +837,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 	ret = __btrfs_drop_extents(trans, root, inode, path, start, end,
-				   hint_byte, drop_cache);
+				   drop_cache);
 	btrfs_free_path(path);
 	return ret;
 }
