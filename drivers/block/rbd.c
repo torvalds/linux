@@ -2601,10 +2601,25 @@ static ssize_t rbd_add(struct bus_type *bus,
 		goto err_out_client;
 	sprintf(rbd_dev->header_name, "%s%s", rbd_dev->image_name, RBD_SUFFIX);
 
+	/* Get information about the image being mapped */
+
+	rc = rbd_read_header(rbd_dev, &rbd_dev->header);
+	if (rc)
+		goto err_out_client;
+
+	/* no need to lock here, as rbd_dev is not registered yet */
+	rc = rbd_dev_snaps_update(rbd_dev);
+	if (rc)
+		goto err_out_header;
+
+	rc = rbd_dev_set_mapping(rbd_dev, snap_name);
+	if (rc)
+		goto err_out_header;
+
 	/* register our block device */
 	rc = register_blkdev(0, rbd_dev->name);
 	if (rc < 0)
-		goto err_out_client;
+		goto err_out_header;
 	rbd_dev->major = rc;
 
 	rc = rbd_bus_add_dev(rbd_dev);
@@ -2615,20 +2630,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 	 * At this point cleanup in the event of an error is the job
 	 * of the sysfs code (initiated by rbd_bus_del_dev()).
 	 */
-
-	/* contact OSD, request size info about the object being mapped */
-	rc = rbd_read_header(rbd_dev, &rbd_dev->header);
-	if (rc)
-		goto err_out_bus;
-
-	/* no need to lock here, as rbd_dev is not registered yet */
-	rc = rbd_dev_snaps_update(rbd_dev);
-	if (rc)
-		goto err_out_bus;
-
-	rc = rbd_dev_set_mapping(rbd_dev, snap_name);
-	if (rc)
-		goto err_out_bus;
 
 	down_write(&rbd_dev->header_rwsem);
 	rc = rbd_dev_snaps_register(rbd_dev);
@@ -2664,6 +2665,8 @@ err_out_bus:
 
 err_out_blkdev:
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
+err_out_header:
+	rbd_header_free(&rbd_dev->header);
 err_out_client:
 	kfree(rbd_dev->header_name);
 	rbd_put_client(rbd_dev);
