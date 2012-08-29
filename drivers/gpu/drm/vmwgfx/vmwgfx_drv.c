@@ -183,7 +183,7 @@ static struct pci_device_id vmw_pci_id_list[] = {
 	{0, 0, 0}
 };
 
-static int enable_fbdev;
+static int enable_fbdev = IS_ENABLED(CONFIG_DRM_VMWGFX_FBCON);
 
 static int vmw_probe(struct pci_dev *, const struct pci_device_id *);
 static void vmw_master_init(struct vmw_master *);
