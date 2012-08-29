@@ -85,7 +85,7 @@ ENTRY(cpu_resume)
 	mov	r1, #0			@ fall-back logical index for UP
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
 	ALT_UP_B(1f)
-	bfc	r0, #24, #8
+	bic	r0, #0xff000000
 	bl	cpu_logical_index 	@ return logical index in r1
 1:
 	adr	r0, sleep_save_sp
