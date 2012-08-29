@@ -35,6 +35,7 @@
 #define RK30_GPU_SIZE           SZ_64K
 
 #define RK30_ROM_PHYS           0x10100000
+#define RK30_ROM_BASE           RK30_IO_TO_VIRT0(RK30_ROM_PHYS)
 #define RK30_ROM_SIZE           SZ_16K
 #define RK30_VCODEC_PHYS        0x10104000
 #define RK30_VCODEC_SIZE        SZ_16K
