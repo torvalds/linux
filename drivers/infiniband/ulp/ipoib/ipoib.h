@@ -274,7 +274,6 @@ struct ipoib_neigh_hash {
 
 struct ipoib_neigh_table {
 	struct ipoib_neigh_hash __rcu  *htbl;
-	rwlock_t			rwlock;
 	atomic_t			entries;
 	struct completion		flushed;
 	struct completion		deleted;
