@@ -198,7 +198,7 @@ static inline int apic_x2apic_mode(struct kvm_lapic *apic)
 	return apic->vcpu->arch.apic_base & X2APIC_ENABLE;
 }
 
-static unsigned int apic_lvt_mask[APIC_LVT_NUM] = {
+static const unsigned int apic_lvt_mask[APIC_LVT_NUM] = {
 	LVT_MASK ,      /* part LVTT mask, timer mode mask added at runtime */
 	LVT_MASK | APIC_MODE_MASK,	/* LVTTHMR */
 	LVT_MASK | APIC_MODE_MASK,	/* LVTPC */
