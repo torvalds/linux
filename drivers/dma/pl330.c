@@ -2954,6 +2954,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		if (pi->pcfg.num_peri) {
 			dma_cap_set(DMA_SLAVE, pd->cap_mask);
 			dma_cap_set(DMA_CYCLIC, pd->cap_mask);
+			dma_cap_set(DMA_PRIVATE, pd->cap_mask);
 		}
 	}
 
