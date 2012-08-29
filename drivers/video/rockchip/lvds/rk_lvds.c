@@ -7,16 +7,12 @@
 
 static void rk_output_lvds(rk_screen *screen)
 {
-        printk("%s: %x\n", __func__, m_PDN_CBG(1)|m_PD_PLL(0)|m_PDN(1)|m_OEN(0) 	\
-					|m_DS(DS_10PF)|m_MSBSEL(DATA_D0_MSB) 	\
-					|m_OUT_FORMAT(screen->hw_format) 		\
-					|m_LCDC_SEL(FROM_LCDC0));
 	LVDSWrReg(m_PDN_CBG(1)|m_PD_PLL(0)|m_PDN(1)|m_OEN(0) 	\
 					|m_DS(DS_10PF)|m_MSBSEL(DATA_D0_MSB) 	\
 					|m_OUT_FORMAT(screen->hw_format) 		\
-					|m_LCDC_SEL(FROM_LCDC0));
+					|m_LCDC_SEL(screen->lcdc_id));
 
-        printk("%s: reg = 0x%x\n",  __func__, LVDSRdReg());
+       // printk("%s: reg = 0x%x\n",  __func__, LVDSRdReg());
 }
 
 static void rk_output_lvttl(rk_screen *screen)
@@ -24,8 +20,8 @@ static void rk_output_lvttl(rk_screen *screen)
 	LVDSWrReg(m_PD_PLL(0)|m_PD_PLL(1)|m_PDN(0)|m_OEN(1) 	\
 					|m_DS(DS_10PF)|m_MSBSEL(DATA_D0_MSB) 	\
 					|m_OUT_FORMAT(screen->hw_format) 		\
-					|m_LCDC_SEL(FROM_LCDC0));
-        printk("%s: reg = 0x%x\n",  __func__, LVDSRdReg());
+					|m_LCDC_SEL(screen->lcdc_id));
+        //printk("%s: reg = 0x%x\n",  __func__, LVDSRdReg());
 }
 
 static void rk_output_disable(void)
