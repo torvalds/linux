@@ -1901,6 +1901,8 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 
 	rbd_dev->disk = disk;
 
+	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
+
 	return 0;
 out_disk:
 	put_disk(disk);
@@ -2646,7 +2648,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 
 	/* Everything's ready.  Announce the disk to the world. */
 
-	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	add_disk(rbd_dev->disk);
 	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
 		(unsigned long long) rbd_dev->mapping.size);
