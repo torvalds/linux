@@ -2304,26 +2304,28 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 	return ret;
 }
 
-static atomic64_t rbd_id_max = ATOMIC64_INIT(0);
+static atomic64_t rbd_dev_id_max = ATOMIC64_INIT(0);
 
 /*
  * Get a unique rbd identifier for the given new rbd_dev, and add
  * the rbd_dev to the global list.  The minimum rbd id is 1.
  */
-static void rbd_id_get(struct rbd_device *rbd_dev)
+static void rbd_dev_id_get(struct rbd_device *rbd_dev)
 {
-	rbd_dev->dev_id = atomic64_inc_return(&rbd_id_max);
+	rbd_dev->dev_id = atomic64_inc_return(&rbd_dev_id_max);
 
 	spin_lock(&rbd_dev_list_lock);
 	list_add_tail(&rbd_dev->node, &rbd_dev_list);
 	spin_unlock(&rbd_dev_list_lock);
+	dout("rbd_dev %p given dev id %llu\n", rbd_dev,
+		(unsigned long long) rbd_dev->dev_id);
 }
 
 /*
  * Remove an rbd_dev from the global list, and record that its
  * identifier is no longer in use.
  */
-static void rbd_id_put(struct rbd_device *rbd_dev)
+static void rbd_dev_id_put(struct rbd_device *rbd_dev)
 {
 	struct list_head *tmp;
 	int rbd_id = rbd_dev->dev_id;
@@ -2331,6 +2333,8 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 
 	rbd_assert(rbd_id > 0);
 
+	dout("rbd_dev %p released dev id %llu\n", rbd_dev,
+		(unsigned long long) rbd_dev->dev_id);
 	spin_lock(&rbd_dev_list_lock);
 	list_del_init(&rbd_dev->node);
 
@@ -2338,7 +2342,7 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 	 * If the id being "put" is not the current maximum, there
 	 * is nothing special we need to do.
 	 */
-	if (rbd_id != atomic64_read(&rbd_id_max)) {
+	if (rbd_id != atomic64_read(&rbd_dev_id_max)) {
 		spin_unlock(&rbd_dev_list_lock);
 		return;
 	}
@@ -2359,12 +2363,13 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 	spin_unlock(&rbd_dev_list_lock);
 
 	/*
-	 * The max id could have been updated by rbd_id_get(), in
+	 * The max id could have been updated by rbd_dev_id_get(), in
 	 * which case it now accurately reflects the new maximum.
 	 * Be careful not to overwrite the maximum value in that
 	 * case.
 	 */
-	atomic64_cmpxchg(&rbd_id_max, rbd_id, max_id);
+	atomic64_cmpxchg(&rbd_dev_id_max, rbd_id, max_id);
+	dout("  max dev id has been reset\n");
 }
 
 /*
@@ -2563,7 +2568,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	init_rwsem(&rbd_dev->header_rwsem);
 
 	/* generate unique id: find highest unique id, add one */
-	rbd_id_get(rbd_dev);
+	rbd_dev_id_get(rbd_dev);
 
 	/* Fill in the device name, now that we have its id. */
 	BUILD_BUG_ON(DEV_NAME_LEN
@@ -2631,7 +2636,7 @@ err_put_id:
 		kfree(rbd_dev->image_name);
 		kfree(rbd_dev->pool_name);
 	}
-	rbd_id_put(rbd_dev);
+	rbd_dev_id_put(rbd_dev);
 err_nomem:
 	kfree(rbd_dev);
 	kfree(options);
@@ -2683,7 +2688,7 @@ static void rbd_dev_release(struct device *dev)
 	kfree(rbd_dev->header_name);
 	kfree(rbd_dev->pool_name);
 	kfree(rbd_dev->image_name);
-	rbd_id_put(rbd_dev);
+	rbd_dev_id_put(rbd_dev);
 	kfree(rbd_dev);
 
 	/* release module ref */
