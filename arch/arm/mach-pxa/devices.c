@@ -384,9 +384,24 @@ struct platform_device pxa_device_asoc_platform = {
 
 static u64 pxaficp_dmamask = ~(u32)0;
 
+static struct resource pxa_ir_resources[] = {
+	[0] = {
+		.start  = IRQ_STUART,
+		.end    = IRQ_STUART,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[1] = {
+		.start  = IRQ_ICP,
+		.end    = IRQ_ICP,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 struct platform_device pxa_device_ficp = {
 	.name		= "pxa2xx-ir",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pxa_ir_resources),
+	.resource	= pxa_ir_resources,
 	.dev		= {
 		.dma_mask = &pxaficp_dmamask,
 		.coherent_dma_mask = 0xffffffff,
