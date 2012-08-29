@@ -127,7 +127,6 @@ static void __init ks8695_timer_init (void)
 struct sys_timer ks8695_timer = {
 	.init		= ks8695_timer_init,
 	.offset		= ks8695_gettimeoffset,
-	.resume		= ks8695_timer_setup,
 };
 
 void ks8695_restart(char mode, const char *cmd)
