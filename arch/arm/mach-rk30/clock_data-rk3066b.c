@@ -1800,7 +1800,7 @@ static struct clk clk_otgphy1_480m = {
 
 /* hsicphy setting */
 #ifdef ARCH_RK31
-static struct clk *clk_hsicphy_parents[3] = {&clk_otgphy0_480m, &clk_otgphy1_480m, &general_pll_clk, &codec_pll_clk};
+static struct clk *clk_hsicphy_parents[4] = {&clk_otgphy0_480m, &clk_otgphy1_480m, &general_pll_clk, &codec_pll_clk};
 static struct clk clk_hsicphy_480m = {
 	.name		= "hsicphy_480m",
 	.parent		= &clk_otgphy0_480m,
