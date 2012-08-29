@@ -155,7 +155,6 @@ struct rbd_device {
 
 	int			major;		/* blkdev assigned major */
 	struct gendisk		*disk;		/* blkdev's gendisk and rq */
-	struct request_queue	*q;
 
 	struct rbd_options	rbd_opts;
 	struct rbd_client	*rbd_client;
@@ -1923,7 +1922,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	q->queuedata = rbd_dev;
 
 	rbd_dev->disk = disk;
-	rbd_dev->q = q;
 
 	/* finally, announce the disk to the world */
 	set_capacity(disk, total_size / SECTOR_SIZE);
