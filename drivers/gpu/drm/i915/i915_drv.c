@@ -549,11 +549,6 @@ static int i915_drm_thaw(struct drm_device *dev)
 		intel_modeset_setup_hw_state(dev);
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
-
-		/* Resume the modeset for every activated CRTC */
-		mutex_lock(&dev->mode_config.mutex);
-		drm_helper_resume_force_mode(dev);
-		mutex_unlock(&dev->mode_config.mutex);
 	}
 
 	intel_opregion_init(dev);
