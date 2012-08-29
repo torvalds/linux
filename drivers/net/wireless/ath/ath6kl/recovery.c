@@ -23,7 +23,18 @@ static void ath6kl_recovery_work(struct work_struct *work)
 	struct ath6kl *ar = container_of(work, struct ath6kl,
 					 fw_recovery.recovery_work);
 
+	ar->state = ATH6KL_STATE_RECOVERY;
+
+	del_timer_sync(&ar->fw_recovery.hb_timer);
+
 	ath6kl_init_hw_restart(ar);
+
+	ar->state = ATH6KL_STATE_ON;
+	ar->fw_recovery.err_reason = 0;
+
+	if (ar->fw_recovery.enable)
+		mod_timer(&ar->fw_recovery.hb_timer, jiffies +
+			  msecs_to_jiffies(ar->fw_recovery.hb_poll));
 }
 
 void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason)
@@ -37,18 +48,72 @@ void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason)
 		queue_work(ar->ath6kl_wq, &ar->fw_recovery.recovery_work);
 }
 
+void ath6kl_recovery_hb_event(struct ath6kl *ar, u32 cookie)
+{
+	if (cookie == ar->fw_recovery.seq_num)
+		ar->fw_recovery.hb_pending = false;
+}
+
+static void ath6kl_recovery_hb_timer(unsigned long data)
+{
+	struct ath6kl *ar = (struct ath6kl *) data;
+	int err;
+
+	if (!ar->fw_recovery.enable)
+		return;
+
+	if (ar->fw_recovery.hb_pending)
+		ar->fw_recovery.hb_misscnt++;
+	else
+		ar->fw_recovery.hb_misscnt = 0;
+
+	if (ar->fw_recovery.hb_misscnt > ATH6KL_HB_RESP_MISS_THRES) {
+		ar->fw_recovery.hb_misscnt = 0;
+		ar->fw_recovery.seq_num = 0;
+		ar->fw_recovery.hb_pending = false;
+		ath6kl_recovery_err_notify(ar, ATH6KL_FW_HB_RESP_FAILURE);
+		return;
+	}
+
+	ar->fw_recovery.seq_num++;
+	ar->fw_recovery.hb_pending = true;
+
+	err = ath6kl_wmi_get_challenge_resp_cmd(ar->wmi,
+						ar->fw_recovery.seq_num, 0);
+	if (err)
+		ath6kl_warn("Failed to send hb challenge request, err:%d\n",
+			    err);
+
+	if ((ar->state == ATH6KL_STATE_RECOVERY) || !ar->fw_recovery.enable)
+		return;
+
+	mod_timer(&ar->fw_recovery.hb_timer, jiffies +
+		  msecs_to_jiffies(ar->fw_recovery.hb_poll));
+}
+
 void ath6kl_recovery_init(struct ath6kl *ar)
 {
 	struct ath6kl_fw_recovery *recovery = &ar->fw_recovery;
 
 	recovery->enable = true;
 	INIT_WORK(&recovery->recovery_work, ath6kl_recovery_work);
+	recovery->seq_num = 0;
+	recovery->hb_misscnt = 0;
+	ar->fw_recovery.hb_pending = false;
+	ar->fw_recovery.hb_timer.function = ath6kl_recovery_hb_timer;
+	ar->fw_recovery.hb_timer.data = (unsigned long) ar;
+	init_timer_deferrable(&ar->fw_recovery.hb_timer);
+
+	if (ar->fw_recovery.hb_poll)
+		mod_timer(&ar->fw_recovery.hb_timer, jiffies +
+			  msecs_to_jiffies(ar->fw_recovery.hb_poll));
 }
 
 void ath6kl_recovery_cleanup(struct ath6kl *ar)
 {
 	ar->fw_recovery.enable = false;
 
+	del_timer_sync(&ar->fw_recovery.hb_timer);
 	cancel_work_sync(&ar->fw_recovery.recovery_work);
 }
 
@@ -56,7 +121,27 @@ void ath6kl_recovery_suspend(struct ath6kl *ar)
 {
 	ath6kl_recovery_cleanup(ar);
 
+	if (!ar->fw_recovery.err_reason)
+		return;
+
 	/* Process pending fw error detection */
-	if (ar->fw_recovery.err_reason)
-		ath6kl_init_hw_restart(ar);
+	ar->fw_recovery.err_reason = 0;
+	WARN_ON(ar->state != ATH6KL_STATE_ON);
+	ar->state = ATH6KL_STATE_RECOVERY;
+	ath6kl_init_hw_restart(ar);
+	ar->state = ATH6KL_STATE_ON;
+}
+
+void ath6kl_recovery_resume(struct ath6kl *ar)
+{
+	ar->fw_recovery.enable = true;
+
+	if (!ar->fw_recovery.hb_poll)
+		return;
+
+	ar->fw_recovery.hb_pending = false;
+	ar->fw_recovery.seq_num = 0;
+	ar->fw_recovery.hb_misscnt = 0;
+	mod_timer(&ar->fw_recovery.hb_timer,
+		  jiffies + msecs_to_jiffies(ar->fw_recovery.hb_poll));
 }

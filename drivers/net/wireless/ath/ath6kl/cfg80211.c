@@ -2517,7 +2517,7 @@ static int __ath6kl_cfg80211_resume(struct wiphy *wiphy)
 	if (err)
 		return err;
 
-	ar->fw_recovery.enable = true;
+	ath6kl_recovery_resume(ar);
 
 	return 0;
 }

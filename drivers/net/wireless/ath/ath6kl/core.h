@@ -130,6 +130,12 @@ enum ath6kl_fw_capability {
 	/* Firmware supports sched scan decoupled from host sleep */
 	ATH6KL_FW_CAPABILITY_SCHED_SCAN_V2,
 
+	/*
+	 * Firmware capability for hang detection through heart beat
+	 * challenge messages.
+	 */
+	ATH6KL_FW_CAPABILITY_HEART_BEAT_POLL,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
@@ -649,8 +655,11 @@ enum ath6kl_state {
 };
 
 /* Fw error recovery */
+#define ATH6KL_HB_RESP_MISS_THRES	5
+
 enum ath6kl_fw_err {
 	ATH6KL_FW_ASSERT,
+	ATH6KL_FW_HB_RESP_FAILURE,
 };
 
 struct ath6kl {
@@ -800,6 +809,11 @@ struct ath6kl {
 		bool enable;
 		struct work_struct recovery_work;
 		unsigned long err_reason;
+		unsigned long hb_poll;
+		struct timer_list hb_timer;
+		u32 seq_num;
+		bool hb_pending;
+		u8 hb_misscnt;
 	} fw_recovery;
 
 #ifdef CONFIG_ATH6KL_DEBUG
@@ -940,7 +954,9 @@ void ath6kl_core_destroy(struct ath6kl *ar);
 /* Fw error recovery */
 void ath6kl_init_hw_restart(struct ath6kl *ar);
 void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason);
+void ath6kl_recovery_hb_event(struct ath6kl *ar, u32 cookie);
 void ath6kl_recovery_init(struct ath6kl *ar);
 void ath6kl_recovery_cleanup(struct ath6kl *ar);
 void ath6kl_recovery_suspend(struct ath6kl *ar);
+void ath6kl_recovery_resume(struct ath6kl *ar);
 #endif /* CORE_H */

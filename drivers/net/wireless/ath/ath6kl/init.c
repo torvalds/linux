@@ -1697,9 +1697,6 @@ int ath6kl_init_hw_stop(struct ath6kl *ar)
 
 void ath6kl_init_hw_restart(struct ath6kl *ar)
 {
-
-	ar->state = ATH6KL_STATE_RECOVERY;
-
 	ath6kl_cfg80211_stop_all(ar);
 
 	if (__ath6kl_init_hw_stop(ar))
@@ -1709,9 +1706,6 @@ void ath6kl_init_hw_restart(struct ath6kl *ar)
 		ath6kl_dbg(ATH6KL_DBG_RECOVERY, "Failed to restart during fw error recovery\n");
 		return;
 	}
-
-	ar->state = ATH6KL_STATE_ON;
-	ar->fw_recovery.err_reason = 0;
 }
 
 /* FIXME: move this to cfg80211.c and rename to ath6kl_cfg80211_vif_stop() */

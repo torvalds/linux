@@ -3767,6 +3767,19 @@ int ath6kl_wmi_set_inact_period(struct wmi *wmi, u8 if_idx, int inact_timeout)
 				   NO_SYNC_WMIFLAG);
 }
 
+static void ath6kl_wmi_hb_challenge_resp_event(struct wmi *wmi, u8 *datap,
+					       int len)
+{
+	struct wmix_hb_challenge_resp_cmd *cmd;
+
+	if (len < sizeof(struct wmix_hb_challenge_resp_cmd))
+		return;
+
+	cmd = (struct wmix_hb_challenge_resp_cmd *) datap;
+	ath6kl_recovery_hb_event(wmi->parent_dev,
+				 le32_to_cpu(cmd->cookie));
+}
+
 static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 {
 	struct wmix_cmd_hdr *cmd;
@@ -3791,6 +3804,7 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 	switch (id) {
 	case WMIX_HB_CHALLENGE_RESP_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "wmi event hb challenge resp\n");
+		ath6kl_wmi_hb_challenge_resp_event(wmi, datap, len);
 		break;
 	case WMIX_DBGLOG_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "wmi event dbglog len %d\n", len);
