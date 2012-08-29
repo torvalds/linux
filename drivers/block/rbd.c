@@ -1870,14 +1870,12 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 {
 	struct gendisk *disk;
 	struct request_queue *q;
-	int rc;
 	u64 segment_size;
 
 	/* create gendisk info */
-	rc = -ENOMEM;
 	disk = alloc_disk(RBD_MINORS_PER_MAJOR);
 	if (!disk)
-		goto out;
+		return -ENOMEM;
 
 	snprintf(disk->disk_name, sizeof(disk->disk_name), RBD_DRV_NAME "%d",
 		 rbd_dev->dev_id);
@@ -1887,7 +1885,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	disk->private_data = rbd_dev;
 
 	/* init rq */
-	rc = -ENOMEM;
 	q = blk_init_queue(rbd_rq_fn, &rbd_dev->lock);
 	if (!q)
 		goto out_disk;
@@ -1910,11 +1907,10 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	rbd_dev->disk = disk;
 
 	return 0;
-
 out_disk:
 	put_disk(disk);
-out:
-	return rc;
+
+	return -ENOMEM;
 }
 
 /*
