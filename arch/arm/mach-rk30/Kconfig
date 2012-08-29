@@ -1,10 +1,16 @@
+if ARCH_RK30
+
 config ARCH_RK3066B
 	bool "Rockchip RK3066B"
-	depends on ARCH_RK30
 	help
 	  Support for Rockchip's RK3066B SoCs.
 
-if ARCH_RK30 && !ARCH_RK3066B
+config ARCH_RK30XX
+	bool
+	default y
+	depends on !ARCH_RK3066B
+
+if ARCH_RK30XX
 
 choice
 	prompt "RK30xx Board Type"
@@ -48,5 +54,7 @@ config MACH_RK3066B_SDK
 	bool "RK3066B SDK board"
 
 endchoice
+
+endif
 
 endif

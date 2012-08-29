@@ -1,7 +1,8 @@
 EXTRA_CFLAGS += -Os
 ifneq ($(CONFIG_RK_FPGA),y)
 obj-y += clock.o
-obj-y += clock_data.o
+obj-$(CONFIG_ARCH_RK30XX) += clock_data.o
+obj-$(CONFIG_ARCH_RK3066B) += clock_data-rk3066b.o
 endif
 obj-y += common.o
 CFLAGS_common.o += -DTEXT_OFFSET=$(TEXT_OFFSET)
