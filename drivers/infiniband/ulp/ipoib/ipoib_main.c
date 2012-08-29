@@ -1095,6 +1095,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 	htbl->mask = (size - 1);
 	htbl->buckets = buckets;
 	ntbl->htbl = htbl;
+	htbl->ntbl = ntbl;
 	atomic_set(&ntbl->entries, 0);
 
 	/* start garbage collection */
@@ -1111,9 +1112,11 @@ static void neigh_hash_free_rcu(struct rcu_head *head)
 						    struct ipoib_neigh_hash,
 						    rcu);
 	struct ipoib_neigh __rcu **buckets = htbl->buckets;
+	struct ipoib_neigh_table *ntbl = htbl->ntbl;
 
 	kfree(buckets);
 	kfree(htbl);
+	complete(&ntbl->deleted);
 }
 
 void ipoib_del_neighs_by_gid(struct net_device *dev, u8 *gid)
@@ -1164,7 +1167,9 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 	struct ipoib_neigh_table *ntbl = &priv->ntbl;
 	struct ipoib_neigh_hash *htbl;
 	unsigned long flags;
-	int i;
+	int i, wait_flushed = 0;
+
+	init_completion(&priv->ntbl.flushed);
 
 	write_lock_bh(&ntbl->rwlock);
 
@@ -1172,6 +1177,10 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 					lockdep_is_held(&ntbl->rwlock));
 	if (!htbl)
 		goto out_unlock;
+
+	wait_flushed = atomic_read(&priv->ntbl.entries);
+	if (!wait_flushed)
+		goto free_htbl;
 
 	for (i = 0; i < htbl->size; i++) {
 		struct ipoib_neigh *neigh;
@@ -1190,11 +1199,14 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 		}
 	}
 
+free_htbl:
 	rcu_assign_pointer(ntbl->htbl, NULL);
 	call_rcu(&htbl->rcu, neigh_hash_free_rcu);
 
 out_unlock:
 	write_unlock_bh(&ntbl->rwlock);
+	if (wait_flushed)
+		wait_for_completion(&priv->ntbl.flushed);
 }
 
 static void ipoib_neigh_hash_uninit(struct net_device *dev)
@@ -1203,7 +1215,7 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	int stopped;
 
 	ipoib_dbg(priv, "ipoib_neigh_hash_uninit\n");
-	init_completion(&priv->ntbl.flushed);
+	init_completion(&priv->ntbl.deleted);
 	set_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
 
 	/* Stop GC if called at init fail need to cancel work */
@@ -1211,10 +1223,9 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	if (!stopped)
 		cancel_delayed_work(&priv->neigh_reap_task);
 
-	if (atomic_read(&priv->ntbl.entries)) {
-		ipoib_flush_neighs(priv);
-		wait_for_completion(&priv->ntbl.flushed);
-	}
+	ipoib_flush_neighs(priv);
+
+	wait_for_completion(&priv->ntbl.deleted);
 }
 
 
