@@ -25,15 +25,15 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "../../perf.h"
 #include "../util.h"
+#include <EXTERN.h>
+#include <perl.h>
+
+#include "../../perf.h"
 #include "../thread.h"
 #include "../event.h"
 #include "../trace-event.h"
 #include "../evsel.h"
-
-#include <EXTERN.h>
-#include <perl.h>
 
 void boot_Perf__Trace__Context(pTHX_ CV *cv);
 void boot_DynaLoader(pTHX_ CV *cv);
