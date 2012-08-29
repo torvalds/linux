@@ -317,7 +317,7 @@ error:
 	return result;
 }
 
-
+#ifdef CONFIG_HAS_EARLYSUSPEND
 static void sensor_suspend(struct early_suspend *h)
 {
 	struct sensor_private_data *sensor = 
@@ -336,6 +336,7 @@ static void sensor_resume(struct early_suspend *h)
 	if(sensor->ops->resume)
 		sensor->ops->resume(sensor->client);
 }
+#endif
 
 static int gsensor_dev_open(struct inode *inode, struct file *file)
 {
@@ -484,11 +485,12 @@ error:
 	return result;
 }
 
-static ssize_t gsensor_set_orientation_online(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t gsensor_set_orientation_online(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int i=0;
 	char orientation[20];
+	char *tmp;
 	
 	struct sensor_private_data *sensor = g_sensor[SENSOR_TYPE_ACCEL];
 	struct sensor_platform_data *pdata = sensor->pdata;
@@ -499,7 +501,7 @@ static ssize_t gsensor_set_orientation_online(struct device *dev,
 	int end = strcspn(p,"}");
 	
 	strncpy(orientation,p+start,end-start+1);
-	char *tmp = orientation;
+	tmp = orientation;
 	
 
     	while(strncmp(tmp,"}",1)!=0)
@@ -532,7 +534,7 @@ static ssize_t gsensor_set_orientation_online(struct device *dev,
 
 }
 
-static CLASS_ATTR(orientation, 0660, NULL,gsensor_set_orientation_online);
+static CLASS_ATTR(orientation, 0660, NULL, gsensor_set_orientation_online);
 
 static int  gsensor_class_init(void)
 {
@@ -1328,11 +1330,13 @@ out_no_free:
 
 static void sensor_shut_down(struct i2c_client *client)
 {
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);
 	if((sensor->ops->suspend) && (sensor->ops->resume))		
 		unregister_early_suspend(&sensor->early_suspend);
 	DBG("%s:%s\n",__func__,sensor->i2c_id->name);
+#endif
 }
 
 static int sensor_remove(struct i2c_client *client)
@@ -1348,7 +1352,7 @@ static int sensor_remove(struct i2c_client *client)
 	kfree(sensor);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if((sensor->ops->suspend) && (sensor->ops->resume))
-	unregister_early_suspend(&sensor->early_suspend);
+		unregister_early_suspend(&sensor->early_suspend);
 #endif  
 	return result;
 }
