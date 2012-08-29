@@ -47,6 +47,7 @@ static void __init da850_init_machine(void)
 }
 
 static const char *da850_boards_compat[] __initdata = {
+	"ti,da850-evm",
 	"ti,da850",
 	NULL,
 };
