@@ -68,24 +68,18 @@ static void __init rk30_l2_cache_init(void)
 	/* L2X0 Power Control */
 	writel_relaxed(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN, RK30_L2C_BASE + L2X0_POWER_CTRL);
 
-	/*
-         * 16-way associativity, parity disabled
-         * Way size - 32KB
-         */
-	aux_ctrl = ((1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) | // 16-way
+	aux_ctrl = (
 			(0x1 << 25) | 	// round-robin
 			(0x1 << 0) |		// Full Line of Zero Enable
 			(0x1 << L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT) |
-			(0x2 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) | // 32KB way-size
 			(0x1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT) );
 
-	aux_ctrl_mask = ~((1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) | // 16-way
+	aux_ctrl_mask = ~(
 			(0x1 << 25) | 	// round-robin
 			(0x1 << 0) |		// Full Line of Zero Enable
 			(0x1 << L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT) |
-			(0x7 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) | // 32KB way-size
 			(0x1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT) );
