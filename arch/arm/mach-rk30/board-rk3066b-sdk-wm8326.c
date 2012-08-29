@@ -196,7 +196,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 	
 	ldo = regulator_get(NULL, "ldo4");	// vdd_11
-	regulator_set_voltage(ldo, 1100000, 1100000);
+	regulator_set_voltage(ldo, 1000000, 1000000);
 	regulator_set_suspend_voltage(ldo, 1000000);
 	regulator_enable(ldo);
 //	printk("%s set ldo4 vdd_11=%dmV end\n", __func__, regulator_get_voltage(ldo));
@@ -204,8 +204,8 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 
 	ldo = regulator_get(NULL, "ldo5");	//vcc_25
-	regulator_set_voltage(ldo, 2500000, 2500000);
-	regulator_set_suspend_voltage(ldo, 2500000);
+	regulator_set_voltage(ldo, 1800000, 1800000);
+	regulator_set_suspend_voltage(ldo,1800000);
 	regulator_enable(ldo);
 //	printk("%s set ldo5 vcc_25=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
@@ -224,7 +224,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 
 	dcdc = regulator_get(NULL, "vdd_cpu");	// vdd_arm
-	regulator_set_voltage(dcdc, 1100000, 1100000);
+	regulator_set_voltage(dcdc, 1000000, 1000000);
 	regulator_set_suspend_voltage(dcdc, 1000000);
 	regulator_enable(dcdc);
 	printk("%s set dcdc2 vdd_cpu(vdd_arm)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
@@ -234,12 +234,13 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
 	
 	/* Read avs value under logic 1.1V*/
+	/*
 	regulator_set_voltage(dcdc, 1100000, 1100000);
 	avs_init_val_get(1,1100000,"wm8326 init");
 	udelay(600);
 	avs_set_scal_val(AVS_BASE);
-
-	regulator_set_voltage(dcdc, 1150000, 1150000);
+	*/
+	regulator_set_voltage(dcdc, 1000000, 1000000);
 	regulator_set_suspend_voltage(dcdc, 1000000);
 	regulator_enable(dcdc);
 	printk("%s set dcdc1 vdd_core(vdd_log)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
