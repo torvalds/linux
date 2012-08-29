@@ -89,17 +89,13 @@ static int check_mutually_exclusive(struct extcon_dev *edev, u32 new_state)
 		return 0;
 
 	for (i = 0; edev->mutually_exclusive[i]; i++) {
-		int count = 0, j;
+		int weight;
 		u32 correspondants = new_state & edev->mutually_exclusive[i];
-		u32 exp = 1;
 
-		for (j = 0; j < 32; j++) {
-			if (exp & correspondants)
-				count++;
-			if (count > 1)
-				return i + 1;
-			exp <<= 1;
-		}
+		/* calculate the total number of bits set */
+		weight = hweight32(correspondants);
+		if (weight > 1)
+			return i + 1;
 	}
 
 	return 0;
