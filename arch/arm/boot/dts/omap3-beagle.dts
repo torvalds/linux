@@ -37,6 +37,14 @@
 			linux,default-trigger = "mmc0";
 		};
 	};
+
+	sound {
+		compatible = "ti,omap-twl4030";
+		ti,model = "omap3beagle";
+
+		ti,mcbsp = <&mcbsp2>;
+		ti,codec = <&twl_audio>;
+	};
 };
 
 &i2c1 {
@@ -51,6 +59,12 @@
 			compatible = "ti,twl4030-vsim";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <3000000>;
+		};
+
+		twl_audio: audio {
+			compatible = "ti,twl4030-audio";
+			codec {
+			};
 		};
 	};
 };
