@@ -279,6 +279,19 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 		pmu_set_power_domain(PD_DBG, state);
 
 	if (pm_pmu_power_domain_is_on(PD_GPU, pmu_pwrdn_st)) {
+#if defined(CONFIG_ARCH_RK3066B)
+		u32 gate[3];
+		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
+		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
+		gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_CLK_GPU), CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_MST), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SLV), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
+		pmu_set_power_domain(PD_GPU, state);
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_MST) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_MST));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU_SLV) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU_SLV));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_CLK_GPU) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_CLK_GPU));
+#else
 		u32 gate[2];
 		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
 		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
@@ -287,6 +300,7 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 		pmu_set_power_domain(PD_GPU, state);
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_GPU_SRC) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
 		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+#endif
 	}
 
 	if (pm_pmu_power_domain_is_on(PD_VIDEO, pmu_pwrdn_st)) {
@@ -377,8 +391,11 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_PCLK_CPU)
 			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
-	//if(clkgt_regs[8]&((1<<CLK_GATE_PCLK_GPIO3% 16)|(1<CLK_GATE_PCLK_GPIO4% 16)) == (0x03 << CLK_GATE_PCLK_GPIO3% 16)){
+#ifdef CONFIG_ARCH_RK3066B
+	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x01) == 0x01){
+#else
 	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x03) == 0x03){
+#endif
 		gate_save_soc_clk(0
 				, clkgt_regs[2], CRU_CLKGATES_CON(2), 0xffff);
 
@@ -396,13 +413,15 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
 			  | (1 << CLK_GATE_PCLK_PMU % 16)
 			  , clkgt_regs[5], CRU_CLKGATES_CON(5), 0xffff);
-	 gate_save_soc_clk(0 , clkgt_regs[7], CRU_CLKGATES_CON(7), 0xffff);
+	gate_save_soc_clk(0, clkgt_regs[7], CRU_CLKGATES_CON(7), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
+#ifdef CONFIG_ARCH_RK30XX
 			  | (1 << CLK_GATE_ACLK_INTMEM0 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM1 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM2 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
+#endif
 			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
 	
 #ifdef CONFIG_CLK_SWITCH_TO_32K
@@ -523,10 +542,12 @@ static int rk30_pm_enter(suspend_state_t state)
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_PCLK_PUBL % 16)
+#ifdef CONFIG_ARCH_RK30XX
 			  | (1 << CLK_GATE_ACLK_INTMEM0 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM1 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM2 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
+#endif
 			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
 
 	sram_printch('2');
