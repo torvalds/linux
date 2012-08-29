@@ -97,7 +97,7 @@ struct intel_sdvo {
 	/*
 	 * Hotplug activation bits for this device
 	 */
-	uint8_t hotplug_active[2];
+	uint16_t hotplug_active;
 
 	/**
 	 * This is used to select the color range of RBG outputs in HDMI mode.
@@ -1251,25 +1251,29 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 	return true;
 }
 
-static int intel_sdvo_supports_hotplug(struct intel_sdvo *intel_sdvo)
+static uint16_t intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 {
 	struct drm_device *dev = intel_sdvo->base.base.dev;
-	u8 response[2];
+	uint16_t hotplug;
 
 	/* HW Erratum: SDVO Hotplug is broken on all i945G chips, there's noise
 	 * on the line. */
 	if (IS_I945G(dev) || IS_I945GM(dev))
-		return false;
+		return 0;
 
-	return intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,
-				    &response, 2) && response[0];
+	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,
+					&hotplug, sizeof(hotplug)))
+		return 0;
+
+	return hotplug;
 }
 
 static void intel_sdvo_enable_hotplug(struct intel_encoder *encoder)
 {
 	struct intel_sdvo *intel_sdvo = to_intel_sdvo(&encoder->base);
 
-	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG, &intel_sdvo->hotplug_active, 2);
+	intel_sdvo_write_cmd(intel_sdvo, SDVO_CMD_SET_ACTIVE_HOT_PLUG,
+			&intel_sdvo->hotplug_active, 2);
 }
 
 static bool
@@ -2061,17 +2065,18 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_connector = &intel_sdvo_connector->base;
 	connector = &intel_connector->base;
-	if (intel_sdvo_supports_hotplug(intel_sdvo) & (1 << device)) {
+	if (intel_sdvo_get_hotplug_support(intel_sdvo) &
+		intel_sdvo_connector->output_flag) {
 		connector->polled = DRM_CONNECTOR_POLL_HPD;
-		intel_sdvo->hotplug_active[0] |= 1 << device;
+		intel_sdvo->hotplug_active |= intel_sdvo_connector->output_flag;
 		/* Some SDVO devices have one-shot hotplug interrupts.
 		 * Ensure that they get re-enabled when an interrupt happens.
 		 */
 		intel_encoder->hot_plug = intel_sdvo_enable_hotplug;
 		intel_sdvo_enable_hotplug(intel_encoder);
-	}
-	else
+	} else {
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+	}
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
@@ -2587,7 +2592,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	/* Only enable the hotplug irq if we need it, to work around noisy
 	 * hotplug lines.
 	 */
-	if (intel_sdvo->hotplug_active[0])
+	if (intel_sdvo->hotplug_active)
 		dev_priv->hotplug_supported_mask |= hotplug_mask;
 
 	intel_sdvo_select_ddc_bus(dev_priv, intel_sdvo, sdvo_reg);
