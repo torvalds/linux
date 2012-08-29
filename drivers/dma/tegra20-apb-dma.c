@@ -201,7 +201,7 @@ struct tegra_dma {
 	struct clk			*dma_clk;
 	spinlock_t			global_lock;
 	void __iomem			*base_addr;
-	struct tegra_dma_chip_data	*chip_data;
+	const struct tegra_dma_chip_data *chip_data;
 
 	/* Some register need to be cache before suspend */
 	u32				reg_gen;
@@ -1197,7 +1197,7 @@ static int __devinit tegra_dma_probe(struct platform_device *pdev)
 	struct tegra_dma *tdma;
 	int ret;
 	int i;
-	struct tegra_dma_chip_data *cdata = NULL;
+	const struct tegra_dma_chip_data *cdata = NULL;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
