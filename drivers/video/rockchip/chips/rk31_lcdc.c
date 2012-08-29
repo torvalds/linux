@@ -701,6 +701,52 @@ static int rk31_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool 
 	screen->ft = 1000/fps ;  //one frame time in ms
 	return fps;
 }
+
+static int rk31_fb_layer_remap(struct rk_lcdc_device_driver *dev_drv,
+        enum fb_win_map_order order)
+{
+        mutex_lock(&dev_drv->fb_win_id_mutex);
+	if(order == FB_DEFAULT_ORDER)
+	{
+		order = FB0_WIN0_FB1_WIN1_FB2_WIN2;
+	}
+        dev_drv->fb2_win_id  = order/100;
+        dev_drv->fb1_win_id = (order/10)%10;
+        dev_drv->fb0_win_id = order%10;
+        mutex_unlock(&dev_drv->fb_win_id_mutex);
+
+        printk("fb0:win%d\nfb1:win%d\nfb2:win%d\n",dev_drv->fb0_win_id,dev_drv->fb1_win_id,
+                dev_drv->fb2_win_id);
+
+        return 0;
+}
+
+static int rk31_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char *id)
+{
+        int layer_id = 0;
+        mutex_lock(&dev_drv->fb_win_id_mutex);
+        if(!strcmp(id,"fb0"))
+        {
+                layer_id = dev_drv->fb0_win_id;
+        }
+        else if(!strcmp(id,"fb1"))
+        {
+                layer_id = dev_drv->fb1_win_id;
+        }
+        else if(!strcmp(id,"fb2"))
+        {
+                layer_id = dev_drv->fb2_win_id;
+        }
+        else
+        {
+                printk(KERN_ERR "%s>>un supported %s\n",__func__,id);
+                layer_id = -1;
+        }
+        mutex_unlock(&dev_drv->fb_win_id_mutex);
+
+        return  layer_id;
+}
+
 int rk31_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk31_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk31_lcdc_device,driver);
@@ -802,6 +848,8 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.ovl_mgr		= rk31_lcdc_ovl_mgr,
 	.get_disp_info		= rk31_lcdc_get_disp_info,
 	.fps_mgr		= rk31_lcdc_fps_mgr,
+	.fb_get_layer           = rk31_fb_get_layer,
+	.fb_layer_remap         = rk31_fb_layer_remap,
 };
 #ifdef CONFIG_PM
 static int rk31_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
