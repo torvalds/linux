@@ -45,7 +45,31 @@
 #include <asm/ucc.h>
 
 #include "gianfar.h"
-#include "fsl_pq_mdio.h"
+
+#define MIIMIND_BUSY		0x00000001
+#define MIIMIND_NOTVALID	0x00000004
+#define MIIMCFG_INIT_VALUE	0x00000007
+#define MIIMCFG_RESET		0x80000000
+
+#define MII_READ_COMMAND	0x00000001
+
+struct fsl_pq_mdio {
+	u8 res1[16];
+	u32 ieventm;	/* MDIO Interrupt event register (for etsec2)*/
+	u32 imaskm;	/* MDIO Interrupt mask register (for etsec2)*/
+	u8 res2[4];
+	u32 emapm;	/* MDIO Event mapping register (for etsec2)*/
+	u8 res3[1280];
+	u32 miimcfg;	/* MII management configuration reg */
+	u32 miimcom;	/* MII management command reg */
+	u32 miimadd;	/* MII management address reg */
+	u32 miimcon;	/* MII management control reg */
+	u32 miimstat;	/* MII management status reg */
+	u32 miimind;	/* MII management indication reg */
+	u8 res4[28];
+	u32 utbipar;	/* TBI phy address reg (only on UCC) */
+	u8 res5[2728];
+} __packed;
 
 /* Number of microseconds to wait for an MII register to respond */
 #define MII_TIMEOUT	1000
@@ -64,7 +88,7 @@ struct fsl_pq_mdio_priv {
  * the local mdio pins, which may not be the same as system mdio bus, used for
  * controlling the external PHYs, for example.
  */
-int fsl_pq_local_mdio_write(struct fsl_pq_mdio __iomem *regs, int mii_id,
+static int fsl_pq_local_mdio_write(struct fsl_pq_mdio __iomem *regs, int mii_id,
 		int regnum, u16 value)
 {
 	u32 status;
@@ -92,7 +116,7 @@ int fsl_pq_local_mdio_write(struct fsl_pq_mdio __iomem *regs, int mii_id,
  * and are always tied to the local mdio pins, which may not be the
  * same as system mdio bus, used for controlling the external PHYs, for eg.
  */
-int fsl_pq_local_mdio_read(struct fsl_pq_mdio __iomem *regs,
+static int fsl_pq_local_mdio_read(struct fsl_pq_mdio __iomem *regs,
 		int mii_id, int regnum)
 {
 	u16 value;
@@ -129,7 +153,8 @@ static struct fsl_pq_mdio __iomem *fsl_pq_mdio_get_regs(struct mii_bus *bus)
  * Write value to the PHY at mii_id at register regnum,
  * on the bus, waiting until the write is done before returning.
  */
-int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
+static int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
+		u16 value)
 {
 	struct fsl_pq_mdio __iomem *regs = fsl_pq_mdio_get_regs(bus);
 
@@ -141,7 +166,7 @@ int fsl_pq_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
  * Read the bus for PHY at addr mii_id, register regnum, and
  * return the value.  Clears miimcom first.
  */
-int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
+static int fsl_pq_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
 	struct fsl_pq_mdio __iomem *regs = fsl_pq_mdio_get_regs(bus);
 
@@ -178,7 +203,7 @@ static int fsl_pq_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
-void fsl_pq_mdio_bus_name(char *name, struct device_node *np)
+static void fsl_pq_mdio_bus_name(char *name, struct device_node *np)
 {
 	const u32 *addr;
 	u64 taddr = OF_BAD_ADDR;
@@ -190,7 +215,6 @@ void fsl_pq_mdio_bus_name(char *name, struct device_node *np)
 	snprintf(name, MII_BUS_ID_SIZE, "%s@%llx", np->name,
 		(unsigned long long)taddr);
 }
-EXPORT_SYMBOL_GPL(fsl_pq_mdio_bus_name);
 
 
 static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct device_node *np)

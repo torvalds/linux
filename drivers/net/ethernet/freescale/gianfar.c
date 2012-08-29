@@ -100,7 +100,6 @@
 #include <linux/of_net.h>
 
 #include "gianfar.h"
-#include "fsl_pq_mdio.h"
 
 #define TX_TIMEOUT      (1*HZ)
 
