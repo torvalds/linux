@@ -1346,12 +1346,15 @@ retry:
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 			radeon_ring_restore(rdev, &rdev->ring[i],
 					    ring_sizes[i], ring_data[i]);
+			ring_sizes[i] = 0;
+			ring_data[i] = NULL;
 		}
 
 		r = radeon_ib_ring_tests(rdev);
 		if (r) {
 			dev_err(rdev->dev, "ib ring test failed (%d).\n", r);
 			if (saved) {
+				saved = false;
 				radeon_suspend(rdev);
 				goto retry;
 			}
