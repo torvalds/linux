@@ -640,7 +640,7 @@ static int snap_by_name(struct rbd_device *rbd_dev, const char *snap_name)
 	return -ENOENT;
 }
 
-static int rbd_header_set_snap(struct rbd_device *rbd_dev, char *snap_name)
+static int rbd_dev_set_mapping(struct rbd_device *rbd_dev, char *snap_name)
 {
 	int ret;
 
@@ -2625,12 +2625,13 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rc = rbd_dev_snaps_update(rbd_dev);
 	if (rc)
 		goto err_out_bus;
-	rc = rbd_dev_snaps_register(rbd_dev);
+
+	rc = rbd_dev_set_mapping(rbd_dev, snap_name);
 	if (rc)
 		goto err_out_bus;
 
 	down_write(&rbd_dev->header_rwsem);
-	rc = rbd_header_set_snap(rbd_dev, snap_name);
+	rc = rbd_dev_snaps_register(rbd_dev);
 	up_write(&rbd_dev->header_rwsem);
 	if (rc)
 		goto err_out_bus;
