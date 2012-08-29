@@ -61,7 +61,7 @@ struct rk_pwm_dcdc {
 };
 
 
-#if defined(CONFIG_ARCH_RK30) |defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK30)
 #define pwm_write_reg(id, addr, val)        __raw_writel(val, addr+(RK30_PWM01_BASE+(id>>1)*0x20000)+id*0x10)
 #define pwm_read_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))
 #elif defined(CONFIG_ARCH_RK29)
@@ -87,7 +87,7 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 
 #if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
 	clkrate = clk_get_rate(pwm_clk[0]);
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
 	if (id == 0 || id == 1) {
 		clkrate = clk_get_rate(pwm_clk[0]);
 	} else if (id== 2 || id == 3) {
@@ -316,7 +316,7 @@ static int __devinit pwm_regulator_probe(struct platform_device *pdev)
 	
 #if defined(CONFIG_ARCH_RK29)
 		pwm_clk[0] = clk_get(NULL, "pwm");
-#elif defined(CONFIG_ARCH_RK30) |defined(CONFIG_ARCH_RK3066B)
+#elif defined(CONFIG_ARCH_RK30)
 		if (pwm_id == 0 || pwm_id == 1)
 		{
 			pwm_clk[0] = clk_get(NULL, "pwm01");	
