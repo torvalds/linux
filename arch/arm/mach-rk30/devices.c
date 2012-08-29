@@ -1044,6 +1044,29 @@ static struct platform_device device_ipp = {
 	.resource	= resource_ipp,
 };
 
+#if defined(CONFIG_ARCH_RK3066B)
+static struct resource resources_sgx[] = {
+    [0] = {
+        .name 	= "gpu_irq",
+        .start 	= IRQ_GPU,
+        .end    = IRQ_GPU,
+        .flags  = IORESOURCE_IRQ,
+    },
+    [1] = {
+        .name   = "gpu_base",
+        .start  = RK30_GPU_PHYS ,
+        .end    = RK30_GPU_PHYS  + RK30_GPU_SIZE - 1,
+        .flags  = IORESOURCE_MEM,
+    },
+};
+static struct platform_device device_sgx = {
+    .name             = "pvrsrvkm",
+    .id               = 0,
+    .num_resources    = ARRAY_SIZE(resources_sgx),
+    .resource         = resources_sgx,
+};
+#endif
+
 #ifdef CONFIG_SND_RK29_SOC_I2S
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
 static struct resource resource_iis0_8ch[] = {
@@ -1348,6 +1371,9 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_rga);
 #endif
 	platform_device_register(&device_ipp);
+#if defined(CONFIG_ARCH_RK3066B)
+	platform_device_register(&device_sgx);
+#endif
 #if 	defined(CONFIG_LCDC0_RK30) || defined(CONFIG_LCDC0_RK31)
 	platform_device_register(&device_lcdc0);
 #endif
