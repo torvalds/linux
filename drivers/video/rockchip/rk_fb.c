@@ -1131,11 +1131,10 @@ static void rkfb_early_suspend(struct early_suspend *h)
 	{
 		if (!inf->lcdc_dev_drv[i])
 			continue;
-		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
-			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
 		if(inf->lcdc_dev_drv[i]->screen0->standby)
 			inf->lcdc_dev_drv[i]->screen0->standby(1);
-		
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
+			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
 		inf->lcdc_dev_drv[i]->suspend(inf->lcdc_dev_drv[i]);
 	}
 }
