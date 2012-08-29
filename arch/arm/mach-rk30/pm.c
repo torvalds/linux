@@ -83,7 +83,7 @@ static int inline calc_crc32(u32 addr, size_t len)
 }
 
 extern __sramdata uint32_t mem_type;
-static void __sramfunc ddr_testmode(void)
+static void ddr_testmode(void)
 {
 	int32_t g_crc1, g_crc2;
 	uint32_t nMHz;
@@ -171,7 +171,7 @@ static void __sramfunc ddr_testmode(void)
 	}
 }
 #else
-static void __sramfunc ddr_testmode(void) {}
+static void ddr_testmode(void) {}
 #endif
 
 static noinline void rk30_pm_dump_irq(void)
