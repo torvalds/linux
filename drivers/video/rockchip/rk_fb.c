@@ -1035,6 +1035,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	#else
 		fbi->var.bits_per_pixel = 16; 
 	#endif
+	fbi->fix.line_length  = (fbi->var.xres)*(fbi->var.bits_per_pixel>>3);
         fbi->var.xres_virtual = fbi->var.xres;
         fbi->var.yres_virtual = fbi->var.yres;
         fbi->var.width =  fb_inf->lcdc_dev_drv[lcdc_id]->cur_screen->width;
