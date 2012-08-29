@@ -141,10 +141,9 @@ void drbd_req_destroy(struct kref *kref)
 		 * but after the extent has been dropped from the al,
 		 * we would forget to resync the corresponding extent.
 		 */
-		if (s & RQ_LOCAL_MASK) {
+		if (s & RQ_IN_ACT_LOG) {
 			if (get_ldev_if_state(mdev, D_FAILED)) {
-				if (s & RQ_IN_ACT_LOG)
-					drbd_al_complete_io(mdev, &req->i);
+				drbd_al_complete_io(mdev, &req->i);
 				put_ldev(mdev);
 			} else if (__ratelimit(&drbd_ratelimit_state)) {
 				dev_warn(DEV, "Should have called drbd_al_complete_io(, %llu, %u), "
