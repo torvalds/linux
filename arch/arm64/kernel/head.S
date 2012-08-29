@@ -26,6 +26,7 @@
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/cputype.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
 #include <asm/pgtable-hwdef.h>
@@ -229,7 +230,8 @@ ENTRY(secondary_holding_pen)
 	bl	__calc_phys_offset		// x24=phys offset
 	bl	el2_setup			// Drop to EL1
 	mrs	x0, mpidr_el1
-	and	x0, x0, #15			// CPU number
+	ldr     x1, =MPIDR_HWID_BITMASK
+	and	x0, x0, x1
 	adr	x1, 1b
 	ldp	x2, x3, [x1]
 	sub	x1, x1, x2

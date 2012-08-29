@@ -42,6 +42,8 @@
 #define ARM_CPU_PART_FOUNDATION	0xD000
 #define ARM_CPU_PART_CORTEX_A57	0xD070
 
+#ifndef __ASSEMBLY__
+
 /*
  * The CPU ID never changes at run time, so we might as well tell the
  * compiler that it's constant.  Use this function to read the CPU ID
@@ -71,5 +73,7 @@ static inline u32 __attribute_const__ read_cpuid_cachetype(void)
 {
 	return read_cpuid(ID_CTR_EL0);
 }
+
+#endif /* __ASSEMBLY__ */
 
 #endif
