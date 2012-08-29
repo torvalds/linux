@@ -819,8 +819,8 @@ int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
 	
-	if(lcdc_dev->screen->sscreen_set != NULL)
-		lcdc_dev->screen->sscreen_set(lcdc_dev->screen , 0);
+	if(dev_drv->cur_screen->sscreen_set)
+		dev_drv->cur_screen->sscreen_set(dev_drv->cur_screen , 0);
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
@@ -870,8 +870,10 @@ int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	lcdc_dev->clk_on = 1;
 	spin_unlock(&lcdc_dev->reg_lock);
 	
-	if(lcdc_dev->screen->sscreen_set != NULL)
-		lcdc_dev->screen->sscreen_set(lcdc_dev->screen , 1);
+	
+	if(dev_drv->cur_screen->sscreen_set)
+		dev_drv->cur_screen->sscreen_set(dev_drv->cur_screen , 1);
+	
 
     	return 0;
 }
