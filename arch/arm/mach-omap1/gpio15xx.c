@@ -17,6 +17,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #define OMAP1_MPUIO_VBASE		OMAP1_MPUIO_BASE
 #define OMAP1510_GPIO_BASE		0xFFFCE000

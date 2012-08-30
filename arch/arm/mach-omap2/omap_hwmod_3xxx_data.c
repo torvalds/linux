@@ -15,6 +15,7 @@
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 #include <linux/power/smartreflex.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <plat/omap_hwmod.h>
 #include <mach/irqs.h>
@@ -24,7 +25,6 @@
 #include <plat/l3_3xxx.h>
 #include <plat/l4_3xxx.h>
 #include <plat/i2c.h>
-#include <plat/gpio.h>
 #include <plat/mmc.h>
 #include <plat/mcbsp.h>
 #include <plat/mcspi.h>

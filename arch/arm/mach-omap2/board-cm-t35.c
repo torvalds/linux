@@ -23,6 +23,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>

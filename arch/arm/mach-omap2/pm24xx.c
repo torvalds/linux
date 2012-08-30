@@ -29,6 +29,7 @@
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>

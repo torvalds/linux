@@ -18,7 +18,6 @@
 #include <plat/dma.h>
 #include <plat/serial.h>
 #include <plat/i2c.h>
-#include <plat/gpio.h>
 #include <plat/mcspi.h>
 #include <plat/dmtimer.h>
 #include <plat/l3_2xxx.h>
