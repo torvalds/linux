@@ -1349,6 +1349,19 @@ static struct platform_device device_wdt = {
 };
 #endif
 
+static struct resource resource_arm_pmu = {
+	.start		= IRQ_ARM_PMU,
+	.end		= IRQ_ARM_PMU,
+	.flags		= IORESOURCE_IRQ,
+};
+
+struct platform_device device_arm_pmu = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= 1,
+	.resource	= &resource_arm_pmu,
+};
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
@@ -1400,6 +1413,8 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_RK29_WATCHDOG
 	platform_device_register(&device_wdt);
 #endif
+	platform_device_register(&device_arm_pmu);
+
 	return 0;
 }
 arch_initcall(rk30_init_devices);
