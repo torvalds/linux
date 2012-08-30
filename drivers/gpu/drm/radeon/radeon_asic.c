@@ -1944,9 +1944,13 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
 	case CHIP_VERDE:
+	case CHIP_OLAND:
 		rdev->asic = &si_asic;
 		/* set num crtcs */
-		rdev->num_crtc = 6;
+		if (rdev->family == CHIP_OLAND)
+			rdev->num_crtc = 2;
+		else
+			rdev->num_crtc = 6;
 		break;
 	default:
 		/* FIXME: not supported yet */
