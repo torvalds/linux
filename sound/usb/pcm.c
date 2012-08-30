@@ -1029,6 +1029,7 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 				 struct urb *urb)
 {
 	struct snd_pcm_runtime *runtime = subs->pcm_substream->runtime;
+	struct snd_usb_endpoint *ep = subs->data_endpoint;
 	struct snd_urb_ctx *ctx = urb->context;
 	unsigned int counts, frames, bytes;
 	int i, stride, period_elapsed = 0;
@@ -1040,7 +1041,11 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 	urb->number_of_packets = 0;
 	spin_lock_irqsave(&subs->lock, flags);
 	for (i = 0; i < ctx->packets; i++) {
-		counts = ctx->packet_size[i];
+		if (ctx->packet_size[i])
+			counts = ctx->packet_size[i];
+		else
+			counts = snd_usb_endpoint_next_packet_size(ep);
+
 		/* set up descriptor */
 		urb->iso_frame_desc[i].offset = frames * stride;
 		urb->iso_frame_desc[i].length = counts * stride;
