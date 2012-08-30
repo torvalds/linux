@@ -881,7 +881,7 @@ static int __devinit wm0010_spi_probe(struct spi_device *spi)
 		trigger = IRQF_TRIGGER_FALLING;
 	trigger |= IRQF_ONESHOT;
 
-	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger,
+	ret = request_threaded_irq(irq, NULL, wm0010_irq, trigger | IRQF_ONESHOT,
 				   "wm0010", wm0010);
 	if (ret) {
 		dev_err(wm0010->dev, "Failed to request IRQ %d: %d\n",
