@@ -546,6 +546,60 @@ static struct platform_device device_fb = {
 };
 #endif
 
+#if defined(CONFIG_LCDC0_RK31)
+static struct resource resource_lcdc0[] = {
+	[0] = {
+		.name  = "lcdc0 reg",
+		.start = RK30_LCDC0_PHYS,
+		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	
+	[1] = {
+		.name  = "lcdc0 irq",
+		.start = IRQ_LCDC0,
+		.end   = IRQ_LCDC0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc0 = {
+	.name		  = "rk30-lcdc",
+	.id		  = 0,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
+	.resource	  = resource_lcdc0,
+	.dev 		= {
+		.platform_data = &lcdc0_screen_info,
+	},
+};
+#endif
+#if defined(CONFIG_LCDC1_RK31) 
+static struct resource resource_lcdc1[] = {
+	[0] = {
+		.name  = "lcdc1 reg",
+		.start = RK30_LCDC1_PHYS,
+		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name  = "lcdc1 irq",
+		.start = IRQ_LCDC1,
+		.end   = IRQ_LCDC1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc1 = {
+	.name		  = "rk30-lcdc",
+	.id		  = 1,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
+	.resource	  = resource_lcdc1,
+	.dev 		= {
+		.platform_data = &lcdc1_screen_info,
+	},
+};
+#endif
+
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
 	{
@@ -966,12 +1020,20 @@ static struct platform_device device_rfkill_rk = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-	&rk29_device_backlight,
-#endif
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
+#if defined(CONFIG_LCDC0_RK31)
+	&device_lcdc0,
+#endif
+#if defined(CONFIG_LCDC1_RK31)
+	&device_lcdc1,
+#endif
+		
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
+#endif
+
 #ifdef CONFIG_ION
 	&device_ion,
 #endif
