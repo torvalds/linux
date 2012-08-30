@@ -2320,8 +2320,13 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 	 * to start the charging process. but by jumping
 	 * thru a few hoops it can be forced to start.
 	 */
-	ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
-			AB8500_USB_LINE_STAT_REG, &val);
+	if (is_ab8500(di->parent))
+		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
+					AB8500_USB_LINE_STAT_REG, &val);
+	else
+		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
+					AB8500_USB_LINK1_STAT_REG, &val);
+
 	if (ret >= 0)
 		dev_dbg(di->dev, "UsbLineStatus register = 0x%02x\n", val);
 	else
@@ -2357,9 +2362,15 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 			abx500_mask_and_set_register_interruptible(di->dev, AB8500_USB,
 					AB8500_MCH_IPT_CURLVL_REG, 0x01, 0x00);
 			/*Check link status*/
-			ret = abx500_get_register_interruptible(di->dev,
-					AB8500_USB,
-					AB8500_USB_LINE_STAT_REG, &val);
+			if (is_ab8500(di->parent))
+				ret = abx500_get_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINE_STAT_REG,
+					&val);
+			else
+				ret = abx500_get_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINK1_STAT_REG,
+					&val);
+
 			dev_dbg(di->dev, "USB link status= 0x%02x\n",
 				(val & link_status) >> USB_LINK_STATUS_SHIFT);
 			di->invalid_charger_detect_state = 2;
