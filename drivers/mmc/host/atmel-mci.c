@@ -74,7 +74,7 @@ enum atmci_pdc_buf {
 };
 
 struct atmel_mci_caps {
-	bool    has_dma;
+	bool    has_dma_conf_reg;
 	bool    has_pdc;
 	bool    has_cfg_reg;
 	bool    has_cstor_reg;
@@ -421,7 +421,7 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	atmci_show_status_reg(s, "SR", buf[ATMCI_SR / 4]);
 	atmci_show_status_reg(s, "IMR", buf[ATMCI_IMR / 4]);
 
-	if (host->caps.has_dma) {
+	if (host->caps.has_dma_conf_reg) {
 		u32 val;
 
 		val = buf[ATMCI_DMA / 4];
@@ -841,7 +841,7 @@ static void atmci_dma_complete(void *arg)
 
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
 
-	if (host->caps.has_dma)
+	if (host->caps.has_dma_conf_reg)
 		/* Disable DMA hardware handshaking on MCI */
 		atmci_writel(host, ATMCI_DMA, atmci_readl(host, ATMCI_DMA) & ~ATMCI_DMAEN);
 
@@ -1028,7 +1028,9 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 		maxburst = atmci_convert_chksize(host->dma_conf.dst_maxburst);
 	}
 
-	atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(maxburst) | ATMCI_DMAEN);
+	if (host->caps.has_dma_conf_reg)
+		atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(maxburst) |
+			ATMCI_DMAEN);
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
 			data->sg_len, direction);
@@ -2243,7 +2245,10 @@ static bool atmci_configure_dma(struct atmel_mci *host)
 
 	pdata = host->pdev->dev.platform_data;
 
-	if (pdata && find_slave_dev(pdata->dma_slave)) {
+	if (!pdata)
+		return false;
+
+	if (pdata->dma_slave && find_slave_dev(pdata->dma_slave)) {
 		dma_cap_mask_t mask;
 
 		/* Try to grab a DMA channel */
@@ -2284,7 +2289,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	dev_info(&host->pdev->dev,
 			"version: 0x%x\n", version);
 
-	host->caps.has_dma = 0;
+	host->caps.has_dma_conf_reg = 0;
 	host->caps.has_pdc = 1;
 	host->caps.has_cfg_reg = 0;
 	host->caps.has_cstor_reg = 0;
@@ -2302,12 +2307,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 		host->caps.has_odd_clk_div = 1;
 	case 0x400:
 	case 0x300:
-#ifdef CONFIG_AT_HDMAC
-		host->caps.has_dma = 1;
-#else
-		dev_info(&host->pdev->dev,
-			"has dma capability but dma engine is not selected, then use pio\n");
-#endif
+		host->caps.has_dma_conf_reg = 1;
 		host->caps.has_pdc = 0;
 		host->caps.has_cfg_reg = 1;
 		host->caps.has_cstor_reg = 1;
@@ -2388,7 +2388,7 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	/* Get MCI capabilities and set operations according to it */
 	atmci_get_cap(host);
-	if (host->caps.has_dma && atmci_configure_dma(host)) {
+	if (atmci_configure_dma(host)) {
 		host->prepare_data = &atmci_prepare_data_dma;
 		host->submit_data = &atmci_submit_data_dma;
 		host->stop_transfer = &atmci_stop_transfer_dma;
