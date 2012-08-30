@@ -1900,17 +1900,6 @@ static void amd64_handle_ce(struct mem_ctl_info *mci, struct mce *m)
 	u64 sys_addr;
 	u16 syndrome;
 
-	/* Ensure that the Error Address is VALID */
-	if (!(m->status & MCI_STATUS_ADDRV)) {
-		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     0, 0, 0,
-				     -1, -1, -1,
-				     "HW has no ERROR_ADDRESS available",
-				     "");
-		return;
-	}
-
 	sys_addr = get_error_address(m);
 	syndrome = extract_syndrome(m->status);
 
@@ -1928,16 +1917,6 @@ static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
 	u32 page, offset;
 
 	log_mci = mci;
-
-	if (!(m->status & MCI_STATUS_ADDRV)) {
-		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     0, 0, 0,
-				     -1, -1, -1,
-				     "HW has no ERROR_ADDRESS available",
-				     "");
-		return;
-	}
 
 	sys_addr = get_error_address(m);
 	error_address_to_page_and_offset(sys_addr, &page, &offset);
