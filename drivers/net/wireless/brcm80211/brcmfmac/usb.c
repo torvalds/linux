@@ -366,13 +366,13 @@ static int brcmf_usb_tx_ctlpkt(struct device *dev, u8 *buf, u32 len)
 	if (test_and_set_bit(0, &devinfo->ctl_op))
 		return -EIO;
 
+	devinfo->ctl_completed = false;
 	err = brcmf_usb_send_ctl(devinfo, buf, len);
 	if (err) {
 		brcmf_dbg(ERROR, "fail %d bytes: %d\n", err, len);
 		return err;
 	}
 
-	devinfo->ctl_completed = false;
 	timeout = brcmf_usb_ioctl_resp_wait(devinfo, &devinfo->ctl_completed,
 					    &pending);
 	clear_bit(0, &devinfo->ctl_op);
