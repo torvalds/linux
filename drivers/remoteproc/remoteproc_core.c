@@ -50,6 +50,18 @@ typedef int (*rproc_handle_resource_t)(struct rproc *rproc, void *, int avail);
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
 
+static const char * const rproc_crash_names[] = {
+	[RPROC_MMUFAULT]	= "mmufault",
+};
+
+/* translate rproc_crash_type to string */
+static const char *rproc_crash_to_string(enum rproc_crash_type type)
+{
+	if (type < ARRAY_SIZE(rproc_crash_names))
+		return rproc_crash_names[type];
+	return "unkown";
+}
+
 /*
  * This is the IOMMU fault handler we register with the IOMMU API
  * (when relevant; not all remote processors access memory through
@@ -57,18 +69,19 @@ static DEFINE_IDA(rproc_dev_index);
  *
  * IOMMU core will invoke this handler whenever the remote processor
  * will try to access an unmapped device address.
- *
- * Currently this is mostly a stub, but it will be later used to trigger
- * the recovery of the remote processor.
  */
 static int rproc_iommu_fault(struct iommu_domain *domain, struct device *dev,
 		unsigned long iova, int flags, void *token)
 {
+	struct rproc *rproc = token;
+
 	dev_err(dev, "iommu fault: da 0x%lx flags 0x%x\n", iova, flags);
+
+	rproc_report_crash(rproc, RPROC_MMUFAULT);
 
 	/*
 	 * Let the iommu core know we're not really handling this fault;
-	 * we just plan to use this as a recovery trigger.
+	 * we just used it as a recovery trigger.
 	 */
 	return -ENOSYS;
 }
@@ -872,6 +885,36 @@ out:
 }
 
 /**
+ * rproc_crash_handler_work() - handle a crash
+ *
+ * This function needs to handle everything related to a crash, like cpu
+ * registers and stack dump, information to help to debug the fatal error, etc.
+ */
+static void rproc_crash_handler_work(struct work_struct *work)
+{
+	struct rproc *rproc = container_of(work, struct rproc, crash_handler);
+	struct device *dev = &rproc->dev;
+
+	dev_dbg(dev, "enter %s\n", __func__);
+
+	mutex_lock(&rproc->lock);
+
+	if (rproc->state == RPROC_CRASHED || rproc->state == RPROC_OFFLINE) {
+		/* handle only the first crash detected */
+		mutex_unlock(&rproc->lock);
+		return;
+	}
+
+	rproc->state = RPROC_CRASHED;
+	dev_err(dev, "handling crash #%u in %s\n", ++rproc->crash_cnt,
+		rproc->name);
+
+	mutex_unlock(&rproc->lock);
+
+	/* TODO: handle crash */
+}
+
+/**
  * rproc_boot() - boot a remote processor
  * @rproc: handle of a remote processor
  *
@@ -1165,6 +1208,8 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->traces);
 	INIT_LIST_HEAD(&rproc->rvdevs);
 
+	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
+
 	rproc->state = RPROC_OFFLINE;
 
 	return rproc;
@@ -1220,6 +1265,32 @@ int rproc_del(struct rproc *rproc)
 	return 0;
 }
 EXPORT_SYMBOL(rproc_del);
+
+/**
+ * rproc_report_crash() - rproc crash reporter function
+ * @rproc: remote processor
+ * @type: crash type
+ *
+ * This function must be called every time a crash is detected by the low-level
+ * drivers implementing a specific remoteproc. This should not be called from a
+ * non-remoteproc driver.
+ *
+ * This function can be called from atomic/interrupt context.
+ */
+void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
+{
+	if (!rproc) {
+		pr_err("NULL rproc pointer\n");
+		return;
+	}
+
+	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
+		rproc->name, rproc_crash_to_string(type));
+
+	/* create a new task to handle the error */
+	schedule_work(&rproc->crash_handler);
+}
+EXPORT_SYMBOL(rproc_report_crash);
 
 static int __init remoteproc_init(void)
 {
