@@ -236,6 +236,21 @@ static int start_endpoints(struct snd_usb_substream *subs, int can_sleep)
 	    !test_and_set_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags)) {
 		struct snd_usb_endpoint *ep = subs->sync_endpoint;
 
+		if (subs->data_endpoint->iface != subs->sync_endpoint->iface ||
+		    subs->data_endpoint->alt_idx != subs->sync_endpoint->alt_idx) {
+			err = usb_set_interface(subs->dev,
+						subs->sync_endpoint->iface,
+						subs->sync_endpoint->alt_idx);
+			if (err < 0) {
+				snd_printk(KERN_ERR
+					   "%d:%d:%d: cannot set interface (%d)\n",
+					   subs->dev->devnum,
+					   subs->sync_endpoint->iface,
+					   subs->sync_endpoint->alt_idx, err);
+				return -EIO;
+			}
+		}
+
 		snd_printdd(KERN_DEBUG "Starting sync EP @%p\n", ep);
 
 		ep->sync_slave = subs->data_endpoint;
