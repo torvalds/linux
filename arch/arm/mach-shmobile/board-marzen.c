@@ -120,7 +120,7 @@ static void __init marzen_init(void)
 {
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
 				ARRAY_SIZE(fixed3v3_power_consumers), 3300000);
-	regulator_register_fixed(0, dummy_supplies,
+	regulator_register_fixed(1, dummy_supplies,
 				ARRAY_SIZE(dummy_supplies));
 
 	r8a7779_pinmux_init();
