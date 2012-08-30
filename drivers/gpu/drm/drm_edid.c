@@ -254,6 +254,8 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 		      int block, int len)
 {
 	unsigned char start = block * EDID_LENGTH;
+	unsigned char segment = block >> 1;
+	unsigned char xfers = segment ? 3 : 2;
 	int ret, retries = 5;
 
 	/* The core i2c driver will automatically retry the transfer if the
@@ -265,6 +267,11 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	do {
 		struct i2c_msg msgs[] = {
 			{
+				.addr	= DDC_SEGMENT_ADDR,
+				.flags	= 0,
+				.len	= 1,
+				.buf	= &segment,
+			}, {
 				.addr	= DDC_ADDR,
 				.flags	= 0,
 				.len	= 1,
@@ -276,15 +283,21 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 				.buf	= buf,
 			}
 		};
-		ret = i2c_transfer(adapter, msgs, 2);
+
+	/*
+	 * Avoid sending the segment addr to not upset non-compliant ddc
+	 * monitors.
+	 */
+		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
+
 		if (ret == -ENXIO) {
 			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
 					adapter->name);
 			break;
 		}
-	} while (ret != 2 && --retries);
+	} while (ret != xfers && --retries);
 
-	return ret == 2 ? 0 : -1;
+	return ret == xfers ? 0 : -1;
 }
 
 static bool drm_edid_is_zero(u8 *in_edid, int length)
