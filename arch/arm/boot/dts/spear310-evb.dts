@@ -166,26 +166,38 @@
 
 			serial@d0000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@b2000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@b2080000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@b2100000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@b2180000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@b2200000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			wdt@fc880000 {

@@ -336,10 +336,14 @@
 
 			serial@e0000000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@b4100000 {
 			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			spi0: spi@e0100000 {

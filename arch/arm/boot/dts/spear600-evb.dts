@@ -73,10 +73,14 @@
 		apb {
 			serial@d0000000 {
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			serial@d0080000 {
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
 			};
 
 			i2c@d0200000 {
