@@ -519,7 +519,7 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 	else
 		devinfo->bus_pub.bus->dstats.tx_errors++;
 
-	dev_kfree_skb(req->skb);
+	brcmu_pkt_buf_free_skb(req->skb);
 	req->skb = NULL;
 	brcmf_usb_enq(devinfo, &devinfo->tx_freeq, req);
 
@@ -540,7 +540,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 		devinfo->bus_pub.bus->dstats.rx_packets++;
 	} else {
 		devinfo->bus_pub.bus->dstats.rx_errors++;
-		dev_kfree_skb(skb);
+		brcmu_pkt_buf_free_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req);
 		return;
 	}
@@ -556,7 +556,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 			brcmf_usb_rx_refill(devinfo, req);
 		}
 	} else {
-		dev_kfree_skb(skb);
+		brcmu_pkt_buf_free_skb(skb);
 	}
 	return;
 
@@ -588,7 +588,7 @@ static void brcmf_usb_rx_refill(struct brcmf_usbdev_info *devinfo,
 	if (ret == 0) {
 		brcmf_usb_enq(devinfo, &devinfo->rx_postq, req);
 	} else {
-		dev_kfree_skb(req->skb);
+		brcmu_pkt_buf_free_skb(req->skb);
 		req->skb = NULL;
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req);
 	}
