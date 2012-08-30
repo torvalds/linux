@@ -40,15 +40,11 @@ static void batadv_bla_send_announce(struct batadv_priv *bat_priv,
 /* return the index of the claim */
 static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
 {
-	const unsigned char *key = data;
+	struct batadv_claim *claim = (struct batadv_claim *)data;
 	uint32_t hash = 0;
-	size_t i;
 
-	for (i = 0; i < ETH_ALEN + sizeof(short); i++) {
-		hash += key[i];
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
-	}
+	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
+	hash = batadv_hash_bytes(hash, &claim->vid, sizeof(claim->vid));
 
 	hash += (hash << 3);
 	hash ^= (hash >> 11);
@@ -61,15 +57,11 @@ static inline uint32_t batadv_choose_claim(const void *data, uint32_t size)
 static inline uint32_t batadv_choose_backbone_gw(const void *data,
 						 uint32_t size)
 {
-	const unsigned char *key = data;
+	struct batadv_claim *claim = (struct batadv_claim *)data;
 	uint32_t hash = 0;
-	size_t i;
 
-	for (i = 0; i < ETH_ALEN + sizeof(short); i++) {
-		hash += key[i];
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
-	}
+	hash = batadv_hash_bytes(hash, &claim->addr, sizeof(claim->addr));
+	hash = batadv_hash_bytes(hash, &claim->vid, sizeof(claim->vid));
 
 	hash += (hash << 3);
 	hash ^= (hash >> 11);
