@@ -41,7 +41,7 @@ config COMMON_CLK_WM831X
 	  PMICs from Wolfson Microlectronics.
 
 config COMMON_CLK_VERSATILE
-	tristate "Clock driver for ARM Reference designs"
+	bool "Clock driver for ARM Reference designs"
 	depends on ARCH_INTEGRATOR || ARCH_REALVIEW
 	---help---
           Supports clocking on ARM Reference designs Integrator/AP,
