@@ -1000,7 +1000,6 @@ struct iscsi_login *iscsi_target_init_negotiation(
 	 *	Locates Target Portal from NP -> Target IQN
 	 */
 	if (iscsi_target_locate_portal(np, conn, login) < 0) {
-		pr_err("iSCSI Login negotiation failed.\n");
 		goto out;
 	}
 
