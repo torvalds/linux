@@ -296,7 +296,7 @@ config IR_RX51
 	   Say Y or M here if you want to enable support for the IR
 	   transmitter diode built in the Nokia N900 (RX51) device.
 
-	   The driver uses omap DM timers for gereating the carrier
+	   The driver uses omap DM timers for generating the carrier
 	   wave and pulses.
 
 config RC_LOOPBACK

@@ -59,7 +59,7 @@ struct lirc_rx51 {
 	int		wbuf[WBUF_LEN];
 	int		wbuf_index;
 	unsigned long	device_is_open;
-	unsigned int	pwm_timer_num;
+	int		pwm_timer_num;
 };
 
 static void lirc_rx51_on(struct lirc_rx51 *lirc_rx51)
@@ -125,11 +125,14 @@ static irqreturn_t lirc_rx51_interrupt_handler(int irq, void *ptr)
 	if (!retval)
 		return IRQ_NONE;
 
-	if ((retval & ~OMAP_TIMER_INT_MATCH))
+	if (retval & ~OMAP_TIMER_INT_MATCH)
 		dev_err_ratelimited(lirc_rx51->dev,
 				": Unexpected interrupt source: %x\n", retval);
 
-	omap_dm_timer_write_status(lirc_rx51->pulse_timer, 7);
+	omap_dm_timer_write_status(lirc_rx51->pulse_timer,
+				OMAP_TIMER_INT_MATCH	|
+				OMAP_TIMER_INT_OVERFLOW	|
+				OMAP_TIMER_INT_CAPTURE);
 	if (lirc_rx51->wbuf_index < 0) {
 		dev_err_ratelimited(lirc_rx51->dev,
 				": BUG wbuf_index has value of %i\n",
@@ -472,7 +475,6 @@ struct platform_driver lirc_rx51_platform_driver = {
 	.remove		= __exit_p(lirc_rx51_remove),
 	.suspend	= lirc_rx51_suspend,
 	.resume		= lirc_rx51_resume,
-	.remove		= __exit_p(lirc_rx51_remove),
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
