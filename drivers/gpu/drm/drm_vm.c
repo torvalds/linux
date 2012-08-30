@@ -619,20 +619,11 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 		offset = drm_core_get_reg_ofs(dev);
 		vma->vm_flags |= VM_IO;	/* not in core dump */
 		vma->vm_page_prot = drm_io_prot(map->type, vma);
-#if !defined(__arm__)
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       (map->offset + offset) >> PAGE_SHIFT,
 				       vma->vm_end - vma->vm_start,
 				       vma->vm_page_prot))
 			return -EAGAIN;
-#else
-		if (remap_pfn_range(vma, vma->vm_start,
-					(map->offset + offset) >> PAGE_SHIFT,
-					vma->vm_end - vma->vm_start,
-					vma->vm_page_prot))
-			return -EAGAIN;
-#endif
-
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
 			  " offset = 0x%llx\n",
 			  map->type,
