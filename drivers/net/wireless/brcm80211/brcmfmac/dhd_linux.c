@@ -775,6 +775,14 @@ done:
 	return err;
 }
 
+int brcmf_netlink_dcmd(struct net_device *ndev, struct brcmf_dcmd *dcmd)
+{
+	brcmf_dbg(TRACE, "enter: cmd %x buf %p len %d\n",
+		  dcmd->cmd, dcmd->buf, dcmd->len);
+
+	return brcmf_exec_dcmd(ndev, dcmd->cmd, dcmd->buf, dcmd->len);
+}
+
 static int brcmf_netdev_stop(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);

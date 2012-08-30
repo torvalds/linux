@@ -28,6 +28,7 @@
 #include <linux/ieee80211.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
+#include <net/netlink.h>
 
 #include <brcmu_utils.h>
 #include <defs.h>
@@ -2723,6 +2724,25 @@ brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *ndev)
 
 }
 
+#ifdef CONFIG_NL80211_TESTMODE
+static int brcmf_cfg80211_testmode(struct wiphy *wiphy, void *data, int len)
+{
+	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
+	struct net_device *ndev = cfg_priv->wdev->netdev;
+	struct brcmf_dcmd *dcmd = data;
+	struct sk_buff *reply;
+	int ret;
+
+	ret = brcmf_netlink_dcmd(ndev, dcmd);
+	if (ret == 0) {
+		reply = cfg80211_testmode_alloc_reply_skb(wiphy, sizeof(*dcmd));
+		nla_put(reply, NL80211_ATTR_TESTDATA, sizeof(*dcmd), dcmd);
+		ret = cfg80211_testmode_reply(reply);
+	}
+	return ret;
+}
+#endif
+
 static struct cfg80211_ops wl_cfg80211_ops = {
 	.change_virtual_intf = brcmf_cfg80211_change_iface,
 	.scan = brcmf_cfg80211_scan,
@@ -2745,7 +2765,10 @@ static struct cfg80211_ops wl_cfg80211_ops = {
 	.resume = brcmf_cfg80211_resume,
 	.set_pmksa = brcmf_cfg80211_set_pmksa,
 	.del_pmksa = brcmf_cfg80211_del_pmksa,
-	.flush_pmksa = brcmf_cfg80211_flush_pmksa
+	.flush_pmksa = brcmf_cfg80211_flush_pmksa,
+#ifdef CONFIG_NL80211_TESTMODE
+	.testmode_cmd = brcmf_cfg80211_testmode
+#endif
 };
 
 static s32 brcmf_mode_to_nl80211_iftype(s32 mode)
