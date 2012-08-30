@@ -48,6 +48,10 @@
 	.word	0x81b0230d;
 #define MOVXTOD_O5_F2		\
 	.word	0x85b0230d;
+#define MOVXTOD_O5_F4		\
+	.word	0x89b0230d;
+#define MOVXTOD_O5_F6		\
+	.word	0x8db0230d;
 #define MOVXTOD_G3_F60		\
 	.word	0xbbb02303;
 #define MOVXTOD_G7_F62		\
@@ -1400,9 +1404,44 @@ ENTRY(aes_sparc64_ctr_crypt_128)
 	/* %o0=key, %o1=input, %o2=output, %o3=len, %o4=IV */
 	ldx		[%o4 + 0x00], %g3
 	ldx		[%o4 + 0x08], %g7
+	subcc		%o3, 0x10, %o3
 	ldx		[%o0 + 0x00], %g1
-	ldx		[%o0 + 0x08], %g2
+	be		10f
+	 ldx		[%o0 + 0x08], %g2
 1:	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F0
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F2
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F4
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F6
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	ENCRYPT_128_2(8, 0, 2, 4, 6, 56, 58, 60, 62)
+	ldd		[%o1 + 0x00], %f56
+	ldd		[%o1 + 0x08], %f58
+	ldd		[%o1 + 0x10], %f60
+	ldd		[%o1 + 0x18], %f62
+	fxor		%f56, %f0, %f56
+	fxor		%f58, %f2, %f58
+	fxor		%f60, %f4, %f60
+	fxor		%f62, %f6, %f62
+	std		%f56, [%o2 + 0x00]
+	std		%f58, [%o2 + 0x08]
+	std		%f60, [%o2 + 0x10]
+	std		%f62, [%o2 + 0x18]
+	subcc		%o3, 0x20, %o3
+	add		%o1, 0x20, %o1
+	brgz		%o3, 1b
+	 add		%o2, 0x20, %o2
+	brlz,pt		%o3, 11f
+	 nop
+10:	xor		%g1, %g3, %o5
 	MOVXTOD_O5_F0
 	xor		%g2, %g7, %o5
 	MOVXTOD_O5_F2
@@ -1416,14 +1455,9 @@ ENTRY(aes_sparc64_ctr_crypt_128)
 	fxor		%f6, %f2, %f6
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
-	subcc		%o3, 0x10, %o3
-	add		%o1, 0x10, %o1
-	bne,pt		%xcc, 1b
-	 add		%o2, 0x10, %o2
-	stx		%g3, [%o4 + 0x00]
-	stx		%g7, [%o4 + 0x08]
+11:	stx		%g3, [%o4 + 0x00]
 	retl
-	 nop
+	 stx		%g7, [%o4 + 0x08]
 ENDPROC(aes_sparc64_ctr_crypt_128)
 
 	.align		32
@@ -1431,9 +1465,44 @@ ENTRY(aes_sparc64_ctr_crypt_192)
 	/* %o0=key, %o1=input, %o2=output, %o3=len, %o4=IV */
 	ldx		[%o4 + 0x00], %g3
 	ldx		[%o4 + 0x08], %g7
+	subcc		%o3, 0x10, %o3
 	ldx		[%o0 + 0x00], %g1
-	ldx		[%o0 + 0x08], %g2
+	be		10f
+	 ldx		[%o0 + 0x08], %g2
 1:	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F0
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F2
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F4
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F6
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	ENCRYPT_192_2(8, 0, 2, 4, 6, 56, 58, 60, 62)
+	ldd		[%o1 + 0x00], %f56
+	ldd		[%o1 + 0x08], %f58
+	ldd		[%o1 + 0x10], %f60
+	ldd		[%o1 + 0x18], %f62
+	fxor		%f56, %f0, %f56
+	fxor		%f58, %f2, %f58
+	fxor		%f60, %f4, %f60
+	fxor		%f62, %f6, %f62
+	std		%f56, [%o2 + 0x00]
+	std		%f58, [%o2 + 0x08]
+	std		%f60, [%o2 + 0x10]
+	std		%f62, [%o2 + 0x18]
+	subcc		%o3, 0x20, %o3
+	add		%o1, 0x20, %o1
+	brgz		%o3, 1b
+	 add		%o2, 0x20, %o2
+	brlz,pt		%o3, 11f
+	 nop
+10:	xor		%g1, %g3, %o5
 	MOVXTOD_O5_F0
 	xor		%g2, %g7, %o5
 	MOVXTOD_O5_F2
@@ -1447,14 +1516,9 @@ ENTRY(aes_sparc64_ctr_crypt_192)
 	fxor		%f6, %f2, %f6
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
-	subcc		%o3, 0x10, %o3
-	add		%o1, 0x10, %o1
-	bne,pt		%xcc, 1b
-	 add		%o2, 0x10, %o2
-	stx		%g3, [%o4 + 0x00]
-	stx		%g7, [%o4 + 0x08]
+11:	stx		%g3, [%o4 + 0x00]
 	retl
-	 nop
+	 stx		%g7, [%o4 + 0x08]
 ENDPROC(aes_sparc64_ctr_crypt_192)
 
 	.align		32
@@ -1462,9 +1526,44 @@ ENTRY(aes_sparc64_ctr_crypt_256)
 	/* %o0=key, %o1=input, %o2=output, %o3=len, %o4=IV */
 	ldx		[%o4 + 0x00], %g3
 	ldx		[%o4 + 0x08], %g7
+	subcc		%o3, 0x10, %o3
 	ldx		[%o0 + 0x00], %g1
-	ldx		[%o0 + 0x08], %g2
+	be		10f
+	 ldx		[%o0 + 0x08], %g2
 1:	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F0
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F2
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	xor		%g1, %g3, %o5
+	MOVXTOD_O5_F4
+	xor		%g2, %g7, %o5
+	MOVXTOD_O5_F6
+	add		%g7, 1, %g7
+	add		%g3, 1, %o5
+	movrz		%g7, %o5, %g3
+	ENCRYPT_256_2(8, 0, 2, 4, 6)
+	ldd		[%o1 + 0x00], %f56
+	ldd		[%o1 + 0x08], %f58
+	ldd		[%o1 + 0x10], %f60
+	ldd		[%o1 + 0x18], %f62
+	fxor		%f56, %f0, %f56
+	fxor		%f58, %f2, %f58
+	fxor		%f60, %f4, %f60
+	fxor		%f62, %f6, %f62
+	std		%f56, [%o2 + 0x00]
+	std		%f58, [%o2 + 0x08]
+	std		%f60, [%o2 + 0x10]
+	std		%f62, [%o2 + 0x18]
+	subcc		%o3, 0x20, %o3
+	add		%o1, 0x20, %o1
+	brgz		%o3, 1b
+	 add		%o2, 0x20, %o2
+	brlz,pt		%o3, 11f
+	 nop
+10:	xor		%g1, %g3, %o5
 	MOVXTOD_O5_F0
 	xor		%g2, %g7, %o5
 	MOVXTOD_O5_F2
@@ -1478,12 +1577,7 @@ ENTRY(aes_sparc64_ctr_crypt_256)
 	fxor		%f6, %f2, %f6
 	std		%f4, [%o2 + 0x00]
 	std		%f6, [%o2 + 0x08]
-	subcc		%o3, 0x10, %o3
-	add		%o1, 0x10, %o1
-	bne,pt		%xcc, 1b
-	 add		%o2, 0x10, %o2
-	stx		%g3, [%o4 + 0x00]
-	stx		%g7, [%o4 + 0x08]
+11:	stx		%g3, [%o4 + 0x00]
 	retl
-	 nop
+	 stx		%g7, [%o4 + 0x08]
 ENDPROC(aes_sparc64_ctr_crypt_256)
