@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 
 #define DRIVER_NAME "mxs_phy"
 
@@ -34,9 +35,16 @@
 #define BM_USBPHY_CTRL_ENUTMILEVEL2		BIT(14)
 #define BM_USBPHY_CTRL_ENHOSTDISCONDETECT	BIT(1)
 
+/*
+ * Amount of delay in miliseconds to safely enable ENHOSTDISCONDETECT bit
+ * so that connection and reset processing can be completed for the root hub.
+ */
+#define MXY_PHY_ENHOSTDISCONDETECT_DELAY	250
+
 struct mxs_phy {
 	struct usb_phy phy;
 	struct clk *clk;
+	struct delayed_work enhostdiscondetect_work;
 };
 
 #define to_mxs_phy(p) container_of((p), struct mxs_phy, phy)
@@ -62,6 +70,7 @@ static int mxs_phy_init(struct usb_phy *phy)
 
 	clk_prepare_enable(mxs_phy->clk);
 	mxs_phy_hw_init(mxs_phy);
+	INIT_DELAYED_WORK(&mxs_phy->enhostdiscondetect_work, NULL);
 
 	return 0;
 }
@@ -76,13 +85,34 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 	clk_disable_unprepare(mxs_phy->clk);
 }
 
+static void mxs_phy_enhostdiscondetect_delay(struct work_struct *ws)
+{
+	struct mxs_phy *mxs_phy = container_of(ws, struct mxs_phy,
+						enhostdiscondetect_work.work);
+
+	/* Enable HOSTDISCONDETECT after delay. */
+	dev_dbg(mxs_phy->phy.dev, "Setting ENHOSTDISCONDETECT\n");
+	writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
+				mxs_phy->phy.io_priv + HW_USBPHY_CTRL_SET);
+}
+
 static int mxs_phy_on_connect(struct usb_phy *phy, int port)
 {
+	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
+
 	dev_dbg(phy->dev, "Connect on port %d\n", port);
 
-	mxs_phy_hw_init(to_mxs_phy(phy));
-	writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
-			phy->io_priv + HW_USBPHY_CTRL_SET);
+	mxs_phy_hw_init(mxs_phy);
+
+	/*
+	 * Delay enabling ENHOSTDISCONDETECT so that connection and
+	 * reset processing can be completed for the root hub.
+	 */
+	dev_dbg(phy->dev, "Delaying setting ENHOSTDISCONDETECT\n");
+	PREPARE_DELAYED_WORK(&mxs_phy->enhostdiscondetect_work,
+			mxs_phy_enhostdiscondetect_delay);
+	schedule_delayed_work(&mxs_phy->enhostdiscondetect_work,
+			msecs_to_jiffies(MXY_PHY_ENHOSTDISCONDETECT_DELAY));
 
 	return 0;
 }
@@ -91,6 +121,8 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy, int port)
 {
 	dev_dbg(phy->dev, "Disconnect on port %d\n", port);
 
+	/* No need to delay before clearing ENHOSTDISCONDETECT. */
+	dev_dbg(phy->dev, "Clearing ENHOSTDISCONDETECT\n");
 	writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
 			phy->io_priv + HW_USBPHY_CTRL_CLR);
 
