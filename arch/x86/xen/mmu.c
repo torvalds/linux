@@ -2331,8 +2331,8 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 		if (err)
 			goto out;
 
-		err = -EFAULT;
-		if (HYPERVISOR_mmu_update(mmu_update, batch, NULL, domid) < 0)
+		err = HYPERVISOR_mmu_update(mmu_update, batch, NULL, domid);
+		if (err < 0)
 			goto out;
 
 		nr -= batch;
