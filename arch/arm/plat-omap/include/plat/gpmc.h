@@ -150,6 +150,7 @@ struct gpmc_nand_regs {
 };
 
 extern void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
+extern int gpmc_get_client_irq(unsigned irq_config);
 
 extern unsigned int gpmc_ns_to_ticks(unsigned int time_ns);
 extern unsigned int gpmc_ps_to_ticks(unsigned int time_ps);

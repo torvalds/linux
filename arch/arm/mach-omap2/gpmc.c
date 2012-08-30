@@ -78,6 +78,15 @@
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
 
+/* XXX: Only NAND irq has been considered,currently these are the only ones used
+ */
+#define	GPMC_NR_IRQ		2
+
+struct gpmc_client_irq	{
+	unsigned		irq;
+	u32			bitmask;
+};
+
 /* Structure to save gpmc cs context */
 struct gpmc_cs_config {
 	u32 config1;
@@ -104,6 +113,10 @@ struct omap3_gpmc_regs {
 	u32 prefetch_control;
 	struct gpmc_cs_config cs_context[GPMC_CS_NUM];
 };
+
+static struct gpmc_client_irq gpmc_client_irq[GPMC_NR_IRQ];
+static struct irq_chip gpmc_irq_chip;
+static unsigned gpmc_irq_start;
 
 static struct resource	gpmc_mem_root;
 static struct resource	gpmc_cs_mem[GPMC_CS_NUM];
@@ -702,6 +715,97 @@ void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 	reg->gpmc_bch_result0 = gpmc_base + GPMC_ECC_BCH_RESULT_0;
 }
 
+int gpmc_get_client_irq(unsigned irq_config)
+{
+	int i;
+
+	if (hweight32(irq_config) > 1)
+		return 0;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++)
+		if (gpmc_client_irq[i].bitmask & irq_config)
+			return gpmc_client_irq[i].irq;
+
+	return 0;
+}
+
+static int gpmc_irq_endis(unsigned irq, bool endis)
+{
+	int i;
+	u32 regval;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++)
+		if (irq == gpmc_client_irq[i].irq) {
+			regval = gpmc_read_reg(GPMC_IRQENABLE);
+			if (endis)
+				regval |= gpmc_client_irq[i].bitmask;
+			else
+				regval &= ~gpmc_client_irq[i].bitmask;
+			gpmc_write_reg(GPMC_IRQENABLE, regval);
+			break;
+		}
+
+	return 0;
+}
+
+static void gpmc_irq_disable(struct irq_data *p)
+{
+	gpmc_irq_endis(p->irq, false);
+}
+
+static void gpmc_irq_enable(struct irq_data *p)
+{
+	gpmc_irq_endis(p->irq, true);
+}
+
+static void gpmc_irq_noop(struct irq_data *data) { }
+
+static unsigned int gpmc_irq_noop_ret(struct irq_data *data) { return 0; }
+
+static int gpmc_setup_irq(int gpmc_irq)
+{
+	int i;
+	u32 regval;
+
+	if (!gpmc_irq)
+		return -EINVAL;
+
+	gpmc_irq_start = irq_alloc_descs(-1, 0, GPMC_NR_IRQ, 0);
+	if (IS_ERR_VALUE(gpmc_irq_start)) {
+		pr_err("irq_alloc_descs failed\n");
+		return gpmc_irq_start;
+	}
+
+	gpmc_irq_chip.name = "gpmc";
+	gpmc_irq_chip.irq_startup = gpmc_irq_noop_ret;
+	gpmc_irq_chip.irq_enable = gpmc_irq_enable;
+	gpmc_irq_chip.irq_disable = gpmc_irq_disable;
+	gpmc_irq_chip.irq_shutdown = gpmc_irq_noop;
+	gpmc_irq_chip.irq_ack = gpmc_irq_noop;
+	gpmc_irq_chip.irq_mask = gpmc_irq_noop;
+	gpmc_irq_chip.irq_unmask = gpmc_irq_noop;
+
+	gpmc_client_irq[0].bitmask = GPMC_IRQ_FIFOEVENTENABLE;
+	gpmc_client_irq[1].bitmask = GPMC_IRQ_COUNT_EVENT;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++) {
+		gpmc_client_irq[i].irq = gpmc_irq_start + i;
+		irq_set_chip_and_handler(gpmc_client_irq[i].irq,
+					&gpmc_irq_chip, handle_simple_irq);
+		set_irq_flags(gpmc_client_irq[i].irq,
+				IRQF_VALID | IRQF_NOAUTOEN);
+	}
+
+	/* Disable interrupts */
+	gpmc_write_reg(GPMC_IRQENABLE, 0);
+
+	/* clear interrupts */
+	regval = gpmc_read_reg(GPMC_IRQSTATUS);
+	gpmc_write_reg(GPMC_IRQSTATUS, regval);
+
+	return request_irq(gpmc_irq, gpmc_handle_irq, 0, "gpmc", NULL);
+}
+
 static void __init gpmc_mem_init(void)
 {
 	int cs;
@@ -731,8 +835,8 @@ static void __init gpmc_mem_init(void)
 
 static int __init gpmc_init(void)
 {
-	u32 l, irq;
-	int cs, ret = -EINVAL;
+	u32 l;
+	int ret = -EINVAL;
 	int gpmc_irq;
 	char *ck = NULL;
 
@@ -781,16 +885,7 @@ static int __init gpmc_init(void)
 	gpmc_write_reg(GPMC_SYSCONFIG, l);
 	gpmc_mem_init();
 
-	/* initalize the irq_chained */
-	irq = OMAP_GPMC_IRQ_BASE;
-	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
-		irq_set_chip_and_handler(irq, &dummy_irq_chip,
-						handle_simple_irq);
-		set_irq_flags(irq, IRQF_VALID);
-		irq++;
-	}
-
-	ret = request_irq(gpmc_irq, gpmc_handle_irq, IRQF_SHARED, "gpmc", NULL);
+	ret = gpmc_setup_irq(gpmc_irq);
 	if (ret)
 		pr_err("gpmc: irq-%d could not claim: err %d\n",
 						gpmc_irq, ret);
@@ -800,12 +895,19 @@ postcore_initcall(gpmc_init);
 
 static irqreturn_t gpmc_handle_irq(int irq, void *dev)
 {
-	u8 cs;
+	int i;
+	u32 regval;
 
-	/* check cs to invoke the irq */
-	cs = ((gpmc_read_reg(GPMC_PREFETCH_CONFIG1)) >> CS_NUM_SHIFT) & 0x7;
-	if (OMAP_GPMC_IRQ_BASE+cs <= OMAP_GPMC_IRQ_END)
-		generic_handle_irq(OMAP_GPMC_IRQ_BASE+cs);
+	regval = gpmc_read_reg(GPMC_IRQSTATUS);
+
+	if (!regval)
+		return IRQ_NONE;
+
+	for (i = 0; i < GPMC_NR_IRQ; i++)
+		if (regval & gpmc_client_irq[i].bitmask)
+			generic_handle_irq(gpmc_client_irq[i].irq);
+
+	gpmc_write_reg(GPMC_IRQSTATUS, regval);
 
 	return IRQ_HANDLED;
 }
