@@ -5714,7 +5714,6 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	int ret;
-	unsigned reg;
 
 	init_emulate_ctxt(vcpu);
 
