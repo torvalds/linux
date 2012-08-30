@@ -163,5 +163,10 @@
 			ti,hwmods = "i2c3";
 			status = "disabled";
 		};
+
+		wdt2: wdt@44e35000 {
+			compatible = "ti,omap3-wdt";
+			ti,hwmods = "wd_timer2";
+		};
 	};
 };

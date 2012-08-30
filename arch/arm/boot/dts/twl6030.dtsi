@@ -20,67 +20,70 @@
 		interrupts = <11>;
 	};
 
-	vaux1: regulator@0 {
+	vaux1: regulator-vaux1 {
 		compatible = "ti,twl6030-vaux1";
 		regulator-min-microvolt = <1000000>;
 		regulator-max-microvolt = <3000000>;
 	};
 
-	vaux2: regulator@1 {
+	vaux2: regulator-vaux2 {
 		compatible = "ti,twl6030-vaux2";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <2800000>;
 	};
 
-	vaux3: regulator@2 {
+	vaux3: regulator-vaux3 {
 		compatible = "ti,twl6030-vaux3";
 		regulator-min-microvolt = <1000000>;
 		regulator-max-microvolt = <3000000>;
 	};
 
-	vmmc: regulator@3 {
+	vmmc: regulator-vmmc {
 		compatible = "ti,twl6030-vmmc";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <3000000>;
 	};
 
-	vpp: regulator@4 {
+	vpp: regulator-vpp {
 		compatible = "ti,twl6030-vpp";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <2500000>;
 	};
 
-	vusim: regulator@5 {
+	vusim: regulator-vusim {
 		compatible = "ti,twl6030-vusim";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <2900000>;
 	};
 
-	vdac: regulator@6 {
+	vdac: regulator-vdac {
 		compatible = "ti,twl6030-vdac";
 	};
 
-	vana: regulator@7 {
+	vana: regulator-vana {
 		compatible = "ti,twl6030-vana";
 	};
 
-	vcxio: regulator@8 {
+	vcxio: regulator-vcxio {
 		compatible = "ti,twl6030-vcxio";
+		regulator-always-on;
 	};
 
-	vusb: regulator@9 {
+	vusb: regulator-vusb {
 		compatible = "ti,twl6030-vusb";
 	};
 
-	v1v8: regulator@10 {
+	v1v8: regulator-v1v8 {
 		compatible = "ti,twl6030-v1v8";
+		regulator-always-on;
 	};
 
-	v2v1: regulator@11 {
+	v2v1: regulator-v2v1 {
 		compatible = "ti,twl6030-v2v1";
+		regulator-always-on;
 	};
 
-	clk32kg: regulator@12 {
+	clk32kg: regulator-clk32kg {
 		compatible = "ti,twl6030-clk32kg";
 	};
 };

@@ -18,7 +18,7 @@
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
 
-	vdd_eth: fixedregulator@0 {
+	vdd_eth: fixedregulator-vdd-eth {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_ETH";
 		regulator-min-microvolt = <3300000>;
@@ -28,7 +28,7 @@
 		regulator-boot-on;
 	};
 
-	vbat: fixedregulator@2 {
+	vbat: fixedregulator-vbat {
 		compatible = "regulator-fixed";
 		regulator-name = "VBAT";
 		regulator-min-microvolt = <3750000>;
