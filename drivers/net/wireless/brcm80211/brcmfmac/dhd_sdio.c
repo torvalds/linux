@@ -3881,6 +3881,8 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 
 static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 {
+	if (chipid == BCM43241_CHIP_ID)
+		return true;
 	if (chipid == BCM4329_CHIP_ID)
 		return true;
 	if (chipid == BCM4330_CHIP_ID)
