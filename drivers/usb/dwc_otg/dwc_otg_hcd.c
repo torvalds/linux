@@ -38,7 +38,6 @@
  * This file contains the implementation of the HCD. In Linux, the HCD
  * implements the hc_driver API.
  */
-#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -51,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include "usbdev_rk.h"
 
 #include "dwc_otg_driver.h"
 #include "dwc_otg_hcd.h"
@@ -62,6 +62,8 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
     hprt0_data_t hprt0;
     pcgcctl_data_t pcgcctl;
+	struct dwc_otg_platform_data *pldata;
+    pldata = core_if->otg_dev->pldata;
     
     if(core_if->op_state == B_PERIPHERAL)
     {
@@ -104,15 +106,14 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     }
     else    //no device connect
     {
-        if (core_if->hcd_cb && core_if->hcd_cb->suspend) {
-                core_if->hcd_cb->suspend( core_if->hcd_cb->p, 0);
-        }
+        if(pldata->phy_suspend) 
+            pldata->phy_suspend( pldata, USB_PHY_SUSPEND);
     }
     udelay(3);
-    #ifndef CONFIG_DWC_REMOTE_WAKEUP
-    clk_disable(core_if->otg_dev->phyclk);
-    clk_disable(core_if->otg_dev->ahbclk);
-    #endif
+#ifndef CONFIG_DWC_REMOTE_WAKEUP
+    if (pldata->clock_enable) 
+        pldata->clock_enable( pldata, 0);
+#endif
     //power off
     return 0;
 }
@@ -124,6 +125,8 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     hprt0_data_t hprt0;
     pcgcctl_data_t pcgcctl;
     gintmsk_data_t gintmsk;
+	struct dwc_otg_platform_data *pldata;
+    pldata = core_if->otg_dev->pldata;
 	
     if(core_if->op_state == B_PERIPHERAL)
     {
@@ -134,10 +137,10 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     if(!dwc_otg_hcd->host_enabled)
         return 0;
 #endif
-    #ifndef CONFIG_DWC_REMOTE_WAKEUP
-    clk_enable(core_if->otg_dev->phyclk);
-    clk_enable(core_if->otg_dev->ahbclk);
-    #endif
+#ifndef CONFIG_DWC_REMOTE_WAKEUP
+    if (pldata->clock_enable) 
+        pldata->clock_enable( pldata, 1);
+#endif
     //partial power-down
     //power on
     pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);;
@@ -185,11 +188,9 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	
         mdelay(10);
     }
-    else
-    {
-        if (core_if->hcd_cb && core_if->hcd_cb->suspend) {
-                core_if->hcd_cb->suspend( core_if->hcd_cb->p, 1);
-        }
+    else{
+        if(pldata->phy_suspend) 
+            pldata->phy_suspend( pldata, USB_PHY_ENABLED);
     }
     gintmsk.b.portintr = 1;
     dwc_write_reg32(&core_if->core_global_regs->gintmsk, gintmsk.d32);
@@ -583,7 +584,7 @@ static void dwc_otg_hcd_start_connect_timer( dwc_otg_hcd_t *_hcd)
  */
 static int32_t dwc_otg_hcd_session_start_cb( void *_p )
 {
-        dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_p);
+//        dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_p);
         DWC_DEBUGPL(DBG_HCDV, "%s(%p)\n", __func__, _p);
 //        dwc_otg_hcd_start_connect_timer( dwc_otg_hcd );
         return 1;
@@ -681,14 +682,16 @@ static struct tasklet_struct reset_tasklet = {
 	.func = reset_tasklet_func,
 	.data = 0,
 };
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)     
+#ifndef CONFIG_ARCH_RK29
 static void dwc_otg_hcd_enable(struct work_struct *work)
 {
     dwc_otg_hcd_t *dwc_otg_hcd;
     dwc_otg_core_if_t *_core_if;
+	struct dwc_otg_platform_data *pldata;
 
     dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, host_enable_work.work);
     _core_if = dwc_otg_hcd->core_if;
+    pldata = _core_if->otg_dev->pldata;
     
 	if(dwc_otg_hcd->host_enabled == dwc_otg_hcd->host_setenable){
 //        DWC_PRINT("%s, enable flag %d\n", __func__, dwc_otg_hcd->host_setenable);
@@ -707,21 +710,17 @@ static void dwc_otg_hcd_enable(struct work_struct *work)
         if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
                 _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
         }
-        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
-                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, 0);
-        }
+        if(pldata->phy_suspend) 
+            pldata->phy_suspend( pldata, USB_PHY_SUSPEND);
         udelay(3);
-//        clk_disable(otg_dev->phyclk);
-//        clk_disable(otg_dev->ahbclk);
+        pldata->clock_enable( pldata, 0);
 	}
 	else if(dwc_otg_hcd->host_setenable == 1)
 	{
 	    DWC_PRINT("%s, enable host controller\n", __func__);
-//        clk_enable(otg_dev->phyclk);
-//        clk_enable(otg_dev->ahbclk);
-        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
-                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, 1);
-        }
+        pldata->clock_enable( pldata, 1);
+        if(pldata->phy_suspend) 
+            pldata->phy_suspend( pldata, USB_PHY_ENABLED);
         mdelay(5);
         if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
                 _core_if->hcd_cb->start( _core_if->hcd_cb->p );
@@ -733,17 +732,14 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
 {
     dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t *)pdata;
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
-    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
 	unsigned long flags;
+	struct dwc_otg_platform_data *pldata;
+    pldata = core_if->otg_dev->pldata;
 
 	local_irq_save(flags);
 
 //    DWC_PRINT("%s hprt %x, grfstatus 0x%x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
-#ifdef CONFIG_ARCH_RK30
-    if(usbgrf_status & (7<<22)){
-#else //CONFIG_ARCH_RK2928
-    if(usbgrf_status & (7<<12)){
-#endif
+    if(pldata->get_status(USB_STATUS_DPDM)){
     // usb device connected
         dwc_otg_hcd->host_setenable = 1;
     }
@@ -754,11 +750,6 @@ static void dwc_otg_hcd_connect_detect(unsigned long pdata)
     
     }
     if(dwc_otg_hcd->host_setenable != dwc_otg_hcd->host_enabled){
-#ifdef CONFIG_ARCH_RK30	
-    DWC_PRINT("%s schedule delaywork, hprt 0x%08x, grfstatus 0x%08x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<22));
-#else //CONFIG_ARCH_RK2928
-    DWC_PRINT("%s schedule delaywork, hprt 0x%08x, grfstatus 0x%08x\n", __func__, dwc_read_reg32(core_if->host_if->hprt0), usbgrf_status& (7<<12));
-#endif
     schedule_delayed_work(&dwc_otg_hcd->host_enable_work, 8);
     }
 //    dwc_otg_hcd->connect_detect_timer.expires = jiffies + (HZ<<1); /* 1 s */
@@ -778,7 +769,7 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
-    dwc_otg_device_t *otg_dev = dev->platform_data;
+    dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 
 	int 		num_channels;
 	int 		i;
@@ -959,7 +950,7 @@ int __devinit host11_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
-    dwc_otg_device_t *otg_dev = dev->platform_data;
+    dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 
 	int 		num_channels;
 	int 		i;
@@ -1179,7 +1170,7 @@ int __devinit host20_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
-    dwc_otg_device_t *otg_dev = dev->platform_data;
+    dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 
 	int 		num_channels;
 	int 		i;
@@ -1304,7 +1295,7 @@ int __devinit host20_hcd_init(struct device *dev)
 		goto error3;
 	}
     
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)     
+#ifndef CONFIG_ARCH_RK29
     dwc_otg_hcd->host_setenable = 1;
     dwc_otg_hcd->connect_detect_timer.function = dwc_otg_hcd_connect_detect;
     dwc_otg_hcd->connect_detect_timer.data = (unsigned long)(dwc_otg_hcd);
@@ -1335,7 +1326,7 @@ int __devinit host20_hcd_init(struct device *dev)
  */
 void dwc_otg_hcd_remove(struct device *dev)
 {
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
     dwc_otg_hcd_t *dwc_otg_hcd = otg_dev->hcd;
 	struct usb_hcd *hcd = dwc_otg_hcd_to_hcd(dwc_otg_hcd);
 

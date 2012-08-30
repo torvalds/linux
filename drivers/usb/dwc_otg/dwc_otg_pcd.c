@@ -61,7 +61,6 @@
  *
  */
 
-#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -74,20 +73,19 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/kallsyms.h>
+#include <linux/device.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/platform_device.h>
 
+#include <linux/usb/composite.h>
+
 #include "dwc_otg_driver.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_regs.h"
 
-#include <linux/usb/composite.h>
-#ifdef CONFIG_ARCH_RK29
-#include <mach/cru.h>
-#endif
-#include <mach/board.h>
+#include "usbdev_rk.h"
 /**
  * Static PCD pointer for use in usb_gadget_register_driver and
  * usb_gadget_unregister_driver.  Initialized in dwc_otg_pcd_init.
@@ -190,7 +188,7 @@ void request_nuke( dwc_otg_pcd_ep_t *_ep )
  * This function assigns periodic Tx FIFO to an periodic EP
  * in shared Tx FIFO mode
  */
- #if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK2928) //@lyz
+#ifndef CONFIG_ARCH_RK29
 static uint32_t assign_perio_tx_fifo(dwc_otg_core_if_t	*core_if)
 {
 	uint32_t PerTxMsk = 1;
@@ -219,7 +217,7 @@ static void release_perio_tx_fifo(dwc_otg_core_if_t *core_if, uint32_t fifo_num)
  * This function assigns periodic Tx FIFO to an periodic EP
  * in Dedicated FIFOs mode
  */
-#if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK2928) //@lyz
+#ifndef CONFIG_ARCH_RK29
 static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
 {
 	uint32_t TxMsk = 1;
@@ -305,7 +303,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 
 	if(ep->dwc_ep.is_in)
 	{
-#if defined(CONFIG_ARCH_RK30)||defined(CONFIG_ARCH_RK2928) //@lyz
+#ifndef CONFIG_ARCH_RK29
 		if(!pcd->otg_dev->core_if->en_multiple_tx_fifo)
 		{
 			ep->dwc_ep.tx_fifo_num = 0;
@@ -1497,11 +1495,7 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 * @yk@rk 20120329
 			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep8 as OUT EP default
 			 */
-	        #ifdef CONFIG_ARCH_RK30
-	        if(i == 8)
-	            continue;
-	        #endif
-	        #ifdef CONFIG_ARCH_RK2928 //@lyz the same with rk30
+	       #ifndef CONFIG_ARCH_RK29
 	        if(i == 8)
 	            continue;
 	        #endif
@@ -1562,11 +1556,7 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 * @yk@rk 20120329
 			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep9 as IN EP default
 			 */
-	        #ifdef CONFIG_ARCH_RK30
-	        if(i == 9)
-	            continue;
-	        #endif
-	        #ifdef CONFIG_ARCH_RK2928 //@lyz the same with rk30
+	        #ifndef CONFIG_ARCH_RK29
 	        if(i == 9)
 	            continue;
 	        #endif
@@ -1620,79 +1610,7 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
     return 0;
 }
 
-/*
- * close usb phy , about 7ma--2.5v
- * 20090925,add vbus test code.500ms 间隔.
- * 20100122,HSL@RK,hard reset usb controller and phy.
-*/
-int dwc_otg20phy_suspend( int exitsuspend )
-{
-	dwc_otg_pcd_t *pcd = s_pcd;
-#ifdef CONFIG_ARCH_RK29
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    if(exitsuspend && (pcd->phy_suspend == 1)) {
-        clk_enable(pcd->otg_dev->ahbclk);
-        clk_enable(pcd->otg_dev->phyclk);
-        pcd->phy_suspend = 0;
-        *otg_phy_con1 |= (0x01<<2);
-        *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-        *otg_phy_con1 &= ~(0x01<<2);
-        
-        /* 20091011,reenable usb phy ,will raise reset intr */
-        //debug_print("enable usb phy\n");
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    if( !exitsuspend && (pcd->phy_suspend == 0)) {
-        pcd->phy_suspend = 1;
-        *otg_phy_con1 |= ((0x01<<2)|(0x05<<6));
-        *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
-        udelay(3);
-        clk_disable(pcd->otg_dev->phyclk);
-        clk_disable(pcd->otg_dev->ahbclk);
-        //*otg_phy_con1 &= ~(0x01<<2);
-        //debug_print("disable usb phy\n");
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-#ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
-    if(exitsuspend && (pcd->phy_suspend == 1)) {
-        clk_enable(pcd->otg_dev->ahbclk);
-        clk_enable(pcd->otg_dev->phyclk);
-        pcd->phy_suspend = 0;
-        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    if( !exitsuspend && (pcd->phy_suspend == 0)) {
-        pcd->phy_suspend = 1;
-        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-        udelay(3);
-        clk_disable(pcd->otg_dev->phyclk);
-        clk_disable(pcd->otg_dev->ahbclk);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-#ifdef CONFIG_ARCH_RK2928                
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
-    if(exitsuspend && (pcd->phy_suspend == 1)) {
-        clk_enable(pcd->otg_dev->ahbclk);
-        clk_enable(pcd->otg_dev->phyclk);
-        pcd->phy_suspend = 0;
-        *otg_phy_con1 = (0x01<<16);    // exit suspend.
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    if( !exitsuspend && (pcd->phy_suspend == 0)) {
-        pcd->phy_suspend = 1;
-        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.   enable dm,dp Pull-Down Resistor  wlf @2012.8.10
-        udelay(3);
-//  otg/host20 use the same phyclk, so can't disable phyclk in case host20 is used.    wlf @2012.8.16     
-//      clk_disable(pcd->otg_dev->phyclk); 
-        clk_disable(pcd->otg_dev->ahbclk);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-    return pcd->phy_suspend;
-}
+
 
 int dwc_otg_reset( void ) 
 {
@@ -1746,109 +1664,22 @@ static void dwc_phy_reconnect(struct work_struct *work)
         DWC_PRINT("********soft connect!!!*****************************************\n");
     } 
 }
-#ifdef CONFIG_ARCH_RK29
-static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
+static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 {
-    dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
-    dwc_otg_core_if_t *core_if = GET_CORE_IF(_pcd);
-    gotgctl_data_t    gctrl;
-    dctl_data_t dctl = {.d32=0};
-    //dsts_data_t           gsts;
-	unsigned long flags;
-	local_irq_save(flags);
-    gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
-    //gsts.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dsts);
-
-    _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
-    if( gctrl.b.bsesvld ) {
-        /* if usb not connect before ,then start connect */
-         if( _pcd->vbus_status == 0 ) {
-            dwc_otg_msc_lock(_pcd);
-            DWC_PRINT("********vbus detect*********************************************\n");
-    	    _pcd->vbus_status = 1;
-            /* soft disconnect */
-            dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-            dctl.b.sftdiscon = 1;
-            dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-            /* Clear any pending interrupts */
-            dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
-            if(_pcd->conn_en)
-    	    {
-        	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-    		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
-    	    }
-
-        } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
-            //dwc_otg_msc_unlock(_pcd);
-            DWC_PRINT("********soft reconnect******************************************\n");
-            //_pcd->vbus_status =0;
-            
-            /* soft disconnect */
-	        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-	        dctl.b.sftdiscon = 1;
-	        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-            /* Clear any pending interrupts */
-            dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
-            if(_pcd->conn_en)
-    	    {
-        	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-    		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
-    	    }
-        }
-        else if((_pcd->conn_en)&&(_pcd->conn_status == 0))
-        {
-    	
-    	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
-        }
-        else if(_pcd->conn_status ==3)
-        {
-			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
-            dwc_otg_msc_unlock(_pcd);
-            _pcd->conn_status++;
-            if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
-                _pcd->vbus_status = 2;
-        }
-    } else {
-        //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
-        _pcd->vbus_status = 0;
-        if(_pcd->conn_status)
-        {
-             _pcd->conn_status = 0;
-             dwc_otg_msc_unlock(_pcd);
-        }
-        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        if( _pcd->phy_suspend == 0 ) {
-                /* no vbus detect here , close usb phy for 500ms */
-             dwc_otg20phy_suspend( 0 );
-              _pcd->check_vbus_timer.expires = jiffies + (HZ/2); /* 500 ms */
-        } else if( _pcd->phy_suspend  == 1 ) { 
-             dwc_otg20phy_suspend( 1 );
-             /*20100325 yk@rk,delay 2-->8,for host connect id detect*/
-             _pcd->check_vbus_timer.expires = jiffies + 8; /* 20091127,HSL@RK,1-->2  */
-             
-        }
-    }
-    //DWC_PRINT("%s:restart check vbus timer\n" , __func__ );
-    add_timer(&_pcd->check_vbus_timer); 
-	local_irq_restore(flags);
-}
-#endif
-#ifdef CONFIG_ARCH_RK30
-static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
-{
-    dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
-	unsigned long flags;
-    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
+    struct device *_dev = (struct device *)data;
+	struct dwc_otg_platform_data *pldata = _dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)_dev->platform_data));
+    dwc_otg_pcd_t * _pcd = otg_dev->pcd;
+    unsigned long flags;
 
 	local_irq_save(flags);
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
-    if((usbgrf_status &(1<<20)) == 0){  // id low
+    if(!pldata->get_status(USB_STATUS_ID)){  // id low
     
-        if( _pcd->phy_suspend) 
-             dwc_otg20phy_suspend( 1 );
+        if( pldata->phy_status) 
+             pldata->phy_suspend(pldata, USB_PHY_ENABLED);
     }
-	else if(usbgrf_status &0x20000){  // bvalid
+	else if(pldata->get_status(USB_STATUS_BVABLID)){  // bvalid
         /* if usb not connect before ,then start connect */
          if( _pcd->vbus_status == 0 ) {
             DWC_PRINT("********vbus detect*********************************************\n");
@@ -1857,7 +1688,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
                 goto connect;
             else
                 // not connect, suspend phy
-                dwc_otg20phy_suspend(0);
+                pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
         } 
         else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
             DWC_PRINT("********soft reconnect******************************************\n");
@@ -1871,7 +1702,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
                 _pcd->vbus_status = 2;
                 
             // not connect, suspend phy
-            dwc_otg20phy_suspend(0);
+            pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
         }
 	}else {
         _pcd->vbus_status = 0;
@@ -1880,9 +1711,9 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
              dwc_otg_msc_unlock(_pcd);
         }
         /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        else if( _pcd->phy_suspend == 0 ) 
-                /* no vbus detect here , close usb phy  */
-             dwc_otg20phy_suspend( 0 );
+        else if( pldata->phy_status == 0 ) 
+            /* no vbus detect here , close usb phy  */
+            pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
     }
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
@@ -1891,139 +1722,14 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 connect:
     if(_pcd->conn_status==0)
         dwc_otg_msc_lock(_pcd);
-    if( _pcd->phy_suspend  == 1 )
-         dwc_otg20phy_suspend( 1 );
+    pldata->phy_suspend(pldata, USB_PHY_ENABLED);
     schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+    _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
     return;
 }
 
-#endif
-#ifdef CONFIG_ARCH_RK2928
-static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
-{
-    dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
-	unsigned long flags;
-    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);//@lyz USBGRF_SOC_STATUS0结构有变
-
-	local_irq_save(flags);
-    _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
-    if((usbgrf_status &(1<<10)) == 0){  // id low  //@lyz SOC_STATUS0[10] represents id_dig
-    
-        if( _pcd->phy_suspend) 
-             dwc_otg20phy_suspend( 1 );
-    }
-	else if(usbgrf_status & (1<<7)){  //@lyz SOC_STATUS0[7] represents bvalid
-        /* if usb not connect before ,then start connect */
-         if( _pcd->vbus_status == 0 ) {
-            DWC_PRINT("********vbus detect*********************************************\n");
-    	    _pcd->vbus_status = 1;
-            if(_pcd->conn_en)
-                goto connect;
-            else
-                dwc_otg20phy_suspend( 0 );
-        } 
-        else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
-            DWC_PRINT("********soft reconnect******************************************\n");
-    	    goto connect;
-        }
-        else if(_pcd->conn_status ==3){
-			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
-            dwc_otg_msc_unlock(_pcd);
-            _pcd->conn_status++;
-            if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
-                _pcd->vbus_status = 2;
-            dwc_otg20phy_suspend(0);
-        }
-	}else {
-        _pcd->vbus_status = 0;
-        if(_pcd->conn_status){
-             _pcd->conn_status = 0;
-             dwc_otg_msc_unlock(_pcd);
-	    rk28_send_wakeup_key();
-        }
-        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        else if( _pcd->phy_suspend == 0 ) 
-                /* no vbus detect here , close usb phy  */
-             dwc_otg20phy_suspend( 0 );
-    }
-    add_timer(&_pcd->check_vbus_timer); 
-	local_irq_restore(flags);
-    return;
-
-connect:
-    if(_pcd->conn_status==0)
-        dwc_otg_msc_lock(_pcd);
-    if( _pcd->phy_suspend  == 1 )
-         dwc_otg20phy_suspend( 1 );
-    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
-    add_timer(&_pcd->check_vbus_timer); 
-	local_irq_restore(flags);
-    return;
-}
-
-#endif
-#ifdef CONFIG_ARCH_RK29
-/*
- * This function can be only called in charge mode.
- * return value:
- *  -1: ioremap fail;
- *  0: vbus not connected;
- *  1: vbus connected, dp,dm not in both high status;
- *  2: vbus connected and both dp,dm in high level.(standard USB charger)
- */
-int dwc_otg_check_dpdm(void)
-{
-	static uint8_t * reg_base = 0;
-    volatile unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    volatile unsigned int * otg_clkgate = (unsigned int*)(USB_CLKGATE_CON);
-    volatile unsigned int * otg_clkreset = (unsigned int*)(RK29_CRU_BASE+0x70);
-    volatile unsigned int * otg_dctl;
-    volatile unsigned int * otg_gotgctl;
-    volatile unsigned int * otg_hprt0;
-    int bus_status = 0;
-    
-    
-    // softreset & clockgate 
-    *otg_clkreset |= (7<<16);
-    udelay(3);
-    *otg_clkreset &= ~(7<<16);
-    *otg_clkgate &= ~((1<<4)|(3<<25));
-	
-    // exit phy suspend 
-    *otg_phy_con1 |= (0x01<<2);
-    *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-    *otg_phy_con1 &= ~(0x01<<2);
-    
-    // soft connect
-    if(reg_base == 0){
-        reg_base = ioremap(RK29_USBOTG0_PHYS,USBOTG_SIZE);
-        if(!reg_base){
-            bus_status = -1;
-            goto out;
-        }
-    }
-    mdelay(105);
-    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x, otg_clkgate %p,0x%x\n",
-        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1, otg_clkgate, *otg_clkgate);
-    otg_dctl = (unsigned int * )(reg_base+0x804);
-    otg_gotgctl = (unsigned int * )(reg_base);
-    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
-    if(*otg_gotgctl &(1<<19)){
-        bus_status = 1;
-        *otg_dctl &= ~2;
-        mdelay(50);    // delay about 10ms
-    // check dp,dm
-        if((*otg_hprt0 & 0xc00)==0xc00)
-            bus_status = 2;
-    }
-out:
-    return bus_status;
-}
-#endif
 #ifdef CONFIG_ARCH_RK30
 int dwc_otg_check_dpdm(void)
 {
@@ -2162,7 +1868,7 @@ int dwc_otg_pcd_init(struct device *dev)
 {
 	static char pcd_name[] = "dwc_otg_pcd";
 	dwc_otg_pcd_t *pcd;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
 	int retval = 0;
 	int irq;
@@ -2256,7 +1962,7 @@ int dwc_otg_pcd_init(struct device *dev)
 
     init_timer( &pcd->check_vbus_timer );
     pcd->check_vbus_timer.function = dwc_otg_pcd_check_vbus_timer;
-    pcd->check_vbus_timer.data = (unsigned long)(pcd);
+    pcd->check_vbus_timer.data = (unsigned long)(dev);
     
     INIT_DELAYED_WORK(&pcd->reconnect , dwc_phy_reconnect);
     pcd->vbus_status  = 0;
@@ -2270,7 +1976,7 @@ int dwc_otg_pcd_init(struct device *dev)
  */
 void dwc_otg_pcd_remove( struct device *dev )
 {
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 	dwc_otg_pcd_t *pcd = otg_dev->pcd;
 	
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, dev);

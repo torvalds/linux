@@ -16,9 +16,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#ifdef CONFIG_USB_ANDROID
-#include <linux/usb/android_composite.h>
-#endif
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <asm/pmu.h>
@@ -1182,51 +1179,7 @@ static void __init rk30_init_i2s(void)
 	platform_device_register(&device_pcm);
 }
 
-#ifdef CONFIG_USB20_OTG
-/*DWC_OTG*/
-static struct resource usb20_otg_resource[] = {
-	{
-		.start = IRQ_USB_OTG,
-		.end   = IRQ_USB_OTG,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.start = RK30_USBOTG20_PHYS,
-		.end   = RK30_USBOTG20_PHYS + RK30_USBOTG20_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
 
-};
-
-struct platform_device device_usb20_otg = {
-	.name		  = "usb20_otg",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(usb20_otg_resource),
-	.resource	  = usb20_otg_resource,
-};
-#endif
-#ifdef CONFIG_USB20_HOST
-static struct resource usb20_host_resource[] = {
-    {
-        .start = IRQ_USB_HOST,
-        .end   = IRQ_USB_HOST,
-        .flags = IORESOURCE_IRQ,
-    },
-    {
-        .start = RK30_USBHOST20_PHYS,
-        .end   = RK30_USBHOST20_PHYS + RK30_USBHOST20_SIZE - 1,
-        .flags = IORESOURCE_MEM,
-    },
-
-};
-
-struct platform_device device_usb20_host = {
-    .name             = "usb20_host",
-    .id               = -1,
-    .num_resources    = ARRAY_SIZE(usb20_host_resource),
-    .resource         = usb20_host_resource,
-};
-#endif
 
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
@@ -1360,12 +1313,6 @@ static int __init rk30_init_devices(void)
 #endif
 #ifdef CONFIG_KEYS_RK29
 	platform_device_register(&device_keys);
-#endif
-#ifdef CONFIG_USB20_OTG
-	platform_device_register(&device_usb20_otg);
-#endif
-#ifdef CONFIG_USB20_HOST
-	platform_device_register(&device_usb20_host);
 #endif
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);

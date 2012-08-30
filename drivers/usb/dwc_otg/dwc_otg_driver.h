@@ -64,10 +64,9 @@ typedef struct dwc_otg_device
 	/** Pointer to the HCD structure. */
 	struct dwc_otg_hcd *hcd;
 
-    struct clk* phyclk;
-    struct clk* ahbclk;
-    struct clk* busclk;
-    
+    /** Pointer to platform device structure. */
+	void *pldata;
+
 	/** Flag to indicate whether the common IRQ handler is installed. */
 	uint8_t common_irq_installed;
 

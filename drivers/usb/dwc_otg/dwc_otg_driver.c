@@ -48,7 +48,6 @@
  * device.
  */
 
-#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -61,12 +60,6 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 
-#ifdef CONFIG_MACH_RK30_DS1001B
-#include <mach/io.h>
-#include <mach/gpio.h>
-#include <mach/iomux.h>
-#endif
-
 #include "linux/dwc_otg_plat.h"
 #include <linux/platform_device.h>
 #include "dwc_otg_attr.h"
@@ -74,7 +67,8 @@
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
-#include <mach/cru.h>
+
+#include "usbdev_rk.h"
 //#define DWC_DRIVER_VERSION	"2.60a 22-NOV-2006"
 //#define DWC_DRIVER_VERSION	"2.70 2009-12-31"
 #define DWC_DRIVER_VERSION	"3.00 2010-12-12 rockchip"
@@ -342,46 +336,28 @@ extern struct usb_hub *g_root_hub20;
 #ifdef DWC_BOTH_HOST_SLAVE
 extern void hcd_start( dwc_otg_core_if_t *_core_if );
 
-extern int dwc_otg20phy_suspend( int exitsuspend );
 extern void hub_disconnect_device(struct usb_hub *hub);
 
 static ssize_t force_usb_mode_show(struct device_driver *_drv, char *_buf)
 {
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
-#if 1
-    return sprintf (_buf, "%d\n", core_if->usb_mode);
-#else
-    dwc_otg_device_t *otg_dev = lm_get_drvdata(g_lmdev);
-    dwc_otg_core_if_t *core_if = otg_dev->core_if;
-    gotgctl_data_t    gctrl;
-    gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
-    printk("OTGCTL=0x%08X\n", gctrl.d32);
 
-    if(g_usb_mode == USB_NORMAL_MODE)
-        return sprintf (_buf, "Current usb mode: Normal Mode\n");
-    else if(g_usb_mode == FORCE_HOST_MODE)
-        return sprintf (_buf, "Current usb mode: Force Host\n");
-    else if(g_usb_mode == FORCE_DEVICE_MODE)
-        return sprintf (_buf, "Current usb mode: Force Device\n");
-    else
-        return sprintf (_buf, "Current usb mode: Unknown\n");
-#endif        
+    return sprintf (_buf, "%d\n", core_if->usb_mode);
 }
 
 void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
 {
     dwc_otg_device_t *otg_dev = g_otgdev;
     dctl_data_t dctl = {.d32=0};
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
     if(core_if->op_state == A_HOST)
     {
     	printk("dwc_otg_force_host,already in A_HOST mode,everest\n");
     	return;
     }
-	if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
-	{
-		dwc_otg20phy_suspend( 1 );
-	}
+    if(pldata->phy_suspend)
+        pldata->phy_suspend(pldata,USB_PHY_ENABLED);
     del_timer(&otg_dev->pcd->check_vbus_timer);
     // force disconnect 
     /* soft disconnect */
@@ -452,6 +428,7 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
     int new_mode = simple_strtoul(_buf, NULL, 16);
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
     DWC_PRINT("%s %d->%d\n",__func__, core_if->usb_mode, new_mode);
     if(core_if->usb_mode == new_mode)
     {
@@ -505,10 +482,8 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 			if(USB_MODE_FORCE_DEVICE == core_if->usb_mode)
 			{
 				core_if->usb_mode = new_mode;
-				if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
-				{
-					dwc_otg20phy_suspend( 1 );
-				}
+                if(pldata->phy_suspend)
+                    pldata->phy_suspend(pldata,USB_PHY_ENABLED);
 				del_timer(&otg_dev->pcd->check_vbus_timer);
 				dwc_otg_set_gusbcfg(core_if, new_mode);
 				msleep(50);
@@ -527,10 +502,8 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 			}
 			else if(USB_MODE_FORCE_HOST == core_if->usb_mode)
 			{
-				if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
-				{
-					dwc_otg20phy_suspend( 1 );
-				}
+                if(pldata->phy_suspend)
+                    pldata->phy_suspend(pldata,USB_PHY_ENABLED);
 				core_if->usb_mode = new_mode;
 				dwc_otg_set_gusbcfg(core_if, new_mode);
 				msleep(100);
@@ -555,7 +528,7 @@ static DRIVER_ATTR(force_usb_mode, 0666/*S_IRUGO|S_IWUSR*/, force_usb_mode_show,
 static ssize_t dwc_otg_enable_show( struct device *_dev, 
 								struct device_attribute *attr, char *buf)
 {
-    dwc_otg_device_t *otg_dev = _dev->platform_data;
+    dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)_dev->platform_data));
     return sprintf (buf, "%d\n", otg_dev->hcd->host_enabled);
 }
 
@@ -563,10 +536,11 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
 								struct device_attribute *attr, 
 								const char *buf, size_t count )
 {
-    dwc_otg_device_t *otg_dev = _dev->platform_data;
+    dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)_dev->platform_data));
     dwc_otg_core_if_t *_core_if = otg_dev->core_if;
     struct platform_device *pdev = to_platform_device(_dev);
 	uint32_t val = simple_strtoul(buf, NULL, 16);
+	struct dwc_otg_platform_data *pldata = _dev->platform_data;
 	if(otg_dev->hcd->host_enabled == val)
 	    return count;
 	    
@@ -582,21 +556,16 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
         if (_core_if->hcd_cb && _core_if->hcd_cb->stop) {
                 _core_if->hcd_cb->stop( _core_if->hcd_cb->p );
         }
-        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
-                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
-        }
+        if(pldata->phy_suspend)
+            pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
         udelay(3);
-        clk_disable(otg_dev->phyclk);
-        clk_disable(otg_dev->ahbclk);
+        pldata->clock_enable(pldata, 0);
 	}
 	else if(val == 1)
 	{
 	    DWC_PRINT("enable host controller:%s\n",pdev->name);
-        clk_enable(otg_dev->phyclk);
-        clk_enable(otg_dev->ahbclk);
-        if (_core_if->hcd_cb && _core_if->hcd_cb->suspend) {
-                _core_if->hcd_cb->suspend( _core_if->hcd_cb->p, val);
-        }
+        pldata->clock_enable(pldata, 1);
+        pldata->phy_suspend(pldata,USB_PHY_ENABLED);
         mdelay(5);
         if (_core_if->hcd_cb && _core_if->hcd_cb->start) {
                 _core_if->hcd_cb->start( _core_if->hcd_cb->p );
@@ -1105,7 +1074,7 @@ static irqreturn_t dwc_otg_common_irq(int _irq, void *_dev)
 static int dwc_otg_driver_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 	DWC_DEBUGPL(DBG_ANY, "%s(%p)\n", __func__, pdev);
 	
 	if (otg_dev == NULL) 
@@ -1152,20 +1121,12 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 	{
 		iounmap(otg_dev->base);
 	}
-	clk_put(otg_dev->phyclk);
-	clk_disable(otg_dev->phyclk);
-	clk_put(otg_dev->ahbclk);
-	clk_disable(otg_dev->ahbclk);
-#ifdef CONFIG_ARCH_RK29	
-	clk_put(otg_dev->busclk);
-	clk_disable(otg_dev->busclk);
-#endif
 	kfree(otg_dev);
 
 	/*
 	 * Clear the drvdata pointer.
 	 */
-	dev->platform_data = 0;
+//	dev->platform_data = 0;
 
 #ifdef DWC_BOTH_HOST_SLAVE
 	dwc_otg_module_params.host_rx_fifo_size = -1;
@@ -1195,134 +1156,22 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device_t *dwc_otg_device;
 	int32_t snpsid;
 	int irq;
-	int32_t regval;
-    struct clk *ahbclk,*phyclk,*busclk;
-#ifdef CONFIG_ARCH_RK29    
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-#endif
-#ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON2);
-#endif
-#ifdef CONFIG_ARCH_RK2928
-    unsigned int * otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON5);
-#endif
-    
-#ifdef CONFIG_ARCH_RK29   
-    regval = * otg_phy_con1; 
-#ifndef CONFIG_USB11_HOST
-	/*
-	 * disable usb host 1.1 controller if not support
-	 */
-    phyclk = clk_get(NULL, "uhost");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get UHOST clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "hclk_uhost");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get UHOST ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-	regval |= (0x01<<28);
-	
-    *otg_phy_con1 = regval;
-    
-    udelay(3);
-    clk_disable(phyclk);
-    clk_disable(ahbclk);
-#endif
-#ifndef CONFIG_USB20_HOST
-	/*
-	 * disable usb host 2.0 phy if not support
-	 */
-    phyclk = clk_get(NULL, "otgphy1");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY1 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "usbotg1");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-    regval &= ~(0x01<<14);    // enter suspend.
-    regval |= (0x01<<13);    // software control enable.    
+	struct dwc_otg_platform_data *pldata = dev->platform_data;
 
-    *otg_phy_con1 = regval;
-    udelay(3);
-    clk_disable(phyclk);
-    clk_disable(ahbclk);
-#endif
-#endif
+    // clock and hw init
+    if(pldata->soft_reset)
+        pldata->soft_reset();
+    
+    if(pldata->clock_init){
+        pldata->clock_init(pldata);
+        pldata->clock_enable(pldata, 1);
+        }
 
-#ifdef CONFIG_ARCH_RK30
-#ifndef CONFIG_USB20_HOST
-    otg_phy_con = (unsigned int*)(USBGRF_UOC1_CON2);
-    /*
-     * disable usb host 2.0 phy if not support
-     */
-    phyclk = clk_get(NULL, "otgphy1");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY1 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "hclk_otg1");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-    *otg_phy_con = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
-    udelay(3);
-    clk_disable(phyclk);
-    clk_disable(ahbclk);
-#endif
-#endif
-#ifdef CONFIG_ARCH_RK2928                
-#ifndef CONFIG_USB20_HOST
-    otg_phy_con = (unsigned int*)(USBGRF_UOC1_CON5);
-    /*
-     * disable usb host 2.0 phy if not support
-     */
-    phyclk = clk_get(NULL, "otgphy1");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY1 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "hclk_otg1");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-    *otg_phy_con = ((0x01<<0)|(0x00<<1)|(0x05<<4))|(((0x01<<0)|(0x01<<1)|(0x07<<4))<<16);   // enter suspend.
-    udelay(3);
-    clk_disable(phyclk);
-    clk_disable(ahbclk);
-#endif
-#endif
+    if(pldata->hw_init)
+        pldata->hw_init();
+    if(pldata->phy_suspend)
+        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
 	if (dwc_otg_device == 0) 
@@ -1335,122 +1184,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
 	
-#ifdef CONFIG_ARCH_RK29
-	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
-	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
-	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, true);
-    udelay(1);
-	
-	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
-	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
-	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
-    busclk = clk_get(NULL, "hclk_usb_peri");
-    if (IS_ERR(busclk)) {
-            retval = PTR_ERR(busclk);
-            DWC_ERROR("can't get USB PERIPH AHB bus clock\n");
-           goto fail;
-    }
-    clk_enable(busclk);
-     
-    phyclk = clk_get(NULL, "otgphy0");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY0 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "usbotg0");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USB otg0 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-	/*
-	 * Enable usb phy 0
-	 */
-    regval = * otg_phy_con1;
-    regval |= (0x01<<2);
-    regval |= (0x01<<3);    // exit suspend.
-    regval &= ~(0x01<<2);
-    *otg_phy_con1 = regval;
-    
-	dwc_otg_device->phyclk = phyclk;
-	dwc_otg_device->ahbclk = ahbclk;
-	dwc_otg_device->busclk = busclk;
-#endif
-#ifdef CONFIG_ARCH_RK30
-    otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON2);
-    cru_set_soft_reset(SOFT_RST_USBPHY0, true);
-	cru_set_soft_reset(SOFT_RST_OTGC0, true);
-	cru_set_soft_reset(SOFT_RST_USBOTG0, true);
-    udelay(1);
-	
-	cru_set_soft_reset(SOFT_RST_USBOTG0, false);
-	cru_set_soft_reset(SOFT_RST_OTGC0, false);
-	cru_set_soft_reset(SOFT_RST_USBPHY0, false);
-
-    phyclk = clk_get(NULL, "otgphy0");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY0 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "hclk_otg0");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USB otg0 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-	/*
-	 * Enable usb phy 0
-	 */
-    *otg_phy_con = ((0x01<<2)<<16);
-    
-	dwc_otg_device->phyclk = phyclk;
-	dwc_otg_device->ahbclk = ahbclk;
-#endif
-#ifdef CONFIG_ARCH_RK2928      
-    otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON5);
-        cru_set_soft_reset(SOFT_RST_USBPHY0, true);
-	cru_set_soft_reset(SOFT_RST_OTGC0, true);
-	cru_set_soft_reset(SOFT_RST_USBOTG0, true);
-    udelay(1);
-	
-	cru_set_soft_reset(SOFT_RST_USBOTG0, false);
-	cru_set_soft_reset(SOFT_RST_OTGC0, false);
-	cru_set_soft_reset(SOFT_RST_USBPHY0, false);
-
-    phyclk = clk_get(NULL, "otgphy0");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY0 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "hclk_otg0");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USB otg0 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-    
-	/*
-	 * Enable usb phy 0
-	 */
-    *otg_phy_con =  (0x01<<16);
-    
-	dwc_otg_device->phyclk = phyclk;
-	dwc_otg_device->ahbclk = ahbclk;
-#endif
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
 	 */
@@ -1494,8 +1227,12 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * Initialize driver data to point to the global DWC_otg
 	 * Device structure.
 	 */
-	dev->platform_data = dwc_otg_device;
+    //dev->platform_data = dwc_otg_device;
+	pldata->privdata =  dwc_otg_device;
+	dwc_otg_device->pldata = (void *)pldata;
+	
 	dev_dbg(dev, "dwc_otg_device=0x%p\n", dwc_otg_device);
+
 	g_otgdev = dwc_otg_device;
 	
 	dwc_otg_device->core_if = dwc_otg_cil_init( dwc_otg_device->base, 
@@ -1580,17 +1317,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 /* Initialize the bus state.  If the core is in Device Mode
  * HALT the USB bus and return. */
 #ifndef CONFIG_DWC_OTG_DEVICE_ONLY
-#ifdef CONFIG_ARCH_RK29
-    USB_IOMUX_INIT(GPIO4A5_OTG0DRVVBUS_NAME, GPIO4L_OTG0_DRV_VBUS);
-#endif
-#if defined(CONFIG_ARCH_RK3066B)
-    USB_IOMUX_INIT(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME, GPIO3D_OTGDRVVBUS);
-#elif defined(CONFIG_ARCH_RK30)
-    USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);    
-#endif
-#ifdef CONFIG_ARCH_RK2928
-    USB_IOMUX_INIT(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);    
-#endif
 	/*
 	 * Initialize the HCD
 	 */
@@ -1629,12 +1355,12 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 }
 
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
-extern int dwc_otg20phy_suspend( int exitsuspend );
 static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
 {
 	struct device *dev = &_dev->dev;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
+	struct dwc_otg_platform_data *pldata = dev->platform_data;
     if(core_if->op_state == A_HOST)
     {
     	DWC_PRINT("%s,A_HOST mode\n", __func__);
@@ -1643,7 +1369,7 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     /* Clear any pending interrupts */
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
     dwc_otg_disable_global_interrupts(core_if);
-    dwc_otg20phy_suspend(0);
+    pldata->phy_suspend(pldata,USB_PHY_SUSPEND);
     del_timer(&otg_dev->pcd->check_vbus_timer); 
 	
     return 0;
@@ -1658,9 +1384,10 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
 static int dwc_otg_driver_resume(struct platform_device *_dev )
 {
 	struct device *dev = &_dev->dev;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
     dctl_data_t dctl = {.d32=0};
+	struct dwc_otg_platform_data *pldata = dev->platform_data;
 
     dwc_otg_core_global_regs_t *global_regs = 
 	core_if->core_global_regs;
@@ -1671,7 +1398,7 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     }
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
 
-    dwc_otg20phy_suspend(1);
+    pldata->phy_suspend(pldata,USB_PHY_ENABLED);
 
     /* soft disconnect */
     /* 20100226,HSL@RK,if not disconnect,when usb cable in,will auto reconnect 
@@ -1701,7 +1428,7 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
 static void dwc_otg_driver_shutdown(struct platform_device *_dev )
 {
 	struct device *dev = &_dev->dev;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
     dctl_data_t dctl = {.d32=0};
 
@@ -1738,286 +1465,6 @@ static struct platform_driver dwc_otg_driver = {
 		   .owner = THIS_MODULE},
 };
 
-#ifdef CONFIG_USB11_HOST
-extern void dwc_otg_hcd_remove(struct device *dev);
-extern int __devinit host11_hcd_init(struct device *dev);
-
-static int host11_driver_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
-	DWC_DEBUGPL(DBG_ANY, "%s(%p)\n", __func__, pdev);
-	
-	if (otg_dev == NULL) 
-	{
-		/* Memory allocation for the dwc_otg_device failed. */
-		return 0;
-	}
-
-	/*
-	 * Free the IRQ 
-	 */
-	if (otg_dev->common_irq_installed) 
-	{
-		free_irq( platform_get_irq(to_platform_device(dev),0), otg_dev );
-	}
-
-	if (otg_dev->hcd != NULL) 
-	{
-		dwc_otg_hcd_remove(dev);
-	}
-
-	if (otg_dev->core_if != NULL) 
-	{
-		dwc_otg_cil_remove( otg_dev->core_if );
-	}
-
-	/*
-	 * Remove the device attributes
-	 */
-	//dwc_otg_attr_remove(dev);
-
-	/*
-	 * Return the memory.
-	 */
-	if (otg_dev->base != NULL) 
-	{
-		iounmap(otg_dev->base);
-	}
-	clk_put(otg_dev->phyclk);
-	clk_disable(otg_dev->phyclk);
-	clk_put(otg_dev->ahbclk);
-	clk_disable(otg_dev->ahbclk);
-	kfree(otg_dev);
-
-	/*
-	 * Clear the drvdata pointer.
-	 */
-	dev->platform_data = 0;
-
-	return 0;
-}
-
-/**
- * This function is called when an lm_device is bound to a
- * dwc_otg_driver. It creates the driver components required to
- * control the device (CIL, HCD, and PCD) and it initializes the
- * device. The driver components are stored in a dwc_otg_device
- * structure. A reference to the dwc_otg_device is saved in the
- * lm_device. This allows the driver to access the dwc_otg_device
- * structure on subsequent calls to driver methods for this device.
- *
- * @param[in] pdev  platform_device definition
- */
-static __devinit int host11_driver_probe(struct platform_device *pdev)
-{
-	struct resource *res_base;
-	int retval = 0;
-	struct device *dev = &pdev->dev;
-	dwc_otg_device_t *dwc_otg_device;
-	int32_t snpsid;
-	int irq;
-    struct clk* ahbclk,*phyclk;
-	/*
-	 *Enable usb phy
-	 */
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-        
-    *otg_phy_con1 &= ~(0x01<<28);    // exit suspend.
-    #if 0
-    *otg_phy_con1 |= (0x01<<2);
-    *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-    *otg_phy_con1 &= ~(0x01<<2);
-    otgreg = ioremap(RK2818_USBOTG_PHYS,RK2818_USBOTG_SIZE);
-    DWC_PRINT("%s otg2.0 reg addr: 0x%x",__func__,otgreg);
-    dwc_modify_reg32((uint32_t *)(otgreg+0xc),0x20000000,0x20000000);
-	dwc_write_reg32((uint32_t *)(otgreg+0x440), 0x1000);
-    #endif
-
-	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
-	
-	if (dwc_otg_device == 0) 
-	{
-		dev_err(dev, "kmalloc of dwc_otg_device failed\n");
-		retval = -ENOMEM;
-		goto fail;
-	}
-	
-	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
-	dwc_otg_device->reg_offset = 0xFFFFFFFF;
-	
-	cru_set_soft_reset(SOFT_RST_UHOST, true);
-    udelay(1);
-	
-	cru_set_soft_reset(SOFT_RST_UHOST, false);
-	
-    phyclk = clk_get(NULL, "uhost");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get UHOST clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-    ahbclk = clk_get(NULL, "hclk_uhost");
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get UHOST ahb bus clock\n");
-           goto fail1;
-    }
-    clk_enable(ahbclk);
-    
-    if (clk_get_rate(phyclk) != 48000000) {
-        DWC_PRINT("Bad USB clock (%d Hz), changing to 48000000 Hz\n",
-                 (int)clk_get_rate(phyclk));
-        if (clk_set_rate(phyclk, 48000000)) {
-            DWC_ERROR("Unable to set correct USB clock (48MHz)\n");
-            retval = -EIO;
-            goto fail2;
-        }
-    }
-	dwc_otg_device->ahbclk = ahbclk;
-	dwc_otg_device->phyclk = phyclk;
-	
-	/*
-	 * Map the DWC_otg Core memory into virtual address space.
-	 */
-	 
-	res_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_base)
-		goto fail;
-
-	dwc_otg_device->base =
-		ioremap(res_base->start,USBOTG_SIZE);
-    DWC_PRINT("%s host1.1 reg addr: 0x%x remap:0x%x\n",__func__,
-    		(unsigned)res_base->start, (unsigned)dwc_otg_device->base);
-	if (dwc_otg_device->base == NULL)
-	{
-		DWC_ERROR("ioremap() failed\n");
-		retval = -ENOMEM;
-		goto fail;
-	}
-	DWC_DEBUGPL( DBG_CIL, "base addr for rk29 host11:0x%x\n", (unsigned)dwc_otg_device->base);
-	/*
-	 * Attempt to ensure this device is really a DWC_otg Controller.
-	 * Read and verify the SNPSID register contents. The value should be
-	 * 0x45F42XXX, which corresponds to "OT2", as in "OTG version 2.XX".
-	 */
-	snpsid = dwc_read_reg32((uint32_t *)((uint8_t *)dwc_otg_device->base + 0x40));
-	if ((snpsid & 0xFFFFF000) != 0x4F542000) 
-	{
-	                DWC_PRINT("%s::snpsid=0x%x,want 0x%x" , __func__ , snpsid , 0x4F542000 );
-		dev_err(dev, "Bad value for SNPSID: 0x%08x\n", snpsid);
-		retval = -EINVAL;
-		goto fail;
-	}
-
-	/*
-	 * Initialize driver data to point to the global DWC_otg
-	 * Device structure.
-	 */
-	dev->platform_data = dwc_otg_device;
-	DWC_DEBUGPL(DBG_CIL, "dwc_otg_device=0x%p\n", dwc_otg_device);
-	g_host11 = dwc_otg_device;
-	
-	dwc_otg_device->core_if = dwc_otg_cil_init( dwc_otg_device->base, 
-							&host11_module_params);
-	if (dwc_otg_device->core_if == 0) 
-	{
-		dev_err(dev, "CIL initialization failed!\n");
-		retval = -ENOMEM;
-		goto fail;
-	}
-
-	dwc_otg_device->core_if->otg_dev = dwc_otg_device;
-	/*
-	 * Validate parameter values.
-	 */
-	if (check_parameters(dwc_otg_device->core_if) != 0) 
-	{
-		retval = -EINVAL;
-		goto fail;
-	}
-
-	/*
-	 * Create Device Attributes in sysfs
-	 */	 
-	dwc_otg_attr_create(dev);
-	retval |= device_create_file(dev, &dev_attr_enable);
-
-	/*
-	 * Disable the global interrupt until all the interrupt
-	 * handlers are installed.
-	 */
-	dwc_otg_disable_global_interrupts( dwc_otg_device->core_if );
-	/*
-	 * Install the interrupt handler for the common interrupts before
-	 * enabling common interrupts in core_init below.
-	 */
-	irq = platform_get_irq(to_platform_device(dev),0);
-	DWC_DEBUGPL( DBG_CIL, "registering (common) handler for irq%d\n", 
-			 irq);
-	retval = request_irq(irq, dwc_otg_common_irq,
-				 IRQF_SHARED, "dwc_otg", dwc_otg_device );
-	if (retval != 0) 
-	{
-		DWC_ERROR("request of irq%d failed\n", irq);
-		retval = -EBUSY;
-		goto fail;
-	} 
-	else 
-	{
-		dwc_otg_device->common_irq_installed = 1;
-	}
-
-	/*
-	 * Initialize the DWC_otg core.
-	 */
-	dwc_otg_core_init( dwc_otg_device->core_if );
-
-	/*
-	 * Initialize the HCD
-	 */
-	retval = host11_hcd_init(dev);
-	if (retval != 0) 
-	{
-		DWC_ERROR("host11_hcd_init failed\n");
-		dwc_otg_device->hcd = NULL;
-		goto fail;
-	}
-	/*
-	 * Enable the global interrupt after all the interrupt
-	 * handlers are installed.
-	 */
-	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
-#ifndef CONFIG_USB11_HOST_EN
-    *otg_phy_con1 |= (0x01<<28);    // enter suspend.
-    clk_disable(phyclk);
-    clk_disable(ahbclk);
-#endif
-	return 0;
-    
-fail2:
-    clk_put(ahbclk);
-    clk_disable(ahbclk);
-fail1:
-    clk_put(phyclk);
-    clk_disable(phyclk);
-
- fail:
-	devm_kfree(&pdev->dev, dwc_otg_device);
-	DWC_PRINT("host11_driver_probe fail,everest\n");
-	return retval;
-}
-
-static struct platform_driver host11_driver = {
-	.probe = host11_driver_probe,
-	.remove = host11_driver_remove,
-	.driver = {
-		   .name = "usb11_host",
-		   .owner = THIS_MODULE},
-};
-#endif
 
 #ifdef CONFIG_USB20_HOST
 extern void dwc_otg_hcd_remove(struct device *dev);
@@ -2027,7 +1474,7 @@ extern int __devinit host20_hcd_init(struct device *_dev);
 static int host20_driver_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	dwc_otg_device_t *otg_dev = dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)dev->platform_data));
 	DWC_DEBUGPL(DBG_ANY, "%s(%p)\n", __func__, pdev);
 	
 	if (otg_dev == NULL) 
@@ -2066,16 +1513,12 @@ static int host20_driver_remove(struct platform_device *pdev)
 	{
 		iounmap(otg_dev->base);
 	}
-	clk_put(otg_dev->phyclk);
-	clk_disable(otg_dev->phyclk);
-	clk_put(otg_dev->ahbclk);
-	clk_disable(otg_dev->ahbclk);
 	kfree(otg_dev);
 
 	/*
 	 * Clear the drvdata pointer.
 	 */
-	dev->platform_data = 0;
+//	dev->platform_data = 0;
 	
 
 	return 0;
@@ -2100,58 +1543,27 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	dwc_otg_device_t *dwc_otg_device;
 	int32_t snpsid;
 	int irq;
-	uint32_t otgreg;
-    struct clk* ahbclk,*phyclk;
+	struct dwc_otg_platform_data *pldata = dev->platform_data;
+    
+    // clock and hw init
+    if(pldata->soft_reset)
+        pldata->soft_reset();
+    
+    if(pldata->clock_init){
+        pldata->clock_init(pldata);
+        pldata->clock_enable(pldata, 1);
+        }
+
+    if(pldata->hw_init)
+        pldata->hw_init();
+    if(pldata->phy_suspend)
+        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	/*
 	 *Enable usb phy
 	 */
-#ifdef CONFIG_ARCH_RK29    
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    otgreg = * otg_phy_con1;
-    otgreg |= (0x01<<13);    // software control enable
-    otgreg |= (0x01<<14);    // exit suspend.
-    otgreg &= ~(0x01<<13);    // software control disable
-    *otg_phy_con1 = otgreg;
-#endif
-#ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
-    *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-#endif
-#ifdef CONFIG_ARCH_RK2928
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON5);
-    *otg_phy_con1 = (0x01<<16);    // exit suspend.
-    // inno phy config
-    *(unsigned int *)(USBGRF_UOC0_CON5+4) = 0x07e00350;
-#endif
-    #if 0
-    *otg_phy_con1 |= (0x01<<2);
-    *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-    *otg_phy_con1 &= ~(0x01<<2);
-    otgreg = ioremap(RK2818_USBOTG_PHYS,RK2818_USBOTG_SIZE);
-    DWC_PRINT("%s otg2.0 reg addr: 0x%x",__func__,otgreg);
-    dwc_modify_reg32((uint32_t *)(otgreg+0xc),0x20000000,0x20000000);
-	dwc_write_reg32((uint32_t *)(otgreg+0x440), 0x1000);
-    #endif
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
-#ifdef CONFIG_ARCH_RK29  
-	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, true);
-	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, true);
-	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, true);
-	
-    udelay(1);
-	
-	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, false);
-	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, false);
-	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, false);
-#endif
-#ifdef CONFIG_ARCH_RK30  
-    *(unsigned int*)(USBGRF_UOC1_CON2+4) = ((1<<5)|((1<<5)<<16));
-#endif    
-#ifdef CONFIG_ARCH_RK2928  
-    *(unsigned int*)(USBGRF_UOC1_CON5-4) = ((1<<5)|((1<<5)<<16));
-#endif   
 	if (dwc_otg_device == 0) 
 	{
 		dev_err(dev, "kmalloc of dwc_otg_device failed\n");
@@ -2161,32 +1573,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
-	
-    phyclk = clk_get(NULL, "otgphy1");
-    if (IS_ERR(phyclk)) {
-            retval = PTR_ERR(phyclk);
-            DWC_ERROR("can't get USBPHY1 clock\n");
-           goto fail;
-    }
-    clk_enable(phyclk);
-    
-#ifdef CONFIG_ARCH_RK29  
-    ahbclk = clk_get(NULL, "usbotg1");
-#endif
-#if defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK3066B)  
-    ahbclk = clk_get(NULL, "hclk_otg1");
-#endif    
-#ifdef CONFIG_ARCH_RK2928
-    ahbclk = clk_get(NULL, "hclk_otg1");   
-#endif 
-    if (IS_ERR(ahbclk)) {
-            retval = PTR_ERR(ahbclk);
-            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
-           goto fail;
-    }
-    clk_enable(ahbclk);
-	dwc_otg_device->phyclk = phyclk;
-	dwc_otg_device->ahbclk = ahbclk;
 	
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
@@ -2225,7 +1611,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	 * Initialize driver data to point to the global DWC_otg
 	 * Device structure.
 	 */
-	dev->platform_data = dwc_otg_device;
+	pldata->privdata = dwc_otg_device;
+	dwc_otg_device->pldata = (void *)pldata;
+	
 	DWC_DEBUGPL(DBG_CIL, "dwc_otg_device=0x%p\n", dwc_otg_device);
 	g_host20 = dwc_otg_device;
 	
@@ -2279,14 +1667,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 		dwc_otg_device->common_irq_installed = 1;
 	}
     
-#ifdef CONFIG_ARCH_RK29
-    USB_IOMUX_INIT(GPIO4A6_OTG1DRVVBUS_NAME, GPIO4L_OTG1_DRV_VBUS);
-#endif    
-#if defined(CONFIG_ARCH_RK3066B)
-    USB_IOMUX_INIT(GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME, GPIO3D_HOSTDRVVBUS);
-#elif defined(CONFIG_ARCH_RK30)
-    USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
-#endif
 	/*
 	 * Initialize the DWC_otg core.
 	 */
@@ -2307,19 +1687,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	 * handlers are installed.
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
-#ifndef CONFIG_USB20_HOST_EN
-    clk_disable(phyclk);
-    clk_disable(ahbclk);
-#if defined(CONFIG_ARCH_RK29)   
-    otgreg &= ~(0x01<<14);    // suspend.
-    otgreg |= (0x01<<13);     // software control enable
-    *otg_phy_con1 = otgreg;
-#elif defined(CONFIG_ARCH_RK30)
-    *otg_phy_con1 = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
-#elif defined(CONFIG_ARCH_RK2928)
-    *otg_phy_con1 = ((0x01<<0)|(0x00<<1)|(0x05<<4))|(((0x01<<0)|(0x01<<1)|(0x07<<4))<<16);   // enter suspend.
-#endif
-#endif
+
 	return 0;
 
  fail:
