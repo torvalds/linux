@@ -356,6 +356,35 @@ static struct platform_device device_fb = {
 };
 #endif
 
+//LCDC
+#ifdef CONFIG_LCDC_RK2928
+static struct resource resource_lcdc[] = {
+	[0] = {
+		.name  = "lcdc reg",
+		.start = RK2928_LCDC_PHYS,
+		.end   = RK2928_LCDC_PHYS + RK2928_LCDC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	
+	[1] = {
+		.name  = "lcdc irq",
+		.start = IRQ_LCDC,
+		.end   = IRQ_LCDC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc = {
+	.name		  = "rk2928-lcdc",
+	.id		  = 0,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc),
+	.resource	  = resource_lcdc,
+	.dev 		= {
+		.platform_data = &lcdc_screen_info,
+	},
+};
+#endif
+
 #ifdef CONFIG_ION
 #define ION_RESERVE_SIZE        (80 * SZ_1M)
 static struct ion_platform_data rk30_ion_pdata = {
@@ -659,11 +688,14 @@ static struct platform_device device_acodec = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-	&rk29_device_backlight,
-#endif
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
+#endif
+#ifdef CONFIG_LCDC_RK2928
+	&device_lcdc,
+#endif
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
 #endif
 #ifdef CONFIG_ION
 	&device_ion,
