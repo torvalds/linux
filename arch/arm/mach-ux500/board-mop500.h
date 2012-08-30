@@ -80,6 +80,8 @@
 struct device;
 struct i2c_board_info;
 extern struct mmci_platform_data mop500_sdi0_data;
+extern struct mmci_platform_data mop500_sdi1_data;
+extern struct mmci_platform_data mop500_sdi2_data;
 extern struct mmci_platform_data mop500_sdi4_data;
 extern struct arm_pmu_platdata db8500_pmu_platdata;
 
