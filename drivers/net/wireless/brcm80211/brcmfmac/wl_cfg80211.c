@@ -1876,16 +1876,17 @@ brcmf_cfg80211_get_station(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (test_bit(WL_STATUS_CONNECTED, &cfg_priv->status)) {
-		scb_val.val = cpu_to_le32(0);
+		memset(&scb_val, 0, sizeof(scb_val));
 		err = brcmf_exec_dcmd(ndev, BRCMF_C_GET_RSSI, &scb_val,
 				      sizeof(struct brcmf_scb_val_le));
-		if (err)
+		if (err) {
 			WL_ERR("Could not get rssi (%d)\n", err);
-
-		rssi = le32_to_cpu(scb_val.val);
-		sinfo->filled |= STATION_INFO_SIGNAL;
-		sinfo->signal = rssi;
-		WL_CONN("RSSI %d dBm\n", rssi);
+		} else {
+			rssi = le32_to_cpu(scb_val.val);
+			sinfo->filled |= STATION_INFO_SIGNAL;
+			sinfo->signal = rssi;
+			WL_CONN("RSSI %d dBm\n", rssi);
+		}
 	}
 
 done:
