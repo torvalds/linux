@@ -156,8 +156,7 @@ static inline void __add_pwm(struct pwm_device *pwm)
 	mutex_unlock(&pwm_lock);
 }
 
-static struct pwm_device *pwm_probe(struct platform_device *pdev,
-		unsigned int pwm_id, struct pwm_device *parent_pwm)
+static int __devinit pwm_probe(struct platform_device *pdev)
 {
 	struct pwm_device *pwm;
 	struct resource *r;
@@ -166,7 +165,7 @@ static struct pwm_device *pwm_probe(struct platform_device *pdev,
 	pwm = kzalloc(sizeof(struct pwm_device), GFP_KERNEL);
 	if (pwm == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	pwm->clk = clk_get(NULL, "OST_CLK");
@@ -177,7 +176,7 @@ static struct pwm_device *pwm_probe(struct platform_device *pdev,
 	pwm->clk_enabled = 0;
 
 	pwm->use_count = 0;
-	pwm->pwm_id = pwm_id;
+	pwm->pwm_id = pdev->id;
 	pwm->pdev = pdev;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -203,7 +202,7 @@ static struct pwm_device *pwm_probe(struct platform_device *pdev,
 
 	__add_pwm(pwm);
 	platform_set_drvdata(pdev, pwm);
-	return pwm;
+	return 0;
 
 err_release_mem:
 	release_mem_region(r->start, resource_size(r));
@@ -211,17 +210,7 @@ err_free_clk:
 	clk_put(pwm->clk);
 err_free:
 	kfree(pwm);
-	return ERR_PTR(ret);
-}
-
-static int __devinit puv3_pwm_probe(struct platform_device *pdev)
-{
-	struct pwm_device *pwm = pwm_probe(pdev, pdev->id, NULL);
-
-	if (IS_ERR(pwm))
-		return PTR_ERR(pwm);
-
-	return 0;
+	return ret;
 }
 
 static int __devexit pwm_remove(struct platform_device *pdev)
@@ -251,7 +240,7 @@ static struct platform_driver puv3_pwm_driver = {
 	.driver		= {
 		.name	= "PKUnity-v3-PWM",
 	},
-	.probe		= puv3_pwm_probe,
+	.probe		= pwm_probe,
 	.remove		= __devexit_p(pwm_remove),
 };
 module_platform_driver(puv3_pwm_driver);
