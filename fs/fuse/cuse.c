@@ -396,7 +396,7 @@ err_device:
 err_region:
 	unregister_chrdev_region(devt, 1);
 err:
-	fc->conn_error = 1;
+	fuse_conn_kill(fc);
 	goto out;
 }
 
@@ -532,8 +532,6 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 		cdev_del(cc->cdev);
 	}
 
-	/* kill connection and shutdown channel */
-	fuse_conn_kill(&cc->fc);
 	rc = fuse_dev_release(inode, file);	/* puts the base reference */
 
 	return rc;
