@@ -2244,29 +2244,21 @@ static int rbd_dev_snap_devs_update(struct rbd_device *rbd_dev)
 
 static int rbd_bus_add_dev(struct rbd_device *rbd_dev)
 {
-	int ret;
 	struct device *dev;
-	struct rbd_snap *snap;
+	int ret;
 
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
-	dev = &rbd_dev->dev;
 
+	dev = &rbd_dev->dev;
 	dev->bus = &rbd_bus_type;
 	dev->type = &rbd_device_type;
 	dev->parent = &rbd_root_dev;
 	dev->release = rbd_dev_release;
 	dev_set_name(dev, "%d", rbd_dev->dev_id);
 	ret = device_register(dev);
-	if (ret < 0)
-		goto out;
 
-	list_for_each_entry(snap, &rbd_dev->snaps, node) {
-		ret = rbd_register_snap_dev(snap, &rbd_dev->dev);
-		if (ret < 0)
-			break;
-	}
-out:
 	mutex_unlock(&ctl_mutex);
+
 	return ret;
 }
 
