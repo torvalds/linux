@@ -704,7 +704,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		r = -ENODEV;
 		goto err_free_mem;
 	}
-	clk_enable(dev->clk);
+	clk_prepare_enable(dev->clk);
 
 	dev->base = ioremap(mem->start, resource_size(mem));
 	if (!dev->base) {
@@ -751,7 +751,7 @@ err_free_irq:
 err_unuse_clocks:
 	iounmap(dev->base);
 err_mem_ioremap:
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
 err_free_mem:
@@ -775,7 +775,7 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
 
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
 
@@ -797,7 +797,7 @@ static int davinci_i2c_suspend(struct device *dev)
 
 	/* put I2C into reset */
 	davinci_i2c_reset_ctrl(i2c_dev, 0);
-	clk_disable(i2c_dev->clk);
+	clk_disable_unprepare(i2c_dev->clk);
 
 	return 0;
 }
@@ -807,7 +807,7 @@ static int davinci_i2c_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct davinci_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
-	clk_enable(i2c_dev->clk);
+	clk_prepare_enable(i2c_dev->clk);
 	/* take I2C out of reset */
 	davinci_i2c_reset_ctrl(i2c_dev, 1);
 
