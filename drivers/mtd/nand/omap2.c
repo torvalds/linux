@@ -134,6 +134,7 @@ struct omap_nand_info {
 
 	int				gpmc_cs;
 	unsigned long			phys_base;
+	unsigned long			mem_size;
 	struct completion		comp;
 	struct dma_chan			*dma;
 	int				gpmc_irq;
@@ -1270,6 +1271,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 	int				i, offset;
 	dma_cap_mask_t mask;
 	unsigned sig;
+	struct resource			*res;
 
 	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
@@ -1289,7 +1291,6 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 	info->pdev = pdev;
 
 	info->gpmc_cs		= pdata->cs;
-	info->phys_base		= pdata->phys_base;
 	info->reg		= pdata->reg;
 
 	info->mtd.priv		= &info->nand;
@@ -1302,13 +1303,23 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 	/* NAND write protect off */
 	gpmc_cs_configure(info->gpmc_cs, GPMC_CONFIG_WP, 0);
 
-	if (!request_mem_region(info->phys_base, NAND_IO_SIZE,
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL) {
+		err = -EINVAL;
+		dev_err(&pdev->dev, "error getting memory resource\n");
+		goto out_free_info;
+	}
+
+	info->phys_base = res->start;
+	info->mem_size = resource_size(res);
+
+	if (!request_mem_region(info->phys_base, info->mem_size,
 				pdev->dev.driver->name)) {
 		err = -EBUSY;
 		goto out_free_info;
 	}
 
-	info->nand.IO_ADDR_R = ioremap(info->phys_base, NAND_IO_SIZE);
+	info->nand.IO_ADDR_R = ioremap(info->phys_base, info->mem_size);
 	if (!info->nand.IO_ADDR_R) {
 		err = -ENOMEM;
 		goto out_release_mem_region;
@@ -1479,7 +1490,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 out_release_mem_region:
 	if (info->dma)
 		dma_release_channel(info->dma);
-	release_mem_region(info->phys_base, NAND_IO_SIZE);
+	release_mem_region(info->phys_base, info->mem_size);
 out_free_info:
 	kfree(info);
 
