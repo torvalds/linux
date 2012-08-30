@@ -2337,6 +2337,8 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS, limits);
 
 	dev_priv->rps.cur_delay = val;
+
+	trace_intel_gpu_freq_change(val * 50);
 }
 
 static void gen6_disable_rps(struct drm_device *dev)
