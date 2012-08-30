@@ -196,8 +196,8 @@ enum MonitorModeSelector {
 #define K1212_ADAT_BUF_SIZE	(K1212_ADAT_CHANNELS * 2 * kPlayBufferFrames * kNumBuffers)
 #define K1212_MAX_BUF_SIZE	(K1212_ANALOG_BUF_SIZE + K1212_ADAT_BUF_SIZE)
 
-#define k1212MinADCSens     0x7f
-#define k1212MaxADCSens     0x00
+#define k1212MinADCSens     0x00
+#define k1212MaxADCSens     0x7f
 #define k1212MaxVolume      0x7fff
 #define k1212MaxWaveVolume  0xffff
 #define k1212MinVolume      0x0000
