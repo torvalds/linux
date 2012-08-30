@@ -884,6 +884,60 @@ out:
 	complete_all(&rproc->firmware_loading_complete);
 }
 
+static int rproc_add_virtio_devices(struct rproc *rproc)
+{
+	int ret;
+
+	/* rproc_del() calls must wait until async loader completes */
+	init_completion(&rproc->firmware_loading_complete);
+
+	/*
+	 * We must retrieve early virtio configuration info from
+	 * the firmware (e.g. whether to register a virtio device,
+	 * what virtio features does it support, ...).
+	 *
+	 * We're initiating an asynchronous firmware loading, so we can
+	 * be built-in kernel code, without hanging the boot process.
+	 */
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+				      rproc->firmware, &rproc->dev, GFP_KERNEL,
+				      rproc, rproc_fw_config_virtio);
+	if (ret < 0) {
+		dev_err(&rproc->dev, "request_firmware_nowait err: %d\n", ret);
+		complete_all(&rproc->firmware_loading_complete);
+	}
+
+	return ret;
+}
+
+/**
+ * rproc_trigger_recovery() - recover a remoteproc
+ * @rproc: the remote processor
+ *
+ * The recovery is done by reseting all the virtio devices, that way all the
+ * rpmsg drivers will be reseted along with the remote processor making the
+ * remoteproc functional again.
+ *
+ * This function can sleep, so it cannot be called from atomic context.
+ */
+int rproc_trigger_recovery(struct rproc *rproc)
+{
+	struct rproc_vdev *rvdev, *rvtmp;
+
+	dev_err(&rproc->dev, "recovering %s\n", rproc->name);
+
+	init_completion(&rproc->crash_comp);
+
+	/* clean up remote vdev entries */
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
+		rproc_remove_virtio_dev(rvdev);
+
+	/* wait until there is no more rproc users */
+	wait_for_completion(&rproc->crash_comp);
+
+	return rproc_add_virtio_devices(rproc);
+}
+
 /**
  * rproc_crash_handler_work() - handle a crash
  *
@@ -911,7 +965,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
 
 	mutex_unlock(&rproc->lock);
 
-	/* TODO: handle crash */
+	rproc_trigger_recovery(rproc);
 }
 
 /**
@@ -1035,6 +1089,10 @@ void rproc_shutdown(struct rproc *rproc)
 
 	rproc_disable_iommu(rproc);
 
+	/* if in crash state, unlock crash handler */
+	if (rproc->state == RPROC_CRASHED)
+		complete_all(&rproc->crash_comp);
+
 	rproc->state = RPROC_OFFLINE;
 
 	dev_info(dev, "stopped remote processor %s\n", rproc->name);
@@ -1069,7 +1127,7 @@ EXPORT_SYMBOL(rproc_shutdown);
 int rproc_add(struct rproc *rproc)
 {
 	struct device *dev = &rproc->dev;
-	int ret = 0;
+	int ret;
 
 	ret = device_add(dev);
 	if (ret < 0)
@@ -1083,26 +1141,7 @@ int rproc_add(struct rproc *rproc)
 	/* create debugfs entries */
 	rproc_create_debug_dir(rproc);
 
-	/* rproc_del() calls must wait until async loader completes */
-	init_completion(&rproc->firmware_loading_complete);
-
-	/*
-	 * We must retrieve early virtio configuration info from
-	 * the firmware (e.g. whether to register a virtio device,
-	 * what virtio features does it support, ...).
-	 *
-	 * We're initiating an asynchronous firmware loading, so we can
-	 * be built-in kernel code, without hanging the boot process.
-	 */
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-					rproc->firmware, dev, GFP_KERNEL,
-					rproc, rproc_fw_config_virtio);
-	if (ret < 0) {
-		dev_err(dev, "request_firmware_nowait failed: %d\n", ret);
-		complete_all(&rproc->firmware_loading_complete);
-	}
-
-	return ret;
+	return rproc_add_virtio_devices(rproc);
 }
 EXPORT_SYMBOL(rproc_add);
 
@@ -1209,6 +1248,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 	INIT_LIST_HEAD(&rproc->rvdevs);
 
 	INIT_WORK(&rproc->crash_handler, rproc_crash_handler_work);
+	init_completion(&rproc->crash_comp);
 
 	rproc->state = RPROC_OFFLINE;
 
