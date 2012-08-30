@@ -2187,7 +2187,7 @@ static int __rbd_init_snaps_header(struct rbd_device *rbd_dev)
 			if (snap)
 				list_add_tail(&new_snap->node, &snap->node);
 			else
-				list_add(&new_snap->node, head);
+				list_add_tail(&new_snap->node, head);
 		} else {
 			/* Already have this one */
 
