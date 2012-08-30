@@ -313,6 +313,9 @@ config SUN4I_HDMI
 config SUN5I_FB
         tristate "DISP Driver Support(sun5i)"
         depends on FB && ARCH_SUN5I
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
         ---help---
         default m
 
