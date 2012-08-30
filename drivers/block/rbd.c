@@ -87,7 +87,6 @@ struct rbd_image_header {
 	__u8 crypt_type;
 	__u8 comp_type;
 	struct ceph_snap_context *snapc;
-	u32 total_snaps;
 
 	char *snap_names;
 	u64 *snap_sizes;
@@ -588,7 +587,6 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->obj_order = ondisk->options.order;
 	header->crypt_type = ondisk->options.crypt_type;
 	header->comp_type = ondisk->options.comp_type;
-	header->total_snaps = snap_count;
 
 	/* Allocate and fill in the snapshot context */
 
@@ -624,7 +622,8 @@ static int snap_by_name(struct rbd_image_header *header, const char *snap_name,
 	int i;
 	char *p = header->snap_names;
 
-	for (i = 0; i < header->total_snaps; i++) {
+	rbd_assert(header->snapc != NULL);
+	for (i = 0; i < header->snapc->num_snaps; i++) {
 		if (!strcmp(snap_name, p)) {
 
 			/* Found it.  Pass back its id and/or size */
@@ -1839,7 +1838,6 @@ static int __rbd_refresh_header(struct rbd_device *rbd_dev, u64 *hver)
 		*hver = h.obj_version;
 	rbd_dev->header.obj_version = h.obj_version;
 	rbd_dev->header.image_size = h.image_size;
-	rbd_dev->header.total_snaps = h.total_snaps;
 	rbd_dev->header.snapc = h.snapc;
 	rbd_dev->header.snap_names = h.snap_names;
 	rbd_dev->header.snap_sizes = h.snap_sizes;
