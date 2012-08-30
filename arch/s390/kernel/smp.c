@@ -66,7 +66,6 @@ struct pcpu {
 	unsigned long panic_stack;	/* panic stack for the cpu */
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	int state;			/* physical cpu state */
-	u32 status;			/* last status received via sigp */
 	u16 address;			/* physical cpu address */
 };
 
@@ -99,7 +98,7 @@ static inline int __pcpu_sigp_relax(u16 addr, u8 order, u32 parm, u32 *status)
 	int cc;
 
 	while (1) {
-		cc = __pcpu_sigp(addr, order, parm, status);
+		cc = __pcpu_sigp(addr, order, parm, NULL);
 		if (cc != SIGP_CC_BUSY)
 			return cc;
 		cpu_relax();
@@ -111,7 +110,7 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 	int cc, retry;
 
 	for (retry = 0; ; retry++) {
-		cc = __pcpu_sigp(pcpu->address, order, parm, &pcpu->status);
+		cc = __pcpu_sigp(pcpu->address, order, parm, NULL);
 		if (cc != SIGP_CC_BUSY)
 			break;
 		if (retry >= 3)
@@ -122,16 +121,18 @@ static int pcpu_sigp_retry(struct pcpu *pcpu, u8 order, u32 parm)
 
 static inline int pcpu_stopped(struct pcpu *pcpu)
 {
+	u32 status;
+
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE,
-			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
+			0, &status) != SIGP_CC_STATUS_STORED)
 		return 0;
-	return !!(pcpu->status & (SIGP_STATUS_CHECK_STOP|SIGP_STATUS_STOPPED));
+	return !!(status & (SIGP_STATUS_CHECK_STOP|SIGP_STATUS_STOPPED));
 }
 
 static inline int pcpu_running(struct pcpu *pcpu)
 {
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE_RUNNING,
-			0, &pcpu->status) != SIGP_CC_STATUS_STORED)
+			0, NULL) != SIGP_CC_STATUS_STORED)
 		return 1;
 	/* Status stored condition code is equivalent to cpu not running. */
 	return 0;
