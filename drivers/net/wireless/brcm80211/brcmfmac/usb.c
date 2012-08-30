@@ -581,7 +581,6 @@ static void brcmf_usb_rx_refill(struct brcmf_usbdev_info *devinfo,
 	usb_fill_bulk_urb(req->urb, devinfo->usbdev, devinfo->rx_pipe,
 			  skb->data, skb_tailroom(skb), brcmf_usb_rx_complete,
 			  req);
-	req->urb->transfer_flags |= URB_ZERO_PACKET;
 	req->devinfo = devinfo;
 
 	ret = usb_submit_urb(req->urb, GFP_ATOMIC);
