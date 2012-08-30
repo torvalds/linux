@@ -35,6 +35,7 @@ nouveau-y += core/subdev/bios/gpio.o
 nouveau-y += core/subdev/bios/i2c.o
 nouveau-y += core/subdev/bios/init.o
 nouveau-y += core/subdev/bios/mxm.o
+nouveau-y += core/subdev/bios/perf.o
 nouveau-y += core/subdev/bios/pll.o
 nouveau-y += core/subdev/bios/therm.o
 nouveau-y += core/subdev/clock/nv04.o
