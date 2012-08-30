@@ -2290,7 +2290,7 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 			"version: 0x%x\n", version);
 
 	host->caps.has_dma_conf_reg = 0;
-	host->caps.has_pdc = 1;
+	host->caps.has_pdc = ATMCI_PDC_CONNECTED;
 	host->caps.has_cfg_reg = 0;
 	host->caps.has_cstor_reg = 0;
 	host->caps.has_highspeed = 0;
