@@ -376,6 +376,23 @@ struct amd64_pvt {
 	struct error_injection injection;
 };
 
+enum err_codes {
+	DECODE_OK	=  0,
+	ERR_NODE	= -1,
+	ERR_CSROW	= -2,
+	ERR_CHANNEL	= -3,
+};
+
+struct err_info {
+	int err_code;
+	struct mem_ctl_info *src_mci;
+	int csrow;
+	int channel;
+	u16 syndrome;
+	u32 page;
+	u32 offset;
+};
+
 static inline u64 get_dram_base(struct amd64_pvt *pvt, unsigned i)
 {
 	u64 addr = ((u64)pvt->ranges[i].base.lo & 0xffff0000) << 8;
@@ -449,7 +466,7 @@ static inline void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci)
 struct low_ops {
 	int (*early_channel_count)	(struct amd64_pvt *pvt);
 	void (*map_sysaddr_to_csrow)	(struct mem_ctl_info *mci, u64 sys_addr,
-					 u16 syndrome);
+					 struct err_info *);
 	int (*dbam_to_cs)		(struct amd64_pvt *pvt, u8 dct, unsigned cs_mode);
 	int (*read_dct_pci_cfg)		(struct amd64_pvt *pvt, int offset,
 					 u32 *val, const char *func);

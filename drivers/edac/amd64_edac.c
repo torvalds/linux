@@ -709,10 +709,10 @@ static inline u64 input_addr_to_sys_addr(struct mem_ctl_info *mci,
 
 /* Map the Error address to a PAGE and PAGE OFFSET. */
 static inline void error_address_to_page_and_offset(u64 error_address,
-						    u32 *page, u32 *offset)
+						    struct err_info *err)
 {
-	*page = (u32) (error_address >> PAGE_SHIFT);
-	*offset = ((u32) error_address) & ~PAGE_MASK;
+	err->page = (u32) (error_address >> PAGE_SHIFT);
+	err->offset = ((u32) error_address) & ~PAGE_MASK;
 }
 
 /*
@@ -1023,59 +1023,44 @@ static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
-				    u16 syndrome)
+				    struct err_info *err)
 {
-	struct mem_ctl_info *src_mci;
 	struct amd64_pvt *pvt = mci->pvt_info;
-	int channel, csrow;
-	u32 page, offset;
 
-	error_address_to_page_and_offset(sys_addr, &page, &offset);
+	error_address_to_page_and_offset(sys_addr, err);
 
 	/*
 	 * Find out which node the error address belongs to. This may be
 	 * different from the node that detected the error.
 	 */
-	src_mci = find_mc_by_sys_addr(mci, sys_addr);
-	if (!src_mci) {
+	err->src_mci = find_mc_by_sys_addr(mci, sys_addr);
+	if (!err->src_mci) {
 		amd64_mc_err(mci, "failed to map error addr 0x%lx to a node\n",
 			     (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     page, offset, syndrome,
-				     -1, -1, -1,
-				     "failed to map error addr to a node",
-				     "");
+		err->err_code = ERR_NODE;
 		return;
 	}
 
 	/* Now map the sys_addr to a CSROW */
-	csrow = sys_addr_to_csrow(src_mci, sys_addr);
-	if (csrow < 0) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     page, offset, syndrome,
-				     -1, -1, -1,
-				     "failed to map error addr to a csrow",
-				     "");
+	err->csrow = sys_addr_to_csrow(err->src_mci, sys_addr);
+	if (err->csrow < 0) {
+		err->err_code = ERR_CSROW;
 		return;
 	}
 
 	/* CHIPKILL enabled */
 	if (pvt->nbcfg & NBCFG_CHIPKILL) {
-		channel = get_channel_from_ecc_syndrome(mci, syndrome);
-		if (channel < 0) {
+		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
+		if (err->channel < 0) {
 			/*
 			 * Syndrome didn't map, so we don't know which of the
 			 * 2 DIMMs is in error. So we need to ID 'both' of them
 			 * as suspect.
 			 */
-			amd64_mc_warn(src_mci, "unknown syndrome 0x%04x - "
+			amd64_mc_warn(err->src_mci, "unknown syndrome 0x%04x - "
 				      "possible error reporting race\n",
-				      syndrome);
-			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-					     page, offset, syndrome,
-					     csrow, -1, -1,
-					     "unknown syndrome - possible error reporting race",
-					     "");
+				      err->syndrome);
+			err->err_code = ERR_CHANNEL;
 			return;
 		}
 	} else {
@@ -1087,13 +1072,8 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 		 * was obtained from email communication with someone at AMD.
 		 * (Wish the email was placed in this comment - norsk)
 		 */
-		channel = ((sys_addr & BIT(3)) != 0);
+		err->channel = ((sys_addr & BIT(3)) != 0);
 	}
-
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, src_mci, 1,
-			     page, offset, syndrome,
-			     csrow, channel, -1,
-			     "", "");
 }
 
 static int ddr2_cs_size(unsigned i, bool dct_width)
@@ -1479,7 +1459,7 @@ static u64 f1x_swap_interleaved_region(struct amd64_pvt *pvt, u64 sys_addr)
 
 /* For a given @dram_range, check if @sys_addr falls within it. */
 static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
-				  u64 sys_addr, int *nid, int *chan_sel)
+				  u64 sys_addr, int *chan_sel)
 {
 	int cs_found = -EINVAL;
 	u64 chan_addr;
@@ -1552,15 +1532,14 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 
 	cs_found = f1x_lookup_addr_in_dct(chan_addr, node_id, channel);
 
-	if (cs_found >= 0) {
-		*nid = node_id;
+	if (cs_found >= 0)
 		*chan_sel = channel;
-	}
+
 	return cs_found;
 }
 
 static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
-				       int *node, int *chan_sel)
+				       int *chan_sel)
 {
 	int cs_found = -EINVAL;
 	unsigned range;
@@ -1574,8 +1553,7 @@ static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
 		    (get_dram_limit(pvt, range) >= sys_addr)) {
 
 			cs_found = f1x_match_to_this_node(pvt, range,
-							  sys_addr, node,
-							  chan_sel);
+							  sys_addr, chan_sel);
 			if (cs_found >= 0)
 				break;
 		}
@@ -1591,22 +1569,15 @@ static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
  * (MCX_ADDR).
  */
 static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
-				     u16 syndrome)
+				     struct err_info *err)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u32 page, offset;
-	int nid, csrow, chan = 0;
 
-	error_address_to_page_and_offset(sys_addr, &page, &offset);
+	error_address_to_page_and_offset(sys_addr, err);
 
-	csrow = f1x_translate_sysaddr_to_cs(pvt, sys_addr, &nid, &chan);
-
-	if (csrow < 0) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     page, offset, syndrome,
-				     -1, -1, -1,
-				     "failed to map error addr to a csrow",
-				     "");
+	err->csrow = f1x_translate_sysaddr_to_cs(pvt, sys_addr, &err->channel);
+	if (err->csrow < 0) {
+		err->err_code = ERR_CSROW;
 		return;
 	}
 
@@ -1616,12 +1587,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	 * this point.
 	 */
 	if (dct_ganging_enabled(pvt))
-		chan = get_channel_from_ecc_syndrome(mci, syndrome);
-
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-			     page, offset, syndrome,
-			     csrow, chan, -1,
-			     "", "");
+		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
 }
 
 /*
@@ -1890,78 +1856,54 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *mci, u16 syndrome)
 	return map_err_sym_to_channel(err_sym, pvt->ecc_sym_sz);
 }
 
-/*
- * Handle any Correctable Errors (CEs) that have occurred. Check for valid ERROR
- * ADDRESS and process.
- */
-static void amd64_handle_ce(struct mem_ctl_info *mci, struct mce *m)
+static void __log_bus_error(struct mem_ctl_info *mci, struct err_info *err,
+			    u8 ecc_type)
 {
-	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 sys_addr;
-	u16 syndrome;
+	enum hw_event_mc_err_type err_type;
+	const char *string;
 
-	sys_addr = get_error_address(m);
-	syndrome = extract_syndrome(m->status);
-
-	amd64_mc_err(mci, "CE ERROR_ADDRESS= 0x%llx\n", sys_addr);
-
-	pvt->ops->map_sysaddr_to_csrow(mci, sys_addr, syndrome);
-}
-
-/* Handle any Un-correctable Errors (UEs) */
-static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
-{
-	struct mem_ctl_info *log_mci, *src_mci = NULL;
-	int csrow;
-	u64 sys_addr;
-	u32 page, offset;
-
-	log_mci = mci;
-
-	sys_addr = get_error_address(m);
-	error_address_to_page_and_offset(sys_addr, &page, &offset);
-
-	/*
-	 * Find out which node the error address belongs to. This may be
-	 * different from the node that detected the error.
-	 */
-	src_mci = find_mc_by_sys_addr(mci, sys_addr);
-	if (!src_mci) {
-		amd64_mc_err(mci, "ERROR ADDRESS (0x%lx) NOT mapped to a MC\n",
-				  (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     page, offset, 0,
-				     -1, -1, -1,
-				     "ERROR ADDRESS NOT mapped to a MC",
-				     "");
+	if (ecc_type == 2)
+		err_type = HW_EVENT_ERR_CORRECTED;
+	else if (ecc_type == 1)
+		err_type = HW_EVENT_ERR_UNCORRECTED;
+	else {
+		WARN(1, "Something is rotten in the state of Denmark.\n");
 		return;
 	}
 
-	log_mci = src_mci;
-
-	csrow = sys_addr_to_csrow(log_mci, sys_addr);
-	if (csrow < 0) {
-		amd64_mc_err(mci, "ERROR_ADDRESS (0x%lx) NOT mapped to CS\n",
-				  (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     page, offset, 0,
-				     -1, -1, -1,
-				     "ERROR ADDRESS NOT mapped to CS",
-				     "");
-	} else {
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     page, offset, 0,
-				     csrow, -1, -1,
-				     "", "");
+	switch (err->err_code) {
+	case DECODE_OK:
+		string = "";
+		break;
+	case ERR_NODE:
+		string = "Failed to map error addr to a node";
+		break;
+	case ERR_CSROW:
+		string = "Failed to map error addr to a csrow";
+		break;
+	case ERR_CHANNEL:
+		string = "unknown syndrome - possible error reporting race";
+		break;
+	default:
+		string = "WTF error";
+		break;
 	}
+
+	edac_mc_handle_error(err_type, mci, 1,
+			     err->page, err->offset, err->syndrome,
+			     err->csrow, err->channel, -1,
+			     string, "");
 }
 
 static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 					    struct mce *m)
 {
+	struct amd64_pvt *pvt = mci->pvt_info;
 	u8 ecc_type = (m->status >> 45) & 0x3;
 	u8 xec = XEC(m->status, 0x1f);
 	u16 ec = EC(m->status);
+	u64 sys_addr;
+	struct err_info err;
 
 	/* Bail out early if this was an 'observed' error */
 	if (PP(ec) == NBSL_PP_OBS)
@@ -1971,10 +1913,16 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	if (xec && xec != F10_NBSL_EXT_ERR_ECC)
 		return;
 
+	memset(&err, 0, sizeof(err));
+
+	sys_addr = get_error_address(m);
+
 	if (ecc_type == 2)
-		amd64_handle_ce(mci, m);
-	else if (ecc_type == 1)
-		amd64_handle_ue(mci, m);
+		err.syndrome = extract_syndrome(m->status);
+
+	pvt->ops->map_sysaddr_to_csrow(mci, sys_addr, &err);
+
+	__log_bus_error(mci, &err, ecc_type);
 }
 
 void amd64_decode_bus_error(int node_id, struct mce *m)
