@@ -109,13 +109,21 @@ enum rk_plls_id {
 #define CORE_SEL_APLL		(0 << 8)
 #define CORE_SEL_GPLL		(1 << 8)
 
-#define CORE_CLK_DIV_W_MSK	(0x1F << 16)
-#define CORE_CLK_DIV_MSK	(0x1F)
+#define CORE_CLK_DIV_W_MSK	(0x1F << 25)
+#define CORE_CLK_DIV_MSK	(0x1F << 9)
 #define CORE_CLK_DIV(i)		(((i) - 1) & 0x1F)
+
+#define CPU_SEL_PLL_MSK		(1 << 5)
+#define CPU_SEL_PLL_W_MSK	(1 << 21)
+#define CPU_SEL_APLL		(0 << 5)
+#define CPU_SEL_GPLL		(1 << 5)
+
+#define CPU_CLK_DIV_W_MSK	(0x1F << 16)
+#define CPU_CLK_DIV_MSK		(0x1F)
+#define CPU_CLK_DIV(i)		(((i) - 1) & 0x1F)
 
 /*******************CLKSEL1 BITS***************************/
 //aclk div
-
 #define GET_CORE_ACLK_VAL(reg) ((reg)>=4 ?8:((reg)+1))
 
 #define CPU_ACLK_W_MSK		(7 << 16)
