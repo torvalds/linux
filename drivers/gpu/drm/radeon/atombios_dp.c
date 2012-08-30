@@ -577,30 +577,25 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	int panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
+	u16 dp_bridge = radeon_connector_encoder_get_dp_bridge_encoder_id(connector);
+	u8 tmp;
 
 	if (!ASIC_IS_DCE4(rdev))
 		return panel_mode;
 
-	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
-	    ENCODER_OBJECT_ID_NUTMEG)
-		panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
-	else if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
-		 ENCODER_OBJECT_ID_TRAVIS) {
-		u8 id[6];
-		int i;
-		for (i = 0; i < 6; i++)
-			id[i] = radeon_read_dpcd_reg(radeon_connector, 0x503 + i);
-		if (id[0] == 0x73 &&
-		    id[1] == 0x69 &&
-		    id[2] == 0x76 &&
-		    id[3] == 0x61 &&
-		    id[4] == 0x72 &&
-		    id[5] == 0x54)
+	if (dp_bridge != ENCODER_OBJECT_ID_NONE) {
+		/* DP bridge chips */
+		tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
+		if (tmp & 1)
+			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
+		else if ((dp_bridge == ENCODER_OBJECT_ID_NUTMEG) ||
+			 (dp_bridge == ENCODER_OBJECT_ID_TRAVIS))
 			panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
 		else
-			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
+			panel_mode = DP_PANEL_MODE_EXTERNAL_DP_MODE;
 	} else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		u8 tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
+		/* eDP */
+		tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
 		if (tmp & 1)
 			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
 	}
