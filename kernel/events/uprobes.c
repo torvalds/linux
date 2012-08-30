@@ -897,7 +897,8 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	}
 
 	mutex_unlock(uprobes_hash(inode));
-	put_uprobe(uprobe);
+	if (uprobe)
+		put_uprobe(uprobe);
 
 	return ret;
 }
