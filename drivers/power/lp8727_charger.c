@@ -442,35 +442,33 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	ret = lp8727_init_device(pchg);
 	if (ret) {
 		dev_err(pchg->dev, "i2c communication err: %d", ret);
-		goto error;
-	}
-
-	ret = lp8727_intr_config(pchg);
-	if (ret) {
-		dev_err(pchg->dev, "irq handler err: %d", ret);
-		goto error;
+		return ret;
 	}
 
 	ret = lp8727_register_psy(pchg);
 	if (ret) {
 		dev_err(pchg->dev, "power supplies register err: %d", ret);
-		goto error;
+		return ret;
+	}
+
+	ret = lp8727_intr_config(pchg);
+	if (ret) {
+		dev_err(pchg->dev, "irq handler err: %d", ret);
+		lp8727_unregister_psy(pchg);
+		return ret;
 	}
 
 	return 0;
-
-error:
-	return ret;
 }
 
 static int __devexit lp8727_remove(struct i2c_client *cl)
 {
 	struct lp8727_chg *pchg = i2c_get_clientdata(cl);
 
-	lp8727_unregister_psy(pchg);
 	free_irq(pchg->client->irq, pchg);
 	flush_workqueue(pchg->irqthread);
 	destroy_workqueue(pchg->irqthread);
+	lp8727_unregister_psy(pchg);
 	return 0;
 }
 
