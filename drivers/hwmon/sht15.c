@@ -1,7 +1,7 @@
 /*
  * sht15.c - support for the SHT15 Temperature and Humidity Sensor
  *
- * Portions Copyright (c) 2010-2011 Savoir-faire Linux Inc.
+ * Portions Copyright (c) 2010-2012 Savoir-faire Linux Inc.
  *          Jerome Oufella <jerome.oufella@savoirfairelinux.com>
  *          Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
@@ -52,6 +52,9 @@
 #define SHT15_STATUS_NO_OTP_RELOAD	0x02
 #define SHT15_STATUS_HEATER		0x04
 #define SHT15_STATUS_LOW_BATTERY	0x40
+
+/* List of supported chips */
+enum sht15_chips { sht10, sht11, sht15, sht71, sht75 };
 
 /* Actions the driver may be doing */
 enum sht15_state {
@@ -1024,77 +1027,26 @@ static int __devexit sht15_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * sht_drivers simultaneously refers to __devinit and __devexit function
- * which causes spurious section mismatch warning. So use __refdata to
- * get rid from this.
- */
-static struct platform_driver __refdata sht_drivers[] = {
-	{
-		.driver = {
-			.name = "sht10",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht11",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht15",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht71",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	}, {
-		.driver = {
-			.name = "sht75",
-			.owner = THIS_MODULE,
-		},
-		.probe = sht15_probe,
-		.remove = __devexit_p(sht15_remove),
-	},
+static struct platform_device_id sht15_device_ids[] = {
+	{ "sht10", sht10 },
+	{ "sht11", sht11 },
+	{ "sht15", sht15 },
+	{ "sht71", sht71 },
+	{ "sht75", sht75 },
+	{ }
 };
+MODULE_DEVICE_TABLE(platform, sht15_device_ids);
 
-static int __init sht15_init(void)
-{
-	int ret;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(sht_drivers); i++) {
-		ret = platform_driver_register(&sht_drivers[i]);
-		if (ret)
-			goto error_unreg;
-	}
-
-	return 0;
-
-error_unreg:
-	while (--i >= 0)
-		platform_driver_unregister(&sht_drivers[i]);
-
-	return ret;
-}
-module_init(sht15_init);
-
-static void __exit sht15_exit(void)
-{
-	int i;
-	for (i = ARRAY_SIZE(sht_drivers) - 1; i >= 0; i--)
-		platform_driver_unregister(&sht_drivers[i]);
-}
-module_exit(sht15_exit);
+static struct platform_driver sht15_driver = {
+	.driver = {
+		.name = "sht15",
+		.owner = THIS_MODULE,
+	},
+	.probe = sht15_probe,
+	.remove = __devexit_p(sht15_remove),
+	.id_table = sht15_device_ids,
+};
+module_platform_driver(sht15_driver);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Sensirion SHT15 temperature and humidity sensor driver");
