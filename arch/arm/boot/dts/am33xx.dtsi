@@ -25,6 +25,21 @@
 	cpus {
 		cpu@0 {
 			compatible = "arm,cortex-a8";
+
+			/*
+			 * To consider voltage drop between PMIC and SoC,
+			 * tolerance value is reduced to 2% from 4% and
+			 * voltage value is increased as a precaution.
+			 */
+			operating-points = <
+				/* kHz    uV */
+				720000  1285000
+				600000  1225000
+				500000  1125000
+				275000  1125000
+			>;
+			voltage-tolerance = <2>; /* 2 percentage */
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
 
