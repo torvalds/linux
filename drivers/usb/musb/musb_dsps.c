@@ -31,6 +31,7 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -44,6 +45,10 @@
 #include <plat/usb.h>
 
 #include "musb_core.h"
+
+#ifdef CONFIG_OF
+static const struct of_device_id musb_dsps_of_match[];
+#endif
 
 /**
  * avoid using musb_readx()/musb_writex() as glue layer should not be
@@ -448,6 +453,8 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	struct device *dev = glue->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct musb_hdrc_platform_data  *pdata = dev->platform_data;
+	struct device_node *np = pdev->dev.of_node;
+	struct musb_hdrc_config	*config;
 	struct platform_device	*musb;
 	struct resource *res;
 	struct resource	resources[2];
@@ -499,13 +506,39 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 
 	glue->musb[id]			= musb;
 
-	pdata->platform_ops		= &dsps_ops;
-
 	ret = platform_device_add_resources(musb, resources, 2);
 	if (ret) {
 		dev_err(dev, "failed to add resources\n");
 		goto err2;
 	}
+
+	if (np) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&pdev->dev,
+				"failed to allocate musb platfrom data\n");
+			ret = -ENOMEM;
+			goto err2;
+		}
+
+		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
+		if (!config) {
+			dev_err(&pdev->dev,
+				"failed to allocate musb hdrc config\n");
+			goto err2;
+		}
+
+		of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
+		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
+		sprintf(res_name, "port%d-mode", id);
+		of_property_read_u32(np, res_name, (u32 *)&pdata->mode);
+		of_property_read_u32(np, "power", (u32 *)&pdata->power);
+		config->multipoint = of_property_read_bool(np, "multipoint");
+
+		pdata->config		= config;
+	}
+
+	pdata->platform_ops		= &dsps_ops;
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
@@ -538,12 +571,20 @@ static void dsps_delete_musb_pdev(struct dsps_glue *glue, u8 id)
 
 static int __devinit dsps_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *id = platform_get_device_id(pdev);
-	const struct dsps_musb_wrapper *wrp =
-				(struct dsps_musb_wrapper *)id->driver_data;
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
+	const struct dsps_musb_wrapper *wrp;
 	struct dsps_glue *glue;
 	struct resource *iomem;
 	int ret, i;
+
+	match = of_match_node(musb_dsps_of_match, np);
+	if (!match) {
+		dev_err(&pdev->dev, "fail to get matching of_match struct\n");
+		ret = -EINVAL;
+		goto err0;
+	}
+	wrp = match->data;
 
 	/* allocate glue */
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
@@ -693,13 +734,14 @@ static const struct platform_device_id musb_dsps_id_table[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(platform, musb_dsps_id_table);
 
+#ifdef CONFIG_OF
 static const struct of_device_id musb_dsps_of_match[] __devinitconst = {
-	{ .compatible = "musb-ti81xx", },
-	{ .compatible = "ti,ti81xx-musb", },
-	{ .compatible = "ti,am335x-musb", },
+	{ .compatible = "ti,musb-am33xx",
+		.data = (void *) &ti81xx_driver_data, },
 	{  },
 };
 MODULE_DEVICE_TABLE(of, musb_dsps_of_match);
+#endif
 
 static struct platform_driver dsps_usbss_driver = {
 	.probe		= dsps_probe,
@@ -707,7 +749,7 @@ static struct platform_driver dsps_usbss_driver = {
 	.driver         = {
 		.name   = "musb-dsps",
 		.pm	= &dsps_pm_ops,
-		.of_match_table	= musb_dsps_of_match,
+		.of_match_table	= of_match_ptr(musb_dsps_of_match),
 	},
 	.id_table	= musb_dsps_id_table,
 };
