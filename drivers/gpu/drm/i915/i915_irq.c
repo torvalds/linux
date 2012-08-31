@@ -853,6 +853,35 @@ static void i915_error_work_func(struct work_struct *work)
 	}
 }
 
+/* NB: please notice the memset */
+static void i915_get_extra_instdone(struct drm_device *dev,
+				    uint32_t *instdone)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
+
+	switch(INTEL_INFO(dev)->gen) {
+	case 2:
+	case 3:
+		instdone[0] = I915_READ(INSTDONE);
+		break;
+	case 4:
+	case 5:
+	case 6:
+		instdone[0] = I915_READ(INSTDONE_I965);
+		instdone[1] = I915_READ(INSTDONE1);
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported platform\n");
+	case 7:
+		instdone[0] = I915_READ(GEN7_INSTDONE_1);
+		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
+		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
+		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);
+		break;
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
 i915_error_object_create(struct drm_i915_private *dev_priv,
@@ -1069,36 +1098,6 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 
 	return NULL;
 }
-
-/* NB: please notice the memset */
-static void i915_get_extra_instdone(struct drm_device *dev,
-				    uint32_t *instdone)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
-
-	switch(INTEL_INFO(dev)->gen) {
-	case 2:
-	case 3:
-		instdone[0] = I915_READ(INSTDONE);
-		break;
-	case 4:
-	case 5:
-	case 6:
-		instdone[0] = I915_READ(INSTDONE_I965);
-		instdone[1] = I915_READ(INSTDONE1);
-		break;
-	default:
-		WARN_ONCE(1, "Unsupported platform\n");
-	case 7:
-		instdone[0] = I915_READ(GEN7_INSTDONE_1);
-		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
-		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
-		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);
-		break;
-	}
-}
-
 
 static void i915_record_ring_state(struct drm_device *dev,
 				   struct drm_i915_error_state *error,
