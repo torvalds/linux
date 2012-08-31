@@ -644,21 +644,20 @@ static int snap_by_name(struct rbd_image_header *header, const char *snap_name,
 	return -ENOENT;
 }
 
-static int rbd_header_set_snap(struct rbd_device *rbd_dev)
+static int rbd_header_set_snap(struct rbd_device *rbd_dev, char *snap_name)
 {
 	int ret;
 
 	down_write(&rbd_dev->header_rwsem);
 
-	if (!memcmp(rbd_dev->mapping.snap_name, RBD_SNAP_HEAD_NAME,
+	if (!memcmp(snap_name, RBD_SNAP_HEAD_NAME,
 		    sizeof (RBD_SNAP_HEAD_NAME))) {
 		rbd_dev->mapping.snap_id = CEPH_NOSNAP;
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
 		rbd_dev->mapping.snap_exists = false;
 		rbd_dev->mapping.read_only = rbd_dev->rbd_opts.read_only;
 	} else {
-		ret = snap_by_name(&rbd_dev->header,
-					rbd_dev->mapping.snap_name,
+		ret = snap_by_name(&rbd_dev->header, snap_name,
 					&rbd_dev->mapping.snap_id,
 					&rbd_dev->mapping.size);
 		if (ret < 0)
@@ -666,6 +665,7 @@ static int rbd_header_set_snap(struct rbd_device *rbd_dev)
 		rbd_dev->mapping.snap_exists = true;
 		rbd_dev->mapping.read_only = true;
 	}
+	rbd_dev->mapping.snap_name = snap_name;
 
 	ret = 0;
 done:
@@ -1888,7 +1888,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	if (rc)
 		return rc;
 
-	rc = rbd_header_set_snap(rbd_dev);
+	rc = rbd_header_set_snap(rbd_dev, snap_name);
 	if (rc)
 		return rc;
 
@@ -2600,7 +2600,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 		rc = PTR_ERR(snap_name);
 		goto err_put_id;
 	}
-	rbd_dev->mapping.snap_name = snap_name;
 
 	rc = rbd_get_client(rbd_dev, mon_addrs, mon_addrs_size - 1, options);
 	if (rc < 0)
