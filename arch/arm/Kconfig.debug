@@ -376,6 +376,7 @@ endchoice
 config DEBUG_LL_INCLUDE
 	string
 	default "debug/icedcc.S" if DEBUG_ICEDCC
+	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "mach/debug-macro.S"
 
 config EARLY_PRINTK
