@@ -419,6 +419,20 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	return 0;
 }
 
+/**
+ *  ixgbevf_rlpml_set_vf - Set the maximum receive packet length
+ *  @hw: pointer to the HW structure
+ *  @max_size: value to assign to max frame size
+ **/
+void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
+{
+	u32 msgbuf[2];
+
+	msgbuf[0] = IXGBE_VF_SET_LPE;
+	msgbuf[1] = max_size;
+	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+}
+
 static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.init_hw             = ixgbevf_init_hw_vf,
 	.reset_hw            = ixgbevf_reset_hw_vf,

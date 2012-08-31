@@ -170,5 +170,6 @@ struct ixgbevf_info {
 	const struct ixgbe_mac_operations *mac_ops;
 };
 
+void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size);
 #endif /* __IXGBE_VF_H__ */
 

@@ -1057,13 +1057,44 @@ static void ixgbevf_configure_srrctl(struct ixgbevf_adapter *adapter, int index)
 
 	srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 
-	if (rx_ring->rx_buf_len == MAXIMUM_ETHERNET_VLAN_SIZE)
-		srrctl |= IXGBEVF_RXBUFFER_2048 >>
-			IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-	else
-		srrctl |= rx_ring->rx_buf_len >>
-			IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+	srrctl |= ALIGN(rx_ring->rx_buf_len, 1024) >>
+		  IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+
 	IXGBE_WRITE_REG(hw, IXGBE_VFSRRCTL(index), srrctl);
+}
+
+static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct net_device *netdev = adapter->netdev;
+	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	int i;
+	u16 rx_buf_len;
+
+	/* notify the PF of our intent to use this size of frame */
+	ixgbevf_rlpml_set_vf(hw, max_frame);
+
+	/* PF will allow an extra 4 bytes past for vlan tagged frames */
+	max_frame += VLAN_HLEN;
+
+	/*
+	 * Make best use of allocation by using all but 1K of a
+	 * power of 2 allocation that will be used for skb->head.
+	 */
+	if ((hw->mac.type == ixgbe_mac_X540_vf) &&
+	    (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE))
+		rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
+	else if (max_frame <= IXGBEVF_RXBUFFER_3K)
+		rx_buf_len = IXGBEVF_RXBUFFER_3K;
+	else if (max_frame <= IXGBEVF_RXBUFFER_7K)
+		rx_buf_len = IXGBEVF_RXBUFFER_7K;
+	else if (max_frame <= IXGBEVF_RXBUFFER_15K)
+		rx_buf_len = IXGBEVF_RXBUFFER_15K;
+	else
+		rx_buf_len = IXGBEVF_MAX_RXBUFFER;
+
+	for (i = 0; i < adapter->num_rx_queues; i++)
+		adapter->rx_ring[i].rx_buf_len = rx_buf_len;
 }
 
 /**
@@ -1076,18 +1107,14 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 {
 	u64 rdba;
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
-	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	int i, j;
 	u32 rdlen;
-	int rx_buf_len;
 
 	/* PSRTYPE must be initialized in 82599 */
 	IXGBE_WRITE_REG(hw, IXGBE_VFPSRTYPE, 0);
-	if (netdev->mtu <= ETH_DATA_LEN)
-		rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
-	else
-		rx_buf_len = ALIGN(max_frame, 1024);
+
+	/* set_rx_buffer_len must be called before ring initialization */
+	ixgbevf_set_rx_buffer_len(adapter);
 
 	rdlen = adapter->rx_ring[0].count * sizeof(union ixgbe_adv_rx_desc);
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
@@ -1103,7 +1130,6 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_VFRDT(j), 0);
 		adapter->rx_ring[i].head = IXGBE_VFRDH(j);
 		adapter->rx_ring[i].tail = IXGBE_VFRDT(j);
-		adapter->rx_ring[i].rx_buf_len = rx_buf_len;
 
 		ixgbevf_configure_srrctl(adapter, j);
 	}
@@ -1315,7 +1341,6 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	int i, j = 0;
 	int num_rx_rings = adapter->num_rx_queues;
 	u32 txdctl, rxdctl;
-	u32 msg[2];
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		j = adapter->tx_ring[i].reg_idx;
@@ -1355,10 +1380,6 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 		else
 			hw->mac.ops.set_rar(hw, 0, hw->mac.perm_addr, 0);
 	}
-
-	msg[0] = IXGBE_VF_SET_LPE;
-	msg[1] = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	hw->mbx.ops.write_posted(hw, msg, 2);
 
 	spin_unlock(&adapter->mbx_lock);
 
@@ -1864,6 +1885,22 @@ err_alloc_q_vectors:
 	ixgbevf_reset_interrupt_capability(adapter);
 err_set_interrupt:
 	return err;
+}
+
+/**
+ * ixgbevf_clear_interrupt_scheme - Clear the current interrupt scheme settings
+ * @adapter: board private structure to clear interrupt scheme on
+ *
+ * We go through and clear interrupt specific resources and reset the structure
+ * to pre-load conditions
+ **/
+static void ixgbevf_clear_interrupt_scheme(struct ixgbevf_adapter *adapter)
+{
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+
+	ixgbevf_free_q_vectors(adapter);
+	ixgbevf_reset_interrupt_capability(adapter);
 }
 
 /**
@@ -2860,10 +2897,8 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 	int max_possible_frame = MAXIMUM_ETHERNET_VLAN_SIZE;
-	u32 msg[2];
 
 	if (adapter->hw.mac.type == ixgbe_mac_X540_vf)
 		max_possible_frame = IXGBE_MAX_JUMBO_FRAME_SIZE;
@@ -2877,35 +2912,91 @@ static int ixgbevf_change_mtu(struct net_device *netdev, int new_mtu)
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
 
-	if (!netif_running(netdev)) {
-		msg[0] = IXGBE_VF_SET_LPE;
-		msg[1] = max_frame;
-		hw->mbx.ops.write_posted(hw, msg, 2);
-	}
-
 	if (netif_running(netdev))
 		ixgbevf_reinit_locked(adapter);
 
 	return 0;
 }
 
-static void ixgbevf_shutdown(struct pci_dev *pdev)
+static int ixgbevf_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+#ifdef CONFIG_PM
+	int retval = 0;
+#endif
 
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev)) {
+		rtnl_lock();
 		ixgbevf_down(adapter);
 		ixgbevf_free_irq(adapter);
 		ixgbevf_free_all_tx_resources(adapter);
 		ixgbevf_free_all_rx_resources(adapter);
+		rtnl_unlock();
 	}
 
+	ixgbevf_clear_interrupt_scheme(adapter);
+
+#ifdef CONFIG_PM
+	retval = pci_save_state(pdev);
+	if (retval)
+		return retval;
+
+#endif
+	pci_disable_device(pdev);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int ixgbevf_resume(struct pci_dev *pdev)
+{
+	struct ixgbevf_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev = adapter->netdev;
+	u32 err;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	/*
+	 * pci_restore_state clears dev->state_saved so call
+	 * pci_save_state to restore it.
+	 */
 	pci_save_state(pdev);
 
-	pci_disable_device(pdev);
+	err = pci_enable_device_mem(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "Cannot enable PCI device from suspend\n");
+		return err;
+	}
+	pci_set_master(pdev);
+
+	rtnl_lock();
+	err = ixgbevf_init_interrupt_scheme(adapter);
+	rtnl_unlock();
+	if (err) {
+		dev_err(&pdev->dev, "Cannot initialize interrupts\n");
+		return err;
+	}
+
+	ixgbevf_reset(adapter);
+
+	if (netif_running(netdev)) {
+		err = ixgbevf_open(netdev);
+		if (err)
+			return err;
+	}
+
+	netif_device_attach(netdev);
+
+	return err;
+}
+
+#endif /* CONFIG_PM */
+static void ixgbevf_shutdown(struct pci_dev *pdev)
+{
+	ixgbevf_suspend(pdev, PMSG_SUSPEND);
 }
 
 static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
@@ -2946,7 +3037,7 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
 	return stats;
 }
 
-static const struct net_device_ops ixgbe_netdev_ops = {
+static const struct net_device_ops ixgbevf_netdev_ops = {
 	.ndo_open		= ixgbevf_open,
 	.ndo_stop		= ixgbevf_close,
 	.ndo_start_xmit		= ixgbevf_xmit_frame,
@@ -2962,7 +3053,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)
 {
-	dev->netdev_ops = &ixgbe_netdev_ops;
+	dev->netdev_ops = &ixgbevf_netdev_ops;
 	ixgbevf_set_ethtool_ops(dev);
 	dev->watchdog_timeo = 5 * HZ;
 }
@@ -3131,6 +3222,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	ixgbevf_clear_interrupt_scheme(adapter);
 err_sw_init:
 	ixgbevf_reset_interrupt_capability(adapter);
 	iounmap(hw->hw_addr);
@@ -3168,6 +3260,7 @@ static void __devexit ixgbevf_remove(struct pci_dev *pdev)
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
+	ixgbevf_clear_interrupt_scheme(adapter);
 	ixgbevf_reset_interrupt_capability(adapter);
 
 	iounmap(adapter->hw.hw_addr);
@@ -3267,6 +3360,11 @@ static struct pci_driver ixgbevf_driver = {
 	.id_table = ixgbevf_pci_tbl,
 	.probe    = ixgbevf_probe,
 	.remove   = __devexit_p(ixgbevf_remove),
+#ifdef CONFIG_PM
+	/* Power Management Hooks */
+	.suspend  = ixgbevf_suspend,
+	.resume   = ixgbevf_resume,
+#endif
 	.shutdown = ixgbevf_shutdown,
 	.err_handler = &ixgbevf_err_handler
 };
