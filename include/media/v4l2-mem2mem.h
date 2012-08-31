@@ -140,7 +140,7 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_buffer *vb);
 static inline
 unsigned int v4l2_m2m_num_src_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return m2m_ctx->cap_q_ctx.num_rdy;
+	return m2m_ctx->out_q_ctx.num_rdy;
 }
 
 /**
@@ -150,7 +150,7 @@ unsigned int v4l2_m2m_num_src_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
 static inline
 unsigned int v4l2_m2m_num_dst_bufs_ready(struct v4l2_m2m_ctx *m2m_ctx)
 {
-	return m2m_ctx->out_q_ctx.num_rdy;
+	return m2m_ctx->cap_q_ctx.num_rdy;
 }
 
 void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx);
