@@ -32,8 +32,9 @@
  *   [ComputerBoards] DAS08 (isa-das08), DAS08-PGM (das08-pgm),
  *   DAS08-PGH (das08-pgh), DAS08-PGL (das08-pgl), DAS08-AOH (das08-aoh),
  *   DAS08-AOL (das08-aol), DAS08-AOM (das08-aom), DAS08/JR-AO (das08/jr-ao),
- *   DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (pci-das08 or das08),
+ *   DAS08/JR-16-AO (das08jr-16-ao), PCI-DAS08 (pci-das08),
  *   PC104-DAS08 (pc104-das08), DAS08/JR/16 (das08jr/16)
+ * Updated: Fri, 31 Aug 2012 19:19:06 +0100
  * Status: works
  *
  * This is a rewrite of the das08 and das08jr drivers.
@@ -41,9 +42,8 @@
  * Options (for ISA cards):
  *		[0] - base io address
  *
- * Options (for pci-das08):
- *		[0] - bus  (optional)
- *		[1] = slot (optional)
+ * Manual configuration of PCI cards is not supported; they are
+ * configured automatically.
  *
  * The das08 driver doesn't support asynchronous commands, since
  * the cheap das08 hardware doesn't really support them.  The
@@ -641,11 +641,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.i8254_offset = 4,
 		.iosize = 8,
 	},
-	{ /* wildcard entry matches any supported PCI device */
-		.name = DRV_NAME,
-		.id = PCI_ANY_ID,
-		.bustype = pci,
-	},
 #endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) */
 };
 #endif /* DO_COMEDI_DRIVER_REGISTER */
@@ -818,57 +813,6 @@ das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 	return das08_pci_attach_common(dev, pdev);
 }
 
-static struct pci_dev *das08_find_pci(struct comedi_device *dev,
-				      int bus, int slot)
-{
-	const struct das08_board_struct *thisboard = comedi_board(dev);
-	struct pci_dev *pdev;
-	unsigned int matchid;
-
-	if (bus || slot)
-		dev_dbg(dev->class_dev, "Looking for %s at PCI %02X:%02X\n",
-			thisboard->name, bus, slot);
-	else
-		dev_dbg(dev->class_dev, "Looking for %s on PCI buses\n",
-			thisboard->name);
-
-	matchid = thisboard->id;
-	pdev = NULL;
-	for_each_pci_dev(pdev) {
-		if ((bus || slot) &&
-		    (bus != pdev->bus->number || slot != PCI_SLOT(pdev->devfn)))
-			continue;
-		if (pdev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
-			continue;
-		if (matchid == PCI_ANY_ID) {
-			/* wildcard board matches any supported PCI board */
-			const struct das08_board_struct *foundboard;
-			foundboard = das08_find_pci_board(pdev);
-			if (foundboard == NULL)
-				continue;
-			/* replace wildcard board_ptr */
-			dev->board_ptr = thisboard = foundboard;
-		} else {
-			/* match specific PCI board */
-			if (pdev->device != matchid)
-				continue;
-		}
-		/* found a match */
-		dev_info(dev->class_dev, "Found %s at PCI %s\n",
-			 thisboard->name, pci_name(pdev));
-		return pdev;
-	}
-	/* no match found */
-	if (bus || slot)
-		dev_err(dev->class_dev,
-			"No %s cards found at PCI %02X:%02X\n",
-			thisboard->name, bus, slot);
-	else
-		dev_err(dev->class_dev, "No %s cards found on PCI buses\n",
-			thisboard->name);
-	return NULL;
-}
-
 static int __maybe_unused
 das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -884,11 +828,10 @@ das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, "attach\n");
 	if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && thisboard->bustype == pci) {
-		struct pci_dev *pdev;
-		pdev = das08_find_pci(dev, it->options[0], it->options[1]);
-		if (pdev == NULL)
-			return -EIO;
-		return das08_pci_attach_common(dev, pdev);
+		dev_err(dev->class_dev,
+			"Manual configuration of PCI board '%s' is not supported\n",
+			thisboard->name);
+		return -EIO;
 	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
 		   thisboard->bustype == isa) {
 		iobase = it->options[0];
