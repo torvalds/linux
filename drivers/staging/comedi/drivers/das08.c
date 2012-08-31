@@ -524,7 +524,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ai_encoding = das08_encode12,
 		.di_nchan = 3,
 		.do_nchan = 4,
-		.i8255_offset = 0,
 		.i8254_offset = 0x04,
 		.iosize = 16,		/*  unchecked */
 	},
@@ -536,7 +535,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ai_encoding = das08_encode12,
 		.di_nchan = 3,
 		.do_nchan = 4,
-		.i8255_offset = 0,
 		.i8254_offset = 0x04,
 		.iosize = 16,		/*  unchecked */
 	},
@@ -589,8 +587,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ao_nbits = 12,
 		.di_nchan = 8,
 		.do_nchan = 8,
-		.i8255_offset = 0,
-		.i8254_offset = 0,
 		.iosize = 16,		/*  unchecked */
 	},
 	{
@@ -603,7 +599,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ao_nbits = 16,
 		.di_nchan = 8,
 		.do_nchan = 8,
-		.i8255_offset = 0,
 		.i8254_offset = 0x04,
 		.iosize = 16,		/*  unchecked */
 	},
@@ -615,7 +610,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ai_encoding = das08_encode12,
 		.di_nchan = 3,
 		.do_nchan = 4,
-		.i8255_offset = 0,
 		.i8254_offset = 4,
 		.iosize = 16,		/*  unchecked */
 	},
@@ -636,8 +630,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ai_encoding = das08_encode16,
 		.di_nchan = 8,
 		.do_nchan = 8,
-		.i8255_offset = 0,
-		.i8254_offset = 0,
 		.iosize = 16,		/*  unchecked */
 	},
 #if 0
@@ -659,7 +651,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.ai_encoding = das08_encode12,
 		.di_nchan = 3,
 		.do_nchan = 4,
-		.i8255_offset = 0,
 		.i8254_offset = 4,
 		.iosize = 8,
 	},
@@ -683,8 +674,6 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 		.ai_encoding = das08_pcm_encode12,
 		.di_nchan = 3,
 		.do_nchan = 3,
-		.i8255_offset = 0,
-		.i8254_offset = 0,
 		.iosize = 16,
 	},
 	/*  duplicate so driver name can be used also */
@@ -697,8 +686,6 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 		.ai_encoding = das08_pcm_encode12,
 		.di_nchan = 3,
 		.do_nchan = 3,
-		.i8255_offset = 0,
-		.i8254_offset = 0,
 		.iosize = 16,
 	},
 };
