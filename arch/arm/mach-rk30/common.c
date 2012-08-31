@@ -120,7 +120,7 @@ int __init clk_disable_unused(void);
 void __init rk30_map_io(void)
 {
 	rk30_map_common_io();
-#ifdef DEBUG_UART_BASE
+#if defined(CONFIG_ARCH_RK3066B) && defined(DEBUG_UART_BASE)
 	writel_relaxed(0x000f0005, RK30_GRF_BASE + 0x74);
 	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
 	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
@@ -135,8 +135,10 @@ void __init rk30_map_io(void)
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();
+#if !defined(CONFIG_ARCH_RK3066B)
 	ddr_init(DDR_TYPE, DDR_FREQ);
 	clk_disable_unused();
+#endif
 	rk30_iomux_init();
 	rk30_boot_mode_init();
 }
