@@ -35,6 +35,7 @@ struct das08_board_struct {
 	const char *name;
 	unsigned int id;	/*  id for pci/pcmcia boards */
 	enum das08_bustype bustype;
+	bool is_jr;		/* true for 'JR' boards */
 	void *ai;
 	unsigned int ai_nbits;
 	enum das08_lrange ai_pg;

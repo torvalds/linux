@@ -611,6 +611,7 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08/jr-ao",	/*  cio-das08-jr-ao.pdf */
 		.bustype = isa,
+		.is_jr = true,
 		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pg_none,
@@ -628,6 +629,7 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08jr-16-ao",	/*  cio-das08jr-16-ao.pdf */
 		.bustype = isa,
+		.is_jr = true,
 		.ai = das08_ai_rinsn,
 		.ai_nbits = 16,
 		.ai_pg = das08_pg_none,
@@ -670,6 +672,7 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08jr/16",
 		.bustype = isa,
+		.is_jr = true,
 		.ai = das08_ai_rinsn,
 		.ai_nbits = 16,
 		.ai_pg = das08_pg_none,
