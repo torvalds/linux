@@ -373,6 +373,7 @@ static void das08_ao_set_data(struct comedi_device *dev,
 			      unsigned int chan, unsigned int data)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
+	struct das08_private_struct *devpriv = dev->private;
 	unsigned char lsb;
 	unsigned char msb;
 
@@ -389,6 +390,7 @@ static void das08_ao_set_data(struct comedi_device *dev,
 		/* load DACs */
 		inb(dev->iobase + DAS08AO_AO_UPDATE);
 	}
+	devpriv->ao_readback[chan] = data;
 }
 
 static void das08_ao_initialize(struct comedi_device *dev,
@@ -413,6 +415,22 @@ static int das08_ao_winsn(struct comedi_device *dev,
 
 	for (n = 0; n < insn->n; n++)
 		das08_ao_set_data(dev, chan, *data);
+
+	return n;
+}
+
+static int das08_ao_rinsn(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
+{
+	struct das08_private_struct *devpriv = dev->private;
+	unsigned int n;
+	unsigned int chan;
+
+	chan = CR_CHAN(insn->chanspec);
+
+	for (n = 0; n < insn->n; n++)
+		data[n] = devpriv->ao_readback[chan];
 
 	return n;
 }
@@ -670,12 +688,12 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	/* ao */
 	if (thisboard->ao_nbits) {
 		s->type = COMEDI_SUBD_AO;
-/* XXX lacks read-back insn */
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
 		s->insn_write = das08_ao_winsn;
+		s->insn_read = das08_ao_rinsn;
 		das08_ao_initialize(dev, s);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
