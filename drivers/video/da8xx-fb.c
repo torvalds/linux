@@ -988,7 +988,8 @@ static int lcd_da8xx_cpufreq_transition(struct notifier_block *nb,
 			par->lcd_fck_rate = clk_get_rate(par->lcdc_clk);
 			lcd_disable_raster(true);
 			lcd_calc_clk_divider(par);
-			lcd_enable_raster();
+			if (par->blank == FB_BLANK_UNBLANK)
+				lcd_enable_raster();
 		}
 	}
 
@@ -1514,10 +1515,12 @@ static int fb_resume(struct platform_device *dev)
 
 	console_lock();
 	clk_enable(par->lcdc_clk);
-	lcd_enable_raster();
+	if (par->blank == FB_BLANK_UNBLANK) {
+		lcd_enable_raster();
 
-	if (par->panel_power_ctrl)
-		par->panel_power_ctrl(1);
+		if (par->panel_power_ctrl)
+			par->panel_power_ctrl(1);
+	}
 
 	fb_set_suspend(info, 0);
 	console_unlock();
