@@ -2,16 +2,7 @@
 #include <asm/visasm.h>
 #include <asm/asi.h>
 
-#define F3F(x,y,z)	(((x)<<30)|((y)<<19)|((z)<<5))
-
-#define FPD_ENCODE(x)	(((x) >> 5) | ((x) & ~(0x20)))
-
-#define RS1(x)		(FPD_ENCODE(x) << 14)
-#define RS2(x)		(FPD_ENCODE(x) <<  0)
-#define RD(x)		(FPD_ENCODE(x) << 25)
-
-#define CRC32C(a,b,c)	\
-	.word		(F3F(2,0x36,0x147)|RS1(a)|RS2(b)|RD(c));
+#include "opcodes.h"
 
 ENTRY(crc32c_sparc64)
 	/* %o0=crc32p, %o1=data_ptr, %o2=len */

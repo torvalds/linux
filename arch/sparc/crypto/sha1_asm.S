@@ -1,6 +1,8 @@
 #include <linux/linkage.h>
 #include <asm/visasm.h>
 
+#include "opcodes.h"
+
 ENTRY(sha1_sparc64_transform)
 	/* %o0 = digest, %o1 = data, %o2 = rounds */
 	VISEntryHalf
@@ -22,8 +24,7 @@ ENTRY(sha1_sparc64_transform)
 	ldd	[%o1 + 0x30], %f20
 	ldd	[%o1 + 0x38], %f22
 
-	/* sha1 */
-	.word	0x81b02820
+	SHA1
 
 	subcc	%o2, 1, %o2
 	bne,pt	%xcc, 1b
@@ -60,8 +61,7 @@ ENTRY(sha1_sparc64_transform)
 	faligndata %f22, %f24, %f20
 	faligndata %f24, %f26, %f22
 
-	/* sha1 */
-	.word	0x81b02820
+	SHA1
 
 	subcc	%o2, 1, %o2
 	fsrc2	%f26, %f10

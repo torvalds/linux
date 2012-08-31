@@ -1,27 +1,7 @@
 #include <linux/linkage.h>
 #include <asm/visasm.h>
 
-#define F3F(x,y,z)	(((x)<<30)|((y)<<19)|((z)<<5))
-
-#define FPD_ENCODE(x)	(((x) >> 5) | ((x) & ~(0x20)))
-
-#define RS1(x)		(FPD_ENCODE(x) << 14)
-#define RS2(x)		(FPD_ENCODE(x) <<  0)
-#define RS3(x)		(FPD_ENCODE(x) <<  9)
-#define RD(x)		(FPD_ENCODE(x) << 25)
-#define IMM5(x)		((x)           <<  0)
-
-#define CAMELLIA_F(a,b,c,d)		\
-	.word		(F3F(2, 0x19, 0x00c)|RS1(a)|RS2(b)|RS3(c)|RD(d));
-#define CAMELLIA_FL(a,b,c)		\
-	.word		(F3F(2, 0x36, 0x13c)|RS1(a)|RS2(b)|RD(c));
-#define CAMELLIA_FLI(a,b,c)		\
-	.word		(F3F(2, 0x36, 0x13d)|RS1(a)|RS2(b)|RD(c));
-
-#define MOVDTOX_F0_O4	\
-	.word	0x99b02200
-#define MOVDTOX_F2_O5	\
-	.word	0x9bb02202
+#include "opcodes.h"
 
 #define CAMELLIA_6ROUNDS(KEY_BASE, I0, I1) \
 	CAMELLIA_F(KEY_BASE +  0, I1, I0, I1) \

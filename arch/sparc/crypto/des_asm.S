@@ -1,29 +1,7 @@
 #include <linux/linkage.h>
 #include <asm/visasm.h>
 
-#define F3F(x,y,z)	(((x)<<30)|((y)<<19)|((z)<<5))
-
-#define FPD_ENCODE(x)	(((x) >> 5) | ((x) & ~(0x20)))
-
-#define RS1(x)		(FPD_ENCODE(x) << 14)
-#define RS2(x)		(FPD_ENCODE(x) <<  0)
-#define RS3(x)		(FPD_ENCODE(x) <<  9)
-#define RD(x)		(FPD_ENCODE(x) << 25)
-#define IMM5(x)		((x)           <<  0)
-
-#define DES_IP(a,b)		\
-	.word		(F3F(2, 0x36, 0x134)|RS1(a)|RD(b));
-#define DES_IIP(a,b)		\
-	.word		(F3F(2, 0x36, 0x135)|RS1(a)|RD(b));
-#define DES_KEXPAND(a,b,c)	\
-	.word		(F3F(2, 0x36, 0x136)|RS1(a)|IMM5(b)|RD(c));
-#define DES_ROUND(a,b,c,d)	\
-	.word		(F3F(2, 0x19, 0x009)|RS1(a)|RS2(b)|RS3(c)|RD(d));
-
-#define MOVXTOD_G1_F60 \
-	.word		0xbbb02301
-#define MOVXTOD_G1_F62 \
-	.word		0xbfb02301
+#include "opcodes.h"
 
 	.align	32
 ENTRY(des_sparc64_key_expand)
