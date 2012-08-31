@@ -2489,7 +2489,7 @@ static const struct drm_encoder_funcs radeon_atom_enc_funcs = {
 	.destroy = radeon_enc_destroy,
 };
 
-struct radeon_encoder_atom_dac *
+static struct radeon_encoder_atom_dac *
 radeon_atombios_set_dac_info(struct radeon_encoder *radeon_encoder)
 {
 	struct drm_device *dev = radeon_encoder->base.dev;
@@ -2503,7 +2503,7 @@ radeon_atombios_set_dac_info(struct radeon_encoder *radeon_encoder)
 	return dac;
 }
 
-struct radeon_encoder_atom_dig *
+static struct radeon_encoder_atom_dig *
 radeon_atombios_set_dig_info(struct radeon_encoder *radeon_encoder)
 {
 	int encoder_enum = (radeon_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;

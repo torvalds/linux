@@ -3319,7 +3319,7 @@ static void combios_write_ram_size(struct drm_device *dev)
 	WREG32(RADEON_CONFIG_MEMSIZE, mem_size);
 }
 
-void radeon_combios_dyn_clk_setup(struct drm_device *dev, int enable)
+static void radeon_combios_dyn_clk_setup(struct drm_device *dev, int enable)
 {
 	uint16_t dyn_clk_info =
 	    combios_get_table_offset(dev, COMBIOS_DYN_CLK_1_TABLE);

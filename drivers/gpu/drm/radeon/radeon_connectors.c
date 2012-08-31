@@ -194,7 +194,7 @@ radeon_connector_update_scratch_regs(struct drm_connector *connector, enum drm_c
 	}
 }
 
-struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, int encoder_type)
+static struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, int encoder_type)
 {
 	struct drm_mode_object *obj;
 	struct drm_encoder *encoder;
@@ -215,7 +215,7 @@ struct drm_encoder *radeon_find_encoder(struct drm_connector *connector, int enc
 	return NULL;
 }
 
-struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector)
+static struct drm_encoder *radeon_best_single_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
 	struct drm_mode_object *obj;
@@ -366,7 +366,7 @@ static void radeon_add_common_modes(struct drm_encoder *encoder, struct drm_conn
 	}
 }
 
-int radeon_connector_set_property(struct drm_connector *connector, struct drm_property *property,
+static int radeon_connector_set_property(struct drm_connector *connector, struct drm_property *property,
 				  uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
@@ -687,13 +687,13 @@ static int radeon_lvds_set_property(struct drm_connector *connector,
 }
 
 
-struct drm_connector_helper_funcs radeon_lvds_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs radeon_lvds_connector_helper_funcs = {
 	.get_modes = radeon_lvds_get_modes,
 	.mode_valid = radeon_lvds_mode_valid,
 	.best_encoder = radeon_best_single_encoder,
 };
 
-struct drm_connector_funcs radeon_lvds_connector_funcs = {
+static const struct drm_connector_funcs radeon_lvds_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = radeon_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -805,13 +805,13 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 	return ret;
 }
 
-struct drm_connector_helper_funcs radeon_vga_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs radeon_vga_connector_helper_funcs = {
 	.get_modes = radeon_vga_get_modes,
 	.mode_valid = radeon_vga_mode_valid,
 	.best_encoder = radeon_best_single_encoder,
 };
 
-struct drm_connector_funcs radeon_vga_connector_funcs = {
+static const struct drm_connector_funcs radeon_vga_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = radeon_vga_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -875,13 +875,13 @@ radeon_tv_detect(struct drm_connector *connector, bool force)
 	return ret;
 }
 
-struct drm_connector_helper_funcs radeon_tv_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs radeon_tv_connector_helper_funcs = {
 	.get_modes = radeon_tv_get_modes,
 	.mode_valid = radeon_tv_mode_valid,
 	.best_encoder = radeon_best_single_encoder,
 };
 
-struct drm_connector_funcs radeon_tv_connector_funcs = {
+static const struct drm_connector_funcs radeon_tv_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = radeon_tv_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -1085,7 +1085,7 @@ out:
 }
 
 /* okay need to be smart in here about which encoder to pick */
-struct drm_encoder *radeon_dvi_encoder(struct drm_connector *connector)
+static struct drm_encoder *radeon_dvi_encoder(struct drm_connector *connector)
 {
 	int enc_id = connector->encoder_ids[0];
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -1175,13 +1175,13 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-struct drm_connector_helper_funcs radeon_dvi_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs radeon_dvi_connector_helper_funcs = {
 	.get_modes = radeon_dvi_get_modes,
 	.mode_valid = radeon_dvi_mode_valid,
 	.best_encoder = radeon_dvi_encoder,
 };
 
-struct drm_connector_funcs radeon_dvi_connector_funcs = {
+static const struct drm_connector_funcs radeon_dvi_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = radeon_dvi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -1458,13 +1458,13 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 	}
 }
 
-struct drm_connector_helper_funcs radeon_dp_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs radeon_dp_connector_helper_funcs = {
 	.get_modes = radeon_dp_get_modes,
 	.mode_valid = radeon_dp_mode_valid,
 	.best_encoder = radeon_dvi_encoder,
 };
 
-struct drm_connector_funcs radeon_dp_connector_funcs = {
+static const struct drm_connector_funcs radeon_dp_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.detect = radeon_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

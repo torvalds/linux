@@ -43,7 +43,7 @@
 
 #include "rs600_reg_safe.h"
 
-void rs600_gpu_init(struct radeon_device *rdev);
+static void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
 static const u32 crtc_offsets[2] =
@@ -432,7 +432,7 @@ void rs600_gart_tlb_flush(struct radeon_device *rdev)
 	tmp = RREG32_MC(R_000100_MC_PT0_CNTL);
 }
 
-int rs600_gart_init(struct radeon_device *rdev)
+static int rs600_gart_init(struct radeon_device *rdev)
 {
 	int r;
 
@@ -514,7 +514,7 @@ static int rs600_gart_enable(struct radeon_device *rdev)
 	return 0;
 }
 
-void rs600_gart_disable(struct radeon_device *rdev)
+static void rs600_gart_disable(struct radeon_device *rdev)
 {
 	u32 tmp;
 
@@ -525,7 +525,7 @@ void rs600_gart_disable(struct radeon_device *rdev)
 	radeon_gart_table_vram_unpin(rdev);
 }
 
-void rs600_gart_fini(struct radeon_device *rdev)
+static void rs600_gart_fini(struct radeon_device *rdev)
 {
 	radeon_gart_fini(rdev);
 	rs600_gart_disable(rdev);
@@ -753,7 +753,7 @@ int rs600_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void rs600_gpu_init(struct radeon_device *rdev)
+static void rs600_gpu_init(struct radeon_device *rdev)
 {
 	r420_pipes_init(rdev);
 	/* Wait for mc idle */
@@ -761,7 +761,7 @@ void rs600_gpu_init(struct radeon_device *rdev)
 		dev_warn(rdev->dev, "Wait MC idle timeout before updating MC.\n");
 }
 
-void rs600_mc_init(struct radeon_device *rdev)
+static void rs600_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
 
@@ -823,7 +823,7 @@ void rs600_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	WREG32(R_000074_MC_IND_DATA, v);
 }
 
-void rs600_debugfs(struct radeon_device *rdev)
+static void rs600_debugfs(struct radeon_device *rdev)
 {
 	if (r100_debugfs_rbbm_init(rdev))
 		DRM_ERROR("Failed to register debugfs file for RBBM !\n");

@@ -98,7 +98,7 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
 /* r600,rv610,rv630,rv620,rv635,rv670 */
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
-void r600_gpu_init(struct radeon_device *rdev);
+static void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
@@ -881,7 +881,7 @@ int r600_pcie_gart_init(struct radeon_device *rdev)
 	return radeon_gart_table_vram_alloc(rdev);
 }
 
-int r600_pcie_gart_enable(struct radeon_device *rdev)
+static int r600_pcie_gart_enable(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int r, i;
@@ -938,7 +938,7 @@ int r600_pcie_gart_enable(struct radeon_device *rdev)
 	return 0;
 }
 
-void r600_pcie_gart_disable(struct radeon_device *rdev)
+static void r600_pcie_gart_disable(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int i;
@@ -971,14 +971,14 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 	radeon_gart_table_vram_unpin(rdev);
 }
 
-void r600_pcie_gart_fini(struct radeon_device *rdev)
+static void r600_pcie_gart_fini(struct radeon_device *rdev)
 {
 	radeon_gart_fini(rdev);
 	r600_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
 }
 
-void r600_agp_enable(struct radeon_device *rdev)
+static void r600_agp_enable(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int i;
@@ -1158,7 +1158,7 @@ static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc 
 	}
 }
 
-int r600_mc_init(struct radeon_device *rdev)
+static int r600_mc_init(struct radeon_device *rdev)
 {
 	u32 tmp;
 	int chansize, numchan;
@@ -1258,7 +1258,7 @@ void r600_vram_scratch_fini(struct radeon_device *rdev)
  * reset, it's up to the caller to determine if the GPU needs one. We
  * might add an helper function to check that.
  */
-int r600_gpu_soft_reset(struct radeon_device *rdev)
+static int r600_gpu_soft_reset(struct radeon_device *rdev)
 {
 	struct rv515_mc_save save;
 	u32 grbm_busy_mask = S_008010_VC_BUSY(1) | S_008010_VGT_BUSY_NO_DMA(1) |
@@ -1433,7 +1433,7 @@ int r600_count_pipe_bits(uint32_t val)
 	return ret;
 }
 
-void r600_gpu_init(struct radeon_device *rdev)
+static void r600_gpu_init(struct radeon_device *rdev)
 {
 	u32 tiling_config;
 	u32 ramcfg;
@@ -2347,7 +2347,7 @@ void r600_clear_surface_reg(struct radeon_device *rdev, int reg)
 	/* FIXME: implement */
 }
 
-int r600_startup(struct radeon_device *rdev)
+static int r600_startup(struct radeon_device *rdev)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;

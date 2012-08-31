@@ -32,7 +32,7 @@
 void r100_cs_dump_packet(struct radeon_cs_parser *p,
 			 struct radeon_cs_packet *pkt);
 
-int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
+static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 {
 	struct drm_device *ddev = p->rdev->ddev;
 	struct radeon_cs_chunk *chunk;

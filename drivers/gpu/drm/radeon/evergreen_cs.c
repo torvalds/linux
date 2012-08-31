@@ -995,7 +995,7 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
  * Assume that chunk_ib_index is properly set. Will return -EINVAL
  * if packet is bigger than remaining ib size. or if packets is unknown.
  **/
-int evergreen_cs_packet_parse(struct radeon_cs_parser *p,
+static int evergreen_cs_packet_parse(struct radeon_cs_parser *p,
 			      struct radeon_cs_packet *pkt,
 			      unsigned idx)
 {

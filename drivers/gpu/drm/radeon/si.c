@@ -2364,7 +2364,7 @@ void si_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	WREG32(VM_INVALIDATE_REQUEST, 1);
 }
 
-int si_pcie_gart_enable(struct radeon_device *rdev)
+static int si_pcie_gart_enable(struct radeon_device *rdev)
 {
 	int r, i;
 
@@ -2437,7 +2437,7 @@ int si_pcie_gart_enable(struct radeon_device *rdev)
 	return 0;
 }
 
-void si_pcie_gart_disable(struct radeon_device *rdev)
+static void si_pcie_gart_disable(struct radeon_device *rdev)
 {
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
@@ -2456,7 +2456,7 @@ void si_pcie_gart_disable(struct radeon_device *rdev)
 	radeon_gart_table_vram_unpin(rdev);
 }
 
-void si_pcie_gart_fini(struct radeon_device *rdev)
+static void si_pcie_gart_fini(struct radeon_device *rdev)
 {
 	si_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);

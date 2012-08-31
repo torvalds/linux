@@ -842,7 +842,7 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
  * Validates certain module parameters and updates
  * the associated values used by the driver (all asics).
  */
-void radeon_check_arguments(struct radeon_device *rdev)
+static void radeon_check_arguments(struct radeon_device *rdev)
 {
 	/* vramlimit must be a power of two */
 	switch (radeon_vram_limit) {

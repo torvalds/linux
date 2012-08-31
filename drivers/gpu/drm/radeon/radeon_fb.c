@@ -317,7 +317,7 @@ static int radeon_fb_find_or_create_single(struct drm_fb_helper *helper,
 }
 
 static char *mode_option;
-int radeon_parse_options(char *options)
+static int radeon_parse_options(char *options)
 {
 	char *this_opt;
 

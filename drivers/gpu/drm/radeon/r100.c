@@ -2513,7 +2513,7 @@ void r100_cs_track_clear(struct radeon_device *rdev, struct r100_cs_track *track
 /*
  * Global GPU functions
  */
-void r100_errata(struct radeon_device *rdev)
+static void r100_errata(struct radeon_device *rdev)
 {
 	rdev->pll_errata = 0;
 
@@ -2529,7 +2529,7 @@ void r100_errata(struct radeon_device *rdev)
 }
 
 /* Wait for vertical sync on primary CRTC */
-void r100_gpu_wait_for_vsync(struct radeon_device *rdev)
+static void r100_gpu_wait_for_vsync(struct radeon_device *rdev)
 {
 	uint32_t crtc_gen_cntl, tmp;
 	int i;
@@ -2551,7 +2551,7 @@ void r100_gpu_wait_for_vsync(struct radeon_device *rdev)
 }
 
 /* Wait for vertical sync on secondary CRTC */
-void r100_gpu_wait_for_vsync2(struct radeon_device *rdev)
+static void r100_gpu_wait_for_vsync2(struct radeon_device *rdev)
 {
 	uint32_t crtc2_gen_cntl, tmp;
 	int i;
@@ -2572,7 +2572,7 @@ void r100_gpu_wait_for_vsync2(struct radeon_device *rdev)
 	}
 }
 
-int r100_rbbm_fifo_wait_for_entry(struct radeon_device *rdev, unsigned n)
+static int r100_rbbm_fifo_wait_for_entry(struct radeon_device *rdev, unsigned n)
 {
 	unsigned i;
 	uint32_t tmp;
@@ -2933,7 +2933,7 @@ void r100_vga_set_state(struct radeon_device *rdev, bool state)
 	WREG32(RADEON_CONFIG_CNTL, temp);
 }
 
-void r100_mc_init(struct radeon_device *rdev)
+static void r100_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
 
@@ -3005,7 +3005,7 @@ void r100_pll_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 	r100_pll_errata_after_data(rdev);
 }
 
-void r100_set_safe_registers(struct radeon_device *rdev)
+static void r100_set_safe_registers(struct radeon_device *rdev)
 {
 	if (ASIC_IS_RN50(rdev)) {
 		rdev->config.r100.reg_safe_bm = rn50_reg_safe_bm;
@@ -3947,7 +3947,7 @@ static void r100_mc_program(struct radeon_device *rdev)
 	r100_mc_resume(rdev, &save);
 }
 
-void r100_clock_startup(struct radeon_device *rdev)
+static void r100_clock_startup(struct radeon_device *rdev)
 {
 	u32 tmp;
 

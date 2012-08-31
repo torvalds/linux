@@ -726,7 +726,7 @@ void cayman_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	WREG32(VM_INVALIDATE_REQUEST, 1);
 }
 
-int cayman_pcie_gart_enable(struct radeon_device *rdev)
+static int cayman_pcie_gart_enable(struct radeon_device *rdev)
 {
 	int i, r;
 
@@ -793,7 +793,7 @@ int cayman_pcie_gart_enable(struct radeon_device *rdev)
 	return 0;
 }
 
-void cayman_pcie_gart_disable(struct radeon_device *rdev)
+static void cayman_pcie_gart_disable(struct radeon_device *rdev)
 {
 	/* Disable all tables */
 	WREG32(VM_CONTEXT0_CNTL, 0);
@@ -813,7 +813,7 @@ void cayman_pcie_gart_disable(struct radeon_device *rdev)
 	radeon_gart_table_vram_unpin(rdev);
 }
 
-void cayman_pcie_gart_fini(struct radeon_device *rdev)
+static void cayman_pcie_gart_fini(struct radeon_device *rdev)
 {
 	cayman_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
@@ -1005,7 +1005,7 @@ static void cayman_cp_fini(struct radeon_device *rdev)
 	radeon_scratch_free(rdev, ring->rptr_save_reg);
 }
 
-int cayman_cp_resume(struct radeon_device *rdev)
+static int cayman_cp_resume(struct radeon_device *rdev)
 {
 	static const int ridx[] = {
 		RADEON_RING_TYPE_GFX_INDEX,

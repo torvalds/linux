@@ -43,7 +43,7 @@
  * produce command buffers which are send to the kernel and
  * put in IBs for execution by the requested ring.
  */
-int radeon_debugfs_sa_init(struct radeon_device *rdev);
+static int radeon_debugfs_sa_init(struct radeon_device *rdev);
 
 /**
  * radeon_ib_get - request an IB (Indirect Buffer)
@@ -291,7 +291,7 @@ int radeon_ib_ring_tests(struct radeon_device *rdev)
  * wptr.  The GPU then starts fetching commands and executes
  * them until the pointers are equal again.
  */
-int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
+static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
 /**
  * radeon_ring_write - write a value to the ring
@@ -819,7 +819,7 @@ static struct drm_info_list radeon_debugfs_sa_list[] = {
 
 #endif
 
-int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
+static int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
 	unsigned i;
@@ -839,7 +839,7 @@ int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *rin
 	return 0;
 }
 
-int radeon_debugfs_sa_init(struct radeon_device *rdev)
+static int radeon_debugfs_sa_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
 	return radeon_debugfs_add_files(rdev, radeon_debugfs_sa_list, 1);
