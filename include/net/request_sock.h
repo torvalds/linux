@@ -226,19 +226,6 @@ static inline struct request_sock *reqsk_queue_remove(struct request_sock_queue 
 	return req;
 }
 
-static inline struct sock *reqsk_queue_get_child(struct request_sock_queue *queue,
-						 struct sock *parent)
-{
-	struct request_sock *req = reqsk_queue_remove(queue);
-	struct sock *child = req->sk;
-
-	WARN_ON(child == NULL);
-
-	sk_acceptq_removed(parent);
-	__reqsk_free(req);
-	return child;
-}
-
 static inline int reqsk_queue_removed(struct request_sock_queue *queue,
 				      struct request_sock *req)
 {

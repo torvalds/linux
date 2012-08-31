@@ -424,7 +424,8 @@ extern enum tcp_tw_status tcp_timewait_state_process(struct inet_timewait_sock *
 						     const struct tcphdr *th);
 extern struct sock * tcp_check_req(struct sock *sk,struct sk_buff *skb,
 				   struct request_sock *req,
-				   struct request_sock **prev);
+				   struct request_sock **prev,
+				   bool fastopen);
 extern int tcp_child_process(struct sock *parent, struct sock *child,
 			     struct sk_buff *skb);
 extern bool tcp_use_frto(struct sock *sk);
@@ -478,7 +479,8 @@ extern int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int tcp_connect(struct sock *sk);
 extern struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 					struct request_sock *req,
-					struct request_values *rvp);
+					struct request_values *rvp,
+					struct tcp_fastopen_cookie *foc);
 extern int tcp_disconnect(struct sock *sk, int flags);
 
 void tcp_connect_init(struct sock *sk);
