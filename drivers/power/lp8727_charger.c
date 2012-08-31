@@ -90,6 +90,7 @@ struct lp8727_chg {
 	struct lp8727_chg_param *chg_parm;
 	enum lp8727_dev_id devid;
 	unsigned long debounce_jiffies;
+	int irq;
 };
 
 static int lp8727_read_bytes(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
@@ -241,21 +242,39 @@ static irqreturn_t lp8727_isr_func(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
-static int lp8727_intr_config(struct lp8727_chg *pchg)
+static int lp8727_setup_irq(struct lp8727_chg *pchg)
 {
+	int ret;
+	int irq = pchg->client->irq;
 	unsigned delay_msec = pchg->pdata ? pchg->pdata->debounce_msec :
 						DEFAULT_DEBOUNCE_MSEC;
 
 	INIT_DELAYED_WORK(&pchg->work, lp8727_delayed_func);
 
+	if (irq <= 0) {
+		dev_warn(pchg->dev, "invalid irq number: %d\n", irq);
+		return 0;
+	}
+
+	ret = request_threaded_irq(irq,	NULL, lp8727_isr_func,
+				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				"lp8727_irq", pchg);
+
+	if (ret)
+		return ret;
+
+	pchg->irq = irq;
 	pchg->debounce_jiffies = msecs_to_jiffies(delay_msec);
 
-	return request_threaded_irq(pchg->client->irq,
-				NULL,
-				lp8727_isr_func,
-				IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				"lp8727_irq",
-				pchg);
+	return 0;
+}
+
+static void lp8727_release_irq(struct lp8727_chg *pchg)
+{
+	cancel_delayed_work_sync(&pchg->work);
+
+	if (pchg->irq)
+		free_irq(pchg->irq, pchg);
 }
 
 static enum power_supply_property lp8727_charger_prop[] = {
@@ -462,7 +481,7 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	ret = lp8727_intr_config(pchg);
+	ret = lp8727_setup_irq(pchg);
 	if (ret) {
 		dev_err(pchg->dev, "irq handler err: %d", ret);
 		lp8727_unregister_psy(pchg);
@@ -476,7 +495,7 @@ static int __devexit lp8727_remove(struct i2c_client *cl)
 {
 	struct lp8727_chg *pchg = i2c_get_clientdata(cl);
 
-	free_irq(pchg->client->irq, pchg);
+	lp8727_release_irq(pchg);
 	lp8727_unregister_psy(pchg);
 	return 0;
 }
