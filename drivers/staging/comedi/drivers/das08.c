@@ -383,13 +383,8 @@ das08jr_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
-#if 0
-		outb(lsb, dev->iobase + devpriv->ao_offset_lsb[chan]);
-		outb(msb, dev->iobase + devpriv->ao_offset_msb[chan]);
-#else
 		outb(lsb, dev->iobase + DAS08JR_AO_LSB(chan));
 		outb(msb, dev->iobase + DAS08JR_AO_MSB(chan));
-#endif
 
 		/* load DACs */
 		inb(dev->iobase + DAS08JR_DIO);
@@ -418,13 +413,8 @@ das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	chan = CR_CHAN(insn->chanspec);
 
 	for (n = 0; n < insn->n; n++) {
-#if 0
-		outb(lsb, dev->iobase + devpriv->ao_offset_lsb[chan]);
-		outb(msb, dev->iobase + devpriv->ao_offset_msb[chan]);
-#else
 		outb(lsb, dev->iobase + DAS08AO_AO_LSB(chan));
 		outb(msb, dev->iobase + DAS08AO_AO_MSB(chan));
-#endif
 
 		/* load DACs */
 		inb(dev->iobase + DAS08AO_AO_UPDATE);
@@ -613,14 +603,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.i8254_offset = 4,
 		.iosize = 16,		/*  unchecked */
 	},
-#if 0
-	{
-		.name = "das08/f",
-	},
-	{
-		.name = "das08jr",
-	},
-#endif
 	{
 		.name = "das08jr/16",
 		.bustype = isa,
@@ -632,14 +614,6 @@ static const struct das08_board_struct das08_boards[] = {
 		.do_nchan = 8,
 		.iosize = 16,		/*  unchecked */
 	},
-#if 0
-	{
-		.name = "das48-pga",	/*  cio-das48-pga.pdf */
-	},
-	{
-		.name = "das08-pga-g2",	/*  a KM board */
-	},
-#endif
 #endif /* IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) */
 #if IS_ENABLED(CONFIG_COMEDI_DAS08_PCI)
 	{
@@ -794,17 +768,6 @@ static int das08_pci_attach_common(struct comedi_device *dev,
 	dev_info(dev->class_dev, "pcibase 0x%lx  iobase 0x%lx\n",
 		 pci_iobase, iobase);
 	devpriv->pci_iobase = pci_iobase;
-#if 0
-	/* We could enable pci-das08's interrupt here to make it possible
-	* to do timed input in this driver, but there is little point since
-	* conversions would have to be started by the interrupt handler
-	* so you might as well use comedi_rt_timer to emulate commands
-	*/
-	/* set source of interrupt trigger to counter2 output */
-	outb(CNTRL_INTR | CNTRL_DIR, pci_iobase + CNTRL);
-	/* Enable local interrupt 1 and pci interrupt */
-	outw(INTR1_ENABLE | PCI_INTR_ENABLE, pci_iobase + INTCSR);
-#endif
 	return das08_common_attach(dev, iobase);
 }
 
