@@ -85,7 +85,6 @@ struct lp8727_chg {
 	struct i2c_client *client;
 	struct mutex xfer_lock;
 	struct delayed_work work;
-	struct workqueue_struct *irqthread;
 	struct lp8727_platform_data *pdata;
 	struct lp8727_psy *psy;
 	struct lp8727_chg_param *chg_parm;
@@ -238,9 +237,7 @@ static irqreturn_t lp8727_isr_func(int irq, void *ptr)
 {
 	struct lp8727_chg *pchg = ptr;
 
-	queue_delayed_work(pchg->irqthread, &pchg->work,
-					pchg->debounce_jiffies);
-
+	schedule_delayed_work(&pchg->work, pchg->debounce_jiffies);
 	return IRQ_HANDLED;
 }
 
@@ -250,12 +247,6 @@ static int lp8727_intr_config(struct lp8727_chg *pchg)
 						DEFAULT_DEBOUNCE_MSEC;
 
 	INIT_DELAYED_WORK(&pchg->work, lp8727_delayed_func);
-
-	pchg->irqthread = create_singlethread_workqueue("lp8727-irqthd");
-	if (!pchg->irqthread) {
-		dev_err(pchg->dev, "can not create thread for lp8727\n");
-		return -ENOMEM;
-	}
 
 	pchg->debounce_jiffies = msecs_to_jiffies(delay_msec);
 
@@ -486,8 +477,6 @@ static int __devexit lp8727_remove(struct i2c_client *cl)
 	struct lp8727_chg *pchg = i2c_get_clientdata(cl);
 
 	free_irq(pchg->client->irq, pchg);
-	flush_workqueue(pchg->irqthread);
-	destroy_workqueue(pchg->irqthread);
 	lp8727_unregister_psy(pchg);
 	return 0;
 }
