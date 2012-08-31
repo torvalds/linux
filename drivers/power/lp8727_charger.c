@@ -91,7 +91,7 @@ struct lp8727_chg {
 	struct delayed_work work;
 	struct lp8727_platform_data *pdata;
 	struct lp8727_psy *psy;
-	struct lp8727_chg_param *chg_parm;
+	struct lp8727_chg_param *chg_param;
 	enum lp8727_dev_id devid;
 	unsigned long debounce_jiffies;
 	int irq;
@@ -183,14 +183,14 @@ static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
 	switch (id) {
 	case 0x5:
 		devid = LP8727_ID_TA;
-		pchg->chg_parm = pdata ? pdata->ac : NULL;
+		pchg->chg_param = pdata ? pdata->ac : NULL;
 		break;
 	case 0xB:
 		if (lp8727_is_dedicated_charger(pchg)) {
-			pchg->chg_parm = pdata ? pdata->ac : NULL;
+			pchg->chg_param = pdata ? pdata->ac : NULL;
 			devid = LP8727_ID_DEDICATED_CHG;
 		} else if (lp8727_is_usb_charger(pchg)) {
-			pchg->chg_parm = pdata ? pdata->usb : NULL;
+			pchg->chg_param = pdata ? pdata->usb : NULL;
 			devid = LP8727_ID_USB_CHG;
 			swctrl = LP8727_SW_DM1_DM | LP8727_SW_DP2_DP;
 		} else if (vbusin) {
@@ -200,7 +200,7 @@ static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
 		break;
 	default:
 		devid = LP8727_ID_NONE;
-		pchg->chg_parm = NULL;
+		pchg->chg_param = NULL;
 		break;
 	}
 
@@ -404,9 +404,9 @@ static void lp8727_charger_changed(struct power_supply *psy)
 		return;
 
 	/* update charging parameters */
-	if (pchg->chg_parm) {
-		eoc_level = pchg->chg_parm->eoc_level;
-		ichg = pchg->chg_parm->ichg;
+	if (pchg->chg_param) {
+		eoc_level = pchg->chg_param->eoc_level;
+		ichg = pchg->chg_param->ichg;
 		val = (ichg << LP8727_ICHG_SHIFT) | eoc_level;
 		lp8727_write_byte(pchg, LP8727_CHGCTRL2, val);
 	}
