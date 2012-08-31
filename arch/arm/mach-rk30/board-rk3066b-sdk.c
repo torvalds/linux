@@ -77,14 +77,14 @@
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN2_PC0
-#define TOUCH_PWR_PIN    INVALID_GPIO
+#define TOUCH_PWR_PIN    RK30_PIN2_PB4
 static int goodix_init_platform_hw(void)
 {
 	int ret;
 	
 	rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME, GPIO2C_GPIO2C0);
-	rk30_mux_api_set(GPIO0D4_SPI1RXD_NAME, GPIO0D_GPIO0D4);
-	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO0D4_SPI1RXD_NAME));
+	rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME, GPIO2B_GPIO2B4);
+	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME));
 
 	if (TOUCH_PWR_PIN != INVALID_GPIO) {
 		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
