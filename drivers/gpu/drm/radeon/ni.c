@@ -1517,6 +1517,13 @@ uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags)
 	return r600_flags;
 }
 
+/**
+ * cayman_vm_set_page - update the page tables using the CP
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Update the page tables using the CP (cayman-si).
+ */
 void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
 			unsigned pfn, struct ttm_mem_reg *mem,
 			unsigned npages, uint32_t flags)
@@ -1541,6 +1548,14 @@ void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
 	}
 }
 
+/**
+ * cayman_vm_flush - vm flush using the CP
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Update the page table base and flush the VM TLB
+ * using the CP (cayman-si).
+ */
 void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib)
 {
 	struct radeon_ring *ring = &rdev->ring[ib->ring];
