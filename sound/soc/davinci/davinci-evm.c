@@ -188,7 +188,7 @@ static struct snd_soc_dai_link dm365_evm_dai = {
 	.cpu_dai_name = "davinci-vcif",
 	.codec_dai_name = "cq93vc-hifi",
 	.codec_name = "cq93vc-codec",
-	.platform_name = "avinci-vcif",
+	.platform_name = "davinci-vcif",
 #endif
 };
 
