@@ -3014,7 +3014,7 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	dout("discovered version 2 image, header name is %s\n",
 		rbd_dev->header_name);
 
-	return -ENOTSUPP;
+	return 0;
 out_err:
 	kfree(rbd_dev->header_name);
 	rbd_dev->header_name = NULL;
