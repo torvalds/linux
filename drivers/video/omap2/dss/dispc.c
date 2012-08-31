@@ -2481,6 +2481,33 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 	return r;
 }
 
+int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
+		const struct omap_video_timings *mgr_timings)
+{
+	int r;
+	enum omap_plane plane = OMAP_DSS_WB;
+	const int pos_x = 0, pos_y = 0;
+	const u8 zorder = 0, global_alpha = 0;
+	const bool replication = false;
+	int in_width = mgr_timings->x_res;
+	int in_height = mgr_timings->y_res;
+	enum omap_overlay_caps caps =
+		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
+
+	DSSDBG("dispc_wb_setup, pa %x, pa_uv %x, %d,%d -> %dx%d, cmode %x, "
+		"rot %d, mir %d\n", wi->paddr, wi->p_uv_addr, in_width,
+		in_height, wi->width, wi->height, wi->color_mode, wi->rotation,
+		wi->mirror);
+
+	r = dispc_ovl_setup_common(plane, caps, wi->paddr, wi->p_uv_addr,
+		wi->buf_width, pos_x, pos_y, in_width, in_height, wi->width,
+		wi->height, wi->color_mode, wi->rotation, wi->mirror, zorder,
+		wi->pre_mult_alpha, global_alpha, wi->rotation_type,
+		replication, mgr_timings, false);
+
+	return r;
+}
+
 int dispc_ovl_enable(enum omap_plane plane, bool enable)
 {
 	DSSDBG("dispc_enable_plane %d, %d\n", plane, enable);
