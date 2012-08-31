@@ -12,12 +12,11 @@
 #include <asm-generic/bitops/find.h>
 
 
-static unsigned long _gic_base;
-static unsigned int _irqbase;
-static unsigned int gic_irq_flags[GIC_NUM_INTRS];
-#define GIC_IRQ_FLAG_EDGE      0x0001
+unsigned long _gic_base;
+unsigned int gic_irq_base;
+unsigned int gic_irq_flags[GIC_NUM_INTRS];
 
-struct gic_pcpu_mask pcpu_masks[NR_CPUS];
+static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static struct gic_pending_regs pending_regs[NR_CPUS];
 static struct gic_intrmask_regs intrmask_regs[NR_CPUS];
 
@@ -87,27 +86,16 @@ unsigned int gic_get_int(void)
 	return i;
 }
 
-static void gic_irq_ack(struct irq_data *d)
-{
-	unsigned int irq = d->irq - _irqbase;
-
-	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
-	GIC_CLR_INTR_MASK(irq);
-
-	if (gic_irq_flags[irq] & GIC_IRQ_FLAG_EDGE)
-		GICWRITE(GIC_REG(SHARED, GIC_SH_WEDGE), irq);
-}
-
 static void gic_mask_irq(struct irq_data *d)
 {
-	unsigned int irq = d->irq - _irqbase;
+	unsigned int irq = d->irq - gic_irq_base;
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	GIC_CLR_INTR_MASK(irq);
 }
 
 static void gic_unmask_irq(struct irq_data *d)
 {
-	unsigned int irq = d->irq - _irqbase;
+	unsigned int irq = d->irq - gic_irq_base;
 	pr_debug("CPU%d: %s: irq%d\n", smp_processor_id(), __func__, irq);
 	GIC_SET_INTR_MASK(irq);
 }
@@ -119,7 +107,7 @@ static DEFINE_SPINLOCK(gic_lock);
 static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 			    bool force)
 {
-	unsigned int irq = d->irq - _irqbase;
+	unsigned int irq = d->irq - gic_irq_base;
 	cpumask_t	tmp = CPU_MASK_NONE;
 	unsigned long	flags;
 	int		i;
@@ -194,7 +182,7 @@ static void __init gic_setup_intr(unsigned int intr, unsigned int cpu,
 	if (flags & GIC_FLAG_TRANSPARENT)
 		GIC_SET_INTR_MASK(intr);
 	if (trigtype == GIC_TRIG_EDGE)
-		gic_irq_flags[intr] |= GIC_IRQ_FLAG_EDGE;
+		gic_irq_flags[intr] |= GIC_TRIG_EDGE;
 }
 
 static void __init gic_basic_init(int numintrs, int numvpes,
@@ -227,9 +215,6 @@ static void __init gic_basic_init(int numintrs, int numvpes,
 	}
 
 	vpe_local_setup(numvpes);
-
-	for (i = _irqbase; i < (_irqbase + numintrs); i++)
-		irq_set_chip(i, &gic_irq_controller);
 }
 
 void __init gic_init(unsigned long gic_base_addr,
@@ -242,7 +227,7 @@ void __init gic_init(unsigned long gic_base_addr,
 
 	_gic_base = (unsigned long) ioremap_nocache(gic_base_addr,
 						    gic_addrspace_size);
-	_irqbase = irqbase;
+	gic_irq_base = irqbase;
 
 	GICREAD(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
 	numintrs = (gicconfig & GIC_SH_CONFIG_NUMINTRS_MSK) >>
@@ -255,4 +240,6 @@ void __init gic_init(unsigned long gic_base_addr,
 	pr_debug("%s called\n", __func__);
 
 	gic_basic_init(numintrs, numvpes, intr_map, intr_map_size);
+
+	gic_platform_init(numintrs, &gic_irq_controller);
 }
