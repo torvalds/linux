@@ -52,7 +52,6 @@ struct das08_private_struct {
 	unsigned int do_bits;	/*  bits for do register on boards with register dedicated to digital out only */
 	const unsigned int *pg_gainlist;
 	struct pci_dev *pdev;	/*  struct for pci-das08 */
-	unsigned int i8254_iobase;
 };
 
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase);
