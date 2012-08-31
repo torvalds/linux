@@ -673,8 +673,15 @@ static int pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg)
 	struct scsi_device *sd = pdv->pdv_sd;
 	int result;
 	struct pscsi_plugin_task *pt = cmd->priv;
-	unsigned char *cdb = &pt->pscsi_cdb[0];
+	unsigned char *cdb;
+	/*
+	 * Special case for REPORT_LUNs handling where pscsi_plugin_task has
+	 * not been allocated because TCM is handling the emulation directly.
+	 */
+	if (!pt)
+		return 0;
 
+	cdb = &pt->pscsi_cdb[0];
 	result = pt->pscsi_result;
 	/*
 	 * Hack to make sure that Write-Protect modepage is set if R/O mode is
