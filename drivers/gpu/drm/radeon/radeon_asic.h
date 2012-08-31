@@ -440,11 +440,10 @@ int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);
 void cayman_vm_fini(struct radeon_device *rdev);
-void cayman_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm);
 void cayman_vm_flush(struct radeon_device *rdev, struct radeon_ib *ib);
 uint32_t cayman_vm_page_flags(struct radeon_device *rdev, uint32_t flags);
 void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
-			unsigned pfn, struct ttm_mem_reg *mem, 
+			unsigned pfn, struct ttm_mem_reg *mem,
 			unsigned npages, uint32_t flags);
 int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 
