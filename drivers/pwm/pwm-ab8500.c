@@ -24,16 +24,12 @@
 #define ENABLE_PWM			1
 #define DISABLE_PWM			0
 
-struct pwm_device {
-	struct device *dev;
-	struct list_head node;
-	const char *label;
-	unsigned int pwm_id;
+struct ab8500_pwm_chip {
+	struct pwm_chip chip;
 };
 
-static LIST_HEAD(pwm_list);
-
-int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
+static int ab8500_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+			     int duty_ns, int period_ns)
 {
 	int ret = 0;
 	unsigned int higher_val, lower_val;
@@ -50,95 +46,94 @@ int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 	 */
 	higher_val = ((duty_ns & 0x0300) >> 8);
 
-	reg = AB8500_PWM_OUT_CTRL1_REG + ((pwm->pwm_id - 1) * 2);
+	reg = AB8500_PWM_OUT_CTRL1_REG + ((chip->base - 1) * 2);
 
-	ret = abx500_set_register_interruptible(pwm->dev, AB8500_MISC,
+	ret = abx500_set_register_interruptible(chip->dev, AB8500_MISC,
 			reg, (u8)lower_val);
 	if (ret < 0)
 		return ret;
-	ret = abx500_set_register_interruptible(pwm->dev, AB8500_MISC,
+	ret = abx500_set_register_interruptible(chip->dev, AB8500_MISC,
 			(reg + 1), (u8)higher_val);
 
 	return ret;
 }
-EXPORT_SYMBOL(pwm_config);
 
-int pwm_enable(struct pwm_device *pwm)
+static int ab8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	int ret;
 
-	ret = abx500_mask_and_set_register_interruptible(pwm->dev,
+	ret = abx500_mask_and_set_register_interruptible(chip->dev,
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-				1 << (pwm->pwm_id-1), ENABLE_PWM);
+				1 << (chip->base - 1), ENABLE_PWM);
 	if (ret < 0)
-		dev_err(pwm->dev, "%s: Failed to disable PWM, Error %d\n",
+		dev_err(chip->dev, "%s: Failed to disable PWM, Error %d\n",
 							pwm->label, ret);
 	return ret;
 }
-EXPORT_SYMBOL(pwm_enable);
 
-void pwm_disable(struct pwm_device *pwm)
+static void ab8500_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	int ret;
 
-	ret = abx500_mask_and_set_register_interruptible(pwm->dev,
+	ret = abx500_mask_and_set_register_interruptible(chip->dev,
 				AB8500_MISC, AB8500_PWM_OUT_CTRL7_REG,
-				1 << (pwm->pwm_id-1), DISABLE_PWM);
+				1 << (chip->base - 1), DISABLE_PWM);
 	if (ret < 0)
-		dev_err(pwm->dev, "%s: Failed to disable PWM, Error %d\n",
+		dev_err(chip->dev, "%s: Failed to disable PWM, Error %d\n",
 							pwm->label, ret);
 	return;
 }
-EXPORT_SYMBOL(pwm_disable);
 
-struct pwm_device *pwm_request(int pwm_id, const char *label)
-{
-	struct pwm_device *pwm;
-
-	list_for_each_entry(pwm, &pwm_list, node) {
-		if (pwm->pwm_id == pwm_id) {
-			pwm->label = label;
-			pwm->pwm_id = pwm_id;
-			return pwm;
-		}
-	}
-
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(pwm_request);
-
-void pwm_free(struct pwm_device *pwm)
-{
-	pwm_disable(pwm);
-}
-EXPORT_SYMBOL(pwm_free);
+static const struct pwm_ops ab8500_pwm_ops = {
+	.config = ab8500_pwm_config,
+	.enable = ab8500_pwm_enable,
+	.disable = ab8500_pwm_disable,
+};
 
 static int __devinit ab8500_pwm_probe(struct platform_device *pdev)
 {
-	struct pwm_device *pwm;
+	struct ab8500_pwm_chip *ab8500;
+	int err;
+
 	/*
 	 * Nothing to be done in probe, this is required to get the
 	 * device which is required for ab8500 read and write
 	 */
-	pwm = kzalloc(sizeof(struct pwm_device), GFP_KERNEL);
-	if (pwm == NULL) {
+	ab8500 = kzalloc(sizeof(*ab8500), GFP_KERNEL);
+	if (ab8500 == NULL) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
-	pwm->dev = &pdev->dev;
-	pwm->pwm_id = pdev->id;
-	list_add_tail(&pwm->node, &pwm_list);
-	platform_set_drvdata(pdev, pwm);
-	dev_dbg(pwm->dev, "pwm probe successful\n");
+
+	ab8500->chip.dev = &pdev->dev;
+	ab8500->chip.ops = &ab8500_pwm_ops;
+	ab8500->chip.base = pdev->id;
+	ab8500->chip.npwm = 1;
+
+	err = pwmchip_add(&ab8500->chip);
+	if (err < 0) {
+		kfree(ab8500);
+		return err;
+	}
+
+	dev_dbg(&pdev->dev, "pwm probe successful\n");
+	platform_set_drvdata(pdev, ab8500);
+
 	return 0;
 }
 
 static int __devexit ab8500_pwm_remove(struct platform_device *pdev)
 {
-	struct pwm_device *pwm = platform_get_drvdata(pdev);
-	list_del(&pwm->node);
+	struct ab8500_pwm_chip *ab8500 = platform_get_drvdata(pdev);
+	int err;
+
+	err = pwmchip_remove(&ab8500->chip);
+	if (err < 0)
+		return err;
+
 	dev_dbg(&pdev->dev, "pwm driver removed\n");
-	kfree(pwm);
+	kfree(ab8500);
+
 	return 0;
 }
 
@@ -150,19 +145,8 @@ static struct platform_driver ab8500_pwm_driver = {
 	.probe = ab8500_pwm_probe,
 	.remove = __devexit_p(ab8500_pwm_remove),
 };
+module_platform_driver(ab8500_pwm_driver);
 
-static int __init ab8500_pwm_init(void)
-{
-	return platform_driver_register(&ab8500_pwm_driver);
-}
-
-static void __exit ab8500_pwm_exit(void)
-{
-	platform_driver_unregister(&ab8500_pwm_driver);
-}
-
-subsys_initcall(ab8500_pwm_init);
-module_exit(ab8500_pwm_exit);
 MODULE_AUTHOR("Arun MURTHY <arun.murthy@stericsson.com>");
 MODULE_DESCRIPTION("AB8500 Pulse Width Modulation Driver");
 MODULE_ALIAS("platform:ab8500-pwm");
