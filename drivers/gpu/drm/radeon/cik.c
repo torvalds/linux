@@ -2698,3 +2698,82 @@ void cik_vm_fini(struct radeon_device *rdev)
 {
 }
 
+/**
+ * cik_vm_flush - cik vm flush using the CP
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Update the page table base and flush the VM TLB
+ * using the CP (CIK).
+ */
+void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
+{
+	struct radeon_ring *ring = &rdev->ring[ridx];
+
+	if (vm == NULL)
+		return;
+
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	if (vm->id < 8) {
+		radeon_ring_write(ring,
+				  (VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2)) >> 2);
+	} else {
+		radeon_ring_write(ring,
+				  (VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((vm->id - 8) << 2)) >> 2);
+	}
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, vm->pd_gpu_addr >> 12);
+
+	/* update SH_MEM_* regs */
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	radeon_ring_write(ring, SRBM_GFX_CNTL >> 2);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, VMID(vm->id));
+
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 6));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	radeon_ring_write(ring, SH_MEM_BASES >> 2);
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, 0); /* SH_MEM_BASES */
+	radeon_ring_write(ring, 0); /* SH_MEM_CONFIG */
+	radeon_ring_write(ring, 1); /* SH_MEM_APE1_BASE */
+	radeon_ring_write(ring, 0); /* SH_MEM_APE1_LIMIT */
+
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	radeon_ring_write(ring, SRBM_GFX_CNTL >> 2);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, VMID(0));
+
+	/* HDP flush */
+	/* We should be using the WAIT_REG_MEM packet here like in
+	 * cik_fence_ring_emit(), but it causes the CP to hang in this
+	 * context...
+	 */
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	radeon_ring_write(ring, HDP_MEM_COHERENCY_FLUSH_CNTL >> 2);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, 0);
+
+	/* bits 0-15 are the VM contexts0-15 */
+	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
+	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+				 WRITE_DATA_DST_SEL(0)));
+	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, 1 << vm->id);
+
+	/* sync PFP to ME, otherwise we might get invalid PFP reads */
+	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+	radeon_ring_write(ring, 0x0);
+}
+
