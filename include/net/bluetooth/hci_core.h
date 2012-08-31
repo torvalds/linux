@@ -428,15 +428,6 @@ static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 	       test_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 }
 
-static inline void hci_conn_hash_init(struct hci_dev *hdev)
-{
-	struct hci_conn_hash *h = &hdev->conn_hash;
-	INIT_LIST_HEAD(&h->list);
-	h->acl_num = 0;
-	h->sco_num = 0;
-	h->le_num = 0;
-}
-
 static inline void hci_conn_hash_add(struct hci_dev *hdev, struct hci_conn *c)
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
