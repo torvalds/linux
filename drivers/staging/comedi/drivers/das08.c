@@ -391,6 +391,17 @@ static void das08_ao_set_data(struct comedi_device *dev,
 	}
 }
 
+static void das08_ao_initialize(struct comedi_device *dev,
+				struct comedi_subdevice *s)
+{
+	int n;
+	unsigned int data;
+
+	data = s->maxdata / 2;	/* should be about 0 volts */
+	for (n = 0; n < s->n_chan; n++)
+		das08_ao_set_data(dev, n, data);
+}
+
 static int das08_ao_winsn(struct comedi_device *dev,
 			  struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
@@ -665,6 +676,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
 		s->insn_write = das08_ao_winsn;
+		das08_ao_initialize(dev, s);
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
