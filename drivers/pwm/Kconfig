@@ -1,6 +1,6 @@
 menuconfig PWM
 	bool "Pulse-Width Modulation (PWM) Support"
-	depends on !MACH_JZ4740 && !PUV3_PWM
+	depends on !MACH_JZ4740
 	help
 	  Generic Pulse-Width Modulation (PWM) support.
 
@@ -75,6 +75,15 @@ config PWM_MXS
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-mxs.
+
+config PWM_PUV3
+	tristate "PKUnity NetBook-0916 PWM support"
+	depends on ARCH_PUV3
+	help
+	  Generic PWM framework driver for PKUnity NetBook-0916.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-puv3.
 
 config PWM_PXA
 	tristate "PXA PWM support"
