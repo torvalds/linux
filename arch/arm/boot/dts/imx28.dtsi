@@ -421,6 +421,17 @@
 					fsl,pull-up = <1>;
 				};
 
+				i2c1_pins_a: i2c1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3101 /* MX28_PAD_PWM0__I2C1_SCL */
+						0x3111 /* MX28_PAD_PWM1__I2C1_SDA */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
 				saif0_pins_a: saif0@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
