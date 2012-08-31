@@ -38,7 +38,7 @@ enum lp8727_ichg {
 /**
  * struct lp8727_chg_param
  * @eoc_level : end of charge level setting
- * @ichg : charging current
+ * @ichg      : charging current
  */
 struct lp8727_chg_param {
 	enum lp8727_eoc_level eoc_level;
@@ -47,10 +47,10 @@ struct lp8727_chg_param {
 
 /**
  * struct lp8727_platform_data
- * @get_batt_present : check battery status - exists or not
- * @get_batt_level : get battery voltage (mV)
+ * @get_batt_present  : check battery status - exists or not
+ * @get_batt_level    : get battery voltage (mV)
  * @get_batt_capacity : get battery capacity (%)
- * @get_batt_temp : get battery temperature
+ * @get_batt_temp     : get battery temperature
  * @ac                : charging parameters for AC type charger
  * @usb               : charging parameters for USB type charger
  * @debounce_msec     : interrupt debounce time

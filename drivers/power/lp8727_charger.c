@@ -149,7 +149,6 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 	if (ret)
 		return ret;
 
-
 	val = LP8727_ID200_EN | LP8727_ADC_EN | LP8727_CP_EN;
 	ret = lp8727_write_byte(pchg, LP8727_CTRL1, val);
 	if (ret)
@@ -162,6 +161,7 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
+
 	lp8727_read_byte(pchg, LP8727_STATUS1, &val);
 	return val & LP8727_DCPORT;
 }
@@ -169,6 +169,7 @@ static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
+
 	lp8727_read_byte(pchg, LP8727_STATUS1, &val);
 	return val & LP8727_CHPORT;
 }
