@@ -302,7 +302,7 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-unsigned int addressing_mode = HOME_SPACE_MODE;
+unsigned int addressing_mode = PRIMARY_SPACE_MODE;
 EXPORT_SYMBOL_GPL(addressing_mode);
 
 static int set_amode_primary(void)
@@ -322,16 +322,6 @@ static int set_amode_primary(void)
 		return 0;
 	}
 }
-
-/*
- * Switch kernel/user addressing modes?
- */
-static int __init early_parse_switch_amode(char *p)
-{
-	addressing_mode = PRIMARY_SPACE_MODE;
-	return 0;
-}
-early_param("switch_amode", early_parse_switch_amode);
 
 static int __init early_parse_user_mode(char *p)
 {
