@@ -336,15 +336,16 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
-		if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
-			lp8727_read_byte(pchg, LP8727_STATUS1, &read);
+		if (!lp8727_is_charger_attached(psy->name, pchg->devid)) {
+			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+			return 0;
+		}
 
-			val->intval = (read & LP8727_CHGSTAT) == LP8727_STAT_EOC ?
+		lp8727_read_byte(pchg, LP8727_STATUS1, &read);
+
+		val->intval = (read & LP8727_CHGSTAT) == LP8727_STAT_EOC ?
 				POWER_SUPPLY_STATUS_FULL :
 				POWER_SUPPLY_STATUS_CHARGING;
-		} else {
-			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
-		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		lp8727_read_byte(pchg, LP8727_STATUS2, &read);
