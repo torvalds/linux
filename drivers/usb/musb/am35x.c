@@ -458,6 +458,7 @@ static int __devinit am35x_probe(struct platform_device *pdev)
 	struct clk			*clk;
 
 	int				ret = -ENOMEM;
+	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -465,38 +466,47 @@ static int __devinit am35x_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
+	/* get the musb id */
+	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
+	if (musbid < 0) {
+		dev_err(&pdev->dev, "failed to allocate musb id\n");
+		ret = -ENOMEM;
+		goto err1;
+	}
+
+	musb = platform_device_alloc("musb-hdrc", musbid);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
+		goto err2;
 	}
 
 	phy_clk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(phy_clk)) {
 		dev_err(&pdev->dev, "failed to get PHY clock\n");
 		ret = PTR_ERR(phy_clk);
-		goto err2;
+		goto err3;
 	}
 
 	clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		ret = PTR_ERR(clk);
-		goto err3;
+		goto err4;
 	}
 
 	ret = clk_enable(phy_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable PHY clock\n");
-		goto err4;
+		goto err5;
 	}
 
 	ret = clk_enable(clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err5;
+		goto err6;
 	}
 
+	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &am35x_dmamask;
 	musb->dev.coherent_dma_mask	= am35x_dmamask;
@@ -514,37 +524,40 @@ static int __devinit am35x_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err6;
+		goto err7;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err6;
+		goto err7;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err6;
+		goto err7;
 	}
 
 	return 0;
 
-err6:
+err7:
 	clk_disable(clk);
 
-err5:
+err6:
 	clk_disable(phy_clk);
 
-err4:
+err5:
 	clk_put(clk);
 
-err3:
+err4:
 	clk_put(phy_clk);
 
-err2:
+err3:
 	platform_device_put(musb);
+
+err2:
+	musb_put_id(&pdev->dev, musbid);
 
 err1:
 	kfree(glue);
@@ -557,6 +570,7 @@ static int __devexit am35x_remove(struct platform_device *pdev)
 {
 	struct am35x_glue	*glue = platform_get_drvdata(pdev);
 
+	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	clk_disable(glue->clk);

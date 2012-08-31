@@ -1159,6 +1159,7 @@ static int __devinit tusb_probe(struct platform_device *pdev)
 	struct tusb6010_glue		*glue;
 
 	int				ret = -ENOMEM;
+	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -1166,12 +1167,21 @@ static int __devinit tusb_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
+	/* get the musb id */
+	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
+	if (musbid < 0) {
+		dev_err(&pdev->dev, "failed to allocate musb id\n");
+		ret = -ENOMEM;
 		goto err1;
 	}
 
+	musb = platform_device_alloc("musb-hdrc", musbid);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
+		goto err2;
+	}
+
+	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &tusb_dmamask;
 	musb->dev.coherent_dma_mask	= tusb_dmamask;
@@ -1187,25 +1197,28 @@ static int __devinit tusb_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err2;
+		goto err3;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err2;
+		goto err3;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err1;
+		goto err3;
 	}
 
 	return 0;
 
-err2:
+err3:
 	platform_device_put(musb);
+
+err2:
+	musb_put_id(&pdev->dev, musbid);
 
 err1:
 	kfree(glue);
@@ -1218,6 +1231,7 @@ static int __devexit tusb_remove(struct platform_device *pdev)
 {
 	struct tusb6010_glue		*glue = platform_get_drvdata(pdev);
 
+	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
 	kfree(glue);

@@ -478,6 +478,7 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	struct musb_hdrc_config		*config;
 	struct resource			*res;
 	int				ret = -ENOMEM;
+	int				musbid;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -485,12 +486,21 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", -1);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
+	/* get the musb id */
+	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
+	if (musbid < 0) {
+		dev_err(&pdev->dev, "failed to allocate musb id\n");
+		ret = -ENOMEM;
 		goto err0;
 	}
 
+	musb = platform_device_alloc("musb-hdrc", musbid);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
+		goto err1;
+	}
+
+	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
@@ -557,13 +567,13 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err1;
+		goto err2;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err1;
+		goto err2;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -571,13 +581,16 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err1;
+		goto err2;
 	}
 
 	return 0;
 
-err1:
+err2:
 	platform_device_put(musb);
+
+err1:
+	musb_put_id(&pdev->dev, musbid);
 
 err0:
 	return ret;
@@ -588,6 +601,7 @@ static int __devexit omap2430_remove(struct platform_device *pdev)
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
 	cancel_work_sync(&glue->omap_musb_mailbox_work);
+	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_unregister(glue->musb);
 
 	return 0;
