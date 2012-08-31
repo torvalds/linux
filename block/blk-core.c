@@ -713,8 +713,6 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	if (elevator_init(q, NULL))
 		return NULL;
 
-	blk_queue_congestion_threshold(q);
-
 	/* all done, end the initial bypass */
 	blk_queue_bypass_end(q);
 	return q;
