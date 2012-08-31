@@ -484,6 +484,7 @@ struct mwifiex_private {
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
 	u8 subsc_evt_rssi_state;
+	struct mwifiex_ds_misc_subsc_evt async_subsc_evt_storage;
 	struct mwifiex_ie mgmt_ie[MAX_MGMT_IE_INDEX];
 	u16 beacon_idx;
 	u16 proberesp_idx;
