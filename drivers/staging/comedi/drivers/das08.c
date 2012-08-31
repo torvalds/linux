@@ -466,9 +466,6 @@ static int das08_counter_config(struct comedi_device *dev,
 	unsigned long i8254_iobase = dev->iobase + thisboard->i8254_offset;
 	int chan = insn->chanspec;
 
-	if (insn->n != 2)
-		return -EINVAL;
-
 	switch (data[0]) {
 	case INSN_CONFIG_SET_COUNTER_MODE:
 		i8254_set_mode(i8254_iobase, 0, chan, data[1]);
