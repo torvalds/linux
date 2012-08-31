@@ -197,6 +197,7 @@
 #define MAC_CSR19_BIT5			FIELD16(0x0020)
 #define MAC_CSR19_BIT6			FIELD16(0x0040)
 #define MAC_CSR19_BIT7			FIELD16(0x0080)
+#define MAC_CSR19_BIT8			FIELD16(0x0100)
 
 /*
  * MAC_CSR20: LED control register.
