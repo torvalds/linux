@@ -21,53 +21,51 @@
 #define DEFAULT_DEBOUNCE_MSEC	270
 
 /* Registers */
-#define CTRL1		0x1
-#define CTRL2		0x2
-#define	SWCTRL		0x3
-#define INT1		0x4
-#define INT2		0x5
-#define STATUS1		0x6
-#define STATUS2		0x7
-#define CHGCTRL2	0x9
+#define LP8727_CTRL1		0x1
+#define LP8727_CTRL2		0x2
+#define LP8727_SWCTRL		0x3
+#define LP8727_INT1		0x4
+#define LP8727_INT2		0x5
+#define LP8727_STATUS1		0x6
+#define LP8727_STATUS2		0x7
+#define LP8727_CHGCTRL2		0x9
 
 /* CTRL1 register */
-#define CP_EN		(1 << 0)
-#define ADC_EN		(1 << 1)
-#define ID200_EN	(1 << 4)
+#define LP8727_CP_EN		BIT(0)
+#define LP8727_ADC_EN		BIT(1)
+#define LP8727_ID200_EN		BIT(4)
 
 /* CTRL2 register */
-#define CHGDET_EN	(1 << 1)
-#define INT_EN		(1 << 6)
+#define LP8727_CHGDET_EN	BIT(1)
+#define LP8727_INT_EN		BIT(6)
 
 /* SWCTRL register */
-#define SW_DM1_DM	(0x0 << 0)
-#define SW_DM1_U1	(0x1 << 0)
-#define SW_DM1_HiZ	(0x7 << 0)
-#define SW_DP2_DP	(0x0 << 3)
-#define SW_DP2_U2	(0x1 << 3)
-#define SW_DP2_HiZ	(0x7 << 3)
+#define LP8727_SW_DM1_DM	(0x0 << 0)
+#define LP8727_SW_DM1_HiZ	(0x7 << 0)
+#define LP8727_SW_DP2_DP	(0x0 << 3)
+#define LP8727_SW_DP2_HiZ	(0x7 << 3)
 
 /* INT1 register */
-#define IDNO		(0xF << 0)
-#define VBUS		(1 << 4)
+#define LP8727_IDNO		(0xF << 0)
+#define LP8727_VBUS		BIT(4)
 
 /* STATUS1 register */
-#define CHGSTAT		(3 << 4)
-#define CHPORT		(1 << 6)
-#define DCPORT		(1 << 7)
-#define LP8727_STAT_EOC			0x30
+#define LP8727_CHGSTAT		(3 << 4)
+#define LP8727_CHPORT		BIT(6)
+#define LP8727_DCPORT		BIT(7)
+#define LP8727_STAT_EOC		0x30
 
 /* STATUS2 register */
-#define TEMP_STAT	(3 << 5)
-#define TEMP_SHIFT	5
+#define LP8727_TEMP_STAT	(3 << 5)
+#define LP8727_TEMP_SHIFT	5
 
 enum lp8727_dev_id {
-	ID_NONE,
-	ID_TA,
-	ID_DEDICATED_CHG,
-	ID_USB_CHG,
-	ID_USB_DS,
-	ID_MAX,
+	LP8727_ID_NONE,
+	LP8727_ID_TA,
+	LP8727_ID_DEDICATED_CHG,
+	LP8727_ID_USB_CHG,
+	LP8727_ID_USB_DS,
+	LP8727_ID_MAX,
 };
 
 enum lp8727_die_temp {
@@ -127,12 +125,12 @@ static int lp8727_is_charger_attached(const char *name, int id)
 {
 	if (name) {
 		if (!strcmp(name, "ac"))
-			return (id == ID_TA || id == ID_DEDICATED_CHG) ? 1 : 0;
+			return (id == LP8727_ID_TA || id == LP8727_ID_DEDICATED_CHG) ? 1 : 0;
 		else if (!strcmp(name, "usb"))
-			return (id == ID_USB_CHG) ? 1 : 0;
+			return (id == LP8727_ID_USB_CHG) ? 1 : 0;
 	}
 
-	return (id >= ID_TA && id <= ID_USB_CHG) ? 1 : 0;
+	return (id >= LP8727_ID_TA && id <= LP8727_ID_USB_CHG) ? 1 : 0;
 }
 
 static int lp8727_init_device(struct lp8727_chg *pchg)
@@ -142,18 +140,18 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 	u8 intstat[LP8788_NUM_INTREGS];
 
 	/* clear interrupts */
-	ret = lp8727_read_bytes(pchg, INT1, intstat, LP8788_NUM_INTREGS);
+	ret = lp8727_read_bytes(pchg, LP8727_INT1, intstat, LP8788_NUM_INTREGS);
 	if (ret)
 		return ret;
 
 
-	val = ID200_EN | ADC_EN | CP_EN;
-	ret = lp8727_write_byte(pchg, CTRL1, val);
+	val = LP8727_ID200_EN | LP8727_ADC_EN | LP8727_CP_EN;
+	ret = lp8727_write_byte(pchg, LP8727_CTRL1, val);
 	if (ret)
 		return ret;
 
-	val = INT_EN | CHGDET_EN;
-	ret = lp8727_write_byte(pchg, CTRL2, val);
+	val = LP8727_INT_EN | LP8727_CHGDET_EN;
+	ret = lp8727_write_byte(pchg, LP8727_CTRL2, val);
 	if (ret)
 		return ret;
 
@@ -163,48 +161,48 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	lp8727_read_byte(pchg, STATUS1, &val);
-	return val & DCPORT;
+	lp8727_read_byte(pchg, LP8727_STATUS1, &val);
+	return val & LP8727_DCPORT;
 }
 
 static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	lp8727_read_byte(pchg, STATUS1, &val);
-	return val & CHPORT;
+	lp8727_read_byte(pchg, LP8727_STATUS1, &val);
+	return val & LP8727_CHPORT;
 }
 
 static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 {
-	lp8727_write_byte(pchg, SWCTRL, sw);
+	lp8727_write_byte(pchg, LP8727_SWCTRL, sw);
 }
 
 static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
 {
 	struct lp8727_platform_data *pdata = pchg->pdata;
-	u8 devid = ID_NONE;
-	u8 swctrl = SW_DM1_HiZ | SW_DP2_HiZ;
+	u8 devid = LP8727_ID_NONE;
+	u8 swctrl = LP8727_SW_DM1_HiZ | LP8727_SW_DP2_HiZ;
 
 	switch (id) {
 	case 0x5:
-		devid = ID_TA;
+		devid = LP8727_ID_TA;
 		pchg->chg_parm = pdata ? pdata->ac : NULL;
 		break;
 	case 0xB:
 		if (lp8727_is_dedicated_charger(pchg)) {
 			pchg->chg_parm = pdata ? pdata->ac : NULL;
-			devid = ID_DEDICATED_CHG;
+			devid = LP8727_ID_DEDICATED_CHG;
 		} else if (lp8727_is_usb_charger(pchg)) {
 			pchg->chg_parm = pdata ? pdata->usb : NULL;
-			devid = ID_USB_CHG;
-			swctrl = SW_DM1_DM | SW_DP2_DP;
+			devid = LP8727_ID_USB_CHG;
+			swctrl = LP8727_SW_DM1_DM | LP8727_SW_DP2_DP;
 		} else if (vbusin) {
-			devid = ID_USB_DS;
-			swctrl = SW_DM1_DM | SW_DP2_DP;
+			devid = LP8727_ID_USB_DS;
+			swctrl = LP8727_SW_DM1_DM | LP8727_SW_DP2_DP;
 		}
 		break;
 	default:
-		devid = ID_NONE;
+		devid = LP8727_ID_NONE;
 		pchg->chg_parm = NULL;
 		break;
 	}
@@ -217,9 +215,9 @@ static void lp8727_enable_chgdet(struct lp8727_chg *pchg)
 {
 	u8 val;
 
-	lp8727_read_byte(pchg, CTRL2, &val);
-	val |= CHGDET_EN;
-	lp8727_write_byte(pchg, CTRL2, val);
+	lp8727_read_byte(pchg, LP8727_CTRL2, &val);
+	val |= LP8727_CHGDET_EN;
+	lp8727_write_byte(pchg, LP8727_CTRL2, val);
 }
 
 static void lp8727_delayed_func(struct work_struct *_work)
@@ -228,13 +226,13 @@ static void lp8727_delayed_func(struct work_struct *_work)
 	struct lp8727_chg *pchg =
 	    container_of(_work, struct lp8727_chg, work.work);
 
-	if (lp8727_read_bytes(pchg, INT1, intstat, 2)) {
+	if (lp8727_read_bytes(pchg, LP8727_INT1, intstat, 2)) {
 		dev_err(pchg->dev, "can not read INT registers\n");
 		return;
 	}
 
-	idno = intstat[0] & IDNO;
-	vbus = intstat[0] & VBUS;
+	idno = intstat[0] & LP8727_IDNO;
+	vbus = intstat[0] & LP8727_VBUS;
 
 	lp8727_id_detection(pchg, idno, vbus);
 	lp8727_enable_chgdet(pchg);
@@ -341,9 +339,9 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
-			lp8727_read_byte(pchg, STATUS1, &read);
+			lp8727_read_byte(pchg, LP8727_STATUS1, &read);
 
-			val->intval = (read & CHGSTAT) == LP8727_STAT_EOC ?
+			val->intval = (read & LP8727_CHGSTAT) == LP8727_STAT_EOC ?
 				POWER_SUPPLY_STATUS_FULL :
 				POWER_SUPPLY_STATUS_CHARGING;
 		} else {
@@ -351,8 +349,8 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		lp8727_read_byte(pchg, STATUS2, &read);
-		temp = (read & TEMP_STAT) >> TEMP_SHIFT;
+		lp8727_read_byte(pchg, LP8727_STATUS2, &read);
+		temp = (read & LP8727_TEMP_STAT) >> LP8727_TEMP_SHIFT;
 
 		val->intval = lp8727_is_high_temperature(temp) ?
 			POWER_SUPPLY_HEALTH_OVERHEAT :
@@ -404,7 +402,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 			eoc_level = pchg->chg_parm->eoc_level;
 			ichg = pchg->chg_parm->ichg;
 			val = (ichg << 4) | eoc_level;
-			lp8727_write_byte(pchg, CHGCTRL2, val);
+			lp8727_write_byte(pchg, LP8727_CHGCTRL2, val);
 		}
 	}
 }
