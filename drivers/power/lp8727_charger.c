@@ -170,20 +170,21 @@ static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 
 static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
 {
+	struct lp8727_platform_data *pdata = pchg->pdata;
 	u8 devid = ID_NONE;
 	u8 swctrl = SW_DM1_HiZ | SW_DP2_HiZ;
 
 	switch (id) {
 	case 0x5:
 		devid = ID_TA;
-		pchg->chg_parm = &pchg->pdata->ac;
+		pchg->chg_parm = pdata ? pdata->ac : NULL;
 		break;
 	case 0xB:
 		if (lp8727_is_dedicated_charger(pchg)) {
-			pchg->chg_parm = &pchg->pdata->ac;
+			pchg->chg_parm = pdata ? pdata->ac : NULL;
 			devid = ID_DEDICATED_CHG;
 		} else if (lp8727_is_usb_charger(pchg)) {
-			pchg->chg_parm = &pchg->pdata->usb;
+			pchg->chg_parm = pdata ? pdata->usb : NULL;
 			devid = ID_USB_CHG;
 			swctrl = SW_DM1_DM | SW_DP2_DP;
 		} else if (vbusin) {
@@ -295,6 +296,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 				       union power_supply_propval *val)
 {
 	struct lp8727_chg *pchg = dev_get_drvdata(psy->dev->parent);
+	struct lp8727_platform_data *pdata = pchg->pdata;
 	u8 read;
 
 	switch (psp) {
@@ -318,19 +320,31 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-		if (pchg->pdata->get_batt_present)
+		if (!pdata)
+			return -EINVAL;
+
+		if (pdata->get_batt_present)
 			val->intval = pchg->pdata->get_batt_present();
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		if (pchg->pdata->get_batt_level)
+		if (!pdata)
+			return -EINVAL;
+
+		if (pdata->get_batt_level)
 			val->intval = pchg->pdata->get_batt_level();
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		if (pchg->pdata->get_batt_capacity)
+		if (!pdata)
+			return -EINVAL;
+
+		if (pdata->get_batt_capacity)
 			val->intval = pchg->pdata->get_batt_capacity();
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		if (pchg->pdata->get_batt_temp)
+		if (!pdata)
+			return -EINVAL;
+
+		if (pdata->get_batt_temp)
 			val->intval = pchg->pdata->get_batt_temp();
 		break;
 	default:

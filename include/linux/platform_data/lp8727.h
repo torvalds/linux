@@ -51,15 +51,16 @@ struct lp8727_chg_param {
  * @get_batt_level : get battery voltage (mV)
  * @get_batt_capacity : get battery capacity (%)
  * @get_batt_temp : get battery temperature
- * @ac, @usb : charging parameters each charger type
+ * @ac                : charging parameters for AC type charger
+ * @usb               : charging parameters for USB type charger
  */
 struct lp8727_platform_data {
 	u8 (*get_batt_present)(void);
 	u16 (*get_batt_level)(void);
 	u8 (*get_batt_capacity)(void);
 	u8 (*get_batt_temp)(void);
-	struct lp8727_chg_param ac;
-	struct lp8727_chg_param usb;
+	struct lp8727_chg_param *ac;
+	struct lp8727_chg_param *usb;
 };
 
 #endif
