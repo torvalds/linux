@@ -263,6 +263,8 @@ cont_loop:
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
 	u64_stats_update_end(&tx_ring->syncp);
+	q_vector->tx.total_bytes += total_bytes;
+	q_vector->tx.total_packets += total_packets;
 
 	return count < tx_ring->count;
 }
@@ -488,6 +490,8 @@ next_desc:
 	rx_ring->total_packets += total_rx_packets;
 	rx_ring->total_bytes += total_rx_bytes;
 	u64_stats_update_end(&rx_ring->syncp);
+	q_vector->rx.total_packets += total_rx_packets;
+	q_vector->rx.total_bytes += total_rx_bytes;
 
 	return !!budget;
 }
