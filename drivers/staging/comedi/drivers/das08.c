@@ -369,56 +369,39 @@ static int das08jr_do_wbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int das08jr_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static void das08_ao_set_data(struct comedi_device *dev,
+			      unsigned int chan, unsigned int data)
 {
-	int n;
-	int lsb, msb;
-	int chan;
+	const struct das08_board_struct *thisboard = comedi_board(dev);
+	unsigned char lsb;
+	unsigned char msb;
 
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xff;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++) {
+	lsb = data & 0xff;
+	msb = (data >> 8) & 0xff;
+	if (thisboard->is_jr) {
 		outb(lsb, dev->iobase + DAS08JR_AO_LSB(chan));
 		outb(msb, dev->iobase + DAS08JR_AO_MSB(chan));
-
 		/* load DACs */
 		inb(dev->iobase + DAS08JR_DIO);
-	}
-
-	return n;
-}
-
-/*
- *
- * The -aox boards have the DACs at a different offset and use
- * a different method to force an update.
- *
- */
-static int das08ao_ao_winsn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
-{
-	int n;
-	int lsb, msb;
-	int chan;
-
-	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xf;
-
-	chan = CR_CHAN(insn->chanspec);
-
-	for (n = 0; n < insn->n; n++) {
+	} else {
 		outb(lsb, dev->iobase + DAS08AO_AO_LSB(chan));
 		outb(msb, dev->iobase + DAS08AO_AO_MSB(chan));
-
 		/* load DACs */
 		inb(dev->iobase + DAS08AO_AO_UPDATE);
 	}
+}
+
+static int das08_ao_winsn(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data)
+{
+	unsigned int n;
+	unsigned int chan;
+
+	chan = CR_CHAN(insn->chanspec);
+
+	for (n = 0; n < insn->n; n++)
+		das08_ao_set_data(dev, chan, *data);
 
 	return n;
 }
@@ -681,8 +664,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
-		s->insn_write =
-			thisboard->is_jr ? das08jr_ao_winsn : das08ao_ao_winsn;
+		s->insn_write = das08_ao_winsn;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
