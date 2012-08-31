@@ -749,7 +749,6 @@ static int das08_pci_attach_common(struct comedi_device *dev,
 				   struct pci_dev *pdev)
 {
 	unsigned long iobase;
-	unsigned long pci_iobase;
 	struct das08_private_struct *devpriv = dev->private;
 
 	if (!IS_ENABLED(CONFIG_COMEDI_DAS08_PCI))
@@ -763,11 +762,8 @@ static int das08_pci_attach_common(struct comedi_device *dev,
 		return -EIO;
 	}
 	/*  read base addresses */
-	pci_iobase = pci_resource_start(pdev, 1);
 	iobase = pci_resource_start(pdev, 2);
-	dev_info(dev->class_dev, "pcibase 0x%lx  iobase 0x%lx\n",
-		 pci_iobase, iobase);
-	devpriv->pci_iobase = pci_iobase;
+	dev_info(dev->class_dev, "iobase 0x%lx\n", iobase);
 	return das08_common_attach(dev, iobase);
 }
 
@@ -914,7 +910,7 @@ static void __maybe_unused das08_detach(struct comedi_device *dev)
 	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) &&
 		   thisboard->bustype == pci) {
 		if (devpriv && devpriv->pdev) {
-			if (devpriv->pci_iobase)
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pdev);
 			pci_dev_put(devpriv->pdev);
 		}
