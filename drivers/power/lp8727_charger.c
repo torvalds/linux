@@ -58,6 +58,7 @@
 
 /* STATUS2 register */
 #define TEMP_STAT	(3 << 5)
+#define TEMP_SHIFT	5
 
 enum lp8727_dev_id {
 	ID_NONE,
@@ -73,6 +74,13 @@ enum lp8727_chg_stat {
 	CC,
 	CV,
 	EOC,
+};
+
+enum lp8727_die_temp {
+	LP8788_TEMP_75C,
+	LP8788_TEMP_95C,
+	LP8788_TEMP_115C,
+	LP8788_TEMP_135C,
 };
 
 struct lp8727_psy {
@@ -315,12 +323,25 @@ static int lp8727_charger_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static bool lp8727_is_high_temperature(enum lp8727_die_temp temp)
+{
+	switch (temp) {
+	case LP8788_TEMP_95C:
+	case LP8788_TEMP_115C:
+	case LP8788_TEMP_135C:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int lp8727_battery_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *val)
 {
 	struct lp8727_chg *pchg = dev_get_drvdata(psy->dev->parent);
 	struct lp8727_platform_data *pdata = pchg->pdata;
+	enum lp8727_die_temp temp;
 	u8 read;
 
 	switch (psp) {
@@ -337,11 +358,11 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		lp8727_read_byte(pchg, STATUS2, &read);
-		read = (read & TEMP_STAT) >> 5;
-		if (read >= 0x1 && read <= 0x3)
-			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
-		else
-			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+		temp = (read & TEMP_STAT) >> TEMP_SHIFT;
+
+		val->intval = lp8727_is_high_temperature(temp) ?
+			POWER_SUPPLY_HEALTH_OVERHEAT :
+			POWER_SUPPLY_HEALTH_GOOD;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		if (!pdata)
