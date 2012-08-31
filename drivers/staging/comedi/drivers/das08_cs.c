@@ -58,6 +58,32 @@ Command support does not exist, but could be added for this board.
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
+static const struct das08_board_struct das08_cs_boards[] = {
+	{
+		.name = "pcm-das08",
+		.id = 0x0,		/*  XXX */
+		.bustype = pcmcia,
+		.ai_nbits = 12,
+		.ai_pg = das08_bipolar5,
+		.ai_encoding = das08_pcm_encode12,
+		.di_nchan = 3,
+		.do_nchan = 3,
+		.iosize = 16,
+	},
+	/*  duplicate so driver name can be used also */
+	{
+		.name = "das08_cs",
+		.id = 0x0,		/*  XXX */
+		.bustype = pcmcia,
+		.ai_nbits = 12,
+		.ai_pg = das08_bipolar5,
+		.ai_encoding = das08_pcm_encode12,
+		.di_nchan = 3,
+		.do_nchan = 3,
+		.iosize = 16,
+	},
+};
+
 static struct pcmcia_device *cur_dev;
 
 static int das08_cs_attach(struct comedi_device *dev,

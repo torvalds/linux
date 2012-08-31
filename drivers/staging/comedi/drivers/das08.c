@@ -663,35 +663,6 @@ static const struct das08_board_struct das08_boards[] = {
 };
 #endif /* DO_COMEDI_DRIVER_REGISTER */
 
-#if IS_ENABLED(CONFIG_COMEDI_DAS08_CS)
-struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
-	{
-		.name = "pcm-das08",
-		.id = 0x0,		/*  XXX */
-		.bustype = pcmcia,
-		.ai_nbits = 12,
-		.ai_pg = das08_bipolar5,
-		.ai_encoding = das08_pcm_encode12,
-		.di_nchan = 3,
-		.do_nchan = 3,
-		.iosize = 16,
-	},
-	/*  duplicate so driver name can be used also */
-	{
-		.name = "das08_cs",
-		.id = 0x0,		/*  XXX */
-		.bustype = pcmcia,
-		.ai_nbits = 12,
-		.ai_pg = das08_bipolar5,
-		.ai_encoding = das08_pcm_encode12,
-		.di_nchan = 3,
-		.do_nchan = 3,
-		.iosize = 16,
-	},
-};
-EXPORT_SYMBOL_GPL(das08_cs_boards);
-#endif
-
 int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
