@@ -3090,7 +3090,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
-	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk); //816
+	//clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk); //816
 	//periph clk
 	periph_clk_set_init();
 
@@ -3198,7 +3198,6 @@ void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 fla
 	_rk30_clock_data_init(gpll, cpll, flags);
 	printk("%s end\n", __func__);
 	rk30_clk_dump_regs();
-	while(1);
 	//rk30_dvfs_init();
 }
 
