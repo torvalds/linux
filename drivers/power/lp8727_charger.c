@@ -219,9 +219,11 @@ static void lp8727_enable_chgdet(struct lp8727_chg *pchg)
 
 static void lp8727_delayed_func(struct work_struct *_work)
 {
-	u8 intstat[LP8788_NUM_INTREGS], idno, vbus;
-	struct lp8727_chg *pchg =
-	    container_of(_work, struct lp8727_chg, work.work);
+	struct lp8727_chg *pchg = container_of(_work, struct lp8727_chg,
+						work.work);
+	u8 intstat[LP8788_NUM_INTREGS];
+	u8 idno;
+	u8 vbus;
 
 	if (lp8727_read_bytes(pchg, LP8727_INT1, intstat, LP8788_NUM_INTREGS)) {
 		dev_err(pchg->dev, "can not read INT registers\n");
