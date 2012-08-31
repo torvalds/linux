@@ -547,6 +547,5 @@ static struct i2c_driver lp8727_driver = {
 module_i2c_driver(lp8727_driver);
 
 MODULE_DESCRIPTION("TI/National Semiconductor LP8727 charger driver");
-MODULE_AUTHOR("Woogyom Kim <milo.kim@ti.com>, "
-	      "Daniel Jeong <daniel.jeong@ti.com>");
+MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>, Daniel Jeong <daniel.jeong@ti.com>");
 MODULE_LICENSE("GPL");
