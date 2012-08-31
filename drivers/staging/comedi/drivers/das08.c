@@ -236,6 +236,16 @@ static const int *const das08_gainlists[] = {
 	das08_pgm_gainlist,
 };
 
+static inline bool is_isa_board(const struct das08_board_struct *board)
+{
+	return IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) && board->bustype == isa;
+}
+
+static inline bool is_pci_board(const struct das08_board_struct *board)
+{
+	return IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && board->bustype == pci;
+}
+
 #define TIMEOUT 100000
 
 static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -757,7 +767,7 @@ das08_find_pci_board(struct pci_dev *pdev)
 #if DO_COMEDI_DRIVER_REGISTER
 	unsigned int i;
 	for (i = 0; i < ARRAY_SIZE(das08_boards); i++)
-		if (das08_boards[i].bustype == pci &&
+		if (is_pci_board(&das08_boards[i]) &&
 		    pdev->device == das08_boards[i].id)
 			return &das08_boards[i];
 #endif
@@ -817,13 +827,12 @@ das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv = dev->private;
 
 	dev_info(dev->class_dev, "attach\n");
-	if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) && thisboard->bustype == pci) {
+	if (is_pci_board(thisboard)) {
 		dev_err(dev->class_dev,
 			"Manual configuration of PCI board '%s' is not supported\n",
 			thisboard->name);
 		return -EIO;
-	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
-		   thisboard->bustype == isa) {
+	} else if (is_isa_board(thisboard)) {
 		iobase = it->options[0];
 		dev_info(dev->class_dev, "iobase 0x%lx\n", iobase);
 		if (!request_region(iobase, thisboard->iosize, DRV_NAME)) {
@@ -848,11 +857,10 @@ static void __maybe_unused das08_detach(struct comedi_device *dev)
 	struct das08_private_struct *devpriv = dev->private;
 
 	das08_common_detach(dev);
-	if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) && thisboard->bustype == isa) {
+	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
-	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) &&
-		   thisboard->bustype == pci) {
+	} else if (is_pci_board(thisboard)) {
 		if (devpriv && devpriv->pdev) {
 			if (dev->iobase)
 				comedi_pci_disable(devpriv->pdev);
