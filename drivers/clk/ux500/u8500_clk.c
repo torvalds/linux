@@ -205,12 +205,16 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, "dsilp2", "dsilink.2");
 	clk_register_clkdev(clk, "dsilp2", "mcde");
 
+	clk = clk_reg_prcmu_rate("smp_twd", NULL, PRCMU_ARMSS,
+				CLK_IS_ROOT|CLK_GET_RATE_NOCACHE|
+				CLK_IGNORE_UNUSED);
+	clk_register_clkdev(clk, NULL, "smp_twd");
+
 	/*
 	 * FIXME: Add special handled PRCMU clocks here:
-	 * 1. smp_twd, use PRCMU_ARMSS.
-	 * 2. clk_arm, use PRCMU_ARMCLK.
-	 * 3. clkout0yuv, use PRCMU as parent + need regulator + pinctrl.
-	 * 4. ab9540_clkout1yuv, see clkout0yuv
+	 * 1. clk_arm, use PRCMU_ARMCLK.
+	 * 2. clkout0yuv, use PRCMU as parent + need regulator + pinctrl.
+	 * 3. ab9540_clkout1yuv, see clkout0yuv
 	 */
 
 	/* PRCC P-clocks */
