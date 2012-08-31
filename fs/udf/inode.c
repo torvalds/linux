@@ -100,6 +100,12 @@ static int udf_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, udf_get_block, wbc);
 }
 
+static int udf_writepages(struct address_space *mapping,
+			struct writeback_control *wbc)
+{
+	return mpage_writepages(mapping, wbc, udf_get_block);
+}
+
 static int udf_readpage(struct file *file, struct page *page)
 {
 	return mpage_readpage(page, udf_get_block);
@@ -145,6 +151,7 @@ const struct address_space_operations udf_aops = {
 	.readpage	= udf_readpage,
 	.readpages	= udf_readpages,
 	.writepage	= udf_writepage,
+	.writepages	= udf_writepages,
 	.write_begin		= udf_write_begin,
 	.write_end		= generic_write_end,
 	.bmap		= udf_bmap,
