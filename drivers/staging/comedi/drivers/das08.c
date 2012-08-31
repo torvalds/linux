@@ -342,9 +342,9 @@ static int das08_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int __maybe_unused
-das08jr_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
-		 struct comedi_insn *insn, unsigned int *data)
+static int das08jr_di_rbits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	data[0] = 0;
 	data[1] = inb(dev->iobase + DAS08JR_DIO);
@@ -352,9 +352,9 @@ das08jr_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int __maybe_unused
-das08jr_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-		 struct comedi_insn *insn, unsigned int *data)
+static int das08jr_do_wbits(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	struct das08_private_struct *devpriv = dev->private;
 
@@ -369,9 +369,9 @@ das08jr_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
-static int __maybe_unused
-das08jr_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		 struct comedi_insn *insn, unsigned int *data)
+static int das08jr_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int lsb, msb;
@@ -399,9 +399,9 @@ das08jr_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * a different method to force an update.
  *
  */
-static int __maybe_unused
-das08ao_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		 struct comedi_insn *insn, unsigned int *data)
+static int das08ao_ao_winsn(struct comedi_device *dev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int n;
 	int lsb, msb;
