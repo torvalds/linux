@@ -169,7 +169,7 @@ static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 	return val & LP8727_CHPORT;
 }
 
-static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
+static inline void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 {
 	lp8727_write_byte(pchg, LP8727_SWCTRL, sw);
 }
