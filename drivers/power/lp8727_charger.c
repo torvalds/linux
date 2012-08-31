@@ -17,6 +17,7 @@
 #include <linux/power_supply.h>
 #include <linux/platform_data/lp8727.h>
 
+#define LP8788_NUM_INTREGS	2
 #define DEFAULT_DEBOUNCE_MSEC	270
 
 /* Registers */
@@ -136,6 +137,13 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 {
 	u8 val;
 	int ret;
+	u8 intstat[LP8788_NUM_INTREGS];
+
+	/* clear interrupts */
+	ret = lp8727_read_bytes(pchg, INT1, intstat, LP8788_NUM_INTREGS);
+	if (ret)
+		return ret;
+
 
 	val = ID200_EN | ADC_EN | CP_EN;
 	ret = lp8727_write_byte(pchg, CTRL1, val);
