@@ -33,13 +33,13 @@
 	REG32(_gic_base + segment##_##SECTION_OFS + offset)
 
 #define GIC_ABS_REG(segment, offset) \
-       (_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
+	(_gic_base + segment##_##SECTION_OFS + offset##_##OFS)
 #define GIC_REG_ABS_ADDR(segment, offset) \
-       (_gic_base + segment##_##SECTION_OFS + offset)
+	(_gic_base + segment##_##SECTION_OFS + offset)
 
 #ifdef GICISBYTELITTLEENDIAN
-#define GICREAD(reg, data)	(data) = (reg), (data) = le32_to_cpu(data)
-#define GICWRITE(reg, data)	(reg) = cpu_to_le32(data)
+#define GICREAD(reg, data)	((data) = (reg), (data) = le32_to_cpu(data))
+#define GICWRITE(reg, data)	((reg) = cpu_to_le32(data))
 #define GICBIS(reg, bits)			\
 	({unsigned int data;			\
 		GICREAD(reg, data);		\
@@ -48,9 +48,9 @@
 	})
 
 #else
-#define GICREAD(reg, data)	(data) = (reg)
-#define GICWRITE(reg, data)	(reg) = (data)
-#define GICBIS(reg, bits)	(reg) |= (bits)
+#define GICREAD(reg, data)	((data) = (reg))
+#define GICWRITE(reg, data)	((reg) = (data))
+#define GICBIS(reg, bits)	((reg) |= (bits))
 #endif
 
 
@@ -304,15 +304,15 @@
 		 GIC_SH_MAP_TO_VPE_REG_BIT(vpe))
 
 struct gic_pcpu_mask {
-       DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
+	DECLARE_BITMAP(pcpu_mask, GIC_NUM_INTRS);
 };
 
 struct gic_pending_regs {
-       DECLARE_BITMAP(pending, GIC_NUM_INTRS);
+	DECLARE_BITMAP(pending, GIC_NUM_INTRS);
 };
 
 struct gic_intrmask_regs {
-       DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
+	DECLARE_BITMAP(intrmask, GIC_NUM_INTRS);
 };
 
 /*
