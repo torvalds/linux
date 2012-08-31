@@ -800,7 +800,6 @@ das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 	}
 	/*  read base addresses */
 	iobase = pci_resource_start(pdev, 2);
-	dev_info(dev->class_dev, "iobase 0x%lx\n", iobase);
 	return das08_common_attach(dev, iobase);
 }
 
