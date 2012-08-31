@@ -635,7 +635,7 @@ static const struct das08_board_struct das08_boards[] = {
 	},
 	{
 		.name = "pc104-das08",
-		.bustype = pc104,
+		.bustype = isa,
 		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pg_none,
@@ -1004,7 +1004,7 @@ das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return -EIO;
 		return das08_pci_attach_common(dev, pdev);
 	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
-		   (thisboard->bustype == isa || thisboard->bustype == pc104)) {
+		   thisboard->bustype == isa) {
 		iobase = it->options[0];
 		dev_info(dev->class_dev, "iobase 0x%lx\n", iobase);
 		if (!request_region(iobase, thisboard->iosize, DRV_NAME)) {
@@ -1029,8 +1029,7 @@ static void __maybe_unused das08_detach(struct comedi_device *dev)
 	struct das08_private_struct *devpriv = dev->private;
 
 	das08_common_detach(dev);
-	if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) &&
-	    (thisboard->bustype == isa || thisboard->bustype == pc104)) {
+	if (IS_ENABLED(CONFIG_COMEDI_DAS08_ISA) && thisboard->bustype == isa) {
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
 	} else if (IS_ENABLED(CONFIG_COMEDI_DAS08_PCI) &&
