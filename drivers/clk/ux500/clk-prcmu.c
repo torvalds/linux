@@ -153,6 +153,11 @@ static struct clk_ops clk_prcmu_gate_ops = {
 	.recalc_rate = clk_prcmu_recalc_rate,
 };
 
+static struct clk_ops clk_prcmu_rate_ops = {
+	.is_enabled = clk_prcmu_is_enabled,
+	.recalc_rate = clk_prcmu_recalc_rate,
+};
+
 static struct clk_ops clk_prcmu_opp_gate_ops = {
 	.prepare = clk_prcmu_opp_prepare,
 	.unprepare = clk_prcmu_opp_unprepare,
@@ -226,6 +231,15 @@ struct clk *clk_reg_prcmu_gate(const char *name,
 {
 	return clk_reg_prcmu(name, parent_name, cg_sel, 0, flags,
 			&clk_prcmu_gate_ops);
+}
+
+struct clk *clk_reg_prcmu_rate(const char *name,
+			       const char *parent_name,
+			       u8 cg_sel,
+			       unsigned long flags)
+{
+	return clk_reg_prcmu(name, parent_name, cg_sel, 0, flags,
+			&clk_prcmu_rate_ops);
 }
 
 struct clk *clk_reg_prcmu_opp_gate(const char *name,
