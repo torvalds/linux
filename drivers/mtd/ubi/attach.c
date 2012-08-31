@@ -79,7 +79,7 @@
  *     NAND), it is probably a PEB which was being erased when power cut
  *     happened, so this is corruption type 1. However, this is just a guess,
  *     which might be wrong.
- *   o Otherwise this it corruption type 2.
+ *   o Otherwise this is corruption type 2.
  */
 
 #include <linux/err.h>
