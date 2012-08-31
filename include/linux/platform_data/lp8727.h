@@ -53,6 +53,7 @@ struct lp8727_chg_param {
  * @get_batt_temp : get battery temperature
  * @ac                : charging parameters for AC type charger
  * @usb               : charging parameters for USB type charger
+ * @debounce_msec     : interrupt debounce time
  */
 struct lp8727_platform_data {
 	u8 (*get_batt_present)(void);
@@ -61,6 +62,7 @@ struct lp8727_platform_data {
 	u8 (*get_batt_temp)(void);
 	struct lp8727_chg_param *ac;
 	struct lp8727_chg_param *usb;
+	unsigned int debounce_msec;
 };
 
 #endif

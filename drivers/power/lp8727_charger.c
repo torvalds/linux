@@ -17,7 +17,7 @@
 #include <linux/power_supply.h>
 #include <linux/platform_data/lp8727.h>
 
-#define DEBOUNCE_MSEC	270
+#define DEFAULT_DEBOUNCE_MSEC	270
 
 /* Registers */
 #define CTRL1		0x1
@@ -90,6 +90,7 @@ struct lp8727_chg {
 	struct lp8727_psy *psy;
 	struct lp8727_chg_param *chg_parm;
 	enum lp8727_dev_id devid;
+	unsigned long debounce_jiffies;
 };
 
 static int lp8727_read_bytes(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
@@ -236,15 +237,18 @@ static void lp8727_delayed_func(struct work_struct *_work)
 static irqreturn_t lp8727_isr_func(int irq, void *ptr)
 {
 	struct lp8727_chg *pchg = ptr;
-	unsigned long delay = msecs_to_jiffies(DEBOUNCE_MSEC);
 
-	queue_delayed_work(pchg->irqthread, &pchg->work, delay);
+	queue_delayed_work(pchg->irqthread, &pchg->work,
+					pchg->debounce_jiffies);
 
 	return IRQ_HANDLED;
 }
 
 static int lp8727_intr_config(struct lp8727_chg *pchg)
 {
+	unsigned delay_msec = pchg->pdata ? pchg->pdata->debounce_msec :
+						DEFAULT_DEBOUNCE_MSEC;
+
 	INIT_DELAYED_WORK(&pchg->work, lp8727_delayed_func);
 
 	pchg->irqthread = create_singlethread_workqueue("lp8727-irqthd");
@@ -252,6 +256,8 @@ static int lp8727_intr_config(struct lp8727_chg *pchg)
 		dev_err(pchg->dev, "can not create thread for lp8727\n");
 		return -ENOMEM;
 	}
+
+	pchg->debounce_jiffies = msecs_to_jiffies(delay_msec);
 
 	return request_threaded_irq(pchg->client->irq,
 				NULL,
