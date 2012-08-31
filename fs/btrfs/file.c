@@ -459,8 +459,8 @@ int btrfs_dirty_pages(struct btrfs_root *root, struct inode *inode,
  * this drops all the extents in the cache that intersect the range
  * [start, end].  Existing extents are split as required.
  */
-int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
-			       int skip_pinned)
+void btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
+			     int skip_pinned)
 {
 	struct extent_map *em;
 	struct extent_map *split = NULL;
@@ -479,11 +479,14 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		testend = 0;
 	}
 	while (1) {
+		int no_splits = 0;
+
 		if (!split)
 			split = alloc_extent_map();
 		if (!split2)
 			split2 = alloc_extent_map();
-		BUG_ON(!split || !split2); /* -ENOMEM */
+		if (!split || !split2)
+			no_splits = 1;
 
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, len);
@@ -509,6 +512,8 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
 		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		remove_extent_mapping(em_tree, em);
+		if (no_splits)
+			goto next;
 
 		if (em->block_start < EXTENT_MAP_LAST_BYTE &&
 		    em->start < start) {
@@ -559,6 +564,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			free_extent_map(split);
 			split = NULL;
 		}
+next:
 		write_unlock(&em_tree->lock);
 
 		/* once for us */
@@ -570,7 +576,6 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 		free_extent_map(split);
 	if (split2)
 		free_extent_map(split2);
-	return 0;
 }
 
 /*
