@@ -72,7 +72,7 @@ static struct cmdline_mtd_partition *partitions;
 
 /* the command line passed to mtdpart_setup() */
 static char *cmdline;
-static int cmdline_parsed = 0;
+static int cmdline_parsed;
 
 /*
  * Parse one partition definition for an MTD. Since there can be many
