@@ -1206,7 +1206,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
 #ifdef CONFIG_PM
-	if (codec->power_on)
+	if (!codec->pm_down_notified) /* cancel leftover refcounts */
 		hda_call_pm_notify(codec->bus, false);
 #endif
 	module_put(codec->owner);
@@ -1222,7 +1222,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 				hda_nid_t fg, unsigned int power_state);
 
-static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
+static unsigned int hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state);
 
 /**
@@ -3564,17 +3564,13 @@ static unsigned int hda_sync_power_state(struct hda_codec *codec,
 }
 
 /*
- * set power state of the codec
+ * set power state of the codec, and return the power state
  */
-static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
-				unsigned int power_state)
+static unsigned int hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
+					unsigned int power_state)
 {
 	int count;
 	unsigned int state;
-
-#ifdef CONFIG_PM
-	codec->d3_stop_clk_ok = 0;
-#endif
 
 	/* this delay seems necessary to avoid click noise at power-down */
 	if (power_state == AC_PWRST_D3) {
@@ -3599,11 +3595,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 			break;
 	}
 
-#ifdef CONFIG_PM
-	if (!codec->bus->power_keep_link_on && power_state == AC_PWRST_D3
-		&& codec->d3_stop_clk && (state & AC_PWRST_CLK_STOP_OK))
-		codec->d3_stop_clk_ok = 1;
-#endif
+	return state;
 }
 
 #ifdef CONFIG_SND_HDA_HWDEP
@@ -3620,13 +3612,16 @@ static inline void hda_exec_init_verbs(struct hda_codec *codec) {}
 #ifdef CONFIG_PM
 /*
  * call suspend and power-down; used both from PM and power-save
+ * this function returns the power state in the end
  */
-static void hda_call_codec_suspend(struct hda_codec *codec)
+static unsigned int hda_call_codec_suspend(struct hda_codec *codec)
 {
+	unsigned int state;
+
 	if (codec->patch_ops.suspend)
 		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
-	hda_set_power_state(codec,
+	state = hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D3);
 	cancel_delayed_work(&codec->power_work);
@@ -3637,6 +3632,7 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 	codec->power_transition = 0;
 	codec->power_jiffies = jiffies;
 	spin_unlock(&codec->power_lock);
+	return state;
 }
 
 /*
@@ -4438,6 +4434,7 @@ static void hda_power_work(struct work_struct *work)
 	struct hda_codec *codec =
 		container_of(work, struct hda_codec, power_work.work);
 	struct hda_bus *bus = codec->bus;
+	unsigned int state;
 
 	spin_lock(&codec->power_lock);
 	if (codec->power_transition > 0) { /* during power-up sequence? */
@@ -4451,9 +4448,12 @@ static void hda_power_work(struct work_struct *work)
 	}
 	spin_unlock(&codec->power_lock);
 
-	hda_call_codec_suspend(codec);
-	if (codec->d3_stop_clk_ok)
+	state = hda_call_codec_suspend(codec);
+	codec->pm_down_notified = 0;
+	if (!bus->power_keep_link_on && (state & AC_PWRST_CLK_STOP_OK)) {
+		codec->pm_down_notified = 1;
 		hda_call_pm_notify(bus, false);
+	}
 }
 
 static void hda_keep_power_on(struct hda_codec *codec)
@@ -4510,8 +4510,11 @@ static void __snd_hda_power_up(struct hda_codec *codec, bool wait_power_down)
 	codec->power_transition = 1; /* avoid reentrance */
 	spin_unlock(&codec->power_lock);
 
-	if (codec->d3_stop_clk_ok) /* flag set at suspend */
+	if (codec->pm_down_notified) {
+		codec->pm_down_notified = 0;
 		hda_call_pm_notify(bus, true);
+	}
+
 	hda_call_codec_resume(codec);
 
 	spin_lock(&codec->power_lock);
