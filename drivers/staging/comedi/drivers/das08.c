@@ -495,15 +495,10 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "isa-das08",	/*  cio-das08.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pg_none,
 		.ai_encoding = das08_encode12,
-		.ao = NULL,
-		.ao_nbits = 12,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 8,
 		.i8254_offset = 4,
@@ -512,14 +507,10 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08-pgm",	/*  cio-das08pgx.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pgm,
 		.ai_encoding = das08_encode12,
-		.ao = NULL,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0,
 		.i8254_offset = 0x04,
@@ -528,14 +519,10 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08-pgh",	/*  cio-das08pgx.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pgh,
 		.ai_encoding = das08_encode12,
-		.ao = NULL,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0,
 		.i8254_offset = 0x04,
@@ -544,14 +531,10 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08-pgl",	/*  cio-das08pgx.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pgl,
 		.ai_encoding = das08_encode12,
-		.ao = NULL,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0,
 		.i8254_offset = 0x04,
@@ -560,15 +543,11 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08-aoh",	/*  cio-das08_aox.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pgh,
 		.ai_encoding = das08_encode12,
-		.ao = das08ao_ao_winsn,	/*  8 */
 		.ao_nbits = 12,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0x0c,
 		.i8254_offset = 0x04,
@@ -577,15 +556,11 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08-aol",	/*  cio-das08_aox.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pgl,
 		.ai_encoding = das08_encode12,
-		.ao = das08ao_ao_winsn,	/*  8 */
 		.ao_nbits = 12,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0x0c,
 		.i8254_offset = 0x04,
@@ -594,15 +569,11 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "das08-aom",	/*  cio-das08_aox.pdf */
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pgm,
 		.ai_encoding = das08_encode12,
-		.ao = das08ao_ao_winsn,	/*  8 */
 		.ao_nbits = 12,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0x0c,
 		.i8254_offset = 0x04,
@@ -612,15 +583,11 @@ static const struct das08_board_struct das08_boards[] = {
 		.name = "das08/jr-ao",	/*  cio-das08-jr-ao.pdf */
 		.bustype = isa,
 		.is_jr = true,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pg_none,
 		.ai_encoding = das08_encode12,
-		.ao = das08jr_ao_winsn,
 		.ao_nbits = 12,
-		.di = das08jr_di_rbits,
 		.di_nchan = 8,
-		.do_ = das08jr_do_wbits,
 		.do_nchan = 8,
 		.i8255_offset = 0,
 		.i8254_offset = 0,
@@ -630,15 +597,11 @@ static const struct das08_board_struct das08_boards[] = {
 		.name = "das08jr-16-ao",	/*  cio-das08jr-16-ao.pdf */
 		.bustype = isa,
 		.is_jr = true,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 16,
 		.ai_pg = das08_pg_none,
 		.ai_encoding = das08_encode16,
-		.ao = das08jr_ao_winsn,
 		.ao_nbits = 16,
-		.di = das08jr_di_rbits,
 		.di_nchan = 8,
-		.do_ = das08jr_do_wbits,
 		.do_nchan = 8,
 		.i8255_offset = 0,
 		.i8254_offset = 0x04,
@@ -647,15 +610,10 @@ static const struct das08_board_struct das08_boards[] = {
 	{
 		.name = "pc104-das08",
 		.bustype = isa,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_pg_none,
 		.ai_encoding = das08_encode12,
-		.ao = NULL,
-		.ao_nbits = 0,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0,
 		.i8254_offset = 4,
@@ -673,15 +631,10 @@ static const struct das08_board_struct das08_boards[] = {
 		.name = "das08jr/16",
 		.bustype = isa,
 		.is_jr = true,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 16,
 		.ai_pg = das08_pg_none,
 		.ai_encoding = das08_encode16,
-		.ao = NULL,
-		.ao_nbits = 0,
-		.di = das08jr_di_rbits,
 		.di_nchan = 8,
-		.do_ = das08jr_do_wbits,
 		.do_nchan = 8,
 		.i8255_offset = 0,
 		.i8254_offset = 0,
@@ -701,15 +654,10 @@ static const struct das08_board_struct das08_boards[] = {
 		.name = "pci-das08",	/*  pci-das08 */
 		.id = PCI_DEVICE_ID_PCIDAS08,
 		.bustype = pci,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_bipolar5,
 		.ai_encoding = das08_encode12,
-		.ao = NULL,
-		.ao_nbits = 0,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 4,
 		.i8255_offset = 0,
 		.i8254_offset = 4,
@@ -730,15 +678,10 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 		.name = "pcm-das08",
 		.id = 0x0,		/*  XXX */
 		.bustype = pcmcia,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_bipolar5,
 		.ai_encoding = das08_pcm_encode12,
-		.ao = NULL,
-		.ao_nbits = 0,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 3,
 		.i8255_offset = 0,
 		.i8254_offset = 0,
@@ -749,15 +692,10 @@ struct das08_board_struct das08_cs_boards[NUM_DAS08_CS_BOARDS] = {
 		.name = "das08_cs",
 		.id = 0x0,		/*  XXX */
 		.bustype = pcmcia,
-		.ai = das08_ai_rinsn,
 		.ai_nbits = 12,
 		.ai_pg = das08_bipolar5,
 		.ai_encoding = das08_pcm_encode12,
-		.ao = NULL,
-		.ao_nbits = 0,
-		.di = das08_di_rbits,
 		.di_nchan = 3,
-		.do_ = das08_do_wbits,
 		.do_nchan = 3,
 		.i8255_offset = 0,
 		.i8254_offset = 0,
@@ -784,7 +722,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	s = dev->subdevices + 0;
 	/* ai */
-	if (thisboard->ai) {
+	if (thisboard->ai_nbits) {
 		s->type = COMEDI_SUBD_AI;
 		/* XXX some boards actually have differential
 		 * inputs instead of single ended.
@@ -795,7 +733,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 		s->n_chan = 8;
 		s->maxdata = (1 << thisboard->ai_nbits) - 1;
 		s->range_table = das08_ai_lranges[thisboard->ai_pg];
-		s->insn_read = thisboard->ai;
+		s->insn_read = das08_ai_rinsn;
 		devpriv->pg_gainlist = das08_gainlists[thisboard->ai_pg];
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -803,40 +741,43 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	s = dev->subdevices + 1;
 	/* ao */
-	if (thisboard->ao) {
+	if (thisboard->ao_nbits) {
 		s->type = COMEDI_SUBD_AO;
 /* XXX lacks read-back insn */
 		s->subdev_flags = SDF_WRITABLE;
 		s->n_chan = 2;
 		s->maxdata = (1 << thisboard->ao_nbits) - 1;
 		s->range_table = &range_bipolar5;
-		s->insn_write = thisboard->ao;
+		s->insn_write =
+			thisboard->is_jr ? das08jr_ao_winsn : das08ao_ao_winsn;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = dev->subdevices + 2;
 	/* di */
-	if (thisboard->di) {
+	if (thisboard->di_nchan) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
 		s->n_chan = thisboard->di_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_bits = thisboard->di;
+		s->insn_bits =
+			thisboard->is_jr ? das08jr_di_rbits : das08_di_rbits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = dev->subdevices + 3;
 	/* do */
-	if (thisboard->do_) {
+	if (thisboard->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
 		s->n_chan = thisboard->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->insn_bits = thisboard->do_;
+		s->insn_bits =
+			thisboard->is_jr ? das08jr_do_wbits : das08_do_wbits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}

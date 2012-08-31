@@ -36,15 +36,11 @@ struct das08_board_struct {
 	unsigned int id;	/*  id for pci/pcmcia boards */
 	enum das08_bustype bustype;
 	bool is_jr;		/* true for 'JR' boards */
-	void *ai;
 	unsigned int ai_nbits;
 	enum das08_lrange ai_pg;
 	enum das08_ai_encoding ai_encoding;
-	void *ao;
 	unsigned int ao_nbits;
-	void *di;
 	unsigned int di_nchan;
-	void *do_;
 	unsigned int do_nchan;
 	unsigned int i8255_offset;
 	unsigned int i8254_offset;
