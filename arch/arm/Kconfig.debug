@@ -373,6 +373,11 @@ choice
 
 endchoice
 
+config DEBUG_LL_INCLUDE
+	string
+	default "debug/icedcc.S" if DEBUG_ICEDCC
+	default "mach/debug-macro.S"
+
 config EARLY_PRINTK
 	bool "Early printk"
 	depends on DEBUG_LL
