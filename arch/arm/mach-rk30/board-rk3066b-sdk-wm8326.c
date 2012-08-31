@@ -196,8 +196,8 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 	
 	ldo = regulator_get(NULL, "ldo4");	// vdd_11
-	regulator_set_voltage(ldo, 1000000, 1000000);
-	regulator_set_suspend_voltage(ldo, 1000000);
+	regulator_set_voltage(ldo, 900000, 900000);
+	regulator_set_suspend_voltage(ldo, 900000);
 	regulator_enable(ldo);
 //	printk("%s set ldo4 vdd_11=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
