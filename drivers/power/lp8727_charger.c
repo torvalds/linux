@@ -360,7 +360,7 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 {
 	struct lp8727_psy *psy;
 
-	psy = kzalloc(sizeof(*psy), GFP_KERNEL);
+	psy = devm_kzalloc(pchg->dev, sizeof(*psy), GFP_KERNEL);
 	if (!psy)
 		return -ENOMEM;
 
@@ -405,7 +405,6 @@ err_psy_batt:
 err_psy_usb:
 	power_supply_unregister(&psy->ac);
 err_psy_ac:
-	kfree(psy);
 	return -EPERM;
 }
 
@@ -419,7 +418,6 @@ static void lp8727_unregister_psy(struct lp8727_chg *pchg)
 	power_supply_unregister(&psy->ac);
 	power_supply_unregister(&psy->usb);
 	power_supply_unregister(&psy->batt);
-	kfree(psy);
 }
 
 static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
@@ -430,7 +428,7 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	pchg = kzalloc(sizeof(*pchg), GFP_KERNEL);
+	pchg = devm_kzalloc(&cl->dev, sizeof(*pchg), GFP_KERNEL);
 	if (!pchg)
 		return -ENOMEM;
 
@@ -462,7 +460,6 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	return 0;
 
 error:
-	kfree(pchg);
 	return ret;
 }
 
@@ -474,7 +471,6 @@ static int __devexit lp8727_remove(struct i2c_client *cl)
 	free_irq(pchg->client->irq, pchg);
 	flush_workqueue(pchg->irqthread);
 	destroy_workqueue(pchg->irqthread);
-	kfree(pchg);
 	return 0;
 }
 
