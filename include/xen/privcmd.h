@@ -58,13 +58,33 @@ struct privcmd_mmapbatch {
 	int num;     /* number of pages to populate */
 	domid_t dom; /* target domain */
 	__u64 addr;  /* virtual address */
-	xen_pfn_t __user *arr; /* array of mfns - top nibble set on err */
+	xen_pfn_t __user *arr; /* array of mfns - or'd with
+				  PRIVCMD_MMAPBATCH_*_ERROR on err */
+};
+
+#define PRIVCMD_MMAPBATCH_MFN_ERROR     0xf0000000U
+#define PRIVCMD_MMAPBATCH_PAGED_ERROR   0x80000000U
+
+struct privcmd_mmapbatch_v2 {
+	unsigned int num; /* number of pages to populate */
+	domid_t dom;      /* target domain */
+	__u64 addr;       /* virtual address */
+	const xen_pfn_t __user *arr; /* array of mfns */
+	int __user *err;  /* array of error codes */
 };
 
 /*
  * @cmd: IOCTL_PRIVCMD_HYPERCALL
  * @arg: &privcmd_hypercall_t
  * Return: Value returned from execution of the specified hypercall.
+ *
+ * @cmd: IOCTL_PRIVCMD_MMAPBATCH_V2
+ * @arg: &struct privcmd_mmapbatch_v2
+ * Return: 0 on success (i.e., arg->err contains valid error codes for
+ * each frame).  On an error other than a failed frame remap, -1 is
+ * returned and errno is set to EINVAL, EFAULT etc.  As an exception,
+ * if the operation was otherwise successful but any frame failed with
+ * -ENOENT, then -1 is returned and errno is set to ENOENT.
  */
 #define IOCTL_PRIVCMD_HYPERCALL					\
 	_IOC(_IOC_NONE, 'P', 0, sizeof(struct privcmd_hypercall))
@@ -72,5 +92,7 @@ struct privcmd_mmapbatch {
 	_IOC(_IOC_NONE, 'P', 2, sizeof(struct privcmd_mmap))
 #define IOCTL_PRIVCMD_MMAPBATCH					\
 	_IOC(_IOC_NONE, 'P', 3, sizeof(struct privcmd_mmapbatch))
+#define IOCTL_PRIVCMD_MMAPBATCH_V2				\
+	_IOC(_IOC_NONE, 'P', 4, sizeof(struct privcmd_mmapbatch_v2))
 
 #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */
