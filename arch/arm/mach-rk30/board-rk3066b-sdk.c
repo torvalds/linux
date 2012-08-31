@@ -130,17 +130,17 @@ static struct spi_board_info board_spi_devices[] = {
 *	rk30  backlight
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
-#define PWM_ID            0
-#define PWM_MUX_NAME      GPIO3D3_PWM0_NAME
-#define PWM_MUX_MODE      GPIO3D_PWM0
-#define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D4
-#define PWM_GPIO 	  RK30_PIN3_PD4
+#define PWM_ID            2
+#define PWM_MUX_NAME      GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME
+#define PWM_MUX_MODE      GPIO3D_PWM2
+#define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D5
+#define PWM_GPIO 	  RK30_PIN3_PD5
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
-#define BL_EN_PIN         RK30_PIN0_PA1
+#define BL_EN_PIN         RK30_PIN0_PA2
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
 static int rk29_backlight_io_init(void)
