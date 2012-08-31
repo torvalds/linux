@@ -59,6 +59,9 @@
 #define LP8727_TEMP_STAT	(3 << 5)
 #define LP8727_TEMP_SHIFT	5
 
+/* CHGCTRL2 register */
+#define LP8727_ICHG_SHIFT	4
+
 enum lp8727_dev_id {
 	LP8727_ID_NONE,
 	LP8727_ID_TA,
@@ -222,11 +225,11 @@ static void lp8727_enable_chgdet(struct lp8727_chg *pchg)
 
 static void lp8727_delayed_func(struct work_struct *_work)
 {
-	u8 intstat[2], idno, vbus;
+	u8 intstat[LP8788_NUM_INTREGS], idno, vbus;
 	struct lp8727_chg *pchg =
 	    container_of(_work, struct lp8727_chg, work.work);
 
-	if (lp8727_read_bytes(pchg, LP8727_INT1, intstat, 2)) {
+	if (lp8727_read_bytes(pchg, LP8727_INT1, intstat, LP8788_NUM_INTREGS)) {
 		dev_err(pchg->dev, "can not read INT registers\n");
 		return;
 	}
@@ -401,7 +404,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 		if (pchg->chg_parm) {
 			eoc_level = pchg->chg_parm->eoc_level;
 			ichg = pchg->chg_parm->ichg;
-			val = (ichg << 4) | eoc_level;
+			val = (ichg << LP8727_ICHG_SHIFT) | eoc_level;
 			lp8727_write_byte(pchg, LP8727_CHGCTRL2, val);
 		}
 	}
