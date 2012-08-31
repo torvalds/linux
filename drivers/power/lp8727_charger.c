@@ -124,16 +124,14 @@ static int lp8727_write_byte(struct lp8727_chg *pchg, u8 reg, u8 data)
 	return ret;
 }
 
-static int lp8727_is_charger_attached(const char *name, int id)
+static bool lp8727_is_charger_attached(const char *name, int id)
 {
-	if (name) {
-		if (!strcmp(name, "ac"))
-			return (id == LP8727_ID_TA || id == LP8727_ID_DEDICATED_CHG) ? 1 : 0;
-		else if (!strcmp(name, "usb"))
-			return (id == LP8727_ID_USB_CHG) ? 1 : 0;
-	}
+	if (!strcmp(name, "ac"))
+		return id == LP8727_ID_TA || id == LP8727_ID_DEDICATED_CHG;
+	else if (!strcmp(name, "usb"))
+		return id == LP8727_ID_USB_CHG;
 
-	return (id >= LP8727_ID_TA && id <= LP8727_ID_USB_CHG) ? 1 : 0;
+	return id >= LP8727_ID_TA && id <= LP8727_ID_USB_CHG;
 }
 
 static int lp8727_init_device(struct lp8727_chg *pchg)
