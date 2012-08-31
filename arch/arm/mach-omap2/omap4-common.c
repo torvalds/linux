@@ -29,9 +29,9 @@
 #include <plat/omap-secure.h>
 #include <plat/mmc.h>
 
-#include <mach/hardware.h>
 #include <mach/omap-wakeupgen.h>
 
+#include "soc.h"
 #include "common.h"
 #include "hsmmc.h"
 #include "omap4-sar-layout.h"

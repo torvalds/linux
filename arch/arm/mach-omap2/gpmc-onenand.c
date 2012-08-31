@@ -18,9 +18,10 @@
 
 #include <asm/mach/flash.h>
 
-#include <plat/cpu.h>
 #include <plat/onenand.h>
 #include <plat/gpmc.h>
+
+#include "soc.h"
 
 #define	ONENAND_IO_SIZE	SZ_128K
 

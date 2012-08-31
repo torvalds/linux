@@ -46,8 +46,7 @@
 #include <plat/dmtimer.h>
 #include <plat/omap-pm.h>
 
-#include <mach/hardware.h>
-
+#include "soc.h"
 #include "common.h"
 #include "powerdomain.h"
 

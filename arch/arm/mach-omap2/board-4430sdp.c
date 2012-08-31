@@ -28,7 +28,6 @@
 #include <linux/leds_pwm.h>
 #include <linux/platform_data/omap4-keypad.h>
 
-#include <mach/hardware.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -44,6 +43,7 @@
 #include <linux/wl12xx.h>
 #include <linux/platform_data/omap-abe-twl6040.h>
 
+#include "soc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"

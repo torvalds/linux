@@ -17,10 +17,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/cpu.h>
 #include <plat/prcm.h>
-#include <plat/hardware.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "vp.h"

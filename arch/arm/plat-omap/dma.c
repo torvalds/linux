@@ -36,9 +36,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#include <mach/hardware.h>
+#include <plat/cpu.h>
 #include <plat/dma.h>
-
 #include <plat/tc.h>
 
 /*

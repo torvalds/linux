@@ -16,9 +16,10 @@
 
 #include <asm/mach/flash.h>
 
-#include <plat/cpu.h>
 #include <plat/nand.h>
 #include <plat/gpmc.h>
+
+#include "soc.h"
 
 static struct resource gpmc_nand_resource[] = {
 	{

@@ -27,7 +27,6 @@
 #include <linux/mmc/host.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <mach/hardware.h>
 #include <mach/am35xx.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

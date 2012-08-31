@@ -33,8 +33,7 @@
 #include <plat/multi.h>
 #include <plat/dma.h>
 
-#include <mach/hardware.h>
-
+#include "soc.h"
 #include "iomap.h"
 #include "voltage.h"
 #include "powerdomain.h"

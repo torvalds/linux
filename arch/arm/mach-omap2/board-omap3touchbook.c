@@ -37,7 +37,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

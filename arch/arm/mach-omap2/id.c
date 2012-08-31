@@ -22,10 +22,10 @@
 #include <asm/cputype.h>
 
 #include "common.h"
-#include <plat/cpu.h>
 
 #include <mach/id.h>
 
+#include "soc.h"
 #include "control.h"
 
 static unsigned int omap_revision;

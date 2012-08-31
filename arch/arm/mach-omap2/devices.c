@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/platform_data/omap4-keypad.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/pmu.h>

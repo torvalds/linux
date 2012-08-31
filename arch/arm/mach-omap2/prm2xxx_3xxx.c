@@ -17,10 +17,10 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
-#include "common.h"
-#include <plat/cpu.h>
 #include <plat/prcm.h>
 
+#include "soc.h"
+#include "common.h"
 #include "vp.h"
 
 #include "prm2xxx_3xxx.h"

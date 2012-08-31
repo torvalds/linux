@@ -13,7 +13,6 @@
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 #include <plat/omap_hwmod.h>
-#include <plat/cpu.h>
 #include <plat/dma.h>
 #include <plat/serial.h>
 #include <plat/i2c.h>
@@ -23,10 +22,8 @@
 #include <plat/mmc.h>
 #include <plat/l3_2xxx.h>
 
-#include <plat/hardware.h>
-
+#include "soc.h"
 #include "omap_hwmod_common_data.h"
-
 #include "prm-regbits-24xx.h"
 #include "cm-regbits-24xx.h"
 #include "wd_timer.h"

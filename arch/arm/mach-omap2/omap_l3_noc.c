@@ -28,8 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include <plat/hardware.h>
-
+#include "soc.h"
 #include "omap_l3_noc.h"
 
 /*

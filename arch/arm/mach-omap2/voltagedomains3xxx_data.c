@@ -18,9 +18,8 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
+#include "soc.h"
 #include "common.h"
-#include <plat/cpu.h>
-
 #include "prm-regbits-34xx.h"
 #include "omap_opp_data.h"
 #include "voltage.h"

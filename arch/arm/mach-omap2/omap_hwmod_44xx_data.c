@@ -23,7 +23,6 @@
 #include <linux/power/smartreflex.h>
 
 #include <plat/omap_hwmod.h>
-#include <plat/cpu.h>
 #include <plat/i2c.h>
 #include <plat/dma.h>
 #include <plat/mcspi.h>

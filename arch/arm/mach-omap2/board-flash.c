@@ -23,6 +23,7 @@
 #include <plat/onenand.h>
 #include <plat/tc.h>
 
+#include "common.h"
 #include "board-flash.h"
 
 #define REG_FPGA_REV			0x10

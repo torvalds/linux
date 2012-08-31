@@ -30,22 +30,20 @@
 #include <linux/i2c/twl.h>
 #include <linux/mmc/host.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "mux.h"
-#include "hsmmc.h"
-#include "control.h"
-#include "common-board-devices.h"
-
-#include <plat/mux.h>
-#include "common.h"
 #include <plat/gpmc-smsc911x.h>
 #include <plat/gpmc.h>
 #include <plat/sdrc.h>
 #include <plat/usb.h>
+
+#include "common.h"
+#include "mux.h"
+#include "hsmmc.h"
+#include "control.h"
+#include "common-board-devices.h"
 
 #define OMAP3LOGIC_SMSC911X_CS			1
 

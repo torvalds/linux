@@ -28,8 +28,12 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/mmc/host.h>
+#include <linux/input/matrix_keypad.h>
+#include <linux/spi/spi.h>
+#include <linux/interrupt.h>
+#include <linux/smsc911x.h>
+#include <linux/i2c/at24.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

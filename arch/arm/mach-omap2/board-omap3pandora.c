@@ -41,7 +41,6 @@
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <mach/hardware.h>
 #include <plat/mcspi.h>
 #include <plat/usb.h>
 #include <video/omapdss.h>

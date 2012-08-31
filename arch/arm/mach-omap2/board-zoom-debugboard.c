@@ -19,9 +19,11 @@
 
 #include <plat/gpmc.h>
 #include <plat/gpmc-smsc911x.h>
-#include <plat/serial.h>
 
 #include <mach/board-zoom.h>
+
+#include "soc.h"
+#include "common.h"
 
 #define ZOOM_SMSC911X_CS	7
 #define ZOOM_SMSC911X_GPIO	158

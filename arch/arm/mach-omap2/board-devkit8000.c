@@ -32,8 +32,6 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
-
-#include <mach/hardware.h>
 #include <mach/id.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -55,7 +53,6 @@
 #include <linux/interrupt.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
-
 #include "mux.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"

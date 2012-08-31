@@ -24,11 +24,11 @@
 #include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 
-#include <mach/hardware.h>
 #include <mach/omap-secure.h>
 #include <mach/omap-wakeupgen.h>
 #include <asm/cputype.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "clockdomain.h"

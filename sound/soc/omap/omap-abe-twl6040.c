@@ -31,10 +31,6 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
-#include <asm/mach-types.h>
-#include <plat/hardware.h>
-#include <plat/mux.h>
-
 #include "omap-dmic.h"
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"

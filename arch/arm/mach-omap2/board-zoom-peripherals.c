@@ -27,7 +27,6 @@
 
 #include "common.h"
 #include <plat/usb.h>
-#include <plat/serial.h>
 
 #include <mach/board-zoom.h>
 

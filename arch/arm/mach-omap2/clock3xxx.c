@@ -21,9 +21,9 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
 #include <plat/clock.h>
 
+#include "soc.h"
 #include "clock.h"
 #include "clock3xxx.h"
 #include "prm2xxx_3xxx.h"

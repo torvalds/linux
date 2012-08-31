@@ -25,7 +25,6 @@
 
 #include <asm/io.h>
 
-#include <mach/hardware.h>
 #include <plat/usb.h>
 #include <plat/omap_device.h>
 

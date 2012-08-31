@@ -32,7 +32,6 @@
 #include <linux/wl12xx.h>
 #include <linux/platform_data/omap-abe-twl6040.h>
 
-#include <mach/hardware.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -44,6 +43,7 @@
 #include <plat/mmc.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "soc.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "mux.h"

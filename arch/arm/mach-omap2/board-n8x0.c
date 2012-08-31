@@ -30,7 +30,6 @@
 #include <plat/mcspi.h>
 #include <plat/onenand.h>
 #include <plat/mmc.h>
-#include <plat/serial.h>
 
 #include "mux.h"
 

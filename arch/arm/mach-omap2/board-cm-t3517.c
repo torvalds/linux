@@ -42,7 +42,6 @@
 #include <plat/usb.h>
 #include <plat/nand.h>
 #include <plat/gpmc.h>
-#include <plat/serial.h>
 
 #include <mach/am35xx.h>
 

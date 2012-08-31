@@ -15,9 +15,9 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/hardware.h>
 #include <plat/sdrc.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "cm-regbits-34xx.h"

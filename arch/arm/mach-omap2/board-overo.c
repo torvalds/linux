@@ -47,10 +47,8 @@
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
-#include <mach/hardware.h>
 #include <plat/nand.h>
 #include <plat/mcspi.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 
 #include "mux.h"
