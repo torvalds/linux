@@ -55,6 +55,7 @@
 #define CHGSTAT		(3 << 4)
 #define CHPORT		(1 << 6)
 #define DCPORT		(1 << 7)
+#define LP8727_STAT_EOC			0x30
 
 /* STATUS2 register */
 #define TEMP_STAT	(3 << 5)
@@ -67,13 +68,6 @@ enum lp8727_dev_id {
 	ID_USB_CHG,
 	ID_USB_DS,
 	ID_MAX,
-};
-
-enum lp8727_chg_stat {
-	PRECHG,
-	CC,
-	CV,
-	EOC,
 };
 
 enum lp8727_die_temp {
@@ -348,10 +342,10 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
 			lp8727_read_byte(pchg, STATUS1, &read);
-			if (((read & CHGSTAT) >> 4) == EOC)
-				val->intval = POWER_SUPPLY_STATUS_FULL;
-			else
-				val->intval = POWER_SUPPLY_STATUS_CHARGING;
+
+			val->intval = (read & CHGSTAT) == LP8727_STAT_EOC ?
+				POWER_SUPPLY_STATUS_FULL :
+				POWER_SUPPLY_STATUS_CHARGING;
 		} else {
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		}
