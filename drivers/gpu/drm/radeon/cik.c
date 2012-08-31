@@ -3408,6 +3408,115 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 }
 
 /**
+ * cik_vm_set_page - update the page tables using sDMA
+ *
+ * @rdev: radeon_device pointer
+ * @ib: indirect buffer to fill with commands
+ * @pe: addr of the page entry
+ * @addr: dst addr to write into pe
+ * @count: number of page entries to update
+ * @incr: increase next addr by incr bytes
+ * @flags: access flags
+ *
+ * Update the page tables using CP or sDMA (CIK).
+ */
+void cik_vm_set_page(struct radeon_device *rdev,
+		     struct radeon_ib *ib,
+		     uint64_t pe,
+		     uint64_t addr, unsigned count,
+		     uint32_t incr, uint32_t flags)
+{
+	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
+	uint64_t value;
+	unsigned ndw;
+
+	if (rdev->asic->vm.pt_ring_index == RADEON_RING_TYPE_GFX_INDEX) {
+		/* CP */
+		while (count) {
+			ndw = 2 + count * 2;
+			if (ndw > 0x3FFE)
+				ndw = 0x3FFE;
+
+			ib->ptr[ib->length_dw++] = PACKET3(PACKET3_WRITE_DATA, ndw);
+			ib->ptr[ib->length_dw++] = (WRITE_DATA_ENGINE_SEL(0) |
+						    WRITE_DATA_DST_SEL(1));
+			ib->ptr[ib->length_dw++] = pe;
+			ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+			for (; ndw > 2; ndw -= 2, --count, pe += 8) {
+				if (flags & RADEON_VM_PAGE_SYSTEM) {
+					value = radeon_vm_map_gart(rdev, addr);
+					value &= 0xFFFFFFFFFFFFF000ULL;
+				} else if (flags & RADEON_VM_PAGE_VALID) {
+					value = addr;
+				} else {
+					value = 0;
+				}
+				addr += incr;
+				value |= r600_flags;
+				ib->ptr[ib->length_dw++] = value;
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
+			}
+		}
+	} else {
+		/* DMA */
+		if (flags & RADEON_VM_PAGE_SYSTEM) {
+			while (count) {
+				ndw = count * 2;
+				if (ndw > 0xFFFFE)
+					ndw = 0xFFFFE;
+
+				/* for non-physically contiguous pages (system) */
+				ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE, SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
+				ib->ptr[ib->length_dw++] = pe;
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+				ib->ptr[ib->length_dw++] = ndw;
+				for (; ndw > 0; ndw -= 2, --count, pe += 8) {
+					if (flags & RADEON_VM_PAGE_SYSTEM) {
+						value = radeon_vm_map_gart(rdev, addr);
+						value &= 0xFFFFFFFFFFFFF000ULL;
+					} else if (flags & RADEON_VM_PAGE_VALID) {
+						value = addr;
+					} else {
+						value = 0;
+					}
+					addr += incr;
+					value |= r600_flags;
+					ib->ptr[ib->length_dw++] = value;
+					ib->ptr[ib->length_dw++] = upper_32_bits(value);
+				}
+			}
+		} else {
+			while (count) {
+				ndw = count;
+				if (ndw > 0x7FFFF)
+					ndw = 0x7FFFF;
+
+				if (flags & RADEON_VM_PAGE_VALID)
+					value = addr;
+				else
+					value = 0;
+				/* for physically contiguous pages (vram) */
+				ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_GENERATE_PTE_PDE, 0, 0);
+				ib->ptr[ib->length_dw++] = pe; /* dst addr */
+				ib->ptr[ib->length_dw++] = upper_32_bits(pe);
+				ib->ptr[ib->length_dw++] = r600_flags; /* mask */
+				ib->ptr[ib->length_dw++] = 0;
+				ib->ptr[ib->length_dw++] = value; /* value */
+				ib->ptr[ib->length_dw++] = upper_32_bits(value);
+				ib->ptr[ib->length_dw++] = incr; /* increment size */
+				ib->ptr[ib->length_dw++] = 0;
+				ib->ptr[ib->length_dw++] = ndw; /* number of entries */
+				pe += ndw * 8;
+				addr += ndw * incr;
+				count -= ndw;
+			}
+		}
+		while (ib->length_dw & 0x7)
+			ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_NOP, 0, 0);
+	}
+}
+
+/**
  * cik_dma_vm_flush - cik vm flush using sDMA
  *
  * @rdev: radeon_device pointer
