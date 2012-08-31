@@ -103,8 +103,6 @@ static const struct musb_register_map musb_regmap[] = {
 	{  }	/* Terminating Entry */
 };
 
-static struct dentry *musb_debugfs_root;
-
 static int musb_regdump_show(struct seq_file *s, void *unused)
 {
 	struct musb		*musb = s->private;
@@ -241,7 +239,7 @@ int __devinit musb_init_debugfs(struct musb *musb)
 	struct dentry		*file;
 	int			ret;
 
-	root = debugfs_create_dir("musb", NULL);
+	root = debugfs_create_dir(dev_name(musb->controller), NULL);
 	if (!root) {
 		ret = -ENOMEM;
 		goto err0;
@@ -261,7 +259,7 @@ int __devinit musb_init_debugfs(struct musb *musb)
 		goto err1;
 	}
 
-	musb_debugfs_root = root;
+	musb->debugfs_root = root;
 
 	return 0;
 
@@ -274,5 +272,5 @@ err0:
 
 void /* __init_or_exit */ musb_exit_debugfs(struct musb *musb)
 {
-	debugfs_remove_recursive(musb_debugfs_root);
+	debugfs_remove_recursive(musb->debugfs_root);
 }
