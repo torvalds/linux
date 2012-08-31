@@ -312,6 +312,7 @@ void __init gic_init(unsigned long gic_base_addr,
 
 	numvpes = (gicconfig & GIC_SH_CONFIG_NUMVPES_MSK) >>
 		  GIC_SH_CONFIG_NUMVPES_SHF;
+	numvpes = numvpes + 1;
 
 	gic_basic_init(numintrs, numvpes, intr_map, intr_map_size);
 
