@@ -3585,7 +3585,7 @@ void intel_encoder_dpms(struct intel_encoder *encoder, int mode)
 
 /* Cross check the actual hw state with our own modeset state tracking (and it's
  * internal consistency). */
-void intel_connector_check_state(struct intel_connector *connector)
+static void intel_connector_check_state(struct intel_connector *connector)
 {
 	if (connector->get_hw_state(connector)) {
 		struct intel_encoder *encoder = connector->encoder;
@@ -3639,7 +3639,7 @@ void intel_connector_dpms(struct drm_connector *connector, int mode)
 	else
 		WARN_ON(encoder->connectors_active != false);
 
-	intel_connector_check_state(to_intel_connector(connector));
+	intel_modeset_check_state(connector->dev);
 }
 
 /* Simple connector->get_hw_state implementation for encoders that support only
@@ -6872,7 +6872,7 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 			    base.head) \
 		if (mask & (1 <<(intel_crtc)->pipe)) \
 
-static void
+void
 intel_modeset_check_state(struct drm_device *dev)
 {
 	struct intel_crtc *crtc;

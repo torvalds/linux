@@ -177,7 +177,7 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 		intel_crtc_update_dpms(crtc);
 	}
 
-	intel_connector_check_state(to_intel_connector(connector));
+	intel_modeset_check_state(connector->dev);
 }
 
 static int intel_crt_mode_valid(struct drm_connector *connector,

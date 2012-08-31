@@ -1362,7 +1362,7 @@ intel_dp_dpms(struct drm_connector *connector, int mode)
 		intel_encoder_dpms(&intel_dp->base, mode);
 	}
 
-	intel_connector_check_state(to_intel_connector(connector));
+	intel_modeset_check_state(connector->dev);
 }
 
 /*
