@@ -490,7 +490,13 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 
         rk30_i2c_enable(i2c, (i2c->count > 32)?0:1); //if count > 32,  byte(32) send ack
 
-	timeout = wait_event_timeout(i2c->wait, (i2c->is_busy == 0), msecs_to_jiffies(I2C_WAIT_TIMEOUT));
+        if (in_atomic()){
+                int tmo = I2C_WAIT_TIMEOUT * USEC_PER_MSEC;
+                while(tmo-- && i2c->is_busy != 0)
+                        udelay(1);
+                timeout = (tmo <= 0)?0:1;
+        }else
+	        timeout = wait_event_timeout(i2c->wait, (i2c->is_busy == 0), msecs_to_jiffies(I2C_WAIT_TIMEOUT));
 
 	spin_lock_irqsave(&i2c->lock, flags);
         i2c->state = STATE_IDLE;
