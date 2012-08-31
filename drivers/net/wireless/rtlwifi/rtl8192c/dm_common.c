@@ -167,7 +167,7 @@ static void rtl92c_dm_diginit(struct ieee80211_hw *hw)
 	dm_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 	dm_digtable->cur_igvalue = 0x20;
 	dm_digtable->pre_igvalue = 0x0;
-	dm_digtable->cursta_connectctate = DIG_STA_DISCONNECT;
+	dm_digtable->cursta_connectstate = DIG_STA_DISCONNECT;
 	dm_digtable->presta_connectstate = DIG_STA_DISCONNECT;
 	dm_digtable->curmultista_connectstate = DIG_MULTISTA_DISCONNECT;
 	dm_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
@@ -190,7 +190,7 @@ static u8 rtl92c_dm_initial_gain_min_pwdb(struct ieee80211_hw *hw)
 	long rssi_val_min = 0;
 
 	if ((dm_digtable->curmultista_connectstate == DIG_MULTISTA_CONNECT) &&
-	    (dm_digtable->cursta_connectctate == DIG_STA_CONNECT)) {
+	    (dm_digtable->cursta_connectstate == DIG_STA_CONNECT)) {
 		if (rtlpriv->dm.entry_min_undecoratedsmoothed_pwdb != 0)
 			rssi_val_min =
 			    (rtlpriv->dm.entry_min_undecoratedsmoothed_pwdb >
@@ -199,8 +199,8 @@ static u8 rtl92c_dm_initial_gain_min_pwdb(struct ieee80211_hw *hw)
 			    rtlpriv->dm.entry_min_undecoratedsmoothed_pwdb;
 		else
 			rssi_val_min = rtlpriv->dm.undecorated_smoothed_pwdb;
-	} else if (dm_digtable->cursta_connectctate == DIG_STA_CONNECT ||
-		   dm_digtable->cursta_connectctate == DIG_STA_BEFORE_CONNECT) {
+	} else if (dm_digtable->cursta_connectstate == DIG_STA_CONNECT ||
+		   dm_digtable->cursta_connectstate == DIG_STA_BEFORE_CONNECT) {
 		rssi_val_min = rtlpriv->dm.undecorated_smoothed_pwdb;
 	} else if (dm_digtable->curmultista_connectstate ==
 		   DIG_MULTISTA_CONNECT) {
@@ -334,7 +334,7 @@ static void rtl92c_dm_initial_gain_multi_sta(struct ieee80211_hw *hw)
 		multi_sta = true;
 
 	if (!multi_sta ||
-	    dm_digtable->cursta_connectctate != DIG_STA_DISCONNECT) {
+	    dm_digtable->cursta_connectstate != DIG_STA_DISCONNECT) {
 		initialized = false;
 		dm_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 		return;
@@ -378,15 +378,15 @@ static void rtl92c_dm_initial_gain_sta(struct ieee80211_hw *hw)
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_TRACE,
-		 "presta_connectstate = %x, cursta_connectctate = %x\n",
+		 "presta_connectstate = %x, cursta_connectstate = %x\n",
 		 dm_digtable->presta_connectstate,
-		 dm_digtable->cursta_connectctate);
+		 dm_digtable->cursta_connectstate);
 
-	if (dm_digtable->presta_connectstate == dm_digtable->cursta_connectctate
-	    || dm_digtable->cursta_connectctate == DIG_STA_BEFORE_CONNECT
-	    || dm_digtable->cursta_connectctate == DIG_STA_CONNECT) {
+	if (dm_digtable->presta_connectstate == dm_digtable->cursta_connectstate
+	    || dm_digtable->cursta_connectstate == DIG_STA_BEFORE_CONNECT
+	    || dm_digtable->cursta_connectstate == DIG_STA_CONNECT) {
 
-		if (dm_digtable->cursta_connectctate != DIG_STA_DISCONNECT) {
+		if (dm_digtable->cursta_connectstate != DIG_STA_DISCONNECT) {
 			dm_digtable->rssi_val_min =
 			    rtl92c_dm_initial_gain_min_pwdb(hw);
 			rtl92c_dm_ctrl_initgain_by_rssi(hw);
@@ -407,7 +407,7 @@ static void rtl92c_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct dig_t *dm_digtable = &rtlpriv->dm_digtable;
 
-	if (dm_digtable->cursta_connectctate == DIG_STA_CONNECT) {
+	if (dm_digtable->cursta_connectstate == DIG_STA_CONNECT) {
 		dm_digtable->rssi_val_min = rtl92c_dm_initial_gain_min_pwdb(hw);
 
 		if (dm_digtable->pre_cck_pd_state == CCK_PD_STAGE_LowRssi) {
@@ -484,15 +484,15 @@ static void rtl92c_dm_ctrl_initgain_by_twoport(struct ieee80211_hw *hw)
 		return;
 
 	if (mac->link_state >= MAC80211_LINKED)
-		dm_digtable->cursta_connectctate = DIG_STA_CONNECT;
+		dm_digtable->cursta_connectstate = DIG_STA_CONNECT;
 	else
-		dm_digtable->cursta_connectctate = DIG_STA_DISCONNECT;
+		dm_digtable->cursta_connectstate = DIG_STA_DISCONNECT;
 
 	rtl92c_dm_initial_gain_sta(hw);
 	rtl92c_dm_initial_gain_multi_sta(hw);
 	rtl92c_dm_cck_packet_detection_thresh(hw);
 
-	dm_digtable->presta_connectstate = dm_digtable->cursta_connectctate;
+	dm_digtable->presta_connectstate = dm_digtable->cursta_connectstate;
 
 }
 

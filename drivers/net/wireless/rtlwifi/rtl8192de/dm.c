@@ -164,7 +164,7 @@ static void rtl92d_dm_diginit(struct ieee80211_hw *hw)
 	de_digtable->dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 	de_digtable->cur_igvalue = 0x20;
 	de_digtable->pre_igvalue = 0x0;
-	de_digtable->cursta_connectctate = DIG_STA_DISCONNECT;
+	de_digtable->cursta_connectstate = DIG_STA_DISCONNECT;
 	de_digtable->presta_connectstate = DIG_STA_DISCONNECT;
 	de_digtable->curmultista_connectstate = DIG_MULTISTA_DISCONNECT;
 	de_digtable->rssi_lowthresh = DM_DIG_THRESH_LOW;
@@ -310,7 +310,7 @@ static void rtl92d_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 	struct dig_t *de_digtable = &rtlpriv->dm_digtable;
 	unsigned long flag = 0;
 
-	if (de_digtable->cursta_connectctate == DIG_STA_CONNECT) {
+	if (de_digtable->cursta_connectstate == DIG_STA_CONNECT) {
 		if (de_digtable->pre_cck_pd_state == CCK_PD_STAGE_LOWRSSI) {
 			if (de_digtable->min_undecorated_pwdb_for_dm <= 25)
 				de_digtable->cur_cck_pd_state =
@@ -342,7 +342,7 @@ static void rtl92d_dm_cck_packet_detection_thresh(struct ieee80211_hw *hw)
 		de_digtable->pre_cck_pd_state = de_digtable->cur_cck_pd_state;
 	}
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "CurSTAConnectState=%s\n",
-		 de_digtable->cursta_connectctate == DIG_STA_CONNECT ?
+		 de_digtable->cursta_connectstate == DIG_STA_CONNECT ?
 		 "DIG_STA_CONNECT " : "DIG_STA_DISCONNECT");
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "CCKPDStage=%s\n",
 		 de_digtable->cur_cck_pd_state == CCK_PD_STAGE_LOWRSSI ?
@@ -428,9 +428,9 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_DIG, DBG_LOUD, "progress\n");
 	/* Decide the current status and if modify initial gain or not */
 	if (rtlpriv->mac80211.link_state >= MAC80211_LINKED)
-		de_digtable->cursta_connectctate = DIG_STA_CONNECT;
+		de_digtable->cursta_connectstate = DIG_STA_CONNECT;
 	else
-		de_digtable->cursta_connectctate = DIG_STA_DISCONNECT;
+		de_digtable->cursta_connectstate = DIG_STA_DISCONNECT;
 
 	/* adjust initial gain according to false alarm counter */
 	if (falsealm_cnt->cnt_all < DM_DIG_FA_TH0)
