@@ -393,16 +393,20 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 static void lp8727_charger_changed(struct power_supply *psy)
 {
 	struct lp8727_chg *pchg = dev_get_drvdata(psy->dev->parent);
+	u8 eoc_level;
+	u8 ichg;
 	u8 val;
-	u8 eoc_level, ichg;
 
-	if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
-		if (pchg->chg_parm) {
-			eoc_level = pchg->chg_parm->eoc_level;
-			ichg = pchg->chg_parm->ichg;
-			val = (ichg << LP8727_ICHG_SHIFT) | eoc_level;
-			lp8727_write_byte(pchg, LP8727_CHGCTRL2, val);
-		}
+	/* skip if no charger exists */
+	if (!lp8727_is_charger_attached(psy->name, pchg->devid))
+		return;
+
+	/* update charging parameters */
+	if (pchg->chg_parm) {
+		eoc_level = pchg->chg_parm->eoc_level;
+		ichg = pchg->chg_parm->ichg;
+		val = (ichg << LP8727_ICHG_SHIFT) | eoc_level;
+		lp8727_write_byte(pchg, LP8727_CHGCTRL2, val);
 	}
 }
 
