@@ -467,15 +467,30 @@ tcp_syncookies - BOOLEAN
 tcp_fastopen - INTEGER
 	Enable TCP Fast Open feature (draft-ietf-tcpm-fastopen) to send data
 	in the opening SYN packet. To use this feature, the client application
-	must not use connect(). Instead, it should use sendmsg() or sendto()
-	with MSG_FASTOPEN flag which performs a TCP handshake automatically.
+	must use sendmsg() or sendto() with MSG_FASTOPEN flag rather than
+	connect() to perform a TCP handshake automatically.
 
-	The values (bitmap) are:
-	1: Enables sending data in the opening SYN on the client
-	5: Enables sending data in the opening SYN on the client regardless
-	   of cookie availability.
+	The values (bitmap) are
+	1: Enables sending data in the opening SYN on the client.
+	2: Enables TCP Fast Open on the server side, i.e., allowing data in
+	   a SYN packet to be accepted and passed to the application before
+	   3-way hand shake finishes.
+	4: Send data in the opening SYN regardless of cookie availability and
+	   without a cookie option.
+	0x100: Accept SYN data w/o validating the cookie.
+	0x200: Accept data-in-SYN w/o any cookie option present.
+	0x400/0x800: Enable Fast Open on all listeners regardless of the
+	   TCP_FASTOPEN socket option. The two different flags designate two
+	   different ways of setting max_qlen without the TCP_FASTOPEN socket
+	   option.
 
 	Default: 0
+
+	Note that the client & server side Fast Open flags (1 and 2
+	respectively) must be also enabled before the rest of flags can take
+	effect.
+
+	See include/net/tcp.h and the code for more details.
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt

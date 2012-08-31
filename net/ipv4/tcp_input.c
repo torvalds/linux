@@ -378,7 +378,7 @@ static void tcp_fixup_rcvbuf(struct sock *sk)
 /* 4. Try to fixup all. It is made immediately after connection enters
  *    established state.
  */
-static void tcp_init_buffer_space(struct sock *sk)
+void tcp_init_buffer_space(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int maxwin;
@@ -4038,7 +4038,7 @@ static inline bool tcp_sequence(const struct tcp_sock *tp, u32 seq, u32 end_seq)
 }
 
 /* When we get a reset we do this. */
-static void tcp_reset(struct sock *sk)
+void tcp_reset(struct sock *sk)
 {
 	/* We want the right error as BSD sees it (and indeed as we do). */
 	switch (sk->sk_state) {

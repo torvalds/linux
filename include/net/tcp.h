@@ -224,7 +224,23 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 /* Bit Flags for sysctl_tcp_fastopen */
 #define	TFO_CLIENT_ENABLE	1
+#define	TFO_SERVER_ENABLE	2
 #define	TFO_CLIENT_NO_COOKIE	4	/* Data in SYN w/o cookie option */
+
+/* Process SYN data but skip cookie validation */
+#define	TFO_SERVER_COOKIE_NOT_CHKED	0x100
+/* Accept SYN data w/o any cookie option */
+#define	TFO_SERVER_COOKIE_NOT_REQD	0x200
+
+/* Force enable TFO on all listeners, i.e., not requiring the
+ * TCP_FASTOPEN socket option. SOCKOPT1/2 determine how to set max_qlen.
+ */
+#define	TFO_SERVER_WO_SOCKOPT1	0x400
+#define	TFO_SERVER_WO_SOCKOPT2	0x800
+/* Always create TFO child sockets on a TFO listener even when
+ * cookie/data not present. (For testing purpose!)
+ */
+#define	TFO_SERVER_ALWAYS	0x1000
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -421,12 +437,6 @@ extern void tcp_metrics_init(void);
 extern bool tcp_peer_is_proven(struct request_sock *req, struct dst_entry *dst, bool paws_check);
 extern bool tcp_remember_stamp(struct sock *sk);
 extern bool tcp_tw_remember_stamp(struct inet_timewait_sock *tw);
-extern void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
-				   struct tcp_fastopen_cookie *cookie,
-				   int *syn_loss, unsigned long *last_syn_loss);
-extern void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
-				   struct tcp_fastopen_cookie *cookie,
-				   bool syn_lost);
 extern void tcp_fetch_timewait_stamp(struct sock *sk, struct dst_entry *dst);
 extern void tcp_disable_fack(struct tcp_sock *tp);
 extern void tcp_close(struct sock *sk, long timeout);
@@ -537,6 +547,7 @@ extern void tcp_send_delayed_ack(struct sock *sk);
 extern void tcp_cwnd_application_limited(struct sock *sk);
 extern void tcp_resume_early_retransmit(struct sock *sk);
 extern void tcp_rearm_rto(struct sock *sk);
+extern void tcp_reset(struct sock *sk);
 
 /* tcp_timer.c */
 extern void tcp_init_xmit_timers(struct sock *);
@@ -586,6 +597,7 @@ extern int tcp_mtu_to_mss(struct sock *sk, int pmtu);
 extern int tcp_mss_to_mtu(struct sock *sk, int mss);
 extern void tcp_mtup_init(struct sock *sk);
 extern void tcp_valid_rtt_meas(struct sock *sk, u32 seq_rtt);
+extern void tcp_init_buffer_space(struct sock *sk);
 
 static inline void tcp_bound_rto(const struct sock *sk)
 {
@@ -1104,6 +1116,7 @@ static inline void tcp_openreq_init(struct request_sock *req,
 	req->rcv_wnd = 0;		/* So that tcp_send_synack() knows! */
 	req->cookie_ts = 0;
 	tcp_rsk(req)->rcv_isn = TCP_SKB_CB(skb)->seq;
+	tcp_rsk(req)->rcv_nxt = TCP_SKB_CB(skb)->seq + 1;
 	req->mss = rx_opt->mss_clamp;
 	req->ts_recent = rx_opt->saw_tstamp ? rx_opt->rcv_tsval : 0;
 	ireq->tstamp_ok = rx_opt->tstamp_ok;
@@ -1308,14 +1321,33 @@ extern int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *, const struct sk_buff 
 extern int tcp_md5_hash_key(struct tcp_md5sig_pool *hp,
 			    const struct tcp_md5sig_key *key);
 
+/* From tcp_fastopen.c */
+extern void tcp_fastopen_cache_get(struct sock *sk, u16 *mss,
+				   struct tcp_fastopen_cookie *cookie,
+				   int *syn_loss, unsigned long *last_syn_loss);
+extern void tcp_fastopen_cache_set(struct sock *sk, u16 mss,
+				   struct tcp_fastopen_cookie *cookie,
+				   bool syn_lost);
 struct tcp_fastopen_request {
 	/* Fast Open cookie. Size 0 means a cookie request */
 	struct tcp_fastopen_cookie	cookie;
 	struct msghdr			*data;  /* data in MSG_FASTOPEN */
 	u16				copied;	/* queued in tcp_connect() */
 };
-
 void tcp_free_fastopen_req(struct tcp_sock *tp);
+
+extern struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
+int tcp_fastopen_reset_cipher(void *key, unsigned int len);
+void tcp_fastopen_cookie_gen(__be32 addr, struct tcp_fastopen_cookie *foc);
+
+#define TCP_FASTOPEN_KEY_LENGTH 16
+
+/* Fastopen key context */
+struct tcp_fastopen_context {
+	struct crypto_cipher __rcu	*tfm;
+	__u8				key[TCP_FASTOPEN_KEY_LENGTH];
+	struct rcu_head			rcu;
+};
 
 /* write queue abstraction */
 static inline void tcp_write_queue_purge(struct sock *sk)
