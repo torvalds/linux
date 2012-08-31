@@ -152,11 +152,7 @@ static int lp8727_init_device(struct lp8727_chg *pchg)
 		return ret;
 
 	val = LP8727_INT_EN | LP8727_CHGDET_EN;
-	ret = lp8727_write_byte(pchg, LP8727_CTRL2, val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return lp8727_write_byte(pchg, LP8727_CTRL2, val);
 }
 
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
