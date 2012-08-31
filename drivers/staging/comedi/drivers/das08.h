@@ -42,6 +42,7 @@ struct das08_board_struct {
 	void *ao;
 	unsigned int ao_nbits;
 	void *di;
+	unsigned int di_nchan;
 	void *do_;
 	unsigned int do_nchan;
 	unsigned int i8255_offset;
