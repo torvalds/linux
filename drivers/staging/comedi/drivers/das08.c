@@ -378,7 +378,7 @@ das08jr_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	int chan;
 
 	lsb = data[0] & 0xff;
-	msb = (data[0] >> 8) & 0xf;
+	msb = (data[0] >> 8) & 0xff;
 
 	chan = CR_CHAN(insn->chanspec);
 
