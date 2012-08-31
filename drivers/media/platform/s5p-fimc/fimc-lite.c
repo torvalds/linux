@@ -1064,6 +1064,7 @@ static int fimc_lite_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	struct flite_frame *sink = &fimc->inp_frame;
+	struct flite_frame *source = &fimc->out_frame;
 	const struct fimc_fmt *ffmt;
 
 	v4l2_dbg(1, debug, sd, "pad%d: code: 0x%x, %dx%d",
@@ -1097,8 +1098,10 @@ static int fimc_lite_subdev_set_fmt(struct v4l2_subdev *sd,
 		sink->rect.height = mf->height;
 		sink->rect.left = 0;
 		sink->rect.top = 0;
-		/* Reset source crop rectangle */
-		fimc->out_frame.rect = sink->rect;
+		/* Reset source format and crop rectangle */
+		source->rect = sink->rect;
+		source->f_width = mf->width;
+		source->f_height = mf->height;
 	} else {
 		/* Allow changing format only on sink pad */
 		mf->code = fimc->fmt->mbus_code;
