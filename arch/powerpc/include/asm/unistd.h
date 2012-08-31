@@ -420,6 +420,8 @@
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 #define __ARCH_WANT_SYS_NEWFSTATAT
 #endif
+#define __ARCH_WANT_SYS_EXECVE
+#define __ARCH_WANT_KERNEL_EXECVE
 
 /*
  * "Conditional" syscalls

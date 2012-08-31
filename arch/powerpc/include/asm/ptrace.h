@@ -125,6 +125,8 @@ extern unsigned long ptrace_get_reg(struct task_struct *task, int regno);
 extern int ptrace_put_reg(struct task_struct *task, int regno,
 			  unsigned long data);
 
+#define current_pt_regs() \
+	((struct pt_regs *)((unsigned long)current_thread_info() + THREAD_SIZE) - 1)
 /*
  * We use the least-significant bit of the trap field to indicate
  * whether we have saved the full set of registers, or only a
