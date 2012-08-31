@@ -105,7 +105,7 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 		return NULL;
 	}
 
-	b = list_entry(q_ctx->rdy_queue.next, struct v4l2_m2m_buffer, list);
+	b = list_first_entry(&q_ctx->rdy_queue, struct v4l2_m2m_buffer, list);
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 	return &b->vb;
 }
@@ -125,7 +125,7 @@ void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 		spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
 		return NULL;
 	}
-	b = list_entry(q_ctx->rdy_queue.next, struct v4l2_m2m_buffer, list);
+	b = list_first_entry(&q_ctx->rdy_queue, struct v4l2_m2m_buffer, list);
 	list_del(&b->list);
 	q_ctx->num_rdy--;
 	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
@@ -178,7 +178,7 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 		return;
 	}
 
-	m2m_dev->curr_ctx = list_entry(m2m_dev->job_queue.next,
+	m2m_dev->curr_ctx = list_first_entry(&m2m_dev->job_queue,
 				   struct v4l2_m2m_ctx, queue);
 	m2m_dev->curr_ctx->job_flags |= TRANS_RUNNING;
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
