@@ -47,7 +47,7 @@ struct rbd_image_snap_ondisk {
 
 struct rbd_image_header_ondisk {
 	char text[40];
-	char block_name[24];
+	char object_prefix[24];
 	char signature[4];
 	char version[8];
 	struct {
