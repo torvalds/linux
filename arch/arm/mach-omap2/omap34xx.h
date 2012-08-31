@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/omap34xx.h
- *
  * This file contains the processor specific definitions of the TI OMAP34XX.
  *
  * Copyright (C) 2007 Texas Instruments.
