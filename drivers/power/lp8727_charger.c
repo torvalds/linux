@@ -88,13 +88,17 @@ struct lp8727_chg {
 	struct device *dev;
 	struct i2c_client *client;
 	struct mutex xfer_lock;
-	struct delayed_work work;
-	struct lp8727_platform_data *pdata;
 	struct lp8727_psy *psy;
-	struct lp8727_chg_param *chg_param;
+	struct lp8727_platform_data *pdata;
+
+	/* Charger Data */
 	enum lp8727_dev_id devid;
-	unsigned long debounce_jiffies;
+	struct lp8727_chg_param *chg_param;
+
+	/* Interrupt Handling */
 	int irq;
+	struct delayed_work work;
+	unsigned long debounce_jiffies;
 };
 
 static int lp8727_read_bytes(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
