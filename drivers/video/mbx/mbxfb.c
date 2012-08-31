@@ -26,8 +26,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <video/mbxfb.h>
 
