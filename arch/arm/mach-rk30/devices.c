@@ -87,6 +87,7 @@ static struct resource resource_dmac1[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
+#if defined(CONFIG_ARCH_RK3066B)
 
 static struct rk29_pl330_platdata dmac1_pdata = {
 	.peri = {
@@ -94,13 +95,13 @@ static struct rk29_pl330_platdata dmac1_pdata = {
 		[1] = DMACH_UART0_RX,
 		[2] = DMACH_UART1_TX,
 		[3] = DMACH_UART1_RX,
-		[4] = DMACH_I2S0_8CH_TX,
-		[5] = DMACH_I2S0_8CH_RX,
+		[4] = DMACH_MAX,
+		[5] = DMACH_MAX,
 		[6] = DMACH_I2S1_2CH_TX,
 		[7] = DMACH_I2S1_2CH_RX,
 		[8] = DMACH_SPDIF_TX,
-		[9] = DMACH_I2S2_2CH_TX,
-		[10] = DMACH_I2S2_2CH_RX,
+		[9] = DMACH_DMAC0_MEMTOMEM,
+		[10] = DMACH_MAX,
 		[11] = DMACH_MAX,
 		[12] = DMACH_MAX,
 		[13] = DMACH_MAX,
@@ -124,6 +125,47 @@ static struct rk29_pl330_platdata dmac1_pdata = {
 		[31] = DMACH_MAX,
 	},
 };
+
+#else 
+
+static struct rk29_pl330_platdata dmac1_pdata = {
+	.peri = {
+		[0] = DMACH_UART0_TX,
+		[1] = DMACH_UART0_RX,
+		[2] = DMACH_UART1_TX,
+		[3] = DMACH_UART1_RX,
+		[4] = DMACH_I2S0_8CH_TX,
+		[5] = DMACH_I2S0_8CH_RX,
+		[6] = DMACH_I2S1_2CH_TX,
+		[7] = DMACH_I2S1_2CH_RX,
+		[8] = DMACH_SPDIF_TX,
+		[9] = DMACH_I2S2_2CH_TX,
+		[10] = DMACH_I2S2_2CH_RX,
+		[11] = DMACH_DMAC0_MEMTOMEM,
+		[12] = DMACH_MAX,
+		[13] = DMACH_MAX,
+		[14] = DMACH_MAX,
+		[15] = DMACH_MAX,
+		[16] = DMACH_MAX,
+		[17] = DMACH_MAX,
+		[18] = DMACH_MAX,
+		[19] = DMACH_MAX,
+		[20] = DMACH_MAX,
+		[21] = DMACH_MAX,
+		[22] = DMACH_MAX,
+		[23] = DMACH_MAX,
+		[24] = DMACH_MAX,
+		[25] = DMACH_MAX,
+		[26] = DMACH_MAX,
+		[27] = DMACH_MAX,
+		[28] = DMACH_MAX,
+		[29] = DMACH_MAX,
+		[30] = DMACH_MAX,
+		[31] = DMACH_MAX,
+	},
+};
+
+#endif
 
 static struct platform_device device_dmac1 = {
 	.name		= "rk29-pl330",
@@ -166,7 +208,7 @@ static struct rk29_pl330_platdata dmac2_pdata = {
 		[11] = DMACH_SPI0_RX,
 		[12] = DMACH_SPI1_TX,
 		[13] = DMACH_SPI1_RX,
-		[14] = DMACH_DMAC2_MEMTOMEM,
+		[14] = DMACH_DMAC1_MEMTOMEM,
 		[15] = DMACH_MAX,
 		[16] = DMACH_MAX,
 		[17] = DMACH_MAX,
