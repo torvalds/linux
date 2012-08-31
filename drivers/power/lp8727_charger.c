@@ -305,9 +305,10 @@ static int lp8727_charger_get_property(struct power_supply *psy,
 {
 	struct lp8727_chg *pchg = dev_get_drvdata(psy->dev->parent);
 
-	if (psp == POWER_SUPPLY_PROP_ONLINE)
-		val->intval = lp8727_is_charger_attached(psy->name,
-							 pchg->devid);
+	if (psp != POWER_SUPPLY_PROP_ONLINE)
+		return -EINVAL;
+
+	val->intval = lp8727_is_charger_attached(psy->name, pchg->devid);
 
 	return 0;
 }
