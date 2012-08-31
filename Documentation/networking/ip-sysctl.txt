@@ -439,7 +439,9 @@ tcp_stdurg - BOOLEAN
 tcp_synack_retries - INTEGER
 	Number of times SYNACKs for a passive TCP connection attempt will
 	be retransmitted. Should not be higher than 255. Default value
-	is 5, which corresponds to ~180seconds.
+	is 5, which corresponds to 31seconds till the last retransmission
+	with the current initial RTO of 1second. With this the final timeout
+	for a passive TCP connection will happen after 63seconds.
 
 tcp_syncookies - BOOLEAN
 	Only valid when the kernel was compiled with CONFIG_SYNCOOKIES
@@ -478,7 +480,9 @@ tcp_fastopen - INTEGER
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value
-	is 5, which corresponds to ~180seconds.
+	is 6, which corresponds to 63seconds till the last restransmission
+	with the current initial RTO of 1second. With this the final timeout
+	for an active TCP connection attempt will happen after 127seconds.
 
 tcp_timestamps - BOOLEAN
 	Enable timestamps as defined in RFC1323.
