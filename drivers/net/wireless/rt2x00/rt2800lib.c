@@ -923,8 +923,8 @@ int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_read(rt2x00dev, WLAN_FUN_CTRL, &reg);
 		return rt2x00_get_field32(reg, WLAN_GPIO_IN_BIT0);
 	} else {
-		rt2800_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-		return rt2x00_get_field32(reg, GPIO_CTRL_CFG_BIT2);
+		rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+		return rt2x00_get_field32(reg, GPIO_CTRL_VAL2);
 	}
 }
 EXPORT_SYMBOL_GPL(rt2800_rfkill_poll);
@@ -1570,10 +1570,10 @@ static void rt2800_set_ant_diversity(struct rt2x00_dev *rt2x00dev,
 		rt2800_mcu_request(rt2x00dev, MCU_ANT_SELECT, 0xff,
 				   eesk_pin, 0);
 
-	rt2800_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT3, 0);
-	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT3, gpio_bit3);
-	rt2800_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
+	rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+	rt2x00_set_field32(&reg, GPIO_CTRL_DIR3, 0);
+	rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, gpio_bit3);
+	rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
 }
 
 void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
@@ -1995,13 +1995,13 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 		rt2800_rfcsr_write(rt2x00dev, 29, 0x9f);
 	}
 
-	rt2800_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT7, 0);
+	rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+	rt2x00_set_field32(&reg, GPIO_CTRL_DIR7, 0);
 	if (rf->channel <= 14)
-		rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT7, 1);
+		rt2x00_set_field32(&reg, GPIO_CTRL_VAL7, 1);
 	else
-		rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT7, 0);
-	rt2800_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
+		rt2x00_set_field32(&reg, GPIO_CTRL_VAL7, 0);
+	rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
 
 	rt2800_rfcsr_read(rt2x00dev, 7, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR7_RF_TUNING, 1);
@@ -3587,16 +3587,16 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
 			u32 reg;
 
-			rt2800_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-			rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT3, 0);
-			rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT6, 0);
-			rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT3, 0);
-			rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT6, 0);
+			rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+			rt2x00_set_field32(&reg, GPIO_CTRL_DIR3, 0);
+			rt2x00_set_field32(&reg, GPIO_CTRL_DIR6, 0);
+			rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, 0);
+			rt2x00_set_field32(&reg, GPIO_CTRL_VAL6, 0);
 			if (ant == 0)
-				rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT3, 1);
+				rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, 1);
 			else if (ant == 1)
-				rt2x00_set_field32(&reg, GPIO_CTRL_CFG_BIT6, 1);
-			rt2800_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
+				rt2x00_set_field32(&reg, GPIO_CTRL_VAL6, 1);
+			rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
 		}
 
 		/* This chip has hardware antenna diversity*/

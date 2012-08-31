@@ -1000,9 +1000,9 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 * Enable rfkill polling by setting GPIO direction of the
 	 * rfkill switch GPIO pin correctly.
 	 */
-	rt2x00pci_register_read(rt2x00dev, GPIO_CTRL_CFG, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_CFG_GPIOD_BIT2, 1);
-	rt2x00pci_register_write(rt2x00dev, GPIO_CTRL_CFG, reg);
+	rt2x00pci_register_read(rt2x00dev, GPIO_CTRL, &reg);
+	rt2x00_set_field32(&reg, GPIO_CTRL_DIR2, 1);
+	rt2x00pci_register_write(rt2x00dev, GPIO_CTRL, reg);
 
 	/*
 	 * Initialize hw specifications.
