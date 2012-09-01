@@ -37,7 +37,7 @@
 
 
 
-static int dbg_thresd = 2;
+static int dbg_thresd = 0;
 module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(level,x...) do { if(unlikely(dbg_thresd >= level)) printk(KERN_INFO x); } while (0)
 
