@@ -1169,11 +1169,11 @@ cleanup_hdlc (void)
 STATIC void __exit
 c4_mod_remove (void)
 {
-    cleanup_hdlc ();            /* delete any missed channels */
-    cleanup_devs ();
-    c4_cleanup ();
-    cleanup_ioremap ();
-    pr_info("SBE - driver removed.\n");
+	cleanup_hdlc();            /* delete any missed channels */
+	cleanup_devs();
+	c4_cleanup();
+	cleanup_ioremap();
+	pr_info("SBE - driver removed.\n");
 }
 
 module_init (c4_mod_init);
