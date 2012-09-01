@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/kernel/compat.c
+ *  linux/arch/arm/kernel/atags_compat.c
  *
  *  Copyright (C) 2001 Russell King
  *
@@ -26,7 +26,7 @@
 
 #include <asm/mach/arch.h>
 
-#include "compat.h"
+#include "atags.h"
 
 /*
  * Usage:
