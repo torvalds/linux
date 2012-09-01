@@ -3202,7 +3202,7 @@ void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 fla
 	_rk30_clock_data_init(gpll, cpll, flags);
 	printk("%s end\n", __func__);
 	rk30_clk_dump_regs();
-	//rk30_dvfs_init();
+	rk30_dvfs_init();
 }
 
 /*

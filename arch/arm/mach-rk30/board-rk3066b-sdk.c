@@ -1378,7 +1378,7 @@ static void rk30_pm_power_off(void)
 
 static void __init machine_rk30_board_init(void)
 {
-	avs_init();
+	//avs_init();
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 	
@@ -1423,27 +1423,31 @@ static void __init rk30_reserve(void)
  * comments	: min arm/logic voltage
  */
 static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
+#if 0
 	{.frequency = 252 * 1000,	.cpu_volt = 1075 * 1000,	.logic_volt = 1125 * 1000},//0.975V/1.000V
-	{.frequency = 504 * 1000,	.cpu_volt = 1100 * 1000,	.logic_volt = 1125 * 1000},//0.975V/1.000V
-	{.frequency = 816 * 1000,	.cpu_volt = 1125 * 1000,	.logic_volt = 1150 * 1000},//1.000V/1.025V
+#endif
+	{.frequency = 504 * 1000,	.cpu_volt = 975 * 1000,		.logic_volt = 1000 * 1000},//0.975V/1.000V
+	{.frequency = 816 * 1000,	.cpu_volt = 1000 * 1000,	.logic_volt = 1000 * 1000},//1.000V/1.025V
+	{.frequency = 1200 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1000 * 1000},//1.100V/1.050V
+#if 0
 	{.frequency = 1008 * 1000,	.cpu_volt = 1125 * 1000,	.logic_volt = 1150 * 1000},//1.025V/1.050V
-	{.frequency = 1200 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
 	{.frequency = 1272 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
 	{.frequency = 1416 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1200 * 1000},//1.225V/1.100V
 	{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},//1.300V/1.150V
 	{.frequency = 1608 * 1000,	.cpu_volt = 1425 * 1000,	.logic_volt = 1300 * 1000},//1.325V/1.175V
+#endif
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_gpu_table[] = {
-	{.frequency = 266 * 1000,	.index = 1050 * 1000},
-	{.frequency = 400 * 1000,	.index = 1275 * 1000},
+	{.frequency = 266 * 1000,	.index = 1000 * 1000},
+	{.frequency = 400 * 1000,	.index = 1000 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table dvfs_ddr_table[] = {
-	{.frequency = 300 * 1000,	.index = 1050 * 1000},
-	{.frequency = 400 * 1000,	.index = 1125 * 1000},
+	{.frequency = 300 * 1000,	.index = 1000 * 1000},
+	{.frequency = 400 * 1000,	.index = 1000 * 1000},
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
