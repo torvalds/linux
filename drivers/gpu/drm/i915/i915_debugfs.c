@@ -353,40 +353,22 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_request *gem_request;
-	int ret, count;
+	int ret, count, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
 	count = 0;
-	if (!list_empty(&dev_priv->ring[RCS].request_list)) {
-		seq_printf(m, "Render requests:\n");
+	for_each_ring(ring, dev_priv, i) {
+		if (list_empty(&ring->request_list))
+			continue;
+
+		seq_printf(m, "%s requests:\n", ring->name);
 		list_for_each_entry(gem_request,
-				    &dev_priv->ring[RCS].request_list,
-				    list) {
-			seq_printf(m, "    %d @ %d\n",
-				   gem_request->seqno,
-				   (int) (jiffies - gem_request->emitted_jiffies));
-		}
-		count++;
-	}
-	if (!list_empty(&dev_priv->ring[VCS].request_list)) {
-		seq_printf(m, "BSD requests:\n");
-		list_for_each_entry(gem_request,
-				    &dev_priv->ring[VCS].request_list,
-				    list) {
-			seq_printf(m, "    %d @ %d\n",
-				   gem_request->seqno,
-				   (int) (jiffies - gem_request->emitted_jiffies));
-		}
-		count++;
-	}
-	if (!list_empty(&dev_priv->ring[BCS].request_list)) {
-		seq_printf(m, "BLT requests:\n");
-		list_for_each_entry(gem_request,
-				    &dev_priv->ring[BCS].request_list,
+				    &ring->request_list,
 				    list) {
 			seq_printf(m, "    %d @ %d\n",
 				   gem_request->seqno,
@@ -416,14 +398,15 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	int ret, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		i915_ring_seqno_info(m, &dev_priv->ring[i]);
+	for_each_ring(ring, dev_priv, i)
+		i915_ring_seqno_info(m, ring);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -436,6 +419,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	int ret, i, pipe;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -513,13 +497,13 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
-	for (i = 0; i < I915_NUM_RINGS; i++) {
+	for_each_ring(ring, dev_priv, i) {
 		if (IS_GEN6(dev) || IS_GEN7(dev)) {
-			seq_printf(m, "Graphics Interrupt mask (%s):	%08x\n",
-				   dev_priv->ring[i].name,
-				   I915_READ_IMR(&dev_priv->ring[i]));
+			seq_printf(m,
+				   "Graphics Interrupt mask (%s):	%08x\n",
+				   ring->name, I915_READ_IMR(ring));
 		}
-		i915_ring_seqno_info(m, &dev_priv->ring[i]);
+		i915_ring_seqno_info(m, ring);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1529,9 +1513,7 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	if (INTEL_INFO(dev)->gen == 6)
 		seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		ring = &dev_priv->ring[i];
-
+	for_each_ring(ring, dev_priv, i) {
 		seq_printf(m, "%s\n", ring->name);
 		if (INTEL_INFO(dev)->gen == 7)
 			seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(RING_MODE_GEN7(ring)));
