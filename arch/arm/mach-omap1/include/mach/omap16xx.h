@@ -1,5 +1,4 @@
-/* arch/arm/plat-omap/include/mach/omap16xx.h
- *
+/*
  * Hardware definitions for TI OMAP1610/5912/1710 processors.
  *
  * Cleanup for Linux-2.6 by Dirk Behme <dirk.behme@de.bosch.com>

@@ -311,8 +311,8 @@ static inline u32 omap_cs3_phys(void)
  * ---------------------------------------------------------------------------
  */
 
-#include <plat/omap7xx.h>
-#include <plat/omap1510.h>
-#include <plat/omap16xx.h>
+#include "omap7xx.h"
+#include "omap1510.h"
+#include "omap16xx.h"
 
 #endif	/* __ASM_ARCH_OMAP_HARDWARE_H */

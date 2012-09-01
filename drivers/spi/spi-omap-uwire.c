@@ -53,7 +53,8 @@
 #include <asm/mach-types.h>
 
 #include <plat/mux.h>
-#include <plat/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
+
+#include <mach/omap7xx.h>	/* OMAP7XX_IO_CONF registers */
 
 
 /* FIXME address is now a platform device resource,
