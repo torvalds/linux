@@ -2808,19 +2808,13 @@ uf_set_multicast_list(struct net_device *dev)
 #else
 
     u8 *mc_list = interfacePriv->mc_list;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,34)
     struct netdev_hw_addr *mc_addr;
     int mc_addr_count;
-#else
-    struct dev_mc_list *p;      /* Pointer to the addresses structure. */
-    int i;
-#endif
 
     if (priv->init_progress != UNIFI_INIT_COMPLETED) {
         return;
     }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,34)
     mc_addr_count = netdev_mc_count(dev);
 
     unifi_trace(priv, UDBG3,
@@ -2838,25 +2832,6 @@ uf_set_multicast_list(struct net_device *dev)
         memcpy(mc_list, mc_addr->addr, ETH_ALEN);
         mc_list += ETH_ALEN;
     }
-
-#else
-    unifi_trace(priv, UDBG3,
-            "uf_set_multicast_list (count=%d)\n", dev->mc_count);
-
-    /* Not enough space? */
-    if (dev->mc_count > UNIFI_MAX_MULTICAST_ADDRESSES) {
-        return;
-    }
-
-    /* Store the list to be processed by the work item. */
-    interfacePriv->mc_list_count = dev->mc_count;
-    p = dev->mc_list;
-    for (i = 0; i < dev->mc_count; i++) {
-        memcpy(mc_list, p->dmi_addr, ETH_ALEN);
-        p = p->next;
-        mc_list += ETH_ALEN;
-    }
-#endif
 
     /* Send a message to the workqueue */
     queue_work(priv->unifi_workqueue, &priv->multicast_list_task);
