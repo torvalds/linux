@@ -869,7 +869,6 @@ wifi_off(unifi_priv_t *priv)
     unifi_trace(priv, UDBG1, "wifi_off\n");
 
     /* Destroy the Traffic Analysis Module */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
     cancel_work_sync(&priv->ta_ind_work.task);
     cancel_work_sync(&priv->ta_sample_ind_work.task);
 #ifdef CSR_SUPPORT_WEXT
@@ -884,7 +883,6 @@ wifi_off(unifi_priv_t *priv)
             cancel_work_sync(&netpriv->send_m4_ready_task);
         }
     }
-#endif
     flush_workqueue(priv->unifi_workqueue);
 
     /* fw_init parameter can prevent power off UniFi, for debugging */

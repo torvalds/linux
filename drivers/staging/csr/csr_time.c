@@ -10,13 +10,6 @@
 
 #include <linux/kernel.h>
 #include <linux/version.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33)
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 16)
-#include <linux/autoconf.h>
-#include <linux/config.h>
-#endif
-
 #include <linux/time.h>
 #include <linux/module.h>
 

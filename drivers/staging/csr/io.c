@@ -70,11 +70,7 @@ static int In_use[MAX_UNIFI_DEVS];
  * Mutex to prevent UDI clients to open the character device before the priv
  * is created and initialised.
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 DEFINE_SEMAPHORE(Unifi_instance_mutex);
-#else
-DECLARE_MUTEX(Unifi_instance_mutex);
-#endif
 /*
  * When the device is removed, unregister waits on Unifi_cleanup_wq
  * until all the UDI clients release the character device.
@@ -176,21 +172,6 @@ uf_register_netdev(unifi_priv_t *priv, int interfaceTag)
 
     /* The device is registed */
     interfacePriv->netdev_registered = 1;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
-#ifdef CONFIG_NET_SCHED
-    /*
-     * IMPORTANT:
-     * uf_install_qdisc() holds the network device lock, we can not
-     * install the qdisk before the network device is registered.
-     */
-    r = uf_install_qdisc(priv->netdev[interfaceTag]);
-    if (r) {
-        unifi_error(priv, "Failed to install qdisc\n");
-        return r;
-    }
-#endif /* CONFIG_NET_SCHED */
-#endif /* LINUX_VERSION_CODE */
 
 #ifdef CSR_SUPPORT_SME
     /*
