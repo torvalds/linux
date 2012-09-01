@@ -71,15 +71,9 @@ uf_iwe_stream_add_point(struct iw_request_info *info, char *start, char *stop,
 {
     char *new_start;
 
-    new_start = iwe_stream_add_point(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) || defined (IW_REQUEST_FLAG_COMPAT)
-                                     info,
-#endif
-                                     start, stop, piwe, extra);
+    new_start = iwe_stream_add_point(info, start, stop, piwe, extra);
     if (unlikely(new_start == start))
-    {
         return -E2BIG;
-    }
 
     return (new_start - start);
 }
@@ -91,14 +85,9 @@ uf_iwe_stream_add_event(struct iw_request_info *info, char *start, char *stop,
 {
     char *new_start;
 
-    new_start = iwe_stream_add_event(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) || defined(IW_REQUEST_FLAG_COMPAT)
-                                     info,
-#endif
-                                     start, stop, piwe, len);
-    if (unlikely(new_start == start)) {
+    new_start = iwe_stream_add_event(info, start, stop, piwe, len);
+    if (unlikely(new_start == start))
         return -E2BIG;
-    }
 
     return (new_start - start);
 }
@@ -109,14 +98,9 @@ uf_iwe_stream_add_value(struct iw_request_info *info, char *stream, char *start,
 {
     char *new_start;
 
-    new_start = iwe_stream_add_value(
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) || defined(IW_REQUEST_FLAG_COMPAT)
-                                     info,
-#endif
-                                     stream, start, stop, piwe, len);
-    if (unlikely(new_start == start)) {
+    new_start = iwe_stream_add_value(info, stream, start, stop, piwe, len);
+    if (unlikely(new_start == start))
         return -E2BIG;
-    }
 
     return (new_start - start);
 }
