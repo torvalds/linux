@@ -1133,6 +1133,8 @@ static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[])
 static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *pt, struct net_device *orig_dev)
 {
+	struct sk_buff *local_skb;
+
 	if (!netif_running(dev))
 		goto drop;
 
@@ -1144,7 +1146,12 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 	case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
 	case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
 	case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
-		lowpan_process_data(skb);
+		local_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!local_skb)
+			goto drop;
+		lowpan_process_data(local_skb);
+
+		kfree_skb(skb);
 		break;
 	default:
 		break;
