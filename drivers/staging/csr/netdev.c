@@ -100,17 +100,7 @@ static int uf_net_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int uf_net_stop(struct net_device *dev);
 static struct net_device_stats *uf_net_get_stats(struct net_device *dev);
 static u16 uf_net_select_queue(struct net_device *dev, struct sk_buff *skb);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 static netdev_tx_t uf_net_xmit(struct sk_buff *skb, struct net_device *dev);
-#else
-static int uf_net_xmit(struct sk_buff *skb, struct net_device *dev);
-#ifndef NETDEV_TX_OK
-#define NETDEV_TX_OK        0
-#endif
-#ifndef NETDEV_TX_BUSY
-#define NETDEV_TX_BUSY      1
-#endif
-#endif
 static void uf_set_multicast_list(struct net_device *dev);
 
 
@@ -1792,11 +1782,7 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
  *      The controlled port is handled in the qdisc dequeue handler.
  * ---------------------------------------------------------------------------
  */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 static netdev_tx_t
-#else
-static int
-#endif
 uf_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
