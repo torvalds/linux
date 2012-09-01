@@ -71,11 +71,6 @@ extern struct wake_lock unifi_sdio_wake_lock;
 
 #include "unifi_clients.h"
 
-#define UF_NETIF_TX_WAKE_ALL_QUEUES(_netdev)    netif_tx_wake_all_queues(_netdev)
-#define UF_NETIF_TX_START_ALL_QUEUES(_netdev)   netif_tx_start_all_queues(_netdev)
-#define UF_NETIF_TX_STOP_ALL_QUEUES(_netdev)    netif_tx_stop_all_queues(_netdev)
-
-
 #ifdef CSR_NATIVE_LINUX
 #include "sme_native/unifi_native.h"
 #else

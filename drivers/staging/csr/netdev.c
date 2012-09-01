@@ -613,7 +613,7 @@ uf_net_open(struct net_device *dev)
     }
 #endif
 
-    UF_NETIF_TX_START_ALL_QUEUES(dev);
+    netif_tx_start_all_queues(dev);
 
     func_exit();
     return 0;
@@ -643,7 +643,7 @@ uf_net_stop(struct net_device *dev)
     func_enter();
 #endif
 
-    UF_NETIF_TX_STOP_ALL_QUEUES(dev);
+    netif_tx_stop_all_queues(dev);
 
     func_exit();
     return 0;
@@ -2977,7 +2977,7 @@ uf_netdev_event(struct notifier_block *notif, unsigned long event, void* ptr) {
                     interfacePriv->wait_netdev_change ? "" : "not");
 
         if (interfacePriv->wait_netdev_change) {
-            UF_NETIF_TX_WAKE_ALL_QUEUES(priv->netdev[interfacePriv->InterfaceTag]);
+            netif_tx_wake_all_queues(priv->netdev[interfacePriv->InterfaceTag]);
             interfacePriv->connected = UnifiConnected;
             interfacePriv->wait_netdev_change = FALSE;
             /* Note: passing the broadcast address here will allow anyone to attempt to join our adhoc network */

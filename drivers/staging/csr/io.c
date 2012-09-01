@@ -669,7 +669,7 @@ unregister_unifi_sdio(int bus_id)
         if(interfacePriv->netdev_registered)
         {
             netif_carrier_off(priv->netdev[interfaceTag]);
-            UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[interfaceTag]);
+            netif_tx_stop_all_queues(priv->netdev[interfaceTag]);
         }
     }
 

@@ -192,7 +192,7 @@ void CsrWifiRouterCtrlMediaStatusReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 #endif
                     unifi_trace(priv, UDBG1,
                                 "CsrWifiRouterCtrlMediaStatusReqHandler: AP/P2PGO setting netif_carrier_on\n");
-                    UF_NETIF_TX_WAKE_ALL_QUEUES(priv->netdev[req->interfaceTag]);
+                    netif_tx_wake_all_queues(priv->netdev[req->interfaceTag]);
                     break;
 
                 default:
@@ -226,7 +226,7 @@ void CsrWifiRouterCtrlMediaStatusReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
                     unifi_trace(priv, UDBG1,
                                 "CsrWifiRouterMediaStatusReqHandler: UnifiConnected && netif_carrier_on\n");
                     netif_carrier_on(priv->netdev[req->interfaceTag]);
-                    UF_NETIF_TX_WAKE_ALL_QUEUES(priv->netdev[req->interfaceTag]);
+                    netif_tx_wake_all_queues(priv->netdev[req->interfaceTag]);
                     uf_process_rx_pending_queue(priv, UF_UNCONTROLLED_PORT_Q, broadcast_address, 1, interfacePriv->InterfaceTag);
                     uf_process_rx_pending_queue(priv, UF_CONTROLLED_PORT_Q, broadcast_address, 1, interfacePriv->InterfaceTag);
                 }
@@ -955,7 +955,7 @@ void CsrWifiRouterCtrlWifiOffReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         netInterface_priv_t *interfacePriv = priv->interfacePriv[i];
         if (interfacePriv->netdev_registered == 1) {
             netif_carrier_off(priv->netdev[i]);
-            UF_NETIF_TX_STOP_ALL_QUEUES(priv->netdev[i]);
+            netif_tx_stop_all_queues(priv->netdev[i]);
             interfacePriv->connected = UnifiConnectedUnknown;
         }
         interfacePriv->interfaceMode = 0;
