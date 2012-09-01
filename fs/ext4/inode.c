@@ -3227,7 +3227,7 @@ int ext4_discard_partial_page_buffers(handle_t *handle,
  * handle: The journal handle
  * inode:  The files inode
  * page:   A locked page that contains the offset "from"
- * from:   The starting byte offset (from the begining of the file)
+ * from:   The starting byte offset (from the beginning of the file)
  *         to begin discarding
  * len:    The length of bytes to discard
  * flags:  Optional flags that may be used:
@@ -3235,11 +3235,11 @@ int ext4_discard_partial_page_buffers(handle_t *handle,
  *         EXT4_DISCARD_PARTIAL_PG_ZERO_UNMAPPED
  *         Only zero the regions of the page whose buffer heads
  *         have already been unmapped.  This flag is appropriate
- *         for updateing the contents of a page whose blocks may
+ *         for updating the contents of a page whose blocks may
  *         have already been released, and we only want to zero
  *         out the regions that correspond to those released blocks.
  *
- * Returns zero on sucess or negative on failure.
+ * Returns zero on success or negative on failure.
  */
 static int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 		struct inode *inode, struct page *page, loff_t from,
@@ -3400,7 +3400,7 @@ int ext4_can_truncate(struct inode *inode)
  * @offset: The offset where the hole will begin
  * @len:    The length of the hole
  *
- * Returns: 0 on sucess or negative on failure
+ * Returns: 0 on success or negative on failure
  */
 
 int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
@@ -3922,7 +3922,7 @@ static int ext4_inode_blocks_set(handle_t *handle,
 
 	if (i_blocks <= ~0U) {
 		/*
-		 * i_blocks can be represnted in a 32 bit variable
+		 * i_blocks can be represented in a 32 bit variable
 		 * as multiple of 512 bytes
 		 */
 		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
@@ -4083,7 +4083,7 @@ out_brelse:
  *
  * - Within generic_file_write() for O_SYNC files.
  *   Here, there will be no transaction running. We wait for any running
- *   trasnaction to commit.
+ *   transaction to commit.
  *
  * - Within sys_sync(), kupdate and such.
  *   We wait on commit, if tol to.
@@ -4327,7 +4327,7 @@ static int ext4_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  * worse case, the indexs blocks spread over different block groups
  *
  * If datablocks are discontiguous, they are possible to spread over
- * different block groups too. If they are contiuguous, with flexbg,
+ * different block groups too. If they are contiguous, with flexbg,
  * they could still across block group boundary.
  *
  * Also account for superblock, inode, quota and xattr blocks

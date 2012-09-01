@@ -461,7 +461,7 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 done:
 	platform_set_drvdata(pdev, dsim);
 
-	dev_dbg(&pdev->dev, "%s() completed sucessfuly (%s mode)\n", __func__,
+	dev_dbg(&pdev->dev, "%s() completed successfully (%s mode)\n", __func__,
 		dsim_config->e_interface == DSIM_COMMAND ? "CPU" : "RGB");
 
 	return 0;

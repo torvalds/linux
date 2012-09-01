@@ -219,7 +219,7 @@ static struct sas_domain_function_template isci_transport_ops  = {
  * @isci_host: This parameter specifies the lldd specific wrapper for the
  *    libsas sas_ha struct.
  *
- * This method returns an error code indicating sucess or failure. The user
+ * This method returns an error code indicating success or failure. The user
  * should check for possible memory allocation error return otherwise, a zero
  * indicates success.
  */

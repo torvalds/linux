@@ -1458,7 +1458,7 @@ struct bnx2x {
 	int				fw_stats_req_sz;
 
 	/*
-	 * FW statistics data shortcut (points at the begining of
+	 * FW statistics data shortcut (points at the beginning of
 	 * fw_stats buffer + fw_stats_req_sz).
 	 */
 	struct bnx2x_fw_stats_data	*fw_stats_data;

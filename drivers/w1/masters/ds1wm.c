@@ -347,7 +347,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 			"pass: %d entering ASM\n", pass);
 		ds1wm_write_register(ds1wm_data, DS1WM_CMD, DS1WM_CMD_SRA);
 		dev_dbg(&ds1wm_data->pdev->dev,
-			"pass: %d begining nibble loop\n", pass);
+			"pass: %d beginning nibble loop\n", pass);
 
 		r_prime = 0;
 		d = 0;

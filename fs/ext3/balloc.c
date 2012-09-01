@@ -483,7 +483,7 @@ void ext3_discard_reservation(struct inode *inode)
  * ext3_free_blocks_sb() -- Free given blocks and update quota
  * @handle:			handle to this transaction
  * @sb:				super block
- * @block:			start physcial block to free
+ * @block:			start physical block to free
  * @count:			number of blocks to free
  * @pdquot_freed_blocks:	pointer to quota
  */

@@ -4705,7 +4705,7 @@ error_return:
  * ext4_group_add_blocks() -- Add given blocks to an existing group
  * @handle:			handle to this transaction
  * @sb:				super block
- * @block:			start physcial block to add to the block group
+ * @block:			start physical block to add to the block group
  * @count:			number of blocks to free
  *
  * This marks the blocks as free in the bitmap and buddy.

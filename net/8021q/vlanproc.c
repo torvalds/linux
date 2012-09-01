@@ -105,7 +105,7 @@ static const struct file_operations vlandev_fops = {
 };
 
 /*
- * Proc filesystem derectory entries.
+ * Proc filesystem directory entries.
  */
 
 /* Strings */
