@@ -141,6 +141,28 @@ void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason)
 }
 EXPORT_SYMBOL_GPL(dapm_mark_dirty);
 
+void dapm_mark_io_dirty(struct snd_soc_dapm_context *dapm)
+{
+	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_dapm_widget *w;
+
+	mutex_lock(&card->dapm_mutex);
+
+	list_for_each_entry(w, &card->widgets, list) {
+		switch (w->id) {
+		case snd_soc_dapm_input:
+		case snd_soc_dapm_output:
+			dapm_mark_dirty(w, "Rechecking inputs and outputs");
+			break;
+		default:
+			break;
+		}
+	}
+
+	mutex_unlock(&card->dapm_mutex);
+}
+EXPORT_SYMBOL_GPL(dapm_mark_io_dirty);
+
 /* create a new dapm widget */
 static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 	const struct snd_soc_dapm_widget *_widget)
