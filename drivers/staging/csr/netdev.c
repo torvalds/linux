@@ -55,21 +55,6 @@
 #include <net/pkt_sched.h>
 
 
-#ifdef UNIFI_NET_NAME
-#define UF_ALLOC_NETDEV(_dev, _size, _name, _setup, _num_of_queues)     \
-    do {                                                                \
-        static char name[8];                                           \
-        sprintf(name, "%s%s", UNIFI_NET_NAME, _name);                   \
-        _dev = alloc_netdev_mq(_size, name, _setup, _num_of_queues);    \
-    } while (0);
-#else
-#define UF_ALLOC_NETDEV(_dev, _size, _name, _setup, _num_of_queues)     \
-    do {                                                                \
-        _dev = alloc_etherdev_mq(_size, _num_of_queues);                \
-    } while (0);
-#endif /* UNIFI_NET_NAME */
-
-
 /* Wext handler is suported only if CSR_SUPPORT_WEXT is defined */
 #ifdef CSR_SUPPORT_WEXT
 extern struct iw_handler_def unifi_iw_handler_def;
@@ -212,7 +197,7 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
      * The RedHat 9 redhat-config-network tool doesn't recognise wlan* devices,
      * so use "eth*" (like other wireless extns drivers).
      */
-    UF_ALLOC_NETDEV(dev, sizeof(unifi_priv_t)+sizeof(netInterface_priv_t), "%d", ether_setup, UNIFI_TRAFFIC_Q_MAX);
+    dev = alloc_etherdev_mq(sizeof(unifi_priv_t) + sizeof(netInterface_priv_t), UNIFI_TRAFFIC_Q_MAX);
 
     if (dev == NULL) {
         return NULL;
@@ -437,7 +422,7 @@ uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag)
      * The RedHat 9 redhat-config-network tool doesn't recognise wlan* devices,
      * so use "eth*" (like other wireless extns drivers).
      */
-    UF_ALLOC_NETDEV(dev, sizeof(netInterface_priv_t), "%d", ether_setup, 1);
+    dev = alloc_etherdev_mq(sizeof(netInterface_priv_t), 1);
     if (dev == NULL) {
         return FALSE;
     }
