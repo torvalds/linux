@@ -101,6 +101,10 @@ ENTRY(cpu_v7_set_pte_ext)
 
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_VALID
+#ifndef CONFIG_CPU_USE_DOMAINS
+	eorne	r1, r1, #L_PTE_NONE
+	tstne	r1, #L_PTE_NONE
+#endif
 	moveq	r3, #0
 
  ARM(	str	r3, [r0, #2048]! )
