@@ -378,7 +378,7 @@ static void tcp_fixup_rcvbuf(struct sock *sk)
 /* 4. Try to fixup all. It is made immediately after connection enters
  *    established state.
  */
-static void tcp_init_buffer_space(struct sock *sk)
+void tcp_init_buffer_space(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int maxwin;
@@ -3127,6 +3127,12 @@ void tcp_rearm_rto(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	/* If the retrans timer is currently being used by Fast Open
+	 * for SYN-ACK retrans purpose, stay put.
+	 */
+	if (tp->fastopen_rsk)
+		return;
+
 	if (!tp->packets_out) {
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
 	} else {
@@ -4038,7 +4044,7 @@ static inline bool tcp_sequence(const struct tcp_sock *tp, u32 seq, u32 end_seq)
 }
 
 /* When we get a reset we do this. */
-static void tcp_reset(struct sock *sk)
+void tcp_reset(struct sock *sk)
 {
 	/* We want the right error as BSD sees it (and indeed as we do). */
 	switch (sk->sk_state) {
@@ -5895,7 +5901,9 @@ discard:
 		tcp_send_synack(sk);
 #if 0
 		/* Note, we could accept data and URG from this segment.
-		 * There are no obstacles to make this.
+		 * There are no obstacles to make this (except that we must
+		 * either change tcp_recvmsg() to prevent it from returning data
+		 * before 3WHS completes per RFC793, or employ TCP Fast Open).
 		 *
 		 * However, if we ignore data in ACKless segments sometimes,
 		 * we have no reasons to accept it sometimes.
@@ -5935,6 +5943,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct request_sock *req;
 	int queued = 0;
 
 	tp->rx_opt.saw_tstamp = 0;
@@ -5990,7 +5999,14 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 	}
 
-	if (!tcp_validate_incoming(sk, skb, th, 0))
+	req = tp->fastopen_rsk;
+	if (req != NULL) {
+		BUG_ON(sk->sk_state != TCP_SYN_RECV &&
+		    sk->sk_state != TCP_FIN_WAIT1);
+
+		if (tcp_check_req(sk, skb, req, NULL, true) == NULL)
+			goto discard;
+	} else if (!tcp_validate_incoming(sk, skb, th, 0))
 		return 0;
 
 	/* step 5: check the ACK field */
@@ -6000,7 +6016,22 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		switch (sk->sk_state) {
 		case TCP_SYN_RECV:
 			if (acceptable) {
-				tp->copied_seq = tp->rcv_nxt;
+				/* Once we leave TCP_SYN_RECV, we no longer
+				 * need req so release it.
+				 */
+				if (req) {
+					reqsk_fastopen_remove(sk, req, false);
+				} else {
+					/* Make sure socket is routed, for
+					 * correct metrics.
+					 */
+					icsk->icsk_af_ops->rebuild_header(sk);
+					tcp_init_congestion_control(sk);
+
+					tcp_mtup_init(sk);
+					tcp_init_buffer_space(sk);
+					tp->copied_seq = tp->rcv_nxt;
+				}
 				smp_mb();
 				tcp_set_state(sk, TCP_ESTABLISHED);
 				sk->sk_state_change(sk);
@@ -6022,23 +6053,27 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				if (tp->rx_opt.tstamp_ok)
 					tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
 
-				/* Make sure socket is routed, for
-				 * correct metrics.
-				 */
-				icsk->icsk_af_ops->rebuild_header(sk);
-
-				tcp_init_metrics(sk);
-
-				tcp_init_congestion_control(sk);
+				if (req) {
+					/* Re-arm the timer because data may
+					 * have been sent out. This is similar
+					 * to the regular data transmission case
+					 * when new data has just been ack'ed.
+					 *
+					 * (TFO) - we could try to be more
+					 * aggressive and retranmitting any data
+					 * sooner based on when they were sent
+					 * out.
+					 */
+					tcp_rearm_rto(sk);
+				} else
+					tcp_init_metrics(sk);
 
 				/* Prevent spurious tcp_cwnd_restart() on
 				 * first data packet.
 				 */
 				tp->lsndtime = tcp_time_stamp;
 
-				tcp_mtup_init(sk);
 				tcp_initialize_rcv_mss(sk);
-				tcp_init_buffer_space(sk);
 				tcp_fast_path_on(tp);
 			} else {
 				return 1;
@@ -6046,6 +6081,16 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			break;
 
 		case TCP_FIN_WAIT1:
+			/* If we enter the TCP_FIN_WAIT1 state and we are a
+			 * Fast Open socket and this is the first acceptable
+			 * ACK we have received, this would have acknowledged
+			 * our SYNACK so stop the SYNACK timer.
+			 */
+			if (acceptable && req != NULL) {
+				/* We no longer need the request sock. */
+				reqsk_fastopen_remove(sk, req, false);
+				tcp_rearm_rto(sk);
+			}
 			if (tp->snd_una == tp->write_seq) {
 				struct dst_entry *dst;
 

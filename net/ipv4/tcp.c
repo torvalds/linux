@@ -486,8 +486,9 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		mask |= POLLIN | POLLRDNORM | POLLRDHUP;
 
-	/* Connected? */
-	if ((1 << sk->sk_state) & ~(TCPF_SYN_SENT | TCPF_SYN_RECV)) {
+	/* Connected or passive Fast Open socket? */
+	if (sk->sk_state != TCP_SYN_SENT &&
+	    (sk->sk_state != TCP_SYN_RECV || tp->fastopen_rsk != NULL)) {
 		int target = sock_rcvlowat(sk, 0, INT_MAX);
 
 		if (tp->urg_seq == tp->copied_seq &&
@@ -840,10 +841,15 @@ static ssize_t do_tcp_sendpages(struct sock *sk, struct page **pages, int poffse
 	ssize_t copied;
 	long timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 
-	/* Wait for a connection to finish. */
-	if ((1 << sk->sk_state) & ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT))
+	/* Wait for a connection to finish. One exception is TCP Fast Open
+	 * (passive side) where data is allowed to be sent before a connection
+	 * is fully established.
+	 */
+	if (((1 << sk->sk_state) & ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT)) &&
+	    !tcp_passive_fastopen(sk)) {
 		if ((err = sk_stream_wait_connect(sk, &timeo)) != 0)
 			goto out_err;
+	}
 
 	clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
 
@@ -1042,10 +1048,15 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	timeo = sock_sndtimeo(sk, flags & MSG_DONTWAIT);
 
-	/* Wait for a connection to finish. */
-	if ((1 << sk->sk_state) & ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT))
+	/* Wait for a connection to finish. One exception is TCP Fast Open
+	 * (passive side) where data is allowed to be sent before a connection
+	 * is fully established.
+	 */
+	if (((1 << sk->sk_state) & ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT)) &&
+	    !tcp_passive_fastopen(sk)) {
 		if ((err = sk_stream_wait_connect(sk, &timeo)) != 0)
 			goto do_error;
+	}
 
 	if (unlikely(tp->repair)) {
 		if (tp->repair_queue == TCP_RECV_QUEUE) {
@@ -2144,6 +2155,10 @@ void tcp_close(struct sock *sk, long timeout)
 		 * they look as CLOSING or LAST_ACK for Linux)
 		 * Probably, I missed some more holelets.
 		 * 						--ANK
+		 * XXX (TFO) - To start off we don't support SYN+ACK+FIN
+		 * in a single packet! (May consider it later but will
+		 * probably need API support or TCP_CORK SYN-ACK until
+		 * data is written and socket is closed.)
 		 */
 		tcp_send_fin(sk);
 	}
@@ -2215,8 +2230,16 @@ adjudge_to_death:
 		}
 	}
 
-	if (sk->sk_state == TCP_CLOSE)
+	if (sk->sk_state == TCP_CLOSE) {
+		struct request_sock *req = tcp_sk(sk)->fastopen_rsk;
+		/* We could get here with a non-NULL req if the socket is
+		 * aborted (e.g., closed with unread data) before 3WHS
+		 * finishes.
+		 */
+		if (req != NULL)
+			reqsk_fastopen_remove(sk, req, false);
 		inet_csk_destroy_sock(sk);
+	}
 	/* Otherwise, socket is reprieved until protocol close. */
 
 out:
@@ -2687,6 +2710,14 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 			err = -EINVAL;
 		else
 			icsk->icsk_user_timeout = msecs_to_jiffies(val);
+		break;
+
+	case TCP_FASTOPEN:
+		if (val >= 0 && ((1 << sk->sk_state) & (TCPF_CLOSE |
+		    TCPF_LISTEN)))
+			err = fastopen_init_queue(sk, val);
+		else
+			err = -EINVAL;
 		break;
 	default:
 		err = -ENOPROTOOPT;
@@ -3501,11 +3532,15 @@ EXPORT_SYMBOL(tcp_cookie_generator);
 
 void tcp_done(struct sock *sk)
 {
+	struct request_sock *req = tcp_sk(sk)->fastopen_rsk;
+
 	if (sk->sk_state == TCP_SYN_SENT || sk->sk_state == TCP_SYN_RECV)
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
 
 	tcp_set_state(sk, TCP_CLOSE);
 	tcp_clear_xmit_timers(sk);
+	if (req != NULL)
+		reqsk_fastopen_remove(sk, req, false);
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 

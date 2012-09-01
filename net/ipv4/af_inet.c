@@ -149,6 +149,11 @@ void inet_sock_destruct(struct sock *sk)
 		pr_err("Attempt to release alive inet socket %p\n", sk);
 		return;
 	}
+	if (sk->sk_type == SOCK_STREAM) {
+		struct fastopen_queue *fastopenq =
+			inet_csk(sk)->icsk_accept_queue.fastopenq;
+		kfree(fastopenq);
+	}
 
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
 	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
@@ -212,6 +217,26 @@ int inet_listen(struct socket *sock, int backlog)
 	 * we can only allow the backlog to be adjusted.
 	 */
 	if (old_state != TCP_LISTEN) {
+		/* Check special setups for testing purpose to enable TFO w/o
+		 * requiring TCP_FASTOPEN sockopt.
+		 * Note that only TCP sockets (SOCK_STREAM) will reach here.
+		 * Also fastopenq may already been allocated because this
+		 * socket was in TCP_LISTEN state previously but was
+		 * shutdown() (rather than close()).
+		 */
+		if ((sysctl_tcp_fastopen & TFO_SERVER_ENABLE) != 0 &&
+		    inet_csk(sk)->icsk_accept_queue.fastopenq == NULL) {
+			if ((sysctl_tcp_fastopen & TFO_SERVER_WO_SOCKOPT1) != 0)
+				err = fastopen_init_queue(sk, backlog);
+			else if ((sysctl_tcp_fastopen &
+				  TFO_SERVER_WO_SOCKOPT2) != 0)
+				err = fastopen_init_queue(sk,
+				    ((uint)sysctl_tcp_fastopen) >> 16);
+			else
+				err = 0;
+			if (err)
+				goto out;
+		}
 		err = inet_csk_listen_start(sk, backlog);
 		if (err)
 			goto out;
@@ -701,7 +726,8 @@ int inet_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	sock_rps_record_flow(sk2);
 	WARN_ON(!((1 << sk2->sk_state) &
-		  (TCPF_ESTABLISHED | TCPF_CLOSE_WAIT | TCPF_CLOSE)));
+		  (TCPF_ESTABLISHED | TCPF_SYN_RECV |
+		  TCPF_CLOSE_WAIT | TCPF_CLOSE)));
 
 	sock_graft(sk2, newsock);
 
