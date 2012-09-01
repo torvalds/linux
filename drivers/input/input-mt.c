@@ -383,3 +383,35 @@ int input_mt_assign_slots(struct input_dev *dev, int *slots,
 	return 0;
 }
 EXPORT_SYMBOL(input_mt_assign_slots);
+
+/**
+ * input_mt_get_slot_by_key() - return slot matching key
+ * @dev: input device with allocated MT slots
+ * @key: the key of the sought slot
+ *
+ * Returns the slot of the given key, if it exists, otherwise
+ * set the key on the first unused slot and return.
+ *
+ * If no available slot can be found, -1 is returned.
+ */
+int input_mt_get_slot_by_key(struct input_dev *dev, int key)
+{
+	struct input_mt *mt = dev->mt;
+	struct input_mt_slot *s;
+
+	if (!mt)
+		return -1;
+
+	for (s = mt->slots; s != mt->slots + mt->num_slots; s++)
+		if (input_mt_is_active(s) && s->key == key)
+			return s - mt->slots;
+
+	for (s = mt->slots; s != mt->slots + mt->num_slots; s++)
+		if (!input_mt_is_active(s)) {
+			s->key = key;
+			return s - mt->slots;
+		}
+
+	return -1;
+}
+EXPORT_SYMBOL(input_mt_get_slot_by_key);

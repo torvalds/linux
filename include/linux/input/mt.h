@@ -24,10 +24,12 @@
  * struct input_mt_slot - represents the state of an input MT slot
  * @abs: holds current values of ABS_MT axes for this slot
  * @frame: last frame at which input_mt_report_slot_state() was called
+ * @key: optional driver designation of this slot
  */
 struct input_mt_slot {
 	int abs[ABS_MT_LAST - ABS_MT_FIRST + 1];
 	unsigned int frame;
+	unsigned int key;
 };
 
 /**
@@ -110,5 +112,7 @@ struct input_mt_pos {
 
 int input_mt_assign_slots(struct input_dev *dev, int *slots,
 			  const struct input_mt_pos *pos, int num_pos);
+
+int input_mt_get_slot_by_key(struct input_dev *dev, int key);
 
 #endif
