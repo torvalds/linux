@@ -624,7 +624,7 @@ static struct platform_device device_lcdc1 = {
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
-		.gpio = RK30_PIN0_PA4,
+		.gpio = RK30_PIN3_PD3,
 		.max_timeout = 1000,
 		.active_low = 0,
 		.adjust_time =20,      //adjust for diff product
