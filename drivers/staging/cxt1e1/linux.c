@@ -405,7 +405,7 @@ c4_linux_xmit (struct sk_buff * skb, struct net_device * ndev)
     priv = hdlc->priv;
 
     rval = musycc_start_xmit (priv->ci, priv->channum, skb);
-    return -rval;
+    return rval;
 }
 
 static const struct net_device_ops chan_ops = {
