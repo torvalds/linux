@@ -81,7 +81,6 @@
 #define IRQ_PMU_STOP_EXIT_INT           RK30XX_IRQ(69)
 #define IRQ_OBSERVER_MAINFAULT          RK30XX_IRQ(70)
 #define IRQ_VPU_OBSRV_MAINFAULT         RK30XX_IRQ(71)
-#define IRQ_ARM_PMU                     103
 #define IRQ_PERI_OBSRV_MAINFAULT        RK30XX_IRQ(72)
 #define IRQ_VIO1_OBSRV_MAINFAULT        RK30XX_IRQ(73)
 #define IRQ_VIO0_OBSRV_MAINFAULT        RK30XX_IRQ(74)
@@ -92,6 +91,8 @@
 #if CONFIG_RK_DEBUG_UART >= 0 && CONFIG_RK_DEBUG_UART < 4
 #define IRQ_DEBUG_UART			(IRQ_UART0 + CONFIG_RK_DEBUG_UART)
 #endif
+
+#define IRQ_ARM_PMU                     RK30XX_IRQ(103)
 
 #define NR_GIC_IRQS                     (5 * 32)
 #define NR_GPIO_IRQS                    (6 * 32)

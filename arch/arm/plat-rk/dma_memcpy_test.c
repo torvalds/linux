@@ -63,7 +63,7 @@ static int interval = 1000;
 module_param(interval,int,S_IRUGO|S_IWUSR);
 
 
-#define DMA_THREAD  1
+#define DMA_THREAD  2
 #define MEMCPY_DMA_DBG(fmt...)  {if(debug > 0) printk(fmt);}
 
 static struct Dma_MemToMem  DmaMemInfo0;

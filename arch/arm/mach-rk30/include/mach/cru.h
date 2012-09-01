@@ -115,10 +115,24 @@ enum rk_plls_id {
 #define CORE_CLK_DIV_MSK	(0x1F)
 #define CORE_CLK_DIV(i)		(((i) - 1) & 0x1F)
 
+/* for compatible with rk3066b */
+#define CPU_CLK_DIV_W_MSK	CORE_CLK_DIV_W_MSK
+#define CPU_CLK_DIV_MSK		CORE_CLK_DIV_MSK
+#define CPU_CLK_DIV(i)		CORE_CLK_DIV(i)
+
 /*******************CLKSEL1 BITS***************************/
 //aclk div
 
 #define GET_CORE_ACLK_VAL(reg) ((reg)>=4 ?8:((reg)+1))
+
+/* for compatible with rk3066b */
+#define CPU_ACLK_W_MSK		CORE_ACLK_W_MSK
+#define CPU_ACLK_MSK		CORE_ACLK_MSK
+#define CPU_ACLK_11		CORE_ACLK_11
+#define CPU_ACLK_21		CORE_ACLK_21
+#define CPU_ACLK_31		CORE_ACLK_31
+#define CPU_ACLK_41		CORE_ACLK_41
+#define CPU_ACLK_81		CORE_ACLK_81
 
 #define CORE_ACLK_W_MSK		(7 << 16)
 #define CORE_ACLK_MSK		(7 << 0)

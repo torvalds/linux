@@ -84,6 +84,7 @@ static struct resource resource_dmac1[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
+#if defined(CONFIG_ARCH_RK3066B)
 
 static struct rk29_pl330_platdata dmac1_pdata = {
 	.peri = {
@@ -91,13 +92,13 @@ static struct rk29_pl330_platdata dmac1_pdata = {
 		[1] = DMACH_UART0_RX,
 		[2] = DMACH_UART1_TX,
 		[3] = DMACH_UART1_RX,
-		[4] = DMACH_I2S0_8CH_TX,
-		[5] = DMACH_I2S0_8CH_RX,
+		[4] = DMACH_MAX,
+		[5] = DMACH_MAX,
 		[6] = DMACH_I2S1_2CH_TX,
 		[7] = DMACH_I2S1_2CH_RX,
 		[8] = DMACH_SPDIF_TX,
-		[9] = DMACH_I2S2_2CH_TX,
-		[10] = DMACH_I2S2_2CH_RX,
+		[9] = DMACH_DMAC0_MEMTOMEM,
+		[10] = DMACH_MAX,
 		[11] = DMACH_MAX,
 		[12] = DMACH_MAX,
 		[13] = DMACH_MAX,
@@ -121,6 +122,47 @@ static struct rk29_pl330_platdata dmac1_pdata = {
 		[31] = DMACH_MAX,
 	},
 };
+
+#else 
+
+static struct rk29_pl330_platdata dmac1_pdata = {
+	.peri = {
+		[0] = DMACH_UART0_TX,
+		[1] = DMACH_UART0_RX,
+		[2] = DMACH_UART1_TX,
+		[3] = DMACH_UART1_RX,
+		[4] = DMACH_I2S0_8CH_TX,
+		[5] = DMACH_I2S0_8CH_RX,
+		[6] = DMACH_I2S1_2CH_TX,
+		[7] = DMACH_I2S1_2CH_RX,
+		[8] = DMACH_SPDIF_TX,
+		[9] = DMACH_I2S2_2CH_TX,
+		[10] = DMACH_I2S2_2CH_RX,
+		[11] = DMACH_DMAC0_MEMTOMEM,
+		[12] = DMACH_MAX,
+		[13] = DMACH_MAX,
+		[14] = DMACH_MAX,
+		[15] = DMACH_MAX,
+		[16] = DMACH_MAX,
+		[17] = DMACH_MAX,
+		[18] = DMACH_MAX,
+		[19] = DMACH_MAX,
+		[20] = DMACH_MAX,
+		[21] = DMACH_MAX,
+		[22] = DMACH_MAX,
+		[23] = DMACH_MAX,
+		[24] = DMACH_MAX,
+		[25] = DMACH_MAX,
+		[26] = DMACH_MAX,
+		[27] = DMACH_MAX,
+		[28] = DMACH_MAX,
+		[29] = DMACH_MAX,
+		[30] = DMACH_MAX,
+		[31] = DMACH_MAX,
+	},
+};
+
+#endif
 
 static struct platform_device device_dmac1 = {
 	.name		= "rk29-pl330",
@@ -163,7 +205,7 @@ static struct rk29_pl330_platdata dmac2_pdata = {
 		[11] = DMACH_SPI0_RX,
 		[12] = DMACH_SPI1_TX,
 		[13] = DMACH_SPI1_RX,
-		[14] = DMACH_DMAC2_MEMTOMEM,
+		[14] = DMACH_DMAC1_MEMTOMEM,
 		[15] = DMACH_MAX,
 		[16] = DMACH_MAX,
 		[17] = DMACH_MAX,
@@ -921,62 +963,6 @@ static struct platform_device device_nand = {
 };
 #endif
 
-#if defined(CONFIG_LCDC0_RK30) || defined(CONFIG_LCDC0_RK31)
-extern struct rk29fb_info lcdc0_screen_info;
-static struct resource resource_lcdc0[] = {
-	[0] = {
-		.name  = "lcdc0 reg",
-		.start = RK30_LCDC0_PHYS,
-		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	
-	[1] = {
-		.name  = "lcdc0 irq",
-		.start = IRQ_LCDC0,
-		.end   = IRQ_LCDC0,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device device_lcdc0 = {
-	.name		  = "rk30-lcdc",
-	.id		  = 0,
-	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
-	.resource	  = resource_lcdc0,
-	.dev 		= {
-		.platform_data = &lcdc0_screen_info,
-	},
-};
-#endif
-#if defined(CONFIG_LCDC1_RK30) || defined(CONFIG_LCDC1_RK31)
-extern struct rk29fb_info lcdc1_screen_info;
-static struct resource resource_lcdc1[] = {
-	[0] = {
-		.name  = "lcdc1 reg",
-		.start = RK30_LCDC1_PHYS,
-		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.name  = "lcdc1 irq",
-		.start = IRQ_LCDC1,
-		.end   = IRQ_LCDC1,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device device_lcdc1 = {
-	.name		  = "rk30-lcdc",
-	.id		  = 1,
-	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
-	.resource	  = resource_lcdc1,
-	.dev 		= {
-		.platform_data = &lcdc1_screen_info,
-	},
-};
-#endif
-
 #ifdef CONFIG_HDMI_RK30
 static struct resource resource_hdmi[] = {
 	[0] = {
@@ -1302,6 +1288,19 @@ static struct platform_device device_wdt = {
 };
 #endif
 
+static struct resource resource_arm_pmu = {
+	.start		= IRQ_ARM_PMU,
+	.end		= IRQ_ARM_PMU,
+	.flags		= IORESOURCE_IRQ,
+};
+
+struct platform_device device_arm_pmu = {
+	.name		= "arm-pmu",
+	.id		= ARM_PMU_DEVICE_CPU,
+	.num_resources	= 1,
+	.resource	= &resource_arm_pmu,
+};
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
@@ -1320,12 +1319,6 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_ipp);
 #if defined(CONFIG_ARCH_RK3066B)
 	platform_device_register(&device_sgx);
-#endif
-#if 	defined(CONFIG_LCDC0_RK30) || defined(CONFIG_LCDC0_RK31)
-	platform_device_register(&device_lcdc0);
-#endif
-#if     defined(CONFIG_LCDC1_RK30) || defined(CONFIG_LCDC1_RK31)
-	platform_device_register(&device_lcdc1);
 #endif
 #ifdef CONFIG_HDMI_RK30
 	platform_device_register(&device_hdmi);
@@ -1347,6 +1340,8 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_RK29_WATCHDOG
 	platform_device_register(&device_wdt);
 #endif
+	platform_device_register(&device_arm_pmu);
+
 	return 0;
 }
 arch_initcall(rk30_init_devices);

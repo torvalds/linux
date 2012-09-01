@@ -203,37 +203,6 @@ static void __init rk2928_init_uart(void)
 #endif
 }
 
-
-//LCDC
-#ifdef CONFIG_LCDC_RK2928
-extern struct rk29fb_info lcdc_screen_info;
-static struct resource resource_lcdc[] = {
-	[0] = {
-		.name  = "lcdc reg",
-		.start = RK2928_LCDC_PHYS,
-		.end   = RK2928_LCDC_PHYS + RK2928_LCDC_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	
-	[1] = {
-		.name  = "lcdc irq",
-		.start = IRQ_LCDC,
-		.end   = IRQ_LCDC,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device device_lcdc = {
-	.name		  = "rk2928-lcdc",
-	.id		  = 0,
-	.num_resources	  = ARRAY_SIZE(resource_lcdc),
-	.resource	  = resource_lcdc,
-	.dev 		= {
-		.platform_data = &lcdc_screen_info,
-	},
-};
-#endif
-
 // i2c
 #ifdef CONFIG_I2C_RK30
 #ifdef CONFIG_I2C0_CONTROLLER_RK29
@@ -892,9 +861,6 @@ static int __init rk2928_init_devices(void)
 #endif
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);
-#endif
-#ifdef CONFIG_LCDC_RK2928
-	platform_device_register(&device_lcdc);
 #endif
 #ifdef CONFIG_USB20_OTG
 	platform_device_register(&device_usb20_otg);

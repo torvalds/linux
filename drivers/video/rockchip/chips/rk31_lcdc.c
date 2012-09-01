@@ -37,7 +37,7 @@
 
 
 
-static int dbg_thresd = 3;
+static int dbg_thresd = 2;
 module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
 
@@ -981,6 +981,12 @@ static int __devexit rk31_lcdc_remove(struct platform_device *pdev)
 static void rk31_lcdc_shutdown(struct platform_device *pdev)
 {
 	struct rk31_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	if(lcdc_dev->driver.cur_screen->standby) //standby the screen if necessary
+		lcdc_dev->driver.cur_screen->standby(1);
+	if(lcdc_dev->driver.screen_ctr_info->io_disable) //power off the screen if necessary
+		lcdc_dev->driver.screen_ctr_info->io_disable();
+	if(lcdc_dev->driver.cur_screen->sscreen_set) //turn off  lvds if necessary
+		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
 	rk_fb_unregister(&(lcdc_dev->driver));
 	rk31_lcdc_deinit(lcdc_dev);
 	/*iounmap(lcdc_dev->reg_vir_base);

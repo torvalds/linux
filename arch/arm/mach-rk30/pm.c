@@ -391,7 +391,7 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_PCLK_CPU)
 			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
-#ifdef CONFIG_ARCH_RK3066B
+#if defined(CONFIG_ARCH_RK3066B)
 	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x01) == 0x01){
 #else
 	if(((clkgt_regs[8] >> CLK_GATE_PCLK_GPIO3% 16) & 0x03) == 0x03){
@@ -408,6 +408,9 @@ static void __sramfunc rk30_sram_suspend(void)
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
+#if defined(CONFIG_ARCH_RK3066B)
+			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
+#endif
 			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
@@ -434,7 +437,7 @@ static void __sramfunc rk30_sram_suspend(void)
 #else
 	board_pmu_suspend();
 	cru_clksel0_con = cru_readl(CRU_CLKSELS_CON(0));
-	cru_writel((0x1f << 16) | 0x1f, CRU_CLKSELS_CON(0));
+	cru_writel(CORE_CLK_DIV_W_MSK | CORE_CLK_DIV_MSK | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV_MSK, CRU_CLKSELS_CON(0));
 #endif
 
 	dsb();
@@ -444,7 +447,7 @@ static void __sramfunc rk30_sram_suspend(void)
 	board_pmu_resume();
 	cru_writel((0xffff<<16) | cru_mode_con, CRU_MODE_CON);
 #else
-	cru_writel((0x1f << 16) | cru_clksel0_con, CRU_CLKSELS_CON(0));
+	cru_writel(CORE_CLK_DIV_W_MSK | CPU_CLK_DIV_W_MSK | cru_clksel0_con, CRU_CLKSELS_CON(0));
 	board_pmu_resume();
 #endif
 	
@@ -528,6 +531,9 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_HCLK_CPUBUS % 16)
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
+#if defined(CONFIG_ARCH_RK3066B)
+			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
+#endif
 			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
@@ -575,8 +581,10 @@ static int rk30_pm_enter(suspend_state_t state)
 	cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
 	cru_writel(CORE_PERIPH_MSK | CORE_PERIPH_2
 		   | CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(1)
+		   | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(1)
 		   , CRU_CLKSELS_CON(0));
 	cru_writel(CORE_ACLK_W_MSK | CORE_ACLK_11
+		   | CPU_ACLK_W_MSK | CPU_ACLK_11
 		   | ACLK_HCLK_W_MSK | ACLK_HCLK_11
 		   | ACLK_PCLK_W_MSK | ACLK_PCLK_11
 		   | AHB2APB_W_MSK | AHB2APB_11

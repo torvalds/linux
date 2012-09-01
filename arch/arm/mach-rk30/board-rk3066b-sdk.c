@@ -77,14 +77,14 @@
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN2_PC0
-#define TOUCH_PWR_PIN    INVALID_GPIO
+#define TOUCH_PWR_PIN    RK30_PIN2_PB4
 static int goodix_init_platform_hw(void)
 {
 	int ret;
 	
 	rk30_mux_api_set(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME, GPIO2C_GPIO2C0);
-	rk30_mux_api_set(GPIO0D4_SPI1RXD_NAME, GPIO0D_GPIO0D4);
-	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO0D4_SPI1RXD_NAME));
+	rk30_mux_api_set(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME, GPIO2B_GPIO2B4);
+	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO2C0_LCDC1DATA16_SMCADDR0_TRACECLK_NAME),rk30_mux_api_get(GPIO2B4_LCDC1DATA12_SMCDATA12_TRACEDATA12_NAME));
 
 	if (TOUCH_PWR_PIN != INVALID_GPIO) {
 		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
@@ -130,17 +130,17 @@ static struct spi_board_info board_spi_devices[] = {
 *	rk30  backlight
 ************************************************************/
 #ifdef CONFIG_BACKLIGHT_RK29_BL
-#define PWM_ID            0
-#define PWM_MUX_NAME      GPIO3D3_PWM0_NAME
-#define PWM_MUX_MODE      GPIO3D_PWM0
-#define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D4
-#define PWM_GPIO 	  RK30_PIN3_PD4
+#define PWM_ID            2
+#define PWM_MUX_NAME      GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME
+#define PWM_MUX_MODE      GPIO3D_PWM2
+#define PWM_MUX_MODE_GPIO GPIO3D_GPIO3D5
+#define PWM_GPIO 	  RK30_PIN3_PD5
 #define PWM_EFFECT_VALUE  1
 
 #define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
-#define BL_EN_PIN         RK30_PIN0_PA1
+#define BL_EN_PIN         RK30_PIN0_PA2
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
 static int rk29_backlight_io_init(void)
@@ -451,49 +451,69 @@ static struct sensor_platform_data cm3217_info = {
 
 #ifdef CONFIG_FB_ROCKCHIP
 
-#define LCD_CS_PIN         RK30_PIN0_PB0
+#define LCD_CS_PIN         INVALID_GPIO
 #define LCD_CS_VALUE       GPIO_HIGH
 
 #define LCD_EN_PIN         RK30_PIN0_PB0
-#define LCD_EN_VALUE       GPIO_LOW
+#define LCD_EN_VALUE       GPIO_HIGH
 
 static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
-	ret = gpio_request(LCD_CS_PIN, NULL);
-	if (ret != 0)
+
+	if(LCD_CS_PIN !=INVALID_GPIO)
 	{
-		gpio_free(LCD_CS_PIN);
-		printk(KERN_ERR "request lcd cs pin fail!\n");
-		return -1;
+		ret = gpio_request(LCD_CS_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(LCD_CS_PIN);
+			printk(KERN_ERR "request lcd cs pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
+		}
 	}
-	else
+
+	if(LCD_EN_PIN !=INVALID_GPIO)
 	{
-		gpio_direction_output(LCD_CS_PIN, LCD_CS_VALUE);
-	}
-	ret = gpio_request(LCD_EN_PIN, NULL);
-	if (ret != 0)
-	{
-		gpio_free(LCD_EN_PIN);
-		printk(KERN_ERR "request lcd en pin fail!\n");
-		return -1;
-	}
-	else
-	{
-		gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+		ret = gpio_request(LCD_EN_PIN, NULL);
+		if (ret != 0)
+		{
+			gpio_free(LCD_EN_PIN);
+			printk(KERN_ERR "request lcd en pin fail!\n");
+			return -1;
+		}
+		else
+		{
+			gpio_direction_output(LCD_EN_PIN, LCD_EN_VALUE);
+		}
 	}
 	return 0;
 }
 static int rk_fb_io_disable(void)
 {
-	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE? 0:1);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
+	if(LCD_CS_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(LCD_CS_PIN, !LCD_CS_VALUE);
+	}
+	if(LCD_EN_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(LCD_EN_PIN, !LCD_EN_VALUE);
+	}
 	return 0;
 }
 static int rk_fb_io_enable(void)
 {
-	gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
-	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	if(LCD_CS_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(LCD_CS_PIN, LCD_CS_VALUE);
+	}
+	if(LCD_EN_PIN !=INVALID_GPIO)
+	{
+		gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	}
 	return 0;
 }
 
@@ -546,11 +566,65 @@ static struct platform_device device_fb = {
 };
 #endif
 
+#if defined(CONFIG_LCDC0_RK31)
+static struct resource resource_lcdc0[] = {
+	[0] = {
+		.name  = "lcdc0 reg",
+		.start = RK30_LCDC0_PHYS,
+		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	
+	[1] = {
+		.name  = "lcdc0 irq",
+		.start = IRQ_LCDC0,
+		.end   = IRQ_LCDC0,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc0 = {
+	.name		  = "rk30-lcdc",
+	.id		  = 0,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
+	.resource	  = resource_lcdc0,
+	.dev 		= {
+		.platform_data = &lcdc0_screen_info,
+	},
+};
+#endif
+#if defined(CONFIG_LCDC1_RK31) 
+static struct resource resource_lcdc1[] = {
+	[0] = {
+		.name  = "lcdc1 reg",
+		.start = RK30_LCDC1_PHYS,
+		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name  = "lcdc1 irq",
+		.start = IRQ_LCDC1,
+		.end   = IRQ_LCDC1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_lcdc1 = {
+	.name		  = "rk30-lcdc",
+	.id		  = 1,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
+	.resource	  = resource_lcdc1,
+	.dev 		= {
+		.platform_data = &lcdc1_screen_info,
+	},
+};
+#endif
+
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
-		.gpio = RK30_PIN0_PA4,
+		.gpio = RK30_PIN3_PD3,
 		.max_timeout = 1000,
 		.active_low = 0,
 		.adjust_time =20,      //adjust for diff product
@@ -966,12 +1040,20 @@ static struct platform_device device_rfkill_rk = {
 #endif
 
 static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-	&rk29_device_backlight,
-#endif
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
+#if defined(CONFIG_LCDC0_RK31)
+	&device_lcdc0,
+#endif
+#if defined(CONFIG_LCDC1_RK31)
+	&device_lcdc1,
+#endif
+		
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
+#endif
+
 #ifdef CONFIG_ION
 	&device_ion,
 #endif
@@ -1320,10 +1402,12 @@ static void __init rk30_reserve(void)
 #ifdef CONFIG_FB_ROCKCHIP
 	resource_fb[0].start = board_mem_reserve_add("fb0", RK30_FB0_MEM_SIZE);
 	resource_fb[0].end = resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
+	#if 0
 	resource_fb[1].start = board_mem_reserve_add("ipp buf", RK30_FB0_MEM_SIZE);
 	resource_fb[1].end = resource_fb[1].start + RK30_FB0_MEM_SIZE - 1;
 	resource_fb[2].start = board_mem_reserve_add("fb2", RK30_FB0_MEM_SIZE);
 	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;
+	#endif
 #endif
 #ifdef CONFIG_VIDEO_RK29
 	rk30_camera_request_reserve_mem();
