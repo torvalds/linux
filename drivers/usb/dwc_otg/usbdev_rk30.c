@@ -1,7 +1,6 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#ifdef CONFIG_ARCH_RK30
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 
@@ -11,12 +10,19 @@
 #include <mach/cru.h>
 
 #include "usbdev_rk.h"
+#ifdef CONFIG_ARCH_RK30
 
 #define GRF_REG_BASE	RK30_GRF_BASE	
 #define USBOTG_SIZE	RK30_USBOTG20_SIZE
+#ifdef CONFIG_ARCH_RK3066B
+#define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0xac)
+#define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x118) // USBGRF_UOC0_CON3
+#define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x128) // USBGRF_UOC1_CON3
+#else
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x15c)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x184)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x190)
+#endif
 //#define USB_IOMUX_INIT(a,b) rk30_mux_api_set(a,b)
 
 #ifdef CONFIG_USB20_OTG
@@ -45,7 +51,11 @@ void usb20otg_hw_init(void)
     // usb phy config init
 
     // other haredware init
+#ifdef CONFIG_ARCH_RK3066B
+    rk30_mux_api_set(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME, GPIO3D_OTGDRVVBUS);
+#else
     rk30_mux_api_set(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);
+#endif
 }
 void usb20otg_phy_suspend(void* pdata, int suspend)
 {
@@ -165,7 +175,11 @@ void usb20host_hw_init(void)
     // usb phy config init
 
     // other haredware init
+#ifdef CONFIG_ARCH_RK3066B
+    rk30_mux_api_set(GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME, GPIO3D_HOSTDRVVBUS);
+#else
     rk30_mux_api_set(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);
+#endif
 }
 void usb20host_phy_suspend(void* pdata, int suspend)
 {

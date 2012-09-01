@@ -1664,6 +1664,97 @@ static void dwc_phy_reconnect(struct work_struct *work)
         DWC_PRINT("********soft connect!!!*****************************************\n");
     } 
 }
+#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK3066B)
+static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
+{
+    struct device *_dev = (struct device *)pdata;
+	struct dwc_otg_platform_data *pldata = _dev->platform_data;
+	dwc_otg_device_t *otg_dev = (dwc_otg_device_t *)(*((uint32_t *)_dev->platform_data));
+    dwc_otg_pcd_t * _pcd = otg_dev->pcd;
+    dwc_otg_core_if_t *core_if = GET_CORE_IF(_pcd);
+    gotgctl_data_t    gctrl;
+    dctl_data_t dctl = {.d32=0};
+    //dsts_data_t           gsts;
+        unsigned long flags;
+        local_irq_save(flags);
+    gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
+    //gsts.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dsts);
+
+    _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
+    if( gctrl.b.bsesvld ) {
+        /* if usb not connect before ,then start connect */
+         if( _pcd->vbus_status == 0 ) {
+            dwc_otg_msc_lock(_pcd);
+            DWC_PRINT("********vbus detect*********************************************\n");
+            _pcd->vbus_status = 1; 
+            /* soft disconnect */
+            dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+            dctl.b.sftdiscon = 1;
+            dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+            if(_pcd->conn_en)
+            {
+                    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+                     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+            }
+
+        } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
+            //dwc_otg_msc_unlock(_pcd);
+            DWC_PRINT("********soft reconnect******************************************\n");
+            //_pcd->vbus_status =0;
+
+            /* soft disconnect */
+                dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+                dctl.b.sftdiscon = 1;
+                dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+            /* Clear any pending interrupts */
+            dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
+            if(_pcd->conn_en)
+            {
+                    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+                     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+            }
+        }
+        else if((_pcd->conn_en)&&(_pcd->conn_status == 0))
+        {
+
+            schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+                     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+        }
+        else if(_pcd->conn_status ==3)
+        {
+                        //*????????,??????????,yk@rk,20100331*//
+            dwc_otg_msc_unlock(_pcd);
+            _pcd->conn_status++;
+                _pcd->vbus_status = 2;
+        }
+    } else {
+        //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
+        _pcd->vbus_status = 0;
+        if(_pcd->conn_status)
+        {
+             _pcd->conn_status = 0;
+             dwc_otg_msc_unlock(_pcd);
+        }
+        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
+        if( pldata->phy_status == 0 ) {
+                /* no vbus detect here , close usb phy for 500ms */
+            pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+            //dwc_otg20phy_suspend( 0 );
+              _pcd->check_vbus_timer.expires = jiffies + (HZ/2); /* 500 ms */
+        } else if( pldata->phy_status  == 1 ) {
+            pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+           // dwc_otg20phy_suspend( 1 );
+            /*20100325 yk@rk,delay 2-->8,for host connect id detect*/
+            _pcd->check_vbus_timer.expires = jiffies + 8; /* 20091127,HSL@RK,1-->2  */
+
+        }
+    }
+    //DWC_PRINT("%s:restart check vbus timer\n" , __func__ );
+    add_timer(&_pcd->check_vbus_timer);
+        local_irq_restore(flags);
+}
+#else
+
 static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 {
     struct device *_dev = (struct device *)data;
@@ -1729,8 +1820,8 @@ connect:
 	local_irq_restore(flags);
     return;
 }
-
-#ifdef CONFIG_ARCH_RK30
+#endif
+#if 0 //def CONFIG_ARCH_RK30
 int dwc_otg_check_dpdm(void)
 {
 	static uint8_t * reg_base = 0;
@@ -1968,7 +2059,7 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->vbus_status  = 0;
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
-        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S
+        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<2)); // delay 16 S  
 	return 0;
 }
 /**

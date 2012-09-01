@@ -590,56 +590,6 @@ static int32_t dwc_otg_hcd_session_start_cb( void *_p )
         return 1;
 }
 
-/*
- * suspend: 0 usb phy enable
- *          1 usb phy suspend
- */
-static int32_t dwc_otg_phy_suspend_cb( void *_p, int suspend)
-{
-#ifdef CONFIG_ARCH_RK29
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    
-    if(suspend) {
-        *otg_phy_con1 |= (0x01<<2);
-        *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-        *otg_phy_con1 &= ~(0x01<<2);
-        
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else
-    {
-        *otg_phy_con1 |= (0x01<<2);
-        *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif    
-#ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
-    if(suspend) {
-        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else{
-        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-        udelay(3);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-#ifdef CONFIG_ARCH_RK2928                
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);
-    if(suspend) {
-        *otg_phy_con1 = (0x01<<16);    // exit suspend.
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else{
-        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.   enable dm,dp Pull-Down Resistor  wlf @2012.8.10
-        udelay(3);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-    return suspend;
-}
-
 /**
  * HCD Callback structure for handling mode switching.
  */
@@ -648,7 +598,6 @@ static dwc_otg_cil_callbacks_t hcd_cil_callbacks = {
         .stop = dwc_otg_hcd_stop_cb,
         .disconnect = dwc_otg_hcd_disconnect_cb,
         .session_start = dwc_otg_hcd_session_start_cb,
-        .suspend = dwc_otg_phy_suspend_cb,
         .p = 0,//hcd
 };
 
@@ -1095,66 +1044,12 @@ int __devinit host11_hcd_init(struct device *dev)
 #endif
 #ifdef CONFIG_USB20_HOST
 
-/*
- * suspend: 0 usb phy enable
- *          1 usb phy suspend
- */
-static int32_t host20_phy_suspend_cb( void *_p, int suspend)
-{
-#ifdef CONFIG_ARCH_RK29
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    uint32_t regval;
-
-    regval = *otg_phy_con1;
-    
-    if(suspend) {
-        regval |= (0x01<<14);    // exit suspend.
-        regval &= ~(0x01<<13);
-        
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else
-    {
-        regval &= ~(0x01<<14);    // exit suspend.
-        regval |= (0x01<<13);    // software control
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-    *otg_phy_con1 = regval;
-#endif    
-    
-#ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
-    if(suspend) {
-        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else{
-        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-        udelay(3);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-#ifdef CONFIG_ARCH_RK2928                
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON5);
-     if(suspend) {
-        *otg_phy_con1 = (0x01<<16);    // exit suspend.
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else{
-        *otg_phy_con1 = 0x1D5 |(0x1ff<<16);   // enter suspend.  enable dm,dp Pull-Down Resistor  wlf @2012.8.10
-        udelay(3);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-#endif
-    return suspend;
-}
 
 static dwc_otg_cil_callbacks_t host20_cil_callbacks = {
         .start = dwc_otg_hcd_start_cb,
         .stop = dwc_otg_hcd_stop_cb,
         .disconnect = dwc_otg_hcd_disconnect_cb,
         .session_start = dwc_otg_hcd_session_start_cb,
-        .suspend = host20_phy_suspend_cb,
         .p = 0,//hcd
 };
 

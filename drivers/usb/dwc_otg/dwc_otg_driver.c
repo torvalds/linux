@@ -1192,7 +1192,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	if (!res_base)
 		goto fail;
 
-	dwc_otg_device->base =  ioremap(res_base->start,USBOTG_SIZE);
+	dwc_otg_device->base =  ioremap(res_base->start,res_base->end-res_base->start+1);
 	if (dwc_otg_device->base == NULL)
 	{
 		dev_err(dev, "ioremap() failed\n");
@@ -1583,7 +1583,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	dwc_otg_device->base =
-		ioremap(res_base->start,USBOTG_SIZE);
+		ioremap(res_base->start,res_base->end-res_base->start+1);
     DWC_PRINT("%s host2.0 reg addr: 0x%x remap:0x%x\n",__func__,
     		(unsigned)res_base->start, (unsigned)dwc_otg_device->base);
 	if (dwc_otg_device->base == NULL)
