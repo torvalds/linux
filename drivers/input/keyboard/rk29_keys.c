@@ -425,6 +425,8 @@ static int __devinit keys_probe(struct platform_device *pdev)
 	}
 	if(pdata->chn >= 0 && ddata->client);
 		adc_unregister(ddata->client);
+	if(pdata->chn >= 0)
+	        del_timer_sync(&ddata->timer);
  fail1:
  	platform_set_drvdata(pdev, NULL);
  fail0:
