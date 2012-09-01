@@ -78,10 +78,12 @@ enum rk_plls_id {
 #endif
 /*******************PLL CON3 BITS***************************/
 
+#if 0
 #define PLL_REST_MSK		(1 << 5)
 #define PLL_REST_W_MSK		(PLL_REST_MSK << 16)
 #define PLL_REST		(1 << 5)
 #define PLL_REST_RESM		(0 << 5)
+#endif
 
 #define PLL_BYPASS_MSK		(1 << 0)
 #define PLL_BYPASS		(1 << 0)
