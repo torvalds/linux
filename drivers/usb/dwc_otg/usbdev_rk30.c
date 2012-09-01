@@ -52,7 +52,8 @@ void usb20otg_hw_init(void)
 
     // other haredware init
 #ifdef CONFIG_ARCH_RK3066B
-    rk30_mux_api_set(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME, GPIO3D_OTGDRVVBUS);
+//  conflict with pwm2
+//    rk30_mux_api_set(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME, GPIO3D_OTGDRVVBUS);
 #else
     rk30_mux_api_set(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);
 #endif
