@@ -627,7 +627,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQIRCFS:
 			period = DIV_ROUND_CLOSEST(
-					(1 << data1 * 2) * (data2 + 1), 10);
+					(1U << data1 * 2) * (data2 + 1), 10);
 			if (!period)
 				break;
 			carrier = (1000 * 1000) / period;
