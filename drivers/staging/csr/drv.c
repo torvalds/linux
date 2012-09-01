@@ -123,11 +123,7 @@ static void udi_set_log_filter(ul_client_t *pcli,
 
 
 /* Mutex to protect access to  priv->sme_cli */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 DEFINE_SEMAPHORE(udi_mutex);
-#else
-DECLARE_MUTEX(udi_mutex);
-#endif
 
 s32 CsrHipResultToStatus(CsrResult csrResult)
 {
@@ -1979,18 +1975,6 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
 } /* uf_sme_queue_message() */
 #endif
 
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _priv, _fmt, _args)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create_drvdata(_class, _parent, _devno, _priv, _fmt, _args)
-#else
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _fmt, _args)
-#endif
-
 /*
  ****************************************************************************
  *
@@ -2007,17 +1991,6 @@ static struct file_operations unifi_fops = {
     .unlocked_ioctl = unifi_ioctl,
     .poll       = unifi_poll,
 };
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _priv, _fmt, _args)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create_drvdata(_class, _parent, _devno, _priv, _fmt, _args)
-#else
-#define UF_DEVICE_CREATE(_class, _parent, _devno, _priv, _fmt, _args)       \
-    device_create(_class, _parent, _devno, _fmt, _args)
-#endif
 
 static dev_t unifi_first_devno;
 static struct class *unifi_class;
@@ -2041,11 +2014,11 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
     }
 
 #ifdef SDIO_EXPORTS_STRUCT_DEVICE
-    if (!UF_DEVICE_CREATE(unifi_class, priv->unifi_device,
-                          devno, priv, "unifi%d", bus_id)) {
+    if (!device_create(unifi_class, priv->unifi_device,
+                       devno, priv, "unifi%d", bus_id)) {
 #else
-    priv->unifi_device = UF_DEVICE_CREATE(unifi_class, NULL,
-                                          devno, priv, "unifi%d", bus_id);
+    priv->unifi_device = device_create(unifi_class, NULL,
+                                       devno, priv, "unifi%d", bus_id);
     if (priv->unifi_device == NULL) {
 #endif /* SDIO_EXPORTS_STRUCT_DEVICE */
 
@@ -2067,13 +2040,13 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
         return r;
     }
 
-    if (!UF_DEVICE_CREATE(unifi_class,
+    if (!device_create(unifi_class,
 #ifdef SDIO_EXPORTS_STRUCT_DEVICE
-                          priv->unifi_device,
+                       priv->unifi_device,
 #else
-                          NULL,
+                       NULL,
 #endif /* SDIO_EXPORTS_STRUCT_DEVICE */
-                          devno, priv, "unifiudi%d", bus_id)) {
+                       devno, priv, "unifiudi%d", bus_id)) {
         device_destroy(unifi_class, priv->unifi_cdev.dev);
         cdev_del(&priv->unifiudi_cdev);
         cdev_del(&priv->unifi_cdev);
