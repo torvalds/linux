@@ -55,17 +55,6 @@
 #include <net/pkt_sched.h>
 
 
-/* ALLOW_Q_PAUSE: Pre 2.6.28 kernels do not support multiple driver queues (required for QoS).
- * In order to support QoS in these kernels, multiple queues are implemented in the driver. But since
- * there is only a single queue in the kernel (leading to multiple queues in the driver) there is no possibility
- * of stopping a particular queue in the kernel. Stopping the single kernel queue leads to undesirable starvation
- * of driver queues. One of the proposals is to not stop the kernel queue but to prevent dequeuing from the
- * 'stopped' driver queue. Allow q pause is an experimental implementation of this scheme for pre 2.6.28 kernels.
- * When NOT defined, queues are paused locally in the driver and packets are dequeued for transmission only from the
- * unpaused queues. When Allow q pause is defined the kernel queue is stopped whenever any driver queue is paused.
- */
-#define ALLOW_Q_PAUSE
-
 #ifdef UNIFI_NET_NAME
 #define UF_ALLOC_NETDEV(_dev, _size, _name, _setup, _num_of_queues)     \
     do {                                                                \
