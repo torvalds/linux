@@ -433,8 +433,18 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 
 		if (!(staterr & IXGBE_RXD_STAT_EOP)) {
 			skb->next = next_buffer->skb;
-			skb->next->prev = skb;
+			IXGBE_CB(skb->next)->prev = skb;
 			adapter->non_eop_descs++;
+			goto next_desc;
+		}
+
+		/* we should not be chaining buffers, if we did drop the skb */
+		if (IXGBE_CB(skb)->prev) {
+			do {
+				struct sk_buff *this = skb;
+				skb = IXGBE_CB(skb)->prev;
+				dev_kfree_skb(this);
+			} while (skb);
 			goto next_desc;
 		}
 
@@ -1439,7 +1449,7 @@ static void ixgbevf_clean_rx_ring(struct ixgbevf_adapter *adapter,
 			rx_buffer_info->skb = NULL;
 			do {
 				struct sk_buff *this = skb;
-				skb = skb->prev;
+				skb = IXGBE_CB(skb)->prev;
 				dev_kfree_skb(this);
 			} while (skb);
 		}

@@ -261,6 +261,11 @@ enum ixbgevf_state_t {
 	__IXGBEVF_DOWN
 };
 
+struct ixgbevf_cb {
+	struct sk_buff *prev;
+};
+#define IXGBE_CB(skb) ((struct ixgbevf_cb *)(skb)->cb)
+
 enum ixgbevf_boards {
 	board_82599_vf,
 	board_X540_vf,
