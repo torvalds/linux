@@ -189,7 +189,7 @@ static void __init ar934x_clocks_init(void)
 	       AR934X_PLL_CPU_CONFIG_NFRAC_MASK;
 
 	cpu_pll = nint * ath79_ref_clk.rate / ref_div;
-	cpu_pll += frac * ath79_ref_clk.rate / (ref_div * (2 << 6));
+	cpu_pll += frac * ath79_ref_clk.rate / (ref_div * (1 << 6));
 	cpu_pll /= (1 << out_div);
 
 	pll = ath79_pll_rr(AR934X_PLL_DDR_CONFIG_REG);
@@ -203,7 +203,7 @@ static void __init ar934x_clocks_init(void)
 	       AR934X_PLL_DDR_CONFIG_NFRAC_MASK;
 
 	ddr_pll = nint * ath79_ref_clk.rate / ref_div;
-	ddr_pll += frac * ath79_ref_clk.rate / (ref_div * (2 << 10));
+	ddr_pll += frac * ath79_ref_clk.rate / (ref_div * (1 << 10));
 	ddr_pll /= (1 << out_div);
 
 	clk_ctrl = ath79_pll_rr(AR934X_PLL_CPU_DDR_CLK_CTRL_REG);
