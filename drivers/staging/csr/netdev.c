@@ -338,21 +338,13 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
     interfacePriv->connected = UnifiConnectedUnknown;  /* -1 unknown, 0 no, 1 yes */
 
 #ifdef USE_DRIVER_LOCK
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
     sema_init(&priv->lock, 1);
-#else
-    init_MUTEX(&priv->lock);
-#endif
 #endif /* USE_DRIVER_LOCK */
 
     spin_lock_init(&priv->send_signal_lock);
 
     spin_lock_init(&priv->m4_lock);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
     sema_init(&priv->ba_mutex, 1);
-#else
-    init_MUTEX(&priv->ba_mutex);
-#endif
 
 #if (defined(CSR_WIFI_SECURITY_WAPI_ENABLE) && defined(CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION))
     spin_lock_init(&priv->wapi_lock);
