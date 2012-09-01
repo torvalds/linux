@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2009-2011, Dan Magenheimer, Oracle Corp.
  *
- * The primary purpose of Transcedent Memory ("tmem") is to map object-oriented
+ * The primary purpose of Transcendent Memory ("tmem") is to map object-oriented
  * "handles" (triples containing a pool id, and object id, and an index), to
  * pages in a page-accessible memory (PAM).  Tmem references the PAM pages via
  * an abstract "pampd" (PAM page-descriptor), which can be operated on by a
