@@ -162,7 +162,6 @@ struct uf_tx_packet_data {
 
 #endif /* CONFIG_NET_SCHED */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
 static const struct net_device_ops uf_netdev_ops =
 {
     .ndo_open = uf_net_open,
@@ -173,7 +172,6 @@ static const struct net_device_ops uf_netdev_ops =
     .ndo_set_rx_mode = uf_set_multicast_list,
     .ndo_select_queue = uf_net_select_queue,
 };
-#endif
 
 static u8 oui_rfc1042[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 static u8 oui_8021h[P80211_OUI_LEN]   = { 0x00, 0x00, 0xf8 };
@@ -257,20 +255,7 @@ uf_alloc_netdevice(CsrSdioFunction *sdio_dev, int bus_id)
     priv->interfacePriv[0] = interfacePriv;
 
     /* Setup / override net_device fields */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
     dev->netdev_ops = &uf_netdev_ops;
-#else
-    dev->open             = uf_net_open;
-    dev->stop             = uf_net_stop;
-    dev->hard_start_xmit  = uf_net_xmit;
-    dev->do_ioctl         = uf_net_ioctl;
-
-    /* called by /proc/net/dev */
-    dev->get_stats = uf_net_get_stats;
-
-    dev->set_multicast_list = uf_set_multicast_list;
-    dev->select_queue       = uf_net_select_queue;
-#endif
 
 #ifdef CSR_SUPPORT_WEXT
     dev->wireless_handlers = &unifi_iw_handler_def;
@@ -504,19 +489,7 @@ uf_alloc_netdevice_for_other_interfaces(unifi_priv_t *priv, u16 interfaceTag)
     INIT_LIST_HEAD(&interfacePriv->rx_controlled_list);
 
     /* Setup / override net_device fields */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
     dev->netdev_ops = &uf_netdev_ops;
-#else
-    dev->open             = uf_net_open;
-    dev->stop             = uf_net_stop;
-    dev->hard_start_xmit  = uf_net_xmit;
-    dev->do_ioctl         = uf_net_ioctl;
-
-    /* called by /proc/net/dev */
-    dev->get_stats = uf_net_get_stats;
-
-    dev->set_multicast_list = uf_set_multicast_list;
-#endif
 
 #ifdef CSR_SUPPORT_WEXT
     dev->wireless_handlers = &unifi_iw_handler_def;
