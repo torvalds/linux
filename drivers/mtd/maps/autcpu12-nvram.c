@@ -38,7 +38,6 @@ static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 	map_word tmp, save0, save1;
 	struct resource *res;
 	struct autcpu12_nvram_priv *priv;
-	int err;
 
 	priv = devm_kzalloc(&pdev->dev,
 			    sizeof(struct autcpu12_nvram_priv), GFP_KERNEL);
@@ -50,8 +49,7 @@ static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get memory resource\n");
-		err = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 
 	priv->map.bankwidth	= 4;
@@ -61,8 +59,7 @@ static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 	strcpy((char *)priv->map.name, res->name);
 	if (!priv->map.virt) {
 		dev_err(&pdev->dev, "failed to remap mem resource\n");
-		err = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 
 	simple_map_init(&priv->map);
@@ -90,8 +87,7 @@ static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 	priv->mtd = do_map_probe("map_ram", &priv->map);
 	if (!priv->mtd) {
 		dev_err(&pdev->dev, "probing failed\n");
-		err = -ENXIO;
-		goto out;
+		return -ENXIO;
 	}
 
 	priv->mtd->owner	= THIS_MODULE;
@@ -106,12 +102,7 @@ static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
 
 	map_destroy(priv->mtd);
 	dev_err(&pdev->dev, "NV-RAM device addition failed\n");
-	err = -ENOMEM;
-
-out:
-	devm_kfree(&pdev->dev, priv);
-
-	return err;
+	return -ENOMEM;
 }
 
 static int __devexit autcpu12_nvram_remove(struct platform_device *pdev)
@@ -120,7 +111,6 @@ static int __devexit autcpu12_nvram_remove(struct platform_device *pdev)
 
 	mtd_device_unregister(priv->mtd);
 	map_destroy(priv->mtd);
-	devm_kfree(&pdev->dev, priv);
 
 	return 0;
 }
