@@ -52,9 +52,6 @@
 #include "csr_wifi_hip_unifi.h"
 #include "csr_wifi_hip_conversions.h"
 #include "unifi_priv.h"
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13)
-#include <net/iw_handler.h>
-#endif
 #include <net/pkt_sched.h>
 
 
@@ -188,13 +185,8 @@ static struct sk_buff *uf_qdiscop_dequeue(struct Qdisc* qd);
 static void uf_qdiscop_reset(struct Qdisc* qd);
 static void uf_qdiscop_destroy(struct Qdisc* qd);
 static int uf_qdiscop_dump(struct Qdisc *qd, struct sk_buff *skb);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
 static int uf_qdiscop_tune(struct Qdisc *qd, struct nlattr *opt);
 static int uf_qdiscop_init(struct Qdisc *qd, struct nlattr *opt);
-#else
-static int uf_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt);
-static int uf_qdiscop_init(struct Qdisc *qd, struct rtattr *opt);
-#endif
 #endif
 
 
@@ -226,9 +218,6 @@ static struct Qdisc_ops uf_qdisc_ops =
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 #define UF_QDISC_CREATE_DFLT(_dev, _ops, _root)         \
     qdisc_create_dflt(dev, netdev_get_tx_queue(_dev, 0), _ops, _root)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
-#define UF_QDISC_CREATE_DFLT(_dev, _ops, _root)         \
-    qdisc_create_dflt(dev, _ops, _root)
 #else
 #define UF_QDISC_CREATE_DFLT(_dev, _ops, _root)         \
     qdisc_create_dflt(dev, _ops)
@@ -699,9 +688,7 @@ uf_free_netdevice(unifi_priv_t *priv)
 
 #ifdef CSR_SUPPORT_SME
     /* Cancel work items and destroy the workqueue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23)
     cancel_work_sync(&priv->multicast_list_task);
-#endif
 #endif
 /* Destroy the workqueues. */
     flush_workqueue(priv->unifi_workqueue);
@@ -3479,11 +3466,7 @@ static void uf_qdiscop_destroy(struct Qdisc* qd)
 
 
 /* called whenever parameters are updated on existing qdisc */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
 static int uf_qdiscop_tune(struct Qdisc *qd, struct nlattr *opt)
-#else
-static int uf_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt)
-#endif
 {
     func_enter();
     func_exit();
@@ -3492,11 +3475,7 @@ static int uf_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt)
 
 
 /* called during initial creation of qdisc on device */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
 static int uf_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
-#else
-static int uf_qdiscop_init(struct Qdisc *qd, struct rtattr *opt)
-#endif
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
     struct net_device *dev = qd->dev_queue->dev;
