@@ -585,14 +585,14 @@ static int pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
 	//enter slowmode
 	cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
 	//enter rest
-	cru_writel(PLL_REST_W_MSK | PLL_REST, PLL_CONS(pll_id, 3));
+	//cru_writel(PLL_REST_W_MSK | PLL_REST, PLL_CONS(pll_id, 3));
 	cru_writel(clk_set->pllcon0, PLL_CONS(pll_id, 0));
 	cru_writel(clk_set->pllcon1, PLL_CONS(pll_id, 1));
 	cru_writel(clk_set->pllcon2, PLL_CONS(pll_id, 2));
 	rk30_clock_udelay(5);
 
 	//return form rest
-	cru_writel(PLL_REST_W_MSK | PLL_REST_RESM, PLL_CONS(pll_id, 3));
+	//cru_writel(PLL_REST_W_MSK | PLL_REST_RESM, PLL_CONS(pll_id, 3));
 
 	//wating lock state
 	rk30_clock_udelay(clk_set->rst_dly);
@@ -701,7 +701,7 @@ static int pll_clk_mode(struct clk *clk, int on)
 	u8 pll_id = clk->pll->id;
 	u32 nr = PLL_NR(cru_readl(PLL_CONS(pll_id, 0)));
 	u32 dly = (nr * 500) / 24 + 1;
-	CLKDATA_DBG("pll_mode %s(%d)", clk->name, on);
+	CLKDATA_DBG("pll_mode %s(%d)\n", clk->name, on);
 	if (on) {
 		cru_writel(PLL_PWR_ON | PLL_PWR_DN_W_MSK, PLL_CONS(pll_id, 3));
 		rk30_clock_udelay(dly);
@@ -912,15 +912,14 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	//cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
 
 	//enter rest
-	cru_writel(PLL_REST_W_MSK | PLL_REST, PLL_CONS(pll_id, 3));
+	//cru_writel(PLL_REST_W_MSK | PLL_REST, PLL_CONS(pll_id, 3));
 	cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
 	cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
 	cru_writel(ps->pllcon2, PLL_CONS(pll_id, 2));
-
 	rk30_clock_udelay(5);
 
 	//return form rest
-	cru_writel(PLL_REST_W_MSK | PLL_REST_RESM, PLL_CONS(pll_id, 3));
+	//cru_writel(PLL_REST_W_MSK | PLL_REST_RESM, PLL_CONS(pll_id, 3));
 
 	//wating lock state
 	///rk30_clock_udelay(ps->rst_dly);//lcdc flash
@@ -963,8 +962,9 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	local_irq_restore(flags);
 
 	//gate gpll path
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
-			, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
+	// FIXME
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
+	//		, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
 
 	CLKDATA_LOG("apll set over con(%x,%x,%x,%x),sel(%x,%x)\n", cru_readl(PLL_CONS(pll_id, 0)),
 			cru_readl(PLL_CONS(pll_id, 1)), cru_readl(PLL_CONS(pll_id, 2)),
@@ -1566,10 +1566,12 @@ static struct clk *dclk_lcdc0_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc0 = {
 	.name		= "dclk_lcdc0",
 	.mode		= gate_mode,
-	.set_rate	= dclk_lcdc_set_rate,
+	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC0_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(27),
 	CRU_SRC_SET(0x1, 4),
+	CRU_DIV_SET(0xff, 8, 256),
 	CRU_PARENTS_SET(dclk_lcdc0_parents),
 };
 
@@ -1577,10 +1579,12 @@ static struct clk *dclk_lcdc1_parents[2] = {&codec_pll_clk, &general_pll_clk};
 static struct clk dclk_lcdc1 = {
 	.name		= "dclk_lcdc1",
 	.mode		= gate_mode,
-	.set_rate	= dclk_lcdc_set_rate,
+	.set_rate	= clkset_rate_freediv_autosel_parents,
+	.recalc		= clksel_recalc_div,
 	.gate_idx	= CLK_GATE_DCLK_LCDC1_SRC,
 	.clksel_con	= CRU_CLKSELS_CON(28),
 	CRU_SRC_SET(0x1, 4),
+	CRU_DIV_SET(0xff, 8, 256),
 	CRU_PARENTS_SET(dclk_lcdc1_parents),
 };
 
@@ -3083,14 +3087,14 @@ void rk30_clock_common_i2s_init(void)
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
 
-	printk("enter %s\n", __func__);
+	printk("enter %s %u %u \n", __func__, gpll_rate, cpll_rate);
 	clk_set_rate_nolock(&clk_core, 816 * MHZ); //816
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
-	//clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk); //816
+	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk); //816
 	//periph clk
 	periph_clk_set_init();
 
@@ -3118,11 +3122,9 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	//auto pll sel
 	//clk_set_parent_nolock(&clk_hsadc_pll_div, &general_pll_clk);
 
-	//lcdc1  hdmi
-	//clk_set_parent_nolock(&dclk_lcdc1_div, &general_pll_clk);
-
 	//lcdc0 lcd auto sel pll
-	//clk_set_parent_nolock(&dclk_lcdc0_div, &general_pll_clk);
+	clk_set_parent_nolock(&dclk_lcdc0, &general_pll_clk);
+	clk_set_parent_nolock(&dclk_lcdc1, &general_pll_clk);
 
 	//cif
 	clk_set_parent_nolock(&cif_out_pll, &general_pll_clk);
@@ -3140,6 +3142,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&aclk_vepu, 300 * MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 300 * MHZ);
 	//gpu auto sel
+	clk_set_rate_nolock(&clk_gpu, 400 * MHZ);
+	clk_set_rate_nolock(&aclk_gpu, 400 * MHZ);
 	//clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
 }
 
