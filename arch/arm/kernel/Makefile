@@ -15,10 +15,12 @@ CFLAGS_REMOVE_return_address.o = -pg
 
 # Object file lists.
 
-obj-y		:= atags_parse.o elf.o entry-armv.o entry-common.o irq.o opcodes.o \
+obj-y		:= elf.o entry-armv.o entry-common.o irq.o opcodes.o \
 		   process.o ptrace.o return_address.o sched_clock.o \
 		   setup.o signal.o stacktrace.o sys_arm.o time.o traps.o
 
+obj-$(CONFIG_ATAGS)		+= atags_parse.o
+obj-$(CONFIG_ATAGS_PROC)	+= atags_proc.o
 obj-$(CONFIG_DEPRECATED_PARAM_STRUCT) += atags_compat.o
 
 obj-$(CONFIG_LEDS)		+= leds.o
@@ -52,7 +54,6 @@ test-kprobes-objs		+= kprobes-test-thumb.o
 else
 test-kprobes-objs		+= kprobes-test-arm.o
 endif
-obj-$(CONFIG_ATAGS_PROC)	+= atags_proc.o
 obj-$(CONFIG_OABI_COMPAT)	+= sys_oabi-compat.o
 obj-$(CONFIG_ARM_THUMBEE)	+= thumbee.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
