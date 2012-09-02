@@ -606,6 +606,8 @@ static int af9013_set_frontend(struct dvb_frontend *fe)
 		else
 			if_frequency = state->config.if_frequency;
 
+		dbg("%s: if_frequency=%d", __func__, if_frequency);
+
 		sampling_freq = if_frequency;
 
 		while (sampling_freq > (state->config.clock / 2))
