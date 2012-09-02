@@ -34,3 +34,14 @@ config IEEE802154_AT86RF230
         depends on IEEE802154_DRIVERS && MAC802154
         tristate "AT86RF230/231 transceiver driver"
         depends on SPI
+
+config IEEE802154_MRF24J40
+       tristate "Microchip MRF24J40 transceiver driver"
+       depends on IEEE802154_DRIVERS && MAC802154
+       depends on SPI
+       ---help---
+         Say Y here to enable the MRF24J20 SPI 802.15.4 wireless
+         controller.
+
+         This driver can also be built as a module. To do so, say M here.
+         the module will be called 'mrf24j40'.
