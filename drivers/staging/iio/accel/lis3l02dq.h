@@ -2,7 +2,7 @@
  * LISL02DQ.h -- support STMicroelectronics LISD02DQ
  *               3d 2g Linear Accelerometers via SPI
  *
- * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2007 Jonathan Cameron <jic23@kernel.org>
  *
  * Loosely based upon tle62x0.c
  *

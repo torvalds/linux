@@ -162,6 +162,6 @@ static struct platform_driver iio_gpio_trigger_driver = {
 
 module_platform_driver(iio_gpio_trigger_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Example gpio trigger for the iio subsystem");
 MODULE_LICENSE("GPL v2");

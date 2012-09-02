@@ -2,7 +2,7 @@
  * sca3000.c -- support VTI sca3000 series accelerometers
  *              via SPI
  *
- * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2007 Jonathan Cameron <jic23@kernel.org>
  *
  * Partly based upon tle62x0.c
  *

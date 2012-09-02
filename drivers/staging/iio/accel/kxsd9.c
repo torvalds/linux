@@ -2,7 +2,7 @@
  * kxsd9.c	simple support for the Kionix KXSD9 3D
  *		accelerometer.
  *
- * Copyright (c) 2008-2009 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2008-2009 Jonathan Cameron <jic23@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -286,6 +286,6 @@ static struct spi_driver kxsd9_driver = {
 };
 module_spi_driver(kxsd9_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Kionix KXSD9 SPI driver");
 MODULE_LICENSE("GPL v2");

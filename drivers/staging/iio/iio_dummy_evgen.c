@@ -216,6 +216,6 @@ static __exit void iio_dummy_evgen_exit(void)
 }
 module_exit(iio_dummy_evgen_exit);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("IIO dummy driver");
 MODULE_LICENSE("GPL v2");
