@@ -1029,6 +1029,7 @@ static int scrub_setup_recheck_block(struct scrub_dev *sdev,
 				spin_lock(&sdev->stat_lock);
 				sdev->stat.malloc_errors++;
 				spin_unlock(&sdev->stat_lock);
+				kfree(bbio);
 				return -ENOMEM;
 			}
 			sblock->page_count++;
