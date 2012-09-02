@@ -302,8 +302,8 @@ static int __init parse_vmalloc(char *arg)
 }
 early_param("vmalloc", parse_vmalloc);
 
-unsigned int addressing_mode = PRIMARY_SPACE_MODE;
-EXPORT_SYMBOL_GPL(addressing_mode);
+unsigned int s390_user_mode = PRIMARY_SPACE_MODE;
+EXPORT_SYMBOL_GPL(s390_user_mode);
 
 static int set_amode_primary(void)
 {
@@ -326,9 +326,9 @@ static int set_amode_primary(void)
 static int __init early_parse_user_mode(char *p)
 {
 	if (p && strcmp(p, "primary") == 0)
-		addressing_mode = PRIMARY_SPACE_MODE;
+		s390_user_mode = PRIMARY_SPACE_MODE;
 	else if (!p || strcmp(p, "home") == 0)
-		addressing_mode = HOME_SPACE_MODE;
+		s390_user_mode = HOME_SPACE_MODE;
 	else
 		return 1;
 	return 0;
@@ -337,7 +337,7 @@ early_param("user_mode", early_parse_user_mode);
 
 static void setup_addressing_mode(void)
 {
-	if (addressing_mode == PRIMARY_SPACE_MODE) {
+	if (s390_user_mode == PRIMARY_SPACE_MODE) {
 		if (set_amode_primary())
 			pr_info("Address spaces switched, "
 				"mvcos available\n");

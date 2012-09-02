@@ -40,7 +40,7 @@ static void disable_runtime_instr(void)
 static void init_runtime_instr_cb(struct runtime_instr_cb *cb)
 {
 	cb->buf_limit = 0xfff;
-	if (addressing_mode == HOME_SPACE_MODE)
+	if (s390_user_mode == HOME_SPACE_MODE)
 		cb->home_space = 1;
 	cb->int_requested = 1;
 	cb->pstate = 1;

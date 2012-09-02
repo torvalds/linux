@@ -111,7 +111,7 @@ static inline int user_space_fault(unsigned long trans_exc_code)
 	if (trans_exc_code == 2)
 		/* Access via secondary space, set_fs setting decides */
 		return current->thread.mm_segment.ar4;
-	if (addressing_mode == HOME_SPACE_MODE)
+	if (s390_user_mode == HOME_SPACE_MODE)
 		/* User space if the access has been done via home space. */
 		return trans_exc_code == 3;
 	/*
