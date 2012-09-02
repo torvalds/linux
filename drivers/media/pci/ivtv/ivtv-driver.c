@@ -68,6 +68,10 @@
    setting this to 1 you ensure that radio0 is now also radio1. */
 int ivtv_first_minor;
 
+/* Callback for registering extensions */
+int (*ivtv_ext_init)(struct ivtv *);
+EXPORT_SYMBOL(ivtv_ext_init);
+
 /* add your revision and whatnot here */
 static struct pci_device_id ivtv_pci_tbl[] __devinitdata = {
 	{PCI_VENDOR_ID_ICOMP, PCI_DEVICE_ID_IVTV15,
@@ -278,6 +282,34 @@ MODULE_SUPPORTED_DEVICE
 MODULE_LICENSE("GPL");
 
 MODULE_VERSION(IVTV_VERSION);
+
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct ivtv *dev = container_of(work, struct ivtv, request_module_wk);
+
+	/* Make sure ivtv-alsa module is loaded */
+	request_module("ivtv-alsa");
+
+	/* Initialize ivtv-alsa for this instance of the cx18 device */
+	if (ivtv_ext_init != NULL)
+		ivtv_ext_init(dev);
+}
+
+static void request_modules(struct ivtv *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+
+static void flush_request_modules(struct ivtv *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#define flush_request_modules(dev)
+#endif /* CONFIG_MODULES */
 
 void ivtv_clear_irq_mask(struct ivtv *itv, u32 mask)
 {
@@ -1253,6 +1285,9 @@ static int __devinit ivtv_probe(struct pci_dev *pdev,
 		goto free_streams;
 	}
 	IVTV_INFO("Initialized card: %s\n", itv->card_name);
+
+	/* Load ivtv submodules (ivtv-alsa) */
+	request_modules(itv);
 	return 0;
 
 free_streams:
@@ -1379,6 +1414,8 @@ static void ivtv_remove(struct pci_dev *pdev)
 	int i;
 
 	IVTV_DEBUG_INFO("Removing card\n");
+
+	flush_request_modules(itv);
 
 	if (test_bit(IVTV_F_I_INITED, &itv->i_flags)) {
 		/* Stop all captures */

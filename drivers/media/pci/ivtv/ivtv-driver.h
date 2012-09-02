@@ -669,6 +669,13 @@ struct ivtv {
 	atomic_t capturing;		/* count number of active capture streams */
 	atomic_t decoding;		/* count number of active decoding streams */
 
+	/* ALSA interface for PCM capture stream */
+	struct snd_ivtv_card *alsa;
+	void (*pcm_announce_callback)(struct snd_ivtv_card *card, u8 *pcm_data,
+				      size_t num_bytes);
+
+	/* Used for ivtv-alsa module loading */
+	struct work_struct request_module_wk;
 
 	/* Interrupts & DMA */
 	u32 irqmask;                    /* active interrupts */
@@ -751,6 +758,9 @@ static inline struct ivtv *to_ivtv(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct ivtv, v4l2_dev);
 }
+
+/* ivtv extensions to be loaded */
+extern int (*ivtv_ext_init)(struct ivtv *);
 
 /* Globals */
 extern int ivtv_first_minor;

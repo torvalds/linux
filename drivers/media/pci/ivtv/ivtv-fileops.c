@@ -41,7 +41,7 @@
    associated VBI streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
-static int ivtv_claim_stream(struct ivtv_open_id *id, int type)
+int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 {
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[type];
@@ -96,6 +96,7 @@ static int ivtv_claim_stream(struct ivtv_open_id *id, int type)
 	set_bit(IVTV_F_S_INTERNAL_USE, &s_vbi->s_flags);
 	return 0;
 }
+EXPORT_SYMBOL(ivtv_claim_stream);
 
 /* This function releases a previously claimed stream. It will take into
    account associated VBI streams. */
@@ -146,6 +147,7 @@ void ivtv_release_stream(struct ivtv_stream *s)
 	clear_bit(IVTV_F_S_CLAIMED, &s_vbi->s_flags);
 	ivtv_flush_queues(s_vbi);
 }
+EXPORT_SYMBOL(ivtv_release_stream);
 
 static void ivtv_dualwatch(struct ivtv *itv)
 {

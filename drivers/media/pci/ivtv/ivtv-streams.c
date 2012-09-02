@@ -629,6 +629,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	atomic_inc(&itv->capturing);
 	return 0;
 }
+EXPORT_SYMBOL(ivtv_start_v4l2_encode_stream);
 
 static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 {
@@ -885,6 +886,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 
 	return 0;
 }
+EXPORT_SYMBOL(ivtv_stop_v4l2_encode_stream);
 
 int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts)
 {

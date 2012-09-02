@@ -37,8 +37,8 @@ void ivtv_mute(struct ivtv *itv);
 void ivtv_unmute(struct ivtv *itv);
 
 /* Utilities */
-
-/* Release a previously claimed stream. */
+/* Shared with ivtv-alsa module */
+int ivtv_claim_stream(struct ivtv_open_id *id, int type);
 void ivtv_release_stream(struct ivtv_stream *s);
 
 #endif
