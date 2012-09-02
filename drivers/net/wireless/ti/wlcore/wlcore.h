@@ -43,6 +43,7 @@ enum wl_rx_buf_align;
 struct wl1271_rx_descriptor;
 
 struct wlcore_ops {
+	int (*setup)(struct wl1271 *wl);
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*identify_fw)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
@@ -149,6 +150,7 @@ struct wl1271 {
 	bool mac80211_registered;
 
 	struct device *dev;
+	struct platform_device *pdev;
 
 	void *if_priv;
 

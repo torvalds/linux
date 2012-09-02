@@ -1304,7 +1304,10 @@ static u32 wl18xx_pre_pkt_send(struct wl1271 *wl,
 	return buf_offset;
 }
 
+static int wl18xx_setup(struct wl1271 *wl);
+
 static struct wlcore_ops wl18xx_ops = {
+	.setup		= wl18xx_setup,
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
 	.plt_init	= wl18xx_plt_init,
@@ -1385,24 +1388,11 @@ static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap_2ghz = {
 		},
 };
 
-static int __devinit wl18xx_probe(struct platform_device *pdev)
+static int wl18xx_setup(struct wl1271 *wl)
 {
-	struct wl1271 *wl;
-	struct ieee80211_hw *hw;
-	struct wl18xx_priv *priv;
+	struct wl18xx_priv *priv = wl->priv;
 	int ret;
 
-	hw = wlcore_alloc_hw(sizeof(*priv), WL18XX_AGGR_BUFFER_SIZE);
-	if (IS_ERR(hw)) {
-		wl1271_error("can't allocate hw");
-		ret = PTR_ERR(hw);
-		goto out;
-	}
-
-	wl = hw->priv;
-	priv = wl->priv;
-	wl->ops = &wl18xx_ops;
-	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;
 	wl->num_rx_desc = WL18XX_NUM_TX_DESCRIPTORS;
@@ -1417,9 +1407,9 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (num_rx_desc_param != -1)
 		wl->num_rx_desc = num_rx_desc_param;
 
-	ret = wl18xx_conf_init(wl, &pdev->dev);
+	ret = wl18xx_conf_init(wl, wl->dev);
 	if (ret < 0)
-		goto out_free;
+		return ret;
 
 	/* If the module param is set, update it in conf */
 	if (board_type_param) {
@@ -1436,16 +1426,14 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 		} else {
 			wl1271_error("invalid board type '%s'",
 				board_type_param);
-			ret = -EINVAL;
-			goto out_free;
+			return -EINVAL;
 		}
 	}
 
 	if (priv->conf.phy.board_type >= NUM_BOARD_TYPES) {
 		wl1271_error("invalid board type '%d'",
 			priv->conf.phy.board_type);
-		ret = -EINVAL;
-		goto out_free;
+		return -EINVAL;
 	}
 
 	if (low_band_component_param != -1)
@@ -1477,8 +1465,7 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 			priv->conf.ht.mode = HT_MODE_SISO20;
 		else {
 			wl1271_error("invalid ht_mode '%s'", ht_mode_param);
-			ret = -EINVAL;
-			goto out_free;
+			return -EINVAL;
 		}
 	}
 
@@ -1517,7 +1504,31 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	/* Enable 11a Band only if we have 5G antennas */
 	wl->enable_11a = (priv->conf.phy.number_of_assembled_ant5 != 0);
 
-	return wlcore_probe(wl, pdev);
+	return 0;
+}
+
+static int __devinit wl18xx_probe(struct platform_device *pdev)
+{
+	struct wl1271 *wl;
+	struct ieee80211_hw *hw;
+	int ret;
+
+	hw = wlcore_alloc_hw(sizeof(struct wl18xx_priv),
+			     WL18XX_AGGR_BUFFER_SIZE);
+	if (IS_ERR(hw)) {
+		wl1271_error("can't allocate hw");
+		ret = PTR_ERR(hw);
+		goto out;
+	}
+
+	wl = hw->priv;
+	wl->ops = &wl18xx_ops;
+	wl->ptable = wl18xx_ptable;
+	ret = wlcore_probe(wl, pdev);
+	if (ret)
+		goto out_free;
+
+	return ret;
 
 out_free:
 	wlcore_free_hw(wl);
