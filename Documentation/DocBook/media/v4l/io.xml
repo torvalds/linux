@@ -827,8 +827,7 @@ should set this to 0.</entry>
 	    <entry><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY</constant></entry>
 	    <entry>8</entry>
 	    <entry>Buffer for video output overlay (OSD), see <xref
-		linkend="osd" />. Status: <link
-linkend="experimental">Experimental</link>.</entry>
+		linkend="osd" />.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_BUF_TYPE_PRIVATE</constant></entry>
