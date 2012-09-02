@@ -22,6 +22,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __DWMAC_DMA_H__
+#define __DWMAC_DMA_H__
+
 /* DMA CRS Control and Status Register Mapping */
 #define DMA_BUS_MODE		0x00001000	/* Bus Mode */
 #define DMA_XMT_POLL_DEMAND	0x00001004	/* Transmit Poll Demand */
@@ -109,3 +112,5 @@ extern void dwmac_dma_start_rx(void __iomem *ioaddr);
 extern void dwmac_dma_stop_rx(void __iomem *ioaddr);
 extern int dwmac_dma_interrupt(void __iomem *ioaddr,
 				struct stmmac_extra_stats *x);
+
+#endif /* __DWMAC_DMA_H__ */
