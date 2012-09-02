@@ -93,6 +93,7 @@ static struct attribute_group rc6_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6_attrs
 };
+#endif
 
 static int l3_access_valid(struct drm_device *dev, loff_t offset)
 {
@@ -206,13 +207,14 @@ void i915_setup_sysfs(struct drm_device *dev)
 {
 	int ret;
 
+#ifdef CONFIG_PM
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ret = sysfs_merge_group(&dev->primary->kdev.kobj,
 					&rc6_attr_group);
 		if (ret)
 			DRM_ERROR("RC6 residency sysfs setup failed\n");
 	}
-
+#endif
 	if (HAS_L3_GPU_CACHE(dev)) {
 		ret = device_create_bin_file(&dev->primary->kdev, &dpf_attrs);
 		if (ret)
@@ -225,14 +227,3 @@ void i915_teardown_sysfs(struct drm_device *dev)
 	device_remove_bin_file(&dev->primary->kdev,  &dpf_attrs);
 	sysfs_unmerge_group(&dev->primary->kdev.kobj, &rc6_attr_group);
 }
-#else
-void i915_setup_sysfs(struct drm_device *dev)
-{
-	return;
-}
-
-void i915_teardown_sysfs(struct drm_device *dev)
-{
-	return;
-}
-#endif /* CONFIG_PM */
