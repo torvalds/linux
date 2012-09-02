@@ -4054,6 +4054,16 @@ static int mxl5005s_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int mxl5005s_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct mxl5005s_state *state = fe->tuner_priv;
+	dprintk(1, "%s()\n", __func__);
+
+	*frequency = state->IF_OUT;
+
+	return 0;
+}
+
 static int mxl5005s_release(struct dvb_frontend *fe)
 {
 	dprintk(1, "%s()\n", __func__);
@@ -4076,6 +4086,7 @@ static const struct dvb_tuner_ops mxl5005s_tuner_ops = {
 	.set_params    = mxl5005s_set_params,
 	.get_frequency = mxl5005s_get_frequency,
 	.get_bandwidth = mxl5005s_get_bandwidth,
+	.get_if_frequency = mxl5005s_get_if_frequency,
 };
 
 struct dvb_frontend *mxl5005s_attach(struct dvb_frontend *fe,
