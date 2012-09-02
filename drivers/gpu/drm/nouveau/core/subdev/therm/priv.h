@@ -42,6 +42,7 @@ struct nouveau_therm_priv {
 
 		int (*pwm_get)(struct nouveau_therm *, int line, u32*, u32*);
 		int (*pwm_set)(struct nouveau_therm *, int line, u32, u32);
+		int (*pwm_clock)(struct nouveau_therm *);
 	} fan;
 
 	/* ic */

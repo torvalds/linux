@@ -81,10 +81,10 @@ nouveau_therm_fan_set(struct nouveau_therm *therm, int percent)
 	if (ret == 0) {
 		divs = priv->bios_perf_fan.pwm_divisor;
 		if (priv->bios_fan.pwm_freq) {
-			/*XXX: PNVIO clock more than likely... */
-			divs = 135000 /priv->bios_fan.pwm_freq;
-			if (nv_device(therm)->chipset < 0xa3)
-				divs /= 4;
+			divs = 1;
+			if (priv->fan.pwm_clock)
+				divs = priv->fan.pwm_clock(therm);
+			divs /= priv->bios_fan.pwm_freq;
 		}
 
 		duty = ((divs * percent) + 99) / 100;
@@ -161,6 +161,11 @@ nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
 
 	if (priv->bios_fan.min_duty > priv->bios_fan.max_duty)
 		priv->bios_fan.min_duty = priv->bios_fan.max_duty;
+}
+
+int nouveau_fan_pwm_clock_dummy(struct nouveau_therm *therm)
+{
+	return 1;
 }
 
 int
