@@ -913,15 +913,21 @@ static inline bool tcp_in_initial_slowstart(const struct tcp_sock *tp)
 	return tp->snd_ssthresh >= TCP_INFINITE_SSTHRESH;
 }
 
+static inline bool tcp_in_cwnd_reduction(const struct sock *sk)
+{
+	return (TCPF_CA_CWR | TCPF_CA_Recovery) &
+	       (1 << inet_csk(sk)->icsk_ca_state);
+}
+
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
- * The exception is rate halving phase, when cwnd is decreasing towards
+ * The exception is cwnd reduction phase, when cwnd is decreasing towards
  * ssthresh.
  */
 static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 
-	if ((1 << inet_csk(sk)->icsk_ca_state) & (TCPF_CA_CWR | TCPF_CA_Recovery))
+	if (tcp_in_cwnd_reduction(sk))
 		return tp->snd_ssthresh;
 	else
 		return max(tp->snd_ssthresh,

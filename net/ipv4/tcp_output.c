@@ -2037,10 +2037,10 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		if (push_one)
 			break;
 	}
-	if (inet_csk(sk)->icsk_ca_state == TCP_CA_Recovery)
-		tp->prr_out += sent_pkts;
 
 	if (likely(sent_pkts)) {
+		if (tcp_in_cwnd_reduction(sk))
+			tp->prr_out += sent_pkts;
 		tcp_cwnd_validate(sk);
 		return false;
 	}
@@ -2542,7 +2542,7 @@ begin_fwd:
 		}
 		NET_INC_STATS_BH(sock_net(sk), mib_idx);
 
-		if (inet_csk(sk)->icsk_ca_state == TCP_CA_Recovery)
+		if (tcp_in_cwnd_reduction(sk))
 			tp->prr_out += tcp_skb_pcount(skb);
 
 		if (skb == tcp_write_queue_head(sk))
