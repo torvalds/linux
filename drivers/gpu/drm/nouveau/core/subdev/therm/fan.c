@@ -105,30 +105,37 @@ nouveau_therm_fan_sense(struct nouveau_therm *therm)
 	struct nouveau_gpio *gpio = nouveau_gpio(therm);
 	struct dcb_gpio_func func;
 	u32 cycles, cur, prev;
-	u64 start;
+	u64 start, end, tach;
 
 	if (gpio->find(gpio, 0, DCB_GPIO_FAN_SENSE, 0xff, &func))
 		return -ENODEV;
 
-	/* Monitor the GPIO input 0x3b for 250ms.
+	/* Time a complete rotation and extrapolate to RPM:
 	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
-	 * We get 4 changes (0 -> 1 -> 0 -> 1 -> [...]) per complete rotation.
+	 * We get 4 changes (0 -> 1 -> 0 -> 1) per complete rotation.
 	 */
 	start = ptimer->read(ptimer);
 	prev = gpio->get(gpio, 0, func.func, func.line);
 	cycles = 0;
 	do {
+		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
+
 		cur = gpio->get(gpio, 0, func.func, func.line);
 		if (prev != cur) {
+			if (!start)
+				start = ptimer->read(ptimer);
 			cycles++;
 			prev = cur;
 		}
+	} while (cycles < 5 && ptimer->read(ptimer) - start < 250000000);
+	end = ptimer->read(ptimer);
 
-		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
-	} while (ptimer->read(ptimer) - start < 250000000);
-
-	/* interpolate to get rpm */
-	return cycles / 4 * 4 * 60;
+	if (cycles == 5) {
+		tach = (u64)60000000000;
+		do_div(tach, (end - start));
+		return tach;
+	} else
+		return 0;
 }
 
 static void
