@@ -560,7 +560,7 @@ static void sierra_net_defer_kevent(struct usbnet *dev, int work)
 /*
  * Sync Retransmit Timer Handler. On expiry, kick the work queue
  */
-void sierra_sync_timer(unsigned long syncdata)
+static void sierra_sync_timer(unsigned long syncdata)
 {
 	struct usbnet *dev = (struct usbnet *)syncdata;
 
@@ -866,8 +866,8 @@ static int sierra_net_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 /* ---------------------------- Transmit data path ----------------------*/
-struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
-		gfp_t flags)
+static struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev,
+					   struct sk_buff *skb, gfp_t flags)
 {
 	struct sierra_net_data *priv = sierra_net_get_private(dev);
 	u16 len;
