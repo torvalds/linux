@@ -2700,6 +2700,38 @@ static bool tcp_try_undo_loss(struct sock *sk)
 	return false;
 }
 
+/* This function implements the PRR algorithm, specifcally the PRR-SSRB
+ * (proportional rate reduction with slow start reduction bound) as described in
+ * http://www.ietf.org/id/draft-mathis-tcpm-proportional-rate-reduction-01.txt.
+ * It computes the number of packets to send (sndcnt) based on packets newly
+ * delivered:
+ *   1) If the packets in flight is larger than ssthresh, PRR spreads the
+ *	cwnd reductions across a full RTT.
+ *   2) If packets in flight is lower than ssthresh (such as due to excess
+ *	losses and/or application stalls), do not perform any further cwnd
+ *	reductions, but instead slow start up to ssthresh.
+ */
+static void tcp_update_cwnd_in_recovery(struct sock *sk, int newly_acked_sacked,
+					int fast_rexmit, int flag)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int sndcnt = 0;
+	int delta = tp->snd_ssthresh - tcp_packets_in_flight(tp);
+
+	if (tcp_packets_in_flight(tp) > tp->snd_ssthresh) {
+		u64 dividend = (u64)tp->snd_ssthresh * tp->prr_delivered +
+			       tp->prior_cwnd - 1;
+		sndcnt = div_u64(dividend, tp->prior_cwnd) - tp->prr_out;
+	} else {
+		sndcnt = min_t(int, delta,
+			       max_t(int, tp->prr_delivered - tp->prr_out,
+				     newly_acked_sacked) + 1);
+	}
+
+	sndcnt = max(sndcnt, (fast_rexmit ? 1 : 0));
+	tp->snd_cwnd = tcp_packets_in_flight(tp) + sndcnt;
+}
+
 static inline void tcp_complete_cwr(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -2853,38 +2885,6 @@ void tcp_simple_retransmit(struct sock *sk)
 	tcp_xmit_retransmit_queue(sk);
 }
 EXPORT_SYMBOL(tcp_simple_retransmit);
-
-/* This function implements the PRR algorithm, specifcally the PRR-SSRB
- * (proportional rate reduction with slow start reduction bound) as described in
- * http://www.ietf.org/id/draft-mathis-tcpm-proportional-rate-reduction-01.txt.
- * It computes the number of packets to send (sndcnt) based on packets newly
- * delivered:
- *   1) If the packets in flight is larger than ssthresh, PRR spreads the
- *	cwnd reductions across a full RTT.
- *   2) If packets in flight is lower than ssthresh (such as due to excess
- *	losses and/or application stalls), do not perform any further cwnd
- *	reductions, but instead slow start up to ssthresh.
- */
-static void tcp_update_cwnd_in_recovery(struct sock *sk, int newly_acked_sacked,
-					int fast_rexmit, int flag)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	int sndcnt = 0;
-	int delta = tp->snd_ssthresh - tcp_packets_in_flight(tp);
-
-	if (tcp_packets_in_flight(tp) > tp->snd_ssthresh) {
-		u64 dividend = (u64)tp->snd_ssthresh * tp->prr_delivered +
-			       tp->prior_cwnd - 1;
-		sndcnt = div_u64(dividend, tp->prior_cwnd) - tp->prr_out;
-	} else {
-		sndcnt = min_t(int, delta,
-			       max_t(int, tp->prr_delivered - tp->prr_out,
-				     newly_acked_sacked) + 1);
-	}
-
-	sndcnt = max(sndcnt, (fast_rexmit ? 1 : 0));
-	tp->snd_cwnd = tcp_packets_in_flight(tp) + sndcnt;
-}
 
 static void tcp_enter_recovery(struct sock *sk, bool ece_ack)
 {
