@@ -270,7 +270,7 @@ static void sdv_gpio_remove(struct pci_dev *pdev)
 	kfree(sd);
 }
 
-static struct pci_device_id sdv_gpio_pci_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sdv_gpio_pci_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_SDV_GPIO) },
 	{ 0, },
 };
