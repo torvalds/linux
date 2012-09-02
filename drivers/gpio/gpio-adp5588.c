@@ -483,19 +483,7 @@ static struct i2c_driver adp5588_gpio_driver = {
 	.id_table = adp5588_gpio_id,
 };
 
-static int __init adp5588_gpio_init(void)
-{
-	return i2c_add_driver(&adp5588_gpio_driver);
-}
-
-module_init(adp5588_gpio_init);
-
-static void __exit adp5588_gpio_exit(void)
-{
-	i2c_del_driver(&adp5588_gpio_driver);
-}
-
-module_exit(adp5588_gpio_exit);
+module_i2c_driver(adp5588_gpio_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("GPIO ADP5588 Driver");
