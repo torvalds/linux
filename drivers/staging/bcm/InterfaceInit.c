@@ -671,18 +671,18 @@ static __init int bcm_init(void)
 {
 	int retval;
 
-	printk(KERN_INFO "%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
-	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
+	pr_info("%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
+	pr_info("%s\n", DRV_COPYRIGHT);
 
 	bcm_class = class_create(THIS_MODULE, DRV_NAME);
 	if (IS_ERR(bcm_class)) {
-		printk(KERN_ERR DRV_NAME ": could not create class\n");
+		pr_err(DRV_NAME ": could not create class\n");
 		return PTR_ERR(bcm_class);
 	}
 
 	retval = usb_register(&usbbcm_driver);
 	if (retval < 0) {
-		printk(KERN_ERR DRV_NAME ": could not register usb driver\n");
+		pr_err(DRV_NAME ": could not register usb driver\n");
 		class_destroy(bcm_class);
 		return retval;
 	}
