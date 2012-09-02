@@ -91,6 +91,12 @@ nouveau-y += core/subdev/mc/nvc0.o
 nouveau-y += core/subdev/mxm/base.o
 nouveau-y += core/subdev/mxm/mxms.o
 nouveau-y += core/subdev/mxm/nv50.o
+nouveau-y += core/subdev/therm/base.o
+nouveau-y += core/subdev/therm/fan.o
+nouveau-y += core/subdev/therm/ic.o
+nouveau-y += core/subdev/therm/nv40.o
+nouveau-y += core/subdev/therm/nv50.o
+nouveau-y += core/subdev/therm/temp.o
 nouveau-y += core/subdev/timer/base.o
 nouveau-y += core/subdev/timer/nv04.o
 nouveau-y += core/subdev/vm/base.o
@@ -173,7 +179,7 @@ nouveau-y += nv50_crtc.o nv50_dac.o nv50_sor.o nv50_cursor.o
 nouveau-y += nv50_evo.o
 
 # drm/pm
-nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o nouveau_temp.o
+nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o
 nouveau-y += nv04_pm.o nv40_pm.o nv50_pm.o nva3_pm.o nvc0_pm.o
 nouveau-y += nouveau_mem.o
 

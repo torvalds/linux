@@ -150,14 +150,6 @@ struct nouveau_pm_threshold_temp {
 	s16 down_clock;
 };
 
-struct nouveau_pm_fan {
-	u32 percent;
-	u32 min_duty;
-	u32 max_duty;
-	u32 pwm_freq;
-	u32 pwm_divisor;
-};
-
 struct nouveau_pm {
 	struct drm_device *dev;
 
@@ -166,7 +158,6 @@ struct nouveau_pm {
 	int nr_perflvl;
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
-	struct nouveau_pm_fan fan;
 
 	struct nouveau_pm_profile *profile_ac;
 	struct nouveau_pm_profile *profile_dc;
@@ -185,9 +176,6 @@ struct nouveau_pm {
 
 	int (*voltage_get)(struct drm_device *);
 	int (*voltage_set)(struct drm_device *, int voltage);
-	int (*pwm_get)(struct drm_device *, int line, u32*, u32*);
-	int (*pwm_set)(struct drm_device *, int line, u32, u32);
-	int (*temp_get)(struct drm_device *);
 };
 
 static inline struct nouveau_pm *
@@ -269,13 +257,6 @@ int nva3_pm_clocks_set(struct drm_device *, void *);
 int nvc0_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
 void *nvc0_pm_clocks_pre(struct drm_device *, struct nouveau_pm_level *);
 int nvc0_pm_clocks_set(struct drm_device *, void *);
-
-/* nouveau_temp.c */
-void nouveau_temp_init(struct drm_device *dev);
-void nouveau_temp_fini(struct drm_device *dev);
-void nouveau_temp_safety_checks(struct drm_device *dev);
-int nv40_temp_get(struct drm_device *dev);
-int nv84_temp_get(struct drm_device *dev);
 
 /* nouveau_mem.c */
 int  nouveau_mem_timing_calc(struct drm_device *, u32 freq,

@@ -27,6 +27,7 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 #include <subdev/clock.h>
+#include <subdev/therm.h>
 #include <subdev/devinit.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
