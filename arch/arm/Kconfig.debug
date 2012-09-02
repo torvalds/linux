@@ -261,6 +261,13 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port on MSM 8960 devices.
 
+	config DEBUG_MVEBU_UART
+		bool "Kernel low-level debugging messages via MVEBU UART"
+		depends on ARCH_MVEBU
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on MVEBU based platforms.
+
 	config DEBUG_REALVIEW_STD_PORT
 		bool "RealView Default UART"
 		depends on ARCH_REALVIEW
@@ -377,6 +384,7 @@ config DEBUG_LL_INCLUDE
 	string
 	default "debug/icedcc.S" if DEBUG_ICEDCC
 	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
+	default "debug/mvebu.S" if DEBUG_MVEBU_UART
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
 	default "mach/debug-macro.S"
