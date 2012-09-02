@@ -330,7 +330,7 @@ static struct platform_device device_hss_tab[] = {
 };
 
 
-static struct platform_device *device_tab[6] __initdata = {
+static struct platform_device *device_tab[7] __initdata = {
 	&device_flash,		/* index 0 */
 };
 
