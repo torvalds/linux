@@ -298,18 +298,6 @@ config SUN4I_FB_UMP
 	depends on MALI && SUN4I_FB=m
 	default y
 
-config SUN4I_LCD
-        tristate "LCD Driver Support(sun4i)"
-        depends on SUN4I_FB
-        ---help---
-        default m
-
-config SUN4I_HDMI
-        tristate "HDMI Driver Support(sun4i)"
-        depends on SUN4I_FB
-        ---help---
-        default m
-
 config SUN5I_FB
         tristate "DISP Driver Support(sun5i)"
         depends on FB && ARCH_SUN5I
@@ -319,15 +307,15 @@ config SUN5I_FB
         ---help---
         default m
 
-config SUN5I_LCD
-        tristate "LCD Driver Support(sun5i)"
-        depends on SUN5I_FB
+config SUNXI_LCD
+        tristate "LCD Driver Support(sunxi)"
+        depends on SUN4I_FB || SUN5I_FB
         ---help---
         default m
 
-config SUN5I_HDMI
-        tristate "HDMI Driver Support(sun5i)"
-        depends on SUN5I_FB
+config SUNXI_HDMI
+        tristate "HDMI Driver Support(sunxi)"
+        depends on SUN4I_FB || SUN5I_FB
         ---help---
         default m
 
