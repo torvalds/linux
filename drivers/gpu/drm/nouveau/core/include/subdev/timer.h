@@ -10,6 +10,14 @@ struct nouveau_alarm {
 	void (*func)(struct nouveau_alarm *);
 };
 
+static inline void
+nouveau_alarm_init(struct nouveau_alarm *alarm,
+		   void (*func)(struct nouveau_alarm *))
+{
+	INIT_LIST_HEAD(&alarm->head);
+	alarm->func = func;
+}
+
 bool nouveau_timer_wait_eq(void *, u64 nsec, u32 addr, u32 mask, u32 data);
 bool nouveau_timer_wait_ne(void *, u64 nsec, u32 addr, u32 mask, u32 data);
 bool nouveau_timer_wait_cb(void *, u64 nsec, bool (*func)(void *), void *data);

@@ -108,6 +108,7 @@ nouveau-y += core/subdev/therm/base.o
 nouveau-y += core/subdev/therm/fan.o
 nouveau-y += core/subdev/therm/fannil.o
 nouveau-y += core/subdev/therm/fanpwm.o
+nouveau-y += core/subdev/therm/fantog.o
 nouveau-y += core/subdev/therm/ic.o
 nouveau-y += core/subdev/therm/temp.o
 nouveau-y += core/subdev/therm/nv40.o

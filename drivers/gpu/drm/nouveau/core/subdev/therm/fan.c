@@ -149,7 +149,6 @@ nouveau_therm_fan_set_defaults(struct nouveau_therm *therm)
 	priv->fan->bios.max_duty = 100;
 }
 
-
 static void
 nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
 {
@@ -162,11 +161,6 @@ nouveau_therm_fan_safety_checks(struct nouveau_therm *therm)
 
 	if (priv->fan->bios.min_duty > priv->fan->bios.max_duty)
 		priv->fan->bios.min_duty = priv->fan->bios.max_duty;
-}
-
-int nouveau_fan_pwm_clock_dummy(struct nouveau_therm *therm)
-{
-	return 1;
 }
 
 int
@@ -182,7 +176,9 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	ret = gpio->find(gpio, 0, DCB_GPIO_PWM_FAN, 0xff, &func);
 	if (ret == 0)
 		ret = nouveau_fanpwm_create(therm, &func);
-	if (ret)
+	if (ret != 0)
+		ret = nouveau_fantog_create(therm, &func);
+	if (ret != 0)
 		ret = nouveau_fannil_create(therm);
 	if (ret)
 		return ret;
@@ -202,6 +198,5 @@ nouveau_therm_fan_ctor(struct nouveau_therm *therm)
 	nouveau_therm_fan_safety_checks(therm);
 
 	nouveau_therm_fan_set_mode(therm, FAN_CONTROL_NONE);
-
 	return 0;
 }

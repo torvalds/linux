@@ -31,6 +31,7 @@
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/perf.h>
 #include <subdev/bios/therm.h>
+#include <subdev/timer.h>
 
 struct nouveau_fan {
 	const char *type;
@@ -89,6 +90,7 @@ int nv50_temp_get(struct nouveau_therm *therm);
 int nva3_therm_fan_sense(struct nouveau_therm *);
 
 int nouveau_fanpwm_create(struct nouveau_therm *, struct dcb_gpio_func *);
+int nouveau_fantog_create(struct nouveau_therm *, struct dcb_gpio_func *);
 int nouveau_fannil_create(struct nouveau_therm *);
 
 #endif
