@@ -298,6 +298,12 @@ static int mc44s803_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
+static int mc44s803_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	*frequency = MC44S803_IF2; /* 36.125 MHz */
+	return 0;
+}
+
 static const struct dvb_tuner_ops mc44s803_tuner_ops = {
 	.info = {
 		.name           = "Freescale MC44S803",
@@ -309,7 +315,8 @@ static const struct dvb_tuner_ops mc44s803_tuner_ops = {
 	.release       = mc44s803_release,
 	.init          = mc44s803_init,
 	.set_params    = mc44s803_set_params,
-	.get_frequency = mc44s803_get_frequency
+	.get_frequency = mc44s803_get_frequency,
+	.get_if_frequency = mc44s803_get_if_frequency,
 };
 
 /* This functions tries to identify a MC44S803 tuner by reading the ID
