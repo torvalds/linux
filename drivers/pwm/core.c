@@ -371,7 +371,7 @@ EXPORT_SYMBOL_GPL(pwm_free);
  */
 int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 {
-	if (!pwm || period_ns == 0 || duty_ns > period_ns)
+	if (!pwm || duty_ns < 0 || period_ns <= 0 || duty_ns > period_ns)
 		return -EINVAL;
 
 	return pwm->chip->ops->config(pwm->chip, pwm, duty_ns, period_ns);
