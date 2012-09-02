@@ -669,6 +669,8 @@ struct class *bcm_class;
 
 static __init int bcm_init(void)
 {
+	int retval;
+
 	printk(KERN_INFO "%s: %s, %s\n", DRV_NAME, DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO "%s\n", DRV_COPYRIGHT);
 
@@ -678,7 +680,13 @@ static __init int bcm_init(void)
 		return PTR_ERR(bcm_class);
 	}
 
-	return usb_register(&usbbcm_driver);
+	retval = usb_register(&usbbcm_driver);
+	if (retval < 0) {
+		printk(KERN_ERR DRV_NAME ": could not register usb driver\n");
+		class_destroy(bcm_class);
+		return retval;
+	}
+	return 0;
 }
 
 static __exit void bcm_exit(void)
