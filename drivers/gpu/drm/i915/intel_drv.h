@@ -41,7 +41,11 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (W && drm_can_sleep()) msleep(W);	\
+		if (W && drm_can_sleep())  {				\
+			msleep(W);					\
+		} else {						\
+			cpu_relax();					\
+		}							\
 	}								\
 	ret__;								\
 })
