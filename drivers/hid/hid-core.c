@@ -1447,7 +1447,14 @@ void hid_disconnect(struct hid_device *hdev)
 }
 EXPORT_SYMBOL_GPL(hid_disconnect);
 
-/* a list of devices for which there is a specialized driver on HID bus */
+/*
+ * A list of devices for which there is a specialized driver on HID bus.
+ *
+ * Please note that for multitouch devices (driven by hid-multitouch driver),
+ * there is a proper autodetection and autoloading in place (based on presence
+ * of HID_DG_CONTACTID), so those devices don't need to be added to this list,
+ * as we are doing the right thing in hid_scan_usage().
+ */
 static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_X5_005D) },
