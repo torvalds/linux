@@ -427,15 +427,6 @@ err:
 	return error;
 }
 
-static void __exit cleanup_evm(void)
-{
-	evm_cleanup_secfs();
-	if (hmac_tfm)
-		crypto_free_shash(hmac_tfm);
-	if (hash_tfm)
-		crypto_free_shash(hash_tfm);
-}
-
 /*
  * evm_display_config - list the EVM protected security extended attributes
  */
