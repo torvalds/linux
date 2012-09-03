@@ -133,8 +133,8 @@ void __init rk30_map_io(void)
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();
-#if !defined(CONFIG_ARCH_RK3066B)
 	ddr_init(DDR_TYPE, DDR_FREQ);
+#if !defined(CONFIG_ARCH_RK3066B)
 	clk_disable_unused();
 #endif
 	rk30_iomux_init();

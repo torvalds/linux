@@ -76,6 +76,9 @@ static int init_rk31_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	LcdMskReg(lcdc_dev,SYS_CFG, m_LCDC_AXICLK_AUTO_ENABLE | m_W0_AXI_OUTSTANDING2 |
 		m_W1_AXI_OUTSTANDING2,v_LCDC_AXICLK_AUTO_ENABLE(1) | v_W0_AXI_OUTSTANDING2(1) |
 		v_W1_AXI_OUTSTANDING2(1));//eanble axi-clk auto gating for low power
+	 LcdWrReg(lcdc_dev,AXI_MS_ID,v_HWC_CHANNEL_ID(5) | v_WIN2_CHANNEL_ID(4) |
+	 	v_WIN1_YRGB_CHANNEL_ID(3) | v_WIN0_CBR_CHANNEL_ID(2) | 
+	 	v_WIN0_YRGB_CHANNEL_ID(1));
 	LcdMskReg(lcdc_dev, INT_STATUS,m_HOR_STARTMASK| m_FRM_STARTMASK | 
     	      m_SCANNING_MASK, v_HOR_STARTMASK(1) | v_FRM_STARTMASK(1) | 
     	      v_SCANNING_MASK(1));  //mask all interrupt in init
@@ -385,6 +388,7 @@ static  int win0_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleYrgbY = 0x1000;
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
+	u8 fmt_cfg =0 ; //data format register config value
 
 	xact = par->xact;			    //active (origin) picture window width/height		
 	yact = par->yact;
@@ -399,17 +403,23 @@ static  int win0_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 	switch (par->format)
 	{
 		case ARGB888:
-			par->format = RGB888;
+			fmt_cfg = 0;
+			break;
+		case RGB565:
+			fmt_cfg = 1;
 			break;
 		case YUV422:// yuv422
+			fmt_cfg = 2;
 			ScaleCbrX = CalScale((xact/2), par->xsize);
 			ScaleCbrY = CalScale(yact, par->ysize);
 			break;
 		case YUV420: // yuv420
+			fmt_cfg = 3;
 			ScaleCbrX = CalScale(xact/2, par->xsize);
 		   	ScaleCbrY = CalScale(yact/2, par->ysize);
 		   	break;
 		case YUV444:// yuv444
+			fmt_cfg = 4;
 			ScaleCbrX = CalScale(xact, par->xsize);
 			ScaleCbrY = CalScale(yact, par->ysize);
 			break;
@@ -425,7 +435,7 @@ static  int win0_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 	{
 		LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
 		LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_CBR,v_X_SCL_FACTOR(ScaleCbrX)| v_Y_SCL_FACTOR(ScaleCbrY));
-		LcdMskReg(lcdc_dev,SYS_CFG, m_W0_FORMAT, v_W0_FORMAT(par->format - 1));		//(inf->video_mode==0)
+		LcdMskReg(lcdc_dev,SYS_CFG, m_W0_FORMAT, v_W0_FORMAT(fmt_cfg));		//(inf->video_mode==0)
 		LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
 		LcdWrReg(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		LcdWrReg(lcdc_dev, WIN0_DSP_INFO, v_DSP_WIDTH(par->xsize)| v_DSP_HEIGHT(par->ysize));
@@ -448,6 +458,7 @@ static int win1_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 ScaleYrgbY = 0x1000;
 	u32 ScaleCbrX = 0x1000;
 	u32 ScaleCbrY = 0x1000;
+	u8 fmt_cfg;
 	
 	xact = par->xact;			
 	yact = par->yact;
@@ -468,25 +479,16 @@ static int win1_set_par(struct rk31_lcdc_device *lcdc_dev,rk_screen *screen,
 		switch (par->format)
 	 	{
 			case ARGB888:
-				par->format = RGB888;
+				fmt_cfg = 0;
 				break;
-			case YUV422:// yuv422
-				ScaleCbrX = CalScale((xact/2), par->xsize);
-				ScaleCbrY = CalScale(yact, par->ysize);
-				break;
-			case YUV420: // yuv420
-				ScaleCbrX = CalScale(xact/2, par->xsize);
-				ScaleCbrY = CalScale(yact/2, par->ysize);
-				break;
-			case YUV444:// yuv444
-				ScaleCbrX = CalScale(xact, par->xsize);
-				ScaleCbrY = CalScale(yact, par->ysize);
+			case RGB565:
+				fmt_cfg = 1;
 				break;
 			default:
 				break;
 		}
 
-		LcdMskReg(lcdc_dev,SYS_CFG, m_W1_FORMAT, v_W1_FORMAT(par->format - 1));
+		LcdMskReg(lcdc_dev,SYS_CFG, m_W1_FORMAT, v_W1_FORMAT(fmt_cfg));
 		LcdWrReg(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
 		LcdWrReg(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
 		// enable win1 color key and set the color to black(rgb=0)

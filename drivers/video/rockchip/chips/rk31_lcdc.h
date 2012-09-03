@@ -376,6 +376,17 @@
 #define v_WIN2_FIFO_FULL_LEVEL(x)	(((x)&0x1f) << 7)
 
 
+#define m_WIN0_YRGB_CHANNEL_ID	      	((0x0f)<<0)
+#define m_WIN0_CBR_CHANNEL_ID	      	((0x0f)<<4)
+#define m_WIN1_YRGB_CHANNEL_ID	      	((0x0f)<<8)
+#define m_WIN2_CHANNEL_ID	      	((0x0f)<<12)
+#define m_HWC_CHANNEL_ID	      	((0x0f)<<16)
+#define v_WIN0_YRGB_CHANNEL_ID(x)	(((x)&0x0f)<<0)
+#define v_WIN0_CBR_CHANNEL_ID(x)	(((x)&0x0f)<<4)
+#define v_WIN1_YRGB_CHANNEL_ID(x)	(((x)&0x0f)<<8)
+#define v_WIN2_CHANNEL_ID(x)	      	(((x)&0x0f)<<12)
+#define v_HWC_CHANNEL_ID(x)	      	(((x)&0x0f)<<16)
+
 
 //LCDC_WINx_SCL_FACTOR_Y/CBCR
 #define v_X_SCL_FACTOR(x)  ((x)<<0)

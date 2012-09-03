@@ -176,7 +176,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 			par->y_offset = (yoffset*xvir + xoffset)*4;
 			break;
 		case  RGB888:
-			par->y_offset = (yoffset*xvir + xoffset)*4;
+			par->y_offset = (yoffset*xvir + xoffset)*3;
 			break;
 		case RGB565:
 			par->y_offset = (yoffset*xvir + xoffset)*2;

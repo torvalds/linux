@@ -46,6 +46,67 @@
 #include <mach/pmu.h>
 #include <mach/cru.h>
 
+typedef enum {
+	VPU_DEC_ID_9190		= 0x6731,
+	VPU_ID_8270		= 0x8270,
+	VPU_ID_4831		= 0x4831,
+} VPU_HW_ID;
+
+typedef enum {
+	VPU_DEC_TYPE_9190	= 0,
+	VPU_ENC_TYPE_8270	= 0x100,
+	VPU_ENC_TYPE_4831	,
+} VPU_HW_TYPE_E;
+
+typedef struct {
+	VPU_HW_ID		hw_id;
+	unsigned long		hw_addr;
+	unsigned long		enc_offset;
+	unsigned long		enc_reg_num;
+	unsigned long		enc_io_size;
+	unsigned long		dec_offset;
+	unsigned long		dec_reg_num;
+	unsigned long		dec_io_size;
+} VPU_HW_INFO_E;
+
+#define VCODEC_PHYS				(0x10104000)
+
+#define REG_NUM_9190_DEC			(60)
+#define REG_NUM_9190_PP				(41)
+#define REG_NUM_9190_DEC_PP			(REG_NUM_9190_DEC+REG_NUM_9190_PP)
+
+#define REG_NUM_DEC_PP				(REG_NUM_9190_DEC+REG_NUM_9190_PP)
+
+#define REG_NUM_ENC_8270			(96)
+#define REG_SIZE_ENC_8270			(0x200)
+#define REG_NUM_ENC_4831			(164)
+#define REG_SIZE_ENC_4831			(0x400)
+
+#define SIZE_REG(reg)				((reg)*4)
+
+VPU_HW_INFO_E vpu_hw_set[] = {
+	[0] = {
+		.hw_id		= VPU_ID_8270,
+		.hw_addr	= VCODEC_PHYS,
+		.enc_offset	= 0x0,
+		.enc_reg_num	= REG_NUM_ENC_8270,
+		.enc_io_size	= REG_NUM_ENC_8270 * 4,
+		.dec_offset	= REG_SIZE_ENC_8270,
+		.dec_reg_num	= REG_NUM_9190_DEC_PP,
+		.dec_io_size    = REG_NUM_9190_DEC_PP * 4,
+	},
+	[1] = {
+		.hw_id		= VPU_ID_4831,
+		.hw_addr	= VCODEC_PHYS,
+		.enc_offset	= 0x0,
+		.enc_reg_num	= REG_NUM_ENC_4831,
+		.enc_io_size	= REG_NUM_ENC_4831 * 4,
+		.dec_offset	= REG_SIZE_ENC_4831,
+		.dec_reg_num	= REG_NUM_9190_DEC_PP,
+		.dec_io_size    = REG_NUM_9190_DEC_PP * 4,
+	},
+};
+
 
 #define DEC_INTERRUPT_REGISTER	   		1
 #define PP_INTERRUPT_REGISTER	   		60
@@ -54,36 +115,6 @@
 #define DEC_INTERRUPT_BIT			 0x100
 #define PP_INTERRUPT_BIT			 0x100
 #define ENC_INTERRUPT_BIT			 0x1
-
-#define REG_NUM_DEC 				(60)
-#define REG_NUM_PP				(41)
-#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
-#define REG_NUM_ENC 				(96)
-#elif defined(CONFIG_ARCH_RK30)
-#define REG_NUM_ENC 				(164)
-#endif
-#define REG_NUM_DEC_PP				(REG_NUM_DEC+REG_NUM_PP)
-#define SIZE_REG(reg)				((reg)*4)
-
-#define DEC_IO_SIZE 				((100 + 1) * 4) /* bytes */
-#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
-#define ENC_IO_SIZE 				(96 * 4)	/* bytes */
-#elif defined(CONFIG_ARCH_RK30)
-#define ENC_IO_SIZE 				(164 * 4)	/* bytes */
-#endif
-#define REG_NUM_DEC_PP				(REG_NUM_DEC+REG_NUM_PP)
-static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
-#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
-static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
-#define DEC_PHY_OFFSET 				0x200
-#if defined(CONFIG_ARCH_RK2928)
-#define RK29_VCODEC_PHYS			RK2928_VCODEC_PHYS
-#endif
-#elif defined(CONFIG_ARCH_RK30)
-static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270, 0x8290, 0x4831 };
-#define DEC_PHY_OFFSET 				0x400
-#define RK29_VCODEC_PHYS			RK30_VCODEC_PHYS
-#endif
 
 #define VPU_REG_EN_ENC				14
 #define VPU_REG_ENC_GATE			2
@@ -125,14 +156,13 @@ typedef struct vpu_session {
  *
  * @author ChenHengming (2011-5-4)
  */
-#define VPU_REG_NUM_MAX                     (((VPU_REG_NUM_ENC)>(VPU_REG_NUM_DEC_PP))?(VPU_REG_NUM_ENC):(VPU_REG_NUM_DEC_PP))
 typedef struct vpu_reg {
 	VPU_CLIENT_TYPE		type;
 	vpu_session 		*session;
 	struct list_head	session_link;		/* link to vpu service session */
 	struct list_head	status_link;		/* link to register set list */
 	unsigned long		size;
-	unsigned long		reg[VPU_REG_NUM_MAX];
+	unsigned long		*reg;
 } vpu_reg;
 
 typedef struct vpu_device {
@@ -156,6 +186,8 @@ typedef struct vpu_service_info {
 	vpu_reg			*reg_resev;
 	VPUHwDecConfig_t	dec_config;
 	VPUHwEncConfig_t	enc_config;
+	VPU_HW_INFO_E		*hw_info;
+	unsigned long		reg_size;
 } vpu_service_info;
 
 typedef struct vpu_request
@@ -211,7 +243,7 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
 	clk_enable(aclk_ddr_vepu);
-#elif defined(CONFIG_ARCH_RK30) || defined(CONFIG_ARCH_RK2928)
+#elif defined(CONFIG_ARCH_RK30)
 	pmu_set_idle_request(IDLE_REQ_VIDEO, true);
 	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
 	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, true);
@@ -293,7 +325,7 @@ static void vpu_service_power_off(void)
 	}
 
 	printk("vpu: power off...");
-#if defined(CONFIG_ARCH_RK29)
+#ifdef CONFIG_ARCH_RK29
 	pmu_set_power_domain(PD_VCODEC, false);
 #else
 	clk_disable(pd_video);
@@ -337,7 +369,7 @@ static void vpu_service_power_on(void)
 		clk_enable(hclk_vepu);
 		clk_enable(hclk_cpu_vcodec);
 		udelay(10);
-#if defined(CONFIG_ARCH_RK29)
+#ifdef CONFIG_ARCH_RK29
 		pmu_set_power_domain(PD_VCODEC, true);
 #else
 		clk_enable(pd_video);
@@ -357,7 +389,7 @@ static void vpu_service_power_on(void)
 static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long size)
 {
 	unsigned long flag;
-	vpu_reg *reg = kmalloc(sizeof(vpu_reg), GFP_KERNEL);
+	vpu_reg *reg = kmalloc(sizeof(vpu_reg)+service.reg_size, GFP_KERNEL);
 	if (NULL == reg) {
 		pr_err("error: kmalloc fail in reg_init\n");
 		return NULL;
@@ -366,6 +398,7 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 	reg->session = session;
 	reg->type = session->type;
 	reg->size = size;
+	reg->reg = (unsigned long *)&reg[1];
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
@@ -420,24 +453,24 @@ static void reg_from_run_to_done(vpu_reg *reg)
 	switch (reg->type) {
 	case VPU_ENC : {
 		service.reg_codec = NULL;
-		reg_copy_from_hw(reg, enc_dev.hwregs, REG_NUM_ENC);
+		reg_copy_from_hw(reg, enc_dev.hwregs, service.hw_info->enc_reg_num);
 		break;
 	}
 	case VPU_DEC : {
 		service.reg_codec = NULL;
-		reg_copy_from_hw(reg, dec_dev.hwregs, REG_NUM_DEC);
+		reg_copy_from_hw(reg, dec_dev.hwregs, REG_NUM_9190_DEC);
 		break;
 	}
 	case VPU_PP : {
 		service.reg_pproc = NULL;
-		reg_copy_from_hw(reg, dec_dev.hwregs + PP_INTERRUPT_REGISTER, REG_NUM_PP);
+		reg_copy_from_hw(reg, dec_dev.hwregs + PP_INTERRUPT_REGISTER, REG_NUM_9190_PP);
 		dec_dev.hwregs[PP_INTERRUPT_REGISTER] = 0;
 		break;
 	}
 	case VPU_DEC_PP : {
 		service.reg_codec = NULL;
 		service.reg_pproc = NULL;
-		reg_copy_from_hw(reg, dec_dev.hwregs, REG_NUM_DEC_PP);
+		reg_copy_from_hw(reg, dec_dev.hwregs, REG_NUM_9190_DEC_PP);
 		dec_dev.hwregs[PP_INTERRUPT_REGISTER] = 0;
 		break;
 	}
@@ -459,6 +492,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 	atomic_add(1, &reg->session->task_running);
 	switch (reg->type) {
 	case VPU_ENC : {
+		int enc_count = service.hw_info->enc_reg_num;
 		u32 *dst = (u32 *)enc_dev.hwregs;
 #if defined(CONFIG_ARCH_RK30)
 		cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
@@ -473,7 +507,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 		for (i = 0; i < VPU_REG_EN_ENC; i++)
 			dst[i] = src[i];
 
-		for (i = VPU_REG_EN_ENC + 1; i < REG_NUM_ENC; i++)
+		for (i = VPU_REG_EN_ENC + 1; i < enc_count; i++)
 			dst[i] = src[i];
 
 		dsb();
@@ -485,7 +519,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 		u32 *dst = (u32 *)dec_dev.hwregs;
 		service.reg_codec = reg;
 
-		for (i = REG_NUM_DEC - 1; i > VPU_REG_DEC_GATE; i--)
+		for (i = REG_NUM_9190_DEC - 1; i > VPU_REG_DEC_GATE; i--)
 			dst[i] = src[i];
 
 		dsb();
@@ -499,7 +533,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 
 		dst[VPU_REG_PP_GATE] = src[VPU_REG_PP_GATE] | VPU_REG_PP_GATE_BIT;
 
-		for (i = VPU_REG_PP_GATE + 1; i < REG_NUM_PP; i++)
+		for (i = VPU_REG_PP_GATE + 1; i < REG_NUM_9190_PP; i++)
 			dst[i] = src[i];
 
 		dsb();
@@ -511,7 +545,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 		service.reg_codec = reg;
 		service.reg_pproc = reg;
 
-		for (i = VPU_REG_EN_DEC_PP + 1; i < REG_NUM_DEC_PP; i++)
+		for (i = VPU_REG_EN_DEC_PP + 1; i < REG_NUM_9190_DEC_PP; i++)
 			dst[i] = src[i];
 
 		dst[VPU_REG_EN_DEC_PP]   = src[VPU_REG_EN_DEC_PP] | 0x2;
@@ -579,22 +613,22 @@ static int return_reg(vpu_reg *reg, u32 __user *dst)
 	int ret = 0;
 	switch (reg->type) {
 	case VPU_ENC : {
-		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_ENC)))
+		if (copy_to_user(dst, &reg->reg[0], service.hw_info->enc_io_size))
 			ret = -EFAULT;
 		break;
 	}
 	case VPU_DEC : {
-		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_DEC)))
+		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_9190_DEC)))
 			ret = -EFAULT;
 		break;
 	}
 	case VPU_PP : {
-		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_PP)))
+		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_9190_PP)))
 			ret = -EFAULT;
 		break;
 	}
 	case VPU_DEC_PP : {
-		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_DEC_PP)))
+		if (copy_to_user(dst, &reg->reg[0], SIZE_REG(REG_NUM_9190_DEC_PP)))
 			ret = -EFAULT;
 		break;
 	}
@@ -713,33 +747,46 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	return 0;
 }
 
-static int vpu_service_check_hw_id(struct vpu_device * dev, const u16 *hwids, size_t num)
+static int vpu_service_check_hw(vpu_service_info *p, unsigned long hw_addr)
 {
-	u32 hwid = readl(dev->hwregs);
-	pr_info("HW ID = 0x%08x\n", hwid);
-
-	hwid = (hwid >> 16) & 0xFFFF;	/* product version only */
-
-	while (num--) {
-		if (hwid == hwids[num]) {
-			pr_info("Compatible HW found at 0x%08lx\n", dev->iobaseaddr);
-			return 1;
+	int ret = -EINVAL, i = 0;
+	volatile u32 *tmp = (volatile u32 *)ioremap_nocache(hw_addr, 0x4);
+	u32 enc_id = *tmp;
+	enc_id = (enc_id >> 16) & 0xFFFF;
+	pr_info("checking hw id %x\n", enc_id);
+	p->hw_info = NULL;
+	for (i = 0; i < ARRAY_SIZE(vpu_hw_set); i++) {
+		if (enc_id == vpu_hw_set[i].hw_id) {
+			p->hw_info = &vpu_hw_set[i];
+			ret = 0;
+			break;
 		}
 	}
-
-	pr_info("No Compatible HW found at 0x%08lx\n", dev->iobaseaddr);
-	return 0;
+	iounmap((void *)tmp);
+	return ret;
 }
 
 static void vpu_service_release_io(void)
 {
-	if (dec_dev.hwregs)
+	if (dec_dev.hwregs) {
 		iounmap((void *)dec_dev.hwregs);
-	release_mem_region(dec_dev.iobaseaddr, dec_dev.iosize);
+		dec_dev.hwregs = NULL;
+	}
+	if (dec_dev.iobaseaddr) {
+		release_mem_region(dec_dev.iobaseaddr, dec_dev.iosize);
+		dec_dev.iobaseaddr = 0;
+		dec_dev.iosize = 0;
+	}
 
-	if (enc_dev.hwregs)
+	if (enc_dev.hwregs) {
 		iounmap((void *)enc_dev.hwregs);
-	release_mem_region(enc_dev.iobaseaddr, enc_dev.iosize);
+		enc_dev.hwregs = NULL;
+	}
+	if (enc_dev.iobaseaddr) {
+		release_mem_region(enc_dev.iobaseaddr, enc_dev.iosize);
+		enc_dev.iobaseaddr = 0;
+		enc_dev.iosize = 0;
+	}
 }
 
 static int vpu_service_reserve_io(void)
@@ -762,15 +809,10 @@ static int vpu_service_reserve_io(void)
 		goto err;
 	}
 
-	/* check for correct HW */
-	if (!vpu_service_check_hw_id(&dec_dev, dec_hw_ids, ARRAY_SIZE(dec_hw_ids))) {
-		goto err;
-	}
-
 	iobaseaddr 	= enc_dev.iobaseaddr;
 	iosize		= enc_dev.iosize;
 
-	if (!request_mem_region(iobaseaddr, iosize, "hx280enc")) {
+	if (!request_mem_region(iobaseaddr, iosize, "vepu_io")) {
 		pr_info("failed to reserve enc HW regs\n");
 		goto err;
 	}
@@ -782,14 +824,9 @@ static int vpu_service_reserve_io(void)
 		goto err;
 	}
 
-	/* check for correct HW */
-	if (!vpu_service_check_hw_id(&enc_dev, enc_hw_ids, ARRAY_SIZE(enc_hw_ids))) {
-		goto err;
-	}
 	return 0;
 
 err:
-	vpu_service_release_io();
 	return -EBUSY;
 }
 
@@ -1075,9 +1112,11 @@ static void get_hw_info(void)
 	enc->jpegEnabled = (configReg >> 25) & 1;
 	enc->vsEnabled = (configReg >> 24) & 1;
 	enc->rgbEnabled = (configReg >> 28) & 1;
-	enc->busType = (configReg >> 20) & 15;
-	enc->synthesisLanguage = (configReg >> 16) & 15;
-	enc->busWidth = (configReg >> 12) & 15;
+	//enc->busType = (configReg >> 20) & 15;
+	//enc->synthesisLanguage = (configReg >> 16) & 15;
+	//enc->busWidth = (configReg >> 12) & 15;
+	enc->reg_size = service.reg_size;
+	enc->reserv[0] = enc->reserv[1] = 0;
 }
 
 static irqreturn_t vdpu_isr(int irq, void *dev_id)
@@ -1152,12 +1191,7 @@ static int __init vpu_service_init(void)
 {
 	int ret;
 
-	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", RK29_VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
-
-	dec_dev.iobaseaddr 	= RK29_VCODEC_PHYS + DEC_PHY_OFFSET;
-	dec_dev.iosize 		= DEC_IO_SIZE;
-	enc_dev.iobaseaddr 	= RK29_VCODEC_PHYS;
-	enc_dev.iosize 		= ENC_IO_SIZE;
+	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
 
 	INIT_LIST_HEAD(&service.waiting);
 	INIT_LIST_HEAD(&service.running);
@@ -1175,6 +1209,17 @@ static int __init vpu_service_init(void)
 	service.timer.expires = jiffies + POWER_OFF_DELAY;
 	service.timer.function = vpu_service_power_off_work_func;
 	vpu_service_power_on();
+	ret = vpu_service_check_hw(&service, VCODEC_PHYS);
+	if (ret < 0) {
+		pr_err("error: hw info check faild\n");
+		goto err_hw_id_check;
+	}
+
+	dec_dev.iobaseaddr 	= service.hw_info->hw_addr + service.hw_info->dec_offset;
+	dec_dev.iosize		= service.hw_info->dec_io_size;
+	enc_dev.iobaseaddr 	= service.hw_info->hw_addr + service.hw_info->enc_offset;
+	enc_dev.iosize		= service.hw_info->enc_io_size;;
+	service.reg_size	= max(dec_dev.iosize, enc_dev.iosize);
 
 	ret = vpu_service_reserve_io();
 	if (ret < 0) {
@@ -1204,6 +1249,7 @@ static int __init vpu_service_init(void)
 	platform_device_register(&vpu_service_device);
 	platform_driver_probe(&vpu_service_driver, NULL);
 	get_hw_info();
+	del_timer(&service.timer);
 	vpu_service_power_off();
 	pr_info("init success\n");
 
@@ -1217,15 +1263,18 @@ err_req_vepu_irq:
 err_req_vdpu_irq:
 	pr_info("init failed\n");
 err_reserve_io:
-	vpu_service_power_off();
 	vpu_service_release_io();
+err_hw_id_check:
+	vpu_service_power_off();
 	vpu_put_clk();
 	pr_info("init failed\n");
 	return ret;
 }
 
+static void __exit vpu_service_proc_release(void);
 static void __exit vpu_service_exit(void)
 {
+	vpu_service_proc_release();
 	del_timer(&service.timer);
 	vpu_service_power_off();
 	platform_device_unregister(&vpu_service_device);
@@ -1233,6 +1282,7 @@ static void __exit vpu_service_exit(void)
 	misc_deregister(&vpu_service_misc_device);
 	free_irq(IRQ_VEPU, (void *)&enc_dev);
 	free_irq(IRQ_VDPU, (void *)&dec_dev);
+	vpu_service_release_io();
 	vpu_put_clk();
 }
 
@@ -1299,6 +1349,10 @@ static int __init vpu_service_proc_init(void)
 	proc_create("vpu_service", 0, NULL, &proc_vpu_service_fops);
 	return 0;
 
+}
+static void __exit vpu_service_proc_release(void)
+{
+	remove_proc_entry("vpu_service", NULL);
 }
 #endif /* CONFIG_PROC_FS */
 

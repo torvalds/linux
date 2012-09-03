@@ -38,6 +38,7 @@ typedef uint32_t uint32;
 #define SysSrv_DdrTiming        (RK30_CPU_AXI_BUS_BASE+0x0c)
 #define SysSrv_DdrMode          (RK30_CPU_AXI_BUS_BASE+0x10)
 #define SysSrv_ReadLatency      (RK30_CPU_AXI_BUS_BASE+0x14)
+#define ROM_CHIP_ID_ADDR    (RK30_ROM_BASE+0x27f0)
 
 #define ddr_print(x...) printk( "DDR DEBUG: " x )
 
@@ -228,6 +229,14 @@ typedef volatile struct tagPMU_FILE
 #define NO(n)      ((0xF<<16) | ((n)-1))
 #define NF(n)      ((0x1FFF<<16) | ((n)-1))
 #define NB(n)      ((0xFFF<<16) | ((n)-1))
+
+//RK3066B
+#define PLL_RESET_RK3066B  (((0x1<<1)<<16) | (0x1<<1))
+#define PLL_DE_RESET_RK3066B  (((0x1<<1)<<16) | (0x0<<1))
+#define NR_RK3066B(n)      ((0x3F<<(8+16)) | (((n)-1)<<8))
+#define NO_RK3066B(n)      ((0x3F<<16) | ((n)-1))
+#define NF_RK3066B(n)      ((0xFFFF<<16) | ((n)-1))
+
  //CRU Registers
 typedef volatile struct tagCRU_STRUCT
 {
@@ -287,6 +296,33 @@ typedef volatile struct tagREG_FILE
 } REG_FILE, *pREG_FILE;
 
 #define pGRF_Reg ((pREG_FILE)REG_FILE_BASE_ADDR)
+
+//REG FILE registers
+typedef volatile struct tagREG_FILE_RK3066B
+{
+    GPIO_LH_T GRF_GPIO_DIR[4];
+    GPIO_LH_T GRF_GPIO_DO[4];
+    GPIO_LH_T GRF_GPIO_EN[4];
+    GPIO_IOMUX_T GRF_GPIO_IOMUX[4];
+    uint32 GRF_SOC_CON[3];
+    uint32 GRF_SOC_STATUS0;
+    uint32 GRF_DMAC0_CON[3];
+    uint32 GRF_DMAC1_CON[4];
+    uint32 reserved0[(0xec-0xcc)/4];
+    uint32 GRF_DDRC_CON0;
+    uint32 GRF_DDRC_STAT;
+    uint32 GRF_IO_CON[5];
+    uint32 reserved1;
+    uint32 GRF_UOC0_CON[4];
+    uint32 GRF_UOC1_CON[4];
+    uint32 GRF_UOC2_CON[2];
+    uint32 reserved2;
+    uint32 GRF_UOC3_CON[2];
+    uint32 GRF_HSIC_STAT;
+    uint32 GRF_OS_REG[8];
+} REG_FILE_RK3066B, *pREG_FILE_RK3066B;
+
+#define pGRF_Reg_RK3066B ((pREG_FILE_RK3066B)REG_FILE_BASE_ADDR)
 
 //SCTL
 #define INIT_STATE                     (0)
@@ -981,7 +1017,9 @@ uint32_t __sramdata ddr3_tRC_tFAW[22]={
 
     ((53<<16)|50)  //DDR3_DEFAULT
 };
+
 __sramdata uint32_t mem_type;    // 0:LPDDR, 1:DDR, 2:DDR2, 3:DDR3, 4:LPDDR2
+__sramdata bool chip_rk3066b_flag=false;    
 static __sramdata uint32_t ddr_speed_bin;    // used for ddr3 only
 static __sramdata uint32_t ddr_capability_per_die;  // one chip cs capability
 static __sramdata uint32_t ddr_freq;
@@ -1023,9 +1061,19 @@ uint32 ddr_get_row(void)
 
     i = *(volatile uint32*)SysSrv_DdrConf;
     row = ddr_cfg_2_rbc[i].row;
-    if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
+    if(chip_rk3066b_flag == true)
     {
-        row += 1;
+        if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
+        {
+            row += 1;
+        }
+    }
+    else
+    {
+        if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
+        {
+            row += 1;
+        }
     }
     return row;
 }
@@ -1360,18 +1408,101 @@ uint32_t __sramlocalfunc ddr_set_pll(uint32_t nMHz, uint32_t set)
         ddr_delayus(1);
         pCRU_Reg->CRU_PLL_CON[pll_id][3] = PLL_DE_RESET;
         dsb();
-        while (delay > 0) 
+        while (delay > 0)
         {
     	    ddr_delayus(1);
-    		if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
-    			break;
-    		delay--;
-    	}
-        
+            if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
+            break;
+            delay--;
+    	 }
         pCRU_Reg->CRU_CLKSEL_CON[26] = ((0x3 | (0x1<<8))<<16)
                                                   | (0x0<<8)     //clk_ddr_src = DDR PLL
                                                   | 0;           //clk_ddr_src:clk_ddrphy = 1:1
-        
+
+        pCRU_Reg->CRU_MODE_CON = (0x3<<((pll_id*4) +  16))  | (0x1<<(pll_id*4));            //PLL normal
+        dsb();
+    }
+out:
+    return ret;
+}
+
+
+/*****************************************
+RK3066B
+NR   NO     NF                      Fout                       freq Step     finally use
+1    14     46 - 91          78MHz  -   157MHz          1.7MHz        78MHz<= 150MHz
+1    8      46 - 91          137MHz  -  275MHz          3MHz          150MHz<= 200MHz
+1    6      46 - 91          183MHz   - 366MHz          4MHz          200MHz<= 300MHz
+1    4      46 - 91          275MHz   - 550MHz          6MHz          300MHz<= 550MHz
+1    2      46 - 91          550MHz   - 1100MHz         12MHz         550MHz<= 1100MHz
+1    1      46 - 91          1100MHz  - 2200MHz         24MHz         1100MHz<= 2200MHz
+******************************************/
+uint32_t __sramlocalfunc ddr_set_pll_rk3600b(uint32_t nMHz, uint32_t set)
+{
+    uint32_t ret = 0;
+    int delay = 1000;
+    uint32_t pll_id=1;  //DPLL
+
+    if(nMHz == 24)
+    {
+        ret = 24;
+        goto out;
+    }
+
+    if(!set)
+    {
+        if(nMHz <= 150)
+        {
+            clkod = 14;
+        }
+        else if(nMHz <= 200)
+        {
+            clkod = 8;
+        }
+        else if(nMHz <= 300)
+        {
+            clkod = 6;
+        }
+        else if(nMHz <= 550)
+        {
+            clkod = 4;
+        }
+        else if(nMHz <= 1100)
+        {
+            clkod = 2;
+        }
+        else
+        {
+            clkod = 1;
+        }
+        clkr = 1;
+        clkf=(nMHz*clkr*clkod)/24;
+        ret = (24*clkf)/(clkr*clkod);
+    }
+    else
+    {
+        pCRU_Reg->CRU_MODE_CON = (0x3<<((pll_id*4) +  16)) | (0x0<<(pll_id*4));            //PLL slow-mode
+        dsb();
+
+        pCRU_Reg->CRU_PLL_CON[pll_id][3] = PLL_RESET_RK3066B;
+        pCRU_Reg->CRU_PLL_CON[pll_id][0] = NR_RK3066B(clkr) | NO_RK3066B(clkod);
+        pCRU_Reg->CRU_PLL_CON[pll_id][1] = NF_RK3066B(clkf);
+//     pCRU_Reg->CRU_PLL_CON[pll_id][2] = NB(clkf>>1);
+        ddr_delayus(1);
+        pCRU_Reg->CRU_PLL_CON[pll_id][3] = PLL_DE_RESET_RK3066B;
+        dsb();
+        while (delay > 0) 
+        {
+            ddr_delayus(1);
+            if (pGRF_Reg_RK3066B->GRF_SOC_STATUS0 & (0x1<<5))
+                break;
+            delay--;
+        }
+
+        pCRU_Reg->CRU_CLKSEL_CON[26] = ((0x3 | (0x1<<8))<<16)
+                                                      | (0x0<<8)     //clk_ddr_src = DDR PLL
+                                                      | 0;           //clk_ddr_src:clk_ddrphy = 1:1
+
         pCRU_Reg->CRU_MODE_CON = (0x3<<((pll_id*4) +  16))  | (0x1<<(pll_id*4));            //PLL normal
         dsb();
     }
@@ -2798,9 +2929,19 @@ __sramfunc void ddr_adjust_config(uint32_t dram_type)
     ddr_move_to_Config_state();
 
     //extend capability for debug
-    if(pGRF_Reg->GRF_SOC_CON[2] & (0x1<<1))
+    if(chip_rk3066b_flag == true)
     {
-        pGRF_Reg->GRF_SOC_CON[2] = rank_to_row15_en;
+        if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] & (0x1<<1))
+        {
+            pGRF_Reg_RK3066B->GRF_SOC_CON[2] = rank_to_row15_en;
+        }
+    }
+    else
+    {
+        if(pGRF_Reg->GRF_SOC_CON[2] & (0x1<<1))
+        {
+            pGRF_Reg->GRF_SOC_CON[2] = rank_to_row15_en;
+        }
     }
 
     //set data training address
@@ -2985,15 +3126,18 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
 
      // freq = (Fin/NR)*NF/OD
      if((pCRU_Reg->CRU_MODE_CON&3) == 1)             // CPLL Normal mode
-         freq = 24 *((pCRU_Reg->CRU_PLL_CON[0][1]&0x1fff)+1)    // NF = 2*(CLKF+1)
+         freq = 24 *((pCRU_Reg->CRU_PLL_CON[0][1]&0xffff)+1)    // NF = 2*(CLKF+1)
                 /((((regvalue>>8)&0x3f)+1)           // NR = CLKR+1
-                *((regvalue&0xF)+1));             // OD = 2^CLKOD
+                *((regvalue&0x3F)+1));             // OD = 2^CLKOD
      else
         freq = 24;
         
     loops_per_us = LPJ_100MHZ*freq / 1000000;
-    
-    ret=ddr_set_pll(nMHz,0);
+
+    if(chip_rk3066b_flag == true)
+        ret=ddr_set_pll_rk3600b(nMHz,0);
+    else
+        ret=ddr_set_pll(nMHz,0);
     ddr_get_parameter(ret);
 
     /** 1. Make sure there is no host access */
@@ -3014,7 +3158,14 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     n= pCRU_Reg->CRU_PLL_CON[0][0];
     n= pPMU_Reg->PMU_WAKEUP_CFG[0];
     n= *(volatile uint32_t *)SysSrv_DdrConf;
-    n= pGRF_Reg->GRF_SOC_STATUS0;
+    if(chip_rk3066b_flag == true)
+    {
+        n= pGRF_Reg_RK3066B->GRF_SOC_STATUS0;
+    }
+    else
+    {
+        n= pGRF_Reg->GRF_SOC_STATUS0;
+    }
     dsb();
 
     /** 2. ddr enter self-refresh mode or precharge power-down mode */
@@ -3022,7 +3173,10 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     ddr_selfrefresh_enter(ret);
 
     /** 3. change frequence  */
-    ddr_set_pll(ret,1);
+    if(chip_rk3066b_flag == true)
+        ddr_set_pll_rk3600b(ret,1);
+    else
+        ddr_set_pll(ret,1);
     ddr_freq = ret;
     
     /** 5. Issues a Mode Exit command   */
@@ -3092,9 +3246,17 @@ void __sramfunc ddr_resume(void)
     while (delay > 0) 
     {
 	    ddr_delayus(1);
-		if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
-			break;
-		delay--;
+        if(chip_rk3066b_flag == true)
+        {
+            if (pGRF_Reg_RK3066B->GRF_SOC_STATUS0 & (0x1<<5))
+                break;
+        }
+        else
+        {
+            if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
+                break;
+        }
+        delay--;
 	}
     
     pCRU_Reg->CRU_MODE_CON = (0x3<<((1*4) +  16))  | (0x1<<(1*4));   //PLL normal
@@ -3127,9 +3289,19 @@ uint32 ddr_get_cap(void)
             break;
     }
     row = ddr_cfg_2_rbc[i].row;
-    if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
+    if(*(volatile uint32_t *)(ROM_CHIP_ID_ADDR+0x0c)  == 0x56313030)
     {
-        row += 1;
+        if(pGRF_Reg_RK3066B->GRF_SOC_CON[2] &  (1<<1))
+        {
+            row += 1;
+        }
+    }
+    else
+    {
+        if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
+        {
+            row += 1;
+        }
     }
 
     return (1 << (row+(ddr_cfg_2_rbc[i].col)+(ddr_cfg_2_rbc[i].bank)+2))*cs;
@@ -3225,7 +3397,15 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t cs,die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20120822 \n");
+    ddr_print("version 1.00 20120903 \n");
+
+    if(*(volatile uint32_t *)(ROM_CHIP_ID_ADDR+0x0c)  == 0x56313030)
+    {
+        chip_rk3066b_flag=true;
+        ddr_print("RK3066B \n");
+    }
+    else
+        chip_rk3066b_flag=false;
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
