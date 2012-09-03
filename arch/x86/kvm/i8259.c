@@ -275,23 +275,20 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 {
 	int irq, i;
 	struct kvm_vcpu *vcpu;
-	u8 irr = s->irr, isr = s->imr;
+	u8 edge_irr = s->irr & ~s->elcr;
 	bool found = false;
 
 	s->last_irr = 0;
-	s->irr = 0;
+	s->irr &= s->elcr;
 	s->imr = 0;
-	s->isr = 0;
 	s->priority_add = 0;
-	s->irq_base = 0;
-	s->read_reg_select = 0;
-	s->poll = 0;
 	s->special_mask = 0;
-	s->init_state = 0;
-	s->auto_eoi = 0;
-	s->rotate_on_auto_eoi = 0;
-	s->special_fully_nested_mode = 0;
-	s->init4 = 0;
+	s->read_reg_select = 0;
+	if (!s->init4) {
+		s->special_fully_nested_mode = 0;
+		s->auto_eoi = 0;
+	}
+	s->init_state = 1;
 
 	kvm_for_each_vcpu(i, vcpu, s->pics_state->kvm)
 		if (kvm_apic_accept_pic_intr(vcpu)) {
@@ -304,7 +301,7 @@ void kvm_pic_reset(struct kvm_kpic_state *s)
 		return;
 
 	for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
-		if (irr & (1 << irq) || isr & (1 << irq))
+		if (edge_irr & (1 << irq))
 			pic_clear_isr(s, irq);
 }
 
@@ -316,40 +313,13 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	addr &= 1;
 	if (addr == 0) {
 		if (val & 0x10) {
-			u8 edge_irr = s->irr & ~s->elcr;
-			int i;
-			bool found;
-			struct kvm_vcpu *vcpu;
-
 			s->init4 = val & 1;
-			s->last_irr = 0;
-			s->irr &= s->elcr;
-			s->imr = 0;
-			s->priority_add = 0;
-			s->special_mask = 0;
-			s->read_reg_select = 0;
-			if (!s->init4) {
-				s->special_fully_nested_mode = 0;
-				s->auto_eoi = 0;
-			}
-			s->init_state = 1;
 			if (val & 0x02)
 				pr_pic_unimpl("single mode not supported");
 			if (val & 0x08)
 				pr_pic_unimpl(
-					"level sensitive irq not supported");
-
-			kvm_for_each_vcpu(i, vcpu, s->pics_state->kvm)
-				if (kvm_apic_accept_pic_intr(vcpu)) {
-					found = true;
-					break;
-				}
-
-
-			if (found)
-				for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
-					if (edge_irr & (1 << irq))
-						pic_clear_isr(s, irq);
+						"level sensitive irq not supported");
+			kvm_pic_reset(s);
 		} else if (val & 0x08) {
 			if (val & 0x04)
 				s->poll = 1;
