@@ -29,12 +29,17 @@ config VIDEO_IVTV
 	  module will be called ivtv.
 
 config VIDEO_IVTV_ALSA
-	tristate "Conexant cx23415/cx23416 PCM audio capture support"
-	depends on VIDEO_IVTV && SND && EXPERIMENTAL
+	tristate "Conexant cx23415/cx23416 ALSA interface for PCM audio capture"
+	depends on VIDEO_IVTV && SND
 	select SND_PCM
 	---help---
-	  This is an ALSA interface driver for direct PCM audio capture from
-	  Conexant cx23415/cx23416 based PCI TV cards using the ivtv driver.
+	  This driver provides an ALSA interface as another method for user
+	  applications to obtain PCM audio data from Conexant cx23415/cx23416
+	  based PCI TV cards supported by the ivtv driver.
+
+	  The ALSA interface has much wider use in user applications performing
+	  PCM audio capture, than the V4L2 "/dev/video24" PCM audio interface
+	  provided by the main ivtv driver.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtv-alsa.
