@@ -120,16 +120,6 @@ int __init clk_disable_unused(void);
 void __init rk30_map_io(void)
 {
 	rk30_map_common_io();
-#if defined(CONFIG_ARCH_RK3066B) && defined(DEBUG_UART_BASE)
-	writel_relaxed(0x000f0005, RK30_GRF_BASE + 0x74);
-	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-	writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
-	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-	writel_relaxed(0x83, DEBUG_UART_BASE + 0x0c);
-	writel_relaxed(0x0d, DEBUG_UART_BASE + 0x00);
-	writel_relaxed(0x00, DEBUG_UART_BASE + 0x04);
-	writel_relaxed(0x03, DEBUG_UART_BASE + 0x0c);
-#endif
 	rk29_setup_early_printk();
 	rk30_cpu_axi_init();
 	rk29_sram_init();
