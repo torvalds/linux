@@ -34,7 +34,7 @@ static void ath6kl_recovery_work(struct work_struct *work)
 
 	ar->fw_recovery.err_reason = 0;
 
-	if (ar->fw_recovery.enable)
+	if (ar->fw_recovery.hb_poll)
 		mod_timer(&ar->fw_recovery.hb_timer, jiffies +
 			  msecs_to_jiffies(ar->fw_recovery.hb_poll));
 }
