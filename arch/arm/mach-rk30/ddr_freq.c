@@ -88,21 +88,22 @@ out:
 
 uint32_t ddr_set_rate(uint32_t nMHz)
 {
-	_ddr_change_freq(nMHz);
-	return 0;
+    nMHz = _ddr_change_freq(nMHz);
+    return nMHz;
 }
 
-
 #ifdef CONFIG_HAS_EARLYSUSPEND
+static uint32_t ddr_resume_freq=DDR_FREQ;
+static uint32_t ddr_suspend_freq=120;
 static void ddr_early_suspend(struct early_suspend *h)
 {
     uint32_t value;
 
     //Enable auto self refresh  0x01*32 DDR clk cycle
     ddr_set_auto_self_refresh(true);
-
-    value = _ddr_change_freq(120);
-
+    
+    ddr_resume_freq=clk_get_rate(ddr.ddr_pll)/1000000;
+    value = ddr_set_rate(ddr_suspend_freq);
     ddr_print("init success!!! freq=%dMHz\n", value);
 
     return;
@@ -115,8 +116,7 @@ static void ddr_late_resume(struct early_suspend *h)
     //Disable auto self refresh
     ddr_set_auto_self_refresh(false);
 
-    value = _ddr_change_freq(DDR_FREQ);
-
+    value = ddr_set_rate(ddr_resume_freq);
     ddr_print("init success!!! freq=%dMHz\n", value);
 
     return;
@@ -173,13 +173,9 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                 p=strsep(&cookie_pot,"M");
                 value = simple_strtol(p,NULL,10);
                 printk("change!!! freq=%dMHz\n", value);
-                cpu1_online=cpu_online(1);
-                if(cpu1_online)
-                    cpu_down(1);
-                value=ddr_change_freq(value);
-                if(cpu1_online)
-                    cpu_up(1);
+                value=ddr_set_rate(value);
                 printk("success!!! freq=%dMHz\n", value);
+                msleep(32);
                 printk("\n");
             }
             else
@@ -216,16 +212,9 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                     }while(value < value1);
 
                     printk("change!!! freq=%dMHz\n", value);
-
-                    cpu1_online=cpu_online(1);
-                    if(cpu1_online)
-                        cpu_down(1);
-                    msleep(32);
-                    value=ddr_change_freq(value);
-                    if(cpu1_online)
-                        cpu_up(1);
+                    value=ddr_set_rate(value);
                     printk("success!!! freq=%dMHz\n", value);
-
+                    msleep(32);
                     count++;
                 }
 
@@ -269,14 +258,9 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                     }
 
                     printk("change!!! freq=%dMHz\n", value);
-                    cpu1_online=cpu_online(1);
-                    if(cpu1_online)
-                        cpu_down(1);
-                    msleep(32);
-                    value=ddr_change_freq(value);
-                    if(cpu1_online)
-                        cpu_up(1);
+                    value=ddr_set_rate(value);
                     printk("success!!! freq=%dMHz\n", value);
+                    msleep(32);
                     count++;
                 }
 
@@ -287,7 +271,9 @@ static ssize_t ddr_proc_write(struct file *file, const char __user *buffer,
                 printk("-->'b&&B' auto change ddr freq test (specific),Example: echo 'a:200M-400M-1000T' > ddr_test\n");
             }
             break;
-
+            
+        case 'h':
+        case 'H':
         default:
             printk("Help for ddr_ts .\n-->The Cmd list: \n");
             printk("-->'a&&A' auto change ddr freq test (random),Example: echo 'a:200M-400M-100T' > ddr_test\n");
