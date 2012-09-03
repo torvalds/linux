@@ -38,6 +38,14 @@
 		};
 	};
 
+	gic: interrupt-controller@48241000 {
+		compatible = "arm,cortex-a9-gic";
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		reg = <0x48241000 0x1000>,
+		      <0x48240100 0x0100>;
+	};
+
 	L2: l2-cache-controller@48242000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x48242000 0x1000>;
@@ -76,30 +84,6 @@
 	/*
 	 * XXX: Use a flat representation of the OMAP4 interconnect.
 	 * The real OMAP interconnect network is quite complex.
-	 *
-	 * MPU -+-- MPU_PRIVATE - GIC, L2
-	 *      |
-	 *      +----------------+----------+
-	 *      |                |          |
-	 *      +            +- EMIF - DDR  |
-	 *      |            |              |
-	 *      |            +     +--------+
-	 *      |            |     |
-	 *      |            +- L4_ABE - AESS, MCBSP, TIMERs...
-	 *      |            |
-	 *      +- L3_MAIN --+- L4_CORE - IPs...
-	 *                   |
-	 *                   +- L4_PER - IPs...
-	 *                   |
-	 *                   +- L4_CFG -+- L4_WKUP - IPs...
-	 *                   |          |
-	 *                   |          +- IPs...
-	 *                   +- IPU ----+
-	 *                   |          |
-	 *                   +- DSP ----+
-	 *                   |          |
-	 *                   +- DSS ----+
-	 *
 	 * Since that will not bring real advantage to represent that in DT for
 	 * the moment, just use a fake OCP bus entry to represent the whole bus
 	 * hierarchy.
@@ -110,14 +94,6 @@
 		#size-cells = <1>;
 		ranges;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
-
-		gic: interrupt-controller@48241000 {
-			compatible = "arm,cortex-a9-gic";
-			interrupt-controller;
-			#interrupt-cells = <3>;
-			reg = <0x48241000 0x1000>,
-			      <0x48240100 0x0100>;
-		};
 
 		gpio1: gpio@4a310000 {
 			compatible = "ti,omap4-gpio";
