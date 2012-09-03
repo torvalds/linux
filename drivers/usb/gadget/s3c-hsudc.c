@@ -835,7 +835,7 @@ static struct usb_request *s3c_hsudc_alloc_request(struct usb_ep *_ep,
 
 	hsreq = kzalloc(sizeof(*hsreq), gfp_flags);
 	if (!hsreq)
-		return 0;
+		return NULL;
 
 	INIT_LIST_HEAD(&hsreq->queue);
 	return &hsreq->req;
@@ -904,16 +904,16 @@ static int s3c_hsudc_queue(struct usb_ep *_ep, struct usb_request *_req,
 			csr = readl((u32)hsudc->regs + offset);
 			if (!(csr & S3C_ESR_TX_SUCCESS) &&
 				(s3c_hsudc_write_fifo(hsep, hsreq) == 1))
-				hsreq = 0;
+				hsreq = NULL;
 		} else {
 			csr = readl((u32)hsudc->regs + offset);
 			if ((csr & S3C_ESR_RX_SUCCESS)
 				   && (s3c_hsudc_read_fifo(hsep, hsreq) == 1))
-				hsreq = 0;
+				hsreq = NULL;
 		}
 	}
 
-	if (hsreq != 0)
+	if (hsreq)
 		list_add_tail(&hsreq->queue, &hsep->queue);
 
 	spin_unlock_irqrestore(&hsudc->lock, flags);
