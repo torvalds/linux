@@ -61,7 +61,7 @@ static void ath6kl_recovery_hb_timer(unsigned long data)
 	struct ath6kl *ar = (struct ath6kl *) data;
 	int err;
 
-	if (!ar->fw_recovery.enable)
+	if (!ar->fw_recovery.enable || (ar->state == ATH6KL_STATE_RECOVERY))
 		return;
 
 	if (ar->fw_recovery.hb_pending)
@@ -85,9 +85,6 @@ static void ath6kl_recovery_hb_timer(unsigned long data)
 	if (err)
 		ath6kl_warn("Failed to send hb challenge request, err:%d\n",
 			    err);
-
-	if ((ar->state == ATH6KL_STATE_RECOVERY) || !ar->fw_recovery.enable)
-		return;
 
 	mod_timer(&ar->fw_recovery.hb_timer, jiffies +
 		  msecs_to_jiffies(ar->fw_recovery.hb_poll));
