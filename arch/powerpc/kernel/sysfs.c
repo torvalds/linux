@@ -196,8 +196,10 @@ static ssize_t show_dscr_default(struct device *dev,
 
 static void update_dscr(void *dummy)
 {
-	if (!current->thread.dscr_inherit)
+	if (!current->thread.dscr_inherit) {
+		current->thread.dscr = dscr_default;
 		mtspr(SPRN_DSCR, dscr_default);
+	}
 }
 
 static ssize_t __used store_dscr_default(struct device *dev,
