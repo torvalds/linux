@@ -49,6 +49,11 @@ static bool modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
+static bool rt2800usb_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
+{
+	return modparam_nohwcrypt;
+}
+
 /*
  * Queue handlers.
  */
@@ -730,73 +735,27 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 /*
  * Device probe functions.
  */
-static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+static void rt2800usb_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	if (rt2800_efuse_detect(rt2x00dev))
 		rt2800_read_eeprom_efuse(rt2x00dev);
 	else
 		rt2x00usb_eeprom_read(rt2x00dev, rt2x00dev->eeprom,
 				      EEPROM_SIZE);
-
-	return rt2800_validate_eeprom(rt2x00dev);
 }
 
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
-	u32 reg;
 
-	/*
-	 * Allocate eeprom data.
-	 */
-	retval = rt2800usb_validate_eeprom(rt2x00dev);
-	if (retval)
-		return retval;
-
-	retval = rt2800_init_eeprom(rt2x00dev);
+	retval = rt2800_probe_hw(rt2x00dev);
 	if (retval)
 		return retval;
 
 	/*
-	 * Enable rfkill polling by setting GPIO direction of the
-	 * rfkill switch GPIO pin correctly.
+	 * Set txstatus timer function.
 	 */
-	rt2x00usb_register_read(rt2x00dev, GPIO_CTRL, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_DIR2, 1);
-	rt2x00usb_register_write(rt2x00dev, GPIO_CTRL, reg);
-
-	/*
-	 * Initialize hw specifications.
-	 */
-	retval = rt2800_probe_hw_mode(rt2x00dev);
-	if (retval)
-		return retval;
-
-	/*
-	 * This device has multiple filters for control frames
-	 * and has a separate filter for PS Poll frames.
-	 */
-	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
-	__set_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags);
-
-	/*
-	 * This device requires firmware.
-	 */
-	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags);
-	if (!modparam_nohwcrypt)
-		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
-	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
-
-	rt2x00dev->txstatus_timer.function = rt2800usb_tx_sta_fifo_timeout,
-
-	/*
-	 * Set the rssi offset.
-	 */
-	rt2x00dev->rssi_offset = DEFAULT_RSSI_OFFSET;
+	rt2x00dev->txstatus_timer.function = rt2800usb_tx_sta_fifo_timeout;
 
 	/*
 	 * Overwrite TX done handler
@@ -842,6 +801,8 @@ static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.register_multiread	= rt2x00usb_register_multiread,
 	.register_multiwrite	= rt2x00usb_register_multiwrite,
 	.regbusy_read		= rt2x00usb_regbusy_read,
+	.read_eeprom		= rt2800usb_read_eeprom,
+	.hwcrypt_disabled	= rt2800usb_hwcrypt_disabled,
 	.drv_write_firmware	= rt2800usb_write_firmware,
 	.drv_init_registers	= rt2800usb_init_registers,
 	.drv_get_txwi		= rt2800usb_get_txwi,

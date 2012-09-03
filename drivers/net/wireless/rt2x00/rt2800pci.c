@@ -54,6 +54,11 @@ static bool modparam_nohwcrypt = false;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
+static bool rt2800pci_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
+{
+	return modparam_nohwcrypt;
+}
+
 static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 {
 	unsigned int i;
@@ -965,85 +970,14 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 /*
  * Device probe functions.
  */
-static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+static void rt2800pci_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
-	/*
-	 * Read EEPROM into buffer
-	 */
 	if (rt2x00_is_soc(rt2x00dev))
 		rt2800pci_read_eeprom_soc(rt2x00dev);
 	else if (rt2800pci_efuse_detect(rt2x00dev))
 		rt2800pci_read_eeprom_efuse(rt2x00dev);
 	else
 		rt2800pci_read_eeprom_pci(rt2x00dev);
-
-	return rt2800_validate_eeprom(rt2x00dev);
-}
-
-static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
-{
-	int retval;
-	u32 reg;
-
-	/*
-	 * Allocate eeprom data.
-	 */
-	retval = rt2800pci_validate_eeprom(rt2x00dev);
-	if (retval)
-		return retval;
-
-	retval = rt2800_init_eeprom(rt2x00dev);
-	if (retval)
-		return retval;
-
-	/*
-	 * Enable rfkill polling by setting GPIO direction of the
-	 * rfkill switch GPIO pin correctly.
-	 */
-	rt2x00pci_register_read(rt2x00dev, GPIO_CTRL, &reg);
-	rt2x00_set_field32(&reg, GPIO_CTRL_DIR2, 1);
-	rt2x00pci_register_write(rt2x00dev, GPIO_CTRL, reg);
-
-	/*
-	 * Initialize hw specifications.
-	 */
-	retval = rt2800_probe_hw_mode(rt2x00dev);
-	if (retval)
-		return retval;
-
-	/*
-	 * This device has multiple filters for control frames
-	 * and has a separate filter for PS Poll frames.
-	 */
-	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
-	__set_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags);
-
-	/*
-	 * This device has a pre tbtt interrupt and thus fetches
-	 * a new beacon directly prior to transmission.
-	 */
-	__set_bit(CAPABILITY_PRE_TBTT_INTERRUPT, &rt2x00dev->cap_flags);
-
-	/*
-	 * This device requires firmware.
-	 */
-	if (!rt2x00_is_soc(rt2x00dev))
-		__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_DMA, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
-	if (!modparam_nohwcrypt)
-		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
-	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
-	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
-
-	/*
-	 * Set the rssi offset.
-	 */
-	rt2x00dev->rssi_offset = DEFAULT_RSSI_OFFSET;
-
-	return 0;
 }
 
 static const struct ieee80211_ops rt2800pci_mac80211_ops = {
@@ -1081,6 +1015,8 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.register_multiread	= rt2x00pci_register_multiread,
 	.register_multiwrite	= rt2x00pci_register_multiwrite,
 	.regbusy_read		= rt2x00pci_regbusy_read,
+	.read_eeprom		= rt2800pci_read_eeprom,
+	.hwcrypt_disabled	= rt2800pci_hwcrypt_disabled,
 	.drv_write_firmware	= rt2800pci_write_firmware,
 	.drv_init_registers	= rt2800pci_init_registers,
 	.drv_get_txwi		= rt2800pci_get_txwi,
@@ -1093,7 +1029,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.tbtt_tasklet		= rt2800pci_tbtt_tasklet,
 	.rxdone_tasklet		= rt2800pci_rxdone_tasklet,
 	.autowake_tasklet	= rt2800pci_autowake_tasklet,
-	.probe_hw		= rt2800pci_probe_hw,
+	.probe_hw		= rt2800_probe_hw,
 	.get_firmware_name	= rt2800pci_get_firmware_name,
 	.check_firmware		= rt2800_check_firmware,
 	.load_firmware		= rt2800_load_firmware,

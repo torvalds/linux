@@ -4392,12 +4392,17 @@ void rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_read_eeprom_efuse);
 
-int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
+static int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u16 word;
 	u8 *mac;
 	u8 default_lna_gain;
+
+	/*
+	 * Read the EEPROM.
+	 */
+	rt2800_read_eeprom(rt2x00dev);
 
 	/*
 	 * Start validation of the data that has been read.
@@ -4521,9 +4526,8 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt2800_validate_eeprom);
 
-int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
+static int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 	u16 value;
@@ -4681,7 +4685,6 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt2800_init_eeprom);
 
 /*
  * RF value list for rt28xx
@@ -4824,7 +4827,7 @@ static const struct rf_channel rf_vals_3x[] = {
 	{173, 0x61, 0, 9},
 };
 
-int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
+static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
 	struct channel_info *info;
@@ -5000,7 +5003,72 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt2800_probe_hw_mode);
+
+int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev)
+{
+	int retval;
+	u32 reg;
+
+	/*
+	 * Allocate eeprom data.
+	 */
+	retval = rt2800_validate_eeprom(rt2x00dev);
+	if (retval)
+		return retval;
+
+	retval = rt2800_init_eeprom(rt2x00dev);
+	if (retval)
+		return retval;
+
+	/*
+	 * Enable rfkill polling by setting GPIO direction of the
+	 * rfkill switch GPIO pin correctly.
+	 */
+	rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+	rt2x00_set_field32(&reg, GPIO_CTRL_DIR2, 1);
+	rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
+
+	/*
+	 * Initialize hw specifications.
+	 */
+	retval = rt2800_probe_hw_mode(rt2x00dev);
+	if (retval)
+		return retval;
+
+	/*
+	 * Set device capabilities.
+	 */
+	__set_bit(CAPABILITY_CONTROL_FILTERS, &rt2x00dev->cap_flags);
+	__set_bit(CAPABILITY_CONTROL_FILTER_PSPOLL, &rt2x00dev->cap_flags);
+	if (!rt2x00_is_usb(rt2x00dev))
+		__set_bit(CAPABILITY_PRE_TBTT_INTERRUPT, &rt2x00dev->cap_flags);
+
+	/*
+	 * Set device requirements.
+	 */
+	if (!rt2x00_is_soc(rt2x00dev))
+		__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_L2PAD, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
+	if (!rt2800_hwcrypt_disabled(rt2x00dev))
+		__set_bit(CAPABILITY_HW_CRYPTO, &rt2x00dev->cap_flags);
+	__set_bit(CAPABILITY_LINK_TUNING, &rt2x00dev->cap_flags);
+	__set_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags);
+	if (rt2x00_is_usb(rt2x00dev))
+		__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
+	else {
+		__set_bit(REQUIRE_DMA, &rt2x00dev->cap_flags);
+		__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
+	}
+
+	/*
+	 * Set the rssi offset.
+	 */
+	rt2x00dev->rssi_offset = DEFAULT_RSSI_OFFSET;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2800_probe_hw);
 
 /*
  * IEEE80211 stack callback functions.
