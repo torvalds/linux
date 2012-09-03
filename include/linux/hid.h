@@ -414,7 +414,7 @@ struct hid_field {
 	__u16 dpad;			/* dpad input code */
 };
 
-#define HID_MAX_FIELDS 128
+#define HID_MAX_FIELDS 256
 
 struct hid_report {
 	struct list_head list;
