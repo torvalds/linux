@@ -51,7 +51,7 @@ static int nand_ecc_test(const size_t size)
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 4,
 			error_data, size, false);
 
-	return -1;
+	return -EINVAL;
 }
 
 #else
