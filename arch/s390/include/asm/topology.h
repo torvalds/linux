@@ -2,8 +2,8 @@
 #define _ASM_S390_TOPOLOGY_H
 
 #include <linux/cpumask.h>
-#include <asm/sysinfo.h>
 
+struct sysinfo_15_1_x;
 struct cpu;
 
 #ifdef CONFIG_SCHED_BOOK
