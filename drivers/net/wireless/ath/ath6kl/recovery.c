@@ -41,6 +41,9 @@ static void ath6kl_recovery_work(struct work_struct *work)
 
 void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason)
 {
+	if (!ar->fw_recovery.enable)
+		return;
+
 	ath6kl_dbg(ATH6KL_DBG_RECOVERY, "Fw error detected, reason:%d\n",
 		   reason);
 
@@ -112,6 +115,9 @@ void ath6kl_recovery_init(struct ath6kl *ar)
 
 void ath6kl_recovery_cleanup(struct ath6kl *ar)
 {
+	if (!ar->fw_recovery.enable)
+		return;
+
 	set_bit(RECOVERY_CLEANUP, &ar->flag);
 
 	del_timer_sync(&ar->fw_recovery.hb_timer);
@@ -120,6 +126,9 @@ void ath6kl_recovery_cleanup(struct ath6kl *ar)
 
 void ath6kl_recovery_suspend(struct ath6kl *ar)
 {
+	if (!ar->fw_recovery.enable)
+		return;
+
 	ath6kl_recovery_cleanup(ar);
 
 	if (!ar->fw_recovery.err_reason)
@@ -135,6 +144,9 @@ void ath6kl_recovery_suspend(struct ath6kl *ar)
 
 void ath6kl_recovery_resume(struct ath6kl *ar)
 {
+	if (!ar->fw_recovery.enable)
+		return;
+
 	clear_bit(RECOVERY_CLEANUP, &ar->flag);
 
 	if (!ar->fw_recovery.hb_poll)
