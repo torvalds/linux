@@ -49,18 +49,31 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
 #include <linux/swab.h>
 
 #ifdef CONFIG_CPU_ENDIAN_BE8
+
 #define __opcode_to_mem_arm(x) swab32(x)
 #define __opcode_to_mem_thumb16(x) swab16(x)
 #define __opcode_to_mem_thumb32(x) swahb32(x)
-#else
+
+#else /* ! CONFIG_CPU_ENDIAN_BE8 */
+
 #define __opcode_to_mem_arm(x) ((u32)(x))
 #define __opcode_to_mem_thumb16(x) ((u16)(x))
+#ifndef CONFIG_CPU_ENDIAN_BE32
+/*
+ * On BE32 systems, using 32-bit accesses to store Thumb instructions will not
+ * work in all cases, due to alignment constraints.  For now, a correct
+ * version is not provided for BE32.
+ */
 #define __opcode_to_mem_thumb32(x) swahw32(x)
 #endif
 
+#endif /* ! CONFIG_CPU_ENDIAN_BE8 */
+
 #define __mem_to_opcode_arm(x) __opcode_to_mem_arm(x)
 #define __mem_to_opcode_thumb16(x) __opcode_to_mem_thumb16(x)
+#ifndef CONFIG_CPU_ENDIAN_BE32
 #define __mem_to_opcode_thumb32(x) __opcode_to_mem_thumb32(x)
+#endif
 
 /* Operations specific to Thumb opcodes */
 
