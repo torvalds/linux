@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <math.h>
 
 #include "../../util/util.h"
 #include "../../util/hist.h"
@@ -291,138 +290,6 @@ static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
 	return 0;
 }
 
-static int hist_entry__period_snprintf(struct hist_entry *he, char *s,
-				     size_t size, struct hists *pair_hists,
-				     bool show_displacement, long displacement,
-				     bool color, u64 total_period)
-{
-	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
-	u64 nr_events;
-	const char *sep = symbol_conf.field_sep;
-	int ret;
-
-	if (symbol_conf.exclude_other && !he->parent)
-		return 0;
-
-	if (pair_hists) {
-		period = he->pair ? he->pair->period : 0;
-		nr_events = he->pair ? he->pair->nr_events : 0;
-		total = pair_hists->stats.total_period;
-		period_sys = he->pair ? he->pair->period_sys : 0;
-		period_us = he->pair ? he->pair->period_us : 0;
-		period_guest_sys = he->pair ? he->pair->period_guest_sys : 0;
-		period_guest_us = he->pair ? he->pair->period_guest_us : 0;
-	} else {
-		period = he->period;
-		nr_events = he->nr_events;
-		total = total_period;
-		period_sys = he->period_sys;
-		period_us = he->period_us;
-		period_guest_sys = he->period_guest_sys;
-		period_guest_us = he->period_guest_us;
-	}
-
-	if (total) {
-		if (color)
-			ret = percent_color_snprintf(s, size,
-						     sep ? "%.2f" : "   %6.2f%%",
-						     (period * 100.0) / total);
-		else
-			ret = scnprintf(s, size, sep ? "%.2f" : "   %6.2f%%",
-				       (period * 100.0) / total);
-		if (symbol_conf.show_cpu_utilization) {
-			ret += percent_color_snprintf(s + ret, size - ret,
-					sep ? "%.2f" : "   %6.2f%%",
-					(period_sys * 100.0) / total);
-			ret += percent_color_snprintf(s + ret, size - ret,
-					sep ? "%.2f" : "   %6.2f%%",
-					(period_us * 100.0) / total);
-			if (perf_guest) {
-				ret += percent_color_snprintf(s + ret,
-						size - ret,
-						sep ? "%.2f" : "   %6.2f%%",
-						(period_guest_sys * 100.0) /
-								total);
-				ret += percent_color_snprintf(s + ret,
-						size - ret,
-						sep ? "%.2f" : "   %6.2f%%",
-						(period_guest_us * 100.0) /
-								total);
-			}
-		}
-	} else
-		ret = scnprintf(s, size, sep ? "%" PRIu64 : "%12" PRIu64 " ", period);
-
-	if (symbol_conf.show_nr_samples) {
-		if (sep)
-			ret += scnprintf(s + ret, size - ret, "%c%" PRIu64, *sep, nr_events);
-		else
-			ret += scnprintf(s + ret, size - ret, "%11" PRIu64, nr_events);
-	}
-
-	if (symbol_conf.show_total_period) {
-		if (sep)
-			ret += scnprintf(s + ret, size - ret, "%c%" PRIu64, *sep, period);
-		else
-			ret += scnprintf(s + ret, size - ret, " %12" PRIu64, period);
-	}
-
-	if (pair_hists) {
-		char bf[32];
-		double old_percent = 0, new_percent = 0, diff;
-
-		if (total > 0)
-			old_percent = (period * 100.0) / total;
-		if (total_period > 0)
-			new_percent = (he->period * 100.0) / total_period;
-
-		diff = new_percent - old_percent;
-
-		if (fabs(diff) >= 0.01)
-			scnprintf(bf, sizeof(bf), "%+4.2F%%", diff);
-		else
-			scnprintf(bf, sizeof(bf), " ");
-
-		if (sep)
-			ret += scnprintf(s + ret, size - ret, "%c%s", *sep, bf);
-		else
-			ret += scnprintf(s + ret, size - ret, "%11.11s", bf);
-
-		if (show_displacement) {
-			if (displacement)
-				scnprintf(bf, sizeof(bf), "%+4ld", displacement);
-			else
-				scnprintf(bf, sizeof(bf), " ");
-
-			if (sep)
-				ret += scnprintf(s + ret, size - ret, "%c%s", *sep, bf);
-			else
-				ret += scnprintf(s + ret, size - ret, "%6.6s", bf);
-		}
-	}
-
-	return ret;
-}
-
-int hist_entry__sort_snprintf(struct hist_entry *he, char *s, size_t size,
-			      struct hists *hists)
-{
-	const char *sep = symbol_conf.field_sep;
-	struct sort_entry *se;
-	int ret = 0;
-
-	list_for_each_entry(se, &hist_entry__sort_list, list) {
-		if (se->elide)
-			continue;
-
-		ret += scnprintf(s + ret, size - ret, "%s", sep ?: "  ");
-		ret += se->se_snprintf(he, s + ret, size - ret,
-				       hists__col_len(hists, se->se_width_idx));
-	}
-
-	return ret;
-}
-
 static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 					    struct hists *hists,
 					    u64 total_period, FILE *fp)
@@ -441,18 +308,22 @@ static size_t hist_entry__callchain_fprintf(struct hist_entry *he,
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 			       struct hists *hists, struct hists *pair_hists,
-			       bool show_displacement, long displacement,
-			       u64 total_period, FILE *fp)
+			       long displacement, u64 total_period, FILE *fp)
 {
 	char bf[512];
 	int ret;
+	struct perf_hpp hpp = {
+		.buf		= bf,
+		.size		= size,
+		.total_period	= total_period,
+		.displacement	= displacement,
+		.ptr		= pair_hists,
+	};
 
 	if (size == 0 || size > sizeof(bf))
-		size = sizeof(bf);
+		size = hpp.size = sizeof(bf);
 
-	ret = hist_entry__period_snprintf(he, bf, size, pair_hists,
-					  show_displacement, displacement,
-					  true, total_period);
+	ret = hist_entry__period_snprintf(&hpp, he, true);
 	hist_entry__sort_snprintf(he, bf + ret, size - ret, hists);
 
 	ret = fprintf(fp, "%s\n", bf);
@@ -477,59 +348,29 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
 	const char *col_width = symbol_conf.col_width_list_str;
-	int nr_rows = 0;
+	int idx, nr_rows = 0;
+	char bf[64];
+	struct perf_hpp dummy_hpp = {
+		.buf	= bf,
+		.size	= sizeof(bf),
+		.ptr	= pair,
+	};
 
 	init_rem_hits();
 
 	if (!show_header)
 		goto print_entries;
 
-	fprintf(fp, "# %s", pair ? "Baseline" : "Overhead");
+	fprintf(fp, "# ");
+	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
+		if (!perf_hpp__format[idx].cond)
+			continue;
 
-	if (symbol_conf.show_cpu_utilization) {
-		if (sep) {
-			ret += fprintf(fp, "%csys", *sep);
-			ret += fprintf(fp, "%cus", *sep);
-			if (perf_guest) {
-				ret += fprintf(fp, "%cguest sys", *sep);
-				ret += fprintf(fp, "%cguest us", *sep);
-			}
-		} else {
-			ret += fprintf(fp, "     sys  ");
-			ret += fprintf(fp, "      us  ");
-			if (perf_guest) {
-				ret += fprintf(fp, "  guest sys  ");
-				ret += fprintf(fp, "  guest us  ");
-			}
-		}
-	}
+		if (idx)
+			fprintf(fp, "%s", sep ?: "  ");
 
-	if (symbol_conf.show_nr_samples) {
-		if (sep)
-			fprintf(fp, "%cSamples", *sep);
-		else
-			fputs("  Samples  ", fp);
-	}
-
-	if (symbol_conf.show_total_period) {
-		if (sep)
-			ret += fprintf(fp, "%cPeriod", *sep);
-		else
-			ret += fprintf(fp, "   Period    ");
-	}
-
-	if (pair) {
-		if (sep)
-			ret += fprintf(fp, "%cDelta", *sep);
-		else
-			ret += fprintf(fp, "  Delta    ");
-
-		if (show_displacement) {
-			if (sep)
-				ret += fprintf(fp, "%cDisplacement", *sep);
-			else
-				ret += fprintf(fp, " Displ");
-		}
+		perf_hpp__format[idx].header(&dummy_hpp);
+		fprintf(fp, "%s", bf);
 	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
@@ -561,18 +402,21 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	if (sep)
 		goto print_entries;
 
-	fprintf(fp, "# ........");
-	if (symbol_conf.show_cpu_utilization)
-		fprintf(fp, "   .......   .......");
-	if (symbol_conf.show_nr_samples)
-		fprintf(fp, " ..........");
-	if (symbol_conf.show_total_period)
-		fprintf(fp, " ............");
-	if (pair) {
-		fprintf(fp, " ..........");
-		if (show_displacement)
-			fprintf(fp, " .....");
+	fprintf(fp, "# ");
+	for (idx = 0; idx < PERF_HPP__MAX_INDEX; idx++) {
+		unsigned int i;
+
+		if (!perf_hpp__format[idx].cond)
+			continue;
+
+		if (idx)
+			fprintf(fp, "%s", sep ?: "  ");
+
+		width = perf_hpp__format[idx].width(&dummy_hpp);
+		for (i = 0; i < width; i++)
+			fprintf(fp, ".");
 	}
+
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		unsigned int i;
 
@@ -612,8 +456,8 @@ print_entries:
 				displacement = 0;
 			++position;
 		}
-		ret += hist_entry__fprintf(h, max_cols, hists, pair, show_displacement,
-					   displacement, total_period, fp);
+		ret += hist_entry__fprintf(h, max_cols, hists, pair, displacement,
+					   total_period, fp);
 
 		if (max_rows && ++nr_rows >= max_rows)
 			goto out;
