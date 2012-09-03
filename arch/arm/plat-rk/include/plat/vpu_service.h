@@ -32,21 +32,6 @@
 #define VPU_IOC_SET_REG                     _IOW(VPU_IOC_MAGIC, 3, unsigned long)
 #define VPU_IOC_GET_REG                     _IOW(VPU_IOC_MAGIC, 4, unsigned long)
 
-
-// client type: decoder only£º60 registers, size 240B
-#define VPU_REG_NUM_DEC                     (60)
-// client type: post-process only£º41 registers, size 164B
-#define VPU_REG_NUM_PP                      (41)
-// client type: decoder plus post-process£º101 registers, size 404B
-#define VPU_REG_NUM_DEC_PP                  (VPU_REG_NUM_DEC+VPU_REG_NUM_PP)
-#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK2928)
-// client type: encoder only:  96 registers, size 384B for rk29
-#define VPU_REG_NUM_ENC                     (96)
-#elif defined(CONFIG_ARCH_RK30)
-// client type: encoder only: 164 registers, size 384B for rk30
-#define VPU_REG_NUM_ENC                     (164)
-#endif
-
 typedef enum VPU_CLIENT_TYPE {
     VPU_ENC                 = 0x0,
     VPU_DEC                 = 0x1,
@@ -90,9 +75,8 @@ typedef struct VPUHwEndConfig
     unsigned long   mpeg4Enabled;           /* HW supports MPEG-4 */
     unsigned long   vsEnabled;              /* HW supports video stabilization */
     unsigned long   rgbEnabled;             /* HW supports RGB input */
-    unsigned long   busType;                /* HW bus type in use */
-    unsigned long   busWidth;
-    unsigned long   synthesisLanguage;
+    unsigned long   reg_size;
+    unsigned long   reserv[2];              /* reverved */
 } VPUHwEncConfig_t;
 
 typedef struct VPUHwCfgReq
