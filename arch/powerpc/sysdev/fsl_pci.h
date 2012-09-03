@@ -16,6 +16,7 @@
 
 #define PCIE_LTSSM	0x0404		/* PCIE Link Training and Status */
 #define PCIE_LTSSM_L0	0x16		/* L0 state */
+#define PCIE_IP_REV_2_2		0x02080202 /* PCIE IP block version Rev2.2 */
 #define PIWAR_EN		0x80000000	/* Enable */
 #define PIWAR_PF		0x20000000	/* prefetch */
 #define PIWAR_TGI_LOCAL		0x00f00000	/* target - local memory */
@@ -57,7 +58,9 @@ struct ccsr_pci {
 	__be32	pex_pme_mes_disr;	/* 0x.024 - PCIE PME and message disable register */
 	__be32	pex_pme_mes_ier;	/* 0x.028 - PCIE PME and message interrupt enable register */
 	__be32	pex_pmcr;		/* 0x.02c - PCIE power management command register */
-	u8	res3[3024];
+	u8	res3[3016];
+	__be32	block_rev1;	/* 0x.bf8 - PCIE Block Revision register 1 */
+	__be32	block_rev2;	/* 0x.bfc - PCIE Block Revision register 2 */
 
 /* PCI/PCI Express outbound window 0-4
  * Window 0 is the default window and is the only window enabled upon reset.
