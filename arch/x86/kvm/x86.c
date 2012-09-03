@@ -4544,6 +4544,9 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 	return true;
 }
 
+static int complete_emulated_mmio(struct kvm_vcpu *vcpu);
+static int complete_emulated_pio(struct kvm_vcpu *vcpu);
+
 int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			    unsigned long cr2,
 			    int emulation_type,
@@ -4614,13 +4617,16 @@ restart:
 	} else if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in)
 			vcpu->arch.pio.count = 0;
-		else
+		else {
 			writeback = false;
+			vcpu->arch.complete_userspace_io = complete_emulated_pio;
+		}
 		r = EMULATE_DO_MMIO;
 	} else if (vcpu->mmio_needed) {
 		if (!vcpu->mmio_is_write)
 			writeback = false;
 		r = EMULATE_DO_MMIO;
+		vcpu->arch.complete_userspace_io = complete_emulated_mmio;
 	} else if (r == EMULATION_RESTART)
 		goto restart;
 	else
@@ -5476,6 +5482,24 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+static inline int complete_emulated_io(struct kvm_vcpu *vcpu)
+{
+	int r;
+	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+	if (r != EMULATE_DONE)
+		return 0;
+	return 1;
+}
+
+static int complete_emulated_pio(struct kvm_vcpu *vcpu)
+{
+	BUG_ON(!vcpu->arch.pio.count);
+
+	return complete_emulated_io(vcpu);
+}
+
 /*
  * Implements the following, as a state machine:
  *
@@ -5492,46 +5516,36 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
  *      copy data
  *      exit
  */
-static int complete_mmio(struct kvm_vcpu *vcpu)
+static int complete_emulated_mmio(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 	struct kvm_mmio_fragment *frag;
-	int r;
 
-	if (!(vcpu->arch.pio.count || vcpu->mmio_needed))
-		return 1;
+	BUG_ON(!vcpu->mmio_needed);
 
-	if (vcpu->mmio_needed) {
-		/* Complete previous fragment */
-		frag = &vcpu->mmio_fragments[vcpu->mmio_cur_fragment++];
-		if (!vcpu->mmio_is_write)
-			memcpy(frag->data, run->mmio.data, frag->len);
-		if (vcpu->mmio_cur_fragment == vcpu->mmio_nr_fragments) {
-			vcpu->mmio_needed = 0;
-			if (vcpu->mmio_is_write)
-				return 1;
-			vcpu->mmio_read_completed = 1;
-			goto done;
-		}
-		/* Initiate next fragment */
-		++frag;
-		run->exit_reason = KVM_EXIT_MMIO;
-		run->mmio.phys_addr = frag->gpa;
+	/* Complete previous fragment */
+	frag = &vcpu->mmio_fragments[vcpu->mmio_cur_fragment++];
+	if (!vcpu->mmio_is_write)
+		memcpy(frag->data, run->mmio.data, frag->len);
+	if (vcpu->mmio_cur_fragment == vcpu->mmio_nr_fragments) {
+		vcpu->mmio_needed = 0;
 		if (vcpu->mmio_is_write)
-			memcpy(run->mmio.data, frag->data, frag->len);
-		run->mmio.len = frag->len;
-		run->mmio.is_write = vcpu->mmio_is_write;
-		return 0;
-
+			return 1;
+		vcpu->mmio_read_completed = 1;
+		return complete_emulated_io(vcpu);
 	}
-done:
-	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
-	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-	if (r != EMULATE_DONE)
-		return 0;
-	return 1;
+	/* Initiate next fragment */
+	++frag;
+	run->exit_reason = KVM_EXIT_MMIO;
+	run->mmio.phys_addr = frag->gpa;
+	if (vcpu->mmio_is_write)
+		memcpy(run->mmio.data, frag->data, frag->len);
+	run->mmio.len = frag->len;
+	run->mmio.is_write = vcpu->mmio_is_write;
+	vcpu->arch.complete_userspace_io = complete_emulated_mmio;
+	return 0;
 }
+
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
@@ -5559,9 +5573,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		}
 	}
 
-	r = complete_mmio(vcpu);
-	if (r <= 0)
-		goto out;
+	if (unlikely(vcpu->arch.complete_userspace_io)) {
+		int (*cui)(struct kvm_vcpu *) = vcpu->arch.complete_userspace_io;
+		vcpu->arch.complete_userspace_io = NULL;
+		r = cui(vcpu);
+		if (r <= 0)
+			goto out;
+	} else
+		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
 
 	r = __vcpu_run(vcpu);
 

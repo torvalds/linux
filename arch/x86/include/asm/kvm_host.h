@@ -414,6 +414,7 @@ struct kvm_vcpu_arch {
 	struct x86_emulate_ctxt emulate_ctxt;
 	bool emulate_regs_need_sync_to_vcpu;
 	bool emulate_regs_need_sync_from_vcpu;
+	int (*complete_userspace_io)(struct kvm_vcpu *vcpu);
 
 	gpa_t time;
 	struct pvclock_vcpu_time_info hv_clock;
