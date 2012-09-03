@@ -111,6 +111,10 @@
 #define DAVINCI_MCASP_WFIFOSTS		(0x1014)
 #define DAVINCI_MCASP_RFIFOCTL		(0x1018)
 #define DAVINCI_MCASP_RFIFOSTS		(0x101C)
+#define MCASP_VER3_WFIFOCTL		(0x1000)
+#define MCASP_VER3_WFIFOSTS		(0x1004)
+#define MCASP_VER3_RFIFOCTL		(0x1008)
+#define MCASP_VER3_RFIFOSTS		(0x100C)
 
 /*
  * DAVINCI_MCASP_PWREMUMGT_REG - Power Down and Emulation Management
@@ -384,18 +388,36 @@ static void davinci_mcasp_start(struct davinci_audio_dev *dev, int stream)
 {
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (dev->txnumevt) {	/* enable FIFO */
-			mcasp_clr_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+			switch (dev->version) {
+			case MCASP_VERSION_3:
+				mcasp_clr_bits(dev->base + MCASP_VER3_WFIFOCTL,
 								FIFO_ENABLE);
-			mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+				mcasp_set_bits(dev->base + MCASP_VER3_WFIFOCTL,
 								FIFO_ENABLE);
+				break;
+			default:
+				mcasp_clr_bits(dev->base +
+					DAVINCI_MCASP_WFIFOCTL,	FIFO_ENABLE);
+				mcasp_set_bits(dev->base +
+					DAVINCI_MCASP_WFIFOCTL,	FIFO_ENABLE);
+			}
 		}
 		mcasp_start_tx(dev);
 	} else {
 		if (dev->rxnumevt) {	/* enable FIFO */
-			mcasp_clr_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+			switch (dev->version) {
+			case MCASP_VERSION_3:
+				mcasp_clr_bits(dev->base + MCASP_VER3_RFIFOCTL,
 								FIFO_ENABLE);
-			mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+				mcasp_set_bits(dev->base + MCASP_VER3_RFIFOCTL,
 								FIFO_ENABLE);
+				break;
+			default:
+				mcasp_clr_bits(dev->base +
+					DAVINCI_MCASP_RFIFOCTL,	FIFO_ENABLE);
+				mcasp_set_bits(dev->base +
+					DAVINCI_MCASP_RFIFOCTL,	FIFO_ENABLE);
+			}
 		}
 		mcasp_start_rx(dev);
 	}
@@ -416,14 +438,31 @@ static void mcasp_stop_tx(struct davinci_audio_dev *dev)
 static void davinci_mcasp_stop(struct davinci_audio_dev *dev, int stream)
 {
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (dev->txnumevt)	/* disable FIFO */
-			mcasp_clr_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+		if (dev->txnumevt) {	/* disable FIFO */
+			switch (dev->version) {
+			case MCASP_VERSION_3:
+				mcasp_clr_bits(dev->base + MCASP_VER3_WFIFOCTL,
 								FIFO_ENABLE);
+				break;
+			default:
+				mcasp_clr_bits(dev->base +
+					DAVINCI_MCASP_WFIFOCTL,	FIFO_ENABLE);
+			}
+		}
 		mcasp_stop_tx(dev);
 	} else {
-		if (dev->rxnumevt)	/* disable FIFO */
-			mcasp_clr_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+		if (dev->rxnumevt) {	/* disable FIFO */
+			switch (dev->version) {
+			case MCASP_VERSION_3:
+				mcasp_clr_bits(dev->base + MCASP_VER3_RFIFOCTL,
 								FIFO_ENABLE);
+			break;
+
+			default:
+				mcasp_clr_bits(dev->base +
+					DAVINCI_MCASP_RFIFOCTL,	FIFO_ENABLE);
+			}
+		}
 		mcasp_stop_rx(dev);
 	}
 }
@@ -622,20 +661,37 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 		if (dev->txnumevt * tx_ser > 64)
 			dev->txnumevt = 1;
 
-		mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, tx_ser,
+		switch (dev->version) {
+		case MCASP_VERSION_3:
+			mcasp_mod_bits(dev->base + MCASP_VER3_WFIFOCTL, tx_ser,
 								NUMDMA_MASK);
-		mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+			mcasp_mod_bits(dev->base + MCASP_VER3_WFIFOCTL,
 				((dev->txnumevt * tx_ser) << 8), NUMEVT_MASK);
+			break;
+		default:
+			mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+							tx_ser,	NUMDMA_MASK);
+			mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
+				((dev->txnumevt * tx_ser) << 8), NUMEVT_MASK);
+		}
 	}
 
 	if (dev->rxnumevt && stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (dev->rxnumevt * rx_ser > 64)
 			dev->rxnumevt = 1;
-
-		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, rx_ser,
+		switch (dev->version) {
+		case MCASP_VERSION_3:
+			mcasp_mod_bits(dev->base + MCASP_VER3_RFIFOCTL, rx_ser,
 								NUMDMA_MASK);
-		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+			mcasp_mod_bits(dev->base + MCASP_VER3_RFIFOCTL,
 				((dev->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
+			break;
+		default:
+			mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+							rx_ser,	NUMDMA_MASK);
+			mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
+				((dev->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
+		}
 	}
 }
 
@@ -873,6 +929,10 @@ static const struct of_device_id mcasp_dt_ids[] = {
 	{
 		.compatible = "ti,da830-mcasp-audio",
 		.data = (void *)MCASP_VERSION_2,
+	},
+	{
+		.compatible = "ti,omap2-mcasp-audio",
+		.data = (void *)MCASP_VERSION_3,
 	},
 	{ /* sentinel */ }
 };
