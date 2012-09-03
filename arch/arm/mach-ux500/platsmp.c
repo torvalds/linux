@@ -118,7 +118,7 @@ static void __init wakeup_secondary(void)
 {
 	void __iomem *backupram;
 
-	if (cpu_is_u8500_family())
+	if (cpu_is_u8500_family() || cpu_is_ux540_family())
 		backupram = __io_address(U8500_BACKUPRAM0_BASE);
 	else
 		ux500_unknown_soc();
