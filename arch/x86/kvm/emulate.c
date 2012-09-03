@@ -2268,6 +2268,8 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 		if (msr_data == 0x0)
 			return emulate_gp(ctxt, 0);
 		break;
+	default:
+		break;
 	}
 
 	ctxt->eflags &= ~(EFLG_VM | EFLG_IF | EFLG_RF);
@@ -4400,7 +4402,7 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	}
 
 	/* Instruction can only be executed in protected mode */
-	if ((ctxt->d & Prot) && !(ctxt->mode & X86EMUL_MODE_PROT)) {
+	if ((ctxt->d & Prot) && ctxt->mode < X86EMUL_MODE_PROT16) {
 		rc = emulate_ud(ctxt);
 		goto done;
 	}
