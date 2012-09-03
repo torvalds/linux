@@ -125,8 +125,6 @@ static int sensor_init(struct i2c_client *client)
 
 	DBG("mma8452 MMA8452_REG_SYSMOD:%x\n",sensor_read_reg(client,MMA8452_REG_SYSMOD));
 
-	printk("------sensor_chip_init\n");
-	
 	return ret;
 }
 
