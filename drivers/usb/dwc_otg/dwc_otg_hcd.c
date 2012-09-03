@@ -858,32 +858,12 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 }
 
 #ifdef CONFIG_USB11_HOST
-/*
- * suspend: 0 usb phy enable
- *          1 usb phy suspend
- */
-static int32_t host11_phy_suspend_cb( void *_p, int suspend)
-{
-    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    
-    if(suspend) {
-        *otg_phy_con1 &= ~(0x01<<28);
-        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-    }
-    else
-    {
-        *otg_phy_con1 |= (0x01<<28);
-        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-    }
-    
-    return suspend;
-}
+
 static dwc_otg_cil_callbacks_t host11_cil_callbacks = {
         .start = dwc_otg_hcd_start_cb,
         .stop = dwc_otg_hcd_stop_cb,
         .disconnect = dwc_otg_hcd_disconnect_cb,
         .session_start = dwc_otg_hcd_session_start_cb,
-        .suspend = host11_phy_suspend_cb,
         .p = 0,//hcd
 };
 
@@ -1363,6 +1343,8 @@ void dwc_otg_hcd_stop(struct usb_hcd *_hcd)
 {
         dwc_otg_hcd_t *dwc_otg_hcd = hcd_to_dwc_otg_hcd (_hcd);
 	hprt0_data_t hprt0 = { .d32=0 };
+	struct dwc_otg_platform_data *pldata;
+    pldata = dwc_otg_hcd->core_if->otg_dev->pldata;
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD STOP\n");
 
@@ -1380,6 +1362,8 @@ void dwc_otg_hcd_stop(struct usb_hcd *_hcd)
 	hprt0.b.prtpwr = 0;
 	dwc_write_reg32(dwc_otg_hcd->core_if->host_if->hprt0, hprt0.d32);
         
+	if(pldata->power_enable)
+	    pldata->power_enable(0);
 	return;
 }
 

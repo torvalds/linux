@@ -10,6 +10,7 @@
 #include <mach/cru.h>
 
 #include "usbdev_rk.h"
+#include "dwc_otg_regs.h"
 #ifdef CONFIG_ARCH_RK30
 
 #define GRF_REG_BASE	RK30_GRF_BASE	
@@ -23,7 +24,55 @@
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x184)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x190)
 #endif
-//#define USB_IOMUX_INIT(a,b) rk30_mux_api_set(a,b)
+
+int dwc_otg_check_dpdm(void)
+{
+	static uint8_t * reg_base = 0;
+    volatile unsigned int * otg_dctl;
+    volatile unsigned int * otg_gotgctl;
+    volatile unsigned int * otg_hprt0;
+    int bus_status = 0;
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+    
+    // softreset & clockgate 
+    *(unsigned int*)(RK30_CRU_BASE+0x120) = ((7<<5)<<16)|(7<<5);    // otg0 phy clkgate
+    udelay(3);
+    *(unsigned int*)(RK30_CRU_BASE+0x120) = ((7<<5)<<16)|(0<<5);    // otg0 phy clkgate
+    dsb();
+    *(unsigned int*)(RK30_CRU_BASE+0xd4) = ((1<<5)<<16);    // otg0 phy clkgate
+    *(unsigned int*)(RK30_CRU_BASE+0xe4) = ((1<<13)<<16);   // otg0 hclk clkgate
+    *(unsigned int*)(RK30_CRU_BASE+0xe0) = ((3<<5)<<16);    // hclk usb clkgate
+    
+    // exit phy suspend 
+        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+    
+    // soft connect
+    if(reg_base == 0){
+        reg_base = ioremap(RK30_USBOTG20_PHYS,USBOTG_SIZE);
+        if(!reg_base){
+            bus_status = -1;
+            goto out;
+        }
+    }
+    mdelay(105);
+    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
+        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
+    otg_dctl = (unsigned int * )(reg_base+0x804);
+    otg_gotgctl = (unsigned int * )(reg_base);
+    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
+    if(*otg_gotgctl &(1<<19)){
+        bus_status = 1;
+        *otg_dctl &= ~2;
+        mdelay(50);    // delay about 10ms
+    // check dp,dm
+        if((*otg_hprt0 & 0xc00)==0xc00)
+            bus_status = 2;
+    }
+out:
+    return bus_status;
+}
+
+EXPORT_SYMBOL(dwc_otg_check_dpdm);
 
 #ifdef CONFIG_USB20_OTG
 /*DWC_OTG*/
@@ -114,18 +163,33 @@ int usb20otg_get_status(int id)
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
     switch(id)
     {
-        case 0x01:
+#ifdef CONFIG_ARCH_RK3066B
+        case USB_STATUS_BVABLID:
+            // bvalid in grf
+            ret = (usbgrf_status &(1<<10));
+            break;
+        case USB_STATUS_DPDM:
+            // dpdm in grf
+            ret = (usbgrf_status &(3<<11));
+            break;
+        case USB_STATUS_ID:
+            // id in grf
+            ret = (usbgrf_status &(1<<13));
+            break;
+#else
+        case USB_STATUS_BVABLID:
             // bvalid in grf
             ret = (usbgrf_status &0x20000);
             break;
-        case 0x02:
+        case USB_STATUS_DPDM:
             // dpdm in grf
             ret = (usbgrf_status &(3<<18));
             break;
-        case 0x03:
+        case USB_STATUS_ID:
             // id in grf
             ret = (usbgrf_status &(1<<20));
             break;
+#endif
         default:
             break;
     }
@@ -188,11 +252,11 @@ void usb20host_phy_suspend(void* pdata, int suspend)
     unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
     if(suspend){
         *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-        usbpdata->phy_status = 0;
+        usbpdata->phy_status = 1;
     }
     else{
         *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-        usbpdata->phy_status = 1;
+        usbpdata->phy_status = 0;
     }
 }
 void usb20host_soft_reset(void)
@@ -238,6 +302,20 @@ int usb20host_get_status(int id)
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
     switch(id)
     {
+#ifdef CONFIG_ARCH_RK3066B
+        case USB_STATUS_BVABLID:
+            // bvalid in grf
+            ret = (usbgrf_status &(1<<17));
+            break;
+        case USB_STATUS_DPDM:
+            // dpdm in grf
+            ret = (usbgrf_status &(3<<18));
+            break;
+        case USB_STATUS_ID:
+            // id in grf
+            ret = (usbgrf_status &(1<<20));
+            break;
+#else
         case USB_STATUS_BVABLID:
             // bvalid in grf
             ret = (usbgrf_status &(1<<22));
@@ -250,6 +328,7 @@ int usb20host_get_status(int id)
             // id in grf
             ret = 0;
             break;
+#endif
         default:
             break;
     }
@@ -289,6 +368,7 @@ static int __init usbdev_init_devices(void)
 #ifdef CONFIG_USB20_HOST
 	platform_device_register(&device_usb20_host);
 #endif
+    return 0;
 }
 arch_initcall(usbdev_init_devices);
 #endif

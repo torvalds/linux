@@ -66,6 +66,7 @@
 #include "dwc_otg_driver.h"
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd.h"
+#include "usbdev_rk.h"
 static dwc_otg_core_if_t * dwc_core_if = NULL;
 /** 
  * This function is called to initialize the DWC_otg CSR data
@@ -917,6 +918,8 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 	dwc_otg_hc_regs_t	*hc_regs;
 	int			num_channels;
 	gotgctl_data_t	gotgctl = {.d32 = 0};
+	struct dwc_otg_platform_data *pldata;
+    pldata = _core_if->otg_dev->pldata;
 
 	DWC_DEBUGPL(DBG_CILV,"%s(%p)\n", __func__, _core_if);
 
@@ -1018,6 +1021,8 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 			hprt0.b.prtpwr = 1;
 			dwc_write_reg32(host_if->hprt0, hprt0.d32);
 		}  
+		if(pldata->power_enable)
+		    pldata->power_enable(1);
 	}
 
 	dwc_otg_enable_host_interrupts( _core_if );

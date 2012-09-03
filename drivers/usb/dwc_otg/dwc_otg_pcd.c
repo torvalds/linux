@@ -1664,7 +1664,7 @@ static void dwc_phy_reconnect(struct work_struct *work)
         DWC_PRINT("********soft connect!!!*****************************************\n");
     } 
 }
-#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK3066B)
+#if defined(CONFIG_ARCH_RK29)
 static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 {
     struct device *_dev = (struct device *)pdata;
@@ -1820,106 +1820,6 @@ connect:
 	local_irq_restore(flags);
     return;
 }
-#endif
-#if 0 //def CONFIG_ARCH_RK30
-int dwc_otg_check_dpdm(void)
-{
-	static uint8_t * reg_base = 0;
-    volatile unsigned int * otg_dctl;
-    volatile unsigned int * otg_gotgctl;
-    volatile unsigned int * otg_hprt0;
-    int bus_status = 0;
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
-    
-    // softreset & clockgate 
-    *(unsigned int*)(RK30_CRU_BASE+0x120) = ((7<<5)<<16)|(7<<5);    // otg0 phy clkgate
-    udelay(3);
-    *(unsigned int*)(RK30_CRU_BASE+0x120) = ((7<<5)<<16)|(0<<5);    // otg0 phy clkgate
-    dsb();
-    *(unsigned int*)(RK30_CRU_BASE+0xd4) = ((1<<5)<<16);    // otg0 phy clkgate
-    *(unsigned int*)(RK30_CRU_BASE+0xe4) = ((1<<13)<<16);   // otg0 hclk clkgate
-    *(unsigned int*)(RK30_CRU_BASE+0xe0) = ((3<<5)<<16);    // hclk usb clkgate
-    
-    // exit phy suspend 
-        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-    
-    // soft connect
-    if(reg_base == 0){
-        reg_base = ioremap(RK30_USBOTG20_PHYS,USBOTG_SIZE);
-        if(!reg_base){
-            bus_status = -1;
-            goto out;
-        }
-    }
-    mdelay(105);
-    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
-        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
-    otg_dctl = (unsigned int * )(reg_base+0x804);
-    otg_gotgctl = (unsigned int * )(reg_base);
-    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
-    if(*otg_gotgctl &(1<<19)){
-        bus_status = 1;
-        *otg_dctl &= ~2;
-        mdelay(50);    // delay about 10ms
-    // check dp,dm
-        if((*otg_hprt0 & 0xc00)==0xc00)
-            bus_status = 2;
-    }
-out:
-    return bus_status;
-}
-
-EXPORT_SYMBOL(dwc_otg_check_dpdm);
-#endif
-#ifdef CONFIG_ARCH_RK2928
-int dwc_otg_check_dpdm(void)
-{
-	static uint8_t * reg_base = 0;
-    volatile unsigned int * otg_dctl;
-    volatile unsigned int * otg_gotgctl;
-    volatile unsigned int * otg_hprt0;
-    int bus_status = 0;
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON5);//@lyz modify UOC0_CON2 to CON5
-    
-    // softreset & clockgate //@lyz modify RK2928_CRU_BASE
-    *(unsigned int*)(RK2928_CRU_BASE+0x120) = ((7<<5)<<16)|(7<<5);    // otg0 phy clkgate
-    udelay(3);
-    *(unsigned int*)(RK2928_CRU_BASE+0x120) = ((7<<5)<<16)|(0<<5);    // otg0 phy clkgate
-    dsb();
-    *(unsigned int*)(RK2928_CRU_BASE+0xd4) = ((1<<5)<<16);    // otg0 phy clkgate
-    *(unsigned int*)(RK2928_CRU_BASE+0xe4) = ((1<<13)<<16);   // otg0 hclk clkgate
-    *(unsigned int*)(RK2928_CRU_BASE+0xf4) = ((3<<10)<<16);    // hclk usb clkgate//@lyz to be check
-    
-    // exit phy suspend 
-        *otg_phy_con1 = ((0x01<<0)<<16);    // exit suspend.@lyz
-    
-    // soft connect
-    if(reg_base == 0){
-        reg_base = ioremap(RK2928_USBOTG20_PHYS,USBOTG_SIZE);//@lyz
-        if(!reg_base){
-            bus_status = -1;
-            goto out;
-        }
-    }
-    mdelay(105);
-    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x\n",
-        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1);
-    otg_dctl = (unsigned int * )(reg_base+0x804);
-    otg_gotgctl = (unsigned int * )(reg_base);
-    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
-    if(*otg_gotgctl &(1<<19)){
-        bus_status = 1;
-        *otg_dctl &= ~(0x01<<1);//@lyz exit soft-disconnect mode
-        mdelay(50);    // delay about 10ms
-    // check dp,dm
-        if((*otg_hprt0 & 0xc00)==0xc00)//@lyz check hprt[11:10] 
-            bus_status = 2;
-    }
-out:
-    return bus_status;
-}
-
-EXPORT_SYMBOL(dwc_otg_check_dpdm);
 #endif
 void dwc_otg_pcd_start_vbus_timer( dwc_otg_pcd_t * _pcd )
 {
