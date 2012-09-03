@@ -271,6 +271,7 @@ struct parport *__devinit parport_gsc_probe_port (unsigned long base,
 	if (!parport_SPP_supported (p)) {
 		/* No port. */
 		kfree (priv);
+		kfree(ops);
 		return NULL;
 	}
 	parport_PS2_supported (p);
