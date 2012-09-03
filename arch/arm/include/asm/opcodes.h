@@ -193,6 +193,8 @@ extern asmlinkage unsigned int arm_check_condition(u32 opcode, u32 psr);
  * specify the ARM and Thumb alternatives at the same time.  This ensures
  * that the correct opcode gets emitted depending on the instruction set
  * used for the kernel build.
+ *
+ * Look at opcodes-virt.h for an example of how to use these macros.
  */
 #include <linux/stringify.h>
 
