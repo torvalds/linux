@@ -578,6 +578,11 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_FLR:
 		efx_sriov_flr(efx, MCDI_EVENT_FIELD(*event, FLR_VF));
 		break;
+	case MCDI_EVENT_CODE_PTP_RX:
+	case MCDI_EVENT_CODE_PTP_FAULT:
+	case MCDI_EVENT_CODE_PTP_PPS:
+		efx_ptp_event(efx, event);
+		break;
 
 	default:
 		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",

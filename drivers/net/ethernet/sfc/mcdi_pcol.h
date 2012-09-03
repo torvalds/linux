@@ -289,6 +289,7 @@
 #define          MCDI_EVENT_CODE_TX_FLUSH  0xc /* enum */
 #define          MCDI_EVENT_CODE_PTP_RX  0xd /* enum */
 #define          MCDI_EVENT_CODE_PTP_FAULT  0xe /* enum */
+#define          MCDI_EVENT_CODE_PTP_PPS  0xf /* enum */
 #define       MCDI_EVENT_CMDDONE_DATA_OFST 0
 #define       MCDI_EVENT_CMDDONE_DATA_LBN 0
 #define       MCDI_EVENT_CMDDONE_DATA_WIDTH 32
