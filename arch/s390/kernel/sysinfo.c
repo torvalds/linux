@@ -31,6 +31,8 @@ static inline int stsi_0(void)
 
 static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 {
+	int i;
+
 	if (stsi(info, 1, 1, 1) == -ENOSYS)
 		return;
 	EBCASC(info->manufacturer, sizeof(info->manufacturer));
@@ -57,18 +59,31 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 	seq_printf(m, "Sequence Code:        %-16.16s\n", info->sequence);
 	seq_printf(m, "Plant:                %-4.4s\n", info->plant);
 	seq_printf(m, "Model Capacity:       %-16.16s %08u\n",
-		   info->model_capacity, *(u32 *) info->model_cap_rating);
-	if (info->model_perm_cap[0] != '\0')
+		   info->model_capacity, info->model_cap_rating);
+	if (info->model_perm_cap_rating)
 		seq_printf(m, "Model Perm. Capacity: %-16.16s %08u\n",
 			   info->model_perm_cap,
-			   *(u32 *) info->model_perm_cap_rating);
-	if (info->model_temp_cap[0] != '\0')
+			   info->model_perm_cap_rating);
+	if (info->model_temp_cap_rating)
 		seq_printf(m, "Model Temp. Capacity: %-16.16s %08u\n",
 			   info->model_temp_cap,
-			   *(u32 *) info->model_temp_cap_rating);
+			   info->model_temp_cap_rating);
+	if (info->ncr)
+		seq_printf(m, "Nominal Cap. Rating:  %08u\n", info->ncr);
+	if (info->npr)
+		seq_printf(m, "Nominal Perm. Rating: %08u\n", info->npr);
+	if (info->ntr)
+		seq_printf(m, "Nominal Temp. Rating: %08u\n", info->ntr);
 	if (info->cai) {
 		seq_printf(m, "Capacity Adj. Ind.:   %d\n", info->cai);
 		seq_printf(m, "Capacity Ch. Reason:  %d\n", info->ccr);
+		seq_printf(m, "Capacity Transient:   %d\n", info->t);
+	}
+	if (info->p) {
+		for (i = 1; i <= ARRAY_SIZE(info->typepct); i++) {
+			seq_printf(m, "Type %d Percentage:    %d\n",
+				   i, info->typepct[i - 1]);
+		}
 	}
 }
 
@@ -128,6 +143,10 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 	if (info->format == 1)
 		seq_printf(m, " %u", ext->alt_capability);
 	seq_putc(m, '\n');
+	if (info->nominal_cap)
+		seq_printf(m, "Nominal Capability:   %d\n", info->nominal_cap);
+	if (info->secondary_cap)
+		seq_printf(m, "Secondary Capability: %d\n", info->secondary_cap);
 	for (i = 2; i <= info->cpus_total; i++) {
 		seq_printf(m, "Adjustment %02d-way:    %u",
 			   i, info->adjustment[i-2]);
@@ -135,9 +154,6 @@ static void stsi_1_2_2(struct seq_file *m, struct sysinfo_1_2_2 *info)
 			seq_printf(m, " %u", ext->alt_adjustment[i-2]);
 		seq_putc(m, '\n');
 	}
-	if (info->secondary_capability)
-		seq_printf(m, "Secondary Capability: %d\n",
-			   info->secondary_capability);
 }
 
 static void stsi_2_2_2(struct seq_file *m, struct sysinfo_2_2_2 *info)

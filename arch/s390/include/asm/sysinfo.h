@@ -17,7 +17,10 @@
 #include <asm/bitsperlong.h>
 
 struct sysinfo_1_1_1 {
-	unsigned short :16;
+	unsigned char p:1;
+	unsigned char :6;
+	unsigned char t:1;
+	unsigned char :8;
 	unsigned char ccr;
 	unsigned char cai;
 	char reserved_0[28];
@@ -30,9 +33,14 @@ struct sysinfo_1_1_1 {
 	char model[16];
 	char model_perm_cap[16];
 	char model_temp_cap[16];
-	char model_cap_rating[4];
-	char model_perm_cap_rating[4];
-	char model_temp_cap_rating[4];
+	unsigned int model_cap_rating;
+	unsigned int model_perm_cap_rating;
+	unsigned int model_temp_cap_rating;
+	unsigned char typepct[5];
+	unsigned char reserved_2[3];
+	unsigned int ncr;
+	unsigned int npr;
+	unsigned int ntr;
 };
 
 struct sysinfo_1_2_1 {
@@ -47,8 +55,9 @@ struct sysinfo_1_2_2 {
 	char format;
 	char reserved_0[1];
 	unsigned short acc_offset;
-	char reserved_1[24];
-	unsigned int secondary_capability;
+	char reserved_1[20];
+	unsigned int nominal_cap;
+	unsigned int secondary_cap;
 	unsigned int capability;
 	unsigned short cpus_total;
 	unsigned short cpus_configured;
