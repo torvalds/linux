@@ -177,6 +177,11 @@ static void dwc_initialize(struct dw_dma_chan *dwc)
 
 		cfghi = dws->cfg_hi;
 		cfglo |= dws->cfg_lo & ~DWC_CFGL_CH_PRIOR_MASK;
+	} else {
+		if (dwc->dma_sconfig.direction == DMA_MEM_TO_DEV)
+			cfghi = DWC_CFGH_DST_PER(dwc->dma_sconfig.slave_id);
+		else if (dwc->dma_sconfig.direction == DMA_DEV_TO_MEM)
+			cfghi = DWC_CFGH_SRC_PER(dwc->dma_sconfig.slave_id);
 	}
 
 	channel_writel(dwc, CFG_LO, cfglo);
