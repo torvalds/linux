@@ -983,29 +983,29 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
     .type               = RFKILL_TYPE_BLUETOOTH,
 
     .poweron_gpio       = { // BT_REG_ON
-        .io             = RK30_PIN3_PC6, 
+        .io             = RK30_PIN3_PC7,
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C6_SDMMC1DETECTN_RMIIRXERR_NAME,
-            .fgpio      = GPIO3C_GPIO3C6,
+            .name       = GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,
+            .fgpio      = GPIO3C_GPIO3C7,
         },
     },
 
     .reset_gpio         = { // BT_RST
-        .io             = RK30_PIN3_PD0, // set io to INVALID_GPIO for disable it
+        .io             = RK30_PIN3_PD1, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_LOW,
         .iomux          = {
-            .name       = GPIO3D0_SDMMC1PWREN_MIIMD_NAME,
-            .fgpio      = GPIO3D_GPIO3D0,
-        },
-    },
+            .name       = GPIO3D1_SDMMC1BACKENDPWR_MIIMDCLK_NAME,
+            .fgpio      = GPIO3D_GPIO3D1,
+       },
+   }, 
 
     .wake_gpio          = { // BT_WAKE, use to control bt's sleep and wakeup
-        .io             = RK30_PIN3_PC5, // set io to INVALID_GPIO for disable it
+        .io             = RK30_PIN3_PC6, // set io to INVALID_GPIO for disable it
         .enable         = GPIO_HIGH,
         .iomux          = {
-            .name       = GPIO3C5_SDMMC1CLKOUT_RMIICLKOUT_RMIICLKIN_NAME,
-            .fgpio      = GPIO3C_GPIO3C5,
+            .name       = GPIO3C6_SDMMC1DETECTN_RMIIRXERR_NAME,
+            .fgpio      = GPIO3C_GPIO3C6,
         },
     },
 
