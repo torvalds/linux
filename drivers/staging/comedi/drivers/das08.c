@@ -751,28 +751,6 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 }
 EXPORT_SYMBOL_GPL(das08_common_attach);
 
-static int das08_pci_attach_common(struct comedi_device *dev,
-				   struct pci_dev *pdev)
-{
-	unsigned long iobase;
-	struct das08_private_struct *devpriv = dev->private;
-
-	if (!IS_ENABLED(CONFIG_COMEDI_DAS08_PCI))
-		return -EINVAL;
-
-	devpriv->pdev = pdev;
-	/*  enable PCI device and reserve I/O spaces */
-	if (comedi_pci_enable(pdev, dev->driver->driver_name)) {
-		dev_err(dev->class_dev,
-			"Error enabling PCI device and requesting regions\n");
-		return -EIO;
-	}
-	/*  read base addresses */
-	iobase = pci_resource_start(pdev, 2);
-	dev_info(dev->class_dev, "iobase 0x%lx\n", iobase);
-	return das08_common_attach(dev, iobase);
-}
-
 static const struct das08_board_struct *
 das08_find_pci_board(struct pci_dev *pdev)
 {
@@ -790,6 +768,8 @@ das08_find_pci_board(struct pci_dev *pdev)
 static int __devinit __maybe_unused
 das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 {
+	struct das08_private_struct *devpriv;
+	unsigned long iobase;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_COMEDI_DAS08_PCI))
@@ -810,7 +790,18 @@ das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 	 * has been removed.
 	 */
 	pci_dev_get(pdev);
-	return das08_pci_attach_common(dev, pdev);
+	devpriv = dev->private;
+	devpriv->pdev = pdev;
+	/*  enable PCI device and reserve I/O spaces */
+	if (comedi_pci_enable(pdev, dev->driver->driver_name)) {
+		dev_err(dev->class_dev,
+			"Error enabling PCI device and requesting regions\n");
+		return -EIO;
+	}
+	/*  read base addresses */
+	iobase = pci_resource_start(pdev, 2);
+	dev_info(dev->class_dev, "iobase 0x%lx\n", iobase);
+	return das08_common_attach(dev, iobase);
 }
 
 static int __maybe_unused
