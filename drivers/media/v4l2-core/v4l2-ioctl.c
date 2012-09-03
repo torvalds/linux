@@ -984,7 +984,7 @@ static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_input *p = arg;
 
 	/*
-	 * We set the flags for CAP_PRESETS, CAP_CUSTOM_TIMINGS &
+	 * We set the flags for CAP_PRESETS, CAP_DV_TIMINGS &
 	 * CAP_STD here based on ioctl handler provided by the
 	 * driver. If the driver doesn't support these
 	 * for a specific input, it must override these flags.
@@ -994,7 +994,7 @@ static int v4l_enuminput(const struct v4l2_ioctl_ops *ops,
 	if (ops->vidioc_s_dv_preset)
 		p->capabilities |= V4L2_IN_CAP_PRESETS;
 	if (ops->vidioc_s_dv_timings)
-		p->capabilities |= V4L2_IN_CAP_CUSTOM_TIMINGS;
+		p->capabilities |= V4L2_IN_CAP_DV_TIMINGS;
 
 	return ops->vidioc_enum_input(file, fh, p);
 }
@@ -1005,7 +1005,7 @@ static int v4l_enumoutput(const struct v4l2_ioctl_ops *ops,
 	struct v4l2_output *p = arg;
 
 	/*
-	 * We set the flags for CAP_PRESETS, CAP_CUSTOM_TIMINGS &
+	 * We set the flags for CAP_PRESETS, CAP_DV_TIMINGS &
 	 * CAP_STD here based on ioctl handler provided by the
 	 * driver. If the driver doesn't support these
 	 * for a specific output, it must override these flags.
@@ -1015,7 +1015,7 @@ static int v4l_enumoutput(const struct v4l2_ioctl_ops *ops,
 	if (ops->vidioc_s_dv_preset)
 		p->capabilities |= V4L2_OUT_CAP_PRESETS;
 	if (ops->vidioc_s_dv_timings)
-		p->capabilities |= V4L2_OUT_CAP_CUSTOM_TIMINGS;
+		p->capabilities |= V4L2_OUT_CAP_DV_TIMINGS;
 
 	return ops->vidioc_enum_output(file, fh, p);
 }
