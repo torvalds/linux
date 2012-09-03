@@ -42,10 +42,10 @@ struct arch_uprobe {
 };
 
 struct arch_uprobe_task {
-	unsigned long			saved_trap_nr;
 #ifdef CONFIG_X86_64
 	unsigned long			saved_scratch_register;
 #endif
+	unsigned int			saved_trap_nr;
 	unsigned int			saved_tf;
 };
 
