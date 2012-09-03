@@ -2608,6 +2608,12 @@ static struct clk_lookup clks[] = {
 	CLK("rk29_i2s.0", "i2s_div", &clk_i2s0_div),
 	CLK("rk29_i2s.0", "i2s_frac_div", &clk_i2s0_frac_div),
 	CLK("rk29_i2s.0", "i2s", &clk_i2s0),
+	
+	// actually no i2s1
+	CLK("rk29_i2s.1", "i2s_div", &clk_i2s0_div),
+	CLK("rk29_i2s.1", "i2s_frac_div", &clk_i2s0_frac_div),
+	CLK("rk29_i2s.1", "i2s", &clk_i2s0),
+
 
 	CLK1(spdif_div),
 	CLK1(spdif_frac_div),
@@ -2671,6 +2677,8 @@ static struct clk_lookup clks[] = {
 	/*************************hclk_cpu***********************/
 	CLK1(rom),
 	CLK("rk29_i2s.0", "hclk_i2s", &clk_hclk_i2s0_2ch),
+	// actually no i2s1
+	CLK("rk29_i2s.1", "hclk_i2s", &clk_hclk_i2s0_2ch),
 	CLK1(hclk_spdif),
 	CLK1(hclk_cpubus),
 	CLK1(hclk_ahb2apb),
