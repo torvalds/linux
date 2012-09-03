@@ -16,6 +16,7 @@
 #include <linux/magic.h>
 #include <linux/parser.h>
 #include <linux/slab.h>
+#include <linux/genhd.h>
 
 #include "ima.h"
 
@@ -25,6 +26,7 @@
 #define IMA_FSMAGIC	0x0004
 #define IMA_UID		0x0008
 #define IMA_FOWNER	0x0010
+#define IMA_FSUUID	0x0020
 
 #define UNKNOWN		0
 #define MEASURE		0x0001	/* same as IMA_MEASURE */
@@ -45,6 +47,7 @@ struct ima_rule_entry {
 	enum ima_hooks func;
 	int mask;
 	unsigned long fsmagic;
+	u8 fsuuid[16];
 	kuid_t uid;
 	kuid_t fowner;
 	struct {
@@ -171,6 +174,9 @@ static bool ima_match_rules(struct ima_rule_entry *rule,
 		return false;
 	if ((rule->flags & IMA_FSMAGIC)
 	    && rule->fsmagic != inode->i_sb->s_magic)
+		return false;
+	if ((rule->flags & IMA_FSUUID) &&
+		memcmp(rule->fsuuid, inode->i_sb->s_uuid, sizeof(rule->fsuuid)))
 		return false;
 	if ((rule->flags & IMA_UID) && !uid_eq(rule->uid, cred->uid))
 		return false;
@@ -346,7 +352,7 @@ enum {
 	Opt_obj_user, Opt_obj_role, Opt_obj_type,
 	Opt_subj_user, Opt_subj_role, Opt_subj_type,
 	Opt_func, Opt_mask, Opt_fsmagic, Opt_uid, Opt_fowner,
-	Opt_appraise_type
+	Opt_appraise_type, Opt_fsuuid
 };
 
 static match_table_t policy_tokens = {
@@ -364,6 +370,7 @@ static match_table_t policy_tokens = {
 	{Opt_func, "func=%s"},
 	{Opt_mask, "mask=%s"},
 	{Opt_fsmagic, "fsmagic=%s"},
+	{Opt_fsuuid, "fsuuid=%s"},
 	{Opt_uid, "uid=%s"},
 	{Opt_fowner, "fowner=%s"},
 	{Opt_appraise_type, "appraise_type=%s"},
@@ -518,6 +525,19 @@ static int ima_parse_rule(char *rule, struct ima_rule_entry *entry)
 						&entry->fsmagic);
 			if (!result)
 				entry->flags |= IMA_FSMAGIC;
+			break;
+		case Opt_fsuuid:
+			ima_log_string(ab, "fsuuid", args[0].from);
+
+			if (memchr_inv(entry->fsuuid, 0x00,
+			    sizeof(entry->fsuuid))) {
+				result = -EINVAL;
+				break;
+			}
+
+			part_pack_uuid(args[0].from, entry->fsuuid);
+			entry->flags |= IMA_FSUUID;
+			result = 0;
 			break;
 		case Opt_uid:
 			ima_log_string(ab, "uid", args[0].from);
