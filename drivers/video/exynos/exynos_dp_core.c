@@ -587,7 +587,7 @@ static int exynos_dp_process_equalizer_training(struct exynos_dp_device *dp)
 			dp->link_train.training_lane[lane] = training_lane;
 		}
 
-		if (exynos_dp_channel_eq_ok(link_status, lane_count) == 0) {
+		if (exynos_dp_channel_eq_ok(link_align, lane_count) == 0) {
 			/* traing pattern Set to Normal */
 			exynos_dp_training_pattern_dis(dp);
 
