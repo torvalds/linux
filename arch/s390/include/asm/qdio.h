@@ -1,7 +1,5 @@
 /*
- * linux/include/asm-s390/qdio.h
- *
- * Copyright 2000,2008 IBM Corp.
+ * Copyright IBM Corp. 2000, 2008
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  *

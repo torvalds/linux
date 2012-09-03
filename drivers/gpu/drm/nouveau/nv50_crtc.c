@@ -527,7 +527,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 }
 
 static bool
-nv50_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
+nv50_crtc_mode_fixup(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 		     struct drm_display_mode *adjusted_mode)
 {
 	return true;

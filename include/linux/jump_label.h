@@ -42,8 +42,7 @@
  * allowed.
  *
  * Not initializing the key (static data is initialized to 0s anyway) is the
- * same as using STATIC_KEY_INIT_FALSE and static_key_false() is
- * equivalent with static_branch().
+ * same as using STATIC_KEY_INIT_FALSE.
  *
 */
 
@@ -107,12 +106,6 @@ static __always_inline bool static_key_true(struct static_key *key)
 	return !static_key_false(key);
 }
 
-/* Deprecated. Please use 'static_key_false() instead. */
-static __always_inline bool static_branch(struct static_key *key)
-{
-	return arch_static_branch(key);
-}
-
 extern struct jump_entry __start___jump_table[];
 extern struct jump_entry __stop___jump_table[];
 
@@ -162,14 +155,6 @@ static __always_inline bool static_key_false(struct static_key *key)
 static __always_inline bool static_key_true(struct static_key *key)
 {
 	if (likely(atomic_read(&key->enabled)) > 0)
-		return true;
-	return false;
-}
-
-/* Deprecated. Please use 'static_key_false() instead. */
-static __always_inline bool static_branch(struct static_key *key)
-{
-	if (unlikely(atomic_read(&key->enabled)) > 0)
 		return true;
 	return false;
 }

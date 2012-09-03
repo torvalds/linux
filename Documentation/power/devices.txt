@@ -583,9 +583,10 @@ for the given device during all power transitions, instead of the respective
 subsystem-level callbacks.  Specifically, if a device's pm_domain pointer is
 not NULL, the ->suspend() callback from the object pointed to by it will be
 executed instead of its subsystem's (e.g. bus type's) ->suspend() callback and
-anlogously for all of the remaining callbacks.  In other words, power management
-domain callbacks, if defined for the given device, always take precedence over
-the callbacks provided by the device's subsystem (e.g. bus type).
+analogously for all of the remaining callbacks.  In other words, power
+management domain callbacks, if defined for the given device, always take
+precedence over the callbacks provided by the device's subsystem (e.g. bus
+type).
 
 The support for device power management domains is only relevant to platforms
 needing to use the same device driver power management callbacks in many
@@ -598,7 +599,7 @@ it into account in any way.
 Device Low Power (suspend) States
 ---------------------------------
 Device low-power states aren't standard.  One device might only handle
-"on" and "off, while another might support a dozen different versions of
+"on" and "off", while another might support a dozen different versions of
 "on" (how many engines are active?), plus a state that gets back to "on"
 faster than from a full "off".
 

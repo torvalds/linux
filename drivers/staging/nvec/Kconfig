@@ -26,8 +26,9 @@ config NVEC_POWER
 	  Say Y to enable support for battery and charger interface for
 	  nVidia compliant embedded controllers.
 
-config NVEC_LEDS
-	bool "NVEC leds"
-	depends on MFD_NVEC && LEDS_CLASS
+config NVEC_PAZ00
+	bool "Support for OEM specific functions on Compal PAZ00 based devices"
+	depends on MFD_NVEC && LEDS_CLASS && MACH_PAZ00
 	help
-	  Say Y to enable yellow side leds on AC100 or other nVidia tegra nvec leds
+	  Say Y to enable control of the yellow side leds on Compal PAZ00 based
+	  devices, e.g. Toshbia AC100 and Dynabooks AZ netbooks.

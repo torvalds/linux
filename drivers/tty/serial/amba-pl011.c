@@ -53,9 +53,9 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/sizes.h>
 
 #include <asm/io.h>
-#include <asm/sizes.h>
 
 #define UART_NR			14
 
@@ -133,6 +133,10 @@ struct pl011_dmatx_data {
 struct uart_amba_port {
 	struct uart_port	port;
 	struct clk		*clk;
+	/* Two optional pin states - default & sleep */
+	struct pinctrl		*pinctrl;
+	struct pinctrl_state	*pins_default;
+	struct pinctrl_state	*pins_sleep;
 	const struct vendor_data *vendor;
 	unsigned int		dmacr;		/* dma control reg */
 	unsigned int		im;		/* interrupt mask */
@@ -1312,6 +1316,14 @@ static int pl011_startup(struct uart_port *port)
 	unsigned int cr;
 	int retval;
 
+	/* Optionaly enable pins to be muxed in and configured */
+	if (!IS_ERR(uap->pins_default)) {
+		retval = pinctrl_select_state(uap->pinctrl, uap->pins_default);
+		if (retval)
+			dev_err(port->dev,
+				"could not set default pins\n");
+	}
+
 	retval = clk_prepare(uap->clk);
 	if (retval)
 		goto out;
@@ -1420,6 +1432,7 @@ static void pl011_shutdown(struct uart_port *port)
 {
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 	unsigned int cr;
+	int retval;
 
 	/*
 	 * disable all interrupts
@@ -1462,6 +1475,14 @@ static void pl011_shutdown(struct uart_port *port)
 	 */
 	clk_disable(uap->clk);
 	clk_unprepare(uap->clk);
+	/* Optionally let pins go into sleep states */
+	if (!IS_ERR(uap->pins_sleep)) {
+		retval = pinctrl_select_state(uap->pinctrl, uap->pins_sleep);
+		if (retval)
+			dev_err(port->dev,
+				"could not set pins to sleep state\n");
+	}
+
 
 	if (uap->port.dev->platform_data) {
 		struct amba_pl011_data *plat;
@@ -1792,6 +1813,14 @@ static int __init pl011_console_setup(struct console *co, char *options)
 	if (!uap)
 		return -ENODEV;
 
+	/* Allow pins to be muxed in and configured */
+	if (!IS_ERR(uap->pins_default)) {
+		ret = pinctrl_select_state(uap->pinctrl, uap->pins_default);
+		if (ret)
+			dev_err(uap->port.dev,
+				"could not set default pins\n");
+	}
+
 	ret = clk_prepare(uap->clk);
 	if (ret)
 		return ret;
@@ -1844,7 +1873,6 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct uart_amba_port *uap;
 	struct vendor_data *vendor = id->data;
-	struct pinctrl *pinctrl;
 	void __iomem *base;
 	int i, ret;
 
@@ -1869,11 +1897,20 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 		goto free;
 	}
 
-	pinctrl = devm_pinctrl_get_select_default(&dev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
+	uap->pinctrl = devm_pinctrl_get(&dev->dev);
+	if (IS_ERR(uap->pinctrl)) {
+		ret = PTR_ERR(uap->pinctrl);
 		goto unmap;
 	}
+	uap->pins_default = pinctrl_lookup_state(uap->pinctrl,
+						 PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(uap->pins_default))
+		dev_err(&dev->dev, "could not get default pinstate\n");
+
+	uap->pins_sleep = pinctrl_lookup_state(uap->pinctrl,
+					       PINCTRL_STATE_SLEEP);
+	if (IS_ERR(uap->pins_sleep))
+		dev_dbg(&dev->dev, "could not get sleep pinstate\n");
 
 	uap->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(uap->clk)) {

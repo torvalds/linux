@@ -14,7 +14,13 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_DMA_UNCACHED_4M)
+#if defined(CONFIG_DMA_UNCACHED_32M)
+# define DMA_UNCACHED_REGION (32 * 1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_16M)
+# define DMA_UNCACHED_REGION (16 * 1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_8M)
+# define DMA_UNCACHED_REGION (8 * 1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_4M)
 # define DMA_UNCACHED_REGION (4 * 1024 * 1024)
 #elif defined(CONFIG_DMA_UNCACHED_2M)
 # define DMA_UNCACHED_REGION (2 * 1024 * 1024)

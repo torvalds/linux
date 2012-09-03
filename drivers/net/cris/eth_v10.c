@@ -1008,7 +1008,7 @@ e100_send_mdio_bit(unsigned char bit)
 }
 
 static unsigned char
-e100_receive_mdio_bit()
+e100_receive_mdio_bit(void)
 {
 	unsigned char bit;
 	*R_NETWORK_MGM_CTRL = 0;
@@ -1712,7 +1712,7 @@ e100_set_network_leds(int active)
 static void
 e100_netpoll(struct net_device* netdev)
 {
-	e100rxtx_interrupt(NETWORK_DMA_TX_IRQ_NBR, netdev, NULL);
+	e100rxtx_interrupt(NETWORK_DMA_TX_IRQ_NBR, netdev);
 }
 #endif
 

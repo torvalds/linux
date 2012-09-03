@@ -45,15 +45,6 @@ int iommu_detected __read_mostly = 0;
  */
 int iommu_pass_through __read_mostly;
 
-/*
- * Group multi-function PCI devices into a single device-group for the
- * iommu_device_group interface.  This tells the iommu driver to pretend
- * it cannot distinguish between functions of a device, exposing only one
- * group for the device.  Useful for disallowing use of individual PCI
- * functions from userspace drivers.
- */
-int iommu_group_mf __read_mostly;
-
 extern struct iommu_table_entry __iommu_table[], __iommu_table_end[];
 
 /* Dummy device used for NULL arguments (normally ISA). */
@@ -100,7 +91,7 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 				 struct dma_attrs *attrs)
 {
 	unsigned long dma_mask;
-	struct page *page = NULL;
+	struct page *page;
 	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	dma_addr_t addr;
 
@@ -108,6 +99,7 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 
 	flag |= __GFP_ZERO;
 again:
+	page = NULL;
 	if (!(flag & GFP_ATOMIC))
 		page = dma_alloc_from_contiguous(dev, count, get_order(size));
 	if (!page)
@@ -193,8 +185,6 @@ static __init int iommu_setup(char *p)
 #endif
 		if (!strncmp(p, "pt", 2))
 			iommu_pass_through = 1;
-		if (!strncmp(p, "group_mf", 8))
-			iommu_group_mf = 1;
 
 		gart_parse_options(p);
 

@@ -154,6 +154,14 @@ struct crush_map {
 	__s32 max_buckets;
 	__u32 max_rules;
 	__s32 max_devices;
+
+	/* choose local retries before re-descent */
+	__u32 choose_local_tries;
+	/* choose local attempts using a fallback permutation before
+	 * re-descent */
+	__u32 choose_local_fallback_tries;
+	/* choose attempts before giving up */ 
+	__u32 choose_total_tries;
 };
 
 

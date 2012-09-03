@@ -164,8 +164,13 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 
 	apu_version = (vers[0] << 24) | (vers[4] << 16) | vers[32];
 	while (offset + sizeof(seghdr) < fw->size) {
-		/* TODO: byteswapping */
-		memcpy(&seghdr, src + offset / 4, sizeof(seghdr));
+		const u32 *shptr = src + offset / 4;
+
+		seghdr.sync1 = le32_to_cpu(shptr[0]);
+		seghdr.sync2 = le32_to_cpu(shptr[1]);
+		seghdr.addr = le32_to_cpu(shptr[2]);
+		seghdr.size = le32_to_cpu(shptr[3]);
+
 		offset += sizeof(seghdr);
 		if (seghdr.sync1 != APU_ROM_SYNC1 ||
 		    seghdr.sync2 != APU_ROM_SYNC2) {

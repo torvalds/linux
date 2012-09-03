@@ -852,12 +852,6 @@ const u32 nfs41_maxread_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
 				    XDR_UNIT);
 #endif /* CONFIG_NFS_V4_1 */
 
-static unsigned short send_implementation_id = 1;
-
-module_param(send_implementation_id, ushort, 0644);
-MODULE_PARM_DESC(send_implementation_id,
-		"Send implementation ID with NFSv4.1 exchange_id");
-
 static const umode_t nfs_type2fmt[] = {
 	[NF4BAD] = 0,
 	[NF4REG] = S_IFREG,
@@ -1198,12 +1192,13 @@ static void encode_getfattr(struct xdr_stream *xdr, const u32* bitmask, struct c
 }
 
 static void encode_getfattr_open(struct xdr_stream *xdr, const u32 *bitmask,
+				 const u32 *open_bitmap,
 				 struct compound_hdr *hdr)
 {
 	encode_getattr_three(xdr,
-			     bitmask[0] & nfs4_fattr_bitmap[0],
-			     bitmask[1] & nfs4_fattr_bitmap[1],
-			     bitmask[2] & FATTR4_WORD2_MDSTHRESHOLD,
+			     bitmask[0] & open_bitmap[0],
+			     bitmask[1] & open_bitmap[1],
+			     bitmask[2] & open_bitmap[2],
 			     hdr);
 }
 
@@ -1235,7 +1230,7 @@ static void encode_link(struct xdr_stream *xdr, const struct qstr *name, struct 
 
 static inline int nfs4_lock_type(struct file_lock *fl, int block)
 {
-	if ((fl->fl_type & (F_RDLCK|F_WRLCK|F_UNLCK)) == F_RDLCK)
+	if (fl->fl_type == F_RDLCK)
 		return block ? NFS4_READW_LT : NFS4_READ_LT;
 	return block ? NFS4_WRITEW_LT : NFS4_WRITE_LT;
 }
@@ -2221,7 +2216,7 @@ static void nfs4_xdr_enc_open(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_open(xdr, args, &hdr);
 	encode_getfh(xdr, &hdr);
-	encode_getfattr_open(xdr, args->bitmask, &hdr);
+	encode_getfattr_open(xdr, args->bitmask, args->open_bitmap, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -3077,7 +3072,7 @@ out_overflow:
 	return -EIO;
 }
 
-static inline int decode_attr_length(struct xdr_stream *xdr, uint32_t *attrlen, __be32 **savep)
+static int decode_attr_length(struct xdr_stream *xdr, uint32_t *attrlen, unsigned int *savep)
 {
 	__be32 *p;
 
@@ -3085,7 +3080,7 @@ static inline int decode_attr_length(struct xdr_stream *xdr, uint32_t *attrlen, 
 	if (unlikely(!p))
 		goto out_overflow;
 	*attrlen = be32_to_cpup(p);
-	*savep = xdr->p;
+	*savep = xdr_stream_pos(xdr);
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -4067,10 +4062,10 @@ static int decode_attr_time_modify(struct xdr_stream *xdr, uint32_t *bitmap, str
 	return status;
 }
 
-static int verify_attr_len(struct xdr_stream *xdr, __be32 *savep, uint32_t attrlen)
+static int verify_attr_len(struct xdr_stream *xdr, unsigned int savep, uint32_t attrlen)
 {
 	unsigned int attrwords = XDR_QUADLEN(attrlen);
-	unsigned int nwords = xdr->p - savep;
+	unsigned int nwords = (xdr_stream_pos(xdr) - savep) >> 2;
 
 	if (unlikely(attrwords != nwords)) {
 		dprintk("%s: server returned incorrect attribute length: "
@@ -4157,13 +4152,18 @@ static int decode_verifier(struct xdr_stream *xdr, void *verifier)
 	return decode_opaque_fixed(xdr, verifier, NFS4_VERIFIER_SIZE);
 }
 
+static int decode_write_verifier(struct xdr_stream *xdr, struct nfs_write_verifier *verifier)
+{
+	return decode_opaque_fixed(xdr, verifier->data, NFS4_VERIFIER_SIZE);
+}
+
 static int decode_commit(struct xdr_stream *xdr, struct nfs_commitres *res)
 {
 	int status;
 
 	status = decode_op_hdr(xdr, OP_COMMIT);
 	if (!status)
-		status = decode_verifier(xdr, res->verf->verifier);
+		status = decode_write_verifier(xdr, &res->verf->verifier);
 	return status;
 }
 
@@ -4192,7 +4192,7 @@ out_overflow:
 
 static int decode_server_caps(struct xdr_stream *xdr, struct nfs4_server_caps_res *res)
 {
-	__be32 *savep;
+	unsigned int savep;
 	uint32_t attrlen, bitmap[3] = {0};
 	int status;
 
@@ -4221,7 +4221,7 @@ xdr_error:
 
 static int decode_statfs(struct xdr_stream *xdr, struct nfs_fsstat *fsstat)
 {
-	__be32 *savep;
+	unsigned int savep;
 	uint32_t attrlen, bitmap[3] = {0};
 	int status;
 
@@ -4253,7 +4253,7 @@ xdr_error:
 
 static int decode_pathconf(struct xdr_stream *xdr, struct nfs_pathconf *pathconf)
 {
-	__be32 *savep;
+	unsigned int savep;
 	uint32_t attrlen, bitmap[3] = {0};
 	int status;
 
@@ -4298,7 +4298,8 @@ out_overflow:
 static int decode_first_threshold_item4(struct xdr_stream *xdr,
 					struct nfs4_threshold *res)
 {
-	__be32 *p, *savep;
+	__be32 *p;
+	unsigned int savep;
 	uint32_t bitmap[3] = {0,}, attrlen;
 	int status;
 
@@ -4359,7 +4360,10 @@ static int decode_attr_mdsthreshold(struct xdr_stream *xdr,
 
 	if (unlikely(bitmap[2] & (FATTR4_WORD2_MDSTHRESHOLD - 1U)))
 		return -EIO;
-	if (likely(bitmap[2] & FATTR4_WORD2_MDSTHRESHOLD)) {
+	if (bitmap[2] & FATTR4_WORD2_MDSTHRESHOLD) {
+		/* Did the server return an unrequested attribute? */
+		if (unlikely(res == NULL))
+			return -EREMOTEIO;
 		p = xdr_inline_decode(xdr, 4);
 		if (unlikely(!p))
 			goto out_overflow;
@@ -4372,6 +4376,7 @@ static int decode_attr_mdsthreshold(struct xdr_stream *xdr,
 				__func__);
 
 		status = decode_first_threshold_item4(xdr, res);
+		bitmap[2] &= ~FATTR4_WORD2_MDSTHRESHOLD;
 	}
 	return status;
 out_overflow:
@@ -4498,7 +4503,7 @@ static int decode_getfattr_generic(struct xdr_stream *xdr, struct nfs_fattr *fat
 		struct nfs_fh *fh, struct nfs4_fs_locations *fs_loc,
 		const struct nfs_server *server)
 {
-	__be32 *savep;
+	unsigned int savep;
 	uint32_t attrlen,
 		 bitmap[3] = {0};
 	int status;
@@ -4610,7 +4615,7 @@ static int decode_attr_layout_blksize(struct xdr_stream *xdr, uint32_t *bitmap,
 
 static int decode_fsinfo(struct xdr_stream *xdr, struct nfs_fsinfo *fsinfo)
 {
-	__be32 *savep;
+	unsigned int savep;
 	uint32_t attrlen, bitmap[3];
 	int status;
 
@@ -4915,9 +4920,8 @@ static int decode_putrootfh(struct xdr_stream *xdr)
 
 static int decode_read(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs_readres *res)
 {
-	struct kvec *iov = req->rq_rcv_buf.head;
 	__be32 *p;
-	uint32_t count, eof, recvd, hdrlen;
+	uint32_t count, eof, recvd;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_READ);
@@ -4928,15 +4932,13 @@ static int decode_read(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs_
 		goto out_overflow;
 	eof = be32_to_cpup(p++);
 	count = be32_to_cpup(p);
-	hdrlen = (u8 *) xdr->p - (u8 *) iov->iov_base;
-	recvd = req->rq_rcv_buf.len - hdrlen;
+	recvd = xdr_read_pages(xdr, count);
 	if (count > recvd) {
 		dprintk("NFS: server cheating in read reply: "
 				"count %u > recvd %u\n", count, recvd);
 		count = recvd;
 		eof = 0;
 	}
-	xdr_read_pages(xdr, count);
 	res->eof = eof;
 	res->count = count;
 	return 0;
@@ -4947,10 +4949,6 @@ out_overflow:
 
 static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct nfs4_readdir_res *readdir)
 {
-	struct xdr_buf	*rcvbuf = &req->rq_rcv_buf;
-	struct kvec	*iov = rcvbuf->head;
-	size_t		hdrlen;
-	u32		recvd, pglen = rcvbuf->page_len;
 	int		status;
 	__be32		verf[2];
 
@@ -4962,22 +4960,12 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	memcpy(verf, readdir->verifier.data, sizeof(verf));
 	dprintk("%s: verifier = %08x:%08x\n",
 			__func__, verf[0], verf[1]);
-
-	hdrlen = (char *) xdr->p - (char *) iov->iov_base;
-	recvd = rcvbuf->len - hdrlen;
-	if (pglen > recvd)
-		pglen = recvd;
-	xdr_read_pages(xdr, pglen);
-
-
-	return pglen;
+	return xdr_read_pages(xdr, xdr->buf->page_len);
 }
 
 static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	struct kvec *iov = rcvbuf->head;
-	size_t hdrlen;
 	u32 len, recvd;
 	__be32 *p;
 	int status;
@@ -4995,14 +4983,12 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 		dprintk("nfs: server returned giant symlink!\n");
 		return -ENAMETOOLONG;
 	}
-	hdrlen = (char *) xdr->p - (char *) iov->iov_base;
-	recvd = req->rq_rcv_buf.len - hdrlen;
+	recvd = xdr_read_pages(xdr, len);
 	if (recvd < len) {
 		dprintk("NFS: server cheating in readlink reply: "
 				"count %u > recvd %u\n", len, recvd);
 		return -EIO;
 	}
-	xdr_read_pages(xdr, len);
 	/*
 	 * The XDR encode routine has set things up so that
 	 * the link text will be copied directly into the
@@ -5058,23 +5044,20 @@ decode_restorefh(struct xdr_stream *xdr)
 static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 			 struct nfs_getaclres *res)
 {
-	__be32 *savep, *bm_p;
+	unsigned int savep;
 	uint32_t attrlen,
 		 bitmap[3] = {0};
-	struct kvec *iov = req->rq_rcv_buf.head;
 	int status;
-	size_t page_len = xdr->buf->page_len;
+	unsigned int pg_offset;
 
 	res->acl_len = 0;
 	if ((status = decode_op_hdr(xdr, OP_GETATTR)) != 0)
 		goto out;
 
-	bm_p = xdr->p;
-	res->acl_data_offset = be32_to_cpup(bm_p) + 2;
-	res->acl_data_offset <<= 2;
-	/* Check if the acl data starts beyond the allocated buffer */
-	if (res->acl_data_offset > page_len)
-		return -ERANGE;
+	xdr_enter_page(xdr, xdr->buf->page_len);
+
+	/* Calculate the offset of the page data */
+	pg_offset = xdr->buf->head[0].iov_len;
 
 	if ((status = decode_attr_bitmap(xdr, bitmap)) != 0)
 		goto out;
@@ -5084,29 +5067,24 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 	if (unlikely(bitmap[0] & (FATTR4_WORD0_ACL - 1U)))
 		return -EIO;
 	if (likely(bitmap[0] & FATTR4_WORD0_ACL)) {
-		size_t hdrlen;
 
 		/* The bitmap (xdr len + bitmaps) and the attr xdr len words
 		 * are stored with the acl data to handle the problem of
 		 * variable length bitmaps.*/
-		xdr->p = bm_p;
+		res->acl_data_offset = xdr_stream_pos(xdr) - pg_offset;
 
 		/* We ignore &savep and don't do consistency checks on
 		 * the attr length.  Let userspace figure it out.... */
-		hdrlen = (u8 *)xdr->p - (u8 *)iov->iov_base;
-		attrlen += res->acl_data_offset;
-		if (attrlen > page_len) {
+		res->acl_len = attrlen;
+		if (attrlen > (xdr->nwords << 2)) {
 			if (res->acl_flags & NFS4_ACL_LEN_REQUEST) {
 				/* getxattr interface called with a NULL buf */
-				res->acl_len = attrlen;
 				goto out;
 			}
-			dprintk("NFS: acl reply: attrlen %u > page_len %zu\n",
-					attrlen, page_len);
+			dprintk("NFS: acl reply: attrlen %u > page_len %u\n",
+					attrlen, xdr->nwords << 2);
 			return -EINVAL;
 		}
-		xdr_read_pages(xdr, attrlen);
-		res->acl_len = attrlen;
 	} else
 		status = -EOPNOTSUPP;
 
@@ -5207,13 +5185,12 @@ static int decode_write(struct xdr_stream *xdr, struct nfs_writeres *res)
 	if (status)
 		return status;
 
-	p = xdr_inline_decode(xdr, 16);
+	p = xdr_inline_decode(xdr, 8);
 	if (unlikely(!p))
 		goto out_overflow;
 	res->count = be32_to_cpup(p++);
 	res->verf->committed = be32_to_cpup(p++);
-	memcpy(res->verf->verifier, p, NFS4_VERIFIER_SIZE);
-	return 0;
+	return decode_write_verifier(xdr, &res->verf->verifier);
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
@@ -5594,7 +5571,7 @@ static int decode_getdevicelist(struct xdr_stream *xdr,
 {
 	__be32 *p;
 	int status, i;
-	struct nfs_writeverf verftemp;
+	nfs4_verifier verftemp;
 
 	status = decode_op_hdr(xdr, OP_GETDEVICELIST);
 	if (status)
@@ -5608,7 +5585,7 @@ static int decode_getdevicelist(struct xdr_stream *xdr,
 	p += 2;
 
 	/* Read verifier */
-	p = xdr_decode_opaque_fixed(p, verftemp.verifier, NFS4_VERIFIER_SIZE);
+	p = xdr_decode_opaque_fixed(p, verftemp.data, NFS4_VERIFIER_SIZE);
 
 	res->num_devs = be32_to_cpup(p);
 
@@ -5702,9 +5679,7 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 	__be32 *p;
 	int status;
 	u32 layout_count;
-	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
-	struct kvec *iov = rcvbuf->head;
-	u32 hdrlen, recvd;
+	u32 recvd;
 
 	status = decode_op_hdr(xdr, OP_LAYOUTGET);
 	if (status)
@@ -5741,16 +5716,13 @@ static int decode_layoutget(struct xdr_stream *xdr, struct rpc_rqst *req,
 		res->type,
 		res->layoutp->len);
 
-	hdrlen = (u8 *) xdr->p - (u8 *) iov->iov_base;
-	recvd = req->rq_rcv_buf.len - hdrlen;
+	recvd = xdr_read_pages(xdr, res->layoutp->len);
 	if (res->layoutp->len > recvd) {
 		dprintk("NFS: server cheating in layoutget reply: "
 				"layout len %u > recvd %u\n",
 				res->layoutp->len, recvd);
 		return -EINVAL;
 	}
-
-	xdr_read_pages(xdr, res->layoutp->len);
 
 	if (layout_count > 1) {
 		/* We only handle a length one array at the moment.  Any
@@ -7098,6 +7070,7 @@ out:
 int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		       int plus)
 {
+	unsigned int savep;
 	uint32_t bitmap[3] = {0};
 	uint32_t len;
 	__be32 *p = xdr_inline_decode(xdr, 4);
@@ -7136,7 +7109,7 @@ int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (decode_attr_bitmap(xdr, bitmap) < 0)
 		goto out_overflow;
 
-	if (decode_attr_length(xdr, &len, &p) < 0)
+	if (decode_attr_length(xdr, &len, &savep) < 0)
 		goto out_overflow;
 
 	if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh,

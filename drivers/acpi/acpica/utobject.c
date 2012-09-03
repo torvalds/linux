@@ -69,7 +69,7 @@ acpi_ut_get_element_length(u8 object_type,
  * PARAMETERS:  module_name         - Source file name of caller
  *              line_number         - Line number of caller
  *              component_id        - Component type of caller
- *              Type                - ACPI Type of the new object
+ *              type                - ACPI Type of the new object
  *
  * RETURN:      A new internal object, null on failure
  *
@@ -150,7 +150,7 @@ union acpi_operand_object *acpi_ut_create_internal_object_dbg(const char
  *
  * FUNCTION:    acpi_ut_create_package_object
  *
- * PARAMETERS:  Count               - Number of package elements
+ * PARAMETERS:  count               - Number of package elements
  *
  * RETURN:      Pointer to a new Package object, null on failure
  *
@@ -323,11 +323,11 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
  *
  * FUNCTION:    acpi_ut_valid_internal_object
  *
- * PARAMETERS:  Object              - Object to be validated
+ * PARAMETERS:  object              - Object to be validated
  *
  * RETURN:      TRUE if object is valid, FALSE otherwise
  *
- * DESCRIPTION: Validate a pointer to be a union acpi_operand_object
+ * DESCRIPTION: Validate a pointer to be of type union acpi_operand_object
  *
  ******************************************************************************/
 
@@ -348,7 +348,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 	switch (ACPI_GET_DESCRIPTOR_TYPE(object)) {
 	case ACPI_DESC_TYPE_OPERAND:
 
-		/* The object appears to be a valid union acpi_operand_object    */
+		/* The object appears to be a valid union acpi_operand_object */
 
 		return (TRUE);
 
@@ -407,7 +407,7 @@ void *acpi_ut_allocate_object_desc_dbg(const char *module_name,
  *
  * FUNCTION:    acpi_ut_delete_object_desc
  *
- * PARAMETERS:  Object          - An Acpi internal object to be deleted
+ * PARAMETERS:  object          - An Acpi internal object to be deleted
  *
  * RETURN:      None.
  *
@@ -419,7 +419,7 @@ void acpi_ut_delete_object_desc(union acpi_operand_object *object)
 {
 	ACPI_FUNCTION_TRACE_PTR(ut_delete_object_desc, object);
 
-	/* Object must be a union acpi_operand_object    */
+	/* Object must be a union acpi_operand_object */
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) != ACPI_DESC_TYPE_OPERAND) {
 		ACPI_ERROR((AE_INFO,

@@ -39,12 +39,14 @@ struct quirk_entry {
 	bool hotplug_wireless;
 	bool scalar_panel_brightness;
 	bool store_backlight_power;
+	bool wmi_backlight_power;
 	int wapf;
 };
 
 struct asus_wmi_driver {
 	int			brightness;
 	int			panel_power;
+	int			wlan_ctrl_by_user;
 
 	const char		*name;
 	struct module		*owner;

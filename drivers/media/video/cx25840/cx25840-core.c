@@ -84,7 +84,7 @@ MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
 
 
 /* ----------------------------------------------------------------------- */
-static void cx23885_std_setup(struct i2c_client *client);
+static void cx23888_std_setup(struct i2c_client *client);
 
 int cx25840_write(struct i2c_client *client, u16 addr, u8 value)
 {
@@ -638,10 +638,13 @@ static void cx23885_initialize(struct i2c_client *client)
 	finish_wait(&state->fw_wait, &wait);
 	destroy_workqueue(q);
 
-	/* Call the cx23885 specific std setup func, we no longer rely on
+	/* Call the cx23888 specific std setup func, we no longer rely on
 	 * the generic cx24840 func.
 	 */
-	cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
+	else
+		cx25840_std_setup(client);
 
 	/* (re)set input */
 	set_input(client, state->vid_input, state->aud_input);
@@ -1103,9 +1106,23 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 			cx25840_write4(client, 0x410, 0xffff0dbf);
 			cx25840_write4(client, 0x414, 0x00137d03);
-			cx25840_write4(client, 0x418, 0x01008080);
+
+			/* on the 887, 0x418 is HSCALE_CTRL, on the 888 it is 
+			   CHROMA_CTRL */
+			if (is_cx23888(state))
+				cx25840_write4(client, 0x418, 0x01008080);
+			else
+				cx25840_write4(client, 0x418, 0x01000000);
+
 			cx25840_write4(client, 0x41c, 0x00000000);
-			cx25840_write4(client, 0x420, 0x001c3e0f);
+
+			/* on the 887, 0x420 is CHROMA_CTRL, on the 888 it is 
+			   CRUSH_CTRL */
+			if (is_cx23888(state))
+				cx25840_write4(client, 0x420, 0x001c3e0f);
+			else
+				cx25840_write4(client, 0x420, 0x001c8282);
+
 			cx25840_write4(client, 0x42c, 0x42600000);
 			cx25840_write4(client, 0x430, 0x0000039b);
 			cx25840_write4(client, 0x438, 0x00000000);
@@ -1233,7 +1250,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		cx25840_write4(client, 0x8d0, 0x1f063870);
 	}
 
-	if (is_cx2388x(state)) {
+	if (is_cx23888(state)) {
 		/* HVR1850 */
 		/* AUD_IO_CTRL - I2S Input, Parallel1*/
 		/*  - Channel 1 src - Parallel1 (Merlin out) */
@@ -1298,8 +1315,8 @@ static int set_v4lstd(struct i2c_client *client)
 	}
 	cx25840_and_or(client, 0x400, ~0xf, fmt);
 	cx25840_and_or(client, 0x403, ~0x3, pal_m);
-	if (is_cx2388x(state))
-		cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
 	else
 		cx25840_std_setup(client);
 	if (!is_cx2583x(state))
@@ -1312,6 +1329,7 @@ static int set_v4lstd(struct i2c_client *client)
 static int cx25840_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	switch (ctrl->id) {
@@ -1324,12 +1342,20 @@ static int cx25840_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_SATURATION:
-		cx25840_write(client, 0x420, ctrl->val << 1);
-		cx25840_write(client, 0x421, ctrl->val << 1);
+		if (is_cx23888(state)) {
+			cx25840_write(client, 0x418, ctrl->val << 1);
+			cx25840_write(client, 0x419, ctrl->val << 1);
+		} else {
+			cx25840_write(client, 0x420, ctrl->val << 1);
+			cx25840_write(client, 0x421, ctrl->val << 1);
+		}
 		break;
 
 	case V4L2_CID_HUE:
-		cx25840_write(client, 0x422, ctrl->val);
+		if (is_cx23888(state))
+			cx25840_write(client, 0x41a, ctrl->val);
+		else
+			cx25840_write(client, 0x422, ctrl->val);
 		break;
 
 	default:
@@ -1354,11 +1380,21 @@ static int cx25840_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt 
 	fmt->field = V4L2_FIELD_INTERLACED;
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	Vsrc = (cx25840_read(client, 0x476) & 0x3f) << 4;
-	Vsrc |= (cx25840_read(client, 0x475) & 0xf0) >> 4;
+	if (is_cx23888(state)) {
+		Vsrc = (cx25840_read(client, 0x42a) & 0x3f) << 4;
+		Vsrc |= (cx25840_read(client, 0x429) & 0xf0) >> 4;
+	} else {
+		Vsrc = (cx25840_read(client, 0x476) & 0x3f) << 4;
+		Vsrc |= (cx25840_read(client, 0x475) & 0xf0) >> 4;
+	}
 
-	Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
-	Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
+	if (is_cx23888(state)) {
+		Hsrc = (cx25840_read(client, 0x426) & 0x3f) << 4;
+		Hsrc |= (cx25840_read(client, 0x425) & 0xf0) >> 4;
+	} else {
+		Hsrc = (cx25840_read(client, 0x472) & 0x3f) << 4;
+		Hsrc |= (cx25840_read(client, 0x471) & 0xf0) >> 4;
+	}
 
 	Vlines = fmt->height + (is_50Hz ? 4 : 7);
 
@@ -1782,8 +1818,8 @@ static int cx25840_s_video_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (is_cx2388x(state))
-		cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
 
 	return set_input(client, input, state->aud_input);
 }
@@ -1794,8 +1830,8 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (is_cx2388x(state))
-		cx23885_std_setup(client);
+	if (is_cx23888(state))
+		cx23888_std_setup(client);
 	return set_input(client, state->vid_input, input);
 }
 
@@ -4939,7 +4975,7 @@ void cx23885_dif_setup(struct i2c_client *client, u32 ifHz)
 	}
 }
 
-static void cx23885_std_setup(struct i2c_client *client)
+static void cx23888_std_setup(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	v4l2_std_id std = state->std;

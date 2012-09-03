@@ -383,6 +383,12 @@ xfsaild_push(
 	}
 
 	spin_lock(&ailp->xa_lock);
+
+	/* barrier matches the xa_target update in xfs_ail_push() */
+	smp_rmb();
+	target = ailp->xa_target;
+	ailp->xa_target_prev = target;
+
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->xa_last_pushed_lsn);
 	if (!lip) {
 		/*
@@ -397,7 +403,6 @@ xfsaild_push(
 	XFS_STATS_INC(xs_push_ail);
 
 	lsn = lip->li_lsn;
-	target = ailp->xa_target;
 	while ((XFS_LSN_CMP(lip->li_lsn, target) <= 0)) {
 		int	lock_result;
 
@@ -527,8 +532,32 @@ xfsaild(
 			__set_current_state(TASK_KILLABLE);
 		else
 			__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(tout ?
-				 msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
+
+		spin_lock(&ailp->xa_lock);
+
+		/*
+		 * Idle if the AIL is empty and we are not racing with a target
+		 * update. We check the AIL after we set the task to a sleep
+		 * state to guarantee that we either catch an xa_target update
+		 * or that a wake_up resets the state to TASK_RUNNING.
+		 * Otherwise, we run the risk of sleeping indefinitely.
+		 *
+		 * The barrier matches the xa_target update in xfs_ail_push().
+		 */
+		smp_rmb();
+		if (!xfs_ail_min(ailp) &&
+		    ailp->xa_target == ailp->xa_target_prev) {
+			spin_unlock(&ailp->xa_lock);
+			schedule();
+			tout = 0;
+			continue;
+		}
+		spin_unlock(&ailp->xa_lock);
+
+		if (tout)
+			schedule_timeout(msecs_to_jiffies(tout));
+
+		__set_current_state(TASK_RUNNING);
 
 		try_to_freeze();
 

@@ -47,6 +47,7 @@ struct sh_mobile_lcdc_entity {
 /*
  * struct sh_mobile_lcdc_chan - LCDC display channel
  *
+ * @pan_y_offset: Panning linear offset in bytes (luma component)
  * @base_addr_y: Frame buffer viewport base address (luma component)
  * @base_addr_c: Frame buffer viewport base address (chroma component)
  * @pitch: Frame buffer line pitch
@@ -59,7 +60,7 @@ struct sh_mobile_lcdc_chan {
 	unsigned long *reg_offs;
 	unsigned long ldmt1r_value;
 	unsigned long enabled; /* ME and SE in LDCNT2R */
-	void *meram;
+	void *cache;
 
 	struct mutex open_lock;		/* protects the use counter */
 	int use_count;
@@ -68,7 +69,7 @@ struct sh_mobile_lcdc_chan {
 	unsigned long fb_size;
 
 	dma_addr_t dma_handle;
-	unsigned long pan_offset;
+	unsigned long pan_y_offset;
 
 	unsigned long frame_end;
 	wait_queue_head_t frame_end_wait;

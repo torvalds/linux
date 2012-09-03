@@ -73,6 +73,8 @@ static int lpfc_hba_down_post_s4(struct lpfc_hba *phba);
 static int lpfc_sli4_cq_event_pool_create(struct lpfc_hba *);
 static void lpfc_sli4_cq_event_pool_destroy(struct lpfc_hba *);
 static void lpfc_sli4_cq_event_release_all(struct lpfc_hba *);
+static void lpfc_sli4_disable_intr(struct lpfc_hba *);
+static uint32_t lpfc_sli4_enable_intr(struct lpfc_hba *, uint32_t);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -1169,7 +1171,7 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 	spin_unlock_irq(&phba->hbalock);
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 
 	lpfc_offline(phba);
 	lpfc_reset_barrier(phba);
@@ -1193,7 +1195,7 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
 static void
 lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 {
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 	lpfc_offline(phba);
 	lpfc_sli4_brdreset(phba);
 	lpfc_hba_down_post(phba);
@@ -1251,7 +1253,7 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	 * There was a firmware error. Take the hba offline and then
 	 * attempt to restart it.
 	 */
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	lpfc_offline(phba);
 
 	/* Wait for the ER1 bit to clear.*/
@@ -1372,7 +1374,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 		 * There was a firmware error.  Take the hba offline and then
 		 * attempt to restart it.
 		 */
-		lpfc_offline_prep(phba);
+		lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
 		lpfc_offline(phba);
 		lpfc_sli_brdrestart(phba);
 		if (lpfc_online(phba) == 0) {	/* Initialize the HBA */
@@ -1425,6 +1427,54 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 		lpfc_offline_eratt(phba);
 	}
 	return;
+}
+
+/**
+ * lpfc_sli4_port_sta_fn_reset - The SLI4 function reset due to port status reg
+ * @phba: pointer to lpfc hba data structure.
+ * @mbx_action: flag for mailbox shutdown action.
+ *
+ * This routine is invoked to perform an SLI4 port PCI function reset in
+ * response to port status register polling attention. It waits for port
+ * status register (ERR, RDY, RN) bits before proceeding with function reset.
+ * During this process, interrupt vectors are freed and later requested
+ * for handling possible port resource change.
+ **/
+static int
+lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action)
+{
+	int rc;
+	uint32_t intr_mode;
+
+	/*
+	 * On error status condition, driver need to wait for port
+	 * ready before performing reset.
+	 */
+	rc = lpfc_sli4_pdev_status_reg_wait(phba);
+	if (!rc) {
+		/* need reset: attempt for port recovery */
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2887 Reset Needed: Attempting Port "
+				"Recovery...\n");
+		lpfc_offline_prep(phba, mbx_action);
+		lpfc_offline(phba);
+		/* release interrupt for possible resource change */
+		lpfc_sli4_disable_intr(phba);
+		lpfc_sli_brdrestart(phba);
+		/* request and enable interrupt */
+		intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
+		if (intr_mode == LPFC_INTR_ERROR) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3175 Failed to enable interrupt\n");
+			return -EIO;
+		} else {
+			phba->intr_mode = intr_mode;
+		}
+		rc = lpfc_online(phba);
+		if (rc == 0)
+			lpfc_unblock_mgmt_io(phba);
+	}
+	return rc;
 }
 
 /**
@@ -1506,30 +1556,18 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			 reg_err2 == SLIPORT_ERR2_REG_FUNC_PROVISON)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"3145 Port Down: Provisioning\n");
-		/*
-		 * On error status condition, driver need to wait for port
-		 * ready before performing reset.
-		 */
-		rc = lpfc_sli4_pdev_status_reg_wait(phba);
-		if (!rc) {
-			/* need reset: attempt for port recovery */
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2887 Reset Needed: Attempting Port "
-					"Recovery...\n");
-			lpfc_offline_prep(phba);
-			lpfc_offline(phba);
-			lpfc_sli_brdrestart(phba);
-			if (lpfc_online(phba) == 0) {
-				lpfc_unblock_mgmt_io(phba);
-				/* don't report event on forced debug dump */
-				if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
-				    reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
-					return;
-				else
-					break;
-			}
-			/* fall through for not able to recover */
+
+		/* Check port status register for function reset */
+		rc = lpfc_sli4_port_sta_fn_reset(phba, LPFC_MBX_NO_WAIT);
+		if (rc == 0) {
+			/* don't report event on forced debug dump */
+			if (reg_err1 == SLIPORT_ERR1_REG_ERR_CODE_2 &&
+			    reg_err2 == SLIPORT_ERR2_REG_FORCED_DUMP)
+				return;
+			else
+				break;
 		}
+		/* fall through for not able to recover */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3152 Unrecoverable error, bring the port "
 				"offline\n");
@@ -2494,15 +2532,19 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
  * driver prepares the HBA interface for online or offline.
  **/
 static void
-lpfc_block_mgmt_io(struct lpfc_hba * phba)
+lpfc_block_mgmt_io(struct lpfc_hba *phba, int mbx_action)
 {
 	unsigned long iflag;
 	uint8_t actcmd = MBX_HEARTBEAT;
 	unsigned long timeout;
 
-	timeout = msecs_to_jiffies(LPFC_MBOX_TMO * 1000) + jiffies;
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	phba->sli.sli_flag |= LPFC_BLOCK_MGMT_IO;
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	if (mbx_action == LPFC_MBX_NO_WAIT)
+		return;
+	timeout = msecs_to_jiffies(LPFC_MBOX_TMO * 1000) + jiffies;
+	spin_lock_irqsave(&phba->hbalock, iflag);
 	if (phba->sli.mbox_active) {
 		actcmd = phba->sli.mbox_active->u.mb.mbxCommand;
 		/* Determine how long we might wait for the active mailbox
@@ -2592,7 +2634,7 @@ lpfc_online(struct lpfc_hba *phba)
 	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 			"0458 Bring Adapter online\n");
 
-	lpfc_block_mgmt_io(phba);
+	lpfc_block_mgmt_io(phba, LPFC_MBX_WAIT);
 
 	if (!lpfc_sli_queue_setup(phba)) {
 		lpfc_unblock_mgmt_io(phba);
@@ -2660,7 +2702,7 @@ lpfc_unblock_mgmt_io(struct lpfc_hba * phba)
  * queue to make it ready to be brought offline.
  **/
 void
-lpfc_offline_prep(struct lpfc_hba * phba)
+lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 {
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
@@ -2671,7 +2713,7 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 	if (vport->fc_flag & FC_OFFLINE_MODE)
 		return;
 
-	lpfc_block_mgmt_io(phba);
+	lpfc_block_mgmt_io(phba, mbx_action);
 
 	lpfc_linkdown(phba);
 
@@ -2718,7 +2760,7 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	lpfc_sli_mbox_sys_shutdown(phba);
+	lpfc_sli_mbox_sys_shutdown(phba, mbx_action);
 }
 
 /**
@@ -3684,12 +3726,76 @@ out_free_pmb:
 static void
 lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 {
-	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"2901 Async SLI event - Event Data1:x%08x Event Data2:"
-			"x%08x SLI Event Type:%d",
-			acqe_sli->event_data1, acqe_sli->event_data2,
-			bf_get(lpfc_trailer_type, acqe_sli));
-	return;
+	char port_name;
+	char message[80];
+	uint8_t status;
+	struct lpfc_acqe_misconfigured_event *misconfigured;
+
+	/* special case misconfigured event as it contains data for all ports */
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+		 LPFC_SLI_INTF_IF_TYPE_2) ||
+		(bf_get(lpfc_trailer_type, acqe_sli) !=
+			LPFC_SLI_EVENT_TYPE_MISCONFIGURED)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"2901 Async SLI event - Event Data1:x%08x Event Data2:"
+				"x%08x SLI Event Type:%d\n",
+				acqe_sli->event_data1, acqe_sli->event_data2,
+				bf_get(lpfc_trailer_type, acqe_sli));
+		return;
+	}
+
+	port_name = phba->Port[0];
+	if (port_name == 0x00)
+		port_name = '?'; /* get port name is empty */
+
+	misconfigured = (struct lpfc_acqe_misconfigured_event *)
+					&acqe_sli->event_data1;
+
+	/* fetch the status for this port */
+	switch (phba->sli4_hba.lnk_info.lnk_no) {
+	case LPFC_LINK_NUMBER_0:
+		status = bf_get(lpfc_sli_misconfigured_port0,
+					&misconfigured->theEvent);
+		break;
+	case LPFC_LINK_NUMBER_1:
+		status = bf_get(lpfc_sli_misconfigured_port1,
+					&misconfigured->theEvent);
+		break;
+	case LPFC_LINK_NUMBER_2:
+		status = bf_get(lpfc_sli_misconfigured_port2,
+					&misconfigured->theEvent);
+		break;
+	case LPFC_LINK_NUMBER_3:
+		status = bf_get(lpfc_sli_misconfigured_port3,
+					&misconfigured->theEvent);
+		break;
+	default:
+		status = ~LPFC_SLI_EVENT_STATUS_VALID;
+		break;
+	}
+
+	switch (status) {
+	case LPFC_SLI_EVENT_STATUS_VALID:
+		return; /* no message if the sfp is okay */
+	case LPFC_SLI_EVENT_STATUS_NOT_PRESENT:
+		sprintf(message, "Not installed");
+		break;
+	case LPFC_SLI_EVENT_STATUS_WRONG_TYPE:
+		sprintf(message,
+			"Optics of two types installed");
+		break;
+	case LPFC_SLI_EVENT_STATUS_UNSUPPORTED:
+		sprintf(message, "Incompatible optics");
+		break;
+	default:
+		/* firmware is reporting a status we don't know about */
+		sprintf(message, "Unknown event status x%02x", status);
+		break;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			"3176 Misconfigured Physical Port - "
+			"Port Name %c %s\n", port_name, message);
 }
 
 /**
@@ -4312,7 +4418,7 @@ lpfc_reset_hba(struct lpfc_hba *phba)
 		phba->link_state = LPFC_HBA_ERROR;
 		return;
 	}
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
 	lpfc_online(phba);
@@ -5514,14 +5620,45 @@ lpfc_destroy_shost(struct lpfc_hba *phba)
 static void
 lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 {
+	uint32_t old_mask;
+	uint32_t old_guard;
+
 	int pagecnt = 10;
 	if (lpfc_prot_mask && lpfc_prot_guard) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"1478 Registering BlockGuard with the "
 				"SCSI layer\n");
-		scsi_host_set_prot(shost, lpfc_prot_mask);
-		scsi_host_set_guard(shost, lpfc_prot_guard);
+
+		old_mask = lpfc_prot_mask;
+		old_guard = lpfc_prot_guard;
+
+		/* Only allow supported values */
+		lpfc_prot_mask &= (SHOST_DIF_TYPE1_PROTECTION |
+			SHOST_DIX_TYPE0_PROTECTION |
+			SHOST_DIX_TYPE1_PROTECTION);
+		lpfc_prot_guard &= (SHOST_DIX_GUARD_IP | SHOST_DIX_GUARD_CRC);
+
+		/* DIF Type 1 protection for profiles AST1/C1 is end to end */
+		if (lpfc_prot_mask == SHOST_DIX_TYPE1_PROTECTION)
+			lpfc_prot_mask |= SHOST_DIF_TYPE1_PROTECTION;
+
+		if (lpfc_prot_mask && lpfc_prot_guard) {
+			if ((old_mask != lpfc_prot_mask) ||
+				(old_guard != lpfc_prot_guard))
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"1475 Registering BlockGuard with the "
+					"SCSI layer: mask %d  guard %d\n",
+					lpfc_prot_mask, lpfc_prot_guard);
+
+			scsi_host_set_prot(shost, lpfc_prot_mask);
+			scsi_host_set_guard(shost, lpfc_prot_guard);
+		} else
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1479 Not Registering BlockGuard with the SCSI "
+				"layer, Bad protection parameters: %d %d\n",
+				old_mask, old_guard);
 	}
+
 	if (!_dump_buf_data) {
 		while (pagecnt) {
 			spin_lock_init(&_dump_buf_lock);
@@ -8859,7 +8996,7 @@ lpfc_pci_suspend_one_s3(struct pci_dev *pdev, pm_message_t msg)
 			"0473 PCI device Power Management suspend.\n");
 
 	/* Bring down the device */
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	lpfc_offline(phba);
 	kthread_stop(phba->worker_thread);
 
@@ -8985,7 +9122,7 @@ lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 			"2710 PCI channel disable preparing for reset\n");
 
 	/* Block any management I/Os to the device */
-	lpfc_block_mgmt_io(phba);
+	lpfc_block_mgmt_io(phba, LPFC_MBX_WAIT);
 
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
@@ -9129,7 +9266,7 @@ lpfc_io_slot_reset_s3(struct pci_dev *pdev)
 		phba->intr_mode = intr_mode;
 
 	/* Take device offline, it will perform cleanup */
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);
 
@@ -9603,7 +9740,7 @@ lpfc_pci_suspend_one_s4(struct pci_dev *pdev, pm_message_t msg)
 			"2843 PCI device Power Management suspend.\n");
 
 	/* Bring down the device */
-	lpfc_offline_prep(phba);
+	lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 	lpfc_offline(phba);
 	kthread_stop(phba->worker_thread);
 
@@ -9729,7 +9866,7 @@ lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 			"2826 PCI channel disable preparing for reset\n");
 
 	/* Block any management I/Os to the device */
-	lpfc_block_mgmt_io(phba);
+	lpfc_block_mgmt_io(phba, LPFC_MBX_NO_WAIT);
 
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
@@ -9902,7 +10039,7 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
 	 */
 	if (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE)) {
 		/* Perform device reset */
-		lpfc_offline_prep(phba);
+		lpfc_offline_prep(phba, LPFC_MBX_WAIT);
 		lpfc_offline(phba);
 		lpfc_sli_brdrestart(phba);
 		/* Bring the device back online */

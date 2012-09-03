@@ -466,7 +466,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 	acpi_status status;
 	struct acpi_gpe_event_info *local_gpe_event_info;
 	struct acpi_evaluate_info *info;
-	struct acpi_gpe_notify_object *notify_object;
+	struct acpi_gpe_notify_info *notify;
 
 	ACPI_FUNCTION_TRACE(ev_asynch_execute_gpe_method);
 
@@ -517,17 +517,17 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 		 * completes. The notify handlers are NOT invoked synchronously
 		 * from this thread -- because handlers may in turn run other
 		 * control methods.
+		 *
+		 * June 2012: Expand implicit notify mechanism to support
+		 * notifies on multiple device objects.
 		 */
-		status = acpi_ev_queue_notify_request(
-				local_gpe_event_info->dispatch.device.node,
-				ACPI_NOTIFY_DEVICE_WAKE);
+		notify = local_gpe_event_info->dispatch.notify_list;
+		while (ACPI_SUCCESS(status) && notify) {
+			status =
+			    acpi_ev_queue_notify_request(notify->device_node,
+							 ACPI_NOTIFY_DEVICE_WAKE);
 
-		notify_object = local_gpe_event_info->dispatch.device.next;
-		while (ACPI_SUCCESS(status) && notify_object) {
-			status = acpi_ev_queue_notify_request(
-					notify_object->node,
-					ACPI_NOTIFY_DEVICE_WAKE);
-			notify_object = notify_object->next;
+			notify = notify->next;
 		}
 
 		break;

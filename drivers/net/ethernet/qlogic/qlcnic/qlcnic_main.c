@@ -479,7 +479,7 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		pfn = pci_info[i].id;
-		if (pfn > QLCNIC_MAX_PCI_FUNC) {
+		if (pfn >= QLCNIC_MAX_PCI_FUNC) {
 			ret = QL_STATUS_INVALID_PARAM;
 			goto err_eswitch;
 		}
@@ -1136,6 +1136,8 @@ static int
 __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
 	int ring;
+	u32 capab2;
+
 	struct qlcnic_host_rds_ring *rds_ring;
 
 	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
@@ -1145,6 +1147,12 @@ __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 		return 0;
 	if (qlcnic_set_eswitch_port_config(adapter))
 		return -EIO;
+
+	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_MORE_CAPS) {
+		capab2 = QLCRD32(adapter, CRB_FW_CAPABILITIES_2);
+		if (capab2 & QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG)
+			adapter->flags |= QLCNIC_FW_LRO_MSS_CAP;
+	}
 
 	if (qlcnic_fw_create_ctx(adapter))
 		return -EIO;
@@ -1215,6 +1223,7 @@ __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 	qlcnic_napi_disable(adapter);
 
 	qlcnic_fw_destroy_ctx(adapter);
+	adapter->flags &= ~QLCNIC_FW_LRO_MSS_CAP;
 
 	qlcnic_reset_rx_buffers_list(adapter);
 	qlcnic_release_tx_buffers(adapter);
@@ -2024,6 +2033,7 @@ qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 		vh = (struct vlan_ethhdr *)skb->data;
 		flags = FLAGS_VLAN_TAGGED;
 		vlan_tci = vh->h_vlan_TCI;
+		protocol = ntohs(vh->h_vlan_encapsulated_proto);
 	} else if (vlan_tx_tag_present(skb)) {
 		flags = FLAGS_VLAN_OOB;
 		vlan_tci = vlan_tx_tag_get(skb);

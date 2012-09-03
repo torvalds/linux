@@ -47,12 +47,6 @@ config MXC_TZIC
 config MXC_AVIC
 	bool
 
-config MXC_PWM
-	tristate "Enable PWM driver"
-	select HAVE_PWM
-	help
-	  Enable support for the i.MX PWM controller(s).
-
 config MXC_DEBUG_BOARD
 	bool "Enable MXC debug board(for 3-stack)"
 	help

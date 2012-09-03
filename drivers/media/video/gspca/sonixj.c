@@ -3120,7 +3120,7 @@ static const struct sd_desc sd_desc = {
 			| (SENSOR_ ## sensor << 8) \
 			| (flags)
 static const struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x0458, 0x7025), BS(SN9C120, MI0360)},
+	{USB_DEVICE(0x0458, 0x7025), BSF(SN9C120, MI0360B, F_PDN_INV)},
 	{USB_DEVICE(0x0458, 0x702e), BS(SN9C120, OV7660)},
 	{USB_DEVICE(0x045e, 0x00f5), BSF(SN9C105, OV7660, F_PDN_INV)},
 	{USB_DEVICE(0x045e, 0x00f7), BSF(SN9C105, OV7660, F_PDN_INV)},
@@ -3199,6 +3199,7 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 

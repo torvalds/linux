@@ -1,0 +1,164 @@
+<section id="v4l2-selections-common">
+
+  <title>Common selection definitions</title>
+
+  <para>While the <link linkend="selection-api">V4L2 selection
+  API</link> and <link linkend="v4l2-subdev-selections">V4L2 subdev
+  selection APIs</link> are very similar, there's one fundamental
+  difference between the two. On sub-device API, the selection
+  rectangle refers to the media bus format, and is bound to a
+  sub-device's pad. On the V4L2 interface the selection rectangles
+  refer to the in-memory pixel format.</para>
+
+  <para>This section defines the common definitions of the
+  selection interfaces on the two APIs.</para>
+
+  <section id="v4l2-selection-targets">
+
+    <title>Selection targets</title>
+
+    <para>The precise meaning of the selection targets may be
+    dependent on which of the two interfaces they are used.</para>
+
+    <table pgwide="1" frame="none" id="v4l2-selection-targets-table">
+    <title>Selection target definitions</title>
+      <tgroup cols="5">
+	<colspec colname="c1" />
+	<colspec colname="c2" />
+	<colspec colname="c3" />
+	<colspec colname="c4" />
+	<colspec colname="c5" />
+	&cs-def;
+	<thead>
+	  <row rowsep="1">
+	    <entry align="left">Target name</entry>
+	    <entry align="left">id</entry>
+	    <entry align="left">Definition</entry>
+	    <entry align="left">Valid for V4L2</entry>
+	    <entry align="left">Valid for V4L2 subdev</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_CROP</constant></entry>
+	    <entry>0x0000</entry>
+	    <entry>Crop rectangle. Defines the cropped area.</entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_CROP_DEFAULT</constant></entry>
+	    <entry>0x0001</entry>
+	    <entry>Suggested cropping rectangle that covers the "whole picture".</entry>
+	    <entry>Yes</entry>
+	    <entry>No</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_CROP_BOUNDS</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry>Bounds of the crop rectangle. All valid crop
+	    rectangles fit inside the crop bounds rectangle.
+	    </entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_COMPOSE</constant></entry>
+	    <entry>0x0100</entry>
+	    <entry>Compose rectangle. Used to configure scaling
+	    and composition.</entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_COMPOSE_DEFAULT</constant></entry>
+	    <entry>0x0101</entry>
+	    <entry>Suggested composition rectangle that covers the "whole picture".</entry>
+	    <entry>Yes</entry>
+	    <entry>No</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_COMPOSE_BOUNDS</constant></entry>
+	    <entry>0x0102</entry>
+	    <entry>Bounds of the compose rectangle. All valid compose
+	    rectangles fit inside the compose bounds rectangle.</entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_TGT_COMPOSE_PADDED</constant></entry>
+	    <entry>0x0103</entry>
+	    <entry>The active area and all padding pixels that are inserted or
+	    modified by hardware.</entry>
+	    <entry>Yes</entry>
+	    <entry>No</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+  </section>
+
+  <section id="v4l2-selection-flags">
+
+    <title>Selection flags</title>
+
+    <table pgwide="1" frame="none" id="v4l2-selection-flags-table">
+    <title>Selection flag definitions</title>
+      <tgroup cols="5">
+	<colspec colname="c1" />
+	<colspec colname="c2" />
+	<colspec colname="c3" />
+	<colspec colname="c4" />
+	<colspec colname="c5" />
+	&cs-def;
+	<thead>
+	<row rowsep="1">
+	    <entry align="left">Flag name</entry>
+	    <entry align="left">id</entry>
+	    <entry align="left">Definition</entry>
+	    <entry align="left">Valid for V4L2</entry>
+	    <entry align="left">Valid for V4L2 subdev</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_SEL_FLAG_GE</constant></entry>
+	    <entry>(1 &lt;&lt; 0)</entry>
+	    <entry>Suggest the driver it should choose greater or
+	    equal rectangle (in size) than was requested. Albeit the
+	    driver may choose a lesser size, it will only do so due to
+	    hardware limitations. Without this flag (and
+	    <constant>V4L2_SEL_FLAG_LE</constant>) the
+	    behaviour is to choose the closest possible
+	    rectangle.</entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_FLAG_LE</constant></entry>
+	    <entry>(1 &lt;&lt; 1)</entry>
+	    <entry>Suggest the driver it
+	    should choose lesser or equal rectangle (in size) than was
+	    requested. Albeit the driver may choose a greater size, it
+	    will only do so due to hardware limitations.</entry>
+	    <entry>Yes</entry>
+	    <entry>Yes</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_SEL_FLAG_KEEP_CONFIG</constant></entry>
+	    <entry>(1 &lt;&lt; 2)</entry>
+	    <entry>The configuration must not be propagated to any
+	    further processing steps. If this flag is not given, the
+	    configuration is propagated inside the subdevice to all
+	    further processing steps.</entry>
+	    <entry>No</entry>
+	    <entry>Yes</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+  </section>
+
+</section>

@@ -44,9 +44,6 @@
 
 #include "devices-imx31.h"
 
-/* CPLD IRQ line for external uart, external ethernet etc */
-#define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_1)
-
 static int mx31_3ds_pins[] = {
 	/* UART1 */
 	MX31_PIN_CTS1__CTS1,
@@ -277,10 +274,6 @@ static const struct fb_videomode fb_modedb[] = {
 	},
 };
 
-static struct ipu_platform_data mx3_ipu_data = {
-	.irq_base = MXC_IPU_IRQ_START,
-};
-
 static struct mx3fb_platform_data mx3fb_pdata __initdata = {
 	.name		= "Epson-VGA",
 	.mode		= fb_modedb,
@@ -317,7 +310,7 @@ static int mx31_3ds_sdhc1_init(struct device *dev,
 		return ret;
 	}
 
-	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO3_1),
+	ret = request_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1)),
 			  detect_irq, IRQF_DISABLED |
 			  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			  "sdhc1-detect", data);
@@ -336,7 +329,7 @@ gpio_free:
 
 static void mx31_3ds_sdhc1_exit(struct device *dev, void *data)
 {
-	free_irq(IOMUX_TO_IRQ(MX31_PIN_GPIO3_1), data);
+	free_irq(gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1)), data);
 	gpio_free_array(mx31_3ds_sdhc1_gpios,
 			 ARRAY_SIZE(mx31_3ds_sdhc1_gpios));
 }
@@ -539,7 +532,7 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 1, /* SS2 */
 		.platform_data	= &mc13783_pdata,
-		.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
+		/* irq number is run-time assigned */
 		.mode = SPI_CS_HIGH,
 	}, {
 		.modalias	= "l4f00242t03",
@@ -671,18 +664,18 @@ static const struct fsl_usb2_platform_data usbotg_pdata __initconst = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
-static int otg_mode_host;
+static bool otg_mode_host __initdata;
 
 static int __init mx31_3ds_otg_mode(char *options)
 {
 	if (!strcmp(options, "host"))
-		otg_mode_host = 1;
+		otg_mode_host = true;
 	else if (!strcmp(options, "device"))
-		otg_mode_host = 0;
+		otg_mode_host = false;
 	else
 		pr_info("otg_mode neither \"host\" nor \"device\". "
 			"Defaulting to device\n");
-	return 0;
+	return 1;
 }
 __setup("otg_mode=", mx31_3ds_otg_mode);
 
@@ -714,6 +707,7 @@ static void __init mx31_3ds_init(void)
 	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
 	imx31_add_spi_imx1(&spi1_pdata);
+	mx31_3ds_spi_devs[0].irq = gpio_to_irq(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
 
@@ -736,15 +730,15 @@ static void __init mx31_3ds_init(void)
 	if (!otg_mode_host)
 		imx31_add_fsl_usb2_udc(&usbotg_pdata);
 
-	if (mxc_expio_init(MX31_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+	if (mxc_expio_init(MX31_CS5_BASE_ADDR, IOMUX_TO_GPIO(MX31_PIN_GPIO1_1)))
 		printk(KERN_WARNING "Init of the debug board failed, all "
 				    "devices on the debug board are unusable.\n");
-	imx31_add_imx2_wdt(NULL);
+	imx31_add_imx2_wdt();
 	imx31_add_imx_i2c0(&mx31_3ds_i2c0_data);
 	imx31_add_mxc_mmc(0, &sdhc1_pdata);
 
 	imx31_add_spi_imx0(&spi0_pdata);
-	imx31_add_ipu_core(&mx3_ipu_data);
+	imx31_add_ipu_core();
 	imx31_add_mx3_sdc_fb(&mx3fb_pdata);
 
 	/* CSI */

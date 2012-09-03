@@ -1,7 +1,5 @@
 /*
- * arch/s390/kernel/machine_kexec.c
- *
- * Copyright IBM Corp. 2005,2011
+ * Copyright IBM Corp. 2005, 2011
  *
  * Author(s): Rolf Adelsberger,
  *	      Heiko Carstens <heiko.carstens@de.ibm.com>

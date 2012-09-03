@@ -82,8 +82,7 @@
  * Defines used for sending commands to port
  */
 
-#define WAIT_FOR_EVER   (HZ * 0)	/* timeout urb is wait for ever */
-#define MOS_WDR_TIMEOUT (HZ * 5)	/* default urb timeout */
+#define MOS_WDR_TIMEOUT		5000	/* default urb timeout */
 
 #define MOS_PORT1       0x0200
 #define MOS_PORT2       0x0300
@@ -190,7 +189,7 @@
 
 static int device_type;
 
-static const struct usb_device_id id_table[] __devinitconst = {
+static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7810)},
@@ -1232,9 +1231,12 @@ static int mos7840_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&mos7840_port->pool_lock, flags);
-	for (i = 0; i < NUM_URBS; ++i)
-		if (mos7840_port->busy[i])
-			chars += URB_TRANSFER_BUFFER_SIZE;
+	for (i = 0; i < NUM_URBS; ++i) {
+		if (mos7840_port->busy[i]) {
+			struct urb *urb = mos7840_port->write_urb_pool[i];
+			chars += urb->transfer_buffer_length;
+		}
+	}
 	spin_unlock_irqrestore(&mos7840_port->pool_lock, flags);
 	dbg("%s - returns %d", __func__, chars);
 	return chars;
@@ -1344,7 +1346,7 @@ static void mos7840_close(struct usb_serial_port *port)
 static void mos7840_block_until_chase_response(struct tty_struct *tty,
 					struct moschip_port *mos7840_port)
 {
-	int timeout = 1 * HZ;
+	int timeout = msecs_to_jiffies(1000);
 	int wait = 10;
 	int count;
 
@@ -2672,7 +2674,7 @@ static int mos7840_startup(struct usb_serial *serial)
 
 	/* setting configuration feature to one */
 	usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-			(__u8) 0x03, 0x00, 0x01, 0x00, NULL, 0x00, 5 * HZ);
+			(__u8) 0x03, 0x00, 0x01, 0x00, NULL, 0x00, MOS_WDR_TIMEOUT);
 	return 0;
 error:
 	for (/* nothing */; i >= 0; i--) {

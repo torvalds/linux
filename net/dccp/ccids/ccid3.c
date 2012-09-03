@@ -113,6 +113,7 @@ static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hc, ktime_t now)
 /**
  * ccid3_hc_tx_update_x  -  Update allowed sending rate X
  * @stamp: most recent time if available - can be left NULL.
+ *
  * This function tracks draft rfc3448bis, check there for latest details.
  *
  * Note: X and X_recv are both stored in units of 64 * bytes/second, to support
@@ -161,9 +162,11 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 	}
 }
 
-/*
- *	Track the mean packet size `s' (cf. RFC 4342, 5.3 and  RFC 3448, 4.1)
+/**
+ *	ccid3_hc_tx_update_s - Track the mean packet size `s'
  *	@len: DCCP packet payload size in bytes
+ *
+ *	cf. RFC 4342, 5.3 and  RFC 3448, 4.1
  */
 static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hc, int len)
 {
@@ -270,6 +273,7 @@ out:
 /**
  * ccid3_hc_tx_send_packet  -  Delay-based dequeueing of TX packets
  * @skb: next packet candidate to send on @sk
+ *
  * This function uses the convention of ccid_packet_dequeue_eval() and
  * returns a millisecond-delay value between 0 and t_mbi = 64000 msec.
  */
@@ -531,6 +535,7 @@ static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 	case DCCP_SOCKOPT_CCID_TX_INFO:
 		if (len < sizeof(tfrc))
 			return -EINVAL;
+		memset(&tfrc, 0, sizeof(tfrc));
 		tfrc.tfrctx_x	   = hc->tx_x;
 		tfrc.tfrctx_x_recv = hc->tx_x_recv;
 		tfrc.tfrctx_x_calc = hc->tx_x_calc;

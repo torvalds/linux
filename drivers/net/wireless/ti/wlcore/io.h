@@ -45,86 +45,122 @@
 struct wl1271;
 
 void wlcore_disable_interrupts(struct wl1271 *wl);
+void wlcore_disable_interrupts_nosync(struct wl1271 *wl);
 void wlcore_enable_interrupts(struct wl1271 *wl);
+void wlcore_synchronize_interrupts(struct wl1271 *wl);
 
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
 int wlcore_translate_addr(struct wl1271 *wl, int addr);
 
 /* Raw target IO, address is not translated */
-static inline void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
-				    size_t len, bool fixed)
+static inline int __must_check wlcore_raw_write(struct wl1271 *wl, int addr,
+						void *buf, size_t len,
+						bool fixed)
 {
-	wl->if_ops->write(wl->dev, addr, buf, len, fixed);
+	int ret;
+
+	if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags))
+		return -EIO;
+
+	ret = wl->if_ops->write(wl->dev, addr, buf, len, fixed);
+	if (ret && wl->state != WL1271_STATE_OFF)
+		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
+
+	return ret;
 }
 
-static inline void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
-				   size_t len, bool fixed)
+static inline int __must_check wlcore_raw_read(struct wl1271 *wl, int addr,
+					       void *buf, size_t len,
+					       bool fixed)
 {
-	wl->if_ops->read(wl->dev, addr, buf, len, fixed);
+	int ret;
+
+	if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags))
+		return -EIO;
+
+	ret = wl->if_ops->read(wl->dev, addr, buf, len, fixed);
+	if (ret && wl->state != WL1271_STATE_OFF)
+		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
+
+	return ret;
 }
 
-static inline void wlcore_raw_read_data(struct wl1271 *wl, int reg, void *buf,
-					size_t len, bool fixed)
+static inline int __must_check wlcore_raw_read_data(struct wl1271 *wl, int reg,
+						    void *buf, size_t len,
+						    bool fixed)
 {
-	wl1271_raw_read(wl, wl->rtable[reg], buf, len, fixed);
+	return wlcore_raw_read(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline void wlcore_raw_write_data(struct wl1271 *wl, int reg, void *buf,
-					 size_t len, bool fixed)
+static inline int __must_check wlcore_raw_write_data(struct wl1271 *wl, int reg,
+						     void *buf, size_t len,
+						     bool fixed)
 {
-	wl1271_raw_write(wl, wl->rtable[reg], buf, len, fixed);
+	return wlcore_raw_write(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
+static inline int __must_check wlcore_raw_read32(struct wl1271 *wl, int addr,
+						 u32 *val)
 {
-	wl1271_raw_read(wl, addr, &wl->buffer_32,
-			    sizeof(wl->buffer_32), false);
+	int ret;
 
-	return le32_to_cpu(wl->buffer_32);
+	ret = wlcore_raw_read(wl, addr, &wl->buffer_32,
+			      sizeof(wl->buffer_32), false);
+	if (ret < 0)
+		return ret;
+
+	if (val)
+		*val = le32_to_cpu(wl->buffer_32);
+
+	return 0;
 }
 
-static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
+static inline int __must_check wlcore_raw_write32(struct wl1271 *wl, int addr,
+						  u32 val)
 {
 	wl->buffer_32 = cpu_to_le32(val);
-	wl1271_raw_write(wl, addr, &wl->buffer_32,
-			     sizeof(wl->buffer_32), false);
+	return wlcore_raw_write(wl, addr, &wl->buffer_32,
+				sizeof(wl->buffer_32), false);
 }
 
-static inline void wl1271_read(struct wl1271 *wl, int addr, void *buf,
-			       size_t len, bool fixed)
+static inline int __must_check wlcore_read(struct wl1271 *wl, int addr,
+					   void *buf, size_t len, bool fixed)
 {
 	int physical;
 
 	physical = wlcore_translate_addr(wl, addr);
 
-	wl1271_raw_read(wl, physical, buf, len, fixed);
+	return wlcore_raw_read(wl, physical, buf, len, fixed);
 }
 
-static inline void wl1271_write(struct wl1271 *wl, int addr, void *buf,
-				size_t len, bool fixed)
+static inline int __must_check wlcore_write(struct wl1271 *wl, int addr,
+					    void *buf, size_t len, bool fixed)
 {
 	int physical;
 
 	physical = wlcore_translate_addr(wl, addr);
 
-	wl1271_raw_write(wl, physical, buf, len, fixed);
+	return wlcore_raw_write(wl, physical, buf, len, fixed);
 }
 
-static inline void wlcore_write_data(struct wl1271 *wl, int reg, void *buf,
-				     size_t len, bool fixed)
+static inline int __must_check wlcore_write_data(struct wl1271 *wl, int reg,
+						 void *buf, size_t len,
+						 bool fixed)
 {
-	wl1271_write(wl, wl->rtable[reg], buf, len, fixed);
+	return wlcore_write(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline void wlcore_read_data(struct wl1271 *wl, int reg, void *buf,
-				    size_t len, bool fixed)
+static inline int __must_check wlcore_read_data(struct wl1271 *wl, int reg,
+						void *buf, size_t len,
+						bool fixed)
 {
-	wl1271_read(wl, wl->rtable[reg], buf, len, fixed);
+	return wlcore_read(wl, wl->rtable[reg], buf, len, fixed);
 }
 
-static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
-				      void *buf, size_t len, bool fixed)
+static inline int __must_check wlcore_read_hwaddr(struct wl1271 *wl, int hwaddr,
+						  void *buf, size_t len,
+						  bool fixed)
 {
 	int physical;
 	int addr;
@@ -134,34 +170,47 @@ static inline void wl1271_read_hwaddr(struct wl1271 *wl, int hwaddr,
 
 	physical = wlcore_translate_addr(wl, addr);
 
-	wl1271_raw_read(wl, physical, buf, len, fixed);
+	return wlcore_raw_read(wl, physical, buf, len, fixed);
 }
 
-static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
+static inline int __must_check wlcore_read32(struct wl1271 *wl, int addr,
+					     u32 *val)
 {
-	return wl1271_raw_read32(wl, wlcore_translate_addr(wl, addr));
+	return wlcore_raw_read32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
-static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
+static inline int __must_check wlcore_write32(struct wl1271 *wl, int addr,
+					      u32 val)
 {
-	wl1271_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
+	return wlcore_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
-static inline u32 wlcore_read_reg(struct wl1271 *wl, int reg)
+static inline int __must_check wlcore_read_reg(struct wl1271 *wl, int reg,
+					       u32 *val)
 {
-	return wl1271_raw_read32(wl,
-				 wlcore_translate_addr(wl, wl->rtable[reg]));
+	return wlcore_raw_read32(wl,
+				 wlcore_translate_addr(wl, wl->rtable[reg]),
+				 val);
 }
 
-static inline void wlcore_write_reg(struct wl1271 *wl, int reg, u32 val)
+static inline int __must_check wlcore_write_reg(struct wl1271 *wl, int reg,
+						u32 val)
 {
-	wl1271_raw_write32(wl, wlcore_translate_addr(wl, wl->rtable[reg]), val);
+	return wlcore_raw_write32(wl,
+				  wlcore_translate_addr(wl, wl->rtable[reg]),
+				  val);
 }
 
 static inline void wl1271_power_off(struct wl1271 *wl)
 {
-	wl->if_ops->power(wl->dev, false);
-	clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+	int ret;
+
+	if (!test_bit(WL1271_FLAG_GPIO_POWER, &wl->flags))
+		return;
+
+	ret = wl->if_ops->power(wl->dev, false);
+	if (!ret)
+		clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 }
 
 static inline int wl1271_power_on(struct wl1271 *wl)
@@ -173,15 +222,13 @@ static inline int wl1271_power_on(struct wl1271 *wl)
 	return ret;
 }
 
-void wlcore_set_partition(struct wl1271 *wl,
-			  const struct wlcore_partition_set *p);
+int wlcore_set_partition(struct wl1271 *wl,
+			 const struct wlcore_partition_set *p);
 
 bool wl1271_set_block_size(struct wl1271 *wl);
 
 /* Functions from wl1271_main.c */
 
 int wl1271_tx_dummy_packet(struct wl1271 *wl);
-
-void wlcore_select_partition(struct wl1271 *wl, u8 part);
 
 #endif

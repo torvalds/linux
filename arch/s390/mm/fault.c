@@ -1,8 +1,6 @@
 /*
- *  arch/s390/mm/fault.c
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Hartmut Penner (hp@de.ibm.com)
  *               Ulrich Weigand (uweigand@de.ibm.com)
  *
@@ -51,6 +49,7 @@
 #define VM_FAULT_BADCONTEXT	0x010000
 #define VM_FAULT_BADMAP		0x020000
 #define VM_FAULT_BADACCESS	0x040000
+#define VM_FAULT_SIGNAL	0x080000
 
 static unsigned long store_indication;
 
@@ -112,7 +111,7 @@ static inline int user_space_fault(unsigned long trans_exc_code)
 	if (trans_exc_code == 2)
 		/* Access via secondary space, set_fs setting decides */
 		return current->thread.mm_segment.ar4;
-	if (user_mode == HOME_SPACE_MODE)
+	if (addressing_mode == HOME_SPACE_MODE)
 		/* User space if the access has been done via home space. */
 		return trans_exc_code == 3;
 	/*
@@ -221,7 +220,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 	case VM_FAULT_BADACCESS:
 	case VM_FAULT_BADMAP:
 		/* Bad memory access. Check if it is kernel or user space. */
-		if (regs->psw.mask & PSW_MASK_PSTATE) {
+		if (user_mode(regs)) {
 			/* User mode accesses just cause a SIGSEGV */
 			si_code = (fault == VM_FAULT_BADMAP) ?
 				SEGV_MAPERR : SEGV_ACCERR;
@@ -231,15 +230,19 @@ static noinline void do_fault_error(struct pt_regs *regs, int fault)
 	case VM_FAULT_BADCONTEXT:
 		do_no_context(regs);
 		break;
+	case VM_FAULT_SIGNAL:
+		if (!user_mode(regs))
+			do_no_context(regs);
+		break;
 	default: /* fault & VM_FAULT_ERROR */
 		if (fault & VM_FAULT_OOM) {
-			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+			if (!user_mode(regs))
 				do_no_context(regs);
 			else
 				pagefault_out_of_memory();
 		} else if (fault & VM_FAULT_SIGBUS) {
 			/* Kernel mode? Handle exceptions or die */
-			if (!(regs->psw.mask & PSW_MASK_PSTATE))
+			if (!user_mode(regs))
 				do_no_context(regs);
 			else
 				do_sigbus(regs);
@@ -288,7 +291,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
-	flags = FAULT_FLAG_ALLOW_RETRY;
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
 	down_read(&mm->mmap_sem);
@@ -337,6 +340,11 @@ retry:
 	 * the fault.
 	 */
 	fault = handle_mm_fault(mm, vma, address, flags);
+	/* No reason to continue if interrupted by SIGKILL. */
+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
+		fault = VM_FAULT_SIGNAL;
+		goto out;
+	}
 	if (unlikely(fault & VM_FAULT_ERROR))
 		goto out_up;
 
@@ -428,7 +436,7 @@ void __kprobes do_asce_exception(struct pt_regs *regs)
 	}
 
 	/* User mode accesses just cause a SIGSEGV */
-	if (regs->psw.mask & PSW_MASK_PSTATE) {
+	if (user_mode(regs)) {
 		do_sigsegv(regs, SEGV_MAPERR);
 		return;
 	}
@@ -443,6 +451,7 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	struct pt_regs regs;
 	int access, fault;
 
+	/* Emulate a uaccess fault from kernel mode. */
 	regs.psw.mask = psw_kernel_bits | PSW_MASK_DAT | PSW_MASK_MCHECK;
 	if (!irqs_disabled())
 		regs.psw.mask |= PSW_MASK_IO | PSW_MASK_EXT;
@@ -452,12 +461,12 @@ int __handle_fault(unsigned long uaddr, unsigned long pgm_int_code, int write)
 	regs.int_parm_long = (uaddr & PAGE_MASK) | 2;
 	access = write ? VM_WRITE : VM_READ;
 	fault = do_exception(&regs, access);
-	if (unlikely(fault)) {
-		if (fault & VM_FAULT_OOM)
-			return -EFAULT;
-		else if (fault & VM_FAULT_SIGBUS)
-			do_sigbus(&regs);
-	}
+	/*
+	 * Since the fault happened in kernel mode while performing a uaccess
+	 * all we need to do now is emulating a fixup in case "fault" is not
+	 * zero.
+	 * For the calling uaccess functions this results always in -EFAULT.
+	 */
 	return fault ? -EFAULT : 0;
 }
 

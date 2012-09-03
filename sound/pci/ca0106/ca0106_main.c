@@ -1872,9 +1872,10 @@ static void __devexit snd_ca0106_remove(struct pci_dev *pci)
 }
 
 #ifdef CONFIG_PM
-static int snd_ca0106_suspend(struct pci_dev *pci, pm_message_t state)
+static int snd_ca0106_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ca0106 *chip = card->private_data;
 	int i;
 
@@ -1889,13 +1890,14 @@ static int snd_ca0106_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int snd_ca0106_resume(struct pci_dev *pci)
+static int snd_ca0106_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ca0106 *chip = card->private_data;
 	int i;
 
@@ -1922,6 +1924,11 @@ static int snd_ca0106_resume(struct pci_dev *pci)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(snd_ca0106_pm, snd_ca0106_suspend, snd_ca0106_resume);
+#define SND_CA0106_PM_OPS	&snd_ca0106_pm
+#else
+#define SND_CA0106_PM_OPS	NULL
 #endif
 
 // PCI IDs
@@ -1937,10 +1944,9 @@ static struct pci_driver ca0106_driver = {
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
 	.remove = __devexit_p(snd_ca0106_remove),
-#ifdef CONFIG_PM
-	.suspend = snd_ca0106_suspend,
-	.resume = snd_ca0106_resume,
-#endif
+	.driver = {
+		.pm = SND_CA0106_PM_OPS,
+	},
 };
 
 module_pci_driver(ca0106_driver);

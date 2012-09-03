@@ -98,7 +98,9 @@
 
 #define SDIO_CCCR_IF		0x07	/* bus interface controls */
 
+#define  SDIO_BUS_WIDTH_MASK	0x03	/* data bus width setting */
 #define  SDIO_BUS_WIDTH_1BIT	0x00
+#define  SDIO_BUS_WIDTH_RESERVED 0x01
 #define  SDIO_BUS_WIDTH_4BIT	0x02
 #define  SDIO_BUS_ECSI		0x20	/* Enable continuous SPI interrupt */
 #define  SDIO_BUS_SCSI		0x40	/* Support continuous SPI interrupt */

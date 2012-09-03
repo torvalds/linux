@@ -334,6 +334,7 @@ typedef enum {
 typedef enum {
 	SCTP_TRANSPORT_UP,
 	SCTP_TRANSPORT_DOWN,
+	SCTP_TRANSPORT_PF,
 } sctp_transport_cmd_t;
 
 /* These are the address scopes defined mainly for IPv4 addresses

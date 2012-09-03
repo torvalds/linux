@@ -1,0 +1,68 @@
+/*
+ * Device Tree Include file for Marvell Armada 370 and Armada XP SoC
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Lior Amsalem <alior@marvell.com>
+ * Gregory CLEMENT <gregory.clement@free-electrons.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Ben Dooks <ben.dooks@codethink.co.uk>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * This file contains the definitions that are common to the Armada
+ * 370 and Armada XP SoC.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	model = "Marvell Armada 370 and XP SoC";
+	compatible = "marvell,armada_370_xp";
+
+	cpus {
+		cpu@0 {
+			compatible = "marvell,sheeva-v7";
+		};
+	};
+
+	mpic: interrupt-controller@d0020000 {
+	      compatible = "marvell,mpic";
+	      #interrupt-cells = <1>;
+	      #address-cells = <1>;
+	      #size-cells = <1>;
+	      interrupt-controller;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&mpic>;
+		ranges;
+
+		serial@d0012000 {
+				compatible = "ns16550";
+				reg = <0xd0012000 0x100>;
+				reg-shift = <2>;
+				interrupts = <41>;
+				status = "disabled";
+		};
+		serial@d0012100 {
+				compatible = "ns16550";
+				reg = <0xd0012100 0x100>;
+				reg-shift = <2>;
+				interrupts = <42>;
+				status = "disabled";
+		};
+
+		timer@d0020300 {
+			       compatible = "marvell,armada-370-xp-timer";
+			       reg = <0xd0020300 0x30>;
+			       interrupts = <37>, <38>, <39>, <40>;
+		};
+	};
+};
+

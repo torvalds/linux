@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,7 +66,7 @@
 #define ACPI_SIG_DBGP           "DBGP"	/* Debug Port table */
 #define ACPI_SIG_DMAR           "DMAR"	/* DMA Remapping table */
 #define ACPI_SIG_HPET           "HPET"	/* High Precision Event Timer table */
-#define ACPI_SIG_IBFT           "IBFT"	/* i_sCSI Boot Firmware Table */
+#define ACPI_SIG_IBFT           "IBFT"	/* iSCSI Boot Firmware Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_MCFG           "MCFG"	/* PCI Memory Mapped Configuration table */
 #define ACPI_SIG_MCHI           "MCHI"	/* Management Controller Host Interface table */
@@ -334,8 +334,8 @@ struct acpi_dmar_reserved_memory {
 	struct acpi_dmar_header header;
 	u16 reserved;
 	u16 segment;
-	u64 base_address;	/* 4_k aligned base address */
-	u64 end_address;	/* 4_k aligned limit address */
+	u64 base_address;	/* 4K aligned base address */
+	u64 end_address;	/* 4K aligned limit address */
 };
 
 /* Masks for Flags field above */
@@ -565,7 +565,7 @@ struct acpi_ivrs_hardware {
 /* Masks for Info field above */
 
 #define ACPI_IVHD_MSI_NUMBER_MASK   0x001F	/* 5 bits, MSI message number */
-#define ACPI_IVHD_UNIT_ID_MASK      0x1F00	/* 5 bits, unit_iD */
+#define ACPI_IVHD_UNIT_ID_MASK      0x1F00	/* 5 bits, unit_ID */
 
 /*
  * Device Entries for IVHD subtable, appear after struct acpi_ivrs_hardware structure.

@@ -56,7 +56,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context);
  *
  * FUNCTION:    acpi_ev_is_notify_object
  *
- * PARAMETERS:  Node            - Node to check
+ * PARAMETERS:  node            - Node to check
  *
  * RETURN:      TRUE if notifies allowed on this object
  *
@@ -86,7 +86,7 @@ u8 acpi_ev_is_notify_object(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ev_queue_notify_request
  *
- * PARAMETERS:  Node            - NS node for the notified object
+ * PARAMETERS:  node            - NS node for the notified object
  *              notify_value    - Value from the Notify() request
  *
  * RETURN:      Status
@@ -101,102 +101,77 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 			     u32 notify_value)
 {
 	union acpi_operand_object *obj_desc;
-	union acpi_operand_object *handler_obj = NULL;
-	union acpi_generic_state *notify_info;
+	union acpi_operand_object *handler_list_head = NULL;
+	union acpi_generic_state *info;
+	u8 handler_list_id = 0;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_NAME(ev_queue_notify_request);
 
+	/* Are Notifies allowed on this object? */
+
+	if (!acpi_ev_is_notify_object(node)) {
+		return (AE_TYPE);
+	}
+
+	/* Get the correct notify list type (System or Device) */
+
+	if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
+		handler_list_id = ACPI_SYSTEM_HANDLER_LIST;
+	} else {
+		handler_list_id = ACPI_DEVICE_HANDLER_LIST;
+	}
+
+	/* Get the notify object attached to the namespace Node */
+
+	obj_desc = acpi_ns_get_attached_object(node);
+	if (obj_desc) {
+
+		/* We have an attached object, Get the correct handler list */
+
+		handler_list_head =
+		    obj_desc->common_notify.notify_list[handler_list_id];
+	}
+
 	/*
-	 * For value 0x03 (Ejection Request), may need to run a device method.
-	 * For value 0x02 (Device Wake), if _PRW exists, may need to run
-	 *   the _PS0 method.
-	 * For value 0x80 (Status Change) on the power button or sleep button,
-	 *   initiate soft-off or sleep operation.
-	 *
-	 * For all cases, simply dispatch the notify to the handler.
+	 * If there is no notify handler (Global or Local)
+	 * for this object, just ignore the notify
 	 */
+	if (!acpi_gbl_global_notify[handler_list_id].handler
+	    && !handler_list_head) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "No notify handler for Notify, ignoring (%4.4s, %X) node %p\n",
+				  acpi_ut_get_node_name(node), notify_value,
+				  node));
+
+		return (AE_OK);
+	}
+
+	/* Setup notify info and schedule the notify dispatcher */
+
+	info = acpi_ut_create_generic_state();
+	if (!info) {
+		return (AE_NO_MEMORY);
+	}
+
+	info->common.descriptor_type = ACPI_DESC_TYPE_STATE_NOTIFY;
+
+	info->notify.node = node;
+	info->notify.value = (u16)notify_value;
+	info->notify.handler_list_id = handler_list_id;
+	info->notify.handler_list_head = handler_list_head;
+	info->notify.global = &acpi_gbl_global_notify[handler_list_id];
+
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Dispatching Notify on [%4.4s] (%s) Value 0x%2.2X (%s) Node %p\n",
 			  acpi_ut_get_node_name(node),
 			  acpi_ut_get_type_name(node->type), notify_value,
 			  acpi_ut_get_notify_name(notify_value), node));
 
-	/* Get the notify object attached to the NS Node */
-
-	obj_desc = acpi_ns_get_attached_object(node);
-	if (obj_desc) {
-
-		/* We have the notify object, Get the correct handler */
-
-		switch (node->type) {
-
-			/* Notify is allowed only on these types */
-
-		case ACPI_TYPE_DEVICE:
-		case ACPI_TYPE_THERMAL:
-		case ACPI_TYPE_PROCESSOR:
-
-			if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
-				handler_obj =
-				    obj_desc->common_notify.system_notify;
-			} else {
-				handler_obj =
-				    obj_desc->common_notify.device_notify;
-			}
-			break;
-
-		default:
-
-			/* All other types are not supported */
-
-			return (AE_TYPE);
-		}
-	}
-
-	/*
-	 * If there is a handler to run, schedule the dispatcher.
-	 * Check for:
-	 * 1) Global system notify handler
-	 * 2) Global device notify handler
-	 * 3) Per-device notify handler
-	 */
-	if ((acpi_gbl_system_notify.handler &&
-	     (notify_value <= ACPI_MAX_SYS_NOTIFY)) ||
-	    (acpi_gbl_device_notify.handler &&
-	     (notify_value > ACPI_MAX_SYS_NOTIFY)) || handler_obj) {
-		notify_info = acpi_ut_create_generic_state();
-		if (!notify_info) {
-			return (AE_NO_MEMORY);
-		}
-
-		if (!handler_obj) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Executing system notify handler for Notify (%4.4s, %X) "
-					  "node %p\n",
-					  acpi_ut_get_node_name(node),
-					  notify_value, node));
-		}
-
-		notify_info->common.descriptor_type =
-		    ACPI_DESC_TYPE_STATE_NOTIFY;
-		notify_info->notify.node = node;
-		notify_info->notify.value = (u16) notify_value;
-		notify_info->notify.handler_obj = handler_obj;
-
-		status =
-		    acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_notify_dispatch,
-				    notify_info);
-		if (ACPI_FAILURE(status)) {
-			acpi_ut_delete_generic_state(notify_info);
-		}
-	} else {
-		/* There is no notify handler (per-device or system) for this device */
-
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "No notify handler for Notify (%4.4s, %X) node %p\n",
-				  acpi_ut_get_node_name(node), notify_value,
-				  node));
+	status = acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_ev_notify_dispatch,
+				 info);
+	if (ACPI_FAILURE(status)) {
+		acpi_ut_delete_generic_state(info);
 	}
 
 	return (status);
@@ -206,7 +181,7 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
  *
  * FUNCTION:    acpi_ev_notify_dispatch
  *
- * PARAMETERS:  Context         - To be passed to the notify handler
+ * PARAMETERS:  context         - To be passed to the notify handler
  *
  * RETURN:      None.
  *
@@ -217,60 +192,34 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
 
 static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
 {
-	union acpi_generic_state *notify_info =
-	    (union acpi_generic_state *)context;
-	acpi_notify_handler global_handler = NULL;
-	void *global_context = NULL;
+	union acpi_generic_state *info = (union acpi_generic_state *)context;
 	union acpi_operand_object *handler_obj;
 
 	ACPI_FUNCTION_ENTRY();
 
-	/*
-	 * We will invoke a global notify handler if installed. This is done
-	 * _before_ we invoke the per-device handler attached to the device.
-	 */
-	if (notify_info->notify.value <= ACPI_MAX_SYS_NOTIFY) {
+	/* Invoke a global notify handler if installed */
 
-		/* Global system notification handler */
-
-		if (acpi_gbl_system_notify.handler) {
-			global_handler = acpi_gbl_system_notify.handler;
-			global_context = acpi_gbl_system_notify.context;
-		}
-	} else {
-		/* Global driver notification handler */
-
-		if (acpi_gbl_device_notify.handler) {
-			global_handler = acpi_gbl_device_notify.handler;
-			global_context = acpi_gbl_device_notify.context;
-		}
+	if (info->notify.global->handler) {
+		info->notify.global->handler(info->notify.node,
+					     info->notify.value,
+					     info->notify.global->context);
 	}
 
-	/* Invoke the system handler first, if present */
+	/* Now invoke the local notify handler(s) if any are installed */
 
-	if (global_handler) {
-		global_handler(notify_info->notify.node,
-			       notify_info->notify.value, global_context);
-	}
+	handler_obj = info->notify.handler_list_head;
+	while (handler_obj) {
+		handler_obj->notify.handler(info->notify.node,
+					    info->notify.value,
+					    handler_obj->notify.context);
 
-	/* Now invoke the per-device handler, if present */
-
-	handler_obj = notify_info->notify.handler_obj;
-	if (handler_obj) {
-		struct acpi_object_notify_handler *notifier;
-
-		notifier = &handler_obj->notify;
-		while (notifier) {
-			notifier->handler(notify_info->notify.node,
-					  notify_info->notify.value,
-					  notifier->context);
-			notifier = notifier->next;
-		}
+		handler_obj =
+		    handler_obj->notify.next[info->notify.handler_list_id];
 	}
 
 	/* All done with the info object */
 
-	acpi_ut_delete_generic_state(notify_info);
+	acpi_ut_delete_generic_state(info);
 }
 
 #if (!ACPI_REDUCED_HARDWARE)

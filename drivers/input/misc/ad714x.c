@@ -972,6 +972,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 	struct ad714x_platform_data *plat_data = dev->platform_data;
 	struct ad714x_chip *ad714x;
 	void *drv_mem;
+	unsigned long irqflags;
 
 	struct ad714x_button_drv *bt_drv;
 	struct ad714x_slider_drv *sd_drv;
@@ -1162,10 +1163,11 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		alloc_idx++;
 	}
 
+	irqflags = plat_data->irqflags ?: IRQF_TRIGGER_FALLING;
+	irqflags |= IRQF_ONESHOT;
+
 	error = request_threaded_irq(ad714x->irq, NULL, ad714x_interrupt_thread,
-				plat_data->irqflags ?
-					plat_data->irqflags : IRQF_TRIGGER_FALLING,
-				"ad714x_captouch", ad714x);
+				     irqflags, "ad714x_captouch", ad714x);
 	if (error) {
 		dev_err(dev, "can't allocate irq %d\n", ad714x->irq);
 		goto err_unreg_dev;

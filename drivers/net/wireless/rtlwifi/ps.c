@@ -333,10 +333,10 @@ static void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 			rpwm_val = 0x0C;	/* RF on */
 			fw_pwrmode = FW_PS_ACTIVE_MODE;
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_SET_RPWM,
-					(u8 *) (&rpwm_val));
+					&rpwm_val);
 			rtlpriv->cfg->ops->set_hw_reg(hw,
 					HW_VAR_H2C_FW_PWRMODE,
-					(u8 *) (&fw_pwrmode));
+					&fw_pwrmode);
 			fw_current_inps = false;
 
 			rtlpriv->cfg->ops->set_hw_reg(hw,
@@ -356,11 +356,11 @@ static void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 						(u8 *) (&fw_current_inps));
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_H2C_FW_PWRMODE,
-						(u8 *) (&ppsc->fwctrl_psmode));
+						&ppsc->fwctrl_psmode);
 
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						HW_VAR_SET_RPWM,
-						(u8 *) (&rpwm_val));
+						&rpwm_val);
 			} else {
 				/* Reset the power save related parameters. */
 				ppsc->dot11_psmode = EACTIVE;
@@ -446,7 +446,7 @@ void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct ieee80211_hdr *hdr = (void *) data;
+	struct ieee80211_hdr *hdr = data;
 	struct ieee80211_tim_ie *tim_ie;
 	u8 *tim;
 	u8 tim_len;

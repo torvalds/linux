@@ -17,10 +17,12 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
+#include <linux/omap-dma.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/clk.h>
@@ -128,6 +130,10 @@ struct mmc_omap_host {
 	unsigned char		id; /* 16xx chips have 2 MMC blocks */
 	struct clk *		iclk;
 	struct clk *		fclk;
+	struct dma_chan		*dma_rx;
+	u32			dma_rx_burst;
+	struct dma_chan		*dma_tx;
+	u32			dma_tx_burst;
 	struct resource		*mem_res;
 	void __iomem		*virt_base;
 	unsigned int		phys_base;
@@ -153,12 +159,8 @@ struct mmc_omap_host {
 
 	unsigned		use_dma:1;
 	unsigned		brs_received:1, dma_done:1;
-	unsigned		dma_is_read:1;
 	unsigned		dma_in_use:1;
-	int			dma_ch;
 	spinlock_t		dma_lock;
-	struct timer_list	dma_timer;
-	unsigned		dma_len;
 
 	struct mmc_omap_slot    *slots[OMAP_MMC_MAX_SLOTS];
 	struct mmc_omap_slot    *current_slot;
@@ -406,18 +408,25 @@ mmc_omap_release_dma(struct mmc_omap_host *host, struct mmc_data *data,
 		     int abort)
 {
 	enum dma_data_direction dma_data_dir;
+	struct device *dev = mmc_dev(host->mmc);
+	struct dma_chan *c;
 
-	BUG_ON(host->dma_ch < 0);
-	if (data->error)
-		omap_stop_dma(host->dma_ch);
-	/* Release DMA channel lazily */
-	mod_timer(&host->dma_timer, jiffies + HZ);
-	if (data->flags & MMC_DATA_WRITE)
+	if (data->flags & MMC_DATA_WRITE) {
 		dma_data_dir = DMA_TO_DEVICE;
-	else
+		c = host->dma_tx;
+	} else {
 		dma_data_dir = DMA_FROM_DEVICE;
-	dma_unmap_sg(mmc_dev(host->mmc), data->sg, host->sg_len,
-		     dma_data_dir);
+		c = host->dma_rx;
+	}
+	if (c) {
+		if (data->error) {
+			dmaengine_terminate_all(c);
+			/* Claim nothing transferred on error... */
+			data->bytes_xfered = 0;
+		}
+		dev = c->device->dev;
+	}
+	dma_unmap_sg(dev, data->sg, host->sg_len, dma_data_dir);
 }
 
 static void mmc_omap_send_stop_work(struct work_struct *work)
@@ -522,16 +531,6 @@ mmc_omap_end_of_data(struct mmc_omap_host *host, struct mmc_data *data)
 	spin_unlock_irqrestore(&host->dma_lock, flags);
 	if (done)
 		mmc_omap_xfer_done(host, data);
-}
-
-static void
-mmc_omap_dma_timer(unsigned long data)
-{
-	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
-
-	BUG_ON(host->dma_ch < 0);
-	omap_free_dma(host->dma_ch);
-	host->dma_ch = -1;
 }
 
 static void
@@ -891,159 +890,15 @@ static void mmc_omap_cover_handler(unsigned long param)
 		  jiffies + msecs_to_jiffies(OMAP_MMC_COVER_POLL_DELAY));
 }
 
-/* Prepare to transfer the next segment of a scatterlist */
-static void
-mmc_omap_prepare_dma(struct mmc_omap_host *host, struct mmc_data *data)
+static void mmc_omap_dma_callback(void *priv)
 {
-	int dma_ch = host->dma_ch;
-	unsigned long data_addr;
-	u16 buf, frame;
-	u32 count;
-	struct scatterlist *sg = &data->sg[host->sg_idx];
-	int src_port = 0;
-	int dst_port = 0;
-	int sync_dev = 0;
+	struct mmc_omap_host *host = priv;
+	struct mmc_data *data = host->data;
 
-	data_addr = host->phys_base + OMAP_MMC_REG(host, DATA);
-	frame = data->blksz;
-	count = sg_dma_len(sg);
+	/* If we got to the end of DMA, assume everything went well */
+	data->bytes_xfered += data->blocks * data->blksz;
 
-	if ((data->blocks == 1) && (count > data->blksz))
-		count = frame;
-
-	host->dma_len = count;
-
-	/* FIFO is 16x2 bytes on 15xx, and 32x2 bytes on 16xx and 24xx.
-	 * Use 16 or 32 word frames when the blocksize is at least that large.
-	 * Blocksize is usually 512 bytes; but not for some SD reads.
-	 */
-	if (cpu_is_omap15xx() && frame > 32)
-		frame = 32;
-	else if (frame > 64)
-		frame = 64;
-	count /= frame;
-	frame >>= 1;
-
-	if (!(data->flags & MMC_DATA_WRITE)) {
-		buf = 0x800f | ((frame - 1) << 8);
-
-		if (cpu_class_is_omap1()) {
-			src_port = OMAP_DMA_PORT_TIPB;
-			dst_port = OMAP_DMA_PORT_EMIFF;
-		}
-		if (cpu_is_omap24xx())
-			sync_dev = OMAP24XX_DMA_MMC1_RX;
-
-		omap_set_dma_src_params(dma_ch, src_port,
-					OMAP_DMA_AMODE_CONSTANT,
-					data_addr, 0, 0);
-		omap_set_dma_dest_params(dma_ch, dst_port,
-					 OMAP_DMA_AMODE_POST_INC,
-					 sg_dma_address(sg), 0, 0);
-		omap_set_dma_dest_data_pack(dma_ch, 1);
-		omap_set_dma_dest_burst_mode(dma_ch, OMAP_DMA_DATA_BURST_4);
-	} else {
-		buf = 0x0f80 | ((frame - 1) << 0);
-
-		if (cpu_class_is_omap1()) {
-			src_port = OMAP_DMA_PORT_EMIFF;
-			dst_port = OMAP_DMA_PORT_TIPB;
-		}
-		if (cpu_is_omap24xx())
-			sync_dev = OMAP24XX_DMA_MMC1_TX;
-
-		omap_set_dma_dest_params(dma_ch, dst_port,
-					 OMAP_DMA_AMODE_CONSTANT,
-					 data_addr, 0, 0);
-		omap_set_dma_src_params(dma_ch, src_port,
-					OMAP_DMA_AMODE_POST_INC,
-					sg_dma_address(sg), 0, 0);
-		omap_set_dma_src_data_pack(dma_ch, 1);
-		omap_set_dma_src_burst_mode(dma_ch, OMAP_DMA_DATA_BURST_4);
-	}
-
-	/* Max limit for DMA frame count is 0xffff */
-	BUG_ON(count > 0xffff);
-
-	OMAP_MMC_WRITE(host, BUF, buf);
-	omap_set_dma_transfer_params(dma_ch, OMAP_DMA_DATA_TYPE_S16,
-				     frame, count, OMAP_DMA_SYNC_FRAME,
-				     sync_dev, 0);
-}
-
-/* A scatterlist segment completed */
-static void mmc_omap_dma_cb(int lch, u16 ch_status, void *data)
-{
-	struct mmc_omap_host *host = (struct mmc_omap_host *) data;
-	struct mmc_data *mmcdat = host->data;
-
-	if (unlikely(host->dma_ch < 0)) {
-		dev_err(mmc_dev(host->mmc),
-			"DMA callback while DMA not enabled\n");
-		return;
-	}
-	/* FIXME: We really should do something to _handle_ the errors */
-	if (ch_status & OMAP1_DMA_TOUT_IRQ) {
-		dev_err(mmc_dev(host->mmc),"DMA timeout\n");
-		return;
-	}
-	if (ch_status & OMAP_DMA_DROP_IRQ) {
-		dev_err(mmc_dev(host->mmc), "DMA sync error\n");
-		return;
-	}
-	if (!(ch_status & OMAP_DMA_BLOCK_IRQ)) {
-		return;
-	}
-	mmcdat->bytes_xfered += host->dma_len;
-	host->sg_idx++;
-	if (host->sg_idx < host->sg_len) {
-		mmc_omap_prepare_dma(host, host->data);
-		omap_start_dma(host->dma_ch);
-	} else
-		mmc_omap_dma_done(host, host->data);
-}
-
-static int mmc_omap_get_dma_channel(struct mmc_omap_host *host, struct mmc_data *data)
-{
-	const char *dma_dev_name;
-	int sync_dev, dma_ch, is_read, r;
-
-	is_read = !(data->flags & MMC_DATA_WRITE);
-	del_timer_sync(&host->dma_timer);
-	if (host->dma_ch >= 0) {
-		if (is_read == host->dma_is_read)
-			return 0;
-		omap_free_dma(host->dma_ch);
-		host->dma_ch = -1;
-	}
-
-	if (is_read) {
-		if (host->id == 0) {
-			sync_dev = OMAP_DMA_MMC_RX;
-			dma_dev_name = "MMC1 read";
-		} else {
-			sync_dev = OMAP_DMA_MMC2_RX;
-			dma_dev_name = "MMC2 read";
-		}
-	} else {
-		if (host->id == 0) {
-			sync_dev = OMAP_DMA_MMC_TX;
-			dma_dev_name = "MMC1 write";
-		} else {
-			sync_dev = OMAP_DMA_MMC2_TX;
-			dma_dev_name = "MMC2 write";
-		}
-	}
-	r = omap_request_dma(sync_dev, dma_dev_name, mmc_omap_dma_cb,
-			     host, &dma_ch);
-	if (r != 0) {
-		dev_dbg(mmc_dev(host->mmc), "omap_request_dma() failed with %d\n", r);
-		return r;
-	}
-	host->dma_ch = dma_ch;
-	host->dma_is_read = is_read;
-
-	return 0;
+	mmc_omap_dma_done(host, data);
 }
 
 static inline void set_cmd_timeout(struct mmc_omap_host *host, struct mmc_request *req)
@@ -1118,33 +973,85 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 
 	host->sg_idx = 0;
 	if (use_dma) {
-		if (mmc_omap_get_dma_channel(host, data) == 0) {
-			enum dma_data_direction dma_data_dir;
+		enum dma_data_direction dma_data_dir;
+		struct dma_async_tx_descriptor *tx;
+		struct dma_chan *c;
+		u32 burst, *bp;
+		u16 buf;
 
-			if (data->flags & MMC_DATA_WRITE)
-				dma_data_dir = DMA_TO_DEVICE;
-			else
-				dma_data_dir = DMA_FROM_DEVICE;
+		/*
+		 * FIFO is 16x2 bytes on 15xx, and 32x2 bytes on 16xx
+		 * and 24xx. Use 16 or 32 word frames when the
+		 * blocksize is at least that large. Blocksize is
+		 * usually 512 bytes; but not for some SD reads.
+		 */
+		burst = cpu_is_omap15xx() ? 32 : 64;
+		if (burst > data->blksz)
+			burst = data->blksz;
 
-			host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg,
-						sg_len, dma_data_dir);
-			host->total_bytes_left = 0;
-			mmc_omap_prepare_dma(host, req->data);
-			host->brs_received = 0;
-			host->dma_done = 0;
-			host->dma_in_use = 1;
-		} else
-			use_dma = 0;
+		burst >>= 1;
+
+		if (data->flags & MMC_DATA_WRITE) {
+			c = host->dma_tx;
+			bp = &host->dma_tx_burst;
+			buf = 0x0f80 | (burst - 1) << 0;
+			dma_data_dir = DMA_TO_DEVICE;
+		} else {
+			c = host->dma_rx;
+			bp = &host->dma_rx_burst;
+			buf = 0x800f | (burst - 1) << 8;
+			dma_data_dir = DMA_FROM_DEVICE;
+		}
+
+		if (!c)
+			goto use_pio;
+
+		/* Only reconfigure if we have a different burst size */
+		if (*bp != burst) {
+			struct dma_slave_config cfg;
+
+			cfg.src_addr = host->phys_base + OMAP_MMC_REG(host, DATA);
+			cfg.dst_addr = host->phys_base + OMAP_MMC_REG(host, DATA);
+			cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+			cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+			cfg.src_maxburst = burst;
+			cfg.dst_maxburst = burst;
+
+			if (dmaengine_slave_config(c, &cfg))
+				goto use_pio;
+
+			*bp = burst;
+		}
+
+		host->sg_len = dma_map_sg(c->device->dev, data->sg, sg_len,
+					  dma_data_dir);
+		if (host->sg_len == 0)
+			goto use_pio;
+
+		tx = dmaengine_prep_slave_sg(c, data->sg, host->sg_len,
+			data->flags & MMC_DATA_WRITE ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM,
+			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
+		if (!tx)
+			goto use_pio;
+
+		OMAP_MMC_WRITE(host, BUF, buf);
+
+		tx->callback = mmc_omap_dma_callback;
+		tx->callback_param = host;
+		dmaengine_submit(tx);
+		host->brs_received = 0;
+		host->dma_done = 0;
+		host->dma_in_use = 1;
+		return;
 	}
+ use_pio:
 
 	/* Revert to PIO? */
-	if (!use_dma) {
-		OMAP_MMC_WRITE(host, BUF, 0x1f1f);
-		host->total_bytes_left = data->blocks * block_size;
-		host->sg_len = sg_len;
-		mmc_omap_sg_to_buf(host);
-		host->dma_in_use = 0;
-	}
+	OMAP_MMC_WRITE(host, BUF, 0x1f1f);
+	host->total_bytes_left = data->blocks * block_size;
+	host->sg_len = sg_len;
+	mmc_omap_sg_to_buf(host);
+	host->dma_in_use = 0;
 }
 
 static void mmc_omap_start_request(struct mmc_omap_host *host,
@@ -1157,8 +1064,12 @@ static void mmc_omap_start_request(struct mmc_omap_host *host,
 	/* only touch fifo AFTER the controller readies it */
 	mmc_omap_prepare_data(host, req);
 	mmc_omap_start_command(host, req->cmd);
-	if (host->dma_in_use)
-		omap_start_dma(host->dma_ch);
+	if (host->dma_in_use) {
+		struct dma_chan *c = host->data->flags & MMC_DATA_WRITE ?
+				host->dma_tx : host->dma_rx;
+
+		dma_async_issue_pending(c);
+	}
 }
 
 static void mmc_omap_request(struct mmc_host *mmc, struct mmc_request *req)
@@ -1300,7 +1211,7 @@ static const struct mmc_host_ops mmc_omap_ops = {
 	.set_ios	= mmc_omap_set_ios,
 };
 
-static int __init mmc_omap_new_slot(struct mmc_omap_host *host, int id)
+static int __devinit mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 {
 	struct mmc_omap_slot *slot = NULL;
 	struct mmc_host *mmc;
@@ -1400,6 +1311,8 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	struct omap_mmc_platform_data *pdata = pdev->dev.platform_data;
 	struct mmc_omap_host *host = NULL;
 	struct resource *res;
+	dma_cap_mask_t mask;
+	unsigned sig;
 	int i, ret = 0;
 	int irq;
 
@@ -1439,7 +1352,6 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	setup_timer(&host->clk_timer, mmc_omap_clk_timer, (unsigned long) host);
 
 	spin_lock_init(&host->dma_lock);
-	setup_timer(&host->dma_timer, mmc_omap_dma_timer, (unsigned long) host);
 	spin_lock_init(&host->slot_lock);
 	init_waitqueue_head(&host->slot_wq);
 
@@ -1450,11 +1362,7 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	host->id = pdev->id;
 	host->mem_res = res;
 	host->irq = irq;
-
 	host->use_dma = 1;
-	host->dev->dma_mask = &pdata->dma_mask;
-	host->dma_ch = -1;
-
 	host->irq = irq;
 	host->phys_base = host->mem_res->start;
 	host->virt_base = ioremap(res->start, resource_size(res));
@@ -1474,9 +1382,48 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 		goto err_free_iclk;
 	}
 
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+
+	host->dma_tx_burst = -1;
+	host->dma_rx_burst = -1;
+
+	if (cpu_is_omap24xx())
+		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_TX : OMAP24XX_DMA_MMC2_TX;
+	else
+		sig = host->id == 0 ? OMAP_DMA_MMC_TX : OMAP_DMA_MMC2_TX;
+	host->dma_tx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
+#if 0
+	if (!host->dma_tx) {
+		dev_err(host->dev, "unable to obtain TX DMA engine channel %u\n",
+			sig);
+		goto err_dma;
+	}
+#else
+	if (!host->dma_tx)
+		dev_warn(host->dev, "unable to obtain TX DMA engine channel %u\n",
+			sig);
+#endif
+	if (cpu_is_omap24xx())
+		sig = host->id == 0 ? OMAP24XX_DMA_MMC1_RX : OMAP24XX_DMA_MMC2_RX;
+	else
+		sig = host->id == 0 ? OMAP_DMA_MMC_RX : OMAP_DMA_MMC2_RX;
+	host->dma_rx = dma_request_channel(mask, omap_dma_filter_fn, &sig);
+#if 0
+	if (!host->dma_rx) {
+		dev_err(host->dev, "unable to obtain RX DMA engine channel %u\n",
+			sig);
+		goto err_dma;
+	}
+#else
+	if (!host->dma_rx)
+		dev_warn(host->dev, "unable to obtain RX DMA engine channel %u\n",
+			sig);
+#endif
+
 	ret = request_irq(host->irq, mmc_omap_irq, 0, DRIVER_NAME, host);
 	if (ret)
-		goto err_free_fclk;
+		goto err_free_dma;
 
 	if (pdata->init != NULL) {
 		ret = pdata->init(&pdev->dev);
@@ -1485,30 +1432,36 @@ static int __devinit mmc_omap_probe(struct platform_device *pdev)
 	}
 
 	host->nr_slots = pdata->nr_slots;
-	for (i = 0; i < pdata->nr_slots; i++) {
-		ret = mmc_omap_new_slot(host, i);
-		if (ret < 0) {
-			while (--i >= 0)
-				mmc_omap_remove_slot(host->slots[i]);
-
-			goto err_plat_cleanup;
-		}
-	}
-
 	host->reg_shift = (cpu_is_omap7xx() ? 1 : 2);
 
 	host->mmc_omap_wq = alloc_workqueue("mmc_omap", 0, 0);
 	if (!host->mmc_omap_wq)
 		goto err_plat_cleanup;
 
+	for (i = 0; i < pdata->nr_slots; i++) {
+		ret = mmc_omap_new_slot(host, i);
+		if (ret < 0) {
+			while (--i >= 0)
+				mmc_omap_remove_slot(host->slots[i]);
+
+			goto err_destroy_wq;
+		}
+	}
+
 	return 0;
 
+err_destroy_wq:
+	destroy_workqueue(host->mmc_omap_wq);
 err_plat_cleanup:
 	if (pdata->cleanup)
 		pdata->cleanup(&pdev->dev);
 err_free_irq:
 	free_irq(host->irq, host);
-err_free_fclk:
+err_free_dma:
+	if (host->dma_tx)
+		dma_release_channel(host->dma_tx);
+	if (host->dma_rx)
+		dma_release_channel(host->dma_rx);
 	clk_put(host->fclk);
 err_free_iclk:
 	clk_disable(host->iclk);
@@ -1542,6 +1495,11 @@ static int __devexit mmc_omap_remove(struct platform_device *pdev)
 	clk_put(host->fclk);
 	clk_disable(host->iclk);
 	clk_put(host->iclk);
+
+	if (host->dma_tx)
+		dma_release_channel(host->dma_tx);
+	if (host->dma_rx)
+		dma_release_channel(host->dma_rx);
 
 	iounmap(host->virt_base);
 	release_mem_region(pdev->resource[0].start,

@@ -432,7 +432,7 @@ static int do_update_property(char *buf, size_t bufsize)
 	unsigned char *value;
 	char *name, *end, *next_prop;
 	int rc, length;
-	struct property *newprop, *oldprop;
+	struct property *newprop;
 	buf = parse_node(buf, bufsize, &np);
 	end = buf + bufsize;
 
@@ -443,6 +443,9 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!next_prop)
 		return -EINVAL;
 
+	if (!strlen(name))
+		return -ENODEV;
+
 	newprop = new_property(name, length, value, NULL);
 	if (!newprop)
 		return -ENOMEM;
@@ -450,18 +453,11 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!strcmp(name, "slb-size") || !strcmp(name, "ibm,slb-size"))
 		slb_set_size(*(int *)value);
 
-	oldprop = of_find_property(np, name,NULL);
-	if (!oldprop) {
-		if (strlen(name))
-			return prom_add_property(np, newprop);
-		return -ENODEV;
-	}
-
 	upd_value.node = np;
 	upd_value.property = newprop;
 	pSeries_reconfig_notify(PSERIES_UPDATE_PROPERTY, &upd_value);
 
-	rc = prom_update_property(np, newprop, oldprop);
+	rc = prom_update_property(np, newprop);
 	if (rc)
 		return rc;
 
@@ -486,7 +482,7 @@ static int do_update_property(char *buf, size_t bufsize)
 
 		rc = pSeries_reconfig_notify(action, value);
 		if (rc) {
-			prom_update_property(np, oldprop, newprop);
+			prom_update_property(np, newprop);
 			return rc;
 		}
 	}

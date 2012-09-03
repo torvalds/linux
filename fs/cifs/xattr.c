@@ -39,7 +39,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 {
 	int rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -60,7 +60,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -88,7 +88,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 	}
 remove_ea_exit:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 #endif
 	return rc;
@@ -99,7 +99,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 {
 	int rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -120,7 +120,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -221,7 +221,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 
 set_ea_exit:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 #endif
 	return rc;
@@ -232,7 +232,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 {
 	ssize_t rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -253,7 +253,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -355,7 +355,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 
 get_ea_exit:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 #endif
 	return rc;
@@ -365,7 +365,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 {
 	ssize_t rc = -EOPNOTSUPP;
 #ifdef CONFIG_CIFS_XATTR
-	int xid;
+	unsigned int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
@@ -389,7 +389,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 		return PTR_ERR(tlink);
 	pTcon = tlink_tcon(tlink);
 
-	xid = GetXid();
+	xid = get_xid();
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -409,7 +409,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 
 list_ea_exit:
 	kfree(full_path);
-	FreeXid(xid);
+	free_xid(xid);
 	cifs_put_tlink(tlink);
 #endif
 	return rc;

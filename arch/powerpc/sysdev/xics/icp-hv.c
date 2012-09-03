@@ -111,7 +111,7 @@ static unsigned int icp_hv_get_irq(void)
 	if (vec == XICS_IRQ_SPURIOUS)
 		return NO_IRQ;
 
-	irq = irq_radix_revmap_lookup(xics_host, vec);
+	irq = irq_find_mapping(xics_host, vec);
 	if (likely(irq != NO_IRQ)) {
 		xics_push_cppr(vec);
 		return irq;

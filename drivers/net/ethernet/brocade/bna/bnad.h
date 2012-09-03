@@ -389,9 +389,7 @@ extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
 void	bnad_debugfs_init(struct bnad *bnad);
 void	bnad_debugfs_uninit(struct bnad *bnad);
 
-/**
- * MACROS
- */
+/* MACROS */
 /* To set & get the stats counters */
 #define BNAD_UPDATE_CTR(_bnad, _ctr)				\
 				(((_bnad)->stats.drv_stats._ctr)++)

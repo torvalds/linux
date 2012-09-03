@@ -64,6 +64,7 @@ enum {
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
 	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
 	NFS_LAYOUT_INVALID,		/* layout is being destroyed */
+	NFS_LAYOUT_RETURNED,		/* layout has already been returned */
 };
 
 enum layoutdriver_policy_flags {
@@ -171,16 +172,16 @@ extern int nfs4_proc_getdevicelist(struct nfs_server *server,
 				   struct pnfs_devicelist *devlist);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev);
-extern int nfs4_proc_layoutget(struct nfs4_layoutget *lgp);
+extern void nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 
 /* pnfs.c */
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
 void put_lseg(struct pnfs_layout_segment *lseg);
 
-bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
+void pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
 			   const struct nfs_pgio_completion_ops *);
-bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
+void pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
 			    int, const struct nfs_pgio_completion_ops *);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
@@ -254,6 +255,24 @@ void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
 struct nfs4_deviceid_node *nfs4_insert_deviceid_node(struct nfs4_deviceid_node *);
 bool nfs4_put_deviceid_node(struct nfs4_deviceid_node *);
 void nfs4_deviceid_purge_client(const struct nfs_client *);
+
+static inline void
+pnfs_mark_layout_returned(struct pnfs_layout_hdr *lo)
+{
+	set_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
+}
+
+static inline void
+pnfs_clear_layout_returned(struct pnfs_layout_hdr *lo)
+{
+	clear_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
+}
+
+static inline bool
+pnfs_test_layout_returned(struct pnfs_layout_hdr *lo)
+{
+	return test_bit(NFS_LAYOUT_RETURNED, &lo->plh_flags);
+}
 
 static inline int lo_fail_bit(u32 iomode)
 {
@@ -365,7 +384,7 @@ static inline bool
 pnfs_use_threshold(struct nfs4_threshold **dst, struct nfs4_threshold *src,
 		   struct nfs_server *nfss)
 {
-	return (dst && src && src->bm != 0 &&
+	return (dst && src && src->bm != 0 && nfss->pnfs_curr_ld &&
 					nfss->pnfs_curr_ld->id == src->l_type);
 }
 
@@ -438,16 +457,16 @@ static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
 }
 
-static inline bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
+static inline void pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 					 const struct nfs_pgio_completion_ops *compl_ops)
 {
-	return false;
+	nfs_pageio_init_read(pgio, inode, compl_ops);
 }
 
-static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
+static inline void pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
 					  const struct nfs_pgio_completion_ops *compl_ops)
 {
-	return false;
+	nfs_pageio_init_write(pgio, inode, ioflags, compl_ops);
 }
 
 static inline int

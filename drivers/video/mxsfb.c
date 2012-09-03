@@ -41,12 +41,14 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
-#include <mach/mxsfb.h>
+#include <linux/mxsfb.h>
 
 #define REG_SET	4
 #define REG_CLR	8
@@ -750,15 +752,42 @@ static void __devexit mxsfb_free_videomem(struct mxsfb_info *host)
 	}
 }
 
+static struct platform_device_id mxsfb_devtype[] = {
+	{
+		.name = "imx23-fb",
+		.driver_data = MXSFB_V3,
+	}, {
+		.name = "imx28-fb",
+		.driver_data = MXSFB_V4,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, mxsfb_devtype);
+
+static const struct of_device_id mxsfb_dt_ids[] = {
+	{ .compatible = "fsl,imx23-lcdif", .data = &mxsfb_devtype[0], },
+	{ .compatible = "fsl,imx28-lcdif", .data = &mxsfb_devtype[1], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxsfb_dt_ids);
+
 static int __devinit mxsfb_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(mxsfb_dt_ids, &pdev->dev);
 	struct mxsfb_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	struct mxsfb_info *host;
 	struct fb_info *fb_info;
 	struct fb_modelist *modelist;
 	struct pinctrl *pinctrl;
+	int panel_enable;
+	enum of_gpio_flags flags;
 	int i, ret;
+
+	if (of_id)
+		pdev->id_entry = of_id->data;
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "No platformdata. Giving up\n");
@@ -805,6 +834,22 @@ static int __devinit mxsfb_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		goto error_getclock;
+	}
+
+	panel_enable = of_get_named_gpio_flags(pdev->dev.of_node,
+					       "panel-enable-gpios", 0, &flags);
+	if (gpio_is_valid(panel_enable)) {
+		unsigned long f = GPIOF_OUT_INIT_HIGH;
+		if (flags == OF_GPIO_ACTIVE_LOW)
+			f = GPIOF_OUT_INIT_LOW;
+		ret = devm_gpio_request_one(&pdev->dev, panel_enable,
+					    f, "panel-enable");
+		if (ret) {
+			dev_err(&pdev->dev,
+				"failed to request gpio %d: %d\n",
+				panel_enable, ret);
+			goto error_panel_enable;
+		}
 	}
 
 	fb_info->pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
@@ -854,6 +899,7 @@ error_register:
 error_init_fb:
 	kfree(fb_info->pseudo_palette);
 error_pseudo_pallette:
+error_panel_enable:
 	clk_put(host->clk);
 error_getclock:
 error_getpin:
@@ -901,19 +947,6 @@ static void mxsfb_shutdown(struct platform_device *pdev)
 	writel(CTRL_RUN, host->base + LCDC_CTRL + REG_CLR);
 }
 
-static struct platform_device_id mxsfb_devtype[] = {
-	{
-		.name = "imx23-fb",
-		.driver_data = MXSFB_V3,
-	}, {
-		.name = "imx28-fb",
-		.driver_data = MXSFB_V4,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxsfb_devtype);
-
 static struct platform_driver mxsfb_driver = {
 	.probe = mxsfb_probe,
 	.remove = __devexit_p(mxsfb_remove),
@@ -921,6 +954,7 @@ static struct platform_driver mxsfb_driver = {
 	.id_table = mxsfb_devtype,
 	.driver = {
 		   .name = DRIVER_NAME,
+		   .of_match_table = mxsfb_dt_ids,
 	},
 };
 

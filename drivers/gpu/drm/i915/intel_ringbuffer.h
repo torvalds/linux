@@ -113,8 +113,16 @@ struct  intel_ring_buffer {
 	 * Do we have some not yet emitted requests outstanding?
 	 */
 	u32 outstanding_lazy_request;
+	bool gpu_caches_dirty;
 
 	wait_queue_head_t irq_queue;
+
+	/**
+	 * Do an explicit TLB flush before MI_SET_CONTEXT
+	 */
+	bool itlb_before_ctx_switch;
+	struct i915_hw_context *default_context;
+	struct drm_i915_gem_object *last_context_obj;
 
 	void *private;
 };

@@ -69,7 +69,6 @@
 #include <linux/sound.h>
 #include <linux/slab.h>
 #include <linux/soundcard.h>
-#include <linux/ac97_codec.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
@@ -198,6 +197,22 @@ static const char invalid_magic[] =
                 return -ENXIO;                     \
         }                                          \
 })
+
+/* AC97 registers */
+#define AC97_MASTER_VOL_STEREO   0x0002      /* Line Out		*/
+#define AC97_PCBEEP_VOL          0x000a      /* none			*/
+#define AC97_PHONE_VOL           0x000c      /* TAD Input (mono)	*/
+#define AC97_MIC_VOL             0x000e      /* MIC Input (mono)	*/
+#define AC97_LINEIN_VOL          0x0010      /* Line Input (stereo)	*/
+#define AC97_CD_VOL              0x0012      /* CD Input (stereo)	*/
+#define AC97_AUX_VOL             0x0016      /* Aux Input (stereo)	*/
+#define AC97_PCMOUT_VOL          0x0018      /* Wave Output (stereo)	*/
+#define AC97_RECORD_SELECT       0x001a      /*			*/
+#define AC97_RECORD_GAIN         0x001c
+#define AC97_GENERAL_PURPOSE     0x0020
+#define AC97_3D_CONTROL          0x0022
+#define AC97_POWER_CONTROL       0x0026
+#define AC97_VENDOR_ID1           0x007c
 
 struct list_head cs4297a_devs = { &cs4297a_devs, &cs4297a_devs };
 

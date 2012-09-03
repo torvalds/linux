@@ -47,18 +47,23 @@ struct r600_cs_track {
 	u32			npipes;
 	/* value we track */
 	u32			sq_config;
+	u32			log_nsamples;
 	u32			nsamples;
 	u32			cb_color_base_last[8];
 	struct radeon_bo	*cb_color_bo[8];
 	u64			cb_color_bo_mc[8];
-	u32			cb_color_bo_offset[8];
-	struct radeon_bo	*cb_color_frag_bo[8]; /* unused */
-	struct radeon_bo	*cb_color_tile_bo[8]; /* unused */
+	u64			cb_color_bo_offset[8];
+	struct radeon_bo	*cb_color_frag_bo[8];
+	u64			cb_color_frag_offset[8];
+	struct radeon_bo	*cb_color_tile_bo[8];
+	u64			cb_color_tile_offset[8];
+	u32			cb_color_mask[8];
 	u32			cb_color_info[8];
 	u32			cb_color_view[8];
 	u32			cb_color_size_idx[8]; /* unused */
 	u32			cb_target_mask;
 	u32			cb_shader_mask;  /* unused */
+	bool			is_resolve;
 	u32			cb_color_size[8];
 	u32			vgt_strmout_en;
 	u32			vgt_strmout_buffer_en;
@@ -311,7 +316,15 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 		track->cb_color_bo[i] = NULL;
 		track->cb_color_bo_offset[i] = 0xFFFFFFFF;
 		track->cb_color_bo_mc[i] = 0xFFFFFFFF;
+		track->cb_color_frag_bo[i] = NULL;
+		track->cb_color_frag_offset[i] = 0xFFFFFFFF;
+		track->cb_color_tile_bo[i] = NULL;
+		track->cb_color_tile_offset[i] = 0xFFFFFFFF;
+		track->cb_color_mask[i] = 0xFFFFFFFF;
 	}
+	track->is_resolve = false;
+	track->nsamples = 16;
+	track->log_nsamples = 4;
 	track->cb_target_mask = 0xFFFFFFFF;
 	track->cb_shader_mask = 0xFFFFFFFF;
 	track->cb_dirty = true;
@@ -348,11 +361,9 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	volatile u32 *ib = p->ib.ptr;
 	unsigned array_mode;
 	u32 format;
+	/* When resolve is used, the second colorbuffer has always 1 sample. */
+	unsigned nsamples = track->is_resolve && i == 1 ? 1 : track->nsamples;
 
-	if (G_0280A0_TILE_MODE(track->cb_color_info[i])) {
-		dev_warn(p->dev, "FMASK or CMASK buffer are not supported by this kernel\n");
-		return -EINVAL;
-	}
 	size = radeon_bo_size(track->cb_color_bo[i]) - track->cb_color_bo_offset[i];
 	format = G_0280A0_FORMAT(track->cb_color_info[i]);
 	if (!r600_fmt_is_valid_color(format)) {
@@ -375,7 +386,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	array_check.group_size = track->group_size;
 	array_check.nbanks = track->nbanks;
 	array_check.npipes = track->npipes;
-	array_check.nsamples = track->nsamples;
+	array_check.nsamples = nsamples;
 	array_check.blocksize = r600_fmt_get_blocksize(format);
 	if (r600_get_array_mode_alignment(&array_check,
 					  &pitch_align, &height_align, &depth_align, &base_align)) {
@@ -420,7 +431,8 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	}
 
 	/* check offset */
-	tmp = r600_fmt_get_nblocksy(format, height) * r600_fmt_get_nblocksx(format, pitch) * r600_fmt_get_blocksize(format);
+	tmp = r600_fmt_get_nblocksy(format, height) * r600_fmt_get_nblocksx(format, pitch) *
+	      r600_fmt_get_blocksize(format) * nsamples;
 	switch (array_mode) {
 	default:
 	case V_0280A0_ARRAY_LINEAR_GENERAL:
@@ -441,7 +453,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 			 * broken userspace.
 			 */
 		} else {
-			dev_warn(p->dev, "%s offset[%d] %d %d %d %lu too big (%d %d) (%d %d %d)\n",
+			dev_warn(p->dev, "%s offset[%d] %d %llu %d %lu too big (%d %d) (%d %d %d)\n",
 				 __func__, i, array_mode,
 				 track->cb_color_bo_offset[i], tmp,
 				 radeon_bo_size(track->cb_color_bo[i]),
@@ -458,6 +470,51 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	tmp = S_028060_PITCH_TILE_MAX((pitch / 8) - 1) |
 		S_028060_SLICE_TILE_MAX(slice_tile_max - 1);
 	ib[track->cb_color_size_idx[i]] = tmp;
+
+	/* FMASK/CMASK */
+	switch (G_0280A0_TILE_MODE(track->cb_color_info[i])) {
+	case V_0280A0_TILE_DISABLE:
+		break;
+	case V_0280A0_FRAG_ENABLE:
+		if (track->nsamples > 1) {
+			uint32_t tile_max = G_028100_FMASK_TILE_MAX(track->cb_color_mask[i]);
+			/* the tile size is 8x8, but the size is in units of bits.
+			 * for bytes, do just * 8. */
+			uint32_t bytes = track->nsamples * track->log_nsamples * 8 * (tile_max + 1);
+
+			if (bytes + track->cb_color_frag_offset[i] >
+			    radeon_bo_size(track->cb_color_frag_bo[i])) {
+				dev_warn(p->dev, "%s FMASK_TILE_MAX too large "
+					 "(tile_max=%u, bytes=%u, offset=%llu, bo_size=%lu)\n",
+					 __func__, tile_max, bytes,
+					 track->cb_color_frag_offset[i],
+					 radeon_bo_size(track->cb_color_frag_bo[i]));
+				return -EINVAL;
+			}
+		}
+		/* fall through */
+	case V_0280A0_CLEAR_ENABLE:
+	{
+		uint32_t block_max = G_028100_CMASK_BLOCK_MAX(track->cb_color_mask[i]);
+		/* One block = 128x128 pixels, one 8x8 tile has 4 bits..
+		 * (128*128) / (8*8) / 2 = 128 bytes per block. */
+		uint32_t bytes = (block_max + 1) * 128;
+
+		if (bytes + track->cb_color_tile_offset[i] >
+		    radeon_bo_size(track->cb_color_tile_bo[i])) {
+			dev_warn(p->dev, "%s CMASK_BLOCK_MAX too large "
+				 "(block_max=%u, bytes=%u, offset=%llu, bo_size=%lu)\n",
+				 __func__, block_max, bytes,
+				 track->cb_color_tile_offset[i],
+				 radeon_bo_size(track->cb_color_tile_bo[i]));
+			return -EINVAL;
+		}
+		break;
+	}
+	default:
+		dev_warn(p->dev, "%s invalid tile mode\n", __func__);
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -566,7 +623,7 @@ static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
 
 		ntiles = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
 		nviews = G_028004_SLICE_MAX(track->db_depth_view) + 1;
-		tmp = ntiles * bpe * 64 * nviews;
+		tmp = ntiles * bpe * 64 * nviews * track->nsamples;
 		if ((tmp + track->db_offset) > radeon_bo_size(track->db_bo)) {
 			dev_warn(p->dev, "z/stencil buffer (%d) too small (0x%08X %d %d %d -> %u have %lu)\n",
 					array_mode,
@@ -746,6 +803,12 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	 */
 	if (track->cb_dirty) {
 		tmp = track->cb_target_mask;
+
+		/* We must check both colorbuffers for RESOLVE. */
+		if (track->is_resolve) {
+			tmp |= 0xff;
+		}
+
 		for (i = 0; i < 8; i++) {
 			if ((tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
@@ -764,8 +827,10 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	}
 
 	/* Check depth buffer */
-	if (track->db_dirty && (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
-		G_028800_Z_ENABLE(track->db_depth_control))) {
+	if (track->db_dirty &&
+	    G_028010_FORMAT(track->db_depth_info) != V_028010_DEPTH_INVALID &&
+	    (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
+	     G_028800_Z_ENABLE(track->db_depth_control))) {
 		r = r600_cs_track_validate_db(p);
 		if (r)
 			return r;
@@ -1229,7 +1294,13 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		break;
 	case R_028C04_PA_SC_AA_CONFIG:
 		tmp = G_028C04_MSAA_NUM_SAMPLES(radeon_get_ib_value(p, idx));
+		track->log_nsamples = tmp;
 		track->nsamples = 1 << tmp;
+		track->cb_dirty = true;
+		break;
+	case R_028808_CB_COLOR_CONTROL:
+		tmp = G_028808_SPECIAL_OP(radeon_get_ib_value(p, idx));
+		track->is_resolve = tmp == V_028808_SPECIAL_RESOLVE_BOX;
 		track->cb_dirty = true;
 		break;
 	case R_0280A0_CB_COLOR0_INFO:
@@ -1310,16 +1381,21 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
 				return -EINVAL;
 			}
-			ib[idx] = track->cb_color_base_last[tmp];
 			track->cb_color_frag_bo[tmp] = track->cb_color_bo[tmp];
+			track->cb_color_frag_offset[tmp] = track->cb_color_bo_offset[tmp];
+			ib[idx] = track->cb_color_base_last[tmp];
 		} else {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
 				return -EINVAL;
 			}
-			ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 			track->cb_color_frag_bo[tmp] = reloc->robj;
+			track->cb_color_frag_offset[tmp] = (u64)ib[idx] << 8;
+			ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		}
+		if (G_0280A0_TILE_MODE(track->cb_color_info[tmp])) {
+			track->cb_dirty = true;
 		}
 		break;
 	case R_0280C0_CB_COLOR0_TILE:
@@ -1336,16 +1412,35 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
 				return -EINVAL;
 			}
-			ib[idx] = track->cb_color_base_last[tmp];
 			track->cb_color_tile_bo[tmp] = track->cb_color_bo[tmp];
+			track->cb_color_tile_offset[tmp] = track->cb_color_bo_offset[tmp];
+			ib[idx] = track->cb_color_base_last[tmp];
 		} else {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
 				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
 				return -EINVAL;
 			}
-			ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 			track->cb_color_tile_bo[tmp] = reloc->robj;
+			track->cb_color_tile_offset[tmp] = (u64)ib[idx] << 8;
+			ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		}
+		if (G_0280A0_TILE_MODE(track->cb_color_info[tmp])) {
+			track->cb_dirty = true;
+		}
+		break;
+	case R_028100_CB_COLOR0_MASK:
+	case R_028104_CB_COLOR1_MASK:
+	case R_028108_CB_COLOR2_MASK:
+	case R_02810C_CB_COLOR3_MASK:
+	case R_028110_CB_COLOR4_MASK:
+	case R_028114_CB_COLOR5_MASK:
+	case R_028118_CB_COLOR6_MASK:
+	case R_02811C_CB_COLOR7_MASK:
+		tmp = (reg - R_028100_CB_COLOR0_MASK) / 4;
+		track->cb_color_mask[tmp] = radeon_get_ib_value(p, idx);
+		if (G_0280A0_TILE_MODE(track->cb_color_info[tmp])) {
+			track->cb_dirty = true;
 		}
 		break;
 	case CB_COLOR0_BASE:
@@ -1490,7 +1585,7 @@ unsigned r600_mip_minify(unsigned size, unsigned level)
 }
 
 static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
-			      unsigned w0, unsigned h0, unsigned d0, unsigned format,
+			      unsigned w0, unsigned h0, unsigned d0, unsigned nsamples, unsigned format,
 			      unsigned block_align, unsigned height_align, unsigned base_align,
 			      unsigned *l0_size, unsigned *mipmap_size)
 {
@@ -1518,7 +1613,7 @@ static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned llevel,
 
 		depth = r600_mip_minify(d0, i);
 
-		size = nbx * nby * blocksize;
+		size = nbx * nby * blocksize * nsamples;
 		if (nfaces)
 			size *= nfaces;
 		else
@@ -1557,13 +1652,14 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 					      u32 tiling_flags)
 {
 	struct r600_cs_track *track = p->track;
-	u32 nfaces, llevel, blevel, w0, h0, d0;
-	u32 word0, word1, l0_size, mipmap_size, word2, word3;
+	u32 dim, nfaces, llevel, blevel, w0, h0, d0;
+	u32 word0, word1, l0_size, mipmap_size, word2, word3, word4, word5;
 	u32 height_align, pitch, pitch_align, depth_align;
-	u32 array, barray, larray;
+	u32 barray, larray;
 	u64 base_align;
 	struct array_mode_checker array_check;
 	u32 format;
+	bool is_array;
 
 	/* on legacy kernel we don't perform advanced check */
 	if (p->rdev == NULL)
@@ -1581,12 +1677,28 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 			word0 |= S_038000_TILE_MODE(V_038000_ARRAY_1D_TILED_THIN1);
 	}
 	word1 = radeon_get_ib_value(p, idx + 1);
+	word2 = radeon_get_ib_value(p, idx + 2) << 8;
+	word3 = radeon_get_ib_value(p, idx + 3) << 8;
+	word4 = radeon_get_ib_value(p, idx + 4);
+	word5 = radeon_get_ib_value(p, idx + 5);
+	dim = G_038000_DIM(word0);
 	w0 = G_038000_TEX_WIDTH(word0) + 1;
+	pitch = (G_038000_PITCH(word0) + 1) * 8;
 	h0 = G_038004_TEX_HEIGHT(word1) + 1;
 	d0 = G_038004_TEX_DEPTH(word1);
+	format = G_038004_DATA_FORMAT(word1);
+	blevel = G_038010_BASE_LEVEL(word4);
+	llevel = G_038014_LAST_LEVEL(word5);
+	/* pitch in texels */
+	array_check.array_mode = G_038000_TILE_MODE(word0);
+	array_check.group_size = track->group_size;
+	array_check.nbanks = track->nbanks;
+	array_check.npipes = track->npipes;
+	array_check.nsamples = 1;
+	array_check.blocksize = r600_fmt_get_blocksize(format);
 	nfaces = 1;
-	array = 0;
-	switch (G_038000_DIM(word0)) {
+	is_array = false;
+	switch (dim) {
 	case V_038000_SQ_TEX_DIM_1D:
 	case V_038000_SQ_TEX_DIM_2D:
 	case V_038000_SQ_TEX_DIM_3D:
@@ -1599,29 +1711,25 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		break;
 	case V_038000_SQ_TEX_DIM_1D_ARRAY:
 	case V_038000_SQ_TEX_DIM_2D_ARRAY:
-		array = 1;
+		is_array = true;
 		break;
-	case V_038000_SQ_TEX_DIM_2D_MSAA:
 	case V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA:
+		is_array = true;
+		/* fall through */
+	case V_038000_SQ_TEX_DIM_2D_MSAA:
+		array_check.nsamples = 1 << llevel;
+		llevel = 0;
+		break;
 	default:
 		dev_warn(p->dev, "this kernel doesn't support %d texture dim\n", G_038000_DIM(word0));
 		return -EINVAL;
 	}
-	format = G_038004_DATA_FORMAT(word1);
 	if (!r600_fmt_is_valid_texture(format, p->family)) {
 		dev_warn(p->dev, "%s:%d texture invalid format %d\n",
 			 __func__, __LINE__, format);
 		return -EINVAL;
 	}
 
-	/* pitch in texels */
-	pitch = (G_038000_PITCH(word0) + 1) * 8;
-	array_check.array_mode = G_038000_TILE_MODE(word0);
-	array_check.group_size = track->group_size;
-	array_check.nbanks = track->nbanks;
-	array_check.npipes = track->npipes;
-	array_check.nsamples = 1;
-	array_check.blocksize = r600_fmt_get_blocksize(format);
 	if (r600_get_array_mode_alignment(&array_check,
 					  &pitch_align, &height_align, &depth_align, &base_align)) {
 		dev_warn(p->dev, "%s:%d tex array mode (%d) invalid\n",
@@ -1647,24 +1755,17 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		return -EINVAL;
 	}
 
-	word2 = radeon_get_ib_value(p, idx + 2) << 8;
-	word3 = radeon_get_ib_value(p, idx + 3) << 8;
-
-	word0 = radeon_get_ib_value(p, idx + 4);
-	word1 = radeon_get_ib_value(p, idx + 5);
-	blevel = G_038010_BASE_LEVEL(word0);
-	llevel = G_038014_LAST_LEVEL(word1);
 	if (blevel > llevel) {
 		dev_warn(p->dev, "texture blevel %d > llevel %d\n",
 			 blevel, llevel);
 	}
-	if (array == 1) {
-		barray = G_038014_BASE_ARRAY(word1);
-		larray = G_038014_LAST_ARRAY(word1);
+	if (is_array) {
+		barray = G_038014_BASE_ARRAY(word5);
+		larray = G_038014_LAST_ARRAY(word5);
 
 		nfaces = larray - barray + 1;
 	}
-	r600_texture_size(nfaces, blevel, llevel, w0, h0, d0, format,
+	r600_texture_size(nfaces, blevel, llevel, w0, h0, d0, array_check.nsamples, format,
 			  pitch_align, height_align, base_align,
 			  &l0_size, &mipmap_size);
 	/* using get ib will give us the offset into the texture bo */
@@ -1677,7 +1778,6 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 		return -EINVAL;
 	}
 	/* using get ib will give us the offset into the mipmap bo */
-	word3 = radeon_get_ib_value(p, idx + 3) << 8;
 	if ((mipmap_size + word3) > radeon_bo_size(mipmap)) {
 		/*dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
 		  w0, h0, format, blevel, nlevels, word3, mipmap_size, radeon_bo_size(texture));*/
@@ -2077,6 +2177,48 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		    (end_reg >= PACKET3_SET_SAMPLER_END)) {
 			DRM_ERROR("bad SET_SAMPLER\n");
 			return -EINVAL;
+		}
+		break;
+	case PACKET3_STRMOUT_BASE_UPDATE:
+		if (p->family < CHIP_RV770) {
+			DRM_ERROR("STRMOUT_BASE_UPDATE only supported on 7xx\n");
+			return -EINVAL;
+		}
+		if (pkt->count != 1) {
+			DRM_ERROR("bad STRMOUT_BASE_UPDATE packet count\n");
+			return -EINVAL;
+		}
+		if (idx_value > 3) {
+			DRM_ERROR("bad STRMOUT_BASE_UPDATE index\n");
+			return -EINVAL;
+		}
+		{
+			u64 offset;
+
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE reloc\n");
+				return -EINVAL;
+			}
+
+			if (reloc->robj != track->vgt_strmout_bo[idx_value]) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo does not match\n");
+				return -EINVAL;
+			}
+
+			offset = radeon_get_ib_value(p, idx+1) << 8;
+			if (offset != track->vgt_strmout_bo_offset[idx_value]) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE, bo offset does not match: 0x%llx, 0x%x\n",
+					  offset, track->vgt_strmout_bo_offset[idx_value]);
+				return -EINVAL;
+			}
+
+			if ((offset + 4) > radeon_bo_size(reloc->robj)) {
+				DRM_ERROR("bad STRMOUT_BASE_UPDATE bo too small: 0x%llx, 0x%lx\n",
+					  offset + 4, radeon_bo_size(reloc->robj));
+				return -EINVAL;
+			}
+			ib[idx+1] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 		}
 		break;
 	case PACKET3_SURFACE_BASE_UPDATE:

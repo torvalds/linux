@@ -1,0 +1,8 @@
+config VFIO_PCI
+	tristate "VFIO support for PCI devices"
+	depends on VFIO && PCI && EVENTFD
+	help
+	  Support for the PCI VFIO bus driver.  This is required to make
+	  use of PCI drivers using the VFIO framework.
+
+	  If you don't know what to do here, say N.

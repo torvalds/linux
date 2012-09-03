@@ -220,7 +220,7 @@ extern const struct dentry_operations hpfs_dentry_operations;
 
 /* dir.c */
 
-struct dentry *hpfs_lookup(struct inode *, struct dentry *, struct nameidata *);
+struct dentry *hpfs_lookup(struct inode *, struct dentry *, unsigned int);
 extern const struct file_operations hpfs_dir_ops;
 
 /* dnode.c */

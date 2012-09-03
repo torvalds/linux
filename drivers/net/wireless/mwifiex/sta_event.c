@@ -406,9 +406,9 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_UAP_STA_ASSOC:
-		skb_pull(adapter->event_skb, MWIFIEX_UAP_EVENT_EXTRA_HEADER);
 		memset(&sinfo, 0, sizeof(sinfo));
-		event = (struct mwifiex_assoc_event *)adapter->event_skb->data;
+		event = (struct mwifiex_assoc_event *)
+			(adapter->event_body + MWIFIEX_UAP_EVENT_EXTRA_HEADER);
 		if (le16_to_cpu(event->type) == TLV_TYPE_UAP_MGMT_FRAME) {
 			len = -1;
 
@@ -422,7 +422,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 			if (len != -1) {
 				sinfo.filled = STATION_INFO_ASSOC_REQ_IES;
-				sinfo.assoc_req_ies = (u8 *)&event->data[len];
+				sinfo.assoc_req_ies = &event->data[len];
 				len = (u8 *)sinfo.assoc_req_ies -
 				      (u8 *)&event->frame_control;
 				sinfo.assoc_req_ies_len =
@@ -433,9 +433,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 				 GFP_KERNEL);
 		break;
 	case EVENT_UAP_STA_DEAUTH:
-		skb_pull(adapter->event_skb, MWIFIEX_UAP_EVENT_EXTRA_HEADER);
-		cfg80211_del_sta(priv->netdev, adapter->event_skb->data,
-				 GFP_KERNEL);
+		cfg80211_del_sta(priv->netdev, adapter->event_body +
+				 MWIFIEX_UAP_EVENT_EXTRA_HEADER, GFP_KERNEL);
 		break;
 	case EVENT_UAP_BSS_IDLE:
 		priv->media_connected = false;

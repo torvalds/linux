@@ -57,6 +57,7 @@ struct omap_uart_state {
 
 	struct list_head node;
 	struct omap_hwmod *oh;
+	struct omap_device_pad default_omap_uart_pads[2];
 };
 
 static LIST_HEAD(uart_list);
@@ -126,11 +127,70 @@ static void omap_uart_set_smartidle(struct platform_device *pdev) {}
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OMAP_MUX
-static void omap_serial_fill_default_pads(struct omap_board_data *bdata)
+
+#define OMAP_UART_DEFAULT_PAD_NAME_LEN	28
+static char rx_pad_name[OMAP_UART_DEFAULT_PAD_NAME_LEN],
+		tx_pad_name[OMAP_UART_DEFAULT_PAD_NAME_LEN] __initdata;
+
+static void  __init
+omap_serial_fill_uart_tx_rx_pads(struct omap_board_data *bdata,
+				struct omap_uart_state *uart)
 {
+	uart->default_omap_uart_pads[0].name = rx_pad_name;
+	uart->default_omap_uart_pads[0].flags = OMAP_DEVICE_PAD_REMUX |
+							OMAP_DEVICE_PAD_WAKEUP;
+	uart->default_omap_uart_pads[0].enable = OMAP_PIN_INPUT |
+							OMAP_MUX_MODE0;
+	uart->default_omap_uart_pads[0].idle = OMAP_PIN_INPUT | OMAP_MUX_MODE0;
+	uart->default_omap_uart_pads[1].name = tx_pad_name;
+	uart->default_omap_uart_pads[1].enable = OMAP_PIN_OUTPUT |
+							OMAP_MUX_MODE0;
+	bdata->pads = uart->default_omap_uart_pads;
+	bdata->pads_cnt = ARRAY_SIZE(uart->default_omap_uart_pads);
+}
+
+static void  __init omap_serial_check_wakeup(struct omap_board_data *bdata,
+						struct omap_uart_state *uart)
+{
+	struct omap_mux_partition *tx_partition = NULL, *rx_partition = NULL;
+	struct omap_mux *rx_mux = NULL, *tx_mux = NULL;
+	char *rx_fmt, *tx_fmt;
+	int uart_nr = bdata->id + 1;
+
+	if (bdata->id != 2) {
+		rx_fmt = "uart%d_rx.uart%d_rx";
+		tx_fmt = "uart%d_tx.uart%d_tx";
+	} else {
+		rx_fmt = "uart%d_rx_irrx.uart%d_rx_irrx";
+		tx_fmt = "uart%d_tx_irtx.uart%d_tx_irtx";
+	}
+
+	snprintf(rx_pad_name, OMAP_UART_DEFAULT_PAD_NAME_LEN, rx_fmt,
+			uart_nr, uart_nr);
+	snprintf(tx_pad_name, OMAP_UART_DEFAULT_PAD_NAME_LEN, tx_fmt,
+			uart_nr, uart_nr);
+
+	if (omap_mux_get_by_name(rx_pad_name, &rx_partition, &rx_mux) >= 0 &&
+			omap_mux_get_by_name
+				(tx_pad_name, &tx_partition, &tx_mux) >= 0) {
+		u16 tx_mode, rx_mode;
+
+		tx_mode = omap_mux_read(tx_partition, tx_mux->reg_offset);
+		rx_mode = omap_mux_read(rx_partition, rx_mux->reg_offset);
+
+		/*
+		 * Check if uart is used in default tx/rx mode i.e. in mux mode0
+		 * if yes then configure rx pin for wake up capability
+		 */
+		if (OMAP_MODE_UART(rx_mode) && OMAP_MODE_UART(tx_mode))
+			omap_serial_fill_uart_tx_rx_pads(bdata, uart);
+	}
 }
 #else
-static void omap_serial_fill_default_pads(struct omap_board_data *bdata) {}
+static void __init omap_serial_check_wakeup(struct omap_board_data *bdata,
+		struct omap_uart_state *uart)
+{
+}
 #endif
 
 static char *cmdline_find_option(char *str)
@@ -287,8 +347,7 @@ void __init omap_serial_board_init(struct omap_uart_port_info *info)
 		bdata.pads = NULL;
 		bdata.pads_cnt = 0;
 
-		if (cpu_is_omap44xx() || cpu_is_omap34xx())
-			omap_serial_fill_default_pads(&bdata);
+		omap_serial_check_wakeup(&bdata, uart);
 
 		if (!info)
 			omap_serial_init_port(&bdata, NULL);

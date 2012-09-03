@@ -18,8 +18,7 @@
 #ifndef __BFA_DEFS_STATUS_H__
 #define __BFA_DEFS_STATUS_H__
 
-/**
- * API status return values
+/* API status return values
  *
  * NOTE: The error msgs are auto generated from the comments. Only singe line
  * comments are supported

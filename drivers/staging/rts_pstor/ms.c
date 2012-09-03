@@ -2488,7 +2488,7 @@ int reset_ms_card(struct rtsx_chip *chip)
 
 	if (!CHK_MSPRO(ms_card)) {
 		/* Build table for the last segment,
-		 * to check if L2P talbe block exist,erasing it
+		 * to check if L2P table block exists, erasing it
 		 */
 		retval = ms_build_l2p_tbl(chip, ms_card->total_block / 512 - 1);
 		if (retval != STATUS_SUCCESS) {

@@ -32,19 +32,10 @@
 #include <asm/smp.h>
 #include <asm/alternative.h>
 #include <asm/timer.h>
+#include <asm/desc.h>
+#include <asm/ldt.h>
 
 #include "perf_event.h"
-
-#if 0
-#undef wrmsrl
-#define wrmsrl(msr, val) 					\
-do {								\
-	trace_printk("wrmsrl(%lx, %lx)\n", (unsigned long)(msr),\
-			(unsigned long)(val));			\
-	native_write_msr((msr), (u32)((u64)(val)), 		\
-			(u32)((u64)(val) >> 32));		\
-} while (0)
-#endif
 
 struct x86_pmu x86_pmu __read_mostly;
 
@@ -74,7 +65,7 @@ u64 x86_perf_event_update(struct perf_event *event)
 	int idx = hwc->idx;
 	s64 delta;
 
-	if (idx == X86_PMC_IDX_FIXED_BTS)
+	if (idx == INTEL_PMC_IDX_FIXED_BTS)
 		return 0;
 
 	/*
@@ -86,7 +77,7 @@ u64 x86_perf_event_update(struct perf_event *event)
 	 */
 again:
 	prev_raw_count = local64_read(&hwc->prev_count);
-	rdmsrl(hwc->event_base, new_raw_count);
+	rdpmcl(hwc->event_base_rdpmc, new_raw_count);
 
 	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 					new_raw_count) != prev_raw_count)
@@ -189,7 +180,7 @@ static void release_pmc_hardware(void) {}
 
 static bool check_hw_exists(void)
 {
-	u64 val, val_new = 0;
+	u64 val, val_new = ~0;
 	int i, reg, ret = 0;
 
 	/*
@@ -222,8 +213,9 @@ static bool check_hw_exists(void)
 	 * that don't trap on the MSR access and always return 0s.
 	 */
 	val = 0xabcdUL;
-	ret = checking_wrmsrl(x86_pmu_event_addr(0), val);
-	ret |= rdmsrl_safe(x86_pmu_event_addr(0), &val_new);
+	reg = x86_pmu_event_addr(0);
+	ret = wrmsrl_safe(reg, val);
+	ret |= rdmsrl_safe(reg, &val_new);
 	if (ret || val != val_new)
 		goto msr_fail;
 
@@ -240,6 +232,7 @@ bios_fail:
 
 msr_fail:
 	printk(KERN_CONT "Broken PMU hardware detected, using software events only.\n");
+	printk(KERN_ERR "Failed to access perfctr msr (MSR %x is %Lx)\n", reg, val_new);
 
 	return false;
 }
@@ -388,7 +381,7 @@ int x86_pmu_hw_config(struct perf_event *event)
 		int precise = 0;
 
 		/* Support for constant skid */
-		if (x86_pmu.pebs_active) {
+		if (x86_pmu.pebs_active && !x86_pmu.pebs_broken) {
 			precise++;
 
 			/* Support for IP fixup */
@@ -637,8 +630,8 @@ static bool __perf_sched_find_counter(struct perf_sched *sched)
 	c = sched->constraints[sched->state.event];
 
 	/* Prefer fixed purpose counters */
-	if (x86_pmu.num_counters_fixed) {
-		idx = X86_PMC_IDX_FIXED;
+	if (c->idxmsk64 & (~0ULL << INTEL_PMC_IDX_FIXED)) {
+		idx = INTEL_PMC_IDX_FIXED;
 		for_each_set_bit_from(idx, c->idxmsk, X86_PMC_IDX_MAX) {
 			if (!__test_and_set_bit(idx, sched->state.used))
 				goto done;
@@ -646,7 +639,7 @@ static bool __perf_sched_find_counter(struct perf_sched *sched)
 	}
 	/* Grab the first unused counter starting with idx */
 	idx = sched->state.counter;
-	for_each_set_bit_from(idx, c->idxmsk, X86_PMC_IDX_FIXED) {
+	for_each_set_bit_from(idx, c->idxmsk, INTEL_PMC_IDX_FIXED) {
 		if (!__test_and_set_bit(idx, sched->state.used))
 			goto done;
 	}
@@ -704,8 +697,8 @@ static bool perf_sched_next_event(struct perf_sched *sched)
 /*
  * Assign a counter for each event.
  */
-static int perf_assign_events(struct event_constraint **constraints, int n,
-			      int wmin, int wmax, int *assign)
+int perf_assign_events(struct event_constraint **constraints, int n,
+			int wmin, int wmax, int *assign)
 {
 	struct perf_sched sched;
 
@@ -824,15 +817,17 @@ static inline void x86_assign_hw_event(struct perf_event *event,
 	hwc->last_cpu = smp_processor_id();
 	hwc->last_tag = ++cpuc->tags[i];
 
-	if (hwc->idx == X86_PMC_IDX_FIXED_BTS) {
+	if (hwc->idx == INTEL_PMC_IDX_FIXED_BTS) {
 		hwc->config_base = 0;
 		hwc->event_base	= 0;
-	} else if (hwc->idx >= X86_PMC_IDX_FIXED) {
+	} else if (hwc->idx >= INTEL_PMC_IDX_FIXED) {
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
-		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0 + (hwc->idx - X86_PMC_IDX_FIXED);
+		hwc->event_base = MSR_ARCH_PERFMON_FIXED_CTR0 + (hwc->idx - INTEL_PMC_IDX_FIXED);
+		hwc->event_base_rdpmc = (hwc->idx - INTEL_PMC_IDX_FIXED) | 1<<30;
 	} else {
 		hwc->config_base = x86_pmu_config_addr(hwc->idx);
 		hwc->event_base  = x86_pmu_event_addr(hwc->idx);
+		hwc->event_base_rdpmc = hwc->idx;
 	}
 }
 
@@ -930,7 +925,7 @@ int x86_perf_event_set_period(struct perf_event *event)
 	s64 period = hwc->sample_period;
 	int ret = 0, idx = hwc->idx;
 
-	if (idx == X86_PMC_IDX_FIXED_BTS)
+	if (idx == INTEL_PMC_IDX_FIXED_BTS)
 		return 0;
 
 	/*
@@ -1316,7 +1311,6 @@ static struct attribute_group x86_pmu_format_group = {
 static int __init init_hw_perf_events(void)
 {
 	struct x86_pmu_quirk *quirk;
-	struct event_constraint *c;
 	int err;
 
 	pr_info("Performance Events: ");
@@ -1347,21 +1341,8 @@ static int __init init_hw_perf_events(void)
 	for (quirk = x86_pmu.quirks; quirk; quirk = quirk->next)
 		quirk->func();
 
-	if (x86_pmu.num_counters > X86_PMC_MAX_GENERIC) {
-		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
-		     x86_pmu.num_counters, X86_PMC_MAX_GENERIC);
-		x86_pmu.num_counters = X86_PMC_MAX_GENERIC;
-	}
-	x86_pmu.intel_ctrl = (1 << x86_pmu.num_counters) - 1;
-
-	if (x86_pmu.num_counters_fixed > X86_PMC_MAX_FIXED) {
-		WARN(1, KERN_ERR "hw perf events fixed %d > max(%d), clipping!",
-		     x86_pmu.num_counters_fixed, X86_PMC_MAX_FIXED);
-		x86_pmu.num_counters_fixed = X86_PMC_MAX_FIXED;
-	}
-
-	x86_pmu.intel_ctrl |=
-		((1LL << x86_pmu.num_counters_fixed)-1) << X86_PMC_IDX_FIXED;
+	if (!x86_pmu.intel_ctrl)
+		x86_pmu.intel_ctrl = (1 << x86_pmu.num_counters) - 1;
 
 	perf_events_lapic_init();
 	register_nmi_handler(NMI_LOCAL, perf_event_nmi_handler, 0, "PMI");
@@ -1369,22 +1350,6 @@ static int __init init_hw_perf_events(void)
 	unconstrained = (struct event_constraint)
 		__EVENT_CONSTRAINT(0, (1ULL << x86_pmu.num_counters) - 1,
 				   0, x86_pmu.num_counters, 0);
-
-	if (x86_pmu.event_constraints) {
-		/*
-		 * event on fixed counter2 (REF_CYCLES) only works on this
-		 * counter, so do not extend mask to generic counters
-		 */
-		for_each_event_constraint(c, x86_pmu.event_constraints) {
-			if (c->cmask != X86_RAW_EVENT_MASK
-			    || c->idxmsk64 == X86_PMC_MSK_FIXED_REF_CYCLES) {
-				continue;
-			}
-
-			c->idxmsk64 |= (1ULL << x86_pmu.num_counters) - 1;
-			c->weight += x86_pmu.num_counters;
-		}
-	}
 
 	x86_pmu.attr_rdpmc = 1; /* enable userspace RDPMC usage by default */
 	x86_pmu_format_group.attrs = x86_pmu.format_attrs;
@@ -1620,8 +1585,8 @@ static int x86_pmu_event_idx(struct perf_event *event)
 	if (!x86_pmu.attr_rdpmc)
 		return 0;
 
-	if (x86_pmu.num_counters_fixed && idx >= X86_PMC_IDX_FIXED) {
-		idx -= X86_PMC_IDX_FIXED;
+	if (x86_pmu.num_counters_fixed && idx >= INTEL_PMC_IDX_FIXED) {
+		idx -= INTEL_PMC_IDX_FIXED;
 		idx |= 1 << 30;
 	}
 
@@ -1649,7 +1614,12 @@ static ssize_t set_attr_rdpmc(struct device *cdev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	unsigned long val = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+	ssize_t ret;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return ret;
 
 	if (!!val != !!x86_pmu.attr_rdpmc) {
 		x86_pmu.attr_rdpmc = !!val;
@@ -1682,13 +1652,20 @@ static void x86_pmu_flush_branch_stack(void)
 		x86_pmu.flush_branch_stack();
 }
 
+void perf_check_microcode(void)
+{
+	if (x86_pmu.check_microcode)
+		x86_pmu.check_microcode();
+}
+EXPORT_SYMBOL_GPL(perf_check_microcode);
+
 static struct pmu pmu = {
 	.pmu_enable		= x86_pmu_enable,
 	.pmu_disable		= x86_pmu_disable,
 
-	.attr_groups	= x86_pmu_attr_groups,
+	.attr_groups		= x86_pmu_attr_groups,
 
-	.event_init	= x86_pmu_event_init,
+	.event_init		= x86_pmu_event_init,
 
 	.add			= x86_pmu_add,
 	.del			= x86_pmu_del,
@@ -1696,11 +1673,11 @@ static struct pmu pmu = {
 	.stop			= x86_pmu_stop,
 	.read			= x86_pmu_read,
 
-	.start_txn	= x86_pmu_start_txn,
-	.cancel_txn	= x86_pmu_cancel_txn,
-	.commit_txn	= x86_pmu_commit_txn,
+	.start_txn		= x86_pmu_start_txn,
+	.cancel_txn		= x86_pmu_cancel_txn,
+	.commit_txn		= x86_pmu_commit_txn,
 
-	.event_idx	= x86_pmu_event_idx,
+	.event_idx		= x86_pmu_event_idx,
 	.flush_branch_stack	= x86_pmu_flush_branch_stack,
 };
 
@@ -1763,6 +1740,29 @@ valid_user_frame(const void __user *fp, unsigned long size)
 	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
 }
 
+static unsigned long get_segment_base(unsigned int segment)
+{
+	struct desc_struct *desc;
+	int idx = segment >> 3;
+
+	if ((segment & SEGMENT_TI_MASK) == SEGMENT_LDT) {
+		if (idx > LDT_ENTRIES)
+			return 0;
+
+		if (idx > current->active_mm->context.size)
+			return 0;
+
+		desc = current->active_mm->context.ldt;
+	} else {
+		if (idx > GDT_ENTRIES)
+			return 0;
+
+		desc = __this_cpu_ptr(&gdt_page.gdt[0]);
+	}
+
+	return get_desc_base(desc + idx);
+}
+
 #ifdef CONFIG_COMPAT
 
 #include <asm/compat.h>
@@ -1771,13 +1771,17 @@ static inline int
 perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
 	/* 32-bit process in 64-bit kernel. */
+	unsigned long ss_base, cs_base;
 	struct stack_frame_ia32 frame;
 	const void __user *fp;
 
 	if (!test_thread_flag(TIF_IA32))
 		return 0;
 
-	fp = compat_ptr(regs->bp);
+	cs_base = get_segment_base(regs->cs);
+	ss_base = get_segment_base(regs->ss);
+
+	fp = compat_ptr(ss_base + regs->bp);
 	while (entry->nr < PERF_MAX_STACK_DEPTH) {
 		unsigned long bytes;
 		frame.next_frame     = 0;
@@ -1790,8 +1794,8 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		if (!valid_user_frame(fp, sizeof(frame)))
 			break;
 
-		perf_callchain_store(entry, frame.return_address);
-		fp = compat_ptr(frame.next_frame);
+		perf_callchain_store(entry, cs_base + frame.return_address);
+		fp = compat_ptr(ss_base + frame.next_frame);
 	}
 	return 1;
 }
@@ -1813,6 +1817,12 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		/* TODO: We don't support guest os callchain now */
 		return;
 	}
+
+	/*
+	 * We don't know what to do with VM86 stacks.. ignore them for now.
+	 */
+	if (regs->flags & (X86_VM_MASK | PERF_EFLAGS_VM))
+		return;
 
 	fp = (void __user *)regs->bp;
 
@@ -1841,16 +1851,50 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 	}
 }
 
+/*
+ * Deal with code segment offsets for the various execution modes:
+ *
+ *   VM86 - the good olde 16 bit days, where the linear address is
+ *          20 bits and we use regs->ip + 0x10 * regs->cs.
+ *
+ *   IA32 - Where we need to look at GDT/LDT segment descriptor tables
+ *          to figure out what the 32bit base address is.
+ *
+ *    X32 - has TIF_X32 set, but is running in x86_64
+ *
+ * X86_64 - CS,DS,SS,ES are all zero based.
+ */
+static unsigned long code_segment_base(struct pt_regs *regs)
+{
+	/*
+	 * If we are in VM86 mode, add the segment offset to convert to a
+	 * linear address.
+	 */
+	if (regs->flags & X86_VM_MASK)
+		return 0x10 * regs->cs;
+
+	/*
+	 * For IA32 we look at the GDT/LDT segment base to convert the
+	 * effective IP to a linear address.
+	 */
+#ifdef CONFIG_X86_32
+	if (user_mode(regs) && regs->cs != __USER_CS)
+		return get_segment_base(regs->cs);
+#else
+	if (test_thread_flag(TIF_IA32)) {
+		if (user_mode(regs) && regs->cs != __USER32_CS)
+			return get_segment_base(regs->cs);
+	}
+#endif
+	return 0;
+}
+
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	unsigned long ip;
-
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
-		ip = perf_guest_cbs->get_guest_ip();
-	else
-		ip = instruction_pointer(regs);
+		return perf_guest_cbs->get_guest_ip();
 
-	return ip;
+	return regs->ip + code_segment_base(regs);
 }
 
 unsigned long perf_misc_flags(struct pt_regs *regs)

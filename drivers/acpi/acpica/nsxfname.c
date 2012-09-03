@@ -61,8 +61,8 @@ static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
  *
  * FUNCTION:    acpi_get_handle
  *
- * PARAMETERS:  Parent          - Object to search under (search scope).
- *              Pathname        - Pointer to an asciiz string containing the
+ * PARAMETERS:  parent          - Object to search under (search scope).
+ *              pathname        - Pointer to an asciiz string containing the
  *                                name
  *              ret_handle      - Where the return handle is returned
  *
@@ -142,9 +142,9 @@ ACPI_EXPORT_SYMBOL(acpi_get_handle)
  *
  * FUNCTION:    acpi_get_name
  *
- * PARAMETERS:  Handle          - Handle to be converted to a pathname
+ * PARAMETERS:  handle          - Handle to be converted to a pathname
  *              name_type       - Full pathname or single segment
- *              Buffer          - Buffer for returned path
+ *              buffer          - Buffer for returned path
  *
  * RETURN:      Pointer to a string containing the fully qualified Name.
  *
@@ -219,8 +219,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_name)
  *
  * FUNCTION:    acpi_ns_copy_device_id
  *
- * PARAMETERS:  Dest                - Pointer to the destination DEVICE_ID
- *              Source              - Pointer to the source DEVICE_ID
+ * PARAMETERS:  dest                - Pointer to the destination DEVICE_ID
+ *              source              - Pointer to the source DEVICE_ID
  *              string_area         - Pointer to where to copy the dest string
  *
  * RETURN:      Pointer to the next string area
@@ -247,7 +247,7 @@ static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
  *
  * FUNCTION:    acpi_get_object_info
  *
- * PARAMETERS:  Handle              - Object Handle
+ * PARAMETERS:  handle              - Object Handle
  *              return_buffer       - Where the info is returned
  *
  * RETURN:      Status
@@ -493,7 +493,7 @@ ACPI_EXPORT_SYMBOL(acpi_get_object_info)
  *
  * FUNCTION:    acpi_install_method
  *
- * PARAMETERS:  Buffer         - An ACPI table containing one control method
+ * PARAMETERS:  buffer         - An ACPI table containing one control method
  *
  * RETURN:      Status
  *

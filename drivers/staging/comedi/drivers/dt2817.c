@@ -119,7 +119,7 @@ static int dt2817_dio_insn_bits(struct comedi_device *dev,
 	data[1] |= (inb(dev->iobase + DT2817_DATA + 2) << 16);
 	data[1] |= (inb(dev->iobase + DT2817_DATA + 3) << 24);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -137,8 +137,8 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->board_name = "dt2817";
 
-	ret = alloc_subdevices(dev, 1);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices + 0;

@@ -41,52 +41,16 @@
 
 //static int          msglevel                =MSG_LEVEL_INFO;
 
-#define BY_RF2959_REG_LEN     23 //24bits
-#define CB_RF2959_INIT_SEQ    15
-#define SWITCH_CHANNEL_DELAY_RF2959 200 //us
-#define RF2959_PWR_IDX_LEN    32
-
-#define BY_MA2825_REG_LEN     23 //24bit
-#define CB_MA2825_INIT_SEQ    13
-#define SWITCH_CHANNEL_DELAY_MA2825 200 //us
-#define MA2825_PWR_IDX_LEN    31
-
 #define BY_AL2230_REG_LEN     23 //24bit
 #define CB_AL2230_INIT_SEQ    15
 #define SWITCH_CHANNEL_DELAY_AL2230 200 //us
 #define AL2230_PWR_IDX_LEN    64
 
 
-#define BY_UW2451_REG_LEN     23
-#define CB_UW2451_INIT_SEQ    6
-#define SWITCH_CHANNEL_DELAY_UW2451 200 //us
-#define UW2451_PWR_IDX_LEN    25
-
-//{{ RobertYu: 20041118
-#define BY_MA2829_REG_LEN     23 //24bit
-#define CB_MA2829_INIT_SEQ    13
-#define SWITCH_CHANNEL_DELAY_MA2829 200 //us
-#define MA2829_PWR_IDX_LEN    64
-//}} RobertYu
-
-//{{ RobertYu:20050103
 #define BY_AL7230_REG_LEN     23 //24bit
 #define CB_AL7230_INIT_SEQ    16
 #define SWITCH_CHANNEL_DELAY_AL7230 200 //us
 #define AL7230_PWR_IDX_LEN    64
-//}} RobertYu
-
-//{{ RobertYu: 20041210
-#define BY_UW2452_REG_LEN     23
-#define CB_UW2452_INIT_SEQ    5 //RoberYu:20050113, Rev0.2 Programming Guide(remove R3, so 6-->5)
-#define SWITCH_CHANNEL_DELAY_UW2452 100 //us
-#define UW2452_PWR_IDX_LEN    64
-//}} RobertYu
-
-#define BY_VT3226_REG_LEN     23
-#define CB_VT3226_INIT_SEQ    12
-#define SWITCH_CHANNEL_DELAY_VT3226 200 //us
-#define VT3226_PWR_IDX_LEN    16
 
 /*---------------------  Static Classes  ----------------------------*/
 
@@ -1066,48 +1030,6 @@ unsigned char byPwrdBm = 0;
 //printk("Rate < 54:byPwr is %d\n",byPwr);
 		break;
     }
-
-#if 0
-
-    // 802.11h TPC
-    if (pDevice->bLinkPass == true) {
-        // do not over local constraint
-        if (byPwrdBm > pDevice->abyLocalPwr[uCH]) {
-            pDevice->byCurPwrdBm = pDevice->abyLocalPwr[uCH];
-            byDec = byPwrdBm - pDevice->abyLocalPwr[uCH];
-            if (pDevice->byRFType == RF_UW2452) {
-                byDec *= 3;
-            } else {
-                byDec <<= 1;
-            }
-            if (byPwr > byDec) {
-                byPwr -= byDec;
-            } else {
-                byPwr = 0;
-            }
-        } else {
-            pDevice->byCurPwrdBm = byPwrdBm;
-        }
-    } else {
-        // do not over regulatory constraint
-        if (byPwrdBm > pDevice->abyRegPwr[uCH]) {
-            pDevice->byCurPwrdBm = pDevice->abyRegPwr[uCH];
-            byDec = byPwrdBm - pDevice->abyRegPwr[uCH];
-            if (pDevice->byRFType == RF_UW2452) {
-                byDec *= 3;
-            } else {
-                byDec <<= 1;
-            }
-            if (byPwr > byDec) {
-                byPwr -= byDec;
-            } else {
-                byPwr = 0;
-            }
-        } else {
-            pDevice->byCurPwrdBm = byPwrdBm;
-        }
-    }
-#endif
 
 //    if (pDevice->byLocalID <= REV_ID_VT3253_B1) {
     if (pDevice->byCurPwr == byPwr) {

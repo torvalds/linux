@@ -70,6 +70,10 @@ find_pnfs_driver(u32 id)
 
 	spin_lock(&pnfs_spinlock);
 	local = find_pnfs_driver_locked(id);
+	if (local != NULL && !try_module_get(local->owner)) {
+		dprintk("%s: Could not grab reference on module\n", __func__);
+		local = NULL;
+	}
 	spin_unlock(&pnfs_spinlock);
 	return local;
 }
@@ -80,6 +84,9 @@ unset_pnfs_layoutdriver(struct nfs_server *nfss)
 	if (nfss->pnfs_curr_ld) {
 		if (nfss->pnfs_curr_ld->clear_layoutdriver)
 			nfss->pnfs_curr_ld->clear_layoutdriver(nfss);
+		/* Decrement the MDS count. Purge the deviceid cache if zero */
+		if (atomic_dec_and_test(&nfss->nfs_client->cl_mds_count))
+			nfs4_deviceid_purge_client(nfss->nfs_client);
 		module_put(nfss->pnfs_curr_ld->owner);
 	}
 	nfss->pnfs_curr_ld = NULL;
@@ -115,10 +122,6 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 			goto out_no_driver;
 		}
 	}
-	if (!try_module_get(ld_type->owner)) {
-		dprintk("%s: Could not grab reference on module\n", __func__);
-		goto out_no_driver;
-	}
 	server->pnfs_curr_ld = ld_type;
 	if (ld_type->set_layoutdriver
 	    && ld_type->set_layoutdriver(server, mntfh)) {
@@ -127,6 +130,8 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 		module_put(ld_type->owner);
 		goto out_no_driver;
 	}
+	/* Bump the MDS count */
+	atomic_inc(&server->nfs_client->cl_mds_count);
 
 	dprintk("%s: pNFS module for %u set\n", __func__, id);
 	return;
@@ -578,9 +583,6 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	struct nfs_server *server = NFS_SERVER(ino);
 	struct nfs4_layoutget *lgp;
 	struct pnfs_layout_segment *lseg = NULL;
-	struct page **pages = NULL;
-	int i;
-	u32 max_resp_sz, max_pages;
 
 	dprintk("--> %s\n", __func__);
 
@@ -588,20 +590,6 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp = kzalloc(sizeof(*lgp), gfp_flags);
 	if (lgp == NULL)
 		return NULL;
-
-	/* allocate pages for xdr post processing */
-	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	max_pages = nfs_page_array_len(0, max_resp_sz);
-
-	pages = kcalloc(max_pages, sizeof(struct page *), gfp_flags);
-	if (!pages)
-		goto out_err_free;
-
-	for (i = 0; i < max_pages; i++) {
-		pages[i] = alloc_page(gfp_flags);
-		if (!pages[i])
-			goto out_err_free;
-	}
 
 	lgp->args.minlength = PAGE_CACHE_SIZE;
 	if (lgp->args.minlength > range->length)
@@ -611,42 +599,29 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	lgp->args.type = server->pnfs_curr_ld->id;
 	lgp->args.inode = ino;
 	lgp->args.ctx = get_nfs_open_context(ctx);
-	lgp->args.layout.pages = pages;
-	lgp->args.layout.pglen = max_pages * PAGE_SIZE;
 	lgp->lsegpp = &lseg;
 	lgp->gfp_flags = gfp_flags;
 
 	/* Synchronously retrieve layout information from server and
 	 * store in lseg.
 	 */
-	nfs4_proc_layoutget(lgp);
+	nfs4_proc_layoutget(lgp, gfp_flags);
 	if (!lseg) {
 		/* remember that LAYOUTGET failed and suspend trying */
 		set_bit(lo_fail_bit(range->iomode), &lo->plh_flags);
 	}
 
-	/* free xdr pages */
-	for (i = 0; i < max_pages; i++)
-		__free_page(pages[i]);
-	kfree(pages);
-
 	return lseg;
-
-out_err_free:
-	/* free any allocated xdr pages, lgp as it's not used */
-	if (pages) {
-		for (i = 0; i < max_pages; i++) {
-			if (!pages[i])
-				break;
-			__free_page(pages[i]);
-		}
-		kfree(pages);
-	}
-	kfree(lgp);
-	return NULL;
 }
 
-/* Initiates a LAYOUTRETURN(FILE) */
+/*
+ * Initiates a LAYOUTRETURN(FILE), and removes the pnfs_layout_hdr
+ * when the layout segment list is empty.
+ *
+ * Note that a pnfs_layout_hdr can exist with an empty layout segment
+ * list when LAYOUTGET has failed, or when LAYOUTGET succeeded, but the
+ * deviceid is marked invalid.
+ */
 int
 _pnfs_return_layout(struct inode *ino)
 {
@@ -655,22 +630,31 @@ _pnfs_return_layout(struct inode *ino)
 	LIST_HEAD(tmp_list);
 	struct nfs4_layoutreturn *lrp;
 	nfs4_stateid stateid;
-	int status = 0;
+	int status = 0, empty;
 
-	dprintk("--> %s\n", __func__);
+	dprintk("NFS: %s for inode %lu\n", __func__, ino->i_ino);
 
 	spin_lock(&ino->i_lock);
 	lo = nfsi->layout;
-	if (!lo) {
+	if (!lo || pnfs_test_layout_returned(lo)) {
 		spin_unlock(&ino->i_lock);
-		dprintk("%s: no layout to return\n", __func__);
-		return status;
+		dprintk("NFS: %s no layout to return\n", __func__);
+		goto out;
 	}
 	stateid = nfsi->layout->plh_stateid;
 	/* Reference matched in nfs4_layoutreturn_release */
 	get_layout_hdr(lo);
+	empty = list_empty(&lo->plh_segs);
 	mark_matching_lsegs_invalid(lo, &tmp_list, NULL);
+	/* Don't send a LAYOUTRETURN if list was initially empty */
+	if (empty) {
+		spin_unlock(&ino->i_lock);
+		put_layout_hdr(lo);
+		dprintk("NFS: %s no layout segments to return\n", __func__);
+		goto out;
+	}
 	lo->plh_block_lgets++;
+	pnfs_mark_layout_returned(lo);
 	spin_unlock(&ino->i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 
@@ -681,6 +665,7 @@ _pnfs_return_layout(struct inode *ino)
 		status = -ENOMEM;
 		set_bit(NFS_LAYOUT_RW_FAILED, &lo->plh_flags);
 		set_bit(NFS_LAYOUT_RO_FAILED, &lo->plh_flags);
+		pnfs_clear_layout_returned(lo);
 		put_layout_hdr(lo);
 		goto out;
 	}
@@ -1070,6 +1055,10 @@ pnfs_update_layout(struct inode *ino,
 	get_layout_hdr(lo);
 	if (list_empty(&lo->plh_segs))
 		first = true;
+
+	/* Enable LAYOUTRETURNs */
+	pnfs_clear_layout_returned(lo);
+
 	spin_unlock(&ino->i_lock);
 	if (first) {
 		/* The lo must be on the clp list if there is any
@@ -1204,7 +1193,7 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_init_write);
 
-bool
+void
 pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 		      const struct nfs_pgio_completion_ops *compl_ops)
 {
@@ -1212,13 +1201,12 @@ pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
 
 	if (ld == NULL)
-		return false;
-	nfs_pageio_init(pgio, inode, ld->pg_read_ops, compl_ops,
-			server->rsize, 0);
-	return true;
+		nfs_pageio_init_read(pgio, inode, compl_ops);
+	else
+		nfs_pageio_init(pgio, inode, ld->pg_read_ops, compl_ops, server->rsize, 0);
 }
 
-bool
+void
 pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 		       int ioflags,
 		       const struct nfs_pgio_completion_ops *compl_ops)
@@ -1227,10 +1215,9 @@ pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode,
 	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
 
 	if (ld == NULL)
-		return false;
-	nfs_pageio_init(pgio, inode, ld->pg_write_ops, compl_ops,
-			server->wsize, ioflags);
-	return true;
+		nfs_pageio_init_write(pgio, inode, ioflags, compl_ops);
+	else
+		nfs_pageio_init(pgio, inode, ld->pg_write_ops, compl_ops, server->wsize, ioflags);
 }
 
 bool
@@ -1267,7 +1254,7 @@ int pnfs_write_done_resend_to_mds(struct inode *inode,
 	LIST_HEAD(failed);
 
 	/* Resend all requests through the MDS */
-	nfs_pageio_init_write_mds(&pgio, inode, FLUSH_STABLE, compl_ops);
+	nfs_pageio_init_write(&pgio, inode, FLUSH_STABLE, compl_ops);
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 
@@ -1383,6 +1370,7 @@ static void pnfs_writehdr_free(struct nfs_pgio_header *hdr)
 	put_lseg(hdr->lseg);
 	nfs_writehdr_free(hdr);
 }
+EXPORT_SYMBOL_GPL(pnfs_writehdr_free);
 
 int
 pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
@@ -1422,7 +1410,7 @@ int pnfs_read_done_resend_to_mds(struct inode *inode,
 	LIST_HEAD(failed);
 
 	/* Resend all requests through the MDS */
-	nfs_pageio_init_read_mds(&pgio, inode, compl_ops);
+	nfs_pageio_init_read(&pgio, inode, compl_ops);
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 
@@ -1537,6 +1525,7 @@ static void pnfs_readhdr_free(struct nfs_pgio_header *hdr)
 	put_lseg(hdr->lseg);
 	nfs_readhdr_free(hdr);
 }
+EXPORT_SYMBOL_GPL(pnfs_readhdr_free);
 
 int
 pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)

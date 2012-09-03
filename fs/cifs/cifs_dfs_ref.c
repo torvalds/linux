@@ -275,7 +275,8 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_ses *ses;
 	char *full_path;
-	int xid, i;
+	unsigned int xid;
+	int i;
 	int rc;
 	struct vfsmount *mnt;
 	struct tcon_link *tlink;
@@ -302,11 +303,11 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	}
 	ses = tlink_tcon(tlink)->ses;
 
-	xid = GetXid();
+	xid = get_xid();
 	rc = get_dfs_path(xid, ses, full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
-	FreeXid(xid);
+	free_xid(xid);
 
 	cifs_put_tlink(tlink);
 

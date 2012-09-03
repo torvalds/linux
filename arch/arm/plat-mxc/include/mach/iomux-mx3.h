@@ -160,9 +160,6 @@ int mxc_iomux_mode(unsigned int pin_mode);
 
 #define IOMUX_TO_GPIO(iomux_pin) \
 	((iomux_pin & IOMUX_GPIONUM_MASK) >> IOMUX_GPIONUM_SHIFT)
-#define IOMUX_TO_IRQ(iomux_pin) \
-	(((iomux_pin & IOMUX_GPIONUM_MASK) >> IOMUX_GPIONUM_SHIFT) + \
-	MXC_GPIO_IRQ_START)
 
 /*
  * This enumeration is constructed based on the Section

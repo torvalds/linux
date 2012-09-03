@@ -201,6 +201,7 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	unsigned f_lm = 0;
 #endif
 	unsigned f_rdtscp = kvm_x86_ops->rdtscp_supported() ? F(RDTSCP) : 0;
+	unsigned f_invpcid = kvm_x86_ops->invpcid_supported() ? F(INVPCID) : 0;
 
 	/* cpuid 1.edx */
 	const u32 kvm_supported_word0_x86_features =
@@ -228,7 +229,7 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		0 /* DS-CPL, VMX, SMX, EST */ |
 		0 /* TM2 */ | F(SSSE3) | 0 /* CNXT-ID */ | 0 /* Reserved */ |
 		F(FMA) | F(CX16) | 0 /* xTPR Update, PDCM */ |
-		0 /* Reserved, DCA */ | F(XMM4_1) |
+		F(PCID) | 0 /* Reserved, DCA */ | F(XMM4_1) |
 		F(XMM4_2) | F(X2APIC) | F(MOVBE) | F(POPCNT) |
 		0 /* Reserved*/ | F(AES) | F(XSAVE) | 0 /* OSXSAVE */ | F(AVX) |
 		F(F16C) | F(RDRAND);
@@ -248,7 +249,7 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	/* cpuid 7.0.ebx */
 	const u32 kvm_supported_word9_x86_features =
 		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
-		F(BMI2) | F(ERMS) | F(RTM);
+		F(BMI2) | F(ERMS) | f_invpcid | F(RTM);
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
@@ -409,6 +410,7 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 			     (1 << KVM_FEATURE_NOP_IO_DELAY) |
 			     (1 << KVM_FEATURE_CLOCKSOURCE2) |
 			     (1 << KVM_FEATURE_ASYNC_PF) |
+			     (1 << KVM_FEATURE_PV_EOI) |
 			     (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
 
 		if (sched_info_on())
@@ -639,33 +641,37 @@ static struct kvm_cpuid_entry2* check_cpuid_limit(struct kvm_vcpu *vcpu,
 	return kvm_find_cpuid_entry(vcpu, maxlevel->eax, index);
 }
 
-void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
+void kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
 {
-	u32 function, index;
+	u32 function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *best;
 
-	function = kvm_register_read(vcpu, VCPU_REGS_RAX);
-	index = kvm_register_read(vcpu, VCPU_REGS_RCX);
-	kvm_register_write(vcpu, VCPU_REGS_RAX, 0);
-	kvm_register_write(vcpu, VCPU_REGS_RBX, 0);
-	kvm_register_write(vcpu, VCPU_REGS_RCX, 0);
-	kvm_register_write(vcpu, VCPU_REGS_RDX, 0);
 	best = kvm_find_cpuid_entry(vcpu, function, index);
 
 	if (!best)
 		best = check_cpuid_limit(vcpu, function, index);
 
 	if (best) {
-		kvm_register_write(vcpu, VCPU_REGS_RAX, best->eax);
-		kvm_register_write(vcpu, VCPU_REGS_RBX, best->ebx);
-		kvm_register_write(vcpu, VCPU_REGS_RCX, best->ecx);
-		kvm_register_write(vcpu, VCPU_REGS_RDX, best->edx);
-	}
+		*eax = best->eax;
+		*ebx = best->ebx;
+		*ecx = best->ecx;
+		*edx = best->edx;
+	} else
+		*eax = *ebx = *ecx = *edx = 0;
+}
+
+void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
+{
+	u32 function, eax, ebx, ecx, edx;
+
+	function = eax = kvm_register_read(vcpu, VCPU_REGS_RAX);
+	ecx = kvm_register_read(vcpu, VCPU_REGS_RCX);
+	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx);
+	kvm_register_write(vcpu, VCPU_REGS_RAX, eax);
+	kvm_register_write(vcpu, VCPU_REGS_RBX, ebx);
+	kvm_register_write(vcpu, VCPU_REGS_RCX, ecx);
+	kvm_register_write(vcpu, VCPU_REGS_RDX, edx);
 	kvm_x86_ops->skip_emulated_instruction(vcpu);
-	trace_kvm_cpuid(function,
-			kvm_register_read(vcpu, VCPU_REGS_RAX),
-			kvm_register_read(vcpu, VCPU_REGS_RBX),
-			kvm_register_read(vcpu, VCPU_REGS_RCX),
-			kvm_register_read(vcpu, VCPU_REGS_RDX));
+	trace_kvm_cpuid(function, eax, ebx, ecx, edx);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);

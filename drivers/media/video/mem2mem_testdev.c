@@ -27,6 +27,8 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
 
 #define MEM2MEM_TEST_MODULE_NAME "mem2mem-testdev"
@@ -59,6 +61,10 @@ MODULE_VERSION("0.1.1");
 #define MEM2MEM_DEF_TRANSLEN	1
 #define MEM2MEM_COLOR_STEP	(0xff >> 4)
 #define MEM2MEM_NUM_TILES	8
+
+/* Flags that indicate processing mode */
+#define MEM2MEM_HFLIP	(1 << 0)
+#define MEM2MEM_VFLIP	(1 << 1)
 
 #define dprintk(dev, fmt, arg...) \
 	v4l2_dbg(1, 1, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
@@ -97,6 +103,8 @@ static struct m2mtest_fmt formats[] = {
 	},
 };
 
+#define NUM_FORMATS ARRAY_SIZE(formats)
+
 /* Per-queue, driver-specific private data */
 struct m2mtest_q_data {
 	unsigned int		width;
@@ -110,48 +118,8 @@ enum {
 	V4L2_M2M_DST = 1,
 };
 
-/* Source and destination queue data */
-static struct m2mtest_q_data q_data[2];
-
-static struct m2mtest_q_data *get_q_data(enum v4l2_buf_type type)
-{
-	switch (type) {
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		return &q_data[V4L2_M2M_SRC];
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		return &q_data[V4L2_M2M_DST];
-	default:
-		BUG();
-	}
-	return NULL;
-}
-
-#define V4L2_CID_TRANS_TIME_MSEC	V4L2_CID_PRIVATE_BASE
-#define V4L2_CID_TRANS_NUM_BUFS		(V4L2_CID_PRIVATE_BASE + 1)
-
-static struct v4l2_queryctrl m2mtest_ctrls[] = {
-	{
-		.id		= V4L2_CID_TRANS_TIME_MSEC,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Transaction time (msec)",
-		.minimum	= 1,
-		.maximum	= 10000,
-		.step		= 100,
-		.default_value	= 1000,
-		.flags		= 0,
-	}, {
-		.id		= V4L2_CID_TRANS_NUM_BUFS,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Buffers per transaction",
-		.minimum	= 1,
-		.maximum	= MEM2MEM_DEF_NUM_BUFS,
-		.step		= 1,
-		.default_value	= 1,
-		.flags		= 0,
-	},
-};
-
-#define NUM_FORMATS ARRAY_SIZE(formats)
+#define V4L2_CID_TRANS_TIME_MSEC	(V4L2_CID_USER_BASE + 0x1000)
+#define V4L2_CID_TRANS_NUM_BUFS		(V4L2_CID_USER_BASE + 0x1001)
 
 static struct m2mtest_fmt *find_format(struct v4l2_format *f)
 {
@@ -184,7 +152,10 @@ struct m2mtest_dev {
 };
 
 struct m2mtest_ctx {
+	struct v4l2_fh		fh;
 	struct m2mtest_dev	*dev;
+
+	struct v4l2_ctrl_handler hdl;
 
 	/* Processed buffers in this transaction */
 	u8			num_processed;
@@ -197,20 +168,36 @@ struct m2mtest_ctx {
 	/* Abort requested by m2m */
 	int			aborting;
 
+	/* Processing mode */
+	int			mode;
+
+	enum v4l2_colorspace	colorspace;
+
 	struct v4l2_m2m_ctx	*m2m_ctx;
+
+	/* Source and destination queue data */
+	struct m2mtest_q_data   q_data[2];
 };
 
-static struct v4l2_queryctrl *get_ctrl(int id)
+static inline struct m2mtest_ctx *file2ctx(struct file *file)
 {
-	int i;
+	return container_of(file->private_data, struct m2mtest_ctx, fh);
+}
 
-	for (i = 0; i < ARRAY_SIZE(m2mtest_ctrls); ++i) {
-		if (id == m2mtest_ctrls[i].id)
-			return &m2mtest_ctrls[i];
+static struct m2mtest_q_data *get_q_data(struct m2mtest_ctx *ctx,
+					 enum v4l2_buf_type type)
+{
+	switch (type) {
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+		return &ctx->q_data[V4L2_M2M_SRC];
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		return &ctx->q_data[V4L2_M2M_DST];
+	default:
+		BUG();
 	}
-
 	return NULL;
 }
+
 
 static int device_process(struct m2mtest_ctx *ctx,
 			  struct vb2_buffer *in_vb,
@@ -223,7 +210,7 @@ static int device_process(struct m2mtest_ctx *ctx,
 	int tile_w, bytes_left;
 	int width, height, bytesperline;
 
-	q_data = get_q_data(V4L2_BUF_TYPE_VIDEO_OUTPUT);
+	q_data = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 
 	width	= q_data->width;
 	height	= q_data->height;
@@ -247,19 +234,84 @@ static int device_process(struct m2mtest_ctx *ctx,
 	bytes_left = bytesperline - tile_w * MEM2MEM_NUM_TILES;
 	w = 0;
 
-	for (y = 0; y < height; ++y) {
-		for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
-			if (w & 0x1) {
-				for (x = 0; x < tile_w; ++x)
-					*p_out++ = *p_in++ + MEM2MEM_COLOR_STEP;
-			} else {
-				for (x = 0; x < tile_w; ++x)
-					*p_out++ = *p_in++ - MEM2MEM_COLOR_STEP;
+	switch (ctx->mode) {
+	case MEM2MEM_HFLIP | MEM2MEM_VFLIP:
+		p_out += bytesperline * height - bytes_left;
+		for (y = 0; y < height; ++y) {
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x1) {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
 			}
-			++w;
+			p_in += bytes_left;
+			p_out -= bytes_left;
 		}
-		p_in += bytes_left;
-		p_out += bytes_left;
+		break;
+
+	case MEM2MEM_HFLIP:
+		for (y = 0; y < height; ++y) {
+			p_out += MEM2MEM_NUM_TILES * tile_w;
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x01) {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*--p_out = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
+			}
+			p_in += bytes_left;
+			p_out += bytesperline;
+		}
+		break;
+
+	case MEM2MEM_VFLIP:
+		p_out += bytesperline * (height - 1);
+		for (y = 0; y < height; ++y) {
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x1) {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
+			}
+			p_in += bytes_left;
+			p_out += bytes_left - 2 * bytesperline;
+		}
+		break;
+
+	default:
+		for (y = 0; y < height; ++y) {
+			for (t = 0; t < MEM2MEM_NUM_TILES; ++t) {
+				if (w & 0x1) {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ +
+							MEM2MEM_COLOR_STEP;
+				} else {
+					for (x = 0; x < tile_w; ++x)
+						*p_out++ = *p_in++ -
+							MEM2MEM_COLOR_STEP;
+				}
+				++w;
+			}
+			p_in += bytes_left;
+			p_out += bytes_left;
+		}
 	}
 
 	return 0;
@@ -378,10 +430,9 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strncpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver) - 1);
 	strncpy(cap->card, MEM2MEM_NAME, sizeof(cap->card) - 1);
-	cap->bus_info[0] = 0;
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OUTPUT
-			  | V4L2_CAP_STREAMING;
-
+	strlcpy(cap->bus_info, MEM2MEM_NAME, sizeof(cap->bus_info));
+	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -436,7 +487,7 @@ static int vidioc_g_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	if (!vq)
 		return -EINVAL;
 
-	q_data = get_q_data(f->type);
+	q_data = get_q_data(ctx, f->type);
 
 	f->fmt.pix.width	= q_data->width;
 	f->fmt.pix.height	= q_data->height;
@@ -444,6 +495,7 @@ static int vidioc_g_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	f->fmt.pix.pixelformat	= q_data->fmt->fourcc;
 	f->fmt.pix.bytesperline	= (q_data->width * q_data->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage	= q_data->sizeimage;
+	f->fmt.pix.colorspace	= ctx->colorspace;
 
 	return 0;
 }
@@ -451,13 +503,13 @@ static int vidioc_g_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 static int vidioc_g_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	return vidioc_g_fmt(priv, f);
+	return vidioc_g_fmt(file2ctx(file), f);
 }
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
-	return vidioc_g_fmt(priv, f);
+	return vidioc_g_fmt(file2ctx(file), f);
 }
 
 static int vidioc_try_fmt(struct v4l2_format *f, struct m2mtest_fmt *fmt)
@@ -496,7 +548,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct m2mtest_fmt *fmt;
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	fmt = find_format(f);
 	if (!fmt || !(fmt->types & MEM2MEM_CAPTURE)) {
@@ -505,6 +557,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 			 f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
+	f->fmt.pix.colorspace = ctx->colorspace;
 
 	return vidioc_try_fmt(f, fmt);
 }
@@ -513,7 +566,7 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
 	struct m2mtest_fmt *fmt;
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	fmt = find_format(f);
 	if (!fmt || !(fmt->types & MEM2MEM_OUTPUT)) {
@@ -522,6 +575,8 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 			 f->fmt.pix.pixelformat);
 		return -EINVAL;
 	}
+	if (!f->fmt.pix.colorspace)
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
 
 	return vidioc_try_fmt(f, fmt);
 }
@@ -535,7 +590,7 @@ static int vidioc_s_fmt(struct m2mtest_ctx *ctx, struct v4l2_format *f)
 	if (!vq)
 		return -EINVAL;
 
-	q_data = get_q_data(f->type);
+	q_data = get_q_data(ctx, f->type);
 	if (!q_data)
 		return -EINVAL;
 
@@ -566,25 +621,29 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
-	return vidioc_s_fmt(priv, f);
+	return vidioc_s_fmt(file2ctx(file), f);
 }
 
 static int vidioc_s_fmt_vid_out(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
+	struct m2mtest_ctx *ctx = file2ctx(file);
 	int ret;
 
 	ret = vidioc_try_fmt_vid_out(file, priv, f);
 	if (ret)
 		return ret;
 
-	return vidioc_s_fmt(priv, f);
+	ret = vidioc_s_fmt(file2ctx(file), f);
+	if (!ret)
+		ctx->colorspace = f->fmt.pix.colorspace;
+	return ret;
 }
 
 static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *reqbufs)
 {
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
@@ -592,21 +651,21 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 static int vidioc_querybuf(struct file *file, void *priv,
 			   struct v4l2_buffer *buf)
 {
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_querybuf(file, ctx->m2m_ctx, buf);
 }
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_qbuf(file, ctx->m2m_ctx, buf);
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
 }
@@ -614,7 +673,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_streamon(file, ctx->m2m_ctx, type);
 }
@@ -622,36 +681,37 @@ static int vidioc_streamon(struct file *file, void *priv,
 static int vidioc_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *qc)
+static int m2mtest_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct v4l2_queryctrl *c;
-
-	c = get_ctrl(qc->id);
-	if (!c)
-		return -EINVAL;
-
-	*qc = *c;
-	return 0;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct m2mtest_ctx *ctx = priv;
+	struct m2mtest_ctx *ctx =
+		container_of(ctrl->handler, struct m2mtest_ctx, hdl);
 
 	switch (ctrl->id) {
+	case V4L2_CID_HFLIP:
+		if (ctrl->val)
+			ctx->mode |= MEM2MEM_HFLIP;
+		else
+			ctx->mode &= ~MEM2MEM_HFLIP;
+		break;
+
+	case V4L2_CID_VFLIP:
+		if (ctrl->val)
+			ctx->mode |= MEM2MEM_VFLIP;
+		else
+			ctx->mode &= ~MEM2MEM_VFLIP;
+		break;
+
 	case V4L2_CID_TRANS_TIME_MSEC:
-		ctrl->value = ctx->transtime;
+		ctx->transtime = ctrl->val;
 		break;
 
 	case V4L2_CID_TRANS_NUM_BUFS:
-		ctrl->value = ctx->translen;
+		ctx->translen = ctrl->val;
 		break;
 
 	default:
@@ -662,48 +722,9 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int check_ctrl_val(struct m2mtest_ctx *ctx, struct v4l2_control *ctrl)
-{
-	struct v4l2_queryctrl *c;
-
-	c = get_ctrl(ctrl->id);
-	if (!c)
-		return -EINVAL;
-
-	if (ctrl->value < c->minimum || ctrl->value > c->maximum) {
-		v4l2_err(&ctx->dev->v4l2_dev, "Value out of range\n");
-		return -ERANGE;
-	}
-
-	return 0;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct m2mtest_ctx *ctx = priv;
-	int ret = 0;
-
-	ret = check_ctrl_val(ctx, ctrl);
-	if (ret != 0)
-		return ret;
-
-	switch (ctrl->id) {
-	case V4L2_CID_TRANS_TIME_MSEC:
-		ctx->transtime = ctrl->value;
-		break;
-
-	case V4L2_CID_TRANS_NUM_BUFS:
-		ctx->translen = ctrl->value;
-		break;
-
-	default:
-		v4l2_err(&ctx->dev->v4l2_dev, "Invalid control\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
+static const struct v4l2_ctrl_ops m2mtest_ctrl_ops = {
+	.s_ctrl = m2mtest_s_ctrl,
+};
 
 
 static const struct v4l2_ioctl_ops m2mtest_ioctl_ops = {
@@ -727,10 +748,8 @@ static const struct v4l2_ioctl_ops m2mtest_ioctl_ops = {
 
 	.vidioc_streamon	= vidioc_streamon,
 	.vidioc_streamoff	= vidioc_streamoff,
-
-	.vidioc_queryctrl	= vidioc_queryctrl,
-	.vidioc_g_ctrl		= vidioc_g_ctrl,
-	.vidioc_s_ctrl		= vidioc_s_ctrl,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 
@@ -747,7 +766,7 @@ static int m2mtest_queue_setup(struct vb2_queue *vq,
 	struct m2mtest_q_data *q_data;
 	unsigned int size, count = *nbuffers;
 
-	q_data = get_q_data(vq->type);
+	q_data = get_q_data(ctx, vq->type);
 
 	size = q_data->width * q_data->height * q_data->fmt->depth >> 3;
 
@@ -775,7 +794,7 @@ static int m2mtest_buf_prepare(struct vb2_buffer *vb)
 
 	dprintk(ctx->dev, "type: %d\n", vb->vb2_queue->type);
 
-	q_data = get_q_data(vb->vb2_queue->type);
+	q_data = get_q_data(ctx, vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev, "%s data will not fit into plane (%lu < %lu)\n",
@@ -842,6 +861,28 @@ static int queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *ds
 	return vb2_queue_init(dst_vq);
 }
 
+static const struct v4l2_ctrl_config m2mtest_ctrl_trans_time_msec = {
+	.ops = &m2mtest_ctrl_ops,
+	.id = V4L2_CID_TRANS_TIME_MSEC,
+	.name = "Transaction Time (msec)",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 1001,
+	.min = 1,
+	.max = 10001,
+	.step = 100,
+};
+
+static const struct v4l2_ctrl_config m2mtest_ctrl_trans_num_bufs = {
+	.ops = &m2mtest_ctrl_ops,
+	.id = V4L2_CID_TRANS_NUM_BUFS,
+	.name = "Buffers Per Transaction",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.def = 1,
+	.min = 1,
+	.max = MEM2MEM_DEF_NUM_BUFS,
+	.step = 1,
+};
+
 /*
  * File operations
  */
@@ -849,26 +890,51 @@ static int m2mtest_open(struct file *file)
 {
 	struct m2mtest_dev *dev = video_drvdata(file);
 	struct m2mtest_ctx *ctx = NULL;
+	struct v4l2_ctrl_handler *hdl;
 
 	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
-	file->private_data = ctx;
+	v4l2_fh_init(&ctx->fh, video_devdata(file));
+	file->private_data = &ctx->fh;
 	ctx->dev = dev;
-	ctx->translen = MEM2MEM_DEF_TRANSLEN;
-	ctx->transtime = MEM2MEM_DEF_TRANSTIME;
-	ctx->num_processed = 0;
+	hdl = &ctx->hdl;
+	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_new_std(hdl, &m2mtest_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &m2mtest_ctrl_ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_custom(hdl, &m2mtest_ctrl_trans_time_msec, NULL);
+	v4l2_ctrl_new_custom(hdl, &m2mtest_ctrl_trans_num_bufs, NULL);
+	if (hdl->error) {
+		int err = hdl->error;
+
+		v4l2_ctrl_handler_free(hdl);
+		return err;
+	}
+	ctx->fh.ctrl_handler = hdl;
+	v4l2_ctrl_handler_setup(hdl);
+
+	ctx->q_data[V4L2_M2M_SRC].fmt = &formats[0];
+	ctx->q_data[V4L2_M2M_SRC].width = 640;
+	ctx->q_data[V4L2_M2M_SRC].height = 480;
+	ctx->q_data[V4L2_M2M_SRC].sizeimage =
+		ctx->q_data[V4L2_M2M_SRC].width *
+		ctx->q_data[V4L2_M2M_SRC].height *
+		(ctx->q_data[V4L2_M2M_SRC].fmt->depth >> 3);
+	ctx->q_data[V4L2_M2M_DST] = ctx->q_data[V4L2_M2M_SRC];
+	ctx->colorspace = V4L2_COLORSPACE_REC709;
 
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx, &queue_init);
 
 	if (IS_ERR(ctx->m2m_ctx)) {
 		int ret = PTR_ERR(ctx->m2m_ctx);
 
+		v4l2_ctrl_handler_free(hdl);
 		kfree(ctx);
 		return ret;
 	}
 
+	v4l2_fh_add(&ctx->fh);
 	atomic_inc(&dev->num_inst);
 
 	dprintk(dev, "Created instance %p, m2m_ctx: %p\n", ctx, ctx->m2m_ctx);
@@ -879,10 +945,13 @@ static int m2mtest_open(struct file *file)
 static int m2mtest_release(struct file *file)
 {
 	struct m2mtest_dev *dev = video_drvdata(file);
-	struct m2mtest_ctx *ctx = file->private_data;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	dprintk(dev, "Releasing instance %p\n", ctx);
 
+	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_exit(&ctx->fh);
+	v4l2_ctrl_handler_free(&ctx->hdl);
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	kfree(ctx);
 
@@ -894,14 +963,14 @@ static int m2mtest_release(struct file *file)
 static unsigned int m2mtest_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
-	struct m2mtest_ctx *ctx = file->private_data;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 }
 
 static int m2mtest_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct m2mtest_ctx *ctx = file->private_data;
+	struct m2mtest_ctx *ctx = file2ctx(file);
 
 	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
 }
@@ -985,9 +1054,6 @@ static int m2mtest_probe(struct platform_device *pdev)
 		ret = PTR_ERR(dev->m2m_dev);
 		goto err_m2m;
 	}
-
-	q_data[V4L2_M2M_SRC].fmt = &formats[0];
-	q_data[V4L2_M2M_DST].fmt = &formats[0];
 
 	return 0;
 

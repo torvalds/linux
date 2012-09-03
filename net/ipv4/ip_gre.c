@@ -516,9 +516,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 		case ICMP_PORT_UNREACH:
 			/* Impossible event. */
 			return;
-		case ICMP_FRAG_NEEDED:
-			/* Soft state for pmtu is maintained by IP core. */
-			return;
 		default:
 			/* All others are translated to HOST_UNREACH.
 			   rfc2003 contains "deep thoughts" about NET_UNREACH,
@@ -531,6 +528,9 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 		if (code != ICMP_EXC_TTL)
 			return;
 		break;
+
+	case ICMP_REDIRECT:
+		break;
 	}
 
 	rcu_read_lock();
@@ -538,7 +538,20 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 				flags & GRE_KEY ?
 				*(((__be32 *)p) + (grehlen / 4) - 1) : 0,
 				p[1]);
-	if (t == NULL || t->parms.iph.daddr == 0 ||
+	if (t == NULL)
+		goto out;
+
+	if (type == ICMP_DEST_UNREACH && code == ICMP_FRAG_NEEDED) {
+		ipv4_update_pmtu(skb, dev_net(skb->dev), info,
+				 t->parms.link, 0, IPPROTO_GRE, 0);
+		goto out;
+	}
+	if (type == ICMP_REDIRECT) {
+		ipv4_redirect(skb, dev_net(skb->dev), t->parms.link, 0,
+			      IPPROTO_GRE, 0);
+		goto out;
+	}
+	if (t->parms.iph.daddr == 0 ||
 	    ipv4_is_multicast(t->parms.iph.daddr))
 		goto out;
 
@@ -753,7 +766,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 		if (skb->protocol == htons(ETH_P_IP)) {
 			rt = skb_rtable(skb);
-			dst = rt->rt_gateway;
+			dst = rt_nexthop(rt, old_iph->daddr);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		else if (skb->protocol == htons(ETH_P_IPV6)) {
@@ -820,7 +833,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
 	if (skb_dst(skb))
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
+		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		df |= (old_iph->frag_off&htons(IP_DF));

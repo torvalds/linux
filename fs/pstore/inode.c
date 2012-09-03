@@ -27,6 +27,7 @@
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/mount.h>
+#include <linux/seq_file.h>
 #include <linux/ramfs.h>
 #include <linux/parser.h>
 #include <linux/sched.h>
@@ -52,18 +53,117 @@ struct pstore_private {
 	char	data[];
 };
 
+struct pstore_ftrace_seq_data {
+	const void *ptr;
+	size_t off;
+	size_t size;
+};
+
+#define REC_SIZE sizeof(struct pstore_ftrace_record)
+
+static void *pstore_ftrace_seq_start(struct seq_file *s, loff_t *pos)
+{
+	struct pstore_private *ps = s->private;
+	struct pstore_ftrace_seq_data *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return NULL;
+
+	data->off = ps->size % REC_SIZE;
+	data->off += *pos * REC_SIZE;
+	if (data->off + REC_SIZE > ps->size) {
+		kfree(data);
+		return NULL;
+	}
+
+	return data;
+
+}
+
+static void pstore_ftrace_seq_stop(struct seq_file *s, void *v)
+{
+	kfree(v);
+}
+
+static void *pstore_ftrace_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct pstore_private *ps = s->private;
+	struct pstore_ftrace_seq_data *data = v;
+
+	data->off += REC_SIZE;
+	if (data->off + REC_SIZE > ps->size)
+		return NULL;
+
+	(*pos)++;
+	return data;
+}
+
+static int pstore_ftrace_seq_show(struct seq_file *s, void *v)
+{
+	struct pstore_private *ps = s->private;
+	struct pstore_ftrace_seq_data *data = v;
+	struct pstore_ftrace_record *rec = (void *)(ps->data + data->off);
+
+	seq_printf(s, "%d %08lx  %08lx  %pf <- %pF\n",
+		pstore_ftrace_decode_cpu(rec), rec->ip, rec->parent_ip,
+		(void *)rec->ip, (void *)rec->parent_ip);
+
+	return 0;
+}
+
+static const struct seq_operations pstore_ftrace_seq_ops = {
+	.start	= pstore_ftrace_seq_start,
+	.next	= pstore_ftrace_seq_next,
+	.stop	= pstore_ftrace_seq_stop,
+	.show	= pstore_ftrace_seq_show,
+};
+
 static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 						size_t count, loff_t *ppos)
 {
-	struct pstore_private *ps = file->private_data;
+	struct seq_file *sf = file->private_data;
+	struct pstore_private *ps = sf->private;
 
+	if (ps->type == PSTORE_TYPE_FTRACE)
+		return seq_read(file, userbuf, count, ppos);
 	return simple_read_from_buffer(userbuf, count, ppos, ps->data, ps->size);
 }
 
+static int pstore_file_open(struct inode *inode, struct file *file)
+{
+	struct pstore_private *ps = inode->i_private;
+	struct seq_file *sf;
+	int err;
+	const struct seq_operations *sops = NULL;
+
+	if (ps->type == PSTORE_TYPE_FTRACE)
+		sops = &pstore_ftrace_seq_ops;
+
+	err = seq_open(file, sops);
+	if (err < 0)
+		return err;
+
+	sf = file->private_data;
+	sf->private = ps;
+
+	return 0;
+}
+
+static loff_t pstore_file_llseek(struct file *file, loff_t off, int origin)
+{
+	struct seq_file *sf = file->private_data;
+
+	if (sf->op)
+		return seq_lseek(file, off, origin);
+	return default_llseek(file, off, origin);
+}
+
 static const struct file_operations pstore_file_operations = {
-	.open	= simple_open,
-	.read	= pstore_file_read,
-	.llseek	= default_llseek,
+	.open		= pstore_file_open,
+	.read		= pstore_file_read,
+	.llseek		= pstore_file_llseek,
+	.release	= seq_release,
 };
 
 /*
@@ -212,6 +312,12 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id,
 	case PSTORE_TYPE_DMESG:
 		sprintf(name, "dmesg-%s-%lld", psname, id);
 		break;
+	case PSTORE_TYPE_CONSOLE:
+		sprintf(name, "console-%s", psname);
+		break;
+	case PSTORE_TYPE_FTRACE:
+		sprintf(name, "ftrace-%s", psname);
+		break;
 	case PSTORE_TYPE_MCE:
 		sprintf(name, "mce-%s-%lld", psname, id);
 		break;
@@ -258,7 +364,7 @@ fail:
 	return rc;
 }
 
-int pstore_fill_super(struct super_block *sb, void *data, int silent)
+static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 

@@ -117,7 +117,7 @@ typedef struct _stPhsRuleSI {
     B_UINT8                         u8PHSM[MAX_PHS_LENGTHS];
 	/**  8bit Total number of bytes to be suppressed for the Service Flow*/
     B_UINT8                         u8PHSS;
-	/**  8bit Indicates whether or not Packet Header contents need to be verified prior to supression */
+	/**  8bit Indicates whether or not Packet Header contents need to be verified prior to suppression */
     B_UINT8                         u8PHSV;
 	/**  Vendor Specific PHS param Length Of The Service Flow*/
     B_UINT8                         u8VendorSpecificPHSParamsLength;

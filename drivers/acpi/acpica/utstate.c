@@ -51,8 +51,8 @@ ACPI_MODULE_NAME("utstate")
  *
  * FUNCTION:    acpi_ut_create_pkg_state_and_push
  *
- * PARAMETERS:  Object          - Object to be added to the new state
- *              Action          - Increment/Decrement
+ * PARAMETERS:  object          - Object to be added to the new state
+ *              action          - Increment/Decrement
  *              state_list      - List the state will be added to
  *
  * RETURN:      Status
@@ -85,7 +85,7 @@ acpi_ut_create_pkg_state_and_push(void *internal_object,
  * FUNCTION:    acpi_ut_push_generic_state
  *
  * PARAMETERS:  list_head           - Head of the state stack
- *              State               - State object to push
+ *              state               - State object to push
  *
  * RETURN:      None
  *
@@ -214,8 +214,8 @@ struct acpi_thread_state *acpi_ut_create_thread_state(void)
  *
  * FUNCTION:    acpi_ut_create_update_state
  *
- * PARAMETERS:  Object          - Initial Object to be installed in the state
- *              Action          - Update action to be performed
+ * PARAMETERS:  object          - Initial Object to be installed in the state
+ *              action          - Update action to be performed
  *
  * RETURN:      New state object, null on failure
  *
@@ -252,8 +252,8 @@ union acpi_generic_state *acpi_ut_create_update_state(union acpi_operand_object
  *
  * FUNCTION:    acpi_ut_create_pkg_state
  *
- * PARAMETERS:  Object          - Initial Object to be installed in the state
- *              Action          - Update action to be performed
+ * PARAMETERS:  object          - Initial Object to be installed in the state
+ *              action          - Update action to be performed
  *
  * RETURN:      New state object, null on failure
  *
@@ -325,7 +325,7 @@ union acpi_generic_state *acpi_ut_create_control_state(void)
  *
  * FUNCTION:    acpi_ut_delete_generic_state
  *
- * PARAMETERS:  State               - The state object to be deleted
+ * PARAMETERS:  state               - The state object to be deleted
  *
  * RETURN:      None
  *

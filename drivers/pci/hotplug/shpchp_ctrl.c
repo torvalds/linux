@@ -262,9 +262,6 @@ static int board_added(struct slot *p_slot)
 	}
 
 	if ((ctrl->pci_dev->vendor == 0x8086) && (ctrl->pci_dev->device == 0x0332)) {
-		if (slots_not_empty)
-			return WRONG_BUS_FREQUENCY;
-
 		if ((rc = p_slot->hpc_ops->set_bus_speed_mode(p_slot, PCI_SPEED_33MHz))) {
 			ctrl_err(ctrl, "%s: Issue of set bus speed mode command"
 				 " failed\n", __func__);

@@ -217,7 +217,8 @@ struct cpuidle_state_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct cpuidle_state *, \
 					struct cpuidle_state_usage *, char *);
-	ssize_t (*store)(struct cpuidle_state *, const char *, size_t);
+	ssize_t (*store)(struct cpuidle_state *, \
+			struct cpuidle_state_usage *, const char *, size_t);
 };
 
 #define define_one_state_ro(_name, show) \
@@ -233,21 +234,22 @@ static ssize_t show_state_##_name(struct cpuidle_state *state, \
 	return sprintf(buf, "%u\n", state->_name);\
 }
 
-#define define_store_state_function(_name) \
+#define define_store_state_ull_function(_name) \
 static ssize_t store_state_##_name(struct cpuidle_state *state, \
+		struct cpuidle_state_usage *state_usage, \
 		const char *buf, size_t size) \
 { \
-	long value; \
+	unsigned long long value; \
 	int err; \
 	if (!capable(CAP_SYS_ADMIN)) \
 		return -EPERM; \
-	err = kstrtol(buf, 0, &value); \
+	err = kstrtoull(buf, 0, &value); \
 	if (err) \
 		return err; \
 	if (value) \
-		state->disable = 1; \
+		state_usage->_name = 1; \
 	else \
-		state->disable = 0; \
+		state_usage->_name = 0; \
 	return size; \
 }
 
@@ -273,8 +275,8 @@ define_show_state_ull_function(usage)
 define_show_state_ull_function(time)
 define_show_state_str_function(name)
 define_show_state_str_function(desc)
-define_show_state_function(disable)
-define_store_state_function(disable)
+define_show_state_ull_function(disable)
+define_store_state_ull_function(disable)
 
 define_one_state_ro(name, show_state_name);
 define_one_state_ro(desc, show_state_desc);
@@ -318,10 +320,11 @@ static ssize_t cpuidle_state_store(struct kobject *kobj,
 {
 	int ret = -EIO;
 	struct cpuidle_state *state = kobj_to_state(kobj);
+	struct cpuidle_state_usage *state_usage = kobj_to_state_usage(kobj);
 	struct cpuidle_state_attr *cattr = attr_to_stateattr(attr);
 
 	if (cattr->store)
-		ret = cattr->store(state, buf, size);
+		ret = cattr->store(state, state_usage, buf, size);
 
 	return ret;
 }

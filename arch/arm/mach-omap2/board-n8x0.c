@@ -83,11 +83,9 @@ static struct musb_hdrc_config musb_config = {
 };
 
 static struct musb_hdrc_platform_data tusb_data = {
-#if defined(CONFIG_USB_MUSB_OTG)
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	.mode		= MUSB_OTG,
-#elif defined(CONFIG_USB_MUSB_PERIPHERAL)
-	.mode		= MUSB_PERIPHERAL,
-#else /* defined(CONFIG_USB_MUSB_HOST) */
+#else
 	.mode		= MUSB_HOST,
 #endif
 	.set_power	= tusb_set_power,
@@ -470,7 +468,6 @@ static struct omap_mmc_platform_data mmc1_data = {
 	.cleanup			= n8x0_mmc_cleanup,
 	.shutdown			= n8x0_mmc_shutdown,
 	.max_freq			= 24000000,
-	.dma_mask			= 0xffffffff,
 	.slots[0] = {
 		.wires			= 4,
 		.set_power		= n8x0_mmc_set_power,

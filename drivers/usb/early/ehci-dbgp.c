@@ -334,7 +334,7 @@ static int dbgp_control_msg(unsigned devnum, int requesttype,
 	int ret;
 
 	read = (requesttype & USB_DIR_IN) != 0;
-	if (size > (read ? DBGP_MAX_PACKET:0))
+	if (size > (read ? DBGP_MAX_PACKET : 0))
 		return -1;
 
 	/* Compute the control message */
@@ -450,7 +450,7 @@ static int dbgp_ehci_startup(void)
 	writel(FLAG_CF, &ehci_regs->configured_flag);
 
 	/* Wait until the controller is no longer halted */
-	loop = 10;
+	loop = 1000;
 	do {
 		status = readl(&ehci_regs->status);
 		if (!(status & STS_HALT))

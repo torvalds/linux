@@ -1,8 +1,7 @@
 /*
- *  arch/s390/kernel/entry.S
  *    S390 low-level entry points.
  *
- *    Copyright (C) IBM Corp. 1999,2012
+ *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
@@ -18,6 +17,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
+#include <asm/sigp.h>
 
 __PT_R0      =	__PT_GPRS
 __PT_R1      =	__PT_GPRS + 4
@@ -616,17 +616,13 @@ ext_skip:
  * Load idle PSW. The second "half" of this function is in cleanup_idle.
  */
 ENTRY(psw_idle)
-	st	%r4,__SF_EMPTY(%r15)
+	st	%r3,__SF_EMPTY(%r15)
 	basr	%r1,0
 	la	%r1,psw_idle_lpsw+4-.(%r1)
 	st	%r1,__SF_EMPTY+4(%r15)
 	oi	__SF_EMPTY+4(%r15),0x80
-	la	%r1,.Lvtimer_max-psw_idle_lpsw-4(%r1)
-	stck	__IDLE_ENTER(%r2)
-	ltr	%r5,%r5
-	stpt	__VQ_IDLE_ENTER(%r3)
-	jz	psw_idle_lpsw
-	spt	0(%r1)
+	stck	__CLOCK_IDLE_ENTER(%r2)
+	stpt	__TIMER_IDLE_ENTER(%r2)
 psw_idle_lpsw:
 	lpsw	__SF_EMPTY(%r15)
 	br	%r14
@@ -723,15 +719,17 @@ ENTRY(restart_int_handler)
 	mvc	__PT_PSW(8,%r15),__LC_RST_OLD_PSW # store restart old psw
 	ahi	%r15,-STACK_FRAME_OVERHEAD	# create stack frame on stack
 	xc	0(STACK_FRAME_OVERHEAD,%r15),0(%r15)
-	lm	%r1,%r3,__LC_RESTART_FN		# load fn, parm & source cpu
+	l	%r1,__LC_RESTART_FN		# load fn, parm & source cpu
+	l	%r2,__LC_RESTART_DATA
+	l	%r3,__LC_RESTART_SOURCE
 	ltr	%r3,%r3				# test source cpu address
 	jm	1f				# negative -> skip source stop
-0:	sigp	%r4,%r3,1			# sigp sense to source cpu
+0:	sigp	%r4,%r3,SIGP_SENSE		# sigp sense to source cpu
 	brc	10,0b				# wait for status stored
 1:	basr	%r14,%r1			# call function
 	stap	__SF_EMPTY(%r15)		# store cpu address
 	lh	%r3,__SF_EMPTY(%r15)
-2:	sigp	%r4,%r3,5			# sigp stop to current cpu
+2:	sigp	%r4,%r3,SIGP_STOP		# sigp stop to current cpu
 	brc	2,2b
 3:	j	3b
 
@@ -883,33 +881,28 @@ cleanup_io_restore_insn:
 
 cleanup_idle:
 	# copy interrupt clock & cpu timer
-	mvc	__IDLE_EXIT(8,%r2),__LC_INT_CLOCK
-	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_ASYNC_ENTER_TIMER
+	mvc	__CLOCK_IDLE_EXIT(8,%r2),__LC_INT_CLOCK
+	mvc	__TIMER_IDLE_EXIT(8,%r2),__LC_ASYNC_ENTER_TIMER
 	chi	%r11,__LC_SAVE_AREA_ASYNC
 	je	0f
-	mvc	__IDLE_EXIT(8,%r2),__LC_MCCK_CLOCK
-	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_MCCK_ENTER_TIMER
+	mvc	__CLOCK_IDLE_EXIT(8,%r2),__LC_MCCK_CLOCK
+	mvc	__TIMER_IDLE_EXIT(8,%r2),__LC_MCCK_ENTER_TIMER
 0:	# check if stck has been executed
 	cl	%r9,BASED(cleanup_idle_insn)
 	jhe	1f
-	mvc	__IDLE_ENTER(8,%r2),__IDLE_EXIT(%r2)
-	mvc	__VQ_IDLE_ENTER(8,%r3),__VQ_IDLE_EXIT(%r3)
-	j	2f
-1:	# check if the cpu timer has been reprogrammed
-	ltr	%r5,%r5
-	jz	2f
-	spt	__VQ_IDLE_ENTER(%r3)
-2:	# account system time going idle
+	mvc	__CLOCK_IDLE_ENTER(8,%r2),__CLOCK_IDLE_EXIT(%r2)
+	mvc	__TIMER_IDLE_ENTER(8,%r2),__TIMER_IDLE_EXIT(%r3)
+1:	# account system time going idle
 	lm	%r9,%r10,__LC_STEAL_TIMER
-	ADD64	%r9,%r10,__IDLE_ENTER(%r2)
+	ADD64	%r9,%r10,__CLOCK_IDLE_ENTER(%r2)
 	SUB64	%r9,%r10,__LC_LAST_UPDATE_CLOCK
 	stm	%r9,%r10,__LC_STEAL_TIMER
-	mvc	__LC_LAST_UPDATE_CLOCK(8),__IDLE_EXIT(%r2)
+	mvc	__LC_LAST_UPDATE_CLOCK(8),__CLOCK_IDLE_EXIT(%r2)
 	lm	%r9,%r10,__LC_SYSTEM_TIMER
 	ADD64	%r9,%r10,__LC_LAST_UPDATE_TIMER
-	SUB64	%r9,%r10,__VQ_IDLE_ENTER(%r3)
+	SUB64	%r9,%r10,__TIMER_IDLE_ENTER(%r2)
 	stm	%r9,%r10,__LC_SYSTEM_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__VQ_IDLE_EXIT(%r3)
+	mvc	__LC_LAST_UPDATE_TIMER(8),__TIMER_IDLE_EXIT(%r2)
 	# prepare return psw
 	n	%r8,BASED(cleanup_idle_wait)	# clear wait state bit
 	l	%r9,24(%r11)			# return from psw_idle

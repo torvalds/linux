@@ -20,6 +20,7 @@
 #include "volumes.h"
 #include "check-integrity.h"
 #include "locking.h"
+#include "rcu-string.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -928,7 +929,8 @@ int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits,
 
 
 /**
- * convert_extent - convert all bits in a given range from one bit to another
+ * convert_extent_bit - convert all bits in a given range from one bit to
+ * 			another
  * @tree:	the io tree to search
  * @start:	the start offset in bytes
  * @end:	the end offset in bytes (inclusive)
@@ -1917,9 +1919,9 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 		return -EIO;
 	}
 
-	printk(KERN_INFO "btrfs read error corrected: ino %lu off %llu (dev %s "
-			"sector %llu)\n", page->mapping->host->i_ino, start,
-			dev->name, sector);
+	printk_ratelimited_in_rcu(KERN_INFO "btrfs read error corrected: ino %lu off %llu "
+		      "(dev %s sector %llu)\n", page->mapping->host->i_ino,
+		      start, rcu_str_deref(dev->name), sector);
 
 	bio_put(bio);
 	return 0;
@@ -2328,23 +2330,10 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
 			ret = tree->ops->readpage_end_io_hook(page, start, end,
 							      state, mirror);
-			if (ret) {
-				/* no IO indicated but software detected errors
-				 * in the block, either checksum errors or
-				 * issues with the contents */
-				struct btrfs_root *root =
-					BTRFS_I(page->mapping->host)->root;
-				struct btrfs_device *device;
-
+			if (ret)
 				uptodate = 0;
-				device = btrfs_find_device_for_logical(
-						root, start, mirror);
-				if (device)
-					btrfs_dev_stat_inc_and_print(device,
-						BTRFS_DEV_STAT_CORRUPTION_ERRS);
-			} else {
+			else
 				clean_io_failure(start, page);
-			}
 		}
 
 		if (!uptodate && tree->ops && tree->ops->readpage_io_failed_hook) {
@@ -3076,8 +3065,15 @@ static int lock_extent_buffer_for_io(struct extent_buffer *eb,
 		}
 	}
 
+	/*
+	 * We need to do this to prevent races in people who check if the eb is
+	 * under IO since we can end up having no IO bits set for a short period
+	 * of time.
+	 */
+	spin_lock(&eb->refs_lock);
 	if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		set_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags);
+		spin_unlock(&eb->refs_lock);
 		btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
 		spin_lock(&fs_info->delalloc_lock);
 		if (fs_info->dirty_metadata_bytes >= eb->len)
@@ -3086,6 +3082,8 @@ static int lock_extent_buffer_for_io(struct extent_buffer *eb,
 			WARN_ON(1);
 		spin_unlock(&fs_info->delalloc_lock);
 		ret = 1;
+	} else {
+		spin_unlock(&eb->refs_lock);
 	}
 
 	btrfs_tree_unlock(eb);
@@ -3323,6 +3321,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 			     writepage_t writepage, void *data,
 			     void (*flush_fn)(void *))
 {
+	struct inode *inode = mapping->host;
 	int ret = 0;
 	int done = 0;
 	int nr_to_write_done = 0;
@@ -3332,6 +3331,18 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	pgoff_t end;		/* Inclusive */
 	int scanned = 0;
 	int tag;
+
+	/*
+	 * We have to hold onto the inode so that ordered extents can do their
+	 * work when the IO finishes.  The alternative to this is failing to add
+	 * an ordered extent if the igrab() fails there and that is a huge pain
+	 * to deal with, so instead just hold onto the inode throughout the
+	 * writepages operation.  If it fails here we are freeing up the inode
+	 * anyway and we'd rather not waste our time writing out stuff that is
+	 * going to be truncated anyway.
+	 */
+	if (!igrab(inode))
+		return 0;
 
 	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
@@ -3427,6 +3438,7 @@ retry:
 		index = 0;
 		goto retry;
 	}
+	btrfs_add_delayed_iput(inode);
 	return ret;
 }
 
@@ -3542,19 +3554,38 @@ int extent_readpages(struct extent_io_tree *tree,
 	struct bio *bio = NULL;
 	unsigned page_idx;
 	unsigned long bio_flags = 0;
+	struct page *pagepool[16];
+	struct page *page;
+	int i = 0;
+	int nr = 0;
 
 	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		struct page *page = list_entry(pages->prev, struct page, lru);
+		page = list_entry(pages->prev, struct page, lru);
 
 		prefetchw(&page->flags);
 		list_del(&page->lru);
-		if (!add_to_page_cache_lru(page, mapping,
+		if (add_to_page_cache_lru(page, mapping,
 					page->index, GFP_NOFS)) {
-			__extent_read_full_page(tree, page, get_extent,
-						&bio, 0, &bio_flags);
+			page_cache_release(page);
+			continue;
 		}
-		page_cache_release(page);
+
+		pagepool[nr++] = page;
+		if (nr < ARRAY_SIZE(pagepool))
+			continue;
+		for (i = 0; i < nr; i++) {
+			__extent_read_full_page(tree, pagepool[i], get_extent,
+					&bio, 0, &bio_flags);
+			page_cache_release(pagepool[i]);
+		}
+		nr = 0;
 	}
+	for (i = 0; i < nr; i++) {
+		__extent_read_full_page(tree, pagepool[i], get_extent,
+					&bio, 0, &bio_flags);
+		page_cache_release(pagepool[i]);
+	}
+
 	BUG_ON(!list_empty(pages));
 	if (bio)
 		return submit_one_bio(READ, bio, 0, bio_flags);
@@ -4108,11 +4139,10 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 	 * So bump the ref count first, then set the bit.  If someone
 	 * beat us to it, drop the ref we added.
 	 */
-	if (!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags)) {
+	spin_lock(&eb->refs_lock);
+	if (!test_and_set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
 		atomic_inc(&eb->refs);
-		if (test_and_set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
-			atomic_dec(&eb->refs);
-	}
+	spin_unlock(&eb->refs_lock);
 }
 
 static void mark_extent_buffer_accessed(struct extent_buffer *eb)
@@ -4224,9 +4254,7 @@ again:
 		goto free_eb;
 	}
 	/* add one reference for the tree */
-	spin_lock(&eb->refs_lock);
 	check_buffer_tree_ref(eb);
-	spin_unlock(&eb->refs_lock);
 	spin_unlock(&tree->buffer_lock);
 	radix_tree_preload_end();
 
@@ -4285,7 +4313,7 @@ static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
 }
 
 /* Expects to have eb->eb_lock already held */
-static void release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
+static int release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
 {
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	if (atomic_dec_and_test(&eb->refs)) {
@@ -4306,9 +4334,11 @@ static void release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
 		btrfs_release_extent_buffer_page(eb, 0);
 
 		call_rcu(&eb->rcu_head, btrfs_release_extent_buffer_rcu);
-		return;
+		return 1;
 	}
 	spin_unlock(&eb->refs_lock);
+
+	return 0;
 }
 
 void free_extent_buffer(struct extent_buffer *eb)
@@ -4947,7 +4977,6 @@ int try_release_extent_buffer(struct page *page, gfp_t mask)
 		spin_unlock(&eb->refs_lock);
 		return 0;
 	}
-	release_extent_buffer(eb, mask);
 
-	return 1;
+	return release_extent_buffer(eb, mask);
 }

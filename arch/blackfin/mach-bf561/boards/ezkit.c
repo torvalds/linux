@@ -452,18 +452,21 @@ static struct v4l2_input adv7183_inputs[] = {
 		.name = "Composite",
 		.type = V4L2_INPUT_TYPE_CAMERA,
 		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_STD,
 	},
 	{
 		.index = 1,
 		.name = "S-Video",
 		.type = V4L2_INPUT_TYPE_CAMERA,
 		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_STD,
 	},
 	{
 		.index = 2,
 		.name = "Component",
 		.type = V4L2_INPUT_TYPE_CAMERA,
 		.std = V4L2_STD_ALL,
+		.capabilities = V4L2_IN_CAP_STD,
 	},
 };
 

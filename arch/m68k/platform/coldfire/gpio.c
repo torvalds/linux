@@ -14,119 +14,161 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
 
-#include <asm/gpio.h>
-#include <asm/pinmux.h>
+#include <linux/io.h>
+#include <asm/coldfire.h>
+#include <asm/mcfsim.h>
 #include <asm/mcfgpio.h>
 
-#define MCF_CHIP(chip) container_of(chip, struct mcf_gpio_chip, gpio_chip)
+int __mcfgpio_get_value(unsigned gpio)
+{
+	return mcfgpio_read(__mcfgpio_ppdr(gpio)) & mcfgpio_bit(gpio);
+}
+EXPORT_SYMBOL(__mcfgpio_get_value);
 
-int mcf_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+void __mcfgpio_set_value(unsigned gpio, int value)
+{
+	if (gpio < MCFGPIO_SCR_START) {
+		unsigned long flags;
+		MCFGPIO_PORTTYPE data;
+
+		local_irq_save(flags);
+		data = mcfgpio_read(__mcfgpio_podr(gpio));
+		if (value)
+			data |= mcfgpio_bit(gpio);
+		else
+			data &= ~mcfgpio_bit(gpio);
+		mcfgpio_write(data, __mcfgpio_podr(gpio));
+		local_irq_restore(flags);
+	} else {
+		if (value)
+			mcfgpio_write(mcfgpio_bit(gpio),
+					MCFGPIO_SETR_PORT(gpio));
+		else
+			mcfgpio_write(~mcfgpio_bit(gpio),
+					MCFGPIO_CLRR_PORT(gpio));
+	}
+}
+EXPORT_SYMBOL(__mcfgpio_set_value);
+
+int __mcfgpio_direction_input(unsigned gpio)
 {
 	unsigned long flags;
 	MCFGPIO_PORTTYPE dir;
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
 
 	local_irq_save(flags);
-	dir = mcfgpio_read(mcf_chip->pddr);
-	dir &= ~mcfgpio_bit(chip->base + offset);
-	mcfgpio_write(dir, mcf_chip->pddr);
+	dir = mcfgpio_read(__mcfgpio_pddr(gpio));
+	dir &= ~mcfgpio_bit(gpio);
+	mcfgpio_write(dir, __mcfgpio_pddr(gpio));
 	local_irq_restore(flags);
 
 	return 0;
 }
+EXPORT_SYMBOL(__mcfgpio_direction_input);
 
-int mcf_gpio_get_value(struct gpio_chip *chip, unsigned offset)
-{
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
-
-	return mcfgpio_read(mcf_chip->ppdr) & mcfgpio_bit(chip->base + offset);
-}
-
-int mcf_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
-		int value)
+int __mcfgpio_direction_output(unsigned gpio, int value)
 {
 	unsigned long flags;
 	MCFGPIO_PORTTYPE data;
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
 
 	local_irq_save(flags);
-	/* write the value to the output latch */
-	data = mcfgpio_read(mcf_chip->podr);
+	data = mcfgpio_read(__mcfgpio_pddr(gpio));
 	if (value)
-		data |= mcfgpio_bit(chip->base + offset);
+		data |= mcfgpio_bit(gpio);
 	else
-		data &= ~mcfgpio_bit(chip->base + offset);
-	mcfgpio_write(data, mcf_chip->podr);
+		data &= mcfgpio_bit(gpio);
+	mcfgpio_write(data, __mcfgpio_pddr(gpio));
 
-	/* now set the direction to output */
-	data = mcfgpio_read(mcf_chip->pddr);
-	data |= mcfgpio_bit(chip->base + offset);
-	mcfgpio_write(data, mcf_chip->pddr);
+	/* now set the data to output */
+	if (gpio < MCFGPIO_SCR_START) {
+		data = mcfgpio_read(__mcfgpio_podr(gpio));
+		if (value)
+			data |= mcfgpio_bit(gpio);
+		else
+			data &= ~mcfgpio_bit(gpio);
+		mcfgpio_write(data, __mcfgpio_podr(gpio));
+	} else {
+		 if (value)
+			mcfgpio_write(mcfgpio_bit(gpio),
+					MCFGPIO_SETR_PORT(gpio));
+		 else
+			 mcfgpio_write(~mcfgpio_bit(gpio),
+					 MCFGPIO_CLRR_PORT(gpio));
+	}
 	local_irq_restore(flags);
-
 	return 0;
 }
+EXPORT_SYMBOL(__mcfgpio_direction_output);
 
-void mcf_gpio_set_value(struct gpio_chip *chip, unsigned offset, int value)
+int __mcfgpio_request(unsigned gpio)
 {
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
+	return 0;
+}
+EXPORT_SYMBOL(__mcfgpio_request);
 
-	unsigned long flags;
-	MCFGPIO_PORTTYPE data;
+void __mcfgpio_free(unsigned gpio)
+{
+	__mcfgpio_direction_input(gpio);
+}
+EXPORT_SYMBOL(__mcfgpio_free);
 
-	local_irq_save(flags);
-	data = mcfgpio_read(mcf_chip->podr);
-	if (value)
-		data |= mcfgpio_bit(chip->base + offset);
-	else
-		data &= ~mcfgpio_bit(chip->base + offset);
-	mcfgpio_write(data, mcf_chip->podr);
-	local_irq_restore(flags);
+#ifdef CONFIG_GPIOLIB
+
+int mcfgpio_direction_input(struct gpio_chip *chip, unsigned offset)
+{
+	return __mcfgpio_direction_input(offset);
 }
 
-void mcf_gpio_set_value_fast(struct gpio_chip *chip, unsigned offset, int value)
+int mcfgpio_get_value(struct gpio_chip *chip, unsigned offset)
 {
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
-
-	if (value)
-		mcfgpio_write(mcfgpio_bit(chip->base + offset), mcf_chip->setr);
-	else
-		mcfgpio_write(~mcfgpio_bit(chip->base + offset), mcf_chip->clrr);
+	return __mcfgpio_get_value(offset);
 }
 
-int mcf_gpio_request(struct gpio_chip *chip, unsigned offset)
+int mcfgpio_direction_output(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
-
-	return mcf_chip->gpio_to_pinmux ?
-		mcf_pinmux_request(mcf_chip->gpio_to_pinmux[offset], 0) : 0;
+	return __mcfgpio_direction_output(offset, value);
 }
 
-void mcf_gpio_free(struct gpio_chip *chip, unsigned offset)
+void mcfgpio_set_value(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct mcf_gpio_chip *mcf_chip = MCF_CHIP(chip);
-
-	mcf_gpio_direction_input(chip, offset);
-
-	if (mcf_chip->gpio_to_pinmux)
-		mcf_pinmux_release(mcf_chip->gpio_to_pinmux[offset], 0);
+	__mcfgpio_set_value(offset, value);
 }
 
-struct bus_type mcf_gpio_subsys = {
+int mcfgpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	return __mcfgpio_request(offset);
+}
+
+void mcfgpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	__mcfgpio_free(offset);
+}
+
+struct bus_type mcfgpio_subsys = {
 	.name		= "gpio",
 	.dev_name	= "gpio",
 };
 
-static int __init mcf_gpio_sysinit(void)
-{
-	unsigned int i = 0;
+static struct gpio_chip mcfgpio_chip = {
+	.label			= "mcfgpio",
+	.request		= mcfgpio_request,
+	.free			= mcfgpio_free,
+	.direction_input	= mcfgpio_direction_input,
+	.direction_output	= mcfgpio_direction_output,
+	.get			= mcfgpio_get_value,
+	.set			= mcfgpio_set_value,
+	.base			= 0,
+	.ngpio			= MCFGPIO_PIN_MAX,
+};
 
-	while (i < mcf_gpio_chips_size)
-		gpiochip_add((struct gpio_chip *)&mcf_gpio_chips[i++]);
-	return subsys_system_register(&mcf_gpio_subsys, NULL);
+static int __init mcfgpio_sysinit(void)
+{
+	gpiochip_add(&mcfgpio_chip);
+	return subsys_system_register(&mcfgpio_subsys, NULL);
 }
 
-core_initcall(mcf_gpio_sysinit);
+core_initcall(mcfgpio_sysinit);
+#endif

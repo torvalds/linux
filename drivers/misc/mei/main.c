@@ -714,13 +714,8 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	if (rets && dev->mei_host_buffer_is_empty) {
 		rets = 0;
 		dev->mei_host_buffer_is_empty = false;
-		if (length > ((((dev->host_hw_state & H_CBD) >> 24) *
-			sizeof(u32)) - sizeof(struct mei_msg_hdr))) {
-
-			mei_hdr.length =
-				(((dev->host_hw_state & H_CBD) >> 24) *
-				sizeof(u32)) -
-				sizeof(struct mei_msg_hdr);
+		if (length >  mei_hbuf_max_data(dev)) {
+			mei_hdr.length = mei_hbuf_max_data(dev);
 			mei_hdr.msg_complete = 0;
 		} else {
 			mei_hdr.length = length;
@@ -930,6 +925,27 @@ static struct miscdevice  mei_misc_device = {
 };
 
 /**
+ * mei_quirk_probe - probe for devices that doesn't valid ME interface
+ * @pdev: PCI device structure
+ * @ent: entry into pci_device_table
+ *
+ * returns true if ME Interface is valid, false otherwise
+ */
+static bool __devinit mei_quirk_probe(struct pci_dev *pdev,
+				const struct pci_device_id *ent)
+{
+	u32 reg;
+	if (ent->device == MEI_DEV_ID_PBG_1) {
+		pci_read_config_dword(pdev, 0x48, &reg);
+		/* make sure that bit 9 is up and bit 10 is down */
+		if ((reg & 0x600) == 0x200) {
+			dev_info(&pdev->dev, "Device doesn't have valid ME Interface\n");
+			return false;
+		}
+	}
+	return true;
+}
+/**
  * mei_probe - Device Initialization Routine
  *
  * @pdev: PCI device structure
@@ -944,6 +960,12 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	int err;
 
 	mutex_lock(&mei_mutex);
+
+	if (!mei_quirk_probe(pdev, ent)) {
+		err = -ENODEV;
+		goto end;
+	}
+
 	if (mei_device) {
 		err = -EEXIST;
 		goto end;
@@ -982,7 +1004,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		err = request_threaded_irq(pdev->irq,
 			NULL,
 			mei_interrupt_thread_handler,
-			0, mei_driver_name, dev);
+			IRQF_ONESHOT, mei_driver_name, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
@@ -992,7 +1014,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
-		goto unmap_memory;
+		goto disable_msi;
 	}
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	if (mei_hw_init(dev)) {
@@ -1023,8 +1045,8 @@ release_irq:
 	mei_disable_interrupts(dev);
 	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
+disable_msi:
 	pci_disable_msi(pdev);
-unmap_memory:
 	pci_iounmap(pdev, dev->mem_addr);
 free_device:
 	kfree(dev);
@@ -1101,6 +1123,8 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+
+	misc_deregister(&mei_misc_device);
 }
 #ifdef CONFIG_PM
 static int mei_pci_suspend(struct device *device)
@@ -1145,7 +1169,7 @@ static int mei_pci_resume(struct device *device)
 		err = request_threaded_irq(pdev->irq,
 			NULL,
 			mei_interrupt_thread_handler,
-			0, mei_driver_name, dev);
+			IRQF_ONESHOT, mei_driver_name, dev);
 	else
 		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
@@ -1185,45 +1209,7 @@ static struct pci_driver mei_driver = {
 	.driver.pm = MEI_PM_OPS,
 };
 
-/**
- * mei_init_module - Driver Registration Routine
- *
- * mei_init_module is the first routine called when the driver is
- * loaded. All it does is to register with the PCI subsystem.
- *
- * returns 0 on success, <0 on failure.
- */
-static int __init mei_init_module(void)
-{
-	int ret;
-
-	pr_debug("loading.\n");
-	/* init pci module */
-	ret = pci_register_driver(&mei_driver);
-	if (ret < 0)
-		pr_err("error registering driver.\n");
-
-	return ret;
-}
-
-module_init(mei_init_module);
-
-/**
- * mei_exit_module - Driver Exit Cleanup Routine
- *
- * mei_exit_module is called just before the driver is removed
- * from memory.
- */
-static void __exit mei_exit_module(void)
-{
-	misc_deregister(&mei_misc_device);
-	pci_unregister_driver(&mei_driver);
-
-	pr_debug("unloaded successfully.\n");
-}
-
-module_exit(mei_exit_module);
-
+module_pci_driver(mei_driver);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel(R) Management Engine Interface");

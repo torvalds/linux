@@ -206,8 +206,7 @@ static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
 {
 	DSSDBG("pm notif %lu\n", v);
 
-	switch (v)
-	{
+	switch (v) {
 	case PM_SUSPEND_PREPARE:
 		DSSDBG("suspending displays\n");
 		return dss_suspend_all_devices();
@@ -221,8 +220,7 @@ static int omap_dss_pm_notif(struct notifier_block *b, unsigned long v, void *d)
 	}
 }
 
-static struct notifier_block omap_dss_pm_notif_block =
-{
+static struct notifier_block omap_dss_pm_notif_block = {
 	.notifier_call = omap_dss_pm_notif,
 };
 

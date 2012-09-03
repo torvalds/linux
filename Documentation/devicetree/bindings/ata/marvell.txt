@@ -1,0 +1,16 @@
+* Marvell Orion SATA
+
+Required Properties:
+- compatibility : "marvell,orion-sata"
+- reg           : Address range of controller
+- interrupts    : Interrupt controller is using
+- nr-ports      : Number of SATA ports in use.
+
+Example:
+
+	sata@80000 {
+		compatible = "marvell,orion-sata";
+		reg = <0x80000 0x5000>;
+		interrupts = <21>;
+		nr-ports = <2>;
+	}

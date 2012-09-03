@@ -55,6 +55,10 @@
 #define ICACHE_SIZE 0x8000	/* instruction - 32k */
 #define DCACHE_SIZE 0x8000	/* data - 32k */
 
+#elif defined(CONFIG_M5441x)
+
+#define ICACHE_SIZE 0x2000	/* instruction - 8k */
+#define DCACHE_SIZE 0x2000	/* data - 8k */
 #endif
 
 #define CACHE_LINE_SIZE 0x0010	/* 16 bytes */

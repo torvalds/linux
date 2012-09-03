@@ -196,7 +196,8 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 	return ret;
 }
 
-struct drm_encoder *exynos_drm_best_encoder(struct drm_connector *connector)
+static struct drm_encoder *exynos_drm_best_encoder(
+						struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct exynos_drm_connector *exynos_connector =

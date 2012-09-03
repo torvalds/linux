@@ -14,6 +14,7 @@
 
 #ifdef __KERNEL__
 #include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/msg_prot.h>
 #include <linux/uio.h>
 
 /* The mechanism-independent gss-api context: */
@@ -127,7 +128,7 @@ struct gss_api_mech *gss_mech_get_by_name(const char *);
 struct gss_api_mech *gss_mech_get_by_pseudoflavor(u32);
 
 /* Fill in an array with a list of supported pseudoflavors */
-int gss_mech_list_pseudoflavors(u32 *);
+int gss_mech_list_pseudoflavors(rpc_authflavor_t *, int);
 
 /* Just increments the mechanism's reference count and returns its input: */
 struct gss_api_mech * gss_mech_get(struct gss_api_mech *);

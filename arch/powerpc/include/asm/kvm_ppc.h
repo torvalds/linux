@@ -119,7 +119,8 @@ extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 extern int kvmppc_kvm_pv(struct kvm_vcpu *vcpu);
 extern void kvmppc_map_magic(struct kvm_vcpu *vcpu);
 
-extern long kvmppc_alloc_hpt(struct kvm *kvm);
+extern long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp);
+extern long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp);
 extern void kvmppc_free_hpt(struct kvm *kvm);
 extern long kvmppc_prepare_vrma(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem);
@@ -217,5 +218,17 @@ long kvmppc_alloc_lpid(void);
 void kvmppc_claim_lpid(long lpid);
 void kvmppc_free_lpid(long lpid);
 void kvmppc_init_lpid(unsigned long nr_lpids);
+
+static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
+{
+	/* Clear i-cache for new pages */
+	struct page *page;
+	page = pfn_to_page(pfn);
+	if (!test_bit(PG_arch_1, &page->flags)) {
+		flush_dcache_icache_page(page);
+		set_bit(PG_arch_1, &page->flags);
+	}
+}
+
 
 #endif /* __POWERPC_KVM_PPC_H__ */

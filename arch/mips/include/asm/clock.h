@@ -50,15 +50,4 @@ void clk_recalc_rate(struct clk *);
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 
-/* the exported API, in addition to clk_set_rate */
-/**
- * clk_set_rate_ex - set the clock rate for a clock source, with additional parameter
- * @clk: clock source
- * @rate: desired clock rate in Hz
- * @algo_id: algorithm id to be passed down to ops->set_rate
- *
- * Returns success (0) or negative errno.
- */
-int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id);
-
 #endif				/* __ASM_MIPS_CLOCK_H */

@@ -70,7 +70,7 @@ static long do_spu_create(const char __user *pathname, unsigned int flags,
 	ret = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		ret = spufs_create(&path, dentry, flags, mode, neighbor);
-		path_put(&path);
+		done_path_create(&path, dentry);
 	}
 
 	return ret;

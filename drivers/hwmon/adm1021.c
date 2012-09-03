@@ -366,11 +366,11 @@ static int adm1021_probe(struct i2c_client *client,
 	struct adm1021_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct adm1021_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct adm1021_data),
+			    GFP_KERNEL);
 	if (!data) {
-		pr_debug("adm1021: detect failed, kzalloc failed!\n");
-		err = -ENOMEM;
-		goto error0;
+		pr_debug("adm1021: detect failed, devm_kzalloc failed!\n");
+		return -ENOMEM;
 	}
 
 	i2c_set_clientdata(client, data);
@@ -384,21 +384,18 @@ static int adm1021_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &adm1021_group);
 	if (err)
-		goto error1;
+		return err;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
-		goto error3;
+		goto error;
 	}
 
 	return 0;
 
-error3:
+error:
 	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
-error1:
-	kfree(data);
-error0:
 	return err;
 }
 
@@ -418,7 +415,6 @@ static int adm1021_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm1021_group);
 
-	kfree(data);
 	return 0;
 }
 

@@ -89,21 +89,17 @@ static int con_remove(int n, char **error_out)
 	return line_remove(vts, ARRAY_SIZE(vts), n, error_out);
 }
 
-static int con_open(struct tty_struct *tty, struct file *filp)
-{
-	int err = line_open(vts, tty);
-	if (err)
-		printk(KERN_ERR "Failed to open console %d, err = %d\n",
-		       tty->index, err);
-
-	return err;
-}
-
 /* Set in an initcall, checked in an exitcall */
 static int con_init_done = 0;
 
+static int con_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	return line_install(driver, tty, &vts[tty->index]);
+}
+
 static const struct tty_operations console_ops = {
-	.open 	 		= con_open,
+	.open 	 		= line_open,
+	.install		= con_install,
 	.close 	 		= line_close,
 	.write 	 		= line_write,
 	.put_char 		= line_put_char,
@@ -112,9 +108,10 @@ static const struct tty_operations console_ops = {
 	.flush_buffer 		= line_flush_buffer,
 	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
-	.ioctl 	 		= line_ioctl,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
+	.cleanup		= line_cleanup,
+	.hangup			= line_hangup,
 };
 
 static void uml_console_write(struct console *console, const char *string,

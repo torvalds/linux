@@ -2,12 +2,47 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
  *  Copyright (C) 2009  Matt Fleming
+ *  Copyright (C) 2002 - 2012  Paul Mundt
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
 #include <linux/debug_locks.h>
+#include <linux/kdebug.h>
+#include <linux/export.h>
+#include <linux/uaccess.h>
 #include <asm/unwinder.h>
 #include <asm/stacktrace.h>
+
+void dump_mem(const char *str, unsigned long bottom, unsigned long top)
+{
+	unsigned long p;
+	int i;
+
+	printk("%s(0x%08lx to 0x%08lx)\n", str, bottom, top);
+
+	for (p = bottom & ~31; p < top; ) {
+		printk("%04lx: ", p & 0xffff);
+
+		for (i = 0; i < 8; i++, p += 4) {
+			unsigned int val;
+
+			if (p < bottom || p >= top)
+				printk("         ");
+			else {
+				if (__get_user(val, (unsigned int __user *)p)) {
+					printk("\n");
+					return;
+				}
+				printk("%08x ", val);
+			}
+		}
+		printk("\n");
+	}
+}
 
 void printk_address(unsigned long address, int reliable)
 {
@@ -106,3 +141,26 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 
 	debug_show_held_locks(tsk);
 }
+
+void show_stack(struct task_struct *tsk, unsigned long *sp)
+{
+	unsigned long stack;
+
+	if (!tsk)
+		tsk = current;
+	if (tsk == current)
+		sp = (unsigned long *)current_stack_pointer;
+	else
+		sp = (unsigned long *)tsk->thread.sp;
+
+	stack = (unsigned long)sp;
+	dump_mem("Stack: ", stack, THREAD_SIZE +
+		 (unsigned long)task_stack_page(tsk));
+	show_trace(tsk, sp, NULL);
+}
+
+void dump_stack(void)
+{
+	show_stack(NULL, NULL);
+}
+EXPORT_SYMBOL(dump_stack);

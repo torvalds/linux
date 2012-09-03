@@ -51,6 +51,8 @@ static struct usb_device_id si470x_usb_driver_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
 	/* Sanei Electric, Inc. FM USB Radio (sold as DealExtreme.com PCear) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c5, 0x819a, USB_CLASS_HID, 0, 0) },
+	/* Axentia ALERT FM USB Receiver */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x12cf, 0x7111, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
@@ -141,7 +143,7 @@ MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
  * Software/Hardware Versions from Scratch Page
  **************************************************************************/
 #define RADIO_SW_VERSION_NOT_BOOTLOADABLE	6
-#define RADIO_SW_VERSION			7
+#define RADIO_SW_VERSION			1
 #define RADIO_HW_VERSION			1
 
 
@@ -397,12 +399,19 @@ static void si470x_int_in_callback(struct urb *urb)
 		}
 	}
 
-	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
+	/* Sometimes the device returns len 0 packets */
+	if (urb->actual_length != RDS_REPORT_SIZE)
 		goto resubmit;
 
-	if (urb->actual_length > 0) {
+	radio->registers[STATUSRSSI] =
+		get_unaligned_be16(&radio->int_in_buffer[1]);
+
+	if (radio->registers[STATUSRSSI] & STATUSRSSI_STC)
+		complete(&radio->completion);
+
+	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS)) {
 		/* Update RDS registers with URB data */
-		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
+		for (regnr = 1; regnr < RDS_REGISTER_NUM; regnr++)
 			radio->registers[STATUSRSSI + regnr] =
 			    get_unaligned_be16(&radio->int_in_buffer[
 				regnr * RADIO_REGISTER_SIZE + 1]);
@@ -478,6 +487,7 @@ resubmit:
 			radio->int_in_running = 0;
 		}
 	}
+	radio->status_rssi_auto_update = radio->int_in_running;
 }
 
 
@@ -521,7 +531,7 @@ int si470x_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
 	usb_make_path(radio->usbdev, capability->bus_info,
 			sizeof(capability->bus_info));
-	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK |
+	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK | V4L2_CAP_READWRITE |
 		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
 	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
@@ -531,13 +541,6 @@ int si470x_vidioc_querycap(struct file *file, void *priv,
 static int si470x_start_usb(struct si470x_device *radio)
 {
 	int retval;
-
-	/* start radio */
-	retval = si470x_start(radio);
-	if (retval < 0)
-		return retval;
-
-	v4l2_ctrl_handler_setup(&radio->hdl);
 
 	/* initialize interrupt urb */
 	usb_fill_int_urb(radio->int_in_urb, radio->usbdev,
@@ -558,6 +561,15 @@ static int si470x_start_usb(struct si470x_device *radio)
 				"submitting int urb failed (%d)\n", retval);
 		radio->int_in_running = 0;
 	}
+	radio->status_rssi_auto_update = radio->int_in_running;
+
+	/* start radio */
+	retval = si470x_start(radio);
+	if (retval < 0)
+		return retval;
+
+	v4l2_ctrl_handler_setup(&radio->hdl);
+
 	return retval;
 }
 
@@ -585,7 +597,9 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	}
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
+	radio->band = 1; /* Default to 76 - 108 MHz */
 	mutex_init(&radio->lock);
+	init_completion(&radio->completion);
 
 	iface_desc = intf->cur_altsetting;
 
@@ -696,9 +710,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			"linux-media@vger.kernel.org\n");
 	}
 
-	/* set initial frequency */
-	si470x_set_freq(radio, 87.5 * FREQ_MUL); /* available in all regions */
-
 	/* set led to connect state */
 	si470x_set_led_state(radio, BLINK_GREEN_LED);
 
@@ -720,6 +731,9 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	retval = si470x_start_usb(radio);
 	if (retval < 0)
 		goto err_all;
+
+	/* set initial frequency */
+	si470x_set_freq(radio, 87.5 * FREQ_MUL); /* available in all regions */
 
 	/* register video device */
 	retval = video_register_device(&radio->videodev, VFL_TYPE_RADIO,
@@ -779,11 +793,16 @@ static int si470x_usb_driver_suspend(struct usb_interface *intf,
 static int si470x_usb_driver_resume(struct usb_interface *intf)
 {
 	struct si470x_device *radio = usb_get_intfdata(intf);
+	int ret;
 
 	dev_info(&intf->dev, "resuming now...\n");
 
 	/* start radio */
-	return si470x_start_usb(radio);
+	ret = si470x_start_usb(radio);
+	if (ret == 0)
+		v4l2_ctrl_handler_setup(&radio->hdl);
+
+	return ret;
 }
 
 

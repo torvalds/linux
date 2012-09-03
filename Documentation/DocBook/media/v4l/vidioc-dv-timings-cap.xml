@@ -54,15 +54,9 @@
       interface and may change in the future.</para>
     </note>
 
-    <para>To query the available timings, applications initialize the
-<structfield>index</structfield> field and zero the reserved array of &v4l2-dv-timings-cap;
-and call the <constant>VIDIOC_DV_TIMINGS_CAP</constant> ioctl with a pointer to this
-structure. Drivers fill the rest of the structure or return an
-&EINVAL; when the index is out of bounds. To enumerate all supported DV timings,
-applications shall begin at index zero, incrementing by one until the
-driver returns <errorcode>EINVAL</errorcode>. Note that drivers may enumerate a
-different set of DV timings after switching the video input or
-output.</para>
+    <para>To query the capabilities of the DV receiver/transmitter applications can call
+this ioctl and the driver will fill in the structure. Note that drivers may return
+different values after switching the video input or output.</para>
 
     <table pgwide="1" frame="none" id="v4l2-bt-timings-cap">
       <title>struct <structname>v4l2_bt_timings_cap</structname></title>
@@ -115,7 +109,7 @@ output.</para>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>reserved</structfield>[16]</entry>
-	    <entry></entry>
+	    <entry>Reserved for future extensions. Drivers must set the array to zero.</entry>
 	  </row>
 	</tbody>
       </tgroup>

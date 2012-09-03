@@ -109,6 +109,9 @@ static int __devinit platform_pci_init(struct pci_dev *pdev,
 	long mmio_addr, mmio_len;
 	unsigned int max_nr_gframes;
 
+	if (!xen_domain())
+		return -ENODEV;
+
 	i = pci_enable_device(pdev);
 	if (i)
 		return i;

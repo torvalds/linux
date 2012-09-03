@@ -248,7 +248,7 @@ static int __devinit mpr_touchkey_probe(struct i2c_client *client,
 
 	error = request_threaded_irq(client->irq, NULL,
 				     mpr_touchkey_interrupt,
-				     IRQF_TRIGGER_FALLING,
+				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				     client->dev.driver->name, mpr121);
 	if (error) {
 		dev_err(&client->dev, "Failed to register interrupt\n");

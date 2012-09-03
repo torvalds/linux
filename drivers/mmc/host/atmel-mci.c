@@ -391,11 +391,17 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 	clk_disable(host->mck);
 	spin_unlock_bh(&host->lock);
 
-	seq_printf(s, "MR:\t0x%08x%s%s CLKDIV=%u\n",
+	seq_printf(s, "MR:\t0x%08x%s%s ",
 			buf[ATMCI_MR / 4],
 			buf[ATMCI_MR / 4] & ATMCI_MR_RDPROOF ? " RDPROOF" : "",
-			buf[ATMCI_MR / 4] & ATMCI_MR_WRPROOF ? " WRPROOF" : "",
-			buf[ATMCI_MR / 4] & 0xff);
+			buf[ATMCI_MR / 4] & ATMCI_MR_WRPROOF ? " WRPROOF" : "");
+	if (host->caps.has_odd_clk_div)
+		seq_printf(s, "{CLKDIV,CLKODD}=%u\n",
+				((buf[ATMCI_MR / 4] & 0xff) << 1)
+				| ((buf[ATMCI_MR / 4] >> 16) & 1));
+	else
+		seq_printf(s, "CLKDIV=%u\n",
+				(buf[ATMCI_MR / 4] & 0xff));
 	seq_printf(s, "DTOR:\t0x%08x\n", buf[ATMCI_DTOR / 4]);
 	seq_printf(s, "SDCR:\t0x%08x\n", buf[ATMCI_SDCR / 4]);
 	seq_printf(s, "ARGR:\t0x%08x\n", buf[ATMCI_ARGR / 4]);
@@ -910,6 +916,7 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	enum dma_data_direction		direction;
 	enum dma_transfer_direction	slave_dirn;
 	unsigned int			sglen;
+	u32				maxburst;
 	u32 iflags;
 
 	data->error = -EINPROGRESS;
@@ -943,16 +950,17 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	if (!chan)
 		return -ENODEV;
 
-	if (host->caps.has_dma)
-		atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(3) | ATMCI_DMAEN);
-
 	if (data->flags & MMC_DATA_READ) {
 		direction = DMA_FROM_DEVICE;
 		host->dma_conf.direction = slave_dirn = DMA_DEV_TO_MEM;
+		maxburst = atmci_convert_chksize(host->dma_conf.src_maxburst);
 	} else {
 		direction = DMA_TO_DEVICE;
 		host->dma_conf.direction = slave_dirn = DMA_MEM_TO_DEV;
+		maxburst = atmci_convert_chksize(host->dma_conf.dst_maxburst);
 	}
+
+	atmci_writel(host, ATMCI_DMA, ATMCI_DMA_CHKSIZE(maxburst) | ATMCI_DMAEN);
 
 	sglen = dma_map_sg(chan->device->dev, data->sg,
 			data->sg_len, direction);
@@ -1683,7 +1691,6 @@ static void atmci_tasklet_func(unsigned long priv)
 
 			dev_dbg(&host->pdev->dev, "FSM: cmd ready\n");
 			host->cmd = NULL;
-			host->data = NULL;
 			data->bytes_xfered = data->blocks * data->blksz;
 			data->error = 0;
 			atmci_command_complete(host, mrq->stop);
@@ -1697,6 +1704,7 @@ static void atmci_tasklet_func(unsigned long priv)
 				atmci_writel(host, ATMCI_IER, ATMCI_NOTBUSY);
 				state = STATE_WAITING_NOTBUSY;
 			}
+			host->data = NULL;
 			break;
 
 		case STATE_END_REQUEST:
@@ -2314,6 +2322,8 @@ static int __init atmci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
+	setup_timer(&host->timer, atmci_timeout_timer, (unsigned long)host);
+
 	/* We need at least one slot to succeed */
 	nr_slots = 0;
 	ret = -ENODEV;
@@ -2351,8 +2361,6 @@ static int __init atmci_probe(struct platform_device *pdev)
 			goto err_init_slot;
 		}
 	}
-
-	setup_timer(&host->timer, atmci_timeout_timer, (unsigned long)host);
 
 	dev_info(&pdev->dev,
 			"Atmel MCI controller at 0x%08lx irq %d, %u slots\n",

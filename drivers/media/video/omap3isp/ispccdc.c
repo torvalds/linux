@@ -2014,7 +2014,7 @@ static int ccdc_get_selection(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		return -EINVAL;
 
 	switch (sel->target) {
-	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = INT_MAX;
@@ -2024,7 +2024,7 @@ static int ccdc_get_selection(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 		ccdc_try_crop(ccdc, format, &sel->r);
 		break;
 
-	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+	case V4L2_SEL_TGT_CROP:
 		sel->r = *__ccdc_get_crop(ccdc, fh, sel->which);
 		break;
 
@@ -2052,7 +2052,7 @@ static int ccdc_set_selection(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	struct isp_ccdc_device *ccdc = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
+	if (sel->target != V4L2_SEL_TGT_CROP ||
 	    sel->pad != CCDC_PAD_SOURCE_OF)
 		return -EINVAL;
 
@@ -2064,7 +2064,7 @@ static int ccdc_set_selection(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	 * pad. If the KEEP_CONFIG flag is set, just return the current crop
 	 * rectangle.
 	 */
-	if (sel->flags & V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG) {
+	if (sel->flags & V4L2_SEL_FLAG_KEEP_CONFIG) {
 		sel->r = *__ccdc_get_crop(ccdc, fh, sel->which);
 		return 0;
 	}

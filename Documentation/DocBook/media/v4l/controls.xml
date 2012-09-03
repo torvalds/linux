@@ -373,6 +373,11 @@ minimum value disables backlight compensation.</entry>
 	  </entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CID_AUTOBRIGHTNESS</constant></entry>
+	    <entry>boolean</entry>
+	    <entry>Enable Automatic Brightness.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CID_ROTATE</constant></entry>
 	    <entry>integer</entry>
 	    <entry>Rotates the image by specified angle. Common angles are 90,
@@ -3988,7 +3993,7 @@ interface and may change in the future.</para>
 	    from RGB to Y'CbCr color space.
 	    </entry>
 	  </row>
-	  <row id = "v4l2-jpeg-chroma-subsampling">
+	  <row>
 	    <entrytbl spanname="descr" cols="2">
 	      <tbody valign="top">
 		<row>

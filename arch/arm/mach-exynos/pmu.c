@@ -315,7 +315,7 @@ static struct exynos_pmu_conf exynos5250_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-void __iomem *exynos5_list_both_cnt_feed[] = {
+static void __iomem *exynos5_list_both_cnt_feed[] = {
 	EXYNOS5_ARM_CORE0_OPTION,
 	EXYNOS5_ARM_CORE1_OPTION,
 	EXYNOS5_ARM_COMMON_OPTION,
@@ -329,7 +329,7 @@ void __iomem *exynos5_list_both_cnt_feed[] = {
 	EXYNOS5_TOP_PWR_SYSMEM_OPTION,
 };
 
-void __iomem *exynos5_list_diable_wfi_wfe[] = {
+static void __iomem *exynos5_list_diable_wfi_wfe[] = {
 	EXYNOS5_ARM_CORE1_OPTION,
 	EXYNOS5_FSYS_ARM_OPTION,
 	EXYNOS5_ISP_ARM_OPTION,
@@ -390,6 +390,8 @@ void exynos_sys_powerdown_conf(enum sys_powerdown mode)
 
 static int __init exynos_pmu_init(void)
 {
+	unsigned int value;
+
 	exynos_pmu_config = exynos4210_pmu_config;
 
 	if (soc_is_exynos4210()) {
@@ -399,6 +401,18 @@ static int __init exynos_pmu_init(void)
 		exynos_pmu_config = exynos4x12_pmu_config;
 		pr_info("EXYNOS4x12 PMU Initialize\n");
 	} else if (soc_is_exynos5250()) {
+		/*
+		 * When SYS_WDTRESET is set, watchdog timer reset request
+		 * is ignored by power management unit.
+		 */
+		value = __raw_readl(EXYNOS5_AUTO_WDTRESET_DISABLE);
+		value &= ~EXYNOS5_SYS_WDTRESET;
+		__raw_writel(value, EXYNOS5_AUTO_WDTRESET_DISABLE);
+
+		value = __raw_readl(EXYNOS5_MASK_WDTRESET_REQUEST);
+		value &= ~EXYNOS5_SYS_WDTRESET;
+		__raw_writel(value, EXYNOS5_MASK_WDTRESET_REQUEST);
+
 		exynos_pmu_config = exynos5250_pmu_config;
 		pr_info("EXYNOS5250 PMU Initialize\n");
 	} else {

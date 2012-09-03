@@ -65,7 +65,7 @@ acpi_ns_search_parent_tree(u32 target_name,
  *
  * PARAMETERS:  target_name     - Ascii ACPI name to search for
  *              parent_node     - Starting node where search will begin
- *              Type            - Object type to match
+ *              type            - Object type to match
  *              return_node     - Where the matched Named obj is returned
  *
  * RETURN:      Status
@@ -175,8 +175,8 @@ acpi_ns_search_one_scope(u32 target_name,
  * FUNCTION:    acpi_ns_search_parent_tree
  *
  * PARAMETERS:  target_name     - Ascii ACPI name to search for
- *              Node            - Starting node where search will begin
- *              Type            - Object type to match
+ *              node            - Starting node where search will begin
+ *              type            - Object type to match
  *              return_node     - Where the matched Node is returned
  *
  * RETURN:      Status
@@ -264,11 +264,11 @@ acpi_ns_search_parent_tree(u32 target_name,
  *
  * PARAMETERS:  target_name         - Ascii ACPI name to search for (4 chars)
  *              walk_state          - Current state of the walk
- *              Node                - Starting node where search will begin
+ *              node                - Starting node where search will begin
  *              interpreter_mode    - Add names only in ACPI_MODE_LOAD_PASS_x.
  *                                    Otherwise,search only.
- *              Type                - Object type to match
- *              Flags               - Flags describing the search restrictions
+ *              type                - Object type to match
+ *              flags               - Flags describing the search restrictions
  *              return_node         - Where the Node is returned
  *
  * RETURN:      Status

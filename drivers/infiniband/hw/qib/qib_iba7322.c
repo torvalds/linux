@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2008, 2009, 2010 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2008 - 2012 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -49,6 +50,10 @@
 #include "qib_qsfp.h"
 
 #include "qib_mad.h"
+#include "qib_verbs.h"
+
+#undef pr_fmt
+#define pr_fmt(fmt) QIB_DRV_NAME " " fmt
 
 static void qib_setup_7322_setextled(struct qib_pportdata *, u32);
 static void qib_7322_handle_hwerrors(struct qib_devdata *, char *, size_t);
@@ -1575,8 +1580,8 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	qib_stats.sps_errints++;
 	errs = qib_read_kreg64(dd, kr_errstatus);
 	if (!errs) {
-		qib_devinfo(dd->pcidev, "device error interrupt, "
-			 "but no error bits set!\n");
+		qib_devinfo(dd->pcidev,
+			"device error interrupt, but no error bits set!\n");
 		goto done;
 	}
 
@@ -1622,8 +1627,8 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	if (errs & QIB_E_RESET) {
 		int pidx;
 
-		qib_dev_err(dd, "Got reset, requires re-init "
-			    "(unload and reload driver)\n");
+		qib_dev_err(dd,
+			"Got reset, requires re-init (unload and reload driver)\n");
 		dd->flags &= ~QIB_INITTED;  /* needs re-init */
 		/* mark as having had error */
 		*dd->devstatusp |= QIB_STATUS_HWERROR;
@@ -1760,9 +1765,9 @@ static void handle_serdes_issues(struct qib_pportdata *ppd, u64 ibcst)
 					    ppd->dd->cspec->r1 ?
 					    QDR_STATIC_ADAPT_DOWN_R1 :
 					    QDR_STATIC_ADAPT_DOWN);
-			printk(KERN_INFO QIB_DRV_NAME
-				" IB%u:%u re-enabled QDR adaptation "
-				"ibclt %x\n", ppd->dd->unit, ppd->port, ibclt);
+			pr_info(
+				"IB%u:%u re-enabled QDR adaptation ibclt %x\n",
+				ppd->dd->unit, ppd->port, ibclt);
 		}
 	}
 }
@@ -1804,9 +1809,9 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		if (!*msg)
 			snprintf(msg, sizeof ppd->cpspec->epmsgbuf,
 				 "no others");
-		qib_dev_porterr(dd, ppd->port, "error interrupt with unknown"
-				" errors 0x%016Lx set (and %s)\n",
-				(errs & ~QIB_E_P_BITSEXTANT), msg);
+		qib_dev_porterr(dd, ppd->port,
+			"error interrupt with unknown errors 0x%016Lx set (and %s)\n",
+			(errs & ~QIB_E_P_BITSEXTANT), msg);
 		*msg = '\0';
 	}
 
@@ -2024,8 +2029,8 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	if (!hwerrs)
 		goto bail;
 	if (hwerrs == ~0ULL) {
-		qib_dev_err(dd, "Read of hardware error status failed "
-			    "(all bits set); ignoring\n");
+		qib_dev_err(dd,
+			"Read of hardware error status failed (all bits set); ignoring\n");
 		goto bail;
 	}
 	qib_stats.sps_hwerrs++;
@@ -2039,8 +2044,9 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	/* no EEPROM logging, yet */
 
 	if (hwerrs)
-		qib_devinfo(dd->pcidev, "Hardware error: hwerr=0x%llx "
-			    "(cleared)\n", (unsigned long long) hwerrs);
+		qib_devinfo(dd->pcidev,
+			"Hardware error: hwerr=0x%llx (cleared)\n",
+			(unsigned long long) hwerrs);
 
 	ctrl = qib_read_kreg32(dd, kr_control);
 	if ((ctrl & SYM_MASK(Control, FreezeMode)) && !dd->diag_client) {
@@ -2064,8 +2070,9 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	if (hwerrs & HWE_MASK(PowerOnBISTFailed)) {
 		isfatal = 1;
-		strlcpy(msg, "[Memory BIST test failed, "
-			"InfiniPath hardware unusable]", msgl);
+		strlcpy(msg,
+			"[Memory BIST test failed, InfiniPath hardware unusable]",
+			msgl);
 		/* ignore from now on, so disable until driver reloaded */
 		dd->cspec->hwerrmask &= ~HWE_MASK(PowerOnBISTFailed);
 		qib_write_kreg(dd, kr_hwerrmask, dd->cspec->hwerrmask);
@@ -2078,8 +2085,9 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 	qib_dev_err(dd, "%s hardware error\n", msg);
 
 	if (isfatal && !dd->diag_client) {
-		qib_dev_err(dd, "Fatal Hardware Error, no longer"
-			    " usable, SN %.16s\n", dd->serial);
+		qib_dev_err(dd,
+			"Fatal Hardware Error, no longer usable, SN %.16s\n",
+			dd->serial);
 		/*
 		 * for /sys status file and user programs to print; if no
 		 * trailing brace is copied, we'll know it was truncated.
@@ -2667,8 +2675,9 @@ static noinline void unknown_7322_ibits(struct qib_devdata *dd, u64 istat)
 	char msg[128];
 
 	kills = istat & ~QIB_I_BITSEXTANT;
-	qib_dev_err(dd, "Clearing reserved interrupt(s) 0x%016llx:"
-		    " %s\n", (unsigned long long) kills, msg);
+	qib_dev_err(dd,
+		"Clearing reserved interrupt(s) 0x%016llx: %s\n",
+		(unsigned long long) kills, msg);
 	qib_write_kreg(dd, kr_intmask, (dd->cspec->int_enable_mask & ~kills));
 }
 
@@ -3101,16 +3110,16 @@ static void qib_setup_7322_interrupt(struct qib_devdata *dd, int clearpend)
 		/* Try to get INTx interrupt */
 try_intx:
 		if (!dd->pcidev->irq) {
-			qib_dev_err(dd, "irq is 0, BIOS error?  "
-				    "Interrupts won't work\n");
+			qib_dev_err(dd,
+				"irq is 0, BIOS error?  Interrupts won't work\n");
 			goto bail;
 		}
 		ret = request_irq(dd->pcidev->irq, qib_7322intr,
 				  IRQF_SHARED, QIB_DRV_NAME, dd);
 		if (ret) {
-			qib_dev_err(dd, "Couldn't setup INTx "
-				    "interrupt (irq=%d): %d\n",
-				    dd->pcidev->irq, ret);
+			qib_dev_err(dd,
+				"Couldn't setup INTx interrupt (irq=%d): %d\n",
+				dd->pcidev->irq, ret);
 			goto bail;
 		}
 		dd->cspec->irq = dd->pcidev->irq;
@@ -3185,8 +3194,9 @@ try_intx:
 			 * Shouldn't happen since the enable said we could
 			 * have as many as we are trying to setup here.
 			 */
-			qib_dev_err(dd, "Couldn't setup MSIx "
-				"interrupt (vec=%d, irq=%d): %d\n", msixnum,
+			qib_dev_err(dd,
+				"Couldn't setup MSIx interrupt (vec=%d, irq=%d): %d\n",
+				msixnum,
 				dd->cspec->msix_entries[msixnum].msix.vector,
 				ret);
 			qib_7322_nomsix(dd);
@@ -3305,8 +3315,9 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 		 (unsigned)SYM_FIELD(dd->revision, Revision_R, SW));
 
 	if (qib_singleport && (features >> PORT_SPD_CAP_SHIFT) & PORT_SPD_CAP) {
-		qib_devinfo(dd->pcidev, "IB%u: Forced to single port mode"
-			    " by module parameter\n", dd->unit);
+		qib_devinfo(dd->pcidev,
+			"IB%u: Forced to single port mode by module parameter\n",
+			dd->unit);
 		features &= PORT_SPD_CAP;
 	}
 
@@ -3400,8 +3411,8 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 		if (val == dd->revision)
 			break;
 		if (i == 5) {
-			qib_dev_err(dd, "Failed to initialize after reset, "
-				    "unusable\n");
+			qib_dev_err(dd,
+				"Failed to initialize after reset, unusable\n");
 			ret = 0;
 			goto  bail;
 		}
@@ -3432,8 +3443,8 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	if (qib_pcie_params(dd, dd->lbus_width,
 			    &dd->cspec->num_msix_entries,
 			    dd->cspec->msix_entries))
-		qib_dev_err(dd, "Reset failed to setup PCIe or interrupts; "
-				"continuing anyway\n");
+		qib_dev_err(dd,
+			"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 
 	qib_setup_7322_interrupt(dd, 1);
 
@@ -3474,8 +3485,9 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 			return;
 		}
 		if (chippa >= (1UL << IBA7322_TID_SZ_SHIFT)) {
-			qib_dev_err(dd, "Physical page address 0x%lx "
-				"larger than supported\n", pa);
+			qib_dev_err(dd,
+				"Physical page address 0x%lx larger than supported\n",
+				pa);
 			return;
 		}
 
@@ -4029,8 +4041,9 @@ static int qib_7322_set_loopback(struct qib_pportdata *ppd, const char *what)
 							Loopback);
 		/* enable heart beat again */
 		val = IBA7322_IBC_HRTBT_RMASK << IBA7322_IBC_HRTBT_LSB;
-		qib_devinfo(ppd->dd->pcidev, "Disabling IB%u:%u IBC loopback "
-			    "(normal)\n", ppd->dd->unit, ppd->port);
+		qib_devinfo(ppd->dd->pcidev,
+			"Disabling IB%u:%u IBC loopback (normal)\n",
+			ppd->dd->unit, ppd->port);
 	} else
 		ret = -EINVAL;
 	if (!ret) {
@@ -4714,8 +4727,8 @@ static void init_7322_cntrnames(struct qib_devdata *dd)
 		dd->pport[i].cpspec->portcntrs = kmalloc(dd->cspec->nportcntrs
 			* sizeof(u64), GFP_KERNEL);
 		if (!dd->pport[i].cpspec->portcntrs)
-			qib_dev_err(dd, "Failed allocation for"
-				    " portcounters\n");
+			qib_dev_err(dd,
+				"Failed allocation for portcounters\n");
 	}
 }
 
@@ -4865,8 +4878,8 @@ static int qib_7322_intr_fallback(struct qib_devdata *dd)
 	if (!dd->cspec->num_msix_entries)
 		return 0; /* already using INTx */
 
-	qib_devinfo(dd->pcidev, "MSIx interrupt not detected,"
-		 " trying INTx interrupts\n");
+	qib_devinfo(dd->pcidev,
+		"MSIx interrupt not detected, trying INTx interrupts\n");
 	qib_7322_nomsix(dd);
 	qib_enable_intx(dd->pcidev);
 	qib_setup_7322_interrupt(dd, 0);
@@ -5151,15 +5164,11 @@ static void try_7322_ipg(struct qib_pportdata *ppd)
 		goto retry;
 
 	if (!ibp->smi_ah) {
-		struct ib_ah_attr attr;
 		struct ib_ah *ah;
 
-		memset(&attr, 0, sizeof attr);
-		attr.dlid = be16_to_cpu(IB_LID_PERMISSIVE);
-		attr.port_num = ppd->port;
-		ah = ib_create_ah(ibp->qp0->ibqp.pd, &attr);
+		ah = qib_create_qp0_ah(ibp, be16_to_cpu(IB_LID_PERMISSIVE));
 		if (IS_ERR(ah))
-			ret = -EINVAL;
+			ret = PTR_ERR(ah);
 		else {
 			send_buf->ah = ah;
 			ibp->smi_ah = to_iah(ah);
@@ -5844,22 +5853,21 @@ static int setup_txselect(const char *str, struct kernel_param *kp)
 {
 	struct qib_devdata *dd;
 	unsigned long val;
-	char *n;
+	int ret;
+
 	if (strlen(str) >= MAX_ATTEN_LEN) {
-		printk(KERN_INFO QIB_DRV_NAME " txselect_values string "
-		       "too long\n");
+		pr_info("txselect_values string too long\n");
 		return -ENOSPC;
 	}
-	val = simple_strtoul(str, &n, 0);
-	if (n == str || val >= (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
+	ret = kstrtoul(str, 0, &val);
+	if (ret || val >= (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
 				TXDDS_MFG_SZ)) {
-		printk(KERN_INFO QIB_DRV_NAME
-		       "txselect_values must start with a number < %d\n",
+		pr_info("txselect_values must start with a number < %d\n",
 			TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ + TXDDS_MFG_SZ);
-		return -EINVAL;
+		return ret ? ret : -EINVAL;
 	}
-	strcpy(txselect_list, str);
 
+	strcpy(txselect_list, str);
 	list_for_each_entry(dd, &qib_dev_list, list)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
 			set_no_qsfp_atten(dd, 1);
@@ -5882,11 +5890,10 @@ static int qib_late_7322_initreg(struct qib_devdata *dd)
 	qib_write_kreg(dd, kr_sendpioavailaddr, dd->pioavailregs_phys);
 	val = qib_read_kreg64(dd, kr_sendpioavailaddr);
 	if (val != dd->pioavailregs_phys) {
-		qib_dev_err(dd, "Catastrophic software error, "
-			    "SendPIOAvailAddr written as %lx, "
-			    "read back as %llx\n",
-			    (unsigned long) dd->pioavailregs_phys,
-			    (unsigned long long) val);
+		qib_dev_err(dd,
+			"Catastrophic software error, SendPIOAvailAddr written as %lx, read back as %llx\n",
+			(unsigned long) dd->pioavailregs_phys,
+			(unsigned long long) val);
 		ret = -EINVAL;
 	}
 
@@ -6098,8 +6105,8 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	dd->revision = readq(&dd->kregbase[kr_revision]);
 
 	if ((dd->revision & 0xffffffffU) == 0xffffffffU) {
-		qib_dev_err(dd, "Revision register read failure, "
-			    "giving up initialization\n");
+		qib_dev_err(dd,
+			"Revision register read failure, giving up initialization\n");
 		ret = -ENODEV;
 		goto bail;
 	}
@@ -6265,9 +6272,9 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		 */
 		if (!(dd->flags & QIB_HAS_QSFP)) {
 			if (!IS_QMH(dd) && !IS_QME(dd))
-				qib_devinfo(dd->pcidev, "IB%u:%u: "
-					    "Unknown mezzanine card type\n",
-					    dd->unit, ppd->port);
+				qib_devinfo(dd->pcidev,
+					"IB%u:%u: Unknown mezzanine card type\n",
+					dd->unit, ppd->port);
 			cp->h1_val = IS_QMH(dd) ? H1_FORCE_QMH : H1_FORCE_QME;
 			/*
 			 * Choose center value as default tx serdes setting
@@ -6339,8 +6346,10 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 			dd->piobcnt4k * dd->align4k;
 		dd->piovl15base	= ioremap_nocache(vl15off,
 						  NUM_VL15_BUFS * dd->align4k);
-		if (!dd->piovl15base)
+		if (!dd->piovl15base) {
+			ret = -ENOMEM;
 			goto bail;
+		}
 	}
 	qib_7322_set_baseaddrs(dd); /* set chip access pointers now */
 
@@ -6922,8 +6931,8 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 		dd->cspec->msix_entries[i].msix.entry = i;
 
 	if (qib_pcie_params(dd, 8, &tabsize, dd->cspec->msix_entries))
-		qib_dev_err(dd, "Failed to setup PCIe or interrupts; "
-			    "continuing anyway\n");
+		qib_dev_err(dd,
+			"Failed to setup PCIe or interrupts; continuing anyway\n");
 	/* may be less than we wanted, if not enough available */
 	dd->cspec->num_msix_entries = tabsize;
 
@@ -7276,8 +7285,7 @@ static void find_best_ent(struct qib_pportdata *ppd,
 		   ppd->cpspec->no_eep < (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
 					  TXDDS_MFG_SZ)) {
 		idx = ppd->cpspec->no_eep - (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ);
-		printk(KERN_INFO QIB_DRV_NAME
-			" IB%u:%u use idx %u into txdds_mfg\n",
+		pr_info("IB%u:%u use idx %u into txdds_mfg\n",
 			ppd->dd->unit, ppd->port, idx);
 		*sdr_dds = &txdds_extra_mfg[idx];
 		*ddr_dds = &txdds_extra_mfg[idx];
@@ -7432,11 +7440,11 @@ static void serdes_7322_los_enable(struct qib_pportdata *ppd, int enable)
 	u8 state = SYM_FIELD(data, IBSerdesCtrl_0, RXLOSEN);
 
 	if (enable && !state) {
-		printk(KERN_INFO QIB_DRV_NAME " IB%u:%u Turning LOS on\n",
+		pr_info("IB%u:%u Turning LOS on\n",
 			ppd->dd->unit, ppd->port);
 		data |= SYM_MASK(IBSerdesCtrl_0, RXLOSEN);
 	} else if (!enable && state) {
-		printk(KERN_INFO QIB_DRV_NAME " IB%u:%u Turning LOS off\n",
+		pr_info("IB%u:%u Turning LOS off\n",
 			ppd->dd->unit, ppd->port);
 		data &= ~SYM_MASK(IBSerdesCtrl_0, RXLOSEN);
 	}
@@ -7672,8 +7680,7 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 		}
 	}
 	if (chan_done) {
-		printk(KERN_INFO QIB_DRV_NAME
-			 " Serdes %d calibration not done after .5 sec: 0x%x\n",
+		pr_info("Serdes %d calibration not done after .5 sec: 0x%x\n",
 			 IBSD(ppd->hw_pidx), chan_done);
 	} else {
 		for (chan = 0; chan < SERDES_CHANS; ++chan) {
@@ -7681,9 +7688,8 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 					    (chan + (chan >> 1)),
 					    25, 0, 0);
 			if ((~rxcaldone & (u32)BMASK(10, 10)) == 0)
-				printk(KERN_INFO QIB_DRV_NAME
-					 " Serdes %d chan %d calibration "
-					 "failed\n", IBSD(ppd->hw_pidx), chan);
+				pr_info("Serdes %d chan %d calibration failed\n",
+					IBSD(ppd->hw_pidx), chan);
 		}
 	}
 

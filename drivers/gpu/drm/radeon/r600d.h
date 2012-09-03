@@ -66,6 +66,14 @@
 #define	CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)				((x) << 16)
 
+#define R_028808_CB_COLOR_CONTROL			0x28808
+#define   S_028808_SPECIAL_OP(x)                       (((x) & 0x7) << 4)
+#define   G_028808_SPECIAL_OP(x)                       (((x) >> 4) & 0x7)
+#define   C_028808_SPECIAL_OP                          0xFFFFFF8F
+#define     V_028808_SPECIAL_NORMAL                     0x00
+#define     V_028808_SPECIAL_DISABLE                    0x01
+#define     V_028808_SPECIAL_RESOLVE_BOX                0x07
+
 #define	CB_COLOR0_BASE					0x28040
 #define	CB_COLOR1_BASE					0x28044
 #define	CB_COLOR2_BASE					0x28048
@@ -92,6 +100,20 @@
 #define R_028094_CB_COLOR5_VIEW                      0x028094
 #define R_028098_CB_COLOR6_VIEW                      0x028098
 #define R_02809C_CB_COLOR7_VIEW                      0x02809C
+#define R_028100_CB_COLOR0_MASK                      0x028100
+#define   S_028100_CMASK_BLOCK_MAX(x)                  (((x) & 0xFFF) << 0)
+#define   G_028100_CMASK_BLOCK_MAX(x)                  (((x) >> 0) & 0xFFF)
+#define   C_028100_CMASK_BLOCK_MAX                     0xFFFFF000
+#define   S_028100_FMASK_TILE_MAX(x)                   (((x) & 0xFFFFF) << 12)
+#define   G_028100_FMASK_TILE_MAX(x)                   (((x) >> 12) & 0xFFFFF)
+#define   C_028100_FMASK_TILE_MAX                      0x00000FFF
+#define R_028104_CB_COLOR1_MASK                      0x028104
+#define R_028108_CB_COLOR2_MASK                      0x028108
+#define R_02810C_CB_COLOR3_MASK                      0x02810C
+#define R_028110_CB_COLOR4_MASK                      0x028110
+#define R_028114_CB_COLOR5_MASK                      0x028114
+#define R_028118_CB_COLOR6_MASK                      0x028118
+#define R_02811C_CB_COLOR7_MASK                      0x02811C
 #define CB_COLOR0_INFO                                  0x280a0
 #	define CB_FORMAT(x)				((x) << 2)
 #       define CB_ARRAY_MODE(x)                         ((x) << 8)
@@ -153,6 +175,9 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 #define CONFIG_CNTL					0x5424
+#define	CP_STALLED_STAT1			0x8674
+#define	CP_STALLED_STAT2			0x8678
+#define	CP_BUSY_STAT				0x867C
 #define	CP_STAT						0x8680
 #define	CP_COHER_BASE					0x85F8
 #define	CP_DEBUG					0xC1FC
@@ -485,6 +510,7 @@
 #define		TC_L2_SIZE(x)					((x)<<5)
 #define		L2_DISABLE_LATE_HIT				(1<<9)
 
+#define	VC_ENHANCE					0x9714
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)
@@ -598,6 +624,9 @@
 #define RLC_HB_WPTR                                       0x3f1c
 #define RLC_HB_WPTR_LSB_ADDR                              0x3f14
 #define RLC_HB_WPTR_MSB_ADDR                              0x3f18
+#define RLC_GPU_CLOCK_COUNT_LSB				  0x3f38
+#define RLC_GPU_CLOCK_COUNT_MSB				  0x3f3c
+#define RLC_CAPTURE_GPU_CLOCK_COUNT			  0x3f40
 #define RLC_MC_CNTL                                       0x3f44
 #define RLC_UCODE_CNTL                                    0x3f48
 #define RLC_UCODE_ADDR                                    0x3f2c
@@ -1163,6 +1192,7 @@
 #define	PACKET3_SET_CTL_CONST				0x6F
 #define		PACKET3_SET_CTL_CONST_OFFSET			0x0003cff0
 #define		PACKET3_SET_CTL_CONST_END			0x0003e200
+#define	PACKET3_STRMOUT_BASE_UPDATE			0x72 /* r7xx */
 #define	PACKET3_SURFACE_BASE_UPDATE			0x73
 
 
@@ -1392,6 +1422,9 @@
 #define   S_0280A0_TILE_MODE(x)                        (((x) & 0x3) << 18)
 #define   G_0280A0_TILE_MODE(x)                        (((x) >> 18) & 0x3)
 #define   C_0280A0_TILE_MODE                           0xFFF3FFFF
+#define     V_0280A0_TILE_DISABLE			0
+#define     V_0280A0_CLEAR_ENABLE			1
+#define     V_0280A0_FRAG_ENABLE			2
 #define   S_0280A0_BLEND_CLAMP(x)                      (((x) & 0x1) << 20)
 #define   G_0280A0_BLEND_CLAMP(x)                      (((x) >> 20) & 0x1)
 #define   C_0280A0_BLEND_CLAMP                         0xFFEFFFFF

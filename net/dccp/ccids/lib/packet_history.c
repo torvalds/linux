@@ -315,6 +315,7 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
  *  @ndp:	    The NDP count belonging to @skb
  *  @calc_first_li: Caller-dependent computation of first loss interval in @lh
  *  @sk:	    Used by @calc_first_li (see tfrc_lh_interval_add)
+ *
  *  Chooses action according to pending loss, updates LI database when a new
  *  loss was detected, and does required post-processing. Returns 1 when caller
  *  should send feedback, 0 otherwise.
@@ -387,7 +388,7 @@ static inline struct tfrc_rx_hist_entry *
 }
 
 /**
- * tfrc_rx_hist_rtt_prev_s: previously suitable (wrt rtt_last_s) RTT-sampling entry
+ * tfrc_rx_hist_rtt_prev_s - previously suitable (wrt rtt_last_s) RTT-sampling entry
  */
 static inline struct tfrc_rx_hist_entry *
 			tfrc_rx_hist_rtt_prev_s(const struct tfrc_rx_hist *h)

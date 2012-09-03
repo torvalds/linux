@@ -174,6 +174,15 @@ perf_header__set_cmdline(int argc, const char **argv)
 {
 	int i;
 
+	/*
+	 * If header_argv has already been set, do not override it.
+	 * This allows a command to set the cmdline, parse args and
+	 * then call another builtin function that implements a
+	 * command -- e.g, cmd_kvm calling cmd_record.
+	 */
+	if (header_argv)
+		return 0;
+
 	header_argc = (u32)argc;
 
 	/* do not include NULL termination */
@@ -641,7 +650,7 @@ static int write_event_desc(int fd, struct perf_header *h __used,
 		/*
 		 * write event string as passed on cmdline
 		 */
-		ret = do_write_string(fd, event_name(attr));
+		ret = do_write_string(fd, perf_evsel__name(attr));
 		if (ret < 0)
 			return ret;
 		/*
@@ -1212,6 +1221,12 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 				attr.exclude_user,
 				attr.exclude_kernel);
 
+		fprintf(fp, ", excl_host = %d, excl_guest = %d",
+				attr.exclude_host,
+				attr.exclude_guest);
+
+		fprintf(fp, ", precise_ip = %d", attr.precise_ip);
+
 		if (nr)
 			fprintf(fp, ", id = {");
 
@@ -1474,15 +1489,15 @@ out:
 
 static int process_tracing_data(struct perf_file_section *section __unused,
 			      struct perf_header *ph __unused,
-			      int feat __unused, int fd)
+			      int feat __unused, int fd, void *data)
 {
-	trace_report(fd, false);
+	trace_report(fd, data, false);
 	return 0;
 }
 
 static int process_build_id(struct perf_file_section *section,
 			    struct perf_header *ph,
-			    int feat __unused, int fd)
+			    int feat __unused, int fd, void *data __used)
 {
 	if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 		pr_debug("Failed to read buildids, continuing...\n");
@@ -1493,7 +1508,7 @@ struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
 	int (*process)(struct perf_file_section *section,
-		       struct perf_header *h, int feat, int fd);
+		       struct perf_header *h, int feat, int fd, void *data);
 	const char *name;
 	bool full_only;
 };
@@ -1942,7 +1957,6 @@ int perf_file_header__read(struct perf_file_header *header,
 		else
 			return -1;
 	} else if (ph->needs_swap) {
-		unsigned int i;
 		/*
 		 * feature bitmap is declared as an array of unsigned longs --
 		 * not good since its size can differ between the host that
@@ -1958,14 +1972,17 @@ int perf_file_header__read(struct perf_file_header *header,
 		 * file), punt and fallback to the original behavior --
 		 * clearing all feature bits and setting buildid.
 		 */
-		for (i = 0; i < BITS_TO_LONGS(HEADER_FEAT_BITS); ++i)
-			header->adds_features[i] = bswap_64(header->adds_features[i]);
+		mem_bswap_64(&header->adds_features,
+			    BITS_TO_U64(HEADER_FEAT_BITS));
 
 		if (!test_bit(HEADER_HOSTNAME, header->adds_features)) {
-			for (i = 0; i < BITS_TO_LONGS(HEADER_FEAT_BITS); ++i) {
-				header->adds_features[i] = bswap_64(header->adds_features[i]);
-				header->adds_features[i] = bswap_32(header->adds_features[i]);
-			}
+			/* unswap as u64 */
+			mem_bswap_64(&header->adds_features,
+				    BITS_TO_U64(HEADER_FEAT_BITS));
+
+			/* unswap as u32 */
+			mem_bswap_32(&header->adds_features,
+				    BITS_TO_U32(HEADER_FEAT_BITS));
 		}
 
 		if (!test_bit(HEADER_HOSTNAME, header->adds_features)) {
@@ -1986,7 +2003,7 @@ int perf_file_header__read(struct perf_file_header *header,
 
 static int perf_file_section__process(struct perf_file_section *section,
 				      struct perf_header *ph,
-				      int feat, int fd, void *data __used)
+				      int feat, int fd, void *data)
 {
 	if (lseek(fd, section->offset, SEEK_SET) == (off_t)-1) {
 		pr_debug("Failed to lseek to %" PRIu64 " offset for feature "
@@ -2002,7 +2019,7 @@ static int perf_file_section__process(struct perf_file_section *section,
 	if (!feat_ops[feat].process)
 		return 0;
 
-	return feat_ops[feat].process(section, ph, feat, fd);
+	return feat_ops[feat].process(section, ph, feat, fd, data);
 }
 
 static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
@@ -2091,6 +2108,38 @@ static int read_attr(int fd, struct perf_header *ph,
 	return ret <= 0 ? -1 : 0;
 }
 
+static int perf_evsel__set_tracepoint_name(struct perf_evsel *evsel,
+					   struct pevent *pevent)
+{
+	struct event_format *event = pevent_find_event(pevent,
+						       evsel->attr.config);
+	char bf[128];
+
+	if (event == NULL)
+		return -1;
+
+	snprintf(bf, sizeof(bf), "%s:%s", event->system, event->name);
+	evsel->name = strdup(bf);
+	if (event->name == NULL)
+		return -1;
+
+	return 0;
+}
+
+static int perf_evlist__set_tracepoint_names(struct perf_evlist *evlist,
+					     struct pevent *pevent)
+{
+	struct perf_evsel *pos;
+
+	list_for_each_entry(pos, &evlist->entries, node) {
+		if (pos->attr.type == PERF_TYPE_TRACEPOINT &&
+		    perf_evsel__set_tracepoint_name(pos, pevent))
+			return -1;
+	}
+
+	return 0;
+}
+
 int perf_session__read_header(struct perf_session *session, int fd)
 {
 	struct perf_header *header = &session->header;
@@ -2167,10 +2216,13 @@ int perf_session__read_header(struct perf_session *session, int fd)
 		event_count =  f_header.event_types.size / sizeof(struct perf_trace_event_type);
 	}
 
-	perf_header__process_sections(header, fd, NULL,
+	perf_header__process_sections(header, fd, &session->pevent,
 				      perf_file_section__process);
 
 	lseek(fd, header->data_offset, SEEK_SET);
+
+	if (perf_evlist__set_tracepoint_names(session->evlist, session->pevent))
+		goto out_delete_evlist;
 
 	header->frozen = 1;
 	return 0;
@@ -2385,8 +2437,8 @@ int perf_event__process_tracing_data(union perf_event *event,
 	lseek(session->fd, offset + sizeof(struct tracing_data_event),
 	      SEEK_SET);
 
-	size_read = trace_report(session->fd, session->repipe);
-
+	size_read = trace_report(session->fd, &session->pevent,
+				 session->repipe);
 	padding = ALIGN(size_read, sizeof(u64)) - size_read;
 
 	if (read(session->fd, buf, padding) < 0)

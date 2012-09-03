@@ -331,4 +331,13 @@ config STRICT_DEVMEM
 
 	  If you are unsure, say Y.
 
+config FAIL_IOMMU
+	bool "Fault-injection capability for IOMMU"
+	depends on FAULT_INJECTION
+	help
+	  Provide fault-injection capability for IOMMU. Each device can
+	  be selectively enabled via the fail_iommu property.
+
+	  If you are unsure, say N.
+
 endmenu

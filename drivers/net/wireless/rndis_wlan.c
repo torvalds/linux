@@ -484,7 +484,7 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					enum nl80211_iftype type, u32 *flags,
 					struct vif_params *params);
 
-static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
+static int rndis_scan(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request);
 
 static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed);
@@ -1803,6 +1803,7 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
+	struct ndis_80211_pmkid *new_pmkids;
 	int i, err, newlen;
 	unsigned int count;
 
@@ -1833,11 +1834,12 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 	/* add new pmkid */
 	newlen = sizeof(*pmkids) + (count + 1) * sizeof(pmkids->bssid_info[0]);
 
-	pmkids = krealloc(pmkids, newlen, GFP_KERNEL);
-	if (!pmkids) {
+	new_pmkids = krealloc(pmkids, newlen, GFP_KERNEL);
+	if (!new_pmkids) {
 		err = -ENOMEM;
 		goto error;
 	}
+	pmkids = new_pmkids;
 
 	pmkids->length = cpu_to_le32(newlen);
 	pmkids->bssid_info_count = cpu_to_le32(count + 1);
@@ -1941,9 +1943,10 @@ static int rndis_get_tx_power(struct wiphy *wiphy, int *dbm)
 }
 
 #define SCAN_DELAY_JIFFIES (6 * HZ)
-static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
+static int rndis_scan(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request)
 {
+	struct net_device *dev = request->wdev->netdev;
 	struct usbnet *usbdev = netdev_priv(dev);
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	int ret;
@@ -2110,7 +2113,7 @@ resize_buf:
 	while (check_bssid_list_item(bssid, bssid_len, buf, len)) {
 		if (rndis_bss_info_update(usbdev, bssid) && match_bssid &&
 		    matched) {
-			if (!ether_addr_equal(bssid->mac, match_bssid))
+			if (ether_addr_equal(bssid->mac, match_bssid))
 				*matched = true;
 		}
 

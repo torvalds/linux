@@ -47,3 +47,9 @@ Boards:
 
 - AM335X EVM : Software Developement Board for AM335x
   compatible = "ti,am335x-evm", "ti,am33xx", "ti,omap3"
+
+- AM335X Bone : Low cost community board
+  compatible = "ti,am335x-bone", "ti,am33xx", "ti,omap3"
+
+- OMAP5 EVM : Evaluation Module
+  compatible = "ti,omap5-evm", "ti,omap5"

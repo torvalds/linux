@@ -1,10 +1,9 @@
 /* 
- * File...........: linux/include/asm-s390x/idals.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *		    Martin Schwidefsky <schwidefsky@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
- * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 2000a
- 
+ * Copyright IBM Corp. 2000
+ *
  * History of changes
  * 07/24/00 new file
  * 05/04/02 code restructuring.

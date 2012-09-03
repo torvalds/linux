@@ -38,6 +38,7 @@
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
 #include <xen/interface/memory.h>
+#include <xen/interface/xen-mca.h>
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/hvm.h>
@@ -107,7 +108,7 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
  * Point at some empty memory to start with. We map the real shared_info
  * page as soon as fixmap is up and running.
  */
-struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
+struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
 
 /*
  * Flag to determine whether vcpu info placement is available on all
@@ -123,6 +124,19 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
  * 0: not available, 1: available
  */
 static int have_vcpu_info_placement = 1;
+
+struct tls_descs {
+	struct desc_struct desc[3];
+};
+
+/*
+ * Updating the 3 TLS descriptors in the GDT on every task switch is
+ * surprisingly expensive so we avoid updating them if they haven't
+ * changed.  Since Xen writes different descriptors than the one
+ * passed in the update_descriptor hypercall we keep shadow copies to
+ * compare against.
+ */
+static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
 static void clamp_max_cpus(void)
 {
@@ -209,6 +223,9 @@ static void __init xen_banner(void)
 	       xen_feature(XENFEAT_mmu_pt_update_preserve_ad) ? " (preserve-AD)" : "");
 }
 
+#define CPUID_THERM_POWER_LEAF 6
+#define APERFMPERF_PRESENT 0
+
 static __read_mostly unsigned int cpuid_leaf1_edx_mask = ~0;
 static __read_mostly unsigned int cpuid_leaf1_ecx_mask = ~0;
 
@@ -241,6 +258,11 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		*cx = cpuid_leaf5_ecx_val;
 		*dx = cpuid_leaf5_edx_val;
 		return;
+
+	case CPUID_THERM_POWER_LEAF:
+		/* Disabling APERFMPERF for kernel usage */
+		maskecx = ~(1 << APERFMPERF_PRESENT);
+		break;
 
 	case 0xb:
 		/* Suppress extended topology stuff */
@@ -333,9 +355,7 @@ static void __init xen_init_cpuid_mask(void)
 	unsigned int xsave_mask;
 
 	cpuid_leaf1_edx_mask =
-		~((1 << X86_FEATURE_MCE)  |  /* disable MCE */
-		  (1 << X86_FEATURE_MCA)  |  /* disable MCA */
-		  (1 << X86_FEATURE_MTRR) |  /* disable MTRR */
+		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
 		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
 	if (!xen_initial_domain())
@@ -532,12 +552,28 @@ static void __init xen_load_gdt_boot(const struct desc_ptr *dtr)
 		BUG();
 }
 
+static inline bool desc_equal(const struct desc_struct *d1,
+			      const struct desc_struct *d2)
+{
+	return d1->a == d2->a && d1->b == d2->b;
+}
+
 static void load_TLS_descriptor(struct thread_struct *t,
 				unsigned int cpu, unsigned int i)
 {
-	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
-	xmaddr_t maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
-	struct multicall_space mc = __xen_mc_entry(0);
+	struct desc_struct *shadow = &per_cpu(shadow_tls_desc, cpu).desc[i];
+	struct desc_struct *gdt;
+	xmaddr_t maddr;
+	struct multicall_space mc;
+
+	if (desc_equal(shadow, &t->tls_array[i]))
+		return;
+
+	*shadow = t->tls_array[i];
+
+	gdt = get_cpu_gdt_table(cpu);
+	maddr = arbitrary_virt_to_machine(&gdt[GDT_ENTRY_TLS_MIN+i]);
+	mc = __xen_mc_entry(0);
 
 	MULTI_update_descriptor(mc.mc, maddr.maddr, t->tls_array[i]);
 }
@@ -619,8 +655,8 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 	/*
 	 * Look for known traps using IST, and substitute them
 	 * appropriately.  The debugger ones are the only ones we care
-	 * about.  Xen will handle faults like double_fault and
-	 * machine_check, so we should never see them.  Warn if
+	 * about.  Xen will handle faults like double_fault,
+	 * so we should never see them.  Warn if
 	 * there's an unexpected IST-using fault handler.
 	 */
 	if (addr == (unsigned long)debug)
@@ -635,7 +671,11 @@ static int cvt_gate_to_trap(int vector, const gate_desc *val,
 		return 0;
 #ifdef CONFIG_X86_MCE
 	} else if (addr == (unsigned long)machine_check) {
-		return 0;
+		/*
+		 * when xen hypervisor inject vMCE to guest,
+		 * use native mce handler to handle it
+		 */
+		;
 #endif
 	} else {
 		/* Some other trap using IST? */
@@ -1116,9 +1156,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.wbinvd = native_wbinvd,
 
 	.read_msr = native_read_msr_safe,
-	.rdmsr_regs = native_rdmsr_safe_regs,
 	.write_msr = xen_write_msr_safe,
-	.wrmsr_regs = native_wrmsr_safe_regs,
 
 	.read_tsc = native_read_tsc,
 	.read_pmc = native_read_pmc,
@@ -1431,32 +1469,6 @@ asmlinkage void __init xen_start_kernel(void)
 #endif
 }
 
-static int init_hvm_pv_info(int *major, int *minor)
-{
-	uint32_t eax, ebx, ecx, edx, pages, msr, base;
-	u64 pfn;
-
-	base = xen_cpuid_base();
-	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
-
-	*major = eax >> 16;
-	*minor = eax & 0xffff;
-	printk(KERN_INFO "Xen version %d.%d.\n", *major, *minor);
-
-	cpuid(base + 2, &pages, &msr, &ecx, &edx);
-
-	pfn = __pa(hypercall_page);
-	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
-
-	xen_setup_features();
-
-	pv_info.name = "Xen HVM";
-
-	xen_domain_type = XEN_HVM_DOMAIN;
-
-	return 0;
-}
-
 void __ref xen_hvm_init_shared_info(void)
 {
 	int cpu;
@@ -1489,6 +1501,31 @@ void __ref xen_hvm_init_shared_info(void)
 }
 
 #ifdef CONFIG_XEN_PVHVM
+static void __init init_hvm_pv_info(void)
+{
+	int major, minor;
+	uint32_t eax, ebx, ecx, edx, pages, msr, base;
+	u64 pfn;
+
+	base = xen_cpuid_base();
+	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
+
+	major = eax >> 16;
+	minor = eax & 0xffff;
+	printk(KERN_INFO "Xen version %d.%d.\n", major, minor);
+
+	cpuid(base + 2, &pages, &msr, &ecx, &edx);
+
+	pfn = __pa(hypercall_page);
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+
+	xen_setup_features();
+
+	pv_info.name = "Xen HVM";
+
+	xen_domain_type = XEN_HVM_DOMAIN;
+}
+
 static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
@@ -1511,12 +1548,7 @@ static struct notifier_block xen_hvm_cpu_notifier __cpuinitdata = {
 
 static void __init xen_hvm_guest_init(void)
 {
-	int r;
-	int major, minor;
-
-	r = init_hvm_pv_info(&major, &minor);
-	if (r < 0)
-		return;
+	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
 

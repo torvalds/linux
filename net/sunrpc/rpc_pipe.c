@@ -71,7 +71,9 @@ static void rpc_purge_list(wait_queue_head_t *waitq, struct list_head *head,
 		msg->errno = err;
 		destroy_msg(msg);
 	} while (!list_empty(head));
-	wake_up(waitq);
+
+	if (waitq)
+		wake_up(waitq);
 }
 
 static void
@@ -91,11 +93,9 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 	}
 	dentry = dget(pipe->dentry);
 	spin_unlock(&pipe->lock);
-	if (dentry) {
-		rpc_purge_list(&RPC_I(dentry->d_inode)->waitq,
-			       &free_list, destroy_msg, -ETIMEDOUT);
-		dput(dentry);
-	}
+	rpc_purge_list(dentry ? &RPC_I(dentry->d_inode)->waitq : NULL,
+			&free_list, destroy_msg, -ETIMEDOUT);
+	dput(dentry);
 }
 
 ssize_t rpc_pipe_generic_upcall(struct file *filp, struct rpc_pipe_msg *msg,

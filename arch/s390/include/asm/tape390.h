@@ -1,10 +1,9 @@
 /*************************************************************************
  *
- * tape390.h
  *	   enables user programs to display messages and control encryption
  *	   on s390 tape devices
  *
- *	   Copyright IBM Corp. 2001,2006
+ *	   Copyright IBM Corp. 2001, 2006
  *	   Author(s): Michael Holzheu <holzheu@de.ibm.com>
  *
  *************************************************************************/

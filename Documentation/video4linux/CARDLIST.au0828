@@ -3,4 +3,4 @@
   2 -> Hauppauge HVR850                         (au0828)        [2040:7240]
   3 -> DViCO FusionHDTV USB                     (au0828)        [0fe9:d620]
   4 -> Hauppauge HVR950Q rev xxF8               (au0828)        [2040:7201,2040:7211,2040:7281]
-  5 -> Hauppauge Woodbury                       (au0828)        [2040:8200]
+  5 -> Hauppauge Woodbury                       (au0828)        [05e1:0480,2040:8200]

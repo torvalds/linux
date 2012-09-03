@@ -14,6 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/dw_apb_timer.h>
 
 #include <asm/mach/arch.h>
 #include <asm/hardware/vic.h>
@@ -97,7 +98,7 @@ DT_MACHINE_START(PICOXCELL, "Picochip picoXcell")
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= picoxcell_init_irq,
 	.handle_irq	= vic_handle_irq,
-	.timer		= &picoxcell_timer,
+	.timer		= &dw_apb_timer,
 	.init_machine	= picoxcell_init_machine,
 	.dt_compat	= picoxcell_dt_match,
 	.restart	= picoxcell_wdt_restart,

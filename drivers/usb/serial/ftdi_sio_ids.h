@@ -784,6 +784,7 @@
 #define RTSYSTEMS_VID			0x2100	/* Vendor ID */
 #define RTSYSTEMS_SERIAL_VX7_PID	0x9e52	/* Serial converter for VX-7 Radios using FT232RL */
 #define RTSYSTEMS_CT29B_PID		0x9e54	/* CT29B Radio Cable */
+#define RTSYSTEMS_RTS01_PID		0x9e57	/* USB-RTS01 Radio Cable */
 
 
 /*
@@ -792,6 +793,13 @@
  */
 #define PI_VID              0x1a72  /* Vendor ID */
 #define PI_E861_PID         0x1008  /* E-861 piezo controller USB connection */
+
+/*
+ * Kondo Kagaku Co.Ltd.
+ * http://www.kondo-robot.com/EN
+ */
+#define KONDO_VID 		0x165c
+#define KONDO_USB_SERIAL_PID	0x0002
 
 /*
  * Bayer Ascensia Contour blood glucose meter USB-converter cable.

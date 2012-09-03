@@ -140,6 +140,8 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 			if (r->flags & IEEE80211_RATE_MANDATORY_A)
 				mrate = r->bitrate;
 			break;
+		case IEEE80211_BAND_60GHZ:
+			/* TODO, for now fall through */
 		case IEEE80211_NUM_BANDS:
 			WARN_ON(1);
 			break;
@@ -173,12 +175,6 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	}
 
 	return cpu_to_le16(dur);
-}
-
-static inline int is_ieee80211_device(struct ieee80211_local *local,
-				      struct net_device *dev)
-{
-	return local == wdev_priv(dev->ieee80211_ptr);
 }
 
 /* tx handlers */
@@ -297,10 +293,10 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 		if (unlikely(!assoc &&
 			     ieee80211_is_data(hdr->frame_control))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			printk(KERN_DEBUG "%s: dropped data frame to not "
-			       "associated station %pM\n",
-			       tx->sdata->name, hdr->addr1);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
+			sdata_info(tx->sdata,
+				   "dropped data frame to not associated station %pM\n",
+				   hdr->addr1);
+#endif
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TX_DROP;
 		}
@@ -367,10 +363,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	rcu_read_unlock();
 
 	local->total_ps_buffered = total;
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	wiphy_debug(local->hw.wiphy, "PS buffers full - purged %d frames\n",
-		    purged);
-#endif
+	ps_dbg_hw(&local->hw, "PS buffers full - purged %d frames\n", purged);
 }
 
 static ieee80211_tx_result
@@ -412,10 +405,8 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 		purge_old_ps_buffers(tx->local);
 
 	if (skb_queue_len(&tx->sdata->bss->ps_bc_buf) >= AP_MAX_BC_BUFFER) {
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		net_dbg_ratelimited("%s: BC TX buffer full - dropping the oldest frame\n",
-				    tx->sdata->name);
-#endif
+		ps_dbg(tx->sdata,
+		       "BC TX buffer full - dropping the oldest frame\n");
 		dev_kfree_skb(skb_dequeue(&tx->sdata->bss->ps_bc_buf));
 	} else
 		tx->local->total_ps_buffered++;
@@ -466,18 +457,15 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 			return TX_CONTINUE;
 		}
 
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA %pM aid %d: PS buffer for AC %d\n",
+		ps_dbg(sta->sdata, "STA %pM aid %d: PS buffer for AC %d\n",
 		       sta->sta.addr, sta->sta.aid, ac);
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		if (tx->local->total_ps_buffered >= TOTAL_MAX_TX_BUFFER)
 			purge_old_ps_buffers(tx->local);
 		if (skb_queue_len(&sta->ps_tx_buf[ac]) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf[ac]);
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-			net_dbg_ratelimited("%s: STA %pM TX buffer for AC %d full - dropping oldest frame\n",
-					    tx->sdata->name, sta->sta.addr, ac);
-#endif
+			ps_dbg(tx->sdata,
+			       "STA %pM TX buffer for AC %d full - dropping oldest frame\n",
+			       sta->sta.addr, ac);
 			dev_kfree_skb(old);
 		} else
 			tx->local->total_ps_buffered++;
@@ -499,14 +487,11 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		sta_info_recalc_tim(sta);
 
 		return TX_QUEUED;
+	} else if (unlikely(test_sta_flag(sta, WLAN_STA_PS_STA))) {
+		ps_dbg(tx->sdata,
+		       "STA %pM in PS mode, but polling/in SP -> send frame\n",
+		       sta->sta.addr);
 	}
-#ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	else if (unlikely(test_sta_flag(sta, WLAN_STA_PS_STA))) {
-		printk(KERN_DEBUG
-		       "%s: STA %pM in PS mode, but polling/in SP -> send frame\n",
-		       tx->sdata->name, sta->sta.addr);
-	}
-#endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 	return TX_CONTINUE;
 }
@@ -538,7 +523,7 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_key *key = NULL;
+	struct ieee80211_key *key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 
@@ -557,16 +542,23 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	else if (!is_multicast_ether_addr(hdr->addr1) &&
 		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
 		tx->key = key;
-	else if (tx->sdata->drop_unencrypted &&
-		 (tx->skb->protocol != tx->sdata->control_port_protocol) &&
-		 !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
-		 (!ieee80211_is_robust_mgmt_frame(hdr) ||
-		  (ieee80211_is_action(hdr->frame_control) &&
-		   tx->sta && test_sta_flag(tx->sta, WLAN_STA_MFP)))) {
+	else if (info->flags & IEEE80211_TX_CTL_INJECTED)
+		tx->key = NULL;
+	else if (!tx->sdata->drop_unencrypted)
+		tx->key = NULL;
+	else if (tx->skb->protocol == tx->sdata->control_port_protocol)
+		tx->key = NULL;
+	else if (ieee80211_is_robust_mgmt_frame(hdr) &&
+		 !(ieee80211_is_action(hdr->frame_control) &&
+		   tx->sta && test_sta_flag(tx->sta, WLAN_STA_MFP)))
+		tx->key = NULL;
+	else if (ieee80211_is_mgmt(hdr->frame_control) &&
+		 !ieee80211_is_robust_mgmt_frame(hdr))
+		tx->key = NULL;
+	else {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TX_DROP;
-	} else
-		tx->key = NULL;
+	}
 
 	if (tx->key) {
 		bool skip_hw = false;
@@ -974,8 +966,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 			info->control.rates[1].idx = -1;
 			info->control.rates[2].idx = -1;
 			info->control.rates[3].idx = -1;
-			info->control.rates[4].idx = -1;
-			BUILD_BUG_ON(IEEE80211_TX_MAX_RATES != 5);
+			BUILD_BUG_ON(IEEE80211_TX_MAX_RATES != 4);
 			info->flags &= ~IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 		} else {
 			hdr->frame_control &= ~morefrags;
@@ -1310,11 +1301,8 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 		break;
 	}
 
-	if (local->ops->tx_frags)
-		drv_tx_frags(local, vif, pubsta, skbs);
-	else
-		result = ieee80211_tx_frags(local, vif, pubsta, skbs,
-					    txpending);
+	result = ieee80211_tx_frags(local, vif, pubsta, skbs,
+				    txpending);
 
 	ieee80211_tpt_led_trig_tx(local, fc, led_len);
 	ieee80211_led_tx(local, 1);
@@ -1737,7 +1725,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	__le16 fc;
 	struct ieee80211_hdr hdr;
 	struct ieee80211s_hdr mesh_hdr __maybe_unused;
-	struct mesh_path __maybe_unused *mppath = NULL;
+	struct mesh_path __maybe_unused *mppath = NULL, *mpath = NULL;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
@@ -1803,8 +1791,11 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto fail;
 		}
 		rcu_read_lock();
-		if (!is_multicast_ether_addr(skb->data))
-			mppath = mpp_path_lookup(skb->data, sdata);
+		if (!is_multicast_ether_addr(skb->data)) {
+			mpath = mesh_path_lookup(skb->data, sdata);
+			if (!mpath)
+				mppath = mpp_path_lookup(skb->data, sdata);
+		}
 
 		/*
 		 * Use address extension if it is a packet from
@@ -1832,6 +1823,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				if (mppath) {
 					/* RA TA mDA mSA AE:DA SA */
 					mesh_da = mppath->mpp;
+					is_mesh_mcast = 0;
+				} else if (mpath) {
+					mesh_da = mpath->dst;
 					is_mesh_mcast = 0;
 				} else {
 					/* DA TA mSA AE:SA */
@@ -1962,7 +1956,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		     (cpu_to_be16(ethertype) != sdata->control_port_protocol ||
 		      !ether_addr_equal(sdata->vif.addr, skb->data + ETH_ALEN)))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		net_dbg_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
+		net_info_ratelimited("%s: dropped frame to %pM (unauthorized port)\n",
 				    dev->name, hdr.addr1);
 #endif
 
@@ -2434,9 +2428,9 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		*pos++ = WLAN_EID_SSID;
 		*pos++ = 0x0;
 
-		if (ieee80211_add_srates_ie(&sdata->vif, skb, true) ||
+		if (ieee80211_add_srates_ie(sdata, skb, true) ||
 		    mesh_add_ds_params_ie(skb, sdata) ||
-		    ieee80211_add_ext_srates_ie(&sdata->vif, skb, true) ||
+		    ieee80211_add_ext_srates_ie(sdata, skb, true) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_ht_cap_ie(skb, sdata) ||
 		    mesh_add_ht_oper_ie(skb, sdata) ||
@@ -2730,7 +2724,7 @@ EXPORT_SYMBOL(ieee80211_get_buffered_bc);
 void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid)
 {
-	int ac = ieee802_1d_to_ac[tid];
+	int ac = ieee802_1d_to_ac[tid & 7];
 
 	skb_set_mac_header(skb, 0);
 	skb_set_network_header(skb, 0);

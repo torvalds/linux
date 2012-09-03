@@ -477,11 +477,10 @@ static int adm1025_probe(struct i2c_client *client,
 	int err;
 	u8 config;
 
-	data = kzalloc(sizeof(struct adm1025_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct adm1025_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -492,7 +491,7 @@ static int adm1025_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &adm1025_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	/* Pin 11 is either in4 (+12V) or VID4 */
 	config = i2c_smbus_read_byte_data(client, ADM1025_REG_CONFIG);
@@ -513,9 +512,6 @@ static int adm1025_probe(struct i2c_client *client,
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group);
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group_in4);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -569,7 +565,6 @@ static int adm1025_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group);
 	sysfs_remove_group(&client->dev.kobj, &adm1025_group_in4);
 
-	kfree(data);
 	return 0;
 }
 

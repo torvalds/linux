@@ -459,15 +459,16 @@ static int pci_restore_standard_config(struct pci_dev *pci_dev)
 	return 0;
 }
 
-static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
-{
-	pci_restore_standard_config(pci_dev);
-	pci_fixup_device(pci_fixup_resume_early, pci_dev);
-}
-
 #endif
 
 #ifdef CONFIG_PM_SLEEP
+
+static void pci_pm_default_resume_early(struct pci_dev *pci_dev)
+{
+	pci_power_up(pci_dev);
+	pci_restore_state(pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, pci_dev);
+}
 
 /*
  * Default "suspend" method for devices that have no driver provided suspend,
@@ -748,6 +749,18 @@ static int pci_pm_suspend_noirq(struct device *dev)
 
 	pci_pm_set_unknown_state(pci_dev);
 
+	/*
+	 * Some BIOSes from ASUS have a bug: If a USB EHCI host controller's
+	 * PCI COMMAND register isn't 0, the BIOS assumes that the controller
+	 * hasn't been quiesced and tries to turn it off.  If the controller
+	 * is already in D3, this can hang or cause memory corruption.
+	 *
+	 * Since the value of the COMMAND register doesn't matter once the
+	 * device has been suspended, we can safely set it to 0 here.
+	 */
+	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
+		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
+
 	return 0;
 }
 
@@ -946,6 +959,13 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 	if (!pci_dev->state_saved && !pci_is_bridge(pci_dev))
 		pci_prepare_to_sleep(pci_dev);
 
+	/*
+	 * The reason for doing this here is the same as for the analogous code
+	 * in pci_pm_suspend_noirq().
+	 */
+	if (pci_dev->class == PCI_CLASS_SERIAL_USB_EHCI)
+		pci_write_config_word(pci_dev, PCI_COMMAND, 0);
+
 	return 0;
 }
 
@@ -1019,10 +1039,13 @@ static int pci_pm_runtime_suspend(struct device *dev)
 	if (!pm || !pm->runtime_suspend)
 		return -ENOSYS;
 
+	pci_dev->no_d3cold = false;
 	error = pm->runtime_suspend(dev);
 	suspend_report_result(pm->runtime_suspend, error);
 	if (error)
 		return error;
+	if (!pci_dev->d3cold_allowed)
+		pci_dev->no_d3cold = true;
 
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
 
@@ -1044,17 +1067,23 @@ static int pci_pm_runtime_suspend(struct device *dev)
 
 static int pci_pm_runtime_resume(struct device *dev)
 {
+	int rc;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (!pm || !pm->runtime_resume)
 		return -ENOSYS;
 
-	pci_pm_default_resume_early(pci_dev);
+	pci_restore_standard_config(pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 	__pci_enable_wake(pci_dev, PCI_D0, true, false);
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
-	return pm->runtime_resume(dev);
+	rc = pm->runtime_resume(dev);
+
+	pci_dev->runtime_d3cold = false;
+
+	return rc;
 }
 
 static int pci_pm_runtime_idle(struct device *dev)

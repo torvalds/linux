@@ -42,7 +42,7 @@ struct nfs_page {
 				wb_bytes;	/* Length of request */
 	struct kref		wb_kref;	/* reference count */
 	unsigned long		wb_flags;
-	struct nfs_writeverf	wb_verf;	/* Commit cookie */
+	struct nfs_write_verifier	wb_verf;	/* Commit cookie */
 };
 
 struct nfs_pageio_descriptor;
@@ -69,6 +69,7 @@ struct nfs_pageio_descriptor {
 	const struct nfs_pgio_completion_ops *pg_completion_ops;
 	struct pnfs_layout_segment *pg_lseg;
 	struct nfs_direct_req	*pg_dreq;
+	void			*pg_layout_private;
 };
 
 #define NFS_WBACK_BUSY(req)	(test_bit(PG_BUSY,&(req)->wb_flags))

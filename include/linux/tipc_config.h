@@ -102,8 +102,8 @@
 #define  TIPC_CMD_SET_LINK_TOL      0x4107    /* tx link_config, rx none */
 #define  TIPC_CMD_SET_LINK_PRI      0x4108    /* tx link_config, rx none */
 #define  TIPC_CMD_SET_LINK_WINDOW   0x4109    /* tx link_config, rx none */
-#define  TIPC_CMD_SET_LOG_SIZE      0x410A    /* tx unsigned, rx none */
-#define  TIPC_CMD_DUMP_LOG          0x410B    /* tx none, rx ultra_string */
+#define  TIPC_CMD_SET_LOG_SIZE      0x410A    /* obsoleted */
+#define  TIPC_CMD_DUMP_LOG          0x410B    /* obsoleted */
 #define  TIPC_CMD_RESET_LINK_STATS  0x410C    /* tx link_name, rx none */
 
 /*

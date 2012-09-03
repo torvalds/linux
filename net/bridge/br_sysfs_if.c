@@ -27,7 +27,7 @@ struct brport_attribute {
 };
 
 #define BRPORT_ATTR(_name,_mode,_show,_store)		        \
-struct brport_attribute brport_attr_##_name = { 	        \
+const struct brport_attribute brport_attr_##_name = { 	        \
 	.attr = {.name = __stringify(_name), 			\
 		 .mode = _mode },				\
 	.show	= _show,					\
@@ -164,7 +164,7 @@ static BRPORT_ATTR(multicast_router, S_IRUGO | S_IWUSR, show_multicast_router,
 		   store_multicast_router);
 #endif
 
-static struct brport_attribute *brport_attrs[] = {
+static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_path_cost,
 	&brport_attr_priority,
 	&brport_attr_port_id,
@@ -241,7 +241,7 @@ const struct sysfs_ops brport_sysfs_ops = {
 int br_sysfs_addif(struct net_bridge_port *p)
 {
 	struct net_bridge *br = p->br;
-	struct brport_attribute **a;
+	const struct brport_attribute **a;
 	int err;
 
 	err = sysfs_create_link(&p->kobj, &br->dev->dev.kobj,

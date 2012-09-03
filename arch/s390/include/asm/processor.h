@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/processor.h
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -122,7 +120,9 @@ struct stack_frame {
 	regs->psw.mask	= psw_user_bits | PSW_MASK_BA;			\
 	regs->psw.addr	= new_psw | PSW_ADDR_AMODE;			\
 	regs->gprs[15]	= new_stackp;					\
+	__tlb_flush_mm(current->mm);					\
 	crst_table_downgrade(current->mm, 1UL << 31);			\
+	update_mm(current->mm, current);				\
 } while (0)
 
 /* Forward declaration, a strange C thing */
@@ -347,5 +347,15 @@ extern void (*s390_base_ext_handler_fn)(void);
 	"	.quad  " #_fault "," #_target "\n"	\
 	".previous\n"
 #endif
+
+extern int memcpy_real(void *, void *, size_t);
+extern void memcpy_absolute(void *, void *, size_t);
+
+#define mem_assign_absolute(dest, val) {			\
+	__typeof__(dest) __tmp = (val);				\
+								\
+	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
+	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
+}
 
 #endif                                 /* __ASM_S390_PROCESSOR_H           */

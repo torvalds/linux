@@ -366,8 +366,8 @@ static int __dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 	struct safe_buffer *buf;
 	unsigned long off;
 
-	dev_dbg(dev, "%s(dma=%#x,off=%#lx,sz=%zx,dir=%x)\n",
-		__func__, addr, off, sz, dir);
+	dev_dbg(dev, "%s(dma=%#x,sz=%zx,dir=%x)\n",
+		__func__, addr, sz, dir);
 
 	buf = find_safe_buffer_dev(dev, addr, __func__);
 	if (!buf)
@@ -377,8 +377,8 @@ static int __dmabounce_sync_for_cpu(struct device *dev, dma_addr_t addr,
 
 	BUG_ON(buf->direction != dir);
 
-	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
-		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x off=%#lx) mapped to %p (dma=%#x)\n",
+		__func__, buf->ptr, virt_to_dma(dev, buf->ptr), off,
 		buf->safe, buf->safe_dma_addr);
 
 	DO_STATS(dev->archdata.dmabounce->bounce_count++);
@@ -406,8 +406,8 @@ static int __dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
 	struct safe_buffer *buf;
 	unsigned long off;
 
-	dev_dbg(dev, "%s(dma=%#x,off=%#lx,sz=%zx,dir=%x)\n",
-		__func__, addr, off, sz, dir);
+	dev_dbg(dev, "%s(dma=%#x,sz=%zx,dir=%x)\n",
+		__func__, addr, sz, dir);
 
 	buf = find_safe_buffer_dev(dev, addr, __func__);
 	if (!buf)
@@ -417,8 +417,8 @@ static int __dmabounce_sync_for_device(struct device *dev, dma_addr_t addr,
 
 	BUG_ON(buf->direction != dir);
 
-	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
-		__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x off=%#lx) mapped to %p (dma=%#x)\n",
+		__func__, buf->ptr, virt_to_dma(dev, buf->ptr), off,
 		buf->safe, buf->safe_dma_addr);
 
 	DO_STATS(dev->archdata.dmabounce->bounce_count++);
@@ -452,6 +452,7 @@ static struct dma_map_ops dmabounce_ops = {
 	.alloc			= arm_dma_alloc,
 	.free			= arm_dma_free,
 	.mmap			= arm_dma_mmap,
+	.get_sgtable		= arm_dma_get_sgtable,
 	.map_page		= dmabounce_map_page,
 	.unmap_page		= dmabounce_unmap_page,
 	.sync_single_for_cpu	= dmabounce_sync_for_cpu,
