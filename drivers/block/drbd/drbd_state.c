@@ -277,16 +277,16 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 	os = drbd_read_state(mdev);
 	ns = sanitize_state(mdev, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
-	if (rv == SS_SUCCESS)
+	if (rv >= SS_SUCCESS)
 		rv = SS_UNKNOWN_ERROR;  /* cont waiting, otherwise fail. */
 
 	if (!cl_wide_st_chg(mdev, os, ns))
 		rv = SS_CW_NO_NEED;
 	if (rv == SS_UNKNOWN_ERROR) {
 		rv = is_valid_state(mdev, ns);
-		if (rv == SS_SUCCESS) {
+		if (rv >= SS_SUCCESS) {
 			rv = is_valid_soft_transition(os, ns, mdev->tconn);
-			if (rv == SS_SUCCESS)
+			if (rv >= SS_SUCCESS)
 				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
 		}
 	}
