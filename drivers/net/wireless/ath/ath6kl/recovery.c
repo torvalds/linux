@@ -46,7 +46,8 @@ void ath6kl_recovery_err_notify(struct ath6kl *ar, enum ath6kl_fw_err reason)
 
 	set_bit(reason, &ar->fw_recovery.err_reason);
 
-	if (ar->fw_recovery.enable && ar->state != ATH6KL_STATE_RECOVERY)
+	if (!test_bit(RECOVERY_CLEANUP, &ar->flag) &&
+	    ar->state != ATH6KL_STATE_RECOVERY)
 		queue_work(ar->ath6kl_wq, &ar->fw_recovery.recovery_work);
 }
 
@@ -61,7 +62,8 @@ static void ath6kl_recovery_hb_timer(unsigned long data)
 	struct ath6kl *ar = (struct ath6kl *) data;
 	int err;
 
-	if (!ar->fw_recovery.enable || (ar->state == ATH6KL_STATE_RECOVERY))
+	if (test_bit(RECOVERY_CLEANUP, &ar->flag) ||
+	    (ar->state == ATH6KL_STATE_RECOVERY))
 		return;
 
 	if (ar->fw_recovery.hb_pending)
@@ -94,7 +96,7 @@ void ath6kl_recovery_init(struct ath6kl *ar)
 {
 	struct ath6kl_fw_recovery *recovery = &ar->fw_recovery;
 
-	recovery->enable = true;
+	clear_bit(RECOVERY_CLEANUP, &ar->flag);
 	INIT_WORK(&recovery->recovery_work, ath6kl_recovery_work);
 	recovery->seq_num = 0;
 	recovery->hb_misscnt = 0;
@@ -110,7 +112,7 @@ void ath6kl_recovery_init(struct ath6kl *ar)
 
 void ath6kl_recovery_cleanup(struct ath6kl *ar)
 {
-	ar->fw_recovery.enable = false;
+	set_bit(RECOVERY_CLEANUP, &ar->flag);
 
 	del_timer_sync(&ar->fw_recovery.hb_timer);
 	cancel_work_sync(&ar->fw_recovery.recovery_work);
@@ -133,7 +135,7 @@ void ath6kl_recovery_suspend(struct ath6kl *ar)
 
 void ath6kl_recovery_resume(struct ath6kl *ar)
 {
-	ar->fw_recovery.enable = true;
+	clear_bit(RECOVERY_CLEANUP, &ar->flag);
 
 	if (!ar->fw_recovery.hb_poll)
 		return;
