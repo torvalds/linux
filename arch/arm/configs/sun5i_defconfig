@@ -1015,7 +1015,7 @@ CONFIG_FB=y
 #
 # Frame buffer hardware drivers
 #
-CONFIG_SUN5I_FB=y
+CONFIG_SUNXI_FB=y
 CONFIG_SUNXI_LCD=y
 CONFIG_SUNXI_HDMI=y
 # CONFIG_FB_ARMCLCD is not set

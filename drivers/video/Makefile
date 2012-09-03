@@ -32,8 +32,7 @@ obj-$(CONFIG_FB_WMT_GE_ROPS)   += wmt_ge_rops.o
 
 obj-$(CONFIG_SUN3I_FB)     += sun3i/disp/
 obj-$(CONFIG_SUN3I_HDMI)   += sun3i/hdmi/
-obj-$(CONFIG_SUN4I_FB)     += sun4i/disp/
-obj-$(CONFIG_SUN5I_FB)     += sun5i/disp/
+obj-$(CONFIG_SUNXI_FB)     += sunxi/disp/
 obj-$(CONFIG_SUNXI_LCD)    += sunxi/lcd/
 obj-$(CONFIG_SUNXI_HDMI)   += sunxi/hdmi/
 
