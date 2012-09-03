@@ -234,14 +234,14 @@ static void tfp410_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the tfp410 power state */
-static void tfp410_dpms(struct intel_dvo_device *dvo, int mode)
+static void tfp410_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	uint8_t ctl1;
 
 	if (!tfp410_readb(dvo, TFP410_CTL_1, &ctl1))
 		return;
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		ctl1 |= TFP410_CTL_1_PD;
 	else
 		ctl1 &= ~TFP410_CTL_1_PD;

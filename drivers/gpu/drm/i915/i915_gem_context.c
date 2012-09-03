@@ -221,7 +221,7 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 * default context.
 	 */
 	dev_priv->ring[RCS].default_context = ctx;
-	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false);
+	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		goto err_destroy;
 
@@ -374,7 +374,7 @@ static int do_switch(struct i915_hw_context *to)
 	if (from_obj == to->obj)
 		return 0;
 
-	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false);
+	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false, false);
 	if (ret)
 		return ret;
 

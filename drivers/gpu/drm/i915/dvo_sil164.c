@@ -208,7 +208,7 @@ static void sil164_mode_set(struct intel_dvo_device *dvo,
 }
 
 /* set the SIL164 power state */
-static void sil164_dpms(struct intel_dvo_device *dvo, int mode)
+static void sil164_dpms(struct intel_dvo_device *dvo, bool enable)
 {
 	int ret;
 	unsigned char ch;
@@ -217,7 +217,7 @@ static void sil164_dpms(struct intel_dvo_device *dvo, int mode)
 	if (ret == false)
 		return;
 
-	if (mode == DRM_MODE_DPMS_ON)
+	if (enable)
 		ch |= SIL164_8_PD;
 	else
 		ch &= ~SIL164_8_PD;

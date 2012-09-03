@@ -1384,7 +1384,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 				     enum pipe pipe, int reg)
 {
 	u32 val = I915_READ(reg);
-	WARN(hdmi_pipe_enabled(dev_priv, val, pipe),
+	WARN(hdmi_pipe_enabled(dev_priv, pipe, val),
 	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 
@@ -1404,13 +1404,13 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 
 	reg = PCH_ADPA;
 	val = I915_READ(reg);
-	WARN(adpa_pipe_enabled(dev_priv, val, pipe),
+	WARN(adpa_pipe_enabled(dev_priv, pipe, val),
 	     "PCH VGA enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
 
 	reg = PCH_LVDS;
 	val = I915_READ(reg);
-	WARN(lvds_pipe_enabled(dev_priv, val, pipe),
+	WARN(lvds_pipe_enabled(dev_priv, pipe, val),
 	     "PCH LVDS enabled on transcoder %c, should be disabled\n",
 	     pipe_name(pipe));
 
@@ -1432,7 +1432,7 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
  *
  * Unfortunately needed by dvo_ns2501 since the dvo depends on it running.
  */
-void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
+static void intel_enable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	int reg;
 	u32 val;
@@ -1874,7 +1874,7 @@ static void disable_pch_hdmi(struct drm_i915_private *dev_priv,
 			     enum pipe pipe, int reg)
 {
 	u32 val = I915_READ(reg);
-	if (hdmi_pipe_enabled(dev_priv, val, pipe)) {
+	if (hdmi_pipe_enabled(dev_priv, pipe, val)) {
 		DRM_DEBUG_KMS("Disabling pch HDMI %x on pipe %d\n",
 			      reg, pipe);
 		I915_WRITE(reg, val & ~PORT_ENABLE);
@@ -1896,12 +1896,12 @@ static void intel_disable_pch_ports(struct drm_i915_private *dev_priv,
 
 	reg = PCH_ADPA;
 	val = I915_READ(reg);
-	if (adpa_pipe_enabled(dev_priv, val, pipe))
+	if (adpa_pipe_enabled(dev_priv, pipe, val))
 		I915_WRITE(reg, val & ~ADPA_DAC_ENABLE);
 
 	reg = PCH_LVDS;
 	val = I915_READ(reg);
-	if (lvds_pipe_enabled(dev_priv, val, pipe)) {
+	if (lvds_pipe_enabled(dev_priv, pipe, val)) {
 		DRM_DEBUG_KMS("disable lvds on pipe %d val 0x%08x\n", pipe, val);
 		I915_WRITE(reg, val & ~LVDS_PORT_EN);
 		POSTING_READ(reg);
@@ -2709,11 +2709,10 @@ static void ivb_manual_fdi_link_train(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
 
-static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
+static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = intel_crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
@@ -2752,6 +2751,35 @@ static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
 			udelay(100);
 		}
 	}
+}
+
+static void ironlake_fdi_pll_disable(struct intel_crtc *intel_crtc)
+{
+	struct drm_device *dev = intel_crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = intel_crtc->pipe;
+	u32 reg, temp;
+
+	/* Switch from PCDclk to Rawclk */
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	I915_WRITE(reg, temp & ~FDI_PCDCLK);
+
+	/* Disable CPU FDI TX PLL */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	I915_WRITE(reg, temp & ~FDI_TX_PLL_ENABLE);
+
+	POSTING_READ(reg);
+	udelay(100);
+
+	reg = FDI_RX_CTL(pipe);
+	temp = I915_READ(reg);
+	I915_WRITE(reg, temp & ~FDI_RX_PLL_ENABLE);
+
+	/* Wait for the clocks to turn off. */
+	POSTING_READ(reg);
+	udelay(100);
 }
 
 static void cpt_phase_pointer_disable(struct drm_device *dev, int pipe)
@@ -3201,7 +3229,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	is_pch_port = intel_crtc_driving_pch(crtc);
 
 	if (is_pch_port)
-		ironlake_fdi_pll_enable(crtc);
+		ironlake_fdi_pll_enable(intel_crtc);
 	else
 		ironlake_fdi_disable(crtc);
 
@@ -3304,26 +3332,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	/* disable PCH DPLL */
 	intel_disable_pch_pll(intel_crtc);
 
-	/* Switch from PCDclk to Rawclk */
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~FDI_PCDCLK);
-
-	/* Disable CPU FDI TX PLL */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~FDI_TX_PLL_ENABLE);
-
-	POSTING_READ(reg);
-	udelay(100);
-
-	reg = FDI_RX_CTL(pipe);
-	temp = I915_READ(reg);
-	I915_WRITE(reg, temp & ~FDI_RX_PLL_ENABLE);
-
-	/* Wait for the clocks to turn off. */
-	POSTING_READ(reg);
-	udelay(100);
+	ironlake_fdi_pll_disable(intel_crtc);
 
 	intel_crtc->active = false;
 	intel_update_watermarks(dev);
@@ -3592,6 +3601,13 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 	 * timings, so we need to be careful not to clobber these.*/
 	if (!(adjusted_mode->private_flags & INTEL_MODE_CRTC_TIMINGS_SET))
 		drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	/* WaPruneModeWithIncorrectHsyncOffset: Cantiga+ cannot handle modes
+	 * with a hsync front porch of 0.
+	 */
+	if ((INTEL_INFO(dev)->gen > 4 || IS_G4X(dev)) &&
+		adjusted_mode->hsync_start == adjusted_mode->hdisplay)
+		return false;
 
 	return true;
 }
@@ -5057,6 +5073,91 @@ static void g4x_write_eld(struct drm_connector *connector,
 	I915_WRITE(G4X_AUD_CNTL_ST, i);
 }
 
+static void haswell_write_eld(struct drm_connector *connector,
+				     struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+	uint8_t *eld = connector->eld;
+	struct drm_device *dev = crtc->dev;
+	uint32_t eldv;
+	uint32_t i;
+	int len;
+	int pipe = to_intel_crtc(crtc)->pipe;
+	int tmp;
+
+	int hdmiw_hdmiedid = HSW_AUD_EDID_DATA(pipe);
+	int aud_cntl_st = HSW_AUD_DIP_ELD_CTRL(pipe);
+	int aud_config = HSW_AUD_CFG(pipe);
+	int aud_cntrl_st2 = HSW_AUD_PIN_ELD_CP_VLD;
+
+
+	DRM_DEBUG_DRIVER("HDMI: Haswell Audio initialize....\n");
+
+	/* Audio output enable */
+	DRM_DEBUG_DRIVER("HDMI audio: enable codec\n");
+	tmp = I915_READ(aud_cntrl_st2);
+	tmp |= (AUDIO_OUTPUT_ENABLE_A << (pipe * 4));
+	I915_WRITE(aud_cntrl_st2, tmp);
+
+	/* Wait for 1 vertical blank */
+	intel_wait_for_vblank(dev, pipe);
+
+	/* Set ELD valid state */
+	tmp = I915_READ(aud_cntrl_st2);
+	DRM_DEBUG_DRIVER("HDMI audio: pin eld vld status=0x%8x\n", tmp);
+	tmp |= (AUDIO_ELD_VALID_A << (pipe * 4));
+	I915_WRITE(aud_cntrl_st2, tmp);
+	tmp = I915_READ(aud_cntrl_st2);
+	DRM_DEBUG_DRIVER("HDMI audio: eld vld status=0x%8x\n", tmp);
+
+	/* Enable HDMI mode */
+	tmp = I915_READ(aud_config);
+	DRM_DEBUG_DRIVER("HDMI audio: audio conf: 0x%8x\n", tmp);
+	/* clear N_programing_enable and N_value_index */
+	tmp &= ~(AUD_CONFIG_N_VALUE_INDEX | AUD_CONFIG_N_PROG_ENABLE);
+	I915_WRITE(aud_config, tmp);
+
+	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
+
+	eldv = AUDIO_ELD_VALID_A << (pipe * 4);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
+		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
+		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
+		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
+	} else
+		I915_WRITE(aud_config, 0);
+
+	if (intel_eld_uptodate(connector,
+			       aud_cntrl_st2, eldv,
+			       aud_cntl_st, IBX_ELD_ADDRESS,
+			       hdmiw_hdmiedid))
+		return;
+
+	i = I915_READ(aud_cntrl_st2);
+	i &= ~eldv;
+	I915_WRITE(aud_cntrl_st2, i);
+
+	if (!eld[0])
+		return;
+
+	i = I915_READ(aud_cntl_st);
+	i &= ~IBX_ELD_ADDRESS;
+	I915_WRITE(aud_cntl_st, i);
+	i = (i >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
+	DRM_DEBUG_DRIVER("port num:%d\n", i);
+
+	len = min_t(uint8_t, eld[2], 21);	/* 84 bytes of hw ELD buffer */
+	DRM_DEBUG_DRIVER("ELD size %d\n", len);
+	for (i = 0; i < len; i++)
+		I915_WRITE(hdmiw_hdmiedid, *((uint32_t *)eld + i));
+
+	i = I915_READ(aud_cntrl_st2);
+	i |= eldv;
+	I915_WRITE(aud_cntrl_st2, i);
+
+}
+
 static void ironlake_write_eld(struct drm_connector *connector,
 				     struct drm_crtc *crtc)
 {
@@ -5069,28 +5170,24 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
+	int pipe = to_intel_crtc(crtc)->pipe;
 
 	if (HAS_PCH_IBX(connector->dev)) {
-		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID_A;
-		aud_config = IBX_AUD_CONFIG_A;
-		aud_cntl_st = IBX_AUD_CNTL_ST_A;
+		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
+		aud_config = IBX_AUD_CFG(pipe);
+		aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else {
-		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID_A;
-		aud_config = CPT_AUD_CONFIG_A;
-		aud_cntl_st = CPT_AUD_CNTL_ST_A;
+		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
+		aud_config = CPT_AUD_CFG(pipe);
+		aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
 		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
 
-	i = to_intel_crtc(crtc)->pipe;
-	hdmiw_hdmiedid += i * 0x100;
-	aud_cntl_st += i * 0x100;
-	aud_config += i * 0x100;
-
-	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(i));
+	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(pipe));
 
 	i = I915_READ(aud_cntl_st);
-	i = (i >> 29) & 0x3;		/* DIP_Port_Select, 0x1 = PortB */
+	i = (i >> 29) & DIP_PORT_SEL_MASK;		/* DIP_Port_Select, 0x1 = PortB */
 	if (!i) {
 		DRM_DEBUG_DRIVER("Audio directed to unknown port\n");
 		/* operate blindly on all ports */
@@ -5584,12 +5681,13 @@ mode_fits_in_fbdev(struct drm_device *dev,
 	return fb;
 }
 
-bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
-				struct drm_connector *connector,
+bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
 				struct intel_load_detect_pipe *old)
 {
 	struct intel_crtc *intel_crtc;
+	struct intel_encoder *intel_encoder =
+		intel_attached_encoder(connector);
 	struct drm_crtc *possible_crtc;
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_crtc *crtc = NULL;
@@ -5615,21 +5713,12 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	if (encoder->crtc) {
 		crtc = encoder->crtc;
 
-		intel_crtc = to_intel_crtc(crtc);
-		old->dpms_mode = intel_crtc->dpms_mode;
+		old->dpms_mode = connector->dpms;
 		old->load_detect_temp = false;
 
 		/* Make sure the crtc and connector are running */
-		if (intel_crtc->dpms_mode != DRM_MODE_DPMS_ON) {
-			struct drm_encoder_helper_funcs *encoder_funcs;
-			struct drm_crtc_helper_funcs *crtc_funcs;
-
-			crtc_funcs = crtc->helper_private;
-			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
-
-			encoder_funcs = encoder->helper_private;
-			encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-		}
+		if (connector->dpms != DRM_MODE_DPMS_ON)
+			connector->funcs->dpms(connector, DRM_MODE_DPMS_ON);
 
 		return true;
 	}
@@ -5657,7 +5746,7 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	connector->encoder = encoder;
 
 	intel_crtc = to_intel_crtc(crtc);
-	old->dpms_mode = intel_crtc->dpms_mode;
+	old->dpms_mode = connector->dpms;
 	old->load_detect_temp = true;
 	old->release_fb = NULL;
 
@@ -5682,33 +5771,34 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
 	if (IS_ERR(crtc->fb)) {
 		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
-		crtc->fb = old_fb;
-		return false;
+		goto fail;
 	}
 
 	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, old_fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
-		crtc->fb = old_fb;
-		return false;
+		goto fail;
 	}
 
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
 	return true;
+fail:
+	connector->encoder = NULL;
+	encoder->crtc = NULL;
+	crtc->fb = old_fb;
+	return false;
 }
 
-void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
-				    struct drm_connector *connector,
+void intel_release_load_detect_pipe(struct drm_connector *connector,
 				    struct intel_load_detect_pipe *old)
 {
+	struct intel_encoder *intel_encoder =
+		intel_attached_encoder(connector);
 	struct drm_encoder *encoder = &intel_encoder->base;
 	struct drm_device *dev = encoder->dev;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s], [ENCODER:%d:%s]\n",
 		      connector->base.id, drm_get_connector_name(connector),
@@ -5716,6 +5806,7 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 
 	if (old->load_detect_temp) {
 		connector->encoder = NULL;
+		encoder->crtc = NULL;
 		drm_helper_disable_unused_functions(dev);
 
 		if (old->release_fb)
@@ -5725,10 +5816,8 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 	}
 
 	/* Switch crtc and encoder back off if necessary */
-	if (old->dpms_mode != DRM_MODE_DPMS_ON) {
-		encoder_funcs->dpms(encoder, old->dpms_mode);
-		crtc_funcs->dpms(crtc, old->dpms_mode);
-	}
+	if (old->dpms_mode != DRM_MODE_DPMS_ON)
+		connector->funcs->dpms(connector, old->dpms_mode);
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
@@ -6939,7 +7028,7 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else if (IS_HASWELL(dev)) {
 			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
-			dev_priv->display.write_eld = ironlake_write_eld;
+			dev_priv->display.write_eld = haswell_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_G4X(dev)) {
@@ -7017,14 +7106,8 @@ static struct intel_quirk intel_quirks[] = {
 	/* HP Mini needs pipe A force quirk (LP: #322104) */
 	{ 0x27ae, 0x103c, 0x361a, quirk_pipea_force },
 
-	/* Thinkpad R31 needs pipe A force quirk */
-	{ 0x3577, 0x1014, 0x0505, quirk_pipea_force },
 	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
 	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
-
-	/* ThinkPad X30 needs pipe A force quirk (LP: #304614) */
-	{ 0x3577,  0x1014, 0x0513, quirk_pipea_force },
-	/* ThinkPad X40 needs pipe A force quirk */
 
 	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
 	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
@@ -7032,6 +7115,7 @@ static struct intel_quirk intel_quirks[] = {
 	/* 855 & before need to leave pipe A & dpll A up */
 	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 
 	/* Lenovo U160 cannot use SSC on LVDS */
 	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
@@ -7242,7 +7326,7 @@ struct intel_display_error_state {
 		u32 position;
 		u32 base;
 		u32 size;
-	} cursor[2];
+	} cursor[I915_MAX_PIPES];
 
 	struct intel_pipe_error_state {
 		u32 conf;
@@ -7254,7 +7338,7 @@ struct intel_display_error_state {
 		u32 vtotal;
 		u32 vblank;
 		u32 vsync;
-	} pipe[2];
+	} pipe[I915_MAX_PIPES];
 
 	struct intel_plane_error_state {
 		u32 control;
@@ -7264,7 +7348,7 @@ struct intel_display_error_state {
 		u32 addr;
 		u32 surface;
 		u32 tile_offset;
-	} plane[2];
+	} plane[I915_MAX_PIPES];
 };
 
 struct intel_display_error_state *
@@ -7278,7 +7362,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 	if (error == NULL)
 		return NULL;
 
-	for (i = 0; i < 2; i++) {
+	for_each_pipe(i) {
 		error->cursor[i].control = I915_READ(CURCNTR(i));
 		error->cursor[i].position = I915_READ(CURPOS(i));
 		error->cursor[i].base = I915_READ(CURBASE(i));
@@ -7311,9 +7395,11 @@ intel_display_print_error_state(struct seq_file *m,
 				struct drm_device *dev,
 				struct intel_display_error_state *error)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
 
-	for (i = 0; i < 2; i++) {
+	seq_printf(m, "Num Pipes: %d\n", dev_priv->num_pipe);
+	for_each_pipe(i) {
 		seq_printf(m, "Pipe [%d]:\n", i);
 		seq_printf(m, "  CONF: %08x\n", error->pipe[i].conf);
 		seq_printf(m, "  SRC: %08x\n", error->pipe[i].source);

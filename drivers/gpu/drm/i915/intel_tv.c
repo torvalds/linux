@@ -1303,12 +1303,9 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	if (force) {
 		struct intel_load_detect_pipe tmp;
 
-		if (intel_get_load_detect_pipe(&intel_tv->base, connector,
-					       &mode, &tmp)) {
+		if (intel_get_load_detect_pipe(connector, &mode, &tmp)) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(&intel_tv->base,
-						       connector,
-						       &tmp);
+			intel_release_load_detect_pipe(connector, &tmp);
 		} else
 			return connector_status_unknown;
 	} else

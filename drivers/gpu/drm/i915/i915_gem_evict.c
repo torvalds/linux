@@ -45,7 +45,7 @@ mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 int
 i915_gem_evict_something(struct drm_device *dev, int min_size,
 			 unsigned alignment, unsigned cache_level,
-			 bool mappable)
+			 bool mappable, bool nonblocking)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head eviction_list, unwind_list;
@@ -92,12 +92,16 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 			goto found;
 	}
 
+	if (nonblocking)
+		goto none;
+
 	/* Now merge in the soon-to-be-expired objects... */
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 
+none:
 	/* Nothing found, clean up and bail out! */
 	while (!list_empty(&unwind_list)) {
 		obj = list_first_entry(&unwind_list,
@@ -148,7 +152,7 @@ found:
 }
 
 int
-i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
+i915_gem_evict_everything(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj, *next;
@@ -160,7 +164,7 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 	if (lists_empty)
 		return -ENOSPC;
 
-	trace_i915_gem_evict_everything(dev, purgeable_only);
+	trace_i915_gem_evict_everything(dev);
 
 	/* The gpu_idle will flush everything in the write domain to the
 	 * active list. Then we must move everything off the active list
@@ -174,12 +178,9 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 
 	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry_safe(obj, next,
-				 &dev_priv->mm.inactive_list, mm_list) {
-		if (!purgeable_only || obj->madv != I915_MADV_WILLNEED) {
-			if (obj->pin_count == 0)
-				WARN_ON(i915_gem_object_unbind(obj));
-		}
-	}
+				 &dev_priv->mm.inactive_list, mm_list)
+		if (obj->pin_count == 0)
+			WARN_ON(i915_gem_object_unbind(obj));
 
 	return 0;
 }

@@ -547,14 +547,12 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		return connector->status;
 
 	/* for pre-945g platforms use load detect */
-	if (intel_get_load_detect_pipe(&crt->base, connector, NULL,
-				       &tmp)) {
+	if (intel_get_load_detect_pipe(connector, NULL, &tmp)) {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else
 			status = intel_crt_load_detect(crt);
-		intel_release_load_detect_pipe(&crt->base, connector,
-					       &tmp);
+		intel_release_load_detect_pipe(connector, &tmp);
 	} else
 		status = connector_status_unknown;
 
@@ -694,7 +692,7 @@ void intel_crt_init(struct drm_device *dev)
 	if (IS_HASWELL(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
-		crt->base.crtc_mask = (1 << 0) | (1 << 1);
+		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 
 	if (IS_GEN2(dev))
 		connector->interlace_allowed = 0;

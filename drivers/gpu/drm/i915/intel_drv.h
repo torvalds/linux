@@ -435,12 +435,10 @@ struct intel_load_detect_pipe {
 	bool load_detect_temp;
 	int dpms_mode;
 };
-extern bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
-				       struct drm_connector *connector,
+extern bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				       struct drm_display_mode *mode,
 				       struct intel_load_detect_pipe *old);
-extern void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
-					   struct drm_connector *connector,
+extern void intel_release_load_detect_pipe(struct drm_connector *connector,
 					   struct intel_load_detect_pipe *old);
 
 extern void intelfb_restore(void);

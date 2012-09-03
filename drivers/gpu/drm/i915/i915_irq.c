@@ -1070,6 +1070,36 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
+/* NB: please notice the memset */
+static void i915_get_extra_instdone(struct drm_device *dev,
+				    uint32_t *instdone)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	memset(instdone, 0, sizeof(*instdone) * I915_NUM_INSTDONE_REG);
+
+	switch(INTEL_INFO(dev)->gen) {
+	case 2:
+	case 3:
+		instdone[0] = I915_READ(INSTDONE);
+		break;
+	case 4:
+	case 5:
+	case 6:
+		instdone[0] = I915_READ(INSTDONE_I965);
+		instdone[1] = I915_READ(INSTDONE1);
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported platform\n");
+	case 7:
+		instdone[0] = I915_READ(GEN7_INSTDONE_1);
+		instdone[1] = I915_READ(GEN7_SC_INSTDONE);
+		instdone[2] = I915_READ(GEN7_SAMPLER_INSTDONE);
+		instdone[3] = I915_READ(GEN7_ROW_INSTDONE);
+		break;
+	}
+}
+
+
 static void i915_record_ring_state(struct drm_device *dev,
 				   struct drm_i915_error_state *error,
 				   struct intel_ring_buffer *ring)
@@ -1091,10 +1121,8 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
 		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
-		if (ring->id == RCS) {
-			error->instdone1 = I915_READ(INSTDONE1);
+		if (ring->id == RCS)
 			error->bbaddr = I915_READ64(BB_ADDR);
-		}
 	} else {
 		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
 		error->ipeir[ring->id] = I915_READ(IPEIR);
@@ -1210,6 +1238,11 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->done_reg = I915_READ(DONE_REG);
 	}
 
+	if (INTEL_INFO(dev)->gen == 7)
+		error->err_int = I915_READ(GEN7_ERR_INT);
+
+	i915_get_extra_instdone(dev, error->extra_instdone);
+
 	i915_gem_record_fences(dev, error);
 	i915_gem_record_rings(dev, error);
 
@@ -1221,7 +1254,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list)
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list)
 		if (obj->pin_count)
 			i++;
 	error->pinned_bo_count = i - error->active_bo_count;
@@ -1246,7 +1279,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->pinned_bo_count =
 			capture_pinned_bo(error->pinned_bo,
 					  error->pinned_bo_count,
-					  &dev_priv->mm.gtt_list);
+					  &dev_priv->mm.bound_list);
 
 	do_gettimeofday(&error->time);
 
@@ -1285,13 +1318,16 @@ void i915_destroy_error_state(struct drm_device *dev)
 static void i915_report_and_clear_eir(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t instdone[I915_NUM_INSTDONE_REG];
 	u32 eir = I915_READ(EIR);
-	int pipe;
+	int pipe, i;
 
 	if (!eir)
 		return;
 
 	pr_err("render error detected, EIR: 0x%08x\n", eir);
+
+	i915_get_extra_instdone(dev, instdone);
 
 	if (IS_G4X(dev)) {
 		if (eir & (GM45_ERROR_MEM_PRIV | GM45_ERROR_CP_PRIV)) {
@@ -1299,10 +1335,9 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			pr_err("  INSTDONE: 0x%08x\n",
-			       I915_READ(INSTDONE_I965));
+			for (i = 0; i < ARRAY_SIZE(instdone); i++)
+				pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
 			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
-			pr_err("  INSTDONE1: 0x%08x\n", I915_READ(INSTDONE1));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
 			POSTING_READ(IPEIR_I965);
@@ -1336,12 +1371,13 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 	if (eir & I915_ERROR_INSTRUCTION) {
 		pr_err("instruction error\n");
 		pr_err("  INSTPM: 0x%08x\n", I915_READ(INSTPM));
+		for (i = 0; i < ARRAY_SIZE(instdone); i++)
+			pr_err("  INSTDONE_%d: 0x%08x\n", i, instdone[i]);
 		if (INTEL_INFO(dev)->gen < 4) {
 			u32 ipeir = I915_READ(IPEIR);
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR));
-			pr_err("  INSTDONE: 0x%08x\n", I915_READ(INSTDONE));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD));
 			I915_WRITE(IPEIR, ipeir);
 			POSTING_READ(IPEIR);
@@ -1350,10 +1386,7 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 
 			pr_err("  IPEIR: 0x%08x\n", I915_READ(IPEIR_I965));
 			pr_err("  IPEHR: 0x%08x\n", I915_READ(IPEHR_I965));
-			pr_err("  INSTDONE: 0x%08x\n",
-			       I915_READ(INSTDONE_I965));
 			pr_err("  INSTPS: 0x%08x\n", I915_READ(INSTPS));
-			pr_err("  INSTDONE1: 0x%08x\n", I915_READ(INSTDONE1));
 			pr_err("  ACTHD: 0x%08x\n", I915_READ(ACTHD_I965));
 			I915_WRITE(IPEIR_I965, ipeir);
 			POSTING_READ(IPEIR_I965);
@@ -1668,7 +1701,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t acthd[I915_NUM_RINGS], instdone, instdone1;
+	uint32_t acthd[I915_NUM_RINGS], instdone[I915_NUM_INSTDONE_REG];
 	struct intel_ring_buffer *ring;
 	bool err = false, idle;
 	int i;
@@ -1696,25 +1729,16 @@ void i915_hangcheck_elapsed(unsigned long data)
 		return;
 	}
 
-	if (INTEL_INFO(dev)->gen < 4) {
-		instdone = I915_READ(INSTDONE);
-		instdone1 = 0;
-	} else {
-		instdone = I915_READ(INSTDONE_I965);
-		instdone1 = I915_READ(INSTDONE1);
-	}
-
+	i915_get_extra_instdone(dev, instdone);
 	if (memcmp(dev_priv->last_acthd, acthd, sizeof(acthd)) == 0 &&
-	    dev_priv->last_instdone == instdone &&
-	    dev_priv->last_instdone1 == instdone1) {
+	    memcmp(dev_priv->prev_instdone, instdone, sizeof(instdone)) == 0) {
 		if (i915_hangcheck_hung(dev))
 			return;
 	} else {
 		dev_priv->hangcheck_count = 0;
 
 		memcpy(dev_priv->last_acthd, acthd, sizeof(acthd));
-		dev_priv->last_instdone = instdone;
-		dev_priv->last_instdone1 = instdone1;
+		memcpy(dev_priv->prev_instdone, instdone, sizeof(instdone));
 	}
 
 repeat:

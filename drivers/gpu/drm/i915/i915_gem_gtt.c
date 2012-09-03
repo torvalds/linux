@@ -351,7 +351,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	intel_gtt_clear_range(dev_priv->mm.gtt_start / PAGE_SIZE,
 			      (dev_priv->mm.gtt_end - dev_priv->mm.gtt_start) / PAGE_SIZE);
 
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		i915_gem_clflush_object(obj);
 		i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}

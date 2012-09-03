@@ -33,7 +33,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	struct drm_i915_gem_object *obj = attachment->dmabuf->priv;
 	struct drm_device *dev = obj->base.dev;
 	int npages = obj->base.size / PAGE_SIZE;
-	struct sg_table *sg = NULL;
+	struct sg_table *sg;
 	int ret;
 	int nents;
 
@@ -41,10 +41,10 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (!obj->pages) {
-		ret = i915_gem_object_get_pages_gtt(obj, __GFP_NORETRY | __GFP_NOWARN);
-		if (ret)
-			goto out;
+	ret = i915_gem_object_get_pages_gtt(obj);
+	if (ret) {
+		sg = ERR_PTR(ret);
+		goto out;
 	}
 
 	/* link the pages into an SG then map the sg */
@@ -89,12 +89,10 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 		goto out_unlock;
 	}
 
-	if (!obj->pages) {
-		ret = i915_gem_object_get_pages_gtt(obj, __GFP_NORETRY | __GFP_NOWARN);
-		if (ret) {
-			mutex_unlock(&dev->struct_mutex);
-			return ERR_PTR(ret);
-		}
+	ret = i915_gem_object_get_pages_gtt(obj);
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
+		return ERR_PTR(ret);
 	}
 
 	obj->dma_buf_vmapping = vmap(obj->pages, obj->base.size / PAGE_SIZE, 0, PAGE_KERNEL);
@@ -151,6 +149,22 @@ static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *
 	return -EINVAL;
 }
 
+static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size_t length, enum dma_data_direction direction)
+{
+	struct drm_i915_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->base.dev;
+	int ret;
+	bool write = (direction == DMA_BIDIRECTIONAL || direction == DMA_TO_DEVICE);
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_set_to_cpu_domain(obj, write);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
+}
+
 static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
@@ -162,6 +176,7 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.mmap = i915_gem_dmabuf_mmap,
 	.vmap = i915_gem_dmabuf_vmap,
 	.vunmap = i915_gem_dmabuf_vunmap,
+	.begin_cpu_access = i915_gem_begin_cpu_access,
 };
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,

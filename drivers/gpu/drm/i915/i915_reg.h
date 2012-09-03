@@ -479,6 +479,11 @@
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
 #define INSTDONE_I965	0x0206c
+#define GEN7_INSTDONE_1		0x0206c
+#define GEN7_SC_INSTDONE	0x07100
+#define GEN7_SAMPLER_INSTDONE	0x0e160
+#define GEN7_ROW_INSTDONE	0x0e164
+#define I915_NUM_INSTDONE_REG	4
 #define RING_IPEIR(base)	((base)+0x64)
 #define RING_IPEHR(base)	((base)+0x68)
 #define RING_INSTDONE(base)	((base)+0x6c)
@@ -501,6 +506,8 @@
 #define DMA_FADD_I8XX	0x020d0
 
 #define ERROR_GEN6	0x040a0
+#define GEN7_ERR_INT	0x44040
+#define   ERR_INT_MMIO_UNCLAIMED (1<<13)
 
 /* GM45+ chicken bits -- debug workaround bits that may be required
  * for various sorts of correct behavior.  The top 16 bits of each are
@@ -4248,7 +4255,15 @@
 #define G4X_HDMIW_HDMIEDID		0x6210C
 
 #define IBX_HDMIW_HDMIEDID_A		0xE2050
+#define IBX_HDMIW_HDMIEDID_B		0xE2150
+#define IBX_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
+					IBX_HDMIW_HDMIEDID_A, \
+					IBX_HDMIW_HDMIEDID_B)
 #define IBX_AUD_CNTL_ST_A		0xE20B4
+#define IBX_AUD_CNTL_ST_B		0xE21B4
+#define IBX_AUD_CNTL_ST(pipe) _PIPE(pipe, \
+					IBX_AUD_CNTL_ST_A, \
+					IBX_AUD_CNTL_ST_B)
 #define IBX_ELD_BUFFER_SIZE		(0x1f << 10)
 #define IBX_ELD_ADDRESS			(0x1f << 5)
 #define IBX_ELD_ACK			(1 << 4)
@@ -4257,7 +4272,15 @@
 #define IBX_CP_READYB			(1 << 1)
 
 #define CPT_HDMIW_HDMIEDID_A		0xE5050
+#define CPT_HDMIW_HDMIEDID_B		0xE5150
+#define CPT_HDMIW_HDMIEDID(pipe) _PIPE(pipe, \
+					CPT_HDMIW_HDMIEDID_A, \
+					CPT_HDMIW_HDMIEDID_B)
 #define CPT_AUD_CNTL_ST_A		0xE50B4
+#define CPT_AUD_CNTL_ST_B		0xE51B4
+#define CPT_AUD_CNTL_ST(pipe) _PIPE(pipe, \
+					CPT_AUD_CNTL_ST_A, \
+					CPT_AUD_CNTL_ST_B)
 #define CPT_AUD_CNTRL_ST2		0xE50C0
 
 /* These are the 4 32-bit write offset registers for each stream
@@ -4267,7 +4290,15 @@
 #define GEN7_SO_WRITE_OFFSET(n)		(0x5280 + (n) * 4)
 
 #define IBX_AUD_CONFIG_A			0xe2000
+#define IBX_AUD_CONFIG_B			0xe2100
+#define IBX_AUD_CFG(pipe) _PIPE(pipe, \
+					IBX_AUD_CONFIG_A, \
+					IBX_AUD_CONFIG_B)
 #define CPT_AUD_CONFIG_A			0xe5000
+#define CPT_AUD_CONFIG_B			0xe5100
+#define CPT_AUD_CFG(pipe) _PIPE(pipe, \
+					CPT_AUD_CONFIG_A, \
+					CPT_AUD_CONFIG_B)
 #define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
 #define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
 #define   AUD_CONFIG_UPPER_N_SHIFT		20
@@ -4277,6 +4308,54 @@
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI_SHIFT	16
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI		(0xf << 16)
 #define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
+
+/* HSW Audio */
+#define   HSW_AUD_CONFIG_A		0x65000 /* Audio Configuration Transcoder A */
+#define   HSW_AUD_CONFIG_B		0x65100 /* Audio Configuration Transcoder B */
+#define   HSW_AUD_CFG(pipe) _PIPE(pipe, \
+					HSW_AUD_CONFIG_A, \
+					HSW_AUD_CONFIG_B)
+
+#define   HSW_AUD_MISC_CTRL_A		0x65010 /* Audio Misc Control Convert 1 */
+#define   HSW_AUD_MISC_CTRL_B		0x65110 /* Audio Misc Control Convert 2 */
+#define   HSW_AUD_MISC_CTRL(pipe) _PIPE(pipe, \
+					HSW_AUD_MISC_CTRL_A, \
+					HSW_AUD_MISC_CTRL_B)
+
+#define   HSW_AUD_DIP_ELD_CTRL_ST_A	0x650b4 /* Audio DIP and ELD Control State Transcoder A */
+#define   HSW_AUD_DIP_ELD_CTRL_ST_B	0x651b4 /* Audio DIP and ELD Control State Transcoder B */
+#define   HSW_AUD_DIP_ELD_CTRL(pipe) _PIPE(pipe, \
+					HSW_AUD_DIP_ELD_CTRL_ST_A, \
+					HSW_AUD_DIP_ELD_CTRL_ST_B)
+
+/* Audio Digital Converter */
+#define   HSW_AUD_DIG_CNVT_1		0x65080 /* Audio Converter 1 */
+#define   HSW_AUD_DIG_CNVT_2		0x65180 /* Audio Converter 1 */
+#define   AUD_DIG_CNVT(pipe) _PIPE(pipe, \
+					HSW_AUD_DIG_CNVT_1, \
+					HSW_AUD_DIG_CNVT_2)
+#define   DIP_PORT_SEL_MASK		0x3
+
+#define   HSW_AUD_EDID_DATA_A		0x65050
+#define   HSW_AUD_EDID_DATA_B		0x65150
+#define   HSW_AUD_EDID_DATA(pipe) _PIPE(pipe, \
+					HSW_AUD_EDID_DATA_A, \
+					HSW_AUD_EDID_DATA_B)
+
+#define   HSW_AUD_PIPE_CONV_CFG		0x6507c /* Audio pipe and converter configs */
+#define   HSW_AUD_PIN_ELD_CP_VLD	0x650c0 /* Audio ELD and CP Ready Status */
+#define   AUDIO_INACTIVE_C		(1<<11)
+#define   AUDIO_INACTIVE_B		(1<<7)
+#define   AUDIO_INACTIVE_A		(1<<3)
+#define   AUDIO_OUTPUT_ENABLE_A		(1<<2)
+#define   AUDIO_OUTPUT_ENABLE_B		(1<<6)
+#define   AUDIO_OUTPUT_ENABLE_C		(1<<10)
+#define   AUDIO_ELD_VALID_A		(1<<0)
+#define   AUDIO_ELD_VALID_B		(1<<4)
+#define   AUDIO_ELD_VALID_C		(1<<8)
+#define   AUDIO_CP_READY_A		(1<<1)
+#define   AUDIO_CP_READY_B		(1<<5)
+#define   AUDIO_CP_READY_C		(1<<9)
 
 /* HSW Power Wells */
 #define HSW_PWR_WELL_CTL1			0x45400 /* BIOS */

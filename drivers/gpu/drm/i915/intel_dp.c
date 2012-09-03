@@ -850,10 +850,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	 * supposed to be read-only.
 	 */
 	intel_dp->DP = I915_READ(intel_dp->output_reg) & DP_DETECTED;
-	intel_dp->DP |=  DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
 
 	/* Handle DP bits in common between all three register formats */
-
 	intel_dp->DP |= DP_VOLTAGE_0_4 | DP_PRE_EMPHASIS_0;
 
 	switch (intel_dp->lane_count) {

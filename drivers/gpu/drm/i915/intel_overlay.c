@@ -235,54 +235,6 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	return 0;
 }
 
-/* Workaround for i830 bug where pipe a must be enable to change control regs */
-static int
-i830_activate_pipe_a(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_crtc *crtc;
-	struct drm_crtc_helper_funcs *crtc_funcs;
-	struct drm_display_mode vesa_640x480 = {
-		DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
-			 752, 800, 0, 480, 489, 492, 525, 0,
-			 DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC)
-	}, *mode;
-
-	crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[0]);
-	if (crtc->dpms_mode == DRM_MODE_DPMS_ON)
-		return 0;
-
-	/* most i8xx have pipe a forced on, so don't trust dpms mode */
-	if (I915_READ(_PIPEACONF) & PIPECONF_ENABLE)
-		return 0;
-
-	crtc_funcs = crtc->base.helper_private;
-	if (crtc_funcs->dpms == NULL)
-		return 0;
-
-	DRM_DEBUG_DRIVER("Enabling pipe A in order to enable overlay\n");
-
-	mode = drm_mode_duplicate(dev, &vesa_640x480);
-
-	if (!drm_crtc_helper_set_mode(&crtc->base, mode,
-				       crtc->base.x, crtc->base.y,
-				       crtc->base.fb))
-		return 0;
-
-	crtc_funcs->dpms(&crtc->base, DRM_MODE_DPMS_ON);
-	return 1;
-}
-
-static void
-i830_deactivate_pipe_a(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[0];
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
-
-	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-}
-
 /* overlay needs to be disable in OCMD reg */
 static int intel_overlay_on(struct intel_overlay *overlay)
 {
@@ -290,17 +242,12 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	struct drm_i915_gem_request *request;
-	int pipe_a_quirk = 0;
 	int ret;
 
 	BUG_ON(overlay->active);
 	overlay->active = 1;
 
-	if (IS_I830(dev)) {
-		pipe_a_quirk = i830_activate_pipe_a(dev);
-		if (pipe_a_quirk < 0)
-			return pipe_a_quirk;
-	}
+	WARN_ON(IS_I830(dev) && !(dev_priv->quirks & QUIRK_PIPEA_FORCE));
 
 	request = kzalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL) {
@@ -322,9 +269,6 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 
 	ret = intel_overlay_do_wait_request(overlay, request, NULL);
 out:
-	if (pipe_a_quirk)
-		i830_deactivate_pipe_a(dev);
-
 	return ret;
 }
 
@@ -1439,7 +1383,7 @@ void intel_setup_overlay(struct drm_device *dev)
 		}
 		overlay->flip_addr = reg_bo->phys_obj->handle->busaddr;
 	} else {
-		ret = i915_gem_object_pin(reg_bo, PAGE_SIZE, true);
+		ret = i915_gem_object_pin(reg_bo, PAGE_SIZE, true, false);
 		if (ret) {
 			DRM_ERROR("failed to pin overlay register bo\n");
 			goto out_free_bo;

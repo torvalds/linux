@@ -115,9 +115,9 @@ static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
 	if (mode == DRM_MODE_DPMS_ON) {
 		I915_WRITE(dvo_reg, temp | DVO_ENABLE);
 		I915_READ(dvo_reg);
-		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, mode);
+		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 	} else {
-		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, mode);
+		intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, false);
 		I915_WRITE(dvo_reg, temp & ~DVO_ENABLE);
 		I915_READ(dvo_reg);
 	}
