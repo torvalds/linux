@@ -17,6 +17,20 @@
 	compatible = "st,spear1340";
 
 	ahb {
+
+		spics: spics@e0700000{
+			compatible = "st,spear-spics-gpio";
+			reg = <0xe0700000 0x1000>;
+			st-spics,peripcfg-reg = <0x42c>;
+			st-spics,sw-enable-bit = <21>;
+			st-spics,cs-value-bit = <20>;
+			st-spics,cs-enable-mask = <3>;
+			st-spics,cs-enable-shift = <18>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			status = "disabled";
+		};
+
 		ahci@b1000000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb1000000 0x10000>;
