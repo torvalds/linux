@@ -76,6 +76,9 @@ static int init_rk31_lcdc(struct rk_lcdc_device_driver *dev_drv)
 	LcdMskReg(lcdc_dev,SYS_CFG, m_LCDC_AXICLK_AUTO_ENABLE | m_W0_AXI_OUTSTANDING2 |
 		m_W1_AXI_OUTSTANDING2,v_LCDC_AXICLK_AUTO_ENABLE(1) | v_W0_AXI_OUTSTANDING2(1) |
 		v_W1_AXI_OUTSTANDING2(1));//eanble axi-clk auto gating for low power
+	 LcdWrReg(lcdc_dev,AXI_MS_ID,v_HWC_CHANNEL_ID(5) | v_WIN2_CHANNEL_ID(4) |
+	 	v_WIN1_YRGB_CHANNEL_ID(3) | v_WIN0_CBR_CHANNEL_ID(2) | 
+	 	v_WIN0_YRGB_CHANNEL_ID(1));
 	LcdMskReg(lcdc_dev, INT_STATUS,m_HOR_STARTMASK| m_FRM_STARTMASK | 
     	      m_SCANNING_MASK, v_HOR_STARTMASK(1) | v_FRM_STARTMASK(1) | 
     	      v_SCANNING_MASK(1));  //mask all interrupt in init
