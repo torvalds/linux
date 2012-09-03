@@ -319,11 +319,12 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 		.displacement	= displacement,
 		.ptr		= pair_hists,
 	};
+	bool color = !symbol_conf.field_sep;
 
 	if (size == 0 || size > sizeof(bf))
 		size = hpp.size = sizeof(bf);
 
-	ret = hist_entry__period_snprintf(&hpp, he, true);
+	ret = hist_entry__period_snprintf(&hpp, he, color);
 	hist_entry__sort_snprintf(he, bf + ret, size - ret, hists);
 
 	ret = fprintf(fp, "%s\n", bf);
