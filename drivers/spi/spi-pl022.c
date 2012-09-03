@@ -2053,8 +2053,7 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Allocate master with space for data */
-	master = spi_alloc_master(dev, sizeof(struct pl022) + sizeof(int) *
-				  num_cs);
+	master = spi_alloc_master(dev, sizeof(struct pl022));
 	if (master == NULL) {
 		dev_err(&adev->dev, "probe - cannot alloc SPI master\n");
 		status = -ENOMEM;
@@ -2066,8 +2065,8 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->master_info = platform_info;
 	pl022->adev = adev;
 	pl022->vendor = id->data;
-	/* Point chipselects to allocated memory beyond the main struct */
-	pl022->chipselects = (int *) pl022 + sizeof(struct pl022);
+	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
+					  GFP_KERNEL);
 
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
