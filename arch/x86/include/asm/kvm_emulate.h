@@ -213,8 +213,9 @@ typedef u32 __attribute__((vector_size(16))) sse128_t;
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
-	enum { OP_REG, OP_MEM, OP_IMM, OP_XMM, OP_MM, OP_NONE } type;
+	enum { OP_REG, OP_MEM, OP_MEM_STR, OP_IMM, OP_XMM, OP_MM, OP_NONE } type;
 	unsigned int bytes;
+	unsigned int count;
 	union {
 		unsigned long orig_val;
 		u64 orig_val64;
@@ -234,6 +235,7 @@ struct operand {
 		char valptr[sizeof(unsigned long) + 2];
 		sse128_t vec_val;
 		u64 mm_val;
+		void *data;
 	};
 };
 

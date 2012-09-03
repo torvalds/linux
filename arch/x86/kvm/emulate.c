@@ -1301,8 +1301,15 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 		rc->end = n * size;
 	}
 
-	memcpy(dest, rc->data + rc->pos, size);
-	rc->pos += size;
+	if (ctxt->rep_prefix && !(ctxt->eflags & EFLG_DF)) {
+		ctxt->dst.data = rc->data + rc->pos;
+		ctxt->dst.type = OP_MEM_STR;
+		ctxt->dst.count = (rc->end - rc->pos) / size;
+		rc->pos = rc->end;
+	} else {
+		memcpy(dest, rc->data + rc->pos, size);
+		rc->pos += size;
+	}
 	return 1;
 }
 
@@ -1543,6 +1550,14 @@ static int writeback(struct x86_emulate_ctxt *ctxt)
 					     ctxt->dst.addr.mem,
 					     &ctxt->dst.val,
 					     ctxt->dst.bytes);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+		break;
+	case OP_MEM_STR:
+		rc = segmented_write(ctxt,
+				ctxt->dst.addr.mem,
+				ctxt->dst.data,
+				ctxt->dst.bytes * ctxt->dst.count);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		break;
@@ -2793,7 +2808,7 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 static void string_addr_inc(struct x86_emulate_ctxt *ctxt, int reg,
 		struct operand *op)
 {
-	int df = (ctxt->eflags & EFLG_DF) ? -1 : 1;
+	int df = (ctxt->eflags & EFLG_DF) ? -op->count : op->count;
 
 	register_address_increment(ctxt, reg_rmw(ctxt, reg), df * op->bytes);
 	op->addr.mem.ea = register_address(ctxt, reg_read(ctxt, reg));
@@ -3733,7 +3748,7 @@ static const struct opcode opcode_table[256] = {
 	I(DstReg | SrcMem | ModRM | Src2Imm, em_imul_3op),
 	I(SrcImmByte | Mov | Stack, em_push),
 	I(DstReg | SrcMem | ModRM | Src2ImmByte, em_imul_3op),
-	I2bvIP(DstDI | SrcDX | Mov | String, em_in, ins, check_perm_in), /* insb, insw/insd */
+	I2bvIP(DstDI | SrcDX | Mov | String | Unaligned, em_in, ins, check_perm_in), /* insb, insw/insd */
 	I2bvIP(SrcSI | DstDX | String, em_out, outs, check_perm_out), /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
 	X16(D(SrcImmByte)),
@@ -3991,6 +4006,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 			register_address(ctxt, reg_read(ctxt, VCPU_REGS_RDI));
 		op->addr.mem.seg = VCPU_SREG_ES;
 		op->val = 0;
+		op->count = 1;
 		break;
 	case OpDX:
 		op->type = OP_REG;
@@ -4034,6 +4050,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 			register_address(ctxt, reg_read(ctxt, VCPU_REGS_RSI));
 		op->addr.mem.seg = seg_override(ctxt);
 		op->val = 0;
+		op->count = 1;
 		break;
 	case OpImmFAddr:
 		op->type = OP_IMM;
@@ -4575,8 +4592,14 @@ writeback:
 		string_addr_inc(ctxt, VCPU_REGS_RDI, &ctxt->dst);
 
 	if (ctxt->rep_prefix && (ctxt->d & String)) {
+		unsigned int count;
 		struct read_cache *r = &ctxt->io_read;
-		register_address_increment(ctxt, reg_rmw(ctxt, VCPU_REGS_RCX), -1);
+		if ((ctxt->d & SrcMask) == SrcSI)
+			count = ctxt->src.count;
+		else
+			count = ctxt->dst.count;
+		register_address_increment(ctxt, reg_rmw(ctxt, VCPU_REGS_RCX),
+				-count);
 
 		if (!string_insn_completed(ctxt)) {
 			/*
