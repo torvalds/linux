@@ -61,7 +61,8 @@ static void ima_rdwr_violation_check(struct file *file)
 	fmode_t mode = file->f_mode;
 	int must_measure;
 	bool send_tomtou = false, send_writers = false;
-	unsigned char *pathname = NULL, *pathbuf = NULL;
+	char *pathbuf = NULL;
+	const char *pathname;
 
 	if (!S_ISREG(inode->i_mode) || !ima_initialized)
 		return;
@@ -86,22 +87,15 @@ out:
 	if (!send_tomtou && !send_writers)
 		return;
 
-	/* We will allow 11 spaces for ' (deleted)' to be appended */
-	pathbuf = kmalloc(PATH_MAX + 11, GFP_KERNEL);
-	if (pathbuf) {
-		pathname = d_path(&file->f_path, pathbuf, PATH_MAX + 11);
-		if (IS_ERR(pathname))
-			pathname = NULL;
-		else if (strlen(pathname) > IMA_EVENT_NAME_LEN_MAX)
-			pathname = NULL;
-	}
+	pathname = ima_d_path(&file->f_path, &pathbuf);
+	if (!pathname || strlen(pathname) > IMA_EVENT_NAME_LEN_MAX)
+		pathname = dentry->d_name.name;
+
 	if (send_tomtou)
-		ima_add_violation(inode,
-				  !pathname ? dentry->d_name.name : pathname,
+		ima_add_violation(inode, pathname,
 				  "invalid_pcr", "ToMToU");
 	if (send_writers)
-		ima_add_violation(inode,
-				  !pathname ? dentry->d_name.name : pathname,
+		ima_add_violation(inode, pathname,
 				  "invalid_pcr", "open_writers");
 	kfree(pathbuf);
 }
@@ -145,12 +139,13 @@ void ima_file_free(struct file *file)
 	ima_check_last_writer(iint, inode, file);
 }
 
-static int process_measurement(struct file *file, const unsigned char *filename,
+static int process_measurement(struct file *file, const char *filename,
 			       int mask, int function)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct integrity_iint_cache *iint;
-	unsigned char *pathname = NULL, *pathbuf = NULL;
+	char *pathbuf = NULL;
+	const char *pathname = NULL;
 	int rc = -ENOMEM, action, must_appraise;
 
 	if (!ima_initialized || !S_ISREG(inode->i_mode))
@@ -187,24 +182,18 @@ static int process_measurement(struct file *file, const unsigned char *filename,
 	if (rc != 0)
 		goto out;
 
-	if (function != BPRM_CHECK) {
-		/* We will allow 11 spaces for ' (deleted)' to be appended */
-		pathbuf = kmalloc(PATH_MAX + 11, GFP_KERNEL);
-		if (pathbuf) {
-			pathname =
-			    d_path(&file->f_path, pathbuf, PATH_MAX + 11);
-			if (IS_ERR(pathname))
-				pathname = NULL;
-		}
-	}
+	if (function != BPRM_CHECK)
+		pathname = ima_d_path(&file->f_path, &pathbuf);
+
+	if (!pathname)
+		pathname = filename;
+
 	if (action & IMA_MEASURE)
-		ima_store_measurement(iint, file,
-				      !pathname ? filename : pathname);
+		ima_store_measurement(iint, file, pathname);
 	if (action & IMA_APPRAISE)
-		rc = ima_appraise_measurement(iint, file,
-					      !pathname ? filename : pathname);
+		rc = ima_appraise_measurement(iint, file, pathname);
 	if (action & IMA_AUDIT)
-		ima_audit_measurement(iint, !pathname ? filename : pathname);
+		ima_audit_measurement(iint, pathname);
 	kfree(pathbuf);
 out:
 	mutex_unlock(&inode->i_mutex);
