@@ -157,7 +157,7 @@ static int enable_single_step(struct task_struct *child)
 	return 1;
 }
 
-static void set_task_blockstep(struct task_struct *task, bool on)
+void set_task_blockstep(struct task_struct *task, bool on)
 {
 	unsigned long debugctl;
 

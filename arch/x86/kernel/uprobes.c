@@ -683,26 +683,30 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 void arch_uprobe_enable_step(struct arch_uprobe *auprobe)
 {
-	struct uprobe_task	*utask		= current->utask;
-	struct arch_uprobe_task	*autask		= &utask->autask;
+	struct task_struct *task = current;
+	struct arch_uprobe_task	*autask	= &task->utask->autask;
+	struct pt_regs *regs = task_pt_regs(task);
 
 	autask->restore_flags = 0;
-	if (!test_tsk_thread_flag(current, TIF_SINGLESTEP) &&
-			!(auprobe->fixups & UPROBE_FIX_SETF))
+	if (!(regs->flags & X86_EFLAGS_TF) &&
+	    !(auprobe->fixups & UPROBE_FIX_SETF))
 		autask->restore_flags |= UPROBE_CLEAR_TF;
-	/*
-	 * The state of TIF_BLOCKSTEP is not saved. With the TF flag set we
-	 * would to examine the opcode and the flags to make it right. Without
-	 * TF block stepping makes no sense.
-	 */
-	user_enable_single_step(current);
+
+	regs->flags |= X86_EFLAGS_TF;
+	if (test_tsk_thread_flag(task, TIF_BLOCKSTEP))
+		set_task_blockstep(task, false);
 }
 
 void arch_uprobe_disable_step(struct arch_uprobe *auprobe)
 {
-	struct uprobe_task *utask		= current->utask;
-	struct arch_uprobe_task	*autask		= &utask->autask;
-
+	struct task_struct *task = current;
+	struct arch_uprobe_task	*autask	= &task->utask->autask;
+	struct pt_regs *regs = task_pt_regs(task);
+	/*
+	 * The state of TIF_BLOCKSTEP was not saved so we can get an extra
+	 * SIGTRAP if we do not clear TF. We need to examine the opcode to
+	 * make it right.
+	 */
 	if (autask->restore_flags & UPROBE_CLEAR_TF)
-		user_disable_single_step(current);
+		regs->flags &= ~X86_EFLAGS_TF;
 }
