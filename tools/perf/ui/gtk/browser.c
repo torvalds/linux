@@ -36,6 +36,57 @@ static void perf_gtk__resize_window(GtkWidget *window)
 	gtk_window_resize(GTK_WINDOW(window), width, height);
 }
 
+static const char *perf_gtk__get_percent_color(double percent)
+{
+	if (percent >= MIN_RED)
+		return "<span fgcolor='red'>";
+	if (percent >= MIN_GREEN)
+		return "<span fgcolor='dark green'>";
+	return NULL;
+}
+
+#define HPP__COLOR_FN(_name, _field)						\
+static int perf_gtk__hpp_color_ ## _name(struct perf_hpp *hpp,			\
+					 struct hist_entry *he)			\
+{										\
+	double percent = 100.0 * he->_field / hpp->total_period;		\
+	const char *markup;							\
+	int ret = 0;								\
+										\
+	markup = perf_gtk__get_percent_color(percent);				\
+	if (markup)								\
+		ret += scnprintf(hpp->buf, hpp->size, "%s", markup);		\
+	ret += scnprintf(hpp->buf + ret, hpp->size - ret, "%5.2f%%", percent); 	\
+	if (markup)								\
+		ret += scnprintf(hpp->buf + ret, hpp->size - ret, "</span>"); 	\
+										\
+	return ret;								\
+}
+
+HPP__COLOR_FN(overhead, period)
+HPP__COLOR_FN(overhead_sys, period_sys)
+HPP__COLOR_FN(overhead_us, period_us)
+HPP__COLOR_FN(overhead_guest_sys, period_guest_sys)
+HPP__COLOR_FN(overhead_guest_us, period_guest_us)
+
+#undef HPP__COLOR_FN
+
+void perf_gtk__init_hpp(void)
+{
+	perf_hpp__init(false, false);
+
+	perf_hpp__format[PERF_HPP__OVERHEAD].color =
+				perf_gtk__hpp_color_overhead;
+	perf_hpp__format[PERF_HPP__OVERHEAD_SYS].color =
+				perf_gtk__hpp_color_overhead_sys;
+	perf_hpp__format[PERF_HPP__OVERHEAD_US].color =
+				perf_gtk__hpp_color_overhead_us;
+	perf_hpp__format[PERF_HPP__OVERHEAD_GUEST_SYS].color =
+				perf_gtk__hpp_color_overhead_guest_sys;
+	perf_hpp__format[PERF_HPP__OVERHEAD_GUEST_US].color =
+				perf_gtk__hpp_color_overhead_guest_us;
+}
+
 static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 {
 	GType col_types[MAX_COLUMNS];
@@ -43,15 +94,25 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 	struct sort_entry *se;
 	GtkListStore *store;
 	struct rb_node *nd;
-	u64 total_period;
 	GtkWidget *view;
-	int col_idx;
+	int i, col_idx;
 	int nr_cols;
+	char s[512];
+
+	struct perf_hpp hpp = {
+		.buf		= s,
+		.size		= sizeof(s),
+		.total_period	= hists->stats.total_period,
+	};
 
 	nr_cols = 0;
 
-	/* The percentage column */
-	col_types[nr_cols++] = G_TYPE_STRING;
+	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
+		if (!perf_hpp__format[i].cond)
+			continue;
+
+		col_types[nr_cols++] = G_TYPE_STRING;
+	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
@@ -68,11 +129,17 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 
 	col_idx = 0;
 
-	/* The percentage column */
-	gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
-						    -1, "Overhead (%)",
-						    renderer, "text",
-						    col_idx++, NULL);
+	for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
+		if (!perf_hpp__format[i].cond)
+			continue;
+
+		perf_hpp__format[i].header(&hpp);
+
+		gtk_tree_view_insert_column_with_attributes(GTK_TREE_VIEW(view),
+							    -1, s,
+							    renderer, "markup",
+							    col_idx++, NULL);
+	}
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
@@ -88,13 +155,9 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 
 	g_object_unref(GTK_TREE_MODEL(store));
 
-	total_period = hists->stats.total_period;
-
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		GtkTreeIter iter;
-		double percent;
-		char s[512];
 
 		if (h->filtered)
 			continue;
@@ -103,11 +166,17 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists)
 
 		col_idx = 0;
 
-		percent = (h->period * 100.0) / total_period;
+		for (i = 0; i < PERF_HPP__MAX_INDEX; i++) {
+			if (!perf_hpp__format[i].cond)
+				continue;
 
-		snprintf(s, ARRAY_SIZE(s), "%.2f", percent);
+			if (perf_hpp__format[i].color)
+				perf_hpp__format[i].color(&hpp, h);
+			else
+				perf_hpp__format[i].entry(&hpp, h);
 
-		gtk_list_store_set(store, &iter, col_idx++, s, -1);
+			gtk_list_store_set(store, &iter, col_idx++, s, -1);
+		}
 
 		list_for_each_entry(se, &hist_entry__sort_list, list) {
 			if (se->elide)
