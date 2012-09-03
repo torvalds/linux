@@ -220,7 +220,8 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5d %5lu ", ep, sk,
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   epb->bind_addr.port,
-			   sock_i_uid(sk), sock_i_ino(sk));
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
+			   sock_i_ino(sk));
 
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "\n");
@@ -332,7 +333,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 			   assoc->assoc_id,
 			   assoc->sndbuf_used,
 			   atomic_read(&assoc->rmem_alloc),
-			   sock_i_uid(sk), sock_i_ino(sk),
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
+			   sock_i_ino(sk),
 			   epb->bind_addr.port,
 			   assoc->peer.port);
 		seq_printf(seq, " ");

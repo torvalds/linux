@@ -13,6 +13,7 @@ struct file;
 struct path;
 struct inode;
 struct dentry;
+struct user_namespace;
 
 struct seq_file {
 	char *buf;
@@ -25,6 +26,9 @@ struct seq_file {
 	struct mutex lock;
 	const struct seq_operations *op;
 	int poll_event;
+#ifdef CONFIG_USER_NS
+	struct user_namespace *user_ns;
+#endif
 	void *private;
 };
 
@@ -127,6 +131,16 @@ int seq_put_decimal_ull(struct seq_file *m, char delimiter,
 			unsigned long long num);
 int seq_put_decimal_ll(struct seq_file *m, char delimiter,
 			long long num);
+
+static inline struct user_namespace *seq_user_ns(struct seq_file *seq)
+{
+#ifdef CONFIG_USER_NS
+	return seq->user_ns;
+#else
+	extern struct user_namespace init_user_ns;
+	return &init_user_ns;
+#endif
+}
 
 #define SEQ_START_TOKEN ((void *)1)
 /*

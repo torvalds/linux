@@ -55,6 +55,7 @@ struct nfulnl_instance {
 	unsigned int qlen;		/* number of nlmsgs in skb */
 	struct sk_buff *skb;		/* pre-allocatd skb */
 	struct timer_list timer;
+	struct user_namespace *peer_user_ns;	/* User namespace of the peer process */
 	int peer_pid;			/* PID of the peer process */
 
 	/* configurable parameters */
@@ -132,7 +133,7 @@ instance_put(struct nfulnl_instance *inst)
 static void nfulnl_timer(unsigned long data);
 
 static struct nfulnl_instance *
-instance_create(u_int16_t group_num, int pid)
+instance_create(u_int16_t group_num, int pid, struct user_namespace *user_ns)
 {
 	struct nfulnl_instance *inst;
 	int err;
@@ -162,6 +163,7 @@ instance_create(u_int16_t group_num, int pid)
 
 	setup_timer(&inst->timer, nfulnl_timer, (unsigned long)inst);
 
+	inst->peer_user_ns = user_ns;
 	inst->peer_pid = pid;
 	inst->group_num = group_num;
 
@@ -480,7 +482,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 
 	if (indev && skb_mac_header_was_set(skb)) {
-		if (nla_put_be32(inst->skb, NFULA_HWTYPE, htons(skb->dev->type)) ||
+		if (nla_put_be16(inst->skb, NFULA_HWTYPE, htons(skb->dev->type)) ||
 		    nla_put_be16(inst->skb, NFULA_HWLEN,
 				 htons(skb->dev->hard_header_len)) ||
 		    nla_put(inst->skb, NFULA_HWHEADER, skb->dev->hard_header_len,
@@ -503,8 +505,11 @@ __build_packet_message(struct nfulnl_instance *inst,
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
 			struct file *file = skb->sk->sk_socket->file;
-			__be32 uid = htonl(file->f_cred->fsuid);
-			__be32 gid = htonl(file->f_cred->fsgid);
+			__be32 uid = htonl(from_kuid_munged(inst->peer_user_ns,
+							    file->f_cred->fsuid));
+			__be32 gid = htonl(from_kgid_munged(inst->peer_user_ns,
+							    file->f_cred->fsgid));
+			/* need to unlock here since NLA_PUT may goto */
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 			if (nla_put_be32(inst->skb, NFULA_UID, uid) ||
 			    nla_put_be32(inst->skb, NFULA_GID, gid))
@@ -783,7 +788,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			}
 
 			inst = instance_create(group_num,
-					       NETLINK_CB(skb).pid);
+					       NETLINK_CB(skb).pid,
+					       sk_user_ns(NETLINK_CB(skb).ssk));
 			if (IS_ERR(inst)) {
 				ret = PTR_ERR(inst);
 				goto out;
@@ -996,8 +1002,10 @@ static int __init nfnetlink_log_init(void)
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_create("nfnetlink_log", 0440,
-			 proc_net_netfilter, &nful_file_ops))
+			 proc_net_netfilter, &nful_file_ops)) {
+		status = -ENOMEM;
 		goto cleanup_logger;
+	}
 #endif
 	return status;
 

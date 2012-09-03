@@ -168,24 +168,16 @@ static void poll_napi(struct net_device *dev)
 	struct napi_struct *napi;
 	int budget = 16;
 
-	WARN_ON_ONCE(!irqs_disabled());
-
 	list_for_each_entry(napi, &dev->napi_list, dev_list) {
-		local_irq_enable();
 		if (napi->poll_owner != smp_processor_id() &&
 		    spin_trylock(&napi->poll_lock)) {
-			rcu_read_lock_bh();
 			budget = poll_one_napi(rcu_dereference_bh(dev->npinfo),
 					       napi, budget);
-			rcu_read_unlock_bh();
 			spin_unlock(&napi->poll_lock);
 
-			if (!budget) {
-				local_irq_disable();
+			if (!budget)
 				break;
-			}
 		}
-		local_irq_disable();
 	}
 }
 
@@ -388,6 +380,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	struct udphdr *udph;
 	struct iphdr *iph;
 	struct ethhdr *eth;
+	static atomic_t ip_ident;
 
 	udp_len = len + sizeof(*udph);
 	ip_len = udp_len + sizeof(*iph);
@@ -423,7 +416,7 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	put_unaligned(0x45, (unsigned char *)iph);
 	iph->tos      = 0;
 	put_unaligned(htons(ip_len), &(iph->tot_len));
-	iph->id       = 0;
+	iph->id       = htons(atomic_inc_return(&ip_ident));
 	iph->frag_off = 0;
 	iph->ttl      = 64;
 	iph->protocol = IPPROTO_UDP;

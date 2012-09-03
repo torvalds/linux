@@ -110,6 +110,7 @@ static inline char *nic_name(struct pci_dev *pdev)
 #define MAX_RX_POST		BE_NAPI_WEIGHT /* Frags posted at a time */
 #define RX_FRAGS_REFILL_WM	(RX_Q_LEN - MAX_RX_POST)
 
+#define MAX_VFS			30 /* Max VFs supported by BE3 FW */
 #define FW_VER_LEN		32
 
 struct be_dma_mem {

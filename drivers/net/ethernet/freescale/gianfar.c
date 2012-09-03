@@ -100,7 +100,6 @@
 #include <linux/of_net.h>
 
 #include "gianfar.h"
-#include "fsl_pq_mdio.h"
 
 #define TX_TIMEOUT      (1*HZ)
 
@@ -1041,7 +1040,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_VLAN) {
 		dev->hw_features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		dev->features |= NETIF_F_HW_VLAN_RX;
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {

@@ -3409,7 +3409,7 @@ set_speed:
 
 	pause_flags = 0;
 	/* setup pause frame */
-	if (np->duplex != 0) {
+	if (netif_running(dev) && (np->duplex != 0)) {
 		if (np->autoneg && np->pause_flags & NV_PAUSEFRAME_AUTONEG) {
 			adv_pause = adv & (ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
 			lpa_pause = lpa & (LPA_PAUSE_CAP | LPA_PAUSE_ASYM);
@@ -4435,7 +4435,7 @@ static void nv_get_regs(struct net_device *dev, struct ethtool_regs *regs, void 
 
 	regs->version = FORCEDETH_REGS_VER;
 	spin_lock_irq(&np->lock);
-	for (i = 0; i <= np->register_size/sizeof(u32); i++)
+	for (i = 0; i < np->register_size/sizeof(u32); i++)
 		rbuf[i] = readl(base + i*sizeof(u32));
 	spin_unlock_irq(&np->lock);
 }
@@ -5455,6 +5455,7 @@ static int nv_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	spin_lock_irq(&np->lock);
+	nv_update_pause(dev, 0); /* otherwise stop_tx bricks NIC */
 	nv_stop_rxtx(dev);
 	nv_txrx_reset(dev);
 
@@ -5904,10 +5905,18 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		goto out_error;
 	}
 
+	netif_carrier_off(dev);
+
+	/* Some NICs freeze when TX pause is enabled while NIC is
+	 * down, and this stays across warm reboots. The sequence
+	 * below should be enough to recover from that state.
+	 */
+	nv_update_pause(dev, 0);
+	nv_start_tx(dev);
+	nv_stop_tx(dev);
+
 	if (id->driver_data & DEV_HAS_VLAN)
 		nv_vlan_mode(dev, dev->features);
-
-	netif_carrier_off(dev);
 
 	dev_info(&pci_dev->dev, "ifname %s, PHY OUI 0x%x @ %d, addr %pM\n",
 		 dev->name, np->phy_oui, np->phyaddr, dev->dev_addr);

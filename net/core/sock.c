@@ -868,8 +868,8 @@ void cred_to_ucred(struct pid *pid, const struct cred *cred,
 	if (cred) {
 		struct user_namespace *current_ns = current_user_ns();
 
-		ucred->uid = from_kuid(current_ns, cred->euid);
-		ucred->gid = from_kgid(current_ns, cred->egid);
+		ucred->uid = from_kuid_munged(current_ns, cred->euid);
+		ucred->gid = from_kgid_munged(current_ns, cred->egid);
 	}
 }
 EXPORT_SYMBOL_GPL(cred_to_ucred);
@@ -1230,7 +1230,7 @@ void sock_update_classid(struct sock *sk)
 	rcu_read_lock();  /* doing current task, which cannot vanish. */
 	classid = task_cls_classid(current);
 	rcu_read_unlock();
-	if (classid && classid != sk->sk_classid)
+	if (classid != sk->sk_classid)
 		sk->sk_classid = classid;
 }
 EXPORT_SYMBOL(sock_update_classid);
@@ -1527,12 +1527,12 @@ void sock_edemux(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_edemux);
 
-int sock_i_uid(struct sock *sk)
+kuid_t sock_i_uid(struct sock *sk)
 {
-	int uid;
+	kuid_t uid;
 
 	read_lock_bh(&sk->sk_callback_lock);
-	uid = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid : 0;
+	uid = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid : GLOBAL_ROOT_UID;
 	read_unlock_bh(&sk->sk_callback_lock);
 	return uid;
 }

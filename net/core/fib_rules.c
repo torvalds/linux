@@ -711,16 +711,15 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 	struct net *net = dev_net(dev);
 	struct fib_rules_ops *ops;
 
+	ASSERT_RTNL();
 
 	switch (event) {
 	case NETDEV_REGISTER:
-		ASSERT_RTNL();
 		list_for_each_entry(ops, &net->rules_ops, list)
 			attach_rules(&ops->rules_list, dev);
 		break;
 
 	case NETDEV_UNREGISTER:
-		ASSERT_RTNL();
 		list_for_each_entry(ops, &net->rules_ops, list)
 			detach_rules(&ops->rules_list, dev);
 		break;

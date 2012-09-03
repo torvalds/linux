@@ -363,10 +363,12 @@ static void dump_ipv4_packet(struct sbuff *m,
 	/* Max length: 15 "UID=4294967295 " */
 	if ((logflags & XT_LOG_UID) && !iphoff && skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
-		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
+		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
+			const struct cred *cred = skb->sk->sk_socket->file->f_cred;
 			sb_add(m, "UID=%u GID=%u ",
-				skb->sk->sk_socket->file->f_cred->fsuid,
-				skb->sk->sk_socket->file->f_cred->fsgid);
+				from_kuid_munged(&init_user_ns, cred->fsuid),
+				from_kgid_munged(&init_user_ns, cred->fsgid));
+		}
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 
@@ -719,10 +721,12 @@ static void dump_ipv6_packet(struct sbuff *m,
 	/* Max length: 15 "UID=4294967295 " */
 	if ((logflags & XT_LOG_UID) && recurse && skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
-		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
+		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
+			const struct cred *cred = skb->sk->sk_socket->file->f_cred;
 			sb_add(m, "UID=%u GID=%u ",
-				skb->sk->sk_socket->file->f_cred->fsuid,
-				skb->sk->sk_socket->file->f_cred->fsgid);
+				from_kuid_munged(&init_user_ns, cred->fsuid),
+				from_kgid_munged(&init_user_ns, cred->fsgid));
+		}
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 

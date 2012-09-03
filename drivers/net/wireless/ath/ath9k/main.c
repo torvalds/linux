@@ -696,7 +696,9 @@ mutex_unlock:
 	return r;
 }
 
-static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void ath9k_tx(struct ieee80211_hw *hw,
+		     struct ieee80211_tx_control *control,
+		     struct sk_buff *skb)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -756,6 +758,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
 	txctl.txq = sc->tx.txq_map[skb_get_queue_mapping(skb)];
+	txctl.sta = control->sta;
 
 	ath_dbg(common, XMIT, "transmitting packet, skb: %p\n", skb);
 

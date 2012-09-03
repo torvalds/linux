@@ -515,6 +515,26 @@ struct bcma_pflash {
 	u32 window_size;
 };
 
+#ifdef CONFIG_BCMA_SFLASH
+struct bcma_sflash {
+	bool present;
+	u32 window;
+	u32 blocksize;
+	u16 numblocks;
+	u32 size;
+};
+#endif
+
+#ifdef CONFIG_BCMA_NFLASH
+struct mtd_info;
+
+struct bcma_nflash {
+	bool present;
+
+	struct mtd_info *mtd;
+};
+#endif
+
 struct bcma_serial_port {
 	void *regs;
 	unsigned long clockspeed;
@@ -535,6 +555,12 @@ struct bcma_drv_cc {
 	struct bcma_chipcommon_pmu pmu;
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 	struct bcma_pflash pflash;
+#ifdef CONFIG_BCMA_SFLASH
+	struct bcma_sflash sflash;
+#endif
+#ifdef CONFIG_BCMA_NFLASH
+	struct bcma_nflash nflash;
+#endif
 
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];

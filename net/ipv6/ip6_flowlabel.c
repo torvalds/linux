@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/pid_namespace.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -91,6 +92,8 @@ static struct ip6_flowlabel *fl_lookup(struct net *net, __be32 label)
 static void fl_free(struct ip6_flowlabel *fl)
 {
 	if (fl) {
+		if (fl->share == IPV6_FL_S_PROCESS)
+			put_pid(fl->owner.pid);
 		release_net(fl->fl_net);
 		kfree(fl->opt);
 	}
@@ -394,10 +397,10 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 	case IPV6_FL_S_ANY:
 		break;
 	case IPV6_FL_S_PROCESS:
-		fl->owner = current->pid;
+		fl->owner.pid = get_task_pid(current, PIDTYPE_PID);
 		break;
 	case IPV6_FL_S_USER:
-		fl->owner = current_euid();
+		fl->owner.uid = current_euid();
 		break;
 	default:
 		err = -EINVAL;
@@ -561,7 +564,10 @@ recheck:
 				err = -EPERM;
 				if (fl1->share == IPV6_FL_S_EXCL ||
 				    fl1->share != fl->share ||
-				    fl1->owner != fl->owner)
+				    ((fl1->share == IPV6_FL_S_PROCESS) &&
+				     (fl1->owner.pid == fl->owner.pid)) ||
+				    ((fl1->share == IPV6_FL_S_USER) &&
+				     uid_eq(fl1->owner.uid, fl->owner.uid)))
 					goto release;
 
 				err = -EINVAL;
@@ -621,6 +627,7 @@ done:
 
 struct ip6fl_iter_state {
 	struct seq_net_private p;
+	struct pid_namespace *pid_ns;
 	int bucket;
 };
 
@@ -699,6 +706,7 @@ static void ip6fl_seq_stop(struct seq_file *seq, void *v)
 
 static int ip6fl_seq_show(struct seq_file *seq, void *v)
 {
+	struct ip6fl_iter_state *state = ip6fl_seq_private(seq);
 	if (v == SEQ_START_TOKEN)
 		seq_printf(seq, "%-5s %-1s %-6s %-6s %-6s %-8s %-32s %s\n",
 			   "Label", "S", "Owner", "Users", "Linger", "Expires", "Dst", "Opt");
@@ -708,7 +716,11 @@ static int ip6fl_seq_show(struct seq_file *seq, void *v)
 			   "%05X %-1d %-6d %-6d %-6ld %-8ld %pi6 %-4d\n",
 			   (unsigned int)ntohl(fl->label),
 			   fl->share,
-			   (int)fl->owner,
+			   ((fl->share == IPV6_FL_S_PROCESS) ?
+			    pid_nr_ns(fl->owner.pid, state->pid_ns) :
+			    ((fl->share == IPV6_FL_S_USER) ?
+			     from_kuid_munged(seq_user_ns(seq), fl->owner.uid) :
+			     0)),
 			   atomic_read(&fl->users),
 			   fl->linger/HZ,
 			   (long)(fl->expires - jiffies)/HZ,
@@ -727,8 +739,29 @@ static const struct seq_operations ip6fl_seq_ops = {
 
 static int ip6fl_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_net(inode, file, &ip6fl_seq_ops,
-			    sizeof(struct ip6fl_iter_state));
+	struct seq_file *seq;
+	struct ip6fl_iter_state *state;
+	int err;
+
+	err = seq_open_net(inode, file, &ip6fl_seq_ops,
+			   sizeof(struct ip6fl_iter_state));
+
+	if (!err) {
+		seq = file->private_data;
+		state = ip6fl_seq_private(seq);
+		rcu_read_lock();
+		state->pid_ns = get_pid_ns(task_active_pid_ns(current));
+		rcu_read_unlock();
+	}
+	return err;
+}
+
+static int ip6fl_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct ip6fl_iter_state *state = ip6fl_seq_private(seq);
+	put_pid_ns(state->pid_ns);
+	return seq_release_net(inode, file);
 }
 
 static const struct file_operations ip6fl_seq_fops = {
@@ -736,7 +769,7 @@ static const struct file_operations ip6fl_seq_fops = {
 	.open		=	ip6fl_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,
-	.release	=	seq_release_net,
+	.release	=	ip6fl_seq_release,
 };
 
 static int __net_init ip6_flowlabel_proc_init(struct net *net)

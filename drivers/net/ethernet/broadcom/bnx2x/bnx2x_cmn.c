@@ -2046,6 +2046,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	 */
 	bnx2x_setup_tc(bp->dev, bp->max_cos);
 
+	/* Add all NAPI objects */
+	bnx2x_add_all_napi(bp);
 	bnx2x_napi_enable(bp);
 
 	/* set pf load just before approaching the MCP */
@@ -2408,6 +2410,8 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 		/* Disable HW interrupts, NAPI */
 		bnx2x_netif_stop(bp, 1);
+		/* Delete all NAPI objects */
+		bnx2x_del_all_napi(bp);
 
 		/* Release IRQs */
 		bnx2x_free_irq(bp);

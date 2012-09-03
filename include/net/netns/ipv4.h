@@ -5,6 +5,7 @@
 #ifndef __NETNS_IPV4_H__
 #define __NETNS_IPV4_H__
 
+#include <linux/uidgid.h>
 #include <net/inet_frag.h>
 
 struct tcpm_hash_bucket;
@@ -60,7 +61,7 @@ struct netns_ipv4 {
 	int sysctl_icmp_ratemask;
 	int sysctl_icmp_errors_use_inbound_ifaddr;
 
-	unsigned int sysctl_ping_group_range[2];
+	kgid_t sysctl_ping_group_range[2];
 	long sysctl_tcp_mem[3];
 
 	atomic_t rt_genid;

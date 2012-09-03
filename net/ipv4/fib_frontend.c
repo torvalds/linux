@@ -1050,9 +1050,6 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		return NOTIFY_DONE;
 	}
 
-	if (event == NETDEV_UNREGISTER_FINAL)
-		return NOTIFY_DONE;
-
 	in_dev = __in_dev_get_rtnl(dev);
 
 	switch (event) {
@@ -1064,14 +1061,14 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		fib_sync_up(dev);
 #endif
 		atomic_inc(&net->ipv4.dev_addr_genid);
-		rt_cache_flush(dev_net(dev), -1);
+		rt_cache_flush(net, -1);
 		break;
 	case NETDEV_DOWN:
 		fib_disable_ip(dev, 0, 0);
 		break;
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
-		rt_cache_flush(dev_net(dev), 0);
+		rt_cache_flush(net, 0);
 		break;
 	}
 	return NOTIFY_DONE;

@@ -952,17 +952,7 @@ static struct spi_driver at86rf230_driver = {
 	.resume     = at86rf230_resume,
 };
 
-static int __init at86rf230_init(void)
-{
-	return spi_register_driver(&at86rf230_driver);
-}
-module_init(at86rf230_init);
-
-static void __exit at86rf230_exit(void)
-{
-	spi_unregister_driver(&at86rf230_driver);
-}
-module_exit(at86rf230_exit);
+module_spi_driver(at86rf230_driver);
 
 MODULE_DESCRIPTION("AT86RF230 Transceiver Driver");
 MODULE_LICENSE("GPL v2");

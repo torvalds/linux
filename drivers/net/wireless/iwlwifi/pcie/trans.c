@@ -492,10 +492,11 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 	iwl_tx_queue_unmap(trans, txq_id);
 
 	/* De-alloc array of command/tx buffers */
-
 	if (txq_id == trans_pcie->cmd_queue)
-		for (i = 0; i < txq->q.n_window; i++)
+		for (i = 0; i < txq->q.n_window; i++) {
 			kfree(txq->entries[i].cmd);
+			kfree(txq->entries[i].copy_cmd);
+		}
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd) {
@@ -896,6 +897,7 @@ static int iwl_set_hw_ready(struct iwl_trans *trans)
 static int iwl_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
+	int t = 0;
 
 	IWL_DEBUG_INFO(trans, "iwl_trans_prepare_card_hw enter\n");
 
@@ -908,17 +910,15 @@ static int iwl_prepare_card_hw(struct iwl_trans *trans)
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_PREPARE);
 
-	ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-			   ~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
-			   CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
+	do {
+		ret = iwl_set_hw_ready(trans);
+		if (ret >= 0)
+			return 0;
 
-	if (ret < 0)
-		return ret;
+		usleep_range(200, 1000);
+		t += 200;
+	} while (t < 150000);
 
-	/* HW should be ready by now, check again. */
-	ret = iwl_set_hw_ready(trans);
-	if (ret >= 0)
-		return 0;
 	return ret;
 }
 
@@ -1649,13 +1649,9 @@ static const char *get_fh_string(int cmd)
 #undef IWL_CMD
 }
 
-int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display)
+int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 {
 	int i;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	int pos = 0;
-	size_t bufsz = 0;
-#endif
 	static const u32 fh_tbl[] = {
 		FH_RSCSR_CHNL0_STTS_WPTR_REG,
 		FH_RSCSR_CHNL0_RBDCB_BASE_REG,
@@ -1667,29 +1663,35 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display)
 		FH_TSSR_TX_STATUS_REG,
 		FH_TSSR_TX_ERROR_REG
 	};
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (display) {
-		bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	if (buf) {
+		int pos = 0;
+		size_t bufsz = ARRAY_SIZE(fh_tbl) * 48 + 40;
+
 		*buf = kmalloc(bufsz, GFP_KERNEL);
 		if (!*buf)
 			return -ENOMEM;
+
 		pos += scnprintf(*buf + pos, bufsz - pos,
 				"FH register values:\n");
-		for (i = 0; i < ARRAY_SIZE(fh_tbl); i++) {
+
+		for (i = 0; i < ARRAY_SIZE(fh_tbl); i++)
 			pos += scnprintf(*buf + pos, bufsz - pos,
 				"  %34s: 0X%08x\n",
 				get_fh_string(fh_tbl[i]),
 				iwl_read_direct32(trans, fh_tbl[i]));
-		}
+
 		return pos;
 	}
 #endif
+
 	IWL_ERR(trans, "FH register values:\n");
-	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++) {
+	for (i = 0; i <  ARRAY_SIZE(fh_tbl); i++)
 		IWL_ERR(trans, "  %34s: 0X%08x\n",
 			get_fh_string(fh_tbl[i]),
 			iwl_read_direct32(trans, fh_tbl[i]));
-	}
+
 	return 0;
 }
 
@@ -1769,7 +1771,7 @@ void iwl_dump_csr(struct iwl_trans *trans)
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
 	if (!debugfs_create_file(#name, mode, parent, trans,		\
 				 &iwl_dbgfs_##name##_ops))		\
-		return -ENOMEM;						\
+		goto err;						\
 } while (0)
 
 /* file operation */
@@ -1982,11 +1984,11 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 				     size_t count, loff_t *ppos)
 {
 	struct iwl_trans *trans = file->private_data;
-	char *buf;
+	char *buf = NULL;
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	ret = pos = iwl_dump_fh(trans, &buf, true);
+	ret = pos = iwl_dump_fh(trans, &buf);
 	if (buf) {
 		ret = simple_read_from_buffer(user_buf,
 					      count, ppos, buf, pos);
@@ -2033,6 +2035,10 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 	DEBUGFS_ADD_FILE(fh_reg, dir, S_IRUSR);
 	DEBUGFS_ADD_FILE(fw_restart, dir, S_IWUSR);
 	return 0;
+
+err:
+	IWL_ERR(trans, "failed to create the trans debugfs entry\n");
+	return -ENOMEM;
 }
 #else
 static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,

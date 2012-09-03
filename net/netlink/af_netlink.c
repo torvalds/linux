@@ -912,7 +912,8 @@ static void netlink_rcv_wake(struct sock *sk)
 		wake_up_interruptible(&nlk->wait);
 }
 
-static int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb)
+static int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb,
+				  struct sock *ssk)
 {
 	int ret;
 	struct netlink_sock *nlk = nlk_sk(sk);
@@ -921,6 +922,7 @@ static int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb)
 	if (nlk->netlink_rcv != NULL) {
 		ret = skb->len;
 		skb_set_owner_r(skb, sk);
+		NETLINK_CB(skb).ssk = ssk;
 		nlk->netlink_rcv(skb);
 		consume_skb(skb);
 	} else {
@@ -947,7 +949,7 @@ retry:
 		return PTR_ERR(sk);
 	}
 	if (netlink_is_kernel(sk))
-		return netlink_unicast_kernel(sk, skb);
+		return netlink_unicast_kernel(sk, skb, ssk);
 
 	if (sk_filter(sk, skb)) {
 		err = skb->len;
@@ -1373,7 +1375,8 @@ static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		dst_pid = addr->nl_pid;
 		dst_group = ffs(addr->nl_groups);
 		err =  -EPERM;
-		if (dst_group && !netlink_capable(sock, NL_NONROOT_SEND))
+		if ((dst_group || dst_pid) &&
+		    !netlink_capable(sock, NL_NONROOT_SEND))
 			goto out;
 	} else {
 		dst_pid = nlk->dst_pid;
@@ -2147,6 +2150,7 @@ static void __init netlink_add_usersock_entry(void)
 	rcu_assign_pointer(nl_table[NETLINK_USERSOCK].listeners, listeners);
 	nl_table[NETLINK_USERSOCK].module = THIS_MODULE;
 	nl_table[NETLINK_USERSOCK].registered = 1;
+	nl_table[NETLINK_USERSOCK].nl_nonroot = NL_NONROOT_SEND;
 
 	netlink_table_ungrab();
 }

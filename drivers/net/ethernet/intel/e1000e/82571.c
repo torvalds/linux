@@ -653,7 +653,7 @@ static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw)
  **/
 static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active)
 {
-	u16 data = er32(POEMB);
+	u32 data = er32(POEMB);
 
 	if (active)
 		data |= E1000_PHY_CTRL_D0A_LPLU;
@@ -677,7 +677,7 @@ static s32 e1000_set_d0_lplu_state_82574(struct e1000_hw *hw, bool active)
  **/
 static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active)
 {
-	u16 data = er32(POEMB);
+	u32 data = er32(POEMB);
 
 	if (!active) {
 		data &= ~E1000_PHY_CTRL_NOND0A_LPLU;

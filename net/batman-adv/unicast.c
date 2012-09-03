@@ -39,6 +39,7 @@ batadv_frag_merge_packet(struct list_head *head,
 	struct batadv_unicast_packet *unicast_packet;
 	int hdr_len = sizeof(*unicast_packet);
 	int uni_diff = sizeof(*up) - hdr_len;
+	uint8_t *packet_pos;
 
 	up = (struct batadv_unicast_frag_packet *)skb->data;
 	/* set skb to the first part and tmp_skb to the second part */
@@ -65,8 +66,8 @@ batadv_frag_merge_packet(struct list_head *head,
 	kfree_skb(tmp_skb);
 
 	memmove(skb->data + uni_diff, skb->data, hdr_len);
-	unicast_packet = (struct batadv_unicast_packet *)skb_pull(skb,
-								  uni_diff);
+	packet_pos = skb_pull(skb, uni_diff);
+	unicast_packet = (struct batadv_unicast_packet *)packet_pos;
 	unicast_packet->header.packet_type = BATADV_UNICAST;
 
 	return skb;
@@ -121,12 +122,15 @@ batadv_frag_search_packet(struct list_head *head,
 {
 	struct batadv_frag_packet_list_entry *tfp;
 	struct batadv_unicast_frag_packet *tmp_up = NULL;
+	int is_head_tmp, is_head;
 	uint16_t search_seqno;
 
 	if (up->flags & BATADV_UNI_FRAG_HEAD)
 		search_seqno = ntohs(up->seqno)+1;
 	else
 		search_seqno = ntohs(up->seqno)-1;
+
+	is_head = !!(up->flags & BATADV_UNI_FRAG_HEAD);
 
 	list_for_each_entry(tfp, head, list) {
 
@@ -139,9 +143,8 @@ batadv_frag_search_packet(struct list_head *head,
 		tmp_up = (struct batadv_unicast_frag_packet *)tfp->skb->data;
 
 		if (tfp->seqno == search_seqno) {
-
-			if ((tmp_up->flags & BATADV_UNI_FRAG_HEAD) !=
-			    (up->flags & BATADV_UNI_FRAG_HEAD))
+			is_head_tmp = !!(tmp_up->flags & BATADV_UNI_FRAG_HEAD);
+			if (is_head_tmp != is_head)
 				return tfp;
 			else
 				goto mov_tail;
@@ -334,8 +337,7 @@ find_router:
 	/* copy the destination for faster routing */
 	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 	/* set the destination tt version number */
-	unicast_packet->ttvn =
-		(uint8_t)atomic_read(&orig_node->last_ttvn);
+	unicast_packet->ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
 
 	/* inform the destination node that we are still missing a correct route
 	 * for this client. The destination will receive this packet and will

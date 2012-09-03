@@ -989,6 +989,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		return -EBUSY;
 	}
 
+	if (port_dev->features & NETIF_F_VLAN_CHALLENGED &&
+	    vlan_uses_dev(dev)) {
+		netdev_err(dev, "Device %s is VLAN challenged and team device has VLAN set up\n",
+			   portname);
+		return -EPERM;
+	}
+
 	err = team_dev_type_check_change(dev, port_dev);
 	if (err)
 		return err;
@@ -2486,7 +2493,7 @@ static void __team_options_change_check(struct team *team)
 			list_add_tail(&opt_inst->tmp_list, &sel_opt_inst_list);
 	}
 	err = team_nl_send_event_options_get(team, &sel_opt_inst_list);
-	if (err)
+	if (err && err != -ESRCH)
 		netdev_warn(team->dev, "Failed to send options change via netlink (err %d)\n",
 			    err);
 }
@@ -2517,9 +2524,9 @@ static void __team_port_change_check(struct team_port *port, bool linkup)
 
 send_event:
 	err = team_nl_send_event_port_list_get(port->team);
-	if (err)
-		netdev_warn(port->team->dev, "Failed to send port change of device %s via netlink\n",
-			    port->dev->name);
+	if (err && err != -ESRCH)
+		netdev_warn(port->team->dev, "Failed to send port change of device %s via netlink (err %d)\n",
+			    port->dev->name, err);
 
 }
 

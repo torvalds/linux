@@ -427,19 +427,11 @@ void ovs_flow_deferred_free(struct sw_flow *flow)
 	call_rcu(&flow->rcu, rcu_free_flow_callback);
 }
 
-/* RCU callback used by ovs_flow_deferred_free_acts. */
-static void rcu_free_acts_callback(struct rcu_head *rcu)
-{
-	struct sw_flow_actions *sf_acts = container_of(rcu,
-			struct sw_flow_actions, rcu);
-	kfree(sf_acts);
-}
-
 /* Schedules 'sf_acts' to be freed after the next RCU grace period.
  * The caller must hold rcu_read_lock for this to be sensible. */
 void ovs_flow_deferred_free_acts(struct sw_flow_actions *sf_acts)
 {
-	call_rcu(&sf_acts->rcu, rcu_free_acts_callback);
+	kfree_rcu(sf_acts, rcu);
 }
 
 static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)

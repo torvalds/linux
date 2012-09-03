@@ -103,13 +103,14 @@ static void batadv_primary_if_update_addr(struct batadv_priv *bat_priv,
 {
 	struct batadv_vis_packet *vis_packet;
 	struct batadv_hard_iface *primary_if;
+	struct sk_buff *skb;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
-	vis_packet = (struct batadv_vis_packet *)
-				bat_priv->my_vis_info->skb_packet->data;
+	skb = bat_priv->vis.my_info->skb_packet;
+	vis_packet = (struct batadv_vis_packet *)skb->data;
 	memcpy(vis_packet->vis_orig, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(vis_packet->sender_orig,
 	       primary_if->net_dev->dev_addr, ETH_ALEN);
@@ -313,7 +314,13 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;
 	hard_iface->if_status = BATADV_IF_INACTIVE;
-	batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
+	ret = batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
+	if (ret < 0) {
+		bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
+		bat_priv->num_ifaces--;
+		hard_iface->if_status = BATADV_IF_NOT_IN_USE;
+		goto err_dev;
+	}
 
 	hard_iface->batman_adv_ptype.type = ethertype;
 	hard_iface->batman_adv_ptype.func = batadv_batman_skb_recv;

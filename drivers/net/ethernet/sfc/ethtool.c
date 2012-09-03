@@ -529,9 +529,7 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (!efx_tests)
 		goto fail;
 
-
-	ASSERT_RTNL();
-	if (efx->state != STATE_RUNNING) {
+	if (efx->state != STATE_READY) {
 		rc = -EIO;
 		goto fail1;
 	}
@@ -863,8 +861,8 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 				       &ip_entry->ip4dst, &ip_entry->pdst);
 	if (rc != 0) {
 		rc = efx_filter_get_ipv4_full(
-			&spec, &proto, &ip_entry->ip4src, &ip_entry->psrc,
-			&ip_entry->ip4dst, &ip_entry->pdst);
+			&spec, &proto, &ip_entry->ip4dst, &ip_entry->pdst,
+			&ip_entry->ip4src, &ip_entry->psrc);
 		EFX_WARN_ON_PARANOID(rc);
 		ip_mask->ip4src = ~0;
 		ip_mask->psrc = ~0;

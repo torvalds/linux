@@ -374,6 +374,9 @@ static void fb_flashcursor(struct work_struct *work)
 	int mode;
 	int ret;
 
+	/* FIXME: we should sort out the unbind locking instead */
+	/* instead we just fail to flash the cursor if we can't get
+	 * the lock instead of blocking fbcon deinit */
 	ret = console_trylock();
 	if (ret == 0)
 		return;

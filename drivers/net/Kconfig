@@ -107,8 +107,6 @@ config MII
 	  or internal device.  It is safe to say Y or M here even if your
 	  ethernet card lacks MII.
 
-source "drivers/ieee802154/Kconfig"
-
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -289,6 +287,8 @@ source "drivers/net/wireless/Kconfig"
 source "drivers/net/wimax/Kconfig"
 
 source "drivers/net/wan/Kconfig"
+
+source "drivers/net/ieee802154/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"

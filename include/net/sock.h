@@ -606,6 +606,15 @@ static inline void sk_add_bind_node(struct sock *sk,
 #define sk_for_each_bound(__sk, node, list) \
 	hlist_for_each_entry(__sk, node, list, sk_bind_node)
 
+static inline struct user_namespace *sk_user_ns(struct sock *sk)
+{
+	/* Careful only use this in a context where these parameters
+	 * can not change and must all be valid, such as recvmsg from
+	 * userspace.
+	 */
+	return sk->sk_socket->file->f_cred->user_ns;
+}
+
 /* Sock flags */
 enum sock_flags {
 	SOCK_DEAD,
@@ -1670,7 +1679,7 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
-extern int sock_i_uid(struct sock *sk);
+extern kuid_t sock_i_uid(struct sock *sk);
 extern unsigned long sock_i_ino(struct sock *sk);
 
 static inline struct dst_entry *

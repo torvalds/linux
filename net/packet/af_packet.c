@@ -1162,7 +1162,7 @@ static void __fanout_unlink(struct sock *sk, struct packet_sock *po)
 	spin_unlock(&f->lock);
 }
 
-bool match_fanout_group(struct packet_type *ptype, struct sock * sk)
+static bool match_fanout_group(struct packet_type *ptype, struct sock * sk)
 {
 	if (ptype->af_packet_priv == (void*)((struct packet_sock *)sk)->fanout)
 		return true;
@@ -3749,7 +3749,7 @@ static int packet_seq_show(struct seq_file *seq, void *v)
 			   po->ifindex,
 			   po->running,
 			   atomic_read(&s->sk_rmem_alloc),
-			   sock_i_uid(s),
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(s)),
 			   sock_i_ino(s));
 	}
 

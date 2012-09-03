@@ -2176,8 +2176,7 @@ static uint be_num_rss_want(struct be_adapter *adapter)
 {
 	u32 num = 0;
 	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
-	     !sriov_want(adapter) && be_physfn(adapter) &&
-	     !be_is_mc(adapter)) {
+	     !sriov_want(adapter) && be_physfn(adapter)) {
 		num = (adapter->be3_native) ? BE3_MAX_RSS_QS : BE2_MAX_RSS_QS;
 		num = min_t(u32, num, (u32)netif_get_num_default_rss_queues());
 	}
@@ -2646,8 +2645,8 @@ static int be_vf_setup(struct be_adapter *adapter)
 	}
 
 	for_all_vfs(adapter, vf_cfg, vf) {
-		status = be_cmd_link_status_query(adapter, NULL, &lnk_speed,
-						  NULL, vf + 1);
+		lnk_speed = 1000;
+		status = be_cmd_set_qos(adapter, lnk_speed, vf + 1);
 		if (status)
 			goto err;
 		vf_cfg->tx_rate = lnk_speed * 10;
@@ -2724,6 +2723,8 @@ static int be_get_config(struct be_adapter *adapter)
 	if (pos) {
 		pci_read_config_word(adapter->pdev, pos + PCI_SRIOV_TOTAL_VF,
 				     &dev_num_vfs);
+		if (!lancer_chip(adapter))
+			dev_num_vfs = min_t(u16, dev_num_vfs, MAX_VFS);
 		adapter->dev_num_vfs = dev_num_vfs;
 	}
 	return 0;
@@ -3437,6 +3438,7 @@ static void be_ctrl_cleanup(struct be_adapter *adapter)
 	if (mem->va)
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
+	kfree(adapter->pmac_id);
 }
 
 static int be_ctrl_init(struct be_adapter *adapter)
@@ -3472,6 +3474,12 @@ static int be_ctrl_init(struct be_adapter *adapter)
 		goto free_mbox;
 	}
 	memset(rx_filter->va, 0, rx_filter->size);
+
+	/* primary mac needs 1 pmac entry */
+	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
+				   sizeof(*adapter->pmac_id), GFP_KERNEL);
+	if (!adapter->pmac_id)
+		return -ENOMEM;
 
 	mutex_init(&adapter->mbox_lock);
 	spin_lock_init(&adapter->mcc_lock);
@@ -3608,12 +3616,6 @@ static int be_get_initial_config(struct be_adapter *adapter)
 		adapter->max_pmac_cnt = BE_UC_PMAC_COUNT;
 	else
 		adapter->max_pmac_cnt = BE_VF_UC_PMAC_COUNT;
-
-	/* primary mac needs 1 pmac entry */
-	adapter->pmac_id = kcalloc(adapter->max_pmac_cnt + 1,
-				  sizeof(u32), GFP_KERNEL);
-	if (!adapter->pmac_id)
-		return -ENOMEM;
 
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
@@ -3763,7 +3765,9 @@ static void be_worker(struct work_struct *work)
 	/* when interrupts are not yet enabled, just reap any pending
 	* mcc completions */
 	if (!netif_running(adapter->netdev)) {
+		local_bh_disable();
 		be_process_mcc(adapter);
+		local_bh_enable();
 		goto reschedule;
 	}
 

@@ -1466,8 +1466,7 @@ EXPORT_SYMBOL(unregister_netdevice_notifier);
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 {
-	if (val != NETDEV_UNREGISTER_FINAL)
-		ASSERT_RTNL();
+	ASSERT_RTNL();
 	return raw_notifier_call_chain(&netdev_chain, val, dev);
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
@@ -2185,9 +2184,7 @@ EXPORT_SYMBOL(netif_skb_features);
 /*
  * Returns true if either:
  *	1. skb has frag_list and the device doesn't support FRAGLIST, or
- *	2. skb is fragmented and the device does not support SG, or if
- *	   at least one of fragments is in highmem and device does not
- *	   support DMA from it.
+ *	2. skb is fragmented and the device does not support SG.
  */
 static inline int skb_needs_linearize(struct sk_buff *skb,
 				      int features)
@@ -4521,8 +4518,8 @@ static void dev_change_rx_flags(struct net_device *dev, int flags)
 static int __dev_set_promiscuity(struct net_device *dev, int inc)
 {
 	unsigned int old_flags = dev->flags;
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 
 	ASSERT_RTNL();
 
@@ -4554,7 +4551,8 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc)
 				dev->name, (dev->flags & IFF_PROMISC),
 				(old_flags & IFF_PROMISC),
 				audit_get_loginuid(current),
-				uid, gid,
+				from_kuid(&init_user_ns, uid),
+				from_kgid(&init_user_ns, gid),
 				audit_get_sessionid(current));
 		}
 
@@ -5649,6 +5647,8 @@ int register_netdevice(struct net_device *dev)
 
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 
+	linkwatch_init_dev(dev);
+
 	dev_init_scheduler(dev);
 	dev_hold(dev);
 	list_netdevice(dev);
@@ -5782,7 +5782,11 @@ static void netdev_wait_allrefs(struct net_device *dev)
 
 			/* Rebroadcast unregister notification */
 			call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+
+			__rtnl_unlock();
 			rcu_barrier();
+			rtnl_lock();
+
 			call_netdevice_notifiers(NETDEV_UNREGISTER_FINAL, dev);
 			if (test_bit(__LINK_STATE_LINKWATCH_PENDING,
 				     &dev->state)) {
@@ -5855,7 +5859,9 @@ void netdev_run_todo(void)
 			= list_first_entry(&list, struct net_device, todo_list);
 		list_del(&dev->todo_list);
 
+		rtnl_lock();
 		call_netdevice_notifiers(NETDEV_UNREGISTER_FINAL, dev);
+		__rtnl_unlock();
 
 		if (unlikely(dev->reg_state != NETREG_UNREGISTERING)) {
 			pr_err("network todo '%s' but state %d\n",
@@ -6251,6 +6257,8 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	   the device is just moving and can keep their slaves up.
 	*/
 	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+	rcu_barrier();
+	call_netdevice_notifiers(NETDEV_UNREGISTER_FINAL, dev);
 	rtmsg_ifinfo(RTM_DELLINK, dev, ~0U);
 
 	/*
