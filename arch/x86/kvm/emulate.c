@@ -2790,14 +2790,13 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 }
 
-static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned seg,
-			    int reg, struct operand *op)
+static void string_addr_inc(struct x86_emulate_ctxt *ctxt, int reg,
+		struct operand *op)
 {
 	int df = (ctxt->eflags & EFLG_DF) ? -1 : 1;
 
 	register_address_increment(ctxt, reg_rmw(ctxt, reg), df * op->bytes);
 	op->addr.mem.ea = register_address(ctxt, reg_read(ctxt, reg));
-	op->addr.mem.seg = seg;
 }
 
 static int em_das(struct x86_emulate_ctxt *ctxt)
@@ -4570,12 +4569,10 @@ writeback:
 	ctxt->dst.type = saved_dst_type;
 
 	if ((ctxt->d & SrcMask) == SrcSI)
-		string_addr_inc(ctxt, seg_override(ctxt),
-				VCPU_REGS_RSI, &ctxt->src);
+		string_addr_inc(ctxt, VCPU_REGS_RSI, &ctxt->src);
 
 	if ((ctxt->d & DstMask) == DstDI)
-		string_addr_inc(ctxt, VCPU_SREG_ES, VCPU_REGS_RDI,
-				&ctxt->dst);
+		string_addr_inc(ctxt, VCPU_REGS_RDI, &ctxt->dst);
 
 	if (ctxt->rep_prefix && (ctxt->d & String)) {
 		struct read_cache *r = &ctxt->io_read;
