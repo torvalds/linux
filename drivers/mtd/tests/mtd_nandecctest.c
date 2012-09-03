@@ -4,7 +4,6 @@
 #include <linux/random.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
-#include <linux/jiffies.h>
 #include <linux/mtd/nand_ecc.h>
 
 #if defined(CONFIG_MTD_NAND) || defined(CONFIG_MTD_NAND_MODULE)
