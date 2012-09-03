@@ -334,6 +334,25 @@ finish:
 	return retval;
 }
 
+static void sctp_packet_release_owner(struct sk_buff *skb)
+{
+	sk_free(skb->sk);
+}
+
+static void sctp_packet_set_owner_w(struct sk_buff *skb, struct sock *sk)
+{
+	skb_orphan(skb);
+	skb->sk = sk;
+	skb->destructor = sctp_packet_release_owner;
+
+	/*
+	 * The data chunks have already been accounted for in sctp_sendmsg(),
+	 * therefore only reserve a single byte to keep socket around until
+	 * the packet has been transmitted.
+	 */
+	atomic_inc(&sk->sk_wmem_alloc);
+}
+
 /* All packets are sent to the network through this function from
  * sctp_outq_tail().
  *
@@ -375,7 +394,7 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	/* Set the owning socket so that we know where to get the
 	 * destination IP address.
 	 */
-	skb_set_owner_w(nskb, sk);
+	sctp_packet_set_owner_w(nskb, sk);
 
 	if (!sctp_transport_dst_check(tp)) {
 		sctp_transport_route(tp, NULL, sctp_sk(sk));
