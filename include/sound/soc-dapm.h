@@ -510,7 +510,6 @@ struct snd_soc_dapm_widget {
 	/* dapm control */
 	int reg;				/* negative reg = no direct dapm */
 	unsigned char shift;			/* bits to shift */
-	unsigned int saved_value;		/* widget saved value */
 	unsigned int value;				/* widget current value */
 	unsigned int mask;			/* non-shifted mask */
 	unsigned int on_val;			/* on state value */
