@@ -922,6 +922,13 @@ das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in das08_detach().
+	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
+	 * support for manual attachment of PCI devices via das08_attach()
+	 * has been removed.
+	 */
+	pci_dev_get(pdev);
 	return das08_pci_attach_common(dev, pdev);
 }
 
