@@ -3516,7 +3516,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->dev = dev;
 	hsotg->plat = plat;
 
-	hsotg->clk = clk_get(&pdev->dev, "otg");
+	hsotg->clk = devm_clk_get(&pdev->dev, "otg");
 	if (IS_ERR(hsotg->clk)) {
 		dev_err(dev, "cannot get otg clock\n");
 		return PTR_ERR(hsotg->clk);
@@ -3664,7 +3664,6 @@ err_supplies:
 
 err_clk:
 	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
 
 	return ret;
 }
@@ -3690,7 +3689,6 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
 
 	device_unregister(&hsotg->gadget.dev);
 	return 0;
