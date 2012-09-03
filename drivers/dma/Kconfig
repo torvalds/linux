@@ -302,6 +302,13 @@ config DMA_OMAP
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
+config MMP_PDMA
+	bool "MMP PDMA support"
+	depends on (ARCH_MMP || ARCH_PXA)
+	select DMA_ENGINE
+	help
+	  Support the MMP PDMA engine for PXA and MMP platfrom.
+
 config DMA_ENGINE
 	bool
 
