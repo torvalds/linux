@@ -38,6 +38,34 @@ static const int ivtv_stream_map[] = {
 	IVTV_ENC_STREAM_TYPE_VBI,
 };
 
+static void ivtv_pcm_work_handler(struct ivtv *itv)
+{
+	struct ivtv_stream *s = &itv->streams[IVTV_ENC_STREAM_TYPE_PCM];
+	struct ivtv_buffer *buf;
+
+	/* Pass the PCM data to ivtv-alsa */
+
+	while (1) {
+		/*
+		 * Users should not be using both the ALSA and V4L2 PCM audio
+		 * capture interfaces at the same time.  If the user is doing
+		 * this, there maybe a buffer in q_io to grab, use, and put
+		 * back in rotation.
+		 */
+		buf = ivtv_dequeue(s, &s->q_io);
+		if (buf == NULL)
+			buf = ivtv_dequeue(s, &s->q_full);
+		if (buf == NULL)
+			break;
+
+		if (buf->readpos < buf->bytesused)
+			itv->pcm_announce_callback(itv->alsa,
+				(u8 *)(buf->buf + buf->readpos),
+				(size_t)(buf->bytesused - buf->readpos));
+
+		ivtv_enqueue(s, buf, &s->q_free);
+	}
+}
 
 static void ivtv_pio_work_handler(struct ivtv *itv)
 {
@@ -83,6 +111,9 @@ void ivtv_irq_work_handler(struct kthread_work *work)
 
 	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_YUV, &itv->i_flags))
 		ivtv_yuv_work_handler(itv);
+
+	if (test_and_clear_bit(IVTV_F_I_WORK_HANDLER_PCM, &itv->i_flags))
+		ivtv_pcm_work_handler(itv);
 }
 
 /* Determine the required DMA size, setup enough buffers in the predma queue and
@@ -293,7 +324,26 @@ static void dma_post(struct ivtv_stream *s)
 			return;
 		}
 	}
+
 	ivtv_queue_move(s, &s->q_dma, NULL, &s->q_full, s->q_dma.bytesused);
+
+	if (s->type == IVTV_ENC_STREAM_TYPE_PCM &&
+	    itv->pcm_announce_callback != NULL) {
+		/*
+		 * Set up the work handler to pass the data to ivtv-alsa.
+		 *
+		 * We just use q_full and let the work handler race with users
+		 * making ivtv-fileops.c calls on the PCM device node.
+		 *
+		 * Users should not be using both the ALSA and V4L2 PCM audio
+		 * capture interfaces at the same time.  If the user does this,
+		 * fragments of data will just go out each interface as they
+		 * race for PCM data.
+		 */
+		set_bit(IVTV_F_I_WORK_HANDLER_PCM, &itv->i_flags);
+		set_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags);
+	}
+
 	if (s->fh)
 		wake_up(&s->waitq);
 }
