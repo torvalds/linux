@@ -833,7 +833,7 @@ static struct usb_request *s3c_hsudc_alloc_request(struct usb_ep *_ep,
 {
 	struct s3c_hsudc_req *hsreq;
 
-	hsreq = kzalloc(sizeof *hsreq, gfp_flags);
+	hsreq = kzalloc(sizeof(*hsreq), gfp_flags);
 	if (!hsreq)
 		return 0;
 
