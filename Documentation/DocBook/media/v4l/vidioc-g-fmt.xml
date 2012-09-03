@@ -174,9 +174,7 @@ capture and output devices.</entry>
 	    <entry></entry>
 	    <entry>__u8</entry>
 	    <entry><structfield>raw_data</structfield>[200]</entry>
-	    <entry>Place holder for future extensions and custom
-(driver defined) formats with <structfield>type</structfield>
-<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher.</entry>
+	    <entry>Place holder for future extensions.</entry>
 	  </row>
 	</tbody>
       </tgroup>

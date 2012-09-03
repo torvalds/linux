@@ -1476,7 +1476,7 @@ follows.<informaltable>
 		  </row>
 		  <row>
 		    <entry><constant>V4L2_BUF_TYPE_PRIVATE_BASE</constant></entry>
-		    <entry><constant>V4L2_BUF_TYPE_PRIVATE</constant></entry>
+		    <entry><constant>V4L2_BUF_TYPE_PRIVATE</constant> (but this is deprecated)</entry>
 		  </row>
 		</tbody>
 	      </tgroup>

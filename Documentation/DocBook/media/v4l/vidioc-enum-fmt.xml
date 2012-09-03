@@ -81,10 +81,8 @@ Only these types are valid here:
 <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE</constant>,
 <constant>V4L2_BUF_TYPE_VIDEO_OUTPUT</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant>,
-<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>, and custom (driver
-defined) types with code <constant>V4L2_BUF_TYPE_PRIVATE</constant>
-and higher. See <xref linkend="v4l2-buf-type" />.</entry>
+<constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE</constant> and
+<constant>V4L2_BUF_TYPE_VIDEO_OVERLAY</constant>. See <xref linkend="v4l2-buf-type" />.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
