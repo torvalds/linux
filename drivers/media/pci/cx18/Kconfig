@@ -1,6 +1,6 @@
 config VIDEO_CX18
 	tristate "Conexant cx23418 MPEG encoder support"
-	depends on VIDEO_V4L2 && DVB_CORE && PCI && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && DVB_CORE && PCI && I2C
 	select I2C_ALGOBIT
 	select VIDEOBUF_VMALLOC
 	depends on RC_CORE
@@ -25,7 +25,7 @@ config VIDEO_CX18
 
 config VIDEO_CX18_ALSA
 	tristate "Conexant 23418 DMA audio support"
-	depends on VIDEO_CX18 && SND && EXPERIMENTAL
+	depends on VIDEO_CX18 && SND
 	select SND_PCM
 	---help---
 	  This is a video4linux driver for direct (DMA) audio on

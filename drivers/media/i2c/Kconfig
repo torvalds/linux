@@ -117,7 +117,7 @@ config VIDEO_CS53L32A
 
 config VIDEO_TLV320AIC23B
 	tristate "Texas Instruments TLV320AIC23B audio codec"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Texas Instruments TLV320AIC23B audio codec.
 
@@ -492,7 +492,7 @@ config VIDEO_SR030PC30
 
 config VIDEO_NOON010PC30
 	tristate "Siliconfile NOON010PC30 sensor support"
-	depends on I2C && VIDEO_V4L2 && EXPERIMENTAL && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
 	---help---
 	  This driver supports NOON010PC30 CIF camera from Siliconfile
