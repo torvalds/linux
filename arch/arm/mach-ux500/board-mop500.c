@@ -23,6 +23,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/ab8500.h>
+#include <linux/regulator/fixed.h>
 #include <linux/mfd/tc3589x.h>
 #include <linux/mfd/tps6105x.h>
 #include <linux/mfd/abx500/ab8500-gpio.h>
@@ -74,6 +75,23 @@ static struct platform_device snowball_led_dev = {
 	.dev = {
 		.platform_data = &snowball_led_data,
 	},
+};
+
+static struct fixed_voltage_config snowball_gpio_en_3v3_data = {
+       .supply_name            = "EN-3V3",
+       .gpio                   = SNOWBALL_EN_3V3_ETH_GPIO,
+       .microvolts             = 3300000,
+       .enable_high            = 1,
+       .init_data              = &gpio_en_3v3_regulator,
+       .startup_delay          = 5000, /* 1200us */
+};
+
+static struct platform_device snowball_gpio_en_3v3_regulator_dev = {
+       .name   = "reg-fixed-voltage",
+       .id     = 1,
+       .dev    = {
+               .platform_data  = &snowball_gpio_en_3v3_data,
+       },
 };
 
 static struct ab8500_gpio_platform_data ab8500_gpio_pdata = {
@@ -586,6 +604,7 @@ static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
 	&snowball_sbnet_dev,
+	&snowball_gpio_en_3v3_regulator_dev,
 };
 
 static void __init mop500_init_machine(void)
