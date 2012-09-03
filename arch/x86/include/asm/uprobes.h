@@ -46,8 +46,7 @@ struct arch_uprobe_task {
 #ifdef CONFIG_X86_64
 	unsigned long			saved_scratch_register;
 #endif
-#define UPROBE_CLEAR_TF			(1 << 0)
-	unsigned int			restore_flags;
+	unsigned int			saved_tf;
 };
 
 extern int  arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long addr);

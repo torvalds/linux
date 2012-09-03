@@ -653,7 +653,7 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
  * Skip these instructions as per the currently known x86 ISA.
  * 0x66* { 0x90 | 0x0f 0x1f | 0x0f 0x19 | 0x87 0xc0 }
  */
-bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	int i;
 
@@ -681,16 +681,21 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	return false;
 }
 
+bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	bool ret = __skip_sstep(auprobe, regs);
+	if (ret && (regs->flags & X86_EFLAGS_TF))
+		send_sig(SIGTRAP, current, 0);
+	return ret;
+}
+
 void arch_uprobe_enable_step(struct arch_uprobe *auprobe)
 {
 	struct task_struct *task = current;
 	struct arch_uprobe_task	*autask	= &task->utask->autask;
 	struct pt_regs *regs = task_pt_regs(task);
 
-	autask->restore_flags = 0;
-	if (!(regs->flags & X86_EFLAGS_TF) &&
-	    !(auprobe->fixups & UPROBE_FIX_SETF))
-		autask->restore_flags |= UPROBE_CLEAR_TF;
+	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
 
 	regs->flags |= X86_EFLAGS_TF;
 	if (test_tsk_thread_flag(task, TIF_BLOCKSTEP))
@@ -707,6 +712,8 @@ void arch_uprobe_disable_step(struct arch_uprobe *auprobe)
 	 * SIGTRAP if we do not clear TF. We need to examine the opcode to
 	 * make it right.
 	 */
-	if (autask->restore_flags & UPROBE_CLEAR_TF)
+	if (autask->saved_tf)
+		send_sig(SIGTRAP, task, 0);
+	else if (!(auprobe->fixups & UPROBE_FIX_SETF))
 		regs->flags &= ~X86_EFLAGS_TF;
 }
