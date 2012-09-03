@@ -40,6 +40,13 @@ static void __init rk30_cpu_axi_init(void)
 	dsb();
 }
 
+static void __init rk30_io_drive_strength_init(void)
+{
+#if defined(CONFIG_ARCH_RK3066B)
+	writel_relaxed(0x11001100, RK30_GRF_BASE + GRF_IO_CON4);
+#endif
+}
+
 #define L2_LY_SP_OFF (0)
 #define L2_LY_SP_MSK (0x7)
 
@@ -122,6 +129,7 @@ void __init rk30_map_io(void)
 	rk30_map_common_io();
 	rk29_setup_early_printk();
 	rk30_cpu_axi_init();
+	rk30_io_drive_strength_init();
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();

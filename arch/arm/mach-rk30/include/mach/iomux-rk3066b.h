@@ -370,6 +370,11 @@
 #define      GRF_DMAC2_CON1                       0x00c0
 #define      GRF_DMAC2_CON2                       0x00c4
 #define      GRF_DMAC2_CON3                       0x00c8
+#define      GRF_IO_CON0                          0x00f4
+#define      GRF_IO_CON1                          0x00f8
+#define      GRF_IO_CON2                          0x00fc
+#define      GRF_IO_CON3                          0x0100
+#define      GRF_IO_CON4                          0x0104
 #define      GRF_UOC0_CON0                        0x010c
 #define      GRF_UOC0_CON1                        0x0110
 #define      GRF_UOC0_CON2                        0x0114
