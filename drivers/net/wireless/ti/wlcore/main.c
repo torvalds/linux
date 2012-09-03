@@ -3063,8 +3063,45 @@ static int wlcore_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			     struct ieee80211_key_conf *key_conf)
 {
 	struct wl1271 *wl = hw->priv;
+	int ret;
+	bool might_change_spare =
+		key_conf->cipher == WL1271_CIPHER_SUITE_GEM ||
+		key_conf->cipher == WLAN_CIPHER_SUITE_TKIP;
 
-	return wlcore_hw_set_key(wl, cmd, vif, sta, key_conf);
+	if (might_change_spare) {
+		/*
+		 * stop the queues and flush to ensure the next packets are
+		 * in sync with FW spare block accounting
+		 */
+		mutex_lock(&wl->mutex);
+		wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
+		mutex_unlock(&wl->mutex);
+
+		wl1271_tx_flush(wl);
+	}
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state != WLCORE_STATE_ON)) {
+		ret = -EAGAIN;
+		goto out_wake_queues;
+	}
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_wake_queues;
+
+	ret = wlcore_hw_set_key(wl, cmd, vif, sta, key_conf);
+
+	wl1271_ps_elp_sleep(wl);
+
+out_wake_queues:
+	if (might_change_spare)
+		wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
+
+	mutex_unlock(&wl->mutex);
+
+	return ret;
 }
 
 int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
@@ -3085,17 +3122,6 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		     key_conf->cipher, key_conf->keyidx,
 		     key_conf->keylen, key_conf->flags);
 	wl1271_dump(DEBUG_CRYPT, "KEY: ", key_conf->key, key_conf->keylen);
-
-	mutex_lock(&wl->mutex);
-
-	if (unlikely(wl->state != WLCORE_STATE_ON)) {
-		ret = -EAGAIN;
-		goto out_unlock;
-	}
-
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out_unlock;
 
 	switch (key_conf->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -3126,8 +3152,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->cipher);
 
-		ret = -EOPNOTSUPP;
-		goto out_sleep;
+		return -EOPNOTSUPP;
 	}
 
 	switch (cmd) {
@@ -3138,7 +3163,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 				 tx_seq_32, tx_seq_16, sta);
 		if (ret < 0) {
 			wl1271_error("Could not add or replace key");
-			goto out_sleep;
+			return ret;
 		}
 
 		/*
@@ -3152,7 +3177,7 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 			ret = wl1271_cmd_build_arp_rsp(wl, wlvif);
 			if (ret < 0) {
 				wl1271_warning("build arp rsp failed: %d", ret);
-				goto out_sleep;
+				return ret;
 			}
 		}
 		break;
@@ -3164,21 +3189,14 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 				     0, 0, sta);
 		if (ret < 0) {
 			wl1271_error("Could not remove key");
-			goto out_sleep;
+			return ret;
 		}
 		break;
 
 	default:
 		wl1271_error("Unsupported key cmd 0x%x", cmd);
-		ret = -EOPNOTSUPP;
-		break;
+		return -EOPNOTSUPP;
 	}
-
-out_sleep:
-	wl1271_ps_elp_sleep(wl);
-
-out_unlock:
-	mutex_unlock(&wl->mutex);
 
 	return ret;
 }

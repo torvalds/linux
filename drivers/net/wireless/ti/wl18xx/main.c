@@ -1252,13 +1252,6 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	if (!change_spare)
 		return wlcore_set_key(wl, cmd, vif, sta, key_conf);
 
-	/*
-	 * stop the queues and flush to ensure the next packets are
-	 * in sync with FW spare block accounting
-	 */
-	wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
-	wl1271_tx_flush(wl);
-
 	ret = wlcore_set_key(wl, cmd, vif, sta, key_conf);
 	if (ret < 0)
 		goto out;
@@ -1281,7 +1274,6 @@ static int wl18xx_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	}
 
 out:
-	wlcore_wake_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
 	return ret;
 }
 
