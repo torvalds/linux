@@ -41,7 +41,7 @@ struct wb35_tx {
 	int		EP4VM_status;
 
 	u32	TxFillCount; // 20060928
-	u32	TxTimer; // 20060928 Add if sending packet not great than 13
+	u32	TxTimer; // 20060928 Add if sending packet is greater than 13
 };
 
 #endif

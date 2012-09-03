@@ -107,7 +107,7 @@ s8 sme_set_bssid_list_scan(void *pcore_data, void *pscan_para);
 s8 sme_set_reload_defaults(void *pcore_data, u8 reload_type);
 
 
-/*------------------------- none-standard ----------------------------------*/
+/*------------------------- non-standard ----------------------------------*/
 s8 sme_get_connect_status(void *pcore_data, u8 *pstatus);
 /*--------------------------------------------------------------------------*/
 

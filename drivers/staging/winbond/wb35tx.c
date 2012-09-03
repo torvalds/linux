@@ -149,14 +149,14 @@ void Wb35Tx_stop(struct hw_data * pHwData)
 {
 	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
-	// Trying to canceling the Trp of EP2
+	// Try to cancel the Trp of EP2
 	if (pWb35Tx->EP2vm_state == VM_RUNNING)
-		usb_unlink_urb( pWb35Tx->Tx2Urb ); // Only use unlink, let Wb35Tx_destrot to free them
+		usb_unlink_urb( pWb35Tx->Tx2Urb ); // Only use unlink, let Wb35Tx_destroy to free them
 	pr_debug("EP2 Tx stop\n");
 
-	// Trying to canceling the Irp of EP4
+	// Try to cancel the Irp of EP4
 	if (pWb35Tx->EP4vm_state == VM_RUNNING)
-		usb_unlink_urb( pWb35Tx->Tx4Urb ); // Only use unlink, let Wb35Tx_destrot to free them
+		usb_unlink_urb( pWb35Tx->Tx4Urb ); // Only use unlink, let Wb35Tx_destroy to free them
 	pr_debug("EP4 Tx stop\n");
 }
 
