@@ -31,6 +31,7 @@
 #define TPCI200_SUBVENDOR_ID          0x1498
 #define TPCI200_SUBDEVICE_ID          0x300A
 
+#define TPCI200_CFG_MEM_BAR           0
 #define TPCI200_IP_INTERFACE_BAR      2
 #define TPCI200_IO_ID_INT_SPACES_BAR  3
 #define TPCI200_MEM16_SPACE_BAR       4
@@ -97,6 +98,13 @@
 
 #define TPCI200_SLOT_INT_MASK         0x00FF
 
+/* PCI Configuration registers. The PCI bridge is a PLX Technology PCI9030. */
+#define LAS1_DESC		      0x2C
+#define LAS2_DESC		      0x30
+
+/* Bits in the LAS?_DESC registers */
+#define LAS_BIT_BIGENDIAN	      24
+
 #define VME_IOID_SPACE  "IOID"
 #define VME_MEM_SPACE  "MEM"
 
@@ -144,6 +152,7 @@ struct tpci200_infos {
 	void __iomem			*interface_regs;
 	void __iomem			*ioidint_space;
 	void __iomem			*mem8_space;
+	void __iomem			*cfg_regs;
 	struct ipack_bus_device		*ipack_bus;
 };
 struct tpci200_board {
