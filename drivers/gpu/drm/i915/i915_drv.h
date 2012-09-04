@@ -1008,6 +1008,7 @@ struct drm_i915_gem_object {
 	unsigned int has_global_gtt_mapping:1;
 
 	struct page **pages;
+	int pages_pin_count;
 
 	/**
 	 * DMAR support
@@ -1341,6 +1342,17 @@ void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
+{
+	BUG_ON(obj->pages == NULL);
+	obj->pages_pin_count++;
+}
+static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
+{
+	BUG_ON(obj->pages_pin_count == 0);
+	obj->pages_pin_count--;
+}
+
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int i915_gem_object_sync(struct drm_i915_gem_object *obj,
 			 struct intel_ring_buffer *to);

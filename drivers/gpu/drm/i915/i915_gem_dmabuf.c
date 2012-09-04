@@ -50,6 +50,8 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	/* link the pages into an SG then map the sg */
 	sg = drm_prime_pages_to_sg(obj->pages, npages);
 	nents = dma_map_sg(attachment->dev, sg->sgl, sg->nents, dir);
+	i915_gem_object_pin_pages(obj);
+
 out:
 	mutex_unlock(&dev->struct_mutex);
 	return sg;
@@ -102,6 +104,7 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 	}
 
 	obj->vmapping_count = 1;
+	i915_gem_object_pin_pages(obj);
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	return obj->dma_buf_vmapping;
@@ -117,10 +120,11 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 	if (ret)
 		return;
 
-	--obj->vmapping_count;
-	if (obj->vmapping_count == 0) {
+	if (--obj->vmapping_count == 0) {
 		vunmap(obj->dma_buf_vmapping);
 		obj->dma_buf_vmapping = NULL;
+
+		i915_gem_object_unpin_pages(obj);
 	}
 	mutex_unlock(&dev->struct_mutex);
 }
