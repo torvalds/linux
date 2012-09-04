@@ -203,7 +203,7 @@ int v4l2_event_pending(struct v4l2_fh *fh)
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
 int v4l2_event_subscribe(struct v4l2_fh *fh,
-			 struct v4l2_event_subscription *sub, unsigned elems,
+			 const struct v4l2_event_subscription *sub, unsigned elems,
 			 const struct v4l2_subscribed_event_ops *ops)
 {
 	struct v4l2_subscribed_event *sev, *found_ev;
@@ -278,7 +278,7 @@ void v4l2_event_unsubscribe_all(struct v4l2_fh *fh)
 EXPORT_SYMBOL_GPL(v4l2_event_unsubscribe_all);
 
 int v4l2_event_unsubscribe(struct v4l2_fh *fh,
-			   struct v4l2_event_subscription *sub)
+			   const struct v4l2_event_subscription *sub)
 {
 	struct v4l2_subscribed_event *sev;
 	unsigned long flags;

@@ -546,7 +546,7 @@ int v4l2_ctrl_log_status(struct file *file, void *fh);
 /* Can be used as a vidioc_subscribe_event function that just subscribes
    control events. */
 int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
-				struct v4l2_event_subscription *sub);
+				const struct v4l2_event_subscription *sub);
 
 /* Can be used as a poll function that just polls for control events. */
 unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);

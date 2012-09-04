@@ -273,9 +273,9 @@ struct v4l2_ioctl_ops {
 				    struct v4l2_dv_timings_cap *cap);
 
 	int (*vidioc_subscribe_event)  (struct v4l2_fh *fh,
-					struct v4l2_event_subscription *sub);
+					const struct v4l2_event_subscription *sub);
 	int (*vidioc_unsubscribe_event)(struct v4l2_fh *fh,
-					struct v4l2_event_subscription *sub);
+					const struct v4l2_event_subscription *sub);
 
 	/* For other private ioctls */
 	long (*vidioc_default)	       (struct file *file, void *fh,
