@@ -23,7 +23,8 @@ config X86_ACPI_CPUFREQ
 	help
 	  This driver adds a CPUFreq driver which utilizes the ACPI
 	  Processor Performance States.
-	  This driver also supports Intel Enhanced Speedstep.
+	  This driver also supports Intel Enhanced Speedstep and newer
+	  AMD CPUs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called acpi-cpufreq.

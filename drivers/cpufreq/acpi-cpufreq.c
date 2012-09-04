@@ -54,10 +54,12 @@ MODULE_LICENSE("GPL");
 enum {
 	UNDEFINED_CAPABLE = 0,
 	SYSTEM_INTEL_MSR_CAPABLE,
+	SYSTEM_AMD_MSR_CAPABLE,
 	SYSTEM_IO_CAPABLE,
 };
 
 #define INTEL_MSR_RANGE		(0xffff)
+#define AMD_MSR_RANGE		(0x7)
 
 struct acpi_cpufreq_data {
 	struct acpi_processor_performance *acpi_data;
@@ -82,6 +84,13 @@ static int check_est_cpu(unsigned int cpuid)
 	return cpu_has(cpu, X86_FEATURE_EST);
 }
 
+static int check_amd_hwpstate_cpu(unsigned int cpuid)
+{
+	struct cpuinfo_x86 *cpu = &cpu_data(cpuid);
+
+	return cpu_has(cpu, X86_FEATURE_HW_PSTATE);
+}
+
 static unsigned extract_io(u32 value, struct acpi_cpufreq_data *data)
 {
 	struct acpi_processor_performance *perf;
@@ -101,7 +110,11 @@ static unsigned extract_msr(u32 msr, struct acpi_cpufreq_data *data)
 	int i;
 	struct acpi_processor_performance *perf;
 
-	msr &= INTEL_MSR_RANGE;
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		msr &= AMD_MSR_RANGE;
+	else
+		msr &= INTEL_MSR_RANGE;
+
 	perf = data->acpi_data;
 
 	for (i = 0; data->freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
@@ -115,6 +128,7 @@ static unsigned extract_freq(u32 val, struct acpi_cpufreq_data *data)
 {
 	switch (data->cpu_feature) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
+	case SYSTEM_AMD_MSR_CAPABLE:
 		return extract_msr(val, data);
 	case SYSTEM_IO_CAPABLE:
 		return extract_io(val, data);
@@ -150,6 +164,7 @@ static void do_drv_read(void *_cmd)
 
 	switch (cmd->type) {
 	case SYSTEM_INTEL_MSR_CAPABLE:
+	case SYSTEM_AMD_MSR_CAPABLE:
 		rdmsr(cmd->addr.msr.reg, cmd->val, h);
 		break;
 	case SYSTEM_IO_CAPABLE:
@@ -173,6 +188,9 @@ static void do_drv_write(void *_cmd)
 		rdmsr(cmd->addr.msr.reg, lo, hi);
 		lo = (lo & ~INTEL_MSR_RANGE) | (cmd->val & INTEL_MSR_RANGE);
 		wrmsr(cmd->addr.msr.reg, lo, hi);
+		break;
+	case SYSTEM_AMD_MSR_CAPABLE:
+		wrmsr(cmd->addr.msr.reg, cmd->val, 0);
 		break;
 	case SYSTEM_IO_CAPABLE:
 		acpi_os_write_port((acpi_io_address)cmd->addr.io.port,
@@ -216,6 +234,10 @@ static u32 get_cur_val(const struct cpumask *mask)
 	case SYSTEM_INTEL_MSR_CAPABLE:
 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
 		cmd.addr.msr.reg = MSR_IA32_PERF_STATUS;
+		break;
+	case SYSTEM_AMD_MSR_CAPABLE:
+		cmd.type = SYSTEM_AMD_MSR_CAPABLE;
+		cmd.addr.msr.reg = MSR_AMD_PERF_STATUS;
 		break;
 	case SYSTEM_IO_CAPABLE:
 		cmd.type = SYSTEM_IO_CAPABLE;
@@ -324,6 +346,11 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	case SYSTEM_INTEL_MSR_CAPABLE:
 		cmd.type = SYSTEM_INTEL_MSR_CAPABLE;
 		cmd.addr.msr.reg = MSR_IA32_PERF_CTL;
+		cmd.val = (u32) perf->states[next_perf_state].control;
+		break;
+	case SYSTEM_AMD_MSR_CAPABLE:
+		cmd.type = SYSTEM_AMD_MSR_CAPABLE;
+		cmd.addr.msr.reg = MSR_AMD_PERF_CTL;
 		cmd.val = (u32) perf->states[next_perf_state].control;
 		break;
 	case SYSTEM_IO_CAPABLE:
@@ -580,12 +607,16 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
 		pr_debug("HARDWARE addr space\n");
-		if (!check_est_cpu(cpu)) {
-			result = -ENODEV;
-			goto err_unreg;
+		if (check_est_cpu(cpu)) {
+			data->cpu_feature = SYSTEM_INTEL_MSR_CAPABLE;
+			break;
 		}
-		data->cpu_feature = SYSTEM_INTEL_MSR_CAPABLE;
-		break;
+		if (check_amd_hwpstate_cpu(cpu)) {
+			data->cpu_feature = SYSTEM_AMD_MSR_CAPABLE;
+			break;
+		}
+		result = -ENODEV;
+		goto err_unreg;
 	default:
 		pr_debug("Unknown addr space %d\n",
 			(u32) (perf->control_register.space_id));
