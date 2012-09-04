@@ -140,6 +140,31 @@ out_locked:
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
+void kmem_cache_destroy(struct kmem_cache *s)
+{
+	get_online_cpus();
+	mutex_lock(&slab_mutex);
+	s->refcount--;
+	if (!s->refcount) {
+		list_del(&s->list);
+
+		if (!__kmem_cache_shutdown(s)) {
+			if (s->flags & SLAB_DESTROY_BY_RCU)
+				rcu_barrier();
+
+			__kmem_cache_destroy(s);
+		} else {
+			list_add(&s->list, &slab_caches);
+			printk(KERN_ERR "kmem_cache_destroy %s: Slab cache still has objects\n",
+				s->name);
+			dump_stack();
+		}
+	}
+	mutex_unlock(&slab_mutex);
+	put_online_cpus();
+}
+EXPORT_SYMBOL(kmem_cache_destroy);
+
 int slab_is_available(void)
 {
 	return slab_state >= UP;

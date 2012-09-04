@@ -538,18 +538,11 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 	return c;
 }
 
-void kmem_cache_destroy(struct kmem_cache *c)
+void __kmem_cache_destroy(struct kmem_cache *c)
 {
-	mutex_lock(&slab_mutex);
-	list_del(&c->list);
-	mutex_unlock(&slab_mutex);
-
 	kmemleak_free(c);
-	if (c->flags & SLAB_DESTROY_BY_RCU)
-		rcu_barrier();
 	slob_free(c, sizeof(struct kmem_cache));
 }
-EXPORT_SYMBOL(kmem_cache_destroy);
 
 void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 {
@@ -616,6 +609,12 @@ unsigned int kmem_cache_size(struct kmem_cache *c)
 	return c->size;
 }
 EXPORT_SYMBOL(kmem_cache_size);
+
+int __kmem_cache_shutdown(struct kmem_cache *c)
+{
+	/* No way to check for remaining objects */
+	return 0;
+}
 
 int kmem_cache_shrink(struct kmem_cache *d)
 {
