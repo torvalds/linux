@@ -983,7 +983,7 @@ static struct rfkill_rk_platform_data rfkill_rk_platdata = {
     .type               = RFKILL_TYPE_BLUETOOTH,
 
     .poweron_gpio       = { // BT_REG_ON
-        .io             = RK30_PIN3_PC7,
+        .io             = INVALID_GPIO, //RK30_PIN3_PC7,
         .enable         = GPIO_HIGH,
         .iomux          = {
             .name       = GPIO3C7_SDMMC1WRITEPRT_RMIICRS_NAME,
