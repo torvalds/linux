@@ -1321,6 +1321,10 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
 
 	if (first) {
 		gpm_ptr = MS(REG_READ(ah, AR_MCI_GPM_1), AR_MCI_GPM_WRITE_PTR);
+
+		if (gpm_ptr >= mci->gpm_len)
+			gpm_ptr = 0;
+
 		mci->gpm_idx = gpm_ptr;
 		return gpm_ptr;
 	}
@@ -1365,6 +1369,10 @@ u32 ar9003_mci_get_next_gpm_offset(struct ath_hw *ah, bool first, u32 *more)
 			more_gpm = MCI_GPM_NOMORE;
 
 		temp_index = mci->gpm_idx;
+
+		if (temp_index >= mci->gpm_len)
+			temp_index = 0;
+
 		mci->gpm_idx++;
 
 		if (mci->gpm_idx >= mci->gpm_len)
