@@ -937,8 +937,10 @@ static int ati_remote_probe(struct usb_interface *interface,
 	/* Set up and register mouse input device */
 	if (mouse) {
 		input_dev = input_allocate_device();
-		if (!input_dev)
+		if (!input_dev) {
+			err = -ENOMEM;
 			goto fail4;
+		}
 
 		ati_remote->idev = input_dev;
 		ati_remote_input_init(ati_remote);
