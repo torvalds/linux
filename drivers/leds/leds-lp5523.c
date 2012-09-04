@@ -104,6 +104,11 @@
 #define LED_ACTIVE(mux, led)		(!!(mux & (0x0001 << led)))
 #define SHIFT_MASK(id)			(((id) - 1) * 2)
 
+enum lp5523_chip_id {
+	LP5523,
+	LP55231,
+};
+
 struct lp5523_engine {
 	int		id;
 	u8		mode;
@@ -1005,7 +1010,8 @@ static int lp5523_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lp5523_id[] = {
-	{ "lp5523", 0 },
+	{ "lp5523",  LP5523 },
+	{ "lp55231", LP55231 },
 	{ }
 };
 
@@ -1013,7 +1019,7 @@ MODULE_DEVICE_TABLE(i2c, lp5523_id);
 
 static struct i2c_driver lp5523_driver = {
 	.driver = {
-		.name	= "lp5523",
+		.name	= "lp5523x",
 	},
 	.probe		= lp5523_probe,
 	.remove		= lp5523_remove,
