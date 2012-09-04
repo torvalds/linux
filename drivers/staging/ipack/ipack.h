@@ -12,6 +12,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/device.h>
 
+#include "ipack_ids.h"
+
 #define IPACK_IDPROM_OFFSET_I			0x01
 #define IPACK_IDPROM_OFFSET_P			0x03
 #define IPACK_IDPROM_OFFSET_A			0x05
@@ -72,6 +74,9 @@ struct ipack_device {
 	struct ipack_addr_space io_space;
 	struct ipack_addr_space mem_space;
 	struct device dev;
+	unsigned char           *id;
+	size_t			 id_avail;
+	u8			 id_format;
 };
 
 /**
