@@ -86,6 +86,8 @@
 			};
 
 			ssp0: ssp@80010000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80010000 0x2000>;
 				interrupts = <96 82>;
 				fsl,ssp-dma-channel = <0>;
@@ -93,6 +95,8 @@
 			};
 
 			ssp1: ssp@80012000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80012000 0x2000>;
 				interrupts = <97 83>;
 				fsl,ssp-dma-channel = <1>;
@@ -100,6 +104,8 @@
 			};
 
 			ssp2: ssp@80014000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80014000 0x2000>;
 				interrupts = <98 84>;
 				fsl,ssp-dma-channel = <2>;
@@ -107,6 +113,8 @@
 			};
 
 			ssp3: ssp@80016000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0x80016000 0x2000>;
 				interrupts = <99 85>;
 				fsl,ssp-dma-channel = <3>;
