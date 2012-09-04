@@ -25,11 +25,6 @@
 #include "ipoctal.h"
 #include "scc2698.h"
 
-#define IP_OCTAL_MANUFACTURER_ID    0xF0
-#define IP_OCTAL_232_ID             0x22
-#define IP_OCTAL_422_ID             0x2A
-#define IP_OCTAL_485_ID             0x48
-
 #define IP_OCTAL_ID_SPACE_VECTOR    0x41
 #define IP_OCTAL_NB_BLOCKS          4
 
@@ -231,7 +226,7 @@ static int ipoctal_irq_handler(void *arg)
 		/* In case of RS-485, change from TX to RX when finishing TX.
 		 * Half-duplex.
 		 */
-		if ((ipoctal->board_id == IP_OCTAL_485_ID) &&
+		if ((ipoctal->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) &&
 		    (sr & SR_TX_EMPTY) &&
 		    (ipoctal->nb_bytes[channel] == 0)) {
 			ipoctal_write_io_reg(ipoctal,
@@ -304,7 +299,7 @@ static int ipoctal_irq_handler(void *arg)
 			if ((ipoctal->nb_bytes[channel] == 0) &&
 			    (waitqueue_active(&ipoctal->queue[channel]))) {
 
-				if (ipoctal->board_id != IP_OCTAL_485_ID) {
+				if (ipoctal->board_id != IPACK1_DEVICE_ID_SBS_OCTAL_485) {
 					ipoctal->write = 1;
 					wake_up_interruptible(&ipoctal->queue[channel]);
 				}
@@ -322,15 +317,16 @@ static int ipoctal_check_model(struct ipack_device *dev, unsigned char *id)
 	unsigned char manufacturerID;
 	unsigned char board_id;
 
+
 	manufacturerID = ioread8(dev->id_space.address + IPACK_IDPROM_OFFSET_MANUFACTURER_ID);
-	if (manufacturerID != IP_OCTAL_MANUFACTURER_ID)
+	if (manufacturerID != IPACK1_VENDOR_ID_SBS)
 		return -ENODEV;
 
 	board_id = ioread8(dev->id_space.address + IPACK_IDPROM_OFFSET_MODEL);
 	switch (board_id) {
-	case IP_OCTAL_232_ID:
-	case IP_OCTAL_422_ID:
-	case IP_OCTAL_485_ID:
+	case IPACK1_DEVICE_ID_SBS_OCTAL_232:
+	case IPACK1_DEVICE_ID_SBS_OCTAL_422:
+	case IPACK1_DEVICE_ID_SBS_OCTAL_485:
 		*id = board_id;
 		break;
 	default:
@@ -543,7 +539,7 @@ static int ipoctal_write(struct ipoctal *ipoctal, unsigned int channel,
 	ipoctal_copy_write_buffer(ipoctal, channel, buf, count);
 
 	/* As the IP-OCTAL 485 only supports half duplex, do it manually */
-	if (ipoctal->board_id == IP_OCTAL_485_ID) {
+	if (ipoctal->board_id == IPACK1_DEVICE_ID_SBS_OCTAL_485) {
 		ipoctal_write_io_reg(ipoctal,
 				     &ipoctal->chan_regs[channel].w.cr,
 				     CR_DISABLE_RX);
@@ -654,7 +650,7 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 
 	/* Set the flow control */
 	switch (ipoctal->board_id) {
-	case IP_OCTAL_232_ID:
+	case IPACK1_DEVICE_ID_SBS_OCTAL_232:
 		if (cflag & CRTSCTS) {
 			mr1 |= MR1_RxRTS_CONTROL_ON;
 			mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_ON;
@@ -663,11 +659,11 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 			mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_OFF;
 		}
 		break;
-	case IP_OCTAL_422_ID:
+	case IPACK1_DEVICE_ID_SBS_OCTAL_422:
 		mr1 |= MR1_RxRTS_CONTROL_OFF;
 		mr2 |= MR2_TxRTS_CONTROL_OFF | MR2_CTS_ENABLE_TX_OFF;
 		break;
-	case IP_OCTAL_485_ID:
+	case IPACK1_DEVICE_ID_SBS_OCTAL_485:
 		mr1 |= MR1_RxRTS_CONTROL_OFF;
 		mr2 |= MR2_TxRTS_CONTROL_ON | MR2_CTS_ENABLE_TX_OFF;
 		break;
