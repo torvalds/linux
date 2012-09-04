@@ -162,20 +162,12 @@ static void efx_filter_push_rx_config(struct efx_nic *efx)
 			!!(table->spec[EFX_FILTER_INDEX_UC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_RSS));
 		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_CZ_UNICAST_NOMATCH_IP_OVERRIDE,
-			!!(table->spec[EFX_FILTER_INDEX_UC_DEF].flags &
-			   EFX_FILTER_FLAG_RX_OVERRIDE_IP));
-		EFX_SET_OWORD_FIELD(
 			filter_ctl, FRF_CZ_MULTICAST_NOMATCH_Q_ID,
 			table->spec[EFX_FILTER_INDEX_MC_DEF].dmaq_id);
 		EFX_SET_OWORD_FIELD(
 			filter_ctl, FRF_CZ_MULTICAST_NOMATCH_RSS_ENABLED,
 			!!(table->spec[EFX_FILTER_INDEX_MC_DEF].flags &
 			   EFX_FILTER_FLAG_RX_RSS));
-		EFX_SET_OWORD_FIELD(
-			filter_ctl, FRF_CZ_MULTICAST_NOMATCH_IP_OVERRIDE,
-			!!(table->spec[EFX_FILTER_INDEX_MC_DEF].flags &
-			   EFX_FILTER_FLAG_RX_OVERRIDE_IP));
 	}
 
 	efx_writeo(efx, &filter_ctl, FR_BZ_RX_FILTER_CTL);
@@ -480,14 +472,12 @@ static u32 efx_filter_build(efx_oword_t *filter, struct efx_filter_spec *spec)
 
 	case EFX_FILTER_TABLE_RX_MAC: {
 		bool is_wild = spec->type == EFX_FILTER_MAC_WILD;
-		EFX_POPULATE_OWORD_8(
+		EFX_POPULATE_OWORD_7(
 			*filter,
 			FRF_CZ_RMFT_RSS_EN,
 			!!(spec->flags & EFX_FILTER_FLAG_RX_RSS),
 			FRF_CZ_RMFT_SCATTER_EN,
 			!!(spec->flags & EFX_FILTER_FLAG_RX_SCATTER),
-			FRF_CZ_RMFT_IP_OVERRIDE,
-			!!(spec->flags & EFX_FILTER_FLAG_RX_OVERRIDE_IP),
 			FRF_CZ_RMFT_RXQ_ID, spec->dmaq_id,
 			FRF_CZ_RMFT_WILDCARD_MATCH, is_wild,
 			FRF_CZ_RMFT_DEST_MAC_HI, spec->data[2],
@@ -569,16 +559,7 @@ static int efx_filter_search(struct efx_filter_table *table,
 /*
  * Construct/deconstruct external filter IDs.  These must be ordered
  * by matching priority, for RX NFC semantics.
- *
- * Each RX MAC filter entry has a flag for whether it can override an
- * RX IP filter that also matches.  So we assign locations for MAC
- * filters with overriding behaviour, then for IP filters, then for
- * MAC filters without overriding behaviour.
  */
-
-#define EFX_FILTER_MATCH_PRI_RX_MAC_OVERRIDE_IP	0
-#define EFX_FILTER_MATCH_PRI_RX_DEF_OVERRIDE_IP	1
-#define EFX_FILTER_MATCH_PRI_NORMAL_BASE	2
 
 #define EFX_FILTER_INDEX_WIDTH	13
 #define EFX_FILTER_INDEX_MASK	((1 << EFX_FILTER_INDEX_WIDTH) - 1)
@@ -586,14 +567,7 @@ static int efx_filter_search(struct efx_filter_table *table,
 static inline u32 efx_filter_make_id(enum efx_filter_table_id table_id,
 				     unsigned int index, u8 flags)
 {
-	unsigned int match_pri = EFX_FILTER_MATCH_PRI_NORMAL_BASE + table_id;
-
-	if (flags & EFX_FILTER_FLAG_RX_OVERRIDE_IP) {
-		if (table_id == EFX_FILTER_TABLE_RX_MAC)
-			match_pri = EFX_FILTER_MATCH_PRI_RX_MAC_OVERRIDE_IP;
-		else if (table_id == EFX_FILTER_TABLE_RX_DEF)
-			match_pri = EFX_FILTER_MATCH_PRI_RX_DEF_OVERRIDE_IP;
-	}
+	unsigned int match_pri = table_id;
 
 	return match_pri << EFX_FILTER_INDEX_WIDTH | index;
 }
@@ -602,14 +576,7 @@ static inline enum efx_filter_table_id efx_filter_id_table_id(u32 id)
 {
 	unsigned int match_pri = id >> EFX_FILTER_INDEX_WIDTH;
 
-	switch (match_pri) {
-	case EFX_FILTER_MATCH_PRI_RX_MAC_OVERRIDE_IP:
-		return EFX_FILTER_TABLE_RX_MAC;
-	case EFX_FILTER_MATCH_PRI_RX_DEF_OVERRIDE_IP:
-		return EFX_FILTER_TABLE_RX_DEF;
-	default:
-		return match_pri - EFX_FILTER_MATCH_PRI_NORMAL_BASE;
-	}
+	return match_pri;
 }
 
 static inline unsigned int efx_filter_id_index(u32 id)
@@ -621,10 +588,7 @@ static inline u8 efx_filter_id_flags(u32 id)
 {
 	unsigned int match_pri = id >> EFX_FILTER_INDEX_WIDTH;
 
-	if (match_pri < EFX_FILTER_MATCH_PRI_NORMAL_BASE)
-		return EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_OVERRIDE_IP;
-	else if (match_pri <=
-		 EFX_FILTER_MATCH_PRI_NORMAL_BASE + EFX_FILTER_TABLE_RX_DEF)
+	if (match_pri <= EFX_FILTER_TABLE_RX_DEF)
 		return EFX_FILTER_FLAG_RX;
 	else
 		return EFX_FILTER_FLAG_TX;
@@ -637,8 +601,7 @@ u32 efx_filter_get_rx_id_limit(struct efx_nic *efx)
 
 	do {
 		if (state->table[table_id].size != 0)
-			return ((EFX_FILTER_MATCH_PRI_NORMAL_BASE + table_id)
-				<< EFX_FILTER_INDEX_WIDTH) +
+			return (table_id << EFX_FILTER_INDEX_WIDTH) +
 				state->table[table_id].size;
 	} while (table_id--);
 
@@ -781,8 +744,7 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 	spin_lock_bh(&state->lock);
 
 	if (test_bit(filter_idx, table->used_bitmap) &&
-	    spec->priority == priority &&
-	    !((spec->flags ^ filter_flags) & EFX_FILTER_FLAG_RX_OVERRIDE_IP)) {
+	    spec->priority == priority) {
 		efx_filter_table_clear_entry(efx, table, filter_idx);
 		if (table->used == 0)
 			efx_filter_table_reset_search_depth(table);
@@ -833,8 +795,7 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 	spin_lock_bh(&state->lock);
 
 	if (test_bit(filter_idx, table->used_bitmap) &&
-	    spec->priority == priority &&
-	    !((spec->flags ^ filter_flags) & EFX_FILTER_FLAG_RX_OVERRIDE_IP)) {
+	    spec->priority == priority) {
 		*spec_buf = *spec;
 		rc = 0;
 	} else {
