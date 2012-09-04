@@ -63,6 +63,8 @@ enum {
 #define INTEL_MSR_RANGE		(0xffff)
 #define AMD_MSR_RANGE		(0x7)
 
+#define MSR_K7_HWCR_CPB_DIS	(1ULL << 25)
+
 struct acpi_cpufreq_data {
 	struct acpi_processor_performance *acpi_data;
 	struct cpufreq_frequency_table *freq_table;
@@ -78,6 +80,96 @@ static struct acpi_processor_performance __percpu *acpi_perf_data;
 static struct cpufreq_driver acpi_cpufreq_driver;
 
 static unsigned int acpi_pstate_strict;
+static bool boost_enabled, boost_supported;
+static struct msr __percpu *msrs;
+
+static bool boost_state(unsigned int cpu)
+{
+	u32 lo, hi;
+	u64 msr;
+
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_INTEL:
+		rdmsr_on_cpu(cpu, MSR_IA32_MISC_ENABLE, &lo, &hi);
+		msr = lo | ((u64)hi << 32);
+		return !(msr & MSR_IA32_MISC_ENABLE_TURBO_DISABLE);
+	case X86_VENDOR_AMD:
+		rdmsr_on_cpu(cpu, MSR_K7_HWCR, &lo, &hi);
+		msr = lo | ((u64)hi << 32);
+		return !(msr & MSR_K7_HWCR_CPB_DIS);
+	}
+	return false;
+}
+
+static void boost_set_msrs(bool enable, const struct cpumask *cpumask)
+{
+	u32 cpu;
+	u32 msr_addr;
+	u64 msr_mask;
+
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_INTEL:
+		msr_addr = MSR_IA32_MISC_ENABLE;
+		msr_mask = MSR_IA32_MISC_ENABLE_TURBO_DISABLE;
+		break;
+	case X86_VENDOR_AMD:
+		msr_addr = MSR_K7_HWCR;
+		msr_mask = MSR_K7_HWCR_CPB_DIS;
+		break;
+	default:
+		return;
+	}
+
+	rdmsr_on_cpus(cpumask, msr_addr, msrs);
+
+	for_each_cpu(cpu, cpumask) {
+		struct msr *reg = per_cpu_ptr(msrs, cpu);
+		if (enable)
+			reg->q &= ~msr_mask;
+		else
+			reg->q |= msr_mask;
+	}
+
+	wrmsr_on_cpus(cpumask, msr_addr, msrs);
+}
+
+static ssize_t store_global_boost(struct kobject *kobj, struct attribute *attr,
+				  const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val = 0;
+
+	if (!boost_supported)
+		return -EINVAL;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret || (val > 1))
+		return -EINVAL;
+
+	if ((val && boost_enabled) || (!val && !boost_enabled))
+		return count;
+
+	get_online_cpus();
+
+	boost_set_msrs(val, cpu_online_mask);
+
+	put_online_cpus();
+
+	boost_enabled = val;
+	pr_debug("Core Boosting %sabled.\n", val ? "en" : "dis");
+
+	return count;
+}
+
+static ssize_t show_global_boost(struct kobject *kobj,
+				 struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", boost_enabled);
+}
+
+static struct global_attr global_boost = __ATTR(boost, 0644,
+						show_global_boost,
+						store_global_boost);
 
 static int check_est_cpu(unsigned int cpuid)
 {
@@ -448,6 +540,44 @@ static void free_acpi_perf_data(void)
 	free_percpu(acpi_perf_data);
 }
 
+static int boost_notify(struct notifier_block *nb, unsigned long action,
+		      void *hcpu)
+{
+	unsigned cpu = (long)hcpu;
+	const struct cpumask *cpumask;
+
+	cpumask = get_cpu_mask(cpu);
+
+	/*
+	 * Clear the boost-disable bit on the CPU_DOWN path so that
+	 * this cpu cannot block the remaining ones from boosting. On
+	 * the CPU_UP path we simply keep the boost-disable flag in
+	 * sync with the current global state.
+	 */
+
+	switch (action) {
+	case CPU_UP_PREPARE:
+	case CPU_UP_PREPARE_FROZEN:
+		boost_set_msrs(boost_enabled, cpumask);
+		break;
+
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		boost_set_msrs(1, cpumask);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+
+static struct notifier_block boost_nb = {
+	.notifier_call          = boost_notify,
+};
+
 /*
  * acpi_cpufreq_early_init - initialize ACPI P-States library
  *
@@ -774,6 +904,49 @@ static struct cpufreq_driver acpi_cpufreq_driver = {
 	.attr		= acpi_cpufreq_attr,
 };
 
+static void __init acpi_cpufreq_boost_init(void)
+{
+	if (boot_cpu_has(X86_FEATURE_CPB) || boot_cpu_has(X86_FEATURE_IDA)) {
+		msrs = msrs_alloc();
+
+		if (!msrs)
+			return;
+
+		boost_supported = true;
+		boost_enabled = boost_state(0);
+
+		get_online_cpus();
+
+		/* Force all MSRs to the same value */
+		boost_set_msrs(boost_enabled, cpu_online_mask);
+
+		register_cpu_notifier(&boost_nb);
+
+		put_online_cpus();
+	} else
+		global_boost.attr.mode = 0444;
+
+	/* We create the boost file in any case, though for systems without
+	 * hardware support it will be read-only and hardwired to return 0.
+	 */
+	if (sysfs_create_file(cpufreq_global_kobject, &(global_boost.attr)))
+		pr_warn(PFX "could not register global boost sysfs file\n");
+	else
+		pr_debug("registered global boost sysfs file\n");
+}
+
+static void __exit acpi_cpufreq_boost_exit(void)
+{
+	sysfs_remove_file(cpufreq_global_kobject, &(global_boost.attr));
+
+	if (msrs) {
+		unregister_cpu_notifier(&boost_nb);
+
+		msrs_free(msrs);
+		msrs = NULL;
+	}
+}
+
 static int __init acpi_cpufreq_init(void)
 {
 	int ret;
@@ -790,6 +963,8 @@ static int __init acpi_cpufreq_init(void)
 	ret = cpufreq_register_driver(&acpi_cpufreq_driver);
 	if (ret)
 		free_acpi_perf_data();
+	else
+		acpi_cpufreq_boost_init();
 
 	return ret;
 }
@@ -797,6 +972,8 @@ static int __init acpi_cpufreq_init(void)
 static void __exit acpi_cpufreq_exit(void)
 {
 	pr_debug("acpi_cpufreq_exit\n");
+
+	acpi_cpufreq_boost_exit();
 
 	cpufreq_unregister_driver(&acpi_cpufreq_driver);
 
