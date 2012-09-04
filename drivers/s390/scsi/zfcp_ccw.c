@@ -57,7 +57,7 @@ static int zfcp_ccw_activate(struct ccw_device *cdev, int clear, char *tag)
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 				tag);
 	zfcp_erp_wait(adapter);
-	flush_work(&adapter->scan_work);
+	flush_work(&adapter->scan_work); /* ok to call even if nothing queued */
 
 	zfcp_ccw_adapter_put(adapter);
 
@@ -171,6 +171,11 @@ static int zfcp_ccw_set_online(struct ccw_device *cdev)
 	adapter->req_no = 0;
 
 	zfcp_ccw_activate(cdev, 0, "ccsonl1");
+	/* scan for remote ports
+	   either at the end of any successful adapter recovery
+	   or only after the adapter recovery for setting a device online */
+	zfcp_fc_inverse_conditional_port_scan(adapter);
+	flush_work(&adapter->scan_work); /* ok to call even if nothing queued */
 	zfcp_ccw_adapter_put(adapter);
 	return 0;
 }
