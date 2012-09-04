@@ -504,7 +504,7 @@ static SENSOR_DEVICE_ATTR(fan0_input, S_IRUGO, nouveau_hwmon_show_fan0_input,
 			  NULL, 0);
 
 static ssize_t
-nouveau_hwmon_get_pwm0(struct device *d, struct device_attribute *a, char *buf)
+nouveau_hwmon_get_pwm1(struct device *d, struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -519,7 +519,7 @@ nouveau_hwmon_get_pwm0(struct device *d, struct device_attribute *a, char *buf)
 }
 
 static ssize_t
-nouveau_hwmon_set_pwm0(struct device *d, struct device_attribute *a,
+nouveau_hwmon_set_pwm1(struct device *d, struct device_attribute *a,
 		       const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -541,12 +541,12 @@ nouveau_hwmon_set_pwm0(struct device *d, struct device_attribute *a,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(pwm0, S_IRUGO | S_IWUSR,
-			  nouveau_hwmon_get_pwm0,
-			  nouveau_hwmon_set_pwm0, 0);
+static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm1,
+			  nouveau_hwmon_set_pwm1, 0);
 
 static ssize_t
-nouveau_hwmon_get_pwm0_min(struct device *d,
+nouveau_hwmon_get_pwm1_min(struct device *d,
 			   struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -562,7 +562,7 @@ nouveau_hwmon_get_pwm0_min(struct device *d,
 }
 
 static ssize_t
-nouveau_hwmon_set_pwm0_min(struct device *d, struct device_attribute *a,
+nouveau_hwmon_set_pwm1_min(struct device *d, struct device_attribute *a,
 			   const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -581,12 +581,12 @@ nouveau_hwmon_set_pwm0_min(struct device *d, struct device_attribute *a,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(pwm0_min, S_IRUGO | S_IWUSR,
-			  nouveau_hwmon_get_pwm0_min,
-			  nouveau_hwmon_set_pwm0_min, 0);
+static SENSOR_DEVICE_ATTR(pwm1_min, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm1_min,
+			  nouveau_hwmon_set_pwm1_min, 0);
 
 static ssize_t
-nouveau_hwmon_get_pwm0_max(struct device *d,
+nouveau_hwmon_get_pwm1_max(struct device *d,
 			   struct device_attribute *a, char *buf)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -602,7 +602,7 @@ nouveau_hwmon_get_pwm0_max(struct device *d,
 }
 
 static ssize_t
-nouveau_hwmon_set_pwm0_max(struct device *d, struct device_attribute *a,
+nouveau_hwmon_set_pwm1_max(struct device *d, struct device_attribute *a,
 			   const char *buf, size_t count)
 {
 	struct drm_device *dev = dev_get_drvdata(d);
@@ -621,9 +621,9 @@ nouveau_hwmon_set_pwm0_max(struct device *d, struct device_attribute *a,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(pwm0_max, S_IRUGO | S_IWUSR,
-			  nouveau_hwmon_get_pwm0_max,
-			  nouveau_hwmon_set_pwm0_max, 0);
+static SENSOR_DEVICE_ATTR(pwm1_max, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm1_max,
+			  nouveau_hwmon_set_pwm1_max, 0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -638,9 +638,9 @@ static struct attribute *hwmon_fan_rpm_attributes[] = {
 	NULL
 };
 static struct attribute *hwmon_pwm_fan_attributes[] = {
-	&sensor_dev_attr_pwm0.dev_attr.attr,
-	&sensor_dev_attr_pwm0_min.dev_attr.attr,
-	&sensor_dev_attr_pwm0_max.dev_attr.attr,
+	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm1_min.dev_attr.attr,
+	&sensor_dev_attr_pwm1_max.dev_attr.attr,
 	NULL
 };
 
