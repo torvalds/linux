@@ -489,23 +489,19 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
 		memcpy(&tsta.macaddr, sta->addr, ETH_ALEN);
 		memcpy(&tsta.bssid, common->curbssid, ETH_ALEN);
-		tsta.is_vif_sta = 0;
 		ista->index = sta_idx;
+		tsta.is_vif_sta = 0;
+		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+				 sta->ht_cap.ampdu_factor);
+		tsta.maxampdu = cpu_to_be16(maxampdu);
 	} else {
 		memcpy(&tsta.macaddr, vif->addr, ETH_ALEN);
 		tsta.is_vif_sta = 1;
+		tsta.maxampdu = cpu_to_be16(0xffff);
 	}
 
 	tsta.sta_index = sta_idx;
 	tsta.vif_index = avp->index;
-
-	if (!sta) {
-		tsta.maxampdu = cpu_to_be16(0xffff);
-	} else {
-		maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-				 sta->ht_cap.ampdu_factor);
-		tsta.maxampdu = cpu_to_be16(maxampdu);
-	}
 
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
