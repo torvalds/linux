@@ -143,10 +143,6 @@ static int __devinit lm70_probe(struct spi_device *spi)
 	if (spi->mode & (SPI_CPOL | SPI_CPHA))
 		return -EINVAL;
 
-	/* 3-wire link (shared SI/SO) for LM70 */
-	if (chip == LM70_CHIP_LM70 && !(spi->mode & SPI_3WIRE))
-		return -EINVAL;
-
 	/* NOTE:  we assume 8-bit words, and convert to 16 bits manually */
 
 	p_lm70 = devm_kzalloc(&spi->dev, sizeof(*p_lm70), GFP_KERNEL);

@@ -31,9 +31,8 @@ As a real (in-tree) example of this "SPI protocol driver" interfacing
 with a "SPI master controller driver", see drivers/spi/spi_lm70llp.c
 and its associated documentation.
 
-The TMP121/TMP123 are very similar; main differences are 4 wire SPI inter-
-face (read only) and 13-bit temperature data (0.0625 degrees celsius reso-
-lution).
+The TMP121/TMP123 are very similar; main difference is 13-bit temperature
+data (0.0625 degrees celsius resolution).
 
 Thanks to
 ---------
