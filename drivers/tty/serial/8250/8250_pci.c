@@ -1164,6 +1164,16 @@ pci_xr17c154_setup(struct serial_private *priv,
 	return pci_default_setup(priv, board, port, idx);
 }
 
+static int
+pci_wch_ch353_setup(struct serial_private *priv,
+                    const struct pciserial_board *board,
+                    struct uart_8250_port *port, int idx)
+{
+	port->port.flags |= UPF_FIXED_TYPE;
+	port->port.type = PORT_16550A;
+	return pci_default_setup(priv, board, port, idx);
+}
+
 #define PCI_VENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_SUBVENDOR_ID_SBSMODULARIO	0x124B
 #define PCI_DEVICE_ID_OCTPRO		0x0001
@@ -1736,6 +1746,14 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.setup		= pci_omegapci_setup,
+	},
+	/* WCH CH353 2S1P card (16550 clone) */
+	{
+		.vendor         = 0x4348,
+		.device         = 0x7053,
+		.subvendor      = 0x4348,
+		.subdevice      = 0x3253,
+		.setup          = pci_wch_ch353_setup,
 	},
 	/*
 	 * ASIX devices with FIFO bug
@@ -2636,10 +2654,14 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 	},
 };
 
-static const struct pci_device_id softmodem_blacklist[] = {
+static const struct pci_device_id blacklist[] = {
+	/* softmodems */
 	{ PCI_VDEVICE(AL, 0x5457), }, /* ALi Corporation M5457 AC'97 Modem */
 	{ PCI_VDEVICE(MOTOROLA, 0x3052), }, /* Motorola Si3052-based modem */
 	{ PCI_DEVICE(0x1543, 0x3052), }, /* Si3052-based modem, default IDs */
+
+	/* multi-io cards handled by parport_serial */
+	{ PCI_DEVICE(0x4348, 0x7053), }, /* WCH CH353 2S1P */
 };
 
 /*
@@ -2650,7 +2672,7 @@ static const struct pci_device_id softmodem_blacklist[] = {
 static int __devinit
 serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 {
-	const struct pci_device_id *blacklist;
+	const struct pci_device_id *bldev;
 	int num_iomem, num_port, first_port = -1, i;
 
 	/*
@@ -2667,13 +2689,13 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 
 	/*
 	 * Do not access blacklisted devices that are known not to
-	 * feature serial ports.
+	 * feature serial ports or are handled by other modules.
 	 */
-	for (blacklist = softmodem_blacklist;
-	     blacklist < softmodem_blacklist + ARRAY_SIZE(softmodem_blacklist);
-	     blacklist++) {
-		if (dev->vendor == blacklist->vendor &&
-		    dev->device == blacklist->device)
+	for (bldev = blacklist;
+	     bldev < blacklist + ARRAY_SIZE(blacklist);
+	     bldev++) {
+		if (dev->vendor == bldev->vendor &&
+		    dev->device == bldev->device)
 			return -ENODEV;
 	}
 
