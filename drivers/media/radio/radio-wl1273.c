@@ -1715,7 +1715,7 @@ out:
 }
 
 static int wl1273_fm_vidioc_s_modulator(struct file *file, void *priv,
-					struct v4l2_modulator *modulator)
+					const struct v4l2_modulator *modulator)
 {
 	struct wl1273_device *radio = video_get_drvdata(video_devdata(file));
 	struct wl1273_core *core = radio->core;

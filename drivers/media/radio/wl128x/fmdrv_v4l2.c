@@ -448,7 +448,7 @@ static int fm_v4l2_vidioc_g_modulator(struct file *file, void *priv,
 
 /* Set modulator attributes. If mode is not TX, set to TX. */
 static int fm_v4l2_vidioc_s_modulator(struct file *file, void *priv,
-		struct v4l2_modulator *mod)
+		const struct v4l2_modulator *mod)
 {
 	struct fmdev *fmdev = video_drvdata(file);
 	u8 rds_mode;

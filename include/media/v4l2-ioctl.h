@@ -179,7 +179,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_modulator)      (struct file *file, void *fh,
 					struct v4l2_modulator *a);
 	int (*vidioc_s_modulator)      (struct file *file, void *fh,
-					struct v4l2_modulator *a);
+					const struct v4l2_modulator *a);
 	/* Crop ioctls */
 	int (*vidioc_cropcap)          (struct file *file, void *fh,
 					struct v4l2_cropcap *a);
