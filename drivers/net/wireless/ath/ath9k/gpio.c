@@ -228,7 +228,12 @@ static void ath_btcoex_period_timer(unsigned long data)
 	ath9k_hw_btcoex_enable(ah);
 	spin_unlock_bh(&btcoex->btcoex_lock);
 
-	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp) {
+	/*
+	 * btcoex_period is in msec while (btocex/btscan_)no_stomp are in usec,
+	 * ensure that we properly convert btcoex_period to usec
+	 * for any comparision with (btcoex/btscan_)no_stomp.
+	 */
+	if (btcoex->btcoex_period * 1000 != btcoex->btcoex_no_stomp) {
 		if (btcoex->hw_timer_enabled)
 			ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
 

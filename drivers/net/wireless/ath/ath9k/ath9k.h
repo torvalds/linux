@@ -473,7 +473,7 @@ struct ath_btcoex {
 	unsigned long op_flags;
 	int bt_stomp_type; /* Types of BT stomping */
 	u32 btcoex_no_stomp; /* in usec */
-	u32 btcoex_period; /* in usec */
+	u32 btcoex_period; /* in msec */
 	u32 btscan_no_stomp; /* in usec */
 	u32 duty_cycle;
 	u32 bt_wait_time;
