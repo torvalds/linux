@@ -275,31 +275,72 @@ config LYCHEE_HDMI_SUN3I
 	---help---
 	default m
 
-config FB_SUNXI
-        tristate "DISP Driver Support(sunxi)"
-        depends on FB && (ARCH_SUN5I || ARCH_SUN4I)
+
+config LYCHEE_FB_SUN4I
+	tristate "DISP Driver Support(sun4i)"
+	select FB_SUNXI
+        depends on FB && ARCH_SUN4I
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
         ---help---
         default m
 
-config FB_SUNXI_UMP
+config LYCHEE_FB_SUN5I
+	tristate "DISP Driver Support(sun5i)"
+	select FB_SUNXI
+        depends on FB && ARCH_SUN5I
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+        ---help---
+        default m
+
+config FB_SUNXI
+        tristate
+
+config LYCHEE_FB_UMP_SUN4I
 	bool "Enable FB/UMP Integration"
-	depends on MALI && FB_SUNXI=m
+	select FB_SUNXI_UMP
+	depends on MALI && LYCHEE_FB_SUN4I=m
 	default y
 
+config FB_SUNXI_UMP
+	bool
+
+config LYCHEE_LCD_SUN4I
+	tristate "LCD Driver Support(sun4i)"
+	select FB_SUNXI_LCD
+        depends on LYCHEE_FB_SUN4I
+        ---help---
+        default m
+
+config LYCHEE_LCD_SUN5I
+	tristate "LCD Driver Support(sun5i)"
+	select FB_SUNXI_LCD
+        depends on LYCHEE_FB_SUN5I
+        ---help---
+        default m
+
 config FB_SUNXI_LCD
-        tristate "LCD Driver Support(sunxi)"
-        depends on FB_SUNXI
+        tristate
+
+config LYCHEE_HDMI_SUN4I
+	tristate "HDMI Driver Support(sun4i)"
+	select FB_SUNXI_HDMI
+        depends on LYCHEE_LCD_SUN4I
+        ---help---
+        default m
+
+config LYCHEE_HDMI_SUN5I
+	tristate "HDMI Driver Support(sun5i)"
+	select FB_SUNXI_HDMI
+        depends on LYCHEE_LCD_SUN5I
         ---help---
         default m
 
 config FB_SUNXI_HDMI
-        tristate "HDMI Driver Support(sunxi)"
-        depends on FB_SUNXI
-        ---help---
-        default m
+        tristate 
         
 config FB_CIRRUS
 	tristate "Cirrus Logic support"
