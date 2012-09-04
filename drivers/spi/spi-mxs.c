@@ -177,25 +177,23 @@ static inline void mxs_spi_disable(struct mxs_spi *spi)
 
 static int mxs_ssp_wait(struct mxs_spi *spi, int offset, int mask, bool set)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(SSP_TIMEOUT);
+	const unsigned long timeout = jiffies + msecs_to_jiffies(SSP_TIMEOUT);
 	struct mxs_ssp *ssp = &spi->ssp;
 	uint32_t reg;
 
-	while (1) {
+	do {
 		reg = readl_relaxed(ssp->base + offset);
 
-		if (set && ((reg & mask) == mask))
-			break;
+		if (!set)
+			reg = ~reg;
 
-		if (!set && ((~reg & mask) == mask))
-			break;
+		reg &= mask;
 
-		udelay(1);
+		if (reg == mask)
+			return 0;
+	} while (time_before(jiffies, timeout));
 
-		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
-	}
-	return 0;
+	return -ETIMEDOUT;
 }
 
 static void mxs_ssp_dma_irq_callback(void *param)
