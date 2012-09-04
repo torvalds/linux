@@ -1204,6 +1204,10 @@ pci_wch_ch353_setup(struct serial_private *priv,
 #define PCIE_DEVICE_ID_NEO_2_OX_IBM	0x00F6
 #define PCI_DEVICE_ID_PLX_CRONYX_OMEGA	0xc001
 #define PCI_DEVICE_ID_INTEL_PATSBURG_KT 0x1d3d
+#define PCI_VENDOR_ID_WCH		0x4348
+#define PCI_DEVICE_ID_WCH_CH353_4S	0x3453
+#define PCI_DEVICE_ID_WCH_CH353_2S1PF	0x5046
+#define PCI_DEVICE_ID_WCH_CH353_2S1P	0x7053
 #define PCI_VENDOR_ID_AGESTAR		0x5372
 #define PCI_DEVICE_ID_AGESTAR_9375	0x6872
 #define PCI_VENDOR_ID_ASIX		0x9710
@@ -1749,10 +1753,26 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 	},
 	/* WCH CH353 2S1P card (16550 clone) */
 	{
-		.vendor         = 0x4348,
-		.device         = 0x7053,
-		.subvendor      = 0x4348,
-		.subdevice      = 0x3253,
+		.vendor         = PCI_VENDOR_ID_WCH,
+		.device         = PCI_DEVICE_ID_WCH_CH353_2S1P,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.setup          = pci_wch_ch353_setup,
+	},
+	/* WCH CH353 4S card (16550 clone) */
+	{
+		.vendor         = PCI_VENDOR_ID_WCH,
+		.device         = PCI_DEVICE_ID_WCH_CH353_4S,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.setup          = pci_wch_ch353_setup,
+	},
+	/* WCH CH353 2S1PF card (16550 clone) */
+	{
+		.vendor         = PCI_VENDOR_ID_WCH,
+		.device         = PCI_DEVICE_ID_WCH_CH353_2S1PF,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
 		.setup          = pci_wch_ch353_setup,
 	},
 	/*
@@ -4218,6 +4238,19 @@ static struct pci_device_id serial_pci_tbl[] = {
 	{	PCI_VENDOR_ID_AGESTAR, PCI_DEVICE_ID_AGESTAR_9375,
 		PCI_ANY_ID, PCI_ANY_ID,
 		0, 0, pbn_b0_bt_2_115200 },
+
+	/*
+	 * WCH CH353 series devices: The 2S1P is handled by parport_serial
+	 * so not listed here.
+	 */
+	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH353_4S,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0, pbn_b0_bt_4_115200 },
+
+	{	PCI_VENDOR_ID_WCH, PCI_DEVICE_ID_WCH_CH353_2S1PF,
+		PCI_ANY_ID, PCI_ANY_ID,
+		0, 0, pbn_b0_bt_2_115200 },
+
 	/*
 	 * These entries match devices with class COMMUNICATION_SERIAL,
 	 * COMMUNICATION_MODEM or COMMUNICATION_MULTISERIAL
