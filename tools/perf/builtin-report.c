@@ -638,6 +638,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		    "Show a column with the sum of periods"),
 	OPT_CALLBACK_NOOPT('b', "branch-stack", &sort__branch_mode, "",
 		    "use branch records for histogram filling", parse_branch_mode),
+	OPT_STRING(0, "objdump", &objdump_path, "path",
+		   "objdump binary to use for disassembly and annotations"),
 	OPT_END()
 	};
 
