@@ -136,11 +136,23 @@ int __init register_security(struct security_operations *ops)
 
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
+#ifdef CONFIG_SECURITY_YAMA_STACKED
+	int rc;
+	rc = yama_ptrace_access_check(child, mode);
+	if (rc)
+		return rc;
+#endif
 	return security_ops->ptrace_access_check(child, mode);
 }
 
 int security_ptrace_traceme(struct task_struct *parent)
 {
+#ifdef CONFIG_SECURITY_YAMA_STACKED
+	int rc;
+	rc = yama_ptrace_traceme(parent);
+	if (rc)
+		return rc;
+#endif
 	return security_ops->ptrace_traceme(parent);
 }
 
@@ -761,6 +773,9 @@ int security_task_create(unsigned long clone_flags)
 
 void security_task_free(struct task_struct *task)
 {
+#ifdef CONFIG_SECURITY_YAMA_STACKED
+	yama_task_free(task);
+#endif
 	security_ops->task_free(task);
 }
 
@@ -876,6 +891,12 @@ int security_task_wait(struct task_struct *p)
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
+#ifdef CONFIG_SECURITY_YAMA_STACKED
+	int rc;
+	rc = yama_task_prctl(option, arg2, arg3, arg4, arg5);
+	if (rc != -ENOSYS)
+		return rc;
+#endif
 	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 

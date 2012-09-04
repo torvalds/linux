@@ -100,7 +100,7 @@ static void yama_ptracer_del(struct task_struct *tracer,
  * yama_task_free - check for task_pid to remove from exception list
  * @task: task being removed
  */
-static void yama_task_free(struct task_struct *task)
+void yama_task_free(struct task_struct *task)
 {
 	yama_ptracer_del(task, task);
 }
@@ -116,7 +116,7 @@ static void yama_task_free(struct task_struct *task)
  * Return 0 on success, -ve on error.  -ENOSYS is returned when Yama
  * does not handle the given option.
  */
-static int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5)
 {
 	int rc;
@@ -243,7 +243,7 @@ static int ptracer_exception_found(struct task_struct *tracer,
  *
  * Returns 0 if following the ptrace is allowed, -ve on error.
  */
-static int yama_ptrace_access_check(struct task_struct *child,
+int yama_ptrace_access_check(struct task_struct *child,
 				    unsigned int mode)
 {
 	int rc;
@@ -296,7 +296,7 @@ static int yama_ptrace_access_check(struct task_struct *child,
  *
  * Returns 0 if following the ptrace is allowed, -ve on error.
  */
-static int yama_ptrace_traceme(struct task_struct *parent)
+int yama_ptrace_traceme(struct task_struct *parent)
 {
 	int rc;
 
@@ -330,6 +330,7 @@ static int yama_ptrace_traceme(struct task_struct *parent)
 	return rc;
 }
 
+#ifndef CONFIG_SECURITY_YAMA_STACKED
 static struct security_operations yama_ops = {
 	.name =			"yama",
 
@@ -338,6 +339,7 @@ static struct security_operations yama_ops = {
 	.task_prctl =		yama_task_prctl,
 	.task_free =		yama_task_free,
 };
+#endif
 
 #ifdef CONFIG_SYSCTL
 static int yama_dointvec_minmax(struct ctl_table *table, int write,
@@ -384,13 +386,17 @@ static struct ctl_table yama_sysctl_table[] = {
 
 static __init int yama_init(void)
 {
+#ifndef CONFIG_SECURITY_YAMA_STACKED
 	if (!security_module_enable(&yama_ops))
 		return 0;
+#endif
 
 	printk(KERN_INFO "Yama: becoming mindful.\n");
 
+#ifndef CONFIG_SECURITY_YAMA_STACKED
 	if (register_security(&yama_ops))
 		panic("Yama: kernel registration failed.\n");
+#endif
 
 #ifdef CONFIG_SYSCTL
 	if (!register_sysctl_paths(yama_sysctl_path, yama_sysctl_table))

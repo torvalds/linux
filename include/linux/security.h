@@ -3021,5 +3021,36 @@ static inline void free_secdata(void *secdata)
 { }
 #endif /* CONFIG_SECURITY */
 
+#ifdef CONFIG_SECURITY_YAMA
+extern int yama_ptrace_access_check(struct task_struct *child,
+				    unsigned int mode);
+extern int yama_ptrace_traceme(struct task_struct *parent);
+extern void yama_task_free(struct task_struct *task);
+extern int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+			   unsigned long arg4, unsigned long arg5);
+#else
+static inline int yama_ptrace_access_check(struct task_struct *child,
+					   unsigned int mode)
+{
+	return 0;
+}
+
+static inline int yama_ptrace_traceme(struct task_struct *parent)
+{
+	return 0;
+}
+
+static inline void yama_task_free(struct task_struct *task)
+{
+}
+
+static inline int yama_task_prctl(int option, unsigned long arg2,
+				  unsigned long arg3, unsigned long arg4,
+				  unsigned long arg5)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_SECURITY_YAMA */
+
 #endif /* ! __LINUX_SECURITY_H */
 
