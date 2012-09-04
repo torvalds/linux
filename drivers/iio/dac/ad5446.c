@@ -552,6 +552,9 @@ static int __devexit ad5446_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ad5446_i2c_ids[] = {
+	{"ad5301", ID_AD5602},
+	{"ad5311", ID_AD5612},
+	{"ad5321", ID_AD5622},
 	{"ad5602", ID_AD5602},
 	{"ad5612", ID_AD5612},
 	{"ad5622", ID_AD5622},
