@@ -2121,7 +2121,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
             /* Allocate for the new station record , to avoid race condition would happen between ADD_PEER &
              * DEL_PEER the allocation made atomic memory rather than kernel memory
              */
-            newRecord = (CsrWifiRouterCtrlStaInfo_t *) kmalloc(sizeof(CsrWifiRouterCtrlStaInfo_t), GFP_ATOMIC);
+            newRecord = kmalloc(sizeof(CsrWifiRouterCtrlStaInfo_t), GFP_ATOMIC);
             if (!newRecord) {
                 unifi_error(priv, "failed to allocate the %d bytes of mem for station record\n",
                             sizeof(CsrWifiRouterCtrlStaInfo_t));
