@@ -71,7 +71,9 @@ static DEFINE_MUTEX(cpufreq_mutex);
 
 static struct clk *gpu_clk;
 static struct clk *ddr_clk;
+#if !defined(CONFIG_ARCH_RK3066B)
 #define GPU_MAX_RATE 350*1000*1000
+#endif
 
 static int cpufreq_scale_rate_for_dvfs(struct clk *clk, unsigned long rate, dvfs_set_rate_callback set_rate);
 
@@ -96,7 +98,9 @@ static bool rk30_cpufreq_is_ondemand_policy(struct cpufreq_policy *policy)
 }
 
 /**********************thermal limit**************************/
+#if !defined(CONFIG_ARCH_RK3066B)
 #define CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
+#endif
 
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 static void rk30_cpufreq_temp_limit_work_func(struct work_struct *work);
@@ -124,8 +128,10 @@ static void rk30_cpufreq_temp_limit_work_func(struct work_struct *work)
 	int temp, i;
 	unsigned int new = -1;
 
+#ifdef GPU_MAX_RATE
 	if (clk_get_rate(gpu_clk) > GPU_MAX_RATE)
 		goto out;
+#endif
 
 	temp = max(rk30_tsadc_get_temp(0), rk30_tsadc_get_temp(1));
 	FREQ_PRINTK_LOG("cpu_thermal(%d)\n", temp);
@@ -524,8 +530,11 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_
 	bool is_ondemand = rk30_cpufreq_is_ondemand_policy(policy);
 	static bool is_booting = true;
 
+#ifdef GPU_MAX_RATE
 	if (is_ondemand && clk_get_rate(gpu_clk) > GPU_MAX_RATE) // high performance?
 		return max_freq;
+#endif
+#if !defined(CONFIG_ARCH_RK3066B)
 	if (is_ondemand && is_booting && target_freq >= 1600 * 1000) {
 		s64 boottime_ms = ktime_to_ms(ktime_get_boottime());
 		if (boottime_ms > 30 * MSEC_PER_SEC) {
@@ -534,6 +543,7 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_
 			target_freq = 1416 * 1000;
 		}
 	}
+#endif
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 	if (is_ondemand && target_freq > policy->cur && policy->cur >= TEMP_LIMIT_FREQ) {
 		unsigned int i;
