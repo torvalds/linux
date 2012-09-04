@@ -169,6 +169,53 @@ static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static const struct snd_soc_dapm_widget rt3261_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_MIC("Headset Jack", NULL),	
+};
+
+static const struct snd_soc_dapm_route audio_map[]={
+
+	/* Mic Jack --> MIC_IN*/
+	{"micbias1", NULL, "Mic Jack"},
+	{"MIC1", NULL, "micbias1"},
+	
+	// HP MIC
+	{"micbias1", NULL, "Headset Jack"},
+	{"MIC3", NULL, "micbias1"},
+} ;
+
+static const struct snd_kcontrol_new rk_controls[] = {
+	SOC_DAPM_PIN_SWITCH("Mic Jack"),
+	SOC_DAPM_PIN_SWITCH("Headset Jack"),
+};
+
+/*
+ * Logic for a rt3261 as connected on a rockchip board.
+ */
+static int rk29_rt3261_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+	snd_soc_add_controls(codec, rk_controls,
+			ARRAY_SIZE(rk_controls));
+
+	/* Add specific widgets */
+	snd_soc_dapm_new_controls(dapm, rt3261_dapm_widgets,
+				  ARRAY_SIZE(rt3261_dapm_widgets));
+	/* Set up specific audio path audio_mapnects */
+	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
+
+	snd_soc_dapm_enable_pin(dapm, "Mic Jack");
+	snd_soc_dapm_enable_pin(dapm, "Headset Jack");
+	snd_soc_dapm_sync(dapm);
+
+	return 0;
+}
+
 static struct snd_soc_ops rk29_ops = {
 	.hw_params = rk29_hw_params,
 };
@@ -185,6 +232,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.platform_name = "rockchip-audio",
 		.cpu_dai_name = "rk29_i2s.0",
 		.codec_dai_name = "rt3261-aif1",
+		.init = rk29_rt3261_init,
 		.ops = &rk29_ops,
 	},
 	{
@@ -194,6 +242,7 @@ static struct snd_soc_dai_link rk29_dai[] = {
 		.platform_name = "rockchip-audio",
 		.cpu_dai_name = "rk29_i2s.0",
 		.codec_dai_name = "rt3261-aif2",
+		.init = rk29_rt3261_init,
 		.ops = &rt3261_voice_ops,
 	},
 };

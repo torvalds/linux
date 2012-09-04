@@ -2069,7 +2069,7 @@ enum {
 #define RT3261_HEADSET_DET	BIT(1)
 #define RT3261_HEADPHO_DET	BIT(2)
 
-int rt3261_headset_detect(struct snd_soc_codec *codec, int jack_insert);
+int rt3261_headset_mic_detect(int jack_insert);
 
 /* System Clock Source */
 enum {

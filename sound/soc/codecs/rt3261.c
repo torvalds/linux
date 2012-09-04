@@ -62,8 +62,10 @@ static struct snd_soc_codec *rt3261_codec;
 
 #define VERSION "RT3261_V1.0.0"
 
+#if defined (CONFIG_SND_SOC_RT5623)
 extern void rt5623_on(void);
 extern void rt5623_off(void);
+#endif
 
 struct rt3261_init_reg {
 	u8 reg;
@@ -482,7 +484,7 @@ static int rt3261_readable_register(
 }
 
 /**
- * rt3261_headset_detect - Detect headset.
+ * rt3261_headset_mic_detect - Detect headset.
  * @codec: SoC audio codec device.
  * @jack_insert: Jack insert or not.
  *
@@ -490,43 +492,44 @@ static int rt3261_readable_register(
  *
  * Returns detect status.
  */
-int rt3261_headset_detect(struct snd_soc_codec *codec, int jack_insert)
+int rt3261_headset_mic_detect(int jack_insert)
 {
 	int jack_type;
 	int sclk_src;
 
 	if(jack_insert) {
-		if (SND_SOC_BIAS_OFF == codec->dapm.bias_level) {
-			snd_soc_write(codec, RT3261_PWR_ANLG1, 0x2004);
-			snd_soc_write(codec, RT3261_MICBIAS, 0x3830);
-			snd_soc_write(codec, RT3261_GEN_CTRL1 , 0x3701);
+		if (SND_SOC_BIAS_OFF == rt3261_codec->dapm.bias_level) {
+			snd_soc_write(rt3261_codec, RT3261_PWR_ANLG1, 0x2004);
+			snd_soc_write(rt3261_codec, RT3261_MICBIAS, 0x3830);
+			snd_soc_write(rt3261_codec, RT3261_GEN_CTRL1 , 0x3701);
 		}
-		sclk_src = snd_soc_read(codec, RT3261_GLB_CLK) &
+		sclk_src = snd_soc_read(rt3261_codec, RT3261_GLB_CLK) &
 			RT3261_SCLK_SRC_MASK;
-		snd_soc_update_bits(codec, RT3261_GLB_CLK,
+		snd_soc_update_bits(rt3261_codec, RT3261_GLB_CLK,
 			RT3261_SCLK_SRC_MASK, 0x3 << RT3261_SCLK_SRC_SFT);
-		snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
+		snd_soc_update_bits(rt3261_codec, RT3261_PWR_ANLG1,
 			RT3261_PWR_LDO2, RT3261_PWR_LDO2);
-		snd_soc_update_bits(codec, RT3261_PWR_ANLG2,
+		snd_soc_update_bits(rt3261_codec, RT3261_PWR_ANLG2,
 			RT3261_PWR_MB1, RT3261_PWR_MB1);
-		snd_soc_update_bits(codec, RT3261_MICBIAS,
+		mdelay(400);
+		snd_soc_update_bits(rt3261_codec, RT3261_MICBIAS,
 			RT3261_MIC1_OVCD_MASK | RT3261_MIC1_OVTH_MASK |
 			RT3261_PWR_CLK25M_MASK | RT3261_PWR_MB_MASK,
 			RT3261_MIC1_OVCD_EN | RT3261_MIC1_OVTH_600UA |
 			RT3261_PWR_MB_PU | RT3261_PWR_CLK25M_PU);
-		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+		snd_soc_update_bits(rt3261_codec, RT3261_GEN_CTRL1,
 			0x1, 0x1);
 		msleep(100);
-		if (snd_soc_read(codec, RT3261_IRQ_CTRL2) & 0x8)
+		if (snd_soc_read(rt3261_codec, RT3261_IRQ_CTRL2) & 0x8)
 			jack_type = RT3261_HEADPHO_DET;
 		else
 			jack_type = RT3261_HEADSET_DET;
-		snd_soc_update_bits(codec, RT3261_IRQ_CTRL2,
+		snd_soc_update_bits(rt3261_codec, RT3261_IRQ_CTRL2,
 			RT3261_MB1_OC_CLR, 0);
-		snd_soc_update_bits(codec, RT3261_GLB_CLK,
+		snd_soc_update_bits(rt3261_codec, RT3261_GLB_CLK,
 			RT3261_SCLK_SRC_MASK, sclk_src);
 	} else {
-		snd_soc_update_bits(codec, RT3261_MICBIAS,
+		snd_soc_update_bits(rt3261_codec, RT3261_MICBIAS,
 			RT3261_MIC1_OVCD_MASK,
 			RT3261_MIC1_OVCD_DIS);
 		
@@ -535,7 +538,7 @@ int rt3261_headset_detect(struct snd_soc_codec *codec, int jack_insert)
 
 	return jack_type;
 }
-EXPORT_SYMBOL(rt3261_headset_detect);
+EXPORT_SYMBOL(rt3261_headset_mic_detect);
 
 static const char *rt3261_dacr2_src[] = { "TxDC_R", "TxDP_R" };
 
@@ -765,6 +768,7 @@ static int rt3261_hp_mute_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#if defined (CONFIG_SND_SOC_RT5623)
 static int rt3261_modem_input_switch_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
@@ -791,6 +795,7 @@ static int rt3261_modem_input_switch_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+#endif
 
 /* IN1/IN2 Input Type */
 static const char *rt3261_input_mode[] = {
@@ -851,9 +856,11 @@ static const char *rt3261_hp_mute_mode[] = {"off", "on",};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_hp_mute_enum, 0, 0, rt3261_hp_mute_mode);
 
+#if defined (CONFIG_SND_SOC_RT5623)
 static const char *rt3261_modem_input_switch_mode[] = {"off", "on",};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_modem_input_switch_enum, 0, 0, rt3261_modem_input_switch_mode);
+#endif
 
 #ifdef RT3261_REG_RW
 #define REGVAL_MAX 0xffff
@@ -1010,8 +1017,10 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_ENUM_EXT("HP mute Switch", rt3261_hp_mute_enum,
 		rt3261_hp_mute_get, rt3261_hp_mute_put),
 
+	#if defined (CONFIG_SND_SOC_RT5623)
 	SOC_ENUM_EXT("Modem Input Switch", rt3261_modem_input_switch_enum,
 		rt3261_modem_input_switch_get, rt3261_modem_input_switch_put),
+	#endif
 };
 
 /**
@@ -2863,14 +2872,9 @@ static int rt3261_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
-		snd_soc_update_bits(codec, RT3261_PWR_ANLG2,
-			RT3261_PWR_MB1 | RT3261_PWR_MB2,
-			RT3261_PWR_MB1 | RT3261_PWR_MB2);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_update_bits(codec, RT3261_PWR_ANLG2,
-			RT3261_PWR_MB1 | RT3261_PWR_MB2, 0);
 		if (SND_SOC_BIAS_OFF == codec->dapm.bias_level) {
 			snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
 				RT3261_PWR_VREF1 | RT3261_PWR_MB |
@@ -2930,6 +2934,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	rt3261_proc_init();
 	#endif
 
+	#if defined (CONFIG_SND_SOC_RT5623)
 	//for rt5623 MCLK use
 	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
 	if (IS_ERR(iis_clk)) {
@@ -2942,6 +2947,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 		rk30_mux_api_set(GPIO0D0_I2S22CHCLK_SMCCSN0_NAME, GPIO0D_I2S2_2CH_CLK);
 		clk_put(iis_clk);
 	}
+	#endif
 	
 	rt3261_reset(codec);
 	snd_soc_update_bits(codec, RT3261_PWR_ANLG1,
@@ -3144,7 +3150,9 @@ static int __devinit rt3261_i2c_probe(struct i2c_client *i2c,
 	if(rt3261->io_init)
 		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);
 
+	#if defined (CONFIG_SND_SOC_RT5623)
 	rt3261->modem_is_open = 0;
+	#endif
 
 	i2c_set_clientdata(i2c, rt3261);
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
