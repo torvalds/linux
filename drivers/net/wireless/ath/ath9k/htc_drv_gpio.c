@@ -182,7 +182,16 @@ void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
 {
 	struct ath_hw *ah = priv->ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	int qnum;
+
+	/*
+	 * Check if BTCOEX is globally disabled.
+	 */
+	if (!common->btcoex_enabled) {
+		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_NONE;
+		return;
+	}
 
 	if (product && strncmp(product, ATH_HTC_BTCOEX_PRODUCT_ID, 5) == 0) {
 		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_3WIRE;
