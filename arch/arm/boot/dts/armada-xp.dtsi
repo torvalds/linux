@@ -51,5 +51,19 @@
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0xd0018200 0x500>;
 		};
+
+		ethernet@d0030000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0030000 0x2500>;
+				interrupts = <12>;
+				status = "disabled";
+		};
+
+		ethernet@d0034000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0034000 0x2500>;
+				interrupts = <14>;
+				status = "disabled";
+		};
 	};
 };

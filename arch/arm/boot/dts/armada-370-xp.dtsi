@@ -68,6 +68,27 @@
 			compatible = "marvell,armada-addr-decoding-controller";
 			reg = <0xd0020000 0x258>;
 		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "marvell,orion-mdio";
+			reg = <0xd0072004 0x4>;
+		};
+
+		ethernet@d0070000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0070000 0x2500>;
+				interrupts = <8>;
+				status = "disabled";
+		};
+
+		ethernet@d0074000 {
+				compatible = "marvell,armada-370-neta";
+				reg = <0xd0074000 0x2500>;
+				interrupts = <10>;
+				status = "disabled";
+		};
 	};
 };
 
