@@ -3028,9 +3028,9 @@ static int cx88_xc3028_winfast1800h_callback(struct cx88_core *core,
 		cx_set(MO_GP1_IO, 0x1010);
 		mdelay(50);
 		cx_clear(MO_GP1_IO, 0x10);
-		mdelay(50);
+		mdelay(75);
 		cx_set(MO_GP1_IO, 0x10);
-		mdelay(50);
+		mdelay(75);
 		return 0;
 	}
 	return -EINVAL;
