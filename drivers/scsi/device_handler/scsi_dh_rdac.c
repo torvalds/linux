@@ -853,7 +853,7 @@ static int rdac_bus_attach(struct scsi_device *sdev)
 	if (!scsi_dh_data) {
 		sdev_printk(KERN_ERR, sdev, "%s: Attach failed\n",
 			    RDAC_NAME);
-		return 0;
+		return -ENOMEM;
 	}
 
 	scsi_dh_data->scsi_dh = &rdac_dh;
