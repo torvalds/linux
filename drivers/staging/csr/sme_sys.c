@@ -2813,12 +2813,11 @@ u8 blockack_session_start(unifi_priv_t *priv,
         }
 
         /* create and populate the new BA session structure */
-        ba_session_tx = kmalloc(sizeof(ba_session_tx_struct), GFP_KERNEL);
+        ba_session_tx = kzalloc(sizeof(ba_session_tx_struct), GFP_KERNEL);
         if (!ba_session_tx) {
             unifi_error(priv, "%s: kmalloc failed for ba_session_tx\n", __FUNCTION__);
             return FALSE;
         }
-        memset(ba_session_tx, 0, sizeof(ba_session_tx_struct));
 
         ba_session_tx->interfacePriv = interfacePriv;
         ba_session_tx->tID = tID;
@@ -2903,25 +2902,22 @@ u8 blockack_session_start(unifi_priv_t *priv,
             return FALSE;
         }
 
-        ba_session_rx = kmalloc(sizeof(ba_session_rx_struct), GFP_KERNEL);
+        ba_session_rx = kzalloc(sizeof(ba_session_rx_struct), GFP_KERNEL);
         if (!ba_session_rx) {
             unifi_error(priv, "%s: kmalloc failed for ba_session_rx\n", __FUNCTION__);
             return FALSE;
         }
-        memset(ba_session_rx, 0, sizeof(ba_session_rx_struct));
 
         ba_session_rx->wind_size = wind_size;
         ba_session_rx->start_sn = ba_session_rx->expected_sn = start_sn;
         ba_session_rx->trigger_ba_after_ssn = FALSE;
 
-        ba_session_rx->buffer = kmalloc(ba_session_rx->wind_size*sizeof(frame_desc_struct), GFP_KERNEL);
+        ba_session_rx->buffer = kzalloc(ba_session_rx->wind_size*sizeof(frame_desc_struct), GFP_KERNEL);
         if (!ba_session_rx->buffer) {
             kfree(ba_session_rx);
             unifi_error(priv, "%s: kmalloc failed for buffer\n", __FUNCTION__);
             return FALSE;
         }
-
-        memset(ba_session_rx->buffer, 0, ba_session_rx->wind_size*sizeof(frame_desc_struct));
 
         INIT_WORK(&ba_session_rx->send_ba_err_task, uf_send_ba_err_wq);
         if (timeout) {
