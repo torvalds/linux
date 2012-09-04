@@ -229,8 +229,7 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 			 */
 			list_add_tail(&spacer.link, &o->pending_comp);
 			mb();
-			list_del(&elem->link);
-			list_add_tail(&elem->link, &o->pending_comp);
+			list_move_tail(&elem->link, &o->pending_comp);
 			list_del(&spacer.link);
 		} else
 			break;
