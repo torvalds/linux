@@ -1777,9 +1777,12 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
     	    _pcd->vbus_status = 1;
             if(_pcd->conn_en)
                 goto connect;
-            else
+            else{
                 // not connect, suspend phy
                 pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+                udelay(3);
+                pldata->clock_enable( pldata, 0);
+            }
         } 
         else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
             DWC_PRINT("********soft reconnect******************************************\n");
@@ -1794,6 +1797,8 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
                 
             // not connect, suspend phy
             pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+            udelay(3);
+            pldata->clock_enable( pldata, 0);
         }
 	}else {
         _pcd->vbus_status = 0;
@@ -1802,9 +1807,12 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
              dwc_otg_msc_unlock(_pcd);
         }
         /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-        else if( pldata->phy_status == 0 ) 
+        else if( pldata->phy_status == 0 ){ 
             /* no vbus detect here , close usb phy  */
             pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
+            udelay(3);
+            pldata->clock_enable( pldata, 0);		
+        }
     }
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
@@ -1813,6 +1821,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 connect:
     if(_pcd->conn_status==0)
         dwc_otg_msc_lock(_pcd);
+    pldata->clock_enable( pldata, 1);	
     pldata->phy_suspend(pldata, USB_PHY_ENABLED);
     schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
