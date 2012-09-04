@@ -275,12 +275,7 @@ config LYCHEE_HDMI_SUN3I
 	---help---
 	default m
 
-config LYCHEE_FB_UMP_SUN4I
-	bool "Enable FB/UMP Integration"
-	depends on MALI && LYCHEE_FB_SUNXI=m
-	default y
-
-config LYCHEE_FB_SUNXI
+config FB_SUNXI
         tristate "DISP Driver Support(sunxi)"
         depends on FB && (ARCH_SUN5I || ARCH_SUN4I)
 	select FB_CFB_FILLRECT
@@ -289,15 +284,20 @@ config LYCHEE_FB_SUNXI
         ---help---
         default m
 
-config LYCHEE_LCD_SUNXI
+config FB_SUNXI_UMP
+	bool "Enable FB/UMP Integration"
+	depends on MALI && FB_SUNXI=m
+	default y
+
+config FB_SUNXI_LCD
         tristate "LCD Driver Support(sunxi)"
-        depends on LYCHEE_FB_SUNXI
+        depends on FB_SUNXI
         ---help---
         default m
 
-config LYCHEE_HDMI_SUNXI
+config FB_SUNXI_HDMI
         tristate "HDMI Driver Support(sunxi)"
-        depends on LYCHEE_FB_SUNXI
+        depends on FB_SUNXI
         ---help---
         default m
         

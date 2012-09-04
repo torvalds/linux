@@ -1,4 +1,4 @@
-obj-$(CONFIG_LYCHEE_HDMI_SUNXI) += hdmi.o
+obj-$(CONFIG_FB_SUNXI_HDMI) += hdmi.o
 
 #hdmi-objs := anx7150/hdmi_core.o anx7150/hdmi_hal.o anx7150/hdmi_i2c.o\
 #            dev_hdmi.o drv_hdmi.o
