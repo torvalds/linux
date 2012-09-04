@@ -40,8 +40,8 @@ struct ipoctal {
 	struct list_head		list;
 	struct ipack_device		*dev;
 	unsigned int			board_id;
-	struct scc2698_channel		*chan_regs;
-	struct scc2698_block		*block_regs;
+	struct scc2698_channel __iomem	*chan_regs;
+	struct scc2698_block __iomem	*block_regs;
 	struct ipoctal_stats		chan_stats[NR_CHANNELS];
 	unsigned int			nb_bytes[NR_CHANNELS];
 	unsigned int			count_wr[NR_CHANNELS];
@@ -59,8 +59,8 @@ struct ipoctal {
 static LIST_HEAD(ipoctal_list);
 
 static inline void ipoctal_write_io_reg(struct ipoctal *ipoctal,
-					unsigned char *dest,
-					unsigned char value)
+					u8 __iomem *dest,
+					u8 value)
 {
 	iowrite8(value, dest);
 }
@@ -73,7 +73,7 @@ static inline void ipoctal_write_cr_cmd(struct ipoctal *ipoctal,
 }
 
 static inline unsigned char ipoctal_read_io_reg(struct ipoctal *ipoctal,
-						unsigned char *src)
+						u8 __iomem *src)
 {
 	return ioread8(src);
 }
@@ -391,9 +391,9 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	/* Save the virtual address to access the registers easily */
 	ipoctal->chan_regs =
-		(struct scc2698_channel *) ipoctal->dev->io_space.address;
+		(struct scc2698_channel __iomem *) ipoctal->dev->io_space.address;
 	ipoctal->block_regs =
-		(struct scc2698_block *) ipoctal->dev->io_space.address;
+		(struct scc2698_block __iomem *) ipoctal->dev->io_space.address;
 
 	/* Disable RX and TX before touching anything */
 	for (i = 0; i < NR_CHANNELS ; i++) {
