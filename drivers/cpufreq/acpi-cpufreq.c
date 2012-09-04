@@ -133,8 +133,7 @@ static void boost_set_msrs(bool enable, const struct cpumask *cpumask)
 	wrmsr_on_cpus(cpumask, msr_addr, msrs);
 }
 
-static ssize_t store_global_boost(struct kobject *kobj, struct attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t _store_boost(const char *buf, size_t count)
 {
 	int ret;
 	unsigned long val = 0;
@@ -161,6 +160,12 @@ static ssize_t store_global_boost(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static ssize_t store_global_boost(struct kobject *kobj, struct attribute *attr,
+				  const char *buf, size_t count)
+{
+	return _store_boost(buf, count);
+}
+
 static ssize_t show_global_boost(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
 {
@@ -170,6 +175,21 @@ static ssize_t show_global_boost(struct kobject *kobj,
 static struct global_attr global_boost = __ATTR(boost, 0644,
 						show_global_boost,
 						store_global_boost);
+
+#ifdef CONFIG_X86_ACPI_CPUFREQ_CPB
+static ssize_t store_cpb(struct cpufreq_policy *policy, const char *buf,
+			 size_t count)
+{
+	return _store_boost(buf, count);
+}
+
+static ssize_t show_cpb(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%u\n", boost_enabled);
+}
+
+static struct freq_attr cpb = __ATTR(cpb, 0644, show_cpb, store_cpb);
+#endif
 
 static int check_est_cpu(unsigned int cpuid)
 {
@@ -889,6 +909,7 @@ static int acpi_cpufreq_resume(struct cpufreq_policy *policy)
 
 static struct freq_attr *acpi_cpufreq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,	/* this is a placeholder for cpb, do not remove */
 	NULL,
 };
 
@@ -959,6 +980,27 @@ static int __init acpi_cpufreq_init(void)
 	ret = acpi_cpufreq_early_init();
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_X86_ACPI_CPUFREQ_CPB
+	/* this is a sysfs file with a strange name and an even stranger
+	 * semantic - per CPU instantiation, but system global effect.
+	 * Lets enable it only on AMD CPUs for compatibility reasons and
+	 * only if configured. This is considered legacy code, which
+	 * will probably be removed at some point in the future.
+	 */
+	if (check_amd_hwpstate_cpu(0)) {
+		struct freq_attr **iter;
+
+		pr_debug("adding sysfs entry for cpb\n");
+
+		for (iter = acpi_cpufreq_attr; *iter != NULL; iter++)
+			;
+
+		/* make sure there is a terminator behind it */
+		if (iter[1] == NULL)
+			*iter = &cpb;
+	}
+#endif
 
 	ret = cpufreq_register_driver(&acpi_cpufreq_driver);
 	if (ret)

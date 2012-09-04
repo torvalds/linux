@@ -33,6 +33,18 @@ config X86_ACPI_CPUFREQ
 
 	  If in doubt, say N.
 
+config X86_ACPI_CPUFREQ_CPB
+	default y
+	bool "Legacy cpb sysfs knob support for AMD CPUs"
+	depends on X86_ACPI_CPUFREQ && CPU_SUP_AMD
+	help
+	  The powernow-k8 driver used to provide a sysfs knob called "cpb"
+	  to disable the Core Performance Boosting feature of AMD CPUs. This
+	  file has now been superseeded by the more generic "boost" entry.
+
+	  By enabling this option the acpi_cpufreq driver provides the old
+	  entry in addition to the new boost ones, for compatibility reasons.
+
 config ELAN_CPUFREQ
 	tristate "AMD Elan SC400 and SC410"
 	select CPU_FREQ_TABLE
