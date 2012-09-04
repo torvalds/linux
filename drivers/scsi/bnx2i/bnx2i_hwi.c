@@ -1350,6 +1350,7 @@ int bnx2i_process_scsi_cmd_resp(struct iscsi_session *session,
 				struct cqe *cqe)
 {
 	struct iscsi_conn *conn = bnx2i_conn->cls_conn->dd_data;
+	struct bnx2i_hba *hba = bnx2i_conn->hba;
 	struct bnx2i_cmd_response *resp_cqe;
 	struct bnx2i_cmd *bnx2i_cmd;
 	struct iscsi_task *task;
@@ -1367,16 +1368,26 @@ int bnx2i_process_scsi_cmd_resp(struct iscsi_session *session,
 
 	if (bnx2i_cmd->req.op_attr & ISCSI_CMD_REQUEST_READ) {
 		conn->datain_pdus_cnt +=
-			resp_cqe->task_stat.read_stat.num_data_outs;
+			resp_cqe->task_stat.read_stat.num_data_ins;
 		conn->rxdata_octets +=
 			bnx2i_cmd->req.total_data_transfer_length;
+		ADD_STATS_64(hba, rx_pdus,
+			     resp_cqe->task_stat.read_stat.num_data_ins);
+		ADD_STATS_64(hba, rx_bytes,
+			     bnx2i_cmd->req.total_data_transfer_length);
 	} else {
 		conn->dataout_pdus_cnt +=
-			resp_cqe->task_stat.read_stat.num_data_outs;
+			resp_cqe->task_stat.write_stat.num_data_outs;
 		conn->r2t_pdus_cnt +=
-			resp_cqe->task_stat.read_stat.num_r2ts;
+			resp_cqe->task_stat.write_stat.num_r2ts;
 		conn->txdata_octets +=
 			bnx2i_cmd->req.total_data_transfer_length;
+		ADD_STATS_64(hba, tx_pdus,
+			     resp_cqe->task_stat.write_stat.num_data_outs);
+		ADD_STATS_64(hba, tx_bytes,
+			     bnx2i_cmd->req.total_data_transfer_length);
+		ADD_STATS_64(hba, rx_pdus,
+			     resp_cqe->task_stat.write_stat.num_r2ts);
 	}
 	bnx2i_iscsi_unmap_sg_list(bnx2i_cmd);
 
@@ -1961,6 +1972,7 @@ static int bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 {
 	struct iscsi_conn *conn = bnx2i_conn->cls_conn->dd_data;
 	struct iscsi_session *session = conn->session;
+	struct bnx2i_hba *hba = bnx2i_conn->hba;
 	struct qp_info *qp;
 	struct bnx2i_nop_in_msg *nopin;
 	int tgt_async_msg;
@@ -1973,7 +1985,7 @@ static int bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 
 	if (!qp->cq_virt) {
 		printk(KERN_ALERT "bnx2i (%s): cq resr freed in bh execution!",
-			bnx2i_conn->hba->netdev->name);
+		       hba->netdev->name);
 		goto out;
 	}
 	while (1) {
@@ -1985,9 +1997,9 @@ static int bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 			if (nopin->op_code == ISCSI_OP_NOOP_IN &&
 			    nopin->itt == (u16) RESERVED_ITT) {
 				printk(KERN_ALERT "bnx2i: Unsolicited "
-					"NOP-In detected for suspended "
-					"connection dev=%s!\n",
-					bnx2i_conn->hba->netdev->name);
+				       "NOP-In detected for suspended "
+				       "connection dev=%s!\n",
+				       hba->netdev->name);
 				bnx2i_unsol_pdu_adjust_rq(bnx2i_conn);
 				goto cqe_out;
 			}
@@ -2001,7 +2013,7 @@ static int bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 			/* Run the kthread engine only for data cmds
 			   All other cmds will be completed in this bh! */
 			bnx2i_queue_scsi_cmd_resp(session, bnx2i_conn, nopin);
-			break;
+			goto done;
 		case ISCSI_OP_LOGIN_RSP:
 			bnx2i_process_login_resp(session, bnx2i_conn,
 						 qp->cq_cons_qe);
@@ -2044,11 +2056,15 @@ static int bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 			printk(KERN_ALERT "bnx2i: unknown opcode 0x%x\n",
 					  nopin->op_code);
 		}
+
+		ADD_STATS_64(hba, rx_pdus, 1);
+		ADD_STATS_64(hba, rx_bytes, nopin->data_length);
+done:
 		if (!tgt_async_msg) {
 			if (!atomic_read(&bnx2i_conn->ep->num_active_cmds))
 				printk(KERN_ALERT "bnx2i (%s): no active cmd! "
 				       "op 0x%x\n",
-				       bnx2i_conn->hba->netdev->name,
+				       hba->netdev->name,
 				       nopin->op_code);
 			else
 				atomic_dec(&bnx2i_conn->ep->num_active_cmds);
@@ -2692,6 +2708,7 @@ struct cnic_ulp_ops bnx2i_cnic_cb = {
 	.cm_remote_close = bnx2i_cm_remote_close,
 	.cm_remote_abort = bnx2i_cm_remote_abort,
 	.iscsi_nl_send_msg = bnx2i_send_nl_mesg,
+	.cnic_get_stats = bnx2i_get_stats,
 	.owner = THIS_MODULE
 };
 

@@ -166,8 +166,6 @@ struct drm_display_mode {
 	int crtc_vsync_start;
 	int crtc_vsync_end;
 	int crtc_vtotal;
-	int crtc_hadjusted;
-	int crtc_vadjusted;
 
 	/* Driver private mode info */
 	int private_size;
@@ -676,8 +674,6 @@ struct drm_plane {
  * This is used to set modes.
  */
 struct drm_mode_set {
-	struct list_head head;
-
 	struct drm_framebuffer *fb;
 	struct drm_crtc *crtc;
 	struct drm_display_mode *mode;

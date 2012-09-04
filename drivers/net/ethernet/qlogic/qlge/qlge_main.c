@@ -1433,6 +1433,36 @@ map_error:
 	return NETDEV_TX_BUSY;
 }
 
+/* Categorizing receive firmware frame errors */
+static void ql_categorize_rx_err(struct ql_adapter *qdev, u8 rx_err)
+{
+	struct nic_stats *stats = &qdev->nic_stats;
+
+	stats->rx_err_count++;
+
+	switch (rx_err & IB_MAC_IOCB_RSP_ERR_MASK) {
+	case IB_MAC_IOCB_RSP_ERR_CODE_ERR:
+		stats->rx_code_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_OVERSIZE:
+		stats->rx_oversize_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_UNDERSIZE:
+		stats->rx_undersize_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_PREAMBLE:
+		stats->rx_preamble_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_FRAME_LEN:
+		stats->rx_frame_len_err++;
+		break;
+	case IB_MAC_IOCB_RSP_ERR_CRC:
+		stats->rx_crc_err++;
+	default:
+		break;
+	}
+}
+
 /* Process an inbound completion from an rx ring. */
 static void ql_process_mac_rx_gro_page(struct ql_adapter *qdev,
 					struct rx_ring *rx_ring,
@@ -1499,15 +1529,6 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 	addr = lbq_desc->p.pg_chunk.va;
 	prefetch(addr);
 
-
-	/* Frame error, so drop the packet. */
-	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_info(qdev, drv, qdev->ndev,
-			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
-		rx_ring->rx_errors++;
-		goto err_out;
-	}
-
 	/* The max framesize filter on this chip is set higher than
 	 * MTU since FCoE uses 2k frames.
 	 */
@@ -1546,7 +1567,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 			struct iphdr *iph =
 				(struct iphdr *) ((u8 *)addr + ETH_HLEN);
 			if (!(iph->frag_off &
-				cpu_to_be16(IP_MF|IP_OFFSET))) {
+				htons(IP_MF|IP_OFFSET))) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 				netif_printk(qdev, rx_status, KERN_DEBUG,
 					     qdev->ndev,
@@ -1593,15 +1614,6 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	memcpy(skb_put(new_skb, length), skb->data, length);
 	skb = new_skb;
 
-	/* Frame error, so drop the packet. */
-	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_info(qdev, drv, qdev->ndev,
-			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
-		dev_kfree_skb_any(skb);
-		rx_ring->rx_errors++;
-		return;
-	}
-
 	/* loopback self test for ethtool */
 	if (test_bit(QL_SELFTEST, &qdev->flags)) {
 		ql_check_lb_frame(qdev, skb);
@@ -1619,7 +1631,6 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	}
 
 	prefetch(skb->data);
-	skb->dev = ndev;
 	if (ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) {
 		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 			     "%s Multicast.\n",
@@ -1654,7 +1665,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 			/* Unfragmented ipv4 UDP frame. */
 			struct iphdr *iph = (struct iphdr *) skb->data;
 			if (!(iph->frag_off &
-				ntohs(IP_MF|IP_OFFSET))) {
+				htons(IP_MF|IP_OFFSET))) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 				netif_printk(qdev, rx_status, KERN_DEBUG,
 					     qdev->ndev,
@@ -1908,15 +1919,6 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 		return;
 	}
 
-	/* Frame error, so drop the packet. */
-	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_info(qdev, drv, qdev->ndev,
-			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
-		dev_kfree_skb_any(skb);
-		rx_ring->rx_errors++;
-		return;
-	}
-
 	/* The max framesize filter on this chip is set higher than
 	 * MTU since FCoE uses 2k frames.
 	 */
@@ -1934,7 +1936,6 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 	}
 
 	prefetch(skb->data);
-	skb->dev = ndev;
 	if (ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) {
 		netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev, "%s Multicast.\n",
 			     (ib_mac_rsp->flags1 & IB_MAC_IOCB_RSP_M_MASK) ==
@@ -1968,7 +1969,7 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 		/* Unfragmented ipv4 UDP frame. */
 			struct iphdr *iph = (struct iphdr *) skb->data;
 			if (!(iph->frag_off &
-				ntohs(IP_MF|IP_OFFSET))) {
+				htons(IP_MF|IP_OFFSET))) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 				netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 					     "TCP checksum done!\n");
@@ -1998,6 +1999,12 @@ static unsigned long ql_process_mac_rx_intr(struct ql_adapter *qdev,
 			IB_MAC_IOCB_RSP_VLAN_MASK)) : 0xffff;
 
 	QL_DUMP_IB_MAC_RSP(ib_mac_rsp);
+
+	/* Frame error, so drop the packet. */
+	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
+		ql_categorize_rx_err(qdev, ib_mac_rsp->flags2);
+		return (unsigned long)length;
+	}
 
 	if (ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HV) {
 		/* The data and headers are split into
@@ -2173,8 +2180,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 	ql_write_cq_idx(rx_ring);
 	tx_ring = &qdev->tx_ring[net_rsp->txq_idx];
 	if (__netif_subqueue_stopped(qdev->ndev, tx_ring->wq_id)) {
-		if (atomic_read(&tx_ring->queue_stopped) &&
-		    (atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
+		if ((atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
 			/*
 			 * The queue got stopped because the tx_ring was full.
 			 * Wake it up, because it's now at least 25% empty.
@@ -2558,10 +2564,9 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 
 	if (unlikely(atomic_read(&tx_ring->tx_count) < 2)) {
 		netif_info(qdev, tx_queued, qdev->ndev,
-			   "%s: shutting down tx queue %d du to lack of resources.\n",
+			   "%s: BUG! shutting down tx queue %d due to lack of resources.\n",
 			   __func__, tx_ring_idx);
 		netif_stop_subqueue(ndev, tx_ring->wq_id);
-		atomic_inc(&tx_ring->queue_stopped);
 		tx_ring->tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -2612,6 +2617,16 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 		     tx_ring->prod_idx, skb->len);
 
 	atomic_dec(&tx_ring->tx_count);
+
+	if (unlikely(atomic_read(&tx_ring->tx_count) < 2)) {
+		netif_stop_subqueue(ndev, tx_ring->wq_id);
+		if ((atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
+			/*
+			 * The queue got stopped because the tx_ring was full.
+			 * Wake it up, because it's now at least 25% empty.
+			 */
+			netif_wake_subqueue(qdev->ndev, tx_ring->wq_id);
+	}
 	return NETDEV_TX_OK;
 }
 
@@ -2680,7 +2695,6 @@ static void ql_init_tx_ring(struct ql_adapter *qdev, struct tx_ring *tx_ring)
 		tx_ring_desc++;
 	}
 	atomic_set(&tx_ring->tx_count, tx_ring->wq_len);
-	atomic_set(&tx_ring->queue_stopped, 0);
 }
 
 static void ql_free_tx_resources(struct ql_adapter *qdev,
@@ -2703,10 +2717,9 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
 				 &tx_ring->wq_base_dma);
 
 	if ((tx_ring->wq_base == NULL) ||
-	    tx_ring->wq_base_dma & WQ_ADDR_ALIGN) {
-		netif_err(qdev, ifup, qdev->ndev, "tx_ring alloc failed.\n");
-		return -ENOMEM;
-	}
+	    tx_ring->wq_base_dma & WQ_ADDR_ALIGN)
+		goto pci_alloc_err;
+
 	tx_ring->q =
 	    kmalloc(tx_ring->wq_len * sizeof(struct tx_ring_desc), GFP_KERNEL);
 	if (tx_ring->q == NULL)
@@ -2716,6 +2729,9 @@ static int ql_alloc_tx_resources(struct ql_adapter *qdev,
 err:
 	pci_free_consistent(qdev->pdev, tx_ring->wq_size,
 			    tx_ring->wq_base, tx_ring->wq_base_dma);
+	tx_ring->wq_base = NULL;
+pci_alloc_err:
+	netif_err(qdev, ifup, qdev->ndev, "tx_ring alloc failed.\n");
 	return -ENOMEM;
 }
 
@@ -4649,7 +4665,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 	int err = 0;
 
 	ndev = alloc_etherdev_mq(sizeof(struct ql_adapter),
-			min(MAX_CPUS, (int)num_online_cpus()));
+			min(MAX_CPUS, netif_get_num_default_rss_queues()));
 	if (!ndev)
 		return -ENOMEM;
 
@@ -4666,6 +4682,7 @@ static int __devinit qlge_probe(struct pci_dev *pdev,
 		NETIF_F_HW_VLAN_TX | NETIF_F_RXCSUM;
 	ndev->features = ndev->hw_features |
 		NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER;
+	ndev->vlan_features = ndev->hw_features;
 
 	if (test_bit(QL_DMA64, &qdev->flags))
 		ndev->features |= NETIF_F_HIGHDMA;

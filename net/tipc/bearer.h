@@ -57,7 +57,7 @@
  */
 #define TIPC_MEDIA_TYPE_ETH	1
 
-/*
+/**
  * struct tipc_media_addr - destination address used by TIPC bearers
  * @value: address info (format defined by media)
  * @media_id: TIPC media type identifier
@@ -179,7 +179,7 @@ void tipc_eth_media_stop(void);
 
 int tipc_media_set_priority(const char *name, u32 new_value);
 int tipc_media_set_window(const char *name, u32 new_value);
-void tipc_media_addr_printf(struct print_buf *pb, struct tipc_media_addr *a);
+void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a);
 struct sk_buff *tipc_media_get_names(void);
 
 struct sk_buff *tipc_bearer_get_names(void);

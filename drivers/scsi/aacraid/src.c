@@ -56,25 +56,14 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	if (bellbits & PmDoorBellResponseSent) {
 		bellbits = PmDoorBellResponseSent;
 		/* handle async. status */
+		src_writel(dev, MUnit.ODR_C, bellbits);
+		src_readl(dev, MUnit.ODR_C);
 		our_interrupt = 1;
 		index = dev->host_rrq_idx;
-		if (dev->host_rrq[index] == 0) {
-			u32 old_index = index;
-			/* adjust index */
-			do {
-				index++;
-				if (index == dev->scsi_host_ptr->can_queue +
-							AAC_NUM_MGT_FIB)
-					index = 0;
-				if (dev->host_rrq[index] != 0)
-					break;
-			} while (index != old_index);
-			dev->host_rrq_idx = index;
-		}
 		for (;;) {
 			isFastResponse = 0;
 			/* remove toggle bit (31) */
-			handle = (dev->host_rrq[index] & 0x7fffffff);
+			handle = le32_to_cpu(dev->host_rrq[index]) & 0x7fffffff;
 			/* check fast response bit (30) */
 			if (handle & 0x40000000)
 				isFastResponse = 1;
@@ -93,6 +82,8 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	} else {
 		bellbits_shifted = (bellbits >> SRC_ODR_SHIFT);
 		if (bellbits_shifted & DoorBellAifPending) {
+			src_writel(dev, MUnit.ODR_C, bellbits);
+			src_readl(dev, MUnit.ODR_C);
 			our_interrupt = 1;
 			/* handle AIF */
 			aac_intr_normal(dev, 0, 2, 0, NULL);
@@ -100,6 +91,13 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 			unsigned long sflags;
 			struct list_head *entry;
 			int send_it = 0;
+			extern int aac_sync_mode;
+
+			if (!aac_sync_mode) {
+				src_writel(dev, MUnit.ODR_C, bellbits);
+				src_readl(dev, MUnit.ODR_C);
+				our_interrupt = 1;
+			}
 
 			if (dev->sync_fib) {
 				our_interrupt = 1;
@@ -132,7 +130,6 @@ static irqreturn_t aac_src_intr_message(int irq, void *dev_id)
 	}
 
 	if (our_interrupt) {
-		src_writel(dev, MUnit.ODR_C, bellbits);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
@@ -336,6 +333,9 @@ static void aac_src_start_adapter(struct aac_dev *dev)
 {
 	struct aac_init *init;
 
+	 /* reset host_rrq_idx first */
+	dev->host_rrq_idx = 0;
+
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
 
@@ -389,30 +389,51 @@ static int aac_src_deliver_message(struct fib *fib)
 	struct aac_queue *q = &dev->queues->queue[AdapNormCmdQueue];
 	unsigned long qflags;
 	u32 fibsize;
-	u64 address;
+	dma_addr_t address;
 	struct aac_fib_xporthdr *pFibX;
+	u16 hdr_size = le16_to_cpu(fib->hw_fib_va->header.Size);
 
 	spin_lock_irqsave(q->lock, qflags);
 	q->numpending++;
 	spin_unlock_irqrestore(q->lock, qflags);
 
-	/* Calculate the amount to the fibsize bits */
-	fibsize = (sizeof(struct aac_fib_xporthdr) +
-		fib->hw_fib_va->header.Size + 127) / 128 - 1;
-	if (fibsize > (ALIGN32 - 1))
-		fibsize = ALIGN32 - 1;
+	if (dev->comm_interface == AAC_COMM_MESSAGE_TYPE2) {
+		/* Calculate the amount to the fibsize bits */
+		fibsize = (hdr_size + 127) / 128 - 1;
+		if (fibsize > (ALIGN32 - 1))
+			return -EMSGSIZE;
+		/* New FIB header, 32-bit */
+		address = fib->hw_fib_pa;
+		fib->hw_fib_va->header.StructType = FIB_MAGIC2;
+		fib->hw_fib_va->header.SenderFibAddress = (u32)address;
+		fib->hw_fib_va->header.u.TimeStamp = 0;
+		BUG_ON((u32)(address >> 32) != 0L);
+		address |= fibsize;
+	} else {
+		/* Calculate the amount to the fibsize bits */
+		fibsize = (sizeof(struct aac_fib_xporthdr) + hdr_size + 127) / 128 - 1;
+		if (fibsize > (ALIGN32 - 1))
+			return -EMSGSIZE;
 
-    /* Fill XPORT header */
-	pFibX = (struct aac_fib_xporthdr *)
-		((unsigned char *)fib->hw_fib_va -
-		sizeof(struct aac_fib_xporthdr));
-	pFibX->Handle = fib->hw_fib_va->header.SenderData + 1;
-	pFibX->HostAddress = fib->hw_fib_pa;
-	pFibX->Size = fib->hw_fib_va->header.Size;
-	address = fib->hw_fib_pa - (u64)sizeof(struct aac_fib_xporthdr);
+		/* Fill XPORT header */
+		pFibX = (void *)fib->hw_fib_va - sizeof(struct aac_fib_xporthdr);
+		pFibX->Handle = cpu_to_le32(fib->hw_fib_va->header.Handle);
+		pFibX->HostAddress = cpu_to_le64(fib->hw_fib_pa);
+		pFibX->Size = cpu_to_le32(hdr_size);
 
-	src_writel(dev, MUnit.IQ_H, (u32)(address >> 32));
-	src_writel(dev, MUnit.IQ_L, (u32)(address & 0xffffffff) + fibsize);
+		/*
+		 * The xport header has been 32-byte aligned for us so that fibsize
+		 * can be masked out of this address by hardware. -- BenC
+		 */
+		address = fib->hw_fib_pa - sizeof(struct aac_fib_xporthdr);
+		if (address & (ALIGN32 - 1))
+			return -EINVAL;
+		address |= fibsize;
+	}
+
+	src_writel(dev, MUnit.IQ_H, (address >> 32) & 0xffffffff);
+	src_writel(dev, MUnit.IQ_L, address & 0xffffffff);
+
 	return 0;
 }
 
@@ -435,8 +456,7 @@ static int aac_src_ioremap(struct aac_dev *dev, u32 size)
 	dev->base = NULL;
 	if (dev->regs.src.bar1 == NULL)
 		return -1;
-	dev->base = dev->regs.src.bar0 = ioremap(dev->scsi_host_ptr->base,
-				size);
+	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
 	if (dev->base == NULL) {
 		iounmap(dev->regs.src.bar1);
 		dev->regs.src.bar1 = NULL;
@@ -459,7 +479,7 @@ static int aac_srcv_ioremap(struct aac_dev *dev, u32 size)
 		dev->base = dev->regs.src.bar0 = NULL;
 		return 0;
 	}
-	dev->base = dev->regs.src.bar0 = ioremap(dev->scsi_host_ptr->base, size);
+	dev->base = dev->regs.src.bar0 = ioremap(dev->base_start, size);
 	if (dev->base == NULL)
 		return -1;
 	dev->IndexRegs = &((struct src_registers __iomem *)
@@ -753,7 +773,7 @@ int aac_srcv_init(struct aac_dev *dev)
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_iounmap;
-	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE1)
+	if (dev->comm_interface != AAC_COMM_MESSAGE_TYPE2)
 		goto error_iounmap;
 	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
@@ -764,7 +784,7 @@ int aac_srcv_init(struct aac_dev *dev)
 			name, instance);
 		goto error_iounmap;
 	}
-	dev->dbg_base = dev->scsi_host_ptr->base;
+	dev->dbg_base = dev->base_start;
 	dev->dbg_base_mapped = dev->base;
 	dev->dbg_size = dev->base_size;
 

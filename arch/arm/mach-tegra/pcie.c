@@ -691,9 +691,9 @@ static int tegra_pcie_power_regate(void)
 
 	tegra_pcie_xclk_clamp(false);
 
-	clk_enable(tegra_pcie.afi_clk);
-	clk_enable(tegra_pcie.pex_clk);
-	return clk_enable(tegra_pcie.pll_e);
+	clk_prepare_enable(tegra_pcie.afi_clk);
+	clk_prepare_enable(tegra_pcie.pex_clk);
+	return clk_prepare_enable(tegra_pcie.pll_e);
 }
 
 static int tegra_pcie_clocks_get(void)

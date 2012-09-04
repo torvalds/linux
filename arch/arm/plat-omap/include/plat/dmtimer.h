@@ -55,23 +55,17 @@
 #define OMAP_TIMER_TRIGGER_OVERFLOW		0x01
 #define OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE	0x02
 
-/*
- * IP revision identifier so that Highlander IP
- * in OMAP4 can be distinguished.
- */
-#define OMAP_TIMER_IP_VERSION_1                        0x1
-
 /* timer capabilities used in hwmod database */
 #define OMAP_TIMER_SECURE				0x80000000
 #define OMAP_TIMER_ALWON				0x40000000
 #define OMAP_TIMER_HAS_PWM				0x20000000
+#define OMAP_TIMER_NEEDS_RESET				0x10000000
 
 struct omap_timer_capability_dev_attr {
 	u32 timer_capability;
 };
 
 struct omap_dm_timer;
-struct clk;
 
 struct timer_regs {
 	u32 tidr;
@@ -96,16 +90,12 @@ struct timer_regs {
 };
 
 struct dmtimer_platform_data {
+	/* set_timer_src - Only used for OMAP1 devices */
 	int (*set_timer_src)(struct platform_device *pdev, int source);
-	int timer_ip_version;
-	u32 needs_manual_reset:1;
-	bool reserved;
-
-	bool loses_context;
-
-	int (*get_context_loss_count)(struct device *dev);
+	u32 timer_capability;
 };
 
+int omap_dm_timer_reserve_systimer(int id);
 struct omap_dm_timer *omap_dm_timer_request(void);
 struct omap_dm_timer *omap_dm_timer_request_specific(int timer_id);
 int omap_dm_timer_free(struct omap_dm_timer *timer);
@@ -272,13 +262,11 @@ struct omap_dm_timer {
 	unsigned reserved:1;
 	unsigned posted:1;
 	struct timer_regs context;
-	bool loses_context;
 	int ctx_loss_count;
 	int revision;
+	u32 capability;
 	struct platform_device *pdev;
 	struct list_head node;
-
-	int (*get_context_loss_count)(struct device *dev);
 };
 
 int omap_dm_timer_prepare(struct omap_dm_timer *timer);

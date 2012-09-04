@@ -268,6 +268,7 @@ config CHARGER_GPIO
 config CHARGER_MANAGER
 	bool "Battery charger manager for multiple chargers"
 	depends on REGULATOR && RTC_CLASS
+	select EXTCON
 	help
           Say Y to enable charger-manager support, which allows multiple
           chargers attached to a battery and multiple batteries attached to a
@@ -301,7 +302,7 @@ config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
 	help
-	  Say Y to include support for AB5500 battery management.
+	  Say Y to include support for AB8500 battery management.
 
 config AB8500_BATTERY_THERM_ON_BATCTRL
 	bool "Thermistor connected on BATCTRL ADC"
@@ -310,3 +311,5 @@ config AB8500_BATTERY_THERM_ON_BATCTRL
 	  Say Y to enable battery temperature measurements using
 	  thermistor connected on BATCTRL ADC.
 endif # POWER_SUPPLY
+
+source "drivers/power/avs/Kconfig"

@@ -34,14 +34,6 @@
  *         |   CR save area			(SP + 8)
  * SP ---> +-- Back chain			(SP + 0)
  */
-#define STACKFRAMESIZE	256
-
-/* Save parameters offsets */
-#define STK_PARM(i)	(STACKFRAMESIZE + 48 + ((i)-3)*8)
-
-/* Save non-volatile offsets */
-#define STK_REG(i)	(112 + ((i)-14)*8)
-
 
 #ifndef CONFIG_PPC_64K_PAGES
 
@@ -64,9 +56,9 @@ _GLOBAL(__hash_page_4K)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
 	/* Save all params that we need after a function call */
-	std	r6,STK_PARM(r6)(r1)
-	std	r8,STK_PARM(r8)(r1)
-	std	r9,STK_PARM(r9)(r1)
+	std	r6,STK_PARAM(R6)(r1)
+	std	r8,STK_PARAM(R8)(r1)
+	std	r9,STK_PARAM(R9)(r1)
 	
 	/* Save non-volatile registers.
 	 * r31 will hold "old PTE"
@@ -75,11 +67,11 @@ _GLOBAL(__hash_page_4K)
 	 * r28 is a hash value
 	 * r27 is hashtab mask (maybe dynamic patched instead ?)
 	 */
-	std	r27,STK_REG(r27)(r1)
-	std	r28,STK_REG(r28)(r1)
-	std	r29,STK_REG(r29)(r1)
-	std	r30,STK_REG(r30)(r1)
-	std	r31,STK_REG(r31)(r1)
+	std	r27,STK_REG(R27)(r1)
+	std	r28,STK_REG(R28)(r1)
+	std	r29,STK_REG(R29)(r1)
+	std	r30,STK_REG(R30)(r1)
+	std	r31,STK_REG(R31)(r1)
 	
 	/* Step 1:
 	 *
@@ -162,7 +154,7 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	/* At this point, r3 contains new PP bits, save them in
 	 * place of "access" in the param area (sic)
 	 */
-	std	r3,STK_PARM(r4)(r1)
+	std	r3,STK_PARAM(R4)(r1)
 
 	/* Get htab_hash_mask */
 	ld	r4,htab_hash_mask@got(2)
@@ -192,11 +184,11 @@ htab_insert_pte:
 	rldicr	r3,r0,3,63-3		/* r3 = (hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	ld	r6,STK_PARAM(R4)(r1)	/* Retrieve new pp bits */
 	mr	r4,r29			/* Retrieve va */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARM(r9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert1)
 	bl	.			/* Patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -215,11 +207,11 @@ _GLOBAL(htab_call_hpte_insert1)
 	rldicr	r3,r0,3,63-3	/* r0 = (~hash & mask) << 3 */
 	
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	ld	r6,STK_PARAM(R4)(r1)	/* Retrieve new pp bits */
 	mr	r4,r29			/* Retrieve va */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARM(r9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert2)
 	bl	.			/* Patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -255,15 +247,15 @@ htab_pte_insert_ok:
 	 * (maybe add eieio may be good still ?)
 	 */
 htab_write_out_pte:
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	std	r30,0(r6)
 	li	r3, 0
 htab_bail:
-	ld	r27,STK_REG(r27)(r1)
-	ld	r28,STK_REG(r28)(r1)
-	ld	r29,STK_REG(r29)(r1)
-	ld      r30,STK_REG(r30)(r1)
-	ld      r31,STK_REG(r31)(r1)
+	ld	r27,STK_REG(R27)(r1)
+	ld	r28,STK_REG(R28)(r1)
+	ld	r29,STK_REG(R29)(r1)
+	ld      r30,STK_REG(R30)(r1)
+	ld      r31,STK_REG(R31)(r1)
 	addi    r1,r1,STACKFRAMESIZE
 	ld      r0,16(r1)
 	mtlr    r0
@@ -288,8 +280,8 @@ htab_modify_pte:
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* va */
 	li	r6,MMU_PAGE_4K		/* page size */
-	ld	r7,STK_PARM(r9)(r1)	/* segment size */
-	ld	r8,STK_PARM(r8)(r1)	/* get "local" param */
+	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(htab_call_hpte_updatepp)
 	bl	.			/* Patched by htab_finish_init() */
 
@@ -312,7 +304,7 @@ htab_wrong_access:
 
 htab_pte_insert_failure:
 	/* Bail out restoring old PTE */
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	std	r31,0(r6)
 	li	r3,-1
 	b	htab_bail
@@ -340,9 +332,9 @@ _GLOBAL(__hash_page_4K)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
 	/* Save all params that we need after a function call */
-	std	r6,STK_PARM(r6)(r1)
-	std	r8,STK_PARM(r8)(r1)
-	std	r9,STK_PARM(r9)(r1)
+	std	r6,STK_PARAM(R6)(r1)
+	std	r8,STK_PARAM(R8)(r1)
+	std	r9,STK_PARAM(R9)(r1)
 
 	/* Save non-volatile registers.
 	 * r31 will hold "old PTE"
@@ -353,13 +345,13 @@ _GLOBAL(__hash_page_4K)
 	 * r26 is the hidx mask
 	 * r25 is the index in combo page
 	 */
-	std	r25,STK_REG(r25)(r1)
-	std	r26,STK_REG(r26)(r1)
-	std	r27,STK_REG(r27)(r1)
-	std	r28,STK_REG(r28)(r1)
-	std	r29,STK_REG(r29)(r1)
-	std	r30,STK_REG(r30)(r1)
-	std	r31,STK_REG(r31)(r1)
+	std	r25,STK_REG(R25)(r1)
+	std	r26,STK_REG(R26)(r1)
+	std	r27,STK_REG(R27)(r1)
+	std	r28,STK_REG(R28)(r1)
+	std	r29,STK_REG(R29)(r1)
+	std	r30,STK_REG(R30)(r1)
+	std	r31,STK_REG(R31)(r1)
 
 	/* Step 1:
 	 *
@@ -452,7 +444,7 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	/* At this point, r3 contains new PP bits, save them in
 	 * place of "access" in the param area (sic)
 	 */
-	std	r3,STK_PARM(r4)(r1)
+	std	r3,STK_PARAM(R4)(r1)
 
 	/* Get htab_hash_mask */
 	ld	r4,htab_hash_mask@got(2)
@@ -473,7 +465,7 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	andis.	r0,r31,_PAGE_COMBO@h
 	beq	htab_inval_old_hpte
 
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	ori	r26,r6,0x8000		/* Load the hidx mask */
 	ld	r26,0(r26)
 	addi	r5,r25,36		/* Check actual HPTE_SUB bit, this */
@@ -495,11 +487,11 @@ htab_special_pfn:
 	rldicr	r3,r0,3,63-3		/* r0 = (hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	ld	r6,STK_PARAM(R4)(r1)	/* Retrieve new pp bits */
 	mr	r4,r29			/* Retrieve va */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARM(r9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert1)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -522,11 +514,11 @@ _GLOBAL(htab_call_hpte_insert1)
 	rldicr	r3,r0,3,63-3		/* r0 = (~hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	ld	r6,STK_PARAM(R4)(r1)	/* Retrieve new pp bits */
 	mr	r4,r29			/* Retrieve va */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_4K		/* page size */
-	ld	r9,STK_PARM(r9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(htab_call_hpte_insert2)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -559,8 +551,8 @@ htab_inval_old_hpte:
 	mr	r4,r31			/* PTE.pte */
 	li	r5,0			/* PTE.hidx */
 	li	r6,MMU_PAGE_64K		/* psize */
-	ld	r7,STK_PARM(r9)(r1)	/* ssize */
-	ld	r8,STK_PARM(r8)(r1)	/* local */
+	ld	r7,STK_PARAM(R9)(r1)	/* ssize */
+	ld	r8,STK_PARAM(R8)(r1)	/* local */
 	bl	.flush_hash_page
 	/* Clear out _PAGE_HPTE_SUB bits in the new linux PTE */
 	lis	r0,_PAGE_HPTE_SUB@h
@@ -576,7 +568,7 @@ htab_pte_insert_ok:
 	/* Insert slot number & secondary bit in PTE second half,
 	 * clear _PAGE_BUSY and set approriate HPTE slot bit
 	 */
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	li	r0,_PAGE_BUSY
 	andc	r30,r30,r0
 	/* HPTE SUB bit */
@@ -597,13 +589,13 @@ htab_pte_insert_ok:
 	std	r30,0(r6)
 	li	r3, 0
 htab_bail:
-	ld	r25,STK_REG(r25)(r1)
-	ld	r26,STK_REG(r26)(r1)
-	ld	r27,STK_REG(r27)(r1)
-	ld	r28,STK_REG(r28)(r1)
-	ld	r29,STK_REG(r29)(r1)
-	ld      r30,STK_REG(r30)(r1)
-	ld      r31,STK_REG(r31)(r1)
+	ld	r25,STK_REG(R25)(r1)
+	ld	r26,STK_REG(R26)(r1)
+	ld	r27,STK_REG(R27)(r1)
+	ld	r28,STK_REG(R28)(r1)
+	ld	r29,STK_REG(R29)(r1)
+	ld      r30,STK_REG(R30)(r1)
+	ld      r31,STK_REG(R31)(r1)
 	addi    r1,r1,STACKFRAMESIZE
 	ld      r0,16(r1)
 	mtlr    r0
@@ -630,8 +622,8 @@ htab_modify_pte:
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* va */
 	li	r6,MMU_PAGE_4K		/* page size */
-	ld	r7,STK_PARM(r9)(r1)	/* segment size */
-	ld	r8,STK_PARM(r8)(r1)	/* get "local" param */
+	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(htab_call_hpte_updatepp)
 	bl	.			/* patched by htab_finish_init() */
 
@@ -644,7 +636,7 @@ _GLOBAL(htab_call_hpte_updatepp)
 	/* Clear the BUSY bit and Write out the PTE */
 	li	r0,_PAGE_BUSY
 	andc	r30,r30,r0
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	std	r30,0(r6)
 	li	r3,0
 	b	htab_bail
@@ -657,7 +649,7 @@ htab_wrong_access:
 
 htab_pte_insert_failure:
 	/* Bail out restoring old PTE */
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	std	r31,0(r6)
 	li	r3,-1
 	b	htab_bail
@@ -677,9 +669,9 @@ _GLOBAL(__hash_page_64K)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
 	/* Save all params that we need after a function call */
-	std	r6,STK_PARM(r6)(r1)
-	std	r8,STK_PARM(r8)(r1)
-	std	r9,STK_PARM(r9)(r1)
+	std	r6,STK_PARAM(R6)(r1)
+	std	r8,STK_PARAM(R8)(r1)
+	std	r9,STK_PARAM(R9)(r1)
 
 	/* Save non-volatile registers.
 	 * r31 will hold "old PTE"
@@ -688,11 +680,11 @@ _GLOBAL(__hash_page_64K)
 	 * r28 is a hash value
 	 * r27 is hashtab mask (maybe dynamic patched instead ?)
 	 */
-	std	r27,STK_REG(r27)(r1)
-	std	r28,STK_REG(r28)(r1)
-	std	r29,STK_REG(r29)(r1)
-	std	r30,STK_REG(r30)(r1)
-	std	r31,STK_REG(r31)(r1)
+	std	r27,STK_REG(R27)(r1)
+	std	r28,STK_REG(R28)(r1)
+	std	r29,STK_REG(R29)(r1)
+	std	r30,STK_REG(R30)(r1)
+	std	r31,STK_REG(R31)(r1)
 
 	/* Step 1:
 	 *
@@ -780,7 +772,7 @@ END_FTR_SECTION(CPU_FTR_NOEXECUTE|CPU_FTR_COHERENT_ICACHE, CPU_FTR_NOEXECUTE)
 	/* At this point, r3 contains new PP bits, save them in
 	 * place of "access" in the param area (sic)
 	 */
-	std	r3,STK_PARM(r4)(r1)
+	std	r3,STK_PARAM(R4)(r1)
 
 	/* Get htab_hash_mask */
 	ld	r4,htab_hash_mask@got(2)
@@ -813,11 +805,11 @@ ht64_insert_pte:
 	rldicr	r3,r0,3,63-3	/* r0 = (hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	ld	r6,STK_PARAM(R4)(r1)	/* Retrieve new pp bits */
 	mr	r4,r29			/* Retrieve va */
 	li	r7,0			/* !bolted, !secondary */
 	li	r8,MMU_PAGE_64K
-	ld	r9,STK_PARM(r9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(ht64_call_hpte_insert1)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -836,11 +828,11 @@ _GLOBAL(ht64_call_hpte_insert1)
 	rldicr	r3,r0,3,63-3	/* r0 = (~hash & mask) << 3 */
 
 	/* Call ppc_md.hpte_insert */
-	ld	r6,STK_PARM(r4)(r1)	/* Retrieve new pp bits */
+	ld	r6,STK_PARAM(R4)(r1)	/* Retrieve new pp bits */
 	mr	r4,r29			/* Retrieve va */
 	li	r7,HPTE_V_SECONDARY	/* !bolted, secondary */
 	li	r8,MMU_PAGE_64K
-	ld	r9,STK_PARM(r9)(r1)	/* segment size */
+	ld	r9,STK_PARAM(R9)(r1)	/* segment size */
 _GLOBAL(ht64_call_hpte_insert2)
 	bl	.			/* patched by htab_finish_init() */
 	cmpdi	0,r3,0
@@ -876,15 +868,15 @@ ht64_pte_insert_ok:
 	 * (maybe add eieio may be good still ?)
 	 */
 ht64_write_out_pte:
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	std	r30,0(r6)
 	li	r3, 0
 ht64_bail:
-	ld	r27,STK_REG(r27)(r1)
-	ld	r28,STK_REG(r28)(r1)
-	ld	r29,STK_REG(r29)(r1)
-	ld      r30,STK_REG(r30)(r1)
-	ld      r31,STK_REG(r31)(r1)
+	ld	r27,STK_REG(R27)(r1)
+	ld	r28,STK_REG(R28)(r1)
+	ld	r29,STK_REG(R29)(r1)
+	ld      r30,STK_REG(R30)(r1)
+	ld      r31,STK_REG(R31)(r1)
 	addi    r1,r1,STACKFRAMESIZE
 	ld      r0,16(r1)
 	mtlr    r0
@@ -909,8 +901,8 @@ ht64_modify_pte:
 	/* Call ppc_md.hpte_updatepp */
 	mr	r5,r29			/* va */
 	li	r6,MMU_PAGE_64K
-	ld	r7,STK_PARM(r9)(r1)	/* segment size */
-	ld	r8,STK_PARM(r8)(r1)	/* get "local" param */
+	ld	r7,STK_PARAM(R9)(r1)	/* segment size */
+	ld	r8,STK_PARAM(R8)(r1)	/* get "local" param */
 _GLOBAL(ht64_call_hpte_updatepp)
 	bl	.			/* patched by htab_finish_init() */
 
@@ -933,7 +925,7 @@ ht64_wrong_access:
 
 ht64_pte_insert_failure:
 	/* Bail out restoring old PTE */
-	ld	r6,STK_PARM(r6)(r1)
+	ld	r6,STK_PARAM(R6)(r1)
 	std	r31,0(r6)
 	li	r3,-1
 	b	ht64_bail

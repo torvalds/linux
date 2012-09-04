@@ -101,7 +101,7 @@ void *snd_malloc_sgbuf_pages(struct device *device,
 		if (snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV, device,
 						 chunk, &tmpb) < 0) {
 			if (!sgbuf->pages)
-				return NULL;
+				goto _failed;
 			if (!res_size)
 				goto _failed;
 			size = sgbuf->pages * PAGE_SIZE;

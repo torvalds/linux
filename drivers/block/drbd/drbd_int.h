@@ -813,7 +813,6 @@ enum {
 	SIGNAL_ASENDER,		/* whether asender wants to be interrupted */
 	SEND_PING,		/* whether asender should send a ping asap */
 
-	UNPLUG_QUEUED,		/* only relevant with kernel 2.4 */
 	UNPLUG_REMOTE,		/* sending a "UnplugRemote" could help */
 	MD_DIRTY,		/* current uuids and flags not yet on disk */
 	DISCARD_CONCURRENT,	/* Set on one node, cleared on the peer! */
@@ -824,7 +823,6 @@ enum {
 	CRASHED_PRIMARY,	/* This node was a crashed primary.
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
-	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
@@ -834,6 +832,7 @@ enum {
 	BITMAP_IO_QUEUED,       /* Started bitmap IO */
 	GO_DISKLESS,		/* Disk is being detached, on io-error or admin request. */
 	WAS_IO_ERROR,		/* Local disk failed returned IO error */
+	FORCE_DETACH,		/* Force-detach from local disk, aborting any pending local IO */
 	RESYNC_AFTER_NEG,       /* Resync after online grow after the attach&negotiate finished. */
 	NET_CONGESTED,		/* The data socket is congested */
 
@@ -851,6 +850,13 @@ enum {
 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
 	STATE_SENT,		/* Do not change state/UUIDs while this is set */
+
+	CALLBACK_PENDING,	/* Whether we have a call_usermodehelper(, UMH_WAIT_PROC)
+				 * pending, from drbd worker context.
+				 * If set, bdi_write_congested() returns true,
+				 * so shrink_page_list() would not recurse into,
+				 * and potentially deadlock on, this drbd worker.
+				 */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */
@@ -1130,8 +1136,8 @@ struct drbd_conf {
 	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
 	int rs_planed;    /* resync sectors already planned */
 	atomic_t ap_in_flight; /* App sectors in flight (waiting for ack) */
-	int peer_max_bio_size;
-	int local_max_bio_size;
+	unsigned int peer_max_bio_size;
+	unsigned int local_max_bio_size;
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
@@ -1435,9 +1441,9 @@ struct bm_extent {
  * hash table. */
 #define HT_SHIFT 8
 #define DRBD_MAX_BIO_SIZE (1U<<(9+HT_SHIFT))
-#define DRBD_MAX_BIO_SIZE_SAFE (1 << 12)       /* Works always = 4k */
+#define DRBD_MAX_BIO_SIZE_SAFE (1U << 12)       /* Works always = 4k */
 
-#define DRBD_MAX_SIZE_H80_PACKET (1 << 15) /* The old header only allows packets up to 32Kib data */
+#define DRBD_MAX_SIZE_H80_PACKET (1U << 15) /* The old header only allows packets up to 32Kib data */
 
 /* Number of elements in the app_reads_hash */
 #define APP_R_HSIZE 15
@@ -1840,12 +1846,20 @@ static inline int drbd_request_state(struct drbd_conf *mdev,
 	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
 }
 
+enum drbd_force_detach_flags {
+	DRBD_IO_ERROR,
+	DRBD_META_IO_ERROR,
+	DRBD_FORCE_DETACH,
+};
+
 #define __drbd_chk_io_error(m,f) __drbd_chk_io_error_(m,f, __func__)
-static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach, const char *where)
+static inline void __drbd_chk_io_error_(struct drbd_conf *mdev,
+		enum drbd_force_detach_flags forcedetach,
+		const char *where)
 {
 	switch (mdev->ldev->dc.on_io_error) {
 	case EP_PASS_ON:
-		if (!forcedetach) {
+		if (forcedetach == DRBD_IO_ERROR) {
 			if (__ratelimit(&drbd_ratelimit_state))
 				dev_err(DEV, "Local IO failed in %s.\n", where);
 			if (mdev->state.disk > D_INCONSISTENT)
@@ -1856,6 +1870,8 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach,
 	case EP_DETACH:
 	case EP_CALL_HELPER:
 		set_bit(WAS_IO_ERROR, &mdev->flags);
+		if (forcedetach == DRBD_FORCE_DETACH)
+			set_bit(FORCE_DETACH, &mdev->flags);
 		if (mdev->state.disk > D_FAILED) {
 			_drbd_set_state(_NS(mdev, disk, D_FAILED), CS_HARD, NULL);
 			dev_err(DEV,
@@ -1875,7 +1891,7 @@ static inline void __drbd_chk_io_error_(struct drbd_conf *mdev, int forcedetach,
  */
 #define drbd_chk_io_error(m,e,f) drbd_chk_io_error_(m,e,f, __func__)
 static inline void drbd_chk_io_error_(struct drbd_conf *mdev,
-	int error, int forcedetach, const char *where)
+	int error, enum drbd_force_detach_flags forcedetach, const char *where)
 {
 	if (error) {
 		unsigned long flags;
@@ -2405,15 +2421,17 @@ static inline void dec_ap_bio(struct drbd_conf *mdev)
 	int ap_bio = atomic_dec_return(&mdev->ap_bio_cnt);
 
 	D_ASSERT(ap_bio >= 0);
+
+	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
+		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
+			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
+	}
+
 	/* this currently does wake_up for every dec_ap_bio!
 	 * maybe rather introduce some type of hysteresis?
 	 * e.g. (ap_bio == mxb/2 || ap_bio == 0) ? */
 	if (ap_bio < mxb)
 		wake_up(&mdev->misc_wait);
-	if (ap_bio == 0 && test_bit(BITMAP_IO, &mdev->flags)) {
-		if (!test_and_set_bit(BITMAP_IO_QUEUED, &mdev->flags))
-			drbd_queue_work(&mdev->data.work, &mdev->bm_io_work.w);
-	}
 }
 
 static inline int drbd_set_ed_uuid(struct drbd_conf *mdev, u64 val)

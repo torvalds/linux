@@ -1,7 +1,5 @@
 /*
- * include/asm-s390/kexec.h
- *
- * (C) Copyright IBM Corp. 2005
+ * Copyright IBM Corp. 2005
  *
  * Author(s): Rolf Adelsberger <adelsberger@de.ibm.com>
  *

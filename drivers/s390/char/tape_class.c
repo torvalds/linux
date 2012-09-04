@@ -1,6 +1,5 @@
 /*
- * (C) Copyright IBM Corp. 2004
- * tape_class.c
+ * Copyright IBM Corp. 2004
  *
  * Tape class device support
  *
@@ -17,7 +16,7 @@
 
 MODULE_AUTHOR("Stefan Bader <shbader@de.ibm.com>");
 MODULE_DESCRIPTION(
-	"(C) Copyright IBM Corp. 2004   All Rights Reserved.\n"
+	"Copyright IBM Corp. 2004   All Rights Reserved.\n"
 	"tape_class.c"
 );
 MODULE_LICENSE("GPL");

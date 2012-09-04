@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation. All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation. All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -342,15 +342,17 @@ static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
 		ret = qib_sd7220_reg_mod(dd, IB_7220_SERDES,
 			IB_CTRL2(chn), 0, 0);
 		if (ret < 0)
-			qib_dev_err(dd, "Failed checking TRIMDONE, chn %d"
-				    " (%s)\n", chn, where);
+			qib_dev_err(dd,
+				"Failed checking TRIMDONE, chn %d (%s)\n",
+				chn, where);
 
 		if (!(ret & 0x10)) {
 			int probe;
 
 			baduns |= (1 << chn);
-			qib_dev_err(dd, "TRIMDONE cleared on chn %d (%02X)."
-				" (%s)\n", chn, ret, where);
+			qib_dev_err(dd,
+				"TRIMDONE cleared on chn %d (%02X). (%s)\n",
+				chn, ret, where);
 			probe = qib_sd7220_reg_mod(dd, IB_7220_SERDES,
 				IB_PGUDP(0), 0, 0);
 			qib_dev_err(dd, "probe is %d (%02X)\n",
@@ -370,13 +372,13 @@ static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
 		/* Read CTRL reg for each channel to check TRIMDONE */
 		if (baduns & (1 << chn)) {
 			qib_dev_err(dd,
-				"Reseting TRIMDONE on chn %d (%s)\n",
+				"Resetting TRIMDONE on chn %d (%s)\n",
 				chn, where);
 			ret = qib_sd7220_reg_mod(dd, IB_7220_SERDES,
 				IB_CTRL2(chn), 0x10, 0x10);
 			if (ret < 0)
-				qib_dev_err(dd, "Failed re-setting "
-					"TRIMDONE, chn %d (%s)\n",
+				qib_dev_err(dd,
+					"Failed re-setting TRIMDONE, chn %d (%s)\n",
 					chn, where);
 		}
 	}
@@ -1144,10 +1146,10 @@ static int ibsd_mod_allchnls(struct qib_devdata *dd, int loc, int val,
 			if (ret < 0) {
 				int sloc = loc >> EPB_ADDR_SHF;
 
-				qib_dev_err(dd, "pre-read failed: elt %d,"
-					    " addr 0x%X, chnl %d\n",
-					    (sloc & 0xF),
-					    (sloc >> 9) & 0x3f, chnl);
+				qib_dev_err(dd,
+					"pre-read failed: elt %d, addr 0x%X, chnl %d\n",
+					(sloc & 0xF),
+					(sloc >> 9) & 0x3f, chnl);
 				return ret;
 			}
 			val = (ret & ~mask) | (val & mask);
@@ -1157,9 +1159,9 @@ static int ibsd_mod_allchnls(struct qib_devdata *dd, int loc, int val,
 		if (ret < 0) {
 			int sloc = loc >> EPB_ADDR_SHF;
 
-			qib_dev_err(dd, "Global WR failed: elt %d,"
-				    " addr 0x%X, val %02X\n",
-				    (sloc & 0xF), (sloc >> 9) & 0x3f, val);
+			qib_dev_err(dd,
+				"Global WR failed: elt %d, addr 0x%X, val %02X\n",
+				(sloc & 0xF), (sloc >> 9) & 0x3f, val);
 		}
 		return ret;
 	}
@@ -1173,11 +1175,10 @@ static int ibsd_mod_allchnls(struct qib_devdata *dd, int loc, int val,
 		if (ret < 0) {
 			int sloc = loc >> EPB_ADDR_SHF;
 
-			qib_dev_err(dd, "Write failed: elt %d,"
-				    " addr 0x%X, chnl %d, val 0x%02X,"
-				    " mask 0x%02X\n",
-				    (sloc & 0xF), (sloc >> 9) & 0x3f, chnl,
-				    val & 0xFF, mask & 0xFF);
+			qib_dev_err(dd,
+				"Write failed: elt %d, addr 0x%X, chnl %d, val 0x%02X, mask 0x%02X\n",
+				(sloc & 0xF), (sloc >> 9) & 0x3f, chnl,
+				val & 0xFF, mask & 0xFF);
 			break;
 		}
 	}

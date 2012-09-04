@@ -60,7 +60,8 @@ extern unsigned long host_task_size;
 
 extern int linux_main(int argc, char **argv);
 
-extern void (*sig_info[])(int, struct uml_pt_regs *);
+struct siginfo;
+extern void (*sig_info[])(int, struct siginfo *si, struct uml_pt_regs *);
 
 #endif
 

@@ -1,7 +1,7 @@
 /*
  * wm5100-tables.c  --  WM5100 ALSA SoC Audio driver data
  *
- * Copyright 2011 Wolfson Microelectronics plc
+ * Copyright 2011-2 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *

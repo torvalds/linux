@@ -1514,7 +1514,8 @@ static int wl1273_fm_vidioc_g_tuner(struct file *file, void *priv,
 	tuner->rangehigh = WL1273_FREQ(WL1273_BAND_OTHER_HIGH);
 
 	tuner->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_RDS |
-		V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS_BLOCK_IO;
+		V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS_BLOCK_IO |
+		V4L2_TUNER_CAP_HWSEEK_BOUNDED | V4L2_TUNER_CAP_HWSEEK_WRAP;
 
 	if (radio->stereo)
 		tuner->audmode = V4L2_TUNER_MODE_STEREO;

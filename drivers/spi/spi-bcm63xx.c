@@ -129,7 +129,7 @@ static void bcm63xx_spi_setup_transfer(struct spi_device *spi,
 
 	/* Find the closest clock configuration */
 	for (i = 0; i < SPI_CLK_MASK; i++) {
-		if (hz <= bcm63xx_spi_freq_table[i][0]) {
+		if (hz >= bcm63xx_spi_freq_table[i][0]) {
 			clk_cfg = bcm63xx_spi_freq_table[i][1];
 			break;
 		}
@@ -438,7 +438,7 @@ out:
 
 static int __devexit bcm63xx_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
+	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
 	spi_unregister_master(master);
@@ -451,6 +451,8 @@ static int __devexit bcm63xx_spi_remove(struct platform_device *pdev)
 	clk_put(bs->clk);
 
 	platform_set_drvdata(pdev, 0);
+
+	spi_master_put(master);
 
 	return 0;
 }

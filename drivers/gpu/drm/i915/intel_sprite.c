@@ -56,6 +56,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	sprctl &= ~SPRITE_PIXFORMAT_MASK;
 	sprctl &= ~SPRITE_RGB_ORDER_RGBX;
 	sprctl &= ~SPRITE_YUV_BYTE_ORDER_MASK;
+	sprctl &= ~SPRITE_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -84,7 +85,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		break;
 	default:
 		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
-		sprctl |= DVS_FORMAT_RGBX888;
+		sprctl |= SPRITE_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	}
@@ -233,6 +234,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	dvscntr &= ~DVS_PIXFORMAT_MASK;
 	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
+	dvscntr &= ~DVS_TILED;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
@@ -326,6 +328,12 @@ intel_enable_primary(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int reg = DSPCNTR(intel_crtc->plane);
 
+	if (!intel_crtc->primary_disabled)
+		return;
+
+	intel_crtc->primary_disabled = false;
+	intel_update_fbc(dev);
+
 	I915_WRITE(reg, I915_READ(reg) | DISPLAY_PLANE_ENABLE);
 }
 
@@ -337,7 +345,13 @@ intel_disable_primary(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int reg = DSPCNTR(intel_crtc->plane);
 
+	if (intel_crtc->primary_disabled)
+		return;
+
 	I915_WRITE(reg, I915_READ(reg) & ~DISPLAY_PLANE_ENABLE);
+
+	intel_crtc->primary_disabled = true;
+	intel_update_fbc(dev);
 }
 
 static int
@@ -485,18 +499,14 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	 * Be sure to re-enable the primary before the sprite is no longer
 	 * covering it fully.
 	 */
-	if (!disable_primary && intel_plane->primary_disabled) {
+	if (!disable_primary)
 		intel_enable_primary(crtc);
-		intel_plane->primary_disabled = false;
-	}
 
 	intel_plane->update_plane(plane, fb, obj, crtc_x, crtc_y,
 				  crtc_w, crtc_h, x, y, src_w, src_h);
 
-	if (disable_primary) {
+	if (disable_primary)
 		intel_disable_primary(crtc);
-		intel_plane->primary_disabled = true;
-	}
 
 	/* Unpin old obj after new one is active to avoid ugliness */
 	if (old_obj) {
@@ -527,11 +537,8 @@ intel_disable_plane(struct drm_plane *plane)
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int ret = 0;
 
-	if (intel_plane->primary_disabled) {
+	if (plane->crtc)
 		intel_enable_primary(plane->crtc);
-		intel_plane->primary_disabled = false;
-	}
-
 	intel_plane->disable_plane(plane);
 
 	if (!intel_plane->obj)
@@ -685,6 +692,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 		break;
 
 	default:
+		kfree(intel_plane);
 		return -ENODEV;
 	}
 
@@ -699,4 +707,3 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 
 	return ret;
 }
-

@@ -67,4 +67,13 @@ int check_signature(const volatile void __iomem *io_addr,
 			const unsigned char *signature, int length);
 void devm_ioremap_release(struct device *dev, void *res);
 
+/*
+ * Some systems do not have legacy ISA devices.
+ * /dev/port is not a valid interface on these systems.
+ * So for those archs, <asm/io.h> should define the following symbol.
+ */
+#ifndef arch_has_dev_port
+#define arch_has_dev_port()     (1)
+#endif
+
 #endif /* _LINUX_IO_H */

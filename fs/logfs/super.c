@@ -519,7 +519,7 @@ static struct dentry *logfs_get_sb_device(struct logfs_super *super,
 	log_super("LogFS: Start mount %x\n", mount_count++);
 
 	err = -EINVAL;
-	sb = sget(type, logfs_sb_test, logfs_sb_set, super);
+	sb = sget(type, logfs_sb_test, logfs_sb_set, flags | MS_NOATIME, super);
 	if (IS_ERR(sb)) {
 		super->s_devops->put_device(super);
 		kfree(super);
@@ -542,7 +542,6 @@ static struct dentry *logfs_get_sb_device(struct logfs_super *super,
 	sb->s_maxbytes	= (1ull << 43) - 1;
 	sb->s_max_links = LOGFS_LINK_MAX;
 	sb->s_op	= &logfs_super_operations;
-	sb->s_flags	= flags | MS_NOATIME;
 
 	err = logfs_read_sb(sb, sb->s_flags & MS_RDONLY);
 	if (err)

@@ -58,8 +58,8 @@ acpi_ut_get_mutex_object(acpi_handle handle,
  *
  * FUNCTION:    acpi_ut_get_mutex_object
  *
- * PARAMETERS:  Handle              - Mutex or prefix handle (optional)
- *              Pathname            - Mutex pathname (optional)
+ * PARAMETERS:  handle              - Mutex or prefix handle (optional)
+ *              pathname            - Mutex pathname (optional)
  *              ret_obj             - Where the mutex object is returned
  *
  * RETURN:      Status
@@ -118,9 +118,9 @@ acpi_ut_get_mutex_object(acpi_handle handle,
  *
  * FUNCTION:    acpi_acquire_mutex
  *
- * PARAMETERS:  Handle              - Mutex or prefix handle (optional)
- *              Pathname            - Mutex pathname (optional)
- *              Timeout             - Max time to wait for the lock (millisec)
+ * PARAMETERS:  handle              - Mutex or prefix handle (optional)
+ *              pathname            - Mutex pathname (optional)
+ *              timeout             - Max time to wait for the lock (millisec)
  *
  * RETURN:      Status
  *
@@ -155,8 +155,8 @@ acpi_acquire_mutex(acpi_handle handle, acpi_string pathname, u16 timeout)
  *
  * FUNCTION:    acpi_release_mutex
  *
- * PARAMETERS:  Handle              - Mutex or prefix handle (optional)
- *              Pathname            - Mutex pathname (optional)
+ * PARAMETERS:  handle              - Mutex or prefix handle (optional)
+ *              pathname            - Mutex pathname (optional)
  *
  * RETURN:      Status
  *

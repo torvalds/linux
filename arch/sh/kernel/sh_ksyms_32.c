@@ -19,7 +19,6 @@ EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(__clear_user);
-EXPORT_SYMBOL(_ebss);
 EXPORT_SYMBOL(empty_zero_page);
 
 #define DECLARE_EXPORT(name)		\

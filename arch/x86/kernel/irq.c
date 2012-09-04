@@ -294,9 +294,9 @@ void fixup_irqs(void)
 		raw_spin_unlock(&desc->lock);
 
 		if (break_affinity && set_affinity)
-			printk("Broke affinity for irq %i\n", irq);
+			pr_notice("Broke affinity for irq %i\n", irq);
 		else if (!set_affinity)
-			printk("Cannot set affinity for irq %i\n", irq);
+			pr_notice("Cannot set affinity for irq %i\n", irq);
 	}
 
 	/*
@@ -328,6 +328,7 @@ void fixup_irqs(void)
 				chip->irq_retrigger(data);
 			raw_spin_unlock(&desc->lock);
 		}
+		__this_cpu_write(vector_irq[vector], -1);
 	}
 }
 #endif

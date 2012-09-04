@@ -172,7 +172,19 @@ struct wl128x_ini_fem_params_5 {
 
 /* NVS data structure */
 #define WL1271_INI_NVS_SECTION_SIZE		     468
-#define WL1271_INI_FEM_MODULE_COUNT                  2
+
+/* We have four FEM module types: 0-RFMD, 1-TQS, 2-SKW, 3-TQS_HP */
+#define WL1271_INI_FEM_MODULE_COUNT                  4
+
+/*
+ * In NVS we only store two FEM module entries -
+ *	  FEM modules 0,2,3 are stored in entry 0
+ *	  FEM module 1 is stored in entry 1
+ */
+#define WL12XX_NVS_FEM_MODULE_COUNT                  2
+
+#define WL12XX_FEM_TO_NVS_ENTRY(ini_fem_module)      \
+	((ini_fem_module) == 1 ? 1 : 0)
 
 #define WL1271_INI_LEGACY_NVS_FILE_SIZE              800
 
@@ -188,13 +200,13 @@ struct wl1271_nvs_file {
 	struct {
 		struct wl1271_ini_fem_params_2 params;
 		u8 padding;
-	} dyn_radio_params_2[WL1271_INI_FEM_MODULE_COUNT];
+	} dyn_radio_params_2[WL12XX_NVS_FEM_MODULE_COUNT];
 	struct wl1271_ini_band_params_5 stat_radio_params_5;
 	u8 padding3;
 	struct {
 		struct wl1271_ini_fem_params_5 params;
 		u8 padding;
-	} dyn_radio_params_5[WL1271_INI_FEM_MODULE_COUNT];
+	} dyn_radio_params_5[WL12XX_NVS_FEM_MODULE_COUNT];
 } __packed;
 
 struct wl128x_nvs_file {
@@ -209,12 +221,12 @@ struct wl128x_nvs_file {
 	struct {
 		struct wl128x_ini_fem_params_2 params;
 		u8 padding;
-	} dyn_radio_params_2[WL1271_INI_FEM_MODULE_COUNT];
+	} dyn_radio_params_2[WL12XX_NVS_FEM_MODULE_COUNT];
 	struct wl128x_ini_band_params_5 stat_radio_params_5;
 	u8 padding3;
 	struct {
 		struct wl128x_ini_fem_params_5 params;
 		u8 padding;
-	} dyn_radio_params_5[WL1271_INI_FEM_MODULE_COUNT];
+	} dyn_radio_params_5[WL12XX_NVS_FEM_MODULE_COUNT];
 } __packed;
 #endif

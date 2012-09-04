@@ -819,16 +819,4 @@ static int sil_pci_device_resume(struct pci_dev *pdev)
 }
 #endif
 
-static int __init sil_init(void)
-{
-	return pci_register_driver(&sil_pci_driver);
-}
-
-static void __exit sil_exit(void)
-{
-	pci_unregister_driver(&sil_pci_driver);
-}
-
-
-module_init(sil_init);
-module_exit(sil_exit);
+module_pci_driver(sil_pci_driver);

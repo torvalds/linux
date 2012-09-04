@@ -48,9 +48,7 @@ Please report success/failure with other different cards to
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
 #include "8255.h"
-
 
 /* PCI vendor number of ComputerBoards */
 #define PCI_VENDOR_ID_CB        0x1307
@@ -218,9 +216,6 @@ static const struct cb_pcidda_board cb_pcidda_boards[] = {
 struct cb_pcidda_private {
 	int data;
 
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
-
 	unsigned long digitalio;
 	unsigned long dac;
 
@@ -257,6 +252,36 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 				unsigned int range);
 
+static struct pci_dev *cb_pcidda_find_pci_dev(struct comedi_device *dev,
+					      struct comedi_devconfig *it)
+{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
+
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_CB)
+			continue;
+
+		for (i = 0; i < ARRAY_SIZE(cb_pcidda_boards); i++) {
+			if (cb_pcidda_boards[i].device_id != pcidev->device)
+				continue;
+			dev->board_ptr = cb_pcidda_boards + i;
+			return pcidev;
+		}
+	}
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
+
 /*
  * Attach is called by the Comedi core to configure the driver
  * for a particular board.
@@ -264,10 +289,10 @@ static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 static int cb_pcidda_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev = NULL;
 	int index;
-
+	int ret;
 
 /*
  * Allocate the private structure area.
@@ -275,51 +300,26 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 	if (alloc_private(dev, sizeof(struct cb_pcidda_private)) < 0)
 		return -ENOMEM;
 
-/*
- * Probe the device to determine what device in the series it is.
- */
-
-	for_each_pci_dev(pcidev) {
-		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
-			if (it->options[0] || it->options[1]) {
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1]) {
-					continue;
-				}
-			}
-			for (index = 0; index < ARRAY_SIZE(cb_pcidda_boards); index++) {
-				if (cb_pcidda_boards[index].device_id ==
-				    pcidev->device) {
-					goto found;
-				}
-			}
-		}
-	}
-	if (!pcidev) {
-		dev_err(dev->hw_dev, "Not a ComputerBoards/MeasurementComputing card on requested position\n");
+	pcidev = cb_pcidda_find_pci_dev(dev, it);
+	if (!pcidev)
 		return -EIO;
-	}
-found:
-	devpriv->pci_dev = pcidev;
-	dev->board_ptr = cb_pcidda_boards + index;
-	/*  "thisboard" macro can be used from here. */
-	dev_dbg(dev->hw_dev, "Found %s at requested position\n",
-		thisboard->name);
+	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	/*
 	 * Enable PCI device and request regions.
 	 */
 	if (comedi_pci_enable(pcidev, thisboard->name)) {
-		dev_err(dev->hw_dev, "cb_pcidda: failed to enable PCI device and request regions\n");
+		dev_err(dev->class_dev,
+			"cb_pcidda: failed to enable PCI device and request regions\n");
 		return -EIO;
 	}
 
 /*
  * Allocate the I/O ports.
  */
-	devpriv->digitalio =
-	    pci_resource_start(devpriv->pci_dev, DIGITALIO_BADRINDEX);
-	devpriv->dac = pci_resource_start(devpriv->pci_dev, DAC_BADRINDEX);
+	devpriv->digitalio = pci_resource_start(pcidev, DIGITALIO_BADRINDEX);
+	devpriv->dac = pci_resource_start(pcidev, DAC_BADRINDEX);
+	dev->iobase = devpriv->dac;
 
 /*
  * Warn about the status of the driver.
@@ -335,11 +335,9 @@ found:
  */
 	dev->board_name = thisboard->name;
 
-/*
- * Allocate the subdevice structures.
- */
-	if (alloc_subdevices(dev, 3) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
 
 	s = dev->subdevices + 0;
 	/* analog output subdevice */
@@ -360,10 +358,10 @@ found:
 	s = dev->subdevices + 2;
 	subdev_8255_init(dev, s, NULL, devpriv->digitalio + PORT2A);
 
-	dev_dbg(dev->hw_dev, "eeprom:\n");
+	dev_dbg(dev->class_dev, "eeprom:\n");
 	for (index = 0; index < EEPROM_SIZE; index++) {
 		devpriv->eeprom_data[index] = cb_pcidda_read_eeprom(dev, index);
-		dev_dbg(dev->hw_dev, "%i:0x%x\n", index,
+		dev_dbg(dev->class_dev, "%i:0x%x\n", index,
 			devpriv->eeprom_data[index]);
 	}
 
@@ -376,12 +374,12 @@ found:
 
 static void cb_pcidda_detach(struct comedi_device *dev)
 {
-	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (devpriv->dac)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 1);

@@ -20,6 +20,14 @@ extern int check_legacy_ioport(unsigned long base_port);
 #define _PNPWRP		0xa79
 #define PNPBIOS_BASE	0xf000
 
+#if defined(CONFIG_PPC64) && defined(CONFIG_PCI)
+extern struct pci_dev *isa_bridge_pcidev;
+/*
+ * has legacy ISA devices ?
+ */
+#define arch_has_dev_port()	(isa_bridge_pcidev != NULL)
+#endif
+
 #include <linux/device.h>
 #include <linux/io.h>
 

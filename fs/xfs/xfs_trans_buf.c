@@ -41,20 +41,26 @@ STATIC struct xfs_buf *
 xfs_trans_buf_item_match(
 	struct xfs_trans	*tp,
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
-	int			len)
+	struct xfs_buf_map	*map,
+	int			nmaps)
 {
 	struct xfs_log_item_desc *lidp;
 	struct xfs_buf_log_item	*blip;
+	int			len = 0;
+	int			i;
 
-	len = BBTOB(len);
+	for (i = 0; i < nmaps; i++)
+		len += map[i].bm_len;
+
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		blip = (struct xfs_buf_log_item *)lidp->lid_item;
 		if (blip->bli_item.li_type == XFS_LI_BUF &&
 		    blip->bli_buf->b_target == target &&
-		    XFS_BUF_ADDR(blip->bli_buf) == blkno &&
-		    BBTOB(blip->bli_buf->b_length) == len)
+		    XFS_BUF_ADDR(blip->bli_buf) == map[0].bm_bn &&
+		    blip->bli_buf->b_length == len) {
+			ASSERT(blip->bli_buf->b_map_count == nmaps);
 			return blip->bli_buf;
+		}
 	}
 
 	return NULL;
@@ -128,21 +134,19 @@ xfs_trans_bjoin(
  * If the transaction pointer is NULL, make this just a normal
  * get_buf() call.
  */
-xfs_buf_t *
-xfs_trans_get_buf(xfs_trans_t	*tp,
-		  xfs_buftarg_t	*target_dev,
-		  xfs_daddr_t	blkno,
-		  int		len,
-		  uint		flags)
+struct xfs_buf *
+xfs_trans_get_buf_map(
+	struct xfs_trans	*tp,
+	struct xfs_buftarg	*target,
+	struct xfs_buf_map	*map,
+	int			nmaps,
+	xfs_buf_flags_t		flags)
 {
 	xfs_buf_t		*bp;
 	xfs_buf_log_item_t	*bip;
 
-	/*
-	 * Default to a normal get_buf() call if the tp is NULL.
-	 */
-	if (tp == NULL)
-		return xfs_buf_get(target_dev, blkno, len, flags);
+	if (!tp)
+		return xfs_buf_get_map(target, map, nmaps, flags);
 
 	/*
 	 * If we find the buffer in the cache with this transaction
@@ -150,7 +154,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	 * have it locked.  In this case we just increment the lock
 	 * recursion count and return the buffer to the caller.
 	 */
-	bp = xfs_trans_buf_item_match(tp, target_dev, blkno, len);
+	bp = xfs_trans_buf_item_match(tp, target, map, nmaps);
 	if (bp != NULL) {
 		ASSERT(xfs_buf_islocked(bp));
 		if (XFS_FORCED_SHUTDOWN(tp->t_mountp)) {
@@ -167,7 +171,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 		return (bp);
 	}
 
-	bp = xfs_buf_get(target_dev, blkno, len, flags);
+	bp = xfs_buf_get_map(target, map, nmaps, flags);
 	if (bp == NULL) {
 		return NULL;
 	}
@@ -246,26 +250,22 @@ int	xfs_error_mod = 33;
  * read_buf() call.
  */
 int
-xfs_trans_read_buf(
-	xfs_mount_t	*mp,
-	xfs_trans_t	*tp,
-	xfs_buftarg_t	*target,
-	xfs_daddr_t	blkno,
-	int		len,
-	uint		flags,
-	xfs_buf_t	**bpp)
+xfs_trans_read_buf_map(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct xfs_buftarg	*target,
+	struct xfs_buf_map	*map,
+	int			nmaps,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
 {
 	xfs_buf_t		*bp;
 	xfs_buf_log_item_t	*bip;
 	int			error;
 
 	*bpp = NULL;
-
-	/*
-	 * Default to a normal get_buf() call if the tp is NULL.
-	 */
-	if (tp == NULL) {
-		bp = xfs_buf_read(target, blkno, len, flags);
+	if (!tp) {
+		bp = xfs_buf_read_map(target, map, nmaps, flags);
 		if (!bp)
 			return (flags & XBF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
@@ -303,7 +303,7 @@ xfs_trans_read_buf(
 	 * If the buffer is not yet read in, then we read it in, increment
 	 * the lock recursion count, and return it to the caller.
 	 */
-	bp = xfs_trans_buf_item_match(tp, target, blkno, len);
+	bp = xfs_trans_buf_item_match(tp, target, map, nmaps);
 	if (bp != NULL) {
 		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(bp->b_transp == tp);
@@ -349,7 +349,7 @@ xfs_trans_read_buf(
 		return 0;
 	}
 
-	bp = xfs_buf_read(target, blkno, len, flags);
+	bp = xfs_buf_read_map(target, map, nmaps, flags);
 	if (bp == NULL) {
 		*bpp = NULL;
 		return (flags & XBF_TRYLOCK) ?

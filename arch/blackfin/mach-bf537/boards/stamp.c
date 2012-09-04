@@ -873,7 +873,7 @@ static struct adf702x_platform_data adf7021_platform_data = {
 };
 static inline void adf702x_mac_init(void)
 {
-	random_ether_addr(adf7021_platform_data.mac_addr);
+	eth_random_addr(adf7021_platform_data.mac_addr);
 }
 #else
 static inline void adf702x_mac_init(void) {}

@@ -109,7 +109,7 @@
 #define UNEVEN_VISCHUNK_LAST(dest, f0, f1, left)	\
 	subcc			%left, 8, %left;	\
 	bl,pn			%xcc, 95f;		\
-	 fsrc1			%f0, %f1;
+	 fsrc2			%f0, %f1;
 
 #define UNEVEN_VISCHUNK(dest, f0, f1, left)		\
 	UNEVEN_VISCHUNK_LAST(dest, f0, f1, left)	\
@@ -201,7 +201,7 @@ FUNC_NAME:		/* %o0=dst, %o1=src, %o2=len */
 	andn		%o1, (0x40 - 1), %o1
 	and		%g2, 7, %g2
 	andncc		%g3, 0x7, %g3
-	fmovd		%f0, %f2
+	fsrc2		%f0, %f2
 	sub		%g3, 0x8, %g3
 	sub		%o2, %GLOBAL_SPARE, %o2
 

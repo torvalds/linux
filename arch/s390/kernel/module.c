@@ -1,9 +1,8 @@
 /*
- *  arch/s390/kernel/module.c - Kernel module help for s390.
+ *  Kernel module help for s390.
  *
  *  S390 version
- *    Copyright (C) 2002, 2003 IBM Deutschland Entwicklung GmbH,
- *			       IBM Corporation
+ *    Copyright IBM Corp. 2002, 2003
  *    Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *		 Martin Schwidefsky (schwidefsky@de.ibm.com)
  *

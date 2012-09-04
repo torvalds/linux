@@ -1,5 +1,5 @@
 /*
- * net/drivers/team/team_mode_roundrobin.c - Round-robin mode for team
+ * drivers/net/team/team_mode_roundrobin.c - Round-robin mode for team
  * Copyright (c) 2011 Jiri Pirko <jpirko@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -30,16 +30,16 @@ static struct team_port *__get_first_port_up(struct team *team,
 {
 	struct team_port *cur;
 
-	if (port->linkup)
+	if (team_port_txable(port))
 		return port;
 	cur = port;
 	list_for_each_entry_continue_rcu(cur, &team->port_list, list)
-		if (cur->linkup)
+		if (team_port_txable(port))
 			return cur;
 	list_for_each_entry_rcu(cur, &team->port_list, list) {
 		if (cur == port)
 			break;
-		if (cur->linkup)
+		if (team_port_txable(port))
 			return cur;
 	}
 	return NULL;
@@ -55,8 +55,7 @@ static bool rr_transmit(struct team *team, struct sk_buff *skb)
 	port = __get_first_port_up(team, port);
 	if (unlikely(!port))
 		goto drop;
-	skb->dev = port->dev;
-	if (dev_queue_xmit(skb))
+	if (team_dev_queue_xmit(team, port, skb))
 		return false;
 	return true;
 
@@ -81,7 +80,7 @@ static const struct team_mode_ops rr_mode_ops = {
 	.port_change_mac	= rr_port_change_mac,
 };
 
-static struct team_mode rr_mode = {
+static const struct team_mode rr_mode = {
 	.kind		= "roundrobin",
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct rr_priv),

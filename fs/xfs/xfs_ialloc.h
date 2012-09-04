@@ -75,8 +75,6 @@ xfs_dialloc(
 	umode_t		mode,		/* mode bits for new inode */
 	int		okalloc,	/* ok to allocate more space */
 	struct xfs_buf	**agbp,		/* buf for a.g. inode header */
-	boolean_t	*alloc_done,	/* an allocation was done to replenish
-					   the free inodes */
 	xfs_ino_t	*inop);		/* inode number allocated */
 
 /*

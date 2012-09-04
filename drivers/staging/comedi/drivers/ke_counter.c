@@ -40,8 +40,6 @@ Kolter Electronic PCI Counter Card.
 
 #include "../comedidev.h"
 
-#include "comedi_pci.h"
-
 #define CNT_DRIVER_NAME         "ke_counter"
 #define PCI_VENDOR_ID_KOLTER    0x1001
 #define CNT_CARD_DEVICE_ID      0x0014
@@ -63,17 +61,6 @@ static const struct cnt_board_struct cnt_boards[] = {
 	 .cnt_channel_nbr = 3,
 	 .cnt_bits = 24}
 };
-
-#define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
-
-/*-- device private structure -----------------------------------------------*/
-
-struct cnt_device_private {
-
-	struct pci_dev *pcidev;
-};
-
-#define devpriv ((struct cnt_device_private *)dev->private)
 
 /*-- counter write ----------------------------------------------------------*/
 
@@ -124,62 +111,58 @@ static int cnt_rinsn(struct comedi_device *dev,
 	return 1;
 }
 
-static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static struct pci_dev *cnt_find_pci_dev(struct comedi_device *dev,
+					struct comedi_devconfig *it)
 {
-	struct comedi_subdevice *subdevice;
-	struct pci_dev *pci_device = NULL;
-	struct cnt_board_struct *board;
-	unsigned long io_base;
-	int error, i;
-
-	/* allocate device private structure */
-	error = alloc_private(dev, sizeof(struct cnt_device_private));
-	if (error < 0)
-		return error;
+	const struct cnt_board_struct *board;
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
+	int i;
 
 	/* Probe the device to determine what device in the series it is. */
-	for_each_pci_dev(pci_device) {
-		if (pci_device->vendor == PCI_VENDOR_ID_KOLTER) {
-			for (i = 0; i < cnt_board_nbr; i++) {
-				if (cnt_boards[i].device_id ==
-				    pci_device->device) {
-					/* was a particular bus/slot requested? */
-					if ((it->options[0] != 0)
-					    || (it->options[1] != 0)) {
-						/* are we on the wrong bus/slot? */
-						if (pci_device->bus->number !=
-						    it->options[0]
-						    ||
-						    PCI_SLOT(pci_device->devfn)
-						    != it->options[1]) {
-							continue;
-						}
-					}
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (pcidev->bus->number != bus ||
+			    PCI_SLOT(pcidev->devfn) != slot)
+				continue;
+		}
+		if (pcidev->vendor != PCI_VENDOR_ID_KOLTER)
+			continue;
 
-					dev->board_ptr = cnt_boards + i;
-					board =
-					    (struct cnt_board_struct *)
-					    dev->board_ptr;
-					goto found;
-				}
-			}
+		for (i = 0; i < ARRAY_SIZE(cnt_boards); i++) {
+			board = &cnt_boards[i];
+			if (board->device_id != pcidev->device)
+				continue;
+
+			dev->board_ptr = board;
+			return pcidev;
 		}
 	}
-	printk(KERN_WARNING
-	       "comedi%d: no supported board found! (req. bus/slot: %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
-	return -EIO;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
+}
 
-found:
-	printk(KERN_INFO
-	       "comedi%d: found %s at PCI bus %d, slot %d\n", dev->minor,
-	       board->name, pci_device->bus->number,
-	       PCI_SLOT(pci_device->devfn));
-	devpriv->pcidev = pci_device;
+static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct cnt_board_struct *board;
+	struct pci_dev *pcidev;
+	struct comedi_subdevice *subdevice;
+	unsigned long io_base;
+	int error;
+
+	pcidev = cnt_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
+	board = comedi_board(dev);
+
 	dev->board_name = board->name;
 
 	/* enable PCI device and request regions */
-	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
+	error = comedi_pci_enable(pcidev, CNT_DRIVER_NAME);
 	if (error < 0) {
 		printk(KERN_WARNING "comedi%d: "
 		       "failed to enable PCI device and request regions!\n",
@@ -188,12 +171,11 @@ found:
 	}
 
 	/* read register base address [PCI_BASE_ADDRESS #0] */
-	io_base = pci_resource_start(pci_device, 0);
+	io_base = pci_resource_start(pcidev, 0);
 	dev->iobase = io_base;
 
-	/* allocate the subdevice structures */
-	error = alloc_subdevices(dev, 1);
-	if (error < 0)
+	error = comedi_alloc_subdevices(dev, 1);
+	if (error)
 		return error;
 
 	subdevice = dev->subdevices + 0;
@@ -221,10 +203,12 @@ found:
 
 static void cnt_detach(struct comedi_device *dev)
 {
-	if (devpriv && devpriv->pcidev) {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (pcidev) {
 		if (dev->iobase)
-			comedi_pci_disable(devpriv->pcidev);
-		pci_dev_put(devpriv->pcidev);
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

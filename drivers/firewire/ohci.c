@@ -191,6 +191,7 @@ struct fw_ohci {
 	unsigned quirks;
 	unsigned int pri_req_max;
 	u32 bus_time;
+	bool bus_time_running;
 	bool is_root;
 	bool csr_state_setclear_abdicate;
 	int n_ir;
@@ -1726,6 +1727,13 @@ static u32 update_bus_time(struct fw_ohci *ohci)
 {
 	u32 cycle_time_seconds = get_cycle_time(ohci) >> 25;
 
+	if (unlikely(!ohci->bus_time_running)) {
+		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_cycle64Seconds);
+		ohci->bus_time = (lower_32_bits(get_seconds()) & ~0x7f) |
+		                 (cycle_time_seconds & 0x40);
+		ohci->bus_time_running = true;
+	}
+
 	if ((ohci->bus_time & 0x40) != (cycle_time_seconds & 0x40))
 		ohci->bus_time += 0x40;
 
@@ -2213,7 +2221,7 @@ static int ohci_enable(struct fw_card *card,
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
-	u32 lps, seconds, version, irqs;
+	u32 lps, version, irqs;
 	int i, ret;
 
 	if (software_reset(ohci)) {
@@ -2269,9 +2277,12 @@ static int ohci_enable(struct fw_card *card,
 		  (OHCI1394_MAX_PHYS_RESP_RETRIES << 8) |
 		  (200 << 16));
 
-	seconds = lower_32_bits(get_seconds());
-	reg_write(ohci, OHCI1394_IsochronousCycleTimer, seconds << 25);
-	ohci->bus_time = seconds & ~0x3f;
+	ohci->bus_time_running = false;
+
+	for (i = 0; i < 32; i++)
+		if (ohci->ir_context_support & (1 << i))
+			reg_write(ohci, OHCI1394_IsoRcvContextControlClear(i),
+				  IR_CONTEXT_MULTI_CHANNEL_MODE);
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	if (version >= OHCI_VERSION_1_1) {
@@ -2369,7 +2380,6 @@ static int ohci_enable(struct fw_card *card,
 		OHCI1394_postedWriteErr |
 		OHCI1394_selfIDComplete |
 		OHCI1394_regAccessFail |
-		OHCI1394_cycle64Seconds |
 		OHCI1394_cycleInconsistent |
 		OHCI1394_unrecoverableError |
 		OHCI1394_cycleTooLong |
@@ -2658,7 +2668,8 @@ static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 
 	case CSR_BUS_TIME:
 		spin_lock_irqsave(&ohci->lock, flags);
-		ohci->bus_time = (ohci->bus_time & 0x7f) | (value & ~0x7f);
+		ohci->bus_time = (update_bus_time(ohci) & 0x40) |
+		                 (value & ~0x7f);
 		spin_unlock_irqrestore(&ohci->lock, flags);
 		break;
 
@@ -3538,6 +3549,13 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	mutex_init(&ohci->phy_reg_mutex);
 
 	INIT_WORK(&ohci->bus_reset_work, bus_reset_work);
+
+	if (!(pci_resource_flags(dev, 0) & IORESOURCE_MEM) ||
+	    pci_resource_len(dev, 0) < OHCI1394_REGISTER_SIZE) {
+		dev_err(&dev->dev, "invalid MMIO resource\n");
+		err = -ENXIO;
+		goto fail_disable;
+	}
 
 	err = pci_request_region(dev, 0, ohci_driver_name);
 	if (err) {

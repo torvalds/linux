@@ -9,7 +9,7 @@
  *
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
- * Added OMAP4 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
+ * Added OMAP4/5 specific defines - Santosh Shilimkar<santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ unsigned int omap_rev(void);
  * cpu_is_omap443x():	True for OMAP4430
  * cpu_is_omap446x():	True for OMAP4460
  * cpu_is_omap447x():	True for OMAP4470
+ * soc_is_omap543x():	True for OMAP5430, OMAP5432
  */
 #define GET_OMAP_CLASS	(omap_rev() & 0xff)
 
@@ -122,6 +123,7 @@ IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
 IS_AM_CLASS(35xx, 0x35)
+IS_OMAP_CLASS(54xx, 0x54)
 IS_AM_CLASS(33xx, 0x33)
 
 IS_TI_CLASS(81xx, 0x81)
@@ -133,6 +135,7 @@ IS_OMAP_SUBCLASS(363x, 0x363)
 IS_OMAP_SUBCLASS(443x, 0x443)
 IS_OMAP_SUBCLASS(446x, 0x446)
 IS_OMAP_SUBCLASS(447x, 0x447)
+IS_OMAP_SUBCLASS(543x, 0x543)
 
 IS_TI_SUBCLASS(816x, 0x816)
 IS_TI_SUBCLASS(814x, 0x814)
@@ -150,12 +153,14 @@ IS_AM_SUBCLASS(335x, 0x335)
 #define cpu_is_ti816x()			0
 #define cpu_is_ti814x()			0
 #define soc_is_am35xx()			0
-#define cpu_is_am33xx()			0
-#define cpu_is_am335x()			0
+#define soc_is_am33xx()			0
+#define soc_is_am335x()			0
 #define cpu_is_omap44xx()		0
 #define cpu_is_omap443x()		0
 #define cpu_is_omap446x()		0
 #define cpu_is_omap447x()		0
+#define soc_is_omap54xx()		0
+#define soc_is_omap543x()		0
 
 #if defined(MULTI_OMAP1)
 # if defined(CONFIG_ARCH_OMAP730)
@@ -238,9 +243,7 @@ IS_AM_SUBCLASS(335x, 0x335)
 /*
  * Macros to detect individual cpu types.
  * These are only rarely needed.
- * cpu_is_omap330():	True for OMAP330
- * cpu_is_omap730():	True for OMAP730
- * cpu_is_omap850():	True for OMAP850
+ * cpu_is_omap310():	True for OMAP310
  * cpu_is_omap1510():	True for OMAP1510
  * cpu_is_omap1610():	True for OMAP1610
  * cpu_is_omap1611():	True for OMAP1611
@@ -262,8 +265,6 @@ static inline int is_omap ##type (void)			\
 }
 
 IS_OMAP_TYPE(310, 0x0310)
-IS_OMAP_TYPE(730, 0x0730)
-IS_OMAP_TYPE(850, 0x0850)
 IS_OMAP_TYPE(1510, 0x1510)
 IS_OMAP_TYPE(1610, 0x1610)
 IS_OMAP_TYPE(1611, 0x1611)
@@ -277,8 +278,6 @@ IS_OMAP_TYPE(2430, 0x2430)
 IS_OMAP_TYPE(3430, 0x3430)
 
 #define cpu_is_omap310()		0
-#define cpu_is_omap730()		0
-#define cpu_is_omap850()		0
 #define cpu_is_omap1510()		0
 #define cpu_is_omap1610()		0
 #define cpu_is_omap5912()		0
@@ -291,21 +290,12 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define cpu_is_omap2430()		0
 #define cpu_is_omap3430()		0
 #define cpu_is_omap3630()		0
+#define soc_is_omap5430()		0
 
 /*
  * Whether we have MULTI_OMAP1 or not, we still need to distinguish
- * between 730 vs 850, 330 vs. 1510 and 1611B/5912 vs. 1710.
+ * between 310 vs. 1510 and 1611B/5912 vs. 1710.
  */
-
-#if defined(CONFIG_ARCH_OMAP730)
-# undef  cpu_is_omap730
-# define cpu_is_omap730()		is_omap730()
-#endif
-
-#if defined(CONFIG_ARCH_OMAP850)
-# undef  cpu_is_omap850
-# define cpu_is_omap850()		is_omap850()
-#endif
 
 #if defined(CONFIG_ARCH_OMAP15XX)
 # undef  cpu_is_omap310
@@ -344,8 +334,6 @@ IS_OMAP_TYPE(3430, 0x3430)
 # undef cpu_is_ti816x
 # undef cpu_is_ti814x
 # undef soc_is_am35xx
-# undef cpu_is_am33xx
-# undef cpu_is_am335x
 # define cpu_is_omap3430()		is_omap3430()
 # undef cpu_is_omap3630
 # define cpu_is_omap3630()		is_omap363x()
@@ -353,8 +341,13 @@ IS_OMAP_TYPE(3430, 0x3430)
 # define cpu_is_ti816x()		is_ti816x()
 # define cpu_is_ti814x()		is_ti814x()
 # define soc_is_am35xx()		is_am35xx()
-# define cpu_is_am33xx()		is_am33xx()
-# define cpu_is_am335x()		is_am335x()
+#endif
+
+# if defined(CONFIG_SOC_AM33XX)
+# undef soc_is_am33xx
+# undef soc_is_am335x
+# define soc_is_am33xx()		is_am33xx()
+# define soc_is_am335x()		is_am335x()
 #endif
 
 # if defined(CONFIG_ARCH_OMAP4)
@@ -368,11 +361,18 @@ IS_OMAP_TYPE(3430, 0x3430)
 # define cpu_is_omap447x()		is_omap447x()
 # endif
 
+# if defined(CONFIG_SOC_OMAP5)
+# undef soc_is_omap54xx
+# undef soc_is_omap543x
+# define soc_is_omap54xx()		is_omap54xx()
+# define soc_is_omap543x()		is_omap543x()
+#endif
+
 /* Macros to detect if we have OMAP1 or OMAP2 */
 #define cpu_class_is_omap1()	(cpu_is_omap7xx() || cpu_is_omap15xx() || \
 				cpu_is_omap16xx())
 #define cpu_class_is_omap2()	(cpu_is_omap24xx() || cpu_is_omap34xx() || \
-				cpu_is_omap44xx())
+				cpu_is_omap44xx() || soc_is_omap54xx())
 
 /* Various silicon revisions for omap2 */
 #define OMAP242X_CLASS		0x24200024
@@ -408,7 +408,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define AM35XX_REV_ES1_0	AM35XX_CLASS
 #define AM35XX_REV_ES1_1	(AM35XX_CLASS | (0x1 << 8))
 
-#define AM335X_CLASS		0x33500034
+#define AM335X_CLASS		0x33500033
 #define AM335X_REV_ES1_0	AM335X_CLASS
 
 #define OMAP443X_CLASS		0x44300044
@@ -425,9 +425,14 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define OMAP447X_CLASS		0x44700044
 #define OMAP4470_REV_ES1_0	(OMAP447X_CLASS | (0x10 << 8))
 
+#define OMAP54XX_CLASS		0x54000054
+#define OMAP5430_REV_ES1_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x10 << 8))
+#define OMAP5432_REV_ES1_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x10 << 8))
+
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);
 void omap4xxx_check_revision(void);
+void omap5xxx_check_revision(void);
 void omap3xxx_check_features(void);
 void ti81xx_check_features(void);
 void omap4xxx_check_features(void);

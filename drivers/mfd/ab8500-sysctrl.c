@@ -61,16 +61,10 @@ static int __devexit ab8500_sysctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id ab8500_sysctrl_match[] = {
-	{ .compatible = "stericsson,ab8500-sysctrl", },
-	{}
-};
-
 static struct platform_driver ab8500_sysctrl_driver = {
 	.driver = {
 		.name = "ab8500-sysctrl",
 		.owner = THIS_MODULE,
-		.of_match_table = ab8500_sysctrl_match,
 	},
 	.probe = ab8500_sysctrl_probe,
 	.remove = __devexit_p(ab8500_sysctrl_remove),

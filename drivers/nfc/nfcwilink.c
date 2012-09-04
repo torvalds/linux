@@ -535,9 +535,10 @@ static int nfcwilink_probe(struct platform_device *pdev)
 	drv->pdev = pdev;
 
 	protocols = NFC_PROTO_JEWEL_MASK
-			| NFC_PROTO_MIFARE_MASK | NFC_PROTO_FELICA_MASK
-			| NFC_PROTO_ISO14443_MASK
-			| NFC_PROTO_NFC_DEP_MASK;
+		| NFC_PROTO_MIFARE_MASK | NFC_PROTO_FELICA_MASK
+		| NFC_PROTO_ISO14443_MASK
+		| NFC_PROTO_ISO14443_B_MASK
+		| NFC_PROTO_NFC_DEP_MASK;
 
 	drv->ndev = nci_allocate_device(&nfcwilink_ops,
 					protocols,

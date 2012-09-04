@@ -170,6 +170,16 @@ struct gfs2_rindex {
 #define GFS2_RGF_NOALLOC	0x00000008
 #define GFS2_RGF_TRIMMED	0x00000010
 
+struct gfs2_rgrp_lvb {
+	__be32 rl_magic;
+	__be32 rl_flags;
+	__be32 rl_free;
+	__be32 rl_dinodes;
+	__be64 rl_igeneration;
+	__be32 rl_unlinked;
+	__be32 __pad;
+};
+
 struct gfs2_rgrp {
 	struct gfs2_meta_header rg_header;
 
@@ -214,6 +224,7 @@ enum {
 	gfs2fl_NoAtime		= 7,
 	gfs2fl_Sync		= 8,
 	gfs2fl_System		= 9,
+	gfs2fl_TopLevel		= 10,
 	gfs2fl_TruncInProg	= 29,
 	gfs2fl_InheritDirectio	= 30,
 	gfs2fl_InheritJdata	= 31,
@@ -230,8 +241,9 @@ enum {
 #define GFS2_DIF_NOATIME		0x00000080
 #define GFS2_DIF_SYNC			0x00000100
 #define GFS2_DIF_SYSTEM			0x00000200 /* New in gfs2 */
+#define GFS2_DIF_TOPDIR			0x00000400 /* New in gfs2 */
 #define GFS2_DIF_TRUNC_IN_PROG		0x20000000 /* New in gfs2 */
-#define GFS2_DIF_INHERIT_DIRECTIO	0x40000000
+#define GFS2_DIF_INHERIT_DIRECTIO	0x40000000 /* only in gfs1 */
 #define GFS2_DIF_INHERIT_JDATA		0x80000000
 
 struct gfs2_dinode {

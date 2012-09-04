@@ -667,7 +667,8 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		FIMC_REG_CIGCTRL_SELCAM_MIPI | FIMC_REG_CIGCTRL_CAMIF_SELWB |
 		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG);
 
-	if (cam->bus_type == FIMC_MIPI_CSI2) {
+	switch (cam->bus_type) {
+	case FIMC_MIPI_CSI2:
 		cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI;
 
 		if (cam->mux_id == 0)
@@ -683,23 +684,24 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			cfg |= FIMC_REG_CIGCTRL_CAM_JPEG;
 			break;
 		default:
-			v4l2_err(fimc->vid_cap.vfd,
-				 "Not supported camera pixel format: %d",
+			v4l2_err(vid_cap->vfd,
+				 "Not supported camera pixel format: %#x\n",
 				 vid_cap->mf.code);
 			return -EINVAL;
 		}
 		tmp |= (csis_data_alignment == 32) << 8;
 
 		writel(tmp, fimc->regs + FIMC_REG_CSIIMGFMT);
-
-	} else if (cam->bus_type == FIMC_ITU_601 ||
-		   cam->bus_type == FIMC_ITU_656) {
+		break;
+	case FIMC_ITU_601...FIMC_ITU_656:
 		if (cam->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_ITU_A;
-	} else if (cam->bus_type == FIMC_LCD_WB) {
+		break;
+	case FIMC_LCD_WB:
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
-	} else {
-		err("invalid camera bus type selected\n");
+		break;
+	default:
+		v4l2_err(vid_cap->vfd, "Invalid camera bus type selected\n");
 		return -EINVAL;
 	}
 	writel(cfg, fimc->regs + FIMC_REG_CIGCTRL);

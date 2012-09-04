@@ -17,6 +17,7 @@
 #include <linux/magic.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/writeback.h>
 #include "affs.h"
 
 extern struct timezone sys_tz;
@@ -25,15 +26,17 @@ static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
-affs_commit_super(struct super_block *sb, int wait, int clean)
+affs_commit_super(struct super_block *sb, int wait)
 {
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	struct buffer_head *bh = sbi->s_root_bh;
 	struct affs_root_tail *tail = AFFS_ROOT_TAIL(sb, bh);
 
-	tail->bm_flag = cpu_to_be32(clean);
+	lock_buffer(bh);
 	secs_to_datestamp(get_seconds(), &tail->disk_change);
 	affs_fix_checksum(sb, bh);
+	unlock_buffer(bh);
+
 	mark_buffer_dirty(bh);
 	if (wait)
 		sync_dirty_buffer(bh);
@@ -45,9 +48,7 @@ affs_put_super(struct super_block *sb)
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	pr_debug("AFFS: put_super()\n");
 
-	if (!(sb->s_flags & MS_RDONLY) && sb->s_dirt)
-		affs_commit_super(sb, 1, 1);
-
+	cancel_delayed_work_sync(&sbi->sb_work);
 	kfree(sbi->s_prefix);
 	affs_free_bitmap(sb);
 	affs_brelse(sbi->s_root_bh);
@@ -55,26 +56,43 @@ affs_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-static void
-affs_write_super(struct super_block *sb)
-{
-	lock_super(sb);
-	if (!(sb->s_flags & MS_RDONLY))
-		affs_commit_super(sb, 1, 2);
-	sb->s_dirt = 0;
-	unlock_super(sb);
-
-	pr_debug("AFFS: write_super() at %lu, clean=2\n", get_seconds());
-}
-
 static int
 affs_sync_fs(struct super_block *sb, int wait)
 {
-	lock_super(sb);
-	affs_commit_super(sb, wait, 2);
-	sb->s_dirt = 0;
-	unlock_super(sb);
+	affs_commit_super(sb, wait);
 	return 0;
+}
+
+static void flush_superblock(struct work_struct *work)
+{
+	struct affs_sb_info *sbi;
+	struct super_block *sb;
+
+	sbi = container_of(work, struct affs_sb_info, sb_work.work);
+	sb = sbi->sb;
+
+	spin_lock(&sbi->work_lock);
+	sbi->work_queued = 0;
+	spin_unlock(&sbi->work_lock);
+
+	affs_commit_super(sb, 1);
+}
+
+void affs_mark_sb_dirty(struct super_block *sb)
+{
+	struct affs_sb_info *sbi = AFFS_SB(sb);
+	unsigned long delay;
+
+	if (sb->s_flags & MS_RDONLY)
+	       return;
+
+	spin_lock(&sbi->work_lock);
+	if (!sbi->work_queued) {
+	       delay = msecs_to_jiffies(dirty_writeback_interval * 10);
+	       queue_delayed_work(system_long_wq, &sbi->sb_work, delay);
+	       sbi->work_queued = 1;
+	}
+	spin_unlock(&sbi->work_lock);
 }
 
 static struct kmem_cache * affs_inode_cachep;
@@ -138,7 +156,6 @@ static const struct super_operations affs_sops = {
 	.write_inode	= affs_write_inode,
 	.evict_inode	= affs_evict_inode,
 	.put_super	= affs_put_super,
-	.write_super	= affs_write_super,
 	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
 	.remount_fs	= affs_remount,
@@ -305,8 +322,11 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
+	sbi->sb = sb;
 	mutex_init(&sbi->s_bmlock);
 	spin_lock_init(&sbi->symlink_lock);
+	spin_lock_init(&sbi->work_lock);
+	INIT_DELAYED_WORK(&sbi->sb_work, flush_superblock);
 
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,
 				&blocksize,&sbi->s_prefix,
@@ -531,6 +551,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		return -EINVAL;
 	}
 
+	flush_delayed_work_sync(&sbi->sb_work);
 	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
@@ -549,10 +570,9 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 
-	if (*flags & MS_RDONLY) {
-		affs_write_super(sb);
+	if (*flags & MS_RDONLY)
 		affs_free_bitmap(sb);
-	} else
+	else
 		res = affs_init_bitmap(sb, flags);
 
 	return res;

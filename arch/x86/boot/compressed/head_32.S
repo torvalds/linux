@@ -42,6 +42,16 @@ ENTRY(startup_32)
 	 */
 	add	$0x4, %esp
 
+	call	make_boot_params
+	cmpl	$0, %eax
+	je	1f
+	movl	0x4(%esp), %esi
+	movl	(%esp), %ecx
+	pushl	%eax
+	pushl	%esi
+	pushl	%ecx
+
+	.org 0x30,0x90
 	call	efi_main
 	cmpl	$0, %eax
 	movl	%eax, %esi

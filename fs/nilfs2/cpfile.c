@@ -286,7 +286,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 	__u64 cno;
 	void *kaddr;
 	unsigned long tnicps;
-	int ret, ncps, nicps, count, i;
+	int ret, ncps, nicps, nss, count, i;
 
 	if (unlikely(start == 0 || start > end)) {
 		printk(KERN_ERR "%s: invalid range of checkpoint numbers: "
@@ -301,6 +301,7 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 	if (ret < 0)
 		goto out_sem;
 	tnicps = 0;
+	nss = 0;
 
 	for (cno = start; cno < end; cno += ncps) {
 		ncps = nilfs_cpfile_checkpoints_in_block(cpfile, cno, end);
@@ -318,8 +319,9 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 			cpfile, cno, cp_bh, kaddr);
 		nicps = 0;
 		for (i = 0; i < ncps; i++, cp = (void *)cp + cpsz) {
-			WARN_ON(nilfs_checkpoint_snapshot(cp));
-			if (!nilfs_checkpoint_invalid(cp)) {
+			if (nilfs_checkpoint_snapshot(cp)) {
+				nss++;
+			} else if (!nilfs_checkpoint_invalid(cp)) {
 				nilfs_checkpoint_set_invalid(cp);
 				nicps++;
 			}
@@ -364,6 +366,8 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 	}
 
 	brelse(header_bh);
+	if (nss > 0)
+		ret = -EBUSY;
 
  out_sem:
 	up_write(&NILFS_MDT(cpfile)->mi_sem);

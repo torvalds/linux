@@ -78,43 +78,214 @@ static struct {
  */
 
 static const struct hdmi_config cea_timings[] = {
-{ {640, 480, 25200, 96, 16, 48, 2, 10, 33, 0, 0, 0}, {1, HDMI_HDMI} },
-{ {720, 480, 27027, 62, 16, 60, 6, 9, 30, 0, 0, 0}, {2, HDMI_HDMI} },
-{ {1280, 720, 74250, 40, 110, 220, 5, 5, 20, 1, 1, 0}, {4, HDMI_HDMI} },
-{ {1920, 540, 74250, 44, 88, 148, 5, 2, 15, 1, 1, 1}, {5, HDMI_HDMI} },
-{ {1440, 240, 27027, 124, 38, 114, 3, 4, 15, 0, 0, 1}, {6, HDMI_HDMI} },
-{ {1920, 1080, 148500, 44, 88, 148, 5, 4, 36, 1, 1, 0}, {16, HDMI_HDMI} },
-{ {720, 576, 27000, 64, 12, 68, 5, 5, 39, 0, 0, 0}, {17, HDMI_HDMI} },
-{ {1280, 720, 74250, 40, 440, 220, 5, 5, 20, 1, 1, 0}, {19, HDMI_HDMI} },
-{ {1920, 540, 74250, 44, 528, 148, 5, 2, 15, 1, 1, 1}, {20, HDMI_HDMI} },
-{ {1440, 288, 27000, 126, 24, 138, 3, 2, 19, 0, 0, 1}, {21, HDMI_HDMI} },
-{ {1440, 576, 54000, 128, 24, 136, 5, 5, 39, 0, 0, 0}, {29, HDMI_HDMI} },
-{ {1920, 1080, 148500, 44, 528, 148, 5, 4, 36, 1, 1, 0}, {31, HDMI_HDMI} },
-{ {1920, 1080, 74250, 44, 638, 148, 5, 4, 36, 1, 1, 0}, {32, HDMI_HDMI} },
-{ {2880, 480, 108108, 248, 64, 240, 6, 9, 30, 0, 0, 0}, {35, HDMI_HDMI} },
-{ {2880, 576, 108000, 256, 48, 272, 5, 5, 39, 0, 0, 0}, {37, HDMI_HDMI} },
+	{
+		{ 640, 480, 25200, 96, 16, 48, 2, 10, 33,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 1, HDMI_HDMI },
+	},
+	{
+		{ 720, 480, 27027, 62, 16, 60, 6, 9, 30,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 2, HDMI_HDMI },
+	},
+	{
+		{ 1280, 720, 74250, 40, 110, 220, 5, 5, 20,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 4, HDMI_HDMI },
+	},
+	{
+		{ 1920, 540, 74250, 44, 88, 148, 5, 2, 15,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			true, },
+		{ 5, HDMI_HDMI },
+	},
+	{
+		{ 1440, 240, 27027, 124, 38, 114, 3, 4, 15,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			true, },
+		{ 6, HDMI_HDMI },
+	},
+	{
+		{ 1920, 1080, 148500, 44, 88, 148, 5, 4, 36,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 16, HDMI_HDMI },
+	},
+	{
+		{ 720, 576, 27000, 64, 12, 68, 5, 5, 39,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 17, HDMI_HDMI },
+	},
+	{
+		{ 1280, 720, 74250, 40, 440, 220, 5, 5, 20,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 19, HDMI_HDMI },
+	},
+	{
+		{ 1920, 540, 74250, 44, 528, 148, 5, 2, 15,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			true, },
+		{ 20, HDMI_HDMI },
+	},
+	{
+		{ 1440, 288, 27000, 126, 24, 138, 3, 2, 19,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			true, },
+		{ 21, HDMI_HDMI },
+	},
+	{
+		{ 1440, 576, 54000, 128, 24, 136, 5, 5, 39,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 29, HDMI_HDMI },
+	},
+	{
+		{ 1920, 1080, 148500, 44, 528, 148, 5, 4, 36,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 31, HDMI_HDMI },
+	},
+	{
+		{ 1920, 1080, 74250, 44, 638, 148, 5, 4, 36,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 32, HDMI_HDMI },
+	},
+	{
+		{ 2880, 480, 108108, 248, 64, 240, 6, 9, 30,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 35, HDMI_HDMI },
+	},
+	{
+		{ 2880, 576, 108000, 256, 48, 272, 5, 5, 39,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 37, HDMI_HDMI },
+	},
 };
+
 static const struct hdmi_config vesa_timings[] = {
 /* VESA From Here */
-{ {640, 480, 25175, 96, 16, 48, 2 , 11, 31, 0, 0, 0}, {4, HDMI_DVI} },
-{ {800, 600, 40000, 128, 40, 88, 4 , 1, 23, 1, 1, 0}, {9, HDMI_DVI} },
-{ {848, 480, 33750, 112, 16, 112, 8 , 6, 23, 1, 1, 0}, {0xE, HDMI_DVI} },
-{ {1280, 768, 79500, 128, 64, 192, 7 , 3, 20, 1, 0, 0}, {0x17, HDMI_DVI} },
-{ {1280, 800, 83500, 128, 72, 200, 6 , 3, 22, 1, 0, 0}, {0x1C, HDMI_DVI} },
-{ {1360, 768, 85500, 112, 64, 256, 6 , 3, 18, 1, 1, 0}, {0x27, HDMI_DVI} },
-{ {1280, 960, 108000, 112, 96, 312, 3 , 1, 36, 1, 1, 0}, {0x20, HDMI_DVI} },
-{ {1280, 1024, 108000, 112, 48, 248, 3 , 1, 38, 1, 1, 0}, {0x23, HDMI_DVI} },
-{ {1024, 768, 65000, 136, 24, 160, 6, 3, 29, 0, 0, 0}, {0x10, HDMI_DVI} },
-{ {1400, 1050, 121750, 144, 88, 232, 4, 3, 32, 1, 0, 0}, {0x2A, HDMI_DVI} },
-{ {1440, 900, 106500, 152, 80, 232, 6, 3, 25, 1, 0, 0}, {0x2F, HDMI_DVI} },
-{ {1680, 1050, 146250, 176 , 104, 280, 6, 3, 30, 1, 0, 0}, {0x3A, HDMI_DVI} },
-{ {1366, 768, 85500, 143, 70, 213, 3, 3, 24, 1, 1, 0}, {0x51, HDMI_DVI} },
-{ {1920, 1080, 148500, 44, 148, 80, 5, 4, 36, 1, 1, 0}, {0x52, HDMI_DVI} },
-{ {1280, 768, 68250, 32, 48, 80, 7, 3, 12, 0, 1, 0}, {0x16, HDMI_DVI} },
-{ {1400, 1050, 101000, 32, 48, 80, 4, 3, 23, 0, 1, 0}, {0x29, HDMI_DVI} },
-{ {1680, 1050, 119000, 32, 48, 80, 6, 3, 21, 0, 1, 0}, {0x39, HDMI_DVI} },
-{ {1280, 800, 79500, 32, 48, 80, 6, 3, 14, 0, 1, 0}, {0x1B, HDMI_DVI} },
-{ {1280, 720, 74250, 40, 110, 220, 5, 5, 20, 1, 1, 0}, {0x55, HDMI_DVI} }
+	{
+		{ 640, 480, 25175, 96, 16, 48, 2, 11, 31,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 4, HDMI_DVI },
+	},
+	{
+		{ 800, 600, 40000, 128, 40, 88, 4, 1, 23,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 9, HDMI_DVI },
+	},
+	{
+		{ 848, 480, 33750, 112, 16, 112, 8, 6, 23,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0xE, HDMI_DVI },
+	},
+	{
+		{ 1280, 768, 79500, 128, 64, 192, 7, 3, 20,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 0x17, HDMI_DVI },
+	},
+	{
+		{ 1280, 800, 83500, 128, 72, 200, 6, 3, 22,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 0x1C, HDMI_DVI },
+	},
+	{
+		{ 1360, 768, 85500, 112, 64, 256, 6, 3, 18,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x27, HDMI_DVI },
+	},
+	{
+		{ 1280, 960, 108000, 112, 96, 312, 3, 1, 36,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x20, HDMI_DVI },
+	},
+	{
+		{ 1280, 1024, 108000, 112, 48, 248, 3, 1, 38,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x23, HDMI_DVI },
+	},
+	{
+		{ 1024, 768, 65000, 136, 24, 160, 6, 3, 29,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 0x10, HDMI_DVI },
+	},
+	{
+		{ 1400, 1050, 121750, 144, 88, 232, 4, 3, 32,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 0x2A, HDMI_DVI },
+	},
+	{
+		{ 1440, 900, 106500, 152, 80, 232, 6, 3, 25,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 0x2F, HDMI_DVI },
+	},
+	{
+		{ 1680, 1050, 146250, 176 , 104, 280, 6, 3, 30,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_LOW,
+			false, },
+		{ 0x3A, HDMI_DVI },
+	},
+	{
+		{ 1366, 768, 85500, 143, 70, 213, 3, 3, 24,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x51, HDMI_DVI },
+	},
+	{
+		{ 1920, 1080, 148500, 44, 148, 80, 5, 4, 36,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x52, HDMI_DVI },
+	},
+	{
+		{ 1280, 768, 68250, 32, 48, 80, 7, 3, 12,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x16, HDMI_DVI },
+	},
+	{
+		{ 1400, 1050, 101000, 32, 48, 80, 4, 3, 23,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x29, HDMI_DVI },
+	},
+	{
+		{ 1680, 1050, 119000, 32, 48, 80, 6, 3, 21,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x39, HDMI_DVI },
+	},
+	{
+		{ 1280, 800, 79500, 32, 48, 80, 6, 3, 14,
+			OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x1B, HDMI_DVI },
+	},
+	{
+		{ 1280, 720, 74250, 40, 110, 220, 5, 5, 20,
+			OMAPDSS_SIG_ACTIVE_HIGH, OMAPDSS_SIG_ACTIVE_HIGH,
+			false, },
+		{ 0x55, HDMI_DVI },
+	},
 };
 
 static int hdmi_runtime_get(void)
@@ -179,7 +350,7 @@ static const struct hdmi_config *hdmi_get_timings(void)
 }
 
 static bool hdmi_timings_compare(struct omap_video_timings *timing1,
-				const struct hdmi_video_timings *timing2)
+				const struct omap_video_timings *timing2)
 {
 	int timing1_vsync, timing1_hsync, timing2_vsync, timing2_hsync;
 
@@ -758,6 +929,7 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
 	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
 	hdmi.ip_data.phy_offset = HDMI_PHY;
+	mutex_init(&hdmi.ip_data.lock);
 
 	hdmi_panel_init();
 
@@ -785,7 +957,7 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 
 static int hdmi_runtime_suspend(struct device *dev)
 {
-	clk_disable(hdmi.sys_clk);
+	clk_disable_unprepare(hdmi.sys_clk);
 
 	dispc_runtime_put();
 
@@ -800,7 +972,7 @@ static int hdmi_runtime_resume(struct device *dev)
 	if (r < 0)
 		return r;
 
-	clk_enable(hdmi.sys_clk);
+	clk_prepare_enable(hdmi.sys_clk);
 
 	return 0;
 }

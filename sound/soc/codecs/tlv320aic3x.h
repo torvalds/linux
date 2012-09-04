@@ -13,7 +13,7 @@
 #define _AIC3X_H
 
 /* AIC3X register space */
-#define AIC3X_CACHEREGNUM		103
+#define AIC3X_CACHEREGNUM		110
 
 /* Page select register */
 #define AIC3X_PAGE_SELECT		0
@@ -74,6 +74,8 @@
 #define HPLCOM_CFG			37
 /* Right High Power Output control registers */
 #define HPRCOM_CFG			38
+/* High Power Output Stage Control Register */
+#define HPOUT_SC			40
 /* DAC Output Switching control registers */
 #define DAC_LINE_MUX			41
 /* High Power Output Driver Pop Reduction registers */
@@ -148,6 +150,17 @@
 #define AIC3X_GPIOB_REG			101
 /* Clock generation control register */
 #define AIC3X_CLKGEN_CTRL_REG		102
+/* New AGC registers */
+#define LAGCN_ATTACK			103
+#define LAGCN_DECAY			104
+#define RAGCN_ATTACK			105
+#define RAGCN_DECAY			106
+/* New Programmable ADC Digital Path and I2C Bus Condition Register */
+#define NEW_ADC_DIGITALPATH		107
+/* Passive Analog Signal Bypass Selection During Powerdown Register */
+#define PASSIVE_BYPASS			108
+/* DAC Quiescent Current Adjustment Register */
+#define DAC_ICC_ADJ			109
 
 /* Page select register bits */
 #define PAGE0_SELECT		0
@@ -163,6 +176,10 @@
 #define DUAL_RATE_MODE		((1 << 5) | (1 << 6))
 #define LDAC2LCH		(0x1 << 3)
 #define RDAC2RCH		(0x1 << 1)
+#define LDAC2RCH		(0x2 << 3)
+#define RDAC2LCH		(0x2 << 1)
+#define LDAC2MONOMIX		(0x3 << 3)
+#define RDAC2MONOMIX		(0x3 << 1)
 
 /* PLL registers bitfields */
 #define PLLP_SHIFT		0
@@ -179,6 +196,14 @@
 #define PLL_CLKIN_SHIFT		4
 #define MCLK_SOURCE		0x0
 #define PLL_CLKDIV_SHIFT	0
+#define PLLCLK_IN_MASK		0x30
+#define PLLCLK_IN_SHIFT		4
+#define CLKDIV_IN_MASK		0xc0
+#define CLKDIV_IN_SHIFT		6
+/* clock in source */
+#define CLKIN_MCLK		0
+#define CLKIN_GPIO2		1
+#define CLKIN_BCLK		2
 
 /* Software reset register bits */
 #define SOFT_RESET		0x80

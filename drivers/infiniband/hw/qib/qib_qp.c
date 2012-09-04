@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
- * All rights reserved.
+ * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2012 QLogic Corporation.  * All rights reserved.
  * Copyright (c) 2005, 2006 PathScale, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -250,23 +250,33 @@ static void remove_qp(struct qib_ibdev *dev, struct qib_qp *qp)
 
 	spin_lock_irqsave(&dev->qpt_lock, flags);
 
-	if (ibp->qp0 == qp) {
+	if (rcu_dereference_protected(ibp->qp0,
+			lockdep_is_held(&dev->qpt_lock)) == qp) {
 		atomic_dec(&qp->refcount);
 		rcu_assign_pointer(ibp->qp0, NULL);
-	} else if (ibp->qp1 == qp) {
+	} else if (rcu_dereference_protected(ibp->qp1,
+			lockdep_is_held(&dev->qpt_lock)) == qp) {
 		atomic_dec(&qp->refcount);
 		rcu_assign_pointer(ibp->qp1, NULL);
 	} else {
-		struct qib_qp *q, **qpp;
+		struct qib_qp *q;
+		struct qib_qp __rcu **qpp;
 
 		qpp = &dev->qp_table[n];
-		for (; (q = *qpp) != NULL; qpp = &q->next)
+		q = rcu_dereference_protected(*qpp,
+			lockdep_is_held(&dev->qpt_lock));
+		for (; q; qpp = &q->next) {
 			if (q == qp) {
 				atomic_dec(&qp->refcount);
-				rcu_assign_pointer(*qpp, qp->next);
-				qp->next = NULL;
+				*qpp = qp->next;
+				rcu_assign_pointer(qp->next, NULL);
+				q = rcu_dereference_protected(*qpp,
+					lockdep_is_held(&dev->qpt_lock));
 				break;
 			}
+			q = rcu_dereference_protected(*qpp,
+				lockdep_is_held(&dev->qpt_lock));
+		}
 	}
 
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);
@@ -302,10 +312,12 @@ unsigned qib_free_all_qps(struct qib_devdata *dd)
 
 	spin_lock_irqsave(&dev->qpt_lock, flags);
 	for (n = 0; n < dev->qp_table_size; n++) {
-		qp = dev->qp_table[n];
+		qp = rcu_dereference_protected(dev->qp_table[n],
+			lockdep_is_held(&dev->qpt_lock));
 		rcu_assign_pointer(dev->qp_table[n], NULL);
 
-		for (; qp; qp = qp->next)
+		for (; qp; qp = rcu_dereference_protected(qp->next,
+					lockdep_is_held(&dev->qpt_lock)))
 			qp_inuse++;
 	}
 	spin_unlock_irqrestore(&dev->qpt_lock, flags);
@@ -337,7 +349,8 @@ struct qib_qp *qib_lookup_qpn(struct qib_ibport *ibp, u32 qpn)
 		unsigned n = qpn_hash(dev, qpn);
 
 		rcu_read_lock();
-		for (qp = dev->qp_table[n]; rcu_dereference(qp); qp = qp->next)
+		for (qp = rcu_dereference(dev->qp_table[n]); qp;
+			qp = rcu_dereference(qp->next))
 			if (qp->ibqp.qp_num == qpn)
 				break;
 	}
@@ -406,18 +419,9 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 	unsigned n;
 
 	if (test_and_clear_bit(QIB_R_REWIND_SGE, &qp->r_aflags))
-		while (qp->s_rdma_read_sge.num_sge) {
-			atomic_dec(&qp->s_rdma_read_sge.sge.mr->refcount);
-			if (--qp->s_rdma_read_sge.num_sge)
-				qp->s_rdma_read_sge.sge =
-					*qp->s_rdma_read_sge.sg_list++;
-		}
+		qib_put_ss(&qp->s_rdma_read_sge);
 
-	while (qp->r_sge.num_sge) {
-		atomic_dec(&qp->r_sge.sge.mr->refcount);
-		if (--qp->r_sge.num_sge)
-			qp->r_sge.sge = *qp->r_sge.sg_list++;
-	}
+	qib_put_ss(&qp->r_sge);
 
 	if (clr_sends) {
 		while (qp->s_last != qp->s_head) {
@@ -427,7 +431,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 			for (i = 0; i < wqe->wr.num_sge; i++) {
 				struct qib_sge *sge = &wqe->sg_list[i];
 
-				atomic_dec(&sge->mr->refcount);
+				qib_put_mr(sge->mr);
 			}
 			if (qp->ibqp.qp_type == IB_QPT_UD ||
 			    qp->ibqp.qp_type == IB_QPT_SMI ||
@@ -437,7 +441,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 				qp->s_last = 0;
 		}
 		if (qp->s_rdma_mr) {
-			atomic_dec(&qp->s_rdma_mr->refcount);
+			qib_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;
 		}
 	}
@@ -450,7 +454,7 @@ static void clear_mr_refs(struct qib_qp *qp, int clr_sends)
 
 		if (e->opcode == IB_OPCODE_RC_RDMA_READ_REQUEST &&
 		    e->rdma_sge.mr) {
-			atomic_dec(&e->rdma_sge.mr->refcount);
+			qib_put_mr(e->rdma_sge.mr);
 			e->rdma_sge.mr = NULL;
 		}
 	}
@@ -495,7 +499,7 @@ int qib_error_qp(struct qib_qp *qp, enum ib_wc_status err)
 	if (!(qp->s_flags & QIB_S_BUSY)) {
 		qp->s_hdrwords = 0;
 		if (qp->s_rdma_mr) {
-			atomic_dec(&qp->s_rdma_mr->refcount);
+			qib_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;
 		}
 		if (qp->s_tx) {

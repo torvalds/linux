@@ -80,9 +80,7 @@ static void __cpuinit cpu_bringup(void)
 
 	notify_cpu_starting(cpu);
 
-	ipi_call_lock();
 	set_cpu_online(cpu, true);
-	ipi_call_unlock();
 
 	this_cpu_write(cpu_state, CPU_ONLINE);
 

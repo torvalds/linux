@@ -1367,7 +1367,6 @@ int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,
 	struct saa7164_dev *dev = bus->dev;
 	u16 len = 0;
 	int unitid;
-	u32 regval;
 	u8 buf[256];
 	int ret;
 
@@ -1375,19 +1374,6 @@ int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,
 
 	if (reglen > 4)
 		return -EIO;
-
-	if (reglen == 1)
-		regval = *(reg);
-	else
-	if (reglen == 2)
-		regval = ((*(reg) << 8) || *(reg+1));
-	else
-	if (reglen == 3)
-		regval = ((*(reg) << 16) | (*(reg+1) << 8) | *(reg+2));
-	else
-	if (reglen == 4)
-		regval = ((*(reg) << 24) | (*(reg+1) << 16) |
-			(*(reg+2) << 8) | *(reg+3));
 
 	/* Prepare the send buffer */
 	/* Bytes 00-03 source register length

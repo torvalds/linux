@@ -21,9 +21,9 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7793.h"
 
@@ -52,8 +52,7 @@ struct ad7793_state {
 	u16				mode;
 	u16				conf;
 	u32				scale_avail[8][2];
-	/* Note this uses fact that 8 the mask always fits in a long */
-	unsigned long			available_scan_masks[7];
+
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -403,45 +402,18 @@ static const struct iio_buffer_setup_ops ad7793_ring_setup_ops = {
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7793_ring_postdisable,
+	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };
 
 static int ad7793_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
-	int ret;
-
-	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
-	if (!indio_dev->buffer) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-						 &ad7793_trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "ad7793_consumer%d",
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_deallocate_kfifo;
-	}
-
-	/* Ring buffer functions - here trigger setup related */
-	indio_dev->setup_ops = &ad7793_ring_setup_ops;
-
-	/* Flag that polled ring buffering is possible */
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_deallocate_kfifo:
-	iio_kfifo_free(indio_dev->buffer);
-error_ret:
-	return ret;
+	return iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+			&ad7793_trigger_handler, &ad7793_ring_setup_ops);
 }
 
 static void ad7793_ring_cleanup(struct iio_dev *indio_dev)
 {
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_kfifo_free(indio_dev->buffer);
+	iio_triggered_buffer_cleanup(indio_dev);
 }
 
 /**
@@ -591,8 +563,9 @@ static ssize_t ad7793_show_scale_available(struct device *dev,
 	return len;
 }
 
-static IIO_DEVICE_ATTR_NAMED(in_m_in_scale_available, in-in_scale_available,
-			     S_IRUGO, ad7793_show_scale_available, NULL, 0);
+static IIO_DEVICE_ATTR_NAMED(in_m_in_scale_available,
+		in_voltage-voltage_scale_available, S_IRUGO,
+		ad7793_show_scale_available, NULL, 0);
 
 static struct attribute *ad7793_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
@@ -632,9 +605,6 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 		*val = (smpl >> chan->scan_type.shift) &
 			((1 << (chan->scan_type.realbits)) - 1);
 
-		if (!unipolar)
-			*val -= (1 << (chan->scan_type.realbits - 1));
-
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -648,25 +618,38 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 				return IIO_VAL_INT_PLUS_NANO;
 			} else {
 				/* 1170mV / 2^23 * 6 */
-				scale_uv = (1170ULL * 100000000ULL * 6ULL)
-					>> (chan->scan_type.realbits -
-					    (unipolar ? 0 : 1));
+				scale_uv = (1170ULL * 100000000ULL * 6ULL);
 			}
 			break;
 		case IIO_TEMP:
-			/* Always uses unity gain and internal ref */
-			scale_uv = (2500ULL * 100000000ULL)
-				>> (chan->scan_type.realbits -
-				(unipolar ? 0 : 1));
+				/* 1170mV / 0.81 mV/C / 2^23 */
+				scale_uv = 1444444444444ULL;
 			break;
 		default:
 			return -EINVAL;
 		}
 
-		*val2 = do_div(scale_uv, 100000000) * 10;
-		*val =  scale_uv;
-
+		scale_uv >>= (chan->scan_type.realbits - (unipolar ? 0 : 1));
+		*val = 0;
+		*val2 = scale_uv;
 		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_OFFSET:
+		if (!unipolar)
+			*val = -(1 << (chan->scan_type.realbits - 1));
+		else
+			*val = 0;
+
+		/* Kelvin to Celsius */
+		if (chan->type == IIO_TEMP) {
+			unsigned long long offset;
+			unsigned int shift;
+
+			shift = chan->scan_type.realbits - (unipolar ? 0 : 1);
+			offset = 273ULL << shift;
+			do_div(offset, 1444);
+			*val -= offset;
+		}
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
@@ -704,7 +687,7 @@ static int ad7793_write_raw(struct iio_dev *indio_dev,
 				}
 				ret = 0;
 			}
-
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -748,9 +731,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 0,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[1] = {
 			.type = IIO_VOLTAGE,
@@ -760,9 +744,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 1,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[2] = {
 			.type = IIO_VOLTAGE,
@@ -772,9 +757,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 2,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[3] = {
 			.type = IIO_VOLTAGE,
@@ -785,9 +771,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
-			.scan_index = 2,
-			.scan_type = IIO_ST('s', 24, 32, 0)
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
+			.scan_index = 3,
+			.scan_type = IIO_ST('u', 24, 32, 0)
 		},
 		.channel[4] = {
 			.type = IIO_TEMP,
@@ -797,7 +784,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
-			.scan_type = IIO_ST('s', 24, 32, 0),
+			.scan_type = IIO_ST('u', 24, 32, 0),
 		},
 		.channel[5] = {
 			.type = IIO_VOLTAGE,
@@ -806,9 +793,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 5,
-			.scan_type = IIO_ST('s', 24, 32, 0),
+			.scan_type = IIO_ST('u', 24, 32, 0),
 		},
 		.channel[6] = IIO_CHAN_SOFT_TIMESTAMP(6),
 	},
@@ -821,9 +809,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 0,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[1] = {
 			.type = IIO_VOLTAGE,
@@ -833,9 +822,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 1,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[2] = {
 			.type = IIO_VOLTAGE,
@@ -845,9 +835,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 2,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[3] = {
 			.type = IIO_VOLTAGE,
@@ -858,9 +849,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SHARED_BIT,
-			.scan_index = 2,
-			.scan_type = IIO_ST('s', 16, 32, 0)
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
+			.scan_index = 3,
+			.scan_type = IIO_ST('u', 16, 32, 0)
 		},
 		.channel[4] = {
 			.type = IIO_TEMP,
@@ -870,7 +862,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
-			.scan_type = IIO_ST('s', 16, 32, 0),
+			.scan_type = IIO_ST('u', 16, 32, 0),
 		},
 		.channel[5] = {
 			.type = IIO_VOLTAGE,
@@ -879,9 +871,10 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
 			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SHARED_BIT,
 			.scan_index = 5,
-			.scan_type = IIO_ST('s', 16, 32, 0),
+			.scan_type = IIO_ST('u', 16, 32, 0),
 		},
 		.channel[6] = IIO_CHAN_SOFT_TIMESTAMP(6),
 	},
@@ -892,7 +885,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct ad7793_state *st;
 	struct iio_dev *indio_dev;
-	int ret, i, voltage_uv = 0;
+	int ret, voltage_uv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -929,7 +922,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	else if (voltage_uv)
 		st->int_vref_mv = voltage_uv / 1000;
 	else
-		st->int_vref_mv = 2500; /* Build-in ref */
+		st->int_vref_mv = 1170; /* Build-in ref */
 
 	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
@@ -938,16 +931,8 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channel;
-	indio_dev->available_scan_masks = st->available_scan_masks;
 	indio_dev->num_channels = 7;
 	indio_dev->info = &ad7793_info;
-
-	for (i = 0; i < indio_dev->num_channels; i++) {
-		set_bit(i, &st->available_scan_masks[i]);
-		set_bit(indio_dev->
-			channels[indio_dev->num_channels - 1].scan_index,
-			&st->available_scan_masks[i]);
-	}
 
 	init_waitqueue_head(&st->wq_data_avail);
 
@@ -959,24 +944,16 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 	if (ret)
 		goto error_unreg_ring;
 
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
+	ret = ad7793_setup(st);
 	if (ret)
 		goto error_remove_trigger;
 
-	ret = ad7793_setup(st);
-	if (ret)
-		goto error_uninitialize_ring;
-
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_uninitialize_ring;
+		goto error_remove_trigger;
 
 	return 0;
 
-error_uninitialize_ring:
-	iio_buffer_unregister(indio_dev);
 error_remove_trigger:
 	ad7793_remove_trigger(indio_dev);
 error_unreg_ring:
@@ -999,7 +976,6 @@ static int ad7793_remove(struct spi_device *spi)
 	struct ad7793_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	iio_buffer_unregister(indio_dev);
 	ad7793_remove_trigger(indio_dev);
 	ad7793_ring_cleanup(indio_dev);
 

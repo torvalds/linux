@@ -28,7 +28,7 @@
 #include <asm/irq.h>
 #include <mach/pci.h>
 
-static void __init gapspci_fixup_resources(struct pci_dev *dev)
+static void __devinit gapspci_fixup_resources(struct pci_dev *dev)
 {
 	struct pci_channel *p = dev->sysdata;
 

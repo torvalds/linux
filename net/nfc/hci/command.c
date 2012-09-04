@@ -28,26 +28,14 @@
 
 #include "hci.h"
 
-static int nfc_hci_result_to_errno(u8 result)
-{
-	switch (result) {
-	case NFC_HCI_ANY_OK:
-		return 0;
-	case NFC_HCI_ANY_E_TIMEOUT:
-		return -ETIMEDOUT;
-	default:
-		return -1;
-	}
-}
-
-static void nfc_hci_execute_cb(struct nfc_hci_dev *hdev, u8 result,
+static void nfc_hci_execute_cb(struct nfc_hci_dev *hdev, int err,
 			       struct sk_buff *skb, void *cb_data)
 {
 	struct hcp_exec_waiter *hcp_ew = (struct hcp_exec_waiter *)cb_data;
 
-	pr_debug("HCI Cmd completed with HCI result=%d\n", result);
+	pr_debug("HCI Cmd completed with result=%d\n", err);
 
-	hcp_ew->exec_result = nfc_hci_result_to_errno(result);
+	hcp_ew->exec_result = err;
 	if (hcp_ew->exec_result == 0)
 		hcp_ew->result_skb = skb;
 	else
@@ -311,9 +299,9 @@ int nfc_hci_disconnect_all_gates(struct nfc_hci_dev *hdev)
 }
 EXPORT_SYMBOL(nfc_hci_disconnect_all_gates);
 
-int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate)
+int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
+			 u8 pipe)
 {
-	u8 pipe = NFC_HCI_INVALID_PIPE;
 	bool pipe_created = false;
 	int r;
 
@@ -321,6 +309,9 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate)
 
 	if (hdev->gate2pipe[dest_gate] != NFC_HCI_INVALID_PIPE)
 		return -EADDRINUSE;
+
+	if (pipe != NFC_HCI_INVALID_PIPE)
+		goto pipe_is_open;
 
 	switch (dest_gate) {
 	case NFC_HCI_LINK_MGMT_GATE:
@@ -347,6 +338,7 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate)
 		return r;
 	}
 
+pipe_is_open:
 	hdev->gate2pipe[dest_gate] = pipe;
 
 	return 0;

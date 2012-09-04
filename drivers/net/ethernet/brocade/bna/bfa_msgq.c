@@ -16,9 +16,7 @@
  * www.brocade.com
  */
 
-/**
- * @file bfa_msgq.c MSGQ module source file.
- */
+/* MSGQ module source file. */
 
 #include "bfi.h"
 #include "bfa_msgq.h"

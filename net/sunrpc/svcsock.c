@@ -43,6 +43,7 @@
 #include <net/tcp_states.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <trace/events/skb.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/clnt.h>
@@ -619,6 +620,8 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 	if (!svc_udp_get_dest_address(rqstp, cmh)) {
 		net_warn_ratelimited("svc: received unknown control message %d/%d; dropping RPC reply datagram\n",
 				     cmh->cmsg_level, cmh->cmsg_type);
+out_free:
+		trace_kfree_skb(skb, svc_udp_recvfrom);
 		skb_free_datagram_locked(svsk->sk_sk, skb);
 		return 0;
 	}
@@ -630,8 +633,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		if (csum_partial_copy_to_xdr(&rqstp->rq_arg, skb)) {
 			local_bh_enable();
 			/* checksum error */
-			skb_free_datagram_locked(svsk->sk_sk, skb);
-			return 0;
+			goto out_free;
 		}
 		local_bh_enable();
 		skb_free_datagram_locked(svsk->sk_sk, skb);
@@ -640,10 +642,8 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		rqstp->rq_arg.head[0].iov_base = skb->data +
 			sizeof(struct udphdr);
 		rqstp->rq_arg.head[0].iov_len = len;
-		if (skb_checksum_complete(skb)) {
-			skb_free_datagram_locked(svsk->sk_sk, skb);
-			return 0;
-		}
+		if (skb_checksum_complete(skb))
+			goto out_free;
 		rqstp->rq_xprt_ctxt = skb;
 	}
 

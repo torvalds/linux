@@ -71,6 +71,9 @@ static void snd_tea575x_write(struct snd_tea575x *tea, unsigned int val)
 	u16 l;
 	u8 data;
 
+	if (tea->ops->write_val)
+		return tea->ops->write_val(tea, val);
+
 	tea->ops->set_direction(tea, 1);
 	udelay(16);
 
@@ -93,6 +96,9 @@ static u32 snd_tea575x_read(struct snd_tea575x *tea)
 {
 	u16 l, rdata;
 	u32 data = 0;
+
+	if (tea->ops->read_val)
+		return tea->ops->read_val(tea);
 
 	tea->ops->set_direction(tea, 0);
 	tea->ops->set_pins(tea, 0);
@@ -197,6 +203,8 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
+	if (!tea->cannot_read_data)
+		v->capability |= V4L2_TUNER_CAP_HWSEEK_BOUNDED;
 	v->rangelow = FREQ_LO;
 	v->rangehigh = FREQ_HI;
 	v->rxsubchans = tea->stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
@@ -305,7 +313,7 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 	}
 	tea->val &= ~TEA575X_BIT_SEARCH;
 	snd_tea575x_set_freq(tea);
-	return -EAGAIN;
+	return -ENODATA;
 }
 
 static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -377,7 +385,6 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 	strlcpy(tea->vd.name, tea->v4l2_dev->name, sizeof(tea->vd.name));
 	tea->vd.lock = &tea->mutex;
 	tea->vd.v4l2_dev = tea->v4l2_dev;
-	tea->vd.ctrl_handler = &tea->ctrl_handler;
 	tea->fops = tea575x_fops;
 	tea->fops.owner = owner;
 	tea->vd.fops = &tea->fops;
@@ -386,29 +393,33 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 	if (tea->cannot_read_data)
 		v4l2_disable_ioctl(&tea->vd, VIDIOC_S_HW_FREQ_SEEK);
 
-	v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);
-	v4l2_ctrl_new_std(&tea->ctrl_handler, &tea575x_ctrl_ops, V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
-	retval = tea->ctrl_handler.error;
-	if (retval) {
-		v4l2_err(tea->v4l2_dev, "can't initialize controls\n");
-		v4l2_ctrl_handler_free(&tea->ctrl_handler);
-		return retval;
-	}
-
-	if (tea->ext_init) {
-		retval = tea->ext_init(tea);
+	if (!tea->cannot_mute) {
+		tea->vd.ctrl_handler = &tea->ctrl_handler;
+		v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);
+		v4l2_ctrl_new_std(&tea->ctrl_handler, &tea575x_ctrl_ops,
+				  V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+		retval = tea->ctrl_handler.error;
 		if (retval) {
+			v4l2_err(tea->v4l2_dev, "can't initialize controls\n");
 			v4l2_ctrl_handler_free(&tea->ctrl_handler);
 			return retval;
 		}
-	}
 
-	v4l2_ctrl_handler_setup(&tea->ctrl_handler);
+		if (tea->ext_init) {
+			retval = tea->ext_init(tea);
+			if (retval) {
+				v4l2_ctrl_handler_free(&tea->ctrl_handler);
+				return retval;
+			}
+		}
+
+		v4l2_ctrl_handler_setup(&tea->ctrl_handler);
+	}
 
 	retval = video_register_device(&tea->vd, VFL_TYPE_RADIO, tea->radio_nr);
 	if (retval) {
 		v4l2_err(tea->v4l2_dev, "can't register video device!\n");
-		v4l2_ctrl_handler_free(&tea->ctrl_handler);
+		v4l2_ctrl_handler_free(tea->vd.ctrl_handler);
 		return retval;
 	}
 
@@ -418,7 +429,7 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 void snd_tea575x_exit(struct snd_tea575x *tea)
 {
 	video_unregister_device(&tea->vd);
-	v4l2_ctrl_handler_free(&tea->ctrl_handler);
+	v4l2_ctrl_handler_free(tea->vd.ctrl_handler);
 }
 
 static int __init alsa_tea575x_module_init(void)

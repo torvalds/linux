@@ -21,8 +21,9 @@ struct real_mode_header {
 	u32	wakeup_header;
 #endif
 	/* APM/BIOS reboot */
-#ifdef CONFIG_X86_32
 	u32	machine_real_restart_asm;
+#ifdef CONFIG_X86_64
+	u32	machine_real_restart_seg;
 #endif
 };
 

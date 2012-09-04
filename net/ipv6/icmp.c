@@ -188,14 +188,16 @@ static inline bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 	} else {
 		struct rt6_info *rt = (struct rt6_info *)dst;
 		int tmo = net->ipv6.sysctl.icmpv6_time;
+		struct inet_peer *peer;
 
 		/* Give more bandwidth to wider prefixes. */
 		if (rt->rt6i_dst.plen < 128)
 			tmo >>= ((128 - rt->rt6i_dst.plen)>>5);
 
-		if (!rt->rt6i_peer)
-			rt6_bind_peer(rt, 1);
-		res = inet_peer_xrlim_allow(rt->rt6i_peer, tmo);
+		peer = inet_getpeer_v6(net->ipv6.peers, &rt->rt6i_dst.addr, 1);
+		res = inet_peer_xrlim_allow(peer, tmo);
+		if (peer)
+			inet_putpeer(peer);
 	}
 	dst_release(dst);
 	return res;
@@ -596,13 +598,12 @@ out:
 	icmpv6_xmit_unlock(sk);
 }
 
-static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
+void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
 	const struct inet6_protocol *ipprot;
 	int inner_offset;
-	int hash;
-	u8 nexthdr;
 	__be16 frag_off;
+	u8 nexthdr;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		return;
@@ -629,10 +630,8 @@ static void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 	   --ANK (980726)
 	 */
 
-	hash = nexthdr & (MAX_INET_PROTOS - 1);
-
 	rcu_read_lock();
-	ipprot = rcu_dereference(inet6_protos[hash]);
+	ipprot = rcu_dereference(inet6_protos[nexthdr]);
 	if (ipprot && ipprot->err_handler)
 		ipprot->err_handler(skb, NULL, type, code, inner_offset, info);
 	rcu_read_unlock();
@@ -649,7 +648,6 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	struct net_device *dev = skb->dev;
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	const struct in6_addr *saddr, *daddr;
-	const struct ipv6hdr *orig_hdr;
 	struct icmp6hdr *hdr;
 	u8 type;
 
@@ -661,7 +659,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 				 XFRM_STATE_ICMP))
 			goto drop_no_count;
 
-		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(*orig_hdr)))
+		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(struct ipv6hdr)))
 			goto drop_no_count;
 
 		nh = skb_network_offset(skb);
@@ -722,9 +720,6 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 			goto discard_it;
 		hdr = icmp6_hdr(skb);
-		orig_hdr = (struct ipv6hdr *) (hdr + 1);
-		rt6_pmtu_discovery(&orig_hdr->daddr, &orig_hdr->saddr, dev,
-				   ntohl(hdr->icmp6_mtu));
 
 		/*
 		 *	Drop through to notify

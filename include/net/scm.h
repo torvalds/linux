@@ -13,7 +13,6 @@
 #define SCM_MAX_FD	253
 
 struct scm_fp_list {
-	struct list_head	list;
 	short			count;
 	short			max;
 	struct file		*fp[SCM_MAX_FD];
@@ -71,9 +70,11 @@ static __inline__ void scm_destroy(struct scm_cookie *scm)
 }
 
 static __inline__ int scm_send(struct socket *sock, struct msghdr *msg,
-			       struct scm_cookie *scm)
+			       struct scm_cookie *scm, bool forcecreds)
 {
 	memset(scm, 0, sizeof(*scm));
+	if (forcecreds)
+		scm_set_cred(scm, task_tgid(current), current_cred());
 	unix_get_peersec_dgram(sock, scm);
 	if (msg->msg_controllen <= 0)
 		return 0;

@@ -112,6 +112,11 @@ struct irq_domain {
 };
 
 #ifdef CONFIG_IRQ_DOMAIN
+struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
+					 unsigned int size,
+					 unsigned int first_irq,
+					 const struct irq_domain_ops *ops,
+					 void *host_data);
 struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 unsigned int size,
 					 unsigned int first_irq,
@@ -144,16 +149,31 @@ static inline struct irq_domain *irq_domain_add_legacy_isa(
 
 extern void irq_domain_remove(struct irq_domain *host);
 
+extern int irq_domain_associate_many(struct irq_domain *domain,
+				     unsigned int irq_base,
+				     irq_hw_number_t hwirq_base, int count);
+static inline int irq_domain_associate(struct irq_domain *domain, unsigned int irq,
+					irq_hw_number_t hwirq)
+{
+	return irq_domain_associate_many(domain, irq, hwirq, 1);
+}
+
 extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);
 extern void irq_dispose_mapping(unsigned int virq);
 extern unsigned int irq_find_mapping(struct irq_domain *host,
 				     irq_hw_number_t hwirq);
 extern unsigned int irq_create_direct_mapping(struct irq_domain *host);
-extern void irq_radix_revmap_insert(struct irq_domain *host, unsigned int virq,
-				    irq_hw_number_t hwirq);
-extern unsigned int irq_radix_revmap_lookup(struct irq_domain *host,
-					    irq_hw_number_t hwirq);
+extern int irq_create_strict_mappings(struct irq_domain *domain,
+				      unsigned int irq_base,
+				      irq_hw_number_t hwirq_base, int count);
+
+static inline int irq_create_identity_mapping(struct irq_domain *host,
+					      irq_hw_number_t hwirq)
+{
+	return irq_create_strict_mappings(host, hwirq, hwirq, 1);
+}
+
 extern unsigned int irq_linear_revmap(struct irq_domain *host,
 				      irq_hw_number_t hwirq);
 

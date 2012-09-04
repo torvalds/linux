@@ -16,10 +16,53 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/uuid.h>
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"
 #include "print-tree.h"
+
+/*
+ * Read a root item from the tree. In case we detect a root item smaller then
+ * sizeof(root_item), we know it's an old version of the root structure and
+ * initialize all new fields to zero. The same happens if we detect mismatching
+ * generation numbers as then we know the root was once mounted with an older
+ * kernel that was not aware of the root item structure change.
+ */
+void btrfs_read_root_item(struct btrfs_root *root,
+			 struct extent_buffer *eb, int slot,
+			 struct btrfs_root_item *item)
+{
+	uuid_le uuid;
+	int len;
+	int need_reset = 0;
+
+	len = btrfs_item_size_nr(eb, slot);
+	read_extent_buffer(eb, item, btrfs_item_ptr_offset(eb, slot),
+			min_t(int, len, (int)sizeof(*item)));
+	if (len < sizeof(*item))
+		need_reset = 1;
+	if (!need_reset && btrfs_root_generation(item)
+		!= btrfs_root_generation_v2(item)) {
+		if (btrfs_root_generation_v2(item) != 0) {
+			printk(KERN_WARNING "btrfs: mismatching "
+					"generation and generation_v2 "
+					"found in root item. This root "
+					"was probably mounted with an "
+					"older kernel. Resetting all "
+					"new fields.\n");
+		}
+		need_reset = 1;
+	}
+	if (need_reset) {
+		memset(&item->generation_v2, 0,
+			sizeof(*item) - offsetof(struct btrfs_root_item,
+					generation_v2));
+
+		uuid_le_gen(&uuid);
+		memcpy(item->uuid, uuid.b, BTRFS_UUID_SIZE);
+	}
+}
 
 /*
  * lookup the root with the highest offset for a given objectid.  The key we do
@@ -61,10 +104,10 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid,
 		goto out;
 	}
 	if (item)
-		read_extent_buffer(l, item, btrfs_item_ptr_offset(l, slot),
-				   sizeof(*item));
+		btrfs_read_root_item(root, l, slot, item);
 	if (key)
 		memcpy(key, &found_key, sizeof(found_key));
+
 	ret = 0;
 out:
 	btrfs_free_path(path);
@@ -91,16 +134,15 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 	int slot;
 	unsigned long ptr;
+	int old_len;
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
-	if (ret < 0) {
-		btrfs_abort_transaction(trans, root, ret);
-		goto out;
-	}
+	if (ret < 0)
+		goto out_abort;
 
 	if (ret != 0) {
 		btrfs_print_leaf(root, path->nodes[0]);
@@ -113,16 +155,56 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	l = path->nodes[0];
 	slot = path->slots[0];
 	ptr = btrfs_item_ptr_offset(l, slot);
+	old_len = btrfs_item_size_nr(l, slot);
+
+	/*
+	 * If this is the first time we update the root item which originated
+	 * from an older kernel, we need to enlarge the item size to make room
+	 * for the added fields.
+	 */
+	if (old_len < sizeof(*item)) {
+		btrfs_release_path(path);
+		ret = btrfs_search_slot(trans, root, key, path,
+				-1, 1);
+		if (ret < 0)
+			goto out_abort;
+		ret = btrfs_del_item(trans, root, path);
+		if (ret < 0)
+			goto out_abort;
+		btrfs_release_path(path);
+		ret = btrfs_insert_empty_item(trans, root, path,
+				key, sizeof(*item));
+		if (ret < 0)
+			goto out_abort;
+		l = path->nodes[0];
+		slot = path->slots[0];
+		ptr = btrfs_item_ptr_offset(l, slot);
+	}
+
+	/*
+	 * Update generation_v2 so at the next mount we know the new root
+	 * fields are valid.
+	 */
+	btrfs_set_root_generation_v2(item, btrfs_root_generation(item));
+
 	write_extent_buffer(l, item, ptr, sizeof(*item));
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 out:
 	btrfs_free_path(path);
 	return ret;
+
+out_abort:
+	btrfs_abort_transaction(trans, root, ret);
+	goto out;
 }
 
 int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		      struct btrfs_key *key, struct btrfs_root_item *item)
 {
+	/*
+	 * Make sure generation v1 and v2 match. See update_root for details.
+	 */
+	btrfs_set_root_generation_v2(item, btrfs_root_generation(item));
 	return btrfs_insert_item(trans, root, key, item, sizeof(*item));
 }
 
@@ -453,4 +535,17 @@ void btrfs_check_and_init_root_item(struct btrfs_root_item *root_item)
 		root_item->flags = 0;
 		root_item->byte_limit = 0;
 	}
+}
+
+void btrfs_update_root_times(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root)
+{
+	struct btrfs_root_item *item = &root->root_item;
+	struct timespec ct = CURRENT_TIME;
+
+	spin_lock(&root->root_times_lock);
+	item->ctransid = trans->transid;
+	item->ctime.sec = cpu_to_le64(ct.tv_sec);
+	item->ctime.nsec = cpu_to_le64(ct.tv_nsec);
+	spin_unlock(&root->root_times_lock);
 }

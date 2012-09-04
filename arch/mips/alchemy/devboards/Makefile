@@ -2,7 +2,7 @@
 # Alchemy Develboards
 #
 
-obj-y += prom.o bcsr.o platform.o
+obj-y += bcsr.o platform.o
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_MIPS_PB1100)	+= pb1100.o
 obj-$(CONFIG_MIPS_PB1500)	+= pb1500.o

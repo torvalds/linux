@@ -59,11 +59,13 @@
 #define OP_31_XOP_STHBRX    918
 
 #define OP_LWZ  32
+#define OP_LD   58
 #define OP_LWZU 33
 #define OP_LBZ  34
 #define OP_LBZU 35
 #define OP_STW  36
 #define OP_STWU 37
+#define OP_STD  62
 #define OP_STB  38
 #define OP_STBU 39
 #define OP_LHZ  40
@@ -392,6 +394,12 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		emulated = kvmppc_handle_load(run, vcpu, rt, 4, 1);
 		break;
 
+	/* TBD: Add support for other 64 bit load variants like ldu, ldux, ldx etc. */
+	case OP_LD:
+		rt = get_rt(inst);
+		emulated = kvmppc_handle_load(run, vcpu, rt, 8, 1);
+		break;
+
 	case OP_LWZU:
 		emulated = kvmppc_handle_load(run, vcpu, rt, 4, 1);
 		kvmppc_set_gpr(vcpu, ra, vcpu->arch.vaddr_accessed);
@@ -410,6 +418,14 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		emulated = kvmppc_handle_store(run, vcpu,
 					       kvmppc_get_gpr(vcpu, rs),
 		                               4, 1);
+		break;
+
+	/* TBD: Add support for other 64 bit store variants like stdu, stdux, stdx etc. */
+	case OP_STD:
+		rs = get_rs(inst);
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
+		                               8, 1);
 		break;
 
 	case OP_STWU:

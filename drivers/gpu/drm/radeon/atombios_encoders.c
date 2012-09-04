@@ -58,7 +58,7 @@ static inline bool radeon_encoder_is_digital(struct drm_encoder *encoder)
 }
 
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
-				   struct drm_display_mode *mode,
+				   const struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
@@ -1392,10 +1392,18 @@ radeon_atom_encoder_dpms_dig(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_ON:
 		/* some early dce3.2 boards have a bug in their transmitter control table */
 		if ((rdev->family == CHIP_RV710) || (rdev->family == CHIP_RV730) ||
-		    ASIC_IS_DCE41(rdev) || ASIC_IS_DCE5(rdev))
+		    ASIC_IS_DCE41(rdev) || ASIC_IS_DCE5(rdev)) {
+			if (ASIC_IS_DCE6(rdev)) {
+				/* It seems we need to call ATOM_ENCODER_CMD_SETUP again
+				 * before reenabling encoder on DPMS ON, otherwise we never
+				 * get picture
+				 */
+				atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_SETUP, 0);
+			}
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE, 0, 0);
-		else
+		} else {
 			atombios_dig_transmitter_setup(encoder, ATOM_TRANSMITTER_ACTION_ENABLE_OUTPUT, 0, 0);
+		}
 		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(encoder)) && connector) {
 			if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 				atombios_set_edp_panel_power(connector,
@@ -2234,7 +2242,7 @@ radeon_atom_ext_dpms(struct drm_encoder *encoder, int mode)
 }
 
 static bool radeon_atom_ext_mode_fixup(struct drm_encoder *encoder,
-				       struct drm_display_mode *mode,
+				       const struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted_mode)
 {
 	return true;

@@ -77,6 +77,7 @@ extern void r8a7779_add_standard_devices(void);
 extern void r8a7779_clock_init(void);
 extern void r8a7779_pinmux_init(void);
 extern void r8a7779_pm_init(void);
+extern void r8a7740_meram_workaround(void);
 
 extern unsigned int r8a7779_get_core_count(void);
 extern int r8a7779_platform_cpu_kill(unsigned int cpu);

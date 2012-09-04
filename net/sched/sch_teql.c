@@ -67,7 +67,6 @@ struct teql_master {
 struct teql_sched_data {
 	struct Qdisc *next;
 	struct teql_master *m;
-	struct neighbour *ncache;
 	struct sk_buff_head q;
 };
 
@@ -134,7 +133,6 @@ teql_reset(struct Qdisc *sch)
 
 	skb_queue_purge(&dat->q);
 	sch->q.qlen = 0;
-	teql_neigh_release(xchg(&dat->ncache, NULL));
 }
 
 static void
@@ -166,7 +164,6 @@ teql_destroy(struct Qdisc *sch)
 					}
 				}
 				skb_queue_purge(&dat->q);
-				teql_neigh_release(xchg(&dat->ncache, NULL));
 				break;
 			}
 
@@ -225,21 +222,25 @@ static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
 static int
 __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res,
 	       struct net_device *dev, struct netdev_queue *txq,
-	       struct neighbour *mn)
+	       struct dst_entry *dst)
 {
-	struct teql_sched_data *q = qdisc_priv(txq->qdisc);
-	struct neighbour *n = q->ncache;
+	struct neighbour *n;
+	int err = 0;
 
-	if (mn->tbl == NULL)
-		return -EINVAL;
-	if (n && n->tbl == mn->tbl &&
-	    memcmp(n->primary_key, mn->primary_key, mn->tbl->key_len) == 0) {
-		atomic_inc(&n->refcnt);
-	} else {
-		n = __neigh_lookup_errno(mn->tbl, mn->primary_key, dev);
-		if (IS_ERR(n))
-			return PTR_ERR(n);
+	n = dst_neigh_lookup_skb(dst, skb);
+	if (!n)
+		return -ENOENT;
+
+	if (dst->dev != dev) {
+		struct neighbour *mn;
+
+		mn = __neigh_lookup_errno(n->tbl, n->primary_key, dev);
+		neigh_release(n);
+		if (IS_ERR(mn))
+			return PTR_ERR(mn);
+		n = mn;
 	}
+
 	if (neigh_event_send(n, skb_res) == 0) {
 		int err;
 		char haddr[MAX_ADDR_LEN];
@@ -248,15 +249,13 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res,
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol), haddr,
 				      NULL, skb->len);
 
-		if (err < 0) {
-			neigh_release(n);
-			return -EINVAL;
-		}
-		teql_neigh_release(xchg(&q->ncache, n));
-		return 0;
+		if (err < 0)
+			err = -EINVAL;
+	} else {
+		err = (skb_res == NULL) ? -EAGAIN : 1;
 	}
 	neigh_release(n);
-	return (skb_res == NULL) ? -EAGAIN : 1;
+	return err;
 }
 
 static inline int teql_resolve(struct sk_buff *skb,
@@ -265,7 +264,6 @@ static inline int teql_resolve(struct sk_buff *skb,
 			       struct netdev_queue *txq)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *mn;
 	int res;
 
 	if (txq->qdisc == &noop_qdisc)
@@ -275,8 +273,7 @@ static inline int teql_resolve(struct sk_buff *skb,
 		return 0;
 
 	rcu_read_lock();
-	mn = dst_get_neighbour_noref(dst);
-	res = mn ? __teql_resolve(skb, skb_res, dev, txq, mn) : 0;
+	res = __teql_resolve(skb, skb_res, dev, txq, dst);
 	rcu_read_unlock();
 
 	return res;

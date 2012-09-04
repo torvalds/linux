@@ -459,10 +459,11 @@ static int handle_signal(int sig,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 	if (ret)
-		return;
+		return ret;
 
 	signal_delivered(sig, info, ka, regs,
-				 test_thread_flag(TIF_SINGLESTEP));
+			 test_thread_flag(TIF_SINGLESTEP));
+	return 0;
 }
 
 /*

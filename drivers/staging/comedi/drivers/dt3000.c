@@ -63,8 +63,6 @@ AO commands are not supported.
 #include "../comedidev.h"
 #include <linux/delay.h>
 
-#include "comedi_pci.h"
-
 #define PCI_VENDOR_ID_DT	0x1116
 
 static const struct comedi_lrange range_dt3000_ai = { 4, {
@@ -161,7 +159,6 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 	 },
 };
 
-#define n_dt3k_boards sizeof(dt3k_boardtypes)/sizeof(struct dt3k_boardtype)
 #define this_board ((const struct dt3k_boardtype *)dev->board_ptr)
 
 #define DT3000_SIZE		(4*0x1000)
@@ -251,10 +248,7 @@ static const struct dt3k_boardtype dt3k_boardtypes[] = {
 #define DT3000_CHANNEL_MODE_DI		1
 
 struct dt3k_private {
-
-	struct pci_dev *pci_dev;
-	resource_size_t phys_addr;
-	void *io_addr;
+	void __iomem *io_addr;
 	unsigned int lock;
 	unsigned int ao_readback[2];
 	unsigned int ai_front;
@@ -291,7 +285,7 @@ static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR)
 		return 0;
 
-	dev_dbg(dev->hw_dev, "dt3k_send_cmd() timeout/error status=0x%04x\n",
+	dev_dbg(dev->class_dev, "dt3k_send_cmd() timeout/error status=0x%04x\n",
 		status);
 
 	return -ETIME;
@@ -392,7 +386,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 	if (count < 0)
 		count += AI_FIFO_DEPTH;
 
-	dev_dbg(dev->hw_dev, "reading %d samples\n", count);
+	dev_dbg(dev->class_dev, "reading %d samples\n", count);
 
 	rear = devpriv->ai_rear;
 
@@ -580,7 +574,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int ret;
 	unsigned int mode;
 
-	dev_dbg(dev->hw_dev, "dt3k_ai_cmd:\n");
+	dev_dbg(dev->class_dev, "dt3k_ai_cmd:\n");
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		range = CR_RANGE(cmd->chanlist[i]);
@@ -591,15 +585,15 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	aref = CR_AREF(cmd->chanlist[0]);
 
 	writew(cmd->scan_end_arg, devpriv->io_addr + DPR_Params(0));
-	dev_dbg(dev->hw_dev, "param[0]=0x%04x\n", cmd->scan_end_arg);
+	dev_dbg(dev->class_dev, "param[0]=0x%04x\n", cmd->scan_end_arg);
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		divider = dt3k_ns_to_timer(50, &cmd->convert_arg,
 					   cmd->flags & TRIG_ROUND_MASK);
 		writew((divider >> 16), devpriv->io_addr + DPR_Params(1));
-		dev_dbg(dev->hw_dev, "param[1]=0x%04x\n", divider >> 16);
+		dev_dbg(dev->class_dev, "param[1]=0x%04x\n", divider >> 16);
 		writew((divider & 0xffff), devpriv->io_addr + DPR_Params(2));
-		dev_dbg(dev->hw_dev, "param[2]=0x%04x\n", divider & 0xffff);
+		dev_dbg(dev->class_dev, "param[2]=0x%04x\n", divider & 0xffff);
 	} else {
 		/* not supported */
 	}
@@ -608,21 +602,21 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		tscandiv = dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
 					    cmd->flags & TRIG_ROUND_MASK);
 		writew((tscandiv >> 16), devpriv->io_addr + DPR_Params(3));
-		dev_dbg(dev->hw_dev, "param[3]=0x%04x\n", tscandiv >> 16);
+		dev_dbg(dev->class_dev, "param[3]=0x%04x\n", tscandiv >> 16);
 		writew((tscandiv & 0xffff), devpriv->io_addr + DPR_Params(4));
-		dev_dbg(dev->hw_dev, "param[4]=0x%04x\n", tscandiv & 0xffff);
+		dev_dbg(dev->class_dev, "param[4]=0x%04x\n", tscandiv & 0xffff);
 	} else {
 		/* not supported */
 	}
 
 	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
 	writew(mode, devpriv->io_addr + DPR_Params(5));
-	dev_dbg(dev->hw_dev, "param[5]=0x%04x\n", mode);
+	dev_dbg(dev->class_dev, "param[5]=0x%04x\n", mode);
 	writew(aref == AREF_DIFF, devpriv->io_addr + DPR_Params(6));
-	dev_dbg(dev->hw_dev, "param[6]=0x%04x\n", aref == AREF_DIFF);
+	dev_dbg(dev->class_dev, "param[6]=0x%04x\n", aref == AREF_DIFF);
 
 	writew(AI_FIFO_DEPTH / 2, devpriv->io_addr + DPR_Params(7));
-	dev_dbg(dev->hw_dev, "param[7]=0x%04x\n", AI_FIFO_DEPTH / 2);
+	dev_dbg(dev->class_dev, "param[7]=0x%04x\n", AI_FIFO_DEPTH / 2);
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
 	ret = dt3k_send_cmd(dev, CMD_CONFIG);
@@ -747,9 +741,6 @@ static int dt3k_dio_insn_bits(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
 			      struct comedi_insn *insn, unsigned int *data)
 {
-	if (insn->n != 2)
-		return -EINVAL;
-
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[1] & data[0];
@@ -757,7 +748,7 @@ static int dt3k_dio_insn_bits(struct comedi_device *dev,
 	}
 	data[1] = dt3k_readsingle(dev, SUBS_DIN, 0, 0);
 
-	return 2;
+	return insn->n;
 }
 
 static int dt3k_mem_insn_read(struct comedi_device *dev,
@@ -780,112 +771,75 @@ static int dt3k_mem_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-static int setup_pci(struct comedi_device *dev)
+static struct pci_dev *dt3000_find_pci_dev(struct comedi_device *dev,
+					   struct comedi_devconfig *it)
 {
-	resource_size_t addr;
-	int ret;
-
-	ret = comedi_pci_enable(devpriv->pci_dev, "dt3000");
-	if (ret < 0)
-		return ret;
-
-	addr = pci_resource_start(devpriv->pci_dev, 0);
-	devpriv->phys_addr = addr;
-	devpriv->io_addr = ioremap(devpriv->phys_addr, DT3000_SIZE);
-	if (!devpriv->io_addr)
-		return -ENOMEM;
-#if DEBUG
-	printk("0x%08llx mapped to %p, ",
-	       (unsigned long long)devpriv->phys_addr, devpriv->io_addr);
-#endif
-
-	return 0;
-}
-
-static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
-{
+	struct pci_dev *pcidev = NULL;
+	int bus = it->options[0];
+	int slot = it->options[1];
 	int i;
 
-	for (from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from);
-	     from != NULL;
-	     from = pci_get_device(PCI_VENDOR_ID_DT, PCI_ANY_ID, from)) {
-		for (i = 0; i < n_dt3k_boards; i++) {
-			if (from->device == dt3k_boardtypes[i].device_id) {
-				*board = i;
-				return from;
-			}
+	for_each_pci_dev(pcidev) {
+		if (bus || slot) {
+			if (bus != pcidev->bus->number ||
+			    slot != PCI_SLOT(pcidev->devfn))
+				continue;
 		}
-		printk
-		    ("unknown Data Translation PCI device found with device_id=0x%04x\n",
-		     from->device);
-	}
-	*board = -1;
-	return from;
-}
-
-static int dt_pci_probe(struct comedi_device *dev, int bus, int slot)
-{
-	int board;
-	int ret;
-	struct pci_dev *pcidev;
-
-	pcidev = NULL;
-	while ((pcidev = dt_pci_find_device(pcidev, &board)) != NULL) {
-		if ((bus == 0 && slot == 0) ||
-		    (pcidev->bus->number == bus &&
-		     PCI_SLOT(pcidev->devfn) == slot)) {
-			break;
+		if (pcidev->vendor != PCI_VENDOR_ID_DT)
+			continue;
+		for (i = 0; i < ARRAY_SIZE(dt3k_boardtypes); i++) {
+			if (dt3k_boardtypes[i].device_id != pcidev->device)
+				continue;
+			dev->board_ptr = dt3k_boardtypes + i;
+			return pcidev;
 		}
 	}
-	devpriv->pci_dev = pcidev;
-
-	if (board >= 0)
-		dev->board_ptr = dt3k_boardtypes + board;
-
-	if (!devpriv->pci_dev)
-		return 0;
-
-	ret = setup_pci(dev);
-	if (ret < 0)
-		return ret;
-
-	return 1;
+	dev_err(dev->class_dev,
+		"No supported board found! (req. bus %d, slot %d)\n",
+		bus, slot);
+	return NULL;
 }
 
 static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct pci_dev *pcidev;
 	struct comedi_subdevice *s;
-	int bus, slot;
+	resource_size_t pci_base;
 	int ret = 0;
 
-	dev_dbg(dev->hw_dev, "dt3000:\n");
-	bus = it->options[0];
-	slot = it->options[1];
+	dev_dbg(dev->class_dev, "dt3000:\n");
 
 	ret = alloc_private(dev, sizeof(struct dt3k_private));
 	if (ret < 0)
 		return ret;
 
-	ret = dt_pci_probe(dev, bus, slot);
+	pcidev = dt3000_find_pci_dev(dev, it);
+	if (!pcidev)
+		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	ret = comedi_pci_enable(pcidev, "dt3000");
 	if (ret < 0)
 		return ret;
-	if (ret == 0) {
-		dev_warn(dev->hw_dev, "no DT board found\n");
-		return -ENODEV;
-	}
+	dev->iobase = 1;	/* the "detach" needs this */
+
+	pci_base  = pci_resource_start(pcidev, 0);
+	devpriv->io_addr = ioremap(pci_base, DT3000_SIZE);
+	if (!devpriv->io_addr)
+		return -ENOMEM;
 
 	dev->board_name = this_board->name;
 
-	if (request_irq(devpriv->pci_dev->irq, dt3k_interrupt, IRQF_SHARED,
+	if (request_irq(pcidev->irq, dt3k_interrupt, IRQF_SHARED,
 			"dt3000", dev)) {
-		dev_err(dev->hw_dev, "unable to allocate IRQ %u\n",
-			devpriv->pci_dev->irq);
+		dev_err(dev->class_dev, "unable to allocate IRQ %u\n",
+			pcidev->irq);
 		return -EINVAL;
 	}
-	dev->irq = devpriv->pci_dev->irq;
+	dev->irq = pcidev->irq;
 
-	ret = alloc_subdevices(dev, 4);
-	if (ret < 0)
+	ret = comedi_alloc_subdevices(dev, 4);
+	if (ret)
 		return ret;
 
 	s = dev->subdevices;
@@ -946,16 +900,18 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static void dt3000_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
-		if (devpriv->pci_dev) {
-			if (devpriv->phys_addr)
-				comedi_pci_disable(devpriv->pci_dev);
-			pci_dev_put(devpriv->pci_dev);
-		}
 		if (devpriv->io_addr)
 			iounmap(devpriv->io_addr);
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+		pci_dev_put(pcidev);
 	}
 }
 

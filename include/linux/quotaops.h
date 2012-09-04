@@ -83,7 +83,8 @@ int dquot_quota_on(struct super_block *sb, int type, int format_id,
 int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
 int dquot_quota_off(struct super_block *sb, int type);
-int dquot_quota_sync(struct super_block *sb, int type, int wait);
+int dquot_writeback_dquots(struct super_block *sb, int type);
+int dquot_quota_sync(struct super_block *sb, int type);
 int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int dquot_get_dqblk(struct super_block *sb, int type, qid_t id,
@@ -254,6 +255,11 @@ static inline int dquot_resume(struct super_block *sb, int type)
 }
 
 #define dquot_file_open		generic_file_open
+
+static inline int dquot_writeback_dquots(struct super_block *sb, int type)
+{
+	return 0;
+}
 
 #endif /* CONFIG_QUOTA */
 

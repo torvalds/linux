@@ -53,10 +53,10 @@ ACPI_MODULE_NAME("exregion")
  *
  * FUNCTION:    acpi_ex_system_memory_space_handler
  *
- * PARAMETERS:  Function            - Read or Write operation
- *              Address             - Where in the space to read or write
+ * PARAMETERS:  function            - Read or Write operation
+ *              address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, or 32)
- *              Value               - Pointer to in or out value
+ *              value               - Pointer to in or out value
  *              handler_context     - Pointer to Handler's context
  *              region_context      - Pointer to context specific to the
  *                                    accessed region
@@ -270,10 +270,10 @@ acpi_ex_system_memory_space_handler(u32 function,
  *
  * FUNCTION:    acpi_ex_system_io_space_handler
  *
- * PARAMETERS:  Function            - Read or Write operation
- *              Address             - Where in the space to read or write
+ * PARAMETERS:  function            - Read or Write operation
+ *              address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, or 32)
- *              Value               - Pointer to in or out value
+ *              value               - Pointer to in or out value
  *              handler_context     - Pointer to Handler's context
  *              region_context      - Pointer to context specific to the
  *                                    accessed region
@@ -329,10 +329,10 @@ acpi_ex_system_io_space_handler(u32 function,
  *
  * FUNCTION:    acpi_ex_pci_config_space_handler
  *
- * PARAMETERS:  Function            - Read or Write operation
- *              Address             - Where in the space to read or write
+ * PARAMETERS:  function            - Read or Write operation
+ *              address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, or 32)
- *              Value               - Pointer to in or out value
+ *              value               - Pointer to in or out value
  *              handler_context     - Pointer to Handler's context
  *              region_context      - Pointer to context specific to the
  *                                    accessed region
@@ -365,7 +365,7 @@ acpi_ex_pci_config_space_handler(u32 function,
 	 *  pci_function is the PCI device function number
 	 *  pci_register is the Config space register range 0-255 bytes
 	 *
-	 *  Value - input value for write, output address for read
+	 *  value - input value for write, output address for read
 	 *
 	 */
 	pci_id = (struct acpi_pci_id *)region_context;
@@ -402,10 +402,10 @@ acpi_ex_pci_config_space_handler(u32 function,
  *
  * FUNCTION:    acpi_ex_cmos_space_handler
  *
- * PARAMETERS:  Function            - Read or Write operation
- *              Address             - Where in the space to read or write
+ * PARAMETERS:  function            - Read or Write operation
+ *              address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, or 32)
- *              Value               - Pointer to in or out value
+ *              value               - Pointer to in or out value
  *              handler_context     - Pointer to Handler's context
  *              region_context      - Pointer to context specific to the
  *                                    accessed region
@@ -434,10 +434,10 @@ acpi_ex_cmos_space_handler(u32 function,
  *
  * FUNCTION:    acpi_ex_pci_bar_space_handler
  *
- * PARAMETERS:  Function            - Read or Write operation
- *              Address             - Where in the space to read or write
+ * PARAMETERS:  function            - Read or Write operation
+ *              address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, or 32)
- *              Value               - Pointer to in or out value
+ *              value               - Pointer to in or out value
  *              handler_context     - Pointer to Handler's context
  *              region_context      - Pointer to context specific to the
  *                                    accessed region
@@ -466,10 +466,10 @@ acpi_ex_pci_bar_space_handler(u32 function,
  *
  * FUNCTION:    acpi_ex_data_table_space_handler
  *
- * PARAMETERS:  Function            - Read or Write operation
- *              Address             - Where in the space to read or write
+ * PARAMETERS:  function            - Read or Write operation
+ *              address             - Where in the space to read or write
  *              bit_width           - Field width in bits (8, 16, or 32)
- *              Value               - Pointer to in or out value
+ *              value               - Pointer to in or out value
  *              handler_context     - Pointer to Handler's context
  *              region_context      - Pointer to context specific to the
  *                                    accessed region
