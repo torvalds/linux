@@ -152,14 +152,14 @@ static int __init mxc_rnga_probe(struct platform_device *pdev)
 	if (rng_dev)
 		return -EBUSY;
 
-	clk = clk_get(&pdev->dev, "rng");
+	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Could not get rng_clk!\n");
 		err = PTR_ERR(clk);
 		goto out;
 	}
 
-	clk_enable(clk);
+	clk_prepare_enable(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -201,7 +201,7 @@ err_ioremap:
 	release_mem_region(res->start, resource_size(res));
 
 err_region:
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 	clk_put(clk);
 
 out:
@@ -212,7 +212,7 @@ static int __exit mxc_rnga_remove(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	void __iomem *rng_base = (void __iomem *)mxc_rnga.priv;
-	struct clk *clk = clk_get(&pdev->dev, "rng");
+	struct clk *clk = clk_get(&pdev->dev, NULL);
 
 	hwrng_unregister(&mxc_rnga);
 
@@ -220,7 +220,7 @@ static int __exit mxc_rnga_remove(struct platform_device *pdev)
 
 	release_mem_region(res->start, resource_size(res));
 
-	clk_disable(clk);
+	clk_disable_unprepare(clk);
 	clk_put(clk);
 
 	return 0;
