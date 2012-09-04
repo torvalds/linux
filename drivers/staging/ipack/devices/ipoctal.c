@@ -845,6 +845,18 @@ static void ipoctal_remove(struct ipack_device *device)
 	}
 }
 
+static DEFINE_IPACK_DEVICE_TABLE(ipoctal_ids) = {
+	{ IPACK_DEVICE(IPACK_ID_VERSION_1, IPACK1_VENDOR_ID_SBS,
+			IPACK1_DEVICE_ID_SBS_OCTAL_232) },
+	{ IPACK_DEVICE(IPACK_ID_VERSION_1, IPACK1_VENDOR_ID_SBS,
+			IPACK1_DEVICE_ID_SBS_OCTAL_422) },
+	{ IPACK_DEVICE(IPACK_ID_VERSION_1, IPACK1_VENDOR_ID_SBS,
+			IPACK1_DEVICE_ID_SBS_OCTAL_485) },
+	{ 0, },
+};
+
+MODULE_DEVICE_TABLE(ipack, ipoctal_ids);
+
 static const struct ipack_driver_ops ipoctal_drv_ops = {
 	.match = ipoctal_match,
 	.probe = ipoctal_probe,
@@ -853,6 +865,7 @@ static const struct ipack_driver_ops ipoctal_drv_ops = {
 
 static struct ipack_driver driver = {
 	.ops      = &ipoctal_drv_ops,
+	.id_table = ipoctal_ids,
 };
 
 static int __init ipoctal_init(void)
