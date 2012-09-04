@@ -790,8 +790,8 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 
 	tpci200->info = kzalloc(sizeof(struct tpci200_infos), GFP_KERNEL);
 	if (!tpci200->info) {
-		kfree(tpci200);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_err_info;
 	}
 
 	/* Save struct pci_dev pointer */
@@ -801,10 +801,9 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 	/* register the device and initialize it */
 	ret = tpci200_install(tpci200);
 	if (ret) {
-		dev_err(&pdev->dev, "Error during tpci200 install !\n");
-		kfree(tpci200->info);
-		kfree(tpci200);
-		return -ENODEV;
+		dev_err(&pdev->dev, "error during tpci200 install\n");
+		ret = -ENODEV;
+		goto out_err_install;
 	}
 
 	/* Register the carrier in the industry pack bus driver */
@@ -814,10 +813,8 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 	if (!tpci200->info->ipack_bus) {
 		dev_err(&pdev->dev,
 			"error registering the carrier on ipack driver\n");
-		tpci200_uninstall(tpci200);
-		kfree(tpci200->info);
-		kfree(tpci200);
-		return -EFAULT;
+		ret = -EFAULT;
+		goto out_err_bus_register;
 	}
 
 	/* save the bus number given by ipack to logging purpose */
@@ -831,6 +828,14 @@ static int tpci200_pciprobe(struct pci_dev *pdev,
 	for (i = 0; i < TPCI200_NB_SLOT; i++)
 		tpci200->slots[i].dev =
 			ipack_device_register(tpci200->info->ipack_bus, i, i);
+	return 0;
+
+out_err_bus_register:
+	tpci200_uninstall(tpci200);
+out_err_install:
+	kfree(tpci200->info);
+out_err_info:
+	kfree(tpci200);
 	return ret;
 }
 
