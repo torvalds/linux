@@ -82,7 +82,8 @@ out:
 }
 
 static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
-			    struct sg_table *sg, enum dma_data_direction dir)
+				   struct sg_table *sg,
+				   enum dma_data_direction dir)
 {
 	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
 	sg_free_table(sg);
@@ -228,11 +229,35 @@ struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 	return dma_buf_export(obj, &i915_dmabuf_ops, obj->base.size, 0600);
 }
 
+static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
+{
+	struct sg_table *sg;
+
+	sg = dma_buf_map_attachment(obj->base.import_attach, DMA_BIDIRECTIONAL);
+	if (IS_ERR(sg))
+		return PTR_ERR(sg);
+
+	obj->pages = sg;
+	obj->has_dma_mapping = true;
+	return 0;
+}
+
+static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj)
+{
+	dma_buf_unmap_attachment(obj->base.import_attach,
+				 obj->pages, DMA_BIDIRECTIONAL);
+	obj->has_dma_mapping = false;
+}
+
+static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {
+	.get_pages = i915_gem_object_get_pages_dmabuf,
+	.put_pages = i915_gem_object_put_pages_dmabuf,
+};
+
 struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 					     struct dma_buf *dma_buf)
 {
 	struct dma_buf_attachment *attach;
-	struct sg_table *sg;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -251,34 +276,25 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	if (IS_ERR(attach))
 		return ERR_CAST(attach);
 
-	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR(sg)) {
-		ret = PTR_ERR(sg);
-		goto fail_detach;
-	}
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (obj == NULL) {
 		ret = -ENOMEM;
-		goto fail_unmap;
+		goto fail_detach;
 	}
 
 	ret = drm_gem_private_object_init(dev, &obj->base, dma_buf->size);
 	if (ret) {
 		kfree(obj);
-		goto fail_unmap;
+		goto fail_detach;
 	}
 
-	obj->has_dma_mapping = true;
-	obj->sg_table = sg;
+	i915_gem_object_init(obj, &i915_gem_object_dmabuf_ops);
 	obj->base.import_attach = attach;
 
 	return &obj->base;
 
-fail_unmap:
-	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
 	return ERR_PTR(ret);
 }
-

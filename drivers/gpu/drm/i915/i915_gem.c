@@ -1692,7 +1692,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 {
 	const struct drm_i915_gem_object_ops *ops = obj->ops;
 
-	if (obj->sg_table || obj->pages == NULL)
+	if (obj->pages == NULL)
 		return 0;
 
 	BUG_ON(obj->gtt_space);
@@ -1845,7 +1845,7 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 	const struct drm_i915_gem_object_ops *ops = obj->ops;
 	int ret;
 
-	if (obj->sg_table || obj->pages)
+	if (obj->pages)
 		return 0;
 
 	BUG_ON(obj->pages_pin_count);
@@ -3738,9 +3738,6 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	trace_i915_gem_object_destroy(obj);
 
-	if (gem_obj->import_attach)
-		drm_prime_gem_destroy(gem_obj, obj->sg_table);
-
 	if (obj->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
@@ -3761,6 +3758,9 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	i915_gem_object_free_mmap_offset(obj);
 
 	BUG_ON(obj->pages);
+
+	if (obj->base.import_attach)
+		drm_prime_gem_destroy(&obj->base, NULL);
 
 	drm_gem_object_release(&obj->base);
 	i915_gem_info_remove_obj(dev_priv, obj->base.size);

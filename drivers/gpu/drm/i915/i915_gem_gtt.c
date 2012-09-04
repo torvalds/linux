@@ -234,7 +234,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 	}
 
 	i915_ppgtt_insert_sg_entries(ppgtt,
-				     obj->sg_table ?: obj->pages,
+				     obj->pages,
 				     obj->gtt_space->start >> PAGE_SHIFT,
 				     pte_flags);
 }
@@ -325,7 +325,7 @@ void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	unsigned int agp_type = cache_level_to_agp_type(dev, cache_level);
 
-	intel_gtt_insert_sg_entries(obj->sg_table ?: obj->pages,
+	intel_gtt_insert_sg_entries(obj->pages,
 				    obj->gtt_space->start >> PAGE_SHIFT,
 				    agp_type);
 	obj->has_global_gtt_mapping = 1;

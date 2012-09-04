@@ -1012,7 +1012,6 @@ struct drm_i915_gem_object {
 	int pages_pin_count;
 
 	/* prime dma-buf support */
-	struct sg_table *sg_table;
 	void *dma_buf_vmapping;
 	int vmapping_count;
 
