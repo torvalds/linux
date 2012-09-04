@@ -20,6 +20,28 @@
 	compatible = "crystalfontz,cfa10049", "crystalfontz,cfa10036", "fsl,imx28";
 
 	apb@80000000 {
+		apbh@80000000 {
+			pinctrl@80018000 {
+				spi3_pins_cfa10049: spi3-cfa10049@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x0181 /* MX28_PAD_GPMI_RDN__SSP3_SCK */
+						0x01c1 /* MX28_PAD_GPMI_RESETN__SSP3_CMD */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+			};
+
+			ssp3: ssp@80016000 {
+				compatible = "fsl,imx28-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi3_pins_cfa10049>;
+				status = "okay";
+			};
+		};
+
 		apbx@80040000 {
 			i2c1: i2c@8005a000 {
 				pinctrl-names = "default";
