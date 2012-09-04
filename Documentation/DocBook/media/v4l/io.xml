@@ -613,8 +613,8 @@ field is independent of the <structfield>timestamp</structfield> and
 	    <entry>__u32</entry>
 	    <entry><structfield>sequence</structfield></entry>
 	    <entry></entry>
-	    <entry>Set by the driver, counting the frames in the
-sequence.</entry>
+	    <entry>Set by the driver, counting the frames (not fields!) in
+sequence. This field is set for both input and output devices.</entry>
 	  </row>
 	  <row>
 	    <entry spanname="hspan"><para>In <link
