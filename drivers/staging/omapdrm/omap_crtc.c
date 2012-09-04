@@ -195,6 +195,13 @@ static int omap_crtc_set_property(struct drm_crtc *crtc,
 		struct drm_property *property, uint64_t val)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+
+	if (property == priv->rotation_prop) {
+		crtc->invert_dimensions =
+				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
+	}
+
 	return omap_plane_set_property(omap_crtc->plane, property, val);
 }
 
