@@ -106,6 +106,12 @@ void iomega_ix2_200_init(void);
 static inline void iomega_ix2_200_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_KM_KIRKWOOD_DT
+void km_kirkwood_init(void);
+#else
+static inline void km_kirkwood_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);
