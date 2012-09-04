@@ -1479,7 +1479,7 @@ static int wl1273_fm_vidioc_g_audio(struct file *file, void *priv,
 }
 
 static int wl1273_fm_vidioc_s_audio(struct file *file, void *priv,
-				    struct v4l2_audio *audio)
+				    const struct v4l2_audio *audio)
 {
 	struct wl1273_device *radio = video_get_drvdata(video_devdata(file));
 

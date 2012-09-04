@@ -333,7 +333,7 @@ static int pvr2_g_audio(struct file *file, void *priv, struct v4l2_audio *vin)
 	return 0;
 }
 
-static int pvr2_s_audio(struct file *file, void *priv, struct v4l2_audio *vout)
+static int pvr2_s_audio(struct file *file, void *priv, const struct v4l2_audio *vout)
 {
 	if (vout->index)
 		return -EINVAL;

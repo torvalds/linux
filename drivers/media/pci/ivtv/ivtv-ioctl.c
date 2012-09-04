@@ -784,7 +784,7 @@ static int ivtv_g_audio(struct file *file, void *fh, struct v4l2_audio *vin)
 	return ivtv_get_audio_input(itv, vin->index, vin);
 }
 
-static int ivtv_s_audio(struct file *file, void *fh, struct v4l2_audio *vout)
+static int ivtv_s_audio(struct file *file, void *fh, const struct v4l2_audio *vout)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 

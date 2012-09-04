@@ -677,7 +677,7 @@ static int vidioc_enumaudio(struct file *file, void *priv,
 }
 
 static int vidioc_s_audio(struct file *file, void *private_data,
-			  struct v4l2_audio *audio)
+			  const struct v4l2_audio *audio)
 {
 	struct hdpvr_fh *fh = file->private_data;
 	struct hdpvr_device *dev = fh->dev;

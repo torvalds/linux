@@ -1352,7 +1352,7 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
@@ -2087,7 +2087,7 @@ static int radio_s_tuner(struct file *file, void *priv,
 }
 
 static int radio_s_audio(struct file *file, void *fh,
-			 struct v4l2_audio *a)
+			 const struct v4l2_audio *a)
 {
 	return 0;
 }

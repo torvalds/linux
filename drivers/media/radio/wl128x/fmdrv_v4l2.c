@@ -258,7 +258,7 @@ static int fm_v4l2_vidioc_g_audio(struct file *file, void *priv,
 }
 
 static int fm_v4l2_vidioc_s_audio(struct file *file, void *priv,
-		struct v4l2_audio *audio)
+		const struct v4l2_audio *audio)
 {
 	if (audio->index != 0)
 		return -EINVAL;

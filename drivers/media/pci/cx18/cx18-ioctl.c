@@ -492,7 +492,7 @@ static int cx18_g_audio(struct file *file, void *fh, struct v4l2_audio *vin)
 	return cx18_get_audio_input(cx, vin->index, vin);
 }
 
-static int cx18_s_audio(struct file *file, void *fh, struct v4l2_audio *vout)
+static int cx18_s_audio(struct file *file, void *fh, const struct v4l2_audio *vout)
 {
 	struct cx18 *cx = fh2id(fh)->cx;
 

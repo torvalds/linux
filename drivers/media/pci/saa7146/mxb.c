@@ -646,7 +646,7 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *fh, struct v4l2_audio *a)
+static int vidioc_s_audio(struct file *file, void *fh, const struct v4l2_audio *a)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;

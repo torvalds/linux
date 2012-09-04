@@ -1426,7 +1426,7 @@ static int vidioc_g_audinput(struct file *file, void *priv,
 }
 
 static int vidioc_s_audinput(struct file *file, void *priv,
-	struct v4l2_audio *i)
+	const struct v4l2_audio *i)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 	if (i->index >= 2)

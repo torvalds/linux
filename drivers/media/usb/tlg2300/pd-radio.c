@@ -348,7 +348,7 @@ static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 {
 	return vt->index > 0 ? -EINVAL : 0;
 }
-static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *va)
+static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio *va)
 {
 	return (va->index != 0) ? -EINVAL : 0;
 }

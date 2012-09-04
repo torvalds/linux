@@ -2089,7 +2089,7 @@ static int saa7134_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	return 0;
 }
 
-static int saa7134_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int saa7134_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
 {
 	return 0;
 }
@@ -2373,7 +2373,7 @@ static int radio_g_audio(struct file *file, void *priv,
 }
 
 static int radio_s_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
+					const struct v4l2_audio *a)
 {
 	return 0;
 }
