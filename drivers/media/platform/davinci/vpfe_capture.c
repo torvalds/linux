@@ -1131,11 +1131,11 @@ static int vpfe_s_input(struct file *file, void *priv, unsigned int index)
 		ret = -EBUSY;
 		goto unlock_out;
 	}
-
-	if (vpfe_get_subdev_input_index(vpfe_dev,
-					&subdev_index,
-					&inp_index,
-					index) < 0) {
+	ret = vpfe_get_subdev_input_index(vpfe_dev,
+					  &subdev_index,
+					  &inp_index,
+					  index);
+	if (ret < 0) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "invalid input index\n");
 		goto unlock_out;
 	}
@@ -1748,8 +1748,9 @@ static long vpfe_param_handler(struct file *file, void *priv,
 					"Error setting parameters in CCDC\n");
 				goto unlock_out;
 			}
-			if (vpfe_get_ccdc_image_format(vpfe_dev,
-						       &vpfe_dev->fmt) < 0) {
+			ret = vpfe_get_ccdc_image_format(vpfe_dev,
+							 &vpfe_dev->fmt);
+			if (ret < 0) {
 				v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
 					"Invalid image format at CCDC\n");
 				goto unlock_out;
