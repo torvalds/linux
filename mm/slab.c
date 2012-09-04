@@ -1677,20 +1677,20 @@ void __init kmem_cache_init(void)
 	 */
 
 	sizes[INDEX_AC].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-	__kmem_cache_create(sizes[INDEX_AC].cs_cachep, names[INDEX_AC].name,
-					sizes[INDEX_AC].cs_size,
-					ARCH_KMALLOC_MINALIGN,
-					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
-					NULL);
-
+	sizes[INDEX_AC].cs_cachep->name = names[INDEX_AC].name;
+	sizes[INDEX_AC].cs_cachep->size = sizes[INDEX_AC].cs_size;
+	sizes[INDEX_AC].cs_cachep->object_size = sizes[INDEX_AC].cs_size;
+	sizes[INDEX_AC].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
+	__kmem_cache_create(sizes[INDEX_AC].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
 	list_add(&sizes[INDEX_AC].cs_cachep->list, &slab_caches);
+
 	if (INDEX_AC != INDEX_L3) {
 		sizes[INDEX_L3].cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-		__kmem_cache_create(sizes[INDEX_L3].cs_cachep, names[INDEX_L3].name,
-				sizes[INDEX_L3].cs_size,
-				ARCH_KMALLOC_MINALIGN,
-				ARCH_KMALLOC_FLAGS|SLAB_PANIC,
-				NULL);
+		sizes[INDEX_L3].cs_cachep->name = names[INDEX_L3].name;
+		sizes[INDEX_L3].cs_cachep->size = sizes[INDEX_L3].cs_size;
+		sizes[INDEX_L3].cs_cachep->object_size = sizes[INDEX_L3].cs_size;
+		sizes[INDEX_L3].cs_cachep->align = ARCH_KMALLOC_MINALIGN;
+		__kmem_cache_create(sizes[INDEX_L3].cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
 		list_add(&sizes[INDEX_L3].cs_cachep->list, &slab_caches);
 	}
 
@@ -1706,22 +1706,21 @@ void __init kmem_cache_init(void)
 		 */
 		if (!sizes->cs_cachep) {
 			sizes->cs_cachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
-			__kmem_cache_create(sizes->cs_cachep, names->name,
-					sizes->cs_size,
-					ARCH_KMALLOC_MINALIGN,
-					ARCH_KMALLOC_FLAGS|SLAB_PANIC,
-					NULL);
+			sizes->cs_cachep->name = names->name;
+			sizes->cs_cachep->size = sizes->cs_size;
+			sizes->cs_cachep->object_size = sizes->cs_size;
+			sizes->cs_cachep->align = ARCH_KMALLOC_MINALIGN;
+			__kmem_cache_create(sizes->cs_cachep, ARCH_KMALLOC_FLAGS|SLAB_PANIC);
 			list_add(&sizes->cs_cachep->list, &slab_caches);
 		}
 #ifdef CONFIG_ZONE_DMA
 		sizes->cs_dmacachep = kmem_cache_zalloc(kmem_cache, GFP_NOWAIT);
+		sizes->cs_dmacachep->name = names->name_dma;
+		sizes->cs_dmacachep->size = sizes->cs_size;
+		sizes->cs_dmacachep->object_size = sizes->cs_size;
+		sizes->cs_dmacachep->align = ARCH_KMALLOC_MINALIGN;
 		__kmem_cache_create(sizes->cs_dmacachep,
-					names->name_dma,
-					sizes->cs_size,
-					ARCH_KMALLOC_MINALIGN,
-					ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
-						SLAB_PANIC,
-					NULL);
+			       ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA| SLAB_PANIC);
 		list_add(&sizes->cs_dmacachep->list, &slab_caches);
 #endif
 		sizes++;
@@ -2360,12 +2359,12 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
  * as davem.
  */
 int
-__kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, size_t align,
-	unsigned long flags, void (*ctor)(void *))
+__kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 {
 	size_t left_over, slab_size, ralign;
 	gfp_t gfp;
 	int err;
+	size_t size = cachep->size;
 
 #if DEBUG
 #if FORCED_DEBUG
@@ -2437,8 +2436,8 @@ __kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, s
 		ralign = ARCH_SLAB_MINALIGN;
 	}
 	/* 3) caller mandated alignment */
-	if (ralign < align) {
-		ralign = align;
+	if (ralign < cachep->align) {
+		ralign = cachep->align;
 	}
 	/* disable debug if necessary */
 	if (ralign > __alignof__(unsigned long long))
@@ -2446,7 +2445,7 @@ __kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, s
 	/*
 	 * 4) Store it.
 	 */
-	align = ralign;
+	cachep->align = ralign;
 
 	if (slab_is_available())
 		gfp = GFP_KERNEL;
@@ -2454,8 +2453,6 @@ __kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, s
 		gfp = GFP_NOWAIT;
 
 	cachep->nodelists = (struct kmem_list3 **)&cachep->array[nr_cpu_ids];
-	cachep->object_size = size;
-	cachep->align = align;
 #if DEBUG
 
 	/*
@@ -2500,17 +2497,15 @@ __kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, s
 		 */
 		flags |= CFLGS_OFF_SLAB;
 
-	size = ALIGN(size, align);
+	size = ALIGN(size, cachep->align);
 
-	left_over = calculate_slab_order(cachep, size, align, flags);
+	left_over = calculate_slab_order(cachep, size, cachep->align, flags);
 
-	if (!cachep->num) {
-		printk(KERN_ERR
-		       "kmem_cache_create: couldn't create cache %s.\n", name);
+	if (!cachep->num)
 		return -E2BIG;
-	}
+
 	slab_size = ALIGN(cachep->num * sizeof(kmem_bufctl_t)
-			  + sizeof(struct slab), align);
+			  + sizeof(struct slab), cachep->align);
 
 	/*
 	 * If the slab has been placed off-slab, and we have enough space then
@@ -2538,8 +2533,8 @@ __kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, s
 
 	cachep->colour_off = cache_line_size();
 	/* Offset must be a multiple of the alignment. */
-	if (cachep->colour_off < align)
-		cachep->colour_off = align;
+	if (cachep->colour_off < cachep->align)
+		cachep->colour_off = cachep->align;
 	cachep->colour = left_over / cachep->colour_off;
 	cachep->slab_size = slab_size;
 	cachep->flags = flags;
@@ -2560,8 +2555,6 @@ __kmem_cache_create (struct kmem_cache *cachep, const char *name, size_t size, s
 		 */
 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
 	}
-	cachep->ctor = ctor;
-	cachep->name = name;
 	cachep->refcount = 1;
 
 	err = setup_cpu_cache(cachep, gfp);
