@@ -251,12 +251,10 @@ static void update_cpu_core_map(void)
 
 void store_topology(struct sysinfo_15_1_x *info)
 {
-	int rc;
-
-	rc = stsi(info, 15, 1, 3);
-	if (rc != -ENOSYS)
-		return;
-	stsi(info, 15, 1, 2);
+	if (topology_max_mnest >= 3)
+		stsi(info, 15, 1, 3);
+	else
+		stsi(info, 15, 1, 2);
 }
 
 int arch_update_cpu_topology(void)

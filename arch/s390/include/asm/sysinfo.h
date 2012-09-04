@@ -118,6 +118,8 @@ struct sysinfo_3_2_2 {
 	char reserved_544[3552];
 };
 
+extern int topology_max_mnest;
+
 #define TOPOLOGY_CPU_BITS	64
 #define TOPOLOGY_NR_MAG		6
 

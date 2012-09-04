@@ -215,24 +215,42 @@ static noinline __init void init_kernel_storage_key(void)
 				     PAGE_DEFAULT_KEY, 0);
 }
 
-static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
+static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 static noinline __init void detect_machine_type(void)
 {
+	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
+
 	/* Check current-configuration-level */
 	if ((stsi(NULL, 0, 0, 0) >> 28) <= 2) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
 		return;
 	}
 	/* Get virtual-machine cpu information. */
-	if (stsi(&vmms, 3, 2, 2) == -ENOSYS || !vmms.count)
+	if (stsi(vmms, 3, 2, 2) == -ENOSYS || !vmms->count)
 		return;
 
 	/* Running under KVM? If not we assume z/VM */
-	if (!memcmp(vmms.vm[0].cpi, "\xd2\xe5\xd4", 3))
+	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
 	else
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
+}
+
+static __init void setup_topology(void)
+{
+#ifdef CONFIG_64BIT
+	int max_mnest;
+
+	if (!test_facility(11))
+		return;
+	S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
+	for (max_mnest = 6; max_mnest > 1; max_mnest--) {
+		if (stsi(&sysinfo_page, 15, 1, max_mnest) != -ENOSYS)
+			break;
+	}
+	topology_max_mnest = max_mnest;
+#endif
 }
 
 static void early_pgm_check_handler(void)
@@ -364,8 +382,6 @@ static __init void detect_machine_facilities(void)
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
 	if (test_facility(8))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
-	if (test_facility(11))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
 	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
@@ -467,6 +483,7 @@ void __init startup_init(void)
 	detect_diag44();
 	detect_machine_facilities();
 	setup_hpage();
+	setup_topology();
 	sclp_facilities_detect();
 	detect_memory_layout(memory_chunk);
 #ifdef CONFIG_DYNAMIC_FTRACE

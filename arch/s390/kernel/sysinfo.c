@@ -22,6 +22,8 @@
 #include <math-emu/soft-fp.h>
 #include <math-emu/single.h>
 
+int topology_max_mnest;
+
 static inline int stsi_0(void)
 {
 	int rc = stsi(NULL, 0, 0, 0);
@@ -95,15 +97,7 @@ static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 	seq_putc(m, '\n');
 	if (!MACHINE_HAS_TOPOLOGY)
 		return;
-	if (max_mnest) {
-		stsi(info, 15, 1, max_mnest);
-	} else {
-		for (max_mnest = 6; max_mnest > 1; max_mnest--) {
-			rc = stsi(info, 15, 1, max_mnest);
-			if (rc != -ENOSYS)
-				break;
-		}
-	}
+	stsi(info, 15, 1, topology_max_mnest);
 	seq_printf(m, "CPU Topology HW:     ");
 	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
 		seq_printf(m, " %d", info->mag[i]);
