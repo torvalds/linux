@@ -83,7 +83,7 @@ static int radio_si4713_g_audout(struct file *file, void *priv,
 }
 
 static int radio_si4713_s_audout(struct file *file, void *priv,
-					struct v4l2_audioout *vao)
+					const struct v4l2_audioout *vao)
 {
 	return vao->index ? -EINVAL : 0;
 }

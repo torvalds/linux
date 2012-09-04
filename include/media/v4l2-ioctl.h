@@ -175,7 +175,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_audout)         (struct file *file, void *fh,
 					struct v4l2_audioout *a);
 	int (*vidioc_s_audout)         (struct file *file, void *fh,
-					struct v4l2_audioout *a);
+					const struct v4l2_audioout *a);
 	int (*vidioc_g_modulator)      (struct file *file, void *fh,
 					struct v4l2_modulator *a);
 	int (*vidioc_s_modulator)      (struct file *file, void *fh,

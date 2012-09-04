@@ -813,11 +813,13 @@ static int ivtv_g_audout(struct file *file, void *fh, struct v4l2_audioout *vin)
 	return ivtv_get_audio_output(itv, vin->index, vin);
 }
 
-static int ivtv_s_audout(struct file *file, void *fh, struct v4l2_audioout *vout)
+static int ivtv_s_audout(struct file *file, void *fh, const struct v4l2_audioout *vout)
 {
 	struct ivtv *itv = fh2id(fh)->itv;
 
-	return ivtv_get_audio_output(itv, vout->index, vout);
+	if (itv->card->video_outputs == NULL || vout->index != 0)
+		return -EINVAL;
+	return 0;
 }
 
 static int ivtv_enum_input(struct file *file, void *fh, struct v4l2_input *vin)
