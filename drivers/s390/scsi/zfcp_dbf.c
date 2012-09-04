@@ -191,7 +191,7 @@ void zfcp_dbf_hba_def_err(struct zfcp_adapter *adapter, u64 req_id, u16 scount,
 	length = min((u16)sizeof(struct qdio_buffer),
 		     (u16)ZFCP_DBF_PAY_MAX_REC);
 
-	while ((char *)pl[payload->counter] && payload->counter < scount) {
+	while (payload->counter < scount && (char *)pl[payload->counter]) {
 		memcpy(payload->data, (char *)pl[payload->counter], length);
 		debug_event(dbf->pay, 1, payload, zfcp_dbf_plen(length));
 		payload->counter++;
