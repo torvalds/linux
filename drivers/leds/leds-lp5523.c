@@ -833,7 +833,8 @@ static int __init lp5523_init_engine(struct lp5523_engine *engine, int id)
 }
 
 static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
-			   int chan, struct lp5523_platform_data *pdata)
+			   int chan, struct lp5523_platform_data *pdata,
+			   const char *chip_name)
 {
 	char name[32];
 	int res;
@@ -856,7 +857,7 @@ static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			led->cdev.name = pdata->led_config[chan].name;
 		} else {
 			snprintf(name, sizeof(name), "%s:channel%d",
-				pdata->label ?: "lp5523", chan);
+				pdata->label ? : chip_name, chan);
 			led->cdev.name = name;
 		}
 
@@ -927,7 +928,7 @@ static int __devinit lp5523_probe(struct i2c_client *client,
 	if (ret)
 		goto fail1;
 
-	dev_info(&client->dev, "LP5523 Programmable led chip found\n");
+	dev_info(&client->dev, "%s Programmable led chip found\n", id->name);
 
 	/* Initialize engines */
 	for (i = 0; i < ARRAY_SIZE(chip->engines); i++) {
@@ -955,7 +956,8 @@ static int __devinit lp5523_probe(struct i2c_client *client,
 		INIT_WORK(&chip->leds[led].brightness_work,
 			lp5523_led_brightness_work);
 
-		ret = lp5523_init_led(&chip->leds[led], &client->dev, i, pdata);
+		ret = lp5523_init_led(&chip->leds[led], &client->dev, i, pdata,
+				id->name);
 		if (ret) {
 			dev_err(&client->dev, "error initializing leds\n");
 			goto fail2;
