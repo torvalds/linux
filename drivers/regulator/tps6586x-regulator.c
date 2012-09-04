@@ -162,6 +162,9 @@ static struct regulator_ops tps6586x_regulator_ops = {
 	.disable = tps6586x_regulator_disable,
 };
 
+static struct regulator_ops tps6586x_sys_regulator_ops = {
+};
+
 static const unsigned int tps6586x_ldo0_voltages[] = {
 	1200000, 1500000, 1800000, 2500000, 2700000, 2850000, 3100000, 3300000,
 };
@@ -230,15 +233,28 @@ static const unsigned int tps6586x_dvm_voltages[] = {
 	TPS6586X_REGULATOR_DVM_GOREG(goreg, gobit)			\
 }
 
+#define TPS6586X_SYS_REGULATOR()					\
+{									\
+	.desc	= {							\
+		.supply_name = "sys",					\
+		.name	= "REG-SYS",					\
+		.ops	= &tps6586x_sys_regulator_ops,			\
+		.type	= REGULATOR_VOLTAGE,				\
+		.id	= TPS6586X_ID_SYS,				\
+		.owner	= THIS_MODULE,					\
+	},								\
+}
+
 static struct tps6586x_regulator tps6586x_regulator[] = {
+	TPS6586X_SYS_REGULATOR(),
 	TPS6586X_LDO(LDO_0, "vinldo01", ldo0, SUPPLYV1, 5, 3, ENC, 0, END, 0),
 	TPS6586X_LDO(LDO_3, "vinldo23", ldo, SUPPLYV4, 0, 3, ENC, 2, END, 2),
-	TPS6586X_LDO(LDO_5, NULL, ldo, SUPPLYV6, 0, 3, ENE, 6, ENE, 6),
+	TPS6586X_LDO(LDO_5, "REG-SYS", ldo, SUPPLYV6, 0, 3, ENE, 6, ENE, 6),
 	TPS6586X_LDO(LDO_6, "vinldo678", ldo, SUPPLYV3, 0, 3, ENC, 4, END, 4),
 	TPS6586X_LDO(LDO_7, "vinldo678", ldo, SUPPLYV3, 3, 3, ENC, 5, END, 5),
 	TPS6586X_LDO(LDO_8, "vinldo678", ldo, SUPPLYV2, 5, 3, ENC, 6, END, 6),
 	TPS6586X_LDO(LDO_9, "vinldo9", ldo, SUPPLYV6, 3, 3, ENE, 7, ENE, 7),
-	TPS6586X_LDO(LDO_RTC, NULL, ldo, SUPPLYV4, 3, 3, V4, 7, V4, 7),
+	TPS6586X_LDO(LDO_RTC, "REG-SYS", ldo, SUPPLYV4, 3, 3, V4, 7, V4, 7),
 	TPS6586X_LDO(LDO_1, "vinldo01", dvm, SUPPLYV1, 0, 5, ENC, 1, END, 1),
 	TPS6586X_LDO(SM_2, "vin-sm2", sm2, SUPPLYV2, 0, 5, ENC, 7, END, 7),
 
