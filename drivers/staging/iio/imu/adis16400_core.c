@@ -5,7 +5,7 @@
  *		3d Magnetometers via SPI
  *
  * Copyright (c) 2009 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2007 Jonathan Cameron <jic23@kernel.org>
  * Copyright (c) 2011 Analog Devices Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1204,7 +1204,7 @@ error_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int adis16400_remove(struct spi_device *spi)
+static int __devexit adis16400_remove(struct spi_device *spi)
 {
 	int ret;
 	struct iio_dev *indio_dev =  spi_get_drvdata(spi);

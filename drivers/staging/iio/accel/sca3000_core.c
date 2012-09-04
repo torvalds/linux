@@ -5,7 +5,7 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  *
- * Copyright (c) 2009 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2009 Jonathan Cameron <jic23@kernel.org>
  *
  * See industrialio/accels/sca3000.h for comments.
  */
@@ -1233,7 +1233,7 @@ error_ret:
 	return ret;
 }
 
-static int sca3000_remove(struct spi_device *spi)
+static int __devexit sca3000_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -1272,6 +1272,6 @@ static struct spi_driver sca3000_driver = {
 };
 module_spi_driver(sca3000_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("VTI SCA3000 Series Accelerometers SPI driver");
 MODULE_LICENSE("GPL v2");

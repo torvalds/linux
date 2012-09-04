@@ -2,7 +2,7 @@
  * lis3l02dq.c	support STMicroelectronics LISD02DQ
  *		3d 2g Linear Accelerometers via SPI
  *
- * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2007 Jonathan Cameron <jic23@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -392,7 +392,7 @@ static int lis3l02dq_initial_setup(struct iio_dev *indio_dev)
 		dev_err(&st->us->dev, "problem with setup control register 1");
 		goto err_ret;
 	}
-	/* Repeat as sometimes doesn't work first time?*/
+	/* Repeat as sometimes doesn't work first time? */
 	ret = lis3l02dq_spi_write_reg_8(indio_dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					val);
@@ -686,7 +686,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 	st = iio_priv(indio_dev);
-	/* this is only used tor removal purposes */
+	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 
 	st->us = spi;
@@ -780,7 +780,7 @@ err_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int lis3l02dq_remove(struct spi_device *spi)
+static int __devexit lis3l02dq_remove(struct spi_device *spi)
 {
 	int ret;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
@@ -818,7 +818,7 @@ static struct spi_driver lis3l02dq_driver = {
 };
 module_spi_driver(lis3l02dq_driver);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("ST LIS3L02DQ Accelerometer SPI driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:lis3l02dq");

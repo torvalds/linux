@@ -330,7 +330,7 @@ static int __devinit ade7854_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int ade7854_spi_remove(struct spi_device *spi)
+static int __devexit ade7854_spi_remove(struct spi_device *spi)
 {
 	ade7854_remove(spi_get_drvdata(spi));
 
