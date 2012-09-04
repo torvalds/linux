@@ -369,6 +369,7 @@ header-y += tipc.h
 header-y += tipc_config.h
 header-y += toshiba.h
 header-y += tty.h
+header-y += tty_flags.h
 header-y += types.h
 header-y += udf_fs_i.h
 header-y += udp.h
