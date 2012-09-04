@@ -221,6 +221,43 @@ void drbd_request_endio(struct bio *bio, int error)
 		error = -EIO;
 	}
 
+
+	/* If this request was aborted locally before,
+	 * but now was completed "successfully",
+	 * chances are that this caused arbitrary data corruption.
+	 *
+	 * "aborting" requests, or force-detaching the disk, is intended for
+	 * completely blocked/hung local backing devices which do no longer
+	 * complete requests at all, not even do error completions.  In this
+	 * situation, usually a hard-reset and failover is the only way out.
+	 *
+	 * By "aborting", basically faking a local error-completion,
+	 * we allow for a more graceful swichover by cleanly migrating services.
+	 * Still the affected node has to be rebooted "soon".
+	 *
+	 * By completing these requests, we allow the upper layers to re-use
+	 * the associated data pages.
+	 *
+	 * If later the local backing device "recovers", and now DMAs some data
+	 * from disk into the original request pages, in the best case it will
+	 * just put random data into unused pages; but typically it will corrupt
+	 * meanwhile completely unrelated data, causing all sorts of damage.
+	 *
+	 * Which means delayed successful completion,
+	 * especially for READ requests,
+	 * is a reason to panic().
+	 *
+	 * We assume that a delayed *error* completion is OK,
+	 * though we still will complain noisily about it.
+	 */
+	if (unlikely(req->rq_state & RQ_LOCAL_ABORTED)) {
+		if (__ratelimit(&drbd_ratelimit_state))
+			dev_emerg(DEV, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
+
+		if (!error)
+			panic("possible random memory corruption caused by delayed completion of aborted local request\n");
+	}
+
 	/* to avoid recursion in __req_mod */
 	if (unlikely(error)) {
 		what = (bio_data_dir(bio) == WRITE)
