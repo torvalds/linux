@@ -335,7 +335,7 @@ static int dmae_irq_init(void)
 
 	for (n = 0; n < NR_DMAE; n++) {
 		int i = request_irq(get_dma_error_irq(n), dma_err,
-				    IRQF_SHARED, dmae_name[n], NULL);
+				    IRQF_SHARED, dmae_name[n], (void *)dmae_name[n]);
 		if (unlikely(i < 0)) {
 			printk(KERN_ERR "%s request_irq fail\n", dmae_name[n]);
 			return i;

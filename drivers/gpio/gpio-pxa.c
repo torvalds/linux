@@ -512,6 +512,7 @@ static int pxa_gpio_nums(void)
 	return count;
 }
 
+#ifdef CONFIG_OF
 static struct of_device_id pxa_gpio_dt_ids[] = {
 	{ .compatible = "mrvl,pxa-gpio" },
 	{ .compatible = "mrvl,mmp-gpio", .data = (void *)MMP_GPIO },
@@ -532,7 +533,6 @@ const struct irq_domain_ops pxa_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-#ifdef CONFIG_OF
 static int __devinit pxa_gpio_probe_dt(struct platform_device *pdev)
 {
 	int ret, nr_banks, nr_gpios, irq_base;
@@ -679,7 +679,7 @@ static struct platform_driver pxa_gpio_driver = {
 	.probe		= pxa_gpio_probe,
 	.driver		= {
 		.name	= "pxa-gpio",
-		.of_match_table = pxa_gpio_dt_ids,
+		.of_match_table = of_match_ptr(pxa_gpio_dt_ids),
 	},
 };
 

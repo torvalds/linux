@@ -75,6 +75,7 @@ void task_work_run(void)
 			p = q->next;
 			q->func(q);
 			q = p;
+			cond_resched();
 		}
 	}
 }

@@ -43,6 +43,7 @@
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
+#include <linux/sysfs.h>
 
 #define DRV_VERSION "0.6"
 
@@ -292,6 +293,7 @@ static int __devinit pcf2123_probe(struct spi_device *spi)
 	pdata->rtc = rtc;
 
 	for (i = 0; i < 16; i++) {
+		sysfs_attr_init(&pdata->regs[i].attr.attr);
 		sprintf(pdata->regs[i].name, "%1x", i);
 		pdata->regs[i].attr.attr.mode = S_IRUGO | S_IWUSR;
 		pdata->regs[i].attr.attr.name = pdata->regs[i].name;

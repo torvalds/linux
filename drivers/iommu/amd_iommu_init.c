@@ -1111,7 +1111,7 @@ static void print_iommu_info(void)
 
 		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
 			pr_info("AMD-Vi:  Extended features: ");
-			for (i = 0; ARRAY_SIZE(feat_str); ++i) {
+			for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
 				if (iommu_feature(iommu, (1ULL << i)))
 					pr_cont(" %s", feat_str[i]);
 			}

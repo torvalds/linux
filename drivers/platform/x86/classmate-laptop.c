@@ -725,8 +725,10 @@ static void cmpc_tablet_handler(struct acpi_device *dev, u32 event)
 	struct input_dev *inputdev = dev_get_drvdata(&dev->dev);
 
 	if (event == 0x81) {
-		if (ACPI_SUCCESS(cmpc_get_tablet(dev->handle, &val)))
+		if (ACPI_SUCCESS(cmpc_get_tablet(dev->handle, &val))) {
 			input_report_switch(inputdev, SW_TABLET_MODE, !val);
+			input_sync(inputdev);
+		}
 	}
 }
 
@@ -739,8 +741,10 @@ static void cmpc_tablet_idev_init(struct input_dev *inputdev)
 	set_bit(SW_TABLET_MODE, inputdev->swbit);
 
 	acpi = to_acpi_device(inputdev->dev.parent);
-	if (ACPI_SUCCESS(cmpc_get_tablet(acpi->handle, &val)))
+	if (ACPI_SUCCESS(cmpc_get_tablet(acpi->handle, &val))) {
 		input_report_switch(inputdev, SW_TABLET_MODE, !val);
+		input_sync(inputdev);
+	}
 }
 
 static int cmpc_tablet_add(struct acpi_device *acpi)
@@ -760,8 +764,10 @@ static int cmpc_tablet_resume(struct device *dev)
 	struct input_dev *inputdev = dev_get_drvdata(dev);
 
 	unsigned long long val = 0;
-	if (ACPI_SUCCESS(cmpc_get_tablet(to_acpi_device(dev)->handle, &val)))
+	if (ACPI_SUCCESS(cmpc_get_tablet(to_acpi_device(dev)->handle, &val))) {
 		input_report_switch(inputdev, SW_TABLET_MODE, !val);
+		input_sync(inputdev);
+	}
 	return 0;
 }
 #endif

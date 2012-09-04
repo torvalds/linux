@@ -22,6 +22,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#ifndef __COMMON_H__
+#define __COMMON_H__
+
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
@@ -366,3 +369,5 @@ extern void stmmac_set_mac(void __iomem *ioaddr, bool enable);
 
 extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
 extern const struct stmmac_ring_mode_ops ring_mode_ops;
+
+#endif /* __COMMON_H__ */
