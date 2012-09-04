@@ -5,7 +5,6 @@
  * Author(s): Sebastian Ott <sebott@linux.vnet.ibm.com>
  */
 
-#include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -134,9 +133,9 @@ static ssize_t show_##name(struct device *dev,				\
 	struct scm_device *scmdev = to_scm_dev(dev);			\
 	int ret;							\
 									\
-	spin_lock(&scmdev->lock);					\
+	device_lock(dev);						\
 	ret = sprintf(buf, "%u\n", scmdev->attrs.name);			\
-	spin_unlock(&scmdev->lock);					\
+	device_unlock(dev);						\
 									\
 	return ret;							\
 }									\
@@ -193,7 +192,6 @@ static void scmdev_setup(struct scm_device *scmdev, struct sale *sale,
 	scmdev->dev.bus = &scm_bus_type;
 	scmdev->dev.release = scmdev_release;
 	scmdev->dev.groups = scmdev_attr_groups;
-	spin_lock_init(&scmdev->lock);
 }
 
 /*

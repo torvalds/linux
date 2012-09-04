@@ -3,7 +3,6 @@
 
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/spinlock.h>
 
 struct arqb {
 	u64 data;
@@ -83,7 +82,6 @@ struct scm_device {
 	u64 size;
 	unsigned int nr_max_block;
 	struct device dev;
-	spinlock_t lock;
 	struct {
 		unsigned int persistence:4;
 		unsigned int oper_state:4;
