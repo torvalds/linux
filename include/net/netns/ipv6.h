@@ -42,6 +42,7 @@ struct netns_ipv6 {
 #ifdef CONFIG_SECURITY
 	struct xt_table		*ip6table_security;
 #endif
+	struct xt_table		*ip6table_nat;
 #endif
 	struct rt6_info         *ip6_null_entry;
 	struct rt6_statistics   *rt6_stats;

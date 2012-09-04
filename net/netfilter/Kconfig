@@ -356,6 +356,55 @@ config NETFILTER_NETLINK_QUEUE_CT
 	  If this option is enabled, NFQUEUE can include Connection Tracking
 	  information together with the packet is the enqueued via NFNETLINK.
 
+config NF_NAT
+	tristate
+
+config NF_NAT_NEEDED
+	bool
+	depends on NF_NAT
+	default y
+
+config NF_NAT_PROTO_DCCP
+	tristate
+	depends on NF_NAT && NF_CT_PROTO_DCCP
+	default NF_NAT && NF_CT_PROTO_DCCP
+
+config NF_NAT_PROTO_UDPLITE
+	tristate
+	depends on NF_NAT && NF_CT_PROTO_UDPLITE
+	default NF_NAT && NF_CT_PROTO_UDPLITE
+
+config NF_NAT_PROTO_SCTP
+	tristate
+	default NF_NAT && NF_CT_PROTO_SCTP
+	depends on NF_NAT && NF_CT_PROTO_SCTP
+	select LIBCRC32C
+
+config NF_NAT_AMANDA
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_AMANDA
+
+config NF_NAT_FTP
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_FTP
+
+config NF_NAT_IRC
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_IRC
+
+config NF_NAT_SIP
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_SIP
+
+config NF_NAT_TFTP
+	tristate
+	depends on NF_CONNTRACK && NF_NAT
+	default NF_NAT && NF_CONNTRACK_TFTP
+
 endif # NF_CONNTRACK
 
 # transparent proxy support
@@ -620,19 +669,6 @@ config NETFILTER_XT_TARGET_NFQUEUE
 	  not just one.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-config NETFILTER_XT_TARGET_NOTRACK
-	tristate  '"NOTRACK" target support'
-	depends on IP_NF_RAW || IP6_NF_RAW
-	depends on NF_CONNTRACK
-	help
-	  The NOTRACK target allows a select rule to specify
-	  which packets *not* to enter the conntrack/NAT
-	  subsystem with all the consequences (no ICMP error tracking,
-	  no protocol helpers for the selected packets).
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_TARGET_RATEEST
 	tristate '"RATEEST" target support'

@@ -22,7 +22,6 @@
 
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_helper.h>
-#include <net/netfilter/nf_nat_rule.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_zones.h>
@@ -47,7 +46,7 @@ static void pptp_nat_expected(struct nf_conn *ct,
 	struct nf_conntrack_tuple t;
 	const struct nf_ct_pptp_master *ct_pptp_info;
 	const struct nf_nat_pptp *nat_pptp_info;
-	struct nf_nat_ipv4_range range;
+	struct nf_nat_range range;
 
 	ct_pptp_info = nfct_help_data(master);
 	nat_pptp_info = &nfct_nat(master)->help.nat_pptp_info;
@@ -89,21 +88,21 @@ static void pptp_nat_expected(struct nf_conn *ct,
 
 	/* Change src to where master sends to */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
-	range.min_ip = range.max_ip
-		= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
+	range.min_addr = range.max_addr
+		= ct->master->tuplehash[!exp->dir].tuple.dst.u3;
 	if (exp->dir == IP_CT_DIR_ORIGINAL) {
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
-		range.min = range.max = exp->saved_proto;
+		range.min_proto = range.max_proto = exp->saved_proto;
 	}
 	nf_nat_setup_info(ct, &range, NF_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = NF_NAT_RANGE_MAP_IPS;
-	range.min_ip = range.max_ip
-		= ct->master->tuplehash[!exp->dir].tuple.src.u3.ip;
+	range.min_addr = range.max_addr
+		= ct->master->tuplehash[!exp->dir].tuple.src.u3;
 	if (exp->dir == IP_CT_DIR_REPLY) {
 		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
-		range.min = range.max = exp->saved_proto;
+		range.min_proto = range.max_proto = exp->saved_proto;
 	}
 	nf_nat_setup_info(ct, &range, NF_NAT_MANIP_DST);
 }
@@ -113,6 +112,7 @@ static int
 pptp_outbound_pkt(struct sk_buff *skb,
 		  struct nf_conn *ct,
 		  enum ip_conntrack_info ctinfo,
+		  unsigned int protoff,
 		  struct PptpControlHeader *ctlh,
 		  union pptp_ctrl_union *pptpReq)
 
@@ -175,7 +175,7 @@ pptp_outbound_pkt(struct sk_buff *skb,
 		 ntohs(REQ_CID(pptpReq, cid_off)), ntohs(new_callid));
 
 	/* mangle packet */
-	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
+	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
 				     cid_off + sizeof(struct pptp_pkt_hdr) +
 				     sizeof(struct PptpControlHeader),
 				     sizeof(new_callid), (char *)&new_callid,
@@ -216,6 +216,7 @@ static int
 pptp_inbound_pkt(struct sk_buff *skb,
 		 struct nf_conn *ct,
 		 enum ip_conntrack_info ctinfo,
+		 unsigned int protoff,
 		 struct PptpControlHeader *ctlh,
 		 union pptp_ctrl_union *pptpReq)
 {
@@ -268,7 +269,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 	pr_debug("altering peer call id from 0x%04x to 0x%04x\n",
 		 ntohs(REQ_CID(pptpReq, pcid_off)), ntohs(new_pcid));
 
-	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
+	if (nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff,
 				     pcid_off + sizeof(struct pptp_pkt_hdr) +
 				     sizeof(struct PptpControlHeader),
 				     sizeof(new_pcid), (char *)&new_pcid,

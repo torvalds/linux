@@ -9,20 +9,18 @@
 
 #include <linux/types.h>
 #include <linux/random.h>
-#include <linux/ip.h>
-
 #include <linux/netfilter.h>
 #include <linux/export.h>
-#include <net/secure_seq.h>
+
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_rule.h>
-#include <net/netfilter/nf_nat_protocol.h>
+#include <net/netfilter/nf_nat_l3proto.h>
+#include <net/netfilter/nf_nat_l4proto.h>
 
-bool nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
-			   enum nf_nat_manip_type maniptype,
-			   const union nf_conntrack_man_proto *min,
-			   const union nf_conntrack_man_proto *max)
+bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,
+			     enum nf_nat_manip_type maniptype,
+			     const union nf_conntrack_man_proto *min,
+			     const union nf_conntrack_man_proto *max)
 {
 	__be16 port;
 
@@ -34,13 +32,14 @@ bool nf_nat_proto_in_range(const struct nf_conntrack_tuple *tuple,
 	return ntohs(port) >= ntohs(min->all) &&
 	       ntohs(port) <= ntohs(max->all);
 }
-EXPORT_SYMBOL_GPL(nf_nat_proto_in_range);
+EXPORT_SYMBOL_GPL(nf_nat_l4proto_in_range);
 
-void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
-			       const struct nf_nat_ipv4_range *range,
-			       enum nf_nat_manip_type maniptype,
-			       const struct nf_conn *ct,
-			       u_int16_t *rover)
+void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
+				 struct nf_conntrack_tuple *tuple,
+				 const struct nf_nat_range *range,
+				 enum nf_nat_manip_type maniptype,
+				 const struct nf_conn *ct,
+				 u16 *rover)
 {
 	unsigned int range_size, min, i;
 	__be16 *portptr;
@@ -71,15 +70,14 @@ void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 			range_size = 65535 - 1024 + 1;
 		}
 	} else {
-		min = ntohs(range->min.all);
-		range_size = ntohs(range->max.all) - min + 1;
+		min = ntohs(range->min_proto.all);
+		range_size = ntohs(range->max_proto.all) - min + 1;
 	}
 
 	if (range->flags & NF_NAT_RANGE_PROTO_RANDOM)
-		off = secure_ipv4_port_ephemeral(tuple->src.u3.ip, tuple->dst.u3.ip,
-						 maniptype == NF_NAT_MANIP_SRC
-						 ? tuple->dst.u.all
-						 : tuple->src.u.all);
+		off = l3proto->secure_port(tuple, maniptype == NF_NAT_MANIP_SRC
+						  ? tuple->dst.u.all
+						  : tuple->src.u.all);
 	else
 		off = *rover;
 
@@ -93,22 +91,22 @@ void nf_nat_proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	}
 	return;
 }
-EXPORT_SYMBOL_GPL(nf_nat_proto_unique_tuple);
+EXPORT_SYMBOL_GPL(nf_nat_l4proto_unique_tuple);
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-int nf_nat_proto_nlattr_to_range(struct nlattr *tb[],
-				 struct nf_nat_ipv4_range *range)
+int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
+				   struct nf_nat_range *range)
 {
 	if (tb[CTA_PROTONAT_PORT_MIN]) {
-		range->min.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
-		range->max.all = range->min.tcp.port;
+		range->min_proto.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
+		range->max_proto.all = range->min_proto.all;
 		range->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 	if (tb[CTA_PROTONAT_PORT_MAX]) {
-		range->max.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
+		range->max_proto.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
 		range->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nf_nat_proto_nlattr_to_range);
+EXPORT_SYMBOL_GPL(nf_nat_l4proto_nlattr_to_range);
 #endif

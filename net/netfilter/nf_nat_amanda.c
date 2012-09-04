@@ -16,7 +16,6 @@
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_nat_helper.h>
-#include <net/netfilter/nf_nat_rule.h>
 #include <linux/netfilter/nf_conntrack_amanda.h>
 
 MODULE_AUTHOR("Brian J. Murrell <netfilter@interlinx.bc.ca>");
@@ -26,6 +25,7 @@ MODULE_ALIAS("ip_nat_amanda");
 
 static unsigned int help(struct sk_buff *skb,
 			 enum ip_conntrack_info ctinfo,
+			 unsigned int protoff,
 			 unsigned int matchoff,
 			 unsigned int matchlen,
 			 struct nf_conntrack_expect *exp)
@@ -61,7 +61,7 @@ static unsigned int help(struct sk_buff *skb,
 
 	sprintf(buffer, "%u", port);
 	ret = nf_nat_mangle_udp_packet(skb, exp->master, ctinfo,
-				       matchoff, matchlen,
+				       protoff, matchoff, matchlen,
 				       buffer, strlen(buffer));
 	if (ret != NF_ACCEPT)
 		nf_ct_unexpect_related(exp);
