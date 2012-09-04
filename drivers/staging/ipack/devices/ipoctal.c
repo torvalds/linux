@@ -28,7 +28,6 @@
 #define IP_OCTAL_ID_SPACE_VECTOR    0x41
 #define IP_OCTAL_NB_BLOCKS          4
 
-static struct ipack_driver driver;
 static const struct tty_operations ipoctal_fops;
 
 struct ipoctal {
@@ -846,15 +845,18 @@ static void ipoctal_remove(struct ipack_device *device)
 	}
 }
 
-static struct ipack_driver_ops ipoctal_drv_ops = {
+static const struct ipack_driver_ops ipoctal_drv_ops = {
 	.match = ipoctal_match,
 	.probe = ipoctal_probe,
 	.remove = ipoctal_remove,
 };
 
+static struct ipack_driver driver = {
+	.ops      = &ipoctal_drv_ops,
+};
+
 static int __init ipoctal_init(void)
 {
-	driver.ops = &ipoctal_drv_ops;
 	return ipack_driver_register(&driver, THIS_MODULE, KBUILD_MODNAME);
 }
 

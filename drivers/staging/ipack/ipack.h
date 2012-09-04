@@ -104,7 +104,7 @@ struct ipack_driver_ops {
 struct ipack_driver {
 	struct device_driver driver;
 	const struct ipack_device_id *id_table;
-	struct ipack_driver_ops *ops;
+	const struct ipack_driver_ops *ops;
 };
 
 /**
