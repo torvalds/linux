@@ -101,7 +101,7 @@ static struct clock_event_device msm_clockevent = {
 
 static union {
 	struct clock_event_device *evt;
-	struct clock_event_device __percpu **percpu_evt;
+	struct clock_event_device * __percpu *percpu_evt;
 } msm_evt;
 
 static void __iomem *source_base;
