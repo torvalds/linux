@@ -20,6 +20,7 @@
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
+#include <linux/io.h>
 #include "../ipack.h"
 #include "ipoctal.h"
 #include "scc2698.h"
@@ -61,16 +62,12 @@ static inline void ipoctal_write_io_reg(struct ipoctal *ipoctal,
 					unsigned char *dest,
 					unsigned char value)
 {
-	unsigned long offset;
-
-	offset = ((void __iomem *) dest) - ipoctal->dev->io_space.address;
-	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_IO_SPACE, offset,
-				       value);
+	iowrite8(value, dest);
 }
 
 static inline void ipoctal_write_cr_cmd(struct ipoctal *ipoctal,
-					unsigned char *dest,
-					unsigned char value)
+					u8 __iomem *dest,
+					u8 value)
 {
 	ipoctal_write_io_reg(ipoctal, dest, value);
 }
@@ -78,13 +75,7 @@ static inline void ipoctal_write_cr_cmd(struct ipoctal *ipoctal,
 static inline unsigned char ipoctal_read_io_reg(struct ipoctal *ipoctal,
 						unsigned char *src)
 {
-	unsigned long offset;
-	unsigned char value;
-
-	offset = ((void __iomem *) src) - ipoctal->dev->io_space.address;
-	ipoctal->dev->bus->ops->read8(ipoctal->dev, IPACK_IO_SPACE, offset,
-				      &value);
-	return value;
+	return ioread8(src);
 }
 
 static struct ipoctal *ipoctal_find_board(struct tty_struct *tty)
@@ -331,14 +322,11 @@ static int ipoctal_check_model(struct ipack_device *dev, unsigned char *id)
 	unsigned char manufacturerID;
 	unsigned char board_id;
 
-	dev->bus->ops->read8(dev, IPACK_ID_SPACE,
-			IPACK_IDPROM_OFFSET_MANUFACTURER_ID, &manufacturerID);
+	manufacturerID = ioread8(dev->id_space.address + IPACK_IDPROM_OFFSET_MANUFACTURER_ID);
 	if (manufacturerID != IP_OCTAL_MANUFACTURER_ID)
 		return -ENODEV;
 
-	dev->bus->ops->read8(dev, IPACK_ID_SPACE,
-			IPACK_IDPROM_OFFSET_MODEL, (unsigned char *)&board_id);
-
+	board_id = ioread8(dev->id_space.address + IPACK_IDPROM_OFFSET_MODEL);
 	switch (board_id) {
 	case IP_OCTAL_232_ID:
 	case IP_OCTAL_422_ID:
@@ -449,8 +437,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	 */
 	ipoctal->dev->bus->ops->request_irq(ipoctal->dev, vector,
 				       ipoctal_irq_handler, ipoctal);
-	ipoctal->dev->bus->ops->write8(ipoctal->dev, IPACK_MEM_SPACE, 1,
-				       vector);
+	iowrite8(vector, ipoctal->dev->mem_space.address + 1);
 
 	/* Register the TTY device */
 
