@@ -1092,8 +1092,7 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 	unsigned long		flags;
 	int retval;
 
-	if (skb)
-		skb_tx_timestamp(skb);
+	skb_tx_timestamp(skb);
 
 	// some devices want funky USB-level framing, for
 	// win32 driver (usually) and/or hardware quirks
