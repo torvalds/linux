@@ -777,27 +777,6 @@ static const struct tty_operations ipoctal_fops = {
 	.hangup =		ipoctal_hangup,
 };
 
-static int ipoctal_match(struct ipack_device *dev)
-{
-	int res;
-	unsigned char board_id;
-
-	if ((!dev->bus->ops) || (!dev->bus->ops->map_space) ||
-	    (!dev->bus->ops->unmap_space))
-		return 0;
-
-	res = dev->bus->ops->map_space(dev, 0, IPACK_ID_SPACE);
-	if (res)
-		return 0;
-
-	res = ipoctal_check_model(dev, &board_id);
-	dev->bus->ops->unmap_space(dev, IPACK_ID_SPACE);
-	if (!res)
-		return 1;
-
-	return 0;
-}
-
 static int ipoctal_probe(struct ipack_device *dev)
 {
 	int res;
@@ -858,8 +837,7 @@ static DEFINE_IPACK_DEVICE_TABLE(ipoctal_ids) = {
 MODULE_DEVICE_TABLE(ipack, ipoctal_ids);
 
 static const struct ipack_driver_ops ipoctal_drv_ops = {
-	.match = ipoctal_match,
-	.probe = ipoctal_probe,
+	.probe  = ipoctal_probe,
 	.remove = ipoctal_remove,
 };
 

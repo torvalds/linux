@@ -26,20 +26,43 @@ static void ipack_device_release(struct device *dev)
 	kfree(device);
 }
 
-static int ipack_bus_match(struct device *device, struct device_driver *driver)
+static inline const struct ipack_device_id *
+ipack_match_one_device(const struct ipack_device_id *id,
+		       const struct ipack_device *device)
 {
-	int ret;
-	struct ipack_device *dev = to_ipack_dev(device);
-	struct ipack_driver *drv = to_ipack_driver(driver);
+	if ((id->format == IPACK_ANY_ID || id->format == device->id_format) &&
+	    (id->vendor == IPACK_ANY_ID || id->vendor == device->id_vendor) &&
+	    (id->device == IPACK_ANY_ID || id->device == device->id_device))
+		return id;
+	return NULL;
+}
 
-	if ((!drv->ops) || (!drv->ops->match))
-		return -EINVAL;
+static const struct ipack_device_id *
+ipack_match_id(const struct ipack_device_id *ids, struct ipack_device *idev)
+{
+	if (ids) {
+		while (ids->vendor || ids->device) {
+			if (ipack_match_one_device(ids, idev))
+				return ids;
+			ids++;
+		}
+	}
+	return NULL;
+}
 
-	ret = drv->ops->match(dev);
-	if (ret)
-		dev->driver = drv;
+static int ipack_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct ipack_device *idev = to_ipack_dev(dev);
+	struct ipack_driver *idrv = to_ipack_driver(drv);
+	const struct ipack_device_id *found_id;
 
-	return ret;
+	found_id = ipack_match_id(idrv->id_table, idev);
+	if (found_id) {
+		idev->driver = idrv;
+		return 1;
+	}
+
+	return 0;
 }
 
 static int ipack_bus_probe(struct device *device)

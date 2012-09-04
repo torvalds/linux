@@ -84,13 +84,11 @@ struct ipack_device {
 /**
  *	struct ipack_driver_ops -- callbacks to mezzanine driver for installing/removing one device
  *
- *	@match: Match function
  *	@probe: Probe function
  *	@remove: tell the driver that the carrier board wants to remove one device
  */
 
 struct ipack_driver_ops {
-	int (*match) (struct ipack_device *dev);
 	int (*probe) (struct ipack_device *dev);
 	void (*remove) (struct ipack_device *dev);
 };
