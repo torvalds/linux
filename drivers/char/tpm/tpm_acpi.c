@@ -49,7 +49,7 @@ int read_log(struct tpm_bios_log *log)
 {
 	struct acpi_tcpa *buff;
 	acpi_status status;
-	struct acpi_table_header *virt;
+	void __iomem *virt;
 	u64 len, start;
 
 	if (log->bios_event_log != NULL) {
@@ -102,7 +102,7 @@ int read_log(struct tpm_bios_log *log)
 		return -EIO;
 	}
 
-	memcpy(log->bios_event_log, virt, len);
+	memcpy_fromio(log->bios_event_log, virt, len);
 
 	acpi_os_unmap_memory(virt, len);
 	return 0;
