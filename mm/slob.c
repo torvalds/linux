@@ -540,6 +540,10 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 
 void kmem_cache_destroy(struct kmem_cache *c)
 {
+	mutex_lock(&slab_mutex);
+	list_del(&c->list);
+	mutex_unlock(&slab_mutex);
+
 	kmemleak_free(c);
 	if (c->flags & SLAB_DESTROY_BY_RCU)
 		rcu_barrier();

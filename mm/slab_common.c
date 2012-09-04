@@ -111,6 +111,13 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 	if (!s)
 		err = -ENOSYS; /* Until __kmem_cache_create returns code */
 
+	/*
+	 * Check if the slab has actually been created and if it was a
+	 * real instatiation. Aliases do not belong on the list
+	 */
+	if (s && s->refcount == 1)
+		list_add(&s->list, &slab_caches);
+
 out_locked:
 	mutex_unlock(&slab_mutex);
 	put_online_cpus();

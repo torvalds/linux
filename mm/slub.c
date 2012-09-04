@@ -3975,7 +3975,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 				size, align, flags, ctor)) {
 			int r;
 
-			list_add(&s->list, &slab_caches);
 			mutex_unlock(&slab_mutex);
 			r = sysfs_slab_add(s);
 			mutex_lock(&slab_mutex);
@@ -3983,7 +3982,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 			if (!r)
 				return s;
 
-			list_del(&s->list);
 			kmem_cache_close(s);
 		}
 		kmem_cache_free(kmem_cache, s);
