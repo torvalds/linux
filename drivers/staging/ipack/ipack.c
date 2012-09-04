@@ -63,11 +63,57 @@ static int ipack_bus_remove(struct device *device)
 	return 0;
 }
 
+#define ipack_device_attr(field, format_string)				\
+static ssize_t								\
+field##_show(struct device *dev, struct device_attribute *attr,		\
+		char *buf)						\
+{									\
+	struct ipack_device *idev = to_ipack_dev(dev);			\
+	return sprintf(buf, format_string, idev->field);		\
+}
+
+static ssize_t
+id_vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct ipack_device *idev = to_ipack_dev(dev);
+	switch (idev->id_format) {
+	case IPACK_ID_VERSION_1:
+		return sprintf(buf, "0x%02x\n", idev->id_vendor);
+	case IPACK_ID_VERSION_2:
+		return sprintf(buf, "0x%06x\n", idev->id_vendor);
+	default:
+		return -EIO;
+	}
+}
+
+static ssize_t
+id_device_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct ipack_device *idev = to_ipack_dev(dev);
+	switch (idev->id_format) {
+	case IPACK_ID_VERSION_1:
+		return sprintf(buf, "0x%02x\n", idev->id_device);
+	case IPACK_ID_VERSION_2:
+		return sprintf(buf, "0x%04x\n", idev->id_device);
+	default:
+		return -EIO;
+	}
+}
+
+ipack_device_attr(id_format, "0x%hhu\n");
+
+static struct device_attribute ipack_dev_attrs[] = {
+	__ATTR_RO(id_device),
+	__ATTR_RO(id_format),
+	__ATTR_RO(id_vendor),
+};
+
 static struct bus_type ipack_bus_type = {
-	.name  = "ipack",
-	.probe = ipack_bus_probe,
-	.match = ipack_bus_match,
-	.remove = ipack_bus_remove,
+	.name      = "ipack",
+	.probe     = ipack_bus_probe,
+	.match     = ipack_bus_match,
+	.remove    = ipack_bus_remove,
+	.dev_attrs = ipack_dev_attrs,
 };
 
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
@@ -117,6 +163,23 @@ void ipack_driver_unregister(struct ipack_driver *edrv)
 	driver_unregister(&edrv->driver);
 }
 EXPORT_SYMBOL_GPL(ipack_driver_unregister);
+
+static void ipack_parse_id1(struct ipack_device *dev)
+{
+	u8 *id = dev->id;
+
+	dev->id_vendor = id[4];
+	dev->id_device = id[5];
+}
+
+static void ipack_parse_id2(struct ipack_device *dev)
+{
+	__be16 *id = (__be16 *) dev->id;
+
+	dev->id_vendor = ((be16_to_cpu(id[3]) & 0xff) << 16)
+			 + be16_to_cpu(id[4]);
+	dev->id_device = be16_to_cpu(id[5]);
+}
 
 static int ipack_device_read_id(struct ipack_device *dev)
 {
@@ -181,6 +244,16 @@ static int ipack_device_read_id(struct ipack_device *dev)
 			dev->id[i] = ioread8(idmem + (i << 1) + 1);
 		else
 			dev->id[i] = ioread8(idmem + i);
+	}
+
+	/* now we can finally work with the copy */
+	switch (dev->id_format) {
+	case IPACK_ID_VERSION_1:
+		ipack_parse_id1(dev);
+		break;
+	case IPACK_ID_VERSION_2:
+		ipack_parse_id2(dev);
+		break;
 	}
 
 out:

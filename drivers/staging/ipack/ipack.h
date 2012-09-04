@@ -74,8 +74,10 @@ struct ipack_device {
 	struct ipack_addr_space io_space;
 	struct ipack_addr_space mem_space;
 	struct device dev;
-	unsigned char           *id;
+	u8                      *id;
 	size_t			 id_avail;
+	u32			 id_vendor;
+	u32			 id_device;
 	u8			 id_format;
 };
 
