@@ -9,6 +9,7 @@
  * Software Foundation; version 2 of the License.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/device.h>
 
 #define IPACK_IDPROM_OFFSET_I			0x01
@@ -95,6 +96,7 @@ struct ipack_driver_ops {
  */
 struct ipack_driver {
 	struct device_driver driver;
+	const struct ipack_device_id *id_table;
 	struct ipack_driver_ops *ops;
 };
 
@@ -169,3 +171,27 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  */
 struct ipack_device *ipack_device_register(struct ipack_bus_device *bus, int slot, int irqv);
 void ipack_device_unregister(struct ipack_device *dev);
+
+/**
+ * DEFINE_IPACK_DEVICE_TABLE - macro used to describe a IndustryPack table
+ * @_table: device table name
+ *
+ * This macro is used to create a struct ipack_device_id array (a device table)
+ * in a generic manner.
+ */
+#define DEFINE_IPACK_DEVICE_TABLE(_table) \
+	const struct ipack_device_id _table[] __devinitconst
+
+/**
+ * IPACK_DEVICE - macro used to describe a specific IndustryPack device
+ * @_format: the format version (currently either 1 or 2, 8 bit value)
+ * @vend:    the 8 or 24 bit IndustryPack Vendor ID
+ * @dev:     the 8 or 16  bit IndustryPack Device ID
+ *
+ * This macro is used to create a struct ipack_device_id that matches a specific
+ * device.
+ */
+#define IPACK_DEVICE(_format, vend, dev) \
+	 .format = (_format), \
+	 .vendor = (vend), \
+	 .device = (dev)

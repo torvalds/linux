@@ -966,6 +966,21 @@ static int do_isapnp_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("isapnp", struct isapnp_device_id, do_isapnp_entry);
 
+/* Looks like: "ipack:fNvNdN". */
+static int do_ipack_entry(const char *filename,
+			  struct ipack_device_id *id, char *alias)
+{
+	id->vendor = TO_NATIVE(id->vendor);
+	id->device = TO_NATIVE(id->device);
+	strcpy(alias, "ipack:");
+	ADD(alias, "f", id->format != IPACK_ANY_ID, id->format);
+	ADD(alias, "v", id->vendor != IPACK_ANY_ID, id->vendor);
+	ADD(alias, "d", id->device != IPACK_ANY_ID, id->device);
+	add_wildcard(alias);
+	return 1;
+}
+ADD_TO_DEVTABLE("ipack", struct ipack_device_id, do_ipack_entry);
+
 /*
  * Append a match expression for a single masked hex digit.
  * outp points to a pointer to the character at which to append.
