@@ -95,7 +95,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
 		       &time_ns, sizeof(time_ns));
 
-	indio_dev->buffer->access->store_to(indio_dev->buffer, buf, time_ns);
+	iio_push_to_buffer(indio_dev->buffer, buf, time_ns);
 done:
 	kfree(buf);
 	iio_trigger_notify_done(indio_dev->trig);

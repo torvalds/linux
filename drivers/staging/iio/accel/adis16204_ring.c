@@ -59,7 +59,6 @@ static irqreturn_t adis16204_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16204_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0;
 	s16 *data;
 
@@ -79,7 +78,7 @@ static irqreturn_t adis16204_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
-	ring->access->store_to(ring, (u8 *)data, pf->timestamp);
+	iio_push_to_buffer(indio_dev->buffer, (u8 *)data, pf->timestamp);
 
 	kfree(data);
 done:
