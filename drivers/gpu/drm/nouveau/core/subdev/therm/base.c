@@ -40,6 +40,8 @@ nouveau_therm_attr_get(struct nouveau_therm *therm,
 		return priv->bios_fan.min_duty;
 	case NOUVEAU_THERM_ATTR_FAN_MAX_DUTY:
 		return priv->bios_fan.max_duty;
+	case NOUVEAU_THERM_ATTR_FAN_MODE:
+		return priv->fan.mode;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		return priv->bios_sensor.thrs_fan_boost.temp;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST_HYST:
@@ -82,6 +84,8 @@ nouveau_therm_attr_set(struct nouveau_therm *therm,
 			value = priv->bios_fan.min_duty;
 		priv->bios_fan.max_duty = value;
 		return 0;
+	case NOUVEAU_THERM_ATTR_FAN_MODE:
+		return nouveau_therm_fan_set_mode(therm, value);
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		priv->bios_sensor.thrs_fan_boost.temp = value;
 		return 0;

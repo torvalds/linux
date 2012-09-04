@@ -503,6 +503,45 @@ nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
 static SENSOR_DEVICE_ATTR(fan0_input, S_IRUGO, nouveau_hwmon_show_fan0_input,
 			  NULL, 0);
 
+ static ssize_t
+nouveau_hwmon_get_pwm1_enable(struct device *d,
+			   struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	int ret;
+
+	ret = therm->attr_get(therm, NOUVEAU_THERM_ATTR_FAN_MODE);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%i\n", ret);
+}
+
+static ssize_t
+nouveau_hwmon_set_pwm1_enable(struct device *d, struct device_attribute *a,
+			   const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
+	long value;
+	int ret;
+
+	if (strict_strtol(buf, 10, &value) == -EINVAL)
+		return -EINVAL;
+
+	ret = therm->attr_set(therm, NOUVEAU_THERM_ATTR_FAN_MODE, value);
+	if (ret)
+		return ret;
+	else
+		return count;
+}
+static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm1_enable,
+			  nouveau_hwmon_set_pwm1_enable, 0);
+
 static ssize_t
 nouveau_hwmon_get_pwm1(struct device *d, struct device_attribute *a, char *buf)
 {
@@ -638,6 +677,7 @@ static struct attribute *hwmon_fan_rpm_attributes[] = {
 	NULL
 };
 static struct attribute *hwmon_pwm_fan_attributes[] = {
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm1_min.dev_attr.attr,
 	&sensor_dev_attr_pwm1_max.dev_attr.attr,

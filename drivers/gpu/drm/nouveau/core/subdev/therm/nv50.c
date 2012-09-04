@@ -136,8 +136,8 @@ nv50_therm_ctor(struct nouveau_object *parent,
 	priv->fan.pwm_clock = nv50_fan_pwm_clock;
 
 	therm->temp_get = nv50_temp_get;
-	therm->fan_get = nouveau_therm_fan_get;
-	therm->fan_set = nouveau_therm_fan_set;
+	therm->fan_get = nouveau_therm_fan_user_get;
+	therm->fan_set = nouveau_therm_fan_user_set;
 	therm->fan_sense = nouveau_therm_fan_sense;
 	therm->attr_get = nouveau_therm_attr_get;
 	therm->attr_set = nouveau_therm_attr_set;
