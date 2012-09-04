@@ -1,9 +1,22 @@
-menu "RK_HDMI"
-config RK_HDMI
-       bool "RK_HDMI support"
+menuconfig RK_HDMI
+       bool "Rockchip HDMI support"
+       select FB_MODE_HELPERS
        
 if RK_HDMI
 source "drivers/video/rockchip/hdmi/chips/Kconfig"
 endif
 
-endmenu
+config RK_HDMI_DEBUG
+		bool "Rockchip HDMI Debugging"
+        depends on RK_HDMI
+        default n
+		help
+		  Enableds verbose debugging the the HDMI drivers
+
+config RK_HDMI_CTL_CODEC
+		bool "Mute Codec When HDMI Actived"
+		depends on RK_HDMI
+		default n
+		help
+			If you say y heres, Codec will be mute when hdmi inserted,
+			and unmute when removed. 

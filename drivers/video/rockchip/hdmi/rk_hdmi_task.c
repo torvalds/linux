@@ -2,7 +2,7 @@
 #include <linux/delay.h>
 #include "rk_hdmi.h"
 
-#ifdef CONFIG_HDMI_RK30_CTL_CODEC
+#ifdef CONFIG_RK_HDMI_CTL_CODEC
 extern void codec_set_spk(bool on);
 #endif
 
@@ -80,12 +80,12 @@ void hdmi_sys_remove(void)
 	memset(&hdmi->edid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	hdmi->display	= HDMI_DISABLE;
-	rk_fb_switch_screen(hdmi->lcdc->screen1, 0, HDMI_SOURCE_DEFAULT);
+	rk_fb_switch_screen(hdmi->lcdc->screen1, 0, hdmi->lcdc->id);
 	kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switch_hdmi), 0);
 	#endif
-	#ifdef CONFIG_HDMI_RK30_CTL_CODEC
+	#ifdef CONFIG_RK_HDMI_CTL_CODEC
 	codec_set_spk(1);
 	#endif
 }
@@ -96,7 +96,7 @@ static void hdmi_sys_sleep(void)
 	if(hdmi->enable)
 		disable_irq(hdmi->irq);				
 	hdmi->state = HDMI_SLEEP;
-	hdmi->hdmi_removed();
+	hdmi->remove();
 	if(hdmi->enable)
 		enable_irq(hdmi->irq);
 	mutex_unlock(&hdmi->enable_mutex);
@@ -121,7 +121,7 @@ static int hdmi_process_command(void)
 						hdmi_sys_remove();
 					hdmi->state = HDMI_SLEEP;
 					hdmi->hotplug = HDMI_HPD_REMOVED;
-					hdmi->hdmi_removed();
+					hdmi->remove();
 					state = HDMI_SLEEP;
 				}
 				mutex_unlock(&hdmi->enable_mutex);
@@ -183,6 +183,8 @@ void hdmi_work(struct work_struct *work)
 	if(hotplug != hdmi->hotplug)
 	{
 		if(hotplug  == HDMI_HPD_ACTIVED){
+			if(hdmi->insert)
+				hdmi->insert();
 			hdmi->state = READ_PARSE_EDID;
 		}
 		else if(hdmi->hotplug == HDMI_HPD_ACTIVED) {
@@ -192,7 +194,7 @@ void hdmi_work(struct work_struct *work)
 				hdmi_sys_sleep();
 			else {
 				hdmi->state = WAIT_HOTPLUG;
-				hdmi->hdmi_removed();
+				hdmi->remove();
 			}
 			if(hdmi->wait == 1) {
 				complete(&hdmi->complete);
@@ -203,7 +205,7 @@ void hdmi_work(struct work_struct *work)
 		}
 		else if(hotplug == HDMI_HPD_REMOVED) {
 			hdmi->state = HDMI_SLEEP;
-			hdmi->hdmi_removed();
+			hdmi->remove();
 		}
 		hdmi->hotplug  = hotplug;
 	}
@@ -224,7 +226,7 @@ void hdmi_work(struct work_struct *work)
 					#ifdef CONFIG_SWITCH
 					switch_set_state(&(hdmi->switch_hdmi), 1);
 					#endif
-					#ifdef CONFIG_HDMI_RK30_CTL_CODEC
+					#ifdef CONFIG_RK_HDMI_CTL_CODEC
 					codec_set_spk(0);
 					#endif
 				}
@@ -297,15 +299,6 @@ void hdmi_work(struct work_struct *work)
 	
 	}while((hdmi->state != state_last || (rc != HDMI_ERROR_SUCESS) ) && trytimes < HDMI_MAX_TRY_TIMES);
 	
-//	if(trytimes == HDMI_MAX_TRY_TIMES)
-//	{
-//		if(hdmi->hotplug) {
-//			hdmi_sys_remove();
-//			hdmi->hotplug = HDMI_HPD_REMOVED;
-//			hdmi_sys_sleep();
-//
-//		}
-//	}
 	hdmi_dbg(hdmi->dev, "[%s] done\n", __FUNCTION__);
 	mutex_unlock(&work_mutex);
 }

@@ -8,7 +8,7 @@
 #define SWAP_RB			0
 #define LCD_ACLK		800000000
 
-const struct fb_videomode hdmi_mode [] = {
+static const struct fb_videomode hdmi_mode [] = {
 	//name				refresh		xres	yres	pixclock	h_bp	h_fp	v_bp	v_fp	h_pw	v_pw	polariry	PorI	flag(used for vic)
 //{	"640x480p@60Hz",	60,			640,	480,	25175000,	48,		16,		33,		10,		96,		2,		0,			0,		1	},
 //{	"720x480i@60Hz",	60,			720,	480,	27000000,	114,	38,		15,		4,		124,	3,		0,			1,		6	},
@@ -507,9 +507,12 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 	rc = hdmi_set_info(screen, hdmi->vic);
 
 	if(rc == 0) {		
-		rk_fb_switch_screen(screen, 1, HDMI_SOURCE_DEFAULT);
-		rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, HDMI_SOURCE_DEFAULT);
+		rk_fb_switch_screen(screen, 1, hdmi->lcdc->id);
+		rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, hdmi->lcdc->id);
 	}
+	
+	kfree(screen);
+	
 	return rc;
 }
 

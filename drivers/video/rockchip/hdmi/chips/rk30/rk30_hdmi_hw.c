@@ -16,7 +16,7 @@ int rk30_hdmi_initial(void)
 	int rc = HDMI_ERROR_SUCESS;
 
 	hdmi->pwr_mode = PWR_SAVE_MODE_A;
-	hdmi->hdmi_removed = rk30_hdmi_removed ;
+	hdmi->remove = rk30_hdmi_removed ;
 	hdmi->control_output = rk30_hdmi_control_output;
 	hdmi->config_video = rk30_hdmi_config_video;
 	hdmi->config_audio = rk30_hdmi_config_audio;
@@ -144,11 +144,12 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 		}		
 		if(interrupt & m_INT_EDID_ERR)
 			hdmi_err(hdmi->dev, "[%s] edid read error\n", __FUNCTION__);
-
+		
+		hdmi_dbg(hdmi->dev, "[%s] edid try times %d\n", __FUNCTION__, trytime);
+		msleep(100);
 	}
 	// Disable edid interrupt
 	HDMIWrReg(INTR_MASK1, m_INT_HOTPLUG | m_INT_MSENS);
-//	msleep(100);
 	return ret;
 }
 

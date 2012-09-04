@@ -112,7 +112,7 @@ static int hdmi_set_scale(struct rk_display_device *device, int direction, int v
 		hdmi->yscale = value;
 	else
 		return -1;
-	rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, HDMI_SOURCE_DEFAULT);
+	rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, hdmi->lcdc->id);
 	return 0;
 }
 

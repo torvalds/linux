@@ -143,7 +143,9 @@ int rk2928_hdmi_read_edid(int block, unsigned char *buff)
 			break;
 		}else
 			hdmi_err(hdmi->dev, "[%s] edid read error\n", __FUNCTION__);
-
+			
+		hdmi_dbg(hdmi->dev, "[%s] edid try times %d\n", __FUNCTION__, trytime);
+		msleep(100);
 	}
 	// Disable edid interrupt
 	HDMIWrReg(INTERRUPT_MASK1, m_INT_HOTPLUG);
@@ -366,7 +368,7 @@ static int rk2928_hdmi_config_audio(struct hdmi_audio *audio)
     return 0;
 }
 
-static void rk2928_hdmi_control_output(int enable)
+void rk2928_hdmi_control_output(int enable)
 {
 	char mutestatus = 0;
 	
@@ -444,7 +446,7 @@ int rk2928_hdmi_initial(void)
 	int rc = HDMI_ERROR_SUCESS;
 
 	hdmi->pwr_mode = NORMAL;
-	hdmi->hdmi_removed = rk2928_hdmi_removed ;
+	hdmi->remove = rk2928_hdmi_removed ;
 	hdmi->control_output = rk2928_hdmi_control_output;
 	hdmi->config_video = rk2928_hdmi_config_video;
 	hdmi->config_audio = rk2928_hdmi_config_audio;

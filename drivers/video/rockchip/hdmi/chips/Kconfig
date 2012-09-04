@@ -3,13 +3,11 @@ choice
 config  HDMI_RK30
         bool "RK30 HDMI support"
         depends on LCDC_RK30
-        select FB_MODE_HELPERS
         help
            Support rk30 hdmi if you say y here
 config  HDMI_RK2928
         bool "RK2928 HDMI support"
         depends on LCDC_RK2928
-        select FB_MODE_HELPERS
         help
            Support rk2928 hdmi if you say y here
 endchoice

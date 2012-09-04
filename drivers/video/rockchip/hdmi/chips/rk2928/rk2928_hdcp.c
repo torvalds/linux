@@ -5,9 +5,8 @@
 #include <linux/miscdevice.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
-#include "../rk30_hdmi.h"
-#include "../rk30_hdmi_hw.h"
-#include "rk30_hdmi_hdcp.h"
+#include "rk2928_hdmi.h"
+#include "rk2928_hdcp.h"
 
 struct hdcp *hdcp = NULL;
 
@@ -70,11 +69,11 @@ static void hdcp_wq_authentication_failure(void)
 		return;
 	}
 
-	rk30_hdcp_disable();
-	rk30_hdmi_control_output(false);
+	rk2928_hdcp_disable();
+	rk2928_hdmi_control_output(false);
 	
 	hdcp_cancel_work(&hdcp->pending_wq_event);
-
+	
 	if (hdcp->retry_cnt && (hdcp->hdmi_state != HDMI_STOPPED)) {
 		if (hdcp->retry_cnt < HDCP_INFINITE_REAUTH) {
 			hdcp->retry_cnt--;
@@ -109,13 +108,14 @@ static void hdcp_wq_start_authentication(void)
 
 	DBG("HDCP: authentication start");
 
-	status = rk30_hdcp_start_authentication();
+	status = rk2928_hdcp_start_authentication();
 
 	if (status != HDCP_OK) {
 		DBG("HDCP: authentication failed");
 		hdcp_wq_authentication_failure();
 	} else {
 		hdcp->hdcp_state = HDCP_WAIT_KSV_LIST;
+//		hdcp->hdcp_state = HDCP_LINK_INTEGRITY_CHECK;
 	}
 }
 
@@ -129,7 +129,7 @@ static void hdcp_wq_check_bksv(void)
 
 	DBG("Check BKSV start");
 	
-	status = rk30_hdcp_check_bksv();
+	status = rk2928_hdcp_check_bksv();
 
 	if (status != HDCP_OK) {
 		printk(KERN_INFO "HDCP: Check BKSV failed");
@@ -155,8 +155,8 @@ static void hdcp_wq_check_bksv(void)
  */
 static void hdcp_wq_authentication_sucess(void)
 {
+	rk2928_hdmi_control_output(true);
 	printk(KERN_INFO "HDCP: authentication pass");
-	rk30_hdmi_control_output(true);
 }
 
 /*-----------------------------------------------------------------------------
@@ -168,11 +168,11 @@ static void hdcp_wq_disable(int event)
 	printk(KERN_INFO "HDCP: disabled");
 
 	hdcp_cancel_work(&hdcp->pending_wq_event);
-	rk30_hdcp_disable();
+	rk2928_hdcp_disable();
 	if(event == HDCP_DISABLE_CTL) {
 		hdcp->hdcp_state = HDCP_DISABLED;
 		if(hdcp->hdmi_state == HDMI_STARTED)
-			rk30_hdmi_control_output(true);			
+			rk2928_hdmi_control_output(true);
 	}
 	else if(event == HDCP_STOP_FRAME_EVENT)
 		hdcp->hdcp_state = HDCP_ENABLE_PENDING;
@@ -302,25 +302,24 @@ static void hdcp_start_frame_cb(void)
  * Function: hdcp_irq_cb
  *-----------------------------------------------------------------------------
  */
-static void hdcp_irq_cb(int interrupt)
+static void hdcp_irq_cb(int status)
 {
-	int value;
-	DBG("%s 0x%x", __FUNCTION__, interrupt);
-	if(interrupt & m_INT_HDCP_ERR)
+	char interrupt1;
+	char interrupt2;
+	
+	rk2928_hdcp_interrupt(&interrupt1, &interrupt2);
+	DBG("%s 0x%02x 0x%02x", __FUNCTION__, interrupt1, interrupt2);
+	if(interrupt1 & m_INT_HDCP_ERR)
 	{
-		value = HDMIRdReg(HDCP_ERROR);
-		HDMIWrReg(HDCP_ERROR, value);
-		printk(KERN_INFO "HDCP: Error 0x%02x\n", value);
-		
 		if( (hdcp->hdcp_state != HDCP_DISABLED) &&
 			(hdcp->hdcp_state != HDCP_ENABLE_PENDING) )
 		{	
 			hdcp_submit_work(HDCP_FAIL_EVENT, 0);
 		}
 	}
-	else if(interrupt & (m_INT_BKSV_RPRDY | m_INT_BKSV_RCRDY))
+	else if(interrupt1 & (m_INT_BKSV_READY | m_INT_BKSV_UPDATE))
 		hdcp_submit_work(HDCP_KSV_LIST_RDY_EVENT, 0);
-	else if(interrupt & m_INT_AUTH_DONE)
+	else if(interrupt1 & m_INT_AUTH_SUCCESS)
 		hdcp_submit_work(HDCP_AUTH_PASS_EVENT, 0);
 }
 
@@ -331,7 +330,8 @@ static void hdcp_irq_cb(int interrupt)
 static int hdcp_power_on_cb(void)
 {
 	DBG("%s", __FUNCTION__);
-	return rk30_hdcp_load_key2mem(hdcp->keys);
+//	return rk2928_hdcp_load_key2mem(hdcp->keys);
+	return HDCP_OK;
 }
 
 /*-----------------------------------------------------------------------------
@@ -350,7 +350,7 @@ static void hdcp_power_off_cb(void)
 	/* Post event to workqueue */
 	if (hdcp_submit_work(HDCP_STOP_FRAME_EVENT, 0))	
 		wait_for_completion_interruptible_timeout(&hdcp->complete,
-							msecs_to_jiffies(2000));
+							msecs_to_jiffies(5000));
 }
 
 // Load HDCP key to external HDCP memory
@@ -374,8 +374,7 @@ static void hdcp_load_keys_cb(const struct firmware *fw, void *context)
 	
 	memcpy(hdcp->keys, fw->data, HDCP_KEY_SIZE);
 	
-	rk30_hdcp_load_key2mem(hdcp->keys);
-	printk(KERN_INFO "HDCP: loaded hdcp key success\n");
+	printk(KERN_INFO "HDCP: load hdcp key success\n");
 
 	if(fw->size > HDCP_KEY_SIZE) {
 		DBG("%s invalid key size %d", __FUNCTION__, fw->size - HDCP_KEY_SIZE);
@@ -468,7 +467,7 @@ static DEVICE_ATTR(trytimes, S_IRUGO|S_IWUSR, hdcp_trytimes_read, hdcp_trytimes_
 
 static struct miscdevice mdev;
 
-static int __init rk30_hdcp_init(void)
+static int __init rk2928_hdcp_init(void)
 {
 	int ret;
 	
@@ -523,7 +522,7 @@ static int __init rk30_hdcp_init(void)
 		goto error5;
 	}
 	
-	rk30_hdmi_register_hdcp_callbacks(	hdcp_start_frame_cb,
+	rk2928_hdmi_register_hdcp_callbacks(hdcp_start_frame_cb,
 										hdcp_irq_cb,
 										hdcp_power_on_cb,
 										hdcp_power_off_cb);
@@ -549,22 +548,16 @@ error0:
 	return ret;
 }
 
-static void __exit rk30_hdcp_exit(void)
+static void __exit rk2928_hdcp_exit(void)
 {
-	if(hdcp) {
-		mutex_lock(&hdcp->lock);
-		rk30_hdmi_register_hdcp_callbacks(0, 0, 0, 0);
-		device_remove_file(mdev.this_device, &dev_attr_enable);
-		misc_deregister(&mdev);
-		destroy_workqueue(hdcp->workqueue);
-		if(hdcp->keys)
-			kfree(hdcp->keys);
-		if(hdcp->invalidkeys)
-			kfree(hdcp->invalidkeys);
-		mutex_unlock(&hdcp->lock);
-		kfree(hdcp);
-	}
+	device_remove_file(mdev.this_device, &dev_attr_enable);
+	misc_deregister(&mdev);
+	if(hdcp->keys)
+		kfree(hdcp->keys);
+	if(hdcp->invalidkeys)
+		kfree(hdcp->invalidkeys);
+	kfree(hdcp);
 }
 
-module_init(rk30_hdcp_init);
-module_exit(rk30_hdcp_exit);
+module_init(rk2928_hdcp_init);
+module_exit(rk2928_hdcp_exit);

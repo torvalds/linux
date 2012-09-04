@@ -27,12 +27,6 @@ enum {
 	HDMI_SOURCE_LCDC1 = 1
 };
 
-/* default HDMI video source */
-#ifdef CONFIG_ARCH_RK2928
-#define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC0
-#else
-#define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC1
-#endif
 /* If HDMI_ENABLE, system will auto configure output mode according to EDID 
  * If HDMI_DISABLE, system will output mode according to macro HDMI_VIDEO_DEFAULT_MODE
  */
@@ -244,7 +238,6 @@ struct hdmi_edid {
 	int	audio_num;						//Device supported audio type number
 };
 
-extern const struct fb_videomode hdmi_mode[];
 /* RK HDMI Video Configure Parameters */
 struct hdmi_video_para {
 	int vic;
@@ -253,6 +246,7 @@ struct hdmi_video_para {
 	int output_mode;	//output hdmi or dvi
 	int output_color;	//output video color mode
 };
+
 struct hdmi {
 	struct device	*dev;
 	struct clk		*hclk;				//HDMI AHP clk
@@ -296,8 +290,8 @@ struct hdmi {
 	int yscale;					// y directoon scale value
 	int tmdsclk;				// TDMS Clock frequency
 	
-
-	int (*hdmi_removed)(void);
+	int (*insert)(void);
+	int (*remove)(void);
 	void (*control_output)(int enable);
 	int (*config_video)(struct hdmi_video_para *vpara);
 	int (*config_audio)(struct hdmi_audio *audio);
@@ -323,8 +317,6 @@ struct hdmi {
 #endif
 
 extern struct hdmi *hdmi;
-extern struct hdmi *hdmi_register(int extra);
-extern void hdmi_unregister(struct hdmi *hdmi);
 extern int hdmi_get_hotplug(void);
 extern int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic);
 extern void hdmi_init_lcdc(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
@@ -338,6 +330,5 @@ extern struct hdmi_video_timing * hdmi_find_mode(int vic);
 extern int hdmi_find_best_mode(struct hdmi* hdmi, int vic);
 extern int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok);
 extern int hdmi_switch_fb(struct hdmi *hdmi, int vic);
-extern void hdmi_sys_remove(void);
-
+extern void hdmi_work(struct work_struct *work);
 #endif
