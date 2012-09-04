@@ -67,13 +67,14 @@ struct timekeeper {
 };
 
 
-#ifdef CONFIG_GENERIC_TIME_VSYSCALL
+#ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
 extern void
-update_vsyscall(struct timespec *ts, struct timespec *wtm,
+update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
 			struct clocksource *c, u32 mult);
 extern void update_vsyscall_tz(void);
 #else
-static inline void update_vsyscall(struct timespec *ts, struct timespec *wtm,
+static inline void
+update_vsyscall_old(struct timespec *ts, struct timespec *wtm,
 					struct clocksource *c, u32 mult)
 {
 }

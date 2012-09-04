@@ -38,7 +38,7 @@ config IA64
 	select ARCH_TASK_STRUCT_ALLOCATOR
 	select ARCH_THREAD_INFO_ALLOCATOR
 	select ARCH_CLOCKSOURCE_DATA
-	select GENERIC_TIME_VSYSCALL
+	select GENERIC_TIME_VSYSCALL_OLD
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
