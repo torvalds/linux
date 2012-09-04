@@ -1265,12 +1265,15 @@ static void __cpuinit powernowk8_cpu_init_on_cpu(void *_init_on_cpu)
 	init_on_cpu->rc = 0;
 }
 
+static const char missing_pss_msg[] =
+	KERN_ERR
+	FW_BUG PFX "No compatible ACPI _PSS objects found.\n"
+	FW_BUG PFX "First, make sure Cool'N'Quiet is enabled in the BIOS.\n"
+	FW_BUG PFX "If that doesn't help, try upgrading your BIOS.\n";
+
 /* per CPU init entry point to the driver */
 static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 {
-	static const char ACPI_PSS_BIOS_BUG_MSG[] =
-		KERN_ERR FW_BUG PFX "No compatible ACPI _PSS objects found.\n"
-		FW_BUG PFX "Try again with latest BIOS.\n";
 	struct powernow_k8_data *data;
 	struct init_on_cpu init_on_cpu;
 	int rc;
@@ -1298,7 +1301,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-			printk_once(ACPI_PSS_BIOS_BUG_MSG);
+			printk_once(missing_pss_msg);
 			goto err_out;
 		}
 		if (pol->cpu != 0) {
