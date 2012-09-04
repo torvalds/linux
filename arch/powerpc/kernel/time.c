@@ -73,7 +73,7 @@
 /* powerpc clocksource/clockevent code */
 
 #include <linux/clockchips.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 
 static cycle_t rtc_read(struct clocksource *);
 static struct clocksource clocksource_rtc = {

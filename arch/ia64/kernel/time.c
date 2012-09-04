@@ -19,7 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/efi.h>
 #include <linux/timex.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/platform_device.h>
 
 #include <asm/machvec.h>

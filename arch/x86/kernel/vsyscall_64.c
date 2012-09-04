@@ -28,7 +28,7 @@
 #include <linux/jiffies.h>
 #include <linux/sysctl.h>
 #include <linux/topology.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/getcpu.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
