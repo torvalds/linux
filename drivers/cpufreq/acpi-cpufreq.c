@@ -51,6 +51,8 @@ MODULE_AUTHOR("Paul Diefenbaugh, Dominik Brodowski");
 MODULE_DESCRIPTION("ACPI Processor P-States Driver");
 MODULE_LICENSE("GPL");
 
+#define PFX "acpi-cpufreq: "
+
 enum {
 	UNDEFINED_CAPABLE = 0,
 	SYSTEM_INTEL_MSR_CAPABLE,
@@ -585,6 +587,14 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (bios_with_sw_any_bug && cpumask_weight(policy->cpus) == 1) {
 		policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
 		cpumask_copy(policy->cpus, cpu_core_mask(cpu));
+	}
+
+	if (check_amd_hwpstate_cpu(cpu) && !acpi_pstate_strict) {
+		cpumask_clear(policy->cpus);
+		cpumask_set_cpu(cpu, policy->cpus);
+		cpumask_copy(policy->related_cpus, cpu_sibling_mask(cpu));
+		policy->shared_type = CPUFREQ_SHARED_TYPE_HW;
+		pr_info_once(PFX "overriding BIOS provided _PSD data\n");
 	}
 #endif
 
