@@ -120,6 +120,36 @@ field##_show(struct device *dev, struct device_attribute *attr,		\
 	return sprintf(buf, format_string, idev->field);		\
 }
 
+static ssize_t id_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
+{
+	unsigned int i, c, l, s;
+	struct ipack_device *idev = to_ipack_dev(dev);
+
+
+	switch (idev->id_format) {
+	case IPACK_ID_VERSION_1:
+		l = 0x7; s = 1; break;
+	case IPACK_ID_VERSION_2:
+		l = 0xf; s = 2; break;
+	default:
+		return -EIO;
+	}
+	c = 0;
+	for (i = 0; i < idev->id_avail; i++) {
+		if (i > 0) {
+			if ((i & l) == 0)
+				buf[c++] = '\n';
+			else if ((i & s) == 0)
+				buf[c++] = ' ';
+		}
+		sprintf(&buf[c], "%02x", idev->id[i]);
+		c += 2;
+	}
+	buf[c++] = '\n';
+	return c;
+}
+
 static ssize_t
 id_vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -160,6 +190,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 ipack_device_attr(id_format, "0x%hhu\n");
 
 static struct device_attribute ipack_dev_attrs[] = {
+	__ATTR_RO(id),
 	__ATTR_RO(id_device),
 	__ATTR_RO(id_format),
 	__ATTR_RO(id_vendor),
