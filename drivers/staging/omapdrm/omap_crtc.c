@@ -155,6 +155,7 @@ static void page_flip_cb(void *arg)
 	struct drm_crtc *crtc = arg;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
+	struct drm_gem_object *bo;
 
 	omap_crtc->old_fb = NULL;
 
@@ -165,6 +166,9 @@ static void page_flip_cb(void *arg)
 	 * cycle.. for now go for correctness and later figure out speed..
 	 */
 	omap_plane_on_endwin(omap_crtc->plane, vblank_cb, crtc);
+
+	bo = omap_framebuffer_bo(crtc->fb, 0);
+	drm_gem_object_unreference_unlocked(bo);
 }
 
 static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
@@ -173,6 +177,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_gem_object *bo;
 
 	DBG("%d -> %d", crtc->fb ? crtc->fb->base.id : -1, fb->base.id);
 
@@ -185,8 +190,15 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	omap_crtc->event = event;
 	crtc->fb = fb;
 
-	omap_gem_op_async(omap_framebuffer_bo(fb, 0), OMAP_GEM_READ,
-			page_flip_cb, crtc);
+	/*
+	 * Hold a reference temporarily until the crtc is updated
+	 * and takes the reference to the bo.  This avoids it
+	 * getting freed from under us:
+	 */
+	bo = omap_framebuffer_bo(fb, 0);
+	drm_gem_object_reference(bo);
+
+	omap_gem_op_async(bo, OMAP_GEM_READ, page_flip_cb, crtc);
 
 	return 0;
 }
