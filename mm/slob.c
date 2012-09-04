@@ -538,10 +538,6 @@ struct kmem_cache *__kmem_cache_create(const char *name, size_t size,
 	return c;
 }
 
-void __kmem_cache_destroy(struct kmem_cache *c)
-{
-}
-
 void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 {
 	void *b;
