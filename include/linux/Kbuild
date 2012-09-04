@@ -363,6 +363,7 @@ header-y += sysctl.h
 header-y += sysinfo.h
 header-y += taskstats.h
 header-y += tcp.h
+header-y += tcp_metrics.h
 header-y += telephony.h
 header-y += termios.h
 header-y += time.h
