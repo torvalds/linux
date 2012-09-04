@@ -40,8 +40,8 @@ struct ipoctal {
 	struct list_head		list;
 	struct ipack_device		*dev;
 	unsigned int			board_id;
-	struct scc2698_channel __iomem	*chan_regs;
-	struct scc2698_block __iomem	*block_regs;
+	union scc2698_channel __iomem	*chan_regs;
+	union scc2698_block __iomem	*block_regs;
 	struct ipoctal_stats		chan_stats[NR_CHANNELS];
 	unsigned int			nb_bytes[NR_CHANNELS];
 	unsigned int			count_wr[NR_CHANNELS];
@@ -103,7 +103,7 @@ static int ipoctal_port_activate(struct tty_port *port, struct tty_struct *tty)
 		return -ENODEV;
 	}
 
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_ENABLE_RX);
 	return 0;
 }
@@ -216,9 +216,9 @@ static int ipoctal_irq_handler(void *arg)
 		 */
 		block = channel / 2;
 		isr = ipoctal_read_io_reg(ipoctal,
-					  &ipoctal->block_regs[block].u.r.isr);
+					  &ipoctal->block_regs[block].r.isr);
 		sr = ipoctal_read_io_reg(ipoctal,
-					 &ipoctal->chan_regs[channel].u.r.sr);
+					 &ipoctal->chan_regs[channel].r.sr);
 
 		if ((channel % 2) == 1) {
 			isr_tx_rdy = isr & ISR_TxRDY_B;
@@ -235,13 +235,13 @@ static int ipoctal_irq_handler(void *arg)
 		    (sr & SR_TX_EMPTY) &&
 		    (ipoctal->nb_bytes[channel] == 0)) {
 			ipoctal_write_io_reg(ipoctal,
-					     &ipoctal->chan_regs[channel].u.w.cr,
+					     &ipoctal->chan_regs[channel].w.cr,
 					     CR_DISABLE_TX);
 			ipoctal_write_cr_cmd(ipoctal,
-					     &ipoctal->chan_regs[channel].u.w.cr,
+					     &ipoctal->chan_regs[channel].w.cr,
 					     CR_CMD_NEGATE_RTSN);
 			ipoctal_write_io_reg(ipoctal,
-					     &ipoctal->chan_regs[channel].u.w.cr,
+					     &ipoctal->chan_regs[channel].w.cr,
 					     CR_ENABLE_RX);
 			ipoctal->write = 1;
 			wake_up_interruptible(&ipoctal->queue[channel]);
@@ -250,13 +250,13 @@ static int ipoctal_irq_handler(void *arg)
 		/* RX data */
 		if (isr_rx_rdy && (sr & SR_RX_READY)) {
 			value = ipoctal_read_io_reg(ipoctal,
-						    &ipoctal->chan_regs[channel].u.r.rhr);
+						    &ipoctal->chan_regs[channel].r.rhr);
 			flag = TTY_NORMAL;
 
 			/* Error: count statistics */
 			if (sr & SR_ERROR) {
 				ipoctal_write_cr_cmd(ipoctal,
-						     &ipoctal->chan_regs[channel].u.w.cr,
+						     &ipoctal->chan_regs[channel].w.cr,
 						     CR_CMD_RESET_ERR_STATUS);
 
 				if (sr & SR_OVERRUN_ERROR) {
@@ -293,7 +293,7 @@ static int ipoctal_irq_handler(void *arg)
 
 			value = ipoctal->tty_port[channel].xmit_buf[*pointer_write];
 			ipoctal_write_io_reg(ipoctal,
-					     &ipoctal->chan_regs[channel].u.w.thr,
+					     &ipoctal->chan_regs[channel].w.thr,
 					     value);
 			ipoctal->chan_stats[channel].tx++;
 			ipoctal->count_wr[channel]++;
@@ -391,40 +391,40 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	/* Save the virtual address to access the registers easily */
 	ipoctal->chan_regs =
-		(struct scc2698_channel __iomem *) ipoctal->dev->io_space.address;
+		(union scc2698_channel __iomem *) ipoctal->dev->io_space.address;
 	ipoctal->block_regs =
-		(struct scc2698_block __iomem *) ipoctal->dev->io_space.address;
+		(union scc2698_block __iomem *) ipoctal->dev->io_space.address;
 
 	/* Disable RX and TX before touching anything */
 	for (i = 0; i < NR_CHANNELS ; i++) {
-		ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+		ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[i].w.cr,
 				     CR_DISABLE_RX | CR_DISABLE_TX);
-		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].w.cr,
 				     CR_CMD_RESET_RX);
-		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+		ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[i].w.cr,
 				     CR_CMD_RESET_TX);
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->chan_regs[i].u.w.mr,
+				     &ipoctal->chan_regs[i].w.mr,
 				     MR1_CHRL_8_BITS | MR1_ERROR_CHAR |
 				     MR1_RxINT_RxRDY); /* mr1 */
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->chan_regs[i].u.w.mr,
+				     &ipoctal->chan_regs[i].w.mr,
 				     0); /* mr2 */
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->chan_regs[i].u.w.csr,
+				     &ipoctal->chan_regs[i].w.csr,
 				     TX_CLK_9600  | RX_CLK_9600);
 	}
 
 	for (i = 0; i < IP_OCTAL_NB_BLOCKS; i++) {
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->block_regs[i].u.w.acr,
+				     &ipoctal->block_regs[i].w.acr,
 				     ACR_BRG_SET2);
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->block_regs[i].u.w.opcr,
+				     &ipoctal->block_regs[i].w.opcr,
 				     OPCR_MPP_OUTPUT | OPCR_MPOa_RTSN |
 				     OPCR_MPOb_RTSN);
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->block_regs[i].u.w.imr,
+				     &ipoctal->block_regs[i].w.imr,
 				     IMR_TxRDY_A | IMR_RxRDY_FFULL_A |
 				     IMR_DELTA_BREAK_A | IMR_TxRDY_B |
 				     IMR_RxRDY_FFULL_B | IMR_DELTA_BREAK_B);
@@ -495,7 +495,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		 * Enable again the RX. TX will be enabled when
 		 * there is something to send
 		 */
-		ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[i].u.w.cr,
+		ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[i].w.cr,
 				     CR_ENABLE_RX);
 	}
 
@@ -545,10 +545,10 @@ static int ipoctal_write(struct ipoctal *ipoctal, unsigned int channel,
 	/* As the IP-OCTAL 485 only supports half duplex, do it manually */
 	if (ipoctal->board_id == IP_OCTAL_485_ID) {
 		ipoctal_write_io_reg(ipoctal,
-				     &ipoctal->chan_regs[channel].u.w.cr,
+				     &ipoctal->chan_regs[channel].w.cr,
 				     CR_DISABLE_RX);
 		ipoctal_write_cr_cmd(ipoctal,
-				     &ipoctal->chan_regs[channel].u.w.cr,
+				     &ipoctal->chan_regs[channel].w.cr,
 				     CR_CMD_ASSERT_RTSN);
 	}
 
@@ -557,11 +557,11 @@ static int ipoctal_write(struct ipoctal *ipoctal, unsigned int channel,
 	 * operations
 	 */
 	ipoctal_write_io_reg(ipoctal,
-			     &ipoctal->chan_regs[channel].u.w.cr,
+			     &ipoctal->chan_regs[channel].w.cr,
 			     CR_ENABLE_TX);
 	wait_event_interruptible(ipoctal->queue[channel], ipoctal->write);
 	ipoctal_write_io_reg(ipoctal,
-			     &ipoctal->chan_regs[channel].u.w.cr,
+			     &ipoctal->chan_regs[channel].w.cr,
 			     CR_DISABLE_TX);
 
 	ipoctal->write = 0;
@@ -607,15 +607,15 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	cflag = tty->termios->c_cflag;
 
 	/* Disable and reset everything before change the setup */
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_DISABLE_RX | CR_DISABLE_TX);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_RX);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_TX);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_ERR_STATUS);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_MR);
 
 	/* Set Bits per chars */
@@ -729,12 +729,12 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 	mr1 |= MR1_RxINT_RxRDY;
 
 	/* Write the control registers */
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.mr, mr1);
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.mr, mr2);
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.csr, csr);
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.mr, mr1);
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.mr, mr2);
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.csr, csr);
 
 	/* Enable again the RX */
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_ENABLE_RX);
 }
 
@@ -755,15 +755,15 @@ static void ipoctal_hangup(struct tty_struct *tty)
 
 	tty_port_hangup(&ipoctal->tty_port[channel]);
 
-	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_io_reg(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_DISABLE_RX | CR_DISABLE_TX);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_RX);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_TX);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_ERR_STATUS);
-	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].u.w.cr,
+	ipoctal_write_cr_cmd(ipoctal, &ipoctal->chan_regs[channel].w.cr,
 			     CR_CMD_RESET_MR);
 
 	clear_bit(ASYNCB_INITIALIZED, &ipoctal->tty_port[channel].flags);

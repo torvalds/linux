@@ -15,78 +15,74 @@
 #define SCC2698_H_
 
 /*
- * struct scc2698_channel - Channel access to scc2698 IO
+ * union scc2698_channel - Channel access to scc2698 IO
  *
  * dn value are only spacer.
  *
  */
-struct scc2698_channel {
-	union {
-		struct {
-			u8 d0, mr;  /* Mode register 1/2*/
-			u8 d1, sr;  /* Status register */
-			u8 d2, r1;  /* reserved */
-			u8 d3, rhr; /* Receive holding register (R) */
-			u8 junk[8]; /* other crap for block control */
-		} __packed r; /* Read access */
-		struct {
-			u8 d0, mr;  /* Mode register 1/2 */
-			u8 d1, csr; /* Clock select register */
-			u8 d2, cr;  /* Command register */
-			u8 d3, thr; /* Transmit holding register */
-			u8 junk[8]; /* other crap for block control */
-		} __packed w; /* Write access */
-	} u;
-} __packed;
+union scc2698_channel {
+	struct {
+		u8 d0, mr;  /* Mode register 1/2*/
+		u8 d1, sr;  /* Status register */
+		u8 d2, r1;  /* reserved */
+		u8 d3, rhr; /* Receive holding register (R) */
+		u8 junk[8]; /* other crap for block control */
+	} __packed r; /* Read access */
+	struct {
+		u8 d0, mr;  /* Mode register 1/2 */
+		u8 d1, csr; /* Clock select register */
+		u8 d2, cr;  /* Command register */
+		u8 d3, thr; /* Transmit holding register */
+		u8 junk[8]; /* other crap for block control */
+	} __packed w; /* Write access */
+};
 
 /*
- * struct scc2698_block - Block access to scc2698 IO
+ * union scc2698_block - Block access to scc2698 IO
  *
  * The scc2698 contain 4 block.
  * Each block containt two channel a and b.
  * dn value are only spacer.
  *
  */
-struct scc2698_block {
-	union {
-		struct {
-			u8 d0, mra;  /* Mode register 1/2 (a) */
-			u8 d1, sra;  /* Status register (a) */
-			u8 d2, r1;   /* reserved */
-			u8 d3, rhra; /* Receive holding register (a) */
-			u8 d4, ipcr; /* Input port change register of block */
-			u8 d5, isr;  /* Interrupt status register of block */
-			u8 d6, ctur; /* Counter timer upper register of block */
-			u8 d7, ctlr; /* Counter timer lower register of block */
-			u8 d8, mrb;  /* Mode register 1/2 (b) */
-			u8 d9, srb;  /* Status register (b) */
-			u8 da, r2;   /* reserved */
-			u8 db, rhrb; /* Receive holding register (b) */
-			u8 dc, r3;   /* reserved */
-			u8 dd, ip;   /* Input port register of block */
-			u8 de, ctg;  /* Start counter timer of block */
-			u8 df, cts;  /* Stop counter timer of block */
-		} __packed r; /* Read access */
-		struct {
-			u8 d0, mra;  /* Mode register 1/2 (a) */
-			u8 d1, csra; /* Clock select register (a) */
-			u8 d2, cra;  /* Command register (a) */
-			u8 d3, thra; /* Transmit holding register (a) */
-			u8 d4, acr;  /* Auxiliary control register of block */
-			u8 d5, imr;  /* Interrupt mask register of block  */
-			u8 d6, ctu;  /* Counter timer upper register of block */
-			u8 d7, ctl;  /* Counter timer lower register of block */
-			u8 d8, mrb;  /* Mode register 1/2 (b) */
-			u8 d9, csrb; /* Clock select register (a) */
-			u8 da, crb;  /* Command register (b) */
-			u8 db, thrb; /* Transmit holding register (b) */
-			u8 dc, r1;   /* reserved */
-			u8 dd, opcr; /* Output port configuration register of block */
-			u8 de, r2;   /* reserved */
-			u8 df, r3;   /* reserved */
-		} __packed w; /* Write access */
-	} u;
-} __packed;
+union scc2698_block {
+	struct {
+		u8 d0, mra;  /* Mode register 1/2 (a) */
+		u8 d1, sra;  /* Status register (a) */
+		u8 d2, r1;   /* reserved */
+		u8 d3, rhra; /* Receive holding register (a) */
+		u8 d4, ipcr; /* Input port change register of block */
+		u8 d5, isr;  /* Interrupt status register of block */
+		u8 d6, ctur; /* Counter timer upper register of block */
+		u8 d7, ctlr; /* Counter timer lower register of block */
+		u8 d8, mrb;  /* Mode register 1/2 (b) */
+		u8 d9, srb;  /* Status register (b) */
+		u8 da, r2;   /* reserved */
+		u8 db, rhrb; /* Receive holding register (b) */
+		u8 dc, r3;   /* reserved */
+		u8 dd, ip;   /* Input port register of block */
+		u8 de, ctg;  /* Start counter timer of block */
+		u8 df, cts;  /* Stop counter timer of block */
+	} __packed r; /* Read access */
+	struct {
+		u8 d0, mra;  /* Mode register 1/2 (a) */
+		u8 d1, csra; /* Clock select register (a) */
+		u8 d2, cra;  /* Command register (a) */
+		u8 d3, thra; /* Transmit holding register (a) */
+		u8 d4, acr;  /* Auxiliary control register of block */
+		u8 d5, imr;  /* Interrupt mask register of block  */
+		u8 d6, ctu;  /* Counter timer upper register of block */
+		u8 d7, ctl;  /* Counter timer lower register of block */
+		u8 d8, mrb;  /* Mode register 1/2 (b) */
+		u8 d9, csrb; /* Clock select register (a) */
+		u8 da, crb;  /* Command register (b) */
+		u8 db, thrb; /* Transmit holding register (b) */
+		u8 dc, r1;   /* reserved */
+		u8 dd, opcr; /* Output port configuration register of block */
+		u8 de, r2;   /* reserved */
+		u8 df, r3;   /* reserved */
+	} __packed w; /* Write access */
+};
 
 #define MR1_CHRL_5_BITS             (0x0 << 0)
 #define MR1_CHRL_6_BITS             (0x1 << 0)
