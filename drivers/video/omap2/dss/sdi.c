@@ -42,6 +42,8 @@ static struct {
 
 static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
 	sdi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
 	sdi.mgr_config.stallmode = false;
@@ -50,19 +52,20 @@ static void sdi_config_lcd_manager(struct omap_dss_device *dssdev)
 	sdi.mgr_config.video_port_width = 24;
 	sdi.mgr_config.lcden_sig_polarity = 1;
 
-	dss_mgr_set_lcd_config(dssdev->manager, &sdi.mgr_config);
+	dss_mgr_set_lcd_config(mgr, &sdi.mgr_config);
 }
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_output *out = dssdev->output;
 	struct omap_video_timings *t = &sdi.timings;
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 	unsigned long pck;
 	int r;
 
-	if (dssdev->manager == NULL) {
-		DSSERR("failed to enable display: no manager\n");
+	if (out == NULL || out->manager == NULL) {
+		DSSERR("failed to enable display: no output/manager\n");
 		return -ENODEV;
 	}
 
@@ -101,7 +104,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	}
 
 
-	dss_mgr_set_timings(dssdev->manager, t);
+	dss_mgr_set_timings(out->manager, t);
 
 	r = dss_set_clock_div(&dss_cinfo);
 	if (r)
@@ -120,8 +123,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	 * need to care about the shadow register mechanism for pck-free. The
 	 * exact reason for this is unknown.
 	 */
-	dispc_mgr_set_clock_div(dssdev->manager->id,
-			&sdi.mgr_config.clock_info);
+	dispc_mgr_set_clock_div(out->manager->id, &sdi.mgr_config.clock_info);
 
 	dss_sdi_init(sdi.datapairs);
 	r = dss_sdi_enable();
@@ -129,7 +131,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 		goto err_sdi_enable;
 	mdelay(2);
 
-	r = dss_mgr_enable(dssdev->manager);
+	r = dss_mgr_enable(out->manager);
 	if (r)
 		goto err_mgr_enable;
 
@@ -152,7 +154,9 @@ EXPORT_SYMBOL(omapdss_sdi_display_enable);
 
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 {
-	dss_mgr_disable(dssdev->manager);
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+
+	dss_mgr_disable(mgr);
 
 	dss_sdi_disable();
 
