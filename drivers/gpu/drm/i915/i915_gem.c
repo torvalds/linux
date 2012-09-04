@@ -690,7 +690,7 @@ shmem_pwrite_fast(struct page *page, int shmem_page_offset, int page_length,
 				       page_length);
 	kunmap_atomic(vaddr);
 
-	return ret;
+	return ret ? -EFAULT : 0;
 }
 
 /* Only difference to the fast-path function is that this can handle bit17
@@ -724,7 +724,7 @@ shmem_pwrite_slow(struct page *page, int shmem_page_offset, int page_length,
 					     page_do_bit17_swizzling);
 	kunmap(page);
 
-	return ret;
+	return ret ? -EFAULT : 0;
 }
 
 static int
@@ -733,7 +733,6 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		      struct drm_i915_gem_pwrite *args,
 		      struct drm_file *file)
 {
-	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	ssize_t remain;
 	loff_t offset;
 	char __user *user_data;
@@ -742,7 +741,6 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int hit_slowpath = 0;
 	int needs_clflush_after = 0;
 	int needs_clflush_before = 0;
-	int release_page;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -767,6 +765,12 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)
 	    && obj->cache_level == I915_CACHE_NONE)
 		needs_clflush_before = 1;
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		return ret;
+
+	i915_gem_object_pin_pages(obj);
 
 	offset = args->offset;
 	obj->dirty = 1;
@@ -793,18 +797,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 			((shmem_page_offset | page_length)
 				& (boot_cpu_data.x86_clflush_size - 1));
 
-		if (obj->pages) {
-			page = obj->pages[offset >> PAGE_SHIFT];
-			release_page = 0;
-		} else {
-			page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-			if (IS_ERR(page)) {
-				ret = PTR_ERR(page);
-				goto out;
-			}
-			release_page = 1;
-		}
-
+		page = obj->pages[offset >> PAGE_SHIFT];
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
 			(page_to_phys(page) & (1 << 17)) != 0;
 
@@ -816,26 +809,20 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 			goto next_page;
 
 		hit_slowpath = 1;
-		page_cache_get(page);
 		mutex_unlock(&dev->struct_mutex);
-
 		ret = shmem_pwrite_slow(page, shmem_page_offset, page_length,
 					user_data, page_do_bit17_swizzling,
 					partial_cacheline_write,
 					needs_clflush_after);
 
 		mutex_lock(&dev->struct_mutex);
-		page_cache_release(page);
+
 next_page:
 		set_page_dirty(page);
 		mark_page_accessed(page);
-		if (release_page)
-			page_cache_release(page);
 
-		if (ret) {
-			ret = -EFAULT;
+		if (ret)
 			goto out;
-		}
 
 		remain -= page_length;
 		user_data += page_length;
@@ -843,6 +830,8 @@ next_page:
 	}
 
 out:
+	i915_gem_object_unpin_pages(obj);
+
 	if (hit_slowpath) {
 		/* Fixup: Kill any reinstated backing storage pages */
 		if (obj->madv == __I915_MADV_PURGED)
