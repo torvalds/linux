@@ -678,7 +678,7 @@ static int sdio_wimax_probe(struct sdio_func *func,
 	phy_dev->rcv_func = gdm_sdio_receive;
 
 	ret = init_sdio(sdev);
-	if (sdev < 0)
+	if (ret < 0)
 		goto out;
 
 	sdev->func = func;
