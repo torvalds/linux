@@ -178,7 +178,7 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 #define cru_writel_frac(v,offset) cru_writel((v),(offset))
 #endif
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #define CLKDATA_DBG(fmt, args...) printk(KERN_DEBUG "CLKDATA_DBG:\t"fmt, ##args)
 #define CLKDATA_LOG(fmt, args...) printk(KERN_INFO "CLKDATA_LOG:\t"fmt, ##args)
@@ -1104,7 +1104,6 @@ static struct clk clk_ddr = {
 static int arm_core_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	int ret;
-	printk("%s rate=%d\n", __func__, rate);
 
 	ret = clk_set_rate_nolock(c->parent, rate);
 	if (ret) {
@@ -1162,8 +1161,6 @@ static int core_clksel_set_parent(struct clk *clk, struct clk *new_prt)
 
 static int core_gpll_clk_set_rate(struct clk *c, unsigned long rate)
 {
-	unsigned long flags;
-	u32 pll_id = APLL_ID;
 	u32 temp_div;
 	u32 old_aclk_div = 0, new_aclk_div;
 	struct arm_clks_div_set *temp_clk_div;
@@ -3065,7 +3062,6 @@ static void periph_clk_set_init(void)
 
 void rk30_clock_common_i2s_init(void)
 {
-	struct clk *max_clk, *min_clk;
 	unsigned long i2s_rate;
 	//20 times
 	if(rk30_clock_flags & CLK_FLG_MAX_I2S_49152KHZ) {
@@ -3095,14 +3091,13 @@ void rk30_clock_common_i2s_init(void)
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
 
-	printk("enter %s %u %u \n", __func__, gpll_rate, cpll_rate);
-	clk_set_rate_nolock(&clk_core, 816 * MHZ); //816
+	clk_set_rate_nolock(&clk_core, 816 * MHZ);
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
-	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk); //816
+	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
 	//periph clk
 	periph_clk_set_init();
 
@@ -3164,8 +3159,6 @@ static struct clk def_ops_clk = {
 struct clk_dump_ops dump_ops;
 #endif
 
-static void clk_dump_regs(void);
-
 void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int flags)
 {
 	struct clk_lookup *lk;
@@ -3206,10 +3199,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 
 void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 flags)
 {
-	printk("sel0=%x\n", cru_readl(CRU_CLKSELS_CON(0)));
 	_rk30_clock_data_init(gpll, cpll, flags);
-	printk("%s end\n", __func__);
-	rk30_clk_dump_regs();
 	rk30_dvfs_init();
 }
 
