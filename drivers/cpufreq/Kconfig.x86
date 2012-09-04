@@ -96,7 +96,8 @@ config X86_POWERNOW_K8
 	select CPU_FREQ_TABLE
 	depends on ACPI && ACPI_PROCESSOR
 	help
-	  This adds the CPUFreq driver for K8/K10 Opteron/Athlon64 processors.
+	  This adds the CPUFreq driver for K8/early Opteron/Athlon64 processors.
+	  Support for K10 and newer processors is now in acpi-cpufreq.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called powernow-k8.

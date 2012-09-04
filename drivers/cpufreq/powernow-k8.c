@@ -1563,6 +1563,9 @@ static int __cpuinit powernowk8_init(void)
 	if (!x86_match_cpu(powernow_k8_ids))
 		return -ENODEV;
 
+	if (static_cpu_has(X86_FEATURE_HW_PSTATE))
+		pr_warn(PFX "support for this CPU is deprecated, use acpi-cpufreq instead.\n");
+
 	for_each_online_cpu(i) {
 		int rc;
 		smp_call_function_single(i, check_supported_cpu, &rc, 1);
