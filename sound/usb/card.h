@@ -92,6 +92,8 @@ struct snd_usb_endpoint {
 	unsigned char silence_value;
 	unsigned int stride;
 	int iface, alt_idx;
+	int skip_packets;		/* quirks for devices to ignore the first n packets
+					   in a stream */
 
 	spinlock_t lock;
 	struct list_head list;
