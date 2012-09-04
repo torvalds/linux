@@ -87,7 +87,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= iio_get_time_ns();
-	iio_push_to_buffer(buffer, (u8 *)data, pf->timestamp);
+	iio_push_to_buffer(buffer, (u8 *)data);
 
 	kfree(data);
 

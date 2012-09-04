@@ -150,7 +150,7 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (ring->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
-	iio_push_to_buffer(ring, (u8 *) data, pf->timestamp);
+	iio_push_to_buffer(ring, (u8 *) data);
 
 done:
 	kfree(data);

@@ -678,7 +678,7 @@ static void ad5933_work(struct work_struct *work)
 			buf[0] = be16_to_cpu(buf[0]);
 		}
 		/* save datum to the ring */
-		iio_push_to_buffer(ring, (u8 *)buf, iio_get_time_ns());
+		iio_push_to_buffer(ring, (u8 *)buf);
 	} else {
 		/* no data available - try again later */
 		schedule_delayed_work(&st->work, st->poll_time_jiffies);

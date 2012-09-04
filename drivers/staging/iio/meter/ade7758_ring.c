@@ -73,7 +73,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		dat64[1] = pf->timestamp;
 
-	iio_push_to_buffer(indio_dev->buffer, (u8 *)dat64, pf->timestamp);
+	iio_push_to_buffer(indio_dev->buffer, (u8 *)dat64);
 
 	iio_trigger_notify_done(indio_dev->trig);
 

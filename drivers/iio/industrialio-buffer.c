@@ -682,12 +682,11 @@ static unsigned char *iio_demux(struct iio_buffer *buffer,
 	return buffer->demux_bounce;
 }
 
-int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data,
-		       s64 timestamp)
+int iio_push_to_buffer(struct iio_buffer *buffer, unsigned char *data)
 {
 	unsigned char *dataout = iio_demux(buffer, data);
 
-	return buffer->access->store_to(buffer, dataout, timestamp);
+	return buffer->access->store_to(buffer, dataout);
 }
 EXPORT_SYMBOL_GPL(iio_push_to_buffer);
 

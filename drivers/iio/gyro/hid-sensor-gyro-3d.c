@@ -198,7 +198,6 @@ static const struct iio_info gyro_3d_info = {
 static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
 {
 	struct iio_buffer *buffer = indio_dev->buffer;
-	s64 timestamp = iio_get_time_ns();
 	int datum_sz;
 
 	dev_dbg(&indio_dev->dev, "hid_sensor_push_data\n");
@@ -212,7 +211,7 @@ static void hid_sensor_push_data(struct iio_dev *indio_dev, u8 *data, int len)
 				datum_sz);
 		return;
 	}
-	iio_push_to_buffer(buffer, (u8 *)data, timestamp);
+	iio_push_to_buffer(buffer, (u8 *)data);
 }
 
 /* Callback handler to send event after all samples are received and captured */
