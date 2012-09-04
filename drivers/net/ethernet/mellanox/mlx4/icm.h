@@ -78,7 +78,7 @@ int mlx4_table_get_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 void mlx4_table_put_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 			  int start, int end);
 int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
-			u64 virt, int obj_size,	int nobj, int reserved,
+			u64 virt, int obj_size,	u32 nobj, int reserved,
 			int use_lowmem, int use_coherent);
 void mlx4_cleanup_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table);
 void *mlx4_table_find(struct mlx4_icm_table *table, int obj, dma_addr_t *dma_handle);

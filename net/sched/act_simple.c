@@ -131,7 +131,10 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 		d = to_defact(pc);
 		ret = alloc_defdata(d, defdata);
 		if (ret < 0) {
-			kfree(pc);
+			if (est)
+				gen_kill_estimator(&pc->tcfc_bstats,
+						   &pc->tcfc_rate_est);
+			kfree_rcu(pc, tcfc_rcu);
 			return ret;
 		}
 		d->tcf_action = parm->action;

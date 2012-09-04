@@ -499,7 +499,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	 * We sampled a branch insn, rewind using the LBR stack
 	 */
 	if (ip == to) {
-		regs->ip = from;
+		set_linear_ip(regs, from);
 		return 1;
 	}
 
@@ -529,7 +529,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	} while (to < ip);
 
 	if (to == ip) {
-		regs->ip = old_to;
+		set_linear_ip(regs, old_to);
 		return 1;
 	}
 
@@ -569,7 +569,8 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	 * A possible PERF_SAMPLE_REGS will have to transfer all regs.
 	 */
 	regs = *iregs;
-	regs.ip = pebs->ip;
+	regs.flags = pebs->flags;
+	set_linear_ip(&regs, pebs->ip);
 	regs.bp = pebs->bp;
 	regs.sp = pebs->sp;
 

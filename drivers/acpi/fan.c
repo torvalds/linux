@@ -53,8 +53,10 @@ static const struct acpi_device_id fan_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, fan_device_ids);
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_fan_suspend(struct device *dev);
 static int acpi_fan_resume(struct device *dev);
+#endif
 static SIMPLE_DEV_PM_OPS(acpi_fan_pm, acpi_fan_suspend, acpi_fan_resume);
 
 static struct acpi_driver acpi_fan_driver = {
@@ -184,6 +186,7 @@ static int acpi_fan_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int acpi_fan_suspend(struct device *dev)
 {
 	if (!dev)
@@ -207,6 +210,7 @@ static int acpi_fan_resume(struct device *dev)
 
 	return result;
 }
+#endif
 
 static int __init acpi_fan_init(void)
 {

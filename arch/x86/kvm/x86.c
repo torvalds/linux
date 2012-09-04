@@ -925,6 +925,10 @@ static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 	 */
 	getboottime(&boot);
 
+	if (kvm->arch.kvmclock_offset) {
+		struct timespec ts = ns_to_timespec(kvm->arch.kvmclock_offset);
+		boot = timespec_sub(boot, ts);
+	}
 	wc.sec = boot.tv_sec;
 	wc.nsec = boot.tv_nsec;
 	wc.version = version;
