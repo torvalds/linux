@@ -437,6 +437,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
+	crtc->invert_dimensions = false;
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -1912,6 +1913,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
 	if (crtc_req->mode_valid) {
+		int hdisplay, vdisplay;
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
@@ -1947,14 +1949,20 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 
-		if (mode->hdisplay > fb->width ||
-		    mode->vdisplay > fb->height ||
-		    crtc_req->x > fb->width - mode->hdisplay ||
-		    crtc_req->y > fb->height - mode->vdisplay) {
-			DRM_DEBUG_KMS("Invalid CRTC viewport %ux%u+%u+%u for fb size %ux%u.\n",
-				      mode->hdisplay, mode->vdisplay,
-				      crtc_req->x, crtc_req->y,
-				      fb->width, fb->height);
+		hdisplay = mode->hdisplay;
+		vdisplay = mode->vdisplay;
+
+		if (crtc->invert_dimensions)
+			swap(hdisplay, vdisplay);
+
+		if (hdisplay > fb->width ||
+		    vdisplay > fb->height ||
+		    crtc_req->x > fb->width - hdisplay ||
+		    crtc_req->y > fb->height - vdisplay) {
+			DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
+				      fb->width, fb->height,
+				      hdisplay, vdisplay, crtc_req->x, crtc_req->y,
+				      crtc->invert_dimensions ? " (inverted)" : "");
 			ret = -ENOSPC;
 			goto out;
 		}
@@ -3546,6 +3554,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
+	int hdisplay, vdisplay;
 	int ret = -EINVAL;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
@@ -3575,14 +3584,19 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	fb = obj_to_fb(obj);
 
-	if (crtc->mode.hdisplay > fb->width ||
-	    crtc->mode.vdisplay > fb->height ||
-	    crtc->x > fb->width - crtc->mode.hdisplay ||
-	    crtc->y > fb->height - crtc->mode.vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d.\n",
-			      fb->width, fb->height,
-			      crtc->mode.hdisplay, crtc->mode.vdisplay,
-			      crtc->x, crtc->y);
+	hdisplay = crtc->mode.hdisplay;
+	vdisplay = crtc->mode.vdisplay;
+
+	if (crtc->invert_dimensions)
+		swap(hdisplay, vdisplay);
+
+	if (hdisplay > fb->width ||
+	    vdisplay > fb->height ||
+	    crtc->x > fb->width - hdisplay ||
+	    crtc->y > fb->height - vdisplay) {
+		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
+			      fb->width, fb->height, hdisplay, vdisplay, crtc->x, crtc->y,
+			      crtc->invert_dimensions ? " (inverted)" : "");
 		ret = -ENOSPC;
 		goto out;
 	}
