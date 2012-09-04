@@ -2040,6 +2040,7 @@ enum {
 #define RT3261_EQ_PST_VOL_SFT			0
 
 /* General Control1 (0xfa) */
+#define RT3261_LOUT_DF				14
 #define RT3261_M_MAMIX_L			(0x1 << 13)
 #define RT3261_M_MAMIX_R			(0x1 << 12)
 

@@ -809,6 +809,19 @@ static const SOC_ENUM_SINGLE_DECL(
 	rt3261_in2_mode_enum, RT3261_IN3_IN4,
 	RT3261_IN_SFT2, rt3261_input_mode);
 
+static const SOC_ENUM_SINGLE_DECL(
+	rt3261_in3_mode_enum, RT3261_IN1_IN2,
+	RT3261_IN_SFT2, rt3261_input_mode);
+
+//output type
+static const char *rt3261_output_mode[] = {
+	"Single ended", "Differential"};
+
+static const SOC_ENUM_SINGLE_DECL(
+	rt3261_lout_mode_enum, RT3261_GEN_CTRL1,
+	RT3261_LOUT_DF, rt3261_output_mode);
+
+
 /* Interface data select */
 static const char *rt3261_data_select[] = {
 	"Normal", "left copy to right", "right copy to left", "Swap"};
@@ -969,6 +982,11 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_ENUM("IN2 Mode Control", rt3261_in2_mode_enum),
 	SOC_SINGLE_TLV("IN2 Boost", RT3261_IN3_IN4,
 		RT3261_BST_SFT2, 8, 0, bst_tlv),
+	SOC_ENUM("IN3 Mode Control",  rt3261_in3_mode_enum),
+	SOC_SINGLE_TLV("IN3 Boost", RT3261_IN1_IN2,
+		RT3261_BST_SFT2, 8, 0, bst_tlv),
+
+	SOC_ENUM("LOUT Mode Control",  rt3261_lout_mode_enum),
 	/* INL/INR Volume Control */
 	SOC_DOUBLE_TLV("IN Capture Volume", RT3261_INL_INR_VOL,
 			RT3261_INL_VOL_SFT, RT3261_INR_VOL_SFT,
