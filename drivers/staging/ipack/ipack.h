@@ -105,12 +105,6 @@ struct ipack_driver {
  *	@unmap_space: unmap IP address space
  *	@request_irq: request IRQ
  *	@free_irq: free IRQ
- *	@read8: read unsigned char
- *	@read16: read unsigned short
- *	@read32: read unsigned int
- *	@write8: read unsigned char
- *	@write16: read unsigned short
- *	@write32: read unsigned int
  *	@remove_device: tell the bridge module that the device has been removed
  */
 struct ipack_bus_ops {
@@ -118,12 +112,6 @@ struct ipack_bus_ops {
 	int (*unmap_space) (struct ipack_device *dev, int space);
 	int (*request_irq) (struct ipack_device *dev, int vector, int (*handler)(void *), void *arg);
 	int (*free_irq) (struct ipack_device *dev);
-	int (*read8) (struct ipack_device *dev, int space, unsigned long offset, unsigned char *value);
-	int (*read16) (struct ipack_device *dev, int space, unsigned long offset, unsigned short *value);
-	int (*read32) (struct ipack_device *dev, int space, unsigned long offset, unsigned int *value);
-	int (*write8) (struct ipack_device *dev, int space, unsigned long offset, unsigned char value);
-	int (*write16) (struct ipack_device *dev, int space, unsigned long offset, unsigned short value);
-	int (*write32) (struct ipack_device *dev, int space, unsigned long offset, unsigned int value);
 	int (*remove_device) (struct ipack_device *dev);
 };
 
