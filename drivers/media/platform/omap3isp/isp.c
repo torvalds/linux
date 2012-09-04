@@ -2102,8 +2102,10 @@ static int __devinit isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error;
 
-	if (__omap3isp_get(isp, false) == NULL)
+	if (__omap3isp_get(isp, false) == NULL) {
+		ret = -ENODEV;
 		goto error;
+	}
 
 	ret = isp_reset(isp);
 	if (ret < 0)
