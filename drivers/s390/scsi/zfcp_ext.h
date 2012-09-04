@@ -158,6 +158,7 @@ extern void zfcp_scsi_dif_sense_error(struct scsi_cmnd *, int);
 extern struct attribute_group zfcp_sysfs_unit_attrs;
 extern struct attribute_group zfcp_sysfs_adapter_attrs;
 extern struct attribute_group zfcp_sysfs_port_attrs;
+extern struct mutex zfcp_sysfs_port_units_mutex;
 extern struct device_attribute *zfcp_sysfs_sdev_attrs[];
 extern struct device_attribute *zfcp_sysfs_shost_attrs[];
 

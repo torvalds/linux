@@ -204,6 +204,7 @@ struct zfcp_port {
 	struct zfcp_adapter    *adapter;       /* adapter used to access port */
 	struct list_head	unit_list;	/* head of logical unit list */
 	rwlock_t		unit_list_lock; /* unit list lock */
+	atomic_t		units;	       /* zfcp_unit count */
 	atomic_t	       status;	       /* status of this remote port */
 	u64		       wwnn;	       /* WWNN if known */
 	u64		       wwpn;	       /* WWPN */
