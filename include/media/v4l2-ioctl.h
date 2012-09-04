@@ -120,7 +120,7 @@ struct v4l2_ioctl_ops {
 	int (*vidioc_g_fbuf)   (struct file *file, void *fh,
 				struct v4l2_framebuffer *a);
 	int (*vidioc_s_fbuf)   (struct file *file, void *fh,
-				struct v4l2_framebuffer *a);
+				const struct v4l2_framebuffer *a);
 
 		/* Stream on/off */
 	int (*vidioc_streamon) (struct file *file, void *fh, enum v4l2_buf_type i);

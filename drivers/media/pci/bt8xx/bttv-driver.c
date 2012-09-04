@@ -2740,7 +2740,7 @@ static int bttv_overlay(struct file *file, void *f, unsigned int on)
 }
 
 static int bttv_s_fbuf(struct file *file, void *f,
-				struct v4l2_framebuffer *fb)
+				const struct v4l2_framebuffer *fb)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;

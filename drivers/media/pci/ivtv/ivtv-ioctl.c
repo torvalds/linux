@@ -1427,7 +1427,7 @@ static int ivtv_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	return 0;
 }
 
-static int ivtv_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
+static int ivtv_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuffer *fb)
 {
 	struct ivtv_open_id *id = fh2id(fh);
 	struct ivtv *itv = id->itv;
@@ -1444,7 +1444,7 @@ static int ivtv_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
 	itv->osd_chroma_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
 	ivtv_set_osd_alpha(itv);
 	yi->track_osd = (fb->flags & V4L2_FBUF_FLAG_OVERLAY) != 0;
-	return ivtv_g_fbuf(file, fh, fb);
+	return 0;
 }
 
 static int ivtv_overlay(struct file *file, void *fh, unsigned int on)

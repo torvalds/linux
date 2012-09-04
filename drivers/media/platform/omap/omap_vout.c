@@ -1744,7 +1744,7 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 }
 
 static int vidioc_s_fbuf(struct file *file, void *fh,
-				struct v4l2_framebuffer *a)
+				const struct v4l2_framebuffer *a)
 {
 	int enable = 0;
 	struct omap_overlay *ovl;

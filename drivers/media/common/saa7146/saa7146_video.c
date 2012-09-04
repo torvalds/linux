@@ -479,7 +479,7 @@ static int vidioc_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 	return 0;
 }
 
-static int vidioc_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *fb)
+static int vidioc_s_fbuf(struct file *file, void *fh, const struct v4l2_framebuffer *fb)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct saa7146_vv *vv = dev->vv_data;

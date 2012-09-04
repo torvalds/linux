@@ -2158,7 +2158,7 @@ static int saa7134_g_fbuf(struct file *file, void *f,
 }
 
 static int saa7134_s_fbuf(struct file *file, void *f,
-					struct v4l2_framebuffer *fb)
+					const struct v4l2_framebuffer *fb)
 {
 	struct saa7134_fh *fh = f;
 	struct saa7134_dev *dev = fh->dev;
