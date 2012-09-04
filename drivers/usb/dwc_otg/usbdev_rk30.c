@@ -10,15 +10,18 @@
 #include <mach/cru.h>
 
 #include "usbdev_rk.h"
-#include "dwc_otg_regs.h"
+#include "dwc_otg_regs.h" 
+
 #ifdef CONFIG_ARCH_RK30
 
 #define GRF_REG_BASE	RK30_GRF_BASE	
 #define USBOTG_SIZE	RK30_USBOTG20_SIZE
 #ifdef CONFIG_ARCH_RK3066B
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0xac)
-#define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x118) // USBGRF_UOC0_CON3
-#define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x128) // USBGRF_UOC1_CON3
+#define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x114)
+#define USBGRF_UOC0_CON3	(GRF_REG_BASE+0x118)
+#define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x124)
+#define USBGRF_UOC1_CON3	(GRF_REG_BASE+0x128)
 #else
 #define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x15c)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x184)
@@ -93,32 +96,56 @@ static struct resource usb20_otg_resource[] = {
 void usb20otg_hw_init(void)
 {
 #ifndef CONFIG_USB20_HOST
-    // close USB 2.0 HOST phy and clock
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
-    *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-#endif
-    // usb phy config init
-
-    // other haredware init
+        // close USB 2.0 HOST phy and clock
 #ifdef CONFIG_ARCH_RK3066B
-//  conflict with pwm2
-//    rk30_mux_api_set(GPIO3D5_PWM2_JTAGTCK_OTGDRVVBUS_NAME, GPIO3D_OTGDRVVBUS);
+        unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
+        unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC1_CON3);
+        *otg_phy_con1 =  (0x01<<2)|((0x01<<2)<<16);     //enable soft control
+        *otg_phy_con2 =  0x2A|(0x3F<<16);               // enter suspend   
 #else
-    rk30_mux_api_set(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);
+        unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
+        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
+#endif
+#endif
+        // usb phy config init
+    
+        // other haredware init
+#ifdef CONFIG_ARCH_RK3066B
+    //GPIO init
+        rk30_mux_api_set(GPIO0D6_SPI1CLK_NAME, GPIO0D_GPIO0D6);
+#else
+        rk30_mux_api_set(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);
 #endif
 }
+
 void usb20otg_phy_suspend(void* pdata, int suspend)
 {
-    struct dwc_otg_platform_data *usbpdata=pdata;
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
-    if(suspend){
-        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-        usbpdata->phy_status = 1;
-    }
-    else{
-        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-        usbpdata->phy_status = 0;
-    }
+#ifdef CONFIG_ARCH_RK3066B
+        struct dwc_otg_platform_data *usbpdata=pdata;
+        unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+        unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC0_CON3);
+        if(suspend){
+            *otg_phy_con1 =  (0x01<<2)|((0x01<<2)<<16); ;   //enable soft control
+            *otg_phy_con2 =  0x2A|(0x3F<<16);;              // enter suspend
+            usbpdata->phy_status = 1;
+        }
+        else{
+            *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+            usbpdata->phy_status = 0;
+        }
+#else
+        struct dwc_otg_platform_data *usbpdata=pdata;
+        unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+        if(suspend){
+            *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
+            usbpdata->phy_status = 1;
+        }
+        else{
+            *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+            usbpdata->phy_status = 0;
+        }
+#endif
+
 }
 void usb20otg_soft_reset(void)
 {
@@ -159,44 +186,66 @@ void usb20otg_clock_enable(void* pdata, int enable)
 }
 int usb20otg_get_status(int id)
 {
-    int ret = -1;
-    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
-    switch(id)
-    {
+        int ret = -1;
+        unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
+        switch(id)
+        {
 #ifdef CONFIG_ARCH_RK3066B
-        case USB_STATUS_BVABLID:
-            // bvalid in grf
-            ret = (usbgrf_status &(1<<10));
-            break;
-        case USB_STATUS_DPDM:
-            // dpdm in grf
-            ret = (usbgrf_status &(3<<11));
-            break;
-        case USB_STATUS_ID:
-            // id in grf
-            ret = (usbgrf_status &(1<<13));
-            break;
+            case USB_STATUS_BVABLID:
+                // bvalid in grf
+                ret = (usbgrf_status &(1<<10));
+                break;
+            case USB_STATUS_DPDM:
+                // dpdm in grf
+                ret = (usbgrf_status &(3<<11));
+                break;
+            case USB_STATUS_ID:
+                // id in grf
+                ret = (usbgrf_status &(1<<13));
+                break;
 #else
-        case USB_STATUS_BVABLID:
-            // bvalid in grf
-            ret = (usbgrf_status &0x20000);
-            break;
-        case USB_STATUS_DPDM:
-            // dpdm in grf
-            ret = (usbgrf_status &(3<<18));
-            break;
-        case USB_STATUS_ID:
-            // id in grf
-            ret = (usbgrf_status &(1<<20));
-            break;
+            case USB_STATUS_BVABLID:
+                // bvalid in grf
+                ret = (usbgrf_status &0x20000);
+                break;
+            case USB_STATUS_DPDM:
+                // dpdm in grf
+                ret = (usbgrf_status &(3<<18));
+                break;
+            case USB_STATUS_ID:
+                // id in grf
+                ret = (usbgrf_status &(1<<20));
+                break;
 #endif
-        default:
-            break;
-    }
-    return ret;
+            default:
+                break;
+        }
+        return ret;
 }
+ 
 void usb20otg_power_enable(int enable)
 {
+    int ret;
+    if(0 == enable)//disable
+    {
+    /*    ret = gpio_request(RK30_PIN0_PD6, NULL);
+        if (ret != 0) {
+            gpio_free(RK30_PIN0_PD6);
+        }
+        gpio_direction_output(RK30_PIN0_PD6, 1);
+        gpio_set_value(RK30_PIN0_PD6, 0);*/ 
+    }
+
+    if(1 == enable)//enable
+    {
+        ret = gpio_request(RK30_PIN0_PD6, NULL);
+        if (ret != 0) {
+            gpio_free(RK30_PIN0_PD6);
+        }
+        gpio_direction_output(RK30_PIN0_PD6, 1);
+        gpio_set_value(RK30_PIN0_PD6, 1); 
+    }  
+
 }
 struct dwc_otg_platform_data usb20otg_pdata = {
     .phyclk = NULL,
@@ -209,6 +258,8 @@ struct dwc_otg_platform_data usb20otg_pdata = {
     .clock_init=usb20otg_clock_init,
     .clock_enable=usb20otg_clock_enable,
     .get_status=usb20otg_get_status,
+    .power_enable=usb20otg_power_enable,
+    
 };
 
 struct platform_device device_usb20_otg = {
@@ -241,23 +292,42 @@ void usb20host_hw_init(void)
 
     // other haredware init
 #ifdef CONFIG_ARCH_RK3066B
-    rk30_mux_api_set(GPIO3D6_PWM3_JTAGTMS_HOSTDRVVBUS_NAME, GPIO3D_HOSTDRVVBUS);
+    rk30_mux_api_set(GPIO0D7_SPI1CSN0_NAME, GPIO0D_GPIO0D7); 
 #else
     rk30_mux_api_set(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);
 #endif
 }
 void usb20host_phy_suspend(void* pdata, int suspend)
-{
-    struct dwc_otg_platform_data *usbpdata=pdata;
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
-    if(suspend){
-        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
-        usbpdata->phy_status = 1;
-    }
-    else{
-        *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-        usbpdata->phy_status = 0;
-    }
+{ 
+#ifdef CONFIG_ARCH_RK3066B
+        struct dwc_otg_platform_data *usbpdata=pdata;
+        unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
+        unsigned int * otg_phy_con2 = (unsigned int*)(USBGRF_UOC1_CON3);
+        if(suspend)
+        {
+            *otg_phy_con1 =  (0x01<<2)|((0x01<<2)<<16); ;   //enable soft control
+            *otg_phy_con2 =  0x2A|(0x3F<<16);;                     // enter suspend
+            usbpdata->phy_status = 1;
+        }
+        else
+        {
+            *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+            usbpdata->phy_status = 0;
+        }   
+#else
+        struct dwc_otg_platform_data *usbpdata=pdata;
+        unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
+        if(suspend)
+        {
+            *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
+            usbpdata->phy_status = 1;
+        }
+        else
+        {
+            *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
+            usbpdata->phy_status = 0;
+        }
+#endif 
 }
 void usb20host_soft_reset(void)
 {
@@ -336,6 +406,29 @@ int usb20host_get_status(int id)
 }
 void usb20host_power_enable(int enable)
 {
+
+    int ret;
+    if(0 == enable)//disable
+    {
+        //ret = gpio_request(RK30_PIN0_PD7, NULL);
+        //if (ret != 0) {
+        //    gpio_free(RK30_PIN0_PD7);
+        //}
+        //gpio_direction_output(RK30_PIN0_PD7, 1);
+        //gpio_set_value(RK30_PIN0_PD7, 0);
+        //printk("!!!!!!!!!!!!!!!!!!!disable host power!!!!!!!!!!!!!!!!!!\n");
+    }
+
+    if(1 == enable)//enable
+    {
+        ret = gpio_request(RK30_PIN0_PD7, NULL);
+        if (ret != 0) {
+            gpio_free(RK30_PIN0_PD7);
+        }
+        gpio_direction_output(RK30_PIN0_PD7, 1);
+        gpio_set_value(RK30_PIN0_PD7, 1);
+        //printk("!!!!!!!!!!!!!!!!!!!!!enable host power!!!!!!!!!!!!!!!!!!\n");
+    }  
 }
 struct dwc_otg_platform_data usb20host_pdata = {
     .phyclk = NULL,
@@ -348,6 +441,7 @@ struct dwc_otg_platform_data usb20host_pdata = {
     .clock_init=usb20host_clock_init,
     .clock_enable=usb20host_clock_enable,
     .get_status=usb20host_get_status,
+    .power_enable=usb20host_power_enable,
 };
 
 struct platform_device device_usb20_host = {
