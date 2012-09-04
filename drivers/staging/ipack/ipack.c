@@ -86,6 +86,31 @@ static int ipack_bus_remove(struct device *device)
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG
+
+static int ipack_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct ipack_device *idev;
+
+	if (!dev)
+		return -ENODEV;
+
+	idev = to_ipack_dev(dev);
+
+	if (add_uevent_var(env,
+			   "MODALIAS=ipack:f%02Xv%08Xd%08X", idev->id_format,
+			   idev->id_vendor, idev->id_device))
+		return -ENOMEM;
+
+	return 0;
+}
+
+#else /* !CONFIG_HOTPLUG */
+
+#define ipack_uevent NULL
+
+#endif /* !CONFIG_HOTPLUG */
+
 #define ipack_device_attr(field, format_string)				\
 static ssize_t								\
 field##_show(struct device *dev, struct device_attribute *attr,		\
@@ -123,12 +148,22 @@ id_device_show(struct device *dev, struct device_attribute *attr, char *buf)
 	}
 }
 
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct ipack_device *idev = to_ipack_dev(dev);
+
+	return sprintf(buf, "ipac:f%02Xv%08Xd%08X", idev->id_format,
+		       idev->id_vendor, idev->id_device);
+}
+
 ipack_device_attr(id_format, "0x%hhu\n");
 
 static struct device_attribute ipack_dev_attrs[] = {
 	__ATTR_RO(id_device),
 	__ATTR_RO(id_format),
 	__ATTR_RO(id_vendor),
+	__ATTR_RO(modalias),
 };
 
 static struct bus_type ipack_bus_type = {
@@ -137,6 +172,7 @@ static struct bus_type ipack_bus_type = {
 	.match     = ipack_bus_match,
 	.remove    = ipack_bus_remove,
 	.dev_attrs = ipack_dev_attrs,
+	.uevent	   = ipack_uevent,
 };
 
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
