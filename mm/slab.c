@@ -2555,7 +2555,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
 		 */
 		BUG_ON(ZERO_OR_NULL_PTR(cachep->slabp_cache));
 	}
-	cachep->refcount = 1;
 
 	err = setup_cpu_cache(cachep, gfp);
 	if (err) {

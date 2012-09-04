@@ -3093,7 +3093,6 @@ static int kmem_cache_open(struct kmem_cache *s, unsigned long flags)
 	else
 		s->cpu_partial = 30;
 
-	s->refcount = 1;
 #ifdef CONFIG_NUMA
 	s->remote_node_defrag_ratio = 1000;
 #endif
