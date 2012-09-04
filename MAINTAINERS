@@ -6776,14 +6776,13 @@ F:	drivers/net/team/
 F:	include/linux/if_team.h
 
 TEGRA SUPPORT
-M:	Colin Cross <ccross@android.com>
-M:	Olof Johansson <olof@lixom.net>
 M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-tegra@vger.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-tegra/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-tegra.git
 S:	Supported
 F:	arch/arm/mach-tegra
+F:	arch/arm/boot/dts/tegra*
 F:	arch/arm/configs/tegra_defconfig
 
 TEHUTI ETHERNET DRIVER
