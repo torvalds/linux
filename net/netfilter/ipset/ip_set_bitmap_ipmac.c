@@ -557,7 +557,8 @@ static int
 bitmap_ipmac_create(struct ip_set *set, struct nlattr *tb[],
 		    u32 flags)
 {
-	u32 first_ip, last_ip, elements;
+	u32 first_ip, last_ip;
+	u64 elements;
 	struct bitmap_ipmac *map;
 	int ret;
 
@@ -588,7 +589,7 @@ bitmap_ipmac_create(struct ip_set *set, struct nlattr *tb[],
 	} else
 		return -IPSET_ERR_PROTOCOL;
 
-	elements = last_ip - first_ip + 1;
+	elements = (u64)last_ip - first_ip + 1;
 
 	if (elements > IPSET_BITMAP_MAX_RANGE + 1)
 		return -IPSET_ERR_BITMAP_RANGE_SIZE;
