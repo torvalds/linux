@@ -65,6 +65,7 @@ struct adc_client *adc_register(int chn,
         dev_err(adc->dev, "chn(%d) is not support\n", chn);
         return NULL;
 }
+EXPORT_SYMBOL(adc_register);
 
 void adc_unregister(struct adc_client *client)
 {
@@ -75,6 +76,7 @@ void adc_unregister(struct adc_client *client)
 	client = NULL;
 	return;
 }
+EXPORT_SYMBOL(adc_unregister);
 
 static inline void trigger_next_adc_job_if_any(struct adc_host *adc)
 {
@@ -227,12 +229,14 @@ int adc_sync_read(struct adc_client *client)
 {
         return adc_host_read(client, ADC_SYNC_READ);
 }
+EXPORT_SYMBOL(adc_sync_read);
 
 int adc_async_read(struct adc_client *client)
 {
         return adc_host_read(client, ADC_ASYNC_READ);
 }
 
+EXPORT_SYMBOL(adc_async_read);
 
 static int __init adc_core_init(void)
 {
