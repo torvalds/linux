@@ -192,11 +192,12 @@ config LEDS_LP5521
 	  programming the engines.
 
 config LEDS_LP5523
-	tristate "LED Support for N.S. LP5523 LED driver chip"
+	tristate "LED Support for TI/National LP5523/55231 LED driver chip"
 	depends on LEDS_CLASS && I2C
 	help
-	  If you say yes here you get support for the National Semiconductor
-	  LP5523 LED driver. It is 9 channel chip with programmable engines.
+	  If you say yes here you get support for TI/National Semiconductor
+	  LP5523/55231 LED driver.
+	  It is 9 channel chip with programmable engines.
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
 
