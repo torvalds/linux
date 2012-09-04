@@ -5633,7 +5633,7 @@ S:	Maintained
 F:	drivers/pinctrl/spear/
 
 PKTCDVD DRIVER
-M:	Peter Osterlund <petero2@telia.com>
+M:	Jiri Kosina <jkosina@suse.cz>
 S:	Maintained
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
