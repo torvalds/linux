@@ -30,6 +30,8 @@ extern int smp_vcpu_scheduled(int cpu);
 extern void smp_yield_cpu(int cpu);
 extern void smp_yield(void);
 extern void smp_stop_cpu(void);
+extern void smp_cpu_set_polarization(int cpu, int val);
+extern int smp_cpu_get_polarization(int cpu);
 
 #else /* CONFIG_SMP */
 

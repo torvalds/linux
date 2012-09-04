@@ -66,6 +66,7 @@ struct pcpu {
 	unsigned long panic_stack;	/* panic stack for the cpu */
 	unsigned long ec_mask;		/* bit mask for ec_xxx functions */
 	int state;			/* physical cpu state */
+	int polarization;		/* physical polarization */
 	u16 address;			/* physical cpu address */
 };
 
@@ -73,6 +74,10 @@ static u8 boot_cpu_type;
 static u16 boot_cpu_address;
 static struct pcpu pcpu_devices[NR_CPUS];
 
+/*
+ * The smp_cpu_state_mutex must be held when changing the state or polarization
+ * member of a pcpu data structure within the pcpu_devices arreay.
+ */
 DEFINE_MUTEX(smp_cpu_state_mutex);
 
 /*
@@ -587,6 +592,16 @@ static inline void smp_get_save_area(int cpu, u16 address) { }
 
 #endif /* CONFIG_ZFCPDUMP || CONFIG_CRASH_DUMP */
 
+void smp_cpu_set_polarization(int cpu, int val)
+{
+	pcpu_devices[cpu].polarization = val;
+}
+
+int smp_cpu_get_polarization(int cpu)
+{
+	return pcpu_devices[cpu].polarization;
+}
+
 static struct sclp_cpu_info *smp_get_cpu_info(void)
 {
 	static int use_sigp_detection;
@@ -629,7 +644,7 @@ static int __devinit __smp_rescan_cpus(struct sclp_cpu_info *info,
 		pcpu->address = info->cpu[i].address;
 		pcpu->state = (cpu >= info->configured) ?
 			CPU_STATE_STANDBY : CPU_STATE_CONFIGURED;
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		set_cpu_present(cpu, true);
 		if (sysfs_add && smp_add_present_cpu(cpu) != 0)
 			set_cpu_present(cpu, false);
@@ -797,7 +812,7 @@ void __init smp_prepare_boot_cpu(void)
 	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE;
 	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE;
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
-	cpu_set_polarization(0, POLARIZATION_UNKNOWN);
+	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 	set_cpu_present(0, true);
 	set_cpu_online(0, true);
 }
@@ -863,7 +878,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 		if (rc)
 			break;
 		pcpu->state = CPU_STATE_STANDBY;
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		topology_expect_change();
 		break;
 	case 1:
@@ -873,7 +888,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 		if (rc)
 			break;
 		pcpu->state = CPU_STATE_CONFIGURED;
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		topology_expect_change();
 		break;
 	default:

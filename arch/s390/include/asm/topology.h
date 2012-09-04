@@ -51,24 +51,6 @@ static inline void topology_expect_change(void) { }
 #define POLARIZATION_VM		(2)
 #define POLARIZATION_VH		(3)
 
-extern int cpu_polarization[];
-
-static inline void cpu_set_polarization(int cpu, int val)
-{
-#ifdef CONFIG_SCHED_BOOK
-	cpu_polarization[cpu] = val;
-#endif
-}
-
-static inline int cpu_read_polarization(int cpu)
-{
-#ifdef CONFIG_SCHED_BOOK
-	return cpu_polarization[cpu];
-#else
-	return POLARIZATION_HRZ;
-#endif
-}
-
 #ifdef CONFIG_SCHED_BOOK
 void s390_init_cpu_topology(void);
 #else

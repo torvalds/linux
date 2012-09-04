@@ -45,9 +45,6 @@ static struct mask_info book_info;
 cpumask_t cpu_book_map[NR_CPUS];
 unsigned char cpu_book_id[NR_CPUS];
 
-/* smp_cpu_state_mutex must be held when accessing this array */
-int cpu_polarization[NR_CPUS];
-
 static cpumask_t cpu_group_map(struct mask_info *info, unsigned int cpu)
 {
 	cpumask_t mask;
@@ -95,7 +92,7 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 			} else {
 				cpu_core_id[lcpu] = core->id;
 			}
-			cpu_set_polarization(lcpu, tl_cpu->pp);
+			smp_cpu_set_polarization(lcpu, tl_cpu->pp);
 		}
 	}
 	return core;
@@ -202,7 +199,7 @@ static void topology_update_polarization_simple(void)
 
 	mutex_lock(&smp_cpu_state_mutex);
 	for_each_possible_cpu(cpu)
-		cpu_set_polarization(cpu, POLARIZATION_HRZ);
+		smp_cpu_set_polarization(cpu, POLARIZATION_HRZ);
 	mutex_unlock(&smp_cpu_state_mutex);
 }
 
@@ -232,7 +229,7 @@ int topology_set_cpu_management(int fc)
 	if (rc)
 		return -EBUSY;
 	for_each_possible_cpu(cpu)
-		cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
+		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 	return rc;
 }
 
@@ -414,7 +411,7 @@ static ssize_t cpu_polarization_show(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	switch (cpu_read_polarization(cpu)) {
+	switch (smp_cpu_get_polarization(cpu)) {
 	case POLARIZATION_HRZ:
 		count = sprintf(buf, "horizontal\n");
 		break;
