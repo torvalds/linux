@@ -1766,9 +1766,10 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
 	local_irq_save(flags);
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
     if(!pldata->get_status(USB_STATUS_ID)){  // id low
-    
-        if( pldata->phy_status) 
-             pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        if( pldata->phy_status){ 
+            pldata->clock_enable( pldata, 1);		
+            pldata->phy_suspend(pldata, USB_PHY_ENABLED);
+        } 
     }
 	else if(pldata->get_status(USB_STATUS_BVABLID)){  // bvalid
         /* if usb not connect before ,then start connect */
@@ -1806,7 +1807,6 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long data )
              _pcd->conn_status = 0;
              dwc_otg_msc_unlock(_pcd);
         }
-        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
         else if( pldata->phy_status == 0 ){ 
             /* no vbus detect here , close usb phy  */
             pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
