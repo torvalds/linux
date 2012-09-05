@@ -762,37 +762,6 @@ int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 
 }
 
-int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux)
-{
-	const char *signal, *src;
-
-	if (mcbsp->pdata->mux_signal)
-		return -EINVAL;
-
-	switch (mux) {
-	case CLKR_SRC_CLKR:
-		signal = "clkr";
-		src = "clkr";
-		break;
-	case CLKR_SRC_CLKX:
-		signal = "clkr";
-		src = "clkx";
-		break;
-	case FSR_SRC_FSR:
-		signal = "fsr";
-		src = "fsr";
-		break;
-	case FSR_SRC_FSX:
-		signal = "fsr";
-		src = "fsx";
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return mcbsp->pdata->mux_signal(mcbsp->dev, signal, src);
-}
-
 #define max_thres(m)			(mcbsp->pdata->buffer_size)
 #define valid_threshold(m, val)		((val) <= max_thres(m))
 #define THRESHOLD_PROP_BUILDER(prop)					\

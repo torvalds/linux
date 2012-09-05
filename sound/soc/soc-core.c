@@ -826,7 +826,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 	}
 
 	if (!rtd->cpu_dai) {
-		dev_dbg(card->dev, "CPU DAI %s not registered\n",
+		dev_err(card->dev, "CPU DAI %s not registered\n",
 			dai_link->cpu_dai_name);
 		return -EPROBE_DEFER;
 	}
@@ -857,14 +857,14 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 		}
 
 		if (!rtd->codec_dai) {
-			dev_dbg(card->dev, "CODEC DAI %s not registered\n",
+			dev_err(card->dev, "CODEC DAI %s not registered\n",
 				dai_link->codec_dai_name);
 			return -EPROBE_DEFER;
 		}
 	}
 
 	if (!rtd->codec) {
-		dev_dbg(card->dev, "CODEC %s not registered\n",
+		dev_err(card->dev, "CODEC %s not registered\n",
 			dai_link->codec_name);
 		return -EPROBE_DEFER;
 	}
@@ -888,7 +888,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card, int num)
 		rtd->platform = platform;
 	}
 	if (!rtd->platform) {
-		dev_dbg(card->dev, "platform %s not registered\n",
+		dev_err(card->dev, "platform %s not registered\n",
 			dai_link->platform_name);
 		return -EPROBE_DEFER;
 	}
@@ -1491,6 +1491,8 @@ static int soc_check_aux_dev(struct snd_soc_card *card, int num)
 		if (!strcmp(codec->name, aux_dev->codec_name))
 			return 0;
 	}
+
+	dev_err(card->dev, "%s not registered\n", aux_dev->codec_name);
 
 	return -EPROBE_DEFER;
 }

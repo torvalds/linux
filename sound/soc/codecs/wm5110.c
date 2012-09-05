@@ -685,6 +685,18 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "AIF2 Capture", NULL, "SYSCLK" },
 	{ "AIF3 Capture", NULL, "SYSCLK" },
 
+	{ "IN1L PGA", NULL, "IN1L" },
+	{ "IN1R PGA", NULL, "IN1R" },
+
+	{ "IN2L PGA", NULL, "IN2L" },
+	{ "IN2R PGA", NULL, "IN2R" },
+
+	{ "IN3L PGA", NULL, "IN3L" },
+	{ "IN3R PGA", NULL, "IN3R" },
+
+	{ "IN4L PGA", NULL, "IN4L" },
+	{ "IN4R PGA", NULL, "IN4R" },
+
 	ARIZONA_MIXER_ROUTES("OUT1L", "HPOUT1L"),
 	ARIZONA_MIXER_ROUTES("OUT1R", "HPOUT1R"),
 	ARIZONA_MIXER_ROUTES("OUT2L", "HPOUT2L"),
