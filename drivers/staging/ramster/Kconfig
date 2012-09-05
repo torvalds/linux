@@ -1,0 +1,16 @@
+config ZCACHE2
+	bool "Dynamic compression of swap pages and clean pagecache pages"
+	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP && !ZCACHE 
+	select CRYPTO_LZO
+	default n
+	help
+	  Zcache2 doubles RAM efficiency while providing a significant
+	  performance boosts on many workloads.  Zcache2 uses
+	  compression and an in-kernel implementation of transcendent
+	  memory to store clean page cache pages and swap in RAM,
+	  providing a noticeable reduction in disk I/O.  Zcache2
+	  is a complete rewrite of the older zcache; it was intended to
+	  be a merge but that has been blocked due to political and
+	  technical disagreements.  It is intended that they will merge
+	  again in the future.  Until then, zcache2 is a single-node
+	  version of ramster.

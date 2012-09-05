@@ -134,4 +134,6 @@ source "drivers/staging/csr/Kconfig"
 
 source "drivers/staging/omap-thermal/Kconfig"
 
+source "drivers/staging/ramster/Kconfig"
+
 endif # STAGING
