@@ -116,6 +116,11 @@ enum rk_plls_id {
 #define CORE_CLK_DIV(i)		(((i) - 1) & 0x1F)
 
 /* for compatible with rk3066b */
+#define CPU_SEL_PLL_MSK		CORE_SEL_PLL_MSK
+#define CPU_SEL_PLL_W_MSK	CORE_SEL_PLL_W_MSK
+#define CPU_SEL_APLL		CORE_SEL_APLL
+#define CPU_SEL_GPLL		CORE_SEL_GPLL
+
 #define CPU_CLK_DIV_W_MSK	CORE_CLK_DIV_W_MSK
 #define CPU_CLK_DIV_MSK		CORE_CLK_DIV_MSK
 #define CPU_CLK_DIV(i)		CORE_CLK_DIV(i)
@@ -358,6 +363,10 @@ enum cru_clk_gate {
 
 	CLK_GATE_MAX,
 };
+
+/* for compatible with rk3066b */
+#define CLK_GATE_ACLK_CORE	CLK_GATE_ACLK_CPU
+#define CLK_GATE_HCLK_L2MEM	CLK_GATE_ACLK_INTMEM
 
 #define SOFT_RST_ID(i)		(16 * (i))
 

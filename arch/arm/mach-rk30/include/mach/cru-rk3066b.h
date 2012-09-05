@@ -395,7 +395,14 @@ enum cru_clk_gate {
 
 	CLK_GATE_MAX,
 };
-#define CLK_GATE_ACLK_CIF1 CLK_GATE_ACLK_CIF0
+
+/* for compatible with rk30xx */
+#define CLK_GATE_ACLK_CIF1	CLK_GATE_ACLK_CIF0
+#define CLK_GATE_ACLK_INTMEM0	CLK_GATE_CLK_L2C
+#define CLK_GATE_ACLK_INTMEM1	CLK_GATE_ACLK_INTMEM0
+#define CLK_GATE_ACLK_INTMEM2	CLK_GATE_ACLK_INTMEM0
+#define CLK_GATE_ACLK_INTMEM3	CLK_GATE_ACLK_INTMEM0
+
 #define SOFT_RST_ID(i)		(16 * (i))
 
 enum cru_soft_reset {

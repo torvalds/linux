@@ -223,8 +223,12 @@ static noinline void rk30_pm_dump_inten(void)
 static void pm_pll_wait_lock(int pll_idx)
 {
 	u32 pll_state[4] = { 1, 0, 2, 3 };
+#if defined(CONFIG_ARCH_RK3066B)
+	u32 bit = 0x20u << pll_state[pll_idx];
+#else
 	u32 bit = 0x10u << pll_state[pll_idx];
-	u32 delay = pll_idx == APLL_ID ? 24000000U : 2400000000U;
+#endif
+	u32 delay = 2400000U;
 	while (delay > 0) {
 		if (grf_readl(GRF_SOC_STATUS0) & bit)
 			break;
@@ -275,8 +279,10 @@ static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_p
 
 static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 {
+#if !defined(CONFIG_ARCH_RK3066B)
 	if (pm_pmu_power_domain_is_on(PD_DBG, pmu_pwrdn_st))
 		pmu_set_power_domain(PD_DBG, state);
+#endif
 
 	if (pm_pmu_power_domain_is_on(PD_GPU, pmu_pwrdn_st)) {
 #if defined(CONFIG_ARCH_RK3066B)
@@ -389,6 +395,7 @@ static void __sramfunc rk30_sram_suspend(void)
 			  | (1 << CLK_GATE_ACLK_CPU)
 			  | (1 << CLK_GATE_HCLK_CPU)
 			  | (1 << CLK_GATE_PCLK_CPU)
+			  | (1 << CLK_GATE_ACLK_CORE)
 			  , clkgt_regs[0], CRU_CLKGATES_CON(0), 0xffff);
 	gate_save_soc_clk(0, clkgt_regs[1], CRU_CLKGATES_CON(1), 0xffff);
 #if defined(CONFIG_ARCH_RK3066B)
@@ -408,9 +415,7 @@ static void __sramfunc rk30_sram_suspend(void)
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
-#if defined(CONFIG_ARCH_RK3066B)
 			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
-#endif
 			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
@@ -419,12 +424,10 @@ static void __sramfunc rk30_sram_suspend(void)
 	gate_save_soc_clk(0, clkgt_regs[7], CRU_CLKGATES_CON(7), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
-#ifdef CONFIG_ARCH_RK30XX
 			  | (1 << CLK_GATE_ACLK_INTMEM0 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM1 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM2 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
-#endif
 			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
 	
 #ifdef CONFIG_CLK_SWITCH_TO_32K
@@ -483,9 +486,11 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	// dump GPIO INTEN for debug
 	rk30_pm_dump_inten();
+#if !defined(CONFIG_ARCH_RK3066B)
 	//gpio6_b7
 	grf_writel(0xc0004000, 0x10c);
 	cru_writel(0x07000000, CRU_MISC_CON);
+#endif
 
 	sram_printch('0');
 
@@ -496,7 +501,7 @@ static int rk30_pm_enter(suspend_state_t state)
 	// memory tester
 	if (ddr_debug != 0)
 		ddr_testmode();
- #endif
+#endif
 
 	sram_printch('1');
 	local_fiq_disable();
@@ -507,6 +512,10 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CORE_PERIPH)
+#if defined(CONFIG_ARCH_RK3066B)
+			  | (1 << CLK_GATE_CPU_GPLL_PATH)
+			  | (1 << CLK_GATE_ACLK_CORE)
+#endif
 			  | (1 << CLK_GATE_DDRPHY)
 			  | (1 << CLK_GATE_ACLK_CPU)
 			  | (1 << CLK_GATE_HCLK_CPU)
@@ -531,9 +540,7 @@ static int rk30_pm_enter(suspend_state_t state)
 			  | (1 << CLK_GATE_HCLK_CPUBUS % 16)
 			  | (1 << CLK_GATE_ACLK_STRC_SYS % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM % 16)
-#if defined(CONFIG_ARCH_RK3066B)
 			  | (1 << CLK_GATE_HCLK_L2MEM % 16)
-#endif
 			  , clkgt_regs[4], CRU_CLKGATES_CON(4), 0xffff);
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_PCLK_GRF % 16)
@@ -548,12 +555,10 @@ static int rk30_pm_enter(suspend_state_t state)
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_CLK_L2C % 16)
 			  | (1 << CLK_GATE_PCLK_PUBL % 16)
-#ifdef CONFIG_ARCH_RK30XX
 			  | (1 << CLK_GATE_ACLK_INTMEM0 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM1 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM2 % 16)
 			  | (1 << CLK_GATE_ACLK_INTMEM3 % 16)
-#endif
 			  , clkgt_regs[9], CRU_CLKGATES_CON(9), 0x07ff);
 
 	sram_printch('2');
@@ -582,6 +587,8 @@ static int rk30_pm_enter(suspend_state_t state)
 	cru_writel(CORE_PERIPH_MSK | CORE_PERIPH_2
 		   | CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(1)
 		   | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(1)
+		   | CORE_SEL_PLL_W_MSK | CORE_SEL_APLL
+		   | CPU_SEL_PLL_W_MSK | CPU_SEL_APLL
 		   , CRU_CLKSELS_CON(0));
 	cru_writel(CORE_ACLK_W_MSK | CORE_ACLK_11
 		   | CPU_ACLK_W_MSK | CPU_ACLK_11
@@ -614,7 +621,6 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	//gpll
 	cru_writel(0xffff0000 | clk_sel10, CRU_CLKSELS_CON(10));
-	cru_writel(clk_sel10, CRU_CLKSELS_CON(10));
 	power_on_pll(GPLL_ID);
 	cru_writel((PLL_MODE_MSK(GPLL_ID) << 16) | (PLL_MODE_MSK(GPLL_ID) & cru_mode_con), CRU_MODE_CON);
 
