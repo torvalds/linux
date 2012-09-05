@@ -796,13 +796,14 @@ static int lp872x_config(struct lp872x *lp)
 	struct lp872x_platform_data *pdata = lp->pdata;
 	int ret;
 
-	if (!pdata->update_config)
-		return 0;
+	if (!pdata || !pdata->update_config)
+		goto init_dvs;
 
 	ret = lp872x_write_byte(lp, LP872X_GENERAL_CFG, pdata->general_config);
 	if (ret)
 		return ret;
 
+init_dvs:
 	return lp872x_init_dvs(lp);
 }
 
