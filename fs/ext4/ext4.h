@@ -1233,6 +1233,7 @@ struct ext4_sb_info {
 	spinlock_t s_md_lock;
 	unsigned short *s_mb_offsets;
 	unsigned int *s_mb_maxs;
+	unsigned int s_group_info_size;
 
 	/* tunables */
 	unsigned long s_stripe;
@@ -1971,6 +1972,8 @@ extern void ext4_exit_mballoc(void);
 extern void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			     struct buffer_head *bh, ext4_fsblk_t block,
 			     unsigned long count, int flags);
+extern int ext4_mb_alloc_groupinfo(struct super_block *sb,
+				   ext4_group_t ngroups);
 extern int ext4_mb_add_groupinfo(struct super_block *sb,
 		ext4_group_t i, struct ext4_group_desc *desc);
 extern int ext4_group_add_blocks(handle_t *handle, struct super_block *sb,

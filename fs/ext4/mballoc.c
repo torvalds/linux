@@ -24,6 +24,7 @@
 #include "ext4_jbd2.h"
 #include "mballoc.h"
 #include <linux/debugfs.h>
+#include <linux/log2.h>
 #include <linux/slab.h>
 #include <trace/events/ext4.h>
 
@@ -2163,6 +2164,39 @@ static struct kmem_cache *get_groupinfo_cache(int blocksize_bits)
 	return cachep;
 }
 
+/*
+ * Allocate the top-level s_group_info array for the specified number
+ * of groups
+ */
+int ext4_mb_alloc_groupinfo(struct super_block *sb, ext4_group_t ngroups)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	unsigned size;
+	struct ext4_group_info ***new_groupinfo;
+
+	size = (ngroups + EXT4_DESC_PER_BLOCK(sb) - 1) >>
+		EXT4_DESC_PER_BLOCK_BITS(sb);
+	if (size <= sbi->s_group_info_size)
+		return 0;
+
+	size = roundup_pow_of_two(sizeof(*sbi->s_group_info) * size);
+	new_groupinfo = ext4_kvzalloc(size, GFP_KERNEL);
+	if (!new_groupinfo) {
+		ext4_msg(sb, KERN_ERR, "can't allocate buddy meta group");
+		return -ENOMEM;
+	}
+	if (sbi->s_group_info) {
+		memcpy(new_groupinfo, sbi->s_group_info,
+		       sbi->s_group_info_size * sizeof(*sbi->s_group_info));
+		ext4_kvfree(sbi->s_group_info);
+	}
+	sbi->s_group_info = new_groupinfo;
+	sbi->s_group_info_size = size / sizeof(*sbi->s_group_info);
+	ext4_debug("allocated s_groupinfo array for %d meta_bg's\n", 
+		   sbi->s_group_info_size);
+	return 0;
+}
+
 /* Create and initialize ext4_group_info data for the given group. */
 int ext4_mb_add_groupinfo(struct super_block *sb, ext4_group_t group,
 			  struct ext4_group_desc *desc)
@@ -2252,49 +2286,14 @@ static int ext4_mb_init_backend(struct super_block *sb)
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	ext4_group_t i;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct ext4_super_block *es = sbi->s_es;
-	int num_meta_group_infos;
-	int num_meta_group_infos_max;
-	int array_size;
+	int err;
 	struct ext4_group_desc *desc;
 	struct kmem_cache *cachep;
 
-	/* This is the number of blocks used by GDT */
-	num_meta_group_infos = (ngroups + EXT4_DESC_PER_BLOCK(sb) -
-				1) >> EXT4_DESC_PER_BLOCK_BITS(sb);
+	err = ext4_mb_alloc_groupinfo(sb, ngroups);
+	if (err)
+		return err;
 
-	/*
-	 * This is the total number of blocks used by GDT including
-	 * the number of reserved blocks for GDT.
-	 * The s_group_info array is allocated with this value
-	 * to allow a clean online resize without a complex
-	 * manipulation of pointer.
-	 * The drawback is the unused memory when no resize
-	 * occurs but it's very low in terms of pages
-	 * (see comments below)
-	 * Need to handle this properly when META_BG resizing is allowed
-	 */
-	num_meta_group_infos_max = num_meta_group_infos +
-				le16_to_cpu(es->s_reserved_gdt_blocks);
-
-	/*
-	 * array_size is the size of s_group_info array. We round it
-	 * to the next power of two because this approximation is done
-	 * internally by kmalloc so we can have some more memory
-	 * for free here (e.g. may be used for META_BG resize).
-	 */
-	array_size = 1;
-	while (array_size < sizeof(*sbi->s_group_info) *
-	       num_meta_group_infos_max)
-		array_size = array_size << 1;
-	/* An 8TB filesystem with 64-bit pointers requires a 4096 byte
-	 * kmalloc. A 128kb malloc should suffice for a 256TB filesystem.
-	 * So a two level scheme suffices for now. */
-	sbi->s_group_info = ext4_kvzalloc(array_size, GFP_KERNEL);
-	if (sbi->s_group_info == NULL) {
-		ext4_msg(sb, KERN_ERR, "can't allocate buddy meta group");
-		return -ENOMEM;
-	}
 	sbi->s_buddy_cache = new_inode(sb);
 	if (sbi->s_buddy_cache == NULL) {
 		ext4_msg(sb, KERN_ERR, "can't get new inode");
@@ -2322,7 +2321,7 @@ err_freebuddy:
 	cachep = get_groupinfo_cache(sb->s_blocksize_bits);
 	while (i-- > 0)
 		kmem_cache_free(cachep, ext4_get_group_info(sb, i));
-	i = num_meta_group_infos;
+	i = sbi->s_group_info_size;
 	while (i-- > 0)
 		kfree(sbi->s_group_info[i]);
 	iput(sbi->s_buddy_cache);

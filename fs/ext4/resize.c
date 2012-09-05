@@ -1507,6 +1507,10 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	if (err)
 		return err;
 
+	err = ext4_mb_alloc_groupinfo(sb, input->group + 1);
+	if (err)
+		goto out;
+
 	flex_gd.count = 1;
 	flex_gd.groups = input;
 	flex_gd.bg_flags = &bg_flags;
@@ -1731,6 +1735,10 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	err = ext4_alloc_flex_bg_array(sb, n_group + 1);
 	if (err)
 		return err;
+
+	err = ext4_mb_alloc_groupinfo(sb, n_group + 1);
+	if (err)
+		goto out;
 
 	flex_gd = alloc_flex_gd(flexbg_size);
 	if (flex_gd == NULL) {
