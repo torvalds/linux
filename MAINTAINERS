@@ -595,7 +595,6 @@ M:	Will Deacon <will.deacon@arm.com>
 S:	Maintained
 F:	arch/arm/kernel/perf_event*
 F:	arch/arm/oprofile/common.c
-F:	arch/arm/kernel/pmu.c
 F:	arch/arm/include/asm/pmu.h
 F:	arch/arm/kernel/hw_breakpoint.c
 F:	arch/arm/include/asm/hw_breakpoint.h

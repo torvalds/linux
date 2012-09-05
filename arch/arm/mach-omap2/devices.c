@@ -23,7 +23,6 @@
 #include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
-#include <asm/pmu.h>
 
 #include "iomap.h"
 #include <plat/board.h>
@@ -448,7 +447,7 @@ static struct resource omap3_pmu_resource = {
 
 static struct platform_device omap_pmu_device = {
 	.name		= "arm-pmu",
-	.id		= ARM_PMU_DEVICE_CPU,
+	.id		= -1,
 	.num_resources	= 1,
 };
 
