@@ -456,6 +456,9 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 		gdblocks = ext4_bg_num_gdb(sb, group);
 		start = ext4_group_first_block_no(sb, group);
 
+		if (!ext4_bg_has_super(sb, group))
+			goto handle_itb;
+
 		/* Copy all of the GDT blocks into the backup in this group */
 		for (j = 0, block = start + 1; j < gdblocks; j++, block++) {
 			struct buffer_head *gdb;
@@ -498,6 +501,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 				goto out;
 		}
 
+handle_itb:
 		/* Initialize group tables of the grop @group */
 		if (!(bg_flags[i] & EXT4_BG_INODE_ZEROED))
 			goto handle_bb;
