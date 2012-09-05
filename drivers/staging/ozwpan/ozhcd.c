@@ -1068,8 +1068,7 @@ int oz_hcd_heartbeat(void *hport)
 			ep->credit -= urb->number_of_packets;
 			oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num, 0, 0,
 				ep->credit);
-			list_del(&urbl->link);
-			list_add_tail(&urbl->link, &xfr_list);
+			list_move_tail(&urbl->link, &xfr_list);
 		}
 	}
 	spin_unlock_bh(&ozhcd->hcd_lock);
@@ -1150,8 +1149,7 @@ int oz_hcd_heartbeat(void *hport)
 			urb->error_count = 0;
 			urb->start_frame = ep->start_frame;
 			ep->start_frame += urb->number_of_packets;
-			list_del(&urbl->link);
-			list_add_tail(&urbl->link, &xfr_list);
+			list_move_tail(&urbl->link, &xfr_list);
 			ep->credit -= urb->number_of_packets;
 			oz_event_log(OZ_EVT_EP_CREDIT, ep->ep_num | USB_DIR_IN,
 				0, 0, ep->credit);
@@ -1183,8 +1181,7 @@ int oz_hcd_heartbeat(void *hport)
 				oz_trace("%ld: Request 0x%p timeout\n",
 						now, urbl->urb);
 				urbl->submit_jiffies = now;
-				list_del(e);
-				list_add_tail(e, &xfr_list);
+				list_move_tail(e, &xfr_list);
 			}
 		}
 		if (!list_empty(&ep->urb_list))
@@ -1307,16 +1304,14 @@ static void oz_clean_endpoints_for_interface(struct usb_hcd *hcd,
 			port->out_ep[i] = 0;
 			/* Remove from isoc list if present.
 			 */
-			list_del(e);
-			list_add_tail(e, &ep_list);
+			list_move_tail(e, &ep_list);
 		}
 		/* Gather IN endpoints.
 		 */
 		if ((mask & (1<<(i+OZ_NB_ENDPOINTS))) && port->in_ep[i]) {
 			e = &port->in_ep[i]->link;
 			port->in_ep[i] = 0;
-			list_del(e);
-			list_add_tail(e, &ep_list);
+			list_move_tail(e, &ep_list);
 		}
 	}
 	spin_unlock_bh(&ozhcd->hcd_lock);
