@@ -529,10 +529,10 @@ static void __init pSeries_init_early(void)
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		hvc_vio_init_early();
 #endif
-	if (firmware_has_feature(FW_FEATURE_DABR))
-		ppc_md.set_dabr = pseries_set_dabr;
-	else if (firmware_has_feature(FW_FEATURE_XDABR))
+	if (firmware_has_feature(FW_FEATURE_XDABR))
 		ppc_md.set_dabr = pseries_set_xdabr;
+	else if (firmware_has_feature(FW_FEATURE_DABR))
+		ppc_md.set_dabr = pseries_set_dabr;
 
 	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();
