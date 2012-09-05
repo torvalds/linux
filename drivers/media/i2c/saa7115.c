@@ -1066,7 +1066,8 @@ static int saa711x_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	};
 	int i;
 
-	memset(sliced, 0, sizeof(*sliced));
+	memset(sliced->service_lines, 0, sizeof(sliced->service_lines));
+	sliced->service_set = 0;
 	/* done if using raw VBI */
 	if (saa711x_read(sd, R_80_GLOBAL_CNTL_1) & 0x10)
 		return 0;

@@ -210,10 +210,6 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	if (v4l2_subdev_call(cx->sd_av, vbi, g_sliced_fmt, &fmt->fmt.sliced))
 		return -EINVAL;
 
-	/* Ensure V4L2 spec compliant output */
-	vbifmt->reserved[0] = 0;
-	vbifmt->reserved[1] = 0;
-	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
 	vbifmt->service_set = cx18_get_service_set(vbifmt);
 	return 0;
 }

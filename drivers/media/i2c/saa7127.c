@@ -625,7 +625,7 @@ static int saa7127_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 {
 	struct saa7127_state *state = to_state(sd);
 
-	memset(fmt, 0, sizeof(*fmt));
+	memset(fmt->service_lines, 0, sizeof(fmt->service_lines));
 	if (state->vps_enable)
 		fmt->service_lines[0][16] = V4L2_SLICED_VPS;
 	if (state->wss_enable)

@@ -1020,7 +1020,7 @@ static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 {
 	int i, mask = 0;
 
-	memset(svbi, 0, sizeof(*svbi));
+	memset(svbi->service_lines, 0, sizeof(svbi->service_lines));
 
 	for (i = 0; i <= 23; i++) {
 		svbi->service_lines[0][i] =

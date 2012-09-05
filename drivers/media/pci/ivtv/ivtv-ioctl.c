@@ -326,6 +326,7 @@ static int ivtv_g_fmt_sliced_vbi_out(struct file *file, void *fh, struct v4l2_fo
 	if (!(itv->v4l2_cap & V4L2_CAP_SLICED_VBI_OUTPUT))
 		return -EINVAL;
 	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
+	memset(vbifmt->service_lines, 0, sizeof(vbifmt->service_lines));
 	if (itv->is_60hz) {
 		vbifmt->service_lines[0][21] = V4L2_SLICED_CAPTION_525;
 		vbifmt->service_lines[1][21] = V4L2_SLICED_CAPTION_525;

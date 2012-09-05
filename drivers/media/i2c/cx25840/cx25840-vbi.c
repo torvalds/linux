@@ -96,7 +96,8 @@ int cx25840_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *
 	int is_pal = !(state->std & V4L2_STD_525_60);
 	int i;
 
-	memset(svbi, 0, sizeof(*svbi));
+	memset(svbi->service_lines, 0, sizeof(svbi->service_lines));
+	svbi->service_set = 0;
 	/* we're done if raw VBI is active */
 	if ((cx25840_read(client, 0x404) & 0x10) == 0)
 		return 0;
