@@ -37,3 +37,4 @@ obj-$(CONFIG_MACH_RK30_PHONE_A22) += board-rk30-phone-a22.o board-rk30-phone-a22
 
 obj-$(CONFIG_MACH_RK3066B_FPGA) += board-rk3066b-fpga.o
 obj-$(CONFIG_MACH_RK3066B_SDK) += board-rk3066b-sdk.o
+obj-$(CONFIG_MACH_RK3066B_M701) += board-rk3066b-m701.o

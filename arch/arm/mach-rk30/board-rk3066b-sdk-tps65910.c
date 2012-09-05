@@ -259,7 +259,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	udelay(100);
 
 	ldo = regulator_get(NULL, "vdig2");	// vdd11
-	regulator_set_voltage(ldo, 1100000, 1100000);
+	regulator_set_voltage(ldo, 1000000, 1000000);
 	regulator_enable(ldo);
 	printk("%s set vdig2 vdd11=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
@@ -273,7 +273,7 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	udelay(100);
 	
 	dcdc = regulator_get(NULL, "vdd_cpu");	//vdd_cpu
-	regulator_set_voltage(dcdc, 1200000, 1200000);
+	regulator_set_voltage(dcdc, 1000000, 1000000);
 	regulator_enable(dcdc);
 	printk("%s set vdd1 vdd_cpu=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
