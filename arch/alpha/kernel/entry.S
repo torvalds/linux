@@ -372,26 +372,18 @@ $ret_success:
 	.align	4
 	.ent	work_pending
 work_pending:
-	and	$5, _TIF_NEED_RESCHED, $2
-	beq	$2, $work_notifysig
+	and	$5, _TIF_NOTIFY_RESUME | _TIF_SIGPENDING, $2
+	bne	$2, $work_notifysig
 
 $work_resched:
-	subq	$sp, 16, $sp
-	stq	$19, 0($sp)              /* save syscall nr */
-	stq	$20, 8($sp)              /* and error indication (a3) */
+	/*
+	 * We can get here only if we returned from syscall without SIGPENDING
+	 * or got through work_notifysig already.  Either case means no syscall
+	 * restarts for us, so let $19 and $20 burn.
+	 */
 	jsr	$26, schedule
-	ldq	$19, 0($sp)
-	ldq	$20, 8($sp)
-	addq	$sp, 16, $sp
-	/* Make sure need_resched and sigpending don't change between
-		sampling and the rti.  */
-	lda	$16, 7
-	call_pal PAL_swpipl
-	ldl	$5, TI_FLAGS($8)
-	and	$5, _TIF_WORK_MASK, $2
-	beq	$2, restore_all
-	and	$5, _TIF_NEED_RESCHED, $2
-	bne	$2, $work_resched
+	mov	0, $19
+	br	ret_to_user
 
 $work_notifysig:
 	mov	$sp, $16
