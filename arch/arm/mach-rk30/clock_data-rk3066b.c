@@ -1271,6 +1271,7 @@ static struct clk aclk_cpu = {
 	.parent		= &clk_cpu_div,
 	.gate_idx	= CLK_GATE_ACLK_CPU,
 	.recalc		= aclk_recalc,
+	.set_rate	= clksel_set_rate_shift,
 	.clksel_con	= CRU_CLKSELS_CON(1),
 	CRU_DIV_SET(0x7, 0, 8),
 };
@@ -1280,7 +1281,7 @@ static struct clk hclk_cpu = {
 	.parent		= &aclk_cpu,
 	.gate_idx	= CLK_GATE_HCLK_CPU,
 	.recalc		= clksel_recalc_shift,
-	//.set_rate	= clksel_set_rate_shift,
+	.set_rate	= clksel_set_rate_shift,
 	.clksel_con	= CRU_CLKSELS_CON(1),
 	CRU_DIV_SET(0x3, 8, 4),
 
@@ -1291,7 +1292,7 @@ static struct clk pclk_cpu = {
 	.parent		= &aclk_cpu,
 	.gate_idx	= CLK_GATE_PCLK_CPU,
 	.recalc		= clksel_recalc_shift,
-	//.set_rate	= clksel_set_rate_shift,
+	.set_rate	= clksel_set_rate_shift,
 	.clksel_con	= CRU_CLKSELS_CON(1),
 	CRU_DIV_SET(0x3, 12, 8),
 };
@@ -3059,6 +3060,29 @@ static void periph_clk_set_init(void)
 	clk_set_rate_nolock(&pclk_periph, pclk_p);
 }
 
+static void cpu_axi_init(void)
+{
+	unsigned long aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate;
+	unsigned long gpll_rate = general_pll_clk.rate;
+
+	switch (gpll_rate) {
+		case 297 * MHZ:
+			aclk_cpu_rate = gpll_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 0;
+			pclk_cpu_rate = aclk_cpu_rate >> 1;
+			break;
+
+		default:
+			aclk_cpu_rate = 150 * MHZ;
+			hclk_cpu_rate = 150 * MHZ;
+			pclk_cpu_rate = 75 * MHZ;
+			break;
+	}
+	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
+	clk_set_rate_nolock(&aclk_cpu, aclk_cpu_rate);
+	clk_set_rate_nolock(&hclk_cpu, hclk_cpu_rate);
+	clk_set_rate_nolock(&pclk_cpu, pclk_cpu_rate);
+}
 
 void rk30_clock_common_i2s_init(void)
 {
@@ -3097,7 +3121,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
-	clk_set_parent_nolock(&clk_cpu_div, &general_pll_clk);
+	cpu_axi_init();
 	//periph clk
 	periph_clk_set_init();
 
