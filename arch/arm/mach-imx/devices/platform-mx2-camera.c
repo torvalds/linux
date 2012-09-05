@@ -65,20 +65,3 @@ struct platform_device *__init imx_add_mx2_camera(
 			pdata, sizeof(*pdata), DMA_BIT_MASK(32));
 }
 
-struct platform_device *__init imx_add_mx2_emmaprp(
-		const struct imx_mx2_camera_data *data)
-{
-	struct resource res[] = {
-		{
-			.start = data->iobaseemmaprp,
-			.end = data->iobaseemmaprp + data->iosizeemmaprp - 1,
-			.flags = IORESOURCE_MEM,
-		}, {
-			.start = data->irqemmaprp,
-			.end = data->irqemmaprp,
-			.flags = IORESOURCE_IRQ,
-		},
-	};
-	return imx_add_platform_device_dmamask("m2m-emmaprp", 0,
-			res, 2, NULL, 0, DMA_BIT_MASK(32));
-}
