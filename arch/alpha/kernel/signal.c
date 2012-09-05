@@ -568,15 +568,24 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 }
 
 void
-do_notify_resume(struct pt_regs *regs, struct switch_stack *sw,
-		 unsigned long thread_info_flags,
+do_work_pending(struct pt_regs *regs, struct switch_stack *sw,
+		 unsigned long thread_flags,
 		 unsigned long r0, unsigned long r19)
 {
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs, sw, r0, r19);
-
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-	}
+	do {
+		if (thread_flags & _TIF_NEED_RESCHED) {
+			schedule();
+		} else {
+			local_irq_enable();
+			if (thread_flags & _TIF_SIGPENDING) {
+				do_signal(regs, sw, r0, r19);
+				r0 = 0;
+			} else {
+				clear_thread_flag(TIF_NOTIFY_RESUME);
+				tracehook_notify_resume(regs);
+			}
+		}
+		local_irq_disable();
+		thread_flags = current_thread_info()->flags;
+	} while (thread_flags & _TIF_WORK_MASK);
 }

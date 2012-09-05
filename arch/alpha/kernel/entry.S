@@ -390,15 +390,9 @@ $work_notifysig:
 	bsr	$1, do_switch_stack
 	mov	$sp, $17
 	mov	$5, $18
-	mov	$19, $9		/* save old syscall number */
-	mov	$20, $10	/* save old a3 */
-	and	$5, _TIF_SIGPENDING, $2
-	cmovne	$2, 0, $9	/* we don't want double syscall restarts */
-	jsr	$26, do_notify_resume
-	mov	$9, $19
-	mov	$10, $20
+	jsr	$26, do_work_pending
 	bsr	$1, undo_switch_stack
-	br	ret_to_user
+	br	restore_all
 .end work_pending
 
 /*
