@@ -98,16 +98,36 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 		unsigned long flags, void (*ctor)(void *))
 {
 	struct kmem_cache *s = NULL;
+	int err = 0;
 
 	get_online_cpus();
 	mutex_lock(&slab_mutex);
-	if (kmem_cache_sanity_check(name, size) == 0)
-		s = __kmem_cache_create(name, size, align, flags, ctor);
+
+	if (!kmem_cache_sanity_check(name, size) == 0)
+		goto out_locked;
+
+
+	s = __kmem_cache_create(name, size, align, flags, ctor);
+	if (!s)
+		err = -ENOSYS; /* Until __kmem_cache_create returns code */
+
+out_locked:
 	mutex_unlock(&slab_mutex);
 	put_online_cpus();
 
-	if (!s && (flags & SLAB_PANIC))
-		panic("kmem_cache_create: Failed to create slab '%s'\n", name);
+	if (err) {
+
+		if (flags & SLAB_PANIC)
+			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
+				name, err);
+		else {
+			printk(KERN_WARNING "kmem_cache_create(%s) failed with error %d",
+				name, err);
+			dump_stack();
+		}
+
+		return NULL;
+	}
 
 	return s;
 }
