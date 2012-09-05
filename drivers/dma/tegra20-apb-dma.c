@@ -475,8 +475,7 @@ static void tegra_dma_abort_all(struct tegra_dma_channel *tdc)
 	while (!list_empty(&tdc->pending_sg_req)) {
 		sgreq = list_first_entry(&tdc->pending_sg_req,
 						typeof(*sgreq), node);
-		list_del(&sgreq->node);
-		list_add_tail(&sgreq->node, &tdc->free_sg_req);
+		list_move_tail(&sgreq->node, &tdc->free_sg_req);
 		if (sgreq->last_sg) {
 			dma_desc = sgreq->dma_desc;
 			dma_desc->dma_status = DMA_ERROR;
@@ -570,8 +569,7 @@ static void handle_cont_sngl_cycle_dma_done(struct tegra_dma_channel *tdc,
 
 	/* If not last req then put at end of pending list */
 	if (!list_is_last(&sgreq->node, &tdc->pending_sg_req)) {
-		list_del(&sgreq->node);
-		list_add_tail(&sgreq->node, &tdc->pending_sg_req);
+		list_move_tail(&sgreq->node, &tdc->pending_sg_req);
 		sgreq->configured = false;
 		st = handle_continuous_head_request(tdc, sgreq, to_terminate);
 		if (!st)
