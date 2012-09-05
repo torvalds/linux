@@ -778,7 +778,6 @@ das08_find_pci_board(struct pci_dev *pdev)
 static int __devinit __maybe_unused
 das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 {
-	struct das08_private_struct *devpriv;
 	unsigned long iobase;
 	int ret;
 
@@ -793,8 +792,7 @@ das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
 		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
-	devpriv = dev->private;
-	devpriv->pdev = pdev;
+	comedi_set_hw_dev(dev, &pdev->dev);
 	/*  enable PCI device and reserve I/O spaces */
 	if (comedi_pci_enable(pdev, dev->driver->driver_name)) {
 		dev_err(dev->class_dev,
@@ -847,16 +845,16 @@ EXPORT_SYMBOL_GPL(das08_common_detach);
 static void __maybe_unused das08_detach(struct comedi_device *dev)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
-	struct das08_private_struct *devpriv = dev->private;
 
 	das08_common_detach(dev);
 	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, thisboard->iosize);
 	} else if (is_pci_board(thisboard)) {
-		if (devpriv && devpriv->pdev) {
+		struct pci_dev *pdev = comedi_to_pci_dev(dev);
+		if (pdev) {
 			if (dev->iobase)
-				comedi_pci_disable(devpriv->pdev);
+				comedi_pci_disable(pdev);
 		}
 	}
 }
