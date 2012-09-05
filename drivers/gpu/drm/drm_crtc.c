@@ -294,6 +294,8 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
+	kref_init(&fb->refcount);
+
 	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
 	if (ret)
 		return ret;
@@ -307,6 +309,38 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
 
+static void drm_framebuffer_free(struct kref *kref)
+{
+	struct drm_framebuffer *fb =
+			container_of(kref, struct drm_framebuffer, refcount);
+	fb->funcs->destroy(fb);
+}
+
+/**
+ * drm_framebuffer_unreference - unref a framebuffer
+ *
+ * LOCKING:
+ * Caller must hold mode config lock.
+ */
+void drm_framebuffer_unreference(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	DRM_DEBUG("FB ID: %d\n", fb->base.id);
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	kref_put(&fb->refcount, drm_framebuffer_free);
+}
+EXPORT_SYMBOL(drm_framebuffer_unreference);
+
+/**
+ * drm_framebuffer_reference - incr the fb refcnt
+ */
+void drm_framebuffer_reference(struct drm_framebuffer *fb)
+{
+	DRM_DEBUG("FB ID: %d\n", fb->base.id);
+	kref_get(&fb->refcount);
+}
+EXPORT_SYMBOL(drm_framebuffer_reference);
+
 /**
  * drm_framebuffer_cleanup - remove a framebuffer object
  * @fb: framebuffer to remove
@@ -318,6 +352,32 @@ EXPORT_SYMBOL(drm_framebuffer_init);
  * it, setting it to NULL.
  */
 void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	/*
+	 * This could be moved to drm_framebuffer_remove(), but for
+	 * debugging is nice to keep around the list of fb's that are
+	 * no longer associated w/ a drm_file but are not unreferenced
+	 * yet.  (i915 and omapdrm have debugfs files which will show
+	 * this.)
+	 */
+	drm_mode_object_put(dev, &fb->base);
+	list_del(&fb->head);
+	dev->mode_config.num_fb--;
+}
+EXPORT_SYMBOL(drm_framebuffer_cleanup);
+
+/**
+ * drm_framebuffer_remove - remove and unreference a framebuffer object
+ * @fb: framebuffer to remove
+ *
+ * LOCKING:
+ * Caller must hold mode config lock.
+ *
+ * Scans all the CRTCs and planes in @dev's mode_config.  If they're
+ * using @fb, removes it, setting it to NULL.
+ */
+void drm_framebuffer_remove(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_crtc *crtc;
@@ -350,11 +410,11 @@ void drm_framebuffer_cleanup(struct drm_framebuffer *fb)
 		}
 	}
 
-	drm_mode_object_put(dev, &fb->base);
-	list_del(&fb->head);
-	dev->mode_config.num_fb--;
+	list_del(&fb->filp_head);
+
+	drm_framebuffer_unreference(fb);
 }
-EXPORT_SYMBOL(drm_framebuffer_cleanup);
+EXPORT_SYMBOL(drm_framebuffer_remove);
 
 /**
  * drm_crtc_init - Initialise a new CRTC object
@@ -1031,7 +1091,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	}
 
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		fb->funcs->destroy(fb);
+		drm_framebuffer_remove(fb);
 	}
 
 	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
@@ -2337,11 +2397,7 @@ int drm_mode_rmfb(struct drm_device *dev,
 		goto out;
 	}
 
-	/* TODO release all crtc connected to the framebuffer */
-	/* TODO unhock the destructor from the buffer object */
-
-	list_del(&fb->filp_head);
-	fb->funcs->destroy(fb);
+	drm_framebuffer_remove(fb);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -2491,8 +2547,7 @@ void drm_fb_release(struct drm_file *priv)
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
-		list_del(&fb->filp_head);
-		fb->funcs->destroy(fb);
+		drm_framebuffer_remove(fb);
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 }
