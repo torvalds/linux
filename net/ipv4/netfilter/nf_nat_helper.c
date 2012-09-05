@@ -153,6 +153,19 @@ void nf_nat_set_seq_adjust(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
 }
 EXPORT_SYMBOL_GPL(nf_nat_set_seq_adjust);
 
+void nf_nat_tcp_seq_adjust(struct sk_buff *skb, struct nf_conn *ct,
+			   u32 ctinfo, int off)
+{
+	const struct tcphdr *th;
+
+	if (nf_ct_protonum(ct) != IPPROTO_TCP)
+		return;
+
+	th = (struct tcphdr *)(skb_network_header(skb)+ ip_hdrlen(skb));
+	nf_nat_set_seq_adjust(ct, ctinfo, th->seq, off);
+}
+EXPORT_SYMBOL_GPL(nf_nat_tcp_seq_adjust);
+
 static void nf_nat_csum(struct sk_buff *skb, const struct iphdr *iph, void *data,
 			int datalen, __sum16 *check, int oldlen)
 {

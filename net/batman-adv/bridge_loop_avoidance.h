@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *
@@ -16,80 +15,84 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA
- *
  */
 
 #ifndef _NET_BATMAN_ADV_BLA_H_
 #define _NET_BATMAN_ADV_BLA_H_
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid);
-int bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid);
-int bla_is_backbone_gw(struct sk_buff *skb,
-		       struct orig_node *orig_node, int hdr_size);
-int bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
-int bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig);
-int bla_check_bcast_duplist(struct bat_priv *bat_priv,
-			    struct bcast_packet *bcast_packet, int hdr_size);
-void bla_update_orig_address(struct bat_priv *bat_priv,
-			     struct hard_iface *primary_if,
-			     struct hard_iface *oldif);
-int bla_init(struct bat_priv *bat_priv);
-void bla_free(struct bat_priv *bat_priv);
+int batadv_bla_rx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid,
+		  bool is_bcast);
+int batadv_bla_tx(struct batadv_priv *bat_priv, struct sk_buff *skb, short vid);
+int batadv_bla_is_backbone_gw(struct sk_buff *skb,
+			      struct batadv_orig_node *orig_node, int hdr_size);
+int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv, uint8_t *orig);
+int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
+				   struct batadv_bcast_packet *bcast_packet,
+				   int hdr_size);
+void batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
+				    struct batadv_hard_iface *primary_if,
+				    struct batadv_hard_iface *oldif);
+int batadv_bla_init(struct batadv_priv *bat_priv);
+void batadv_bla_free(struct batadv_priv *bat_priv);
 
-#define BLA_CRC_INIT	0
+#define BATADV_BLA_CRC_INIT	0
 #else /* ifdef CONFIG_BATMAN_ADV_BLA */
 
-static inline int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb,
-			 short vid)
+static inline int batadv_bla_rx(struct batadv_priv *bat_priv,
+				struct sk_buff *skb, short vid,
+				bool is_bcast)
 {
 	return 0;
 }
 
-static inline int bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb,
-			 short vid)
+static inline int batadv_bla_tx(struct batadv_priv *bat_priv,
+				struct sk_buff *skb, short vid)
 {
 	return 0;
 }
 
-static inline int bla_is_backbone_gw(struct sk_buff *skb,
-				     struct orig_node *orig_node,
-				     int hdr_size)
+static inline int batadv_bla_is_backbone_gw(struct sk_buff *skb,
+					    struct batadv_orig_node *orig_node,
+					    int hdr_size)
 {
 	return 0;
 }
 
-static inline int bla_claim_table_seq_print_text(struct seq_file *seq,
-						 void *offset)
+static inline int batadv_bla_claim_table_seq_print_text(struct seq_file *seq,
+							void *offset)
 {
 	return 0;
 }
 
-static inline int bla_is_backbone_gw_orig(struct bat_priv *bat_priv,
-					  uint8_t *orig)
+static inline int batadv_bla_is_backbone_gw_orig(struct batadv_priv *bat_priv,
+						 uint8_t *orig)
 {
 	return 0;
 }
 
-static inline int bla_check_bcast_duplist(struct bat_priv *bat_priv,
-					  struct bcast_packet *bcast_packet,
-					  int hdr_size)
+static inline int
+batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
+			       struct batadv_bcast_packet *bcast_packet,
+			       int hdr_size)
 {
 	return 0;
 }
 
-static inline void bla_update_orig_address(struct bat_priv *bat_priv,
-					   struct hard_iface *primary_if,
-					   struct hard_iface *oldif)
+static inline void
+batadv_bla_update_orig_address(struct batadv_priv *bat_priv,
+			       struct batadv_hard_iface *primary_if,
+			       struct batadv_hard_iface *oldif)
 {
 }
 
-static inline int bla_init(struct bat_priv *bat_priv)
+static inline int batadv_bla_init(struct batadv_priv *bat_priv)
 {
 	return 1;
 }
 
-static inline void bla_free(struct bat_priv *bat_priv)
+static inline void batadv_bla_free(struct batadv_priv *bat_priv)
 {
 }
 

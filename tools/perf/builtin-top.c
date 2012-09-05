@@ -38,6 +38,7 @@
 #include "util/cpumap.h"
 #include "util/xyarray.h"
 #include "util/sort.h"
+#include "util/intlist.h"
 
 #include "util/debug.h"
 
@@ -125,7 +126,7 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 	/*
 	 * We can't annotate with just /proc/kallsyms
 	 */
-	if (map->dso->symtab_type == SYMTAB__KALLSYMS) {
+	if (map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
 		pr_err("Can't annotate %s: No vmlinux file was found in the "
 		       "path\n", sym->name);
 		sleep(1);
@@ -245,7 +246,7 @@ static void perf_top__show_details(struct perf_top *top)
 	if (notes->src == NULL)
 		goto out_unlock;
 
-	printf("Showing %s for %s\n", event_name(top->sym_evsel), symbol->name);
+	printf("Showing %s for %s\n", perf_evsel__name(top->sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", top->sym_pcnt_filter);
 
 	more = symbol__annotate_printf(symbol, he->ms.map, top->sym_evsel->idx,
@@ -408,7 +409,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", top->print_entries);
 
 	if (top->evlist->nr_entries > 1)
-		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", event_name(top->sym_evsel));
+		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", perf_evsel__name(top->sym_evsel));
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", top->count_filter);
 
@@ -503,13 +504,13 @@ static void perf_top__handle_keypress(struct perf_top *top, int c)
 				fprintf(stderr, "\nAvailable events:");
 
 				list_for_each_entry(top->sym_evsel, &top->evlist->entries, node)
-					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, event_name(top->sym_evsel));
+					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->nr_entries) {
 					top->sym_evsel = list_entry(top->evlist->entries.next, struct perf_evsel, node);
-					fprintf(stderr, "Sorry, no such event, using %s.\n", event_name(top->sym_evsel));
+					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
 				}
@@ -706,8 +707,16 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	int err;
 
 	if (!machine && perf_guest) {
-		pr_err("Can't find guest [%d]'s kernel information\n",
-			event->ip.pid);
+		static struct intlist *seen;
+
+		if (!seen)
+			seen = intlist__new();
+
+		if (!intlist__has_entry(seen, event->ip.pid)) {
+			pr_err("Can't find guest [%d]'s kernel information\n",
+				event->ip.pid);
+			intlist__add(seen, event->ip.pid);
+		}
 		return;
 	}
 
@@ -774,7 +783,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		if ((sort__has_parent || symbol_conf.use_callchain) &&
 		    sample->callchain) {
-			err = machine__resolve_callchain(machine, evsel, al.thread,
+			err = machine__resolve_callchain(machine, al.thread,
 							 sample->callchain, &parent);
 			if (err)
 				return;
@@ -811,7 +820,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	int ret;
 
 	while ((event = perf_evlist__mmap_read(top->evlist, idx)) != NULL) {
-		ret = perf_session__parse_sample(session, event, &sample);
+		ret = perf_evlist__parse_sample(top->evlist, event, &sample, false);
 		if (ret) {
 			pr_err("Can't parse sample, err = %d\n", ret);
 			continue;
@@ -943,8 +952,10 @@ try_again:
 			 * based cpu-clock-tick sw counter, which
 			 * is always available even if no PMU support:
 			 */
-			if (attr->type == PERF_TYPE_HARDWARE &&
-			    attr->config == PERF_COUNT_HW_CPU_CYCLES) {
+			if ((err == ENOENT || err == ENXIO) &&
+			    (attr->type == PERF_TYPE_HARDWARE) &&
+			    (attr->config == PERF_COUNT_HW_CPU_CYCLES)) {
+
 				if (verbose)
 					ui__warning("Cycles event not supported,\n"
 						    "trying to fall back to cpu-clock-ticks\n");
@@ -960,7 +971,7 @@ try_again:
 
 			if (err == ENOENT) {
 				ui__error("The %s event is not supported.\n",
-					    event_name(counter));
+					  perf_evsel__name(counter));
 				goto out_err;
 			} else if (err == EMFILE) {
 				ui__error("Too many events are opened.\n"
@@ -1032,7 +1043,7 @@ static int __cmd_top(struct perf_top *top)
 					       &top->session->host_machine);
 	perf_top__start_counters(top);
 	top->session->evlist = top->evlist;
-	perf_session__update_sample_type(top->session);
+	perf_session__set_id_hdr_size(top->session);
 
 	/* Wait for a minimal set of events before starting the snapshot */
 	poll(top->evlist->pollfd, top->evlist->nr_fds, 100);

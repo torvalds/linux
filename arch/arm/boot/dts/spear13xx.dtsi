@@ -43,8 +43,8 @@
 
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
-		interrupts = <0 8 0x04
-			      0 9 0x04>;
+		interrupts = <0 6 0x04
+			      0 7 0x04>;
 	};
 
 	L2: l2-cache {
@@ -119,8 +119,8 @@
 		gmac0: eth@e2000000 {
 			compatible = "st,spear600-gmac";
 			reg = <0xe2000000 0x8000>;
-			interrupts = <0 23 0x4
-				      0 24 0x4>;
+			interrupts = <0 33 0x4
+				      0 34 0x4>;
 			interrupt-names = "macirq", "eth_wake_irq";
 			status = "disabled";
 		};
@@ -202,6 +202,7 @@
 			kbd@e0300000 {
 				compatible = "st,spear300-kbd";
 				reg = <0xe0300000 0x1000>;
+				interrupts = <0 52 0x4>;
 				status = "disabled";
 			};
 
@@ -224,7 +225,7 @@
 			serial@e0000000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xe0000000 0x1000>;
-				interrupts = <0 36 0x4>;
+				interrupts = <0 35 0x4>;
 				status = "disabled";
 			};
 

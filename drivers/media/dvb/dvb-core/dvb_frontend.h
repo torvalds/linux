@@ -220,6 +220,7 @@ struct dvb_tuner_ops {
 #define TUNER_STATUS_STEREO 2
 	int (*get_status)(struct dvb_frontend *fe, u32 *status);
 	int (*get_rf_strength)(struct dvb_frontend *fe, u16 *strength);
+	int (*get_afc)(struct dvb_frontend *fe, s32 *afc);
 
 	/** These are provided separately from set_params in order to facilitate silicon
 	 * tuners which require sophisticated tuning loops, controlling each parameter separately. */

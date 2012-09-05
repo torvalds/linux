@@ -52,7 +52,7 @@ ACPI_MODULE_NAME("nsalloc")
  *
  * FUNCTION:    acpi_ns_create_node
  *
- * PARAMETERS:  Name            - Name of the new node (4 char ACPI name)
+ * PARAMETERS:  name            - Name of the new node (4 char ACPI name)
  *
  * RETURN:      New namespace node (Null on failure)
  *
@@ -92,7 +92,7 @@ struct acpi_namespace_node *acpi_ns_create_node(u32 name)
  *
  * FUNCTION:    acpi_ns_delete_node
  *
- * PARAMETERS:  Node            - Node to be deleted
+ * PARAMETERS:  node            - Node to be deleted
  *
  * RETURN:      None
  *
@@ -143,7 +143,7 @@ void acpi_ns_delete_node(struct acpi_namespace_node *node)
  *
  * FUNCTION:    acpi_ns_remove_node
  *
- * PARAMETERS:  Node            - Node to be removed/deleted
+ * PARAMETERS:  node            - Node to be removed/deleted
  *
  * RETURN:      None
  *
@@ -196,8 +196,8 @@ void acpi_ns_remove_node(struct acpi_namespace_node *node)
  *
  * PARAMETERS:  walk_state      - Current state of the walk
  *              parent_node     - The parent of the new Node
- *              Node            - The new Node to install
- *              Type            - ACPI object type of the new Node
+ *              node            - The new Node to install
+ *              type            - ACPI object type of the new Node
  *
  * RETURN:      None
  *

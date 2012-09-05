@@ -8,7 +8,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -205,7 +205,7 @@ acpi_os_execute(acpi_execute_type type,
 acpi_status
 acpi_os_hotplug_execute(acpi_osd_exec_callback function, void *context);
 
-void acpi_os_wait_events_complete(void *context);
+void acpi_os_wait_events_complete(void);
 
 void acpi_os_sleep(u64 milliseconds);
 

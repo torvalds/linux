@@ -31,7 +31,6 @@
 struct attrlist;
 struct attrlist_cursor_kern;
 struct xfs_attr_list_context;
-struct xfs_dabuf;
 struct xfs_da_args;
 struct xfs_da_state;
 struct xfs_da_state_blk;
@@ -215,7 +214,7 @@ int	xfs_attr_shortform_getvalue(struct xfs_da_args *args);
 int	xfs_attr_shortform_to_leaf(struct xfs_da_args *args);
 int	xfs_attr_shortform_remove(struct xfs_da_args *args);
 int	xfs_attr_shortform_list(struct xfs_attr_list_context *context);
-int	xfs_attr_shortform_allfit(struct xfs_dabuf *bp, struct xfs_inode *dp);
+int	xfs_attr_shortform_allfit(struct xfs_buf *bp, struct xfs_inode *dp);
 int	xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes);
 
 
@@ -223,7 +222,7 @@ int	xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes);
  * Internal routines when attribute fork size == XFS_LBSIZE(mp).
  */
 int	xfs_attr_leaf_to_node(struct xfs_da_args *args);
-int	xfs_attr_leaf_to_shortform(struct xfs_dabuf *bp,
+int	xfs_attr_leaf_to_shortform(struct xfs_buf *bp,
 				   struct xfs_da_args *args, int forkoff);
 int	xfs_attr_leaf_clearflag(struct xfs_da_args *args);
 int	xfs_attr_leaf_setflag(struct xfs_da_args *args);
@@ -235,14 +234,14 @@ int	xfs_attr_leaf_flipflags(xfs_da_args_t *args);
 int	xfs_attr_leaf_split(struct xfs_da_state *state,
 				   struct xfs_da_state_blk *oldblk,
 				   struct xfs_da_state_blk *newblk);
-int	xfs_attr_leaf_lookup_int(struct xfs_dabuf *leaf,
+int	xfs_attr_leaf_lookup_int(struct xfs_buf *leaf,
 					struct xfs_da_args *args);
-int	xfs_attr_leaf_getvalue(struct xfs_dabuf *bp, struct xfs_da_args *args);
-int	xfs_attr_leaf_add(struct xfs_dabuf *leaf_buffer,
+int	xfs_attr_leaf_getvalue(struct xfs_buf *bp, struct xfs_da_args *args);
+int	xfs_attr_leaf_add(struct xfs_buf *leaf_buffer,
 				 struct xfs_da_args *args);
-int	xfs_attr_leaf_remove(struct xfs_dabuf *leaf_buffer,
+int	xfs_attr_leaf_remove(struct xfs_buf *leaf_buffer,
 				    struct xfs_da_args *args);
-int	xfs_attr_leaf_list_int(struct xfs_dabuf *bp,
+int	xfs_attr_leaf_list_int(struct xfs_buf *bp,
 				      struct xfs_attr_list_context *context);
 
 /*
@@ -257,9 +256,9 @@ int	xfs_attr_root_inactive(struct xfs_trans **trans, struct xfs_inode *dp);
 /*
  * Utility routines.
  */
-xfs_dahash_t	xfs_attr_leaf_lasthash(struct xfs_dabuf *bp, int *count);
-int	xfs_attr_leaf_order(struct xfs_dabuf *leaf1_bp,
-				   struct xfs_dabuf *leaf2_bp);
+xfs_dahash_t	xfs_attr_leaf_lasthash(struct xfs_buf *bp, int *count);
+int	xfs_attr_leaf_order(struct xfs_buf *leaf1_bp,
+				   struct xfs_buf *leaf2_bp);
 int	xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize,
 					int *local);
 #endif	/* __XFS_ATTR_LEAF_H__ */

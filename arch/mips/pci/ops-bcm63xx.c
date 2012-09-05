@@ -411,7 +411,7 @@ struct pci_ops bcm63xx_cb_ops = {
  * only one IO window, so it  cannot be shared by PCI and cardbus, use
  * fixup to choose and detect unhandled configuration
  */
-static void bcm63xx_fixup(struct pci_dev *dev)
+static void __devinit bcm63xx_fixup(struct pci_dev *dev)
 {
 	static int io_window = -1;
 	int i, found, new_io_window;
@@ -465,3 +465,64 @@ static void bcm63xx_fixup(struct pci_dev *dev)
 
 DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, bcm63xx_fixup);
 #endif
+
+static int bcm63xx_pcie_can_access(struct pci_bus *bus, int devfn)
+{
+	switch (bus->number) {
+	case PCIE_BUS_BRIDGE:
+		return (PCI_SLOT(devfn) == 0);
+	case PCIE_BUS_DEVICE:
+		if (PCI_SLOT(devfn) == 0)
+			return bcm_pcie_readl(PCIE_DLSTATUS_REG)
+					& DLSTATUS_PHYLINKUP;
+	default:
+		return false;
+	}
+}
+
+static int bcm63xx_pcie_read(struct pci_bus *bus, unsigned int devfn,
+			     int where, int size, u32 *val)
+{
+	u32 data;
+	u32 reg = where & ~3;
+
+	if (!bcm63xx_pcie_can_access(bus, devfn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (bus->number == PCIE_BUS_DEVICE)
+		reg += PCIE_DEVICE_OFFSET;
+
+	data = bcm_pcie_readl(reg);
+
+	*val = postprocess_read(data, where, size);
+
+	return PCIBIOS_SUCCESSFUL;
+
+}
+
+static int bcm63xx_pcie_write(struct pci_bus *bus, unsigned int devfn,
+			      int where, int size, u32 val)
+{
+	u32 data;
+	u32 reg = where & ~3;
+
+	if (!bcm63xx_pcie_can_access(bus, devfn))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (bus->number == PCIE_BUS_DEVICE)
+		reg += PCIE_DEVICE_OFFSET;
+
+
+	data = bcm_pcie_readl(reg);
+
+	data = preprocess_write(data, val, where, size);
+	bcm_pcie_writel(data, reg);
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+
+struct pci_ops bcm63xx_pcie_ops = {
+	.read   = bcm63xx_pcie_read,
+	.write  = bcm63xx_pcie_write
+};

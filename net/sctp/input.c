@@ -408,10 +408,10 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 
 	if (t->param_flags & SPP_PMTUD_ENABLE) {
 		/* Update transports view of the MTU */
-		sctp_transport_update_pmtu(t, pmtu);
+		sctp_transport_update_pmtu(sk, t, pmtu);
 
 		/* Update association pmtu. */
-		sctp_assoc_sync_pmtu(asoc);
+		sctp_assoc_sync_pmtu(sk, asoc);
 	}
 
 	/* Retransmit with the new pmtu setting.
@@ -421,6 +421,18 @@ void sctp_icmp_frag_needed(struct sock *sk, struct sctp_association *asoc,
 	 * would not be fragmented, so it must be re-transmitted fragmented.
 	 */
 	sctp_retransmit(&asoc->outqueue, t, SCTP_RTXR_PMTUD);
+}
+
+void sctp_icmp_redirect(struct sock *sk, struct sctp_transport *t,
+			struct sk_buff *skb)
+{
+	struct dst_entry *dst;
+
+	if (!t)
+		return;
+	dst = sctp_transport_dst_check(t);
+	if (dst)
+		dst->ops->redirect(dst, sk, skb);
 }
 
 /*
@@ -628,6 +640,10 @@ void sctp_v4_err(struct sk_buff *skb, __u32 info)
 
 		err = EHOSTUNREACH;
 		break;
+	case ICMP_REDIRECT:
+		sctp_icmp_redirect(sk, transport, skb);
+		err = 0;
+		break;
 	default:
 		goto out_unlock;
 	}
@@ -736,15 +752,12 @@ static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 
 	epb = &ep->base;
 
-	if (hlist_unhashed(&epb->node))
-		return;
-
 	epb->hashent = sctp_ep_hashfn(epb->bind_addr.port);
 
 	head = &sctp_ep_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
-	__hlist_del(&epb->node);
+	hlist_del_init(&epb->node);
 	sctp_write_unlock(&head->lock);
 }
 
@@ -825,7 +838,7 @@ static void __sctp_unhash_established(struct sctp_association *asoc)
 	head = &sctp_assoc_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
-	__hlist_del(&epb->node);
+	hlist_del_init(&epb->node);
 	sctp_write_unlock(&head->lock);
 }
 

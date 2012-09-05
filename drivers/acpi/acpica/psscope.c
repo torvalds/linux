@@ -93,7 +93,7 @@ u8 acpi_ps_has_completed_scope(struct acpi_parse_state * parser_state)
  * FUNCTION:    acpi_ps_init_scope
  *
  * PARAMETERS:  parser_state        - Current parser state object
- *              Root                - the Root Node of this new scope
+ *              root                - the Root Node of this new scope
  *
  * RETURN:      Status
  *
@@ -131,7 +131,7 @@ acpi_ps_init_scope(struct acpi_parse_state * parser_state,
  * FUNCTION:    acpi_ps_push_scope
  *
  * PARAMETERS:  parser_state        - Current parser state object
- *              Op                  - Current op to be pushed
+ *              op                  - Current op to be pushed
  *              remaining_args      - List of args remaining
  *              arg_count           - Fixed or variable number of args
  *
@@ -184,7 +184,7 @@ acpi_ps_push_scope(struct acpi_parse_state *parser_state,
  * FUNCTION:    acpi_ps_pop_scope
  *
  * PARAMETERS:  parser_state        - Current parser state object
- *              Op                  - Where the popped op is returned
+ *              op                  - Where the popped op is returned
  *              arg_list            - Where the popped "next argument" is
  *                                    returned
  *              arg_count           - Count of objects in arg_list

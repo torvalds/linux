@@ -1007,7 +1007,7 @@ out:
  */
 int ubifs_replay_journal(struct ubifs_info *c)
 {
-	int err, i, lnum, offs, free;
+	int err, lnum, free;
 
 	BUILD_BUG_ON(UBIFS_TRUN_KEY > 5);
 
@@ -1025,25 +1025,16 @@ int ubifs_replay_journal(struct ubifs_info *c)
 	dbg_mnt("start replaying the journal");
 	c->replaying = 1;
 	lnum = c->ltail_lnum = c->lhead_lnum;
-	offs = c->lhead_offs;
 
-	for (i = 0; i < c->log_lebs; i++, lnum++) {
-		if (lnum >= UBIFS_LOG_LNUM + c->log_lebs) {
-			/*
-			 * The log is logically circular, we reached the last
-			 * LEB, switch to the first one.
-			 */
-			lnum = UBIFS_LOG_LNUM;
-			offs = 0;
-		}
-		err = replay_log_leb(c, lnum, offs, c->sbuf);
+	do {
+		err = replay_log_leb(c, lnum, 0, c->sbuf);
 		if (err == 1)
 			/* We hit the end of the log */
 			break;
 		if (err)
 			goto out;
-		offs = 0;
-	}
+		lnum = ubifs_next_log_lnum(c, lnum);
+	} while (lnum != c->ltail_lnum);
 
 	err = replay_buds(c);
 	if (err)

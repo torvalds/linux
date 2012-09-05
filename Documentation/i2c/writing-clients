@@ -245,11 +245,26 @@ static int __init foo_init(void)
 {
 	return i2c_add_driver(&foo_driver);
 }
+module_init(foo_init);
 
 static void __exit foo_cleanup(void)
 {
 	i2c_del_driver(&foo_driver);
 }
+module_exit(foo_cleanup);
+
+The module_i2c_driver() macro can be used to reduce above code.
+
+module_i2c_driver(foo_driver);
+
+Note that some functions are marked by `__init'.  These functions can
+be removed after kernel booting (or module loading) is completed.
+Likewise, functions marked by `__exit' are dropped by the compiler when
+the code is built into the kernel, as they would never be called.
+
+
+Driver Information
+==================
 
 /* Substitute your own name and email address */
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>"
@@ -257,14 +272,6 @@ MODULE_DESCRIPTION("Driver for Barf Inc. Foo I2C devices");
 
 /* a few non-GPL license types are also allowed */
 MODULE_LICENSE("GPL");
-
-module_init(foo_init);
-module_exit(foo_cleanup);
-
-Note that some functions are marked by `__init'.  These functions can
-be removed after kernel booting (or module loading) is completed.
-Likewise, functions marked by `__exit' are dropped by the compiler when
-the code is built into the kernel, as they would never be called.
 
 
 Power Management

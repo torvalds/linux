@@ -568,7 +568,6 @@ add_numbered_child(unsigned chip, const char *name, int num,
 		goto err;
 	}
 
-	device_init_wakeup(&pdev->dev, can_wakeup);
 	pdev->dev.parent = &twl->client->dev;
 
 	if (pdata) {
@@ -593,6 +592,8 @@ add_numbered_child(unsigned chip, const char *name, int num,
 	}
 
 	status = platform_device_add(pdev);
+	if (status == 0)
+		device_init_wakeup(&pdev->dev, can_wakeup);
 
 err:
 	if (status < 0) {
@@ -716,8 +717,9 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 		static struct regulator_consumer_supply usb1v8 = {
 			.supply =	"usb1v8",
 		};
-		static struct regulator_consumer_supply usb3v1 = {
-			.supply =	"usb3v1",
+		static struct regulator_consumer_supply usb3v1[] = {
+			{ .supply =	"usb3v1" },
+			{ .supply =	"bci3v1" },
 		};
 
 	/* First add the regulators so that they can be used by transceiver */
@@ -745,7 +747,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 				return PTR_ERR(child);
 
 			child = add_regulator_linked(TWL4030_REG_VUSB3V1,
-						      &usb_fixed, &usb3v1, 1,
+						      &usb_fixed, usb3v1, 2,
 						      features);
 			if (IS_ERR(child))
 				return PTR_ERR(child);
@@ -766,7 +768,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 		if (twl_has_regulator() && child) {
 			usb1v5.dev_name = dev_name(child);
 			usb1v8.dev_name = dev_name(child);
-			usb3v1.dev_name = dev_name(child);
+			usb3v1[0].dev_name = dev_name(child);
 		}
 	}
 	if (twl_has_usb() && pdata->usb && twl_class_is_6030()) {

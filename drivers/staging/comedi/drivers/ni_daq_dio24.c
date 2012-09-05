@@ -116,6 +116,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq = 0;
 #endif
 	struct pcmcia_device *link;
+	int ret;
 
 	/* allocate and initialize dev->private */
 	if (alloc_private(dev, sizeof(struct dio24_private)) < 0)
@@ -158,8 +159,9 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = thisboard->name;
 
-	if (alloc_subdevices(dev, 1) < 0)
-		return -ENOMEM;
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret)
+		return ret;
 
 	/* 8255 dio */
 	s = dev->subdevices + 0;

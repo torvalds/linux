@@ -185,7 +185,7 @@ config USB_FUSB300
 
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP1
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_H4_OTG
 	select USB_OTG_UTILS if ARCH_OMAP
 	help
@@ -320,6 +320,15 @@ config USB_MV_UDC
 	  Marvell Socs (including PXA and MMP series) include a high speed
 	  USB2.0 OTG controller, which can be configured as high speed or
 	  full speed USB peripheral.
+
+config USB_MV_U3D
+	tristate "MARVELL PXA2128 USB 3.0 controller"
+	depends on CPU_MMP3
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SUPERSPEED
+	help
+	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
+	  controller, which support super speed USB peripheral.
 
 #
 # Controllers available in both integrated and discrete versions

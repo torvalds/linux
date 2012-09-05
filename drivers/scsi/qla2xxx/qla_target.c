@@ -2643,19 +2643,9 @@ static void qlt_do_work(struct work_struct *work)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha,
 	    atio->u.isp24.fcp_hdr.s_id);
-	if (sess) {
-		if (unlikely(sess->tearing_down)) {
-			sess = NULL;
-			spin_unlock_irqrestore(&ha->hardware_lock, flags);
-			goto out_term;
-		} else {
-			/*
-			 * Do the extra kref_get() before dropping
-			 * qla_hw_data->hardware_lock.
-			 */
-			kref_get(&sess->se_sess->sess_kref);
-		}
-	}
+	/* Do kref_get() before dropping qla_hw_data->hardware_lock. */
+	if (sess)
+		kref_get(&sess->se_sess->sess_kref);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (unlikely(!sess)) {
@@ -3960,7 +3950,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_tgt *tgt = ha->tgt.qla_tgt;
-	int reason_code;
+	int login_code;
 
 	ql_dbg(ql_dbg_tgt, vha, 0xe039,
 	    "scsi(%ld): ha state %d init_done %d oper_mode %d topo %d\n",
@@ -4003,9 +3993,9 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	{
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03b,
 		    "qla_target(%d): Async LOOP_UP occured "
-		    "(m[1]=%x, m[2]=%x, m[3]=%x, m[4]=%x)", vha->vp_idx,
-		    le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
+		    "(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		if (tgt->link_reinit_iocb_pending) {
 			qlt_send_notify_ack(vha, (void *)&tgt->link_reinit_iocb,
 			    0, 0, 0, 0, 0, 0);
@@ -4020,23 +4010,24 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	case MBA_RSCN_UPDATE:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03c,
 		    "qla_target(%d): Async event %#x occured "
-		    "(m[1]=%x, m[2]=%x, m[3]=%x, m[4]=%x)", vha->vp_idx, code,
-		    le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
+		    "(m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx, code,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		break;
 
 	case MBA_PORT_UPDATE:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03d,
 		    "qla_target(%d): Port update async event %#x "
-		    "occured: updating the ports database (m[1]=%x, m[2]=%x, "
-		    "m[3]=%x, m[4]=%x)", vha->vp_idx, code,
-		    le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
-		reason_code = le16_to_cpu(mailbox[2]);
-		if (reason_code == 0x4)
+		    "occured: updating the ports database (m[0]=%x, m[1]=%x, "
+		    "m[2]=%x, m[3]=%x)", vha->vp_idx, code,
+		    le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
+
+		login_code = le16_to_cpu(mailbox[2]);
+		if (login_code == 0x4)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03e,
 			    "Async MB 2: Got PLOGI Complete\n");
-		else if (reason_code == 0x7)
+		else if (login_code == 0x7)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf03f,
 			    "Async MB 2: Port Logged Out\n");
 		break;
@@ -4044,9 +4035,9 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 	default:
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf040,
 		    "qla_target(%d): Async event %#x occured: "
-		    "ignore (m[1]=%x, m[2]=%x, m[3]=%x, m[4]=%x)", vha->vp_idx,
-		    code, le16_to_cpu(mailbox[1]), le16_to_cpu(mailbox[2]),
-		    le16_to_cpu(mailbox[3]), le16_to_cpu(mailbox[4]));
+		    "ignore (m[0]=%x, m[1]=%x, m[2]=%x, m[3]=%x)", vha->vp_idx,
+		    code, le16_to_cpu(mailbox[0]), le16_to_cpu(mailbox[1]),
+		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		break;
 	}
 

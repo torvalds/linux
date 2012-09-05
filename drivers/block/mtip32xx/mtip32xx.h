@@ -26,7 +26,6 @@
 #include <linux/ata.h>
 #include <linux/interrupt.h>
 #include <linux/genhd.h>
-#include <linux/version.h>
 
 /* Offset of Subsystem Device ID in pci confoguration space */
 #define PCI_SUBSYSTEM_DEVICEID	0x2E
@@ -110,6 +109,8 @@
 #else
  #define dbg_printk(format, arg...)
 #endif
+
+#define MTIP_DFS_MAX_BUF_SIZE 1024
 
 #define __force_bit2int (unsigned int __force)
 
@@ -447,6 +448,8 @@ struct driver_data {
 	unsigned long dd_flag; /* NOTE: use atomic bit operations on this */
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
+
+	struct dentry *dfs_node;
 };
 
 #endif

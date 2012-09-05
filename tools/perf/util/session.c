@@ -14,6 +14,7 @@
 #include "sort.h"
 #include "util.h"
 #include "cpumap.h"
+#include "event-parse.h"
 
 static int perf_session__open(struct perf_session *self, bool force)
 {
@@ -79,13 +80,12 @@ out_close:
 	return -1;
 }
 
-void perf_session__update_sample_type(struct perf_session *self)
+void perf_session__set_id_hdr_size(struct perf_session *session)
 {
-	self->sample_type = perf_evlist__sample_type(self->evlist);
-	self->sample_size = __perf_evsel__sample_size(self->sample_type);
-	self->sample_id_all = perf_evlist__sample_id_all(self->evlist);
-	self->id_hdr_size = perf_evlist__id_hdr_size(self->evlist);
-	self->host_machine.id_hdr_size = self->id_hdr_size;
+	u16 id_hdr_size = perf_evlist__id_hdr_size(session->evlist);
+
+	session->host_machine.id_hdr_size = id_hdr_size;
+	machines__set_id_hdr_size(&session->machines, id_hdr_size);
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)
@@ -145,7 +145,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	if (mode == O_RDONLY) {
 		if (perf_session__open(self, force) < 0)
 			goto out_delete;
-		perf_session__update_sample_type(self);
+		perf_session__set_id_hdr_size(self);
 	} else if (mode == O_WRONLY) {
 		/*
 		 * In O_RDONLY mode this will be performed when reading the
@@ -156,7 +156,7 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 	}
 
 	if (tool && tool->ordering_requires_timestamps &&
-	    tool->ordered_samples && !self->sample_id_all) {
+	    tool->ordered_samples && !perf_evlist__sample_id_all(self->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_samples = false;
 	}
@@ -289,7 +289,6 @@ struct branch_info *machine__resolve_bstack(struct machine *self,
 }
 
 int machine__resolve_callchain(struct machine *self,
-			       struct perf_evsel *evsel __used,
 			       struct thread *thread,
 			       struct ip_callchain *chain,
 			       struct symbol **parent)
@@ -672,7 +671,8 @@ static void flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		ret = perf_session__parse_sample(s, iter->event, &sample);
+		ret = perf_evlist__parse_sample(s->evlist, iter->event, &sample,
+						s->header.needs_swap);
 		if (ret)
 			pr_err("Can't parse sample, err = %d\n", ret);
 		else
@@ -864,16 +864,18 @@ static void perf_session__print_tstamp(struct perf_session *session,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
+	u64 sample_type = perf_evlist__sample_type(session->evlist);
+
 	if (event->header.type != PERF_RECORD_SAMPLE &&
-	    !session->sample_id_all) {
+	    !perf_evlist__sample_id_all(session->evlist)) {
 		fputs("-1 -1 ", stdout);
 		return;
 	}
 
-	if ((session->sample_type & PERF_SAMPLE_CPU))
+	if ((sample_type & PERF_SAMPLE_CPU))
 		printf("%u ", sample->cpu);
 
-	if (session->sample_type & PERF_SAMPLE_TIME)
+	if (sample_type & PERF_SAMPLE_TIME)
 		printf("%" PRIu64 " ", sample->time);
 }
 
@@ -898,6 +900,8 @@ static void dump_event(struct perf_session *session, union perf_event *event,
 static void dump_sample(struct perf_session *session, union perf_event *event,
 			struct perf_sample *sample)
 {
+	u64 sample_type;
+
 	if (!dump_trace)
 		return;
 
@@ -905,10 +909,12 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 	       event->header.misc, sample->pid, sample->tid, sample->ip,
 	       sample->period, sample->addr);
 
-	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
+	sample_type = perf_evlist__sample_type(session->evlist);
+
+	if (sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
 
-	if (session->sample_type & PERF_SAMPLE_BRANCH_STACK)
+	if (sample_type & PERF_SAMPLE_BRANCH_STACK)
 		branch_stack__printf(sample);
 }
 
@@ -918,7 +924,9 @@ static struct machine *
 {
 	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
+	if (perf_guest &&
+	    ((cpumode == PERF_RECORD_MISC_GUEST_KERNEL) ||
+	     (cpumode == PERF_RECORD_MISC_GUEST_USER))) {
 		u32 pid;
 
 		if (event->header.type == PERF_RECORD_MMAP)
@@ -926,7 +934,7 @@ static struct machine *
 		else
 			pid = event->ip.pid;
 
-		return perf_session__find_machine(session, pid);
+		return perf_session__findnew_machine(session, pid);
 	}
 
 	return perf_session__find_host_machine(session);
@@ -1003,7 +1011,7 @@ static int perf_session__preprocess_sample(struct perf_session *session,
 					   union perf_event *event, struct perf_sample *sample)
 {
 	if (event->header.type != PERF_RECORD_SAMPLE ||
-	    !(session->sample_type & PERF_SAMPLE_CALLCHAIN))
+	    !(perf_evlist__sample_type(session->evlist) & PERF_SAMPLE_CALLCHAIN))
 		return 0;
 
 	if (!ip_callchain__valid(sample->callchain, event)) {
@@ -1027,7 +1035,7 @@ static int perf_session__process_user_event(struct perf_session *session, union 
 	case PERF_RECORD_HEADER_ATTR:
 		err = tool->attr(event, &session->evlist);
 		if (err == 0)
-			perf_session__update_sample_type(session);
+			perf_session__set_id_hdr_size(session);
 		return err;
 	case PERF_RECORD_HEADER_EVENT_TYPE:
 		return tool->event_type(tool, event);
@@ -1062,7 +1070,7 @@ static int perf_session__process_event(struct perf_session *session,
 	int ret;
 
 	if (session->header.needs_swap)
-		event_swap(event, session->sample_id_all);
+		event_swap(event, perf_evlist__sample_id_all(session->evlist));
 
 	if (event->header.type >= PERF_RECORD_HEADER_MAX)
 		return -EINVAL;
@@ -1075,7 +1083,8 @@ static int perf_session__process_event(struct perf_session *session,
 	/*
 	 * For all kernel events we get the sample data
 	 */
-	ret = perf_session__parse_sample(session, event, &sample);
+	ret = perf_evlist__parse_sample(session->evlist, event, &sample,
+					session->header.needs_swap);
 	if (ret)
 		return ret;
 
@@ -1386,9 +1395,9 @@ int perf_session__process_events(struct perf_session *self,
 	return err;
 }
 
-bool perf_session__has_traces(struct perf_session *self, const char *msg)
+bool perf_session__has_traces(struct perf_session *session, const char *msg)
 {
-	if (!(self->sample_type & PERF_SAMPLE_RAW)) {
+	if (!(perf_evlist__sample_type(session->evlist) & PERF_SAMPLE_RAW)) {
 		pr_err("No trace sample to read. Did you call 'perf %s'?\n", msg);
 		return false;
 	}
@@ -1449,7 +1458,7 @@ size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp)
 	ret += hists__fprintf_nr_events(&session->hists, fp);
 
 	list_for_each_entry(pos, &session->evlist->entries, node) {
-		ret += fprintf(fp, "%s stats:\n", event_name(pos));
+		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += hists__fprintf_nr_events(&pos->hists, fp);
 	}
 
@@ -1490,8 +1499,8 @@ struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 }
 
 void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
-			  struct machine *machine, struct perf_evsel *evsel,
-			  int print_sym, int print_dso, int print_symoffset)
+			  struct machine *machine, int print_sym,
+			  int print_dso, int print_symoffset)
 {
 	struct addr_location al;
 	struct callchain_cursor_node *node;
@@ -1505,7 +1514,7 @@ void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
 
 	if (symbol_conf.use_callchain && sample->callchain) {
 
-		if (machine__resolve_callchain(machine, evsel, al.thread,
+		if (machine__resolve_callchain(machine, al.thread,
 						sample->callchain, NULL) != 0) {
 			if (verbose)
 				error("Failed to resolve callchain. Skipping\n");
@@ -1610,4 +1619,59 @@ void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
 	perf_header__fprintf_info(session, fp, full);
 	fprintf(fp, "# ========\n#\n");
+}
+
+
+int __perf_session__set_tracepoints_handlers(struct perf_session *session,
+					     const struct perf_evsel_str_handler *assocs,
+					     size_t nr_assocs)
+{
+	struct perf_evlist *evlist = session->evlist;
+	struct event_format *format;
+	struct perf_evsel *evsel;
+	char *tracepoint, *name;
+	size_t i;
+	int err;
+
+	for (i = 0; i < nr_assocs; i++) {
+		err = -ENOMEM;
+		tracepoint = strdup(assocs[i].name);
+		if (tracepoint == NULL)
+			goto out;
+
+		err = -ENOENT;
+		name = strchr(tracepoint, ':');
+		if (name == NULL)
+			goto out_free;
+
+		*name++ = '\0';
+		format = pevent_find_event_by_name(session->pevent,
+						   tracepoint, name);
+		if (format == NULL) {
+			/*
+			 * Adding a handler for an event not in the session,
+			 * just ignore it.
+			 */
+			goto next;
+		}
+
+		evsel = perf_evlist__find_tracepoint_by_id(evlist, format->id);
+		if (evsel == NULL)
+			goto next;
+
+		err = -EEXIST;
+		if (evsel->handler.func != NULL)
+			goto out_free;
+		evsel->handler.func = assocs[i].handler;
+next:
+		free(tracepoint);
+	}
+
+	err = 0;
+out:
+	return err;
+
+out_free:
+	free(tracepoint);
+	goto out;
 }

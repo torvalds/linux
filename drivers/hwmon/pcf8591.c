@@ -200,11 +200,10 @@ static int pcf8591_probe(struct i2c_client *client,
 	struct pcf8591_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct pcf8591_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct pcf8591_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -215,7 +214,7 @@ static int pcf8591_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &pcf8591_attr_group);
 	if (err)
-		goto exit_kfree;
+		return err;
 
 	/* Register input2 if not in "two differential inputs" mode */
 	if (input_mode != 3) {
@@ -242,9 +241,6 @@ static int pcf8591_probe(struct i2c_client *client,
 exit_sysfs_remove:
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
-exit_kfree:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -255,7 +251,6 @@ static int pcf8591_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 

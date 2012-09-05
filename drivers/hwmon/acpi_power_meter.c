@@ -101,7 +101,7 @@ struct acpi_power_meter_resource {
 	unsigned long		sensors_last_updated;
 	struct sensor_device_attribute	sensors[NUM_SENSORS];
 	int			num_sensors;
-	int			trip[2];
+	s64			trip[2];
 	int			num_domain_devices;
 	struct acpi_device	**domain_devices;
 	struct kobject		*holders_dir;
@@ -237,7 +237,7 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 	if (res)
 		return res;
 
-	temp /= 1000;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 	if (temp > resource->caps.max_cap || temp < resource->caps.min_cap)
 		return -EINVAL;
 	arg0.integer.value = temp;
@@ -307,9 +307,7 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	if (res)
 		return res;
 
-	temp /= 1000;
-	if (temp < 0)
-		return -EINVAL;
+	temp = DIV_ROUND_CLOSEST(temp, 1000);
 
 	mutex_lock(&resource->lock);
 	resource->trip[attr->index - 7] = temp;
@@ -929,19 +927,28 @@ static int acpi_power_meter_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static int acpi_power_meter_resume(struct acpi_device *device)
+#ifdef CONFIG_PM_SLEEP
+
+static int acpi_power_meter_resume(struct device *dev)
 {
 	struct acpi_power_meter_resource *resource;
 
-	if (!device || !acpi_driver_data(device))
+	if (!dev)
 		return -EINVAL;
 
-	resource = acpi_driver_data(device);
+	resource = acpi_driver_data(to_acpi_device(dev));
+	if (!resource)
+		return -EINVAL;
+
 	free_capabilities(resource);
 	read_capabilities(resource);
 
 	return 0;
 }
+
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(acpi_power_meter_pm, NULL, acpi_power_meter_resume);
 
 static struct acpi_driver acpi_power_meter_driver = {
 	.name = "power_meter",
@@ -950,9 +957,9 @@ static struct acpi_driver acpi_power_meter_driver = {
 	.ops = {
 		.add = acpi_power_meter_add,
 		.remove = acpi_power_meter_remove,
-		.resume = acpi_power_meter_resume,
 		.notify = acpi_power_meter_notify,
 		},
+	.drv.pm = &acpi_power_meter_pm,
 };
 
 /* Module init/exit routines */

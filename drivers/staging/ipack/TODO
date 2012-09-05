@@ -3,7 +3,7 @@
 Introduction
 ============
 
-These drivers add support for IndustryPack devices: carrier and mezzanine
+These drivers add support for IndustryPack devices: carrier and IP module
 boards.
 
 The ipack driver is just an abstraction of the bus providing the common
@@ -14,10 +14,6 @@ TODO
 
 TPCI-200
 --------
-
-* It receives the name of the mezzanine plugged in each slot by SYSFS.
-  No autodetection supported yet, because the mezzanine driver could not be
-  loaded at the time that the tpci200 driver loads.
 
 * It has a linked list with the tpci200 devices it is managing. Get rid of it
   and use driver_for_each_device() instead.
@@ -35,7 +31,7 @@ Ipack
 -----
 
 * The structures and API exported can be improved a lot. For example, the
-  way to unregistering mezzanine devices, doing the mezzanine driver a call to
+  way to unregistering IP module devices, doing the IP module driver a call to
   remove_device() to notify the carrier driver, or the opposite with the call to
   the ipack_driver_ops' remove() function could be improved.
 
@@ -44,3 +40,4 @@ Contact
 =======
 
 Contact: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
+Mailing List: industrypack-devel@lists.sourceforge.net

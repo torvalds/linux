@@ -85,14 +85,13 @@ const char *dev_driver_string(const struct device *dev)
 }
 EXPORT_SYMBOL(dev_driver_string);
 
-#define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
 static ssize_t dev_attr_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
 {
 	struct device_attribute *dev_attr = to_dev_attr(attr);
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	ssize_t ret = -EIO;
 
 	if (dev_attr->show)
@@ -108,7 +107,7 @@ static ssize_t dev_attr_store(struct kobject *kobj, struct attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct device_attribute *dev_attr = to_dev_attr(attr);
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	ssize_t ret = -EIO;
 
 	if (dev_attr->store)
@@ -182,7 +181,7 @@ EXPORT_SYMBOL_GPL(device_show_int);
  */
 static void device_release(struct kobject *kobj)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct device_private *p = dev->p;
 
 	if (dev->release)
@@ -200,7 +199,7 @@ static void device_release(struct kobject *kobj)
 
 static const void *device_namespace(struct kobject *kobj)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	const void *ns = NULL;
 
 	if (dev->class && dev->class->ns_type)
@@ -221,7 +220,7 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 	struct kobj_type *ktype = get_ktype(kobj);
 
 	if (ktype == &device_ktype) {
-		struct device *dev = to_dev(kobj);
+		struct device *dev = kobj_to_dev(kobj);
 		if (dev->bus)
 			return 1;
 		if (dev->class)
@@ -232,7 +231,7 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 
 static const char *dev_uevent_name(struct kset *kset, struct kobject *kobj)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 
 	if (dev->bus)
 		return dev->bus->name;
@@ -244,7 +243,7 @@ static const char *dev_uevent_name(struct kset *kset, struct kobject *kobj)
 static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		      struct kobj_uevent_env *env)
 {
-	struct device *dev = to_dev(kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	int retval = 0;
 
 	/* add device node properties if present */
@@ -1132,7 +1131,7 @@ int device_register(struct device *dev)
  */
 struct device *get_device(struct device *dev)
 {
-	return dev ? to_dev(kobject_get(&dev->kobj)) : NULL;
+	return dev ? kobj_to_dev(kobject_get(&dev->kobj)) : NULL;
 }
 
 /**
@@ -1754,25 +1753,25 @@ int device_move(struct device *dev, struct device *new_parent,
 		set_dev_node(dev, dev_to_node(new_parent));
 	}
 
-	if (!dev->class)
-		goto out_put;
-	error = device_move_class_links(dev, old_parent, new_parent);
-	if (error) {
-		/* We ignore errors on cleanup since we're hosed anyway... */
-		device_move_class_links(dev, new_parent, old_parent);
-		if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
-			if (new_parent)
-				klist_remove(&dev->p->knode_parent);
-			dev->parent = old_parent;
-			if (old_parent) {
-				klist_add_tail(&dev->p->knode_parent,
-					       &old_parent->p->klist_children);
-				set_dev_node(dev, dev_to_node(old_parent));
+	if (dev->class) {
+		error = device_move_class_links(dev, old_parent, new_parent);
+		if (error) {
+			/* We ignore errors on cleanup since we're hosed anyway... */
+			device_move_class_links(dev, new_parent, old_parent);
+			if (!kobject_move(&dev->kobj, &old_parent->kobj)) {
+				if (new_parent)
+					klist_remove(&dev->p->knode_parent);
+				dev->parent = old_parent;
+				if (old_parent) {
+					klist_add_tail(&dev->p->knode_parent,
+						       &old_parent->p->klist_children);
+					set_dev_node(dev, dev_to_node(old_parent));
+				}
 			}
+			cleanup_glue_dir(dev, new_parent_kobj);
+			put_device(new_parent);
+			goto out;
 		}
-		cleanup_glue_dir(dev, new_parent_kobj);
-		put_device(new_parent);
-		goto out;
 	}
 	switch (dpm_order) {
 	case DPM_ORDER_NONE:
@@ -1787,7 +1786,7 @@ int device_move(struct device *dev, struct device *new_parent,
 		device_pm_move_last(dev);
 		break;
 	}
-out_put:
+
 	put_device(old_parent);
 out:
 	device_pm_unlock();
@@ -1812,6 +1811,13 @@ void device_shutdown(void)
 	while (!list_empty(&devices_kset->list)) {
 		dev = list_entry(devices_kset->list.prev, struct device,
 				kobj.entry);
+
+		/*
+		 * hold reference count of device's parent to
+		 * prevent it from being freed because parent's
+		 * lock is to be held
+		 */
+		get_device(dev->parent);
 		get_device(dev);
 		/*
 		 * Make sure the device is off the kset list, in the
@@ -1819,6 +1825,11 @@ void device_shutdown(void)
 		 */
 		list_del_init(&dev->kobj.entry);
 		spin_unlock(&devices_kset->list_lock);
+
+		/* hold lock to avoid race with probe/release */
+		if (dev->parent)
+			device_lock(dev->parent);
+		device_lock(dev);
 
 		/* Don't allow any more runtime suspends */
 		pm_runtime_get_noresume(dev);
@@ -1831,7 +1842,13 @@ void device_shutdown(void)
 			dev_dbg(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
+
+		device_unlock(dev);
+		if (dev->parent)
+			device_unlock(dev->parent);
+
 		put_device(dev);
+		put_device(dev->parent);
 
 		spin_lock(&devices_kset->list_lock);
 	}
@@ -1848,6 +1865,7 @@ int __dev_printk(const char *level, const struct device *dev,
 		 struct va_format *vaf)
 {
 	char dict[128];
+	const char *level_extra = "";
 	size_t dictlen = 0;
 	const char *subsys;
 
@@ -1894,10 +1912,14 @@ int __dev_printk(const char *level, const struct device *dev,
 				    "DEVICE=+%s:%s", subsys, dev_name(dev));
 	}
 skip:
+	if (level[2])
+		level_extra = &level[2]; /* skip past KERN_SOH "L" */
+
 	return printk_emit(0, level[1] - '0',
 			   dictlen ? dict : NULL, dictlen,
-			   "%s %s: %pV",
-			   dev_driver_string(dev), dev_name(dev), vaf);
+			   "%s %s: %s%pV",
+			   dev_driver_string(dev), dev_name(dev),
+			   level_extra, vaf);
 }
 EXPORT_SYMBOL(__dev_printk);
 

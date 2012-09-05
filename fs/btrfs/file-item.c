@@ -183,7 +183,7 @@ static int __btrfs_lookup_bio_sums(struct btrfs_root *root,
 	 * read from the commit root and sidestep a nasty deadlock
 	 * between reading the free space cache and updating the csum tree.
 	 */
-	if (btrfs_is_free_space_inode(root, inode)) {
+	if (btrfs_is_free_space_inode(inode)) {
 		path->search_commit_root = 1;
 		path->skip_locking = 1;
 	}
@@ -272,9 +272,9 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 }
 
 int btrfs_lookup_bio_sums_dio(struct btrfs_root *root, struct inode *inode,
-			      struct bio *bio, u64 offset, u32 *dst)
+			      struct bio *bio, u64 offset)
 {
-	return __btrfs_lookup_bio_sums(root, inode, bio, offset, dst, 1);
+	return __btrfs_lookup_bio_sums(root, inode, bio, offset, NULL, 1);
 }
 
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
@@ -690,6 +690,7 @@ int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	sector_sum = sums->sums;
+	trans->adding_csums = 1;
 again:
 	next_offset = (u64)-1;
 	found_next = 0;
@@ -853,6 +854,7 @@ next_sector:
 		goto again;
 	}
 out:
+	trans->adding_csums = 0;
 	btrfs_free_path(path);
 	return ret;
 

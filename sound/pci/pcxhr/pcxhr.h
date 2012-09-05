@@ -103,6 +103,7 @@ struct pcxhr_mgr {
 	unsigned int board_has_mic:1; /* if 1 the board has microphone input */
 	unsigned int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
 	unsigned int mono_capture:1; /* if 1 the board does mono capture */
+	unsigned int capture_ltc:1; /* if 1 the board captures LTC input */
 
 	struct snd_dma_buffer hostport;
 

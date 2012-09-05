@@ -342,27 +342,17 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 	_unlock_rx_hashtbl_bh(bond);
 }
 
-static int rlb_arp_recv(struct sk_buff *skb, struct bonding *bond,
-			 struct slave *slave)
+static int rlb_arp_recv(const struct sk_buff *skb, struct bonding *bond,
+			struct slave *slave)
 {
-	struct arp_pkt *arp;
+	struct arp_pkt *arp, _arp;
 
 	if (skb->protocol != cpu_to_be16(ETH_P_ARP))
 		goto out;
 
-	arp = (struct arp_pkt *) skb->data;
-	if (!arp) {
-		pr_debug("Packet has no ARP data\n");
+	arp = skb_header_pointer(skb, 0, sizeof(_arp), &_arp);
+	if (!arp)
 		goto out;
-	}
-
-	if (!pskb_may_pull(skb, arp_hdr_len(bond->dev)))
-		goto out;
-
-	if (skb->len < sizeof(struct arp_pkt)) {
-		pr_debug("Packet is too small to be an ARP\n");
-		goto out;
-	}
 
 	if (arp->op_code == htons(ARPOP_REPLY)) {
 		/* update rx hash table for this ARP */
@@ -1356,12 +1346,12 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		}
 	}
 
-	if (res) {
-		/* no suitable interface, frame not sent */
-		dev_kfree_skb(skb);
-	}
 	read_unlock(&bond->curr_slave_lock);
 
+	if (res) {
+		/* no suitable interface, frame not sent */
+		kfree_skb(skb);
+	}
 	return NETDEV_TX_OK;
 }
 

@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
@@ -39,22 +40,39 @@ struct sh_mobile_sdhi {
 	struct tmio_mmc_dma dma_priv;
 };
 
+static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int *f)
+{
+	struct mmc_host *mmc = dev_get_drvdata(&pdev->dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	int ret = clk_enable(priv->clk);
+	if (ret < 0)
+		return ret;
+
+	*f = clk_get_rate(priv->clk);
+	return 0;
+}
+
+static void sh_mobile_sdhi_clk_disable(struct platform_device *pdev)
+{
+	struct mmc_host *mmc = dev_get_drvdata(&pdev->dev);
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct sh_mobile_sdhi *priv = container_of(host->pdata, struct sh_mobile_sdhi, mmc_data);
+	clk_disable(priv->clk);
+}
+
 static void sh_mobile_sdhi_set_pwr(struct platform_device *pdev, int state)
 {
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 
-	if (p && p->set_pwr)
-		p->set_pwr(pdev, state);
+	p->set_pwr(pdev, state);
 }
 
 static int sh_mobile_sdhi_get_cd(struct platform_device *pdev)
 {
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 
-	if (p && p->get_cd)
-		return p->get_cd(pdev);
-	else
-		return -ENOSYS;
+	return p->get_cd(pdev);
 }
 
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
@@ -116,12 +134,14 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	}
 
 	mmc_data = &priv->mmc_data;
-	p->pdata = mmc_data;
 
-	if (p->init) {
-		ret = p->init(pdev, &sdhi_ops);
-		if (ret)
-			goto einit;
+	if (p) {
+		p->pdata = mmc_data;
+		if (p->init) {
+			ret = p->init(pdev, &sdhi_ops);
+			if (ret)
+				goto einit;
+		}
 	}
 
 	snprintf(clk_name, sizeof(clk_name), "sdhi%d", pdev->id);
@@ -132,9 +152,8 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eclkget;
 	}
 
-	mmc_data->hclk = clk_get_rate(priv->clk);
-	mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
-	mmc_data->get_cd = sh_mobile_sdhi_get_cd;
+	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
+	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
 	mmc_data->capabilities = MMC_CAP_MMC_HIGHSPEED;
 	if (p) {
 		mmc_data->flags = p->tmio_flags;
@@ -142,13 +161,18 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 			mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
+		mmc_data->capabilities2 |= p->tmio_caps2;
 		mmc_data->cd_gpio = p->cd_gpio;
+		if (p->set_pwr)
+			mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
+		if (p->get_cd)
+			mmc_data->get_cd = sh_mobile_sdhi_get_cd;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
-			priv->param_tx.slave_id = p->dma_slave_tx;
-			priv->param_rx.slave_id = p->dma_slave_rx;
-			priv->dma_priv.chan_priv_tx = &priv->param_tx;
-			priv->dma_priv.chan_priv_rx = &priv->param_rx;
+			priv->param_tx.shdma_slave.slave_id = p->dma_slave_tx;
+			priv->param_rx.shdma_slave.slave_id = p->dma_slave_rx;
+			priv->dma_priv.chan_priv_tx = &priv->param_tx.shdma_slave;
+			priv->dma_priv.chan_priv_rx = &priv->param_rx.shdma_slave;
 			priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
 			mmc_data->dma = &priv->dma_priv;
 		}
@@ -248,7 +272,7 @@ eirq_card_detect:
 eprobe:
 	clk_put(priv->clk);
 eclkget:
-	if (p->cleanup)
+	if (p && p->cleanup)
 		p->cleanup(pdev);
 einit:
 	kfree(priv);
@@ -263,7 +287,8 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 	struct sh_mobile_sdhi_info *p = pdev->dev.platform_data;
 	int i = 0, irq;
 
-	p->pdata = NULL;
+	if (p)
+		p->pdata = NULL;
 
 	tmio_mmc_host_remove(host);
 
@@ -276,7 +301,7 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 
 	clk_put(priv->clk);
 
-	if (p->cleanup)
+	if (p && p->cleanup)
 		p->cleanup(pdev);
 
 	kfree(priv);
@@ -291,11 +316,18 @@ static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 	.runtime_resume = tmio_mmc_host_runtime_resume,
 };
 
+static const struct of_device_id sh_mobile_sdhi_of_match[] = {
+	{ .compatible = "renesas,shmobile-sdhi" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sh_mobile_sdhi_of_match);
+
 static struct platform_driver sh_mobile_sdhi_driver = {
 	.driver		= {
 		.name	= "sh_mobile_sdhi",
 		.owner	= THIS_MODULE,
 		.pm	= &tmio_mmc_dev_pm_ops,
+		.of_match_table = sh_mobile_sdhi_of_match,
 	},
 	.probe		= sh_mobile_sdhi_probe,
 	.remove		= __devexit_p(sh_mobile_sdhi_remove),

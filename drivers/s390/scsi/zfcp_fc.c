@@ -3,7 +3,7 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2008, 2010
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"

@@ -724,7 +724,7 @@ static const u8 acpi_gbl_long_op_index[NUM_EXTENDED_OPCODE] = {
  *
  * FUNCTION:    acpi_ps_get_opcode_info
  *
- * PARAMETERS:  Opcode              - The AML opcode
+ * PARAMETERS:  opcode              - The AML opcode
  *
  * RETURN:      A pointer to the info about the opcode.
  *
@@ -769,7 +769,7 @@ const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode)
  *
  * FUNCTION:    acpi_ps_get_opcode_name
  *
- * PARAMETERS:  Opcode              - The AML opcode
+ * PARAMETERS:  opcode              - The AML opcode
  *
  * RETURN:      A pointer to the name of the opcode (ASCII String)
  *              Note: Never returns NULL.

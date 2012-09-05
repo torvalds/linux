@@ -29,7 +29,7 @@
 #define PPC_LLARX(t, a, b, eh)	PPC_LDARX(t, a, b, eh)
 #define PPC_STLCX	stringify_in_c(stdcx.)
 #define PPC_CNTLZL	stringify_in_c(cntlzd)
-#define PPC_MTOCRF(FXM, RS) MTOCRF((FXM), (RS))
+#define PPC_MTOCRF(FXM, RS) MTOCRF((FXM), RS)
 #define PPC_LR_STKOFF	16
 #define PPC_MIN_STKFRM	112
 #else /* 32-bit */

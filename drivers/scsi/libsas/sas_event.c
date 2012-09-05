@@ -47,9 +47,9 @@ static void sas_queue_event(int event, unsigned long *pending,
 	if (!test_and_set_bit(event, pending)) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&ha->state_lock, flags);
+		spin_lock_irqsave(&ha->lock, flags);
 		sas_queue_work(ha, work);
-		spin_unlock_irqrestore(&ha->state_lock, flags);
+		spin_unlock_irqrestore(&ha->lock, flags);
 	}
 }
 
@@ -61,18 +61,18 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
-	spin_lock_irq(&ha->state_lock);
-	spin_unlock_irq(&ha->state_lock);
+	spin_lock_irq(&ha->lock);
+	spin_unlock_irq(&ha->lock);
 
 	drain_workqueue(wq);
 
-	spin_lock_irq(&ha->state_lock);
+	spin_lock_irq(&ha->lock);
 	clear_bit(SAS_HA_DRAINING, &ha->state);
 	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
 		list_del_init(&sw->drain_node);
 		sas_queue_work(ha, sw);
 	}
-	spin_unlock_irq(&ha->state_lock);
+	spin_unlock_irq(&ha->lock);
 }
 
 int sas_drain_work(struct sas_ha_struct *ha)

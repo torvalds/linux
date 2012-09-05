@@ -2,7 +2,7 @@
  * CAAM/SEC 4.x transport/backend driver
  * JobR backend functionality
  *
- * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2008-2012 Freescale Semiconductor, Inc.
  */
 
 #include "compat.h"
@@ -43,7 +43,7 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 	wr_reg32(&jrp->rregs->jrintstatus, irqstate);
 
 	preempt_disable();
-	tasklet_schedule(&jrp->irqtask[smp_processor_id()]);
+	tasklet_schedule(&jrp->irqtask);
 	preempt_enable();
 
 	return IRQ_HANDLED;
@@ -58,17 +58,16 @@ static void caam_jr_dequeue(unsigned long devarg)
 	void (*usercall)(struct device *dev, u32 *desc, u32 status, void *arg);
 	u32 *userdesc, userstatus;
 	void *userarg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&jrp->outlock, flags);
+	while (rd_reg32(&jrp->rregs->outring_used)) {
 
-	head = ACCESS_ONCE(jrp->head);
-	sw_idx = tail = jrp->tail;
+		head = ACCESS_ONCE(jrp->head);
 
-	while (CIRC_CNT(head, tail, JOBR_DEPTH) >= 1 &&
-	       rd_reg32(&jrp->rregs->outring_used)) {
+		spin_lock(&jrp->outlock);
 
+		sw_idx = tail = jrp->tail;
 		hw_idx = jrp->out_ring_read_index;
+
 		for (i = 0; CIRC_CNT(head, tail + i, JOBR_DEPTH) >= 1; i++) {
 			sw_idx = (tail + i) & (JOBR_DEPTH - 1);
 
@@ -95,7 +94,8 @@ static void caam_jr_dequeue(unsigned long devarg)
 		userdesc = jrp->entinfo[sw_idx].desc_addr_virt;
 		userstatus = jrp->outring[hw_idx].jrstatus;
 
-		smp_mb();
+		/* set done */
+		wr_reg32(&jrp->rregs->outring_rmvd, 1);
 
 		jrp->out_ring_read_index = (jrp->out_ring_read_index + 1) &
 					   (JOBR_DEPTH - 1);
@@ -115,21 +115,11 @@ static void caam_jr_dequeue(unsigned long devarg)
 			jrp->tail = tail;
 		}
 
-		/* set done */
-		wr_reg32(&jrp->rregs->outring_rmvd, 1);
-
-		spin_unlock_irqrestore(&jrp->outlock, flags);
+		spin_unlock(&jrp->outlock);
 
 		/* Finally, execute user's callback */
 		usercall(dev, userdesc, userstatus, userarg);
-
-		spin_lock_irqsave(&jrp->outlock, flags);
-
-		head = ACCESS_ONCE(jrp->head);
-		sw_idx = tail = jrp->tail;
 	}
-
-	spin_unlock_irqrestore(&jrp->outlock, flags);
 
 	/* reenable / unmask IRQs */
 	clrbits32(&jrp->rregs->rconfig_lo, JRCFG_IMSK);
@@ -148,23 +138,22 @@ int caam_jr_register(struct device *ctrldev, struct device **rdev)
 {
 	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctrldev);
 	struct caam_drv_private_jr *jrpriv = NULL;
-	unsigned long flags;
 	int ring;
 
 	/* Lock, if free ring - assign, unlock */
-	spin_lock_irqsave(&ctrlpriv->jr_alloc_lock, flags);
+	spin_lock(&ctrlpriv->jr_alloc_lock);
 	for (ring = 0; ring < ctrlpriv->total_jobrs; ring++) {
 		jrpriv = dev_get_drvdata(ctrlpriv->jrdev[ring]);
 		if (jrpriv->assign == JOBR_UNASSIGNED) {
 			jrpriv->assign = JOBR_ASSIGNED;
 			*rdev = ctrlpriv->jrdev[ring];
-			spin_unlock_irqrestore(&ctrlpriv->jr_alloc_lock, flags);
+			spin_unlock(&ctrlpriv->jr_alloc_lock);
 			return ring;
 		}
 	}
 
 	/* If assigned, write dev where caller needs it */
-	spin_unlock_irqrestore(&ctrlpriv->jr_alloc_lock, flags);
+	spin_unlock(&ctrlpriv->jr_alloc_lock);
 	*rdev = NULL;
 
 	return -ENODEV;
@@ -182,7 +171,6 @@ int caam_jr_deregister(struct device *rdev)
 {
 	struct caam_drv_private_jr *jrpriv = dev_get_drvdata(rdev);
 	struct caam_drv_private *ctrlpriv;
-	unsigned long flags;
 
 	/* Get the owning controller's private space */
 	ctrlpriv = dev_get_drvdata(jrpriv->parentdev);
@@ -195,9 +183,9 @@ int caam_jr_deregister(struct device *rdev)
 		return -EBUSY;
 
 	/* Release ring */
-	spin_lock_irqsave(&ctrlpriv->jr_alloc_lock, flags);
+	spin_lock(&ctrlpriv->jr_alloc_lock);
 	jrpriv->assign = JOBR_UNASSIGNED;
-	spin_unlock_irqrestore(&ctrlpriv->jr_alloc_lock, flags);
+	spin_unlock(&ctrlpriv->jr_alloc_lock);
 
 	return 0;
 }
@@ -238,7 +226,6 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 {
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	struct caam_jrentry_info *head_entry;
-	unsigned long flags;
 	int head, tail, desc_size;
 	dma_addr_t desc_dma;
 
@@ -249,14 +236,14 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&jrp->inplock, flags);
+	spin_lock_bh(&jrp->inplock);
 
 	head = jrp->head;
 	tail = ACCESS_ONCE(jrp->tail);
 
 	if (!rd_reg32(&jrp->rregs->inpring_avail) ||
 	    CIRC_SPACE(head, tail, JOBR_DEPTH) <= 0) {
-		spin_unlock_irqrestore(&jrp->inplock, flags);
+		spin_unlock_bh(&jrp->inplock);
 		dma_unmap_single(dev, desc_dma, desc_size, DMA_TO_DEVICE);
 		return -EBUSY;
 	}
@@ -276,11 +263,9 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 				    (JOBR_DEPTH - 1);
 	jrp->head = (head + 1) & (JOBR_DEPTH - 1);
 
-	wmb();
-
 	wr_reg32(&jrp->rregs->inpring_jobadd, 1);
 
-	spin_unlock_irqrestore(&jrp->inplock, flags);
+	spin_unlock_bh(&jrp->inplock);
 
 	return 0;
 }
@@ -337,11 +322,9 @@ static int caam_jr_init(struct device *dev)
 
 	jrp = dev_get_drvdata(dev);
 
-	/* Connect job ring interrupt handler. */
-	for_each_possible_cpu(i)
-		tasklet_init(&jrp->irqtask[i], caam_jr_dequeue,
-			     (unsigned long)dev);
+	tasklet_init(&jrp->irqtask, caam_jr_dequeue, (unsigned long)dev);
 
+	/* Connect job ring interrupt handler. */
 	error = request_irq(jrp->irq, caam_jr_interrupt, IRQF_SHARED,
 			    "caam-jobr", dev);
 	if (error) {
@@ -356,10 +339,11 @@ static int caam_jr_init(struct device *dev)
 	if (error)
 		return error;
 
-	jrp->inpring = kzalloc(sizeof(dma_addr_t) * JOBR_DEPTH,
-			       GFP_KERNEL | GFP_DMA);
-	jrp->outring = kzalloc(sizeof(struct jr_outentry) *
-			       JOBR_DEPTH, GFP_KERNEL | GFP_DMA);
+	jrp->inpring = dma_alloc_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
+					  &inpbusaddr, GFP_KERNEL);
+
+	jrp->outring = dma_alloc_coherent(dev, sizeof(struct jr_outentry) *
+					  JOBR_DEPTH, &outbusaddr, GFP_KERNEL);
 
 	jrp->entinfo = kzalloc(sizeof(struct caam_jrentry_info) * JOBR_DEPTH,
 			       GFP_KERNEL);
@@ -375,31 +359,6 @@ static int caam_jr_init(struct device *dev)
 		jrp->entinfo[i].desc_addr_dma = !0;
 
 	/* Setup rings */
-	inpbusaddr = dma_map_single(dev, jrp->inpring,
-				    sizeof(u32 *) * JOBR_DEPTH,
-				    DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, inpbusaddr)) {
-		dev_err(dev, "caam_jr_init(): can't map input ring\n");
-		kfree(jrp->inpring);
-		kfree(jrp->outring);
-		kfree(jrp->entinfo);
-		return -EIO;
-	}
-
-	outbusaddr = dma_map_single(dev, jrp->outring,
-				    sizeof(struct jr_outentry) * JOBR_DEPTH,
-				    DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, outbusaddr)) {
-		dev_err(dev, "caam_jr_init(): can't map output ring\n");
-			dma_unmap_single(dev, inpbusaddr,
-					 sizeof(u32 *) * JOBR_DEPTH,
-					 DMA_BIDIRECTIONAL);
-		kfree(jrp->inpring);
-		kfree(jrp->outring);
-		kfree(jrp->entinfo);
-		return -EIO;
-	}
-
 	jrp->inp_ring_write_index = 0;
 	jrp->out_ring_read_index = 0;
 	jrp->head = 0;
@@ -431,12 +390,11 @@ int caam_jr_shutdown(struct device *dev)
 {
 	struct caam_drv_private_jr *jrp = dev_get_drvdata(dev);
 	dma_addr_t inpbusaddr, outbusaddr;
-	int ret, i;
+	int ret;
 
 	ret = caam_reset_hw_jr(dev);
 
-	for_each_possible_cpu(i)
-		tasklet_kill(&jrp->irqtask[i]);
+	tasklet_kill(&jrp->irqtask);
 
 	/* Release interrupt */
 	free_irq(jrp->irq, dev);
@@ -444,13 +402,10 @@ int caam_jr_shutdown(struct device *dev)
 	/* Free rings */
 	inpbusaddr = rd_reg64(&jrp->rregs->inpring_base);
 	outbusaddr = rd_reg64(&jrp->rregs->outring_base);
-	dma_unmap_single(dev, outbusaddr,
-			 sizeof(struct jr_outentry) * JOBR_DEPTH,
-			 DMA_BIDIRECTIONAL);
-	dma_unmap_single(dev, inpbusaddr, sizeof(u32 *) * JOBR_DEPTH,
-			 DMA_BIDIRECTIONAL);
-	kfree(jrp->outring);
-	kfree(jrp->inpring);
+	dma_free_coherent(dev, sizeof(dma_addr_t) * JOBR_DEPTH,
+			  jrp->inpring, inpbusaddr);
+	dma_free_coherent(dev, sizeof(struct jr_outentry) * JOBR_DEPTH,
+			  jrp->outring, outbusaddr);
 	kfree(jrp->entinfo);
 
 	return ret;
@@ -502,6 +457,14 @@ int caam_jr_probe(struct platform_device *pdev, struct device_node *np,
 	jrdev = &jr_pdev->dev;
 	dev_set_drvdata(jrdev, jrpriv);
 	ctrlpriv->jrdev[ring] = jrdev;
+
+	if (sizeof(dma_addr_t) == sizeof(u64))
+		if (of_device_is_compatible(np, "fsl,sec-v5.0-job-ring"))
+			dma_set_mask(jrdev, DMA_BIT_MASK(40));
+		else
+			dma_set_mask(jrdev, DMA_BIT_MASK(36));
+	else
+		dma_set_mask(jrdev, DMA_BIT_MASK(32));
 
 	/* Identify the interrupt */
 	jrpriv->irq = of_irq_to_resource(np, 0, NULL);

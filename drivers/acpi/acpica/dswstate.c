@@ -58,7 +58,7 @@ static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *ws);
  *
  * FUNCTION:    acpi_ds_result_pop
  *
- * PARAMETERS:  Object              - Where to return the popped object
+ * PARAMETERS:  object              - Where to return the popped object
  *              walk_state          - Current Walk state
  *
  * RETURN:      Status
@@ -132,7 +132,7 @@ acpi_ds_result_pop(union acpi_operand_object **object,
  *
  * FUNCTION:    acpi_ds_result_push
  *
- * PARAMETERS:  Object              - Where to return the popped object
+ * PARAMETERS:  object              - Where to return the popped object
  *              walk_state          - Current Walk state
  *
  * RETURN:      Status
@@ -296,7 +296,7 @@ static acpi_status acpi_ds_result_stack_pop(struct acpi_walk_state *walk_state)
  *
  * FUNCTION:    acpi_ds_obj_stack_push
  *
- * PARAMETERS:  Object              - Object to push
+ * PARAMETERS:  object              - Object to push
  *              walk_state          - Current Walk state
  *
  * RETURN:      Status
@@ -433,7 +433,7 @@ acpi_ds_obj_stack_pop_and_delete(u32 pop_count,
  *
  * FUNCTION:    acpi_ds_get_current_walk_state
  *
- * PARAMETERS:  Thread          - Get current active state for this Thread
+ * PARAMETERS:  thread          - Get current active state for this Thread
  *
  * RETURN:      Pointer to the current walk state
  *
@@ -462,7 +462,7 @@ struct acpi_walk_state *acpi_ds_get_current_walk_state(struct acpi_thread_state
  * FUNCTION:    acpi_ds_push_walk_state
  *
  * PARAMETERS:  walk_state      - State to push
- *              Thread          - Thread state object
+ *              thread          - Thread state object
  *
  * RETURN:      None
  *
@@ -486,7 +486,7 @@ acpi_ds_push_walk_state(struct acpi_walk_state *walk_state,
  *
  * FUNCTION:    acpi_ds_pop_walk_state
  *
- * PARAMETERS:  Thread      - Current thread state
+ * PARAMETERS:  thread      - Current thread state
  *
  * RETURN:      A walk_state object popped from the thread's stack
  *
@@ -525,9 +525,9 @@ struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
  * FUNCTION:    acpi_ds_create_walk_state
  *
  * PARAMETERS:  owner_id        - ID for object creation
- *              Origin          - Starting point for this walk
+ *              origin          - Starting point for this walk
  *              method_desc     - Method object
- *              Thread          - Current thread state
+ *              thread          - Current thread state
  *
  * RETURN:      Pointer to the new walk state.
  *
@@ -578,11 +578,11 @@ struct acpi_walk_state *acpi_ds_create_walk_state(acpi_owner_id owner_id, union 
  * FUNCTION:    acpi_ds_init_aml_walk
  *
  * PARAMETERS:  walk_state      - New state to be initialized
- *              Op              - Current parse op
+ *              op              - Current parse op
  *              method_node     - Control method NS node, if any
  *              aml_start       - Start of AML
  *              aml_length      - Length of AML
- *              Info            - Method info block (params, etc.)
+ *              info            - Method info block (params, etc.)
  *              pass_number     - 1, 2, or 3
  *
  * RETURN:      Status

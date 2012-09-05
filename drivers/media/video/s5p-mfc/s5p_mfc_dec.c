@@ -220,8 +220,14 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strncpy(cap->card, dev->plat_dev->name, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
 	cap->version = KERNEL_VERSION(1, 0, 0);
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE_MPLANE |
-			V4L2_CAP_VIDEO_OUTPUT_MPLANE | V4L2_CAP_STREAMING;
+	/*
+	 * This is only a mem-to-mem video device. The capture and output
+	 * device capability flags are left only for backward compatibility
+	 * and are scheduled for removal.
+	 */
+	cap->capabilities = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_VIDEO_CAPTURE_MPLANE |
+			    V4L2_CAP_VIDEO_OUTPUT_MPLANE;
 	return 0;
 }
 
@@ -996,6 +1002,7 @@ int s5p_mfc_dec_ctrls_setup(struct s5p_mfc_ctx *ctx)
 
 	for (i = 0; i < NUM_CTRLS; i++) {
 		if (IS_MFC51_PRIV(controls[i].id)) {
+			memset(&cfg, 0, sizeof(struct v4l2_ctrl_config));
 			cfg.ops = &s5p_mfc_dec_ctrl_ops;
 			cfg.id = controls[i].id;
 			cfg.min = controls[i].minimum;

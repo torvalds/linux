@@ -1,7 +1,7 @@
 /*
  * wm8741.c  --  WM8741 ALSA SoC Audio driver
  *
- * Copyright 2010 Wolfson Microelectronics plc
+ * Copyright 2010-1 Wolfson Microelectronics plc
  *
  * Author: Ian Lartey <ian@opensource.wolfsonmicro.com>
  *

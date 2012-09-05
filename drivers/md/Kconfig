@@ -260,15 +260,6 @@ config DM_DEBUG_BLOCK_STACK_TRACING
 
 	  If unsure, say N.
 
-config DM_DEBUG_SPACE_MAPS
-	boolean "Extra validation for thin provisioning space maps"
-	depends on DM_THIN_PROVISIONING
-	---help---
-	  Enable this for messages that may help debug problems with the
-	  space maps used by thin provisioning.
-
-          If unsure, say N.
-
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
@@ -277,13 +268,14 @@ config DM_MIRROR
          needed for live data migration tools such as 'pvmove'.
 
 config DM_RAID
-       tristate "RAID 1/4/5/6 target"
+       tristate "RAID 1/4/5/6/10 target"
        depends on BLK_DEV_DM
        select MD_RAID1
+       select MD_RAID10
        select MD_RAID456
        select BLK_DEV_MD
        ---help---
-	 A dm target that supports RAID1, RAID4, RAID5 and RAID6 mappings
+	 A dm target that supports RAID1, RAID10, RAID4, RAID5 and RAID6 mappings
 
 	 A RAID-5 set of N drives with a capacity of C MB per drive provides
 	 the capacity of C * (N - 1) MB, and protects against a failure

@@ -101,6 +101,8 @@ enum {
 	STAC_92HD83XXX_HP_cNB11_INTQUAD,
 	STAC_HP_DV7_4000,
 	STAC_HP_ZEPHYR,
+	STAC_92HD83XXX_HP_LED,
+	STAC_92HD83XXX_HP_INV_LED,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -1675,6 +1677,8 @@ static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = "hp_cNB11_intquad",
 	[STAC_HP_DV7_4000] = "hp-dv7-4000",
 	[STAC_HP_ZEPHYR] = "hp-zephyr",
+	[STAC_92HD83XXX_HP_LED] = "hp-led",
+	[STAC_92HD83XXX_HP_INV_LED] = "hp-inv-led",
 };
 
 static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1729,6 +1733,8 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3561,
 			  "HP", STAC_HP_ZEPHYR),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3660,
+			  "HP Mini", STAC_92HD83XXX_HP_LED),
 	{} /* terminator */
 };
 
@@ -4266,7 +4272,8 @@ static int stac92xx_init(struct hda_codec *codec)
 	unsigned int gpio;
 	int i;
 
-	snd_hda_sequence_write(codec, spec->init);
+	if (spec->init)
+		snd_hda_sequence_write(codec, spec->init);
 
 	/* power down adcs initially */
 	if (spec->powerdown_adcs)
@@ -4414,7 +4421,12 @@ static int stac92xx_init(struct hda_codec *codec)
 	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
-	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+	if (spec->gpio_led) {
+		if (spec->vmaster_mute.hook)
+			snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
+		else /* the very first init call doesn't have vmaster yet */
+			stac92xx_update_led_status(codec, false);
+	}
 
 	/* sync the power-map */
 	if (spec->num_pwrs)
@@ -4997,7 +5009,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 	return 0;
 }
 
-static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
+static int stac92xx_suspend(struct hda_codec *codec)
 {
 	stac92xx_shutup(codec);
 	return 0;
@@ -5507,6 +5519,7 @@ static void stac92hd8x_fill_auto_spec(struct hda_codec *codec)
 static int patch_stac92hd83xxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
+	int default_polarity = -1; /* no default cfg */
 	int err;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5555,9 +5568,15 @@ again:
 	case STAC_HP_ZEPHYR:
 		spec->init = stac92hd83xxx_hp_zephyr_init;
 		break;
+	case STAC_92HD83XXX_HP_LED:
+		default_polarity = 0;
+		break;
+	case STAC_92HD83XXX_HP_INV_LED:
+		default_polarity = 1;
+		break;
 	}
 
-	if (find_mute_led_cfg(codec, -1/*no default cfg*/))
+	if (find_mute_led_cfg(codec, default_polarity))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
@@ -5730,7 +5749,6 @@ again:
 		/* fallthru */
 	case 0x111d76b4: /* 6 Port without Analog Mixer */
 	case 0x111d76b5:
-		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
@@ -5755,7 +5773,6 @@ again:
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		/* disable VSW */
-		spec->init = stac92hd71bxx_core_init;
 		unmute_init++;
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
@@ -5770,13 +5787,15 @@ again:
 
 		/* fallthru */
 	default:
-		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS);
 		break;
 	}
+
+	if (get_wcaps_type(get_wcaps(codec, 0x28)) == AC_WID_VOL_KNB)
+		spec->init = stac92hd71bxx_core_init;
 
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
 		snd_hda_sequence_write_cache(codec, unmute_init);

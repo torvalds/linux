@@ -646,6 +646,7 @@ enum ath9k_rx_filter {
 	ATH9K_RX_FILTER_PHYRADAR = 0x00002000,
 	ATH9K_RX_FILTER_MCAST_BCAST_ALL = 0x00008000,
 	ATH9K_RX_FILTER_CONTROL_WRAPPER = 0x00080000,
+	ATH9K_RX_FILTER_4ADDRESS = 0x00100000,
 };
 
 #define ATH9K_RATESERIES_RTS_CTS  0x0001
@@ -737,6 +738,7 @@ bool ath9k_hw_intrpend(struct ath_hw *ah);
 void ath9k_hw_set_interrupts(struct ath_hw *ah);
 void ath9k_hw_enable_interrupts(struct ath_hw *ah);
 void ath9k_hw_disable_interrupts(struct ath_hw *ah);
+void ath9k_hw_kill_interrupts(struct ath_hw *ah);
 
 void ar9002_hw_attach_mac_ops(struct ath_hw *ah);
 

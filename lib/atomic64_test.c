@@ -114,8 +114,7 @@ static __init int test_atomic64(void)
 	r += one;
 	BUG_ON(v.counter != r);
 
-#if defined(CONFIG_X86) || defined(CONFIG_MIPS) || defined(CONFIG_PPC) || \
-    defined(CONFIG_S390) || defined(_ASM_GENERIC_ATOMIC64_H) || defined(CONFIG_ARM)
+#ifdef CONFIG_ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	INIT(onestwos);
 	BUG_ON(atomic64_dec_if_positive(&v) != (onestwos - 1));
 	r -= one;
@@ -129,7 +128,7 @@ static __init int test_atomic64(void)
 	BUG_ON(atomic64_dec_if_positive(&v) != (-one - one));
 	BUG_ON(v.counter != r);
 #else
-#warning Please implement atomic64_dec_if_positive for your architecture, and add it to the IF above
+#warning Please implement atomic64_dec_if_positive for your architecture and select the above Kconfig symbol
 #endif
 
 	INIT(onestwos);

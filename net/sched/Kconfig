@@ -507,6 +507,26 @@ config NET_EMATCH_TEXT
 	  To compile this code as a module, choose M here: the
 	  module will be called em_text.
 
+config NET_EMATCH_CANID
+	tristate "CAN Identifier"
+	depends on NET_EMATCH && CAN
+	---help---
+	  Say Y here if you want to be able to classify CAN frames based
+	  on CAN Identifier.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_canid.
+
+config NET_EMATCH_IPSET
+	tristate "IPset"
+	depends on NET_EMATCH && IP_SET
+	---help---
+	  Say Y here if you want to be able to classify packets based on
+	  ipset membership.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called em_ipset.
+
 config NET_CLS_ACT
 	bool "Actions"
 	---help---

@@ -80,4 +80,18 @@ enum {
 
 #define IFLA_GRE_MAX	(__IFLA_GRE_MAX - 1)
 
+/* VTI-mode i_flags */
+#define VTI_ISVTI 0x0001
+
+enum {
+	IFLA_VTI_UNSPEC,
+	IFLA_VTI_LINK,
+	IFLA_VTI_IKEY,
+	IFLA_VTI_OKEY,
+	IFLA_VTI_LOCAL,
+	IFLA_VTI_REMOTE,
+	__IFLA_VTI_MAX,
+};
+
+#define IFLA_VTI_MAX	(__IFLA_VTI_MAX - 1)
 #endif /* _IF_TUNNEL_H_ */

@@ -76,7 +76,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 		u64 size;
 		u64 start;
 		int type;
-		int num;
+		u32 num;
 		int log_num;
 	};
 
@@ -105,7 +105,7 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	si_meminfo(&si);
 	request->num_mtt =
 		roundup_pow_of_two(max_t(unsigned, request->num_mtt,
-					 min(1UL << 31,
+					 min(1UL << (31 - log_mtts_per_seg),
 					     si.totalram >> (log_mtts_per_seg - 1))));
 
 	profile[MLX4_RES_QP].size     = dev_cap->qpc_entry_sz;
@@ -237,13 +237,19 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 			init_hca->mtt_base	 = profile[i].start;
 			break;
 		case MLX4_RES_MCG:
-			dev->caps.num_mgms	  = profile[i].num >> 1;
-			dev->caps.num_amgms	  = profile[i].num >> 1;
 			init_hca->mc_base	  = profile[i].start;
 			init_hca->log_mc_entry_sz =
 					ilog2(mlx4_get_mgm_entry_size(dev));
 			init_hca->log_mc_table_sz = profile[i].log_num;
-			init_hca->log_mc_hash_sz  = profile[i].log_num - 1;
+			if (dev->caps.steering_mode ==
+			    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+				dev->caps.num_mgms = profile[i].num;
+			} else {
+				init_hca->log_mc_hash_sz =
+						profile[i].log_num - 1;
+				dev->caps.num_mgms = profile[i].num >> 1;
+				dev->caps.num_amgms = profile[i].num >> 1;
+			}
 			break;
 		default:
 			break;

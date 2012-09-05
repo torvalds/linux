@@ -37,7 +37,7 @@
 #define VIA_COBALT_BRD_ID_REG  0x94
 #define VIA_COBALT_BRD_REG_to_ID(reg)	((unsigned char)(reg) >> 4)
 
-static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
+static void __devinit qube_raq_galileo_early_fixup(struct pci_dev *dev)
 {
 	if (dev->devfn == PCI_DEVFN(0, 0) &&
 		(dev->class >> 8) == PCI_CLASS_MEMORY_OTHER) {
@@ -51,7 +51,7 @@ static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_GT64111,
 	 qube_raq_galileo_early_fixup);
 
-static void qube_raq_via_bmIDE_fixup(struct pci_dev *dev)
+static void __devinit qube_raq_via_bmIDE_fixup(struct pci_dev *dev)
 {
 	unsigned short cfgword;
 	unsigned char lt;
@@ -74,7 +74,7 @@ static void qube_raq_via_bmIDE_fixup(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1,
 	 qube_raq_via_bmIDE_fixup);
 
-static void qube_raq_galileo_fixup(struct pci_dev *dev)
+static void __devinit qube_raq_galileo_fixup(struct pci_dev *dev)
 {
 	if (dev->devfn != PCI_DEVFN(0, 0))
 		return;
@@ -129,7 +129,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_GT64111,
 
 int cobalt_board_id;
 
-static void qube_raq_via_board_id_fixup(struct pci_dev *dev)
+static void __devinit qube_raq_via_board_id_fixup(struct pci_dev *dev)
 {
 	u8 id;
 	int retval;

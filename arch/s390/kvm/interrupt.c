@@ -1,5 +1,5 @@
 /*
- * interrupt.c - handling kvm guest interrupts
+ * handling kvm guest interrupts
  *
  * Copyright IBM Corp. 2008
  *

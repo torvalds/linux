@@ -131,7 +131,7 @@ acpi_status __init acpi_initialize_subsystem(void)
  *
  * FUNCTION:    acpi_enable_subsystem
  *
- * PARAMETERS:  Flags           - Init/enable Options
+ * PARAMETERS:  flags           - Init/enable Options
  *
  * RETURN:      Status
  *
@@ -234,7 +234,7 @@ ACPI_EXPORT_SYMBOL(acpi_enable_subsystem)
  *
  * FUNCTION:    acpi_initialize_objects
  *
- * PARAMETERS:  Flags           - Init/enable Options
+ * PARAMETERS:  flags           - Init/enable Options
  *
  * RETURN:      Status
  *
@@ -409,7 +409,7 @@ ACPI_EXPORT_SYMBOL(acpi_subsystem_status)
  * PARAMETERS:  out_buffer      - A buffer to receive the resources for the
  *                                device
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      status          - the status of the call
  *
  * DESCRIPTION: This function is called to get information about the current
  *              state of the ACPI subsystem.  It will return system information
@@ -480,8 +480,8 @@ ACPI_EXPORT_SYMBOL(acpi_get_system_info)
  *
  * FUNCTION:    acpi_install_initialization_handler
  *
- * PARAMETERS:  Handler             - Callback procedure
- *              Function            - Not (currently) used, see below
+ * PARAMETERS:  handler             - Callback procedure
+ *              function            - Not (currently) used, see below
  *
  * RETURN:      Status
  *
@@ -618,7 +618,7 @@ ACPI_EXPORT_SYMBOL(acpi_remove_interface)
  *
  * FUNCTION:    acpi_install_interface_handler
  *
- * PARAMETERS:  Handler             - The _OSI interface handler to install
+ * PARAMETERS:  handler             - The _OSI interface handler to install
  *                                    NULL means "remove existing handler"
  *
  * RETURN:      Status
@@ -651,9 +651,9 @@ ACPI_EXPORT_SYMBOL(acpi_install_interface_handler)
  * FUNCTION:    acpi_check_address_range
  *
  * PARAMETERS:  space_id            - Address space ID
- *              Address             - Start address
- *              Length              - Length
- *              Warn                - TRUE if warning on overlap desired
+ *              address             - Start address
+ *              length              - Length
+ *              warn                - TRUE if warning on overlap desired
  *
  * RETURN:      Count of the number of conflicts detected.
  *

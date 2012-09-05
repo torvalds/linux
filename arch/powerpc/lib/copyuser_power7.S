@@ -19,9 +19,6 @@
  */
 #include <asm/ppc_asm.h>
 
-#define STACKFRAMESIZE	256
-#define STK_REG(i)	(112 + ((i)-14)*8)
-
 	.macro err1
 100:
 	.section __ex_table,"a"
@@ -57,26 +54,26 @@
 
 
 .Ldo_err4:
-	ld	r16,STK_REG(r16)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r14,STK_REG(r14)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r14,STK_REG(R14)(r1)
 .Ldo_err3:
-	bl	.exit_vmx_copy
+	bl	.exit_vmx_usercopy
 	ld	r0,STACKFRAMESIZE+16(r1)
 	mtlr	r0
 	b	.Lexit
 #endif /* CONFIG_ALTIVEC */
 
 .Ldo_err2:
-	ld	r22,STK_REG(r22)(r1)
-	ld	r21,STK_REG(r21)(r1)
-	ld	r20,STK_REG(r20)(r1)
-	ld	r19,STK_REG(r19)(r1)
-	ld	r18,STK_REG(r18)(r1)
-	ld	r17,STK_REG(r17)(r1)
-	ld	r16,STK_REG(r16)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r14,STK_REG(r14)(r1)
+	ld	r22,STK_REG(R22)(r1)
+	ld	r21,STK_REG(R21)(r1)
+	ld	r20,STK_REG(R20)(r1)
+	ld	r19,STK_REG(R19)(r1)
+	ld	r18,STK_REG(R18)(r1)
+	ld	r17,STK_REG(R17)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r14,STK_REG(R14)(r1)
 .Lexit:
 	addi	r1,r1,STACKFRAMESIZE
 .Ldo_err1:
@@ -137,15 +134,15 @@ err1;	stw	r0,0(r3)
 
 	mflr	r0
 	stdu	r1,-STACKFRAMESIZE(r1)
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
-	std	r17,STK_REG(r17)(r1)
-	std	r18,STK_REG(r18)(r1)
-	std	r19,STK_REG(r19)(r1)
-	std	r20,STK_REG(r20)(r1)
-	std	r21,STK_REG(r21)(r1)
-	std	r22,STK_REG(r22)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
+	std	r17,STK_REG(R17)(r1)
+	std	r18,STK_REG(R18)(r1)
+	std	r19,STK_REG(R19)(r1)
+	std	r20,STK_REG(R20)(r1)
+	std	r21,STK_REG(R21)(r1)
+	std	r22,STK_REG(R22)(r1)
 	std	r0,STACKFRAMESIZE+16(r1)
 
 	srdi	r6,r5,7
@@ -192,15 +189,15 @@ err2;	std	r21,120(r3)
 
 	clrldi	r5,r5,(64-7)
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
-	ld	r17,STK_REG(r17)(r1)
-	ld	r18,STK_REG(r18)(r1)
-	ld	r19,STK_REG(r19)(r1)
-	ld	r20,STK_REG(r20)(r1)
-	ld	r21,STK_REG(r21)(r1)
-	ld	r22,STK_REG(r22)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
+	ld	r17,STK_REG(R17)(r1)
+	ld	r18,STK_REG(R18)(r1)
+	ld	r19,STK_REG(R19)(r1)
+	ld	r20,STK_REG(R20)(r1)
+	ld	r21,STK_REG(R21)(r1)
+	ld	r22,STK_REG(R22)(r1)
 	addi	r1,r1,STACKFRAMESIZE
 
 	/* Up to 127B to go */
@@ -290,15 +287,46 @@ err1;	stb	r0,0(r3)
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	.enter_vmx_copy
-	cmpwi	r3,0
+	bl	.enter_vmx_usercopy
+	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STACKFRAMESIZE+48(r1)
 	ld	r4,STACKFRAMESIZE+56(r1)
 	ld	r5,STACKFRAMESIZE+64(r1)
 	mtlr	r0
 
-	beq	.Lunwind_stack_nonvmx_copy
+	/*
+	 * We prefetch both the source and destination using enhanced touch
+	 * instructions. We use a stream ID of 0 for the load side and
+	 * 1 for the store side.
+	 */
+	clrrdi	r6,r4,7
+	clrrdi	r9,r3,7
+	ori	r9,r9,1		/* stream=1 */
+
+	srdi	r7,r5,7		/* length in cachelines, capped at 0x3FF */
+	cmpldi	r7,0x3FF
+	ble	1f
+	li	r7,0x3FF
+1:	lis	r0,0x0E00	/* depth=7 */
+	sldi	r7,r7,7
+	or	r7,r7,r0
+	ori	r10,r7,1	/* stream=1 */
+
+	lis	r8,0x8000	/* GO=1 */
+	clrldi	r8,r8,32
+
+.machine push
+.machine "power4"
+	dcbt	r0,r6,0b01000
+	dcbt	r0,r7,0b01010
+	dcbtst	r0,r9,0b01000
+	dcbtst	r0,r10,0b01010
+	eieio
+	dcbt	r0,r8,0b01010	/* GO */
+.machine pop
+
+	beq	cr1,.Lunwind_stack_nonvmx_copy
 
 	/*
 	 * If source and destination are not relatively aligned we use a
@@ -378,9 +406,9 @@ err3;	stvx	vr0,r3,r11
 7:	sub	r5,r5,r6
 	srdi	r6,r5,7
 
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
 
 	li	r12,64
 	li	r14,80
@@ -415,9 +443,9 @@ err4;	stvx	vr0,r3,r16
 	addi	r3,r3,128
 	bdnz	8b
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
 
 	/* Up to 127B to go */
 	clrldi	r5,r5,(64-7)
@@ -476,7 +504,7 @@ err3;	lbz	r0,0(r4)
 err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	b	.exit_vmx_copy		/* tail call optimise */
+	b	.exit_vmx_usercopy	/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -563,9 +591,9 @@ err3;	stvx	vr11,r3,r11
 7:	sub	r5,r5,r6
 	srdi	r6,r5,7
 
-	std	r14,STK_REG(r14)(r1)
-	std	r15,STK_REG(r15)(r1)
-	std	r16,STK_REG(r16)(r1)
+	std	r14,STK_REG(R14)(r1)
+	std	r15,STK_REG(R15)(r1)
+	std	r16,STK_REG(R16)(r1)
 
 	li	r12,64
 	li	r14,80
@@ -608,9 +636,9 @@ err4;	stvx	vr15,r3,r16
 	addi	r3,r3,128
 	bdnz	8b
 
-	ld	r14,STK_REG(r14)(r1)
-	ld	r15,STK_REG(r15)(r1)
-	ld	r16,STK_REG(r16)(r1)
+	ld	r14,STK_REG(R14)(r1)
+	ld	r15,STK_REG(R15)(r1)
+	ld	r16,STK_REG(R16)(r1)
 
 	/* Up to 127B to go */
 	clrldi	r5,r5,(64-7)
@@ -679,5 +707,5 @@ err3;	lbz	r0,0(r4)
 err3;	stb	r0,0(r3)
 
 15:	addi	r1,r1,STACKFRAMESIZE
-	b	.exit_vmx_copy		/* tail call optimise */
+	b	.exit_vmx_usercopy	/* tail call optimise */
 #endif /* CONFiG_ALTIVEC */

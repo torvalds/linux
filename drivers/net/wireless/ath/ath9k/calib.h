@@ -30,10 +30,10 @@ struct ar5416IniArray {
 	u32 ia_columns;
 };
 
-#define INIT_INI_ARRAY(iniarray, array, rows, columns) do {	\
+#define INIT_INI_ARRAY(iniarray, array) do {	\
 		(iniarray)->ia_array = (u32 *)(array);		\
-		(iniarray)->ia_rows = (rows);			\
-		(iniarray)->ia_columns = (columns);		\
+		(iniarray)->ia_rows = ARRAY_SIZE(array);	\
+		(iniarray)->ia_columns = ARRAY_SIZE(array[0]);	\
 	} while (0)
 
 #define INI_RA(iniarray, row, column) \

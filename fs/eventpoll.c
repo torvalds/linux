@@ -1654,8 +1654,8 @@ SYSCALL_DEFINE1(epoll_create1, int, flags)
 		error = PTR_ERR(file);
 		goto out_free_fd;
 	}
-	fd_install(fd, file);
 	ep->file = file;
+	fd_install(fd, file);
 	return fd;
 
 out_free_fd:
@@ -1710,7 +1710,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 		goto error_tgt_fput;
 
 	/* Check if EPOLLWAKEUP is allowed */
-	if ((epds.events & EPOLLWAKEUP) && !capable(CAP_EPOLLWAKEUP))
+	if ((epds.events & EPOLLWAKEUP) && !capable(CAP_BLOCK_SUSPEND))
 		epds.events &= ~EPOLLWAKEUP;
 
 	/*

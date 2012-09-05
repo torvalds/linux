@@ -85,8 +85,11 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	}
 
 	for (nr = 0; nr < MAX_PLANE; nr++) {
-		ret = exynos_plane_init(dev, nr);
-		if (ret)
+		struct drm_plane *plane;
+		unsigned int possible_crtcs = (1 << MAX_CRTC) - 1;
+
+		plane = exynos_plane_init(dev, possible_crtcs, false);
+		if (!plane)
 			goto err_crtc;
 	}
 
@@ -221,8 +224,6 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET,
 			exynos_drm_gem_get_ioctl, DRM_UNLOCKED),
-	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
-			DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,
 			vidi_connection_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_G2D_GET_VER,

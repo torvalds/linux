@@ -954,11 +954,10 @@ static int adm1031_probe(struct i2c_client *client,
 	struct adm1031_data *data;
 	int err;
 
-	data = kzalloc(sizeof(struct adm1031_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct adm1031_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	data->chip_type = id->driver_data;
@@ -975,7 +974,7 @@ static int adm1031_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &adm1031_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	if (data->chip_type == adm1031) {
 		err = sysfs_create_group(&client->dev.kobj, &adm1031_group_opt);
@@ -994,9 +993,6 @@ static int adm1031_probe(struct i2c_client *client,
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &adm1031_group);
 	sysfs_remove_group(&client->dev.kobj, &adm1031_group_opt);
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -1007,7 +1003,6 @@ static int adm1031_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &adm1031_group);
 	sysfs_remove_group(&client->dev.kobj, &adm1031_group_opt);
-	kfree(data);
 	return 0;
 }
 

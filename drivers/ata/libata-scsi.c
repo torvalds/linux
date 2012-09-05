@@ -3445,6 +3445,7 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 			if (!IS_ERR(sdev)) {
 				dev->sdev = sdev;
 				scsi_device_put(sdev);
+				ata_acpi_bind(dev);
 			} else {
 				dev->sdev = NULL;
 			}
@@ -3540,6 +3541,8 @@ static void ata_scsi_remove_dev(struct ata_device *dev)
 	 */
 	mutex_lock(&ap->scsi_host->scan_mutex);
 	spin_lock_irqsave(ap->lock, flags);
+
+	ata_acpi_unbind(dev);
 
 	/* clearing dev->sdev is protected by host lock */
 	sdev = dev->sdev;

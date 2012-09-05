@@ -145,7 +145,7 @@ static void exit_round_robin(unsigned int tsk_index)
 }
 
 static unsigned int idle_pct = 5; /* percentage */
-static unsigned int round_robin_time = 10; /* second */
+static unsigned int round_robin_time = 1; /* second */
 static int power_saving_thread(void *data)
 {
 	struct sched_param param = {.sched_priority = 1};
@@ -235,7 +235,7 @@ static int create_power_saving_task(void)
 
 	ps_tsks[ps_tsk_num] = kthread_run(power_saving_thread,
 		(void *)(unsigned long)ps_tsk_num,
-		"power_saving/%d", ps_tsk_num);
+		"acpi_pad/%d", ps_tsk_num);
 	rc = IS_ERR(ps_tsks[ps_tsk_num]) ? PTR_ERR(ps_tsks[ps_tsk_num]) : 0;
 	if (!rc)
 		ps_tsk_num++;

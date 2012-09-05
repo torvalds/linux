@@ -22,6 +22,12 @@
 
 #define THREAD_SIZE		(1 << THREAD_SHIFT)
 
+#ifdef CONFIG_PPC64
+#define CURRENT_THREAD_INFO(dest, sp)	clrrdi dest, sp, THREAD_SHIFT
+#else
+#define CURRENT_THREAD_INFO(dest, sp)	rlwinm dest, sp, 0, 0, 31-THREAD_SHIFT
+#endif
+
 #ifndef __ASSEMBLY__
 #include <linux/cache.h>
 #include <asm/processor.h>

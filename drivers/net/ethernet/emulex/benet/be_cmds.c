@@ -19,9 +19,6 @@
 #include "be.h"
 #include "be_cmds.h"
 
-/* Must be a power of 2 or else MODULO will BUG_ON */
-static int be_get_temp_freq = 64;
-
 static inline void *embedded_payload(struct be_mcc_wrb *wrb)
 {
 	return wrb->payload.embedded_payload;
@@ -115,7 +112,7 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 		}
 	} else {
 		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
-			be_get_temp_freq = 0;
+			adapter->be_get_temp_freq = 0;
 
 		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
 			compl_status == MCC_STATUS_ILLEGAL_REQUEST)
@@ -143,6 +140,11 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 {
 	/* When link status changes, link speed must be re-queried from FW */
 	adapter->phy.link_speed = -1;
+
+	/* Ignore physical link event */
+	if (lancer_chip(adapter) &&
+	    !(evt->port_link_status & LOGICAL_LINK_STATUS_MASK))
+		return;
 
 	/* For the initial link status do not rely on the ASYNC event as
 	 * it may not be received in some cases.
@@ -352,7 +354,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 		if (msecs > 4000) {
 			dev_err(&adapter->pdev->dev, "FW not responding\n");
 			adapter->fw_timeout = true;
-			be_detect_dump_ue(adapter);
+			be_detect_error(adapter);
 			return -1;
 		}
 
@@ -429,11 +431,64 @@ static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 		return 0;
 }
 
-int be_cmd_POST(struct be_adapter *adapter)
+int lancer_wait_ready(struct be_adapter *adapter)
+{
+#define SLIPORT_READY_TIMEOUT 30
+	u32 sliport_status;
+	int status = 0, i;
+
+	for (i = 0; i < SLIPORT_READY_TIMEOUT; i++) {
+		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+		if (sliport_status & SLIPORT_STATUS_RDY_MASK)
+			break;
+
+		msleep(1000);
+	}
+
+	if (i == SLIPORT_READY_TIMEOUT)
+		status = -1;
+
+	return status;
+}
+
+int lancer_test_and_set_rdy_state(struct be_adapter *adapter)
+{
+	int status;
+	u32 sliport_status, err, reset_needed;
+	status = lancer_wait_ready(adapter);
+	if (!status) {
+		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
+		err = sliport_status & SLIPORT_STATUS_ERR_MASK;
+		reset_needed = sliport_status & SLIPORT_STATUS_RN_MASK;
+		if (err && reset_needed) {
+			iowrite32(SLI_PORT_CONTROL_IP_MASK,
+				  adapter->db + SLIPORT_CONTROL_OFFSET);
+
+			/* check adapter has corrected the error */
+			status = lancer_wait_ready(adapter);
+			sliport_status = ioread32(adapter->db +
+						  SLIPORT_STATUS_OFFSET);
+			sliport_status &= (SLIPORT_STATUS_ERR_MASK |
+						SLIPORT_STATUS_RN_MASK);
+			if (status || sliport_status)
+				status = -1;
+		} else if (err || reset_needed) {
+			status = -1;
+		}
+	}
+	return status;
+}
+
+int be_fw_wait_ready(struct be_adapter *adapter)
 {
 	u16 stage;
 	int status, timeout = 0;
 	struct device *dev = &adapter->pdev->dev;
+
+	if (lancer_chip(adapter)) {
+		status = lancer_wait_ready(adapter);
+		return status;
+	}
 
 	do {
 		status = be_POST_stage_get(adapter, &stage);
@@ -565,6 +620,9 @@ int be_cmd_fw_init(struct be_adapter *adapter)
 	u8 *wrb;
 	int status;
 
+	if (lancer_chip(adapter))
+		return 0;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -592,6 +650,9 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 	u8 *wrb;
 	int status;
 
+	if (lancer_chip(adapter))
+		return 0;
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -610,6 +671,7 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 	mutex_unlock(&adapter->mbox_lock);
 	return status;
 }
+
 int be_cmd_eq_create(struct be_adapter *adapter,
 		struct be_queue_info *eq, int eq_delay)
 {
@@ -1132,7 +1194,7 @@ err:
  * Uses MCCQ
  */
 int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
-		u8 *mac, u32 *if_handle, u32 *pmac_id, u32 domain)
+		     u32 *if_handle, u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
@@ -1152,17 +1214,13 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	req->hdr.domain = domain;
 	req->capability_flags = cpu_to_le32(cap_flags);
 	req->enable_flags = cpu_to_le32(en_flags);
-	if (mac)
-		memcpy(req->mac_addr, mac, ETH_ALEN);
-	else
-		req->pmac_invalid = true;
+
+	req->pmac_invalid = true;
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_if_create *resp = embedded_payload(wrb);
 		*if_handle = le32_to_cpu(resp->interface_id);
-		if (mac)
-			*pmac_id = le32_to_cpu(resp->pmac_id);
 	}
 
 err:
@@ -1209,9 +1267,6 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_hdr *hdr;
 	int status = 0;
-
-	if (MODULO(adapter->work_counter, be_get_temp_freq) == 0)
-		be_cmd_get_die_temperature(adapter);
 
 	spin_lock_bh(&adapter->mcc_lock);
 
@@ -1581,7 +1636,8 @@ int be_cmd_rx_filter(struct be_adapter *adapter, u32 flags, u32 value)
 		/* Reset mcast promisc mode if already set by setting mask
 		 * and not setting flags field
 		 */
-		req->if_flags_mask |=
+		if (!lancer_chip(adapter) || be_physfn(adapter))
+			req->if_flags_mask |=
 				cpu_to_le32(BE_IF_FLAGS_MCAST_PROMISCUOUS);
 
 		req->mcast_num = cpu_to_le32(netdev_mc_count(adapter->netdev));
@@ -1692,6 +1748,20 @@ int be_cmd_reset_function(struct be_adapter *adapter)
 	struct be_cmd_req_hdr *req;
 	int status;
 
+	if (lancer_chip(adapter)) {
+		status = lancer_wait_ready(adapter);
+		if (!status) {
+			iowrite32(SLI_PORT_CONTROL_IP_MASK,
+				  adapter->db + SLIPORT_CONTROL_OFFSET);
+			status = lancer_test_and_set_rdy_state(adapter);
+		}
+		if (status) {
+			dev_err(&adapter->pdev->dev,
+				"Adapter in non recoverable error\n");
+		}
+		return status;
+	}
+
 	if (mutex_lock_interruptible(&adapter->mbox_lock))
 		return -1;
 
@@ -1728,6 +1798,13 @@ int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable, u16 table_size)
 	req->if_id = cpu_to_le32(adapter->if_handle);
 	req->enable_rss = cpu_to_le16(RSS_ENABLE_TCP_IPV4 | RSS_ENABLE_IPV4 |
 				      RSS_ENABLE_TCP_IPV6 | RSS_ENABLE_IPV6);
+
+	if (lancer_chip(adapter) || skyhawk_chip(adapter)) {
+		req->hdr.version = 1;
+		req->enable_rss |= cpu_to_le16(RSS_ENABLE_UDP_IPV4 |
+					       RSS_ENABLE_UDP_IPV6);
+	}
+
 	req->cpu_table_size_log2 = cpu_to_le16(fls(table_size) - 1);
 	memcpy(req->cpu_table, rsstable, table_size);
 	memcpy(req->hash, myhash, sizeof(myhash));
@@ -1805,8 +1882,9 @@ err:
 }
 
 int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
-			u32 data_size, u32 data_offset, const char *obj_name,
-			u32 *data_written, u8 *addn_status)
+			    u32 data_size, u32 data_offset,
+			    const char *obj_name, u32 *data_written,
+			    u8 *change_status, u8 *addn_status)
 {
 	struct be_mcc_wrb *wrb;
 	struct lancer_cmd_req_write_object *req;
@@ -1862,10 +1940,12 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 		status = adapter->flash_status;
 
 	resp = embedded_payload(wrb);
-	if (!status)
+	if (!status) {
 		*data_written = le32_to_cpu(resp->actual_write_len);
-	else
+		*change_status = resp->change_status;
+	} else {
 		*addn_status = resp->additional_status;
+	}
 
 	return status;
 
@@ -2330,8 +2410,8 @@ err:
 }
 
 /* Uses synchronous MCCQ */
-int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-			bool *pmac_id_active, u32 *pmac_id, u8 *mac)
+int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
+			     bool *pmac_id_active, u32 *pmac_id, u8 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_mac_list *req;
@@ -2376,8 +2456,9 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
 						get_mac_list_cmd.va;
 		mac_count = resp->true_mac_count + resp->pseudo_mac_count;
 		/* Mac list returned could contain one or more active mac_ids
-		 * or one or more pseudo permanant mac addresses. If an active
-		 * mac_id is present, return first active mac_id found
+		 * or one or more true or pseudo permanant mac addresses.
+		 * If an active mac_id is present, return first active mac_id
+		 * found.
 		 */
 		for (i = 0; i < mac_count; i++) {
 			struct get_list_macaddr *mac_entry;
@@ -2396,7 +2477,7 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
 				goto out;
 			}
 		}
-		/* If no active mac_id found, return first pseudo mac addr */
+		/* If no active mac_id found, return first mac addr */
 		*pmac_id_active = false;
 		memcpy(mac, resp->macaddr_list[0].mac_addr_id.macaddr,
 								ETH_ALEN);
@@ -2643,6 +2724,44 @@ int be_cmd_set_ext_fat_capabilites(struct be_adapter *adapter,
 			       cmd->size, wrb, cmd);
 
 	status = be_mcc_notify_wait(adapter);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_port_name *req;
+	int status;
+
+	if (!lancer_chip(adapter)) {
+		*port_name = adapter->hba_port_num + '0';
+		return 0;
+	}
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			       OPCODE_COMMON_GET_PORT_NAME, sizeof(*req), wrb,
+			       NULL);
+	req->hdr.version = 1;
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_port_name *resp = embedded_payload(wrb);
+		*port_name = resp->port_name[adapter->hba_port_num];
+	} else {
+		*port_name = adapter->hba_port_num + '0';
+	}
 err:
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;

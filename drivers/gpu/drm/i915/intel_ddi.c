@@ -170,6 +170,15 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 
 		udelay(600);
 
+		/* We need to program FDI_RX_MISC with the default TP1 to TP2
+		 * values before enabling the receiver, and configure the delay
+		 * for the FDI timing generator to 90h. Luckily, all the other
+		 * bits are supposed to be zeroed, so we can write those values
+		 * directly.
+		 */
+		I915_WRITE(FDI_RX_MISC(pipe), FDI_RX_TP1_TO_TP2_48 |
+				FDI_RX_FDI_DELAY_90);
+
 		/* Enable CPU FDI Receiver with auto-training */
 		reg = FDI_RX_CTL(pipe);
 		I915_WRITE(reg,
@@ -726,8 +735,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 
 	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
 
-	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
-	intel_hdmi_set_spd_infoframe(encoder);
+	intel_hdmi->set_infoframes(encoder, adjusted_mode);
 }
 
 void intel_ddi_dpms(struct drm_encoder *encoder, int mode)

@@ -477,6 +477,8 @@ static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 	int i, n, out;
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
 
 	n = snprintf(buf, PAGE_SIZE, "Available crash types:\n");
 	for (i = 0; i < ARRAY_SIZE(cp_type); i++)

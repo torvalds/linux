@@ -732,6 +732,6 @@ static struct i2c_driver emc2103_driver = {
 
 module_i2c_driver(emc2103_driver);
 
-MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@shawell.net>");
 MODULE_DESCRIPTION("SMSC EMC2103 hwmon driver");
 MODULE_LICENSE("GPL");

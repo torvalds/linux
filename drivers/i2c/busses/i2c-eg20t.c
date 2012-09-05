@@ -953,17 +953,7 @@ static struct pci_driver pch_pcidriver = {
 	.resume = pch_i2c_resume
 };
 
-static int __init pch_pci_init(void)
-{
-	return pci_register_driver(&pch_pcidriver);
-}
-module_init(pch_pci_init);
-
-static void __exit pch_pci_exit(void)
-{
-	pci_unregister_driver(&pch_pcidriver);
-}
-module_exit(pch_pci_exit);
+module_pci_driver(pch_pcidriver);
 
 MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semico ML7213/ML7223/ML7831 IOH I2C");
 MODULE_LICENSE("GPL");

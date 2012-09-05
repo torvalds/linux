@@ -174,11 +174,17 @@ struct netlink_skb_parms {
 extern void netlink_table_grab(void);
 extern void netlink_table_ungrab(void);
 
-extern struct sock *netlink_kernel_create(struct net *net,
-					  int unit,unsigned int groups,
-					  void (*input)(struct sk_buff *skb),
-					  struct mutex *cb_mutex,
-					  struct module *module);
+/* optional Netlink kernel configuration parameters */
+struct netlink_kernel_cfg {
+	unsigned int	groups;
+	void		(*input)(struct sk_buff *skb);
+	struct mutex	*cb_mutex;
+	void		(*bind)(int group);
+};
+
+extern struct sock *netlink_kernel_create(struct net *net, int unit,
+					  struct module *module,
+					  struct netlink_kernel_cfg *cfg);
 extern void netlink_kernel_release(struct sock *sk);
 extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
@@ -240,14 +246,6 @@ struct netlink_notify {
 
 struct nlmsghdr *
 __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags);
-
-#define NLMSG_NEW(skb, pid, seq, type, len, flags) \
-({	if (unlikely(skb_tailroom(skb) < (int)NLMSG_SPACE(len))) \
-		goto nlmsg_failure; \
-	__nlmsg_put(skb, pid, seq, type, len, flags); })
-
-#define NLMSG_PUT(skb, pid, seq, type, len) \
-	NLMSG_NEW(skb, pid, seq, type, len, 0)
 
 struct netlink_dump_control {
 	int (*dump)(struct sk_buff *skb, struct netlink_callback *);

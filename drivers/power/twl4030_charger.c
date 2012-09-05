@@ -15,12 +15,14 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/i2c/twl.h>
 #include <linux/power_supply.h>
 #include <linux/notifier.h>
 #include <linux/usb/otg.h>
+#include <linux/regulator/machine.h>
 
 #define TWL4030_BCIMSTATEC	0x02
 #define TWL4030_BCIICHG		0x08
@@ -28,6 +30,7 @@
 #define TWL4030_BCIVBUS		0x0c
 #define TWL4030_BCIMFSTS4	0x10
 #define TWL4030_BCICTL1		0x23
+#define TWL4030_BB_CFG		0x12
 
 #define TWL4030_BCIAUTOWEN	BIT(5)
 #define TWL4030_CONFIG_DONE	BIT(4)
@@ -37,6 +40,17 @@
 #define TWL4030_USBFASTMCHG	BIT(2)
 #define TWL4030_STS_VBUS	BIT(7)
 #define TWL4030_STS_USB_ID	BIT(2)
+#define TWL4030_BBCHEN		BIT(4)
+#define TWL4030_BBSEL_MASK	0b1100
+#define TWL4030_BBSEL_2V5	0b0000
+#define TWL4030_BBSEL_3V0	0b0100
+#define TWL4030_BBSEL_3V1	0b1000
+#define TWL4030_BBSEL_3V2	0b1100
+#define TWL4030_BBISEL_MASK	0b11
+#define TWL4030_BBISEL_25uA	0b00
+#define TWL4030_BBISEL_150uA	0b01
+#define TWL4030_BBISEL_500uA	0b10
+#define TWL4030_BBISEL_1000uA	0b11
 
 /* BCI interrupts */
 #define TWL4030_WOVF		BIT(0) /* Watchdog overflow */
@@ -74,6 +88,8 @@ struct twl4030_bci {
 	struct work_struct	work;
 	int			irq_chg;
 	int			irq_bci;
+	struct regulator	*usb_reg;
+	int			usb_enabled;
 
 	unsigned long		event;
 };
@@ -103,7 +119,7 @@ static int twl4030_bci_read(u8 reg, u8 *val)
 
 static int twl4030_clear_set_boot_bci(u8 clear, u8 set)
 {
-	return twl4030_clear_set(TWL4030_MODULE_PM_MASTER, 0,
+	return twl4030_clear_set(TWL4030_MODULE_PM_MASTER, clear,
 			TWL4030_CONFIG_DONE | TWL4030_BCIAUTOWEN | set,
 			TWL4030_PM_MASTER_BOOT_BCI);
 }
@@ -151,14 +167,14 @@ static int twl4030_bci_have_vbus(struct twl4030_bci *bci)
 }
 
 /*
- * Enable/Disable USB Charge funtionality.
+ * Enable/Disable USB Charge functionality.
  */
 static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 {
 	int ret;
 
 	if (enable) {
-		/* Check for USB charger conneted */
+		/* Check for USB charger connected */
 		if (!twl4030_bci_have_vbus(bci))
 			return -ENODEV;
 
@@ -171,6 +187,12 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 			return -EACCES;
 		}
 
+		/* Need to keep regulator on */
+		if (!bci->usb_enabled) {
+			regulator_enable(bci->usb_reg);
+			bci->usb_enabled = 1;
+		}
+
 		/* forcing the field BCIAUTOUSB (BOOT_BCI[1]) to 1 */
 		ret = twl4030_clear_set_boot_bci(0, TWL4030_BCIAUTOUSB);
 		if (ret < 0)
@@ -181,6 +203,10 @@ static int twl4030_charger_enable_usb(struct twl4030_bci *bci, bool enable)
 			TWL4030_USBFASTMCHG, TWL4030_BCIMFSTS4);
 	} else {
 		ret = twl4030_clear_set_boot_bci(TWL4030_BCIAUTOUSB, 0);
+		if (bci->usb_enabled) {
+			regulator_disable(bci->usb_reg);
+			bci->usb_enabled = 0;
+		}
 	}
 
 	return ret;
@@ -197,6 +223,49 @@ static int twl4030_charger_enable_ac(bool enable)
 		ret = twl4030_clear_set_boot_bci(0, TWL4030_BCIAUTOAC);
 	else
 		ret = twl4030_clear_set_boot_bci(TWL4030_BCIAUTOAC, 0);
+
+	return ret;
+}
+
+/*
+ * Enable/Disable charging of Backup Battery.
+ */
+static int twl4030_charger_enable_backup(int uvolt, int uamp)
+{
+	int ret;
+	u8 flags;
+
+	if (uvolt < 2500000 ||
+	    uamp < 25) {
+		/* disable charging of backup battery */
+		ret = twl4030_clear_set(TWL4030_MODULE_PM_RECEIVER,
+					TWL4030_BBCHEN, 0, TWL4030_BB_CFG);
+		return ret;
+	}
+
+	flags = TWL4030_BBCHEN;
+	if (uvolt >= 3200000)
+		flags |= TWL4030_BBSEL_3V2;
+	else if (uvolt >= 3100000)
+		flags |= TWL4030_BBSEL_3V1;
+	else if (uvolt >= 3000000)
+		flags |= TWL4030_BBSEL_3V0;
+	else
+		flags |= TWL4030_BBSEL_2V5;
+
+	if (uamp >= 1000)
+		flags |= TWL4030_BBISEL_1000uA;
+	else if (uamp >= 500)
+		flags |= TWL4030_BBISEL_500uA;
+	else if (uamp >= 150)
+		flags |= TWL4030_BBISEL_150uA;
+	else
+		flags |= TWL4030_BBISEL_25uA;
+
+	ret = twl4030_clear_set(TWL4030_MODULE_PM_RECEIVER,
+				TWL4030_BBSEL_MASK | TWL4030_BBISEL_MASK,
+				flags,
+				TWL4030_BB_CFG);
 
 	return ret;
 }
@@ -424,6 +493,7 @@ static enum power_supply_property twl4030_charger_props[] = {
 static int __init twl4030_bci_probe(struct platform_device *pdev)
 {
 	struct twl4030_bci *bci;
+	struct twl4030_bci_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 	u32 reg;
 
@@ -455,6 +525,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 	bci->usb.num_properties = ARRAY_SIZE(twl4030_charger_props);
 	bci->usb.get_property = twl4030_bci_get_property;
 
+	bci->usb_reg = regulator_get(bci->dev, "bci3v1");
+
 	ret = power_supply_register(&pdev->dev, &bci->usb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register usb: %d\n", ret);
@@ -479,8 +551,8 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	INIT_WORK(&bci->work, twl4030_bci_usb_work);
 
-	bci->transceiver = usb_get_transceiver();
-	if (bci->transceiver != NULL) {
+	bci->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
+	if (!IS_ERR_OR_NULL(bci->transceiver)) {
 		bci->usb_nb.notifier_call = twl4030_bci_usb_ncb;
 		usb_register_notifier(bci->transceiver, &bci->usb_nb);
 	}
@@ -503,13 +575,15 @@ static int __init twl4030_bci_probe(struct platform_device *pdev)
 
 	twl4030_charger_enable_ac(true);
 	twl4030_charger_enable_usb(bci, true);
+	twl4030_charger_enable_backup(pdata->bb_uvolt,
+				      pdata->bb_uamp);
 
 	return 0;
 
 fail_unmask_interrupts:
-	if (bci->transceiver != NULL) {
+	if (!IS_ERR_OR_NULL(bci->transceiver)) {
 		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_transceiver(bci->transceiver);
+		usb_put_phy(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 fail_bci_irq:
@@ -531,6 +605,7 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 
 	twl4030_charger_enable_ac(false);
 	twl4030_charger_enable_usb(bci, false);
+	twl4030_charger_enable_backup(0, 0);
 
 	/* mask interrupts */
 	twl_i2c_write_u8(TWL4030_MODULE_INTERRUPTS, 0xff,
@@ -538,9 +613,9 @@ static int __exit twl4030_bci_remove(struct platform_device *pdev)
 	twl_i2c_write_u8(TWL4030_MODULE_INTERRUPTS, 0xff,
 			 TWL4030_INTERRUPTS_BCIIMR2A);
 
-	if (bci->transceiver != NULL) {
+	if (!IS_ERR_OR_NULL(bci->transceiver)) {
 		usb_unregister_notifier(bci->transceiver, &bci->usb_nb);
-		usb_put_transceiver(bci->transceiver);
+		usb_put_phy(bci->transceiver);
 	}
 	free_irq(bci->irq_bci, bci);
 	free_irq(bci->irq_chg, bci);

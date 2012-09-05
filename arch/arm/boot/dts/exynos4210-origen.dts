@@ -134,4 +134,16 @@
 	i2c@138D0000 {
 		status = "disabled";
 	};
+
+	spi_0: spi@13920000 {
+		status = "disabled";
+	};
+
+	spi_1: spi@13930000 {
+		status = "disabled";
+	};
+
+	spi_2: spi@13940000 {
+		status = "disabled";
+	};
 };

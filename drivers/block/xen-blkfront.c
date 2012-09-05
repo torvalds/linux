@@ -141,14 +141,36 @@ static int get_id_from_freelist(struct blkfront_info *info)
 	return free;
 }
 
-static void add_id_to_freelist(struct blkfront_info *info,
+static int add_id_to_freelist(struct blkfront_info *info,
 			       unsigned long id)
 {
+	if (info->shadow[id].req.u.rw.id != id)
+		return -EINVAL;
+	if (info->shadow[id].request == NULL)
+		return -EINVAL;
 	info->shadow[id].req.u.rw.id  = info->shadow_free;
 	info->shadow[id].request = NULL;
 	info->shadow_free = id;
+	return 0;
 }
 
+static const char *op_name(int op)
+{
+	static const char *const names[] = {
+		[BLKIF_OP_READ] = "read",
+		[BLKIF_OP_WRITE] = "write",
+		[BLKIF_OP_WRITE_BARRIER] = "barrier",
+		[BLKIF_OP_FLUSH_DISKCACHE] = "flush",
+		[BLKIF_OP_DISCARD] = "discard" };
+
+	if (op < 0 || op >= ARRAY_SIZE(names))
+		return "unknown";
+
+	if (!names[op])
+		return "reserved";
+
+	return names[op];
+}
 static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 {
 	unsigned int end = minor + nr;
@@ -746,20 +768,36 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 		bret = RING_GET_RESPONSE(&info->ring, i);
 		id   = bret->id;
+		/*
+		 * The backend has messed up and given us an id that we would
+		 * never have given to it (we stamp it up to BLK_RING_SIZE -
+		 * look in get_id_from_freelist.
+		 */
+		if (id >= BLK_RING_SIZE) {
+			WARN(1, "%s: response to %s has incorrect id (%ld)\n",
+			     info->gd->disk_name, op_name(bret->operation), id);
+			/* We can't safely get the 'struct request' as
+			 * the id is busted. */
+			continue;
+		}
 		req  = info->shadow[id].request;
 
 		if (bret->operation != BLKIF_OP_DISCARD)
 			blkif_completion(&info->shadow[id]);
 
-		add_id_to_freelist(info, id);
+		if (add_id_to_freelist(info, id)) {
+			WARN(1, "%s: response to %s (id %ld) couldn't be recycled!\n",
+			     info->gd->disk_name, op_name(bret->operation), id);
+			continue;
+		}
 
 		error = (bret->status == BLKIF_RSP_OKAY) ? 0 : -EIO;
 		switch (bret->operation) {
 		case BLKIF_OP_DISCARD:
 			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
 				struct request_queue *rq = info->rq;
-				printk(KERN_WARNING "blkfront: %s: discard op failed\n",
-					   info->gd->disk_name);
+				printk(KERN_WARNING "blkfront: %s: %s op failed\n",
+					   info->gd->disk_name, op_name(bret->operation));
 				error = -EOPNOTSUPP;
 				info->feature_discard = 0;
 				info->feature_secdiscard = 0;
@@ -771,18 +809,14 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 		case BLKIF_OP_FLUSH_DISKCACHE:
 		case BLKIF_OP_WRITE_BARRIER:
 			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
-				printk(KERN_WARNING "blkfront: %s: write %s op failed\n",
-				       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
-				       "barrier" :  "flush disk cache",
-				       info->gd->disk_name);
+				printk(KERN_WARNING "blkfront: %s: %s op failed\n",
+				       info->gd->disk_name, op_name(bret->operation));
 				error = -EOPNOTSUPP;
 			}
 			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
 				     info->shadow[id].req.u.rw.nr_segments == 0)) {
-				printk(KERN_WARNING "blkfront: %s: empty write %s op failed\n",
-				       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
-				       "barrier" :  "flush disk cache",
-				       info->gd->disk_name);
+				printk(KERN_WARNING "blkfront: %s: empty %s op failed\n",
+				       info->gd->disk_name, op_name(bret->operation));
 				error = -EOPNOTSUPP;
 			}
 			if (unlikely(error)) {
@@ -854,9 +888,8 @@ static int setup_blkring(struct xenbus_device *dev,
 	if (err)
 		goto fail;
 
-	err = bind_evtchn_to_irqhandler(info->evtchn,
-					blkif_interrupt,
-					IRQF_SAMPLE_RANDOM, "blkif", info);
+	err = bind_evtchn_to_irqhandler(info->evtchn, blkif_interrupt, 0,
+					"blkif", info);
 	if (err <= 0) {
 		xenbus_dev_fatal(dev, err,
 				 "bind_evtchn_to_irqhandler failed");

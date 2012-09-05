@@ -147,6 +147,9 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	char *argv[] = {usermode_helper, cmd, mb, NULL };
 	int ret;
 
+	if (current == mdev->worker.task)
+		set_bit(CALLBACK_PENDING, &mdev->flags);
+
 	snprintf(mb, 12, "minor-%d", mdev_to_minor(mdev));
 
 	if (get_net_conf(mdev)) {
@@ -188,6 +191,9 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 		dev_info(DEV, "helper command: %s %s %s exit code %u (0x%x)\n",
 				usermode_helper, cmd, mb,
 				(ret >> 8) & 0xff, ret);
+
+	if (current == mdev->worker.task)
+		clear_bit(CALLBACK_PENDING, &mdev->flags);
 
 	if (ret < 0) /* Ignore any ERRNOs we got. */
 		ret = 0;
@@ -668,8 +674,8 @@ enum determine_dev_size drbd_determine_dev_size(struct drbd_conf *mdev, enum dds
 			 la_size_changed && md_moved ? "size changed and md moved" :
 			 la_size_changed ? "size changed" : "md moved");
 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
-		err = drbd_bitmap_io(mdev, &drbd_bm_write,
-				"size changed", BM_LOCKED_MASK);
+		err = drbd_bitmap_io(mdev, md_moved ? &drbd_bm_write_all : &drbd_bm_write,
+				     "size changed", BM_LOCKED_MASK);
 		if (err) {
 			rv = dev_size_error;
 			goto out;
@@ -795,8 +801,8 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 static void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_size)
 {
 	struct request_queue * const q = mdev->rq_queue;
-	int max_hw_sectors = max_bio_size >> 9;
-	int max_segments = 0;
+	unsigned int max_hw_sectors = max_bio_size >> 9;
+	unsigned int max_segments = 0;
 
 	if (get_ldev_if_state(mdev, D_ATTACHING)) {
 		struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
@@ -829,7 +835,7 @@ static void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_bio_
 
 void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 {
-	int now, new, local, peer;
+	unsigned int now, new, local, peer;
 
 	now = queue_max_hw_sectors(mdev->rq_queue) << 9;
 	local = mdev->local_max_bio_size; /* Eventually last known value, from volatile memory */
@@ -840,13 +846,14 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 		mdev->local_max_bio_size = local;
 		put_ldev(mdev);
 	}
+	local = min(local, DRBD_MAX_BIO_SIZE);
 
 	/* We may ignore peer limits if the peer is modern enough.
 	   Because new from 8.3.8 onwards the peer can use multiple
 	   BIOs for a single peer_request */
 	if (mdev->state.conn >= C_CONNECTED) {
 		if (mdev->agreed_pro_version < 94) {
-			peer = min_t(int, mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+			peer = min(mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
 			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
 		} else if (mdev->agreed_pro_version == 94)
 			peer = DRBD_MAX_SIZE_H80_PACKET;
@@ -854,10 +861,10 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 			peer = DRBD_MAX_BIO_SIZE;
 	}
 
-	new = min_t(int, local, peer);
+	new = min(local, peer);
 
 	if (mdev->state.role == R_PRIMARY && new < now)
-		dev_err(DEV, "ASSERT FAILED new < now; (%d < %d)\n", new, now);
+		dev_err(DEV, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
 
 	if (new != now)
 		dev_info(DEV, "max BIO size = %u\n", new);
@@ -949,6 +956,14 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	 * e.g. if someone calls attach from the on-io-error handler,
 	 * to realize a "hot spare" feature (not that I'd recommend that) */
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->local_cnt));
+
+	/* make sure there is no leftover from previous force-detach attempts */
+	clear_bit(FORCE_DETACH, &mdev->flags);
+
+	/* and no leftover from previously aborted resync or verify, either */
+	mdev->rs_total = 0;
+	mdev->rs_failed = 0;
+	atomic_set(&mdev->rs_pending_cnt, 0);
 
 	/* allocation not in the IO path, cqueue thread context */
 	nbc = kzalloc(sizeof(struct drbd_backing_dev), GFP_KERNEL);
@@ -1345,6 +1360,7 @@ static int drbd_nl_detach(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	if (dt.detach_force) {
+		set_bit(FORCE_DETACH, &mdev->flags);
 		drbd_force_state(mdev, NS(disk, D_FAILED));
 		reply->ret_code = SS_SUCCESS;
 		goto out;
@@ -1962,9 +1978,11 @@ static int drbd_nl_invalidate(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 	int retcode;
 
 	/* If there is still bitmap IO pending, probably because of a previous
-	 * resync just being finished, wait for it before requesting a new resync. */
+	 * resync just being finished, wait for it before requesting a new resync.
+	 * Also wait for it's after_state_ch(). */
 	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+	drbd_flush_workqueue(mdev);
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_T), CS_ORDERED);
 
@@ -2003,9 +2021,11 @@ static int drbd_nl_invalidate_peer(struct drbd_conf *mdev, struct drbd_nl_cfg_re
 	int retcode;
 
 	/* If there is still bitmap IO pending, probably because of a previous
-	 * resync just being finished, wait for it before requesting a new resync. */
+	 * resync just being finished, wait for it before requesting a new resync.
+	 * Also wait for it's after_state_ch(). */
 	drbd_suspend_io(mdev);
 	wait_event(mdev->misc_wait, !test_bit(BITMAP_IO, &mdev->flags));
+	drbd_flush_workqueue(mdev);
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
 

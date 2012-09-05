@@ -1,8 +1,6 @@
 /*
- *  include/asm-s390/bugs.h
- *
  *  S390 version
- *    Copyright (C) 1999 IBM Deutschland Entwicklung GmbH, IBM Corporation
+ *    Copyright IBM Corp. 1999
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
  *  Derived from "include/asm-i386/bugs.h"

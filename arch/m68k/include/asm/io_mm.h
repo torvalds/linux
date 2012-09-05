@@ -65,7 +65,53 @@
 
 
 
-#ifdef CONFIG_ISA
+#if defined(CONFIG_PCI) && defined(CONFIG_COLDFIRE)
+
+#define HAVE_ARCH_PIO_SIZE
+#define PIO_OFFSET	0
+#define PIO_MASK	0xffff
+#define PIO_RESERVED	0x10000
+
+u8 mcf_pci_inb(u32 addr);
+u16 mcf_pci_inw(u32 addr);
+u32 mcf_pci_inl(u32 addr);
+void mcf_pci_insb(u32 addr, u8 *buf, u32 len);
+void mcf_pci_insw(u32 addr, u16 *buf, u32 len);
+void mcf_pci_insl(u32 addr, u32 *buf, u32 len);
+
+void mcf_pci_outb(u8 v, u32 addr);
+void mcf_pci_outw(u16 v, u32 addr);
+void mcf_pci_outl(u32 v, u32 addr);
+void mcf_pci_outsb(u32 addr, const u8 *buf, u32 len);
+void mcf_pci_outsw(u32 addr, const u16 *buf, u32 len);
+void mcf_pci_outsl(u32 addr, const u32 *buf, u32 len);
+
+#define	inb	mcf_pci_inb
+#define	inb_p	mcf_pci_inb
+#define	inw	mcf_pci_inw
+#define	inw_p	mcf_pci_inw
+#define	inl	mcf_pci_inl
+#define	inl_p	mcf_pci_inl
+#define	insb	mcf_pci_insb
+#define	insw	mcf_pci_insw
+#define	insl	mcf_pci_insl
+
+#define	outb	mcf_pci_outb
+#define	outb_p	mcf_pci_outb
+#define	outw	mcf_pci_outw
+#define	outw_p	mcf_pci_outw
+#define	outl	mcf_pci_outl
+#define	outl_p	mcf_pci_outl
+#define	outsb	mcf_pci_outsb
+#define	outsw	mcf_pci_outsw
+#define	outsl	mcf_pci_outsl
+
+#define readb(addr)	in_8(addr)
+#define writeb(v, addr)	out_8((addr), (v))
+#define readw(addr)	in_le16(addr)
+#define writew(v, addr)	out_le16((addr), (v))
+
+#elif defined(CONFIG_ISA)
 
 #if MULTI_ISA == 0
 #undef MULTI_ISA
@@ -339,5 +385,7 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
+
+#define ioport_map(port, nr)	((void __iomem *)(port))
 
 #endif /* _IO_H */

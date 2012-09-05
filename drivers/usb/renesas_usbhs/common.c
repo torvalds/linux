@@ -19,7 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
-#include "./common.h"
+#include "common.h"
 
 /*
  *		image of renesas_usbhs
@@ -603,12 +603,12 @@ static int usbhsc_resume(struct device *dev)
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	usbhs_platform_call(priv, phy_reset, pdev);
-
 	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
 		usbhsc_power_ctrl(priv, 1);
 
-	usbhsc_hotplug(priv);
+	usbhs_platform_call(priv, phy_reset, pdev);
+
+	usbhsc_drvcllbck_notify_hotplug(pdev);
 
 	return 0;
 }

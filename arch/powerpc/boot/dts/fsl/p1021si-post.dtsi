@@ -1,7 +1,7 @@
 /*
  * P1021/P1012 Silicon/SoC Device Tree Source (post include)
  *
- * Copyright 2011 Freescale Semiconductor Inc.
+ * Copyright 2011-2012 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -210,6 +210,20 @@
 		cell-index = <5>;
 		reg = <0x2400 0x200>;
 		interrupts = <40>;
+		interrupt-parent = <&qeic>;
+	};
+
+	ucc@2600 {
+		cell-index = <7>;
+		reg = <0x2600 0x200>;
+		interrupts = <42>;
+		interrupt-parent = <&qeic>;
+	};
+
+	ucc@2200 {
+		cell-index = <3>;
+		reg = <0x2200 0x200>;
+		interrupts = <34>;
 		interrupt-parent = <&qeic>;
 	};
 

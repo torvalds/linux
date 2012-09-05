@@ -145,12 +145,9 @@ enum transport_state_table {
 	TRANSPORT_NO_STATE	= 0,
 	TRANSPORT_NEW_CMD	= 1,
 	TRANSPORT_WRITE_PENDING	= 3,
-	TRANSPORT_PROCESS_WRITE	= 4,
 	TRANSPORT_PROCESSING	= 5,
 	TRANSPORT_COMPLETE	= 6,
-	TRANSPORT_PROCESS_TMR	= 9,
 	TRANSPORT_ISTATE_PROCESSING = 11,
-	TRANSPORT_NEW_CMD_MAP	= 16,
 	TRANSPORT_COMPLETE_QF_WP = 18,
 	TRANSPORT_COMPLETE_QF_OK = 19,
 };
@@ -160,25 +157,20 @@ enum se_cmd_flags_table {
 	SCF_SUPPORTED_SAM_OPCODE	= 0x00000001,
 	SCF_TRANSPORT_TASK_SENSE	= 0x00000002,
 	SCF_EMULATED_TASK_SENSE		= 0x00000004,
-	SCF_SCSI_DATA_SG_IO_CDB		= 0x00000008,
-	SCF_SCSI_CONTROL_SG_IO_CDB	= 0x00000010,
-	SCF_SCSI_NON_DATA_CDB		= 0x00000020,
-	SCF_SCSI_TMR_CDB		= 0x00000040,
-	SCF_SCSI_CDB_EXCEPTION		= 0x00000080,
-	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000100,
-	SCF_FUA				= 0x00000200,
-	SCF_SE_LUN_CMD			= 0x00000800,
-	SCF_SE_ALLOW_EOO		= 0x00001000,
-	SCF_BIDI			= 0x00002000,
-	SCF_SENT_CHECK_CONDITION	= 0x00004000,
-	SCF_OVERFLOW_BIT		= 0x00008000,
-	SCF_UNDERFLOW_BIT		= 0x00010000,
-	SCF_SENT_DELAYED_TAS		= 0x00020000,
-	SCF_ALUA_NON_OPTIMIZED		= 0x00040000,
-	SCF_DELAYED_CMD_FROM_SAM_ATTR	= 0x00080000,
-	SCF_UNUSED			= 0x00100000,
-	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00200000,
-	SCF_ACK_KREF			= 0x00400000,
+	SCF_SCSI_DATA_CDB		= 0x00000008,
+	SCF_SCSI_TMR_CDB		= 0x00000010,
+	SCF_SCSI_CDB_EXCEPTION		= 0x00000020,
+	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000040,
+	SCF_FUA				= 0x00000080,
+	SCF_SE_LUN_CMD			= 0x00000100,
+	SCF_BIDI			= 0x00000400,
+	SCF_SENT_CHECK_CONDITION	= 0x00000800,
+	SCF_OVERFLOW_BIT		= 0x00001000,
+	SCF_UNDERFLOW_BIT		= 0x00002000,
+	SCF_SENT_DELAYED_TAS		= 0x00004000,
+	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
+	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
+	SCF_ACK_KREF			= 0x00040000,
 };
 
 /* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
@@ -220,6 +212,7 @@ enum tcm_sense_reason_table {
 	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
 	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
 	TCM_RESERVATION_CONFLICT		= 0x10,
+	TCM_ADDRESS_OUT_OF_RANGE		= 0x11,
 };
 
 enum target_sc_flags_table {
@@ -471,13 +464,6 @@ struct t10_reservation {
 	struct t10_reservation_ops pr_ops;
 };
 
-struct se_queue_obj {
-	atomic_t		queue_cnt;
-	spinlock_t		cmd_queue_lock;
-	struct list_head	qobj_list;
-	wait_queue_head_t	thread_wq;
-};
-
 struct se_tmr_req {
 	/* Task Management function to be performed */
 	u8			function;
@@ -486,11 +472,8 @@ struct se_tmr_req {
 	int			call_transport;
 	/* Reference to ITT that Task Mgmt should be performed */
 	u32			ref_task_tag;
-	/* 64-bit encoded SAM LUN from $FABRIC_MOD TMR header */
-	u64			ref_task_lun;
 	void 			*fabric_tmr_ptr;
 	struct se_cmd		*task_cmd;
-	struct se_cmd		*ref_cmd;
 	struct se_device	*tmr_dev;
 	struct se_lun		*tmr_lun;
 	struct list_head	tmr_list;
@@ -520,8 +503,6 @@ struct se_cmd {
 	u32			se_ordered_id;
 	/* Total size in bytes associated with command */
 	u32			data_length;
-	/* SCSI Presented Data Transfer Length */
-	u32			cmd_spdtl;
 	u32			residual_count;
 	u32			orig_fe_lun;
 	/* Persistent Reservation key */
@@ -537,7 +518,6 @@ struct se_cmd {
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
-	struct list_head	se_queue_node;
 	struct list_head	se_cmd_list;
 	struct completion	cmd_wait_comp;
 	struct kref		cmd_kref;
@@ -575,7 +555,6 @@ struct se_cmd {
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
 
-	struct list_head	execute_list;
 	struct list_head	state_list;
 	bool			state_active;
 
@@ -633,7 +612,6 @@ struct se_session {
 	struct list_head	sess_list;
 	struct list_head	sess_acl_list;
 	struct list_head	sess_cmd_list;
-	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
 	struct kref		sess_kref;
 };
@@ -780,13 +758,11 @@ struct se_device {
 	/* Active commands on this virtual SE device */
 	atomic_t		simple_cmds;
 	atomic_t		dev_ordered_id;
-	atomic_t		execute_tasks;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
 	struct se_obj		dev_obj;
 	struct se_obj		dev_access_obj;
 	struct se_obj		dev_export_obj;
-	struct se_queue_obj	dev_queue_obj;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		execute_task_lock;
 	spinlock_t		dev_reservation_lock;
@@ -802,11 +778,9 @@ struct se_device {
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	/* Pointer to descriptor for processing thread */
-	struct task_struct	*process_thread;
+	struct workqueue_struct *tmr_wq;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
-	struct list_head	execute_list;
 	struct list_head	state_list;
 	struct list_head	qf_cmd_list;
 	/* Pointer to associated SE HBA */

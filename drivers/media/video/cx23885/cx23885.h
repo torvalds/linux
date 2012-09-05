@@ -21,7 +21,6 @@
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
-#include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
 
@@ -90,6 +89,7 @@
 #define CX23885_BOARD_MYGICA_X8507             33
 #define CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL 34
 #define CX23885_BOARD_TEVII_S471               35
+#define CX23885_BOARD_HAUPPAUGE_HVR1255_22111  36
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -246,7 +246,6 @@ struct cx23885_i2c {
 
 	/* i2c i/o */
 	struct i2c_adapter         i2c_adap;
-	struct i2c_algo_bit_data   i2c_algo;
 	struct i2c_client          i2c_client;
 	u32                        i2c_rc;
 

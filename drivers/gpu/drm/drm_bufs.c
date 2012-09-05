@@ -641,8 +641,6 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
-	if (dev->queue_count)
-		return -EBUSY;	/* Not while in use */
 
 	/* Make sure buffers are located in AGP memory that we own */
 	valid = 0;
@@ -704,7 +702,6 @@ int drm_addbufs_agp(struct drm_device * dev, struct drm_buf_desc * request)
 		buf->next = NULL;
 		buf->waiting = 0;
 		buf->pending = 0;
-		init_waitqueue_head(&buf->dma_wait);
 		buf->file_priv = NULL;
 
 		buf->dev_priv_size = dev->driver->dev_priv_size;
@@ -796,13 +793,11 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 	order = drm_order(request->size);
 	size = 1 << order;
 
-	DRM_DEBUG("count=%d, size=%d (%d), order=%d, queue_count=%d\n",
-		  request->count, request->size, size, order, dev->queue_count);
+	DRM_DEBUG("count=%d, size=%d (%d), order=%d\n",
+		  request->count, request->size, size, order);
 
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
-	if (dev->queue_count)
-		return -EBUSY;	/* Not while in use */
 
 	alignment = (request->flags & _DRM_PAGE_ALIGN)
 	    ? PAGE_ALIGN(size) : size;
@@ -904,7 +899,6 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 			buf->next = NULL;
 			buf->waiting = 0;
 			buf->pending = 0;
-			init_waitqueue_head(&buf->dma_wait);
 			buf->file_priv = NULL;
 
 			buf->dev_priv_size = dev->driver->dev_priv_size;
@@ -1019,8 +1013,6 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
-	if (dev->queue_count)
-		return -EBUSY;	/* Not while in use */
 
 	spin_lock(&dev->count_lock);
 	if (dev->buf_use) {
@@ -1071,7 +1063,6 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 		buf->next = NULL;
 		buf->waiting = 0;
 		buf->pending = 0;
-		init_waitqueue_head(&buf->dma_wait);
 		buf->file_priv = NULL;
 
 		buf->dev_priv_size = dev->driver->dev_priv_size;
@@ -1177,8 +1168,6 @@ static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request
 
 	if (order < DRM_MIN_ORDER || order > DRM_MAX_ORDER)
 		return -EINVAL;
-	if (dev->queue_count)
-		return -EBUSY;	/* Not while in use */
 
 	spin_lock(&dev->count_lock);
 	if (dev->buf_use) {
@@ -1228,7 +1217,6 @@ static int drm_addbufs_fb(struct drm_device * dev, struct drm_buf_desc * request
 		buf->next = NULL;
 		buf->waiting = 0;
 		buf->pending = 0;
-		init_waitqueue_head(&buf->dma_wait);
 		buf->file_priv = NULL;
 
 		buf->dev_priv_size = dev->driver->dev_priv_size;

@@ -226,13 +226,11 @@ static int pvr2_enum_input(struct file *file, void *priv, struct v4l2_input *vi)
 	struct v4l2_input tmp;
 	unsigned int cnt;
 	int val;
-	int ret;
 
 	cptr = pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_INPUT);
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.index = vi->index;
-	ret = 0;
 	if (vi->index >= fh->input_cnt)
 		return -EINVAL;
 	val = fh->input_map[vi->index];
@@ -556,9 +554,7 @@ static int pvr2_queryctrl(struct file *file, void *priv,
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
 	struct pvr2_ctrl *cptr;
 	int val;
-	int ret;
 
-	ret = 0;
 	if (vc->id & V4L2_CTRL_FLAG_NEXT_CTRL) {
 		cptr = pvr2_hdw_get_ctrl_nextv4l(
 				hdw, (vc->id & ~V4L2_CTRL_FLAG_NEXT_CTRL));
@@ -705,11 +701,9 @@ static int pvr2_try_ext_ctrls(struct file *file, void *priv,
 	struct v4l2_ext_control *ctrl;
 	struct pvr2_ctrl *pctl;
 	unsigned int idx;
-	int ret;
 
 	/* For the moment just validate that the requested control
 	   actually exists. */
-	ret = 0;
 	for (idx = 0; idx < ctls->count; idx++) {
 		ctrl = ctls->controls + idx;
 		pctl = pvr2_hdw_get_ctrl_v4l(hdw, ctrl->id);
@@ -770,12 +764,10 @@ static int pvr2_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
-	struct v4l2_cropcap cap;
 	int ret;
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ret = pvr2_ctrl_set_value(
 			pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_CROPL),
 			crop->c.left);
@@ -965,7 +957,7 @@ static long pvr2_v4l2_ioctl(struct file *file,
 	long ret = -EINVAL;
 
 	if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL)
-		v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw), cmd);
+		v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw), cmd);
 
 	if (!pvr2_hdw_dev_ok(hdw)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -998,7 +990,7 @@ static long pvr2_v4l2_ioctl(struct file *file,
 				pvr2_trace(PVR2_TRACE_V4LIOCTL,
 					   "pvr2_v4l2_do_ioctl failure, ret=%ld"
 					   " command was:", ret);
-				v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw),
+				v4l_printk_ioctl(pvr2_hdw_get_driver_name(hdw),
 						cmd);
 			}
 		}

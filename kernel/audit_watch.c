@@ -355,34 +355,15 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 /* Get path information necessary for adding watches. */
 static int audit_get_nd(struct audit_watch *watch, struct path *parent)
 {
-	struct nameidata nd;
-	struct dentry *d;
-	int err;
-
-	err = kern_path_parent(watch->path, &nd);
-	if (err)
-		return err;
-
-	if (nd.last_type != LAST_NORM) {
-		path_put(&nd.path);
-		return -EINVAL;
-	}
-
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	d = lookup_one_len(nd.last.name, nd.path.dentry, nd.last.len);
-	if (IS_ERR(d)) {
-		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-		path_put(&nd.path);
+	struct dentry *d = kern_path_locked(watch->path, parent);
+	if (IS_ERR(d))
 		return PTR_ERR(d);
-	}
+	mutex_unlock(&parent->dentry->d_inode->i_mutex);
 	if (d->d_inode) {
 		/* update watch filter fields */
 		watch->dev = d->d_inode->i_sb->s_dev;
 		watch->ino = d->d_inode->i_ino;
 	}
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-
-	*parent = nd.path;
 	dput(d);
 	return 0;
 }

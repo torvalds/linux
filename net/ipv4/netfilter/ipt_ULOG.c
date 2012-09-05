@@ -196,12 +196,15 @@ static void ipt_ulog_packet(unsigned int hooknum,
 
 	pr_debug("qlen %d, qthreshold %Zu\n", ub->qlen, loginfo->qthreshold);
 
-	/* NLMSG_PUT contains a hidden goto nlmsg_failure !!! */
-	nlh = NLMSG_PUT(ub->skb, 0, ub->qlen, ULOG_NL_EVENT,
-			sizeof(*pm)+copy_len);
+	nlh = nlmsg_put(ub->skb, 0, ub->qlen, ULOG_NL_EVENT,
+			sizeof(*pm)+copy_len, 0);
+	if (!nlh) {
+		pr_debug("error during nlmsg_put\n");
+		goto out_unlock;
+	}
 	ub->qlen++;
 
-	pm = NLMSG_DATA(nlh);
+	pm = nlmsg_data(nlh);
 
 	/* We might not have a timestamp, get one */
 	if (skb->tstamp.tv64 == 0)
@@ -261,13 +264,11 @@ static void ipt_ulog_packet(unsigned int hooknum,
 			nlh->nlmsg_type = NLMSG_DONE;
 		ulog_send(groupnum);
 	}
-
+out_unlock:
 	spin_unlock_bh(&ulog_lock);
 
 	return;
 
-nlmsg_failure:
-	pr_debug("error during NLMSG_PUT\n");
 alloc_failure:
 	pr_debug("Error building netlink message\n");
 	spin_unlock_bh(&ulog_lock);
@@ -380,6 +381,9 @@ static struct nf_logger ipt_ulog_logger __read_mostly = {
 static int __init ulog_tg_init(void)
 {
 	int ret, i;
+	struct netlink_kernel_cfg cfg = {
+		.groups	= ULOG_MAXNLGROUPS,
+	};
 
 	pr_debug("init module\n");
 
@@ -392,9 +396,8 @@ static int __init ulog_tg_init(void)
 	for (i = 0; i < ULOG_MAXNLGROUPS; i++)
 		setup_timer(&ulog_buffers[i].timer, ulog_timer, i);
 
-	nflognl = netlink_kernel_create(&init_net,
-					NETLINK_NFLOG, ULOG_MAXNLGROUPS, NULL,
-					NULL, THIS_MODULE);
+	nflognl = netlink_kernel_create(&init_net, NETLINK_NFLOG,
+					THIS_MODULE, &cfg);
 	if (!nflognl)
 		return -ENOMEM;
 

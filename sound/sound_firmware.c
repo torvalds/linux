@@ -23,14 +23,14 @@ static int do_mod_firmware_load(const char *fn, char **fp)
 	if (l <= 0 || l > 131072)
 	{
 		printk(KERN_INFO "Invalid firmware '%s'\n", fn);
-		filp_close(filp, current->files);
+		filp_close(filp, NULL);
 		return 0;
 	}
 	dp = vmalloc(l);
 	if (dp == NULL)
 	{
 		printk(KERN_INFO "Out of memory loading '%s'.\n", fn);
-		filp_close(filp, current->files);
+		filp_close(filp, NULL);
 		return 0;
 	}
 	pos = 0;
@@ -38,10 +38,10 @@ static int do_mod_firmware_load(const char *fn, char **fp)
 	{
 		printk(KERN_INFO "Failed to read '%s'.\n", fn);
 		vfree(dp);
-		filp_close(filp, current->files);
+		filp_close(filp, NULL);
 		return 0;
 	}
-	filp_close(filp, current->files);
+	filp_close(filp, NULL);
 	*fp = dp;
 	return (int) l;
 }

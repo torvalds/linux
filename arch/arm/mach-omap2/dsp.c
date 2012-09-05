@@ -23,6 +23,7 @@
 
 #include <asm/memblock.h>
 
+#include "control.h"
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #ifdef CONFIG_BRIDGE_DVFS
@@ -46,6 +47,9 @@ static struct omap_dsp_platform_data omap_dsp_pdata __initdata = {
 	.dsp_cm_read = omap2_cm_read_mod_reg,
 	.dsp_cm_write = omap2_cm_write_mod_reg,
 	.dsp_cm_rmw_bits = omap2_cm_rmw_mod_reg_bits,
+
+	.set_bootaddr = omap_ctrl_write_dsp_boot_addr,
+	.set_bootmode = omap_ctrl_write_dsp_boot_mode,
 };
 
 static phys_addr_t omap_dsp_phys_mempool_base;

@@ -545,8 +545,7 @@ static int vmbus_bus_init(int irq)
 	if (ret)
 		goto err_cleanup;
 
-	ret = request_irq(irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
-			driver_name, hv_acpi_dev);
+	ret = request_irq(irq, vmbus_isr, 0, driver_name, hv_acpi_dev);
 
 	if (ret != 0) {
 		pr_err("Unable to request IRQ %d\n",

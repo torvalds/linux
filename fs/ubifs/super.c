@@ -303,7 +303,7 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	mutex_lock(&ui->ui_mutex);
 	/*
 	 * Due to races between write-back forced by budgeting
-	 * (see 'sync_some_inodes()') and pdflush write-back, the inode may
+	 * (see 'sync_some_inodes()') and background write-back, the inode may
 	 * have already been synchronized, do not do this again. This might
 	 * also happen if it was synchronized in an VFS operation, e.g.
 	 * 'ubifs_link()'.
@@ -1157,9 +1157,6 @@ static int check_free_space(struct ubifs_info *c)
  *
  * This function mounts UBIFS file system. Returns zero in case of success and
  * a negative error code in case of failure.
- *
- * Note, the function does not de-allocate resources it it fails half way
- * through, and the caller has to do this instead.
  */
 static int mount_ubifs(struct ubifs_info *c)
 {
@@ -2136,7 +2133,7 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 
 	dbg_gen("opened ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
 
-	sb = sget(fs_type, sb_test, sb_set, c);
+	sb = sget(fs_type, sb_test, sb_set, flags, c);
 	if (IS_ERR(sb)) {
 		err = PTR_ERR(sb);
 		kfree(c);
@@ -2153,7 +2150,6 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 			goto out_deact;
 		}
 	} else {
-		sb->s_flags = flags;
 		err = ubifs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (err)
 			goto out_deact;

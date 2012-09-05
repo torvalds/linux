@@ -49,7 +49,7 @@
 #define SCSI_BUF_PA(address)	isa_virt_to_bus(address)
 #define SCSI_SG_PA(sgent)	(isa_page_to_bus(sg_page((sgent))) + (sgent)->offset)
 
-#include<linux/stat.h>
+#include <linux/stat.h>
 
 #ifdef DEBUG
 #define DEB(x) x

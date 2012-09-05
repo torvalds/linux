@@ -1,5 +1,4 @@
 /*
- *  drivers/s390/char/tape_core.c
  *    basic function of the tape device driver
  *
  *  S390 and zSeries version

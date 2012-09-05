@@ -102,15 +102,15 @@ typedef enum _E_IPADDR_CONTEXT
 
 //Function Prototypes
 
-USHORT	IpVersion6(PMINI_ADAPTER Adapter, /**< Pointer to the driver control structure */
+USHORT	IpVersion6(struct bcm_mini_adapter *Adapter, /**< Pointer to the driver control structure */
 					PVOID pcIpHeader, /**<Pointer to the IP Hdr of the packet*/
-					S_CLASSIFIER_RULE *pstClassifierRule );
+					struct bcm_classifier_rule *pstClassifierRule );
 
 VOID DumpIpv6Address(ULONG *puIpv6Address);
 
-extern BOOLEAN MatchSrcPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
-extern BOOLEAN MatchDestPort(S_CLASSIFIER_RULE *pstClassifierRule,USHORT ushSrcPort);
-extern BOOLEAN MatchProtocol(S_CLASSIFIER_RULE *pstClassifierRule,UCHAR ucProtocol);
+extern BOOLEAN MatchSrcPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort);
+extern BOOLEAN MatchDestPort(struct bcm_classifier_rule *pstClassifierRule,USHORT ushSrcPort);
+extern BOOLEAN MatchProtocol(struct bcm_classifier_rule *pstClassifierRule,UCHAR ucProtocol);
 
 
 #endif

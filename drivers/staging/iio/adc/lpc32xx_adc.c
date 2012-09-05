@@ -196,7 +196,7 @@ static int __devinit lpc32xx_adc_probe(struct platform_device *pdev)
 	return 0;
 
 errout5:
-	free_irq(irq, iodev);
+	free_irq(irq, info);
 errout4:
 	clk_put(info->clk);
 errout3:
@@ -214,7 +214,7 @@ static int __devexit lpc32xx_adc_remove(struct platform_device *pdev)
 	int irq = platform_get_irq(pdev, 0);
 
 	iio_device_unregister(iodev);
-	free_irq(irq, iodev);
+	free_irq(irq, info);
 	platform_set_drvdata(pdev, NULL);
 	clk_put(info->clk);
 	iounmap(info->adc_base);

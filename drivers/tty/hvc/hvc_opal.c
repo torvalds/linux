@@ -401,7 +401,7 @@ out:
 }
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_OPAL_RAW
-void __init udbg_init_debug_opal(void)
+void __init udbg_init_debug_opal_raw(void)
 {
 	u32 index = CONFIG_PPC_EARLY_DEBUG_OPAL_VTERMNO;
 	hvc_opal_privs[index] = &hvc_opal_boot_priv;

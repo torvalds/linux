@@ -129,8 +129,8 @@ found:
 
 /**
  * atalk_find_or_insert_socket - Try to find a socket matching ADDR
- * @sk - socket to insert in the list if it is not there already
- * @sat - address to search for
+ * @sk: socket to insert in the list if it is not there already
+ * @sat: address to search for
  *
  * Try to find a socket matching ADDR in the socket list, if found then return
  * it. If not, insert SK into the socket list.
@@ -1066,8 +1066,8 @@ static int atalk_release(struct socket *sock)
 
 /**
  * atalk_pick_and_bind_port - Pick a source port when one is not given
- * @sk - socket to insert into the tables
- * @sat - address to search for
+ * @sk: socket to insert into the tables
+ * @sat: address to search for
  *
  * Pick a source port when one is not given. If we can find a suitable free
  * one, we insert the socket into the tables using it.

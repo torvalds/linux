@@ -240,3 +240,30 @@ trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT
 echo "Injecting errors into the module $module... (interrupt to stop)"
 sleep 1000000
 
+Tool to run command with failslab or fail_page_alloc
+----------------------------------------------------
+In order to make it easier to accomplish the tasks mentioned above, we can use
+tools/testing/fault-injection/failcmd.sh.  Please run a command
+"./tools/testing/fault-injection/failcmd.sh --help" for more information and
+see the following examples.
+
+Examples:
+
+Run a command "make -C tools/testing/selftests/ run_tests" with injecting slab
+allocation failure.
+
+	# ./tools/testing/fault-injection/failcmd.sh \
+		-- make -C tools/testing/selftests/ run_tests
+
+Same as above except to specify 100 times failures at most instead of one time
+at most by default.
+
+	# ./tools/testing/fault-injection/failcmd.sh --times=100 \
+		-- make -C tools/testing/selftests/ run_tests
+
+Same as above except to inject page allocation failure instead of slab
+allocation failure.
+
+	# env FAILCMD_TYPE=fail_page_alloc \
+		./tools/testing/fault-injection/failcmd.sh --times=100 \
+                -- make -C tools/testing/selftests/ run_tests
