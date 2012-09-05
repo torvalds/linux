@@ -2552,7 +2552,6 @@ static void slic_mcast_set_list(struct net_device *dev)
 		if (status == 0)
 			slic_mcast_set_mask(adapter);
 	}
-	return;
 }
 
 #define  XMIT_FAIL_LINK_STATE               1
