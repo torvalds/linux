@@ -992,7 +992,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,__disp_layer_info_t *player)
                 layer_fb.offset_y   = player->src_win.y;
 
 	            bpp = DE_BE_Format_To_Bpp(sel, layer_fb.format);
-                size = (player->fb.size.width * layer_man->para.src_win.height * bpp + 7)/8;
+                size = (player->fb.size.width * player->scn_win.height * bpp + 7)/8;
                 OSAL_CacheRangeFlush((void *)player->fb.addr[0], size,CACHE_CLEAN_FLUSH_D_CACHE_REGION);
                 DE_BE_Layer_Set_Framebuffer(sel, hid,&layer_fb);
             }

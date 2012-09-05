@@ -276,7 +276,7 @@ __s32 Scaler_event_proc(void *parg)
 
     fe_intflags = DE_SCAL_QueryINT(sel);
 
-    DE_INF("scaler %d interrupt, scal_int_status:0x%x!\n", sel, fe_intflags);
+	/*DE_INF("scaler %d interrupt, scal_int_status:0x%x!\n", sel, fe_intflags);*/
 
     if(fe_intflags & DE_WB_END_IE)
     {        
