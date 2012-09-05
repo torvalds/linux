@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 350938 2012-08-16 07:16:25Z $
+ * $Id: dhd.h 354236 2012-08-30 13:00:58Z $
  */
 
 /****************
@@ -88,9 +88,6 @@ enum dhd_bus_state {
 #ifndef MAX_CNTL_TIMEOUT
 #define MAX_CNTL_TIMEOUT  2
 #endif
-
-#define DHD_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
-#define DHD_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
 
 #ifndef POWERUP_MAX_RETRY
 #define POWERUP_MAX_RETRY	3 /* how many times we retry to power up the chip */
@@ -483,8 +480,9 @@ extern int dhd_dev_get_pno_status(struct net_device *dev);
 #define DHD_MULTICAST4_FILTER_NUM	2
 #define DHD_MULTICAST6_FILTER_NUM	3
 #define DHD_MDNS_FILTER_NUM		4
-extern int dhd_os_set_packet_filter(dhd_pub_t *dhdp, int val);
-extern int net_os_set_packet_filter(struct net_device *dev, int val);
+extern int dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
+extern void dhd_enable_packet_filter(int value, dhd_pub_t *dhd);
+extern int net_os_enable_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
 #endif /* PKT_FILTER_SUPPORT */
 

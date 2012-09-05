@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 350866 2012-08-16 00:29:10Z $
+ * $Id: dhd_sdio.c 354488 2012-08-31 07:18:10Z $
  */
 
 #include <typedefs.h>
@@ -4068,6 +4068,7 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 	if (bus->clkstate != CLK_AVAIL) {
 		DHD_ERROR(("%s: clock state is wrong. state = %d\n", __FUNCTION__, bus->clkstate));
+		ret = -1;
 		goto exit;
 	}
 
@@ -4080,6 +4081,7 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	}
 	if (err) {
 		DHD_ERROR(("%s: Failed to force clock for F2: err %d\n", __FUNCTION__, err));
+		ret = -1;
 		goto exit;
 	}
 
@@ -5725,8 +5727,8 @@ clkwait:
 	/* Resched if events or tx frames are pending, else await next interrupt */
 	/* On failed register access, all bets are off: no resched or interrupts */
 	if ((bus->dhd->busstate == DHD_BUS_DOWN) || bcmsdh_regfail(sdh)) {
-		if ((bus->sih && (bus->sih->buscorerev >= 12)) &&
-		    !(dhdsdio_sleepcsr_get(bus) & SBSDIO_FUNC1_SLEEPCSR_KSO_MASK)) {
+		if ((bus->sih && bus->sih->buscorerev >= 12) && !(dhdsdio_sleepcsr_get(bus) &
+			SBSDIO_FUNC1_SLEEPCSR_KSO_MASK)) {
 			/* Bus failed because of KSO */
 			DHD_ERROR(("%s: Bus failed due to KSO\n", __FUNCTION__));
 			bus->kso = FALSE;

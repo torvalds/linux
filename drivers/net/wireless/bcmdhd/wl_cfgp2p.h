@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 346820 2012-07-24 13:53:12Z $
+ * $Id: wl_cfgp2p.h 353885 2012-08-29 05:21:34Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -154,6 +154,14 @@ enum wl_cfgp2p_status {
 	do {									\
 		if (wl_dbg_level & WL_DBG_DBG) {			\
 			printk(KERN_DEBUG "CFGP2P-DEBUG) %s :", __func__);	\
+			printk args;							\
+		}									\
+	} while (0)
+
+#define	CFGP2P_ACTION(args)								\
+	do {									\
+		if (wl_dbg_level & WL_DBG_P2P_ACTION) {			\
+			printk(KERN_DEBUG "CFGP2P-ACTION) %s :", __func__);	\
 			printk args;							\
 		}									\
 	} while (0)

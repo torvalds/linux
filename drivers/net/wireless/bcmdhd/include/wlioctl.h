@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 334796 2012-05-23 22:59:44Z $
+ * $Id: wlioctl.h 354037 2012-08-29 21:19:25Z $
  */
 
 #ifndef _wlioctl_h_
@@ -1885,6 +1885,9 @@ typedef struct wl_po {
 
 /* when sgi_tx==WLC_SGI_ALL, bypass rate selection, enable sgi for all mcs */
 #define WLC_SGI_ALL				0x02
+
+#define DHD_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
+#define DHD_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
 
 #define LISTEN_INTERVAL			10
 /* interference mitigation options */

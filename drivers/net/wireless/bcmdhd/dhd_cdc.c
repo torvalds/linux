@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 349167 2012-08-07 06:58:11Z $
+ * $Id: dhd_cdc.c 353370 2012-08-27 09:10:22Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -1748,8 +1748,9 @@ dhd_wlfc_txcomplete(dhd_pub_t *dhd, void *txp, bool success)
 #ifdef PROP_TXSTATUS_DEBUG
 		wlfc->stats.signal_only_pkts_freed++;
 #endif
-		/* is this a signal-only packet? */
-		PKTFREE(wlfc->osh, txp, TRUE);
+		if (success)
+			/* is this a signal-only packet? */
+			PKTFREE(wlfc->osh, txp, TRUE);
 		return;
 	}
 	if (!success) {

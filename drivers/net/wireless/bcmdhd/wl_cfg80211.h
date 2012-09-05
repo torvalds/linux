@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 352213 2012-08-22 05:03:55Z $
+ * $Id: wl_cfg80211.h 354527 2012-08-31 12:37:03Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -52,7 +52,7 @@ struct wl_ibss;
 #define dtohchanspec(i) i
 
 #define WL_DBG_NONE	0
-#define WL_DBG_TRACE2	(1 << 5)
+#define WL_DBG_P2P_ACTION (1 << 5)
 #define WL_DBG_TRACE	(1 << 4)
 #define WL_DBG_SCAN 	(1 << 3)
 #define WL_DBG_DBG 	(1 << 2)
@@ -110,16 +110,10 @@ do {									\
 		printk args;							\
 	}									\
 } while (0)
-#ifdef WL_TRACE2
-#undef WL_TRACE2
+#ifdef WL_TRACE_HW4
+#undef WL_TRACE_HW4
 #endif
-#define	WL_TRACE2(args)								\
-do {									\
-	if (wl_dbg_level & WL_DBG_TRACE || wl_dbg_level & WL_DBG_TRACE2) {			\
-		printk(KERN_INFO "CFG80211-TRACE2) %s :", __func__);	\
-		printk args;							\
-	}									\
-} while (0)
+#define	WL_TRACE_HW4			WL_TRACE
 #if (WL_DBG_LEVEL > 0)
 #define	WL_DBG(args)								\
 do {									\
@@ -131,6 +125,7 @@ do {									\
 #else				/* !(WL_DBG_LEVEL > 0) */
 #define	WL_DBG(args)
 #endif				/* (WL_DBG_LEVEL > 0) */
+#define WL_PNO(x)
 
 
 #define WL_SCAN_RETRY_MAX	3
@@ -152,7 +147,8 @@ do {									\
 #define WL_MIN_DWELL_TIME	100
 #define WL_LONG_DWELL_TIME 	1000
 #define IFACE_MAX_CNT 		2
-#define WL_SCAN_CONNECT_DWELL_TIME_MS 150
+#define WL_SCAN_CONNECT_DWELL_TIME_MS 200
+#define WL_SCAN_JOIN_PROBE_INTERVAL_MS 20
 #define WL_AF_TX_MAX_RETRY 	5
 
 #define WL_SCAN_TIMER_INTERVAL_MS	8000 /* Scan timeout */
@@ -546,6 +542,10 @@ struct wl_priv {
 		struct net_info *_net_info, enum wl_status state, bool set);
 	unsigned long interrested_state;
 	wlc_ssid_t hostapd_ssid;
+	bool sched_scan_running;	/* scheduled scan req status */
+#ifdef WL_SCHED_SCAN
+	struct cfg80211_sched_scan_request *sched_scan_req;	/* scheduled scan req */
+#endif /* WL_SCHED_SCAN */
 };
 
 
