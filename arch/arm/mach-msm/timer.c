@@ -1,7 +1,7 @@
 /*
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2012, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -26,9 +26,7 @@
 #include <asm/localtimer.h>
 #include <asm/sched_clock.h>
 
-#include <mach/msm_iomap.h>
-#include <mach/cpu.h>
-#include <mach/board.h>
+#include "common.h"
 
 #define TIMER_MATCH_VAL         0x0000
 #define TIMER_COUNT_VAL         0x0004
@@ -36,7 +34,7 @@
 #define TIMER_ENABLE_CLR_ON_MATCH_EN    BIT(1)
 #define TIMER_ENABLE_EN                 BIT(0)
 #define TIMER_CLEAR             0x000C
-#define DGT_CLK_CTL             0x0034
+#define DGT_CLK_CTL             0x0030
 #define DGT_CLK_CTL_DIV_4	0x3
 
 #define GPT_HZ 32768
@@ -172,44 +170,21 @@ static notrace u32 msm_sched_clock_read(void)
 	return msm_clocksource.read(&msm_clocksource);
 }
 
-static void __init msm_timer_init(void)
+static void __init msm_timer_init(u32 dgt_hz, int sched_bits, int irq,
+				  bool percpu)
 {
 	struct clock_event_device *ce = &msm_clockevent;
 	struct clocksource *cs = &msm_clocksource;
 	int res;
-	u32 dgt_hz;
-
-	if (cpu_is_msm7x01()) {
-		event_base = MSM_CSR_BASE;
-		source_base = MSM_CSR_BASE + 0x10;
-		dgt_hz = 19200000 >> MSM_DGT_SHIFT; /* 600 KHz */
-		cs->read = msm_read_timer_count_shift;
-		cs->mask = CLOCKSOURCE_MASK((32 - MSM_DGT_SHIFT));
-	} else if (cpu_is_msm7x30()) {
-		event_base = MSM_CSR_BASE + 0x04;
-		source_base = MSM_CSR_BASE + 0x24;
-		dgt_hz = 24576000 / 4;
-	} else if (cpu_is_qsd8x50()) {
-		event_base = MSM_CSR_BASE;
-		source_base = MSM_CSR_BASE + 0x10;
-		dgt_hz = 19200000 / 4;
-	} else if (cpu_is_msm8x60() || cpu_is_msm8960()) {
-		event_base = MSM_TMR_BASE + 0x04;
-		/* Use CPU0's timer as the global clock source. */
-		source_base = MSM_TMR0_BASE + 0x24;
-		dgt_hz = 27000000 / 4;
-		writel_relaxed(DGT_CLK_CTL_DIV_4, MSM_TMR_BASE + DGT_CLK_CTL);
-	} else
-		BUG();
 
 	writel_relaxed(0, event_base + TIMER_ENABLE);
 	writel_relaxed(0, event_base + TIMER_CLEAR);
 	writel_relaxed(~0, event_base + TIMER_MATCH_VAL);
 	ce->cpumask = cpumask_of(0);
+	ce->irq = irq;
 
-	ce->irq = INT_GP_TIMER_EXP;
 	clockevents_config_and_register(ce, GPT_HZ, 4, 0xffffffff);
-	if (cpu_is_msm8x60() || cpu_is_msm8960()) {
+	if (percpu) {
 		msm_evt.percpu_evt = alloc_percpu(struct clock_event_device *);
 		if (!msm_evt.percpu_evt) {
 			pr_err("memory allocation failed for %s\n", ce->name);
@@ -238,10 +213,83 @@ err:
 	res = clocksource_register_hz(cs, dgt_hz);
 	if (res)
 		pr_err("clocksource_register failed\n");
-	setup_sched_clock(msm_sched_clock_read,
-			cpu_is_msm7x01() ? 32 - MSM_DGT_SHIFT : 32, dgt_hz);
+	setup_sched_clock(msm_sched_clock_read, sched_bits, dgt_hz);
 }
 
-struct sys_timer msm_timer = {
-	.init = msm_timer_init
+static int __init msm_timer_map(phys_addr_t event, phys_addr_t source)
+{
+	event_base = ioremap(event, SZ_64);
+	if (!event_base) {
+		pr_err("Failed to map event base\n");
+		return 1;
+	}
+	source_base = ioremap(source, SZ_64);
+	if (!source_base) {
+		pr_err("Failed to map source base\n");
+		return 1;
+	}
+	return 0;
+}
+
+static void __init msm7x01_timer_init(void)
+{
+	struct clocksource *cs = &msm_clocksource;
+
+	if (msm_timer_map(0xc0100000, 0xc0100010))
+		return;
+	cs->read = msm_read_timer_count_shift;
+	cs->mask = CLOCKSOURCE_MASK((32 - MSM_DGT_SHIFT));
+	/* 600 KHz */
+	msm_timer_init(19200000 >> MSM_DGT_SHIFT, 32 - MSM_DGT_SHIFT, 7,
+			false);
+}
+
+struct sys_timer msm7x01_timer = {
+	.init = msm7x01_timer_init
+};
+
+static void __init msm7x30_timer_init(void)
+{
+	if (msm_timer_map(0xc0100004, 0xc0100024))
+		return;
+	msm_timer_init(24576000 / 4, 32, 1, false);
+}
+
+struct sys_timer msm7x30_timer = {
+	.init = msm7x30_timer_init
+};
+
+static void __init msm8x60_timer_init(void)
+{
+	if (msm_timer_map(0x02000004, 0x02040024))
+		return;
+	writel_relaxed(DGT_CLK_CTL_DIV_4, event_base + DGT_CLK_CTL);
+	msm_timer_init(27000000 / 4, 32, 17, true);
+}
+
+struct sys_timer msm8x60_timer = {
+	.init = msm8x60_timer_init
+};
+
+static void __init msm8960_timer_init(void)
+{
+	if (msm_timer_map(0x0200A004, 0x0208A024))
+		return;
+	writel_relaxed(DGT_CLK_CTL_DIV_4, event_base + DGT_CLK_CTL);
+	msm_timer_init(27000000 / 4, 32, 17, true);
+}
+
+struct sys_timer msm8960_timer = {
+	.init = msm8960_timer_init
+};
+
+static void __init qsd8x50_timer_init(void)
+{
+	if (msm_timer_map(0xAC100000, 0xAC100010))
+		return;
+	msm_timer_init(19200000 / 4, 32, 7, false);
+}
+
+struct sys_timer qsd8x50_timer = {
+	.init = qsd8x50_timer_init
 };

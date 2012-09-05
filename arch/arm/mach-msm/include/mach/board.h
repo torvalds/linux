@@ -33,8 +33,6 @@ struct msm_acpu_clock_platform_data
 
 struct clk_lookup;
 
-extern struct sys_timer msm_timer;
-
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 
 void __init msm_add_devices(void);
