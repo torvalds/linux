@@ -160,7 +160,12 @@ static void kvp_update_file(int pool)
 				sizeof(struct kvp_record),
 				kvp_file_info[pool].num_records, filep);
 
-	fclose(filep);
+	if (ferror(filep) || fclose(filep)) {
+		kvp_release_lock(pool);
+		syslog(LOG_ERR, "Failed to write file, pool: %d", pool);
+		exit(EXIT_FAILURE);
+	}
+
 	kvp_release_lock(pool);
 }
 
@@ -181,11 +186,16 @@ static void kvp_update_mem_state(int pool)
 		syslog(LOG_ERR, "Failed to open file, pool: %d", pool);
 		exit(EXIT_FAILURE);
 	}
-	while (!feof(filep)) {
+	for (;;) {
 		readp = &record[records_read];
 		records_read += fread(readp, sizeof(struct kvp_record),
 					ENTRIES_PER_BLOCK * num_blocks,
 					filep);
+
+		if (ferror(filep)) {
+			syslog(LOG_ERR, "Failed to read file, pool: %d", pool);
+			exit(EXIT_FAILURE);
+		}
 
 		if (!feof(filep)) {
 			/*
@@ -249,11 +259,17 @@ static int kvp_file_init(void)
 			fclose(filep);
 			return 1;
 		}
-		while (!feof(filep)) {
+		for (;;) {
 			readp = &record[records_read];
 			records_read += fread(readp, sizeof(struct kvp_record),
 					ENTRIES_PER_BLOCK,
 					filep);
+
+			if (ferror(filep)) {
+				syslog(LOG_ERR, "Failed to read file, pool: %d",
+				       i);
+				exit(EXIT_FAILURE);
+			}
 
 			if (!feof(filep)) {
 				/*
