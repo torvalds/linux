@@ -273,9 +273,9 @@ static int lp872x_regulator_enable_time(struct regulator_dev *rdev)
 	return val > MAX_DELAY ? 0 : val * time_step_us;
 }
 
-static void lp872x_set_dvs(struct lp872x *lp, int gpio)
+static void lp872x_set_dvs(struct lp872x *lp, enum lp872x_dvs_sel dvs_sel,
+			int gpio)
 {
-	enum lp872x_dvs_sel dvs_sel = lp->pdata->dvs->vsel;
 	enum lp872x_dvs_state state;
 
 	state = dvs_sel == SEL_V1 ? DVS_HIGH : DVS_LOW;
@@ -343,10 +343,10 @@ static int lp872x_buck_set_voltage_sel(struct regulator_dev *rdev,
 	struct lp872x *lp = rdev_get_drvdata(rdev);
 	enum lp872x_regulator_id buck = rdev_get_id(rdev);
 	u8 addr, mask = LP872X_VOUT_M;
-	struct lp872x_dvs *dvs = lp->pdata->dvs;
+	struct lp872x_dvs *dvs = lp->pdata ? lp->pdata->dvs : NULL;
 
 	if (dvs && gpio_is_valid(dvs->gpio))
-		lp872x_set_dvs(lp, dvs->gpio);
+		lp872x_set_dvs(lp, dvs->vsel, dvs->gpio);
 
 	addr = lp872x_select_buck_vout_addr(lp, buck);
 	if (!lp872x_is_valid_buck_addr(addr))
