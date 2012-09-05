@@ -412,14 +412,6 @@ config TILE_USB
 config NEED_BOUNCE_POOL
 	def_bool USB_OHCI_HCD
 
-config HOTPLUG
-	bool "Support for hot-pluggable devices"
-	---help---
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-	  One well-known example of this is USB.
-
 source "drivers/pci/hotplug/Kconfig"
 
 endmenu
