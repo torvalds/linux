@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_CAMERA_RK29_H_
 
 #define __ASM_ARCH_CAMERA_RK29_H_
-#define RK29_CAM_DRV_NAME "rk-camera-rk29"
+#define RK29_CAM_DRV_NAME "rk29-camera"
 
 #include <plat/rk_camera.h>
 

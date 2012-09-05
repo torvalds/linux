@@ -22,17 +22,18 @@
 #define __ASM_ARCH_CAMERA_RK30_H_
 
 #if defined(CONFIG_ARCH_RK3066B)
-#define RK29_CAM_DRV_NAME "rk-camera-rk3066b"
+#define RK29_CAM_DRV_NAME "rk3066b-camera"
 #define RK_SUPPORT_CIF0   1
 #define RK_SUPPORT_CIF1   0
 #elif defined(CONFIG_ARCH_RK30)
-#define RK29_CAM_DRV_NAME "rk-camera-rk30"
+#define RK29_CAM_DRV_NAME "rk30-camera"
 #define RK_SUPPORT_CIF0   1
 #define RK_SUPPORT_CIF1   1
 #endif
 
 #include <plat/rk_camera.h>
 
+#define CONFIG_CAMERA_INPUT_FMT_SUPPORT     (RK_CAM_INPUT_FMT_YUV422)
 #define CONFIG_CAMERA_SCALE_CROP_MACHINE    RK_CAM_SCALE_CROP_IPP
 
 #if (CONFIG_CAMERA_SCALE_CROP_MACHINE==RK_CAM_SCALE_CROP_ARM)
