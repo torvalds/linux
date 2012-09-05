@@ -1503,6 +1503,10 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	if (err)
 		goto out;
 
+	err = ext4_alloc_flex_bg_array(sb, input->group + 1);
+	if (err)
+		return err;
+
 	flex_gd.count = 1;
 	flex_gd.groups = input;
 	flex_gd.bg_flags = &bg_flags;
@@ -1662,7 +1666,7 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	unsigned long n_desc_blocks;
 	unsigned long o_desc_blocks;
 	unsigned long desc_blocks;
-	int err = 0, flexbg_size = 1;
+	int err = 0, flexbg_size = 1 << sbi->s_log_groups_per_flex;
 
 	o_blocks_count = ext4_blocks_count(es);
 
@@ -1721,12 +1725,12 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 			goto out;
 	}
 
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG) &&
-	    es->s_log_groups_per_flex)
-		flexbg_size = 1 << es->s_log_groups_per_flex;
-
 	if (ext4_blocks_count(es) == n_blocks_count)
 		goto out;
+
+	err = ext4_alloc_flex_bg_array(sb, n_group + 1);
+	if (err)
+		return err;
 
 	flex_gd = alloc_flex_gd(flexbg_size);
 	if (flex_gd == NULL) {
