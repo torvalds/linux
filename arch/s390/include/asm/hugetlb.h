@@ -66,16 +66,6 @@ static inline pte_t huge_ptep_get(pte_t *ptep)
 	return pte;
 }
 
-static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
-					    unsigned long addr, pte_t *ptep)
-{
-	pte_t pte = huge_ptep_get(ptep);
-
-	mm->context.flush_mm = 1;
-	pmd_clear((pmd_t *) ptep);
-	return pte;
-}
-
 static inline void __pmd_csp(pmd_t *pmdp)
 {
 	register unsigned long reg2 asm("2") = pmd_val(*pmdp);
@@ -117,6 +107,15 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 		__pmd_csp(pmdp);
 }
 
+static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
+					    unsigned long addr, pte_t *ptep)
+{
+	pte_t pte = huge_ptep_get(ptep);
+
+	huge_ptep_invalidate(mm, addr, ptep);
+	return pte;
+}
+
 #define huge_ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty) \
 ({									    \
 	int __changed = !pte_same(huge_ptep_get(__ptep), __entry);	    \
@@ -131,10 +130,7 @@ static inline void huge_ptep_invalidate(struct mm_struct *mm,
 ({									\
 	pte_t __pte = huge_ptep_get(__ptep);				\
 	if (pte_write(__pte)) {						\
-		(__mm)->context.flush_mm = 1;				\
-		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
-		    (__mm) != current->active_mm)			\
-			huge_ptep_invalidate(__mm, __addr, __ptep);	\
+		huge_ptep_invalidate(__mm, __addr, __ptep);		\
 		set_huge_pte_at(__mm, __addr, __ptep,			\
 				huge_pte_wrprotect(__pte));		\
 	}								\
