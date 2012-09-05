@@ -38,8 +38,6 @@ config ARCH_QSD8X50
 
 config ARCH_MSM8X60
 	bool "MSM8X60"
-	select MACH_MSM8X60_SURF if (!MACH_MSM8X60_RUMI3 && !MACH_MSM8X60_SIM \
-				  && !MACH_MSM8X60_FFA)
 	select ARCH_MSM_SCORPIONMP
 	select ARM_GIC
 	select CPU_V7
@@ -47,6 +45,7 @@ config ARCH_MSM8X60
 	select GPIO_MSM_V2
 	select MSM_GPIOMUX
 	select MSM_SCM if SMP
+	select USE_OF
 
 config ARCH_MSM8960
 	bool "MSM8960"
@@ -111,30 +110,6 @@ config MACH_QSD8X50A_ST1_5
 	bool "QSD8x50A ST1.5"
 	help
 	  Support for the Qualcomm ST1.5.
-
-config MACH_MSM8X60_RUMI3
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 RUMI3"
-	help
-	  Support for the Qualcomm MSM8x60 RUMI3 emulator.
-
-config MACH_MSM8X60_SURF
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 SURF"
-	help
-	  Support for the Qualcomm MSM8x60 SURF eval board.
-
-config MACH_MSM8X60_SIM
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 Simulator"
-	help
-	  Support for the Qualcomm MSM8x60 simulator.
-
-config MACH_MSM8X60_FFA
-	depends on ARCH_MSM8X60
-	bool "MSM8x60 FFA"
-	help
-	  Support for the Qualcomm MSM8x60 FFA eval board.
 
 config MACH_MSM8960_SIM
 	depends on ARCH_MSM8960

@@ -346,18 +346,6 @@ struct sys_timer msm7x30_timer = {
 	.init = msm7x30_timer_init
 };
 
-static void __init msm8x60_timer_init(void)
-{
-	if (msm_timer_map(0x02000004, 0x02040024))
-		return;
-	writel_relaxed(DGT_CLK_CTL_DIV_4, event_base + DGT_CLK_CTL);
-	msm_timer_init(27000000 / 4, 32, 17, true);
-}
-
-struct sys_timer msm8x60_timer = {
-	.init = msm8x60_timer_init
-};
-
 static void __init msm8960_timer_init(void)
 {
 	if (msm_timer_map(0x0200A004, 0x0208A024))
