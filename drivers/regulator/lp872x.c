@@ -796,11 +796,15 @@ static int lp872x_config(struct lp872x *lp)
 static struct regulator_init_data
 *lp872x_find_regulator_init_data(int id, struct lp872x *lp)
 {
+	struct lp872x_platform_data *pdata = lp->pdata;
 	int i;
 
+	if (!pdata)
+		return NULL;
+
 	for (i = 0; i < lp->num_regulators; i++) {
-		if (lp->pdata->regulator_data[i].id == id)
-			return lp->pdata->regulator_data[i].init_data;
+		if (pdata->regulator_data[i].id == id)
+			return pdata->regulator_data[i].init_data;
 	}
 
 	return NULL;
@@ -861,17 +865,11 @@ static const struct regmap_config lp872x_regmap_config = {
 static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 {
 	struct lp872x *lp;
-	struct lp872x_platform_data *pdata = cl->dev.platform_data;
 	int ret, size, num_regulators;
 	const int lp872x_num_regulators[] = {
 		[LP8720] = LP8720_NUM_REGULATORS,
 		[LP8725] = LP8725_NUM_REGULATORS,
 	};
-
-	if (!pdata) {
-		dev_err(&cl->dev, "no platform data\n");
-		return -EINVAL;
-	}
 
 	lp = devm_kzalloc(&cl->dev, sizeof(struct lp872x), GFP_KERNEL);
 	if (!lp)
@@ -892,7 +890,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	}
 
 	lp->dev = &cl->dev;
-	lp->pdata = pdata;
+	lp->pdata = cl->dev.platform_data;
 	lp->chipid = id->driver_data;
 	lp->num_regulators = num_regulators;
 	i2c_set_clientdata(cl, lp);
