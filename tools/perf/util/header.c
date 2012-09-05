@@ -1440,6 +1440,9 @@ static void print_pmu_mappings(struct perf_header *ph, int fd, FILE *fp)
 	if (ret != sizeof(pmu_num))
 		goto error;
 
+	if (ph->needs_swap)
+		pmu_num = bswap_32(pmu_num);
+
 	if (!pmu_num) {
 		fprintf(fp, "# pmu mappings: not available\n");
 		return;
@@ -1448,6 +1451,9 @@ static void print_pmu_mappings(struct perf_header *ph, int fd, FILE *fp)
 	while (pmu_num) {
 		if (read(fd, &type, sizeof(type)) != sizeof(type))
 			break;
+		if (ph->needs_swap)
+			type = bswap_32(type);
+
 		name = do_read_string(fd, ph);
 		if (!name)
 			break;
