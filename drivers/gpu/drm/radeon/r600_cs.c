@@ -63,6 +63,7 @@ struct r600_cs_track {
 	u32			cb_color_size_idx[8]; /* unused */
 	u32			cb_target_mask;
 	u32			cb_shader_mask;  /* unused */
+	bool			is_resolve;
 	u32			cb_color_size[8];
 	u32			vgt_strmout_en;
 	u32			vgt_strmout_buffer_en;
@@ -315,7 +316,15 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 		track->cb_color_bo[i] = NULL;
 		track->cb_color_bo_offset[i] = 0xFFFFFFFF;
 		track->cb_color_bo_mc[i] = 0xFFFFFFFF;
+		track->cb_color_frag_bo[i] = NULL;
+		track->cb_color_frag_offset[i] = 0xFFFFFFFF;
+		track->cb_color_tile_bo[i] = NULL;
+		track->cb_color_tile_offset[i] = 0xFFFFFFFF;
+		track->cb_color_mask[i] = 0xFFFFFFFF;
 	}
+	track->is_resolve = false;
+	track->nsamples = 16;
+	track->log_nsamples = 4;
 	track->cb_target_mask = 0xFFFFFFFF;
 	track->cb_shader_mask = 0xFFFFFFFF;
 	track->cb_dirty = true;
@@ -352,6 +361,8 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	volatile u32 *ib = p->ib.ptr;
 	unsigned array_mode;
 	u32 format;
+	/* When resolve is used, the second colorbuffer has always 1 sample. */
+	unsigned nsamples = track->is_resolve && i == 1 ? 1 : track->nsamples;
 
 	size = radeon_bo_size(track->cb_color_bo[i]) - track->cb_color_bo_offset[i];
 	format = G_0280A0_FORMAT(track->cb_color_info[i]);
@@ -375,7 +386,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	array_check.group_size = track->group_size;
 	array_check.nbanks = track->nbanks;
 	array_check.npipes = track->npipes;
-	array_check.nsamples = track->nsamples;
+	array_check.nsamples = nsamples;
 	array_check.blocksize = r600_fmt_get_blocksize(format);
 	if (r600_get_array_mode_alignment(&array_check,
 					  &pitch_align, &height_align, &depth_align, &base_align)) {
@@ -421,7 +432,7 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 
 	/* check offset */
 	tmp = r600_fmt_get_nblocksy(format, height) * r600_fmt_get_nblocksx(format, pitch) *
-	      r600_fmt_get_blocksize(format) * track->nsamples;
+	      r600_fmt_get_blocksize(format) * nsamples;
 	switch (array_mode) {
 	default:
 	case V_0280A0_ARRAY_LINEAR_GENERAL:
@@ -792,6 +803,12 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 	 */
 	if (track->cb_dirty) {
 		tmp = track->cb_target_mask;
+
+		/* We must check both colorbuffers for RESOLVE. */
+		if (track->is_resolve) {
+			tmp |= 0xff;
+		}
+
 		for (i = 0; i < 8; i++) {
 			if ((tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
@@ -1281,6 +1298,11 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->nsamples = 1 << tmp;
 		track->cb_dirty = true;
 		break;
+	case R_028808_CB_COLOR_CONTROL:
+		tmp = G_028808_SPECIAL_OP(radeon_get_ib_value(p, idx));
+		track->is_resolve = tmp == V_028808_SPECIAL_RESOLVE_BOX;
+		track->cb_dirty = true;
+		break;
 	case R_0280A0_CB_COLOR0_INFO:
 	case R_0280A4_CB_COLOR1_INFO:
 	case R_0280A8_CB_COLOR2_INFO:
@@ -1416,7 +1438,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_028118_CB_COLOR6_MASK:
 	case R_02811C_CB_COLOR7_MASK:
 		tmp = (reg - R_028100_CB_COLOR0_MASK) / 4;
-		track->cb_color_mask[tmp] = ib[idx];
+		track->cb_color_mask[tmp] = radeon_get_ib_value(p, idx);
 		if (G_0280A0_TILE_MODE(track->cb_color_info[tmp])) {
 			track->cb_dirty = true;
 		}
