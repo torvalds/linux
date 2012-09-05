@@ -580,7 +580,11 @@ static int i2c_check_idle(int id)
 #ifdef CONFIG_I2C0_RK30
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
+#if defined(CONFIG_ARCH_RK3066B)
+	.is_div_from_arm = 0,
+#else
 	.is_div_from_arm = 1,
+#endif
 	.adap_type = I2C0_ADAP_TYPE,
         .check_idle = &i2c_check_idle,
 };
@@ -612,7 +616,11 @@ static struct platform_device device_i2c0 = {
 #ifdef CONFIG_I2C1_RK30
 static struct rk30_i2c_platform_data default_i2c1_data = {
 	.bus_num = 1,
+#if defined(CONFIG_ARCH_RK3066B)
+	.is_div_from_arm = 0,
+#else
 	.is_div_from_arm = 1,
+#endif
 	.adap_type = I2C1_ADAP_TYPE,
         .check_idle = &i2c_check_idle,
 };
@@ -1307,12 +1315,6 @@ static int __init rk30_init_devices(void)
 	rk30_init_uart();
 	rk30_init_i2c();
 	rk30_init_spim();
-#ifdef CONFIG_MTD_NAND_RK29XX
-	platform_device_register(&device_nand);
-#endif
-#ifdef CONFIG_KEYS_RK29
-	platform_device_register(&device_keys);
-#endif
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);
 #endif
@@ -1325,6 +1327,9 @@ static int __init rk30_init_devices(void)
 #endif
 #ifdef CONFIG_ADC_RK30
 	platform_device_register(&device_adc);
+#endif
+#ifdef CONFIG_KEYS_RK29
+	platform_device_register(&device_keys);
 #endif
 #if !defined(CONFIG_ARCH_RK3066B)
 	platform_device_register(&device_tsadc);
@@ -1341,6 +1346,9 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_wdt);
 #endif
 	platform_device_register(&device_arm_pmu);
+#ifdef CONFIG_MTD_NAND_RK29XX
+	platform_device_register(&device_nand);
+#endif
 
 	return 0;
 }
