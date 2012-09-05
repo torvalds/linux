@@ -39,11 +39,17 @@
 #endif
 #endif
 
+enum port_power_policy {
+	USB_PORT_POWER_ON = 0,
+	USB_PORT_POWER_OFF,
+};
+
 struct usb_port {
 	struct usb_device *child;
 	struct device dev;
 	struct dev_state *port_owner;
 	enum usb_port_connect_type connect_type;
+	enum port_power_policy port_power_policy;
 };
 
 struct usb_hub {
@@ -92,6 +98,10 @@ struct usb_hub {
 	struct delayed_work	init_work;
 	struct usb_port		**ports;
 };
+
+static const char on_string[] = "on";
+static const char off_string[] = "off";
+static const struct attribute_group *port_dev_group[];
 
 static inline int hub_is_superspeed(struct usb_device *hdev)
 {
@@ -845,7 +855,12 @@ static unsigned hub_power_on(struct usb_hub *hub, bool do_delay)
 		dev_dbg(hub->intfdev, "trying to enable port power on "
 				"non-switchable hub\n");
 	for (port1 = 1; port1 <= hub->descriptor->bNbrPorts; port1++)
-		set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
+		if (hub->ports[port1 - 1]->port_power_policy
+				== USB_PORT_POWER_ON)
+			set_port_feature(hub->hdev, port1, USB_PORT_FEAT_POWER);
+		else
+			clear_port_feature(hub->hdev, port1,
+					USB_PORT_FEAT_POWER);
 
 	/* Wait at least 100 msec for power to become stable */
 	delay = max(pgood_delay, (unsigned) 100);
@@ -1263,6 +1278,7 @@ static int usb_hub_create_port_device(struct usb_hub *hub,
 
 	hub->ports[port1 - 1] = port_dev;
 	port_dev->dev.parent = hub->intfdev;
+	port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
 	dev_set_name(&port_dev->dev, "port%d", port1);
 
@@ -2625,6 +2641,25 @@ static int port_is_power_on(struct usb_hub *hub, unsigned portstatus)
 	}
 
 	return ret;
+}
+
+static int usb_get_hub_port_power_state(struct usb_device *hdev, int port1)
+{
+	struct usb_hub *hub = hdev_to_hub(hdev);
+	struct usb_port_status data;
+	u16 portstatus;
+	int ret;
+
+	ret = get_port_status(hub->hdev, port1, &data);
+	if (ret < 4) {
+		dev_err(hub->intfdev,
+			"%s failed (err = %d)\n", __func__, ret);
+		if (ret >= 0)
+			ret = -EIO;
+		return ret;
+	} else
+		portstatus = le16_to_cpu(data.wPortStatus);
+	return port_is_power_on(hub, portstatus);
 }
 
 #ifdef	CONFIG_PM
@@ -4632,6 +4667,102 @@ static int hub_thread(void *__unused)
 	pr_debug("%s: khubd exiting\n", usbcore_name);
 	return 0;
 }
+
+static ssize_t show_port_power_state(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev = to_usb_device(dev->parent->parent);
+	struct usb_interface *intf = to_usb_interface(dev->parent);
+	int port1, power_state;
+	const char *result;
+
+	sscanf(dev_name(dev), "port%d", &port1);
+	usb_autopm_get_interface(intf);
+	power_state = usb_get_hub_port_power_state(udev, port1);
+	usb_autopm_put_interface(intf);
+	if (power_state == 1)
+		result = on_string;
+	else if (!power_state)
+		result = off_string;
+	else
+		result = "error";
+	return sprintf(buf, "%s\n", result);
+}
+static DEVICE_ATTR(state, S_IRUGO, show_port_power_state, NULL);
+
+static ssize_t show_port_power_control(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct usb_port *hub_port = to_usb_port(dev);
+	const char *result;
+
+	switch (hub_port->port_power_policy) {
+	case USB_PORT_POWER_ON:
+		result = on_string;
+		break;
+	case USB_PORT_POWER_OFF:
+		result = off_string;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return sprintf(buf, "%s\n", result);
+}
+
+static ssize_t store_port_power_control(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct usb_device *hdev = to_usb_device(dev->parent->parent);
+	struct usb_interface *intf = to_usb_interface(dev->parent);
+	struct usb_port *hub_port = to_usb_port(dev);
+	int port1, ret, len = count;
+	char *cp;
+
+	sscanf(dev_name(dev), "port%d", &port1);
+	cp = memchr(buf, '\n', count);
+	if (cp)
+		len = cp - buf;
+	if (len == sizeof(on_string) - 1
+			&& strncmp(buf, on_string, len) == 0) {
+		hub_port->port_power_policy = USB_PORT_POWER_ON;
+		usb_autopm_get_interface(intf);
+		ret = set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
+		usb_autopm_put_interface(intf);
+		if (ret < 0)
+			return -EIO;
+	} else if (len == sizeof(off_string) - 1
+			&& strncmp(buf, off_string, len) == 0) {
+		struct usb_hub *hub = hdev_to_hub(hdev);
+
+		hub_port->port_power_policy = USB_PORT_POWER_OFF;
+		usb_autopm_get_interface(intf);
+		hub_port_logical_disconnect(hub, port1);
+		ret = clear_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
+		usb_autopm_put_interface(intf);
+		if (ret < 0)
+			return -EIO;
+	} else
+		return -EINVAL;
+
+	return count;
+}
+static DEVICE_ATTR(control, S_IWUSR | S_IRUGO, show_port_power_control,
+		store_port_power_control);
+
+static struct attribute *port_dev_attrs[] = {
+	&dev_attr_control.attr,
+	&dev_attr_state.attr,
+	NULL,
+};
+
+static struct attribute_group port_dev_attr_grp = {
+	.attrs = port_dev_attrs,
+};
+
+static const struct attribute_group *port_dev_group[] = {
+	&port_dev_attr_grp,
+	NULL,
+};
 
 static const struct usb_device_id hub_id_table[] = {
     { .match_flags = USB_DEVICE_ID_MATCH_DEV_CLASS,

@@ -227,3 +227,27 @@ Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
 		The /sys/bus/usb/devices/.../(hub interface)/portX
 		is usb port device's sysfs directory.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/control
+Date:		August 2012
+Contact:	Lan Tianyu <tianyu.lan@intel.com>
+Description:
+		The /sys/bus/usb/devices/.../(hub interface)/portX/control
+		attribute allows user space to control the power policy on
+		the usb port.
+
+		All ports have one of the following two values for control
+		"on" - port power must be on.
+		"off" - port power must be off.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/state
+Date:		August 2012
+Contact:	Lan Tianyu <tianyu.lan@intel.com>
+Description:
+		The /sys/bus/usb/devices/.../(hub interface)/portX/state
+		attribute allows user space to check hub port's power state.
+
+		All ports have three following states
+		"on"	  -    port power on
+		"off"	  -    port power off
+		"error"	  -    can't get the hub port's power state
