@@ -1719,8 +1719,7 @@ int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count)
 	    es->s_log_groups_per_flex)
 		flexbg_size = 1 << es->s_log_groups_per_flex;
 
-	o_blocks_count = ext4_blocks_count(es);
-	if (o_blocks_count == n_blocks_count)
+	if (ext4_blocks_count(es) == n_blocks_count)
 		goto out;
 
 	flex_gd = alloc_flex_gd(flexbg_size);
