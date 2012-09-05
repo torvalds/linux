@@ -1122,10 +1122,16 @@ void isci_host_completion_routine(unsigned long data)
 	sci_controller_completion_handler(ihost);
 	spin_unlock_irq(&ihost->scic_lock);
 
-	/* the coalesence timeout doubles at each encoding step, so
+	/*
+	 * we subtract SCI_MAX_PORTS to account for the number of dummy TCs
+	 * issued for hardware issue workaround
+	 */
+	active = isci_tci_active(ihost) - SCI_MAX_PORTS;
+
+	/*
+	 * the coalesence timeout doubles at each encoding step, so
 	 * update it based on the ilog2 value of the outstanding requests
 	 */
-	active = isci_tci_active(ihost);
 	writel(SMU_ICC_GEN_VAL(NUMBER, active) |
 	       SMU_ICC_GEN_VAL(TIMER, ISCI_COALESCE_BASE + ilog2(active)),
 	       &ihost->smu_registers->interrupt_coalesce_control);
