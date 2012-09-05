@@ -539,9 +539,6 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 			return -EINVAL;
 		}
 		break;
-	default:
-		ASSERT(0);
-		break;
 	}
 	/* start download */
 	slic_reg32_write(&slic_regs->slic_rcv_wcs, SLIC_RCVWCS_BEGIN, FLUSH);
