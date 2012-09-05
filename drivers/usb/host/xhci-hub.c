@@ -865,6 +865,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			xhci_disable_port(hcd, xhci, wIndex,
 					port_array[wIndex], temp);
 			break;
+		case USB_PORT_FEAT_POWER:
+			xhci_writel(xhci, temp & ~PORT_POWER,
+				port_array[wIndex]);
+			break;
 		default:
 			goto error;
 		}
