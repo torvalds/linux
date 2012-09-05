@@ -255,7 +255,7 @@ find_best_ips_proto(u16 zone, struct nf_conntrack_tuple *tuple,
 	 * client coming from the same IP (some Internet Banking sites
 	 * like this), even across reboots.
 	 */
-	j = jhash2((u32 *)&tuple->src.u3, sizeof(tuple->src.u3),
+	j = jhash2((u32 *)&tuple->src.u3, sizeof(tuple->src.u3) / sizeof(u32),
 		   range->flags & NF_NAT_RANGE_PERSISTENT ?
 			0 : (__force u32)tuple->dst.u3.all[max] ^ zone);
 
