@@ -1426,6 +1426,8 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 		return IO_SCH_REPROBE;
 	if (cdev->online)
 		return IO_SCH_VERIFY;
+	if (cdev->private->state == DEV_STATE_NOT_OPER)
+		return IO_SCH_UNREG_ATTACH;
 	return IO_SCH_NOP;
 }
 
