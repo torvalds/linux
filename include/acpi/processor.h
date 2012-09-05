@@ -59,7 +59,6 @@ struct acpi_processor_cx {
 	u8 entry_method;
 	u8 index;
 	u32 latency;
-	u32 power;
 	u8 bm_sts_skip;
 	char desc[ACPI_CX_DESC_LEN];
 };
