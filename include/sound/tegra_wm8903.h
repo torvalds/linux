@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/include/mach/tegra_wm8903_pdata.h
- *
  * Copyright 2011 NVIDIA, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -14,6 +12,9 @@
  *
  */
 
+#ifndef __SOUND_TEGRA_WM38903_H
+#define __SOUND_TEGRA_WM38903_H
+
 struct tegra_wm8903_platform_data {
 	int gpio_spkr_en;
 	int gpio_hp_det;
@@ -21,3 +22,5 @@ struct tegra_wm8903_platform_data {
 	int gpio_int_mic_en;
 	int gpio_ext_mic_en;
 };
+
+#endif
