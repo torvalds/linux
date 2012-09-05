@@ -29,6 +29,8 @@
 
 #include <mach/board.h>
 
+#include "common.h"
+
 #define MSM_CHIP_DEVICE(name, chip) {			      \
 		.virtual = (unsigned long) MSM_##name##_BASE, \
 		.pfn = __phys_to_pfn(chip##_##name##_PHYS), \

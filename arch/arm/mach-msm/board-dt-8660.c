@@ -19,7 +19,6 @@
 #include <asm/hardware/gic.h>
 
 #include <mach/board.h>
-#include <mach/msm_iomap.h>
 #include "common.h"
 
 static const struct of_device_id msm_dt_gic_match[] __initconst = {

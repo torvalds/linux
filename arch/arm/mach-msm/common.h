@@ -18,4 +18,14 @@ extern struct sys_timer msm8960_timer;
 extern struct sys_timer msm_dt_timer;
 extern struct sys_timer qsd8x50_timer;
 
+extern void msm_map_common_io(void);
+extern void msm_map_msm7x30_io(void);
+extern void msm_map_msm8x60_io(void);
+extern void msm_map_msm8960_io(void);
+extern void msm_map_qsd8x50_io(void);
+
+extern void __iomem *__msm_ioremap_caller(unsigned long phys_addr, size_t size,
+					  unsigned int mtype, void *caller);
+
+
 #endif
