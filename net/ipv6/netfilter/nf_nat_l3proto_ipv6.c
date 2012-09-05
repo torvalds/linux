@@ -15,6 +15,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/secure_seq.h>
 #include <net/checksum.h>
+#include <net/ip6_checksum.h>
 #include <net/ip6_route.h>
 #include <net/ipv6.h>
 
