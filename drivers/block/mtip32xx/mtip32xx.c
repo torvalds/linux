@@ -2047,7 +2047,7 @@ static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
 		*timeout = 240000; /* 4 minutes */
 		break;
 	case ATA_CMD_STANDBYNOW1:
-		*timeout = 10000;  /* 10 seconds */
+		*timeout = 120000;  /* 2 minutes */
 		break;
 	case 0xF7:
 	case 0xFA:
