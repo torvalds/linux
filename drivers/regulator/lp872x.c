@@ -86,6 +86,10 @@
 #define EXTERN_DVS_USED			0
 #define MAX_DELAY			6
 
+/* Default DVS Mode */
+#define LP8720_DEFAULT_DVS		0
+#define LP8725_DEFAULT_DVS		BIT(2)
+
 /* dump registers in regmap-debugfs */
 #define MAX_REGISTERS			0x0F
 
@@ -750,8 +754,13 @@ static int lp872x_check_dvs_validity(struct lp872x *lp)
 static int lp872x_init_dvs(struct lp872x *lp)
 {
 	int ret, gpio;
-	struct lp872x_dvs *dvs = lp->pdata->dvs;
+	struct lp872x_dvs *dvs = lp->pdata ? lp->pdata->dvs : NULL;
 	enum lp872x_dvs_state pinstate;
+	u8 mask[] = { LP8720_EXT_DVS_M, LP8725_DVS1_M | LP8725_DVS2_M };
+	u8 default_dvs_mode[] = { LP8720_DEFAULT_DVS, LP8725_DEFAULT_DVS };
+
+	if (!dvs)
+		goto set_default_dvs_mode;
 
 	ret = lp872x_check_dvs_validity(lp);
 	if (ret) {
@@ -776,6 +785,10 @@ static int lp872x_init_dvs(struct lp872x *lp)
 	lp->dvs_gpio = gpio;
 
 	return 0;
+
+set_default_dvs_mode:
+	return lp872x_update_bits(lp, LP872X_GENERAL_CFG, mask[lp->chipid],
+				default_dvs_mode[lp->chipid]);
 }
 
 static int lp872x_config(struct lp872x *lp)
