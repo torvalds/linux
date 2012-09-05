@@ -115,6 +115,10 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align
 		goto out_locked;
 	}
 
+	s = __kmem_cache_alias(name, size, align, flags, ctor);
+	if (s)
+		goto out_locked;
+
 	s = __kmem_cache_create(n, size, align, flags, ctor);
 
 	if (s) {
