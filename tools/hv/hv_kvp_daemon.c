@@ -160,7 +160,7 @@ static void kvp_update_file(int pool)
 				sizeof(struct kvp_record),
 				kvp_file_info[pool].num_records, filep);
 
-	fflush(filep);
+	fclose(filep);
 	kvp_release_lock(pool);
 }
 
@@ -207,6 +207,7 @@ static void kvp_update_mem_state(int pool)
 	kvp_file_info[pool].records = record;
 	kvp_file_info[pool].num_records = records_read;
 
+	fclose(filep);
 	kvp_release_lock(pool);
 }
 static int kvp_file_init(void)
