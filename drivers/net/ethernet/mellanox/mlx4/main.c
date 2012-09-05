@@ -1997,7 +1997,8 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 slave_start:
-	if (mlx4_cmd_init(dev)) {
+	err = mlx4_cmd_init(dev);
+	if (err) {
 		mlx4_err(dev, "Failed to init command interface, aborting.\n");
 		goto err_sriov;
 	}
