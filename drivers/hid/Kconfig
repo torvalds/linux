@@ -690,6 +690,20 @@ config HID_ZYDACRON
 	---help---
 	Support for Zydacron remote control.
 
+config HID_SENSOR_HUB
+	tristate "HID Sensors framework support"
+	depends on USB_HID
+	select MFD_CORE
+	default n
+	-- help---
+	  Support for HID Sensor framework. This creates a MFD instance
+	  for a sensor hub and identifies all the sensors connected to it.
+	  Each sensor is registered as a MFD cell, so that sensor specific
+	  processing can be done in a separate driver. Each sensor
+	  drivers can use the service provided by this driver to register
+	  for events and handle data streams. Each sensor driver can format
+	  data and present to user mode using input or IIO interface.
+
 endmenu
 
 endif # HID
