@@ -289,6 +289,8 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 	case V4L2_DEC_CMD_PAUSE:
 		dc->flags &= V4L2_DEC_CMD_PAUSE_TO_BLACK;
 		if (try) break;
+		if (!atomic_read(&itv->decoding))
+			return -EPERM;
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
 		if (atomic_read(&itv->decoding) > 0) {
@@ -301,6 +303,8 @@ static int ivtv_video_command(struct ivtv *itv, struct ivtv_open_id *id,
 	case V4L2_DEC_CMD_RESUME:
 		dc->flags = 0;
 		if (try) break;
+		if (!atomic_read(&itv->decoding))
+			return -EPERM;
 		if (itv->output_mode != OUT_MPG)
 			return -EBUSY;
 		if (test_and_clear_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags)) {
@@ -1250,6 +1254,9 @@ static int ivtv_g_enc_index(struct file *file, void *fh, struct v4l2_enc_idx *id
 	if (entries > V4L2_ENC_IDX_ENTRIES)
 		entries = V4L2_ENC_IDX_ENTRIES;
 	idx->entries = 0;
+	idx->entries_cap = IVTV_MAX_PGM_INDEX;
+	if (!atomic_read(&itv->capturing))
+		return 0;
 	for (i = 0; i < entries; i++) {
 		*e = itv->pgm_info[(itv->pgm_info_read_idx + i) % IVTV_MAX_PGM_INDEX];
 		if ((e->flags & V4L2_ENC_IDX_FRAME_MASK) <= V4L2_ENC_IDX_FRAME_B) {
